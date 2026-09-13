@@ -30,6 +30,9 @@ from datetime import datetime
 from typing import List, Optional
 
 STANDARD = {
+    "orte_holen": 1.0,          # Q10: Ortsnamen im Netz nachschlagen (Photon), abschaltbar
+    "pois_holen": 1.0,          # Q11: Sehenswürdigkeiten am Weg suchen (OSM), abschaltbar
+    "pois_menge": 30.0,         # Q11: wie viele POIs die Spur höchstens zeigt
     "pause_ab_s": 600.0,        # Q5: Stillstand ab 10 min wird Pause
     "wanderung_ab_m": 5000.0,   # Q7: Gehen ab 5 km …
     "wanderung_ab_hm": 200.0,   # … oder ab 200 Höhenmetern ist eine Wanderung
@@ -38,7 +41,7 @@ STANDARD = {
 }
 HM_SCHWELLE_M = 3.0            # Höhenmeter zählen erst ab 3 m Änderung (GPS-Rauschen)
 
-PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt")
+PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt", "poi")
 HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause")   # Q12: Art ändern
 BEWEGT = ("gehen", "laufen", "rad", "fahrt", "uebersetzen")
 STILL = ("halt", "pause")
@@ -374,3 +377,157 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
 
     return {"eintraege": folge, "punkte": punkte, "verborgen": verborgen,
             "zusammenfassung": zsf, "hoechster": hoechster, "einstellungen": einst}
+
+
+# ── Stufe 3: Ortsnamen (Q10) und Sehenswürdigkeiten (Q11) ──────────────────
+#
+# Beides braucht Netz und läuft NACH dem Logbuch im Hintergrund (Kasten unten
+# rechts), abschaltbar. Was einmal nachgeschlagen wurde, bleibt in der Bibliothek:
+# Ortsnamen je Stelle (rund 100 m Raster), POIs je Tour. Ohne Netz wird später
+# nachgetragen — es fehlt dann ein Name, nie ein Eintrag.
+
+import json as _json
+import math as _math
+import sqlite3 as _sqlite3
+from datetime import datetime as _dt, timezone as _tz
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS logbuch_orte (
+    schluessel TEXT PRIMARY KEY,   -- "lat,lon" auf 3 Stellen (~100 m)
+    ort        TEXT DEFAULT '',
+    gemeinde   TEXT DEFAULT '',
+    land       TEXT DEFAULT '',
+    geaendert  TEXT
+);
+CREATE TABLE IF NOT EXISTS logbuch_pois (
+    tour       TEXT PRIMARY KEY,
+    daten      TEXT DEFAULT '[]',
+    geaendert  TEXT
+);
+"""
+POI_WICHTIG_RANG = 1        # Gipfel, Pässe, Burgen: immer ins Logbuch (Q11)
+POI_PAUSE_NAH_M = 300.0     # ein POI so nah an einer Pause gehört dazu
+
+
+def schema_anlegen(conn: _sqlite3.Connection) -> None:
+    conn.executescript(SCHEMA)
+    conn.commit()
+
+
+def _jetzt() -> str:
+    return _dt.now(_tz.utc).isoformat(timespec="seconds")
+
+
+def ort_schluessel(lat, lon) -> str:
+    return f"{round(float(lat), 3):.3f},{round(float(lon), 3):.3f}"
+
+
+def ort_lesen(conn, lat, lon) -> Optional[dict]:
+    r = conn.execute("SELECT ort, gemeinde, land FROM logbuch_orte WHERE schluessel = ?",
+                     (ort_schluessel(lat, lon),)).fetchone()
+    return {"ort": r[0], "gemeinde": r[1], "land": r[2]} if r else None
+
+
+def ort_merken(conn, lat, lon, ort: str, gemeinde: str = "", land: str = "") -> None:
+    conn.execute("INSERT INTO logbuch_orte(schluessel, ort, gemeinde, land, geaendert) VALUES(?,?,?,?,?) "
+                 "ON CONFLICT(schluessel) DO UPDATE SET ort=excluded.ort, gemeinde=excluded.gemeinde, "
+                 "land=excluded.land, geaendert=excluded.geaendert",
+                 (ort_schluessel(lat, lon), ort or "", gemeinde or "", land or "", _jetzt()))
+    conn.commit()
+
+
+def ort_aus_adresse(a: Optional[dict]) -> dict:
+    """Aus der normalisierten Adresse (core/geocode) das Grobe: „Ort, Gemeinde"."""
+    if not a:
+        return {"ort": "", "gemeinde": "", "land": ""}
+    ort = (a.get("city") or a.get("county") or a.get("state") or "").strip()
+    gemeinde = (a.get("county") or a.get("state") or "").strip()
+    if gemeinde == ort:
+        gemeinde = (a.get("state") or "").strip() if (a.get("state") or "").strip() != ort else ""
+    return {"ort": ort, "gemeinde": gemeinde, "land": (a.get("country") or "").strip()}
+
+
+def ort_kurz(o: Optional[dict]) -> str:
+    if not o or not o.get("ort"):
+        return ""
+    return o["ort"] + (", " + o["gemeinde"] if o.get("gemeinde") and o["gemeinde"] != o["ort"] else "")
+
+
+def orte_stellen(eintraege_: List[dict], punkte: List[dict], points) -> List[dict]:
+    """Wo ein Ortsname gebraucht wird: Pausen „hier", Bewegung „von"/„nach", Punkte „hier".
+    Punkte der Aufzeichnungs-App mit Namen brauchen keinen (Q10: App-Name zuerst)."""
+    raus: List[dict] = []
+
+    def koord(i):
+        if i is None or i < 0 or i >= len(points):
+            return None
+        p = points[i]
+        la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
+        lo = p.get("lon") if isinstance(p, dict) else getattr(p, "lon", None)
+        return (float(la), float(lo)) if la is not None and lo is not None else None
+
+    for e in eintraege_:
+        if e["art"] == "pause":
+            if e.get("name"):
+                continue
+            k = koord(e.get("von_idx"))
+            if k:
+                raus.append({"id": e["id"], "rolle": "hier", "lat": k[0], "lon": k[1]})
+        else:
+            for rolle, idx in (("von", e.get("von_idx")), ("nach", e.get("bis_idx"))):
+                k = koord(idx)
+                if k:
+                    raus.append({"id": e["id"], "rolle": rolle, "lat": k[0], "lon": k[1]})
+    for p in punkte:
+        if p.get("name") or p.get("art") == "poi":
+            continue
+        k = koord(p.get("idx")) if p.get("idx") is not None else (
+            (float(p["lat"]), float(p["lon"])) if p.get("lat") is not None else None)
+        if k:
+            raus.append({"id": p["id"], "rolle": "hier", "lat": k[0], "lon": k[1]})
+    return raus
+
+
+def _hav(lat1, lon1, lat2, lon2) -> float:
+    R = 6371000.0
+    p1, p2 = _math.radians(lat1), _math.radians(lat2)
+    d = _math.sin((p2 - p1) / 2) ** 2 + _math.cos(p1) * _math.cos(p2) * _math.sin(_math.radians(lon2 - lon1) / 2) ** 2
+    return 2 * R * _math.asin(_math.sqrt(d))
+
+
+def pois_bewerten(pois: List[dict], eintraege_: List[dict], points) -> List[dict]:
+    """Q11: Welche POIs gehören ins Logbuch — Gipfel/Pässe/Burgen immer, andere nur
+    in Pausen-Nähe. Alle anderen bleiben in der POI-Spur."""
+    pausen = []
+    for e in eintraege_:
+        if e["art"] == "pause" and e.get("von_idx") is not None:
+            p = points[e["von_idx"]]
+            la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
+            lo = p.get("lon") if isinstance(p, dict) else getattr(p, "lon", None)
+            if la is not None:
+                pausen.append((float(la), float(lo), e["id"]))
+    raus = []
+    for q in pois:
+        q = dict(q)
+        nah = next((pid for la, lo, pid in pausen if _hav(la, lo, q["lat"], q["lon"]) <= POI_PAUSE_NAH_M), None)
+        q["pause"] = nah
+        q["wichtig"] = bool(int(q.get("rang", 9)) <= POI_WICHTIG_RANG or nah)
+        raus.append(q)
+    return raus
+
+
+def pois_lesen(conn, tour: str) -> Optional[List[dict]]:
+    r = conn.execute("SELECT daten FROM logbuch_pois WHERE tour = ?", (tour,)).fetchone()
+    if not r:
+        return None
+    try:
+        return list(_json.loads(r[0] or "[]"))
+    except (TypeError, ValueError):
+        return None
+
+
+def pois_merken(conn, tour: str, pois: List[dict]) -> None:
+    conn.execute("INSERT INTO logbuch_pois(tour, daten, geaendert) VALUES(?,?,?) "
+                 "ON CONFLICT(tour) DO UPDATE SET daten=excluded.daten, geaendert=excluded.geaendert",
+                 (tour, _json.dumps(pois, ensure_ascii=False, separators=(",", ":")), _jetzt()))
+    conn.commit()

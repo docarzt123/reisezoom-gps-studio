@@ -4959,6 +4959,19 @@ Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
   Schnappschuss trägt `lb` (Stand der Einteilung, aus `logbuch_lesen.stand`) und `lbEinst`; `apply` ruft
   `_lbUndoAnwenden` → `einteilung_stand_setzen` / `logbuch_einstellungen_stand` → neu lesen.
   Für Wächter: `window.__rzGpxiLogbuchBearbeiten`.
+- **Stufe 3 (v0.9.710) — Netz im Hintergrund:** `logbuch_orte(path, budget)` — Stellen aus
+  `logbuch.orte_stellen` (Pause „hier", Bewegung „von/nach", Punkte), erst `logbuch_orte`-Tabelle
+  (Raster 3 Dezimalen ≈ 100 m), sonst Photon (`geocode.reverse`, Sprache der App), höchstens `budget`
+  Rufe je Aufruf, `offen` = Rest; Budget 0 = nur Cache (nach jeder Änderung, weil die Kennungen der
+  Einträge neu sind). `logbuch_pois(path, neu)` — `highlights.highlights_fuer_track(max_n=80)`, je Tour
+  in `logbuch_pois` gemerkt, `pois_bewerten` (Rang ≤ 1 oder ≤ 300 m an einer Pause = wichtig) → als
+  Punkte `art=poi`, `quelle=auto`, `osm_id/symbol/poi_art` in die Einteilung (nicht doppelt). Schalter
+  `orte_holen/pois_holen/pois_menge` in `logbuch.STANDARD`. Oberfläche: `_lbNetzNachladen` (Kasten
+  `logbuch-netz`, `hintergrund:true`, abbrechbar), POI-Spur `_lbPoisRender` (eigene Zeile
+  `_LB_ZEILEN.pois`), Klick/Rechtsklick → `_lbPoiUebernehmen` (Aktion `punkt`). Großes Fenster
+  `#gpxi-lb-fenster` (`_lbFensterAuf/_lbFensterRender`, Element `_lbGross`, Lage in localStorage
+  `rz_logbuch_fenster`): Tabelle sortierbar (`_lbFensterSort`), Auswahl `_lbFensterWahl`, Sammelaktionen
+  über `_lbAktion`. Für Wächter: `window.__rzGpxiLogbuchNetz`.
 - **Wächter:** `tests/test_logbuch.py` — Kern (Bauer-Tracks), Prüfsammlung (Wohnmobil, Lauf mit
   Zug, Teide), Brücke mit Testbibliothek, WebKit (wie die App) mit echter Brücke (Aufbau, Kopplung, Schalter,
   Mehrtages-Reise). `tests/test_einteilung.py` kennt die Punkt-Einträge.

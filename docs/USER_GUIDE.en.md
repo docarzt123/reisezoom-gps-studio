@@ -2367,6 +2367,10 @@ When you open a tour from the archive, the logbook appears **below the map**: a 
 
 **⚙ Settings:** from how many minutes of standstill a break starts, from how many kilometres or metres of climb walking becomes a hike, and when a short “bike” between two drives counts as a drive — *only for this tour* or *as the default for all tours*; “Reset” removes the tour's own values. This too can be undone with ⌘Z.
 
+**Place names and sights (since v0.9.710):** once the logbook stands, the app fetches **place names** in the background (box bottom right, can be cancelled) — breaks and points get “in place, municipality”, drives “from … to …”; names from your recording app come first, looked-up names are remembered and added later when there was no internet. **Sights along the way** (OpenStreetMap) lie in a **POI track** in the timeline (the “POIs” tick hides it, ⚙ sets the amount): peaks, passes, castles and anything near a break are in the logbook right away (⭐ rows), any other marker comes in with a click (⌘Z). Both can be switched off in ⚙ — the logbook itself never needs the internet.
+
+**⤢ Large window:** the whole logbook as a draggable, resizable table — columns time, type, name, place, duration, km, climb, pace, sortable by clicking the header; ticks for multi-select (shift-click for a range) with a bar *Change type · Merge · Delete*; double-click a name to rename; clicking a row selects the entry on the map; ⋯ and right-click as in the list.
+
 > The logbook exists for tours in the **archive** (it belongs to the tour, not to the file). A file from outside gets a note. Editing, place names and sights follow in the next stages — the plan is in `docs/LOGBUCH.md`.
 
 ### Undo

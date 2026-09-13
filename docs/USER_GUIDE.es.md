@@ -2424,6 +2424,10 @@ Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izq
 
 **⚙ Ajustes:** a partir de cuántos minutos parado hay pausa, a partir de cuántos kilómetros o metros de desnivel ir a pie es caminata, y cuándo una «bici» corta entre dos trayectos cuenta como trayecto: *solo para esta ruta* o *como estándar para todas*; «Restablecer» quita los valores propios de la ruta. Esto también se deshace con ⌘Z.
 
+**Nombres de lugares y puntos de interés (desde v0.9.710):** con el cuaderno listo, la app busca en segundo plano (recuadro abajo a la derecha, cancelable) los **nombres de lugares**: pausas y puntos reciben «en lugar, municipio», los trayectos «de … a …»; los nombres de tu app de grabación tienen prioridad, lo consultado se recuerda y se añade después si no había internet. Los **puntos de interés del camino** (OpenStreetMap) están en una **pista de POI** en la línea de tiempo (la casilla «POIs» la oculta, ⚙ regula la cantidad): cumbres, collados, castillos y todo lo cercano a una pausa están ya en el cuaderno (filas ⭐), cualquier otra marca entra con un clic (⌘Z). Ambos se pueden desactivar en ⚙; el cuaderno en sí nunca necesita internet.
+
+**⤢ Ventana grande:** todo el cuaderno como tabla movible y redimensionable: columnas hora, tipo, nombre, lugar, duración, km, desnivel, ritmo, ordenables con clic en la cabecera; casillas para selección múltiple (Mayús+clic para un rango) con barra *Cambiar tipo · Unir · Eliminar*; doble clic en el nombre para renombrar; clic en una fila selecciona la entrada en el mapa; ⋯ y clic derecho como en la lista.
+
 > El cuaderno existe para las rutas del **archivo** (pertenece a la ruta, no al archivo de datos). Un archivo externo recibe un aviso. Editar, nombres de lugares y puntos de interés llegan en las próximas etapas; el plan está en `docs/LOGBUCH.md`.
 
 ### Deshacer

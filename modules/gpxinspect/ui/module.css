@@ -367,15 +367,15 @@
 .gpxi-lb-knopf:hover { background: var(--bg-4); color: var(--text); border-color: var(--border-strong); }
 .gpxi-lb-koerper {
   display: grid; grid-template-columns: minmax(0, 1fr) 330px;
-  height: 176px;
+  height: 200px;
 }
 .gpxi-lb-koerper[hidden] { display: none; }
 /* Zeitstrahl */
 .gpxi-lb-strahl { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-width: 0; padding: 6px 10px 4px 10px; overflow: hidden; }
 .gpxi-lb-svgbox { position: relative; min-width: 0; cursor: crosshair; }
-.gpxi-lb-svg { display: block; width: 100%; height: 132px; user-select: none; }
+.gpxi-lb-svg { display: block; width: 100%; height: 156px; user-select: none; }
 .gpxi-lb-spuren {
-  position: relative; height: 132px; pointer-events: none;
+  position: relative; height: 156px; pointer-events: none;
   font-size: 9.5px; text-transform: uppercase; letter-spacing: .5px;
   color: var(--text-muted); opacity: .85;
 }
@@ -383,6 +383,7 @@
 .gpxi-lb-spuren span:nth-child(1) { top: 3px; }
 .gpxi-lb-spuren span:nth-child(2) { top: 48px; }
 .gpxi-lb-spuren span:nth-child(3) { top: 94px; }
+.gpxi-lb-spuren span:nth-child(4) { top: 116px; }
 .gpxi-lb-profil { pointer-events: none; }
 .gpxi-lb-spurbg { fill: rgba(255,255,255,.035); }
 .gpxi-lb-profil { fill: rgba(0,0,0,.22); stroke: rgba(255,255,255,.75); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
@@ -408,7 +409,7 @@
 .gpxi-lb-achse-txt { font-size: 10px; fill: var(--text-muted); }
 .gpxi-lb-achse-txt.ist-tag { fill: var(--text-dim); font-weight: 600; }
 .gpxi-lb-cursor {
-  position: absolute; top: 0; height: 132px; width: 0; border-left: 1.5px solid #fff;
+  position: absolute; top: 0; height: 156px; width: 0; border-left: 1.5px solid #fff;
   pointer-events: none; z-index: 4; opacity: .9; box-shadow: 0 0 4px rgba(0,0,0,.6);
 }
 .gpxi-lb-cursor span {
@@ -511,3 +512,49 @@
 .gpxi-lb-einst-zeile small { color: var(--text-muted); }
 .gpxi-lb-einst-wahl { display: flex; flex-direction: column; gap: 5px; margin: 12px 0 8px; font-size: 13px; }
 .gpxi-lb-einst-wahl label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+
+/* ── Logbuch Stufe 3 — POI-Spur, großes Fenster (13.09.2026) ─────────────── */
+.gpxi-lb-poi { cursor: pointer; }
+.gpxi-lb-poi circle { fill: #1d222c; stroke: #c084fc; stroke-width: 1.2; }
+.gpxi-lb-poi.ist-wichtig circle { stroke: #f59e0b; }
+.gpxi-lb-poi.ist-drin circle { fill: #f59e0b; stroke: #fff; }
+.gpxi-lb-poi:hover circle { stroke-width: 2.4; }
+.gpxi-lb-poi-sym { font-size: 9px; pointer-events: none; }
+.gpxi-lb-poi-txt { font-size: 10px; fill: var(--text-dim); pointer-events: none; }
+.gpxi-lb-einst-netz { margin-top: 10px; }
+.gpxi-lb-fenster {
+  position: fixed; left: 8vw; top: 10vh; width: 84vw; height: 76vh; min-width: 560px; min-height: 260px;
+  z-index: 900; display: flex; flex-direction: column; resize: both; overflow: hidden;
+  background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+}
+.gpxi-lb-fenster[hidden] { display: none; }
+.gpxi-lb-fenster-kopf { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: move; user-select: none; background: var(--bg-3); }
+.gpxi-lb-fenster-titel { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46%; flex: 0 1 auto; }
+.gpxi-lb-fenster-summe { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.gpxi-lb-fenster-leiste { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-dim); background: var(--accent-soft); }
+.gpxi-lb-fenster-leiste[hidden] { display: none; }
+.gpxi-lb-fenster-body {
+  --text: #1b2130; --text-dim: #3f4756; --text-muted: #6c7484; --border: #b8bfcb; --bg-3: #e9ecf1; --bg-4: #dde1e8;
+  flex: 1 1 auto; overflow: auto; background: #fff; color: var(--text); color-scheme: light;
+}
+.gpxi-lb-tabelle { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.gpxi-lb-tabelle th { position: sticky; top: 0; z-index: 1; background: #d5dae2; color: #3f4756; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; text-align: left; padding: 7px 10px; border-bottom: 1px solid #8d95a3; cursor: pointer; white-space: nowrap; user-select: none; }
+.gpxi-lb-tabelle th.ist-sort { color: #1b2130; }
+.gpxi-lb-tabelle td { padding: 6px 10px; border-bottom: 1px solid #c9cfd9; vertical-align: top; }
+.gpxi-lb-tabelle tbody tr:nth-child(even) td { background: #eef0f4; }
+.gpxi-lb-tabelle tbody tr { cursor: pointer; border-left: 4px solid var(--c, transparent); }
+.gpxi-lb-tabelle tbody tr:hover td { background: #e0e5ec; }
+.gpxi-lb-tabelle tbody tr.ist-gewaehlt td { background: color-mix(in srgb, var(--c, #ff6b35) 22%, #fff); }
+.gpxi-lb-tabelle tbody tr.ist-aktiv td { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, #ff6b35) 70%, transparent); }
+.gpxi-lb-tabelle tbody tr.ist-punkt td { color: var(--text-dim); }
+.gpxi-lbt-w { width: 26px; }
+.gpxi-lbt-zeit { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gpxi-lbt-zeit small { color: var(--text-muted); margin-left: 4px; }
+.gpxi-lbt-art { white-space: nowrap; font-weight: 600; }
+.gpxi-lbt-name { min-width: 160px; }
+.gpxi-lbt-ort { color: var(--text-dim); }
+.gpxi-lbt-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gpxi-lbt-edit { width: 100%; padding: 3px 6px; font: inherit; border: 1px solid #98a1b0; border-radius: 5px; background: #fff; color: #1b2130; }
+.gpxi-lb-tabelle .gpxi-lb-mehr { opacity: .55; }
+.gpxi-lb-tabelle tr:hover .gpxi-lb-mehr { opacity: 1; }

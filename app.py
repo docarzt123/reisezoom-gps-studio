@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.709"
+APP_VERSION = "0.9.710"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -10053,6 +10053,137 @@ class Api:
             return {"ok": True}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
+
+    def _logbuch_folge(self, path: str):
+        """Tour, Punkte, Einteilung und die lesbare Folge — ohne Netz, ohne Neuberechnung."""
+        from core import einteilung as ceint, logbuch as clb
+        tour, t = self._einteilung_tour(path)
+        if not tour:
+            return None
+        pts = self._logbuch_punkte(path)
+        conn = self._lib()
+        with clib._DB_LOCK:
+            bew = ceint.eine(conn, ceint.einteilung_id(tour, "bewegung"))
+            tage_e = ceint.eine(conn, ceint.einteilung_id(tour, "tage"))
+        if not bew:
+            return None
+        tage = [b for b in (tage_e or {}).get("bereiche", []) if b.get("art") == "tag"]
+        einst = self._logbuch_einstellungen(tour)["wirksam"]
+        lb = clb.eintraege(bew["bereiche"], pts, aktivitaet=(t or {}).get("activity") or "", tage=tage,
+                           einstellungen=einst)
+        return {"tour": tour, "t": t, "pts": pts, "bew": bew, "lb": lb, "einst": einst}
+
+    def logbuch_orte(self, path: str, budget: int = 25) -> dict:
+        """Q10 — Ortsnamen für Pausen (hier), Bewegung (von/nach) und Punkte: erst aus dem
+        Cache der Bibliothek, sonst Photon (kostenlos), höchstens `budget` Rufe je Aufruf;
+        `offen` sagt, wie viele noch fehlen — die Oberfläche ruft dann noch einmal.
+        Ohne Netz bleibt der Name leer und wird später nachgetragen."""
+        from core import geocode as cgeocode, logbuch as clb
+        try:
+            f = self._logbuch_folge(path)
+            if not f:
+                return {"ok": False, "grund": "nicht_im_archiv", "orte": {}}
+            stellen = clb.orte_stellen(f["lb"]["eintraege"], f["lb"]["punkte"], f["pts"])
+            conn = self._lib()
+            orte: dict = {}
+            offen = 0
+            netz = True
+            rufe = 0
+            for st in stellen:
+                with clib._DB_LOCK:
+                    o = clb.ort_lesen(conn, st["lat"], st["lon"])
+                if o is None:
+                    if rufe >= int(budget or 0) or not netz:
+                        offen += 1
+                        continue
+                    rufe += 1
+                    try:
+                        adr = cgeocode.reverse(st["lat"], st["lon"], provider="photon", lang=_ui_sprache())
+                    except Exception:  # noqa: BLE001
+                        adr = None
+                    if adr is None and cgeocode.letzter_fehler().get("text"):
+                        netz = False
+                        offen += 1
+                        continue
+                    o = clb.ort_aus_adresse(adr)
+                    with clib._DB_LOCK:
+                        clb.ort_merken(conn, st["lat"], st["lon"], o["ort"], o["gemeinde"], o["land"])
+                kurz = clb.ort_kurz(o)
+                if kurz:
+                    orte.setdefault(st["id"], {})[st["rolle"]] = kurz
+            return {"ok": True, "orte": orte, "offen": offen, "netz": netz, "rufe": rufe}
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_orte")
+            return {"ok": False, "error": str(e), "orte": {}}
+
+    def logbuch_pois(self, path: str, neu: bool = False) -> dict:
+        """Q11 — Sehenswürdigkeiten am Weg (OSM über core/highlights), je Tour in der
+        Bibliothek gemerkt. Wichtige (Gipfel, Pässe, Burgen) und solche in Pausen-Nähe
+        landen als Punkte im Logbuch; alle stehen in der POI-Spur."""
+        from core import einteilung as ceint, highlights as chl, logbuch as clb
+        try:
+            f = self._logbuch_folge(path)
+            if not f:
+                return {"ok": False, "grund": "nicht_im_archiv", "pois": []}
+            conn = self._lib()
+            with clib._DB_LOCK:
+                pois = None if neu else clb.pois_lesen(conn, f["tour"])
+            netz = True
+            if pois is None:
+                pts = [p if isinstance(p, dict) else {"lat": p.lat, "lon": p.lon, "ele": getattr(p, "ele", None), "time": getattr(p, "time", None)} for p in f["pts"]]
+                r = chl.highlights_fuer_track(pts, max_n=80)
+                netz = bool(r.get("netz"))
+                if not netz:
+                    return {"ok": True, "netz": False, "pois": [], "im_logbuch": 0}
+                pois = []
+                for q in r["gewaehlt"]:
+                    if q.get("art") in chl.TRACK_ARTEN:
+                        continue
+                    idx = int(q.get("idx") or 0)
+                    tt = clb._epoch(pts[idx].get("time")) if 0 <= idx < len(pts) else None
+                    pois.append({"id": f"osm{q.get('osm_id') or idx}", "osm_id": q.get("osm_id"), "name": q.get("name") or "",
+                                 "art": q.get("art") or "", "symbol": q.get("symbol") or "📍", "rang": int(q.get("rang") or 9),
+                                 "lat": float(q["lat"]), "lon": float(q["lon"]), "ele": q.get("ele"), "idx": idx, "t": tt})
+                with clib._DB_LOCK:
+                    clb.pois_merken(conn, f["tour"], pois)
+            pois = clb.pois_bewerten(pois, f["lb"]["eintraege"], f["pts"])
+            # Wichtige ins Logbuch — als Punkte mit Quelle auto (nicht doppelt)
+            vorhanden = {str(b.get("osm_id")) for b in f["bew"]["bereiche"] if b.get("art") == "poi"}
+            neu_drin = 0
+            with clib._DB_LOCK:
+                for q in pois:
+                    q["im_logbuch"] = str(q.get("osm_id")) in vorhanden
+                    if q["wichtig"] and not q["im_logbuch"] and q.get("t") is not None:
+                        ceint.punkt_setzen(conn, f["bew"]["id"], float(q["t"]), "poi", q["name"], q["lat"], q["lon"], q.get("ele"),
+                                           quelle="auto", osm_id=q.get("osm_id"), symbol=q.get("symbol"), poi_art=q.get("art"))
+                        q["im_logbuch"] = True
+                        neu_drin += 1
+            return {"ok": True, "netz": netz, "pois": pois, "im_logbuch": neu_drin}
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_pois")
+            return {"ok": False, "error": str(e), "pois": []}
+
+    def logbuch_kurz(self, path: str) -> dict:
+        """Q20 — Kurzfassung fürs Archiv-Detail („5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster
+        Punkt 1.240 m"), ohne Punkte zu lesen: nur aus der gespeicherten Einteilung. Gibt es noch
+        keine, kommt `vorhanden: False` — das Archiv rechnet nichts, das macht der Inspektor."""
+        from core import einteilung as ceint, logbuch as clb
+        try:
+            tour, t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": True, "vorhanden": False}
+            conn = self._lib()
+            with clib._DB_LOCK:
+                bew = ceint.eine(conn, ceint.einteilung_id(tour, "bewegung"))
+            if not bew or not bew.get("bereiche"):
+                return {"ok": True, "vorhanden": False}
+            lb = clb.eintraege(bew["bereiche"], None, aktivitaet=(t or {}).get("activity") or "",
+                               einstellungen=self._logbuch_einstellungen(tour)["wirksam"])
+            tage = len({b.get("tag") for b in bew["bereiche"] if b.get("art") == "start"}) or 1
+            return {"ok": True, "vorhanden": True, "zusammenfassung": lb["zusammenfassung"],
+                    "hoechster": lb["hoechster"], "tage": tage, "n": len(lb["eintraege"])}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e), "vorhanden": False}
 
     def logbuch_lesen(self, path: str, neu: bool = False) -> dict:
         """Das Logbuch der Tour zu dieser Datei: die lesbare Folge (core/logbuch)

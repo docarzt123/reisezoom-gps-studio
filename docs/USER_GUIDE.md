@@ -2593,6 +2593,10 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 
 **⚙ Einstellungen:** ab wie vielen Minuten Stillstand eine Pause ist, ab wie vielen Kilometern oder Höhenmetern Gehen eine Wanderung ist, und wann kurzes „Rad" zwischen zwei Fahrten als Fahrt gilt — *nur für diese Tour* oder *als Standard für alle Touren*; „Zurücksetzen" nimmt die Tour-Werte weg. Auch das geht mit ⌘Z zurück.
 
+**Ortsnamen und Sehenswürdigkeiten (seit v0.9.710):** Steht das Logbuch, holt die App im Hintergrund (Kasten unten rechts, abbrechbar) **Ortsnamen** — Pausen und Punkte bekommen „in Ort, Gemeinde“, Fahrten „von … nach …“; Namen aus deiner Aufzeichnungs-App gehen vor, Nachgeschlagenes bleibt gemerkt und wird ohne Internet später nachgetragen. **Sehenswürdigkeiten am Weg** (OpenStreetMap) liegen als **POI-Spur** im Zeitstrahl (Häkchen „POIs“ blendet sie aus, ⚙ regelt die Menge): Gipfel, Pässe, Burgen und alles nahe einer Pause stehen gleich im Logbuch (⭐-Zeilen), jede andere Marke kommt per Klick hinein (⌘Z). Beides lässt sich in ⚙ abschalten — das Logbuch selbst braucht nie Internet.
+
+**⤢ Großes Fenster:** das ganze Logbuch als verschiebbare, in der Größe veränderbare Tabelle — Spalten Zeit, Art, Name, Ort, Dauer, km, Höhenmeter, Tempo, sortierbar per Klick auf den Kopf; Häkchen für Mehrfachauswahl (Umschalt-Klick für einen Bereich) mit Sammelleiste *Art ändern · Zusammenlegen · Löschen*; Doppelklick auf den Namen benennt um; Klick auf eine Zeile wählt den Eintrag auf der Karte; ⋯ und Rechtsklick wie in der Liste.
+
 > Das Logbuch gibt es für Touren im **Archiv** (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis. Bearbeiten, Ortsnamen und Sehenswürdigkeiten kommen in den nächsten Stufen — der Plan steht in `docs/LOGBUCH.md`.
 
 ### Rückgängig
