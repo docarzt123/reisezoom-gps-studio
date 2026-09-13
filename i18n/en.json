@@ -3523,5 +3523,6 @@
   "fotos.fern_rest": "Folders on {l} are read as usual.",
   "trackcheck.k_gaps_klein": "{n} small gap ({m} m)|{n} small gaps (largest {m} m)",
   "trackcheck.rep_gaps_klein": "Repair: the small gap is filled — like a large one, just without an alarm: less than a minute of missing movement.",
-  "trackcheck.still_hinweis": "A quirk of the recording — cleaned up along with any repair"
+  "trackcheck.still_hinweis": "A quirk of the recording — cleaned up along with any repair",
+  "signs.images_missing_n": "⚠ {n} images no longer found"
 }

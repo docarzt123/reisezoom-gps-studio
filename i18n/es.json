@@ -3523,5 +3523,6 @@
   "fotos.fern_rest": "Las carpetas en {l} se leen con normalidad.",
   "trackcheck.k_gaps_klein": "{n} hueco pequeño ({m} m)|{n} huecos pequeños (el mayor {m} m)",
   "trackcheck.rep_gaps_klein": "Reparación: el hueco pequeño se rellena, como uno grande pero sin alarma: menos de un minuto de movimiento ausente.",
-  "trackcheck.still_hinweis": "Particularidad de la grabación: se limpia junto con cualquier reparación"
+  "trackcheck.still_hinweis": "Particularidad de la grabación: se limpia junto con cualquier reparación",
+  "signs.images_missing_n": "⚠ {n} imágenes ya no se encuentran"
 }

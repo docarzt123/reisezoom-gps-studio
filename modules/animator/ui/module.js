@@ -10189,17 +10189,34 @@ function mountAnimator(body, headerActions, opts) {
         else { regen(); }
       });
     }
-    function _animSignsDetach() {
+    // Was das gerasterte Schild-Bild bestimmt — ohne Ort, Zeitanker und Sichtbarkeit.
+    const _animSignImgSig = new Map();
+    let _animSignsAltIds = [];
+    const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
+                               "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc"]);
+    function _animSignBildSignatur(sn) {
+      const teile = [];
+      Object.keys(sn).sort().forEach(k => { if (!_SIG_OHNE.has(k)) teile.push(k + "=" + JSON.stringify(sn[k])); });
+      const im = sn._imgEl;
+      const bild = im && im.src ? (im.src.length + ":" + im.src.slice(-24)) : (sn.imageSrc ? "ohne-bild" : "");
+      return teile.join("|") + "|bild=" + bild;
+    }
+    function _animSignsDetach(bilderBehalten) {
       // DOM-Marker entfernen …
       (_animSignMarkers || []).forEach(m => { try { if (m && m.marker) m.marker.remove(); } catch (_) {} });
       _animSignMarkers = [];
-      // … und GPU-Layer + Icon-Bilder.
+      // … und GPU-Layer + Icon-Bilder. Beim Neuzeichnen bleiben die Bilder liegen
+      // (13.09.2026): Sie werden über ihre Signatur wiederverwendet, statt bei
+      // tausenden Foto-Schildern jedes Mal neu gerastert zu werden.
       if (map) {
         try { if (map.getLayer(_ANIM_SIGNS_LYR)) map.removeLayer(_ANIM_SIGNS_LYR); } catch (_) {}
         try { if (map.getSource(_ANIM_SIGNS_SRC)) map.removeSource(_ANIM_SIGNS_SRC); } catch (_) {}
-        (_animSignImgIds || []).forEach(id => { try { if (map.hasImage(id)) map.removeImage(id); } catch (_) {} });
+        if (!bilderBehalten) {
+          (_animSignImgIds || []).forEach(id => { try { if (map.hasImage(id)) map.removeImage(id); } catch (_) {} });
+          _animSignImgSig.clear();
+        }
       }
-      _animSignImgIds = [];
+      if (!bilderBehalten) _animSignImgIds = [];
     }
     function _animSignsAttachToMap() {
       if (!map) return;
@@ -10212,7 +10229,12 @@ function mountAnimator(body, headerActions, opts) {
         try { map.once("idle", _animSignsAttachToMap); } catch (_) {}
         return;
       }
-      _animSignsDetach();
+      // Bilder liegen lassen und merken, welche es gab — was danach nicht mehr
+      // gebraucht wird (gelöschte Schilder), räumt der GPU-Weg am Ende weg.
+      const _vorherIds = (_animSignImgIds || []).slice();
+      _animSignsDetach(true);
+      _animSignImgIds = [];
+      _animSignsAltIds = _vorherIds;
       _animSignMetas = [];
       if (!_animSignsShow()) return;
       const allSigns = _animSignsList();
@@ -10235,19 +10257,29 @@ function mountAnimator(body, headerActions, opts) {
       const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
       if (!list.length) return;
       // Existenz der Original-Bilddatei prüfen (einmal pro Schild) für die Liste-Warnung.
-      list.filter(s => s.imageSrc && !s._imgChecked).forEach(s => {
-        s._imgChecked = true;
+      const zuPruefen = list.filter(s => s.imageSrc && !s._imgChecked);
+      if (zuPruefen.length) {
+        zuPruefen.forEach(s => { s._imgChecked = true; });
         try {
-          api().sign_image_exists(s.imageSrc).then(r => {
-            const missing = !(r && r.exists);
-            if (missing !== !!s._imgMissing) {
-              s._imgMissing = missing;
-              _animSignsRenderList();
-              if (missing) toast(t("signs.image_missing", "⚠ Bild nicht mehr gefunden") + ": " + (s.imageSrc.split("/").pop()), "error");
+          api().sign_images_exist(zuPruefen.map(s => s.imageSrc)).then(r => {
+            const da = (r && r.exists) || {};
+            const fehlen = [];
+            let geaendert = false;
+            zuPruefen.forEach(s => {
+              const missing = !da[s.imageSrc];
+              if (missing !== !!s._imgMissing) { s._imgMissing = missing; geaendert = true; }
+              if (missing) fehlen.push(s);
+            });
+            if (geaendert) _animSignsListeBald();
+            // Eine Meldung statt einer je Schild (vorher bis zu 2830 Toasts).
+            if (fehlen.length === 1) {
+              toast(t("signs.image_missing", "⚠ Bild nicht mehr gefunden") + ": " + (fehlen[0].imageSrc.split("/").pop()), "error");
+            } else if (fehlen.length > 1) {
+              toast(t("signs.images_missing_n", "⚠ {n} Bilder nicht mehr gefunden").replace("{n}", fehlen.length), "error", 5000);
             }
           }).catch(() => {});
         } catch (_) {}
-      });
+      }
       // v0.9.256 — HYBRID-Dispatch: Editor offen → DOM-Marker (flackerfrei), sonst →
       // GPU-Symbol-Layer (flüssig, kein Schwimmen).
       if (_animSignEditMode) _animSignsAttachDOM(allSigns, list);
@@ -10264,7 +10296,7 @@ function mountAnimator(body, headerActions, opts) {
         const sn = _animSignNormalize(s);
         let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
         if (s.imageSrc && !imageUrl) {
-          try { _animSignEnsureImage(s).then(() => { try { _animSignsUpdateInPlace(); _animSignsRenderList(); } catch (_) {} }); } catch (_) {}
+          try { _animSignEnsureImage(s).then(() => { try { _animSignsUpdateInPlace(); _animSignsListeBald(); } catch (_) {} }); } catch (_) {}
         }
         let wrap;
         try { wrap = window.__rzSignDomBuild(); window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) { return; }
@@ -10331,13 +10363,25 @@ function mountAnimator(body, headerActions, opts) {
         // bereits fertigen. `map.getContainer`-Check schützt vor totem Modul.
         const _total = needImg.length;
         let _settled = 0;
-        needImg.forEach(s => _animSignEnsureImage(s).then(() => {
-          _settled++;
-          if (map && map.getContainer && !_animSignEditMode &&
-              (_settled % 20 === 0 || _settled === _total)) {
-            _animSignsAttachToMap(); _animSignsRenderList();
+        // 13.09.2026 — nie mehr als ~8 Bilder gleichzeitig laden, und neu gezeichnet
+        // wird gebündelt (höchstens alle 0,4 s), nicht mehr alle 20 Bilder komplett.
+        let _laeuft = 0;
+        const _warte = needImg.slice();
+        const _naechstes = () => {
+          while (_laeuft < 8 && _warte.length) {
+            const s = _warte.shift();
+            _laeuft++;
+            _animSignEnsureImage(s).then(() => {
+              _laeuft--; _settled++;
+              if (map && map.getContainer && !_animSignEditMode) {
+                _animSignsKarteBald();
+                if (_settled === _total) _animSignsListeBald();
+              }
+              _naechstes();
+            });
           }
-        }));
+        };
+        _naechstes();
       }
       const dur = _animSignsDuration();
       const features = [];
@@ -10348,10 +10392,17 @@ function mountAnimator(body, headerActions, opts) {
         if (_animSignHasImg(s)) _animSetImgEl(sn, s._imgEl);
         const id = "sign-img-" + fi;
         try {
-          const img = _animSignDrawImageData(sn);
-          if (!img) return;
-          if (map.hasImage(id)) map.removeImage(id);
-          map.addImage(id, img.data, { pixelRatio: img.dpr });
+          // 13.09.2026 — nur neu malen, was sich am BILD geändert hat. Vorher wurde bei
+          // jedem Neuzeichnen jedes Schild neu gerastert (getImageData) und neu an die
+          // Karte gegeben: bei 2830 Foto-Schildern der Rest des Hängers (Profil).
+          const sig = _animSignBildSignatur(sn);
+          if (!(map.hasImage(id) && _animSignImgSig.get(id) === sig)) {
+            const img = _animSignDrawImageData(sn);
+            if (!img) return;
+            if (map.hasImage(id)) map.removeImage(id);
+            map.addImage(id, img.data, { pixelRatio: img.dpr });
+            _animSignImgSig.set(id, sig);
+          }
           _animSignImgIds.push(id);
         } catch (_) { return; }
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
@@ -10359,6 +10410,14 @@ function mountAnimator(body, headerActions, opts) {
         _animSignMetas[fi] = meta;
         features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn), popScale: 1 }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
       });
+      // Bilder, die nach diesem Aufbau niemand mehr braucht (gelöschte Schilder).
+      if (_animSignsAltIds && _animSignsAltIds.length) {
+        const jetzt = new Set(_animSignImgIds);
+        _animSignsAltIds.forEach(id => {
+          if (!jetzt.has(id)) { try { if (map.hasImage(id)) map.removeImage(id); } catch (_) {} _animSignImgSig.delete(id); }
+        });
+        _animSignsAltIds = [];
+      }
       try {
         // v0.9.479 — FeatureCollection auf der Karte cachen, damit rzSignApplyFrame den
         // popScale (Aufpoppen) per setData reinschieben kann. popScale-Multiplikator steht
@@ -10509,6 +10568,22 @@ function mountAnimator(body, headerActions, opts) {
       _animSignsApplyMarkerAnchor(a);
     }
     let _animSignDragFrom = -1;   // v0.9.198 — Drag-Reorder Quell-Index
+    // 13.09.2026 — Neu bauen GEBÜNDELT. Vorher baute jedes geladene Bild und jede
+    // Existenz-Antwort die komplette Liste (und alle 20 Bilder die Karte) neu:
+    // bei 2830 Foto-Schildern quadratisch viel Arbeit, die Oberfläche fror ein
+    // (Beta-Tester; nachgestellt in WebKit, tests/probe_schilder_webkit.py).
+    let _animListeTimer = 0, _animKarteTimer = 0, _animListeLauf = 0;
+    function _animSignsListeBald() {
+      if (_animListeTimer) return;
+      _animListeTimer = setTimeout(() => { _animListeTimer = 0; try { _animSignsRenderList(); } catch (_) {} }, 150);
+    }
+    function _animSignsKarteBald() {
+      if (_animKarteTimer) return;
+      _animKarteTimer = setTimeout(() => {
+        _animKarteTimer = 0;
+        try { if (map && map.getContainer) _animSignsAttachToMap(); } catch (_) {}
+      }, 400);
+    }
     // 11.09.2026 — Undo-Rückweg (der Controller steht weiter oben, außerhalb dieses Blocks).
     window._animSignsNachUndo = (l) => { _animSignsSave(l); _animSignsAttachToMap(); _animSignsRenderList(); };
     function _animSignsRenderList() {
@@ -10516,7 +10591,10 @@ function mountAnimator(body, headerActions, opts) {
       if (!host) return;
       host.innerHTML = "";
       const list = _animSignsList();
-      list.forEach((s, i) => {
+      // 13.09.2026 — in Häppchen je Bildschirmbild: 2830 Zeilen am Stück hielten
+      // die Oberfläche fest. Eine neuere Liste bricht einen laufenden Aufbau ab.
+      const lauf = ++_animListeLauf;
+      const baueZeile = (s, i) => {
         const off = (s.visible === false);
         const row = el("div", { class: "sign-row" + (off ? " sign-row-off" : ""), draggable: "true", "data-idx": String(i) });
         // ⠿ Drag-Handle
@@ -10569,8 +10647,18 @@ function mountAnimator(body, headerActions, opts) {
         row.addEventListener("dragover", (ev) => { ev.preventDefault(); try { ev.dataTransfer.dropEffect = "move"; } catch (_) {} row.classList.add("drag-over"); });
         row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
         row.addEventListener("drop", (ev) => { ev.preventDefault(); row.classList.remove("drag-over"); _animSignsReorder(_animSignDragFrom, i); });
-        host.appendChild(row);
-      });
+        return row;
+      };
+      const HAPPEN = 150;
+      const anhaengen = (ab) => {
+        if (lauf !== _animListeLauf || !host.isConnected) return;
+        const frag = document.createDocumentFragment();
+        const bis = Math.min(list.length, ab + HAPPEN);
+        for (let k = ab; k < bis; k++) frag.appendChild(baueZeile(list[k], k));
+        host.appendChild(frag);
+        if (bis < list.length) requestAnimationFrame(() => anhaengen(bis));
+      };
+      anhaengen(0);
       const cnt = document.getElementById("anim-signs-count");
       if (cnt) cnt.textContent = list.length
         ? (list.length === 1 ? t("signs.count_one", "1 Eintrag") : t("signs.count_other", "%d Einträge").replace("%d", list.length))
