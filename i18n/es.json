@@ -3865,5 +3865,7 @@
   "logbuch.poiart.leuchtturm": "Faro",
   "logbuch.poiart.turm": "Torre",
   "logbuch.poiart.see": "Lago",
-  "logbuch.poiart.ort": "Localidad"
+  "logbuch.poiart.ort": "Localidad",
+  "cloud.andere_bibliothek": "La nube pertenece a la biblioteca «{b}». Esta biblioteca no se sube: sobrescribiría la copia en la nube de la otra.",
+  "cloud.bibliothek_unklar": "Hay varias bibliotecas y la nube no sabe a cuál pertenece. Abre la biblioteca que debe ir a la nube en la ubicación predeterminada, o vuelve a configurar la nube allí."
 }

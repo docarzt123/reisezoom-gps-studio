@@ -3704,6 +3704,12 @@ class Api:
             if not r.get("ok"):
                 self._bib_oeffnen()          # zurück an den alten Ort
                 return r
+            try:   # 14.09.2026 — die Cloud-Bindung zieht mit um
+                _m = self._cloud_marker()
+                if _m.get("bibliothek") and BIB and _m["bibliothek"] == str(Path(BIB).expanduser().resolve()):
+                    self._cloud_marker_schreiben(str(_m.get("adresse") or ""), str(Path(ziel).expanduser().resolve()))
+            except Exception:
+                pass
             cbib.ort_schreiben(APP_SUPPORT, ziel)
             BIB_ORT = ziel
             self._bib_oeffnen()
@@ -8137,13 +8143,49 @@ class Api:
         except Exception:
             return {}
 
-    def _cloud_marker_schreiben(self, adresse: str) -> None:
+    def _cloud_marker_schreiben(self, adresse: str, bibliothek: str | None = None) -> None:
         try:
             CLOUD_MARKER.parent.mkdir(parents=True, exist_ok=True)
+            d = {"eingerichtet": True, "adresse": adresse}
+            bib = bibliothek or (str(Path(BIB).expanduser().resolve()) if BIB_BEREIT and BIB else "")
+            if bib:
+                d["bibliothek"] = bib
             with open(CLOUD_MARKER, "w", encoding="utf-8") as f:
-                json.dump({"eingerichtet": True, "adresse": adresse}, f)
+                json.dump(d, f)
         except Exception:
             log.exception("Cloud-Marker nicht schreibbar")
+
+    def _cloud_bibliothek_passt(self) -> tuple[bool, str]:
+        """14.09.2026 (Nachttest): Alle Bibliotheken teilen sich EIN Cloud-Archiv
+        (`ARCHIV_KENNUNG`). Eine Testbibliothek lud deshalb ihre Nutzerdaten, ihre
+        Touren-Liste und ihr Inhaltsverzeichnis über die der Arbeitsbibliothek.
+        Die Cloud gehört jetzt zu genau einer Bibliothek (im Marker vermerkt).
+        Alte Marker ohne Vermerk übernehmen die aktive Bibliothek nur, wenn sie am
+        Standardort liegt oder die einzige bekannte ist — sonst lieber nichts tun."""
+        m = self._cloud_marker()
+        if not m.get("eingerichtet") or not BIB_BEREIT or not BIB:
+            return True, ""
+        jetzt = str(Path(BIB).expanduser().resolve())
+        gebunden = str(m.get("bibliothek") or "")
+        if gebunden:
+            if gebunden == jetzt:
+                return True, ""
+            return False, _ui_t()("cloud.andere_bibliothek",
+                                  "Die Cloud gehört zur Bibliothek „{b}“. Diese Bibliothek wird nicht hochgeladen — "
+                                  "sonst würde sie die Cloud-Kopie der anderen überschreiben.").replace(
+                "{b}", Path(gebunden).name)
+        try:
+            einzige = len([o for o in cbib.bekannte_orte(APP_SUPPORT, BIB) if o.get("da")]) <= 1
+        except Exception:
+            einzige = False
+        standard = jetzt == str(cbib.standard_ort(APP_SUPPORT).expanduser().resolve())
+        if standard or einzige:
+            self._cloud_marker_schreiben(str(m.get("adresse") or ""), jetzt)
+            log.info("Cloud: an die Bibliothek %s gebunden", jetzt)
+            return True, ""
+        return False, _ui_t()("cloud.bibliothek_unklar",
+                              "Es gibt mehrere Bibliotheken und die Cloud weiß nicht, zu welcher sie gehört. "
+                              "Öffne die Bibliothek, die in die Cloud soll, am Standardort — oder richte die Cloud dort neu ein.")
 
     def _cloud_marker_weg(self) -> None:
         try:
@@ -8403,6 +8445,10 @@ class Api:
         if not BIB_BEREIT:
             return {"ok": False, "error": _ui_t()(
                 "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
+        passt, grund = self._cloud_bibliothek_passt()
+        if not passt:
+            log.warning("Cloud-Abgleich übersprungen: andere Bibliothek offen (%s)", BIB)
+            return {"ok": False, "error": grund, "andere_bibliothek": True}
         try:
             vorhanden = self._cloud_zugang()
         except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
@@ -8489,6 +8535,9 @@ class Api:
         if not BIB_BEREIT:
             return {"ok": False, "error": _ui_t()(
                 "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
+        passt, grund = self._cloud_bibliothek_passt()
+        if not passt:
+            return {"ok": False, "error": grund, "andere_bibliothek": True}
         self._cloud_neuversuch()
         try:
             vorhanden = self._cloud_zugang()
@@ -8525,6 +8574,9 @@ class Api:
         if not BIB_BEREIT:
             return {"ok": False, "error": _ui_t()(
                 "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
+        passt, grund = self._cloud_bibliothek_passt()
+        if not passt:
+            return {"ok": False, "error": grund, "andere_bibliothek": True}
         self._cloud_neuversuch()
         try:
             vorhanden = self._cloud_zugang()
@@ -9277,6 +9329,11 @@ class Api:
                 if not self._cloud_marker().get("eingerichtet"):
                     dreckig = False            # keine Cloud → nichts zu tun
                     self._cloud_auto_zustand = {"status": "aus"}
+                    continue
+                passt, grund = self._cloud_bibliothek_passt()
+                if not passt:                  # 14.09.2026 — andere Bibliothek offen
+                    dreckig = False
+                    self._cloud_auto_zustand = {"status": "rueckstau", "grund": grund[:200]}
                     continue
                 try:
                     if not self._cloud_zugang():

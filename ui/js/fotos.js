@@ -109,7 +109,7 @@
 
       <div class="lib-nav-title" style="margin-top:14px">${T("fotos.ordner_titel", "Fotoordner")}</div>
       <div id="foto-ordner-liste"></div>
-      <button class="btn btn-primary btn-sm" id="foto-ordner-add" type="button" style="margin-top:6px">
+      <button class="btn btn-primary btn-sm" id="foto-ordner-add" type="button" style="margin-top:6px;white-space:nowrap">
         📂 ${T("fotos.ordner_add", "Ordner hinzufügen …")}</button>
       <button class="btn btn-ghost btn-sm" id="foto-scan" type="button">
         ${T("fotos.scan", "Einlesen")}</button>
@@ -223,6 +223,7 @@
     scanBeobachten();
   }
 
+  let letztePhase = "", letztesNachziehen = 0;
   function scanBeobachten() {
     clearTimeout(scanTimer);
     const box = nav && nav.querySelector("#foto-scan-stand");
@@ -284,7 +285,17 @@
       if (st.running) {
         // Während des ersten Durchgangs wächst die Liste — einmal je Sekunde
         // nachziehen reicht, sonst flackert es.
-        if (st.phase === "dateien" && st.done && st.done % 1000 < 200) neuLaden(true);
+        // 14.09.2026 (Nachttest): Bei 2836 Dateien war der erste Durchgang schneller als ein
+        // Takt, das Tausender-Fenster traf nie — das Raster zeigte „0 Dateien, noch keine
+        // Fotos", während längst eingelesen wurde. Jetzt: beim Phasenwechsel und danach alle
+        // 3 s nachziehen, solange die Ansicht noch nicht mal eine Seite voll hat.
+        const jetzt = Date.now();
+        const phasenWechsel = st.phase !== letztePhase;
+        letztePhase = st.phase;
+        if (phasenWechsel || (geladen.length < SEITE && jetzt - letztesNachziehen > 3000)) {
+          letztesNachziehen = jetzt;
+          neuLaden(true);
+        }
         scanTimer = setTimeout(tick, 900);
       } else {
         stand = st.stand || stand;
