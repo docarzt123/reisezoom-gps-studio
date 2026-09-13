@@ -156,5 +156,5 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
   Übernachtung, langsame Fahrt), Punkt-Einträge in `einteilung.berechnen_bewegung`, Brücke
   `logbuch_lesen`, Oberfläche im Inspektor (`modules/gpxinspect/ui/module.js`, Abschnitt
   „Logbuch der Tour"), i18n `logbuch.*` DE/EN/ES, Wächter `tests/test_logbuch.py`. Kopflos
-  geprüft (Kern, Prüfsammlung, Brücke, Chromium mit echter Brücke). Bausteine für Stufe 2 liegen
+  geprüft (Kern, Prüfsammlung, Brücke, WebKit mit echter Brücke). Bausteine für Stufe 2 liegen
   bereit: `window.__rzGpxiLogbuch` (Zustand), `einteilung_aktion` mit `vorher` für ⌘Z.

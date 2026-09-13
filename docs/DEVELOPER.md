@@ -4937,7 +4937,7 @@ Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
 - **i18n:** `logbuch.*` (Arten `logbuch.art.<art>`, Mehrzahl `logbuch.mehrzahl.<art>`), Datum/Uhr
   über `toLocale*` mit `rzSprachCode()` und `timeZone: "UTC"` auf der um `versatz_min` verschobenen Zeit.
 - **Wächter:** `tests/test_logbuch.py` — Kern (Bauer-Tracks), Prüfsammlung (Wohnmobil, Lauf mit
-  Zug, Teide), Brücke mit Testbibliothek, Chromium mit echter Brücke (Aufbau, Kopplung, Schalter,
+  Zug, Teide), Brücke mit Testbibliothek, WebKit (wie die App) mit echter Brücke (Aufbau, Kopplung, Schalter,
   Mehrtages-Reise). `tests/test_einteilung.py` kennt die Punkt-Einträge.
 
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
