@@ -112,3 +112,49 @@ gleiche Sekunden 1. Ohne die Regeln oben: 515 gelb.
 
 **Offen:** Echt-Test in der App (Marcs Archiv „Alle prüfen", X5-10-Hz-Track, Track mit Lücke,
 abgeschnittene Datei) — nur mit Marcs Freigabe für den Rechner. Web-Übernahme.
+
+## 7. Prüfsammlung — keine Fehlalarme, egal wie ein Track aussieht (13.09.2026)
+
+**Grundsatz (Marc):** „Es muss einfach alles möglich sein und es sollte keine Fehlalarme geben,
+egal wie ein Track aussieht." Dazu: „wir müssen erkennen, was rauskommen soll." Die Regeln
+werden an echten Tracks **gefittet**, und das Soll steht fest, bevor eine Regel geändert wird.
+
+**Messung über das ganze Archiv des Autors (726 Touren, v0.9.699):** 16 rot, 146 gelb, 564 sauber.
+Geplante Routen: 0 von 313 mit Befund. Bei den Aufzeichnungen, vermessen und in Stichproben
+angesehen:
+
+| Befund | Stellen | davon echt | Befund |
+|---|---|---|---|
+| Ausreißer (rot) | 18 | 3 mit 78–116 m Versatz | 15 unter 40 m, 8 unter 15 m — Handy-Zittern, Kaltstart; einer davon eine Achterbahn |
+| Tempo | 129 | 12 große | 95 unter 15 m Versatz (Zeitstempel-Hopser); die großen sind Fahrzeugstrecken in Lauf-Aufnahmen |
+| Lücken | 1038 | 966 mit fehlenden Punkten | 781 davon nur 100–300 m; 60 mit normalem Takt; 12 Pausen-Fälle |
+| Stillstand | 42 | — | Knäuel beim Stehen: im Mittel 97 m zusätzliche Strecke, Radius ~25 m |
+
+**Aufbau (lokal, nicht im Repo — die Sammlung enthält private Touren):**
+
+- `tests/pruefsammlung/dateien/` — 29 Dateien: eine mehrwöchige Wohnmobil-Reise (Strecken-Logger),
+  echte Ausreißer, Zitter- und Kaltstart-Fälle, Tempo-Hopser, Lauf mit Zugfahrt, echte große
+  Lücken, Stillstand-Knäuel, Freizeitpark, kurze Fähre, Garmin-Uhr und -Radcomputer (FIT), TCX,
+  10-Hz-Aufnahme einer Actioncam, geplante Komoot-Routen (GPX und KML) und ein **absichtlich
+  beschädigter** Track (250-m-Ausreißer, 120 fehlende Punkte, Zeit rückwärts, Höhe −600 m).
+- `tests/pruefsammlung/sammlung.json` — je Datei das **Soll** mit Begründung: `muss` (echte
+  Fehler mit Stufe und Anzahl), `keine_warnung`, `nicht_rot`, `verboten`, `hoechstens`,
+  `gemacht` (aufgezeichnet oder geplant).
+- `tests/test_pruefsammlung.py` — **Sperrklinke**: zählt erfüllte Zusagen, merkt sie sich in
+  `stand.json` und schlägt an, sobald eine vorher erfüllte bricht. `--liste` zeigt jede Zusage.
+
+**Stand bei der Anlage: 59 von 82 Zusagen erfüllt.** Offen sind die bekannten Fehlalarme —
+genau die Arbeit der nächsten Schritte (Bewegungsart erkennen, Schwellen je Bewegungsart).
+
+**Neu gefunden beim Anlegen:**
+
+- Die Schätzung „aufgezeichnet oder geplant" (`_recorded_guess`, ~87 %) hält eine **10-Hz-Aufnahme**
+  und einen **Lauf mit Zugfahrt** für geplante Routen — gleichmäßige Zeitabstände sehen aus wie
+  eine Planung. Folge: Der Check prüft sie mit dem falschen Maßstab und ist nur zufällig ruhig.
+- Der Inspektor prüft Dateien **außerhalb des Archivs** immer als Aufnahme
+  (`gpxinspect_track_check`, `geplant=False`) — eine geplante Route mit künstlichen Zeiten wird
+  dort gelb.
+- Eine geplante KML-Route **ohne Zeiten** bekommt ein „Übersetzen" — ohne Zeit kann es keins geben.
+- Eine kurze Fähre (2 km gerade über einen See) ist aus der Geometrie allein nicht von einer
+  echten Lücke zu unterscheiden; eine Reparatur „entlang von Wegen" wäre dort falsch. Braucht
+  Gewässer aus den Kartendaten — bis dahin „unsicher".
