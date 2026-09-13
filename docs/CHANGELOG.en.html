@@ -117,11 +117,12 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.698</span>
+    <span class="version-num">v0.9.699</span>
     <span class="version-date">12 September 2026</span>
     <span class="version-badge">Current</span>
   </div>
   <ul>
+    <li><strong>Several drives: the note names the missing one</strong> &mdash; If your folders sit on different drives, the note now says <em>which</em> one is missing &mdash; by drive name (&ldquo;NAS&rdquo;, &ldquo;SD card&rdquo;), not the last part of the folder. If only some folders are missing it says so, lists each one, and adds that the folders on the other drives are read as usual. The sidebar shows the drive next to every folder.</li>
     <li><strong>On the road without the drive: the app says so</strong> &mdash; Above the grid a clear note names the missing drive, says what still works (search, map and thumbnails come from the library), which state you are looking at, and that the app carries on reading by itself once the drive is back. No "Scan now" and no progress bar for pictures that cannot come. The sidebar marks the folder, and the detail column says the original is missing &mdash; and still shows the preview. When the drive returns, the app notices within twenty seconds and carries on.</li>
     <li><strong>The real cause of the scan that kept stopping</strong> &mdash; A helper that stores learned thumbnail keys only closed its database transaction when it had changed something. When it found nothing, the transaction stayed open and locked the whole library until the background run gave up. It now always closes it &mdash; in the test harness 300 files go through in three seconds while something else writes alongside.</li>
     <li><strong>The photo scan stopped after two seconds &mdash; without a word</strong> &mdash; The log said "database is locked": the background run opens its own connection to the library, the interface was writing at that very moment, and the database knew neither WAL nor any waiting. So the run was dead before it began, and the header offered "Scan now" again as if nothing had happened. The library now runs in WAL mode with 30 seconds of patience, the run retries opening five times, and if something still fails the reason is shown &mdash; with a button to try again.</li>

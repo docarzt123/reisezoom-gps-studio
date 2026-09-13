@@ -128,6 +128,7 @@
           <div class="foto-ordner">
             <div class="foto-ordner-txt" title="${esc(o.path)}">
               ${esc(o.path.split("/").slice(-2).join("/"))}
+              <span class="muted foto-ordner-lw">${esc(laufwerkVon(o.path))}</span>
               <span class="muted">${num(o.n)}</span>${o.da ? "" : ` <span class="foto-ordner-fern">📴 ${T("fotos.ordner_weg", "nicht da")}</span>`}
             </div>
             <button class="btn btn-sm" data-fordweg="${i}" type="button"
@@ -453,24 +454,67 @@
      (Marc, 13.09.2026: „Ich bin jetzt unterwegs und das Laufwerk ist nicht mehr
      verfügbar. Das sollte doch irgendwie angezeigt werden."). Gesagt wird
      auch, was trotzdem geht und wann es weitergeht. */
+  /** Auf welchem Laufwerk liegt ein Ordner? Der Name, den man kennt — nicht
+      der letzte Ordnerteil (bei /Volumes/NAS/Bilder/2024 hieß es sonst „2024"). */
+  function laufwerkVon(pfad) {
+    const p = String(pfad || "");
+    let m = p.match(/^\/Volumes\/([^/]+)/);                 // macOS
+    if (m) return m[1];
+    m = p.match(/^\/(?:run\/)?media\/[^/]+\/([^/]+)/);     // Linux
+    if (m) return m[1];
+    m = p.match(/^\/mnt\/([^/]+)/);
+    if (m) return m[1];
+    m = p.match(/^([A-Za-z]):[\\/]/);                       // Windows
+    if (m) return m[1].toUpperCase() + ":";
+    m = p.match(/^\\\\([^\\]+)\\([^\\]+)/);                 // \\server\freigabe
+    if (m) return m[1] + "\\" + m[2];
+    return T("fotos.laufwerk_intern", "Dieser Rechner");
+  }
+
+  /* Unterwegs ist das Laufwerk weg — und das muss man sehen, nicht erraten
+     (Marc, 13.09.2026: „Ich bin jetzt unterwegs und das Laufwerk ist nicht mehr
+     verfügbar. Das sollte doch irgendwie angezeigt werden."). Bei mehreren
+     Laufwerken sagt der Hinweis, WELCHE fehlen und welche weiterlaufen —
+     gruppiert nach Laufwerk, nicht nach Ordner. */
   function fernHtml() {
     const weg = ordner.filter(o => !o.da);
     if (!weg.length) return "";
-    const alle = weg.length === ordner.length;
-    const namen = weg.map(o => o.path.split("/").filter(Boolean).slice(-1)[0] || o.path);
+    const gruppieren = (liste) => {
+      const g = new Map();
+      liste.forEach(o => {
+        const l = laufwerkVon(o.path);
+        if (!g.has(l)) g.set(l, []);
+        g.get(l).push(o);
+      });
+      return g;
+    };
+    const fehlend = gruppieren(weg);
+    const da = gruppieren(ordner.filter(o => o.da));
+    // Ein Laufwerk, das teils erreichbar ist, ist nicht „weg" — dann fehlen
+    // nur einzelne Ordner darauf. Das sagt der Text genauso.
+    const beschreiben = (g) => [...g.entries()].map(([l, os]) => {
+      const alleDrauf = ordner.filter(o => laufwerkVon(o.path) === l).length;
+      if (os.length === 1 && alleDrauf === 1) return l;
+      return T("fotos.fern_ordner_auf", "{l} ({n} Ordner)").replace("{l}", l).replace("{n}", os.length);
+    }).join(", ");
+    const titel = T("fotos.fern_titel", "Nicht erreichbar: {n}").replace("{n}", beschreiben(fehlend));
     const wann = nachschau ? zeitpunktText(nachschau) : "";
-    const titel = alle
-      ? T("fotos.fern_alle", "Laufwerk nicht erreichbar: {n}").replace("{n}", namen.join(", "))
-      : T("fotos.fern_teil", "{a} von {b} Ordnern nicht erreichbar: {n}")
-          .replace("{a}", weg.length).replace("{b}", ordner.length).replace("{n}", namen.join(", "));
     const satz = [
+      da.size
+        ? T("fotos.fern_rest", "Die Ordner auf {l} werden normal gelesen.").replace("{l}", [...da.keys()].join(", "))
+        : "",
       T("fotos.fern_geht", "Suche, Karte und Vorschaubilder kommen aus der Bibliothek und funktionieren weiter."),
-      wann ? T("fotos.fern_stand", "Du siehst den Stand vom {t}.").replace("{t}", wann) : "",
+      (!da.size && wann) ? T("fotos.fern_stand", "Du siehst den Stand vom {t}.").replace("{t}", wann) : "",
       T("fotos.fern_weiter", "Sobald das Laufwerk wieder da ist, liest die App von selbst weiter."),
     ].filter(Boolean).join(" ");
+    const liste = weg.length > 1
+      ? `<div class="foto-fern-liste">${weg.map(o =>
+          `<div title="${esc(o.path)}">📴 ${esc(laufwerkVon(o.path))} — ${esc(o.path.split(/[\\/]/).filter(Boolean).slice(-2).join("/"))} <span class="muted">${num(o.n)}</span></div>`).join("")}</div>`
+      : "";
     return `<div class="foto-fern" id="foto-fern">
         <div class="foto-fern-titel">📴 ${esc(titel)}</div>
         <div class="foto-fern-text">${esc(satz)}</div>
+        ${liste}
       </div>`;
   }
 

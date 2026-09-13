@@ -1331,6 +1331,10 @@ in the file), camera, lens, aperture, exposure, ISO, size, place and
 coordinates. At the bottom **All capture data** unfolds every single entry the
 file holds.
 
+> **Several drives?** If your folders sit on different drives, the note names exactly
+> the missing one — by its name, such as “NAS” or “SD card” — and adds that the
+> folders on the other drives are read as usual.
+>
 > **On the road without the drive?** A note above the grid then names the missing
 > drive, what still works and which state you are looking at. The sidebar marks the
 > folder with 📴, the detail column says the original is out of reach. When the

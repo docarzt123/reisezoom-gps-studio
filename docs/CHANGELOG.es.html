@@ -117,11 +117,12 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.698</span>
+    <span class="version-num">v0.9.699</span>
     <span class="version-date">12 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
+    <li><strong>Varias unidades: el aviso nombra la que falta</strong> &mdash; Si tus carpetas están en unidades distintas, el aviso dice ahora <em>cuál</em> falta, con el nombre de la unidad (&laquo;NAS&raquo;, &laquo;Tarjeta SD&raquo;) y no con la última parte de la carpeta. Si solo faltan algunas carpetas, lo indica, las enumera y añade que las carpetas de las demás unidades se leen con normalidad. La barra lateral muestra la unidad junto a cada carpeta.</li>
     <li><strong>De viaje sin la unidad: la aplicación lo dice</strong> &mdash; Sobre la cuadrícula aparece claramente qué unidad falta, qué sigue funcionando (la búsqueda, el mapa y las miniaturas vienen de la biblioteca), qué estado estás viendo y que la aplicación seguirá leyendo por sí sola en cuanto vuelva. Ni «Escanear ahora» ni barras de progreso para imágenes que no pueden llegar. La barra lateral marca la carpeta y la columna de detalle indica que falta el original &mdash; y aun así muestra la vista previa. Cuando vuelve la unidad, la aplicación lo nota en veinte segundos y continúa.</li>
     <li><strong>La verdadera causa del escaneo que se detenía</strong> &mdash; Una función auxiliar que guarda las claves aprendidas de las miniaturas solo cerraba su transacción si había cambiado algo. Si no encontraba nada, la transacción quedaba abierta y bloqueaba toda la biblioteca hasta que la pasada en segundo plano se rendía. Ahora la cierra siempre &mdash; en el banco de pruebas pasan 300 archivos en tres segundos mientras otra cosa escribe a la vez.</li>
     <li><strong>El escaneo de fotos se detenía a los dos segundos, sin decir nada</strong> &mdash; En el registro ponía «database is locked»: la pasada en segundo plano abre su propia conexión a la biblioteca, la interfaz estaba escribiendo justo entonces y la base de datos no conocía ni WAL ni espera alguna. La pasada moría antes de empezar y la cabecera volvía a ofrecer «Escanear ahora» como si nada. Ahora la biblioteca funciona en modo WAL con 30 segundos de paciencia, la pasada reintenta abrir cinco veces y, si aun así falla, el motivo se ve &mdash; con un botón para reintentar.</li>

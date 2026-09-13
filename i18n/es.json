@@ -3512,11 +3512,13 @@
   "fotos.kopf_fehler": "Escaneo interrumpido: {f}",
   "fotos.kopf_nochmal": "Intentar de nuevo",
   "fotos.kopf_warte": "La base de datos está ocupada: esperando para reintentar",
-  "fotos.fern_alle": "Unidad no accesible: {n}",
-  "fotos.fern_teil": "{a} de {b} carpetas no accesibles: {n}",
   "fotos.fern_geht": "La búsqueda, el mapa y las miniaturas vienen de la biblioteca y siguen funcionando.",
   "fotos.fern_stand": "Estás viendo el estado del {t}.",
   "fotos.fern_weiter": "En cuanto vuelva la unidad, la aplicación sigue leyendo por sí sola.",
   "fotos.fern_zurueck": "La unidad ha vuelto: la aplicación sigue leyendo.",
-  "fotos.d_fern": "Original no accesible ahora: la vista previa y los datos de captura vienen de la biblioteca."
+  "fotos.d_fern": "Original no accesible ahora: la vista previa y los datos de captura vienen de la biblioteca.",
+  "fotos.laufwerk_intern": "Este ordenador",
+  "fotos.fern_ordner_auf": "{l} ({n} carpetas)",
+  "fotos.fern_titel": "No accesible: {n}",
+  "fotos.fern_rest": "Las carpetas en {l} se leen con normalidad."
 }
