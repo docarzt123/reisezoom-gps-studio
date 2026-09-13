@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.701"
+APP_VERSION = "0.9.702"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9641,6 +9641,141 @@ class Api:
                                   aktivitaet=aktivitaet or None)
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    # ── Einteilungen einer Tour (13.09.2026, docs/IDEAS.md §67 Schritt 4) ──────
+    # Tage, Bewegungsart, eigene Bereiche — gespeichert in der Bibliothek über
+    # dem unveränderten Track (core/einteilung). Jede ändernde Brücke gibt den
+    # Stand VORHER mit zurück: damit legt die Oberfläche ihren ⌘Z-Schritt an.
+
+    def _einteilung_tour(self, path: str):
+        t = clib.get_track(self._lib(), path) if path else None
+        if not t:
+            return "", None
+        return (t.get("tour_id") or t.get("geo_hash") or ""), t
+
+    def _einteilung_antwort(self, conn, tour: str, extra: dict = None) -> dict:
+        from core import einteilung as ceint
+        alle = ceint.lesen(conn, tour)
+        for e in alle:
+            e["zusammenfassung"] = ceint.zusammenfassung(e)
+        raus = {"ok": True, "tour": tour, "einteilungen": alle}
+        raus.update(extra or {})
+        return raus
+
+    def einteilung_lesen(self, path: str) -> dict:
+        """Alle Einteilungen der Tour zu dieser Datei."""
+        try:
+            tour, _t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": False, "error": "nicht im Archiv", "einteilungen": []}
+            with clib._DB_LOCK:
+                return self._einteilung_antwort(self._lib(), tour)
+        except Exception as e:  # noqa: BLE001
+            log.exception("einteilung_lesen")
+            return {"ok": False, "error": str(e), "einteilungen": []}
+
+    def einteilung_berechnen(self, path: str, art: str = "bewegung") -> dict:
+        """Tage oder Bewegung (neu) berechnen. Handarbeit bleibt stehen (Q9)."""
+        from core import einteilung as ceint
+        try:
+            tour, t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": False, "error": "nicht im Archiv"}
+            pts, _stats = clib.punkte_lesen(path, IMPORTS_DIR)
+            wegpunkte = []
+            if str(path).lower().endswith(".gpx"):
+                try:
+                    wegpunkte = cgpx.parse_waypoints(path)
+                except Exception:  # noqa: BLE001
+                    wegpunkte = []
+            conn = self._lib()
+            with clib._DB_LOCK:
+                eid = ceint.einteilung_id(tour, art)
+                vorher = ceint.stand(conn, eid)
+                ceint.neu_berechnen(conn, tour, art, pts, aktivitaet=(t or {}).get("activity") or None,
+                                    wegpunkte=wegpunkte)
+                return self._einteilung_antwort(conn, tour, {"eid": eid, "vorher": vorher})
+        except Exception as e:  # noqa: BLE001
+            log.exception("einteilung_berechnen")
+            return {"ok": False, "error": str(e)}
+
+    def einteilung_aktion(self, eid: str, aktion: str, params: dict = None) -> dict:
+        """Bearbeiten: setzen · aendern · teilen · zusammenlegen · grenze · bereich_entfernen.
+
+        Alles Bearbeitete wird Handarbeit und überlebt jede Neuberechnung (Q9).
+        """
+        from core import einteilung as ceint
+        q = dict(params or {})
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                vorher = ceint.stand(conn, eid)
+                if vorher is None:
+                    return {"ok": False, "error": "Einteilung nicht gefunden"}
+                if aktion == "setzen":
+                    ceint.bereich_setzen(conn, eid, float(q["t0"]), float(q["t1"]), str(q["art"]),
+                                         str(q.get("name") or ""))
+                elif aktion == "aendern":
+                    ceint.bereich_aendern(conn, eid, str(q["bid"]),
+                                          **{k: q[k] for k in ("art", "name", "anzeige") if k in q})
+                elif aktion == "teilen":
+                    ceint.teilen(conn, eid, str(q["bid"]), float(q["t"]))
+                elif aktion == "zusammenlegen":
+                    ceint.zusammenlegen(conn, eid, str(q["bid_a"]), str(q["bid_b"]))
+                elif aktion == "grenze":
+                    ceint.grenze_setzen(conn, eid, str(q["bid_links"]), str(q["bid_rechts"]), float(q["t"]))
+                elif aktion == "bereich_entfernen":
+                    ceint.bereich_entfernen(conn, eid, str(q["bid"]))
+                else:
+                    return {"ok": False, "error": f"unbekannte Aktion: {aktion}"}
+                return self._einteilung_antwort(conn, vorher["tour"], {"eid": eid, "vorher": vorher})
+        except (KeyError, ValueError) as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("einteilung_aktion")
+            return {"ok": False, "error": str(e)}
+
+    def einteilung_eigen_anlegen(self, path: str, name: str = "") -> dict:
+        from core import einteilung as ceint
+        try:
+            tour, _t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": False, "error": "nicht im Archiv"}
+            conn = self._lib()
+            with clib._DB_LOCK:
+                e = ceint.eigen_anlegen(conn, tour, name)
+                return self._einteilung_antwort(conn, tour, {"eid": e["id"], "vorher": None})
+        except Exception as e:  # noqa: BLE001
+            log.exception("einteilung_eigen_anlegen")
+            return {"ok": False, "error": str(e)}
+
+    def einteilung_entfernen(self, eid: str) -> dict:
+        from core import einteilung as ceint
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                vorher = ceint.stand(conn, eid)
+                if vorher is None:
+                    return {"ok": False, "error": "Einteilung nicht gefunden"}
+                ceint.entfernen(conn, eid)
+                return self._einteilung_antwort(conn, vorher["tour"], {"eid": eid, "vorher": vorher})
+        except Exception as e:  # noqa: BLE001
+            log.exception("einteilung_entfernen")
+            return {"ok": False, "error": str(e)}
+
+    def einteilung_stand_setzen(self, eid: str, stand: dict = None, tour: str = "") -> dict:
+        """⌘Z / ⌘⇧Z: einen Stand zurückschreiben. `stand=None` entfernt die Einteilung."""
+        from core import einteilung as ceint
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                jetzt = ceint.stand(conn, eid)
+                ceint.stand_setzen(conn, eid, stand)
+                t = (stand or jetzt or {}).get("tour") or tour
+                return self._einteilung_antwort(conn, t, {"eid": eid, "vorher": jetzt})
+        except Exception as e:  # noqa: BLE001
+            log.exception("einteilung_stand_setzen")
+            return {"ok": False, "error": str(e)}
 
     def gpxinspect_luecken(self, points: list, aktivitaet: str = "", mit_klein: bool = False) -> dict:
         """13.09.2026 — Die Lücken, die der Track-Check meldet, für das Routen im

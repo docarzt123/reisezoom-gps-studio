@@ -4866,6 +4866,40 @@ stehen in `library.db-wal`, bis ein Checkpoint sie in `library.db` schreibt. Reg
 Wächter: `tests/test_bibliothek_wal.py` — Datenbank mit abgeschaltetem Auto-Checkpoint, deren
 neueste Zeile nur in der WAL-Datei steht; ZIP, Sicherung, Wiederherstellen, Umzug und Fühler.
 
+## Einteilungen einer Tour — `core/einteilung.py` (13.09.2026, v0.9.702)
+
+Schritt 4 aus docs/IDEAS.md §67 (Q5, Q6, Q9, Q11). Tabelle `einteilungen` in `library.db`
+(Schema aus `open_db`, wie die Foto-Tabellen):
+
+| Spalte | Inhalt |
+|---|---|
+| `id` | `<tour>:tage`, `<tour>:bewegung` (fest, damit zwei Geräte dieselbe Zeile meinen) oder `<tour>:eigen:<uuid>` |
+| `tour` | `tour_id` der Tour, sonst `geo_hash` (`Api._einteilung_tour`) |
+| `art` | `tage` · `bewegung` · `eigen` |
+| `bereiche` | JSON, nach `t0` sortiert: `{id, t0, t1, art, name, quelle, anzeige, …}` |
+
+- **Nach Uhrzeit (Epoch-Sekunden), nie nach Punktnummer** — überlebt neue Versionen.
+- **Eine Zeile je Einteilung.** `cloud/bibliothek.NUTZER_TABELLEN` enthält `einteilungen`;
+  `nutzerdaten_import` ersetzt die ganze Zeile. Mit Zeilen je Bereich blieben alte Bereiche
+  auf dem Zweitgerät liegen (Import löscht nie).
+- `quelle`: `auto` (core/bewegung, Tage), `app` (Wegpunkte mit Von-bis), `hand`.
+  `neu_berechnen` → `zusammenfuehren`: Hand-Bereiche bleiben, Erkanntes wird um sie herum
+  ausgeschnitten (`_ausschneiden`).
+- `anzeige`: `""` (Standard) · `zeigen` · `blass` · `raffen` · `ueberspringen` (Q11). Ändern der
+  Anzeige macht einen Bereich NICHT zu Handarbeit, Ändern von Art/Name schon.
+- Tage: `berechnen_tage` in der Ortszeit (`zeitzone.zone_fuer` am ersten Punkt, `offset_min`
+  je Zeitpunkt); `nr` und `datum` statt eines Namens — die Oberfläche formt „Tag 3 · Mo 14. Juli".
+- Undo: `stand()` / `stand_setzen()`; jede ändernde Brücke liefert `vorher`.
+
+**Brücken:** `einteilung_lesen(path)`, `einteilung_berechnen(path, art)`,
+`einteilung_aktion(eid, aktion, params)` mit `setzen · aendern · teilen · zusammenlegen ·
+grenze · bereich_entfernen`, `einteilung_eigen_anlegen(path, name)`, `einteilung_entfernen(eid)`,
+`einteilung_stand_setzen(eid, stand)`. Alle unter `clib._DB_LOCK`.
+
+**Wächter:** `tests/test_einteilung.py` (Kern, Handarbeit, Bearbeiten, ⌘Z, neue Version,
+Cloud-Ersetzen, Brücken an der echten App). Messung Wohnmobil-Reise: 38 Tage, 658 Bereiche,
+95 KB, 3 s.
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter

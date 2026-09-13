@@ -11,7 +11,7 @@ entfallen (`core/cloud/archiv.py` gelöscht).
 
 | Objekt | Inhalt |
 |---|---|
-| `bib/nutzerdaten` | alles, was **du** gesagt hast: Schlagworte, Favoriten, Notizen, eigene Namen, Farben, Fortbewegung, Sammlungen, beobachtete Ordner |
+| `bib/nutzerdaten` | alles, was **du** gesagt hast: Schlagworte, Favoriten, Notizen, eigene Namen, Farben, Fortbewegung, Sammlungen, beobachtete Ordner, Einteilungen (Tage, Bewegung, eigene Bereiche) |
 | `bib/projekte` | `projekte.json` |
 | `bib/touren` | `touren.json` (Tour-Register mit den Versionsreihen) |
 | `bib/track/<geo_hash>` | eine Version, genau die Datei aus dem Versionsspeicher |
@@ -57,7 +57,10 @@ PROJEKTE = "bib/projekte"
 TOUREN = "bib/touren"
 
 #: Tabellen mit Nutzer-Eingaben. Alles andere in der Datenbank ist abgeleitet.
-NUTZER_TABELLEN = ("track_meta", "collections", "collection_items", "folders")
+# 13.09.2026 — `einteilungen`: Tage, Bewegung und eigene Bereiche einer Tour. Eine
+# Zeile je Einteilung (Bereiche als JSON), damit das ergänzende Einspielen den
+# ganzen Stand ersetzt statt alte Bereiche neben neuen stehen zu lassen.
+NUTZER_TABELLEN = ("track_meta", "collections", "collection_items", "folders", "einteilungen")
 
 
 def track_name(geo_hash: str) -> str:
