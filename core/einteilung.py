@@ -269,7 +269,27 @@ def zusammenfuehren(alt: List[dict], neu: List[dict]) -> List[dict]:
     """
     hand = [b for b in (alt or []) if b.get("quelle") == "hand"]
     ergebnis = [dict(b) for b in (neu or [])]
+    # Gelöschte automatische Punkte (Grabsteine, art "weg") kommen nicht zurück (Marc 13.09.2026)
+    weg = [h for h in hand if h.get("art") == "weg"]
+    if weg:
+        def _begraben(b):
+            if not _ist_punkt(b):
+                return False
+            for w in weg:
+                if w.get("osm_id") and str(w.get("osm_id")) == str(b.get("osm_id")):
+                    return True
+                if w.get("weg_art") == b.get("art") and abs(float(w["t0"]) - float(b["t0"])) <= 120:
+                    return True
+            return False
+        ergebnis = [b for b in ergebnis if not _begraben(b)]
+    # Handpunkte mit gleicher Art ersetzen den automatischen (umbenannter Start bleibt einmal da)
     for h in hand:
+        if _ist_punkt(h) and h.get("art") in ("start", "ziel", "hoechster_punkt"):
+            ergebnis = [b for b in ergebnis if not (_ist_punkt(b) and b.get("art") == h.get("art")
+                                                    and abs(float(b["t0"]) - float(h["t0"])) <= 120)]
+    for h in hand:
+        if _ist_punkt(h):          # ein Punkt schneidet nichts aus (sonst teilt er Bereiche)
+            continue
         ergebnis = _ausschneiden(ergebnis, h["t0"], h["t1"])
     ergebnis += [dict(h) for h in hand]
     ergebnis.sort(key=lambda b: (b["t0"], b["t1"]))
@@ -350,6 +370,9 @@ def punkt_setzen(conn: sqlite3.Connection, eid: str, t: float, art: str = "punkt
     """Einen Punkt-Eintrag setzen (Logbuch §68 Q12, POIs Q11). Schneidet nichts aus —
     ein Punkt liegt in einem Bereich, er ersetzt ihn nicht."""
     e = _laden(conn, eid)
+    if mehr.get("osm_id"):          # wieder übernommen: Grabstein weg
+        e["bereiche"] = [b for b in e["bereiche"]
+                         if not (b.get("art") == "weg" and str(b.get("osm_id")) == str(mehr["osm_id"]))]
     e["bereiche"].append(_bereich(t, t, art, name, quelle, lat=lat, lon=lon, ele=ele, **mehr))
     return _schreiben(conn, e)
 
@@ -466,8 +489,16 @@ def grenze_setzen(conn: sqlite3.Connection, eid: str, bid_links: str, bid_rechts
 
 
 def bereich_entfernen(conn: sqlite3.Connection, eid: str, bid: str) -> dict:
+    """Entfernen. Ein automatisch entstandener Punkt (Start, Ziel, POI …) hinterlässt
+    einen Grabstein, damit ihn die nächste Berechnung nicht wieder einsetzt."""
     e = _laden(conn, eid)
-    del e["bereiche"][_finden(e, bid)]
+    k = _finden(e, bid)
+    b = e["bereiche"][k]
+    if _ist_punkt(b) and (b.get("quelle") in ("auto", "app") or b.get("osm_id")) and b.get("art") != "weg":
+        e["bereiche"][k] = _bereich(b["t0"], b["t0"], "weg", "", "hand", weg_art=b.get("art"),
+                                    osm_id=b.get("osm_id"))
+    else:
+        del e["bereiche"][k]
     return _schreiben(conn, e)
 
 

@@ -536,6 +536,7 @@ function mountGpxInspect(body, headerActions) {
       } catch (_) {}
       // v0.9.294 — tolerante Klicks: nächster Punkt im Pixel-Radius (statt layer-gebunden).
       map.on("click", onMapClick);
+      try { _lbKarteVerdrahten(); } catch (e) { applog && applog("warn", "[logbuch] Karte: " + e); }
       map.on("dblclick", onMapDbl);   // Doppelklick = Anker setzen
       // v0.9.293 — Karte bewegt/zoomt → Höhenprofil auf den sichtbaren Abschnitt syncen.
       map.on("moveend", onMapMoveSyncProfile);
@@ -1242,6 +1243,7 @@ function mountGpxInspect(body, headerActions) {
     // v0.9.305 (Nutzer-Feedback): Anker-Klick wählt IMMER den nächstgelegenen
     // Track-Punkt — egal wie weit der Klick entfernt ist (kein 18px-Limit mehr).
     // Man klickt grob hin, der nächste Punkt wird gesetzt.
+    try { const bef = _lbBefundAnKarte(e.point); if (bef && !_lbPunktModus) { _lbBefundZeigen(bef.key, bef.idx, true); return; } } catch (_) {}
     const i = _nearestIdxToPoint(e.point.x, e.point.y, Infinity);
     if (i < 0) return;
     if (_lbPunktModus) { try { _lbPunktSetzen(i); } catch (_) {} return; }   // Logbuch Stufe 2: eigener Punkt
@@ -2094,10 +2096,12 @@ function mountGpxInspect(body, headerActions) {
   }
   // Reparieren = die angehakten Schritte über core/gpxheal, alles andere bleibt. Undo,
   // Vorher/Nachher und Neuprüfung wie beim Heilen (Marc: Undo für alles).
-  async function trackCheckReparieren() {
+  async function trackCheckReparieren(nurKeys) {
     const box = document.getElementById("gpxi-heal-analysis");
     if (!box || _mmBusy || _drawMode) return;
-    let schritte = [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
+    // 13.09.2026 (Marc: Befund auf der Karte „gleich die Frage reparieren") — nur diese Art
+    let schritte = Array.isArray(nurKeys) ? nurKeys.slice()
+      : [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
     if (!schritte.length) { toast(t("trackcheck.nothing_selected", "Nichts angehakt — nichts zu reparieren."), "info", 2400); return; }
     for (const b of ((_tc && _tc.befunde) || [])) {
       if (_TC_STILL[b.key] && schritte.indexOf(b.key) < 0) schritte.push(b.key);
@@ -3606,6 +3610,7 @@ function mountGpxInspect(body, headerActions) {
     _lbOrte = {}; _lbPois = []; _lbNetzLauf++; if (_lbGross) _lbGross.hidden = true; _lbEigene = [];
     const w = _lbEl("gpxi-logbuch"); if (w) w.hidden = true;
     _lbHighlight(null);
+    try { _lbInfoZu(); _lbKartenMarken(true); _lbFensterAufKarte(true); } catch (_) {}
   }
 
   // ── Rendern ──────────────────────────────────────────────────────────────
@@ -3665,7 +3670,7 @@ function mountGpxInspect(body, headerActions) {
   }
   function _lbListeRender() {
     const el = _lbEl("gpxi-lb-liste"); if (!el || !_lb) return;
-    const es = _lbEintraege(), ps = _lbAlles ? [] : (_lb.punkte || []);
+    const es = _lbEintraege(), ps = _lbPunkteSichtbar();
     const zeilen = es.map(e => ({ t: e.t0, tag: e.tag, html: _lbZeileHtml(e), rang: 1 }))
       .concat(ps.map(p => ({ t: p.t, tag: p.tag, html: _lbPunktHtml(p), rang: p.art === "start" ? 0 : (p.art === "ziel" ? 2 : 1) })));
     zeilen.sort((a, b) => (a.t - b.t) || (a.rang - b.rang));
@@ -3697,8 +3702,7 @@ function mountGpxInspect(body, headerActions) {
     if (_lbFenster && Math.abs(_lbFenster[0] - d.t0) < 1 && Math.abs(_lbFenster[1] - d.t1) < 1) _lbFenster = null;
     else _lbFenster = [d.t0 - Math.max(120, (d.t1 - d.t0) * 0.02), d.t1 + Math.max(120, (d.t1 - d.t0) * 0.02)];
     logbuchRender();
-    const lage = _lbIndexBereich({ t0: d.t0, t1: d.t1 });
-    if (lage) _lbKarteZu(lage[0], lage[1]);
+    _lbFensterAufKarte(true, true);
   }
 
   // Zeitstrahl: SVG in Pixelkoordinaten des Behälters — Texte bleiben scharf.
@@ -3755,7 +3759,7 @@ function mountGpxInspect(body, headerActions) {
     if (!_lbAlles) {
       const yP = (Z.punkte[0] + Z.punkte[1]) / 2;
       let letzteX = -Infinity;
-      for (const p of (_lb.punkte || []).slice().sort((a, b) => a.t - b.t)) {
+      for (const p of _lbPunkteSichtbar().slice().sort((a, b) => a.t - b.t)) {
         const x = X(p.t); if (x < -4 || x > W + 4) continue;
         const gew = p.id === _lbSel ? " ist-gewaehlt" : "";
         let form;
@@ -3775,6 +3779,7 @@ function mountGpxInspect(body, headerActions) {
     s += _lbAchse(X, f0, f1, W, versatz, Z.achse[0]);
     svg.innerHTML = s;
     try { _lbPoisRender(); } catch (_) {}
+    try { _lbKartenMarken(); } catch (_) {}
     svg.querySelectorAll("[data-lb]").forEach(g => g.addEventListener("click", (ev) => { ev.stopPropagation(); lbWaehlen(g.dataset.lb, { zoom: true }); }));
     svg.querySelectorAll("[data-lb-tag]").forEach(g => g.addEventListener("dblclick", (ev) => { ev.stopPropagation(); _lbTagZoom(parseInt(g.dataset.lbTag, 10)); }));
     _lbCursor(_lbHover);
@@ -3839,15 +3844,17 @@ function mountGpxInspect(body, headerActions) {
       const z = liste.querySelector(`[data-lb="${e.id}"]`);
       if (z) { try { z.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) { z.scrollIntoView(); } }
     }
-    if (e.t1 != null) {
+    if (!_lbIstPunkt(e)) {
+      _lbInfoZu();
       const lage = _lbIndexBereich(e);
       _lbHighlight(lage ? { von: lage[0], bis: lage[1], farbe: _lbFarbe(e.anzeige_art) } : null);
       if (opt.zoom && lage) _lbKarteZu(lage[0], lage[1]);
     } else {
       const i = e.idx != null ? e.idx : _lbIdxZuZeit(e.t);
       _lbHighlight(i >= 0 ? { punkt: i, farbe: "#c084fc" } : null);
-      if (opt.zoom && i >= 0 && map) { try { map.flyTo({ center: [_points[i].lon, _points[i].lat], zoom: Math.max(map.getZoom(), 13), duration: 600 }); } catch (_) {} }
+      try { _lbPunktZeigen(e, !opt.zoom); } catch (_) {}
     }
+    try { _lbKartenMarken(); } catch (_) {}
     // Ist der Eintrag außerhalb des Ausschnitts, zeigt der Strahl ihn trotzdem (springen)
     const sp = _lbSpanne(), ta = e.t0 != null ? e.t0 : e.t;
     if (_lbFenster && sp && (ta < sp[0] || ta > sp[1])) { _lbFenster = null; logbuchRender(); }
@@ -3916,13 +3923,14 @@ function mountGpxInspect(body, headerActions) {
     let neu = (sp[1] - sp[0]) * faktor;
     const ganz = (function () { const f = _lbFenster; _lbFenster = null; const g = _lbSpanne(); _lbFenster = f; return g; })();
     if (!ganz) return;
-    if (neu >= (ganz[1] - ganz[0])) { _lbFenster = null; logbuchRender(); return; }
+    if (neu >= (ganz[1] - ganz[0])) { _lbFenster = null; logbuchRender(); _lbFensterAufKarte(false, true); return; }
     neu = Math.max(600, neu);
     let a = mitte - frac * neu, b = a + neu;
     if (a < ganz[0]) { a = ganz[0]; b = a + neu; }
     if (b > ganz[1]) { b = ganz[1]; a = b - neu; }
     _lbFenster = [a, b];
     logbuchRender();
+    _lbFensterAufKarte();
   }
   function _lbVerdrahten() {
     const svg = _lbEl("gpxi-lb-svg"), box = _lbEl("gpxi-lb-svgbox");
@@ -3930,8 +3938,8 @@ function mountGpxInspect(body, headerActions) {
     box.addEventListener("mousemove", (e) => { const i = _lbIdxAnX(e.clientX); if (i >= 0) setHover(i); });
     box.addEventListener("mouseleave", () => setHover(null));
     box.addEventListener("wheel", (e) => { e.preventDefault(); _lbZoom(e.deltaY > 0 ? 1.35 : 1 / 1.35, e.clientX); }, { passive: false });
-    box.addEventListener("dblclick", (e) => { if (e.target === svg || e.target === box) { _lbFenster = null; logbuchRender(); } });
-    _on("gpxi-lb-reise", () => { _lbFenster = null; logbuchRender(); });
+    box.addEventListener("dblclick", (e) => { if (e.target === svg || e.target === box) { _lbFenster = null; logbuchRender(); _lbFensterAufKarte(true, true); } });
+    _on("gpxi-lb-reise", () => { _lbFenster = null; logbuchRender(); _lbFensterAufKarte(true, true); });
     _on("gpxi-lb-neu", () => logbuchLaden(true));
     { const a = _lbEl("gpxi-lb-alles"); if (a) a.addEventListener("change", () => { _lbAlles = !!a.checked; _lbSel = null; _lbHighlight(null); logbuchRender(); }); }
     _on("gpxi-lb-zu", () => {
@@ -4057,10 +4065,12 @@ function mountGpxInspect(body, headerActions) {
     const k = es.findIndex(x => x.id === e.id);
     return k < 0 ? null : es[k + richtung] || null;
   }
-  function _lbEintragMenue(e, x, y, tHier) {
+  function _lbEintragMenue(e, x, y, tHier, opt) {
     if (!e || _lbAlles) return;
-    const istPunkt = e.t1 == null;
+    opt = opt || {};
+    const istPunkt = _lbIstPunkt(e);
     const M = [];
+    if (istPunkt) M.push({ symbol: "🗺", text: t("logbuch.menue.karte_zeigen", "Auf der Karte zeigen"), tu: () => lbWaehlen(e.id, { zoom: true }) });
     M.push({ symbol: "✏️", text: t("logbuch.menue.umbenennen", "Umbenennen …"), tu: async () => {
       const v = await _lbFrage(t("logbuch.frage.name", "Name des Eintrags"), e.name || "");
       if (v === null) return;
@@ -4108,10 +4118,14 @@ function mountGpxInspect(body, headerActions) {
       M.push("-");
       M.push({ symbol: "🗑", text: t("logbuch.menue.loeschen", "Löschen (geht im Nachbarn auf)"), tu: () =>
         _lbAktion(t("logbuch.undo.loeschen", "Logbuch: löschen"), "aufgehen", { bids: e.bids }, { auswahl: null }) });
-    } else if (e.art === "punkt" || e.art === "poi") {
+    } else {
       M.push("-");
-      M.push({ symbol: "🗑", text: t("logbuch.menue.punkt_loeschen", "Punkt löschen"), tu: () =>
-        _lbAktion(t("logbuch.undo.punkt_loeschen", "Logbuch: Punkt löschen"), "bereich_entfernen", { bid: e.id }, { auswahl: null }) });
+      M.push({ symbol: "🗑", text: t("logbuch.menue.punkt_loeschen", "Punkt löschen"), tu: () => _lbPunktLoeschen(e) });
+    }
+    if (opt.idx != null && opt.idx >= 0) {
+      M.push("-");
+      M.push({ symbol: "📍", text: t("logbuch.menue.punkt_hier", "Eigenen Punkt hier setzen …"), tu: () => { _lbPunktModus = true; _lbPunktSetzen(opt.idx); } });
+      M.push({ symbol: "Ⓐ", text: t("logbuch.menue.anker_hier", "Anker A/B hier setzen"), tu: () => { try { selectAnchor(opt.idx); } catch (_) {} } });
     }
     _lbMenue(x, y, M);
   }
@@ -4374,10 +4388,10 @@ function mountGpxInspect(body, headerActions) {
       const kurz = p.name.length <= 26 ? p.name : p.name.slice(0, 24) + "…";
       const label = (x - letzteX > 40 && platz > kurz.length * 5.6) ? `<text x="${(x + 9).toFixed(1)}" y="${(yP + 4).toFixed(1)}" class="gpxi-lb-poi-txt">${_lbEsc(kurz)}</text>` : "";
       if (label) letzteX = x;
-      s += `<g class="${cls}" data-poi="${_lbEsc(p.id)}"><circle cx="${x.toFixed(1)}" cy="${yP.toFixed(1)}" r="6"/><text x="${x.toFixed(1)}" y="${(yP + 3.5).toFixed(1)}" text-anchor="middle" class="gpxi-lb-poi-sym">${p.symbol || "📍"}</text>${label}<title>${_lbEsc(p.name + (p.im_logbuch ? " · " + t("logbuch.poi.im_logbuch", "steht im Logbuch") : " · " + t("logbuch.poi.klick", "Klick: ins Logbuch übernehmen")))}</title></g>`;
+      s += `<g class="${cls}" data-poi="${_lbEsc(p.id)}"><circle cx="${x.toFixed(1)}" cy="${yP.toFixed(1)}" r="6"/><text x="${x.toFixed(1)}" y="${(yP + 3.5).toFixed(1)}" text-anchor="middle" class="gpxi-lb-poi-sym">${p.symbol || "📍"}</text>${label}<title>${_lbEsc(p.name + (p.im_logbuch ? " · " + t("logbuch.poi.im_logbuch", "steht im Logbuch") : " · " + t("logbuch.poi.klick_zeigen", "Klick: auf der Karte zeigen")))}</title></g>`;
     }
     g.innerHTML = s;
-    g.querySelectorAll("[data-poi]").forEach(el => el.addEventListener("click", (ev) => { ev.stopPropagation(); _lbPoiUebernehmen(el.dataset.poi); }));
+    g.querySelectorAll("[data-poi]").forEach(el => el.addEventListener("click", (ev) => { ev.stopPropagation(); _lbPoiZeigen(_lbPois.find(q => q.id === el.dataset.poi)); }));
   }
   async function _lbPoiUebernehmen(id) {
     const p = _lbPois.find(x => x.id === id); if (!p || p.im_logbuch) return;
@@ -4423,7 +4437,7 @@ function mountGpxInspect(body, headerActions) {
       await _lbAktion(t("logbuch.undo.loeschen", "Logbuch: löschen"), "aufgehen", { bids }, { auswahl: null });
     });
     w.querySelector("#gpxi-lbf-zus").addEventListener("click", async () => {
-      const es = _lbFensterGewaehlt().filter(e => e.t1 != null).sort((a, b) => a.t0 - b.t0);
+      const es = _lbFensterGewaehlt().filter(e => !_lbIstPunkt(e)).sort((a, b) => a.t0 - b.t0);
       if (es.length < 2) return;
       _lbFensterWahl.clear();
       // Der Reihe nach: erster + zweiter, Ergebnis + dritter … (der Kern legt über verborgene Halte hinweg zusammen)
@@ -4450,13 +4464,13 @@ function mountGpxInspect(body, headerActions) {
     try { localStorage.setItem("rz_logbuch_fenster", JSON.stringify({ x: _lbGross.offsetLeft, y: _lbGross.offsetTop, w: _lbGross.offsetWidth, h: _lbGross.offsetHeight })); } catch (_) {}
   }
   function _lbFensterGewaehlt() { return [..._lbFensterWahl].map(id => _lbFinde(id)).filter(Boolean); }
-  function _lbFensterBids() { return _lbFensterGewaehlt().filter(e => e.t1 != null).flatMap(e => e.bids); }
+  function _lbFensterBids() { return _lbFensterGewaehlt().filter(e => !_lbIstPunkt(e)).flatMap(e => e.bids); }
   function _lbFensterRender() {
     if (!_lbGross || _lbGross.hidden || !_lb) return;
     const nm = _lbGross.querySelector("#gpxi-lbf-name"); if (nm) nm.textContent = _lb.name || "";
     const su = _lbGross.querySelector("#gpxi-lbf-summe"); if (su) su.innerHTML = (_lbEl("gpxi-lb-summe") || {}).innerHTML || "";
     const zeilen = _lbEintraege().map(e => Object.assign({ _punkt: false, _t: e.t0, _art: _lbArt(e.anzeige_art), _icon: _LB_ICON[e.anzeige_art] || "" }, e))
-      .concat(_lbAlles ? [] : (_lb.punkte || []).map(p => Object.assign({ _punkt: true, _t: p.t, t0: p.t, dauer_s: 0, strecke_m: 0, hoehe_auf: 0, tempo_kmh: 0, _art: _lbArt(p.art), _icon: p.symbol || _LB_ICON[p.art] || "•" }, p)));
+      .concat(_lbPunkteSichtbar().map(p => Object.assign({ _punkt: true, _t: p.t, t0: p.t, dauer_s: 0, strecke_m: 0, hoehe_auf: 0, tempo_kmh: 0, _art: _lbArt(p.art), _icon: p.symbol || _LB_ICON[p.art] || "•" }, p)));
     const sp = _lbFensterSort, k = sp.spalte;
     const wert = (z) => k === "t0" ? z._t : k === "art" ? z._art : k === "name" ? (z.name || "") : k === "ort" ? _lbOrtText(z) : (z[k] || 0);
     zeilen.sort((a, b) => { const x = wert(a), y = wert(b); const c = (typeof x === "string") ? x.localeCompare(y, rzSprachCode()) : (x - y); return sp.auf ? c : -c; });
@@ -4506,7 +4520,7 @@ function mountGpxInspect(body, headerActions) {
       let fertig = false;
       const ab = async (speichern) => {
         if (fertig) return; fertig = true;
-        if (speichern && inp.value !== (e.name || "")) await _lbAktion(t("logbuch.undo.umbenennen", "Logbuch: umbenennen"), "aendern", e.t1 == null ? { bid: e.id, name: inp.value } : { bids: e.bids, name: inp.value });
+        if (speichern && inp.value !== (e.name || "")) await _lbAktion(t("logbuch.undo.umbenennen", "Logbuch: umbenennen"), "aendern", _lbIstPunkt(e) ? { bid: e.id, name: inp.value } : { bids: e.bids, name: inp.value });
         else _lbFensterRender();
       };
       inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") ab(true); if (ev.key === "Escape") ab(false); });
@@ -4515,7 +4529,7 @@ function mountGpxInspect(body, headerActions) {
   }
   function _lbStufe3Verdrahten() {
     _on("gpxi-lb-fenster-auf", _lbFensterAuf);
-    { const a = _lbEl("gpxi-lb-pois"); if (a) a.addEventListener("change", () => { _lbPoisAn = !!a.checked; _lbPoisRender(); }); }
+    { const a = _lbEl("gpxi-lb-pois"); if (a) a.addEventListener("change", () => { _lbPoisAn = !!a.checked; _lbInfoZu(); logbuchRender(); try { _lbFensterRender(); } catch (_) {} }); }
     const box = _lbEl("gpxi-lb-svgbox");
     if (box) box.addEventListener("contextmenu", (e) => {
       const g = e.target.closest("[data-poi]"); if (!g) return;
@@ -4644,15 +4658,14 @@ function mountGpxInspect(body, headerActions) {
     try { clearSelection(); } catch (_) {}
   }
   function _lbStufe4Verdrahten() {
-    { const a = _lbEl("gpxi-lb-befunde"); if (a) a.addEventListener("change", () => { _lbBefundeAn = !!a.checked; _lbStrahlRender(); }); }
+    { const a = _lbEl("gpxi-lb-befunde"); if (a) a.addEventListener("change", () => { _lbBefundeAn = !!a.checked; _lbInfoZu(); _lbStrahlRender(); }); }
     { const a = _lbEl("gpxi-lb-eigene"); if (a) a.addEventListener("change", () => { _lbEigeneAn = !!a.checked; _lbStrahlRender(); }); }
     const box = _lbEl("gpxi-lb-svgbox"); if (!box) return;
     box.addEventListener("click", (e) => {
       const g = e.target.closest("[data-befund]"); if (!g) return;
       e.stopPropagation();
       const i = parseInt(g.dataset.idx, 10);
-      try { trackCheckZeigen(g.dataset.befund); } catch (_) {}
-      if (map && _points[i]) { try { map.flyTo({ center: [_points[i].lon, _points[i].lat], zoom: Math.max(map.getZoom(), 15), duration: 600 }); } catch (_) {} setHover(i); }
+      if (_points[i]) { _lbBefundZeigen(g.dataset.befund, i); }
     }, true);
     box.addEventListener("contextmenu", (e) => {
       const g = e.target.closest("[data-eigen]"); if (!g) return;
@@ -4682,6 +4695,357 @@ function mountGpxInspect(body, headerActions) {
                                    eigenBereich: _lbEigenBereich, an: (was, an) => { if (was === "befunde") _lbBefundeAn = !!an; if (was === "eigene") _lbEigeneAn = !!an; _lbStrahlRender(); } };
 
 
+
+  // ── Logbuch auf der Karte (Marc, 13.09.2026) ────────────────────────────────
+  // „Punkte, POIs und Befunde müssen bei einem Klick darauf in der Karte angezeigt
+  // werden und es muss direkt dastehen, was das ist" · „auf der Karte auch Rechtsklick
+  // mit denselben Dingen wie im Zeitstrahl" · „zoomt man im Zeitstrahl, soll die Karte
+  // denselben Ausschnitt zeigen — und andersrum".
+  let _lbMarken = [];          // HTML-Marker der Punkte und POIs
+  let _lbInfo = null;          // Info-Kasten (Popup) auf der Karte
+  let _lbKarteTimer = 0;       // Zeitstrahl-Zoom → Karte (entprellt)
+  let _lbAusKarte = false;     // Zeitstrahl wird gerade aus der Karte gesetzt
+  function _lbIstPunkt(e) { return !!e && (e.t != null || e.t1 == null || e.t1 <= e.t0); }
+  function _lbPunkteSichtbar() {
+    return (_lb && !_lbAlles ? (_lb.punkte || []) : []).filter(p => _lbPoisAn || p.art !== "poi");
+  }
+  function _lbPoiArtText(p) {
+    const a = String(p.poi_art || p.art || "").replace(/_/g, " ");
+    return a && a !== "poi" ? a.charAt(0).toUpperCase() + a.slice(1) : "";
+  }
+  function _lbPunktBeschreibung(p) {
+    if (p.art === "poi") {
+      const a = _lbPoiArtText(p);
+      return t("logbuch.karte.poi", "Sehenswürdigkeit aus OpenStreetMap") + (a ? " · " + _lbEsc(a) : "");
+    }
+    if (p.art === "punkt") return t("logbuch.karte.punkt", "Eigener Punkt im Logbuch");
+    if (p.art === "start") return t("logbuch.karte.start", "Beginn der Aufzeichnung");
+    if (p.art === "ziel") return t("logbuch.karte.ziel", "Ende der Aufzeichnung");
+    if (p.art === "hoechster_punkt") return t("logbuch.karte.hoechster", "Höchster Punkt der Tour") + (p.ele != null ? " · " + Math.round(p.ele).toLocaleString(rzSprachCode()) + " m" : "");
+    return _lbArt(p.art);
+  }
+  function _lbInfoZu() { if (_lbInfo) { try { _lbInfo.remove(); } catch (_) {} _lbInfo = null; } }
+  function _lbInfoAuf(lon, lat, html, verdrahten) {
+    if (!map || !_maplib) return;
+    _lbInfoZu(); try { _closeMapPopup(); } catch (_) {}
+    _lbInfo = new _maplib.Popup({ closeButton: true, closeOnClick: false, maxWidth: "310px", className: "gpxi-pinfo-pop gpxi-lb-info-pop", offset: 14 })
+      .setLngLat([lon, lat]).setHTML(`<div class="gpxi-lb-info">${html}</div>`).addTo(map);
+    try { _lbInfo.on("close", () => { _lbInfo = null; }); } catch (_) {}
+    const el = _lbInfo.getElement && _lbInfo.getElement();
+    if (el && verdrahten) {
+      el.querySelectorAll("[data-lbi]").forEach(b => b.addEventListener("click", (ev) => { ev.stopPropagation(); verdrahten(b.dataset.lbi); }));
+    }
+  }
+  function _lbLage(p) {
+    if (p.lat != null && p.lon != null) return [p.lon, p.lat];
+    const i = p.idx != null ? p.idx : _lbIdxZuZeit(p.t);
+    return (i >= 0 && _points[i]) ? [_points[i].lon, _points[i].lat] : null;
+  }
+  function _lbKarteHin(lage, zoom) {
+    if (!map || !lage) return;
+    try {
+      const b = map.getBounds();
+      const drin = b && lage[0] >= b.getWest() && lage[0] <= b.getEast() && lage[1] >= b.getSouth() && lage[1] <= b.getNorth();
+      if (drin && map.getZoom() >= (zoom || 13) - 0.5) return;
+      _syncing = true;
+      map.once("moveend", () => setTimeout(() => { _syncing = false; }, 30));
+      map.easeTo({ center: lage, zoom: Math.max(map.getZoom(), zoom || 14), duration: 600 });
+    } catch (_) { _syncing = false; }
+  }
+  /** Punkt (aus dem Logbuch) auf der Karte zeigen, mit Info und Knöpfen. */
+  function _lbPunktZeigen(p, ohneFlug) {
+    const lage = _lbLage(p); if (!lage) return;
+    if (!ohneFlug) _lbKarteHin(lage, 14);
+    const titel = p.art === "hoechster_punkt" ? _lbArt(p.art) : (p.name ? _lbEsc(p.name) : _lbArt(p.art));
+    const ort = _lbOrtText(p);
+    const html = `<div class="gpxi-lb-info-kopf"><span class="gpxi-lb-info-sym">${p.symbol || _LB_ICON[p.art] || "•"}</span><b>${titel}</b></div>
+      <div class="gpxi-lb-info-was">${_lbPunktBeschreibung(p)}</div>
+      <div class="gpxi-lb-info-meta">${_lbUhr(p.t, p.versatz_min)}${ort ? " · " + _lbEsc(ort) : ""}${p.quelle === "hand" ? " · " + t("logbuch.karte.von_hand", "von Hand") : ""}</div>
+      ${p.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(p.notiz)}</div>` : ""}
+      <div class="gpxi-lb-info-knoepfe">
+        <button type="button" class="gpxi-lb-knopf" data-lbi="name">✏️ ${t("logbuch.karte.umbenennen", "Umbenennen")}</button>
+        <button type="button" class="gpxi-lb-knopf" data-lbi="notiz">📝 ${t("logbuch.karte.notiz", "Notiz")}</button>
+        <button type="button" class="gpxi-lb-knopf ist-gefahr" data-lbi="weg">🗑 ${t("logbuch.karte.loeschen", "Löschen")}</button>
+      </div>`;
+    _lbInfoAuf(lage[0], lage[1], html, async (was) => {
+      if (was === "name") {
+        const v = await _lbFrage(t("logbuch.frage.name", "Name des Eintrags"), p.name || ""); if (v === null) return;
+        _lbInfoZu(); await _lbAktion(t("logbuch.undo.umbenennen", "Logbuch: umbenennen"), "aendern", { bid: p.id, name: v });
+        const neu = _lbFinde(p.id); if (neu) _lbPunktZeigen(neu, true);
+      } else if (was === "notiz") {
+        const v = await _lbFrage(t("logbuch.frage.notiz", "Notiz zu diesem Eintrag"), p.notiz || "", true); if (v === null) return;
+        _lbInfoZu(); await _lbAktion(t("logbuch.undo.notiz", "Logbuch: Notiz"), "aendern", { bid: p.id, notiz: v });
+        const neu = _lbFinde(p.id); if (neu) _lbPunktZeigen(neu, true);
+      } else if (was === "weg") {
+        _lbInfoZu(); await _lbPunktLoeschen(p);
+      }
+    });
+  }
+  async function _lbPunktLoeschen(p) {
+    const r = await _lbAktion(t("logbuch.undo.punkt_loeschen", "Logbuch: Punkt löschen"), "bereich_entfernen", { bid: p.id }, { auswahl: null });
+    if (r && p.osm_id) {
+      const q = _lbPois.find(x => String(x.osm_id) === String(p.osm_id));
+      if (q) { q.im_logbuch = false; q.abgelehnt = true; }
+      _lbKartenMarken();
+    }
+    return r;
+  }
+  /** POI aus der POI-Spur (noch nicht im Logbuch) auf der Karte zeigen. */
+  function _lbPoiZeigen(q, ohneFlug) {
+    if (!q) return;
+    if (q.im_logbuch) {
+      const p = (_lb && _lb.punkte || []).find(x => x.art === "poi" && String(x.osm_id) === String(q.osm_id));
+      if (p) { lbWaehlen(p.id, { zoom: !ohneFlug }); return; }
+    }
+    const lage = [q.lon, q.lat];
+    if (!ohneFlug) _lbKarteHin(lage, 14);
+    const a = _lbPoiArtText(q);
+    const html = `<div class="gpxi-lb-info-kopf"><span class="gpxi-lb-info-sym">${q.symbol || "📍"}</span><b>${_lbEsc(q.name)}</b></div>
+      <div class="gpxi-lb-info-was">${t("logbuch.karte.poi", "Sehenswürdigkeit aus OpenStreetMap")}${a ? " · " + _lbEsc(a) : ""}</div>
+      <div class="gpxi-lb-info-meta">${q.t != null ? _lbUhr(q.t, ((_lb && _lb.eintraege[0]) || {}).versatz_min) + " · " : ""}${t("logbuch.karte.nicht_drin", "steht nicht im Logbuch")}</div>
+      <div class="gpxi-lb-info-knoepfe">
+        <button type="button" class="gpxi-lb-knopf ist-haupt" data-lbi="rein">📍 ${t("logbuch.poi.uebernehmen", "Ins Logbuch übernehmen")}</button>
+      </div>`;
+    _lbInfoAuf(lage[0], lage[1], html, async (was) => {
+      if (was !== "rein") return;
+      _lbInfoZu(); await _lbPoiUebernehmen(q.id);
+      const p = (_lb && _lb.punkte || []).find(x => x.art === "poi" && String(x.osm_id) === String(q.osm_id));
+      if (p) lbWaehlen(p.id, { zoom: false });
+    });
+  }
+  /** Befund-Stelle auf der Karte: was kaputt ist, was die Reparatur tut, und gleich „Reparieren?". */
+  function _lbBefundZeigen(key, idx, ohneFlug) {
+    const bef = ((_tc && _tc.befunde) || []).find(q => q.key === key); const p = _points[idx];
+    if (!bef || !p) return;
+    if (!ohneFlug) _lbKarteHin([p.lon, p.lat], 15);
+    try { setHover(idx); } catch (_) {}
+    const zeile = (typeof rzTrackCheckZeile === "function") ? rzTrackCheckZeile : (b) => b.key;
+    const stufeTxt = (typeof rzTrackCheckStufeText === "function") ? rzTrackCheckStufeText : () => "";
+    const stellen = bef.stellen || [], nr = stellen.indexOf(idx);
+    const ohne = _TC_OHNE_SCHRITT[key];
+    const rep = _TC_REPARATUR[key];
+    const erkl = key === "uebersetzen" ? t("trackcheck.uebersetzen_hinweis", "Fähre, Flug oder Autozug: Die Strecke wurde wirklich zurückgelegt, nur ohne Aufzeichnung. Daran wird nichts repariert.")
+      : (_TC_STILL[key] ? t("trackcheck.still_hinweis", "Eigenheit der Aufzeichnung — wird beim Reparieren mitbereinigt") : (rep ? t(rep[0], rep[1]) : ""));
+    const kannRep = ohne === undefined && !!rep;
+    const html = `<div class="gpxi-lb-info-kopf"><span class="gpxi-lb-info-sym gpxi-lb-info-befund ist-${bef.stufe || "grau"}">◆</span><b>${_lbEsc(zeile(bef))}</b></div>
+      <div class="gpxi-lb-info-was">${_lbEsc(stufeTxt(bef.stufe || "grau") || t("logbuch.karte.befund", "Befund des Track-Checks"))}</div>
+      <div class="gpxi-lb-info-meta">${t("logbuch.karte.stelle", "Stelle {i} von {n} · Punkt #{p}", { i: nr + 1, n: stellen.length, p: idx + 1 })}</div>
+      ${erkl ? `<div class="gpxi-lb-info-rep">${_lbEsc(erkl)}</div>` : ""}
+      <div class="gpxi-lb-info-knoepfe">
+        ${kannRep ? `<button type="button" class="gpxi-lb-knopf ist-haupt" data-lbi="rep">🩹 ${t("logbuch.karte.reparieren", "Reparieren")}</button>` : ""}
+        ${ohne === "retime" ? `<button type="button" class="gpxi-lb-knopf" data-lbi="goto">${t("trackcheck.goto_retime", "Zeiten setzen")}</button>` : ""}
+        ${stellen.length > 1 ? `<button type="button" class="gpxi-lb-knopf" data-lbi="weiter">${t("logbuch.karte.naechste", "Nächste Stelle")} ›</button>` : ""}
+        ${_tc && _tc.im_archiv ? `<button type="button" class="gpxi-lb-knopf" data-lbi="ok">${t("trackcheck.btn_ok", "Ist so in Ordnung")}</button>` : ""}
+      </div>`;
+    _lbInfoAuf(p.lon, p.lat, html, async (was) => {
+      if (was === "weiter") { const n = stellen[(nr + 1) % stellen.length]; _lbBefundZeigen(key, n); }
+      else if (was === "rep") {
+        _lbInfoZu();
+        const ok = await _lbJaNein(t("logbuch.karte.rep_frage", "„{b}“ reparieren?", { b: zeile(bef) }),
+          (rep ? t(rep[0], rep[1]) : "") + " " + t("logbuch.karte.rep_alle", "Das betrifft alle {n} Stellen dieser Art. Rückgängig geht mit ⌘Z.", { n: stellen.length || bef.n || 1 }));
+        if (ok) { try { await trackCheckReparieren([key]); } catch (e) { toast(String(e), "error"); } }
+      }
+      else if (was === "ok") { _lbInfoZu(); try { await trackCheckOk(key, true); } catch (_) {} }
+      else if (was === "goto") {
+        _lbInfoZu();
+        const sec = document.querySelector('.gpxi-sec[data-sec="bearbeiten"]'); if (sec) sec.open = true;
+        const el = document.getElementById("gpxi-wz-retime-run"); if (el) { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {} }
+      }
+    });
+  }
+  function _lbJaNein(titel, text) {
+    return new Promise((resolve) => {
+      const m = openModal({ title: titel, body: `<div class="lib-fmodal"><p>${_lbEsc(text)}</p></div>`,
+        footer: `<button class="btn" id="gpxi-lb-jn-nein">${t("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="gpxi-lb-jn-ja">${t("logbuch.karte.reparieren", "Reparieren")}</button>` });
+      const fertig = (v) => { try { m.close(); } catch (_) {} resolve(v); };
+      const ja = document.getElementById("gpxi-lb-jn-ja"), nein = document.getElementById("gpxi-lb-jn-nein");
+      if (ja) ja.onclick = () => fertig(true);
+      if (nein) nein.onclick = () => fertig(false);
+    });
+  }
+
+  /** Marken auf der Karte: Logbuch-Punkte (Start/Ziel zeigt die Karte schon), POIs und Befunde. */
+  let _lbKartenSig = "";
+  function _lbKartenMarken(erzwingen) {
+    const sig = !_lb ? "" : [_lbAlles, _lbPoisAn, _lbBefundeAn, _lbSel, _points.length,
+      _lbPunkteSichtbar().map(p => p.id + (p.name || "")).join(","),
+      _lbPois.map(q => q.id + (q.im_logbuch ? "+" : "")).join(","), _lbBefundeAn ? _lbBefundeListe().length : 0,
+      (_lb.einstellungen || {}).pois_menge].join("|");
+    if (!erzwingen && sig === _lbKartenSig) return;
+    _lbKartenSig = sig;
+    for (const m of _lbMarken) { try { m.remove(); } catch (_) {} }
+    _lbMarken = [];
+    if (!map || !_maplib) return;
+    _lbKarteEbenen();
+    const befSrc = map.getSource && map.getSource("gpxi-lb-bef");
+    if (!_lb || _lbAlles) { if (befSrc) befSrc.setData({ type: "FeatureCollection", features: [] }); return; }
+    const neu = (lage, sym, cls, titel, klick, rechts) => {
+      const el = document.createElement("div");
+      el.className = "gpxi-lb-marke " + cls; el.textContent = sym; el.title = titel;
+      el.addEventListener("click", (ev) => { ev.stopPropagation(); klick(); });
+      el.addEventListener("dblclick", (ev) => ev.stopPropagation());
+      el.addEventListener("mousedown", (ev) => ev.stopPropagation());
+      el.addEventListener("contextmenu", (ev) => { ev.preventDefault(); ev.stopPropagation(); if (rechts) rechts(ev); });
+      const mk = new _maplib.Marker({ element: el, anchor: "center" }).setLngLat(lage).addTo(map);
+      _lbMarken.push(mk);
+    };
+    for (const p of _lbPunkteSichtbar()) {
+      if (p.art === "start" || p.art === "ziel") continue;
+      const lage = _lbLage(p); if (!lage) continue;
+      const titel = (p.name || _lbArt(p.art)) + (p.art === "hoechster_punkt" && p.ele != null ? " · " + Math.round(p.ele) + " m" : "");
+      neu(lage, p.symbol || _LB_ICON[p.art] || "•", "ist-" + p.art + (p.id === _lbSel ? " ist-gewaehlt" : ""), titel,
+        () => lbWaehlen(p.id, { zoom: false }), (ev) => _lbEintragMenue(p, ev.clientX, ev.clientY, null));
+    }
+    if (_lbPoisAn) {
+      const menge = Math.max(0, Math.round((_lb.einstellungen && _lb.einstellungen.pois_menge) || 30));
+      const liste = _lbPois.filter(q => !q.im_logbuch && q.lat != null).slice().sort((a, b) => a.rang - b.rang).slice(0, menge);
+      for (const q of liste) {
+        neu([q.lon, q.lat], q.symbol || "📍", "ist-poi-spur", q.name + " · " + t("logbuch.poi.klick_karte", "Klick: was ist das?"),
+          () => _lbPoiZeigen(q, true), (ev) => _lbMenue(ev.clientX, ev.clientY, [{ text: q.name, aus: true },
+            { symbol: "📍", text: t("logbuch.poi.uebernehmen", "Ins Logbuch übernehmen"), tu: () => _lbPoiUebernehmen(q.id) }]));
+      }
+    }
+    if (befSrc) {
+      const feats = [];
+      if (_lbBefundeAn) for (const b of _lbBefundeListe()) {
+        const p = _points[b.idx]; if (!p) continue;
+        feats.push({ type: "Feature", properties: { key: b.key, idx: b.idx, stufe: b.stufe }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } });
+      }
+      befSrc.setData({ type: "FeatureCollection", features: feats });
+    }
+  }
+  function _lbBefundAnKarte(pt) {
+    if (!map || !_lbBefundeAn || !map.getLayer("gpxi-lb-bef-lyr")) return null;
+    try {
+      const f = map.queryRenderedFeatures([[pt.x - 8, pt.y - 8], [pt.x + 8, pt.y + 8]], { layers: ["gpxi-lb-bef-lyr"] });
+      if (f && f.length) return { key: f[0].properties.key, idx: Number(f[0].properties.idx) };
+    } catch (_) {}
+    return null;
+  }
+  /** Rechtsklick auf der Karte = dasselbe Menü wie im Zeitstrahl, an dieser Stelle. */
+  function _lbKarteRechtsklick(ev) {
+    if (!_lb || _lbAlles || _drawMode) return;
+    const oe = ev.originalEvent; try { oe && oe.preventDefault(); } catch (_) {}
+    const bef = _lbBefundAnKarte(ev.point);
+    if (bef) { _lbBefundZeigen(bef.key, bef.idx, true); return; }
+    const i = _nearestIdxToPoint(ev.point.x, ev.point.y, 60);
+    if (i < 0) return;
+    const z = _lbZeiten || _lbZeitenBauen(); const tt = z[i]; if (!isFinite(tt)) return;
+    const e = _lbEintraege().find(x => x.t0 <= tt && tt <= x.t1);
+    if (!e) return;
+    if (e.id !== _lbSel) lbWaehlen(e.id, { zoom: false, scroll: true });
+    _lbEintragMenue(e, oe ? oe.clientX : 300, oe ? oe.clientY : 300, tt, { idx: i });
+  }
+  function _lbKarteEbenen() {
+    if (!map) return;
+    try {
+      if (!map.getSource("gpxi-lb-bef")) {
+        map.addSource("gpxi-lb-bef", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({ id: "gpxi-lb-bef-lyr", type: "circle", source: "gpxi-lb-bef", paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3.5, 15, 6.5],
+          "circle-color": ["match", ["get", "stufe"], "rot", "#e53935", "gelb", "#d4a017", "#8b8fa3"],
+          "circle-stroke-width": 1.6, "circle-stroke-color": "#ffffff" } });
+      }
+      if (!map.getSource("gpxi-lb-fen")) {
+        map.addSource("gpxi-lb-fen", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        const vor = map.getLayer("gpxi-lb-hl-saum") ? "gpxi-lb-hl-saum" : undefined;
+        map.addLayer({ id: "gpxi-lb-fen-lyr", type: "line", source: "gpxi-lb-fen", layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#fde68a", "line-width": 12, "line-opacity": 0.38 } }, vor);
+      }
+    } catch (e) { applog && applog("warn", "[logbuch] Karten-Ebenen: " + e); }
+  }
+  let _lbKarteVerdrahtet = false;
+  function _lbKarteVerdrahten() {
+    if (!map || _lbKarteVerdrahtet) return;
+    _lbKarteVerdrahtet = true;
+    _lbKarteEbenen();
+    map.on("contextmenu", _lbKarteRechtsklick);
+    map.on("moveend", _lbKarteBewegt);
+    try { map.getCanvas().addEventListener("contextmenu", (e) => { if (_lb) e.preventDefault(); }); } catch (_) {}
+  }
+  // Zeitstrahl-Ausschnitt → Karte: denselben Abschnitt zeigen und hell markieren.
+  function _lbFensterAufKarte(sofort, ganz) {
+    if (_lbKarteTimer) clearTimeout(_lbKarteTimer);
+    const lauf = () => {
+      _lbKarteTimer = 0;
+      if (!map || !_lb) return;
+      const src = map.getSource("gpxi-lb-fen");
+      const z = _lbZeiten || _lbZeitenBauen();
+      if (!_lbFenster) {
+        if (src) src.setData({ type: "FeatureCollection", features: [] });
+        if (ganz && !_lbAusKarte && _points.length > 1) { _syncing = true; try { _lbKarteZu(0, _points.length - 1); } catch (_) { _syncing = false; } }
+        return;
+      }
+      let a = -1, b = -1;
+      for (let i = 0; i < z.length; i++) { const tt = z[i]; if (!isFinite(tt)) continue; if (tt >= _lbFenster[0] && tt <= _lbFenster[1]) { if (a < 0) a = i; b = i; } }
+      if (a < 0) { if (src) src.setData({ type: "FeatureCollection", features: [] }); return; }
+      if (src) {
+        const coords = []; const schritt = Math.max(1, Math.floor((b - a) / 3000));
+        for (let i = a; i <= b; i += schritt) coords.push([_points[i].lon, _points[i].lat]);
+        coords.push([_points[b].lon, _points[b].lat]);
+        src.setData({ type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: coords } }] });
+      }
+      if (_lbAusKarte) return;       // die Karte hat den Ausschnitt vorgegeben — nicht zurückschieben
+      let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+      for (let i = a; i <= b; i++) { const p = _points[i]; if (p.lon < mnx) mnx = p.lon; if (p.lon > mxx) mxx = p.lon; if (p.lat < mny) mny = p.lat; if (p.lat > mxy) mxy = p.lat; }
+      if (mxx - mnx < 1e-4 && mxy - mny < 1e-4) { mnx -= 0.002; mxx += 0.002; mny -= 0.0015; mxy += 0.0015; }
+      _syncing = true;
+      try {
+        map.once("moveend", () => setTimeout(() => { _syncing = false; }, 30));
+        map.fitBounds([[mnx, mny], [mxx, mxy]], { padding: 60, duration: 450, maxZoom: 16 });
+      } catch (_) { _syncing = false; }
+    };
+    if (sofort) lauf(); else _lbKarteTimer = setTimeout(lauf, 260);
+  }
+  // Karte bewegt (von Hand) → Zeitstrahl auf den sichtbaren Abschnitt.
+  function _lbKarteBewegt(ev) {
+    // Nur Bewegungen von Hand (Ziehen, Mausrad, Zoom-Knöpfe) tragen ein originalEvent —
+    // eigene fitBounds/easeTo nicht. Sonst schiebt jedes Anspringen den Zeitstrahl um.
+    if (!ev || !ev.originalEvent) return;
+    if (!_lb || !map || _points.length < 2 || _lbAlles) return;
+    const w = _lbEl("gpxi-logbuch"); if (!w || w.hidden || w.classList.contains("ist-zu")) return;
+    let bb; try { bb = map.getBounds(); } catch (_) { return; }
+    const W = bb.getWest(), E = bb.getEast(), S = bb.getSouth(), N = bb.getNorth();
+    const z = _lbZeiten || _lbZeitenBauen();
+    // Sichtbare Punkte als zusammenhängende Läufe (Lücken bis 20 Punkte überbrückt) —
+    // eine Reise kommt oft mehrmals durch denselben Ausschnitt.
+    const laeufe = []; let lauf = null, drin = 0;
+    for (let i = 0; i < _points.length; i++) {
+      const p = _points[i];
+      if (p.lon >= W && p.lon <= E && p.lat >= S && p.lat <= N && isFinite(z[i])) {
+        drin++;
+        if (lauf && i - lauf.b <= 20) lauf.b = i; else { lauf = { a: i, b: i }; laeufe.push(lauf); }
+      }
+    }
+    let neu = null;
+    if (drin && drin < _points.length * 0.98) {
+      const alt = _lbFenster;
+      const ueber = (l) => alt ? Math.max(0, Math.min(z[l.b], alt[1]) - Math.max(z[l.a], alt[0])) : 0;
+      laeufe.sort((x, y) => (ueber(y) - ueber(x)) || ((y.b - y.a) - (x.b - x.a)));
+      const l = laeufe[0];
+      const lo = z[l.a], hi = z[l.b];
+      const ganz = (function () { const f = _lbFenster; _lbFenster = null; const g = _lbSpanne(); _lbFenster = f; return g; })();
+      const pad = Math.max(60, (hi - lo) * 0.03);
+      neu = [ganz ? Math.max(ganz[0], lo - pad) : lo - pad, ganz ? Math.min(ganz[1], hi + pad) : hi + pad];
+      if (neu[1] - neu[0] < 600) { const m = (neu[0] + neu[1]) / 2; neu = [m - 300, m + 300]; }
+      if (ganz && neu[1] - neu[0] >= (ganz[1] - ganz[0]) * 0.98) neu = null;
+    }
+    const gleich = (!neu && !_lbFenster) || (neu && _lbFenster && Math.abs(neu[0] - _lbFenster[0]) < 5 && Math.abs(neu[1] - _lbFenster[1]) < 5);
+    if (gleich) return;
+    _lbFenster = neu;
+    _lbAusKarte = true;
+    try { logbuchRender(); _lbFensterAufKarte(true); } finally { _lbAusKarte = false; }
+  }
+  window.__rzGpxiLogbuchKarte = { marken: () => _lbMarken.map(m => { const el = m.getElement(); return { cls: el.className, sym: el.textContent, titel: el.title }; }),
+                                  info: () => (_lbInfo && _lbInfo.getElement ? _lbInfo.getElement().innerText : null),
+                                  infoKnopf: (was) => { const b = _lbInfo && _lbInfo.getElement().querySelector(`[data-lbi="${was}"]`); if (b) b.click(); return !!b; },
+                                  punktZeigen: (id) => _lbPunktZeigen(_lbFinde(id), true), poiZeigen: (id) => _lbPoiZeigen(_lbPois.find(q => q.id === id), true),
+                                  befundZeigen: _lbBefundZeigen, rechtsklickIdx: (i) => { const sp = map.project([_points[i].lon, _points[i].lat]); _lbKarteRechtsklick({ point: sp, originalEvent: { clientX: 400, clientY: 300, preventDefault() {} } }); },
+                                  bounds: () => { try { return map.getBounds().toArray(); } catch (_) { return null; } },
+                                  springe: (i, zoom) => { try { map.jumpTo({ center: [_points[i].lon, _points[i].lat], zoom }, { originalEvent: { type: "test" } }); } catch (e) { return String(e); } return true; },
+                                  fenSrc: () => { const s = map.getSource("gpxi-lb-fen"); return s && s._data; },
+                                  karteBewegt: _lbKarteBewegt, fensterAufKarte: _lbFensterAufKarte, befSrc: () => { const s = map.getSource("gpxi-lb-bef"); return s && s._data; } };
 
   // Für Wächter: Zustand des Logbuchs von außen lesbar
   window.__rzGpxiLogbuch = { daten: () => _lb, auswahl: () => _lbSel, waehlen: lbWaehlen, laden: logbuchLaden,
