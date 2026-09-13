@@ -3520,5 +3520,8 @@
   "fotos.laufwerk_intern": "Dieser Rechner",
   "fotos.fern_ordner_auf": "{l} ({n} Ordner)",
   "fotos.fern_titel": "Nicht erreichbar: {n}",
-  "fotos.fern_rest": "Die Ordner auf {l} werden normal gelesen."
+  "fotos.fern_rest": "Die Ordner auf {l} werden normal gelesen.",
+  "trackcheck.k_gaps_klein": "{n} kleine Lücke ({m} m)|{n} kleine Lücken (größte {m} m)",
+  "trackcheck.rep_gaps_klein": "Reparatur: Die kleine Lücke wird gefüllt — wie eine große, nur ohne Alarm: unter einer Minute fehlender Bewegung.",
+  "trackcheck.still_hinweis": "Eigenheit der Aufzeichnung — wird beim Reparieren mitbereinigt"
 }

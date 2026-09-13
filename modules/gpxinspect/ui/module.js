@@ -1903,6 +1903,9 @@ function mountGpxInspect(body, headerActions) {
   // daran ist nichts zu reparieren, die Strecke wurde wirklich zurückgelegt.
   const _TC_OHNE_SCHRITT = { clock_off: "retime", no_time: "timeline", local_time: "",
                              xml_broken: "", uebersetzen: "" };
+  // 13.09.2026 (Q3, Marc): Eigenheiten der Aufzeichnung — kein Fehler des Nutzers.
+  // Grau, ohne Häkchen, und beim Reparieren still mit bereinigt.
+  const _TC_STILL = { duplicates: true, spread_seconds: true };
   // 12.09.2026 (Marc: „klar und deutlich gekennzeichnet, was er als fehler erkennt und
   // wie er es reparieren würde"): je Befund-Art ein Satz, was die Reparatur TUT. Steht
   // unter der Befund-Zeile, damit niemand raten muss, was ein Häkchen auslöst.
@@ -1911,6 +1914,7 @@ function mountGpxInspect(body, headerActions) {
     cold_start: ["trackcheck.rep_cold_start", "Reparatur: Die ersten Punkte vor dem ersten echten Empfang werden entfernt."],
     ele_garbage: ["trackcheck.rep_ele_garbage", "Reparatur: Unmögliche Höhenwerte werden aus den Nachbarn neu berechnet."],
     gaps: ["trackcheck.rep_gaps", "Reparatur: Die Lücke wird gefüllt — entlang echter Wege, wenn ein Profil gewählt ist, sonst geradlinig."],
+    gaps_klein: ["trackcheck.rep_gaps_klein", "Reparatur: Die kleine Lücke wird gefüllt — wie eine große, nur ohne Alarm: unter einer Minute fehlender Bewegung."],
     missing_ele: ["trackcheck.rep_missing_ele", "Reparatur: Fehlende Höhen werden aus den Nachbarpunkten ergänzt."],
     tempo: ["trackcheck.rep_tempo", "Reparatur: Nicht die Strecke, nur die Zeit wird entzerrt — der Track bleibt, wo er ist."],
     backwards: ["trackcheck.rep_backwards", "Reparatur: Rückwärts laufende Zeitstempel werden aufsteigend geradegezogen."],
@@ -1963,6 +1967,9 @@ function mountGpxInspect(body, headerActions) {
     const okKnopf = (k) => r.im_archiv
       ? `<button type="button" class="gpxi-tc-ok" data-tc-ok="${k}" title="${t("trackcheck.btn_ok_tip", "Diese Befund-Art bei dieser Tour nicht mehr melden — weder auf der Kachel noch beim Laden.")}">${t("trackcheck.btn_ok", "Ist so in Ordnung")}</button>` : "";
     const rows = (r.befunde || []).map((b) => {
+      if (_TC_STILL[b.key]) {
+        return `<div class="gpxi-tc-row is-grau"><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)} <span class="gpxi-tc-stufe">${t("trackcheck.still_hinweis", "Eigenheit der Aufzeichnung — wird beim Reparieren mitbereinigt")}</span></span>${okKnopf(b.key)}</div>`;
+      }
       const ohne = _TC_OHNE_SCHRITT[b.key];
       if (ohne !== undefined) {
         const sprung = ohne === "retime" ? `<button type="button" class="gpxi-tc-ok" data-tc-goto="retime">${t("trackcheck.goto_retime", "Zeiten setzen")}</button>`
@@ -2032,26 +2039,39 @@ function mountGpxInspect(body, headerActions) {
     if (!box || _mmBusy || _drawMode) return;
     let schritte = [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
     if (!schritte.length) { toast(t("trackcheck.nothing_selected", "Nichts angehakt — nichts zu reparieren."), "info", 2400); return; }
+    for (const b of ((_tc && _tc.befunde) || [])) {
+      if (_TC_STILL[b.key] && schritte.indexOf(b.key) < 0) schritte.push(b.key);
+    }
+    const aktivitaet = (_tc && _tc.activity) || "";
     // 10.09.2026 (Marc: „wäre nicht besser anhand der Fortbewegungsart die Karte zu nutzen?"):
     // Lücken laufen über das Profil aus „Lücken füllen als" — Wege statt Luftlinie. Der Kern
     // füllt dann nicht, die Lücken werden nach den anderen Schritten hier geroutet.
     const fillMode = (document.getElementById("gpxi-profile") || {}).value || "linear";
-    const lueckenRouten = schritte.indexOf("gaps") >= 0 && fillMode !== "linear";
-    if (lueckenRouten) schritte = schritte.filter((k) => k !== "gaps");
+    const mitKlein = schritte.indexOf("gaps_klein") >= 0;
+    const lueckenRouten = (schritte.indexOf("gaps") >= 0 || mitKlein) && fillMode !== "linear";
+    const nurKlein = mitKlein && schritte.indexOf("gaps") < 0;
+    if (lueckenRouten) schritte = schritte.filter((k) => k !== "gaps" && k !== "gaps_klein");
     _pushUndo(t("trackcheck.repair", "Track-Check reparieren"));
     merkeVorher();
     let r = { ok: true, points: _points.slice(), bericht: [] };
     if (schritte.length) {
-      try { r = await api().gpxinspect_heal(_points, 250, schritte, false); } catch (e) { r = { ok: false, error: String(e) }; }
+      try { r = await api().gpxinspect_heal(_points, 250, schritte, false, aktivitaet); } catch (e) { r = { ok: false, error: String(e) }; }
     }
     if (isUnmounted) return;
     if (!r || !r.ok || !Array.isArray(r.points)) { toast(t("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
     const teile = (r.bericht || []).filter((b) => schritte.indexOf(b.key) >= 0).map((b) => { const k = _HEAL_KEYS[b.key]; return k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n); });
     _points.length = 0; for (const p of r.points) _points.push(p);
     if (lueckenRouten) {
-      // dieselben Lücken wie im Kasten: ab 100 m (core/trackcheck.LUECKE_MIN_M), nie Wirtshaus-Pause
+      // 13.09.2026 — dieselben Lücken wie im Kasten, aus dem Kern (fehlende Wegzeit je
+      // Bewegungsart). Vorher suchte die Oberfläche selbst ab 100 m und füllte damit
+      // andere Stellen, als der Track-Check gemeldet hatte.
       _spikeSet = new Set();
-      const gaps = detectGaps().filter((g) => g.dist >= 100 && !_istPauseLuecke(g));
+      let gaps = [];
+      try {
+        const lr = await api().gpxinspect_luecken(_points, aktivitaet, mitKlein);
+        gaps = ((lr && lr.luecken) || []).filter((g) => !nurKlein || g.stufe === "grau");
+      } catch (_) { gaps = []; }
+      if (isUnmounted) return;
       if (gaps.length) {
         const { routed, detour } = await _lueckenRouten(gaps, _gapSpacing(), fillMode);
         if (isUnmounted) return;
@@ -2082,7 +2102,7 @@ function mountGpxInspect(body, headerActions) {
     const schritte = _healSchritte();
     if (schritte && !schritte.length) return "";
     let r = null;
-    try { r = await api().gpxinspect_heal(_points, 250, schritte, false); } catch (e) { r = { ok: false, error: String(e) }; }
+    try { r = await api().gpxinspect_heal(_points, 250, schritte, false, (_tc && _tc.activity) || ""); } catch (e) { r = { ok: false, error: String(e) }; }
     if (!r || !r.ok || !Array.isArray(r.points)) { try { applog("warn", "[gpxinspect] heilen (Brücke): " + (r && r.error)); } catch (_) {} return ""; }
     const teile = (r.bericht || []).filter((b) => !schritte || schritte.indexOf(b.key) >= 0).map((b) => { const k = _HEAL_KEYS[b.key]; return k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n); });
     if (!teile.length) return "";

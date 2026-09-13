@@ -3520,5 +3520,8 @@
   "fotos.laufwerk_intern": "Este ordenador",
   "fotos.fern_ordner_auf": "{l} ({n} carpetas)",
   "fotos.fern_titel": "No accesible: {n}",
-  "fotos.fern_rest": "Las carpetas en {l} se leen con normalidad."
+  "fotos.fern_rest": "Las carpetas en {l} se leen con normalidad.",
+  "trackcheck.k_gaps_klein": "{n} hueco pequeño ({m} m)|{n} huecos pequeños (el mayor {m} m)",
+  "trackcheck.rep_gaps_klein": "Reparación: el hueco pequeño se rellena, como uno grande pero sin alarma: menos de un minuto de movimiento ausente.",
+  "trackcheck.still_hinweis": "Particularidad de la grabación: se limpia junto con cualquier reparación"
 }

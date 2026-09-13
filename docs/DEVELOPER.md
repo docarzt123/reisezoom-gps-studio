@@ -4812,6 +4812,60 @@ die Gemacht-Schätzung) und `tests/test_pruefsammlung.py` (Bewegungs-Soll an ech
 **Nebenbei:** `library._recorded_guess` erkennt Aufnahmen mit hoher Rate
 (`HOCHFREQUENT_ANTEIL` = 30 % Punktpaare in derselben Sekunde bei fortschreitender Zeit).
 
+## Track-Check: Schwellen je Bewegungsart (13.09.2026, v0.9.701)
+
+Schritt 3 aus docs/IDEAS.md §67. **Eine** Stelle entscheidet, was ein Befund ist — Check
+(`trackcheck.pruefen`), Reparatur (`gpxheal.heilen`/`analysieren`), Inspektor-Routing
+(`Api.gpxinspect_luecken`) und Tour-Assistent rufen dieselben Funktionen:
+
+- `bewegung_von(sp, aktivitaet)` — die Bewegungserkennung, einmal je `_Spur` (Zwischenspeicher
+  `sp._bew`). Spät importiert: `core/bewegung` importiert `trackcheck`.
+- `standdrift_ausser_halt` — Knäuel zu ≥ 80 % in Halt/Pause sind kein Befund (Q18).
+- `sprung_gefiltert` — Halt-Segmente ausgeschlossen; Tempo-Median je Bereich
+  (`_mediane_aus_bewegung`, übergeben an `sprung_gruppen(med_je_punkt=)`); Ausreißer nur ab
+  `VERSATZ_MIN_M` (40 m) **und** `VERSATZ_STREUUNG` × Streuung des Bereichs (`_streuung`:
+  Median-Querabstand von der Linie der Nachbarn); Tempo-Gruppen fallen weg in Fahrt/Übersetzen
+  und wenn die **zu schnellen** Segmente zusammen < `TEMPO_MIN_WEG_M` (150 m) sind.
+- `luecken_je_art` — fehlende Wegzeit = Strecke ÷ max(Tempo des Bereichs,
+  `MINDEST_TEMPO_MS[art]`) − Median-Takt des Bereichs. Gelb ab 60 s, `gaps_klein` grau ab 20 s.
+  Keine Lücken in Halten; in Pausen zählen die ersten `HALT_RADIUS_M` nicht (Wiederempfang);
+  bei Pausen gewinnt der schnellere Nachbarbereich; unter `RHYTHMUS_FAKTOR` × mittlerem
+  Punktabstand höchstens grau (Strecken-Logger).
+- Stufen: `duplicates`, `spread_seconds` grau (Q3). Der Inspektor zeigt sie ohne Häkchen
+  (`_TC_STILL`) und nimmt sie bei jeder Reparatur still mit.
+- `uebersetzen` braucht Zeiten.
+
+`pruefen`, `heilen`, `analysieren`, `library._check_werte` und die Brücken
+`gpxinspect_track_check`, `gpxinspect_heal`, `trackcheck_datei` reichen die **Aktivität** der
+Tour durch (Archiv-Spalte `activity`). Ohne Zeiten oder ohne Erkennung gelten die alten Regeln.
+
+**Beim Fitten gefunden und korrigiert:** Wegzeit mit Kriechtempo (Teide) → Mindesttempo je Art;
+Lücke nach Pause mit Fußweg-Tempo gerechnet (Reise, 67 von 69) → schnellerer Nachbar; Bummeln
+mit Strecken-Logger → Rhythmus-Regel; 21–25-m-Kerben rot → Untergrenze 40 m; Autofahrt ohne
+Punkte als Tempo-Fehler → `bewegung` 1b; `gpxheal` füllte Randzeiten in 1-s-Schritten und fand
+danach Tempo-Fehler in den eigenen Zeiten → Fortschreiben mit dem bekannten Tempo.
+
+**Messung Archiv (726 Touren):** rot 16 → 2, gelb 146 → 88, sauber/grau 564 → 636.
+**Wächter:** `tests/test_trackcheck_je_art.py` (künstlich, je Entscheidung ein Fall),
+`tests/test_check_reparatur_gleich.py` (Check = Reparatur je Datei der Sammlung),
+`tests/test_pruefsammlung.py` (107 von 107).
+
+### WAL-Modus: was jede Stelle wissen muss, die die Datei anfasst (13.09.2026, v0.9.701)
+
+Seit v0.9.697 öffnet `open_db` die Bibliothek mit `journal_mode=WAL`. Frische Änderungen
+stehen in `library.db-wal`, bis ein Checkpoint sie in `library.db` schreibt. Regeln:
+
+- **Nie `library.db` allein kopieren.** Kopien über `bibliothek.db_schnappschuss` (SQLite-
+  Sicherungs-API) oder vorher `bibliothek.db_zusammenfuehren` (Checkpoint TRUNCATE).
+- **Nie eine -wal/-shm von einer anderen Datenbank liegen lassen** (`WAL_BEGLEITER`):
+  `db_wiederherstellen` legt sie mit der kaputten Datenbank beiseite.
+- **Änderungsfühler** schauen auf `library.db` UND `library.db-wal` (`_cloud_fingerabdruck`).
+- Umsetzung heute: `zip_sichern` (Schnappschuss, ohne Begleiter), `db_sichern` (Sicherungs-API),
+  `db_wiederherstellen` (Begleiter beiseite), `umziehen` (Checkpoint vor dem Kopieren).
+
+Wächter: `tests/test_bibliothek_wal.py` — Datenbank mit abgeschaltetem Auto-Checkpoint, deren
+neueste Zeile nur in der WAL-Datei steht; ZIP, Sicherung, Wiederherstellen, Umzug und Fühler.
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter

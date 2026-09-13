@@ -117,6 +117,19 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.701</span>
+    <span class="version-date">13 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Seguridad de la biblioteca tras el cambio de la base de datos</strong> &mdash; Desde v0.9.697 la biblioteca escribe primero en un archivo auxiliar. Cuatro lugares aún no lo sabían: la sincronización automática con la nube notaba tarde las rutas nuevas, la copia ZIP empaquetaba la base de datos en bruto, restaurar una copia dejaba el archivo auxiliar de la base dañada y mover la biblioteca no lo fusionaba antes. Los cuatro están corregidos y comprobados con una base de datos cuyas entradas más nuevas solo están en el archivo auxiliar.</li>
+    <li><strong>La revisión de la ruta conoce ahora el modo de desplazamiento y deja de dar falsas alarmas</strong> &mdash; Cada tramo se juzga según lo que hacías allí: caminar, bici, correr, coche, ferry, parada o pausa. Los valores atípicos solo se señalan si un punto queda realmente fuera del camino; el temblor al estar parado es una parada; un trayecto en coche en medio de una ruta a pie es coche, no un error de velocidad; los huecos cuentan por movimiento ausente y no por metros, los pequeños se ven en gris; y los puntos duplicados se limpian en silencio al reparar. Medido con más de 700 rutas reales: <strong>rojo de 16 a 2</strong> &mdash; justo los dos que de verdad son atípicos &mdash; y <strong>amarillo de 146 a 88</strong>. La reparación arregla exactamente lo que señala el cuadro.</li>
+    <li><strong>La reparación ya no inventa errores de velocidad</strong> &mdash; Las marcas de tiempo que faltaban al principio o al final se rellenaban en pasos de un segundo y parecían 360 km/h. Ahora continúan con la velocidad real de la ruta.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.700</span>
     <span class="version-date">13 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>

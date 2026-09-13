@@ -3520,5 +3520,8 @@
   "fotos.laufwerk_intern": "This computer",
   "fotos.fern_ordner_auf": "{l} ({n} folders)",
   "fotos.fern_titel": "Not reachable: {n}",
-  "fotos.fern_rest": "Folders on {l} are read as usual."
+  "fotos.fern_rest": "Folders on {l} are read as usual.",
+  "trackcheck.k_gaps_klein": "{n} small gap ({m} m)|{n} small gaps (largest {m} m)",
+  "trackcheck.rep_gaps_klein": "Repair: the small gap is filled — like a large one, just without an alarm: less than a minute of missing movement.",
+  "trackcheck.still_hinweis": "A quirk of the recording — cleaned up along with any repair"
 }

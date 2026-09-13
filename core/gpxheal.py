@@ -75,20 +75,27 @@ def _gueltig(p: dict) -> bool:
 
 
 SCHRITTE = ("no_coords", "duplicates", "spread_seconds", "backwards", "missing_time",
-            "cold_start", "standstill", "spikes", "tempo", "outliers", "gaps", "ele_garbage", "missing_ele")
+            "cold_start", "standstill", "spikes", "tempo", "outliers", "gaps", "gaps_klein",
+            "ele_garbage", "missing_ele")
 
 
-def analysieren(points: List[dict], *, max_speed_kmh: float = 250.0) -> dict:
+def analysieren(points: List[dict], *, max_speed_kmh: float = 250.0,
+                aktivitaet: Optional[str] = None) -> dict:
     """Nur prüfen (Marc: „ein Analysieren-Knopf schlägt vor, was man glattziehen könnte, und
     man hakt an, was gemacht wird"). Liefert den Bericht wie `heilen`, ändert nichts."""
-    r = heilen(points, max_speed_kmh=max_speed_kmh)
+    r = heilen(points, max_speed_kmh=max_speed_kmh, aktivitaet=aktivitaet)
     return {"ok": True, "bericht": r["bericht"], "stats": r["stats"]}
 
 
 def heilen(points: List[dict], *, max_speed_kmh: float = 250.0,
            ausreisser: bool = True, hoehen: bool = True,
-           schritte: Optional[List[str]] = None) -> dict:
-    """`schritte` = Auswahl der Berichts-Schlüssel (SCHRITTE), die angewendet werden; None = alle."""
+           schritte: Optional[List[str]] = None, aktivitaet: Optional[str] = None) -> dict:
+    """`schritte` = Auswahl der Berichts-Schlüssel (SCHRITTE), die angewendet werden; None = alle.
+
+    13.09.2026 (IDEAS §67 Schritt 3): Knäuel, Sprünge und Lücken kommen aus denselben
+    Funktionen wie im Track-Check (`standdrift_ausser_halt`, `sprung_gefiltert`,
+    `luecken_je_art`) — repariert wird nur, was auch gemeldet wurde. `aktivitaet`
+    ist der Hinweis der Tour für die Bewegungserkennung."""
     erlaubt = set(SCHRITTE) if schritte is None else {str(x) for x in schritte}
     if not ausreisser:
         erlaubt.discard("outliers")
@@ -176,12 +183,34 @@ def heilen(points: List[dict], *, max_speed_kmh: float = 250.0,
                 span = (times[b] - times[a]).total_seconds()
                 for m in range(a + 1, b):
                     times[m] = times[a] + timedelta(seconds=span * d[m - a] / tot)
-            # vor dem ersten / nach dem letzten bekannten: 1 s Schritte
+            # vor dem ersten / nach dem letzten bekannten: mit dem Tempo des bekannten
+            # Teils fortschreiben. Vorher waren es feste 1-s-Schritte — bei 100 m
+            # Punktabstand 360 km/h, und die Reparatur fand danach in ihren eigenen
+            # Zeiten einen Tempo-Sprung (TCX mit zwei zeitlosen Endpunkten, 13.09.2026).
             if idx:
+                tempi, takte = [], []
+                for a2, b2 in zip(idx, idx[1:]):
+                    dt2 = (times[b2] - times[a2]).total_seconds()
+                    if dt2 > 0:
+                        takte.append(dt2 / (b2 - a2))
+                        weg2 = sum(gpxsimplify.haversine_m(pts[k - 1]["lat"], pts[k - 1]["lon"],
+                                                           pts[k]["lat"], pts[k]["lon"])
+                                   for k in range(a2 + 1, b2 + 1))
+                        if weg2 > 0:
+                            tempi.append(weg2 / dt2)
+                tempi.sort()
+                takte.sort()
+                v_bek = tempi[len(tempi) // 2] if tempi else 0.0
+                takt = takte[len(takte) // 2] if takte else 1.0
+
+                def schritt(m1, m2):
+                    weg3 = gpxsimplify.haversine_m(pts[m1]["lat"], pts[m1]["lon"], pts[m2]["lat"], pts[m2]["lon"])
+                    return max(1.0, weg3 / v_bek) if v_bek > 0.2 and weg3 > 0 else max(1.0, takt)
+
                 for m in range(idx[0] - 1, -1, -1):
-                    times[m] = times[m + 1] - timedelta(seconds=1)
+                    times[m] = times[m + 1] - timedelta(seconds=schritt(m, m + 1))
                 for m in range(idx[-1] + 1, len(pts)):
-                    times[m] = times[m - 1] + timedelta(seconds=1)
+                    times[m] = times[m - 1] + timedelta(seconds=schritt(m - 1, m))
             bericht.append({"key": "missing_time", "n": fehlend})
         if "missing_time" not in erlaubt:
             times = [t if p.get("time") else None for p, t in zip(pts, times)]
@@ -204,7 +233,7 @@ def heilen(points: List[dict], *, max_speed_kmh: float = 250.0,
             sp.ausgeschlossen.update(range(ks["n"]))
 
     # 5) Standdrift zusammenziehen — vor den Sprüngen, das Gezitter im Knäuel ist kein Sprung
-    sd = _tc.standdrift(sp)
+    sd = _tc.standdrift_ausser_halt(sp, aktivitaet)["befund"]
     if sd:
         bericht.append({"key": "standstill", "n": len(sd)})
         if "standstill" in erlaubt:
@@ -217,7 +246,7 @@ def heilen(points: List[dict], *, max_speed_kmh: float = 250.0,
                 sp.ausgeschlossen.update(range(run["a"], run["b"] + 1))
 
     # 6) Sprünge (raus und zurück) → Positionen auf die Linie zwischen den gesunden Nachbarn
-    sg = _tc.sprung_gruppen(sp)
+    sg = _tc.sprung_gefiltert(sp, aktivitaet=aktivitaet)
     if sg["spikes"]:
         bericht.append({"key": "spikes", "n": len(sg["spikes"])})
         if "spikes" in erlaubt:
@@ -242,13 +271,19 @@ def heilen(points: List[dict], *, max_speed_kmh: float = 250.0,
                 sp = _tc._Spur(pts)
 
     # 9) Lücken füllen (Luftlinie, 20 m)
-    lk = _tc.luecken(sp, flags=_tc.sprung_gruppen(sp)["flags"])
-    if lk:
-        bericht.append({"key": "gaps", "n": len(lk)})
-        if "gaps" in erlaubt:
-            for g in sorted(lk, key=lambda g: -g["a"]):
-                _luecke_fuellen(pts, g["a"], g["b"], g["dist"])
-            sp = _tc._Spur(pts)
+    lk = _tc.luecken_je_art(sp, flags=_tc.sprung_gefiltert(sp, aktivitaet=aktivitaet)["flags"],
+                            aktivitaet=aktivitaet)
+    gelb = [g for g in lk if g["stufe"] == "gelb"]
+    grau = [g for g in lk if g["stufe"] == "grau"]
+    if gelb:
+        bericht.append({"key": "gaps", "n": len(gelb)})
+    if grau:
+        bericht.append({"key": "gaps_klein", "n": len(grau)})
+    fuellen = (gelb if "gaps" in erlaubt else []) + (grau if "gaps_klein" in erlaubt else [])
+    if fuellen:
+        for g in sorted(fuellen, key=lambda g: -g["a"]):
+            _luecke_fuellen(pts, g["a"], g["b"], g["dist"])
+        sp = _tc._Spur(pts)
 
     # 10) Höhen-Müll → interpolieren
     hm = _tc.hoehen_muell(sp)

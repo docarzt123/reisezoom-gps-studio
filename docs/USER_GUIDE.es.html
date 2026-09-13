@@ -1710,6 +1710,23 @@ python app.py</code></pre>
 <h3 id="el-cuadro-de-hallazgos-revisi-n-al-abrir">🩺 El cuadro de hallazgos — revisión al abrir</h3>
 <p>En cuanto un track está en el Inspector, el cuadro de hallazgos aparece <strong>arriba del todo</strong>: «Revisión del track: 2 saltos, 1 hueco (240 m), reloj mal puesto (1989)». Cada línea tiene una <strong>casilla</strong> (rojo y amarillo marcados de antemano, los avisos grises no) y <strong>«🩹 Reparar»</strong> ejecuta exactamente los pasos marcados: poner los saltos sobre la línea (la hora se mantiene), rellenar huecos — con el perfil de <strong>«Rellenar huecos como»</strong> siguiendo caminos reales (preseleccionado según la actividad de la ruta, si no según la velocidad; línea recta solo con «Línea recta», sin red o si la ruta sería un rodeo), suavizar la velocidad imposible (la distancia se mantiene, la ruta dura unos segundos más), arreglar el tiempo hacia atrás, quitar puntos duplicados, repartir segundos repetidos, agrupar la deriva en parada en un solo punto (la pausa sigue siendo pausa), interpolar altitudes basura y ausentes, descartar los puntos de arranque en frío. Después aparece el cuadro <strong>antes → después</strong>, <strong>⌘Z</strong> lo deshace todo y la revisión se repite: lo reparado desaparece del cuadro.</p>
 <p>Los hallazgos sin arreglo automático tienen un salto en lugar de casilla: «reloj mal puesto» lleva a <strong>Ajustar horas</strong>, «sin marcas de tiempo» a <strong>Crear eje de tiempo</strong>. Si la ruta está en el archivo, cada hallazgo tiene <strong>«Así está bien»</strong>: ese tipo deja de avisarse en esta ruta (véase Archivo). Si prefieres rellenar huecos siguiendo caminos reales, sigue usando <strong>Sanar (automático)</strong> con el perfil de vías; las casillas del cuadro también valen allí.</p>
+<h3 id="sin-falsas-alarmas-la-revisi-n-conoce-el-modo-de-desplazamiento">🎯 Sin falsas alarmas: la revisión conoce el modo de desplazamiento</h3>
+<p>La revisión de la ruta juzga cada tramo según <strong>lo que hacías allí</strong>: caminar, bici, correr, coche, ferry, parada o pausa. La actividad de la ruta en el archivo ayuda. Se comprobó con más de 700 rutas reales; alrededor de tres de cada cuatro avisos antiguos resultaron ser falsas alarmas y han desaparecido.</p>
+<ul>
+<li><strong>Valores atípicos (rojo)</strong> solo se señalan si un punto queda realmente fuera del camino a la</li>
+</ul>
+<p> vista: al menos 40 m y claramente más que el temblor normal de ese tramo.</p>
+<ul>
+<li><strong>El temblor al estar parado</strong> (en un mirador, en un café) es una <strong>parada</strong>, no un error.</li>
+<li><strong>Un trayecto en coche o tren</strong> en medio de una ruta a pie es <strong>coche</strong>, no un error de velocidad.</li>
+<li><strong>Los huecos</strong> cuentan por <strong>movimiento que falta</strong>, no por metros: amarillo a partir de un</li>
+</ul>
+<p> minuto (unos 80 m caminando, en coche solo pasado un kilómetro), por debajo gris como <strong>hueco  pequeño</strong>. Una pausa en una taberna no es un hueco si sales por la misma puerta. Las apps que  solo ponen un punto cada varios cientos de metros ya no generan huecos: es su ritmo.</p>
+<ul>
+<li><strong>Los puntos duplicados</strong> y <strong>los segundos usados varias veces</strong> son particularidades de la</li>
+</ul>
+<p> grabación: grises, sin casilla y <strong>se limpian en silencio</strong> con cualquier reparación.</p>
+<p>La reparación arregla exactamente lo que señala el cuadro: los huecos que rellena son los que cuenta.</p>
 <h3 id="auto-sanar-valores-at-picos-huecos">🩹 Auto-sanar: valores atípicos + huecos</h3>
 <p>En lugar de buscar a mano: <strong>🩹 Auto-sanar</strong> escanea todo el track y muestra como <strong>vista previa en el mapa</strong> lo que haría — antes de que se cambie nada:</p>
 <ul>

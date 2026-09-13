@@ -175,3 +175,19 @@ die Gemacht-Schätzung erkennt 10-Hz-Aufnahmen.
 **Die Sperrklinke hat zweimal richtig angeschlagen:** Beim Austausch der falschen „Lauf mit
 Zug"-Datei und beim korrekt erkannten 10-Hz-Clip wurden vorher „erfüllte" Zusagen sichtbar, die
 nur zufällig ruhig waren. Solche Zusagen werden mit `--vergessen <id>` neu angelegt — nie still.
+
+## 9. Schritt 3: Schwellen je Bewegungsart (13.09.2026, v0.9.701)
+
+Umgesetzt wie in §7/§8 und docs/IDEAS.md §67 (Q2, Q3, Q13, Q16, Q17, Q18) entschieden; Regeln und
+Konstanten in docs/DEVELOPER.md. Archiv: **rot 16 → 2** (die zwei angesehenen echten Ausreißer),
+**gelb 146 → 88** (86 davon Lücken mit ≥ 60 s fehlender Bewegung), sauber/grau 564 → 636.
+Prüfsammlung 107 von 107.
+
+**Der Stellhebel, falls gelbe Lücken zu häufig wirken:** `LUECKE_WEGZEIT_GELB_S` (60 s). Beim
+Gehen entspricht das rund 80 m. Die meisten verbliebenen gelben Touren im Archiv sind
+Komoot-Aufnahmen mit einem oder mehreren solchen Löchern.
+
+**Angesehen statt geschätzt:** drei 21–25-m-„Ausreißer" (Kameratest Briesetal, Klein Asien,
+Schietwetter) — kleine Kerben, im Video unsichtbar, deshalb die Untergrenze 40 m; drei von
+elf verbliebenen Lücken der Wohnmobil-Reise — echte Löcher von 0,6 bis 2,2 km in sonst dichter
+Aufzeichnung; die größte ist die 3,3-km-Lücke, nach der der Tester gefragt hatte.

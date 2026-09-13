@@ -2477,6 +2477,27 @@ je Befund **„Ist so in Ordnung"** — die Art wird für diese Tour nicht mehr 
 Archiv). Wer Lücken lieber entlang echter Wege füllt, nimmt weiter **Heilen (automatisch)** mit
 dem Wege-Profil; die Häkchen im Kasten gelten dort mit.
 
+### 🎯 Keine Fehlalarme: Der Track-Check kennt die Bewegungsart (seit v0.9.701)
+Der Track-Check misst jede Stelle an dem, **was du dort gemacht hast**: Gehen, Rad, Laufen,
+Fahrt, Fähre, Halt oder Pause. Die Aktivität der Tour im Archiv hilft dabei. Geprüft wurde das
+an über 700 echten Touren; dabei sind rund drei von vier alten Warnungen als Fehlalarm
+weggefallen.
+
+- **Ausreißer (rot)** meldet er nur, wenn ein Punkt wirklich sichtbar neben dem Weg liegt —
+  mindestens 40 m und deutlich mehr als das normale Zittern auf diesem Abschnitt.
+- **Zittern beim Stehen** (am Aussichtspunkt, im Café) ist ein **Halt**, kein Fehler.
+- **Eine Autofahrt oder Zugfahrt** mitten in einer Wanderung ist **Fahrt**, kein Tempo-Fehler.
+- **Lücken** zählen nach **fehlender Bewegung**, nicht nach Metern: gelb ab einer Minute (beim
+  Gehen etwa ab 80 m, im Auto erst ab gut einem Kilometer), darunter grau als **kleine Lücke**.
+  Die Pause im Wirtshaus ist keine Lücke, solange du an derselben Tür wieder herauskommst.
+  Aufzeichnungs-Apps, die nur alle paar hundert Meter einen Punkt setzen, erzeugen keine Lücken
+  mehr — das ist ihr Rhythmus.
+- **Doppelpunkte** und **mehrfach belegte Sekunden** sind Eigenheiten der Aufzeichnung: grau,
+  ohne Häkchen, und beim Reparieren **still mit bereinigt**.
+
+Repariert wird genau das, was der Kasten meldet — die Lücken, die er füllt, sind dieselben, die
+er zählt.
+
 ### 🩹 Auto-Heilen: Ausreißer + Lücken (seit v0.9.295)
 Statt von Hand zu suchen: **🩹 Auto-Heilen** scannt den ganzen Track und zeigt als **Vorschau auf der Karte**, was es tun würde — bevor etwas geändert wird:
 - **🟠 Ausreißer** (orange) — GPS-Sprünge, die wegspringen *und wieder zurückkommen*. Werden beim Heilen geglättet.

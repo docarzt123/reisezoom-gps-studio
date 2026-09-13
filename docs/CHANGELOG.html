@@ -117,6 +117,19 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.701</span>
+    <span class="version-date">13. September 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Sicherheit der Bibliothek nach dem Umbau der Datenbank</strong> &mdash; Seit v0.9.697 schreibt die Bibliothek zuerst in eine Nebendatei. Vier Stellen wussten das noch nicht: Der automatische Cloud-Abgleich bemerkte neue Touren zu spät, die ZIP-Sicherung packte die Datenbank roh ein, das Zurückholen einer Sicherung ließ die Nebendatei der kaputten Datenbank liegen, und der Umzug der Bibliothek führte sie vorher nicht zusammen. Alle vier sind behoben und an einer Datenbank geprüft, deren neueste Einträge nur in der Nebendatei stehen.</li>
+    <li><strong>Der Track-Check kennt jetzt die Bewegungsart &mdash; und hört auf, Fehlalarme zu melden</strong> &mdash; Jede Stelle wird an dem gemessen, was du dort gemacht hast: Gehen, Rad, Laufen, Fahrt, Fähre, Halt oder Pause. Ausreißer meldet er erst, wenn ein Punkt wirklich sichtbar neben dem Weg liegt; Zittern beim Stehen ist ein Halt; eine Autofahrt mitten in der Wanderung ist Fahrt, kein Tempo-Fehler; Lücken zählen nach fehlender Bewegung statt nach Metern, kleine erscheinen grau; und Doppelpunkte werden beim Reparieren still mitbereinigt. Gemessen an über 700 echten Touren: <strong>rot von 16 auf 2</strong> &mdash; genau die zwei, die wirklich Ausreißer sind &mdash; und <strong>gelb von 146 auf 88</strong>. Repariert wird genau das, was der Kasten meldet.</li>
+    <li><strong>Die Reparatur erfand keine Tempo-Fehler mehr</strong> &mdash; Fehlende Zeitstempel am Anfang oder Ende wurden in 1-Sekunden-Schritten ergänzt und sahen danach wie 360 km/h aus. Jetzt geht es mit dem echten Tempo der Tour weiter.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.700</span>
     <span class="version-date">13. September 2026</span>
     <span class="version-badge">Aktuell</span>
