@@ -4924,16 +4924,42 @@ blöd."
   im Archiv nur der Name (`#lib-bibname`), Klick öffnet
   `openSettingsModal("bibliothek")`. Wächter: `tests/test_bibliothek_verwaltung.py`.
 
+## Ladeflagge und sicheres Öffnen (13.09.2026)
+
+**Marc:** „Track wird geladen, und dann müssen wir schon ein Flag setzen. Dann müssen wir, wenn er fertig geladen ist, noch mal ein Flag setzen, und wenn das fertig-geladen-Flag fehlt, dann haben wir ein Problem."
+
+- **Datei:** `APP_SUPPORT/ladevorgang.json` (Dev-Modus: Repo-Wurzel, gitignored), atomar mit `fsync` geschrieben.
+- **`loadGlobalGpx`** (`ui/js/gpx-bar.js`) ruft `ladeflagge_setzen({gpx})` vor `animator_load_gpx` und nach `sessionActivate` noch einmal mit Projekt, Tour-Hash, Schilder- und Fotozahl. Danach `_ladeflaggeFertigWennRuhig()`: frühestens nach 3 s, wenn keiner der Ladevorgänge `track-laden`, `anim-schilder-laden`, `anim-fotos*` mehr läuft und das zwei Sekunden in Folge so bleibt → `ladeflagge_fertig()`. Ein eingefrorenes Skript kommt nie dorthin.
+- **Start:** `app.py` liest die Datei beim Import einmal in `_LADEFLAGGE_VORHER`. `app.js` ruft nach dem Boot `rzLadeflaggePruefen()` → `ladeflagge_vom_letzten_start()` (einmal je Prozess) → Dialog mit „Nicht öffnen / Normal öffnen / Ohne Schilder und Fotos öffnen".
+- **Sicherer Modus:** `window.__rzSicherTour` → `sessionActivate` (`ui/js/util.js`) leert `signs`, `tourmap_signs`, `photos` nur im Speicher, setzt `window.__rzSicherVerdeckt` und zeigt `rzSicherBanner`. `saveActiveProjectPatch` streicht diese Schlüssel, solange verdeckt (`_SICHER_SCHLUESSEL`). „Dazuholen" setzt beides zurück und lädt den Track erneut.
+- **Wächter:** `tests/test_ladeflagge.py` (WebKit, echte Brücke).
+
 ## Ladeanzeige — Pflicht bei allem, was dauern kann (Marc-Regel 12.09.2026)
 
 **Marc, nach dem Tester-Hänger:** „überall wo etwas geladen wird brauchen wir ab
 jetzt visuelles feedback, am besten sogar mit einer ausgabe wo genau steht, was
 passiert. sonst denkt jeder die app hängt, wenn es mal länger dauert."
 
-**Werkzeug: `window.rzStatus`** (`ui/js/util.js`, Stil in `ui/css/app.css`). Ein
-Kasten unten rechts, der die Bedienung **nicht** sperrt; mehrere Vorgänge
-stapeln sich. Kein Modal — ein Modal nimmt die App weg, und genau das ist beim
-Warten das Falsche.
+**Werkzeug: `window.rzStatus`** (`ui/js/util.js`, Stil in `ui/css/app.css`).
+
+**Seit 13.09.2026 ein Warte-Fenster in der Mitte** (Marc: „bei allem wo man warten
+muss muss ein sichtbares modal in die mitte des bildschirms, welches genau sagt was
+passiert und wenn möglich sogar einen fortschritt anzeigt. wenn kein fortschritt geht
+halt eine animation"). Das ersetzt die frühere Entscheidung „kein Modal". Regeln:
+
+- Normalfall `start()` = Fenster in der Mitte über abgedunkeltem, sperrendem
+  Hintergrund (`#rz-warte-modal`). Mit Gesamtzahl: Zahl, Prozent und Balken; ohne:
+  drehender Ring und wandernder Balken. Mehrere Vorgänge stapeln sich im Fenster.
+- Arbeit, auf die niemand wartet (Foto-Bestand lesen, Raster-Vorschaubilder), gibt
+  `hintergrund: true` mit und bleibt der Kasten unten rechts (`#rz-status-box`).
+- Das Fenster erscheint erst nach 300 ms — Schnelles blitzt nicht. Folgt Arbeit, die
+  den Hauptfaden blockiert: vorher `await rzStatus.gemalt(id)` (zeigt sofort, wartet
+  zwei Frames).
+- `fertig()` schließt nach 0,7 s; `fehler()` bleibt mit OK-Knopf stehen (max. 12 s).
+- Animationen nur über `transform` — die laufen im Compositor weiter, auch wenn das
+  Skript gerade beschäftigt ist.
+- Wächter: `tests/test_ladefeedback.py` (Mitte, Sperre, Prozent, Ring, Fehler, Hintergrund),
+  `tests/test_schilder_viele.py` (Fenster zählt beim Öffnen von 2830 Schildern mit).
 
 ```js
 window.rzStatus.start("fotos", { titel: t("photos.laden_titel", "Fotos"),
@@ -4948,7 +4974,7 @@ window.rzStatus.fertig("fotos", "…");                    // oder .fehler(id, t
 Platte oder ins Netz geht und länger als etwa eine Sekunde dauern kann, zeigt
 (1) **dass** etwas läuft, (2) **was** gerade läuft, (3) **wie weit** es ist,
 sobald die Gesamtzahl bekannt ist, und (4) einen **Abbrechen**-Knopf, wenn ein
-Abbruch möglich ist. Ohne Gesamtzahl wandert der Balken, statt eine Zahl zu
+Abbruch möglich ist. Ohne Gesamtzahl dreht sich der Ring und der Balken wandert, statt eine Zahl zu
 erfinden.
 
 **Und: lange Arbeit in Häppchen.** Ein Brückenaufruf über tausende Dateien ist

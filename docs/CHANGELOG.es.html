@@ -117,11 +117,13 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.703</span>
+    <span class="version-num">v0.9.704</span>
     <span class="version-date">13 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
+    <li><strong>Un proyecto que se congela al abrirse ahora se puede abrir de forma segura</strong> &mdash; La app anota cuándo empieza a cargar un proyecto y cuándo termina. Si el «terminado» no llega porque se colgó o se cerró, el siguiente inicio pregunta y ofrece abrir el proyecto sin carteles ni fotos. No se borra nada: un aviso indica qué está oculto y un clic lo recupera todo. Hasta ahora, en un caso así no ayudaba ni restablecer ni un proyecto nuevo, porque la app reconoce la ruta por su recorrido y volvía a abrir el mismo proyecto.</li>
+    <li><strong>Las esperas muestran ahora una ventana en el centro de la pantalla</strong> &mdash; Donde esperas a la app, por ejemplo al cargar un track, leer una carpeta o abrir un proyecto con muchos carteles con foto, aparece ahora una ventana en el centro. Dice exactamente qué está pasando, cuenta cuando se conoce la cantidad (número, porcentaje y barra) y si no muestra un anillo girando. Donde se puede, puedes cancelar. Lo que corre en segundo plano sin hacerte esperar sigue en el pequeño cuadro abajo a la derecha.</li>
     <li><strong>Miles de carteles con foto ya no congelan el Animator</strong> &mdash; Un proyecto con muchísimos carteles con foto (por ejemplo desde «Desde Geotagger») dejaba la app parada justo después de cargar el track. La lista de carteles se reconstruía entera tras cada imagen cargada, cada cartel preguntaba por separado si su imagen seguía existiendo y el mapa volvía a dibujar todas las imágenes en cada actualización. Ahora la lista se construye por lotes y por partes, las imágenes se comprueban de una vez y solo se redibujan cuando un cartel cambió de verdad. Las imágenes que faltan dan un único aviso con el número. Medido con 2830 carteles: antes 60 de 60 segundos congelado, ahora 2 de 40.</li>
   </ul>
 </article>

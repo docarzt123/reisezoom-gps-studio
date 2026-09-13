@@ -2615,14 +2615,17 @@ Oben links: App-Icon + Name. In der Mitte (wenn ein GPX geladen ist): Stats-Pill
 
 ## 8a · Was gerade passiert — die Ladeanzeige (seit v0.9.690) ⭐
 
-Dauert etwas länger, erscheint **unten rechts ein kleiner Kasten**. Er sagt,
-**was** gerade läuft (etwa „Vorschaubilder werden geholt"), **wie weit** es ist
-(„1.200 / 2.830") und lässt sich **abbrechen**, wo ein Abbruch möglich ist. Die
-App bleibt dabei bedienbar — der Kasten sperrt nichts.
+Musst du auf die App warten, erscheint **ein Fenster in der Mitte des Bildschirms**
+(seit v0.9.704). Es sagt, **was** gerade läuft (etwa „Schilder werden geladen"), und
+**wie weit** es ist („1.200 / 2.830 (42 %)") mit Balken. Lässt sich die Menge nicht
+vorhersagen, dreht sich ein Ring. Wo ein Abbruch möglich ist, steht **Abbrechen** da.
+Solange das Fenster offen ist, wartet die App auf diesen Vorgang; ein Fehler bleibt
+stehen, bis du **OK** klickst.
 
-Du siehst ihn beim Laden eines Tracks, beim Holen der Fotos eines Projekts,
-beim Einlesen eines Foto-Ordners im Geotagger und beim Einlesen des
-Foto-Bestands. Kennst du die App von früher: Genau das fehlte vorher, und
+Du siehst es beim Laden eines Tracks, beim Holen der Fotos eines Projekts, beim
+Öffnen eines Projekts mit vielen Foto-Schildern und beim Einlesen eines Foto-Ordners
+im Geotagger. **Was im Hintergrund läuft**, ohne dass du warten musst, etwa das
+Einlesen des Foto-Bestands, bleibt **ein kleiner Kasten unten rechts**, der nichts sperrt. Kennst du die App von früher: Genau das fehlte vorher, und
 längere Vorgänge sahen aus, als hinge sie.
 
 **Fotos kommen jetzt häppchenweise.** Hat ein Projekt viele Fotos, steht die
@@ -2716,6 +2719,9 @@ App kostenlos.
 
 ### Die App reagiert nicht mehr, Einstellungen zurücksetzen (seit v0.9.688)
 Wie bei Final Cut: Beim Start **⌘⌥ gedrückt halten** (Windows: **Strg+Alt**), bis die Rückfrage „Zurücksetzen?“ kommt. Oder in der laufenden App **Hilfe → „Einstellungen zurücksetzen und neu starten …“**, das geht auch, wenn die Oberfläche selbst nicht mehr auf Klicks reagiert. Zurück auf Werkseinstellung gehen Fensterlage, Kartenstil, zuletzt offenes Projekt und alle Regler. Deine Touren, Projekte und das Archiv bleiben, Karten-Schlüssel und Sprache auch. Die alten Einstellungen liegen als `settings.reset-<Zeit>.json` neben der neuen Datei, falls du etwas nachschlagen willst.
+
+### Ein Projekt friert beim Öffnen immer wieder ein (seit v0.9.704)
+Die App merkt sich, wann sie ein Projekt zu laden beginnt und wann es fertig ist. Hängt sie dabei oder beendest du sie vorher, fragt sie beim nächsten Start nach: **Nicht öffnen**, **Normal öffnen** oder **Ohne Schilder und Fotos öffnen**. Im dritten Fall kommt der Track mit allen Einstellungen, Schilder und Fotos bleiben ausgeblendet. Gelöscht wird nichts; ein Banner oben sagt, was ausgeblendet ist, und **Schilder und Fotos dazuholen** bringt sie zurück. Solange sie ausgeblendet sind, lassen sie sich nicht ändern, damit die leere Liste nichts überschreibt. Das hilft genau dort, wo Zurücksetzen nicht hilft: Die App erkennt eine Tour am Streckenverlauf und öffnet sonst immer wieder dasselbe Projekt.
 
 ### „Wirklich öffnen?" beim ersten Start (macOS)
 Diese Rückfrage zeigt macOS bei **jeder** aus dem Netz geladenen App, auch bei signierten — einmal

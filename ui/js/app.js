@@ -1664,6 +1664,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // 25 s den Start-Fehler-Bildschirm mit dem Log-Pfad ein.
   window.__rzBooted = true;
 
+  // 13.09.2026 — Ladeflagge: Hing der letzte Ladevorgang, fragt die App jetzt nach.
+  setTimeout(() => { try { window.rzLadeflaggePruefen && window.rzLadeflaggePruefen(); } catch (e) { applog && applog("warn", "[ladeflagge] Prüfung beim Start: " + e); } }, 400);
+
   // 10.09.2026 (Beta-Tester „kann nichts anklicken"): Klick-Zeuge. Die erste
   // Maus-Eingabe in der Oberfläche steht im Log — fehlt die Zeile, kommt kein
   // Klick bei der WebView an; sonst hakt es in unserem Code.

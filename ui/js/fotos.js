@@ -254,7 +254,9 @@
           if (!window.rzStatus.laeuft("foto-scan")) {
             window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Fotos"),
                                                  text: phase2, gesamt: st.total || 0,
-                                                 abbrechen: true });
+                                                 abbrechen: true,
+                                                 // Liest im Hintergrund weiter — niemand wartet darauf.
+                                                 hintergrund: true });
           }
           window.rzStatus.schritt("foto-scan", { text: phase2, n: st.done || 0,
                                                  gesamt: st.total || 0 });
@@ -351,6 +353,7 @@
         titel: T("fotos.titel", "Fotos"),
         text: T("fotos.thumbs_holen", "Vorschaubilder erzeugen"),
         gesamt: offen.length, abbrechen: true,
+        hintergrund: true,   // man blättert weiter, während die Kacheln kommen
       });
     }
     let fertig = 0;

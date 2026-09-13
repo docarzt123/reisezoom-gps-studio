@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.703"
+APP_VERSION = "0.9.704"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -288,6 +288,7 @@ DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
 TOURMAPS_DIR = Path.home() / "Pictures" / "Reisezoom Tour Maps"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
+LADEFLAGGE_FILE = APP_SUPPORT / "ladevorgang.json"   # 13.09.2026 — siehe Api.ladeflagge_setzen
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
 SESSIONS_FILE = APP_SUPPORT / "sessions.json"
 
@@ -765,6 +766,28 @@ def _version_tuple(v: str) -> tuple:
                 break
         out.append(int(num) if num else 0)
     return tuple(out)
+
+
+def _ladeflagge_lesen():
+    try:
+        return json.loads(LADEFLAGGE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _ladeflagge_schreiben(info: dict) -> None:
+    LADEFLAGGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = LADEFLAGGE_FILE.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(info, f, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, LADEFLAGGE_FILE)
+
+
+# Stand vom letzten Lauf — einmal beim Start gelesen, bevor der erste neue
+# Ladevorgang die Datei überschreibt.
+_LADEFLAGGE_VORHER = {"info": _ladeflagge_lesen(), "gemeldet": False}
 
 
 def _load_settings() -> dict:
@@ -9274,6 +9297,64 @@ class Api:
                        key=str.casefold)[:600]
         self._system_fonts_cache = liste
         return {"ok": True, "fonts": liste}
+
+    # ── Ladeflagge (13.09.2026) ────────────────────────────────────────────
+    # Marc: „Track wird geladen, und dann müssen wir schon ein Flag setzen. Wenn er
+    # fertig geladen ist, noch mal ein Flag setzen, und wenn das fertig-geladen-Flag
+    # fehlt, dann haben wir ein Problem." Anlass: Ein Beta-Tester öffnete ein Projekt
+    # mit 2830 Foto-Schildern, die App fror jedes Mal ein, und weder Zurücksetzen
+    # noch ein neues Projekt half — die App öffnet am Streckenverlauf immer wieder
+    # dasselbe Projekt. Die Datei wird sofort auf die Platte geschrieben, damit sie
+    # auch ein erzwungenes Beenden übersteht. Den Stand vom letzten Lauf liest der
+    # Prozess einmal beim Start (`_LADEFLAGGE_VORHER`), bevor ein neuer Ladevorgang
+    # sie überschreibt.
+    def ladeflagge_setzen(self, info: dict) -> dict:
+        try:
+            info = dict(info or {})
+            alt = _ladeflagge_lesen() or {}
+            if alt.get("status") == "laedt" and alt.get("gpx") == info.get("gpx"):
+                for k in ("projekt", "tour_hash", "schilder", "fotos"):
+                    if not info.get(k) and alt.get(k):
+                        info[k] = alt[k]
+                info.setdefault("t", alt.get("t"))
+            info.update({"status": "laedt", "version": APP_VERSION})
+            info.setdefault("t", time.time())
+            _ladeflagge_schreiben(info)
+            return {"ok": True}
+        except Exception as e:
+            log.warning("[ladeflagge] setzen fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def ladeflagge_fertig(self) -> dict:
+        try:
+            info = _ladeflagge_lesen() or {}
+            if info.get("status") != "laedt":
+                return {"ok": True}
+            dauer = time.time() - float(info.get("t") or time.time())
+            info.update({"status": "fertig", "t_fertig": time.time()})
+            _ladeflagge_schreiben(info)
+            log.info("[ladeflagge] fertig geladen: %s (%.1f s)",
+                     info.get("projekt") or Path(str(info.get("gpx") or "")).name, dauer)
+            return {"ok": True}
+        except Exception as e:
+            log.warning("[ladeflagge] fertig fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def ladeflagge_vom_letzten_start(self) -> dict:
+        """Hing der letzte Ladevorgang? Liefert ihn einmal je Prozess."""
+        info = _LADEFLAGGE_VORHER.get("info") or {}
+        if info.get("status") != "laedt" or _LADEFLAGGE_VORHER.get("gemeldet"):
+            return {"ok": True, "problem": False}
+        _LADEFLAGGE_VORHER["gemeldet"] = True
+        gpx = str(info.get("gpx") or "")
+        log.warning("[ladeflagge] der letzte Ladevorgang wurde NICHT fertig: %s · Projekt %r · "
+                    "%s Schilder · %s Fotos · v%s", gpx, info.get("projekt"),
+                    info.get("schilder"), info.get("fotos"), info.get("version"))
+        return {"ok": True, "problem": True, "gpx": gpx,
+                "gpx_da": bool(gpx) and Path(gpx).exists(),
+                "projekt": info.get("projekt") or "", "tour_hash": info.get("tour_hash") or "",
+                "schilder": int(info.get("schilder") or 0), "fotos": int(info.get("fotos") or 0),
+                "t": info.get("t"), "version": info.get("version") or ""}
 
     def get_app_info(self) -> dict:
         """Über-Dialog-Daten: Version, Python, Paths."""

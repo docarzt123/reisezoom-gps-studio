@@ -117,11 +117,13 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.703</span>
+    <span class="version-num">v0.9.704</span>
     <span class="version-date">13 September 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
+    <li><strong>A project that freezes on opening can now be opened safely</strong> &mdash; The app notes when it starts loading a project and when it has finished. If “finished” never comes because it froze or was quit, the next start asks and offers to open the project without signs and photos. Nothing is deleted: a banner says what is hidden, and one click brings everything back. Until now neither resetting nor a new project helped in such a case, because the app recognises the tour by its course and kept opening the same project.</li>
+    <li><strong>Waiting now shows a window in the middle of the screen</strong> &mdash; Wherever you wait for the app, for example when loading a track, reading a folder or opening a project with many photo signs, a window now appears in the middle. It says exactly what is happening, counts along when the amount is known (number, percent and bar) and shows a spinning ring otherwise. Where possible you can cancel. Work that runs in the background without making you wait stays in the small box at the bottom right.</li>
     <li><strong>Thousands of photo signs no longer freeze the Animator</strong> &mdash; A project with very many photo signs (for example from “From Geotagger”) made the app stop right after the track loaded. The sign list was rebuilt completely after every single loaded image, every sign asked separately whether its image still exists, and the map redrew all images on every refresh. Now the list is built in batches and chunks, images are checked in one go and only redrawn when a sign really changed. Missing images give a single note with the count. Measured with 2,830 signs: frozen 60 of 60 seconds before, 2 of 40 now.</li>
   </ul>
 </article>

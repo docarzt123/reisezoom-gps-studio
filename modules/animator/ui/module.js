@@ -10367,12 +10367,27 @@ function mountAnimator(body, headerActions, opts) {
         // wird gebündelt (höchstens alle 0,4 s), nicht mehr alle 20 Bilder komplett.
         let _laeuft = 0;
         const _warte = needImg.slice();
+        // 13.09.2026 — Marc: „bei allem wo man warten muss … ein sichtbares modal".
+        // Viele Foto-Schilder brauchen spürbar; das Fenster zählt mit.
+        const _stId = "anim-schilder-laden";
+        const _mitAnzeige = _total > 40 && !!window.rzStatus;
+        if (_mitAnzeige) {
+          window.rzStatus.start(_stId, {
+            titel: t("signs.laden_titel", "Schilder werden geladen"),
+            text: t("signs.laden_text", "Bilder der Foto-Schilder"),
+            gesamt: _total,
+          });
+        }
         const _naechstes = () => {
           while (_laeuft < 8 && _warte.length) {
             const s = _warte.shift();
             _laeuft++;
             _animSignEnsureImage(s).then(() => {
               _laeuft--; _settled++;
+              if (_mitAnzeige) {
+                if (_settled === _total) window.rzStatus.fertig(_stId, t("signs.laden_fertig", "{n} Schilder bereit").replace("{n}", _total));
+                else if (_settled % 10 === 0) window.rzStatus.schritt(_stId, { n: _settled });
+              }
               if (map && map.getContainer && !_animSignEditMode) {
                 _animSignsKarteBald();
                 if (_settled === _total) _animSignsListeBald();

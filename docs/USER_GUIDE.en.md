@@ -2389,13 +2389,16 @@ Top left: the app icon + name. In the middle (when a GPX is loaded): stats pills
 
 ## 8a · What is happening right now — the status box (since v0.9.690) ⭐
 
-Whenever something takes a little longer, **a small box appears in the bottom
-right**. It says **what** is running (for example "Fetching thumbnails"), **how
-far** it has got ("1,200 / 2,830") and offers **Cancel** where cancelling is
-possible. The app stays usable, the box locks nothing.
+When you have to wait for the app, **a window appears in the middle of the screen**
+(since v0.9.704). It says **what** is running (for example "Loading signs") and **how
+far** it has got ("1,200 / 2,830 (42 %)") with a bar. If the amount cannot be known, a
+ring spins. Where cancelling is possible there is a **Cancel** button. While the window
+is open the app waits for that task; an error stays until you click **OK**.
 
-You see it when a track loads, when the project's photos are fetched, when the
-Geotagger reads a photo folder, and while the photo stock is being indexed.
+You see it when a track loads, when the project's photos are fetched, when a project
+with many photo signs opens and when the Geotagger reads a photo folder. **Work that
+runs in the background** without making you wait, such as indexing the photo stock,
+stays **a small box at the bottom right** that locks nothing.
 
 **Photos now arrive in chunks.** If a project holds many photos, the list is
 there immediately and the pictures trickle in. The first time takes a while
@@ -2455,6 +2458,9 @@ Clicking **📧 Feedback / bug report to Marc** (or on a render error) opens a m
 
 ### The app no longer reacts, reset the settings (since v0.9.688)
 Like Final Cut: **hold ⌘⌥ while starting** (Windows: **Ctrl+Alt**) until the “Reset?” question appears. Or, in the running app, **Help → “Reset settings and restart …”**, which works even when the interface itself no longer reacts to clicks. Window position, map style, last open project and all sliders go back to factory defaults. Your tours, projects and the archive stay, map keys and language too. The old settings are kept as `settings.reset-<time>.json` next to the new file.
+
+### A project freezes every time it opens (since v0.9.704)
+The app notes when it starts loading a project and when loading has finished. If it freezes or you quit before that, it asks at the next start: **Don't open**, **Open normally** or **Open without signs and photos**. With the third option the track comes with all its settings while signs and photos stay hidden. Nothing is deleted; a banner at the top says what is hidden, and **Bring back signs and photos** restores them. While hidden they cannot be changed, so the empty list overwrites nothing. This helps exactly where resetting does not: the app recognises a tour by its course and would otherwise open the same project again and again.
 
 ### Log file
 On render errors an error modal opens automatically with an expandable log excerpt + "Show in Finder", "Open log", "📧 Send to Marc" buttons. You can find the full log file at any time at:

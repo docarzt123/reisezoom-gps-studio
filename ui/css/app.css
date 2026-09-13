@@ -3152,12 +3152,57 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
   width: 34%;
 }
 @keyframes rz-status-wandern {
-  0% { margin-left: -34%; } 100% { margin-left: 100%; }
+  0% { transform: translateX(-100%); } 100% { transform: translateX(300%); }
 }
 .rz-status.ist-fertig .rz-status-punkt { animation: none; background: #37b24d; }
 .rz-status.ist-fertig .rz-status-balken > i { background: #37b24d; width: 100%; }
 .rz-status.ist-fehler .rz-status-punkt { animation: none; background: #e03131; }
 .rz-status.ist-fehler .rz-status-balken > i { background: #e03131; }
+
+/* 13.09.2026 — Warte-Fenster in der Mitte (Marc: „bei allem wo man warten muss …
+   ein sichtbares modal in die mitte"). Gleiche Zeilen wie der Kasten, nur größer,
+   über abgedunkeltem Hintergrund, der die Bedienung darunter sperrt. Animationen
+   nur über transform/opacity — die laufen weiter, wenn das Skript beschäftigt ist. */
+.rz-warte-hg {
+  align-items: center;
+  background: rgba(0, 0, 0, .45);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  z-index: 9500;
+}
+.rz-warte-karte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(520px, 90vw);
+  width: 440px;
+}
+.rz-warte-karte .rz-status {
+  border-radius: 12px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .55);
+  max-width: none;
+  min-width: 0;
+  padding: 18px 20px 18px;
+}
+.rz-warte-karte .rz-status-kopf { gap: 12px; }
+.rz-warte-karte .rz-status-titel { font-size: 16px; }
+.rz-warte-karte .rz-status-text { font-size: 13px; margin: 10px 0 12px; opacity: .9; }
+.rz-warte-karte .rz-status-balken { border-radius: 3px; height: 6px; }
+.rz-warte-karte .rz-status-ab { font-size: 12.5px; padding: 4px 12px; }
+/* Ohne Fortschritt dreht sich ein Ring statt des pulsierenden Punkts. */
+.rz-warte-karte .rz-status-punkt {
+  animation: rz-warte-dreh .9s linear infinite;
+  background: none;
+  border: 3px solid rgba(255, 255, 255, .18);
+  border-top-color: var(--accent, #ff7a1a);
+  height: 22px;
+  width: 22px;
+}
+@keyframes rz-warte-dreh { to { transform: rotate(360deg); } }
+.rz-warte-karte .rz-status.ist-fertig .rz-status-punkt { animation: none; background: #37b24d; border-color: #37b24d; }
+.rz-warte-karte .rz-status.ist-fehler .rz-status-punkt { animation: none; background: #e03131; border-color: #e03131; }
 
 /* 12.09.2026 — Foto-Auswahl („aus einer Liste auswählen", Marc). Kacheln mit
    Häkchen; die gewählten heben sich deutlich ab, damit man auf einen Blick
