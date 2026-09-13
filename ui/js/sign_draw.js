@@ -60,9 +60,22 @@
   // Inhalt OBEN IN die Schild-Box gezeichnet (Form/Akzent/Dekoration bleiben!),
   // darunter steht der Text (= Bildunterschrift). Die Fläche um/unter dem Bild ist
   // die Box-Füllung (Akzent-/Hintergrundfarbe), NICHT mehr fix weiß.
+  // 14.09.2026 (Nachttest, Beta-Tester-Projekt mit 2830 Foto-Schildern): Jedes
+  // Foto-Schild wurde mit Pixelmaß 2 gerastert (~650×480 px ≈ 1,25 MB). MapLibre hält
+  // die Pixel mehrfach (Bildspeicher, Kopie je Kachel-Auftrag) — der WebView-Prozess
+  // wuchs im Probelauf auf 32 GB und wurde vom System beendet. Ab vielen Bild-Schildern
+  // wird deshalb mit kleinerem Pixelmaß gerastert: gleiche Größe auf dem Bild, weniger
+  // Pixel, Gesamtbudget ≈ 200 Schilder in voller Schärfe. Vorschau und Render nutzen
+  // dieselbe Rechnung (WYSIWYG).
+  var RZ_SIGN_BILD_VOLL = 200;
+  function rzSignDpr(anzahlBildSchilder) {
+    var n = Number(anzahlBildSchilder) || 0;
+    if (n <= RZ_SIGN_BILD_VOLL) return 2;
+    return Math.max(0.5, Math.round(2 * Math.sqrt(RZ_SIGN_BILD_VOLL / n) * 100) / 100);
+  }
   function rzDrawSign(o) {
     o = o || {};
-    var dpr = 2;
+    var dpr = (Number(o.__dpr) > 0) ? Number(o.__dpr) : 2;
     var fontPx = Math.max(8, Number(o.size) || 40);
     var fs = fontPx * dpr;
     var weight = Number(o.weight) || 700;
@@ -484,7 +497,19 @@
     // sonst bliebe der Filter aus und die Feature-States wären nie gesetzt.
     if (map.__rzSignCacheFC !== map.__rzSignFC) {
       map.__rzSignCacheFC = map.__rzSignFC;
-      map.__rzSignLastM = null; map.__rzSignOpLast = null;
+      map.__rzSignLastM = null; map.__rzSignOpLast = null; map.__rzSignVisKey = null;
+    }
+    // 14.09.2026 (Nachttest, 2830 Foto-Schilder): Jeder Filterwechsel lässt MapLibre
+    // alle Kacheln der Ebene neu aufbauen, und jede Kachel kopiert dabei ALLE sichtbaren
+    // Schild-Bilder (je Auftrag >100 MB). Die Aufträge stauten sich — 18 GB in 8 s, der
+    // WebView-Prozess wurde beendet. Bei vielen Schildern bleibt der Filter deshalb offen
+    // und die Sichtbarkeit läuft über die Deckkraft (feature-state = Paint, kein Neubau).
+    var viele = Array.isArray(metas) && metas.length > RZ_SIGN_BILD_VOLL;
+    if (viele) {
+      if (map.__rzSignVisKey !== "__alle__" || map.__rzSignLastLyr !== lyr) {
+        map.__rzSignVisKey = "__alle__"; map.__rzSignLastLyr = lyr; map.__rzSignLastM = Mq;
+        try { map.setFilter(lyr, null); } catch (_) {}
+      }
     }
     // 04.09.2026 (Marc: „läuft flüssig los und ruckelt dann mehr und mehr …
     // Schild kommt erst nach dem Stopp"): Bisher bekam die Ebene JEDEN Frame
@@ -496,7 +521,7 @@
     // die sichtbare Menge auf dem Hauptfaden bestimmt und der Filter nur
     // gesetzt, wenn sie sich ändert (ein paar Mal je Lauf statt 60× je Sekunde).
     var vis = [];
-    if (Array.isArray(metas)) {
+    if (Array.isArray(metas) && !viele) {
       for (var q = 0; q < metas.length; q++) {
         var mq = metas[q] || {};
         var aS = (mq.a_show == null) ? -1 : mq.a_show, aH = (mq.a_hide == null) ? 2 : mq.a_hide;
@@ -504,7 +529,7 @@
       }
     }
     var visKey = vis.join(",");
-    if (map.__rzSignVisKey !== visKey || map.__rzSignLastLyr !== lyr) {
+    if (!viele && (map.__rzSignVisKey !== visKey || map.__rzSignLastLyr !== lyr)) {
       map.__rzSignVisKey = visKey; map.__rzSignLastLyr = lyr; map.__rzSignLastM = Mq;
       try {
         // Vorschau-Features tragen `signIdx`, die Render-Features (core/animator.py)
@@ -570,8 +595,12 @@
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i] || {};
       var op = 1;
+      if (viele) {
+        var vS = (m.a_show == null) ? -1 : m.a_show, vH = (m.a_hide == null) ? 2 : m.a_hide;
+        if (!(M >= vS && M <= vH)) op = 0;
+      }
       // Fade (Ein-/Ausblenden) über icon-opacity = PAINT-Property → feature-state erlaubt.
-      if (m.fade > 0) {
+      if (op > 0 && m.fade > 0) {
         op = Math.min((M - m.a_show) / m.fade, (m.a_hide - M) / m.fade, 1);
         op = Math.max(0, Math.min(1, op));
       }
@@ -621,11 +650,13 @@
     window.__rzSignFrame = rzSignApplyFrame;
     window.__rzSignMeta = rzSignMeta;
     window.__rzSignIconSize = rzSignIconSize;
+    window.__rzSignDpr = rzSignDpr;
   }
   if (typeof globalThis !== "undefined") {
     globalThis.__rzDrawSign = rzDrawSign;
     globalThis.__rzSignFrame = rzSignApplyFrame;
     globalThis.__rzSignMeta = rzSignMeta;
     globalThis.__rzSignIconSize = rzSignIconSize;
+    globalThis.__rzSignDpr = rzSignDpr;
   }
 })();

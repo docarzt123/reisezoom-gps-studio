@@ -10349,6 +10349,26 @@ function mountAnimator(body, headerActions, opts) {
         try { map.on("zoom", () => { if (_animSignEditMode) _animSignsApplyMarkerAnchor(_animSignLastAnchorM); }); } catch (_) {}
       }
     }
+    function _animSignsDprBild(list) {
+      const l = list || _animSignsList().filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
+      return window.__rzSignDpr ? window.__rzSignDpr(l.filter(s => s.imageSrc).length) : 2;
+    }
+    /** 14.09.2026 — ein Bild-Schild gleich nach dem Laden seines Vorschaubilds rastern und
+     *  an die Karte geben (ohne Ebene neu aufzubauen). So verteilt sich die Arbeit über das
+     *  Nachladen, statt am Ende tausende Schilder am Stück zu rastern (12 s Stillstand). */
+    function _animSignVorrastern(s, dprBild) {
+      if (!map || !s || !_animSignHasImg(s)) return;
+      const fi = _animSignsList().indexOf(s); if (fi < 0) return;
+      const sn = _animSignNormalize(s);
+      if (dprBild !== 2) sn.__dpr = dprBild;
+      _animSetImgEl(sn, s._imgEl);
+      const id = "sign-img-" + fi;
+      const sig = _animSignBildSignatur(sn);
+      if (map.hasImage(id) && _animSignImgSig.get(id) === sig) return;
+      const img = _animSignDrawImageData(sn); if (!img) return;
+      try { if (map.hasImage(id)) map.removeImage(id); map.addImage(id, img.data, { pixelRatio: img.dpr }); _animSignImgSig.set(id, sig); } catch (_) {}
+      if (_animSignImgIds.indexOf(id) < 0) _animSignImgIds.push(id);
+    }
     // ── GPU-Symbol-Layer (Probelauf/Export/Ruhe): flüssig wie die Foto-Pins ──
     function _animSignsAttachGPU(allSigns, list) {
       const needImg = list.filter(s => s.imageSrc && !_animSignHasImg(s) && !s._imgLoading && !s._imgFailed);
@@ -10362,6 +10382,7 @@ function mountAnimator(body, headerActions, opts) {
         // stößt KEINE neuen Ladevorgänge an (kein Nesting), es zeichnet nur die
         // bereits fertigen. `map.getContainer`-Check schützt vor totem Modul.
         const _total = needImg.length;
+        const _dprVorab = _animSignsDprBild(list);
         let _settled = 0;
         // 13.09.2026 — nie mehr als ~8 Bilder gleichzeitig laden, und neu gezeichnet
         // wird gebündelt (höchstens alle 0,4 s), nicht mehr alle 20 Bilder komplett.
@@ -10384,12 +10405,15 @@ function mountAnimator(body, headerActions, opts) {
             _laeuft++;
             _animSignEnsureImage(s).then(() => {
               _laeuft--; _settled++;
+              if (_total > 200 && !_animSignEditMode) { try { _animSignVorrastern(s, _dprVorab); } catch (_) {} }
               if (_mitAnzeige) {
                 if (_settled === _total) window.rzStatus.fertig(_stId, t("signs.laden_fertig", "{n} Schilder bereit").replace("{n}", _total));
                 else if (_settled % 10 === 0) window.rzStatus.schritt(_stId, { n: _settled });
               }
               if (map && map.getContainer && !_animSignEditMode) {
-                _animSignsKarteBald();
+                // 14.09.2026 — bei sehr vielen Bild-Schildern nicht in Wellen neu aufbauen:
+                // jeder Aufbau lässt MapLibre alle geladenen Bilder je Kachel kopieren.
+                if (_total <= 200 || _settled === _total) _animSignsKarteBald();
                 if (_settled === _total) _animSignsListeBald();
               }
               _naechstes();
@@ -10400,10 +10424,14 @@ function mountAnimator(body, headerActions, opts) {
       }
       const dur = _animSignsDuration();
       const features = [];
+      // 14.09.2026 — Pixelmaß nach Zahl der Bild-Schilder (ui/js/sign_draw.js rzSignDpr),
+      // synchron zu core/animator.py (Render) — bei Änderung beide pflegen.
+      const _dprBild = _animSignsDprBild(list);
       list.forEach((s) => {
         if (s.imageSrc && !_animSignHasImg(s) && !(s.text || "").trim()) return;
         const fi = allSigns.indexOf(s);
         const sn = _animSignNormalize(s);
+        if (s.imageSrc && _dprBild !== 2) sn.__dpr = _dprBild;
         if (_animSignHasImg(s)) _animSetImgEl(sn, s._imgEl);
         const id = "sign-img-" + fi;
         try {
