@@ -1503,6 +1503,12 @@ in der Datei stand), Kamera, Objektiv, Blende, Belichtung, ISO, Größe, Ort und
 Koordinate. Ganz unten klappt **Alle Aufnahmedaten** jeden einzelnen Eintrag
 auf, den die Datei mitbringt.
 
+> **Unterwegs ohne das Laufwerk?** Über dem Raster steht dann ein Hinweis, welches
+> Laufwerk fehlt, was trotzdem geht und welchen Stand du siehst. Die Seitenleiste
+> markiert den Ordner mit 📴, die Detailspalte sagt, dass das Original gerade fehlt.
+> Kommt das Laufwerk zurück, merkt die App das binnen zwanzig Sekunden und liest
+> weiter.
+>
 > **Unterwegs ohne das Laufwerk?** Aufnahmedaten und Vorschaubilder liegen in
 > der Bibliothek auf deinem Rechner. Raster, Suche, Karte und die Gruppierung
 > nach Touren funktionieren also auch, wenn das NAS oder die externe Platte

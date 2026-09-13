@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.696"
+APP_VERSION = "0.9.698"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -4017,8 +4017,13 @@ class Api:
 
     def fotos_ordner(self) -> dict:
         try:
-            return {"ok": True, "ordner": cfotos.ordner_liste(self._lib()),
-                    "stand": cfotos.stand(self._lib())}
+            conn = self._lib()
+            # `nachschau`: wann zuletzt vollständig in die Ordner geschaut wurde.
+            # Unterwegs ohne Laufwerk ist das der Stand, den man gerade sieht —
+            # die Oberfläche sagt es dazu (Marc, 13.09.2026).
+            return {"ok": True, "ordner": cfotos.ordner_liste(conn),
+                    "stand": cfotos.stand(conn),
+                    "nachschau": cfotos.letzte_nachschau(conn)}
         except Exception as e:
             log.exception("fotos_ordner")
             return {"ok": False, "error": str(e), "ordner": []}
@@ -4105,7 +4110,23 @@ class Api:
             try:
                 # Eigene Verbindung: der Scan läuft lange, die Oberfläche fragt
                 # währenddessen weiter ab (core/library serialisiert per Lock).
-                conn = clib.open_db(LIBRARY_DB)
+                # Beim Öffnen kann die Datenbank belegt sein — dann WARTEN und
+                # es erneut versuchen, statt den Lauf wegzuwerfen. Am 12.09.2026
+                # starb der Foto-Scan genau hier nach zwei Sekunden, und in der
+                # Oberfläche stand danach wieder „Jetzt einlesen", als wäre
+                # nichts gewesen.
+                for versuch in range(5):
+                    try:
+                        conn = clib.open_db(LIBRARY_DB)
+                        break
+                    except Exception as e:
+                        if versuch == 4:
+                            raise
+                        log.info("[fotos] Datenbank belegt (%s) — Versuch %d von 5",
+                                 e, versuch + 2)
+                        self._foto_scan_state["warte"] = versuch + 1
+                        time.sleep(2.0 + versuch * 2)
+                self._foto_scan_state.pop("warte", None)
                 # Was gerade nicht erreichbar ist, sagen statt stillzuschweigen:
                 # ein NAS im WLAN ist unterwegs eben weg, und dann findet der
                 # Scan dort nichts — ohne Hinweis sieht das nach einem Fehler aus.
@@ -4219,8 +4240,21 @@ class Api:
             if not d:
                 return {"ok": False, "error": "nicht im Bestand"}
             d["tags"] = cfotos.tags_lesen(conn, path)
-            d["thumb_url"] = cphotos.thumb_data_url_gecacht(
-                path, cphotos.THUMB_GROSS_PX, cfotos.fp_lesen(conn, path))
+            # Liegt das Original gerade erreichbar? Ein einziger Blick, und bei
+            # einem abgehängten Laufwerk scheitert er sofort.
+            try:
+                d["datei_da"] = Path(path).is_file()
+            except OSError:
+                d["datei_da"] = False
+            fp = cfotos.fp_lesen(conn, path)
+            d["thumb_url"] = cphotos.thumb_data_url_gecacht(path, cphotos.THUMB_GROSS_PX, fp)
+            if not d["thumb_url"]:
+                # Die große Fassung entsteht nur auf Abruf — ohne Laufwerk also
+                # nie. Dann eben die kleine aus dem Scan: lieber etwas unscharf
+                # als ein leerer Kasten (Marc unterwegs, 13.09.2026).
+                d["thumb_url"] = cphotos.thumb_data_url_gecacht(
+                    path, cphotos.THUMB_RASTER_PX, fp, nur_cache=True)
+                d["thumb_klein"] = bool(d["thumb_url"])
             # Die Tour zur Aufnahmezeit (mit Verlauf für die kleine Karte) und
             # die Befunde samt Lösungsweg — beides braucht die Detailspalte.
             tour = cfotos.tour_fuer_foto(conn, d)

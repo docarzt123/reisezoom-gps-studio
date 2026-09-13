@@ -373,8 +373,22 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     """Öffnet (und erstellt) die Archiv-Datenbank."""
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
+    # `timeout` statt sofortigem Aufgeben: die App hält mehrere Verbindungen
+    # (Oberfläche, Scan-Faden, Fotobestand). Ohne Wartezeit stirbt der
+    # Hintergrundlauf schon beim Öffnen mit „database is locked", sobald die
+    # Oberfläche gerade schreibt — genau das ist am 12.09.2026 passiert: Der
+    # Foto-Scan lief zwei Sekunden und war weg, ohne dass jemand etwas sah.
+    conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        # WAL: Lesen und Schreiben sperren sich nicht mehr gegenseitig. Auf
+        # Netzlaufwerken kann SQLite das nicht — dann bleibt es beim alten
+        # Journal, und die Wartezeit oben trägt den Rest.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    except sqlite3.Error as e:
+        log.info("library: WAL nicht möglich (%s) — Journal bleibt", e)
+    conn.execute("PRAGMA busy_timeout=30000")
     # Die Freitextsuche gehört ins SQL, nicht hinterher in Python: sonst filtert
     # die Liste anders als `stats()` zählt („2 Touren … 16.314 km"). SQLite kann
     # kein akzent-unempfindliches LIKE, also reichen wir `_norm` als Funktion

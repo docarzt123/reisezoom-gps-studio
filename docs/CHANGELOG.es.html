@@ -117,11 +117,14 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.696</span>
+    <span class="version-num">v0.9.698</span>
     <span class="version-date">12 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
+    <li><strong>De viaje sin la unidad: la aplicación lo dice</strong> &mdash; Sobre la cuadrícula aparece claramente qué unidad falta, qué sigue funcionando (la búsqueda, el mapa y las miniaturas vienen de la biblioteca), qué estado estás viendo y que la aplicación seguirá leyendo por sí sola en cuanto vuelva. Ni «Escanear ahora» ni barras de progreso para imágenes que no pueden llegar. La barra lateral marca la carpeta y la columna de detalle indica que falta el original &mdash; y aun así muestra la vista previa. Cuando vuelve la unidad, la aplicación lo nota en veinte segundos y continúa.</li>
+    <li><strong>La verdadera causa del escaneo que se detenía</strong> &mdash; Una función auxiliar que guarda las claves aprendidas de las miniaturas solo cerraba su transacción si había cambiado algo. Si no encontraba nada, la transacción quedaba abierta y bloqueaba toda la biblioteca hasta que la pasada en segundo plano se rendía. Ahora la cierra siempre &mdash; en el banco de pruebas pasan 300 archivos en tres segundos mientras otra cosa escribe a la vez.</li>
+    <li><strong>El escaneo de fotos se detenía a los dos segundos, sin decir nada</strong> &mdash; En el registro ponía «database is locked»: la pasada en segundo plano abre su propia conexión a la biblioteca, la interfaz estaba escribiendo justo entonces y la base de datos no conocía ni WAL ni espera alguna. La pasada moría antes de empezar y la cabecera volvía a ofrecer «Escanear ahora» como si nada. Ahora la biblioteca funciona en modo WAL con 30 segundos de paciencia, la pasada reintenta abrir cinco veces y, si aun así falla, el motivo se ve &mdash; con un botón para reintentar.</li>
     <li><strong>Ningún botón para un trabajo que ya está en marcha</strong> &mdash; Con el automatismo activado, al abrir el área de fotos pone «Escaneando …» desde el primer momento y luego el contador con el botón de cancelar, en lugar de ofrecer «Escanear ahora». El botón solo vuelve si cancelas, y entonces se llama <em>Continuar</em>.</li>
     <li><strong>La aplicación se abre donde la cerraste</strong> &mdash; Hasta ahora solo valía: último proyecto, es decir, el Animador. Si lo último abierto fue el archivo, vuelve el archivo, y en el área en la que estabas, fotos incluidas.</li>
     <li><strong>Desplazamiento infinito en la cuadrícula &mdash; y una cabecera que no se contradice</strong> &mdash; Al llegar al final, la vista sigue cargando por sí sola y <em>añade</em> en vez de redibujarlo todo: ya no salta hacia arriba y ninguna foto aparece dos veces en la junta de un día. Abajo se indica cuántos de cuántos están cargados. Además, la cabecera muestra <strong>o bien</strong> «Escanear ahora» <strong>o bien</strong> el escaneo en curso con su contador y un botón de cancelar, nunca ambos.</li>

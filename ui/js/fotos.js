@@ -44,6 +44,8 @@
   let nachladend = false;
   let aufholStart = false;    // angestoßen, aber der Lauf meldet sich erst gleich
   let abgebrochen = false;    // der Mensch hat gestoppt — dann NICHT wieder von selbst
+  let nachschau = null;       // Zeitpunkt des letzten vollständigen Blicks (Sekunden)
+  let fernWache = 0;          // prüft, ob ein abwesendes Laufwerk zurück ist
 
   function num(n) {
     let loc = null;
@@ -126,7 +128,7 @@
           <div class="foto-ordner">
             <div class="foto-ordner-txt" title="${esc(o.path)}">
               ${esc(o.path.split("/").slice(-2).join("/"))}
-              <span class="muted">${num(o.n)}${o.da ? "" : " · " + T("fotos.ordner_weg", "nicht da")}</span>
+              <span class="muted">${num(o.n)}</span>${o.da ? "" : ` <span class="foto-ordner-fern">📴 ${T("fotos.ordner_weg", "nicht da")}</span>`}
             </div>
             <button class="btn btn-sm" data-fordweg="${i}" type="button"
                     title="${T("fotos.ordner_entfernen", "Ordner nicht mehr beobachten")}">✕</button>
@@ -284,7 +286,7 @@
         stand = st.stand || stand;
         try {
           const r = await api().fotos_ordner();
-          if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; }
+          if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; nachschau = r.nachschau || nachschau; }
         } catch (_) {}
         navZeichnen();
         neuLaden();
@@ -340,6 +342,9 @@
     const lauf = ++thumbLauf;
     const offen = geladen.filter(f => !f.thumb_url).map(f => f.path);
     if (!offen.length) return;
+    // Laufwerk weg: Was nicht im Speicher liegt, lässt sich jetzt nicht bauen.
+    // Kein Fortschrittsbalken über Bilder, die gar nicht kommen können.
+    if (ordner.length && ordner.every(o => !o.da)) return;
     if (window.rzStatus) {
       window.rzStatus.start("foto-thumbs", {
         titel: T("fotos.titel", "Fotos"),
@@ -441,7 +446,66 @@
     const teile = [T("fotos.kopf", "{n} Dateien").replace("{n}", num(gesamt))];
     if (stand.ungelesen) teile.push(T("fotos.kopf_offen", "{n} noch ohne Aufnahmedaten").replace("{n}", num(stand.ungelesen)));
     if (stand.ohne_koordinate) teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(stand.ohne_koordinate)));
-    return `<div class="lib-head" id="foto-kopf">${esc(teile.join(" · "))}${kopfArbeitHtml()}</div>`;
+    return `<div class="lib-head" id="foto-kopf">${fernHtml()}${esc(teile.join(" · "))}${kopfArbeitHtml()}</div>`;
+  }
+
+  /* Unterwegs ist das Laufwerk weg — und das muss man sehen, nicht erraten
+     (Marc, 13.09.2026: „Ich bin jetzt unterwegs und das Laufwerk ist nicht mehr
+     verfügbar. Das sollte doch irgendwie angezeigt werden."). Gesagt wird
+     auch, was trotzdem geht und wann es weitergeht. */
+  function fernHtml() {
+    const weg = ordner.filter(o => !o.da);
+    if (!weg.length) return "";
+    const alle = weg.length === ordner.length;
+    const namen = weg.map(o => o.path.split("/").filter(Boolean).slice(-1)[0] || o.path);
+    const wann = nachschau ? zeitpunktText(nachschau) : "";
+    const titel = alle
+      ? T("fotos.fern_alle", "Laufwerk nicht erreichbar: {n}").replace("{n}", namen.join(", "))
+      : T("fotos.fern_teil", "{a} von {b} Ordnern nicht erreichbar: {n}")
+          .replace("{a}", weg.length).replace("{b}", ordner.length).replace("{n}", namen.join(", "));
+    const satz = [
+      T("fotos.fern_geht", "Suche, Karte und Vorschaubilder kommen aus der Bibliothek und funktionieren weiter."),
+      wann ? T("fotos.fern_stand", "Du siehst den Stand vom {t}.").replace("{t}", wann) : "",
+      T("fotos.fern_weiter", "Sobald das Laufwerk wieder da ist, liest die App von selbst weiter."),
+    ].filter(Boolean).join(" ");
+    return `<div class="foto-fern" id="foto-fern">
+        <div class="foto-fern-titel">📴 ${esc(titel)}</div>
+        <div class="foto-fern-text">${esc(satz)}</div>
+      </div>`;
+  }
+
+  function zeitpunktText(sek) {
+    const d = new Date(sek * 1000);
+    if (isNaN(d)) return "";
+    let loc = null;
+    try { loc = (typeof i18nMeta === "function") ? i18nMeta().active : null; } catch (_) {}
+    return d.toLocaleString(loc || undefined,
+      { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  }
+
+  /** Solange ein Laufwerk fehlt: alle 20 s nachsehen, ob es zurück ist —
+      dann Hinweis weg, Seitenleiste auffrischen, von selbst weiterlesen. */
+  function fernBeobachten() {
+    clearTimeout(fernWache);
+    if (!angemeldet || !ordner.some(o => !o.da)) return;
+    fernWache = setTimeout(async () => {
+      if (!angemeldet) return;
+      const vorher = ordner.filter(o => !o.da).length;
+      try {
+        const r = await api().fotos_ordner();
+        if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; nachschau = r.nachschau || nachschau; }
+      } catch (_) {}
+      const jetzt = ordner.filter(o => !o.da).length;
+      if (jetzt !== vorher) {
+        navZeichnen();
+        kopfAuffrischen();
+        if (jetzt < vorher) {
+          toast(T("fotos.fern_zurueck", "Laufwerk wieder da — die App liest weiter."), "success", 4000);
+          if (autoAn) aufholen();
+        }
+      }
+      fernBeobachten();
+    }, 20000);
   }
 
   /* Es darf nie beides gleichzeitig dastehen — „Jetzt einlesen" und ein
@@ -450,6 +514,17 @@
      läuft es, dann steht hier der Stand und Abbrechen. Oder es läuft nicht,
      dann steht hier der Knopf. */
   function kopfArbeitHtml() {
+    // Ein gescheiterter Lauf darf nicht aussehen wie „nie gestartet": vorher
+    // stand danach einfach wieder der Knopf da (Marc, 12.09.2026: „es läuft
+    // kurz los und dann kommt der Knopf").
+    if (scanStand && scanStand.error && !scanStand.running) {
+      return ` <span class="foto-kopf-fehler">⚠ ${esc(T("fotos.kopf_fehler", "Einlesen abgebrochen: {f}")
+        .replace("{f}", String(scanStand.error).slice(0, 120)))}</span>
+        <button class="btn btn-sm" id="foto-kopf-scan" type="button">${T("fotos.kopf_nochmal", "Noch einmal versuchen")}</button>`;
+    }
+    if (scanStand && scanStand.warte) {
+      return ` <span class="foto-kopf-laeuft">⏳ ${esc(T("fotos.kopf_warte", "Datenbank ist gerade belegt — wartet und versucht es erneut"))}</span>`;
+    }
     // Zwischen „gleich geht es los" und „es läuft" liegt eine Sekunde, in der
     // sonst der Knopf stünde und man nicht wüsste, ob nun eingelesen wird
     // (Marc, 12.09.2026: „ich blick's immer noch nicht … liest er jetzt ein
@@ -469,6 +544,9 @@
         <button class="btn btn-sm" id="foto-kopf-stop" type="button">${T("common.cancel", "Abbrechen")}</button>`;
     }
     if (!stand.ungelesen) return "";
+    // Ohne erreichbares Laufwerk gibt es nichts einzulesen — ein Knopf wäre
+    // hier ein falsches Versprechen, der Hinweis oben sagt schon alles.
+    if (ordner.length && ordner.every(o => !o.da)) return "";
     // Solange nichts eingelesen ist, gibt es auch keine Vorschaubilder im
     // Speicher — dann muss JEDES Bild einzeln vom Laufwerk kommen.
     const wort = abgebrochen
@@ -922,6 +1000,7 @@
       <div class="foto-detail">
         ${d.thumb_url ? `<img class="foto-detail-bild" src="${d.thumb_url}" alt="">` : ""}
         <div class="foto-detail-kopf">${esc(d.dateiname || "")}</div>
+        ${d.datei_da === false ? `<div class="foto-fern foto-fern-klein">📴 ${T("fotos.d_fern", "Original gerade nicht erreichbar — Vorschau und Aufnahmedaten kommen aus der Bibliothek.")}</div>` : ""}
         ${befunde ? befundeHtml(befunde)
                   : (m.length ? `<div class="foto-detail-warn">⚠ ${esc(m.join(" · "))}</div>` : "")}
         <div class="foto-d-karte" id="foto-d-karte" hidden></div>
@@ -1060,7 +1139,7 @@
     schritt(T("fotos.laden_ordner", "Ordner lesen …"));
     const r = await api().fotos_ordner().catch(() => null);
     if (!angemeldet) return;
-    if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || {}; }
+    if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || {}; nachschau = r.nachschau || null; }
     schritt(T("fotos.laden_werte", "Kameras und Jahre zählen …"));
     await filterwerteLaden();
     if (!angemeldet) return;
@@ -1070,6 +1149,7 @@
     await neuLaden(true);
     if (window.rzStatus) window.rzStatus.fertig("foto-oeffnen", "");
     if (!angemeldet) return;
+    fernBeobachten();
     if (autoAn) aufholen();
     // Läuft gerade ein Scan (etwa aus einer früheren Sitzung im Hintergrund),
     // zeigt die Leiste ihn sofort an, statt ihn zu verschweigen.
@@ -1082,6 +1162,7 @@
   function unmount() {
     angemeldet = false;
     thumbLauf++;                // ein laufendes Nachholen von Bildern beenden
+    clearTimeout(fernWache);
     if (fussWache) { try { fussWache.disconnect(); } catch (_) {} fussWache = null; }
     rasterBox = null;
     clearTimeout(scanTimer);

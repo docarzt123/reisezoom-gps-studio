@@ -117,11 +117,14 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.696</span>
+    <span class="version-num">v0.9.698</span>
     <span class="version-date">12. September 2026</span>
     <span class="version-badge">Aktuell</span>
   </div>
   <ul>
+    <li><strong>Unterwegs ohne Laufwerk: Die App sagt es</strong> &mdash; Über dem Raster steht deutlich, welches Laufwerk fehlt, was trotzdem geht (Suche, Karte und Vorschaubilder kommen aus der Bibliothek), welchen Stand du siehst, und dass die App von selbst weiterliest, sobald es wieder da ist. Kein „Jetzt einlesen" und kein Fortschrittsbalken über Bilder, die gar nicht kommen können. Die Seitenleiste markiert den Ordner, und die Detailspalte sagt, dass das Original fehlt &mdash; und zeigt die Vorschau trotzdem. Kommt das Laufwerk zurück, merkt die App das binnen zwanzig Sekunden und macht weiter.</li>
+    <li><strong>Die eigentliche Ursache des abbrechenden Einlesens</strong> &mdash; Eine Hilfsfunktion, die gelernte Vorschau-Schlüssel speichert, schloss ihre Datenbank-Transaktion nur ab, wenn sie etwas geändert hatte. Fand sie nichts, blieb die Transaktion offen und hielt die ganze Bibliothek gesperrt, bis der Hintergrundlauf aufgab. Jetzt schließt sie immer ab &mdash; im Prüfstand laufen 300 Dateien in drei Sekunden durch, während nebenher geschrieben wird.</li>
+    <li><strong>Das Einlesen der Fotos brach nach zwei Sekunden ab &mdash; ohne ein Wort</strong> &mdash; Im Log stand „database is locked": Der Hintergrundlauf öffnet eine eigene Verbindung zur Bibliothek, die Oberfläche schrieb im selben Moment, und die Datenbank kannte weder WAL noch eine Wartezeit. Also war der Lauf tot, bevor er begann, und in der Kopfzeile stand wieder „Jetzt einlesen", als wäre nichts gewesen. Die Bibliothek läuft jetzt im WAL-Modus mit 30 Sekunden Geduld, der Lauf versucht das Öffnen fünfmal, und scheitert doch etwas, steht der Grund sichtbar da &mdash; mit einem Knopf zum erneuten Versuch.</li>
     <li><strong>Kein Knopf für Arbeit, die ohnehin läuft</strong> &mdash; Ist die Automatik an, steht beim Öffnen des Fotobereichs vom ersten Augenblick an „Liest ein …", dann der Zähler mit Abbrechen &mdash; und nicht mehr „Jetzt einlesen". Der Knopf kommt erst zurück, wenn du abbrichst, und heißt dann <em>Weiterlesen</em>.</li>
     <li><strong>Die App geht dort wieder auf, wo du sie geschlossen hast</strong> &mdash; Bisher galt nur: zuletzt geöffnetes Projekt, also Animator. War zuletzt das Archiv offen, kommt jetzt das Archiv &mdash; und zwar in dem Bereich, in dem du warst, auch bei den Fotos.</li>
     <li><strong>Endlos-Blättern im Fotoraster &mdash; und eine Kopfzeile, die sich nicht widerspricht</strong> &mdash; Am Ende der Liste lädt die Ansicht von selbst weiter und <em>hängt an</em>, statt alles neu zu zeichnen: Die Ansicht springt nicht mehr nach oben, und an der Nahtstelle eines Tages steht kein Foto doppelt. Unten steht, wie viele von wie vielen geladen sind. Außerdem zeigt die Kopfzeile jetzt <strong>entweder</strong> „Jetzt einlesen" <strong>oder</strong> das laufende Einlesen mit Zähler und Abbrechen &mdash; nie beides nebeneinander.</li>

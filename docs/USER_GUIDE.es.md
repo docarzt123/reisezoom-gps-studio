@@ -1363,6 +1363,11 @@ estaba en el archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño,
 lugar y coordenadas. Abajo, **Todos los datos de captura** despliega cada
 entrada que trae el archivo.
 
+> **¿De viaje sin la unidad?** Sobre la cuadrícula aparece un aviso con la unidad que
+> falta, lo que sigue funcionando y el estado que ves. La barra lateral marca la
+> carpeta con 📴 y la columna de detalle indica que el original no está accesible.
+> Cuando vuelve la unidad, la aplicación lo nota en veinte segundos y sigue leyendo.
+>
 > **¿De viaje sin la unidad?** Los datos de captura y las miniaturas están en la
 > biblioteca de tu ordenador. La cuadrícula, la búsqueda, el mapa y la
 > agrupación por rutas siguen funcionando aunque el NAS o el disco externo no
