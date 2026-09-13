@@ -2586,6 +2586,14 @@ class Api:
                 # Tracks mehr auswählen. Die Oberfläche sagt es ihm jetzt —
                 # dafür braucht sie diese Auskunft.
                 schon_bekannt = track_hash in (daten.get("touren") or {})
+                # 13.09.2026 (Echt-App-Test): „dieselbe Tour aus einer ANDEREN Datei" nur,
+                # wenn diese Datei der Tour wirklich neu ist — sonst kam der Hinweis bei
+                # jedem Öffnen einer Datei, deren Name vom Tournamen abweicht.
+                _t_alt = (daten.get("touren") or {}).get(track_hash) or {}
+                _dname = Path(str(gpx_path or "")).name
+                andere_datei = bool(schon_bekannt and gpx_path
+                                    and str(gpx_path) not in (_t_alt.get("gpx_paths") or [])
+                                    and _dname not in (_t_alt.get("gpx_filenames_seen") or []))
                 active_proj = _projekte.kontext_oeffnen_einzel(
                     daten, track_hash, coords, gpx_path or None,
                     SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash,
@@ -2601,6 +2609,7 @@ class Api:
                 # True = diese Koordinaten kannte die App schon (gleiche Tour,
                 # andere Datei). Die Oberfläche weist darauf hin.
                 "bekannt": bool(schon_bekannt),
+                "andere_datei": andere_datei,
                 "session": {
                     "track_hash": track_hash,
                     "name": tour.get("name", ""),
@@ -3167,6 +3176,17 @@ class Api:
             self._bib_nachziehen()
         except Exception:
             log.exception("Bibliothek: Nachziehen nach dem Öffnen")
+        # 13.09.2026 — Sicherheitsnetz: Nach dem Öffnen darf die gemeinsame Verbindung
+        # keine Transaktion offen halten, sonst sperrt sie jede andere Verbindung
+        # (Foto-Scan, Einteilungen) für unbestimmte Zeit.
+        try:
+            c = getattr(self, "_lib_conn", None)
+            if c is not None and c.in_transaction:
+                log.warning("Bibliothek: offene Transaktion nach dem Öffnen — wird abgeschlossen")
+                with clib._DB_LOCK:
+                    c.commit()
+        except Exception:
+            log.exception("Bibliothek: Transaktion nach dem Öffnen abschließen")
         # Sicherung NACH dem Öffnen, damit sie den Start nicht verzögert.
         threading.Thread(target=self._bib_sichern_still, daemon=True,
                          name="bib-sicherung").start()
@@ -3260,8 +3280,8 @@ class Api:
             "DELETE FROM tracks WHERE COALESCE(speicher,0) = 1 AND geo_hash IN ("
             "  SELECT geo_hash FROM tracks WHERE COALESCE(speicher,0) = 0"
             "  AND error = '' AND geo_hash != '')").rowcount or 0
+        conn.commit()   # immer — auch ein DELETE ohne Treffer hält sonst die Schreibsperre (13.09.2026)
         if doppelt:
-            conn.commit()
             log.info("Bibliothek: %d doppelte Versionszeile(n) entfernt", doppelt)
         # 02.09.2026, beim Cloud-Live-Test gefunden: Ein zweiter Rechner hatte
         # nach dem Herunterladen alle Touren als Datei in der Bibliothek —
@@ -9312,12 +9332,13 @@ class Api:
         try:
             info = dict(info or {})
             alt = _ladeflagge_lesen() or {}
-            if alt.get("status") == "laedt" and alt.get("gpx") == info.get("gpx"):
+            # nur Angaben DIESES Prozesses übernehmen — nicht die eines früheren Hängers
+            if alt.get("status") == "laedt" and alt.get("gpx") == info.get("gpx") and alt.get("pid") == os.getpid():
                 for k in ("projekt", "tour_hash", "schilder", "fotos"):
                     if not info.get(k) and alt.get(k):
                         info[k] = alt[k]
                 info.setdefault("t", alt.get("t"))
-            info.update({"status": "laedt", "version": APP_VERSION})
+            info.update({"status": "laedt", "version": APP_VERSION, "pid": os.getpid()})
             info.setdefault("t", time.time())
             _ladeflagge_schreiben(info)
             return {"ok": True}
@@ -10339,6 +10360,13 @@ class Api:
             s = _load_settings() or {}
             if s.get("start_fortsetzen") is False:
                 return {"ok": True, "weiter": False, "grund": "abgeschaltet"}
+            # 13.09.2026 (Echt-App-Test): Wurde der letzte Ladevorgang nicht fertig, darf
+            # der Start das Projekt NICHT von selbst wieder öffnen — sonst friert die App
+            # erneut ein, während hinter ihr die Nachfrage „ohne Schilder und Fotos öffnen?"
+            # steht. Die Nachfrage (rzLadeflaggePruefen) öffnet es dann nach Wahl.
+            if ((_LADEFLAGGE_VORHER.get("info") or {}).get("status") == "laedt"):
+                log.info("letzte_sitzung: nicht fortsetzen — letzter Ladevorgang nicht fertig")
+                return {"ok": True, "weiter": False, "grund": "ladeflagge"}
             pid = str(s.get("letztes_projekt") or "")
             if not pid:
                 return {"ok": True, "weiter": False, "grund": "nichts_gemerkt"}
@@ -11226,7 +11254,9 @@ class Api:
         for m in list(kandidaten_tz):
             try:
                 z = cgeo.zuordnen_mehrere(fotos, eintraege, max_gap_seconds=float(max_gap_seconds),
-                                          tz_offset_seconds=m * 60.0, tz_known_paths=tz_known)
+                                          tz_offset_seconds=m * 60.0, tz_known_paths=tz_known,
+                                          foto_orte={p["path"]: (p["existing_gps"]["lat"], p["existing_gps"]["lon"])
+                                                     for p in (self._gtg_photos or []) if p.get("existing_gps")})
                 kandidaten_tz[m] = sum(1 for _mm, i, _w in z if i is not None)
             except Exception as e:
                 log.warning("_gt_zeitzone_mehrere: Zone %s: %s", m, e)
@@ -11308,8 +11338,11 @@ class Api:
                     ohne_tz, fotos, eintraege, tz_known, float(max_gap_seconds))
                 log.info("Geotagger: Zeitzone für %d Fotos ohne Zone: %+.0f min (Treffer %s, eindeutig %s)",
                          len(ohne_tz), tz_min, sorted(kandidaten_tz.items()), sorted(eindeutig))
+            orte = {p["path"]: (p["existing_gps"]["lat"], p["existing_gps"]["lon"])
+                    for p in self._gtg_photos if p.get("existing_gps")}
             zu = cgeo.zuordnen_mehrere(fotos, eintraege, max_gap_seconds=float(max_gap_seconds),
-                                       tz_offset_seconds=tz_min * 60.0, tz_known_paths=tz_known)
+                                       tz_offset_seconds=tz_min * 60.0, tz_known_paths=tz_known,
+                                       foto_orte=orte)
             n_je = [0] * len(geladen)
             doppel_je = [0] * len(geladen)
             ohne = 0
@@ -13670,6 +13703,15 @@ def main() -> None:
     # die WebKit-Daten liegen in ~/Library/WebKit/com.reisezoom.gpsstudio.
     _lok = {"global.ok": _strings.get("common.ok", "OK"), "global.cancel": _strings.get("common.cancel", "Abbrechen"),
             "global.quit": _strings.get("common.quit", "Beenden")} if menu else {}
+    # 13.09.2026 (Echt-App-Test): Die Standardmenüs von pywebview („Edit", „View" samt
+    # Einträgen) standen in jeder Sprache auf Englisch neben „Datei" und „Hilfe".
+    if menu:
+        for _k, _fb in (("about", "Über"), ("services", "Dienste"), ("view", "Darstellung"),
+                        ("edit", "Bearbeiten"), ("hide", "Ausblenden"), ("hideOthers", "Andere ausblenden"),
+                        ("showAll", "Alle einblenden"), ("quit", "Beenden"), ("fullscreen", "Vollbild"),
+                        ("cut", "Ausschneiden"), ("copy", "Kopieren"), ("paste", "Einsetzen"),
+                        ("selectAll", "Alles auswählen")):
+            _lok["cocoa.menu." + _k] = _strings.get("menu.cocoa." + _k, _fb)
     if menu:
         webview.start(func=_reset_start_hook, debug=debug, private_mode=False, menu=menu, localization=_lok)
     else:

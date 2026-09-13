@@ -102,6 +102,19 @@ function passeTabsSpaeterNochmalAn() {
   }
 }
 window.addEventListener("resize", () => { try { passeTabsAnBreiteAn(); } catch (_) {} });
+// 13.09.2026 (Echt-App-Test): Wird rechts ein langer Projektname eingeblendet, wird die
+// Leiste schmaler, ohne dass sich das Fenster ändert — der Projekt-Knopf lag dann über
+// dem letzten Reiter („Geotagger"). Deshalb auch messen, wenn sich der Knopf verändert.
+try {
+  const _projKnopf = document.getElementById("topbar-project");
+  if (_projKnopf && window.ResizeObserver) {
+    let _rzTabsTimer = 0;
+    new ResizeObserver(() => {
+      clearTimeout(_rzTabsTimer);
+      _rzTabsTimer = setTimeout(() => { try { passeTabsAnBreiteAn(); } catch (_) {} }, 50);
+    }).observe(_projKnopf);
+  }
+} catch (_) {}
 
 // v0.9.460 — aktives Modul nach außen geben (Schnell-Einstieg ist kontextuell).
 window.getActiveMod = () => activeMod;

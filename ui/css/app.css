@@ -1543,6 +1543,8 @@ input[type="color"] {
   color: var(--text, #e6eaf2);
   word-break: break-all;
 }
+/* 13.09.2026 — im Track-Vorschlag stehen Tournamen, keine Dateinamen: normale Schrift */
+.gt-track-wahl .modal-gpx-pick-name { font-family: inherit; font-weight: 600; word-break: normal; }
 .modal-gpx-pick-meta {
   font-size: 11px;
   color: var(--text-muted, #889);
@@ -3210,8 +3212,13 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .foto-wahl-leiste { align-items: center; display: flex; gap: 6px; margin: 8px 0 6px; }
 .foto-wahl-zahl { font-size: 11.5px; margin-left: auto; opacity: .8; }
 .foto-wahl-raster {
+  /* 13.09.2026 (Echt-App-Test, WebKit): Mit max-height + overflow quetschte WebKit die
+     automatischen Zeilen auf die Fensterhöhe zusammen — 150 Kacheln lagen als dünne,
+     überlappende Streifen übereinander. Zeilen haben jetzt eine Mindesthöhe. */
+  align-content: start;
   display: grid;
   gap: 6px;
+  grid-auto-rows: minmax(96px, auto);
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   max-height: 52vh;
   overflow: auto;
@@ -3219,6 +3226,7 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 }
 .foto-wahl-kachel {
   aspect-ratio: 1 / 1;
+  min-height: 96px;
   background: rgba(255, 255, 255, .05);
   border: 2px solid transparent;
   border-radius: 6px;

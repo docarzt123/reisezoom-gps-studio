@@ -2228,7 +2228,8 @@ function mountGpxInspect(body, headerActions) {
       window.rzStatus.start("luecken-routen", {
         titel: t("gpxinspect.gap_routing_titel", "Lücken an Wege anpassen"),
         text: t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", gaps.length),
-        gesamt: gaps.length,
+        // Kein Zähler: Die Brücke rechnet alle Lücken in einem Aufruf — ein „0 / 42 (0 %)",
+        // das bis zum Ende stehen bleibt, sah nach Hänger aus (Echt-App-Test 13.09.2026).
       });
     }
     let res;

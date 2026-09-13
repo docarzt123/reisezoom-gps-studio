@@ -311,6 +311,7 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     rek = {o["path"]: o["recursive"] for o in ordner_liste(conn)}
     neu = gesehen = geaendert = 0
     alle_pfade: set = set()
+    letzter_commit = time.monotonic()
 
     for o in ziele:
         for f in medien_finden(o, rek.get(o, True)):
@@ -326,7 +327,7 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             gesehen += 1
             fp = cphotos.fingerprint_aus(p, st.st_mtime_ns, st.st_size)
             alt = geduldig(conn.execute,
-                           "SELECT mtime, size, fp FROM fotos WHERE path = ?", (p,)).fetchone()
+                           "SELECT mtime, size, fp, fehlt_seit FROM fotos WHERE path = ?", (p,)).fetchone()
             if alt is None:
                 geduldig(conn.execute,
                          "INSERT INTO fotos(path, ordner, dateiname, mtime, size, art, fp, "
@@ -341,15 +342,25 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                              "fehlt_seit = NULL WHERE path = ?", (st.st_mtime, st.st_size, fp, p))
                     geaendert += 1
                 else:
-                    geduldig(conn.execute,
-                             "UPDATE fotos SET fehlt_seit = NULL WHERE path = ? "
-                             "AND fehlt_seit IS NOT NULL", (p,))
+                    # 13.09.2026 (Echt-App-Test): nur schreiben, wenn es etwas zu schreiben
+                    # gibt. Auch ein UPDATE ohne Treffer öffnet eine Schreibtransaktion — über
+                    # 200 Dateien auf dem NAS hielt der Scan so sekundenlang die Bibliothek
+                    # gesperrt, und ein Track-Import im Geotagger scheiterte an „locked".
+                    if alt["fehlt_seit"] is not None:
+                        geduldig(conn.execute,
+                                 "UPDATE fotos SET fehlt_seit = NULL WHERE path = ?", (p,))
                     if (alt["fp"] or "") != fp:
                         # Bibliothek von vor dieser Fassung: Wert nachtragen.
                         geduldig(conn.execute,
                                  "UPDATE fotos SET fp = ? WHERE path = ?", (fp, p))
+            # Schreibsperre kurz halten: spätestens nach 0,3 s abschließen, nicht erst
+            # nach 200 Dateien (13.09.2026).
+            if conn.in_transaction and time.monotonic() - letzter_commit > 0.3:
+                geduldig(conn.commit)
+                letzter_commit = time.monotonic()
             if fortschritt and gesehen % 200 == 0:
                 geduldig(conn.commit)
+                letzter_commit = time.monotonic()
                 fortschritt(gesehen, 0)
 
     # Was in einem beobachteten Ordner nicht mehr auftauchte, fehlt. Bewusst

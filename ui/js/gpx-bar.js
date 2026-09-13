@@ -305,6 +305,12 @@
   };
 
   window.clearGlobalGpx = function() {
+    // 13.09.2026 (Echt-App-Test, Datenverlust): ZUERST das Projekt lösen. Das Leeren der
+    // Schilder unten speichert sonst eine leere Liste in das noch aktive Projekt — so
+    // verlor ein echtes Projekt beim „Workspace leeren" und beim „Projekt schließen"
+    // seine Schilder. Offene Änderungen schreibt _resetActiveSession vorher weg.
+    try { if (typeof _resetActiveSession === "function") _resetActiveSession(); }
+    catch (e) { if (window.applog) window.applog("warn", `[gpx-bar] Projekt lösen: ${e}`); }
     // v0.9.185 — beim Leeren ALLES explizit Stück für Stück abräumen (auf der
     // lebenden Karte), statt hinterher zu pollen ob noch was da ist:
     // 1) Schilder (Layer + Bilder + Daten + Editor) via lebenden Animator-Handle.
@@ -350,6 +356,12 @@
       return;
     }
     confirmClearWorkspace(null, async () => {
+      // 13.09.2026 (Echt-App-Test, Datenverlust): Erst das Projekt schließen, DANN die
+      // Module leeren. Vorher war das Projekt beim Leeren noch aktiv, und die Module
+      // speicherten ihren leeren Zustand hinein — ein echtes Projekt verlor so alle
+      // 28 Schilder. Ohne aktives Projekt schreibt kein Leeren mehr etwas zurück.
+      try { if (typeof _resetActiveSession === "function") _resetActiveSession(); }
+      catch (e) { if (window.applog) window.applog("warn", `[workspace] Projekt schließen: ${e}`); }
       await _runAllResetters();
       window.clearGlobalGpx();   // GPX-Name oben + Session leeren
     });
@@ -462,6 +474,9 @@
         // v0.9.486 — das Archiv ist die komfortablere Track-Auswahl: statt eines
         // Datei-Dialogs der Katalog mit Vorschau, Suche und Filtern.
         else if (action === "library") {
+          // 13.09.2026 (Echt-App-Test): „Aus dem Archiv …" soll dorthin, wo man eine Tour
+          // wählt — nicht in die zuletzt offene Projekt- oder Fotoliste.
+          window.__rzStartTouren = true;
           if (typeof switchMod === "function") switchMod("library");
         }
         else if (action === "clearws") window.clearWorkspaceGlobal();
