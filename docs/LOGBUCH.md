@@ -2,8 +2,8 @@
 
 > **Diese Datei ist die Wahrheit für das Logbuch.** Wer daran weiterbaut, liest sie zuerst
 > und trägt jede neue Entscheidung hier ein (mit Datum und Grund). Entschieden mit Marc am
-> 13.09.2026 in einer Grilling-Runde (Q1–Q21). Stand beim Schreiben: **nichts gebaut**,
-> Stufe 1 ist der nächste Schritt.
+> 13.09.2026 in einer Grilling-Runde (Q1–Q21). **Stand: Stufe 1 gebaut (v0.9.706, 13.09.2026
+> abends), kopflos geprüft — Marc schaut in der echten App, bevor Stufe 2 beginnt.**
 
 ## 1. Worum es geht
 
@@ -88,6 +88,20 @@ und Markieren · (c) Grundlage für Animator/Tour-Map/Video · (d) Reisetagebuch
 - **Q20** **Kurzfassung im Archiv-Detail** („5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt
   1.240 m"). Suche/Filter nach Arten und Reisetagebuch später (§69).
 
+**Ergänzt beim Bauen von Stufe 1 (13.09.2026, an der Prüfsammlung gesehen — bei Zweifel Marc fragen)**
+- **Übernachtung:** Eine Pause, die über die Ortsmitternacht in den nächsten Tag reicht, heißt
+  „Übernachtung" (intern `pause`). Im Wohnmobil-Logbuch die häufigste Zeile.
+- **Benannte Halte der App bleiben**, auch unter 10 min — der Nutzer hat sie bewusst gesetzt.
+- **Langsame Fahrt statt „Rad":** Das Archiv hatte für die Wohnmobil-Reise „Rad" geraten; damit
+  wurde jede Ortsdurchfahrt mit 15–35 km/h zu Rad (199 Einträge, 31 h). Regel: Rad/Laufen unter
+  45 min zwischen zwei Fahrten ist Fahrt; ab 300 km Fahrt, doppelt so weit wie alles Rad und
+  Rad nur aus kurzen Stücken, ist alles Rad Fahrt. Immer als „vermutet" gekennzeichnet. Eine
+  Radtour mit Auto-Anreise (wenige lange Rad-Blöcke) bleibt Rad.
+- **Tag eines Eintrags** nach seinem Beginn; ein Tag mit nur einem Punkt hat kein Fenster — dann
+  zählt der letzte Tag, der davor begonnen hat.
+- Punkt-Einträge entstehen in `einteilung.berechnen_bewegung` (mit `berechnen_tage`), damit jede
+  Neuberechnung sie mitbringt; eine Bewegung ohne Punkte (vor v0.9.706) rechnet die Brücke einmal nach.
+
 **Annahmen (nicht gefragt, bei Zweifel Marc fragen)**
 - App zuerst, Web später.
 - Ein Logbuch je Tour; Reisen aus mehreren Dateien (Mengen) später.
@@ -101,7 +115,7 @@ Jede Stufe für sich fertig: Code → kopflose Wächter (WebKit + echte Brücke,
 CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Push.
 **Nach Stufe 1 schaut Marc in der echten App, bevor Stufe 2 beginnt.**
 
-### Stufe 1 — Logbuch erzeugen, zeigen, koppeln
+### Stufe 1 — Logbuch erzeugen, zeigen, koppeln ✅ gebaut 13.09.2026 (v0.9.706)
 - Aus `bewegung.erkennen` + Einteilung „Bewegung": Pausen ≥ 10 min, kein Halt, `unsicher` nach Q8,
   Anzeigenamen Wanderung/Spaziergang nach Q7, höchster Punkt je Tag, Start/Ziel je Tag.
 - Zeitstrahl unten im Inspektor (Spuren Tage, Bewegung mit Höhenprofil, Punkte), Zoom Reise → Tag.
@@ -138,3 +152,9 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 
 ## 6. Änderungsprotokoll
 - 13.09.2026 — Plan angelegt (Grilling Q1–Q21). Nichts gebaut.
+- 13.09.2026 abends — **Stufe 1 gebaut** (v0.9.706): `core/logbuch.py` (Q5/Q7/Q8, Punkte Q9,
+  Übernachtung, langsame Fahrt), Punkt-Einträge in `einteilung.berechnen_bewegung`, Brücke
+  `logbuch_lesen`, Oberfläche im Inspektor (`modules/gpxinspect/ui/module.js`, Abschnitt
+  „Logbuch der Tour"), i18n `logbuch.*` DE/EN/ES, Wächter `tests/test_logbuch.py`. Kopflos
+  geprüft (Kern, Prüfsammlung, Brücke, Chromium mit echter Brücke). Bausteine für Stufe 2 liegen
+  bereit: `window.__rzGpxiLogbuch` (Zustand), `einteilung_aktion` mit `vorher` für ⌘Z.

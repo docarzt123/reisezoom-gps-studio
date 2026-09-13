@@ -166,7 +166,7 @@ def _bereich(t0: float, t1: float, art: str, name: str = "", quelle: str = "auto
 def berechnen_bewegung(points, aktivitaet: Optional[str] = None,
                        wegpunkte: Optional[List[dict]] = None) -> List[dict]:
     """Bereiche aus der Bewegungserkennung (core/bewegung), nach Uhrzeit."""
-    from . import bewegung as _bw
+    from . import bewegung as _bw, logbuch as _lb
     r = _bw.erkennen(points, aktivitaet=aktivitaet, wegpunkte=wegpunkte)
     raus = []
     for b in r["bereiche"]:
@@ -175,6 +175,15 @@ def berechnen_bewegung(points, aktivitaet: Optional[str] = None,
         raus.append(_bereich(b["t0"], b["t1"], b["art"], b.get("name") or "",
                              "app" if b.get("quelle") == "app" else "auto",
                              strecke_m=b.get("strecke_m"), tempo_kmh=b.get("tempo_kmh")))
+    # Logbuch (§68, Q9): die Punkt-Einträge — höchster Punkt, Start und Ziel je
+    # Tag — liegen in DERSELBEN Einteilung, als Bereich mit t0 == t1 und eigener
+    # Koordinate. So gibt es eine Wahrheit (Q2) und ⌘Z über den Stand.
+    if raus:
+        for p in _lb.punkte_erzeugen(points, berechnen_tage(points)):
+            if p.get("t") is None:
+                continue
+            raus.append(_bereich(p["t"], p["t"], p["art"], "", "auto",
+                                 lat=p.get("lat"), lon=p.get("lon"), ele=p.get("ele"), tag=p.get("tag")))
     return raus
 
 

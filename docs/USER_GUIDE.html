@@ -1899,6 +1899,17 @@ python app.py</code></pre>
 <li><strong>Runden je … km → Runden-Tabelle</strong> — Zwischenzeiten je Abschnitt: Strecke, Dauer, Tempo, Höhenmeter auf und ab. „Als Tabelle kopieren&quot; legt sie Semikolon-getrennt in die Zwischenablage (passt in jede Tabellenkalkulation).</li>
 </ul>
 <p>Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau <strong>einen</strong> Anker (A ohne B).</p>
+<h3 id="das-logbuch-der-tour-was-wann-war">📖 Das Logbuch der Tour — was wann war</h3>
+<p>Öffnest du eine Tour aus dem Archiv, erscheint <strong>unter der Karte</strong> das Logbuch: links ein <strong>Zeitstrahl</strong> über die ganze Breite, rechts eine <strong>Liste</strong>, die mitläuft. Beides entsteht automatisch aus dem Track, ohne Internet.</p>
+<ul>
+<li><strong>Was drinsteht:</strong> Fahrten, Fähren, Wanderungen und Spaziergänge, Pausen (ab zehn Minuten Stillstand — kürzeres, etwa die Ampel, geht im Abschnitt davor auf), Übernachtungen, dazu je Tag der <strong>höchste Punkt</strong>, <strong>Start</strong> und <strong>Ziel</strong>. Jeder Eintrag zeigt Uhrzeit von–bis in der Ortszeit der Tour, Dauer, Strecke, Höhenmeter und Tempo. Mehrtägige Reisen sind nach Tagen gegliedert, eine Tagestour ist eine flache Liste.</li>
+<li><strong>Zeitstrahl:</strong> drei Spuren — Tage, Bewegung (farbige Blöcke: Fahrt blau, Fähre türkis, Gehen grün, Rad orange, Laufen gelb, Pause grau; das Höhenprofil liegt als Silhouette darüber) und Punkte. <strong>Doppelklick auf einen Tag</strong> oder Klick auf den Tageskopf in der Liste zieht den Tag auf, das <strong>Mausrad</strong> zoomt, <strong>⤢ Ganze Tour</strong> geht zurück.</li>
+<li><strong>Gekoppelt mit der Karte:</strong> Klick auf einen Eintrag (Liste oder Zeitstrahl) hebt den Abschnitt auf dem Track hervor und zoomt hin. Klick auf den Track wählt den Eintrag, in dem der Punkt liegt. Fährst du mit der Maus über den Track oder das Höhenprofil, wandert eine Marke mit Uhrzeit im Zeitstrahl mit. <strong>Esc</strong> hebt die Auswahl auf.</li>
+<li><strong>„alles zeigen“</strong> holt auch kurze Halte und die rohen Bereiche der Erkennung zurück; <strong>↻</strong> erkennt das Logbuch neu; <strong>▾</strong> klappt es ein (bleibt gemerkt).</li>
+<li><strong>„vermutet“</strong> steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.</li>
+<li>Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.</li>
+</ul>
+<blockquote>Das Logbuch gibt es für Touren im <strong>Archiv</strong> (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis. Bearbeiten, Ortsnamen und Sehenswürdigkeiten kommen in den nächsten Stufen — der Plan steht in <code>docs/LOGBUCH.md</code>.</blockquote>
 <h3 id="r-ckg-ngig">Rückgängig</h3>
 <p><strong>⌘Z</strong> macht jede Bearbeitung rückgängig, <strong>⌘⇧Z</strong> stellt wieder her (oder die ↩︎/↪︎-Buttons). Beim Laden eines neuen Tracks startet die Historie frisch.</p>
 <h3 id="speichern">Speichern</h3>

@@ -4901,6 +4901,45 @@ grenze · bereich_entfernen`, `einteilung_eigen_anlegen(path, name)`, `einteilun
 Cloud-Ersetzen, Brücken an der echten App). Messung Wohnmobil-Reise: 38 Tage, 658 Bereiche,
 95 KB, 3 s.
 
+## Logbuch der Tour — `core/logbuch.py` + Inspektor (13.09.2026, v0.9.706, Stufe 1)
+
+Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
+
+- **Eine Wahrheit (Q2):** Das Logbuch IST die Einteilung `bewegung` (oben). Die Punkt-Einträge
+  (`start`, `ziel`, `hoechster_punkt` je Tag) liegen **in derselben Einteilung** als Bereich mit
+  `t0 == t1` und eigenen Feldern `lat/lon/ele/tag` — `einteilung.berechnen_bewegung` hängt sie an
+  (`logbuch.punkte_erzeugen` mit `berechnen_tage`). Wer Bereiche iteriert, filtert Punkte mit
+  `t1 > t0` heraus (`zusammenfassung` zählt sie mit — gewollt für Q20).
+- **Lesbare Folge:** `logbuch.eintraege(bereiche, points, aktivitaet, tage, einstellungen)` legt
+  beim Lesen die Regeln darüber, ohne die Einteilung zu ändern: `halt/pause` < `pause_ab_s` (600)
+  gehen im Nachbarn auf (`verborgen`), benannte App-Halte und Handarbeit bleiben; `unsicher` →
+  Nachbar (Q8, `geraten`); Rad/Laufen < 45 min zwischen Fahrten und „Fahrt beherrscht die Reise"
+  → Fahrt (`geraten`); Pause über die Ortsmitternacht → `anzeige_art = uebernachtung`; Gehen →
+  `wanderung`/`spaziergang` (Q7: Aktivität, sonst 5 km / 200 Hm). Je Eintrag: `t0, t1, dauer_s,
+  strecke_m, tempo_kmh, hoehe_auf/ab, von_idx/bis_idx, tag, bids` (die rohen Bereich-Kennungen —
+  Stufe 2 bearbeitet darüber). Schwellen in `STANDARD` (Q13, Einstellungen ab Stufe 2).
+- **Brücke `logbuch_lesen(path, neu=False)`:** findet die Tour (`_einteilung_tour`, seit heute
+  auch über `os.path.realpath`), rechnet fehlende Einteilungen (`tage`, `bewegung`) oder eine
+  Bewegung ohne Punkte (vor v0.9.706) nach, liefert `eintraege`, `punkte`, `roh`, `tage`,
+  `zusammenfassung` (nach Anzeige-Art), `hoechster`, `zone` und `versatz_min` je Eintrag
+  (`zeitzone.zone_fuer` mit Land der Tour). Fehler ehrlich: `grund = nicht_im_archiv | ohne_zeit`.
+  Alles lokal, kein Netz. Gemessen: Wohnmobil-Reise 27 034 Punkte, 38 Tage → 3,9 s.
+- **Oberfläche** (`modules/gpxinspect/ui/module.js`, Abschnitt „Logbuch der Tour"; CSS `.gpxi-lb-*`):
+  `#gpxi-logbuch` unter der Karte im `#gpxi-canvaswrap` — Kopf (Chips aus `zusammenfassung`,
+  „alles zeigen", ⤢, ↻, ▾), Körper = Grid `[Zeitstrahl 1fr][Liste 330px]`. Der Zeitstrahl ist ein
+  SVG in Pixelkoordinaten (`_lbStrahlRender`, Spuren `_LB_ZEILEN`), neu gezeichnet per
+  ResizeObserver; Fenster `_lbFenster` (Tag per Doppelklick, Mausrad `_lbZoom`). Index ↔ Uhrzeit
+  über `_lbZeiten` (Epoch je Punkt, lazy, `renderAll` verwirft). Kopplung: `lbWaehlen(id, {zoom})`
+  → Karten-Quelle `gpxi-lb-hl` (Saum + Linie in Art-Farbe, Punkt als Ring), Liste scrollt;
+  `_lbWaehleZuIdx(i)` aus `onMapClick`; `setHover(idx)` ruft `_lbCursor(idx)`; Esc in `onKeyDown`.
+  Geladen am Ende von `loadTrack` (`rzWarten("logbuch_lesen")`), geleert in `clearTrack`.
+  Für Wächter: `window.__rzGpxiLogbuch` (`daten, auswahl, waehlen, laden, fenster, hover, zuIdx, hoverIdx`).
+- **i18n:** `logbuch.*` (Arten `logbuch.art.<art>`, Mehrzahl `logbuch.mehrzahl.<art>`), Datum/Uhr
+  über `toLocale*` mit `rzSprachCode()` und `timeZone: "UTC"` auf der um `versatz_min` verschobenen Zeit.
+- **Wächter:** `tests/test_logbuch.py` — Kern (Bauer-Tracks), Prüfsammlung (Wohnmobil, Lauf mit
+  Zug, Teide), Brücke mit Testbibliothek, Chromium mit echter Brücke (Aufbau, Kopplung, Schalter,
+  Mehrtages-Reise). `tests/test_einteilung.py` kennt die Punkt-Einträge.
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter
