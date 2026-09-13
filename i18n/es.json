@@ -3846,5 +3846,6 @@
   "logbuch.poi.klick_zeigen": "Clic: mostrar en el mapa",
   "logbuch.menue.karte_zeigen": "Mostrar en el mapa",
   "logbuch.menue.punkt_hier": "Poner un punto propio aquí …",
-  "logbuch.menue.anker_hier": "Poner ancla A/B aquí"
+  "logbuch.menue.anker_hier": "Poner ancla A/B aquí",
+  "error.eintrag_ohne_kennung": "Entrada sin identificador"
 }

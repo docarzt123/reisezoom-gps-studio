@@ -3846,5 +3846,6 @@
   "logbuch.poi.klick_zeigen": "Click: show on the map",
   "logbuch.menue.karte_zeigen": "Show on the map",
   "logbuch.menue.punkt_hier": "Set your own point here …",
-  "logbuch.menue.anker_hier": "Set anchor A/B here"
+  "logbuch.menue.anker_hier": "Set anchor A/B here",
+  "error.eintrag_ohne_kennung": "Entry without an id"
 }
