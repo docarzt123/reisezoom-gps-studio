@@ -4901,6 +4901,16 @@ grenze · bereich_entfernen`, `einteilung_eigen_anlegen(path, name)`, `einteilun
 Cloud-Ersetzen, Brücken an der echten App). Messung Wohnmobil-Reise: 38 Tage, 658 Bereiche,
 95 KB, 3 s.
 
+## Datei-Dialoge merken sich ihren Ordner je Zweck (13.09.2026, v0.9.708)
+
+`pick_file` / `pick_save_path` (app.py) lesen vor dem Öffnen `settings.dialog_ordner[<schluessel>]`
+und merken danach den Ordner der Wahl. Schlüssel = `_dialog_schluessel(dialog_type, file_types)`,
+also `open:fit-gpx`, `save:mp4`, `folder:alle` … — jede Dialog-Art ihr eigener Merkplatz, ohne dass
+Aufrufer etwas ändern müssen. Beim Speichern gewinnt der gemerkte Ordner über `default_dir`
+(Windows-Tester: Videos liegen nicht neben den Tracks). Verschwundene Ordner werden übergangen.
+macOS: `_macos_pick` bekommt `default_dir` (NSOpenPanel `setDirectoryURL_`). Wächter
+`tests/test_dialog_ordner.py` (Windows-Weg mit nachgebautem Fenster).
+
 ## Logbuch der Tour — `core/logbuch.py` + Inspektor (13.09.2026, v0.9.706, Stufe 1)
 
 Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:

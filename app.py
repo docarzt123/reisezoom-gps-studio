@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.707"
+APP_VERSION = "0.9.708"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -991,10 +991,52 @@ def _parse_extensions(file_types: tuple[str, ...]) -> list[str]:
     return exts
 
 
-def _macos_pick(dialog_type: str, file_types: tuple[str, ...], multiple: bool) -> list[str]:
+# ── Datei-Dialoge merken sich ihren Ordner — je Zweck (13.09.2026) ────────────
+# Windows-Tester: „wenn ich einen GPS-Track lade, merkt sich das Programm das
+# Verzeichnis. Aber ich habe die Tracks in einem anderen Verzeichnis (anderem
+# Gerät) als ich dann die Animationen speichern möchte." Vorher bekam der Dialog
+# auf Windows gar kein Verzeichnis (→ Programmordner), und auf dem Mac merkte
+# sich das System EINEN Ordner für alles. Jetzt gibt es je Dialog-Art einen
+# eigenen Merkplatz in den Einstellungen: Tracks öffnen, Video speichern, Bilder,
+# Ordner wählen … — der Schlüssel entsteht aus den Dateitypen des Dialogs.
+
+def _dialog_schluessel(dialog_type: str, file_types) -> str:
+    exts = sorted(set(_parse_extensions(tuple(file_types or ()))))
+    return f"{dialog_type}:" + ("-".join(exts) if exts else "alle")
+
+
+def _dialog_ordner_lesen(schluessel: str) -> str:
+    try:
+        d = (_load_settings().get("dialog_ordner") or {}).get(schluessel) or ""
+        return d if d and os.path.isdir(d) else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _dialog_ordner_merken(schluessel: str, pfad: str) -> None:
+    """Den Ordner eines gewählten Pfads (oder den Ordner selbst) merken."""
+    try:
+        if not pfad:
+            return
+        ordner = pfad if os.path.isdir(pfad) else os.path.dirname(pfad)
+        if not ordner or not os.path.isdir(ordner):
+            return
+        st = _load_settings()
+        alle = dict(st.get("dialog_ordner") or {})
+        if alle.get(schluessel) == ordner:
+            return
+        alle[schluessel] = ordner
+        st["dialog_ordner"] = alle
+        _save_settings(st)
+    except Exception as e:  # noqa: BLE001
+        log.debug("dialog_ordner_merken: %s", e)
+
+
+def _macos_pick(dialog_type: str, file_types: tuple[str, ...], multiple: bool,
+                default_dir: str = "") -> list[str]:
     """NSOpenPanel via PyObjC. Muss auf Main-Thread laufen."""
     from AppKit import (NSOpenPanel, NSModalResponseOK,  # type: ignore
-                        NSApplication)
+                        NSApplication, NSURL)
     from PyObjCTools import AppHelper  # type: ignore
 
     result: list[list[str]] = [[]]
@@ -1003,6 +1045,11 @@ def _macos_pick(dialog_type: str, file_types: tuple[str, ...], multiple: bool) -
     def show():
         try:
             panel = NSOpenPanel.openPanel()
+            if default_dir:
+                try:
+                    panel.setDirectoryURL_(NSURL.fileURLWithPath_(default_dir))
+                except Exception:  # noqa: BLE001
+                    pass
             if dialog_type == "folder":
                 panel.setCanChooseFiles_(False)
                 panel.setCanChooseDirectories_(True)
@@ -2882,25 +2929,34 @@ class Api:
         - `default_dir`: Ausgangs-Ordner
         - `file_types`: ["PNG (*.png)"] etc. — wie bei pick_file
         """
+        # 13.09.2026 — der zuletzt für DIESE Dateiart gewählte Ordner gewinnt: Videos
+        # liegen woanders als Tracks (Windows-Tester). Ohne Erinnerung gilt der Vorschlag.
+        schluessel = _dialog_schluessel("save", file_types)
+        gemerkt = _dialog_ordner_lesen(schluessel)
+        start_dir = gemerkt or default_dir or ""
+        pfad = ""
         if sys.platform == "darwin":
             try:
-                return _macos_save_panel(default_name, default_dir, file_types)
+                pfad = _macos_save_panel(default_name, start_dir, file_types)
             except Exception:
                 traceback.print_exc()
-        # Plattform-Fallback via pywebview
-        if not self._window:
-            return ""
-        res = self._window.create_file_dialog(
-            webview.SAVE_DIALOG,
-            directory=default_dir or "",
-            save_filename=default_name or "",
-            file_types=self._filter_windows_tauglich(file_types),
-        )
-        if not res:
-            return ""
-        if isinstance(res, (list, tuple)):
-            return res[0] if res else ""
-        return str(res)
+                pfad = None
+        if pfad is None or (sys.platform != "darwin"):
+            # Plattform-Fallback via pywebview
+            if not self._window:
+                return ""
+            res = self._window.create_file_dialog(
+                webview.SAVE_DIALOG,
+                directory=start_dir,
+                save_filename=default_name or "",
+                file_types=self._filter_windows_tauglich(file_types),
+            )
+            if not res:
+                return ""
+            pfad = (res[0] if res else "") if isinstance(res, (list, tuple)) else str(res)
+        if pfad:
+            _dialog_ordner_merken(schluessel, pfad)
+        return pfad or ""
 
     def pick_file(self, dialog_type: str = "open", file_types: tuple[str, ...] = (), multiple: bool = False) -> list[str]:
         """Native Datei-Dialog. Auf macOS direkt über PyObjC (`NSOpenPanel`) —
@@ -2909,26 +2965,34 @@ class Api:
 
         file_types: Liste à la `'Description (*.ext1;*.ext2)'`.
         """
+        schluessel = _dialog_schluessel(dialog_type, file_types)
+        start_dir = _dialog_ordner_lesen(schluessel)   # 13.09.2026 — je Dialog-Art gemerkt
+        raus = None
         if sys.platform == "darwin":
             try:
-                return _macos_pick(dialog_type, file_types, multiple)
+                raus = _macos_pick(dialog_type, file_types, multiple, start_dir)
             except Exception:
                 # Bei jedem PyObjC-Fehler: Fallback auf pywebview's API
                 traceback.print_exc()
-        if not self._window:
-            return []
-        sicher = self._filter_windows_tauglich(file_types)   # siehe dort — Windows
-        if dialog_type == "open":
-            res = self._window.create_file_dialog(
-                webview.OPEN_DIALOG, allow_multiple=multiple, file_types=sicher
-            )
-        elif dialog_type == "folder":
-            res = self._window.create_file_dialog(webview.FOLDER_DIALOG)
-        else:
-            res = self._window.create_file_dialog(webview.SAVE_DIALOG, file_types=sicher)
-        if not res:
-            return []
-        return list(res) if isinstance(res, (list, tuple)) else [res]
+                raus = None
+        if raus is None:
+            if not self._window:
+                return []
+            sicher = self._filter_windows_tauglich(file_types)   # siehe dort — Windows
+            if dialog_type == "open":
+                res = self._window.create_file_dialog(
+                    webview.OPEN_DIALOG, directory=start_dir, allow_multiple=multiple, file_types=sicher
+                )
+            elif dialog_type == "folder":
+                res = self._window.create_file_dialog(webview.FOLDER_DIALOG, directory=start_dir)
+            else:
+                res = self._window.create_file_dialog(webview.SAVE_DIALOG, directory=start_dir, file_types=sicher)
+            if not res:
+                return []
+            raus = list(res) if isinstance(res, (list, tuple)) else [res]
+        if raus:
+            _dialog_ordner_merken(schluessel, raus[0])
+        return raus
 
     # ── Tour-Archiv (v0.9.486) ───────────────────────────────────────────────
     #
