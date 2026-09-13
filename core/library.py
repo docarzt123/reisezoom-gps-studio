@@ -445,6 +445,13 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         _fotos.schema_anlegen(conn)
     except Exception:
         log.exception("library: Foto-Tabellen konnten nicht angelegt werden")
+    # 13.09.2026 (IDEAS §67, Schritt 4) — Einteilungen einer Tour (Tage, Bewegung,
+    # eigene) als Markierung über dem unveränderten Track.
+    try:
+        from . import einteilung as _einteilung
+        _einteilung.schema_anlegen(conn)
+    except Exception:
+        log.exception("library: Tabelle der Einteilungen konnte nicht angelegt werden")
     conn.commit()
     return conn
 
