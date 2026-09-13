@@ -4065,14 +4065,14 @@ function mountGpxInspect(body, headerActions) {
       const teilen = async (tt) => {
         const bid = e.bids.length === 1 ? e.bids[0] : _lbRohBeiZeit(e, tt);
         if (!bid) return;
-        await _lbAktion(t("logbuch.undo.teilen", "Logbuch: teilen"), "teilen", { bid, t: tt });
+        await _lbAktion(t("logbuch.undo.teilen", "Logbuch: Aktivität teilen"), "teilen", { bid, t: tt });
       };
-      if (teilbar(tHier)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_hier", "Hier teilen ({z})", { z: _lbUhr(tHier, e.versatz_min) }), tu: () => teilen(tHier) });
+      if (teilbar(tHier)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_hier", "Aktivität hier teilen ({z})", { z: _lbUhr(tHier, e.versatz_min) }), tu: () => teilen(tHier) });
       // Marc, 13.09.2026: „ich würde gern die aktivität teilen" — in der Liste kennt das Menü
       // keine Stelle. Also: am Anker A (wenn er im Eintrag liegt) oder an einer Uhrzeit.
       const zA = (_selA !== null) ? (_lbZeiten || _lbZeitenBauen())[_selA] : NaN;
-      if (isFinite(zA) && teilbar(zA)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_anker", "Bei Anker A teilen ({z})", { z: _lbUhr(zA, e.versatz_min) }), tu: () => teilen(zA) });
-      M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_uhrzeit", "Teilen bei Uhrzeit …"), tu: async () => {
+      if (isFinite(zA) && teilbar(zA)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_anker", "Aktivität bei Anker A teilen ({z})", { z: _lbUhr(zA, e.versatz_min) }), tu: () => teilen(zA) });
+      M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_uhrzeit", "Aktivität bei Uhrzeit teilen …"), tu: async () => {
         const v = await _lbFrage(t("logbuch.frage.uhrzeit", "Uhrzeit (Ortszeit), z. B. 12:30"), _lbUhr((e.t0 + e.t1) / 2, e.versatz_min));
         if (v === null) return;
         const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(v).trim());
@@ -4084,7 +4084,7 @@ function mountGpxInspect(body, headerActions) {
         if (!teilbar(tt)) { toast(t("logbuch.uhrzeit_ausserhalb", "Diese Uhrzeit liegt nicht in diesem Eintrag."), "warn"); return; }
         await teilen(tt);
       } });
-      M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_mitte", "In der Mitte teilen"), aus: !teilbar((e.t0 + e.t1) / 2), tu: () => teilen((e.t0 + e.t1) / 2) });
+      M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_mitte", "Aktivität in der Mitte teilen"), aus: !teilbar((e.t0 + e.t1) / 2), tu: () => teilen((e.t0 + e.t1) / 2) });
       const vor = _lbNachbar(e, -1), nach = _lbNachbar(e, +1);
       M.push({ symbol: "⇤", text: t("logbuch.menue.mit_vorherigem", "Mit vorherigem zusammenlegen"), aus: !vor, tu: () =>
         _lbAktion(t("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen"), "zusammenlegen", { bid_a: vor.bids[vor.bids.length - 1], bid_b: e.bids[0] }, { auswahl: null }) });
