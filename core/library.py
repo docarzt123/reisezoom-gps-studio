@@ -873,6 +873,7 @@ def _guess_activity(name: str, distance_m: float, moving_s: float) -> str:
 
 RECORDED_DT_CV = 1.6      # Streuung der Zeitabstände
 RECORDED_SPEED_CV = 0.30  # Streuung der Geschwindigkeit
+HOCHFREQUENT_ANTEIL = 0.30  # Anteil Punktpaare in derselben Sekunde → Aufnahme mit hoher Rate
 
 
 def _recorded_guess(pts: list, stats, name: str) -> tuple:
@@ -897,6 +898,16 @@ def _recorded_guess(pts: list, stats, name: str) -> tuple:
         T = [datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp() for t in times]
     except ValueError:
         return False, "notime"
+
+    # 13.09.2026 — Aufnahmen mit hoher Rate (Actioncam 10 Hz) schreiben viele
+    # Punkte in dieselbe Sekunde. Die Rechnung unten wirft diese Paare weg und
+    # sah dann ein perfektes 1-s-Raster — also angeblich eine Planung.
+    # Gemessen über das Archiv: aufgezeichnet höchstens 5,4 % gleiche Sekunde,
+    # geplant höchstens 1,1 % (bis auf eine Planung ganz ohne Zeitverlauf).
+    gleiche = sum(1 for a, b in zip(T, T[1:]) if b == a)
+    sekunden = len({int(t) for t in T})
+    if len(T) > 1 and gleiche / (len(T) - 1) >= HOCHFREQUENT_ANTEIL and T[-1] > T[0] and sekunden >= 5:
+        return True, "hochfrequent"
 
     tp = [p for p in pts if p.time]
     dts, sp = [], []
