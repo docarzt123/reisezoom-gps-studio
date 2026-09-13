@@ -2585,6 +2585,7 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 - **Zeitstrahl:** drei Spuren — Tage, Bewegung (farbige Blöcke: Fahrt blau, Fähre türkis, Gehen grün, Rad orange, Laufen gelb, Pause grau; das Höhenprofil liegt als Silhouette darüber) und Punkte. **Doppelklick auf einen Tag** oder Klick auf den Tageskopf in der Liste zieht den Tag auf, das **Mausrad** zoomt, **⤢ Ganze Tour** geht zurück.
 - **Gekoppelt mit der Karte:** Klick auf einen Eintrag (Liste oder Zeitstrahl) hebt den Abschnitt auf dem Track hervor und zoomt hin. Klick auf den Track wählt den Eintrag, in dem der Punkt liegt. Fährst du mit der Maus über den Track oder das Höhenprofil, wandert eine Marke mit Uhrzeit im Zeitstrahl mit. **Esc** hebt die Auswahl auf.
 - **„alles zeigen“** holt auch kurze Halte und die rohen Bereiche der Erkennung zurück; **↻** erkennt das Logbuch neu; **▾** klappt es ein (bleibt gemerkt).
+- **Wassersport:** Steht die Tour im Archiv als Boot/Kajak/SUP, heißen die langsamen Abschnitte Wassersport statt Wanderung.
 - **„vermutet“** steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.
 - Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.
 

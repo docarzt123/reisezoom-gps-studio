@@ -3441,13 +3441,13 @@ function mountGpxInspect(body, headerActions) {
   // → Eintrag gewählt · Hover → Marke im Zeitstrahl · Esc hebt auf.
   const _LB_FARBE = { fahrt: "#3b82f6", uebersetzen: "#14b8a6", gehen: "#22c55e", wanderung: "#22c55e",
                       spaziergang: "#4ade80", rad: "#f97316", laufen: "#eab308", pause: "#6b7280",
-                      uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3" };
+                      uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3", wassersport: "#0ea5e9" };
   const _LB_ICON = { fahrt: "🚗", uebersetzen: "⛴", gehen: "🚶", wanderung: "🥾", spaziergang: "🚶", rad: "🚴",
-                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓",
+                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓", wassersport: "🛶",
                      hoechster_punkt: "⛰", start: "🏁", ziel: "🏁" };
   const _LB_ARTEN_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", gehen: "Gehen", wanderung: "Wanderung",
                          spaziergang: "Spaziergang", rad: "Rad", laufen: "Laufen", pause: "Pause",
-                         uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?",
+                         uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?", wassersport: "Wassersport",
                          hoechster_punkt: "Höchster Punkt", start: "Start", ziel: "Ziel" };
   const _LB_H = 132;                       // Höhe des Zeitstrahls (px)
   const _LB_ZEILEN = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], achse: [113, 131] };
@@ -3594,7 +3594,7 @@ function mountGpxInspect(body, headerActions) {
     if (!_lb) { el.innerHTML = ""; return; }
     const z = _lb.zusammenfassung || {};
     const teile = [];
-    const mitDauer = ["fahrt", "rad", "laufen"], mitZahl = ["uebersetzen", "wanderung", "spaziergang", "gehen", "pause", "uebernachtung", "unsicher"];
+    const mitDauer = ["fahrt", "rad", "laufen"], mitZahl = ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung", "unsicher"];
     for (const art of mitDauer) if (z[art]) teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_LB_ICON[art] || ""} ${_lbDauer(z[art].dauer_s)} ${_lbArt(art)}</span>`);
     for (const art of mitZahl) if (z[art]) {
       const n = z[art].anzahl;

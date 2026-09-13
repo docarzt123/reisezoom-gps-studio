@@ -3733,5 +3733,7 @@
   "logbuch.mehrzahl.uebernachtung": "Pernoctas",
   "logbuch.mehrzahl.unsicher": "tramos inciertos",
   "warte.logbuch_lesen.titel": "Creando el cuaderno de ruta",
-  "warte.logbuch_lesen.text": "Qué pasó y cuándo: trayectos, pausas, caminatas, punto más alto"
+  "warte.logbuch_lesen.text": "Qué pasó y cuándo: trayectos, pausas, caminatas, punto más alto",
+  "logbuch.art.wassersport": "Deporte acuático",
+  "logbuch.mehrzahl.wassersport": "Etapas acuáticas"
 }

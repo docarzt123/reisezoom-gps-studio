@@ -97,6 +97,11 @@ und Markieren · (c) Grundlage für Animator/Tour-Map/Video · (d) Reisetagebuch
   45 min zwischen zwei Fahrten ist Fahrt; ab 300 km Fahrt, doppelt so weit wie alles Rad und
   Rad nur aus kurzen Stücken, ist alles Rad Fahrt. Immer als „vermutet" gekennzeichnet. Eine
   Radtour mit Auto-Anreise (wenige lange Rad-Blöcke) bleibt Rad.
+- **Wassersport (Marc, erster Blick auf Stufe 1: „Wanderung auf dem Wasser ist sehr unwahrscheinlich"):**
+  Sagt die Aktivität der Tour Boot/Kajak/Kanu/SUP/Segeln, sind alle langsamen Abschnitte
+  (gehen/laufen/rad/unsicher) **Wassersport** (Anzeige-Art, intern unverändert). Eine Kajak-Etappe
+  innerhalb einer Wandertour braucht „Art je Eintrag ändern" → Stufe 2 (Q12), dort Wassersport als Wahl.
+- **Optik (Marc):** Das Logbuch ist ein **weißes Blatt mit dunkler Schrift** unter der dunklen Karte.
 - **Tag eines Eintrags** nach seinem Beginn; ein Tag mit nur einem Punkt hat kein Fenster — dann
   zählt der letzte Tag, der davor begonnen hat.
 - Punkt-Einträge entstehen in `einteilung.berechnen_bewegung` (mit `berechnen_tage`), damit jede
@@ -158,3 +163,5 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
   „Logbuch der Tour"), i18n `logbuch.*` DE/EN/ES, Wächter `tests/test_logbuch.py`. Kopflos
   geprüft (Kern, Prüfsammlung, Brücke, WebKit mit echter Brücke). Bausteine für Stufe 2 liegen
   bereit: `window.__rzGpxiLogbuch` (Zustand), `einteilung_aktion` mit `vorher` für ⌘Z.
+- 13.09.2026 spät — Marcs erster Blick (v0.9.707): Wassersport-Art über die Tour-Aktivität, Logbuch
+  weiß, Quellenzeile der Karte im Inspektor schmal über die ganze Breite. Sonst: „sieht schon gut aus“.
