@@ -2841,12 +2841,15 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "(async () => {\n"
             "  if (!__signs.length) { window.__signsReady = true; return; }\n"
             "  __signMetas = __signs.map(s => window.__rzSignMeta(s, __signDur));\n"
+            # 14.09.2026 — Pixelmaß nach Zahl der Bild-Schilder, synchron zur Vorschau
+            # (modules/animator/ui/module.js _animSignsAttachGPU, ui/js/sign_draw.js rzSignDpr).
+            "  const __dprBild = window.__rzSignDpr ? window.__rzSignDpr(__signs.filter(s => s.imageSrc).length) : 2;\n"
             "  const __loadImg = (src) => new Promise(res => { const im = new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; });\n"
             "  const __imgs = await Promise.all(__signs.map(s => s.thumb ? __loadImg(s.thumb) : Promise.resolve(null)));\n"
             "  const __feats = __signs.map((s,i) => {\n"
             "    const id = 'sign-img-'+i;\n"
             "    let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
-            "    try { const o = Object.assign({}, s); if (__imgs[i]) o.image = __imgs[i]; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
+            "    try { const o = Object.assign({}, s); if (__imgs[i]) o.image = __imgs[i]; if (s.imageSrc && __dprBild !== 2) o.__dpr = __dprBild; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
             "    const meta = __signMetas[i];\n"
             "    return { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, popScale: 1 },\n"
             "             geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"

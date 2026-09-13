@@ -4710,8 +4710,11 @@ function mountGpxInspect(body, headerActions) {
     return (_lb && !_lbAlles ? (_lb.punkte || []) : []).filter(p => _lbPoisAn || p.art !== "poi");
   }
   function _lbPoiArtText(p) {
-    const a = String(p.poi_art || p.art || "").replace(/_/g, " ");
-    return a && a !== "poi" ? a.charAt(0).toUpperCase() + a.slice(1) : "";
+    const roh = String(p.poi_art || (p.art !== "poi" ? p.art : "") || "");
+    const namen = { gipfel: t("logbuch.poiart.gipfel", "Gipfel"), pass: t("logbuch.poiart.pass", "Pass"), aussicht: t("logbuch.poiart.aussicht", "Aussichtspunkt"), wasserfall: t("logbuch.poiart.wasserfall", "Wasserfall"), hoehle: t("logbuch.poiart.hoehle", "Höhle"), quelle: t("logbuch.poiart.quelle", "Quelle"), gletscher: t("logbuch.poiart.gletscher", "Gletscher"), huette: t("logbuch.poiart.huette", "Hütte"), burg: t("logbuch.poiart.burg", "Burg"), ruine: t("logbuch.poiart.ruine", "Ruine"), denkmal: t("logbuch.poiart.denkmal", "Denkmal"), sehenswert: t("logbuch.poiart.sehenswert", "Attraktion"), kunst: t("logbuch.poiart.kunst", "Kunstwerk"), museum: t("logbuch.poiart.museum", "Museum"), leuchtturm: t("logbuch.poiart.leuchtturm", "Leuchtturm"), turm: t("logbuch.poiart.turm", "Turm"), see: t("logbuch.poiart.see", "See"), ort: t("logbuch.poiart.ort", "Ort") };
+    if (namen[roh]) return namen[roh];
+    const a = roh.replace(/_/g, " ");
+    return a ? a.charAt(0).toUpperCase() + a.slice(1) : "";
   }
   function _lbPunktBeschreibung(p) {
     if (p.art === "poi") {
@@ -4951,7 +4954,7 @@ function mountGpxInspect(body, headerActions) {
         map.addSource("gpxi-lb-fen", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         const vor = map.getLayer("gpxi-lb-hl-saum") ? "gpxi-lb-hl-saum" : undefined;
         map.addLayer({ id: "gpxi-lb-fen-lyr", type: "line", source: "gpxi-lb-fen", layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#fde68a", "line-width": 12, "line-opacity": 0.38 } }, vor);
+          paint: { "line-color": "#f59e0b", "line-width": 9, "line-opacity": 0.55 } }, vor);
       }
     } catch (e) { applog && applog("warn", "[logbuch] Karten-Ebenen: " + e); }
   }
