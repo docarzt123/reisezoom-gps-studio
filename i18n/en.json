@@ -3865,5 +3865,7 @@
   "logbuch.poiart.leuchtturm": "Lighthouse",
   "logbuch.poiart.turm": "Tower",
   "logbuch.poiart.see": "Lake",
-  "logbuch.poiart.ort": "Place"
+  "logbuch.poiart.ort": "Place",
+  "cloud.andere_bibliothek": "The cloud belongs to the library “{b}”. This library is not uploaded — it would overwrite the other library's cloud copy.",
+  "cloud.bibliothek_unklar": "There are several libraries and the cloud does not know which one it belongs to. Open the library that should go to the cloud at the default location — or set up the cloud there again."
 }
