@@ -4741,6 +4741,36 @@ Wächter: `tests/test_fotos_aufholen.py` — erster Lauf, kein zweiter ohne Anla
 neue Datei, geänderte Datei (andere Aufnahmezeit), abgeschaltet, Laufwerk weg.
 
 
+### Mehrere Verbindungen auf `library.db` (12.09.2026, v0.9.697)
+
+Die App hält mehr als eine Verbindung: die Oberfläche (`Api._lib()`), der
+Scan-Faden (eigene, weil er lange läuft) und die schlanke Ersatzquelle für
+Cache-Schlüssel. Bis v0.9.696 öffnete `open_db` **ohne Wartezeit** und die
+Datenbank lief im Journal-Modus `delete`. Folge: Schrieb die Oberfläche gerade
+(etwa `fp_setzen` nach einem Päckchen Vorschaubilder), starb der Scan-Faden
+sofort beim Öffnen:
+
+    File "app.py", line 4108, in worker
+    File "core/library.py", line 407, in open_db
+    sqlite3.OperationalError: database is locked
+
+Der Lauf war nach zwei Sekunden weg, und weil die Kopfzeile nur auf `running`
+schaute, stand dort wieder „Jetzt einlesen" — für Marc sah es aus, als hätte er
+nichts angestoßen. Drei Änderungen:
+
+1. `open_db`: `timeout=30.0`, `PRAGMA busy_timeout=30000`, `journal_mode=WAL`
+   (mit Rückfall auf das alte Journal, wenn das Laufwerk kein WAL kann —
+   Netzlaufwerke). WAL heißt: Lesen und Schreiben sperren sich nicht mehr.
+2. Der Scan-Worker versucht das Öffnen **fünfmal** mit wachsender Pause und
+   meldet die Wartezeit im Zustand (`warte`), statt den Lauf wegzuwerfen.
+3. Die Kopfzeile zeigt `error` an, mit „Noch einmal versuchen". Ein stiller
+   Abbruch ist schlimmer als ein sichtbarer Fehler.
+
+Wächter: `tests/test_fotos_scan_laeuft_weiter.py` — prüft WAL und Wartezeit und
+lässt einen echten Scan laufen, während ein zweiter Faden ununterbrochen in
+dieselbe Datenbank schreibt.
+
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter

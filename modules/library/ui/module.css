@@ -1178,3 +1178,18 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 /* Fuß des Rasters: zugleich die Stelle, an der von selbst weitergeladen wird. */
 .foto-fuss { text-align: center; padding: 14px 0 8px; }
 .foto-kopf-laeuft { color: var(--text-muted); margin-left: 6px; }
+.foto-kopf-fehler { color: #e5793a; margin-left: 6px; }
+
+/* Laufwerk nicht erreichbar (13.09.2026): gut sichtbar, aber kein Alarm —
+   unterwegs ist das der Normalfall, und fast alles geht weiter. */
+.foto-fern {
+  border: 1px solid rgba(229, 121, 58, .45);
+  background: rgba(229, 121, 58, .10);
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin: 2px 0 8px;
+}
+.foto-fern-titel { font-weight: 600; font-size: 12.5px; }
+.foto-fern-text { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
+.foto-fern-klein { font-size: 11.5px; margin: 6px 0; }
+.foto-ordner-fern { color: #e5793a; font-size: 11px; }

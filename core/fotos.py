@@ -39,6 +39,7 @@ import json
 import logging
 import os
 import sqlite3
+import time
 import zlib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -324,28 +325,31 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             alle_pfade.add(p)
             gesehen += 1
             fp = cphotos.fingerprint_aus(p, st.st_mtime_ns, st.st_size)
-            alt = conn.execute("SELECT mtime, size, fp FROM fotos WHERE path = ?", (p,)).fetchone()
+            alt = geduldig(conn.execute,
+                           "SELECT mtime, size, fp FROM fotos WHERE path = ?", (p,)).fetchone()
             if alt is None:
-                conn.execute(
-                    "INSERT INTO fotos(path, ordner, dateiname, mtime, size, art, fp, fehlt_seit) "
-                    "VALUES(?,?,?,?,?,?,?,NULL)",
-                    (p, o, f.name, st.st_mtime, st.st_size, art_von(p), fp))
+                geduldig(conn.execute,
+                         "INSERT INTO fotos(path, ordner, dateiname, mtime, size, art, fp, "
+                         "fehlt_seit) VALUES(?,?,?,?,?,?,?,NULL)",
+                         (p, o, f.name, st.st_mtime, st.st_size, art_von(p), fp))
                 neu += 1
             else:
                 if abs((alt["mtime"] or 0) - st.st_mtime) > 1 or (alt["size"] or 0) != st.st_size:
                     # Datei hat sich geändert → Aufnahmedaten neu lesen lassen.
-                    conn.execute("UPDATE fotos SET mtime = ?, size = ?, fp = ?, indexed_at = NULL, "
-                                 "fehlt_seit = NULL WHERE path = ?",
-                                 (st.st_mtime, st.st_size, fp, p))
+                    geduldig(conn.execute,
+                             "UPDATE fotos SET mtime = ?, size = ?, fp = ?, indexed_at = NULL, "
+                             "fehlt_seit = NULL WHERE path = ?", (st.st_mtime, st.st_size, fp, p))
                     geaendert += 1
                 else:
-                    conn.execute("UPDATE fotos SET fehlt_seit = NULL WHERE path = ? "
-                                 "AND fehlt_seit IS NOT NULL", (p,))
+                    geduldig(conn.execute,
+                             "UPDATE fotos SET fehlt_seit = NULL WHERE path = ? "
+                             "AND fehlt_seit IS NOT NULL", (p,))
                     if (alt["fp"] or "") != fp:
                         # Bibliothek von vor dieser Fassung: Wert nachtragen.
-                        conn.execute("UPDATE fotos SET fp = ? WHERE path = ?", (fp, p))
+                        geduldig(conn.execute,
+                                 "UPDATE fotos SET fp = ? WHERE path = ?", (fp, p))
             if fortschritt and gesehen % 200 == 0:
-                conn.commit()
+                geduldig(conn.commit)
                 fortschritt(gesehen, 0)
 
     # Was in einem beobachteten Ordner nicht mehr auftauchte, fehlt. Bewusst
@@ -356,9 +360,10 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         for r in conn.execute(f"SELECT path FROM fotos WHERE ordner IN ({platz}) "
                               "AND fehlt_seit IS NULL", tuple(ziele)).fetchall():
             if r["path"] not in alle_pfade:
-                conn.execute("UPDATE fotos SET fehlt_seit = ? WHERE path = ?", (_jetzt(), r["path"]))
+                geduldig(conn.execute,
+                         "UPDATE fotos SET fehlt_seit = ? WHERE path = ?", (_jetzt(), r["path"]))
                 weg += 1
-    conn.commit()
+    geduldig(conn.commit)
     return {"neu": neu, "gesehen": gesehen, "geaendert": geaendert, "fehlt": weg}
 
 
@@ -458,14 +463,13 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 except (TypeError, ValueError):
                     blob = None
 
-            conn.execute(
-                "UPDATE fotos SET inhalt_id = ?, aufnahme_utc = ?, tz_minuten = ?, "
+            sql = ("UPDATE fotos SET inhalt_id = ?, aufnahme_utc = ?, tz_minuten = ?, "
                 "tz_bekannt = ?, tag_lokal = ?, jahr = ?, lat = ?, lon = ?, ele = ?, "
                 "kamera = ?, objektiv = ?, iso = ?, blende = ?, brennweite = ?, "
                 "belichtung = ?, breite = ?, hoehe = ?, dauer_s = ?, ort = ?, region = ?, "
                 "land = ?, stichworte = ?, tags_blob = ?, tags_n = ?, hay = ?, thumb = ?, "
-                "indexed_at = ?, error = ? WHERE path = ?",
-                (inhalt_id(pfad, int(groessen.get(p) or 0)),
+                "indexed_at = ?, error = ? WHERE path = ?")
+            werte = (inhalt_id(pfad, int(groessen.get(p) or 0)),
                  utc, tz_min, 1 if tz_min is not None else 0, tag_lokal, jahr,
                  m.get("lat"), m.get("lon"), m.get("alt"),
                  kamera, _wert(tags, "LensModel", "LensID", "Lens", "LensInfo"),
@@ -478,7 +482,8 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                  _wert(tags, "State", "Province-State"),
                  _wert(tags, "Country", "Country-PrimaryLocationName"),
                  _wert(tags, "Keywords", "Subject"),
-                 blob, len(rest), hay, 0, _jetzt(), fehlt_grund, p))
+                 blob, len(rest), hay, 0, _jetzt(), fehlt_grund, p)
+            geduldig(conn.execute, sql, werte)
             fertig += 1
 
         # Vorschaubilder sind der Bremsklotz, nicht das Lesen der Tags: gemessen
@@ -489,9 +494,10 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             with ThreadPoolExecutor(max_workers=THUMB_FAEDEN) as pool:
                 for pfad_ok, ok in pool.map(_thumb_versuch, pfade):
                     if ok:
-                        conn.execute("UPDATE fotos SET thumb = 1 WHERE path = ?", (pfad_ok,))
+                        geduldig(conn.execute,
+                                 "UPDATE fotos SET thumb = 1 WHERE path = ?", (pfad_ok,))
 
-        conn.commit()
+        geduldig(conn.commit)
         if fortschritt:
             fortschritt(fertig, gesamt)
 
@@ -521,6 +527,28 @@ def fps_lesen(conn: sqlite3.Connection, pfade: list) -> dict:
 # des Bereichs erneut läuft. Auf einem NAS im WLAN kostet ein solcher Durchlauf
 # Minuten (gemessen am 12.09.2026), deshalb nicht bei jedem Öffnen.
 NACHSCHAU_STUNDEN = 6
+
+
+def geduldig(fn, *args, versuche: int = 10, pause: float = 0.4):
+    """Einen Datenbankzugriff wiederholen, solange jemand anders schreibt.
+
+    WAL lässt Lesen und Schreiben nebeneinander laufen, aber **zwei Schreiber**
+    schließen sich weiterhin aus. Der Scan-Faden und die Oberfläche schreiben
+    beide (Bestand hier, gelernte Cache-Schlüssel dort) — ohne Geduld bricht der
+    lange Lauf ab, sobald er einmal unglücklich trifft. Genau das hat Marc am
+    12.09.2026 gesehen: „es läuft kurz los und dann kommt der Knopf."
+    """
+    for i in range(versuche):
+        try:
+            return fn(*args)
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() and "busy" not in str(e).lower():
+                raise
+            if i == versuche - 1:
+                raise
+            log.info("fotos: Datenbank belegt — warte (%d/%d)", i + 1, versuche)
+            time.sleep(pause * (i + 1))
+    return None
 
 
 def letzte_nachschau(conn: sqlite3.Connection) -> Optional[float]:
@@ -569,11 +597,18 @@ def fp_setzen(conn: sqlite3.Connection, werte: dict) -> int:
     nächsten Öffnen bereit und die Seite kommt ohne einen einzigen `stat` aus.
     """
     n = 0
-    for pfad, fp in (werte or {}).items():
-        if fp:
-            n += conn.execute("UPDATE fotos SET fp = ? WHERE path = ? AND "
-                              "COALESCE(fp,'') != ?", (fp, pfad, fp)).rowcount or 0
-    if n:
+    try:
+        for pfad, fp in (werte or {}).items():
+            if fp:
+                n += conn.execute("UPDATE fotos SET fp = ? WHERE path = ? AND "
+                                  "COALESCE(fp,'') != ?", (fp, pfad, fp)).rowcount or 0
+    finally:
+        # IMMER abschließen — auch wenn keine Zeile passte. Pythons sqlite3
+        # öffnet vor jedem UPDATE still eine Schreibtransaktion; ohne commit
+        # blieb sie offen, hielt die Schreibsperre der ganzen Bibliothek, und
+        # der Foto-Scan im Hintergrund lief nach 30 Sekunden Warten mit
+        # „database is locked" auf. Genau das war Marcs Abbruch am 12.09.2026
+        # („es läuft kurz los und dann kommt der Knopf").
         conn.commit()
     return n
 
