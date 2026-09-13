@@ -1363,6 +1363,10 @@ estaba en el archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño,
 lugar y coordenadas. Abajo, **Todos los datos de captura** despliega cada
 entrada que trae el archivo.
 
+> **¿Varias unidades?** Si tus carpetas están en unidades distintas, el aviso nombra
+> exactamente la que falta, con su nombre, como «NAS» o «Tarjeta SD», y añade que las
+> carpetas de las demás unidades se leen con normalidad.
+>
 > **¿De viaje sin la unidad?** Sobre la cuadrícula aparece un aviso con la unidad que
 > falta, lo que sigue funcionando y el estado que ves. La barra lateral marca la
 > carpeta con 📴 y la columna de detalle indica que el original no está accesible.

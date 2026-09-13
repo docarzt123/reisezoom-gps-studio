@@ -3512,11 +3512,13 @@
   "fotos.kopf_fehler": "Einlesen abgebrochen: {f}",
   "fotos.kopf_nochmal": "Noch einmal versuchen",
   "fotos.kopf_warte": "Datenbank ist gerade belegt — wartet und versucht es erneut",
-  "fotos.fern_alle": "Laufwerk nicht erreichbar: {n}",
-  "fotos.fern_teil": "{a} von {b} Ordnern nicht erreichbar: {n}",
   "fotos.fern_geht": "Suche, Karte und Vorschaubilder kommen aus der Bibliothek und funktionieren weiter.",
   "fotos.fern_stand": "Du siehst den Stand vom {t}.",
   "fotos.fern_weiter": "Sobald das Laufwerk wieder da ist, liest die App von selbst weiter.",
   "fotos.fern_zurueck": "Laufwerk wieder da — die App liest weiter.",
-  "fotos.d_fern": "Original gerade nicht erreichbar — Vorschau und Aufnahmedaten kommen aus der Bibliothek."
+  "fotos.d_fern": "Original gerade nicht erreichbar — Vorschau und Aufnahmedaten kommen aus der Bibliothek.",
+  "fotos.laufwerk_intern": "Dieser Rechner",
+  "fotos.fern_ordner_auf": "{l} ({n} Ordner)",
+  "fotos.fern_titel": "Nicht erreichbar: {n}",
+  "fotos.fern_rest": "Die Ordner auf {l} werden normal gelesen."
 }

@@ -1503,6 +1503,10 @@ in der Datei stand), Kamera, Objektiv, Blende, Belichtung, ISO, Größe, Ort und
 Koordinate. Ganz unten klappt **Alle Aufnahmedaten** jeden einzelnen Eintrag
 auf, den die Datei mitbringt.
 
+> **Mehrere Laufwerke?** Liegen deine Ordner auf verschiedenen Laufwerken, nennt der
+> Hinweis genau das fehlende — mit seinem Namen, etwa „NAS“ oder „SD Karte“ — und
+> sagt dazu, dass die Ordner auf den übrigen Laufwerken normal gelesen werden.
+>
 > **Unterwegs ohne das Laufwerk?** Über dem Raster steht dann ein Hinweis, welches
 > Laufwerk fehlt, was trotzdem geht und welchen Stand du siehst. Die Seitenleiste
 > markiert den Ordner mit 📴, die Detailspalte sagt, dass das Original gerade fehlt.

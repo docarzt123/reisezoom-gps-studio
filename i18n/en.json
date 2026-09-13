@@ -3512,11 +3512,13 @@
   "fotos.kopf_fehler": "Scan stopped: {f}",
   "fotos.kopf_nochmal": "Try again",
   "fotos.kopf_warte": "The database is busy — waiting and trying again",
-  "fotos.fern_alle": "Drive not reachable: {n}",
-  "fotos.fern_teil": "{a} of {b} folders not reachable: {n}",
   "fotos.fern_geht": "Search, map and thumbnails come from the library and keep working.",
   "fotos.fern_stand": "You are looking at the state of {t}.",
   "fotos.fern_weiter": "As soon as the drive is back, the app carries on reading by itself.",
   "fotos.fern_zurueck": "Drive is back — the app carries on reading.",
-  "fotos.d_fern": "Original not reachable right now — preview and capture data come from the library."
+  "fotos.d_fern": "Original not reachable right now — preview and capture data come from the library.",
+  "fotos.laufwerk_intern": "This computer",
+  "fotos.fern_ordner_auf": "{l} ({n} folders)",
+  "fotos.fern_titel": "Not reachable: {n}",
+  "fotos.fern_rest": "Folders on {l} are read as usual."
 }
