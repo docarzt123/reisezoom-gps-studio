@@ -335,22 +335,12 @@
    rechts die Liste. Farben der Arten (Q15): Fahrt blau, Fähre türkis, Gehen grün,
    Rad orange, Laufen gelb, Pause grau, unsicher gestreift. */
 .gpxi-lb {
-  /* Marc, 13.09.2026: „das logbuch habe ich mir irgendwie weiß mit dunkler schrift
-     vorgestellt" — ein helles Blatt unter der dunklen Karte, wie ein echtes Logbuch.
-     Die Farbnamen werden hier neu belegt, alle Regeln darunter ziehen mit. */
-  --text: #1b2130; --text-dim: #3f4756; --text-muted: #6c7484;
-  --border: #dde1e8; --border-strong: #c6ccd6;
-  --bg-2: #ffffff; --bg-3: #f2f4f7; --bg-4: #e7eaef;
-  color-scheme: light;
   flex: 0 0 auto;
   display: flex; flex-direction: column;
-  background: #ffffff; color: var(--text);
-  border-top: 1px solid #2a313d;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
   position: relative; z-index: 3;
 }
-.gpxi-lb .gpxi-q { color: var(--text-muted); border-color: var(--border-strong); }
-.gpxi-lb-liste::-webkit-scrollbar { width: 8px; }
-.gpxi-lb-liste::-webkit-scrollbar-thumb { background: #cfd4dc; border-radius: 4px; }
 .gpxi-lb[hidden] { display: none; }
 .gpxi-lb-kopf {
   display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
@@ -394,10 +384,10 @@
 .gpxi-lb-spuren span:nth-child(2) { top: 48px; }
 .gpxi-lb-spuren span:nth-child(3) { top: 94px; }
 .gpxi-lb-profil { pointer-events: none; }
-.gpxi-lb-spurbg { fill: rgba(20,30,50,.045); }
-.gpxi-lb-profil { fill: rgba(20,30,50,.18); stroke: rgba(255,255,255,.9); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.gpxi-lb-tagblock rect { fill: rgba(20,30,50,.06); stroke: rgba(20,30,50,.14); stroke-width: 1; cursor: zoom-in; }
-.gpxi-lb-tagblock.ist-zweiter rect { fill: rgba(20,30,50,.11); }
+.gpxi-lb-spurbg { fill: rgba(255,255,255,.035); }
+.gpxi-lb-profil { fill: rgba(0,0,0,.22); stroke: rgba(255,255,255,.75); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.gpxi-lb-tagblock rect { fill: rgba(255,255,255,.07); stroke: rgba(255,255,255,.14); stroke-width: 1; cursor: zoom-in; }
+.gpxi-lb-tagblock.ist-zweiter rect { fill: rgba(255,255,255,.12); }
 .gpxi-lb-tagblock:hover rect { fill: rgba(255,107,53,.28); stroke: var(--accent); }
 .gpxi-lb-tagblock text { font-size: 10px; fill: var(--text-dim); pointer-events: none; }
 .gpxi-lb-block { cursor: pointer; }
@@ -405,34 +395,44 @@
 .gpxi-lb-block.ist-still rect { opacity: .55; }
 .gpxi-lb-block.ist-geraten rect { stroke-dasharray: 3 2; stroke: rgba(255,255,255,.55); }
 .gpxi-lb-block:hover rect { opacity: 1; }
-.gpxi-lb-block.ist-gewaehlt rect { opacity: 1; stroke: #1b2130; stroke-width: 2.5; filter: drop-shadow(0 0 5px rgba(27,33,48,.45)); }
+.gpxi-lb-block.ist-gewaehlt rect { opacity: 1; stroke: #fff; stroke-width: 2.5; filter: drop-shadow(0 0 5px rgba(255,255,255,.6)); }
 .gpxi-lb-bl1 { font-size: 11px; font-weight: 600; fill: #fff; pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
 .gpxi-lb-bl2 { font-size: 10px; fill: rgba(255,255,255,.88); pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,.4); stroke-width: 2px; }
 .gpxi-lb-punkt { cursor: pointer; }
 .gpxi-lb-pt-hoch { fill: #c084fc; stroke: #fff; stroke-width: 1; }
 .gpxi-lb-pt-start { fill: #0f766e; stroke: #fff; stroke-width: 1.2; }
 .gpxi-lb-pt-ziel { fill: #7c2d12; stroke: #fff; stroke-width: 1.2; }
-.gpxi-lb-punkt.ist-gewaehlt path, .gpxi-lb-punkt.ist-gewaehlt circle, .gpxi-lb-punkt.ist-gewaehlt rect { stroke: #1b2130; stroke-width: 2.5; filter: drop-shadow(0 0 5px rgba(27,33,48,.5)); }
+.gpxi-lb-punkt.ist-gewaehlt path, .gpxi-lb-punkt.ist-gewaehlt circle, .gpxi-lb-punkt.ist-gewaehlt rect { stroke-width: 2.5; filter: drop-shadow(0 0 5px rgba(255,255,255,.7)); }
 .gpxi-lb-pt-txt { font-size: 10px; fill: var(--text-dim); pointer-events: none; }
 .gpxi-lb-achse { stroke: var(--border-strong); stroke-width: 1; }
 .gpxi-lb-achse-txt { font-size: 10px; fill: var(--text-muted); }
 .gpxi-lb-achse-txt.ist-tag { fill: var(--text-dim); font-weight: 600; }
 .gpxi-lb-cursor {
-  position: absolute; top: 0; height: 132px; width: 0; border-left: 1.5px solid #1b2130;
-  pointer-events: none; z-index: 4; opacity: .9; box-shadow: 0 0 4px rgba(255,255,255,.8);
+  position: absolute; top: 0; height: 132px; width: 0; border-left: 1.5px solid #fff;
+  pointer-events: none; z-index: 4; opacity: .9; box-shadow: 0 0 4px rgba(0,0,0,.6);
 }
 .gpxi-lb-cursor span {
   position: absolute; top: -2px; left: 4px; font-size: 10px; padding: 1px 5px; border-radius: 4px;
-  background: #1b2130; color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums;
+  background: rgba(0,0,0,.7); color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .gpxi-lb-cursor.ist-rechts span { left: auto; right: 4px; }
 /* Liste */
-.gpxi-lb-liste { overflow-y: auto; overflow-x: hidden; border-left: 1px solid var(--border); padding: 4px 0 8px; scroll-behavior: smooth; }
+/* Marc, 13.09.2026: „nur den rechten teil hell, der zeitstrahl kann ruhig dunkel bleiben —
+   abwechselnd grau/weiß und durch dunkle linien getrennt." Ein helles Blatt wie ein
+   Logbuch; die Farbnamen werden nur hier neu belegt. */
+.gpxi-lb-liste {
+  --text: #1b2130; --text-dim: #3f4756; --text-muted: #6c7484;
+  --border: #b8bfcb; --border-strong: #98a1b0; --bg-2: #ffffff; --bg-3: #e9ecf1; --bg-4: #dde1e8;
+  color-scheme: light; color: var(--text); background: #ffffff;
+  overflow-y: auto; overflow-x: hidden; border-left: 1px solid #2a313d; padding: 0 0 8px; scroll-behavior: smooth;
+}
+.gpxi-lb-liste::-webkit-scrollbar { width: 8px; }
+.gpxi-lb-liste::-webkit-scrollbar-thumb { background: #c3c9d4; border-radius: 4px; }
 .gpxi-lb-tag {
   position: sticky; top: 0; z-index: 1;
   display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
-  padding: 5px 12px 4px; margin-top: 2px;
-  background: var(--bg-2); border-bottom: 1px solid var(--border);
+  padding: 5px 12px 4px; margin-top: 0;
+  background: #d5dae2; border-bottom: 1px solid #8d95a3; border-top: 1px solid #8d95a3;
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-dim);
   cursor: zoom-in;
 }
@@ -440,12 +440,15 @@
 .gpxi-lb-tag-meta { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .gpxi-lb-zeile {
   display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: center;
-  padding: 5px 10px 5px 10px; margin: 1px 6px; border-radius: 7px; cursor: pointer;
-  border-left: 3px solid var(--c, transparent);
+  padding: 5px 10px 5px 10px; margin: 0; border-radius: 0; cursor: pointer;
+  border-left: 4px solid var(--c, transparent);
+  border-bottom: 1px solid #b8bfcb;
+  background: #ffffff;
   transition: background .1s;
 }
-.gpxi-lb-zeile:hover { background: var(--bg-3); }
-.gpxi-lb-zeile.ist-gewaehlt { background: color-mix(in srgb, var(--c, var(--accent)) 22%, var(--bg-3)); outline: 1px solid color-mix(in srgb, var(--c, var(--accent)) 60%, transparent); }
+.gpxi-lb-zeile:nth-child(even) { background: #eef0f4; }
+.gpxi-lb-zeile:hover { background: #e0e5ec; }
+.gpxi-lb-zeile.ist-gewaehlt, .gpxi-lb-zeile.ist-gewaehlt:nth-child(even) { background: color-mix(in srgb, var(--c, #ff6b35) 24%, #ffffff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, #ff6b35) 65%, transparent); }
 .gpxi-lb-zeile.ist-punkt { padding-top: 2px; padding-bottom: 2px; border-left-color: transparent; }
 .gpxi-lb-zeile.ist-punkt .gpxi-lb-name { font-weight: 500; color: var(--text-dim); font-size: 12px; }
 .gpxi-lb-zeile.ist-punkt.ist-gewaehlt { --c: #c084fc; }
@@ -455,7 +458,6 @@
 .gpxi-lb-name small { font-weight: 500; color: var(--text-muted); margin-left: 4px; }
 .gpxi-lb-meta { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gpxi-lb-badge { display: inline-block; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; padding: 0 5px; border-radius: 4px; background: var(--bg-4); color: var(--text-dim); margin-left: 5px; vertical-align: 1px; }
-.gpxi-lb-chip { background: color-mix(in srgb, var(--c, #888) 14%, #fff); border-color: color-mix(in srgb, var(--c, #888) 45%, #fff); }
 .gpxi-lb-leer { padding: 14px 12px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
 /* 13.09.2026 (Marc: „mach die quellenzeile im inspector wie im animator unten ganze
