@@ -4982,6 +4982,20 @@ Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
   Schnappschuss (`_lbEigeneUndo`: fehlende Einteilungen werden mit `stand=None` entfernt). Archiv:
   `logbuch_kurz(path)` (nur Einteilung, keine Punkte) → `_logbuchKurz` im Detail
   (`modules/library/ui/module.js`, `#lib-d-logbuch`). Für Wächter: `window.__rzGpxiLogbuchSpuren`.
+- **Karte (v0.9.712, Marc 13.09.2026):** `_lbIstPunkt(e)` (Punkte haben `t0 == t1`, nicht `t1 == null` —
+  das war der „'bid'"-Fehler beim Löschen eines POI). Marken: `_lbKartenMarken` (HTML-`Marker` für Punkte außer
+  Start/Ziel und für nicht übernommene POIs; Befunde als Kreis-Ebene `gpxi-lb-bef-lyr`, Quelle `gpxi-lb-bef`),
+  neu gebaut nur bei geänderter Signatur. Info-Kasten `_lbInfo` (MapLibre-Popup) über `_lbPunktZeigen`,
+  `_lbPoiZeigen`, `_lbBefundZeigen` (Reparieren → `trackCheckReparieren([key])`, das jetzt eine Schlüsselliste
+  annimmt). Rechtsklick `_lbKarteRechtsklick` → `_lbEintragMenue(e, x, y, t, {idx})`. Kopplung: Zeitstrahl →
+  Karte `_lbFensterAufKarte` (fitBounds + helle Linie `gpxi-lb-fen-lyr`, unter `_syncing`); Karte → Zeitstrahl
+  `_lbKarteBewegt` reagiert NUR auf `moveend` mit `originalEvent` (Handbewegung) und nimmt bei Schleifen den
+  zusammenhängenden sichtbaren Lauf mit der größten Überdeckung. `_lbPunkteSichtbar()` blendet `art=poi` aus,
+  wenn „POIs" aus ist (Liste, Strahl, Fenster, Karte). Kern: `bereich_entfernen` hinterlässt für automatische
+  Punkte einen Grabstein `art="weg"` (`weg_art`, `osm_id`, Quelle hand); `zusammenfuehren` setzt begrabene
+  Punkte nicht wieder ein, Handpunkte schneiden keine Bereiche mehr aus; `logbuch.eintraege` überspringt
+  `weg`, `logbuch_pois` übernimmt abgelehnte POIs nicht erneut (`abgelehnt`). Wächter-Zugriff:
+  `window.__rzGpxiLogbuchKarte`, Abschnitt 9e in `tests/test_logbuch.py`.
 - **Wächter:** `tests/test_logbuch.py` — Kern (Bauer-Tracks), Prüfsammlung (Wohnmobil, Lauf mit
   Zug, Teide), Brücke mit Testbibliothek, WebKit (wie die App) mit echter Brücke (Aufbau, Kopplung, Schalter,
   Mehrtages-Reise). `tests/test_einteilung.py` kennt die Punkt-Einträge.

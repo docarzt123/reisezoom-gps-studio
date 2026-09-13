@@ -562,3 +562,26 @@
 .gpxi-lb-eigen { cursor: context-menu; }
 .gpxi-lb-eigen rect { stroke: rgba(0,0,0,.35); stroke-width: 1; }
 .gpxi-lb-eigen:hover rect { opacity: 1; }
+
+/* Logbuch auf der Karte (13.09.2026): Marken für Punkte/POIs, Info-Kasten */
+.gpxi-lb-marke {
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1; cursor: pointer; user-select: none;
+  background: #ffffff; border: 2px solid #7c3aed; box-shadow: 0 1px 5px rgba(0,0,0,.45);
+}
+.gpxi-lb-marke:hover { transform: scale(1.18); }
+.gpxi-lb-marke.ist-poi { border-color: #c084fc; }
+.gpxi-lb-marke.ist-punkt { border-color: #f59e0b; }
+.gpxi-lb-marke.ist-hoechster_punkt { border-color: #16a34a; }
+.gpxi-lb-marke.ist-poi-spur { width: 20px; height: 20px; font-size: 11px; opacity: .82; border: 1.5px dashed #6b7280; }
+.gpxi-lb-marke.ist-gewaehlt { box-shadow: 0 0 0 4px rgba(192,132,252,.55), 0 1px 5px rgba(0,0,0,.45); transform: scale(1.15); }
+.gpxi-lb-info { font-size: 12.5px; line-height: 1.4; min-width: 200px; }
+.gpxi-lb-info-kopf { display: flex; align-items: center; gap: 7px; font-size: 13.5px; padding-right: 14px; }
+.gpxi-lb-info-sym { font-size: 17px; }
+.gpxi-lb-info-befund.ist-rot { color: #e53935; } .gpxi-lb-info-befund.ist-gelb { color: #d4a017; } .gpxi-lb-info-befund.ist-grau { color: #8b8fa3; }
+.gpxi-lb-info-was { color: var(--text); margin-top: 3px; }
+.gpxi-lb-info-meta { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
+.gpxi-lb-info-rep { margin-top: 6px; padding: 5px 7px; border-radius: 6px; background: var(--bg-3); color: var(--text-dim); font-size: 11.5px; }
+.gpxi-lb-info-knoepfe { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.gpxi-lb-knopf.ist-haupt { background: var(--accent, #ff6b35); color: #fff; border-color: transparent; }
+.gpxi-lb-knopf.ist-gefahr:hover { background: #7f1d1d; color: #fff; }

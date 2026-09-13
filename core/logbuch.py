@@ -255,6 +255,8 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     punkte: List[dict] = []
     folge: List[dict] = []
     for b in sorted(bereiche or [], key=lambda x: (x["t0"], x["t1"])):
+        if b.get("art") == "weg":          # Grabstein eines gelöschten Punkts
+            continue
         if b.get("art") in PUNKT_ARTEN or b["t1"] <= b["t0"]:
             p = dict(b)
             p["t"] = float(b["t0"])

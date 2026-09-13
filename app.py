@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.711"
+APP_VERSION = "0.9.712"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9905,6 +9905,8 @@ class Api:
                     ceint.bereich_setzen(conn, eid, float(q["t0"]), float(q["t1"]), str(q["art"]),
                                          str(q.get("name") or ""))
                 elif aktion == "aendern":
+                    if not (q.get("bids") or q.get("bid")):
+                        return {"ok": False, "error": "Eintrag ohne Kennung (bid)"}
                     ceint.bereich_aendern(conn, eid, q.get("bids") or str(q["bid"]),
                                           **{k: q[k] for k in ("art", "name", "anzeige", "notiz") if k in q})
                 elif aktion == "punkt":            # Logbuch §68 Q12: eigener Punkt
@@ -10149,11 +10151,13 @@ class Api:
             pois = clb.pois_bewerten(pois, f["lb"]["eintraege"], f["pts"])
             # Wichtige ins Logbuch — als Punkte mit Quelle auto (nicht doppelt)
             vorhanden = {str(b.get("osm_id")) for b in f["bew"]["bereiche"] if b.get("art") == "poi"}
+            abgelehnt = {str(b.get("osm_id")) for b in f["bew"]["bereiche"] if b.get("art") == "weg" and b.get("osm_id")}
             neu_drin = 0
             with clib._DB_LOCK:
                 for q in pois:
                     q["im_logbuch"] = str(q.get("osm_id")) in vorhanden
-                    if q["wichtig"] and not q["im_logbuch"] and q.get("t") is not None:
+                    q["abgelehnt"] = str(q.get("osm_id")) in abgelehnt
+                    if q["wichtig"] and not q["im_logbuch"] and not q["abgelehnt"] and q.get("t") is not None:
                         ceint.punkt_setzen(conn, f["bew"]["id"], float(q["t"]), "poi", q["name"], q["lat"], q["lon"], q.get("ele"),
                                            quelle="auto", osm_id=q.get("osm_id"), symbol=q.get("symbol"), poi_art=q.get("art"))
                         q["im_logbuch"] = True
