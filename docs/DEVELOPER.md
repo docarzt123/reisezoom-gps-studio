@@ -4946,6 +4946,19 @@ Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
   Für Wächter: `window.__rzGpxiLogbuch` (`daten, auswahl, waehlen, laden, fenster, hover, zuIdx, hoverIdx`).
 - **i18n:** `logbuch.*` (Arten `logbuch.art.<art>`, Mehrzahl `logbuch.mehrzahl.<art>`), Datum/Uhr
   über `toLocale*` mit `rzSprachCode()` und `timeZone: "UTC"` auf der um `versatz_min` verschobenen Zeit.
+- **Stufe 2 (v0.9.709) — Bearbeiten:** Kern `einteilung.bereich_aendern(bid|bids, art/name/notiz/anzeige)`,
+  `punkt_setzen` (schneidet nichts aus), `aufgehen_lassen(bids)` (Nachbar davor wächst, sonst der danach
+  beginnt früher), `zusammenlegen`/`grenze_setzen` über `_nachbarn` — verborgene kurze Halte dazwischen
+  gehen mit auf. Brücke `einteilung_aktion` kennt `punkt`, `aufgehen`, `bids`, `notiz`; Punkte der Tour
+  liegen im Cache `Api._LOGBUCH_PUNKTE` (Pfad + mtime), damit jede Änderung < 1 s antwortet.
+  Einstellungen (Q13): `settings.logbuch` (global) + `settings.logbuch_je_tour[tour]`, gelesen in
+  `_logbuch_einstellungen`, gesetzt über `logbuch_einstellungen(path, patch, als_standard, zuruecksetzen)`
+  (liefert `vorher`), ⌘Z über `logbuch_einstellungen_stand`. Oberfläche: Abschnitt „Logbuch Stufe 2" in
+  module.js — Kontextmenü `_lbEintragMenue`, Grenze ziehen `_lbZiehenVerdrahten`, A→B `_lbBereichAB`,
+  Punkt-Modus `_lbPunktSetzen` (aus `onMapClick`), ⚙ `_lbEinstellungen`. **Undo:** der Inspektor-
+  Schnappschuss trägt `lb` (Stand der Einteilung, aus `logbuch_lesen.stand`) und `lbEinst`; `apply` ruft
+  `_lbUndoAnwenden` → `einteilung_stand_setzen` / `logbuch_einstellungen_stand` → neu lesen.
+  Für Wächter: `window.__rzGpxiLogbuchBearbeiten`.
 - **Wächter:** `tests/test_logbuch.py` — Kern (Bauer-Tracks), Prüfsammlung (Wohnmobil, Lauf mit
   Zug, Teide), Brücke mit Testbibliothek, WebKit (wie die App) mit echter Brücke (Aufbau, Kopplung, Schalter,
   Mehrtages-Reise). `tests/test_einteilung.py` kennt die Punkt-Einträge.

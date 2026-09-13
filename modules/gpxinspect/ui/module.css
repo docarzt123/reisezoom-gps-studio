@@ -481,3 +481,33 @@
 #gpxi-canvas .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner { display: inline !important; }
 #gpxi-canvas .maplibregl-ctrl-attrib-button, #gpxi-canvas .mapboxgl-ctrl-attrib-button { display: none !important; }
 #gpxi-canvas .maplibregl-ctrl-bottom-left, #gpxi-canvas .mapboxgl-ctrl-bottom-left { bottom: 16px !important; }
+
+/* ── Logbuch Stufe 2 — Bearbeiten (13.09.2026) ───────────────────────────── */
+.gpxi-lb-zeile { grid-template-columns: 22px 1fr auto; }
+.gpxi-lb-mehr { opacity: 0; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--text-muted);
+  font-size: 15px; line-height: 1; padding: 1px 6px; cursor: pointer; }
+.gpxi-lb-zeile:hover .gpxi-lb-mehr, .gpxi-lb-zeile.ist-gewaehlt .gpxi-lb-mehr { opacity: 1; }
+.gpxi-lb-mehr:hover { background: rgba(0,0,0,.08); border-color: var(--border); color: var(--text); }
+.gpxi-lb-notiz { font-size: 11px; color: var(--text-dim); font-style: italic; white-space: pre-wrap; margin-top: 2px; line-height: 1.35; }
+.gpxi-lb-zeile.ist-eigen .gpxi-lb-name { color: var(--text); font-weight: 600; }
+.gpxi-lb-knopf.ist-an { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gpxi-lb-knopf:disabled { opacity: .45; cursor: default; }
+.gpxi-lb-menue {
+  position: fixed; z-index: 1200; min-width: 230px; padding: 5px;
+  background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 9px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.5); display: flex; flex-direction: column;
+}
+.gpxi-lb-menue-eintrag { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none;
+  color: var(--text); font-size: 12.5px; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+.gpxi-lb-menue-eintrag:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.gpxi-lb-menue-eintrag.ist-aus { color: var(--text-muted); cursor: default; font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; padding-top: 4px; padding-bottom: 2px; }
+.gpxi-lb-menue-eintrag.ist-unter { padding-left: 22px; }
+.gpxi-lb-menue-symbol { width: 18px; text-align: center; flex: 0 0 auto; }
+.gpxi-lb-menue-strich { height: 1px; background: var(--border); margin: 4px 6px; }
+.gpxi-lb-frage { width: 100%; padding: 8px 10px; font-size: 13.5px; background: var(--bg-1); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: 7px; font-family: inherit; resize: vertical; }
+.gpxi-lb-einst-zeile { display: grid; grid-template-columns: 1fr 84px 34px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+.gpxi-lb-einst-zeile input { width: 84px; padding: 5px 7px; background: var(--bg-1); color: var(--text); border: 1px solid var(--border-strong); border-radius: 6px; text-align: right; }
+.gpxi-lb-einst-zeile small { color: var(--text-muted); }
+.gpxi-lb-einst-wahl { display: flex; flex-direction: column; gap: 5px; margin: 12px 0 8px; font-size: 13px; }
+.gpxi-lb-einst-wahl label { display: flex; align-items: center; gap: 7px; cursor: pointer; }

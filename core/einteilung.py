@@ -315,23 +315,69 @@ def bereich_setzen(conn: sqlite3.Connection, eid: str, t0: float, t1: float, art
     return _schreiben(conn, e)
 
 
-def bereich_aendern(conn: sqlite3.Connection, eid: str, bid: str, **felder) -> dict:
-    """Art, Name oder Anzeige ändern. Macht den Bereich zu Handarbeit, außer bei
-    der reinen Anzeige — die ist eine Darstellungswahl, keine Korrektur."""
+def bereich_aendern(conn: sqlite3.Connection, eid: str, bid, **felder) -> dict:
+    """Art, Name, Notiz oder Anzeige ändern. Macht den Bereich zu Handarbeit,
+    außer bei der reinen Anzeige — die ist eine Darstellungswahl, keine Korrektur.
+
+    `bid` darf eine Liste sein (Logbuch §68: ein Eintrag besteht aus mehreren
+    rohen Bereichen) — dann bekommen alle dieselben Felder.
+    """
     e = _laden(conn, eid)
-    b = e["bereiche"][_finden(e, bid)]
-    inhalt = False
-    for k in ("art", "name"):
-        if k in felder and felder[k] is not None:
-            b[k] = str(felder[k])
-            inhalt = True
-    if "anzeige" in felder:
-        a = str(felder["anzeige"] or "")
-        if a not in ANZEIGEN:
-            raise ValueError(f"unbekannte Anzeige: {a}")
-        b["anzeige"] = a
-    if inhalt:
-        b["quelle"] = "hand"
+    bids = list(bid) if isinstance(bid, (list, tuple)) else [bid]
+    for einer in bids:
+        b = e["bereiche"][_finden(e, einer)]
+        inhalt = False
+        for k in ("art", "name", "notiz"):
+            if k in felder and felder[k] is not None:
+                b[k] = str(felder[k])
+                inhalt = True
+        if "anzeige" in felder:
+            a = str(felder["anzeige"] or "")
+            if a not in ANZEIGEN:
+                raise ValueError(f"unbekannte Anzeige: {a}")
+            b["anzeige"] = a
+        if inhalt:
+            b["quelle"] = "hand"
+    return _schreiben(conn, e)
+
+
+def _ist_punkt(b: dict) -> bool:
+    return b["t1"] <= b["t0"]
+
+
+def punkt_setzen(conn: sqlite3.Connection, eid: str, t: float, art: str = "punkt", name: str = "",
+                 lat=None, lon=None, ele=None) -> dict:
+    """Einen eigenen Punkt-Eintrag setzen (Logbuch §68 Q12). Schneidet nichts aus —
+    ein Punkt liegt in einem Bereich, er ersetzt ihn nicht."""
+    e = _laden(conn, eid)
+    e["bereiche"].append(_bereich(t, t, art, name, "hand", lat=lat, lon=lon, ele=ele))
+    return _schreiben(conn, e)
+
+
+def aufgehen_lassen(conn: sqlite3.Connection, eid: str, bids) -> dict:
+    """Bereiche löschen, ohne ein Loch zu lassen (Q12 „löschen — geht im Nachbarn
+    auf"): der Bereich davor wächst bis zum Ende des Gelöschten; gibt es keinen,
+    beginnt der danach früher. Punkte werden einfach entfernt."""
+    e = _laden(conn, eid)
+    weg = set(list(bids) if isinstance(bids, (list, tuple)) else [bids])
+    for w in weg:
+        _finden(e, w)
+    opfer = [b for b in e["bereiche"] if b["id"] in weg and not _ist_punkt(b)]
+    e["bereiche"] = [b for b in e["bereiche"] if b["id"] not in weg]
+    if opfer:
+        t0 = min(b["t0"] for b in opfer)
+        t1 = max(b["t1"] for b in opfer)
+        bereiche = [b for b in e["bereiche"] if not _ist_punkt(b)]
+        davor = [b for b in bereiche if b["t1"] <= t0 + 1e-6]
+        danach = [b for b in bereiche if b["t0"] >= t1 - 1e-6]
+        if davor:
+            n = max(davor, key=lambda b: b["t1"])
+            n["t1"] = max(n["t1"], t1)
+            n["quelle"] = "hand"
+        elif danach:
+            n = min(danach, key=lambda b: b["t0"])
+            n["t0"] = min(n["t0"], t0)
+            n["quelle"] = "hand"
     return _schreiben(conn, e)
 
 
@@ -347,30 +393,44 @@ def teilen(conn: sqlite3.Connection, eid: str, bid: str, t: float) -> dict:
     return _schreiben(conn, e)
 
 
+def _nachbarn(e: dict, bid_a: str, bid_b: str):
+    """Zwei Bereiche in Zeitfolge (links, rechts) samt allem, was dazwischen liegt.
+    Im Logbuch (§68) sind zwei Einträge oft nur durch einen verborgenen kurzen Halt
+    getrennt — der geht dann mit auf. Punkte dazwischen bleiben stehen."""
+    a, b = e["bereiche"][_finden(e, bid_a)], e["bereiche"][_finden(e, bid_b)]
+    if _ist_punkt(a) or _ist_punkt(b):
+        raise ValueError("Punkte haben keine gemeinsame Grenze")
+    l, r = (a, b) if a["t0"] <= b["t0"] else (b, a)
+    if l["t1"] > r["t0"] + 1e-6:
+        raise ValueError("die Bereiche überlappen sich")
+    zwischen = [x for x in e["bereiche"] if not _ist_punkt(x) and x is not l and x is not r
+                and x["t0"] >= l["t1"] - 1e-6 and x["t1"] <= r["t0"] + 1e-6]
+    return l, r, zwischen
+
+
 def zusammenlegen(conn: sqlite3.Connection, eid: str, bid_a: str, bid_b: str) -> dict:
-    """Zwei benachbarte Bereiche zu einem. Art und Name vom längeren."""
+    """Zwei Bereiche zu einem — auch über verborgene kurze Halte hinweg. Art und Name vom längeren."""
     e = _laden(conn, eid)
-    ka, kb = sorted((_finden(e, bid_a), _finden(e, bid_b)))
-    if kb != ka + 1:
-        raise ValueError("nur benachbarte Bereiche lassen sich zusammenlegen")
-    a, b = e["bereiche"][ka], e["bereiche"][kb]
-    lang = a if (a["t1"] - a["t0"]) >= (b["t1"] - b["t0"]) else b
-    neu = dict(lang, t0=a["t0"], t1=b["t1"], quelle="hand")
+    l, r, zwischen = _nachbarn(e, bid_a, bid_b)
+    lang = l if (l["t1"] - l["t0"]) >= (r["t1"] - r["t0"]) else r
+    neu = dict(lang, t0=l["t0"], t1=r["t1"], quelle="hand")
     for k in ("strecke_m", "tempo_kmh"):
         neu.pop(k, None)
-    e["bereiche"][ka:kb + 1] = [neu]
+    weg = {id(x) for x in zwischen} | {id(l), id(r)}
+    rest = [x for x in e["bereiche"] if id(x) not in weg]
+    rest.append(neu)
+    e["bereiche"] = rest
     return _schreiben(conn, e)
 
 
 def grenze_setzen(conn: sqlite3.Connection, eid: str, bid_links: str, bid_rechts: str, t: float) -> dict:
-    """Die gemeinsame Grenze zweier benachbarter Bereiche verschieben."""
+    """Die gemeinsame Grenze zweier Bereiche verschieben — verborgene kurze Halte dazwischen gehen auf."""
     e = _laden(conn, eid)
-    kl, kr = _finden(e, bid_links), _finden(e, bid_rechts)
-    if kr != kl + 1:
-        raise ValueError("nur benachbarte Bereiche haben eine gemeinsame Grenze")
-    l, r = e["bereiche"][kl], e["bereiche"][kr]
+    l, r, zwischen = _nachbarn(e, bid_links, bid_rechts)
     if not (l["t0"] < t < r["t1"]):
         raise ValueError("Grenze läge außerhalb der beiden Bereiche")
+    weg = {id(x) for x in zwischen}
+    e["bereiche"] = [x for x in e["bereiche"] if id(x) not in weg]
     l["t1"] = r["t0"] = float(t)
     l["quelle"] = r["quelle"] = "hand"
     return _schreiben(conn, e)

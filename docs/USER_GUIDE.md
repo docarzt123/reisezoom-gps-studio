@@ -2589,6 +2589,10 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 - **„vermutet“** steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.
 - Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.
 
+**Bearbeiten (seit v0.9.709):** Jeder Eintrag hat ein **⋯-Menü** (auch Rechtsklick in der Liste oder auf einen Block im Zeitstrahl): *Umbenennen*, *Notiz*, *Art ändern* (Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport, Pause), *Hier teilen* / *In der Mitte teilen*, *Mit vorherigem/nächstem zusammenlegen*, *Löschen* — das Gelöschte geht im Nachbarn auf. **Grenzen ziehen:** im Zeitstrahl den Übergang zwischen zwei Blöcken packen und schieben. **＋ A→B** macht aus dem Abschnitt zwischen Anker A und B einen eigenen Eintrag, **📍 Punkt** setzt mit dem nächsten Kartenklick einen eigenen Punkt (mit Namen). Alles ist ein **⌘Z**-Schritt; deine Handarbeit bleibt auch nach ↻ (neu erkennen) stehen.
+
+**⚙ Einstellungen:** ab wie vielen Minuten Stillstand eine Pause ist, ab wie vielen Kilometern oder Höhenmetern Gehen eine Wanderung ist, und wann kurzes „Rad" zwischen zwei Fahrten als Fahrt gilt — *nur für diese Tour* oder *als Standard für alle Touren*; „Zurücksetzen" nimmt die Tour-Werte weg. Auch das geht mit ⌘Z zurück.
+
 > Das Logbuch gibt es für Touren im **Archiv** (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis. Bearbeiten, Ortsnamen und Sehenswürdigkeiten kommen in den nächsten Stufen — der Plan steht in `docs/LOGBUCH.md`.
 
 ### Rückgängig

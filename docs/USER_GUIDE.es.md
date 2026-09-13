@@ -2420,6 +2420,10 @@ Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izq
 - **«supuesto»** marca las entradas en las que la detección tuvo que suponer, por ejemplo conducción lenta por pueblos que parece ir en bici.
 - La cabecera lo resume: «99 h 5 min trayecto · 2 ferris · 47 paseos · 214 pausas · 37 pernoctas».
 
+**Editar (desde v0.9.709):** cada entrada tiene un **menú ⋯** (también clic derecho en la lista o en un bloque de la línea de tiempo): *Renombrar*, *Nota*, *Cambiar tipo* (trayecto, ferri, caminata, paseo, bici, carrera, deporte acuático, pausa), *Dividir aquí* / *Dividir por la mitad*, *Unir con la anterior/siguiente*, *Eliminar*: lo eliminado se funde con la vecina. **Arrastrar límites:** agarra la transición entre dos bloques en la línea de tiempo y muévela. **＋ A→B** convierte el tramo entre los anclajes A y B en una entrada propia; **📍 Punto** pone un punto propio (con nombre) con el siguiente clic en el mapa. Todo es un paso de **⌘Z**; tus cambios manuales se mantienen incluso tras ↻ (detectar de nuevo).
+
+**⚙ Ajustes:** a partir de cuántos minutos parado hay pausa, a partir de cuántos kilómetros o metros de desnivel ir a pie es caminata, y cuándo una «bici» corta entre dos trayectos cuenta como trayecto: *solo para esta ruta* o *como estándar para todas*; «Restablecer» quita los valores propios de la ruta. Esto también se deshace con ⌘Z.
+
 > El cuaderno existe para las rutas del **archivo** (pertenece a la ruta, no al archivo de datos). Un archivo externo recibe un aviso. Editar, nombres de lugares y puntos de interés llegan en las próximas etapas; el plan está en `docs/LOGBUCH.md`.
 
 ### Deshacer

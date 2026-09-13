@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.708"
+APP_VERSION = "0.9.709"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9905,8 +9905,13 @@ class Api:
                     ceint.bereich_setzen(conn, eid, float(q["t0"]), float(q["t1"]), str(q["art"]),
                                          str(q.get("name") or ""))
                 elif aktion == "aendern":
-                    ceint.bereich_aendern(conn, eid, str(q["bid"]),
-                                          **{k: q[k] for k in ("art", "name", "anzeige") if k in q})
+                    ceint.bereich_aendern(conn, eid, q.get("bids") or str(q["bid"]),
+                                          **{k: q[k] for k in ("art", "name", "anzeige", "notiz") if k in q})
+                elif aktion == "punkt":            # Logbuch §68 Q12: eigener Punkt
+                    ceint.punkt_setzen(conn, eid, float(q["t"]), str(q.get("art") or "punkt"),
+                                       str(q.get("name") or ""), q.get("lat"), q.get("lon"), q.get("ele"))
+                elif aktion == "aufgehen":         # Logbuch §68 Q12: löschen, geht im Nachbarn auf
+                    ceint.aufgehen_lassen(conn, eid, q.get("bids") or [str(q["bid"])])
                 elif aktion == "teilen":
                     ceint.teilen(conn, eid, str(q["bid"]), float(q["t"]))
                 elif aktion == "zusammenlegen":
@@ -9970,6 +9975,82 @@ class Api:
     # Marc: „was wo war — zeit von bis: fähre, pause, fahrt, wanderung … höchster
     # punkt". Entsteht automatisch beim Öffnen im Inspektor (Q4), lokal, ohne Netz.
 
+    _LOGBUCH_PUNKTE: dict = {}   # path → (mtime, pts): Bearbeiten liest die Datei nicht jedes Mal neu
+
+    def _logbuch_punkte(self, path: str):
+        try:
+            mt = os.path.getmtime(path)
+        except OSError:
+            mt = 0
+        alt = self._LOGBUCH_PUNKTE.get(path)
+        if alt and alt[0] == mt:
+            return alt[1]
+        pts, _stats = clib.punkte_lesen(path, IMPORTS_DIR)
+        pts = list(pts)
+        self._LOGBUCH_PUNKTE.clear()
+        self._LOGBUCH_PUNKTE[path] = (mt, pts)
+        return pts
+
+    def _logbuch_einstellungen(self, tour: str) -> dict:
+        """Q13: global als Standard, je Tour überschreibbar."""
+        from core import logbuch as clb
+        st = _load_settings()
+        glob = {k: v for k, v in (st.get("logbuch") or {}).items() if k in clb.STANDARD}
+        je = {k: v for k, v in ((st.get("logbuch_je_tour") or {}).get(tour) or {}).items() if k in clb.STANDARD}
+        wirksam = dict(clb.STANDARD); wirksam.update(glob); wirksam.update(je)
+        return {"standard": dict(clb.STANDARD), "global": glob, "tour": je, "wirksam": wirksam}
+
+    def logbuch_einstellungen(self, path: str, patch: dict = None, als_standard: bool = False,
+                              zuruecksetzen: bool = False) -> dict:
+        """Einstellungen des Logbuchs lesen/setzen. `patch` gilt für diese Tour;
+        mit `als_standard` für alle (die Tour-Überschreibung wird dabei gelöscht);
+        `zuruecksetzen` nimmt die Tour-Überschreibung weg. Liefert `vorher` für ⌘Z."""
+        from core import logbuch as clb
+        try:
+            tour, _t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": False, "grund": "nicht_im_archiv", "error": _ui_t()("logbuch.nicht_im_archiv", "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")}
+            with _SETTINGS_LOCK:
+                st = _load_settings()
+                vorher = {"global": dict(st.get("logbuch") or {}),
+                          "tour": dict((st.get("logbuch_je_tour") or {}).get(tour) or {})}
+                if patch is not None or zuruecksetzen:
+                    sauber = {k: float(v) for k, v in (patch or {}).items() if k in clb.STANDARD and v is not None}
+                    je = dict(st.get("logbuch_je_tour") or {})
+                    if zuruecksetzen:
+                        je.pop(tour, None)
+                    elif als_standard:
+                        g = dict(st.get("logbuch") or {}); g.update(sauber); st["logbuch"] = g
+                        je.pop(tour, None)
+                    else:
+                        x = dict(je.get(tour) or {}); x.update(sauber); je[tour] = x
+                    st["logbuch_je_tour"] = je
+                    _save_settings(st)
+            raus = self._logbuch_einstellungen(tour)
+            raus.update({"ok": True, "tour_id": tour, "vorher": vorher})
+            return raus
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_einstellungen")
+            return {"ok": False, "error": str(e)}
+
+    def logbuch_einstellungen_stand(self, path: str, stand: dict) -> dict:
+        """⌘Z für die Einstellungen: global und Tour-Überschreibung zurückschreiben."""
+        try:
+            tour, _t = self._einteilung_tour(path)
+            with _SETTINGS_LOCK:
+                st = _load_settings()
+                st["logbuch"] = dict((stand or {}).get("global") or {})
+                je = dict(st.get("logbuch_je_tour") or {})
+                if (stand or {}).get("tour"):
+                    je[tour] = dict(stand["tour"])
+                else:
+                    je.pop(tour, None)
+                st["logbuch_je_tour"] = je
+                _save_settings(st)
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
     def logbuch_lesen(self, path: str, neu: bool = False) -> dict:
         """Das Logbuch der Tour zu dieser Datei: die lesbare Folge (core/logbuch)
         über der Einteilung „Bewegung" plus Tage und Punkte. Fehlen die
@@ -9982,7 +10063,7 @@ class Api:
                 return {"ok": False, "grund": "nicht_im_archiv",
                         "error": _ui_t()("logbuch.nicht_im_archiv",
                                          "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")}
-            pts, _stats = clib.punkte_lesen(path, IMPORTS_DIR)
+            pts = self._logbuch_punkte(path)
             if not any(clb._epoch(p.get("time") if isinstance(p, dict) else getattr(p, "time", None)) is not None
                        for p in pts[:200]):
                 return {"ok": False, "grund": "ohne_zeit",
@@ -10009,7 +10090,9 @@ class Api:
                                                 wegpunkte=wegpunkte)
                     stand[art] = e
             tage = [b for b in stand["tage"]["bereiche"] if b.get("art") == "tag"]
-            lb = clb.eintraege(stand["bewegung"]["bereiche"], pts, aktivitaet=aktivitaet, tage=tage)
+            einst = self._logbuch_einstellungen(tour)
+            lb = clb.eintraege(stand["bewegung"]["bereiche"], pts, aktivitaet=aktivitaet, tage=tage,
+                               einstellungen=einst["wirksam"])
             lat = lon = None
             for p in pts:
                 la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
@@ -10034,7 +10117,8 @@ class Api:
                     "eintraege": lb["eintraege"], "punkte": lb["punkte"], "verborgen": lb["verborgen"],
                     "roh": stand["bewegung"]["bereiche"],
                     "zusammenfassung": lb["zusammenfassung"], "hoechster": lb["hoechster"],
-                    "einstellungen": lb["einstellungen"]}
+                    "einstellungen": lb["einstellungen"], "einst_global": einst["global"], "einst_tour": einst["tour"],
+                    "stand": {k: stand["bewegung"][k] for k in ("id", "tour", "art", "name", "bereiche")}}
         except Exception as e:  # noqa: BLE001
             log.exception("logbuch_lesen")
             return {"ok": False, "error": str(e)}
