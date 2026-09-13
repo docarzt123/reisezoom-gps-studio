@@ -4062,11 +4062,7 @@ function mountGpxInspect(body, headerActions) {
       }
       M.push("-");
       const teilbar = (tt) => tt != null && tt > e.t0 + 30 && tt < e.t1 - 30;
-      const teilen = async (tt) => {
-        const bid = e.bids.length === 1 ? e.bids[0] : _lbRohBeiZeit(e, tt);
-        if (!bid) return;
-        await _lbAktion(t("logbuch.undo.teilen", "Logbuch: Aktivität teilen"), "teilen", { bid, t: tt });
-      };
+      const teilen = (tt) => _lbAktion(t("logbuch.undo.teilen", "Logbuch: Aktivität teilen"), "teilen_zeit", { t: tt });
       if (teilbar(tHier)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_hier", "Aktivität hier teilen ({z})", { z: _lbUhr(tHier, e.versatz_min) }), tu: () => teilen(tHier) });
       // Marc, 13.09.2026: „ich würde gern die aktivität teilen" — in der Liste kennt das Menü
       // keine Stelle. Also: am Anker A (wenn er im Eintrag liegt) oder an einer Uhrzeit.

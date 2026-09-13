@@ -9914,6 +9914,9 @@ class Api:
                     ceint.aufgehen_lassen(conn, eid, q.get("bids") or [str(q["bid"])])
                 elif aktion == "teilen":
                     ceint.teilen(conn, eid, str(q["bid"]), float(q["t"]))
+                elif aktion == "teilen_zeit":      # Logbuch §68: nach Uhrzeit, über verborgene Halte hinweg
+                    einst = self._logbuch_einstellungen(vorher["tour"])["wirksam"]
+                    ceint.teilen_bei_zeit(conn, eid, float(q["t"]), float(einst.get("pause_ab_s") or 600))
                 elif aktion == "zusammenlegen":
                     ceint.zusammenlegen(conn, eid, str(q["bid_a"]), str(q["bid_b"]))
                 elif aktion == "grenze":
