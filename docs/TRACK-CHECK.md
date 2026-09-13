@@ -158,3 +158,20 @@ genau die Arbeit der nächsten Schritte (Bewegungsart erkennen, Schwellen je Bew
 - Eine kurze Fähre (2 km gerade über einen See) ist aus der Geometrie allein nicht von einer
   echten Lücke zu unterscheiden; eine Reparatur „entlang von Wegen" wäre dort falsch. Braucht
   Gewässer aus den Kartendaten — bis dahin „unsicher".
+
+## 8. Schritt 2: Bewegungsart und Halte (13.09.2026, v0.9.700)
+
+`core/bewegung.py` — Beschreibung der Regeln in docs/DEVELOPER.md. Gefittet gegen 408
+Archiv-Touren mit einer Aktivität (99,3 % mit, 96,1 % ohne Hinweis) und die Prüfsammlung
+(jetzt 30 Tracks, 107 Zusagen, 83 erfüllt). Neue Soll-Arten in `sammlung.json`: `bewegung`
+mit Mindest-/Höchst-km je Art, Mindestbereich (z. B. „ein Fahrt-Bereich ≥ 40 km mit ≥ 50 km/h"),
+Anteile, App-Halte, Pausenlänge und „Stillstand-Knäuel liegt im Halt".
+
+**Beim Fitten korrigiert:** fester statt mitwandernder Halt-Anker (Teide: 5 h → 2,1 h Halt),
+App-Halte über die Stille nach dem Halt (Geory: 56 → 168 zugeordnet), Etappengrenzen als Pause
+statt „unsicher" (66-Seen-Weg: 61 Tage), eingerahmte Kurzstücke dem Nachbarn zugeschlagen, und
+die Gemacht-Schätzung erkennt 10-Hz-Aufnahmen.
+
+**Die Sperrklinke hat zweimal richtig angeschlagen:** Beim Austausch der falschen „Lauf mit
+Zug"-Datei und beim korrekt erkannten 10-Hz-Clip wurden vorher „erfüllte" Zusagen sichtbar, die
+nur zufällig ruhig waren. Solche Zusagen werden mit `--vergessen <id>` neu angelegt — nie still.

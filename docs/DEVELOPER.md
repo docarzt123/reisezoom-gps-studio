@@ -4771,6 +4771,47 @@ lässt einen echten Scan laufen, während ein zweiter Faden ununterbrochen in
 dieselbe Datenbank schreibt.
 
 
+## Bewegungsart und Halte erkennen — `core/bewegung.py` (13.09.2026, v0.9.700)
+
+Schritt 2 aus docs/IDEAS.md §67. Teilt einen Track in **Bereiche** (`gehen`, `laufen`, `rad`,
+`fahrt`, `uebersetzen`, `halt`, `pause`, `unsicher`), ändert keinen Punkt. Einstieg:
+`bewegung.erkennen(points, aktivitaet=None, wegpunkte=None)` → `{"bereiche", "zusammenfassung", "prior"}`.
+Ein Bereich: `art, von, bis` (Punkt-Indizes, `bis` exklusiv als Segmentgrenze), `t0, t1`,
+`dauer_s, strecke_m, tempo_kmh, quelle` (`auto` | `app`), `name`, `sicher`. Die Bereiche decken
+die ganze Zeit lückenlos ab.
+
+**Reihenfolge der Regeln** (jede an echten Tracks gemessen, Werte im Modulkopf):
+
+1. `uebersetzen` aus `trackcheck.uebersetzen`.
+2. **App-Halte** (`app_halte`): Wegpunkte mit „HH:MM bis HH:MM [+1]" im `desc`. Nur die *Dauer*
+   zählt (Zeitzonen-frei); gesucht wird die Track-Stelle im Umkreis (150 m), deren Aufenthalt am
+   besten dazu passt. Strecken-Logger setzen nach dem Losfahren erst ~200 m weiter wieder einen
+   Punkt — folgt auf den letzten Punkt im Umkreis eine Stille ≥ 5 min, reicht der Halt bis dahin.
+3. **Eigene Halte** (`halte`): ≥ 180 s innerhalb 40 m um einen **festen Anker**. Ein
+   mitwandernder Mittelpunkt machte am Teide aus langsamem Aufstieg 5 h „Halt".
+4. **Fenster-Tempo** (`_fenster_tempo`): Strecke ÷ Zeit über ±60 s, gesperrte Segmente zählen nicht.
+5. **Pausen** (`pausen`): Zeit zwischen zwei Punkten minus Wegzeit (Abstand ÷ Tempo der
+   Umgebung) ≥ 180 s. Etappengrenzen (`L is None`) sind Pausen.
+6. **Klasse nach Tempo** (`klasse`): < 7,5 km/h gehen · ≥ 35 km/h fahrt (nur ≥ 150 s am Stück) ·
+   dazwischen nach Hinweis der Tour (`_prior`: laufen → laufen bis 20 km/h; rad → rad) oder ohne
+   Hinweis rad ab 15 km/h, sonst `unsicher`.
+7. Kurzstücke < 180 s werden dem längeren Nachbarn zugeschlagen, wenn sie < 300 m sind **oder**
+   links und rechts von derselben Art eingerahmt sind. Halte, Pausen, Übersetzen und App-Bereiche
+   bleiben immer stehen.
+
+**Gefittet** (Skripte im Verlauf, Soll in der Prüfsammlung): Archiv mit 408 Touren einer
+einzigen Aktivität — mit Hinweis 405 (99,3 %), ohne Hinweis 392 (96,1 %) zu ≥ 80 % der
+Bewegungszeit richtig. Ohne Hinweis landen fast nur Läufe und langsames Rad bei `unsicher`.
+
+**Bekannte Grenzen:** Fähren mit Gehtempo (Wannsee) sind nicht vom Gehen zu unterscheiden
+(braucht Gewässerdaten); eine 10-km-Aufzeichnungslücke im Auto kann als `uebersetzen` gelten.
+
+**Wächter:** `tests/test_bewegung.py` (künstliche Tracks mit exakt bekannter Wahrheit, dazu
+die Gemacht-Schätzung) und `tests/test_pruefsammlung.py` (Bewegungs-Soll an echten Tracks).
+
+**Nebenbei:** `library._recorded_guess` erkennt Aufnahmen mit hoher Rate
+(`HOCHFREQUENT_ANTEIL` = 30 % Punktpaare in derselben Sekunde bei fortschreitender Zeit).
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter
