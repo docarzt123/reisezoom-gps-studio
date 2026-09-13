@@ -3812,6 +3812,7 @@ const _RZ_TC_FALLBACK = {
   spikes: "{n} Sprung|{n} Sprünge", cold_start: "Kaltstart-Ausreißer am Anfang ({n} Punkte)",
   ele_garbage: "Höhen-Müll ({n} Werte)", xml_broken: "Datei beschädigt, reparierbar",
   gaps: "{n} Lücke ({m} m)|{n} Lücken (größte {m} m)", missing_ele: "Höhe fehlt ({n} Punkte)",
+  gaps_klein: "{n} kleine Lücke ({m} m)|{n} kleine Lücken (größte {m} m)",
   tempo: "Unmögliches Tempo ({n} Stelle)|Unmögliches Tempo ({n} Stellen)", backwards: "Zeit läuft rückwärts ({n})",
   duplicates: "{n} Doppelpunkt|{n} Doppelpunkte", spread_seconds: "{n} Sekunde mehrfach belegt|{n} Sekunden mehrfach belegt (10-Hz-Aufzeichnung)",
   standstill: "Standdrift ({n} Stelle, {min} min)|Standdrift ({n} Stellen, {min} min)", clock_off: "Uhr steht falsch (Datum {jahr})",

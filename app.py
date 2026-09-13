@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.700"
+APP_VERSION = "0.9.701"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -2281,14 +2281,18 @@ class Api:
                     return {"ok": False, "error": (load or {}).get("error") or "?", "schritte": zeilen}
                 pts = list(load.get("points") or [])
                 n0 = len(pts)
-                heil = gpxheal.heilen(pts, schritte=[k for k in keys if k != "gaps"])
+                heil = gpxheal.heilen(pts, schritte=[k for k in keys if k not in ("gaps", "gaps_klein")],
+                                      aktivitaet=t.get("activity") or None)
                 if not heil.get("ok"):
                     return {"ok": False, "error": heil.get("error") or "?", "schritte": zeilen}
                 pts = list(heil.get("points") or [])
                 geroutet = gerade = 0
                 if "gaps" in keys:
                     sp = trackcheck._Spur(pts)
-                    lk = trackcheck.luecken(sp, flags=trackcheck.sprung_gruppen(sp)["flags"])
+                    _akt = t.get("activity") or None
+                    lk = [g for g in trackcheck.luecken_je_art(
+                        sp, flags=trackcheck.sprung_gefiltert(sp, aktivitaet=_akt)["flags"], aktivitaet=_akt)
+                        if g["stufe"] == "gelb"]
                     prof = self._assistent_profil(t.get("activity") or "")
                     routen = []
                     if prof and lk:
@@ -9088,7 +9092,11 @@ class Api:
         belegte Seiten), wäre sonst unsichtbar geblieben — die Tour hätte auf
         die nächste Änderung warten müssen, um hochzugehen."""
         fp = []
-        for pfad in (LIBRARY_DB, APP_SUPPORT / "projekte.json",
+        # 13.09.2026 — mit der WAL-Datei: Seit v0.9.697 landen neue Schreibvorgänge
+        # zuerst in library.db-wal; die Hauptdatei ändert sich erst beim Zusammen-
+        # führen. Ohne sie sah der Fühler eine neu aufgenommene Tour nicht
+        # (test_archiv_frage).
+        for pfad in (LIBRARY_DB, Path(str(LIBRARY_DB) + "-wal"), APP_SUPPORT / "projekte.json",
                      APP_SUPPORT / "touren.json"):
             try:
                 st = os.stat(pfad)
@@ -9618,16 +9626,34 @@ class Api:
             return {"ok": False, "error": f"{type(e).__name__}: {e}", "hoehen": []}
 
     def gpxinspect_heal(self, points: list, max_speed_kmh: float = 250.0,
-                        schritte: list = None, nur_analyse: bool = False) -> dict:
+                        schritte: list = None, nur_analyse: bool = False,
+                        aktivitaet: str = "") -> dict:
         """08.09.2026 — Alles glattziehen, was einer Aufzeichnung nicht entspricht (core/gpxheal):
         mehrfach belegte Sekunden verteilen, Rückwärtssprünge, fehlende Zeiten/Höhen, Nullpunkte,
         Doppelpunkte, Tempo-Ausreißer. Der Inspektor ruft es im Auto-Heilen vor dem Lückenfüllen."""
         from core import gpxheal
         try:
             if nur_analyse:
-                return gpxheal.analysieren(list(points or []), max_speed_kmh=float(max_speed_kmh or 250.0))
+                return gpxheal.analysieren(list(points or []), max_speed_kmh=float(max_speed_kmh or 250.0),
+                                           aktivitaet=aktivitaet or None)
             return gpxheal.heilen(list(points or []), max_speed_kmh=float(max_speed_kmh or 250.0),
-                                  schritte=(None if schritte is None else list(schritte)))
+                                  schritte=(None if schritte is None else list(schritte)),
+                                  aktivitaet=aktivitaet or None)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    def gpxinspect_luecken(self, points: list, aktivitaet: str = "", mit_klein: bool = False) -> dict:
+        """13.09.2026 — Die Lücken, die der Track-Check meldet, für das Routen im
+        Inspektor. Vorher suchte die Oberfläche selbst (ab 100 m) und füllte damit
+        andere Stellen, als der Kasten zeigte."""
+        from core import trackcheck
+        try:
+            sp = trackcheck._Spur(list(points or []))
+            flags = trackcheck.sprung_gefiltert(sp, aktivitaet=aktivitaet or None)["flags"]
+            lk = trackcheck.luecken_je_art(sp, flags=flags, aktivitaet=aktivitaet or None)
+            lk = [g for g in lk if g["stufe"] == "gelb" or mit_klein]
+            return {"ok": True, "luecken": [{"a": g["a"], "b": g["b"], "dist": round(g["dist"], 1),
+                                             "stufe": g["stufe"], "fehlend_s": g["fehlend_s"]} for g in lk]}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
@@ -9643,15 +9669,17 @@ class Api:
                 c = t["check"]
                 return {"ok": True, "befunde": c["befunde"], "marke": c["marke"], "hoechste": c["hoechste"],
                         "quelle": "archiv"}
+            aktivitaet = None
             if t:
                 ok_liste = list((t.get("check") or {}).get("ok") or [])
+                aktivitaet = t.get("activity") or None
         except Exception:  # noqa: BLE001
-            pass
+            aktivitaet = None
         try:
             pts, stats = clib.punkte_lesen(path, IMPORTS_DIR)
             _rec, _ = clib._recorded_guess(pts, stats, os.path.basename(str(path)))
             r = trackcheck.pruefen(pts, local_time_n=int(getattr(stats, "zeit_ohne_zone", 0) or 0),
-                                   geplant=not _rec)
+                                   geplant=not _rec, aktivitaet=aktivitaet)
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
         f = trackcheck.filtern(r["befunde"], ok_liste)
@@ -9674,7 +9702,8 @@ class Api:
             except Exception:  # noqa: BLE001
                 pass
         try:
-            r = trackcheck.pruefen(list(points or []), local_time_n=int(local_time_n or 0), geplant=geplant)
+            r = trackcheck.pruefen(list(points or []), local_time_n=int(local_time_n or 0), geplant=geplant,
+                                   aktivitaet=activity or None)
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
         f = trackcheck.filtern(r["befunde"], ok_liste)

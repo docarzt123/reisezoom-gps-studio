@@ -40,6 +40,7 @@ LAUFEN_BIS_KMH = 20.0       # mit Hinweis „laufen": bis hier Laufen
 RAD_AB_KMH = 15.0           # ohne Hinweis: ab hier Rad (8–15 km/h ist unsicher)
 FAHRT_AB_KMH = 35.0         # darüber auf Dauer: Fahrzeug
 FAHRT_MIN_S = 150.0         # … und zwar mindestens so lange am Stück
+FAHRT_OHNE_PUNKTE_M = 2000.0  # ein Segment so lang mit Fahrzeugtempo = Fahrt ohne Aufzeichnung
 
 # Halt: mindestens 3 Minuten innerhalb eines kleinen Kreises. Der Radius liegt
 # über dem gemessenen Knäuel-Radius beim Stehen (Median 25 m, 90 % 30 m).
@@ -302,6 +303,17 @@ def erkennen(points, *, aktivitaet: Optional[str] = None,
     # 1) Übersetzen (Fähre, Flug, Autozug) — schon im Track-Check gemessen
     for u in _tc.uebersetzen(sp):
         setze(u["a"], u["b"], "uebersetzen")
+
+    # 1b) Fahrt ohne Punkte: ein einzelnes langes Segment mit Fahrzeugtempo. In
+    #     einer Tour mit Autofahrt lagen 9,7 km in 13 Minuten ohne einen Punkt
+    #     (GPS im Auto aus) — knapp unter der Übersetzen-Grenze, also sonst ein
+    #     „Tempo-Fehler" mitten in der Wanderung (Prüfsammlung, 13.09.2026).
+    for s in range(n - 1):
+        if etikett[s] is not None or sp.L[s] is None or sp.L[s] < FAHRT_OHNE_PUNKTE_M:
+            continue
+        dt = sp.dt(s, s + 1)
+        if dt and dt > 0 and FAHRT_AB_KMH / 3.6 <= sp.L[s] / dt <= _tc.UEBERSETZEN_FAHRZEUG_MAX_MS:
+            setze(s, s + 1, "fahrt")
 
     # 2) Halte aus der App zuerst (Q8), dann die eigenen dort, wo noch frei ist
     for h in app_halte(sp, wegpunkte or []):

@@ -2318,6 +2318,25 @@ el archivo, cada hallazgo tiene **«Así está bien»**: ese tipo deja de avisar
 (véase Archivo). Si prefieres rellenar huecos siguiendo caminos reales, sigue usando **Sanar
 (automático)** con el perfil de vías; las casillas del cuadro también valen allí.
 
+### 🎯 Sin falsas alarmas: la revisión conoce el modo de desplazamiento (desde v0.9.701)
+La revisión de la ruta juzga cada tramo según **lo que hacías allí**: caminar, bici, correr,
+coche, ferry, parada o pausa. La actividad de la ruta en el archivo ayuda. Se comprobó con más de
+700 rutas reales; alrededor de tres de cada cuatro avisos antiguos resultaron ser falsas alarmas
+y han desaparecido.
+
+- **Valores atípicos (rojo)** solo se señalan si un punto queda realmente fuera del camino a la
+  vista: al menos 40 m y claramente más que el temblor normal de ese tramo.
+- **El temblor al estar parado** (en un mirador, en un café) es una **parada**, no un error.
+- **Un trayecto en coche o tren** en medio de una ruta a pie es **coche**, no un error de velocidad.
+- **Los huecos** cuentan por **movimiento que falta**, no por metros: amarillo a partir de un
+  minuto (unos 80 m caminando, en coche solo pasado un kilómetro), por debajo gris como **hueco
+  pequeño**. Una pausa en una taberna no es un hueco si sales por la misma puerta. Las apps que
+  solo ponen un punto cada varios cientos de metros ya no generan huecos: es su ritmo.
+- **Los puntos duplicados** y **los segundos usados varias veces** son particularidades de la
+  grabación: grises, sin casilla y **se limpian en silencio** con cualquier reparación.
+
+La reparación arregla exactamente lo que señala el cuadro: los huecos que rellena son los que cuenta.
+
 ### 🩹 Auto-sanar: valores atípicos + huecos (desde v0.9.295)
 En lugar de buscar a mano: **🩹 Auto-sanar** escanea todo el track y muestra como **vista previa en el mapa** lo que haría — antes de que se cambie nada:
 - **🟠 Valores atípicos** (naranja) — saltos de GPS que se van *y vuelven*. Se suavizan al sanar.

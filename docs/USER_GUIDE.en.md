@@ -2262,6 +2262,25 @@ finding has **"That's fine as it is"** — the kind is no longer reported for th
 archive). If you prefer to fill gaps along real paths, keep using **Heal (automatic)** with the
 route profile; the ticks in the box apply there too.
 
+### 🎯 No false alarms: the track check knows the movement mode (since v0.9.701)
+The track check judges every stretch by **what you were doing there**: walking, cycling,
+running, driving, ferry, stop or pause. The tour's activity in the archive helps. It was checked
+against more than 700 real tours; about three in four of the old warnings turned out to be false
+alarms and are gone.
+
+- **Spikes (red)** are reported only when a point really lies visibly off the way — at least
+  40 m and clearly more than the normal jitter on that stretch.
+- **Jitter while standing** (at a viewpoint, in a café) is a **stop**, not an error.
+- **A car or train ride** in the middle of a hike is **driving**, not a speed error.
+- **Gaps** count by **missing movement**, not metres: yellow from one minute (about 80 m when
+  walking, only past a kilometre or so in a car), below that grey as a **small gap**. A break in
+  an inn is no gap as long as you come out of the same door. Recording apps that only set a point
+  every few hundred metres no longer produce gaps — that is their rhythm.
+- **Duplicate points** and **seconds used several times** are quirks of the recording: grey, no
+  tick, and **quietly cleaned up** with any repair.
+
+The repair fixes exactly what the box reports — the gaps it fills are the ones it counts.
+
 ### 🩹 Auto-heal: outliers + gaps (since v0.9.295)
 Instead of searching by hand: **🩹 Auto-heal** scans the whole track and shows as a **preview on the map** what it would do — before anything is changed:
 - **🟠 Outliers** (orange) — GPS jumps that fly off *and come back again*. Are smoothed on healing.

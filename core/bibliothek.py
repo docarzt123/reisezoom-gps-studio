@@ -378,6 +378,47 @@ def db_heil(pfad: Path) -> bool:
         return False
 
 
+# Seit v0.9.697 läuft library.db im WAL-Modus: Frische Änderungen stehen in
+# library.db-wal, bis SQLite sie zusammenführt. Wer die Datei roh kopiert,
+# einpackt oder zurückholt, muss das wissen — sonst fehlt in der Kopie das
+# Neueste, oder eine alte -wal-Datei wird auf eine fremde Datenbank angewendet.
+WAL_BEGLEITER = ("-wal", "-shm")
+
+
+def db_zusammenfuehren(pfad: Path) -> bool:
+    """Den WAL-Inhalt in die Hauptdatei schreiben (Checkpoint). Danach enthält
+    library.db allein den ganzen Stand. Scheitert still, wenn gerade geschrieben
+    wird — die Aufrufer nehmen dann die Sicherungs-API."""
+    pfad = Path(pfad)
+    if not pfad.is_file():
+        return False
+    try:
+        con = sqlite3.connect(str(pfad), timeout=10)
+        try:
+            con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        finally:
+            con.close()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def db_schnappschuss(quelle: Path, ziel: Path) -> bool:
+    """Eine in sich stimmige Kopie über die SQLite-Sicherungs-API — nimmt den
+    WAL-Inhalt mit, auch während die App die Datenbank offen hat."""
+    try:
+        con = sqlite3.connect(str(quelle), timeout=10)
+        zcon = sqlite3.connect(str(ziel))
+        try:
+            con.backup(zcon)
+        finally:
+            zcon.close()
+            con.close()
+        return True
+    except sqlite3.Error:
+        return False
+
+
 def db_sichern(ort: Path) -> Optional[Path]:
     """Rollierende Kopie der Datenbank. Nutzt die SQLite-Sicherungs-API,
     damit auch eine geöffnete Datenbank konsistent kopiert wird."""
@@ -431,8 +472,15 @@ def db_wiederherstellen(ort: Path, datei: str) -> dict:
         return {"ok": False, "grund": "sicherung_fehlt"}
     ziel = db_pfad(ort)
     try:
+        stempel = time.strftime("%Y%m%d-%H%M%S")
         if ziel.is_file():
-            ziel.rename(ziel.with_name(f'library-defekt-{time.strftime("%Y%m%d-%H%M%S")}.db'))
+            ziel.rename(ziel.with_name(f'library-defekt-{stempel}.db'))
+        # Die -wal/-shm der kaputten Datenbank gehören zu IHR. Blieben sie liegen,
+        # wendete SQLite sie beim nächsten Öffnen auf die zurückgeholte Sicherung an.
+        for endung in WAL_BEGLEITER:
+            begleiter = ziel.with_name(ziel.name + endung)
+            if begleiter.exists():
+                begleiter.rename(ziel.with_name(f'library-defekt-{stempel}.db{endung}'))
         shutil.copy2(quelle, ziel)
         return {"ok": True}
     except OSError as e:
@@ -804,6 +852,7 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
         return teile[0] not in aus
 
     dateien = []
+    db = db_pfad(ort)
     for f in ort.rglob("*"):
         if not f.is_file():
             continue
@@ -811,8 +860,20 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
             rel = f.relative_to(ort)
         except ValueError:
             continue
+        # Die Datenbank kommt unten als stimmiger Schnappschuss — nie roh und nie
+        # getrennt von ihrem WAL-Inhalt.
+        if f == db or any(f.name == db.name + e for e in WAL_BEGLEITER):
+            continue
         if mitnehmen(rel):
             dateien.append((f, rel))
+    schnapp = None
+    if db.is_file():
+        schnapp = ziel.with_name(ziel.name + f".db{os.getpid()}")
+        if db_schnappschuss(db, schnapp):
+            dateien.insert(0, (schnapp, db.relative_to(ort)))
+        else:
+            schnapp = None
+            dateien.insert(0, (db, db.relative_to(ort)))
 
     ziel.parent.mkdir(parents=True, exist_ok=True)
     tmp = ziel.with_name(ziel.name + f".teil{os.getpid()}")
@@ -837,6 +898,12 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
         except OSError:
             pass
         return {"ok": False, "error": str(e)}
+    finally:
+        if schnapp is not None:
+            try:
+                schnapp.unlink()
+            except OSError:
+                pass
     return {"ok": True, "pfad": str(ziel), "dateien": len(dateien),
             "bytes": ziel.stat().st_size, "roh_bytes": roh, "alles": bool(alles)}
 
@@ -954,6 +1021,9 @@ def umziehen(alt: Path, neu: Path, melden=None) -> dict:
     if neu.exists() and any(neu.iterdir() if neu.is_dir() else [1]):
         return {"ok": False, "grund": "ziel_nicht_leer"}
     try:
+        # Erst den WAL-Inhalt in die Hauptdatei — dann ist die Kopie auch dann
+        # vollständig, wenn die -wal-Datei beim Kopieren gerade wächst.
+        db_zusammenfuehren(db_pfad(alt))
         if melden:
             melden("kopiere")
         shutil.copytree(alt, neu, dirs_exist_ok=True,

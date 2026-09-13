@@ -117,6 +117,19 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.701</span>
+    <span class="version-date">13 September 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <ul>
+    <li><strong>Library safety after the database change</strong> &mdash; Since v0.9.697 the library writes to a side file first. Four places did not know that yet: the automatic cloud sync noticed new tours too late, the ZIP backup packed the database raw, restoring a backup left the broken database's side file behind, and moving the library did not merge it first. All four are fixed and checked against a database whose newest entries live only in the side file.</li>
+    <li><strong>The track check now knows the movement mode &mdash; and stops raising false alarms</strong> &mdash; Every stretch is judged by what you were doing there: walking, cycling, running, driving, ferry, stop or pause. Spikes are reported only when a point really lies visibly off the way; jitter while standing is a stop; a car ride in the middle of a hike is driving, not a speed error; gaps count by missing movement rather than metres, small ones show grey; and duplicate points are quietly cleaned up with any repair. Measured over more than 700 real tours: <strong>red from 16 to 2</strong> &mdash; exactly the two that really are spikes &mdash; and <strong>yellow from 146 to 88</strong>. The repair fixes exactly what the box reports.</li>
+    <li><strong>The repair no longer invents speed errors</strong> &mdash; Missing timestamps at the start or end were filled in one-second steps and then looked like 360 km/h. They now continue at the tour's real speed.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.700</span>
     <span class="version-date">13 September 2026</span>
     <span class="version-badge">Current</span>

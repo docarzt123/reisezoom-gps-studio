@@ -1105,7 +1105,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     # 10.09.2026 — Track-Check gleich beim Einlesen: die Punkte liegen hier
     # ohnehin im Speicher, ein zweites Öffnen wäre der teure Teil (2–20 ms
     # je Tour, gemessen). Ein Fehler darin darf den Index nie kippen.
-    row.update(_check_werte(pts, stats, path.name, geplant=not _rec))
+    row.update(_check_werte(pts, stats, path.name, geplant=not _rec, aktivitaet=row.get("activity")))
 
     thumb = thumbs_dir / f"{row['geo_hash']}.png"
     if not thumb.exists():
@@ -1984,11 +1984,13 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
 
 # ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ─────────────────────────────
 
-def _check_werte(pts, stats, name: str = "", geplant: bool = False) -> dict:
-    """Befunde zählen → die drei Spalten. Nie eine Ausnahme nach draußen."""
+def _check_werte(pts, stats, name: str = "", geplant: bool = False,
+                 aktivitaet: Optional[str] = None) -> dict:
+    """Befunde zählen → die drei Spalten. Nie eine Ausnahme nach draußen.
+    `aktivitaet` (wandern, rad …) ist der Hinweis für die Schwellen je Bewegungsart."""
     try:
         r = _trackcheck.pruefen(pts, local_time_n=int(getattr(stats, "zeit_ohne_zone", 0) or 0),
-                                geplant=bool(geplant))
+                                geplant=bool(geplant), aktivitaet=aktivitaet or None)
         return {"check_json": json.dumps(r["befunde"], separators=(",", ":"), ensure_ascii=False),
                 "check_stufe": r["hoechste"], "check_ts": _now_iso()}
     except Exception as e:  # noqa: BLE001
@@ -2027,14 +2029,16 @@ def punkte_lesen(path: str, import_cache: Path):
 @_locked
 def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -> dict:
     """Eine Datei (neu) prüfen und die Spalten schreiben. Liefert den Check-Block."""
-    r = conn.execute("SELECT path, filename, recorded, recorded_user FROM tracks WHERE path = ?", (path,)).fetchone()
+    r = conn.execute("SELECT path, filename, recorded, recorded_user, activity FROM tracks WHERE path = ?",
+                     (path,)).fetchone()
     if not r:
         return {"ok": False, "error": "nicht im Archiv"}
     try:
         pts, stats = punkte_lesen(path, import_cache)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
-    w = _check_werte(pts, stats, r["filename"] or "", geplant=not ist_aufgezeichnet(r))
+    w = _check_werte(pts, stats, r["filename"] or "", geplant=not ist_aufgezeichnet(r),
+                     aktivitaet=r["activity"] or None)
     if not w["check_ts"]:
         return {"ok": False, "error": "Prüfung fehlgeschlagen"}
     conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",

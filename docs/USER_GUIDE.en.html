@@ -1698,6 +1698,23 @@ python app.py</code></pre>
 <h3 id="the-findings-box-track-check-on-opening">🩺 The findings box — track check on opening</h3>
 <p>As soon as a track is in the Inspector, the findings box sits <strong>at the very top</strong>: &quot;Track check: 2 spikes, 1 gap (240 m), clock is wrong (1989)&quot;. Every line has a <strong>checkbox</strong> — red and yellow preselected, grey notes not — and <strong>&quot;🩹 Repair&quot;</strong> runs exactly the ticked steps: put spikes on the line (time stays), fill gaps — with the profile from <strong>“Fill gaps as”</strong> along real paths (preset from the tour&#x27;s activity, otherwise estimated from speed; straight line only for “Straight line”, without network or when the route would be a detour), smooth impossible speed (distance stays, the tour gets a few seconds longer), fix time running backwards, remove duplicate points, spread repeated seconds, collapse standstill drift onto one spot (the pause stays a pause), interpolate garbage and missing elevation, drop cold-start points. Then the <strong>before → after</strong> box appears, <strong>⌘Z</strong> takes everything back, and the track check runs again — what is repaired disappears from the box.</p>
 <p>Findings without an automatic fix get a jump instead of a checkbox: &quot;clock is wrong&quot; leads to <strong>Set times</strong>, &quot;no timestamps&quot; to <strong>Create timeline</strong>. If the tour is in the archive, each finding has <strong>&quot;That&#x27;s fine as it is&quot;</strong> — the kind is no longer reported for this tour (see archive). If you prefer to fill gaps along real paths, keep using <strong>Heal (automatic)</strong> with the route profile; the ticks in the box apply there too.</p>
+<h3 id="no-false-alarms-the-track-check-knows-the-movement-mode">🎯 No false alarms: the track check knows the movement mode</h3>
+<p>The track check judges every stretch by <strong>what you were doing there</strong>: walking, cycling, running, driving, ferry, stop or pause. The tour&#x27;s activity in the archive helps. It was checked against more than 700 real tours; about three in four of the old warnings turned out to be false alarms and are gone.</p>
+<ul>
+<li><strong>Spikes (red)</strong> are reported only when a point really lies visibly off the way — at least</li>
+</ul>
+<p> 40 m and clearly more than the normal jitter on that stretch.</p>
+<ul>
+<li><strong>Jitter while standing</strong> (at a viewpoint, in a café) is a <strong>stop</strong>, not an error.</li>
+<li><strong>A car or train ride</strong> in the middle of a hike is <strong>driving</strong>, not a speed error.</li>
+<li><strong>Gaps</strong> count by <strong>missing movement</strong>, not metres: yellow from one minute (about 80 m when</li>
+</ul>
+<p> walking, only past a kilometre or so in a car), below that grey as a <strong>small gap</strong>. A break in  an inn is no gap as long as you come out of the same door. Recording apps that only set a point  every few hundred metres no longer produce gaps — that is their rhythm.</p>
+<ul>
+<li><strong>Duplicate points</strong> and <strong>seconds used several times</strong> are quirks of the recording: grey, no</li>
+</ul>
+<p> tick, and <strong>quietly cleaned up</strong> with any repair.</p>
+<p>The repair fixes exactly what the box reports — the gaps it fills are the ones it counts.</p>
 <h3 id="auto-heal-outliers-gaps">🩹 Auto-heal: outliers + gaps</h3>
 <p>Instead of searching by hand: <strong>🩹 Auto-heal</strong> scans the whole track and shows as a <strong>preview on the map</strong> what it would do — before anything is changed:</p>
 <ul>

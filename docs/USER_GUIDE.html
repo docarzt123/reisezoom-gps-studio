@@ -1816,6 +1816,23 @@ python app.py</code></pre>
 <h3 id="der-befund-kasten-track-check-beim-ffnen">🩺 Der Befund-Kasten — Track-Check beim Öffnen</h3>
 <p>Sobald ein Track im Inspektor liegt, steht <strong>ganz oben</strong> der Befund-Kasten: „Track-Check: 2 Sprünge, 1 Lücke (240 m), Uhr steht falsch (1989)&quot;. Jede Zeile hat ein <strong>Häkchen</strong> — rot und gelb sind vorbelegt, graue Hinweise nicht — und <strong>„🩹 Reparieren&quot;</strong> führt genau die angehakten Schritte aus: Sprünge auf die Linie legen (Zeit bleibt), Lücken füllen — mit dem Profil aus <strong>„Lücken füllen als“</strong> entlang echter Wege (vorbelegt aus der Fortbewegungsart der Tour, sonst aus dem Tempo geschätzt; Luftlinie nur bei „Luftlinie“, ohne Netz oder wenn die Route ein Umweg wäre), unmögliches Tempo entzerren (Strecke bleibt, die Tour wird ein paar Sekunden länger), Zeit rückwärts glätten, Doppelpunkte entfernen, gleiche Sekunden verteilen, Standdrift auf einen Ort zusammenziehen (die Pause bleibt eine Pause), Höhen-Müll und fehlende Höhen interpolieren, Kaltstart-Punkte verwerfen. Danach erscheint der <strong>Vorher → Nachher</strong>-Kasten, <strong>⌘Z</strong> nimmt alles zurück, und der Track-Check läuft neu — was repariert ist, verschwindet aus dem Kasten.</p>
 <p>Befunde ohne Automatik bekommen einen Sprung statt eines Häkchens: „Uhr steht falsch&quot; führt zu <strong>Zeiten setzen</strong>, „ohne Zeitstempel&quot; zu <strong>Zeitachse erzeugen</strong>. Liegt die Tour im Archiv, steht je Befund <strong>„Ist so in Ordnung&quot;</strong> — die Art wird für diese Tour nicht mehr gemeldet (siehe Archiv). Wer Lücken lieber entlang echter Wege füllt, nimmt weiter <strong>Heilen (automatisch)</strong> mit dem Wege-Profil; die Häkchen im Kasten gelten dort mit.</p>
+<h3 id="keine-fehlalarme-der-track-check-kennt-die-bewegungsart">🎯 Keine Fehlalarme: Der Track-Check kennt die Bewegungsart</h3>
+<p>Der Track-Check misst jede Stelle an dem, <strong>was du dort gemacht hast</strong>: Gehen, Rad, Laufen, Fahrt, Fähre, Halt oder Pause. Die Aktivität der Tour im Archiv hilft dabei. Geprüft wurde das an über 700 echten Touren; dabei sind rund drei von vier alten Warnungen als Fehlalarm weggefallen.</p>
+<ul>
+<li><strong>Ausreißer (rot)</strong> meldet er nur, wenn ein Punkt wirklich sichtbar neben dem Weg liegt</li>
+</ul>
+<p> mindestens 40 m und deutlich mehr als das normale Zittern auf diesem Abschnitt.</p>
+<ul>
+<li><strong>Zittern beim Stehen</strong> (am Aussichtspunkt, im Café) ist ein <strong>Halt</strong>, kein Fehler.</li>
+<li><strong>Eine Autofahrt oder Zugfahrt</strong> mitten in einer Wanderung ist <strong>Fahrt</strong>, kein Tempo-Fehler.</li>
+<li><strong>Lücken</strong> zählen nach <strong>fehlender Bewegung</strong>, nicht nach Metern: gelb ab einer Minute (beim</li>
+</ul>
+<p> Gehen etwa ab 80 m, im Auto erst ab gut einem Kilometer), darunter grau als <strong>kleine Lücke</strong>.  Die Pause im Wirtshaus ist keine Lücke, solange du an derselben Tür wieder herauskommst.  Aufzeichnungs-Apps, die nur alle paar hundert Meter einen Punkt setzen, erzeugen keine Lücken  mehr — das ist ihr Rhythmus.</p>
+<ul>
+<li><strong>Doppelpunkte</strong> und <strong>mehrfach belegte Sekunden</strong> sind Eigenheiten der Aufzeichnung: grau,</li>
+</ul>
+<p> ohne Häkchen, und beim Reparieren <strong>still mit bereinigt</strong>.</p>
+<p>Repariert wird genau das, was der Kasten meldet — die Lücken, die er füllt, sind dieselben, die er zählt.</p>
 <h3 id="auto-heilen-ausrei-er-l-cken">🩹 Auto-Heilen: Ausreißer + Lücken</h3>
 <p>Statt von Hand zu suchen: <strong>🩹 Auto-Heilen</strong> scannt den ganzen Track und zeigt als <strong>Vorschau auf der Karte</strong>, was es tun würde — bevor etwas geändert wird:</p>
 <ul>

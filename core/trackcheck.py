@@ -36,11 +36,15 @@ STUFEN: Dict[str, str] = {
     "ele_garbage": "rot",
     "xml_broken": "rot",          # kommt aus core/gpxrepair, nicht aus den Punkten
     "gaps": "gelb",
+    # 13.09.2026 (Q17): Löcher unter 60 s fehlender Wegzeit — sichtbar, reparierbar, kein Alarm.
+    "gaps_klein": "grau",
     "missing_ele": "gelb",
     "tempo": "gelb",
     "backwards": "gelb",
-    "duplicates": "gelb",
-    "spread_seconds": "gelb",
+    # 13.09.2026 (Q3, Marc): Eigenheiten der Aufzeichnung, kein Fehler des Nutzers —
+    # grau, beim Reparieren still mit bereinigt.
+    "duplicates": "grau",
+    "spread_seconds": "grau",
     "standstill": "gelb",
     "clock_off": "gelb",
     "no_time": "grau",
@@ -85,7 +89,7 @@ PAUSE_M = 100.0                  # … höchstens 100 m weiter = Wirtshaus (Hand
 # Aufzeichnungs-Phänomene: bei GEPLANTEN Routen (Komoot-Planung trägt Kunst-Zeiten!) nie ein
 # Befund — dort sind weite Punktabstände und krumme Zeiten die Natur der Sache. Gemessen an
 # Marcs Archiv (10.09.2026): 303 von 313 geplanten Touren hätten „Lücken" gemeldet.
-NUR_AUFZEICHNUNG = ("spikes", "cold_start", "gaps", "tempo", "backwards", "duplicates",
+NUR_AUFZEICHNUNG = ("spikes", "cold_start", "gaps", "gaps_klein", "tempo", "backwards", "duplicates",
                     "spread_seconds", "standstill", "clock_off")
 KALTSTART_MIN_M = 500.0
 KALTSTART_FAKTOR = 20.0
@@ -280,7 +284,11 @@ def uebersetzen(sp: _Spur) -> List[dict]:
         if L is None or L < UEBERSETZEN_MIN_M or i in sp.ausgeschlossen:
             continue
         dt = sp.dt(i, i + 1)
-        if dt is not None and dt > 0:
+        # Ohne Zeit kein Übersetzen: Eine geplante Route (KML ohne Zeiten) bekam
+        # sonst eins, sobald zwei Punkte 10 km auseinanderlagen (Prüfsammlung).
+        if dt is None:
+            continue
+        if dt > 0:
             v = L / dt
             grenze = (UEBERSETZEN_MAX_MS if L >= UEBERSETZEN_FLUG_AB_M
                       else UEBERSETZEN_FAHRZEUG_MAX_MS)
@@ -368,7 +376,8 @@ def _median_je_punkt(sp: _Spur) -> List[float]:
     return werte
 
 
-def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD) -> dict:
+def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
+                   med_je_punkt: Optional[List[float]] = None) -> dict:
     """Portierung von detectSpikes (Inspektor). Gruppen aufeinanderfolgender Ausreißer-
     Punkte {a, b, von, bis}: a/b sind die gesunden Nachbarn. Zusätzlich wird jede Gruppe
     eingeteilt: `spikes` springt raus UND zurück (Positionen auf die Linie legen),
@@ -389,7 +398,8 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD) -> dict:
     # 12.09.2026 (IDEAS §63) — die Tempo-Schwelle je ABSCHNITT statt über den ganzen
     # Track. In einer Womo-Reise mit Spaziergängen lag die globale Schwelle bei
     # 539 km/h; im Fußabschnitt konnte damit nie etwas auffallen.
-    med_je_punkt = _median_je_punkt(sp) if have_time else []
+    if med_je_punkt is None:
+        med_je_punkt = _median_je_punkt(sp) if have_time else []
 
     def _schwelle(i: int) -> float:
         if not med_je_punkt:
@@ -611,8 +621,296 @@ def zeit_befunde(sp: _Spur) -> dict:
 
 # ── Zählung ──────────────────────────────────────────────────────────────────
 
+# ── Schwellen je Bewegungsart (13.09.2026, docs/IDEAS.md §67 Schritt 3) ─────
+#
+# Marc: „Es sollte keine Fehlalarme geben, egal wie ein Track aussieht" — und in
+# Runde 2: jede Schwelle richtet sich nach der Bewegungsart des Abschnitts. Diese
+# Funktionen sind die EINE Stelle, an der entschieden wird. Check, Reparatur
+# (core/gpxheal), Tour-Assistent und Inspektor fragen alle hier, damit nie ein
+# Punkt repariert wird, der nicht gemeldet wurde.
+#
+# Gefittet an der Prüfsammlung (tests/pruefsammlung) und am Archiv des Autors:
+# 15 von 18 roten „Ausreißern" lagen unter 40 m neben der Linie (Handy-Zittern),
+# 95 von 129 Tempo-Befunden hatten keinen sichtbaren Versatz.
+# Q13: darunter ist ein Ausreißer auf keiner Karte zu sehen … Gemessen: 15 von 18
+# roten „Ausreißern" im Archiv lagen unter 40 m (Zittern, Kaltstart); die angesehenen
+# echten lagen bei 78–170 m. Mit 20 m blieben drei 21–25-m-Kerben rot, die im Video
+# niemand sieht (13.09.2026, Bilder im Verlauf).
+VERSATZ_MIN_M = 40.0
+VERSATZ_STREUUNG = 4.0        # … und er muss deutlich über der Streuung SEINES Abschnitts liegen
+# Tempo-Befund nur, wenn der zu schnelle Sprung sichtbar ist — dieselbe Grenze wie beim
+# Ausreißer. Mit 150 m verschwand ein 60-m-Querversatz in 2 s, den man im Video sieht
+# (test_trackcheck, 13.09.2026); Zeitstempel-Hopser liegen bei 15–31 m.
+TEMPO_MIN_WEG_M = VERSATZ_MIN_M
+LUECKE_WEGZEIT_GELB_S = 60.0  # Q17: fehlende Wegzeit ab hier gelb …
+LUECKE_WEGZEIT_GRAU_S = 20.0  # … ab hier grau, darunter gar nichts
+HALT_RADIUS_M = 40.0          # wie core/bewegung: Wiederempfang nach einer Pause
+KNAEUEL_IM_HALT = 0.8         # Q18: so viel eines Knäuels im Halt → kein Befund
+# Wegzeit wird mit mindestens dem NORMALEN Tempo der Bewegungsart gerechnet. Sonst
+# macht ein steiler Hang mit 0,9 km/h aus 57 m zwei Minuten „fehlende Bewegung"
+# (Teide, Prüfsammlung). Gehen: Median im Archiv 4,4 km/h (2-Minuten-Fenster).
+# Q2 im Raum: Strecken-Logger (Geory: Median 193 m) schreiben nie dichter. Ein
+# Abstand unter dem Dreifachen des üblichen Punktabstands ist ihr Rhythmus, keine
+# fehlenden Daten — höchstens grau. Bei Handy-Aufnahmen (~11 m) greift das nie.
+RHYTHMUS_FAKTOR = 3.0
+MINDEST_TEMPO_MS = {"gehen": 4.4 / 3.6, "laufen": 8.0 / 3.6, "rad": 12.0 / 3.6,
+                    "fahrt": 30.0 / 3.6, "unsicher": 4.4 / 3.6}
+FAHRZEUG_ARTEN = ("fahrt", "uebersetzen")
+
+
+def bewegung_von(sp: _Spur, aktivitaet: Optional[str] = None) -> Optional[dict]:
+    """Die Bewegungserkennung (core/bewegung) — einmal je Spur gerechnet."""
+    schluessel = aktivitaet or ""
+    zwischen = getattr(sp, "_bew", None)
+    if zwischen is not None and zwischen[0] == schluessel:
+        return zwischen[1]
+    ergebnis = None
+    if sp.alle_zeit and sp.n >= 3:
+        try:
+            from . import bewegung as _bw   # spät: bewegung importiert dieses Modul
+            ergebnis = _bw.erkennen(sp, aktivitaet=aktivitaet)
+        except Exception:  # noqa: BLE001 — ohne Erkennung gelten die alten Schwellen
+            ergebnis = None
+    sp._bew = (schluessel, ergebnis)
+    return ergebnis
+
+
+def _bereich_je_segment(sp: _Spur, bew: Optional[dict]) -> List[Optional[dict]]:
+    raus: List[Optional[dict]] = [None] * max(0, sp.n - 1)
+    for b in (bew or {}).get("bereiche") or []:
+        for s_ in range(b["von"], min(b["bis"], sp.n - 1)):
+            raus[s_] = b
+    return raus
+
+
+def _querabstand(sp: _Spur, a: int, b: int, k: int) -> float:
+    """Abstand des Punkts k von der Linie a→b in Metern (flach genähert)."""
+    kx = 111320.0 * math.cos(math.radians(sp.lat[a]))
+    ky = 110540.0
+    ax, ay = sp.lon[a] * kx, sp.lat[a] * ky
+    bx, by = sp.lon[b] * kx, sp.lat[b] * ky
+    px, py = sp.lon[k] * kx, sp.lat[k] * ky
+    dx, dy = bx - ax, by - ay
+    l2 = dx * dx + dy * dy
+    if l2 <= 0:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / l2))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def _streuung(sp: _Spur, von: int, bis: int, cache: dict) -> float:
+    """Typischer seitlicher Versatz im Bereich: wie weit ein Punkt normal neben der
+    Linie seiner Nachbarn liegt. Beim Wandern mit dem Handy wenige Meter."""
+    key = (von, bis)
+    if key in cache:
+        return cache[key]
+    idx = list(range(max(1, von + 1), min(sp.n - 1, bis)))
+    if len(idx) > 400:
+        schritt = len(idx) / 400.0
+        idx = [idx[int(k * schritt)] for k in range(400)]
+    werte = [_querabstand(sp, k - 1, k + 1, k) for k in idx]
+    cache[key] = _median(werte) if werte else 0.0
+    return cache[key]
+
+
+def _mediane_aus_bewegung(sp: _Spur, bereich_seg: List[Optional[dict]]) -> List[float]:
+    """Tempo-Median je Punkt aus SEINEM Bereich (Gehen, Rad, Fahrt …) statt aus
+    Abschnitten zwischen Pausen: in einer Wanderung mit Autofahrt bekommt das
+    Gehen seine Geh-Schwelle und die Fahrt ihre Fahrt-Schwelle (Q13, Q16)."""
+    gesamt = median_tempo(sp)
+    je_bereich: dict = {}
+    werte = [gesamt] * max(1, sp.n)
+    for i in range(sp.n - 1):
+        b = bereich_seg[i]
+        if b is None:
+            continue
+        key = id(b)
+        if key not in je_bereich:
+            tempi = []
+            for k in range(b["von"], min(b["bis"], sp.n - 1)):
+                dt = sp.dt(k, k + 1)
+                if dt and dt > 0 and sp.L[k]:
+                    v = sp.L[k] / dt
+                    if v > 0.3:
+                        tempi.append(v)
+            je_bereich[key] = (_median(tempi) if len(tempi) >= 5 else 0.0) or gesamt
+        werte[i] = je_bereich[key]
+        werte[i + 1] = je_bereich[key]
+    return werte
+
+
+def standdrift_ausser_halt(sp: _Spur, aktivitaet: Optional[str] = None) -> dict:
+    """Stillstand-Knäuel, getrennt nach „liegt im Halt" (kein Befund, Q18) und Rest."""
+    sd = standdrift(sp)
+    bew = bewegung_von(sp, aktivitaet)
+    if not sd or not bew:
+        return {"befund": sd, "im_halt": []}
+    halt_seg = set()
+    for b in bew["bereiche"]:
+        if b["art"] in ("halt", "pause"):
+            halt_seg.update(range(b["von"], b["bis"]))
+    befund, im_halt = [], []
+    for x in sd:
+        segs = range(x["a"], x["b"])
+        anteil = sum(1 for k in segs if k in halt_seg) / max(1, len(segs))
+        (im_halt if anteil >= KNAEUEL_IM_HALT else befund).append(x)
+    return {"befund": befund, "im_halt": im_halt}
+
+
+def sprung_gefiltert(sp: _Spur, stufe: float = STUFE_STANDARD,
+                     aktivitaet: Optional[str] = None) -> dict:
+    """Ausreißer und Tempo-Sprünge, die man SIEHT (Q13) — je Bewegungsart.
+
+    Wie `sprung_gruppen`, aber:
+    - in Halten wird nicht gesucht (Zittern beim Stehen ist ein Halt, Q18),
+    - die Tempo-Schwelle kommt aus dem eigenen Bereich (Gehen, Rad, Fahrt),
+    - ein Ausreißer zählt erst ab `VERSATZ_MIN_M` und deutlich über der Streuung
+      seines Bereichs,
+    - ein Tempo-Sprung zählt nicht in Fahrt/Übersetzen (Q16) und nur, wenn die
+      verzerrte Strecke sichtbar lang ist.
+    Ohne Zeit oder ohne Erkennung gelten die bisherigen Regeln unverändert.
+    """
+    bew = bewegung_von(sp, aktivitaet)
+    if not bew:
+        sg = sprung_gruppen(sp, stufe)
+        sg["verworfen"] = {"spikes": 0, "tempo": 0}
+        return sg
+    bereich_seg = _bereich_je_segment(sp, bew)
+    for i, b in enumerate(bereich_seg):
+        if b is not None and b["art"] == "halt":
+            sp.ausgeschlossen.add(i)
+    sg = sprung_gruppen(sp, stufe, med_je_punkt=_mediane_aus_bewegung(sp, bereich_seg))
+    cache: dict = {}
+    spikes, tempo, flags = [], [], set()
+    weg_spikes = weg_tempo = 0
+    for g in sg["spikes"]:
+        b = bereich_seg[min(g["von"], len(bereich_seg) - 1)] if bereich_seg else None
+        versatz = max(_querabstand(sp, g["a"], g["b"], k) for k in range(g["von"], g["bis"] + 1))
+        grenze = VERSATZ_MIN_M
+        if b is not None:
+            grenze = max(grenze, VERSATZ_STREUUNG * _streuung(sp, b["von"], b["bis"], cache))
+        if versatz >= grenze:
+            g["versatz_m"] = round(versatz, 1)
+            spikes.append(g)
+            flags.update(range(g["von"], g["bis"] + 1))
+        else:
+            weg_spikes += 1
+    med = _mediane_aus_bewegung(sp, bereich_seg)
+    for g in sg["tempo"]:
+        arten = {bereich_seg[k]["art"] for k in range(g["a"], min(g["b"], len(bereich_seg)))
+                 if bereich_seg[k] is not None}
+        # Nur die Segmente, die wirklich zu schnell waren — nicht der langsame
+        # Nachbar. Ein 31-m-Hopser neben 104 m Gehen ist kein 135-m-Befund
+        # (Teufelsmauer, Prüfsammlung).
+        weg = 0.0
+        for k in range(g["a"], g["b"]):
+            dt = sp.dt(k, k + 1)
+            if sp.L[k] and dt and dt > 0 and sp.L[k] / dt > 3.0 * max(med[k], 0.5):
+                weg += sp.L[k]
+        if arten & set(FAHRZEUG_ARTEN) or weg < TEMPO_MIN_WEG_M:
+            weg_tempo += 1
+            continue
+        tempo.append(g)
+        flags.update(range(g["von"], g["bis"] + 1))
+    return {"spikes": spikes, "tempo": tempo, "flags": flags, "speed_thr": sg["speed_thr"],
+            "schwellen_je_abschnitt": sg.get("schwellen_je_abschnitt", []),
+            "verworfen": {"spikes": weg_spikes, "tempo": weg_tempo}}
+
+
+def luecken_je_art(sp: _Spur, stufe: float = STUFE_STANDARD, spacing: float = LUECKE_ABSTAND_M,
+                   flags: Optional[set] = None, aktivitaet: Optional[str] = None) -> List[dict]:
+    """Lücken nach FEHLENDER WEGZEIT statt nach Metern (Q17, Q2).
+
+    Für jede Lücke: Abstand ÷ Tempo des Bereichs, abzüglich des normalen
+    Aufzeichnungstakts dort. Beim Spaziergang sind so 100 m schon viel, bei
+    einer Autofahrt 1 km nicht, und ein Strecken-Logger mit 200 m Takt erzeugt
+    gar keine. Die Pause im Wirtshaus (lange Zeit, wenig Weg) ist keine Lücke.
+    Rückgabe wie `luecken`, dazu `fehlend_s` und `stufe` (gelb | grau).
+    """
+    flags = flags or set()
+    bew = bewegung_von(sp, aktivitaet)
+    if not bew:
+        return [dict(g, stufe="gelb") for g in luecken(sp, stufe, spacing, flags)]
+    bereich_seg = _bereich_je_segment(sp, bew)
+    ueber = set()
+    for b in bew["bereiche"]:
+        if b["art"] == "uebersetzen":
+            ueber.update(range(b["von"], b["bis"]))
+
+    stat: dict = {}
+
+    def kennzahlen(b):
+        key = id(b)
+        if key not in stat:
+            dts, tempi = [], []
+            for k in range(b["von"], min(b["bis"], sp.n - 1)):
+                dt = sp.dt(k, k + 1)
+                if dt and dt > 0 and sp.L[k] is not None:
+                    dts.append(dt)
+                    if sp.L[k] / dt > 0.3:
+                        tempi.append(sp.L[k] / dt)
+            stat[key] = (_median(tempi) if tempi else 0.0, _median(dts) if dts else 0.0)
+        return stat[key]
+
+    def nachbar(i, schritt):
+        k = i + schritt
+        while 0 <= k < len(bereich_seg):
+            c = bereich_seg[k]
+            if c is not None and c["art"] not in ("halt", "pause", "uebersetzen"):
+                return c
+            k += schritt
+        return None
+
+    def bewegte_bereiche(i):
+        """Der Bereich, in dem die Lücke liegt — bei einer Pause BEIDE Nachbarn:
+        Nach dem Parken zählt, womit man weitergefahren ist. Mit dem Tempo des
+        kurzen Fußwegs davor wurden aus 1,6 km Womo-Fahrt 16 Minuten „fehlendes
+        Gehen" (Reise in der Prüfsammlung, 67 von 69 Lücken)."""
+        b = bereich_seg[i]
+        if b is not None and b["art"] not in ("halt", "pause"):
+            return [b]
+        return [c for c in (nachbar(i, -1), nachbar(i, +1)) if c is not None]
+
+    out = []
+    for i in range(sp.n - 1):
+        L = sp.L[i]
+        if L is None or i in ueber or i in flags or (i + 1) in flags or i in sp.ausgeschlossen:
+            continue      # ausgeschlossen: Kaltstart, Knäuel (wie in `luecken`)
+        dt = sp.dt(i, i + 1)
+        if dt is not None and dt > NACHTPAUSE_S and L > NACHTPAUSE_M:
+            continue
+        hier = bereich_seg[i]
+        if hier is not None and hier["art"] == "halt":
+            continue          # beim Stehen gibt es keine Lücken, nur Zittern (Q18)
+        kandidaten = bewegte_bereiche(i)
+        if not kandidaten:
+            continue
+        # Das schnellere Tempo gewinnt: lieber eine Lücke übersehen als eine
+        # erfinden (Q20).
+        v, takt = 0.0, 0.0
+        for c in kandidaten:
+            vc, tc = kennzahlen(c)
+            vc = max(vc, MINDEST_TEMPO_MS.get(c["art"], 0.0))
+            if vc > v:
+                v, takt = vc, tc
+        if v <= 0:
+            continue
+        # Nach einer Pause: Die ersten Meter bis zum Wiederempfang zählen nicht.
+        # Raus an derselben Tür (40 m) ist keine Lücke, 300 m weiter schon (Q17).
+        strecke = max(0.0, L - HALT_RADIUS_M) if (hier is not None and hier["art"] == "pause") else L
+        fehlend = strecke / v - takt
+        if fehlend < LUECKE_WEGZEIT_GRAU_S:
+            continue
+        stufe_ = "gelb" if fehlend >= LUECKE_WEGZEIT_GELB_S else "grau"
+        if stufe_ == "gelb" and sp.med_seg and L < RHYTHMUS_FAKTOR * sp.med_seg:
+            stufe_ = "grau"
+        out.append({"a": i, "b": i + 1, "dist": L, "fehlend_s": round(fehlend, 1), "stufe": stufe_})
+    return out
+
+
 def pruefen(points, *, stufe: float = STUFE_STANDARD, local_time_n: int = 0,
-            spacing: float = LUECKE_ABSTAND_M, geplant: bool = False) -> dict:
+            spacing: float = LUECKE_ABSTAND_M, geplant: bool = False,
+            aktivitaet: Optional[str] = None) -> dict:
     """Alle Befunde eines Tracks zählen (keine Änderung an den Punkten).
     `geplant` = Route aus der Planung: nur Höhen- und Zeit-Hinweise (NUR_AUFZEICHNUNG entfällt)."""
     t0 = _time.perf_counter()
@@ -640,12 +938,13 @@ def pruefen(points, *, stufe: float = STUFE_STANDARD, local_time_n: int = 0,
         sp.ausgeschlossen.update(range(0, ks["n"]))
     # Standdrift VOR den Sprüngen: das Gezitter im Knäuel ist kein Sprung, es wird
     # als Ganzes zusammengezogen (gpxheal macht es in derselben Reihenfolge).
-    sd = standdrift(sp)
+    sda = standdrift_ausser_halt(sp, aktivitaet)
+    sd = sda["befund"]
     if sd:
         add("standstill", len(sd), stellen=[x["a"] for x in sd],
             min=round(sum(x["s"] for x in sd) / 60.0))
-        for x in sd:
-            sp.ausgeschlossen.update(range(x["a"], x["b"] + 1))
+    for x in sd + sda["im_halt"]:
+        sp.ausgeschlossen.update(range(x["a"], x["b"] + 1))
     # 12.09.2026 — Übersetzen zuerst: Fähre, Flug und Autozug sind weder Ausreißer
     # noch Lücke. Sie werden nur benannt, nie repariert, und nehmen an den beiden
     # folgenden Erkennungen nicht teil (`uebersetzen` wird dort erneut gerufen).
@@ -654,13 +953,18 @@ def pruefen(points, *, stufe: float = STUFE_STANDARD, local_time_n: int = 0,
         add("uebersetzen", len(ub), stellen=[u["a"] for u in ub],
             max_km=round(max(u["dist"] for u in ub) / 1000),
             km_gesamt=round(sum(u["dist"] for u in ub) / 1000))
-    sg = sprung_gruppen(sp, stufe)
+    sg = sprung_gefiltert(sp, stufe, aktivitaet)
     add("spikes", len(sg["spikes"]), stellen=[g["von"] for g in sg["spikes"]])
     add("tempo", len(sg["tempo"]), stellen=[g["von"] for g in sg["tempo"]])
-    lk = luecken(sp, stufe, spacing, sg["flags"] | {u["a"] for u in ub})
-    if lk:
-        add("gaps", len(lk), stellen=[g["a"] for g in lk],
-            max_m=round(max(g["dist"] for g in lk)))
+    lk = luecken_je_art(sp, stufe, spacing, sg["flags"] | {u["a"] for u in ub}, aktivitaet)
+    gelb = [g for g in lk if g["stufe"] == "gelb"]
+    grau = [g for g in lk if g["stufe"] == "grau"]
+    if gelb:
+        add("gaps", len(gelb), stellen=[g["a"] for g in gelb],
+            max_m=round(max(g["dist"] for g in gelb)))
+    if grau:
+        add("gaps_klein", len(grau), stellen=[g["a"] for g in grau],
+            max_m=round(max(g["dist"] for g in grau)))
     hm = hoehen_muell(sp)
     add("ele_garbage", len(hm), stellen=hm)
     fehlt = sum(1 for e in sp.ele if e is None)
