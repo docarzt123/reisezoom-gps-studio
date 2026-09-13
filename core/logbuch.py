@@ -38,7 +38,8 @@ STANDARD = {
 }
 HM_SCHWELLE_M = 3.0            # Höhenmeter zählen erst ab 3 m Änderung (GPS-Rauschen)
 
-PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel")
+PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt")
+HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause")   # Q12: Art ändern
 BEWEGT = ("gehen", "laufen", "rad", "fahrt", "uebersetzen")
 STILL = ("halt", "pause")
 
@@ -147,7 +148,7 @@ def punkte_erzeugen(points, tage: Optional[List[dict]] = None) -> List[dict]:
             continue
         a, b = lage
 
-        def punkt(k, art):
+        def punkt(k, art, nr=nr):
             p = z.pts[k]
             g = (lambda n: p.get(n) if isinstance(p, dict) else getattr(p, n, None))
             return {"t": _epoch(g("time")), "art": art, "lat": g("lat"), "lon": g("lon"),
@@ -332,6 +333,7 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     for e in folge:
         _messen(e, z)
         e["anzeige_art"] = _anzeige_art(e, prior, einst)
+        e["notiz"] = next((b.get("notiz") or "" for b in bereiche if b["id"] in e["bids"] and b.get("notiz")), "")
 
     # Tag je Eintrag (nach Beginn) — nur, wenn es Tage gibt
     fenster = [(float(x["t0"]), float(x["t1"]), int(x.get("nr") or k + 1))
