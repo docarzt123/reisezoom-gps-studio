@@ -117,9 +117,19 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.703</span>
+    <span class="version-date">13 September 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Thousands of photo signs no longer freeze the Animator</strong> &mdash; A project with very many photo signs (for example from “From Geotagger”) made the app stop right after the track loaded. The sign list was rebuilt completely after every single loaded image, every sign asked separately whether its image still exists, and the map redrew all images on every refresh. Now the list is built in batches and chunks, images are checked in one go and only redrawn when a sign really changed. Missing images give a single note with the count. Measured with 2,830 signs: frozen 60 of 60 seconds before, 2 of 40 now.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.701</span>
     <span class="version-date">13 September 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <ul>
     <li><strong>Library safety after the database change</strong> &mdash; Since v0.9.697 the library writes to a side file first. Four places did not know that yet: the automatic cloud sync noticed new tours too late, the ZIP backup packed the database raw, restoring a backup left the broken database's side file behind, and moving the library did not merge it first. All four are fixed and checked against a database whose newest entries live only in the side file.</li>

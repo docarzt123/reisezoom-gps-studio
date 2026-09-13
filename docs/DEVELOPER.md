@@ -1557,6 +1557,7 @@ in `RZGPS_MODULES` (`animator` + `reiseroute`); `mount: (b,h) => mountAnimator(b
   kennt `reiseroute`.
 - **`_SIGNS_KEY`** (= `animator?"signs":_MODKEY+"_signs"`) trennt Schilder/Fotos pro
   Modul (Animator behält `signs` für Back-Compat). `_animSignsList/Save` + Render-Param.
+- **Viele Schilder (v0.9.703):** Projekte mit Tausenden Foto-Schildern froren WebKit ein. Regeln seitdem: Liste nie direkt neu bauen, sondern `_animSignsListeBald()` (150 ms gebündelt, Zeilen in 150er-Häppchen je Frame); Karte über `_animSignsKarteBald()`; Bild-Existenz nur gesammelt über die Brücke `sign_images_exist(paths)` → `{exists:{pfad:bool}}`; Bilder max. 8 gleichzeitig laden; `addImage` nur, wenn sich `_animSignBildSignatur` geändert hat (`_animSignsDetach(true)` behält die Bilder). Wächter: `tests/test_schilder_viele.py` (WebKit, 2830 Schilder).
 - **`_isReiseroute`** gated die modul-spezifische Logik. Sektionen werden je Modus
   per `querySelector(...).remove()` entfernt: Animator → `route` + `ghost-gpx` raus;
   Reiseroute → `overlays` raus.

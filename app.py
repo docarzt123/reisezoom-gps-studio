@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.702"
+APP_VERSION = "0.9.703"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -5299,6 +5299,20 @@ class Api:
             return {"ok": True, "exists": bool(path) and os.path.exists(path)}
         except Exception:
             return {"ok": True, "exists": False}
+
+    def sign_images_exist(self, paths: list = None) -> dict:
+        """13.09.2026 — dieselbe Prüfung für alle Schilder in EINEM Aufruf.
+
+        Vorher fragte die Oberfläche je Schild einzeln, und jede Antwort baute die
+        ganze Schilder-Liste neu: bei einem Projekt mit 2830 Foto-Schildern fror
+        die Oberfläche ein (Beta-Tester, in WebKit nachgestellt)."""
+        raus = {}
+        for p in list(paths or [])[:20000]:
+            try:
+                raus[p] = bool(p) and os.path.exists(p)
+            except Exception:
+                raus[p] = False
+        return {"ok": True, "exists": raus}
 
     def sign_image_thumb(self, path: str) -> dict:
         """Thumbnail für einen bekannten Bild-Pfad (neu) erzeugen — beim
