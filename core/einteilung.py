@@ -311,7 +311,7 @@ def bereich_setzen(conn: sqlite3.Connection, eid: str, t0: float, t1: float, art
     t0, t1 = float(min(t0, t1)), float(max(t0, t1))
     e = _laden(conn, eid)
     e["bereiche"] = _ausschneiden(e["bereiche"], t0, t1)
-    e["bereiche"].append(_bereich(t0, t1, art, name, "hand"))
+    e["bereiche"].append(_bereich(t0, t1, art, name, "hand", grenze=True))
     return _schreiben(conn, e)
 
 
@@ -388,7 +388,9 @@ def teilen(conn: sqlite3.Connection, eid: str, bid: str, t: float) -> dict:
     if not (b["t0"] < t < b["t1"]):
         raise ValueError("Schnitt liegt nicht im Bereich")
     links = dict(b, t1=float(t), quelle="hand")
-    rechts = dict(b, t0=float(t), id=_neue_id(), quelle="hand")
+    # `grenze`: eine bewusst gesetzte Grenze — das Logbuch legt gleichartige Nachbarn
+    # sonst beim Lesen wieder zusammen (Marc, 13.09.2026: „der teilt viel weiter hinten").
+    rechts = dict(b, t0=float(t), id=_neue_id(), quelle="hand", grenze=True)
     e["bereiche"][k:k + 1] = [links, rechts]
     return _schreiben(conn, e)
 
@@ -429,6 +431,7 @@ def teilen_bei_zeit(conn: sqlite3.Connection, eid: str, t: float, kurz_s: float 
             e["bereiche"] = [x for x in e["bereiche"] if x is not b]
             l["t1"] = r["t0"] = t
             l["quelle"] = r["quelle"] = "hand"
+            r["grenze"] = True
             return _schreiben(conn, e)
     return teilen(conn, eid, b["id"], t)
 
@@ -438,7 +441,7 @@ def zusammenlegen(conn: sqlite3.Connection, eid: str, bid_a: str, bid_b: str) ->
     e = _laden(conn, eid)
     l, r, zwischen = _nachbarn(e, bid_a, bid_b)
     lang = l if (l["t1"] - l["t0"]) >= (r["t1"] - r["t0"]) else r
-    neu = dict(lang, t0=l["t0"], t1=r["t1"], quelle="hand")
+    neu = dict(lang, t0=l["t0"], t1=r["t1"], quelle="hand", grenze=bool(l.get("grenze")))
     for k in ("strecke_m", "tempo_kmh"):
         neu.pop(k, None)
     weg = {id(x) for x in zwischen} | {id(l), id(r)}
@@ -458,6 +461,7 @@ def grenze_setzen(conn: sqlite3.Connection, eid: str, bid_links: str, bid_rechts
     e["bereiche"] = [x for x in e["bereiche"] if id(x) not in weg]
     l["t1"] = r["t0"] = float(t)
     l["quelle"] = r["quelle"] = "hand"
+    r["grenze"] = True
     return _schreiben(conn, e)
 
 
