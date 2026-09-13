@@ -129,7 +129,7 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 - Wächter: erzeugte Einträge an der Prüfsammlung (Womo-Reise mit Fähren, Wanderung, Lauf mit
   Zugfahrt), Kopplung im WebKit-Prüfstand, i18n DE/EN/ES.
 
-### Stufe 2 — Bearbeiten + Einstellungen
+### Stufe 2 — Bearbeiten + Einstellungen ✅ gebaut 13.09.2026 (v0.9.709)
 - Alle Handgriffe aus Q12 in Liste und Zeitstrahl, ⌘Z für jeden Schritt (`stand_setzen`).
 - ⚙ je Tour + globale Standards (Q13): Pausen-Mindestdauer, Wanderung-Schwellen, Ortsnamen an/aus,
   POI-Menge.
@@ -163,5 +163,10 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
   „Logbuch der Tour"), i18n `logbuch.*` DE/EN/ES, Wächter `tests/test_logbuch.py`. Kopflos
   geprüft (Kern, Prüfsammlung, Brücke, WebKit mit echter Brücke). Bausteine für Stufe 2 liegen
   bereit: `window.__rzGpxiLogbuch` (Zustand), `einteilung_aktion` mit `vorher` für ⌘Z.
+- 13.09.2026 nachts — **Stufe 2 gebaut** (v0.9.709): Kontextmenü je Eintrag (umbenennen, Notiz, Art inkl.
+  Wassersport, teilen, zusammenlegen, löschen → geht im Nachbarn auf), Grenzen im Zeitstrahl ziehen,
+  ＋ A→B, 📍 eigener Punkt, ⚙ Einstellungen je Tour / als Standard; alles im ⌘Z des Inspektors.
+  Entschieden dabei: Notiz macht einen Bereich zu Handarbeit (sonst verschwände sie beim Neuberechnen);
+  eigene Punkte haben die Art `punkt`; Löschen wächst den Vorgänger, sonst beginnt der Nachfolger früher.
 - 13.09.2026 spät — Marcs erster Blick (v0.9.707): Wassersport-Art über die Tour-Aktivität, Logbuch
   weiß, Quellenzeile der Karte im Inspektor schmal über die ganze Breite. Sonst: „sieht schon gut aus“.

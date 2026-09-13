@@ -68,8 +68,9 @@ function mountGpxInspect(body, headerActions) {
     // v0.9.456: `sources` gehört mit in den Snapshot — sonst bliebe nach dem
     // Rückgängigmachen eines „Track anhängen" die Quelldatei in der Liste und
     // die si-Indizes zeigten ins Leere.
-    snapshot: () => ({ points: JSON.parse(JSON.stringify(_points)), dirty: _dirty,
-                       sources: _sources.slice() }),
+    // 13.09.2026 — Logbuch (§68 Stufe 2): der Stand der Einteilung reist im Schnappschuss mit.
+    snapshot: () => Object.assign({ points: JSON.parse(JSON.stringify(_points)), dirty: _dirty,
+                                    sources: _sources.slice() }, _lbSchnappschuss()),
     apply: (snap) => {
       _points = JSON.parse(JSON.stringify((snap && snap.points) || []));
       _dirty = !!(snap && snap.dirty);
@@ -91,6 +92,7 @@ function mountGpxInspect(body, headerActions) {
       try { reduzierReglerSync(); } catch (_) {}
       // 10.09.2026 (Echt-Test): nach Undo einer Reparatur muss der Befund-Kasten zurückkommen.
       try { analyseTrack(); } catch (_) {}
+      try { _lbUndoAnwenden(snap); } catch (_) {}
     },
     toast: (m) => { try { toast(m, "info", 1000); } catch (_) {} },
     throttleMs: 0,
@@ -342,6 +344,9 @@ function mountGpxInspect(body, headerActions) {
           <span class="gpxi-lb-hinweis" id="gpxi-lb-hinweis" hidden></span>
           <label class="gpxi-lb-schalter" title="${t("logbuch.alles_zeigen_help", "Auch kurze Halte und die rohen Bereiche der Erkennung zeigen.")}"><input type="checkbox" id="gpxi-lb-alles"> ${t("logbuch.alles_zeigen", "alles zeigen")}</label>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-reise" hidden title="${t("logbuch.reise_tip", "Wieder die ganze Tour zeigen")}">⤢ ${t("logbuch.reise", "Ganze Tour")}</button>
+          <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-ab" disabled title="${t("logbuch.knopf.ab_tip", "Aus dem Abschnitt zwischen Anker A und B einen eigenen Eintrag machen")}">＋ A→B</button>
+          <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-punkt" disabled title="${t("logbuch.knopf.punkt_tip", "Eigenen Punkt setzen: danach auf die Karte klicken")}">📍 ${t("logbuch.knopf.punkt", "Punkt")}</button>
+          <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-einst" disabled title="${t("logbuch.einst.titel", "Logbuch-Einstellungen")}">⚙</button>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-neu" title="${t("logbuch.neu_tip", "Logbuch aus dem Track neu erkennen")}">↻</button>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-zu" title="${t("logbuch.zu", "Logbuch einklappen")}">▾</button>
         </div>
@@ -1235,6 +1240,7 @@ function mountGpxInspect(body, headerActions) {
     // Man klickt grob hin, der nächste Punkt wird gesetzt.
     const i = _nearestIdxToPoint(e.point.x, e.point.y, Infinity);
     if (i < 0) return;
+    if (_lbPunktModus) { try { _lbPunktSetzen(i); } catch (_) {} return; }   // Logbuch Stufe 2: eigener Punkt
     try { _lbWaehleZuIdx(i); } catch (_) {}   // Logbuch (§68 Q16): Klick auf den Track wählt den Eintrag
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
     // v0.9.303 — Einzelklick setzt direkt Anker A/B (Daten gibt's live in der Hover-Box).
@@ -2970,6 +2976,7 @@ function mountGpxInspect(body, headerActions) {
   // ── UI-State ─────────────────────────────────────────────────────────────────
   function _fmtKm(m) { return (m / 1000 < 100) ? (m / 1000).toFixed(1) + " km" : Math.round(m / 1000) + " km"; }
   function updateUI() {
+    try { _lbKnoepfe(); } catch (_) {}
     const has = _points.length > 0;
     const empty = document.getElementById("gpxi-empty");
     const panel = document.getElementById("gpxi-panel");
@@ -3234,9 +3241,13 @@ function mountGpxInspect(body, headerActions) {
   // Nicht feuern wenn man in einem Eingabefeld tippt oder im Zeichnen-Modus ist.
   function onKeyDown(e) {
     // Logbuch (§68 Q16): Esc hebt die Auswahl auf — nur, wenn das Modul sichtbar ist.
-    if (e.key === "Escape" && _lbSel) {
-      const panel = document.getElementById("gpxi-panel");
-      if (panel && !panel.hidden && panel.offsetParent) { lbWaehlen(null); return; }
+    if (e.key === "Escape") {
+      if (_lbMenueEl) { _lbMenueZu(); return; }
+      if (_lbPunktModus) { _lbPunktUmschalten(); return; }
+      if (_lbSel) {
+        const panel = document.getElementById("gpxi-panel");
+        if (panel && !panel.hidden && panel.offsetParent) { lbWaehlen(null); return; }
+      }
     }
     if (e.key !== "Delete" && e.key !== "Backspace") return;
     if (_drawMode) return;
@@ -3443,12 +3454,12 @@ function mountGpxInspect(body, headerActions) {
                       spaziergang: "#4ade80", rad: "#f97316", laufen: "#eab308", pause: "#6b7280",
                       uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3", wassersport: "#0ea5e9" };
   const _LB_ICON = { fahrt: "🚗", uebersetzen: "⛴", gehen: "🚶", wanderung: "🥾", spaziergang: "🚶", rad: "🚴",
-                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓", wassersport: "🛶",
+                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓", wassersport: "🛶", punkt: "📍",
                      hoechster_punkt: "⛰", start: "🏁", ziel: "🏁" };
   const _LB_ARTEN_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", gehen: "Gehen", wanderung: "Wanderung",
                          spaziergang: "Spaziergang", rad: "Rad", laufen: "Laufen", pause: "Pause",
                          uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?", wassersport: "Wassersport",
-                         hoechster_punkt: "Höchster Punkt", start: "Start", ziel: "Ziel" };
+                         hoechster_punkt: "Höchster Punkt", start: "Start", ziel: "Ziel", punkt: "Eigener Punkt" };
   const _LB_H = 132;                       // Höhe des Zeitstrahls (px)
   const _LB_ZEILEN = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], achse: [113, 131] };
   let _lb = null;            // Antwort der Brücke (Einträge, Punkte, Tage, roh …)
@@ -3543,16 +3554,18 @@ function mountGpxInspect(body, headerActions) {
   }
 
   // ── Laden ────────────────────────────────────────────────────────────────
-  async function logbuchLaden(neu) {
+  async function logbuchLaden(neu, opt) {
+    opt = opt || {};
     const wrap = _lbEl("gpxi-logbuch"), pfad = _origPath;
     if (!wrap) return;
-    if (!pfad || !_points.length) { wrap.hidden = true; _lb = null; return; }
+    if (!pfad || !_points.length) { wrap.hidden = true; _lb = null; _lbStandMerken(null); return; }
     _lbPfad = pfad;
     let r;
     try { r = await rzWarten("logbuch_lesen", () => api().logbuch_lesen(pfad, !!neu)); }
     catch (e) { r = { ok: false, error: String(e) }; }
     if (isUnmounted || _lbPfad !== pfad || _origPath !== pfad) return;
-    _lbSel = null; _lbFenster = null; _lbHover = null;
+    const behalten = opt.auswahl || null, fensterAlt = opt.auswahl ? _lbFenster : null;
+    _lbSel = null; _lbFenster = fensterAlt; _lbHover = null;
     _lbHighlight(null);
     wrap.hidden = false;
     const note = _lbEl("gpxi-lb-hinweis"), koerper = _lbEl("gpxi-lb-koerper");
@@ -3565,18 +3578,22 @@ function mountGpxInspect(body, headerActions) {
           : ((r && r.error) || t("logbuch.fehler", "Das Logbuch konnte nicht erstellt werden."));
       if (note) { note.textContent = txt; note.hidden = false; }
       if (koerper) koerper.hidden = true;
-      _lbSummeRender();
+      _lbStandMerken(null); _lbSummeRender(); _lbKnoepfe();
       return;
     }
     _lb = r;
+    _lbStandMerken(r);
     if (note) note.hidden = true;
     if (koerper) koerper.hidden = _lbZuIst();
     applog && applog("info", `[logbuch] ${(r.eintraege || []).length} Einträge, ${(r.punkte || []).length} Punkte, ${(r.tage || []).length} Tage, Zone ${r.zone}`);
     logbuchRender();
+    _lbKnoepfe();
+    if (behalten && _lbFinde(behalten)) lbWaehlen(behalten, { zoom: false, scroll: false });
   }
   function _lbZuIst() { const w = _lbEl("gpxi-logbuch"); return !!(w && w.classList.contains("ist-zu")); }
   function logbuchLeeren() {
     _lb = null; _lbSel = null; _lbFenster = null; _lbZeiten = null; _lbPfad = null;
+    _lbStandMerken(null); _lbPunktModus = false; try { _lbKnoepfe(); } catch (_) {}
     const w = _lbEl("gpxi-logbuch"); if (w) w.hidden = true;
     _lbHighlight(null);
   }
@@ -3618,17 +3635,21 @@ function mountGpxInspect(body, headerActions) {
     const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : artName;
     const geraten = e.geraten ? ` <span class="gpxi-lb-badge" title="${t("logbuch.geraten_tip", "Die Erkennung war hier unsicher — die Art stammt vom Nachbarn.")}">${t("logbuch.geraten", "vermutet")}</span>` : "";
     const roh = e.roh ? ` <span class="gpxi-lb-badge">${t("logbuch.roh", "roh")}</span>` : "";
+    const notiz = e.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(e.notiz)}</div>` : "";
     return `<div class="gpxi-lb-zeile${gew}" data-lb="${e.id}" style="--c:${_lbFarbe(e.anzeige_art)}">
       <span class="gpxi-lb-icon">${_LB_ICON[e.anzeige_art] || "•"}</span>
-      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${name}${geraten}${roh}</div><div class="gpxi-lb-meta">${meta.join(" · ")}</div></div></div>`;
+      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${name}${geraten}${roh}</div><div class="gpxi-lb-meta">${meta.join(" · ")}</div>${notiz}</div>
+      <button type="button" class="gpxi-lb-mehr" title="${t("logbuch.menue.titel", "Bearbeiten")}">⋯</button></div>`;
   }
   function _lbPunktHtml(p) {
     const gew = p.id === _lbSel ? " ist-gewaehlt" : "";
     const txt = p.art === "hoechster_punkt"
       ? `${_lbArt(p.art)} · ${Math.round(p.ele || 0).toLocaleString(rzSprachCode())} m`
-      : _lbArt(p.art);
-    return `<div class="gpxi-lb-zeile ist-punkt${gew}" data-lb="${p.id}"><span class="gpxi-lb-icon">${_LB_ICON[p.art] || "•"}</span>
-      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${txt}</div><div class="gpxi-lb-meta">${_lbUhr(p.t, p.versatz_min)}</div></div></div>`;
+      : (p.name ? `${_lbEsc(p.name)} <small>${_lbArt(p.art)}</small>` : _lbArt(p.art));
+    const notiz = p.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(p.notiz)}</div>` : "";
+    return `<div class="gpxi-lb-zeile ist-punkt${p.art === "punkt" ? " ist-eigen" : ""}${gew}" data-lb="${p.id}"><span class="gpxi-lb-icon">${_LB_ICON[p.art] || "•"}</span>
+      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${txt}</div><div class="gpxi-lb-meta">${_lbUhr(p.t, p.versatz_min)}</div>${notiz}</div>
+      <button type="button" class="gpxi-lb-mehr" title="${t("logbuch.menue.titel", "Bearbeiten")}">⋯</button></div>`;
   }
   function _lbListeRender() {
     const el = _lbEl("gpxi-lb-liste"); if (!el || !_lb) return;
@@ -3917,6 +3938,318 @@ function mountGpxInspect(body, headerActions) {
     }
   }
   _lbVerdrahten();
+  // ── Logbuch Stufe 2 — Bearbeiten + Einstellungen (docs/LOGBUCH.md §4, Q12/Q13) ──
+  // Marc: „man muss natürlich alles ändern können" und „Undo für alles". Jede
+  // Änderung geht über `einteilung_aktion` (Handarbeit überlebt jede Neuberechnung);
+  // der Stand der Einteilung steckt im Undo-Schnappschuss des Inspektors, ⌘Z
+  // schreibt ihn über `einteilung_stand_setzen` zurück.
+  const _LB_HAND_ARTEN = ["fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause"];
+  let _lbStand = null;       // vollständiger Stand der Einteilung „Bewegung" (für ⌘Z)
+  let _lbEinst = null;       // { global, tour } — Einstellungen (für ⌘Z)
+  let _lbPunktModus = false; // nächster Kartenklick setzt einen eigenen Punkt
+  let _lbZiehen = null;      // laufendes Grenze-Ziehen im Zeitstrahl
+  let _lbMenueEl = null;
+
+  function _lbStandMerken(r) {
+    _lbStand = r && r.stand ? JSON.parse(JSON.stringify(r.stand)) : null;
+    _lbEinst = r ? { global: r.einst_global || {}, tour: r.einst_tour || {} } : null;
+  }
+  /** Für den Undo-Schnappschuss des Inspektors: was das Logbuch gerade ist. */
+  function _lbSchnappschuss() {
+    return { lb: _lbStand ? JSON.parse(JSON.stringify(_lbStand)) : null,
+             lbEinst: _lbEinst ? JSON.parse(JSON.stringify(_lbEinst)) : null, lbPfad: _lbPfad };
+  }
+  /** ⌘Z/⌘⇧Z: Stand der Einteilung und Einstellungen zurückschreiben, dann neu lesen. */
+  async function _lbUndoAnwenden(snap) {
+    if (!snap || !_lb || !snap.lbPfad || snap.lbPfad !== _lbPfad) return;
+    let neu = false;
+    try {
+      if (snap.lb && JSON.stringify(snap.lb) !== JSON.stringify(_lbStand)) {
+        await api().einteilung_stand_setzen(_lb.eid, snap.lb, _lb.tour);   // warte-ok: Teil des Undo-Schritts
+        neu = true;
+      }
+      if (snap.lbEinst && JSON.stringify(snap.lbEinst) !== JSON.stringify(_lbEinst)) {
+        await api().logbuch_einstellungen_stand(_lbPfad, snap.lbEinst);   // warte-ok: Teil des Undo-Schritts
+        neu = true;
+      }
+    } catch (e) { applog && applog("warn", "[logbuch] undo: " + e); }
+    if (neu) await logbuchLaden(false, { auswahl: _lbSel });
+  }
+  async function _lbAktion(label, aktion, params, opt) {
+    if (!_lb) return null;
+    opt = opt || {};
+    _pushUndo(label);
+    try { updateUI(); } catch (_) {}   // ↩︎-Knopf wird erst durch updateUI freigegeben
+    let r;
+    try { r = await rzWarten("einteilung_aktion", () => api().einteilung_aktion(_lb.eid, aktion, params)); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    if (isUnmounted) return null;
+    if (!r || !r.ok) {
+      toast((r && r.error) || t("logbuch.fehler_aktion", "Das ging nicht"), "error", 5000);
+      return null;
+    }
+    await logbuchLaden(false, { auswahl: opt.auswahl === undefined ? _lbSel : opt.auswahl });
+    return r;
+  }
+  /** Kleiner Frage-Dialog: ein Text (oder eine Notiz), OK/Abbrechen — null = abgebrochen. */
+  function _lbFrage(titel, wert, mehrzeilig) {
+    return new Promise((resolve) => {
+      const feld = mehrzeilig
+        ? `<textarea id="gpxi-lb-frage" class="gpxi-lb-frage" rows="4">${_lbEsc(wert || "")}</textarea>`
+        : `<input id="gpxi-lb-frage" class="gpxi-lb-frage" type="text" value="${_lbEsc(wert || "")}">`;
+      const m = openModal({ title: titel, body: `<div class="lib-fmodal">${feld}</div>`,
+        footer: `<button class="btn" id="gpxi-lb-frage-nein">${t("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="gpxi-lb-frage-ja">${t("common.ok", "OK")}</button>` });
+      const el = document.getElementById("gpxi-lb-frage");
+      const fertig = (v) => { try { m.close(); } catch (_) {} resolve(v); };
+      const ja = document.getElementById("gpxi-lb-frage-ja"), nein = document.getElementById("gpxi-lb-frage-nein");
+      if (ja) ja.onclick = () => fertig(el ? el.value : "");
+      if (nein) nein.onclick = () => fertig(null);
+      if (el) {
+        el.focus(); try { el.select(); } catch (_) {}
+        if (!mehrzeilig) el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); fertig(el.value); } });
+      }
+    });
+  }
+
+  // ── Kontextmenü ──────────────────────────────────────────────────────────
+  function _lbMenueZu() { if (_lbMenueEl) { try { _lbMenueEl.remove(); } catch (_) {} _lbMenueEl = null; } }
+  function _lbMenue(x, y, eintraege) {
+    _lbMenueZu();
+    const el = document.createElement("div");
+    el.className = "gpxi-lb-menue";
+    el.innerHTML = eintraege.map((m, k) => m === "-" ? `<div class="gpxi-lb-menue-strich"></div>`
+      : `<button type="button" class="gpxi-lb-menue-eintrag${m.unter ? " ist-unter" : ""}${m.aus ? " ist-aus" : ""}" data-k="${k}"${m.aus ? " disabled" : ""}>${m.symbol ? `<span class="gpxi-lb-menue-symbol">${m.symbol}</span>` : ""}${_lbEsc(m.text)}</button>`).join("");
+    document.body.appendChild(el);
+    const r = el.getBoundingClientRect();
+    el.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 6)) + "px";
+    el.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 6)) + "px";
+    el.querySelectorAll("[data-k]").forEach(b => b.addEventListener("click", (ev) => {
+      ev.stopPropagation(); const m = eintraege[parseInt(b.dataset.k, 10)]; _lbMenueZu(); if (m && m.tu) m.tu();
+    }));
+    _lbMenueEl = el;
+    setTimeout(() => {
+      const weg = (ev) => { if (_lbMenueEl && !_lbMenueEl.contains(ev.target)) { _lbMenueZu(); document.removeEventListener("mousedown", weg, true); } };
+      document.addEventListener("mousedown", weg, true);
+    }, 0);
+  }
+  function _lbNachbar(e, richtung) {
+    const es = _lbEintraege().slice().sort((a, b) => a.t0 - b.t0);
+    const k = es.findIndex(x => x.id === e.id);
+    return k < 0 ? null : es[k + richtung] || null;
+  }
+  function _lbEintragMenue(e, x, y, tHier) {
+    if (!e || _lbAlles) return;
+    const istPunkt = e.t1 == null;
+    const M = [];
+    M.push({ symbol: "✏️", text: t("logbuch.menue.umbenennen", "Umbenennen …"), tu: async () => {
+      const v = await _lbFrage(t("logbuch.frage.name", "Name des Eintrags"), e.name || "");
+      if (v === null) return;
+      await _lbAktion(t("logbuch.undo.umbenennen", "Logbuch: umbenennen"), "aendern", istPunkt ? { bid: e.id, name: v } : { bids: e.bids, name: v });
+    } });
+    M.push({ symbol: "📝", text: t("logbuch.menue.notiz", "Notiz …"), tu: async () => {
+      const v = await _lbFrage(t("logbuch.frage.notiz", "Notiz zu diesem Eintrag"), e.notiz || "", true);
+      if (v === null) return;
+      await _lbAktion(t("logbuch.undo.notiz", "Logbuch: Notiz"), "aendern", istPunkt ? { bid: e.id, notiz: v } : { bids: e.bids, notiz: v });
+    } });
+    if (!istPunkt) {
+      M.push("-");
+      M.push({ text: t("logbuch.menue.art", "Art ändern"), aus: true });
+      for (const art of _LB_HAND_ARTEN) {
+        if (art === e.anzeige_art) continue;
+        M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: () =>
+          _lbAktion(t("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids: e.bids, art }) });
+      }
+      M.push("-");
+      const teilbar = (tt) => tt != null && tt > e.t0 + 30 && tt < e.t1 - 30;
+      const teilen = async (tt) => {
+        const bid = e.bids.length === 1 ? e.bids[0] : _lbRohBeiZeit(e, tt);
+        if (!bid) return;
+        await _lbAktion(t("logbuch.undo.teilen", "Logbuch: teilen"), "teilen", { bid, t: tt });
+      };
+      if (teilbar(tHier)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_hier", "Hier teilen ({z})", { z: _lbUhr(tHier, e.versatz_min) }), tu: () => teilen(tHier) });
+      M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_mitte", "In der Mitte teilen"), aus: !teilbar((e.t0 + e.t1) / 2), tu: () => teilen((e.t0 + e.t1) / 2) });
+      const vor = _lbNachbar(e, -1), nach = _lbNachbar(e, +1);
+      M.push({ symbol: "⇤", text: t("logbuch.menue.mit_vorherigem", "Mit vorherigem zusammenlegen"), aus: !vor, tu: () =>
+        _lbAktion(t("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen"), "zusammenlegen", { bid_a: vor.bids[vor.bids.length - 1], bid_b: e.bids[0] }, { auswahl: null }) });
+      M.push({ symbol: "⇥", text: t("logbuch.menue.mit_naechstem", "Mit nächstem zusammenlegen"), aus: !nach, tu: () =>
+        _lbAktion(t("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen"), "zusammenlegen", { bid_a: e.bids[e.bids.length - 1], bid_b: nach.bids[0] }, { auswahl: null }) });
+      M.push("-");
+      M.push({ symbol: "🗑", text: t("logbuch.menue.loeschen", "Löschen (geht im Nachbarn auf)"), tu: () =>
+        _lbAktion(t("logbuch.undo.loeschen", "Logbuch: löschen"), "aufgehen", { bids: e.bids }, { auswahl: null }) });
+    } else if (e.art === "punkt") {
+      M.push("-");
+      M.push({ symbol: "🗑", text: t("logbuch.menue.punkt_loeschen", "Punkt löschen"), tu: () =>
+        _lbAktion(t("logbuch.undo.punkt_loeschen", "Logbuch: Punkt löschen"), "bereich_entfernen", { bid: e.id }, { auswahl: null }) });
+    }
+    _lbMenue(x, y, M);
+  }
+  /** Der rohe Bereich eines (zusammengesetzten) Eintrags, in dem eine Zeit liegt. */
+  function _lbRohBeiZeit(e, tt) {
+    const roh = (_lb && _lb.roh || []).filter(b => e.bids.includes(b.id) && b.t0 <= tt && tt <= b.t1);
+    return roh.length ? roh[0].id : e.bids[0];
+  }
+
+  // ── Grenzen im Zeitstrahl ziehen ─────────────────────────────────────────
+  function _lbGrenzeBei(clientX) {
+    const box = _lbEl("gpxi-lb-svgbox"), sp = _lbSpanne(); if (!box || !sp || _lbAlles) return null;
+    const r = box.getBoundingClientRect();
+    const es = _lbEintraege().slice().sort((a, b) => a.t0 - b.t0);
+    for (let k = 0; k + 1 < es.length; k++) {
+      const x = ((es[k].t1 - sp[0]) / (sp[1] - sp[0])) * r.width;
+      if (Math.abs(clientX - r.left - x) <= 6 && Math.abs(es[k + 1].t0 - es[k].t1) < 1) return { links: es[k], rechts: es[k + 1], x: r.left + x };
+    }
+    return null;
+  }
+  function _lbZeitAnX(clientX) {
+    const box = _lbEl("gpxi-lb-svgbox"), sp = _lbSpanne(); if (!box || !sp) return null;
+    const r = box.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
+    return sp[0] + frac * (sp[1] - sp[0]);
+  }
+  function _lbZiehenVerdrahten() {
+    const box = _lbEl("gpxi-lb-svgbox"); if (!box) return;
+    box.addEventListener("pointermove", (e) => {
+      if (_lbZiehen) {
+        const tt = Math.min(_lbZiehen.rechts.t1 - 60, Math.max(_lbZiehen.links.t0 + 60, _lbZeitAnX(e.clientX)));
+        _lbZiehen.t = tt;
+        const cur = _lbEl("gpxi-lb-cursor");
+        if (cur) { const r = box.getBoundingClientRect(), sp = _lbSpanne();
+          cur.style.left = (((tt - sp[0]) / (sp[1] - sp[0])) * r.width).toFixed(1) + "px";
+          cur.querySelector("span").textContent = _lbUhr(tt, _lbZiehen.links.versatz_min); cur.hidden = false; }
+        return;
+      }
+      box.style.cursor = _lbGrenzeBei(e.clientX) ? "col-resize" : "";
+    });
+    box.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const g = _lbGrenzeBei(e.clientX); if (!g) return;
+      e.preventDefault(); e.stopPropagation();
+      _lbZiehen = Object.assign({ t: g.links.t1 }, g);
+      try { box.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    const ende = async (e) => {
+      if (!_lbZiehen) return;
+      const z = _lbZiehen; _lbZiehen = null;
+      try { box.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (Math.abs(z.t - z.links.t1) < 15) return;
+      await _lbAktion(t("logbuch.undo.grenze", "Logbuch: Grenze verschoben"), "grenze",
+        { bid_links: z.links.bids[z.links.bids.length - 1], bid_rechts: z.rechts.bids[0], t: z.t });
+    };
+    box.addEventListener("pointerup", ende);
+    box.addEventListener("pointercancel", () => { _lbZiehen = null; });
+    box.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      const g = e.target.closest("[data-lb]"); if (!g) return;
+      _lbEintragMenue(_lbFinde(g.dataset.lb), e.clientX, e.clientY, _lbZeitAnX(e.clientX));
+    });
+  }
+
+  // ── Eigener Bereich A→B, eigener Punkt, Einstellungen ────────────────────
+  function _lbKnoepfe() {
+    const ab = _lbEl("gpxi-lb-ab"); if (ab) ab.disabled = !(_lb && _selA !== null && _selB !== null && !_lbAlles);
+    const pk = _lbEl("gpxi-lb-punkt"); if (pk) { pk.disabled = !_lb || _lbAlles; pk.classList.toggle("ist-an", _lbPunktModus); }
+    const zr = _lbEl("gpxi-lb-einst"); if (zr) zr.disabled = !_lb;
+  }
+  function _lbBereichAB(ev) {
+    if (!_lb || _selA === null || _selB === null) return;
+    const z = _lbZeiten || _lbZeitenBauen();
+    const t0 = z[Math.min(_selA, _selB)], t1 = z[Math.max(_selA, _selB)];
+    if (!isFinite(t0) || !isFinite(t1) || t1 - t0 < 30) { toast(t("logbuch.ab_zu_kurz", "Der Abschnitt A→B ist zu kurz für einen Eintrag."), "warn"); return; }
+    const M = [{ text: t("logbuch.menue.art_fuer_ab", "Art des neuen Eintrags"), aus: true }];
+    for (const art of _LB_HAND_ARTEN) M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: async () => {
+      const r = await _lbAktion(t("logbuch.undo.bereich", "Logbuch: Bereich A→B"), "setzen", { t0, t1, art, name: "" }, { auswahl: null });
+      if (r) { try { clearSelection(); } catch (_) {} }
+    } });
+    const r = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : { left: 400, bottom: 300 };
+    _lbMenue(r.left, r.bottom + 4, M);
+  }
+  function _lbPunktUmschalten() {
+    _lbPunktModus = !_lbPunktModus;
+    _lbKnoepfe();
+    if (_lbPunktModus) { _setCursor("crosshair"); toast(t("logbuch.punkt_modus", "Klick auf die Karte setzt den Punkt — Esc bricht ab."), "info", 4000); }
+    else _setCursor("");
+  }
+  /** Aus onMapClick: im Punkt-Modus wird der nächste Track-Punkt ein eigener Eintrag. */
+  async function _lbPunktSetzen(i) {
+    if (!_lbPunktModus) return false;
+    _lbPunktModus = false; _setCursor(""); _lbKnoepfe();
+    const z = _lbZeiten || _lbZeitenBauen(); const tt = z[i]; const p = _points[i];
+    if (!p || !isFinite(tt)) return true;
+    const name = await _lbFrage(t("logbuch.frage.punkt_name", "Name des Punkts"), "");
+    if (name === null) return true;
+    await _lbAktion(t("logbuch.undo.punkt", "Logbuch: Punkt gesetzt"), "punkt", { t: tt, art: "punkt", name, lat: p.lat, lon: p.lon, ele: p.ele });
+    return true;
+  }
+  function _lbEinstellungen() {
+    if (!_lb) return;
+    const w = _lb.einstellungen || {}, je = _lb.einst_tour || {};
+    const hatTour = Object.keys(je).length > 0;
+    const zeile = (id, label, wert, einheit, schritt) => `<label class="gpxi-lb-einst-zeile"><span>${label}</span><input type="number" id="${id}" value="${wert}" step="${schritt}" min="0"> <small>${einheit}</small></label>`;
+    const m = openModal({
+      title: "⚙ " + t("logbuch.einst.titel", "Logbuch-Einstellungen"),
+      body: `<div class="lib-fmodal gpxi-lb-einst">
+        ${zeile("gpxi-lbe-pause", t("logbuch.einst.pause_ab", "Stillstand zählt als Pause ab"), Math.round((w.pause_ab_s || 600) / 60), "min", 1)}
+        ${zeile("gpxi-lbe-km", t("logbuch.einst.wanderung_km", "Gehen ist eine Wanderung ab"), ((w.wanderung_ab_m || 5000) / 1000).toFixed(1), "km", 0.5)}
+        ${zeile("gpxi-lbe-hm", t("logbuch.einst.wanderung_hm", "… oder ab Höhenmetern"), Math.round(w.wanderung_ab_hm || 200), "m", 10)}
+        ${zeile("gpxi-lbe-lf", t("logbuch.einst.langsame_fahrt", "Rad/Laufen zwischen zwei Fahrten ist Fahrt, wenn kürzer als"), Math.round((w.langsame_fahrt_bis_s || 2700) / 60), "min", 5)}
+        <div class="gpxi-lb-einst-wahl">
+          <label><input type="radio" name="gpxi-lbe-ziel" value="tour" checked> ${t("logbuch.einst.fuer_tour", "Nur für diese Tour")}</label>
+          <label><input type="radio" name="gpxi-lbe-ziel" value="alle"> ${t("logbuch.einst.fuer_alle", "Als Standard für alle Touren übernehmen")}</label>
+        </div>
+        <div class="lib-hint">${hatTour ? t("logbuch.einst.hinweis_tour", "Diese Tour hat eigene Werte — „Zurücksetzen“ nimmt sie weg, dann gilt wieder der Standard.") : t("logbuch.einst.hinweis_standard", "Diese Tour nutzt den Standard.")}</div>
+      </div>`,
+      footer: `<button class="btn btn-left" id="gpxi-lbe-reset"${hatTour ? "" : " disabled"}>${t("common.reset", "Zurücksetzen")}</button>
+               <button class="btn" id="gpxi-lbe-nein">${t("common.cancel", "Abbrechen")}</button>
+               <button class="btn btn-primary" id="gpxi-lbe-ja">${t("common.apply", "Übernehmen")}</button>`,
+    });
+    const zu = () => { try { m.close(); } catch (_) {} };
+    const speichern = async (patch, alsStandard, reset) => {
+      zu();
+      _pushUndo(t("logbuch.undo.einst", "Logbuch: Einstellungen"));
+      try { updateUI(); } catch (_) {}
+      let r;
+      try { r = await api().logbuch_einstellungen(_lbPfad, patch, !!alsStandard, !!reset); }   // warte-ok: sofortige Antwort
+      catch (e) { r = { ok: false, error: String(e) }; }
+      if (!r || !r.ok) { toast((r && r.error) || t("logbuch.fehler_aktion", "Das ging nicht"), "error"); return; }
+      await logbuchLaden(false, { auswahl: _lbSel });
+    };
+    const v = (id) => parseFloat((document.getElementById(id) || {}).value);
+    const ja = document.getElementById("gpxi-lbe-ja"); if (ja) ja.onclick = () => {
+      const patch = { pause_ab_s: v("gpxi-lbe-pause") * 60, wanderung_ab_m: v("gpxi-lbe-km") * 1000,
+                      wanderung_ab_hm: v("gpxi-lbe-hm"), langsame_fahrt_bis_s: v("gpxi-lbe-lf") * 60 };
+      for (const k in patch) if (!isFinite(patch[k])) delete patch[k];
+      const alle = (document.querySelector('input[name="gpxi-lbe-ziel"]:checked') || {}).value === "alle";
+      speichern(patch, alle, false);
+    };
+    const nein = document.getElementById("gpxi-lbe-nein"); if (nein) nein.onclick = zu;
+    const rs = document.getElementById("gpxi-lbe-reset"); if (rs) rs.onclick = () => speichern(null, false, true);
+  }
+  function _lbBearbeitenVerdrahten() {
+    _on("gpxi-lb-ab", _lbBereichAB);
+    _on("gpxi-lb-punkt", _lbPunktUmschalten);
+    _on("gpxi-lb-einst", _lbEinstellungen);
+    const liste = _lbEl("gpxi-lb-liste");
+    if (liste) {
+      liste.addEventListener("contextmenu", (e) => {
+        const z = e.target.closest("[data-lb]"); if (!z) return;
+        e.preventDefault(); _lbEintragMenue(_lbFinde(z.dataset.lb), e.clientX, e.clientY, null);
+      });
+      liste.addEventListener("click", (e) => {
+        const b = e.target.closest(".gpxi-lb-mehr"); if (!b) return;
+        e.preventDefault(); e.stopPropagation();
+        const z = b.closest("[data-lb]"); const r = b.getBoundingClientRect();
+        _lbEintragMenue(_lbFinde(z.dataset.lb), r.left, r.bottom + 2, null);
+      });
+    }
+    _lbZiehenVerdrahten();
+    _lbKnoepfe();
+  }
+  _lbBearbeitenVerdrahten();
+  window.__rzGpxiLogbuchBearbeiten = { aktion: _lbAktion, menue: _lbEintragMenue, bereichAB: _lbBereichAB,
+                                       punktModus: () => _lbPunktModus, punktSetzen: _lbPunktSetzen, einstellungen: _lbEinstellungen,
+                                       stand: () => _lbStand, schnappschuss: _lbSchnappschuss };
+
   // Für Wächter: Zustand des Logbuchs von außen lesbar
   window.__rzGpxiLogbuch = { daten: () => _lb, auswahl: () => _lbSel, waehlen: lbWaehlen, laden: logbuchLaden,
                             fenster: () => _lbFenster, hover: () => _lbHover,
