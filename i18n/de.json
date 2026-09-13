@@ -3733,5 +3733,7 @@
   "logbuch.mehrzahl.uebernachtung": "Übernachtungen",
   "logbuch.mehrzahl.unsicher": "unsichere Abschnitte",
   "warte.logbuch_lesen.titel": "Logbuch wird erstellt",
-  "warte.logbuch_lesen.text": "Was wann war — Fahrten, Pausen, Wanderungen, höchster Punkt"
+  "warte.logbuch_lesen.text": "Was wann war — Fahrten, Pausen, Wanderungen, höchster Punkt",
+  "logbuch.art.wassersport": "Wassersport",
+  "logbuch.mehrzahl.wassersport": "Wassersport-Etappen"
 }

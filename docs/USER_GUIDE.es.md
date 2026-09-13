@@ -2416,6 +2416,7 @@ Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izq
 - **Línea de tiempo:** tres pistas: días, movimiento (bloques de color: trayecto azul, ferri turquesa, a pie verde, bici naranja, carrera amarillo, pausa gris; el perfil de altura queda encima como silueta) y puntos. **Doble clic en un día** o clic en su cabecera en la lista lo amplía, la **rueda del ratón** hace zoom, **⤢ Toda la ruta** vuelve atrás.
 - **Acoplado al mapa:** clic en una entrada (lista o línea de tiempo) resalta ese tramo en el track y hace zoom. Clic en el track selecciona la entrada a la que pertenece el punto. Al mover el ratón sobre el track o el perfil de altura, una marca con la hora lo sigue en la línea de tiempo. **Esc** quita la selección.
 - **«mostrar todo»** recupera las paradas cortas y los tramos en bruto de la detección; **↻** vuelve a detectar el cuaderno; **▾** lo pliega (se recuerda).
+- **Deporte acuático:** si la ruta está en el archivo como barco/kayak/SUP, sus tramos lentos se llaman deporte acuático en vez de caminata.
 - **«supuesto»** marca las entradas en las que la detección tuvo que suponer, por ejemplo conducción lenta por pueblos que parece ir en bici.
 - La cabecera lo resume: «99 h 5 min trayecto · 2 ferris · 47 paseos · 214 pausas · 37 pernoctas».
 

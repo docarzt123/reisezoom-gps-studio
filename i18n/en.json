@@ -3733,5 +3733,7 @@
   "logbuch.mehrzahl.uebernachtung": "Overnight stays",
   "logbuch.mehrzahl.unsicher": "uncertain parts",
   "warte.logbuch_lesen.titel": "Building the logbook",
-  "warte.logbuch_lesen.text": "What happened when — drives, breaks, hikes, highest point"
+  "warte.logbuch_lesen.text": "What happened when — drives, breaks, hikes, highest point",
+  "logbuch.art.wassersport": "Water sport",
+  "logbuch.mehrzahl.wassersport": "Water-sport legs"
 }

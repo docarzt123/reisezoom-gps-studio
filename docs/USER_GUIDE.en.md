@@ -2359,6 +2359,7 @@ When you open a tour from the archive, the logbook appears **below the map**: a 
 - **Timeline:** three tracks — days, movement (coloured blocks: drive blue, ferry teal, walking green, bike orange, run yellow, break grey; the elevation profile lies over them as a silhouette) and points. **Double-click a day** or click its header in the list to zoom to it, the **mouse wheel** zooms, **⤢ Whole tour** goes back.
 - **Coupled with the map:** click an entry (list or timeline) to highlight that part on the track and zoom to it. Click the track to select the entry the point belongs to. Move the mouse over the track or the elevation profile and a marker with the time follows in the timeline. **Esc** clears the selection.
 - **“show everything”** brings short stops and the raw ranges of the recognition back; **↻** recognises the logbook again; **▾** collapses it (remembered).
+- **Water sport:** if the tour is filed as boat/kayak/SUP in the archive, its slow parts are called water sport instead of hike.
 - **“assumed”** marks entries where the recognition had to guess — slow driving through towns that looks like cycling, for example.
 - The head line sums it up: “99 h 5 min drive · 2 ferries · 47 walks · 214 breaks · 37 overnight stays”.
 

@@ -170,6 +170,12 @@ def punkte_erzeugen(points, tage: Optional[List[dict]] = None) -> List[dict]:
 
 def _prior(aktivitaet: Optional[str]) -> str:
     a = (aktivitaet or "").lower()
+    # Marc, 13.09.2026 (Kajak-Tour als „Wanderung"): „Wanderung auf dem Wasser ist
+    # sehr unwahrscheinlich" — sagt die Tour Boot/Kajak/SUP, ist alles Langsame
+    # Wassersport. Die Art je Eintrag ändern kommt mit Stufe 2.
+    if any(w in a for w in ("boot", "boat", "kajak", "kayak", "kanu", "canoe", "paddel", "paddl",
+                            "sup", "segel", "sail", "ruder", "row", "wasser", "water", "surf")):
+        return "wassersport"
     if any(w in a for w in ("spazier", "walk")):
         return "spaziergang"
     if any(w in a for w in ("wander", "hik", "trek", "berg")):
@@ -178,6 +184,8 @@ def _prior(aktivitaet: Optional[str]) -> str:
 
 
 def _anzeige_art(e: dict, prior: str, einst: dict) -> str:
+    if prior == "wassersport" and e["art"] in ("gehen", "laufen", "rad", "unsicher"):
+        return "wassersport"
     if e["art"] != "gehen":
         return e["art"]
     if prior:
