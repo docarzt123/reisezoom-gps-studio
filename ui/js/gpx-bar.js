@@ -63,6 +63,104 @@
     }
   }
 
+  // ── Ladeflagge (13.09.2026) ───────────────────────────────────────────
+  // Marc: „Track wird geladen, und dann müssen wir schon ein Flag setzen. Dann
+  // müssen wir, wenn er fertig geladen ist, noch mal ein Flag setzen, und wenn das
+  // fertig-geladen-Flag fehlt, dann haben wir ein Problem."
+  // „Fertig" heißt: Track, Schilder und Fotos sind geladen UND die Oberfläche hat
+  // danach noch zwei Sekunden lang gelebt. Ein eingefrorenes Skript kommt hier nie
+  // an — dann bleibt „lädt" stehen, und der nächste Start fragt nach.
+  const _LADE_IDS = ["track-laden", "anim-schilder-laden", "anim-fotos", "anim-fotos-laden", "anim-fotos-gtg"];
+  let _ladeflaggeLauf = 0;
+  function _ladeflaggeSetzen(info) {
+    try { const a = api(); if (a && a.ladeflagge_setzen) a.ladeflagge_setzen(info); } catch (_) {}
+  }
+  function _ladeflaggeFertigWennRuhig() {
+    const lauf = ++_ladeflaggeLauf;
+    let ruhig = 0;
+    const t0 = Date.now();
+    const pruefen = () => {
+      if (lauf !== _ladeflaggeLauf) return;   // ein neuer Ladevorgang hat übernommen
+      const beschaeftigt = window.rzStatus && _LADE_IDS.some(id => window.rzStatus.laeuft(id));
+      ruhig = (beschaeftigt || Date.now() - t0 < 3000) ? 0 : ruhig + 1;
+      if (ruhig >= 2) {
+        try { const a = api(); if (a && a.ladeflagge_fertig) a.ladeflagge_fertig(); } catch (_) {}
+        return;
+      }
+      setTimeout(pruefen, 1000);
+    };
+    setTimeout(pruefen, 1000);
+  }
+
+  /** Beim Start: Ist der letzte Ladevorgang nicht fertig geworden, fragen, ob das
+   *  Projekt diesmal ohne Schilder und Fotos geöffnet werden soll. */
+  window.rzLadeflaggePruefen = async function() {
+    let r = null;
+    try { r = await api().ladeflagge_vom_letzten_start(); } catch (_) { return; }
+    if (!r || !r.problem) return;
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const name = r.projekt || String(r.gpx || "").split("/").pop();
+    const teile = [];
+    if (r.schilder) teile.push(t("ladeflagge.n_schilder", "{n} Schilder").replace("{n}", r.schilder.toLocaleString()));
+    if (r.fotos) teile.push(t("ladeflagge.n_fotos", "{n} Fotos").replace("{n}", r.fotos.toLocaleString()));
+    const inhalt = teile.length ? teile.join(" · ") : "";
+    const body = `
+      <p>${t("ladeflagge.text", "Beim letzten Mal ist <b>{name}</b> nicht fertig geladen worden. Die App hing oder wurde beendet, bevor alles da war.").replace("{name}", esc(name))}</p>
+      ${inhalt ? `<p>${t("ladeflagge.inhalt", "Im Projekt stecken: {inhalt}.").replace("{inhalt}", esc(inhalt))}</p>` : ""}
+      <p>${t("ladeflagge.vorschlag", "Du kannst es diesmal <b>ohne Schilder und Fotos</b> öffnen. Es wird nichts gelöscht — sie bleiben im Projekt und lassen sich danach mit einem Klick dazuholen.")}</p>`;
+    const kannSicher = r.gpx_da;
+    const footer = `
+      <button type="button" class="btn" data-lf="spaeter">${t("ladeflagge.nicht_oeffnen", "Nicht öffnen")}</button>
+      <button type="button" class="btn" data-lf="normal" ${kannSicher ? "" : "disabled"}>${t("ladeflagge.normal", "Normal öffnen")}</button>
+      <button type="button" class="btn btn-primary" data-lf="sicher" ${kannSicher ? "" : "disabled"}>${t("ladeflagge.sicher", "Ohne Schilder und Fotos öffnen")}</button>`;
+    const m = openModal({ title: t("ladeflagge.titel", "Das Projekt hat beim letzten Mal nicht fertig geladen"), body, footer });
+    if (window.applog) window.applog("warn", `[ladeflagge] Nachfrage beim Start: ${name} · ${inhalt}`);
+    const foot = document.getElementById("modal-footer");
+    const wahl = (w) => {
+      try { m.close(); } catch (_) {}
+      if (window.applog) window.applog("info", `[ladeflagge] Wahl: ${w}`);
+      if (w === "spaeter" || !r.gpx) return;
+      if (w === "sicher") window.__rzSicherTour = { gpx: r.gpx, tour_hash: r.tour_hash || "" };
+      if (typeof switchMod === "function") switchMod("animator");
+      setTimeout(() => window.loadGlobalGpx(r.gpx, { stumm: true }), 50);
+    };
+    foot && foot.querySelectorAll("[data-lf]").forEach(b => { b.onclick = () => wahl(b.dataset.lf); });
+  };
+
+  /** Banner im sicheren Modus: sagt, was ausgeblendet ist, und holt es auf Wunsch. */
+  window.rzSicherBanner = function(verdeckt) {
+    let bar = document.getElementById("sicher-banner");
+    if (!verdeckt) { if (bar) bar.hidden = true; return; }
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "sicher-banner";
+      bar.className = "source-missing-banner sicher-banner";
+      bar.innerHTML = `<span class="source-missing-banner-icon">🛟</span>
+        <span class="source-missing-banner-text"></span>
+        <button type="button" class="source-missing-banner-pick" data-sb="laden"></button>`;
+      const anker = document.getElementById("source-missing-banner");
+      if (anker && anker.parentNode) anker.parentNode.insertBefore(bar, anker.nextSibling);
+      else document.body.prepend(bar);
+    }
+    const teile = [];
+    if (verdeckt.schilder) teile.push(t("ladeflagge.n_schilder", "{n} Schilder").replace("{n}", verdeckt.schilder.toLocaleString()));
+    if (verdeckt.fotos) teile.push(t("ladeflagge.n_fotos", "{n} Fotos").replace("{n}", verdeckt.fotos.toLocaleString()));
+    bar.querySelector(".source-missing-banner-text").textContent =
+      t("ladeflagge.banner", "Sicher geöffnet: {inhalt} dieses Projekts sind ausgeblendet, nicht gelöscht. Änderungen daran sind gesperrt, bis du sie dazuholst.")
+        .replace("{inhalt}", teile.join(" und ") || "—");
+    const knopf = bar.querySelector("[data-sb=laden]");
+    knopf.textContent = t("ladeflagge.dazuholen", "Schilder und Fotos dazuholen");
+    knopf.onclick = () => {
+      const gpx = window.__rzSicherTour && window.__rzSicherTour.gpx;
+      window.__rzSicherTour = null;
+      window.__rzSicherVerdeckt = null;
+      bar.hidden = true;
+      if (window.applog) window.applog("info", "[ladeflagge] Schilder und Fotos werden dazugeholt");
+      if (gpx) window.loadGlobalGpx(gpx, { stumm: true });
+    };
+    bar.hidden = false;
+  };
+
   // ── Quelldatei-fehlt-Banner (v0.9.305) ────────────────────────────────
   // Wenn die zuletzt geladene GPX-Datei nicht mehr lesbar ist (externe Platte
   // ab, Datei verschoben/gelöscht), zeigen wir EIN klares Banner statt jedes
@@ -115,6 +213,9 @@
           text: (path || "").split("/").pop(),
         });
       }
+      // 13.09.2026 — Ladeflagge (Marc): „lädt" steht auf der Platte, BEVOR die Arbeit
+      // beginnt; „fertig" erst, wenn alles steht und die Oberfläche noch lebt.
+      _ladeflaggeSetzen({ gpx: path });
       const res = await api().animator_load_gpx(path);
       if (!res || !res.ok) {
         if (window.rzStatus) window.rzStatus.fehler(ladeId, res?.error || t("error.gpx_generic", "GPX-Fehler"));
@@ -149,7 +250,18 @@
       // Session-Restore an, der die alten Reise-Anhänge des Haupt-Tracks
       // mitten in die Übergabe lud (Race → fremde Etappen, doppeltes Zählen).
       if (typeof sessionActivate === "function" && !(opts && opts.menge)) {
-        try { await sessionActivate(res.coords, path); }
+        try {
+          await sessionActivate(res.coords, path);
+          try {
+            const pj = (typeof _activeProject !== "undefined" && _activeProject) || {};
+            const nSchilder = (pj.signs || []).length + (pj.tourmap_signs || []).length;
+            const verdeckt = window.__rzSicherVerdeckt || null;
+            _ladeflaggeSetzen({ gpx: path, projekt: pj.name || "",
+              tour_hash: (typeof _activeSession !== "undefined" && _activeSession && _activeSession.track_hash) || "",
+              schilder: verdeckt ? verdeckt.schilder : nSchilder,
+              fotos: verdeckt ? verdeckt.fotos : (pj.photos || []).length });
+          } catch (_) {}
+        }
         catch (err) {
           // 25.08.2026 — war nur console.warn: Schlug die Zuordnung zur Sitzung
           // fehl, stand im Log nichts, und die Projekte eines frisch
@@ -177,6 +289,7 @@
       }
       _renderCurrent();
       notifyGpxLoaded();
+      _ladeflaggeFertigWennRuhig();
       // 10.09.2026 — Track-Check-Hinweis (docs/TRACK-CHECK.md): einmal je Tour und
       // Sitzung, auch bei stummen Ladewegen (Archiv, Sitzung, App-Start).
       if (!(opts && opts.menge)) { try { window.rzTrackCheckHinweis && window.rzTrackCheckHinweis(path); } catch (_) {} }

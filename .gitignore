@@ -141,3 +141,5 @@ cloud_pruefsummen.json
 
 # Dev-APP_SUPPORT: Projekt-Importe (.rzproj) aus Prüfständen
 /projekt_importe/
+ladevorgang.json
+ladevorgang.tmp

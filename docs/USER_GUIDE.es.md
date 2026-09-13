@@ -2446,13 +2446,16 @@ Arriba a la izquierda: icono de la app + nombre. En el centro (cuando hay un GPX
 
 ## 8a · Qué está pasando ahora mismo: el aviso de carga (desde v0.9.690) ⭐
 
-Cuando algo tarda un poco, **aparece un recuadro abajo a la derecha**. Indica
-**qué** se está haciendo (por ejemplo «Obteniendo miniaturas»), **cuánto lleva**
-(«1.200 / 2.830») y ofrece **Cancelar** cuando es posible. La aplicación sigue
-siendo utilizable; el recuadro no bloquea nada.
+Cuando tienes que esperar a la app, **aparece una ventana en el centro de la pantalla**
+(desde v0.9.704). Indica **qué** se está haciendo (por ejemplo «Cargando carteles») y
+**cuánto lleva** («1.200 / 2.830 (42 %)») con una barra. Si no se puede saber la
+cantidad, gira un anillo. Cuando es posible cancelar, aparece **Cancelar**. Mientras la
+ventana está abierta, la app espera a esa tarea; un error se queda hasta que pulsas **OK**.
 
-Lo verás al cargar un track, al obtener las fotos de un proyecto, cuando el
-geoetiquetador lee una carpeta y mientras se indexa el fondo de fotos.
+La verás al cargar un track, al obtener las fotos de un proyecto, al abrir un proyecto
+con muchos carteles con foto y cuando el geoetiquetador lee una carpeta. **Lo que corre
+en segundo plano** sin hacerte esperar, como indexar el fondo de fotos, sigue siendo
+**un pequeño recuadro abajo a la derecha** que no bloquea nada.
 
 **Las fotos llegan ahora por tandas.** Si un proyecto tiene muchas, la lista
 aparece enseguida y las imágenes van llegando. La primera vez tarda (cada imagen
@@ -2533,6 +2536,9 @@ funcionando.
 
 ### La aplicación ya no reacciona, restablecer los ajustes (desde v0.9.688)
 Como en Final Cut: **mantén ⌘⌥ al iniciar** (Windows: **Ctrl+Alt**) hasta que aparezca la pregunta «¿Restablecer?». O, con la aplicación abierta, **Ayuda → «Restablecer ajustes y reiniciar …»**, que funciona aunque la interfaz ya no reaccione a los clics. La posición de la ventana, el estilo de mapa, el último proyecto abierto y todos los controles vuelven a los valores de fábrica. Tus rutas, proyectos y el archivo se conservan, también las claves de mapas y el idioma. Los ajustes antiguos quedan como `settings.reset-<hora>.json` junto al archivo nuevo.
+
+### Un proyecto se congela cada vez que se abre (desde v0.9.704)
+La app anota cuándo empieza a cargar un proyecto y cuándo termina. Si se cuelga o la cierras antes, pregunta en el siguiente inicio: **No abrir**, **Abrir normalmente** o **Abrir sin carteles ni fotos**. Con la tercera opción llega el track con todos sus ajustes y los carteles y fotos quedan ocultos. No se borra nada; un aviso arriba dice qué está oculto y **Recuperar carteles y fotos** los devuelve. Mientras están ocultos no se pueden cambiar, para que la lista vacía no sobrescriba nada. Ayuda justo donde restablecer no ayuda: la app reconoce una ruta por su recorrido y, si no, abriría el mismo proyecto una y otra vez.
 
 ### «No se puede abrir porque proviene de un desarrollador no verificado» (macOS)
 La app no está firmada con un certificado de desarrollador de Apple de 99 $/año. Solución: **clic derecho → Abrir** en lugar de doble clic (ver Instalación).

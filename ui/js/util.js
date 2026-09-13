@@ -1632,6 +1632,31 @@ async function sessionActivate(coords, gpxPath) {
     _activeSession = res.session;
     _activeProject = res.active_project;
     _projectsList = res.projects || [];
+    // 13.09.2026 — Sicherer Modus nach einem nicht fertig gewordenen Ladevorgang:
+    // Schilder und Fotos NUR im Speicher beiseitelegen. Im Projekt bleiben sie
+    // unangetastet; saveActiveProjectPatch lässt diese Schlüssel so lange nicht
+    // überschreiben (siehe _SICHER_SCHLUESSEL).
+    try {
+      const st = window.__rzSicherTour;
+      const passt = st && _activeProject && ((st.tour_hash && st.tour_hash === res.track_hash)
+        || (!st.tour_hash && st.gpx && st.gpx === gpxPath));
+      if (passt) {
+        const v = { schilder: 0, fotos: 0 };
+        for (const k of _SICHER_SCHLUESSEL) {
+          const n = Array.isArray(_activeProject[k]) ? _activeProject[k].length : 0;
+          if (k === "photos") v.fotos += n; else v.schilder += n;
+          _activeProject[k] = [];
+        }
+        window.__rzSicherVerdeckt = v;
+        if (!st.tour_hash) st.tour_hash = res.track_hash;
+        if (window.applog) window.applog("warn", `[ladeflagge] sicher geöffnet: ${v.schilder} Schilder, ${v.fotos} Fotos ausgeblendet`);
+        if (typeof window.rzSicherBanner === "function") window.rzSicherBanner(v);
+      } else if (window.__rzSicherVerdeckt && typeof window.rzSicherBanner === "function") {
+        // anderes Projekt geöffnet → Banner weg, Sperre aufgehoben
+        window.__rzSicherVerdeckt = null;
+        window.rzSicherBanner(null);
+      }
+    } catch (e) { console.warn("sicherer Modus:", e); }
     // 12.09.2026 — Dieselbe Tour aus einer anderen Datei: sagen statt schweigen.
     // Ein Beta-Tester exportierte seine Reise neu, landete im vorhandenen
     // Projekt und hielt die App für kaputt („kann die Tracks nicht auswählen").
@@ -2033,9 +2058,29 @@ function _projectFlushNow() {
 let _projectRootPendingPatch = null;
 let _projectRootPendingZiel = null;  // { hash, id } — Ziel des offenen Root-Patches
 let _projectRootSaveTimer = null;
+// 13.09.2026 — im sicheren Modus ausgeblendete, also schreibgeschützte Projekt-Schlüssel
+const _SICHER_SCHLUESSEL = ["signs", "tourmap_signs", "photos"];
+
 function saveActiveProjectPatch(patch, opts) {
   if (!_activeSession || !_activeProject) return;
   opts = opts || {};
+  if (window.__rzSicherVerdeckt && patch) {
+    // Die leere Liste im Speicher darf die echte im Projekt nicht überschreiben.
+    const gesperrt = Object.keys(patch).filter(k => _SICHER_SCHLUESSEL.includes(k));
+    if (gesperrt.length) {
+      patch = Object.assign({}, patch);
+      gesperrt.forEach(k => delete patch[k]);
+      if (window.applog) window.applog("info", `[ladeflagge] gesperrt (sicherer Modus): ${gesperrt.join(", ")}`);
+      try {
+        if (!window.__rzSicherGesagt) {
+          window.__rzSicherGesagt = true;
+          setTimeout(() => { window.__rzSicherGesagt = false; }, 8000);
+          toast(t("ladeflagge.gesperrt", "Schilder und Fotos sind ausgeblendet — hol sie oben erst dazu, dann lassen sie sich ändern."), "warn", 6000);
+        }
+      } catch (_) {}
+      if (!Object.keys(patch).length) return;
+    }
+  }
   if (!opts.persistOnly) {
     // In-Memory direkt anwenden — UI darf sich auf _activeProject.<key> verlassen
     for (const [k, v] of Object.entries(patch || {})) {
@@ -3929,10 +3974,18 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
  * jetzt visuelles feedback, am besten sogar mit einer ausgabe wo genau steht,
  * was passiert. sonst denkt jeder die app hängt, wenn es mal länger dauert."
  *
- * Bewusst KEIN Modal: ein Kasten unten rechts, der die Bedienung nicht sperrt.
- * Mehrere Vorgänge stapeln sich untereinander. Wer will, gibt `abbrechen` mit —
- * dann steht ein Knopf da und `rzStatus.abgebrochen(id)` sagt der Schleife, dass
- * sie aufhören soll.
+ * 13.09.2026 — Marc: „bei allem wo man warten muss muss ein sichtbares modal in
+ * die mitte des bildschirms, welches genau sagt was passiert und wenn möglich sogar
+ * einen fortschritt anzeigt. wenn kein fortschritt geht halt eine animation".
+ * Deshalb ist der Normalfall jetzt ein Fenster in der Mitte über abgedunkeltem
+ * Hintergrund. Arbeit, auf die niemand wartet (Foto-Bestand im Hintergrund lesen),
+ * gibt `hintergrund: true` mit und bleibt der kleine Kasten unten rechts.
+ * Das Fenster erscheint erst nach 300 ms — was schneller fertig ist, blitzt nicht.
+ * Kommt danach Arbeit, die den Hauptfaden blockiert: vorher `await rzStatus.gemalt(id)`,
+ * das zeigt das Fenster sofort und wartet, bis es wirklich auf dem Schirm ist.
+ * Die Animationen laufen über transform, damit sie auch weiterdrehen, wenn
+ * das Skript kurz beschäftigt ist. Mit `abbrechen` steht ein Knopf da und
+ * `rzStatus.abgebrochen(id)` sagt der Schleife, dass sie aufhören soll.
  *
  *   const s = rzStatus.start("fotos", { titel: "Fotos", text: "Vorschaubilder …",
  *                                       gesamt: 2830, abbrechen: true });
@@ -3941,29 +3994,55 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
  *   rzStatus.fertig("fotos", "2830 Fotos bereit");
  * ────────────────────────────────────────────────────────────────────────── */
 (function () {
-  const _vorgaenge = new Map();   // id → {el, gesamt, abbruch, t0}
+  const _vorgaenge = new Map();   // id → {el, gesamt, abbruch, t0, modal, zeigTimer}
+  const _ZEIG_NACH_MS = 300;
 
-  function _behaelter() {
-    let box = document.getElementById("rz-status-box");
+  function _behaelter(modal) {
+    const id = modal ? "rz-warte-modal" : "rz-status-box";
+    let box = document.getElementById(id);
     if (!box) {
       box = document.createElement("div");
-      box.id = "rz-status-box";
+      box.id = id;
+      if (modal) {
+        box.className = "rz-warte-hg";
+        box.setAttribute("role", "dialog");
+        box.setAttribute("aria-modal", "true");
+        box.hidden = true;
+        box.innerHTML = '<div class="rz-warte-karte" aria-live="polite"></div>';
+        // Das Fenster sperrt die Bedienung: Klicks landen nicht im Modul darunter.
+        box.addEventListener("mousedown", (e) => e.stopPropagation(), true);
+        box.addEventListener("keydown", (e) => { if (e.key === "Escape") e.stopPropagation(); }, true);
+      }
       document.body.appendChild(box);
     }
-    return box;
+    return modal ? box.querySelector(".rz-warte-karte") : box;
   }
 
-  function _zeile(id) {
-    const v = _vorgaenge.get(id);
-    return v ? v.el : null;
+  function _modalSichtbarkeit() {
+    const box = document.getElementById("rz-warte-modal");
+    if (!box) return;
+    let sichtbar = false;
+    for (const v of _vorgaenge.values()) if (v.modal && v.gezeigt) sichtbar = true;
+    box.hidden = !sichtbar;
+    if (!box.querySelector(".rz-status")) box.remove();
+  }
+
+  function _zeigen(v) {
+    if (!v || v.gezeigt) return;
+    clearTimeout(v.zeigTimer);
+    v.gezeigt = true;
+    v.el.hidden = false;
+    _modalSichtbarkeit();
   }
 
   function start(id, opt) {
     opt = opt || {};
+    const modal = !opt.hintergrund;
     let v = _vorgaenge.get(id);
+    if (v && v.modal !== modal) { try { v.el.remove(); } catch (_) {} _vorgaenge.delete(id); v = null; }
     if (!v) {
       const el = document.createElement("div");
-      el.className = "rz-status";
+      el.className = "rz-status" + (modal ? " rz-status-modal" : "");
       el.innerHTML = `
         <div class="rz-status-kopf">
           <span class="rz-status-punkt"></span>
@@ -3972,8 +4051,9 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
         </div>
         <div class="rz-status-text"></div>
         <div class="rz-status-balken"><i></i></div>`;
-      _behaelter().appendChild(el);
-      v = { el, gesamt: 0, abbruch: false, t0: Date.now() };
+      if (modal) el.hidden = true;
+      _behaelter(modal).appendChild(el);
+      v = { el, gesamt: 0, abbruch: false, t0: Date.now(), modal, gezeigt: !modal, zeigTimer: 0 };
       _vorgaenge.set(id, v);
       const ab = el.querySelector(".rz-status-ab");
       if (ab) ab.onclick = () => {
@@ -3981,14 +4061,30 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
         ab.disabled = true;
         schritt(id, { text: t("status.wird_abgebrochen", "Wird abgebrochen …") });
       };
+      if (modal) v.zeigTimer = setTimeout(() => _zeigen(v), _ZEIG_NACH_MS);
     }
+    clearTimeout(v.wegTimer);
     v.abbruch = false;
+    v.t0 = Date.now();
     v.gesamt = Number(opt.gesamt || 0);
     v.el.querySelector(".rz-status-titel").textContent = opt.titel || "";
-    v.el.querySelector(".rz-status-ab").hidden = !opt.abbrechen;
+    const ab = v.el.querySelector(".rz-status-ab");
+    ab.hidden = !opt.abbrechen; ab.disabled = false;
     v.el.classList.remove("ist-fertig", "ist-fehler");
-    schritt(id, { text: opt.text || "", n: 0 });
+    schritt(id, { text: opt.text || "", n: v.gesamt > 0 ? 0 : null });
     return id;
+  }
+
+  /** Zeigt das Fenster sofort und wartet zwei Bildaufbauten — danach darf Arbeit
+   *  kommen, die den Hauptfaden eine Weile belegt, und das Fenster steht trotzdem. */
+  function gemalt(id) {
+    _zeigen(_vorgaenge.get(id));
+    return new Promise((res) => {
+      let fertig = false;
+      const los = () => { if (!fertig) { fertig = true; res(); } };
+      requestAnimationFrame(() => requestAnimationFrame(los));
+      setTimeout(los, 120);   // falls das Fenster verdeckt ist und keine Frames kommen
+    });
   }
 
   function schritt(id, opt) {
@@ -3997,18 +4093,28 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
     opt = opt || {};
     if (opt.gesamt != null) v.gesamt = Number(opt.gesamt);
     const txt = v.el.querySelector(".rz-status-text");
-    const bal = v.el.querySelector(".rz-status-balken > i");
+    const balken = v.el.querySelector(".rz-status-balken");
+    const bal = balken.querySelector("i");
     let zeile = opt.text || "";
     if (opt.n != null && v.gesamt > 0) {
       // Zahlen gehören dazu: „ist es viel oder gleich vorbei?" ist die Frage,
       // die den Eindruck „hängt" verhindert.
-      zeile += (zeile ? " — " : "") + `${_rzZahl(opt.n)} / ${_rzZahl(v.gesamt)}`;
-      bal.style.width = Math.max(2, Math.min(100, 100 * opt.n / v.gesamt)) + "%";
-      v.el.querySelector(".rz-status-balken").classList.remove("ist-unbestimmt");
-    } else if (opt.n == null) {
-      v.el.querySelector(".rz-status-balken").classList.add("ist-unbestimmt");
+      const proz = Math.max(0, Math.min(100, 100 * opt.n / v.gesamt));
+      zeile += (zeile ? " — " : "") + `${_rzZahl(opt.n)} / ${_rzZahl(v.gesamt)}`
+        + (v.modal ? ` (${Math.floor(proz)} %)` : "");
+      bal.style.width = Math.max(2, proz) + "%";
+      balken.classList.remove("ist-unbestimmt");
+      v.el.classList.remove("ohne-fortschritt");
+    } else if (opt.n == null && !(v.gesamt > 0)) {
+      balken.classList.add("ist-unbestimmt");
+      v.el.classList.add("ohne-fortschritt");
     }
-    if (zeile) txt.textContent = zeile;
+    if (opt.text != null) {
+      if (zeile) txt.textContent = zeile;
+      v.letzterText = opt.text;
+    } else if (opt.n != null && v.gesamt > 0) {
+      txt.textContent = (v.letzterText ? v.letzterText + " — " : "") + zeile;
+    }
   }
 
   function abgebrochen(id) {
@@ -4019,11 +4125,16 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
   function _weg(id, verzoegerung) {
     const v = _vorgaenge.get(id);
     if (!v) return;
-    setTimeout(() => {
+    clearTimeout(v.zeigTimer);
+    // Nie gezeigt (schneller als 300 ms)? Dann auch keine Fertig-Meldung aufblitzen lassen.
+    if (v.modal && !v.gezeigt) verzoegerung = 0;
+    v.wegTimer = setTimeout(() => {
+      if (_vorgaenge.get(id) !== v) return;
       try { v.el.remove(); } catch (_) {}
       _vorgaenge.delete(id);
       const box = document.getElementById("rz-status-box");
       if (box && !box.children.length) box.remove();
+      _modalSichtbarkeit();
     }, verzoegerung);
   }
 
@@ -4031,20 +4142,35 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
     const v = _vorgaenge.get(id);
     if (!v) return;
     v.el.classList.add("ist-fertig");
+    v.el.classList.remove("ohne-fortschritt");
     v.el.querySelector(".rz-status-ab").hidden = true;
     const dauer = Math.round((Date.now() - v.t0) / 1000);
-    schritt(id, { text: (text || t("status.fertig", "Fertig"))
-      + (dauer >= 3 ? ` (${dauer} s)` : ""), n: v.gesamt || null });
-    _weg(id, 2200);
+    v.el.querySelector(".rz-status-balken").classList.remove("ist-unbestimmt");
+    v.el.querySelector(".rz-status-text").textContent = (text || t("status.fertig", "Fertig"))
+      + (dauer >= 3 ? ` (${dauer} s)` : "");
+    // Das Fenster sperrt — also nur kurz den Haken zeigen, dann weg.
+    _weg(id, v.modal ? 700 : 2200);
   }
 
   function fehler(id, text) {
     const v = _vorgaenge.get(id);
     if (!v) return;
     v.el.classList.add("ist-fehler");
-    v.el.querySelector(".rz-status-ab").hidden = true;
-    schritt(id, { text: text || t("status.fehler", "Fehlgeschlagen") });
-    _weg(id, 6000);
+    v.el.classList.remove("ohne-fortschritt");
+    v.el.querySelector(".rz-status-balken").classList.remove("ist-unbestimmt");
+    const ab = v.el.querySelector(".rz-status-ab");
+    v.el.querySelector(".rz-status-text").textContent = text || t("status.fehler", "Fehlgeschlagen");
+    if (v.modal) {
+      // Ein Fehler im Fenster bleibt stehen, bis man ihn gelesen hat.
+      _zeigen(v);
+      ab.hidden = false; ab.disabled = false;
+      ab.textContent = t("common.ok", "OK");
+      ab.onclick = () => _weg(id, 0);
+      _weg(id, 12000);
+    } else {
+      ab.hidden = true;
+      _weg(id, 6000);
+    }
   }
 
   function laeuft(id) { return _vorgaenge.has(id); }
@@ -4055,5 +4181,5 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
     return Math.round(Number(n) || 0).toLocaleString(loc || undefined);
   }
 
-  window.rzStatus = { start, schritt, fertig, fehler, abgebrochen, laeuft };
+  window.rzStatus = { start, schritt, fertig, fehler, abgebrochen, laeuft, gemalt };
 })();
