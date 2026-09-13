@@ -253,8 +253,11 @@ def bildpfade_richten(conn: sqlite3.Connection, app_support: Path,
                     f"UPDATE {tabelle} SET {spalte} = REPLACE({spalte}, ?, ?) "
                     f"WHERE {spalte} LIKE ?", (alt_pfad, neu_pfad, alt_pfad + "%"))
                 geaendert += cur.rowcount or 0
-    if geaendert:
-        conn.commit()
+    # IMMER abschließen (13.09.2026, Echt-App-Test): Ein UPDATE, das null Zeilen trifft,
+    # öffnet trotzdem eine Schreib-Transaktion. Blieb sie offen, war die ganze Bibliothek
+    # für jede andere Verbindung gesperrt — der Foto-Scan scheiterte fünfmal mit
+    # „database is locked", bis irgendwer anders zufällig committete.
+    conn.commit()
     return {"geaendert": geaendert}
 
 

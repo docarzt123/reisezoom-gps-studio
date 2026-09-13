@@ -271,15 +271,16 @@
           const phase = st.phase === "dateien"
             ? T("fotos.scan_dateien", "Dateien suchen")
             : T("fotos.scan_daten", "Aufnahmedaten lesen");
-          box.innerHTML = `${esc(phase)} — ${num(st.done)}${st.total ? " / " + num(st.total) : ""}
-            <button class="btn btn-sm" id="foto-scan-stop" type="button">${T("common.cancel", "Abbrechen")}</button>`;
-          const sp = box.querySelector("#foto-scan-stop");
-          if (sp) sp.onclick = () => api().fotos_scan_stop();
+          // 13.09.2026 (Echt-App-Test): Abbrechen steht schon in der Kopfzeile und im
+          // Kasten unten rechts — ein dritter Knopf hier machte es nur unübersichtlicher.
+          box.textContent = `${phase} — ${num(st.done)}${st.total ? " / " + num(st.total) : ""}`;
         } else {
           box.textContent = st.error ? String(st.error) : fernText(st);
         }
       }
-      if (knopf) knopf.disabled = !!st.running;
+      // Kein „Einlesen", während schon eingelesen wird (Marc, 12.09.2026: „liest er jetzt
+      // ein oder nicht?") — der Knopf verschwindet, statt nur grau zu werden.
+      if (knopf) { knopf.disabled = !!st.running; knopf.hidden = !!st.running; }
       if (st.running) {
         // Während des ersten Durchgangs wächst die Liste — einmal je Sekunde
         // nachziehen reicht, sonst flackert es.

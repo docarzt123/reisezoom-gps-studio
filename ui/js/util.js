@@ -1647,8 +1647,15 @@ async function sessionActivate(coords, gpxPath) {
           if (k === "photos") v.fotos += n; else v.schilder += n;
           _activeProject[k] = [];
         }
-        window.__rzSicherVerdeckt = v;
         if (!st.tour_hash) st.tour_hash = res.track_hash;
+        if (!v.schilder && !v.fotos) {
+          // Nichts auszublenden (Echt-App-Test 13.09.2026): kein Banner mit leerer
+          // Aufzählung, keine Sperre — das Projekt ist ganz normal offen.
+          window.__rzSicherTour = null;
+          if (window.applog) window.applog("info", "[ladeflagge] sicher geöffnet: keine Schilder und Fotos im Projekt — normal offen");
+          throw { rzNichtsVerdeckt: true };
+        }
+        window.__rzSicherVerdeckt = v;
         if (window.applog) window.applog("warn", `[ladeflagge] sicher geöffnet: ${v.schilder} Schilder, ${v.fotos} Fotos ausgeblendet`);
         if (typeof window.rzSicherBanner === "function") window.rzSicherBanner(v);
       } else if (window.__rzSicherVerdeckt && typeof window.rzSicherBanner === "function") {
@@ -1656,7 +1663,7 @@ async function sessionActivate(coords, gpxPath) {
         window.__rzSicherVerdeckt = null;
         window.rzSicherBanner(null);
       }
-    } catch (e) { console.warn("sicherer Modus:", e); }
+    } catch (e) { if (!(e && e.rzNichtsVerdeckt)) console.warn("sicherer Modus:", e); }
     // 12.09.2026 — Dieselbe Tour aus einer anderen Datei: sagen statt schweigen.
     // Ein Beta-Tester exportierte seine Reise neu, landete im vorhandenen
     // Projekt und hielt die App für kaputt („kann die Tracks nicht auswählen").
@@ -1665,7 +1672,7 @@ async function sessionActivate(coords, gpxPath) {
     try {
       const tourName = (res.session && res.session.name) || "";
       const dateiName = (gpxPath || "").split("/").pop().replace(/\.[^.]+$/, "");
-      if (res.bekannt && gpxPath && tourName && tourName.trim() !== dateiName.trim()
+      if (res.bekannt && res.andere_datei !== false && gpxPath && tourName && tourName.trim() !== dateiName.trim()
           && !window.__rzGleicheTourGesagt) {
         window.__rzGleicheTourGesagt = true;
         setTimeout(() => { window.__rzGleicheTourGesagt = false; }, 15000);
@@ -4214,3 +4221,12 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
       (e) => { ende(id); throw e; });
   };
 })();
+
+
+/** 13.09.2026 (Echt-App-Test): Datums- und Zahlenformate folgen der App-Sprache, nicht der
+ *  Systemsprache — in der spanischen Oberfläche stand „5. Juli 2026". */
+function rzSprachCode() {
+  try { const a = (typeof i18nMeta === "function") ? i18nMeta().active : null; if (a) return a; } catch (_) {}
+  return undefined;
+}
+window.rzSprachCode = rzSprachCode;

@@ -1216,7 +1216,7 @@ function mountGeotagger(body, headerActions) {
     } catch (err) { console.warn("_gtTracksVorschlagen:", err); }
   }
   function _gtTracksDialog(k, vgSet) {
-    const datum = (iso) => { try { return iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : ""; } catch (_) { return ""; } };
+    const datum = (iso) => { try { return iso ? new Date(iso).toLocaleDateString((window.rzSprachCode ? window.rzSprachCode() : undefined), { year: "numeric", month: "short", day: "numeric" }) : ""; } catch (_) { return ""; } };
     const rows = k.tracks.map((tr, i) => `
       <label class="modal-gpx-pick-row gt-track-wahl">
         <input type="checkbox" name="gt-track-wahl" value="${i}" ${(tr.n_fotos > 0 || k.tracks.length === 1) ? "checked" : ""}>
@@ -1457,7 +1457,7 @@ function mountGeotagger(body, headerActions) {
     if (!res.ok) { toast(res.error, "error"); return; }
     photos = _gtMergeRegistered(res.photos);   // v0.9.176 — ergänzen statt ersetzen
     renderPhotoGrid();
-    setLabel("gt-photos-info", countLabel(photos, recursive ? "aus Ordner + Unterordner" : "aus Ordner"));
+    setLabel("gt-photos-info", countLabel(photos, recursive ? "ordner_rek" : "ordner"));
     if (res.warning) toast(res.warning, "warn", 6000);
     showGridLoader(0, photos.length);
     pollThumbs(new Set());
@@ -1497,15 +1497,23 @@ function mountGeotagger(body, headerActions) {
     pollThumbs(new Set());
   }
 
-  function countLabel(photos, verb) {
+  // 13.09.2026 (Echt-App-Test): stand fest auf Deutsch — auch in der spanischen Oberfläche.
+  function countLabel(photos, wie) {
     const n_raw = photos.filter(p => p.is_raw).length;
     const n_vid = photos.filter(p => p.is_video).length;
     const n_jpg = photos.length - n_raw - n_vid;
     const parts = [];
     if (n_jpg) parts.push(`${n_jpg} JPG`);
     if (n_raw) parts.push(`${n_raw} RAW`);
-    if (n_vid) parts.push(`${n_vid} Video${n_vid > 1 ? "s" : ""}`);
-    return `${photos.length} Medien ${verb}${parts.length ? " (" + parts.join(" + ") + ")" : ""}`;
+    if (n_vid) parts.push(t("geotagger.info.n_videos", "{n} Videos").replace("{n}", n_vid));
+    const WIE = {
+      ordner: t("geotagger.info.wie_ordner", "aus Ordner"),
+      ordner_rek: t("geotagger.info.wie_ordner_rek", "aus Ordner + Unterordner"),
+      registriert: t("geotagger.info.wie_registriert", "registriert"),
+      importiert: t("geotagger.info.wie_importiert", "importiert"),
+    };
+    return t("geotagger.info.n_medien", "{n} Medien {wie}").replace("{n}", photos.length).replace("{wie}", WIE[wie] || wie)
+      + (parts.length ? " (" + parts.join(" + ") + ")" : "");
   }
 
   async function pollThumbs(known) {
@@ -1798,7 +1806,7 @@ function mountGeotagger(body, headerActions) {
       const offSec = _gtEffectiveOffset(cam) || 0;
       const base = new Date(iso);
       const shown = offSec ? new Date(base.getTime() + offSec * 1000) : base;
-      return shown.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+      return shown.toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { dateStyle: "medium", timeStyle: "short" });
     } catch (_) { return ""; }
   }
 

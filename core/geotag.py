@@ -363,13 +363,26 @@ class TrackEintrag:
     name: str = ""
 
 
+#: 13.09.2026 — Hat ein Foto eigene Koordinaten und lag ein Track zur Aufnahmezeit weiter
+#: als das entfernt, gehört das Foto nicht zu diesem Track (andere Reise zur selben Zeit).
+FOTO_GPS_FERN_M = 25_000.0
+
+
 def zuordnen_mehrere(
     photo_times: list[tuple[str, Optional[datetime]]],
     tracks: List[TrackEintrag],
+    foto_orte: Optional[dict] = None,
     **kw,
 ) -> list[tuple[PhotoMatch, Optional[int], list[int]]]:
     """Je Foto: (gewählter Treffer, Index des Tracks oder None, weitere Track-Indizes
-    mit Treffer). `kw` geht 1:1 an `match_photos` (Offset, Spielraum, Zeitzone …)."""
+    mit Treffer). `kw` geht 1:1 an `match_photos` (Offset, Spielraum, Zeitzone …).
+
+    `foto_orte` {Pfad: (lat, lon)} — eigene Koordinaten der Fotos (13.09.2026, Echt-App-
+    Test): Fotos mit GPS aus Florida wurden einer gleichzeitig laufenden Schottland-Reise
+    zugeschlagen, weil nur die Zeit zählte. Jetzt fallen Tracks, die zur Aufnahmezeit
+    weiter als FOTO_GPS_FERN_M entfernt waren, heraus, und unter den übrigen gewinnt der
+    nächstgelegene — auch bei vorgegebenen Tracks."""
+    foto_orte = foto_orte or {}
     if not tracks:
         return [(PhotoMatch(path=p, photo_time_local=t, matched_time_utc=None, lat=None,
                             lon=None, alt=None, track_index=None, time_delta_s=None,
@@ -378,14 +391,23 @@ def zuordnen_mehrere(
     raus = []
     for j in range(len(photo_times)):
         treffer = [i for i, ms in enumerate(je_track) if ms[j].in_range and ms[j].lat is not None]
+        ort = foto_orte.get(photo_times[j][0])
+        abstand = {}
+        if ort and ort[0] is not None and ort[1] is not None:
+            for i in treffer:
+                m = je_track[i][j]
+                abstand[i] = _haversine_m(float(ort[0]), float(ort[1]), m.lat, m.lon)
+            # auch vorgegebene: Ein Track 7000 km vom Aufnahmeort passt nie (er bleibt mit 0 Fotos gelistet)
+            treffer = [i for i in treffer if abstand[i] <= FOTO_GPS_FERN_M]
         if not treffer:
             # kein Track passt — den erstbesten Nicht-Treffer durchreichen (Zeit fehlt o. ä.)
             raus.append((je_track[0][j], None, []))
             continue
 
-        def rang(i, j=j):
+        def rang(i, j=j, abstand=abstand):
             m = je_track[i][j]
             return (0 if tracks[i].vorgegeben else 1,
+                    round(abstand.get(i, 0.0) / 2000.0),   # auf 2 km genau: näher gewinnt
                     abs(m.time_delta_s or 0.0),
                     -(tracks[i].gewicht or 0.0))
         treffer.sort(key=rang)

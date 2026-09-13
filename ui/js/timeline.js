@@ -476,7 +476,7 @@ function mountTimelineBar(opts) {
     const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
     const breitePx = el.getBoundingClientRect().width || 1000;
     const ges = _gruppenSekJeAnteil();
-    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     const band = (von, bis, art, titel, stil, gid) => {
       if (bis - von < 0.0005) return;
       const b = document.createElement("div");
@@ -945,7 +945,7 @@ function mountTimelineBar(opts) {
     const breitePx = el.getBoundingClientRect().width || 1000;
     const gesamtS = _tempoGesamtS();
     const sek = (t) => gesamtS > 0 ? (t.bis - t.von) * gesamtS : 0;
-    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString(undefined,
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined),
       { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
     for (const t of _tempoKacheln()) {

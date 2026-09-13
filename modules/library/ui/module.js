@@ -799,10 +799,19 @@ function mountLibrary(body, headerActions) {
     }
     renderView();
   }
+  // 13.09.2026 (Echt-App-Test): Wer von den Fotos zu Projekten oder Vorlagen wechselte,
+  // behielt den Foto-Bereich unten in der Seitenleiste — abgemeldet, aber sichtbar.
+  function _fotoBereichAus() {
+    const nf = document.getElementById("lib-nav-fotos");
+    if (nf) nf.hidden = true;
+    const sf = document.getElementById("lib-seg-fotos");
+    if (sf) sf.classList.remove("is-on");
+  }
   function vorlViewSetzen(an) {
     _vorlView = !!an;
     if (_vorlView) _projView = false;
     if (_vorlView && _fotoView) { _fotoView = false; if (window.rzFotos) window.rzFotos.unmount(); }
+    if (_vorlView) _fotoBereichAus();
     if (_vorlView) store.setJson("fotoview", false);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView);
@@ -824,6 +833,7 @@ function mountLibrary(body, headerActions) {
     _projView = !!an;
     _vorlView = false;
     if (_fotoView) { _fotoView = false; if (window.rzFotos) window.rzFotos.unmount(); }
+    _fotoBereichAus();
     store.setJson("fotoview", false);
     { const sv = document.getElementById("lib-seg-vorlagen"); if (sv) sv.classList.remove("is-on");
       const nv = document.getElementById("lib-nav-vorlagen"); if (nv) nv.hidden = true; }
@@ -3235,6 +3245,9 @@ function mountLibrary(body, headerActions) {
   }
 
   function renderDetail() {
+    // 13.09.2026 (Echt-App-Test): Im Foto-Bereich gehört die rechte Spalte den Fotos.
+    // Der Start lud die Tourenliste nach und schrieb danach das Tour-Detail hinein.
+    if (_fotoView) return;
     const box = $("lib-detail");
     if (_multi.size > 1) { renderMulti(); return; }
     if (!_sel) {
@@ -5066,7 +5079,11 @@ function mountLibrary(body, headerActions) {
   // 02.09.2026: Ohne Flagge entscheidet das Gedächtnis — die Ansicht, die
   // zuletzt offen war. Beim allerersten Start sind das die Projekte
   // („woran war ich dran?"); die Playwright-Selbsttests wollen die Touren.
-  if (window.__rzStartProjekte) {
+  if (window.__rzStartTouren) {
+    window.__rzStartTouren = false;
+    window.__rzStartProjekte = false;
+    projViewSetzen(false);
+  } else if (window.__rzStartProjekte) {
     window.__rzStartProjekte = false;
     projViewSetzen(true);
   } else if (!window.__rzKeinPmBoot && store.getJson("fotoview", false)) {
