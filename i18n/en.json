@@ -3778,5 +3778,10 @@
   "logbuch.einst.hinweis_tour": "This tour has its own values — “Reset” removes them, then the default applies again.",
   "logbuch.einst.hinweis_standard": "This tour uses the default.",
   "warte.einteilung_aktion.titel": "Changing the logbook",
-  "warte.einteilung_aktion.text": "The tour's division is being saved"
+  "warte.einteilung_aktion.text": "The tour's division is being saved",
+  "logbuch.menue.teilen_anker": "Split at anchor A ({z})",
+  "logbuch.menue.teilen_uhrzeit": "Split at a time …",
+  "logbuch.frage.uhrzeit": "Time (local), e.g. 12:30",
+  "logbuch.uhrzeit_ungueltig": "Please enter a time like 12:30.",
+  "logbuch.uhrzeit_ausserhalb": "This time is not within this entry."
 }

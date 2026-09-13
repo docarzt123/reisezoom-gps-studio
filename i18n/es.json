@@ -3778,5 +3778,10 @@
   "logbuch.einst.hinweis_tour": "Esta ruta tiene valores propios; «Restablecer» los quita y vuelve a valer el estándar.",
   "logbuch.einst.hinweis_standard": "Esta ruta usa el estándar.",
   "warte.einteilung_aktion.titel": "Cambiando el cuaderno",
-  "warte.einteilung_aktion.text": "Se guarda la división de la ruta"
+  "warte.einteilung_aktion.text": "Se guarda la división de la ruta",
+  "logbuch.menue.teilen_anker": "Dividir en el anclaje A ({z})",
+  "logbuch.menue.teilen_uhrzeit": "Dividir a una hora …",
+  "logbuch.frage.uhrzeit": "Hora (local), p. ej. 12:30",
+  "logbuch.uhrzeit_ungueltig": "Introduce una hora como 12:30.",
+  "logbuch.uhrzeit_ausserhalb": "Esa hora no está dentro de esta entrada."
 }

@@ -4068,6 +4068,22 @@ function mountGpxInspect(body, headerActions) {
         await _lbAktion(t("logbuch.undo.teilen", "Logbuch: teilen"), "teilen", { bid, t: tt });
       };
       if (teilbar(tHier)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_hier", "Hier teilen ({z})", { z: _lbUhr(tHier, e.versatz_min) }), tu: () => teilen(tHier) });
+      // Marc, 13.09.2026: „ich würde gern die aktivität teilen" — in der Liste kennt das Menü
+      // keine Stelle. Also: am Anker A (wenn er im Eintrag liegt) oder an einer Uhrzeit.
+      const zA = (_selA !== null) ? (_lbZeiten || _lbZeitenBauen())[_selA] : NaN;
+      if (isFinite(zA) && teilbar(zA)) M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_anker", "Bei Anker A teilen ({z})", { z: _lbUhr(zA, e.versatz_min) }), tu: () => teilen(zA) });
+      M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_uhrzeit", "Teilen bei Uhrzeit …"), tu: async () => {
+        const v = await _lbFrage(t("logbuch.frage.uhrzeit", "Uhrzeit (Ortszeit), z. B. 12:30"), _lbUhr((e.t0 + e.t1) / 2, e.versatz_min));
+        if (v === null) return;
+        const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(v).trim());
+        if (!m) { toast(t("logbuch.uhrzeit_ungueltig", "Bitte eine Uhrzeit wie 12:30 eingeben."), "warn"); return; }
+        // Die Uhrzeit auf den Tag des Eintragsbeginns legen (Ortszeit); liegt sie davor, ist der nächste Tag gemeint.
+        const tag0 = _lbDatum(e.t0, e.versatz_min); tag0.setUTCHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+        let tt = tag0.getTime() / 1000 - (e.versatz_min || 0) * 60;
+        if (tt < e.t0) tt += 86400;
+        if (!teilbar(tt)) { toast(t("logbuch.uhrzeit_ausserhalb", "Diese Uhrzeit liegt nicht in diesem Eintrag."), "warn"); return; }
+        await teilen(tt);
+      } });
       M.push({ symbol: "✂️", text: t("logbuch.menue.teilen_mitte", "In der Mitte teilen"), aus: !teilbar((e.t0 + e.t1) / 2), tu: () => teilen((e.t0 + e.t1) / 2) });
       const vor = _lbNachbar(e, -1), nach = _lbNachbar(e, +1);
       M.push({ symbol: "⇤", text: t("logbuch.menue.mit_vorherigem", "Mit vorherigem zusammenlegen"), aus: !vor, tu: () =>

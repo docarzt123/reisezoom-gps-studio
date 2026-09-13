@@ -3778,5 +3778,10 @@
   "logbuch.einst.hinweis_tour": "Diese Tour hat eigene Werte — „Zurücksetzen“ nimmt sie weg, dann gilt wieder der Standard.",
   "logbuch.einst.hinweis_standard": "Diese Tour nutzt den Standard.",
   "warte.einteilung_aktion.titel": "Logbuch wird geändert",
-  "warte.einteilung_aktion.text": "Die Einteilung der Tour wird gespeichert"
+  "warte.einteilung_aktion.text": "Die Einteilung der Tour wird gespeichert",
+  "logbuch.menue.teilen_anker": "Bei Anker A teilen ({z})",
+  "logbuch.menue.teilen_uhrzeit": "Teilen bei Uhrzeit …",
+  "logbuch.frage.uhrzeit": "Uhrzeit (Ortszeit), z. B. 12:30",
+  "logbuch.uhrzeit_ungueltig": "Bitte eine Uhrzeit wie 12:30 eingeben.",
+  "logbuch.uhrzeit_ausserhalb": "Diese Uhrzeit liegt nicht in diesem Eintrag."
 }
