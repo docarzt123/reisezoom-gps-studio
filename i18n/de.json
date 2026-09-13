@@ -3846,5 +3846,6 @@
   "logbuch.poi.klick_zeigen": "Klick: auf der Karte zeigen",
   "logbuch.menue.karte_zeigen": "Auf der Karte zeigen",
   "logbuch.menue.punkt_hier": "Eigenen Punkt hier setzen …",
-  "logbuch.menue.anker_hier": "Anker A/B hier setzen"
+  "logbuch.menue.anker_hier": "Anker A/B hier setzen",
+  "error.eintrag_ohne_kennung": "Eintrag ohne Kennung"
 }

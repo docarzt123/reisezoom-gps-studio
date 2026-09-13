@@ -3592,7 +3592,7 @@ function mountGpxInspect(body, headerActions) {
     }
     _lb = r;
     _lbStandMerken(r);
-    try { await _lbEigeneLaden(); } catch (_) {}
+    try { await _lbEigeneLaden(); } catch (e) { applog && applog("warn", "[logbuch] eigene Spuren: " + e); }
     if (note) note.hidden = true;
     if (koerper) koerper.hidden = _lbZuIst();
     applog && applog("info", `[logbuch] ${(r.eintraege || []).length} Einträge, ${(r.punkte || []).length} Punkte, ${(r.tage || []).length} Tage, Zone ${r.zone}`);

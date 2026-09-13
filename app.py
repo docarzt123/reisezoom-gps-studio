@@ -9906,7 +9906,7 @@ class Api:
                                          str(q.get("name") or ""))
                 elif aktion == "aendern":
                     if not (q.get("bids") or q.get("bid")):
-                        return {"ok": False, "error": "Eintrag ohne Kennung (bid)"}
+                        return {"ok": False, "error": _ui_t()("error.eintrag_ohne_kennung", "Eintrag ohne Kennung")}
                     ceint.bereich_aendern(conn, eid, q.get("bids") or str(q["bid"]),
                                           **{k: q[k] for k in ("art", "name", "anzeige", "notiz") if k in q})
                 elif aktion == "punkt":            # Logbuch §68 Q12: eigener Punkt
