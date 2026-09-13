@@ -346,11 +346,11 @@ def _ist_punkt(b: dict) -> bool:
 
 
 def punkt_setzen(conn: sqlite3.Connection, eid: str, t: float, art: str = "punkt", name: str = "",
-                 lat=None, lon=None, ele=None) -> dict:
-    """Einen eigenen Punkt-Eintrag setzen (Logbuch §68 Q12). Schneidet nichts aus —
+                 lat=None, lon=None, ele=None, quelle: str = "hand", **mehr) -> dict:
+    """Einen Punkt-Eintrag setzen (Logbuch §68 Q12, POIs Q11). Schneidet nichts aus —
     ein Punkt liegt in einem Bereich, er ersetzt ihn nicht."""
     e = _laden(conn, eid)
-    e["bereiche"].append(_bereich(t, t, art, name, "hand", lat=lat, lon=lon, ele=ele))
+    e["bereiche"].append(_bereich(t, t, art, name, quelle, lat=lat, lon=lon, ele=ele, **mehr))
     return _schreiben(conn, e)
 
 

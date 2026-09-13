@@ -450,6 +450,8 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     try:
         from . import einteilung as _einteilung
         _einteilung.schema_anlegen(conn)
+        from . import logbuch as _logbuch      # 13.09.2026 — Orts- und POI-Cache (§68 Stufe 3)
+        _logbuch.schema_anlegen(conn)
     except Exception:
         log.exception("library: Tabelle der Einteilungen konnte nicht angelegt werden")
     conn.commit()

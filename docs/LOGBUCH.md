@@ -134,7 +134,7 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 - ⚙ je Tour + globale Standards (Q13): Pausen-Mindestdauer, Wanderung-Schwellen, Ortsnamen an/aus,
   POI-Menge.
 
-### Stufe 3 — Ortsnamen, POIs, großes Fenster
+### Stufe 3 — Ortsnamen, POIs, großes Fenster ✅ gebaut 13./14.09.2026 (v0.9.710)
 - Ortsnamen im Hintergrund (App-Namen → Geocoder → später nachtragen).
 - POIs nach Q11 (Highlight-Suche aus dem Animator in den Inspektor holen), POI-Spur.
 - Großes verschiebbares Fenster mit Tabelle, Sortieren, Mehrfachauswahl (Q17).
@@ -163,6 +163,12 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
   „Logbuch der Tour"), i18n `logbuch.*` DE/EN/ES, Wächter `tests/test_logbuch.py`. Kopflos
   geprüft (Kern, Prüfsammlung, Brücke, WebKit mit echter Brücke). Bausteine für Stufe 2 liegen
   bereit: `window.__rzGpxiLogbuch` (Zustand), `einteilung_aktion` mit `vorher` für ⌘Z.
+- 14.09.2026 früh — **Stufe 3 gebaut** (v0.9.710): Ortsnamen (Photon, Cache in `logbuch_orte`, Budget je
+  Aufruf, später nachtragbar), POIs (OSM über die Highlight-Suche, Cache `logbuch_pois`, wichtige als
+  Punkte `poi` im Logbuch, POI-Spur mit Menge), großes verschiebbares Fenster mit Tabelle. Entschieden
+  dabei: „wichtig" = Rang ≤ 1 (Gipfel, Pass, Burg) oder ≤ 300 m an einer Pause; Ortsname grob
+  „Ort, Gemeinde" aus city/county; Fahrten zeigen „von → nach"; Netz-Schalter in ⚙ als Teil derselben
+  Einstellungen (global/je Tour).
 - 13.09.2026 nachts — **Stufe 2 gebaut** (v0.9.709): Kontextmenü je Eintrag (umbenennen, Notiz, Art inkl.
   Wassersport, teilen, zusammenlegen, löschen → geht im Nachbarn auf), Grenzen im Zeitstrahl ziehen,
   ＋ A→B, 📍 eigener Punkt, ⚙ Einstellungen je Tour / als Standard; alles im ⌘Z des Inspektors.
