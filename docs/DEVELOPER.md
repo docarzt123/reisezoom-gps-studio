@@ -4972,6 +4972,16 @@ Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
   `#gpxi-lb-fenster` (`_lbFensterAuf/_lbFensterRender`, Element `_lbGross`, Lage in localStorage
   `rz_logbuch_fenster`): Tabelle sortierbar (`_lbFensterSort`), Auswahl `_lbFensterWahl`, Sammelaktionen
   über `_lbAktion`. Für Wächter: `window.__rzGpxiLogbuchNetz`.
+- **Stufe 4 (v0.9.711):** Spuren sind dynamisch — `_lbSpurenAnpassen` berechnet `_LB_ZEILEN_AKTIV`
+  und `_LB_H_AKTIV` aus den Häkchen (POIs, Eigene, Befunde) und setzt SVG-/Cursor-/Körperhöhe.
+  Befunde-Spur `_lbBefundeRender` aus `_tc.befunde[].stellen` (Punkt-Indizes, gekappt bei 300),
+  Klick → `trackCheckZeigen(key)` + `flyTo`; nach `analyseTrack` wird der Strahl neu gezeichnet.
+  Eigene-Spur: `einteilung_lesen` → `art=eigen` (`_lbEigene`), Anlegen über das A→B-Menü
+  (`_lbEigenAnlegen` → `einteilung_eigen_anlegen` + Aktion `setzen` mit `art=eigen`), Bearbeiten per
+  Rechtsklick (`aendern`/`bereich_entfernen`/`einteilung_entfernen`); ⌘Z über `lbEigen` im
+  Schnappschuss (`_lbEigeneUndo`: fehlende Einteilungen werden mit `stand=None` entfernt). Archiv:
+  `logbuch_kurz(path)` (nur Einteilung, keine Punkte) → `_logbuchKurz` im Detail
+  (`modules/library/ui/module.js`, `#lib-d-logbuch`). Für Wächter: `window.__rzGpxiLogbuchSpuren`.
 - **Wächter:** `tests/test_logbuch.py` — Kern (Bauer-Tracks), Prüfsammlung (Wohnmobil, Lauf mit
   Zug, Teide), Brücke mit Testbibliothek, WebKit (wie die App) mit echter Brücke (Aufbau, Kopplung, Schalter,
   Mehrtages-Reise). `tests/test_einteilung.py` kennt die Punkt-Einträge.

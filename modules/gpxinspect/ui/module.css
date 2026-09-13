@@ -380,10 +380,6 @@
   color: var(--text-muted); opacity: .85;
 }
 .gpxi-lb-spuren span { position: absolute; left: 0; }
-.gpxi-lb-spuren span:nth-child(1) { top: 3px; }
-.gpxi-lb-spuren span:nth-child(2) { top: 48px; }
-.gpxi-lb-spuren span:nth-child(3) { top: 94px; }
-.gpxi-lb-spuren span:nth-child(4) { top: 116px; }
 .gpxi-lb-profil { pointer-events: none; }
 .gpxi-lb-spurbg { fill: rgba(255,255,255,.035); }
 .gpxi-lb-profil { fill: rgba(0,0,0,.22); stroke: rgba(255,255,255,.75); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
@@ -558,3 +554,11 @@
 .gpxi-lbt-edit { width: 100%; padding: 3px 6px; font: inherit; border: 1px solid #98a1b0; border-radius: 5px; background: #fff; color: #1b2130; }
 .gpxi-lb-tabelle .gpxi-lb-mehr { opacity: .55; }
 .gpxi-lb-tabelle tr:hover .gpxi-lb-mehr { opacity: 1; }
+
+/* ── Logbuch Stufe 4 — Befunde- und Eigene-Spur (13.09.2026) ─────────────── */
+.gpxi-lb-befund { cursor: pointer; }
+.gpxi-lb-befund path { stroke: #fff; stroke-width: .8; }
+.gpxi-lb-befund:hover path { stroke-width: 2; }
+.gpxi-lb-eigen { cursor: context-menu; }
+.gpxi-lb-eigen rect { stroke: rgba(0,0,0,.35); stroke-width: 1; }
+.gpxi-lb-eigen:hover rect { opacity: 1; }

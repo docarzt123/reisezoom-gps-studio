@@ -2371,6 +2371,10 @@ When you open a tour from the archive, the logbook appears **below the map**: a 
 
 **⤢ Large window:** the whole logbook as a draggable, resizable table — columns time, type, name, place, duration, km, climb, pace, sortable by clicking the header; ticks for multi-select (shift-click for a range) with a bar *Change type · Merge · Delete*; double-click a name to rename; clicking a row selects the entry on the map; ⋯ and right-click as in the list.
 
+**Findings and own tracks (since v0.9.711):** the **Findings** tick shows every spot the track check found as a diamond in its colour in the timeline — click to jump there on the map and mark the finding like “Show” in the box. **Own tracks** (“with the kids”, “rain”): set anchors A and B → **＋ A→B → Own track …** → pick an existing track or name a new one, label the part; the **Own** tick shows them as a row of their own, right-click a part to rename or remove it (or the whole track) — all undoable. The timeline grows and shrinks with the visible tracks.
+
+**In the archive:** under a tour's key figures you now find the **logbook summary** (“5 h drive · 1 ferry · 2 hikes · highest point 1,240 m”, plus the number of days for trips) — or honestly “no logbook yet” until you have opened the tour in the inspector once.
+
 > The logbook exists for tours in the **archive** (it belongs to the tour, not to the file). A file from outside gets a note. Editing, place names and sights follow in the next stages — the plan is in `docs/LOGBUCH.md`.
 
 ### Undo

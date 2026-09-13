@@ -139,7 +139,7 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 - POIs nach Q11 (Highlight-Suche aus dem Animator in den Inspektor holen), POI-Spur.
 - Großes verschiebbares Fenster mit Tabelle, Sortieren, Mehrfachauswahl (Q17).
 
-### Stufe 4 — Befunde, Eigene, Archiv
+### Stufe 4 — Befunde, Eigene, Archiv ✅ gebaut 14.09.2026 (v0.9.711)
 - Befunde-Spur (Q18), Eigene-Spur (Q14), Kurzfassung im Archiv-Detail (Q20).
 
 ### Danach (nicht Teil dieses Plans)
@@ -163,6 +163,10 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
   „Logbuch der Tour"), i18n `logbuch.*` DE/EN/ES, Wächter `tests/test_logbuch.py`. Kopflos
   geprüft (Kern, Prüfsammlung, Brücke, WebKit mit echter Brücke). Bausteine für Stufe 2 liegen
   bereit: `window.__rzGpxiLogbuch` (Zustand), `einteilung_aktion` mit `vorher` für ⌘Z.
+- 14.09.2026 früh — **Stufe 4 gebaut** (v0.9.711): Befunde-Spur (aus dem Track-Check des Inspektors,
+  Klick springt hin), Eigene-Spur (eigene Einteilungen, Anlegen über ＋ A→B, standardmäßig aus), Kurzfassung
+  im Archiv-Detail (`logbuch_kurz`, ohne Punkte). Damit ist der Plan §4 komplett; Marc schaut in der
+  echten App. Offen bleibt „Danach": Animator liest das Logbuch (Q19), Reisetagebuch (§69).
 - 14.09.2026 früh — **Stufe 3 gebaut** (v0.9.710): Ortsnamen (Photon, Cache in `logbuch_orte`, Budget je
   Aufruf, später nachtragbar), POIs (OSM über die Highlight-Suche, Cache `logbuch_pois`, wichtige als
   Punkte `poi` im Logbuch, POI-Spur mit Menge), großes verschiebbares Fenster mit Tabelle. Entschieden

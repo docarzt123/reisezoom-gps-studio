@@ -345,6 +345,8 @@ function mountGpxInspect(body, headerActions) {
           <label class="gpxi-lb-schalter" title="${t("logbuch.alles_zeigen_help", "Auch kurze Halte und die rohen Bereiche der Erkennung zeigen.")}"><input type="checkbox" id="gpxi-lb-alles"> ${t("logbuch.alles_zeigen", "alles zeigen")}</label>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-reise" hidden title="${t("logbuch.reise_tip", "Wieder die ganze Tour zeigen")}">⤢ ${t("logbuch.reise", "Ganze Tour")}</button>
           <label class="gpxi-lb-schalter" title="${t("logbuch.pois_tip", "Sehenswürdigkeiten am Weg als eigene Spur zeigen")}"><input type="checkbox" id="gpxi-lb-pois" checked> POIs</label>
+          <label class="gpxi-lb-schalter" title="${t("logbuch.eigene_tip", "Eigene Spuren (z. B. „mit den Kindern“) zeigen — anlegen über ＋ A→B")}"><input type="checkbox" id="gpxi-lb-eigene"> ${t("logbuch.spur_eigene", "Eigene")}</label>
+          <label class="gpxi-lb-schalter" title="${t("logbuch.befunde_tip", "Fundstellen des Track-Checks als Spur; Klick springt hin")}"><input type="checkbox" id="gpxi-lb-befunde" checked> ${t("logbuch.spur_befunde", "Befunde")}</label>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-fenster-auf" title="${t("logbuch.fenster.auf", "Als großes Fenster mit Tabelle öffnen")}">⤢</button>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-ab" disabled title="${t("logbuch.knopf.ab_tip", "Aus dem Abschnitt zwischen Anker A und B einen eigenen Eintrag machen")}">＋ A→B</button>
           <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-punkt" disabled title="${t("logbuch.knopf.punkt_tip", "Eigenen Punkt setzen: danach auf die Karte klicken")}">📍 ${t("logbuch.knopf.punkt", "Punkt")}</button>
@@ -354,7 +356,7 @@ function mountGpxInspect(body, headerActions) {
         </div>
         <div class="gpxi-lb-koerper" id="gpxi-lb-koerper" hidden>
           <div class="gpxi-lb-strahl" id="gpxi-lb-strahl">
-            <div class="gpxi-lb-spuren"><span>${t("logbuch.spur_tage", "Tage")}</span><span>${t("logbuch.spur_bewegung", "Bewegung")}</span><span>${t("logbuch.spur_punkte", "Punkte")}</span><span>POIs</span></div>
+            <div class="gpxi-lb-spuren" id="gpxi-lb-spuren-el"></div>
             <div class="gpxi-lb-svgbox" id="gpxi-lb-svgbox">
               <svg id="gpxi-lb-svg" class="gpxi-lb-svg" aria-hidden="true"></svg>
               <div class="gpxi-lb-cursor" id="gpxi-lb-cursor" hidden><span></span></div>
@@ -2016,6 +2018,7 @@ function mountGpxInspect(body, headerActions) {
     if (isUnmounted) return;
     if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     _tc = r;
+    try { if (_lb) _lbStrahlRender(); } catch (_) {}   // Logbuch Stufe 4: Befunde-Spur
     try { _profilAusArt(r.activity); } catch (_) {}
     _healFunde = (r.befunde || []).filter((b) => !(b.key in _TC_OHNE_SCHRITT)).map((b) => ({ key: b.key, n: b.n }));
     const kurz = (typeof rzTrackCheckKurz === "function") ? rzTrackCheckKurz(r.befunde, 4) : "";
@@ -3462,8 +3465,8 @@ function mountGpxInspect(body, headerActions) {
                          spaziergang: "Spaziergang", rad: "Rad", laufen: "Laufen", pause: "Pause",
                          uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?", wassersport: "Wassersport",
                          hoechster_punkt: "Höchster Punkt", start: "Start", ziel: "Ziel", punkt: "Eigener Punkt", poi: "Sehenswürdigkeit" };
-  const _LB_H = 156;                       // Höhe des Zeitstrahls (px)
-  const _LB_ZEILEN = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], pois: [113, 131], achse: [135, 153] };
+  let _LB_H_AKTIV = 156;                   // Höhe des Zeitstrahls (px) — je nach sichtbaren Spuren (Stufe 4)
+  let _LB_ZEILEN_AKTIV = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], pois: [113, 131], achse: [135, 153] };
   let _lb = null;            // Antwort der Brücke (Einträge, Punkte, Tage, roh …)
   let _lbSel = null;         // Kennung des gewählten Eintrags
   let _lbAlles = false;      // Schalter „alles zeigen" (Q5: rohe Bereiche samt kurzer Halte)
@@ -3585,6 +3588,7 @@ function mountGpxInspect(body, headerActions) {
     }
     _lb = r;
     _lbStandMerken(r);
+    try { await _lbEigeneLaden(); } catch (_) {}
     if (note) note.hidden = true;
     if (koerper) koerper.hidden = _lbZuIst();
     applog && applog("info", `[logbuch] ${(r.eintraege || []).length} Einträge, ${(r.punkte || []).length} Punkte, ${(r.tage || []).length} Tage, Zone ${r.zone}`);
@@ -3599,7 +3603,7 @@ function mountGpxInspect(body, headerActions) {
   function logbuchLeeren() {
     _lb = null; _lbSel = null; _lbFenster = null; _lbZeiten = null; _lbPfad = null;
     _lbStandMerken(null); _lbPunktModus = false; try { _lbKnoepfe(); } catch (_) {}
-    _lbOrte = {}; _lbPois = []; _lbNetzLauf++; if (_lbGross) _lbGross.hidden = true;
+    _lbOrte = {}; _lbPois = []; _lbNetzLauf++; if (_lbGross) _lbGross.hidden = true; _lbEigene = [];
     const w = _lbEl("gpxi-logbuch"); if (w) w.hidden = true;
     _lbHighlight(null);
   }
@@ -3701,14 +3705,15 @@ function mountGpxInspect(body, headerActions) {
   function _lbStrahlRender() {
     const svg = _lbEl("gpxi-lb-svg"), box = _lbEl("gpxi-lb-svgbox");
     if (!svg || !box || !_lb) return;
-    const W = Math.max(80, Math.floor(box.clientWidth)), H = _LB_H;
+    try { _lbSpurenAnpassen(); } catch (_) {}
+    const W = Math.max(80, Math.floor(box.clientWidth)), H = _LB_H_AKTIV;
     const sp = _lbSpanne();
     if (!sp || W < 100) { svg.innerHTML = ""; return; }
     const [f0, f1] = sp, span = Math.max(1, f1 - f0);
     const X = (tEpoch) => ((tEpoch - f0) / span) * W;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.setAttribute("width", W); svg.setAttribute("height", H);
-    const Z = _LB_ZEILEN;
+    const Z = _LB_ZEILEN_AKTIV;
     const versatz = (_lb.eintraege && _lb.eintraege[0] && _lb.eintraege[0].versatz_min) || ((_lb.tage || [])[0] || {}).versatz_min || 0;
     let s = `<defs><pattern id="gpxi-lb-streifen" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
         <rect width="8" height="8" fill="#6b7280"/><rect width="4" height="8" fill="#9ca3af"/></pattern>
@@ -3764,7 +3769,9 @@ function mountGpxInspect(body, headerActions) {
       }
     }
     // Zeitachse
-    s += `<rect x="0" y="${Z.pois[0]}" width="${W}" height="${Z.pois[1] - Z.pois[0]}" class="gpxi-lb-spurbg"/>`;
+    if (Z.pois) s += `<rect x="0" y="${Z.pois[0]}" width="${W}" height="${Z.pois[1] - Z.pois[0]}" class="gpxi-lb-spurbg"/>`;
+    try { s += _lbEigeneRender(X, W); } catch (_) {}
+    try { s += _lbBefundeRender(X, W); } catch (_) {}
     s += _lbAchse(X, f0, f1, W, versatz, Z.achse[0]);
     svg.innerHTML = s;
     try { _lbPoisRender(); } catch (_) {}
@@ -3967,7 +3974,8 @@ function mountGpxInspect(body, headerActions) {
   /** Für den Undo-Schnappschuss des Inspektors: was das Logbuch gerade ist. */
   function _lbSchnappschuss() {
     return { lb: _lbStand ? JSON.parse(JSON.stringify(_lbStand)) : null,
-             lbEinst: _lbEinst ? JSON.parse(JSON.stringify(_lbEinst)) : null, lbPfad: _lbPfad };
+             lbEinst: _lbEinst ? JSON.parse(JSON.stringify(_lbEinst)) : null, lbPfad: _lbPfad,
+             lbEigen: _lbEigeneSchnappschuss() };
   }
   /** ⌘Z/⌘⇧Z: Stand der Einteilung und Einstellungen zurückschreiben, dann neu lesen. */
   async function _lbUndoAnwenden(snap) {
@@ -3983,6 +3991,7 @@ function mountGpxInspect(body, headerActions) {
         neu = true;
       }
     } catch (e) { applog && applog("warn", "[logbuch] undo: " + e); }
+    try { if (await _lbEigeneUndo(snap.lbEigen)) neu = neu || false; } catch (_) {}
     if (neu) await logbuchLaden(false, { auswahl: _lbSel });
   }
   async function _lbAktion(label, aktion, params, opt) {
@@ -4183,8 +4192,9 @@ function mountGpxInspect(body, headerActions) {
       const r = await _lbAktion(t("logbuch.undo.bereich", "Logbuch: Bereich A→B"), "setzen", { t0, t1, art, name: "" }, { auswahl: null });
       if (r) { try { clearSelection(); } catch (_) {} }
     } });
+    M.push("-");
     const r = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : { left: 400, bottom: 300 };
-    _lbMenue(r.left, r.bottom + 4, M);
+    _lbEigenAnlegen(t0, t1).then(E => { _lbMenue(r.left, r.bottom + 4, M.concat(E)); });
   }
   function _lbPunktUmschalten() {
     _lbPunktModus = !_lbPunktModus;
@@ -4349,8 +4359,9 @@ function mountGpxInspect(body, headerActions) {
     if (!g) { g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.id = "gpxi-lb-poispur"; svg.appendChild(g); }
     const sp = _lbSpanne(); const W = parseFloat(svg.getAttribute("width")) || 0;
     const menge = Math.max(0, Math.round((_lb && _lb.einstellungen && _lb.einstellungen.pois_menge) || 30));
-    if (!_lbPoisAn || !sp || !W || !_lbPois.length || _lbAlles) { g.innerHTML = ""; return; }
-    const Z = _LB_ZEILEN.pois, yP = (Z[0] + Z[1]) / 2;
+    const Z = _LB_ZEILEN_AKTIV.pois;
+    if (!_lbPoisAn || !Z || !sp || !W || !_lbPois.length || _lbAlles) { g.innerHTML = ""; return; }
+    const yP = (Z[0] + Z[1]) / 2;
     const liste = _lbPois.filter(p => p.t != null).slice().sort((a, b) => (a.rang - b.rang) || (a.t - b.t)).slice(0, menge).sort((a, b) => a.t - b.t);
     let s = "", letzteX = -Infinity;
     const xs = liste.map(p => ((p.t - sp[0]) / (sp[1] - sp[0])) * W);
@@ -4517,6 +4528,159 @@ function mountGpxInspect(body, headerActions) {
   _lbStufe3Verdrahten();
   window.__rzGpxiLogbuchNetz = { orte: () => _lbOrte, pois: () => _lbPois, nachladen: _lbNetzNachladen, fenster: _lbFensterAuf,
                                  fensterEl: () => _lbGross, wahl: _lbFensterWahl, poiUebernehmen: _lbPoiUebernehmen };
+  // ── Logbuch Stufe 4 — Befunde-Spur (Q18) und Eigene-Spur (Q14) ──────────────
+  // Befunde kommen aus dem Track-Check (`_tc`, Fundstellen als Punkt-Indizes), Klick
+  // springt zur Stelle und markiert den Befund wie „Zeigen" im Kasten. Eigene
+  // Einteilungen („mit den Kindern") sind eigene Zeilen in der Bibliothek; sie
+  // reisen im Undo-Schnappschuss mit (`lbEigen`).
+  let _lbBefundeAn = true;
+  let _lbEigeneAn = false;
+  let _lbEigene = [];        // Einteilungen art=eigen: [{id, name, bereiche}]
+  const _LB_EIGEN_FARBEN = ["#e879f9", "#38bdf8", "#fb923c", "#a3e635", "#f472b6", "#facc15"];
+
+  function _lbBefundeListe() {
+    if (!_tc || !_tc.befunde) return [];
+    const raus = [];
+    for (const b of _tc.befunde) {
+      if (!b.stellen || !b.stellen.length) continue;
+      for (const i of b.stellen) raus.push({ key: b.key, stufe: b.stufe || "grau", idx: i });
+    }
+    return raus;
+  }
+  function _lbSpurenAnpassen() {
+    // Sichtbare Spuren bestimmen Höhe und Zeilen des Zeitstrahls
+    const zeilen = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109] };
+    let y = 113;
+    if (_lbPoisAn) { zeilen.pois = [y, y + 18]; y += 22; } else zeilen.pois = null;
+    if (_lbEigeneAn) { zeilen.eigene = [y, y + 18]; y += 22; } else zeilen.eigene = null;
+    if (_lbBefundeAn && _lbBefundeListe().length) { zeilen.befunde = [y, y + 16]; y += 20; } else zeilen.befunde = null;
+    zeilen.achse = [y, y + 18];
+    _LB_ZEILEN_AKTIV = zeilen;
+    _LB_H_AKTIV = y + 21;
+    const box = _lbEl("gpxi-lb-strahl"), svg = _lbEl("gpxi-lb-svg"), spuren = _lbEl("gpxi-lb-spuren-el"), cur = _lbEl("gpxi-lb-cursor"), koerper = _lbEl("gpxi-lb-koerper");
+    if (svg) svg.style.height = _LB_H_AKTIV + "px";
+    if (cur) cur.style.height = _LB_H_AKTIV + "px";
+    if (koerper) koerper.style.height = (_LB_H_AKTIV + 44) + "px";
+    if (spuren) {
+      spuren.style.height = _LB_H_AKTIV + "px";
+      spuren.innerHTML = [["tage", t("logbuch.spur_tage", "Tage")], ["bewegung", t("logbuch.spur_bewegung", "Bewegung")], ["punkte", t("logbuch.spur_punkte", "Punkte")],
+        ["pois", "POIs"], ["eigene", t("logbuch.spur_eigene", "Eigene")], ["befunde", t("logbuch.spur_befunde", "Befunde")]]
+        .filter(([k]) => zeilen[k]).map(([k, txt]) => `<span style="top:${zeilen[k][0] + (k === "bewegung" ? 25 : 0)}px">${txt}</span>`).join("");
+    }
+    if (box) box.style.cursor = "";
+  }
+  function _lbBefundeRender(X, W) {
+    const Z = _LB_ZEILEN_AKTIV.befunde; if (!Z) return "";
+    const z = _lbZeiten || _lbZeitenBauen();
+    const farbe = { rot: "#e53935", gelb: "#d4a017", grau: "#8b8fa3" };
+    const zeile = (typeof rzTrackCheckZeile === "function") ? rzTrackCheckZeile : (b) => b.key;
+    let s = `<rect x="0" y="${Z[0]}" width="${W}" height="${Z[1] - Z[0]}" class="gpxi-lb-spurbg"/>`;
+    const yM = (Z[0] + Z[1]) / 2;
+    for (const b of _lbBefundeListe()) {
+      const tt = z[b.idx]; if (!isFinite(tt)) continue;
+      const x = X(tt); if (x < -4 || x > W + 4) continue;
+      const bef = (_tc.befunde || []).find(q => q.key === b.key) || { key: b.key, n: 1 };
+      s += `<g class="gpxi-lb-befund ist-${b.stufe}" data-befund="${b.key}" data-idx="${b.idx}"><path d="M${x.toFixed(1)} ${(yM - 7).toFixed(1)} l6 7 l-6 7 l-6 -7 z" fill="${farbe[b.stufe] || farbe.grau}"/><title>${_lbEsc(zeile(bef) + " · #" + (b.idx + 1) + " · " + t("logbuch.befund_klick", "Klick: Stelle zeigen"))}</title></g>`;
+    }
+    return s;
+  }
+  function _lbEigeneRender(X, W) {
+    const Z = _LB_ZEILEN_AKTIV.eigene; if (!Z) return "";
+    let s = `<rect x="0" y="${Z[0]}" width="${W}" height="${Z[1] - Z[0]}" class="gpxi-lb-spurbg"/>`;
+    _lbEigene.forEach((e, k) => {
+      const farbe = _LB_EIGEN_FARBEN[k % _LB_EIGEN_FARBEN.length];
+      for (const b of e.bereiche || []) {
+        if (b.t1 <= b.t0) continue;
+        const x0 = X(b.t0), x1 = X(b.t1); if (x1 < 0 || x0 > W) continue;
+        const xa = Math.max(-2, x0), w = Math.max(2, Math.min(W + 2, x1) - xa);
+        const name = b.name || e.name || "";
+        const label = w > 40 && name ? `<text class="gpxi-lb-bl2" x="${(xa + 5).toFixed(1)}" y="${Z[0] + 13}">${_lbEsc(name.length > Math.floor(w / 6) ? name.slice(0, Math.max(3, Math.floor(w / 6) - 1)) + "…" : name)}</text>` : "";
+        s += `<g class="gpxi-lb-eigen" data-eigen="${e.id}" data-bid="${b.id}"><rect x="${xa.toFixed(1)}" y="${Z[0] + 2}" width="${w.toFixed(1)}" height="${Z[1] - Z[0] - 4}" rx="3" fill="${farbe}" opacity=".8"/>${label}<title>${_lbEsc((e.name ? e.name + ": " : "") + (b.name || "") + " · " + _lbUhr(b.t0, (_lb.eintraege[0] || {}).versatz_min) + " – " + _lbUhr(b.t1, (_lb.eintraege[0] || {}).versatz_min))}</title></g>`;
+      }
+    });
+    return s;
+  }
+  async function _lbEigeneLaden() {
+    if (!_lbPfad) { _lbEigene = []; return; }
+    let r; try { r = await api().einteilung_lesen(_lbPfad); } catch (_) { r = null; }   // warte-ok: Datenbank, sofort
+    if (isUnmounted) return;
+    _lbEigene = (r && r.ok ? r.einteilungen : []).filter(e => e.art === "eigen");
+  }
+  function _lbEigeneSchnappschuss() {
+    return _lbEigene.map(e => ({ id: e.id, tour: e.tour, art: "eigen", name: e.name || "", bereiche: JSON.parse(JSON.stringify(e.bereiche || [])) }));
+  }
+  async function _lbEigeneUndo(snapEigen) {
+    if (!snapEigen || !_lb) return false;
+    const jetzt = _lbEigeneSchnappschuss();
+    if (JSON.stringify(jetzt) === JSON.stringify(snapEigen)) return false;
+    const soll = new Map(snapEigen.map(e => [e.id, e]));
+    for (const e of jetzt) if (!soll.has(e.id)) { try { await api().einteilung_stand_setzen(e.id, null, _lb.tour); } catch (_) {} }   // warte-ok: Undo
+    for (const e of snapEigen) { try { await api().einteilung_stand_setzen(e.id, e, _lb.tour); } catch (_) {} }   // warte-ok: Undo
+    await _lbEigeneLaden(); _lbStrahlRender();
+    return true;
+  }
+  async function _lbEigenAnlegen(t0, t1) {
+    // Name der Spur: bestehende zur Auswahl, sonst neu
+    const M = [{ text: t("logbuch.eigen.titel", "Eigene Spur"), aus: true }];
+    for (const e of _lbEigene) M.push({ unter: true, symbol: "🏷", text: e.name || t("logbuch.eigen.ohne_name", "(ohne Namen)"), tu: () => _lbEigenBereich(e.id, t0, t1) });
+    M.push({ unter: true, symbol: "＋", text: t("logbuch.eigen.neu", "Neue Spur …"), tu: async () => {
+      const name = await _lbFrage(t("logbuch.eigen.frage", "Name der eigenen Spur, z. B. „mit den Kindern“"), "");
+      if (name === null) return;
+      _pushUndo(t("logbuch.undo.eigen", "Logbuch: eigene Spur")); try { updateUI(); } catch (_) {}
+      let r; try { r = await api().einteilung_eigen_anlegen(_lbPfad, name); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Datenbank
+      if (!r || !r.ok) { toast((r && r.error) || t("logbuch.fehler_aktion", "Das ging nicht"), "error"); return; }
+      await _lbEigenBereich(r.eid, t0, t1, true);
+    } });
+    return M;
+  }
+  async function _lbEigenBereich(eid, t0, t1, ohneUndo) {
+    if (!ohneUndo) { _pushUndo(t("logbuch.undo.eigen", "Logbuch: eigene Spur")); try { updateUI(); } catch (_) {} }
+    const name = await _lbFrage(t("logbuch.eigen.bereich_name", "Beschriftung des Abschnitts (darf leer bleiben)"), "");
+    if (name === null) return;
+    let r; try { r = await api().einteilung_aktion(eid, "setzen", { t0, t1, art: "eigen", name }); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Datenbank
+    if (!r || !r.ok) { toast((r && r.error) || t("logbuch.fehler_aktion", "Das ging nicht"), "error"); return; }
+    _lbEigeneAn = true; const cb = _lbEl("gpxi-lb-eigene"); if (cb) cb.checked = true;
+    await _lbEigeneLaden(); _lbStrahlRender();
+    try { clearSelection(); } catch (_) {}
+  }
+  function _lbStufe4Verdrahten() {
+    { const a = _lbEl("gpxi-lb-befunde"); if (a) a.addEventListener("change", () => { _lbBefundeAn = !!a.checked; _lbStrahlRender(); }); }
+    { const a = _lbEl("gpxi-lb-eigene"); if (a) a.addEventListener("change", () => { _lbEigeneAn = !!a.checked; _lbStrahlRender(); }); }
+    const box = _lbEl("gpxi-lb-svgbox"); if (!box) return;
+    box.addEventListener("click", (e) => {
+      const g = e.target.closest("[data-befund]"); if (!g) return;
+      e.stopPropagation();
+      const i = parseInt(g.dataset.idx, 10);
+      try { trackCheckZeigen(g.dataset.befund); } catch (_) {}
+      if (map && _points[i]) { try { map.flyTo({ center: [_points[i].lon, _points[i].lat], zoom: Math.max(map.getZoom(), 15), duration: 600 }); } catch (_) {} setHover(i); }
+    }, true);
+    box.addEventListener("contextmenu", (e) => {
+      const g = e.target.closest("[data-eigen]"); if (!g) return;
+      e.preventDefault(); e.stopPropagation();
+      const eid = g.dataset.eigen, bid = g.dataset.bid;
+      const ein = _lbEigene.find(x => x.id === eid); const b = ein && (ein.bereiche || []).find(x => x.id === bid);
+      _lbMenue(e.clientX, e.clientY, [
+        { text: (ein && ein.name) || t("logbuch.eigen.titel", "Eigene Spur"), aus: true },
+        { symbol: "✏️", text: t("logbuch.menue.umbenennen", "Umbenennen …"), tu: async () => {
+          const v = await _lbFrage(t("logbuch.eigen.bereich_name", "Beschriftung des Abschnitts (darf leer bleiben)"), (b && b.name) || ""); if (v === null) return;
+          _pushUndo(t("logbuch.undo.eigen", "Logbuch: eigene Spur")); try { updateUI(); } catch (_) {}
+          try { await api().einteilung_aktion(eid, "aendern", { bid, name: v }); } catch (_) {}   // warte-ok: Datenbank
+          await _lbEigeneLaden(); _lbStrahlRender(); } },
+        { symbol: "🗑", text: t("logbuch.eigen.entfernen", "Abschnitt entfernen"), tu: async () => {
+          _pushUndo(t("logbuch.undo.eigen", "Logbuch: eigene Spur")); try { updateUI(); } catch (_) {}
+          try { await api().einteilung_aktion(eid, "bereich_entfernen", { bid }); } catch (_) {}   // warte-ok: Datenbank
+          await _lbEigeneLaden(); _lbStrahlRender(); } },
+        { symbol: "🗑", text: t("logbuch.eigen.spur_entfernen", "Ganze Spur entfernen"), tu: async () => {
+          _pushUndo(t("logbuch.undo.eigen", "Logbuch: eigene Spur")); try { updateUI(); } catch (_) {}
+          try { await api().einteilung_entfernen(eid); } catch (_) {}   // warte-ok: Datenbank
+          await _lbEigeneLaden(); _lbStrahlRender(); } },
+      ]);
+    }, true);
+  }
+  _lbStufe4Verdrahten();
+  window.__rzGpxiLogbuchSpuren = { befunde: _lbBefundeListe, eigene: () => _lbEigene, eigeneLaden: _lbEigeneLaden, zeilen: () => _LB_ZEILEN_AKTIV,
+                                   eigenBereich: _lbEigenBereich, an: (was, an) => { if (was === "befunde") _lbBefundeAn = !!an; if (was === "eigene") _lbEigeneAn = !!an; _lbStrahlRender(); } };
+
 
 
   // Für Wächter: Zustand des Logbuchs von außen lesbar

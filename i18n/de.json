@@ -3812,5 +3812,18 @@
   "logbuch.einst.pois_menge": "POI-Spur zeigt höchstens",
   "logbuch.einst.stueck": "Stück",
   "logbuch.archiv.noch_keins": "Noch kein Logbuch — es entsteht beim Öffnen der Tour im Inspektor.",
-  "logbuch.archiv.tage": "{n} Tage"
+  "logbuch.archiv.tage": "{n} Tage",
+  "logbuch.spur_eigene": "Eigene",
+  "logbuch.spur_befunde": "Befunde",
+  "logbuch.eigene_tip": "Eigene Spuren (z. B. „mit den Kindern“) zeigen — anlegen über ＋ A→B",
+  "logbuch.befunde_tip": "Fundstellen des Track-Checks als Spur; Klick springt hin",
+  "logbuch.befund_klick": "Klick: Stelle zeigen",
+  "logbuch.eigen.titel": "Eigene Spur",
+  "logbuch.eigen.ohne_name": "(ohne Namen)",
+  "logbuch.eigen.neu": "Neue Spur …",
+  "logbuch.eigen.frage": "Name der eigenen Spur, z. B. „mit den Kindern“",
+  "logbuch.eigen.bereich_name": "Beschriftung des Abschnitts (darf leer bleiben)",
+  "logbuch.eigen.entfernen": "Abschnitt entfernen",
+  "logbuch.eigen.spur_entfernen": "Ganze Spur entfernen",
+  "logbuch.undo.eigen": "Logbuch: eigene Spur"
 }

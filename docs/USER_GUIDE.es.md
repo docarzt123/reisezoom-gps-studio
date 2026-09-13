@@ -2428,6 +2428,10 @@ Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izq
 
 **⤢ Ventana grande:** todo el cuaderno como tabla movible y redimensionable: columnas hora, tipo, nombre, lugar, duración, km, desnivel, ritmo, ordenables con clic en la cabecera; casillas para selección múltiple (Mayús+clic para un rango) con barra *Cambiar tipo · Unir · Eliminar*; doble clic en el nombre para renombrar; clic en una fila selecciona la entrada en el mapa; ⋯ y clic derecho como en la lista.
 
+**Hallazgos y pistas propias (desde v0.9.711):** la casilla **Hallazgos** muestra cada lugar detectado por la comprobación del track como rombo en su color en la línea de tiempo; clic para saltar allí en el mapa y marcar el hallazgo como «Mostrar» en el recuadro. **Pistas propias** («con los niños», «lluvia»): pon los anclajes A y B → **＋ A→B → Pista propia …** → elige una existente o nombra una nueva, etiqueta el tramo; la casilla **Propias** las muestra como fila propia, clic derecho en un tramo lo renombra o lo quita (o toda la pista), todo con ⌘Z. La línea de tiempo crece y se encoge con las pistas visibles.
+
+**En el archivo:** bajo las cifras de una ruta aparece ahora el **resumen del cuaderno** («5 h trayecto · 1 ferri · 2 caminatas · punto más alto 1.240 m», y el número de días en los viajes), o con honestidad «aún no hay cuaderno» hasta que abras la ruta una vez en el inspector.
+
 > El cuaderno existe para las rutas del **archivo** (pertenece a la ruta, no al archivo de datos). Un archivo externo recibe un aviso. Editar, nombres de lugares y puntos de interés llegan en las próximas etapas; el plan está en `docs/LOGBUCH.md`.
 
 ### Deshacer
