@@ -333,6 +333,29 @@ function mountGpxInspect(body, headerActions) {
         </div>
         <svg class="gpxi-eleprof-svg" id="gpxi-eleprof-svg" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-hidden="true"></svg>
       </div>
+      <!-- 13.09.2026 — Logbuch der Tour (docs/LOGBUCH.md §68): Zeitstrahl unten über die
+           ganze Breite, rechts das mitlaufende Logbuch (Q6). Entsteht beim Öffnen (Q4). -->
+      <div id="gpxi-logbuch" class="gpxi-lb" hidden>
+        <div class="gpxi-lb-kopf">
+          <span class="gpxi-lb-titel">📖 ${t("logbuch.titel", "Logbuch")}<span class="gpxi-q" data-tip="${t("logbuch.help", "Was wann war: Fahrten, Fähren, Wanderungen, Pausen und der höchste Punkt — automatisch aus dem Track erkannt. Klick auf einen Eintrag hebt den Abschnitt auf der Karte hervor, Klick auf den Track wählt den Eintrag. Doppelklick auf einen Tag zieht ihn im Zeitstrahl auf, Mausrad zoomt. Esc hebt die Auswahl auf.")}">?</span></span>
+          <span class="gpxi-lb-summe" id="gpxi-lb-summe"></span>
+          <span class="gpxi-lb-hinweis" id="gpxi-lb-hinweis" hidden></span>
+          <label class="gpxi-lb-schalter" title="${t("logbuch.alles_zeigen_help", "Auch kurze Halte und die rohen Bereiche der Erkennung zeigen.")}"><input type="checkbox" id="gpxi-lb-alles"> ${t("logbuch.alles_zeigen", "alles zeigen")}</label>
+          <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-reise" hidden title="${t("logbuch.reise_tip", "Wieder die ganze Tour zeigen")}">⤢ ${t("logbuch.reise", "Ganze Tour")}</button>
+          <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-neu" title="${t("logbuch.neu_tip", "Logbuch aus dem Track neu erkennen")}">↻</button>
+          <button type="button" class="gpxi-lb-knopf" id="gpxi-lb-zu" title="${t("logbuch.zu", "Logbuch einklappen")}">▾</button>
+        </div>
+        <div class="gpxi-lb-koerper" id="gpxi-lb-koerper" hidden>
+          <div class="gpxi-lb-strahl" id="gpxi-lb-strahl">
+            <div class="gpxi-lb-spuren"><span>${t("logbuch.spur_tage", "Tage")}</span><span>${t("logbuch.spur_bewegung", "Bewegung")}</span><span>${t("logbuch.spur_punkte", "Punkte")}</span></div>
+            <div class="gpxi-lb-svgbox" id="gpxi-lb-svgbox">
+              <svg id="gpxi-lb-svg" class="gpxi-lb-svg" aria-hidden="true"></svg>
+              <div class="gpxi-lb-cursor" id="gpxi-lb-cursor" hidden><span></span></div>
+            </div>
+          </div>
+          <div class="gpxi-lb-liste" id="gpxi-lb-liste"></div>
+        </div>
+      </div>
     </section>
   `;
 
@@ -477,6 +500,18 @@ function mountGpxInspect(body, headerActions) {
           "circle-radius": 7, "circle-color": "rgba(255,255,255,0.0)",
           "circle-stroke-width": 3, "circle-stroke-color": "#ffffff",
         } });
+        // 13.09.2026 — Logbuch (§68 Q16): der gewählte Eintrag leuchtet auf dem Track —
+        // heller Saum plus Linie in der Farbe der Art; ein Punkt-Eintrag als Ring.
+        map.addSource("gpxi-lb-hl", { type: "geojson", data: emptyFC });
+        map.addLayer({ id: "gpxi-lb-hl-saum", type: "line", source: "gpxi-lb-hl", filter: ["==", ["get", "pt"], false],
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#ffffff", "line-width": 11, "line-opacity": 0.85 } }, "gpxi-pts-lyr");
+        map.addLayer({ id: "gpxi-lb-hl-lyr", type: "line", source: "gpxi-lb-hl", filter: ["==", ["get", "pt"], false],
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": ["coalesce", ["get", "c"], "#ff6b35"], "line-width": 6, "line-opacity": 1 } }, "gpxi-pts-lyr");
+        map.addLayer({ id: "gpxi-lb-hl-pt", type: "circle", source: "gpxi-lb-hl", filter: ["==", ["get", "pt"], true],
+          paint: { "circle-radius": 11, "circle-color": ["coalesce", ["get", "c"], "#c084fc"], "circle-opacity": 0.35,
+                   "circle-stroke-width": 3, "circle-stroke-color": ["coalesce", ["get", "c"], "#c084fc"] } });
       } catch (e) { applog && applog("warn", "[gpxinspect] layer add: " + e); }
       // v0.9.291 — Terrain-DEM für die Höhenkorrektur (queryTerrainElevation).
       // 03.09.2026: hängt createMap() aus dem Stil an (Mapbox-DEM / MapTiler /
@@ -594,6 +629,9 @@ function mountGpxInspect(body, headerActions) {
     // Neuer Track → neue Schätzung; eine frühere Handauswahl gilt nicht weiter.
     _profilManuell = false;
     try { profilVorschlagen(); } catch (_) {}
+    // 13.09.2026 — Logbuch (§68 Q4): entsteht automatisch beim Öffnen.
+    _lbZeiten = null;
+    try { logbuchLaden(); } catch (e) { applog && applog("warn", "[logbuch] " + e); }
   }
 
   function clearTrack() {
@@ -606,6 +644,7 @@ function mountGpxInspect(body, headerActions) {
       if (map.getLayer("gpxi-line-lyr")) map.setPaintProperty("gpxi-line-lyr", "line-opacity", 0.85);
     } catch (_) {}
     _points = []; _srcPath = null; _origPath = null; _sources = []; _selA = _selB = null; _dirty = false;
+    try { logbuchLeeren(); } catch (_) {}
     try { if (map && map.getSource("gpxi-line")) map.getSource("gpxi-line").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {}
     try { if (map && map.getSource("gpxi-pts")) map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: [] }); } catch (_) {}
     _eleInvalidate();
@@ -707,6 +746,7 @@ function mountGpxInspect(body, headerActions) {
   }
 
   function renderAll() {
+    _lbZeiten = null;   // Logbuch: Punktzeiten neu ableiten (Index ↔ Uhrzeit)
     // Der Track hat sich geändert → Fahrtrichtungen neu (nur wenn Pfeile an).
     try { _pfeileBerechnen(); } catch (_) {}
     if (!map) return;
@@ -1195,6 +1235,7 @@ function mountGpxInspect(body, headerActions) {
     // Man klickt grob hin, der nächste Punkt wird gesetzt.
     const i = _nearestIdxToPoint(e.point.x, e.point.y, Infinity);
     if (i < 0) return;
+    try { _lbWaehleZuIdx(i); } catch (_) {}   // Logbuch (§68 Q16): Klick auf den Track wählt den Eintrag
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
     // v0.9.303 — Einzelklick setzt direkt Anker A/B (Daten gibt's live in der Hover-Box).
     _clickTimer = setTimeout(() => { _clickTimer = null; selectAnchor(i); }, 240);
@@ -2518,6 +2559,7 @@ function mountGpxInspect(body, headerActions) {
   // Maus über der Karte → vertikaler Balken im Profil; Maus über dem Profil → Ring
   // auf dem Track. Beides läuft über setHover(idx).
   function setHover(idx) {
+    try { _lbCursor(idx); } catch (_) {}   // Logbuch (§68 Q16): Marke im Zeitstrahl, kein Sprung
     // 0) Live-Daten-Box in der Ecke: zeigt immer den Punkt unter dem Mauszeiger.
     const hbox = document.getElementById("gpxi-hoverbox");
     if (hbox) {
@@ -3191,6 +3233,11 @@ function mountGpxInspect(body, headerActions) {
   // Entf/Backspace: einzelnen Punkt (nur A) oder Bereich (A+B) löschen.
   // Nicht feuern wenn man in einem Eingabefeld tippt oder im Zeichnen-Modus ist.
   function onKeyDown(e) {
+    // Logbuch (§68 Q16): Esc hebt die Auswahl auf — nur, wenn das Modul sichtbar ist.
+    if (e.key === "Escape" && _lbSel) {
+      const panel = document.getElementById("gpxi-panel");
+      if (panel && !panel.hidden && panel.offsetParent) { lbWaehlen(null); return; }
+    }
     if (e.key !== "Delete" && e.key !== "Backspace") return;
     if (_drawMode) return;
     const tag = (e.target && e.target.tagName || "").toLowerCase();
@@ -3382,11 +3429,507 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-save", saveTrack);
   _on("gpxi-reset", () => { if (_srcPath) loadTrack(_srcPath); });
 
+  // ── Logbuch der Tour (13.09.2026, docs/LOGBUCH.md §68, Stufe 1) ─────────────
+  // Marc: „wie wäre es, wenn der inspector eine art logbuch generiert, was wo war
+  // … wenn man einen eintrag anklickt, wird der bereich des tracks hervorgehoben
+  // … als zeitstrahl darstellen ist fast noch besser oder wir machen beides."
+  // Unten im Inspektor: Zeitstrahl über die ganze Breite (Spuren Tage · Bewegung
+  // mit Höhenprofil · Punkte), rechts daneben das mitlaufende Logbuch (Q6).
+  // Beides zeigt dieselben Daten aus der Brücke `logbuch_lesen` — die Einteilung
+  // „Bewegung" der Tour (Q2), gelesen nach den Regeln Q5/Q7/Q8 (core/logbuch).
+  // Kopplung (Q16): Eintrag → Bereich leuchtet, Karte zoomt · Klick auf den Track
+  // → Eintrag gewählt · Hover → Marke im Zeitstrahl · Esc hebt auf.
+  const _LB_FARBE = { fahrt: "#3b82f6", uebersetzen: "#14b8a6", gehen: "#22c55e", wanderung: "#22c55e",
+                      spaziergang: "#4ade80", rad: "#f97316", laufen: "#eab308", pause: "#6b7280",
+                      uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3" };
+  const _LB_ICON = { fahrt: "🚗", uebersetzen: "⛴", gehen: "🚶", wanderung: "🥾", spaziergang: "🚶", rad: "🚴",
+                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓",
+                     hoechster_punkt: "⛰", start: "🏁", ziel: "🏁" };
+  const _LB_ARTEN_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", gehen: "Gehen", wanderung: "Wanderung",
+                         spaziergang: "Spaziergang", rad: "Rad", laufen: "Laufen", pause: "Pause",
+                         uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?",
+                         hoechster_punkt: "Höchster Punkt", start: "Start", ziel: "Ziel" };
+  const _LB_H = 132;                       // Höhe des Zeitstrahls (px)
+  const _LB_ZEILEN = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], achse: [113, 131] };
+  let _lb = null;            // Antwort der Brücke (Einträge, Punkte, Tage, roh …)
+  let _lbSel = null;         // Kennung des gewählten Eintrags
+  let _lbAlles = false;      // Schalter „alles zeigen" (Q5: rohe Bereiche samt kurzer Halte)
+  let _lbFenster = null;     // [t0, t1] sichtbarer Ausschnitt; null = ganze Reise
+  let _lbZeiten = null;      // Epoch je Punkt (Index ↔ Zeit), lazy
+  let _lbHover = null;       // Index unter dem Zeiger (für den Cursor im Strahl)
+  let _lbRO = null;          // ResizeObserver des Strahls
+  let _lbRAF = 0;
+  let _lbPfad = null;        // für welche Datei das Logbuch gilt
+
+  const _lbEl = (id) => document.getElementById(id);
+  const _lbEsc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const _lbArt = (art) => t("logbuch.art." + art, _LB_ARTEN_DE[art] || art);
+  const _lbFarbe = (art) => _LB_FARBE[art] || "#8b8fa3";
+  function _lbDatum(tEpoch, versatz) { return new Date((tEpoch + (versatz || 0) * 60) * 1000); }
+  function _lbUhr(tEpoch, versatz) {
+    try { return _lbDatum(tEpoch, versatz).toLocaleTimeString(rzSprachCode(), { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }); }
+    catch (_) { return ""; }
+  }
+  function _lbTagText(tEpoch, versatz, lang) {
+    try { return _lbDatum(tEpoch, versatz).toLocaleDateString(rzSprachCode(), Object.assign({ timeZone: "UTC" }, lang)); }
+    catch (_) { return ""; }
+  }
+  function _lbDauer(s) {
+    s = Math.max(0, Math.round(s || 0));
+    const h = Math.floor(s / 3600), m = Math.round((s - h * 3600) / 60);
+    if (h && m) return t("logbuch.dauer_hm", "{h} h {m} min", { h, m });
+    if (h) return t("logbuch.dauer_h", "{h} h", { h });
+    return t("logbuch.dauer_m", "{m} min", { m });
+  }
+  function _lbKm(m) {
+    if (!m) return "";
+    if (m < 950) return Math.round(m) + " m";
+    return (m / 1000).toLocaleString(rzSprachCode(), { maximumFractionDigits: m < 20000 ? 1 : 0 }) + " km";
+  }
+  function _lbZeitenBauen() {
+    _lbZeiten = new Array(_points.length);
+    for (let i = 0; i < _points.length; i++) {
+      const d = _points[i].time ? Date.parse(_points[i].time) : NaN;
+      _lbZeiten[i] = isFinite(d) ? d / 1000 : NaN;
+    }
+    return _lbZeiten;
+  }
+  /** Punkt-Index zur Uhrzeit — die Einträge sind nach Uhrzeit gespeichert, nie nach Nummer. */
+  function _lbIdxZuZeit(tEpoch) {
+    const z = _lbZeiten || _lbZeitenBauen();
+    let lo = 0, hi = z.length - 1, best = -1, bestD = Infinity;
+    if (!z.length) return -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1, v = z[mid];
+      if (!isFinite(v)) { // Punkt ohne Zeit: linear weitersuchen
+        for (let k = lo; k <= hi; k++) { const d = Math.abs(z[k] - tEpoch); if (isFinite(d) && d < bestD) { bestD = d; best = k; } }
+        return best;
+      }
+      const d = Math.abs(v - tEpoch);
+      if (d < bestD) { bestD = d; best = mid; }
+      if (v < tEpoch) lo = mid + 1; else hi = mid - 1;
+    }
+    return best;
+  }
+  function _lbIndexBereich(e) {
+    const a = _lbIdxZuZeit(e.t0), b = _lbIdxZuZeit(e.t1);
+    return (a < 0 || b < 0) ? null : [Math.min(a, b), Math.max(a, b)];
+  }
+  /** Die Einträge, die gerade gelten: das Logbuch — oder mit „alles zeigen" die rohen Bereiche. */
+  function _lbEintraege() {
+    if (!_lb) return [];
+    if (!_lbAlles) return _lb.eintraege || [];
+    const v0 = (_lb.eintraege && _lb.eintraege[0] && _lb.eintraege[0].versatz_min) || 0;
+    return (_lb.roh || []).filter(b => b.t1 > b.t0).map(b => ({
+      id: b.id, bids: [b.id], art: b.art, art_roh: b.art, anzeige_art: b.art, name: b.name || "",
+      quelle: b.quelle, t0: b.t0, t1: b.t1, dauer_s: b.t1 - b.t0, strecke_m: b.strecke_m || 0,
+      tempo_kmh: b.tempo_kmh || 0, hoehe_auf: 0, hoehe_ab: 0, geraten: false, roh: true,
+      versatz_min: v0, tag: _lbTagZu(b.t0),
+    }));
+  }
+  function _lbTagZu(tEpoch) {
+    const d = (_lb && _lb.tage || []).find(x => x.t0 - 1 <= tEpoch && tEpoch <= x.t1 + 1);
+    return d ? d.nr : ((_lb && _lb.tage && _lb.tage.length) ? _lb.tage[_lb.tage.length - 1].nr : 1);
+  }
+  function _lbSpanne() {
+    if (_lbFenster) return _lbFenster;
+    const es = _lbEintraege(), ps = (_lb && _lb.punkte) || [];
+    let t0 = Infinity, t1 = -Infinity;
+    for (const e of es) { t0 = Math.min(t0, e.t0); t1 = Math.max(t1, e.t1); }
+    for (const p of ps) { t0 = Math.min(t0, p.t); t1 = Math.max(t1, p.t); }
+    if (!isFinite(t0)) return null;
+    const pad = Math.max(60, (t1 - t0) * 0.01);
+    return [t0 - pad, t1 + pad];
+  }
+
+  // ── Laden ────────────────────────────────────────────────────────────────
+  async function logbuchLaden(neu) {
+    const wrap = _lbEl("gpxi-logbuch"), pfad = _origPath;
+    if (!wrap) return;
+    if (!pfad || !_points.length) { wrap.hidden = true; _lb = null; return; }
+    _lbPfad = pfad;
+    let r;
+    try { r = await rzWarten("logbuch_lesen", () => api().logbuch_lesen(pfad, !!neu)); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    if (isUnmounted || _lbPfad !== pfad || _origPath !== pfad) return;
+    _lbSel = null; _lbFenster = null; _lbHover = null;
+    _lbHighlight(null);
+    wrap.hidden = false;
+    const note = _lbEl("gpxi-lb-hinweis"), koerper = _lbEl("gpxi-lb-koerper");
+    if (!r || !r.ok) {
+      _lb = null;
+      const txt = (r && r.grund === "nicht_im_archiv")
+        ? t("logbuch.nicht_im_archiv", "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")
+        : (r && r.grund === "ohne_zeit")
+          ? t("logbuch.ohne_zeit", "Der Track hat keine Zeitstempel — ohne Uhrzeit gibt es kein Logbuch.")
+          : ((r && r.error) || t("logbuch.fehler", "Das Logbuch konnte nicht erstellt werden."));
+      if (note) { note.textContent = txt; note.hidden = false; }
+      if (koerper) koerper.hidden = true;
+      _lbSummeRender();
+      return;
+    }
+    _lb = r;
+    if (note) note.hidden = true;
+    if (koerper) koerper.hidden = _lbZuIst();
+    applog && applog("info", `[logbuch] ${(r.eintraege || []).length} Einträge, ${(r.punkte || []).length} Punkte, ${(r.tage || []).length} Tage, Zone ${r.zone}`);
+    logbuchRender();
+  }
+  function _lbZuIst() { const w = _lbEl("gpxi-logbuch"); return !!(w && w.classList.contains("ist-zu")); }
+  function logbuchLeeren() {
+    _lb = null; _lbSel = null; _lbFenster = null; _lbZeiten = null; _lbPfad = null;
+    const w = _lbEl("gpxi-logbuch"); if (w) w.hidden = true;
+    _lbHighlight(null);
+  }
+
+  // ── Rendern ──────────────────────────────────────────────────────────────
+  function logbuchRender() {
+    if (!_lb) return;
+    _lbSummeRender();
+    _lbListeRender();
+    _lbStrahlRender();
+    const raus = _lbEl("gpxi-lb-reise"); if (raus) raus.hidden = !_lbFenster;
+  }
+  function _lbSummeRender() {
+    const el = _lbEl("gpxi-lb-summe"); if (!el) return;
+    if (!_lb) { el.innerHTML = ""; return; }
+    const z = _lb.zusammenfassung || {};
+    const teile = [];
+    const mitDauer = ["fahrt", "rad", "laufen"], mitZahl = ["uebersetzen", "wanderung", "spaziergang", "gehen", "pause", "uebernachtung", "unsicher"];
+    for (const art of mitDauer) if (z[art]) teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_LB_ICON[art] || ""} ${_lbDauer(z[art].dauer_s)} ${_lbArt(art)}</span>`);
+    for (const art of mitZahl) if (z[art]) {
+      const n = z[art].anzahl;
+      const name = n === 1 ? _lbArt(art) : t("logbuch.mehrzahl." + art, _lbArt(art));
+      teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_LB_ICON[art] || ""} ${n} ${name}</span>`);
+    }
+    if (_lb.hoechster && _lb.hoechster.ele != null) {
+      teile.push(`<span class="gpxi-lb-chip" style="--c:#c084fc">⛰ ${t("logbuch.hoechster", "höchster Punkt {m} m", { m: Math.round(_lb.hoechster.ele).toLocaleString(rzSprachCode()) })}</span>`);
+    }
+    el.innerHTML = teile.join("");
+  }
+  function _lbZeileHtml(e) {
+    const gew = e.id === _lbSel ? " ist-gewaehlt" : "";
+    const meta = [];
+    meta.push(_lbUhr(e.t0, e.versatz_min) + " – " + _lbUhr(e.t1, e.versatz_min));
+    meta.push(_lbDauer(e.dauer_s));
+    if (e.strecke_m > 50) meta.push(_lbKm(e.strecke_m));
+    if (e.hoehe_auf >= 20) meta.push("↑" + e.hoehe_auf + " m");
+    if (e.tempo_kmh && e.art !== "pause") meta.push(e.tempo_kmh.toLocaleString(rzSprachCode(), { maximumFractionDigits: 1 }) + " km/h");
+    const artName = _lbArt(e.anzeige_art);
+    const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : artName;
+    const geraten = e.geraten ? ` <span class="gpxi-lb-badge" title="${t("logbuch.geraten_tip", "Die Erkennung war hier unsicher — die Art stammt vom Nachbarn.")}">${t("logbuch.geraten", "vermutet")}</span>` : "";
+    const roh = e.roh ? ` <span class="gpxi-lb-badge">${t("logbuch.roh", "roh")}</span>` : "";
+    return `<div class="gpxi-lb-zeile${gew}" data-lb="${e.id}" style="--c:${_lbFarbe(e.anzeige_art)}">
+      <span class="gpxi-lb-icon">${_LB_ICON[e.anzeige_art] || "•"}</span>
+      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${name}${geraten}${roh}</div><div class="gpxi-lb-meta">${meta.join(" · ")}</div></div></div>`;
+  }
+  function _lbPunktHtml(p) {
+    const gew = p.id === _lbSel ? " ist-gewaehlt" : "";
+    const txt = p.art === "hoechster_punkt"
+      ? `${_lbArt(p.art)} · ${Math.round(p.ele || 0).toLocaleString(rzSprachCode())} m`
+      : _lbArt(p.art);
+    return `<div class="gpxi-lb-zeile ist-punkt${gew}" data-lb="${p.id}"><span class="gpxi-lb-icon">${_LB_ICON[p.art] || "•"}</span>
+      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${txt}</div><div class="gpxi-lb-meta">${_lbUhr(p.t, p.versatz_min)}</div></div></div>`;
+  }
+  function _lbListeRender() {
+    const el = _lbEl("gpxi-lb-liste"); if (!el || !_lb) return;
+    const es = _lbEintraege(), ps = _lbAlles ? [] : (_lb.punkte || []);
+    const zeilen = es.map(e => ({ t: e.t0, tag: e.tag, html: _lbZeileHtml(e), rang: 1 }))
+      .concat(ps.map(p => ({ t: p.t, tag: p.tag, html: _lbPunktHtml(p), rang: p.art === "start" ? 0 : (p.art === "ziel" ? 2 : 1) })));
+    zeilen.sort((a, b) => (a.t - b.t) || (a.rang - b.rang));
+    let html = "";
+    if (_lb.mehrtaegig) {
+      const tage = new Map();
+      for (const d of _lb.tage || []) tage.set(d.nr, d);
+      let letzter = null;
+      for (const z of zeilen) {
+        if (z.tag !== letzter) {
+          const d = tage.get(z.tag);
+          const km = es.filter(e => e.tag === z.tag).reduce((s, e) => s + (e.strecke_m || 0), 0);
+          const titel = t("logbuch.tag", "Tag {n}", { n: z.tag }) + (d ? " · " + _lbTagText(d.t0, d.versatz_min, { weekday: "short", day: "numeric", month: "long" }) : "");
+          html += `<div class="gpxi-lb-tag" data-lb-tag="${z.tag}" title="${t("logbuch.tag_tip", "Klick: diesen Tag im Zeitstrahl aufziehen")}"><span>${titel}</span><span class="gpxi-lb-tag-meta">${km > 50 ? _lbKm(km) : ""}</span></div>`;
+          letzter = z.tag;
+        }
+        html += z.html;
+      }
+    } else {
+      html = zeilen.map(z => z.html).join("");
+    }
+    if (!zeilen.length) html = `<div class="gpxi-lb-leer">${t("logbuch.leer", "Nichts erkannt — der Track ist zu kurz oder hat keine Bewegung.")}</div>`;
+    el.innerHTML = html;
+    el.querySelectorAll("[data-lb]").forEach(z => z.addEventListener("click", () => lbWaehlen(z.dataset.lb, { zoom: true })));
+    el.querySelectorAll("[data-lb-tag]").forEach(z => z.addEventListener("click", () => _lbTagZoom(parseInt(z.dataset.lbTag, 10))));
+  }
+  function _lbTagZoom(nr) {
+    const d = (_lb && _lb.tage || []).find(x => x.nr === nr); if (!d) return;
+    if (_lbFenster && Math.abs(_lbFenster[0] - d.t0) < 1 && Math.abs(_lbFenster[1] - d.t1) < 1) _lbFenster = null;
+    else _lbFenster = [d.t0 - Math.max(120, (d.t1 - d.t0) * 0.02), d.t1 + Math.max(120, (d.t1 - d.t0) * 0.02)];
+    logbuchRender();
+    const lage = _lbIndexBereich({ t0: d.t0, t1: d.t1 });
+    if (lage) _lbKarteZu(lage[0], lage[1]);
+  }
+
+  // Zeitstrahl: SVG in Pixelkoordinaten des Behälters — Texte bleiben scharf.
+  function _lbStrahlRender() {
+    const svg = _lbEl("gpxi-lb-svg"), box = _lbEl("gpxi-lb-svgbox");
+    if (!svg || !box || !_lb) return;
+    const W = Math.max(80, Math.floor(box.clientWidth)), H = _LB_H;
+    const sp = _lbSpanne();
+    if (!sp || W < 100) { svg.innerHTML = ""; return; }
+    const [f0, f1] = sp, span = Math.max(1, f1 - f0);
+    const X = (tEpoch) => ((tEpoch - f0) / span) * W;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    const Z = _LB_ZEILEN;
+    const versatz = (_lb.eintraege && _lb.eintraege[0] && _lb.eintraege[0].versatz_min) || ((_lb.tage || [])[0] || {}).versatz_min || 0;
+    let s = `<defs><pattern id="gpxi-lb-streifen" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+        <rect width="8" height="8" fill="#6b7280"/><rect width="4" height="8" fill="#9ca3af"/></pattern>
+      <clipPath id="gpxi-lb-clip"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath></defs>`;
+    // Hintergrund der Spuren
+    s += `<rect x="0" y="${Z.bewegung[0]}" width="${W}" height="${Z.bewegung[1] - Z.bewegung[0]}" class="gpxi-lb-spurbg"/>`;
+    s += `<rect x="0" y="${Z.punkte[0]}" width="${W}" height="${Z.punkte[1] - Z.punkte[0]}" class="gpxi-lb-spurbg"/>`;
+    // Tage
+    const tage = _lb.tage || [];
+    tage.forEach((d, k) => {
+      const x0 = Math.max(0, X(d.t0)), x1 = Math.min(W, X(d.t1)); if (x1 <= 0 || x0 >= W) return;
+      const w = Math.max(2, x1 - x0);
+      const lang = w > 120 ? { weekday: "short", day: "numeric", month: "numeric" } : (w > 60 ? { day: "numeric", month: "numeric" } : null);
+      const txt = lang ? t("logbuch.tag", "Tag {n}", { n: d.nr }) + " · " + _lbTagText(d.t0, d.versatz_min, lang) : (w > 16 ? String(d.nr) : "");
+      s += `<g class="gpxi-lb-tagblock${k % 2 ? " ist-zweiter" : ""}" data-lb-tag="${d.nr}"><rect x="${x0.toFixed(1)}" y="${Z.tage[0]}" width="${w.toFixed(1)}" height="${Z.tage[1] - Z.tage[0]}" rx="3"/>`
+         + (txt ? `<text x="${(x0 + 5).toFixed(1)}" y="${Z.tage[0] + 10.5}">${_lbEsc(txt)}</text>` : "") + `<title>${_lbEsc(t("logbuch.tag", "Tag {n}", { n: d.nr }) + " · " + _lbTagText(d.t0, d.versatz_min, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}</title></g>`;
+    });
+    // Bewegung: ein Block je Eintrag
+    const y0 = Z.bewegung[0] + 3, hB = Z.bewegung[1] - Z.bewegung[0] - 6;
+    for (const e of _lbEintraege()) {
+      const x0 = X(e.t0), x1 = X(e.t1); if (x1 < 0 || x0 > W) continue;
+      const xa = Math.max(-2, x0), xb = Math.min(W + 2, x1), w = Math.max(1.5, xb - xa);
+      const still = e.art === "pause" || e.art === "halt";
+      const fill = e.anzeige_art === "unsicher" ? "url(#gpxi-lb-streifen)" : _lbFarbe(e.anzeige_art);
+      const cls = "gpxi-lb-block" + (still ? " ist-still" : "") + (e.id === _lbSel ? " ist-gewaehlt" : "") + (e.geraten ? " ist-geraten" : "");
+      const name = e.name || _lbArt(e.anzeige_art);
+      const label = w > 34 ? (_LB_ICON[e.anzeige_art] || "") + " " + name : "";
+      const passt = label && (label.length * 6.4 + 10) < w;
+      const zeile2 = w > 64 ? _lbDauer(e.dauer_s) + (e.strecke_m > 950 && w > 96 ? " · " + _lbKm(e.strecke_m) : "") : "";
+      s += `<g class="${cls}" data-lb="${e.id}"><rect x="${xa.toFixed(1)}" y="${y0}" width="${w.toFixed(1)}" height="${hB}" rx="4" fill="${fill}"/>`
+         + (passt ? `<text class="gpxi-lb-bl1" x="${(xa + 6).toFixed(1)}" y="${y0 + 18}">${_lbEsc(label)}</text>` : (w > 22 ? `<text class="gpxi-lb-bl1" x="${(xa + w / 2).toFixed(1)}" y="${y0 + 18}" text-anchor="middle">${_LB_ICON[e.anzeige_art] || ""}</text>` : ""))
+         + (zeile2 && passt ? `<text class="gpxi-lb-bl2" x="${(xa + 6).toFixed(1)}" y="${y0 + 36}">${_lbEsc(zeile2)}</text>` : "")
+         + `<title>${_lbEsc(name + " · " + _lbUhr(e.t0, e.versatz_min) + " – " + _lbUhr(e.t1, e.versatz_min) + " · " + _lbDauer(e.dauer_s) + (e.strecke_m > 50 ? " · " + _lbKm(e.strecke_m) : ""))}</title></g>`;
+    }
+    // Höhenprofil als Silhouette über der Bewegungsspur (Q15) — über den Blöcken,
+    // sonst deckt die Farbe es zu; nimmt keine Klicks an.
+    s += _lbProfilPfad(X, f0, f1, Z.bewegung[0], Z.bewegung[1]);
+    // Punkte
+    if (!_lbAlles) {
+      const yP = (Z.punkte[0] + Z.punkte[1]) / 2;
+      let letzteX = -Infinity;
+      for (const p of (_lb.punkte || []).slice().sort((a, b) => a.t - b.t)) {
+        const x = X(p.t); if (x < -4 || x > W + 4) continue;
+        const gew = p.id === _lbSel ? " ist-gewaehlt" : "";
+        let form;
+        if (p.art === "hoechster_punkt") form = `<path d="M${x.toFixed(1)} ${(yP - 6).toFixed(1)} l6 11 h-12 z" class="gpxi-lb-pt-hoch"/>`;
+        else if (p.art === "start") form = `<circle cx="${x.toFixed(1)}" cy="${yP.toFixed(1)}" r="4.5" class="gpxi-lb-pt-start"/>`;
+        else form = `<rect x="${(x - 4).toFixed(1)}" y="${(yP - 4).toFixed(1)}" width="8" height="8" rx="1.5" class="gpxi-lb-pt-ziel"/>`;
+        const txt = p.art === "hoechster_punkt" && p.ele != null ? Math.round(p.ele).toLocaleString(rzSprachCode()) + " m" : "";
+        const label = (txt && x - letzteX > 54) ? `<text x="${(x + 8).toFixed(1)}" y="${(yP + 4).toFixed(1)}" class="gpxi-lb-pt-txt">${txt}</text>` : "";
+        if (txt) letzteX = x;
+        s += `<g class="gpxi-lb-punkt${gew}" data-lb="${p.id}">${form}${label}<title>${_lbEsc(_lbArt(p.art) + (txt ? " · " + txt : "") + " · " + _lbUhr(p.t, p.versatz_min))}</title></g>`;
+      }
+    }
+    // Zeitachse
+    s += _lbAchse(X, f0, f1, W, versatz, Z.achse[0]);
+    svg.innerHTML = s;
+    svg.querySelectorAll("[data-lb]").forEach(g => g.addEventListener("click", (ev) => { ev.stopPropagation(); lbWaehlen(g.dataset.lb, { zoom: true }); }));
+    svg.querySelectorAll("[data-lb-tag]").forEach(g => g.addEventListener("dblclick", (ev) => { ev.stopPropagation(); _lbTagZoom(parseInt(g.dataset.lbTag, 10)); }));
+    _lbCursor(_lbHover);
+  }
+  function _lbProfilPfad(X, f0, f1, yTop, yBot) {
+    if (!_hasEle || _points.length < 2) return "";
+    const z = _lbZeiten || _lbZeitenBauen();
+    const n = z.length, schritt = Math.max(1, Math.floor(n / 900));
+    let lo = Infinity, hi = -Infinity;
+    const pts = [];
+    for (let i = 0; i < n; i += schritt) {
+      const tI = z[i], e = _points[i].ele;
+      if (!isFinite(tI) || e == null || !isFinite(e) || tI < f0 || tI > f1) continue;
+      pts.push([X(tI), e]); if (e < lo) lo = e; if (e > hi) hi = e;
+    }
+    if (pts.length < 2 || !isFinite(lo)) return "";
+    if (hi - lo < 5) hi = lo + 5;
+    const Y = (e) => yBot - 2 - ((e - lo) / (hi - lo)) * (yBot - yTop - 6);
+    let d = `M${pts[0][0].toFixed(1)} ${(yBot - 2).toFixed(1)}`;
+    for (const [x, e] of pts) d += ` L${x.toFixed(1)} ${Y(e).toFixed(1)}`;
+    d += ` L${pts[pts.length - 1][0].toFixed(1)} ${(yBot - 2).toFixed(1)} Z`;
+    return `<path d="${d}" class="gpxi-lb-profil"/>`;
+  }
+  function _lbAchse(X, f0, f1, W, versatz, y) {
+    const span = f1 - f0;
+    const stufen = [900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800, 1209600];
+    let schritt = stufen[stufen.length - 1];
+    for (const st of stufen) { if (W / (span / st) >= 78) { schritt = st; break; } }
+    const off = (versatz || 0) * 60;
+    let s = `<line x1="0" y1="${y}" x2="${W}" y2="${y}" class="gpxi-lb-achse"/>`;
+    const start = Math.floor((f0 + off) / schritt) * schritt - off;
+    const mitDatum = schritt >= 86400;
+    for (let tt = start; tt <= f1; tt += schritt) {
+      const x = X(tt); if (x < 0 || x > W) continue;
+      const lok = _lbDatum(tt, versatz);
+      const mitternacht = lok.getUTCHours() === 0 && lok.getUTCMinutes() === 0;
+      const txt = mitDatum || mitternacht
+        ? _lbTagText(tt, versatz, { weekday: "short", day: "numeric", month: "numeric" })
+        : _lbUhr(tt, versatz);
+      s += `<line x1="${x.toFixed(1)}" y1="${y}" x2="${x.toFixed(1)}" y2="${y + 4}" class="gpxi-lb-achse"/>`
+         + `<text x="${(x + 3).toFixed(1)}" y="${y + 14}" class="gpxi-lb-achse-txt${mitternacht ? " ist-tag" : ""}">${_lbEsc(txt)}</text>`;
+    }
+    return s;
+  }
+
+  // ── Kopplung (Q16) ───────────────────────────────────────────────────────
+  function _lbFinde(id) {
+    if (!_lb || !id) return null;
+    const e = _lbEintraege().find(x => x.id === id); if (e) return e;
+    return (_lb.punkte || []).find(x => x.id === id) || null;
+  }
+  function lbWaehlen(id, opt) {
+    opt = opt || {};
+    const e = _lbFinde(id);
+    _lbSel = e ? e.id : null;
+    const liste = _lbEl("gpxi-lb-liste");
+    if (liste) liste.querySelectorAll("[data-lb]").forEach(z => z.classList.toggle("ist-gewaehlt", z.dataset.lb === _lbSel));
+    const svg = _lbEl("gpxi-lb-svg");
+    if (svg) svg.querySelectorAll("[data-lb]").forEach(g => g.classList.toggle("ist-gewaehlt", g.dataset.lb === _lbSel));
+    if (!e) { _lbHighlight(null); return; }
+    if (liste && opt.scroll !== false) {
+      const z = liste.querySelector(`[data-lb="${e.id}"]`);
+      if (z) { try { z.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) { z.scrollIntoView(); } }
+    }
+    if (e.t1 != null) {
+      const lage = _lbIndexBereich(e);
+      _lbHighlight(lage ? { von: lage[0], bis: lage[1], farbe: _lbFarbe(e.anzeige_art) } : null);
+      if (opt.zoom && lage) _lbKarteZu(lage[0], lage[1]);
+    } else {
+      const i = e.idx != null ? e.idx : _lbIdxZuZeit(e.t);
+      _lbHighlight(i >= 0 ? { punkt: i, farbe: "#c084fc" } : null);
+      if (opt.zoom && i >= 0 && map) { try { map.flyTo({ center: [_points[i].lon, _points[i].lat], zoom: Math.max(map.getZoom(), 13), duration: 600 }); } catch (_) {} }
+    }
+    // Ist der Eintrag außerhalb des Ausschnitts, zeigt der Strahl ihn trotzdem (springen)
+    const sp = _lbSpanne(), ta = e.t0 != null ? e.t0 : e.t;
+    if (_lbFenster && sp && (ta < sp[0] || ta > sp[1])) { _lbFenster = null; logbuchRender(); }
+  }
+  /** Klick auf den Track: der Eintrag, in dem der Punkt liegt (ohne Zoom, Q16). */
+  function _lbWaehleZuIdx(i) {
+    if (!_lb || i == null || i < 0) return;
+    const z = _lbZeiten || _lbZeitenBauen(); const tt = z[i]; if (!isFinite(tt)) return;
+    const e = _lbEintraege().find(x => x.t0 <= tt && tt <= x.t1);
+    if (e && e.id !== _lbSel) lbWaehlen(e.id, { zoom: false });
+  }
+  function _lbKarteZu(a, b) {
+    if (!map || a == null || b == null) return;
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    for (let i = a; i <= b; i++) { const p = _points[i]; if (!p) continue; if (p.lon < minLon) minLon = p.lon; if (p.lon > maxLon) maxLon = p.lon; if (p.lat < minLat) minLat = p.lat; if (p.lat > maxLat) maxLat = p.lat; }
+    if (!isFinite(minLon)) return;
+    if (maxLon - minLon < 1e-4 && maxLat - minLat < 1e-4) { minLon -= 0.002; maxLon += 0.002; minLat -= 0.0015; maxLat += 0.0015; }
+    try { _syncing = true; map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 70, duration: 650, maxZoom: 15 }); }
+    catch (_) {} finally { setTimeout(() => { _syncing = false; }, 700); }
+  }
+  function _lbHighlight(h) {
+    if (!map) return;
+    try {
+      const src = map.getSource("gpxi-lb-hl"); if (!src) return;
+      if (!h) { src.setData({ type: "FeatureCollection", features: [] }); return; }
+      const feats = [];
+      if (h.punkt != null) {
+        const p = _points[h.punkt];
+        if (p) feats.push({ type: "Feature", properties: { c: h.farbe, pt: true }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } });
+      } else {
+        const coords = [];
+        for (let i = h.von; i <= h.bis; i++) { const p = _points[i]; if (p) coords.push([p.lon, p.lat]); }
+        if (coords.length === 1) coords.push(coords[0]);
+        if (coords.length) feats.push({ type: "Feature", properties: { c: h.farbe, pt: false }, geometry: { type: "LineString", coordinates: coords } });
+      }
+      src.setData({ type: "FeatureCollection", features: feats });
+    } catch (_) {}
+  }
+  /** Marke im Zeitstrahl für den Punkt unter dem Zeiger (Karte oder Höhenprofil). */
+  function _lbCursor(idx) {
+    _lbHover = idx;
+    const cur = _lbEl("gpxi-lb-cursor"), box = _lbEl("gpxi-lb-svgbox");
+    if (!cur || !box || !_lb) return;
+    const sp = _lbSpanne();
+    if (idx == null || idx < 0 || !sp) { cur.hidden = true; return; }
+    const z = _lbZeiten || _lbZeitenBauen(); const tt = z[idx];
+    if (!isFinite(tt) || tt < sp[0] || tt > sp[1]) { cur.hidden = true; return; }
+    const x = ((tt - sp[0]) / (sp[1] - sp[0])) * box.clientWidth;
+    cur.style.left = x.toFixed(1) + "px";
+    const versatz = (_lb.eintraege && _lb.eintraege[0] && _lb.eintraege[0].versatz_min) || 0;
+    cur.querySelector("span").textContent = _lbUhr(tt, versatz);
+    cur.classList.toggle("ist-rechts", x > box.clientWidth - 70);
+    cur.hidden = false;
+  }
+  function _lbIdxAnX(clientX) {
+    const box = _lbEl("gpxi-lb-svgbox"), sp = _lbSpanne(); if (!box || !sp) return -1;
+    const r = box.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
+    return _lbIdxZuZeit(sp[0] + frac * (sp[1] - sp[0]));
+  }
+  function _lbZoom(faktor, clientX) {
+    const sp = _lbSpanne(); if (!sp) return;
+    const box = _lbEl("gpxi-lb-svgbox"); const r = box.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
+    const mitte = sp[0] + frac * (sp[1] - sp[0]);
+    let neu = (sp[1] - sp[0]) * faktor;
+    const ganz = (function () { const f = _lbFenster; _lbFenster = null; const g = _lbSpanne(); _lbFenster = f; return g; })();
+    if (!ganz) return;
+    if (neu >= (ganz[1] - ganz[0])) { _lbFenster = null; logbuchRender(); return; }
+    neu = Math.max(600, neu);
+    let a = mitte - frac * neu, b = a + neu;
+    if (a < ganz[0]) { a = ganz[0]; b = a + neu; }
+    if (b > ganz[1]) { b = ganz[1]; a = b - neu; }
+    _lbFenster = [a, b];
+    logbuchRender();
+  }
+  function _lbVerdrahten() {
+    const svg = _lbEl("gpxi-lb-svg"), box = _lbEl("gpxi-lb-svgbox");
+    if (!svg || !box) return;
+    box.addEventListener("mousemove", (e) => { const i = _lbIdxAnX(e.clientX); if (i >= 0) setHover(i); });
+    box.addEventListener("mouseleave", () => setHover(null));
+    box.addEventListener("wheel", (e) => { e.preventDefault(); _lbZoom(e.deltaY > 0 ? 1.35 : 1 / 1.35, e.clientX); }, { passive: false });
+    box.addEventListener("dblclick", (e) => { if (e.target === svg || e.target === box) { _lbFenster = null; logbuchRender(); } });
+    _on("gpxi-lb-reise", () => { _lbFenster = null; logbuchRender(); });
+    _on("gpxi-lb-neu", () => logbuchLaden(true));
+    { const a = _lbEl("gpxi-lb-alles"); if (a) a.addEventListener("change", () => { _lbAlles = !!a.checked; _lbSel = null; _lbHighlight(null); logbuchRender(); }); }
+    _on("gpxi-lb-zu", () => {
+      const w = _lbEl("gpxi-logbuch"); if (!w) return;
+      const zu = !w.classList.contains("ist-zu");
+      w.classList.toggle("ist-zu", zu);
+      const k = _lbEl("gpxi-lb-koerper"); if (k) k.hidden = zu || !_lb;
+      const kn = _lbEl("gpxi-lb-zu"); if (kn) { kn.textContent = zu ? "▴" : "▾"; kn.title = zu ? t("logbuch.auf", "Logbuch aufklappen") : t("logbuch.zu", "Logbuch einklappen"); }
+      try { saveSettings({ gpxi_logbuch_zu: zu }); } catch (_) {}
+      if (!zu) { _lbStrahlRender(); setTimeout(() => { try { map && map.resize(); } catch (_) {} }, 60); }
+    });
+    try {
+      if (_settingsCache && _settingsCache.gpxi_logbuch_zu) {
+        const w = _lbEl("gpxi-logbuch"); w.classList.add("ist-zu");
+        const kn = _lbEl("gpxi-lb-zu"); if (kn) { kn.textContent = "▴"; kn.title = t("logbuch.auf", "Logbuch aufklappen"); }
+      }
+    } catch (_) {}
+    if (typeof ResizeObserver === "function") {
+      _lbRO = new ResizeObserver(() => { if (_lbRAF) return; _lbRAF = requestAnimationFrame(() => { _lbRAF = 0; if (_lb) _lbStrahlRender(); }); });
+      _lbRO.observe(box);
+    }
+  }
+  _lbVerdrahten();
+  // Für Wächter: Zustand des Logbuchs von außen lesbar
+  window.__rzGpxiLogbuch = { daten: () => _lb, auswahl: () => _lbSel, waehlen: lbWaehlen, laden: logbuchLaden,
+                            fenster: () => _lbFenster, hover: () => _lbHover,
+                            zuIdx: _lbWaehleZuIdx, hoverIdx: (i) => setHover(i) };
+
   updateUI();
 
   // ── Cleanup ──────────────────────────────────────────────────────────────────
   return function cleanup() {
     isUnmounted = true;
+    try { if (_lbRO) { _lbRO.disconnect(); _lbRO = null; } } catch (_) {}
+    try { if (_lbRAF) cancelAnimationFrame(_lbRAF); } catch (_) {}
+    try { delete window.__rzGpxiLogbuch; } catch (_) {}
     // v0.9.389 — GPX-Listener abmelden (hielt sonst die komplette _points-Kopie).
     try { if (window.__rzGpxUnsub_insp) { window.__rzGpxUnsub_insp(); window.__rzGpxUnsub_insp = null; } } catch (_) {}
     try { document.removeEventListener("keydown", onKeyDown); } catch (_) {}

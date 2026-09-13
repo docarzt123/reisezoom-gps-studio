@@ -2352,6 +2352,18 @@ The sections hold the same tools as on reisezoom.com/gps — here without size l
 
 Every step is an undo step (⌘Z). Start and split need exactly **one** anchor (A without B).
 
+### 📖 The logbook of the tour — what happened when (since v0.9.706)
+When you open a tour from the archive, the logbook appears **below the map**: a **timeline** across the full width on the left, a **list** that scrolls along on the right. Both come from the track automatically, without internet.
+
+- **What is in it:** drives, ferries, hikes and walks, breaks (from ten minutes of standstill — anything shorter, a traffic light say, merges into the part before), overnight stays, plus the **highest point**, **start** and **finish** of every day. Every entry shows from–to in the tour's local time, duration, distance, climb and pace. Multi-day trips are grouped by day, a day tour is a flat list.
+- **Timeline:** three tracks — days, movement (coloured blocks: drive blue, ferry teal, walking green, bike orange, run yellow, break grey; the elevation profile lies over them as a silhouette) and points. **Double-click a day** or click its header in the list to zoom to it, the **mouse wheel** zooms, **⤢ Whole tour** goes back.
+- **Coupled with the map:** click an entry (list or timeline) to highlight that part on the track and zoom to it. Click the track to select the entry the point belongs to. Move the mouse over the track or the elevation profile and a marker with the time follows in the timeline. **Esc** clears the selection.
+- **“show everything”** brings short stops and the raw ranges of the recognition back; **↻** recognises the logbook again; **▾** collapses it (remembered).
+- **“assumed”** marks entries where the recognition had to guess — slow driving through towns that looks like cycling, for example.
+- The head line sums it up: “99 h 5 min drive · 2 ferries · 47 walks · 214 breaks · 37 overnight stays”.
+
+> The logbook exists for tours in the **archive** (it belongs to the tour, not to the file). A file from outside gets a note. Editing, place names and sights follow in the next stages — the plan is in `docs/LOGBUCH.md`.
+
 ### Undo
 **⌘Z** undoes every edit, **⌘⇧Z** redoes it (or the ↩︎/↪︎ buttons). When you load a new track, the history starts fresh.
 

@@ -2409,6 +2409,18 @@ Las secciones contienen las mismas herramientas que en reisezoom.com/gps — aqu
 
 Cada paso es un paso de deshacer (⌘Z). Inicio y dividir necesitan exactamente **un** ancla (A sin B).
 
+### 📖 El cuaderno de ruta: qué pasó y cuándo (desde v0.9.706)
+Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izquierda una **línea de tiempo** a todo lo ancho, a la derecha una **lista** que se desplaza a la par. Ambos salen del track automáticamente, sin internet.
+
+- **Qué contiene:** trayectos, ferris, caminatas y paseos, pausas (a partir de diez minutos parado; lo más corto, un semáforo por ejemplo, se funde con el tramo anterior), pernoctas, y además el **punto más alto**, el **inicio** y la **llegada** de cada día. Cada entrada muestra la hora de–a en la hora local de la ruta, duración, distancia, desnivel y ritmo. Los viajes de varios días se agrupan por día; una ruta de un día es una lista plana.
+- **Línea de tiempo:** tres pistas: días, movimiento (bloques de color: trayecto azul, ferri turquesa, a pie verde, bici naranja, carrera amarillo, pausa gris; el perfil de altura queda encima como silueta) y puntos. **Doble clic en un día** o clic en su cabecera en la lista lo amplía, la **rueda del ratón** hace zoom, **⤢ Toda la ruta** vuelve atrás.
+- **Acoplado al mapa:** clic en una entrada (lista o línea de tiempo) resalta ese tramo en el track y hace zoom. Clic en el track selecciona la entrada a la que pertenece el punto. Al mover el ratón sobre el track o el perfil de altura, una marca con la hora lo sigue en la línea de tiempo. **Esc** quita la selección.
+- **«mostrar todo»** recupera las paradas cortas y los tramos en bruto de la detección; **↻** vuelve a detectar el cuaderno; **▾** lo pliega (se recuerda).
+- **«supuesto»** marca las entradas en las que la detección tuvo que suponer, por ejemplo conducción lenta por pueblos que parece ir en bici.
+- La cabecera lo resume: «99 h 5 min trayecto · 2 ferris · 47 paseos · 214 pausas · 37 pernoctas».
+
+> El cuaderno existe para las rutas del **archivo** (pertenece a la ruta, no al archivo de datos). Un archivo externo recibe un aviso. Editar, nombres de lugares y puntos de interés llegan en las próximas etapas; el plan está en `docs/LOGBUCH.md`.
+
 ### Deshacer
 **⌘Z** deshace cualquier edición, **⌘⇧Z** rehace (o los botones ↩︎/↪︎). Al cargar un track nuevo, el historial arranca de cero.
 

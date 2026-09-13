@@ -1781,6 +1781,17 @@ python app.py</code></pre>
 <li><strong>Parciales cada … km → Tabla de parciales</strong> — tiempos parciales por tramo: distancia, duración, ritmo, desnivel positivo y negativo. «Copiar como tabla» la deja separada por punto y coma en el portapapeles (vale para cualquier hoja de cálculo).</li>
 </ul>
 <p>Cada paso es un paso de deshacer (⌘Z). Inicio y dividir necesitan exactamente <strong>un</strong> ancla (A sin B).</p>
+<h3 id="el-cuaderno-de-ruta-qu-pas-y-cu-ndo">📖 El cuaderno de ruta: qué pasó y cuándo</h3>
+<p>Al abrir una ruta del archivo, el cuaderno aparece <strong>debajo del mapa</strong>: a la izquierda una <strong>línea de tiempo</strong> a todo lo ancho, a la derecha una <strong>lista</strong> que se desplaza a la par. Ambos salen del track automáticamente, sin internet.</p>
+<ul>
+<li><strong>Qué contiene:</strong> trayectos, ferris, caminatas y paseos, pausas (a partir de diez minutos parado; lo más corto, un semáforo por ejemplo, se funde con el tramo anterior), pernoctas, y además el <strong>punto más alto</strong>, el <strong>inicio</strong> y la <strong>llegada</strong> de cada día. Cada entrada muestra la hora de–a en la hora local de la ruta, duración, distancia, desnivel y ritmo. Los viajes de varios días se agrupan por día; una ruta de un día es una lista plana.</li>
+<li><strong>Línea de tiempo:</strong> tres pistas: días, movimiento (bloques de color: trayecto azul, ferri turquesa, a pie verde, bici naranja, carrera amarillo, pausa gris; el perfil de altura queda encima como silueta) y puntos. <strong>Doble clic en un día</strong> o clic en su cabecera en la lista lo amplía, la <strong>rueda del ratón</strong> hace zoom, <strong>⤢ Toda la ruta</strong> vuelve atrás.</li>
+<li><strong>Acoplado al mapa:</strong> clic en una entrada (lista o línea de tiempo) resalta ese tramo en el track y hace zoom. Clic en el track selecciona la entrada a la que pertenece el punto. Al mover el ratón sobre el track o el perfil de altura, una marca con la hora lo sigue en la línea de tiempo. <strong>Esc</strong> quita la selección.</li>
+<li><strong>«mostrar todo»</strong> recupera las paradas cortas y los tramos en bruto de la detección; <strong>↻</strong> vuelve a detectar el cuaderno; <strong>▾</strong> lo pliega (se recuerda).</li>
+<li><strong>«supuesto»</strong> marca las entradas en las que la detección tuvo que suponer, por ejemplo conducción lenta por pueblos que parece ir en bici.</li>
+<li>La cabecera lo resume: «99 h 5 min trayecto · 2 ferris · 47 paseos · 214 pausas · 37 pernoctas».</li>
+</ul>
+<blockquote>El cuaderno existe para las rutas del <strong>archivo</strong> (pertenece a la ruta, no al archivo de datos). Un archivo externo recibe un aviso. Editar, nombres de lugares y puntos de interés llegan en las próximas etapas; el plan está en <code>docs/LOGBUCH.md</code>.</blockquote>
 <h3 id="deshacer">Deshacer</h3>
 <p><strong>⌘Z</strong> deshace cualquier edición, <strong>⌘⇧Z</strong> rehace (o los botones ↩︎/↪︎). Al cargar un track nuevo, el historial arranca de cero.</p>
 <h3 id="guardar">Guardar</h3>

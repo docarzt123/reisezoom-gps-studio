@@ -2578,6 +2578,18 @@ In den Abschnitten stecken dieselben Werkzeuge wie auf reisezoom.com/gps — hie
 
 Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau **einen** Anker (A ohne B).
 
+### 📖 Das Logbuch der Tour — was wann war (seit v0.9.706)
+Öffnest du eine Tour aus dem Archiv, erscheint **unter der Karte** das Logbuch: links ein **Zeitstrahl** über die ganze Breite, rechts eine **Liste**, die mitläuft. Beides entsteht automatisch aus dem Track, ohne Internet.
+
+- **Was drinsteht:** Fahrten, Fähren, Wanderungen und Spaziergänge, Pausen (ab zehn Minuten Stillstand — kürzeres, etwa die Ampel, geht im Abschnitt davor auf), Übernachtungen, dazu je Tag der **höchste Punkt**, **Start** und **Ziel**. Jeder Eintrag zeigt Uhrzeit von–bis in der Ortszeit der Tour, Dauer, Strecke, Höhenmeter und Tempo. Mehrtägige Reisen sind nach Tagen gegliedert, eine Tagestour ist eine flache Liste.
+- **Zeitstrahl:** drei Spuren — Tage, Bewegung (farbige Blöcke: Fahrt blau, Fähre türkis, Gehen grün, Rad orange, Laufen gelb, Pause grau; das Höhenprofil liegt als Silhouette darüber) und Punkte. **Doppelklick auf einen Tag** oder Klick auf den Tageskopf in der Liste zieht den Tag auf, das **Mausrad** zoomt, **⤢ Ganze Tour** geht zurück.
+- **Gekoppelt mit der Karte:** Klick auf einen Eintrag (Liste oder Zeitstrahl) hebt den Abschnitt auf dem Track hervor und zoomt hin. Klick auf den Track wählt den Eintrag, in dem der Punkt liegt. Fährst du mit der Maus über den Track oder das Höhenprofil, wandert eine Marke mit Uhrzeit im Zeitstrahl mit. **Esc** hebt die Auswahl auf.
+- **„alles zeigen“** holt auch kurze Halte und die rohen Bereiche der Erkennung zurück; **↻** erkennt das Logbuch neu; **▾** klappt es ein (bleibt gemerkt).
+- **„vermutet“** steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.
+- Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.
+
+> Das Logbuch gibt es für Touren im **Archiv** (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis. Bearbeiten, Ortsnamen und Sehenswürdigkeiten kommen in den nächsten Stufen — der Plan steht in `docs/LOGBUCH.md`.
+
 ### Rückgängig
 **⌘Z** macht jede Bearbeitung rückgängig, **⌘⇧Z** stellt wieder her (oder die ↩︎/↪︎-Buttons). Beim Laden eines neuen Tracks startet die Historie frisch.
 

@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.705"
+APP_VERSION = "0.9.706"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9765,6 +9765,15 @@ class Api:
 
     def _einteilung_tour(self, path: str):
         t = clib.get_track(self._lib(), path) if path else None
+        if not t and path:
+            # 13.09.2026 — das Archiv merkt sich den aufgelösten Pfad (/private/var …),
+            # der Inspektor bekommt manchmal den Alias (/var …) — dieselbe Datei.
+            try:
+                echt = os.path.realpath(path)
+                if echt != path:
+                    t = clib.get_track(self._lib(), echt)
+            except Exception:  # noqa: BLE001
+                t = None
         if not t:
             return "", None
         return (t.get("tour_id") or t.get("geo_hash") or ""), t
@@ -9891,6 +9900,79 @@ class Api:
                 return self._einteilung_antwort(conn, t, {"eid": eid, "vorher": jetzt})
         except Exception as e:  # noqa: BLE001
             log.exception("einteilung_stand_setzen")
+            return {"ok": False, "error": str(e)}
+
+    # ── Logbuch der Tour (13.09.2026, docs/LOGBUCH.md §68, Stufe 1) ─────────────
+    # Marc: „was wo war — zeit von bis: fähre, pause, fahrt, wanderung … höchster
+    # punkt". Entsteht automatisch beim Öffnen im Inspektor (Q4), lokal, ohne Netz.
+
+    def logbuch_lesen(self, path: str, neu: bool = False) -> dict:
+        """Das Logbuch der Tour zu dieser Datei: die lesbare Folge (core/logbuch)
+        über der Einteilung „Bewegung" plus Tage und Punkte. Fehlen die
+        Einteilungen, werden sie hier berechnet; `neu` erzwingt es (Handarbeit
+        bleibt, Q9). Zeiten kommen als Epoch plus Versatz der Ortszeit."""
+        from core import einteilung as ceint, logbuch as clb, zeitzone as czz
+        try:
+            tour, t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": False, "grund": "nicht_im_archiv",
+                        "error": _ui_t()("logbuch.nicht_im_archiv",
+                                         "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")}
+            pts, _stats = clib.punkte_lesen(path, IMPORTS_DIR)
+            if not any(clb._epoch(p.get("time") if isinstance(p, dict) else getattr(p, "time", None)) is not None
+                       for p in pts[:200]):
+                return {"ok": False, "grund": "ohne_zeit",
+                        "error": _ui_t()("logbuch.ohne_zeit", "Der Track hat keine Zeitstempel — ohne Uhrzeit gibt es kein Logbuch.")}
+            wegpunkte = []
+            if str(path).lower().endswith(".gpx"):
+                try:
+                    wegpunkte = cgpx.parse_waypoints(path)
+                except Exception:  # noqa: BLE001
+                    wegpunkte = []
+            aktivitaet = (t or {}).get("activity") or ""
+            conn = self._lib()
+            with clib._DB_LOCK:
+                stand = {}
+                for art in ("tage", "bewegung"):
+                    eid = ceint.einteilung_id(tour, art)
+                    e = ceint.eine(conn, eid)
+                    # Eine Bewegung ohne Punkt-Einträge stammt von vor dem Logbuch
+                    # (v0.9.702) — einmal nachrechnen, Handarbeit bleibt.
+                    veraltet = (art == "bewegung" and e is not None
+                                and not any(b.get("art") in clb.PUNKT_ARTEN for b in e["bereiche"]))
+                    if neu or e is None or veraltet:
+                        e = ceint.neu_berechnen(conn, tour, art, pts, aktivitaet=aktivitaet or None,
+                                                wegpunkte=wegpunkte)
+                    stand[art] = e
+            tage = [b for b in stand["tage"]["bereiche"] if b.get("art") == "tag"]
+            lb = clb.eintraege(stand["bewegung"]["bereiche"], pts, aktivitaet=aktivitaet, tage=tage)
+            lat = lon = None
+            for p in pts:
+                la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
+                if la is not None:
+                    lat, lon = la, (p.get("lon") if isinstance(p, dict) else getattr(p, "lon", None))
+                    break
+            zone = ""
+            try:
+                zone = czz.zone_fuer(lat, lon, land=(t or {}).get("country") or "")
+            except Exception:  # noqa: BLE001
+                zone = "UTC"
+            for e in lb["eintraege"]:
+                e["versatz_min"] = czz.offset_min(zone, e["t0"])
+            for p in lb["punkte"]:
+                p["versatz_min"] = czz.offset_min(zone, p["t"])
+            for d in tage:
+                d["versatz_min"] = czz.offset_min(zone, d["t0"])
+            return {"ok": True, "tour": tour, "name": (t or {}).get("name") or "",
+                    "aktivitaet": aktivitaet, "zone": zone,
+                    "eid": stand["bewegung"]["id"], "eid_tage": stand["tage"]["id"],
+                    "tage": tage, "mehrtaegig": len(tage) > 1,
+                    "eintraege": lb["eintraege"], "punkte": lb["punkte"], "verborgen": lb["verborgen"],
+                    "roh": stand["bewegung"]["bereiche"],
+                    "zusammenfassung": lb["zusammenfassung"], "hoechster": lb["hoechster"],
+                    "einstellungen": lb["einstellungen"]}
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_lesen")
             return {"ok": False, "error": str(e)}
 
     def gpxinspect_luecken(self, points: list, aktivitaet: str = "", mit_klein: bool = False) -> dict:
