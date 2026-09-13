@@ -201,7 +201,8 @@ def _eintrag(b: dict) -> dict:
     return {"id": b["id"], "bids": [b["id"]], "art": art, "art_roh": b["art"],
             "name": b.get("name") or "", "quelle": b.get("quelle") or "auto",
             "anzeige": b.get("anzeige") or "", "t0": float(b["t0"]), "t1": float(b["t1"]),
-            "strecke_m": float(b.get("strecke_m") or 0.0), "geraten": False}
+            "strecke_m": float(b.get("strecke_m") or 0.0), "geraten": False,
+            "grenze": bool(b.get("grenze"))}
 
 
 def _messen(e: dict, z: Optional[_Zeiten]) -> None:
@@ -224,8 +225,8 @@ def _verschmelzen(folge: List[dict]) -> List[dict]:
     raus: List[dict] = []
     for e in folge:
         v = raus[-1] if raus else None
-        if v and v["art"] == e["art"] and v["name"] == e["name"] and v["quelle"] == e["quelle"] \
-                and abs(v["t1"] - e["t0"]) < 1e-6:
+        if v and not e["grenze"] and v["art"] == e["art"] and v["name"] == e["name"] \
+                and v["quelle"] == e["quelle"] and abs(v["t1"] - e["t0"]) < 1e-6:
             v["t1"] = e["t1"]
             v["strecke_m"] += e["strecke_m"]
             v["bids"] += e["bids"]
