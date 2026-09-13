@@ -212,7 +212,7 @@
     var box = document.getElementById("cloud-ferne");
     if (!box) return;
     box.innerHTML = '<span class="muted">' + T("cloud.ferne_lade", "Schaue ins Archiv …") + '</span>';
-    window.pywebview.api.cloud_uebersicht().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (u) {
+    rzWarten("cloud_uebersicht", () => window.pywebview.api.cloud_uebersicht()).catch(function (e) { return { ok: false, error: String(e) }; }).then(function (u) {
       if (!box.isConnected) return;
       if (!u.ok) { box.innerHTML = '<span class="muted">⚠ ' + u.error + '</span>'; return; }
       var l = u.lokal || {};
@@ -251,7 +251,7 @@
         }
         pz.disabled = true;
         pz.textContent = "⏳";
-        window.pywebview.api.cloud_aufraeumen()
+        rzWarten("cloud_aufraeumen", () => window.pywebview.api.cloud_aufraeumen())
           .catch(function (e) { return { ok: false, error: String(e) }; })
           .then(function (r) {
             if (!r.ok) { melden("⚠ " + r.error, "fehler"); pz.disabled = false; return; }
@@ -264,7 +264,7 @@
       if (b) b.onclick = function () {
         b.disabled = true;
         b.textContent = T("cloud.laedt", "Lädt …");
-        window.pywebview.api.cloud_herunterladen()
+        rzWarten("cloud_herunterladen", () => window.pywebview.api.cloud_herunterladen())
           .catch(function (e) { return { ok: false, error: String(e) }; })
           .then(function (r) {
             b.disabled = false;
@@ -337,7 +337,7 @@
       var lb = document.getElementById("korb-leeren");
       if (lb) lb.onclick = function () {
         lb.disabled = true;
-        window.pywebview.api.cloud_papierkorb_leeren(30).then(function (r) {
+        rzWarten("cloud_papierkorb_leeren", () => window.pywebview.api.cloud_papierkorb_leeren(30)).then(function (r) {
           lb.disabled = false;
           if (r.ok) { korbLaden(); melden(T("cloud.korb_geleert", "Gelöscht: ") + r.geloescht, ""); }
         });
@@ -395,7 +395,7 @@
       var wert = adr.value.trim();
       if (!wert) { melden(T("cloud.keine_adresse", "Bitte eine Adresse eintragen."), "fehler"); return; }
       melden(T("cloud.richte_ein", "Richte ein …"));
-      window.pywebview.api.cloud_einrichten(wert).then(function (r) {
+      rzWarten("cloud_einrichten", () => window.pywebview.api.cloud_einrichten(wert)).then(function (r) {
         if (!r.ok) { melden(r.error, "fehler"); return; }
         // ⚠️ Das Passwort wird GENAU EINMAL gezeigt. Danach liegt es nur im
         // Schlüsselbund — auch wir können es nicht wieder hervorholen.
@@ -419,11 +419,11 @@
 
     document.getElementById("cloud-verbinden").onclick = function () {
       melden(T("cloud.verbinde", "Verbinde …"));
-      window.pywebview.api.cloud_verbinden(
+      rzWarten("cloud_verbinden", () => window.pywebview.api.cloud_verbinden(
         adr.value.trim(),
         document.getElementById("cloud-zugangsschluessel").value,
         document.getElementById("cloud-passwort").value
-      ).then(function (r) {
+      )).then(function (r) {
         if (!r.ok) { melden(r.error, "fehler"); return; }
         melden(T("cloud.verbunden", "Verbunden."));
         standHolen();
@@ -440,7 +440,7 @@
     document.getElementById("cloud-jetzt").onclick = function () {
       melden(T("cloud.laeuft", "Überträgt gerade …"));
       standHolen();
-      window.pywebview.api.cloud_abgleichen().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (r) {
+      rzWarten("cloud_abgleichen", () => window.pywebview.api.cloud_abgleichen()).catch(function (e) { return { ok: false, error: String(e) }; }).then(function (r) {
         if (!r.ok) { melden(r.error, "fehler"); return; }
         melden(T("cloud.fertig", "Fertig") + ": " + r.uebertragen + " · " + r.mb + " MB" +
                ((r.fehler && r.fehler.length) ? "<br>" + r.fehler.join("<br>") : ""));

@@ -352,8 +352,8 @@
     async function loadExtraTracks() {
       if (!tracks.length) { if (map) drawTrack(); return; }
       try {
-        const res = await window.pywebview.api.webkarte_prepare({
-          tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) });
+        const res = await rzWarten("webkarte_prepare", () => window.pywebview.api.webkarte_prepare({
+          tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) }));
         if (destroyed) return;
         if (res && res.ok && Array.isArray(res.tracks)) {
           const byPath = {};
@@ -474,7 +474,7 @@
       }
       status(T("webkarte.loading", "Lade Track …"));
       try {
-        const res = await window.pywebview.api.webkarte_prepare({ gpx_path: gpxPath });
+        const res = await rzWarten("webkarte_prepare", () => window.pywebview.api.webkarte_prepare({ gpx_path: gpxPath }));
         if (destroyed) return;
         if (!res || !res.ok) { status(T("webkarte.load_fail", "Track laden fehlgeschlagen") + ": " + (res?.error || "?")); return; }
         track = res.track || [];
@@ -553,7 +553,7 @@
       // kurzer Tick, damit der Browser den „arbeitet"-Zustand VOR dem blockierenden Call zeichnet
       await new Promise((r) => setTimeout(r, 30));
       try {
-        const res = await window.pywebview.api.webkarte_export(collectParams());
+        const res = await rzWarten("webkarte_export", () => window.pywebview.api.webkarte_export(collectParams()));
         if (!res || !res.ok) { if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "?"), "error", 8000); return; }
         showExportModal(res);
       } catch (e) {

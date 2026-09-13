@@ -1117,7 +1117,7 @@ function mountLibrary(body, headerActions) {
       if (ab) ab.onclick = () => m.close();
     });
     box.querySelectorAll("[data-dup]").forEach(b => b.onclick = async () => {
-      await api().projekt_duplizieren(b.dataset.dup);
+      await rzWarten("projekt_duplizieren", () => api().projekt_duplizieren(b.dataset.dup));
       renderProjekte();
     });
     box.querySelectorAll("[data-vorl]").forEach(b => b.onclick = (e) => { e.stopPropagation(); projektVorlageModal(b.dataset.vorl); });
@@ -1143,7 +1143,7 @@ function mountLibrary(body, headerActions) {
       if (zu) zu.onclick = () => m.close();
       document.querySelectorAll("[data-strb]").forEach(rb => rb.onclick = async () => {
         m.close();
-        const r = await api().projekt_stand_wiederherstellen(b.dataset.st, rb.dataset.strb);
+        const r = await rzWarten("projekt_stand_wiederherstellen", () => api().projekt_stand_wiederherstellen(b.dataset.st, rb.dataset.strb));
         if (r && r.ok) toast(T("library.stand_done", "Arbeitsstand wiederhergestellt."), "info");
         else toast((r && r.error) || "?", "error");
         renderProjekte();
@@ -1279,7 +1279,7 @@ function mountLibrary(body, headerActions) {
       reload();
     });
     box.querySelectorAll("[data-pd-strb]").forEach(b => b.onclick = async () => {
-      const r = await api().projekt_stand_wiederherstellen(pid, b.dataset.pdStrb);
+      const r = await rzWarten("projekt_stand_wiederherstellen", () => api().projekt_stand_wiederherstellen(pid, b.dataset.pdStrb));
       if (r && r.ok) toast(T("library.stand_done", "Arbeitsstand wiederhergestellt."), "info");
       else toast((r && r.error) || "?", "error");
       renderProjekte();
@@ -1336,7 +1336,7 @@ function mountLibrary(body, headerActions) {
       const vorschlag = String(pfade[0] || "").split("/").pop().replace(/\.[^.]+$/, "") || v.name || "";
       const wahl = await window.rzNeuesProjektModal(vorschlag, T("vorlagen.neu_projekt", "Neues Projekt daraus"), b.dataset.vneu);
       if (!wahl) return;
-      const r = await api().projekt_aus_vorlage_anlegen(wahl.name, wahl.vorlageId || b.dataset.vneu);
+      const r = await rzWarten("projekt_aus_vorlage_anlegen", () => api().projekt_aus_vorlage_anlegen(wahl.name, wahl.vorlageId || b.dataset.vneu));
       if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
       const pid = (r.active_project || {}).id;
       const r2 = await api().projekt_touren_setzen(pid, pfade);
@@ -1426,7 +1426,7 @@ function mountLibrary(body, headerActions) {
     if (an) an.onclick = async () => {
       const vid = (document.getElementById("lib-pv-vorlage") || {}).value || "";
       m.close();
-      const r = await api().vorlage_anwenden(pid, vid);
+      const r = await rzWarten("vorlage_anwenden", () => api().vorlage_anwenden(pid, vid));
       if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
       const vorher = r.vorher || {}, nachher = r.nachher || {};
       _libUndoPush(T("vorlagen.undo_label", "Vorlage angewendet"),
@@ -3020,7 +3020,7 @@ function mountLibrary(body, headerActions) {
       const uebergaenge = liste.slice(1).map(() => ({ stil: stil.value, dauer_s: +dauer.value || 3 }));
       let r;
       try {
-        r = await api().library_merge({ paths: liste.map(x => x.path), name: (nf && nf.value) || "", uebergaenge });
+        r = await rzWarten("library_merge", () => api().library_merge({ paths: liste.map(x => x.path), name: (nf && nf.value) || "", uebergaenge }));
       } catch (e) { r = { ok: false, error: String(e) }; }
       if (frei) frei();
       if (!r || !r.ok) { if (st) st.textContent = "⚠ " + ((r && r.error) || "?"); void knopf; return; }
@@ -3634,7 +3634,7 @@ function mountLibrary(body, headerActions) {
           const ok = document.getElementById("lib-frb-ok");
           if (ok) ok.onclick = async () => {
             m.close();
-            const r = await api().tour_fassung_wiederherstellen(b.dataset.frb);
+            const r = await rzWarten("tour_fassung_wiederherstellen", () => api().tour_fassung_wiederherstellen(b.dataset.frb));
             if (r && r.ok) {
               toast(T("library.fassung_rb_done", "Version wiederhergestellt."), "info");
               // Abnahme 29.08.2026: die Detailspalte zeigte sonst weiter die
@@ -4324,7 +4324,7 @@ function mountLibrary(body, headerActions) {
     const run = $("lib-check-run");
     if (run) run.onclick = async () => {
       run.disabled = true;
-      let r; try { r = await api().library_track_check(it.path); } catch (e) { r = { ok: false, error: String(e) }; }
+      let r; try { r = await rzWarten("library_track_check", () => api().library_track_check(it.path)); } catch (e) { r = { ok: false, error: String(e) }; }
       if (uebernehmen(r)) toast(T("trackcheck.rechecked", "Neu geprüft."), "info", 1600);
     };
     box.querySelectorAll("[data-check-ok]").forEach(b => b.onclick = async () => {
@@ -4545,7 +4545,7 @@ function mountLibrary(body, headerActions) {
       liste = w.paths;
     }
     try {
-      const pr = await api().library_import_pruefen(liste);
+      const pr = await rzWarten("library_import_pruefen", () => api().library_import_pruefen(liste));
       if (pr && pr.ok && pr.bekannt) {
         const bekannt = pr.dateien.filter(e => e.art !== "neu");
         const neue = pr.dateien.filter(e => e.art === "neu").map(e => e.pfad);
@@ -4557,7 +4557,7 @@ function mountLibrary(body, headerActions) {
     } catch (e) {
       applog && applog("warn", "[Archiv] Import-Prüfung: " + e);
     }
-    const res = await api().library_import_files(liste);
+    const res = await rzWarten("library_import_files", () => api().library_import_files(liste));
     if (!res || res.cancelled) return;
     if (!res.ok) { toast(res.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
     if (!res.kopiert && !res.uebersprungen) {
@@ -4805,7 +4805,7 @@ function mountLibrary(body, headerActions) {
       b.onclick = async (ev) => {
         ev.preventDefault(); ev.stopPropagation();
         b.disabled = true;
-        let r; try { r = await api().library_repair_file(b.dataset.reparieren); } catch (e) { r = { ok: false, error: String(e) }; }
+        let r; try { r = await rzWarten("library_repair_file", () => api().library_repair_file(b.dataset.reparieren)); } catch (e) { r = { ok: false, error: String(e) }; }
         if (r && r.ok) {
           const name = String(b.dataset.reparieren || "").split(/[\\/]/).pop();
           toast(T("library.err_repaired", "Repariert: {name} liegt jetzt als Tour im Archiv ({n} Punkte).").replace("{name}", name).replace("{n}", r.n_points || 0), "success", 5000);
@@ -4901,7 +4901,7 @@ function mountLibrary(body, headerActions) {
     if (!frei) return;
     await malPause();
     let res;
-    try { res = await api().library_duplicates(); }
+    try { res = await rzWarten("library_duplicates", () => api().library_duplicates()); }
     finally { frei(); }
     const groups = (res && res.groups) || [];
     if (!groups.length) {

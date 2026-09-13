@@ -1215,7 +1215,7 @@ function parseNum(value, fallback = 0) {
  * @param {string} context - Optional, z.B. Crash-Kurzfehler
  */
 async function openBugReportModal(context = "") {
-  const r = await api().prepare_bug_report(context || "");
+  const r = await rzWarten("prepare_bug_report", () => api().prepare_bug_report(context || ""));
   if (!r || !r.ok) {
     toast(t("error.bugreport", "Bug-Report konnte nicht vorbereitet werden"), "error", 4000);
     return;
@@ -1315,7 +1315,7 @@ async function openBugReportModal(context = "") {
   if (brDesktop) brDesktop.onclick = async () => {
     brDesktop.disabled = true;
     try {
-      const res = await api().save_log_to_desktop();
+      const res = await rzWarten("save_log_to_desktop", () => api().save_log_to_desktop());
       if (res && res.ok) {
         toast(t("bugreport.desktop_ok").replace("{name}", res.name || "Log.txt"), "success", 6000);
       } else {
@@ -1692,8 +1692,8 @@ async function sessionActivate(coords, gpxPath) {
  */
 async function sessionActivateMenge(gpxPaths, ablauf, modus, pausen) {
   try {
-    const res = await api().session_open_for_menge(gpxPaths || [], ablauf || "reise",
-      modus || "gleich", pausen !== false);
+    const res = await rzWarten("session_open_for_menge", () => api().session_open_for_menge(gpxPaths || [], ablauf || "reise",
+      modus || "gleich", pausen !== false));
     if (!res || !res.ok) {
       console.warn("sessionActivateMenge failed:", res);
       return null;
@@ -1712,7 +1712,7 @@ async function sessionActivateMenge(gpxPaths, ablauf, modus, pausen) {
 /** v0.9.612 — Frei-Kontext aktivieren (leeres Projekt ohne Track). */
 async function sessionActivateFrei(kontext) {
   try {
-    const res = await api().session_open_for_frei(kontext);
+    const res = await rzWarten("session_open_for_frei", () => api().session_open_for_frei(kontext));
     if (!res || !res.ok) { console.warn("sessionActivateFrei failed:", res); return null; }
     _activeSession = res.session;
     _activeProject = res.active_project;
@@ -3284,7 +3284,7 @@ function showRenderEngineMissingModal(browsersPath, onSuccess) {
     btn.disabled = true; cancel.disabled = true;
     btn.textContent = t("animator.playwright_missing.installing");
     prog.hidden = false;
-    const r = await api().playwright_install_chromium();
+    const r = await rzWarten("playwright_install_chromium", () => api().playwright_install_chromium());
     if (r.ok) {
       toast(t("animator.playwright_missing.success"), "success", 4000);
       openModal({}).close();
@@ -3825,7 +3825,7 @@ async function rzArchivTourenWaehlen(opts) {
     const imp = document.getElementById("rz-tw-import"); if (imp) imp.onclick = async () => {
       imp.disabled = true;
       try {
-        const r = await api().library_import_files();
+        const r = await api().library_import_files();   // warte-ok: öffnet erst den Dateidialog
         if (r && r.ok && Array.isArray(r.pfade) && r.pfade.length) {
           if (o.einzel) gewaehlt.clear();
           for (const pf of r.pfade) {
@@ -4128,14 +4128,16 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
     clearTimeout(v.zeigTimer);
     // Nie gezeigt (schneller als 300 ms)? Dann auch keine Fertig-Meldung aufblitzen lassen.
     if (v.modal && !v.gezeigt) verzoegerung = 0;
-    v.wegTimer = setTimeout(() => {
+    const weg = () => {
       if (_vorgaenge.get(id) !== v) return;
       try { v.el.remove(); } catch (_) {}
       _vorgaenge.delete(id);
       const box = document.getElementById("rz-status-box");
       if (box && !box.children.length) box.remove();
       _modalSichtbarkeit();
-    }, verzoegerung);
+    };
+    // Ohne Verzögerung sofort — sonst liegt das sperrende Fenster noch einen Takt über der Antwort.
+    if (verzoegerung <= 0) weg(); else v.wegTimer = setTimeout(weg, verzoegerung);
   }
 
   function fertig(id, text) {
@@ -4181,5 +4183,34 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
     return Math.round(Number(n) || 0).toLocaleString(loc || undefined);
   }
 
-  window.rzStatus = { start, schritt, fertig, fehler, abgebrochen, laeuft, gemalt };
+  /** Schließt ohne Fertig-Meldung — für kurze Wartefenster, deren Ergebnis ohnehin sichtbar wird. */
+  function ende(id) { _weg(id, 0); }
+
+  window.rzStatus = { start, schritt, fertig, fehler, abgebrochen, laeuft, gemalt, ende };
+
+  /* 13.09.2026 — Marc: „check mal die ganze app durch nach stellen, wo wir wartefenster
+   * brauchen … leg los". Jeder Brückenaufruf, auf dessen Ergebnis man wartet, läuft durch
+   * rzWarten: Nach 300 ms steht ein Fenster in der Mitte mit dem, was gerade passiert;
+   * ist der Aufruf schneller, sieht man nichts. Fehler meldet weiterhin der Aufrufer —
+   * das Fenster schließt in jedem Fall. Texte: i18n `warte.<name>.titel/text`.
+   *   const r = await rzWarten("gpxinspect_save", () => api().gpxinspect_save(...));
+   */
+  const _WARTE_DE = {"ghosts_laden": ["Geister-Tracks werden geladen", "Die Vergleichstouren werden gelesen"], "highlights_vorschlaege": ["Highlights werden gesucht", "Fotos, Orte und Halte entlang des Tracks"], "photos_time_anchors": ["Fotos werden eingeordnet", "Aufnahmezeit jedes Fotos wird dem Track zugeordnet"], "route_geocode": ["Adresse wird gesucht", "Ort wird im Netz nachgeschlagen"], "route_compute": ["Route wird berechnet", "Der Weg wird über das Straßennetz gelegt"], "animator_load_gpx": ["Track wird geladen", "Datei wird gelesen"], "animator_load_gpx_viele": ["Touren werden geladen", "Alle Dateien der Auswahl werden gelesen"], "tourmap_export_html": ["Karte wird exportiert", "HTML-Datei wird geschrieben"], "geotagger_load_gpx": ["Track wird geladen", "Datei wird gelesen"], "geotagger_load_gpx_viele": ["Tracks werden geladen", "Alle Tracks werden gelesen"], "geotagger_import_gpx_aus_ordner": ["Tracks werden gesucht", "Ordner wird nach Track-Dateien durchsucht"], "geotagger_tracks_fuer_fotos": ["Passende Tracks werden gesucht", "Welche Touren decken die Aufnahmezeiten ab?"], "geotagger_register_photos": ["Fotos werden eingelesen", "Aufnahmedaten und Vorschaubilder werden gelesen"], "geotagger_compute_offset_from_reference": ["Zeitversatz wird berechnet", "Der gewählte Punkt wird mit dem Track verglichen"], "geotagger_export_tagged": ["Fotos werden exportiert", "Getaggte Fotos werden geschrieben"], "gpxinspect_load": ["Track wird geöffnet", "Datei wird gelesen"], "gpxinspect_map_match": ["Track wird an Wege angelegt", "Punkte werden dem Wegenetz zugeordnet"], "gpxinspect_route_ab": ["Strecke wird berechnet", "Weg zwischen den beiden Punkten wird gesucht"], "gpxinspect_track_check": ["Track wird geprüft", "Sprünge, Lücken und Zeitfehler werden gesucht"], "gpxinspect_heal": ["Track wird repariert", "Die gefundenen Stellen werden behoben"], "gpxinspect_luecken": ["Lücken werden gesucht", "Wo fehlen Punkte?"], "library_track_ersetzen": ["Tour wird im Archiv ersetzt", "Neue Fassung wird gespeichert"], "gpxinspect_save": ["Track wird gespeichert", "Datei wird geschrieben"], "gpxinspect_werkzeug": ["Werkzeug wird angewendet", "Der Track wird bearbeitet"], "gpxinspect_save_teile": ["Teile werden gespeichert", "Die Teilstücke werden als Dateien geschrieben"], "gpxinspect_append_track": ["Track wird angehängt", "Beide Tracks werden zusammengefügt"], "heightanim_export_html": ["Animation wird exportiert", "HTML-Datei wird geschrieben"], "projekt_duplizieren": ["Projekt wird dupliziert", "Einstellungen, Schilder und Fotos werden kopiert"], "projekt_stand_wiederherstellen": ["Stand wird zurückgeholt", "Das Projekt wird auf den gewählten Stand gesetzt"], "projekt_aus_vorlage_anlegen": ["Projekt wird angelegt", "Die Vorlage wird übernommen"], "vorlage_anwenden": ["Vorlage wird angewendet", "Der Look wird ins Projekt übernommen"], "library_merge": ["Touren werden zusammengeführt", "Eine neue Tour aus der Auswahl entsteht"], "tour_fassung_wiederherstellen": ["Fassung wird zurückgeholt", "Die gewählte Version wird wieder aktiv"], "library_track_check": ["Tour wird geprüft", "Sprünge, Lücken und Zeitfehler werden gesucht"], "library_import_pruefen": ["Dateien werden geprüft", "Kennt das Archiv diese Touren schon?"], "library_import_files": ["Touren werden importiert", "Dateien werden ins Archiv aufgenommen"], "library_repair_file": ["Datei wird repariert", "Die beschädigte Datei wird neu geschrieben"], "library_duplicates": ["Doppelte werden gesucht", "Alle Touren werden verglichen"], "tourmap_export_leaflet": ["Karte wird exportiert", "HTML-Datei wird geschrieben"], "webkarte_prepare": ["Web-Karte wird vorbereitet", "Track wird für die Karte aufbereitet"], "webkarte_export": ["Web-Karte wird exportiert", "Dateien werden geschrieben"], "bibliothek_wechseln": ["Bibliothek wird gewechselt", "Die andere Bibliothek wird geöffnet"], "bibliothek_uebernehmen": ["Bibliothek wird übernommen", "Touren und Projekte werden eingelesen"], "bibliothek_wiederherstellen": ["Sicherung wird zurückgeholt", "Die Bibliothek wird aus der Sicherung wiederhergestellt"], "check_for_update": ["Nach Updates suchen", "Neueste Version wird abgefragt"], "assistent_lauf": ["Tour-Assistent arbeitet", "Projekt wird aus Vorlage und Track gebaut"], "cloud_uebersicht": ["Cloud wird abgefragt", "Was liegt auf deinem Server?"], "cloud_aufraeumen": ["Cloud wird aufgeräumt", "Alte Stände werden entfernt"], "cloud_herunterladen": ["Aus der Cloud laden", "Touren und Projekte werden heruntergeladen"], "cloud_papierkorb_leeren": ["Papierkorb wird geleert", "Alte Einträge werden gelöscht"], "cloud_einrichten": ["Cloud wird eingerichtet", "Server wird vorbereitet"], "cloud_verbinden": ["Cloud wird verbunden", "Verbindung zum Server wird aufgebaut"], "cloud_abgleichen": ["Cloud-Abgleich", "Deine Bibliothek wird mit dem Server abgeglichen"], "fotos_touren": ["Touren werden zugeordnet", "Welche Fotos gehören zu welcher Tour?"], "fotos_einer_tour": ["Fotos der Tour werden geladen", "Alle Aufnahmen im Zeitfenster der Tour"], "fotos_punkte": ["Fotokarte wird aufgebaut", "Aufnahmeorte werden zusammengefasst"], "fotos_abfrage": ["Fotos werden gesucht", "Aufnahmen an dieser Stelle"], "archiv_datei_aufnehmen": ["Tour wird ins Archiv aufgenommen", "Datei wird gelesen und geprüft"], "prepare_bug_report": ["Fehlerbericht wird vorbereitet", "Log und Systemdaten werden gesammelt"], "save_log_to_desktop": ["Log wird gespeichert", "Datei wird auf den Schreibtisch gelegt"], "session_open_for_menge": ["Touren werden geöffnet", "Projekt für alle Touren wird geladen"], "session_open_for_frei": ["Projekt wird geöffnet", "Einstellungen werden geladen"], "playwright_install_chromium": ["Render-Browser wird installiert", "Das dauert einige Minuten"]};
+  let _warteNr = 0;
+  window.rzWarten = function (name, fn, opt) {
+    opt = opt || {};
+    const de = _WARTE_DE[name] || ["Einen Moment", "Wird bearbeitet …"];
+    const id = "warte-" + name + "-" + (++_warteNr);
+    start(id, {
+      titel: opt.titel || t("warte." + name + ".titel", de[0]),
+      text: opt.text || t("warte." + name + ".text", de[1]),
+      gesamt: opt.gesamt || 0,
+    });
+    let versprechen;
+    try { versprechen = Promise.resolve(fn(id)); }
+    catch (e) { ende(id); throw e; }
+    return versprechen.then(
+      (r) => { ende(id); return r; },
+      (e) => { ende(id); throw e; });
+  };
 })();

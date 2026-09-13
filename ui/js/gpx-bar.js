@@ -216,7 +216,7 @@
       // 13.09.2026 — Ladeflagge (Marc): „lädt" steht auf der Platte, BEVOR die Arbeit
       // beginnt; „fertig" erst, wenn alles steht und die Oberfläche noch lebt.
       _ladeflaggeSetzen({ gpx: path });
-      const res = await api().animator_load_gpx(path);
+      const res = await api().animator_load_gpx(path);   // warte-ok: eigenes Fenster track-laden
       if (!res || !res.ok) {
         if (window.rzStatus) window.rzStatus.fehler(ladeId, res?.error || t("error.gpx_generic", "GPX-Fehler"));
         if (window.applog) window.applog("error", `[loadGlobalGpx] parse fail: ${res?.error}`);
@@ -250,18 +250,7 @@
       // Session-Restore an, der die alten Reise-Anhänge des Haupt-Tracks
       // mitten in die Übergabe lud (Race → fremde Etappen, doppeltes Zählen).
       if (typeof sessionActivate === "function" && !(opts && opts.menge)) {
-        try {
-          await sessionActivate(res.coords, path);
-          try {
-            const pj = (typeof _activeProject !== "undefined" && _activeProject) || {};
-            const nSchilder = (pj.signs || []).length + (pj.tourmap_signs || []).length;
-            const verdeckt = window.__rzSicherVerdeckt || null;
-            _ladeflaggeSetzen({ gpx: path, projekt: pj.name || "",
-              tour_hash: (typeof _activeSession !== "undefined" && _activeSession && _activeSession.track_hash) || "",
-              schilder: verdeckt ? verdeckt.schilder : nSchilder,
-              fotos: verdeckt ? verdeckt.fotos : (pj.photos || []).length });
-          } catch (_) {}
-        }
+        try { await sessionActivate(res.coords, path); }
         catch (err) {
           // 25.08.2026 — war nur console.warn: Schlug die Zuordnung zur Sitzung
           // fehl, stand im Log nichts, und die Projekte eines frisch
@@ -270,6 +259,15 @@
           if (window.applog) window.applog("error", `[loadGlobalGpx] sessionActivate: ${err}`);
         }
       }
+      // 13.09.2026 — Ladeflagge um Projekt, Tour und Umfang ergänzen (für die Nachfrage beim Start)
+      try {
+        const pj = (typeof _activeProject !== "undefined" && _activeProject) || {};
+        const verdeckt = window.__rzSicherVerdeckt || null;
+        _ladeflaggeSetzen({ gpx: path, projekt: pj.name || "",
+          tour_hash: (typeof _activeSession !== "undefined" && _activeSession && _activeSession.track_hash) || "",
+          schilder: verdeckt ? verdeckt.schilder : (pj.signs || []).length + (pj.tourmap_signs || []).length,
+          fotos: verdeckt ? verdeckt.fotos : (pj.photos || []).length });
+      } catch (e) { if (window.applog) window.applog("warn", `[ladeflagge] Projektangaben: ${e}`); }
       // v0.9.27 (Nutzer-Feedback): letzten GPX-Pfad persistieren damit
       // er beim App-Restart automatisch wiederhergestellt werden kann.
       // IDEAS §38: Gehört der Load zu einer TOURENMENGE (Reise/Schwarm), bleibt
@@ -614,7 +612,7 @@
     if (!ja) return path;
 
     let r;
-    try { r = await api().archiv_datei_aufnehmen(path, window.__rzArchivZiel || ""); }
+    try { r = await rzWarten("archiv_datei_aufnehmen", () => api().archiv_datei_aufnehmen(path, window.__rzArchivZiel || "")); }
     catch (e) { r = { ok: false, error: String(e) }; }
     if (!r || !r.ok) {
       toast((r && r.error) || t("archiv.fehler", "Konnte nicht ins Archiv gelegt werden."), "error", 6000);

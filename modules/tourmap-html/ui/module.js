@@ -203,7 +203,7 @@
       if (!frei) return;
       await malPause();
       try {
-        const res = await window.pywebview.api.tourmap_export_leaflet(collectExportParams());
+        const res = await rzWarten("tourmap_export_leaflet", () => window.pywebview.api.tourmap_export_leaflet(collectExportParams()));
         if (!res || !res.ok) { if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "?"), "error", 8000); return; }
         showExportModal(res);
       } catch (e) {

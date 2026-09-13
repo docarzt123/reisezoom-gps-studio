@@ -2501,7 +2501,7 @@ function mountHeightAnim(body, headerActions) {
       params.replay_label = "↻ " + t("heightanim.html.replay", "Neu starten");
       // v0.9.513 — „erstellt mit"-Backlink wie in der Web-Karte (Default an).
       params.attribution_enabled = !!document.getElementById("height-attribution")?.checked;
-      const res = await window.pywebview.api.heightanim_export_html(params);
+      const res = await rzWarten("heightanim_export_html", () => window.pywebview.api.heightanim_export_html(params));
       if (!res || !res.ok) {
         if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "unknown"), "error", 8000);
         return;

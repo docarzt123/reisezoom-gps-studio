@@ -1581,7 +1581,7 @@ function mountAnimator(body, headerActions, opts) {
         if (!pfade || !pfade.length) return;
         const frei = knopfBeschaeftigt("ghosts-add-archive", "ghosts.busy", "Lade …");
         try {
-          const res = await api().ghosts_laden(pfade, false);
+          const res = await rzWarten("ghosts_laden", () => api().ghosts_laden(pfade, false));
           applog && applog("info", `[ghost] Brücke: ok=${res && res.ok} n=${(res && res.ghosts || []).length}`);
           if (!res || !res.ok) { toast((res && res.error) || t("ghosts.load_failed", "Konnte nicht geladen werden."), "error"); return; }
           await _ghostsHinzufuegen(res.ghosts);
@@ -3075,7 +3075,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       const pfade = _ghostSpuren.filter(g => g && g.path).map(g => g.path);
       if (pfade.length) {
-        api().ghosts_laden(pfade).then(res => {
+        api().ghosts_laden(pfade).then(res => {  // warte-ok: frischt vorhandene Geister still im Hintergrund auf
           if (!res || !res.ok || !Array.isArray(res.ghosts)) return;
           const frisch = new Map(res.ghosts.map(sp => [nfc(sp.path || ""), sp.coords]));
           let geaendert = 0;
@@ -9264,7 +9264,7 @@ function mountAnimator(body, headerActions, opts) {
         setTimeout(async () => {
           if (_animUnmounted) return;
           try {
-            const res = await api().ghosts_laden(pendingGhosts);
+            const res = await rzWarten("ghosts_laden", () => api().ghosts_laden(pendingGhosts));
             if (res && res.ok) {
               await _ghostsHinzufuegen(res.ghosts);
               applog("info", `[Animator] ${(res.ghosts || []).length} Ghost-Spur(en) aus dem Archiv`);
@@ -10735,7 +10735,7 @@ function mountAnimator(body, headerActions, opts) {
       if (st) st.innerHTML = `<span class="ass-spinner"></span> ${_hlEsc(t("hl.sucht", "Suche Highlights …"))} <span class="ass-sek" id="hl-sek"></span>`;
       const tick = setInterval(() => { const s = document.getElementById("hl-sek"); if (s) s.textContent = Math.round((performance.now() - t0) / 1000) + " s"; }, 500);
       let r;
-      try { r = await api().highlights_vorschlaege(pfad, _hlState.ordner.slice(), _hlState.quellen); } catch (e) { r = { ok: false, error: String(e) }; }
+      try { r = await rzWarten("highlights_vorschlaege", () => api().highlights_vorschlaege(pfad, _hlState.ordner.slice(), _hlState.quellen)); } catch (e) { r = { ok: false, error: String(e) }; }
       clearInterval(tick);
       if (btn) btn.disabled = false;
       if (!r || !r.ok) { if (st) st.textContent = t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?"); return; }
@@ -11535,8 +11535,8 @@ function mountAnimator(body, headerActions, opts) {
         try {
           const gpxPath = (typeof currentGpx === "string" && currentGpx) ? currentGpx : "";
           if (gpxPath && window.pywebview?.api?.photos_time_anchors) {
-            const r = await window.pywebview.api.photos_time_anchors(
-              photos.map(p => p.path || p.imageSrc).filter(Boolean), gpxPath);
+            const r = await rzWarten("photos_time_anchors", () => window.pywebview.api.photos_time_anchors(
+              photos.map(p => p.path || p.imageSrc).filter(Boolean), gpxPath));
             if (r && r.ok) timeAnchors = r.anchors || {};
           }
         } catch (_) {}
@@ -12041,7 +12041,7 @@ function mountAnimator(body, headerActions, opts) {
         // 07.09.2026 — nahe Treffer bevorzugen: der zuletzt aufgelöste andere Wegpunkt als Bezug
         let _bias = null;
         try { const o = _routeWps.find((x, j) => j !== i && x && x.lon != null && x.lat != null); if (o) _bias = [o.lon, o.lat]; } catch (_) {}
-        try { r = await api().route_geocode(txt, 1, _bias); }
+        try { r = await rzWarten("route_geocode", () => api().route_geocode(txt, 1, _bias)); }
         catch (e) { return { coords: null, hadInput: true, err: "geocode_failed", detail: String(e && e.message || e) }; }
         if (r && r.ok && r.results && r.results.length) {
           const h = r.results[0]; w.lon = h.lon; w.lat = h.lat; w.label = h.name;
@@ -12088,9 +12088,9 @@ function mountAnimator(body, headerActions, opts) {
         const sName = (_routeWps[0] && _routeWps[0].text) || "Start";
         const eName = (_routeWps[_routeWps.length - 1] && _routeWps[_routeWps.length - 1].text) || "Ziel";
         const name = `${sName} → ${eName}`.slice(0, 60);
-        const res = await api().route_compute({
+        const res = await rzWarten("route_compute", () => api().route_compute({
           waypoints: resolved, mode, profile, coarseness, name,
-        });
+        }));
         if (!res || !res.ok) {
           const code = res && res.error;
           // v0.9.392 — `no_route`: Mapbox findet keine Route. In der Praxis fast immer
@@ -14005,7 +14005,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   async function loadGpxByPath(path) {
-    const res = await api().animator_load_gpx(path);
+    const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
     if (!res.ok) { toast(res.error || "GPX-Fehler", "error"); return; }
     currentGpx = path;
     _gpxStats = res.stats;
@@ -17024,7 +17024,7 @@ function mountAnimator(body, headerActions, opts) {
     let coords = null;
     let _ladeRes = null;
     try {
-      const res = await api().animator_load_gpx(path);
+      const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
       _ladeRes = res;
       if (res && res.ok) {
         coords = res.coords;
@@ -17339,7 +17339,7 @@ function mountAnimator(body, headerActions, opts) {
     if (saved.length >= 3) {
       try {
         const pf = saved.filter(t => t && t.gpx_path).map(t => t.gpx_path);
-        const r = await api().animator_load_gpx_viele(pf);
+        const r = await api().animator_load_gpx_viele(pf);   // eigener Fortschritt: tourenLadeModal
         if (r && r.ok && Array.isArray(r.results) && r.results.length === pf.length) {
           _vorrat = new Map(); pf.forEach((p, i) => _vorrat.set(p, r.results[i]));
         }
@@ -17354,7 +17354,7 @@ function mountAnimator(body, headerActions, opts) {
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
       // statt mit einer Tour ohne Koordinaten weiterzumachen.
       try {
-        const res = (_vorrat && _vorrat.has(t.gpx_path)) ? _vorrat.get(t.gpx_path) : await api().animator_load_gpx(t.gpx_path);
+        const res = (_vorrat && _vorrat.has(t.gpx_path)) ? _vorrat.get(t.gpx_path) : await api().animator_load_gpx(t.gpx_path);   // warte-ok: eigener Fortschritt tourenLadeModal
         if (res && res.ok) {
           const pfad = res.gpx_path || t.gpx_path;
           if (gesehen.has(_pfadNFC(pfad)) && pfad !== t.gpx_path) continue;   // Cache-Pfad-Dublette
@@ -18400,7 +18400,7 @@ function mountAnimator(body, headerActions, opts) {
       exportBtn.disabled = true;
       exportBtn.textContent = "⏳ " + t("tourmap.html.exporting", "Exportiere HTML …");
       try {
-        const res = await window.pywebview.api.tourmap_export_html(collectTourmapExportParams());
+        const res = await rzWarten("tourmap_export_html", () => window.pywebview.api.tourmap_export_html(collectTourmapExportParams()));
         if (!res || !res.ok) {
           if (typeof toast === "function") toast(t("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "unknown"), "error", 8000);
           return;

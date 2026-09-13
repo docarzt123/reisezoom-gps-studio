@@ -117,14 +117,16 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.704</span>
+    <span class="version-num">v0.9.705</span>
     <span class="version-date">13. September 2026</span>
     <span class="version-badge">Aktuell</span>
   </div>
   <ul>
+    <li><strong>Warte-Fenster in der ganzen App</strong> &mdash; Ich habe alle Stellen durchgesehen, an denen du auf die App wartest. Rund 60 davon zeigten bisher nichts oder nur einen geänderten Knopf: Tracks laden, Fotos einlesen, Track prüfen und reparieren, Touren zusammenführen und importieren, Bibliothek wechseln, Cloud-Abgleich, Routen- und Adresssuche, Exporte und mehr. Überall dort erscheint jetzt nach einem kurzen Moment das Fenster in der Mitte und sagt, was gerade passiert. Was schneller fertig ist, blitzt nicht auf.</li>
     <li><strong>Ein Projekt, das beim Öffnen hängt, lässt sich jetzt sicher öffnen</strong> &mdash; Die App merkt sich, wann sie ein Projekt zu laden beginnt und wann es fertig ist. Bleibt „fertig“ aus, weil sie hing oder vorher beendet wurde, fragt sie beim nächsten Start nach und bietet an, das Projekt ohne Schilder und Fotos zu öffnen. Gelöscht wird dabei nichts: Ein Banner sagt, was ausgeblendet ist, und ein Klick holt alles zurück. Bisher half in so einem Fall weder Zurücksetzen noch ein neues Projekt, weil die App die Tour am Streckenverlauf erkennt und immer wieder dasselbe Projekt öffnete.</li>
     <li><strong>Warten zeigt jetzt ein Fenster in der Bildschirmmitte</strong> &mdash; Wo du auf die App wartest, etwa beim Laden eines Tracks, beim Einlesen eines Ordners oder beim Öffnen eines Projekts mit vielen Foto-Schildern, erscheint jetzt ein Fenster in der Mitte. Es sagt genau, was gerade passiert, zählt mit, wenn die Menge bekannt ist (Zahl, Prozent und Balken), und zeigt sonst einen drehenden Ring. Wo es geht, kannst du abbrechen. Was im Hintergrund läuft, ohne dass du warten musst, bleibt der kleine Kasten unten rechts.</li>
     <li><strong>Tausende Foto-Schilder frieren den Animator nicht mehr ein</strong> &mdash; Ein Projekt mit sehr vielen Foto-Schildern (etwa aus „Aus Geotagger“) ließ die App direkt nach dem Laden des Tracks stehen bleiben. Die Schilder-Liste wurde nach jedem einzelnen geladenen Bild komplett neu gebaut, jedes Schild fragte einzeln nach, ob sein Bild noch da ist, und die Karte zeichnete bei jeder Aktualisierung alle Bilder neu. Jetzt wird die Liste gebündelt und in Häppchen aufgebaut, die Bilder werden in einem Rutsch geprüft und nur neu gezeichnet, wenn sich ein Schild wirklich geändert hat. Fehlende Bilder melden sich mit einem einzigen Hinweis samt Anzahl. Gemessen mit 2830 Schildern: vorher 60 von 60 Sekunden eingefroren, jetzt 2 von 40.</li>
+    <li><strong>Inspektor: Bearbeitungen bleiben erhalten</strong> &mdash; Wurde die Karte erst nach dem Track fertig, etwa auf einem langsamen Rechner, lud der Inspektor den Track ein zweites Mal und verwarf still, was du inzwischen bearbeitet hattest, zum Beispiel ein Umkehren. Das passiert nicht mehr.</li>
   </ul>
 </article>
 

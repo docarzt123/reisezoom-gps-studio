@@ -79,7 +79,7 @@
       const t0 = performance.now();
       const tick = setInterval(() => { const s = document.getElementById("ass-sek"); if (s) s.textContent = Math.round((performance.now() - t0) / 1000) + " s"; }, 500);
       let r;
-      try { r = await api().assistent_lauf(pfad, vid, name.trim(), highlights); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
+      try { r = await rzWarten("assistent_lauf", () => api().assistent_lauf(pfad, vid, name.trim(), highlights)); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
       clearInterval(tick);
       if (ol) ol.innerHTML = (r && r.schritte || []).map(s => `<li class="${s.ok ? "ok" : "fehl"}">${s.ok ? "✅" : "⚠️"} ${esc(s.text)}</li>`).join("");
       if (!r || !r.ok) {

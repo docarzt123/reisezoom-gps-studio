@@ -4958,7 +4958,8 @@ halt eine animation"). Das ersetzt die frühere Entscheidung „kein Modal". Reg
 - `fertig()` schließt nach 0,7 s; `fehler()` bleibt mit OK-Knopf stehen (max. 12 s).
 - Animationen nur über `transform` — die laufen im Compositor weiter, auch wenn das
   Skript gerade beschäftigt ist.
-- Wächter: `tests/test_ladefeedback.py` (Mitte, Sperre, Prozent, Ring, Fehler, Hintergrund),
+- **`rzWarten(name, fn)`** für einzelne Brückenaufrufe, auf die man wartet: `await rzWarten("gpxinspect_save", () => api().gpxinspect_save(...))`. Titel/Text aus i18n `warte.<name>.titel/text`, deutsche Rückfalltexte in `_WARTE_DE` (`ui/js/util.js`). Schließt ohne Meldung, sobald die Antwort da ist; Fehler meldet weiter der Aufrufer. Bewusst NICHT für: Arbeit, die beim Bearbeiten von selbst läuft (Vorschauen, Auto-Checks, Endlos-Blättern), Aufrufe, die erst einen Systemdialog öffnen, und Wege mit eigenem Fortschritt (`tourenLadeModal`, Drop-Import, Render). Solche Stellen tragen `// warte-ok: <Grund>`. Stand der Durchsicht 13.09.2026: 63 Vorgänge.
+- Wächter: `tests/test_ladefeedback.py` (Mitte, Sperre, Prozent, Ring, Fehler, Hintergrund, rzWarten samt Abdeckung aller Tabellen-Vorgänge),
   `tests/test_schilder_viele.py` (Fenster zählt beim Öffnen von 2830 Schildern mit).
 
 ```js
