@@ -3877,5 +3877,7 @@
   "logbuch.geraten_tip2": "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen.",
   "logbuch.fenster.bestaetigen": "Vermutete bestätigen",
   "logbuch.fenster.nur_vermutete": "nur vermutete",
-  "logbuch.fenster.nur_vermutete_tip": "Nur Einträge zeigen, bei denen die Erkennung unsicher war"
+  "logbuch.fenster.nur_vermutete_tip": "Nur Einträge zeigen, bei denen die Erkennung unsicher war",
+  "logbuch.fenster.maximieren": "Maximieren",
+  "logbuch.fenster.wiederherstellen": "Wiederherstellen"
 }

@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- **The large logbook window is a real window** (Marc: "it should work properly as a window — move it and change its size"): handles on every edge and corner plus a visible corner grip (before: only the browser's tiny resize corner, hidden by the table), starts at a sensible size over the right of the map instead of 84 % of the screen, double-click on the title bar or ▢/❐ maximises and restores, ⤢ toggles it, position and size are remembered (closing no longer saved 0×0). — **Das große Logbuch-Fenster ist ein richtiges Fenster:** verschieben, an Kanten und Ecken größer ziehen, maximieren, Lage gemerkt.
+
 ## [0.9.713] – 2026-09-14
 
 Release of everything since 0.9.688 (local builds 0.9.689–0.9.712). — Veröffentlichung aller Änderungen seit 0.9.688.
