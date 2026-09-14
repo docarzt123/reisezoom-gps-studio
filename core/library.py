@@ -501,17 +501,21 @@ def _fts_trigger_au_sql() -> str:
             f"END;")
 
 
-def _fts_trigger_au_aktualisieren(conn: sqlite3.Connection) -> None:
-    """Alten (immer feuernden) Änderungs-Trigger gegen den gezielten tauschen."""
+def _fts_trigger_au_aktualisieren(conn: sqlite3.Connection) -> bool:
+    """Alten (immer feuernden) Änderungs-Trigger gegen den gezielten tauschen.
+
+    True = neu angelegt. SQLite speichert den Text ohne abschließendes `;`,
+    deshalb wird ohne Semikolon/Leerraum am Ende verglichen."""
     r = conn.execute("SELECT sql FROM sqlite_master WHERE type='trigger' "
                      "AND name='tracks_fts_au'").fetchone()
     soll = _fts_trigger_au_sql()
-    if r is not None and (r[0] or "").strip() == soll.strip():
-        return
+    if r is not None and (r[0] or "").rstrip("; \n") == soll.rstrip("; \n"):
+        return False
     conn.execute("DROP TRIGGER IF EXISTS tracks_fts_au")
     conn.execute(soll)
     if r is not None:
         log.info("library: Volltext-Trigger auf gezieltes Feuern umgestellt")
+    return True
 
 
 def _fts_einrichten(conn: sqlite3.Connection) -> None:
