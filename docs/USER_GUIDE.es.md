@@ -105,6 +105,8 @@ necesitas espacio, ponla en un disco externo o un NAS. Puedes cambiarla
 después cuando quieras (Ajustes → Biblioteca → *Mover a otra ubicación*): la
 app la mueve de verdad, no empieza de cero.
 
+**Solo sus propios archivos (desde v0.9.718).** Si eliges una carpeta que ya contiene otros archivos (p. ej. la carpeta principal de un SSD externo con vídeos), GPS Studio crea dentro su propia subcarpeta *GPS Studio Bibliothek*. Al mover la biblioteca solo se llevan y se borran del lugar anterior los archivos propios de GPS Studio; tus otros archivos se quedan donde están.
+
 **Las carpetas en la nube no sirven.** Dropbox, iCloud Drive, OneDrive y
 Google Drive reemplazan archivos mientras se escriben y eso corrompe la base
 de datos. GPS Studio rechaza esas ubicaciones y explica por qué. Los discos

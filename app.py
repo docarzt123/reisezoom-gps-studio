@@ -3594,6 +3594,15 @@ class Api:
             pr = cbib.pruefen(ziel)
             if not pr.get("ok"):
                 return pr
+            # 14.09.2026 — NOTFALL-FIX: Ein fremder, voller Ordner (z. B. der Wurzelordner einer
+            # externen SSD mit Videos) wird nie selbst zur Bibliothek. GPS Studio legt darin einen
+            # eigenen Unterordner an — so mischen sich fremde Dateien nie mit unseren.
+            if pr.get("nicht_leer") and not cbib.ist_bibliothek(ziel):
+                ziel = ziel / "GPS Studio Bibliothek"
+                log.info("Bibliothek: gewählter Ordner ist nicht leer — lege Unterordner an: %s", ziel)
+                pr = cbib.pruefen(ziel)
+                if not pr.get("ok"):
+                    return pr
             if cumzug.noetig(APP_SUPPORT) and not cbib.ist_bibliothek(ziel):
                 bericht = cumzug.ausfuehren(APP_SUPPORT, ziel)
                 self._umzug_bericht_merken(bericht, ziel)
@@ -3704,7 +3713,16 @@ class Api:
             except Exception:
                 pass
             self._lib_conn = None
+            # 14.09.2026 — NOTFALL-FIX: auch beim Umzug nie direkt in einen fremden, vollen Ordner
+            if ziel.is_dir() and not cbib.ist_bibliothek(ziel):
+                try:
+                    if any(ziel.iterdir()):
+                        ziel = ziel / "GPS Studio Bibliothek"
+                except OSError:
+                    pass
             cbib.sperre_freigeben(BIB)
+            log.info("Bibliothek umziehen: %s → %s (fremde Einträge am alten Ort bleiben: %s)",
+                     BIB, ziel, cbib.fremde_eintraege(BIB)[:20])
             r = cbib.umziehen(BIB, ziel)
             if not r.get("ok"):
                 self._bib_oeffnen()          # zurück an den alten Ort

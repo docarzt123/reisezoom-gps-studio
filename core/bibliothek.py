@@ -1028,32 +1028,87 @@ def pruefen(ort: Path) -> dict:
     return {"ok": True, "vorhanden": False}
 
 
+# 14.09.2026 — NOTFALL-FIX (Nutzer-Meldung, Windows): Eine Bibliothek, die im Wurzelordner einer
+# externen SSD neben den eigenen Videos angelegt worden war, wurde beim Umzug samt ALLER Dateien des
+# Ordners kopiert und der alte Ordner danach mit rmtree komplett gelöscht. Seitdem gilt:
+# Umziehen, Kopieren und Aufräumen fassen NUR an, was GPS Studio selbst anlegt. Alles andere bleibt,
+# wo es ist — auch wenn es dadurch im alten Ordner liegen bleibt.
+EIGENE_NAMEN = {
+    KENNDATEI, SPERRDATEI, "library.db", "touren", "bilder", "projekt_staende", "sicherungen",
+    "projekte.json", "touren.json", "vorlagen.json", "umzug-bericht.json",
+}
+EIGENE_PRAEFIXE = ("library.db", "projekte.json", "touren.json", "vorlagen.json", "library-defekt-")
+
+
+def ist_eigener_eintrag(name: str) -> bool:
+    """Gehört dieser Eintrag im Bibliotheks-Ordner zu GPS Studio?"""
+    return name in EIGENE_NAMEN or name.startswith(EIGENE_PRAEFIXE)
+
+
+def fremde_eintraege(ort: Path) -> list:
+    """Namen im Ordner, die NICHT von GPS Studio stammen (Videos, Fotos, Systemordner …)."""
+    try:
+        return sorted(e.name for e in Path(ort).iterdir() if not ist_eigener_eintrag(e.name))
+    except OSError:
+        return []
+
+
 def umziehen(alt: Path, neu: Path, melden=None) -> dict:
     """Die Bibliothek an einen anderen Ort verschieben — echt verschieben,
     nicht neu anfangen. Der alte Ort bleibt stehen, bis der neue vollständig
-    ist; erst dann wird er entfernt."""
+    ist; erst dann werden die EIGENEN Einträge dort entfernt. Fremde Dateien
+    im alten Ordner werden weder kopiert noch gelöscht."""
     alt, neu = Path(alt), Path(neu)
     if alt == neu:
         return {"ok": True, "pfad": str(neu)}
+    try:
+        if neu.resolve().is_relative_to(alt.resolve()):
+            return {"ok": False, "grund": "ziel_in_quelle"}
+    except (OSError, ValueError):
+        pass
     grund = cloud_ordner_grund(neu)
     if grund:
         return {"ok": False, "cloud": grund}
     if neu.exists() and any(neu.iterdir() if neu.is_dir() else [1]):
         return {"ok": False, "grund": "ziel_nicht_leer"}
     try:
+        eigene = [e for e in alt.iterdir() if ist_eigener_eintrag(e.name) and e.name != SPERRDATEI]
+        fremd = fremde_eintraege(alt)
         # Erst den WAL-Inhalt in die Hauptdatei — dann ist die Kopie auch dann
         # vollständig, wenn die -wal-Datei beim Kopieren gerade wächst.
         db_zusammenfuehren(db_pfad(alt))
         if melden:
             melden("kopiere")
-        shutil.copytree(alt, neu, dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns(SPERRDATEI, "*.tmp*"))
+        neu.mkdir(parents=True, exist_ok=True)
+        for e in eigene:
+            if e.is_dir():
+                shutil.copytree(e, neu / e.name, dirs_exist_ok=True,
+                                ignore=shutil.ignore_patterns(SPERRDATEI, "*.tmp*"))
+            else:
+                shutil.copy2(e, neu / e.name)
         if not ist_bibliothek(neu) or not db_heil(db_pfad(neu)):
-            shutil.rmtree(neu, ignore_errors=True)
+            for e in eigene:          # nur unsere eigene, halbe Kopie wieder weg
+                ziel = neu / e.name
+                if ziel.is_dir():
+                    shutil.rmtree(ziel, ignore_errors=True)
+                else:
+                    ziel.unlink(missing_ok=True)
             return {"ok": False, "grund": "kopie_unvollstaendig"}
         if melden:
             melden("raeume auf")
-        shutil.rmtree(alt, ignore_errors=True)
-        return {"ok": True, "pfad": str(neu)}
+        for e in eigene + [alt / SPERRDATEI]:
+            try:
+                if e.is_dir():
+                    shutil.rmtree(e, ignore_errors=True)
+                elif e.exists():
+                    e.unlink()
+            except OSError:
+                pass
+        try:
+            if not fremd and not any(alt.iterdir()):
+                alt.rmdir()           # nur ein wirklich leerer Ordner geht mit
+        except OSError:
+            pass
+        return {"ok": True, "pfad": str(neu), "fremd_geblieben": fremd}
     except OSError as e:
         return {"ok": False, "error": str(e)}

@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.718] – 2026-09-14
+
+### Security
+- **⚠️ Moving the library could delete foreign files** (user report, Windows): a library created directly in a non-empty folder — e.g. the root of an external SSD holding videos — was moved by copying the ENTIRE folder and then deleting the old folder with `rmtree`. The foreign files were copied to the new library location first, but vanished from their original place. Now `umziehen` copies and deletes only GPS Studio's own entries (`EIGENE_NAMEN`/`EIGENE_PRAEFIXE`), foreign files stay untouched at the old location (reported as `fremd_geblieben`), a target inside the source is refused, and the old folder is only removed when it is really empty. Choosing a non-empty foreign folder (setup or move) now creates the subfolder "GPS Studio Bibliothek" instead of using the folder itself. Guard `tests/test_bibliothek_fremde_dateien.py`. — **⚠️ Bibliothek verschieben konnte fremde Dateien löschen — behoben.**
+
 ### Added
 - **Section as a new tour in the archive** (beta tester: drive and hike recorded in one Geory file — "how do I pull out single tracks?"): in the Inspector, *Bearbeiten (Anker A→B)* has **📥 Abschnitt A→B als neue Tour ins Archiv …**, and every logbook entry's context menu has **📥 Als eigene Tour ins Archiv …**. The points (with times and sensors) are written into the app-managed import folder, read into the archive with the chosen name and — from the logbook type — the activity; the track in the Inspector stays unchanged. The result dialog offers *Im Archiv zeigen* (archive opens with the new tour selected, like after an import), *Hier weiterarbeiten* and *Wieder entfernen* (trash). Bridge `archiv_abschnitt_aufnehmen`; guard `tests/test_abschnitt_als_tour.py`. — **Abschnitt A→B bzw. Logbuch-Eintrag als neue Tour ins Archiv.**
 
