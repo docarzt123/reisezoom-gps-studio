@@ -872,10 +872,20 @@ def _session_hashes() -> set:
     Suchfeld. Jetzt nur noch, wenn sich die Datei wirklich geändert hat.
     """
     global _SESSION_HASHES, _SESSION_HASHES_STAMP
-    try:
-        st = (APP_SUPPORT / "projekte.json").stat()
-        stempel = (st.st_mtime_ns, st.st_size)
-    except OSError:
+    # 14.09.2026 (Nacht-Review): Der Stempel kam aus `APP_SUPPORT/projekte.json`,
+    # gelesen wird aber seit dem Bibliotheks-Umbau aus `DATEN_ORT`. Ohne Datei im
+    # App-Ordner blieb der Projekt-Punkt im Archiv immer leer; lag dort noch eine
+    # alte Datei, änderte sich der Stempel nie und neue Projekte erschienen nicht.
+    # Beide Dateien zählen: „touren.json" trägt die Touren-Fakten.
+    stempel = []
+    for datei in ("projekte.json", "touren.json"):
+        try:
+            st = (Path(DATEN_ORT) / datei).stat()
+            stempel.append((st.st_mtime_ns, st.st_size))
+        except OSError:
+            stempel.append(None)
+    stempel = (str(DATEN_ORT), *stempel)
+    if stempel[1] is None and stempel[2] is None:
         return set()
     with _SESSION_HASHES_LOCK:
         if stempel == _SESSION_HASHES_STAMP and _SESSION_HASHES is not None:
@@ -890,6 +900,25 @@ def _session_hashes() -> set:
         _SESSION_HASHES = menge
         _SESSION_HASHES_STAMP = stempel
     return menge
+
+
+def _drops_verweis_dateien() -> list:
+    """Welche Projekt-Dateien beim Aufräumen von `_drops/` auf Verweise geprüft werden.
+
+    14.09.2026 (Nacht-Review): Hier stand nur `APP_SUPPORT/projekte.json` +
+    `touren.json`. Seit dem Bibliotheks-Umbau liegen die Projekte aber in der
+    Bibliothek, und im App-Ordner legt `migrieren_falls_noetig` beim Start eine
+    LEERE Ablage an. Das Aufräumen sah deshalb keinen einzigen Verweis und hätte
+    gezogene Dateien gelöscht, die ein Projekt noch benutzt. Jetzt zählen die
+    Dateien der Bibliothek (Pflicht — fehlen sie, wird nichts gelöscht) plus die
+    im App-Ordner, falls es dort noch welche gibt.
+    """
+    dateien = [Path(DATEN_ORT) / "projekte.json", Path(DATEN_ORT) / "touren.json"]
+    for name in ("projekte.json", "touren.json"):
+        alt = APP_SUPPORT / name
+        if alt.exists() and alt not in dateien:
+            dateien.append(alt)
+    return dateien
 
 
 _SESSION_HASHES: Optional[set] = None
@@ -1558,6 +1587,12 @@ class Api:
         # dann die nach Zeit zusammengelegten Punkte ALLER Tracks (Zeitzonen-Rat,
         # Referenz-Offset, Einrasten), `_gtg_stats` die des Haupt-Tracks (erster).
         self._gtg_tracks: list[dict] = []
+        # 14.09.2026 (Nacht-Review): Lade-Generation. Jeder Ladeaufruf läuft in einem
+        # eigenen Faden (pywebview); wurde schnell A, dann B geladen und A war langsamer,
+        # überschrieb A am Ende die Track-Liste — die Oberfläche zeigte B, zugeordnet
+        # wurde gegen A. Nur der zuletzt begonnene Ladevorgang darf die Liste setzen.
+        self._gt_lade_lock = threading.Lock()
+        self._gt_lade_gen = 0
         self._gtg_photos: list[dict] = []  # [{path, photo_time, ...}]
         # Lazy-Thumb-Worker
         self._thumb_worker: Optional[threading.Thread] = None
@@ -3876,9 +3911,7 @@ class Api:
             # bewusst beim Start (kein Ziehen im Gange) und rührt nichts an,
             # worauf eine Sitzung noch verweist.
             try:
-                res = cdrops.aufraeumen(
-                    DROPS_DIR, [APP_SUPPORT / "projekte.json",
-                                APP_SUPPORT / "touren.json"])
+                res = cdrops.aufraeumen(DROPS_DIR, _drops_verweis_dateien())
                 if res.get("geloescht"):
                     log.info("drops: %d verwaiste Ordner entfernt, %.1f GB frei",
                              res["geloescht"], res.get("bytes", 0) / 2**30)
@@ -9437,8 +9470,11 @@ class Api:
         # zuerst in library.db-wal; die Hauptdatei ändert sich erst beim Zusammen-
         # führen. Ohne sie sah der Fühler eine neu aufgenommene Tour nicht
         # (test_archiv_frage).
-        for pfad in (LIBRARY_DB, Path(str(LIBRARY_DB) + "-wal"), APP_SUPPORT / "projekte.json",
-                     APP_SUPPORT / "touren.json"):
+        # 14.09.2026 (Nacht-Review): Projekte liegen seit dem Bibliotheks-Umbau in
+        # der Bibliothek (`DATEN_ORT`) — vorher stand hier der App-Ordner, und
+        # Projektänderungen lösten keinen Abgleich aus.
+        for pfad in (LIBRARY_DB, Path(str(LIBRARY_DB) + "-wal"), Path(DATEN_ORT) / "projekte.json",
+                     Path(DATEN_ORT) / "touren.json"):
             try:
                 st = os.stat(pfad)
                 fp.append((str(pfad), st.st_mtime_ns, st.st_size))
@@ -11789,6 +11825,14 @@ class Api:
             "gewicht": float(stats.distance_m or len(pts)),
         }
 
+    # Antwort für einen überholten Ladevorgang — die Oberfläche verwirft sie still.
+    _GT_VERALTET = {"ok": False, "veraltet": True, "error": ""}
+
+    def _gt_lade_gen_neu(self) -> int:
+        with self._gt_lade_lock:
+            self._gt_lade_gen += 1
+            return self._gt_lade_gen
+
     def _gt_tracks_setzen(self, liste: list[dict]) -> None:
         """Track-Liste übernehmen; Farben vergeben; zusammengelegte Punkte bauen."""
         for i, tr in enumerate(liste):
@@ -11815,14 +11859,22 @@ class Api:
         zum Haupt-Track — die übrigen Tracks bleiben. Ein NEUER Pfad ersetzt die
         Liste (wie bisher: ein Track)."""
         try:
+            gen = self._gt_lade_gen_neu()
             bekannt = [t for t in self._gtg_tracks if t.get("path") == path or t.get("gpx_path") == path]
             if bekannt and len(self._gtg_tracks) > 1:
-                rest = [t for t in self._gtg_tracks if t is not bekannt[0]]
-                self._gt_tracks_setzen([bekannt[0]] + rest)
+                with self._gt_lade_lock:
+                    if gen != self._gt_lade_gen:
+                        return dict(self._GT_VERALTET)
+                    rest = [t for t in self._gtg_tracks if t is not bekannt[0]]
+                    self._gt_tracks_setzen([bekannt[0]] + rest)
                 tr = bekannt[0]
             else:
                 tr = self._gt_track_laden(path)
-                self._gt_tracks_setzen([tr])
+                with self._gt_lade_lock:
+                    if gen != self._gt_lade_gen:
+                        log.info("geotagger_load_gpx: %s überholt von neuerem Ladevorgang — verworfen", path)
+                        return dict(self._GT_VERALTET)
+                    self._gt_tracks_setzen([tr])
             out = self._gt_track_kurz(tr)
             out.update({"ok": True, "tracks": [self._gt_track_kurz(t) for t in self._gtg_tracks],
                         "primary": self._gtg_tracks[0]["path"]})
@@ -11835,6 +11887,7 @@ class Api:
         der Haupt-Track (Sitzung, GPX-Leiste); `vorgegeben` = Pfade, die der Nutzer
         selbst mitgebracht oder eingelesen hat — sie gewinnen bei Doppel-Treffern."""
         try:
+            gen = self._gt_lade_gen_neu()
             vg = {str(x) for x in (vorgegeben or [])}
             liste, fehler = [], []
             gesehen = set()
@@ -11850,7 +11903,11 @@ class Api:
                     log.warning("geotagger_load_gpx_viele: %s unlesbar (%s)", p, e)
             if not liste:
                 return {"ok": False, "error": _ui_t()("error.kein_track_lesbar", "Kein Track lesbar"), "fehler": fehler}
-            self._gt_tracks_setzen(liste)
+            with self._gt_lade_lock:
+                if gen != self._gt_lade_gen:
+                    log.info("geotagger_load_gpx_viele: überholt von neuerem Ladevorgang — verworfen")
+                    return dict(self._GT_VERALTET)
+                self._gt_tracks_setzen(liste)
             log.info("Geotagger: %d Tracks geladen (%d vorgegeben), Haupt-Track %s",
                      len(liste), sum(1 for t in liste if t["vorgegeben"]), liste[0]["name"])
             return {"ok": True, "tracks": [self._gt_track_kurz(t) for t in liste],
@@ -13155,7 +13212,43 @@ class Api:
     # Mit Daemon ~100 ms, aber UI darf trotzdem nicht hängen.
     # → Background-Thread + Polling.
 
+    @_nur_einmal("geotagger_schreiben")
     def geotagger_start_write(self, matches: list[dict],
+                              make_backup: bool = True,
+                              overwrite_existing: bool = False,
+                              adjust_photo_time: bool = False,
+                              offset_seconds: float = 0.0,
+                              set_time_from_track: bool = False,
+                              write_fields: Optional[dict] = None,
+                              write_mode: str = "",
+                              exif_edits: Optional[dict] = None,
+                              cam_offsets=None,
+                              cam_set_time_from_track=None,
+                              dest_dir: str = "",
+                              overwrite_originals: bool = False) -> dict:
+        """Schreibvorgang starten — siehe `_geotagger_start_write_innen`.
+
+        14.09.2026 (Nacht-Review): (1) Die Prüfung „läuft schon?" und das Setzen von
+        `running` lagen in zwei getrennten Sperr-Abschnitten — zwei schnelle Aufrufe
+        konnten beide starten; jetzt schließt `_nur_einmal` den ganzen Start ab.
+        (2) Eine Ausnahme nach dem Setzen von `running` (z. B. ein Treffer ohne
+        `path`) ließ `running` für immer stehen: jeder weitere Schreibversuch hieß
+        „läuft bereits", bis zum Neustart. Jetzt `ok: False` und `running` zurück.
+        """
+        try:
+            return self._geotagger_start_write_innen(
+                matches, make_backup, overwrite_existing, adjust_photo_time, offset_seconds,
+                set_time_from_track, write_fields, write_mode, exif_edits, cam_offsets,
+                cam_set_time_from_track, dest_dir, overwrite_originals)
+        except Exception as e:  # noqa: BLE001
+            log.exception("geotagger_start_write")
+            with self._write_lock:
+                w = self._write_worker
+                if self._write_state.get("running") and not (w is not None and w.is_alive()):
+                    self._write_state["running"] = False
+            return {"ok": False, "error": str(e)}
+
+    def _geotagger_start_write_innen(self, matches: list[dict],
                               make_backup: bool = True,
                               overwrite_existing: bool = False,
                               adjust_photo_time: bool = False,

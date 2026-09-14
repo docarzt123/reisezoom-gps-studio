@@ -34,11 +34,13 @@ function mountGeotagger(body, headerActions) {
   // v0.9.322 — Push-Listener verdrahtet jetzt rzMakePanelUndoController selbst
   // (Pre-Change-Erfassung). Diese Funktion bleibt als No-Op für Altaufrufe.
   function _wireGeotaggerUndoListeners() { /* siehe rzMakePanelUndoController */ }
+  // 14.09.2026 (Nacht-Review): Vorher wickelte jedes Öffnen des Moduls den Haken um
+  // den vorherigen — ohne ihn beim Verlassen zurückzusetzen. Die Kette hielt jede
+  // frühere Modul-Instanz samt Fotos und EXIF-Daten im Speicher. Jetzt: ein Haken je
+  // Instanz, beim Verlassen wird der vorherige Wert wiederhergestellt (siehe Cleanup).
   const _origGtgProjChanged = window._geotaggerOnProjectChanged;
-  window._geotaggerOnProjectChanged = function() {
-    _gtgUndoCtrl.reset();
-    if (typeof _origGtgProjChanged === "function") _origGtgProjChanged();
-  };
+  const _gtgProjChanged = function() { _gtgUndoCtrl.reset(); };
+  window._geotaggerOnProjectChanged = _gtgProjChanged;
   // ── /Undo-Redo ──────────────────────────────────────────────────────────
 
   // v0.9.351 — kompaktes „?"-Hilfe-Badge mit Hover-Tooltip (statt langer
@@ -415,13 +417,32 @@ function mountGeotagger(body, headerActions) {
       closable: false,
     });
     document.getElementById("at-cancel").onclick = async () => {
-      canceled = true; await api().geotagger_autotag_cancel();
+      canceled = true;
       const b = document.getElementById("at-cancel"); if (b) { b.disabled = true; b.textContent = "…"; }
+      try { await api().geotagger_autotag_cancel(); }   // warte-ok: Abbruch-Signal, Dialog zeigt den Fortschritt
+      catch (e) { try { applog("warn", "[geotagger] autotag_cancel: " + e); } catch (_) {} }
     };
 
+    // 14.09.2026 (Nacht-Review): Ein einziger fehlgeschlagener Status-Abruf beendete
+    // das Abfragen still — der Dialog (closable:false) blieb ohne Ausweg stehen. Jetzt
+    // wie beim Schreiben: fünf Fehlversuche, dann Dialog zu und Hinweis.
+    let atFehler = 0;
     const poll = async () => {
       if (isUnmounted) return;
-      let s; try { s = await api().geotagger_autotag_status(); } catch (_) { return; }
+      let s;
+      try { s = await api().geotagger_autotag_status(); atFehler = 0; }
+      catch (e) {
+        atFehler += 1;
+        try { applog("warn", "[geotagger] autotag_status nicht abrufbar: " + e); } catch (_) {}
+        if (isUnmounted) return;
+        if (atFehler >= 5) {
+          try { openModal({}).close(); } catch (_) {}
+          toast(t("geotagger.autotag.keine_rueckmeldung", "Keine Rückmeldung von der Bilderkennung — Details stehen im Log."), "error", 6000);
+          return;
+        }
+        setTimeout(poll, 1000);
+        return;
+      }
       const pct = s.total > 0 ? (s.done / s.total) * 100 : 0;
       const f = document.getElementById("at-fill"); if (f) f.style.width = pct.toFixed(1) + "%";
       const c = document.getElementById("at-cnt"); if (c) c.textContent = `${s.done} / ${s.total}`;
@@ -477,6 +498,7 @@ function mountGeotagger(body, headerActions) {
   // „undefined is not an object (evaluating 'e.getCanvasContainer().appendChild')"
   // beim Tab-Wechsel während Thumbs noch laden.
   let isUnmounted = false;
+  let _gtLoadSeq = 0;   // 14.09.2026 — Laufnummer der Track-Ladevorgänge (loadGpxByPath/_gtTracksLaden)
   // Alles, was den Modulwechsel überleben könnte, bekommt hier ein Handle —
   // der Cleanup unten räumt es ab. Ohne das liefen Warteschleifen, Tastatur-
   // Handler und angestoßene Adress-Läufe gegen ein längst entferntes Modul.
@@ -485,16 +507,30 @@ function mountGeotagger(body, headerActions) {
 
   // updateMatches MUSS vor den Listener-Bindings definiert sein,
   // sonst TDZ-ReferenceError → ganze mount-Funktion bricht ab.
+  // 14.09.2026 (Nacht-Review): Laufnummer — beim Ziehen des Offset-Schiebers laufen
+  // mehrere Zuordnungen parallel (je ein Faden im Backend). Kam eine ältere nach der
+  // letzten an, standen die Marker auf dem alten Offset, die Anzeige auf dem neuen —
+  // und genau das wäre geschrieben worden. Nur die jüngste Antwort gilt.
+  let _gtMatchSeq = 0;
   const updateMatches = debounce(async () => {
     if (isUnmounted) return;        // v0.9.29: Tab schon weggeswitched
     _gtUpdateSnapAvail();           // v0.9.166 — Snap-Toggle je nach Track an/aus
     if (!photos.length || !currentGpxPath) return;
+    const mySeq = ++_gtMatchSeq;
     // v0.9.354 — globaler Default + Pro-Kamera-Overrides. `_gtGlobalOffset` und
     // `_gtCamOffsets` werden von den Slider-Handlern live gepflegt; das Backend
     // nimmt pro Foto den Kamera-Offset, sonst den globalen.
-    const res = await api().geotagger_match(_gtGlobalOffset, 1800, getTzOffsetMinutes(), _gtCamOffsets,
-                                            _gtGlobalIgnoreGps, _gtCamIgnoreGps);   // v0.9.364
+    let res;
+    try {
+      res = await api().geotagger_match(_gtGlobalOffset, 1800, getTzOffsetMinutes(), _gtCamOffsets,
+                                        _gtGlobalIgnoreGps, _gtCamIgnoreGps);   // v0.9.364
+    } catch (e) {
+      if (isUnmounted || mySeq !== _gtMatchSeq) return;
+      toast(String(e), "error");
+      return;
+    }
     if (isUnmounted) return;        // Awaited bridge call kam zurück nachdem unmount
+    if (mySeq !== _gtMatchSeq) return;   // überholt von einer neueren Zuordnung
     if (!res.ok) { toast(res.error, "error"); return; }
     matches = res.matches;
     _gtMergeManual();               // v0.9.166 — manuelle Platzierungen wieder reinmischen
@@ -1077,8 +1113,18 @@ function mountGeotagger(body, headerActions) {
     // 10.09.2026 — die globale GPX-Leiste meldet den Haupt-Track nach dem Aktivieren der
     // Sitzung erneut; bei mehreren Tracks darf das die Liste nicht neu laden.
     if (_gtTracks.length > 1 && path === currentGpxPath) return;
-    const res = await rzWarten("geotagger_load_gpx", () => api().geotagger_load_gpx(path));
+    // 14.09.2026 (Nacht-Review): Laufnummer + `veraltet` vom Backend — ein langsamer
+    // älterer Ladevorgang darf den neueren nicht überschreiben.
+    const mySeq = ++_gtLoadSeq;
+    let res;
+    try {
+      res = await rzWarten("geotagger_load_gpx", () => api().geotagger_load_gpx(path));
+    } catch (e) {
+      if (!isUnmounted && mySeq === _gtLoadSeq) toast(String(e), "error");
+      return;
+    }
     if (isUnmounted) return;
+    if (mySeq !== _gtLoadSeq || (res && res.veraltet)) return;
     if (!res.ok) {
       if (window.isMissingFileError && window.isMissingFileError(res.error)) window.showSourceMissingBanner(path);
       else toast(res.error, "error");
@@ -1156,8 +1202,16 @@ function mountGeotagger(body, headerActions) {
   async function _gtTracksLaden(paths, vorgegeben, ausUndo) {
     if (isUnmounted || !paths || !paths.length) return;
     if (!ausUndo) { try { _gtgPushUndo(t("undo.gt_tracks", "Tracks geladen"), { force: true }); } catch (_) {} }   // 10.09.2026
-    const res = await rzWarten("geotagger_load_gpx_viele", () => api().geotagger_load_gpx_viele(paths, Array.from(vorgegeben || [])));
+    const mySeq = ++_gtLoadSeq;
+    let res;
+    try {
+      res = await rzWarten("geotagger_load_gpx_viele", () => api().geotagger_load_gpx_viele(paths, Array.from(vorgegeben || [])));
+    } catch (e) {
+      if (!isUnmounted && mySeq === _gtLoadSeq) toast(String(e), "error");
+      return;
+    }
     if (isUnmounted) return;
+    if (mySeq !== _gtLoadSeq || (res && res.veraltet)) return;   // 14.09.2026 — überholt
     if (!res || !res.ok) { toast((res && res.error) || "?", "error"); return; }
     _gtTracks = res.tracks || [];
     const haupt = _gtTracks[0];
@@ -3487,7 +3541,9 @@ function mountGeotagger(body, headerActions) {
       if (statusEl && !opts.auto) statusEl.textContent = t("geotagger.geocode.none", "Keine verorteten Fotos.");
       return;
     }
-    const res = await api().geotagger_reverse_geocode_start(items);
+    let res;
+    try { res = await api().geotagger_reverse_geocode_start(items); }
+    catch (e) { res = { ok: false, error: String(e) }; }
     if (!res || !res.ok) {
       if (statusEl) statusEl.textContent = res && res.disabled
         ? t("geotagger.geocode.disabled", "Adress-Suche ist in den Einstellungen aus.")
@@ -3497,9 +3553,24 @@ function mountGeotagger(body, headerActions) {
     if (btn) btn.disabled = true;
     if (_gtGeoPolling) return;   // ein Poller genügt, neue Calls hängen sich dran
     _gtGeoPolling = true;
+    // 14.09.2026 (Nacht-Review): Scheiterte ein Status-Abruf, blieben `_gtGeoPolling`
+    // und der deaktivierte Knopf bis zum Neu-Öffnen stehen — jeder weitere Versuch
+    // (auch der automatische) sperrte den Knopf und brach sofort ab.
+    let geoFehler = 0;
     const poll = async () => {
       if (isUnmounted) { _gtGeoPolling = false; return; }
-      const st = await api().geotagger_reverse_geocode_status();
+      let st;
+      try { st = await api().geotagger_reverse_geocode_status(); geoFehler = 0; }
+      catch (e) {
+        geoFehler += 1;
+        if (isUnmounted) { _gtGeoPolling = false; return; }
+        if (geoFehler < 5) { setTimeout(poll, 1500); return; }
+        _gtGeoPolling = false;
+        if (btn) btn.disabled = false;
+        if (statusEl) statusEl.textContent = String(e);
+        try { applog("warn", "[geotagger] reverse_geocode_status: " + e); } catch (_) {}
+        return;
+      }
       if (isUnmounted) { _gtGeoPolling = false; return; }
       Object.entries(st.results || {}).forEach(([p, a]) => _gtAddr.set(p, a));
       if (statusEl) statusEl.textContent = t("geotagger.geocode.progress", { done: st.done, total: st.total });
@@ -3730,6 +3801,7 @@ function mountGeotagger(body, headerActions) {
   });
 
   let _writeFlowLaeuft = false;   // v0.9.522 — genau EIN Schreib-Flow zur Zeit
+  let _writeDialogGen = 0;         // 14.09.2026 — der 90-s-Notausgang gehört genau einem Dialog
 
   async function runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack, writeFields, exifEdits, camOffsets, camSetTime, destDir, overwriteOriginals) {
     // ⚠️ Beim 20.000-Fotos-Test liefen durch ungeduldige Klicks ZWEI Flows
@@ -3741,7 +3813,10 @@ function mountGeotagger(body, headerActions) {
       return;
     }
     _writeFlowLaeuft = true;
-    const res = await api().geotagger_start_write(
+    const myDialog = ++_writeDialogGen;
+    let res;
+    try {
+    res = await api().geotagger_start_write(
       writable, backup, (writeMode === "overwrite"), adjustTime, offsetSec, !!setTimeFromTrack,
       writeFields || { gps: true, altitude: true, direction: true, address: true },
       writeMode || "fill",
@@ -3751,7 +3826,13 @@ function mountGeotagger(body, headerActions) {
       destDir || "",      // v0.9.372 — Zielordner für die getaggten Kopien
       !!overwriteOriginals // v0.9.372 — Originale bewusst überschreiben (bestätigt)
     );
-    if (!res.ok) {
+    } catch (e) {
+      // 14.09.2026 (Nacht-Review): Ohne das blieb `_writeFlowLaeuft` nach einer
+      // abgelehnten Brücke für immer gesetzt — jeder weitere Versuch hieß nur
+      // „Es läuft schon ein Schreibvorgang".
+      res = { ok: false, error: String(e) };
+    }
+    if (!res || !res.ok) {
       _writeFlowLaeuft = false;
       openModal({ title: "Fehler", body: `<p>${res.error}</p>`,
         footer: '<button class="btn btn-primary" id="md-x">OK</button>' });
@@ -3778,9 +3859,10 @@ function mountGeotagger(body, headerActions) {
     });
     document.getElementById("md-cancel").onclick = async () => {
       canceled = true;
-      await api().geotagger_write_cancel();
-      document.getElementById("md-cancel").disabled = true;
-      document.getElementById("md-cancel").textContent = t("animator.cancel.requesting", "Abbrechen …");
+      const cb = document.getElementById("md-cancel");
+      if (cb) { cb.disabled = true; cb.textContent = t("animator.cancel.requesting", "Abbrechen …"); }
+      try { await api().geotagger_write_cancel(); }   // warte-ok: Abbruch-Signal, Dialog zeigt den Fortschritt
+      catch (e) { try { applog("warn", "[geotagger] write_cancel: " + e); } catch (_) {} }
     };
 
     // Polling.
@@ -3802,6 +3884,7 @@ function mountGeotagger(body, headerActions) {
     // der Vorgang nicht fertig, gibt es IMMER einen Ausweg.
     setTimeout(() => {
       try {
+        if (myDialog !== _writeDialogGen) return;   // 14.09.2026 — ein neuerer Schreib-Dialog ist nicht gemeint
         if (document.getElementById("md-cancel") && !document.getElementById("md-force-close")) {
           notausgang(t("geotagger.write.haengt",
             "Seit 90 Sekunden kein Fortschritt — vermutlich hängt ein Foto. "
@@ -4211,6 +4294,8 @@ function mountGeotagger(body, headerActions) {
     // (debouncted updateMatches, in-flight pollThumbs, sessionActivate-Promises)
     // sauber abbrechen bevor sie auf map zugreifen.
     isUnmounted = true;
+    // 14.09.2026 — Projekt-Haken dieser Instanz wieder abgeben (siehe Undo-Block oben)
+    try { if (window._geotaggerOnProjectChanged === _gtgProjChanged) window._geotaggerOnProjectChanged = _origGtgProjChanged; } catch (_) {}
     // v0.9.389 — GPX-Listener abmelden (sonst tote Callbacks bei jedem GPX-Laden).
     try { if (window.__rzGpxUnsub_gt) { window.__rzGpxUnsub_gt(); window.__rzGpxUnsub_gt = null; } } catch (_) {}
     stopThumbPolling();

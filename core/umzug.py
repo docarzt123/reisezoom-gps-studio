@@ -244,6 +244,23 @@ def bildpfade_richten(conn: sqlite3.Connection, app_support: Path,
     """
     a, z = Path(app_support), Path(ort)
     geaendert = 0
+    # 14.09.2026 (Nacht-Review, 20 000 Touren): Die zwölf UPDATEs mit LIKE waren
+    # zwölf volle Durchläufe bei jedem Start (~215 ms), obwohl sie praktisch immer
+    # null Zeilen treffen. Erst EIN Durchlauf je Tabelle mit denselben Mustern —
+    # nur wenn der etwas findet, laufen die UPDATEs wie bisher.
+    muster = [str(a / alt_name) + "/%" for alt_name, _ in BILD_ORDNER]
+    irgendwas = False
+    for tabelle, spalten in (("tracks", ("thumb", "map_thumb", "cover")),
+                             ("track_meta", ("cover",))):
+        bed = " OR ".join(f"{sp} LIKE ?" for sp in spalten for _ in muster)
+        werte = [m for _ in spalten for m in muster]
+        if conn.execute(f"SELECT 1 FROM {tabelle} WHERE {bed} LIMIT 1", werte).fetchone():
+            irgendwas = True
+            break
+    if not irgendwas:
+        if conn.in_transaction:
+            conn.commit()
+        return {"geaendert": 0}
     for alt_name, neu_rel in BILD_ORDNER:
         alt_pfad = str(a / alt_name) + "/"
         neu_pfad = str(z / neu_rel) + "/"

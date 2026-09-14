@@ -6,7 +6,6 @@ from __future__ import annotations
 import bisect
 import json
 import os
-import statistics
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from math import radians, sin, cos, sqrt, atan2
@@ -14,6 +13,8 @@ from typing import List, Optional
 
 import gpxpy
 import gpxpy.gpx
+from gpxpy import gpxfield as _gpxfield
+from gpxpy import parser as _gpxparser
 
 from . import sensors as _sensors
 
@@ -181,10 +182,18 @@ def compute_moving_and_max(pts: List[TrackPoint]) -> tuple[float, float]:
         seg.append((cum_dist[i] - cum_dist[i - 1]) / dt if dt > 0 else 0.0)
     HW_MED = 2  # ±2 → Fenster 5; killt isolierte Einzel-/Doppel-Ausreißer
     max_ms = 0.0
-    for i in range(len(seg)):
-        lo = max(0, i - HW_MED)
-        hi = min(len(seg), i + HW_MED + 1)
-        m = statistics.median(seg[lo:hi])
+    # 14.09.2026: Median von Hand statt `statistics.median` (dieselbe Rechnung:
+    # sortieren, Mitte bzw. Mittel der zwei mittleren) — bei 150 000 Punkten
+    # sparte das den Funktionsaufruf-Overhead je Fenster, Ergebnis bitgleich.
+    ns = len(seg)
+    for i in range(ns):
+        lo = i - HW_MED if i > HW_MED else 0
+        hi = i + HW_MED + 1
+        if hi > ns:
+            hi = ns
+        w = sorted(seg[lo:hi])
+        k = len(w)
+        m = w[k // 2] if k % 2 == 1 else (w[k // 2 - 1] + w[k // 2]) / 2
         if m > max_ms:
             max_ms = m
 
@@ -212,6 +221,21 @@ def _ext_localname(tag) -> str:
     return str(tag).rsplit("}", 1)[-1].lower()
 
 
+_EXT_KEY_CACHE: dict = {}
+
+
+def _ext_key(tag):
+    ln = _ext_localname(tag)
+    if ln in _sensors.GPXTPX_READ:
+        return _sensors.GPXTPX_READ[ln]
+    if ln in _sensors.RZ_READ:
+        # Reisezoom-Logger (Android): rz:hdg/pitch/lux/… → kanonische Keys
+        return _sensors.RZ_READ[ln]
+    if ln in ("power", "powerinwatts"):
+        return "power"
+    return None
+
+
 def _read_point_extensions(gp) -> dict:
     """Liest Standard-Extensions eines gpxpy-Punkts → {key: float}.
     Namespace-agnostisch: durchsucht den Extension-Teilbaum nach bekannten
@@ -225,18 +249,20 @@ def _read_point_extensions(gp) -> dict:
         except Exception:
             nodes = [el]
         for n in nodes:
-            ln = _ext_localname(getattr(n, "tag", ""))
             txt = (getattr(n, "text", None) or "").strip()
             if not txt:
                 continue
-            key = None
-            if ln in _sensors.GPXTPX_READ:
-                key = _sensors.GPXTPX_READ[ln]
-            elif ln in _sensors.RZ_READ:
-                # Reisezoom-Logger (Android): rz:hdg/pitch/lux/… → kanonische Keys
-                key = _sensors.RZ_READ[ln]
-            elif ln in ("power", "powerinwatts"):
-                key = "power"
+            # 14.09.2026: Tag → Schlüssel einmal je Tag-Name nachschlagen (die
+            # Namen wiederholen sich in jedem Punkt), statt je Knoten neu zu zerlegen.
+            tag = getattr(n, "tag", "")
+            try:
+                key = _EXT_KEY_CACHE[tag]
+            except (KeyError, TypeError):
+                key = _ext_key(tag)
+                try:
+                    _EXT_KEY_CACHE[tag] = key
+                except TypeError:
+                    pass
             if key is None:
                 continue
             try:
@@ -378,6 +404,213 @@ def laufpunkt_aus_bereiche(pts) -> list:
     return out
 
 
+# ── 14.09.2026 (Nacht-Review): schneller GPX-Leseweg ─────────────────────────
+# gpxpy baut jeden Punkt über eine generische Feld-Reflexion auf (20+ Felder je
+# Punkt, `deepcopy` jeder Extension): 150 000 Punkte = 3,2 s von 4,2 s Gesamtzeit.
+# `parse_gpx` braucht davon nur Name, Tracks/Segmente/Routen und je Punkt
+# lat/lon/ele/time/extensions. Dieser Weg liest GENAU das aus demselben Baum, den
+# gpxpy selbst bauen würde (gleiche Vorverarbeitung), und prüft dabei jedes Feld,
+# an dem gpxpy mit einer Ausnahme scheitern würde (Pflicht-lat/lon, Zahlenfelder,
+# `fix`, `bounds`). Passt irgendetwas nicht ins einfache Muster, liest gpxpy wie
+# bisher — auf demselben Baum, also ohne doppeltes XML-Parsen. Ergebnis und
+# Fehlerverhalten bleiben identisch (Wächter: tests/test_gpx_schnell_gleich.py).
+# Nur für die geprüfte gpxpy-Fassung und den Standard-XML-Parser.
+_GPXPY_GEPRUEFT = "1.6.2"
+
+
+class _NichtEinfach(Exception):
+    """Der schnelle Weg gibt ab — gpxpy liest."""
+
+
+class _SP:  # Punkt
+    __slots__ = ("latitude", "longitude", "elevation", "time", "extensions")
+
+
+class _SSeg:
+    __slots__ = ("points",)
+
+
+class _STrack:
+    __slots__ = ("name", "segments")
+
+
+class _SGpx:
+    __slots__ = ("name", "tracks", "routes")
+
+
+_PUNKT_FLOAT = frozenset(("magvar", "geoidheight", "hdop", "vdop", "pdop", "ageofdgpsdata"))
+_PUNKT_INT = frozenset(("sat", "dgpsid"))
+_FIX_ERLAUBT = ("none", "2d", "3d", "dgps", "pps", "3")
+_UTC = timezone.utc
+
+
+def _zahl_pruefen(text, art) -> None:
+    if text is not None:
+        art(text.strip())          # ValueError → gpxpy würde scheitern
+
+
+def _zeit_lesen(text):
+    if text is None:
+        return None
+    # Häufigster Fall „2026-05-01T08:00:00Z" ohne Regex; alles andere wie gpxpy.
+    if (len(text) == 20 and text[19] == "Z" and text[10] == "T" and text[4] == "-"
+            and text[7] == "-" and text[13] == ":" and text[16] == ":"):
+        y, mo, d, h, mi, se = text[0:4], text[5:7], text[8:10], text[11:13], text[14:16], text[17:19]
+        if (y.isdigit() and mo.isdigit() and d.isdigit() and h.isdigit() and mi.isdigit()
+                and se.isdigit() and y.isascii() and (mo + d + h + mi + se).isascii()):
+            try:
+                return datetime(int(y), int(mo), int(d), int(h), int(mi), int(se), 0, _UTC)
+            except ValueError:
+                return None
+    try:
+        return _gpxfield.parse_time(text)
+    except Exception:  # noqa: BLE001 — gpxpy verschluckt ungültige Zeiten ebenso
+        return None
+
+
+def _punkt_lesen(el, v11: bool, trkpt10: bool):
+    lat = el.get("lat")
+    lon = el.get("lon")
+    if lat is None or lon is None:
+        raise _NichtEinfach
+    p = _SP()
+    p.latitude = float(lat.strip())
+    p.longitude = float(lon.strip())
+    ele = zeit = ext = None
+    gesehen = None                 # nur für seltene Zahlenfelder
+    for c in el:
+        tag = c.tag
+        # gpxpy nimmt per find() jeweils nur das ERSTE Kind eines Namens
+        if tag == "ele":
+            if ele is None:
+                ele = c
+        elif tag == "time":
+            if zeit is None:
+                zeit = c
+        elif tag == "extensions":
+            if ext is None:
+                ext = c
+        elif tag in _PUNKT_FLOAT or tag in _PUNKT_INT or tag == "fix" or (
+                trkpt10 and (tag == "course" or tag == "speed")):
+            if gesehen is None:
+                gesehen = set()
+            if tag in gesehen:
+                continue
+            gesehen.add(tag)
+            if tag == "fix":
+                if c.text is not None and c.text not in _FIX_ERLAUBT:
+                    raise _NichtEinfach
+            else:
+                _zahl_pruefen(c.text, int if tag in _PUNKT_INT else float)
+    if ele is None:
+        p.elevation = None
+    else:
+        t = ele.text
+        p.elevation = None if t is None else float(t.strip())
+    p.time = None if zeit is None else _zeit_lesen(zeit.text)
+    p.extensions = list(ext) if (v11 and ext is not None) else []
+    return p
+
+
+def _erstes(el, tag):
+    return el.find(tag)
+
+
+def _bounds_pruefen(el) -> None:
+    if el is None:
+        return
+    for a in ("minlat", "maxlat", "minlon", "maxlon"):
+        _zahl_pruefen(el.get(a), float)
+
+
+def _text_von(el, tag):
+    k = el.find(tag)
+    return None if k is None else k.text
+
+
+def _schnell_aus_baum(root, version):
+    v11 = version == "1.1"
+    g = _SGpx()
+    if v11:
+        md = root.find("metadata")
+        g.name = None if md is None else _text_von(md, "name")
+        if md is not None:
+            _bounds_pruefen(md.find("bounds"))
+    else:
+        g.name = _text_von(root, "name")
+        _bounds_pruefen(root.find("bounds"))
+    g.tracks = []
+    g.routes = []
+    for kind in root:
+        tag = kind.tag
+        if tag == "wpt":
+            _punkt_lesen(kind, v11, False)        # nur prüfen
+        elif tag == "rte":
+            _zahl_pruefen(_text_von(kind, "number"), int)
+            r = _STrack()
+            r.name = _text_von(kind, "name")
+            r.segments = [_punkt_lesen(k, v11, False) for k in kind if k.tag == "rtept"]
+            g.routes.append(r)
+        elif tag == "trk":
+            _zahl_pruefen(_text_von(kind, "number"), int)
+            t = _STrack()
+            t.name = _text_von(kind, "name")
+            t.segments = []
+            for sg in kind:
+                if sg.tag == "trkseg":
+                    s = _SSeg()
+                    s.points = [_punkt_lesen(k, v11, not v11) for k in sg if k.tag == "trkpt"]
+                    t.segments.append(s)
+            g.tracks.append(t)
+    return g
+
+
+def _gpx_lesen(quelle):
+    """Wie `gpxpy.parse(quelle)` für die Zwecke von `parse_gpx` — nur schneller.
+
+    Liefert entweder das eigene schlanke Objekt (Routen tragen ihre Punkte in
+    `.segments`, siehe `parse_gpx`) oder das gpxpy-Objekt; `parse_gpx` liest aus
+    beiden über `_routen_punkte`.
+    """
+    if gpxpy.__version__ != _GPXPY_GEPRUEFT or _gpxparser.library() != "STDLIB":
+        return gpxpy.parse(quelle)
+    import re as _re
+    parser = _gpxparser.GPXParser(quelle)
+    # ── Vorverarbeitung 1:1 aus gpxpy.parser.GPXParser.parse (1.6.2) ──
+    for namespace in _re.findall(r'\sxmlns:?[^=]*="[^"]+"', parser.xml):
+        prefix, _, uri = namespace[6:].partition('=')
+        prefix = prefix.lstrip(':')
+        if prefix == '':
+            prefix = 'defaultns'
+        else:
+            if prefix.startswith("ns"):
+                _gpxparser.mod_etree.register_namespace("noglobal_" + prefix, uri.strip('"'))
+            else:
+                _gpxparser.mod_etree.register_namespace(prefix, uri.strip('"'))
+        parser.gpx.nsmap[prefix] = uri.strip('"')
+    schema_loc = _re.search(r'\sxsi:schemaLocation="[^"]+"', parser.xml)
+    if schema_loc:
+        _, _, value = schema_loc.group(0).partition('=')
+        parser.gpx.schema_locations = value.strip('"').split()
+    parser.xml = _re.sub(r"""\sxmlns=(['"])[^'"]+\1""", '', parser.xml, count=1)
+    try:
+        root = _gpxparser.mod_etree.XML(parser.xml)
+    except Exception as e:
+        raise gpxpy.gpx.GPXXMLSyntaxException(f'Error parsing XML: {e}', e) from e
+    if root is None:
+        raise gpxpy.gpx.GPXException('Document must have a `gpx` root node.')
+    version = root.get('version')
+    try:
+        return _schnell_aus_baum(root, version)
+    except (_NichtEinfach, ValueError, TypeError, AttributeError):
+        _gpxfield.gpx_fields_from_xml(parser.gpx, root, version)
+        return parser.gpx
+
+
+def _routen_punkte(route):
+    return route.segments if isinstance(route, _STrack) else route.points
+
+
 def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], TrackStats]:
     """Liest eine GPX-Datei (oder ein konvertierbares Fremdformat, siehe
     IMPORT_CACHE_DIR), gibt Trackpunkte (mit kumulierten Werten) + Stats zurück.
@@ -387,7 +620,7 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     Archiv-Scan öffnete jede GPX zweimal (Parse + Quell-Erkennung); über SMB
     ist jede Öffnung ein Netz-Roundtrip."""
     if text is not None:
-        gpx = gpxpy.parse(text)
+        gpx = _gpx_lesen(text)
     elif str(path).lower().endswith(".gz"):
         # 02.09.2026 — Der Versionsspeicher der Bibliothek legt Touren
         # gzip-komprimiert ab (docs/UMBAU-BIBLIOTHEK.md, Schnitt 1). Das ist
@@ -395,13 +628,14 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
         # etliche Logger, es hat vorher nur niemand lesen können.
         import gzip as _gzip
         with _gzip.open(path, "rt", encoding="utf-8") as fh:
-            gpx = gpxpy.parse(fh)
+            gpx = _gpx_lesen(fh)
     else:
         path = _als_gpx(path)
         with open(path, "r", encoding="utf-8") as fh:
-            gpx = gpxpy.parse(fh)
+            gpx = _gpx_lesen(fh)
 
     pts: List[TrackPoint] = []
+    _zeiten: list = []   # 14.09.2026: UTC-datetime je Punkt (spart das Rück-Parsen der ISO-Texte)
     seg_namen: List[str] = []
     _ohne_zone = 0
     # 03.09.2026 (Beta-Tester, 3 zusammengeführte Routen): Der Name der DATEI
@@ -426,11 +660,14 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
                 seg_namen.append("" if _ueberg else _tn)
             for p in seg.points:
                 t_iso = None
+                _t_utc = None
                 if p.time is not None:
                     if not p.time.tzinfo:
                         _ohne_zone += 1
                     t = p.time if p.time.tzinfo else p.time.replace(tzinfo=timezone.utc)
-                    t_iso = t.astimezone(timezone.utc).isoformat()
+                    _t_utc = t.astimezone(timezone.utc)
+                    t_iso = _t_utc.isoformat()
+                _zeiten.append(_t_utc)
                 _extra = _read_point_extensions(p)   # gpxtpx/gpxpx (Strava/Garmin)
                 if _ueberg:
                     _extra["rz_uebergang"] = 1.0
@@ -456,16 +693,20 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
         for route in gpx.routes:
             if not name and route.name:
                 name = route.name
-            if route.points:
+            _rp = _routen_punkte(route)
+            if _rp:
                 seg_no += 1
                 seg_namen.append(str(route.name or ""))
-            for p in route.points:
+            for p in _rp:
                 t_iso = None
+                _t_utc = None
                 if p.time is not None:
                     if not p.time.tzinfo:
                         _ohne_zone += 1
                     t = p.time if p.time.tzinfo else p.time.replace(tzinfo=timezone.utc)
-                    t_iso = t.astimezone(timezone.utc).isoformat()
+                    _t_utc = t.astimezone(timezone.utc)
+                    t_iso = _t_utc.isoformat()
+                _zeiten.append(_t_utc)
                 pts.append(TrackPoint(lat=p.latitude, lon=p.longitude, ele=p.elevation,
                                       time=t_iso, seg=max(0, seg_no), extra={}))
     if not pts:
@@ -496,7 +737,8 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     pts[0].dist_m = 0.0
     pts[0].elapsed_s = 0.0
     prev = pts[0]
-    for cur in pts[1:]:
+    for _i in range(1, len(pts)):
+        cur = pts[_i]
         # Übergänge gehören zu keiner Tour → wie eine Etappengrenze behandeln.
         same_seg = (cur.seg == prev.seg
                     and not cur.extra.get("rz_uebergang")
@@ -505,7 +747,8 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
             _haversine_m(prev.lat, prev.lon, cur.lat, cur.lon) if same_seg else 0.0
         )
         if same_seg and cur.time and prev.time:
-            dt = (datetime.fromisoformat(cur.time) - datetime.fromisoformat(prev.time)).total_seconds()
+            # dieselben Zeitpunkte wie `fromisoformat(time)` — nur ohne Rück-Parsen
+            dt = (_zeiten[_i] - _zeiten[_i - 1]).total_seconds()
             cur.elapsed_s = prev.elapsed_s + max(0.0, dt)
         else:
             cur.elapsed_s = prev.elapsed_s
