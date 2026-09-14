@@ -3965,5 +3965,7 @@
   "warte.export_current.text": "Converting and saving the track",
   "library.trash_laeuft_titel": "Removing tours",
   "library.trash_laeuft_text": "Moving files to the trash and updating the archive",
-  "library.trash_projekte_text": "Deleting tours and their projects"
+  "library.trash_projekte_text": "Deleting tours and their projects",
+  "geotagger.autotag.keine_rueckmeldung": "No response from image recognition — details are in the log.",
+  "heightanim.toast.status_verloren": "No response from the render — details are in the log."
 }
