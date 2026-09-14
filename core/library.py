@@ -477,6 +477,40 @@ _FTS_HAY_SQL = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' ||
                 "COALESCE(fit_profile,'')")
 
 
+# 14.09.2026 (Nacht-Review, 20 000 Touren gemessen): Der Änderungs-Trigger lief
+# bei JEDEM UPDATE auf `tracks` — auch wenn nur Kartenbild, Track-Check oder
+# Favorit geändert wurden — und löschte dann per `path` aus dem FTS-Index. `path`
+# ist dort UNINDEXED, das Löschen ist also ein voller Durchlauf des Index: 4 ms je
+# Zeile, 200 Kartenbilder = 0,8 s, „Alle prüfen" über 20 000 Touren = über eine
+# Minute nur für den Index. Jetzt feuert er nur, wenn sich der durchsuchbare Text
+# (oder der Pfad) wirklich ändert. Inhalt des Index bleibt exakt derselbe.
+_FTS_SPALTEN = ("display_name", "name", "filename", "tags", "note", "place",
+                "country", "region", "fit_profile")
+
+
+def _fts_trigger_au_sql() -> str:
+    neu_sql = _FTS_HAY_SQL.replace("COALESCE(", "COALESCE(new.")
+    alt_sql = _FTS_HAY_SQL.replace("COALESCE(", "COALESCE(old.")
+    return (f"CREATE TRIGGER tracks_fts_au AFTER UPDATE OF path, {', '.join(_FTS_SPALTEN)} "
+            f"ON tracks WHEN old.path IS NOT new.path OR ({alt_sql}) IS NOT ({neu_sql}) BEGIN\n"
+            f"  DELETE FROM tracks_fts WHERE path = old.path;\n"
+            f"  INSERT INTO tracks_fts(path, hay) VALUES (new.path, {neu_sql});\n"
+            f"END;")
+
+
+def _fts_trigger_au_aktualisieren(conn: sqlite3.Connection) -> None:
+    """Alten (immer feuernden) Änderungs-Trigger gegen den gezielten tauschen."""
+    r = conn.execute("SELECT sql FROM sqlite_master WHERE type='trigger' "
+                     "AND name='tracks_fts_au'").fetchone()
+    soll = _fts_trigger_au_sql()
+    if r is not None and (r[0] or "").strip() == soll.strip():
+        return
+    conn.execute("DROP TRIGGER IF EXISTS tracks_fts_au")
+    conn.execute(soll)
+    if r is not None:
+        log.info("library: Volltext-Trigger auf gezieltes Feuern umgestellt")
+
+
 def _fts_einrichten(conn: sqlite3.Connection) -> None:
     global _FTS_OK
     try:
@@ -493,14 +527,11 @@ def _fts_einrichten(conn: sqlite3.Connection) -> None:
                 CREATE TRIGGER IF NOT EXISTS tracks_fts_ad AFTER DELETE ON tracks BEGIN
                   DELETE FROM tracks_fts WHERE path = old.path;
                 END;
-                CREATE TRIGGER IF NOT EXISTS tracks_fts_au AFTER UPDATE ON tracks BEGIN
-                  DELETE FROM tracks_fts WHERE path = old.path;
-                  INSERT INTO tracks_fts(path, hay) VALUES (new.path, {neu_sql});
-                END;
             """)
             conn.execute(f"INSERT INTO tracks_fts(path, hay) SELECT path, {_FTS_HAY_SQL} FROM tracks")
             log.info("library: Volltext-Index angelegt (%d Touren)",
                      conn.execute("SELECT COUNT(*) FROM tracks_fts").fetchone()[0])
+        _fts_trigger_au_aktualisieren(conn)
         # Selbsttest: remove_diacritics greift? (sonst lieber LIKE)
         conn.execute("SELECT 1 FROM tracks_fts WHERE tracks_fts MATCH '\"abc\"' LIMIT 1").fetchall()
         _FTS_OK = True
