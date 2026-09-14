@@ -381,6 +381,9 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     # Oberfläche gerade schreibt — genau das ist am 12.09.2026 passiert: Der
     # Foto-Scan lief zwei Sekunden und war weg, ohne dass jemand etwas sah.
     conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=30.0)
+    # Neue Verbindung = Statistik-Zwischenspeicher leeren: `id(conn)` einer
+    # geschlossenen Verbindung kann wiederverwendet werden (siehe `stats`).
+    _STATS_CACHE.clear()
     conn.row_factory = sqlite3.Row
     try:
         # WAL: Lesen und Schreiben sperren sich nicht mehr gegenseitig. Auf
@@ -2263,6 +2266,25 @@ def _count_hidden(filters: dict) -> tuple:
     return (f"SELECT COUNT(*) FROM tracks WHERE {w}", a)
 
 
+# 14.09.2026 (Nacht-Review): `stats()` sind rund 17 volle Durchläufe über die
+# Tabelle — bei 20 000 Touren 340 ms. Die Oberfläche fragt bei JEDEM Neuladen
+# zweimal (Auswahl + Bestand, oft mit denselben Filtern) und auch beim Sortieren,
+# das die Zahlen gar nicht ändert. Zwischenspeicher je Filter, gültig solange die
+# Datenbank unverändert ist: `total_changes` zählt die eigenen Schreibvorgänge,
+# `PRAGMA data_version` die Commits anderer Verbindungen (Scan-Faden, Fotos).
+_STATS_CACHE: dict = {}
+_STATS_CACHE_MAX = 16
+_STATS_CACHE_TTL_S = 60.0
+
+
+def _stats_stand(conn: sqlite3.Connection) -> tuple:
+    try:
+        dv = conn.execute("PRAGMA data_version").fetchone()[0]
+    except sqlite3.Error:
+        return ()
+    return (id(conn), conn.total_changes, dv)
+
+
 @_locked
 def stats(conn: sqlite3.Connection, **filters) -> dict:
     """Zahlen zur aktuellen Auswahl — dieselben Filter wie `query()`.
@@ -2271,6 +2293,28 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
     mit `planned=False` nur die gemachten Touren. So passt die Statistik immer
     zu dem, was gerade auf dem Schirm ist.
     """
+    import copy
+    stand = _stats_stand(conn)
+    try:
+        schluessel = json.dumps(filters, sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        schluessel = None
+    jetzt = time.monotonic()
+    if stand and schluessel is not None:
+        treffer = _STATS_CACHE.get(schluessel)
+        if treffer and treffer[0] == stand and jetzt - treffer[1] < _STATS_CACHE_TTL_S:
+            return copy.deepcopy(treffer[2])
+    ergebnis = _stats_rechnen(conn, **filters)
+    if stand and schluessel is not None:
+        if len(_STATS_CACHE) >= _STATS_CACHE_MAX:
+            _STATS_CACHE.pop(next(iter(_STATS_CACHE)))
+        # Stand NACH dem Rechnen gleich vorher? Sonst nicht merken (parallel geschrieben).
+        if _stats_stand(conn) == stand:
+            _STATS_CACHE[schluessel] = (stand, jetzt, copy.deepcopy(ergebnis))
+    return ergebnis
+
+
+def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
     sql_where, args = _build_where(**filters)
     search = (filters.get("search") or "").strip()
 
