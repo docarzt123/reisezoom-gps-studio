@@ -2112,6 +2112,7 @@ function mountTimelineBar(opts) {
     setPlaying,
     setPlayingSpeed,
     setTrackFraction,
+    getTrackFraction: () => ({ tf: _trackFraction, ti: _introFraction }),
     setFullTrack,
     setShowKfPins,
     setTrim,
