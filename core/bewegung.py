@@ -146,8 +146,24 @@ def halte(sp: "_tc._Spur") -> List[dict]:
     if n < 2 or not sp.hat_zeit:
         return raus
     i = 0
+    # Billiger Vortest (14.09.2026): Ein Halt an Anker i muss den Punkt k, der als
+    # erster HALT_MIN_S später liegt, noch im Kreis haben. Liegt der schon draußen,
+    # kann hier kein Halt beginnen — die innere Suche entfällt. Ohne diesen Test
+    # lief sie an jedem Anker eines 10-Hz-Tracks (X5) ~1800 Punkte weit: 18 s für
+    # 60 000, 160 s für 100 000 Punkte. Die Ergebnisse sind dieselben, der Zeiger
+    # k wandert nur vorwärts (die geglättete Zeitachse steigt streng).
+    k = 0
     while i < n - 1:
         if sp.ts[i] is None:
+            i += 1
+            continue
+        if k < i:
+            k = i
+        ziel = sp.ts[i] + HALT_MIN_S
+        while k < n and (sp.ts[k] is None or sp.ts[k] < ziel):
+            k += 1
+        if k >= n or sp.seg[k] != sp.seg[i] \
+                or _tc._hav(sp.lat[i], sp.lon[i], sp.lat[k], sp.lon[k]) > HALT_RADIUS_M:
             i += 1
             continue
         # FESTER Anker, kein mitwandernder Mittelpunkt: Der wanderte beim

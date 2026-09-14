@@ -1636,6 +1636,15 @@ function mountAnimator(body, headerActions, opts) {
   // ── v0.9.66/67 — Undo/Redo via generischen Controller (util.js) ──────────
   // 50 Schritte, 800 ms Throttle für Drag-Operationen. Globaler Keyboard-
   // Listener in util.js routet Cmd/Ctrl+Z zum aktiven Modul.
+  // 14.09.2026 — Vorschaubilder der Foto-Schilder je Bildpfad, außerhalb der Undo-Snapshots.
+  const _signThumbSeite = new Map();
+  function _signsThumbsZurueck(liste) {
+    return (liste || []).map(o => {
+      if (!o || o.thumb || !o.imageSrc) return o;
+      const t = _signThumbSeite.get(o.imageSrc);
+      return t ? Object.assign({}, o, { thumb: t }) : o;
+    });
+  }
   const _animUndoCtrl = window.createUndoController({
     // v0.9.322 — Snapshot = KOMPLETTER Modul-Settings-Block (Farben, Linie, Glow,
     // Schatten, Overlays/Stats-Editor + Styling, Karten-Labels, Keyframes/Trim …).
@@ -1645,7 +1654,11 @@ function mountAnimator(body, headerActions, opts) {
         const s = JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {}));
         // 11.09.2026 — Schilder (Projekt-Wurzel) gehören zum Undo-Stand des Moduls.
         // Immer mitgeben — auch leer: sonst fehlt der Rückweg zu „keine Schilder" (erster Highlights-Lauf).
-        try { if (_activeProject) s.__signs = JSON.parse(JSON.stringify((Array.isArray(_activeProject[_SIGNS_KEY]) ? _activeProject[_SIGNS_KEY] : []).map(x => { const o = { ...x }; delete o._imgEl; return o; }))); } catch (_) {}
+        // 14.09.2026 — OHNE die Vorschaubilder (`thumb`, ~50 KB data-URL je Foto-Schild):
+        // bei 2830 Schildern wog ein Snapshot ~140 MB, bei 50 Schritten Gigabytes. Die
+        // Thumbs liegen einmal je Bildpfad in `_signThumbSeite` und kommen beim Undo/Redo
+        // per Referenz zurück (siehe `_signsThumbsZurueck`).
+        try { if (_activeProject) s.__signs = JSON.parse(JSON.stringify((Array.isArray(_activeProject[_SIGNS_KEY]) ? _activeProject[_SIGNS_KEY] : []).map(x => { const o = { ...x }; delete o._imgEl; if (o.thumb && o.imageSrc) { _signThumbSeite.set(o.imageSrc, o.thumb); delete o.thumb; } return o; }))); } catch (_) {}
         return s;
       } catch (_) { return null; }
     },
@@ -1657,7 +1670,7 @@ function mountAnimator(body, headerActions, opts) {
       if ("__signs" in snap) { snap = { ...snap }; delete snap.__signs; }
       // 1) Vollen Settings-Block wiederherstellen (Projekt oder global).
       try { window.rzWriteModuleSettings(_MODKEY, snap); } catch (_) {}
-      if (signsSnap) { try { if (typeof window._animSignsNachUndo === "function") window._animSignsNachUndo(signsSnap); } catch (_) {} }
+      if (signsSnap) { try { if (typeof window._animSignsNachUndo === "function") window._animSignsNachUndo(_signsThumbsZurueck(signsSnap)); } catch (_) {} }
       // 2) Gebundene Controls: Werte + sichtbare Wirkung (Farbe→Karte, Breite, …).
       try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
       try { if (typeof rzReapplySection === "function") rzReapplySection(_MODKEY, before); } catch (_) {}
@@ -1746,6 +1759,10 @@ function mountAnimator(body, headerActions, opts) {
   let _tlBar = null;
   let _kfEditorBound = false;
   let _previewRaf = null;
+  // 14.09.2026 — Projekt-Vorschaubild (util.js rzProjektVorschauAufnehmen, 4 s nach
+  // dem Speichern) soll nicht mitten in einem Probelauf fotografieren: Bild vom
+  // halben Lauf, dazu ein triggerRepaint + render-Warten im laufenden Bild.
+  try { window.__rzVorschauSperre = () => !!_previewRaf; } catch (_) {}
   let _fitZoomBase = null;
   // Modul verlassen? Alles, was nach einem `await` oder aus einem Timer
   // weiterläuft, prüft das — sonst greift es auf entferntes DOM und eine
@@ -1945,7 +1962,10 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number",
     onChange: () => {
       // 08.09.2026 — die Gesamtdauer verteilt sich auf die Etappen: Bahn neu bauen.
-      try { _reiseAnwenden(); } catch (_) {}
+      // 14.09.2026 — nachlaufend gebündelt: `bindSetting` feuert je Tastendruck, und
+      // jeder baute die ganze Bahn und holte die Kurve über die Brücke („Bahn gebaut"
+      // 8× in 25 s im app.log). Der letzte Tastendruck gewinnt immer (trailing).
+      _reiseAnwendenBald();
       // Und sie ist die zweite Ansicht der Raffung: tippt der Nutzer eine Länge,
       // wird die Raffung daraus neu abgeleitet. Schreibt die Kurve selbst in das
       // Feld (`_tempoSchreibt`), passiert nichts — sonst drehte es sich im Kreis.
@@ -1954,8 +1974,27 @@ function mountAnimator(body, headerActions, opts) {
       // Ein Fehlschlag darf die Eingabe nicht abbrechen — die Tabelle bleibt dann
       // die vorherige, und der nächste Anlauf holt sie nach.
       // ui-falle-ok: Kurve wird bei jeder weiteren Änderung erneut geholt
-      try { paceMapLaden(); } catch (_) {}
+      _paceMapLadenBald();
     } });
+  // 14.09.2026 — Aufschub für Eingabefelder (Dauer/Intro/Hold, Pausen-Schwelle):
+  // ~150 ms nach dem letzten Tastendruck, rAF-sicher (läuft nach dem nächsten
+  // Bild, nie mitten in einem Probelauf-Schritt). Ein wartender Aufruf wird durch
+  // den nächsten ersetzt — es geht nie ein Wert verloren, der letzte gewinnt.
+  const _EINGABE_AUFSCHUB_MS = 150;
+  function _aufschub(fn) {
+    let timer = 0;
+    const lauf = () => { timer = 0; try { fn(); } catch (_) {} };
+    return () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (typeof requestAnimationFrame === "function") requestAnimationFrame(lauf); else lauf();
+      }, _EINGABE_AUFSCHUB_MS);
+    };
+  }
+  const _reiseAnwendenBald = _aufschub(() => { try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] " + e); } });
+  const _paceMapLadenBald = _aufschub(() => { try { paceMapLaden(); } catch (_) {} });
+  const _gruppenAnLeisteBald = _aufschub(() => { try { _gruppenAnLeiste(); } catch (_) {} });
+  const _pauseInfoLadenBald = _aufschub(() => { try { pauseInfoLaden(); } catch (_) {} });
   // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
   // immer gespeichert) — Render, Backend und alle Rechnungen dahinter bleiben
@@ -4755,9 +4794,30 @@ function mountAnimator(body, headerActions, opts) {
   // Wendet den Farbverlauf (Distanz/Höhe/Tempo) auf preview-line/preview-glow an —
   // oder entfernt ihn wieder. i0..i1 = gezeichnete Spanne. Braucht _ovSeries.cumDistM.
   let _colorsPrevOn = false;
+  // 14.09.2026 — je Bild lief hier ein Ausdrucks-Aufbau plus setPaintProperty auf 2–3
+  // Ebenen, auch wenn sich nichts geändert hatte. Jetzt: Schlüssel aus Spanne, Quelle,
+  // Stops, Farben, Etappe (+ Identität von Track/Reihen/Ebene) — gleich = nichts tun.
+  let _gradStand = null;
+  window.__rzPerfZaehler = window.__rzPerfZaehler || { setPaint: 0, gradUebersprungen: 0, etappenSetData: 0, etappenUebersprungen: 0 };
   function applyPreviewColorGradient(i0, i1) {
     if (!map) return;
     const metric = previewMetricArr();
+    try {
+      const lyr = map.getLayer("preview-line") || map.getLayer("preview-glow") || map.getLayer("preview-shadow") || null;
+      let stopsSig = "";
+      try { loadColorStops(); stopsSig = JSON.stringify(_trackColorStops || []); } catch (_) {}
+      const key = [i0, i1, currentColorsEnabled() ? 1 : 0, currentColorsSource(), currentColorsMode(), stopsSig,
+                   currentLineColor(), JSON.stringify(_tourFarben() || null), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : "",
+                   metric ? metric.length : -1].join("|");
+      if (_gradStand && _gradStand.key === key && _gradStand.coords === currentCoords && _gradStand.serie === _ovSeries
+          && _gradStand.metric === metric && _gradStand.lyr === lyr && lyr) {
+        window.__rzPerfZaehler.gradUebersprungen++;
+        return;
+      }
+      const _alt = _gradStand;
+      _gradStand = { key, coords: currentCoords, serie: _ovSeries, metric, lyr, leer: (_alt && _alt.lyr === lyr) ? _alt.leer : null };
+      window.__rzPerfZaehler.setPaint++;
+    } catch (_) { _gradStand = null; }
     // 05.09.2026 (Beta-Tester, Windows: „Häkchen an = eine Farbe, Häkchen aus = mehrere"):
     // Ohne einen einzigen Farb-Stop gibt es keinen Verlauf — dann gelten die Etappen-
     // farben weiter, genau wie im Render (`_colors_on` verlangt dort ≥ 1 Stop).
@@ -4772,6 +4832,10 @@ function mountAnimator(body, headerActions, opts) {
       if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
       const m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor(),
                             _tourFarben(), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : null);
+      // Ohne Maske (eine Tour, kein Verlauf) steht der Wert bild für bild auf null —
+      // einmal je Ebenen-Satz schreiben reicht.
+      if (!m && _gradStand && _gradStand.leer === _gradStand.lyr && _gradStand.lyr) { window.__rzPerfZaehler.gradUebersprungen++; window.__rzPerfZaehler.setPaint--; _colorsPrevOn = false; return; }
+      if (_gradStand) _gradStand.leer = m ? null : _gradStand.lyr;
       for (const id of ["preview-line", "preview-glow"]) {
         if (!map.getLayer(id)) continue;
         try {
@@ -8111,6 +8175,7 @@ function mountAnimator(body, headerActions, opts) {
       _plN = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plZ = []; _plZDir = 0; _plZPrevD = 0; _plSets = {}; _plSetChg = {}; _plSetABA = {}; _plABADiff = [];
     };
     window.__rzProbelaufBilanz = _plBilanz;
+    let _evzStand = null;   // Events mit Zeit, je (ti, tf, Schnitt) einmal
     const step = (now) => {
       const _t0 = performance.now();
       try { return _stepInner(now); }
@@ -8246,7 +8311,12 @@ function mountAnimator(body, headerActions, opts) {
       // ihre Zeit, die Abfrage ist der Zeit-Fortschritt. Vorher lief beides über
       // den Anker — und der ist in Anlauf und Nachlauf schneller unterwegs,
       // weshalb die Kamera am gelben Griff sichtbar abbremste.
-      const eventsZeit = eventsMitZeit(events, ti, tf, trimA, trimB);
+      // 14.09.2026 — die Zeit-Kopie der Events nur neu rechnen, wenn sich Phasen oder
+      // Schnitt geändert haben (vorher je Bild eine neue Kopie aller Events).
+      if (!_evzStand || _evzStand.ti !== ti || _evzStand.tf !== tf || _evzStand.a !== trimA || _evzStand.b !== trimB) {
+        _evzStand = { ti, tf, a: trimA, b: trimB, v: eventsMitZeit(events, ti, tf, trimA, trimB) };
+      }
+      const eventsZeit = _evzStand.v;
       const interp = interpolateCameraJs(eventsZeit, timelineProgress, defaultPitch, defaultRotation,
                                           undefined, _previewFitBase,
                                           { cinematic: _runCinematic });
@@ -9624,7 +9694,8 @@ function mountAnimator(body, headerActions, opts) {
           if (_tlBar && _tlBar.setTrackFraction) _tlBar.setTrackFraction(trackFraction(), introFraction());
           // 14.09.2026 (Marc: Intro dazu → Etappen-Kacheln begannen im Intro): die
           // Kacheln der Reise tragen Leisten-Anteile aus ti/tf — neu rechnen.
-          try { _gruppenAnLeiste(); } catch (_) {}
+          // Gebündelt (Aufschub): die Trenner oben bleiben je Tastendruck live.
+          _gruppenAnLeisteBald();
           if (_tlBar && _tlBar.getTrim) {
             const tr = _tlBar.getTrim();
             applyTrimToTrackPreview(tr.start, tr.end);
@@ -10197,6 +10268,20 @@ function mountAnimator(body, headerActions, opts) {
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
                                "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc"]);
+    // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
+    // zwischen zwei Aufbauten dasselbe (jede Änderung erzeugt über `_animSignsSave` neue
+    // Objekte), nur Bild und Pixelmaß können sich noch ändern — die stehen im Merker mit.
+    function _animSignBildSignaturVon(s, sn) {
+      const im = sn._imgEl || null, dpr = sn.__dpr == null ? 0 : sn.__dpr;
+      const m = s && s.__bildSig;
+      // Die häufig live geänderten Felder prüfen wir zusätzlich mit — falls ein Schild
+      // doch einmal an Ort und Stelle verändert wird, statt neu erzeugt.
+      const kurz = sn.text + "|" + sn.style + "|" + sn.color + "|" + sn.size + "|" + sn.opacity;
+      if (m && m.im === im && m.dpr === dpr && m.shadowDir === sn.shadowDir && m.kurz === kurz) return m.sig;
+      const sig = _animSignBildSignatur(sn);
+      try { Object.defineProperty(s, "__bildSig", { value: { im, dpr, shadowDir: sn.shadowDir, kurz, sig }, enumerable: false, writable: true, configurable: true }); } catch (_) {}
+      return sig;
+    }
     function _animSignBildSignatur(sn) {
       const teile = [];
       Object.keys(sn).sort().forEach(k => { if (!_SIG_OHNE.has(k)) teile.push(k + "=" + JSON.stringify(sn[k])); });
@@ -10294,8 +10379,9 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignsAttachDOM(allSigns, list) {
       const dur = _animSignsDuration();
       const MarkerCls = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
+      const _idxVon = new Map(); allSigns.forEach((s, i) => { if (!_idxVon.has(s)) _idxVon.set(s, i); });
       list.forEach((s) => {
-        const fi = allSigns.indexOf(s);
+        const fi = _idxVon.has(s) ? _idxVon.get(s) : allSigns.indexOf(s);
         const sn = _animSignNormalize(s);
         let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
         if (s.imageSrc && !imageUrl) {
@@ -10430,9 +10516,11 @@ function mountAnimator(body, headerActions, opts) {
       // 14.09.2026 — Pixelmaß nach Zahl der Bild-Schilder (ui/js/sign_draw.js rzSignDpr),
       // synchron zu core/animator.py (Render) — bei Änderung beide pflegen.
       const _dprBild = _animSignsDprBild(list);
+      // 14.09.2026 — Index je Schild einmal (vorher allSigns.indexOf je Schild: 2830² Schritte).
+      const _idxVon = new Map(); allSigns.forEach((s, i) => { if (!_idxVon.has(s)) _idxVon.set(s, i); });
       list.forEach((s) => {
         if (s.imageSrc && !_animSignHasImg(s) && !(s.text || "").trim()) return;
-        const fi = allSigns.indexOf(s);
+        const fi = _idxVon.has(s) ? _idxVon.get(s) : allSigns.indexOf(s);
         const sn = _animSignNormalize(s);
         if (s.imageSrc && _dprBild !== 2) sn.__dpr = _dprBild;
         if (_animSignHasImg(s)) _animSetImgEl(sn, s._imgEl);
@@ -10441,7 +10529,7 @@ function mountAnimator(body, headerActions, opts) {
           // 13.09.2026 — nur neu malen, was sich am BILD geändert hat. Vorher wurde bei
           // jedem Neuzeichnen jedes Schild neu gerastert (getImageData) und neu an die
           // Karte gegeben: bei 2830 Foto-Schildern der Rest des Hängers (Profil).
-          const sig = _animSignBildSignatur(sn);
+          const sig = _animSignBildSignaturVon(s, sn);
           if (!(map.hasImage(id) && _animSignImgSig.get(id) === sig)) {
             const img = _animSignDrawImageData(sn);
             if (!img) return;
@@ -10476,7 +10564,10 @@ function mountAnimator(body, headerActions, opts) {
         // rzSignApplyFrame schaltet den popScale-Faktor nur für die Dauer eines
         // laufenden Aufpoppens zu und nimmt ihn direkt danach wieder weg.
         map.__rzSignSizeScale = 1; map.__rzSignPopMode = false;
-        map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: _signFC });
+        // 14.09.2026 — buffer 0: die Symbole sind am Viewport ausgerichtet (icon-*-alignment
+        // viewport) und dürfen überlappen; der Standard-Puffer 128 ließ jede Kachel zusätzlich
+        // die Schilder ihrer Nachbarn tragen (bei 2830 Bild-Schildern je Kachel Kopien).
+        map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: _signFC, buffer: 0 });
         map.addLayer({
           id: _ANIM_SIGNS_LYR, type: "symbol", source: _ANIM_SIGNS_SRC,
           filter: ["all", ["<=", ["get", "a_show"], -1], [">=", ["get", "a_hide"], -1]],
@@ -10560,12 +10651,20 @@ function mountAnimator(body, headerActions, opts) {
       // __rzSignFrame nach Marker-Anker M (=0 im Standbild) → alle ausgeblendet,
       // die Karte blieb leer, obwohl 705 Einträge geladen waren (Marc-Bug 2026-07-01).
       if (_animSignsPreviewAll || _isStaticFrame) {
+        // 14.09.2026 — einmal je Aufbau (FeatureCollection), nicht je Bild: setFilter plus
+        // 2830 setFeatureState liefen sonst 60× je Sekunde mit demselben Ergebnis.
+        if (map.__rzSignAlleStand === map.__rzSignFC && map.__rzSignAlleN === _animSignMetas.length) return;
+        map.__rzSignAlleStand = map.__rzSignFC; map.__rzSignAlleN = _animSignMetas.length;
+        // Die Merker der Bild-für-Bild-Schaltung (sign_draw.js) verwerfen — sie
+        // wüssten sonst nichts von den hier gesetzten Zuständen.
+        map.__rzSignOpLast = null; map.__rzSignLastM = null; map.__rzSignVisKey = null;
         try {
           map.setFilter(_ANIM_SIGNS_LYR, ["all"]);
           for (let i = 0; i < _animSignMetas.length; i++) { try { map.setFeatureState({ source: _ANIM_SIGNS_SRC, id: i }, { op: 1 }); } catch (_) {} }
         } catch (_) {}
         return;
       }
+      map.__rzSignAlleStand = null;   // zurück im Zeitfenster-Modus → „alle" beim nächsten Mal wieder setzen
       if (window.__rzSignFrame) window.__rzSignFrame(map, _ANIM_SIGNS_LYR, _ANIM_SIGNS_SRC, _animSignMetas, M);
     }
     // DOM-Modus: pro Marker Sichtbarkeit/Opacity/Zoom-Scale, Change-Detection gegen Jank.
@@ -10640,6 +10739,23 @@ function mountAnimator(body, headerActions, opts) {
       // 13.09.2026 — in Häppchen je Bildschirmbild: 2830 Zeilen am Stück hielten
       // die Oberfläche fest. Eine neuere Liste bricht einen laufenden Aufbau ab.
       const lauf = ++_animListeLauf;
+      // 14.09.2026 — Vorschaubild erst setzen, wenn die Zeile ins Bild kommt: 2830 Zeilen
+      // mit je einer data-URL als Hintergrund ließen WebKit alle Bilder sofort dekodieren.
+      let _sichtbar = null;
+      try {
+        if (typeof IntersectionObserver === "function") {
+          if (host.__rzThumbIO) { try { host.__rzThumbIO.disconnect(); } catch (_) {} }
+          _sichtbar = new IntersectionObserver((eintraege) => {
+            for (const e of eintraege) {
+              if (!e.isIntersecting) continue;
+              const el = e.target, src = el.__rzSrc;
+              if (src) { el.style.backgroundImage = `url("${src}")`; el.__rzSrc = null; }
+              _sichtbar.unobserve(el);
+            }
+          }, { root: null, rootMargin: "200px 0px" });
+          host.__rzThumbIO = _sichtbar;
+        }
+      } catch (_) { _sichtbar = null; }
       const baueZeile = (s, i) => {
         const off = (s.visible === false);
         const row = el("div", { class: "sign-row" + (off ? " sign-row-off" : ""), draggable: "true", "data-idx": String(i) });
@@ -10655,7 +10771,8 @@ function mountAnimator(body, headerActions, opts) {
         if (s.imageSrc) {
           const src = (s._imgEl && s._imgEl.src) || s.thumb || "";
           media = el("div", { class: "sign-row-thumb" });
-          if (src) media.style.backgroundImage = `url("${src}")`; else media.textContent = "🖼";
+          if (src && _sichtbar) { media.__rzSrc = src; _sichtbar.observe(media); }
+          else if (src) media.style.backgroundImage = `url("${src}")`; else media.textContent = "🖼";
         } else {
           media = el("div", { class: "sign-row-ico" }, "🚩");
         }
@@ -12791,7 +12908,7 @@ function mountAnimator(body, headerActions, opts) {
   // rund 2 s still"). Ändert man die Dauer, muss sie mitwandern — sonst steht
   // dort eine Zahl, die zur eingestellten Länge nicht mehr passt.
   document.getElementById("anim-dur")?.addEventListener("input", () => {
-    if (document.getElementById("anim-pause-box")?.hidden === false) pauseInfoLaden();
+    if (document.getElementById("anim-pause-box")?.hidden === false) _pauseInfoLadenBald();
   });
 
   ["anim-pause-min", "anim-pause-trim"].forEach(id => {
@@ -13184,8 +13301,10 @@ function mountAnimator(body, headerActions, opts) {
       if (iRef < 0) iRef = 0; else if (iRef > n - 1) iRef = n - 1;
       const totD = sr.total_dist_m || sr.cumDistM[n - 1] || 0;
       const totT = sr.total_time_s || (sr.cumTimeS ? sr.cumTimeS[n - 1] : 0) || 0;
-      box.querySelectorAll('.ov-v[data-ovid]').forEach((el) => {
-        const id = el.getAttribute("data-ovid");
+      // 14.09.2026 — die Wertfelder je Kasten einmal suchen (der Kasten wird beim
+      // Neuaufbau der Einblendung als Element ersetzt, der Merker stirbt mit ihm).
+      if (!box.__rzOvV) box.__rzOvV = Array.from(box.querySelectorAll('.ov-v[data-ovid]')).map(el => [el, el.getAttribute("data-ovid")]);
+      box.__rzOvV.forEach(([el, id]) => {
         let v = null;
         // v0.9.330 — FIT-Sensorwert am aktuellen Punkt (gerundet + Einheit, en-dash bei null).
         if (typeof id === "string" && id.startsWith("sensor:")) {
@@ -15795,7 +15914,8 @@ function mountAnimator(body, headerActions, opts) {
     // Taktgeber außerhalb der Kette laufen an der Animationszeit.
     const tA = _swZeitBei(coordFrac);
     const linien = [], punkte = [];
-    for (const t of _swPrev) {
+    for (let si = 0; si < _swPrev.length; si++) {
+      const t = _swPrev[si];
       const kP = _swIndexFuer(t, coordFrac, tA, false);
       const kL = vollesBild ? _swIndexFuer(t, coordFrac, tA, true) : kP;
       t.__k = kP;
@@ -15805,7 +15925,7 @@ function mountAnimator(body, headerActions, opts) {
         geometry: { type: "LineString",
           coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
       punkte.push({ type: "Feature",
-        properties: { color: t.color, icon: "sw-prev-arrow-" + _swPrev.indexOf(t), width: t.width,
+        properties: { color: t.color, icon: "sw-prev-arrow-" + si, width: t.width,
                       dotShow: !!dot.show, dotStyle: dot.style, dotSize: dot.size,
                       brg: dot.style === "arrow" ? _kursAn(t.coords, kP) : 0 },
         geometry: { type: "Point", coordinates: t.coords[kP] } });
@@ -16489,8 +16609,28 @@ function mountAnimator(body, headerActions, opts) {
     setTimeout(() => { try { paceMapLaden(); } catch (_) {} }, 0);
   }
 
+  // 14.09.2026 — Signatur der Eingaben der letzten Bahn. Gleiche Eingaben →
+  // gleiche Bahn: `_reiseBauen` kehrt dann früh zurück, statt Abtastung, Reihen
+  // und Leiste neu zu rechnen. Beim Projektstart kam der Bau von fünf Seiten
+  // (applyGlobalGpx, rebuildPreviewLayers, Tour-Ladeabschluss, idle-Nachholen,
+  // je Tour), im app.log 24× in einer Minute — mit identischem Ergebnis.
+  let _reiseSig = null, _reiseSigGeloggt = null;
+  window.__rzReiseBauCount = 0;   // Prüfstand: tests/test_reise_rebuild_sparsam.py
+  function _reiseSignatur(plan, kette, flugS) {
+    const num = (id) => parseNum(document.getElementById(id)?.value, 0);
+    const teile = kette.map(k => {
+      const tour = _tourVon((k.g.mitglieder[0] || {}).gpx_path);
+      const c = tour.coords, c0 = c[0] || [], cN = c[c.length - 1] || [];
+      return [k.g.id, k.g.mitglieder.length, c.length, +c0[0], +c0[1], +cN[0], +cN[1],
+              +k.lage.von_s.toFixed(4), +k.lage.bis_s.toFixed(4), +(k.lage.inhalt_s || 0).toFixed(4),
+              k.g.ueber_stil || "kino", +k.g.faktor || 1, tour.gpx_path || "",
+              Array.isArray(tour.zeit) ? tour.zeit.length : 0, Array.isArray(tour.ele) ? tour.ele.length : 0];
+    });
+    return JSON.stringify([teile, +plan.dauer_s.toFixed(4), flugS, num("anim-intro"), num("anim-dur"), num("anim-hold"),
+                           _gruppen.length, _reiseBasis ? _reiseBasis.length : 0]);
+  }
   function _reiseBauen() {
-    if (!_reiseGilt()) { _reiseBahn = null; _gruppenPlanRechnen(); _tempoReiseStandPruefen(0); return null; }
+    if (!_reiseGilt()) { _reiseBahn = null; _reiseSig = null; _gruppenPlanRechnen(); _tempoReiseStandPruefen(0); return null; }
     // 09.09.2026 (§60) — die Bahn kommt aus dem ZEITPLAN der Gruppen: die
     // Kette (Zeile 0) in zeitlicher Folge, dazwischen Lücken = Übergänge,
     // davor und dahinter Füll-Halte. Dieselbe Mechanik wie zuvor die Etappen,
@@ -16500,9 +16640,24 @@ function mountAnimator(body, headerActions, opts) {
       const tour = _tourVon((k.g.mitglieder[0] || {}).gpx_path);
       return tour && Array.isArray(tour.coords) && tour.coords.length > 1;
     });
-    if (!plan || !(plan.dauer_s > 0) || !kette.length) { _reiseBahn = null; return null; }
+    if (!plan || !(plan.dauer_s > 0) || !kette.length) { _reiseBahn = null; _reiseSig = null; return null; }
     const dauer = plan.dauer_s;
     const flugS = parseNum(document.getElementById("anim-fly")?.value, 3);
+    let sig = null;
+    try { sig = _reiseSignatur(plan, kette, flugS); } catch (_) { sig = null; }
+    if (sig && _reiseBahn && sig === _reiseSig) {
+      if (_reiseSigGeloggt !== sig) { _reiseSigGeloggt = sig; applog("info", "[reise] Bahn unverändert (gleiche Eingaben, kein Neubau)"); }
+      // Tour- und Gruppenobjekte können inzwischen ersetzt worden sein (Undo, Liste
+      // neu gelesen) — die Bahn zeigt auf die aktuellen, sonst hinge Farbe/Name am alten.
+      kette.forEach((k, i) => { const e = _reiseBahn.etappen[i]; if (e) { e.tour = _tourVon((k.g.mitglieder[0] || {}).gpx_path) || e.tour; e.gruppe = k.g; e.lage = k.lage; } });
+      _reiseBahn.kette = kette; _reiseBahn.plan = plan;
+      // Die Leiste kann sich trotzdem geändert haben (neu eingehängt, Modulwechsel):
+      // die drei billigen Nachzieher laufen, der teure Bau nicht.
+      _phasenAnLeiste();
+      try { _etappenAnLeiste(); } catch (_) {}
+      try { _gruppenAnLeiste(); } catch (_) {}
+      return _reiseBahn;
+    }
 
     // Abschnitte in Animationszeit: vor | inhalt | ueber | nach
     const abschnitte = [];
@@ -16551,6 +16706,8 @@ function mountAnimator(body, headerActions, opts) {
     // übrigen bleibt — ohne den Hinweis quetschten zwei feste Etappen dreizehn
     // andere auf 0,3 s, sichtbar nur im Log (08.09.2026 auf Marcs Rechner).
     const offen = kette.filter(k => Math.abs((+k.g.faktor || 1) - 1) < 1e-9);
+    _reiseSig = sig; _reiseSigGeloggt = null;
+    window.__rzReiseBauCount = (window.__rzReiseBauCount || 0) + 1;
     _reiseBahn = { coords, teilVon, istUeber, teile, abschnitte, ansichten: null, etappen, serie, kette, plan,
                    sekEtappen, sekUeber, sekHalte, sekAnim: dauer,
                    sekFest: kette.filter(k => Math.abs((+k.g.faktor || 1) - 1) >= 1e-9).reduce((a, k) => a + k.lage.inhalt_s, 0),
@@ -16763,17 +16920,24 @@ function mountAnimator(body, headerActions, opts) {
     const bahn = _reiseBahn;
     const bis = ab + coords.length - 1;      // wie weit die Vorschau gerade zeichnet
     // Etappen 2..n in ihre eigenen Quellen, bis zum erreichten Punkt.
+    // 14.09.2026 — nur die Quelle anfassen, deren sichtbares Stück sich geändert hat
+    // (je Bild bis zu 14 setData, obwohl fertige Etappen längst stillstanden). Merker
+    // je Etappe: Quelle (Identität — neu angelegt = neu schreiben) + Endindex.
+    if (!bahn.__quellStand) bahn.__quellStand = [];
     for (let i = 1; i < bahn.teile.length; i++) {
       const t = bahn.teile[i];
       const id = _mtourQuelle(bahn.etappen[i].tour);
-      let stueck = [];
-      if (bis >= t.von) {
-        const ende = Math.min(t.bis, bis);
-        if (ende > t.von) stueck = bahn.coords.slice(t.von, ende + 1);
-      }
+      let ende = -1;
+      if (bis >= t.von) { const e = Math.min(t.bis, bis); if (e > t.von) ende = e; }
       try {
         const q = map && map.getSource(id);
-        if (q) rzSetDataLatest(map, q, { type: "Feature",
+        if (!q) continue;
+        const st = bahn.__quellStand[i];
+        if (st && st.q === q && st.ende === ende) { window.__rzPerfZaehler.etappenUebersprungen++; continue; }
+        bahn.__quellStand[i] = { q, ende };
+        window.__rzPerfZaehler.etappenSetData++;
+        const stueck = ende >= 0 ? bahn.coords.slice(t.von, ende + 1) : [];
+        rzSetDataLatest(map, q, { type: "Feature",
           geometry: { type: "LineString", coordinates: stueck.length >= 2 ? stueck : [] } });
       } catch (_) {}
     }
@@ -18478,6 +18642,10 @@ function mountAnimator(body, headerActions, opts) {
       try { ab(); } catch (_) {}
     }
     try { if (window.__rzAnimSignsCloseEditor) window.__rzAnimSignsCloseEditor(); } catch (_) {}   // v0.9.180 — body-Panel aufräumen (22.08.2026: über Handle, innere Closure)
+    // 14.09.2026 — die Live-Handles für Esc zeigen sonst nach dem Abbau weiter auf
+    // diesen Mount: Esc im Inspektor rief _animSignsCloseEditor → GPU-Filter auf der
+    // abgebauten Karte („undefined is not an object (evaluating 'this.style.getLayer')“).
+    try { window.__rzAnimSignsEsc = null; window.__rzRouteEsc = null; } catch (_) {}
     if (_animViewportObserver) {
       try { _animViewportObserver.disconnect(); } catch (_) {}
       _animViewportObserver = null;

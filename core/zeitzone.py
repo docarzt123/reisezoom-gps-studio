@@ -15,6 +15,7 @@ Uhrzeit immer HH:MM (24 h).
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -85,7 +86,12 @@ def zone_fuer(lat: Optional[float], lon: Optional[float], land: str = "") -> str
         return LAND_ZONE[land]
     if lat is None or lon is None:
         return "UTC"
-    lat, lon = float(lat), float(lon)
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return "UTC"
+    if not (math.isfinite(lat) and math.isfinite(lon)):   # NaN aus kaputten Punkten (14.09.2026)
+        return "UTC"
     # Europa ohne Land: drei Streifen reichen (WET / CET / EET).
     if 34.0 <= lat <= 72.0 and -12.0 <= lon <= 42.0:
         if 49.5 < lat < 61.0 and lon < 1.8:

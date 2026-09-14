@@ -39,6 +39,7 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 import time
 import zlib
 from concurrent.futures import ThreadPoolExecutor
@@ -69,10 +70,23 @@ TIEFE_MAX = 8
 # Stapelgröße für exiftool. Gemessen: der Aufruf selbst kostet mehr als die
 # Dateien darin, 60 ist ein guter Kompromiss zwischen Tempo und Abbrechbarkeit.
 STAPEL = 60
+# Auf einem Netzlaufwerk (NAS im WLAN) kleiner: ein Stapel ist die Einheit, die
+# bei einem exiftool-Hänger vertagt und in Teilen wiederholt wird — 60 Dateien
+# über WLAN sind dafür zu viel am Stück (14.09.2026).
+STAPEL_FERN = 20
+# Wie ein Stapel nach einem Hänger zerlegt wird: 60 → 10 → 1. Erst die Einzel-
+# datei, die dann noch hängt, bekommt den Fehlerstempel — nicht ihre 59 Nachbarn.
+STAPEL_TEILUNG = (10, 1)
+# So viele Einzeldateien dürfen in EINEM Lauf hängen, dann gilt exiftool bzw. das
+# Laufwerk als weg und der Rest wird vertagt statt Datei für Datei abgewartet.
+HAENGER_MAX = 3
 
 # Wie viele Vorschaubilder gleichzeitig entstehen. Mehr bringt nichts: ab vier
 # Fäden ist die Platte, nicht der Decoder die Grenze.
 THUMB_FAEDEN = 4
+# Auf dem WLAN-NAS war EIN Faden messbar schneller als vier (12.09.2026): die
+# Lesezugriffe bremsen sich gegenseitig.
+THUMB_FAEDEN_FERN = 1
 
 ART_FOTO = "foto"
 ART_VIDEO = "video"
@@ -297,6 +311,82 @@ def _jetzt() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+_FERN_CACHE: dict = {}
+
+
+def ist_fern(path) -> bool:
+    """Liegt der Pfad auf einem eingehängten (Netz-)Laufwerk statt auf der
+    Startplatte? Entscheidet Stapelgröße und Fadenzahl im Scan (14.09.2026).
+
+    macOS: alles unter /Volumes/, das nicht die Startplatte selbst ist (die
+    hängt dort als Link auf „/"). Linux: /mnt, /media, /net, /run/media, gvfs.
+    Windows: UNC-Pfade. Ein gemappter Windows-Laufwerksbuchstabe ist nicht
+    erkennbar — dann gilt der lokale Wert, wie bisher.
+    """
+    p = str(path or "")
+    if not p:
+        return False
+    if os.name == "nt":
+        return p.startswith("\\\\") or p.startswith("//")
+    if sys.platform == "darwin":
+        if not p.startswith("/Volumes/"):
+            return False
+        teile = p.split("/", 3)
+        wurzel = "/".join(teile[:3])          # /Volumes/<Name>
+        da = _FERN_CACHE.get(wurzel)
+        if da is None:
+            try:
+                da = os.path.realpath(wurzel) != "/"
+            except OSError:
+                da = True
+            _FERN_CACHE[wurzel] = da
+        return da
+    return p.startswith(("/mnt/", "/media/", "/net/", "/run/media/")) or "/gvfs/" in p
+
+
+def _stapel_fuer(path) -> int:
+    return STAPEL_FERN if ist_fern(path) else STAPEL
+
+
+def _tags_stapel(pfade: list) -> tuple:
+    """Kernwerte und alle Tags für einen Stapel — beides in einem Zug.
+    Wirft ExifToolTimeout, wenn der Daemon hängt."""
+    meta = cexif.read_meta_viele(pfade)
+    tags_alle = cexif.read_alle_tags_viele(pfade)
+    return meta, tags_alle
+
+
+def _tags_lesen_geteilt(pfade: list, teilung=STAPEL_TEILUNG) -> tuple:
+    """Einen Stapel lesen; hängt exiftool, den Stapel zerlegen (60 → 10 → 1).
+
+    Rückgabe: (meta, tags_alle, haenger) — `haenger` sind die Einzeldateien,
+    bei denen exiftool auch allein nicht antwortete. Nur die bekommen später den
+    Fehlerstempel. Vorher (bis 14.09.2026) galt nach einem Hänger der ganze
+    Stapel als „keine Aufnahmedaten lesbar" und kam nie wieder dran.
+    """
+    try:
+        meta, tags_alle = _tags_stapel(pfade)
+        return meta, tags_alle, []
+    except cexif.ExifToolTimeout as e:
+        if not teilung:
+            log.warning("fotos: exiftool-Hänger bei Einzeldatei %s (%s)", pfade[0], e)
+            return {}, {}, list(pfade)
+        groesse = teilung[0]
+        log.warning("fotos: exiftool-Hänger bei Stapel von %d Dateien — "
+                    "lese in Teilen zu %d (%s)", len(pfade), groesse, e)
+    meta, tags_alle, haenger = {}, {}, []
+    for i in range(0, len(pfade), groesse):
+        m, t, h = _tags_lesen_geteilt(pfade[i:i + groesse], teilung[1:])
+        meta.update(m)
+        tags_alle.update(t)
+        haenger += h
+        if len(haenger) >= HAENGER_MAX:
+            # exiftool antwortet auf nichts mehr (Laufwerk weg? Daemon kaputt?):
+            # den Rest nicht Datei für Datei abwarten, sondern vertagen.
+            break
+    return meta, tags_alle, haenger
+
+
 # ── Durchgang 1: die Dateiliste ─────────────────────────────────────────────
 
 def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
@@ -410,20 +500,65 @@ def _offene(conn: sqlite3.Connection, grenze: Optional[int] = None) -> list:
     return conn.execute(sql).fetchall()
 
 
+SELBSTHEIL_SCHLUESSEL = "fotos_selbstheil_2026_09_14"
+FEHLTEXT_KEINE_DATEN = "keine Aufnahmedaten lesbar"
+
+
+def selbstheilung_haenger(conn: sqlite3.Connection) -> int:
+    """Einmal je Bibliothek: die Opfer des Hänger-Fehlers wieder freigeben.
+
+    Bis 14.09.2026 stempelte ein exiftool-Hänger den ganzen 60er-Stapel als
+    „keine Aufnahmedaten lesbar" ab — in Marcs Bibliothek liegen genau 60
+    solche Zeilen. Wer diesen Text trägt und keine Aufnahmezeit hat, bekommt
+    `indexed_at` und `error` zurückgesetzt und wird im nächsten Durchgang neu
+    gelesen. Ob es lief, merkt sich die meta-Tabelle; Rückgabe: Anzahl.
+    """
+    try:
+        r = conn.execute("SELECT value FROM meta WHERE key = ?",
+                         (SELBSTHEIL_SCHLUESSEL,)).fetchone()
+    except sqlite3.OperationalError:
+        return 0
+    if r is not None:
+        return 0
+    cur = geduldig(conn.execute,
+                   "UPDATE fotos SET indexed_at = NULL, error = NULL "
+                   "WHERE error = ? AND aufnahme_utc IS NULL",
+                   (FEHLTEXT_KEINE_DATEN,))
+    n = int(cur.rowcount or 0) if cur is not None else 0
+    geduldig(conn.execute, "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+             (SELBSTHEIL_SCHLUESSEL, f"{_jetzt()} n={n}"))
+    geduldig(conn.commit)
+    if n:
+        log.info("fotos: Selbstheilung — %d Dateien mit '%s' werden neu gelesen",
+                 n, FEHLTEXT_KEINE_DATEN)
+    return n
+
+
 def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                stop: Optional[Callable] = None, grenze: Optional[int] = None,
                mit_thumbs: bool = True) -> dict:
     """Aufnahmedaten (alle Tags) und Vorschaubilder für alles Ungelesene."""
+    selbstheilung_haenger(conn)
     offen = _offene(conn, grenze)
     gesamt = len(offen)
-    fertig = fehler = fern = 0
+    fertig = fehler = fern = haenger_n = 0
+    if fortschritt and gesamt:
+        # Die Gesamtzahl sofort melden: der erste Stapel braucht mit Daemon-
+        # Start gut zwei Sekunden, und so lange stand in der Kopfzeile nur
+        # „Aufnahmedaten lesen 0" statt „0 / 600".
+        fortschritt(0, gesamt)
 
-    for i in range(0, gesamt, STAPEL):
+    i = 0
+    while i < gesamt:
         if stop and stop():
             conn.commit()
             return {"abbruch": True, "fertig": fertig, "gesamt": gesamt,
-                    "fehler": fehler, "fern": fern}
-        teil = offen[i:i + STAPEL]
+                    "fehler": fehler, "fern": fern, "haenger": haenger_n}
+        # Auf einem Netzlaufwerk kleinere Stapel und ein Faden fürs Vorschaubild.
+        fern_hier = ist_fern(offen[i]["path"])
+        stapel = STAPEL_FERN if fern_hier else STAPEL
+        teil = offen[i:i + stapel]
+        i += stapel
         # Nicht erreichbare Dateien werden ÜBERSPRUNGEN, nicht als fehlerhaft
         # abgestempelt: sonst gilt ein Foto auf dem abgeschalteten NAS für immer
         # als „keine Aufnahmedaten lesbar" und wird nie wieder angefasst.
@@ -440,8 +575,28 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         groessen = {x["path"]: (x["size"] or 0) for x in conn.execute(
             "SELECT path, size FROM fotos WHERE path IN (%s)"
             % ",".join("?" for _ in pfade), pfade).fetchall()}
-        meta = cexif.read_meta_viele(pfade)
-        tags_alle = cexif.read_alle_tags_viele(pfade)
+        meta, tags_alle, haenger = _tags_lesen_geteilt(pfade)
+        if haenger:
+            haenger_n += len(haenger)
+            if haenger_n >= HAENGER_MAX:
+                # exiftool hat mehrfach auch bei Einzeldateien nicht geantwortet:
+                # das ist nicht die Datei, sondern der Daemon oder das Laufwerk.
+                # Dann werden auch die hängenden Dateien und alles noch nicht
+                # Gelesene VERTAGT wie ferne Dateien (indexed_at bleibt leer,
+                # kein Fehltext) — der nächste Lauf versucht es erneut.
+                gelesen = set(meta) | set(tags_alle)
+                vertagt = [p for p in pfade if p not in gelesen or p in haenger]
+                fern += len(vertagt)
+                teil = [r for r in teil if r["path"] not in vertagt]
+                pfade = [r["path"] for r in teil]
+                haenger = []
+        haenger = set(haenger)
+
+        # Die Wiedererkennungs-Kennung liest 128 KB je Datei — auf dem NAS ist
+        # das der langsamste Teil des Stapels. Deshalb VOR der Schreib-
+        # transaktion, nicht mittendrin: solange die offen ist, wartet die
+        # Oberfläche auf jeden eigenen Schreibzugriff (14.09.2026).
+        kennungen = {p: inhalt_id(Path(p), int(groessen.get(p) or 0)) for p in pfade}
 
         for r in teil:
             p = r["path"]
@@ -449,8 +604,11 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             m = meta.get(p) or {}
             tags = tags_alle.get(p) or {}
             fehlt_grund = ""
-            if not m and not tags:
-                fehlt_grund = "keine Aufnahmedaten lesbar"
+            if p in haenger:
+                fehlt_grund = "exiftool antwortet bei dieser Datei nicht (Hänger)"
+                fehler += 1
+            elif not m and not tags:
+                fehlt_grund = FEHLTEXT_KEINE_DATEN
                 fehler += 1
 
             dt = m.get("datetime")
@@ -480,7 +638,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 "belichtung = ?, breite = ?, hoehe = ?, dauer_s = ?, ort = ?, region = ?, "
                 "land = ?, stichworte = ?, tags_blob = ?, tags_n = ?, hay = ?, thumb = ?, "
                 "indexed_at = ?, error = ? WHERE path = ?")
-            werte = (inhalt_id(pfad, int(groessen.get(p) or 0)),
+            werte = (kennungen.get(p, ""),
                  utc, tz_min, 1 if tz_min is not None else 0, tag_lokal, jahr,
                  m.get("lat"), m.get("lon"), m.get("alt"),
                  kamera, _wert(tags, "LensModel", "LensID", "Lens", "LensInfo"),
@@ -501,9 +659,17 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         # am 12.09.2026 gingen von 590 ms je Datei über 500 ms für das Bild weg
         # (große TIFFs, Videos). Darum vier Fäden parallel — sie warten ohnehin
         # meist auf Platte und Decoder.
+        # Und NUR für Fotos: ein Video-Vorschaubild kostet bis zu drei
+        # Werkzeuge nacheinander (qlmanage 15 s, exiftool, zweimal ffmpeg 20 s)
+        # und bremste den Massenlauf aus. Videos bekommen ihr Bild beim ersten
+        # Ansehen über `fotos_thumbs` (Oberfläche holt fehlende nach). Dateien,
+        # bei denen exiftool hing, werden nicht auch noch fürs Bild angefasst.
         if mit_thumbs:
-            with ThreadPoolExecutor(max_workers=THUMB_FAEDEN) as pool:
-                for pfad_ok, ok in pool.map(_thumb_versuch, pfade):
+            fuer_thumb = [r["path"] for r in teil
+                          if r["art"] == ART_FOTO and r["path"] not in haenger]
+            faeden = THUMB_FAEDEN_FERN if fern_hier else THUMB_FAEDEN
+            with ThreadPoolExecutor(max_workers=faeden) as pool:
+                for pfad_ok, ok in pool.map(_thumb_versuch, fuer_thumb):
                     if ok:
                         geduldig(conn.execute,
                                  "UPDATE fotos SET thumb = 1 WHERE path = ?", (pfad_ok,))
@@ -512,9 +678,18 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         if fortschritt:
             fortschritt(fertig, gesamt)
 
+        if haenger_n >= HAENGER_MAX:
+            # Dauerhaft kein exiftool mehr: Lauf beenden, der Rest bleibt
+            # ungelesen und kommt beim nächsten Lauf wieder dran.
+            fern += gesamt - i if i < gesamt else 0
+            log.warning("fotos: exiftool antwortet dauerhaft nicht (%d Einzeldateien) — "
+                        "Lauf beendet, %d Dateien beim nächsten Lauf dran", haenger_n, fern)
+            break
+
     if fern:
         log.info("fotos: %d Dateien gerade nicht erreichbar — beim nächsten Lauf dran", fern)
-    return {"fertig": fertig, "gesamt": gesamt, "fehler": fehler, "fern": fern}
+    return {"fertig": fertig, "gesamt": gesamt, "fehler": fehler, "fern": fern,
+            "haenger": haenger_n}
 
 
 def fps_lesen(conn: sqlite3.Connection, pfade: list) -> dict:

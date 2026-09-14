@@ -1091,7 +1091,14 @@ function mountGeotagger(body, headerActions) {
     _gtUpdateSnapAvail();             // v0.9.166 — Snap-Toggle aktivieren (Track da)
     setLabel("gt-gpx-path", path.split("/").slice(-1)[0]);
     // v0.8.0: Session aktivieren — gleiche Settings wie in Animator/Tour-Map
-    if (typeof sessionActivate === "function" && res.coords) {
+    // 14.09.2026 (Echt-Test): NICHT, wenn die Sitzung schon steht — die globale
+    // Leiste hat sie beim Laden aktiviert. Bei einer Reise (Kontext „menge:…“)
+    // schaltete der Geotagger hier auf die Einzeltour um; der Animator fand danach
+    // die 15 Touren nicht mehr und legte ein neues Projekt für die erste an.
+    const sitz = (typeof getActiveSession === "function") ? getActiveSession() : null;
+    const schonAktiv = !!(sitz && (/^menge:/.test(String(sitz.track_hash || ""))
+      || (typeof getGlobalGpxPath === "function" && getGlobalGpxPath() === path)));
+    if (typeof sessionActivate === "function" && res.coords && !schonAktiv) {
       try {
         await sessionActivate(res.coords, path);
         if (typeof rebindAllSettings === "function") rebindAllSettings();

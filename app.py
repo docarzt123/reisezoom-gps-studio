@@ -3031,13 +3031,18 @@ class Api:
             "WHERE geo_hash != '' AND error = '' AND COALESCE(missing_since,'') = ''"
         ).fetchall()
         offen = []
+        # 14.09.2026 — je Version nur EIN Auftrag: zwei Archivzeilen mit demselben
+        # geo_hash (dieselbe Datei zweimal im Bestand) ließen zwei Threads dieselbe
+        # Version schreiben.
+        vergeben = set()
         for r in zeilen:
             gh = r["geo_hash"]
-            if cbib.version_datei(BIB, gh).is_file():
+            if gh in vergeben or cbib.version_datei(BIB, gh).is_file():
                 continue
             quelle = Path(r["path"])
             if quelle.is_file():
                 offen.append((quelle, gh))
+                vergeben.add(gh)
 
         def _kopieren(auftrag):
             quelle, gh = auftrag
@@ -4041,20 +4046,41 @@ class Api:
             ziel = APP_SUPPORT / "import"
             ziel.mkdir(parents=True, exist_ok=True)
             kopiert, uebersprungen, pfade = [], 0, []
+
+            def _inhalt(pf: Path) -> str:
+                h = hashlib.sha256()
+                with open(pf, "rb") as f:
+                    for block in iter(lambda: f.read(1024 * 256), b""):
+                        h.update(block)
+                return h.hexdigest()
+
             for roh in paths:
                 src = Path(str(roh))
                 if not src.is_file() or src.suffix.lower() not in exts:
                     uebersprungen += 1
                     continue
+                # 14.09.2026 — Gleichheit am INHALT festmachen, nicht an Name + Größe:
+                # zwei verschiedene Exporte mit gleichem Namen und zufällig gleicher
+                # Bytezahl wurden sonst still übersprungen und fehlten in `pfade`.
+                # Dieselbe Datei (gleicher Inhalt) → nicht noch einmal kopieren, aber
+                # ihren Pfad melden, damit die Oberfläche die vorhandene Tour zeigt;
+                # gleicher Name, anderer Inhalt → freien Namen suchen.
+                src_groesse, src_hash = src.stat().st_size, None
                 d = ziel / src.name
                 n = 1
-                # Gleicher Name + gleiche Größe = schon importiert → überspringen;
-                # gleicher Name, andere Datei → freien Namen suchen.
-                while d.exists() and d.stat().st_size != src.stat().st_size:
+                schon_da = None
+                while d.exists():
+                    if d.stat().st_size == src_groesse:
+                        if src_hash is None:
+                            src_hash = _inhalt(src)
+                        if _inhalt(d) == src_hash:
+                            schon_da = d
+                            break
                     d = ziel / f"{src.stem}-{n}{src.suffix}"
                     n += 1
-                if d.exists():
+                if schon_da is not None:
                     uebersprungen += 1
+                    pfade.append(str(schon_da))
                     continue
                 shutil.copy2(src, d)
                 kopiert.append(d.name)
@@ -10265,8 +10291,10 @@ class Api:
                         "error": _ui_t()("logbuch.nicht_im_archiv",
                                          "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")}
             pts = self._logbuch_punkte(path)
+            # Über ALLE Punkte, stoppt beim ersten Treffer — Etappen ohne Zeit am Anfang
+            # (nachgezeichnete Stücke) machten sonst aus einer Tour „ohne Zeitstempel" (14.09.2026).
             if not any(clb._epoch(p.get("time") if isinstance(p, dict) else getattr(p, "time", None)) is not None
-                       for p in pts[:200]):
+                       for p in pts):
                 return {"ok": False, "grund": "ohne_zeit",
                         "error": _ui_t()("logbuch.ohne_zeit", "Der Track hat keine Zeitstempel — ohne Uhrzeit gibt es kein Logbuch.")}
             wegpunkte = []
@@ -10284,8 +10312,11 @@ class Api:
                     e = ceint.eine(conn, eid)
                     # Eine Bewegung ohne Punkt-Einträge stammt von vor dem Logbuch
                     # (v0.9.702) — einmal nachrechnen, Handarbeit bleibt.
+                    # Ein Grabstein („weg") zählt mit: Wer alle automatischen Punkte gelöscht
+                    # hat, bekam sie sonst bei jedem Öffnen neu berechnet (14.09.2026).
                     veraltet = (art == "bewegung" and e is not None
-                                and not any(b.get("art") in clb.PUNKT_ARTEN for b in e["bereiche"]))
+                                and not any(b.get("art") in clb.PUNKT_ARTEN or b.get("art") == "weg"
+                                            for b in e["bereiche"]))
                     if neu or e is None or veraltet:
                         e = ceint.neu_berechnen(conn, tour, art, pts, aktivitaet=aktivitaet or None,
                                                 wegpunkte=wegpunkte)

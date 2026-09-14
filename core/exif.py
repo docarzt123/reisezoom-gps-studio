@@ -95,6 +95,18 @@ class ExifToolTimeout(RuntimeError):
 _DAEMON_READ_TIMEOUT = 90.0
 _DAEMON_WRITE_TIMEOUT = 60.0
 
+# 14.09.2026 — Stapel-Aufrufe (Foto-Bestand, 60 Dateien je Aufruf) bekommen ein
+# Zeitbudget, das mit der Stapelgröße wächst: auf einem NAS im WLAN reichten
+# pauschale 90 s für 60 Dateien mal zwei Durchläufe nicht, und ein einziger
+# Hänger stempelte dann den ganzen Stapel als „keine Aufnahmedaten lesbar" ab.
+_STAPEL_TIMEOUT_GRUND = 15.0     # Sockel je Aufruf (Daemon-Umlauf, Perl-Start)
+_STAPEL_TIMEOUT_JE_DATEI = 2.0   # je Datei obendrauf (WLAN-NAS: ~1 s je RAW)
+
+
+def stapel_timeout(n: int) -> float:
+    """Zeitbudget für einen exiftool-Aufruf über `n` Dateien."""
+    return _STAPEL_TIMEOUT_GRUND + _STAPEL_TIMEOUT_JE_DATEI * max(1, int(n))
+
 
 def is_raw(path: str) -> bool:
     return os.path.splitext(path)[1].lower() in RAW_EXTS
@@ -381,6 +393,7 @@ class _ExifToolDaemon:
         self._buf = bytearray()
         self._buf_cond = _threading.Condition()
         self._eof = False
+        self._antwort_kopf_saeubern = False   # 14.09.2026, siehe _read_until
         self._reader = _threading.Thread(
             target=self._reader_lauf, daemon=True,
             name=f"exiftool-reader-{self._proc.pid}")
@@ -403,6 +416,11 @@ class _ExifToolDaemon:
                     self._eof = True
                     self._buf_cond.notify_all()
                     return
+                if self._antwort_kopf_saeubern and not self._buf:
+                    # Rest des Zeilenumbruchs hinter dem letzten Marker.
+                    chunk = chunk.lstrip(b"\r\n")
+                    if chunk:
+                        self._antwort_kopf_saeubern = False
                 self._buf += chunk
                 self._buf_cond.notify_all()
 
@@ -422,6 +440,17 @@ class _ExifToolDaemon:
             _kill_proc_group(self._proc)
         except Exception:
             pass
+        # 14.09.2026 — Die Pipes des toten Prozesses schließen, sonst bleiben
+        # zwei Dateideskriptoren je Hänger offen (und ein Aufrufer, der die
+        # alte Instanz noch hält, schreibt in eine halboffene Pipe statt in
+        # einen sauberen BrokenPipe → sofortiger ExifToolTimeout).
+        for name in ("stdin", "stdout"):
+            try:
+                fh = getattr(self._proc, name, None)
+                if fh is not None and not fh.closed:
+                    fh.close()
+            except Exception:
+                pass
         try:
             with _ExifToolDaemon._instance_lock:
                 if self._role and _ExifToolDaemon._instances.get(self._role) is self:
@@ -438,12 +467,29 @@ class _ExifToolDaemon:
         sind nur der Zeilenumbruch der aktuellen Antwort, wie früher auch)."""
         deadline = time.monotonic() + timeout
         with self._buf_cond:
+            # 14.09.2026 — Suche merkt sich, wie weit sie schon war: bei einer
+            # 60-Dateien-`-All`-Antwort (mehrere MB) wurde sonst der ganze
+            # Puffer bei JEDEM 64-KB-Häppchen erneut durchsucht (quadratisch).
+            such_ab = 0
             while True:
-                idx = self._buf.find(marker)
+                start = max(0, such_ab - len(marker) + 1)
+                idx = self._buf.find(marker, start)
                 if idx >= 0:
                     out = bytes(self._buf[:idx])
-                    self._buf.clear()
+                    # Bis HINTER den Marker löschen, nicht nur bis davor: sonst
+                    # blieb „{ready<N>}\n" als Kopf der nächsten Antwort stehen —
+                    # bei `-b PreviewImage` lehnte PIL das Bild dann ab. Der
+                    # Zeilenumbruch nach dem Marker kommt gern erst im nächsten
+                    # Häppchen; deshalb schneidet auch der Anfang der nächsten
+                    # Antwort führende \r\n weg (Lese-Thread, _antwort_kopf_saeubern).
+                    del self._buf[:idx + len(marker)]
+                    while self._buf and self._buf[:1] in (b"\r", b"\n"):
+                        del self._buf[:1]
+                    # Liegt schon echter Inhalt der nächsten Antwort da, ist der
+                    # Zeilenumbruch vollständig weg — nichts mehr zu säubern.
+                    self._antwort_kopf_saeubern = not self._buf
                     return out
+                such_ab = len(self._buf)
                 if self._eof:
                     # Prozess weg, Marker kommt nie mehr. Als Hänger behandeln,
                     # damit der nächste Call einen frischen Daemon bekommt.
@@ -525,11 +571,15 @@ class _ExifToolDaemon:
         if numeric:
             args.append("-n")
         args += [str(x) for x in paths]
+        # 14.09.2026 — Ein Hänger (ExifToolTimeout) fliegt DURCH: der Aufrufer
+        # muss unterscheiden können zwischen „Datei hat keine Daten" und „der
+        # Daemon ist gestorben". Vorher kam beides als [] zurück, und der Foto-
+        # Scan stempelte 60 Dateien als „keine Aufnahmedaten lesbar" ab.
+        out = self._send_and_read_text(args, timeout=stapel_timeout(len(paths)))
         try:
-            out = self._send_and_read_text(args)
             data = json.loads(out or "[]")
             return data if isinstance(data, list) else []
-        except Exception:
+        except (TypeError, ValueError):
             return []
 
     def read_binary_tag(self, path: str, tag: str) -> Optional[bytes]:
@@ -982,8 +1032,12 @@ def read_meta_viele(paths: list[str]) -> dict:
     raus: dict = {}
     if not paths:
         return raus
+    # Hänger des Daemons (ExifToolTimeout) fliegen durch — der Foto-Scan vertagt
+    # den Stapel dann, statt ihn als fehlerhaft abzustempeln (14.09.2026).
     try:
         saetze = _ensure_daemon().read_tags_json_viele(list(paths), _META_TAGS_VIELE, numeric=True)
+    except ExifToolTimeout:
+        raise
     except Exception:
         return raus
     for info in saetze:
@@ -1004,6 +1058,8 @@ def read_alle_tags_viele(paths: list[str]) -> dict:
         return raus
     try:
         saetze = _ensure_daemon().read_tags_json_viele(list(paths), ["All"], numeric=False)
+    except ExifToolTimeout:
+        raise
     except Exception:
         return raus
     for info in saetze:
@@ -1471,11 +1527,15 @@ def extract_video_thumbnail(path: str) -> Optional[bytes]:
 def extract_raw_preview(path: str) -> Optional[bytes]:
     """Extrahiert das eingebettete Preview-JPEG aus einer RAW-Datei.
     Versucht in dieser Reihenfolge: PreviewImage, JpgFromRaw, ThumbnailImage."""
-    try:
-        daemon = _ensure_daemon()
-    except ExifToolMissingError:
-        return None
     for tag in ("PreviewImage", "JpgFromRaw", "ThumbnailImage"):
+        # 14.09.2026 — Daemon je Aufruf holen, nicht einmal vor der Schleife:
+        # nach einem Hänger beim ersten Tag ist der Prozess gekillt, und die
+        # nächsten Tags liefen sonst in die tote Pipe (BrokenPipe, dazu ein
+        # irreführendes zweites „HÄNGER (>0s)" im Log).
+        try:
+            daemon = _ensure_daemon()
+        except ExifToolMissingError:
+            return None
         data = daemon.read_binary_tag(path, tag)
         if data and len(data) > 1000:
             return data
