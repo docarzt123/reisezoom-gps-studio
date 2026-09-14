@@ -2897,6 +2897,9 @@ window.createUndoController = function(opts) {
     redoStack = [];
     lastSnapAt = now;
   }
+  function _gleicherStand(a, b) {
+    try { return JSON.stringify(a) === JSON.stringify(b); } catch (_) { return false; }
+  }
   function _runApply(state) {
     if (!opts.apply) return;
     isApplying = true;
@@ -2918,7 +2921,15 @@ window.createUndoController = function(opts) {
       return false;
     }
     const current = opts.snapshot ? opts.snapshot() : null;
-    const prev = undoStack.pop();
+    // 14.09.2026 (Nachttest, Daten-Animator) — Einträge, die dem JETZIGEN Stand gleichen, überspringen:
+    // löst eine Änderung zwei Pushes aus (Vorher + ein Nach-Push durch nachgezogene Felder), lag oben
+    // der schon geänderte Stand — das erste ⌘Z tat sichtbar nichts.
+    let prev = undoStack.pop();
+    while (prev && current != null && undoStack.length && _gleicherStand(prev.state, current)) prev = undoStack.pop();
+    if (current != null && _gleicherStand(prev.state, current)) {
+      if (opts.toast) opts.toast(t("undo.nothing_undo", "Nichts zum Rückgängig"));
+      return false;
+    }
     if (current != null) redoStack.push({ label: prev.label, state: current });
     _runApply(prev.state);
     if (opts.toast) opts.toast("↶ " + (prev.label || t("undo.undo", "Rückgängig")));
@@ -2930,7 +2941,8 @@ window.createUndoController = function(opts) {
       return false;
     }
     const current = opts.snapshot ? opts.snapshot() : null;
-    const next = redoStack.pop();
+    let next = redoStack.pop();
+    while (next && current != null && redoStack.length && _gleicherStand(next.state, current)) next = redoStack.pop();
     if (current != null) undoStack.push({ label: next.label, state: current });
     _runApply(next.state);
     if (opts.toast) opts.toast("↷ " + (next.label || t("undo.redo", "Wiederherstellen")));

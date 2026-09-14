@@ -1359,6 +1359,20 @@ function mountAnimator(body, headerActions, opts) {
     </section>
   `;
 
+  // 14.09.2026 (Nachttest) — „Bild/Video fertig" schließt auch mit Esc (vorher nur per Knopf).
+  // Einmal global und immer gegen das AKTUELLE DOM — kein Handle eines alten Mounts.
+  if (!window.__rzAnimDoneEscDa) {
+    window.__rzAnimDoneEscDa = true;
+    // Capture-Phase am window: andere Esc-Handler (Zeitleiste, Schilder) stoppen das Ereignis sonst vorher.
+    window.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const d = document.getElementById("anim-done");
+      if (!d || d.classList.contains("hidden") || d.getClientRects().length === 0) return;   // fixed-Overlay: offsetParent ist immer null
+      const b = document.getElementById("anim-new");
+      if (b) { e.preventDefault(); b.click(); }
+    }, true);
+  }
+
   // Live-Labels für Slider
   const updateLabel = (id, val, suffix) => {
     const lbl = document.getElementById(id);
