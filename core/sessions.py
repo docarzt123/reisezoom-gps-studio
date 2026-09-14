@@ -105,16 +105,37 @@ def compute_track_hash(coords: Iterable, name: str = "") -> str:
     `coords` ist eine Iterable von (lon, lat) oder [lon, lat] Paaren.
     Returns einen 16-Zeichen-Hex-String.
     """
-    h = hashlib.sha1()
-    if name:
-        h.update(f"name:{name}\x00".encode("utf-8", "replace"))
+    return compute_track_hashes(coords, name)[0 if name else 1]
+
+
+def _coord_bytes(coords: Iterable) -> bytes:
+    teile = []
     for c in coords:
         try:
             lon, lat = float(c[0]), float(c[1])
         except (TypeError, ValueError, IndexError):
             continue
-        h.update(f"{round(lon, 5)},{round(lat, 5)};".encode())
-    return h.hexdigest()[:16]
+        teile.append(f"{round(lon, 5)},{round(lat, 5)};")
+    return "".join(teile).encode()
+
+
+def compute_track_hashes(coords: Iterable, name: str = "") -> tuple:
+    """(Hash mit Name, Hash ohne Name) in EINEM Durchlauf über die Koordinaten.
+
+    14.09.2026 (Nacht-Review): Das Archiv braucht beim Einlesen beide
+    (`track_hash`, `geo_hash`) und rechnete die Koordinaten dafür zweimal auf —
+    bei 150 000 Punkten 0,55 s. SHA-1 über denselben Bytestrom in einem Stück
+    ergibt bitgleich dieselben Werte wie punktweise `update`.
+    Ohne `name` sind beide Werte gleich.
+    """
+    daten = _coord_bytes(coords)
+    ohne = hashlib.sha1(daten).hexdigest()[:16]
+    if not name:
+        return ohne, ohne
+    h = hashlib.sha1()
+    h.update(f"name:{name}\x00".encode("utf-8", "replace"))
+    h.update(daten)
+    return h.hexdigest()[:16], ohne
 
 
 def mengen_hash(geo_hashes) -> str:
