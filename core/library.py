@@ -1108,13 +1108,15 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     name = (stats.name or path.stem).strip()
     _rec, _rec_src = _recorded_guess(pts, stats, name)
 
+    _hashes = csessions.compute_track_hashes(coords, name=path.name)
     row.update({
         # geo_hash ist die kanonische Identität (v0.9.529): Sessions und
         # Cloud-Umschläge hängen an genau diesem Hash. track_hash (mit Name)
         # ist eine Altspalte — siehe Modul-Docstring; NICHT als Session-
         # Brücke verwenden.
-        "track_hash": csessions.compute_track_hash(coords, name=path.name),
-        "geo_hash": csessions.compute_track_hash(coords),
+        # beide Hashes in einem Durchlauf (14.09.2026), Werte unverändert
+        "track_hash": _hashes[0],
+        "geo_hash": _hashes[1],
         "name": name,
         "started_at": times[0] if times else "",
         "ended_at": times[-1] if times else "",
