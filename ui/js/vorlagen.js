@@ -149,7 +149,7 @@
     });
   }
 
-  const MODUL_SEKTION = { animator: "animator", tourmap: "tourmap", heightanim: "heightanim", geotagger: "geotagger" };
+  const MODUL_SEKTION = { animator: "animator", tourmap: "tourmap", heightanim: "heightanim", geotagger: "geotagger", webkarte: "webkarte" };
 
   /** Vorlagen-Leiste oben in der Seitenleiste eines Gestaltungs-Moduls (Marc,
    *  11.09.2026: „Vorlagen müssen für alle module gelten wo man grafisch was
@@ -196,7 +196,7 @@
     const sec = MODUL_SEKTION[mod];
     const ctrl = mod && window.__rzUndoControllers && window.__rzUndoControllers[mod];
     const label = tt("vorlagen.undo_label", "Vorlage angewendet");
-    if (sec && nachher[sec] && ctrl && typeof ctrl.applyState === "function" && (mod === "animator" || mod === "tourmap")) {
+    if (sec && nachher[sec] && ctrl && typeof ctrl.applyState === "function" && (mod === "animator" || mod === "tourmap" || mod === "webkarte")) {
       // Der Stand DAVOR muss den Sektions-Block sein, wie ihn das Modul kennt.
       ctrl.applyState(nachher[sec], label, vorher[sec] || null);
     } else {

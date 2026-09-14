@@ -3965,5 +3965,11 @@
   "warte.export_current.text": "Der Track wird umgewandelt und gespeichert",
   "library.trash_laeuft_titel": "Touren werden entfernt",
   "library.trash_laeuft_text": "Dateien wandern in den Papierkorb, das Archiv wird aktualisiert",
-  "library.trash_projekte_text": "Touren und ihre Projekte werden gelöscht"
+  "library.trash_projekte_text": "Touren und ihre Projekte werden gelöscht",
+  "library.proj_tour_fehlt": "Die Tour-Datei dieses Projekts wurde nicht gefunden.",
+  "webkarte.undo_label": "Web-Karte",
+  "reiseroute.erst_route": "Erst Start und Ziel unter „Route / Anreise“ festlegen — dann läuft die Vorschau.",
+  "anim.erst_track": "Erst einen Track laden — dann läuft die Vorschau.",
+  "warte.modul_neuaufbau.titel": "Ansicht wird neu aufgebaut",
+  "warte.modul_neuaufbau.text": "Die Karte wird mit den neuen Einstellungen geladen …"
 }

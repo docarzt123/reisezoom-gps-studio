@@ -3965,5 +3965,11 @@
   "warte.export_current.text": "Se convierte y guarda el track",
   "library.trash_laeuft_titel": "Quitando rutas",
   "library.trash_laeuft_text": "Los archivos van a la papelera y se actualiza el archivo",
-  "library.trash_projekte_text": "Se eliminan las rutas y sus proyectos"
+  "library.trash_projekte_text": "Se eliminan las rutas y sus proyectos",
+  "library.proj_tour_fehlt": "No se encontró el archivo de ruta de este proyecto.",
+  "webkarte.undo_label": "Mapa web",
+  "reiseroute.erst_route": "Primero define inicio y destino en «Ruta / Viaje»; luego se reproduce la vista previa.",
+  "anim.erst_track": "Primero carga un track; luego se reproduce la vista previa.",
+  "warte.modul_neuaufbau.titel": "Reconstruyendo la vista",
+  "warte.modul_neuaufbau.text": "Cargando el mapa con los nuevos ajustes …"
 }

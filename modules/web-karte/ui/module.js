@@ -41,7 +41,25 @@
     const proj = () => (typeof getActiveProject === "function") ? getActiveProject() : null;
     const wk = () => { const p = proj(); return (p && p[MODKEY]) || {}; };
     const get = (k, d) => { const a = wk(); return (k in a) ? a[k] : d; };
-    const save = (patch) => { if (typeof saveProjectSettings === "function") saveProjectSettings(MODKEY, patch); };
+    // 14.09.2026 (Nachttest) — Undo für alles: die Web-Karte hatte keinen Undo-Controller,
+    // Cmd+Z nach „Beschriftung löschen" tat nichts. Jede Speicherung legt VORHER den ganzen
+    // Web-Karten-Stand auf den Stapel (Tippen/Ziehen per Throttle zu einem Schritt gebündelt).
+    const WK_DEFAULTS = {
+      line_color: "#ff6b35", line_width: 4.5, tile_style: "osm", labels: [], tracks: [],
+      consent_enabled: false, consent_text: "", consent_button: "", consent_preview: true,
+      leaflet_mode: "cdn", leaflet_url: "", attribution_enabled: true, show_scale: true, show_north: true,
+    };
+    const wkSnapshot = () => {
+      const a = wk(), out = {};
+      for (const k of Object.keys(WK_DEFAULTS)) out[k] = JSON.parse(JSON.stringify((k in a) ? a[k] : WK_DEFAULTS[k]));
+      return out;
+    };
+    let _wkUndo = null;
+    // stetig = Tippen/Farbe/Regler/Ziehen → ein Schritt je Geste; alles andere (Löschen, Stil, Haken) eigener Schritt.
+    const save = (patch, stetig) => {
+      try { if (_wkUndo && !window.__rzUndoApplying) _wkUndo.push(T("webkarte.undo_label", "Web-Karte"), { force: !stetig }); } catch (_) {}
+      if (typeof saveProjectSettings === "function") saveProjectSettings(MODKEY, patch);
+    };
 
     const lineColor0 = get("line_color", "#ff6b35");
     const lineWidth0 = get("line_width", 4.5);
@@ -205,8 +223,8 @@
     }
     function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
-    function persistLabels() {
-      save({ labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })) });
+    function persistLabels(stetig) {
+      save({ labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })) }, stetig);
     }
 
     // Kontrastfarbe (weiß/dunkel) je nach Pill-Hintergrund, damit Text lesbar bleibt.
@@ -323,8 +341,8 @@
     }
 
     // ── §17: weitere Tracks (Liste, analog zur Beschriftungs-Liste) ───────────
-    function persistTracks() {
-      save({ tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) });
+    function persistTracks(stetig) {
+      save({ tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) }, stetig);
     }
     function renderTrackList() {
       const box = el("wk-track-list"); if (!box) return;
@@ -611,8 +629,8 @@
     })();
 
     // ── Listener ───────────────────────────────────────────────────────────
-    el("wk-color")?.addEventListener("input", () => { save({ line_color: el("wk-color").value }); drawTrack(); });
-    el("wk-width")?.addEventListener("input", () => { el("wk-width-val").textContent = el("wk-width").value; save({ line_width: parseFloat(el("wk-width").value) }); drawTrack(); });
+    el("wk-color")?.addEventListener("input", () => { save({ line_color: el("wk-color").value }, true); drawTrack(); });
+    el("wk-width")?.addEventListener("input", () => { el("wk-width-val").textContent = el("wk-width").value; save({ line_width: parseFloat(el("wk-width").value) }, true); drawTrack(); });
     el("wk-tile")?.addEventListener("change", () => {
       const v = el("wk-tile").value; save({ tile_style: v });
       if (map && tileLayer) { try { map.removeLayer(tileLayer); } catch (_) {} tileLayer = tileFor(v).addTo(map); }
@@ -631,8 +649,8 @@
       const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
       box.addEventListener("input", (e) => {
         const i = idxOf(e); if (!(i >= 0) || !labels[i]) return;
-        if (e.target.classList.contains("wk-lbl-text")) { labels[i].text = e.target.value; updateTip(i); persistLabels(); }
-        else if (e.target.classList.contains("wk-lbl-color")) { labels[i].color = e.target.value; updateTip(i); persistLabels(); }
+        if (e.target.classList.contains("wk-lbl-text")) { labels[i].text = e.target.value; updateTip(i); persistLabels(true); }
+        else if (e.target.classList.contains("wk-lbl-color")) { labels[i].color = e.target.value; updateTip(i); persistLabels(true); }
       });
       box.addEventListener("change", (e) => {
         const i = idxOf(e); if (!(i >= 0) || !labels[i]) return;
@@ -652,9 +670,9 @@
       const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
       box.addEventListener("input", (e) => {
         const i = idxOf(e); if (!(i >= 0) || !tracks[i]) return;
-        if (e.target.classList.contains("wk-trk-name")) { tracks[i].name = e.target.value; persistTracks(); }
-        else if (e.target.classList.contains("wk-trk-color")) { tracks[i].color = e.target.value; persistTracks(); drawTrack(); }
-        else if (e.target.classList.contains("wk-trk-width")) { tracks[i].width = parseFloat(e.target.value) || lineWidth0; persistTracks(); drawTrack(); }
+        if (e.target.classList.contains("wk-trk-name")) { tracks[i].name = e.target.value; persistTracks(true); }
+        else if (e.target.classList.contains("wk-trk-color")) { tracks[i].color = e.target.value; persistTracks(true); drawTrack(); }
+        else if (e.target.classList.contains("wk-trk-width")) { tracks[i].width = parseFloat(e.target.value) || lineWidth0; persistTracks(true); drawTrack(); }
       });
       box.addEventListener("change", (e) => {
         const i = idxOf(e); if (!(i >= 0) || !tracks[i]) return;
@@ -694,11 +712,31 @@
       });
     } catch (e) { applog && applog("error", `[webkarte] Sitzungs-Listener: ${e}`); }
     }
+    if (typeof window.createUndoController === "function") {
+      _wkUndo = window.createUndoController({
+        snapshot: wkSnapshot,
+        apply: (st) => {
+          // Fehlende Schlüssel (z. B. Vorlagen-„vorher" ohne Beschriftungen) = Grundwert.
+          const state = Object.assign(JSON.parse(JSON.stringify(WK_DEFAULTS)), st || {});
+          if (typeof saveProjectSettings === "function") saveProjectSettings(MODKEY, state);
+          if (el("wk-scale")) el("wk-scale").checked = state.show_scale !== false;
+          if (el("wk-north")) el("wk-north").checked = state.show_north !== false;
+          if (el("wk-consent-text")) el("wk-consent-text").value = state.consent_text || "";
+          if (el("wk-consent-button")) el("wk-consent-button").value = state.consent_button || "";
+          applyProjectState();
+          try { applyDeco(); } catch (_) {}
+        },
+        toast: (m) => { if (typeof toast === "function") toast(m, "info", 1500); },
+      });
+      window.__rzUndoControllers = window.__rzUndoControllers || {};
+      window.__rzUndoControllers[MODKEY] = _wkUndo;
+    }
     applyProjectState();   // Stand aus dem (evtl. schon aktiven) Projekt sofort anwenden
     loadTrack();
 
     return function () {
       destroyed = true;
+      try { if (window.__rzUndoControllers && window.__rzUndoControllers[MODKEY] === _wkUndo) delete window.__rzUndoControllers[MODKEY]; } catch (_) {}
       try { if (_gpxUnsub) _gpxUnsub(); } catch (_) {}
       try { if (_sessUnsub) _sessUnsub(); } catch (_) {}
       try { if (_ro) _ro.disconnect(); } catch (_) {}

@@ -6716,7 +6716,11 @@ class Api:
                     # ist die Weiche weg: eine Etappenfolge rendert über dieselbe Szene wie alles
                     # andere. Der Schwarm lief ohnehin schon darüber. Rückfall bleibt
                     # RZ_RENDER_KLASSISCH=1 bzw. settings.render_engine = "klassisch".
-                    if _szene_pid and not _klassisch and not _still and not cfg.transparent_background:
+                    # 14.09.2026 (Nachttest): „Aktuellen Frame als Bild" (snapshot_center gesetzt) fiel in den
+                    # Video-Zweig — die Einzelbild-Weiche darunter war unerreichbar, es lief ein ganzes 4K-Video
+                    # in eine .png-Datei. Ein Einzelbild ist nie ein Video.
+                    _einzelbild = getattr(cfg, "snapshot_center", None) is not None
+                    if _szene_pid and not _klassisch and not _still and not _einzelbild and not cfg.transparent_background:
                         from core import szene as cszene
                         loop.run_until_complete(cszene.render_szene(
                             cfg, api=self, projekt_id=str(_szene_pid), params=params, modul=_szene_modul,

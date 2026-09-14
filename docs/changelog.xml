@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 14 Sep 2026 10:26:55 +0000</lastBuildDate>
+<lastBuildDate>Mon, 14 Sep 2026 20:45:39 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.718</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-718</link>
+<guid isPermaLink="false">gps-studio-v0.9.718</guid>
+<pubDate>Mon, 14 Sep 2026 12:00:00 +0000</pubDate>
+<description>Dateischutz — GPS Studio löscht, verschiebt oder überschreibt Dateien nur noch nach doppelter Prüfung, und nur, was ihm selbst gehört. Was gelöscht oder überschrieben wird, landet vorher 14 Tage im eigenen Papierkorb von GPS Studio.
+
+Warten sperrt die Oberfläche — wo du warten musst, erscheint ein Fenster mit dem, was gerade passiert, und nichts anderes lässt sich in der Zeit auslösen. Wichtige Vorgänge wie das Verschieben der Bibliothek können nicht mehr doppelt laufen.
+
+Geotagger — beim Schreiben direkt in die Originalfotos wird immer vorher gesichert; Abbrechen löscht keine Originale mehr.
+
+OpenStreetMap-Karten zeigten in der Web-Karte „Access blocked“ — sie laufen jetzt über den Kachel-Zwischenspeicher von GPS Studio.</description>
+</item>
 <item>
 <title>v0.9.713</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-713</link>
@@ -203,15 +216,6 @@ Schärfe-Regler — Unter „Farbton“ in der Luftbild- und der Karten-Optik: e
 Luftbild-Optik auch auf Sentinel — In der Übersicht eines Schwarms liegt nur die Sentinel-Ebene, die Regler schienen tot. Jetzt wirken sie auch dort, als Abweichung vom Werk. „Beleuchtung (Tageszeit)“ erscheint nur noch bei Mapbox, wo sie etwas tut.
 
 Quellenzeile lesbar und platzierbar — Die Nennung wird in der Vorschau nicht mehr geschrumpft, hat dieselbe relative Größe im Video, folgt der Optik der Stats-Boxen und lässt sich in eine Ecke oder als Leiste über die ganze Breite legen. Sie ist nie abschaltbar.</description>
-</item>
-<item>
-<title>v0.9.661 — Kleine Korrektur zu 0.9.660.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-661</link>
-<guid isPermaLink="false">gps-studio-v0.9.661</guid>
-<pubDate>Mon, 07 Sep 2026 12:00:00 +0000</pubDate>
-<description>Tour-Map für Kompositionen — Schwarm- und Reise-Projekte zeigen in der Tour-Map alle Touren in ihren Farben, der Ausschnitt passt sich allen an.
-
-Über-Dialog — Die Nennungszeile für Routen und Ortssuche hat jetzt englische und spanische Texte.</description>
 </item>
 </channel>
 </rss>

@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- **"Current frame as image" rendered a whole video into the .png** (night test): with the shared scene engine the single-frame request fell into the video branch (4K, all frames). The render switch now sends every single-frame request to `render_szene_frame`; the PNG matches the preview at the playhead. Guard `tests/test_render_weiche_einzelbild.py`. — **„Aktuellen Frame als Bild" renderte ein ganzes Video — jetzt ein Bild.**
+- **⌘Z went to the wrong module in Tour Map and Travel Route**: Animator, Tour Map and Travel Route share one panel, so the undo switch always picked the "animator" controller — left over from the last Animator visit, it silently reverted Animator settings; templates applied in the Tour Map took the same wrong path. The switch now uses the open module, and each map module unregisters its controller when it is closed. Guard `tests/test_undo_routing_modi.py`. — **⌘Z traf in Tour-Map/Reiseroute das falsche Modul.**
+- **Web Map had no undo at all**: adding/deleting labels, tracks, map style and options are now undoable (⌘Z/⇧⌘Z), typing and sliders count as one step per gesture; templates in the Web Map get an undo step too. Guard `tests/test_webkarte_undo.py`. — **Web-Karte: Undo für alles.**
+- **Probe run did nothing without a route** (Travel Route) or without a track: it now says what is missing. — **Probe-Lauf ohne Route: Hinweis statt Stille.**
+- **Changing the map style rebuilt the view for seconds without feedback**: a wait window "Rebuilding view" now covers the remount until the map is ready. — **Kartenstil wechseln: Wartefenster beim Neuaufbau.**
+- **"Loading tours" window could stay open for minutes** when a project load and a view rebuild overlapped: a watchdog closes it after 45 s without progress and logs `[touren-laden] Wachhund`. — **„Touren werden geladen" hing — Wachhund.**
+- **Resuming a solo project whose tour file is missing showed a misleading "composition" message**; it now says the tour file was not found. — **Projekt fortsetzen: richtige Meldung bei fehlender Tour-Datei.**
+- **File protection trash grew with identical backups**: backups of an unchanged file are skipped (content fingerprint) and at most 10 backups per file are kept. — **Dateischutz-Papierkorb: keine doppelten Sicherungen, max. 10 je Datei.**
+
 ## [0.9.718] – 2026-09-14
 
 ### Fixed
