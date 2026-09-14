@@ -41,6 +41,7 @@ STANDARD = {
 }
 HM_SCHWELLE_M = 3.0            # Höhenmeter zählen erst ab 3 m Änderung (GPS-Rauschen)
 
+UNSICHER_RAD_AB_KMH = 7.0   # 14.09.2026 — dauerhaft schneller geht niemand; darüber ist „unsicher“ Rad/Laufen
 PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt", "poi")
 HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause")   # Q12: Art ändern
 BEWEGT = ("gehen", "laufen", "rad", "fahrt", "uebersetzen")
@@ -205,6 +206,7 @@ def _eintrag(b: dict) -> dict:
             "name": b.get("name") or "", "quelle": b.get("quelle") or "auto",
             "anzeige": b.get("anzeige") or "", "t0": float(b["t0"]), "t1": float(b["t1"]),
             "strecke_m": float(b.get("strecke_m") or 0.0), "geraten": False,
+            "dauer_roh": max(0.0, float(b["t1"]) - float(b["t0"])),
             "grenze": bool(b.get("grenze"))}
 
 
@@ -232,6 +234,7 @@ def _verschmelzen(folge: List[dict]) -> List[dict]:
                 and v["quelle"] == e["quelle"] and abs(v["t1"] - e["t0"]) < 1e-6:
             v["t1"] = e["t1"]
             v["strecke_m"] += e["strecke_m"]
+            v["dauer_roh"] = (v.get("dauer_roh") or 0.0) + (e.get("dauer_roh") or 0.0)
             v["bids"] += e["bids"]
             v["geraten"] = v["geraten"] or e["geraten"]
             continue
@@ -295,15 +298,35 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
             m += schritt
         return None
 
+    # 14.09.2026 (Marc, Radtour mit dem Sohn, 7–12 km/h, zwischendurch abgestiegen): „unsicher“
+    # heißt hier fast immer langsames Rad. Dem Gehen-Nachbarn zugeschlagen wurde daraus eine
+    # einzige Wanderung. Jetzt entscheidet das Tempo mit: Gehen geht nicht dauerhaft über
+    # UNSICHER_RAD_AB_KMH — ein solches Stück wird Rad (bzw. Laufen, wenn die Tour ein Lauf ist).
+    lauf_tour = bool(aktivitaet) and any(w in str(aktivitaet).lower() for w in ("lauf", "run", "jog", "trail"))
+
+    def tempo(e):
+        # Bewegtes Tempo VOR dem Aufgehen kurzer Halte (Q5 verlängert t0/t1 und verwässert es)
+        d = e.get("dauer_roh") or (e["t1"] - e["t0"])
+        return (e["strecke_m"] / d * 3.6) if d > 0 else 0.0
+
     for k, e in enumerate(folge):
         if e["art"] != "unsicher":
             continue
         links, rechts = bewegter_nachbar(k, -1), bewegter_nachbar(k, +1)
+        schnell = tempo(e) >= UNSICHER_RAD_AB_KMH
         neu = None
         if links and rechts and links == rechts:
             neu = links
         elif (links and not rechts) or (rechts and not links):
             neu = links or rechts
+        elif links and rechts:                       # verschiedene Nachbarn: das passende Tempo
+            zu_fuss = [x for x in (links, rechts) if x == "gehen"]
+            anders = [x for x in (links, rechts) if x in ("rad", "laufen")]   # Fahrt/Fähre: ehrlich unsicher lassen
+            neu = (anders[0] if anders else None) if schnell else (zu_fuss[0] if zu_fuss else None)
+        if neu == "gehen" and schnell:
+            neu = "laufen" if lauf_tour else "rad"
+        if neu is None and schnell and not links and not rechts and prior != "wassersport":
+            neu = "laufen" if lauf_tour else "rad"
         if neu and neu != "uebersetzen":
             e["art"] = neu
             e["geraten"] = True
@@ -335,6 +358,14 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
             e["art"] = "fahrt"
             e["geraten"] = True
 
+    # 14.09.2026 — die Aktivität aus der Datei ist ein schwacher Hinweis: Komoot schreibt
+    # „hike“ auch über eine Radtour. Überwiegt Rad/Laufen die Gehstrecke deutlich, gilt der
+    # Wander-Hinweis nicht; die Gehstücke dazwischen sind dann Spaziergänge (Absteigen).
+    if prior in ("wanderung", "spaziergang"):
+        rad_m = sum(e["strecke_m"] for e in folge if e["art"] in ("rad", "laufen"))
+        geh_m = sum(e["strecke_m"] for e in folge if e["art"] == "gehen")
+        if rad_m > geh_m:
+            prior = ""
     folge = _verschmelzen(folge)
     for e in folge:
         _messen(e, z)
