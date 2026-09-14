@@ -5189,3 +5189,30 @@ abgefedert hatten (Häppchen + Ladeanzeige).
 
 Wächter: `tests/test_foto_auswahl.py` (300 erzeugte Fotos, echte Brücke, echte
 Oberfläche).
+
+## Tausende Foto-Schilder im Speicher (14.09.2026, v0.9.712)
+
+Nachttest mit dem Projekt des Beta-Testers (2830 Foto-Schilder): Der Probelauf trieb den WebContent-Prozess auf
+32 GB (`[com.apple.WebKit:MemoryPressure] … Killed`, die Seite lud sich neu). Gemessen mit einem Wrapper um
+`map.style.imageManager.getImages`: 190 Aufrufe, 18 GB kopierte Bilddaten in 8 s. Jeder `setFilter` auf der
+Schilder-Ebene lässt MapLibre alle Kacheln neu bauen; jede Kachel holt per `getImages` Klone ALLER sichtbaren
+Schild-Bilder (`data.clone()` + postMessage). Die Aufträge stauen sich im Worker.
+
+- `ui/js/sign_draw.js` `rzSignApplyFrame`: ab `RZ_SIGN_BILD_VOLL` (200) Metas bleibt der Filter offen
+  (`setFilter(lyr, null)`), Sichtbarkeit über `feature-state op` (Paint, kein Neubau). Darunter unverändert.
+- `rzSignDpr(n)`: Pixelmaß der Bild-Schilder `2·√(200/n)` (min. 0,5), `o.__dpr` an `rzDrawSign`; `pixelRatio`
+  folgt, die Größe auf dem Bild bleibt. Vorschau (`_animSignsAttachGPU`, `_animSignsDprBild`) und Render
+  (`core/animator.py` signs_block) rechnen gleich.
+- `_animSignVorrastern`: bei > 200 Bildern rastern die Schilder beim Laden ihres Vorschaubilds; der Kartenaufbau
+  kommt einmal am Ende statt alle 0,4 s (sonst 12 s Stillstand bzw. Kopiersturm).
+- Wächter: `tests/test_schilder_viele.py` misst jetzt zusätzlich zwei Probeläufe (kopierte MB, Footprint
+  des Web-Prozesses ≤ 8 GB, Schilder gezeichnet). Kopfloser Prüfstand zum Eingrenzen:
+  `tests/probe_schilder_speicher.py` (Wrapper um getImages/setFilter/addImage, `RZ_LAEUFE`, `RZ_SEK`, `RZ_AUS=1` = Schilder aus).
+
+## Cloud gehört zu einer Bibliothek (14.09.2026)
+
+`ARCHIV_KENNUNG` ist für alle Bibliotheken „haupt“. Der Marker `cloud_zustand.json` trägt jetzt `bibliothek`
+(aufgelöster Pfad). `_cloud_bibliothek_passt()` prüft vor jedem Abgleich (`_cloud_sync_einmal`, Wächter
+`_cloud_auto_lauf`, `cloud_herunterladen`), bevor der Schlüsselbund gefragt wird. Alte Marker ohne Vermerk
+binden die aktive Bibliothek nur am Standardort oder wenn sie die einzige bekannte ist. `bibliothek_umziehen`
+zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
