@@ -3607,7 +3607,7 @@ function mountGpxInspect(body, headerActions) {
   function logbuchLeeren() {
     _lb = null; _lbSel = null; _lbFenster = null; _lbZeiten = null; _lbPfad = null;
     _lbStandMerken(null); _lbPunktModus = false; try { _lbKnoepfe(); } catch (_) {}
-    _lbOrte = {}; _lbPois = []; _lbNetzLauf++; if (_lbGross) _lbGross.hidden = true; _lbEigene = [];
+    _lbOrte = {}; _lbPois = []; _lbNetzLauf++; if (_lbGross) { _lbFensterMerken(); _lbGross.hidden = true; } _lbEigene = [];
     const w = _lbEl("gpxi-logbuch"); if (w) w.hidden = true;
     _lbHighlight(null);
     try { _lbInfoZu(); _lbKartenMarken(true); _lbFensterAufKarte(true); } catch (_) {}
@@ -4421,12 +4421,16 @@ function mountGpxInspect(body, headerActions) {
   // ── Großes Fenster (Q17): Tabelle, sortieren, Mehrfachauswahl ───────────
   function _lbFensterAuf() {
     if (!_lb) return;
-    if (_lbGross) { _lbGross.hidden = false; _lbFensterRender(); return; }
+    if (_lbGross) {
+      if (!_lbGross.hidden) { _lbFensterMerken(); _lbGross.hidden = true; return; }     // ⤢ ist ein Umschalter
+      _lbGross.hidden = false; _lbFensterLage(true); _lbFensterRender(); return;
+    }
     const w = document.createElement("div");
     w.className = "gpxi-lb-fenster"; w.id = "gpxi-lb-fenster";
     w.innerHTML = `<div class="gpxi-lb-fenster-kopf"><span class="gpxi-lb-fenster-titel">📖 ${t("logbuch.titel", "Logbuch")} — <span id="gpxi-lbf-name"></span></span>
         <span class="gpxi-lb-fenster-summe" id="gpxi-lbf-summe"></span>
         <label class="gpxi-lb-schalter" title="${t("logbuch.fenster.nur_vermutete_tip", "Nur Einträge zeigen, bei denen die Erkennung unsicher war")}"><input type="checkbox" id="gpxi-lbf-nurverm"> ${t("logbuch.fenster.nur_vermutete", "nur vermutete")}</label>
+        <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-maxi" title="${t("logbuch.fenster.maximieren", "Maximieren")}">▢</button>
         <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-zu" title="${t("common.close", "Schließen")}">✕</button></div>
       <div class="gpxi-lb-fenster-leiste" id="gpxi-lbf-leiste" hidden>
         <span id="gpxi-lbf-anzahl"></span>
@@ -4439,17 +4443,55 @@ function mountGpxInspect(body, headerActions) {
       <div class="gpxi-lb-fenster-body"><table class="gpxi-lb-tabelle" id="gpxi-lbf-tabelle"></table></div>`;
     document.body.appendChild(w);
     _lbGross = w;
-    try {
-      const pos = JSON.parse(localStorage.getItem("rz_logbuch_fenster") || "null");
-      if (pos && pos.w) { w.style.left = pos.x + "px"; w.style.top = pos.y + "px"; w.style.width = pos.w + "px"; w.style.height = pos.h + "px"; }
-    } catch (_) {}
-    // Ziehen an der Kopfzeile (wie das Schilder-Fenster im Animator)
+    // 14.09.2026 (Marc: „es soll richtig als Fenster funktionieren, verschieben und in der Größe
+    // ändern"): vorher nur CSS-`resize` (winziger, von der Tabelle verdeckter Griff) und 84 % des
+    // Bildschirms groß. Jetzt Griffe an allen Kanten und Ecken, sichtbarer Eckgriff, Startgröße
+    // rechts über der Karte, Doppelklick auf die Kopfzeile = maximieren/zurück, alles gemerkt.
+    w.insertAdjacentHTML("beforeend", ["n", "s", "e", "w", "ne", "nw", "se", "sw"]
+      .map(r => `<div class="gpxi-lbf-griff gpxi-lbf-griff-${r}" data-griff="${r}"></div>`).join("")
+      + `<div class="gpxi-lbf-eckzeichen" aria-hidden="true"></div>`);
+    _lbFensterLage(true);
     const kopf = w.querySelector(".gpxi-lb-fenster-kopf");
-    let sx = 0, sy = 0, ox = 0, oy = 0, zieht = false;
-    const move = (e) => { if (!zieht) return; w.style.left = Math.max(0, Math.min(innerWidth - 80, ox + e.clientX - sx)) + "px"; w.style.top = Math.max(0, Math.min(innerHeight - 40, oy + e.clientY - sy)) + "px"; };
-    const up = () => { if (!zieht) return; zieht = false; window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); _lbFensterMerken(); };
-    kopf.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) return; zieht = true; sx = e.clientX; sy = e.clientY; ox = w.offsetLeft; oy = w.offsetTop; window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); e.preventDefault(); });
-    w.querySelector("#gpxi-lbf-zu").addEventListener("click", () => { w.hidden = true; _lbFensterMerken(); });
+    const MIN_W = 460, MIN_H = 220;
+    let zug = null;
+    const beiZug = (e) => {
+      if (!zug) return;
+      const dx = e.clientX - zug.sx, dy = e.clientY - zug.sy;
+      let { x, y, bw, bh } = zug;
+      if (zug.art === "move") { x += dx; y += dy; }
+      else {
+        if (zug.art.includes("e")) bw = Math.max(MIN_W, zug.bw + dx);
+        if (zug.art.includes("s")) bh = Math.max(MIN_H, zug.bh + dy);
+        if (zug.art.includes("w")) { bw = Math.max(MIN_W, zug.bw - dx); x = zug.x + (zug.bw - bw); }
+        if (zug.art.includes("n")) { bh = Math.max(MIN_H, zug.bh - dy); y = zug.y + (zug.bh - bh); }
+      }
+      x = Math.max(-bw + 120, Math.min(innerWidth - 120, x));
+      y = Math.max(0, Math.min(innerHeight - 40, y));
+      w.style.left = x + "px"; w.style.top = y + "px"; w.style.width = bw + "px"; w.style.height = bh + "px";
+    };
+    const zugEnde = () => {
+      if (!zug) return;
+      zug = null; w.classList.remove("ist-gezogen");
+      window.removeEventListener("pointermove", beiZug); window.removeEventListener("pointerup", zugEnde);
+      _lbFensterMerken();
+    };
+    const zugStart = (e, art) => {
+      if (e.button !== 0) return;
+      if (w.classList.contains("ist-maximiert")) {
+        if (art !== "move") return;
+        _lbFensterMaximieren(false);                 // aus maximiert herausziehen: alte Größe unter dem Zeiger
+        const bw = w.offsetWidth; w.style.left = Math.max(0, e.clientX - bw / 2) + "px"; w.style.top = "0px";
+      }
+      zug = { art, sx: e.clientX, sy: e.clientY, x: w.offsetLeft, y: w.offsetTop, bw: w.offsetWidth, bh: w.offsetHeight };
+      w.classList.add("ist-gezogen");
+      window.addEventListener("pointermove", beiZug); window.addEventListener("pointerup", zugEnde);
+      e.preventDefault(); e.stopPropagation();
+    };
+    kopf.addEventListener("pointerdown", (e) => { if (e.target.closest("button, input, label")) return; zugStart(e, "move"); });
+    kopf.addEventListener("dblclick", (e) => { if (e.target.closest("button, input, label")) return; _lbFensterMaximieren(!w.classList.contains("ist-maximiert")); });
+    w.querySelectorAll("[data-griff]").forEach(g => g.addEventListener("pointerdown", (e) => zugStart(e, g.dataset.griff)));
+    w.querySelector("#gpxi-lbf-zu").addEventListener("click", () => { _lbFensterMerken(); w.hidden = true; });
+    w.querySelector("#gpxi-lbf-maxi").addEventListener("click", () => _lbFensterMaximieren(!w.classList.contains("ist-maximiert")));
     w.querySelector("#gpxi-lbf-nurverm").addEventListener("change", (ev) => { _lbFensterNurVermutet = !!ev.target.checked; _lbFensterWahl.clear(); _lbFensterRender(); });
     w.querySelector("#gpxi-lbf-best").addEventListener("click", async () => {
       const es = _lbFensterGewaehlt(); _lbFensterWahl.clear();
@@ -4481,12 +4523,45 @@ function mountGpxInspect(body, headerActions) {
         _lbAktion(t("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids, art }) });
       const r = ev.currentTarget.getBoundingClientRect(); _lbMenue(r.left, r.bottom + 4, M);
     });
-    w.addEventListener("pointerup", () => _lbFensterMerken());
     _lbFensterRender();
   }
   function _lbFensterMerken() {
-    if (!_lbGross) return;
-    try { localStorage.setItem("rz_logbuch_fenster", JSON.stringify({ x: _lbGross.offsetLeft, y: _lbGross.offsetTop, w: _lbGross.offsetWidth, h: _lbGross.offsetHeight })); } catch (_) {}
+    if (!_lbGross || _lbGross.hidden || !_lbGross.offsetWidth) return;   // versteckt: nichts Falsches (0×0) merken
+    const maxi = _lbGross.classList.contains("ist-maximiert");
+    const r = maxi && _lbGross._vorMaxi ? _lbGross._vorMaxi
+      : { x: _lbGross.offsetLeft, y: _lbGross.offsetTop, w: _lbGross.offsetWidth, h: _lbGross.offsetHeight };
+    try { localStorage.setItem("rz_logbuch_fenster", JSON.stringify(Object.assign({}, r, { maxi }))); } catch (_) {}
+  }
+  /** Lage aus dem Speicher (oder Startlage rechts über der Karte), immer in den Bildschirm geholt. */
+  function _lbFensterLage(mitSpeicher) {
+    const w = _lbGross; if (!w) return;
+    let pos = null;
+    if (mitSpeicher) { try { pos = JSON.parse(localStorage.getItem("rz_logbuch_fenster") || "null"); } catch (_) {} }
+    if (!pos || !pos.w) {
+      const karte = document.getElementById("gpxi-canvas");
+      const k = karte ? karte.getBoundingClientRect() : { right: innerWidth - 20, top: 90 };
+      const bw = Math.min(760, Math.max(460, Math.round(innerWidth * 0.46))), bh = Math.min(560, Math.max(260, Math.round(innerHeight * 0.6)));
+      pos = { x: Math.max(8, Math.round(k.right - bw - 16)), y: Math.max(8, Math.round(k.top + 16)), w: bw, h: bh };
+    }
+    const bw = Math.min(Math.max(460, pos.w), innerWidth - 16), bh = Math.min(Math.max(220, pos.h), innerHeight - 16);
+    const x = Math.max(8, Math.min(innerWidth - bw - 8, pos.x)), y = Math.max(8, Math.min(innerHeight - bh - 8, pos.y));
+    w.style.left = x + "px"; w.style.top = y + "px"; w.style.width = bw + "px"; w.style.height = bh + "px";
+    if (pos.maxi) _lbFensterMaximieren(true);
+  }
+  function _lbFensterMaximieren(an) {
+    const w = _lbGross; if (!w) return;
+    if (an && !w.classList.contains("ist-maximiert")) {
+      w._vorMaxi = { x: w.offsetLeft, y: w.offsetTop, w: w.offsetWidth, h: w.offsetHeight };
+      w.classList.add("ist-maximiert");
+      w.style.left = "8px"; w.style.top = "8px"; w.style.width = (innerWidth - 16) + "px"; w.style.height = (innerHeight - 16) + "px";
+    } else if (!an && w.classList.contains("ist-maximiert")) {
+      w.classList.remove("ist-maximiert");
+      const r = w._vorMaxi || { x: 60, y: 60, w: 700, h: 480 };
+      w.style.left = r.x + "px"; w.style.top = r.y + "px"; w.style.width = r.w + "px"; w.style.height = r.h + "px";
+    }
+    const k = w.querySelector("#gpxi-lbf-maxi");
+    if (k) { k.textContent = an ? "❐" : "▢"; k.title = an ? t("logbuch.fenster.wiederherstellen", "Wiederherstellen") : t("logbuch.fenster.maximieren", "Maximieren"); }
+    _lbFensterMerken();
   }
   function _lbFensterGewaehlt() { return [..._lbFensterWahl].map(id => _lbFinde(id)).filter(Boolean); }
   function _lbFensterBids() { return _lbFensterGewaehlt().filter(e => !_lbIstPunkt(e)).flatMap(e => e.bids); }
@@ -4570,7 +4645,7 @@ function mountGpxInspect(body, headerActions) {
     }, true);
   }
   _lbStufe3Verdrahten();
-  window.__rzGpxiLogbuchNetz = { orte: () => _lbOrte, pois: () => _lbPois, nachladen: _lbNetzNachladen, fenster: _lbFensterAuf,
+  window.__rzGpxiLogbuchNetz = { maximieren: (an) => _lbFensterMaximieren(an), orte: () => _lbOrte, pois: () => _lbPois, nachladen: _lbNetzNachladen, fenster: _lbFensterAuf,
                                  fensterEl: () => _lbGross, wahl: _lbFensterWahl, poiUebernehmen: _lbPoiUebernehmen };
   // ── Logbuch Stufe 4 — Befunde-Spur (Q18) und Eigene-Spur (Q14) ──────────────
   // Befunde kommen aus dem Track-Check (`_tc`, Fundstellen als Punkt-Indizes), Klick

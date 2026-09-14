@@ -3877,5 +3877,7 @@
   "logbuch.geraten_tip2": "Detection was unsure here. Click: confirm or pick another type.",
   "logbuch.fenster.bestaetigen": "Confirm guessed",
   "logbuch.fenster.nur_vermutete": "guessed only",
-  "logbuch.fenster.nur_vermutete_tip": "Show only entries where detection was unsure"
+  "logbuch.fenster.nur_vermutete_tip": "Show only entries where detection was unsure",
+  "logbuch.fenster.maximieren": "Maximize",
+  "logbuch.fenster.wiederherstellen": "Restore"
 }

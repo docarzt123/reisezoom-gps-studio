@@ -3877,5 +3877,7 @@
   "logbuch.geraten_tip2": "La detección no estaba segura. Clic: confirmar o elegir otro tipo.",
   "logbuch.fenster.bestaetigen": "Confirmar supuestos",
   "logbuch.fenster.nur_vermutete": "solo supuestos",
-  "logbuch.fenster.nur_vermutete_tip": "Mostrar solo entradas donde la detección no estaba segura"
+  "logbuch.fenster.nur_vermutete_tip": "Mostrar solo entradas donde la detección no estaba segura",
+  "logbuch.fenster.maximieren": "Maximizar",
+  "logbuch.fenster.wiederherstellen": "Restaurar"
 }
