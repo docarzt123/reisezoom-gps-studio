@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.713] – 2026-09-14
+
+Release of everything since 0.9.688 (local builds 0.9.689–0.9.712). — Veröffentlichung aller Änderungen seit 0.9.688.
+
 ### Added
 - **Logbook: confirm guessed types** (Marc: "how can I confirm guessed movement types?"): the "guessed" mark is a button; it and every entry menu (list, timeline, map) offer "✓ Confirm bike" (the shown type) on top; the large window has a "guessed only" tick and "✓ Confirm guessed" for the selection. Confirmed entries are hand edits (survive re-detection), one undo step, new bridge action `bestaetigen`. — **Logbuch: vermutete Arten bestätigen.**
 - **Logbook: slow bike tours with walking bits** (Marc: a bike tour with his son at 7–12 km/h, getting off and walking in between, came out as one hike — the Komoot file says "hike"): sections the detection is unsure about are no longer handed to a walking neighbour when they are faster than walking (≥ 7 km/h moving) — they become bike (running on running tours); the activity from the file is only a weak hint, so a tour that is mostly riding is not a hike; the walks between rides stay their own entries. Test collection gained the tour. — **Logbuch: langsame Radtouren mit Abstiegen** werden erkannt.
