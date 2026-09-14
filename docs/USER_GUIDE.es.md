@@ -1071,7 +1071,7 @@ TCX, KML …) — por ejemplo recién bajado de Komoot — ya no necesita una
 carpeta vigilada: **«📂 Carpetas y lectura» → «+ Archivo de track
 individual …»**, o simplemente **arrastra el archivo sobre el archivo de
 rutas**. La app lo copia a su propia carpeta de importación (el original se
-queda donde está, los duplicados se omiten) y lo lee al momento.
+queda donde está, los duplicados se omiten) y lo lee al momento. **Desde v0.9.712** la ventana se cierra, el archivo salta a «Archivo de rutas → Todas las rutas» (se quitan colección, búsqueda y filtros) y muestra la ruta nueva arriba, seleccionada y con el detalle abierto a la derecha; con varios archivos quedan marcados todos los nuevos. Si el archivo ya la conoce, «Mostrar la ruta existente» te lleva a ella.
 
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.

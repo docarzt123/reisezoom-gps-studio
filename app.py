@@ -4847,7 +4847,7 @@ class Api:
         damit die Statistik zu dem passt, was gerade angezeigt wird."""
         try:
             p = dict(params or {})
-            for k in ("limit", "offset", "sort", "with_thumbs", "with_geom"):
+            for k in ("limit", "offset", "sort", "with_thumbs", "with_geom", "zuerst_geo"):
                 p.pop(k, None)
             s = clib.stats(self._lib(), **p)
             # ⚠️ Die „längsten Touren" sind anklickbar und landen dann in der

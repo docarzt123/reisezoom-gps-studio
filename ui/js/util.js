@@ -169,7 +169,7 @@ const _RZ_FALLBACK_CATALOG = {
     { key: "osm", provider: "osm", kind: "raster", group: "free", label: "OpenStreetMap", terrain: "aws", badge: "free", available: true,
       tiles: [OSM_TILE_URL], tileSize: 256, maxzoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
   ],
-  terrain: { aws: { tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 15, encoding: "terrarium", attribution: "Gelände: Mapzen/AWS Terrain Tiles" } },
+  terrain: { aws: { tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 15, encoding: "terrarium", attribution: "Terrain: Mapzen/AWS Terrain Tiles" } },
   regions: [], keys: { mapbox: false, maptiler: false }, key_values: { mapbox: "", maptiler: "" },
 };
 window.RZ_MAP_CATALOG = null;
@@ -294,7 +294,7 @@ function mapRegionStack(bbox) {
 }
 function _stackAttribution(stack) {
   const out = [];
-  stack.forEach((r, i) => { let a = r.attribution || ""; if (i && a.startsWith("Luftbild: ")) a = a.slice(10); if (a && !out.includes(a)) out.push(a); });
+  stack.forEach((r, i) => { let a = r.attribution || ""; if (i && a.startsWith("Aerial imagery: ")) a = a.slice(16); if (a && !out.includes(a)) out.push(a); });
   return out.join(" | ");
 }
 /** Luftbild-Optik — Kern in ui/js/rz-mapadjust.js (05.09.2026, gemeinsam mit dem Render). */
@@ -531,7 +531,7 @@ function mapStyleOptionsHtml(currentKey, opts) {
 const OSM_STYLE = _rasterStyle([OSM_TILE_URL], 256, 19, '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>');
 const RZ_OSM_TILE_STYLES = {
   osm:          { label: "OpenStreetMap", url: OSM_TILE_URL, sub: [], max: 19, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
-  topo:         { label: "OpenTopoMap",   url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",              sub: ["a","b","c"],    max: 17, attr: 'Kartendaten: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, SRTM | © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' },
+  topo:         { label: "OpenTopoMap",   url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",              sub: ["a","b","c"],    max: 17, attr: 'Map data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' },
   cyclosm:      { label: "CyclOSM",       url: "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", sub: ["a","b","c"], max: 20, attr: '© <a href="https://www.cyclosm.org/">CyclOSM</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
   humanitarian: { label: "Humanitarian",  url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",         sub: ["a","b","c"],    max: 20, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Tiles: <a href="https://www.hotosm.org/">HOT</a>' },
 };

@@ -70,7 +70,7 @@ def make_leaflet_html(params: dict) -> str:
     line_width = float(params.get("line_width", 4.5) or 4.5)
     tile = params.get("tile") or {
         "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "sub": "", "max": 19,
-        "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }
     show_pins = bool(params.get("show_pins", True))
     start_label = str(params.get("start_label", "Start"))

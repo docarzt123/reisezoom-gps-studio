@@ -38,25 +38,25 @@ OSM_TILE_STYLES = {
         "label": "OpenStreetMap Standard",
         "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         "sub": "", "max": 19,
-        "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
     "topo": {
         "label": "OpenTopoMap (Gelände)",
         "url": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
         "sub": "abc", "max": 17,
-        "attr": 'Kartendaten: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, SRTM | Darstellung: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+        "attr": 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
     },
     "cyclosm": {
         "label": "CyclOSM (Rad/Outdoor)",
         "url": "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
         "sub": "abc", "max": 20,
-        "attr": '<a href="https://www.cyclosm.org">CyclOSM</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        "attr": '<a href="https://www.cyclosm.org">CyclOSM</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
     "humanitarian": {
         "label": "Humanitarian (hell)",
         "url": "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
         "sub": "abc", "max": 20,
-        "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, Tiles: HOT',
+        "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles: HOT',
     },
 }
 

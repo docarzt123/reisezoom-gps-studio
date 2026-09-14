@@ -1048,7 +1048,7 @@ KML …) — say, freshly downloaded from Komoot — doesn't need a watched
 folder first: **"📂 Folders & Scan" → "+ Single track file …"**, or simply
 **drag the file onto the archive**. The app copies it into its own import
 folder (the original stays put, duplicates are skipped) and scans it right
-away.
+away. **Since v0.9.712** the window then closes, the archive switches to “Tour archive → All tours” (collection, search and filters are cleared) and shows the new tour at the top, selected, with its details open on the right — with several files all new ones are marked. If the archive already knows the file, “Show the existing tour” takes you to it.
 
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.

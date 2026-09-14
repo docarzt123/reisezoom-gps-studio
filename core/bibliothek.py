@@ -577,13 +577,20 @@ def version_ablegen(ort: Path, quelle: Path, version_id: str,
         return ziel
     quelle = Path(quelle)
     ziel.parent.mkdir(parents=True, exist_ok=True)
-    tmp = ziel.with_suffix(f".tmp{os.getpid()}")
+    # 14.09.2026 — je Aufruf eine eigene Zwischendatei: Zwei gleiche Dateien im Import-Ordner
+    # sind dieselbe Version und wurden nebenläufig in DIESELBE .tmp<pid> geschrieben; die
+    # zweite fand ihre Zwischendatei beim Umbenennen nicht mehr (FileNotFoundError).
+    import threading as _th
+    import uuid as _uuid
+    tmp = ziel.with_suffix(f".tmp{os.getpid()}-{_th.get_ident()}-{_uuid.uuid4().hex[:6]}")
     with open(quelle, "rb") as f:
         magie = f.read(2)
     if magie == GZIP_MAGIE:
         # Schon gepackt (unser Speicher, ein Strava-Export) — 1:1 übernehmen.
         shutil.copyfile(quelle, tmp)
         os.replace(tmp, ziel)
+        return ziel
+    if ziel.is_file() and ziel.stat().st_size > 0:      # inzwischen von nebenan abgelegt
         return ziel
     gpx, tmpdir = _als_gpx(quelle, umwandlung_cache)
     try:
@@ -702,7 +709,12 @@ def version_bytes_ablegen(ort: Path, daten: bytes, version_id: str) -> Path:
     Versionen (Heilen, Zuschneiden, Zusammenführen)."""
     ziel = version_datei(ort, version_id)
     ziel.parent.mkdir(parents=True, exist_ok=True)
-    tmp = ziel.with_suffix(f".tmp{os.getpid()}")
+    # 14.09.2026 — je Aufruf eine eigene Zwischendatei: Zwei gleiche Dateien im Import-Ordner
+    # sind dieselbe Version und wurden nebenläufig in DIESELBE .tmp<pid> geschrieben; die
+    # zweite fand ihre Zwischendatei beim Umbenennen nicht mehr (FileNotFoundError).
+    import threading as _th
+    import uuid as _uuid
+    tmp = ziel.with_suffix(f".tmp{os.getpid()}-{_th.get_ident()}-{_uuid.uuid4().hex[:6]}")
     with gzip.open(tmp, "wb", compresslevel=6) as f_out:
         f_out.write(daten)
     os.replace(tmp, ziel)

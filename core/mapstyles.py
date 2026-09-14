@@ -67,7 +67,7 @@ TERRAIN = {
         "tiles": ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
         "tileSize": 256, "maxzoom": 15, "encoding": "terrarium",
         # Nennung laut Mapzen/Tilezen-Attribution (SRTM, EU-DEM, 3DEP, …)
-        "attribution": "Gelände: Mapzen/AWS Terrain Tiles",
+        "attribution": "Terrain: Mapzen/AWS Terrain Tiles",
     },
 }
 
@@ -178,75 +178,75 @@ ORTHO_REGIONS = [
     # verlangt Registrierung).
     {"id": "de-be", "name": "Berlin", "country": "DE", "bbox": (13.09, 52.34, 13.76, 52.68), "maxzoom": 20,
      "wms": _wms("https://gdi.berlin.de/services/wms/truedop_2024", "truedop_2024"),
-     "attribution": "Luftbild: Geoportal Berlin / TrueDOP (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: Geoportal Berlin / TrueDOP (dl-de/by-2-0)"},
     {"id": "de-hb", "name": "Bremen", "country": "DE", "bbox": (8.48, 53.01, 8.99, 53.61), "maxzoom": 20,
      "wms": _wms("https://geodienste.bremen.de/wms_dop20_2023", "DOP20_2023_HB,DOP20_2023_BHV"),
-     "attribution": "Luftbild: Landesamt GeoInformation Bremen (CC BY 4.0)"},
+     "attribution": "Aerial imagery: Landesamt GeoInformation Bremen (CC BY 4.0)"},
     {"id": "de-sl", "name": "Saarland", "country": "DE", "bbox": (6.36, 49.11, 7.40, 49.64), "maxzoom": 20,
      "wms": _wms("https://geoportal.saarland.de/freewms/truedop", "sl_dop20_rgb"),
-     "attribution": "Luftbild: LVGL Saarland (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: LVGL Saarland (dl-de/by-2-0)"},
     {"id": "de-sh", "name": "Schleswig-Holstein", "country": "DE", "bbox": (7.86, 53.36, 11.31, 55.06), "maxzoom": 20,
      "wms": _wms("https://dienste.gdi-sh.de/WMS_SH_DOP20col_OpenGBD", "sh_dop20_rgb"),
-     "attribution": "Luftbild: GeoBasis-DE/LVermGeo SH (CC BY 4.0)"},
+     "attribution": "Aerial imagery: GeoBasis-DE/LVermGeo SH (CC BY 4.0)"},
     {"id": "de-mv", "name": "Mecklenburg-Vorpommern", "country": "DE", "bbox": (10.59, 53.11, 14.41, 54.69), "maxzoom": 20,
      "wms": _wms("https://www.geodaten-mv.de/dienste/adv_dop", "mv_dop"),
-     "attribution": "Luftbild: GeoBasis-DE/M-V (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: GeoBasis-DE/M-V (dl-de/by-2-0)"},
     {"id": "de-ni", "name": "Niedersachsen", "country": "DE", "bbox": (6.65, 51.29, 11.60, 53.90), "maxzoom": 20,
      "wms": _wms("https://opendata.lgln.niedersachsen.de/doorman/noauth/dop_wms", "ni_dop20"),
-     "attribution": "Luftbild: LGLN Niedersachsen (CC BY 4.0)"},
+     "attribution": "Aerial imagery: LGLN Niedersachsen (CC BY 4.0)"},
     {"id": "de-bb", "name": "Brandenburg", "country": "DE", "bbox": (11.27, 51.36, 14.77, 53.56), "maxzoom": 20,
      "wms": _wms("https://isk.geobasis-bb.de/mapproxy/dop20c/service/wms", "bebb_dop20c"),
-     "attribution": "Luftbild: GeoBasis-DE/LGB (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: GeoBasis-DE/LGB (dl-de/by-2-0)"},
     {"id": "de-st", "name": "Sachsen-Anhalt", "country": "DE", "bbox": (10.56, 50.94, 13.19, 53.04), "maxzoom": 20,
      "wms": _wms("https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_DOP_WMS_OpenData/guest", "lsa_lvermgeo_dop20_2"),
      "scale_z": 14,   # Sachsen-Anhalt: anderes Mosaik unterhalb z14 (04.09.2026 gemessen)
-     "attribution": "Luftbild: GeoBasis-DE/LVermGeo ST (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: GeoBasis-DE/LVermGeo ST (dl-de/by-2-0)"},
     {"id": "de-sn", "name": "Sachsen", "country": "DE", "bbox": (11.87, 50.17, 15.04, 51.69), "maxzoom": 20,
      "wms": _wms("https://geodienste.sachsen.de/wms_geosn_dop-rgb/guest", "sn_dop_020"),
-     "attribution": "Luftbild: GeoSN Sachsen (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: GeoSN Sachsen (dl-de/by-2-0)"},
     {"id": "de-th", "name": "Thüringen", "country": "DE", "bbox": (9.88, 50.20, 12.65, 51.65), "maxzoom": 20,
      "wms": _wms("https://www.geoproxy.geoportal-th.de/geoproxy/services/DOP20", "th_dop"),
-     "attribution": "Luftbild: GDI-Th / TLBG (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: GDI-Th / TLBG (dl-de/by-2-0)"},
     {"id": "de-he", "name": "Hessen", "country": "DE", "bbox": (7.77, 49.39, 10.24, 51.66), "maxzoom": 20,
      "wms": _wms("https://www.gds-srv.hessen.de/cgi-bin/lika-services/ogc-free-images.ows", "he_dop_rgb"),
-     "attribution": "Luftbild: HVBG Hessen (dl-de/zero-2-0)"},
+     "attribution": "Aerial imagery: HVBG Hessen (dl-de/zero-2-0)"},
     {"id": "de-nw", "name": "Nordrhein-Westfalen", "country": "DE", "bbox": (5.87, 50.32, 9.46, 52.53), "maxzoom": 20,
      "wms": _wms("https://www.wms.nrw.de/geobasis/wms_nw_dop", "nw_dop_rgb"),
-     "attribution": "Luftbild: Geobasis NRW (dl-de/zero-2-0)"},
+     "attribution": "Aerial imagery: Geobasis NRW (dl-de/zero-2-0)"},
     {"id": "de-rp", "name": "Rheinland-Pfalz", "country": "DE", "bbox": (6.11, 48.97, 8.51, 50.94), "maxzoom": 20,
      "wms": _wms("https://geo4.service24.rlp.de/wms/rp_dop20.fcgi", "rp_dop20"),
-     "attribution": "Luftbild: GeoBasis-DE/LVermGeoRP (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: GeoBasis-DE/LVermGeoRP (dl-de/by-2-0)"},
     {"id": "de-bw", "name": "Baden-Württemberg", "country": "DE", "bbox": (7.51, 47.53, 10.50, 49.79), "maxzoom": 20,
      "wms": _wms("https://owsproxy.lgl-bw.de/owsproxy/ows/WMS_LGL-BW_ATKIS_DOP_20_C", "IMAGES_DOP_20_RGB"),
-     "attribution": "Luftbild: LGL Baden-Württemberg (dl-de/by-2-0)"},
+     "attribution": "Aerial imagery: LGL Baden-Württemberg (dl-de/by-2-0)"},
     {"id": "de-by", "name": "Bayern", "country": "DE", "bbox": (8.98, 47.27, 13.84, 50.56), "maxzoom": 20,
      "wms": _wms("https://geoservices.bayern.de/od/wms/dop/v1/dop20", "by_dop20c"),
-     "attribution": "Luftbild: Bayerische Vermessungsverwaltung (CC BY 4.0)"},
+     "attribution": "Aerial imagery: Bayerische Vermessungsverwaltung (CC BY 4.0)"},
     # Europa ────────────────────────────────────────────────────────────────
     {"id": "lu", "name": "Luxemburg", "country": "LU", "bbox": (5.73, 49.44, 6.53, 50.19), "maxzoom": 20,
      "tiles": ["https://wmts1.geoportail.lu/opendata/wmts/ortho_latest/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg"],
-     "attribution": "Luftbild: ACT Luxembourg (CC0)"},
+     "attribution": "Aerial imagery: ACT Luxembourg (CC0)"},
     {"id": "ch", "name": "Schweiz", "country": "CH", "bbox": (5.95, 45.80, 10.50, 47.81), "maxzoom": 20,
      "tiles": ["https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"],
-     "attribution": "Luftbild: © swisstopo"},
+     "attribution": "Aerial imagery: © swisstopo"},
     {"id": "nl", "name": "Niederlande", "country": "NL", "bbox": (3.30, 50.75, 7.22, 53.60), "maxzoom": 19,
      "tiles": ["https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/EPSG:3857/{z}/{x}/{y}.jpeg"],
-     "attribution": "Luftbild: PDOK / Beeldmateriaal Nederland (CC BY 4.0)"},
+     "attribution": "Aerial imagery: PDOK / Beeldmateriaal Nederland (CC BY 4.0)"},
     {"id": "at", "name": "Österreich", "country": "AT", "bbox": (9.50, 46.37, 17.17, 49.02), "maxzoom": 19,
      "tiles": ["https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg"],
-     "attribution": "Luftbild: basemap.at (CC BY 4.0)"},
+     "attribution": "Aerial imagery: basemap.at (CC BY 4.0)"},
     {"id": "cz", "name": "Tschechien", "country": "CZ", "bbox": (12.09, 48.55, 18.86, 51.06), "maxzoom": 19,
      "tiles": ["https://ags.cuzk.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}"],
-     "attribution": "Luftbild: © ČÚZK"},
+     "attribution": "Aerial imagery: © ČÚZK"},
     {"id": "ee", "name": "Estland", "country": "EE", "bbox": (21.70, 57.50, 28.20, 59.70), "maxzoom": 18,
      "tiles": ["https://tiles.maaamet.ee/tm/tms/1.0.0/foto@GMC/{z}/{x}/{y}.png"], "scheme": "tms",
-     "attribution": "Luftbild: Maa-amet (CC BY 4.0)"},
+     "attribution": "Aerial imagery: Maa-amet (CC BY 4.0)"},
     {"id": "pt", "name": "Portugal", "country": "PT", "bbox": (-9.55, 36.95, -6.19, 42.16), "maxzoom": 19,
      "wms": _wms("https://cartografia.dgterritorio.gov.pt/ortos2018/service", "Ortos2018-RGB", "image/png"),
-     "attribution": "Luftbild: DGT Portugal, Ortos 2018 (CC BY 4.0)"},
+     "attribution": "Aerial imagery: DGT Portugal, Ortos 2018 (CC BY 4.0)"},
     {"id": "fr", "name": "Frankreich", "country": "FR", "bbox": (-5.20, 41.30, 9.60, 51.10), "maxzoom": 19,
      "tiles": ["https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"],
-     "attribution": "Luftbild: © IGN France / Géoplateforme"},
+     "attribution": "Aerial imagery: © IGN France / Géoplateforme"},
     # 03.09.2026 (Marc, Masca-Render): Das PNOA-WMTS liefert über dem Meer opake
     # dunkellila Kacheln — Ränder und Meer wurden zugedeckt. Der WMS mit PNG +
     # TRANSPARENT lässt dort den Blue-Marble-Untergrund durch.
@@ -264,26 +264,26 @@ ORTHO_REGIONS = [
      # (AWS-Terrarium, ungeklemmt) unter −3 m liegt — dann scheint überall Blue
      # Marble durch (core/tileproxy.apply_sea_mask).
      "sea_mask": True,
-     "attribution": "Luftbild: PNOA © IGN España (CC BY 4.0)"},
+     "attribution": "Aerial imagery: PNOA © IGN España (CC BY 4.0)"},
     {"id": "it", "name": "Italien", "country": "IT", "bbox": (6.60, 36.60, 18.60, 47.10), "maxzoom": 18,
      "wms": _wms("https://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/raster/ortofoto_colore_12.map", "OI.ORTOIMMAGINI.2012.32,OI.ORTOIMMAGINI.2012.33"),
-     "attribution": "Luftbild: Geoportale Nazionale (MASE), Ortofoto 2012 (CC BY 3.0 IT)"},
+     "attribution": "Aerial imagery: Geoportale Nazionale (MASE), Ortofoto 2012 (CC BY 3.0 IT)"},
     {"id": "pl", "name": "Polen", "country": "PL", "bbox": (14.12, 49.00, 24.15, 54.84), "maxzoom": 19,
      "tiles": ["https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"],
-     "attribution": "Luftbild: Geoportal.gov.pl / GUGiK"},
+     "attribution": "Aerial imagery: Geoportal.gov.pl / GUGiK"},
     # Welt ──────────────────────────────────────────────────────────────────
     {"id": "jp", "name": "Japan", "country": "JP", "bbox": (122.90, 24.00, 146.00, 45.60), "maxzoom": 18,
      "tiles": ["https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg"],
-     "attribution": "Luftbild: 地理院タイル (GSI Japan)"},
+     "attribution": "Aerial imagery: 地理院タイル (GSI Japan)"},
     {"id": "us", "name": "USA", "country": "US", "bbox": (-125.00, 24.40, -66.90, 49.40), "maxzoom": 16,
      "tiles": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"],
-     "attribution": "Luftbild: USGS The National Map (public domain)"},
+     "attribution": "Aerial imagery: USGS The National Map (public domain)"},
     {"id": "us-ak", "name": "Alaska", "country": "US", "bbox": (-179.20, 51.20, -129.90, 71.40), "maxzoom": 16,
      "tiles": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"],
-     "attribution": "Luftbild: USGS The National Map (public domain)"},
+     "attribution": "Aerial imagery: USGS The National Map (public domain)"},
     {"id": "us-hi", "name": "Hawaii", "country": "US", "bbox": (-160.30, 18.90, -154.80, 22.30), "maxzoom": 16,
      "tiles": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"],
-     "attribution": "Luftbild: USGS The National Map (public domain)"},
+     "attribution": "Aerial imagery: USGS The National Map (public domain)"},
 ]
 
 
@@ -293,7 +293,7 @@ ORTHO_REGIONS = [
 for _r in ORTHO_REGIONS:
     _n = _kq.nennung(_r["id"])
     if _n:
-        _r["attribution"] = "Luftbild: " + _n
+        _r["attribution"] = "Aerial imagery: " + _n
 
 
 # ── Weltweiter Untergrund für die Orthofotos ────────────────────────────────
@@ -305,7 +305,7 @@ for _r in ORTHO_REGIONS:
 BASE_LAYER = {
     "tiles": ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg"],
     "tileSize": 256, "maxzoom": 8,
-    "attribution": "Hintergrund: NASA Blue Marble (GIBS)",
+    "attribution": "Background: NASA Blue Marble (GIBS)",
 }
 ORTHO_MINZOOM = 7
 
@@ -507,8 +507,8 @@ def stack_attribution(stack: list[dict]) -> str:
     out = []
     for i, r in enumerate(stack):
         a = r["attribution"]
-        if i and a.startswith("Luftbild: "):
-            a = a[len("Luftbild: "):]
+        if i and a.startswith("Aerial imagery: "):
+            a = a[len("Aerial imagery: "):]
         if a not in out:
             out.append(a)
     return " | ".join(out)

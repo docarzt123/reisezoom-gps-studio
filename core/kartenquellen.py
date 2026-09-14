@@ -1148,7 +1148,7 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'license_url': 'https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance',
   'commercial_video': 'true',
   'modification_notice_required': False,
-  'onscreen_credit': 'Hintergrund: NASA Blue Marble (GIBS)',
+  'onscreen_credit': 'Background: NASA Blue Marble (GIBS)',
   'service_terms_url': 'https://nasa-gibs.github.io/gibs-api-docs/',
   'service_limits': 'Keine Rate-Limits, Cache- oder Bulk-Regeln in den GIBS-API-Docs veröffentlicht; '
                     'Acknowledgement wird verlangt; Kontakt earthdata-support@nasa.gov. Keine '
@@ -1182,7 +1182,7 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'license_url': 'https://github.com/tilezen/joerd/blob/master/docs/attribution.md',
   'commercial_video': 'true',
   'modification_notice_required': False,
-  'onscreen_credit': 'Gelände: Mapzen/AWS Terrain Tiles',
+  'onscreen_credit': 'Terrain: Mapzen/AWS Terrain Tiles',
   'service_terms_url': 'https://registry.opendata.aws/terrain-tiles/',
   'service_limits': 'Offener S3-Bucket ohne AWS-Konto (--no-sign-request), EU-Replikat '
                     'elevation-tiles-prod-eu; keine Rate-Limits, Cache- oder Prefetch-Regeln veröffentlicht, '
@@ -1288,7 +1288,7 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'license_url': 'https://opentopomap.org/about',
   'commercial_video': 'true',
   'modification_notice_required': True,
-  'onscreen_credit': 'Kartendaten: © OpenStreetMap-Mitwirkende, SRTM | Kartendarstellung: © OpenTopoMap '
+  'onscreen_credit': 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap '
                      '(CC-BY-SA)',
   'service_terms_url': 'https://opentopomap.org/about',
   'service_limits': 'Kostenlose Nutzung inkl. kommerziell mit Attribution; keine Ausfallgarantie; Warnung '
