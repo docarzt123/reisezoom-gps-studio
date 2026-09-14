@@ -249,7 +249,7 @@ def strecke(points, a: int, b: int, indizes: Optional[List[int]] = None) -> Opti
     gefunden = False
     for k in (indizes if indizes is not None else range(max(0, a), min(len(points), b + 1))):
         p = points[k]
-        g = (lambda n: p.get(n) if isinstance(p, dict) else getattr(p, n, None))
+        g = (lambda n, p=p: p.get(n) if isinstance(p, dict) else getattr(p, n, None))
         try:
             la, lo = float(g("lat")), float(g("lon"))
         except (TypeError, ValueError):

@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Section as a new tour in the archive** (beta tester: drive and hike recorded in one Geory file — "how do I pull out single tracks?"): in the Inspector, *Bearbeiten (Anker A→B)* has **📥 Abschnitt A→B als neue Tour ins Archiv …**, and every logbook entry's context menu has **📥 Als eigene Tour ins Archiv …**. The points (with times and sensors) are written into the app-managed import folder, read into the archive with the chosen name and — from the logbook type — the activity; the track in the Inspector stays unchanged. The result dialog offers *Im Archiv zeigen* (archive opens with the new tour selected, like after an import), *Hier weiterarbeiten* and *Wieder entfernen* (trash). Bridge `archiv_abschnitt_aufnehmen`; guard `tests/test_abschnitt_als_tour.py`. — **Abschnitt A→B bzw. Logbuch-Eintrag als neue Tour ins Archiv.**
+
 ### Fixed
 - **Geotagger no longer drops a journey** (real-app test 14.09.2026): opening the Geotagger while a journey (context `menge:…`) was active re-activated the session for the single track; back in the Animator the other 14 stages were gone and a new project was created for the first tour. The Geotagger now leaves an already active session alone (`loadGpxByPath`); guard `tests/test_geotagger_haelt_menge.py`. — **Geotagger wirft die Reise nicht mehr weg.**
 - **Esc in other modules hit the dead Animator map**: the Animator's Esc handles (`__rzAnimSignsEsc`, `__rzRouteEsc`) survived the unmount; Esc in the Inspector then ran the sign filter on the removed map (`this.style.getLayer` error in the log). Handles are cleared on unmount. — **Esc im Inspektor traf die abgebaute Animator-Karte.**

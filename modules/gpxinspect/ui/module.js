@@ -213,6 +213,9 @@ function mountGpxInspect(body, headerActions) {
             <button class="btn gpxi-act gpxi-del" id="gpxi-delete" disabled
               title="${t("gpxinspect.delete_tip", "Die Punkte zwischen A und B ganz entfernen (Schleifen/Abstecher rausschneiden). A und B bleiben, die Linie verbindet sie direkt.")}">
               ✂️ ${t("gpxinspect.delete", "Punkte zwischen A→B rausschneiden")}</button>
+            <button class="btn gpxi-act" id="gpxi-ab-archiv" disabled
+              title="${t("gpxinspect.ab_archiv_tip", "Den Abschnitt zwischen A und B als eigene, neue Tour ins Archiv legen — z. B. die Wanderung aus einer Datei, in der auch die Autofahrt steckt. Der Track hier bleibt unverändert.")}">
+              📥 ${t("gpxinspect.ab_archiv", "Abschnitt A→B als neue Tour ins Archiv …")}</button>
           <div class="gpxi-sub">${t("gpxinspect.sub_a", "Am Punkt A")}</div>
             <button class="btn gpxi-act gpxi-del" id="gpxi-delete-one" disabled
               title="${t("gpxinspect.delete_one_tip", "Den ausgewählten Punkt (Anker A) entfernen. Geht auch mit Entf/Backspace.")}">
@@ -3053,6 +3056,7 @@ function mountGpxInspect(body, headerActions) {
     setDisabled("gpxi-trim-before", !(haveA && !haveB) || _drawMode || _selA < 1);
     setDisabled("gpxi-trim-after",  !(haveA && !haveB) || _drawMode || _selA > _points.length - 2);
     setDisabled("gpxi-delete", !hasBetween || _drawMode);
+    setDisabled("gpxi-ab-archiv", !both || _drawMode || _selB <= _selA);
     // 10.09.2026 — Web-Werkzeuge: Startpunkt und Teilen brauchen Anker A (allein)
     setDisabled("gpxi-wz-rotate", !(haveA && !haveB) || _drawMode || _selA < 1);
     setDisabled("gpxi-wz-split", !(haveA && !haveB) || _drawMode || _selA < 1 || _selA > _points.length - 2 || _points.length < 4);
@@ -3213,7 +3217,8 @@ function mountGpxInspect(body, headerActions) {
     document.getElementById("gpxi-wz-sp-copy").onclick = async () => { try { await navigator.clipboard.writeText(csv); toast(t("gpxinspect.wz_copied", "Tabelle kopiert (Semikolon-getrennt, passt in jede Tabellenkalkulation)."), "success", 3000); } catch (_) { toast(t("bugreport.copy_failed", "Konnte nicht in Zwischenablage kopieren."), "error", 3000); } };
   }
   window.__rzGpxiWerkzeug = { reverse: wzReverse, rotate: wzRotate, split: wzSplit, simplify: wzSimplify, retime: wzRetime, splits: wzSplits,
-    punkte: () => _points, ankerA: (i) => { _selA = i; _selB = null; renderPoints(); updateUI(); } };   // Prüfstand
+    punkte: () => _points, ankerA: (i) => { _selA = i; _selB = null; renderPoints(); updateUI(); },
+    ankerAB: (a, b) => { _selA = Math.min(a, b); _selB = Math.max(a, b); renderPoints(); updateUI(); } };   // Prüfstand
   // 10.09.2026 (Marc: „der Inspektor muss übersichtlicher werden") — sechs gleiche
   // Klapp-Abschnitte; offen bleibt, was der Nutzer zuletzt offen hatte (settings.json
   // gpxinspect.open_sections). Erster Start: Prüfen, Heilen, Bearbeiten offen.
@@ -3249,6 +3254,12 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-draw-undo", undoDrawPoint);
   _on("gpxi-draw-cancel", cancelDraw);
   _on("gpxi-delete-one", deletePoint);
+  _on("gpxi-ab-archiv", () => {
+    if (_selA == null || _selB == null) return;
+    const stamm = (_lb && _lb.name) || String(_origPath || _srcPath || "").split("/").pop().replace(/\.[^.]+$/, "") || "Tour";
+    _abschnittInsArchiv(Math.min(_selA, _selB), Math.max(_selA, _selB),
+      stamm + " – " + t("gpxinspect.abschnitt", "Abschnitt"), "");
+  });
   _on("gpxi-trim-before", trimBefore);
   _on("gpxi-trim-after", trimAfter);
   _on("gpxi-delete", deleteBetween);
@@ -4098,6 +4109,48 @@ function mountGpxInspect(body, headerActions) {
     const k = es.findIndex(x => x.id === e.id);
     return k < 0 ? null : es[k + richtung] || null;
   }
+  /** Punkte i0..i1 des Tracks als NEUE Tour ins Archiv (14.09.2026). Fragt den Namen, zeigt danach
+   *  „Im Archiv zeigen“ und „Wieder entfernen“ — der Track im Inspektor bleibt unverändert. */
+  async function _abschnittInsArchiv(i0, i1, vorschlag, art) {
+    if (!(i1 > i0) || !_points[i0] || !_points[i1]) return;
+    const name = await _lbFrage(t("gpxinspect.ab_archiv_name", "Name der neuen Tour"), vorschlag || "");
+    if (name === null) return;
+    const payload = _points.slice(i0, i1 + 1).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 }));
+    let r;
+    try {
+      r = await rzWarten("archiv_abschnitt_aufnehmen", () => api().archiv_abschnitt_aufnehmen(payload, _srcPath || "", String(name).trim(),
+        _sources.length > 1 ? _sources : null, art || ""), {
+        titel: t("warte.archiv_abschnitt_aufnehmen.titel", "Neue Tour wird angelegt"),
+        text: t("warte.archiv_abschnitt_aufnehmen.text", "Der Abschnitt wird ins Archiv aufgenommen"),
+      });
+    } catch (err) { r = { ok: false, error: String(err) }; }
+    if (isUnmounted) return;
+    if (!r || !r.ok) { toast((r && r.error) || t("gpxinspect.ab_archiv_fehler", "Die Tour konnte nicht angelegt werden."), "error", 6000); return; }
+    applog && applog("info", `[inspektor] Abschnitt #${i0}–#${i1} als Tour ins Archiv: ${r.pfad}`);
+    const m = openModal({
+      title: "📥 " + t("gpxinspect.ab_archiv_ok_titel", "Neue Tour im Archiv"),
+      body: `<p>${t("gpxinspect.ab_archiv_ok", "„{name}“ liegt jetzt als eigene Tour im Archiv ({n} Punkte). Der Track hier ist unverändert.", { name: _lbEsc(r.name), n: r.punkte })}</p>`,
+      footer: `<button class="btn" id="gpxi-aba-weg">${t("gpxinspect.ab_archiv_weg", "Wieder entfernen")}</button>
+               <button class="btn" id="gpxi-aba-bleiben">${t("gpxinspect.ab_archiv_bleiben", "Hier weiterarbeiten")}</button>
+               <button class="btn btn-primary" id="gpxi-aba-zeigen">${t("gpxinspect.ab_archiv_zeigen", "Im Archiv zeigen")}</button>`,
+    });
+    const knopf = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+    knopf("gpxi-aba-bleiben", () => m.close());
+    knopf("gpxi-aba-zeigen", () => {
+      m.close();
+      window.__rzArchivZeigen = { geo: r.geo_hash ? [r.geo_hash] : [], pfade: [r.pfad] };
+      try { switchMod("library"); } catch (_) {}
+    });
+    knopf("gpxi-aba-weg", async () => {
+      m.close();
+      const w = await api().library_trash(r.pfad);
+      if (w && w.ok) toast(t("gpxinspect.ab_archiv_entfernt", "Die neue Tour ist wieder entfernt (Papierkorb)."), "info");
+      else toast((w && w.error) || "?", "error", 6000);
+    });
+    return r;
+  }
+  try { window.__rzAbschnittInsArchiv = _abschnittInsArchiv; } catch (_) {}
+
   function _lbEintragMenue(e, x, y, tHier, opt) {
     if (!e || _lbAlles) return;
     opt = opt || {};
@@ -4153,6 +4206,21 @@ function mountGpxInspect(body, headerActions) {
         _lbAktion(t("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen"), "zusammenlegen", { bid_a: vor.bids[vor.bids.length - 1], bid_b: e.bids[0] }, { auswahl: null }) });
       M.push({ symbol: "⇥", text: t("logbuch.menue.mit_naechstem", "Mit nächstem zusammenlegen"), aus: !nach, tu: () =>
         _lbAktion(t("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen"), "zusammenlegen", { bid_a: e.bids[e.bids.length - 1], bid_b: nach.bids[0] }, { auswahl: null }) });
+      M.push("-");
+      // 14.09.2026 (Marc/Beta-Tester: Autofahrt und Wanderung in einer Datei) — den Eintrag als eigene Tour
+      M.push({ symbol: "📥", text: t("logbuch.menue.als_tour", "Als eigene Tour ins Archiv …"), tu: () => {
+        const z = _lbZeiten || _lbZeitenBauen();
+        let i0 = -1, i1 = -1;
+        for (let i = 0; i < z.length; i++) {
+          if (!(z[i] >= e.t0 && z[i] <= e.t1)) continue;
+          if (i0 < 0) i0 = i;
+          i1 = i;
+        }
+        if (i0 < 0 || i1 <= i0) { toast(t("gpxinspect.abschnitt_zu_kurz", "Der Abschnitt braucht mindestens zwei Punkte."), "warn"); return; }
+        const tag = _lbDatum(e.t0, e.versatz_min);
+        const datum = tag.getUTCDate() + "." + (tag.getUTCMonth() + 1) + "." + tag.getUTCFullYear();
+        _abschnittInsArchiv(i0, i1, e.name || (_lbArt(e.anzeige_art) + " " + datum), e.anzeige_art || e.art || "");
+      } });
       M.push("-");
       M.push({ symbol: "🗑", text: t("logbuch.menue.loeschen", "Löschen (geht im Nachbarn auf)"), tu: () =>
         _lbAktion(t("logbuch.undo.loeschen", "Logbuch: löschen"), "aufgehen", { bids: e.bids }, { auswahl: null }) });
@@ -5228,7 +5296,7 @@ function mountGpxInspect(body, headerActions) {
     try { _lbMenueZu(); } catch (_) {}
     try { if (_lbGross) { _lbFensterMerken(); _lbGross.remove(); _lbGross = null; } } catch (_) {}
     try { _lbInfoZu(); } catch (_) {}
-    for (const k of ["__rzGpxiLogbuch", "__rzGpxiLogbuchBearbeiten", "__rzGpxiLogbuchNetz", "__rzGpxiLogbuchSpuren", "__rzGpxiLogbuchKarte"]) {
+    for (const k of ["__rzGpxiLogbuch", "__rzGpxiLogbuchBearbeiten", "__rzGpxiLogbuchNetz", "__rzGpxiLogbuchSpuren", "__rzGpxiLogbuchKarte", "__rzAbschnittInsArchiv"]) {
       try { delete window[k]; } catch (_) {}
     }
     // v0.9.389 — GPX-Listener abmelden (hielt sonst die komplette _points-Kopie).

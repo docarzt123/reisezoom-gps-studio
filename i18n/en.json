@@ -3879,5 +3879,20 @@
   "logbuch.fenster.nur_vermutete": "guessed only",
   "logbuch.fenster.nur_vermutete_tip": "Show only entries where detection was unsure",
   "logbuch.fenster.maximieren": "Maximize",
-  "logbuch.fenster.wiederherstellen": "Restore"
+  "logbuch.fenster.wiederherstellen": "Restore",
+  "gpxinspect.ab_archiv": "Save section A→B as a new tour in the archive …",
+  "gpxinspect.ab_archiv_tip": "Put the section between A and B into the archive as a separate new tour — e.g. the hike from a file that also contains the drive. The track here stays unchanged.",
+  "gpxinspect.abschnitt": "Section",
+  "gpxinspect.abschnitt_zu_kurz": "The section needs at least two points.",
+  "gpxinspect.ab_archiv_name": "Name of the new tour",
+  "gpxinspect.ab_archiv_fehler": "The tour could not be created.",
+  "gpxinspect.ab_archiv_ok_titel": "New tour in the archive",
+  "gpxinspect.ab_archiv_ok": "“{name}” is now a separate tour in the archive ({n} points). The track here is unchanged.",
+  "gpxinspect.ab_archiv_weg": "Remove again",
+  "gpxinspect.ab_archiv_bleiben": "Keep working here",
+  "gpxinspect.ab_archiv_zeigen": "Show in archive",
+  "gpxinspect.ab_archiv_entfernt": "The new tour has been removed again (trash).",
+  "logbuch.menue.als_tour": "Save as separate tour in archive …",
+  "warte.archiv_abschnitt_aufnehmen.titel": "Creating new tour",
+  "warte.archiv_abschnitt_aufnehmen.text": "The section is being added to the archive"
 }
