@@ -3879,5 +3879,20 @@
   "logbuch.fenster.nur_vermutete": "solo supuestos",
   "logbuch.fenster.nur_vermutete_tip": "Mostrar solo entradas donde la detección no estaba segura",
   "logbuch.fenster.maximieren": "Maximizar",
-  "logbuch.fenster.wiederherstellen": "Restaurar"
+  "logbuch.fenster.wiederherstellen": "Restaurar",
+  "gpxinspect.ab_archiv": "Guardar tramo A→B como nueva ruta en el archivo …",
+  "gpxinspect.ab_archiv_tip": "Guarda el tramo entre A y B como una ruta nueva e independiente en el archivo, p. ej. la caminata de un archivo que también contiene el trayecto en coche. El track de aquí no cambia.",
+  "gpxinspect.abschnitt": "Tramo",
+  "gpxinspect.abschnitt_zu_kurz": "El tramo necesita al menos dos puntos.",
+  "gpxinspect.ab_archiv_name": "Nombre de la nueva ruta",
+  "gpxinspect.ab_archiv_fehler": "No se pudo crear la ruta.",
+  "gpxinspect.ab_archiv_ok_titel": "Nueva ruta en el archivo",
+  "gpxinspect.ab_archiv_ok": "«{name}» ya es una ruta propia en el archivo ({n} puntos). El track de aquí no ha cambiado.",
+  "gpxinspect.ab_archiv_weg": "Quitar de nuevo",
+  "gpxinspect.ab_archiv_bleiben": "Seguir aquí",
+  "gpxinspect.ab_archiv_zeigen": "Ver en el archivo",
+  "gpxinspect.ab_archiv_entfernt": "La nueva ruta se ha quitado (papelera).",
+  "logbuch.menue.als_tour": "Guardar como ruta propia en el archivo …",
+  "warte.archiv_abschnitt_aufnehmen.titel": "Creando nueva ruta",
+  "warte.archiv_abschnitt_aufnehmen.text": "El tramo se añade al archivo"
 }

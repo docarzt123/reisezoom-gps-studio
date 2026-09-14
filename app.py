@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.717"
+APP_VERSION = "0.9.718"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -10481,6 +10481,64 @@ class Api:
             return {"ok": True, "pfade": raus}
         except Exception as e:  # noqa: BLE001
             log.error("gpxinspect_save_teile: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    # Logbuch-Art → Fortbewegungsart im Archiv (core/library ACTIVITIES)
+    _ABSCHNITT_AKTIVITAET = {"wanderung": "wandern", "gehen": "wandern", "spaziergang": "spaziergang",
+                             "rad": "rad", "laufen": "laufen", "fahrt": "auto",
+                             "wassersport": "boot", "uebersetzen": "boot"}
+
+    def archiv_abschnitt_aufnehmen(self, points: list, src_path: str = "", name: str = "",
+                                   sources: list = None, art: str = "") -> dict:
+        """Einen Abschnitt als NEUE Tour ins Archiv (14.09.2026, Beta-Tester: Autofahrt und
+        Wanderung in einer Geory-Datei — „wie löse ich einzelne Tracks heraus?").
+
+        Die Punkte (Inspektor: Anker A→B oder ein Logbuch-Eintrag) werden mit Sensoren
+        als GPX in den app-verwalteten Import-Ordner geschrieben, eingelesen und bekommen
+        den Namen und — aus der Logbuch-Art — die Fortbewegungsart. Die Quelle bleibt
+        unangetastet. Rückgabe: {ok, pfad, geo_hash, name, punkte}."""
+        try:
+            pts = list(points or [])
+            if len(pts) < 2:
+                return {"ok": False, "error": _ui_t()("gpxinspect.abschnitt_zu_kurz",
+                        "Der Abschnitt braucht mindestens zwei Punkte.")}
+            titel = str(name or "").strip()
+            if not titel:
+                titel = (Path(src_path).stem if src_path else "Tour") + " – " + \
+                    _ui_t()("gpxinspect.abschnitt", "Abschnitt")
+            sicher = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", titel).strip(" .")[:80] or "Abschnitt"
+            ziel = APP_SUPPORT / "import"
+            ziel.mkdir(parents=True, exist_ok=True)
+            out = ziel / f"{sicher}.gpx"
+            n = 2
+            while out.exists():
+                out = ziel / f"{sicher}-{n}.gpx"
+                n += 1
+            res = cgpxedit.save_points(pts, str(out), name=titel, src_path=src_path or None, fmt="gpx",
+                                       sources=list(sources) if sources else None)
+            if not res.get("ok"):
+                return {"ok": False, "error": res.get("error") or "Speichern fehlgeschlagen"}
+            conn = self._lib()
+            clib.add_folder(conn, str(ziel), recursive=False)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ziel)],
+                      map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
+            row = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (str(out),)).fetchone()
+            try:
+                clib.set_display_name(conn, str(out), titel)
+            except Exception:  # noqa: BLE001
+                log.exception("archiv_abschnitt_aufnehmen: Name")
+            akt = self._ABSCHNITT_AKTIVITAET.get(str(art or ""), "")
+            if akt and akt in clib.ACTIVITIES:
+                try:
+                    clib.set_activity(conn, str(out), akt)
+                except Exception:  # noqa: BLE001
+                    log.exception("archiv_abschnitt_aufnehmen: Art")
+            log.info("Abschnitt ins Archiv: %d Punkte aus %s → %s (%s)", res.get("count", len(pts)),
+                     src_path or "?", out, akt or "ohne Art")
+            return {"ok": True, "pfad": str(out), "geo_hash": (row["geo_hash"] if row else "") or "",
+                    "name": titel, "punkte": res.get("count", len(pts))}
+        except Exception as e:  # noqa: BLE001
+            log.exception("archiv_abschnitt_aufnehmen")
             return {"ok": False, "error": str(e)}
 
     def gpxinspect_save(self, points: list, src_path: str,

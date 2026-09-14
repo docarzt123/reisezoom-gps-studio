@@ -1992,9 +1992,9 @@ function mountAnimator(body, headerActions, opts) {
     };
   }
   const _reiseAnwendenBald = _aufschub(() => { try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] " + e); } });
-  const _paceMapLadenBald = _aufschub(() => { try { paceMapLaden(); } catch (_) {} });
+  const _paceMapLadenBald = _aufschub(() => { try { paceMapLaden(); } catch (e) { applog("warn", "[tempo] Kurve laden: " + e); } });
   const _gruppenAnLeisteBald = _aufschub(() => { try { _gruppenAnLeiste(); } catch (_) {} });
-  const _pauseInfoLadenBald = _aufschub(() => { try { pauseInfoLaden(); } catch (_) {} });
+  const _pauseInfoLadenBald = _aufschub(() => { try { pauseInfoLaden(); } catch (e) { applog("warn", "[pausen] Info laden: " + e); } });
   // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
   // immer gespeichert) — Render, Backend und alle Rechnungen dahinter bleiben

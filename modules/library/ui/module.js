@@ -5354,6 +5354,14 @@ function mountLibrary(body, headerActions) {
     await reloadCollections();
     await reload();
     renderDetail();
+    // 14.09.2026 — ein anderes Modul hat eine neue Tour angelegt (Inspektor: „Abschnitt als
+    // neue Tour ins Archiv") und will sie hier vorausgewählt sehen — wie nach einem Import.
+    if (window.__rzArchivZeigen) {
+      _importZeigen = window.__rzArchivZeigen; window.__rzArchivZeigen = null;
+      window.__rzFortsetzenGeprueft = true;
+      try { await importErgebnisZeigen(); } catch (e) { applog && applog("warn", "[Archiv] Zeigen: " + e); }
+      return;
+    }
     // 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim Schließen,
     // sondern startet immer wieder im Archiv"): Beim ERSTEN Betreten nach dem
     // Programmstart dort weitermachen, wo zuletzt gearbeitet wurde — dasselbe
