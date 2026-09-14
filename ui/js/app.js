@@ -161,9 +161,25 @@ function remountActiveModule() {
     try { applog && applog("warn", "[remountActiveModule] Schleife erkannt — Neuaufbau ausgelassen"); } catch (_) {}
     return;
   }
+  // 14.09.2026 (Nachttest): Beim Neuaufbau (z. B. Kartenstil gewechselt) stand sekundenlang „Lade ein GPX …"
+  // da, ohne Hinweis. Jetzt ein Wartefenster, das die erste bereite Karte schließt (onMapReady in util.js).
+  try {
+    if (window.rzStatus) {
+      window.rzStatus.start("modul-neuaufbau", {
+        titel: t("warte.modul_neuaufbau.titel", "Ansicht wird neu aufgebaut"),
+        text: t("warte.modul_neuaufbau.text", "Die Karte wird mit den neuen Einstellungen geladen …"),
+      });
+      clearTimeout(window.__rzNeuaufbauTimer);
+      window.__rzNeuaufbauTimer = setTimeout(() => { try { window.rzStatus.ende("modul-neuaufbau"); } catch (_) {} }, 20000);
+    }
+  } catch (_) {}
   if (typeof activeCleanup === "function") { try { activeCleanup(); } catch (_) {} }
   activeCleanup = null;
   renderMod();
+  // Module ohne Karte: gleich wieder zu
+  setTimeout(() => {
+    try { if (!document.querySelector("#main .maplibregl-map, #main .mapboxgl-map")) window.rzStatus.ende("modul-neuaufbau"); } catch (_) {}
+  }, 600);
 }
 window.remountActiveModule = remountActiveModule;
 

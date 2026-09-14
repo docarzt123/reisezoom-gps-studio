@@ -7711,7 +7711,17 @@ function mountAnimator(body, headerActions, opts) {
         if (_p && _d) applyGlobalGpx(_p, _d);
       } catch (_) {}
     }
-    if (!currentCoords || currentCoords.length < 2) return;
+    if (!currentCoords || currentCoords.length < 2) {
+      // 14.09.2026 (Nachttest) — vorher stiller Return: in der Reiseroute ohne berechnete Route tat
+      // „Probe-Lauf" schlicht nichts. Jetzt sagt die App, was fehlt.
+      try {
+        if (typeof toast === "function") toast(_isReiseroute
+          ? t("reiseroute.erst_route", "Erst Start und Ziel unter „Route / Anreise“ festlegen — dann läuft die Vorschau.")
+          : t("anim.erst_track", "Erst einen Track laden — dann läuft die Vorschau."), "warn", 5000);
+        applog("info", `[runPreview] kein Track/keine Route (Modus ${RZ_MODE || "animator"}) → Hinweis`);
+      } catch (_) {}
+      return;
+    }
     _kartenGroessePruefen("Probe-Lauf");
     if (_previewRaf && forceStart !== true) {
       // Aktuell läuft was → stoppen
@@ -9362,18 +9372,19 @@ function mountAnimator(body, headerActions, opts) {
           ? window.__rzPendingModus : "gleich";
         const pendingPausen = window.__rzPendingPausen !== false;
         window.__rzUebergabeLaeuft = true;   // 06.09.2026 — Szene wartet darauf (core/szene.py)
+        applog("info", `[übergabe] Mount sieht ${pending.length} offene Etappe(n), Start in 1,2 s`);
         _animPendingToursTimer = setTimeout(async () => {
           // Wer nach dem Sprung aus dem Archiv binnen 1,2 s weiterklickt, darf
           // keine Etappen mehr in ein totes Modul schreiben — `_animPersistTours`
           // am Ende von `_animAddTourPath` würde sonst den Projekt-Stand
           // überschreiben, den das nächste Modul schon anders gesetzt hat.
-          if (_animUnmounted) return;                       // der lebende Mount holt die Übergabe ab (Flag bleibt: der neue Mount setzt es neu)
-          if (window.__rzPendingTours !== pending) return;  // schon von einem anderen Mount abgeholt
+          if (_animUnmounted) { applog("info", "[übergabe] Mount abgebaut vor Start — der neue Mount übernimmt"); return; }
+          if (window.__rzPendingTours !== pending) { applog("info", "[übergabe] schon von einem anderen Mount abgeholt"); return; }
           // Läuft gerade ein anderer Mount die Mengen-Aktivierung? Dann warten — die
           // Aktivierung baut das Modul neu, und DIESER (neue) Mount übernimmt danach.
           for (let w = 0; window.__rzMengeAktivierung && w < 100; w++) await new Promise(r => setTimeout(r, 150));
-          if (_animUnmounted) return;
-          if (window.__rzPendingTours !== pending) return;
+          if (_animUnmounted) { applog("info", "[übergabe] Mount abgebaut während Mengen-Aktivierung"); return; }
+          if (window.__rzPendingTours !== pending) { applog("info", "[übergabe] nach Warten schon abgeholt"); return; }
           // IDEAS §38 — ERST die Mengen-Sitzung aktivieren, DANN Etappen
           // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
           // und die Arbeit gehört an die Menge, nicht an die erste Tour.
@@ -9393,7 +9404,7 @@ function mountAnimator(body, headerActions, opts) {
               window.__rzMengeAktivierung = true;
               try { await sessionActivateMenge(alle, pendingAblauf, pendingModus, pendingPausen); }
               finally { window.__rzMengeAktivierung = false; window.__rzMengeAktiviert = schluessel; }
-              if (_animUnmounted) return;   // der neue Mount übernimmt Übergabe und Modal
+              if (_animUnmounted) { applog("info", "[übergabe] Mount nach Mengen-Aktivierung abgebaut — neuer Mount übernimmt (offen: " + !!window.__rzPendingTours + ")"); return; }
               // 04.09.2026 (Marc: „ein neu erstellter Schwarm öffnet mit den
               // Keyframes des vorherigen Projekts"): Das Modul war mit dem
               // Projekt der ERSTEN Tour gemountet (Controls, Keyframe-Editor,
@@ -9418,7 +9429,7 @@ function mountAnimator(body, headerActions, opts) {
             toast(t("schwarm.fehler.sitzung", "Die Komposition konnte nicht angelegt werden — bitte Log prüfen."), "error", 7000);
             return;
           }
-          if (_animUnmounted) return;
+          if (_animUnmounted) { applog("info", "[übergabe] Mount abgebaut vor dem Laden"); return; }
           // 28.08.2026 (Marc): Ausgrau-Modal um die GESAMTE Übergabe — Restore
           // plus Nachtragen. try/finally, weil die Unmount-Ausstiege das Modal
           // sonst offen ließen (nicht schließbar = App tot).
@@ -18624,6 +18635,9 @@ function mountAnimator(body, headerActions, opts) {
 
   return () => {
     _animUnmounted = true;
+    // 14.09.2026 — Undo-Controller dieses Mounts abmelden, sonst bleibt er nach dem Tab-Wechsel
+    // registriert und ⌘Z dreht Einstellungen eines Moduls zurück, das gar nicht offen ist.
+    try { if (window.__rzUndoControllers[_MODKEY] === _animUndoCtrl) delete window.__rzUndoControllers[_MODKEY]; } catch (_) {}
     clearTimeout(pollTimer);
     clearTimeout(_animPendingToursTimer);
     if (_previewRaf) { try { cancelAnimationFrame(_previewRaf); } catch (_) {} _previewRaf = null; }

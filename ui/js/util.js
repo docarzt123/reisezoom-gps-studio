@@ -1526,10 +1526,24 @@ let _tourenLadeOffen = false;
 // (nichts Halbes wird gespeichert, es geht zurück ins Archiv).
 let _tourenLadeAbbruch = false;
 function tourenLadeModalAbgebrochen() { return _tourenLadeAbbruch; }
+// 14.09.2026 (Nachttest: Fenster blieb nach einem Neuaufbau des Moduls ohne Besitzer 2 min stehen):
+// Wachhund — kommt 45 s lang kein Fortschritt (Tick/Schritt), schließt das Fenster selbst und sagt es im Log.
+let _tourenLadeLetzte = 0, _tourenLadeWachhund = 0;
+function _tourenLadeLebt() { _tourenLadeLetzte = Date.now(); }
 function tourenLadeModalZeigen() {
   if (_tourenLadeOffen) return false;
   _tourenLadeOffen = true;
   _tourenLadeAbbruch = false;
+  _tourenLadeLebt();
+  clearInterval(_tourenLadeWachhund);
+  _tourenLadeWachhund = setInterval(() => {
+    if (!_tourenLadeOffen) { clearInterval(_tourenLadeWachhund); return; }
+    if (Date.now() - _tourenLadeLetzte > 45000) {
+      clearInterval(_tourenLadeWachhund);
+      try { applog("warn", "[touren-laden] Wachhund: 45 s ohne Fortschritt — Fenster geschlossen (letzter Text: " + ((document.getElementById("rz-lade-zaehler") || {}).textContent || "") + ")"); } catch (_) {}
+      tourenLadeModalZu();
+    }
+  }, 5000);
   openModal({
     title: "⏳ " + t("animator.tours.lade_titel", "Touren werden geladen"),
     body: `<div style="width:360px; max-width:100%; text-align:center; padding:14px 6px">
@@ -1564,6 +1578,7 @@ function tourenLadeModalZeigen() {
   return true;
 }
 function tourenLadeModalTick(i, n, name) {
+  _tourenLadeLebt();
   const z = document.getElementById("rz-lade-zaehler");
   if (z) z.textContent = t("animator.tours.lade_text", "Lade Tour {i} von {n} …")
     .replace("{i}", i).replace("{n}", n);
@@ -1575,6 +1590,7 @@ function tourenLadeModalTick(i, n, name) {
  *  „das modal muss so lange bleiben, bis man mit dem animator arbeiten kann …
  *  immer schön hinschreiben, was passiert." */
 function tourenLadeModalSchritt(text) {
+  _tourenLadeLebt();
   const z = document.getElementById("rz-lade-zaehler");
   if (z) z.textContent = text || "";
   const nm = document.getElementById("rz-lade-name");
@@ -1820,8 +1836,13 @@ function _mapLebt(map) {
   try { return !!(map && map.style && !map._removed); } catch (_) { return false; }
 }
 
+function _neuaufbauFertig() {
+  try { if (window.rzStatus && window.rzStatus.laeuft("modul-neuaufbau")) { clearTimeout(window.__rzNeuaufbauTimer); window.rzStatus.ende("modul-neuaufbau"); } } catch (_) {}
+}
 function onMapReady(map, cb) {
   if (!_mapLebt(map)) return;
+  const _cb = cb;
+  cb = () => { try { _cb(); } finally { _neuaufbauFertig(); } };
   const styleReady = map.isStyleLoaded();
   applog("info", `[onMapReady] styleLoaded=${styleReady}`);
   if (styleReady) { try { cb(); } catch (err) { console.warn("onMapReady cb:", err); applog("error", "[onMapReady cb-sync] " + err); } return; }
@@ -3099,10 +3120,20 @@ function _rzActiveModuleForUndo() {
     ["gpxi-panel", "gpxinspect"],  // v0.9.238 — GPX-Inspektor (Track-Edits undoable)
     ["height-panel", "heightanim"],  // v0.9.322 — Höhen-Animator (Einstellungen undoable)
     ["lib-panel",  "library"],       // 28.08.2026 — Archiv (Sammlungs-Aktionen undoable)
+    ["wk-panel",   "webkarte"],      // 14.09.2026 — Web-Karte (Beschriftungen/Tracks/Optionen undoable)
   ];
   for (const [id, key] of candidates) {
     const el = document.getElementById(id);
-    if (el && el.offsetParent) return key;
+    if (!el || !el.offsetParent) continue;
+    // 14.09.2026 (Nachttest) — Animator, Tour-Map und Reiseroute teilen sich dasselbe Panel
+    // (#anim-panel, ein mountAnimator mit drei Modi). Das Panel allein sagt also nicht, WELCHES
+    // Modul offen ist: ⌘Z in Tour-Map/Reiseroute landete beim Controller „animator" — der vom
+    // letzten Animator-Besuch übrig war und dessen Einstellungen unsichtbar zurückdrehte.
+    if (key === "animator") {
+      const offen = (typeof activeMod !== "undefined") ? activeMod : null;
+      if (offen === "tourmap" || offen === "reiseroute") return offen;
+    }
+    return key;
   }
   return null;
 }

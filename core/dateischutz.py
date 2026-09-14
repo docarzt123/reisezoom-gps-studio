@@ -229,13 +229,48 @@ def _sichern(p: Path, aktion: str, verschieben: bool) -> Optional[Path]:
     return ziel
 
 
+SICHERUNGEN_JE_DATEI = 10
+_letzter_inhalt: dict[str, tuple] = {}
+
+
+def _fingerabdruck(p: Path) -> tuple:
+    import hashlib
+    h = hashlib.sha1()
+    with open(p, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return (p.stat().st_size, h.hexdigest())
+
+
 def _sichern_gedrosselt(p: Path, aktion: str) -> None:
+    """Häufig gespeicherte Dateien: höchstens alle SICHERUNG_ABSTAND_S, gleicher Inhalt nie
+    doppelt, und je Datei bleiben nur die letzten SICHERUNGEN_JE_DATEI Stände (14.09.2026)."""
     jetzt = time.time()
     with _LOCK:
         if jetzt - _letzte_sicherung.get(str(p), 0) < SICHERUNG_ABSTAND_S:
             return
         _letzte_sicherung[str(p)] = jetzt
+    try:
+        fp = _fingerabdruck(p) if p.is_file() else None
+    except OSError:
+        fp = None
+    if fp is not None and _letzter_inhalt.get(str(p)) == fp:
+        return
     _sichern(p, aktion, verschieben=False)
+    if fp is not None:
+        _letzter_inhalt[str(p)] = fp
+    try:   # ältere Stände derselben Datei (gleiche HERKUNFT) über die Grenze hinaus entfernen
+        pk = papierkorb_ordner()
+        eigene = []
+        for d in pk.iterdir():
+            h = d / "HERKUNFT.txt"
+            if d.is_dir() and h.is_file() and h.read_text(encoding="utf-8") == str(p):
+                eigene.append(d)
+        for d in sorted(eigene, key=lambda d: d.name)[:-SICHERUNGEN_JE_DATEI]:
+            if _liegt_in(_aufgeloest(d), _aufgeloest(pk)) and _aufgeloest(d) != _aufgeloest(pk):
+                shutil.rmtree(d, ignore_errors=True)
+    except OSError:
+        pass
 
 
 # ── Die Eingriffe ────────────────────────────────────────────────────────────

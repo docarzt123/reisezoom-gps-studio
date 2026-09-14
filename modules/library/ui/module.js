@@ -1568,11 +1568,14 @@ function mountLibrary(body, headerActions) {
       if (typeof switchMod === "function") switchMod("animator");
       return;
     }
-    if (!k.haupt_pfad) {
-      toast(T("library.proj_pfade_fehlen", "Nicht alle Tour-Dateien der Komposition wurden gefunden."), "warn", 6000);
+    // 14.09.2026 (Nachttest): Beim Weitermachen nach dem Start ist die Projektliste noch nicht geladen
+    // (`k` leer) — der Pfad kommt deshalb aus der Antwort der Brücke; die Liste ist nur der Rückfall.
+    const haupt = (info.gpx_paths || [])[0] || k.haupt_pfad || "";
+    if (!haupt) {
+      toast(T("library.proj_tour_fehlt", "Die Tour-Datei dieses Projekts wurde nicht gefunden."), "warn", 6000);
       return;
     }
-    const ok = await window.loadGlobalGpx(k.haupt_pfad, { stumm: true });
+    const ok = await window.loadGlobalGpx(haupt, { stumm: true });
     if (ok === false) return;
     if (typeof switchMod === "function") switchMod(modul);
   }

@@ -3965,5 +3965,11 @@
   "warte.export_current.text": "Converting and saving the track",
   "library.trash_laeuft_titel": "Removing tours",
   "library.trash_laeuft_text": "Moving files to the trash and updating the archive",
-  "library.trash_projekte_text": "Deleting tours and their projects"
+  "library.trash_projekte_text": "Deleting tours and their projects",
+  "library.proj_tour_fehlt": "The tour file of this project was not found.",
+  "webkarte.undo_label": "Web map",
+  "reiseroute.erst_route": "Set start and destination under “Route / Travel” first — then the preview runs.",
+  "anim.erst_track": "Load a track first — then the preview runs.",
+  "warte.modul_neuaufbau.titel": "Rebuilding the view",
+  "warte.modul_neuaufbau.text": "Loading the map with the new settings …"
 }
