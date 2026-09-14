@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from . import bibliothek as bib
+from . import dateischutz as _ds
 
 # Was aus dem App-Ordner in die Bibliothek gehört: (Quelle, Ziel unterhalb
 # der Bibliothek). Alles andere bleibt, wo es ist — es gehört zum Rechner.
@@ -209,7 +210,7 @@ def ausfuehren(app_support: Path, ziel_ort: Path,
     for quelle, _ in posten:
         q = a / quelle
         try:
-            q.rename(a / f"{q.name}.umgezogen-{stempel}")
+            _ds.umbenennen(q, a / f"{q.name}.umgezogen-{stempel}", "umzug_quelle_ablegen")
         except OSError as e:
             bericht["probleme"].append({"was": quelle, "grund": "nicht_wegraeumbar", "detail": str(e)})
 

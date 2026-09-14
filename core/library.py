@@ -53,6 +53,8 @@ import re
 import sqlite3
 import statistics
 import threading
+
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 import time
 import unicodedata
 from datetime import datetime, timezone
@@ -2514,6 +2516,9 @@ def _in_den_papierkorb(p: Path) -> str:
     import subprocess
     import sys as _sys
 
+    # 14.09.2026 Dateischutz: nur Pfade, die der Nutzer für genau diesen Vorgang
+    # bestätigt hat (Aufrufer meldet sie per _ds.nutzer_ziel an).
+    _ds.pruefen(p, "papierkorb")
     try:
         from send2trash import send2trash  # type: ignore
         send2trash(str(p))
@@ -2539,6 +2544,7 @@ def _in_den_papierkorb(p: Path) -> str:
     while ziel.exists():
         ziel = ordner / f"{p.stem} ({i}){p.suffix}"
         i += 1
+    # dateischutz-ok: Ziel ist der System-Papierkorb, Quelle vorher mit _ds.pruefen geprüft
     shutil.move(str(p), str(ziel))
     return str(ziel)
 
@@ -2685,11 +2691,11 @@ def map_thumb_render_free(pts: list, out: Path, *, width: int = 720, height: int
     tmp = out.with_name(out.name + f".{os.getpid()}.tmp")
     try:
         img.save(tmp, format="PNG", optimize=True)
-        os.replace(tmp, out)
+        _ds.ersetzen(tmp, out, "kartenvorschau", art=_ds.ART_CACHE)
     finally:
         try:
             if tmp.exists():
-                tmp.unlink()
+                _ds.loeschen(tmp, "kartenvorschau", art=_ds.ART_TEMP)
         except OSError:
             pass
     return True
@@ -2767,11 +2773,11 @@ def map_thumb_fetch(
     tmp = out.with_name(out.name + f".{os.getpid()}.tmp")
     try:
         tmp.write_bytes(data)
-        os.replace(tmp, out)
+        _ds.ersetzen(tmp, out, "kartenvorschau", art=_ds.ART_CACHE)
     finally:
         try:
             if tmp.exists():
-                tmp.unlink()
+                _ds.loeschen(tmp, "kartenvorschau", art=_ds.ART_TEMP)
         except OSError:
             pass
     # ⚠️ Diese Funktion läuft im Hintergrund-Thread und teilt sich die
@@ -2897,7 +2903,9 @@ def clear_cover(conn: sqlite3.Connection, path: str) -> None:
     row = conn.execute("SELECT cover FROM tracks WHERE path = ?", (path,)).fetchone()
     if row and row["cover"]:
         try:
-            Path(row["cover"]).unlink()
+            # Titelbild = verkleinerte Kopie in bilder/titel. Klein, aber vom Nutzer
+            # bewusst gewählt und das Original ist evtl. schon weg → Papierkorb.
+            _ds.loeschen(row["cover"], "titelbild_entfernen")
         except OSError:
             pass
     _set_meta(conn, path, cover="")
@@ -3187,7 +3195,7 @@ def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Pat
                 if st.st_mtime > cutoff:
                     continue
                 size = st.st_size
-                f.unlink()
+                _ds.loeschen(f, "vorschau_aufraeumen", art=_ds.ART_CACHE)   # neu erzeugbar
                 removed += 1
                 freed += size
             except OSError:

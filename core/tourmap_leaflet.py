@@ -21,6 +21,7 @@ from __future__ import annotations
 import html as _html
 import json
 from core.northarrow import NORTH_SVG
+from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 LEAFLET_VERSION = "1.9.4"
 
@@ -33,17 +34,17 @@ def render_preview_png(html: str, width: int = 1120, height: int = 640,
     Lädt OSM-Kacheln NUR hier beim Export auf dem Rechner des Erstellers — die
     exportierte HTML bettet danach nur das fertige Bild ein (kein Nachladen).
     Gibt None zurück, wenn Playwright/Chromium fehlt oder das Rendern scheitert."""
-    import os
-    import tempfile
     try:
         from playwright.sync_api import sync_playwright
     except Exception:
         return None
-    tmp = None
+    tmp = tmp_dir = None
     try:
-        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
+        # Eigener, beim Dateischutz gemerkter Temp-Ordner statt NamedTemporaryFile.
+        tmp_dir = _ds.temp_ordner("rz-leaflet-")
+        tmp = str(tmp_dir / "karte.html")
+        with open(tmp, "w", encoding="utf-8") as f:
             f.write(html)
-            tmp = f.name
         with sync_playwright() as p:
             browser = p.chromium.launch()
             page = browser.new_page(viewport={"width": int(width), "height": int(height)},
@@ -56,9 +57,12 @@ def render_preview_png(html: str, width: int = 1120, height: int = 640,
     except Exception:
         return None
     finally:
-        if tmp:
+        if tmp_dir:
             try:
-                os.unlink(tmp)
+                # Temp-Wurzeln selbst lässt der Dateischutz nicht löschen → genau diesen
+                # eigenen Ordner als Ziel dieses Vorgangs anmelden.
+                _ds.nutzer_ziel(tmp_dir)
+                _ds.ordner_loeschen(tmp_dir, "leaflet_vorschau", art=_ds.ART_TEMP, ignore_errors=True)
             except OSError:
                 pass
 

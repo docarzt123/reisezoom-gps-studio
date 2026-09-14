@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import mapstyles as ms
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 _log = logging.getLogger("rzgps.tileproxy")
 _UA = {"User-Agent": "ReisezoomGPSStudio (+https://reisezoom.com/gps)"}
@@ -190,7 +191,8 @@ def _terrarium_raw(z: int, x: int, y: int, cache_dir, timeout: float = 30.0):
         if cp is not None:
             try:
                 cp.parent.mkdir(parents=True, exist_ok=True)
-                tmp = cp.with_name(cp.name + f".{os.getpid()}.tmp"); tmp.write_bytes(b"image/png\n" + body); os.replace(tmp, cp)
+                tmp = cp.with_name(cp.name + f".{os.getpid()}.tmp"); tmp.write_bytes(b"image/png\n" + body)
+                _ds.ersetzen(tmp, cp, "kachel", art=_ds.ART_CACHE)
             except OSError:
                 pass
     try:
@@ -299,7 +301,7 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
             cp.parent.mkdir(parents=True, exist_ok=True)
             tmp = cp.with_name(cp.name + f".{os.getpid()}.tmp")
             tmp.write_bytes(ct.encode("ascii", "ignore") + b"\n" + body)
-            os.replace(tmp, cp)
+            _ds.ersetzen(tmp, cp, "kachel", art=_ds.ART_CACHE)
         except OSError as e:
             _log.debug("Zwischenspeicher: %s", e)
     return 200, ct, body

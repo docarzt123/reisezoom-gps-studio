@@ -34,8 +34,11 @@ import zipfile
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
+
 import gpxpy
 import gpxpy.gpx
+
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 from . import sensors as _sensors
 from . import fitmeta as _fitmeta
@@ -629,7 +632,7 @@ def ensure_gpx(path: str, cache_dir) -> str:
     name = os.path.splitext(os.path.basename(path))[0]
     tmp = out + ".tmp"
     write_gpx(pts, tmp, name=name)
-    os.replace(tmp, out)
+    _ds.ersetzen(tmp, out, "import_umwandeln", art=_ds.ART_CACHE)   # Cache-GPX, neu erzeugbar
     sc = write_sidecar(extras, out, tour)
     _log.info("ensure_gpx: %s → %s%s", path, out, " (+sensors)" if sc else "")
     return out

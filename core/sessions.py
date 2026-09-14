@@ -35,6 +35,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
+from . import dateischutz as _ds
+
 _log = logging.getLogger("core.sessions")
 
 
@@ -219,11 +221,11 @@ def save_sessions(sessions_file: Path, data: dict) -> None:
             json.dump(data, fh, indent=2, ensure_ascii=False)
             fh.flush()
             os.fsync(fh.fileno())   # sonst überlebt der Inhalt kein hartes Aus
-        os.replace(tmp, sessions_file)
+        _ds.ersetzen(tmp, sessions_file, "sessions_speichern")
     finally:
         try:
             if tmp.exists():
-                tmp.unlink()
+                _ds.loeschen(tmp, "sessions_speichern", art=_ds.ART_TEMP)
         except OSError:
             pass
 
@@ -497,7 +499,7 @@ def migrate_to_geo_hash(data: dict, app_support: Path) -> bool:
             neu_snap = alt_snap.parent / f"{geo}.gpx"
             try:
                 if alt_snap.is_file() and not neu_snap.exists():
-                    alt_snap.rename(neu_snap)
+                    _ds.umbenennen(alt_snap, neu_snap, "session_snapshot_umbenennen")
                 if neu_snap.is_file():
                     sess["gpx_snapshot_path"] = f"sessions/{geo}.gpx"
             except OSError as e:
@@ -643,6 +645,7 @@ if __name__ == "__main__":
     import tempfile
 
     tmp = Path(tempfile.mkdtemp())
+    _ds.temp_ordner_merken(tmp)
     sess_file = tmp / "sessions.json"
     snap_dir = tmp / "sessions"
 

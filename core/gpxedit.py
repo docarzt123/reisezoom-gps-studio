@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from . import gpx as cgpx
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 
 
@@ -96,19 +97,20 @@ def embed_rz_id(path, tour_id: str) -> bool:
                    + text[pos:])
     # Auch hier atomar: das Ziel ist die Original-Tour des Nutzers.
     tmp = f"{path}.{os.getpid()}.{_uuid.uuid4().hex[:8]}.tmp"
+    _ds.nutzer_ziel(tmp)   # eigene Zwischendatei neben dem Ziel
     try:
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.write(neu)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, path)
+        _ds.ersetzen(tmp, path, "gpx_speichern")   # Ziel = Tour des Nutzers → vorher gesichert
         return True
     except OSError:
         return False
     finally:
         try:
             if os.path.exists(tmp):
-                os.remove(tmp)
+                _ds.loeschen(tmp, "gpx_speichern", art=_ds.ART_TEMP)
         except OSError:
             pass
 
@@ -248,16 +250,17 @@ def save_points(
     # Renderers: am Ziel darf nie eine halbe Datei stehen.
     _roh = data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8")
     _tmp = f"{out_path}.{os.getpid()}.{_uuid.uuid4().hex[:8]}.tmp"
+    _ds.nutzer_ziel(_tmp)   # eigene Zwischendatei neben dem Ziel
     try:
         with open(_tmp, "wb") as fh:
             fh.write(_roh)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(_tmp, out_path)
+        _ds.ersetzen(_tmp, out_path, "gpx_speichern")   # vorhandener Stand wird gesichert
     finally:
         try:
             if os.path.exists(_tmp):
-                os.remove(_tmp)
+                _ds.loeschen(_tmp, "gpx_speichern", art=_ds.ART_TEMP)
         except OSError:
             pass
 

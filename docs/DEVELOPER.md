@@ -3550,6 +3550,27 @@ Manuelle Test-Runs (oben) vor jedem Commit / Build weiterhin empfohlen.
 
 ## 8 · Pflicht-Regeln für Änderungen
 
+### ⛔ Dateischutz — jeder Datei-Eingriff über `core/dateischutz.py` (Marc-Regel 14.09.2026)
+
+**Anlass:** Ein Nutzer hatte die Bibliothek direkt in den Wurzelordner seiner externen SSD gelegt. Der Umzug kopierte den ganzen Ordner samt Videos und löschte ihn danach mit `rmtree`. Marc: „bei allen File-Manipulationen, egal was: 1. immer ein Backup, 2. doppelt geprüft, dass nur das angefasst wird, was GPS Studio braucht."
+
+**Regel:** Kein `os.remove`, `os.unlink`, `Path.unlink`, `shutil.rmtree`, `shutil.move`, `os.rename`, `os.replace`, `Path.rename/replace` und kein exiftool `-overwrite_original` außerhalb von `core/dateischutz.py`. Stattdessen:
+
+| Eingriff | Aufruf |
+|---|---|
+| Datei löschen | `_ds.loeschen(pfad, "aktion", art)` |
+| Ordner löschen | `_ds.ordner_loeschen(pfad, "aktion", art, ignore_errors=…)` |
+| tmp → Ziel atomar | `_ds.ersetzen(tmp, ziel, "aktion", art)` |
+| verschieben / umbenennen | `_ds.verschieben(...)` / `_ds.umbenennen(...)` |
+| Nutzer hat ein Ziel gewählt (Dialog, Export, Render-Ausgabe, Foto) | `_ds.nutzer_ziel(pfad)` genau dort, wo die Wahl ankommt |
+| exiftool schreibt in eine Nutzerdatei | vorher `_ds.foto_schreiben_pruefen(pfad, gesichert=…)` |
+
+**Doppelte Prüfung (`pruefen`):** (a) der aufgelöste Pfad liegt in einem angemeldeten Bereich — App-Ordner (`app_ordner_setzen`), Bibliothek (`bereich_anmelden(..., nur_eigene=True)`: nur Einträge aus `bibliothek.EIGENE_NAMEN/EIGENE_PRAEFIXE`), eigene Temp-Ordner, vom Nutzer gewählte Ziele; (b) unabhängig davon eine Sperrliste: nie Wurzel-/Volume-Ordner, nie Home oder dessen Standardordner, nie ein Bereich als Ganzes, keine Symlink-Flucht. Verweigert → `DateischutzFehler` + `[dateischutz] VERWEIGERT` im app.log.
+
+**Sicherung:** `ART_NUTZERDATEN` (Standard) legt Gelöschtes/Überschriebenes vorher in `<App-Ordner>/_papierkorb/<Zeit>-<Aktion>/` (Herkunft in `HERKUNFT.txt`, 14 Tage / 20 GB, `papierkorb_aufraeumen` beim Start). Häufig gespeicherte Dateien werden höchstens alle 15 min gesichert. Ohne Sicherung nur `ART_TEMP` (eigene Zwischendatei desselben Vorgangs) und `ART_CACHE` (neu erzeugbar) — beides bewusst im Code begründen.
+
+**Wächter:** `tests/test_dateischutz_waechter.py` (AST-Suche über `app.py` und `core/*.py` + Verhaltenstest). Ausnahme nur mit `# dateischutz-ok: <Begründung>` in derselben oder der Zeile darüber; der Wächter listet jede Ausnahme.
+
 1. **VOR Code-Änderung:** `./scripts/backup.sh` (außer bei trivialen Tippfehlern)
 2. **NACH Funktions-Änderung:** `CHANGELOG.md` unter `[Unreleased]` ergänzen
 3. **Bei Architektur-Änderungen:** Diese Datei (`DEVELOPER.md`) updaten

@@ -56,6 +56,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
+from . import dateischutz as _ds
 from . import sessions as _s   # bewährte Primitiven wiederverwenden
 
 log = logging.getLogger("core.projekte")
@@ -83,7 +84,7 @@ def _lese_json(pfad: Path) -> dict:
         # starten (gleiche Philosophie wie load_sessions).
         log.error("projekte: %s unlesbar (%s) — lege sie beiseite", pfad, e)
         try:
-            os.replace(pfad, str(pfad) + f".kaputt-{time.strftime('%Y%m%d-%H%M%S')}")
+            _ds.umbenennen(pfad, str(pfad) + f".kaputt-{time.strftime('%Y%m%d-%H%M%S')}", "projekte_kaputt")
         except Exception:
             pass
         return {}
@@ -107,11 +108,11 @@ def _schreibe_json(pfad: Path, daten: dict) -> None:
             json.dump(daten, f, ensure_ascii=False, indent=1)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, pfad)
+        _ds.ersetzen(tmp, pfad, "projekte_speichern")
     finally:
         try:
             if tmp.exists():
-                tmp.unlink()
+                _ds.loeschen(tmp, "projekte_speichern", art=_ds.ART_TEMP)
         except OSError:
             pass
 
@@ -244,7 +245,7 @@ def migrieren_falls_noetig(app_support: Path, sessions_file: Path,
 
         speichern(app_support, daten)
         ziel = str(sessions_file) + f".aufgeloest-{time.strftime('%Y%m%d-%H%M%S')}"
-        os.replace(sessions_file, ziel)
+        _ds.umbenennen(sessions_file, ziel, "sessions_aufloesen")
         info = {"neu": False, "projekte": n_proj, "touren": len(daten["touren"]),
                 "kompositionen": n_komp, "alt_datei": ziel}
         log.info("Migration Sessions→Projekte: %d Projekte (%d Kompositionen), "
@@ -696,7 +697,7 @@ def auto_aufraeumen(app_support: Path, daten: dict) -> int:
     for pid in weg:
         if loeschen(daten, pid):
             try:
-                _staende_datei(app_support, pid).unlink(missing_ok=True)
+                _ds.loeschen(_staende_datei(app_support, pid), "projekt_staende_aufraeumen")
             except OSError:
                 pass
     if weg:

@@ -3894,5 +3894,6 @@
   "gpxinspect.ab_archiv_entfernt": "La nueva ruta se ha quitado (papelera).",
   "logbuch.menue.als_tour": "Guardar como ruta propia en el archivo …",
   "warte.archiv_abschnitt_aufnehmen.titel": "Creando nueva ruta",
-  "warte.archiv_abschnitt_aufnehmen.text": "El tramo se añade al archivo"
+  "warte.archiv_abschnitt_aufnehmen.text": "El tramo se añade al archivo",
+  "bib.umzug_laeuft": "La biblioteca ya se está moviendo. Espera a que termine."
 }

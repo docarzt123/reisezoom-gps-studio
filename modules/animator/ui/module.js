@@ -8313,8 +8313,8 @@ function mountAnimator(body, headerActions, opts) {
       // weshalb die Kamera am gelben Griff sichtbar abbremste.
       // 14.09.2026 — die Zeit-Kopie der Events nur neu rechnen, wenn sich Phasen oder
       // Schnitt geändert haben (vorher je Bild eine neue Kopie aller Events).
-      if (!_evzStand || _evzStand.ti !== ti || _evzStand.tf !== tf || _evzStand.a !== trimA || _evzStand.b !== trimB) {
-        _evzStand = { ti, tf, a: trimA, b: trimB, v: eventsMitZeit(events, ti, tf, trimA, trimB) };
+      if (!_evzStand || _evzStand.ev !== events || _evzStand.n !== events.length || _evzStand.ti !== ti || _evzStand.tf !== tf || _evzStand.a !== trimA || _evzStand.b !== trimB) {
+        _evzStand = { ev: events, n: events.length, ti, tf, a: trimA, b: trimB, v: eventsMitZeit(events, ti, tf, trimA, trimB) };
       }
       const eventsZeit = _evzStand.v;
       const interp = interpolateCameraJs(eventsZeit, timelineProgress, defaultPitch, defaultRotation,
