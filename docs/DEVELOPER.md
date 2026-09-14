@@ -2741,7 +2741,7 @@ window.createUndoController({
 - **Reentrancy-Guard:** während `apply()` werden `push()`-Calls ignoriert. Wichtig, weil `apply()` selbst input-Events dispatched (z.B. um Slider-Werte zu synchronisieren) — sonst würde der Generic-Listener einen Push-Loop auslösen.
 - **`force: true`-Option** für discrete Aktionen (KF-Snapshot, Delete, Checkbox-Click), die den Throttle umgehen.
 
-**Modul-Registry:** `window.__rzUndoControllers = { animator, tourmap, geotagger }`. Jedes Modul registriert seinen Controller beim Mount.
+**Modul-Registry:** `window.__rzUndoControllers = { animator, tourmap, geotagger }`. Jedes Modul registriert seinen Controller beim Mount. Seit 15.09.2026: auch `reiseroute`, `webkarte`, `heightanim`, `gpxinspect`, `library`. Die ⌘Z-Weiche (`_rzActiveModuleForUndo`) erkennt Animator/Tour-Map/Reiseroute **nicht** am Panel (alle drei nutzen `#anim-panel`), sondern an `activeMod`; `mountAnimator` meldet seinen Controller beim Abbau wieder ab (sonst drehte ⌘Z Einstellungen eines geschlossenen Moduls zurück — Wächter `tests/test_undo_routing_modi.py`). `undo()`/`redo()` überspringen Einträge, die dem aktuellen Stand gleichen (Doppel-Push, `tests/test_undo_doppelpush.py`).
 
 **Globaler Keyboard-Listener** in `util.js` (capture-phase, damit Slider-Inputs den Shortcut nicht abfangen) routet `Cmd/Ctrl+Z` / `Cmd/Ctrl+Shift+Z` / `Ctrl+Y` zum aktuell sichtbaren Modul-Panel (Lookup via `offsetParent` auf `anim-panel` / `tmap-panel` / `gt-panel`).
 
