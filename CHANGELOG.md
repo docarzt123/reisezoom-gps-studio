@@ -22,7 +22,7 @@ Bei jeder neuen Version:
 
 ### Fixed
 - **Archive: the "has projects" dot stayed empty or stale.** `_session_hashes()` stamped `projekte.json` in the app folder but has read projects from the library since the library rebuild — without a file there the set was always empty, with an old file there it never refreshed. Now stamps `projekte.json` + `touren.json` in the library. Guard `tests/test_session_hashes_ort.py`. — **Archiv: Projekt-Punkt blieb leer oder veraltet.**
-
+- **Drag-and-drop cleanup could delete copies still used by a project; cloud watcher missed project changes.** Both read `projekte.json`/`touren.json` from the app folder, but since the library rebuild projects live in the library, and the app folder only holds an empty store created at startup — so the cleanup saw no references at all. Cleanup now reads the library files (mandatory; missing → nothing deleted) plus any left in the app folder; the cloud fingerprint watches the library files. Guard `tests/test_drops_verweise_bibliothek.py`. — **Drops-Aufräumen und Cloud-Fühler lesen die Projekte aus der Bibliothek.**
 
 ## [0.9.718] – 2026-09-14
 

@@ -902,6 +902,25 @@ def _session_hashes() -> set:
     return menge
 
 
+def _drops_verweis_dateien() -> list:
+    """Welche Projekt-Dateien beim Aufräumen von `_drops/` auf Verweise geprüft werden.
+
+    14.09.2026 (Nacht-Review): Hier stand nur `APP_SUPPORT/projekte.json` +
+    `touren.json`. Seit dem Bibliotheks-Umbau liegen die Projekte aber in der
+    Bibliothek, und im App-Ordner legt `migrieren_falls_noetig` beim Start eine
+    LEERE Ablage an. Das Aufräumen sah deshalb keinen einzigen Verweis und hätte
+    gezogene Dateien gelöscht, die ein Projekt noch benutzt. Jetzt zählen die
+    Dateien der Bibliothek (Pflicht — fehlen sie, wird nichts gelöscht) plus die
+    im App-Ordner, falls es dort noch welche gibt.
+    """
+    dateien = [Path(DATEN_ORT) / "projekte.json", Path(DATEN_ORT) / "touren.json"]
+    for name in ("projekte.json", "touren.json"):
+        alt = APP_SUPPORT / name
+        if alt.exists() and alt not in dateien:
+            dateien.append(alt)
+    return dateien
+
+
 _SESSION_HASHES: Optional[set] = None
 _SESSION_HASHES_STAMP: tuple = ()
 _SESSION_HASHES_LOCK = threading.Lock()
@@ -3886,9 +3905,7 @@ class Api:
             # bewusst beim Start (kein Ziehen im Gange) und rührt nichts an,
             # worauf eine Sitzung noch verweist.
             try:
-                res = cdrops.aufraeumen(
-                    DROPS_DIR, [APP_SUPPORT / "projekte.json",
-                                APP_SUPPORT / "touren.json"])
+                res = cdrops.aufraeumen(DROPS_DIR, _drops_verweis_dateien())
                 if res.get("geloescht"):
                     log.info("drops: %d verwaiste Ordner entfernt, %.1f GB frei",
                              res["geloescht"], res.get("bytes", 0) / 2**30)
@@ -9443,8 +9460,11 @@ class Api:
         # zuerst in library.db-wal; die Hauptdatei ändert sich erst beim Zusammen-
         # führen. Ohne sie sah der Fühler eine neu aufgenommene Tour nicht
         # (test_archiv_frage).
-        for pfad in (LIBRARY_DB, Path(str(LIBRARY_DB) + "-wal"), APP_SUPPORT / "projekte.json",
-                     APP_SUPPORT / "touren.json"):
+        # 14.09.2026 (Nacht-Review): Projekte liegen seit dem Bibliotheks-Umbau in
+        # der Bibliothek (`DATEN_ORT`) — vorher stand hier der App-Ordner, und
+        # Projektänderungen lösten keinen Abgleich aus.
+        for pfad in (LIBRARY_DB, Path(str(LIBRARY_DB) + "-wal"), Path(DATEN_ORT) / "projekte.json",
+                     Path(DATEN_ORT) / "touren.json"):
             try:
                 st = os.stat(pfad)
                 fp.append((str(pfad), st.st_mtime_ns, st.st_size))
