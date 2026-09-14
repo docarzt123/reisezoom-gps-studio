@@ -16557,6 +16557,11 @@ function mountAnimator(body, headerActions, opts) {
       + `Etappen ${etappen.map(e => e.dauer.toFixed(1)).join("/")} s · Übergänge ${etappen.slice(1).map(e => e.ueber_s.toFixed(1)).join("/")} s`
       + (sekHalte > 0 ? ` · Halte ${sekHalte.toFixed(1)} s` : "") + ` · gesamt ${dauer.toFixed(1)} s (Flug ${flugS.toFixed(1)} s)`);
     try { _reiseBilanzZeigen(); } catch (_) {}
+    // 14.09.2026 (Marc, Screenshot „66 Seen“: die Etappen liefen in den HOLD-Bereich): Die Bahn
+    // ist oft länger als die eingestellte Dauer (12 s + 14 × 3 s Übergänge = 54 s). Die Leiste
+    // kannte aber noch tf aus den 12 s — HOLD begann bei 71 %, Scrubben dahinter hielt den Track
+    // an, während die Etappen-Kacheln bis 91 % reichten. Nach jedem Bau die Phasen nachziehen.
+    _phasenAnLeiste();
     try { _etappenAnLeiste(); } catch (e) { applog("warn", "[reise] " + e); }
     try { _gruppenAnLeiste(); } catch (e) { applog("warn", "[gruppen] " + e); }
     try { _keyframesNachziehen(); } catch (e) { applog("warn", "[keyframes] " + e); }
@@ -16697,8 +16702,14 @@ function mountAnimator(body, headerActions, opts) {
 
   /** Die Bahn wieder ablegen: der Haupt-Track und seine Reihen kehren zurück
    *  (Gruppen 2 → 1, etwa nach dem Entfernen einer Tour). */
+  /** Phasen-Grenzen (Intro-Ende, Anim-Ende) an die Zeitleiste — nach jeder Änderung der Anim-Länge. */
+  function _phasenAnLeiste() {
+    try { if (_tlBar && _tlBar.setTrackFraction) _tlBar.setTrackFraction(trackFraction(), introFraction()); } catch (_) {}
+  }
   function _reiseAblegen() {
+    const hatteBahn = !!_reiseBahn;
     _reiseBahn = null;
+    if (hatteBahn) _phasenAnLeiste();
     try { if (_tlBar && _tlBar.setGruppen) _tlBar.setGruppen([]); } catch (_) {}
     if (_reiseBasis && currentCoords !== _reiseBasis) {
       currentCoords = _reiseBasis;
