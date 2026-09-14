@@ -423,6 +423,11 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     # Seite der Liste. MUSS nach den ALTER TABLEs stehen, sonst gibt es die
     # Spalte noch nicht.
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_tour ON tracks(tour_id)")
+    # 14.09.2026 (Nacht-Review): Fehler-Zeilen sind wenige, gesucht werden sie aber
+    # bei jedem Start (`_migrate_error_kind`: zwei volle Durchläufe) und bei jeder
+    # Statistik (`n_failed`, `n_nogps`). Ein Teil-Index nur über diese Zeilen kostet
+    # fast nichts und macht die Abfragen unabhängig von der Archivgröße.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_fehler ON tracks(error) WHERE error != ''")
     conn.execute(
         "INSERT INTO meta(key, value) VALUES('schema', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -3246,6 +3251,16 @@ CACHE_KEEP_DAYS = 400
 
 
 @_locked
+def _housekeeping_lebend(conn: sqlite3.Connection) -> set:
+    alive = {r["geo_hash"] for r in conn.execute(
+        "SELECT DISTINCT geo_hash FROM tracks WHERE geo_hash IS NOT NULL AND geo_hash != ''")}
+    alive |= {r["geo_hash"] for r in conn.execute(
+        "SELECT geo_hash FROM track_meta WHERE fav = 1 OR tags != '' OR note != '' "
+        "OR cover != '' OR recorded_user IS NOT NULL OR display_name != '' OR hidden = 1")}
+    alive |= {r["geo_hash"] for r in conn.execute("SELECT DISTINCT geo_hash FROM collection_items")}
+    return alive
+
+
 def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Path,
                  covers_dir: Path, keep_days: int = CACHE_KEEP_DAYS) -> dict:
     """Verwaiste Vorschaubilder aufräumen — sehr zurückhaltend.
@@ -3253,16 +3268,17 @@ def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Pat
     Gelöscht wird nur, was (a) zu keiner Tour im Archiv gehört, (b) zu keiner
     Meta-Zeile mit echter Nutzer-Eingabe gehört und (c) älter als `keep_days`
     ist. Titelbilder (`covers`) bleiben immer.
+
+    14.09.2026 (Nacht-Review): Das Durchsuchen der Bildordner lief unter der
+    Datenbank-Sperre — bei 20 000 Touren (40 000 Bilder) ~200 ms, auf einem NAS
+    Sekunden, und genau beim Start, wenn die Oberfläche ihre erste Liste holt.
+    Jetzt: Kandidaten ohne Sperre sammeln, vor dem Löschen die Zuordnung unter der
+    Sperre frisch prüfen (eine inzwischen aufgenommene Tour behält ihr Bild).
     """
-    alive = {r["geo_hash"] for r in conn.execute(
-        "SELECT DISTINCT geo_hash FROM tracks WHERE geo_hash IS NOT NULL AND geo_hash != ''")}
-    alive |= {r["geo_hash"] for r in conn.execute(
-        "SELECT geo_hash FROM track_meta WHERE fav = 1 OR tags != '' OR note != '' "
-        "OR cover != '' OR recorded_user IS NOT NULL OR display_name != '' OR hidden = 1")}
-    alive |= {r["geo_hash"] for r in conn.execute("SELECT DISTINCT geo_hash FROM collection_items")}
+    alive = _housekeeping_lebend(conn)
 
     cutoff = time.time() - keep_days * 86400
-    removed = freed = 0
+    kandidaten = []
     for d, ext in ((Path(thumbs_dir), ".png"), (Path(map_thumbs_dir), ".png")):
         if not d.is_dir():
             continue
@@ -3273,12 +3289,22 @@ def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Pat
                 st = f.stat()
                 if st.st_mtime > cutoff:
                     continue
-                size = st.st_size
-                _ds.loeschen(f, "vorschau_aufraeumen", art=_ds.ART_CACHE)   # neu erzeugbar
-                removed += 1
-                freed += size
+                kandidaten.append((f, st.st_size))
             except OSError:
                 pass
+    removed = freed = 0
+    if kandidaten:
+        with _DB_LOCK:
+            alive = _housekeeping_lebend(conn)
+            for f, size in kandidaten:
+                if f.stem in alive:
+                    continue
+                try:
+                    _ds.loeschen(f, "vorschau_aufraeumen", art=_ds.ART_CACHE)   # neu erzeugbar
+                    removed += 1
+                    freed += size
+                except OSError:
+                    pass
     if removed:
         log.info("library.housekeeping: %d verwaiste Bilder gelöscht (%.1f MB)",
                  removed, freed / 1e6)
