@@ -107,6 +107,8 @@ moves it, it does not start over.
 
 **Only its own files (since v0.9.718).** If you choose a folder that already contains other files (e.g. the top folder of an external SSD with videos), GPS Studio creates its own subfolder *GPS Studio Bibliothek* inside it. When moving, only GPS Studio's own files are taken along and removed from the old location — your other files stay where they are.
 
+**GPS Studio's trash (since v0.9.718).** Whatever GPS Studio deletes or overwrites — a tour version, a project state, a replaced file — first goes to the `_papierkorb` folder in the app folder (macOS: `~/Library/Application Support/Reisezoom GPS Studio`, Windows: `%APPDATA%\Reisezoom GPS Studio`). It stays there for 14 days; `HERKUNFT.txt` next to it says where it came from.
+
 **Cloud folders will not work.** Dropbox, iCloud Drive, OneDrive and Google
 Drive swap files out mid-write, which corrupts the database. GPS Studio
 refuses such locations and says why. External drives and network shares are

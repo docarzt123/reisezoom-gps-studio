@@ -3176,6 +3176,9 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
   position: fixed;
   z-index: 9500;
 }
+/* 14.09.2026 — die ersten 300 ms: schon gesperrt, aber noch unsichtbar (kein Aufblitzen) */
+.rz-warte-hg.ist-sperre-leise { background: transparent; cursor: progress; }
+.rz-warte-hg.ist-sperre-leise .rz-warte-karte { visibility: hidden; }
 .rz-warte-karte {
   display: flex;
   flex-direction: column;

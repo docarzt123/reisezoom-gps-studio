@@ -2301,7 +2301,7 @@ function mountGpxInspect(body, headerActions) {
       });
     }
     let res;
-    try { res = await api().gpxinspect_route_gaps(gapsAB, profile); }
+    try { res = await api().gpxinspect_route_gaps(gapsAB, profile); } // warte-ok: eigener Fortschritt (rzStatus)
     catch (e) { res = { ok: false, error: String(e) }; }
     if (window.rzStatus) window.rzStatus.fertig("luecken-routen", "");
     _mmBusy = false;
@@ -2877,7 +2877,7 @@ function mountGpxInspect(body, headerActions) {
     const defName = (stem || "track") + "_geheilt.gpx";
     let dest = "";
     try {
-      dest = await api().pick_save_path(defName, dir, ["GPX (*.gpx)", "TCX (*.tcx)"]);
+      dest = await api().pick_save_path(defName, dir, ["GPX (*.gpx)", "TCX (*.tcx)"]); // warte-ok: Systemdialog
     } catch (_) { dest = ""; }
     if (!dest) return;   // abgebrochen
     const fmt = String(dest).toLowerCase().endsWith(".tcx") ? "tcx" : "gpx";
@@ -2967,7 +2967,7 @@ function mountGpxInspect(body, headerActions) {
     if (!ok || isUnmounted) return;
 
     let r;
-    try { r = await api().session_projekte_uebernehmen(altHash, neuHash); }
+    try { r = await rzWarten("session_projekte_uebernehmen", () => api().session_projekte_uebernehmen(altHash, neuHash)); }
     catch (e) { r = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
     if (!r || !r.ok) {
@@ -3389,7 +3389,7 @@ function mountGpxInspect(body, headerActions) {
         files = await window.rzArchivTourenWaehlen({ einzel: true,
           titel: t("gpxinspect.join_pick", "Track zum Verbinden wählen"), okText: t("gpxinspect.join_ok", "Verbinden") });
       } else {
-        files = await api().pick_file("open", window.TRACK_PICK_FILTER || [], false);
+        files = await api().pick_file("open", window.TRACK_PICK_FILTER || [], false); // warte-ok: Systemdialog
       }
     } catch (_) { files = null; }
     const path = files && files.length ? files[0] : null;
@@ -4143,7 +4143,7 @@ function mountGpxInspect(body, headerActions) {
     });
     knopf("gpxi-aba-weg", async () => {
       m.close();
-      const w = await api().library_trash(r.pfad);
+      const w = await rzWarten("library_trash", () => api().library_trash(r.pfad)).catch((e) => ({ ok: false, error: String(e) }));
       if (w && w.ok) toast(t("gpxinspect.ab_archiv_entfernt", "Die neue Tour ist wieder entfernt (Papierkorb)."), "info");
       else toast((w && w.error) || "?", "error", 6000);
     });

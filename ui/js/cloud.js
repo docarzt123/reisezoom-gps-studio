@@ -282,7 +282,7 @@
   function korbLaden() {
     var box = document.getElementById("cloud-korb");
     if (!box) return;
-    window.pywebview.api.cloud_papierkorb().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (k) {
+    rzWarten("cloud_papierkorb", () => window.pywebview.api.cloud_papierkorb()).catch(function (e) { return { ok: false, error: String(e) }; }).then(function (k) {
       if (!box.isConnected) return;
       if (!k.ok) { box.innerHTML = k.error ? '<span class="muted">⚠ ' + k.error + '</span>' : ""; return; }
       var n = (k.eintraege || []).length;
@@ -320,7 +320,8 @@
       box.querySelectorAll(".korb-zurueck").forEach(function (b) {
         b.onclick = function () {
           b.disabled = true; b.textContent = "⏳";
-          window.pywebview.api.cloud_papierkorb_zurueck(b.dataset.n, parseInt(b.dataset.z, 10))
+          rzWarten("cloud_papierkorb_zurueck", () => window.pywebview.api.cloud_papierkorb_zurueck(b.dataset.n, parseInt(b.dataset.z, 10)))
+            .catch(function (e) { return { ok: false, error: String(e) }; })
             .then(function (r) {
               if (r.ok) { korbLaden(); ferneLaden(); }
               else { b.disabled = false; b.textContent = T("cloud.korb_zurueck", "Wiederherstellen"); melden("⚠ " + r.error, "fehler"); }
@@ -330,8 +331,9 @@
       box.querySelectorAll(".korb-weg").forEach(function (b) {
         b.onclick = function () {
           b.disabled = true;
-          window.pywebview.api.cloud_papierkorb_eintrag_weg(b.dataset.n, parseInt(b.dataset.z, 10))
-            .then(function () { korbLaden(); });
+          rzWarten("cloud_papierkorb_eintrag_weg", () => window.pywebview.api.cloud_papierkorb_eintrag_weg(b.dataset.n, parseInt(b.dataset.z, 10)))
+            .catch(function (e) { return { ok: false, error: String(e) }; })
+            .then(function (r) { if (r && r.ok === false && r.error) melden("⚠ " + r.error, "fehler"); korbLaden(); });
         };
       });
       var lb = document.getElementById("korb-leeren");

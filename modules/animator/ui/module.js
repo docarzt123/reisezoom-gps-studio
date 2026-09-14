@@ -3019,7 +3019,7 @@ function mountAnimator(body, headerActions, opts) {
     try { watermarkPreviewAnwenden(); } catch (_) {}
   }
   async function _wmEigenesWaehlen() {
-    const res = await api().pick_file("open", ["Bilder (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false);
+    const res = await api().pick_file("open", ["Bilder (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false); // warte-ok: Systemdialog
     const pfad = Array.isArray(res) ? res[0] : "";
     if (!pfad) return false;
     _wmEigen = pfad; _wm.path = pfad;
@@ -9884,7 +9884,7 @@ function mountAnimator(body, headerActions, opts) {
         });
       }
       try {
-        const res = await window.pywebview.api.photos_load(pathsOrFolder);
+        const res = await window.pywebview.api.photos_load(pathsOrFolder); // warte-ok: eigener Fortschritt (rzStatus)
         const photos = (res && res.photos) || [];
         const skipped = (res && res.skipped_count) || 0;
         const failed = (res && res.failed_count) || 0;
@@ -9929,7 +9929,7 @@ function mountAnimator(body, headerActions, opts) {
         });
       }
       try {
-        const res = await window.pywebview.api.photos_from_geotagger();
+        const res = await window.pywebview.api.photos_from_geotagger(); // warte-ok: eigener Fortschritt (rzStatus)
         const photos = (res && res.photos) || [];
         if (window.rzStatus) {
           window.rzStatus.fertig(ladeId, t("photos.laden_fertig", "{n} Fotos bereit")
@@ -10949,7 +10949,7 @@ function mountAnimator(body, headerActions, opts) {
       const add = document.getElementById("hl-ordner-add");
       if (add) add.onclick = async () => {
         let res = null;
-        try { res = await api().pick_file("folder", []); } catch (_) {}
+        try { res = await api().pick_file("folder", []); } catch (_) {} // warte-ok: Systemdialog
         const p = Array.isArray(res) ? res[0] : (res && res.path) || res;
         if (p && typeof p === "string" && !_hlState.ordner.includes(p)) { _hlState.ordner.push(p); _hlOrdnerRender(); }
       };
@@ -11563,7 +11563,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.189 — Bild hinzufügen / ändern / entfernen
       $("#se-img-pick").onclick = async () => {
         let r;
-        try { r = await api().sign_pick_image(); } catch (e) { return; }
+        try { r = await api().sign_pick_image(); } catch (e) { return; } // warte-ok: Systemdialog
         if (!r || !r.ok) { if (r && r.error) toast(r.error, "error"); return; }
         if (r.cancelled) return;
         const l2 = _animSignsList().slice();
@@ -11728,11 +11728,11 @@ function mountAnimator(body, headerActions, opts) {
     }
     function _animSignsImportPhotos(pathsOrFolder) {
       if (!window.pywebview?.api?.photos_load) return;
-      return _animSignsAddPhotosFromBridge(() => window.pywebview.api.photos_load(pathsOrFolder));
+      return _animSignsAddPhotosFromBridge(() => rzWarten("photos_load", () => window.pywebview.api.photos_load(pathsOrFolder)));
     }
     function _animSignsImportFromGeotagger() {
       if (!window.pywebview?.api?.photos_from_geotagger) return;
-      return _animSignsAddPhotosFromBridge(() => window.pywebview.api.photos_from_geotagger());
+      return _animSignsAddPhotosFromBridge(() => rzWarten("photos_from_geotagger", () => window.pywebview.api.photos_from_geotagger()));
     }
     function _animSignsBindUi() {
       const show = document.getElementById("anim-signs-show");
@@ -17762,7 +17762,7 @@ function mountAnimator(body, headerActions, opts) {
     const fileFilter = _asPng ? ["PNG (*.png)"] : (needsMov ? ["MOV (*.mov)"] : ["MP4 (*.mp4)"]);
     const lastDir = (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].last_save_dir) || "";
 
-    const savePath = await api().pick_save_path(defaultName, lastDir, fileFilter);
+    const savePath = await api().pick_save_path(defaultName, lastDir, fileFilter); // warte-ok: Systemdialog
     if (!savePath) return;   // User hat abgebrochen
 
     // Last-Dir merken fürs nächste Mal

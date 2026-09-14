@@ -517,7 +517,7 @@
       tt("photos.pick_choice_folder_sub", "Alle Fotos eines Ordners scannen"),
       async () => {
         if (!window.pywebview?.api?.pick_file) return;
-        const res = await window.pywebview.api.pick_file("folder", []);
+        const res = await window.pywebview.api.pick_file("folder", []); // warte-ok: Systemdialog
         if (res && res.length && typeof opts.onFolder === "function") {
           opts.onFolder(res[0]);
         }
@@ -535,7 +535,7 @@
           tt("filter.images", "Bilder") + " (*.jpg;*.jpeg;*.heic;*.heif;*.png;*.tif;*.tiff;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.rw2;*.orf;*.dng)",
           tt("filter.all_files", "Alle Dateien") + " (*.*)",
         ];
-        const res = await window.pywebview.api.pick_file("open", fileTypes, true);
+        const res = await window.pywebview.api.pick_file("open", fileTypes, true); // warte-ok: Systemdialog
         if (res && res.length && typeof opts.onFiles === "function") {
           opts.onFiles(res);
         }

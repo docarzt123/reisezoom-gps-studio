@@ -562,12 +562,21 @@ function rzLeafletTileLayer(styleId, bbox) {
     styleId = "osm";
   }
   const s = RZ_OSM_TILE_STYLES[styleId] || RZ_OSM_TILE_STYLES.osm;
+  // 14.09.2026 — in der App über die lokale Kachel-Weiche (User-Agent + Cache); direkt gesperrt die OSM
+  // die WebView-Anfragen („Access blocked"). Exporte bauen ihre Adressen in Python und laden weiter direkt.
+  const _weiche = (mapCatalog().proxy_base || "").replace(/\/$/, "");
+  const _schluessel = RZ_OSM_TILE_STYLES[styleId] ? styleId : "osm";
+  if (_weiche) {
+    return L.tileLayer(_weiche + "/tile/" + _schluessel + "/{z}/{x}/{y}", { maxZoom: s.max || 19, attribution: s.attr || "" });
+  }
   const urls = (s.sub && s.sub.length) ? s.sub.map((d) => s.url.replace("{s}", d)) : [s.url];
   return L.tileLayer(urls[0], { maxZoom: s.max || 19, subdomains: (s.sub || []).join(""), attribution: s.attr || "" });
 }
 /** GL-Style-8-Objekt (raster) für einen OSM-Stil — beide Engines rendern das. */
 function osmRasterStyle(id) {
   const s = RZ_OSM_TILE_STYLES[id] || RZ_OSM_TILE_STYLES.osm;
+  const _weiche = (mapCatalog().proxy_base || "").replace(/\/$/, "");   // 14.09.2026 — s. rzLeafletTileLayer
+  if (_weiche) return _rasterStyle([_weiche + "/tile/" + (RZ_OSM_TILE_STYLES[id] ? id : "osm") + "/{z}/{x}/{y}"], 256, s.max, s.attr);
   const urls = (s.sub && s.sub.length) ? s.sub.map((d) => s.url.replace("{s}", d)) : [s.url];
   return _rasterStyle(urls, 256, s.max, s.attr);
 }
@@ -1624,7 +1633,7 @@ function getProjectsList()  { return _projectsList; }
  */
 async function sessionActivate(coords, gpxPath) {
   try {
-    const res = await api().session_open_for_track(coords, gpxPath || "");
+    const res = await rzWarten("session_open_for_track", () => api().session_open_for_track(coords, gpxPath || ""));
     if (!res || !res.ok) {
       console.warn("sessionActivate failed:", res);
       return null;
@@ -1746,7 +1755,8 @@ async function projectSetActive(projectId) {
 async function projectCreate(name, copyFromId, vorlageId) {
   if (!_activeSession) return null;
   // 11.09.2026: `vorlageId` = Vorlage für das neue Projekt (leer = Stern/„Mein Standard").
-  const res = await api().session_create_project(_activeSession.track_hash, name || "", copyFromId || "", vorlageId || "");
+  const res = await rzWarten("session_create_project", () => api().session_create_project(_activeSession.track_hash, name || "", copyFromId || "", vorlageId || ""));
+  if (res && res.ok === false && res.grund === "laeuft_bereits" && typeof toast === "function") toast(res.error, "warn");
   if (!res || !res.ok) return null;
   _activeProject = res.active_project;
   _projectsList = res.projects || [];
@@ -1769,7 +1779,8 @@ async function projectRename(projectId, newName) {
 
 async function projectDelete(projectId) {
   if (!_activeSession) return null;
-  const res = await api().session_delete_project(_activeSession.track_hash, projectId);
+  const res = await rzWarten("session_delete_project", () => api().session_delete_project(_activeSession.track_hash, projectId));
+  if (res && res.ok === false && res.grund === "laeuft_bereits" && typeof toast === "function") toast(res.error, "warn");
   if (!res || !res.ok) return null;
   _activeProject = res.active_project;
   _projectsList = res.projects || [];
@@ -4031,14 +4042,40 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
     return modal ? box.querySelector(".rz-warte-karte") : box;
   }
 
+  // 14.09.2026 (Nutzer startete den Bibliotheks-Umzug mehrfach, während der erste noch lief):
+  // Die Sperre gilt AB DEM ERSTEN MOMENT — unsichtbar, mit Warte-Mauszeiger; nach 300 ms kommt
+  // das abgedunkelte Fenster mit Text dazu. Solange etwas läuft, erreichen weder Klicks noch
+  // Tasten (auch ⌘Z, Entf, Enter) die Oberfläche darunter.
   function _modalSichtbarkeit() {
     const box = document.getElementById("rz-warte-modal");
     if (!box) return;
-    let sichtbar = false;
-    for (const v of _vorgaenge.values()) if (v.modal && v.gezeigt) sichtbar = true;
-    box.hidden = !sichtbar;
+    let sichtbar = false, aktiv = false;
+    for (const v of _vorgaenge.values()) if (v.modal) { aktiv = true; if (v.gezeigt) sichtbar = true; }
+    box.hidden = !aktiv;
+    box.classList.toggle("ist-sperre-leise", aktiv && !sichtbar);
     if (!box.querySelector(".rz-status")) box.remove();
   }
+  function rzWartet() {
+    for (const v of _vorgaenge.values()) if (v.modal) return true;
+    return false;
+  }
+  window.rzWartet = rzWartet;
+  (function _eingabeSperre() {
+    const sperren = (e) => {
+      if (!rzWartet()) return;
+      const box = document.getElementById("rz-warte-modal");
+      const drin = box && e.target && box.contains(e.target);
+      // Im Wartefenster selbst darf nur der Abbrechen-Knopf bedient werden.
+      if (drin && (e.type === "click" || e.type === "mousedown" || e.type === "mouseup" || e.type === "pointerdown" || e.type === "pointerup"
+                   || ((e.type === "keydown" || e.type === "keyup") && (e.key === "Enter" || e.key === " " || e.key === "Tab")))) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
+    for (const typ of ["keydown", "keyup", "keypress", "click", "dblclick", "mousedown", "mouseup", "pointerdown", "pointerup",
+                       "contextmenu", "wheel", "dragstart", "drop", "submit"]) {
+      document.addEventListener(typ, sperren, { capture: true, passive: false });
+    }
+  })();
 
   function _zeigen(v) {
     if (!v || v.gezeigt) return;
@@ -4068,6 +4105,11 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
       _behaelter(modal).appendChild(el);
       v = { el, gesamt: 0, abbruch: false, t0: Date.now(), modal, gezeigt: !modal, zeigTimer: 0 };
       _vorgaenge.set(id, v);
+      if (modal) {
+        // sofort sperren (unsichtbar). Den Fokus lassen wir, wo er ist: Enter/Leertaste auf dem eben
+        // geklickten Knopf schluckt die Eingabesperre, und danach geht es dort weiter, wo man war.
+        _modalSichtbarkeit();
+      }
       const ab = el.querySelector(".rz-status-ab");
       if (ab) ab.onclick = () => {
         v.abbruch = true;
@@ -4208,7 +4250,7 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
    * das Fenster schließt in jedem Fall. Texte: i18n `warte.<name>.titel/text`.
    *   const r = await rzWarten("gpxinspect_save", () => api().gpxinspect_save(...));
    */
-  const _WARTE_DE = {"ghosts_laden": ["Geister-Tracks werden geladen", "Die Vergleichstouren werden gelesen"], "highlights_vorschlaege": ["Highlights werden gesucht", "Fotos, Orte und Halte entlang des Tracks"], "photos_time_anchors": ["Fotos werden eingeordnet", "Aufnahmezeit jedes Fotos wird dem Track zugeordnet"], "route_geocode": ["Adresse wird gesucht", "Ort wird im Netz nachgeschlagen"], "route_compute": ["Route wird berechnet", "Der Weg wird über das Straßennetz gelegt"], "animator_load_gpx": ["Track wird geladen", "Datei wird gelesen"], "animator_load_gpx_viele": ["Touren werden geladen", "Alle Dateien der Auswahl werden gelesen"], "tourmap_export_html": ["Karte wird exportiert", "HTML-Datei wird geschrieben"], "geotagger_load_gpx": ["Track wird geladen", "Datei wird gelesen"], "geotagger_load_gpx_viele": ["Tracks werden geladen", "Alle Tracks werden gelesen"], "geotagger_import_gpx_aus_ordner": ["Tracks werden gesucht", "Ordner wird nach Track-Dateien durchsucht"], "geotagger_tracks_fuer_fotos": ["Passende Tracks werden gesucht", "Welche Touren decken die Aufnahmezeiten ab?"], "geotagger_register_photos": ["Fotos werden eingelesen", "Aufnahmedaten und Vorschaubilder werden gelesen"], "geotagger_compute_offset_from_reference": ["Zeitversatz wird berechnet", "Der gewählte Punkt wird mit dem Track verglichen"], "geotagger_export_tagged": ["Fotos werden exportiert", "Getaggte Fotos werden geschrieben"], "gpxinspect_load": ["Track wird geöffnet", "Datei wird gelesen"], "gpxinspect_map_match": ["Track wird an Wege angelegt", "Punkte werden dem Wegenetz zugeordnet"], "gpxinspect_route_ab": ["Strecke wird berechnet", "Weg zwischen den beiden Punkten wird gesucht"], "gpxinspect_track_check": ["Track wird geprüft", "Sprünge, Lücken und Zeitfehler werden gesucht"], "gpxinspect_heal": ["Track wird repariert", "Die gefundenen Stellen werden behoben"], "gpxinspect_luecken": ["Lücken werden gesucht", "Wo fehlen Punkte?"], "logbuch_lesen": ["Logbuch wird erstellt", "Was wann war — Fahrten, Pausen, Wanderungen, höchster Punkt"], "einteilung_aktion": ["Logbuch wird geändert", "Die Einteilung der Tour wird gespeichert"], "library_track_ersetzen": ["Tour wird im Archiv ersetzt", "Neue Fassung wird gespeichert"], "gpxinspect_save": ["Track wird gespeichert", "Datei wird geschrieben"], "gpxinspect_werkzeug": ["Werkzeug wird angewendet", "Der Track wird bearbeitet"], "gpxinspect_save_teile": ["Teile werden gespeichert", "Die Teilstücke werden als Dateien geschrieben"], "gpxinspect_append_track": ["Track wird angehängt", "Beide Tracks werden zusammengefügt"], "heightanim_export_html": ["Animation wird exportiert", "HTML-Datei wird geschrieben"], "projekt_duplizieren": ["Projekt wird dupliziert", "Einstellungen, Schilder und Fotos werden kopiert"], "projekt_stand_wiederherstellen": ["Stand wird zurückgeholt", "Das Projekt wird auf den gewählten Stand gesetzt"], "projekt_aus_vorlage_anlegen": ["Projekt wird angelegt", "Die Vorlage wird übernommen"], "vorlage_anwenden": ["Vorlage wird angewendet", "Der Look wird ins Projekt übernommen"], "library_merge": ["Touren werden zusammengeführt", "Eine neue Tour aus der Auswahl entsteht"], "tour_fassung_wiederherstellen": ["Fassung wird zurückgeholt", "Die gewählte Version wird wieder aktiv"], "library_track_check": ["Tour wird geprüft", "Sprünge, Lücken und Zeitfehler werden gesucht"], "library_import_pruefen": ["Dateien werden geprüft", "Kennt das Archiv diese Touren schon?"], "library_import_files": ["Touren werden importiert", "Dateien werden ins Archiv aufgenommen"], "library_repair_file": ["Datei wird repariert", "Die beschädigte Datei wird neu geschrieben"], "library_duplicates": ["Doppelte werden gesucht", "Alle Touren werden verglichen"], "tourmap_export_leaflet": ["Karte wird exportiert", "HTML-Datei wird geschrieben"], "webkarte_prepare": ["Web-Karte wird vorbereitet", "Track wird für die Karte aufbereitet"], "webkarte_export": ["Web-Karte wird exportiert", "Dateien werden geschrieben"], "bibliothek_wechseln": ["Bibliothek wird gewechselt", "Die andere Bibliothek wird geöffnet"], "bibliothek_uebernehmen": ["Bibliothek wird übernommen", "Touren und Projekte werden eingelesen"], "bibliothek_wiederherstellen": ["Sicherung wird zurückgeholt", "Die Bibliothek wird aus der Sicherung wiederhergestellt"], "check_for_update": ["Nach Updates suchen", "Neueste Version wird abgefragt"], "assistent_lauf": ["Tour-Assistent arbeitet", "Projekt wird aus Vorlage und Track gebaut"], "cloud_uebersicht": ["Cloud wird abgefragt", "Was liegt auf deinem Server?"], "cloud_aufraeumen": ["Cloud wird aufgeräumt", "Alte Stände werden entfernt"], "cloud_herunterladen": ["Aus der Cloud laden", "Touren und Projekte werden heruntergeladen"], "cloud_papierkorb_leeren": ["Papierkorb wird geleert", "Alte Einträge werden gelöscht"], "cloud_einrichten": ["Cloud wird eingerichtet", "Server wird vorbereitet"], "cloud_verbinden": ["Cloud wird verbunden", "Verbindung zum Server wird aufgebaut"], "cloud_abgleichen": ["Cloud-Abgleich", "Deine Bibliothek wird mit dem Server abgeglichen"], "fotos_touren": ["Touren werden zugeordnet", "Welche Fotos gehören zu welcher Tour?"], "fotos_einer_tour": ["Fotos der Tour werden geladen", "Alle Aufnahmen im Zeitfenster der Tour"], "fotos_punkte": ["Fotokarte wird aufgebaut", "Aufnahmeorte werden zusammengefasst"], "fotos_abfrage": ["Fotos werden gesucht", "Aufnahmen an dieser Stelle"], "archiv_datei_aufnehmen": ["Tour wird ins Archiv aufgenommen", "Datei wird gelesen und geprüft"], "prepare_bug_report": ["Fehlerbericht wird vorbereitet", "Log und Systemdaten werden gesammelt"], "save_log_to_desktop": ["Log wird gespeichert", "Datei wird auf den Schreibtisch gelegt"], "session_open_for_menge": ["Touren werden geöffnet", "Projekt für alle Touren wird geladen"], "session_open_for_frei": ["Projekt wird geöffnet", "Einstellungen werden geladen"], "playwright_install_chromium": ["Render-Browser wird installiert", "Das dauert einige Minuten"]};
+  const _WARTE_DE = {"ghosts_laden": ["Geister-Tracks werden geladen", "Die Vergleichstouren werden gelesen"], "highlights_vorschlaege": ["Highlights werden gesucht", "Fotos, Orte und Halte entlang des Tracks"], "photos_time_anchors": ["Fotos werden eingeordnet", "Aufnahmezeit jedes Fotos wird dem Track zugeordnet"], "route_geocode": ["Adresse wird gesucht", "Ort wird im Netz nachgeschlagen"], "route_compute": ["Route wird berechnet", "Der Weg wird über das Straßennetz gelegt"], "animator_load_gpx": ["Track wird geladen", "Datei wird gelesen"], "animator_load_gpx_viele": ["Touren werden geladen", "Alle Dateien der Auswahl werden gelesen"], "tourmap_export_html": ["Karte wird exportiert", "HTML-Datei wird geschrieben"], "geotagger_load_gpx": ["Track wird geladen", "Datei wird gelesen"], "geotagger_load_gpx_viele": ["Tracks werden geladen", "Alle Tracks werden gelesen"], "geotagger_import_gpx_aus_ordner": ["Tracks werden gesucht", "Ordner wird nach Track-Dateien durchsucht"], "geotagger_tracks_fuer_fotos": ["Passende Tracks werden gesucht", "Welche Touren decken die Aufnahmezeiten ab?"], "geotagger_register_photos": ["Fotos werden eingelesen", "Aufnahmedaten und Vorschaubilder werden gelesen"], "geotagger_compute_offset_from_reference": ["Zeitversatz wird berechnet", "Der gewählte Punkt wird mit dem Track verglichen"], "geotagger_export_tagged": ["Fotos werden exportiert", "Getaggte Fotos werden geschrieben"], "gpxinspect_load": ["Track wird geöffnet", "Datei wird gelesen"], "gpxinspect_map_match": ["Track wird an Wege angelegt", "Punkte werden dem Wegenetz zugeordnet"], "gpxinspect_route_ab": ["Strecke wird berechnet", "Weg zwischen den beiden Punkten wird gesucht"], "gpxinspect_track_check": ["Track wird geprüft", "Sprünge, Lücken und Zeitfehler werden gesucht"], "gpxinspect_heal": ["Track wird repariert", "Die gefundenen Stellen werden behoben"], "gpxinspect_luecken": ["Lücken werden gesucht", "Wo fehlen Punkte?"], "logbuch_lesen": ["Logbuch wird erstellt", "Was wann war — Fahrten, Pausen, Wanderungen, höchster Punkt"], "einteilung_aktion": ["Logbuch wird geändert", "Die Einteilung der Tour wird gespeichert"], "library_track_ersetzen": ["Tour wird im Archiv ersetzt", "Neue Fassung wird gespeichert"], "gpxinspect_save": ["Track wird gespeichert", "Datei wird geschrieben"], "gpxinspect_werkzeug": ["Werkzeug wird angewendet", "Der Track wird bearbeitet"], "gpxinspect_save_teile": ["Teile werden gespeichert", "Die Teilstücke werden als Dateien geschrieben"], "gpxinspect_append_track": ["Track wird angehängt", "Beide Tracks werden zusammengefügt"], "heightanim_export_html": ["Animation wird exportiert", "HTML-Datei wird geschrieben"], "projekt_duplizieren": ["Projekt wird dupliziert", "Einstellungen, Schilder und Fotos werden kopiert"], "projekt_stand_wiederherstellen": ["Stand wird zurückgeholt", "Das Projekt wird auf den gewählten Stand gesetzt"], "projekt_aus_vorlage_anlegen": ["Projekt wird angelegt", "Die Vorlage wird übernommen"], "vorlage_anwenden": ["Vorlage wird angewendet", "Der Look wird ins Projekt übernommen"], "library_merge": ["Touren werden zusammengeführt", "Eine neue Tour aus der Auswahl entsteht"], "tour_fassung_wiederherstellen": ["Fassung wird zurückgeholt", "Die gewählte Version wird wieder aktiv"], "library_track_check": ["Tour wird geprüft", "Sprünge, Lücken und Zeitfehler werden gesucht"], "library_import_pruefen": ["Dateien werden geprüft", "Kennt das Archiv diese Touren schon?"], "library_import_files": ["Touren werden importiert", "Dateien werden ins Archiv aufgenommen"], "library_repair_file": ["Datei wird repariert", "Die beschädigte Datei wird neu geschrieben"], "library_duplicates": ["Doppelte werden gesucht", "Alle Touren werden verglichen"], "tourmap_export_leaflet": ["Karte wird exportiert", "HTML-Datei wird geschrieben"], "webkarte_prepare": ["Web-Karte wird vorbereitet", "Track wird für die Karte aufbereitet"], "webkarte_export": ["Web-Karte wird exportiert", "Dateien werden geschrieben"], "bibliothek_wechseln": ["Bibliothek wird gewechselt", "Die andere Bibliothek wird geöffnet"], "bibliothek_uebernehmen": ["Bibliothek wird übernommen", "Touren und Projekte werden eingelesen"], "bibliothek_wiederherstellen": ["Sicherung wird zurückgeholt", "Die Bibliothek wird aus der Sicherung wiederhergestellt"], "check_for_update": ["Nach Updates suchen", "Neueste Version wird abgefragt"], "assistent_lauf": ["Tour-Assistent arbeitet", "Projekt wird aus Vorlage und Track gebaut"], "cloud_uebersicht": ["Cloud wird abgefragt", "Was liegt auf deinem Server?"], "cloud_aufraeumen": ["Cloud wird aufgeräumt", "Alte Stände werden entfernt"], "cloud_herunterladen": ["Aus der Cloud laden", "Touren und Projekte werden heruntergeladen"], "cloud_papierkorb_leeren": ["Papierkorb wird geleert", "Alte Einträge werden gelöscht"], "cloud_einrichten": ["Cloud wird eingerichtet", "Server wird vorbereitet"], "cloud_verbinden": ["Cloud wird verbunden", "Verbindung zum Server wird aufgebaut"], "cloud_abgleichen": ["Cloud-Abgleich", "Deine Bibliothek wird mit dem Server abgeglichen"], "fotos_touren": ["Touren werden zugeordnet", "Welche Fotos gehören zu welcher Tour?"], "fotos_einer_tour": ["Fotos der Tour werden geladen", "Alle Aufnahmen im Zeitfenster der Tour"], "fotos_punkte": ["Fotokarte wird aufgebaut", "Aufnahmeorte werden zusammengefasst"], "fotos_abfrage": ["Fotos werden gesucht", "Aufnahmen an dieser Stelle"], "archiv_datei_aufnehmen": ["Tour wird ins Archiv aufgenommen", "Datei wird gelesen und geprüft"], "prepare_bug_report": ["Fehlerbericht wird vorbereitet", "Log und Systemdaten werden gesammelt"], "save_log_to_desktop": ["Log wird gespeichert", "Datei wird auf den Schreibtisch gelegt"], "session_open_for_menge": ["Touren werden geöffnet", "Projekt für alle Touren wird geladen"], "session_open_for_frei": ["Projekt wird geöffnet", "Einstellungen werden geladen"], "playwright_install_chromium": ["Render-Browser wird installiert", "Das dauert einige Minuten"], "bibliothek_umziehen": ["Bibliothek wird verschoben", "Touren, Projekte und Datenbank werden an den neuen Ort kopiert. Das kann einige Minuten dauern — bitte die App nicht schließen."], "bibliothek_festlegen": ["Bibliothek wird eingerichtet", "Der Ordner wird angelegt, vorhandene Daten werden übernommen — bitte die App nicht schließen."], "bibliothek_erneut": ["Bibliothek wird gesucht", "Der Speicherort wird erneut geöffnet — bei Netzlaufwerken kann das dauern"], "bibliothek_zip": ["Bibliothek wird gesichert", "Touren und Projekte werden in eine ZIP-Datei gepackt — das kann einige Minuten dauern"], "cloud_papierkorb": ["Cloud-Papierkorb wird geladen", "Die Einträge werden vom Server abgefragt"], "cloud_papierkorb_eintrag_weg": ["Eintrag wird gelöscht", "Er wird endgültig vom Server entfernt"], "cloud_papierkorb_zurueck": ["Eintrag wird wiederhergestellt", "Die Datei wird vom Server geholt und zurückgelegt"], "fotos_ordner_weg": ["Fotoordner wird entfernt", "Seine Fotos werden aus dem Bestand genommen"], "heightanim_load_gpx": ["Track wird geladen", "Das Höhenprofil wird berechnet"], "install_aufraeumen": ["Installation wird aufgeräumt", "Alte Kopien und Download-Images werden entfernt"], "library_dismiss_all_errors": ["Meldungen werden weggeräumt", "Alle Fehlermeldungen dieser Art werden ausgeblendet"], "library_remove_folder": ["Ordner wird entfernt", "Seine Touren werden aus dem Archiv genommen"], "library_trash": ["Tour wird entfernt", "Die Datei wandert in den Papierkorb, das Archiv wird aktualisiert"], "photos_from_geotagger": ["Fotos werden übernommen", "Die Fotos aus dem Geotagger werden gelesen"], "photos_load": ["Fotos werden gelesen", "Aufnahmeorte und Vorschaubilder werden geholt"], "projekt_aktivieren": ["Projekt wird geöffnet", "Touren und Einstellungen werden bereitgestellt"], "projekt_exportieren": ["Projekt wird exportiert", "Touren und Projekte werden als .rzproj gepackt"], "projekt_fassung_aktualisieren": ["Projekt wird aktualisiert", "Die neueste Fassung der Touren wird übernommen"], "projekt_frei_anlegen": ["Projekt wird angelegt", "Das leere Projekt wird gespeichert"], "projekt_importieren": ["Projekt wird importiert", "Touren und Projekte aus der Datei werden übernommen"], "projekt_loeschen": ["Projekt wird gelöscht", "Das Projekt wird entfernt"], "projekt_touren_setzen": ["Touren werden hinzugefügt", "Die gewählten Touren kommen ins Projekt"], "projekt_version_setzen": ["Version wird gewechselt", "Das Projekt nutzt jetzt die gewählte Fassung"], "projekte_loeschen": ["Projekte werden gelöscht", "Die ausgewählten Projekte werden entfernt"], "selbst_installieren": ["App wird installiert", "Sie wird in den Programme-Ordner kopiert und startet danach neu — bitte nicht schließen"], "session_create_project": ["Projekt wird angelegt", "Das neue Projekt wird gespeichert"], "session_delete_project": ["Projekt wird gelöscht", "Das Projekt wird entfernt"], "session_open_for_track": ["Projekt wird geladen", "Die Einstellungen der Tour werden geöffnet"], "session_projekte_uebernehmen": ["Projekte werden übertragen", "Alle Projekte ziehen auf die reparierte Tour um"], "tile_cache_clear": ["Kachel-Speicher wird geleert", "Zwischengespeicherte Kartenkacheln werden gelöscht"], "tour_version_daten": ["Version wird gelesen", "Die Kennzahlen der gewählten Fassung werden berechnet"], "tour_version_loeschen": ["Version wird gelöscht", "Die gewählte Fassung der Tour wird entfernt"], "export_current": ["Track wird exportiert", "Der Track wird umgewandelt und gespeichert"]};
   let _warteNr = 0;
   window.rzWarten = function (name, fn, opt) {
     opt = opt || {};

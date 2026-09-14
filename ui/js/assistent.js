@@ -64,7 +64,7 @@
         if (pf && pf.length) setzePfad(pf[0]); else wire();
       };
       if (bd) bd.onclick = async () => {
-        const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
+        const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false); // warte-ok: Systemdialog
         if (files && files.length) setzePfad(files[0]);
       };
       if (ab) ab.onclick = () => m.close();
