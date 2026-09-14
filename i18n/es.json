@@ -3971,5 +3971,7 @@
   "reiseroute.erst_route": "Primero define inicio y destino en «Ruta / Viaje»; luego se reproduce la vista previa.",
   "anim.erst_track": "Primero carga un track; luego se reproduce la vista previa.",
   "warte.modul_neuaufbau.titel": "Reconstruyendo la vista",
-  "warte.modul_neuaufbau.text": "Cargando el mapa con los nuevos ajustes …"
+  "warte.modul_neuaufbau.text": "Cargando el mapa con los nuevos ajustes …",
+  "geotagger.autotag.keine_rueckmeldung": "Sin respuesta del reconocimiento de imágenes — los detalles están en el registro.",
+  "heightanim.toast.status_verloren": "Sin respuesta del renderizado — los detalles están en el registro."
 }

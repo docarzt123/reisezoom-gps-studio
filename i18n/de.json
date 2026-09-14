@@ -3971,5 +3971,7 @@
   "reiseroute.erst_route": "Erst Start und Ziel unter „Route / Anreise“ festlegen — dann läuft die Vorschau.",
   "anim.erst_track": "Erst einen Track laden — dann läuft die Vorschau.",
   "warte.modul_neuaufbau.titel": "Ansicht wird neu aufgebaut",
-  "warte.modul_neuaufbau.text": "Die Karte wird mit den neuen Einstellungen geladen …"
+  "warte.modul_neuaufbau.text": "Die Karte wird mit den neuen Einstellungen geladen …",
+  "geotagger.autotag.keine_rueckmeldung": "Keine Rückmeldung von der Bilderkennung — Details stehen im Log.",
+  "heightanim.toast.status_verloren": "Keine Rückmeldung vom Render — Details stehen im Log."
 }

@@ -381,6 +381,9 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     # Oberfläche gerade schreibt — genau das ist am 12.09.2026 passiert: Der
     # Foto-Scan lief zwei Sekunden und war weg, ohne dass jemand etwas sah.
     conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=30.0)
+    # Neue Verbindung = Statistik-Zwischenspeicher leeren: `id(conn)` einer
+    # geschlossenen Verbindung kann wiederverwendet werden (siehe `stats`).
+    _STATS_CACHE.clear()
     conn.row_factory = sqlite3.Row
     try:
         # WAL: Lesen und Schreiben sperren sich nicht mehr gegenseitig. Auf
@@ -420,6 +423,11 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     # Seite der Liste. MUSS nach den ALTER TABLEs stehen, sonst gibt es die
     # Spalte noch nicht.
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_tour ON tracks(tour_id)")
+    # 14.09.2026 (Nacht-Review): Fehler-Zeilen sind wenige, gesucht werden sie aber
+    # bei jedem Start (`_migrate_error_kind`: zwei volle Durchläufe) und bei jeder
+    # Statistik (`n_failed`, `n_nogps`). Ein Teil-Index nur über diese Zeilen kostet
+    # fast nichts und macht die Abfragen unabhängig von der Archivgröße.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_fehler ON tracks(error) WHERE error != ''")
     conn.execute(
         "INSERT INTO meta(key, value) VALUES('schema', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -477,6 +485,44 @@ _FTS_HAY_SQL = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' ||
                 "COALESCE(fit_profile,'')")
 
 
+# 14.09.2026 (Nacht-Review, 20 000 Touren gemessen): Der Änderungs-Trigger lief
+# bei JEDEM UPDATE auf `tracks` — auch wenn nur Kartenbild, Track-Check oder
+# Favorit geändert wurden — und löschte dann per `path` aus dem FTS-Index. `path`
+# ist dort UNINDEXED, das Löschen ist also ein voller Durchlauf des Index: 4 ms je
+# Zeile, 200 Kartenbilder = 0,8 s, „Alle prüfen" über 20 000 Touren = über eine
+# Minute nur für den Index. Jetzt feuert er nur, wenn sich der durchsuchbare Text
+# (oder der Pfad) wirklich ändert. Inhalt des Index bleibt exakt derselbe.
+_FTS_SPALTEN = ("display_name", "name", "filename", "tags", "note", "place",
+                "country", "region", "fit_profile")
+
+
+def _fts_trigger_au_sql() -> str:
+    neu_sql = _FTS_HAY_SQL.replace("COALESCE(", "COALESCE(new.")
+    alt_sql = _FTS_HAY_SQL.replace("COALESCE(", "COALESCE(old.")
+    return (f"CREATE TRIGGER tracks_fts_au AFTER UPDATE OF path, {', '.join(_FTS_SPALTEN)} "
+            f"ON tracks WHEN old.path IS NOT new.path OR ({alt_sql}) IS NOT ({neu_sql}) BEGIN\n"
+            f"  DELETE FROM tracks_fts WHERE path = old.path;\n"
+            f"  INSERT INTO tracks_fts(path, hay) VALUES (new.path, {neu_sql});\n"
+            f"END;")
+
+
+def _fts_trigger_au_aktualisieren(conn: sqlite3.Connection) -> bool:
+    """Alten (immer feuernden) Änderungs-Trigger gegen den gezielten tauschen.
+
+    True = neu angelegt. SQLite speichert den Text ohne abschließendes `;`,
+    deshalb wird ohne Semikolon/Leerraum am Ende verglichen."""
+    r = conn.execute("SELECT sql FROM sqlite_master WHERE type='trigger' "
+                     "AND name='tracks_fts_au'").fetchone()
+    soll = _fts_trigger_au_sql()
+    if r is not None and (r[0] or "").rstrip("; \n") == soll.rstrip("; \n"):
+        return False
+    conn.execute("DROP TRIGGER IF EXISTS tracks_fts_au")
+    conn.execute(soll)
+    if r is not None:
+        log.info("library: Volltext-Trigger auf gezieltes Feuern umgestellt")
+    return True
+
+
 def _fts_einrichten(conn: sqlite3.Connection) -> None:
     global _FTS_OK
     try:
@@ -493,14 +539,11 @@ def _fts_einrichten(conn: sqlite3.Connection) -> None:
                 CREATE TRIGGER IF NOT EXISTS tracks_fts_ad AFTER DELETE ON tracks BEGIN
                   DELETE FROM tracks_fts WHERE path = old.path;
                 END;
-                CREATE TRIGGER IF NOT EXISTS tracks_fts_au AFTER UPDATE ON tracks BEGIN
-                  DELETE FROM tracks_fts WHERE path = old.path;
-                  INSERT INTO tracks_fts(path, hay) VALUES (new.path, {neu_sql});
-                END;
             """)
             conn.execute(f"INSERT INTO tracks_fts(path, hay) SELECT path, {_FTS_HAY_SQL} FROM tracks")
             log.info("library: Volltext-Index angelegt (%d Touren)",
                      conn.execute("SELECT COUNT(*) FROM tracks_fts").fetchone()[0])
+        _fts_trigger_au_aktualisieren(conn)
         # Selbsttest: remove_diacritics greift? (sonst lieber LIKE)
         conn.execute("SELECT 1 FROM tracks_fts WHERE tracks_fts MATCH '\"abc\"' LIMIT 1").fetchall()
         _FTS_OK = True
@@ -1065,13 +1108,15 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     name = (stats.name or path.stem).strip()
     _rec, _rec_src = _recorded_guess(pts, stats, name)
 
+    _hashes = csessions.compute_track_hashes(coords, name=path.name)
     row.update({
         # geo_hash ist die kanonische Identität (v0.9.529): Sessions und
         # Cloud-Umschläge hängen an genau diesem Hash. track_hash (mit Name)
         # ist eine Altspalte — siehe Modul-Docstring; NICHT als Session-
         # Brücke verwenden.
-        "track_hash": csessions.compute_track_hash(coords, name=path.name),
-        "geo_hash": csessions.compute_track_hash(coords),
+        # beide Hashes in einem Durchlauf (14.09.2026), Werte unverändert
+        "track_hash": _hashes[0],
+        "geo_hash": _hashes[1],
         "name": name,
         "started_at": times[0] if times else "",
         "ended_at": times[-1] if times else "",
@@ -1577,7 +1622,6 @@ def _upsert(conn: sqlite3.Connection, row: dict) -> None:
                 row.get("cover") or "")
 
 
-@_locked
 def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path,
                       import_cache: Path, map_thumbs_dir: Optional[Path] = None,
                       covers_dir: Optional[Path] = None,
@@ -1615,21 +1659,25 @@ def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path
     # Gibt es zu dieser Geometrie schon eine echte Datei, braucht es keine
     # zweite Zeile: Die Bibliothekskopie ist Speicher, kein Fundort.
     row["speicher"] = 1        # das hier IST der Versionsspeicher
-    vorhanden = conn.execute(
-        "SELECT path FROM tracks WHERE geo_hash = ? AND error = '' "
-        "AND COALESCE(speicher,0) = 0", (row.get("geo_hash") or "",)).fetchone()
-    if vorhanden is not None:
+    # 14.09.2026 (Nacht-Review): Datei lesen und Vorschaubild zeichnen (oben) laufen
+    # ohne Datenbank-Sperre — nur dieser Schreibteil ist gesperrt. Vorher hielt jede
+    # Aufnahme die Sperre für die ganze Auswertung der Datei.
+    with _DB_LOCK:
+        vorhanden = conn.execute(
+            "SELECT path FROM tracks WHERE geo_hash = ? AND error = '' "
+            "AND COALESCE(speicher,0) = 0", (row.get("geo_hash") or "",)).fetchone()
+        if vorhanden is not None:
+            if tour_id:
+                conn.execute("UPDATE tracks SET tour_id = ? WHERE geo_hash = ?",
+                             (tour_id, row.get("geo_hash") or ""))
+            conn.commit()
+            return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": dict(vorhanden),
+                    "vorhanden": True}
+        _upsert(conn, row)
         if tour_id:
-            conn.execute("UPDATE tracks SET tour_id = ? WHERE geo_hash = ?",
-                         (tour_id, row.get("geo_hash") or ""))
+            conn.execute("UPDATE tracks SET tour_id = ? WHERE path = ?",
+                         (tour_id, str(gpx_pfad)))
         conn.commit()
-        return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": dict(vorhanden),
-                "vorhanden": True}
-    _upsert(conn, row)
-    if tour_id:
-        conn.execute("UPDATE tracks SET tour_id = ? WHERE path = ?",
-                     (tour_id, str(gpx_pfad)))
-    conn.commit()
     return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": row}
 
 
@@ -2047,11 +2095,18 @@ def punkte_lesen(path: str, import_cache: Path):
     return cgpx.parse_gpx(gpx_path, text=text)
 
 
-@_locked
 def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -> dict:
-    """Eine Datei (neu) prüfen und die Spalten schreiben. Liefert den Check-Block."""
-    r = conn.execute("SELECT path, filename, recorded, recorded_user, activity FROM tracks WHERE path = ?",
-                     (path,)).fetchone()
+    """Eine Datei (neu) prüfen und die Spalten schreiben. Liefert den Check-Block.
+
+    14.09.2026 (Nacht-Review): Die Datenbank-Sperre umfasste auch das Lesen und
+    Auswerten der Datei — bei großen Tracks, FIT-Umwandlung oder NAS Sekunden je
+    Datei. „Alle prüfen" hielt das Archiv damit praktisch dauerhaft gesperrt,
+    obwohl `track_check_alle` genau das vermeiden sollte. Jetzt gesperrt nur noch
+    Lesen der Zeile und Schreiben des Ergebnisses; die Datei wird ohne Sperre gelesen.
+    """
+    with _DB_LOCK:
+        r = conn.execute("SELECT path, filename, recorded, recorded_user, activity FROM tracks WHERE path = ?",
+                         (path,)).fetchone()
     if not r:
         return {"ok": False, "error": "nicht im Archiv"}
     try:
@@ -2062,11 +2117,14 @@ def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -
                      aktivitaet=r["activity"] or None)
     if not w["check_ts"]:
         return {"ok": False, "error": "Prüfung fehlgeschlagen"}
-    conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",
-                 (w["check_json"], w["check_stufe"], w["check_ts"], path))
-    conn.commit()
-    row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
-                       (path,)).fetchone()
+    with _DB_LOCK:
+        conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",
+                     (w["check_json"], w["check_stufe"], w["check_ts"], path))
+        conn.commit()
+        row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
+                           (path,)).fetchone()
+    if row is None:      # inzwischen aus dem Archiv entfernt
+        return {"ok": False, "error": "nicht im Archiv"}
     return {"ok": True, "check": _check_dict(dict(row))}
 
 
@@ -2232,6 +2290,25 @@ def _count_hidden(filters: dict) -> tuple:
     return (f"SELECT COUNT(*) FROM tracks WHERE {w}", a)
 
 
+# 14.09.2026 (Nacht-Review): `stats()` sind rund 17 volle Durchläufe über die
+# Tabelle — bei 20 000 Touren 340 ms. Die Oberfläche fragt bei JEDEM Neuladen
+# zweimal (Auswahl + Bestand, oft mit denselben Filtern) und auch beim Sortieren,
+# das die Zahlen gar nicht ändert. Zwischenspeicher je Filter, gültig solange die
+# Datenbank unverändert ist: `total_changes` zählt die eigenen Schreibvorgänge,
+# `PRAGMA data_version` die Commits anderer Verbindungen (Scan-Faden, Fotos).
+_STATS_CACHE: dict = {}
+_STATS_CACHE_MAX = 16
+_STATS_CACHE_TTL_S = 60.0
+
+
+def _stats_stand(conn: sqlite3.Connection) -> tuple:
+    try:
+        dv = conn.execute("PRAGMA data_version").fetchone()[0]
+    except sqlite3.Error:
+        return ()
+    return (id(conn), conn.total_changes, dv)
+
+
 @_locked
 def stats(conn: sqlite3.Connection, **filters) -> dict:
     """Zahlen zur aktuellen Auswahl — dieselben Filter wie `query()`.
@@ -2240,6 +2317,28 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
     mit `planned=False` nur die gemachten Touren. So passt die Statistik immer
     zu dem, was gerade auf dem Schirm ist.
     """
+    import copy
+    stand = _stats_stand(conn)
+    try:
+        schluessel = json.dumps(filters, sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        schluessel = None
+    jetzt = time.monotonic()
+    if stand and schluessel is not None:
+        treffer = _STATS_CACHE.get(schluessel)
+        if treffer and treffer[0] == stand and jetzt - treffer[1] < _STATS_CACHE_TTL_S:
+            return copy.deepcopy(treffer[2])
+    ergebnis = _stats_rechnen(conn, **filters)
+    if stand and schluessel is not None:
+        if len(_STATS_CACHE) >= _STATS_CACHE_MAX:
+            _STATS_CACHE.pop(next(iter(_STATS_CACHE)))
+        # Stand NACH dem Rechnen gleich vorher? Sonst nicht merken (parallel geschrieben).
+        if _stats_stand(conn) == stand:
+            _STATS_CACHE[schluessel] = (stand, jetzt, copy.deepcopy(ergebnis))
+    return ergebnis
+
+
+def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
     sql_where, args = _build_where(**filters)
     search = (filters.get("search") or "").strip()
 
@@ -3167,6 +3266,16 @@ CACHE_KEEP_DAYS = 400
 
 
 @_locked
+def _housekeeping_lebend(conn: sqlite3.Connection) -> set:
+    alive = {r["geo_hash"] for r in conn.execute(
+        "SELECT DISTINCT geo_hash FROM tracks WHERE geo_hash IS NOT NULL AND geo_hash != ''")}
+    alive |= {r["geo_hash"] for r in conn.execute(
+        "SELECT geo_hash FROM track_meta WHERE fav = 1 OR tags != '' OR note != '' "
+        "OR cover != '' OR recorded_user IS NOT NULL OR display_name != '' OR hidden = 1")}
+    alive |= {r["geo_hash"] for r in conn.execute("SELECT DISTINCT geo_hash FROM collection_items")}
+    return alive
+
+
 def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Path,
                  covers_dir: Path, keep_days: int = CACHE_KEEP_DAYS) -> dict:
     """Verwaiste Vorschaubilder aufräumen — sehr zurückhaltend.
@@ -3174,16 +3283,17 @@ def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Pat
     Gelöscht wird nur, was (a) zu keiner Tour im Archiv gehört, (b) zu keiner
     Meta-Zeile mit echter Nutzer-Eingabe gehört und (c) älter als `keep_days`
     ist. Titelbilder (`covers`) bleiben immer.
+
+    14.09.2026 (Nacht-Review): Das Durchsuchen der Bildordner lief unter der
+    Datenbank-Sperre — bei 20 000 Touren (40 000 Bilder) ~200 ms, auf einem NAS
+    Sekunden, und genau beim Start, wenn die Oberfläche ihre erste Liste holt.
+    Jetzt: Kandidaten ohne Sperre sammeln, vor dem Löschen die Zuordnung unter der
+    Sperre frisch prüfen (eine inzwischen aufgenommene Tour behält ihr Bild).
     """
-    alive = {r["geo_hash"] for r in conn.execute(
-        "SELECT DISTINCT geo_hash FROM tracks WHERE geo_hash IS NOT NULL AND geo_hash != ''")}
-    alive |= {r["geo_hash"] for r in conn.execute(
-        "SELECT geo_hash FROM track_meta WHERE fav = 1 OR tags != '' OR note != '' "
-        "OR cover != '' OR recorded_user IS NOT NULL OR display_name != '' OR hidden = 1")}
-    alive |= {r["geo_hash"] for r in conn.execute("SELECT DISTINCT geo_hash FROM collection_items")}
+    alive = _housekeeping_lebend(conn)
 
     cutoff = time.time() - keep_days * 86400
-    removed = freed = 0
+    kandidaten = []
     for d, ext in ((Path(thumbs_dir), ".png"), (Path(map_thumbs_dir), ".png")):
         if not d.is_dir():
             continue
@@ -3194,12 +3304,22 @@ def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Pat
                 st = f.stat()
                 if st.st_mtime > cutoff:
                     continue
-                size = st.st_size
-                _ds.loeschen(f, "vorschau_aufraeumen", art=_ds.ART_CACHE)   # neu erzeugbar
-                removed += 1
-                freed += size
+                kandidaten.append((f, st.st_size))
             except OSError:
                 pass
+    removed = freed = 0
+    if kandidaten:
+        with _DB_LOCK:
+            alive = _housekeeping_lebend(conn)
+            for f, size in kandidaten:
+                if f.stem in alive:
+                    continue
+                try:
+                    _ds.loeschen(f, "vorschau_aufraeumen", art=_ds.ART_CACHE)   # neu erzeugbar
+                    removed += 1
+                    freed += size
+                except OSError:
+                    pass
     if removed:
         log.info("library.housekeeping: %d verwaiste Bilder gelöscht (%.1f MB)",
                  removed, freed / 1e6)

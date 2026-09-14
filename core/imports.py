@@ -498,7 +498,7 @@ def parse_track(path: str, meta_out: Optional[dict] = None) -> tuple[List[Point]
 
 # ── GPX schreiben ─────────────────────────────────────────────────────────────
 
-def write_gpx(points: List[Point], out_path: str, name: str = "Track") -> str:
+def _gpx_xml_gpxpy(points: List[Point], name) -> str:
     gpx = gpxpy.gpx.GPX()
     gpx.creator = "Reisezoom GPS Studio"
     trk = gpxpy.gpx.GPXTrack(name=name)
@@ -516,8 +516,61 @@ def write_gpx(points: List[Point], out_path: str, name: str = "Track") -> str:
         seg.points.append(gpxpy.gpx.GPXTrackPoint(
             latitude=lat, longitude=lon,
             elevation=ele, time=t))
+    return gpx.to_xml()
+
+
+# 14.09.2026 (Nacht-Review): gpxpy serialisiert jeden Punkt über seine generische
+# Feld-Reflexion — 150 000 Punkte = 2,7 s nur fürs Schreiben des Import-Caches.
+# Der Rahmen (Kopf, Track, Name) kommt weiter aus gpxpy (leeres Segment); die
+# Punkte werden in genau dem Format eingesetzt, das gpxpy 1.6.2 schreibt
+# (`make_str` für Zahlen, `format_time` für Zeiten). Ungewöhnliche Werte →
+# gpxpy wie bisher. Wächter: tests/test_write_gpx_gleich.py (bytegleich).
+_GPXPY_GEPRUEFT = "1.6.2"
+
+
+def _gpx_xml_schnell(points: List[Point], name) -> Optional[str]:
+    if gpxpy.__version__ != _GPXPY_GEPRUEFT:
+        return None
+    from gpxpy import utils as _gu
+    from gpxpy.gpxfield import format_time as _ft
+    rahmen = _gpx_xml_gpxpy([], name)
+    marke = "<trkseg>"
+    if rahmen.count(marke) != 1:
+        return None
+    teile = []
+    anhaengen = teile.append
+    ms = _gu.make_str
+    for row in points:
+        # wie GPXTrackPoint.__init__: `latitude or 0` (0.0 und None werden zu „0")
+        lat, lon, ele, tiso = row[0] or 0, row[1] or 0, row[2], row[3]
+        if (type(lat) not in (float, int) or type(lon) not in (float, int)
+                or (ele is not None and type(ele) not in (float, int))):
+            return None
+        anhaengen(f'\n      <trkpt lat="{ms(lat)}" lon="{ms(lon)}">')
+        if ele is not None:
+            anhaengen(f"\n        <ele>{ms(ele)}</ele>")
+        if tiso:
+            try:
+                t = datetime.fromisoformat(tiso.replace("Z", "+00:00"))
+            except Exception:
+                t = None
+            if t is not None:
+                anhaengen(f"\n        <time>{_ft(t)}</time>")
+        anhaengen("\n      </trkpt>")
+    k = rahmen.index(marke) + len(marke)
+    return rahmen[:k] + "".join(teile) + rahmen[k:]
+
+
+def write_gpx(points: List[Point], out_path: str, name: str = "Track") -> str:
+    xml = None
+    try:
+        xml = _gpx_xml_schnell(points, name)
+    except Exception:  # noqa: BLE001 — im Zweifel wie bisher über gpxpy
+        xml = None
+    if xml is None:
+        xml = _gpx_xml_gpxpy(points, name)
     with open(out_path, "w", encoding="utf-8") as fh:
-        fh.write(gpx.to_xml())
+        fh.write(xml)
     return out_path
 
 

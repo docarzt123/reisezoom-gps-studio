@@ -3971,5 +3971,7 @@
   "reiseroute.erst_route": "Set start and destination under “Route / Travel” first — then the preview runs.",
   "anim.erst_track": "Load a track first — then the preview runs.",
   "warte.modul_neuaufbau.titel": "Rebuilding the view",
-  "warte.modul_neuaufbau.text": "Loading the map with the new settings …"
+  "warte.modul_neuaufbau.text": "Loading the map with the new settings …",
+  "geotagger.autotag.keine_rueckmeldung": "No response from image recognition — details are in the log.",
+  "heightanim.toast.status_verloren": "No response from the render — details are in the log."
 }
