@@ -594,7 +594,7 @@
   "bib.keine_sicherung": "No hay ninguna copia de seguridad. Ponte en contacto antes de borrar nada.",
   "bib.lege_an": "Creando …",
   "bib.loslegen": "Crear biblioteca y empezar",
-  "bib.nicht_leer": "Esa carpeta no está vacía. GPS Studio creará sus propias subcarpetas ahí; mejor elige una carpeta propia.",
+  "bib.nicht_leer": "La carpeta no está vacía. GPS Studio crea dentro su propia subcarpeta «GPS Studio Bibliothek» y no toca tus otros archivos.",
   "bib.nicht_offen": "La biblioteca no está abierta ahora mismo.",
   "bib.ordner_waehlen": "Elegir otra carpeta …",
   "bib.platz": "{n} versiones, {mb} MB",

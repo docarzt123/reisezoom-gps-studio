@@ -594,7 +594,7 @@
   "bib.keine_sicherung": "There is no backup. Please get in touch before deleting anything.",
   "bib.lege_an": "Creating …",
   "bib.loslegen": "Create library and get started",
-  "bib.nicht_leer": "That folder is not empty. GPS Studio will create its own subfolders there — better to pick a folder of its own.",
+  "bib.nicht_leer": "This folder is not empty. GPS Studio creates its own subfolder “GPS Studio Bibliothek” inside it and does not touch your other files.",
   "bib.nicht_offen": "The library is not open right now.",
   "bib.ordner_waehlen": "Choose another folder …",
   "bib.platz": "{n} versions, {mb} MB",

@@ -122,6 +122,8 @@ NAS. Ändern kannst du den Ort später jederzeit (Einstellungen →
 Bibliothek → *An anderen Ort verschieben*) — die App verschiebt dann
 wirklich, sie fängt nicht neu an.
 
+**Nur eigene Dateien (seit v0.9.718).** Wählst du einen Ordner, in dem schon andere Dateien liegen (z. B. den obersten Ordner einer externen SSD mit Videos), legt GPS Studio darin einen eigenen Unterordner *GPS Studio Bibliothek* an. Beim Verschieben werden nur GPS Studios eigene Dateien mitgenommen und am alten Ort entfernt — deine anderen Dateien bleiben, wo sie sind.
+
 **Cloud-Ordner gehen nicht.** Dropbox, iCloud Drive, OneDrive und Google
 Drive tauschen Dateien mitten im Schreiben aus; die Datenbank geht dabei
 kaputt. GPS Studio lehnt solche Orte deshalb ab und sagt auch, warum.

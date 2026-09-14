@@ -105,6 +105,8 @@ space, put it on an external drive or a NAS. You can move it later at any
 time (Settings → Library → *Move to another location*) — the app really
 moves it, it does not start over.
 
+**Only its own files (since v0.9.718).** If you choose a folder that already contains other files (e.g. the top folder of an external SSD with videos), GPS Studio creates its own subfolder *GPS Studio Bibliothek* inside it. When moving, only GPS Studio's own files are taken along and removed from the old location — your other files stay where they are.
+
 **Cloud folders will not work.** Dropbox, iCloud Drive, OneDrive and Google
 Drive swap files out mid-write, which corrupts the database. GPS Studio
 refuses such locations and says why. External drives and network shares are

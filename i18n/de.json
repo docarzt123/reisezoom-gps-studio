@@ -594,7 +594,7 @@
   "bib.keine_sicherung": "Es liegt keine Sicherung vor. Wende dich bitte an den Support, bevor du etwas löschst.",
   "bib.lege_an": "Wird angelegt …",
   "bib.loslegen": "Bibliothek anlegen und loslegen",
-  "bib.nicht_leer": "Der Ordner ist nicht leer. GPS Studio legt dort eigene Unterordner an — besser einen eigenen Ordner wählen.",
+  "bib.nicht_leer": "Der Ordner ist nicht leer. GPS Studio legt darin einen eigenen Unterordner „GPS Studio Bibliothek“ an und fasst deine anderen Dateien nicht an.",
   "bib.nicht_offen": "Die Bibliothek ist gerade nicht geöffnet.",
   "bib.ordner_waehlen": "Anderen Ordner wählen …",
   "bib.platz": "{n} Versionen, {mb} MB",
