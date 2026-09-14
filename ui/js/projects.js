@@ -74,7 +74,8 @@
               tT("topbar.project.new_empty_msg", "Name (Touren kannst du später hinzufügen):"),
               tT("topbar.project.new_empty_default", "Neues Projekt"));
             if (!name) return;
-            const r = await api().projekt_frei_anlegen(name);
+            const r = await rzWarten("projekt_frei_anlegen", () => api().projekt_frei_anlegen(name)).catch((e) => ({ ok: false, error: String(e) }));
+            if (r && r.ok === false && r.error && typeof toast === "function") toast(r.error, "warn");
             if (typeof applog === "function") applog("info", "[PM] Neues leeres Projekt via TOPBAR: " + JSON.stringify(!!(r && r.ok)));
             if (r && r.ok && typeof sessionActivateFrei === "function") {
               await sessionActivateFrei(r.track_hash);

@@ -462,7 +462,7 @@ function mountLibrary(body, headerActions) {
   async function _ortSuche(text, params) {
     const key = text + "|" + JSON.stringify(params);
     if (_ortCache.has(key)) return _ortCache.get(key);
-    const r = await api().library_search_place(text, params);
+    const r = await api().library_search_place(text, params); // warte-ok: Suche beim Tippen — ein Sperrfenster schluckte Tastendrücke; veraltete Antworten verwirft _reloadSeq
     if (r && r.ok) _ortCache.set(key, r);
     return r;
   }
@@ -1088,7 +1088,7 @@ function mountLibrary(body, headerActions) {
         // Aufruf für alle, und die Meldung sagt, was wirklich weg ist.
         const ids = Array.from(_projMulti);
         let r = null;
-        try { r = await api().projekte_loeschen(ids); } catch (e) { r = { ok: false, error: String(e) }; }
+        try { r = await rzWarten("projekte_loeschen", () => api().projekte_loeschen(ids)); } catch (e) { r = { ok: false, error: String(e) }; }
         for (const pid of ids) if (_projSel === pid) _projSel = null;
         _projMulti.clear();
         if (r && r.ok) {
@@ -1173,7 +1173,7 @@ function mountLibrary(body, headerActions) {
       e.stopPropagation();
       const pfade = await tourenWaehlenModal();
       if (!pfade) return;
-      const r = await api().projekt_touren_setzen(b.dataset.addtours, pfade);
+      const r = await rzWarten("projekt_touren_setzen", () => api().projekt_touren_setzen(b.dataset.addtours, pfade)).catch((e) => ({ ok: false, error: String(e) }));
       if (r && r.ok) { toast(T("library.proj_tours_gesetzt", "{n} Tour(en) hinzugefügt.").replace("{n}", pfade.length), "info"); renderProjekte(); }
       else toast((r && r.error) || "?", "error");
     });
@@ -1191,7 +1191,7 @@ function mountLibrary(body, headerActions) {
       const ok = document.getElementById("lib-up-ok");
       if (ok) ok.onclick = async () => {
         m.close();
-        const r = await api().projekt_fassung_aktualisieren(b.dataset.up);
+        const r = await rzWarten("projekt_fassung_aktualisieren", () => api().projekt_fassung_aktualisieren(b.dataset.up)).catch((e) => ({ ok: false, error: String(e) }));
         if (r && r.ok) toast(T("library.fassung_up_done", "Projekt auf die neueste Version gehoben."), "info");
         else toast((r && r.error) || "?", "error");
         renderProjekte();
@@ -1211,9 +1211,10 @@ function mountLibrary(body, headerActions) {
       const ok = document.getElementById("lib-pd-ok");
       if (ok) ok.onclick = async () => {
         m.close();
-        await api().projekt_loeschen(b.dataset.del);
+        const r = await rzWarten("projekt_loeschen", () => api().projekt_loeschen(b.dataset.del)).catch((e) => ({ ok: false, error: String(e) }));
         renderProjekte();
-        toast(T("library.proj_geloescht", "Projekt gelöscht."), "info");
+        if (r && r.ok === false) toast(r.error || "?", "error");
+        else toast(T("library.proj_geloescht", "Projekt gelöscht."), "info");
       };
       const ab = document.getElementById("lib-pd-ab");
       if (ab) ab.onclick = () => m.close();
@@ -1358,7 +1359,7 @@ function mountLibrary(body, headerActions) {
       const r = await rzWarten("projekt_aus_vorlage_anlegen", () => api().projekt_aus_vorlage_anlegen(wahl.name, wahl.vorlageId || b.dataset.vneu));
       if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
       const pid = (r.active_project || {}).id;
-      const r2 = await api().projekt_touren_setzen(pid, pfade);
+      const r2 = await rzWarten("projekt_touren_setzen", () => api().projekt_touren_setzen(pid, pfade)).catch((e) => ({ ok: false, error: String(e) }));
       if (!r2 || !r2.ok) { toast((r2 && r2.error) || "?", "error"); return; }
       window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
       const res = await api().projekte_liste();
@@ -1526,7 +1527,7 @@ function mountLibrary(body, headerActions) {
   }
 
   async function projektOeffnen(pid, modulWunsch) {
-    const info = await api().projekt_aktivieren(pid);
+    const info = await rzWarten("projekt_aktivieren", () => api().projekt_aktivieren(pid)).catch((e) => ({ ok: false, error: String(e) }));
     if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
     // 06.09.2026 (Prüfstand): Eine noch nicht abgeholte Übergabe einer FRÜHEREN
     // Komposition darf nicht in dieses Projekt wandern — sonst bekam ein Solo-
@@ -2694,7 +2695,7 @@ function mountLibrary(body, headerActions) {
       const url = await mitQuellenangabe(_map);
       const name = _ortAktiv ? _ortAktiv.name.split(",")[0]
                  : (state.search || T("library.all_tours", "Alle Touren"));
-      const r = await api().library_save_map_png(url, name);
+      const r = await api().library_save_map_png(url, name); // warte-ok: Systemdialog
       if (r && r.ok) toast(T("library.map_png_done", "Karte gesichert."), "info");
       else if (r && !r.cancelled) toast((r && r.error) || T("library.map_png_fail", "Konnte die Karte nicht sichern."), "error");
     } catch (e) {
@@ -3569,7 +3570,7 @@ function mountLibrary(body, headerActions) {
             if (ev.target.closest("[data-frb],[data-fvp],[data-fex],[data-fdel]")) return;
             const gh = z.dataset.gh;
             el.querySelectorAll(".lib-fassung").forEach(x => x.classList.remove("is-gezeigt"));
-            const r = await api().tour_version_daten(gh);
+            const r = await rzWarten("tour_version_daten", () => api().tour_version_daten(gh)).catch((e) => ({ ok: false, error: String(e) }));
             if (!r || !r.ok) {
               toast(r && r.error ? r.error
                 : T("library.fassung_kein_snapshot", "Für diese Version liegt keine Kopie mehr vor."), "warn");
@@ -3623,7 +3624,7 @@ function mountLibrary(body, headerActions) {
               const zu = document.getElementById("lib-vp-zu");
               if (zu) zu.onclick = () => m.close();
               document.querySelectorAll("[data-vpid]").forEach(k => k.onclick = async () => {
-                const r = await api().projekt_version_setzen(k.dataset.vpid, k.dataset.vpalt, zielGh);
+                const r = await rzWarten("projekt_version_setzen", () => api().projekt_version_setzen(k.dataset.vpid, k.dataset.vpalt, zielGh)).catch((e) => ({ ok: false, error: String(e) }));
                 if (r && r.ok) {
                   m.close();
                   toast(T("library.vproj_done", "Projekt auf Version {n} gestellt.")
@@ -3638,7 +3639,7 @@ function mountLibrary(body, headerActions) {
         // Exportieren: der einzige Weg nach draußen, seit die App nicht mehr
         // in fremde Dateien zurückschreibt.
         el.querySelectorAll("[data-fex]").forEach(b => b.onclick = async () => {
-          const r = await api().tour_version_exportieren(b.dataset.fex);
+          const r = await api().tour_version_exportieren(b.dataset.fex); // warte-ok: Systemdialog
           if (r && r.cancelled) return;
           if (r && r.ok) toast(T("library.version_export_done", "Version exportiert."), "info");
           else toast((r && r.error) || "?", "error");
@@ -3659,7 +3660,7 @@ function mountLibrary(body, headerActions) {
           if (ab) ab.onclick = () => m.close();
           const ok = document.getElementById("lib-fdel-ok");
           if (ok) ok.onclick = async () => {
-            const r = await api().tour_version_loeschen(b.dataset.fdel);
+            const r = await rzWarten("tour_version_loeschen", () => api().tour_version_loeschen(b.dataset.fdel)).catch((e) => ({ ok: false, error: String(e) }));
             m.close();
             if (r && r.ok) {
               toast(T("library.version_geloescht", "Version gelöscht."), "info");
@@ -3726,7 +3727,7 @@ function mountLibrary(body, headerActions) {
     if (srcBtn) srcBtn.onclick = () => api().open_url(it.source_url);
 
     $("lib-d-cover").onclick = async () => {
-      const res = await api().library_set_cover(it.path, "");
+      const res = await api().library_set_cover(it.path, ""); // warte-ok: Systemdialog
       if (res.cancelled) return;
       if (!res.ok) { toast(res.error || "Bild konnte nicht gesetzt werden", "error"); return; }
       it.cover = (res.track && res.track.cover) || "";
@@ -3803,13 +3804,24 @@ function mountLibrary(body, headerActions) {
    *  für die benutzten (Tour + Projekte löschen), Rest melden. */
   async function trashViele(pfade, status) {
     let ok = 0; const benutzt = []; const fehler = [];
-    for (const p of pfade) {
-      let r; try { r = await api().library_trash(p); } catch (e) { r = { ok: false, error: String(e) }; }
-      if (r && r.ok) ok++;
-      else if (r && r.grund === "benutzt") benutzt.push({ path: p, projekte: r.projekte || [] });
-      else fehler.push((r && r.error) || "?");
-      if (status) status(`${ok} / ${pfade.length}`);
-    }
+    // 14.09.2026 (Marc: Wartefenster überall): EIN Fenster für die ganze Schleife mit
+    // Zähler, nicht eins je Tour. Vor der Rückfrage unten wird es geschlossen — das
+    // Wartefenster sperrt alle Klicks, auch die auf rzConfirm.
+    const sid = "lib-trash-viele-" + Date.now();
+    rzStatus.start(sid, { titel: T("library.trash_laeuft_titel", "Touren werden entfernt"),
+                          text: T("library.trash_laeuft_text", "Dateien wandern in den Papierkorb, das Archiv wird aktualisiert"),
+                          gesamt: pfade.length });
+    try {
+      let i = 0;
+      for (const p of pfade) {
+        let r; try { r = await api().library_trash(p); } catch (e) { r = { ok: false, error: String(e) }; } // warte-ok: eigener Fortschritt (rzStatus)
+        if (r && r.ok) ok++;
+        else if (r && r.grund === "benutzt") benutzt.push({ path: p, projekte: r.projekte || [] });
+        else fehler.push((r && r.error) || "?");
+        rzStatus.schritt(sid, { n: ++i, text: T("library.trash_laeuft_text", "Dateien wandern in den Papierkorb, das Archiv wird aktualisiert") });
+        if (status) status(`${ok} / ${pfade.length}`);
+      }
+    } finally { rzStatus.ende(sid); }
     if (benutzt.length) {
       const liste = [...new Set(benutzt.flatMap(b => b.projekte))].slice(0, 8).join(", ");
       const weiter = await rzConfirm(
@@ -3818,10 +3830,18 @@ function mountLibrary(body, headerActions) {
           .replace("{n}", benutzt.length).replace("{liste}", liste),
         T("library.tour_mit_projekten", "Tour und diese Projekte löschen"), true);
       if (weiter) {
-        for (const b of benutzt) {
-          let r; try { r = await api().library_trash(b.path, true); } catch (e) { r = { ok: false, error: String(e) }; }
-          if (r && r.ok) ok++; else fehler.push((r && r.error) || "?");
-        }
+        const sid2 = sid + "-projekte";
+        rzStatus.start(sid2, { titel: T("library.trash_laeuft_titel", "Touren werden entfernt"),
+                               text: T("library.trash_projekte_text", "Touren und ihre Projekte werden gelöscht"),
+                               gesamt: benutzt.length });
+        try {
+          let i = 0;
+          for (const b of benutzt) {
+            let r; try { r = await api().library_trash(b.path, true); } catch (e) { r = { ok: false, error: String(e) }; } // warte-ok: eigener Fortschritt (rzStatus)
+            if (r && r.ok) ok++; else fehler.push((r && r.error) || "?");
+            rzStatus.schritt(sid2, { n: ++i, text: T("library.trash_projekte_text", "Touren und ihre Projekte werden gelöscht") });
+          }
+        } finally { rzStatus.ende(sid2); }
       }
     }
     if (ok) toast(T("library.trash_done_n", "{n} in den Papierkorb gelegt.").replace("{n}", ok), "info");
@@ -3831,7 +3851,7 @@ function mountLibrary(body, headerActions) {
 
   async function confirmTrash(it) {
     if (!await frageTrash(1, it.path)) return;
-    let res = await api().library_trash(it.path);
+    let res = await rzWarten("library_trash", () => api().library_trash(it.path)).catch((e) => ({ ok: false, error: String(e) }));
     // 02.09.2026 (Q35): Steckt die Tour in Projekten, verweigert das Backend
     // und nennt sie. Der zweite Weg ist ein bewusster Klick — nie automatisch.
     if (res && res.grund === "benutzt") {
@@ -3846,7 +3866,7 @@ function mountLibrary(body, headerActions) {
           .replace("{liste}", liste),
         T("library.tour_mit_projekten", "Tour und diese Projekte löschen"), true);
       if (!weiter) return;
-      res = await api().library_trash(it.path, true);
+      res = await rzWarten("library_trash", () => api().library_trash(it.path, true)).catch((e) => ({ ok: false, error: String(e) }));
     }
     if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
     toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
@@ -4483,7 +4503,7 @@ function mountLibrary(body, headerActions) {
         // 100k Tracks dauert das Löschen spürbar, und ein Fehler blieb
         // vorher komplett stumm. Deshalb: Knopf sperren + Ergebnis prüfen.
         btn.disabled = true; btn.textContent = "…";
-        const res = await api().library_remove_folder(btn.dataset.folder, true);
+        const res = await rzWarten("library_remove_folder", () => api().library_remove_folder(btn.dataset.folder, true)).catch((e) => ({ ok: false, error: String(e) }));
         await reloadFolders(); await reload();
         if (!(res && res.ok)) {
           toast(((res && res.error) || T("library.remove_folder_fail", "Ordner konnte nicht entfernt werden")), "error");
@@ -4599,7 +4619,7 @@ function mountLibrary(body, headerActions) {
   async function importSingleFiles(paths) {
     let liste = paths || null;
     if (!liste) {
-      const w = await api().library_dateien_waehlen();
+      const w = await api().library_dateien_waehlen(); // warte-ok: Systemdialog
       if (!w || w.cancelled) return;
       if (!w.ok) { toast(w.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
       liste = w.paths;
@@ -4676,7 +4696,7 @@ function mountLibrary(body, headerActions) {
   }
 
   async function addFolder() {
-    const res = await api().library_add_folder("");
+    const res = await api().library_add_folder(""); // warte-ok: Systemdialog
     if (res.cancelled) return;
     if (!res.ok) { toast(res.error || T("library.add_folder_fehler", "Ordner konnte nicht hinzugefügt werden"), "error"); return; }
     await reloadFolders();
@@ -4949,7 +4969,7 @@ function mountLibrary(body, headerActions) {
       if (!knopf) return;
       knopf.onclick = async () => {
         knopf.disabled = true;
-        const r = await api().library_dismiss_all_errors(art);
+        const r = await rzWarten("library_dismiss_all_errors", () => api().library_dismiss_all_errors(art)).catch((e) => ({ ok: false, error: String(e) }));
         if (r && r.ok) {
           applog("info", `[Archiv] ${r.n} Fehler-Meldungen weggeräumt (${art || "alle"})`);
           await reload();
@@ -4962,6 +4982,7 @@ function mountLibrary(body, headerActions) {
           showErrors(zeigeWeg);
         } else {
           knopf.disabled = false;
+          if (r && r.error) toast(r.error, "error");
         }
       };
     };
@@ -5060,13 +5081,20 @@ function mountLibrary(body, headerActions) {
       go.disabled = true;
       const status = document.getElementById("lib-dupe-status");
       let weg = 0, fehler = 0;
-      for (const pfad of pfade) {
-        if (status) status.textContent = `${weg + fehler + 1} / ${pfade.length}`;
-        try {
-          const r = await api().library_trash(pfad);
-          if (r && r.ok) { weg++; } else { fehler++; }
-        } catch (_) { fehler++; }
-      }
+      const sid = "lib-dupe-trash-" + Date.now();
+      rzStatus.start(sid, { titel: T("library.trash_laeuft_titel", "Touren werden entfernt"),
+                            text: T("library.trash_laeuft_text", "Dateien wandern in den Papierkorb, das Archiv wird aktualisiert"),
+                            gesamt: pfade.length });
+      try {
+        for (const pfad of pfade) {
+          if (status) status.textContent = `${weg + fehler + 1} / ${pfade.length}`;
+          try {
+            const r = await api().library_trash(pfad); // warte-ok: eigener Fortschritt (rzStatus)
+            if (r && r.ok) { weg++; } else { fehler++; }
+          } catch (_) { fehler++; }
+          rzStatus.schritt(sid, { n: weg + fehler, text: T("library.trash_laeuft_text", "Dateien wandern in den Papierkorb, das Archiv wird aktualisiert") });
+        }
+      } finally { rzStatus.ende(sid); }
       if (status) {
         status.textContent = fehler
           ? T("library.dupe_done_err", "{n} weggeräumt, {f} nicht")
@@ -5093,7 +5121,8 @@ function mountLibrary(body, headerActions) {
         const v = (document.getElementById("lib-proj-newname") || {}).value || "";
         m.close();
         if (!v.trim()) return;
-        const r = await api().projekt_frei_anlegen(v.trim());
+        const r = await rzWarten("projekt_frei_anlegen", () => api().projekt_frei_anlegen(v.trim())).catch((e) => ({ ok: false, error: String(e) }));
+        if (r && r.ok === false && r.error) toast(r.error, "error");
         if (typeof applog === "function") applog("info", "[PM] Neues leeres Projekt via SEITENLEISTE: " + JSON.stringify(!!(r && r.ok)));
         if (r && r.ok) {
           // v0.9.613 (Marc: „sollte doch gleich in der liste erscheinen"):

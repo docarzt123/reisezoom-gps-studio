@@ -856,7 +856,7 @@ function _bindSettingsModalHandlers() {
       const vorher = zipBtn.textContent;
       zipBtn.textContent = t("bib.zip_laeuft", "Wird gesichert …");
       try {
-        const r = await api().bibliothek_zip(alles);
+        const r = await rzWarten("bibliothek_zip", () => api().bibliothek_zip(alles));
         if (r && r.ok) {
           const mb = (r.bytes / 1048576).toFixed(0);
           toast(t("bib.zip_fertig", "Sicherung fertig: {mb} MB").replace("{mb}", mb), "success", 6000);
@@ -871,7 +871,7 @@ function _bindSettingsModalHandlers() {
   })();
   const _bibWechseln = document.getElementById("md-bib-wechseln");
   if (_bibWechseln) _bibWechseln.onclick = async () => {
-    const w = await api().bibliothek_ordner_waehlen();
+    const w = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
     if (!w || w.cancelled) return;
     if (!w.ok) { toast(w.cloud
       ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
@@ -896,18 +896,18 @@ function _bindSettingsModalHandlers() {
   })();
   const _bibUmz = document.getElementById("md-bib-umziehen");
   if (_bibUmz) _bibUmz.onclick = async () => {
-    const w = await api().bibliothek_ordner_waehlen();
+    const w = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
     if (!w || w.cancelled) return;
     if (!w.ok) { toast(w.cloud
       ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
       : (w.grund || w.error || "?"), "warn"); return; }
     _bibUmz.disabled = true;
     _bibUmz.textContent = t("bib.zieht_um", "Wird verschoben …");
-    const r = await api().bibliothek_umziehen(w.pfad);
+    const r = await rzWarten("bibliothek_umziehen", () => api().bibliothek_umziehen(w.pfad)).catch((e) => ({ ok: false, error: String(e) }));
     if (r && r.ok) { location.reload(); return; }
     _bibUmz.disabled = false;
     _bibUmz.textContent = t("bib.umziehen", "An anderen Ort verschieben …");
-    toast((r && (r.grund || r.error)) || "?", "warn");
+    toast((r && ((/laeuft/.test(r.grund || "") && r.error) || r.grund || r.error)) || "?", "warn");
   };
 
   const _cloudBtn = document.getElementById("md-cloud");
@@ -961,7 +961,7 @@ function _bindSettingsModalHandlers() {
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
   document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });
   document.getElementById("md-tc-clear")?.addEventListener("click", async () => {
-    const r = await api().tile_cache_clear().catch(() => ({ ok: false }));
+    const r = await rzWarten("tile_cache_clear", () => api().tile_cache_clear()).catch(() => ({ ok: false }));
     if (r && r.ok) {
       const sz = document.getElementById("md-tc-size"); if (sz) sz.textContent = t("settings.tilecache.size", "{mb} MB belegt").replace("{mb}", "0");
       toast(t("settings.tilecache.cleared", "Kachel-Zwischenspeicher geleert"), "success");
@@ -1505,7 +1505,7 @@ window.checkForUpdate = checkForUpdate;
 async function exportCurrent(fmt) {
   fmt = (fmt || "gpx").toLowerCase();
   let res;
-  try { res = await api().export_current(fmt); }
+  try { res = await rzWarten("export_current", () => api().export_current(fmt)); }
   catch (_) { toast(t("export.error", "Export fehlgeschlagen."), "warn"); return; }
   if (!res) return;
   if (res.cancelled) return;
@@ -1527,14 +1527,14 @@ window.exportProject = async function () {
   // sonst exportiert die Brücke nur die Einzel-Sitzung der ersten Tour (leeres Paket).
   const _sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
   const _kontext = (_sess && _sess.track_hash) || "";
-  try { res = await api().projekt_exportieren("", "", _kontext); } catch (e) { toast(String(e), "error"); return; }
+  try { res = await rzWarten("projekt_exportieren", () => api().projekt_exportieren("", "", _kontext)); } catch (e) { toast(String(e), "error"); return; }
   if (!res || res.cancelled) return;
   if (res.ok) toast(t("projekt.export_ok", "Projekt exportiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
   else toast(res.error || t("export.error", "Export fehlgeschlagen."), "warn", 6000);
 };
 window.importProject = async function (pfad) {
   let res;
-  try { res = await api().projekt_importieren(pfad || ""); } catch (e) { toast(String(e), "error"); return; }
+  try { res = await rzWarten("projekt_importieren", () => api().projekt_importieren(pfad || "")); } catch (e) { toast(String(e), "error"); return; }
   if (!res || res.cancelled) return;
   if (!res.ok) { toast(res.error || t("projekt.import_fehler", "Import fehlgeschlagen."), "warn", 7000); return; }
   toast(t("projekt.import_ok", "Projekt importiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
@@ -1746,7 +1746,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           t("install.frage", "Die App läuft gerade aus {ort}. Soll sie sich in den Programme-Ordner kopieren und von dort neu starten? Das Download-Image wird dabei ausgeworfen.").replace("{ort}", lage.bundle ? lage.bundle.replace(/\/[^/]+$/, "") : "?"),
           t("install.knopf", "Installieren und neu starten"), false);
         if (!ok) return;
-        const r = await api().selbst_installieren();
+        const r = await rzWarten("selbst_installieren", () => api().selbst_installieren());
         if (!r || !r.ok) toast(t("install.fehler", "Installation fehlgeschlagen: {e}").replace("{e}", (r && r.error) || "?"), "error", 8000);
         else toast(t("install.neustart", "Installiert — die App startet gleich neu."), "success", 4000);
         return;
@@ -1758,7 +1758,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           + t("install.aufr_frage", "Image auswerfen und Kopien in den Papierkorb legen?"),
           t("install.aufr_knopf", "Aufräumen"), false);
         if (!ok) return;
-        const r = await api().install_aufraeumen();
+        const r = await rzWarten("install_aufraeumen", () => api().install_aufraeumen());
         toast(r && r.ok ? t("install.aufr_ok", "Aufgeräumt.") : t("install.fehler", "Installation fehlgeschlagen: {e}").replace("{e}", (r && r.error) || "?"), r && r.ok ? "success" : "error", 6000);
       }
     } catch (_) {}

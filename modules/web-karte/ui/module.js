@@ -370,7 +370,7 @@
         if (typeof window.rzArchivTourenWaehlen === "function") {
           files = await window.rzArchivTourenWaehlen({ ausschliessen: tracks.map(x => x.path) });
         } else {
-          files = await window.pywebview.api.pick_file("open", window.TRACK_PICK_FILTER, false);
+          files = await window.pywebview.api.pick_file("open", window.TRACK_PICK_FILTER, false); // warte-ok: Systemdialog
         }
       } catch (_) {}
       const pfade = Array.isArray(files) ? files : (typeof files === "string" ? [files] : []);

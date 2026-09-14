@@ -246,6 +246,29 @@ def apply_sea_mask(body: bytes, ct: str, z: int, x: int, y: int, cache_dir) -> t
         return body, ct
 
 
+# 14.09.2026 (Beta-Tester: „Access blocked – App is not following the tile usage policy of OSM's
+# volunteer-run servers"): Die freien OSM-Rasterdienste verlangen eine erkennbare App-Kennung und
+# sperren Anfragen ohne gültigen Referer — genau das schickt eine WebView (file://). In der App
+# laufen diese Kacheln deshalb über die lokale Weiche: mit User-Agent, Zwischenspeicher und nur so
+# vielen Anfragen, wie die Karte wirklich braucht. Exportierte Web-Karten laden weiter direkt.
+RASTER_DIENSTE = {
+    "osm": ("https://tile.openstreetmap.org/{z}/{x}/{y}.png", None),
+    "topo": ("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", "abc"),
+    "cyclosm": ("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", "abc"),
+    "humanitarian": ("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", "abc"),
+}
+
+
+def raster_dienst_url(dienst: str, z: int, x: int, y: int) -> Optional[str]:
+    eintrag = RASTER_DIENSTE.get(dienst)
+    if not eintrag:
+        return None
+    vorlage, subs = eintrag
+    if subs:
+        vorlage = vorlage.replace("{s}", subs[(x + y) % len(subs)])
+    return vorlage.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+
+
 def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
                cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
     """(status, content_type, body). 404 bei unbekannter Region, 502 wenn der
@@ -255,7 +278,9 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
         return 404, "text/plain", b"bad zoom"
     terrain = region_id == ms.TERRAIN_AWS_PROXY_ID
     region = None
-    if terrain:
+    if region_id in RASTER_DIENSTE:
+        url = raster_dienst_url(region_id, z, x, y)
+    elif terrain:
         url = ms.TERRAIN["aws"]["tiles"][0].replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
     else:
         region = next((r for r in ms.ORTHO_REGIONS if r["id"] == region_id), None)

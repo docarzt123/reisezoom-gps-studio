@@ -838,6 +838,9 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
     }
 
 
+_RASTER_UEBER_WEICHE = ("osm", "topo", "cyclosm", "humanitarian")   # synchron zu core/tileproxy.RASTER_DIENSTE
+
+
 def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = "") -> dict:
     """Alles, was die Oberfläche braucht, um Listen zu bauen und Stile selbst
     aufzulösen — OHNE Schlüsselwerte (die holt sie getrennt)."""
@@ -847,7 +850,11 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "styles": [
             {"key": s["key"], "provider": s["provider"], "kind": s["kind"], "group": s["group"],
              "label": s["label"], "terrain": s["terrain"], "badge": style_badge(s["key"]),   # 07.09.2026: aus dem Quellen-Register
-             "style_url": s.get("style_url"), "tiles": s.get("tiles"), "tileSize": s.get("tileSize", 256),
+             "style_url": s.get("style_url"),
+             # 14.09.2026 — freie OSM-Rasterdienste über die lokale Weiche (User-Agent, Cache; sonst gesperrt)
+             "tiles": ([proxy_base.rstrip("/") + "/tile/" + s["key"] + "/{z}/{x}/{y}"]
+                       if (proxy_base and s.get("kind") == "raster" and s["key"] in _RASTER_UEBER_WEICHE) else s.get("tiles")),
+             "tileSize": s.get("tileSize", 256),
              "maxzoom": s.get("maxzoom", 19), "attribution": s.get("attribution", ""),
              "available": ((s["provider"] != "mapbox" or has_mapbox)
                            and (s["provider"] != "maptiler" or has_maptiler))}

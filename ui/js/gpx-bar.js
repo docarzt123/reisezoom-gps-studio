@@ -495,7 +495,7 @@
       if (pfade && pfade.length) await window.loadGlobalGpx(pfade[0]);
       return;
     }
-    const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
+    const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false); // warte-ok: Systemdialog
     if (!files || !files.length) return;
     await window.loadGlobalGpx(files[0]);
   }

@@ -1408,7 +1408,7 @@ function mountGeotagger(body, headerActions) {
       "JPEG (*.jpg;*.jpeg)",
       "RAW (*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng)",
     ];
-    const files = await api().pick_file("open", filters, true);
+    const files = await api().pick_file("open", filters, true); // warte-ok: Systemdialog
     if (!files || !files.length) return;
     // v0.9.27 (Nutzer-Feedback): Foto-Pfade persistieren damit Modul-Wechsel
     // + App-Restart sie wiederherstellen kann
@@ -1423,7 +1423,7 @@ function mountGeotagger(body, headerActions) {
   });
 
   document.getElementById("gt-pick-folder").addEventListener("click", async () => {
-    const folders = await api().pick_file("folder");
+    const folders = await api().pick_file("folder"); // warte-ok: Systemdialog
     if (!folders || !folders.length) return;
     const recCb0 = document.getElementById("gt-folder-recursive");
     await _gtOrdnerLaden(folders[0], !!(recCb0 && recCb0.checked));
@@ -1451,7 +1451,7 @@ function mountGeotagger(body, headerActions) {
       });
     }
     try {
-      res = await api().geotagger_load_photos_from_folder(folder, recursive);
+      res = await api().geotagger_load_photos_from_folder(folder, recursive); // warte-ok: eigener Fortschritt (rzStatus)
     } finally { if (frei) frei(); if (frei2) frei2(); }
     if (window.rzStatus) {
       if (res && res.ok) {
@@ -3697,7 +3697,7 @@ function mountGeotagger(body, headerActions) {
       openModal({}).close();   // Bestätigungs-Modal schließen
       // v0.9.372 — Zielordner wählen: getaggte KOPIEN landen dort, Originale bleiben
       // unangetastet (= das Backup selbst). Kein ZIP, kein „danach exportieren" mehr.
-      const folders = await api().pick_file("folder");
+      const folders = await api().pick_file("folder"); // warte-ok: Systemdialog
       if (!folders || !folders.length) return;   // abgebrochen
       const destDir = folders[0];
       // Würde eine Kopie auf ein Original fallen (Zielordner == Ordner echter
@@ -3972,7 +3972,7 @@ function mountGeotagger(body, headerActions) {
       toast(t("geotagger.export.keine", "Keine getaggten Fotos zum Exportieren gefunden"), "warn");
       return;
     }
-    const folders = await api().pick_file("folder");
+    const folders = await api().pick_file("folder"); // warte-ok: Systemdialog
     if (!folders || !folders.length) return;  // abgebrochen
     const dest = folders[0];
     const res = await rzWarten("geotagger_export_tagged", () => api().geotagger_export_tagged(items, dest));

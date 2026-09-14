@@ -50,6 +50,8 @@
       db_unlesbar: T("bib.g_db_unlesbar", "Die kopierte Datenbank war nicht lesbar — der bisherige Bestand bleibt liegen."),
       nicht_wegraeumbar: T("bib.g_nicht_wegraeumbar", "Der alte Ordner ließ sich nicht wegräumen."),
     };
+    // 14.09.2026: Doppelstart-Ablehnung aus dem Backend bringt ihren Text schon mit.
+    if ((g === "laeuft_bereits" || g === "umzug_laeuft") && r.error) return r.error;
     return m[g] || g || (r && r.error) || "?";
   }
 
@@ -83,7 +85,7 @@
    * und gesagt, wo die bisherige bleibt (09.09.2026, Beta-Tester: „nun ist
    * alles leer"). */
   async function andererOrt(st) {
-    var w = await api().bibliothek_ordner_waehlen();
+    var w = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
     if (!w || !w.ok) return;
     if (w.vorhanden) {
       var r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(w.pfad));
@@ -102,7 +104,7 @@
     el.querySelector("#bib-neu-zurueck").onclick = function () { pruefen(); };
     el.querySelector("#bib-neu-ja").onclick = async function () {
       var b = el.querySelector("#bib-neu-ja"); b.disabled = true;
-      var r = await api().bibliothek_festlegen(w.pfad);
+      var r = await rzWarten("bibliothek_festlegen", () => api().bibliothek_festlegen(w.pfad)).catch(function (e) { return { ok: false, error: String(e) }; });
       if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
     };
   }
@@ -136,7 +138,7 @@
     zeigen();
 
     el.querySelector("#bib-waehlen").onclick = async function () {
-      var r = await api().bibliothek_ordner_waehlen();
+      var r = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
       if (!r || r.cancelled) return;
       var h = el.querySelector("#bib-hinweis");
       if (!r.ok) {
@@ -157,7 +159,7 @@
       var b = el.querySelector("#bib-los");
       b.disabled = true;
       b.textContent = T("bib.lege_an", "Wird angelegt …");
-      var r = await api().bibliothek_festlegen(gewaehlt);
+      var r = await rzWarten("bibliothek_festlegen", () => api().bibliothek_festlegen(gewaehlt)).catch(function (e) { return { ok: false, error: String(e) }; });
       if (r && r.ok) { weg(); location.reload(); return; }
       b.disabled = false;
       b.textContent = T("bib.loslegen", "Bibliothek anlegen und loslegen");
@@ -183,7 +185,7 @@
       '<button class="btn btn-primary" id="bib-nochmal">' + T("bib.erneut_suchen", "Erneut suchen") + "</button>" +
       '<button class="btn" id="bib-anderer">' + T("bib.anderer_ort", "Anderen Ort wählen …") + "</button></div>");
     el.querySelector("#bib-nochmal").onclick = async function () {
-      var r = await api().bibliothek_erneut();
+      var r = await rzWarten("bibliothek_erneut", () => api().bibliothek_erneut()).catch(function () { return null; });
       if (r && r.ok) { weg(); location.reload(); } else pruefen();
     };
     el.querySelector("#bib-anderer").onclick = function () { andererOrt(st); };
@@ -208,7 +210,7 @@
       '<button class="btn" id="bib-uebernehmen">' + T("bib.uebernehmen", "Trotzdem öffnen …") + "</button>" +
       '<button class="btn" id="bib-anderer">' + T("bib.anderer_ort", "Anderen Ort wählen …") + "</button></div>");
     el.querySelector("#bib-nochmal").onclick = async function () {
-      var r = await api().bibliothek_erneut();
+      var r = await rzWarten("bibliothek_erneut", () => api().bibliothek_erneut()).catch(function () { return null; });
       if (r && r.ok) { weg(); location.reload(); } else pruefen();
     };
     el.querySelector("#bib-anderer").onclick = function () { andererOrt(st); };
@@ -365,12 +367,12 @@
     el.querySelector("#bib-umz").onclick = async function () {
       var knopf = el.querySelector("#bib-umz");
       var h = el.querySelector("#bib-umz-hinweis");
-      var w = await api().bibliothek_ordner_waehlen();
+      var w = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
       if (!w || w.cancelled) return;
       if (!w.ok) { h.hidden = false; h.textContent = grundText(w); return; }
       knopf.disabled = true;
       knopf.textContent = T("bib.zieht_um", "Wird verschoben …");
-      var r = await api().bibliothek_umziehen(w.pfad);
+      var r = await rzWarten("bibliothek_umziehen", () => api().bibliothek_umziehen(w.pfad)).catch(function (e) { return { ok: false, error: String(e) }; });
       if (r && r.ok) {
         try { localStorage.setItem("rz-umzug-gesehen", b.beendet || "1"); } catch (_) {}
         location.reload();

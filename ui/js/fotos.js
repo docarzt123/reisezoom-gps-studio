@@ -144,8 +144,9 @@
             T("fotos.ordner_entfernen_frage", "„{p}“ verschwindet aus dem Bestand. Die Dateien selbst bleiben unberührt.").replace("{p}", o.path),
             T("fotos.ordner_entfernen_ok", "Entfernen"), false);
           if (!ok) return;
-          const r = await api().fotos_ordner_weg(o.path, true);
+          const r = await rzWarten("fotos_ordner_weg", () => api().fotos_ordner_weg(o.path, true)).catch((e) => ({ ok: false, error: String(e) }));
           if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; navZeichnen(); neuLaden(); }
+          else if (r && r.error) toast(r.error, "warn");
         };
       });
     }
@@ -169,7 +170,7 @@
     if (add) add.onclick = async () => {
       add.disabled = true;
       try {
-        const r = await api().fotos_ordner_hinzu("", true);
+        const r = await api().fotos_ordner_hinzu("", true); // warte-ok: Systemdialog
         if (r && r.ok) {
           ordner = r.ordner || [];
           navZeichnen();

@@ -1447,6 +1447,34 @@ def _height_visual_cfg_kwargs(params: dict) -> dict:
 from core.animator import wasserzeichen_pfad  # noqa: E402
 
 
+
+# ── 14.09.2026: Doppelstart-Sperre (Marc: „verhindern, dass während gewartet werden muss,
+# irgendwie Quatsch passieren kann") ─────────────────────────────────────────────────────
+# Die Oberfläche sperrt beim Warten schon alles (rzWarten). Diese zweite Schicht sitzt im
+# Backend: Vorgänge derselben Gruppe laufen nie gleichzeitig — ein zweiter Aufruf wird sofort
+# abgelehnt (nicht eingereiht), mit einem Grund, den die Oberfläche anzeigen kann.
+_EINMAL_SPERREN: dict = {}
+_EINMAL_SPERREN_LOCK = threading.Lock()
+
+
+def _nur_einmal(gruppe: str):
+    def deko(fn):
+        @functools.wraps(fn)
+        def huelle(self, *args, **kwargs):
+            with _EINMAL_SPERREN_LOCK:
+                sperre = _EINMAL_SPERREN.setdefault(gruppe, threading.Lock())
+            if not sperre.acquire(blocking=False):
+                log.warning("[doppelstart] %s abgelehnt — in der Gruppe '%s' läuft bereits ein Vorgang", fn.__name__, gruppe)
+                return {"ok": False, "grund": "laeuft_bereits", "gruppe": gruppe, "error": _ui_t()(
+                    "error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
+            try:
+                return fn(self, *args, **kwargs)
+            finally:
+                sperre.release()
+        return huelle
+    return deko
+
+
 class Api:
     """JS-Bridge. Methoden hier sind aus dem WebView via window.pywebview.api.* aufrufbar."""
 
@@ -1612,6 +1640,7 @@ class Api:
         return {"bytes": canim.tile_cache_size_bytes(), "max_mb": canim.TILE_CACHE_MAX_MB,
                 "dir": str(canim.TILE_CACHE_DIR or "")}
 
+    @_nur_einmal("kachel_cache")
     def tile_cache_clear(self) -> dict:
         _sync_tile_cache_settings()
         try:
@@ -2534,6 +2563,7 @@ class Api:
             return ""
 
     @_mit_sessions_lock
+    @_nur_einmal("projekte")
     def session_projekte_uebernehmen(self, quelle_hash: str, ziel_hash: str) -> dict:
         """Projekte einer Tour auf eine andere übertragen (27.08.2026, Marc).
 
@@ -3575,6 +3605,7 @@ class Api:
             log.exception("bibliothek_vergessen")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("bibliothek")
     def bibliothek_zip(self, alles: bool = False, ziel: str = "") -> dict:
         """Die aktive Bibliothek als ZIP sichern.
 
@@ -3628,6 +3659,7 @@ class Api:
             log.exception("bibliothek_ordner_waehlen")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("bibliothek")
     def bibliothek_festlegen(self, pfad: str) -> dict:
         """Den Ort festlegen — beim Erststart und beim späteren Wechsel.
 
@@ -3667,6 +3699,7 @@ class Api:
             log.exception("bibliothek_festlegen")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("bibliothek")
     def bibliothek_wechseln(self, pfad: str) -> dict:
         """Eine VORHANDENE Bibliothek öffnen — nichts anlegen, nichts verschieben.
 
@@ -3696,6 +3729,7 @@ class Api:
             log.exception("bibliothek_wechseln")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("bibliothek")
     def bibliothek_uebernehmen(self) -> dict:
         """„Trotzdem öffnen": die fremde Sperre entfernen und öffnen. Die
         Oberfläche hat vorher gefragt."""
@@ -3714,6 +3748,7 @@ class Api:
             log.exception("bibliothek_uebernehmen")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("bibliothek")
     def bibliothek_erneut(self) -> dict:
         """„Erneut suchen" — nachdem die Platte wieder dran ist."""
         global BIB_PROBLEM
@@ -3732,6 +3767,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("bibliothek")
     def bibliothek_wiederherstellen(self, datei: str) -> dict:
         """Riegel 3: eine Sicherung zurückholen. Die kaputte Datenbank wird
         beiseitegelegt, nicht gelöscht."""
@@ -3745,23 +3781,19 @@ class Api:
             log.exception("bibliothek_wiederherstellen")
             return {"ok": False, "error": str(e)}
 
-    _UMZUG_SPERRE = threading.Lock()
-
     def bibliothek_umziehen(self, pfad: str) -> dict:
         """Die Bibliothek an einen anderen Ort verschieben — echt verschieben.
 
         14.09.2026 (Nutzer-Log Windows): Während ein Umzug noch kopierte, startete der
         Nutzer über die Einstellungen weitere Umzüge; gescheiterte Versuche öffneten
         zwischendurch die alte Bibliothek neu. Jetzt läuft höchstens EIN Umzug."""
-        if not Api._UMZUG_SPERRE.acquire(blocking=False):
-            log.warning("Bibliothek umziehen: abgelehnt — es läuft bereits ein Umzug (%s)", pfad)
-            return {"ok": False, "grund": "umzug_laeuft", "error": _ui_t()(
-                "bib.umzug_laeuft", "Die Bibliothek wird gerade schon verschoben. Bitte warten, bis das fertig ist.")}
-        try:
-            return self._bibliothek_umziehen(pfad)
-        finally:
-            Api._UMZUG_SPERRE.release()
+        r = self._bibliothek_umziehen(pfad)
+        if isinstance(r, dict) and r.get("grund") == "laeuft_bereits":
+            r["grund"] = "umzug_laeuft"
+            r["error"] = _ui_t()("bib.umzug_laeuft", "Die Bibliothek wird gerade schon verschoben. Bitte warten, bis das fertig ist.")
+        return r
 
+    @_nur_einmal("bibliothek")
     def _bibliothek_umziehen(self, pfad: str) -> dict:
         global BIB_ORT
         try:
@@ -4113,6 +4145,7 @@ class Api:
             log.exception("library_import_pruefen")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("archiv_import")
     def library_import_files(self, paths: list | None = None) -> dict:
         """30.08.2026 (Marc-OK, nach der Komoot-Fall eines Beta-Testers): EINZELNE
         Track-Dateien direkt ins Archiv. Ohne `paths` öffnet der Datei-Dialog
@@ -4181,6 +4214,7 @@ class Api:
             log.exception("library_import_files")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("archiv_ordner")
     def library_remove_folder(self, path: str, drop_tracks: bool = True) -> dict:
         try:
             clib.remove_folder(self._lib(), path, drop_tracks)
@@ -4275,6 +4309,7 @@ class Api:
             log.exception("fotos_ordner_hinzu")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("fotos_ordner")
     def fotos_ordner_weg(self, path: str, mit_fotos: bool = True) -> dict:
         try:
             cfotos.ordner_weg(self._lib(), path, bool(mit_fotos))
@@ -4581,6 +4616,7 @@ class Api:
             log.exception("library_query")
             return {"ok": False, "error": str(e), "items": [], "total": 0}
 
+    @_nur_einmal("archiv_import")
     def library_merge(self, params: dict = None) -> dict:
         """23.08.2026 (Marc) — Mehrere Touren aus dem Archiv zu EINEM Track
         zusammenführen: eine Etappe je Tour, dazwischen ein Übergang.
@@ -5182,6 +5218,7 @@ class Api:
             log.exception("tour_projekte")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("archiv_papierkorb")
     def library_trash(self, path: str, mit_projekten: bool = False) -> dict:
         """Eine Tour wegwerfen. Papierkorb statt endgültig — ein Fehlgriff
         bleibt rückholbar.
@@ -5349,6 +5386,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "gesamt": 0}
 
+    @_nur_einmal("archiv_ordner")
     def library_dismiss_all_errors(self, nur_art: str = "") -> dict:
         """Alle Meldungen einer Art wegräumen, ohne sie einzeln anzuhaken.
 
@@ -7935,6 +7973,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("installation")
     def selbst_installieren(self) -> dict:
         """Das laufende Bundle nach /Applications kopieren, ältere Kopien in den
         Papierkorb, Quarantäne weg, Download-Image auswerfen, neue Kopie starten,
@@ -7966,6 +8005,7 @@ class Api:
             log.exception("selbst_installieren")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("installation")
     def install_aufraeumen(self) -> dict:
         """Nach dem Start aus Programme: Download-Image auswerfen und überzählige
         Kopien in Programme in den Papierkorb (die laufende bleibt)."""
@@ -8987,6 +9027,7 @@ class Api:
         log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
         return {"ok": True, "datei": str(ziel), "name": ziel.name, "geo_hash": geo_hash, "projekte": n_proj}
 
+    @_nur_einmal("projekte")
     def projekt_exportieren(self, gpx_path: str = "", ziel: str = "", kontext: str = "") -> dict:
         """Aktuellen Track + alle Projekte der Session als .rzproj speichern.
         `ziel` leer → Save-Dialog. Läuft ohne Cloud.
@@ -9215,6 +9256,7 @@ class Api:
             log.warning("startdatei_abholen: %s", e)
             return {"ok": False, "pfad": "", "art": "", "error": str(e)}
 
+    @_nur_einmal("projekte")
     def projekt_importieren(self, pfad: str = "") -> dict:
         """.rzproj einspielen (Dialog, wenn kein Pfad). Läuft ohne Cloud."""
         try:
@@ -9278,6 +9320,7 @@ class Api:
             log.exception("cloud_papierkorb")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("cloud_papierkorb")
     def cloud_papierkorb_zurueck(self, hex_name: str, zeit: int) -> dict:
         """Einen Eintrag wiederherstellen: verschlüsselt holen, prüfen, normal
         wieder ablegen, dann aus dem Papierkorb löschen. Der Klarname kommt
@@ -9327,6 +9370,7 @@ class Api:
             log.exception("cloud_papierkorb_zurueck")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("cloud_papierkorb")
     def cloud_papierkorb_eintrag_weg(self, hex_name: str, zeit: int) -> dict:
         """Einen einzelnen Papierkorb-Eintrag endgültig löschen."""
         if not self._cloud_sichtbar():
@@ -9346,6 +9390,7 @@ class Api:
         except Exception as e:      # noqa: BLE001
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("cloud_papierkorb")
     def cloud_papierkorb_leeren(self, tage: int = 30) -> dict:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
@@ -10582,6 +10627,7 @@ class Api:
                              "rad": "rad", "laufen": "laufen", "fahrt": "auto",
                              "wassersport": "boot", "uebersetzen": "boot"}
 
+    @_nur_einmal("archiv_import")
     def archiv_abschnitt_aufnehmen(self, points: list, src_path: str = "", name: str = "",
                                    sources: list = None, art: str = "") -> dict:
         """Einen Abschnitt als NEUE Tour ins Archiv (14.09.2026, Beta-Tester: Autofahrt und
@@ -11002,6 +11048,7 @@ class Api:
             log.exception("letzte_sitzung")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("projekte")
     def projekt_loeschen(self, project_id: str) -> dict:
         """Ein Projekt löschen.
 
@@ -11024,6 +11071,7 @@ class Api:
             log.exception("projekt_loeschen")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("projekte")
     def projekte_loeschen(self, project_ids: list) -> dict:
         """Mehrere Projekte in EINEM Zug löschen.
 
@@ -11564,6 +11612,7 @@ class Api:
             log.exception("tour_version_daten")
             return {"ok": False, "error": str(e)}
 
+    @_nur_einmal("archiv_papierkorb")
     def tour_version_loeschen(self, geo_hash: str) -> dict:
         """Eine einzelne Version wegwerfen (02.09.2026, Schnitt 3).
 
@@ -14313,7 +14362,8 @@ def main() -> None:
 
         def _trigger_js(snippet: str):
             try:
-                win.evaluate_js(snippet)
+                # 14.09.2026 — Menübefehle wirken nicht, solange die Oberfläche auf etwas wartet
+                win.evaluate_js("if (!(window.rzWartet && window.rzWartet())) { " + snippet + " }")
             except Exception:
                 pass
 

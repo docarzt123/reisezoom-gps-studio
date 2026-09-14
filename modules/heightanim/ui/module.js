@@ -1616,7 +1616,7 @@ function mountHeightAnim(body, headerActions) {
       return;
     }
     try {
-      const res = await window.pywebview.api.heightanim_load_gpx(path);
+      const res = await rzWarten("heightanim_load_gpx", () => window.pywebview.api.heightanim_load_gpx(path));
       if (_haUnmounted) return;   // Modul ist weg — nichts mehr anfassen
       if (window.applog) {
         window.applog("info", `[heightanim] load result ok=${res?.ok} n_elev=${res?.elevations?.length || 0}`);
