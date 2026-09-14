@@ -1620,7 +1620,6 @@ def _upsert(conn: sqlite3.Connection, row: dict) -> None:
                 row.get("cover") or "")
 
 
-@_locked
 def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path,
                       import_cache: Path, map_thumbs_dir: Optional[Path] = None,
                       covers_dir: Optional[Path] = None,
@@ -1658,21 +1657,25 @@ def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path
     # Gibt es zu dieser Geometrie schon eine echte Datei, braucht es keine
     # zweite Zeile: Die Bibliothekskopie ist Speicher, kein Fundort.
     row["speicher"] = 1        # das hier IST der Versionsspeicher
-    vorhanden = conn.execute(
-        "SELECT path FROM tracks WHERE geo_hash = ? AND error = '' "
-        "AND COALESCE(speicher,0) = 0", (row.get("geo_hash") or "",)).fetchone()
-    if vorhanden is not None:
+    # 14.09.2026 (Nacht-Review): Datei lesen und Vorschaubild zeichnen (oben) laufen
+    # ohne Datenbank-Sperre — nur dieser Schreibteil ist gesperrt. Vorher hielt jede
+    # Aufnahme die Sperre für die ganze Auswertung der Datei.
+    with _DB_LOCK:
+        vorhanden = conn.execute(
+            "SELECT path FROM tracks WHERE geo_hash = ? AND error = '' "
+            "AND COALESCE(speicher,0) = 0", (row.get("geo_hash") or "",)).fetchone()
+        if vorhanden is not None:
+            if tour_id:
+                conn.execute("UPDATE tracks SET tour_id = ? WHERE geo_hash = ?",
+                             (tour_id, row.get("geo_hash") or ""))
+            conn.commit()
+            return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": dict(vorhanden),
+                    "vorhanden": True}
+        _upsert(conn, row)
         if tour_id:
-            conn.execute("UPDATE tracks SET tour_id = ? WHERE geo_hash = ?",
-                         (tour_id, row.get("geo_hash") or ""))
+            conn.execute("UPDATE tracks SET tour_id = ? WHERE path = ?",
+                         (tour_id, str(gpx_pfad)))
         conn.commit()
-        return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": dict(vorhanden),
-                "vorhanden": True}
-    _upsert(conn, row)
-    if tour_id:
-        conn.execute("UPDATE tracks SET tour_id = ? WHERE path = ?",
-                     (tour_id, str(gpx_pfad)))
-    conn.commit()
     return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": row}
 
 
