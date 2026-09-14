@@ -3867,5 +3867,7 @@
   "logbuch.poiart.see": "See",
   "logbuch.poiart.ort": "Ort",
   "cloud.andere_bibliothek": "Die Cloud gehört zur Bibliothek „{b}“. Diese Bibliothek wird nicht hochgeladen — sonst würde sie die Cloud-Kopie der anderen überschreiben.",
-  "cloud.bibliothek_unklar": "Es gibt mehrere Bibliotheken und die Cloud weiß nicht, zu welcher sie gehört. Öffne die Bibliothek, die in die Cloud soll, am Standardort — oder richte die Cloud dort neu ein."
+  "cloud.bibliothek_unklar": "Es gibt mehrere Bibliotheken und die Cloud weiß nicht, zu welcher sie gehört. Öffne die Bibliothek, die in die Cloud soll, am Standardort — oder richte die Cloud dort neu ein.",
+  "library.imp_zeigen_1": "Vorhandene Tour zeigen",
+  "library.imp_zeigen": "Vorhandene Touren zeigen"
 }

@@ -406,8 +406,11 @@ function mountLibrary(body, headerActions) {
     return f;
   }
 
+  // 14.09.2026 — nach einem Import: diese Touren (geo_hash) oben zeigen (nur Reihenfolge).
+  let _zuerstGeo = null;
   function queryParams(extra) {
     const p = Object.assign({}, state, scopeFilters(), extra || {});
+    if (_zuerstGeo && _zuerstGeo.length) p.zuerst_geo = _zuerstGeo.slice();
     if (!p.year) delete p.year;
     if (!p.activity) delete p.activity;
     if (!p.von) delete p.von;
@@ -4564,7 +4567,8 @@ function mountLibrary(body, headerActions) {
             <button class="btn btn-sm" id="lib-imp-nur">${
               neu === 1 ? T("library.imp_nur_neue_1", "Nur die neue aufnehmen")
               : neu ? T("library.imp_nur_neue", "Nur die {n} neuen aufnehmen").replace("{n}", num(neu))
-                    : T("library.cancel", "Abbrechen")}</button>
+                    : (bekannt.length === 1 ? T("library.imp_zeigen_1", "Vorhandene Tour zeigen")
+                                            : T("library.imp_zeigen", "Vorhandene Touren zeigen"))}</button>
             <button class="btn btn-sm" id="lib-imp-alle">${T("library.imp_trotzdem", "Trotzdem alle aufnehmen")}</button>
           </div>
         </div>`,
@@ -4591,13 +4595,20 @@ function mountLibrary(body, headerActions) {
       if (!w.ok) { toast(w.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
       liste = w.paths;
     }
+    let geoJeDatei = {};
     try {
       const pr = await rzWarten("library_import_pruefen", () => api().library_import_pruefen(liste));
+      if (pr && pr.ok) for (const e of (pr.dateien || [])) if (e.geo_hash) geoJeDatei[e.pfad] = e.geo_hash;
       if (pr && pr.ok && pr.bekannt) {
         const bekannt = pr.dateien.filter(e => e.art !== "neu");
         const neue = pr.dateien.filter(e => e.art === "neu").map(e => e.pfad);
         if (!await importFrage(bekannt, neue.length)) {
-          if (!neue.length) return;      // es blieb nichts übrig
+          if (!neue.length) {
+            // 14.09.2026 (Marc): nichts Neues → die vorhandene Tour zeigen statt nur „schon da"
+            _importZeigen = { geo: [...new Set(bekannt.map(e => e.geo_hash).filter(Boolean))], pfade: bekannt.map(e => e.tour_pfad).filter(Boolean) };
+            await importErgebnisZeigen();
+            return;
+          }
           liste = neue;
         }
       }
@@ -4611,11 +4622,48 @@ function mountLibrary(body, headerActions) {
       toast(T("library.import_none", "Keine Track-Dateien erkannt"), "warn");
       return;
     }
+    // 14.09.2026 (Marc: „ich erwarte, dass ich im Archiv lande, wo die Tour vorausgewählt
+    // ist"): merken, was gezeigt werden soll — die neuen UND die schon bekannten Dateien.
+    _importZeigen = { geo: [...new Set(liste.map(pf => geoJeDatei[pf]).filter(Boolean))], pfade: (res.pfade || []).slice() };
     toast(T("library.import_done", "Dateien importiert — Einlesen läuft")
       + ` (${res.kopiert}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
     await reloadFolders();
-    if (_foldersModal) { _foldersModal.update({ body: foldersModalHtml() }); bindFoldersModal(); }
+    if (_foldersModal) { try { _foldersModal.close(); } catch (_) {} _foldersModal = null; }
+    if (!res.kopiert) { await importErgebnisZeigen(); return; }   // alles schon da: gleich zeigen
     startScan(false, res.folder);
+  }
+
+  let _importZeigen = null;
+  /** Nach einem Import: Touren-Archiv → Alle Touren, Filter weg, das Importierte oben und
+   *  ausgewählt, rechts im Detail offen (bei mehreren Dateien alle markiert). */
+  async function importErgebnisZeigen() {
+    const z = _importZeigen; _importZeigen = null;
+    if (!z || _unmounted) return;
+    if (_foldersModal) { try { _foldersModal.close(); } catch (_) {} _foldersModal = null; }
+    if (_fotoView) fotoViewSetzen(false);
+    if (_projView || _vorlView) projViewSetzen(false);
+    scope = "all"; store.set("scope", "all");
+    state.collection_id = 0; store.set("collection_id", "0");
+    filterZuruecksetzen();
+    if (view === "stats" || view === "map") { view = "cards"; store.set("view", view); }
+    _zuerstGeo = z.geo.length ? z.geo : null;
+    _multi.clear(); _sel = null; store.set("sel", "");
+    try { renderCollections(); renderScopes(); } catch (_) {}
+    try { await reload(); } finally { _zuerstGeo = null; }
+    if (_unmounted) return;
+    const geo = new Set(z.geo), pfade = new Set(z.pfade);
+    const neu = _items.filter(it => geo.has(it.geo_hash) || pfade.has(it.path));
+    if (!neu.length) {
+      applog && applog("warn", "[Archiv] Import: neue Tour nicht in der Liste gefunden (" + z.geo.join(",") + ")");
+      return;
+    }
+    if (neu.length > 1) neu.forEach(it => _multi.add(it.path));
+    const g = $("lib-grid"), l = $("lib-list");
+    if (g) g.scrollTop = 0;
+    if (l) l.scrollTop = 0;
+    select(neu[0]);
+    if (neu.length > 1) { renderView(); renderDetail(); }
+    applog && applog("info", `[Archiv] Import gezeigt: ${neu.length} Tour(en)`);
   }
 
   async function addFolder() {
@@ -4673,7 +4721,9 @@ function mountLibrary(body, headerActions) {
               `${r.failed ? ` · ${r.failed} ${T("library.failed", "fehlerhaft")}` : ""}</div>`;
           } else info.innerHTML = "";
         }
-        await reloadFolders(); await reload();
+        await reloadFolders();
+        if (_importZeigen) await importErgebnisZeigen();
+        else await reload();
       }
     }, 400);
   }
@@ -5205,7 +5255,8 @@ function mountLibrary(body, headerActions) {
   // Beim Öffnen den gespeicherten Stand zeigen.
   if (state.von || state.bis) $("lib-range").value = "eigen";
   zeitraumAnzeigen();
-  $("lib-reset").onclick = () => {
+  $("lib-reset").onclick = () => { filterZuruecksetzen(); reload(); };
+  function filterZuruecksetzen() {
     setFilter("search", "");
     setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
     setFilter("von", null); setFilter("bis", null);
@@ -5218,8 +5269,7 @@ function mountLibrary(body, headerActions) {
     $("lib-search").value = "";
     $("lib-sort").value = "date_desc";
     $("lib-kmmin").value = ""; $("lib-kmmax").value = "";
-    reload();
-  };
+  }
   // Nachladen beim Scrollen — die Container leben über alle Re-Renders hinweg
   // (innerHTML tauscht nur die Kinder), einmal registrieren reicht. Beide
   // hängen am Modul-DOM und verschwinden mit ihm beim Unmount von selbst.

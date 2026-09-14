@@ -56,7 +56,7 @@ def main() -> int:
         layers.append(l)
     out = {"version": 1, "source_url": SRC, "sources": {"openmaptiles": style["sources"]["openmaptiles"]},
            "glyphs": style["glyphs"], "sprite": style["sprite"], "layers": layers,
-           "attribution": "Beschriftung: © OpenMapTiles © OpenStreetMap contributors (OpenFreeMap)"}
+           "attribution": "Labels: © OpenMapTiles © OpenStreetMap contributors (OpenFreeMap)"}
     OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     from collections import Counter
     print(f"{len(layers)} Ebenen →", OUT, Counter(l["metadata"]["rz_group"] for l in layers))

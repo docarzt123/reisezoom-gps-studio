@@ -5216,3 +5216,20 @@ Schild-Bilder (`data.clone()` + postMessage). Die Aufträge stauen sich im Worke
 `_cloud_auto_lauf`, `cloud_herunterladen`), bevor der Schlüsselbund gefragt wird. Alte Marker ohne Vermerk
 binden die aktive Bibliothek nur am Standardort oder wenn sie die einzige bekannte ist. `bibliothek_umziehen`
 zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
+
+## Import zeigt die Tour, Quellenzeile Englisch (14.09.2026)
+
+- `modules/library/ui/module.js` `importSingleFiles` merkt `_importZeigen` (geo_hash je Datei aus
+  `library_import_pruefen`, Archiv-Pfade aus `library_import_files`); nach dem Scan (`pollScan`) oder sofort,
+  wenn nichts kopiert wurde bzw. alles bekannt war, ruft `importErgebnisZeigen()`: Ordner-Fenster zu,
+  Touren-Bereich, `scope=all`, Sammlung 0, `filterZuruecksetzen()` (aus dem Zurücksetzen-Knopf gezogen),
+  Karte/Statistik → Kacheln, `library_query(zuerst_geo)` stellt die Touren nach oben (`core/library.query`,
+  nur ORDER BY; `library_stats` wirft den Schlüssel weg), dann `select()` bzw. `_multi`.
+- `core/bibliothek.version_ablegen`: Zwischendatei je Aufruf (pid+Thread+Zufall) statt `.tmp<pid>` —
+  zwei gleiche Dateien im Import-Ordner scheiterten sonst am gemeinsamen Umbenennen.
+- Quellenzeile: eigene Vorsilben englisch (`core/mapstyles.py`, `core/kartenquellen.py` onscreen_credit,
+  `ui/js/util.js` Terrain/Topo, `ui/vendor/ofm-liberty-overlay.json` via `scripts/update_ofm_overlay.py`,
+  Blog-Export `core/tourmap_html.py`/`tourmap_leaflet.py`). Lizenz-Wortlaute (dl-de „Datenquelle: …“,
+  basemap.at, GeoSN …) bleiben unverändert. `_stackAttribution`/`stack_attribution` schneiden
+  „Aerial imagery: “ bei weiteren Regionen ab.
+- Wächter: `tests/test_archiv_import_zeigt_tour.py` (WebKit, echte Brücke, Testbibliothek).

@@ -1861,8 +1861,13 @@ def query(
     collection_id: Optional[int] = None,
     von: Optional[str] = None,
     bis: Optional[str] = None,
+    zuerst_geo: Optional[list] = None,
 ) -> dict:
     """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
+
+    `zuerst_geo` (14.09.2026): diese Touren (geo_hash) stehen oben — nach einem Import
+    springt das Archiv auf „Alle Touren" und zeigt das Neue ausgewählt ganz vorn.
+    Kein Filter, nur die Reihenfolge.
 
     Unlesbare Dateien bleiben standardmäßig draußen — als Kachel wären sie
     leer und ohne Werte. Sie sind über `errors()` erreichbar, damit sie nicht
@@ -1917,10 +1922,15 @@ def query(
         "   AND COALESCE(tracks.tour_id,'') != '') AS n_versionen"
         ", (SELECT tm.first_seen FROM track_meta tm "
         "   WHERE tm.geo_hash = tracks.geo_hash) AS hinzugefuegt")
+    order_args: list = []
+    gz = [str(g) for g in (zuerst_geo or []) if g][:200]
+    if gz:
+        order = f"(tracks.geo_hash IN ({','.join('?' * len(gz))})) DESC, {order}"
+        order_args = gz
     sql = f"SELECT {spalten} FROM tracks WHERE {sql_where} ORDER BY {order}"
     if limit:
         sql += f" LIMIT {int(limit)} OFFSET {int(offset)}"
-    rows = conn.execute(sql, args).fetchall()
+    rows = conn.execute(sql, list(args) + order_args).fetchall()
     return {"total": total, "items": [_to_dict(r, with_geom=with_geom) for r in rows]}
 
 
