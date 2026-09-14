@@ -156,6 +156,15 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 - Keine Tester-Namen im Repo.
 
 ## 6. Änderungsprotokoll
+
+- **14.09.2026 — langsames Rad mit Abstiegen** (Marc: Radtour mit dem Sohn, 7–12 km/h, zwischendurch abgestiegen, als
+  Wanderung erkannt; Komoot schreibt `<type>hike</type>`): (1) „unsicher“ ab 7 km/h bewegtem Tempo (gemessen vor dem
+  Aufgehen kurzer Halte, `dauer_roh`) wird nicht mehr dem Gehen-Nachbarn zugeschlagen, sondern Rad (bei Lauf-Touren
+  Laufen); zwischen Gehen und Rad/Laufen entscheidet das Tempo; zwischen Gehen und Fahrt/Fähre bleibt es ehrlich
+  unsicher. (2) Die Aktivität aus der Datei ist ein schwacher Hinweis: überwiegt Rad/Laufen die Gehstrecke, gilt
+  „Wanderung“ nicht, die Gehstücke sind Spaziergänge. (3) Kurze Gehstücke zwischen Radstücken bleiben eigene Einträge.
+  (4) Prüfsammlung `rad-langsam-mit-absteigen.gpx`, Wächter in `tests/test_logbuch.py`. Die gespeicherte Einteilung
+  bleibt unverändert — das Logbuch rechnet die Folge beim Lesen neu.
 - 13.09.2026 — Plan angelegt (Grilling Q1–Q21). Nichts gebaut.
 - 13.09.2026 abends — **Stufe 1 gebaut** (v0.9.706): `core/logbuch.py` (Q5/Q7/Q8, Punkte Q9,
   Übernachtung, langsame Fahrt), Punkt-Einträge in `einteilung.berechnen_bewegung`, Brücke
