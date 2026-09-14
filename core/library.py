@@ -2090,11 +2090,18 @@ def punkte_lesen(path: str, import_cache: Path):
     return cgpx.parse_gpx(gpx_path, text=text)
 
 
-@_locked
 def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -> dict:
-    """Eine Datei (neu) prüfen und die Spalten schreiben. Liefert den Check-Block."""
-    r = conn.execute("SELECT path, filename, recorded, recorded_user, activity FROM tracks WHERE path = ?",
-                     (path,)).fetchone()
+    """Eine Datei (neu) prüfen und die Spalten schreiben. Liefert den Check-Block.
+
+    14.09.2026 (Nacht-Review): Die Datenbank-Sperre umfasste auch das Lesen und
+    Auswerten der Datei — bei großen Tracks, FIT-Umwandlung oder NAS Sekunden je
+    Datei. „Alle prüfen" hielt das Archiv damit praktisch dauerhaft gesperrt,
+    obwohl `track_check_alle` genau das vermeiden sollte. Jetzt gesperrt nur noch
+    Lesen der Zeile und Schreiben des Ergebnisses; die Datei wird ohne Sperre gelesen.
+    """
+    with _DB_LOCK:
+        r = conn.execute("SELECT path, filename, recorded, recorded_user, activity FROM tracks WHERE path = ?",
+                         (path,)).fetchone()
     if not r:
         return {"ok": False, "error": "nicht im Archiv"}
     try:
@@ -2105,11 +2112,14 @@ def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -
                      aktivitaet=r["activity"] or None)
     if not w["check_ts"]:
         return {"ok": False, "error": "Prüfung fehlgeschlagen"}
-    conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",
-                 (w["check_json"], w["check_stufe"], w["check_ts"], path))
-    conn.commit()
-    row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
-                       (path,)).fetchone()
+    with _DB_LOCK:
+        conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",
+                     (w["check_json"], w["check_stufe"], w["check_ts"], path))
+        conn.commit()
+        row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
+                           (path,)).fetchone()
+    if row is None:      # inzwischen aus dem Archiv entfernt
+        return {"ok": False, "error": "nicht im Archiv"}
     return {"ok": True, "check": _check_dict(dict(row))}
 
 
