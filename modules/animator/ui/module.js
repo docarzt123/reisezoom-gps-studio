@@ -9622,6 +9622,9 @@ function mountAnimator(body, headerActions, opts) {
         _tlBar.setTrackFraction(trackFraction(), introFraction());
         const _onTfChange = () => {
           if (_tlBar && _tlBar.setTrackFraction) _tlBar.setTrackFraction(trackFraction(), introFraction());
+          // 14.09.2026 (Marc: Intro dazu → Etappen-Kacheln begannen im Intro): die
+          // Kacheln der Reise tragen Leisten-Anteile aus ti/tf — neu rechnen.
+          try { _gruppenAnLeiste(); } catch (_) {}
           if (_tlBar && _tlBar.getTrim) {
             const tr = _tlBar.getTrim();
             applyTrimToTrackPreview(tr.start, tr.end);
