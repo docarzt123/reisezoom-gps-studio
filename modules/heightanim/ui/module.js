@@ -486,6 +486,7 @@ function mountHeightAnim(body, headerActions) {
   // true — und `rafTick` lief danach mit 60 Bildern pro Sekunde bis zum
   // Programmende weiter, mit allen Serien-Daten im Schlepptau.
   let _haUnmounted = false;
+  let _haLoadSeq = 0;   // 14.09.2026 — Laufnummer der Track-Ladevorgänge (applyGpx)
   let _lastFrameTime = 0;
   let _holdingUntil = 0;     // wenn > 0: Hold-Phase aktiv (Zeitstempel ms wann sie endet)
   // Trim: welcher Track-Bereich wird animiert (0..1)
@@ -1615,9 +1616,14 @@ function mountHeightAnim(body, headerActions) {
       if (window.applog) window.applog("warn", "[heightanim] Bridge heightanim_load_gpx fehlt");
       return;
     }
+    // 14.09.2026 (Nacht-Review): Schneller Trackwechsel A → B — beide Ladevorgänge
+    // laufen parallel; kam A zuletzt an, zeigten Vorschau und Render-Parameter A,
+    // die GPX-Leiste B. Nur die jüngste Antwort gilt.
+    const mySeq = ++_haLoadSeq;
     try {
       const res = await rzWarten("heightanim_load_gpx", () => window.pywebview.api.heightanim_load_gpx(path));
       if (_haUnmounted) return;   // Modul ist weg — nichts mehr anfassen
+      if (mySeq !== _haLoadSeq) return;   // überholt von einem neueren Track
       if (window.applog) {
         window.applog("info", `[heightanim] load result ok=${res?.ok} n_elev=${res?.elevations?.length || 0}`);
       }
@@ -2269,20 +2275,38 @@ function mountHeightAnim(body, headerActions) {
 
   let _cancelFrei = null;
   function setRenderingState(running) {
-    document.getElementById("height-progress").style.display = running ? "block" : "none";
+    // 14.09.2026: null-sicher — eine Antwort nach dem Verlassen des Moduls warf sonst
+    const prog = document.getElementById("height-progress");
+    if (prog) prog.style.display = running ? "block" : "none";
     // 22.08.2026 (Audit): der Abbrechen-Knopf blieb nach einem Abbruch für den
     // NÄCHSTEN Render gesperrt („⏳ Abbruch …") — der Dialog wird nur versteckt.
     if (!running && _cancelFrei) { try { _cancelFrei(); } catch (_) {} _cancelFrei = null; }
-    document.getElementById("height-render").disabled = running;
-    document.getElementById("height-render").style.opacity = running ? "0.5" : "1";
-    if (running) document.getElementById("height-done").style.display = "none";
+    const btn = document.getElementById("height-render");
+    if (btn) { btn.disabled = running; btn.style.opacity = running ? "0.5" : "1"; }
+    const done = document.getElementById("height-done");
+    if (running && done) done.style.display = "none";
   }
 
+  // 14.09.2026 (Nacht-Review): Ein einzelner fehlgeschlagener Status-Abruf beendete das
+  // Abfragen, ohne den Render-Zustand zurückzusetzen — Knopf gesperrt, Balken sichtbar,
+  // bis zum Neu-Öffnen. Jetzt: fünf Fehlversuche, dann Zustand zurück + Hinweis.
+  let _haPollFehler = 0;
   async function pollHeightRender() {
     if (window.__rzgpsShuttingDown) { clearTimeout(_renderPollTimer); return; }
     let s;
-    try { s = await window.pywebview.api.heightanim_status(); }
-    catch (e) { clearTimeout(_renderPollTimer); return; }
+    try { s = await window.pywebview.api.heightanim_status(); _haPollFehler = 0; }
+    catch (e) {
+      clearTimeout(_renderPollTimer);
+      if (_haUnmounted) return;
+      _haPollFehler += 1;
+      if (_haPollFehler < 5) { _renderPollTimer = setTimeout(pollHeightRender, 1000); return; }
+      _haPollFehler = 0;
+      setRenderingState(false);
+      if (typeof toast === "function") toast(t("heightanim.toast.status_verloren", "Keine Rückmeldung vom Render — Details stehen im Log."), "error", 8000);
+      if (window.applog) window.applog("warn", "[heightanim] heightanim_status nicht abrufbar: " + e);
+      return;
+    }
+    if (_haUnmounted) return;
     const pct = Math.round((s.progress || 0) * 100);
     const pctEl = document.getElementById("height-pct");
     const fillEl = document.getElementById("height-fill");
@@ -2414,7 +2438,9 @@ function mountHeightAnim(body, headerActions) {
         if (res && res.error_code === "playwright_browser_missing" && typeof showRenderEngineMissingModal === "function") {
           showRenderEngineMissingModal(res.browsers_path, async () => {
             setRenderingState(true);
-            const r2 = await window.pywebview.api.heightanim_start_render(params);
+            let r2;
+            try { r2 = await window.pywebview.api.heightanim_start_render(params); }
+            catch (e) { r2 = { ok: false, error: String(e) }; }   // 14.09.2026 — sonst blieb „rendert" stehen
             if (!r2 || !r2.ok) {
               setRenderingState(false);
               if (typeof toast === "function") toast(t("heightanim.toast.start_failed", "Render konnte nicht starten") + ": " + (r2?.error || "unknown"), "error", 8000);

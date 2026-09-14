@@ -181,6 +181,10 @@
     let extraLines = [];   // Leaflet-Layer der Extra-Tracks (§17) — beim Redraw entfernt
     let addMode = false;
     let destroyed = false;
+    // 14.09.2026 (Nacht-Review): Laufnummern — Trackwechsel und Projektwechsel stoßen
+    // Ladevorgänge an, die parallel laufen. Kam ein älterer zuletzt an, zeigte die Karte
+    // den vorigen Track (der Export nahm aber den aktuellen). Nur die jüngste Antwort gilt.
+    let _wkTrackSeq = 0, _wkExtraSeq = 0;
     let _ro = null, _gpxUnsub = null, _sessUnsub = null;
 
     function tileFor(id) {
@@ -350,11 +354,12 @@
     // Koordinaten der Extra-Tracks frisch aus den Dateien holen (nicht persistiert),
     // per Pfad zugeordnet, dann neu zeichnen.
     async function loadExtraTracks() {
+      const mySeq = ++_wkExtraSeq;
       if (!tracks.length) { if (map) drawTrack(); return; }
       try {
         const res = await rzWarten("webkarte_prepare", () => window.pywebview.api.webkarte_prepare({
           tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) }));
-        if (destroyed) return;
+        if (destroyed || mySeq !== _wkExtraSeq) return;
         if (res && res.ok && Array.isArray(res.tracks)) {
           const byPath = {};
           res.tracks.forEach((rt) => { if (rt && rt.path) byPath[rt.path] = rt.coords || []; });
@@ -466,6 +471,7 @@
 
     async function loadTrack() {
       const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      const mySeq = ++_wkTrackSeq;
       if (!gpxPath) {
         // 22.08.2026 (Audit): Arbeitsbereich geleert → alten Track von der Karte nehmen
         if (track && track.length) { track = []; try { drawTrack(); } catch (_) {} }
@@ -475,12 +481,12 @@
       status(T("webkarte.loading", "Lade Track …"));
       try {
         const res = await rzWarten("webkarte_prepare", () => window.pywebview.api.webkarte_prepare({ gpx_path: gpxPath }));
-        if (destroyed) return;
+        if (destroyed || mySeq !== _wkTrackSeq) return;
         if (!res || !res.ok) { status(T("webkarte.load_fail", "Track laden fehlgeschlagen") + ": " + (res?.error || "?")); return; }
         track = res.track || [];
         drawTrack();
         status("");
-      } catch (e) { if (!destroyed) status(String(e)); }
+      } catch (e) { if (!destroyed && mySeq === _wkTrackSeq) status(String(e)); }
     }
 
     // Leaflet-Quelle: URL-Feld nur bei „url" zeigen + passenden Hinweis setzen.

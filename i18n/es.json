@@ -3965,5 +3965,7 @@
   "warte.export_current.text": "Se convierte y guarda el track",
   "library.trash_laeuft_titel": "Quitando rutas",
   "library.trash_laeuft_text": "Los archivos van a la papelera y se actualiza el archivo",
-  "library.trash_projekte_text": "Se eliminan las rutas y sus proyectos"
+  "library.trash_projekte_text": "Se eliminan las rutas y sus proyectos",
+  "geotagger.autotag.keine_rueckmeldung": "Sin respuesta del reconocimiento de imágenes — los detalles están en el registro.",
+  "heightanim.toast.status_verloren": "Sin respuesta del renderizado — los detalles están en el registro."
 }

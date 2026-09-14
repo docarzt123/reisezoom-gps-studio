@@ -3965,5 +3965,7 @@
   "warte.export_current.text": "Der Track wird umgewandelt und gespeichert",
   "library.trash_laeuft_titel": "Touren werden entfernt",
   "library.trash_laeuft_text": "Dateien wandern in den Papierkorb, das Archiv wird aktualisiert",
-  "library.trash_projekte_text": "Touren und ihre Projekte werden gelöscht"
+  "library.trash_projekte_text": "Touren und ihre Projekte werden gelöscht",
+  "geotagger.autotag.keine_rueckmeldung": "Keine Rückmeldung von der Bilderkennung — Details stehen im Log.",
+  "heightanim.toast.status_verloren": "Keine Rückmeldung vom Render — Details stehen im Log."
 }
