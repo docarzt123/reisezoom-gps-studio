@@ -872,10 +872,20 @@ def _session_hashes() -> set:
     Suchfeld. Jetzt nur noch, wenn sich die Datei wirklich geändert hat.
     """
     global _SESSION_HASHES, _SESSION_HASHES_STAMP
-    try:
-        st = (APP_SUPPORT / "projekte.json").stat()
-        stempel = (st.st_mtime_ns, st.st_size)
-    except OSError:
+    # 14.09.2026 (Nacht-Review): Der Stempel kam aus `APP_SUPPORT/projekte.json`,
+    # gelesen wird aber seit dem Bibliotheks-Umbau aus `DATEN_ORT`. Ohne Datei im
+    # App-Ordner blieb der Projekt-Punkt im Archiv immer leer; lag dort noch eine
+    # alte Datei, änderte sich der Stempel nie und neue Projekte erschienen nicht.
+    # Beide Dateien zählen: „touren.json" trägt die Touren-Fakten.
+    stempel = []
+    for datei in ("projekte.json", "touren.json"):
+        try:
+            st = (Path(DATEN_ORT) / datei).stat()
+            stempel.append((st.st_mtime_ns, st.st_size))
+        except OSError:
+            stempel.append(None)
+    stempel = (str(DATEN_ORT), *stempel)
+    if stempel[1] is None and stempel[2] is None:
         return set()
     with _SESSION_HASHES_LOCK:
         if stempel == _SESSION_HASHES_STAMP and _SESSION_HASHES is not None:

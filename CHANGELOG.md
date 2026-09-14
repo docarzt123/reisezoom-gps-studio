@@ -17,6 +17,10 @@ Bei jeder neuen Version:
 ### Performance
 - **Archive: full-text index trigger only fires when searchable text changes.** Every UPDATE on a track (map thumbnail, Track Check, favourite, place lookup) used to rescan the whole FTS index because `path` is UNINDEXED there — measured 4 ms per update at 20 000 tours (200 map thumbnails 822 ms → 3 ms, 20 favourites 134 ms → 1 ms). Existing libraries are switched over on open; index content unchanged. Guard `tests/test_fts_trigger_gezielt.py`. — **Archiv: Volltext-Trigger feuert nur noch bei geändertem Suchtext.**
 
+### Fixed
+- **Archive: the "has projects" dot stayed empty or stale.** `_session_hashes()` stamped `projekte.json` in the app folder but has read projects from the library since the library rebuild — without a file there the set was always empty, with an old file there it never refreshed. Now stamps `projekte.json` + `touren.json` in the library. Guard `tests/test_session_hashes_ort.py`. — **Archiv: Projekt-Punkt blieb leer oder veraltet.**
+
+
 ## [0.9.718] – 2026-09-14
 
 ### Fixed
