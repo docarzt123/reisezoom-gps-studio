@@ -3729,10 +3729,26 @@ class Api:
             BIB_ORT = ziel
             self._lib_conn = None
             self._bib_oeffnen()
+            self._geotagger_nach_bibliothekswechsel()
             return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
         except Exception as e:
             log.exception("bibliothek_festlegen")
             return {"ok": False, "error": str(e)}
+
+    def _geotagger_nach_bibliothekswechsel(self) -> None:
+        """14.09.2026 (Nachttest) — Die Fotos des Geotaggers liegen im Speicher des Backends und
+        überlebten den Bibliothekswechsel: das Projekt der NEUEN Bibliothek zeigte die Fotos aus
+        der alten („außerhalb der Track-Zeit"). Eine andere Bibliothek ist eine andere Welt → leeren.
+        Ein laufender Schreibvorgang bleibt unangetastet."""
+        try:
+            with self._write_lock:
+                if self._write_state.get("running"):
+                    log.info("Bibliothekswechsel: Geotagger schreibt gerade — Fotos bleiben")
+                    return
+            self.geotagger_clear()
+            log.info("Bibliothekswechsel: Geotagger-Fotos geleert")
+        except Exception:
+            log.exception("Bibliothekswechsel: Geotagger leeren")
 
     @_nur_einmal("bibliothek")
     def bibliothek_wechseln(self, pfad: str) -> dict:
@@ -3759,6 +3775,7 @@ class Api:
             BIB_ORT = ziel
             self._bib_oeffnen()
             log.info("Bibliothek gewechselt: %s (bereit=%s)", ziel, BIB_BEREIT)
+            self._geotagger_nach_bibliothekswechsel()
             return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
         except Exception as e:
             log.exception("bibliothek_wechseln")

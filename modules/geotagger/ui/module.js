@@ -3784,8 +3784,8 @@ function mountGeotagger(body, headerActions) {
             title: t("geotagger.overwrite.title", "Originale überschreiben?"),
             body: `<p style="line-height:1.5">${t("geotagger.overwrite.body",
                      "Das ist der Ordner deiner <b>Originale</b>. Sollen die Originale hier wirklich <b>überschrieben</b> werden?")}
-                   <br><span style="color:var(--warn)">${t("geotagger.overwrite.warn",
-                     "Ohne Backup — das lässt sich nicht rückgängig machen.")}</span></p>`,
+                   <br><span style="color:var(--muted)">${t("geotagger.overwrite.warn",
+                     "Vorher legt GPS Studio automatisch eine ZIP-Sicherung der Originale an.")}</span></p>`,
             footer: `<button class="btn" id="ov-cancel">${t("common.cancel", "Abbrechen")}</button>
                      <button class="btn btn-danger" id="ov-ok">${t("geotagger.overwrite.ok", "Ja, überschreiben")}</button>`,
           });
@@ -3963,6 +3963,12 @@ function mountGeotagger(body, headerActions) {
       ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.saved_in", "Gespeichert in")}</span><span class="val mono">${dirName}</span></div>`
       : '';
     const canOpen = dir && !canceled && s.done > 0;
+    // 14.09.2026 (Nachttest) — beim Überschreiben der Originale entsteht eine Pflicht-Sicherung (ZIP);
+    // der Nutzer muss wissen, dass und wo es sie gibt.
+    const bak = s.backup_path || "";
+    const bakRow = bak
+      ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.backup", "Sicherung der Originale")}</span><span class="val mono">${bak.split(/[\\/]/).pop()}</span></div>`
+      : '';
 
     // ⚠️ Erst den Fortschritts-Dialog schließen (22.08.2026, Beta-Tester mit
     // 5 und 1.478 Fotos): Dialoge liegen seit v0.9.5xx auf einem Stapel —
@@ -3976,9 +3982,11 @@ function mountGeotagger(body, headerActions) {
         ${s.skipped ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.failed", "Fehler / übersprungen")}</span><span class="val" style="color:var(--danger)">${s.skipped}</span></div>` : ''}
         ${s.skipped_existing ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.already", "Bereits getaggt (übersprungen)")}</span><span class="val muted">${s.skipped_existing}</span></div>` : ''}
         ${savedRow}
+        ${bakRow}
         ${errBlock}
       `,
       footer: `
+        ${bak ? `<button class="btn" id="md-bak">${t("geotagger.done.show_backup", "Sicherung zeigen")}</button>` : ''}
         ${canOpen ? `<button class="btn btn-primary" id="md-open">${t("geotagger.done.open_folder", "Ordner öffnen")}</button>` : ''}
         <button class="btn ${canOpen ? '' : 'btn-primary'}" id="md-ok">OK</button>
       `,
@@ -3986,6 +3994,9 @@ function mountGeotagger(body, headerActions) {
     });
     if (canOpen) {
       document.getElementById("md-open").onclick = () => { api().reveal_in_finder(dir); };
+    }
+    if (bak) {
+      document.getElementById("md-bak").onclick = () => { api().reveal_in_finder(bak); };  // warte-ok: Finder
     }
     document.getElementById("md-ok").onclick = () => openModal({}).close();
 

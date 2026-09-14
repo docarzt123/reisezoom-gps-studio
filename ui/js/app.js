@@ -953,6 +953,14 @@ function _bindSettingsModalHandlers() {
       try { window.localStorage.setItem("rz_settings_tab", name); } catch (_) {}
     };
     tabs.forEach(b => b.addEventListener("click", () => zeige(b.dataset.tab)));
+    // 14.09.2026 (Nachttest) — Die Reiter sind unterschiedlich hoch; das mittig sitzende Fenster
+    // sprang bei jedem Wechsel, die Reiterleiste rutschte unter der Maus weg (der nächste Klick
+    // traf Inhalt statt Reiter). Einmal die höchste Tafel messen und als Mindesthöhe setzen.
+    try {
+      let maxH = 0;
+      panels.forEach(pn => { const war = pn.hidden; pn.hidden = false; maxH = Math.max(maxH, pn.offsetHeight); pn.hidden = war; });
+      panels.forEach(pn => { pn.style.minHeight = maxH + "px"; });
+    } catch (_) {}
     zeige(cur);
     // Unter-Reiter (Karten): gleiche Mechanik, eigener Merkschlüssel je Gruppe.
     document.querySelectorAll(".set-subtabs").forEach(bar => {

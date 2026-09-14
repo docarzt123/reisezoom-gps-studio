@@ -600,6 +600,9 @@ function mountGpxInspect(body, headerActions) {
   }
 
   // ── Laden / Anzeige ────────────────────────────────────────────────────────
+  // 15.09.2026 (Nachttest) — Diagnose: beim Öffnen eines Projekts zeigte der Inspektor 1881 Punkte,
+  // die Datei hat 1861, „ungespeichert" fehlte. Nicht reproduziert → Spur ins app.log.
+  let _geladenN = 0, _abweichungGemeldet = false;
   let _ladePfad = null;   // 13.09.2026 — Track, der gerade geladen wird (gegen Doppel-Laden)
   async function loadTrack(path) {
     let res;
@@ -617,6 +620,8 @@ function mountGpxInspect(body, headerActions) {
     // FIT/TCX-Sensorwerte (Herzfrequenz, Temperatur …). Eingefügte Punkte haben kein oi
     // (undefined) → Backend interpoliert deren Sensoren. v0.9.334 (Nutzer-Feedback).
     _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i, si: 0 }));
+    _geladenN = _points.length; _abweichungGemeldet = false;
+    try { applog("info", `[inspektor] geladen: ${_geladenN} Punkte aus ${path}`); } catch (_) {}
     { const n = document.getElementById("gpxi-wz-note"); if (n) n.textContent = ""; }   // 10.09.2026 — alter Hinweis weg
     try { analyseTrack(); } catch (_) {}
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
@@ -3008,6 +3013,10 @@ function mountGpxInspect(body, headerActions) {
     let dist = 0;
     for (let i = 1; i < _points.length; i++) dist += _haversine(_points[i - 1], _points[i]);
     const stat = document.getElementById("gpxi-stat");
+    if (!_dirty && _geladenN && _points.length !== _geladenN && !_abweichungGemeldet) {
+      _abweichungGemeldet = true;
+      try { applog("warn", `[inspektor] Punktzahl ${_points.length} ≠ geladen ${_geladenN}, aber nicht „ungespeichert" · Undo-Stapel ${_undo ? _undo._stackSize() : "-"} · ${new Error().stack.split("\n").slice(1, 5).join(" ← ")}`); } catch (_) {}
+    }
     if (stat) stat.textContent = _points.length + " " + t("gpxinspect.points", "Punkte") + " · " + _fmtKm(dist)
       + (_hasTime ? "" : " · " + t("gpxinspect.no_time", "ohne Zeit"))
       + (_dirty ? " · " + t("gpxinspect.unsaved", "ungespeichert") : "");
