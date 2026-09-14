@@ -9966,6 +9966,12 @@ class Api:
                         return {"ok": False, "error": _ui_t()("error.eintrag_ohne_kennung", "Eintrag ohne Kennung")}
                     ceint.bereich_aendern(conn, eid, q.get("bids") or str(q["bid"]),
                                           **{k: q[k] for k in ("art", "name", "anzeige", "notiz") if k in q})
+                elif aktion == "bestaetigen":      # 14.09.2026: vermutete Arten festschreiben (ein ⌘Z-Schritt)
+                    teile = [x for x in (q.get("teile") or []) if x.get("bids") and x.get("art")]
+                    if not teile:
+                        return {"ok": False, "error": _ui_t()("error.eintrag_ohne_kennung", "Eintrag ohne Kennung")}
+                    for x in teile:
+                        ceint.bereich_aendern(conn, eid, [str(b_) for b_ in x["bids"]], art=str(x["art"]))
                 elif aktion == "punkt":            # Logbuch §68 Q12: eigener Punkt
                     ceint.punkt_setzen(conn, eid, float(q["t"]), str(q.get("art") or "punkt"),
                                        str(q.get("name") or ""), q.get("lat"), q.get("lon"), q.get("ele"))

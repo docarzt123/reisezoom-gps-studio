@@ -157,6 +157,8 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 
 ## 6. Änderungsprotokoll
 
+- **14.09.2026 — vermutete Arten bestätigen:** Marke „vermutet“ ist ein Knopf → Eintragsmenü mit „✓ <Art> bestätigen“ oben (auch Zeitstrahl/Liste/Karte); großes Fenster: Filter „nur vermutete“ + „✓ Vermutete bestätigen“. Brücke `einteilung_aktion(…, "bestaetigen", {teile:[{bids, art}]})` = ein ⌘Z-Schritt; die Art wird Handarbeit (Rohart nicht mehr „unsicher“ → keine Vermutung mehr).
+
 - **14.09.2026 — langsames Rad mit Abstiegen** (Marc: Radtour mit dem Sohn, 7–12 km/h, zwischendurch abgestiegen, als
   Wanderung erkannt; Komoot schreibt `<type>hike</type>`): (1) „unsicher“ ab 7 km/h bewegtem Tempo (gemessen vor dem
   Aufgehen kurzer Halte, `dauer_roh`) wird nicht mehr dem Gehen-Nachbarn zugeschlagen, sondern Rad (bei Lauf-Touren

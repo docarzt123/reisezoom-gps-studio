@@ -3869,5 +3869,13 @@
   "cloud.andere_bibliothek": "La nube pertenece a la biblioteca «{b}». Esta biblioteca no se sube: sobrescribiría la copia en la nube de la otra.",
   "cloud.bibliothek_unklar": "Hay varias bibliotecas y la nube no sabe a cuál pertenece. Abre la biblioteca que debe ir a la nube en la ubicación predeterminada, o vuelve a configurar la nube allí.",
   "library.imp_zeigen_1": "Mostrar la ruta existente",
-  "library.imp_zeigen": "Mostrar las rutas existentes"
+  "library.imp_zeigen": "Mostrar las rutas existentes",
+  "logbuch.menue.bestaetigen": "Confirmar {art}",
+  "logbuch.nichts_vermutet": "No hay nada supuesto seleccionado.",
+  "logbuch.undo.bestaetigen": "Diario: tipo confirmado",
+  "logbuch.undo.bestaetigen_n": "Diario: {n} tipos confirmados",
+  "logbuch.geraten_tip2": "La detección no estaba segura. Clic: confirmar o elegir otro tipo.",
+  "logbuch.fenster.bestaetigen": "Confirmar supuestos",
+  "logbuch.fenster.nur_vermutete": "solo supuestos",
+  "logbuch.fenster.nur_vermutete_tip": "Mostrar solo entradas donde la detección no estaba segura"
 }

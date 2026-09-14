@@ -3649,7 +3649,7 @@ function mountGpxInspect(body, headerActions) {
     if (e.tempo_kmh && e.art !== "pause") meta.push(e.tempo_kmh.toLocaleString(rzSprachCode(), { maximumFractionDigits: 1 }) + " km/h");
     const artName = _lbArt(e.anzeige_art);
     const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : artName;
-    const geraten = e.geraten ? ` <span class="gpxi-lb-badge" title="${t("logbuch.geraten_tip", "Die Erkennung war hier unsicher — die Art stammt vom Nachbarn.")}">${t("logbuch.geraten", "vermutet")}</span>` : "";
+    const geraten = e.geraten ? ` <button type="button" class="gpxi-lb-badge ist-vermutet" data-vermutet="${e.id}" title="${t("logbuch.geraten_tip2", "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen.")}">${t("logbuch.geraten", "vermutet")}</button>` : "";
     const roh = e.roh ? ` <span class="gpxi-lb-badge">${t("logbuch.roh", "roh")}</span>` : "";
     const notiz = e.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(e.notiz)}</div>` : "";
     return `<div class="gpxi-lb-zeile${gew}" data-lb="${e.id}" style="--c:${_lbFarbe(e.anzeige_art)}">
@@ -3695,6 +3695,10 @@ function mountGpxInspect(body, headerActions) {
     if (!zeilen.length) html = `<div class="gpxi-lb-leer">${t("logbuch.leer", "Nichts erkannt — der Track ist zu kurz oder hat keine Bewegung.")}</div>`;
     el.innerHTML = html;
     el.querySelectorAll("[data-lb]").forEach(z => z.addEventListener("click", () => lbWaehlen(z.dataset.lb, { zoom: true })));
+    el.querySelectorAll("[data-vermutet]").forEach(bt => bt.addEventListener("click", (ev) => {
+      ev.stopPropagation(); const r = bt.getBoundingClientRect();
+      _lbEintragMenue(_lbFinde(bt.dataset.vermutet), r.left, r.bottom + 2, null);
+    }));
     el.querySelectorAll("[data-lb-tag]").forEach(z => z.addEventListener("click", () => _lbTagZoom(parseInt(z.dataset.lbTag, 10))));
   }
   function _lbTagZoom(nr) {
@@ -4018,6 +4022,14 @@ function mountGpxInspect(body, headerActions) {
     await logbuchLaden(false, { auswahl: opt.auswahl === undefined ? _lbSel : opt.auswahl });
     return r;
   }
+  /** Vermutete Einträge festschreiben: die angezeigte Art wird Handarbeit (ein ⌘Z-Schritt). */
+  async function _lbBestaetigen(es) {
+    const teile = (es || []).filter(e => e && !_lbIstPunkt(e) && e.geraten).map(e => ({ bids: e.bids, art: e.anzeige_art }));
+    if (!teile.length) { toast(t("logbuch.nichts_vermutet", "Nichts Vermutetes ausgewählt."), "info", 2500); return null; }
+    const label = teile.length === 1 ? t("logbuch.undo.bestaetigen", "Logbuch: Art bestätigt")
+                                     : t("logbuch.undo.bestaetigen_n", "Logbuch: {n} Arten bestätigt", { n: teile.length });
+    return _lbAktion(label, "bestaetigen", { teile });
+  }
   /** Kleiner Frage-Dialog: ein Text (oder eine Notiz), OK/Abbrechen — null = abgebrochen. */
   function _lbFrage(titel, wert, mehrzeilig) {
     return new Promise((resolve) => {
@@ -4070,6 +4082,11 @@ function mountGpxInspect(body, headerActions) {
     opt = opt || {};
     const istPunkt = _lbIstPunkt(e);
     const M = [];
+    // 14.09.2026 (Marc: „wie kann ich vermutete Bewegungsarten bestätigen?")
+    if (!istPunkt && e.geraten) {
+      M.push({ symbol: "✓", text: t("logbuch.menue.bestaetigen", "{art} bestätigen", { art: _lbArt(e.anzeige_art) }), tu: () => _lbBestaetigen([e]) });
+      M.push("-");
+    }
     if (istPunkt) M.push({ symbol: "🗺", text: t("logbuch.menue.karte_zeigen", "Auf der Karte zeigen"), tu: () => lbWaehlen(e.id, { zoom: true }) });
     M.push({ symbol: "✏️", text: t("logbuch.menue.umbenennen", "Umbenennen …"), tu: async () => {
       const v = await _lbFrage(t("logbuch.frage.name", "Name des Eintrags"), e.name || "");
@@ -4301,7 +4318,7 @@ function mountGpxInspect(body, headerActions) {
     _lbKnoepfe();
   }
   _lbBearbeitenVerdrahten();
-  window.__rzGpxiLogbuchBearbeiten = { aktion: _lbAktion, menue: _lbEintragMenue, bereichAB: _lbBereichAB,
+  window.__rzGpxiLogbuchBearbeiten = { aktion: _lbAktion, bestaetigen: _lbBestaetigen, menue: _lbEintragMenue, bereichAB: _lbBereichAB,
                                        punktModus: () => _lbPunktModus, punktSetzen: _lbPunktSetzen, einstellungen: _lbEinstellungen,
                                        stand: () => _lbStand, schnappschuss: _lbSchnappschuss };
   // ── Logbuch Stufe 3 — Ortsnamen, POIs, großes Fenster (docs/LOGBUCH.md §4, Q10/Q11/Q17) ──
@@ -4313,6 +4330,7 @@ function mountGpxInspect(body, headerActions) {
   let _lbGross = null;     // großes Fenster (Element)
   let _lbFensterSort = { spalte: "t0", auf: true };
   let _lbFensterWahl = new Set();
+  let _lbFensterNurVermutet = false;
 
   function _lbOrtText(e) {
     const o = _lbOrte[e.id]; if (!o) return "";
@@ -4408,9 +4426,11 @@ function mountGpxInspect(body, headerActions) {
     w.className = "gpxi-lb-fenster"; w.id = "gpxi-lb-fenster";
     w.innerHTML = `<div class="gpxi-lb-fenster-kopf"><span class="gpxi-lb-fenster-titel">📖 ${t("logbuch.titel", "Logbuch")} — <span id="gpxi-lbf-name"></span></span>
         <span class="gpxi-lb-fenster-summe" id="gpxi-lbf-summe"></span>
+        <label class="gpxi-lb-schalter" title="${t("logbuch.fenster.nur_vermutete_tip", "Nur Einträge zeigen, bei denen die Erkennung unsicher war")}"><input type="checkbox" id="gpxi-lbf-nurverm"> ${t("logbuch.fenster.nur_vermutete", "nur vermutete")}</label>
         <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-zu" title="${t("common.close", "Schließen")}">✕</button></div>
       <div class="gpxi-lb-fenster-leiste" id="gpxi-lbf-leiste" hidden>
         <span id="gpxi-lbf-anzahl"></span>
+        <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-best">✓ ${t("logbuch.fenster.bestaetigen", "Vermutete bestätigen")}</button>
         <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-art">${t("logbuch.menue.art", "Art ändern")} ▾</button>
         <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-zus">${t("logbuch.fenster.zusammenlegen", "Zusammenlegen")}</button>
         <button type="button" class="gpxi-lb-knopf" id="gpxi-lbf-del">🗑 ${t("logbuch.fenster.loeschen", "Löschen")}</button>
@@ -4430,6 +4450,11 @@ function mountGpxInspect(body, headerActions) {
     const up = () => { if (!zieht) return; zieht = false; window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); _lbFensterMerken(); };
     kopf.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) return; zieht = true; sx = e.clientX; sy = e.clientY; ox = w.offsetLeft; oy = w.offsetTop; window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); e.preventDefault(); });
     w.querySelector("#gpxi-lbf-zu").addEventListener("click", () => { w.hidden = true; _lbFensterMerken(); });
+    w.querySelector("#gpxi-lbf-nurverm").addEventListener("change", (ev) => { _lbFensterNurVermutet = !!ev.target.checked; _lbFensterWahl.clear(); _lbFensterRender(); });
+    w.querySelector("#gpxi-lbf-best").addEventListener("click", async () => {
+      const es = _lbFensterGewaehlt(); _lbFensterWahl.clear();
+      await _lbBestaetigen(es);
+    });
     w.querySelector("#gpxi-lbf-keine").addEventListener("click", () => { _lbFensterWahl.clear(); _lbFensterRender(); });
     w.querySelector("#gpxi-lbf-del").addEventListener("click", async () => {
       const bids = _lbFensterBids(); if (!bids.length) return;
@@ -4470,7 +4495,8 @@ function mountGpxInspect(body, headerActions) {
     const nm = _lbGross.querySelector("#gpxi-lbf-name"); if (nm) nm.textContent = _lb.name || "";
     const su = _lbGross.querySelector("#gpxi-lbf-summe"); if (su) su.innerHTML = (_lbEl("gpxi-lb-summe") || {}).innerHTML || "";
     const zeilen = _lbEintraege().map(e => Object.assign({ _punkt: false, _t: e.t0, _art: _lbArt(e.anzeige_art), _icon: _LB_ICON[e.anzeige_art] || "" }, e))
-      .concat(_lbPunkteSichtbar().map(p => Object.assign({ _punkt: true, _t: p.t, t0: p.t, dauer_s: 0, strecke_m: 0, hoehe_auf: 0, tempo_kmh: 0, _art: _lbArt(p.art), _icon: p.symbol || _LB_ICON[p.art] || "•" }, p)));
+      .concat(_lbPunkteSichtbar().map(p => Object.assign({ _punkt: true, _t: p.t, t0: p.t, dauer_s: 0, strecke_m: 0, hoehe_auf: 0, tempo_kmh: 0, _art: _lbArt(p.art), _icon: p.symbol || _LB_ICON[p.art] || "•" }, p)))
+      .filter(z => !_lbFensterNurVermutet || z.geraten);
     const sp = _lbFensterSort, k = sp.spalte;
     const wert = (z) => k === "t0" ? z._t : k === "art" ? z._art : k === "name" ? (z.name || "") : k === "ort" ? _lbOrtText(z) : (z[k] || 0);
     zeilen.sort((a, b) => { const x = wert(a), y = wert(b); const c = (typeof x === "string") ? x.localeCompare(y, rzSprachCode()) : (x - y); return sp.auf ? c : -c; });
@@ -4483,7 +4509,7 @@ function mountGpxInspect(body, headerActions) {
       const zeit = _lbUhr(z._t, z.versatz_min) + (z._punkt ? "" : " – " + _lbUhr(z.t1, z.versatz_min)) + (_lb.mehrtaegig ? ` <small>${t("logbuch.tag", "Tag {n}", { n: z.tag })}</small>` : "");
       html += `<tr data-lb="${z.id}" class="${z._punkt ? "ist-punkt" : ""}${gew}${akt}" style="--c:${_lbFarbe(z.anzeige_art || "")}">
         <td class="gpxi-lbt-w"><input type="checkbox" data-wahl="${z.id}"${gew ? " checked" : ""}></td>
-        <td class="gpxi-lbt-zeit">${zeit}</td><td><span class="gpxi-lbt-art">${z._icon} ${z._art}</span>${z.geraten ? ` <span class="gpxi-lb-badge">${t("logbuch.geraten", "vermutet")}</span>` : ""}</td>
+        <td class="gpxi-lbt-zeit">${zeit}</td><td><span class="gpxi-lbt-art">${z._icon} ${z._art}</span>${z.geraten ? ` <button type="button" class="gpxi-lb-badge ist-vermutet" data-vermutet="${z.id}" title="${t("logbuch.geraten_tip2", "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen.")}">${t("logbuch.geraten", "vermutet")}</button>` : ""}</td>
         <td class="gpxi-lbt-name" data-edit="${z.id}" title="${t("logbuch.fenster.name_tip", "Doppelklick: umbenennen")}">${_lbEsc(z.name || "")}${z.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(z.notiz)}</div>` : ""}</td>
         <td class="gpxi-lbt-ort">${_lbEsc(_lbOrtText(z))}</td>
         <td class="gpxi-lbt-num">${z._punkt ? "" : _lbDauer(z.dauer_s)}</td><td class="gpxi-lbt-num">${z.strecke_m > 50 ? _lbKm(z.strecke_m) : ""}</td>
@@ -4507,6 +4533,10 @@ function mountGpxInspect(body, headerActions) {
         for (let k = Math.min(a, b); k <= Math.max(a, b); k++) _lbFensterWahl.add(ids[k]);
       } else if (cb.checked) _lbFensterWahl.add(id); else _lbFensterWahl.delete(id);
       letzte = id; _lbFensterRender();
+    }));
+    tab.querySelectorAll("[data-vermutet]").forEach(bt => bt.addEventListener("click", (ev) => {
+      ev.stopPropagation(); const r = bt.getBoundingClientRect();
+      _lbEintragMenue(_lbFinde(bt.dataset.vermutet), r.left, r.bottom + 2, null);
     }));
     tab.querySelectorAll("tr[data-lb]").forEach(tr => {
       tr.addEventListener("click", (ev) => { if (ev.target.closest("input, button, [data-edit]")) return; lbWaehlen(tr.dataset.lb, { zoom: true }); _lbFensterRender(); });
