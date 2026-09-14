@@ -3869,5 +3869,13 @@
   "cloud.andere_bibliothek": "The cloud belongs to the library “{b}”. This library is not uploaded — it would overwrite the other library's cloud copy.",
   "cloud.bibliothek_unklar": "There are several libraries and the cloud does not know which one it belongs to. Open the library that should go to the cloud at the default location — or set up the cloud there again.",
   "library.imp_zeigen_1": "Show the existing tour",
-  "library.imp_zeigen": "Show the existing tours"
+  "library.imp_zeigen": "Show the existing tours",
+  "logbuch.menue.bestaetigen": "Confirm {art}",
+  "logbuch.nichts_vermutet": "Nothing guessed is selected.",
+  "logbuch.undo.bestaetigen": "Logbook: type confirmed",
+  "logbuch.undo.bestaetigen_n": "Logbook: {n} types confirmed",
+  "logbuch.geraten_tip2": "Detection was unsure here. Click: confirm or pick another type.",
+  "logbuch.fenster.bestaetigen": "Confirm guessed",
+  "logbuch.fenster.nur_vermutete": "guessed only",
+  "logbuch.fenster.nur_vermutete_tip": "Show only entries where detection was unsure"
 }

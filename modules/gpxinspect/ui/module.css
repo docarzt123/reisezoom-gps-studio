@@ -585,3 +585,7 @@
 .gpxi-lb-info-knoepfe { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .gpxi-lb-knopf.ist-haupt { background: var(--accent, #ff6b35); color: #fff; border-color: transparent; }
 .gpxi-lb-knopf.ist-gefahr:hover { background: #7f1d1d; color: #fff; }
+
+/* 14.09.2026 — „vermutet" ist ein Knopf: bestätigen oder andere Art */
+.gpxi-lb-badge.ist-vermutet { cursor: pointer; font: inherit; font-size: 10.5px; line-height: 1.3; }
+.gpxi-lb-badge.ist-vermutet:hover { filter: brightness(0.92); text-decoration: underline; }
