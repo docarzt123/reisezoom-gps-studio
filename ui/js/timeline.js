@@ -425,12 +425,51 @@ function mountTimelineBar(opts) {
   let _gruppenLetzterDruck = null;
   let _gruppenGesamtS = 0;      // Länge des ganzen Videos — vom Animator mitgegeben, damit Pixel ↔ Sekunden stimmen
 
+  // ── Ein Zeichen-Durchlauf je Bild (14.09.2026) ───────────────────────────
+  // Eine Reise mit 15 Etappen baute die Leiste bei JEDEM Tastendruck in
+  // anim-dur viermal neu auf: setTrackFraction → refresh() (alle Spuren),
+  // setEtappen, setGruppen und noch ein refresh() aus setTimelineEvents. Jeder
+  // Aufruf leerte die Spuren (innerHTML = "") und maß sie danach neu
+  // (getBoundingClientRect) — ein erzwungenes Layout pro Spur pro Aufruf.
+  // Seither merken sich die Setter nur den Zustand und melden EINEN Durchlauf
+  // an; gezeichnet wird zum nächsten Bild (requestAnimationFrame; Notnagel
+  // setTimeout, falls kein Bild kommt — verdecktes Fenster). Die Getter
+  // (getTrackFraction, getGruppen, getTempo) antworten sofort aus dem Zustand;
+  // wer die fertige Leiste im DOM braucht, ruft `flush()`. Gesten (Ziehen,
+  // Scrubber, Griffe) zeichnen weiter sofort — sie müssen unter der Maus bleiben.
+  let _zeichnungOffen = null;   // { voll, raf, timer } — der angemeldete Durchlauf
+  /** Einen Durchlauf anmelden: voll = alle Spuren (refresh), sonst nur die Tempo-Spur. */
+  function _zeichnenPlanen(voll) {
+    if (_zeichnungOffen) { if (voll) _zeichnungOffen.voll = true; return; }
+    const z = { voll: !!voll, raf: 0, timer: 0 };
+    _zeichnungOffen = z;
+    const lauf = () => { if (_zeichnungOffen === z) _zeichnenJetzt(); };
+    try { z.raf = (typeof requestAnimationFrame === "function") ? requestAnimationFrame(lauf) : 0; }
+    catch (_) { z.raf = 0; }
+    z.timer = setTimeout(lauf, 40);
+  }
+  /** Den angemeldeten Durchlauf sofort ausführen (= flush); ohne Anmeldung passiert nichts. */
+  function _zeichnenJetzt() {
+    const z = _zeichnungOffen;
+    if (!z) return;
+    _zeichnungVerwerfen();
+    if (z.voll) refresh();
+    else { const el = laneMarkersEl["tempo"]; if (el) _tempoZeichnen(el); }
+  }
+  /** Die Anmeldung zurücknehmen — wer ohnehin gerade alles zeichnet, braucht sie nicht mehr. */
+  function _zeichnungVerwerfen() {
+    const z = _zeichnungOffen;
+    if (!z) return;
+    _zeichnungOffen = null;
+    try { if (z.raf && typeof cancelAnimationFrame === "function") cancelAnimationFrame(z.raf); } catch (_) {}
+    clearTimeout(z.timer);
+  }
+
   function setGruppen(zeilen, gesamtS) {
     _gruppenZeilen = Array.isArray(zeilen) ? zeilen.map(z => (z || []).slice()) : [];
     _gruppenGesamtS = (+gesamtS > 0) ? +gesamtS : 0;
     _gruppenZeilenSicherstellen();
-    const el = laneMarkersEl["tempo"];
-    if (el) _tempoZeichnen(el);
+    _zeichnenPlanen(false);
   }
   /** So viele Zusatz-Zeilen anlegen, wie der Plan braucht (Zeile 0 ist die Tempo-Spur). */
   function _gruppenZeilenSicherstellen() {
@@ -471,10 +510,12 @@ function mountTimelineBar(opts) {
     return ges > 0 ? ges : 0;
   }
   /** Eine Zeile zeichnen: Halte und Übergänge als Bänder, Inhalte als Kacheln. */
-  function _gruppenZeileZeichnen(el, zeile) {
+  function _gruppenZeileZeichnen(el, zeile, breiteBekannt) {
     const gruppen = (_gruppenZeilen[zeile] || []).slice().sort((a, b) => a.von - b.von);
     const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
-    const breitePx = el.getBoundingClientRect().width || 1000;
+    // Die Breite kommt vom Durchlauf (einmal gemessen, alle Zeilen sind gleich
+    // breit) — nur wer allein gerufen wird, misst selbst.
+    const breitePx = breiteBekannt > 0 ? breiteBekannt : (el.getBoundingClientRect().width || 1000);
     const ges = _gruppenSekJeAnteil();
     const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     const band = (von, bis, art, titel, stil, gid) => {
@@ -523,12 +564,17 @@ function mountTimelineBar(opts) {
     if (pos < tf - 0.0005) band(pos, tf, "halt", tlT("animator.gruppe.halt_nach", "Halt nach dem Inhalt (Auffüllen bis zum Ende)"));
   }
   function _esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
-  function _gruppenAlleZeichnen() {
+  function _gruppenAlleZeichnen(breiteBekannt) {
+    // Einmal messen, BEVOR eine Zeile geleert wird: nach dem Leeren wäre das
+    // Layout schmutzig und jede Zeile erzwänge ihr eigenes (14.09.2026).
+    const tempoEl = laneMarkersEl["tempo"];
+    const breitePx = breiteBekannt > 0 ? breiteBekannt
+      : ((tempoEl && tempoEl.getBoundingClientRect().width) || 1000);
     _gruppenZeilen.forEach((_z, i) => {
-      const el = i === 0 ? laneMarkersEl["tempo"] : host.querySelector(`#tl-lane-gruppe-${i}`);
+      const el = i === 0 ? tempoEl : host.querySelector(`#tl-lane-gruppe-${i}`);
       if (!el) return;
       el.innerHTML = "";
-      _gruppenZeileZeichnen(el, i);
+      _gruppenZeileZeichnen(el, i, breitePx);
     });
   }
   /** Was Hoch/Runter für DIESE Kachel heißt: +1 = in die Reihe (sie liegt
@@ -750,8 +796,7 @@ function mountTimelineBar(opts) {
 
   function setEtappen(liste) {
     _tempoEtappen = Array.isArray(liste) ? liste.slice() : [];
-    const el = laneMarkersEl["tempo"];
-    if (el) _tempoZeichnen(el);
+    _zeichnenPlanen(false);
   }
   /** Welche Etappe an dieser Stelle der Leiste läuft. */
   function _etappeBei(pos) {
@@ -775,8 +820,7 @@ function mountTimelineBar(opts) {
       ? { dauer_s: +kurve.dauer_s || 0,
           anteile: (Array.isArray(kurve.anteile) && kurve.anteile.length > 1) ? kurve.anteile : null }
       : null;
-    const el = laneMarkersEl["tempo"];
-    if (el) _tempoZeichnen(el);
+    _zeichnenPlanen(false);
   }
 
   /* ── Videozeit statt Streckenanteil (08.09.2026) ────────────────────────
@@ -919,12 +963,20 @@ function mountTimelineBar(opts) {
   }
 
   function _tempoZeichnen(el) {
+    // Zähler für den Prüfstand (tests/test_timeline_zeichnung_sparsam.py): ein
+    // Tastendruck darf höchstens zwei Durchläufe auslösen.
+    try { window.__rzTlZeichnungen = (window.__rzTlZeichnungen || 0) + 1; } catch (_) {}
+    // Wie breit die Spur wirklich ist — daran hängt, ob eine Beschriftung
+    // hineinpasst. Ein 1-Sekunden-Übergang ist 25 px breit; „⏸ 1.0s" passt da
+    // nicht und wurde zu „1.(". ⚠️ Gemessen wird VOR dem Leeren: die Breite
+    // hängt nicht am Inhalt, und so kostet die Messung kein neues Layout.
+    const breitePx = el.getBoundingClientRect().width || 1000;
     el.innerHTML = "";
     const lane = el.closest('.timeline-lane[data-kind="tempo"]');
     if (_gruppenZeilen.length) {
       // §60: ab zwei Gruppen ist diese Spur die erste Gruppen-Zeile.
       if (lane) { lane.classList.add("ist-gruppen"); lane.classList.toggle("ist-gesperrt", !!_tempoHinweis); lane.title = _tempoHinweis || ""; }
-      _gruppenAlleZeichnen();
+      _gruppenAlleZeichnen(breitePx);
       return;
     }
     if (lane) {
@@ -936,13 +988,6 @@ function mountTimelineBar(opts) {
       // sagt die Bilanz unter der Spur.
       lane.title = _tempoHinweis || "";
     }
-    // Wie breit die Spur wirklich ist — daran hängt, ob eine Beschriftung
-    // hineinpasst. Ein 1-Sekunden-Übergang ist 25 px breit; „⏸ 1.0s" passt da
-    // nicht und wurde zu „1.(".
-    // Wie breit die Spur wirklich ist — daran hängt, ob eine Beschriftung
-    // hineinpasst. Ein 1-Sekunden-Übergang ist 25 px breit; „⏸ 1.0s" passt da
-    // nicht und wurde zu „1.(".
-    const breitePx = el.getBoundingClientRect().width || 1000;
     const gesamtS = _tempoGesamtS();
     const sek = (t) => gesamtS > 0 ? (t.bis - t.von) * gesamtS : 0;
     const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined),
@@ -1372,10 +1417,15 @@ function mountTimelineBar(opts) {
       .sort((a, b) => a.anchor - b.anchor);
   }
   function refresh() {
+    // Wer alles zeichnet, braucht keinen angemeldeten Durchlauf mehr.
+    _zeichnungVerwerfen();
     const events = getEvents();
     const clusters = computeClusters(events);
     // Cluster-Anchors für die Selektions-Mapping (Camera-Lanes)
     const clusterAnchors = clusters.map(c => c.anchor);
+    // Die Breite der Leiste EINMAL je Durchlauf lesen (vor jeder Änderung am
+    // DOM) — vorher stand die Messung in der Schleife über die Cluster.
+    const leisteBreitePx = (trackEl.getBoundingClientRect().width || 0) * _viewZoom;
 
     // v0.9.4 — Cluster-Row: ein Marker pro unique Anker. Visuell deutlich
     // größer & dezent neutral gefärbt damit er als „der zieht alle 4 mit"
@@ -1422,8 +1472,7 @@ function mountTimelineBar(opts) {
         // `.timeline-cluster-row`), überdecken also nichts mehr. Die Grenze
         // schützt nur noch die Reiter voreinander: Sie sind 18 px breit, unter
         // 20 px Abstand würden sie sich gegenseitig überlagern.
-        const breitePx = (trackEl.getBoundingClientRect().width || 0) * _viewZoom;
-        const abstandPx = Math.abs(_trackToBar(b.anchor) - _trackToBar(a.anchor)) * breitePx;
+        const abstandPx = Math.abs(_trackToBar(b.anchor) - _trackToBar(a.anchor)) * leisteBreitePx;
         if (abstandPx < 20) continue;
         const sym = document.createElement("button");
         sym.type = "button";
@@ -1519,7 +1568,7 @@ function mountTimelineBar(opts) {
   // v0.9.3: setSelected nimmt jetzt {kind, anchor} oder null.
   function setSelected(ev) {
     _selectedEvent = (ev && ev.kind) ? { kind: ev.kind, anchor: ev.anchor } : null;
-    refresh();
+    _zeichnenPlanen(true);   // 14.09.2026: gesammelt mit den anderen Settern desselben Tastendrucks
   }
 
   function setScrubber(anchor) {
@@ -1833,7 +1882,9 @@ function mountTimelineBar(opts) {
     // ohne dieses `refresh()` blieben sie stehen, während Griffe und Scrubber
     // wanderten — ein frisch gesetzter Keyframe erschien dann sichtbar neben
     // dem Scrubber, obwohl sein Anker exakt stimmte (Marc, 2026-08-14).
-    try { refresh(); } catch (_) {}
+    // 14.09.2026: nicht mehr sofort, sondern als EIN Durchlauf zum nächsten
+    // Bild — zusammen mit setEtappen/setGruppen desselben Tastendrucks.
+    _zeichnenPlanen(true);
   }
   function _renderHoldUi() {
     // Hold-Trenner + Region sitzen visuell am rechten Trim-Handle (= ti + trim_end * (tf-ti)).
@@ -2105,7 +2156,12 @@ function mountTimelineBar(opts) {
     getScrubberTrack,
     setStatusHint,
     setScrubberTrack,
-    refresh,
+    // 14.09.2026: `refresh` von außen meldet EINEN Durchlauf zum nächsten Bild
+    // an (setTimelineEvents ruft es direkt nach setTrackFraction/setGruppen);
+    // `flush` zeichnet Angemeldetes sofort — für Aufrufer, die das DOM gleich
+    // brauchen. Die Getter antworten immer aus dem Zustand.
+    refresh: () => _zeichnenPlanen(true),
+    flush: _zeichnenJetzt,
     setScrubber: setScrubberTrack,
     setSelected,
     setEnabled,

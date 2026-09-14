@@ -407,7 +407,11 @@ function mountLibrary(body, headerActions) {
   }
 
   // 14.09.2026 — nach einem Import: diese Touren (geo_hash) oben zeigen (nur Reihenfolge).
+  // Bleibt gesetzt, bis der Nutzer Bereich/Sammlung/Sortierung/Filter/Suche selbst ändert:
+  // Seite 2 (nachladen) fragt mit offset gegen DIESELBE Reihenfolge — sonst überspringt sie
+  // bei mehr als PAGE Touren Einträge und wiederholt die oben angehefteten.
   let _zuerstGeo = null;
+  function zuerstGeoWeg() { _zuerstGeo = null; }
   function queryParams(extra) {
     const p = Object.assign({}, state, scopeFilters(), extra || {});
     if (_zuerstGeo && _zuerstGeo.length) p.zuerst_geo = _zuerstGeo.slice();
@@ -638,6 +642,7 @@ function mountLibrary(body, headerActions) {
         scope = b.dataset.scope; store.set("scope", scope);
         state.collection_id = 0;
         store.set("collection_id", "0");
+        zuerstGeoWeg();
         renderCollections(); reload();
       };
     });
@@ -665,6 +670,7 @@ function mountLibrary(body, headerActions) {
         // nicht stumpf auf „Neueste zuerst".
         state.sort = state.collection_id ? "collection" : gemerkterSort();
         sortAnzeigen();
+        zuerstGeoWeg();
         renderCollections(); reload();
       };
       b.oncontextmenu = (e) => { e.preventDefault(); openCollectionMenu(id); };
@@ -1966,6 +1972,7 @@ function mountLibrary(body, headerActions) {
         store.set("sort", neu);
         const sel = document.getElementById("lib-sort");
         if (sel) sel.value = neu;      // Auswahlfeld und Kopfzeile bleiben einig
+        zuerstGeoWeg();
         reload();
       };
       th.onclick = um;
@@ -3041,6 +3048,7 @@ function mountLibrary(body, headerActions) {
       _multi.clear();
       toast(T("library.merge.done", "Zusammengeführt: {n} Touren").replace("{n}", liste.length), "success", 5000);
       scope = "merged"; store.set("scope", scope);
+      zuerstGeoWeg();
       await reload(); renderScopes();
       // Direkt im Animator öffnen — der Track ist ab jetzt ein ganz normaler.
       try {
@@ -4073,6 +4081,7 @@ function mountLibrary(body, headerActions) {
     const show = document.getElementById("lib-cm-show");
     if (show) show.onclick = () => {
       state.collection_id = cid; state.sort = "collection";
+      zuerstGeoWeg();
       m.close(); renderCollections(); reload();
     };
     const anim = document.getElementById("lib-cm-anim");
@@ -4649,7 +4658,7 @@ function mountLibrary(body, headerActions) {
     _zuerstGeo = z.geo.length ? z.geo : null;
     _multi.clear(); _sel = null; store.set("sel", "");
     try { renderCollections(); renderScopes(); } catch (_) {}
-    try { await reload(); } finally { _zuerstGeo = null; }
+    await reload();   // _zuerstGeo bleibt — auch nachladen() braucht dieselbe Reihenfolge
     if (_unmounted) return;
     const geo = new Set(z.geo), pfade = new Set(z.pfade);
     const neu = _items.filter(it => geo.has(it.geo_hash) || pfade.has(it.path));
@@ -5195,12 +5204,13 @@ function mountLibrary(body, headerActions) {
   $("lib-search").oninput = debounce(() => {
     setFilter("search", $("lib-search").value);
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben
+    zuerstGeoWeg();
     if (_projView) { renderProjekte(); return; }
     reload();
   }, 400);
-  $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); reload(); };
-  $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); reload(); };
-  $("lib-sort").onchange = () => { setFilter("sort", $("lib-sort").value); reload(); };
+  $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); zuerstGeoWeg(); reload(); };
+  $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); zuerstGeoWeg(); reload(); };
+  $("lib-sort").onchange = () => { setFilter("sort", $("lib-sort").value); zuerstGeoWeg(); reload(); };
   const kmLesen = (id) => {
     const v = parseFloat($(id).value);
     return (isFinite(v) && v > 0) ? v : null;
@@ -5208,6 +5218,7 @@ function mountLibrary(body, headerActions) {
   const kmGesetzt = debounce(() => {
     setFilter("min_km", kmLesen("lib-kmmin"));
     setFilter("max_km", kmLesen("lib-kmmax"));
+    zuerstGeoWeg();
     reload();
   }, 500);
   $("lib-kmmin").oninput = kmGesetzt;
@@ -5237,6 +5248,7 @@ function mountLibrary(body, headerActions) {
     setFilter("bis", bis || null);
     if (von || bis) setFilter("year", 0);   // sonst filtern zwei Dinge dasselbe
     zeitraumAnzeigen();
+    zuerstGeoWeg();
     reload();
   }
 
@@ -5257,6 +5269,7 @@ function mountLibrary(body, headerActions) {
   zeitraumAnzeigen();
   $("lib-reset").onclick = () => { filterZuruecksetzen(); reload(); };
   function filterZuruecksetzen() {
+    zuerstGeoWeg();
     setFilter("search", "");
     setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
     setFilter("von", null); setFilter("bis", null);

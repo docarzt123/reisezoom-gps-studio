@@ -583,24 +583,32 @@ def version_ablegen(ort: Path, quelle: Path, version_id: str,
     import threading as _th
     import uuid as _uuid
     tmp = ziel.with_suffix(f".tmp{os.getpid()}-{_th.get_ident()}-{_uuid.uuid4().hex[:6]}")
-    with open(quelle, "rb") as f:
-        magie = f.read(2)
-    if magie == GZIP_MAGIE:
-        # Schon gepackt (unser Speicher, ein Strava-Export) — 1:1 übernehmen.
-        shutil.copyfile(quelle, tmp)
-        os.replace(tmp, ziel)
-        return ziel
-    if ziel.is_file() and ziel.stat().st_size > 0:      # inzwischen von nebenan abgelegt
-        return ziel
-    gpx, tmpdir = _als_gpx(quelle, umwandlung_cache)
     try:
-        with open(gpx, "rb") as f_in, gzip.open(tmp, "wb", compresslevel=6) as f_out:
-            shutil.copyfileobj(f_in, f_out, length=1024 * 256)
-        os.replace(tmp, ziel)
+        with open(quelle, "rb") as f:
+            magie = f.read(2)
+        if magie == GZIP_MAGIE:
+            # Schon gepackt (unser Speicher, ein Strava-Export) — 1:1 übernehmen.
+            shutil.copyfile(quelle, tmp)
+            os.replace(tmp, ziel)
+            return ziel
+        if ziel.is_file() and ziel.stat().st_size > 0:      # inzwischen von nebenan abgelegt
+            return ziel
+        gpx, tmpdir = _als_gpx(quelle, umwandlung_cache)
+        try:
+            with open(gpx, "rb") as f_in, gzip.open(tmp, "wb", compresslevel=6) as f_out:
+                shutil.copyfileobj(f_in, f_out, length=1024 * 256)
+            os.replace(tmp, ziel)
+        finally:
+            if tmpdir:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+        return ziel
     finally:
-        if tmpdir:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-    return ziel
+        # 14.09.2026 — bricht es zwischen Anlegen und Umbenennen ab (voller Datenträger,
+        # kaputte Quelle), bliebe die Zwischendatei sonst für immer liegen.
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def version_ist_lesbar(ort: Path, version_id: str) -> bool:

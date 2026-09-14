@@ -146,13 +146,19 @@ def entfernen(conn: sqlite3.Connection, eid: str) -> bool:
 # ── Berechnen ───────────────────────────────────────────────────────────────
 
 def _epoch(t) -> Optional[float]:
-    if t is None:
+    """Zeit → Epoch-Sekunden. Naive Zeiten gelten als UTC — genau wie in
+    core/trackcheck._ts, sonst lagen Einteilung und Track-Check bei Dateien ohne
+    Zonenangabe um die Ortszeit des Rechners auseinander (14.09.2026)."""
+    if t is None or t == "":
         return None
     if isinstance(t, (int, float)):
         return float(t)
     try:
-        return datetime.fromisoformat(str(t).replace("Z", "+00:00")).timestamp()
-    except ValueError:
+        d = t if isinstance(t, datetime) else datetime.fromisoformat(str(t).strip().replace("Z", "+00:00"))
+        if not d.tzinfo:
+            d = d.replace(tzinfo=timezone.utc)
+        return d.timestamp()
+    except (ValueError, TypeError):
         return None
 
 
@@ -224,14 +230,36 @@ def berechnen_tage(points, versatz_min: Optional[int] = None, zone: str = "") ->
                 return 0
         return 0
 
+    def datum(t):
+        return (datetime.fromtimestamp(t, timezone.utc) + timedelta(minutes=versatz(t))).date()
+
+    # Der Kalendertag ändert sich nur an der Ortsmitternacht. Bis kurz davor wird
+    # deshalb nicht je Punkt der Versatz nachgeschlagen (14.09.2026: 27 000 Punkte ×
+    # ZoneInfo-Abfrage), sondern einmal die nächste Mitternacht bestimmt; ab dort
+    # rechnet wieder die genaue Formel, bis der Tag wirklich gewechselt hat. So
+    # bleiben die Ergebnisse dieselben — auch bei Zeitumstellung um Mitternacht.
+    tzinfo = (timezone(timedelta(minutes=int(versatz_min))) if versatz_min is not None
+              else (_zz._tz(zone) if zone else timezone.utc))
+
+    def naechste_mitternacht(tag_):
+        try:
+            return datetime.combine(tag_ + timedelta(days=1), datetime.min.time(), tzinfo).timestamp() - 120.0
+        except Exception:  # noqa: BLE001
+            return float("-inf")
+
     raus = []
     tag_start = zeiten[0]
-    tag = (datetime.fromtimestamp(zeiten[0], timezone.utc) + timedelta(minutes=versatz(zeiten[0]))).date()
+    tag = datum(zeiten[0])
+    grenze = naechste_mitternacht(tag)
     letzte = zeiten[0]
     nr = 1
     for t in zeiten[1:]:
-        d = (datetime.fromtimestamp(t, timezone.utc) + timedelta(minutes=versatz(t))).date()
+        if t < grenze:
+            letzte = t
+            continue
+        d = datum(t)
         if d != tag:
+            grenze = naechste_mitternacht(d)
             if letzte > tag_start:
                 raus.append(_bereich(tag_start, letzte, "tag", "", "auto", nr=nr, datum=tag.isoformat()))
                 nr += 1
@@ -244,6 +272,16 @@ def berechnen_tage(points, versatz_min: Optional[int] = None, zone: str = "") ->
 
 # ── Hand schlägt Automatik (Q9) ─────────────────────────────────────────────
 
+def _ohne_masse(b: dict) -> dict:
+    """Kopie ohne Strecke und Tempo: Die gelten für den ganzen Bereich, nicht für ein
+    Stück davon. Blieben sie stehen, zählte das Logbuch die Strecke doppelt (14.09.2026);
+    core/logbuch misst Stücke aus den Punkten nach."""
+    b = dict(b)
+    for k in ("strecke_m", "tempo_kmh"):
+        b.pop(k, None)
+    return b
+
+
 def _ausschneiden(bereiche: List[dict], t0: float, t1: float) -> List[dict]:
     """Die Zeitspanne [t0, t1] aus allen Bereichen herausschneiden (teilt, kürzt, entfernt)."""
     raus = []
@@ -252,10 +290,10 @@ def _ausschneiden(bereiche: List[dict], t0: float, t1: float) -> List[dict]:
             raus.append(b)
             continue
         if b["t0"] < t0:
-            links = dict(b, t1=t0)
+            links = dict(_ohne_masse(b), t1=t0)
             raus.append(links)
         if b["t1"] > t1:
-            rechts = dict(b, t0=t1, id=_neue_id() if b["t0"] < t0 else b["id"])
+            rechts = dict(_ohne_masse(b), t0=t1, id=_neue_id() if b["t0"] < t0 else b["id"])
             raus.append(rechts)
     return raus
 
@@ -386,7 +424,15 @@ def aufgehen_lassen(conn: sqlite3.Connection, eid: str, bids) -> dict:
     for w in weg:
         _finden(e, w)
     opfer = [b for b in e["bereiche"] if b["id"] in weg and not _ist_punkt(b)]
-    e["bereiche"] = [b for b in e["bereiche"] if b["id"] not in weg]
+    # Automatische Punkte hinterlassen auch hier einen Grabstein — sonst setzte die
+    # nächste Berechnung den gelöschten Start wieder ein (14.09.2026).
+    rest = []
+    for b in e["bereiche"]:
+        if b["id"] not in weg:
+            rest.append(b)
+        elif _ist_punkt(b) and _grabstein(b) is not None:
+            rest.append(_grabstein(b))
+    e["bereiche"] = rest
     if opfer:
         t0 = min(b["t0"] for b in opfer)
         t1 = max(b["t1"] for b in opfer)
@@ -410,10 +456,10 @@ def teilen(conn: sqlite3.Connection, eid: str, bid: str, t: float) -> dict:
     b = e["bereiche"][k]
     if not (b["t0"] < t < b["t1"]):
         raise ValueError("Schnitt liegt nicht im Bereich")
-    links = dict(b, t1=float(t), quelle="hand")
+    links = dict(_ohne_masse(b), t1=float(t), quelle="hand")
     # `grenze`: eine bewusst gesetzte Grenze — das Logbuch legt gleichartige Nachbarn
     # sonst beim Lesen wieder zusammen (Marc, 13.09.2026: „der teilt viel weiter hinten").
-    rechts = dict(b, t0=float(t), id=_neue_id(), quelle="hand", grenze=True)
+    rechts = dict(_ohne_masse(b), t0=float(t), id=_neue_id(), quelle="hand", grenze=True)
     e["bereiche"][k:k + 1] = [links, rechts]
     return _schreiben(conn, e)
 
@@ -488,15 +534,22 @@ def grenze_setzen(conn: sqlite3.Connection, eid: str, bid_links: str, bid_rechts
     return _schreiben(conn, e)
 
 
+def _grabstein(b: dict) -> Optional[dict]:
+    """Der Grabstein für einen automatisch entstandenen Punkt (Start, Ziel, POI …) —
+    None, wenn der Bereich ohne Spur verschwinden darf (Handpunkte, Bereiche)."""
+    if _ist_punkt(b) and (b.get("quelle") in ("auto", "app") or b.get("osm_id")) and b.get("art") != "weg":
+        return _bereich(b["t0"], b["t0"], "weg", "", "hand", weg_art=b.get("art"), osm_id=b.get("osm_id"))
+    return None
+
+
 def bereich_entfernen(conn: sqlite3.Connection, eid: str, bid: str) -> dict:
     """Entfernen. Ein automatisch entstandener Punkt (Start, Ziel, POI …) hinterlässt
     einen Grabstein, damit ihn die nächste Berechnung nicht wieder einsetzt."""
     e = _laden(conn, eid)
     k = _finden(e, bid)
-    b = e["bereiche"][k]
-    if _ist_punkt(b) and (b.get("quelle") in ("auto", "app") or b.get("osm_id")) and b.get("art") != "weg":
-        e["bereiche"][k] = _bereich(b["t0"], b["t0"], "weg", "", "hand", weg_art=b.get("art"),
-                                    osm_id=b.get("osm_id"))
+    g = _grabstein(e["bereiche"][k])
+    if g is not None:
+        e["bereiche"][k] = g
     else:
         del e["bereiche"][k]
     return _schreiben(conn, e)
@@ -508,6 +561,8 @@ def zusammenfassung(e: dict) -> dict:
     """Dauer (und, wo bekannt, Strecke) je Art — Q16: kein Ø über gemischte Tracks."""
     z: dict = {}
     for b in e.get("bereiche") or []:
+        if b.get("art") == "weg":          # Grabstein eines gelöschten Punkts zählt nicht
+            continue
         x = z.setdefault(b["art"], {"anzahl": 0, "dauer_s": 0.0, "strecke_m": 0.0})
         x["anzahl"] += 1
         x["dauer_s"] += max(0.0, b["t1"] - b["t0"])

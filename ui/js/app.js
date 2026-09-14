@@ -1705,8 +1705,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.addEventListener("pointermove", () => { _hz.bewegt++; }, { capture: true, passive: true });
     document.addEventListener("pointerdown", () => { _hz.klicks++; }, { capture: true, passive: true });
     document.addEventListener("keydown", () => { _hz.tasten++; }, { capture: true, passive: true });
-    const _raf = () => { _hz.bilder++; requestAnimationFrame(_raf); };
-    requestAnimationFrame(_raf);
+    // 14.09.2026 — nicht als endlose rAF-Kette (die zwingt WebKit zu 60 Bildern/s,
+    // auch wenn nichts zu zeichnen ist), sondern viermal je Sekunde EIN Bild anfordern:
+    // bleibt das aus, steht das Zeichnen genauso sichtbar (bilder=0).
+    const _raf = () => { _hz.bilder++; };
+    setInterval(() => { try { requestAnimationFrame(_raf); } catch (_) {} }, 250);
     const _tick = () => {
       _hz.n++;
       const sek = Math.round((Date.now() - _hz.t0) / 1000);

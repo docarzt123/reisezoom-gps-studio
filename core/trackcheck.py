@@ -159,6 +159,19 @@ class _Spur:
         self.n = len(points)
         self.lat = [float(_get(p, "lat") or 0.0) for p in points]
         self.lon = [float(_get(p, "lon") or 0.0) for p in points]
+        # NaN-Koordinaten (kaputte Punkte) gelten als fehlend: Der Punkt erbt die Lage
+        # des Vorgängers, seine beiden Segmente werden wie eine Etappengrenze nie
+        # bewertet. Sonst maß die Haversine 20 015 km je Segment (14.09.2026).
+        self.fehlt: set = set()
+        for i in range(self.n):
+            if not (math.isfinite(self.lat[i]) and math.isfinite(self.lon[i])):
+                self.fehlt.add(i)
+                if i > 0:
+                    self.lat[i], self.lon[i] = self.lat[i - 1], self.lon[i - 1]
+                else:
+                    j = next((k for k in range(1, self.n)
+                              if math.isfinite(self.lat[k]) and math.isfinite(self.lon[k])), None)
+                    self.lat[i], self.lon[i] = (self.lat[j], self.lon[j]) if j is not None else (0.0, 0.0)
         self.ele: List[Optional[float]] = []
         for p in points:
             e = _get(p, "ele")
@@ -171,7 +184,7 @@ class _Spur:
         # Segmentlängen; None = Etappengrenze (wird nie bewertet)
         self.L: List[Optional[float]] = []
         for i in range(self.n - 1):
-            if self.seg[i] != self.seg[i + 1]:
+            if self.seg[i] != self.seg[i + 1] or i in self.fehlt or (i + 1) in self.fehlt:
                 self.L.append(None)
             else:
                 self.L.append(_hav(self.lat[i], self.lon[i], self.lat[i + 1], self.lon[i + 1]))
@@ -779,7 +792,8 @@ def sprung_gefiltert(sp: _Spur, stufe: float = STUFE_STANDARD,
     for i, b in enumerate(bereich_seg):
         if b is not None and b["art"] == "halt":
             sp.ausgeschlossen.add(i)
-    sg = sprung_gruppen(sp, stufe, med_je_punkt=_mediane_aus_bewegung(sp, bereich_seg))
+    med = _mediane_aus_bewegung(sp, bereich_seg)      # einmal rechnen, unten wiederverwenden
+    sg = sprung_gruppen(sp, stufe, med_je_punkt=med)
     cache: dict = {}
     spikes, tempo, flags = [], [], set()
     weg_spikes = weg_tempo = 0
@@ -795,7 +809,6 @@ def sprung_gefiltert(sp: _Spur, stufe: float = STUFE_STANDARD,
             flags.update(range(g["von"], g["bis"] + 1))
         else:
             weg_spikes += 1
-    med = _mediane_aus_bewegung(sp, bereich_seg)
     for g in sg["tempo"]:
         arten = {bereich_seg[k]["art"] for k in range(g["a"], min(g["b"], len(bereich_seg)))
                  if bereich_seg[k] is not None}

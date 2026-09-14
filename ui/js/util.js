@@ -2365,7 +2365,13 @@ window.rzReadModuleSettings = function (section) {
 let _vorschauTimer = null;
 function rzProjektVorschauPlanen() {
   clearTimeout(_vorschauTimer);
-  _vorschauTimer = setTimeout(() => { rzProjektVorschauAufnehmen("geaendert"); }, 4000);
+  const lauf = () => {
+    // 14.09.2026 — nicht mitten in einem Probelauf fotografieren (Bild vom halben Lauf,
+    // dazu triggerRepaint + Warten auf render im laufenden Takt): später nochmal.
+    try { if (typeof window.__rzVorschauSperre === "function" && window.__rzVorschauSperre()) { _vorschauTimer = setTimeout(lauf, 4000); return; } } catch (_) {}
+    rzProjektVorschauAufnehmen("geaendert");
+  };
+  _vorschauTimer = setTimeout(lauf, 4000);
 }
 function _vorschauVerkleinern(quelle, w, h) {
   const ZW = 480, ZH = 270;

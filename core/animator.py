@@ -1934,6 +1934,127 @@ window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metric
 WASSERZEICHEN_STANDARD = "wm-lockup-white.png"
 
 
+# ── Schild-Bilder für den Render (14.09.2026, Tester-Projekt mit 2830 Foto-
+# Schildern) ────────────────────────────────────────────────────────────────
+#
+# Bis hierhin erzeugte jeder Render-Start für JEDES Bild-Schild ein frisches
+# 600-px-Vorschaubild aus dem Original (photos.thumbnail_data_url, ohne Cache):
+# bei 2830 Fotos zig Sekunden Rechnen, bevor der Browser überhaupt anfängt.
+# Dabei trägt jedes Schild sein Vorschaubild schon als data-URL bei sich
+# (module.js _animSignsSave speichert `thumb` mit ins Projekt). Reihenfolge jetzt:
+#
+#   1. Das gespeicherte `thumb` des Schilds wird genommen, wenn seine längere
+#      Kante den Bedarf des Renders deckt (Regel: _sign_bild_bedarf_px).
+#   2. Sonst kommt das Bild aus dem Platten-Cache der Fotos
+#      (photos.thumb_data_url_gecacht: Schlüssel = Pfad+mtime+Größe@600 unter
+#      APP_SUPPORT/photo_thumb_cache) — beim ersten Mal erzeugt, danach gelesen.
+#   3. Fehlt die Datei und ist kein gespeichertes thumb da → kein Bild.
+#
+# Bedarf: sign_draw.js rastert das Bild mit max(80, imageSize·5)·dpr Pixeln
+# Breite (dpr = rzSignDpr(Anzahl Bild-Schilder), 2 bei ≤ 200, darunter fallend).
+# Das ist das Maß, gedeckelt auf SIGN_BILD_VOLL_PX — mehr hat noch nie jemand
+# geliefert (sign_pick_image / sign_image_thumb erzeugen 600 px). Ein kleineres
+# gespeichertes thumb (z. B. 220 px aus dem Geotagger-Import) reicht also bei
+# vielen Schildern (dpr klein) und wird bei wenigen einmal nachgerechnet.
+SIGN_BILD_VOLL_PX = 600
+SIGN_BILD_VOLL_ANZAHL = 200      # synchron zu ui/js/sign_draw.js RZ_SIGN_BILD_VOLL
+SIGN_JS_LADESTAPEL = 100         # Bilder je Ladestapel im Browser (statt einem Promise.all über alle)
+
+
+def _sign_bild_dpr(anzahl_bildschilder: int) -> float:
+    """Spiegel von rzSignDpr (ui/js/sign_draw.js) — bei Änderung beide pflegen."""
+    n = int(anzahl_bildschilder or 0)
+    if n <= SIGN_BILD_VOLL_ANZAHL:
+        return 2.0
+    return max(0.5, round(2 * math.sqrt(SIGN_BILD_VOLL_ANZAHL / n) * 100) / 100)
+
+
+def _sign_bild_bedarf_px(s: dict, dpr: float) -> int:
+    """Längste Kante, die der Render für dieses Schild braucht (siehe oben)."""
+    try:
+        img_sz = float(s.get("imageSize") or 60)
+    except (TypeError, ValueError):
+        img_sz = 60.0
+    breite = max(80.0, round(img_sz * 5)) * float(dpr)
+    return int(min(SIGN_BILD_VOLL_PX, max(64, math.ceil(breite))))
+
+
+def _data_url_kante_px(data_url) -> Optional[int]:
+    """Längere Kante eines Bildes in einer data-URL — ohne das Bild zu decodieren.
+
+    PIL liest beim Öffnen nur den Kopf; unsere JPEG-Vorschaubilder haben den
+    Größen-Marker in den ersten paar hundert Bytes, darum reicht meist der
+    Anfang der base64-Daten. Erst wenn das scheitert, wird alles decodiert."""
+    if not isinstance(data_url, str) or not data_url.startswith("data:image/"):
+        return None
+    komma = data_url.find(",")
+    if komma < 0:
+        return None
+    b64 = data_url[komma + 1:]
+    for anteil in (4096, None):
+        try:
+            roh = base64.b64decode(b64[:anteil - (anteil % 4)] if anteil else b64)
+            with Image.open(io.BytesIO(roh)) as im:
+                w, h = im.size
+            return int(max(w, h))
+        except Exception:
+            continue
+    return None
+
+
+def _sign_thumb_fuer(s: dict, bedarf_px: int) -> Optional[str]:
+    """Vorschaubild (data-URL) für EIN Schild nach der Regel oben."""
+    from . import photos as _cphotos
+    src = (s.get("imageSrc") or "").strip()
+    eigenes = s.get("thumb") if isinstance(s.get("thumb"), str) else None
+    if eigenes:
+        kante = _data_url_kante_px(eigenes)
+        if kante and kante >= bedarf_px:
+            return eigenes
+    if src:
+        try:
+            if os.path.exists(src):
+                # Immer in voller Größe in den Cache — ein Eintrag je Datei, egal
+                # wie viele Schilder gerade da sind (der Schlüssel enthält die Größe).
+                aus_cache = _cphotos.thumb_data_url_gecacht(src, SIGN_BILD_VOLL_PX)
+                if aus_cache:
+                    return aus_cache
+        except Exception:
+            pass
+    # Datei weg / nicht lesbar: lieber das kleine gespeicherte Bild als gar keins.
+    return eigenes or None
+
+
+def sign_thumbs_vorbereiten(signs: list) -> dict:
+    """Setzt `thumb` für jedes Schild mit Bild (in place) und zählt, woher es kam.
+
+    Rückgabe: {"uebernommen": n, "cache": n, "keins": n, "sekunden": t} —
+    fürs Log und für tests/test_schilder_render_thumbs.py."""
+    t0 = time.time()
+    mit_bild = [s for s in signs if (s.get("imageSrc") or "").strip() or s.get("thumb")]
+    # dpr zählt wie der Browser (__signs.filter(s => s.imageSrc)): nur Schilder mit Pfad.
+    dpr = _sign_bild_dpr(sum(1 for s in mit_bild if (s.get("imageSrc") or "").strip()))
+    zaehler = {"uebernommen": 0, "cache": 0, "keins": 0}
+    for s in mit_bild:
+        bedarf = _sign_bild_bedarf_px(s, dpr)
+        vorher = s.get("thumb") if isinstance(s.get("thumb"), str) else None
+        thumb = _sign_thumb_fuer(s, bedarf)
+        s["thumb"] = thumb
+        if not thumb:
+            zaehler["keins"] += 1
+        elif thumb is vorher:
+            zaehler["uebernommen"] += 1
+        else:
+            zaehler["cache"] += 1
+    zaehler["sekunden"] = round(time.time() - t0, 3)
+    zaehler["dpr"] = dpr
+    if mit_bild:
+        _log.info("[schilder] %d Bild-Schilder: %d übernommen, %d aus Cache/erzeugt, %d ohne Bild (%.2f s, dpr %.2f)",
+                 len(mit_bild), zaehler["uebernommen"], zaehler["cache"], zaehler["keins"],
+                 zaehler["sekunden"], dpr)
+    return zaehler
+
+
 def wasserzeichen_pfad(pfad: str) -> str:
     """Sentinel → absoluter Pfad im Bundle; alles andere unverändert zurück."""
     roh = str(pfad or "")
@@ -2730,16 +2851,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         _signs_input = [s for s in cfg.signs
                         if ((s.get("text") or "").strip() or (s.get("imageSrc") or "").strip())
                         and s.get("visible") is not False]
+        # 14.09.2026 — Vorschaubilder NICHT mehr je Render aus den Originalen
+        # rechnen: gespeichertes `thumb` des Schilds oder Platten-Cache
+        # (sign_thumbs_vorbereiten, oben). Setzt s["thumb"] in place.
+        sign_thumbs_vorbereiten(_signs_input)
         def _sign_thumb(s):
-            src = (s.get("imageSrc") or "").strip()
-            if not src:
-                return None
-            try:
-                if not os.path.exists(src):
-                    return None
-                return _cphotos2.thumbnail_data_url(src, 600)
-            except Exception:
-                return None
+            th = s.get("thumb")
+            return th if isinstance(th, str) and th else None
         try:
             # v0.9.187 — BUG-FIX: `coords` existierte hier nicht (Parameter = `ds_points`)
             # → NameError still verschluckt → track_anchor blieb 0 → Schild ab Frame 0
@@ -2845,15 +2963,27 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             # (modules/animator/ui/module.js _animSignsAttachGPU, ui/js/sign_draw.js rzSignDpr).
             "  const __dprBild = window.__rzSignDpr ? window.__rzSignDpr(__signs.filter(s => s.imageSrc).length) : 2;\n"
             "  const __loadImg = (src) => new Promise(res => { const im = new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; });\n"
-            "  const __imgs = await Promise.all(__signs.map(s => s.thumb ? __loadImg(s.thumb) : Promise.resolve(null)));\n"
-            "  const __feats = __signs.map((s,i) => {\n"
-            "    const id = 'sign-img-'+i;\n"
-            "    let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
-            "    try { const o = Object.assign({}, s); if (__imgs[i]) o.image = __imgs[i]; if (s.imageSrc && __dprBild !== 2) o.__dpr = __dprBild; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
-            "    const meta = __signMetas[i];\n"
-            "    return { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, popScale: 1 },\n"
-            "             geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"
-            "  });\n"
+            # 14.09.2026 — Bilder in Stapeln (SIGN_JS_LADESTAPEL) laden und gleich
+            # einhängen, statt EIN Promise.all über alle 2830 Bilder zu halten:
+            # weniger gleichzeitig lebende Image-Objekte, Reihenfolge und das
+            # Fertig-Signal (__signsReady) bleiben identisch. Das thumb wird nach
+            # dem addImage freigegeben — die Karte hat ihre Kopie.
+            f"  const __STAPEL = {SIGN_JS_LADESTAPEL};\n"
+            "  const __feats = new Array(__signs.length);\n"
+            "  for (let __von = 0; __von < __signs.length; __von += __STAPEL) {\n"
+            "    const __bis = Math.min(__signs.length, __von + __STAPEL);\n"
+            "    const __imgs = await Promise.all(__signs.slice(__von, __bis).map(s => s.thumb ? __loadImg(s.thumb) : Promise.resolve(null)));\n"
+            "    for (let i = __von; i < __bis; i++) {\n"
+            "      const s = __signs[i], __img = __imgs[i - __von];\n"
+            "      const id = 'sign-img-'+i;\n"
+            "      let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
+            "      try { const o = Object.assign({}, s); if (__img) o.image = __img; if (s.imageSrc && __dprBild !== 2) o.__dpr = __dprBild; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
+            "      s.thumb = null;\n"
+            "      const meta = __signMetas[i];\n"
+            "      __feats[i] = { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, popScale: 1 },\n"
+            "                     geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"
+            "    }\n"
+            "  }\n"
             "  window.__signFC = {type:'FeatureCollection', features:__feats}; map.__rzSignFC = window.__signFC;\n"  # v0.9.479 — Pop-Scale via setData
             # v0.9.484 — Render-Scale für den Aufpopp-Umschalter (sonst schrumpfen die
             # Schilder im 4K-Render in dem Moment, in dem der popScale-Ausdruck greift).

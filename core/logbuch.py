@@ -25,9 +25,12 @@ stehen die Standardwerte.
 """
 from __future__ import annotations
 
+import logging
 from bisect import bisect_left, bisect_right
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
+
+log = logging.getLogger(__name__)
 
 STANDARD = {
     "orte_holen": 1.0,          # Q10: Ortsnamen im Netz nachschlagen (Photon), abschaltbar
@@ -46,43 +49,67 @@ PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt", "poi")
 HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause")   # Q12: Art ändern
 BEWEGT = ("gehen", "laufen", "rad", "fahrt", "uebersetzen")
 STILL = ("halt", "pause")
+# Von Hand gesetzte Arten (Q12) und ihre Familie für die Nachbarschaft (Q8): Neben einer
+# bestätigten „Wanderung" ist ein „unsicher" genauso Gehen wie neben rohem „gehen".
+# Wassersport ist eine eigene Familie — er kommt nur von Hand oder über den Hinweis der Tour.
+FAMILIE = {"wanderung": "gehen", "spaziergang": "gehen", "wassersport": "wassersport"}
 
 
 # ── Zeit ────────────────────────────────────────────────────────────────────
 
 def _epoch(t) -> Optional[float]:
-    if t is None:
+    """Zeit → Epoch-Sekunden. Naive Zeiten gelten als UTC — wie in core/trackcheck._ts,
+    sonst lagen Logbuch und Track-Check bei Dateien ohne Zone um die Ortszeit des
+    Rechners auseinander (14.09.2026)."""
+    if t is None or t == "":
         return None
     if isinstance(t, (int, float)):
         return float(t)
     try:
-        return datetime.fromisoformat(str(t).replace("Z", "+00:00")).timestamp()
-    except ValueError:
+        d = t if isinstance(t, datetime) else datetime.fromisoformat(str(t).strip().replace("Z", "+00:00"))
+        if not d.tzinfo:
+            d = d.replace(tzinfo=timezone.utc)
+        return d.timestamp()
+    except (ValueError, TypeError):
         return None
 
 
 class _Zeiten:
-    """Punktzeiten sortiert, für die Suche „welche Punkte liegen in [t0, t1]"."""
+    """Punktzeiten sortiert, für die Suche „welche Punkte liegen in [t0, t1]".
+
+    Sortiert wird nach der Uhrzeit, der Punkt-Index läuft mit: Dateien mit mehreren
+    <trk> in falscher Reihenfolge lieferten sonst falsche Bereiche und weder Start
+    noch Ziel noch höchsten Punkt (14.09.2026)."""
 
     def __init__(self, points):
-        self.ts: List[float] = []
-        self.idx: List[int] = []
         self.pts = list(points or [])
+        paare = []
         for i, p in enumerate(self.pts):
             t = _epoch(p.get("time") if isinstance(p, dict) else getattr(p, "time", None))
             if t is not None:
-                self.ts.append(t)
-                self.idx.append(i)
+                paare.append((t, i))
+        paare.sort()
+        self.ts: List[float] = [t for t, _ in paare]
+        self.idx: List[int] = [i for _, i in paare]
 
-    def bereich(self, t0: float, t1: float):
-        """(erster, letzter) Punkt-Index innerhalb [t0, t1] — oder None."""
+    def _lage(self, t0: float, t1: float):
         if not self.ts:
             return None
         a = bisect_left(self.ts, t0)
         b = bisect_right(self.ts, t1) - 1
-        if b < a:
-            return None
-        return self.idx[a], self.idx[b]
+        return None if b < a else (a, b)
+
+    def bereich(self, t0: float, t1: float):
+        """(erster, letzter) Punkt-Index innerhalb [t0, t1] in ZEITFOLGE — oder None.
+        Bei verschobenen Etappen kann der erste Index der größere sein; wer über die
+        Punkte dazwischen laufen will, nimmt `indizes`."""
+        lage = self._lage(t0, t1)
+        return None if lage is None else (self.idx[lage[0]], self.idx[lage[1]])
+
+    def indizes(self, t0: float, t1: float) -> List[int]:
+        """Alle Punkt-Indizes innerhalb [t0, t1], in Zeitfolge."""
+        lage = self._lage(t0, t1)
+        return [] if lage is None else self.idx[lage[0]:lage[1] + 1]
 
     def naechster(self, t: float) -> Optional[int]:
         if not self.ts:
@@ -104,12 +131,14 @@ def _ele(p):
     return e if e == e else None   # NaN raus
 
 
-def hoehenmeter(points, a: int, b: int) -> dict:
-    """Bergauf/bergab zwischen zwei Punkt-Indizes, mit Schwelle gegen Rauschen."""
+def hoehenmeter(points, a: int, b: int, indizes: Optional[List[int]] = None) -> dict:
+    """Bergauf/bergab zwischen zwei Punkt-Indizes, mit Schwelle gegen Rauschen.
+    `indizes` (in Zeitfolge) ersetzt den Indexbereich — für Dateien, deren Etappen
+    nicht in Zeitfolge liegen."""
     auf = ab = 0.0
     letzte = None
     hoch = tief = None
-    for k in range(max(0, a), min(len(points), b + 1)):
+    for k in (indizes if indizes is not None else range(max(0, a), min(len(points), b + 1))):
         e = _ele(points[k])
         if e is None:
             continue
@@ -160,13 +189,14 @@ def punkte_erzeugen(points, tage: Optional[List[dict]] = None) -> List[dict]:
 
         raus.append(punkt(a, "start"))
         hoch_k, hoch_e = None, None
-        for k in range(a, b + 1):
+        for k in z.indizes(t0, t1):
             e = _ele(z.pts[k])
             if e is not None and (hoch_e is None or e > hoch_e):
                 hoch_k, hoch_e = k, e
-        if hoch_k is not None and b > a:
+        # a/b sind Indizes in ZEITFOLGE — bei Etappen außer Reihenfolge kann b < a sein
+        if hoch_k is not None and b != a:
             raus.append(punkt(hoch_k, "hoechster_punkt"))
-        if b > a:
+        if b != a:
             raus.append(punkt(b, "ziel"))
     return raus
 
@@ -210,20 +240,50 @@ def _eintrag(b: dict) -> dict:
             "grenze": bool(b.get("grenze"))}
 
 
+def strecke(points, a: int, b: int, indizes: Optional[List[int]] = None) -> Optional[float]:
+    """Weg in Metern zwischen zwei Punkt-Indizes — über Etappengrenzen (seg) und
+    kaputte Koordinaten hinweg wird nicht gemessen. None ohne brauchbare Punkte.
+    `indizes` (in Zeitfolge) ersetzt den Indexbereich."""
+    weg = 0.0
+    letzte = None
+    gefunden = False
+    for k in (indizes if indizes is not None else range(max(0, a), min(len(points), b + 1))):
+        p = points[k]
+        g = (lambda n: p.get(n) if isinstance(p, dict) else getattr(p, n, None))
+        try:
+            la, lo = float(g("lat")), float(g("lon"))
+        except (TypeError, ValueError):
+            letzte = None
+            continue
+        if not (_math.isfinite(la) and _math.isfinite(lo)):
+            letzte = None
+            continue
+        seg = g("seg") or 0
+        gefunden = True
+        if letzte is not None and letzte[2] == seg:
+            weg += _hav(letzte[0], letzte[1], la, lo)
+        letzte = (la, lo, seg)
+    return weg if gefunden else None
+
+
 def _messen(e: dict, z: Optional[_Zeiten]) -> None:
     e["dauer_s"] = round(max(0.0, e["t1"] - e["t0"]), 1)
-    e["tempo_kmh"] = round(e["strecke_m"] / e["dauer_s"] * 3.6, 1) if e["dauer_s"] > 0 and e["art"] not in ("pause",) else 0.0
     e["hoehe_auf"] = e["hoehe_ab"] = 0
     e["von_idx"] = e["bis_idx"] = None
-    if z is None:
-        return
-    lage = z.bereich(e["t0"], e["t1"])
-    if lage is None:
-        return
-    e["von_idx"], e["bis_idx"] = lage
-    if e["art"] != "pause":
-        hm = hoehenmeter(z.pts, lage[0], lage[1])
-        e["hoehe_auf"], e["hoehe_ab"] = hm["auf"], hm["ab"]
+    lage = z.bereich(e["t0"], e["t1"]) if z is not None else None
+    if lage is not None:
+        e["von_idx"], e["bis_idx"] = lage
+        if e["art"] != "pause":
+            idx = z.indizes(e["t0"], e["t1"])
+            hm = hoehenmeter(z.pts, lage[0], lage[1], idx)
+            e["hoehe_auf"], e["hoehe_ab"] = hm["auf"], hm["ab"]
+            # Die Strecke aus den Punkten nachmessen: Geteilte oder verschobene
+            # Bereiche tragen noch die Strecke des ganzen Bereichs (14.09.2026, das
+            # Logbuch zählte sie doppelt). Ohne Punkte bleibt der gespeicherte Wert.
+            w = strecke(z.pts, lage[0], lage[1], idx)
+            if w is not None:
+                e["strecke_m"] = round(w, 1)
+    e["tempo_kmh"] = round(e["strecke_m"] / e["dauer_s"] * 3.6, 1) if e["dauer_s"] > 0 and e["art"] not in ("pause",) else 0.0
 
 
 def _verschmelzen(folge: List[dict]) -> List[dict]:
@@ -260,6 +320,11 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     for b in sorted(bereiche or [], key=lambda x: (x["t0"], x["t1"])):
         if b.get("art") == "weg":          # Grabstein eines gelöschten Punkts
             continue
+        if b["t1"] < b["t0"] and b.get("art") not in PUNKT_ARTEN:
+            # Rückwärts laufender Bereich: kaputt, kein Punkt „gehen" (14.09.2026)
+            log.warning("logbuch: Bereich %s (%s) endet vor seinem Beginn (%s > %s) — übergangen",
+                        b.get("id"), b.get("art"), b["t0"], b["t1"])
+            continue
         if b.get("art") in PUNKT_ARTEN or b["t1"] <= b["t0"]:
             p = dict(b)
             p["t"] = float(b["t0"])
@@ -291,9 +356,10 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     def bewegter_nachbar(k, schritt):
         m = k + schritt
         while 0 <= m < len(folge):
-            if folge[m]["art"] in BEWEGT:
-                return folge[m]["art"]
-            if folge[m]["art"] == "unsicher":
+            art = FAMILIE.get(folge[m]["art"], folge[m]["art"])   # Hand-Arten → Familie
+            if art in BEWEGT or art == "wassersport":
+                return art
+            if art == "unsicher":
                 return None
             m += schritt
         return None
