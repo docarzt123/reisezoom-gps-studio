@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Performance
+- **Archive: full-text index trigger only fires when searchable text changes.** Every UPDATE on a track (map thumbnail, Track Check, favourite, place lookup) used to rescan the whole FTS index because `path` is UNINDEXED there — measured 4 ms per update at 20 000 tours (200 map thumbnails 822 ms → 3 ms, 20 favourites 134 ms → 1 ms). Existing libraries are switched over on open; index content unchanged. Guard `tests/test_fts_trigger_gezielt.py`. — **Archiv: Volltext-Trigger feuert nur noch bei geändertem Suchtext.**
+
 ## [0.9.718] – 2026-09-14
 
 ### Fixed
