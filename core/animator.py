@@ -95,6 +95,7 @@ def find_ffmpeg() -> str:
 from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
                   unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot,
                   etappen_reihen as core_gpx_etappen)
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from . import i18n as _i18n
 from . import zeitzone as _zeit   # 11.09.2026 — Datum/Uhrzeit in den Einblendungen
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
@@ -1566,7 +1567,7 @@ def tile_cache_clear() -> int:
         return 0
     n = 0
     for f in list(Path(TILE_CACHE_DIR).rglob("*.bin")) + list(Path(TILE_CACHE_DIR).rglob("*.tmp")):
-        try: f.unlink(); n += 1
+        try: _ds.loeschen(f, "kachelcache_leeren", art=_ds.ART_CACHE); n += 1
         except OSError: pass
     return n
 
@@ -1582,7 +1583,7 @@ def _tile_cache_prune(max_mb: int) -> None:
         try:
             st = f.stat()
             if st.st_mtime < grenze:
-                f.unlink(); alt += 1; continue
+                _ds.loeschen(f, "kachelcache_aufraeumen", art=_ds.ART_CACHE); alt += 1; continue
             files.append((st.st_mtime, st.st_size, f))
         except OSError: pass
     if alt:
@@ -1597,7 +1598,7 @@ def _tile_cache_prune(max_mb: int) -> None:
     for _, sz, f in files:
         if total <= ziel:
             break
-        try: f.unlink(); total -= sz; n += 1
+        try: _ds.loeschen(f, "kachelcache_aufraeumen", art=_ds.ART_CACHE); total -= sz; n += 1
         except OSError: pass
     _log.info("Kachel-Zwischenspeicher: %d alte Dateien gelöscht (jetzt %.0f MB, Grenze %d MB)",
               n, total / 2**20, max_mb)
@@ -1679,7 +1680,7 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
                 f.parent.mkdir(parents=True, exist_ok=True)
                 tmp = f.with_name(f.name + f".{os.getpid()}.tmp")
                 tmp.write_bytes(ct.encode("ascii", "ignore") + b"\n" + body)
-                os.replace(tmp, f)
+                _ds.ersetzen(tmp, f, "kachel", art=_ds.ART_CACHE)
                 stats["store"] += 1
             await route.fulfill(status=resp.status, headers={**{k: v for k, v in resp.headers.items()
                                                                  if k.lower() not in ("content-length", "content-encoding", "transfer-encoding")},

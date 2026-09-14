@@ -115,6 +115,7 @@ from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 
 from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
 from core import fotos as cfotos  # 12.09.2026: Foto-Bestand (IDEAS §64), gleiche Datenbank
 from core import bibliothek as cbib  # 02.09.2026: die Tour-Bibliothek (Wahrheit statt Datei-Index)
+from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from core import umzug as cumzug    # 02.09.2026: Altbestand → Bibliothek
 from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
 from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
@@ -284,6 +285,7 @@ def _shrink_data_uri(uri: str, max_px: int = 520, quality: int = 82) -> str:
         return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
     except Exception:
         return uri
+_ds.app_ordner_setzen(APP_SUPPORT)   # 14.09.2026: Bereich + Papierkorb des Dateischutzes
 DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
 TOURMAPS_DIR = Path.home() / "Pictures" / "Reisezoom Tour Maps"
@@ -369,12 +371,47 @@ def _teilreste_wegraeumen(ordner: Path, alter_s: int = 24 * 3600) -> int:
         for f in ordner.glob("*.rzpart"):
             try:
                 if jetzt - f.stat().st_mtime > alter_s:
-                    f.unlink(); weg += 1
+                    # eigene Render-Zwischendatei (RENDERS_DIR liegt im App-Ordner)
+                    _ds.loeschen(f, "renderteil_aufraeumen", art=_ds.ART_TEMP); weg += 1
             except OSError:
                 pass
     except Exception:  # noqa: BLE001
         return weg
     return weg
+
+
+def _nutzerdatei_schreiben(ziel, aktion: str, daten: bytes = None, quelle=None) -> str:
+    """14.09.2026 (Dateischutz) — eine Datei an einen vom Nutzer GEWÄHLTEN Ort schreiben
+    (Speichern-Dialog, Export-Ordner). Erst in eine Temp-Datei daneben, dann über das
+    Tor an ihre Stelle: Ein vorhandener Stand wandert vorher in den Papierkorb von
+    GPS Studio, statt still überschrieben zu werden. Entweder `daten` oder `quelle`
+    (Datei, die kopiert wird — für große Fotos/Videos, ohne alles in den Speicher)."""
+    ziel = str(ziel)
+    _ds.nutzer_ziel(ziel)
+    tmp = f"{ziel}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+    _ds.nutzer_ziel(tmp)
+    try:
+        if quelle is not None:
+            shutil.copy2(str(quelle), tmp)
+        else:
+            with open(tmp, "wb") as fh:
+                fh.write(daten if isinstance(daten, (bytes, bytearray)) else str(daten or "").encode("utf-8"))
+        _ds.ersetzen(tmp, ziel, aktion)
+    finally:
+        try:
+            if os.path.lexists(tmp):
+                _ds.loeschen(tmp, aktion + ":tmp", art=_ds.ART_TEMP)
+        except OSError:
+            pass
+    return ziel
+
+
+def _unter(pfad, ordner) -> bool:
+    """Liegt `pfad` (aufgelöst) in `ordner`?"""
+    try:
+        return Path(os.path.realpath(str(pfad))).is_relative_to(Path(os.path.realpath(str(ordner))))
+    except (OSError, ValueError):
+        return False
 # 03.09.2026 — Kachel-Zwischenspeicher des Renders (Grenze folgt den Einstellungen)
 canim.TILE_CACHE_DIR = APP_SUPPORT / "_tilecache"
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
@@ -782,7 +819,7 @@ def _ladeflagge_schreiben(info: dict) -> None:
         json.dump(info, f, ensure_ascii=False)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, LADEFLAGGE_FILE)
+    _ds.ersetzen(tmp, LADEFLAGGE_FILE, "ladeflagge_speichern", art=_ds.ART_CACHE)
 
 
 # Stand vom letzten Lauf — einmal beim Start gelesen, bevor der erste neue
@@ -935,11 +972,11 @@ def _save_settings(data: dict) -> None:
             json.dump(data, fh, indent=2, ensure_ascii=False)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, SETTINGS_FILE)
+        _ds.ersetzen(tmp, SETTINGS_FILE, "einstellungen_speichern", art=_ds.ART_NUTZERDATEN)
     finally:
         try:
             if tmp.exists():
-                tmp.unlink()
+                _ds.loeschen(tmp, "einstellungen_speichern:tmp", art=_ds.ART_TEMP)
         except OSError:
             pass
 
@@ -1949,7 +1986,8 @@ class Api:
                 return
             VORLAGEN_VORSCHAU.mkdir(parents=True, exist_ok=True)
             for alt in VORLAGEN_VORSCHAU.glob(f"{vorlage_id}.*"):
-                alt.unlink(missing_ok=True)
+                # Vorschaubild — wird gleich aus dem Projektbild neu kopiert
+                _ds.loeschen(alt, "vorlage_vorschau_ersetzen", art=_ds.ART_CACHE)
             shutil.copyfile(q, VORLAGEN_VORSCHAU / f"{vorlage_id}{q.suffix}")
         except Exception:
             log.debug("Vorlagen-Bild", exc_info=True)
@@ -2956,6 +2994,9 @@ class Api:
             pfad = (res[0] if res else "") if isinstance(res, (list, tuple)) else str(res)
         if pfad:
             _dialog_ordner_merken(schluessel, pfad)
+            # Dateischutz: der gewählte Speicherort darf angelegt/ersetzt werden (lang
+            # gültig — ein Render schreibt erst am Ende).
+            _ds.nutzer_ziel(pfad, gueltig_s=12 * 3600)
         return pfad or ""
 
     def pick_file(self, dialog_type: str = "open", file_types: tuple[str, ...] = (), multiple: bool = False) -> list[str]:
@@ -2992,6 +3033,9 @@ class Api:
             raus = list(res) if isinstance(res, (list, tuple)) else [res]
         if raus:
             _dialog_ordner_merken(schluessel, raus[0])
+            if dialog_type == "save":
+                for _gew in raus:   # Dateischutz: gewählter Speicherort
+                    _ds.nutzer_ziel(_gew, gueltig_s=12 * 3600)
         return raus
 
     # ── Tour-Archiv (v0.9.486) ───────────────────────────────────────────────
@@ -3232,6 +3276,7 @@ class Api:
         for d in (LIBRARY_THUMBS, LIBRARY_MAP_THUMBS, LIBRARY_COVERS):
             d.mkdir(parents=True, exist_ok=True)
         BIB_PROBLEM = {}
+        _ds.bereich_anmelden("bibliothek", ort, nur_eigene=True)   # nur GPS-Studio-eigene Einträge
         BIB_BEREIT = True
         log.info("Bibliothek offen: %s", ort)
         # 02.09.2026, nach dem ersten Umzug auf einem echten Rechner: Zwei
@@ -3548,6 +3593,7 @@ class Api:
                     return {"ok": False, "abbruch": True}
             if not str(ziel).lower().endswith(".zip"):
                 ziel = str(ziel) + ".zip"
+            _ds.nutzer_ziel(ziel, gueltig_s=12 * 3600)   # vom Nutzer gewählt; ein vorhandenes ZIP wird gesichert
             res = cbib.zip_sichern(BIB, Path(ziel), alles=bool(alles))
             if res.get("ok"):
                 log.info("[bibliothek] ZIP %s · %s Dateien · %.1f MB%s",
@@ -3699,8 +3745,24 @@ class Api:
             log.exception("bibliothek_wiederherstellen")
             return {"ok": False, "error": str(e)}
 
+    _UMZUG_SPERRE = threading.Lock()
+
     def bibliothek_umziehen(self, pfad: str) -> dict:
-        """Die Bibliothek an einen anderen Ort verschieben — echt verschieben."""
+        """Die Bibliothek an einen anderen Ort verschieben — echt verschieben.
+
+        14.09.2026 (Nutzer-Log Windows): Während ein Umzug noch kopierte, startete der
+        Nutzer über die Einstellungen weitere Umzüge; gescheiterte Versuche öffneten
+        zwischendurch die alte Bibliothek neu. Jetzt läuft höchstens EIN Umzug."""
+        if not Api._UMZUG_SPERRE.acquire(blocking=False):
+            log.warning("Bibliothek umziehen: abgelehnt — es läuft bereits ein Umzug (%s)", pfad)
+            return {"ok": False, "grund": "umzug_laeuft", "error": _ui_t()(
+                "bib.umzug_laeuft", "Die Bibliothek wird gerade schon verschoben. Bitte warten, bis das fertig ist.")}
+        try:
+            return self._bibliothek_umziehen(pfad)
+        finally:
+            Api._UMZUG_SPERRE.release()
+
+    def _bibliothek_umziehen(self, pfad: str) -> dict:
         global BIB_ORT
         try:
             ziel = Path(pfad).expanduser()
@@ -3723,10 +3785,15 @@ class Api:
             cbib.sperre_freigeben(BIB)
             log.info("Bibliothek umziehen: %s → %s (fremde Einträge am alten Ort bleiben: %s)",
                      BIB, ziel, cbib.fremde_eintraege(BIB)[:20])
+            t0 = time.time()
             r = cbib.umziehen(BIB, ziel)
             if not r.get("ok"):
+                log.warning("Bibliothek umziehen GESCHEITERT nach %.1f s: %s → %s · %s", time.time() - t0, BIB, ziel,
+                            {k: v for k, v in r.items() if k != "ok"})
                 self._bib_oeffnen()          # zurück an den alten Ort
                 return r
+            log.info("Bibliothek umgezogen in %.1f s: %s → %s (fremde Einträge blieben am alten Ort: %s)",
+                     time.time() - t0, BIB, ziel, (r.get("fremd_geblieben") or [])[:20])
             try:   # 14.09.2026 — die Cloud-Bindung zieht mit um
                 _m = self._cloud_marker()
                 if _m.get("bibliothek") and BIB and _m["bibliothek"] == str(Path(BIB).expanduser().resolve()):
@@ -5155,6 +5222,8 @@ class Api:
                         _projekte.loeschen(daten, h["id"])
                     _projekte.speichern(DATEN_ORT, daten)
                 log.info("library_trash: %d Projekt(e) mit entfernt", len(halter))
+            # Dateischutz: Der Nutzer wirft GENAU diese Datei bewusst weg.
+            _ds.nutzer_ziel(path)
             res = clib.trash_file(self._lib(), path)
             log.info("library_trash: %s → %s", path, res.get("moved_to", "?"))
             return res
@@ -5339,7 +5408,8 @@ class Api:
                     return {"ok": False, "error": "keine Strecke nach der Reparatur"}
                 cbib.version_bytes_ablegen(BIB, r["data"], gh)
             finally:
-                tmp.unlink(missing_ok=True)
+                # eigene Zwischendatei — die Datei des Nutzers wird hier nie verändert
+                _ds.loeschen(tmp, "reparatur:tmp", art=_ds.ART_TEMP)
             conn = self._lib()
             auf = clib.version_aufnehmen(conn, cbib.version_datei(BIB, gh), LIBRARY_THUMBS, IMPORTS_DIR,
                                          map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
@@ -5565,7 +5635,7 @@ class Api:
                 return {"ok": False, "cancelled": True}
             if not dest.lower().endswith(".gpx"):
                 dest += ".gpx"
-            shutil.copyfile(gpx_path, dest)
+            _nutzerdatei_schreiben(dest, "export_gpx", quelle=gpx_path)
             log.info("export_current_gpx: %s → %s", gpx_path, dest)
             return {"ok": True, "path": dest}
         except Exception as e:
@@ -5591,8 +5661,7 @@ class Api:
                 return {"ok": False, "cancelled": True}
             if not dest.lower().endswith(".csv"):
                 dest += ".csv"
-            with open(dest, "w", encoding="utf-8", newline="") as f:
-                f.write(text)
+            _nutzerdatei_schreiben(dest, "export_csv", daten=text.encode("utf-8"))
             log.info("export_current_csv: %s → %s", gpx_path, dest)
             return {"ok": True, "path": dest}
         except Exception as e:
@@ -5632,8 +5701,8 @@ class Api:
                 return {"ok": False, "cancelled": True}
             if not dest.lower().endswith("." + fmt):
                 dest += "." + fmt
-            with open(dest, "wb") as f:
-                f.write(data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8"))
+            _nutzerdatei_schreiben(dest, f"export_{fmt}",
+                                   daten=data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8"))
             log.info("export_current[%s]: %s → %s", fmt, gpx_path, dest)
             return {"ok": True, "path": dest, "fmt": fmt}
         except Exception as e:
@@ -7877,7 +7946,12 @@ class Api:
             if not b:
                 return {"ok": False, "error": "kein App-Bundle (Entwicklungsstart?)"}
             images = cinstall.images_mit_app()
-            res = cinstall.installieren(b, papierkorb=clib._in_den_papierkorb,
+            # Dateischutz: ältere App-Kopien sind die ausdrückliche Wahl dieses Knopfs
+            # (nutzer_ziel), sie gehen in den System-Papierkorb (rückholbar).
+            def _alte_kopie_weg(k):
+                _ds.nutzer_ziel(k)
+                return clib._in_den_papierkorb(k)
+            res = cinstall.installieren(b, papierkorb=_alte_kopie_weg,
                                         log=lambda m: log.info("Selbst-Installation: %s", m))
             if not res.get("ok"):
                 log.warning("Selbst-Installation fehlgeschlagen: %s", res.get("error"))
@@ -7904,6 +7978,7 @@ class Api:
                 if b and k.resolve() == b.resolve():
                     continue
                 try:
+                    _ds.nutzer_ziel(k)   # überzählige App-Kopie in Programme → System-Papierkorb
                     clib._in_den_papierkorb(k); weg.append(str(k))
                 except Exception as e:  # noqa: BLE001
                     fehler.append(f"{k}: {e}")
@@ -8233,7 +8308,7 @@ class Api:
 
     def _cloud_marker_weg(self) -> None:
         try:
-            CLOUD_MARKER.unlink(missing_ok=True)
+            _ds.loeschen(CLOUD_MARKER, "cloud_marker_weg", art=_ds.ART_NUTZERDATEN)
         except Exception:
             pass
 
@@ -10491,6 +10566,7 @@ class Api:
                 while os.path.exists(out):
                     n += 1
                     out = os.path.join(ordner, f"{stem}_teil{k}-{n}.gpx")
+                _ds.nutzer_ziel(out)   # Dateischutz: neue Teil-Datei neben der Quelle (nie vorhanden)
                 res = cgpxedit.save_points(list(pts or []), out, name=f"{stem} Teil {k}", src_path=src_path,
                                            fmt="gpx", sources=list(sources) if sources else None)
                 if not res.get("ok"):
@@ -10569,6 +10645,7 @@ class Api:
         mehreren zusammengesetzt ist — Punkte verweisen über ihr `si` darauf."""
         try:
             out = out_path or cgpxedit.healed_output_path(src_path or "track.gpx")
+            _ds.nutzer_ziel(out)   # Dateischutz: „Speichern unter"-Ziel bzw. _geheilt neben der Quelle
             base = os.path.splitext(os.path.basename(out))[0]
             res = cgpxedit.save_points(points or [], out, name=base,
                                        src_path=src_path, fmt=fmt,
@@ -10640,12 +10717,12 @@ class Api:
                                        fmt="gpx",
                                        sources=list(sources) if sources else None)
             if not res.get("ok"):
-                tmp.unlink(missing_ok=True)
+                _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
                 return res
 
             neu_gh = self._track_geo_hash(str(tmp))
             if not neu_gh:
-                tmp.unlink(missing_ok=True)
+                _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
                 return {"ok": False, "error": _ui_t()(
                     "gpxinspect.ersetzen_unbekannt", "Diese Datei liegt nicht im Archiv.")}
 
@@ -10653,9 +10730,9 @@ class Api:
             #    dieselbe Version — sie wird aufgefrischt, keine neue angelegt.
             if neu_gh == alt_gh:
                 cbib.version_bytes_ablegen(BIB, tmp.read_bytes(), neu_gh)
-                tmp.unlink(missing_ok=True)
-                # Der ausgepackte Arbeitsstand ist jetzt veraltet.
-                (GPX_CACHE_DIR / f"{neu_gh}.gpx").unlink(missing_ok=True)
+                _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
+                # Der ausgepackte Arbeitsstand ist jetzt veraltet (neu erzeugbar).
+                _ds.loeschen(GPX_CACHE_DIR / f"{neu_gh}.gpx", "track_ersetzen:cache", art=_ds.ART_CACHE)
                 log.info("Version aufgefrischt (nur Zeit geheilt): %s", neu_gh[:12])
                 return {"ok": True, "out_path": pfad, "geo_hash": neu_gh,
                         "fassung": 0, "nur_zeit": True,
@@ -10689,7 +10766,7 @@ class Api:
 
             daten_neu = tmp.read_bytes()
             cbib.version_bytes_ablegen(BIB, daten_neu, neu_gh)
-            tmp.unlink(missing_ok=True)
+            _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
 
             auf = clib.version_aufnehmen(
                 conn, cbib.version_datei(BIB, neu_gh), LIBRARY_THUMBS, IMPORTS_DIR,
@@ -11073,7 +11150,8 @@ class Api:
             PROJEKT_VORSCHAU.mkdir(parents=True, exist_ok=True)
             for alt in PROJEKT_VORSCHAU.glob(f"{pid}.*"):
                 if alt.suffix != ext:
-                    alt.unlink(missing_ok=True)
+                    # altes Vorschaubild in anderem Format — wird gleich neu geschrieben
+                    _ds.loeschen(alt, "projekt_vorschau_ersetzen", art=_ds.ART_CACHE)
             (PROJEKT_VORSCHAU / f"{pid}{ext}").write_bytes(raw)
             return {"ok": True}
         except Exception as e:
@@ -11556,7 +11634,7 @@ class Api:
                 return {"ok": False, "cancelled": True}
             if not str(ziel).lower().endswith(".gpx"):
                 ziel = str(ziel) + ".gpx"
-            shutil.copy2(quelle, ziel)
+            _nutzerdatei_schreiben(ziel, "version_exportieren", quelle=quelle)
             log.info("Version %s exportiert → %s", str(geo_hash)[:12], ziel)
             return {"ok": True, "out_path": str(ziel)}
         except Exception as e:
@@ -11578,7 +11656,7 @@ class Api:
                 return {"ok": False, "error": _ui_t()("library.fassung_kein_snapshot",
                         "Für diese Fassung liegt keine Kopie mehr vor.")}
             if ziel_pfad:
-                shutil.copy2(snap, ziel_pfad)
+                _nutzerdatei_schreiben(ziel_pfad, "fassung_als_kopie", quelle=snap)
                 return {"ok": True, "out_path": ziel_pfad}
             # 02.09.2026 (Schnitt 3) — Wiederherstellen heißt ab jetzt: Diese
             # Version wird wieder die aktuelle. Vorher wurde dafür die DATEI
@@ -13000,7 +13078,17 @@ class Api:
         """v0.9.343 — Ein EXIF-Feld direkt aus der Vorschau editieren. Schreibt den
         Wert ins Foto und liefert die frisch gelesenen EXIF-Daten zurück."""
         try:
-            cexif.write_exif_tag(path, tag, value)
+            # 14.09.2026 (Dateischutz, Marc: „immer ein Backup"): Das Foto ist bewusst
+            # gewählt (nutzer_ziel). Liegt es nicht als eigene Drag-&-Drop-Kopie in der
+            # App, wird es VOR dem Schreiben als ZIP gesichert; scheitert das, bleibt
+            # das Foto unverändert.
+            _ds.nutzer_ziel(path)
+            gesichert = _unter(path, DROPS_DIR)
+            if not gesichert:
+                zp = cbak.make_photo_backup([path], str(BACKUPS_DIR / "exif_einzeln"), label="exif")
+                log.info("geotagger_write_exif_tag: Sicherung vor dem Schreiben → %s", zp)
+                gesichert = True
+            cexif.write_exif_tag(path, tag, value, gesichert=gesichert)
             d = cexif.read_photo_details(path)
             ro = [k for k in (d.get("all") or {}) if not cexif.exif_tag_writable(k)]
             return {"ok": True, "readonly": ro, **d}
@@ -13198,6 +13286,10 @@ class Api:
             # dest_dir=="" → Legacy-In-Place. Alle Pfade (items + exif_edits +
             # set_time_paths + offset_by_path) werden auf die Kopien umgebogen, damit
             # Phase B/C automatisch dort schreiben.
+            # 14.09.2026 (Dateischutz): Kopien, die DIESER Vorgang im Zielordner anlegt —
+            # nur die gelten als „gesichert" (Original unberührt) und nur die dürfen beim
+            # Abbruch wieder weg.
+            kopien: set = set()
             if dest_dir:
                 import shutil as _sh
                 src_list: list[str] = []
@@ -13230,6 +13322,7 @@ class Api:
                         # Ziel == Original → nur mit ausdrücklicher Bestätigung in-place
                         if overwrite_originals:
                             path_map[src] = src
+                            used_out.add(out)   # keine Kopie eines gleichnamigen Fotos darf darauf landen
                         else:
                             path_map[src] = None
                             with self._write_lock:
@@ -13248,8 +13341,14 @@ class Api:
                         out = os.path.join(dest_dir, f"{_stem}_{_k}{_ext}")
                     used_out.add(out)
                     try:
+                        _ds.nutzer_ziel(out, gueltig_s=12 * 3600)   # vom Nutzer gewählter Zielordner
+                        if os.path.lexists(out):
+                            # Ein früherer Stand im Zielordner wird nicht still überschrieben,
+                            # sondern wandert in den Papierkorb von GPS Studio.
+                            _ds.loeschen(out, "geotagger_ziel_ersetzen")
                         _sh.copy2(src, out)
                         path_map[src] = out
+                        kopien.add(out)
                     except Exception as e_cp:
                         log.exception("_write_worker_run: Kopie fehlgeschlagen: %s", src)
                         path_map[src] = None
@@ -13274,6 +13373,78 @@ class Api:
             else:
                 log.info("_write_worker_run: dest_dir leer → Legacy-In-Place (kein Kopieren)")
 
+            def _kopien_wegraeumen(pfade) -> int:
+                """Nur Kopien DIESES Vorgangs (nie Originale) entfernen."""
+                n = 0
+                for _pth in pfade:
+                    try:
+                        if _pth and _pth in kopien and os.path.exists(_pth):
+                            _ds.nutzer_ziel(_pth)
+                            _ds.loeschen(_pth, "geotagger_abbruch_kopie", art=_ds.ART_TEMP)
+                            n += 1
+                    except Exception:
+                        log.debug("Abbruch-Aufräumen: %s nicht entfernbar", _pth)
+                return n
+
+            # Phase A (14.09.2026, Dateischutz — Marc: „immer ein Backup"): Alles, was
+            # IN-PLACE geschrieben würde (kein Zielordner, oder Zielordner = Ordner der
+            # Originale mit Bestätigung), wird vorher als ZIP gesichert — unabhängig von
+            # `make_backup`. Scheitert oder bricht die Sicherung ab, wird nichts davon
+            # verändert. Kopien im Zielordner und eigene Drag-&-Drop-Kopien brauchen keine
+            # Sicherung: Das Original bleibt dort unberührt.
+            gesichert_pfade: set = set(kopien)
+            _alle: list = []
+            _alle_seen: set = set()
+            for _p in [m.get("path") for m in items] + list((exif_edits or {}).keys()):
+                if _p and _p not in _alle_seen:
+                    _alle_seen.add(_p)
+                    _alle.append(_p)
+            inplace: list = []
+            for _p in _alle:
+                if _p in kopien:
+                    continue
+                if _unter(_p, DROPS_DIR):
+                    gesichert_pfade.add(_p)
+                    continue
+                inplace.append(_p)
+            if inplace:
+                log.info("_write_worker_run: Phase A — %d Foto(s) werden in-place geschrieben → "
+                         "Pflicht-Sicherung (make_backup=%s wird dafür nicht beachtet)", len(inplace), make_backup)
+
+                def _backup_fortschritt(i, n, name):
+                    with self._write_lock:
+                        self._write_state["current_name"] = f"Sicherung {i + 1}/{n}: {name}"
+                try:
+                    zp = cbak.make_photo_backup(
+                        inplace, str(BACKUPS_DIR), label="geotag",
+                        should_cancel=lambda: bool(self._write_state.get("cancel")),
+                        on_progress=_backup_fortschritt)
+                    gesichert_pfade.update(inplace)
+                    with self._write_lock:
+                        self._write_state["backup_path"] = zp
+                    log.info("_write_worker_run: Phase A — Sicherung fertig → %s", zp)
+                except cbak.BackupCancelled:
+                    log.info("_write_worker_run: Phase A — Sicherung abgebrochen, NICHTS wird geschrieben")
+                    with self._write_lock:
+                        self._write_state["cancelled"] = True
+                    _rest = _kopien_wegraeumen(list(kopien))
+                    log.info("_write_worker_run: Abbruch — %d Kopie(n) entfernt", _rest)
+                    return
+                except Exception as e_bk:
+                    log.exception("_write_worker_run: Phase A — Sicherung FEHLGESCHLAGEN → Originale bleiben unverändert")
+                    with self._write_lock:
+                        self._write_state["errors"].append(
+                            f"Sicherung fehlgeschlagen — Originale werden nicht verändert: {e_bk}")
+                    if not kopien:
+                        return
+                    # Kopien im Zielordner laufen weiter, nur die In-Place-Fotos fallen raus.
+                    _raus = set(inplace)
+                    items = [m for m in items if m.get("path") not in _raus]
+                    if exif_edits:
+                        exif_edits = {p_: t_ for p_, t_ in exif_edits.items() if p_ not in _raus}
+                    with self._write_lock:
+                        self._write_state["skipped"] = self._write_state.get("skipped", 0) + len(_raus)
+
             # Phase B: pro Foto schreiben
             log.info("_write_worker_run: Phase B — schreibe GPS in %d Fotos", len(items))
             for idx, m in enumerate(items):
@@ -13284,16 +13455,11 @@ class Api:
                         # 22.08.2026 (Audit): im Kopier-Modus blieben die noch
                         # ungetaggten Kopien im Zielordner liegen — Nutzer hielt
                         # sie für fertig. Nur Kopien (nie Originale) entfernen.
+                        # 14.09.2026: nur echte Kopien dieses Vorgangs — vorher genügte
+                        # „liegt im Zielordner", und bei „Originale überschreiben" (Ziel =
+                        # Ordner der Originale) hätte das die ungetaggten ORIGINALE gelöscht.
                         if dest_dir:
-                            _rest = 0
-                            for _m in items[idx:]:
-                                _pth = _m.get("path") or ""
-                                try:
-                                    if _pth and os.path.dirname(_pth) == dest_dir and os.path.exists(_pth):
-                                        os.remove(_pth)
-                                        _rest += 1
-                                except Exception:
-                                    log.debug("Abbruch-Aufräumen: %s nicht entfernbar", _pth)
+                            _rest = _kopien_wegraeumen([_m.get("path") or "" for _m in items[idx:]])
                             log.info("_write_worker_run: Abbruch — %d ungetaggte Kopie(n) entfernt", _rest)
                         break
                     self._write_state["current_name"] = os.path.basename(m["path"])
@@ -13305,6 +13471,8 @@ class Api:
                         ts = datetime.fromisoformat(m["matched_time_utc"])
                     path = m["path"]
                     has_gps = bool(m.get("existing_gps"))
+                    _ds.nutzer_ziel(path)                  # bewusst gewähltes Foto / Kopie im Zielordner
+                    _gs = path in gesichert_pfade          # Sicherung (ZIP) oder eigene Kopie vorhanden
 
                     # v0.9.336/337: Blickrichtung — nur geloggt (rz:hdg) ODER manuell
                     # gesetzt (nie reine Bewegungs-Schätzung).
@@ -13341,17 +13509,17 @@ class Api:
                         log.info("_write_worker_run: [%d/%d] write_gps(%s) → %s lat=%s lon=%s alt=%s dir=%s",
                                  idx + 1, len(items), mode, path, m.get("lat"), m.get("lon"), alt_val, img_dir)
                         cexif.write_gps(path, float(m["lat"]), float(m["lon"]), alt_val, ts,
-                                        img_dir if img_dir is not None else None)
+                                        img_dir if img_dir is not None else None, gesichert=_gs)
                     elif img_dir is not None:
                         # Eigenes GPS behalten, nur die Blickrichtung ergänzen.
                         log.info("_write_worker_run: [%d/%d] nur Richtung ergänzen → %s dir=%s",
                                  idx + 1, len(items), path, img_dir)
-                        cexif.write_img_direction(path, img_dir)
+                        cexif.write_img_direction(path, img_dir, gesichert=_gs)
 
                     # Adresse (IPTC/XMP) — getrennt, da formatübergreifend via exiftool.
                     if addr is not None:
                         try:
-                            cexif.write_location(path, addr)
+                            cexif.write_location(path, addr, gesichert=_gs)
                         except Exception as e_addr:
                             log.exception("_write_worker_run: [%d/%d] write_location fehlgeschlagen für %s",
                                           idx + 1, len(items), path)
@@ -13366,7 +13534,7 @@ class Api:
                     # zwei Kameras mit falsch gestellter Uhr laufen in Lightroom synchron.
                     if m["path"] in set_time_paths and ts is not None:
                         try:
-                            cexif.set_datetime(m["path"], ts)
+                            cexif.set_datetime(m["path"], ts, gesichert=_gs)
                             log.info("_write_worker_run: [%d/%d] set_datetime aus Track OK → %s (%s)",
                                      idx + 1, len(items), m.get("path"), ts)
                         except Exception as e3:
@@ -13381,7 +13549,7 @@ class Api:
                     _shift = (offset_by_path or {}).get(m["path"], offset_seconds)
                     if adjust_photo_time and _shift:
                         try:
-                            if not cexif.shift_datetime(m["path"], _shift):
+                            if not cexif.shift_datetime(m["path"], _shift, gesichert=_gs):
                                 # 22.08.2026 (Audit): Videos/unbekannte Typen
                                 # liefen still durch — jetzt sichtbar im Protokoll.
                                 raise RuntimeError("Dateityp unterstützt keine Zeit-Korrektur")
@@ -13420,7 +13588,8 @@ class Api:
                     # eine Deadlock-Fläche → App-Freeze 2026-06-30). Jetzt: die
                     # Datei wird EINMAL geschrieben, mit Timeout im Daemon abgesichert.
                     try:
-                        cexif.write_exif_tags(path, tags)
+                        _ds.nutzer_ziel(path)
+                        cexif.write_exif_tags(path, tags, gesichert=path in gesichert_pfade)
                         log.info("_write_worker_run: EXIF-Batch %d Feld(er) → %s",
                                  len(tags), path)
                     except Exception as e_ex:
@@ -13468,7 +13637,6 @@ class Api:
 
         `items`: Liste mit {src: <_drops-Pfad>, name: <Original-Dateiname>}
         """
-        import shutil
         try:
             if not dest_folder or not os.path.isdir(dest_folder):
                 return {"ok": False, "error": _ui_t()("error.kein_gueltiger_zielordner", "Kein gültiger Zielordner")}
@@ -13487,7 +13655,7 @@ class Api:
                         # Ziel == Quelle (sollte bei _drops nie passieren) → skip
                         skipped += 1
                         continue
-                    shutil.copy2(src, dst)
+                    _nutzerdatei_schreiben(dst, "geotagger_export", quelle=src)
                     exported += 1
                 except Exception as e:
                     errors.append(f"{name}: {e}")
@@ -13509,11 +13677,14 @@ class Api:
             skipped = 0
             errors = []
             backup_path = None
-            if make_backup:
-                photo_paths = [m["path"] for m in matches if m.get("lat") is not None]
-                if photo_paths:
-                    backup_path = cbak.make_photo_backup(photo_paths, str(BACKUPS_DIR),
-                                                        label="geotag")
+            # 14.09.2026 (Dateischutz): Dieser Weg schreibt IN die Fotos — die Sicherung ist
+            # Pflicht, `make_backup` wird nicht mehr beachtet. Scheitert sie, wirft
+            # make_photo_backup und es wird nichts geschrieben.
+            photo_paths = [m["path"] for m in matches if m.get("lat") is not None]
+            if photo_paths:
+                backup_path = cbak.make_photo_backup(photo_paths, str(BACKUPS_DIR),
+                                                    label="geotag")
+                log.info("geotagger_write: Sicherung → %s (make_backup=%s)", backup_path, make_backup)
             for m in matches:
                 if m.get("lat") is None or m.get("lon") is None:
                     skipped += 1
@@ -13523,11 +13694,13 @@ class Api:
                     if m.get("matched_time_utc"):
                         ts = datetime.fromisoformat(m["matched_time_utc"])
                     img_dir = m.get("dir") if m.get("dir_src") == "logged" else None
+                    _ds.nutzer_ziel(m["path"])
                     cexif.write_gps(m["path"],
                                     float(m["lat"]), float(m["lon"]),
                                     float(m["alt"]) if m.get("alt") is not None else None,
                                     ts,
-                                    float(img_dir) if img_dir is not None else None)
+                                    float(img_dir) if img_dir is not None else None,
+                                    gesichert=bool(backup_path))
                     written += 1
                 except Exception as e:
                     errors.append(f"{m['path']}: {e}")
@@ -13624,19 +13797,26 @@ def _prepare_html_with_cache_busting() -> str:
     # Maschine lagen dadurch 28 dieser Dateien herum. Statt den Ausstieg
     # umzubauen (der hat einen guten Grund, siehe `_on_closing`) räumen wir
     # beim Start auf: Was älter als ein Tag ist, kann niemand mehr brauchen.
+    # 14.09.2026 (Dateischutz): Die Datei liegt in einem EIGENEN Unterordner des
+    # System-Temp-Ordners, der als Temp-Bereich gemerkt ist — so räumt das Tor nur dort
+    # auf und nie im gemeinsamen Temp-Ordner. (Alte Dateien direkt im Temp-Ordner aus
+    # früheren Fassungen räumt das Betriebssystem selbst weg.)
+    html_ordner = Path(tempfile.gettempdir()) / "reisezoom_gps_html"
+    html_ordner.mkdir(parents=True, exist_ok=True)
+    _ds.temp_ordner_merken(html_ordner)
     try:
         jetzt = time.time()
-        for alt in Path(tempfile.gettempdir()).glob("reisezoom_gps_*.html"):
+        for alt in html_ordner.glob("reisezoom_gps_*.html"):
             try:
                 if jetzt - alt.stat().st_mtime > 86400:
-                    alt.unlink()
+                    _ds.loeschen(alt, "start_html_aufraeumen", art=_ds.ART_TEMP)
             except OSError:
                 pass
     except Exception:       # noqa: BLE001 — Aufräumen darf den Start nie kippen
         pass
 
     tmp = tempfile.NamedTemporaryFile(
-        prefix="reisezoom_gps_", suffix=".html",
+        prefix="reisezoom_gps_", suffix=".html", dir=str(html_ordner),
         delete=False, mode="w", encoding="utf-8",
     )
     tmp.write(html)
@@ -13761,7 +13941,10 @@ def _reset_einstellungen(grund: str = "") -> dict:
         if SETTINGS_FILE.exists():
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
             ziel = SETTINGS_FILE.with_name(f"settings.reset-{ts}.json")
-            SETTINGS_FILE.rename(ziel)
+            _n = 2
+            while ziel.exists():   # zwei Resets in derselben Sekunde: keine Sicherung überschreiben
+                ziel = SETTINGS_FILE.with_name(f"settings.reset-{ts}-{_n}.json"); _n += 1
+            _ds.umbenennen(SETTINGS_FILE, ziel, "einstellungen_reset")
             sicherung = str(ziel)
         neu = json.loads(json.dumps(DEFAULT_SETTINGS))
         for k in RESET_BEHALTEN:
@@ -13856,6 +14039,17 @@ def main() -> None:
     _reste = _teilreste_wegraeumen(RENDERS_DIR)
     if _reste:
         log.info("Render-Teildateien aufgeraeumt: %d", _reste)
+
+    # 14.09.2026 — Papierkorb des Dateischutzes: alte Sicherungen (14 Tage / Größengrenze)
+    # einmal je Start im Hintergrund entfernen, verzögert, damit der Start nicht wartet.
+    def _papierkorb_spaeter():
+        try:
+            time.sleep(30)
+            res = _ds.papierkorb_aufraeumen()
+            log.info("Dateischutz-Papierkorb aufgeräumt: %s", res)
+        except Exception:  # noqa: BLE001 — Aufräumen darf nie etwas kippen
+            log.exception("Dateischutz-Papierkorb aufräumen")
+    threading.Thread(target=_papierkorb_spaeter, name="papierkorb-aufraeumen", daemon=True).start()
     html_path = _prepare_html_with_cache_busting()
 
     # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER aus Settings
@@ -14256,7 +14450,7 @@ def main() -> None:
         webview.start(debug=debug, private_mode=False)
     # Cleanup beim Shutdown
     try:
-        os.unlink(html_path)
+        _ds.loeschen(html_path, "start_html_beenden", art=_ds.ART_TEMP)
     except OSError:
         pass
     try:

@@ -20,11 +20,12 @@ from __future__ import annotations
 import os
 import plistlib
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Callable, Optional
+
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 APP_NAME = "Reisezoom GPS Studio"
 ZIEL_ORDNER = Path("/Applications")
@@ -117,12 +118,22 @@ def installieren(quelle: Path, ziel_ordner: Path = ZIEL_ORDNER, *,
     if not os.access(ziel_ordner, os.W_OK):
         return {"ok": False, "error": "Programme-Ordner nicht beschreibbar", "grund": "rechte"}
     tmp = ziel_ordner / f"{APP_NAME}.app.neu"
+    # Die „.neu"-Kopie ist unsere eigene Zwischenstufe dieses Vorgangs. Sie liegt in
+    # /Applications (kein GPS-Studio-Bereich) → genau diesen Pfad anmelden.
+    _ds.nutzer_ziel(tmp)
+
+    def _tmp_weg() -> None:
+        try:
+            _ds.ordner_loeschen(tmp, "installation", art=_ds.ART_TEMP, ignore_errors=True)
+        except OSError:
+            pass
+
     if tmp.exists():
-        shutil.rmtree(tmp, ignore_errors=True)
+        _tmp_weg()
     say(f"kopiere {quelle} → {tmp}")
     r = _run(["ditto", str(quelle), str(tmp)], timeout=600)
     if r.returncode != 0 or not tmp.exists():
-        shutil.rmtree(tmp, ignore_errors=True)
+        _tmp_weg()
         return {"ok": False, "error": (r.stderr or "ditto fehlgeschlagen").strip()[:300]}
     _quarantaene_weg(tmp)
     ersetzt = []
@@ -130,16 +141,20 @@ def installieren(quelle: Path, ziel_ordner: Path = ZIEL_ORDNER, *,
         if alt.resolve() == quelle.resolve():
             continue
         try:
+            # Der Nutzer hat die Installation bestätigt; ersetzt wird genau diese Kopie.
+            _ds.nutzer_ziel(alt)
             if papierkorb:
                 papierkorb(alt)
             else:
-                shutil.rmtree(alt)
+                # Ein ersetztes App-Bundle ist jederzeit neu ladbar → kein GPS-Papierkorb.
+                _ds.ordner_loeschen(alt, "installation", art=_ds.ART_CACHE)
             ersetzt.append(str(alt))
             say(f"alte Kopie weg: {alt}")
         except Exception as e:  # noqa: BLE001
-            shutil.rmtree(tmp, ignore_errors=True)
+            _tmp_weg()
             return {"ok": False, "error": f"Alte Kopie lässt sich nicht entfernen: {alt} ({e})"}
-    tmp.rename(ziel)
+    _ds.nutzer_ziel(ziel)
+    _ds.umbenennen(tmp, ziel, "installation")
     say(f"installiert: {ziel}")
     return {"ok": True, "ziel": str(ziel), "ersetzt": ersetzt}
 

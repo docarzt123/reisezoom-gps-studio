@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Optional
+
+from . import dateischutz as _ds
 
 log = logging.getLogger("core.vorlagen")
 
@@ -86,7 +87,8 @@ def laden(app_support: Path) -> dict:
         except Exception as e:  # noqa: BLE001 — kaputte Datei darf die App nicht stoppen
             log.error("vorlagen.json unlesbar: %s", e)
             try:
-                p.rename(p.with_suffix(".json.kaputt-" + time.strftime("%Y%m%d-%H%M%S")))
+                _ds.umbenennen(p, p.with_suffix(".json.kaputt-" + time.strftime("%Y%m%d-%H%M%S")),
+                               "vorlagen_kaputt")
             except Exception:  # noqa: BLE001
                 pass
     return {"schema": SCHEMA, "vorlagen": {}, "standard": ""}
@@ -99,7 +101,7 @@ def speichern(app_support: Path, daten: dict) -> None:
         tmp = p.with_suffix(".json.tmp")
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(daten, fh, ensure_ascii=False, indent=1)
-        os.replace(tmp, p)
+        _ds.ersetzen(tmp, p, "vorlagen_speichern")
 
 
 # ── Filter ──────────────────────────────────────────────────────────────────

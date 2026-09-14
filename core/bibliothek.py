@@ -35,12 +35,13 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import tempfile
 import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+from . import dateischutz as _ds
 
 SCHEMA_STAND = 1
 KENNDATEI = "bibliothek.json"
@@ -120,7 +121,7 @@ def ort_schreiben(app_support: Path, ort: Path) -> None:
                                "gewaehlt_am": datetime.now().astimezone().isoformat(timespec="seconds"),
                                "vorher": rein[:VORHER_MAX]},
                               ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, z)
+    _ds.ersetzen(tmp, z, "bib_zeiger")
 
 
 def vorherige_orte(app_support: Path) -> list:
@@ -333,9 +334,8 @@ def sperre_uebernehmen(ort: Path) -> dict:
     except Exception:
         alt = {}
     try:
-        s.unlink()
-    except FileNotFoundError:
-        pass
+        # Die Sperre ist eine reine Laufzeit-Markierung ohne Inhalt, der verloren gehen könnte.
+        _ds.loeschen(s, "sperre_uebernehmen", art=_ds.ART_CACHE)
     except OSError as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "war": alt}
@@ -347,7 +347,7 @@ def sperre_freigeben(ort: Path) -> None:
     try:
         d = json.loads(s.read_text(encoding="utf-8"))
         if int(d.get("pid") or 0) == os.getpid() and _gleicher_rechner(d):
-            s.unlink()
+            _ds.loeschen(s, "sperre_freigeben", art=_ds.ART_CACHE)   # eigene Laufzeit-Markierung
     except Exception:
         pass
 
@@ -441,7 +441,9 @@ def db_sichern(ort: Path) -> Optional[Path]:
     alt = sorted(ziel_dir.glob("library-*.db"))
     for x in alt[:-SICHERUNGEN_MAX]:
         try:
-            x.unlink()
+            # Rollierende DB-Kopien, die wir selbst angelegt haben: redundante Kopien der
+            # lebenden library.db (die neuesten SICHERUNGEN_MAX bleiben) — kein Papierkorb.
+            _ds.loeschen(x, "db_sicherung_rollieren", art=_ds.ART_CACHE)
         except OSError:
             pass
     return ziel
@@ -474,13 +476,14 @@ def db_wiederherstellen(ort: Path, datei: str) -> dict:
     try:
         stempel = time.strftime("%Y%m%d-%H%M%S")
         if ziel.is_file():
-            ziel.rename(ziel.with_name(f'library-defekt-{stempel}.db'))
+            _ds.umbenennen(ziel, ziel.with_name(f'library-defekt-{stempel}.db'), "db_wiederherstellen")
         # Die -wal/-shm der kaputten Datenbank gehören zu IHR. Blieben sie liegen,
         # wendete SQLite sie beim nächsten Öffnen auf die zurückgeholte Sicherung an.
         for endung in WAL_BEGLEITER:
             begleiter = ziel.with_name(ziel.name + endung)
             if begleiter.exists():
-                begleiter.rename(ziel.with_name(f'library-defekt-{stempel}.db{endung}'))
+                _ds.umbenennen(begleiter, ziel.with_name(f'library-defekt-{stempel}.db{endung}'),
+                               "db_wiederherstellen")
         shutil.copy2(quelle, ziel)
         return {"ok": True}
     except OSError as e:
@@ -555,7 +558,7 @@ def _als_gpx(quelle: Path, cache: Optional[Path]) -> tuple[Path, Optional[str]]:
     tmpdir = None
     ziel_cache = cache
     if ziel_cache is None:
-        tmpdir = tempfile.mkdtemp(prefix="rz-umwandlung-")
+        tmpdir = str(_ds.temp_ordner(prefix="rz-umwandlung-"))
         ziel_cache = Path(tmpdir)
     return Path(_imp.ensure_gpx(str(quelle), ziel_cache)), tmpdir
 
@@ -589,7 +592,7 @@ def version_ablegen(ort: Path, quelle: Path, version_id: str,
         if magie == GZIP_MAGIE:
             # Schon gepackt (unser Speicher, ein Strava-Export) — 1:1 übernehmen.
             shutil.copyfile(quelle, tmp)
-            os.replace(tmp, ziel)
+            _ds.ersetzen(tmp, ziel, "version_ablegen")
             return ziel
         if ziel.is_file() and ziel.stat().st_size > 0:      # inzwischen von nebenan abgelegt
             return ziel
@@ -597,16 +600,17 @@ def version_ablegen(ort: Path, quelle: Path, version_id: str,
         try:
             with open(gpx, "rb") as f_in, gzip.open(tmp, "wb", compresslevel=6) as f_out:
                 shutil.copyfileobj(f_in, f_out, length=1024 * 256)
-            os.replace(tmp, ziel)
+            _ds.ersetzen(tmp, ziel, "version_ablegen")
         finally:
             if tmpdir:
-                shutil.rmtree(tmpdir, ignore_errors=True)
+                _ds.ordner_loeschen(tmpdir, "version_ablegen", art=_ds.ART_TEMP, ignore_errors=True)
         return ziel
     finally:
         # 14.09.2026 — bricht es zwischen Anlegen und Umbenennen ab (voller Datenträger,
         # kaputte Quelle), bliebe die Zwischendatei sonst für immer liegen.
         try:
-            tmp.unlink(missing_ok=True)
+            if os.path.lexists(tmp):
+                _ds.loeschen(tmp, "version_ablegen", art=_ds.ART_TEMP)
         except OSError:
             pass
 
@@ -642,7 +646,7 @@ def _aus_sich_selbst_heilen(ort: Path, vid: str, cache=None) -> bool:
     endung = _format_raten(roh)
     if not endung:
         return False
-    tmpdir = Path(tempfile.mkdtemp(prefix="rz-heilen-"))
+    tmpdir = _ds.temp_ordner(prefix="rz-heilen-")
     try:
         quelle = tmpdir / f"{vid}{endung}"
         quelle.write_bytes(roh)
@@ -655,7 +659,7 @@ def _aus_sich_selbst_heilen(ort: Path, vid: str, cache=None) -> bool:
     except Exception:           # noqa: BLE001
         return False
     finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        _ds.ordner_loeschen(tmpdir, "version_heilen", art=_ds.ART_TEMP, ignore_errors=True)
 
 
 def versionen_reparieren(ort: Path, quelle_fuer, umwandlung_cache=None) -> dict:
@@ -725,7 +729,7 @@ def version_bytes_ablegen(ort: Path, daten: bytes, version_id: str) -> Path:
     tmp = ziel.with_suffix(f".tmp{os.getpid()}-{_th.get_ident()}-{_uuid.uuid4().hex[:6]}")
     with gzip.open(tmp, "wb", compresslevel=6) as f_out:
         f_out.write(daten)
-    os.replace(tmp, ziel)
+    _ds.ersetzen(tmp, ziel, "version_bytes_ablegen")
     return ziel
 
 
@@ -745,8 +749,8 @@ def version_auspacken(ort: Path, version_id: str, ziel: Path) -> Path:
 
 def version_weg(ort: Path, version_id: str) -> bool:
     try:
-        version_datei(ort, version_id).unlink()
-        return True
+        # Eine Tour-Version ist Nutzerdatenbestand → Papierkorb (fehlt sie, bleibt es bei False).
+        return _ds.loeschen(version_datei(ort, version_id), "version_weg")
     except OSError:
         return False
 
@@ -830,7 +834,7 @@ def ort_vergessen(app_support: Path, pfad: str) -> bool:
     tmp = z.with_suffix(f".tmp{os.getpid()}")
     try:
         tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp, z)
+        _ds.ersetzen(tmp, z, "bib_ort_vergessen")
     except OSError:
         return False
     return True
@@ -889,6 +893,7 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
     schnapp = None
     if db.is_file():
         schnapp = ziel.with_name(ziel.name + f".db{os.getpid()}")
+        _ds.nutzer_ziel(schnapp)      # unsere eigene Zwischendatei neben dem gewählten Ziel
         if db_schnappschuss(db, schnapp):
             dateien.insert(0, (schnapp, db.relative_to(ort)))
         else:
@@ -897,6 +902,11 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
 
     ziel.parent.mkdir(parents=True, exist_ok=True)
     tmp = ziel.with_name(ziel.name + f".teil{os.getpid()}")
+    _ds.nutzer_ziel(tmp)              # unsere eigene Zwischendatei neben dem gewählten Ziel
+    if not os.path.lexists(ziel):
+        # Eine NEUE Datei anzulegen, kann nichts zerstören. Ein vorhandenes Ziel zu ersetzen,
+        # muss der Aufrufer (Speichern-Dialog) ausdrücklich per _ds.nutzer_ziel freigeben.
+        _ds.nutzer_ziel(ziel)
     roh = 0
     try:
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
@@ -911,17 +921,17 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
                         fortschritt(i, len(dateien))
                     except Exception:
                         pass
-        os.replace(tmp, ziel)
+        _ds.ersetzen(tmp, ziel, "bib_zip")
     except (OSError, ValueError) as e:
         try:
-            tmp.unlink()
+            _ds.loeschen(tmp, "bib_zip", art=_ds.ART_TEMP)
         except OSError:
             pass
         return {"ok": False, "error": str(e)}
     finally:
         if schnapp is not None:
             try:
-                schnapp.unlink()
+                _ds.loeschen(schnapp, "bib_zip", art=_ds.ART_TEMP)
             except OSError:
                 pass
     return {"ok": True, "pfad": str(ziel), "dateien": len(dateien),
@@ -1053,6 +1063,18 @@ def fremde_eintraege(ort: Path) -> list:
         return []
 
 
+def _bestand(wurzel: Path, eintraege: list) -> dict:
+    """Relativer Pfad → Größe aller Dateien unter den gegebenen Einträgen (ohne Sperre/tmp)."""
+    raus = {}
+    for e in eintraege:
+        kandidaten = [e] if e.is_file() else [x for x in e.rglob("*") if x.is_file()]
+        for f in kandidaten:
+            if f.name == SPERRDATEI or ".tmp" in f.name:
+                continue
+            raus[str(f.relative_to(wurzel))] = f.stat().st_size
+    return raus
+
+
 def umziehen(alt: Path, neu: Path, melden=None) -> dict:
     """Die Bibliothek an einen anderen Ort verschieben — echt verschieben,
     nicht neu anfangen. Der alte Ort bleibt stehen, bis der neue vollständig
@@ -1071,6 +1093,12 @@ def umziehen(alt: Path, neu: Path, melden=None) -> dict:
         return {"ok": False, "cloud": grund}
     if neu.exists() and any(neu.iterdir() if neu.is_dir() else [1]):
         return {"ok": False, "grund": "ziel_nicht_leer"}
+    # 14.09.2026 — Dateischutz: beide Enden des Umzugs sind Bereiche, in denen nur die
+    # EIGENEN Einträge angefasst werden dürfen. Der alte Ort ist die offene Bibliothek;
+    # er wird hier trotzdem ausdrücklich angemeldet, damit der Umzug nicht davon abhängt.
+    if ist_bibliothek(alt):
+        _ds.bereich_anmelden("umzug_quelle", alt, nur_eigene=True)
+    _ds.bereich_anmelden("umzug_ziel", neu, nur_eigene=True)
     try:
         eigene = [e for e in alt.iterdir() if ist_eigener_eintrag(e.name) and e.name != SPERRDATEI]
         fremd = fremde_eintraege(alt)
@@ -1086,29 +1114,52 @@ def umziehen(alt: Path, neu: Path, melden=None) -> dict:
                                 ignore=shutil.ignore_patterns(SPERRDATEI, "*.tmp*"))
             else:
                 shutil.copy2(e, neu / e.name)
-        if not ist_bibliothek(neu) or not db_heil(db_pfad(neu)):
-            for e in eigene:          # nur unsere eigene, halbe Kopie wieder weg
+        # 14.09.2026 — ausdrücklich nachzählen: jede Datei mit gleicher Größe am neuen Ort,
+        # sonst wird am alten Ort NICHTS gelöscht.
+        vorher = _bestand(alt, eigene)
+        nachher = _bestand(neu, [neu / e.name for e in eigene if (neu / e.name).exists()])
+        fehlt = [k for k, g in vorher.items() if nachher.get(k) != g]
+        def _halbe_kopie_weg():
+            for e in eigene:          # nur unsere eigene, halbe Kopie am NEUEN Ort wieder weg
                 ziel = neu / e.name
-                if ziel.is_dir():
-                    shutil.rmtree(ziel, ignore_errors=True)
-                else:
-                    ziel.unlink(missing_ok=True)
+                try:
+                    if ziel.is_dir():
+                        _ds.ordner_loeschen(ziel, "bib_umzug_abbruch", art=_ds.ART_TEMP, ignore_errors=True)
+                    else:
+                        _ds.loeschen(ziel, "bib_umzug_abbruch", art=_ds.ART_TEMP)
+                except OSError:
+                    pass
+        if fehlt:
+            _halbe_kopie_weg()
+            return {"ok": False, "grund": "kopie_unvollstaendig", "fehlt": fehlt[:20], "fehlt_n": len(fehlt)}
+        if not ist_bibliothek(neu) or not db_heil(db_pfad(neu)):
+            _halbe_kopie_weg()
             return {"ok": False, "grund": "kopie_unvollstaendig"}
         if melden:
             melden("raeume auf")
+        # Die geprüfte Kopie am neuen Ort ist die Sicherung (Anzahl + Größe jeder Datei
+        # oben nachgezählt, Datenbank heil) — eine ganze Bibliothek zusätzlich in den
+        # Papierkorb zu verschieben, hieße GBs über Laufwerksgrenzen zu kopieren. Deshalb
+        # ART_CACHE; der Dateischutz prüft trotzdem, dass jeder Eintrag ein eigener ist.
         for e in eigene + [alt / SPERRDATEI]:
             try:
                 if e.is_dir():
-                    shutil.rmtree(e, ignore_errors=True)
+                    _ds.ordner_loeschen(e, "bib_umzug_aufraeumen", art=_ds.ART_CACHE, ignore_errors=True)
                 elif e.exists():
-                    e.unlink()
+                    _ds.loeschen(e, "bib_umzug_aufraeumen", art=_ds.ART_CACHE)
             except OSError:
                 pass
         try:
             if not fremd and not any(alt.iterdir()):
+                # dateischutz-ok: rmdir entfernt nur einen LEEREN Ordner (scheitert sonst) — der Dateischutz verweigert Bereichswurzeln grundsätzlich
                 alt.rmdir()           # nur ein wirklich leerer Ordner geht mit
         except OSError:
             pass
         return {"ok": True, "pfad": str(neu), "fremd_geblieben": fremd}
     except OSError as e:
         return {"ok": False, "error": str(e)}
+    finally:
+        # Die Umzugs-Bereiche gelten nur für diesen Vorgang; danach meldet die App den
+        # neuen Ort ganz normal als Bibliothek an.
+        _ds.bereich_abmelden("umzug_quelle")
+        _ds.bereich_abmelden("umzug_ziel")

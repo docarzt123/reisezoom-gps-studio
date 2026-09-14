@@ -3894,5 +3894,6 @@
   "gpxinspect.ab_archiv_entfernt": "Die neue Tour ist wieder entfernt (Papierkorb).",
   "logbuch.menue.als_tour": "Als eigene Tour ins Archiv …",
   "warte.archiv_abschnitt_aufnehmen.titel": "Neue Tour wird angelegt",
-  "warte.archiv_abschnitt_aufnehmen.text": "Der Abschnitt wird ins Archiv aufgenommen"
+  "warte.archiv_abschnitt_aufnehmen.text": "Der Abschnitt wird ins Archiv aufgenommen",
+  "bib.umzug_laeuft": "Die Bibliothek wird gerade schon verschoben. Bitte warten, bis das fertig ist."
 }

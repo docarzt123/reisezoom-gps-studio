@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
+from . import dateischutz as _ds  # 14.09.2026: Löschen nur über das Tor
+
 
 class BackupCancelled(Exception):
     """Wird geworfen, wenn der Backup-Vorgang per should_cancel abgebrochen wird."""
@@ -87,9 +89,10 @@ def make_photo_backup(
                             break
                         dst.write(chunk)
     except BackupCancelled:
-        # Halbfertiges ZIP wegräumen
+        # Halbfertiges ZIP wegräumen — eigene Zwischendatei desselben Vorgangs.
+        # backup_dir liegt in der App (BACKUPS_DIR = APP_SUPPORT/_backups_photos).
         try:
-            zip_path.unlink()
+            _ds.loeschen(zip_path, "fotobackup_abbruch", art=_ds.ART_TEMP)
         except OSError:
             pass
         raise
@@ -97,8 +100,12 @@ def make_photo_backup(
     # Retention: max 20 ZIPs pro Backup-Dir
     zips = sorted(bdir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
     for old in zips[20:]:
+        # Diese ZIPs SIND die Sicherungen — die Aufbewahrungsgrenze bleibt, wie sie war.
+        # ART_CACHE, damit ein altes Backup nicht noch einmal in den Papierkorb kopiert
+        # wird (würde den Platz nur verdoppeln). Das Tor prüft trotzdem den Ort:
+        # Liegt backup_dir außerhalb der App, wird verweigert und nichts gelöscht.
         try:
-            old.unlink()
+            _ds.loeschen(old, "fotobackup_aufbewahrung", art=_ds.ART_CACHE)
         except OSError:
             pass
 

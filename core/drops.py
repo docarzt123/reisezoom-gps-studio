@@ -36,9 +36,10 @@ from __future__ import annotations
 import logging
 import os
 import re
-import shutil
 import time
 from pathlib import Path
+
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 log = logging.getLogger("rzgps.drops")
 
@@ -149,7 +150,9 @@ def aufraeumen(drops_dir, sessions_datei, wirklich: bool = True) -> dict:
     for eintrag in plan["loeschbar"]:
         ziel = drops_dir / eintrag["name"]
         try:
-            shutil.rmtree(ziel)
+            # Arbeitskopien gezogener Dateien, auf die keine Sitzung mehr verweist (s. Modulkopf):
+            # ART_CACHE — sie in den Papierkorb zu schieben gäbe den Platz nicht frei.
+            _ds.ordner_loeschen(ziel, "drops_aufraeumen", art=_ds.ART_CACHE)
             weg += 1
             frei += eintrag["bytes"]
         except OSError as e:

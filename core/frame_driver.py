@@ -29,6 +29,8 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
+from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
+
 _log = logging.getLogger("frame_driver")
 
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
@@ -52,12 +54,18 @@ def teildatei(ziel: str) -> str:
 def fertigstellen(ziel: str) -> None:
     teil = teildatei(ziel)
     if os.path.exists(teil):
-        os.replace(teil, ziel)
+        # Ziel = vom Nutzer gewählter Render-Ausgang; ein vorhandener Film wird gesichert.
+        _ds.nutzer_ziel(ziel)
+        _ds.nutzer_ziel(teil)
+        _ds.ersetzen(teil, ziel, "render", art=_ds.ART_NUTZERDATEN)
 
 
 def teil_wegraeumen(ziel: str) -> None:
     try:
-        Path(teildatei(ziel)).unlink(missing_ok=True)
+        teil = teildatei(ziel)
+        if os.path.lexists(teil):
+            _ds.nutzer_ziel(teil)
+            _ds.loeschen(teil, "render", art=_ds.ART_TEMP)
     except Exception:       # noqa: BLE001 — Aufräumen darf den echten Fehler nie verdecken
         pass
 

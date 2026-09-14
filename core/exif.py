@@ -24,12 +24,13 @@ import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import piexif
+
+from . import dateischutz as _ds  # 14.09.2026: in Nutzerfotos nur mit Sicherung schreiben
 
 # v0.9.274 (Nutzer-Bug) — Windows: Kindprozesse (exiftool-Daemon, ffmpeg) OHNE
 # sichtbares Konsolenfenster starten. Auf POSIX 0 (kein Effekt).
@@ -1130,8 +1131,10 @@ def _build_gps_write_args(lat: float, lon: float,
 def _exiftool_write_gps(path: str, lat: float, lon: float,
                         alt: Optional[float] = None,
                         timestamp_utc: Optional[datetime] = None,
-                        img_direction: Optional[float] = None) -> None:
+                        img_direction: Optional[float] = None,
+                        gesichert: bool = False) -> None:
     """Schreibt GPS-Tags via persistenten exiftool-WRITE-Daemon."""
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()
     args = ["-overwrite_original"] + _build_gps_write_args(lat, lon, alt, timestamp_utc, img_direction) + [path]
     _log.info("exiftool-write args=%s", args)
@@ -1141,16 +1144,20 @@ def _exiftool_write_gps(path: str, lat: float, lon: float,
         raise RuntimeError(f"exiftool fehlgeschlagen: {msg[:300]}")
 
 
-def shift_datetime(path: str, seconds: float) -> bool:
+def shift_datetime(path: str, seconds: float, gesichert: bool = False) -> bool:
     """Verschiebt DateTimeOriginal/CreateDate/ModifyDate um `seconds` (positiv = nach vorne).
 
     Nutzt piexif für JPEG, exiftool für RAW/HEIC.
     Idempotent NICHT — jeder Aufruf addiert nochmal. UI muss das verhindern.
     Liefert True bei Erfolg.
+
+    14.09.2026 (Dateischutz): `gesichert` = der Aufrufer hat eine Sicherung (Backup-ZIP
+    oder getaggte Kopie). Ohne → DateischutzFehler, bevor irgendetwas geschrieben wird.
     """
     sec = int(round(seconds))
     if sec == 0:
         return True
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
 
     if is_jpeg_like(path):
         # piexif: alte Werte lesen, addieren, alle drei Tags neu schreiben
@@ -1208,7 +1215,7 @@ def shift_datetime(path: str, seconds: float) -> bool:
     return False
 
 
-def set_datetime(path: str, dt) -> bool:
+def set_datetime(path: str, dt, gesichert: bool = False) -> bool:
     """v0.9.281 (Nutzer-Wunsch) — Setzt den Aufnahmezeitpunkt ABSOLUT auf `dt`
     (DateTimeOriginal/CreateDate/ModifyDate + OffsetTime*-Tags). Für Fotos, die
     auf den Track eingerastet wurden und deren eigene Uhrzeit falsch/fehlt (z.B.
@@ -1219,9 +1226,10 @@ def set_datetime(path: str, dt) -> bool:
     Geschrieben wird die LOKALE Darstellung (System-Zeitzone) + passender
     OffsetTime. Das ist korrekt, wenn man in seiner Heim-Zeitzone unterwegs war
     (der Normalfall). Routing wie write_gps: piexif für JPEG, exiftool sonst.
-    Liefert True bei Erfolg."""
+    Liefert True bei Erfolg. `gesichert`: siehe shift_datetime (Dateischutz)."""
     if dt is None:
         return False
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     local = dt.astimezone()                       # System-Zeitzone
@@ -1337,7 +1345,8 @@ def _exiftool_read_video_meta(path: str) -> dict:
 def _exiftool_write_gps_video(path: str, lat: float, lon: float,
                               alt: Optional[float] = None,
                               timestamp_utc: Optional[datetime] = None,
-                              img_direction: Optional[float] = None) -> None:
+                              img_direction: Optional[float] = None,
+                              gesichert: bool = False) -> None:
     """Schreibt GPS in einen Video-Container (MP4/MOV/Insta360).
 
     Strategie: setze sowohl `Keys:GPSCoordinates` (ISO 6709 String, der von
@@ -1345,6 +1354,7 @@ def _exiftool_write_gps_video(path: str, lat: float, lon: float,
     `XMP-exif:GPS*`-Tags (für Lightroom / DAM-Software). Das deckt fast jede
     Endkonsumenten-Pipeline ab.
     """
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()
     # ISO 6709-String: "+52.5163+013.3777+035.000/" (Vorzeichen, Punkte als Trenner)
     def iso6709(v: float, deg: int) -> str:
@@ -1425,7 +1435,7 @@ def extract_quicklook_thumbnail(path: str, size: int = 256) -> Optional[bytes]:
     ql = shutil.which("qlmanage") or "/usr/bin/qlmanage"
     if not os.path.isfile(ql):
         return None
-    tmpdir = tempfile.mkdtemp(prefix="rzql_")
+    tmpdir = str(_ds.temp_ordner(prefix="rzql_"))   # eigener, gemerkter Temp-Ordner
     try:
         subprocess.run(
             [ql, "-t", "-s", str(size), "-o", tmpdir, path],
@@ -1446,7 +1456,12 @@ def extract_quicklook_thumbnail(path: str, size: int = 256) -> Optional[bytes]:
     except Exception:
         return None
     finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        # Dateischutz: eigener, gemerkter Temp-Ordner (ART_TEMP). Aufgelöst übergeben —
+        # auf dem Mac liegt /var als Symlink vor /private/var.
+        try:
+            _ds.ordner_loeschen(os.path.realpath(tmpdir), "quicklook_vorschau", art=_ds.ART_TEMP, ignore_errors=True)
+        except OSError:
+            pass
 
 
 def extract_video_thumbnail(path: str) -> Optional[bytes]:
@@ -1848,7 +1863,12 @@ def _read_gps_raw(path: str) -> Optional[tuple[float, float, Optional[float]]]:
 def write_gps(path: str, lat: float, lon: float,
               alt: Optional[float] = None,
               timestamp_utc: Optional[datetime] = None,
-              img_direction: Optional[float] = None) -> None:
+              img_direction: Optional[float] = None,
+              gesichert: bool = False) -> None:
+    # 14.09.2026 (Dateischutz, Marc: „immer ein Backup"): `gesichert` = der Aufrufer
+    # hat vorher gesichert (Geotagger-ZIP) oder schreibt in eine eigene Kopie. Ohne →
+    # DateischutzFehler, bevor piexif/exiftool die Datei anfasst.
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     # img_direction (v0.9.336): Kamera-Blickrichtung in Grad (0=N, true north),
     # z.B. aus dem Reisezoom-Logger (rz:hdg). Wird als GPSImgDirection +
     # GPSImgDirectionRef='T' geschrieben. None = Tag nicht anfassen.
@@ -1863,21 +1883,21 @@ def write_gps(path: str, lat: float, lon: float,
     # v0.9.154: TIFF — piexif.insert() kann KEIN TIFF (InvalidImageDataError),
     # deshalb exiftool (wie RAW). exiftool schreibt TIFF-EXIF nativ.
     if is_tiff(path):
-        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction)
+        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
         _log.info("write_gps: tiff/exiftool-Pfad fertig für %s", path)
         return
     # v0.9.57: HEIC/HEIF — pillow-heif kann nicht schreiben, deshalb exiftool
     # (= einzige Option). Wenn exiftool fehlt, ExifToolMissingError mit Hinweis.
     if is_heif(path):
-        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction)
+        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
         _log.info("write_gps: heif/exiftool-Pfad fertig für %s", path)
         return
     if is_raw(path):
-        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction)
+        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
         _log.info("write_gps: raw/exiftool-Pfad fertig für %s", path)
         return
     if is_video(path):
-        _exiftool_write_gps_video(path, lat, lon, alt, timestamp_utc, img_direction)
+        _exiftool_write_gps_video(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
         _log.info("write_gps: video/exiftool-Pfad fertig für %s", path)
         return
     # Unbekannte Endung: erstmal piexif probieren, sonst exiftool
@@ -1886,10 +1906,10 @@ def write_gps(path: str, lat: float, lon: float,
         _piexif_write_gps(path, lat, lon, alt, timestamp_utc, img_direction)
     except Exception as e:
         _log.warning("write_gps: piexif-Fallback fehlgeschlagen (%s) → exiftool", e)
-        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction)
+        _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
 
 
-def write_location(path: str, address: dict) -> None:
+def write_location(path: str, address: dict, gesichert: bool = False) -> None:
     """v0.9.337 — Schreibt die Reverse-Geocoding-Adresse als IPTC + XMP in ein Foto/Video.
 
     `address`: flaches Dict aus core.geocode (`street/city/state/country/country_code`).
@@ -1933,6 +1953,7 @@ def write_location(path: str, address: dict) -> None:
         _log.info("write_location: keine Adressfelder für %s — übersprungen", path)
         return
 
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()
     args.append(path)
     _log.info("write_location: %s (%d Tags)", path, len(args) - 2)
@@ -2018,11 +2039,12 @@ def read_photo_details(path: str) -> dict:
     return {"key": key, "all": all_tags}
 
 
-def write_img_direction(path: str, deg: float) -> None:
+def write_img_direction(path: str, deg: float, gesichert: bool = False) -> None:
     """v0.9.339 — Schreibt NUR die Blickrichtung (GPSImgDirection + Ref='T'),
     ohne die vorhandenen GPS-Koordinaten anzufassen. Für „nur Fehlendes ergänzen":
     Foto hat eigenes GPS, soll aber eine Richtung dazubekommen."""
     d = float(deg) % 360.0
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()
     args = ["-overwrite_original",
             f"-GPSImgDirection={d:.2f}", "-GPSImgDirectionRef=T", path]
@@ -2049,13 +2071,14 @@ def exif_tag_writable(tag: str) -> bool:
     return bool(tag) and tag not in _EXIF_TAG_READONLY
 
 
-def write_exif_tag(path: str, tag: str, value: str) -> None:
+def write_exif_tag(path: str, tag: str, value: str, gesichert: bool = False) -> None:
     """v0.9.343 — Setzt EIN beliebiges EXIF-Feld auf `value` (leer = löschen).
     Wirft RuntimeError, wenn das Tag nicht beschreibbar ist oder exiftool meckert."""
     tag = (tag or "").strip()
     if not exif_tag_writable(tag):
         raise RuntimeError(f"Feld „{tag}“ ist nicht editierbar (abgeleitet/Datei-Feld).")
     val = "" if value is None else str(value)
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()
     args = ["-overwrite_original", f"-{tag}={val}", path]
     ok, msg = daemon.write_args(args)
@@ -2063,7 +2086,7 @@ def write_exif_tag(path: str, tag: str, value: str) -> None:
         raise RuntimeError(f"exiftool ({tag}) fehlgeschlagen: {msg[:300]}")
 
 
-def write_exif_tags(path: str, tags: dict[str, str]) -> None:
+def write_exif_tags(path: str, tags: dict[str, str], gesichert: bool = False) -> None:
     """v0.9.369 — Setzt MEHRERE EXIF-Felder eines Fotos in EINEM exiftool-Call.
 
     Warum: früher wurde pro Tag EIN eigener `-execute` an den Daemon geschickt
@@ -2084,6 +2107,7 @@ def write_exif_tags(path: str, tags: dict[str, str]) -> None:
         clean[t] = "" if value is None else str(value)
     if not clean:
         return
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     args = ["-overwrite_original"] + [f"-{t}={v}" for t, v in clean.items()] + [path]
     # v0.9.371 — bis zu 2 Versuche: Wenn der Daemon einmal wedged (seltener
     # -stay_open-Timing-Hänger unter Last), killt der Timeout ihn und nimmt ihn
