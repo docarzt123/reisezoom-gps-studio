@@ -2018,7 +2018,8 @@ track (first in the list) stays the one in the GPX bar; the session belongs to i
 ### How the tagged photos are saved (since v0.9.372)
 - **Your originals are never touched.** When writing, you choose **a target folder once**; the app writes the fully tagged **copies** there. The originals thus remain as a backup — there's no separate backup ZIP anymore (unnecessary).
 - **A single consistent flow**, whether you loaded the photos via **drag & drop** or via **"Choose folder"**: a clean folder with the tagged images always results. The done dialog shows **"Saved in …"** + **"Open folder"**.
-- **Tag the originals directly after all?** Just choose the **folder of your originals** as the target. Then the app asks **"Really overwrite the originals here? (no backup)"** — if you confirm, they're tagged in place. Without confirmation, the app **never** overwrites an original.
+- **Tag the originals directly after all?** Just choose the **folder of your originals** as the target. Then the app asks **"Overwrite originals?"** — if you confirm, it **first makes a ZIP backup of the originals** and then tags in place. The result dialog shows the backup (*Show backup*). Without confirmation, the app **never** overwrites an original.
+- **Cleaning up old backups:** If the same photos are backed up several times, the **oldest** (untouched originals) and the **newest** stay; everything in between is removed automatically. When you first write a new tour, the Geotagger asks whether **backups of earlier tours** may go (*Show*, *Keep*, *Delete*). Deleted backups stay in GPS Studio's trash for 14 days.
 
 > **Some cameras write an empty GPS field.** Insta360, for example, puts 0/0 into
 > every RAW file — a spot in the Gulf of Guinea. The app recognises such empty

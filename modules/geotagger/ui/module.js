@@ -3747,6 +3747,8 @@ function mountGeotagger(body, headerActions) {
     }
 
     _frei();   // ab hier übernimmt das Modal die Rückmeldung
+    // 15.09.2026 (Marc) — neue Tour: alte Foto-Sicherungen früherer Touren anbieten zu löschen.
+    if (!(await _gtFruehereSicherungenFragen(writable.map(m => m.path)))) return;
     openModal({
       title: "Schreibvorgang starten?",
       body: summary,
@@ -3800,6 +3802,48 @@ function mountGeotagger(body, headerActions) {
     } finally { _frei(); }
   });
 
+  // 15.09.2026 (Marc): „Wenn man ein neues Projekt im Geotagger anfängt, könnte man sagen: wir haben
+  // noch eine Sicherung von damals, können wir die löschen?" — einmal je Foto-Satz, nur auf Bestätigung,
+  // gelöscht wird in den Papierkorb von GPS Studio. Gibt false zurück, wenn der Nutzer das Fenster schließt.
+  let _gtSicherungGefragt = "";
+  async function _gtFruehereSicherungenFragen(pfade) {
+    const satz = (pfade || []).length + "|" + ((pfade || [])[0] || "");
+    if (_gtSicherungGefragt === satz) return true;
+    let r = null;
+    try { r = await api().geotagger_sicherungen_frueher(pfade || []); } catch (_) { r = null; }   // warte-ok: liest nur Dateilisten
+    if (!r || !r.ok || !(r.sicherungen || []).length) { _gtSicherungGefragt = satz; return true; }
+    const gb = (b) => (b / 1e9 >= 0.1 ? (b / 1e9).toFixed(1).replace(".", (window.rzSprachCode && window.rzSprachCode() === "en") ? "." : ",") + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB");
+    const tag = (sek) => { try { return new Date(sek * 1000).toLocaleDateString((window.rzSprachCode ? window.rzSprachCode() : undefined), { year: "numeric", month: "short", day: "numeric" }); } catch (_) { return ""; } };
+    const liste = r.sicherungen;
+    const zeilen = liste.map(e => `<div class="modal-stat-row"><span class="label">${tag(e.zeit)} · ${e.anzahl} ${t("geotagger.sich.dateien", "Dateien")}</span><span class="val mono">${gb(e.bytes)}</span></div>`).join("");
+    return await new Promise((resolve) => {
+      openModal({
+        title: t("geotagger.sich.titel", "Alte Foto-Sicherungen löschen?"),
+        body: `<p style="line-height:1.5">${t("geotagger.sich.text", "Von früheren Touren liegen noch %n Sicherungen der Originale (%g). Keins der Fotos, die du jetzt taggst, ist darin. Brauchst du sie noch?").replace("%n", liste.length).replace("%g", gb(r.bytes))}</p>
+               <div style="max-height:220px;overflow:auto;margin-top:10px">${zeilen}</div>
+               <p class="muted" style="margin-top:10px;font-size:12px;line-height:1.45">${t("geotagger.sich.hinweis", "Gelöschte Sicherungen liegen noch 14 Tage im Papierkorb von GPS Studio.")}</p>`,
+        footer: `<button class="btn" id="gt-sich-zeigen">${t("geotagger.sich.zeigen", "Ansehen")}</button>
+                 <button class="btn" id="gt-sich-behalten">${t("geotagger.sich.behalten", "Behalten")}</button>
+                 <button class="btn btn-danger" id="gt-sich-loeschen">${t("geotagger.sich.loeschen", "Löschen")}</button>`,
+        onClose: () => resolve(false),
+      });
+      document.getElementById("gt-sich-zeigen").onclick = () => { try { api().reveal_in_finder(r.ordner); } catch (_) {} };   // warte-ok: Finder
+      document.getElementById("gt-sich-behalten").onclick = () => { _gtSicherungGefragt = satz; resolve(true); openModal({}).close(); };   // erst resolve: close() ruft onClose
+      document.getElementById("gt-sich-loeschen").onclick = async () => {
+        const frei = knopfBeschaeftigt("gt-sich-loeschen", "geotagger.sich.loescht", "Lösche …");
+        let d = null;
+        try { d = await rzWarten("geotagger_sicherungen_loeschen", () => api().geotagger_sicherungen_loeschen(liste.map(e => e.name))); } catch (e) { d = { ok: false, error: String(e) }; }
+        if (frei) frei();
+        _gtSicherungGefragt = satz;
+        resolve(true);
+        openModal({}).close();
+        if (d && d.ok) toast(t("geotagger.sich.geloescht", "%n Sicherungen gelöscht (%g).").replace("%n", (d.geloescht || []).length).replace("%g", gb(d.frei_bytes || 0)), "success", 5000);
+        else toast((d && d.error) || "?", "error", 6000);
+      };
+    });
+  }
+
+  window.__rzGtSicherungFragen = _gtFruehereSicherungenFragen;   // Wächter tests/test_fotosicherung_frage_ui.py
   let _writeFlowLaeuft = false;   // v0.9.522 — genau EIN Schreib-Flow zur Zeit
   let _writeDialogGen = 0;         // 14.09.2026 — der 90-s-Notausgang gehört genau einem Dialog
 

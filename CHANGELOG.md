@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Photo backups clean themselves up** (Marc): the ZIP backups the Geotagger makes before writing into originals now carry a list of their source files. When the same photos are backed up several times, the oldest (untouched originals) and the newest stay, everything in between goes to GPS Studio's trash. Before writing a new tour, the Geotagger offers to delete backups of earlier tours (Show / Keep / Delete; old ZIPs without a list are matched by file name and kept when in doubt). Guards `tests/test_fotosicherung_aufraeumen.py`, `tests/test_fotosicherung_frage_ui.py`. — **Foto-Sicherungen räumen sich auf: älteste + neueste bleiben, alte Touren auf Nachfrage löschen.**
+
 ### Fixed
 - **"Current frame as image" rendered a whole video into the .png** (night test): with the shared scene engine the single-frame request fell into the video branch (4K, all frames). The render switch now sends every single-frame request to `render_szene_frame`; the PNG matches the preview at the playhead. Guard `tests/test_render_weiche_einzelbild.py`. — **„Aktuellen Frame als Bild" renderte ein ganzes Video — jetzt ein Bild.**
 - **⌘Z went to the wrong module in Tour Map and Travel Route**: Animator, Tour Map and Travel Route share one panel, so the undo switch always picked the "animator" controller — left over from the last Animator visit, it silently reverted Animator settings; templates applied in the Tour Map took the same wrong path. The switch now uses the open module, and each map module unregisters its controller when it is closed. Guard `tests/test_undo_routing_modi.py`. — **⌘Z traf in Tour-Map/Reiseroute das falsche Modul.**
