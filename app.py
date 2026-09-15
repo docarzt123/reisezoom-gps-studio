@@ -13787,6 +13787,14 @@ class Api:
             log.exception("geotagger_sicherungen_frueher")
             return {"ok": False, "error": str(e)}
 
+    def fotosicherungen_uebersicht(self) -> dict:
+        """15.09.2026 (Marc) — beim Start warnen, wenn mehr als 20 Foto-Sicherungen liegen."""
+        try:
+            return {"ok": True, "ordner": str(BACKUPS_DIR), **cbak.uebersicht(BACKUPS_DIR)}
+        except Exception as e:
+            log.exception("fotosicherungen_uebersicht")
+            return {"ok": False, "error": str(e)}
+
     @_nur_einmal("fotosicherung")
     def geotagger_sicherungen_loeschen(self, namen: list) -> dict:
         """Ausgewählte Foto-Sicherungen in den Papierkorb von GPS Studio (Nutzer hat bestätigt)."""

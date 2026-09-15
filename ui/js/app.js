@@ -1704,6 +1704,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // 13.09.2026 — Ladeflagge: Hing der letzte Ladevorgang, fragt die App jetzt nach.
   setTimeout(() => { try { window.rzLadeflaggePruefen && window.rzLadeflaggePruefen(); } catch (e) { applog && applog("warn", "[ladeflagge] Prüfung beim Start: " + e); } }, 400);
 
+  // 15.09.2026 (Marc) — Foto-Sicherungen werden nicht mehr automatisch weggeräumt; ab 21 warnt die App.
+  setTimeout(() => { try { rzFotosicherungenWarnen(); } catch (e) { applog && applog("warn", "[fotosicherung] Warnung: " + e); } }, 2500);
+
   // 10.09.2026 (Beta-Tester „kann nichts anklicken"): Klick-Zeuge. Die erste
   // Maus-Eingabe in der Oberfläche steht im Log — fehlt die Zeile, kommt kein
   // Klick bei der WebView an; sonst hakt es in unserem Code.
@@ -1827,3 +1830,58 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   }, 250);
 });
+
+
+/** 15.09.2026 (Marc: „nimm die Grenze raus, aber warne, wenn über 20 ZIPs gesichert sind, beim
+ *  Start der App"). Liste mit Haken (keiner vorausgewählt), Löschen nur, was angehakt ist. */
+async function rzFotosicherungenWarnen(nochmal) {
+  const ov = document.getElementById("modal-overlay");
+  if (ov && !ov.hidden) {   // anderer Dialog offen (Ladeflagge, Onboarding) → später noch einmal
+    if ((nochmal || 0) < 20) setTimeout(() => rzFotosicherungenWarnen((nochmal || 0) + 1), 3000);
+    return;
+  }
+  let r = null;
+  try { r = await api().fotosicherungen_uebersicht(); } catch (_) { r = null; }   // warte-ok: liest nur Dateilisten, im Hintergrund
+  if (!r || !r.ok || !r.warnen) return;
+  applog && applog("info", `[fotosicherung] ${r.anzahl} Sicherungen (${(r.bytes / 1e9).toFixed(1)} GB) — Warnung beim Start`);
+  const sprache = window.rzSprachCode ? window.rzSprachCode() : undefined;
+  const gb = (b) => (b >= 1e8 ? (b / 1e9).toLocaleString(sprache, { maximumFractionDigits: 1 }) + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB");
+  const tag = (sek) => { try { return new Date(sek * 1000).toLocaleDateString(sprache, { year: "numeric", month: "short", day: "numeric" }); } catch (_) { return ""; } };
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const zeilen = r.sicherungen.map((e, i) => `
+    <label class="modal-stat-row" style="cursor:pointer">
+      <span class="label"><input type="checkbox" id="fs-wahl-${i}" data-name="${esc(e.name)}" data-bytes="${e.bytes}"> ${tag(e.zeit)} · ${e.anzahl} ${t("geotagger.sich.dateien", "Dateien")}</span>
+      <span class="val mono">${gb(e.bytes)}</span>
+    </label>`).join("");
+  openModal({
+    title: t("fotosich.warn.titel", "Viele Foto-Sicherungen"),
+    body: `<p style="line-height:1.5">${t("fotosich.warn.text", "GPS Studio hat %n Sicherungen deiner Originale angelegt (%g). Sie werden nie automatisch gelöscht. Hake an, was weg kann — die älteste Sicherung einer Tour enthält die unberührten Originale.").replace("%n", r.anzahl).replace("%g", gb(r.bytes))}</p>
+           <div style="max-height:300px;overflow:auto;margin-top:10px">${zeilen}</div>
+           <p class="muted" style="margin-top:10px;font-size:12px;line-height:1.45">${t("geotagger.sich.hinweis", "Gelöschte Sicherungen liegen noch 14 Tage im Papierkorb von GPS Studio.")}</p>`,
+    footer: `<button class="btn" id="fs-zeigen">${t("geotagger.sich.zeigen", "Ansehen")}</button>
+             <button class="btn" id="fs-spaeter">${t("fotosich.warn.spaeter", "Später")}</button>
+             <button class="btn btn-danger" id="fs-loeschen" disabled>${t("fotosich.warn.loeschen", "Ausgewählte löschen")}</button>`,
+    closable: true,
+  });
+  const knopf = document.getElementById("fs-loeschen");
+  const gewaehlt = () => Array.from(document.querySelectorAll('#modal-body input[id^="fs-wahl-"]:checked'));
+  document.getElementById("modal-body").addEventListener("change", () => {
+    const w = gewaehlt();
+    knopf.disabled = !w.length;
+    knopf.textContent = w.length
+      ? t("fotosich.warn.loeschen_n", "%n löschen (%g)").replace("%n", w.length).replace("%g", gb(w.reduce((a, el) => a + Number(el.dataset.bytes || 0), 0)))
+      : t("fotosich.warn.loeschen", "Ausgewählte löschen");
+  });
+  document.getElementById("fs-zeigen").onclick = () => { try { api().reveal_in_finder(r.ordner); } catch (_) {} };   // warte-ok: Finder
+  document.getElementById("fs-spaeter").onclick = () => openModal({}).close();
+  knopf.onclick = async () => {
+    const namen = gewaehlt().map(el => el.dataset.name);
+    if (!namen.length) return;
+    let d = null;
+    try { d = await rzWarten("geotagger_sicherungen_loeschen", () => api().geotagger_sicherungen_loeschen(namen)); } catch (e) { d = { ok: false, error: String(e) }; }
+    openModal({}).close();
+    if (d && d.ok) toast(t("geotagger.sich.geloescht", "%n Sicherungen gelöscht (%g).").replace("%n", (d.geloescht || []).length).replace("%g", gb(d.frei_bytes || 0)), "success", 5000);
+    else toast((d && d.error) || "?", "error", 6000);
+  };
+}
+window.rzFotosicherungenWarnen = rzFotosicherungenWarnen;
