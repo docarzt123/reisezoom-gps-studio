@@ -2229,7 +2229,8 @@ weiterhin der in der GPX-Leiste; die Sitzung gehört ihm.
 ### So werden die getaggten Fotos gespeichert (seit v0.9.372)
 - **Deine Originale werden nie angefasst.** Beim Schreiben wählst du **einmal einen Zielordner**; dorthin schreibt die App die fertig getaggten **Kopien**. Die Originale bleiben damit als Sicherung erhalten — ein separates Backup-ZIP gibt es nicht mehr (unnötig).
 - **Ein einheitlicher Ablauf**, egal ob du die Fotos per **Drag & Drop** oder über **„Ordner wählen"** geladen hast: es entsteht immer ein sauberer Ordner mit den getaggten Bildern. Der Fertig-Dialog zeigt **„Gespeichert in …"** + **„Ordner öffnen"**.
-- **Originale doch direkt taggen?** Wähle einfach den **Ordner deiner Originale** als Ziel. Dann fragt die App **„Originale hier wirklich überschreiben? (kein Backup)"** — bestätigst du, wird in-place getaggt. Ohne Bestätigung überschreibt die App **nie** ein Original.
+- **Originale doch direkt taggen?** Wähle einfach den **Ordner deiner Originale** als Ziel. Dann fragt die App **„Originale überschreiben?"** — bestätigst du, legt sie **vorher eine ZIP-Sicherung der Originale** an und taggt dann in-place. Der Fertig-Dialog zeigt die Sicherung (*Sicherung zeigen*). Ohne Bestätigung überschreibt die App **nie** ein Original.
+- **Alte Sicherungen aufräumen:** Sichert die App dieselben Fotos mehrmals, bleiben die **älteste** (unberührte Originale) und die **neueste**; alle dazwischen verschwinden automatisch. Beim ersten Schreiben einer neuen Tour fragt der Geotagger, ob **Sicherungen früherer Touren** weg dürfen (*Ansehen*, *Behalten*, *Löschen*). Gelöschte Sicherungen liegen noch 14 Tage im Papierkorb von GPS Studio.
 
 > **Manche Kameras schreiben ein leeres GPS-Feld.** Insta360 legt zum Beispiel in
 > jede RAW-Datei Koordinaten 0/0 — eine Stelle mitten im Golf von Guinea. Solche

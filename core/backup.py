@@ -3,12 +3,21 @@ Foto-Backup vor EXIF-Schreibvorgängen. ZIP-Snapshot in projekt-eigenem Ordner.
 """
 from __future__ import annotations
 
+import json
+import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from . import dateischutz as _ds  # 14.09.2026: Löschen nur über das Tor
+
+log = logging.getLogger(__name__)
+
+# 15.09.2026 (Marc) — Neben jedem ZIP liegt die Liste der gesicherten Originale (absolute Pfade).
+# Damit erkennt GPS Studio doppelte Sicherungen derselben Fotos; ältere ZIPs ohne Liste werden
+# über ihre Dateinamen verglichen.
+QUELLEN_SUFFIX = ".quellen.json"
 
 
 class BackupCancelled(Exception):
@@ -97,6 +106,17 @@ def make_photo_backup(
             pass
         raise
 
+    try:
+        Path(str(zip_path) + QUELLEN_SUFFIX).write_text(
+            json.dumps({"quellen": [str(p.resolve()) for p in paths if p.exists()]}, ensure_ascii=False),
+            encoding="utf-8")
+    except OSError:
+        log.exception("Fotosicherung: Quellenliste nicht geschrieben")
+    try:
+        doppelte_aufraeumen(bdir)
+    except Exception:
+        log.exception("Fotosicherung: doppelte aufräumen")
+
     # Retention: max 20 ZIPs pro Backup-Dir
     zips = sorted(bdir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
     for old in zips[20:]:
@@ -106,7 +126,111 @@ def make_photo_backup(
         # Liegt backup_dir außerhalb der App, wird verweigert und nichts gelöscht.
         try:
             _ds.loeschen(old, "fotobackup_aufbewahrung", art=_ds.ART_CACHE)
+            _ds.loeschen(Path(str(old) + QUELLEN_SUFFIX), "fotobackup_aufbewahrung", art=_ds.ART_CACHE)
         except OSError:
             pass
 
     return str(zip_path)
+
+
+# ── 15.09.2026 (Marc): Sicherungen verwalten ────────────────────────────────────────────────
+
+def _eintrag(zp: Path) -> Optional[dict]:
+    try:
+        st = zp.stat()
+    except OSError:
+        return None
+    quellen: list = []
+    art = "namen"
+    side = Path(str(zp) + QUELLEN_SUFFIX)
+    try:
+        if side.exists():
+            quellen = list(json.loads(side.read_text(encoding="utf-8")).get("quellen") or [])
+            art = "pfade"
+    except (OSError, ValueError):
+        quellen = []
+    if art == "namen":
+        try:
+            with zipfile.ZipFile(zp) as zf:
+                quellen = zf.namelist()
+        except (OSError, zipfile.BadZipFile):
+            quellen = []
+    return {
+        "name": zp.name, "pfad": str(zp), "zeit": st.st_mtime, "bytes": st.st_size,
+        "anzahl": len(quellen), "quellen": quellen,
+        "schluessel": (art, tuple(sorted(quellen))),
+    }
+
+
+def sicherungen_liste(backup_dir) -> list:
+    """Alle Foto-Sicherungen eines Ordners, älteste zuerst."""
+    bdir = Path(backup_dir)
+    if not bdir.is_dir():
+        return []
+    out = [e for e in (_eintrag(z) for z in bdir.glob("*.zip")) if e and e["anzahl"]]
+    out.sort(key=lambda e: e["zeit"])
+    return out
+
+
+def _entfernen(e: dict, aktion: str) -> bool:
+    zp = Path(e["pfad"])
+    ok = _ds.loeschen(zp, aktion)   # Nutzerdaten → Papierkorb von GPS Studio (verschoben, nicht kopiert)
+    try:
+        _ds.loeschen(Path(str(zp) + QUELLEN_SUFFIX), aktion, art=_ds.ART_CACHE)
+    except OSError:
+        pass
+    return ok
+
+
+def doppelte_aufraeumen(backup_dir) -> list:
+    """Mehrere Sicherungen derselben Fotos: die ÄLTESTE bleibt (unberührte Originale, vor dem
+    ersten Schreiben), die NEUESTE bleibt (letzter Stand), alles dazwischen geht in den
+    Papierkorb von GPS Studio. Gibt die Namen der entfernten ZIPs zurück."""
+    gruppen: dict = {}
+    for e in sicherungen_liste(backup_dir):
+        gruppen.setdefault(e["schluessel"], []).append(e)
+    weg = []
+    for liste in gruppen.values():
+        for e in liste[1:-1]:
+            try:
+                if _entfernen(e, "fotobackup_doppelt"):
+                    weg.append(e["name"])
+            except OSError:
+                log.exception("Fotosicherung: doppelte nicht entfernt: %s", e["name"])
+    if weg:
+        log.info("Fotosicherung: %d doppelte Sicherung(en) entfernt: %s", len(weg), ", ".join(weg))
+    return weg
+
+
+def fremde_sicherungen(backup_dir, aktuelle_pfade: Iterable[str]) -> list:
+    """Sicherungen früherer Touren: keine der aktuellen Fotos ist darin enthalten."""
+    akt_pfade = set()
+    akt_namen = set()
+    for p in aktuelle_pfade or []:
+        try:
+            akt_pfade.add(str(Path(p).resolve()))
+        except OSError:
+            akt_pfade.add(str(p))
+        akt_namen.add(Path(p).name)
+    out = []
+    for e in sicherungen_liste(backup_dir):
+        art = e["schluessel"][0]
+        treffer = (set(e["quellen"]) & akt_pfade) if art == "pfade" else (set(e["quellen"]) & akt_namen)
+        if not treffer:
+            out.append({k: e[k] for k in ("name", "zeit", "bytes", "anzahl")})
+    return out
+
+
+def sicherungen_loeschen(backup_dir, namen: Iterable[str]) -> dict:
+    """Ausgewählte Sicherungen (nur Dateinamen aus diesem Ordner) in den Papierkorb von GPS Studio."""
+    bdir = Path(backup_dir)
+    erlaubt = {e["name"]: e for e in sicherungen_liste(bdir)}
+    geloescht, frei = [], 0
+    for n in namen or []:
+        e = erlaubt.get(Path(str(n)).name)
+        if not e:
+            continue
+        if _entfernen(e, "fotobackup_nutzer_loescht"):
+            geloescht.append(e["name"]); frei += e["bytes"]
+    log.info("Fotosicherung: %d Sicherung(en) auf Wunsch entfernt (%.1f GB)", len(geloescht), frei / 1e9)
+    return {"ok": True, "geloescht": geloescht, "frei_bytes": frei}

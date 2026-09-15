@@ -13776,6 +13776,26 @@ class Api:
                 self._write_state["current_path"] = None
             log.info("_write_worker_run: ENDE — done=%d skipped=%d errors=%d", done, skipped, nerr)
 
+    def geotagger_sicherungen_frueher(self, pfade: list) -> dict:
+        """15.09.2026 (Marc) — Foto-Sicherungen früherer Touren (keins der aktuellen Fotos drin),
+        damit der Geotagger vor dem Schreiben fragen kann, ob sie weg dürfen."""
+        try:
+            liste = cbak.fremde_sicherungen(BACKUPS_DIR, pfade or [])
+            return {"ok": True, "sicherungen": liste, "bytes": sum(e["bytes"] for e in liste),
+                    "ordner": str(BACKUPS_DIR)}
+        except Exception as e:
+            log.exception("geotagger_sicherungen_frueher")
+            return {"ok": False, "error": str(e)}
+
+    @_nur_einmal("fotosicherung")
+    def geotagger_sicherungen_loeschen(self, namen: list) -> dict:
+        """Ausgewählte Foto-Sicherungen in den Papierkorb von GPS Studio (Nutzer hat bestätigt)."""
+        try:
+            return cbak.sicherungen_loeschen(BACKUPS_DIR, namen or [])
+        except Exception as e:
+            log.exception("geotagger_sicherungen_loeschen")
+            return {"ok": False, "error": str(e)}
+
     def geotagger_write_status(self) -> dict:
         """Wird vom UI alle ~200 ms gepollt während ein Schreibvorgang läuft."""
         with self._write_lock:
