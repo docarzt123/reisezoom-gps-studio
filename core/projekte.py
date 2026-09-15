@@ -457,9 +457,12 @@ def _angefasst(p: dict) -> None:
     p["auto"] = False
 
 
+ARBEITSMODULE = {"animator", "tourmap", "reiseroute", "heightanim", "geotagger", "gpxinspect", "webkarte"}
+
+
 def update_settings(daten: dict, kontext: str, project_id: str,
                     module: Optional[str], patch: dict,
-                    defaults: Optional[dict] = None) -> bool:
+                    defaults: Optional[dict] = None, aktives_modul: Optional[str] = None) -> bool:
     p = (daten.get("projects") or {}).get(project_id)
     if p is None and not project_id and kontext:
         # Erste echte Änderung an einem schwebenden Projekt: JETZT entsteht es
@@ -473,8 +476,15 @@ def update_settings(daten: dict, kontext: str, project_id: str,
             ziel[k] = {**ziel[k], **v}
         else:
             ziel[k] = v
-    if module:
-        # Q22: „Öffnen" im Projekte-Bereich springt ins zuletzt benutzte Modul.
+    # Q22: „Öffnen" im Projekte-Bereich springt ins zuletzt benutzte Modul.
+    # 15.09.2026 (Marc: „öffnet im Archiv oder im Animator, obwohl ich im Inspektor war"):
+    # Vorher setzte JEDE Speicherung des Abschnitts X `letztes_modul = X` — auch Speicherungen
+    # im Hintergrund (Daten-Animator beim Aufbau, Vorlagen, Übergaben), während man in einem
+    # anderen Modul saß. Jetzt zählt nur das Modul, das wirklich offen ist.
+    if aktives_modul is not None:
+        if aktives_modul in ARBEITSMODULE and (module == aktives_modul or not p.get("letztes_modul")):
+            p["letztes_modul"] = aktives_modul
+    elif module:
         p["letztes_modul"] = module
     war_auto = bool(p.get("auto"))
     _angefasst(p)          # setzt u. a. auto = False
