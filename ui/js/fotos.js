@@ -1003,7 +1003,7 @@
         container: "foto-d-karte",
         styleKey: (typeof mapDefaultStyle === "function") ? mapDefaultStyle() : undefined,
         common: { center: hatOrt ? [+d.lon, +d.lat] : linie[0], zoom: hatOrt ? 12 : 8,
-                  attributionControl: false, interactive: true },
+                  attributionControl: true, interactive: true },   // 15.09.2026: Quellenleiste auf allen Karten
       });
       dKarte = created.map; lib = created.lib;
       window.__fotoDKarte = dKarte;          // Prüfstand

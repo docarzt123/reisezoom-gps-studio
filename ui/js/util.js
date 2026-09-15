@@ -662,6 +662,12 @@ function createMap(opts) {
     map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20, maxPitch: 85, fadeDuration: 0 }, _pq, opts.common || {}));   // maxPitch 85: MapLibre-Standard ist 60 → Keyframes mit 76° wurden geklemmt (04.09.2026)   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
   }
   map.__rzEngine = spec.engine;
+  // 15.09.2026 (Marc: „bei allen Karten unten der Hinweis, wo es herkommt, wie im Inspektor: klein, aber
+  // da und über die ganze Breite"). Nicht in der Animator-/Tour-Map-/Reiseroute-Vorschau: dort ist die
+  // Quellenzeile Teil des Videos und wird in den Render-Einstellungen gestaltet (quellenleiste: false).
+  if (opts.quellenleiste !== false) {
+    try { const c = map.getContainer(); if (c) c.classList.add("rz-quellenleiste"); } catch (_) {}
+  }
   // 04.09.2026 (Beta-Tester: „CyclOSM bleibt schwarz") — antwortet ein
   // Kachel-Dienst nicht (502/Timeout), blieb die Karte stumm schwarz. Jetzt
   // einmal je Karte und Dienst ein Hinweis mit dem Host, nicht öfter als

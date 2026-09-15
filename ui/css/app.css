@@ -3262,3 +3262,27 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
   padding: 1px 4px;
   position: absolute;
 }
+
+
+/* 13.09.2026 Inspektor, seit 15.09.2026 alle App-Karten (Marc: „bei allen Karten unten der Hinweis,
+   wo es herkommt — klein, aber da und über die ganze Breite"). createMap setzt .rz-quellenleiste;
+   die Animator-/Tour-Map-Vorschau nicht (dort ist die Quellenzeile Teil des Videos). */
+.rz-quellenleiste .maplibregl-ctrl-bottom-right, .rz-quellenleiste .mapboxgl-ctrl-bottom-right {
+  left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+}
+.rz-quellenleiste .maplibregl-ctrl-bottom-right .maplibregl-ctrl, .rz-quellenleiste .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0 !important; float: none !important; width: 100%;
+}
+.rz-quellenleiste .maplibregl-ctrl-attrib, .rz-quellenleiste .mapboxgl-ctrl-attrib {
+  display: block !important; visibility: visible !important; opacity: 1 !important;
+  width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; border-radius: 0 !important; min-height: 0 !important;
+  padding: 1px 10px !important; text-align: center;
+  font-size: 8.5px; line-height: 1.3;
+  background: rgba(0,0,0,.45) !important; color: rgba(255,255,255,.85) !important;
+}
+.rz-quellenleiste .maplibregl-ctrl-attrib a, .rz-quellenleiste .mapboxgl-ctrl-attrib a { color: inherit !important; opacity: .85; }
+.rz-quellenleiste .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner,
+.rz-quellenleiste .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner,
+.rz-quellenleiste .mapboxgl-ctrl-attrib.mapboxgl-compact .mapboxgl-ctrl-attrib-inner { display: inline !important; }
+.rz-quellenleiste .maplibregl-ctrl-attrib-button, .rz-quellenleiste .mapboxgl-ctrl-attrib-button { display: none !important; }
+.rz-quellenleiste .maplibregl-ctrl-bottom-left, .rz-quellenleiste .mapboxgl-ctrl-bottom-left { bottom: 16px !important; }

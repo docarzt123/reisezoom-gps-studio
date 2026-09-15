@@ -9226,6 +9226,7 @@ function mountAnimator(body, headerActions, opts) {
     const _gelaendeNachFahrt = () => { clearTimeout(_gelaendeTimer); _gelaendeTimer = setTimeout(() => { try { _gelaendePruefen("Ruhe nach Fahrt"); } catch (_) {} }, 1500); };
     const made = createMap({
       container: "map-canvas",
+      quellenleiste: false,   // Quellenzeile gehört hier zum Video (Render-Einstellungen), nicht zur App
       // 03.09.2026 — Stil aus der gemeinsamen Liste; Alpha ist kein Kartenstil.
       styleKey: (initialStyleKey === "alpha") ? mapDefaultStyle() : initialStyleKey,
       bbox: currentBbox || null,

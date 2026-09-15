@@ -461,27 +461,7 @@
 .gpxi-lb-badge { display: inline-block; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; padding: 0 5px; border-radius: 4px; background: var(--bg-4); color: var(--text-dim); margin-left: 5px; vertical-align: 1px; }
 .gpxi-lb-leer { padding: 14px 12px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
-/* 13.09.2026 (Marc: „mach die quellenzeile im inspector wie im animator unten ganze
-   breite und wirklich klein, das teilt man ja nicht") — Attribution als schmale Zeile
-   über die ganze Kartenbreite statt als Kasten in der Ecke. */
-#gpxi-canvas .maplibregl-ctrl-bottom-right, #gpxi-canvas .mapboxgl-ctrl-bottom-right {
-  left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
-}
-#gpxi-canvas .maplibregl-ctrl-bottom-right .maplibregl-ctrl, #gpxi-canvas .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
-  margin: 0 !important; float: none !important; width: 100%;
-}
-#gpxi-canvas .maplibregl-ctrl-attrib, #gpxi-canvas .mapboxgl-ctrl-attrib {
-  display: block !important; visibility: visible !important; opacity: 1 !important;
-  width: 100%; max-width: 100% !important; box-sizing: border-box; border-radius: 0;
-  padding: 1px 10px !important; text-align: center;
-  font-size: 8.5px; line-height: 1.3;
-  background: rgba(0,0,0,.45) !important; color: rgba(255,255,255,.85) !important;
-}
-#gpxi-canvas .maplibregl-ctrl-attrib a, #gpxi-canvas .mapboxgl-ctrl-attrib a { color: inherit !important; opacity: .85; }
-#gpxi-canvas .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner,
-#gpxi-canvas .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner { display: inline !important; }
-#gpxi-canvas .maplibregl-ctrl-attrib-button, #gpxi-canvas .mapboxgl-ctrl-attrib-button { display: none !important; }
-#gpxi-canvas .maplibregl-ctrl-bottom-left, #gpxi-canvas .mapboxgl-ctrl-bottom-left { bottom: 16px !important; }
+/* 15.09.2026 — Quellenleiste gilt jetzt für alle App-Karten: ui/css/app.css `.rz-quellenleiste`. */
 
 /* ── Logbuch Stufe 2 — Bearbeiten (13.09.2026) ───────────────────────────── */
 .gpxi-lb-zeile { grid-template-columns: 22px 1fr auto; }
