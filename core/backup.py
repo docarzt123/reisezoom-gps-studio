@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 # Damit erkennt GPS Studio doppelte Sicherungen derselben Fotos; ältere ZIPs ohne Liste werden
 # über ihre Dateinamen verglichen.
 QUELLEN_SUFFIX = ".quellen.json"
+WARN_AB = 20   # ab so vielen Sicherungen warnt die App beim Start (nichts wird automatisch gelöscht)
 
 
 class BackupCancelled(Exception):
@@ -117,19 +118,8 @@ def make_photo_backup(
     except Exception:
         log.exception("Fotosicherung: doppelte aufräumen")
 
-    # Retention: max 20 ZIPs pro Backup-Dir
-    zips = sorted(bdir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for old in zips[20:]:
-        # Diese ZIPs SIND die Sicherungen — die Aufbewahrungsgrenze bleibt, wie sie war.
-        # ART_CACHE, damit ein altes Backup nicht noch einmal in den Papierkorb kopiert
-        # wird (würde den Platz nur verdoppeln). Das Tor prüft trotzdem den Ort:
-        # Liegt backup_dir außerhalb der App, wird verweigert und nichts gelöscht.
-        try:
-            _ds.loeschen(old, "fotobackup_aufbewahrung", art=_ds.ART_CACHE)
-            _ds.loeschen(Path(str(old) + QUELLEN_SUFFIX), "fotobackup_aufbewahrung", art=_ds.ART_CACHE)
-        except OSError:
-            pass
-
+    # 15.09.2026 (Marc): Die alte Grenze „max. 20 ZIPs, älteste weg" ist raus — sie löschte still
+    # genau die unberührten Originale. Stattdessen warnt die App beim Start ab WARN_AB Sicherungen.
     return str(zip_path)
 
 
@@ -167,7 +157,8 @@ def sicherungen_liste(backup_dir) -> list:
     bdir = Path(backup_dir)
     if not bdir.is_dir():
         return []
-    out = [e for e in (_eintrag(z) for z in bdir.glob("*.zip")) if e and e["anzahl"]]
+    # rglob: auch die Einzel-Sicherungen aus dem EXIF-Editor (Unterordner exif_einzeln)
+    out = [e for e in (_eintrag(z) for z in bdir.rglob("*.zip")) if e and e["anzahl"]]
     out.sort(key=lambda e: e["zeit"])
     return out
 
@@ -224,7 +215,7 @@ def fremde_sicherungen(backup_dir, aktuelle_pfade: Iterable[str]) -> list:
 def sicherungen_loeschen(backup_dir, namen: Iterable[str]) -> dict:
     """Ausgewählte Sicherungen (nur Dateinamen aus diesem Ordner) in den Papierkorb von GPS Studio."""
     bdir = Path(backup_dir)
-    erlaubt = {e["name"]: e for e in sicherungen_liste(bdir)}
+    erlaubt = {e["name"]: e for e in sicherungen_liste(bdir)}   # Namen tragen Art + Sekunde, eindeutig
     geloescht, frei = [], 0
     for n in namen or []:
         e = erlaubt.get(Path(str(n)).name)
@@ -234,3 +225,10 @@ def sicherungen_loeschen(backup_dir, namen: Iterable[str]) -> dict:
             geloescht.append(e["name"]); frei += e["bytes"]
     log.info("Fotosicherung: %d Sicherung(en) auf Wunsch entfernt (%.1f GB)", len(geloescht), frei / 1e9)
     return {"ok": True, "geloescht": geloescht, "frei_bytes": frei}
+
+
+def uebersicht(backup_dir) -> dict:
+    """Für die Warnung beim Start: Anzahl, Größe und Liste (älteste zuerst)."""
+    liste = [{k: e[k] for k in ("name", "zeit", "bytes", "anzahl")} for e in sicherungen_liste(backup_dir)]
+    return {"anzahl": len(liste), "bytes": sum(e["bytes"] for e in liste), "warn_ab": WARN_AB,
+            "warnen": len(liste) > WARN_AB, "sicherungen": liste}
