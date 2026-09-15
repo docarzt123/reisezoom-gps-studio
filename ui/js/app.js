@@ -1850,12 +1850,12 @@ async function rzFotosicherungenWarnen(nochmal) {
   const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const zeilen = r.sicherungen.map((e, i) => `
     <label class="modal-stat-row" style="cursor:pointer">
-      <span class="label"><input type="checkbox" id="fs-wahl-${i}" data-name="${esc(e.name)}" data-bytes="${e.bytes}"> ${tag(e.zeit)} · ${e.anzahl} ${t("geotagger.sich.dateien", "Dateien")}</span>
+      <span class="label"><input type="checkbox" id="fs-wahl-${i}" data-name="${esc(e.name)}" data-bytes="${e.bytes}"> ${tag(e.zeit)}${e.ordner ? " · " + esc(e.ordner) : ""} · ${e.anzahl} ${t("geotagger.sich.dateien", "Dateien")}${e.art_sicherung === "exif" ? " · " + t("fotosich.warn.exif", "EXIF-Einzeländerung") : ""}</span>
       <span class="val mono">${gb(e.bytes)}</span>
     </label>`).join("");
   openModal({
-    title: t("fotosich.warn.titel", "Viele Foto-Sicherungen"),
-    body: `<p style="line-height:1.5">${t("fotosich.warn.text", "GPS Studio hat %n Sicherungen deiner Originale angelegt (%g). Sie werden nie automatisch gelöscht. Hake an, was weg kann — die älteste Sicherung einer Tour enthält die unberührten Originale.").replace("%n", r.anzahl).replace("%g", gb(r.bytes))}</p>
+    title: t("fotosich.warn.titel", "Geotagger: viele Foto-Sicherungen"),
+    body: `<p style="line-height:1.5">${t("fotosich.warn.text", "Bevor der Geotagger GPS-Daten in deine Originalfotos schreibt, sichert GPS Studio sie als ZIP. Davon liegen jetzt %n Sicherungen (%g). Sie werden nie automatisch gelöscht. Hake an, was weg kann — deine Fotos selbst bleiben unberührt. Die älteste Sicherung einer Tour enthält die Fotos ohne GPS-Daten.").replace("%n", r.anzahl).replace("%g", gb(r.bytes))}</p>
            <div style="max-height:300px;overflow:auto;margin-top:10px">${zeilen}</div>
            <p class="muted" style="margin-top:10px;font-size:12px;line-height:1.45">${t("geotagger.sich.hinweis", "Gelöschte Sicherungen liegen noch 14 Tage im Papierkorb von GPS Studio.")}</p>`,
     footer: `<button class="btn" id="fs-zeigen">${t("geotagger.sich.zeigen", "Ansehen")}</button>

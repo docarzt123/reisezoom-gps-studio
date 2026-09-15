@@ -3815,7 +3815,7 @@ function mountGeotagger(body, headerActions) {
     const gb = (b) => (b / 1e9 >= 0.1 ? (b / 1e9).toFixed(1).replace(".", (window.rzSprachCode && window.rzSprachCode() === "en") ? "." : ",") + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB");
     const tag = (sek) => { try { return new Date(sek * 1000).toLocaleDateString((window.rzSprachCode ? window.rzSprachCode() : undefined), { year: "numeric", month: "short", day: "numeric" }); } catch (_) { return ""; } };
     const liste = r.sicherungen;
-    const zeilen = liste.map(e => `<div class="modal-stat-row"><span class="label">${tag(e.zeit)} · ${e.anzahl} ${t("geotagger.sich.dateien", "Dateien")}</span><span class="val mono">${gb(e.bytes)}</span></div>`).join("");
+    const zeilen = liste.map(e => `<div class="modal-stat-row"><span class="label">${tag(e.zeit)}${e.ordner ? " · " + String(e.ordner).replace(/[&<>"]/g, "") : ""} · ${e.anzahl} ${t("geotagger.sich.dateien", "Dateien")}</span><span class="val mono">${gb(e.bytes)}</span></div>`).join("");
     return await new Promise((resolve) => {
       openModal({
         title: t("geotagger.sich.titel", "Alte Foto-Sicherungen löschen?"),
