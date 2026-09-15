@@ -2960,8 +2960,13 @@ class Api:
                          if k not in ("photos", "photo_paths", "loaded_photos")}
             # 02.09.2026 (Q15): Ist das Projekt noch schwebend (leere Kennung),
             # entsteht es GENAU HIER — bei der ersten echten Änderung.
+            try:
+                _aktiv_mod = str((_load_settings() or {}).get("active_module") or "")
+            except Exception:
+                _aktiv_mod = ""
             if not _projekte.update_settings(daten, track_hash, project_id, module,
-                                             patch, defaults=self._projekt_defaults()):
+                                             patch, defaults=self._projekt_defaults(),
+                                             aktives_modul=_aktiv_mod):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _projekte.speichern(DATEN_ORT, daten)
             if not project_id:

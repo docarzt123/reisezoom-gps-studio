@@ -2020,6 +2020,19 @@ function _notifySessionChanged() {
     try { cb({ session: _activeSession, project: _activeProject, projects: _projectsList }); }
     catch (err) { console.warn("session listener threw:", err); }
   }
+  // 15.09.2026 (Marc: „die App soll im zuletzt geöffneten Modul aufgehen"): Das Modul wurde nur
+  // beim WECHSEL gemerkt. Wer eine Tour direkt im Inspektor lädt, öffnet das Projekt ohne Wechsel —
+  // es blieb ohne Modul, und der nächste Start ging in den Animator. Jetzt merkt sich jedes
+  // aktivierte Projekt das Modul, das gerade offen ist.
+  try {
+    const mod = (typeof activeMod !== "undefined") ? activeMod : null;
+    const p = _activeProject;
+    if (p && p.id && mod && !["library", "settings", "help"].includes(mod) && p.letztes_modul !== mod
+        && window.pywebview && window.pywebview.api && window.pywebview.api.projekt_modul_merken) {
+      p.letztes_modul = mod;
+      window.pywebview.api.projekt_modul_merken(p.id, mod);   // warte-ok: winzige Merk-Brücke im Hintergrund
+    }
+  } catch (_) {}
 }
 
 /** Speichert einen Patch im aktiven Projekt (debounced, 200 ms).
