@@ -119,7 +119,6 @@ from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft
 from core import umzug as cumzug    # 02.09.2026: Altbestand → Bibliothek
 from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
 from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
-from core import sign_raster as csignraster  # v0.9.418: serverseitige Schild-Rasterung (WYSIWYG)
 from core import gpxedit as cgpxedit  # v0.9.233: GPX-Inspektor (Track heilen/füllen)
 from core import gpxmerge as cgpxmerge  # v0.9.456: mehrere Tracks zu einem verschmelzen
 from core import trackio as ctrackio  # v0.9.297: Track→GPX/CSV-String (geteilt mit Web)
@@ -921,6 +920,8 @@ def _drops_verweis_dateien() -> list:
     return dateien
 
 
+DB_PRUEFUNG_TAGE = 7   # blockierende Datenbank-Prüfung beim Öffnen höchstens so selten (sonst Hintergrund)
+
 _SESSION_HASHES: Optional[set] = None
 _SESSION_HASHES_STAMP: tuple = ()
 _SESSION_HASHES_LOCK = threading.Lock()
@@ -1521,16 +1522,24 @@ class Api:
         # Läuft NACH der alten Schema-2-Migration (geo_hash-Schlüssel), damit
         # auch uralte Bestände sauber ankommen. sessions.json wird danach zu
         # sessions.json.aufgeloest-<stamp> umbenannt — nichts wird gelöscht.
-        try:
-            _info = _projekte.migrieren_falls_noetig(
-                APP_SUPPORT, SESSIONS_FILE, self._session_get_global_defaults())
-            if _info and not _info.get("neu"):
-                log.info("E1-Migration: %d Projekte (%d Kompositionen), %d Touren"
-                         " — alte Datei: %s", _info["projekte"],
-                         _info["kompositionen"], _info["touren"],
-                         _info.get("alt_datei"))
-        except Exception:
-            log.exception("E1-Migration fehlgeschlagen — Projekte-Store leer?")
+        # 15.09.2026 (Code-Review): Mit eingerichteter Bibliothek liegen die Projekte DORT. Ohne
+        # sessions.json gibt es nichts zu überführen — früher entstand dann bei jedem Start ohne
+        # Datei im App-Ordner eine LEERE Ablage, die Aufräumen und Cloud-Wächter in die Irre führte.
+        # Übrig gebliebene leere Ablagen wandern in den Papierkorb von GPS Studio.
+        _bib_da = bool(BIB_ORT) and cbib.ist_bibliothek(BIB_ORT)
+        if _bib_da and not SESSIONS_FILE.exists():
+            self._leere_app_ablage_wegraeumen()
+        else:
+            try:
+                _info = _projekte.migrieren_falls_noetig(
+                    APP_SUPPORT, SESSIONS_FILE, self._session_get_global_defaults())
+                if _info and not _info.get("neu"):
+                    log.info("E1-Migration: %d Projekte (%d Kompositionen), %d Touren"
+                             " — alte Datei: %s", _info["projekte"],
+                             _info["kompositionen"], _info["touren"],
+                             _info.get("alt_datei"))
+            except Exception:
+                log.exception("E1-Migration fehlgeschlagen — Projekte-Store leer?")
         # 22.08.2026 — EIN Start-Lock für Render/Scan/Karten: „läuft schon?"
         # prüfen und das Flag setzen passiert atomar. Vorher lagen beim
         # Animator ~260 Zeilen Validierung zwischen Prüfung und Flag — zwei
@@ -3324,11 +3333,35 @@ class Api:
             log.warning("Bibliothek ist von einer anderen Instanz belegt: %s", ort)
             return
 
-        if not cbib.db_heil(cbib.db_pfad(ort)):
-            BIB_PROBLEM = {"art": "defekt", "ort": str(ort),
-                           "sicherungen": cbib.sicherungen(ort)}
-            log.error("Bibliothek: Datenbank nicht lesbar — %s", cbib.db_pfad(ort))
-            return
+        # 15.09.2026 (Code-Review): `PRAGMA quick_check` kostet bei 20 000 Touren 150–700 ms, auf dem
+        # NAS mehr — bei JEDEM Start. Jetzt blockierend nur, wenn die letzte bestandene Prüfung älter
+        # als DB_PRUEFUNG_TAGE ist oder eine Prüfung gescheitert war; sonst läuft sie im Hintergrund
+        # und löscht bei einem Befund den Stempel, damit der nächste Start blockierend prüft.
+        _db = cbib.db_pfad(ort)
+        _zuletzt = cbib.stempel_lesen(ort, "db_geprueft_am") or 0
+        try:
+            _zuletzt = float(_zuletzt)
+        except (TypeError, ValueError):
+            _zuletzt = 0.0
+        if time.time() - _zuletzt > DB_PRUEFUNG_TAGE * 86400:
+            _t0 = time.time()
+            if not cbib.db_heil(_db):
+                cbib.stempel_setzen(ort, "db_geprueft_am", 0)
+                BIB_PROBLEM = {"art": "defekt", "ort": str(ort),
+                               "sicherungen": cbib.sicherungen(ort)}
+                log.error("Bibliothek: Datenbank nicht lesbar — %s", _db)
+                return
+            cbib.stempel_setzen(ort, "db_geprueft_am", time.time())
+            log.info("Bibliothek: Datenbank geprüft (%.0f ms)", (time.time() - _t0) * 1000)
+        else:
+            def _db_pruefen_hinten(ort=ort, db=_db):
+                t0 = time.time()
+                if cbib.db_heil(db):
+                    log.info("Bibliothek: Datenbank im Hintergrund geprüft (%.0f ms)", (time.time() - t0) * 1000)
+                else:
+                    cbib.stempel_setzen(ort, "db_geprueft_am", 0)
+                    log.error("Bibliothek: Datenbank-Prüfung im Hintergrund GESCHEITERT — nächster Start prüft vor dem Öffnen: %s", db)
+            threading.Thread(target=_db_pruefen_hinten, name="db-pruefung", daemon=True).start()
 
         cbib.anlegen(ort)                       # idempotent, legt Unterordner an
         BIB = ort
@@ -7478,103 +7511,6 @@ class Api:
     def tourmap_open_in_browser(self, path: str) -> dict:
         """Öffnet die exportierte Tour-Karten-HTML im Default-Browser (wie heightanim)."""
         return self.heightanim_open_in_browser(path)
-
-    # ── Tour-Map „HTML"-Modus: leichter Leaflet-Blog-Export ──────────────────
-    # v0.9.418 — Eigener, minimaler Leaflet-Export (getrennt vom PNG/„Bild"-Modus,
-    # der über die Animator-Engine läuft). Leicht (~0.2 MB), voller Track sofort,
-    # WYSIWYG-Schilder (serverseitig gerastert), OSM-Kacheln, Consent. Keine Fotos,
-    # kein 3D/Overlay. Eigene Leaflet-Vorschau in der App = exakt dieser Export.
-
-    def tourmap_leaflet_prepare(self, params: dict) -> dict:
-        """Daten für die Leaflet-Blog-VORSCHAU: voller Track als [lat,lon] +
-        serverseitig gerasterte Schilder (WYSIWYG). Kein Screenshot, nur Sign-
-        Rasterung (headless Chromium). Die Vorschau in der App zeichnet damit die
-        IDENTISCHEN Bild-Marker wie der Export → echtes WYSIWYG."""
-        try:
-            gpx_path = params.get("gpx_path", "")
-            track = []
-            if gpx_path and Path(gpx_path).exists():
-                gpx_path = self._ensure_gpx(gpx_path)
-                pts, _stats = cgpx.parse_gpx(gpx_path)
-                ds = cgpx.downsample(pts, 1500)
-                track = [[p.lat, p.lon] for p in ds
-                         if p.lat is not None and p.lon is not None]
-            signs = csignraster.rasterize_signs(
-                list(params.get("signs") or []),
-                signs_show=bool(params.get("signs_show", True)))
-            return {"ok": True, "track": track, "signs": signs}
-        except Exception as e:
-            log.exception("tourmap_leaflet_prepare fehlgeschlagen: %s", e)
-            return {"ok": False, "error": str(e)}
-
-    def tourmap_export_leaflet(self, params: dict) -> dict:
-        """Leichter Leaflet-Blog-Export: eigenständige interaktive Karte (Leaflet +
-        OSM), voller Track sofort, WYSIWYG-Schilder (serverseitig gerastert),
-        optionaler DSGVO-Consent. Schreibt .html + <iframe srcdoc>-Snippet."""
-        try:
-            gpx_path = params.get("gpx_path", "")
-            if not gpx_path or not Path(gpx_path).exists():
-                return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
-            gpx_path = self._ensure_gpx(gpx_path)
-            pts, _stats = cgpx.parse_gpx(gpx_path)
-            if len(pts) < 2:
-                return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)")}
-            ds = cgpx.downsample(pts, 1500)
-            track = [[p.lat, p.lon] for p in ds
-                     if p.lat is not None and p.lon is not None]
-
-            style_key = params.get("tile_style") or "osm"
-            _bb = _track_bbox_lonlat(track)
-            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm", bbox=_bb)
-            # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
-            # englische OSM-Form („© OpenStreetMap contributors").
-            if _ui_sprache() != "de" and st.get("attr"):
-                st = dict(st, attr=str(st["attr"]).replace("</a>-Mitwirkende", "</a> contributors"))
-            rsigns = csignraster.rasterize_signs(
-                list(params.get("signs") or []),
-                signs_show=bool(params.get("signs_show", True)))
-
-            w = int(params.get("width", 1120) or 1120)
-            h = int(params.get("height", 640) or 640)
-            inner = ctmleaflet.make_leaflet_html({
-                "track": track,
-                "line_color": params.get("line_color", "#ff6b35"),
-                "line_width": float(params.get("line_width", 4.5) or 4.5),
-                "tile": st,
-                "signs": rsigns,
-                "show_pins": bool(params.get("show_pins", True)),
-                "show_scale": bool(params.get("show_scale", True)),   # 04.09.2026 Maßstabsleiste
-                "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
-                "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
-                "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
-                "view_center": params.get("view_center"),
-                "view_zoom": params.get("view_zoom"),
-                "title": params.get("title") or (Path(gpx_path).stem + " — Tour-Karte"),
-                "width": w, "height": h,
-            })
-            if bool(params.get("consent_enabled", False)):
-                html_doc = ctourhtml.wrap_with_consent(
-                    inner,
-                    params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
-                    params.get("consent_button") or "Karte laden")
-            else:
-                html_doc = inner
-            out_name = params.get("output_name") or (Path(gpx_path).stem + "_tourkarte.html")
-            if not out_name.lower().endswith(".html"):
-                out_name += ".html"
-            out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
-            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-            Path(out_path).write_text(html_doc, encoding="utf-8")
-            snippet = ctourhtml.make_tourmap_embed_snippet(html_doc, w, h)
-            snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
-            Path(snip_path).write_text(snippet, encoding="utf-8")
-            log.info("Tour-Map Leaflet-Export OK (leicht/Blog): %s (%.0f KB) + Snippet %s",
-                     out_path, len(html_doc.encode("utf-8")) / 1024, snip_path)
-            return {"ok": True, "output": out_path, "snippet": snippet,
-                    "snippet_path": snip_path, "bytes": len(html_doc.encode("utf-8"))}
-        except Exception as e:
-            log.exception("tourmap_export_leaflet fehlgeschlagen: %s", e)
-            return {"ok": False, "error": str(e)}
 
     # ── Web-Karte (eigener Tab): leichter Leaflet-Export mit Text-Labels ─────
     # v0.9.422 — Komplett getrennt von der Tour-Map. Kein Playwright/keine Schild-
@@ -13775,6 +13711,24 @@ class Api:
                 self._write_state["current_name"] = None
                 self._write_state["current_path"] = None
             log.info("_write_worker_run: ENDE — done=%d skipped=%d errors=%d", done, skipped, nerr)
+
+    def _leere_app_ablage_wegraeumen(self) -> None:
+        """Leere projekte.json/touren.json im App-Ordner entfernen, wenn die Bibliothek die Daten
+        hält. Nur wirklich leere Ablagen (keine Projekte, keine Touren) — alles andere bleibt."""
+        for name, schluessel in (("projekte.json", ("projects", "aktiv")), ("touren.json", ("touren",))):
+            p = APP_SUPPORT / name
+            if not p.is_file() or (Path(DATEN_ORT) / name).resolve() == p.resolve():
+                continue
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(d, dict) and not any(d.get(k) for k in schluessel):
+                try:
+                    _ds.loeschen(p, "leere_app_ablage")
+                    log.info("Start: leere Ablage im App-Ordner weggeräumt: %s", p)
+                except OSError:
+                    log.exception("Start: leere Ablage nicht weggeräumt: %s", p)
 
     def geotagger_sicherungen_frueher(self, pfade: list) -> dict:
         """15.09.2026 (Marc) — Foto-Sicherungen früherer Touren (keins der aktuellen Fotos drin),
