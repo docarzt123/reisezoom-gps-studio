@@ -24,6 +24,10 @@
       st.id = "wk-label-style";
       st.textContent =
         ".wk-pin{background:none;border:0;}" +
+        // 15.09.2026 — gleiche Leiste wie im Export (core/tourmap_leaflet.py, LEAFLET_TEMPLATE)
+        "#wk-map.rz-attrib-voll .leaflet-bottom.leaflet-right{left:0;right:0}" +
+        "#wk-map.rz-attrib-voll .leaflet-bottom.leaflet-right .leaflet-control-attribution{float:none;margin:0;width:100%;box-sizing:border-box;text-align:center;font-size:8.5px;line-height:1.3;padding:1px 10px;background:rgba(0,0,0,.45);color:rgba(255,255,255,.85);border-radius:0}" +
+        "#wk-map.rz-attrib-voll .leaflet-control-attribution a{color:inherit;opacity:.85}" +
         ".leaflet-tooltip.wk-tip{background:none;border:0;padding:0;box-shadow:none;white-space:nowrap;}" +
         ".leaflet-tooltip.wk-tip:before{display:none;}" +
         ".wk-lbl-row{border:1px solid var(--border,#3a3f4a);border-radius:7px;padding:7px;margin-bottom:7px;}" +
@@ -47,7 +51,7 @@
     const WK_DEFAULTS = {
       line_color: "#ff6b35", line_width: 4.5, tile_style: "osm", labels: [], tracks: [],
       consent_enabled: false, consent_text: "", consent_button: "", consent_preview: true,
-      leaflet_mode: "cdn", leaflet_url: "", attribution_enabled: true, show_scale: true, show_north: true,
+      leaflet_mode: "cdn", leaflet_url: "", attribution_enabled: true, show_scale: true, show_north: true, quellenangabe: "ecke",
     };
     const wkSnapshot = () => {
       const a = wk(), out = {};
@@ -108,6 +112,12 @@
           <input type="range" id="wk-width" min="1" max="12" step="0.5" value="${lineWidth0}" style="width:100%;">
           <label class="field-label" for="wk-tile" style="margin-top:10px;">${T("webkarte.tile_style", "Kartenstil")}</label>
           <select id="wk-tile" style="width:100%;">${styleOpts}</select>
+          <!-- 15.09.2026 (Marc) — Quellenangabe wählbar wie im Animator; gilt für Vorschau UND Export -->
+          <label class="field-label" for="wk-attrib" style="margin-top:10px;">${T("webkarte.attrib", "Quellenangabe")}</label>
+          <select id="wk-attrib" style="width:100%;">
+            <option value="ecke"${get("quellenangabe", "ecke") !== "voll" ? " selected" : ""}>${T("webkarte.attrib.ecke", "Ecke unten rechts")}</option>
+            <option value="voll"${get("quellenangabe", "ecke") === "voll" ? " selected" : ""}>${T("webkarte.attrib.voll", "schmale Leiste über die ganze Breite")}</option>
+          </select>
           <!-- 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an -->
           <label class="check-row" style="margin-top:10px;">
             <input type="checkbox" id="wk-scale"${get("show_scale", true) !== false ? " checked" : ""}>
@@ -178,6 +188,10 @@
     let map = null, tileLayer = null, trackLine = null, startPin = null, endPin = null;
     // 04.09.2026 — Maßstabsleiste + Nordpfeil in der Vorschau (Export: core/tourmap_leaflet.py)
     let _scaleCtl = null, _northCtl = null;
+    function applyAttrib() {
+      const host = el("wk-map"); if (!host) return;
+      host.classList.toggle("rz-attrib-voll", (el("wk-attrib")?.value || "ecke") === "voll");
+    }
     function applyDeco() {
       if (!map || typeof L === "undefined") return;
       if (!document.getElementById("wk-north-style")) {
@@ -430,6 +444,7 @@
       if (el("wk-leaflet-mode") && ["cdn", "url", "inline"].includes(a.leaflet_mode)) el("wk-leaflet-mode").value = a.leaflet_mode;
       if (el("wk-leaflet-url") && typeof a.leaflet_url === "string") el("wk-leaflet-url").value = a.leaflet_url;
       if (el("wk-attribution")) el("wk-attribution").checked = (a.attribution_enabled !== false);
+      if (el("wk-attrib")) { el("wk-attrib").value = (a.quellenangabe === "voll") ? "voll" : "ecke"; applyAttrib(); }
       updateLeafletHint();
       // Kachel-Layer an den (evtl. neuen) Stil anpassen
       if (map && tileLayer && el("wk-tile")) {
@@ -533,6 +548,7 @@
         show_pins: true,
         show_scale: !!el("wk-scale")?.checked,   // 04.09.2026
         show_north: !!el("wk-north")?.checked,
+        quellenangabe: el("wk-attrib")?.value === "voll" ? "voll" : "ecke",
         labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })),
         consent_enabled: !!el("wk-consent")?.checked,
         consent_preview: !!el("wk-consent-preview")?.checked,
@@ -618,7 +634,7 @@
       }
       map = L.map(host, { scrollWheelZoom: true }).setView([51.16, 10.45], 5);
       tileLayer = tileFor(tileStyle0).addTo(map);
-      _scaleCtl = null; _northCtl = null; try { applyDeco(); } catch (_) {}
+      _scaleCtl = null; _northCtl = null; try { applyDeco(); applyAttrib(); } catch (_) {}
       _ro = new ResizeObserver(() => { try { map.invalidateSize(false); } catch (_) {} });
       _ro.observe(host);
       [120, 400, 900].forEach((ms) => setTimeout(() => { try { map.invalidateSize(false); } catch (_) {} }, ms));
@@ -701,6 +717,7 @@
     el("wk-leaflet-mode")?.addEventListener("change", () => { save({ leaflet_mode: el("wk-leaflet-mode").value }); updateLeafletHint(); });
     el("wk-leaflet-url")?.addEventListener("change", () => save({ leaflet_url: el("wk-leaflet-url").value.trim() }));
     el("wk-attribution")?.addEventListener("change", () => save({ attribution_enabled: !!el("wk-attribution").checked }));
+    el("wk-attrib")?.addEventListener("change", () => { save({ quellenangabe: el("wk-attrib").value }); applyAttrib(); });
     el("wk-scale")?.addEventListener("change", () => { save({ show_scale: !!el("wk-scale").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-north")?.addEventListener("change", () => { save({ show_north: !!el("wk-north").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-export")?.addEventListener("click", doExport);
