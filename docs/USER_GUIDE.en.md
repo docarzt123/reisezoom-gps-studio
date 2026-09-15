@@ -1863,7 +1863,7 @@ A dedicated, deliberately **lean** tab for **interactive maps for the web/blog**
 
 ### Workflow
 1. **Load a GPX** (the global GPX bar at the top). The track appears immediately and is fitted.
-2. Set the **track color/width** and the **map style** on the left.
+2. Set the **track color/width**, the **map style** and the **source credit** on the left — the credit sits small in the **bottom-right corner** (default) or as a **thin bar across the full width**, the same in preview and export.
 3. **Add labels:** click **"＋ Add label"** → tap on the map. In the **label list** below, you set the **text, color and size** for each entry and delete it with 🗑. On the map each label can be **dragged** (moved); clicking it jumps to the matching row in the list. The text color (light/dark) is chosen automatically to match the selected color.
 4. Optionally enable the **GDPR button** (see below).
 5. **"🌐 Export as HTML"** → a window with the output options.

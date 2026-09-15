@@ -1919,7 +1919,7 @@ Una pestaña propia, deliberadamente **ligera**, para **mapas interactivos para 
 
 ### Flujo de trabajo
 1. **Cargar GPX** (barra GPX global arriba). El track aparece de inmediato y se encaja.
-2. **Color/grosor del track** y **estilo de mapa** se ajustan a la izquierda.
+2. **Color/grosor del track**, **estilo de mapa** y **atribución** se ajustan a la izquierda: la atribución aparece pequeña en la **esquina inferior derecha** (predeterminado) o como **barra fina a todo el ancho**, igual en la vista previa y en la exportación.
 3. **Colocar etiquetas:** haz clic en **«＋ Añadir etiqueta»** → toca en el mapa. En la **lista de etiquetas** de debajo ajustas por cada entrada **texto, color y tamaño** y la eliminas con 🗑. En el mapa, cada etiqueta se puede **arrastrar** (desplazar); un clic sobre ella salta a la fila correspondiente en la lista. El color del texto (claro/oscuro) se elige automáticamente acorde al color escogido.
 4. Opcionalmente activa el **botón RGPD** (ver más abajo).
 5. **«🌐 Exportar como HTML»** → ventana con las opciones de salida.

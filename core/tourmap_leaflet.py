@@ -149,6 +149,8 @@ def make_leaflet_html(params: dict) -> str:
         # 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an
         "showScale": bool(params.get("show_scale", True)), "showNorth": bool(params.get("show_north", True)),
         "northSvg": NORTH_SVG,
+        # 15.09.2026 (Marc) — Quellenangabe: "ecke" (Leaflet-Standard) oder "voll" (schmale Leiste unten)
+        "attribVoll": str(params.get("quellenangabe") or "ecke") == "voll",
         "tile": {"url": tile.get("url"), "sub": tile.get("sub", ""),
                  "max": int(tile.get("max", 19) or 19), "attr": tile.get("attr", ""),
                  # 03.09.2026 — staatliche Orthofotos: WMS-Angaben / TMS-Flag durchreichen
@@ -216,6 +218,11 @@ LEAFLET_TEMPLATE = """<!DOCTYPE html>
     color:#1c1814;font:600 11px/1 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
     padding:5px 8px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.3)}
   .rz-credit:hover{background:#fff}
+  .rz-attrib-voll .leaflet-bottom.leaflet-right{left:0;right:0}
+  .rz-attrib-voll .leaflet-bottom.leaflet-right .leaflet-control-attribution{float:none;margin:0;width:100%%;box-sizing:border-box;
+    text-align:center;font-size:8.5px;line-height:1.3;padding:1px 10px;background:rgba(0,0,0,.45);color:rgba(255,255,255,.85);border-radius:0}
+  .rz-attrib-voll .leaflet-control-attribution a{color:inherit;opacity:.85}
+  .rz-attrib-voll ~ .rz-credit, .rz-attrib-voll .rz-credit{bottom:22px}
   .rz-north{width:40px;height:40px;pointer-events:none}
   .rz-north svg{width:100%%;height:100%%;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
   .rz-sign{background:none;border:0}
@@ -242,6 +249,7 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
      + 'background:'+color+';border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></span>',
   iconSize:[20,20], iconAnchor:[10,10] }); }
 (function(){
+  if (D.attribVoll) document.getElementById('rz-map').classList.add('rz-attrib-voll');
   var map = L.map('rz-map', { scrollWheelZoom:true });
   // 03.09.2026 — staatliche Orthofotos: WMS (L.tileLayer.wms) oder TMS-Kacheln
   function rzTile(t, attr){

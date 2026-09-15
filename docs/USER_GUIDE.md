@@ -2070,7 +2070,7 @@ Ein eigener, bewusst **schlanker** Tab für **interaktive Karten fürs Web/Blog*
 
 ### Workflow
 1. **GPX laden** (globale GPX-Leiste oben). Der Track erscheint sofort und wird eingepasst.
-2. **Track-Farbe/-Breite** und **Kartenstil** links einstellen.
+2. **Track-Farbe/-Breite**, **Kartenstil** und **Quellenangabe** links einstellen — die Quellenangabe steht entweder klein in der **Ecke unten rechts** (Standard) oder als **schmale Leiste über die ganze Breite**, in Vorschau und Export gleich.
 3. **Beschriftungen setzen:** **„＋ Beschriftung hinzufügen"** anklicken → auf die Karte tippen. In der **Beschriftungs-Liste** darunter stellst du pro Eintrag **Text, Farbe und Größe** ein und löschst ihn per 🗑. Auf der Karte lässt sich jede Beschriftung **ziehen** (verschieben); ein Klick darauf springt zur passenden Zeile in der Liste. Die Textfarbe (hell/dunkel) wählt sich automatisch passend zur gewählten Farbe.
 4. Optional den **DSGVO-Button** aktivieren (siehe unten).
 5. **„🌐 Als HTML exportieren"** → Fenster mit den Ausgabe-Optionen.

@@ -7670,6 +7670,7 @@ class Api:
                 "show_pins": bool(params.get("show_pins", True)),
                 "show_scale": bool(params.get("show_scale", True)),   # 04.09.2026 Maßstabsleiste
                 "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
+                "quellenangabe": "voll" if params.get("quellenangabe") == "voll" else "ecke",   # 15.09.2026
                 "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
                 "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),
