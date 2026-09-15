@@ -145,9 +145,14 @@ def _eintrag(zp: Path) -> Optional[dict]:
                 quellen = zf.namelist()
         except (OSError, zipfile.BadZipFile):
             quellen = []
+    ordner = ""
+    if art == "pfade" and quellen:
+        eltern = {str(Path(q).parent) for q in quellen}
+        ordner = Path(eltern.pop()).name if len(eltern) == 1 else f"{Path(sorted(eltern)[0]).name} +{len(eltern) - 1}"
     return {
         "name": zp.name, "pfad": str(zp), "zeit": st.st_mtime, "bytes": st.st_size,
-        "anzahl": len(quellen), "quellen": quellen,
+        "anzahl": len(quellen), "quellen": quellen, "ordner": ordner,
+        "art_sicherung": "exif" if zp.name.startswith("exif_") else "geotag",
         "schluessel": (art, tuple(sorted(quellen))),
     }
 
@@ -208,7 +213,7 @@ def fremde_sicherungen(backup_dir, aktuelle_pfade: Iterable[str]) -> list:
         art = e["schluessel"][0]
         treffer = (set(e["quellen"]) & akt_pfade) if art == "pfade" else (set(e["quellen"]) & akt_namen)
         if not treffer:
-            out.append({k: e[k] for k in ("name", "zeit", "bytes", "anzahl")})
+            out.append({k: e[k] for k in ("name", "zeit", "bytes", "anzahl", "ordner", "art_sicherung")})
     return out
 
 
@@ -229,6 +234,6 @@ def sicherungen_loeschen(backup_dir, namen: Iterable[str]) -> dict:
 
 def uebersicht(backup_dir) -> dict:
     """Für die Warnung beim Start: Anzahl, Größe und Liste (älteste zuerst)."""
-    liste = [{k: e[k] for k in ("name", "zeit", "bytes", "anzahl")} for e in sicherungen_liste(backup_dir)]
+    liste = [{k: e[k] for k in ("name", "zeit", "bytes", "anzahl", "ordner", "art_sicherung")} for e in sicherungen_liste(backup_dir)]
     return {"anzahl": len(liste), "bytes": sum(e["bytes"] for e in liste), "warn_ab": WARN_AB,
             "warnen": len(liste) > WARN_AB, "sicherungen": liste}
