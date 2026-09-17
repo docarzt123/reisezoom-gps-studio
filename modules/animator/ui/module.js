@@ -236,6 +236,14 @@ function mountAnimator(body, headerActions, opts) {
           <div class="field" id="anim-ortho-row" title="${t("animator.field.ortho_tip", "Wirkt auf die Luftbilder und die Sentinel-Ebene (nicht auf den Blue-Marble-Untergrund) — in Vorschau, Video und Web-Karte gleich. Standard = Sentinel unverändert.")}">
             <label class="field-label">${t("animator.field.ortho_title", "Luftbild-Optik")}
               <button type="button" class="btn btn-ghost btn-sm" id="anim-ortho-reset" style="margin-left:auto;">↺ ${t("animator.field.ortho_reset", "Standard")}</button></label>
+            <!-- 17.09.2026 (docs/KARTEN-OPTIK.md §3.3) — fertige Looks statt sechs Regler; „Eigene" = Regler weichen ab -->
+            <label class="field-label" for="anim-look" title="${t("animator.field.look_tip", "Stellt alle Regler darunter auf einen abgestimmten Satz. Wer danach einen Regler bewegt, hat wieder einen eigenen Look.")}">${t("animator.field.look_title", "Look")}</label>
+            <select id="anim-look">
+              <option value="eigene">${t("animator.field.look_custom", "Eigene Einstellung")}</option>
+              <option value="natuerlich">${t("animator.field.look_natural", "Natürlich")}</option>
+              <option value="kraeftig">${t("animator.field.look_vivid", "Kräftig")}</option>
+              <option value="filmisch">${t("animator.field.look_film", "Filmisch")}</option>
+            </select>
             <label class="field-label">${t("animator.field.ortho_sat", "Sättigung")} <span class="label-val" id="anim-osat-v">25 %</span></label>
             <input type="range" id="anim-osat" min="-100" max="100" step="5" value="25">
             <label class="field-label">${t("animator.field.ortho_con", "Kontrast")} <span class="label-val" id="anim-ocon-v">8 %</span></label>
@@ -247,6 +255,11 @@ function mountAnimator(body, headerActions, opts) {
             <!-- 07.09.2026 (Marc: „Schärfe muss unter Farbton") — Unschärfemaske, map_sharp (gemeinsam mit anim-msharp) -->
             <label class="field-label" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-osharp-v">0 %</span></label>
             <input type="range" id="anim-osharp" min="0" max="100" step="5" value="0">
+            <!-- 17.09.2026 — Relief (Hillshade aus den Geländedaten, ortho_relief) und Dunst (map_haze, gemeinsam mit anim-mhaze) -->
+            <label class="field-label" title="${t("animator.field.relief_tip", "Licht und Schatten aus den Geländedaten über den Luftbildern — gibt flachen Satellitenbildern Tiefe. In Vorschau und Video gleich, nicht in der Web-Karte.")}">${t("animator.field.relief_title", "Relief")} <span class="label-val" id="anim-orelief-v">35 %</span></label>
+            <input type="range" id="anim-orelief" min="0" max="100" step="5" value="35">
+            <label class="field-label" title="${t("animator.field.haze_tip", "Nimmt den blauen Schleier aus Satellitenbildern (Schwarzpunkt je Farbkanal). In Vorschau und Video gleich, nicht in der Web-Karte. Zu viel wirkt hart.")}">${t("animator.field.haze_title", "Dunst entfernen")} <span class="label-val" id="anim-ohaze-v">0 %</span></label>
+            <input type="range" id="anim-ohaze" min="0" max="100" step="5" value="0">
           </div>
           <!-- 05.09.2026 (Beta-Tester: „Kontrastregler auch auf die anderen zu hellen Karten") — Karten-Optik für Raster-/Vektorkarten -->
           <div class="field" id="anim-mapadj-row" hidden title="${t("animator.field.mapadj_tip", "Wirkt auf die Karte, nicht auf Strecke und Overlays — in Vorschau und Video gleich. Bei Vektorkarten nur die Helligkeit.")}">
@@ -266,6 +279,10 @@ function mountAnimator(body, headerActions, opts) {
             </div>
             <label class="field-label" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-msharp-v">0 %</span></label>
             <input type="range" id="anim-msharp" min="0" max="100" step="5" value="0">
+            <div class="rz-mapadj-raster">
+              <label class="field-label" title="${t("animator.field.haze_tip", "Nimmt den blauen Schleier aus Satellitenbildern (Schwarzpunkt je Farbkanal). In Vorschau und Video gleich, nicht in der Web-Karte. Zu viel wirkt hart.")}">${t("animator.field.haze_title", "Dunst entfernen")} <span class="label-val" id="anim-mhaze-v">0 %</span></label>
+              <input type="range" id="anim-mhaze" min="0" max="100" step="5" value="0">
+            </div>
           </div>
           <!-- 05.09.2026 (Beta-Tester: „Sterne etwas groß geraten und nicht animiert") — Sternenhimmel hinter der Weltkugel -->
           <div class="field" id="anim-stars-row" title="${t("animator.field.stars_tip", "Der Himmel hinter der Weltkugel — sichtbar, sobald die Kamera weit genug draußen ist. In Vorschau und Video gleich.")}">
@@ -1939,12 +1956,19 @@ function mountAnimator(body, headerActions, opts) {
     bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); _applyMapAdjust(); } });
     document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
   }
+  // 17.09.2026 — Relief (ortho_relief, Werk 35) live auf die Hillshade-Ebene (über _applyMapAdjust, adj.relief)
+  bindLabel("anim-orelief", "anim-orelief-v", " %");
+  bindSetting("anim-orelief", _MODKEY, "ortho_relief", { type: "number", onLoad: v => { updateLabel("anim-orelief-v", v, " %"); _applyMapAdjust(); _lookSync(); } });
+  document.getElementById("anim-orelief")?.addEventListener("input", () => { _applyMapAdjust(); _lookSync(); });
   document.getElementById("anim-ortho-reset")?.addEventListener("click", () => {
     const d = (typeof mapCatalog === "function" && mapCatalog().ortho_adjust_default) || { sat: 25, con: 8, bri: 0, hue: 0 };
-    for (const [id, k] of [["anim-osat", "sat"], ["anim-ocon", "con"], ["anim-obri", "bri"], ["anim-ohue", "hue"], ["anim-osharp", "sharp"]]) {
-      const el = document.getElementById(id); if (!el) continue;
-      el.value = String(k === "sharp" ? 0 : d[k]); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
-    }
+    const rd = (typeof mapCatalog === "function" && typeof mapCatalog().ortho_relief_default === "number") ? mapCatalog().ortho_relief_default : 35;
+    _lookSetzen({ sat: d.sat, con: d.con, bri: d.bri, hue: d.hue, sharp: 0, relief: rd, haze: 0 });
+  });
+  // 17.09.2026 — fertige Looks (docs/KARTEN-OPTIK.md §3.3): ein Satz Regler je Look; Werte sind
+  // abgestimmt auf Sentinel-2 + Landesluftbilder (Vergleichsrender 17.09.). „Eigene" = keine Vorgabe.
+  document.getElementById("anim-look")?.addEventListener("change", ev => {
+    const p = _LOOKS_()[ev.target.value]; if (p) _lookSetzen(p);
   });
   // 05.09.2026 — Karten-Optik für Raster-/Vektorkarten (map_*), Standard 0; live über rz-mapadjust.js
   for (const [id, key, unit] of [["anim-msat", "map_sat", " %"], ["anim-mcon", "map_con", " %"], ["anim-mbri", "map_bri", " %"], ["anim-mhue", "map_hue", "°"]]) {
@@ -1953,7 +1977,7 @@ function mountAnimator(body, headerActions, opts) {
     document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
   }
   document.getElementById("anim-mapadj-reset")?.addEventListener("click", () => {
-    for (const id of ["anim-msat", "anim-mcon", "anim-mbri", "anim-mhue", "anim-msharp"]) {
+    for (const id of ["anim-msat", "anim-mcon", "anim-mbri", "anim-mhue", "anim-msharp", "anim-mhaze"]) {
       const el = document.getElementById(id); if (!el) continue;
       el.value = "0"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
     }
@@ -1962,8 +1986,14 @@ function mountAnimator(body, headerActions, opts) {
   // Ein Regler je Gruppe (Luftbild-Optik / Karten-Optik), beide auf denselben Wert; es ist immer nur eine Gruppe sichtbar.
   for (const id of ["anim-osharp", "anim-msharp"]) {
     bindLabel(id, id + "-v", " %");
-    bindSetting(id, _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applySharpen(); } });
-    document.getElementById(id)?.addEventListener("input", () => { _sharpSync(id); _applySharpen(); });
+    bindSetting(id, _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applySharpen(); _lookSync(); } });
+    document.getElementById(id)?.addEventListener("input", () => { _sharpSync(id); _applySharpen(); _lookSync(); });
+  }
+  // 17.09.2026 — Dunst (map_haze, Standard 0), Zwillinge wie bei der Schärfe, dieselbe Leinwand-Ebene
+  for (const id of ["anim-ohaze", "anim-mhaze"]) {
+    bindLabel(id, id + "-v", " %");
+    bindSetting(id, _MODKEY, "map_haze", { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applySharpen(); _lookSync(); } });
+    document.getElementById(id)?.addEventListener("input", () => { _sharpSync(id); _applySharpen(); _lookSync(); });
   }
   // 05.09.2026 — Sternenhimmel: vier Werte → Projekt (stars_*), live auf den Kartencontainer
   bindSetting("anim-stars", _MODKEY, "stars_enabled", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
@@ -8832,7 +8862,49 @@ function mountAnimator(body, headerActions, opts) {
   // 04.09.2026 — die fünf Schalter als Overlay-Gruppen (mapstyles.LABEL_GROUPS).
   function _currentOrtho() {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
-    return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0) };
+    return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 35) };
+  }
+  /** 17.09.2026 — Dunst (0…100) aus der sichtbaren Optik-Gruppe (Zwillinge wie die Schärfe). */
+  function _currentHaze() {
+    const row = document.getElementById("anim-ortho-row");
+    const id = (row && !row.hidden) ? "anim-ohaze" : "anim-mhaze";
+    const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : 0;
+  }
+  // 17.09.2026 — fertige Looks (Luftbild-Optik). Reihenfolge der Felder = Regler-IDs unten.
+  // Als Funktionen (gehoistet): bindSetting ruft _lookSync schon beim Aufbau, vor dieser Zeile.
+  function _LOOKS_() {
+    return {
+      natuerlich: { sat: 25, con: 8, bri: 0, hue: 0, sharp: 15, relief: 35, haze: 15 },
+      kraeftig:   { sat: 45, con: 20, bri: 0, hue: 0, sharp: 30, relief: 50, haze: 35 },
+      filmisch:   { sat: 14, con: 14, bri: -4, hue: -4, sharp: 20, relief: 60, haze: 25 },
+    };
+  }
+  function _LOOK_IDS_() { return { sat: "anim-osat", con: "anim-ocon", bri: "anim-obri", hue: "anim-ohue", sharp: "anim-osharp", relief: "anim-orelief", haze: "anim-ohaze" }; }
+  /** Alle Regler der Luftbild-Optik auf einen Satz stellen (löst input+change aus → Projekt + Undo). */
+  function _lookSetzen(p) {
+    const _LOOK_IDS = _LOOK_IDS_();
+    // Ein Look = EIN Undo-Schritt (Marc: Undo für alles): vorher einmal pushen, die sieben Regler dann
+    // ohne eigene Schritte stellen (util.js bindSetting prüft window.__rzUndoSammeln).
+    try { const uc = window.__rzUndoControllers && window.__rzUndoControllers[_MODKEY]; if (uc) uc.push("Look", { force: true }); } catch (_) {}
+    window.__rzUndoSammeln = true;
+    try {
+      for (const k of Object.keys(_LOOK_IDS)) {
+        const el = document.getElementById(_LOOK_IDS[k]); if (!el || p[k] === undefined) continue;
+        el.value = String(p[k]); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
+      }
+    } finally { window.__rzUndoSammeln = false; window.__rzLastUndoEl = "anim-look"; }
+    _lookSync();
+  }
+  /** Auswahl anzeigen, die zu den Reglern passt; sonst „Eigene". */
+  function _lookSync() {
+    const sel = document.getElementById("anim-look"); if (!sel) return;
+    const g = id => parseFloat(document.getElementById(id)?.value) || 0;
+    const _LOOKS = _LOOKS_(), _LOOK_IDS = _LOOK_IDS_();
+    let hit = "eigene";
+    for (const [name, p] of Object.entries(_LOOKS)) {
+      if (Object.keys(_LOOK_IDS).every(k => Math.abs(g(_LOOK_IDS[k]) - p[k]) < 0.01)) { hit = name; break; }
+    }
+    if (sel.value !== hit) sel.value = hit;
   }
   /** 05.09.2026 — Karten-Optik (Raster-/Vektorkarten) und Sterne aus der Oberfläche. */
   function _currentMapAdjust() {
@@ -8861,13 +8933,13 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** Den Zwilling in der anderen Gruppe nachziehen (gleicher Wert, gleiches Label). */
   function _sharpSync(fromId) {
-    const to = fromId === "anim-osharp" ? "anim-msharp" : "anim-osharp";
+    const to = ({ "anim-osharp": "anim-msharp", "anim-msharp": "anim-osharp", "anim-ohaze": "anim-mhaze", "anim-mhaze": "anim-ohaze" })[fromId];
     const a = document.getElementById(fromId), b = document.getElementById(to);
     if (a && b && b.value !== a.value) { b.value = a.value; updateLabel(to + "-v", parseFloat(a.value) || 0, " %"); }
   }
   /** 07.09.2026 — Schärfe live auf die Karten-Leinwand (Vorschau = Video, s. rz-mapadjust.js). */
   function _applySharpen() {
-    try { if (map && window.rzApplyMapSharpen) rzApplyMapSharpen(map, _currentSharpen()); } catch (_) {}
+    try { if (map && window.rzApplyMapLook) rzApplyMapLook(map, _currentSharpen(), _currentHaze()); else if (map && window.rzApplyMapSharpen) rzApplyMapSharpen(map, _currentSharpen()); } catch (_) {}
   }
   function _currentStars() {
     const on = id => { const el = document.getElementById(id); return el ? !!el.checked : true; };
@@ -17974,6 +18046,7 @@ function mountAnimator(body, headerActions, opts) {
       ortho_sat: _currentOrtho().sat, ortho_con: _currentOrtho().con, ortho_bri: _currentOrtho().bri, ortho_hue: _currentOrtho().hue,
       map_sat: _currentMapAdjust().sat, map_con: _currentMapAdjust().con, map_bri: _currentMapAdjust().bri, map_hue: _currentMapAdjust().hue,
       map_sharp: _currentSharpen(),
+      ortho_relief: _currentOrtho().relief, map_haze: _currentHaze(),   // 17.09.2026 — Relief + Dunst (WYSIWYG)
       attrib_mode: document.getElementById("anim-ov-attrib-mode")?.value || "voll",
       attrib_link: (document.getElementById("anim-ov-attrib-link")?.value || "").trim(),
       stars_enabled: _currentStars().enabled, stars_density: _currentStars().density, stars_size: _currentStars().size, stars_twinkle: _currentStars().twinkle,

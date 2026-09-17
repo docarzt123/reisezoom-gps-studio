@@ -43,7 +43,8 @@ alles andere auf `true`. Die Rechte-Tabelle steht in den Einstellungen → Karte
 ## 2. Warum die freien Karten stellenweise schlechter aussehen
 
 - **Wo staatliche Orthofotos existieren, sind sie besser als Mapbox** (20–50 cm statt ~50 cm Maxar, aktueller).
-  Vorhanden: alle 15 deutschen Flächenländer + Berlin/Bremen, LU, CH, NL, AT, CZ, EE, PT, FR, ES, IT, PL, JP, US.
+  Vorhanden: alle 15 deutschen Flächenländer + Berlin/Bremen, LU, CH, NL, AT, CZ, EE, PT, FR, ES, IT, PL, JP, US;
+  seit 17.09.2026 dazu BE (Flandern + Wallonien) und SK.
 - **Überall sonst** fällt die App auf **EOX Sentinel-2 cloudless 2016 (10 m)** zurück. Das ist der Grund für
   „matschig": ab etwa z13 kommt kein Detail mehr dazu, dazu ein blauer Dunstschleier und flaches Licht.
 - Mapbox wirkt zusätzlich „schöner", weil Satellit dort mit Beschriftung, Relief und abgestimmter Farbgebung
@@ -51,7 +52,7 @@ alles andere auf `true`. Die Rechte-Tabelle steht in den Einstellungen → Karte
 
 ## 3. Plan: Optik selbst verbessern (nach Wirkung sortiert)
 
-1. **Mehr Länder mit Orthofotos.** Fehlen u. a. DK, SE, NO, FI, BE, IE, UK, SI, HR, SK, LV, LT, IS, CA.
+1. **Mehr Länder mit Orthofotos.** Fehlen u. a. DK, SE, NO, FI, IE, UK, SI, HR, LV, LT, IS, CA (BE und SK seit 17.09. drin, s. §4).
    Je Land: Dienst finden, Lizenz und `commercial_video` prüfen, Eintrag in `core/kartenquellen.py` +
    Rechteck in `core/mapstyles.py`. Wirkung: dort sofort besser als Mapbox. Aufwand: Recherche, gut portionierbar.
 2. **Relief unter die Luftbilder.** Hillshade aus den ohnehin geladenen AWS/Mapzen-Geländedaten; gibt Sentinel
@@ -62,8 +63,34 @@ alles andere auf `true`. Die Rechte-Tabelle steht in den Einstellungen → Karte
 4. **Dunst raus, nachschärfen.** Feste Kurve gegen den blauen Schleier + Unsharp-Mask beim Rendern —
    bei 10-m-Material der größte sichtbare Gewinn.
 
-**Nächster Schritt (offen, noch nicht gebaut):** Vergleichsrender derselben Tour — (a) Mapbox, (b) freier Pfad
-wie heute, (c) freier Pfad mit Relief + neuer Kurve. Erst danach entscheiden, wie viel Aufwand in 1–4 fließt.
+## 4. Gebaut am 17.09.2026 (Schritte 2–4)
+
+**Vergleichsrender** (Teide-Tour, 1280×720, Einzelbilder aus `render_frame`; Kopien auf dem Schreibtisch
+`20260917-*-Kartenvergleich_*.png`): (a) Mapbox Satellit, (b) frei wie bisher, (c) frei „Natürlich",
+(d) frei „Kräftig"; dazu ein Sentinel-only-Ausschnitt (Geiranger, kein Landesdienst).
+Befund: **Wo ein Landesdienst liegt (PNOA), ist der freie Pfad schon vorher schärfer als Mapbox** — die
+Beschwerde betrifft die Sentinel-Gegenden. Dort bringt das Relief die Tiefe, der Dunst-Abzug nimmt den
+blauen Schleier, die Schärfe den Matsch. Erster Wurf des Dunst-Abzugs machte das Meer schwarz → Schatten
+unter ~6 % Helligkeit bleiben unangetastet (Einblendung bis 30 %).
+
+Umgesetzt (Vorschau = Video, Undo überall, nicht in den Leaflet-Exporten):
+- **Relief** — Hillshade-Ebene `rz-hillshade` aus der AWS-Geländequelle (Weiche, Meerestiefen geklemmt) über
+  dem Luftbild-Stapel, unter der Beschriftung. Regler `ortho_relief`, Werk 35 %. `core/mapstyles.py`
+  (`stack_style`, `relief_paint`), Spiegel `util.js/_stackStyle`, live `rz-mapadjust.js`.
+- **Dunst entfernen** — Uniform `u_haze` im Schärfe-Shader (eine Ebene): Schwarzpunkt je Kanal
+  (0,10/0,13/0,20 · Regler), Blau am stärksten. Regler `map_haze`, Werk 0, in beiden Optik-Gruppen.
+- **Looks** — Auswahl „Natürlich / Kräftig / Filmisch / Eigene" über den Reglern; stellt alle sieben Regler,
+  speichert nichts eigenes. Werte in `module.js/_LOOKS_()`; abgestimmt an den Vergleichsbildern.
+- Wächter `tests/test_karten_optik_relief_dunst.py`; Doku CHANGELOG, USER_GUIDE ×3, DEVELOPER.
+
+**Schritt 1 (mehr Länder), Stand 17.09.2026:** neu drin **BE-Flandern** (Digitaal Vlaanderen WMS OMWRGBMRVL,
+Modellicentie Gratis Hergebruik, Vermerk „Bron: Luchtopnamen Digitaal Vlaanderen"), **BE-Wallonien** (SPW ORTHO_LAST,
+CC BY 4.0, Dienstbedingungen LicServicesSPW.pdf: keine unverhältnismäßige Last, Vermerke nicht entfernen) und
+**SK** (GKÚ Ortofotomozaika WMS Layer 1, CC BY 4.0 laut Capabilities; die Bedingungsseite geoportal.sk war wegen
+Zertifikat nicht lesbar → Nennungsformel ist unsere, bei der nächsten Registerprüfung nachlesen). Alle drei per
+GetMap geprüft (`scripts/check_map_sources.py`). **Geprüft und verworfen:** HR (DGU-INSPIRE-WMS 404), LV (LVM-Host
+nicht auflösbar). **Noch offen:** SI (eProstor), DK (Dataforsyningen — Token nötig), NO (Norge i bilder — keine
+kommerzielle Freigabe), SE/FI (Registrierung), IE/UK/IS/CA (nichts Freies bekannt).
 
 **Nicht tun:** Videorechte „für alle Nutzer" kaufen (Lizenz hängt am Nutzerkonto) · Mapbox-Kacheln
 zwischenspeichern und ausliefern (Product Terms) · Esri/Bing/Google-Luftbilder ohne geprüften Vertrag
