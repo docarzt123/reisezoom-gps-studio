@@ -253,6 +253,7 @@ function _settingsStand() {
     geoProvider: c.geocode_provider || "auto",
     // 03.09.2026 — Kartenanbieter
     maptilerKey: c.maptiler_key || "",
+    dkKey: c.dk_key || "", fiKey: c.fi_key || "", linzKey: c.linz_key || "",   // 18.09.2026 — Länder-Schlüssel
     mapStyleDefault: c.map_style_default || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
     tileCacheMb: (c.tile_cache_mb != null) ? c.tile_cache_mb : 2048,
     previewQuality: c.preview_quality || "voll",   // 07.09.2026 — Vorschau-Qualität
@@ -400,7 +401,7 @@ async function openSettingsModal(reiter) {
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
   const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
-          updateCheck, startFortsetzen, maptilerKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
+          updateCheck, startFortsetzen, maptilerKey, dkKey, fiKey, linzKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
   const tcInfo = await api().tile_cache_info().catch(() => ({ bytes: 0 }));
   const tcMb = Math.round((tcInfo.bytes || 0) / 1048576);
   const _sel = (a, b) => (a === b ? " selected" : "");
@@ -451,6 +452,7 @@ async function openSettingsModal(reiter) {
           <button type="button" class="set-subtab" data-subtab="kostenlos">${t("settings.maps.sub.kostenlos", "Kostenlose Quellen")}</button>
           <button type="button" class="set-subtab" data-subtab="maptiler">MapTiler</button>
           <button type="button" class="set-subtab" data-subtab="mapbox">Mapbox</button>
+          <button type="button" class="set-subtab" data-subtab="laender">${t("settings.maps.sub.laender", "Länder-Schlüssel")}</button>
           <button type="button" class="set-subtab" data-subtab="speicher">${t("settings.maps.sub.speicher", "Speicher & Test")}</button>
         </div>
 
@@ -495,6 +497,18 @@ async function openSettingsModal(reiter) {
             <a href="#" id="md-maptiler-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.maptiler.help_link", "Wie bekomme ich einen Schlüssel?")}</a>
             &nbsp;·&nbsp;<a href="#" id="md-maptiler-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">cloud.maptiler.com</a>
           </p>
+        </div>
+
+        <div class="set-subpanel" data-subpanel="laender" hidden>
+          ${rzTermsDisclaimerHtml()}
+          <p class="set-help">${t("settings.laender.intro", "Einige Länder geben ihre amtlichen Luftbilder frei, verlangen aber einen eigenen, kostenlosen Schlüssel je Nutzer. Trägst du ihn hier ein, nimmt „Satellit (kostenlos)“ dort automatisch das Landesluftbild statt Sentinel-2 — in Vorschau und Video, nicht in den Web-Karten-Exporten. Der Schlüssel bleibt auf diesem Rechner (die Kacheln laufen über den Zwischenspeicher der App). Videos dürfen veröffentlicht werden, die Nennung setzt die App.")}</p>
+          <p class="muted" style="margin:14px 0 4px;">${t("settings.laender.dk", "Dänemark — Dataforsyningen-Token")} <span class="muted">(${t("settings.laender.dk_hint", "kostenloses Konto auf dataforsyningen.dk → Brugeradministration → Token")})</span></p>
+          <input type="text" id="md-dk-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(dkKey || "").replace(/"/g, '&quot;')}">
+          <p class="muted" style="margin:14px 0 4px;">${t("settings.laender.fi", "Finnland — Maanmittauslaitos api-key")} <span class="muted">(${t("settings.laender.fi_hint", "kostenlos per Formular auf maanmittauslaitos.fi, Karttakuvapalvelu WMTS")})</span></p>
+          <input type="text" id="md-fi-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(fiKey || "").replace(/"/g, '&quot;')}">
+          <p class="muted" style="margin:14px 0 4px;">${t("settings.laender.nz", "Neuseeland — LINZ-Basemaps-Schlüssel")} <span class="muted">(${t("settings.laender.nz_hint", "kostenlos auf basemaps.linz.govt.nz, der Wert hinter „api=“")})</span></p>
+          <input type="text" id="md-linz-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(linzKey || "").replace(/"/g, '&quot;')}">
+          <p class="set-help" style="margin-top:12px;">${t("settings.laender.sweden", "Schweden (Lantmäteriet, CC0) und Norwegen bieten keinen Kacheldienst für Luftbilder an — dort bleibt Sentinel-2 oder MapTiler.")}</p>
         </div>
 
         <div class="set-subpanel" data-subpanel="mapbox" hidden>
@@ -1016,6 +1030,10 @@ function _bindSettingsModalHandlers() {
     // 03.09.2026 — Kartenanbieter
     const newMt = (document.getElementById("md-maptiler-key")?.value || "").trim();
     if (newMt !== alt.maptilerKey) patch.maptiler_key = newMt;
+    // 18.09.2026 — Länder-Schlüssel (Luftbilder mit eigenem Schlüssel)
+    for (const [id, k, altV] of [["md-dk-key", "dk_key", alt.dkKey], ["md-fi-key", "fi_key", alt.fiKey], ["md-linz-key", "linz_key", alt.linzKey]]) {
+      const v = (document.getElementById(id)?.value || "").trim(); if (v !== altV) patch[k] = v;
+    }
     const newDef = document.getElementById("md-map-default")?.value || alt.mapStyleDefault;
     if (newDef !== alt.mapStyleDefault) patch.map_style_default = newDef;
     const newPq = document.getElementById("md-preview-quality")?.value || alt.previewQuality;
@@ -1061,7 +1079,8 @@ function _bindSettingsModalHandlers() {
 
     await saveSettings(patch, { immediate: true });
 
-    if (patch.mapbox_token !== undefined || patch.force_osm !== undefined || patch.maptiler_key !== undefined || patch.map_style_default !== undefined || patch.preview_quality !== undefined) {
+    if (patch.mapbox_token !== undefined || patch.force_osm !== undefined || patch.maptiler_key !== undefined || patch.map_style_default !== undefined || patch.preview_quality !== undefined
+        || patch.dk_key !== undefined || patch.fi_key !== undefined || patch.linz_key !== undefined) {
       // Token-Wechsel ODER OSM-Umschalter ändert die Map-Engine (Mapbox ↔ OSM),
       // Token-Cache in util.js, Animator-Style-Lock, MapLibre/Mapbox-Lib-Wahl
       // etc. — sicherer Weg: komplettes UI-Reload, damit alles frisch init.

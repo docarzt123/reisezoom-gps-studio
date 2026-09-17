@@ -4003,5 +4003,18 @@
   "warte.modul_neuaufbau.titel": "Rebuilding the view",
   "warte.modul_neuaufbau.text": "Loading the map with the new settings …",
   "geotagger.autotag.keine_rueckmeldung": "No response from image recognition — details are in the log.",
-  "heightanim.toast.status_verloren": "No response from the render — details are in the log."
+  "heightanim.toast.status_verloren": "No response from the render — details are in the log.",
+  "settings.maps.sub.laender": "Country keys",
+  "settings.laender.intro": "Some countries publish their official aerial imagery but require a free personal key. Enter it here and \"Satellite (free)\" uses the national imagery there instead of Sentinel-2 — in preview and video, not in the web-map exports. The key stays on this computer (tiles go through the app's cache). Videos may be published; the app sets the credit.",
+  "settings.laender.dk": "Denmark — Dataforsyningen token",
+  "settings.laender.dk_hint": "free account on dataforsyningen.dk → Brugeradministration → Token",
+  "settings.laender.fi": "Finland — Maanmittauslaitos api-key",
+  "settings.laender.fi_hint": "free via the form on maanmittauslaitos.fi, Karttakuvapalvelu WMTS",
+  "settings.laender.nz": "New Zealand — LINZ Basemaps key",
+  "settings.laender.nz_hint": "free on basemaps.linz.govt.nz, the value after \"api=\"",
+  "settings.laender.sweden": "Sweden (Lantmäteriet, CC0) and Norway offer no tile service for aerial imagery — Sentinel-2 or MapTiler remain there.",
+  "mapstyle.note.no_key": "Official aerial imagery exists for {name} — with your own key (Settings → Maps → Country keys).",
+  "mapregion.dk": "Denmark",
+  "mapregion.fi": "Finland",
+  "mapregion.nz": "New Zealand"
 }

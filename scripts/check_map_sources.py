@@ -90,6 +90,8 @@ def main() -> int:
     want_maptiler = "--maptiler" in sys.argv
     jobs = []
     for r in ms.ORTHO_REGIONS:
+        if r.get("key") and not ms.region_key_value(r):   # 18.09.2026: Länder mit eigenem Schlüssel nur mit Wert prüfbar
+            print(f"  ·  {r['id']} {r['name']:<22} übersprungen (Schlüssel {r['key']} nicht gesetzt)"); continue
         if args and r["id"] not in args:
             continue
         b = r["bbox"]
