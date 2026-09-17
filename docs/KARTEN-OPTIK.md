@@ -75,7 +75,8 @@ unter ~6 % Helligkeit bleiben unangetastet (Einblendung bis 30 %).
 
 Umgesetzt (Vorschau = Video, Undo überall, nicht in den Leaflet-Exporten):
 - **Relief** — Hillshade-Ebene `rz-hillshade` aus der AWS-Geländequelle (Weiche, Meerestiefen geklemmt) über
-  dem Luftbild-Stapel, unter der Beschriftung. Regler `ortho_relief`, Werk 35 %. `core/mapstyles.py`
+  dem Luftbild-Stapel, unter der Beschriftung. Regler `ortho_relief`, Werk 0 (Marc 18.09.: „lass den, aber default ist 0" —
+  das Gelände wirkte ihm mit Relief „runder"); die Looks stellen 35/50/60 %. `core/mapstyles.py`
   (`stack_style`, `relief_paint`), Spiegel `util.js/_stackStyle`, live `rz-mapadjust.js`.
 - **Dunst entfernen** — Uniform `u_haze` im Schärfe-Shader (eine Ebene): Schwarzpunkt je Kanal
   (0,10/0,13/0,20 · Regler), Blau am stärksten. Regler `map_haze`, Werk 0, in beiden Optik-Gruppen.
@@ -89,8 +90,15 @@ CC BY 4.0, Dienstbedingungen LicServicesSPW.pdf: keine unverhältnismäßige Las
 **SK** (GKÚ Ortofotomozaika WMS Layer 1, CC BY 4.0 laut Capabilities; die Bedingungsseite geoportal.sk war wegen
 Zertifikat nicht lesbar → Nennungsformel ist unsere, bei der nächsten Registerprüfung nachlesen). Alle drei per
 GetMap geprüft (`scripts/check_map_sources.py`). **Geprüft und verworfen:** HR (DGU-INSPIRE-WMS 404), LV (LVM-Host
-nicht auflösbar). **Noch offen:** SI (eProstor), DK (Dataforsyningen — Token nötig), NO (Norge i bilder — keine
-kommerzielle Freigabe), SE/FI (Registrierung), IE/UK/IS/CA (nichts Freies bekannt).
+nicht auflösbar). **18.09.2026 (Marc: „weitere Länder, definitiv kostenlos, weltweit — baue die direkt ein"):** neu **SI** (GURS
+DOF5-WMS, CC BY 4.0, Capabilities „Ni omejitev"), **AU-NSW**
+(Spatial Services NSW_Imagery-Kacheln, CC BY 4.0). Geprüft und verworfen: TW (NLSC PHOTO2, OGDL 1.0 — Lizenz frei, aber TWCA-Zertifikat ohne Subject Key
+Identifier, OpenSSL 3 in Python lehnt ab, die Weiche liefert nie), LT (WMS „non commercial use only"), HR
+(Gebühr laut Capabilities), AU-VIC (Vicmap „licensed service, access fee"), AU-QLD (Planet-Material „all rights
+reserved"), LV/LI (Dienst nicht erreichbar/404). **Frei, aber nur mit eigenem Schlüssel** (kein Kandidat für den
+tokenfreien Pfad, wäre ein eigener „Schlüssel"-Eintrag wie MapTiler): DK Dataforsyningen, SE Lantmäteriet (CC0!),
+FI NLS (CC BY 4.0), NZ LINZ (CC BY 4.0). Keine freien Luftbilder bekannt: NO, IE, UK, IS, CA, HU, sowie fast ganz
+Südamerika/Afrika/Asien — dort bleibt Sentinel-2.
 
 **Nicht tun:** Videorechte „für alle Nutzer" kaufen (Lizenz hängt am Nutzerkonto) · Mapbox-Kacheln
 zwischenspeichern und ausliefern (Product Terms) · Esri/Bing/Google-Luftbilder ohne geprüften Vertrag

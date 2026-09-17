@@ -214,7 +214,7 @@ class AnimatorConfig:
     map_bri: float = 0.0
     map_hue: float = 0.0
     map_sharp: float = 0.0              # 07.09.2026 — Schärfe (Unschärfemaske auf der Leinwand), 0 = aus
-    ortho_relief: float = 35.0          # 17.09.2026 — Relief (Hillshade) über den Luftbildern, nur „Satellit (kostenlos)"
+    ortho_relief: float = 0.0          # 17.09.2026 — Relief (Hillshade) über den Luftbildern, nur „Satellit (kostenlos)"
     map_haze: float = 0.0               # 17.09.2026 — Dunst entfernen (Schwarzpunkt je Kanal auf der Leinwand), 0 = aus
     # 07.09.2026 (Marc, Konzept Kartenquellen §6) — Quellenzeile: "voll" = alle Nennungen im Bild (MapLibre baut sie
     # aus den Quellen), "kurz" = Kurznamen + «bearbeitet» + Link zu den vollständigen Angaben (attrib_link)
@@ -2199,7 +2199,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                     "admin": bool(cfg.show_admin_boundaries)},
             ortho={"sat": getattr(cfg, "ortho_sat", 25.0), "con": getattr(cfg, "ortho_con", 8.0),
                    "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0),
-                   "relief": getattr(cfg, "ortho_relief", 35.0)},   # 17.09.2026 — Relief-Ebene im Stapel
+                   "relief": getattr(cfg, "ortho_relief", 0.0)},   # 17.09.2026 — Relief-Ebene im Stapel
             # 07.09.2026: Kacheldichte am Pixelmaßstab des Renders (DSF × SSAA), s. mapstyles.tile_size_for
             dpr=_render_dsf(cfg.width, cfg.height) * _render_ss(cfg.width, cfg.height))
     cfg.map_engine = _spec["engine"]

@@ -256,8 +256,8 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-osharp-v">0 %</span></label>
             <input type="range" id="anim-osharp" min="0" max="100" step="5" value="0">
             <!-- 17.09.2026 — Relief (Hillshade aus den Geländedaten, ortho_relief) und Dunst (map_haze, gemeinsam mit anim-mhaze) -->
-            <label class="field-label" title="${t("animator.field.relief_tip", "Licht und Schatten aus den Geländedaten über den Luftbildern — gibt flachen Satellitenbildern Tiefe. In Vorschau und Video gleich, nicht in der Web-Karte.")}">${t("animator.field.relief_title", "Relief")} <span class="label-val" id="anim-orelief-v">35 %</span></label>
-            <input type="range" id="anim-orelief" min="0" max="100" step="5" value="35">
+            <label class="field-label" title="${t("animator.field.relief_tip", "Licht und Schatten aus den Geländedaten über den Luftbildern — gibt flachen Satellitenbildern Tiefe. In Vorschau und Video gleich, nicht in der Web-Karte.")}">${t("animator.field.relief_title", "Relief")} <span class="label-val" id="anim-orelief-v">0 %</span></label>
+            <input type="range" id="anim-orelief" min="0" max="100" step="5" value="0">
             <label class="field-label" title="${t("animator.field.haze_tip", "Nimmt den blauen Schleier aus Satellitenbildern (Schwarzpunkt je Farbkanal). In Vorschau und Video gleich, nicht in der Web-Karte. Zu viel wirkt hart.")}">${t("animator.field.haze_title", "Dunst entfernen")} <span class="label-val" id="anim-ohaze-v">0 %</span></label>
             <input type="range" id="anim-ohaze" min="0" max="100" step="5" value="0">
           </div>
@@ -1956,13 +1956,13 @@ function mountAnimator(body, headerActions, opts) {
     bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); _applyMapAdjust(); } });
     document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
   }
-  // 17.09.2026 — Relief (ortho_relief, Werk 35) live auf die Hillshade-Ebene (über _applyMapAdjust, adj.relief)
+  // 17.09.2026 — Relief (ortho_relief, Werk 0 seit 18.09. — Marc) live auf die Hillshade-Ebene (über _applyMapAdjust, adj.relief)
   bindLabel("anim-orelief", "anim-orelief-v", " %");
   bindSetting("anim-orelief", _MODKEY, "ortho_relief", { type: "number", onLoad: v => { updateLabel("anim-orelief-v", v, " %"); _applyMapAdjust(); _lookSync(); } });
   document.getElementById("anim-orelief")?.addEventListener("input", () => { _applyMapAdjust(); _lookSync(); });
   document.getElementById("anim-ortho-reset")?.addEventListener("click", () => {
     const d = (typeof mapCatalog === "function" && mapCatalog().ortho_adjust_default) || { sat: 25, con: 8, bri: 0, hue: 0 };
-    const rd = (typeof mapCatalog === "function" && typeof mapCatalog().ortho_relief_default === "number") ? mapCatalog().ortho_relief_default : 35;
+    const rd = (typeof mapCatalog === "function" && typeof mapCatalog().ortho_relief_default === "number") ? mapCatalog().ortho_relief_default : 0;
     _lookSetzen({ sat: d.sat, con: d.con, bri: d.bri, hue: d.hue, sharp: 0, relief: rd, haze: 0 });
   });
   // 17.09.2026 — fertige Looks (docs/KARTEN-OPTIK.md §3.3): ein Satz Regler je Look; Werte sind
@@ -8862,7 +8862,7 @@ function mountAnimator(body, headerActions, opts) {
   // 04.09.2026 — die fünf Schalter als Overlay-Gruppen (mapstyles.LABEL_GROUPS).
   function _currentOrtho() {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
-    return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 35) };
+    return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 0) };
   }
   /** 17.09.2026 — Dunst (0…100) aus der sichtbaren Optik-Gruppe (Zwillinge wie die Schärfe). */
   function _currentHaze() {

@@ -304,7 +304,7 @@ function rzRasterAdjustPaint(adj) { return window.rzMapAdjustPaint(adj, mapCatal
 function rzApplyRasterAdjust(map, adj, def) { return window.rzApplyMapAdjust(map, adj, def === undefined ? (mapCatalog().ortho_adjust_default || {}) : def); }
 /** Relief-Regler (0…100) aus einem Optik-Dict; fehlend = Werk aus dem Katalog (17.09.2026). */
 function rzOrthoRelief(adj) {
-  const d = mapCatalog().ortho_relief_default; const def = (typeof d === "number") ? d : 35;
+  const d = mapCatalog().ortho_relief_default; const def = (typeof d === "number") ? d : 0;
   const v = (adj && typeof adj === "object") ? parseFloat(adj.relief) : NaN;
   return Math.max(0, Math.min(100, isFinite(v) ? v : def));
 }
