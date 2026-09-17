@@ -4003,5 +4003,18 @@
   "warte.modul_neuaufbau.titel": "Reconstruyendo la vista",
   "warte.modul_neuaufbau.text": "Cargando el mapa con los nuevos ajustes …",
   "geotagger.autotag.keine_rueckmeldung": "Sin respuesta del reconocimiento de imágenes — los detalles están en el registro.",
-  "heightanim.toast.status_verloren": "Sin respuesta del renderizado — los detalles están en el registro."
+  "heightanim.toast.status_verloren": "Sin respuesta del renderizado — los detalles están en el registro.",
+  "settings.maps.sub.laender": "Claves por país",
+  "settings.laender.intro": "Algunos países publican sus ortofotos oficiales pero exigen una clave personal gratuita. Si la introduces aquí, «Satélite (gratis)» usa allí la ortofoto nacional en lugar de Sentinel-2: en la vista previa y el vídeo, no en las exportaciones de mapa web. La clave se queda en este ordenador (las teselas pasan por la caché de la app). Los vídeos se pueden publicar; la app pone la atribución.",
+  "settings.laender.dk": "Dinamarca — token de Dataforsyningen",
+  "settings.laender.dk_hint": "cuenta gratuita en dataforsyningen.dk → Brugeradministration → Token",
+  "settings.laender.fi": "Finlandia — api-key de Maanmittauslaitos",
+  "settings.laender.fi_hint": "gratis mediante el formulario en maanmittauslaitos.fi, Karttakuvapalvelu WMTS",
+  "settings.laender.nz": "Nueva Zelanda — clave de LINZ Basemaps",
+  "settings.laender.nz_hint": "gratis en basemaps.linz.govt.nz, el valor tras «api=»",
+  "settings.laender.sweden": "Suecia (Lantmäteriet, CC0) y Noruega no ofrecen servicio de teselas de ortofotos: allí sigue Sentinel-2 o MapTiler.",
+  "mapstyle.note.no_key": "Hay ortofotos oficiales de {name} — con tu propia clave (Ajustes → Mapas → Claves por país).",
+  "mapregion.dk": "Dinamarca",
+  "mapregion.fi": "Finlandia",
+  "mapregion.nz": "Nueva Zelanda"
 }

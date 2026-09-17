@@ -4003,5 +4003,18 @@
   "warte.modul_neuaufbau.titel": "Ansicht wird neu aufgebaut",
   "warte.modul_neuaufbau.text": "Die Karte wird mit den neuen Einstellungen geladen …",
   "geotagger.autotag.keine_rueckmeldung": "Keine Rückmeldung von der Bilderkennung — Details stehen im Log.",
-  "heightanim.toast.status_verloren": "Keine Rückmeldung vom Render — Details stehen im Log."
+  "heightanim.toast.status_verloren": "Keine Rückmeldung vom Render — Details stehen im Log.",
+  "settings.maps.sub.laender": "Länder-Schlüssel",
+  "settings.laender.intro": "Einige Länder geben ihre amtlichen Luftbilder frei, verlangen aber einen eigenen, kostenlosen Schlüssel je Nutzer. Trägst du ihn hier ein, nimmt „Satellit (kostenlos)“ dort automatisch das Landesluftbild statt Sentinel-2 — in Vorschau und Video, nicht in den Web-Karten-Exporten. Der Schlüssel bleibt auf diesem Rechner (die Kacheln laufen über den Zwischenspeicher der App). Videos dürfen veröffentlicht werden, die Nennung setzt die App.",
+  "settings.laender.dk": "Dänemark — Dataforsyningen-Token",
+  "settings.laender.dk_hint": "kostenloses Konto auf dataforsyningen.dk → Brugeradministration → Token",
+  "settings.laender.fi": "Finnland — Maanmittauslaitos api-key",
+  "settings.laender.fi_hint": "kostenlos per Formular auf maanmittauslaitos.fi, Karttakuvapalvelu WMTS",
+  "settings.laender.nz": "Neuseeland — LINZ-Basemaps-Schlüssel",
+  "settings.laender.nz_hint": "kostenlos auf basemaps.linz.govt.nz, der Wert hinter „api=“",
+  "settings.laender.sweden": "Schweden (Lantmäteriet, CC0) und Norwegen bieten keinen Kacheldienst für Luftbilder an — dort bleibt Sentinel-2 oder MapTiler.",
+  "mapstyle.note.no_key": "Für {name} gibt es amtliche Luftbilder — mit eigenem Schlüssel (Einstellungen → Karten → Länder-Schlüssel).",
+  "mapregion.dk": "Dänemark",
+  "mapregion.fi": "Finnland",
+  "mapregion.nz": "Neuseeland"
 }

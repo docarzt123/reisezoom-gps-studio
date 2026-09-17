@@ -249,6 +249,20 @@ ORTHO_REGIONS = [
     # Geprüft und NICHT aufgenommen: Litauen (WMS „non commercial use only"), Kroatien (Gebühr laut Capabilities),
     # Victoria/AU (lizenzpflichtig), Queensland (Planet-Material „all rights reserved"), Lettland/Liechtenstein (kein Dienst
     # erreichbar), Dänemark/Schweden/Finnland/Neuseeland (frei, aber nur mit eigenem Schlüssel — kein Kandidat ohne Token).
+    # 18.09.2026 (Marc: „Frei, aber nur mit eigenem Schlüssel … wenn du das willst, baue ich einen Eintrag dafür" → „bau"):
+    # Regionen mit `key` = Name der Einstellung (settings.json), `{key}` in der Kachelvorlage. Ohne Wert bleibt die Region
+    # weg (Sentinel darunter), `resolve` vermerkt `no_key:<id>`. Kacheln laufen über die Weiche → der Schlüssel bleibt auf
+    # diesem Rechner. Leaflet-Exporte lassen Schlüssel-Regionen aus (sonst stünde der Schlüssel im HTML).
+    # Schweden geprüft: Lantmäteriet-Orthofoto nur als Download/STAC (CC0), kein Kacheldienst → nicht aufnehmbar.
+    {"id": "dk", "name": "Dänemark", "country": "DK", "bbox": (8.07, 54.56, 15.20, 57.76), "maxzoom": 20, "key": "dk_key",
+     "tiles": ["https://api.dataforsyningen.dk/orto_foraar_webm_DAF?token={key}&service=WMTS&request=GetTile&version=1.0.0&layer=orto_foraar_webm&style=default&format=image/jpeg&tilematrixset=DFD_GoogleMapsCompatible&tilematrix={z}&tilerow={y}&tilecol={x}"],
+     "attribution": "Aerial imagery: © Klimadatastyrelsen / GeoDanmark, Ortofoto forår"},
+    {"id": "fi", "name": "Finnland", "country": "FI", "bbox": (19.10, 59.70, 31.60, 70.10), "maxzoom": 19, "key": "fi_key",
+     "tiles": ["https://avoin-karttakuva.maanmittauslaitos.fi/avoin/wmts/1.0.0/ortokuva/default/WGS84_Pseudo-Mercator/{z}/{y}/{x}.jpg?api-key={key}"],
+     "attribution": "Aerial imagery: © Maanmittauslaitos (National Land Survey of Finland), CC BY 4.0"},
+    {"id": "nz", "name": "Neuseeland", "country": "NZ", "bbox": (166.40, -47.35, 178.60, -34.35), "maxzoom": 20, "key": "linz_key",
+     "tiles": ["https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api={key}"],
+     "attribution": "Aerial imagery: Sourced from LINZ Basemaps (CC BY 4.0)"},
     {"id": "si", "name": "Slowenien", "country": "SI", "bbox": (13.37, 45.42, 16.61, 46.88), "maxzoom": 20,
      "wms": _wms("https://storitve.eprostor.gov.si/ows-pub-wms/wms", "SI.GURS.ZPDZ:DOF5"),
      "attribution": "Aerial imagery: © GURS – Geodetska uprava Republike Slovenije, DOF (CC BY 4.0)"},
@@ -451,6 +465,35 @@ KNOWN_GAPS = [
 ]
 
 
+# ── Regionen mit eigenem Schlüssel (18.09.2026) ─────────────────────────────
+_REGION_KEY_VALUES: dict = {}
+
+
+def set_region_keys(values) -> None:
+    """Schlüsselwerte aus den Einstellungen (app.py) — {"dk_key": "…", …}; leer = Region aus."""
+    global _REGION_KEY_VALUES
+    _REGION_KEY_VALUES = {k: (str(v).strip() if v else "") for k, v in (values or {}).items()}
+
+
+def region_key_value(region: dict) -> str:
+    return _REGION_KEY_VALUES.get(region.get("key") or "", "") if region.get("key") else ""
+
+
+def region_usable(region: dict) -> bool:
+    """Ohne `key` immer; mit `key` nur, wenn ein Wert gesetzt ist."""
+    return (not region.get("key")) or bool(region_key_value(region))
+
+
+def keyed_regions_missing(bbox) -> list[dict]:
+    """Schlüssel-Regionen, die den Mittelpunkt decken, aber keinen Wert haben (für den Hinweis)."""
+    bbox = bbox_tuple(bbox)
+    if not bbox:
+        return []
+    cx = (bbox[0] + bbox[2]) / 2.0; cy = (bbox[1] + bbox[3]) / 2.0
+    return [r for r in ORTHO_REGIONS if r.get("key") and not region_usable(r)
+            and r["bbox"][0] <= cx <= r["bbox"][2] and r["bbox"][1] <= cy <= r["bbox"][3]]
+
+
 def gaps_for_bbox(bbox) -> list[dict]:
     """Bekannte Lücken, die das Track-Rechteck berühren."""
     b = bbox_tuple(bbox)
@@ -474,7 +517,8 @@ def regions_for_bbox(bbox) -> list[dict]:
     cx = (bbox[0] + bbox[2]) / 2.0
     cy = (bbox[1] + bbox[3]) / 2.0
     hits = [r for r in ORTHO_REGIONS
-            if r["bbox"][0] <= cx <= r["bbox"][2] and r["bbox"][1] <= cy <= r["bbox"][3]]
+            if region_usable(r)   # 18.09.2026: Schlüssel-Regionen nur mit Wert
+            and r["bbox"][0] <= cx <= r["bbox"][2] and r["bbox"][1] <= cy <= r["bbox"][3]]
     hits.sort(key=lambda r: _area(r["bbox"]))
     return hits
 
@@ -521,7 +565,7 @@ def region_tiles(region: dict, transparent: bool = False, proxy_base: str = "") 
     if proxy_base:
         return [proxy_base.rstrip("/") + "/tile/" + region["id"] + "/{z}/{x}/{y}" + ("?t=1" if transparent else "")]
     if region.get("tiles"):
-        return list(region["tiles"])
+        return [u.replace("{key}", region_key_value(region)) for u in region["tiles"]]   # 18.09.2026: eigener Schlüssel
     return [wms_tile_template(region["wms"], transparent=transparent)]
 
 
@@ -636,7 +680,7 @@ def stack_leaflet(stack: list[dict], adjust=None) -> dict:
     d["attr"] = stack_attribution(stack)
     if transparent:
         d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
-    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=int(round(ORTHO_FADE_TO))) for r in reversed(stack)]
+    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=int(round(ORTHO_FADE_TO))) for r in reversed(stack) if not r.get("key")]   # 18.09.2026: kein Schlüssel ins HTML
     d["adjust"] = ortho_adjust(adjust)   # Luftbild-Optik (CSS-Filter im Export)
     return d
 
@@ -865,6 +909,8 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
         gaps = gaps_for_bbox(bbox)
         for g in gaps:
             notes.append(f"gap:{g['id']}")
+        for m in keyed_regions_missing(bbox):   # 18.09.2026: Luftbild gäbe es, aber der Schlüssel fehlt
+            notes.append(f"no_key:{m['id']}")
         if region is None and bbox_tuple(bbox):
             # 05.09.2026: kein Ausweichen mehr auf OpenFreeMap — der Stapel hat jetzt
             # weltweit Sentinel-2 (10 m) unter den Landesdiensten.
@@ -924,6 +970,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
                         if (k == "aws" and proxy_base) else t) for k, t in TERRAIN.items()},
         "regions": [
             {"id": r["id"], "name": r["name"], "country": r["country"], "bbox": list(r["bbox"]),
+             "key": r.get("key"),   # 18.09.2026: Name der Schlüssel-Einstellung (JS: nur mit Wert stapeln)
              "maxzoom": r.get("maxzoom", 19), "tiles": region_tiles(r),
              "scheme": r.get("scheme", "xyz"), "attribution": r["attribution"],
              "tiles_transparent": region_tiles(r, transparent=True),
@@ -931,6 +978,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
             for r in ORTHO_REGIONS
         ],
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
+        "region_keys": {r["key"]: bool(region_key_value(r)) for r in ORTHO_REGIONS if r.get("key")},   # 18.09.2026
         "base_layer": BASE_LAYER, "sentinel_layer": SENTINEL_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
         "ortho_fade": [ORTHO_FADE_FROM, ORTHO_FADE_TO],
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)

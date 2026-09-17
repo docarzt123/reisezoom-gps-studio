@@ -274,7 +274,8 @@ function mapRegionsForBbox(bbox) {
   if (!bbox) return [];
   const cx = (Number(bbox[0]) + Number(bbox[2])) / 2, cy = (Number(bbox[1]) + Number(bbox[3])) / 2;
   if (!isFinite(cx) || !isFinite(cy)) return [];
-  const hits = mapCatalog().regions.filter(r => r.bbox[0] <= cx && cx <= r.bbox[2] && r.bbox[1] <= cy && cy <= r.bbox[3]);
+  const kv = (mapCatalog().key_values || {}).regions || {};   // 18.09.2026: Schlüssel-Regionen nur mit gesetztem Wert (Spiegel: mapstyles.region_usable)
+  const hits = mapCatalog().regions.filter(r => (!r.key || kv[r.key]) && r.bbox[0] <= cx && cx <= r.bbox[2] && r.bbox[1] <= cy && cy <= r.bbox[3]);
   hits.sort((a, b) => ((a.bbox[2]-a.bbox[0])*(a.bbox[3]-a.bbox[1])) - ((b.bbox[2]-b.bbox[0])*(b.bbox[3]-b.bbox[1])));
   return hits;
 }
@@ -286,6 +287,13 @@ function mapRegionForBbox(bbox) { const h = mapRegionsForBbox(bbox); return h.le
 function mapRegionName(r) {
   if (!r) return "";
   try { return (typeof t === "function" ? t("mapregion." + r.id, r.name) : r.name) || r.name; } catch (_) { return r.name; }
+}
+/** 18.09.2026 — Schlüssel-Regionen, die den Mittelpunkt decken, aber keinen Wert haben (Spiegel: mapstyles.keyed_regions_missing). */
+function mapKeyedRegionsMissing(bbox) {
+  const b = mapBboxArray(bbox); if (!b) return [];
+  const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+  const kv = (mapCatalog().key_values || {}).regions || {};
+  return mapCatalog().regions.filter(r => r.key && !kv[r.key] && r.bbox[0] <= cx && cx <= r.bbox[2] && r.bbox[1] <= cy && cy <= r.bbox[3]);
 }
 function mapRegionStack(bbox) {
   const h = mapRegionsForBbox(bbox);
@@ -442,6 +450,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
     gaps = mapGapsForBbox(bbox);
     for (const g of gaps) notes.push("gap:" + g.id);
     if (!region && mapBboxArray(bbox)) notes.push("no_coverage");   // 05.09.2026: Stapel bleibt (Sentinel-2 weltweit)
+    for (const m of mapKeyedRegionsMissing(bbox)) notes.push("no_key:" + m.id);   // 18.09.2026: Luftbild gäbe es, Schlüssel fehlt
   }
   let style;
   if (d.kind === "gov") style = _stackStyle(stack, ortho);
@@ -505,6 +514,7 @@ function mapStyleNoteText(spec) {
     if (n === "no_mapbox_token") parts.push(t("mapstyle.note.no_mapbox_token", "Kein Mapbox-Token — Satellit (kostenlos) wird verwendet."));
     else if (n === "no_maptiler_key") parts.push(t("mapstyle.note.no_maptiler_key", "Kein MapTiler-Schlüssel — Satellit (kostenlos) wird verwendet."));
     else if (n === "no_coverage") parts.push(t("mapstyle.note.no_coverage", "Keine amtlichen Luftbilder für diesen Track — Sentinel-2 (10 m, 2016) wird gezeigt."));
+    else if (n.startsWith("no_key:")) { const r = (mapCatalog().regions || []).find(x => x.id === n.slice(7)); parts.push(t("mapstyle.note.no_key", "Für {name} gibt es amtliche Luftbilder — mit eigenem Schlüssel (Einstellungen → Karten → Länder-Schlüssel).").replace("{name}", r ? mapRegionName(r) : n.slice(7))); }
   }
   if (spec.region) parts.push(t("mapstyle.note.region", "Luftbild: {name}").replace("{name}", spec.region.name));
   // 07.09.2026 — Rechtelage aus dem Quellen-Register (nur wenn nicht „geprüft und erlaubt")

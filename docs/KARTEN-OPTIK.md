@@ -95,9 +95,11 @@ DOF5-WMS, CC BY 4.0, Capabilities „Ni omejitev"), **AU-NSW**
 (Spatial Services NSW_Imagery-Kacheln, CC BY 4.0). Geprüft und verworfen: TW (NLSC PHOTO2, OGDL 1.0 — Lizenz frei, aber TWCA-Zertifikat ohne Subject Key
 Identifier, OpenSSL 3 in Python lehnt ab, die Weiche liefert nie), LT (WMS „non commercial use only"), HR
 (Gebühr laut Capabilities), AU-VIC (Vicmap „licensed service, access fee"), AU-QLD (Planet-Material „all rights
-reserved"), LV/LI (Dienst nicht erreichbar/404). **Frei, aber nur mit eigenem Schlüssel** (kein Kandidat für den
-tokenfreien Pfad, wäre ein eigener „Schlüssel"-Eintrag wie MapTiler): DK Dataforsyningen, SE Lantmäteriet (CC0!),
-FI NLS (CC BY 4.0), NZ LINZ (CC BY 4.0). Keine freien Luftbilder bekannt: NO, IE, UK, IS, CA, HU, sowie fast ganz
+reserved"), LV/LI (Dienst nicht erreichbar/404). **Frei, aber nur mit eigenem Schlüssel — seit 18.09.2026 gebaut** (Einstellungen → Karten → Länder-Schlüssel,
+Regionen mit `key` in `ORTHO_REGIONS`): **DK** Dataforsyningen (WMTS orto_foraar_webm_DAF, Web Mercator, Token je
+Nutzer; Kachel Kopenhagen geprüft), **FI** Maanmittauslaitos (Karttakuvapalvelu WMTS ortokuva, api-key; ohne Schlüssel
+401 — nicht mit echtem Schlüssel geprüft), **NZ** LINZ Basemaps (aerial, api=; kam sogar ohne Schlüssel, Doku verlangt
+ihn). **SE** Lantmäteriet: Orthofoto nur Download/STAC (CC0), kein Kacheldienst → nicht möglich. Keine freien Luftbilder bekannt: NO, IE, UK, IS, CA, HU, sowie fast ganz
 Südamerika/Afrika/Asien — dort bleibt Sentinel-2.
 
 **Nicht tun:** Videorechte „für alle Nutzer" kaufen (Lizenz hängt am Nutzerkonto) · Mapbox-Kacheln

@@ -555,6 +555,8 @@ DEFAULT_SETTINGS = {
     "mapbox_token": "",            # leer → Mapbox-Stile weichen auf „Satellit (kostenlos)" aus
     # 03.09.2026 — Kartenanbieter zur Auswahl (core/mapstyles.py)
     "maptiler_key": "",            # MapTiler Cloud API-Key; leer → MapTiler-Stile weichen aus
+    # 18.09.2026 — Luftbild-Länder mit eigenem Schlüssel (core/mapstyles ORTHO_REGIONS[key]); leer = Region aus
+    "dk_key": "", "fi_key": "", "linz_key": "",
     "map_style_default": "free_satellite",   # Werkseinstellung für Karten ohne eigene Wahl
     "tile_cache_mb": 2048,         # Kachel-Zwischenspeicher des Renders (0 = aus)
     # 07.09.2026 (Marc, Masca 2: «ruckelt in der Vorschau») — Vorschau-Qualität: voll | flott | schnell.
@@ -1259,9 +1261,21 @@ def _track_bbox_lonlat(track) -> "tuple | None":
         return None
 
 
+REGION_KEY_NAMES = ("dk_key", "fi_key", "linz_key")   # 18.09.2026 — Luftbild-Länder mit eigenem Schlüssel
+
+
+def _sync_region_keys(s=None) -> dict:
+    """Schlüssel der Luftbild-Länder aus den Einstellungen in core/mapstyles spiegeln (Vorschau, Render, Weiche)."""
+    s = s if s is not None else _load_settings()
+    vals = {k: (s.get(k) or "").strip() for k in REGION_KEY_NAMES}
+    cmapstyles.set_region_keys(vals)
+    return vals
+
+
 def _active_maptiler_key() -> str:
     """MapTiler-Schlüssel aus den Einstellungen (03.09.2026). Leer = keiner."""
     s = _load_settings()
+    _sync_region_keys(s)   # 18.09.2026: alle Aufrufer (Katalog, Auflösung, Render) bekommen damit auch die Länder-Schlüssel
     key = (s.get("maptiler_key") or "").strip()
     return key if len(key) >= 8 else ""
 
@@ -1320,6 +1334,7 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             return False
         try:
             _sync_tile_cache_settings()
+            _sync_region_keys()   # 18.09.2026: Schlüssel-Regionen (Weiche setzt {key} beim Abruf ein)
             status, ctype, body = ctileproxy.fetch_tile(*req, cache_dir=canim.TILE_CACHE_DIR)
             self.send_response(status)
             self.send_header("Content-Type", ctype)
@@ -1661,7 +1676,7 @@ class Api:
         tok = _active_mapbox_token()
         mt = _active_maptiler_key()
         cat = cmapstyles.catalog_for_ui(has_mapbox=bool(tok), has_maptiler=bool(mt), proxy_base=_tile_proxy_base())
-        cat["key_values"] = {"mapbox": tok, "maptiler": mt}
+        cat["key_values"] = {"mapbox": tok, "maptiler": mt, "regions": {k: bool(v) for k, v in _sync_region_keys().items()}}   # 18.09.2026: nur ob gesetzt
         s = _load_settings()
         d = s.get("map_style_default") or cmapstyles.DEFAULT_STYLE
         cat["default_style"] = d if d in cmapstyles.STYLE_BY_KEY else cmapstyles.DEFAULT_STYLE
@@ -14085,7 +14100,7 @@ def _macos_datei_event_abholen() -> Optional[str]:
 # Hilfe → „Einstellungen zurücksetzen …". Die Einstellungen wandern in eine Sicherung,
 # die App startet frisch im Archiv. Bibliothek, Projekte und Touren bleiben unangetastet;
 # Karten-Schlüssel und Sprache werden mitgenommen — sonst wäre der Reset eine Strafe.
-RESET_BEHALTEN = ("mapbox_token", "maptiler_key", "language", "onboarding_done")
+RESET_BEHALTEN = ("mapbox_token", "maptiler_key", "dk_key", "fi_key", "linz_key", "language", "onboarding_done")
 
 
 def _reset_einstellungen(grund: str = "") -> dict:

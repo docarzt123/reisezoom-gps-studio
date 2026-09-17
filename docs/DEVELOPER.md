@@ -3223,6 +3223,19 @@ nur einer sichtbar, `_sharpSync`); klassischer Render: `sharp_block` im Karten-
 Kopf. Bei 0 keine Ebene. Web-Karten-Exporte: nicht. Nach `setStyle` wird die
 Ebene in `style.load` neu angelegt (`_applySharpen`).
 
+**Luftbild-Länder mit eigenem Schlüssel (18.09.2026):** `ORTHO_REGIONS`-Einträge mit
+`key` (Name der Einstellung: `dk_key`, `fi_key`, `linz_key`) und `{key}` in der Kachel-
+vorlage. `mapstyles.set_region_keys()` bekommt die Werte aus den Einstellungen (app.py
+`_sync_region_keys`, aufgerufen über `_active_maptiler_key()` = Katalog/Auflösung/Render,
+plus im Kachel-Handler der Weiche); `region_usable()` filtert in `regions_for_bbox`,
+`region_tiles()` setzt den Wert ein, `resolve()` vermerkt `no_key:<id>`. Der Katalog
+liefert `region_keys` (nur ob gesetzt) und je Region `key`; `key_values.regions` ebenso —
+JS `mapRegionsForBbox` filtert damit, `mapKeyedRegionsMissing` liefert den Hinweis
+(`mapstyle.note.no_key`). Der Schlüsselwert erreicht die WebView nie (Kacheln über
+`/tile/<id>/…`), `stack_leaflet` lässt Schlüssel-Regionen aus. Einstellungen:
+`app.js` Subpanel `laender` (`md-dk-key`, `md-fi-key`, `md-linz-key`), `RESET_BEHALTEN`.
+Wächter `tests/test_laender_schluessel.py`. Schweden: kein Kacheldienst (nur STAC).
+
 **Relief + Dunst + Looks (17.09.2026, `docs/KARTEN-OPTIK.md` §3):**
 *Relief* = MapLibre-`hillshade`-Ebene `rz-hillshade` aus der raster-dem-Quelle
 `rz-dem` (AWS Terrarium über die lokale Weiche `/tile/terrain-aws/…`, Meerestiefen
