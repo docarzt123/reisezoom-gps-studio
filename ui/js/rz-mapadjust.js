@@ -55,6 +55,13 @@
       const pp = (l.id === "rz-raster-sentinel") ? pSen : p;
       for (const k of Object.keys(ALL)) { try { map.setPaintProperty(l.id, k, (k in pp) ? pp[k] : ALL[k]); } catch (_) {} }
     }
+    // 17.09.2026 — Relief (Hillshade-Ebene rz-hillshade, nur im Luftbild-Stapel): adj.relief 0…100
+    if (adj && typeof adj === "object" && adj.relief !== undefined && map.getLayer("rz-hillshade")) {
+      const rel = Math.max(0, Math.min(100, parseFloat(adj.relief) || 0));
+      const mx = (typeof window.__rzReliefMax === "number") ? window.__rzReliefMax : 0.8;
+      try { map.setLayoutProperty("rz-hillshade", "visibility", rel > 0 ? "visible" : "none"); } catch (_) {}
+      try { map.setPaintProperty("rz-hillshade", "hillshade-exaggeration", +(rel / 100 * mx).toFixed(3)); } catch (_) {}
+    }
     const op = hasRaster ? 0 : Math.min(0.85, Math.abs(a.bri) / 100 * 0.8);
     const color = a.bri < 0 ? "#000000" : "#ffffff";
     try {
@@ -78,21 +85,32 @@
   const SHARP_ID = "rz-sharpen", SHARP_MAX_A = 2.0;
   function sharpNorm(v) { const n = parseFloat(v); return isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
   const SHARP_VS = "attribute vec2 a_pos; varying vec2 v_uv; void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }";
-  const SHARP_FS = "precision mediump float; uniform sampler2D u_tex; uniform vec2 u_step; uniform float u_a; varying vec2 v_uv;"
+  /* 17.09.2026 (docs/KARTEN-OPTIK.md §3.4, „Dunst raus") — im selben Durchgang: Sentinel-2 und viele
+   * Landesluftbilder tragen einen blauen Schleier (angehobene Schwarzwerte, blaustichig). Je Kanal wird
+   * ein Schwarzpunkt abgezogen und der Rest wieder auf 0…1 gestreckt — Blau am stärksten, deshalb
+   * verschwindet der Stich mit dem Schleier. u_haze 0…1 (Regler map_haze 0…100 %). Wirkt wie die
+   * Schärfe auf Karte + Strecke, nicht auf HTML-Overlays. Schatten bleiben: unter ~6 % Helligkeit
+   * greift der Abzug nicht, bis 30 % blendet er ein (Vergleichsrender Teide 17.09.: Blue-Marble-Meer
+   * und Lavaschatten wurden sonst schwarz, der Schleier sitzt in den Mitteltönen). */
+  const SHARP_FS = "precision mediump float; uniform sampler2D u_tex; uniform vec2 u_step; uniform float u_a; uniform float u_haze; varying vec2 v_uv;"
     + " void main() { vec4 c = texture2D(u_tex, v_uv);"
     + " vec4 b = (texture2D(u_tex, v_uv + vec2(u_step.x, 0.0)) + texture2D(u_tex, v_uv - vec2(u_step.x, 0.0))"
     + " + texture2D(u_tex, v_uv + vec2(0.0, u_step.y)) + texture2D(u_tex, v_uv - vec2(0.0, u_step.y)) + c) / 5.0;"
     + " vec3 s = clamp(c.rgb * (1.0 + u_a) - b.rgb * u_a, 0.0, max(c.a, 0.0001));"
+    + " float lum = dot(s, vec3(0.299, 0.587, 0.114)) / max(c.a, 0.0001);"
+    + " vec3 bp = u_haze * vec3(0.10, 0.13, 0.20) * smoothstep(0.06, 0.30, lum);"
+    + " s = clamp((s - bp * max(c.a, 0.0001)) / (1.0 - bp), 0.0, max(c.a, 0.0001));"
     + " gl_FragColor = vec4(s, c.a); }";
   function sharpLayer() {
     return {
-      id: SHARP_ID, type: "custom", renderingMode: "2d", amount: 0,
+      id: SHARP_ID, type: "custom", renderingMode: "2d", amount: 0, haze: 0,
       onAdd(map, gl) {
         this._map = map;
         const mk = (t, src) => { const sh = gl.createShader(t); gl.shaderSource(sh, src); gl.compileShader(sh); return sh; };
         const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, SHARP_VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, SHARP_FS)); gl.linkProgram(pr);
         this._pr = pr; this._aPos = gl.getAttribLocation(pr, "a_pos");
         this._uTex = gl.getUniformLocation(pr, "u_tex"); this._uStep = gl.getUniformLocation(pr, "u_step"); this._uA = gl.getUniformLocation(pr, "u_a");
+        this._uHaze = gl.getUniformLocation(pr, "u_haze");
         this._buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this._buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
         this._tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this._tex);
@@ -101,7 +119,7 @@
       },
       onRemove(map, gl) { try { gl.deleteProgram(this._pr); gl.deleteBuffer(this._buf); gl.deleteTexture(this._tex); } catch (_) {} },
       render(gl) {
-        if (!(this.amount > 0) || !this._pr) return;
+        if (!(this.amount > 0 || this.haze > 0) || !this._pr) return;
         const vp = gl.getParameter(gl.VIEWPORT), w = vp[2], h = vp[3];
         if (!(w > 0 && h > 0)) return;
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this._tex);
@@ -110,7 +128,7 @@
         gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
         gl.useProgram(this._pr);
         const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
-        gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, dpr / w, dpr / h); gl.uniform1f(this._uA, this.amount);
+        gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, dpr / w, dpr / h); gl.uniform1f(this._uA, this.amount); gl.uniform1f(this._uHaze, this.haze);
         gl.bindBuffer(gl.ARRAY_BUFFER, this._buf); gl.enableVertexAttribArray(this._aPos); gl.vertexAttribPointer(this._aPos, 2, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         gl.disableVertexAttribArray(this._aPos);
@@ -123,19 +141,25 @@
     for (const l of layers) { if (l.id === SHARP_ID) continue; if (l.type !== "raster" && l.type !== "background" && l.type !== "hillshade") return l.id; }
     return undefined;
   }
-  function applySharpen(map, pct) {
+  /** Schärfe (0…100) und Dunst (0…100) auf EINER Ebene; beide 0 = Ebene weg. */
+  function applyLook(map, sharpPct, hazePct) {
     if (!map || !map.getStyle || !map.addLayer) return;
-    const v = sharpNorm(pct), A = v / 100 * SHARP_MAX_A;
+    const v = sharpNorm(sharpPct), A = v / 100 * SHARP_MAX_A;
+    const hz = sharpNorm(hazePct), H = hz / 100;
     let layers = []; try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
     try {
-      if (v <= 0) { if (map.getLayer(SHARP_ID)) map.removeLayer(SHARP_ID); map.__rzSharpen = 0; if (map.triggerRepaint) map.triggerRepaint(); return; }
+      if (v <= 0 && hz <= 0) { if (map.getLayer(SHARP_ID)) map.removeLayer(SHARP_ID); map.__rzSharpen = 0; map.__rzHaze = 0; if (map.triggerRepaint) map.triggerRepaint(); return; }
       let lay = map.__rzSharpenLayer;
       if (!map.getLayer(SHARP_ID)) { lay = sharpLayer(); map.__rzSharpenLayer = lay; map.addLayer(lay, firstNonRasterLayer(layers)); }
-      if (lay) lay.amount = A;
-      map.__rzSharpen = v;
+      if (lay) { lay.amount = A; lay.haze = H; }
+      map.__rzSharpen = v; map.__rzHaze = hz;
       if (map.triggerRepaint) map.triggerRepaint();
-    } catch (e) { try { console.warn("rzApplyMapSharpen", e); } catch (_) {} }
+    } catch (e) { try { console.warn("rzApplyMapLook", e); } catch (_) {} }
   }
+  function applySharpen(map, pct) { return applyLook(map, pct, map && map.__rzHaze); }
+  function applyHaze(map, pct) { return applyLook(map, map && map.__rzSharpen, pct); }
+  window.rzApplyMapLook = applyLook;
+  window.rzApplyMapHaze = applyHaze;
   window.rzMapSharpenNorm = sharpNorm;
   window.rzApplyMapSharpen = applySharpen;
   window.rzOrthoAdjustNorm = norm;

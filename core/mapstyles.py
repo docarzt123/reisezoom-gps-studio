@@ -235,6 +235,17 @@ ORTHO_REGIONS = [
     {"id": "at", "name": "Österreich", "country": "AT", "bbox": (9.50, 46.37, 17.17, 49.02), "maxzoom": 19,
      "tiles": ["https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg"],
      "attribution": "Aerial imagery: basemap.at (CC BY 4.0)"},
+    # 17.09.2026 (docs/KARTEN-OPTIK.md §3.1 „mehr Länder") — Belgien (zwei Regionen, transparente WMS-PNGs
+    # stapeln sich über der Sprachgrenze), Slowakei (GKÚ, CC BY 4.0). Alle drei am 17.09. per GetMap geprüft.
+    {"id": "be-vl", "name": "Flandern", "country": "BE", "bbox": (2.54, 50.67, 5.92, 51.51), "maxzoom": 20,
+     "wms": _wms("https://geo.api.vlaanderen.be/OMWRGBMRVL/wms", "Ortho"),
+     "attribution": "Aerial imagery: Bron: Luchtopnamen Digitaal Vlaanderen"},
+    {"id": "be-wa", "name": "Wallonien", "country": "BE", "bbox": (2.84, 49.49, 6.41, 50.82), "maxzoom": 20,
+     "wms": _wms("https://geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_LAST/MapServer/WMSServer", "0"),
+     "attribution": "Aerial imagery: Service public de Wallonie (SPW) – Orthophotos (CC BY 4.0)"},
+    {"id": "sk", "name": "Slowakei", "country": "SK", "bbox": (16.83, 47.73, 22.57, 49.62), "maxzoom": 19,
+     "wms": _wms("https://zbgisws.skgeodesy.sk/zbgis_ortofoto_wms/service.svc/get", "1"),
+     "attribution": "Aerial imagery: © ÚGKK SR / GKÚ Bratislava, Ortofotomozaika SR (CC BY 4.0)"},
     {"id": "cz", "name": "Tschechien", "country": "CZ", "bbox": (12.09, 48.55, 18.86, 51.06), "maxzoom": 19,
      "tiles": ["https://ags.cuzk.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}"],
      "attribution": "Aerial imagery: © ČÚZK"},
@@ -552,6 +563,13 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
         paint["raster-opacity"] = ["interpolate", ["linear"], ["zoom"], ORTHO_FADE_FROM, 0.0, ORTHO_FADE_TO, 1.0]
         lay["paint"] = paint
         layers.append(lay)
+    # 17.09.2026 — Relief (Hillshade) über allen Luftbild-Ebenen, unter der Beschriftung.
+    _rel = ortho_relief(adjust)
+    _dem = terrain_source("aws", proxy_base=proxy_base)
+    if _dem:
+        sources[RELIEF_SOURCE_ID] = _dem
+        layers.append({"id": RELIEF_LAYER_ID, "type": "hillshade", "source": RELIEF_SOURCE_ID, "minzoom": RELIEF_MINZOOM,
+                       "layout": {"visibility": "visible" if _rel > 0 else "none"}, "paint": relief_paint(_rel)})
     # Weltkugel: MapLibre 5 zeichnet bei kleinem Zoom einen Globus (Anflug aus
     # dem All wie bei Mapbox) — der Blue-Marble-Untergrund macht ihn erst schön.
     return {"version": 8, "projection": PROJECTION, "sources": sources, "layers": layers}
@@ -669,6 +687,36 @@ def raster_adjust_paint(adj) -> dict:
     if a["bri"] < 0: paint["raster-brightness-max"] = round(1.0 + a["bri"] / 100.0 * 0.5, 3)
     if a["hue"]: paint["raster-hue-rotate"] = round(a["hue"], 1)
     return paint
+
+
+# ── Relief unter den Luftbildern (17.09.2026, docs/KARTEN-OPTIK.md §3.2) ────
+# Sentinel-2 (10 m) wirkt flach: keine Schatten, kein Licht. Ein Hillshade aus den
+# ohnehin geladenen AWS-Geländedaten (dieselbe Quelle wie das 3D-Gelände, über die
+# lokale Weiche) liegt als eigene Ebene über den Orthofoto-Ebenen und unter der
+# Beschriftung. Regler `ortho_relief` 0…100 % → hillshade-exaggeration 0…RELIEF_MAX;
+# 0 = Ebene unsichtbar. Erst ab RELIEF_MINZOOM: darunter trägt Blue Marble schon sein
+# eigenes Relief. JS-Spiegel: util.js _stackStyle + rz-mapadjust.js applyAdjust.
+ORTHO_RELIEF_DEFAULT = 35.0
+RELIEF_MAX = 0.8
+RELIEF_MINZOOM = 6
+RELIEF_LAYER_ID = "rz-hillshade"
+RELIEF_SOURCE_ID = "rz-dem"
+
+
+def ortho_relief(adj) -> float:
+    """Relief-Regler aus einem Optik-Dict (0…100), fehlend = Werk."""
+    try:
+        v = float((adj or {}).get("relief", ORTHO_RELIEF_DEFAULT)) if isinstance(adj, dict) else ORTHO_RELIEF_DEFAULT
+    except (TypeError, ValueError):
+        v = ORTHO_RELIEF_DEFAULT
+    return max(0.0, min(100.0, v))
+
+
+def relief_paint(relief_pct: float) -> dict:
+    """Paint der Hillshade-Ebene für einen Reglerwert."""
+    return {"hillshade-exaggeration": round(max(0.0, min(100.0, float(relief_pct))) / 100.0 * RELIEF_MAX, 3),
+            "hillshade-shadow-color": "#1f2430", "hillshade-highlight-color": "#ffffff",
+            "hillshade-accent-color": "#3a3f4a", "hillshade-illumination-direction": 335}
 _OVERLAY_CACHE: Optional[dict] = None
 
 
@@ -876,6 +924,9 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
         "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,
+        # 17.09.2026 — Relief + Dunst (docs/KARTEN-OPTIK.md); JS-Spiegel in util.js/_stackStyle
+        "ortho_relief_default": ORTHO_RELIEF_DEFAULT, "relief_max": RELIEF_MAX, "relief_minzoom": RELIEF_MINZOOM,
+        "relief_paint": relief_paint(ORTHO_RELIEF_DEFAULT),
         "terms_links": TERMS_LINKS,
         # 07.09.2026 — Quellen-Register für Rechte-Tabelle und JS-Spiegel (rzStilStatus)
         "quellen": _kq.fuer_ui(),

@@ -3223,6 +3223,37 @@ nur einer sichtbar, `_sharpSync`); klassischer Render: `sharp_block` im Karten-
 Kopf. Bei 0 keine Ebene. Web-Karten-Exporte: nicht. Nach `setStyle` wird die
 Ebene in `style.load` neu angelegt (`_applySharpen`).
 
+**Relief + Dunst + Looks (17.09.2026, `docs/KARTEN-OPTIK.md` §3):**
+*Relief* = MapLibre-`hillshade`-Ebene `rz-hillshade` aus der raster-dem-Quelle
+`rz-dem` (AWS Terrarium über die lokale Weiche `/tile/terrain-aws/…`, Meerestiefen
+geklemmt — dieselben Kacheln wie das 3D-Gelände, zweite Quelle im Stil, weil das
+Gelände erst nach `style.load` per `setTerrain` dazukommt). Sitzt oben im
+Luftbild-Stapel, unter der Beschriftung (`stack_style` in `core/mapstyles.py`,
+Spiegel `_stackStyle` in `util.js`), `minzoom` `RELIEF_MINZOOM` (6; darunter hat
+Blue Marble sein eigenes Relief). Regler `ortho_relief` 0…100 → `hillshade-
+exaggeration` 0…`RELIEF_MAX` (0,8), 0 = `visibility: none`. Live: `applyAdjust`
+in `rz-mapadjust.js` liest `adj.relief` (das Optik-Dict trägt den Wert einfach
+mit — `_currentOrtho()`, `resolve(ortho=…)`, `AnimatorConfig.ortho_relief`).
+*Dunst* = zweiter Uniform `u_haze` im Schärfe-Shader (`rz-sharpen`, eine Ebene,
+eine Framebuffer-Kopie): je Kanal Schwarzpunkt `haze · (0,10, 0,13, 0,20)`
+abziehen und auf 0…1 strecken — Blau am stärksten, deshalb geht der Stich mit dem
+Schleier. `rzApplyMapLook(map, sharpPct, hazePct)`; `rzApplyMapSharpen`/
+`rzApplyMapHaze` setzen je eine Größe und behalten die andere. Einstellung
+`map_haze` (Zwillinge `anim-ohaze`/`anim-mhaze` wie bei der Schärfe, `_sharpSync`
+kennt beide Paare); Render-Kopf `sharp_block` ruft `rzApplyMapLook`. *Looks* =
+`_LOOKS_()` in module.js (Funktion, nicht `const` — `bindSetting` ruft `_lookSync`
+schon beim Aufbau, eine `const` wäre dort noch in der TDZ): drei Sätze aus sieben
+Reglern, `_lookSetzen` löst je Regler input+change aus (Projekt + Undo über
+`bindSetting`), `_lookSync` zeigt den passenden Namen oder „Eigene". Ein Look ist EIN
+⌘Z-Schritt: `_lookSetzen` pusht vorher einmal und setzt `window.__rzUndoSammeln`,
+solange die Regler gestellt werden; `bindSetting` pusht dann nicht (Echt-App-Test
+17.09.: vorher sieben Schritte). Nichts davon wird selbst gespeichert.
+**Undo-Diagnose (17.09.2026):** `createUndoController` schreibt jeden Push
+(`[undo] push <Label> · Stapel n · erzwungen`) und jedes Undo (`[undo] ↶ <Label> ·
+Stapel danach n · Unterschiede: schlüssel:neu→alt`, flach, max. 8) über `applog` ins
+app.log — Tester-Meldungen „⌘Z tat nichts" lassen sich damit nachlesen. Web-Karten-Export: weder Relief noch Dunst (Leaflet, nur
+CSS-Filter). Wächter: `tests/test_karten_optik_relief_dunst.py`.
+
 **Luftbild-Optik auf Sentinel (07.09.2026):** `applyAdjust` gibt der Ebene
 `rz-raster-sentinel` die Regler als Abweichung vom Werk (`a − DEF`), Python
 `stack_style` ebenso (`_sen`). Werk 25/8/0/0 lässt Sentinel unverändert (mit

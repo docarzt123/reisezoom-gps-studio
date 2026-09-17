@@ -214,6 +214,8 @@ class AnimatorConfig:
     map_bri: float = 0.0
     map_hue: float = 0.0
     map_sharp: float = 0.0              # 07.09.2026 — Schärfe (Unschärfemaske auf der Leinwand), 0 = aus
+    ortho_relief: float = 35.0          # 17.09.2026 — Relief (Hillshade) über den Luftbildern, nur „Satellit (kostenlos)"
+    map_haze: float = 0.0               # 17.09.2026 — Dunst entfernen (Schwarzpunkt je Kanal auf der Leinwand), 0 = aus
     # 07.09.2026 (Marc, Konzept Kartenquellen §6) — Quellenzeile: "voll" = alle Nennungen im Bild (MapLibre baut sie
     # aus den Quellen), "kurz" = Kurznamen + «bearbeitet» + Link zu den vollständigen Angaben (attrib_link)
     attrib_mode: str = "voll"
@@ -2196,7 +2198,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                     "transit": bool(cfg.show_transit_labels and not cfg.hide_labels),
                     "admin": bool(cfg.show_admin_boundaries)},
             ortho={"sat": getattr(cfg, "ortho_sat", 25.0), "con": getattr(cfg, "ortho_con", 8.0),
-                   "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0)},
+                   "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0),
+                   "relief": getattr(cfg, "ortho_relief", 35.0)},   # 17.09.2026 — Relief-Ebene im Stapel
             # 07.09.2026: Kacheldichte am Pixelmaßstab des Renders (DSF × SSAA), s. mapstyles.tile_size_for
             dpr=_render_dsf(cfg.width, cfg.height) * _render_ss(cfg.width, cfg.height))
     cfg.map_engine = _spec["engine"]
@@ -2639,8 +2642,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                    + ("" if _spec.get("kind") == "gov" else
                       f"    try {{ if (window.rzApplyMapAdjust) rzApplyMapAdjust(map, {json.dumps(_madj)}, {{sat:0,con:0,bri:0,hue:0}}); }} catch(_){{}}\n"))
     # 07.09.2026 — Schärfe (Unschärfemaske, rz-mapadjust.js) auf der Leinwand, alle Engines (CSS-Filter)
-    sharp_block = ("" if float(getattr(cfg, "map_sharp", 0) or 0) <= 0 else
-                   f"    try {{ if (window.rzApplyMapSharpen) rzApplyMapSharpen(map, {float(cfg.map_sharp):.1f}); }} catch(_){{}}\n")
+    # 17.09.2026 — Dunst auf derselben Ebene (rzApplyMapLook = Schärfe + Dunst); rzApplyMapSharpen bleibt als Rückfall
+    _haze = float(getattr(cfg, "map_haze", 0) or 0)
+    sharp_block = ("" if (float(getattr(cfg, "map_sharp", 0) or 0) <= 0 and _haze <= 0) else
+                   f"    try {{ if (window.rzApplyMapLook) rzApplyMapLook(map, {float(cfg.map_sharp):.1f}, {_haze:.1f});"
+                   f" else if (window.rzApplyMapSharpen) rzApplyMapSharpen(map, {float(cfg.map_sharp):.1f}); }} catch(_){{}}\n")
     # Diagnose-Knöpfe (nur Env, Prüfstand): RZ_RTT_Q = Textur-Faktor der Gelände-Drapierung, RZ_MESH = Netzauflösung je Kachel
     # 06.09.2026 (Marc: „einzelne gezeichnete tracks flimmern", Teneriffa-Schwarm 4K):
     # MapLibre drapiert Linien AUF das Geländenetz — Grate verdecken sie stückweise,

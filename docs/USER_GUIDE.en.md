@@ -478,7 +478,7 @@ Spain incl. the Canaries, Portugal, Italy, Czechia, Poland, Estonia, Japan and
 the USA. Which source is active is shown below the style field ("Aerial
 imagery: Brandenburg"). Outside the coverage the app quietly falls back to the
 OpenFreeMap map with 3D terrain — and tells you so in the same place.
-The **"Show on map"** switches (places, roads, POIs, transit, borders) work here too: OpenFreeMap label layers (OpenStreetMap data, free, no key) sit on top of the imagery, the same in preview and video. Not in the web-map exports. If the imagery looks dull, use the **"Imagery look"** group: saturation, contrast, brightness and hue (default 25/8/0/0, "Default" resets) — imagery only, same in preview, video and web map.
+The **"Show on map"** switches (places, roads, POIs, transit, borders) work here too: OpenFreeMap label layers (OpenStreetMap data, free, no key) sit on top of the imagery, the same in preview and video. Not in the web-map exports. If the imagery looks dull, use the **"Imagery look"** group: saturation, contrast, brightness and hue (default 25/8/0/0, "Default" resets) — imagery only, same in preview, video and web map. Since 17 Sept 2026 there is also **Relief** (light and shadow from the terrain data over the imagery, default 35 %), **Remove haze** (takes the blue veil out of satellite imagery, default 0) and a **Look** selector at the top: "Natural", "Vivid" or "Cinematic" set all sliders to a tuned set; move a slider afterwards and it reads "Custom" again. Relief and haze apply to preview and video, not to the web map.
 
 **3D terrain** now works with every source: Mapbox styles use Mapbox terrain,
 MapTiler styles MapTiler's, all free styles the AWS terrain model (Mapzen). The
@@ -539,7 +539,7 @@ the mapping agencies all require it.
 The app picks the source from the track's location; the style field shows which one is active. As of 3 Sept 2026:
 
 - **Germany (state by state):** Baden-Württemberg, Bavaria (CC BY 4.0), Berlin (TrueDOP), Brandenburg, Bremen (CC BY 4.0), Hesse, Mecklenburg-Vorpommern, Lower Saxony (CC BY 4.0), North Rhine-Westphalia, Rhineland-Palatinate, Saarland, Saxony, Saxony-Anhalt, Schleswig-Holstein (CC BY 4.0), Thuringia — mostly under "Datenlizenz Deutschland – Namensnennung 2.0". **Hamburg is missing** (no reachable service). Near a state border the app stacks the neighbouring states.
-- **Europe:** Austria (basemap.at, CC BY 4.0), Switzerland (swisstopo), Luxembourg (CC0), Netherlands (PDOK, CC BY 4.0), France (IGN Géoplateforme), Spain incl. the Canaries (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Italy (Geoportale Nazionale, 2012), Czechia (ČÚZK), Poland (GUGiK), Estonia (Maa-amet, CC BY 4.0).
+- **Europe:** Austria (basemap.at, CC BY 4.0), Switzerland (swisstopo), Luxembourg (CC0), Netherlands (PDOK, CC BY 4.0), France (IGN Géoplateforme), Spain incl. the Canaries (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Italy (Geoportale Nazionale, 2012), Czechia (ČÚZK), Poland (GUGiK), Estonia (Maa-amet, CC BY 4.0), since 17 Sept 2026 Belgium (Flanders: Digitaal Vlaanderen; Wallonia: SPW, CC BY 4.0) and Slovakia (ÚGKK SR/GKÚ, CC BY 4.0).
 - **World:** Japan (GSI), USA incl. Alaska and Hawaii (USGS, public domain).
 - **No free source yet** for Scandinavia, the UK, Ireland and Canada — there the app falls back to the OpenFreeMap map with terrain; for satellite use MapTiler.
 

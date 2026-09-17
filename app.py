@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.718"
+APP_VERSION = "0.9.719"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -620,6 +620,7 @@ DEFAULT_SETTINGS = {
         "ortho_sat": 25.0, "ortho_con": 8.0, "ortho_bri": 0.0, "ortho_hue": 0.0,
         "map_sat": 0.0, "map_con": 0.0, "map_bri": 0.0, "map_hue": 0.0,
         "map_sharp": 0.0,
+        "ortho_relief": 35.0, "map_haze": 0.0,
         "stars_enabled": True, "stars_density": 50.0, "stars_size": 50.0, "stars_twinkle": True,
         "enable_terrain": True,
         "show_overlays": True,
@@ -729,6 +730,7 @@ DEFAULT_SETTINGS = {
         "ortho_sat": 25.0, "ortho_con": 8.0, "ortho_bri": 0.0, "ortho_hue": 0.0,
         "map_sat": 0.0, "map_con": 0.0, "map_bri": 0.0, "map_hue": 0.0,
         "map_sharp": 0.0,
+        "ortho_relief": 35.0, "map_haze": 0.0,
         "stars_enabled": True, "stars_density": 50.0, "stars_size": 50.0, "stars_twinkle": True,
         "enable_terrain": True,
         "line_color": "#ff6b35",
@@ -6550,6 +6552,7 @@ class Api:
             map_sat=float(params.get("map_sat", 0) or 0), map_con=float(params.get("map_con", 0) or 0),
             map_bri=float(params.get("map_bri", 0) or 0), map_hue=float(params.get("map_hue", 0) or 0),
             map_sharp=float(params.get("map_sharp", 0) or 0),
+            ortho_relief=float(params.get("ortho_relief", 35) or 0), map_haze=float(params.get("map_haze", 0) or 0),
             attrib_mode=str(params.get("attrib_mode", "voll") or "voll"), attrib_link=str(params.get("attrib_link", "") or ""),
             stars_enabled=bool(params.get("stars_enabled", True)), stars_twinkle=bool(params.get("stars_twinkle", True)),
             stars_density=float(params.get("stars_density", 50) or 0), stars_size=float(params.get("stars_size", 50) or 0),
@@ -6955,6 +6958,7 @@ class Api:
             map_sat=float(params.get("map_sat", 0) or 0), map_con=float(params.get("map_con", 0) or 0),
             map_bri=float(params.get("map_bri", 0) or 0), map_hue=float(params.get("map_hue", 0) or 0),
             map_sharp=float(params.get("map_sharp", 0) or 0),
+            ortho_relief=float(params.get("ortho_relief", 35) or 0), map_haze=float(params.get("map_haze", 0) or 0),
             attrib_mode=str(params.get("attrib_mode", "voll") or "voll"), attrib_link=str(params.get("attrib_link", "") or ""),
             stars_enabled=bool(params.get("stars_enabled", True)), stars_twinkle=bool(params.get("stars_twinkle", True)),
             stars_density=float(params.get("stars_density", 50) or 0), stars_size=float(params.get("stars_size", 50) or 0),

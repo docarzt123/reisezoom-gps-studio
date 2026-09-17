@@ -302,6 +302,13 @@ function rzOrthoAdjust(adj) { return window.rzOrthoAdjustNorm(adj, mapCatalog().
 function rzRasterAdjustPaint(adj) { return window.rzMapAdjustPaint(adj, mapCatalog().ortho_adjust_default || {}); }
 /** Live anwenden: Luftbilder (rz-raster-*) per Paint, Vektorkarten per Abdunkel-Ebene. `def` = Standard je Stilart. */
 function rzApplyRasterAdjust(map, adj, def) { return window.rzApplyMapAdjust(map, adj, def === undefined ? (mapCatalog().ortho_adjust_default || {}) : def); }
+/** Relief-Regler (0…100) aus einem Optik-Dict; fehlend = Werk aus dem Katalog (17.09.2026). */
+function rzOrthoRelief(adj) {
+  const d = mapCatalog().ortho_relief_default; const def = (typeof d === "number") ? d : 35;
+  const v = (adj && typeof adj === "object") ? parseFloat(adj.relief) : NaN;
+  return Math.max(0, Math.min(100, isFinite(v) ? v : def));
+}
+window.rzOrthoRelief = rzOrthoRelief;
 
 /** Kacheldichte (07.09.2026, Marc: „die ganze Insel ist unscharf") — Spiegel von
  *  mapstyles.tile_size_for: MapLibre wählt die Kachelstufe aus Zoom und tileSize, nicht
@@ -357,6 +364,17 @@ function _stackStyle(stack, ortho) {
     const paint = Object.assign({}, rzRasterAdjustPaint(ortho), { "raster-opacity": ["interpolate", ["linear"], ["zoom"], fade[0], 0, fade[1], 1] });
     lay.paint = paint;
     layers.push(lay);
+  }
+  // 17.09.2026 — Relief (Hillshade aus den AWS-Geländedaten) über den Luftbildern, unter der
+  // Beschriftung (Spiegel von mapstyles.stack_style). ortho.relief 0…100, 0 = unsichtbar.
+  const cat = mapCatalog();
+  const dem = cat.terrain && cat.terrain.aws ? _terrainSource("aws", "") : null;
+  if (dem) {
+    const rel = rzOrthoRelief(ortho);
+    sources["rz-dem"] = dem;
+    const paint = Object.assign({}, cat.relief_paint || {}, { "hillshade-exaggeration": +(rel / 100 * (cat.relief_max || 0.8)).toFixed(3) });
+    layers.push({ id: "rz-hillshade", type: "hillshade", source: "rz-dem", minzoom: (cat.relief_minzoom != null ? cat.relief_minzoom : 6),
+                  layout: { visibility: rel > 0 ? "visible" : "none" }, paint });
   }
   const st = { version: 8, sources, layers };
   if (!window.__rzNoGlobe) st.projection = RZ_PROJECTION;
@@ -2299,7 +2317,7 @@ function bindSetting(elementId, section, key, opts = {}) {
       // Undo: ein Schritt pro Pick-Geste (Throttle, wie Slider).
       const _panelManaged = window.__rzPanelUndoSections && window.__rzPanelUndoSections.has(section);
       const _uc = window.__rzUndoControllers && window.__rzUndoControllers[section];
-      if (_uc && !_panelManaged) {
+      if (_uc && !_panelManaged && !window.__rzUndoSammeln) {   // 17.09.2026: __rzUndoSammeln = Aufrufer hat schon EINEN Schritt gepusht (Look)
         const diffEl = (window.__rzLastUndoEl !== elementId);
         try { _uc.push("Farbe", { force: diffEl }); } catch (_) {}
         window.__rzLastUndoEl = elementId;
@@ -2323,7 +2341,9 @@ function bindSetting(elementId, section, key, opts = {}) {
     // "input") per Throttle zu einem Schritt pro Geste gebündelt.
     const _panelManaged = window.__rzPanelUndoSections && window.__rzPanelUndoSections.has(section);
     const _uc = window.__rzUndoControllers && window.__rzUndoControllers[section];
-    if (_uc && !_panelManaged) {
+    // 17.09.2026 — `window.__rzUndoSammeln`: der Aufrufer (Look-Auswahl) hat VORHER einen Schritt gepusht und
+    // stellt jetzt mehrere Regler auf einmal — die sollen zusammen ein einziger ⌘Z-Schritt sein.
+    if (_uc && !_panelManaged && !window.__rzUndoSammeln) {
       // Eigener Undo-Schritt bei diskreten Controls ODER beim Wechsel auf ein
       // ANDERES Control; dasselbe Control kontinuierlich ziehen (Slider/Color) =
       // ein Schritt pro Geste (Throttle). (Bei panel-verwalteten Sektionen — z.B.
@@ -2915,9 +2935,20 @@ window.createUndoController = function(opts) {
     if (undoStack.length > MAX) undoStack.shift();
     redoStack = [];
     lastSnapAt = now;
+    // 17.09.2026 — Diagnose ins app.log (Marc-Regel): welcher Schritt liegt oben, wie tief ist der Stapel
+    try { if (window.applog) applog("debug", "[undo] push " + (label || "Bearbeitung") + " · Stapel " + undoStack.length + (options.force ? " · erzwungen" : "")); } catch (_) {}
   }
   function _gleicherStand(a, b) {
     try { return JSON.stringify(a) === JSON.stringify(b); } catch (_) { return false; }
+  }
+  /** Diagnose: welche Schlüssel unterscheiden sich (max. 8), flach auf oberster Ebene. */
+  function _unterschiede(a, b) {
+    try {
+      if (!a || !b || typeof a !== "object" || typeof b !== "object") return "?";
+      const ks = new Set([...Object.keys(a), ...Object.keys(b)]); const out = [];
+      for (const k of ks) { if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) { out.push(k + ":" + JSON.stringify(b[k]) + "→" + JSON.stringify(a[k])); if (out.length >= 8) break; } }
+      return out.length ? out.join(" ") : "keine";
+    } catch (_) { return "?"; }
   }
   function _runApply(state) {
     if (!opts.apply) return;
@@ -2950,6 +2981,7 @@ window.createUndoController = function(opts) {
       return false;
     }
     if (current != null) redoStack.push({ label: prev.label, state: current });
+    try { if (window.applog) applog("debug", "[undo] ↶ " + prev.label + " · Stapel danach " + undoStack.length + " · Unterschiede: " + _unterschiede(prev.state, current)); } catch (_) {}
     _runApply(prev.state);
     if (opts.toast) opts.toast("↶ " + (prev.label || t("undo.undo", "Rückgängig")));
     return true;
