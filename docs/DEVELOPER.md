@@ -3231,7 +3231,8 @@ Gelände erst nach `style.load` per `setTerrain` dazukommt). Sitzt oben im
 Luftbild-Stapel, unter der Beschriftung (`stack_style` in `core/mapstyles.py`,
 Spiegel `_stackStyle` in `util.js`), `minzoom` `RELIEF_MINZOOM` (6; darunter hat
 Blue Marble sein eigenes Relief). Regler `ortho_relief` 0…100 → `hillshade-
-exaggeration` 0…`RELIEF_MAX` (0,8), 0 = `visibility: none`. Live: `applyAdjust`
+exaggeration` 0…`RELIEF_MAX` (0,8), 0 = `visibility: none`; Werk 0 seit 18.09.2026 (Marc:
+Gelände wirkte „runder"), die Looks bringen 35–60 % mit. Live: `applyAdjust`
 in `rz-mapadjust.js` liest `adj.relief` (das Optik-Dict trägt den Wert einfach
 mit — `_currentOrtho()`, `resolve(ortho=…)`, `AnimatorConfig.ortho_relief`).
 *Dunst* = zweiter Uniform `u_haze` im Schärfe-Shader (`rz-sharpen`, eine Ebene,

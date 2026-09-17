@@ -243,6 +243,18 @@ ORTHO_REGIONS = [
     {"id": "be-wa", "name": "Wallonien", "country": "BE", "bbox": (2.84, 49.49, 6.41, 50.82), "maxzoom": 20,
      "wms": _wms("https://geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_LAST/MapServer/WMSServer", "0"),
      "attribution": "Aerial imagery: Service public de Wallonie (SPW) – Orthophotos (CC BY 4.0)"},
+    # 18.09.2026 (Marc: „recherchiere weitere Luftbild-Länder, definitiv kostenlos … baue die direkt ein"):
+    # Slowenien (GURS DOF5, CC BY 4.0), New South Wales (Spatial Services, CC BY 4.0). Taiwan (NLSC PHOTO2, OGDL 1.0) war drin
+    # und flog wieder raus: TWCA-Zertifikat ohne Subject Key Identifier, OpenSSL 3 (Python) lehnt es ab → Weiche liefert nie.
+    # Geprüft und NICHT aufgenommen: Litauen (WMS „non commercial use only"), Kroatien (Gebühr laut Capabilities),
+    # Victoria/AU (lizenzpflichtig), Queensland (Planet-Material „all rights reserved"), Lettland/Liechtenstein (kein Dienst
+    # erreichbar), Dänemark/Schweden/Finnland/Neuseeland (frei, aber nur mit eigenem Schlüssel — kein Kandidat ohne Token).
+    {"id": "si", "name": "Slowenien", "country": "SI", "bbox": (13.37, 45.42, 16.61, 46.88), "maxzoom": 20,
+     "wms": _wms("https://storitve.eprostor.gov.si/ows-pub-wms/wms", "SI.GURS.ZPDZ:DOF5"),
+     "attribution": "Aerial imagery: © GURS – Geodetska uprava Republike Slovenije, DOF (CC BY 4.0)"},
+    {"id": "au-nsw", "name": "New South Wales", "country": "AU", "bbox": (140.99, -37.51, 153.64, -28.15), "maxzoom": 19,
+     "tiles": ["https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}"],
+     "attribution": "Aerial imagery: © State of New South Wales (Spatial Services), NSW Imagery (CC BY 4.0)"},
     {"id": "sk", "name": "Slowakei", "country": "SK", "bbox": (16.83, 47.73, 22.57, 49.62), "maxzoom": 19,
      "wms": _wms("https://zbgisws.skgeodesy.sk/zbgis_ortofoto_wms/service.svc/get", "1"),
      "attribution": "Aerial imagery: © ÚGKK SR / GKÚ Bratislava, Ortofotomozaika SR (CC BY 4.0)"},
@@ -696,7 +708,7 @@ def raster_adjust_paint(adj) -> dict:
 # Beschriftung. Regler `ortho_relief` 0…100 % → hillshade-exaggeration 0…RELIEF_MAX;
 # 0 = Ebene unsichtbar. Erst ab RELIEF_MINZOOM: darunter trägt Blue Marble schon sein
 # eigenes Relief. JS-Spiegel: util.js _stackStyle + rz-mapadjust.js applyAdjust.
-ORTHO_RELIEF_DEFAULT = 35.0
+ORTHO_RELIEF_DEFAULT = 0.0   # 18.09.2026 Marc: „lass den, aber default ist 0“ (Looks bringen ihr eigenes Relief mit)
 RELIEF_MAX = 0.8
 RELIEF_MINZOOM = 6
 RELIEF_LAYER_ID = "rz-hillshade"
