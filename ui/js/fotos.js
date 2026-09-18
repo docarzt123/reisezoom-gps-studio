@@ -199,7 +199,7 @@
      gemonitort wird." Das Nachsehen kostet auf einem NAS Minuten, deshalb
      höchstens alle sechs Stunden; das Weiterlesen fasst nur an, was ohnehin
      dran ist. */
-  async function aufholen() {
+  async function aufholen(sagen) {
     if (abgebrochen) return null;
     aufholStart = true;
     kopfAuffrischen();
@@ -210,7 +210,21 @@
       aufholStart = false;
       kopfAuffrischen();
     }
+    // 18.09.2026 (Marc: „was tatsächlich passiert, sieht man nicht") — nach „Laufwerk wieder da" sagen, WAS nun geschieht
+    if (sagen) toast(aufholText(r), "success", 7000);
     return r;
+  }
+  function aufholText(r) {
+    const vorn = T("fotos.fern_da", "Laufwerk wieder da.") + " ";
+    const tun = (r && r.tun) || {};
+    if (r && r.gestartet) {
+      return vorn + (tun.nachschau_faellig
+        ? T("fotos.fern_tut_nachschau", "Die App sieht jetzt in den Ordnern nach neuen und geänderten Dateien und liest sie ein — der Stand steht oben.")
+        : T("fotos.fern_tut_ungelesen", "Die App liest jetzt {n} noch ungelesene Dateien ein — der Stand steht oben.").replace("{n}", num(tun.ungelesen || 0)));
+    }
+    if (r && r.grund === "abgeschaltet") return vorn + T("fotos.fern_tut_aus", "Das selbstständige Einlesen ist abgeschaltet — „Jetzt einlesen“ startet es von Hand.");
+    const wann = tun.letzte_nachschau ? zeitpunktText(tun.letzte_nachschau) : "";
+    return vorn + T("fotos.fern_tut_nichts", "Es ist nichts zu tun: alles ist eingelesen, zuletzt nachgesehen {t}. Die nächste Nachschau kommt von selbst.").replace("{t}", wann || "—");
   }
 
   async function scanStarten() {
@@ -249,9 +263,10 @@
       // Fortschritt, selbst wenn man inzwischen im Animator arbeitet
       // (Marc, 12.09.2026: „überall visuelles Feedback").
       if (window.rzStatus) {
-        const phase2 = st.phase === "dateien"
-          ? T("fotos.scan_dateien", "Dateien suchen")
-          : T("fotos.scan_daten", "Aufnahmedaten lesen");
+        // 18.09.2026 — derselbe Klartext wie in der Kopfzeile (auch im Kasten unten rechts)
+        const phase2 = (st.art === "ungelesen" ? T("fotos.kt_ungelesen", "Holt Ungelesenes nach")
+          : (st.phase === "dateien" ? T("fotos.kt_schritt1", "Schritt 1 von 2 — sieht in den Ordnern nach") : T("fotos.kt_schritt2", "Schritt 2 von 2 — liest die neuen Dateien")))
+          + (st.aktuell ? " · " + kurzPfad(st.aktuell) : "");
         if (st.running) {
           if (!window.rzStatus.laeuft("foto-scan")) {
             window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Fotos"),
@@ -555,7 +570,7 @@
     navZeichnen();
     kopfAuffrischen();
     if (!r || !r.ok) toast(T("fotos.fern_nochmal_fehler", "Konnte nicht nachsehen — bitte gleich noch einmal."), "error", 4000);
-    else if (jetzt < vorher) { toast(T("fotos.fern_zurueck", "Laufwerk wieder da — die App liest weiter."), "success", 4000); if (autoAn) aufholen(); }
+    else if (jetzt < vorher) { if (autoAn) aufholen(true); else toast(aufholText({ grund: "abgeschaltet" }), "success", 7000); }
     else toast(T("fotos.fern_nochmal_weg", "Immer noch nicht erreichbar. Ist das Laufwerk verbunden und im Finder sichtbar?"), "info", 5000);
     fernBeobachten();
   }
@@ -581,8 +596,7 @@
         navZeichnen();
         kopfAuffrischen();
         if (jetzt < vorher) {
-          toast(T("fotos.fern_zurueck", "Laufwerk wieder da — die App liest weiter."), "success", 4000);
-          if (autoAn) aufholen();
+          if (autoAn) aufholen(true); else toast(aufholText({ grund: "abgeschaltet" }), "success", 7000);
         }
       }
       fernBeobachten();
@@ -614,16 +628,53 @@
       return ` <span class="foto-kopf-laeuft">⏳ ${esc(T("fotos.kopf_startet", "Liest ein …"))}</span>`;
     }
     if (scanStand && scanStand.running) {
-      const phase = scanStand.phase === "dateien"
-        ? T("fotos.scan_dateien", "Dateien suchen")
-        : T("fotos.scan_daten", "Aufnahmedaten lesen");
-      const zahl = scanStand.total
-        ? `${num(scanStand.done)} / ${num(scanStand.total)}`
-        : num(scanStand.done);
-      return ` <span class="foto-kopf-laeuft">⏳ ${esc(T("fotos.kopf_laeuft", "Liest ein — {p} {n}")
-        .replace("{p}", phase).replace("{n}", zahl))}</span>
-        <button class="btn btn-sm" id="foto-kopf-stop" type="button">${T("common.cancel", "Abbrechen")}</button>`;
+      // 18.09.2026 (Marc: „was tatsächlich passiert, sieht man nicht") — Klartext: welcher Schritt, wozu,
+      // wie weit, wo gerade, was bisher gefunden wurde.
+      return ` <button class="btn btn-sm" id="foto-kopf-stop" type="button">${T("common.cancel", "Abbrechen")}</button>
+        <div class="foto-kopf-klartext" id="foto-kopf-klartext">${scanKlartextHtml(scanStand)}</div>`;
     }
+    // Nach dem Lauf: eine Zeile, was herauskam (bleibt 90 s stehen).
+    if (scanStand && !scanStand.running && scanStand.fertig_um && (Date.now() / 1000 - scanStand.fertig_um) < 90) {
+      const e = scanErgebnisText(scanStand);
+      if (e) return ` <div class="foto-kopf-klartext foto-kopf-fertig">✓ ${esc(e)}</div>` + kopfOffenHtml();
+    }
+    return kopfOffenHtml();
+  }
+
+  /** Was der Lauf gerade tut — zwei Zeilen: Schritt + Zweck, darunter Zahl, Fund und Ort. */
+  function scanKlartextHtml(st) {
+    const ersteStufe = st.phase === "dateien";
+    const schritt = st.art === "ungelesen"
+      ? T("fotos.kt_ungelesen", "Holt Ungelesenes nach")
+      : (ersteStufe ? T("fotos.kt_schritt1", "Schritt 1 von 2 — sieht in den Ordnern nach") : T("fotos.kt_schritt2", "Schritt 2 von 2 — liest die neuen Dateien"));
+    const zweck = ersteStufe
+      ? T("fotos.kt_zweck1", "Vergleicht jede Datei mit dem Bestand: neu, geändert oder verschwunden? Geöffnet wird dabei nichts.")
+      : T("fotos.kt_zweck2", "Liest Aufnahmezeit, Ort und Kamera aus jeder Datei und legt ein Vorschaubild in die Bibliothek. Die Originale bleiben unberührt.");
+    const zw = st.zwischen || {};
+    const zahl = ersteStufe
+      ? T("fotos.kt_zahl1", "{n} geprüft · {neu} neu · {g} geändert").replace("{n}", num(st.done || 0)).replace("{neu}", num(zw.neu || 0)).replace("{g}", num(zw.geaendert || 0))
+      : T("fotos.kt_zahl2", "{n} von {g} gelesen").replace("{n}", num(st.done || 0)).replace("{g}", num(st.total || 0));
+    const ort = st.aktuell ? " · " + T("fotos.kt_gerade", "gerade:") + " " + kurzPfad(st.aktuell) : "";
+    return `<div class="foto-kt-1">⏳ ${esc(schritt)} <span class="muted">${esc(zahl + ort)}</span></div>
+      <div class="foto-kt-2 muted">${esc(zweck)}</div>`;
+  }
+  function kurzPfad(p) {
+    const t = String(p).split(/[\\/]/).filter(Boolean);
+    return (t.length > 3 ? "…/" : "") + t.slice(-3).join("/");
+  }
+  /** Eine Zeile Ergebnis nach dem Lauf. */
+  function scanErgebnisText(st) {
+    const d1 = st.dateien || {}, d2 = st.daten || {};
+    const teile = [];
+    if (!d1.uebersprungen) teile.push(T("fotos.kt_erg1", "{n} Dateien geprüft: {neu} neu, {g} geändert, {w} nicht mehr da")
+      .replace("{n}", num(d1.gesehen || 0)).replace("{neu}", num(d1.neu || 0)).replace("{g}", num(d1.geaendert || 0)).replace("{w}", num(d1.fehlt || 0)));
+    if (d2.gesamt) teile.push(T("fotos.kt_erg2", "Aufnahmedaten und Vorschaubilder von {n} Dateien gelesen").replace("{n}", num(d2.fertig || 0))
+      + (d2.fehler ? " (" + T("fotos.kt_erg2f", "{n} nicht lesbar").replace("{n}", num(d2.fehler)) + ")" : ""));
+    else if (!d1.uebersprungen) teile.push(T("fotos.kt_erg0", "nichts Neues zu lesen"));
+    return teile.length ? T("fotos.kt_fertig", "Fertig.") + " " + teile.join(" · ") : "";
+  }
+
+  function kopfOffenHtml() {
     if (!stand.ungelesen) return "";
     // Ohne erreichbares Laufwerk gibt es nichts einzulesen — ein Knopf wäre
     // hier ein falsches Versprechen, der Hinweis oben sagt schon alles.

@@ -1343,7 +1343,7 @@ file holds.
 > drive, what still works and which state you are looking at. The sidebar marks the
 > folder with 📴, the detail column says the original is out of reach. When the
 > drive comes back, the app notices within twenty seconds and carries on reading. If you don't
-> want to wait, **"↻ Try again"** in the notice checks right away.
+> want to wait, **"↻ Try again"** in the notice checks right away. Afterwards the app says what it is doing: "Step 1 of 2 — looking through the folders" (compares only, opens nothing) and "Step 2 of 2 — reading the new files" (capture time, location, camera, preview — originals stay untouched), each with a count and the folder it is at. A result line follows; if there is nothing to do, it says so.
 >
 > **On the road without the drive?** Capture data and thumbnails live in the
 > library on your own machine. Grid, search, map and the grouping by tour keep
