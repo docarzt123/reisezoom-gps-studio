@@ -4365,12 +4365,31 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
       text: opt.text || t("warte." + name + ".text", de[1]),
       gesamt: opt.gesamt || 0,
     });
+    // 18.09.2026 (Marc: „da müsste stehen, was GPS Studio gerade macht") — solange das Fenster steht, fragt es
+    // die Brücke, woran der Aufruf ist (app.py `_vorgang_melden`). Gibt es nichts Genaueres, steht nach 8 s
+    // wenigstens, wie lange es schon läuft — dann weiß man: es arbeitet noch.
+    const t0 = Date.now() / 1000 - 0.3, grundText = opt.text || t("warte." + name + ".text", de[1]);
+    let live = false;
+    const takt = setInterval(async () => {
+      if (!laeuft(id)) { clearInterval(takt); return; }
+      let r = null;
+      try { const a = api(); if (a && a.vorgang_stand) r = await a.vorgang_stand(); } catch (_) {}   // warte-ok: Statusabfrage des laufenden Wartefensters
+      if (!laeuft(id)) return;
+      if (r && r.text && r.t >= t0) {
+        live = true;
+        schritt(id, { text: r.text, n: r.gesamt > 0 ? r.n : null, gesamt: r.gesamt > 0 ? r.gesamt : undefined });
+      } else if (!live) {
+        const s = Math.round(Date.now() / 1000 - t0);
+        if (s >= 8) schritt(id, { text: grundText + " — " + t("warte.laeuft_seit", "läuft seit {s} s").replace("{s}", s) });
+      }
+    }, 700);
+    const schluss = () => { clearInterval(takt); ende(id); };
     let versprechen;
     try { versprechen = Promise.resolve(fn(id)); }
-    catch (e) { ende(id); throw e; }
+    catch (e) { schluss(); throw e; }
     return versprechen.then(
-      (r) => { ende(id); return r; },
-      (e) => { ende(id); throw e; });
+      (r) => { schluss(); return r; },
+      (e) => { schluss(); throw e; });
   };
 })();
 

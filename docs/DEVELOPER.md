@@ -3223,6 +3223,19 @@ nur einer sichtbar, `_sharpSync`); klassischer Render: `sharp_block` im Karten-
 Kopf. Bei 0 keine Ebene. Web-Karten-Exporte: nicht. Nach `setStyle` wird die
 Ebene in `style.load` neu angelegt (`_applySharpen`).
 
+**„Was passiert gerade?" — ein Kanal für alle Wartefenster (18.09.2026):** `app.py`
+`_VORGANG` + `_vorgang_melden(text, n, gesamt)` + `_vm(key, fallback, n, gesamt, **werte)`
+(i18n `vorgang.<key>`, Platzhalter `{name}` usw., App-Sprache über `_ui_t()`), Brücke
+`vorgang_stand()`. `rzWarten` (util.js) fragt alle 700 ms ab, solange sein Fenster steht,
+und ruft `schritt(id, {text, n, gesamt})`; Meldungen mit `t` vor dem Fensterstart gelten
+nicht (kein Text vom vorigen Aufruf). Ohne Meldung nach 8 s: Grundtext + `warte.laeuft_seit`.
+**Regel:** Jede neue Brücke mit Schleife oder Netz ruft `_vm(...)` am Schleifenkopf bzw. vor
+dem teuren Schritt — Text = WAS und WOZU, nicht nur „lädt". Kern-Funktionen mit eigenem
+Rückruf (`zip_sichern(fortschritt=)`, `umziehen(melden=)`, `Abgleich.hochladen(fortschritt)`)
+werden in app.py an `_vm` gehängt. Der Foto-Bestand hat zusätzlich seinen eigenen Klartext
+(`scanKlartextHtml`, Zustand `art/aktuell/zwischen/fertig_um`). Wächter
+`tests/test_vorgang_melden.py`, `tests/test_fotos_klartext.py`.
+
 **Luftbild-Länder mit eigenem Schlüssel (18.09.2026):** `ORTHO_REGIONS`-Einträge mit
 `key` (Name der Einstellung: `dk_key`, `fi_key`, `linz_key`) und `{key}` in der Kachel-
 vorlage. `mapstyles.set_region_keys()` bekommt die Werte aus den Einstellungen (app.py

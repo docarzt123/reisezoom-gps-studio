@@ -1224,6 +1224,32 @@ def _ui_sprache() -> str:
         return "de"
 
 
+# ── „Was passiert gerade?" (18.09.2026, Marc: „guck die ganze App durch nach solchen Hinweisen, wo mehr
+# Infos kommen sollten, was passiert") ─ EIN Kanal für alle Wartefenster: lange Brückenaufrufe melden
+# hier laufend, woran sie sind; `rzWarten` (ui/js/util.js) fragt `vorgang_stand()` ab, solange sein
+# Fenster steht, und zeigt Text + Zähler. Die Zeit `t` trennt alte Meldungen von denen des laufenden
+# Aufrufs. Texte kommen über `_vm(key, fallback, **werte)` in der App-Sprache.
+_VORGANG = {"text": "", "n": 0, "gesamt": 0, "t": 0.0}
+
+
+def _vorgang_melden(text: str = "", n: int = 0, gesamt: int = 0) -> None:
+    try:
+        _VORGANG.update({"text": str(text or "")[:220], "n": int(n or 0), "gesamt": int(gesamt or 0), "t": time.time()})
+    except Exception:      # noqa: BLE001 — eine Statusmeldung darf nie die Arbeit stören
+        pass
+
+
+def _vm(key: str, fallback: str, n: int = 0, gesamt: int = 0, **werte) -> None:
+    """Meldung in der App-Sprache: i18n-Schlüssel `vorgang.<key>`, Platzhalter {name} usw."""
+    try:
+        txt = _ui_t()("vorgang." + key, fallback)
+        for k, v in werte.items():
+            txt = txt.replace("{" + k + "}", str(v))
+    except Exception:      # noqa: BLE001
+        txt = fallback
+    _vorgang_melden(txt, n, gesamt)
+
+
 def _ui_t():
     """t(key, fallback) in der aktiven App-Sprache — für Backend-Antworten,
     deren Texte im UI oder in Exporten landen (Sensor-Kataloge, Serien-Listen)."""
@@ -1866,6 +1892,10 @@ class Api:
         """Liefert alle persistierten Settings (mit Defaults aufgefüllt)."""
         return _load_settings()
 
+    def vorgang_stand(self) -> dict:
+        """18.09.2026 — woran der laufende lange Aufruf gerade ist (Text, n, gesamt, t). Für `rzWarten`."""
+        return dict(_VORGANG)
+
     def get_paths(self) -> dict:
         """Wichtige Pfade für UI-Anzeige (Backup-Dir, Renders-Dir, App-Support)."""
         return {
@@ -2341,7 +2371,10 @@ class Api:
             info = {"tz": tz, "tz_offset_min": tz_off, "netz": True}
             # Fotos lesen (Datum + GPS; Thumbs erst für die Vorschläge)
             fotos = []
-            for pfad in cphotos.expand_paths(list(foto_quellen or [])):
+            _fq = list(cphotos.expand_paths(list(foto_quellen or [])))
+            for _i, pfad in enumerate(_fq, 1):
+                if _i == 1 or _i % 20 == 0:
+                    _vm("hl_fotos", "Liest Zeit und Ort der Fotos: {name}", _i, len(_fq), name=os.path.basename(str(pfad)))
                 if not cexif.is_photo(pfad):
                     continue
                 f = {"path": pfad, "lat": None, "lon": None, "datetime": None}
@@ -2363,6 +2396,7 @@ class Api:
             info["n_zugeordnet"] = sum(1 for f in fz if f.get("idx") is not None)
             pois = []
             if q["osm"]:
+                _vm("hl_osm", "Fragt OpenStreetMap nach Gipfeln, Aussichten, Hütten und Orten entlang des Tracks (Netz)")
                 r = chl.highlights_fuer_track(pts)
                 info["netz"] = r["netz"]
                 pois = r["gewaehlt"]
@@ -2393,6 +2427,7 @@ class Api:
                     except Exception:  # noqa: BLE001
                         pass
                     n_ruf += 1
+            _vm("hl_wahl", "Wählt die besten Stellen aus und verteilt sie über die Strecke")
             vs = chl.vorschlaege(pts, pois=pois, track=track, halte=halte, fotos=fz, labels=labels, halt_namen=halt_namen)
             for v in vs:
                 v["uhrzeit"] = czeit.fmt_uhrzeit(v.get("epoch"), tz_off) if v.get("epoch") else ""
@@ -3715,7 +3750,8 @@ class Api:
             if not str(ziel).lower().endswith(".zip"):
                 ziel = str(ziel) + ".zip"
             _ds.nutzer_ziel(ziel, gueltig_s=12 * 3600)   # vom Nutzer gewählt; ein vorhandenes ZIP wird gesichert
-            res = cbib.zip_sichern(BIB, Path(ziel), alles=bool(alles))
+            res = cbib.zip_sichern(BIB, Path(ziel), alles=bool(alles),
+                                   fortschritt=lambda n, g: _vm("zip", "Packt die Bibliothek in die ZIP-Datei: Datei {i} von {g}", n, g, i=n, g=g))   # 18.09.2026
             if res.get("ok"):
                 log.info("[bibliothek] ZIP %s · %s Dateien · %.1f MB%s",
                          res["pfad"], res["dateien"], res["bytes"] / 1048576,
@@ -3925,7 +3961,12 @@ class Api:
             log.info("Bibliothek umziehen: %s → %s (fremde Einträge am alten Ort bleiben: %s)",
                      BIB, ziel, cbib.fremde_eintraege(BIB)[:20])
             t0 = time.time()
-            r = cbib.umziehen(BIB, ziel)
+            def _um_melden(schritt, *_a):   # 18.09.2026 — der Kern meldet „kopiere" / „raeume auf"
+                if str(schritt).startswith("kopiere"):
+                    _vm("umzug_kopiere", "Kopiert Touren, Projekte und Datenbank an den neuen Ort und zählt danach jede Datei nach")
+                else:
+                    _vm("umzug_raeume", "Alles ist angekommen — räumt den alten Ort auf (nur die eigenen Dateien)")
+            r = cbib.umziehen(BIB, ziel, melden=_um_melden)
             if not r.get("ok"):
                 log.warning("Bibliothek umziehen GESCHEITERT nach %.1f s: %s → %s · %s", time.time() - t0, BIB, ziel,
                             {k: v for k, v in r.items() if k != "ok"})
@@ -4209,8 +4250,10 @@ class Api:
             daten = _projekte.laden(DATEN_ORT)
             touren = daten.get("touren") or {}
             out = []
-            for roh in (paths or []):
+            _alle = list(paths or [])
+            for _i, roh in enumerate(_alle, 1):
                 pfad = str(roh)
+                _vm("import_pruefen", "Vergleicht mit dem Archiv: {name}", _i, len(_alle), name=Path(pfad).name)
                 eintrag = {"pfad": pfad, "name": Path(pfad).name, "art": "neu"}
                 try:
                     gh = self._track_geo_hash(pfad)
@@ -4277,8 +4320,10 @@ class Api:
                         h.update(block)
                 return h.hexdigest()
 
-            for roh in paths:
+            _alle = list(paths)
+            for _i, roh in enumerate(_alle, 1):
                 src = Path(str(roh))
+                _vm("import_datei", "Kopiert ins Archiv und liest Strecke, Zeiten und Höhen: {name}", _i, len(_alle), name=src.name)
                 if not src.is_file() or src.suffix.lower() not in exts:
                     uebersprungen += 1
                     continue
@@ -4758,7 +4803,8 @@ class Api:
                     "SELECT path, name, display_name, color FROM tracks WHERE path IN (%s)"
                     % ",".join("?" * len(pfade)), pfade)}
             touren = []
-            for pf in pfade:
+            for _i, pf in enumerate(pfade, 1):
+                _vm("merge_lesen", "Liest Tour {i} von {g}: {name}", _i, len(pfade), i=_i, g=len(pfade), name=os.path.basename(str(pf)))
                 r = zeilen.get(pf)
                 touren.append(cmerge.Tour(
                     path=pf,
@@ -5539,6 +5585,7 @@ class Api:
 
     def library_duplicates(self) -> dict:
         try:
+            _vm("doppelte", "Vergleicht Strecke, Länge und Zeiten aller Touren im Archiv — bei vielen Touren dauert das")   # 18.09.2026
             return {"ok": True, "groups": clib.duplicates(self._lib())}
         except Exception as e:
             return {"ok": False, "error": str(e), "groups": []}
@@ -5656,7 +5703,10 @@ class Api:
             t1 = idx_times[-1][1]
             margin = _dt.timedelta(minutes=15)
             out = {}
-            for path in (paths or []):
+            _alle = list(paths or [])
+            for _i, path in enumerate(_alle, 1):
+                if _i == 1 or _i % 10 == 0:
+                    _vm("foto_zeit", "Liest die Aufnahmezeit und sucht die Stelle auf dem Track: {name}", _i, len(_alle), name=os.path.basename(str(path)))
                 try:
                     et = cexif.read_datetime(path)
                 except Exception:
@@ -8648,6 +8698,7 @@ class Api:
             pruef, liefer = cbib_m.bestand(BIB, self._lib())
             log.info("Cloud: Bestand %s", cbib_m.zusammenfassung(pruef))
             a = sync_m.Abgleich(g, schluessel)
+            _vm("cloud_plan", "Vergleicht die Bibliothek mit dem Server: was ist neu, was geändert?")   # 18.09.2026
             plan = a.planen(pruef)
 
             # ⚠️ Fortschritt wird HINTERLEGT, nicht in die Oberfläche
@@ -8656,6 +8707,7 @@ class Api:
             # die Oberfläche fragt im Sekundentakt nach.
             def melden(i, n, name):
                 self._cloud_lauf = {"i": i, "n": n}
+                _vm("cloud_hoch", "Verschlüsselt und lädt hoch: Umschlag {i} von {g}", i, n, i=i, g=n)   # 18.09.2026
 
             self._cloud_lauf = {"i": 0, "n": len(plan.hoch)}
             try:
@@ -8814,6 +8866,7 @@ class Api:
                 except ValueError:
                     log.warning("Cloud: Inhaltsverzeichnis unlesbar")
             for fest in (cbib_m.NUTZERDATEN, cbib_m.PROJEKTE, cbib_m.TOUREN):
+                _vm("cloud_grund", "Holt und entschlüsselt die Grunddaten: {name}", name=str(fest))
                 klar = hole(fest)
                 if klar is None:
                     continue
@@ -8830,9 +8883,11 @@ class Api:
             # Jetzt sind alle Namen bekannt — holen, was noch fehlt.
             fest_namen = {cbib_m.INHALT, cbib_m.NUTZERDATEN,
                           cbib_m.PROJEKTE, cbib_m.TOUREN}
-            for logisch in namen_oben:
+            _oben = list(namen_oben)
+            for _i, logisch in enumerate(_oben, 1):
                 if logisch in fest_namen:
                     continue
+                _vm("cloud_tour", "Holt und entschlüsselt Tour {i} von {g}", _i, len(_oben), i=_i, g=len(_oben))
                 klar = hole(logisch)
                 if klar is not None:
                     cbib_m.ablegen(BIB, logisch, klar)
@@ -12017,7 +12072,8 @@ class Api:
                     log.warning("geotagger_tracks_fuer_fotos: Archiv-Abfrage: %s", e)
             geladen, fehler = [], []
             gesehen: dict[str, int] = {}
-            for pf in kandidaten:
+            for _i, pf in enumerate(kandidaten, 1):
+                _vm("gt_track", "Liest Track {i} von {g} und prüft, ob er die Aufnahmezeiten deckt: {name}", _i, len(kandidaten), i=_i, g=len(kandidaten), name=os.path.basename(str(pf)))
                 try:
                     tr = self._gt_track_laden(pf, vorgegeben=pf in vg)
                 except Exception as e:
@@ -13824,9 +13880,11 @@ class Api:
             exported = 0
             skipped = 0
             errors: list[str] = []
-            for it in items or []:
+            _alle = list(items or [])
+            for _i, it in enumerate(_alle, 1):
                 src = it.get("src")
                 name = os.path.basename(it.get("name") or (src or ""))
+                _vm("gt_export", "Schreibt die Kopie mit Ort und Zeit: {name}", _i, len(_alle), name=name)
                 if not src or not os.path.isfile(src) or not name:
                     skipped += 1
                     continue
