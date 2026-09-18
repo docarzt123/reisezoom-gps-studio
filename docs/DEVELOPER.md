@@ -3223,6 +3223,17 @@ nur einer sichtbar, `_sharpSync`); klassischer Render: `sharp_block` im Karten-
 Kopf. Bei 0 keine Ebene. Web-Karten-Exporte: nicht. Nach `setStyle` wird die
 Ebene in `style.load` neu angelegt (`_applySharpen`).
 
+**Foto-Nachschau schnell (18.09.2026):** `durchgang1(..., gruendlich=None)` — Tabelle `foto_verz`
+(Verzeichnis → mtime); `medien_pruefen` liefert je Datei, ob sie OHNE `stat` übernommen werden darf
+(Verzeichniszeit gleich UND Name im Bestand, nicht als fehlend markiert). Gemessen auf Marcs NAS:
+13,7 ms je `stat` × 138.030 = 31 min, Auflisten ~3 min. `gruendlich=None` → `gruendlich_faellig()`
+(alle `GRUENDLICH_TAGE` = 7), `True` = jede Datei (Knopf von Hand, `fotos_scan_start`), Aufholen ruft
+mit `None`. Verzeichniszeiten werden erst am Ende gemerkt (Abbruch merkt nichts). Eigene Schreibvorgänge:
+`core/exif._merkt_schreiben` (Dekorator an `set_datetime`, `write_gps`, `write_location`,
+`write_img_direction`, `write_exif_tag(s)`) → `selbst_geschrieben_abholen()` in `durchgang1`.
+Bekannte Grenze: fremde Änderung IN einer Datei ohne Umbenennen → erst die gründliche Nachschau.
+Wächter `tests/test_fotos_nachschau_schnell.py`.
+
 **„Was passiert gerade?" — ein Kanal für alle Wartefenster (18.09.2026):** `app.py`
 `_VORGANG` + `_vorgang_melden(text, n, gesamt)` + `_vm(key, fallback, n, gesamt, **werte)`
 (i18n `vorgang.<key>`, Platzhalter `{name}` usw., App-Sprache über `_ui_t()`), Brücke

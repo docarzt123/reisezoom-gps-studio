@@ -4057,5 +4057,7 @@
   "vorgang.umzug_kopiere": "Kopiert Touren, Projekte und Datenbank an den neuen Ort und zählt danach jede Datei nach",
   "vorgang.umzug_raeume": "Alles ist angekommen — räumt den alten Ort auf (nur die eigenen Dateien)",
   "vorgang.zip": "Packt die Bibliothek in die ZIP-Datei: Datei {i} von {g}",
-  "vorgang.doppelte": "Vergleicht Strecke, Länge und Zeiten aller Touren im Archiv — bei vielen Touren dauert das"
+  "vorgang.doppelte": "Vergleicht Strecke, Länge und Zeiten aller Touren im Archiv — bei vielen Touren dauert das",
+  "fotos.kt_ruhig": "{n} aus unveränderten Ordnern übernommen",
+  "fotos.kt_danach": "Danach Schritt 2: liest Aufnahmezeit, Ort und Kamera der neuen Dateien und legt Vorschaubilder an — derzeit warten {n} Dateien darauf. Das läuft im Hintergrund weiter und macht beim nächsten Mal dort weiter, wo es aufhörte."
 }

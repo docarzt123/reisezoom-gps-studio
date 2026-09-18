@@ -1375,7 +1375,7 @@ entrada que trae el archivo.
 > falta, lo que sigue funcionando y el estado que ves. La barra lateral marca la
 > carpeta con 📴 y la columna de detalle indica que el original no está accesible.
 > Cuando vuelve la unidad, la aplicación lo nota en veinte segundos y sigue leyendo. Si no quieres
-> esperar, **«↻ Intentar de nuevo»** en el aviso lo comprueba al instante. Después la app dice qué hace: «Paso 1 de 2: revisando las carpetas» (solo compara, no abre nada) y «Paso 2 de 2: leyendo los archivos nuevos» (hora, lugar, cámara, vista previa; los originales no se tocan), con el recuento y la carpeta en la que está. Al final queda una línea con el resultado; si no hay nada que hacer, también lo dice.
+> esperar, **«↻ Intentar de nuevo»** en el aviso lo comprueba al instante. Después la app dice qué hace: «Paso 1 de 2: revisando las carpetas» (solo compara, no abre nada) y «Paso 2 de 2: leyendo los archivos nuevos» (hora, lugar, cámara, vista previa; los originales no se tocan), con el recuento y la carpeta en la que está. Al final queda una línea con el resultado; si no hay nada que hacer, también lo dice. La revisión automática (cada seis horas) solo pregunta por las carpetas en las que algo cambió: minutos en lugar de media hora en una unidad de red; una vez por semana, y siempre con el botón «Leer ahora», mira cada archivo.
 >
 > **¿De viaje sin la unidad?** Los datos de captura y las miniaturas están en la
 > biblioteca de tu ordenador. La cuadrícula, la búsqueda, el mapa y la

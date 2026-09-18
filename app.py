@@ -4494,7 +4494,9 @@ class Api:
             if not tun["ungelesen"] and not tun["nachschau_faellig"]:
                 return {"ok": True, "gestartet": False, "grund": "nichts zu tun", "tun": tun}
             log.info("[fotos] Aufholen: %s", tun)
-            res = self.fotos_scan_start(ohne_liste=not tun["nachschau_faellig"])
+            # 18.09.2026 — von selbst: SCHNELLE Nachschau (unveränderte Ordner übernehmen; cfotos entscheidet, ob die
+            # wöchentliche gründliche fällig ist). Der Knopf von Hand fragt dagegen immer jede Datei.
+            res = self.fotos_scan_start(ohne_liste=not tun["nachschau_faellig"], gruendlich=None)
             res["gestartet"] = bool(res.get("ok"))
             res["tun"] = tun
             return res
@@ -4503,7 +4505,7 @@ class Api:
             return {"ok": False, "error": str(e), "gestartet": False}
 
     def fotos_scan_start(self, ordner: str = "", nur_liste: bool = False,
-                         ohne_liste: bool = False) -> dict:
+                         ohne_liste: bool = False, gruendlich=True) -> dict:
         """Einlesen im Hintergrund, in zwei Durchgängen.
 
         Erst die Dateiliste (Sekunden, danach steht die Ansicht), dann die
@@ -4566,7 +4568,7 @@ class Api:
                         conn,
                         fortschritt=lambda n, g: self._foto_scan_state.update(
                             {"phase": "dateien", "done": n, "total": g}),
-                        stop=lambda: self._foto_scan_stop, ordner=nur, aktuell=_aktuell)
+                        stop=lambda: self._foto_scan_stop, ordner=nur, aktuell=_aktuell, gruendlich=gruendlich)
                     if not r1.get("abbruch") and not nur:
                         cfotos.nachschau_merken(conn)
                 self._foto_scan_state.update({"dateien": r1, "neu": r1.get("neu", 0)})
