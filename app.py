@@ -4448,6 +4448,7 @@ class Api:
                         "tun": tun}
             if not tun["ungelesen"] and not tun["nachschau_faellig"]:
                 return {"ok": True, "gestartet": False, "grund": "nichts zu tun", "tun": tun}
+            log.info("[fotos] Aufholen: %s", tun)
             res = self.fotos_scan_start(ohne_liste=not tun["nachschau_faellig"])
             res["gestartet"] = bool(res.get("ok"))
             res["tun"] = tun
@@ -4469,8 +4470,15 @@ class Api:
                 return {"ok": False, "error": "läuft bereits"}
             self._foto_scan_running = True
         self._foto_scan_stop = False
+        # 18.09.2026 (Marc: „was tatsächlich passiert, sieht man nicht") — `art` sagt, WARUM gelesen wird
+        # (nachschau = ganzer Blick in die Ordner, ungelesen = nur Offenes nachholen, ordner = ein neuer Ordner),
+        # `aktuell` wo der Lauf gerade ist, `zwischen` was er bisher fand.
         self._foto_scan_state = {"running": True, "phase": "dateien", "done": 0,
-                                 "total": 0, "neu": 0}
+                                 "total": 0, "neu": 0, "aktuell": "", "zwischen": {},
+                                 "art": ("ordner" if ordner else ("ungelesen" if ohne_liste else "nachschau"))}
+        def _aktuell(pfad, zw):
+            self._foto_scan_state["aktuell"] = pfad
+            if zw: self._foto_scan_state["zwischen"] = dict(zw)
         nur = [ordner] if ordner else None
 
         def worker():
@@ -4513,7 +4521,7 @@ class Api:
                         conn,
                         fortschritt=lambda n, g: self._foto_scan_state.update(
                             {"phase": "dateien", "done": n, "total": g}),
-                        stop=lambda: self._foto_scan_stop, ordner=nur)
+                        stop=lambda: self._foto_scan_stop, ordner=nur, aktuell=_aktuell)
                     if not r1.get("abbruch") and not nur:
                         cfotos.nachschau_merken(conn)
                 self._foto_scan_state.update({"dateien": r1, "neu": r1.get("neu", 0)})
@@ -4523,10 +4531,13 @@ class Api:
                         conn,
                         fortschritt=lambda n, g: self._foto_scan_state.update(
                             {"phase": "daten", "done": n, "total": g}),
-                        stop=lambda: self._foto_scan_stop)
+                        stop=lambda: self._foto_scan_stop, aktuell=_aktuell)
                     self._foto_scan_state.update({"daten": r2})
                 self._foto_scan_state["stand"] = cfotos.stand(conn)
-                log.info("[fotos] Scan fertig · %s", self._foto_scan_state.get("stand"))
+                self._foto_scan_state["aktuell"] = ""
+                self._foto_scan_state["fertig_um"] = time.time()
+                log.info("[fotos] Scan fertig (%s) · Dateien %s · Daten %s · %s", self._foto_scan_state.get("art"),
+                         self._foto_scan_state.get("dateien"), self._foto_scan_state.get("daten"), self._foto_scan_state.get("stand"))
             except Exception as e:
                 log.exception("fotos_scan")
                 self._foto_scan_state["error"] = str(e)

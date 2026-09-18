@@ -390,7 +390,8 @@ def _tags_lesen_geteilt(pfade: list, teilung=STAPEL_TEILUNG) -> tuple:
 # ── Durchgang 1: die Dateiliste ─────────────────────────────────────────────
 
 def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
-               stop: Optional[Callable] = None, ordner: Optional[list] = None) -> dict:
+               stop: Optional[Callable] = None, ordner: Optional[list] = None,
+               aktuell: Optional[Callable] = None) -> dict:
     """Nur die Liste: Pfad, Ordner, Änderungszeit, Größe, Art.
 
     Läuft in Sekunden, weil keine Datei geöffnet wird. Danach steht die Ansicht
@@ -452,6 +453,9 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 geduldig(conn.commit)
                 letzter_commit = time.monotonic()
                 fortschritt(gesehen, 0)
+                if aktuell:   # 18.09.2026 (Marc: „was macht GPS Studio gerade mit den Fotos?") — Ordner + Zwischenstand
+                    try: aktuell(str(f.parent), {"neu": neu, "geaendert": geaendert})
+                    except Exception: pass
 
     # Was in einem beobachteten Ordner nicht mehr auftauchte, fehlt. Bewusst
     # nur markiert, nicht gelöscht: die externe Platte kommt wieder.
@@ -536,7 +540,7 @@ def selbstheilung_haenger(conn: sqlite3.Connection) -> int:
 
 def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                stop: Optional[Callable] = None, grenze: Optional[int] = None,
-               mit_thumbs: bool = True) -> dict:
+               mit_thumbs: bool = True, aktuell: Optional[Callable] = None) -> dict:
     """Aufnahmedaten (alle Tags) und Vorschaubilder für alles Ungelesene."""
     selbstheilung_haenger(conn)
     offen = _offene(conn, grenze)
@@ -572,6 +576,9 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 fortschritt(fertig, gesamt)
             continue
         pfade = [r["path"] for r in teil]
+        if aktuell and pfade:   # 18.09.2026 — welche Datei gerade dran ist
+            try: aktuell(pfade[0], {})
+            except Exception: pass
         groessen = {x["path"]: (x["size"] or 0) for x in conn.execute(
             "SELECT path, size FROM fotos WHERE path IN (%s)"
             % ",".join("?" for _ in pfade), pfade).fetchall()}
