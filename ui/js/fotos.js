@@ -655,8 +655,13 @@
       ? T("fotos.kt_zahl1", "{n} geprüft · {neu} neu · {g} geändert").replace("{n}", num(st.done || 0)).replace("{neu}", num(zw.neu || 0)).replace("{g}", num(zw.geaendert || 0))
       : T("fotos.kt_zahl2", "{n} von {g} gelesen").replace("{n}", num(st.done || 0)).replace("{g}", num(st.total || 0));
     const ort = st.aktuell ? " · " + T("fotos.kt_gerade", "gerade:") + " " + kurzPfad(st.aktuell) : "";
-    return `<div class="foto-kt-1">⏳ ${esc(schritt)} <span class="muted">${esc(zahl + ort)}</span></div>
-      <div class="foto-kt-2 muted">${esc(zweck)}</div>`;
+    const ruhig = (ersteStufe && zw.uebernommen) ? " · " + T("fotos.kt_ruhig", "{n} aus unveränderten Ordnern übernommen").replace("{n}", num(zw.uebernommen)) : "";
+    // 18.09.2026 (Marc: „interessant, was Schritt 2 dann wäre, damit man weiß, auf was man warten muss")
+    const warten = (stand.ungelesen || 0) + (zw.neu || 0) + (zw.geaendert || 0);
+    const danach = (ersteStufe && st.art !== "ungelesen")
+      ? `<div class="foto-kt-2 muted">${esc(T("fotos.kt_danach", "Danach Schritt 2: liest Aufnahmezeit, Ort und Kamera der neuen Dateien und legt Vorschaubilder an — derzeit warten {n} Dateien darauf. Das läuft im Hintergrund weiter und macht beim nächsten Mal dort weiter, wo es aufhörte.").replace("{n}", num(warten)))}</div>` : "";
+    return `<div class="foto-kt-1">⏳ ${esc(schritt)} <span class="muted">${esc(zahl + ruhig + ort)}</span></div>
+      <div class="foto-kt-2 muted">${esc(zweck)}</div>${danach}`;
   }
   function kurzPfad(p) {
     const t = String(p).split(/[\\/]/).filter(Boolean);
@@ -667,7 +672,8 @@
     const d1 = st.dateien || {}, d2 = st.daten || {};
     const teile = [];
     if (!d1.uebersprungen) teile.push(T("fotos.kt_erg1", "{n} Dateien geprüft: {neu} neu, {g} geändert, {w} nicht mehr da")
-      .replace("{n}", num(d1.gesehen || 0)).replace("{neu}", num(d1.neu || 0)).replace("{g}", num(d1.geaendert || 0)).replace("{w}", num(d1.fehlt || 0)));
+      .replace("{n}", num(d1.gesehen || 0)).replace("{neu}", num(d1.neu || 0)).replace("{g}", num(d1.geaendert || 0)).replace("{w}", num(d1.fehlt || 0))
+      + (d1.uebernommen ? " (" + T("fotos.kt_ruhig", "{n} aus unveränderten Ordnern übernommen").replace("{n}", num(d1.uebernommen)) + ")" : ""));
     if (d2.gesamt) teile.push(T("fotos.kt_erg2", "Aufnahmedaten und Vorschaubilder von {n} Dateien gelesen").replace("{n}", num(d2.fertig || 0))
       + (d2.fehler ? " (" + T("fotos.kt_erg2f", "{n} nicht lesbar").replace("{n}", num(d2.fehler)) + ")" : ""));
     else if (!d1.uebersprungen) teile.push(T("fotos.kt_erg0", "nichts Neues zu lesen"));

@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS foto_ordner (
     added_at   TEXT,
     recursive  INTEGER DEFAULT 1
 );
+-- 18.09.2026: Änderungszeit je Verzeichnis (schnelle Nachschau, s. durchgang1)
+CREATE TABLE IF NOT EXISTS foto_verz (
+    path   TEXT PRIMARY KEY,
+    mtime  REAL
+);
 
 CREATE TABLE IF NOT EXISTS fotos (
     path          TEXT PRIMARY KEY,
@@ -284,6 +289,70 @@ def medien_finden(ordner: str, recursive: bool = True) -> Iterable[Path]:
                 yield Path(e.path)
 
 
+# ── Schnelle Nachschau (18.09.2026) ─────────────────────────────────────────
+# Marc: „Muss der da jedes Mal alles durchchecken, weil das ja ewig dauert, übers Netz?" Gemessen auf seinem
+# NAS (SMB): 138.030 Dateien, `stat` je Datei 13,7 ms → 31 min je Nachschau, alle 6 h. Das Auflisten der
+# Ordner kostet dagegen ~3 min. Deshalb: Ist die Änderungszeit eines VERZEICHNISSES dieselbe wie beim letzten
+# Mal, gelten seine bekannten Dateien als unverändert und werden ohne `stat` übernommen; gefragt wird nur nach
+# Namen, die der Bestand nicht kennt. Hinzufügen, Löschen, Umbenennen und Neuschreiben (exiftool, Lightroom:
+# temporäre Datei + Umbenennen) ändern die Verzeichniszeit → dieses Verzeichnis wird ganz geprüft. Nur eine
+# Änderung IN einer Datei ohne Umbenennen fällt so nicht auf — dafür läuft alle GRUENDLICH_TAGE eine gründliche
+# Nachschau, die wie früher jede Datei fragt.
+GRUENDLICH_TAGE = 7
+
+
+def gruendlich_faellig(conn: sqlite3.Connection) -> bool:
+    r = conn.execute("SELECT value FROM meta WHERE key = 'fotos_gruendlich'").fetchone()
+    try:
+        letzte = float(r["value"]) if r and r["value"] else None
+    except (TypeError, ValueError):
+        letzte = None
+    return letzte is None or (datetime.now(timezone.utc).timestamp() - letzte) > GRUENDLICH_TAGE * 86400
+
+
+def _gruendlich_merken(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT INTO meta(key, value) VALUES('fotos_gruendlich', ?) "
+                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                 (str(datetime.now(timezone.utc).timestamp()),))
+
+
+def medien_pruefen(ordner: str, recursive: bool, verz: dict, bekannt: dict, gruendlich: bool,
+                   verz_neu: dict) -> Iterable[tuple]:
+    """Wie `medien_finden`, aber je Datei mit der Auskunft, ob sie OHNE `stat` übernommen werden darf.
+
+    `verz` = {verzeichnis: mtime vom letzten Mal}, `bekannt` = {verzeichnis: {dateiname, …}} aus dem Bestand
+    (ohne als fehlend Markierte). `verz_neu` sammelt die heutigen Verzeichniszeiten."""
+    wurzel = Path(ordner)
+    if not wurzel.is_dir():
+        return
+    stapel = [(wurzel, 0)]
+    while stapel:
+        d, tiefe = stapel.pop()
+        try:
+            einträge = list(os.scandir(d))
+            dmt = os.stat(d).st_mtime
+        except OSError:
+            continue
+        ds = str(d)
+        verz_neu[ds] = dmt
+        ruhig = (not gruendlich) and (ds in verz) and abs((verz[ds] or 0) - dmt) < 1
+        namen = bekannt.get(ds) or ()
+        for e in einträge:
+            try:
+                if e.is_dir(follow_symlinks=False):
+                    if recursive and tiefe < TIEFE_MAX and not _ueberspringen(Path(e.path)):
+                        stapel.append((Path(e.path), tiefe + 1))
+                    continue
+                if not e.is_file(follow_symlinks=False):
+                    continue
+            except OSError:
+                continue
+            if e.name.startswith("."):
+                continue
+            if cexif.is_media(e.path):
+                yield Path(e.path), (ruhig and e.name in namen)
+
+
 def art_von(path: str) -> str:
     return ART_VIDEO if cexif.is_video(str(path)) else ART_FOTO
 
@@ -391,7 +460,7 @@ def _tags_lesen_geteilt(pfade: list, teilung=STAPEL_TEILUNG) -> tuple:
 
 def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                stop: Optional[Callable] = None, ordner: Optional[list] = None,
-               aktuell: Optional[Callable] = None) -> dict:
+               aktuell: Optional[Callable] = None, gruendlich: Optional[bool] = None) -> dict:
     """Nur die Liste: Pfad, Ordner, Änderungszeit, Größe, Art.
 
     Läuft in Sekunden, weil keine Datei geöffnet wird. Danach steht die Ansicht
@@ -403,12 +472,38 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     neu = gesehen = geaendert = 0
     alle_pfade: set = set()
     letzter_commit = time.monotonic()
+    # 18.09.2026 — schnelle Nachschau: unveränderte Verzeichnisse ohne `stat` übernehmen (s. medien_pruefen)
+    if gruendlich is None:
+        gruendlich = gruendlich_faellig(conn)
+    verz = {r["path"]: r["mtime"] for r in conn.execute("SELECT path, mtime FROM foto_verz").fetchall()}
+    bekannt: dict = {}
+    if not gruendlich and verz:
+        for r in conn.execute("SELECT path FROM fotos WHERE fehlt_seit IS NULL").fetchall():
+            d_, n_ = os.path.split(r["path"])
+            bekannt.setdefault(d_, set()).add(n_)
+    verz_neu: dict = {}
+    uebernommen = 0
+    # Was GPS Studio seit der letzten Nachschau selbst geschrieben hat, wird trotzdem gefragt (s. core/exif).
+    try:
+        selbst = cexif.selbst_geschrieben_abholen()
+    except Exception:      # noqa: BLE001
+        selbst = set()
 
     for o in ziele:
-        for f in medien_finden(o, rek.get(o, True)):
+        for f, ruhig in medien_pruefen(o, rek.get(o, True), verz, bekannt, bool(gruendlich), verz_neu):
             if stop and stop():
                 return {"abbruch": True, "neu": neu, "gesehen": gesehen,
-                        "geaendert": geaendert}
+                        "geaendert": geaendert, "uebernommen": uebernommen}
+            if ruhig and (not selbst or os.path.abspath(str(f)) not in selbst):
+                alle_pfade.add(str(f))
+                gesehen += 1
+                uebernommen += 1
+                if fortschritt and gesehen % 200 == 0:
+                    fortschritt(gesehen, 0)
+                    if aktuell:
+                        try: aktuell(str(f.parent), {"neu": neu, "geaendert": geaendert, "uebernommen": uebernommen})
+                        except Exception: pass
+                continue
             try:
                 st = f.stat()
             except OSError:
@@ -454,7 +549,7 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 letzter_commit = time.monotonic()
                 fortschritt(gesehen, 0)
                 if aktuell:   # 18.09.2026 (Marc: „was macht GPS Studio gerade mit den Fotos?") — Ordner + Zwischenstand
-                    try: aktuell(str(f.parent), {"neu": neu, "geaendert": geaendert})
+                    try: aktuell(str(f.parent), {"neu": neu, "geaendert": geaendert, "uebernommen": uebernommen})
                     except Exception: pass
 
     # Was in einem beobachteten Ordner nicht mehr auftauchte, fehlt. Bewusst
@@ -469,7 +564,15 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                          "UPDATE fotos SET fehlt_seit = ? WHERE path = ?", (_jetzt(), r["path"]))
                 weg += 1
     geduldig(conn.commit)
-    return {"neu": neu, "gesehen": gesehen, "geaendert": geaendert, "fehlt": weg}
+    # Verzeichniszeiten erst JETZT merken (ein abgebrochener Lauf merkt nichts → nächstes Mal wird neu gefragt).
+    if verz_neu:
+        geduldig(conn.executemany, "INSERT INTO foto_verz(path, mtime) VALUES(?, ?) "
+                 "ON CONFLICT(path) DO UPDATE SET mtime = excluded.mtime", list(verz_neu.items()))
+    if gruendlich and ordner is None:
+        _gruendlich_merken(conn)
+    geduldig(conn.commit)
+    return {"neu": neu, "gesehen": gesehen, "geaendert": geaendert, "fehlt": weg,
+            "uebernommen": uebernommen, "gruendlich": bool(gruendlich)}
 
 
 # ── Durchgang 2: Aufnahmedaten und Vorschaubilder ───────────────────────────

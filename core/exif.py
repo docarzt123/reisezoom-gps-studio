@@ -1128,6 +1128,41 @@ def _build_gps_write_args(lat: float, lon: float,
     return args
 
 
+# ── Selbst geschriebene Dateien (18.09.2026) ────────────────────────────────
+# Die schnelle Foto-Nachschau (core/fotos.durchgang1) fragt unveränderte Verzeichnisse nicht mehr Datei für
+# Datei ab. Schreibt GPS Studio selbst an Ort und Stelle in ein Foto (piexif), ändert sich die Verzeichniszeit
+# nicht — deshalb merkt sich jede Schreibfunktion hier ihren Pfad, und die nächste Nachschau fragt genau diese
+# Dateien trotzdem.
+_SELBST_GESCHRIEBEN: set = set()
+
+
+def selbst_geschrieben_merken(path) -> None:
+    try:
+        _SELBST_GESCHRIEBEN.add(os.path.abspath(str(path)))
+    except Exception:      # noqa: BLE001
+        pass
+
+
+def _merkt_schreiben(fn):
+    """Dekorator: der erste Parameter ist der Pfad der Datei, in die geschrieben wird."""
+    import functools
+
+    @functools.wraps(fn)
+    def huelle(path, *a, **k):
+        try:
+            return fn(path, *a, **k)
+        finally:
+            selbst_geschrieben_merken(path)
+    return huelle
+
+
+def selbst_geschrieben_abholen() -> set:
+    """Gibt die gemerkten Pfade zurück und leert die Liste."""
+    out = set(_SELBST_GESCHRIEBEN)
+    _SELBST_GESCHRIEBEN.clear()
+    return out
+
+
 def _exiftool_write_gps(path: str, lat: float, lon: float,
                         alt: Optional[float] = None,
                         timestamp_utc: Optional[datetime] = None,
@@ -1215,6 +1250,7 @@ def shift_datetime(path: str, seconds: float, gesichert: bool = False) -> bool:
     return False
 
 
+@_merkt_schreiben
 def set_datetime(path: str, dt, gesichert: bool = False) -> bool:
     """v0.9.281 (Nutzer-Wunsch) — Setzt den Aufnahmezeitpunkt ABSOLUT auf `dt`
     (DateTimeOriginal/CreateDate/ModifyDate + OffsetTime*-Tags). Für Fotos, die
@@ -1860,6 +1896,7 @@ def _read_gps_raw(path: str) -> Optional[tuple[float, float, Optional[float]]]:
     return None
 
 
+@_merkt_schreiben
 def write_gps(path: str, lat: float, lon: float,
               alt: Optional[float] = None,
               timestamp_utc: Optional[datetime] = None,
@@ -1909,6 +1946,7 @@ def write_gps(path: str, lat: float, lon: float,
         _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
 
 
+@_merkt_schreiben
 def write_location(path: str, address: dict, gesichert: bool = False) -> None:
     """v0.9.337 — Schreibt die Reverse-Geocoding-Adresse als IPTC + XMP in ein Foto/Video.
 
@@ -2039,6 +2077,7 @@ def read_photo_details(path: str) -> dict:
     return {"key": key, "all": all_tags}
 
 
+@_merkt_schreiben
 def write_img_direction(path: str, deg: float, gesichert: bool = False) -> None:
     """v0.9.339 — Schreibt NUR die Blickrichtung (GPSImgDirection + Ref='T'),
     ohne die vorhandenen GPS-Koordinaten anzufassen. Für „nur Fehlendes ergänzen":
@@ -2071,6 +2110,7 @@ def exif_tag_writable(tag: str) -> bool:
     return bool(tag) and tag not in _EXIF_TAG_READONLY
 
 
+@_merkt_schreiben
 def write_exif_tag(path: str, tag: str, value: str, gesichert: bool = False) -> None:
     """v0.9.343 — Setzt EIN beliebiges EXIF-Feld auf `value` (leer = löschen).
     Wirft RuntimeError, wenn das Tag nicht beschreibbar ist oder exiftool meckert."""
@@ -2086,6 +2126,7 @@ def write_exif_tag(path: str, tag: str, value: str, gesichert: bool = False) -> 
         raise RuntimeError(f"exiftool ({tag}) fehlgeschlagen: {msg[:300]}")
 
 
+@_merkt_schreiben
 def write_exif_tags(path: str, tags: dict[str, str], gesichert: bool = False) -> None:
     """v0.9.369 — Setzt MEHRERE EXIF-Felder eines Fotos in EINEM exiftool-Call.
 

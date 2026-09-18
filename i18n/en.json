@@ -4057,5 +4057,7 @@
   "vorgang.umzug_kopiere": "Copying tours, projects and database to the new place, then counting every file again",
   "vorgang.umzug_raeume": "Everything has arrived — tidying up the old place (own files only)",
   "vorgang.zip": "Packing the library into the ZIP file: file {i} of {g}",
-  "vorgang.doppelte": "Comparing route, length and times of all tours in the archive — takes a while with many tours"
+  "vorgang.doppelte": "Comparing route, length and times of all tours in the archive — takes a while with many tours",
+  "fotos.kt_ruhig": "{n} taken over from unchanged folders",
+  "fotos.kt_danach": "Then step 2: reads capture time, location and camera of the new files and creates previews — {n} files are waiting for that right now. It carries on in the background and picks up next time where it stopped."
 }

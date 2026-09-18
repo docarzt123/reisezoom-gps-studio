@@ -1515,7 +1515,7 @@ auf, den die Datei mitbringt.
 > Laufwerk fehlt, was trotzdem geht und welchen Stand du siehst. Die Seitenleiste
 > markiert den Ordner mit 📴, die Detailspalte sagt, dass das Original gerade fehlt.
 > Kommt das Laufwerk zurück, merkt die App das binnen zwanzig Sekunden und liest
-> weiter. Wer nicht warten will: **„↻ Nochmal versuchen"** im Hinweis sieht sofort nach. Danach sagt die App, was sie tut: „Schritt 1 von 2 — sieht in den Ordnern nach" (vergleicht nur, öffnet nichts) und „Schritt 2 von 2 — liest die neuen Dateien" (Aufnahmezeit, Ort, Kamera, Vorschaubild — die Originale bleiben unberührt), jeweils mit Zahl und dem Ordner, in dem sie gerade ist. Am Ende steht eine Zeile mit dem Ergebnis; ist nichts zu tun, sagt sie auch das.
+> weiter. Wer nicht warten will: **„↻ Nochmal versuchen"** im Hinweis sieht sofort nach. Danach sagt die App, was sie tut: „Schritt 1 von 2 — sieht in den Ordnern nach" (vergleicht nur, öffnet nichts) und „Schritt 2 von 2 — liest die neuen Dateien" (Aufnahmezeit, Ort, Kamera, Vorschaubild — die Originale bleiben unberührt), jeweils mit Zahl und dem Ordner, in dem sie gerade ist. Am Ende steht eine Zeile mit dem Ergebnis; ist nichts zu tun, sagt sie auch das. Die Nachschau von selbst (alle sechs Stunden) fragt nur Ordner ab, in denen sich etwas getan hat — auf einem Netzlaufwerk Minuten statt einer halben Stunde; einmal die Woche, und immer über den Knopf „Jetzt einlesen", sieht sie gründlich jede Datei an.
 >
 > **Unterwegs ohne das Laufwerk?** Aufnahmedaten und Vorschaubilder liegen in
 > der Bibliothek auf deinem Rechner. Raster, Suche, Karte und die Gruppierung
