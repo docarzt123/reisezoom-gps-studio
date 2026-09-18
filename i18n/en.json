@@ -4016,5 +4016,10 @@
   "mapstyle.note.no_key": "Official aerial imagery exists for {name} — with your own key (Settings → Maps → Country keys).",
   "mapregion.dk": "Denmark",
   "mapregion.fi": "Finland",
-  "mapregion.nz": "New Zealand"
+  "mapregion.nz": "New Zealand",
+  "fotos.fern_nochmal": "Try again",
+  "fotos.fern_nochmal_weg": "Still not reachable. Is the drive connected and visible in Finder?",
+  "fotos.fern_nochmal_fehler": "Could not check — please try again in a moment.",
+  "warte.fotos_fern_nochmal.titel": "Looking for the drive",
+  "warte.fotos_fern_nochmal.text": "Checking whether the photo folders are reachable again"
 }

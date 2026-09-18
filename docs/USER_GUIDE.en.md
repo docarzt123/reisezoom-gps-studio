@@ -1342,7 +1342,8 @@ file holds.
 > **On the road without the drive?** A note above the grid then names the missing
 > drive, what still works and which state you are looking at. The sidebar marks the
 > folder with 📴, the detail column says the original is out of reach. When the
-> drive comes back, the app notices within twenty seconds and carries on reading.
+> drive comes back, the app notices within twenty seconds and carries on reading. If you don't
+> want to wait, **"↻ Try again"** in the notice checks right away.
 >
 > **On the road without the drive?** Capture data and thumbnails live in the
 > library on your own machine. Grid, search, map and the grouping by tour keep

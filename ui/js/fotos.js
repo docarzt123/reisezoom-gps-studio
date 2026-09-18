@@ -527,8 +527,10 @@
       ? `<div class="foto-fern-liste">${weg.map(o =>
           `<div title="${esc(o.path)}">📴 ${esc(laufwerkVon(o.path))} — ${esc(o.path.split(/[\\/]/).filter(Boolean).slice(-2).join("/"))} <span class="muted">${num(o.n)}</span></div>`).join("")}</div>`
       : "";
+    // 18.09.2026 (Marc: „da bräuchte es noch einen Knopf für Nochmal versuchen") — nicht 20 s auf die Wache warten
     return `<div class="foto-fern" id="foto-fern">
-        <div class="foto-fern-titel">📴 ${esc(titel)}</div>
+        <div class="foto-fern-titel">📴 ${esc(titel)}
+          <button class="btn btn-sm foto-fern-nochmal" id="foto-fern-nochmal" type="button">↻ ${T("fotos.fern_nochmal", "Nochmal versuchen")}</button></div>
         <div class="foto-fern-text">${esc(satz)}</div>
         ${liste}
       </div>`;
@@ -541,6 +543,25 @@
     try { loc = (typeof i18nMeta === "function") ? i18nMeta().active : null; } catch (_) {}
     return d.toLocaleString(loc || undefined,
       { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  }
+
+  /** 18.09.2026 — Knopf „Nochmal versuchen" im Hinweis: sofort nachsehen statt auf die 20-s-Wache zu warten.
+      Dasselbe wie die Wache, aber mit Wartefenster und einer Antwort in JEDEM Fall (auch „immer noch weg"). */
+  async function fernJetztPruefen() {
+    const vorher = ordner.filter(o => !o.da).length;
+    const r = await rzWarten("fotos_fern_nochmal", () => api().fotos_ordner()).catch(() => null);
+    if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; nachschau = r.nachschau || nachschau; }
+    const jetzt = ordner.filter(o => !o.da).length;
+    navZeichnen();
+    kopfAuffrischen();
+    if (!r || !r.ok) toast(T("fotos.fern_nochmal_fehler", "Konnte nicht nachsehen — bitte gleich noch einmal."), "error", 4000);
+    else if (jetzt < vorher) { toast(T("fotos.fern_zurueck", "Laufwerk wieder da — die App liest weiter."), "success", 4000); if (autoAn) aufholen(); }
+    else toast(T("fotos.fern_nochmal_weg", "Immer noch nicht erreichbar. Ist das Laufwerk verbunden und im Finder sichtbar?"), "info", 5000);
+    fernBeobachten();
+  }
+  function fernKnopfBinden(wurzel) {
+    const b = wurzel && wurzel.querySelector("#foto-fern-nochmal");
+    if (b) b.onclick = () => fernJetztPruefen();
   }
 
   /** Solange ein Laufwerk fehlt: alle 20 s nachsehen, ob es zurück ist —
@@ -631,6 +652,7 @@
     if (start) start.onclick = () => scanStarten();
     const stop = neu.querySelector("#foto-kopf-stop");
     if (stop) stop.onclick = () => { abgebrochen = true; api().fotos_scan_stop(); };
+    fernKnopfBinden(neu);
   }
 
   function kachelHtml(f, i) {
@@ -1163,6 +1185,7 @@
       };
     });
 
+    fernKnopfBinden(haupt);   // 18.09.2026 — „Nochmal versuchen" im Laufwerk-Hinweis
     const kopfScan = haupt.querySelector("#foto-kopf-scan");
     if (kopfScan) kopfScan.onclick = () => scanStarten();
     const kopfStop = haupt.querySelector("#foto-kopf-stop");
