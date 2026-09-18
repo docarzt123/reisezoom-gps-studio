@@ -4016,5 +4016,10 @@
   "mapstyle.note.no_key": "Für {name} gibt es amtliche Luftbilder — mit eigenem Schlüssel (Einstellungen → Karten → Länder-Schlüssel).",
   "mapregion.dk": "Dänemark",
   "mapregion.fi": "Finnland",
-  "mapregion.nz": "Neuseeland"
+  "mapregion.nz": "Neuseeland",
+  "fotos.fern_nochmal": "Nochmal versuchen",
+  "fotos.fern_nochmal_weg": "Immer noch nicht erreichbar. Ist das Laufwerk verbunden und im Finder sichtbar?",
+  "fotos.fern_nochmal_fehler": "Konnte nicht nachsehen — bitte gleich noch einmal.",
+  "warte.fotos_fern_nochmal.titel": "Laufwerk wird gesucht",
+  "warte.fotos_fern_nochmal.text": "Schaut nach, ob die Fotoordner wieder erreichbar sind"
 }

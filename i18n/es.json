@@ -4016,5 +4016,10 @@
   "mapstyle.note.no_key": "Hay ortofotos oficiales de {name} — con tu propia clave (Ajustes → Mapas → Claves por país).",
   "mapregion.dk": "Dinamarca",
   "mapregion.fi": "Finlandia",
-  "mapregion.nz": "Nueva Zelanda"
+  "mapregion.nz": "Nueva Zelanda",
+  "fotos.fern_nochmal": "Intentar de nuevo",
+  "fotos.fern_nochmal_weg": "Sigue sin estar accesible. ¿Está la unidad conectada y visible en el Finder?",
+  "fotos.fern_nochmal_fehler": "No se pudo comprobar; inténtalo de nuevo en un momento.",
+  "warte.fotos_fern_nochmal.titel": "Buscando la unidad",
+  "warte.fotos_fern_nochmal.text": "Comprobando si las carpetas de fotos vuelven a estar accesibles"
 }

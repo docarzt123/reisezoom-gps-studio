@@ -1515,7 +1515,7 @@ auf, den die Datei mitbringt.
 > Laufwerk fehlt, was trotzdem geht und welchen Stand du siehst. Die Seitenleiste
 > markiert den Ordner mit 📴, die Detailspalte sagt, dass das Original gerade fehlt.
 > Kommt das Laufwerk zurück, merkt die App das binnen zwanzig Sekunden und liest
-> weiter.
+> weiter. Wer nicht warten will: **„↻ Nochmal versuchen"** im Hinweis sieht sofort nach.
 >
 > **Unterwegs ohne das Laufwerk?** Aufnahmedaten und Vorschaubilder liegen in
 > der Bibliothek auf deinem Rechner. Raster, Suche, Karte und die Gruppierung
