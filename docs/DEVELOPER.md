@@ -5344,6 +5344,8 @@ zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
   auch OHNE Lücke in der Spanne einen (konstanten) Verlauf, sonst lief Etappe 1 in `line_color`.
   Die Lücken tragen ihre Original-Indizes (`[a, b, ra, rb]`). Bedienung: `_etappenFarbenZeichnen()`
   (`#anim-etappenfarben`), gezeichnet nach Track-Laden, nach Undo und nach dem Zusammenführen.
+- **Verlauf + Etappen:** `gradLueckenStanzen` (Vorschau) / `__rzGradLuecken` (Render, `_GRAD_LUECKEN_JS`) stanzen die
+  Verbindungsstücke durchsichtig in den fertigen Verlauf; der Schatten bekommt auch im Verlauf-Zweig seine Maske.
 - **Farbverlauf aus:** `_gradStand.leer` wird im Verlauf-Zweig gelöscht.
 - **Export-Name:** `Api._export_namensvorschlag` (Tour-Name → Bibliothek → Dateiname).
 - **Zusatzspuren:** ▲▼ in `_ghostListeZeichnen`; `ghosts_laden(aus_dialog=True)` sortiert natürlich.
