@@ -5329,3 +5329,23 @@ zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
   basemap.at, GeoSN …) bleiben unverändert. `_stackAttribution`/`stack_attribution` schneiden
   „Aerial imagery: “ bei weiteren Regionen ab.
 - Wächter: `tests/test_archiv_import_zeigt_tour.py` (WebKit, echte Brücke, Testbibliothek).
+
+## Tester-Meldungen 18.–20.09.2026 (v0.9.720)
+
+- **Foto-Schilder, Schärfe.** Vorschau: `_animSignEnsureImage` lädt erst das gespeicherte `thumb`
+  (aus „Fotos hinzufügen" nur 128 px) und holt über `nachschaerfen()` einmal je Schild das
+  600-px-Bild nach, wenn die Kante < Bedarf ist. Render: `_sign_schaerfe(n, render_scale)` =
+  `min(render_scale, √(200/n))`, je Schild `_sign_bild_dpr_fuer` (Deckel
+  `SIGN_BILD_RENDER_MAX_PX` = 1440 px Bildbreite — größer bläht den Symbol-Atlas auf, Software-GL
+  hat 8192 px). Der JS-Block im Render rechnet dasselbe (`__schaerfe`, `__dprFuer`) — bei Änderung
+  beide pflegen. `addImage(pixelRatio = dpr)` hält die Größe gleich. Cache-Stufen 600/1000/1440
+  (`_sign_cache_px`). Die Vorschau bleibt bei 600 px.
+- **Etappenfarben.** `segMaskExpr` (Vorschau) / `__rzSegMask` (Render) liefern mit `tour_colors`
+  auch OHNE Lücke in der Spanne einen (konstanten) Verlauf, sonst lief Etappe 1 in `line_color`.
+  Die Lücken tragen ihre Original-Indizes (`[a, b, ra, rb]`). Bedienung: `_etappenFarbenZeichnen()`
+  (`#anim-etappenfarben`), gezeichnet nach Track-Laden, nach Undo und nach dem Zusammenführen.
+- **Farbverlauf aus:** `_gradStand.leer` wird im Verlauf-Zweig gelöscht.
+- **Export-Name:** `Api._export_namensvorschlag` (Tour-Name → Bibliothek → Dateiname).
+- **Zusatzspuren:** ▲▼ in `_ghostListeZeichnen`; `ghosts_laden(aus_dialog=True)` sortiert natürlich.
+- Wächter: `tests/test_tester_meldungen_0920.py`.
+

@@ -4059,5 +4059,10 @@
   "vorgang.zip": "Packt die Bibliothek in die ZIP-Datei: Datei {i} von {g}",
   "vorgang.doppelte": "Vergleicht Strecke, Länge und Zeiten aller Touren im Archiv — bei vielen Touren dauert das",
   "fotos.kt_ruhig": "{n} aus unveränderten Ordnern übernommen",
-  "fotos.kt_danach": "Danach Schritt 2: liest Aufnahmezeit, Ort und Kamera der neuen Dateien und legt Vorschaubilder an — derzeit warten {n} Dateien darauf. Das läuft im Hintergrund weiter und macht beim nächsten Mal dort weiter, wo es aufhörte."
+  "fotos.kt_danach": "Danach Schritt 2: liest Aufnahmezeit, Ort und Kamera der neuen Dateien und legt Vorschaubilder an — derzeit warten {n} Dateien darauf. Das läuft im Hintergrund weiter und macht beim nächsten Mal dort weiter, wo es aufhörte.",
+  "animator.etappenfarben.title": "Farbe je Etappe",
+  "animator.etappenfarben.etappe": "Etappe",
+  "ghosts.up": "Nach oben",
+  "ghosts.down": "Nach unten",
+  "ghosts.reorder_undo": "Reihenfolge der Zusatzspuren"
 }

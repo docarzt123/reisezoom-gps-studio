@@ -1842,6 +1842,11 @@ etapa**. Cada etapa puede tener además **su propio color**.
 > **Por cierto:** un GPX con varias etapas (varios `<trk>` o `<trkseg>`) también
 > se dibuja bien ahora — ya no cruza una línea el mapa entre etapas.
 
+**Color por etapa (desde v0.9.720):** en el Animator, la sección «Tracks» muestra debajo del
+track combinado una línea por etapa con un campo de color. El color vale en la vista previa y en
+el vídeo desde el primer segundo; cada elección es un paso de ⌘Z / Ctrl+Z. El color del propio
+track se usa para las etapas a las que no hayas dado un color propio.
+
 ## 4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️ (desde v0.9.205)
 
 ### Qué hace
@@ -2062,6 +2067,10 @@ forman parte del proyecto y se ven en el vídeo final.
 > *La antigua app en solitario «Reisezoom Geotagger» ya no se compila desde el
 > 15/08/2026: su única ventaja era prescindir del token de Mapbox, y la app
 > completa hace tiempo que no lo necesita.*
+
+**Orden:** arrastra por el asa **⠿** o usa las flechas **▲▼** junto al nombre (desde v0.9.720; en
+Windows solo las flechas funcionan de forma fiable). La traza de abajo se dibuja encima. Si eliges
+varios archivos a la vez en el diálogo, llegan ordenados por nombre (01, 02, 03 …).
 
 ### Qué hace
 Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el punto del track que le corresponde. Escribe las coordenadas GPS como tag EXIF en la foto. **Funciona con JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) y vídeo (MP4/MOV/INSV)** (herramienta web: solo JPG).

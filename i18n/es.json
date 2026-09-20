@@ -4059,5 +4059,10 @@
   "vorgang.zip": "Empaquetando la biblioteca en el ZIP: archivo {i} de {g}",
   "vorgang.doppelte": "Comparando recorrido, longitud y tiempos de todas las rutas del archivo; con muchas rutas tarda",
   "fotos.kt_ruhig": "{n} tomados de carpetas sin cambios",
-  "fotos.kt_danach": "Después, paso 2: lee hora, lugar y cámara de los archivos nuevos y crea vistas previas; ahora mismo esperan {n} archivos. Sigue en segundo plano y la próxima vez continúa donde lo dejó."
+  "fotos.kt_danach": "Después, paso 2: lee hora, lugar y cámara de los archivos nuevos y crea vistas previas; ahora mismo esperan {n} archivos. Sigue en segundo plano y la próxima vez continúa donde lo dejó.",
+  "animator.etappenfarben.title": "Color por etapa",
+  "animator.etappenfarben.etappe": "Etapa",
+  "ghosts.up": "Subir",
+  "ghosts.down": "Bajar",
+  "ghosts.reorder_undo": "Orden de las trazas adicionales"
 }

@@ -1966,6 +1966,11 @@ sie wird ins Archiv aufgenommen und gleich im Animator geöffnet. Weil es ein
 normaler Track ist, geht alles wie sonst: Keyframes, Schilder, Zeitleiste,
 Trim, Fotos, Höhen-Animator.
 
+**Farbe je Etappe (seit v0.9.720):** Im Animator steht in der Sektion „Tracks“ unter dem
+zusammengeführten Track eine Zeile je Etappe mit einem Farbfeld. Die Farbe gilt in der
+Vorschau und im Video von der ersten Sekunde an; jede Farbwahl ist ein ⌘Z-Schritt. Die
+Farbe oben am Track selbst gilt für Etappen, denen du keine eigene gegeben hast.
+
 **Wo liegen sie?** In der Seitenleiste des Archivs im eigenen Bereich
 **🧭 Zusammengefügt**. Sie stehen bewusst **nicht** bei den normalen Touren und
 zählen **nicht** in der Statistik mit — sonst stünden die Kilometer deiner
@@ -2256,6 +2261,11 @@ vorhandene Spuren sind ausgegraut). Liegt eine Datei noch nicht im Archiv, nimmt
 
 Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt
 oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.
+
+**Reihenfolge:** am Griff **⠿** ziehen oder die Pfeile **▲▼** neben dem Namen nutzen (seit
+v0.9.720 — auf Windows geht nur der Weg über die Pfeile zuverlässig). Die unterste Spur
+liegt obenauf. Wählst du im Datei-Dialog mehrere Dateien auf einmal, kommen sie nach
+Dateiname geordnet an (01, 02, 03 …).
 
 Ein typischer Aufbau: der offizielle Weg kräftig und durchgezogen, die geplanten
 Runden dünn gestrichelt, und darüber läuft animiert deine tatsächliche Tour. Die

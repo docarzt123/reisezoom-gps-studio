@@ -1137,3 +1137,12 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-stil-alle .anim-stil-check input { margin-right: 6px; }
 .anim-stil-zeile.ist-check label { display: flex; align-items: center; gap: 6px; color: var(--text, #eee); cursor: pointer; }
 .anim-stil-zeile label .muted { font-weight: 400; }
+
+/* 20.09.2026 — Farbe je Etappe (zusammengeführter Track) */
+.anim-etappenfarben { margin-top: 10px; }
+.anim-etappenfarbe-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+.anim-etappenfarbe-row input[type="color"] { width: 28px; height: 22px; padding: 0; border: 1px solid var(--border, #333); border-radius: 4px; background: none; flex: none; }
+.anim-etappenfarbe-nr { opacity: .6; font-variant-numeric: tabular-nums; min-width: 1.2em; text-align: right; }
+.anim-etappenfarbe-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.ghost-hoch, .ghost-runter { padding: 0 4px; font-size: 10px; line-height: 1; }
+.ghost-hoch:disabled, .ghost-runter:disabled { opacity: .25; cursor: default; }
