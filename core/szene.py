@@ -79,7 +79,7 @@ _BRIDGE_JS = r"""
   window.pywebview = { api };
   document.addEventListener("DOMContentLoaded", () => { try {
     document.body.classList.add("rz-render-mode");
-    if (__RZ_MODE__.blur > 0) { const st = document.createElement("style"); st.textContent = "#anim-viewport .maplibregl-canvas, #anim-viewport .mapboxgl-canvas { filter: blur(" + __RZ_MODE__.blur + "px); }"; document.head.appendChild(st); }
+    if (__RZ_MODE__.blur > 0) { const st = document.createElement("style"); st.id = "rz-render-blur"; st.textContent = "#anim-viewport .maplibregl-canvas, #anim-viewport .mapboxgl-canvas { filter: blur(" + __RZ_MODE__.blur + "px); }"; document.head.appendChild(st); }
   } catch (_) {} });
   window.dispatchEvent(new Event("pywebviewready"));
 })();
@@ -234,7 +234,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false; return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && !(b.schilderLaden > 0); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_auf(page, bereit_js, 240, "Projekt/Animator", is_cancelled, intervall=0.5)
     _log.info("Szene: Animator bereit — %s", json.dumps(info)[:300])
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")

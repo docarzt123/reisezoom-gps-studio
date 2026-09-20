@@ -2478,7 +2478,10 @@ def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
         "n_hidden": conn.execute(*_count_hidden(filters)).fetchone()[0],
         # 23.08.2026 — zusammengeführte Tracks (eigener Bereich, sonst überall raus)
         "n_merged": conn.execute(
-            "SELECT COUNT(*) FROM tracks WHERE COALESCE(merged,0) = 1 AND error = ''").fetchone()[0],
+            # 20.09.2026 — eine Kachel je Tour wie in der Liste (`haupt`), sonst zählt die
+            # Seitenleiste doppelte Dateien derselben Tour mit (5 statt 4).
+            "SELECT COUNT(*) FROM tracks WHERE COALESCE(merged,0) = 1 AND error = '' "
+            "AND COALESCE(haupt,1) = 1 AND COALESCE(hidden,0) = 0").fetchone()[0],
         # Wie viele Touren liegen gerade auf einer Platte, die nicht da ist?
         "n_missing": conn.execute(
             f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND missing_since != ''",

@@ -5747,13 +5747,13 @@ class Api:
                 raus[p] = False
         return {"ok": True, "exists": raus}
 
-    def sign_image_thumb(self, path: str) -> dict:
+    def sign_image_thumb(self, path: str, max_px: int = 600) -> dict:
         """Thumbnail für einen bekannten Bild-Pfad (neu) erzeugen — beim
         Projekt-Laden, da der Thumb nicht persistiert wird (nur der Pfad)."""
         try:
             if not path or not os.path.exists(path):
                 return {"ok": False, "error": "not found"}
-            thumb = self._photo_thumbnail_data_url(path, 600)
+            thumb = self._photo_thumbnail_data_url(path, max(64, min(1440, int(max_px or 600))))
             return {"ok": bool(thumb), "thumb": thumb}
         except Exception as e:
             return {"ok": False, "error": str(e)}

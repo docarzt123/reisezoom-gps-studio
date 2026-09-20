@@ -5350,4 +5350,11 @@ zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
 - **Export-Name:** `Api._export_namensvorschlag` (Tour-Name → Bibliothek → Dateiname).
 - **Zusatzspuren:** ▲▼ in `_ghostListeZeichnen`; `ghosts_laden(aus_dialog=True)` sortiert natürlich.
 - Wächter: `tests/test_tester_meldungen_0920.py`.
-
+- **Achtung, zwei Render-Wege:** Videos laufen über die Szene (`core/szene.py` = Vorschau kopflos, Pixeldichte dsf·ss),
+  nur Einzelbilder/Transparenz/`render_engine=klassisch` über `core/animator.py`. Jede Render-Änderung an Schildern
+  in BEIDEN prüfen. Szene: `_animSignDprFuer` (Pixelmaß je Schild nach `devicePixelRatio`), `nachschaerfen(im, fertig)`
+  wartet im Render-Modus auf das große Bild, `__rzSchilderLaden` → `schilderLaden` in `__rzAnimBereit`.
+- **Glätten:** `rzApplyMapSmooth(map, sigmaGerätePx, vorEbene)` in `ui/js/rz-mapadjust.js` — Ebene `rz-glaetten` direkt unter
+  `anim-signs-lyr`. Klassisch: `__glSigma` im Schild-Block, CSS-Filter nur ohne Schilder. Szene: CSS-Style `#rz-render-blur`
+  wird entfernt, sobald die Ebene liegt. Messskripte der Sitzung: 4K, Streifenfoto, Kantenstärke Schild/Karte.
+- **Archiv:** `n_merged` mit `haupt`/`hidden`; `_offeneTourMerken` / `_offeneTourSchliessen` in `modules/library/ui/module.js`.
