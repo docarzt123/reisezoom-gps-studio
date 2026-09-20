@@ -1834,6 +1834,57 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, sta
 };
 """
 
+# 20.09.2026 (am Rechner gefunden): „Mehrere Track-Farben" + zusammengeführter Track →
+# der Verlauf ersetzte die Etappen-Maske, die unsichtbaren Verbindungen wurden als
+# gerade Striche sichtbar. `__rzGradLuecken` stanzt die Verbindungsstücke durchsichtig
+# in einen fertigen Verlauf. SYNCHRON zu `gradLueckenStanzen` in modules/animator/ui/module.js.
+_GRAD_LUECKEN_JS = r"""
+window.__rzGradLuecken = function (expr, cumGeo, i0, i1, segStarts) {
+  var LERP = window.__rzLerpHex;
+  if (!expr || !segStarts || !segStarts.length || !cumGeo || i1 <= i0) return expr;
+  var g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
+  if (!(gT > 0)) return expr;
+  var L = [];
+  for (var k = 0; k < segStarts.length; k++) {
+    var ra = segStarts[k][0], rb = segStarts[k][1];
+    if (rb <= i0 || ra >= i1) continue;
+    L.push([(cumGeo[Math.max(ra, i0)] - g0) / gT, (cumGeo[Math.min(rb, i1)] - g0) / gT]);
+  }
+  if (!L.length) return expr;
+  var P = [], C = [];
+  for (var s = 3; s + 1 < expr.length; s += 2) { P.push(expr[s]); C.push(expr[s + 1]); }
+  if (!P.length) return expr;
+  var bei = function (p) {
+    if (p <= P[0]) return C[0];
+    if (p >= P[P.length - 1]) return C[C.length - 1];
+    var j = 0; while (j < P.length - 2 && P[j + 1] <= p) j++;
+    var sp = P[j + 1] - P[j];
+    try { return LERP(C[j], C[j + 1], sp > 0 ? (p - P[j]) / sp : 0); } catch (e) { return C[j]; }
+  };
+  var EPS = 1e-5, LEER = "rgba(0,0,0,0)", roh = [];
+  for (var q = 0; q < P.length; q++) {
+    var drin = false;
+    for (var l = 0; l < L.length; l++) if (P[q] > L[l][0] - EPS && P[q] < L[l][1] + EPS) drin = true;
+    if (!drin) roh.push([P[q], C[q]]);
+  }
+  for (var m = 0; m < L.length; m++) {
+    var a = L[m][0], b = L[m][1];
+    if (a - EPS > 0) roh.push([a - EPS, bei(a - EPS)]);
+    roh.push([Math.max(0, a), LEER]); roh.push([Math.min(1, b), LEER]);
+    if (b + EPS < 1) roh.push([b + EPS, bei(b + EPS)]);
+  }
+  roh.sort(function (x, y) { return x[0] - y[0]; });
+  var e = expr.slice(0, 3), letzte = -1;
+  for (var r = 0; r < roh.length; r++) {
+    var pp = Math.max(0, Math.min(1, roh[r][0]));
+    if (pp <= letzte) pp = letzte + 1e-7;
+    if (pp > 1) continue;
+    e.push(pp, roh[r][1]); letzte = pp;
+  }
+  return e;
+};
+"""
+
 _COLOR_GRADIENT_JS = r"""
 window.__rzHex2rgb = function(h){ h=(h||'#000').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; };
 window.__rzRgb2hex = function(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); var s=x.toString(16); return s.length<2?'0'+s:s; } return '#'+c(r)+c(g)+c(b); };
@@ -2371,7 +2422,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
     stage_name_json = json.dumps(_etappen["name"])
     stage_total_json = json.dumps(_etappen["gesamt"])
-    seg_mask_js = _SEG_MASK_JS
+    seg_mask_js = _SEG_MASK_JS + _GRAD_LUECKEN_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
     total_asc_json = json.dumps(round(float(total_stats.get("ascent_m") or 0), 1))
@@ -4047,7 +4098,12 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
     // würden die Stop-Werte als Kilometer missdeutet und der Track bekäme
     // willkürliche Farben statt sauber einfarbig zu bleiben.
     if (!LINES_3D && COLORS_ON && !(COLOR_SOURCE !== 'distance' && !COLOR_METRIC)) {{
-      const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_VAL, COLOR_STOPS_COL, COLOR_MODE, COLOR_METRIC);
+      let g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_VAL, COLOR_STOPS_COL, COLOR_MODE, COLOR_METRIC);
+      if (g && SEG_STARTS.length && window.__rzGradLuecken) g = window.__rzGradLuecken(g, cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS);
+      if (SEG_STARTS.length && map.getLayer('track-shadow')) {{
+        const msG = window.__rzSegMask(cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS, 'rgba(0,0,0,0.7)', null, null);
+        try {{ map.setPaintProperty('track-shadow','line-gradient', msG || null); if (msG) map.setPaintProperty('track-shadow','line-dasharray', null); }} catch(e) {{}}
+      }}
       if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
     }} else if (!LINES_3D && SEG_STARTS.length) {{
       // 23.08.2026 — Etappen: Verbindungsstücke unsichtbar (siehe __rzSegMask).
@@ -4259,7 +4315,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
     stage_name_json = json.dumps(_etappen["name"])
     stage_total_json = json.dumps(_etappen["gesamt"])
-    seg_mask_js = _SEG_MASK_JS
+    seg_mask_js = _SEG_MASK_JS + _GRAD_LUECKEN_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
     total_asc_json = json.dumps(round(float(total_stats.get("ascent_m") or 0), 1))

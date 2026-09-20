@@ -4836,6 +4836,52 @@ function mountAnimator(body, headerActions, opts) {
   function __rzHex2rgb(h){ h=(h||"#000").replace("#",""); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; }
   function __rzRgb2hex(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); const s=x.toString(16); return s.length<2?"0"+s:s; } return "#"+c(r)+c(g)+c(b); }
   function __rzLerpHex(a,b,f){ const x=__rzHex2rgb(a), y=__rzHex2rgb(b); return __rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); }
+  /** 20.09.2026 — Verbindungsstücke durchsichtig in einen fertigen Verlauf stanzen.
+   *  Wortgleich zu `__rzGradLuecken` in core/animator.py — bei Änderung beide pflegen. */
+  function gradLueckenStanzen(expr, cumGeo, i0, i1, segStarts) {
+  var LERP = __rzLerpHex;
+  if (!expr || !segStarts || !segStarts.length || !cumGeo || i1 <= i0) return expr;
+  var g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
+  if (!(gT > 0)) return expr;
+  var L = [];
+  for (var k = 0; k < segStarts.length; k++) {
+    var ra = segStarts[k][0], rb = segStarts[k][1];
+    if (rb <= i0 || ra >= i1) continue;
+    L.push([(cumGeo[Math.max(ra, i0)] - g0) / gT, (cumGeo[Math.min(rb, i1)] - g0) / gT]);
+  }
+  if (!L.length) return expr;
+  var P = [], C = [];
+  for (var s = 3; s + 1 < expr.length; s += 2) { P.push(expr[s]); C.push(expr[s + 1]); }
+  if (!P.length) return expr;
+  var bei = function (p) {
+    if (p <= P[0]) return C[0];
+    if (p >= P[P.length - 1]) return C[C.length - 1];
+    var j = 0; while (j < P.length - 2 && P[j + 1] <= p) j++;
+    var sp = P[j + 1] - P[j];
+    try { return LERP(C[j], C[j + 1], sp > 0 ? (p - P[j]) / sp : 0); } catch (e) { return C[j]; }
+  };
+  var EPS = 1e-5, LEER = "rgba(0,0,0,0)", roh = [];
+  for (var q = 0; q < P.length; q++) {
+    var drin = false;
+    for (var l = 0; l < L.length; l++) if (P[q] > L[l][0] - EPS && P[q] < L[l][1] + EPS) drin = true;
+    if (!drin) roh.push([P[q], C[q]]);
+  }
+  for (var m = 0; m < L.length; m++) {
+    var a = L[m][0], b = L[m][1];
+    if (a - EPS > 0) roh.push([a - EPS, bei(a - EPS)]);
+    roh.push([Math.max(0, a), LEER]); roh.push([Math.min(1, b), LEER]);
+    if (b + EPS < 1) roh.push([b + EPS, bei(b + EPS)]);
+  }
+  roh.sort(function (x, y) { return x[0] - y[0]; });
+  var e = expr.slice(0, 3), letzte = -1;
+  for (var r = 0; r < roh.length; r++) {
+    var pp = Math.max(0, Math.min(1, roh[r][0]));
+    if (pp <= letzte) pp = letzte + 1e-7;
+    if (pp > 1) continue;
+    e.push(pp, roh[r][1]); letzte = pp;
+  }
+  return e;
+  }
   function colorGradientExpr(CD, i0, i1, stopsVal, stopsCol, mode, metricArr){
     if(!CD || i1<=i0 || !stopsVal || !stopsVal.length) return null;
     const d0=CD[i0], dT=CD[i1]-d0; if(!(dT>0)) return null;
@@ -4971,7 +5017,15 @@ function mountAnimator(body, headerActions, opts) {
     // Ausschalten übersprang deshalb das Zurücksetzen. Hier steht jetzt ein Verlauf.
     if (_gradStand) _gradStand.leer = null;
     const st = sortedColorStops();
-    const g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
+    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
+    if (g && _segStarts && _segStarts.length) {
+      if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+      g = gradLueckenStanzen(g, _cumGeoM, i0, i1, _segStarts);
+    }
+    if (_segStarts && _segStarts.length && map.getLayer("preview-shadow")) {
+      const msG = segMaskExpr(_cumGeoM, i0, i1, _segStarts, "rgba(0,0,0,0.7)", null, null);
+      try { map.setPaintProperty("preview-shadow", "line-gradient", msG || null); if (msG) map.setPaintProperty("preview-shadow", "line-dasharray", null); } catch (_) {}
+    }
     for (const id of ["preview-line", "preview-glow"]) {
       if (!map.getLayer(id)) continue;
       try {
