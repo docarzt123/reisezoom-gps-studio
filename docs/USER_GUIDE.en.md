@@ -1769,6 +1769,11 @@ which is added to the archive and opened in the animator right away. Because it
 is a normal track, everything works as usual: keyframes, signs, timeline, trim,
 photos, elevation animator.
 
+**Colour per stage (since v0.9.720):** in the Animator, the “Tracks” section lists one line per
+stage below the merged track, each with a colour field. The colour applies in preview and video
+from the first second; every pick is one ⌘Z step. The colour on the track itself is used for
+stages you have not given a colour of their own.
+
 **Where do they live?** In the archive sidebar under **🧭 Merged**. They
 deliberately do **not** sit among your normal tours and do **not** count in the
 statistics — otherwise the kilometres of the source tours would appear twice.
@@ -2049,6 +2054,10 @@ solid. The checkbox on the left hides a track without deleting it.
 A typical setup: the official trail strong and solid, the planned loops thin and
 dashed, and on top your actual tour, animated. The tracks belong to the project
 and appear in the finished video.
+
+**Order:** drag by the **⠿** handle or use the **▲▼** arrows next to the name (since v0.9.720 —
+on Windows only the arrows work reliably). The bottom track is drawn on top. Several files picked
+at once in the file dialog arrive sorted by file name (01, 02, 03 …).
 
 ### Time-zone magic
 The app reads the `OffsetTimeOriginal` EXIF tag from each photo and converts the

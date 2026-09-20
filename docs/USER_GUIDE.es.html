@@ -1377,6 +1377,7 @@ python app.py</code></pre>
 <p><strong>Valores por etapa:</strong> los campos de superposición ofrecen ahora <strong>Etapa</strong> (nombre), <strong>Etapa n.º</strong> (2 / 4), <strong>En esta etapa</strong> (distancia) y <strong>Tiempo en la etapa</strong>. Cada etapa puede tener además <strong>su propio color</strong>.</p>
 <blockquote><strong>Por cierto:</strong> un GPX con varias etapas (varios <code>&lt;trk&gt;</code> o <code>&lt;trkseg&gt;</code>) también</blockquote>
 <blockquote>se dibuja bien ahora — ya no cruza una línea el mapa entre etapas.</blockquote>
+<p><strong>Color por etapa:</strong> en el Animator, la sección «Tracks» muestra debajo del track combinado una línea por etapa con un campo de color. El color vale en la vista previa y en el vídeo desde el primer segundo; cada elección es un paso de ⌘Z / Ctrl+Z. El color del propio track se usa para las etapas a las que no hayas dado un color propio.</p>
 <h2 id="4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo">4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️</h2>
 <h3 id="qu-hace">Qué hace</h3>
 <p>Anima la <strong>llegada</strong> a una ruta: indicas origen y destino, a partir de ahí se calcula un trayecto y se anima como un track — p. ej. como intro antes del vídeo de senderismo propiamente dicho. El GPX cargado (la caminata) se muestra mientras tanto como <strong>ghost</strong> en el fondo.</p>
@@ -1533,6 +1534,7 @@ python app.py</code></pre>
 <blockquote>*La antigua app en solitario «Reisezoom Geotagger» ya no se compila desde el</blockquote>
 <blockquote>15/08/2026: su única ventaja era prescindir del token de Mapbox, y la app</blockquote>
 <blockquote>completa hace tiempo que no lo necesita.*</blockquote>
+<p><strong>Orden:</strong> arrastra por el asa <strong>⠿</strong> o usa las flechas <strong>▲▼</strong> junto al nombre (desde v0.9.720; en Windows solo las flechas funcionan de forma fiable). La traza de abajo se dibuja encima. Si eliges varios archivos a la vez en el diálogo, llegan ordenados por nombre (01, 02, 03 …).</p>
 <h3 id="qu-hace">Qué hace</h3>
 <p>Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el punto del track que le corresponde. Escribe las coordenadas GPS como tag EXIF en la foto. <strong>Funciona con JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) y vídeo (MP4/MOV/INSV)</strong> (herramienta web: solo JPG).</p>
 <h3 id="flujo-de-trabajo">Flujo de trabajo</h3>

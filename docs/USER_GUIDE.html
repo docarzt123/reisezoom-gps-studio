@@ -1466,6 +1466,7 @@ python app.py</code></pre>
 <li><strong>Dauer</strong> je Übergang und ein <strong>Name</strong> für das Ganze.</li>
 </ul>
 <p>Danach entsteht <strong>eine ganz normale GPX-Datei</strong> — jede Tour wird eine <em>Etappe</em> —, sie wird ins Archiv aufgenommen und gleich im Animator geöffnet. Weil es ein normaler Track ist, geht alles wie sonst: Keyframes, Schilder, Zeitleiste, Trim, Fotos, Höhen-Animator.</p>
+<p><strong>Farbe je Etappe:</strong> Im Animator steht in der Sektion „Tracks“ unter dem zusammengeführten Track eine Zeile je Etappe mit einem Farbfeld. Die Farbe gilt in der Vorschau und im Video von der ersten Sekunde an; jede Farbwahl ist ein ⌘Z-Schritt. Die Farbe oben am Track selbst gilt für Etappen, denen du keine eigene gegeben hast.</p>
 <p><strong>Wo liegen sie?</strong> In der Seitenleiste des Archivs im eigenen Bereich <strong>🧭 Zusammengefügt</strong>. Sie stehen bewusst <strong>nicht</strong> bei den normalen Touren und zählen <strong>nicht</strong> in der Statistik mit — sonst stünden die Kilometer deiner Quelltouren ein zweites Mal in der Bilanz.</p>
 <p><strong>Was das Video zeigt:</strong> Strecke und Zeit sind die <strong>Summe deiner Touren</strong> — der Übergang zählt nicht mit. Während eines unsichtbaren Übergangs fliegt nur die Kamera: kein Laufpunkt, keine wachsende Linie, die Zahlen stehen still.</p>
 <p><strong>Etappen-Werte einblenden:</strong> In den Overlay-Feldern gibt es jetzt zusätzlich <strong>Etappe</strong> (Name), <strong>Etappe Nr.</strong> (2 / 4), <strong>In dieser Etappe</strong> (Strecke) und <strong>Zeit in der Etappe</strong>. So läuft links der Tageswert mit, während rechts die Gesamtsumme weiterzählt. Jede Etappe kann außerdem <strong>ihre eigene Farbe</strong> haben.</p>
@@ -1671,6 +1672,7 @@ python app.py</code></pre>
 <blockquote><strong>👻 Als Ghost-Spur übernehmen</strong> (auch im Karten-Popup). Mehrere auf einmal:</blockquote>
 <blockquote>mit ⌘/Strg-Klick markieren und „👻 Diese N als Ghost-Spuren übernehmen&quot;.</blockquote>
 <p>Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.</p>
+<p><strong>Reihenfolge:</strong> am Griff <strong>⠿</strong> ziehen oder die Pfeile <strong>▲▼</strong> neben dem Namen nutzen (seit v0.9.720 — auf Windows geht nur der Weg über die Pfeile zuverlässig). Die unterste Spur liegt obenauf. Wählst du im Datei-Dialog mehrere Dateien auf einmal, kommen sie nach Dateiname geordnet an (01, 02, 03 …).</p>
 <p>Ein typischer Aufbau: der offizielle Weg kräftig und durchgezogen, die geplanten Runden dünn gestrichelt, und darüber läuft animiert deine tatsächliche Tour. Die Spuren gehören zum Projekt und sind im fertigen Video zu sehen.</p>
 <h3 id="zeitzonen-magie">Zeitzonen-Magie</h3>
 <p>Die App liest den <code>OffsetTimeOriginal</code>-EXIF-Tag aus jedem Foto und rechnet die Aufnahmezeit nach UTC um. Schreibt deine Kamera diesen Tag, passt der Track <strong>sofort</strong>, ohne dass du irgendetwas einstellst.</p>

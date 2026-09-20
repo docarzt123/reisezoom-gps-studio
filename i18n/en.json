@@ -4059,5 +4059,10 @@
   "vorgang.zip": "Packing the library into the ZIP file: file {i} of {g}",
   "vorgang.doppelte": "Comparing route, length and times of all tours in the archive — takes a while with many tours",
   "fotos.kt_ruhig": "{n} taken over from unchanged folders",
-  "fotos.kt_danach": "Then step 2: reads capture time, location and camera of the new files and creates previews — {n} files are waiting for that right now. It carries on in the background and picks up next time where it stopped."
+  "fotos.kt_danach": "Then step 2: reads capture time, location and camera of the new files and creates previews — {n} files are waiting for that right now. It carries on in the background and picks up next time where it stopped.",
+  "animator.etappenfarben.title": "Colour per stage",
+  "animator.etappenfarben.etappe": "Stage",
+  "ghosts.up": "Move up",
+  "ghosts.down": "Move down",
+  "ghosts.reorder_undo": "Order of extra tracks"
 }

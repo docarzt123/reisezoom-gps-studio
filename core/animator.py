@@ -1800,14 +1800,21 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, sta
     var a = segStarts[k][0], b = segStarts[k][1];
     if (b <= i0 || a >= i1) continue;             // Stück liegt außerhalb
     a = Math.max(a, i0); b = Math.min(b, i1);
-    luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT]);
+    luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT, segStarts[k][0], segStarts[k][1]]);
   }
-  if (!luecken.length) return null;
   var farbeBei = function (idx) {
     if (!tourFarben || !stageNr) return farbe;
     var c = tourFarben[stageNr[Math.max(0, Math.min(stageNr.length - 1, idx))]];
     return c || farbe;
   };
+  // 20.09.2026 — ohne Lücke in der Spanne gilt trotzdem die Etappenfarbe (vorher
+  // allgemeine Track-Farbe, bis der erste Übergang kam). Synchron zu segMaskExpr.
+  if (!luecken.length) {
+    if (!tourFarben || !stageNr) return null;
+    var c0 = farbeBei(i0), c1 = farbeBei(i1);
+    if (c0 === farbe && c1 === farbe) return null;
+    return ["interpolate", ["linear"], ["line-progress"], 0, c0, 1, c1];
+  }
   var LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbeBei(i0)], letzte = 0;
   var setz = function (p, c) {
     p = Math.max(0, Math.min(1, p));
@@ -1816,7 +1823,7 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, sta
     letzte = p; e.push(p, c);
   };
   for (var l = 0; l < luecken.length; l++) {
-    var vorIdx = segStarts[l] ? segStarts[l][0] : i0, nachIdx = segStarts[l] ? segStarts[l][1] : i1;
+    var vorIdx = luecken[l][2], nachIdx = luecken[l][3];
     setz(luecken[l][0] - 1e-5, farbeBei(vorIdx));
     setz(luecken[l][0], LEER);
     setz(luecken[l][1], LEER);
@@ -1960,6 +1967,15 @@ WASSERZEICHEN_STANDARD = "wm-lockup-white.png"
 # gespeichertes thumb (z. B. 220 px aus dem Geotagger-Import) reicht also bei
 # vielen Schildern (dpr klein) und wird bei wenigen einmal nachgerechnet.
 SIGN_BILD_VOLL_PX = 600
+# 20.09.2026 (Beta-Tester: „Fotos im fertigen Video unscharf"): Im Render wird das
+# Schild um render_scale vergrößert (4K gegen ~1080 px Vorschau ≈ 3,6×). Ein mit
+# 600 px gerastertes Foto stand dann über 1000 px breit im Bild. Solange wenige
+# Bild-Schilder da sind, rastert der Render deshalb feiner (Faktor _sign_schaerfe),
+# gedeckelt je Schild auf SIGN_BILD_RENDER_MAX_PX Bildbreite. Das Pixel-Gesamtbudget
+# (≈ 200 Schilder à 600 px) bleibt: Faktor² · Anzahl ≤ 200. Die Größe auf dem Bild
+# ändert sich nicht (addImage pixelRatio = dasselbe Maß). Nur der Render — die
+# Vorschau ist klein genug für 600 px. Spiegel im JS-Block unten (signs_block).
+SIGN_BILD_RENDER_MAX_PX = 1440   # größer bläht den Symbol-Atlas je Kachel auf (Software-GL: 8192 px Grenze)
 SIGN_BILD_VOLL_ANZAHL = 200      # synchron zu ui/js/sign_draw.js RZ_SIGN_BILD_VOLL
 SIGN_JS_LADESTAPEL = 100         # Bilder je Ladestapel im Browser (statt einem Promise.all über alle)
 
@@ -1972,14 +1988,46 @@ def _sign_bild_dpr(anzahl_bildschilder: int) -> float:
     return max(0.5, round(2 * math.sqrt(SIGN_BILD_VOLL_ANZAHL / n) * 100) / 100)
 
 
-def _sign_bild_bedarf_px(s: dict, dpr: float) -> int:
+def _sign_schaerfe(anzahl_bildschilder: int, render_scale: float) -> float:
+    """Wie viel feiner der Render Bild-Schilder rastert (1 = wie die Vorschau)."""
+    n = max(1, int(anzahl_bildschilder or 0))
+    try:
+        ss = float(render_scale or 1.0)
+    except (TypeError, ValueError):
+        ss = 1.0
+    return max(1.0, min(ss, math.sqrt(SIGN_BILD_VOLL_ANZAHL / n)))
+
+
+def _sign_bild_dpr_fuer(s: dict, dpr: float, schaerfe: float = 1.0) -> float:
+    """Pixelmaß für EIN Bild-Schild im Render: dpr · Schärfe, je Schild gedeckelt."""
+    try:
+        img_sz = float(s.get("imageSize") or 60)
+    except (TypeError, ValueError):
+        img_sz = 60.0
+    breite = max(80.0, round(img_sz * 5))
+    return max(float(dpr), min(float(dpr) * float(schaerfe), SIGN_BILD_RENDER_MAX_PX / breite))
+
+
+def _sign_bild_bedarf_px(s: dict, dpr: float, schaerfe: float = 1.0) -> int:
     """Längste Kante, die der Render für dieses Schild braucht (siehe oben)."""
     try:
         img_sz = float(s.get("imageSize") or 60)
     except (TypeError, ValueError):
         img_sz = 60.0
+    if schaerfe and schaerfe > 1.0:
+        breite = max(80.0, round(img_sz * 5)) * _sign_bild_dpr_fuer(s, dpr, schaerfe)
+        return int(min(SIGN_BILD_RENDER_MAX_PX, max(64, math.ceil(breite))))
     breite = max(80.0, round(img_sz * 5)) * float(dpr)
     return int(min(SIGN_BILD_VOLL_PX, max(64, math.ceil(breite))))
+
+
+def _sign_cache_px(bedarf_px: int) -> int:
+    """Cache-Größe für den Bedarf — wenige feste Stufen, damit je Datei nicht
+    für jede Schildgröße ein eigener Eintrag entsteht."""
+    for stufe in (SIGN_BILD_VOLL_PX, 1000, SIGN_BILD_RENDER_MAX_PX):
+        if bedarf_px <= stufe:
+            return stufe
+    return SIGN_BILD_RENDER_MAX_PX
 
 
 def _data_url_kante_px(data_url) -> Optional[int]:
@@ -2019,7 +2067,7 @@ def _sign_thumb_fuer(s: dict, bedarf_px: int) -> Optional[str]:
             if os.path.exists(src):
                 # Immer in voller Größe in den Cache — ein Eintrag je Datei, egal
                 # wie viele Schilder gerade da sind (der Schlüssel enthält die Größe).
-                aus_cache = _cphotos.thumb_data_url_gecacht(src, SIGN_BILD_VOLL_PX)
+                aus_cache = _cphotos.thumb_data_url_gecacht(src, _sign_cache_px(bedarf_px))
                 if aus_cache:
                     return aus_cache
         except Exception:
@@ -2028,7 +2076,7 @@ def _sign_thumb_fuer(s: dict, bedarf_px: int) -> Optional[str]:
     return eigenes or None
 
 
-def sign_thumbs_vorbereiten(signs: list) -> dict:
+def sign_thumbs_vorbereiten(signs: list, render_scale: float = 1.0) -> dict:
     """Setzt `thumb` für jedes Schild mit Bild (in place) und zählt, woher es kam.
 
     Rückgabe: {"uebernommen": n, "cache": n, "keins": n, "sekunden": t} —
@@ -2037,9 +2085,10 @@ def sign_thumbs_vorbereiten(signs: list) -> dict:
     mit_bild = [s for s in signs if (s.get("imageSrc") or "").strip() or s.get("thumb")]
     # dpr zählt wie der Browser (__signs.filter(s => s.imageSrc)): nur Schilder mit Pfad.
     dpr = _sign_bild_dpr(sum(1 for s in mit_bild if (s.get("imageSrc") or "").strip()))
+    schaerfe = _sign_schaerfe(sum(1 for s in mit_bild if (s.get("imageSrc") or "").strip()), render_scale)
     zaehler = {"uebernommen": 0, "cache": 0, "keins": 0}
     for s in mit_bild:
-        bedarf = _sign_bild_bedarf_px(s, dpr)
+        bedarf = _sign_bild_bedarf_px(s, dpr, schaerfe)
         vorher = s.get("thumb") if isinstance(s.get("thumb"), str) else None
         thumb = _sign_thumb_fuer(s, bedarf)
         s["thumb"] = thumb
@@ -2051,10 +2100,11 @@ def sign_thumbs_vorbereiten(signs: list) -> dict:
             zaehler["cache"] += 1
     zaehler["sekunden"] = round(time.time() - t0, 3)
     zaehler["dpr"] = dpr
+    zaehler["schaerfe"] = schaerfe
     if mit_bild:
-        _log.info("[schilder] %d Bild-Schilder: %d übernommen, %d aus Cache/erzeugt, %d ohne Bild (%.2f s, dpr %.2f)",
+        _log.info("[schilder] %d Bild-Schilder: %d übernommen, %d aus Cache/erzeugt, %d ohne Bild (%.2f s, dpr %.2f, Schärfe ×%.2f)",
                  len(mit_bild), zaehler["uebernommen"], zaehler["cache"], zaehler["keins"],
-                 zaehler["sekunden"], dpr)
+                 zaehler["sekunden"], dpr, schaerfe)
     return zaehler
 
 
@@ -2861,7 +2911,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         # 14.09.2026 — Vorschaubilder NICHT mehr je Render aus den Originalen
         # rechnen: gespeichertes `thumb` des Schilds oder Platten-Cache
         # (sign_thumbs_vorbereiten, oben). Setzt s["thumb"] in place.
-        sign_thumbs_vorbereiten(_signs_input)
+        sign_thumbs_vorbereiten(_signs_input, float(getattr(cfg, "render_scale", 1.0) or 1.0))
         def _sign_thumb(s):
             th = s.get("thumb")
             return th if isinstance(th, str) and th else None
@@ -2969,6 +3019,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             # 14.09.2026 — Pixelmaß nach Zahl der Bild-Schilder, synchron zur Vorschau
             # (modules/animator/ui/module.js _animSignsAttachGPU, ui/js/sign_draw.js rzSignDpr).
             "  const __dprBild = window.__rzSignDpr ? window.__rzSignDpr(__signs.filter(s => s.imageSrc).length) : 2;\n"
+            # 20.09.2026 — Render rastert Bild-Schilder feiner (siehe SIGN_BILD_RENDER_MAX_PX).
+            f"  const __nBild = __signs.filter(s => s.imageSrc).length;\n"
+            f"  const __schaerfe = Math.max(1, Math.min({_ss:.4f}, Math.sqrt({SIGN_BILD_VOLL_ANZAHL} / Math.max(1, __nBild))));\n"
+            f"  const __dprFuer = (s) => {{ const w = Math.max(80, Math.round((Number(s.imageSize) || 60) * 5)); return Math.max(__dprBild, Math.min(__dprBild * __schaerfe, {SIGN_BILD_RENDER_MAX_PX} / w)); }};\n"
             "  const __loadImg = (src) => new Promise(res => { const im = new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; });\n"
             # 14.09.2026 — Bilder in Stapeln (SIGN_JS_LADESTAPEL) laden und gleich
             # einhängen, statt EIN Promise.all über alle 2830 Bilder zu halten:
@@ -2984,7 +3038,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "      const s = __signs[i], __img = __imgs[i - __von];\n"
             "      const id = 'sign-img-'+i;\n"
             "      let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
-            "      try { const o = Object.assign({}, s); if (__img) o.image = __img; if (s.imageSrc && __dprBild !== 2) o.__dpr = __dprBild; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
+            "      try { const o = Object.assign({}, s); if (__img) o.image = __img; if (s.imageSrc) o.__dpr = __dprFuer(s); const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
             "      s.thumb = null;\n"
             "      const meta = __signMetas[i];\n"
             "      __feats[i] = { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, popScale: 1 },\n"

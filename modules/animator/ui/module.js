@@ -506,6 +506,9 @@ function mountAnimator(body, headerActions, opts) {
           </button>
           <!-- 09.09.2026 — Farbverlauf („Mehrere Track-Farben") gilt für Track 1; aus der
                unsichtbaren Linie-Sektion hierher, sonst wäre er unerreichbar (test_farbstufen_felder). -->
+          <!-- 20.09.2026 — Farbe je Etappe eines zusammengeführten Tracks (tour_colors).
+               Bisher nur beim Zusammenführen vergeben und nirgends änderbar. -->
+          <div id="anim-etappenfarben" class="anim-etappenfarben" hidden></div>
           <div id="anim-colors-block" style="margin-top:10px;">
           <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
                nach Distanz (km / Marker / Wegpunkt) oder nach einer Messreihe —
@@ -1720,6 +1723,7 @@ function mountAnimator(body, headerActions, opts) {
       // 10.09.2026 — Tracks/Gruppen/Aussehen, Tempo-Spur, Ghost-Spuren, Laufpunkt
       // liegen im Speicher des Moduls, nicht in gebundenen Feldern: aus dem
       // wiederhergestellten Block nachziehen.
+      try { _etappenFarbenZeichnen(); } catch (_) {}
       try { _animUndoNachziehen(snap); } catch (e) { try { applog("warn", "[undo] nachziehen: " + e); } catch (_) {} }
       // 4) Keyframe-/Trim-/Timeline-spezifische Wiederherstellung (wie bisher).
       const masterCb = document.getElementById("anim-kf-enabled");
@@ -2412,6 +2416,40 @@ function mountAnimator(body, headerActions, opts) {
       _trackColorStops.splice(i, 1); persistColorStops(); renderColorStops(); refreshPreviewTrackData();
     });
   })();
+  /** 20.09.2026 (Beta-Tester, drei Touren kombiniert: „die Farben, die ich wähle,
+   *  kommen nicht an") — er färbte die Zusatzspuren um, weil es für die Etappen des
+   *  zusammengeführten Tracks gar keine Farbwahl gab. Eine Zeile je Etappe; die Werte
+   *  liegen in `tour_colors` (Modul-Einstellungen → Undo und Render nehmen sie mit). */
+  function _etappenFarbenZeichnen() {
+    const box = document.getElementById("anim-etappenfarben");
+    if (!box) return;
+    const st = _ovSeries && _ovSeries.stage;
+    if (!st || !(st.gesamt > 1) || !Array.isArray(st.nr)) { box.hidden = true; box.innerHTML = ""; return; }
+    const etappen = []; const gesehen = new Set();
+    st.nr.forEach((nr, i) => { if (nr == null || gesehen.has(nr)) return; gesehen.add(nr); etappen.push({ nr, name: (st.name && st.name[i]) || "" }); });
+    const farben = _tourFarben() || {};
+    const esc_ = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    box.hidden = false;
+    box.innerHTML = `<div class="field-label">${t("animator.etappenfarben.title", "Farbe je Etappe")}</div>` + etappen.map(e => `
+      <label class="anim-etappenfarbe-row" title="${esc_(e.name)}">
+        <input type="color" class="anim-etappenfarbe" data-nr="${esc_(e.nr)}" value="${esc_(farben[e.nr] || farben[String(e.nr)] || currentLineColor())}">
+        <span class="anim-etappenfarbe-nr">${esc_(e.nr)}</span>
+        <span class="anim-etappenfarbe-name">${esc_(e.name || (t("animator.etappenfarben.etappe", "Etappe") + " " + e.nr))}</span>
+      </label>`).join("");
+    box.querySelectorAll(".anim-etappenfarbe").forEach(inp => {
+      let gemerkt = false;
+      inp.addEventListener("input", () => {
+        // Ein Undo-Schritt je Farbwahl (der Farbwähler feuert beim Ziehen dutzendfach).
+        if (!gemerkt) { gemerkt = true; try { const uc = window.__rzUndoControllers && window.__rzUndoControllers[_MODKEY]; if (uc) uc.push(t("animator.etappenfarben.title", "Farbe je Etappe"), { force: true }); } catch (_) {} }
+        const neu = Object.assign({}, _tourFarben() || {});
+        neu[String(inp.dataset.nr)] = inp.value;
+        try { saveProjectSettings(_MODKEY, { tour_colors: neu }); } catch (_) {}
+        try { refreshPreviewTrackData(); } catch (_) {}
+      });
+      inp.addEventListener("change", () => { gemerkt = false; try { applog("info", `[etappenfarbe] ${inp.dataset.nr} → ${inp.value}`); } catch (_) {} });
+    });
+  }
+  window.__animEtappenFarbenZeichnen = _etappenFarbenZeichnen;
   function syncColorsUi() {
     const cb = document.getElementById("anim-colors-enabled");
     const hide = !cb || !cb.checked;
@@ -2903,13 +2941,25 @@ function mountAnimator(body, headerActions, opts) {
     for (const [ra, rb] of segStarts) {
       if (rb <= i0 || ra >= i1) continue;
       const a = Math.max(ra, i0), b = Math.min(rb, i1);
-      luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT]);
+      // 20.09.2026 — die Original-Indizes mitführen: die Farbe vor/nach der Lücke wurde
+      // über die POSITION in `luecken` gesucht; lag eine frühere Lücke außerhalb der
+      // Spanne, griff das die falsche Etappe.
+      luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT, ra, rb]);
     }
-    if (!luecken.length) return null;
     const farbeBei = (idx) => {
       if (!tourFarben || !stageNr) return farbe;
       return tourFarben[stageNr[Math.max(0, Math.min(stageNr.length - 1, idx))]] || farbe;
     };
+    // 20.09.2026 (Beta-Tester, drei Touren kombiniert: „die erste Etappe hat erst die
+    // falsche Farbe und wechselt, sobald die zweite beginnt"): ohne Lücke in der Spanne
+    // gab es keine Maske — die Linie nahm die allgemeine Track-Farbe, bis der erste
+    // Übergang ins Bild kam. Mit Etappenfarben gilt jetzt von Anfang an deren Farbe.
+    if (!luecken.length) {
+      if (!tourFarben || !stageNr) return null;
+      const c0 = farbeBei(i0), c1 = farbeBei(i1);
+      if (c0 === farbe && c1 === farbe) return null;
+      return ["interpolate", ["linear"], ["line-progress"], 0, c0, 1, c1];
+    }
     const LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbeBei(i0)];
     let letzte = 0;
     const setz = (p, c) => {
@@ -2918,8 +2968,7 @@ function mountAnimator(body, headerActions, opts) {
       if (p >= 1) return;
       letzte = p; e.push(p, c);
     };
-    luecken.forEach(([a, b], k) => {
-      const vor = segStarts[k] ? segStarts[k][0] : i0, nach = segStarts[k] ? segStarts[k][1] : i1;
+    luecken.forEach(([a, b, vor, nach]) => {
       setz(a - 1e-5, farbeBei(vor)); setz(a, LEER); setz(b, LEER); setz(b + 1e-5, farbeBei(nach));
     });
     e.push(1, farbeBei(i1));
@@ -3257,6 +3306,10 @@ function mountAnimator(body, headerActions, opts) {
           <input type="checkbox" class="ghost-show" ${g.show === false ? "" : "checked"}
                  title="${esc(t("ghosts.show", "Anzeigen"))}">
           <span class="ghost-name" title="${esc(g.name || "")}">${esc(g.name || "—")}</span>
+          <button class="ghost-hoch btn-ghost" type="button" ${i === 0 ? "disabled" : ""}
+                  title="${esc(t("ghosts.up", "Nach oben"))}">▲</button>
+          <button class="ghost-runter btn-ghost" type="button" ${i === spuren.length - 1 ? "disabled" : ""}
+                  title="${esc(t("ghosts.down", "Nach unten"))}">▼</button>
           <button class="ghost-del btn-ghost" type="button"
                   title="${esc(t("ghosts.remove", "Entfernen"))}">✕</button>
         </div>
@@ -3303,6 +3356,19 @@ function mountAnimator(body, headerActions, opts) {
       row.querySelector(".ghost-op").oninput = (e) => { spur().opacity = parseInt(e.target.value, 10) / 100; nachAenderung(); };
       row.querySelector(".ghost-w").oninput = (e) => { spur().width = parseFloat(e.target.value); nachAenderung(); };
       row.querySelector(".ghost-dashed").onchange = (e) => { spur().dashed = e.target.checked; nachAenderung(); };
+      // 20.09.2026 (Beta-Tester, Windows: „lässt sich nicht verschieben") — Ziehen am
+      // Griff hängt an HTML5-Drag&Drop, das die Windows-WebView nicht zuverlässig
+      // liefert. Die Pfeile gehen überall (und mit der Tastatur).
+      const schieben = (um) => {
+        const liste = ghostSpuren(), nach = i + um;
+        if (nach < 0 || nach >= liste.length) return;
+        try { const uc = window.__rzUndoControllers && window.__rzUndoControllers[_MODKEY]; if (uc) uc.push(t("ghosts.reorder_undo", "Reihenfolge der Zusatzspuren"), { force: true }); } catch (_) {}
+        const [bewegt] = liste.splice(i, 1);
+        liste.splice(nach, 0, bewegt);
+        ghostSpurenSichern(); _ghostSpurenAufbauen(); _ghostListeZeichnen();
+      };
+      row.querySelector(".ghost-hoch").onclick = () => schieben(-1);
+      row.querySelector(".ghost-runter").onclick = () => schieben(1);
       row.querySelector(".ghost-del").onclick = () => {
         const weg = ghostSpuren().splice(i, 1)[0];
         ghostSpurenSichern(); _ghostSpurenAufbauen(); _ghostListeZeichnen();
@@ -4900,6 +4966,10 @@ function mountAnimator(body, headerActions, opts) {
       _colorsPrevOn = !!m;
       return;
     }
+    // 20.09.2026 (Beta-Tester, Windows: „Mehrere Track-Farben" aus → Track bleibt bunt):
+    // der Merker „kein Verlauf gesetzt" wurde beim Einschalten nie gelöscht — das
+    // Ausschalten übersprang deshalb das Zurücksetzen. Hier steht jetzt ein Verlauf.
+    if (_gradStand) _gradStand.leer = null;
     const st = sortedColorStops();
     const g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
     for (const id of ["preview-line", "preview-glow"]) {
@@ -10343,10 +10413,36 @@ function mountAnimator(body, headerActions, opts) {
               _animSetImgEl(s, im);   // non-enumerable → wird NICHT persistiert
               s._imgLoading = false; s._imgFailed = false; s._imgBroken = false;
               resolve(true);
+              if (allowRegen) nachschaerfen(im);
             } else { allowRegen ? regen() : fail(); }
           };
           im.onerror = () => { allowRegen ? regen() : fail(); };
           im.src = dataUrl;
+        };
+        // 20.09.2026 (Beta-Tester: „importierte Fotos sind unscharf"): „Fotos hinzufügen"
+        // gibt dem Schild nur das 128-px-Listenbild mit. Das reicht, um sofort etwas zu
+        // zeigen — gezeichnet wird das Bild aber bis 600 px breit. Ist das gespeicherte
+        // Bild kleiner als der Bedarf, holen wir im Hintergrund das große nach und
+        // tauschen es ein (einmal je Schild; fehlt die Datei, bleibt das kleine).
+        const nachschaerfen = (klein) => {
+          try {
+            if (s._scharfVersucht) return;
+            const breite = Math.max(80, Math.round((Number(s.imageSize) || 60) * 5));
+            const bedarf = Math.min(600, breite * _animSignsDprBild());
+            const kante = Math.max(klein.naturalWidth || 0, klein.naturalHeight || 0);
+            if (kante >= bedarf * 0.9) return;
+            Object.defineProperty(s, "_scharfVersucht", { value: true, enumerable: false, writable: true, configurable: true });
+            api().sign_image_thumb(s.imageSrc).then((r) => {   // warte-ok: Hintergrund, das kleine Bild steht schon
+              if (!(r && r.ok && r.thumb)) return;
+              const gross = new Image();
+              gross.onload = () => {
+                if (!(gross.naturalWidth > kante)) return;
+                s.thumb = r.thumb; _animSetImgEl(s, gross);
+                try { _animSignsKarteBald(); } catch (_) {}
+              };
+              gross.src = r.thumb;
+            }).catch(() => {});
+          } catch (_) {}
         };
         const regen = () => {
           try {
@@ -14268,6 +14364,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
     try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
+    try { _etappenFarbenZeichnen(); } catch (_) {}   // 20.09.2026 — Farbe je Etappe
     try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
     document.getElementById("anim-stats-empty").hidden = true;
@@ -14678,6 +14775,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
     try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
+    try { _etappenFarbenZeichnen(); } catch (_) {}   // 20.09.2026 — Farbe je Etappe
     try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     try {
       document.getElementById("anim-stats-empty").hidden = true;

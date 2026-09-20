@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.719"
+APP_VERSION = "0.9.720"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -5935,6 +5935,13 @@ class Api:
             pfade = [str(x) for x in (pfade or []) if x]
             if not pfade:
                 return {"ok": True, "ghosts": [], "cancelled": True}
+            if aus_dialog:
+                # 20.09.2026 (Beta-Tester, Windows): der Datei-Dialog liefert eine
+                # Mehrfachauswahl in eigener Reihenfolge (dort: zuletzt gewählte zuerst →
+                # „03, 02, 01"). Nach Dateiname ordnen, Zahlen als Zahlen.
+                def _natuerlich(pf):
+                    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", Path(pf).name)]
+                pfade.sort(key=_natuerlich)
             raus, fehler = [], []
             for pf in pfade:
                 try:
@@ -9110,6 +9117,34 @@ class Api:
         log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
         return {"ok": True, "datei": str(ziel), "name": ziel.name, "geo_hash": geo_hash, "projekte": n_proj}
 
+    @staticmethod
+    def _export_namensvorschlag(conn, geo_hash: str, sess, src: str) -> str:
+        """Dateiname, den der Projekt-Export vorschlägt (ohne Endung).
+
+        20.09.2026 (Beta-Tester, Windows): vorgeschlagen wurde der Name der
+        Track-Datei — liegt die im Bibliotheks-Speicher (touren/65/<hash>.gpx.gz),
+        hieß das Projekt im Dialog „6537f309fd0535ec.gpx". Reihenfolge jetzt:
+        Name der Tour im Projekt-Store → Name in der Bibliothek → Dateiname."""
+        name = ""
+        try:
+            name = str((sess or {}).get("name") or "").strip()
+        except Exception:
+            name = ""
+        if not name and conn is not None and geo_hash:
+            try:
+                with clib._DB_LOCK:
+                    z = conn.execute("SELECT name FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
+                name = str((z[0] if z else "") or "").strip()
+            except Exception:
+                name = ""
+        if not name:
+            name = Path(src).name
+            for endung in (".gz", ".gpx", ".fit", ".kml", ".tcx"):
+                if name.lower().endswith(endung):
+                    name = name[: -len(endung)]
+        name = re.sub(r"[^\w\-. ]+", "_", name).strip(" ._")
+        return name or "projekt"
+
     @_nur_einmal("projekte")
     def projekt_exportieren(self, gpx_path: str = "", ziel: str = "", kontext: str = "") -> dict:
         """Aktuellen Track + alle Projekte der Session als .rzproj speichern.
@@ -9150,7 +9185,7 @@ class Api:
                 roh = archiv_m.umschlag_bauen(conn, geo_hash, gpx_pfad=gpx_datei,
                                               projekte=sess, zeile_ersatz=ersatz)
             if not ziel:
-                default_name = re.sub(r"[^\w\-. ]+", "_", Path(src).stem) + ".rzproj"
+                default_name = self._export_namensvorschlag(conn, geo_hash, sess, src) + ".rzproj"
                 ziel = self.pick_save_path(default_name, str(Path.home()), ["Reisezoom-Projekt (*.rzproj)"])
                 if not ziel:
                     return {"ok": False, "cancelled": True}
