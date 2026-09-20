@@ -8756,7 +8756,8 @@ function mountAnimator(body, headerActions, opts) {
                              return !rp || _pfadNFC(currentGpx || "") === _pfadNFC(rp); })(),
              gpx: currentGpx || null,
              pending: !!(window.__rzPendingTours && window.__rzPendingTours.length) || !!window.__rzUebergabeLaeuft, extra: (_extraTours || []).length,
-             modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase };
+             modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase,
+             schilderLaden: (typeof window.__rzSchilderLaden === "function") ? window.__rzSchilderLaden() : 0 };
   };
   window.__rzPreviewRun = () => { window.__rzStepMode = true; runTimelinePreview(true); };
   // 08.09.2026 — Prüfstand: Probe-Lauf ab einer Leisten-Position (0..1) starten, wie ein Klick auf
@@ -10466,8 +10467,8 @@ function mountAnimator(body, headerActions, opts) {
             if (im.naturalWidth > 0) {
               _animSetImgEl(s, im);   // non-enumerable → wird NICHT persistiert
               s._imgLoading = false; s._imgFailed = false; s._imgBroken = false;
-              resolve(true);
-              if (allowRegen) nachschaerfen(im);
+              if (allowRegen && window.__rzRenderMode) nachschaerfen(im, () => resolve(true));   // Render: erst das große Bild, dann weiter
+              else { resolve(true); if (allowRegen) nachschaerfen(im); }
             } else { allowRegen ? regen() : fail(); }
           };
           im.onerror = () => { allowRegen ? regen() : fail(); };
@@ -10478,25 +10479,34 @@ function mountAnimator(body, headerActions, opts) {
         // zeigen — gezeichnet wird das Bild aber bis 600 px breit. Ist das gespeicherte
         // Bild kleiner als der Bedarf, holen wir im Hintergrund das große nach und
         // tauschen es ein (einmal je Schild; fehlt die Datei, bleibt das kleine).
-        const nachschaerfen = (klein) => {
+        const nachschaerfen = (klein, fertig) => {
+          const ende = () => { if (fertig) { const f = fertig; fertig = null; try { f(); } catch (_) {} } };
           try {
-            if (s._scharfVersucht) return;
+            if (s._scharfVersucht) { ende(); return; }
             const breite = Math.max(80, Math.round((Number(s.imageSize) || 60) * 5));
-            const bedarf = Math.min(600, breite * _animSignsDprBild());
+            const deckel = window.__rzRenderMode ? _SIGN_BILD_RENDER_MAX_PX : 600;
+            const bedarf = Math.min(deckel, Math.ceil(breite * _animSignDprFuer(s, _animSignsDprBild())));
             const kante = Math.max(klein.naturalWidth || 0, klein.naturalHeight || 0);
-            if (kante >= bedarf * 0.9) return;
+            if (kante >= bedarf * 0.9) { ende(); return; }
+            const stufe = bedarf <= 600 ? 600 : (bedarf <= 1000 ? 1000 : _SIGN_BILD_RENDER_MAX_PX);
+            if (fertig) setTimeout(ende, 15000);   // Render nie an einem Bild hängen lassen
             Object.defineProperty(s, "_scharfVersucht", { value: true, enumerable: false, writable: true, configurable: true });
-            api().sign_image_thumb(s.imageSrc).then((r) => {   // warte-ok: Hintergrund, das kleine Bild steht schon
-              if (!(r && r.ok && r.thumb)) return;
+            api().sign_image_thumb(s.imageSrc, stufe).then((r) => {   // warte-ok: Hintergrund, das kleine Bild steht schon
+              if (!(r && r.ok && r.thumb)) { ende(); return; }
               const gross = new Image();
               gross.onload = () => {
-                if (!(gross.naturalWidth > kante)) return;
-                s.thumb = r.thumb; _animSetImgEl(s, gross);
-                try { _animSignsKarteBald(); } catch (_) {}
+                if (gross.naturalWidth > kante) {
+                  // Im Render-Modus das große Bild NICHT ins Projekt schreiben (nur für diesen Lauf).
+                  if (!window.__rzRenderMode) s.thumb = r.thumb;
+                  _animSetImgEl(s, gross);
+                  try { _animSignsKarteBald(); } catch (_) {}
+                }
+                ende();
               };
+              gross.onerror = ende;
               gross.src = r.thumb;
-            }).catch(() => {});
-          } catch (_) {}
+            }).catch(ende);
+          } catch (_) { ende(); }
         };
         const regen = () => {
           try {
@@ -10690,6 +10700,27 @@ function mountAnimator(body, headerActions, opts) {
       const l = list || _animSignsList().filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
       return window.__rzSignDpr ? window.__rzSignDpr(l.filter(s => s.imageSrc).length) : 2;
     }
+    /** 20.09.2026 — Pixelmaß für EIN Bild-Schild. In der Vorschau wie bisher (`dprBild`). Im
+     *  Render-Modus (core/szene.py fährt diese Vorschau kopflos mit hoher Pixeldichte, 4K ≈ 4,4)
+     *  wurde das mit 2 gerasterte Foto sonst hochskaliert → weich. Dort feiner, gedeckelt je Schild
+     *  auf 1440 px Bildbreite und im Gesamtbudget (Faktor² · Anzahl ≤ 200). Spiegel der Regel in
+     *  core/animator.py (_sign_schaerfe / _sign_bild_dpr_fuer) — bei Änderung beide pflegen. */
+    const _SIGN_BILD_RENDER_MAX_PX = 1440;
+    /** Für core/szene.py: wie viele sichtbare Bild-Schilder warten noch auf ihr Bild? Der Render
+     *  beginnt erst bei 0 (vorher pauschal 2,5 s — zu knapp, wenn große Bilder nachgerechnet werden). */
+    window.__rzSchilderLaden = () => {
+      try { if (!map || !_animSignsShow()) return 0;   // aus = es wird nichts geladen, also auch nicht warten
+        return _animSignsList().filter(x => x && x.imageSrc && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length; }
+      catch (_) { return 0; }
+    };
+    function _animSignDprFuer(s, dprBild, nBild) {
+      if (!window.__rzRenderMode || !s || !s.imageSrc) return dprBild;
+      const geraet = Math.max(1, Number(window.devicePixelRatio) || 1);
+      const n = Math.max(1, nBild || _animSignsList().filter(x => x.imageSrc && x.visible !== false).length);
+      const f = Math.max(1, Math.min(geraet / 2, Math.sqrt(200 / n)));
+      const w = Math.max(80, Math.round((Number(s.imageSize) || 60) * 5));
+      return Math.max(dprBild, Math.min(dprBild * f, _SIGN_BILD_RENDER_MAX_PX / w));
+    }
     /** 14.09.2026 — ein Bild-Schild gleich nach dem Laden seines Vorschaubilds rastern und
      *  an die Karte geben (ohne Ebene neu aufzubauen). So verteilt sich die Arbeit über das
      *  Nachladen, statt am Ende tausende Schilder am Stück zu rastern (12 s Stillstand). */
@@ -10697,7 +10728,7 @@ function mountAnimator(body, headerActions, opts) {
       if (!map || !s || !_animSignHasImg(s)) return;
       const fi = _animSignsList().indexOf(s); if (fi < 0) return;
       const sn = _animSignNormalize(s);
-      if (dprBild !== 2) sn.__dpr = dprBild;
+      { const d = _animSignDprFuer(s, dprBild); if (d !== 2) sn.__dpr = d; }
       _animSetImgEl(sn, s._imgEl);
       const id = "sign-img-" + fi;
       const sig = _animSignBildSignatur(sn);
@@ -10770,7 +10801,7 @@ function mountAnimator(body, headerActions, opts) {
         if (s.imageSrc && !_animSignHasImg(s) && !(s.text || "").trim()) return;
         const fi = _idxVon.has(s) ? _idxVon.get(s) : allSigns.indexOf(s);
         const sn = _animSignNormalize(s);
-        if (s.imageSrc && _dprBild !== 2) sn.__dpr = _dprBild;
+        if (s.imageSrc) { const d = _animSignDprFuer(s, _dprBild); if (d !== 2) sn.__dpr = d; }
         if (_animSignHasImg(s)) _animSetImgEl(sn, s._imgEl);
         const id = "sign-img-" + fi;
         try {
@@ -10836,6 +10867,19 @@ function mountAnimator(body, headerActions, opts) {
           },
           paint: { "icon-opacity": ["coalesce", ["feature-state", "op"], 1] },
         });
+        // 20.09.2026 — Render-Modus, „Karte glätten": Weichzeichner-Ebene UNTER den Schildern statt
+        // CSS-Filter über die ganze Leinwand (der machte Foto-Schilder weich). core/szene.py setzt
+        // den CSS-Filter mit der id rz-render-blur; er weicht nur, wenn die Ebene wirklich liegt.
+        try {
+          const rm = window.__rzRenderMode;
+          if (rm && rm.blur > 0 && window.rzApplyMapSmooth) {
+            const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+            if (window.rzApplyMapSmooth(map, rm.blur * dpr, _ANIM_SIGNS_LYR)) {
+              const st = document.getElementById("rz-render-blur"); if (st) st.remove();
+              applog("info", `[schilder] Render: Glätten als Ebene unter den Schildern (sigma ${(rm.blur * dpr).toFixed(2)} px)`);
+            }
+          }
+        } catch (_) {}
       } catch (_) {}
     }
     // v0.9.254 (Nutzer-Bug #1/#2) — Live-Update OHNE Layer/Source-Neuaufbau. Beim

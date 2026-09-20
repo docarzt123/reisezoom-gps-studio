@@ -3055,6 +3055,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             f"['interpolate',['exponential',{SIGN_ZOOM_BASE:.6f}],['zoom'], "
             f"8,{_sz(0.5)}, 20,{_sz(2.4)}]"
         )
+        # Gerätepixel-Sigma der Glättung: Ausgabe-px × Supersampling (siehe _map_blur_css unten).
+        _signs_glaetten_sigma = (max(0.0, cfg.map_smoothing) * _render_ss(cfg.width, cfg.height)
+                                 if _render_ss(cfg.width, cfg.height) > 1.0 else 0.0)
         signs_block = (
             "const __signs = " + json.dumps(signs_for_render) + ";\n"
             f"const __signDur = {max(1, int(cfg.duration_s))};\n"
@@ -3113,6 +3116,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "      'icon-pitch-alignment':'viewport', 'icon-rotation-alignment':'viewport' },\n"
             "    paint:{ 'icon-opacity':['coalesce', ['feature-state','op'], 1] }\n"
             "  });\n"
+            # 20.09.2026 — „Karte glätten" (4K) trifft nur noch Karte + Strecke: Weichzeichner-
+            # Ebene direkt UNTER den Schildern statt CSS-Filter über die ganze Leinwand
+            # (ui/js/rz-mapadjust.js rzApplyMapSmooth). Klappt das nicht, greift der alte
+            # CSS-Filter als Rückfall — lieber weiche Schilder als flimmernde Karte.
+            f"  const __glSigma = {_signs_glaetten_sigma:.4f};\n"
+            "  if (__glSigma > 0) { let __ok = false; try { __ok = !!(window.rzApplyMapSmooth && window.rzApplyMapSmooth(map, __glSigma, 'anim-signs-lyr')); } catch (_) {}\n"
+            "    if (!__ok) { try { const c = map.getCanvas(); c.style.filter = 'blur(' + (__glSigma / (window.devicePixelRatio || 1)).toFixed(3) + 'px)'; } catch (_) {} } }\n"
             "  window.__signsReady = true;\n"
             "})();\n"
         )
@@ -3169,8 +3179,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # css×dsf Output-px. Ziel ~1.3 Output-px → css = 1.3/dsf. Nur bei 4K.
     _blur_dsf = _render_dsf(cfg.width, cfg.height)
     _blur_out_px = max(0.0, cfg.map_smoothing) if _render_ss(cfg.width, cfg.height) > 1.0 else 0.0
+    # 20.09.2026 — mit Schildern glättet eine Ebene IN der Leinwand unter den Schildern
+    # (signs_block oben); der CSS-Filter über alles bleibt nur für Renders ohne Schilder.
+    _hat_schilder = signs_block != "// no signs\n"
     _map_blur_css = (f"  #map canvas {{ filter: blur({_blur_out_px / _blur_dsf:.3f}px); }}\n"
-                     if _blur_out_px > 0 else "")
+                     if _blur_out_px > 0 and not _hat_schilder else "")
 
     # v0.9.415 — Interaktiver Export: statischer WYSIWYG-Bootstrap (kein Playwright).
     # Springt beim Laden EINMAL auf die Init-Kamera + volle Strecke (advanceFrame),

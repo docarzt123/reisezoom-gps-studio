@@ -3806,7 +3806,30 @@ function mountLibrary(body, headerActions) {
    *  Projekten benutzt" (jede im Animator geöffnete Tour hat ein Projekt) und „das ist die
    *  Kopie in der Bibliothek" kamen nie an. Jetzt: erst alle versuchen, dann EINE Rückfrage
    *  für die benutzten (Tour + Projekte löschen), Rest melden. */
+  /** 20.09.2026 (am Rechner gesehen): Wird die gerade GEÖFFNETE Tour gelöscht, blieb ihr
+   *  Name oben im Projekt-Knopf stehen, und `last_gpx_path` zeigte auf eine Datei im
+   *  Papierkorb. `vorher` = Pfade, VOR dem Löschen gemerkt (danach ist `_items` neu).
+   *  Macht dasselbe wie „Session schließen" im Projekt-Menü (ui/js/projects.js). */
+  function _offeneTourMerken(pfade) {
+    try {
+      const s = (typeof getActiveSession === "function") ? getActiveSession() : null;
+      const offen = (typeof window.getGlobalGpxPath === "function") ? (window.getGlobalGpxPath() || "") : "";
+      const menge = new Set(pfade || []);
+      const trifft = _items.some(x => menge.has(x.path) && ((s && x.geo_hash && x.geo_hash === s.track_hash) || (offen && x.path === offen)))
+        || (offen && menge.has(offen));
+      return !!trifft;
+    } catch (_) { return false; }
+  }
+  async function _offeneTourSchliessen() {
+    try { applog("info", "[archiv] geöffnete Tour gelöscht → Session schließen"); } catch (_) {}
+    try { await api().geotagger_clear(); } catch (_) {}   // warte-ok: Aufräumen nach dem Löschen, kein Warten für den Nutzer
+    try { if (typeof clearGlobalGpx === "function") clearGlobalGpx(); } catch (_) {}
+    try { if (typeof saveSettings === "function") saveSettings({ last_gpx_path: "" }); } catch (_) {}
+    try { if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged(); } catch (_) {}
+  }
+
   async function trashViele(pfade, status) {
+    const _warOffen = _offeneTourMerken(pfade);
     let ok = 0; const benutzt = []; const fehler = [];
     // 14.09.2026 (Marc: Wartefenster überall): EIN Fenster für die ganze Schleife mit
     // Zähler, nicht eins je Tour. Vor der Rückfrage unten wird es geschlossen — das
@@ -3848,6 +3871,7 @@ function mountLibrary(body, headerActions) {
         } finally { rzStatus.ende(sid2); }
       }
     }
+    if (ok && _warOffen) await _offeneTourSchliessen();
     if (ok) toast(T("library.trash_done_n", "{n} in den Papierkorb gelegt.").replace("{n}", ok), "info");
     if (fehler.length) toast(T("library.trash_fehler_n", "{n} nicht möglich: {grund}").replace("{n}", fehler.length).replace("{grund}", fehler[0]), "error", 7000);
     return ok;
@@ -3855,6 +3879,7 @@ function mountLibrary(body, headerActions) {
 
   async function confirmTrash(it) {
     if (!await frageTrash(1, it.path)) return;
+    const _warOffen = _offeneTourMerken([it.path]);
     let res = await rzWarten("library_trash", () => api().library_trash(it.path)).catch((e) => ({ ok: false, error: String(e) }));
     // 02.09.2026 (Q35): Steckt die Tour in Projekten, verweigert das Backend
     // und nennt sie. Der zweite Weg ist ein bewusster Klick — nie automatisch.
@@ -3873,6 +3898,7 @@ function mountLibrary(body, headerActions) {
       res = await rzWarten("library_trash", () => api().library_trash(it.path, true)).catch((e) => ({ ok: false, error: String(e) }));
     }
     if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
+    if (_warOffen) await _offeneTourSchliessen();
     toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
     _sel = null; store.set("sel", ""); renderDetail(); reload();
   }

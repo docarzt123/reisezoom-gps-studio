@@ -156,6 +156,64 @@
       if (map.triggerRepaint) map.triggerRepaint();
     } catch (e) { try { console.warn("rzApplyMapLook", e); } catch (_) {} }
   }
+  /* 20.09.2026 — Glätten IN der Leinwand, unter einer bestimmten Ebene (Render, 4K).
+   * Bisher lag „Karte glätten" als CSS-Filter auf der ganzen Leinwand. Das stammt aus der Zeit, als
+   * Schilder HTML-Marker waren; seit sie Symbole IN der Leinwand sind, machte der Filter auch Foto-
+   * Schilder weich. Diese Ebene liest das bis hierhin Gezeichnete (Karte, Strecke, Beschriftung) und
+   * schreibt es weichgezeichnet zurück — was danach kommt (die Schilder), bleibt scharf.
+   * 5×5-Gauß, Abstand der Abgriffe = sigma (lineare Filterung füllt dazwischen); sigma in Gerätepixeln. */
+  const SMOOTH_ID = "rz-glaetten";
+  const SMOOTH_FS = "precision mediump float; uniform sampler2D u_tex; uniform vec2 u_step; varying vec2 v_uv;"
+    + " void main() { vec4 a = vec4(0.0); float g[3]; g[0] = 0.4026; g[1] = 0.2442; g[2] = 0.0545;"
+    + " for (int i = -2; i <= 2; i++) { for (int j = -2; j <= 2; j++) {"
+    + " float wi = (i < 0) ? g[-i] : g[i]; float wj = (j < 0) ? g[-j] : g[j];"
+    + " a += texture2D(u_tex, v_uv + vec2(float(i) * u_step.x, float(j) * u_step.y)) * wi * wj; } }"
+    + " gl_FragColor = a; }";
+  function smoothLayer() {
+    const lay = sharpLayer();
+    lay.id = SMOOTH_ID; lay.sigma = 0;
+    const onAddAlt = lay.onAdd;
+    lay.onAdd = function (map, gl) {
+      onAddAlt.call(this, map, gl);
+      const mk = (t, src) => { const sh = gl.createShader(t); gl.shaderSource(sh, src); gl.compileShader(sh); return sh; };
+      const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, SHARP_VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, SMOOTH_FS)); gl.linkProgram(pr);
+      try { gl.deleteProgram(this._pr); } catch (_) {}
+      this._pr = pr; this._aPos = gl.getAttribLocation(pr, "a_pos");
+      this._uTex = gl.getUniformLocation(pr, "u_tex"); this._uStep = gl.getUniformLocation(pr, "u_step");
+    };
+    lay.render = function (gl) {
+      if (!(this.sigma > 0) || !this._pr) return;
+      const vp = gl.getParameter(gl.VIEWPORT), w = vp[2], h = vp[3];
+      if (!(w > 0 && h > 0)) return;
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this._tex);
+      gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vp[0], vp[1], w, h, 0);
+      const depth = gl.isEnabled(gl.DEPTH_TEST), blend = gl.isEnabled(gl.BLEND), stencil = gl.isEnabled(gl.STENCIL_TEST), cull = gl.isEnabled(gl.CULL_FACE);
+      gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
+      gl.useProgram(this._pr);
+      gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, this.sigma / w, this.sigma / h);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this._buf); gl.enableVertexAttribArray(this._aPos); gl.vertexAttribPointer(this._aPos, 2, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.disableVertexAttribArray(this._aPos);
+      if (depth) gl.enable(gl.DEPTH_TEST); if (blend) gl.enable(gl.BLEND); if (stencil) gl.enable(gl.STENCIL_TEST); if (cull) gl.enable(gl.CULL_FACE);
+    };
+    return lay;
+  }
+  /** Glätten unter `vorEbene` (Gerätepixel-Sigma; 0 = Ebene weg). Liefert true, wenn die Ebene liegt. */
+  function applySmooth(map, sigmaPx, vorEbene) {
+    if (!map || !map.addLayer) return false;
+    try {
+      const sg = Math.max(0, Number(sigmaPx) || 0);
+      if (!(sg > 0)) { if (map.getLayer(SMOOTH_ID)) map.removeLayer(SMOOTH_ID); return false; }
+      if (vorEbene && !map.getLayer(vorEbene)) return false;
+      let lay = map.__rzSmoothLayer;
+      if (!map.getLayer(SMOOTH_ID)) { lay = smoothLayer(); map.__rzSmoothLayer = lay; map.addLayer(lay, vorEbene || undefined); }
+      else if (vorEbene) map.moveLayer(SMOOTH_ID, vorEbene);
+      if (lay) lay.sigma = sg;
+      if (map.triggerRepaint) map.triggerRepaint();
+      return true;
+    } catch (e) { try { console.warn("rzApplyMapSmooth", e); } catch (_) {} return false; }
+  }
+  window.rzApplyMapSmooth = applySmooth;
   function applySharpen(map, pct) { return applyLook(map, pct, map && map.__rzHaze); }
   function applyHaze(map, pct) { return applyLook(map, map && map.__rzSharpen, pct); }
   window.rzApplyMapLook = applyLook;
