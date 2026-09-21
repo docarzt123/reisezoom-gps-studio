@@ -60,10 +60,23 @@ def mac_signatur_pruefen(dmg: str) -> tuple:
         return (False, False)
     mnt = tempfile.mkdtemp(prefix="rz-dmg-")
     try:
-        r = subprocess.run(["hdiutil", "attach", "-nobrowse", "-quiet",
-                            dmg, "-mountpoint", mnt],
-                           capture_output=True, timeout=300)
-        if r.returncode != 0:
+        # 21.09.2026 — das Einbinden scheitert auf Marcs Mac sporadisch („Keine aktivierbaren
+        # Dateisysteme"), obwohl das Abbild in Ordnung ist (`hdiutil verify` VALID, nächster
+        # Versuch klappt). Beim Deploy von v0.9.721 stand deshalb „nicht signiert" auf der
+        # Download-Seite, obwohl die App Developer-ID-signiert und notarisiert war. Darum:
+        # nur lesend einbinden und bis zu viermal versuchen, bevor nichts behauptet wird.
+        import time as _time
+        r = None
+        for _versuch in range(4):
+            r = subprocess.run(["hdiutil", "attach", "-nobrowse", "-readonly", "-quiet",
+                                dmg, "-mountpoint", mnt],
+                               capture_output=True, timeout=300)
+            if r.returncode == 0:
+                break
+            print(f"⚠️  DMG ließ sich nicht einbinden (Versuch {_versuch + 1}/4): "
+                  f"{(r.stderr or b'').decode(errors='replace').strip()[:160]}", file=sys.stderr)
+            _time.sleep(5)
+        if r is None or r.returncode != 0:
             return (False, False)
         try:
             apps = [p for p in os.listdir(mnt) if p.endswith(".app")]
