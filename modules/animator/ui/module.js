@@ -1723,7 +1723,7 @@ function mountAnimator(body, headerActions, opts) {
       // 10.09.2026 — Tracks/Gruppen/Aussehen, Tempo-Spur, Ghost-Spuren, Laufpunkt
       // liegen im Speicher des Moduls, nicht in gebundenen Feldern: aus dem
       // wiederhergestellten Block nachziehen.
-      try { _etappenFarbenZeichnen(); } catch (_) {}
+      try { _etappenFarbenZeichnen(); } catch (e) { applog("warn", "[etappenfarbe] Liste: " + e); }
       try { _animUndoNachziehen(snap); } catch (e) { try { applog("warn", "[undo] nachziehen: " + e); } catch (_) {} }
       // 4) Keyframe-/Trim-/Timeline-spezifische Wiederherstellung (wie bisher).
       const masterCb = document.getElementById("anim-kf-enabled");
@@ -14462,7 +14462,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
     try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
-    try { _etappenFarbenZeichnen(); } catch (_) {}   // 20.09.2026 — Farbe je Etappe
+    try { _etappenFarbenZeichnen(); } catch (e) { applog("warn", "[etappenfarbe] Liste: " + e); }   // 20.09.2026 — Farbe je Etappe
     try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
     document.getElementById("anim-stats-empty").hidden = true;
@@ -14873,7 +14873,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
     try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
-    try { _etappenFarbenZeichnen(); } catch (_) {}   // 20.09.2026 — Farbe je Etappe
+    try { _etappenFarbenZeichnen(); } catch (e) { applog("warn", "[etappenfarbe] Liste: " + e); }   // 20.09.2026 — Farbe je Etappe
     try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     try {
       document.getElementById("anim-stats-empty").hidden = true;
