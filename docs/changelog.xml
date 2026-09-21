@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 14 Sep 2026 20:45:39 +0000</lastBuildDate>
+<lastBuildDate>Mon, 21 Sep 2026 13:51:13 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.720</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-720</link>
+<guid isPermaLink="false">gps-studio-v0.9.720</guid>
+<pubDate>Mon, 21 Sep 2026 12:00:00 +0000</pubDate>
+<description>Foto-Schilder scharf — importierte Fotos waren in Vorschau und Video weich: die Vorschau zeigte nur ein winziges Listenbild, der 4K-Render vergrößerte ein 600-px-Bild. Beides behoben, das Foto ist im fertigen Video sichtbar schärfer.
+
+Farbe je Etappe — bei zusammengeführten Touren lässt sich im Animator unter „Tracks“ jetzt für jede Etappe eine Farbe wählen. Die Farbe gilt von der ersten Sekunde an, vorher lief Etappe 1 zunächst in der allgemeinen Track-Farbe.
+
+„Mehrere Track-Farben“ ausschalten — der Track wird wieder einfarbig, vorher blieb er bunt.
+
+Projekt exportieren — schlägt den Namen der Tour vor statt einer Zeichenfolge wie „6537f309….gpx“.</description>
+</item>
 <item>
 <title>v0.9.718</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-718</link>
@@ -203,19 +216,6 @@ Weltkugel nur im Anflug — Die Kugel bleibt für den Anflug aus dem All (bis Zo
 Bildausschnitt unabhängig vom Startpunkt — Startete man die Vorschau von vorne, stand die Kamera 1,5 km tiefer als beim Start am Trackbeginn, weil die Höhenabfrage ohne geladene Kacheln 0 lieferte. Jetzt gilt die GPX-Höhe, in Vorschau und Video.
 
 Quellenregister und Quellenzeile — Jede Kartenquelle mit Lizenz, Nutzungsbedingungen und Videofreigabe im Über-Dialog; die Quellenzeile im Bild wahlweise vollständig oder kurz mit eigenem Link, dazu ein Knopf „Quellentext kopieren“ nach jedem Render.</description>
-</item>
-<item>
-<title>v0.9.662 — Schärfere Karten, ein Schärfe-Regler und eine Quellenzeile, die man sieht und platzieren kann.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-662</link>
-<guid isPermaLink="false">gps-studio-v0.9.662</guid>
-<pubDate>Mon, 07 Sep 2026 12:00:00 +0000</pubDate>
-<description>Karten schärfer — Auf Retina-Bildschirmen und im Video holt die App die Kacheln ein bis zwei Stufen tiefer, damit ein Kachelpixel etwa auf ein Bildpixel fällt. Vorher wurde jedes Kachelpixel 2- bis 5-fach vergrößert, die ganze Karte wirkte weich. Sichtbar bei allen Rasterkarten: Felder, Straßen, Text. Kostet mehr Kacheln je Bild, eine 4K-Zoomfahrt dauert rund die Hälfte länger.
-
-Schärfe-Regler — Unter „Farbton“ in der Luftbild- und der Karten-Optik: eine Unschärfemaske auf dem Kartenbild, in Vorschau und Video gleich. Wirkt nur aufs Bild, nicht auf Strecke, Schilder, Zahlen. Hilft vor allem über Inseln und Küsten ohne amtliches Luftbild, wo die freie Sentinel-Ebene weich ist.
-
-Luftbild-Optik auch auf Sentinel — In der Übersicht eines Schwarms liegt nur die Sentinel-Ebene, die Regler schienen tot. Jetzt wirken sie auch dort, als Abweichung vom Werk. „Beleuchtung (Tageszeit)“ erscheint nur noch bei Mapbox, wo sie etwas tut.
-
-Quellenzeile lesbar und platzierbar — Die Nennung wird in der Vorschau nicht mehr geschrumpft, hat dieselbe relative Größe im Video, folgt der Optik der Stats-Boxen und lässt sich in eine Ecke oder als Leiste über die ganze Breite legen. Sie ist nie abschaltbar.</description>
 </item>
 </channel>
 </rss>
