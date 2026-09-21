@@ -16,6 +16,9 @@ Bei jeder neuen Version:
 
 ## [0.9.720] – 2026-09-21
 
+### Build
+- **Playwright pinned to 1.61.0.** Unpinned, CI pulled 1.63 (Chromium 153) whose `libEGL.dylib` PyInstaller cannot rewrite on macOS — the first 0.9.720 release build failed before anything was published. 1.61.0 is the version built and tested locally.
+
 ### Added
 - **Colour per stage for merged tracks** (beta tester, three routes combined: "the colours I pick don't arrive"). A merged track got its stage colours once while merging and they could not be changed anywhere — he recoloured the extra (ghost) tracks instead. Animator → Tracks now lists one colour field per stage (`tour_colors`), one undo step per pick, used by preview and render alike.
 - **Extra tracks: ▲▼ buttons to reorder** — dragging by the handle relies on HTML5 drag & drop, which the Windows WebView does not deliver reliably. The arrows work everywhere (undoable).
