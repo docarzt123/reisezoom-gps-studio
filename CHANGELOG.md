@@ -14,7 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.720] – 2026-09-21
+## [0.9.721] – 2026-09-21
+
+_0.9.720 was tagged but never published: its macOS release build failed on an unpinned Playwright (see Build). 0.9.721 is the same content with the pin._
 
 ### Build
 - **Playwright pinned to 1.61.0.** Unpinned, CI pulled 1.63 (Chromium 153) whose `libEGL.dylib` PyInstaller cannot rewrite on macOS — the first 0.9.720 release build failed before anything was published. 1.61.0 is the version built and tested locally.
