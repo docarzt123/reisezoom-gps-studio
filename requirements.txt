@@ -11,7 +11,11 @@ Pillow>=10.0
 # v0.9.57 — HEIC/HEIF-Decoder als Pillow-Plugin. Wird im Bundle mitgeliefert,
 # damit User OHNE installiertes exiftool HEIC-Fotos (iPhone) öffnen können.
 pillow-heif>=0.16
-playwright>=1.50
+# 21.09.2026 — FEST gepinnt: die CI zog ungepinnt 1.63 (Chromium 153), dessen libEGL.dylib PyInstaller auf
+# macOS nicht umschreiben kann (install_name_tool: changing install names or rpaths can't be redone) → der
+# Release-Build v0.9.720 brach ab. 1.61.0 (Chromium-Headless-Shell 1228) ist der lokal gebaute und getestete
+# Stand. Anheben nur zusammen mit einem lokalen ./build.sh + Render-Test.
+playwright==1.61.0
 requests>=2.32
 # Cloud-Archiv (seit v0.9.515, docs/IDEAS.md §26) — nur nötig, wenn jemand die
 # Cloud einrichtet; der lokale Weg kommt ohne beide aus.
