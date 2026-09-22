@@ -579,9 +579,32 @@ class _ExifToolDaemon:
         out = self._send_and_read_text(args, timeout=stapel_timeout(len(paths)))
         try:
             data = json.loads(out or "[]")
-            return data if isinstance(data, list) else []
+            if not isinstance(data, list):
+                return []
         except (TypeError, ValueError):
             return []
+        # 22.09.2026 (Windows-Tester, v0.9.721: ALLE 1433 Fotos „keine Aufnahmedaten",
+        # obwohl Lightroom GPS und Zeit sieht): exiftool schreibt `SourceFile` auf
+        # Windows mit Schrägstrichen (C:/Users/…), die App fragt mit Backslashes —
+        # kein Satz fand seine Datei. Hier steht `SourceFile` deshalb wieder genau
+        # so, wie der Aufrufer den Pfad übergeben hat.
+        gegeben = {}
+        for x in paths:
+            x = str(x)
+            gegeben[x] = x
+            gegeben[x.replace("\\", "/")] = x
+            gegeben[os.path.normcase(x)] = x
+            gegeben[os.path.normcase(x).replace("\\", "/")] = x
+        for info in data:
+            if not isinstance(info, dict):
+                continue
+            q = str(info.get("SourceFile") or "")
+            treffer = gegeben.get(q) or gegeben.get(os.path.normcase(q)) or gegeben.get(q.replace("/", os.sep))
+            if treffer is None and len(paths) == 1:
+                treffer = str(paths[0])
+            if treffer is not None:
+                info["SourceFile"] = treffer
+        return data
 
     def read_binary_tag(self, path: str, tag: str) -> Optional[bytes]:
         """Liest einen Binary-Tag (z.B. PreviewImage) als bytes."""
@@ -1039,7 +1062,8 @@ def read_meta_viele(paths: list[str]) -> dict:
         saetze = _ensure_daemon().read_tags_json_viele(list(paths), _META_TAGS_VIELE, numeric=True)
     except ExifToolTimeout:
         raise
-    except Exception:
+    except Exception as e:      # noqa: BLE001 — sichtbar machen, nicht schlucken
+        _log.warning("read_meta_viele: exiftool-Stapel (%d Dateien) fehlgeschlagen: %s: %s", len(paths), type(e).__name__, e)
         return raus
     for info in saetze:
         quelle = str(info.get("SourceFile") or "").strip()
@@ -1061,7 +1085,8 @@ def read_alle_tags_viele(paths: list[str]) -> dict:
         saetze = _ensure_daemon().read_tags_json_viele(list(paths), ["All"], numeric=False)
     except ExifToolTimeout:
         raise
-    except Exception:
+    except Exception as e:      # noqa: BLE001 — sichtbar machen, nicht schlucken
+        _log.warning("read_alle_tags_viele: exiftool-Stapel (%d Dateien) fehlgeschlagen: %s: %s", len(paths), type(e).__name__, e)
         return raus
     for info in saetze:
         quelle = str(info.get("SourceFile") or "").strip()
