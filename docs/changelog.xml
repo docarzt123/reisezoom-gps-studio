@@ -5,8 +5,15 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 21 Sep 2026 17:36:14 +0000</lastBuildDate>
+<lastBuildDate>Tue, 22 Sep 2026 07:46:38 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.722</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-722</link>
+<guid isPermaLink="false">gps-studio-v0.9.722</guid>
+<pubDate>Tue, 22 Sep 2026 12:00:00 +0000</pubDate>
+<description>Windows: Foto-Bestand las gar keine Aufnahmedaten — alle Fotos hießen „keine Aufnahmedaten lesbar“, obwohl Zeit und GPS in den Dateien stehen. Die Zuordnung der exiftool-Antworten scheiterte an der Pfad-Schreibweise (Schrägstrich gegen Backslash). Behoben; der Mac war nie betroffen.</description>
+</item>
 <item>
 <title>v0.9.721</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-721</link>
@@ -203,19 +210,6 @@ Gruppen in der Zeitleiste — Jede Tour ist eine Gruppe mit Halt, Inhalt und Hal
 Anordnen mit einem Klick — Nacheinander, alle ab 0, gleichzeitig im Ziel oder echte Uhrzeit: jeder Knopf rechnet einmal Faktoren und Halte, danach schiebt man weiter.
 
 Tempo-Spur — Halte und langsamere Abschnitte als lückenlose Kachelung über der Zeitleiste, wie ein Tempo-Editor: Ziehen legt einen Abschnitt an, Doppelklick auf freie Fläche einen Halt (ein einfacher Klick setzt nur den Scrubber), Doppelklick auf einen Eintrag öffnet ihn, Rechtsklick zeigt ein Menü mit Öffnen, Löschen, Halt hier. Halte sind an den Rändern ziehbar und wachsen dabei sofort mit. Die Dauer ist ein Ergebnis aus Raffung, Halten und Abschnitten.</description>
-</item>
-<item>
-<title>v0.9.663 — Die Gelände-Vorschau flackert nicht mehr, und der Bildausschnitt hängt nicht mehr davon ab, wo man die Vorschau startet.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-663</link>
-<guid isPermaLink="false">gps-studio-v0.9.663</guid>
-<pubDate>Tue, 08 Sep 2026 12:00:00 +0000</pubDate>
-<description>Kein Kachel-Flackern mehr — Bei Kamerafahrten über Gelände blitzten Kacheln für ein Bild grob oder schwarz auf. Vier Ursachen im Kartenkern behoben (Puffergröße bei halber Auflösung, Kugel-zu-Karte-Übergang, Verdeckungslogik, Sichtbarkeitsprüfung am Bildrand) und die ruhige Kamera geglättet. Gemessen per Bildschirmaufnahme: von 89 auf 1 bis 2 Blöcke je Lauf.
-
-Weltkugel nur im Anflug — Die Kugel bleibt für den Anflug aus dem All (bis Zoom 7), ab Zoom 9 ist die Karte flach. Der Übergang hängt allein am Zoom und ruckelt nicht mehr.
-
-Bildausschnitt unabhängig vom Startpunkt — Startete man die Vorschau von vorne, stand die Kamera 1,5 km tiefer als beim Start am Trackbeginn, weil die Höhenabfrage ohne geladene Kacheln 0 lieferte. Jetzt gilt die GPX-Höhe, in Vorschau und Video.
-
-Quellenregister und Quellenzeile — Jede Kartenquelle mit Lizenz, Nutzungsbedingungen und Videofreigabe im Über-Dialog; die Quellenzeile im Bild wahlweise vollständig oder kurz mit eigenem Link, dazu ein Knopf „Quellentext kopieren“ nach jedem Render.</description>
 </item>
 </channel>
 </rss>
