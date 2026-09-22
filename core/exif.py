@@ -588,18 +588,15 @@ class _ExifToolDaemon:
         # Windows mit Schrägstrichen (C:/Users/…), die App fragt mit Backslashes —
         # kein Satz fand seine Datei. Hier steht `SourceFile` deshalb wieder genau
         # so, wie der Aufrufer den Pfad übergeben hat.
-        gegeben = {}
-        for x in paths:
-            x = str(x)
-            gegeben[x] = x
-            gegeben[x.replace("\\", "/")] = x
-            gegeben[os.path.normcase(x)] = x
-            gegeben[os.path.normcase(x).replace("\\", "/")] = x
+        def _schl(x: str) -> str:
+            # Trennzeichen und Groß/Klein egal (Windows: C:/a/b == C:\a\B)
+            return str(x).replace("\\", "/").lower()
+        gegeben = {_schl(x): str(x) for x in paths}
         for info in data:
             if not isinstance(info, dict):
                 continue
             q = str(info.get("SourceFile") or "")
-            treffer = gegeben.get(q) or gegeben.get(os.path.normcase(q)) or gegeben.get(q.replace("/", os.sep))
+            treffer = gegeben.get(_schl(q))
             if treffer is None and len(paths) == 1:
                 treffer = str(paths[0])
             if treffer is not None:

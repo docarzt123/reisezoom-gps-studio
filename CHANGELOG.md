@@ -15,7 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
-- **Windows: photo stock read no capture data at all** (tester, v0.9.721, 1,433 files "no capture data readable" although Lightroom shows GPS and time). exiftool reports `SourceFile` with forward slashes on Windows (`C:/Users/…`), the scan looked up its files with backslashes — no record matched. `read_tags_json_viele` now returns each `SourceFile` exactly as the caller spelled the path. Batch failures are logged instead of swallowed, and the first three unreadable files per run go to app.log with the batch counts. Guard `tests/test_exif_sourcefile_windows.py`. macOS was never affected (this also explains why the photo stock looked fine on Marc's Mac).
+- **Windows: photo stock read no capture data at all** (tester, v0.9.721, 1,433 files "no capture data readable" although Lightroom shows GPS and time). exiftool reports `SourceFile` with forward slashes on Windows (`C:/Users/…`), the scan looked up its files with backslashes — no record matched. `read_tags_json_viele` now returns each `SourceFile` exactly as the caller spelled the path. Batch failures are logged instead of swallowed, and the first three unreadable files per run go to app.log with the batch counts. Guards `tests/test_exif_sourcefile_windows.py` (unit) and `tests/test_fotos_windows_pfade.py` (end-to-end with the real exiftool daemon: 0/6 before, 6/6 after). macOS was never affected (this also explains why the photo stock looked fine on Marc's Mac).
 
 ## [0.9.721] – 2026-09-21
 
