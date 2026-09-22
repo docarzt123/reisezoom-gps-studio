@@ -720,6 +720,13 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             elif not m and not tags:
                 fehlt_grund = FEHLTEXT_KEINE_DATEN
                 fehler += 1
+                # 22.09.2026 — die ersten paar je Lauf mit Pfad ins Log: ein Tester-Log
+                # mit „fehler: 1433" sagte nichts darüber, ob exiftool die Datei nicht
+                # fand, sie nicht lesen konnte oder der Pfad nicht zusammenpasste.
+                if fehler <= 3:
+                    log.warning("[fotos] keine Aufnahmedaten lesbar: %s · exiftool-Sätze im Stapel: meta %d, tags %d, "
+                                "gefragt %d · Beispiel-Schlüssel: %s", p, len(meta), len(tags_alle), len(pfade),
+                                (next(iter(meta), None) or next(iter(tags_alle), None) or "—"))
 
             dt = m.get("datetime")
             tz_min = m.get("tz_minutes")
