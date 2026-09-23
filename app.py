@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.722"
+APP_VERSION = "0.9.723"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1546,6 +1546,27 @@ def _nur_einmal(gruppe: str):
                 sperre.release()
         return huelle
     return deko
+
+
+def _overlay_boxen_params(params: dict) -> dict:
+    """23.09.2026 — neue Overlay-Schlüssel aus den Render-Parametern (fehlt einer,
+    greift der AnimatorConfig-Standard = Verhalten vor dem Umbau)."""
+    out = {}
+    try:
+        if params.get("overlay_exit") is not None:
+            out["overlay_exit"] = str(params.get("overlay_exit") or "none")
+        for k in ("overlay_blende_s", "overlay_radius", "overlay_border_w"):
+            if params.get(k) is not None:
+                out[k] = float(params.get(k))
+        if params.get("overlay_border_color"):
+            out["overlay_border_color"] = str(params.get("overlay_border_color"))
+        if params.get("overlay_shadow") is not None:
+            out["overlay_shadow"] = bool(params.get("overlay_shadow"))
+        if isinstance(params.get("overlay_boxen"), list):
+            out["overlay_boxen"] = [b for b in params["overlay_boxen"] if isinstance(b, dict)]
+    except (TypeError, ValueError) as e:
+        log.warning("[overlay] Box-Parameter unlesbar, nehme Standard: %s", e)
+    return out
 
 
 class Api:
@@ -6132,6 +6153,8 @@ class Api:
                 "waypoints": wp_out,
                 # 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
                 "stage": cgpx.etappen_reihen(ds, stats.seg_names),
+                # 23.09.2026 — Kennzahlen je Etappe (Overlay-Box-Bezug), volle Punkte
+                "stage_stats": cgpx.etappen_stats(pts),
             }
             _t_ui = _ui_t()   # v0.9.507 — Katalog-Labels in der App-Sprache
             return {
@@ -6672,6 +6695,8 @@ class Api:
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
             overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
             overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
+            # 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
+            **_overlay_boxen_params(params),
             # v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y")
             overlay_totals_from_s=float(params.get("overlay_totals_from_s", 0) or 0),
             overlay_totals_to_s=float(params.get("overlay_totals_to_s", 0) or 0),
@@ -7104,6 +7129,8 @@ class Api:
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
             overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
             overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
+            # 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
+            **_overlay_boxen_params(params),
             show_pins=bool(params.get("show_pins", True)),
             # v0.9.74 — Foto-Pins (nummerierte Kreise im Standbild-Render)
             photos=list(params.get("photos") or []),
@@ -7562,6 +7589,8 @@ class Api:
                 overlay_bg_color=params.get("overlay_bg_color", "#000000"),
                 overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
                 overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
+                # 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
+                **_overlay_boxen_params(params),
                 show_pins=bool(params.get("show_pins", True)),
                 photos=list(params.get("photos") or []),
                 photos_size_px=int(params.get("photos_size_px", 48) or 48),

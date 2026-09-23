@@ -364,6 +364,47 @@ def etappen_reihen(pts, seg_names=None) -> dict:
     return {"nr": nr, "d0": d0, "t0": t0, "name": namen, "gesamt": zaehler}
 
 
+def etappen_stats(pts) -> dict:
+    """23.09.2026 (Overlay-Boxen, Bezug je Etappe) — Kennzahlen je Tour-Etappe,
+    gleiche Nummerierung wie `etappen_reihen` (Übergänge zählen nicht mit).
+
+    {"<nr>": {distance_m, duration_s, moving_time_s, max_speed_kmh, ascent_m,
+              descent_m, ele_max, ele_min, start_epoch, end_epoch}}
+    Auf den VOLLEN Punkten rechnen (Tempo-Spitzen, s. compute_moving_and_max).
+    Leer, wenn es nur eine Etappe gibt.
+    """
+    from . import zeitzone as _zz
+    gruppen = []
+    letzte_seg = None
+    for p in pts or []:      # Zählweise wortgleich zu etappen_reihen
+        ueberg = bool(p.extra.get("rz_uebergang"))
+        if p.seg != letzte_seg:
+            letzte_seg = p.seg
+            if not ueberg:
+                gruppen.append([])
+        if not ueberg and gruppen:
+            gruppen[-1].append(p)
+    if len(gruppen) < 2:
+        return {}
+    out = {}
+    for nr, g in enumerate(gruppen, start=1):
+        if not g:
+            continue
+        eles = [q.ele for q in g if q.ele is not None]
+        asc, desc = _compute_ascent_descent(eles) if len(eles) >= 2 else (0.0, 0.0)
+        mov, vmax = compute_moving_and_max(g)
+        ep = [e for e in (_zz.epoch_von_iso(q.time) for q in g) if e is not None]
+        out[str(nr)] = {
+            "distance_m": max(0.0, g[-1].dist_m - g[0].dist_m),
+            "duration_s": max(0.0, g[-1].elapsed_s - g[0].elapsed_s),
+            "moving_time_s": mov, "max_speed_kmh": vmax,
+            "ascent_m": asc, "descent_m": desc,
+            "ele_max": max(eles) if eles else None, "ele_min": min(eles) if eles else None,
+            "start_epoch": ep[0] if ep else None, "end_epoch": ep[-1] if ep else None,
+        }
+    return out
+
+
 def unsichtbare_bereiche(pts) -> list:
     """Punkt-Indexbereiche [i, j], deren Linie NICHT gezeichnet werden darf
     (23.08.2026): die Sprünge über Etappengrenzen und die unsichtbaren

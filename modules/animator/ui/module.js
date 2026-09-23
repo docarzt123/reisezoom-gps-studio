@@ -888,6 +888,7 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="checkbox" id="anim-ov-totals" checked>
                 <span>${t("animator.overlay.totals")}</span>
               </label>
+                <button type="button" class="ov-box-edit" data-ovbox-edit="totals" title="${t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt")}">✎</button>
               <div class="ov-group-details">
               <select id="anim-ov-totals-pos" class="pos-select" title="${t("animator.overlay.position")}">
                 <option value="tl">${t("animator.pos.tl")}</option>
@@ -915,6 +916,7 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="checkbox" id="anim-ov-live" checked>
                 <span>${t("animator.overlay.live")}</span>
               </label>
+                <button type="button" class="ov-box-edit" data-ovbox-edit="live" title="${t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt")}">✎</button>
               <div class="ov-group-details">
               <select id="anim-ov-live-pos" class="pos-select" title="${t("animator.overlay.position")}">
                 <option value="tl">${t("animator.pos.tl")}</option>
@@ -942,6 +944,7 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="checkbox" id="anim-ov-ele" checked>
                 <span>${t("animator.overlay.elevation")}</span>
               </label>
+                <button type="button" class="ov-box-edit" data-ovbox-edit="ele" title="${t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt")}">✎</button>
               <div class="ov-group-details">
               <select id="anim-ov-ele-pos" class="pos-select" title="${t("animator.overlay.position")}">
                 <option value="bc">${t("animator.pos.bc")}</option>
@@ -969,7 +972,16 @@ function mountAnimator(body, headerActions, opts) {
               </div>
               </div>
             </div>
-            
+            <!-- 23.09.2026 — Weitere Boxen (docs/OVERLAY-BOXEN.md): freie Liste zusätzlicher
+                 Gesamt-/Live-Boxen, je Box eigener Look, eigene Blende, eigener Zeitpunkt. -->
+            <div class="overlay-group" id="anim-ov-extra-group">
+              <div class="ov-extra-kopf">
+                <span>${t("animator.ovbox.extra_title", "Weitere Boxen")}</span>
+                <button type="button" class="btn btn-sm" id="anim-ov-extra-add" title="${t("animator.ovbox.add_tip", "Neue Box hinzufügen, z. B. die Gesamtstatistik am Ende für 10 Sekunden")}">＋ ${t("animator.ovbox.add", "Box")}</button>
+              </div>
+              <div id="anim-ov-extra-list" class="ov-extra-list"></div>
+            </div>
+
             <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
             <div class="overlay-group" id="anim-overlay-north-group">
               <label class="checkbox-row inline">
@@ -1035,6 +1047,37 @@ function mountAnimator(body, headerActions, opts) {
                   <option value="pop">${t("signs.entry.pop", "Aufpoppen")}</option>
                   <option value="both">${t("signs.entry.both", "Ein- + Aufpoppen")}</option>
                 </select>
+              </div>
+              <!-- 23.09.2026 — Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten (global; je Box ✎) -->
+              <div class="ov-style-row">
+                <label for="anim-ov-exit" title="${t("animator.ovbox.exit_hint", "Wie die Stats-Boxen am Ende ihres Zeitfensters verschwinden. Nur im Video und im Probelauf sichtbar.")}">${t("animator.ovbox.exit", "Ausblendung")}</label>
+                <select id="anim-ov-exit" class="pos-select">
+                  <option value="none">${t("animator.ovbox.exit_none", "Hart (sofort)")}</option>
+                  <option value="fade">${t("animator.ovbox.exit_fade", "Ausblenden")}</option>
+                  <option value="pop">${t("animator.ovbox.exit_pop", "Wegpoppen")}</option>
+                  <option value="both">${t("animator.ovbox.exit_both", "Aus- + Wegpoppen")}</option>
+                </select>
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-blende">${t("animator.ovbox.blende_s", "Dauer der Blende")}</label>
+                <input type="number" id="anim-ov-blende" class="ov-time-in" min="0.1" max="5" step="0.1" value="0.5">
+                <span class="ov-style-val">s</span>
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-radius">${t("animator.ovbox.radius", "Ecken")}</label>
+                <input type="range" id="anim-ov-radius" min="0" max="40" step="1" value="12">
+                <span class="ov-style-val" id="anim-ov-radius-val">12</span>
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-border-w">${t("animator.ovbox.border", "Rahmen")}</label>
+                <input type="number" id="anim-ov-border-w" class="ov-time-in" min="0" max="12" step="0.5" value="0">
+                <input type="color" id="anim-ov-border-color" value="#ffffff" title="${t("animator.ovbox.border_color", "Rahmenfarbe")}">
+              </div>
+              <div class="ov-style-row">
+                <label class="checkbox-row inline" for="anim-ov-shadow">
+                  <input type="checkbox" id="anim-ov-shadow" checked>
+                  <span>${t("animator.ovbox.shadow", "Schatten")}</span>
+                </label>
               </div>
             </div>
             <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
@@ -1744,6 +1787,8 @@ function mountAnimator(body, headerActions, opts) {
   /** 10.09.2026 (Marc: „Undo muss für alles gehen") — nach dem Zurückschreiben des
    *  Einstellungs-Blocks die Modul-Zustände nachziehen, die nicht an Feldern hängen. */
   function _animUndoNachziehen(snap) {
+    // 23.09.2026 — Overlay-Boxen: Liste + offenes Modal auf den zurückgeholten Stand
+    try { _ovTimingBoxen = null; _ovExtraListe(); if (_ovModal) _ovModalZeichnen(); } catch (e) { applog("warn", "[undo] overlay-boxen: " + e); }
     // Tempo-Spur: Liste verwerfen, aus dem Projekt neu lesen, Kurve holen
     _tempoListe = null; _tempoListeVon = null;
     try { paceMapLaden(); } catch (e) { applog("warn", "[undo] tempo: " + e); }
@@ -2697,7 +2742,22 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ov-font", _MODKEY, "overlay_font", { onChange: renderOverlayPreview });
   bindSetting("anim-ov-textcolor", _MODKEY, "overlay_text_color", { onChange: renderOverlayPreview });
   bindSetting("anim-ov-bgcolor", _MODKEY, "overlay_bg_color", { onChange: renderOverlayPreview });
-  bindSetting("anim-ov-entry", _MODKEY, "overlay_entry");   // v0.9.479 — Stats-Einblende-Animation (nur Render/Probe-Lauf)
+  bindSetting("anim-ov-entry", _MODKEY, "overlay_entry", { onChange: () => { try { renderOverlayPreview(); } catch (_) {} } });   // v0.9.479 — Stats-Einblende-Animation (nur Render/Probe-Lauf)
+  // 23.09.2026 — Overlay-Boxen: Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten (global).
+  // Je Box/Zeile abweichend über ✎ (Modal _ovBoxModal), gespeichert in overlay_boxen.
+  const _ovNeu = () => { try { renderOverlayPreview(); _ovExtraListe(); } catch (_) {} };
+  bindSetting("anim-ov-exit", _MODKEY, "overlay_exit", { onChange: _ovNeu });
+  bindSetting("anim-ov-blende", _MODKEY, "overlay_blende_s", { type: "number", onChange: _ovNeu });
+  bindSetting("anim-ov-radius", _MODKEY, "overlay_radius", { type: "number",
+    onLoad: (v) => { const l = document.getElementById("anim-ov-radius-val"); if (l) l.textContent = String(v); },
+    onChange: (v) => { const l = document.getElementById("anim-ov-radius-val"); if (l) l.textContent = String(v); _ovNeu(); } });
+  bindSetting("anim-ov-border-w", _MODKEY, "overlay_border_w", { type: "number", onChange: _ovNeu });
+  bindSetting("anim-ov-border-color", _MODKEY, "overlay_border_color", { onChange: _ovNeu });
+  bindSetting("anim-ov-shadow", _MODKEY, "overlay_shadow", { type: "bool", onChange: _ovNeu });
+  document.querySelectorAll(".ov-box-edit[data-ovbox-edit]").forEach(b => b.addEventListener("click", (ev) => {
+    ev.preventDefault(); ev.stopPropagation(); _ovBoxModal(b.getAttribute("data-ovbox-edit"));
+  }));
+  document.getElementById("anim-ov-extra-add")?.addEventListener("click", (ev) => { ev.preventDefault(); _ovBoxNeu(); });
   // BG-Opacity: gespeichert als 0..1, UI-Slider 0..100 → eigene Anbindung.
   (function bindOvOpacity() {
     const sl = document.getElementById("anim-ov-bgopacity");
@@ -8375,14 +8435,6 @@ function mountAnimator(body, headerActions, opts) {
       // Hold) — so dass der Scrubber visuell GENAU durch die Trim-Handles
       // wandert.
       const timelineProgress = Math.min(1, elapsed / totalMs);
-      // v0.9.228 — Overlay-Zeitfenster im Probelauf spiegeln (WYSIWYG zum Render).
-      // Video-Sekunde = Fortschritt × Gesamtdauer (intro+anim+hold).
-      try {
-        const _ovTotalSec = (parseNum(document.getElementById("anim-intro")?.value, 0))
-          + (parseNum(document.getElementById("anim-dur")?.value, 0))
-          + (parseNum(document.getElementById("anim-hold")?.value, 0));
-        _animOverlayTimingPreview(timelineProgress * _ovTotalSec);
-      } catch (_) {}
       const ti = introFraction();
       const tf = trackFraction();
       const tn = currentCoords.length;
@@ -8672,6 +8724,15 @@ function mountAnimator(body, headerActions, opts) {
       } catch (e) { console.warn("[anim-photos] step filter update failed:", e); }
       // v0.9.325 — Live-Stats im Probelauf mitlaufen lassen (WYSIWYG zum Render).
       try { _ovUpdateLiveAt(coordFrac / Math.max(1, tn - 1), coordFracRoh / Math.max(1, tn - 1)); } catch (_) {}
+      // v0.9.228/23.09.2026 — Zeitsteuerung der Boxen (Auslöser, Blenden, Bezug je Etappe),
+      // gleiche Regeln wie window.__overlayTiming im Render. Video-Sekunde = Fortschritt ×
+      // Gesamtdauer (Intro + Animation + Halten); Streckenanteil vom Laufpunkt.
+      try {
+        const _ovTotalSec = (parseNum(document.getElementById("anim-intro")?.value, 0))
+          + (parseNum(document.getElementById("anim-dur")?.value, 0))
+          + (parseNum(document.getElementById("anim-hold")?.value, 0));
+        _ovTimingAt(timelineProgress * _ovTotalSec, coordFrac / Math.max(1, tn - 1));
+      } catch (e) { try { applog("warn", "[anim-ov] Zeitsteuerung: " + e); } catch (_) {} }
       // Scrubber visuell — siehe Berechnung oben (durch Trim-Handles wandernd).
       if (_tlBar) _tlBar.setScrubberBar(scrubberVis);
       if (window.__rzStepMode) return;   // Render-Modus: Bild für Bild von außen (window.__rzPreviewStep.seek)
@@ -13477,7 +13538,7 @@ function mountAnimator(body, headerActions, opts) {
       cont.addEventListener("drop", (e) => { e.preventDefault(); });
     }
   }
-  function _ovRebuildEditors() { _ovBuildEditor("totals"); _ovBuildEditor("live"); }
+  function _ovRebuildEditors() { _ovBuildEditor("totals"); _ovBuildEditor("live"); try { _ovExtraListe(); } catch (_) {} }
   // Vorschau-Wert (Endzustand) für ein Feld — WYSIWYG-Annäherung.
   function _ovFieldValue(id) {
     // v0.9.330 — FIT-Sensorfeld: Endzustand = letzter vorhandener Messwert.
@@ -13584,8 +13645,9 @@ function mountAnimator(body, headerActions, opts) {
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
     const sr = _ovSeries;
-    const box = layer.querySelector('[data-ovbox="live"]');
-    if (box && sr && sr.cumDistM && sr.cumDistM.length) {
+    // 23.09.2026 — alle Live-Boxen (Standard + „Weitere Boxen") bekommen die Werte.
+    const _lb = Array.from(layer.querySelectorAll('[data-ovtyp="live"]'));
+    if (_lb.length && sr && sr.cumDistM && sr.cumDistM.length) {
       const n = sr.cumDistM.length;
       let i = Math.round(frac * (n - 1));
       if (i < 0) i = 0; else if (i > n - 1) i = n - 1;
@@ -13595,8 +13657,12 @@ function mountAnimator(body, headerActions, opts) {
       const totT = sr.total_time_s || (sr.cumTimeS ? sr.cumTimeS[n - 1] : 0) || 0;
       // 14.09.2026 — die Wertfelder je Kasten einmal suchen (der Kasten wird beim
       // Neuaufbau der Einblendung als Element ersetzt, der Merker stirbt mit ihm).
-      if (!box.__rzOvV) box.__rzOvV = Array.from(box.querySelectorAll('.ov-v[data-ovid]')).map(el => [el, el.getAttribute("data-ovid")]);
-      box.__rzOvV.forEach(([el, id]) => {
+      const _vv = [];
+      for (const box of _lb) {
+        if (!box.__rzOvV) box.__rzOvV = Array.from(box.querySelectorAll('.ov-v[data-ovid]')).map(el => [el, el.getAttribute("data-ovid")]);
+        for (const x of box.__rzOvV) _vv.push(x);
+      }
+      _vv.forEach(([el, id]) => {
         let v = null;
         // v0.9.330 — FIT-Sensorwert am aktuellen Punkt (gerundet + Einheit, en-dash bei null).
         if (typeof id === "string" && id.startsWith("sensor:")) {
@@ -14103,7 +14169,7 @@ function mountAnimator(body, headerActions, opts) {
     const master = document.getElementById("anim-overlays")?.checked ?? true;
     if (!master) { layer.innerHTML = ""; return; }
     const seen = {};
-    _charts.forEach((ch) => {
+    _charts.forEach((ch, ci) => {
       seen[ch.id] = true;
       const inlineId = _chartInlineId(ch.id);
       let box = layer.querySelector(`.chart-ov-prev[data-chart-id="${ch.id}"]`);
@@ -14130,6 +14196,7 @@ function mountAnimator(body, headerActions, opts) {
       box.style.cssText = `position:absolute;overflow:hidden;pointer-events:none;`
         + `width:${w}px;height:${h}px;`
         + _chartPosStyle(ch.position, m);
+      box.setAttribute("data-ovbox", "chart-" + ci);   // 23.09.2026 — Zeitfenster/Blende im Probelauf (overlay_boxen.js)
       const bgDiv = box.querySelector(".chart-ov-prev-bg");
       if (bgDiv) bgDiv.style.cssText = `position:absolute;inset:0;background:${_bgCss};`;
       const host = box.querySelector(".chart-ov-prev-host");
@@ -14230,7 +14297,613 @@ function mountAnimator(body, headerActions, opts) {
     vp.style.setProperty("--rz-attrib-bg", `rgba(${r},${g},${b},${op.toFixed(2)})`);
     vp.style.setProperty("--rz-attrib-fg", fg);
   }
+  // ── 23.09.2026 Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md) ───────────────
+  // Die Vorschau löst die Boxen mit DERSELBEN Datei auf wie der Render
+  // (ui/js/overlay_boxen.js). `_ovCfg()` liefert dieselben Schlüssel, die auch als
+  // Render-Parameter rausgehen — eine Quelle, kein zweites Regelwerk.
+  function _ovProj() {
+    return (typeof _activeProject !== "undefined" && _activeProject && _activeProject[_MODKEY]) || {};
+  }
+  function _ovBoxenRoh() {
+    // Projekt zuerst; ohne aktives Projekt landet saveProjectSettings in den
+    // globalen Einstellungen (Muster _ovOverrides).
+    const proj = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    const b = proj ? proj.overlay_boxen
+      : (_settingsCache && _settingsCache[_MODKEY] ? _settingsCache[_MODKEY].overlay_boxen : null);
+    return Array.isArray(b) ? b : [];
+  }
+  function _ovCfg() {
+    const $ = (id) => document.getElementById(id);
+    const num = (id, d) => { const v = parseFloat($(id)?.value); return isNaN(v) ? d : v; };
+    const chk = (id, d) => { const e = $(id); return e ? !!e.checked : d; };
+    let charts = [];
+    try { charts = (_charts || []).map(c => ({ from_s: c.from_s, to_s: c.to_s })); } catch (_) {}
+    return {
+      overlay_font: $("anim-ov-font")?.value || "system",
+      overlay_text_color: $("anim-ov-textcolor")?.value || "#ffffff",
+      overlay_bg_color: $("anim-ov-bgcolor")?.value || "#000000",
+      overlay_bg_opacity: num("anim-ov-bgopacity", 55) / 100,
+      overlay_entry: $("anim-ov-entry")?.value || "none",
+      overlay_exit: $("anim-ov-exit")?.value || "none",
+      overlay_blende_s: num("anim-ov-blende", 0.5),
+      overlay_radius: num("anim-ov-radius", 12),
+      overlay_border_w: num("anim-ov-border-w", 0),
+      overlay_border_color: $("anim-ov-border-color")?.value || "#ffffff",
+      overlay_shadow: chk("anim-ov-shadow", true),
+      overlay_totals_enabled: chk("anim-ov-totals", true),
+      overlay_totals_position: $("anim-ov-totals-pos")?.value || "tl",
+      overlay_totals_fields: _ovGetFields("totals"),
+      overlay_totals_from_s: num("anim-ov-totals-from", 0), overlay_totals_to_s: num("anim-ov-totals-to", 0),
+      // v0.9.309 — im Standbild (Tour-Map) keine Live-Box (zeit-animiert).
+      overlay_live_enabled: !_isStaticFrame && chk("anim-ov-live", true),
+      overlay_live_position: $("anim-ov-live-pos")?.value || "tr",
+      overlay_live_fields: _ovGetFields("live"),
+      overlay_live_from_s: num("anim-ov-live-from", 0), overlay_live_to_s: num("anim-ov-live-to", 0),
+      overlay_elevation_enabled: chk("anim-ov-ele", true),
+      overlay_elevation_position: $("anim-ov-ele-pos")?.value || "bc",
+      overlay_elevation_from_s: num("anim-ov-ele-from", 0), overlay_elevation_to_s: num("anim-ov-ele-to", 0),
+      overlay_boxen: _ovBoxenRoh(),
+      charts,
+    };
+  }
+  /** Nur die neuen Schlüssel für die Render-Parameter (die alten schickt der Aufrufer). */
+  function _ovRenderParams() {
+    const c = _ovCfg();
+    return { overlay_exit: c.overlay_exit, overlay_blende_s: c.overlay_blende_s, overlay_radius: c.overlay_radius,
+             overlay_border_w: c.overlay_border_w, overlay_border_color: c.overlay_border_color,
+             overlay_shadow: c.overlay_shadow, overlay_boxen: c.overlay_boxen };
+  }
+  function _ovAufgeloest() {
+    try { return window.rzOverlayBoxen ? window.rzOverlayBoxen.aufloesen(_ovCfg()) : []; }
+    catch (e) { try { applog("warn", "[anim-ov] Boxen nicht auflösbar: " + e); } catch (_) {} return []; }
+  }
+  // Google-Schriften der Boxen nachladen (Render lädt sie per <link> im Kopf; die
+  // Vorschau hatte sie nie — Oswald & Co. liefen dort als Ersatzschrift, und damit
+  // auch im Szene-Video, das die Vorschau abspielt).
+  const _OV_FONT_SPEC = { nunito: "Nunito:wght@400;600;700", quicksand: "Quicksand:wght@400;500;700",
+    fredoka: "Fredoka:wght@400;500;600", oswald: "Oswald:wght@400;500;600", bebas: "Bebas+Neue" };
+  function _ovFontsLaden(keys) {
+    for (const k of keys) {
+      const spec = _OV_FONT_SPEC[k];
+      if (!spec || document.getElementById("rz-ovfont-" + k)) continue;
+      const l = document.createElement("link");
+      l.id = "rz-ovfont-" + k; l.rel = "stylesheet";
+      l.href = "https://fonts.googleapis.com/css2?family=" + spec + "&display=swap";
+      document.head.appendChild(l);
+    }
+  }
+  // Box-/Zeilenstil inline — WYSIWYG-Spiegel von _overlay_boxen_css (core/animator.py).
+  function _ovBoxStil(b) {
+    const st = b.stil, k = "var(--overlay-scale)";
+    const shadow = st.shadow
+      ? `calc(var(--rz-ov-shx, 0) * ${k} * 1px) calc(var(--rz-ov-shy, 6) * ${k} * 1px) calc(22px * ${k}) rgba(0,0,0,0.45)`
+      : "none";
+    const border = st.border_w > 0 ? `calc(${st.border_w}px * ${k}) solid ${st.border_color}` : "none";
+    return `font-family:${OVERLAY_FONT_STACK[st.font] || OVERLAY_FONT_STACK.system}; color:${st.text_color};`
+      + ` background:${_ovHexRgba(st.bg_color, st.bg_opacity)}; border-radius:calc(${st.radius}px * ${k});`
+      + ` border:${border}; box-shadow:${shadow};`;
+  }
+  // Kennzahlen je Etappe → Text je Feld (gleiche Formeln wie _ovFieldValue, nur
+  // mit den Werten der Etappe). {"<nr>": text, gesamt: text} oder null.
+  function _ovEtappenWerte(id) {
+    const ss = _ovSeries && _ovSeries.stage_stats;
+    if (!ss || Object.keys(ss).length < 2) return null;
+    const out = {};
+    for (const nr of Object.keys(ss)) {
+      const w = _ovFieldValueAus(id, ss[nr]);
+      if (w == null) return null;
+      out[nr] = w;
+    }
+    out.gesamt = _ovFieldValue(id);
+    return out;
+  }
+  /** Ein Gesamt-Feld aus einem Kennzahlen-Objekt einer Etappe (null = Feld hat keinen Etappenwert). */
+  function _ovFieldValueAus(id, st) {
+    const km = (st.distance_m || 0) / 1000, dur = st.duration_s || 0;
+    const movS = (st.moving_time_s != null && st.moving_time_s > 0) ? st.moving_time_s : dur;
+    const sr = _ovSeries || {}, off = sr.tz_offset_min || 0, lang = sr.lang || "de";
+    switch (id) {
+      case "dist_total": return _ovFmtKm(km);
+      case "duration": return _ovFmtDur(dur);
+      case "moving_time": return _ovFmtDur(movS);
+      case "avg_speed": return movS > 0 ? (km / (movS / 3600)).toFixed(1) + " km/h" : "—";
+      case "avg_speed_total": return dur > 0 ? (km / (dur / 3600)).toFixed(1) + " km/h" : "—";
+      case "max_speed": return (st.max_speed_kmh || 0).toFixed(1) + " km/h";
+      case "elev_gain": return "↑ " + Math.round(st.ascent_m || 0) + " m";
+      case "elev_loss": return "↓ " + Math.round(st.descent_m || 0) + " m";
+      case "ele_high": return st.ele_max != null ? Math.round(st.ele_max) + " m" : "—";
+      case "ele_low": return st.ele_min != null ? Math.round(st.ele_min) + " m" : "—";
+      case "date": return fmtDateRangeJS(st.start_epoch, st.end_epoch, off, lang);
+      case "time_span": return fmtTimeSpanJS(st.start_epoch, st.end_epoch, off);
+    }
+    return null;
+  }
+  function _ovLetzteEtappe() {
+    const ss = _ovSeries && _ovSeries.stage_stats;
+    const k = ss ? Object.keys(ss).map(Number).filter(n => n > 0) : [];
+    return k.length ? Math.max(...k) : 0;
+  }
+  // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
+  // Anteil am Punkt-Index (wie _ovUpdateLiveAt) → hier in Streckenanteil + Etappe
+  // umgerechnet (wie __overlayTiming im Render). tSec < 0 = Ruhezustand.
+  let _ovTimingSpeicher = {}, _ovTimingBoxen = null, _ovGrenzenRef = null, _ovGrenzen = {};
+  function _ovTimingAt(tSec, frac) {
+    const root = document.getElementById("anim-viewport") || document;
+    const R = window.rzOverlayBoxen;
+    if (!R) return;
+    if (tSec < 0) {
+      try { const c = _ovCfg(); R.anwenden(root, R.aufloesen(c).concat(R.chartBoxen(c)), -1, 0, 0, {}, {}); } catch (_) {}
+      _ovTimingSpeicher = {}; _ovTimingBoxen = null;
+      return;
+    }
+    if (!_ovTimingBoxen) {
+      const c = _ovCfg();
+      _ovTimingBoxen = R.aufloesen(c).filter(b => b.enabled).concat(R.chartBoxen(c));
+    }
+    const sr = _ovSeries;
+    let f = Math.max(0, Math.min(1, frac || 0)), st = 0;
+    if (sr && sr.cumDistM && sr.cumDistM.length > 1) {
+      const n = sr.cumDistM.length, i = Math.max(0, Math.min(n - 1, Math.round(f * (n - 1))));
+      const d0 = sr.cumDistM[0], sp = sr.cumDistM[n - 1] - d0;
+      f = sp > 0 ? (sr.cumDistM[i] - d0) / sp : i / (n - 1);
+      if (sr.stage && sr.stage.nr) st = sr.stage.nr[Math.min(i, sr.stage.nr.length - 1)] || 0;
+      if (_ovGrenzenRef !== sr) {
+        _ovGrenzenRef = sr;
+        _ovGrenzen = (sr.stage && sr.stage.nr) ? R.etappenGrenzen(sr.cumDistM, sr.stage.nr) : {};
+      }
+    }
+    const ctx = {
+      intro_s: parseNum(document.getElementById("anim-intro")?.value, 0),
+      anim_s: parseNum(document.getElementById("anim-dur")?.value, 0),
+      hold_s: parseNum(document.getElementById("anim-hold")?.value, 0),
+      etappen: _ovGrenzen,
+    };
+    R.anwenden(root, _ovTimingBoxen, tSec, f, st, ctx, _ovTimingSpeicher);
+  }
+
+  // ── Modal „Box gestalten" + Liste „Weitere Boxen" (23.09.2026) ─────────────
+  // Gespeichert werden NUR Abweichungen in overlay_boxen (Liste von Einträgen
+  // {id, …}); „wie global"/„wie Box" = Schlüssel weg. Jede Änderung ein Undo-
+  // Schritt (Regler/Farben gebündelt je Element), Vorschau folgt sofort.
+  const _OV_STANDARD = ["totals", "live", "ele"];
+  const _OV_POS = ["tl", "tc", "tr", "ml", "cc", "mr", "bl", "bc", "br"];
+  let _ovModal = null;   // { id, zeile } solange das Fenster offen ist
+  const _ovEsc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const _ovKopie = (x) => JSON.parse(JSON.stringify(x == null ? null : x));
+  function _ovBoxName(b) {
+    if (b.id === "totals") return t("animator.overlay.totals", "Gesamt");
+    if (b.id === "live") return t("animator.overlay.live", "Live");
+    if (b.id === "ele") return t("animator.overlay.elevation", "Höhenprofil");
+    if (b.titel) return b.titel;
+    return (b.typ === "live" ? t("animator.overlay.live", "Live") : t("animator.overlay.totals", "Gesamt"))
+      + " · " + t("animator.pos." + b.position, b.position);
+  }
+  function _ovLeerWeg(e) {
+    const leer = (o) => o && typeof o === "object" && !Array.isArray(o) && !Object.keys(o).length;
+    if (e.zeilen && typeof e.zeilen === "object") {
+      for (const f of Object.keys(e.zeilen)) {
+        const z = e.zeilen[f] || {};
+        for (const k of Object.keys(z)) { if (z[k] == null) delete z[k]; else if (leer(z[k])) delete z[k]; }
+        if (z.blende) { for (const k of Object.keys(z.blende)) if (z.blende[k] == null) delete z.blende[k]; if (leer(z.blende)) delete z.blende; }
+        if (leer(z)) delete e.zeilen[f];
+      }
+    }
+    for (const k of ["stil", "blende", "zeilen"]) {
+      if (e[k] && typeof e[k] === "object") { for (const kk of Object.keys(e[k])) if (e[k][kk] == null) delete e[k][kk]; }
+      if (leer(e[k])) delete e[k];
+    }
+    for (const k of ["zeit", "bezug"]) if (e[k] == null) delete e[k];
+  }
+  function _ovSchreiben(liste, label, undoKey) {
+    if (_animUndoCtrl) {
+      try {
+        const force = !undoKey || window.__rzLastUndoEl !== undoKey;
+        _animUndoCtrl.push(label || t("animator.ovbox.undo", "Overlay-Box"), { force });
+        window.__rzLastUndoEl = undoKey || null;
+      } catch (_) {}
+    }
+    saveProjectSettings(_MODKEY, { overlay_boxen: liste });
+    renderOverlayPreview();
+    _ovExtraListe();
+  }
+  /** Eintrag `id` ändern (fn bekommt eine Kopie), leere Teile aufräumen, speichern. */
+  function _ovAendern(id, fn, label, undoKey) {
+    const liste = _ovKopie(_ovBoxenRoh()) || [];
+    let e = liste.find(x => x && x.id === id);
+    if (!e) { e = { id }; liste.push(e); }
+    fn(e);
+    _ovLeerWeg(e);
+    const rein = liste.filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1));
+    _ovSchreiben(rein, label, undoKey);
+  }
+  function _ovPfad(obj, pfad, wert) {
+    const teile = pfad.split(".");
+    let o = obj;
+    for (let i = 0; i < teile.length - 1; i++) {
+      if (!o[teile[i]] || typeof o[teile[i]] !== "object") o[teile[i]] = {};
+      o = o[teile[i]];
+    }
+    const k = teile[teile.length - 1];
+    if (wert === null || wert === undefined) delete o[k]; else o[k] = wert;
+  }
+  function _ovPfadLesen(obj, pfad) {
+    let o = obj;
+    for (const k of pfad.split(".")) { if (!o || typeof o !== "object") return undefined; o = o[k]; }
+    return o;
+  }
+  function _ovEtappenListe() {
+    const ss = _ovSeries && _ovSeries.stage_stats;
+    const nrs = ss ? Object.keys(ss).map(Number).filter(n => n > 0).sort((a, b) => a - b) : [];
+    const st = _ovSeries && _ovSeries.stage;
+    return nrs.map(nr => {
+      let name = "";
+      if (st && st.nr && st.name) { const i = st.nr.indexOf(nr); if (i >= 0) name = st.name[i] || ""; }
+      return { nr, name: name ? (nr + " · " + name) : (t("animator.ovbox.stage", "Etappe") + " " + nr) };
+    });
+  }
+
+  // ── HTML-Bausteine des Modals ──
+  function _ovZeileHtml(pfad, label, erbt, erbtText, wertHtml) {
+    return `<div class="ovbox-zeile${erbt ? " erbt" : ""}">`
+      + `<input type="checkbox" class="ovbox-erbt" data-erbt="${pfad}" ${erbt ? "checked" : ""} title="${_ovEsc(erbtText)}">`
+      + `<span>${label}</span><div class="ovbox-wert">${wertHtml}</div></div>`;
+  }
+  function _ovBlendeOpts(wert, aus) {
+    const o = aus
+      ? [["none", t("animator.ovbox.exit_none", "Hart (sofort)")], ["fade", t("animator.ovbox.exit_fade", "Ausblenden")],
+         ["pop", t("animator.ovbox.exit_pop", "Wegpoppen")], ["both", t("animator.ovbox.exit_both", "Aus- + Wegpoppen")]]
+      : [["none", t("signs.entry.none", "Hart (sofort)")], ["fade", t("signs.entry.fade", "Einblenden")],
+         ["pop", t("signs.entry.pop", "Aufpoppen")], ["both", t("signs.entry.both", "Ein- + Aufpoppen")]];
+    return o.map(([v, l]) => `<option value="${v}" ${v === wert ? "selected" : ""}>${l}</option>`).join("");
+  }
+  function _ovAusloeserHtml(rolle, a, dauer) {
+    // rolle "von" | "bis"; a = {art, wert} | null
+    const arten = [["s", t("animator.ovbox.at_s", "Sekunde im Video")], ["pct", t("animator.ovbox.at_pct", "Prozent der Strecke")],
+      ["start", t("animator.ovbox.at_start", "Start des Tracks")], ["ende", t("animator.ovbox.at_ende", "Ende des Tracks")]];
+    const et = _ovEtappenListe();
+    if (et.length) arten.push(["etappe_start", t("animator.ovbox.at_stage_start", "Anfang von Etappe")], ["etappe_ende", t("animator.ovbox.at_stage_end", "Ende von Etappe")]);
+    let art = a ? a.art : "";
+    if (rolle === "bis") {
+      arten.unshift(["", t("animator.ovbox.until_end", "bis zum Videoende")], ["dauer", t("animator.ovbox.for_dur", "für eine Dauer von")]);
+      if (dauer) art = "dauer";
+    }
+    const sel = `<select data-z="${rolle}.art">` + arten.map(([v, l]) => `<option value="${v}" ${v === art ? "selected" : ""}>${l}</option>`).join("") + `</select>`;
+    let wert = "";
+    if (art === "s" || art === "dauer") wert = `<input type="number" data-z="${rolle}.wert" min="0" step="0.5" value="${art === "dauer" ? dauer : (a ? a.wert : 0)}"> s`;
+    else if (art === "pct") wert = `<input type="number" data-z="${rolle}.wert" min="0" max="100" step="1" value="${a ? a.wert : 0}"> %`;
+    else if (art === "etappe_start" || art === "etappe_ende") {
+      wert = `<select data-z="${rolle}.wert">` + et.map(x => `<option value="${x.nr}" ${a && +a.wert === x.nr ? "selected" : ""}>${_ovEsc(x.name)}</option>`).join("") + `</select>`;
+    }
+    return sel + wert;
+  }
+  function _ovZeitHtml(pfadPraefix, eigen, zAufl, erbtText, hinweis) {
+    const z = eigen || zAufl;
+    const inner = `<div class="ovbox-wert" style="flex-direction:column;align-items:flex-start;gap:6px;">`
+      + `<div>${t("animator.ovbox.from", "Ab")}: ${_ovAusloeserHtml("von", z ? z.von : { art: "s", wert: 0 }, null)}</div>`
+      + `<div>${t("animator.ovbox.until", "Bis")}: ${_ovAusloeserHtml("bis", z ? z.bis : null, z ? z.dauer_s : null)}</div></div>`;
+    return `<div class="ovbox-zeile${eigen ? "" : " erbt"}" data-zeit="${pfadPraefix}zeit">`
+      + `<input type="checkbox" class="ovbox-erbt" data-erbt="${pfadPraefix}zeit" ${eigen ? "" : "checked"} title="${_ovEsc(erbtText)}">`
+      + `<span>${t("animator.ovbox.time", "Zeitpunkt")}</span>${inner}</div>`
+      + (hinweis ? `<p class="ovbox-hinweis">${hinweis}</p>` : "");
+  }
+  function _ovBezugHtml(pfad, eigen, wert, erbtText) {
+    const et = _ovEtappenListe();
+    if (!et.length) return "";
+    const opts = [["gesamt", t("animator.ovbox.ref_all", "Ganze Strecke")], ["laufend", t("animator.ovbox.ref_running", "Laufende Etappe")]]
+      .concat(et.map(x => [String(x.nr), x.name]));
+    const sel = `<select data-k="${pfad}" data-typ="bezug">` + opts.map(([v, l]) => `<option value="${v}" ${String(wert) === v ? "selected" : ""}>${_ovEsc(l)}</option>`).join("") + `</select>`;
+    return _ovZeileHtml(pfad, t("animator.ovbox.ref", "Zahlen für"), !eigen, erbtText, sel);
+  }
+
+  function _ovModalHtml() {
+    const aufl = _ovAufgeloest();
+    const b = aufl.find(x => x.id === _ovModal.id);
+    if (!b) return `<p>${t("animator.ovbox.gone", "Diese Box gibt es nicht mehr.")}</p>`;
+    const e = _ovBoxenRoh().find(x => x && x.id === b.id) || { id: b.id };
+    const global = window.rzOverlayBoxen.globalStil(_ovCfg());
+    const gBl = window.rzOverlayBoxen.globalBlende(_ovCfg());
+    const standard = _OV_STANDARD.includes(b.id);
+    const wieG = t("animator.ovbox.inherit_global", "wie alle Boxen (Haken weg = eigener Wert)");
+    const fid = _ovModal.zeile;
+    if (fid) {
+      // ── Zeile ──
+      const zl = (b.zeilen || {})[fid] || { text_color: b.stil.text_color, groesse: 1, fett: null, zeit: null, blende: b.blende, bezug: b.bezug };
+      const ez = (e.zeilen || {})[fid] || {};
+      const wieB = t("animator.ovbox.inherit_box", "wie die Box (Haken weg = eigener Wert)");
+      const P = "zeilen." + fid + ".";
+      let h = `<button type="button" class="btn btn-sm" data-act="zurueck">← ${_ovEsc(_ovBoxName(b))}</button>`;
+      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.row", "Zeile")}: ${_ovEsc(_ovFieldLabel(fid))}</h4>`;
+      h += _ovZeileHtml(P + "text_color", t("animator.overlay.text_color", "Textfarbe"), ez.text_color == null, wieB,
+        `<input type="color" data-k="${P}text_color" value="${zl.text_color}">`);
+      h += _ovZeileHtml(P + "groesse", t("animator.ovbox.size", "Größe"), ez.groesse == null, wieB,
+        `<input type="range" data-k="${P}groesse" data-typ="pct" min="50" max="300" step="5" value="${Math.round(zl.groesse * 100)}"><span>${Math.round(zl.groesse * 100)} %</span>`);
+      h += _ovZeileHtml(P + "fett", t("animator.ovbox.bold", "Fett"), ez.fett == null, wieB,
+        `<select data-k="${P}fett" data-typ="bool"><option value="1" ${zl.fett ? "selected" : ""}>${t("animator.ovbox.bold_yes", "fett")}</option><option value="0" ${zl.fett === false ? "selected" : ""}>${t("animator.ovbox.bold_no", "normal")}</option></select>`);
+      h += `</div><div class="ovbox-sek"><h4>${t("animator.ovbox.sec_blend", "Blende und Zeitpunkt")}</h4>`;
+      h += _ovZeitHtml(P, ez.zeit ? zl.zeit : null, b.zeit, wieB, t("animator.ovbox.row_time_hint", "Ohne eigenen Zeitpunkt erscheint die Zeile zusammen mit der Box."));
+      h += _ovZeileHtml(P + "blende.ein", t("animator.overlay.entry", "Einblendung"), !(ez.blende && ez.blende.ein != null), wieB,
+        `<select data-k="${P}blende.ein">${_ovBlendeOpts(zl.blende.ein, false)}</select>`);
+      h += _ovZeileHtml(P + "blende.aus", t("animator.ovbox.exit", "Ausblendung"), !(ez.blende && ez.blende.aus != null), wieB,
+        `<select data-k="${P}blende.aus">${_ovBlendeOpts(zl.blende.aus, true)}</select>`);
+      h += `</div>`;
+      if (b.typ === "totals") h += `<div class="ovbox-sek">` + (_ovBezugHtml(P + "bezug", ez.bezug != null, zl.bezug, wieB) || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren.")}</p>`) + `</div>`;
+      return h;
+    }
+    // ── Box ──
+    let h = "";
+    if (!standard) {
+      const cat = _ovCat(b.typ);
+      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_box", "Box")}</h4>`
+        + `<div class="ovbox-zeile"><span></span><span>${t("animator.ovbox.title", "Überschrift")}</span><div class="ovbox-wert"><input type="text" data-k="titel" data-typ="text" maxlength="80" value="${_ovEsc(e.titel || "")}" placeholder="${_ovEsc(t("animator.ovbox.title_ph", "z. B. Die ganze Tour"))}"></div></div>`
+        + `<div class="ovbox-zeile"><span></span><span>${t("animator.ovbox.type", "Inhalt")}</span><div class="ovbox-wert"><select data-k="typ" data-typ="typ">`
+        + `<option value="totals" ${b.typ === "totals" ? "selected" : ""}>${t("animator.overlay.totals", "Gesamt")}</option>`
+        + `<option value="live" ${b.typ === "live" ? "selected" : ""}>${t("animator.overlay.live", "Live")}</option></select></div></div>`
+        + `<div class="ovbox-zeile"><span></span><span>${t("animator.overlay.position", "Position")}</span><div class="ovbox-wert"><select data-k="position" data-typ="text">`
+        + _OV_POS.map(p => `<option value="${p}" ${p === b.position ? "selected" : ""}>${t("animator.pos." + p, p)}</option>`).join("") + `</select></div></div>`
+        + `<div class="ovbox-zeile"><span></span><span>${t("animator.ovbox.fields", "Felder")}</span><div class="ovbox-wert">`
+        + cat.filter(f => _ovAvail(f.req)).map(f => `<label class="checkbox-row inline"><input type="checkbox" data-feld="${_ovEsc(f.id)}" ${(b.fields || []).includes(f.id) ? "checked" : ""}><span>${_ovEsc(_ovFieldLabel(f.id))}</span></label>`).join("")
+        + `</div></div></div>`;
+    }
+    const es = e.stil || {};
+    h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_look", "Aussehen")}</h4>`;
+    h += _ovZeileHtml("stil.bg_color", t("animator.overlay.bg_color", "Hintergrund"), es.bg_color == null, wieG, `<input type="color" data-k="stil.bg_color" value="${b.stil.bg_color}">`);
+    h += _ovZeileHtml("stil.bg_opacity", t("animator.overlay.bg_opacity", "Deckkraft Hintergrund"), es.bg_opacity == null, wieG,
+      `<input type="range" data-k="stil.bg_opacity" data-typ="pct" min="0" max="100" step="5" value="${Math.round(b.stil.bg_opacity * 100)}"><span>${Math.round(b.stil.bg_opacity * 100)} %</span>`);
+    h += _ovZeileHtml("stil.text_color", t("animator.overlay.text_color", "Textfarbe"), es.text_color == null, wieG, `<input type="color" data-k="stil.text_color" value="${b.stil.text_color}">`);
+    h += _ovZeileHtml("stil.font", t("animator.overlay.font", "Schrift"), es.font == null, wieG,
+      `<select data-k="stil.font">` + Object.keys(OVERLAY_FONT_STACK).map(k => `<option value="${k}" ${k === b.stil.font ? "selected" : ""}>${k === "system" ? t("animator.overlay.font_system", "System (Standard)") : ({ nunito: "Nunito", quicksand: "Quicksand", fredoka: "Fredoka", oswald: "Oswald", bebas: "Bebas Neue" })[k]}</option>`).join("") + `</select>`);
+    h += _ovZeileHtml("stil.radius", t("animator.ovbox.radius", "Ecken"), es.radius == null, wieG,
+      `<input type="range" data-k="stil.radius" data-typ="num" min="0" max="40" step="1" value="${b.stil.radius}"><span>${b.stil.radius}</span>`);
+    h += _ovZeileHtml("stil.border_w", t("animator.ovbox.border", "Rahmen"), es.border_w == null, wieG,
+      `<input type="number" data-k="stil.border_w" data-typ="num" min="0" max="12" step="0.5" value="${b.stil.border_w}"> px`);
+    h += _ovZeileHtml("stil.border_color", t("animator.ovbox.border_color", "Rahmenfarbe"), es.border_color == null, wieG, `<input type="color" data-k="stil.border_color" value="${b.stil.border_color}">`);
+    h += _ovZeileHtml("stil.shadow", t("animator.ovbox.shadow", "Schatten"), es.shadow == null, wieG,
+      `<select data-k="stil.shadow" data-typ="bool"><option value="1" ${b.stil.shadow ? "selected" : ""}>${t("animator.ovbox.on", "an")}</option><option value="0" ${b.stil.shadow ? "" : "selected"}>${t("animator.ovbox.off", "aus")}</option></select>`);
+    h += `</div>`;
+    const eb = e.blende || {};
+    h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_blend", "Blende und Zeitpunkt")}</h4>`;
+    h += _ovZeileHtml("blende.ein", t("animator.overlay.entry", "Einblendung"), eb.ein == null, wieG, `<select data-k="blende.ein">${_ovBlendeOpts(b.blende.ein, false)}</select>`);
+    h += _ovZeileHtml("blende.aus", t("animator.ovbox.exit", "Ausblendung"), eb.aus == null, wieG, `<select data-k="blende.aus">${_ovBlendeOpts(b.blende.aus, true)}</select>`);
+    h += _ovZeileHtml("blende.dauer_s", t("animator.ovbox.blende_s", "Dauer der Blende"), eb.dauer_s == null, wieG,
+      `<input type="number" data-k="blende.dauer_s" data-typ="num" min="0.1" max="5" step="0.1" value="${b.blende.dauer_s}"> s`);
+    h += _ovZeitHtml("", e.zeit ? b.zeit : null, b.zeit,
+      standard ? t("animator.ovbox.inherit_sidebar", "wie in der Seitenleiste (⏱ Sekunden)") : t("animator.ovbox.inherit_whole", "die ganze Zeit"),
+      standard ? t("animator.ovbox.time_hint_std", "Mit eigenem Zeitpunkt gelten die ⏱-Sekunden in der Seitenleiste für diese Box nicht mehr.") : "");
+    h += `</div>`;
+    if (b.typ === "totals") {
+      const bz = _ovBezugHtml("bezug", e.bezug != null, b.bezug, wieG);
+      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_ref", "Zahlen")}</h4>` + (bz || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren.")}</p>`) + `</div>`;
+    }
+    if (b.typ !== "ele") {
+      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_rows", "Zeilen einzeln")}</h4><div class="ovbox-rows">`
+        + (b.fields || []).map(f => `<div class="ovbox-row"><span class="ovbox-row-name">${_ovEsc(_ovFieldLabel(f))}</span>`
+          + ((e.zeilen && e.zeilen[f]) ? `<span class="ovbox-row-mark">● ${t("animator.ovbox.row_own", "eigen")}</span>` : "")
+          + `<button type="button" class="ov-box-edit" data-act="zeile" data-f="${_ovEsc(f)}">✎</button></div>`).join("")
+        + `</div></div>`;
+    }
+    return h;
+  }
+
+  function _ovModalZeichnen() {
+    const root = document.getElementById("ovbox-root");
+    if (!root || !_ovModal) return;
+    const scroll = root.scrollTop;
+    root.innerHTML = _ovModalHtml();
+    root.scrollTop = scroll;
+    const titleEl = document.getElementById("modal-title");
+    const b = _ovAufgeloest().find(x => x.id === _ovModal.id);
+    if (titleEl && b) titleEl.textContent = t("animator.ovbox.modal_title", "Box gestalten") + ": " + _ovBoxName(b);
+    _ovModalBinden();
+  }
+  function _ovModalBinden() {
+    const root = document.getElementById("ovbox-root");
+    if (!root || root.__rzOvGebunden) return;
+    root.__rzOvGebunden = true;
+    const wertVon = (el) => {
+      const typ = el.getAttribute("data-typ") || "";
+      if (typ === "pct") return (parseFloat(el.value) || 0) / 100;
+      if (typ === "num") { const v = parseFloat(el.value); return isNaN(v) ? null : v; }
+      if (typ === "bool") return el.value === "1";
+      if (typ === "bezug") return (el.value === "gesamt" || el.value === "laufend") ? el.value : (parseInt(el.value, 10) || "gesamt");
+      return el.value;
+    };
+    const zeitAusFormular = (zeile) => {
+      const g = (k) => zeile.querySelector(`[data-z="${k}"]`);
+      const vArt = g("von.art")?.value || "s";
+      const vWert = parseFloat(g("von.wert")?.value) || 0;
+      const bArt = g("bis.art")?.value || "";
+      const bWert = parseFloat(g("bis.wert")?.value) || 0;
+      const z = { von: { art: vArt, wert: vWert } };
+      if (bArt === "dauer") z.dauer_s = bWert > 0 ? bWert : 10;
+      else if (bArt) z.bis = { art: bArt, wert: bWert || (bArt.startsWith("etappe") ? 1 : 0) };
+      if ((vArt === "etappe_start" || vArt === "etappe_ende") && !g("von.wert")) z.von.wert = 1;
+      return z;
+    };
+    const aendern = (fn, label, undoKey, neuZeichnen) => {
+      if (!_ovModal) return;
+      _ovAendern(_ovModal.id, fn, label, undoKey);
+      if (neuZeichnen) _ovModalZeichnen();
+    };
+    // Regler/Farben live (ein Undo-Schritt je Element), Auswahllisten/Häkchen mit Neuaufbau.
+    root.addEventListener("input", (ev) => {
+      const el = ev.target;
+      const k = el.getAttribute && el.getAttribute("data-k");
+      if (!k || el.tagName === "SELECT" || el.type === "text") return;
+      const pfad = k;   // Zeilen-Regler tragen „zeilen.<fid>.…" schon selbst
+      const w = wertVon(el);
+      const lbl = el.nextElementSibling;
+      if (lbl && lbl.tagName === "SPAN" && el.type === "range") lbl.textContent = el.getAttribute("data-typ") === "pct" ? Math.round(w * 100) + " %" : String(w);
+      aendern((e) => _ovPfad(e, pfad, w), t("animator.ovbox.undo", "Overlay-Box"), "ovbox:" + _ovModal.id + ":" + pfad, false);
+    });
+    root.addEventListener("change", (ev) => {
+      const el = ev.target;
+      if (!el || !el.getAttribute) return;
+      const erbt = el.getAttribute("data-erbt");
+      if (erbt) {
+        const pfad = erbt;
+        if (el.checked) { aendern((e) => _ovPfad(e, pfad, null), t("animator.ovbox.undo", "Overlay-Box"), null, true); return; }
+        // Haken weg → aktuellen (geerbten) Wert als eigenen übernehmen
+        const b = _ovAufgeloest().find(x => x.id === _ovModal.id);
+        let wert;
+        if (/(^|\.)zeit$/.test(pfad)) wert = _ovKopie((pfad.startsWith("zeilen.") ? null : (b && b.zeit)) || (b && b.zeit) || { von: { art: "s", wert: 0 } });
+        else if (pfad.startsWith("zeilen.")) {
+          const rest = pfad.split(".").slice(2).join(".");
+          const zl = (b && b.zeilen && b.zeilen[_ovModal.zeile]) || { text_color: b.stil.text_color, groesse: 1, fett: false, blende: b.blende, bezug: b.bezug };
+          wert = _ovPfadLesen(zl, rest);
+          if (rest === "fett" && wert == null) wert = false;
+        } else wert = _ovPfadLesen(b, pfad);
+        if (wert === undefined) wert = null;
+        aendern((e) => _ovPfad(e, pfad, wert == null ? (pfad.endsWith("fett") ? false : wert) : _ovKopie(wert)), t("animator.ovbox.undo", "Overlay-Box"), null, true);
+        return;
+      }
+      if (el.hasAttribute("data-z")) {
+        const zeile = el.closest("[data-zeit]");
+        const pfad = zeile.getAttribute("data-zeit");
+        aendern((e) => _ovPfad(e, pfad, zeitAusFormular(zeile)), t("animator.ovbox.undo_time", "Zeitpunkt der Box"), null, el.tagName === "SELECT");
+        return;
+      }
+      if (el.hasAttribute("data-feld")) {
+        const felder = Array.from(root.querySelectorAll("[data-feld]")).filter(x => x.checked).map(x => x.getAttribute("data-feld"));
+        aendern((e) => { e.fields = felder; }, t("animator.ovbox.undo_fields", "Felder der Box"), null, true);
+        return;
+      }
+      const k = el.getAttribute("data-k");
+      if (!k) return;
+      if (k === "typ") {
+        const typ = el.value === "live" ? "live" : "totals";
+        aendern((e) => { e.typ = typ; delete e.fields; delete e.zeilen; if (typ === "live") delete e.bezug; }, t("animator.ovbox.undo", "Overlay-Box"), null, true);
+        return;
+      }
+      if (el.tagName === "SELECT" || el.type === "text" || el.type === "checkbox") {
+        const pfad = k;
+        const w = wertVon(el);
+        aendern((e) => _ovPfad(e, pfad, w), t("animator.ovbox.undo", "Overlay-Box"), null, el.tagName === "SELECT");
+      }
+    });
+    root.addEventListener("click", (ev) => {
+      const btn = ev.target.closest && ev.target.closest("[data-act]");
+      if (!btn || !_ovModal) return;
+      const act = btn.getAttribute("data-act");
+      if (act === "zeile") { _ovModal.zeile = btn.getAttribute("data-f"); _ovModalZeichnen(); }
+      else if (act === "zurueck") { _ovModal.zeile = null; _ovModalZeichnen(); }
+    });
+  }
+
+  function _ovBoxModal(id, zeile) {
+    _ovModal = { id, zeile: zeile || null };
+    openModal({
+      title: t("animator.ovbox.modal_title", "Box gestalten"),
+      body: `<div id="ovbox-root" class="ovbox-modal"></div>`,
+      footer: `<div class="ovbox-fuss">`
+        + `<button class="btn" id="ovbox-alle" title="${_ovEsc(t("animator.ovbox.apply_all_tip", "Aussehen und Blende dieser Box auf alle anderen Boxen übertragen (Zeitpunkt und Zahlen bleiben je Box)"))}">${t("animator.ovbox.apply_all", "Auf alle Boxen übernehmen")}</button>`
+        + `<button class="btn" id="ovbox-reset">${t("animator.ovbox.reset", "Diese Box zurücksetzen")}</button>`
+        + `<button class="btn" id="ovbox-reset-alle">${t("animator.ovbox.reset_all", "Alle zurücksetzen")}</button>`
+        + `<button class="btn btn-primary" id="ovbox-zu">${t("common.close", "Schließen")}</button></div>`,
+      onClose: () => { _ovModal = null; },
+    });
+    _ovModalZeichnen();
+    const wieder = () => { if (_ovModal) _ovBoxModal(_ovModal.id, _ovModal.zeile); };
+    document.getElementById("ovbox-zu").onclick = () => { _ovModal = null; try { openModal({}).close(); } catch (_) {} };
+    document.getElementById("ovbox-alle").onclick = () => {
+      const quelle = _ovBoxenRoh().find(x => x && x.id === id) || {};
+      const liste = _ovKopie(_ovBoxenRoh()) || [];
+      const ids = _ovAufgeloest().map(b => b.id);
+      for (const bid of ids) {
+        if (bid === id) continue;
+        let e = liste.find(x => x && x.id === bid);
+        if (!e) { e = { id: bid }; liste.push(e); }
+        if (quelle.stil) e.stil = _ovKopie(quelle.stil); else delete e.stil;
+        if (quelle.blende) e.blende = _ovKopie(quelle.blende); else delete e.blende;
+      }
+      _ovSchreiben(liste.filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1)), t("animator.ovbox.apply_all", "Auf alle Boxen übernehmen"));
+      _ovModalZeichnen();
+      try { toast(t("animator.ovbox.applied", "Aussehen auf alle Boxen übertragen."), "success"); } catch (_) {}
+    };
+    document.getElementById("ovbox-reset").onclick = async () => {
+      const ok = await window.rzConfirm(t("animator.ovbox.reset", "Diese Box zurücksetzen"),
+        t("animator.ovbox.reset_q", "Alle eigenen Einstellungen dieser Box (Aussehen, Blende, Zeitpunkt, Zahlen, Zeilen) entfernen? Die Box sieht danach aus wie alle anderen."),
+        t("animator.ovbox.reset_ok", "Zurücksetzen"), true);
+      if (ok) _ovAendern(id, (e) => { delete e.stil; delete e.blende; delete e.zeit; delete e.bezug; delete e.zeilen; }, t("animator.ovbox.reset", "Diese Box zurücksetzen"));
+      wieder();
+    };
+    document.getElementById("ovbox-reset-alle").onclick = async () => {
+      const ok = await window.rzConfirm(t("animator.ovbox.reset_all", "Alle zurücksetzen"),
+        t("animator.ovbox.reset_all_q", "Die eigenen Einstellungen ALLER Boxen entfernen? Zusätzliche Boxen bleiben erhalten, sehen aber wieder aus wie eingestellt unter „Aussehen der Stats-Boxen“."),
+        t("animator.ovbox.reset_ok", "Zurücksetzen"), true);
+      if (ok) {
+        const liste = (_ovKopie(_ovBoxenRoh()) || []).map(e => { delete e.stil; delete e.blende; delete e.zeit; delete e.bezug; delete e.zeilen; return e; })
+          .filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1));
+        _ovSchreiben(liste, t("animator.ovbox.reset_all", "Alle zurücksetzen"));
+      }
+      wieder();
+    };
+  }
+
+  function _ovExtraListe() {
+    const el = document.getElementById("anim-ov-extra-list");
+    if (!el) return;
+    const aufl = _ovAufgeloest();
+    const extras = aufl.filter(b => !_OV_STANDARD.includes(b.id));
+    el.innerHTML = extras.length
+      ? extras.map(b => `<div class="ov-extra-row${b.enabled ? "" : " aus"}" data-id="${_ovEsc(b.id)}">`
+          + `<input type="checkbox" data-act="an" ${b.enabled ? "checked" : ""} title="${_ovEsc(t("animator.ovbox.show", "Anzeigen"))}">`
+          + `<span class="ov-extra-name">${_ovEsc(_ovBoxName(b))}</span>`
+          + `<button type="button" class="ov-box-edit" data-act="edit" title="${_ovEsc(t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt"))}">✎</button>`
+          + `<button type="button" class="ov-box-edit" data-act="dup" title="${_ovEsc(t("animator.ovbox.dup", "Duplizieren"))}">⧉</button>`
+          + `<button type="button" class="ov-box-edit" data-act="del" title="${_ovEsc(t("animator.ovbox.del", "Löschen"))}">✕</button></div>`).join("")
+      : `<div class="ov-extra-leer">${t("animator.ovbox.extra_empty", "Noch keine zusätzliche Box.")}</div>`;
+    if (!el.__rzOvGebunden) {
+      el.__rzOvGebunden = true;
+      el.addEventListener("click", async (ev) => {
+        const btn = ev.target.closest && ev.target.closest("[data-act]");
+        const row = ev.target.closest && ev.target.closest("[data-id]");
+        if (!btn || !row) return;
+        const id = row.getAttribute("data-id");
+        const act = btn.getAttribute("data-act");
+        if (act === "edit") _ovBoxModal(id);
+        else if (act === "dup") {
+          const liste = _ovKopie(_ovBoxenRoh()) || [];
+          const q = liste.find(x => x && x.id === id);
+          if (!q) return;
+          const n = _ovKopie(q); n.id = "box_" + Math.random().toString(36).slice(2, 8);
+          liste.splice(liste.indexOf(q) + 1, 0, n);
+          _ovSchreiben(liste, t("animator.ovbox.dup", "Duplizieren"));
+        } else if (act === "del") {
+          const b = _ovAufgeloest().find(x => x.id === id);
+          const ok = await window.rzConfirm(t("animator.ovbox.del", "Löschen"),
+            t("animator.ovbox.del_q", "Die Box „{name}“ löschen?").replace("{name}", b ? _ovBoxName(b) : id), t("animator.ovbox.del", "Löschen"), true);
+          if (ok) _ovSchreiben((_ovKopie(_ovBoxenRoh()) || []).filter(x => x && x.id !== id), t("animator.ovbox.del", "Löschen"));
+        }
+      });
+      el.addEventListener("change", (ev) => {
+        const cb = ev.target;
+        const row = cb.closest && cb.closest("[data-id]");
+        if (!row || cb.getAttribute("data-act") !== "an") return;
+        const on = !!cb.checked;
+        _ovAendern(row.getAttribute("data-id"), (e) => { e.enabled = on; }, t("animator.ovbox.show", "Anzeigen"));
+      });
+    }
+    // Standardboxen mit eigenem Zeitpunkt: die ⏱-Sekunden der Seitenleiste gelten nicht mehr.
+    const eigen = new Set(_ovBoxenRoh().filter(e => e && e.zeit).map(e => e.id));
+    for (const [id, gid] of [["totals", "anim-overlay-totals-group"], ["live", "anim-overlay-live-group"], ["ele", "anim-overlay-elevation-group"]]) {
+      const tm = document.querySelector("#" + gid + " .ov-timing");
+      if (!tm) continue;
+      const aus = eigen.has(id);
+      tm.classList.toggle("ov-timing-ersetzt", aus);
+      tm.querySelectorAll("input").forEach(i => { i.disabled = aus; });
+      tm.title = aus ? t("animator.ovbox.time_replaced", "Diese Box hat einen eigenen Zeitpunkt (✎).") : t("animator.overlay.timing_tip");
+    }
+  }
+  function _ovBoxNeu() {
+    const liste = _ovKopie(_ovBoxenRoh()) || [];
+    const id = "box_" + Math.random().toString(36).slice(2, 8);
+    liste.push({ id, typ: "totals", position: "cc", enabled: true });
+    _ovSchreiben(liste, t("animator.ovbox.add", "Box"));
+    _ovBoxModal(id);
+  }
+
   function renderOverlayPreview() {
+    _ovTimingBoxen = null;   // Einstellungen geändert → Zeitsteuerung neu auflösen
     try { _applyAttribLook(); } catch (_) {}
     try { _overlayBoxenRendern(); } catch (e) {
       try { applog("warn", "[anim-ov] Vorschau: " + e); } catch (_) {}
@@ -14341,30 +15014,50 @@ function mountAnimator(body, headerActions, opts) {
         </svg>`;
     }
 
-    // v0.9.321 — globales Styling (Schrift/Textfarbe/BG/Opacity) auf alle Boxen
-    const fontKey = document.getElementById("anim-ov-font")?.value || "system";
-    const fontFam = OVERLAY_FONT_STACK[fontKey] || OVERLAY_FONT_STACK.system;
-    const txtCol  = document.getElementById("anim-ov-textcolor")?.value || "#ffffff";
-    const bgCol   = document.getElementById("anim-ov-bgcolor")?.value || "#000000";
-    // v0.9.409 — Falsy-Zero-Fix (Beta-Tester): Slider auf 0 % ist parseFloat=0 → `|| 55`
-    // machte daraus heimlich 55 % → die Box kam bei 0 % voll gefärbt zurück. isNaN-Guard.
-    const _bgOpRaw = parseFloat(document.getElementById("anim-ov-bgopacity")?.value);
-    const bgOpac  = (isNaN(_bgOpRaw) ? 55 : _bgOpRaw) / 100;
-    const boxStyle = `font-family:${fontFam}; color:${txtCol}; background:${_ovHexRgba(bgCol, bgOpac)};`;
-    // v0.9.321 — katalog-getriebene, sortierbare Felder pro Box (Endzustand-Werte)
-    const rowsHtml = (box) => _ovGetFields(box).map(id => {
-      // v0.9.327 — Akzent (Zurückgelegt) erbt die Textfarbe, hebt sich nur über
-      // Fettung ab. Vorher hart auf Track-Farbe → die Textfarbe-Einstellung
-      // wirkte auf dieses Feld nicht (Marc-Bug).
-      const accent = (id === "dist_done") ? ` style="font-weight:800"` : "";
-      return `<div class="ov-row"><span class="ov-l">${_ovFieldLabel(id)}</span><span class="ov-v" data-ovid="${id}"${accent}>${_ovFieldValue(id)}</span></div>`;
+    // 23.09.2026 — Boxen aus dem gemeinsamen Modell (ui/js/overlay_boxen.js): Standard-
+    // boxen + „Weitere Boxen", je Box eigener Stil, je Zeile Farbe/Größe/Fettung und
+    // Bezug auf eine Etappe. Ruhezustand = Endzustand (Bezug „laufend" = letzte Etappe).
+    const boxen = _ovAufgeloest();
+    try { _ovFontsLaden(Array.from(new Set(boxen.filter(b => b.enabled).map(b => b.stil.font)))); }
+    catch (e) { try { applog("warn", "[anim-ov] Schriften nachladen: " + e); } catch (_) {} }
+    const escA = (x) => String(x).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    const letzte = _ovLetzteEtappe();
+    const rowsHtml = (b) => (b.fields || []).filter(id => {
+      const f = _ovCat(b.typ).find(x => x.id === id);
+      return f && _ovAvail(f.req);
+    }).map(id => {
+      const zl = (b.zeilen || {})[id];
+      // v0.9.327 — Akzent (Zurückgelegt) erbt die Textfarbe, hebt sich nur über Fettung ab.
+      let vStil = (id === "dist_done") ? "font-weight:800;" : "";
+      if (zl && zl.fett != null) vStil = `font-weight:${zl.fett ? 800 : 400};`;
+      const rStil = zl ? `color:${zl.text_color};--rz-ov-gr:${zl.groesse};` : "";
+      let wert = _ovFieldValue(id), sv = "";
+      if (b.typ === "totals") {
+        const werte = _ovEtappenWerte(id);
+        const bz = zl ? zl.bezug : b.bezug;
+        if (werte && bz !== "gesamt") {
+          sv = ` data-stage-values="${escA(JSON.stringify(werte))}"`;
+          const key = bz === "laufend" ? String(letzte) : String(bz);
+          if (key in werte) wert = werte[key];
+        }
+      }
+      return `<div class="ov-row" data-f="${escA(id)}"${sv}${rStil ? ` style="${rStil}"` : ""}><span class="ov-l">${_ovFieldLabel(id)}</span>`
+        + `<span class="ov-v" data-ovid="${escA(id)}"${vStil ? ` style="${vStil}"` : ""}>${wert}</span></div>`;
     }).join("");
 
     let html = "";
-    if (totals) { const r = rowsHtml("totals"); if (r) html += `<div class="ov-box pos-${posT}" data-ovbox="totals" style="${boxStyle}">${r}</div>`; }
-    if (live)   { const r = rowsHtml("live");   if (r) html += `<div class="ov-box pos-${posL}" data-ovbox="live" style="${boxStyle}">${r}</div>`; }
-    if (ele && eleSvg) {
-      html += `<div class="ov-ele-box pos-${posE}" data-ovbox="ele" style="${boxStyle}">${eleSvg}</div>`;
+    for (const b of boxen) {
+      if (!b.enabled) continue;
+      if (b.typ === "live" && _isStaticFrame) continue;   // Standbild: keine Live-Werte
+      const stil = _ovBoxStil(b);
+      if (b.typ === "ele") {
+        if (eleSvg) html += `<div class="ov-ele-box pos-${b.position}" data-ovbox="ele" data-ovtyp="ele" style="${stil}">${eleSvg}</div>`;
+        continue;
+      }
+      const r = rowsHtml(b);
+      if (!r) continue;
+      const titel = b.titel ? `<div class="ov-titel">${_animEscapeHtml(b.titel)}</div>` : "";
+      html += `<div class="ov-box pos-${b.position}" data-ovbox="${escA(b.id)}" data-ovtyp="${b.typ}" style="${stil}">${titel}${r}</div>`;
     }
     // 04.09.2026 — Nordpfeil + Maßstab (Standard an; Render-Spiegel: _north_scale_html)
     {
@@ -14423,27 +15116,10 @@ function mountAnimator(body, headerActions, opts) {
     if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + " km" : Math.round(nice) + " m";
   }
 
-  // v0.9.228 — Preview-WYSIWYG für Beta-Testers Overlay-Zeitfenster: blendet die
-  // Vorschau-Boxen im Probelauf nach Video-Sekunde ein/aus (analog zum Render
-  // window.__overlayTiming). tSec = aktuelle Video-Sekunde (intro+anim+hold).
-  // to<=0 = bis Ende. Bei tSec<0 (kein Probelauf aktiv) alle wieder sichtbar.
+  // v0.9.228 → 23.09.2026: Zeitsteuerung der Vorschau-Boxen im Probelauf läuft über
+  // _ovTimingAt (gemeinsame Regeln mit dem Render). Nur noch der Ruhezustand hier.
   function _animOverlayTimingPreview(tSec) {
-    const layer = document.getElementById("anim-overlay-preview");
-    if (!layer) return;
-    const num = (id) => parseFloat(document.getElementById(id)?.value) || 0;
-    const wins = {
-      totals: [num("anim-ov-totals-from"), num("anim-ov-totals-to")],
-      live:   [num("anim-ov-live-from"),   num("anim-ov-live-to")],
-      ele:    [num("anim-ov-ele-from"),    num("anim-ov-ele-to")],
-    };
-    for (const key of Object.keys(wins)) {
-      const el = layer.querySelector(`[data-ovbox="${key}"]`);
-      if (!el) continue;
-      if (tSec < 0) { el.style.visibility = ""; continue; }
-      const w = wins[key];
-      const vis = (tSec >= w[0]) && (w[1] <= 0 || tSec <= w[1]);
-      el.style.visibility = vis ? "" : "hidden";
-    }
+    if (tSec < 0) _ovTimingAt(-1, 0);
   }
 
   async function loadGpxByPath(path) {
@@ -18291,6 +18967,7 @@ function mountAnimator(body, headerActions, opts) {
       overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
       overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),  // v0.9.409 — Falsy-Zero-Fix (0 % war 55 %)
       overlay_entry: document.getElementById("anim-ov-entry")?.value || "none",  // v0.9.479 — Stats-Einblende-Animation
+        ..._ovRenderParams(),   // 23.09.2026 — Ausblendung, Blende, Ecken, Rahmen, Schatten, Boxen je einzeln
       // codec/crf/frame_format kommen jetzt server-seitig aus den globalen
       // Render-Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
       // v0.9.157 — override_* abgeschafft (Classic = 2 hidden KFs, s.o.).
@@ -18832,6 +19509,7 @@ function mountAnimator(body, headerActions, opts) {
         overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
         overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),
         overlay_entry: document.getElementById("anim-ov-entry")?.value || "none",  // v0.9.479 — Stats-Einblende-Animation
+        ..._ovRenderParams(),   // 23.09.2026 — Ausblendung, Blende, Ecken, Rahmen, Schatten, Boxen je einzeln
         // Schilder + Foto-Pins ROH (werden im Browser via __rzDrawSign gezeichnet).
         signs: signs,
         signs_show: (typeof a.signs_show === "boolean") ? a.signs_show : true,

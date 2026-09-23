@@ -1635,6 +1635,20 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **🎨 Aussehen der Stats-Boxen (seit v0.9.321):** unten in der Overlays-Sektion wählst du **Schriftart** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **Textfarbe**, **Hintergrundfarbe** und **Deckkraft des Hintergrunds** — gilt für alle Boxen, mit Live-Vorschau auf der Karte.
 
+**✎ Jede Box einzeln gestalten (seit v0.9.723):** Neben den Überschriften **Gesamt-Stats**, **Live-Stats** und **Höhenprofil** sitzt ein **✎**. Er öffnet das Fenster **„Box gestalten“**. Dort bekommt die Box ihr eigenes Aussehen: Hintergrund, Deckkraft, Textfarbe, Schrift, Ecken, Rahmen und Schatten. Jeder Wert hat ein Häkchen **„wie alle Boxen“**. Nimmst du es weg, gilt ab dann der eigene Wert, setzt du es wieder, erbt die Box wieder von den Einstellungen unter „Aussehen der Stats-Boxen“.
+
+**Wann erscheint die Box?** Im selben Fenster stellst du **Einblendung**, **Ausblendung**, **Dauer der Blende** und den **Zeitpunkt** ein. „Ab“ kann eine Sekunde im Video sein, der **Start** oder das **Ende des Tracks**, ein **Prozentwert der Strecke** oder bei zusammengeführten Touren **Anfang oder Ende einer Etappe**. „Bis“ ist das Videoende, ein zweiter Zeitpunkt oder **eine Dauer**. Beispiel: Die Gesamtstatistik soll am Ende der Route für 10 Sekunden sanft erscheinen und wieder verschwinden. Dann stellst du „Ab: Ende des Tracks“, „Bis: für eine Dauer von 10 s“, Einblendung „Einblenden“ und Ausblendung „Ausblenden“ ein. Die Einblendung beginnt am „Ab“-Zeitpunkt, die Ausblendung am „Bis“-Zeitpunkt. Hat eine der drei Standardboxen einen eigenen Zeitpunkt, gilt er statt der ⏱-Sekunden in der Seitenleiste. Diese Felder sind dann ausgegraut.
+
+**Zahlen je Etappe:** Bei zusammengeführten Touren wählst du für eine Gesamt-Box **„Zahlen für“**: die ganze Strecke, die **laufende Etappe** (die Zahlen wechseln im Video mit der Etappe) oder eine bestimmte Etappe.
+
+**Zeilen einzeln:** Unten im Fenster steht jede Zeile der Box mit einem ✎. Eine Zeile kann eine eigene Textfarbe, Größe (50–300 %), Fettung, einen eigenen Zeitpunkt, eine eigene Blende und eigene Etappen-Zahlen bekommen. Ohne eigenen Zeitpunkt erscheint die Zeile zusammen mit der Box.
+
+**Weitere Boxen:** Unter dem Höhenprofil legt **＋ Box** eine zusätzliche Box an, zum Beispiel eine zweite Gesamtstatistik in der Bildmitte nur für das Ende. Im Fenster wählst du Überschrift, Inhalt (Gesamt-Stats oder Live-Stats), Position und Felder. In der Liste schaltest du jede Box an und aus, **⧉** dupliziert sie, **✕** löscht sie nach Rückfrage.
+
+**Auf alle Boxen übernehmen, zurücksetzen:** „Auf alle Boxen übernehmen“ kopiert Aussehen und Blende der offenen Box auf alle anderen. Zeitpunkt und Zahlen bleiben je Box. „Diese Box zurücksetzen“ und „Alle zurücksetzen“ entfernen die eigenen Einstellungen nach einer Rückfrage. Jede Änderung ist mit ⌘Z rückgängig zu machen, die Vorschau zeigt sie sofort, und Blenden und Zeitpunkte siehst du im Probelauf genau wie im Video.
+
+**Neu in der Seitenleiste:** Unter „Aussehen der Stats-Boxen“ gibt es jetzt auch **Ausblendung**, **Dauer der Blende**, **Ecken**, **Rahmen** mit Farbe und **Schatten** für alle Boxen gemeinsam.
+
 **Schatten + Einblendung der Stats-Boxen (seit v0.9.479):** Die Boxen werfen jetzt einen **richtungsabhängigen Schatten**, der derselben **globalen Lichtquelle** folgt wie Track und Schilder (Regler **„Schatten-Richtung"** in der Track-Sektion). Zusätzlich gibt es den Selektor **„Einblendung"** (Hart / Einblenden / Aufpoppen / Ein- + Aufpoppen) — er bestimmt, wie die Boxen im **gerenderten Video** (und im Probe-Lauf) erscheinen.
 
 **Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).

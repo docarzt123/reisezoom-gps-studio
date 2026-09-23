@@ -1486,6 +1486,20 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 **🎨 Aspecto de las cajas de estadísticas (desde v0.9.321):** al final de la sección de overlays eliges **tipografía** (Sistema, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **color de texto**, **color de fondo** y **opacidad del fondo** — se aplica a todas las cajas, con vista previa en directo en el mapa.
 
+**✎ Diseñar cada caja por separado (desde v0.9.723):** Junto a los títulos **Estadísticas totales**, **Estadísticas en vivo** y **Perfil de altitud** hay un **✎**. Abre la ventana **«Diseñar caja»**. Allí la caja recibe su propio aspecto: fondo, opacidad, color de texto, tipografía, esquinas, borde y sombra. Cada valor tiene una casilla **«igual que todas las cajas»**. Si la desmarcas, la caja usa su propio valor; si la vuelves a marcar, hereda de nuevo de «Aspecto de las cajas».
+
+**¿Cuándo aparece la caja?** En la misma ventana ajustas **Aparición**, **Salida**, **Duración de la transición** y el **Momento**. «Desde» puede ser un segundo del vídeo, el **inicio** o el **final del track**, un **porcentaje del recorrido** o, en tours unidos, el **inicio o final de una etapa**. «Hasta» es el final del vídeo, un segundo momento o **una duración**. Ejemplo: las estadísticas totales deben aparecer suavemente al final de la ruta durante 10 segundos y desaparecer después. Ajusta «Desde: final del track», «Hasta: durante 10 s», aparición «Fundido» y salida «Desvanecer». La aparición empieza en el momento «Desde» y la salida en el momento «Hasta». Si una caja estándar tiene momento propio, este tiene prioridad sobre los segundos ⏱ de la barra lateral, que quedan en gris.
+
+**Cifras por etapa:** En tours unidos, una caja de totales ofrece **«Cifras de»**: la ruta completa, la **etapa actual** (las cifras cambian con la etapa en el vídeo) o una etapa concreta.
+
+**Filas por separado:** Abajo en la ventana cada fila de la caja tiene un ✎. Una fila puede tener su propio color de texto, tamaño (50–300 %), negrita, momento propio, transiciones propias y cifras de etapa propias. Sin momento propio, la fila aparece junto con la caja.
+
+**Más cajas:** Bajo el perfil de altitud, **＋ Caja** añade una caja adicional, por ejemplo unas segundas estadísticas totales en el centro de la imagen solo para el final. En la ventana eliges título, contenido (Estadísticas totales o Estadísticas en vivo), posición y campos. En la lista activas y desactivas cada caja, **⧉** la duplica y **✕** la elimina tras preguntar.
+
+**Aplicar a todas las cajas, restablecer:** «Aplicar a todas las cajas» copia el aspecto y las transiciones de la caja abierta a todas las demás. El momento y las cifras se mantienen por caja. «Restablecer esta caja» y «Restablecer todas» eliminan los ajustes propios tras preguntar. Cada cambio se puede deshacer con ⌘Z, la vista previa lo muestra al instante, y las transiciones y momentos se ven en la prueba exactamente igual que en el vídeo.
+
+**Nuevo en la barra lateral:** «Aspecto de las cajas» incluye ahora también **Salida**, **Duración de la transición**, **Esquinas**, **Borde** con color y **Sombra** para todas las cajas a la vez.
+
 **Posiciones (desde v0.9.284):** las cajas de estadísticas en una **cuadrícula de 3×3** — las cuatro esquinas más **arriba (↥)**, **abajo (↧)**, **izquierda (⇤)**, **derecha (⇥)** centradas y **centro (✛)** (p. ej. para un rótulo de título/apertura). El **perfil de altitud** es más estrecho y ofrece además **arriba ancho / abajo ancho** (a lo largo de todo el ancho).
 
 **💧 Marca de agua (desde v0.9.632):** Al final de la sección de overlays
