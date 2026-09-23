@@ -94,13 +94,14 @@ def find_ffmpeg() -> str:
 
 from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
                   unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot,
-                  etappen_reihen as core_gpx_etappen)
+                  etappen_reihen as core_gpx_etappen, etappen_stats as core_gpx_etappen_stats)
 from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from . import i18n as _i18n
 from . import zeitzone as _zeit   # 11.09.2026 — Datum/Uhrzeit in den Einblendungen
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
 from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
+from . import overlayboxen as _ovb    # 23.09.2026: Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
 from .frame_driver import FrameMuxer    # 22.08.2026: gemeinsamer ffmpeg-Lebenslauf
 
 
@@ -314,6 +315,17 @@ class AnimatorConfig:
     overlay_bg_opacity: float = 0.55    # 0..1
     # v0.9.479 — Einblende-Animation der Stats-Boxen: none|fade|pop|both (Beta-Tester-Wunsch).
     overlay_entry: str = "none"
+    # 23.09.2026 — Overlay-Boxen einzeln einstellen (docs/OVERLAY-BOXEN.md, Beta-Tester:
+    # „Statistik am Ende der Route 10 s einblenden und wieder ausblenden"). Globale
+    # Werte (Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten) + je Box/Zeile nur
+    # die Abweichungen in `overlay_boxen`. Aufgelöst von core/overlayboxen.py.
+    overlay_exit: str = "none"
+    overlay_blende_s: float = 0.5
+    overlay_radius: float = 12.0
+    overlay_border_w: float = 0.0
+    overlay_border_color: str = "#ffffff"
+    overlay_shadow: bool = True
+    overlay_boxen: list = field(default_factory=list)
     # v0.9.443 — Daten-Diagramme als Overlay. Jedes Diagramm ist ein voll
     # konfiguriertes Daten-Animator-Chart (Höhe, Puls, Tempo, Farbzonen, 2.
     # Achse …), eingebettet als transparentes <iframe srcdoc=_make_html>. Es
@@ -792,7 +804,10 @@ def _overlay_label_ov(fid, default_label, overrides, t=None):
 
 
 def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None, t=None,
-                         has_stages: bool = False, has_schwarm: bool = False) -> str:
+                         has_stages: bool = False, has_schwarm: bool = False,
+                         stage_values=None) -> str:
+    """23.09.2026 — jede Zeile trägt `data-f` (Zeilen-Stil/-Zeit, core/overlayboxen)
+    und, wenn Etappen-Werte da sind, `data-stage-values` (Bezug je Etappe)."""
     rows = []
     for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
         f = _OVERLAY_TOTAL_BY_ID.get(fid)
@@ -807,7 +822,9 @@ def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, 
         except Exception:
             continue
         lbl = _overlay_label_ov(fid, f["label"], overrides, t)
-        rows.append(f'<div class="stat-row"><span class="label">{lbl}</span><span class="value">{val}</span></div>')
+        sv = (stage_values or {}).get(fid)
+        sv_attr = (' data-stage-values="' + _esc(json.dumps(sv, ensure_ascii=False)).replace('"', "&quot;") + '"') if sv else ""
+        rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"{sv_attr}><span class="label">{lbl}</span><span class="value">{val}</span></div>')
     return "\n".join(rows)
 
 
@@ -838,7 +855,9 @@ def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
 
 
 def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None, t=None,
-                       has_stages: bool = False, has_schwarm: bool = False) -> str:
+                       has_stages: bool = False, has_schwarm: bool = False, prefix: str = "") -> str:
+    """`prefix` = Element-ID-Präfix der Box (Standard-Live-Box "", Zusatzboxen
+    "<id>-"), damit mehrere Live-Boxen ihre Werte getrennt bekommen (23.09.2026)."""
     rows = []
     for fid in (field_ids or DEFAULT_LIVE_FIELDS):
         # v0.9.331 — FIT-Sensorfeld (sensor:<key>) → Label aus der Registry.
@@ -846,20 +865,20 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None,
         if isinstance(fid, str) and fid.startswith("sensor:"):
             key = fid.split(":", 1)[1]
             lbl, _u = _sensors.field_meta_ov(key, overrides, t)
-            rows.append(f'<div class="stat-row"><span class="label">{lbl}</span>'
-                        f'<span class="value" id="{_sensor_dom_id(key)}">&mdash;</span></div>')
+            rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"><span class="label">{lbl}</span>'
+                        f'<span class="value" id="{prefix}{_sensor_dom_id(key)}">&mdash;</span></div>')
             continue
         f = _OVERLAY_LIVE_BY_ID.get(fid)
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         accent = " accent" if f.get("accent") else ""
         lbl = _overlay_label_ov(fid, f["label"], overrides, t)  # v0.9.393/507 — Umbenennung > Übersetzung
-        rows.append(f'<div class="stat-row"><span class="label">{lbl}</span><span class="value{accent}" id="live-{fid}">&mdash;</span></div>')
+        rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"><span class="label">{lbl}</span><span class="value{accent}" id="{prefix}live-{fid}">&mdash;</span></div>')
     return "\n".join(rows)
 
 
 def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=None,
-                            has_stages: bool = False, has_schwarm: bool = False) -> str:
+                            has_stages: bool = False, has_schwarm: bool = False, prefix: str = "") -> str:
     """JS-Zeilen für updateOverlays(idx): pro aktivem Live-Feld ein textContent-Set.
     Wird als literaler Block in den per-Frame-Loop injiziert (kein f-string-Reparse)."""
     lines = []
@@ -870,7 +889,7 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
             _, unit = _sensors.field_meta_ov(key, overrides)
             unit_js = json.dumps((" " + unit) if unit else "")
             lines.append(
-                f"  {{ var _e=document.getElementById('{_sensor_dom_id(key)}');"
+                f"  {{ var _e=document.getElementById('{prefix}{_sensor_dom_id(key)}');"
                 f" if(_e){{ var _v=(sensorSeries[{json.dumps(key)}]||[])[idx];"
                 f" _e.textContent=(_v==null?'\\u2013':(Math.round(_v)+{unit_js})); }} }}")
             continue
@@ -878,8 +897,191 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         _js = _SCHWARM_LIVE_JS.get(fid, f["js"]) if has_schwarm else f["js"]
-        lines.append(f"  {{ var _e=document.getElementById('live-{fid}'); if(_e) _e.textContent = {_js}; }}")
+        lines.append(f"  {{ var _e=document.getElementById('{prefix}live-{fid}'); if(_e) _e.textContent = {_js}; }}")
     return "\n".join(lines)
+
+
+# ── Overlay-Boxen einzeln (23.09.2026, docs/OVERLAY-BOXEN.md) ────────────────
+# EIN Baustein für beide Render-HTMLs (Karte + Alpha). Vorher stand der Box-Block
+# zweimal da. Box = [data-ovbox="<id>"], Zeile = [data-f="<fid>"] — dieselben
+# Selektoren wie die Vorschau, damit ui/js/overlay_boxen.js beide bedient.
+
+_OV_DOM_ID = {"totals": "overlay-totals", "live": "overlay-live", "ele": "overlay-bottom"}
+
+
+def _ov_dom_id(box: dict) -> str:
+    return _OV_DOM_ID[box["id"]] if box.get("standard") else "overlay-" + str(box["id"])
+
+
+def _ov_prefix(box: dict) -> str:
+    """Element-ID-Präfix der Live-Werte: Standardbox "" (live-<fid>), Zusatzbox "<id>-"."""
+    return "" if box.get("standard") else str(box["id"]) + "-"
+
+
+def _ov_boxen(cfg) -> list:
+    try:
+        return _ovb.aufloesen(cfg)
+    except Exception as e:   # noqa: BLE001 — kaputte Box-Einstellung darf den Render nicht kippen
+        _log.warning("[overlay] Boxen nicht auflösbar, nehme Standard: %s", e)
+        return _ovb.aufloesen({})
+
+
+def _ov_alle_live_felder(cfg) -> list:
+    """Vereinigung der Felder aller aktiven Live-Boxen (für sensorSeries)."""
+    out = []
+    for b in _ov_boxen(cfg):
+        if b["typ"] == "live" and b["enabled"]:
+            for f in b["fields"] or []:
+                if f not in out:
+                    out.append(f)
+    return out
+
+
+def _overlay_boxen_html(cfg, *, total_stats, has_time: bool, has_ele: bool, t, has_stages: bool,
+                        has_schwarm: bool, ele_min: float, ele_max: float, alpha_mode: bool = False,
+                        stage_values=None) -> str:
+    """HTML aller Stats-Boxen + Höhenprofil (Reihenfolge wie die Vorschau)."""
+    if not cfg.show_overlays:
+        return ""
+    ov = getattr(cfg, "overlay_field_overrides", None)
+    out = []
+    for b in _ov_boxen(cfg):
+        if not b["enabled"]:
+            continue
+        dom, pos = _ov_dom_id(b), b["position"]
+        titel = f'<div class="ov-titel">{_esc(b["titel"])}</div>' if b.get("titel") else ""
+        if b["typ"] == "totals":
+            rows = _overlay_totals_rows(b["fields"], total_stats, has_time, has_ele, ov, t=t,
+                                        has_stages=has_stages, has_schwarm=has_schwarm,
+                                        stage_values=stage_values)
+            if rows:
+                out.append(f'\n<div id="{dom}" data-ovbox="{b["id"]}" class="stats-box pos-{pos}">\n  {titel}{rows}\n</div>')
+        elif b["typ"] == "live":
+            rows = _overlay_live_rows(b["fields"], has_time, has_ele, ov, t=t, has_stages=has_stages,
+                                      has_schwarm=has_schwarm, prefix=_ov_prefix(b))
+            if rows:
+                out.append(f'\n<div id="{dom}" data-ovbox="{b["id"]}" class="stats-box pos-{pos}">\n  {titel}{rows}\n</div>')
+        elif b["typ"] == "ele" and has_ele:
+            # Höhenprofil nur wenn echte Höhendaten vorhanden — sonst leerer Strich.
+            bg_op = "0.45" if alpha_mode else "0.25"
+            out.append(f"""
+<div id="overlay-bottom" data-ovbox="ele" class="pos-{pos}">
+  <div class="ele-header">
+    <span class="ele-title">{_esc(t("animator.overlay.elevation_title", "Höhenprofil"))}</span>
+    <span class="ele-minmax">{_esc(t("animator.overlay.ele_min", "Min"))} {ele_min:.0f} m<span class="sep">&bull;</span>{_esc(t("animator.overlay.ele_max", "Max"))} {ele_max:.0f} m</span>
+  </div>
+  <svg id="elevation-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="ele-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="{cfg.line_color}" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="{cfg.line_color}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <polyline id="ele-bg-line" fill="none" stroke="rgba(255,255,255,{bg_op})" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <polygon id="ele-active-fill" fill="url(#ele-grad)"/>
+    <polyline id="ele-active-line" fill="none" stroke="{cfg.line_color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle id="ele-dot" r="4.5" fill="#ffffff" stroke="{cfg.line_color}" stroke-width="2"/>
+  </svg>
+</div>""")
+    return "".join(out)
+
+
+def _overlay_stage_values(cfg, total_stats: dict, etappen, has_time: bool, has_ele: bool) -> dict:
+    """{fid: {"gesamt": text, "<nr>": text}} für Gesamt-Zeilen, deren Box oder Zeile
+    einen Bezug auf eine Etappe hat (laufend oder Nr.). Leer ohne Etappen oder
+    ohne solchen Bezug — dann bleibt das HTML wie bisher. 23.09.2026."""
+    try:
+        if (etappen or {}).get("gesamt", 0) <= 1:
+            return {}
+        felder = set()
+        for b in _ov_boxen(cfg):
+            if b["typ"] != "totals" or not b["enabled"]:
+                continue
+            bezuege = [b["bezug"]] + [z["bezug"] for z in b["zeilen"].values()]
+            if any(x != "gesamt" for x in bezuege):
+                felder.update(b["fields"] or [])
+        if not felder:
+            return {}
+        ts = total_stats or {}
+        return _stage_values_aus(felder, ts.get("stage_stats") or {}, has_time, has_ele,
+                                 ts.get("tz_offset_min", 0), ts.get("lang", "de"), gesamt=ts)
+    except Exception as e:   # noqa: BLE001
+        _log.warning("[overlay] Etappen-Werte nicht berechenbar: %s", e)
+        return {}
+
+
+def _stage_values_aus(felder, stage_stats: dict, has_time: bool, has_ele: bool,
+                      tz_offset_min: int = 0, lang: str = "de", gesamt=None) -> dict:
+    """Werte als KLARTEXT (die Zeitsteuerung setzt textContent — keine Entities)."""
+    import html as _html
+    out = {}
+    for fid in felder:
+        f = _OVERLAY_TOTAL_BY_ID.get(fid)
+        if not f or f["requires"] in ("stages", "schwarm"):
+            continue
+        if not _overlay_field_available(f["requires"], has_time, has_ele):
+            continue
+        werte = {}
+        for nr, st in stage_stats.items():
+            ts = dict(st)
+            ts.setdefault("tz_offset_min", tz_offset_min)
+            ts.setdefault("lang", lang)
+            try:
+                werte[str(nr)] = _html.unescape(f["py"](ts))
+            except Exception:   # noqa: BLE001 — Feld ohne Daten in dieser Etappe
+                werte[str(nr)] = "\u2014"
+        if werte and gesamt is not None:
+            try:
+                werte["gesamt"] = _html.unescape(f["py"](gesamt))
+            except Exception:   # noqa: BLE001
+                pass
+        if werte:
+            out[fid] = werte
+    return out
+
+
+def _overlay_live_update_js_alle(cfg, has_time: bool, has_ele: bool, has_stages: bool = False,
+                                 has_schwarm: bool = False) -> str:
+    """Live-Werte aller aktiven Live-Boxen je Bild setzen (jede mit eigenem Präfix)."""
+    ov = getattr(cfg, "overlay_field_overrides", None)
+    teile = []
+    for b in _ov_boxen(cfg):
+        if b["typ"] == "live" and b["enabled"]:
+            teile.append(_overlay_live_update_js(b["fields"], has_time, has_ele, ov, has_stages,
+                                                 has_schwarm, prefix=_ov_prefix(b)))
+    return "\n".join(x for x in teile if x)
+
+
+def _overlay_boxen_css(cfg, px, alpha_mode: bool = False) -> str:
+    """Stil je Box und je Zeile (Farben, Schrift, Ecken, Rahmen, Schatten, Größe,
+    Fettung). WYSIWYG-Spiegel: _ovBoxStil/_ovZeilenStil in modules/animator/ui/module.js."""
+    sr = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 45.0))
+    shx, shy = 9.0 * math.cos(sr), 9.0 * math.sin(sr)
+    sh_op = 0.5 if alpha_mode else 0.45
+    regeln = []
+    for b in _ov_boxen(cfg):
+        if not b["enabled"]:
+            continue
+        st = b["stil"]
+        r, g, bb = _hex_to_rgb(st["bg_color"], (0, 0, 0))
+        a = st["bg_opacity"]
+        if alpha_mode:
+            a = min(1.0, a + 0.07)   # auf NLE-Composite etwas kräftiger
+        schatten = (f"{px(shx)} {px(shy)} {px(22)} rgba(0,0,0,{sh_op})" if st["shadow"] else "none")
+        rahmen = (f"{px(st['border_w'])} solid {st['border_color']}" if st["border_w"] > 0 else "none")
+        # Id + Attribut schlägt die Grundregeln (#overlay-bottom, .stats-box)
+        sel = f'#{_ov_dom_id(b)}[data-ovbox="{b["id"]}"]'
+        regeln.append(f"  {sel} {{ background: rgba({r},{g},{bb},{round(a, 3)}); color: {st['text_color']};"
+                      f" font-family: {_font_stack(st['font'])}; border-radius: {px(st['radius'])};"
+                      f" border: {rahmen}; box-shadow: {schatten}; }}")
+        if b["typ"] == "ele":
+            regeln.append(f"  {sel} .ele-header {{ color: {st['text_color']}; }}")
+        for fid, z in (b.get("zeilen") or {}).items():
+            zs = f'{sel} [data-f="{_esc(fid)}"]'
+            regeln.append(f"  {zs} {{ color: {z['text_color']}; --rz-ov-gr: {z['groesse']}; }}")
+            if z.get("fett") is not None:
+                regeln.append(f"  {zs} .value {{ font-weight: {800 if z['fett'] else 400}; }}")
+    return "\n".join(regeln)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -970,12 +1172,22 @@ def _overlay_compute_speed_grade(points, cum_dist, cum_time, eles, has_time: boo
 
 
 def _overlay_font_link(cfg: "AnimatorConfig") -> str:
-    """<link> zum Google-Font der gewählten Overlay-Schrift (oder "" für System)."""
-    key = (getattr(cfg, "overlay_font", "") or "system").lower()
-    spec = _OVERLAY_FONTS.get(key) or _OVERLAY_FONTS["system"]
-    if not spec[0]:
+    """<link> zu den Google-Fonts ALLER Overlay-Schriften in Gebrauch (global + je
+    Box, 23.09.2026) — "" wenn nur die Systemschrift läuft."""
+    try:
+        keys = _ovb.fonts_in_gebrauch(cfg)
+    except Exception:   # noqa: BLE001 — kaputte Box-Einstellung darf den Render nicht kippen
+        keys = [(getattr(cfg, "overlay_font", "") or "system").lower()]
+    fam = [(_OVERLAY_FONTS.get(k) or _OVERLAY_FONTS["system"])[0] for k in keys]
+    fam = [f for f in fam if f]
+    if not fam:
         return ""
-    return f'<link href="https://fonts.googleapis.com/css2?family={spec[0]}&display=swap" rel="stylesheet">'
+    return ('<link href="https://fonts.googleapis.com/css2?'
+            + "&".join("family=" + f for f in fam) + '&display=swap" rel="stylesheet">')
+
+
+def _font_stack(key: str) -> str:
+    return (_OVERLAY_FONTS.get((key or "system").lower()) or _OVERLAY_FONTS["system"])[1]
 
 
 def _overlay_font_family(cfg: "AnimatorConfig") -> str:
@@ -1279,41 +1491,44 @@ def _overlay_windows(cfg: "AnimatorConfig") -> dict:
 
 
 def _overlay_has_timing(cfg: "AnimatorConfig") -> bool:
-    """True wenn irgendeine Box ein nicht-triviales Zeitfenster hat (from>0 oder
-    to>0). Nur dann ruft der Render-Loop window.__overlayTiming pro Frame."""
-    # v0.9.479 — auch bei aktiver Einblende-Animation (fade/pop) pro Frame nötig,
-    # selbst wenn kein Zeitfenster gesetzt ist (Boxen poppen dann bei t=0 auf).
-    if str(getattr(cfg, "overlay_entry", "none") or "none") != "none":
-        return True
-    for frm, to in _overlay_windows(cfg).values():
-        if frm > 0 or to > 0:
-            return True
-    return False
+    """True wenn der Render-Loop window.__overlayTiming pro Bild rufen muss:
+    Blende (ein/aus), Zeitfenster/Auslöser, Bezug „laufende Etappe" — je Box,
+    je Zeile oder bei einem Diagramm. Regeln: core/overlayboxen.hat_zeitsteuerung."""
+    try:
+        return _ovb.hat_zeitsteuerung(cfg)
+    except Exception as e:   # noqa: BLE001
+        _log.warning("[overlay] Zeitsteuerung nicht bestimmbar: %s", e)
+        return False
+
+
+def _read_overlay_boxen_js() -> str:
+    """Die GEMEINSAME Box-Logik (ui/js/overlay_boxen.js) — dieselbe Datei, die die
+    Vorschau lädt. Eine Quelle für Auflösung, Auslöser und Blenden (23.09.2026)."""
+    base = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent.parent)
+    return (base / "ui" / "js" / "overlay_boxen.js").read_text(encoding="utf-8")
 
 
 def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
-    """<script> das die Overlay-Boxen nach Video-Sekunde ein-/ausblendet
-    (Nutzer-Wunsch). Render-Loop ruft window.__overlayTiming(tSekunde) pro
-    Frame. to<=0 = bis Ende; Default 0/0 = immer sichtbar (kein Eingriff)."""
-    wins = _overlay_windows(cfg)
-    _entry = str(getattr(cfg, "overlay_entry", "none") or "none")
-    _do_fade = "true" if _entry in ("fade", "both") else "false"
-    _do_pop = "true" if _entry in ("pop", "both") else "false"
-    # v0.9.479 — Einblende-Animation der Stats-Boxen. Fade = Deckkraft 0→1, Pop = Skala
-    # (easeOutBack) via --rz-ov-pop (steckt im Positions-transform, s. _overlay_css).
-    # ENTRY „none" → altes Verhalten (harter visibility-Schnitt).
+    """<script>: window.__overlayTiming(tSekunde) blendet Boxen, Zeilen und
+    Diagramme nach ihren Auslösern ein und aus (Blende, Pop) und setzt Bezug-
+    Werte je Etappe. Streckenanteil und Etappe kommen vom zuletzt gezeichneten
+    Punkt (updateOverlays setzt window.__rzOvIdx). 23.09.2026 — vorher nur
+    Sekundenfenster + Einblendung."""
+    boxen = [b for b in _ov_boxen(cfg) if b["enabled"]] + _ovb.chart_boxen(cfg)
+    ctx = {"intro_s": float(getattr(cfg, "intro_s", 0) or 0),
+           "anim_s": float(getattr(cfg, "duration_s", 0) or 0),
+           "hold_s": float(getattr(cfg, "hold_s", 0) or 0)}
     return (
-        "<script>window.__overlayTiming=function(t){var W="
-        + json.dumps(wins) +
-        ";var FADE=" + _do_fade + ",POP=" + _do_pop + ",DUR=0.5;"
-        "function eb(x){if(x>=1)return 1;if(x<=0)return 0;var c1=1.70158,c3=c1+1,p=x-1;return 1+c3*p*p*p+c1*p*p;}"
-        "for(var id in W){var el=document.getElementById(id);if(!el)continue;"
-        "var w=W[id];var vis=(t>=w[0])&&(w[1]<=0||t<=w[1]);"
-        "if(!vis){el.style.visibility='hidden';continue;}el.style.visibility='';"
-        "if(!FADE&&!POP){el.style.opacity='';el.style.setProperty('--rz-ov-pop','1');continue;}"
-        "var p=Math.max(0,Math.min(1,(t-w[0])/DUR));"
-        "el.style.opacity=FADE?String(p):'';"
-        "el.style.setProperty('--rz-ov-pop',POP?eb(p).toFixed(3):'1');}};</script>"
+        "<script>" + _read_overlay_boxen_js() + "</script>"
+        "<script>(function(){var B=" + json.dumps(boxen).replace("</", "<\\/") + ",C=" + json.dumps(ctx) + ",S={};"
+        "window.__overlayTiming=function(t){"
+        "var i=window.__rzOvIdx|0,f=0,st=0;"
+        "var cd=(typeof cumDistM!=='undefined')?cumDistM:null,sn=(typeof STAGE_NR!=='undefined')?STAGE_NR:null;"
+        "if(!C.etappen){C.etappen=(cd&&sn)?window.rzOverlayBoxen.etappenGrenzen(cd,sn):{};}"
+        "if(cd&&cd.length>1){var k=Math.max(0,Math.min(i,cd.length-1)),d0=cd[0],sp=cd[cd.length-1]-d0;"
+        "f=sp>0?(cd[k]-d0)/sp:k/(cd.length-1);}"
+        "if(sn&&sn.length){st=sn[Math.max(0,Math.min(i,sn.length-1))]||0;}"
+        "window.rzOverlayBoxen.anwenden(document,B,t,f,st,C,S);};})();</script>"
     )
 
 
@@ -1387,7 +1602,7 @@ def _charts_html(cfg: "AnimatorConfig", ds_points, cum_dist) -> str:
         _br, _bg2, _bb = _hex_to_rgb(style.get("background_color", "#1a1a1a"), (26, 26, 26))
         bg_css = f"rgba({_br},{_bg2},{_bb},{bg_op:.3f})"  # Fallback hinter dem iframe
         out.append(
-            f'<div id="overlay-chart-{i}" class="chart-ov pos-{pos}" '
+            f'<div id="overlay-chart-{i}" data-ovbox="chart-{i}" class="chart-ov pos-{pos}" '
             f'style="width:{cw}px;height:{chh}px;background:{bg_css};">'
             f'<iframe class="chart-ov-frame" scrolling="no" frameborder="0" '
             f'srcdoc="{srcdoc}"></iframe></div>')
@@ -1447,16 +1662,25 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
     _ov_sr = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 45.0))
     _ov_shx, _ov_shy = 9.0 * math.cos(_ov_sr), 9.0 * math.sin(_ov_sr)
     box_shadow = f"box-shadow: {px(_ov_shx)} {px(_ov_shy)} {px(22)} rgba(0,0,0,{sh_op});"
+    # 23.09.2026 — Ecken/Rahmen/Schatten global einstellbar; je Box/Zeile siehe
+    # _overlay_boxen_css (hängt unten an und schlägt diese Grundregeln).
+    _gst = _ovb.global_stil(cfg)
+    if not _gst["shadow"]:
+        box_shadow = "box-shadow: none;"
+    _radius = px(_gst["radius"])
+    _border = (f"border: {px(_gst['border_w'])} solid {_gst['border_color']};" if _gst["border_w"] > 0 else "")
     _txt = getattr(cfg, "overlay_text_color", "#ffffff") or "#ffffff"
     _font = _overlay_font_family(cfg)
     return f"""
   .stats-box {{
     position: absolute; background: {bg_css};
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-    border-radius: {px(12)}; padding: {px(18)} {px(22)}; color: {_txt};
-    font-family: {_font};
+    border-radius: {_radius}; padding: {px(18)} {px(22)}; color: {_txt};
+    font-family: {_font}; {_border}
     min-width: {px(260)}; {box_shadow}
   }}
+  .ov-titel {{ font-size: {px(13)}; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    margin-bottom: {px(6)}; opacity: 0.92; }}
   /* Universal-Position-Slots (auch für #overlay-bottom). Margin in CSS-Pixel
      wird ebenfalls skaliert, damit der Abstand zum Frame-Rand relativ gleich
      bleibt — sonst kleben Boxen bei 4K am Rand. */
@@ -1494,14 +1718,15 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   .stat-row {{ display: flex; justify-content: space-between; align-items: baseline; gap: {px(28)}; padding: {px(4)} 0; }}
   .pos-tr .stat-row, .pos-br .stat-row, .pos-mr .stat-row {{ justify-content: flex-end; gap: {px(18)}; }}
   .pos-tc .stat-row, .pos-cc .stat-row, .pos-bc .stat-row {{ justify-content: center; gap: {px(18)}; }}
-  .label {{ font-size: {px(11)}; letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.72; font-weight: 500; }}
-  .value {{ font-size: {px(22)}; font-weight: 600; font-variant-numeric: tabular-nums; }}
+  .label {{ font-size: calc({px(11)} * var(--rz-ov-gr, 1)); letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.72; font-weight: 500; }}
+  .value {{ font-size: calc({px(22)} * var(--rz-ov-gr, 1)); font-weight: 600; font-variant-numeric: tabular-nums; }}
+  .stat-row {{ transform-origin: center; }}
   .accent {{ font-weight: 800; }}  /* v0.9.327: Akzent erbt die Textfarbe, hebt sich nur über Fettung ab (vorher hart line_color → Textfarbe wirkte nicht) */
   #overlay-bottom {{
     position: absolute;
     height: {px(170)}; background: {bg_css}; font-family: {_font};
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-    border-radius: {px(12)}; padding: {px(14)} {px(22)} {px(10)};
+    border-radius: {_radius}; padding: {px(14)} {px(22)} {px(10)}; {_border}
     {box_shadow}
     display: flex; flex-direction: column;
   }}
@@ -1521,6 +1746,7 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   .chart-ov {{ position: absolute; overflow: hidden; pointer-events: none; }}
   .chart-ov-frame {{ width: 100%; height: 100%; border: 0; display: block;
     background: transparent; }}
+{_overlay_boxen_css(cfg, px, alpha_mode)}
 """
 
 
@@ -2581,9 +2807,6 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _cam_stab_amt = max(0.0, min(1.0, float(getattr(cfg, "follow_height_smooth", 0.0) or 0.0)))
     # Pos-Slot-Mapping → CSS-Klasse + Block-Reihenfolge
     # Master `show_overlays` bleibt führend. Einzelne `*_enabled` schalten Boxen aus.
-    totals_html = ""
-    live_html = ""
-    ele_html = ""
     # v0.9.24 — Bei Track ohne Zeit/Höhe entsprechende Stat-Zeilen ausblenden
     # statt „0 m" / „00:00" anzuzeigen. Marc-Selftest 2026-05-24: track_klein.gpx
     # hat keine <ele>/<time>-Tags → Render zeigte trotzdem alle Zeilen mit
@@ -2598,7 +2821,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # auch wenn sie in keinem Overlay-Feld vorkommt (siehe _csrc oben).
     _color_extra = [_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else []
     sensor_series_json = _overlay_sensor_series_json(
-        ds_points, getattr(cfg, "overlay_live_fields", None), extra_keys=_color_extra)
+        ds_points, _ov_alle_live_felder(cfg), extra_keys=_color_extra)
     total_stats = dict(total_stats)
     total_stats.update({"start_epoch": _e1, "end_epoch": _e2, "tz_offset_min": _tz_off,
                         "lang": getattr(cfg, "ui_lang", "") or "de"})
@@ -2619,47 +2842,15 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # 28.08.2026 (IDEAS §38 M2) — Schwarm-Felder nur im Mapbox-HTML: das
     # Alpha-HTML hat keine SCHWARM_-Konstanten, dort bleibt has_schwarm False.
     has_schwarm = bool(schwarm_tours)
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), has_stages, has_schwarm)
-    if cfg.show_overlays:
-        if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages, has_schwarm=has_schwarm)
-            if _trows:
-                totals_html = f"""
-<div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
-  {_trows}
-</div>"""
-        if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages, has_schwarm=has_schwarm)
-            if _lrows:
-                live_html = f"""
-<div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
-  {_lrows}
-</div>"""
-        # Höhenprofil nur wenn echte Höhendaten vorhanden — sonst leerer Strich.
-        if cfg.overlay_elevation_enabled and has_ele:
-            ele_html = f"""
-<div id="overlay-bottom" class="pos-{cfg.overlay_elevation_position}">
-  <div class="ele-header">
-    <span class="ele-title">{_esc(_t("animator.overlay.elevation_title", "Höhenprofil"))}</span>
-    <span class="ele-minmax">{_esc(_t("animator.overlay.ele_min", "Min"))} {ele_min:.0f} m<span class="sep">&bull;</span>{_esc(_t("animator.overlay.ele_max", "Max"))} {ele_max:.0f} m</span>
-  </div>
-  <svg id="elevation-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
-    <defs>
-      <linearGradient id="ele-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="{cfg.line_color}" stop-opacity="0.55"/>
-        <stop offset="100%" stop-color="{cfg.line_color}" stop-opacity="0.02"/>
-      </linearGradient>
-    </defs>
-    <polyline id="ele-bg-line" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-    <polygon id="ele-active-fill" fill="url(#ele-grad)"/>
-    <polyline id="ele-active-line" fill="none" stroke="{cfg.line_color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle id="ele-dot" r="4.5" fill="#ffffff" stroke="{cfg.line_color}" stroke-width="2"/>
-  </svg>
-</div>"""
+    live_update_js = _overlay_live_update_js_alle(cfg, has_time, has_ele, has_stages, has_schwarm)
+    boxen_html = _overlay_boxen_html(cfg, total_stats=total_stats, has_time=has_time, has_ele=has_ele, t=_t,
+                                     has_stages=has_stages, has_schwarm=has_schwarm,
+                                     ele_min=ele_min, ele_max=ele_max,
+                                     stage_values=_overlay_stage_values(cfg, total_stats, _etappen, has_time, has_ele))
     charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
     overlays_block = (_watermark_html(cfg)
                       + (_north_scale_html(cfg) if cfg.show_overlays else "")
-                      + totals_html + live_html + ele_html + charts_html
+                      + boxen_html + charts_html
                       + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
     # JS-Block für Karten-Feinabstimmung. Wird im `style.load`-Callback
     # ausgespielt. Zwei Mechanismen parallel:
@@ -3532,6 +3723,7 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
   if (bgLine) bgLine.setAttribute('points', bgPts);
 }}
 function updateOverlays(idx) {{
+  window.__rzOvIdx = idx;   // 23.09.2026 — für __overlayTiming (Streckenanteil/Etappe)
   if (!SHOW_OVERLAYS) return;
   // 04.09.2026 Nordpfeil + Maßstab — updateOverlays(0) läuft VOR `const map` (TDZ) → dann ohne Karte.
   if (window.__rzNorthScale) {{ try {{ window.__rzNorthScale(undefined, map); }} catch (_) {{ window.__rzNorthScale(); }} }}
@@ -4303,6 +4495,8 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
         "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
         # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
+        # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
+        "stage_stats": core_gpx_etappen_stats(raw_points),
     }
     return _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
 
@@ -4355,9 +4549,6 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     PAD = 0.08
     glow_w = cfg.line_width * 2.85
     # Overlay-HTML wiederverwenden (identisches Layout)
-    totals_html = ""
-    live_html = ""
-    ele_html = ""
     # v0.9.24 — Bei Track ohne Zeit/Höhe entsprechende Stat-Zeilen ausblenden
     # statt „0 m" / „00:00" anzuzeigen. Marc-Selftest 2026-05-24: track_klein.gpx
     # hat keine <ele>/<time>-Tags → Render zeigte trotzdem alle Zeilen mit
@@ -4368,7 +4559,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
-    sensor_series_json = _overlay_sensor_series_json(ds_points, getattr(cfg, "overlay_live_fields", None))
+    sensor_series_json = _overlay_sensor_series_json(ds_points, _ov_alle_live_felder(cfg))
     total_stats = dict(total_stats)
     total_stats.update({"start_epoch": _e1, "end_epoch": _e2, "tz_offset_min": _tz_off,
                         "lang": getattr(cfg, "ui_lang", "") or "de"})
@@ -4386,47 +4577,15 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
         total_stats["moving_time_s"] = 0.0
     _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
     has_stages = (_etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), has_stages)
-    if cfg.show_overlays:
-        if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
-            if _trows:
-                totals_html = f"""
-<div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
-  {_trows}
-</div>"""
-        if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
-            if _lrows:
-                live_html = f"""
-<div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
-  {_lrows}
-</div>"""
-        # Höhenprofil nur wenn echte Höhendaten vorhanden — sonst leerer Strich.
-        if cfg.overlay_elevation_enabled and has_ele:
-            ele_html = f"""
-<div id="overlay-bottom" class="pos-{cfg.overlay_elevation_position}">
-  <div class="ele-header">
-    <span class="ele-title">{_esc(_t("animator.overlay.elevation_title", "Höhenprofil"))}</span>
-    <span class="ele-minmax">{_esc(_t("animator.overlay.ele_min", "Min"))} {ele_min:.0f} m<span class="sep">&bull;</span>{_esc(_t("animator.overlay.ele_max", "Max"))} {ele_max:.0f} m</span>
-  </div>
-  <svg id="elevation-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
-    <defs>
-      <linearGradient id="ele-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="{cfg.line_color}" stop-opacity="0.55"/>
-        <stop offset="100%" stop-color="{cfg.line_color}" stop-opacity="0.02"/>
-      </linearGradient>
-    </defs>
-    <polyline id="ele-bg-line" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-    <polygon id="ele-active-fill" fill="url(#ele-grad)"/>
-    <polyline id="ele-active-line" fill="none" stroke="{cfg.line_color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle id="ele-dot" r="4.5" fill="#ffffff" stroke="{cfg.line_color}" stroke-width="2"/>
-  </svg>
-</div>"""
+    live_update_js = _overlay_live_update_js_alle(cfg, has_time, has_ele, has_stages)
+    boxen_html = _overlay_boxen_html(cfg, total_stats=total_stats, has_time=has_time, has_ele=has_ele, t=_t,
+                                     has_stages=has_stages, has_schwarm=False,
+                                     ele_min=ele_min, ele_max=ele_max, alpha_mode=True,
+                                     stage_values=_overlay_stage_values(cfg, total_stats, _etappen, has_time, has_ele))
     charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
     overlays_block = (_watermark_html(cfg)
                       + (_north_scale_html(cfg, with_scale=False) if cfg.show_overlays else "")
-                      + totals_html + live_html + ele_html + charts_html
+                      + boxen_html + charts_html
                       + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -4577,6 +4736,7 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
   }}
 }}
 function updateOverlays(idx) {{
+  window.__rzOvIdx = idx;   // 23.09.2026 — für __overlayTiming (Streckenanteil/Etappe)
   if (!SHOW_OVERLAYS) return;
   // v0.9.443 — Daten-Diagramm-Overlays synchron treiben. distFrac = Distanz-
   // Anteil des aktuellen Punkts → Chart-Marker landet exakt unter dem Karten-
@@ -4952,6 +5112,8 @@ async def render_frame(
         "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
         # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
+        # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
+        "stage_stats": core_gpx_etappen_stats(raw_points),
     }
 
     _schwarm_frame = None
@@ -5364,6 +5526,8 @@ async def render(
         "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
         # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
+        # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
+        "stage_stats": core_gpx_etappen_stats(raw_points),
     }
 
     # v0.9.41: bei stats_use_trim die Stats für den Trim-Bereich neu rechnen.

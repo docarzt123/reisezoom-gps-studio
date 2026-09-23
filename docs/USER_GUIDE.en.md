@@ -1453,6 +1453,20 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **🎨 Appearance of the stats boxes (since v0.9.321):** at the bottom of the Overlays section you choose **font** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **text color**, **background color** and **background opacity** — applies to all boxes, with a live preview on the map.
 
+**✎ Style each box on its own (since v0.9.723):** Next to the headings **Total stats**, **Live stats** and **Elevation profile** there is a **✎**. It opens the **“Style box”** window. There the box gets its own look: background, opacity, text colour, font, corners, border and shadow. Every value has a tick **“same as all boxes”**. Untick it and the box uses its own value; tick it again and the box inherits from “Stats box appearance” again.
+
+**When does the box appear?** In the same window you set **Entrance**, **Exit**, **Fade duration** and the **Timing**. “From” can be a second in the video, the **start** or the **end of the track**, a **percentage of the route** or, for merged tours, the **start or end of a stage**. “Until” is the end of the video, a second point in time or **a duration**. Example: the totals should fade in at the end of the route for 10 seconds and fade out again. Set “From: end of the track”, “Until: for a duration of 10 s”, entrance “Fade in” and exit “Fade out”. The entrance starts at the “From” point, the exit at the “Until” point. When a standard box has its own timing, it overrides the ⏱ seconds in the sidebar, which are then greyed out.
+
+**Figures per stage:** For merged tours, a totals box offers **“Figures for”**: the whole route, the **current stage** (the figures change with the stage in the video) or one particular stage.
+
+**Individual rows:** At the bottom of the window every row of the box has a ✎. A row can get its own text colour, size (50–300 %), bold, its own timing, its own fades and its own stage figures. Without its own timing the row appears together with the box.
+
+**More boxes:** Below the elevation profile, **＋ Box** adds an extra box, for example a second totals box in the middle of the frame just for the end. In the window you choose heading, content (Total stats or Live stats), position and fields. In the list you switch each box on and off, **⧉** duplicates it, **✕** deletes it after asking.
+
+**Apply to all boxes, reset:** “Apply to all boxes” copies the look and fades of the open box to all others. Timing and figures stay per box. “Reset this box” and “Reset all” remove the individual settings after asking. Every change can be undone with ⌘Z, the preview shows it at once, and fades and timing look in the test run exactly as in the video.
+
+**New in the sidebar:** “Stats box appearance” now also has **Exit**, **Fade duration**, **Corners**, **Border** with colour and **Shadow** for all boxes together.
+
 **Positions (since v0.9.284):** stats boxes in a **3×3 grid** — four corners plus **top (↥)**, **bottom (↧)**, **left (⇤)**, **right (⇥)** centered and **center (✛)** (e.g. for a title/opening overlay). The **elevation profile** is narrower and additionally offers **top wide / bottom wide** (across the full width).
 
 **💧 Watermark (since v0.9.632):** At the bottom of the overlays section

@@ -416,14 +416,14 @@
   gap: calc(18px * var(--overlay-scale));
 }
 .overlay-preview-layer .ov-l {
-  font-size: calc(11px * var(--overlay-scale));
+  font-size: calc(11px * var(--overlay-scale) * var(--rz-ov-gr, 1));
   letter-spacing: 1.6px;
   text-transform: uppercase;
   opacity: 0.72;
   font-weight: 500;
 }
 .overlay-preview-layer .ov-v {
-  font-size: calc(22px * var(--overlay-scale));
+  font-size: calc(22px * var(--overlay-scale) * var(--rz-ov-gr, 1));
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -472,18 +472,21 @@
   display: block;
 }
 /* Position-Insets — auch skaliert mit Render-Höhe */
-.overlay-preview-layer .pos-tl { top: calc(40px * var(--overlay-scale));    left: calc(40px * var(--overlay-scale)); }
-.overlay-preview-layer .pos-tr { top: calc(40px * var(--overlay-scale));    right: calc(40px * var(--overlay-scale));  text-align: right; }
-.overlay-preview-layer .pos-bl { bottom: calc(40px * var(--overlay-scale)); left: calc(40px * var(--overlay-scale)); }
-.overlay-preview-layer .pos-br { bottom: calc(40px * var(--overlay-scale)); right: calc(40px * var(--overlay-scale));  text-align: right; }
+/* 23.09.2026 — Aufpoppen (Ein-/Ausblende) über --rz-ov-pop, gesetzt von der gemeinsamen
+   Zeitsteuerung (ui/js/overlay_boxen.js). Skala steckt IM Positions-transform, Ursprung
+   an der Ecke — synchron zu core/animator.py _overlay_css. */
+.overlay-preview-layer .pos-tl { top: calc(40px * var(--overlay-scale));    left: calc(40px * var(--overlay-scale)); transform: scale(var(--rz-ov-pop, 1)); transform-origin: top left; }
+.overlay-preview-layer .pos-tr { top: calc(40px * var(--overlay-scale));    right: calc(40px * var(--overlay-scale));  text-align: right; transform: scale(var(--rz-ov-pop, 1)); transform-origin: top right; }
+.overlay-preview-layer .pos-bl { bottom: calc(40px * var(--overlay-scale)); left: calc(40px * var(--overlay-scale)); transform: scale(var(--rz-ov-pop, 1)); transform-origin: bottom left; }
+.overlay-preview-layer .pos-br { bottom: calc(40px * var(--overlay-scale)); right: calc(40px * var(--overlay-scale));  text-align: right; transform: scale(var(--rz-ov-pop, 1)); transform-origin: bottom right; }
 /* v0.9.283/284 (Nutzer) — mittige Positionen (synchron zu animator.py _overlay_css).
    Kompakt+zentriert: tc/bc/cc; vertikal mittig am Rand: ml/mr; volle Breite (nur
    Höhenprofil): tcw/bcw. */
-.overlay-preview-layer .pos-tc { top: calc(40px * var(--overlay-scale)); left: 50%; transform: translateX(-50%); text-align: center; }
-.overlay-preview-layer .pos-bc { bottom: calc(40px * var(--overlay-scale)); left: 50%; transform: translateX(-50%); text-align: center; }
-.overlay-preview-layer .pos-cc { top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-.overlay-preview-layer .pos-ml { top: 50%; left: calc(40px * var(--overlay-scale)); transform: translateY(-50%); }
-.overlay-preview-layer .pos-mr { top: 50%; right: calc(40px * var(--overlay-scale)); transform: translateY(-50%); text-align: right; }
+.overlay-preview-layer .pos-tc { top: calc(40px * var(--overlay-scale)); left: 50%; transform: translateX(-50%) scale(var(--rz-ov-pop, 1)); transform-origin: top center; text-align: center; }
+.overlay-preview-layer .pos-bc { bottom: calc(40px * var(--overlay-scale)); left: 50%; transform: translateX(-50%) scale(var(--rz-ov-pop, 1)); transform-origin: bottom center; text-align: center; }
+.overlay-preview-layer .pos-cc { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(var(--rz-ov-pop, 1)); transform-origin: center; text-align: center; }
+.overlay-preview-layer .pos-ml { top: 50%; left: calc(40px * var(--overlay-scale)); transform: translateY(-50%) scale(var(--rz-ov-pop, 1)); transform-origin: left center; }
+.overlay-preview-layer .pos-mr { top: 50%; right: calc(40px * var(--overlay-scale)); transform: translateY(-50%) scale(var(--rz-ov-pop, 1)); transform-origin: right center; text-align: right; }
 .overlay-preview-layer .pos-tcw { top: calc(40px * var(--overlay-scale)); left: 10%; right: 10%; }
 .overlay-preview-layer .pos-bcw { bottom: calc(40px * var(--overlay-scale)); left: 10%; right: 10%; }
 .overlay-preview-layer .pos-tc .ov-row,
@@ -1146,3 +1149,38 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-etappenfarbe-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .ghost-hoch, .ghost-runter { padding: 0 4px; font-size: 10px; line-height: 1; }
 .ghost-hoch:disabled, .ghost-runter:disabled { opacity: .25; cursor: default; }
+
+/* 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md) */
+.overlay-preview-layer .ov-titel {
+  font-size: calc(13px * var(--overlay-scale)); font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; margin-bottom: calc(6px * var(--overlay-scale)); opacity: 0.92;
+}
+.overlay-preview-layer .ov-row { transform-origin: center; }
+.overlay-group > .ov-box-edit { margin-left: 6px; }
+.ov-box-edit {
+  background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim);
+  cursor: pointer; font-size: 12px; line-height: 1; padding: 3px 6px;
+}
+.ov-box-edit:hover { color: var(--text); border-color: var(--accent, #ffb964); }
+.ov-extra-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; }
+.ov-extra-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ov-extra-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.ov-extra-row .ov-extra-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-extra-row.aus .ov-extra-name { opacity: 0.5; }
+.ov-extra-leer { font-size: 11.5px; color: var(--text-dim); }
+
+/* Modal „Box gestalten" (Aufbau wie der Schild-Editor) */
+.ovbox-modal { display: flex; flex-direction: column; gap: 12px; min-width: min(560px, 86vw); max-height: 70vh; overflow: auto; }
+.ovbox-sek { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.ovbox-sek > h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: var(--text-dim); }
+.ovbox-zeile { display: grid; grid-template-columns: 22px 150px 1fr; align-items: center; gap: 8px; margin: 5px 0; font-size: 12.5px; }
+.ovbox-zeile .ovbox-erbt { margin: 0; }
+.ovbox-zeile.erbt .ovbox-wert { opacity: 0.45; pointer-events: none; }
+.ovbox-wert { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ovbox-wert input[type=number] { width: 72px; }
+.ovbox-rows { display: flex; flex-direction: column; gap: 4px; }
+.ovbox-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 0; border-bottom: 1px dashed var(--border); }
+.ovbox-row .ovbox-row-name { flex: 1; }
+.ovbox-row .ovbox-row-mark { font-size: 11px; color: var(--accent, #ffb964); }
+.ovbox-fuss { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+.ovbox-hinweis { font-size: 11.5px; color: var(--text-dim); margin: 2px 0 0; }

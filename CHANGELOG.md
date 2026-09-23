@@ -14,6 +14,21 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Overlay boxes styled one by one** (beta tester: "the stats boxes all look almost the same … maybe a gentle fade in and out" and "I want the statistics shown for 10 s at the end of the route, then hidden — tried everything, no luck"; plan `docs/OVERLAY-BOXEN.md`). A **✎** next to Total stats, Live stats and Elevation profile opens **"Style box"**: own background, opacity, text colour, font, corners, border and shadow, each with "same as all boxes" (three levels: global → box → row). **Entrance, exit and fade duration** per box. **Timing triggers**: second in the video, start or end of the track, percent of the route, start or end of stage N; "until" as a second trigger or a **duration** — "end of the track, 10 s, fade in and out" is now two clicks. **Figures per stage** for merged tours (whole route, current stage, stage N; per-stage stats computed on the full points, `gpx.etappen_stats`). **Rows** with own colour, size, bold, timing, fades and stage figures. **More boxes**: ＋ adds extra totals/live boxes with heading, position and fields; ⧉ duplicate, ✕ delete (asks). "Apply to all boxes", "Reset this box", "Reset all" (both ask). Sidebar gains global **Exit**, **Fade duration**, **Corners**, **Border** (+ colour) and **Shadow**. Every change is one undo step; preview, test run, scene video and classic/alpha render follow the same rules. Only deviations are stored (`overlay_boxen`); without them everything looks and behaves as before.
+- One shared model in Python and JS (`core/overlayboxen.py` ↔ `ui/js/overlay_boxen.js`, parity guard via node): inheritance, triggers (time triggers exact, distance triggers remember the second they were reached, so tempo curves and transitions stay right), fades with easeOutBack pop. The classic render embeds the same JS file.
+
+### Fixed
+- **Fade/pop entrance of the stats boxes never reached normal videos.** The scene render plays the preview, and the preview only switched boxes on and off — the v0.9.479 entrance animation existed in the classic render only. Now preview, test run and every render path use the same timing.
+- **Overlay fonts in preview and scene video**: the preview never loaded the Google fonts (Oswald, Bebas Neue …), so preview and scene video showed a fallback font. Fonts in use are now loaded.
+- **Data charts' time windows** now also apply in the test run (before: render only).
+- Unticking all fields of a stats box showed nothing in the preview but the default fields in the classic render; both now show no box.
+
+### Changed
+- The render HTML for the boxes is built once (`_overlay_boxen_html`) instead of twice (map + alpha). Boxes carry `data-ovbox`, rows `data-f` — the same selectors as the preview.
+
+— **Overlay-Boxen einzeln gestalten (Aussehen, Ein-/Ausblendung, Zeitpunkt „Ende des Tracks für 10 s", Zahlen je Etappe, Zeilen einzeln, weitere Boxen, Undo überall); Einblendung kommt jetzt auch im normalen Video an; Overlay-Schriften in Vorschau und Szene-Video.**
+
 ## [0.9.722] – 2026-09-22
 
 ### Fixed
