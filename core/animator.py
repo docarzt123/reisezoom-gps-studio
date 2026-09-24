@@ -94,7 +94,8 @@ def find_ffmpeg() -> str:
 
 from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
                   unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot,
-                  etappen_reihen as core_gpx_etappen, etappen_stats as core_gpx_etappen_stats)
+                  etappen_reihen as core_gpx_etappen, etappen_stats as core_gpx_etappen_stats,
+                  arten_stats as core_gpx_arten_stats)
 from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from . import i18n as _i18n
 from . import zeitzone as _zeit   # 11.09.2026 — Datum/Uhrzeit in den Einblendungen
@@ -326,6 +327,12 @@ class AnimatorConfig:
     overlay_border_color: str = "#ffffff"
     overlay_shadow: bool = True
     overlay_boxen: list = field(default_factory=list)
+    # 24.09.2026 (IDEAS §67 Q11) — Logbuch-Bereiche mit Anzeige im Video:
+    # [{von, bis (Anteil 0..1 der Punkte), deckkraft}] — 0 = Linie unsichtbar
+    # (überspringen), 0,25 = blass. Raffen/Überspringen-Tempo steckt in pace_map.
+    logbuch_masken: list = field(default_factory=list)
+    # 24.09.2026 (IDEAS §67 Q16) — Logbuch-Bereiche [{art, t0, t1}] für Zahlen je Bewegungsart
+    bewegung_bereiche: list = field(default_factory=list)
     # v0.9.443 — Daten-Diagramme als Overlay. Jedes Diagramm ist ein voll
     # konfiguriertes Daten-Animator-Chart (Höhe, Puls, Tempo, Farbzonen, 2.
     # Achse …), eingebettet als transparentes <iframe srcdoc=_make_html>. Es
@@ -991,7 +998,12 @@ def _overlay_stage_values(cfg, total_stats: dict, etappen, has_time: bool, has_e
     einen Bezug auf eine Etappe hat (laufend oder Nr.). Leer ohne Etappen oder
     ohne solchen Bezug — dann bleibt das HTML wie bisher. 23.09.2026."""
     try:
-        if (etappen or {}).get("gesamt", 0) <= 1:
+        ts = total_stats or {}
+        # 24.09.2026 — Etappen (ab zwei) und Bewegungsarten (Logbuch) teilen sich
+        # den Mechanismus: Schlüssel "1", "2" … bzw. "art:wanderung" ….
+        stats = dict(ts.get("stage_stats") or {}) if (etappen or {}).get("gesamt", 0) > 1 else {}
+        stats.update(ts.get("art_stats") or {})
+        if not stats:
             return {}
         felder = set()
         for b in _ov_boxen(cfg):
@@ -1002,8 +1014,7 @@ def _overlay_stage_values(cfg, total_stats: dict, etappen, has_time: bool, has_e
                 felder.update(b["fields"] or [])
         if not felder:
             return {}
-        ts = total_stats or {}
-        return _stage_values_aus(felder, ts.get("stage_stats") or {}, has_time, has_ele,
+        return _stage_values_aus(felder, stats, has_time, has_ele,
                                  ts.get("tz_offset_min", 0), ts.get("lang", "de"), gesamt=ts)
     except Exception as e:   # noqa: BLE001
         _log.warning("[overlay] Etappen-Werte nicht berechenbar: %s", e)
@@ -1999,6 +2010,20 @@ def _sign_draw_js() -> str:
 # zusammen — wo eine Maske greift, entfällt der Strich-Stil.
 # SYNCHRON zu `segMaskExpr` in modules/animator/ui/module.js.
 _SEG_MASK_JS = r"""
+window.__rzMitAlpha = function (c, d) {
+  // 24.09.2026 — Farbe mit Deckkraft d (Logbuch „blass"): #rgb, #rrggbb, rgb(), rgba().
+  if (d == null) return c;
+  var s = String(c || "").trim(), r, g, b, a = 1, m;
+  if (s.charAt(0) === "#") {
+    var h = s.slice(1); if (h.length === 3) h = h.replace(/(.)/g, "$1$1");
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+  } else if ((m = s.match(/rgba?\(([^)]+)\)/))) {
+    var t = m[1].split(",").map(function (x) { return parseFloat(x); });
+    r = t[0]; g = t[1]; b = t[2]; if (t.length > 3 && isFinite(t[3])) a = t[3];
+  } else return c;
+  if (!isFinite(r) || !isFinite(g) || !isFinite(b)) return c;
+  return "rgba(" + Math.round(r) + "," + Math.round(g) + "," + Math.round(b) + "," + (Math.round(a * d * 1000) / 1000) + ")";
+};
 window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, stageNr) {
   // `tourFarben` (optional): Farbe je Etappennummer — dann bekommt jede Tour
   // ihre eigene Farbe, die Verbindungen bleiben durchsichtig (23.08.2026).
@@ -2010,7 +2035,9 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, sta
     var a = segStarts[k][0], b = segStarts[k][1];
     if (b <= i0 || a >= i1) continue;             // Stück liegt außerhalb
     a = Math.max(a, i0); b = Math.min(b, i1);
-    luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT, segStarts[k][0], segStarts[k][1]]);
+    // dritter Wert = Deckkraft (Logbuch „blass", 24.09.2026); ohne = unsichtbar
+    luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT, segStarts[k][0], segStarts[k][1],
+                  segStarts[k].length > 2 ? +segStarts[k][2] : null]);
   }
   var farbeBei = function (idx) {
     if (!tourFarben || !stageNr) return farbe;
@@ -2033,10 +2060,10 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, sta
     letzte = p; e.push(p, c);
   };
   for (var l = 0; l < luecken.length; l++) {
-    var vorIdx = luecken[l][2], nachIdx = luecken[l][3];
+    var vorIdx = luecken[l][2], nachIdx = luecken[l][3], dk = luecken[l][4];
     setz(luecken[l][0] - 1e-5, farbeBei(vorIdx));
-    setz(luecken[l][0], LEER);
-    setz(luecken[l][1], LEER);
+    setz(luecken[l][0], dk == null ? LEER : window.__rzMitAlpha(farbeBei(vorIdx), dk));
+    setz(luecken[l][1], dk == null ? LEER : window.__rzMitAlpha(farbeBei(nachIdx), dk));
     setz(luecken[l][1] + 1e-5, farbeBei(nachIdx));
   }
   e.push(1, farbeBei(i1));
@@ -2058,9 +2085,11 @@ window.__rzGradLuecken = function (expr, cumGeo, i0, i1, segStarts) {
   for (var k = 0; k < segStarts.length; k++) {
     var ra = segStarts[k][0], rb = segStarts[k][1];
     if (rb <= i0 || ra >= i1) continue;
-    L.push([(cumGeo[Math.max(ra, i0)] - g0) / gT, (cumGeo[Math.min(rb, i1)] - g0) / gT]);
+    L.push([(cumGeo[Math.max(ra, i0)] - g0) / gT, (cumGeo[Math.min(rb, i1)] - g0) / gT,
+            segStarts[k].length > 2 ? +segStarts[k][2] : null]);
   }
   if (!L.length) return expr;
+  var MA = window.__rzMitAlpha;
   var P = [], C = [];
   for (var s = 3; s + 1 < expr.length; s += 2) { P.push(expr[s]); C.push(expr[s + 1]); }
   if (!P.length) return expr;
@@ -2073,14 +2102,16 @@ window.__rzGradLuecken = function (expr, cumGeo, i0, i1, segStarts) {
   };
   var EPS = 1e-5, LEER = "rgba(0,0,0,0)", roh = [];
   for (var q = 0; q < P.length; q++) {
-    var drin = false;
-    for (var l = 0; l < L.length; l++) if (P[q] > L[l][0] - EPS && P[q] < L[l][1] + EPS) drin = true;
+    var drin = false, dkq = null;
+    for (var l = 0; l < L.length; l++) if (P[q] > L[l][0] - EPS && P[q] < L[l][1] + EPS) { drin = true; dkq = L[l][2]; }
     if (!drin) roh.push([P[q], C[q]]);
+    else if (dkq != null) roh.push([P[q], MA(C[q], dkq)]);     // blass: Stützstelle bleibt, nur durchsichtiger
   }
   for (var m = 0; m < L.length; m++) {
-    var a = L[m][0], b = L[m][1];
+    var a = L[m][0], b = L[m][1], dk = L[m][2];
     if (a - EPS > 0) roh.push([a - EPS, bei(a - EPS)]);
-    roh.push([Math.max(0, a), LEER]); roh.push([Math.min(1, b), LEER]);
+    roh.push([Math.max(0, a), dk == null ? LEER : MA(bei(Math.max(0, a)), dk)]);
+    roh.push([Math.min(1, b), dk == null ? LEER : MA(bei(Math.min(1, b)), dk)]);
     if (b + EPS < 1) roh.push([b + EPS, bei(b + EPS)]);
   }
   roh.sort(function (x, y) { return x[0] - y[0]; });
@@ -2513,6 +2544,24 @@ def _overlay_teile(cfg, total_stats, ds_points, cum_dist, cum_time, eles, e1, e2
             live_update_js, boxen_html, charts_html)
 
 
+def _seg_masken(cfg, ds_points) -> list:
+    """Unsichtbare Stücke (Etappen-Übergänge) + Logbuch-Masken als [[i, j]] bzw.
+    [[i, j, deckkraft]] über die Render-Punkte (24.09.2026). Synchron zu
+    `_segStartsSetzen` in modules/animator/ui/module.js."""
+    out = [list(x) for x in core_gpx_bereiche(ds_points)]
+    n = len(ds_points)
+    for m in (getattr(cfg, "logbuch_masken", None) or []):
+        try:
+            a = int(round(max(0.0, min(1.0, float(m.get("von", 0)))) * (n - 1)))
+            b = int(round(max(0.0, min(1.0, float(m.get("bis", 0)))) * (n - 1)))
+            d = float(m.get("deckkraft", 0) or 0)
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if b > a:
+            out.append([a, b] if d <= 0 else [a, b, round(max(0.0, min(1.0, d)), 3)])
+    return out
+
+
 def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
                cum_time: list[float], total_stats: dict,
                bbox: tuple[float, float, float, float],
@@ -2671,7 +2720,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # zusammengefügten Mehr-Touren-Tracks). Das Verbindungsstück davor gehört zu
     # keiner Etappe und wird unsichtbar gezeichnet — sonst zieht sich ein Strich
     # quer über die Karte. Distanz und Zeit zählen es ohnehin nicht mit (gpx.py).
-    seg_starts_json = json.dumps(core_gpx_bereiche(ds_points))
+    seg_starts_json = json.dumps(_seg_masken(cfg, ds_points))
     dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
     _etappen = core_gpx_etappen(ds_points, (total_stats or {}).get("seg_names"))
     stage_nr_json = json.dumps(_etappen["nr"])
@@ -4278,7 +4327,13 @@ window.__rzPointColors = () => {{
       const c = (STAGE_COLORS && STAGE_NR) ? (STAGE_COLORS[STAGE_NR[Math.max(0, Math.min(STAGE_NR.length - 1, i))]] || LINE_COLOR) : LINE_COLOR;
       out[i] = rgb(c);
     }}
-    for (const [a, b] of SEG_STARTS) for (let i = Math.max(0, a); i <= Math.min(n - 1, b); i++) out[i] = [0, 0, 0, 0];
+    for (const m of SEG_STARTS) {{
+      const a = m[0], b = m[1], dk = m.length > 2 ? +m[2] : null;   // Logbuch „blass" (24.09.2026)
+      for (let i = Math.max(0, a); i <= Math.min(n - 1, b); i++) {{
+        if (dk == null) out[i] = [0, 0, 0, 0];
+        else if (Array.isArray(out[i])) {{ out[i] = out[i].slice(); out[i][3] = (out[i].length > 3 ? out[i][3] : 1) * dk; }}
+      }}
+    }}
     return out;
   }}
   return null;
@@ -4496,6 +4551,8 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
         # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
         "stage_stats": core_gpx_etappen_stats(raw_points),
+        # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
+        "art_stats": core_gpx_arten_stats(raw_points, getattr(cfg, "bewegung_bereiche", None) or []),
     }
     return _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
 
@@ -4513,7 +4570,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     über echtes Video, wo perfekte Geo-Genauigkeit eh nicht das Ziel ist).
     """
     coords_json = json.dumps([[p.lon, p.lat] for p in ds_points])
-    seg_starts_json = json.dumps(core_gpx_bereiche(ds_points))
+    seg_starts_json = json.dumps(_seg_masken(cfg, ds_points))
     dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
     _etappen = core_gpx_etappen(ds_points, (total_stats or {}).get("seg_names"))
     stage_nr_json = json.dumps(_etappen["nr"])
@@ -5020,6 +5077,8 @@ async def render_frame(
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
         # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
         "stage_stats": core_gpx_etappen_stats(raw_points),
+        # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
+        "art_stats": core_gpx_arten_stats(raw_points, getattr(cfg, "bewegung_bereiche", None) or []),
     }
 
     _schwarm_frame = None
@@ -5434,6 +5493,8 @@ async def render(
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
         # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
         "stage_stats": core_gpx_etappen_stats(raw_points),
+        # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
+        "art_stats": core_gpx_arten_stats(raw_points, getattr(cfg, "bewegung_bereiche", None) or []),
     }
 
     # v0.9.41: bei stats_use_trim die Stats für den Trim-Bereich neu rechnen.

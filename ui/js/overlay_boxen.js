@@ -143,6 +143,8 @@
     if (def === undefined) def = "gesamt";
     if (istNix(v) || v === "") return def;
     if (v === "gesamt" || v === "laufend") return v;
+    // 24.09.2026 (IDEAS §67 Q16) — Zahlen nur einer Bewegungsart, z. B. "art:wanderung"
+    if (typeof v === "string" && /^art:[a-z_]{2,20}$/.test(v)) return v;
     if (typeof v === "boolean") return def;
     let n;
     if (typeof v === "number") n = Math.trunc(v);
@@ -248,10 +250,10 @@
     for (const b of aufloesen(cfg).concat(chartBoxen(cfg))) {
       if (!b.enabled) continue;
       if (b.blende.ein !== "none" || b.blende.aus !== "none") return true;
-      if ((b.zeiten || []).length > 1 || !zeitTrivial(b.zeit) || b.bezug === "laufend") return true;
+      if ((b.zeiten || []).length > 1 || !zeitTrivial(b.zeit) || b.bezug !== "gesamt") return true;
       for (const k of Object.keys(b.zeilen)) {
         const z = b.zeilen[k];
-        if (z.zeit || z.bezug === "laufend") return true;
+        if (z.zeit || z.bezug !== "gesamt") return true;
       }
     }
     return false;

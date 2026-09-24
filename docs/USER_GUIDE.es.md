@@ -1492,6 +1492,8 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 **Cifras por etapa:** En tours unidos, una caja de totales ofrece **«Cifras de»**: la ruta completa, la **etapa actual** (las cifras cambian con la etapa en el vídeo) o una etapa concreta.
 
+**Cifras por tipo de movimiento (desde v0.9.724):** Si el tour está en el archivo y tiene cuaderno, «Cifras de» ofrece además **«solo caminata», «solo trayecto», «solo bici»…**: la caja muestra distancia, tiempo, velocidad media y desnivel solo de ese tipo. Un tour con trayecto en coche ya no mezcla coche y caminata en una sola media. Se basa en el cuaderno del tour, con tus correcciones del Inspector.
+
 **Filas por separado:** Abajo en la ventana cada fila de la caja tiene un ✎. Una fila puede tener su propio color de texto, tamaño (50–300 %), negrita, momento propio, transiciones propias y cifras de etapa propias. Sin momento propio, la fila aparece junto con la caja.
 
 **Más cajas:** Bajo el perfil de altitud, **＋ Caja** añade una caja adicional, por ejemplo unas segundas estadísticas totales en el centro de la imagen solo para el final. En la ventana eliges título, contenido (Estadísticas totales o Estadísticas en vivo), posición y campos. En la lista activas y desactivas cada caja, **⧉** la duplica y **✕** la elimina tras preguntar.
@@ -2467,6 +2469,8 @@ Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izq
 **Entrada como ruta propia (desde v0.9.718):** clic derecho en una entrada (línea de tiempo, lista o ⋯) → **📥 Guardar como ruta propia en el archivo …** convierte exactamente ese tramo en una ruta nueva, con el nombre de la entrada (o tipo + fecha) y el tipo de actividad adecuado (caminata → senderismo, bici → bici, coche → coche). Así separas la caminata de un archivo que también contiene el trayecto, sin poner anclas.
 
 **En el archivo:** bajo las cifras de una ruta aparece ahora el **resumen del cuaderno** («5 h trayecto · 1 ferri · 2 caminatas · punto más alto 1.240 m», y el número de días en los viajes), o con honestidad «aún no hay cuaderno» hasta que abras la ruta una vez en el inspector.
+
+**En el vídeo (desde v0.9.724):** Cada tramo del cuaderno puede **mostrarse**, dibujarse **atenuado**, **acelerarse** (va 8× más rápido) o **saltarse** en el vídeo (la línea desaparece y el punto lo cruza en una fracción de segundo), p. ej. el trayecto en coche entre dos caminatas. Se ajusta en el Inspector con ⋯ o clic derecho en la entrada (**«En el vídeo»**, con ⌘Z) o en el Animador, sección **«📖 Registro en el vídeo»** (una opción por entrada; arriba, **«Todos a la vez»** ajusta p. ej. todos los trayectos en coche de una vez, y en viajes de varios días la lista se ordena con cabeceras por día). Es el mismo ajuste; pertenece al tour y sobrevive a una nueva detección. La lista del Inspector marca esas entradas con ◌ / ⏩ / ⤼. Con varios tours seguidos manda el plan de etapas; ahí aún no se aplica.
 
 > El cuaderno existe para las rutas del **archivo** (pertenece a la ruta, no al archivo de datos). Un archivo externo recibe un aviso. El plan está en `docs/LOGBUCH.md`.
 

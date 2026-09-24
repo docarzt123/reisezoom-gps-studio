@@ -1641,6 +1641,8 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **Zahlen je Etappe:** Bei zusammengeführten Touren wählst du für eine Gesamt-Box **„Zahlen für“**: die ganze Strecke, die **laufende Etappe** (die Zahlen wechseln im Video mit der Etappe) oder eine bestimmte Etappe.
 
+**Zahlen je Bewegungsart (seit v0.9.724):** Ist die Tour im Archiv und hat ein Logbuch, bietet „Zahlen für“ zusätzlich **„nur Wanderung“, „nur Fahrt“, „nur Rad“ …** — die Box zeigt dann Strecke, Zeit, Ø-Tempo, Höhenmeter nur dieser Bewegungsart. So steht bei einer Tour mit Anfahrt nicht mehr ein Ø-Tempo aus Autofahrt und Wanderung zusammen. Grundlage ist das Logbuch der Tour, inklusive deiner Korrekturen im Inspektor.
+
 **Zeilen einzeln:** Unten im Fenster steht jede Zeile der Box mit einem ✎. Eine Zeile kann eine eigene Textfarbe, Größe (50–300 %), Fettung, einen eigenen Zeitpunkt, eine eigene Blende und eigene Etappen-Zahlen bekommen. Ohne eigenen Zeitpunkt erscheint die Zeile zusammen mit der Box.
 
 **Weitere Boxen:** Unter dem Höhenprofil legt **＋ Box** eine zusätzliche Box an, zum Beispiel eine zweite Gesamtstatistik in der Bildmitte nur für das Ende. Im Fenster wählst du Überschrift, Inhalt (Gesamt-Stats oder Live-Stats), Position und Felder. In der Liste schaltest du jede Box an und aus, **⧉** dupliziert sie, **✕** löscht sie nach Rückfrage.
@@ -2637,6 +2639,8 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 **Eintrag als eigene Tour (seit v0.9.718):** Rechtsklick auf einen Eintrag (Zeitstrahl, Liste oder ⋯) → **📥 Als eigene Tour ins Archiv …** macht aus genau diesem Abschnitt eine neue Tour — mit Namen des Eintrags (oder Art + Datum) und passender Fortbewegungsart (Wanderung → Wandern, Rad → Rad, Fahrt → Auto). So trennst du z. B. die Wanderung aus einer Datei, in der auch die Anfahrt steckt, ohne Anker zu setzen.
 
 **Im Archiv:** Unter den Kennzahlen einer Tour steht die **Kurzfassung des Logbuchs** („5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt 1.240 m“, bei Reisen die Zahl der Tage) — oder ehrlich „noch kein Logbuch“, bis du die Tour einmal im Inspektor geöffnet hast.
+
+**Im Video (seit v0.9.724):** Jeder Abschnitt des Logbuchs kann im Video **gezeigt**, **blass** gezeichnet, **gerafft** (läuft 8× schneller) oder **übersprungen** werden (die Linie fehlt, der Punkt springt in Sekundenbruchteilen darüber) — z. B. die Autofahrt zwischen zwei Wanderungen. Einstellen im Inspektor über ⋯ bzw. Rechtsklick am Eintrag (**„Im Video“**, mit ⌘Z) oder im Animator in der Sektion **„📖 Logbuch im Video“** (Auswahl je Eintrag; oben **„Alle auf einmal“** setzt z. B. alle Fahrten mit einem Griff, bei Reisen über mehrere Tage gliedern Tagesköpfe die Liste). Beides ist dieselbe Einstellung, sie gehört zur Tour und überlebt ein Neu-Erkennen. Die Liste im Inspektor zeigt markierte Einträge mit ◌ / ⏩ / ⤼. Bei mehreren Touren nacheinander führt der Etappen-Zeitplan; dort gilt es noch nicht.
 
 > Das Logbuch gibt es für Touren im **Archiv** (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis. Der Plan steht in `docs/LOGBUCH.md`.
 

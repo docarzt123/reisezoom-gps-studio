@@ -143,7 +143,9 @@ CHANGELOG (md + html ×3) → USER_GUIDE ×3 / DEVELOPER → Build → Commit/Pu
 - Befunde-Spur (Q18), Eigene-Spur (Q14), Kurzfassung im Archiv-Detail (Q20).
 
 ### Danach (nicht Teil dieses Plans)
-- Animator liest das Logbuch (Q19), Reisetagebuch + Suche nach Arten (§69).
+- ✅ Animator liest das Logbuch (Q19) — 24.09.2026 in 0.9.724: je Bewegungsabschnitt zeigen · blass ·
+  raffen · überspringen (Sidebar „📖 Logbuch im Video" und Inspektor ⋯ → „Im Video"), dazu Zahlen je
+  Bewegungsart in den Stats-Boxen. Nicht bei Reisen. Offen: Reisetagebuch + Suche nach Arten (§69).
 
 ## 5. Regeln, die hier besonders gelten
 - **Undo für alles**, Handarbeit überlebt Neuberechnung.

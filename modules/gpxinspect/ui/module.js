@@ -3688,10 +3688,14 @@ function mountGpxInspect(body, headerActions) {
     const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : artName;
     const geraten = e.geraten ? ` <button type="button" class="gpxi-lb-badge ist-vermutet" data-vermutet="${e.id}" title="${t("logbuch.geraten_tip2", "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen.")}">${t("logbuch.geraten", "vermutet")}</button>` : "";
     const roh = e.roh ? ` <span class="gpxi-lb-badge">${t("logbuch.roh", "roh")}</span>` : "";
+    // 24.09.2026 — Anzeige im Video (IDEAS §67 Q11), wenn nicht „zeigen"
+    const imVideo = { blass: ["◌", t("animator.lb.blass", "blass")], raffen: ["⏩", t("animator.lb.raffen", "raffen (×8)")],
+                      ueberspringen: ["⤼", t("animator.lb.ueberspringen", "überspringen")] }[e.anzeige || ""];
+    const video = imVideo ? ` <span class="gpxi-lb-badge" data-im-video="${e.anzeige}" title="${_lbEsc(t("logbuch.menue.im_video", "Im Video") + ": " + imVideo[1])}">${imVideo[0]} ${_lbEsc(imVideo[1])}</span>` : "";
     const notiz = e.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(e.notiz)}</div>` : "";
     return `<div class="gpxi-lb-zeile${gew}" data-lb="${e.id}" style="--c:${_lbFarbe(e.anzeige_art)}">
       <span class="gpxi-lb-icon">${_LB_ICON[e.anzeige_art] || "•"}</span>
-      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${name}${geraten}${roh}</div><div class="gpxi-lb-meta">${meta.join(" · ")}</div>${notiz}</div>
+      <div class="gpxi-lb-text"><div class="gpxi-lb-name">${name}${geraten}${roh}${video}</div><div class="gpxi-lb-meta">${meta.join(" · ")}</div>${notiz}</div>
       <button type="button" class="gpxi-lb-mehr" title="${t("logbuch.menue.titel", "Bearbeiten")}">⋯</button></div>`;
   }
   function _lbPunktHtml(p) {
@@ -4188,6 +4192,18 @@ function mountGpxInspect(body, headerActions) {
         if (art === e.anzeige_art) continue;
         M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: () =>
           _lbAktion(t("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids: e.bids, art }) });
+      }
+      // 24.09.2026 (IDEAS §67 Q11) — was dieser Abschnitt im Video tut; dieselbe
+      // Einstellung wie „📖 Logbuch im Video" im Animator.
+      M.push("-");
+      M.push({ text: t("logbuch.menue.im_video", "Im Video"), aus: true });
+      for (const [wert, symbol, text] of [["", "👁", t("animator.lb.standard", "zeigen (Standard)")],
+                                         ["blass", "◌", t("animator.lb.blass", "blass")],
+                                         ["raffen", "⏩", t("animator.lb.raffen", "raffen (×8)")],
+                                         ["ueberspringen", "⤼", t("animator.lb.ueberspringen", "überspringen")]]) {
+        const ist = (e.anzeige || "") === wert || (!e.anzeige && wert === "") || (e.anzeige === "zeigen" && wert === "");
+        M.push({ unter: true, symbol: ist ? "✓" : symbol, text, aus: ist, tu: () =>
+          _lbAktion(t("logbuch.undo.im_video", "Logbuch: Anzeige im Video"), "aendern", { bids: e.bids, anzeige: wert }) });
       }
       M.push("-");
       const teilbar = (tt) => tt != null && tt > e.t0 + 30 && tt < e.t1 - 30;

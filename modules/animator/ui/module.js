@@ -602,6 +602,26 @@ function mountAnimator(body, headerActions, opts) {
            Umgeschaltet über die „🎥 Keyframe-Editor"-Checkbox ganz oben in
            der Section. So sieht der User nur die Regler die zum gewählten
            Modus passen. -->
+      <!-- 24.09.2026 (IDEAS §67 Q11 / §68 Q19) — Logbuch im Video: je Eintrag zeigen,
+           blass, raffen oder überspringen. Gespeichert beim Logbuch der Tour (Bibliothek),
+           dieselbe Einstellung wie im Inspektor. -->
+      <section class="section" data-accordion-section="logbuch" id="anim-lb-section">
+        <button class="section-collapse-header" type="button">
+          <span>${t("animator.section.logbuch", "📖 Logbuch im Video")}</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="section-collapse-body" hidden>
+          <!-- Kurze Zeile, Erklärung hinterm ?-Knopf (Seitenleisten-Regel: kein Fließtext ≥ 60 Zeichen offen) -->
+          <div class="muted" style="display:flex; align-items:center; gap:6px; font-size:11px; margin:0 0 6px;">
+            <span>${t("animator.lb.kurz", "Je Abschnitt: zeigen · blass · raffen · überspringen")}</span>
+            <button type="button" class="field-help" data-help="anim_lb">?</button>
+          </div>
+          <div class="muted field-help-content" data-help-content="anim_lb" hidden style="font-size:11px; margin:0 0 8px; line-height:1.45;">
+            ${t("animator.lb.hinweis", "Was im Video mit den Abschnitten der Tour passiert — z. B. die Autofahrt zwischen zwei Wanderungen überspringen. Gilt auch im Inspektor.")}
+          </div>
+          <div id="anim-lb-liste" class="anim-lb-liste"></div>
+        </div>
+      </section>
       <section class="section" data-accordion-section="camera" id="anim-camera-section">
         <button class="section-collapse-header" type="button">
           <span id="anim-camera-section-title">${t("animator.section.camera")}</span>
@@ -2971,6 +2991,141 @@ function mountAnimator(body, headerActions, opts) {
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
   // Maske brauchen wir die Geometrie. SYNCHRON zu core/animator.py (__rzSegMask).
   let _segStarts = [];
+  // ── Logbuch im Video (24.09.2026, IDEAS §67 Q11 / §68 Q19) ──────────────────
+  // Je Logbuch-Eintrag der Tour: zeigen · blass · raffen · überspringen. Die Wahl
+  // lebt beim Logbuch in der Bibliothek (Feld `anzeige` der Einteilung „Bewegung"),
+  // Inspektor und Animator teilen sie. Wirkung: raffen/überspringen = Tempo-
+  // Abschnitt (×8 / ×200) in derselben Tempo-Kurve wie alles andere (Vorschau und
+  // Render lesen sie), blass/überspringen = Linien-Maske (Deckkraft 25 % / 0).
+  // Bei einer Reise (mehrere Touren) führt der Etappen-Zeitplan — dort nicht.
+  let _segStartsBasis = [];
+  let _lbBereiche = [], _lbEid = null, _lbGrund = "", _lbLauf = 0;
+  const _LB_FAKTOR = { raffen: 8, ueberspringen: 200 };
+  const _LB_BLASS = 0.25;
+  function _lbMaskenAnteile() {
+    return _lbBereiche.filter(b => b.anzeige === "blass" || b.anzeige === "ueberspringen")
+      .map(b => ({ von: b.von, bis: b.bis, deckkraft: b.anzeige === "blass" ? _LB_BLASS : 0 }));
+  }
+  /** Masken der Linie: Etappen-Übergänge + Logbuch (synchron zu `_seg_masken` in core/animator.py). */
+  function _segStartsSetzen() {
+    const tn = (currentCoords && currentCoords.length) || 0;
+    const extra = [];
+    if (tn > 1) for (const m of _lbMaskenAnteile()) {
+      const a = Math.round(m.von * (tn - 1)), b = Math.round(m.bis * (tn - 1));
+      if (b > a) extra.push(m.deckkraft > 0 ? [a, b, m.deckkraft] : [a, b]);
+    }
+    _segStarts = _segStartsBasis.concat(extra);
+  }
+  function _lbTempo() {
+    return _lbBereiche.filter(b => _LB_FAKTOR[b.anzeige])
+      .map(b => ({ art: "tempo", von: b.von, bis: b.bis, faktor: _LB_FAKTOR[b.anzeige], quelle: "logbuch" }));
+  }
+  async function _lbLaden() {
+    const lauf = ++_lbLauf;
+    let reise = false; try { reise = !!_reiseGilt(); } catch (_) {}
+    if (!currentGpx || reise) {
+      _lbBereiche = []; _lbEid = null; _lbGrund = currentGpx ? "reise" : "";
+      _segStartsSetzen(); _lbListeZeichnen(); return;
+    }
+    let r = null;
+    try { r = await api().animator_logbuch_bereiche(currentGpx); } catch (_) { r = null; }   // warte-ok: Datenbank + Einlesen, kurz
+    if (lauf !== _lbLauf) return;
+    const vorher = JSON.stringify(_lbBereiche.map(b => [b.von, b.bis, b.anzeige]));
+    if (r && r.ok) { _lbBereiche = r.bereiche || []; _lbEid = r.eid || null; _lbGrund = ""; }
+    else { _lbBereiche = []; _lbEid = null; _lbGrund = (r && r.grund) || "fehler"; }
+    _segStartsSetzen();
+    _lbListeZeichnen();
+    if (JSON.stringify(_lbBereiche.map(b => [b.von, b.bis, b.anzeige])) !== vorher) {
+      try { if (!_isStaticFrame) paceMapLaden(); else vorschauNeuZeichnen(); }
+      catch (e) { applog("warn", `[logbuch-video] Tempo/Vorschau: ${e && e.message || e}`); }
+    }
+  }
+  // Prüfstand (tests/test_logbuch_im_video.py): Zustand lesen, ohne ihn zu ändern.
+  window.__rzAnimLb = () => {
+    // ui-falle-ok: erst beim Aufruf gelesen (nur aus dem Test, lange nach dem Aufbau)
+    const dauer = (_tempoInfo && _tempoInfo.dauer_s) || null;
+    // ui-falle-ok: dito
+    const artStats = Object.keys((_ovSeries && _ovSeries.art_stats) || {});
+    return { bereiche: _lbBereiche.map(b => Object.assign({}, b)), grund: _lbGrund,
+             segStarts: _segStarts.map(x => x.slice()), tempo: _lbTempo(), dauer, artStats };
+  };
+  const _LB_ICON = { fahrt: "🚗", rad: "🚲", laufen: "🏃", wanderung: "🥾", spaziergang: "🚶", gehen: "🚶",
+                     uebersetzen: "⛴", pause: "⏸", uebernachtung: "🛏", wassersport: "🛶", unsicher: "❔" };
+  function _lbZeit(t, vm) {
+    const d = new Date((t + (vm || 0) * 60) * 1000);
+    return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
+  }
+  function _lbListeZeichnen() {
+    const box = document.getElementById("anim-lb-liste");
+    if (!box) return;
+    if (_lbGrund) {
+      const txt = _lbGrund === "reise" ? t("animator.lb.reise", "Bei mehreren Touren nacheinander führt der Etappen-Zeitplan — die Logbuch-Anzeige gilt für einzelne Touren.")
+        : _lbGrund === "nicht_im_archiv" ? t("animator.lb.nicht_im_archiv", "Das Logbuch gibt es für Touren im Archiv.")
+        : _lbGrund === "ohne_zeit" ? t("animator.lb.ohne_zeit", "Der Track hat keine Zeitstempel — ohne Uhrzeit gibt es kein Logbuch.")
+        : t("animator.lb.fehler", "Logbuch nicht lesbar.");
+      box.innerHTML = `<p class="muted" style="font-size:11px;margin:0;">${txt}</p>`;
+      return;
+    }
+    if (!_lbBereiche.length) { box.innerHTML = `<p class="muted" style="font-size:11px;margin:0;">${t("animator.lb.leer", "Keine Abschnitte.")}</p>`; return; }
+    const opt = (v, l, sel) => `<option value="${v}" ${v === sel ? "selected" : ""}>${l}</option>`;
+    const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    // Mehrtägig: Tagesköpfe, damit man sich in einer Reise über Wochen zurechtfindet
+    const tagVon = (b) => Math.floor((b.t0 + (b.versatz_min || 0) * 60) / 86400);
+    const tag0 = tagVon(_lbBereiche[0]);
+    const mehrtaegig = tagVon(_lbBereiche[_lbBereiche.length - 1]) !== tag0;
+    const sprache = window.rzSprachCode ? window.rzSprachCode() : undefined;
+    let tagZuletzt = null;
+    const kopf = (b) => {
+      if (!mehrtaegig) return "";
+      const tg = tagVon(b);
+      if (tg === tagZuletzt) return "";
+      tagZuletzt = tg;
+      const datum = new Date(tg * 86400000).toLocaleDateString(sprache, { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" });
+      return `<div class="anim-lb-tag">${esc(t("animator.lb.tag", "Tag {n}").replace("{n}", tg - tag0 + 1))} · ${esc(datum)}</div>`;
+    };
+    // „Alle auf einmal": eine Art (mit Anzahl) + Anzeige → alle Einträge dieser Art
+    const jeArt = {};
+    _lbBereiche.forEach((b) => { if (b.art !== "pause" && b.art !== "uebernachtung") (jeArt[b.art] = jeArt[b.art] || []).push(b); });
+    const artenListe = Object.keys(jeArt).sort((x, y) => jeArt[y].length - jeArt[x].length);
+    const alle = artenListe.length && _lbBereiche.length > 3 ? `<div class="anim-lb-alle" title="${esc(t("animator.lb.alle_tip", ""))}">
+        <span>${esc(t("animator.lb.alle", "Alle auf einmal:"))}</span>
+        <select id="anim-lb-alle-art">${artenListe.map((a) => `<option value="${a}">${_LB_ICON[a] || "•"} ${esc(t("logbuch.art." + a, a))} (${jeArt[a].length})</option>`).join("")}</select>
+        <select id="anim-lb-alle-wahl"><option value="-">${esc(t("animator.lb.alle_waehlen", "— Anzeige wählen —"))}</option>${opt("", t("animator.lb.standard", "zeigen (Standard)"), "-")}${opt("blass", t("animator.lb.blass", "blass"), "-")}${opt("raffen", t("animator.lb.raffen", "raffen (×8)"), "-")}${opt("ueberspringen", t("animator.lb.ueberspringen", "überspringen"), "-")}</select>
+      </div>` : "";
+    box.innerHTML = alle + _lbBereiche.map((b, i) => {
+      const name = b.name || t("logbuch.art." + b.art, b.art);
+      const km = b.strecke_m > 0 ? ` · ${(b.strecke_m / 1000).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { maximumFractionDigits: 1 })} km` : "";
+      const sel = b.anzeige || "";
+      return kopf(b) + `<div class="anim-lb-zeile${sel && sel !== "zeigen" ? " ist-" + sel : ""}" data-i="${i}">
+        <span class="anim-lb-icon">${_LB_ICON[b.art] || "•"}</span>
+        <span class="anim-lb-text"><b>${esc(name)}</b><small>${_lbZeit(b.t0, b.versatz_min)}–${_lbZeit(b.t1, b.versatz_min)}${km}</small></span>
+        <select data-lb-i="${i}" title="${esc(t("animator.lb.wahl_tip", "Im Video"))}">
+          ${opt("", t("animator.lb.standard", "zeigen (Standard)"), sel)}${opt("blass", t("animator.lb.blass", "blass"), sel)}${opt("raffen", t("animator.lb.raffen", "raffen (×8)"), sel)}${opt("ueberspringen", t("animator.lb.ueberspringen", "überspringen"), sel)}
+        </select></div>`;
+    }).join("");
+    box.querySelectorAll("select[data-lb-i]").forEach((el) => el.addEventListener("change", async () => {
+      const b = _lbBereiche[+el.getAttribute("data-lb-i")];
+      if (!b || !_lbEid) return;
+      const v = el.value;
+      let r = null;
+      try { r = await api().einteilung_aktion(_lbEid, "aendern", { bids: b.bids, anzeige: v }); } catch (_) { r = null; }   // warte-ok: Datenbank
+      if (!r || !r.ok) { try { toast((r && r.error) || t("animator.lb.fehler", "Logbuch nicht lesbar."), "error"); } catch (_) {} }
+      try { applog("info", `[logbuch-video] ${b.art} ${_lbZeit(b.t0, b.versatz_min)} → ${v || "zeigen"}`); } catch (_) {}
+      _lbLaden();
+    }));
+    const alleWahl = document.getElementById("anim-lb-alle-wahl");
+    if (alleWahl) alleWahl.addEventListener("change", async () => {
+      const v = alleWahl.value;
+      const art = (document.getElementById("anim-lb-alle-art") || {}).value;
+      if (v === "-" || !art || !jeArt[art] || !_lbEid) return;
+      const bids = [].concat(...jeArt[art].map((b) => b.bids || []));
+      let r = null;
+      try { r = await api().einteilung_aktion(_lbEid, "aendern", { bids, anzeige: v }); } catch (_) { r = null; }   // warte-ok: Datenbank
+      if (!r || !r.ok) { try { toast((r && r.error) || t("animator.lb.fehler", "Logbuch nicht lesbar."), "error"); } catch (_) {} }
+      try { applog("info", `[logbuch-video] alle ${art} (${jeArt[art].length}) → ${v || "zeigen"}`); } catch (_) {}
+      _lbLaden();
+    });
+  }
   let _cumGeoM = null, _cumGeoFuer = null;   // gebaut für GENAU diese Coords-Liste
   function _segGeoAufbauen() {
     _cumGeoM = null; _cumGeoFuer = currentCoords;
@@ -2993,18 +3148,36 @@ function mountAnimator(body, headerActions, opts) {
       return (p && p[_MODKEY] && p[_MODKEY].tour_colors) || null;
     } catch (_) { return null; }
   }
+  // 24.09.2026 — Farbe mit Deckkraft (Logbuch „blass"). SYNCHRON zu window.__rzMitAlpha
+  // in core/animator.py (_SEG_MASK_JS).
+  const mitAlpha = function (c, d) {
+  // 24.09.2026 — Farbe mit Deckkraft d (Logbuch „blass"): #rgb, #rrggbb, rgb(), rgba().
+  if (d == null) return c;
+  var s = String(c || "").trim(), r, g, b, a = 1, m;
+  if (s.charAt(0) === "#") {
+    var h = s.slice(1); if (h.length === 3) h = h.replace(/(.)/g, "$1$1");
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+  } else if ((m = s.match(/rgba?\(([^)]+)\)/))) {
+    var t = m[1].split(",").map(function (x) { return parseFloat(x); });
+    r = t[0]; g = t[1]; b = t[2]; if (t.length > 3 && isFinite(t[3])) a = t[3];
+  } else return c;
+  if (!isFinite(r) || !isFinite(g) || !isFinite(b)) return c;
+  return "rgba(" + Math.round(r) + "," + Math.round(g) + "," + Math.round(b) + "," + (Math.round(a * d * 1000) / 1000) + ")";
+};
   function segMaskExpr(cumGeo, i0, i1, segStarts, farbe, tourFarben, stageNr) {
     if (!segStarts || !segStarts.length || !cumGeo || i1 <= i0) return null;
     const g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
     if (!(gT > 0)) return null;
     const luecken = [];
-    for (const [ra, rb] of segStarts) {
+    for (const s_ of segStarts) {
+      const ra = s_[0], rb = s_[1];
       if (rb <= i0 || ra >= i1) continue;
       const a = Math.max(ra, i0), b = Math.min(rb, i1);
       // 20.09.2026 — die Original-Indizes mitführen: die Farbe vor/nach der Lücke wurde
       // über die POSITION in `luecken` gesucht; lag eine frühere Lücke außerhalb der
       // Spanne, griff das die falsche Etappe.
-      luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT, ra, rb]);
+      // 24.09.2026 — dritter Wert = Deckkraft (Logbuch „blass"); ohne = unsichtbar.
+      luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT, ra, rb, s_.length > 2 ? +s_[2] : null]);
     }
     const farbeBei = (idx) => {
       if (!tourFarben || !stageNr) return farbe;
@@ -3028,8 +3201,11 @@ function mountAnimator(body, headerActions, opts) {
       if (p >= 1) return;
       letzte = p; e.push(p, c);
     };
-    luecken.forEach(([a, b, vor, nach]) => {
-      setz(a - 1e-5, farbeBei(vor)); setz(a, LEER); setz(b, LEER); setz(b + 1e-5, farbeBei(nach));
+    luecken.forEach(([a, b, vor, nach, dk]) => {
+      setz(a - 1e-5, farbeBei(vor));
+      setz(a, dk == null ? LEER : mitAlpha(farbeBei(vor), dk));
+      setz(b, dk == null ? LEER : mitAlpha(farbeBei(nach), dk));
+      setz(b + 1e-5, farbeBei(nach));
     });
     e.push(1, farbeBei(i1));
     return e;
@@ -4328,7 +4504,7 @@ function mountAnimator(body, headerActions, opts) {
         basis,
         rate: rate || 0,
         dauer_s: parseNum(document.getElementById("anim-dur")?.value, 12),
-        eintraege: reise ? [] : eintraege,
+        eintraege: reise ? [] : eintraege.concat(_lbTempo()),   // 24.09.2026 — + Logbuch raffen/überspringen
         fps: parseNum(document.getElementById("anim-fps")?.value, 30),
         pause_mode: document.getElementById("anim-pause-mode")?.value || "trim",
         pause_min_s: (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60,
@@ -4907,9 +5083,11 @@ function mountAnimator(body, headerActions, opts) {
   for (var k = 0; k < segStarts.length; k++) {
     var ra = segStarts[k][0], rb = segStarts[k][1];
     if (rb <= i0 || ra >= i1) continue;
-    L.push([(cumGeo[Math.max(ra, i0)] - g0) / gT, (cumGeo[Math.min(rb, i1)] - g0) / gT]);
+    L.push([(cumGeo[Math.max(ra, i0)] - g0) / gT, (cumGeo[Math.min(rb, i1)] - g0) / gT,
+            segStarts[k].length > 2 ? +segStarts[k][2] : null]);
   }
   if (!L.length) return expr;
+  var MA = mitAlpha;
   var P = [], C = [];
   for (var s = 3; s + 1 < expr.length; s += 2) { P.push(expr[s]); C.push(expr[s + 1]); }
   if (!P.length) return expr;
@@ -4922,14 +5100,16 @@ function mountAnimator(body, headerActions, opts) {
   };
   var EPS = 1e-5, LEER = "rgba(0,0,0,0)", roh = [];
   for (var q = 0; q < P.length; q++) {
-    var drin = false;
-    for (var l = 0; l < L.length; l++) if (P[q] > L[l][0] - EPS && P[q] < L[l][1] + EPS) drin = true;
+    var drin = false, dkq = null;
+    for (var l = 0; l < L.length; l++) if (P[q] > L[l][0] - EPS && P[q] < L[l][1] + EPS) { drin = true; dkq = L[l][2]; }
     if (!drin) roh.push([P[q], C[q]]);
+    else if (dkq != null) roh.push([P[q], MA(C[q], dkq)]);
   }
   for (var m = 0; m < L.length; m++) {
-    var a = L[m][0], b = L[m][1];
+    var a = L[m][0], b = L[m][1], dk = L[m][2];
     if (a - EPS > 0) roh.push([a - EPS, bei(a - EPS)]);
-    roh.push([Math.max(0, a), LEER]); roh.push([Math.min(1, b), LEER]);
+    roh.push([Math.max(0, a), dk == null ? LEER : MA(bei(Math.max(0, a)), dk)]);
+    roh.push([Math.min(1, b), dk == null ? LEER : MA(bei(Math.min(1, b)), dk)]);
     if (b + EPS < 1) roh.push([b + EPS, bei(b + EPS)]);
   }
   roh.sort(function (x, y) { return x[0] - y[0]; });
@@ -14368,7 +14548,9 @@ function mountAnimator(body, headerActions, opts) {
   /** Nur die neuen Schlüssel für die Render-Parameter (die alten schickt der Aufrufer). */
   function _ovRenderParams() {
     const c = _ovCfg();
-    return { overlay_exit: c.overlay_exit, overlay_blende_s: c.overlay_blende_s, overlay_radius: c.overlay_radius,
+    return { logbuch_masken: _lbMaskenAnteile(),   // 24.09.2026 — klassischer Render (Alpha): blass/überspringen
+             bewegung_bereiche: _lbBereiche.map(b => ({ art: b.art, t0: b.t0, t1: b.t1 })),   // Zahlen je Bewegungsart
+             overlay_exit: c.overlay_exit, overlay_blende_s: c.overlay_blende_s, overlay_radius: c.overlay_radius,
              overlay_border_w: c.overlay_border_w, overlay_border_color: c.overlay_border_color,
              overlay_shadow: c.overlay_shadow, overlay_boxen: c.overlay_boxen };
   }
@@ -14405,13 +14587,18 @@ function mountAnimator(body, headerActions, opts) {
   // Kennzahlen je Etappe → Text je Feld (gleiche Formeln wie _ovFieldValue, nur
   // mit den Werten der Etappe). {"<nr>": text, gesamt: text} oder null.
   function _ovEtappenWerte(id) {
+    // 24.09.2026 (IDEAS §67 Q16) — Etappen (ab zwei) und Bewegungsarten aus dem
+    // Logbuch ("art:wanderung" …) teilen sich den Mechanismus. SYNCHRON zu
+    // _overlay_stage_values in core/animator.py.
     const ss = _ovSeries && _ovSeries.stage_stats;
-    if (!ss || Object.keys(ss).length < 2) return null;
+    const as = _ovSeries && _ovSeries.art_stats;
+    const alle = Object.assign({}, (ss && Object.keys(ss).length >= 2) ? ss : {}, as || {});
+    if (!Object.keys(alle).length) return null;
     const out = {};
-    for (const nr of Object.keys(ss)) {
-      const w = _ovFieldValueAus(id, ss[nr]);
+    for (const k of Object.keys(alle)) {
+      const w = _ovFieldValueAus(id, alle[k]);
       if (w == null) return null;
-      out[nr] = w;
+      out[k] = w;
     }
     out.gesamt = _ovFieldValue(id);
     return out;
@@ -14926,9 +15113,13 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _ovBezugHtml(pfad, eigen, wert, erbtText) {
     const et = _ovEtappenListe();
-    if (!et.length) return "";
-    const opts = [["gesamt", t("animator.ovbox.ref_all", "Ganze Strecke")], ["laufend", t("animator.ovbox.ref_running", "Laufende Etappe")]]
-      .concat(et.map(x => [String(x.nr), x.name]));
+    // 24.09.2026 (IDEAS §67 Q16) — Bewegungsarten aus dem Logbuch: „nur Wanderung" …
+    const arten = Object.keys((_ovSeries && _ovSeries.art_stats) || {});
+    if (!et.length && !arten.length) return "";
+    const opts = [["gesamt", t("animator.ovbox.ref_all", "Ganze Strecke")]]
+      .concat(et.length ? [["laufend", t("animator.ovbox.ref_running", "Laufende Etappe")]] : [])
+      .concat(et.map(x => [String(x.nr), x.name]))
+      .concat(arten.map(k => [k, t("animator.ovbox.ref_art", "nur {art}").replace("{art}", t("logbuch.art." + k.slice(4), k.slice(4)))]));
     const sel = `<select data-k="${pfad}" data-typ="bezug">` + opts.map(([v, l]) => `<option value="${v}" ${String(wert) === v ? "selected" : ""}>${_ovEsc(l)}</option>`).join("") + `</select>`;
     return _ovZeileHtml(pfad, t("animator.ovbox.ref", "Zahlen für"), !eigen, erbtText, sel);
   }
@@ -15047,7 +15238,7 @@ function mountAnimator(body, headerActions, opts) {
       if (typ === "pct") return (parseFloat(el.value) || 0) / 100;
       if (typ === "num") { const v = parseFloat(el.value); return isNaN(v) ? null : v; }
       if (typ === "bool") return el.value === "1";
-      if (typ === "bezug") return (el.value === "gesamt" || el.value === "laufend") ? el.value : (parseInt(el.value, 10) || "gesamt");
+      if (typ === "bezug") return (el.value === "gesamt" || el.value === "laufend" || /^art:/.test(el.value)) ? el.value : (parseInt(el.value, 10) || "gesamt");   // art:… = Bewegungsart (24.09.2026)
       return el.value;
     };
     const zeitAusFormular = (zeile) => {
@@ -15555,7 +15746,9 @@ function mountAnimator(body, headerActions, opts) {
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
-    _segStarts = Array.isArray(res.seg_starts) ? res.seg_starts : [];
+    _segStartsBasis = Array.isArray(res.seg_starts) ? res.seg_starts : [];
+    _segStartsSetzen();
+    _lbLaden().catch((e) => applog("warn", `[logbuch-video] Laden: ${e && e.message || e}`));   // 24.09.2026 — Logbuch im Video
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
@@ -15966,7 +16159,9 @@ function mountAnimator(body, headerActions, opts) {
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
-    _segStarts = Array.isArray(res.seg_starts) ? res.seg_starts : [];
+    _segStartsBasis = Array.isArray(res.seg_starts) ? res.seg_starts : [];
+    _segStartsSetzen();
+    _lbLaden().catch((e) => applog("warn", `[logbuch-video] Laden: ${e && e.message || e}`));   // 24.09.2026 — Logbuch im Video
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
