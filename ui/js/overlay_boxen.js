@@ -124,6 +124,16 @@
     if (dauer > 0) return { von, bis: null, dauer_s: rund(dauer) };
     return { von, bis: ausloeser(z.bis), dauer_s: null };
   }
+  /** 24.09.2026 — mehrere Zeiträume je Box: `zeit` darf eine Liste sein.
+   *  → Liste normalisierter Zeiten (≥ 1) oder null. */
+  function zeitListe(z) {
+    if (Array.isArray(z)) {
+      const out = z.map(zeitNormal).filter((x) => !!x);
+      return out.length ? out : null;
+    }
+    const zn = zeitNormal(z);
+    return zn ? [zn] : null;
+  }
   function zeitAlt(cfg, praefix) {
     const frm = Math.max(0, num(get(cfg, praefix + "_from_s", 0), 0));
     const to = num(get(cfg, praefix + "_to_s", 0), 0);
@@ -195,8 +205,9 @@
       if (POSITIONEN.indexOf(position) < 0) position = posDef;
       const stil = stilMischen(gStil, e.stil);
       const blende = blendeMischen(gBlende, e.blende);
-      let zeit = zeitNormal(e.zeit);
-      if (!zeit) zeit = standard ? zeitAlt(cfg, ALT[bid][0]) : { von: { art: "s", wert: 0 }, bis: null, dauer_s: null };
+      let zeiten = zeitListe(e.zeit);
+      if (!zeiten) zeiten = [standard ? zeitAlt(cfg, ALT[bid][0]) : { von: { art: "s", wert: 0 }, bis: null, dauer_s: null }];
+      const zeit = zeiten[0];
       const bz = typ === "totals" ? bezug(e.bezug) : "gesamt";
       const zeilen = {};
       const rohZ = istDict(e.zeilen) ? e.zeilen : {};
@@ -214,7 +225,7 @@
           };
         }
       }
-      out.push({ id: bid, typ, standard, enabled, position, fields, titel, stil, blende, zeit, bezug: bz, zeilen });
+      out.push({ id: bid, typ, standard, enabled, position, fields, titel, stil, blende, zeit, zeiten, bezug: bz, zeilen });
     }
     return out;
   }
@@ -226,9 +237,9 @@
       if (!istDict(ch)) return;
       const frm = Math.max(0, num(ch.from_s, 0));
       const to = num(ch.to_s, 0);
+      const z = { von: { art: "s", wert: rund(frm) }, bis: to > 0 ? { art: "s", wert: rund(to) } : null, dauer_s: null };
       out.push({ id: "chart-" + i, typ: "chart", standard: false, enabled: true,
-        blende: Object.assign({}, gBlende), bezug: "gesamt", zeilen: {},
-        zeit: { von: { art: "s", wert: rund(frm) }, bis: to > 0 ? { art: "s", wert: rund(to) } : null, dauer_s: null } });
+        blende: Object.assign({}, gBlende), bezug: "gesamt", zeilen: {}, zeit: z, zeiten: [z] });
     });
     return out;
   }
@@ -237,7 +248,7 @@
     for (const b of aufloesen(cfg).concat(chartBoxen(cfg))) {
       if (!b.enabled) continue;
       if (b.blende.ein !== "none" || b.blende.aus !== "none") return true;
-      if (!zeitTrivial(b.zeit) || b.bezug === "laufend") return true;
+      if ((b.zeiten || []).length > 1 || !zeitTrivial(b.zeit) || b.bezug === "laufend") return true;
       for (const k of Object.keys(b.zeilen)) {
         const z = b.zeilen[k];
         if (z.zeit || z.bezug === "laufend") return true;
@@ -418,6 +429,19 @@
     return mischen(blende, pIn, pOut);
   }
 
+  /** Mehrere Zeiträume einer Box (24.09.2026): sichtbar, sobald einer greift; es
+   *  zählt der Zeitraum mit der größten Deckkraft (er liefert auch den Pop). */
+  function zustandListe(zeiten, blende, t, frac, ctx, speicher, schluessel) {
+    let best = null;
+    (zeiten && zeiten.length ? zeiten : [null]).forEach((z, i) => {
+      const key = i ? schluessel + "#" + i : schluessel;
+      const mem = speicher[key] || (speicher[key] = {});
+      const st = zustand(z, blende, t, frac, ctx, mem);
+      if (!best || (st.sichtbar && (!best.sichtbar || st.deckkraft > best.deckkraft))) best = st;
+    });
+    return best;
+  }
+
   // ── Anwenden auf das DOM (Vorschau, Probelauf, Szene-Render, klassischer Render) ──
   // Box = [data-ovbox="<id>"], Zeile = [data-f="<fid>"] darin. `speicher` behält je
   // Box/Zeile den Zustand der Strecken-Auslöser über die Bilder hinweg.
@@ -457,8 +481,7 @@
         el.querySelectorAll("[data-f]").forEach((r) => setzen(r, null, true));
         continue;
       }
-      const mem = speicher[b.id] || (speicher[b.id] = {});
-      setzen(el, zustand(b.zeit, b.blende, t, frac, ctx, mem), false);
+      setzen(el, zustandListe(b.zeiten || [b.zeit], b.blende, t, frac, ctx, speicher, b.id), false);
       for (const fid of Object.keys(b.zeilen || {})) {
         const zl = b.zeilen[fid];
         if (!zl.zeit) continue;
@@ -476,7 +499,7 @@
   }
 
   const api = { aufloesen, chartBoxen, zustand, anwenden, etappenGrenzen, hatZeitsteuerung,
-                zeitNormal, globalStil, globalBlende, bezugWert, kanten, gesamtS, ausTabelle,
+                zeitNormal, globalStil, globalBlende, bezugWert, kanten, gesamtS, ausTabelle, zeitListe, zustandListe,
                 STANDARD_IDS, AUSLOESER, BLENDEN, POSITIONEN, SCHRIFTEN };
   // Unter node (Wächter) setzt der Aufrufer vorher globalThis.window = globalThis.
   if (root) root.rzOverlayBoxen = api;

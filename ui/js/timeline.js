@@ -803,7 +803,7 @@ function mountTimelineBar(opts) {
   // rechnet NUR in Leisten-Positionen (0..1 über das ganze Video) — was daraus an
   // Sekunden und Ankern wird, entscheidet das Modul (`onOverlayZiehen`).
   // Kein Einrasten (Marc). Doppel- und Rechtsklick öffnen das Box-Fenster.
-  let _ov = [];                  // [{id, name, farbe, enabled, an, aus, einBis, ausAb}]
+  let _ov = [];                  // [{id, name, farbe, enabled, segmente: [{an, aus, einBis, ausAb, text}]}]
   let _ovOffen = false;
   let _ovMinAnteil = 0.005;      // kürzester Balken als Leisten-Anteil (Modul: 0,5 s)
   let _ovLetzterDruck = null;
@@ -815,7 +815,8 @@ function mountTimelineBar(opts) {
     _ovGeoRaf = setTimeout(() => { _ovGeoRaf = 0; try { cb.onOverlayNeu(); } catch (e) { console.warn("onOverlayNeu:", e); } }, 0);
   }
   function setOverlays(liste, opts) {
-    _ov = Array.isArray(liste) ? liste.map(o => Object.assign({}, o)) : [];
+    _ov = Array.isArray(liste) ? liste.map(o => Object.assign({}, o, {
+      segmente: (Array.isArray(o.segmente) ? o.segmente : [o]).map(g => Object.assign({}, g)) })) : [];
     const o = opts || {};
     if (typeof o.offen === "boolean") _ovOffen = o.offen;
     if (+o.minAnteil > 0) _ovMinAnteil = +o.minAnteil;
@@ -881,13 +882,15 @@ function mountTimelineBar(opts) {
       mini.innerHTML = "";
       const n = Math.max(1, _ov.length);
       _ov.forEach((o, i) => {
-        const st = document.createElement("div");
-        st.className = "ov-strich" + (o.enabled ? "" : " ist-aus");
-        st.style.left = _ovPct(o.an) + "%";
-        st.style.width = Math.max(0.3, _ovPct(o.aus) - _ovPct(o.an)) + "%";
-        st.style.top = (3 + i * Math.max(2, 14 / n)) + "px";
-        if (o.farbe) st.style.background = o.farbe;
-        mini.appendChild(st);
+        for (const g of o.segmente) {
+          const st = document.createElement("div");
+          st.className = "ov-strich" + (o.enabled ? "" : " ist-aus");
+          st.style.left = _ovPct(g.an) + "%";
+          st.style.width = Math.max(0.3, _ovPct(g.aus) - _ovPct(g.an)) + "%";
+          st.style.top = (3 + i * Math.max(2, 14 / n)) + "px";
+          if (o.farbe) st.style.background = o.farbe;
+          mini.appendChild(st);
+        }
       });
     }
     if (!_ovOffen) return;
@@ -897,29 +900,34 @@ function mountTimelineBar(opts) {
       const nm = z.querySelector(".lane-name"); if (nm) nm.textContent = o.name || o.id;
       const lab = z.querySelector(".lane-label"); if (lab) lab.title = o.name || o.id;
       z.classList.toggle("ist-aus", !o.enabled);
-      z.classList.toggle("ist-auswahl", _ovAuswahl === o.id);
+      z.classList.toggle("ist-auswahl", !!_ovAuswahl && _ovAuswahl.id === o.id);
       const mk = z.querySelector(".lane-markers");
       mk.innerHTML = "";
-      const b = document.createElement("div");
-      b.className = "tl-ovbar" + (o.enabled ? "" : " ist-aus") + (_ovAuswahl === o.id ? " ist-auswahl" : "");
-      b.dataset.id = o.id;
-      const l = +_ovPct(o.an), r = +_ovPct(o.aus);
-      b.style.left = l + "%";
-      b.style.width = Math.max(0.4, r - l) + "%";
-      if (o.farbe) b.style.setProperty("--ov-farbe", o.farbe);
-      const len = Math.max(1e-9, o.aus - o.an);
-      const ein = Math.max(0, Math.min(1, ((o.einBis ?? o.an) - o.an) / len)) * 100;
-      const aus = Math.max(0, Math.min(1, (o.aus - (o.ausAb ?? o.aus)) / len)) * 100;
-      b.title = (o.name || o.id) + (o.text ? " · " + o.text : "") + "\n"
-        + tlT("animator.ov.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · Schrägen: Ein-/Ausblendung · Doppelklick: öffnen");
-      b.innerHTML =
-        `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
-        + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
-        + `<span class="tl-ov-name">${_esc(o.text || "")}</span>`
-        + `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
-        + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>`
-        + `<span class="tl-ov-rand" data-griff="l"></span><span class="tl-ov-rand" data-griff="r"></span>`;
-      mk.appendChild(b);
+      o.segmente.forEach((g, si) => {
+        const b = document.createElement("div");
+        const gewaehlt = _ovAuswahl && _ovAuswahl.id === o.id && _ovAuswahl.seg === si;
+        b.className = "tl-ovbar" + (o.enabled ? "" : " ist-aus") + (gewaehlt ? " ist-auswahl" : "");
+        b.dataset.id = o.id;
+        b.dataset.seg = String(si);
+        const l = +_ovPct(g.an), r = +_ovPct(g.aus);
+        b.style.left = l + "%";
+        b.style.width = Math.max(0.4, r - l) + "%";
+        if (o.farbe) b.style.setProperty("--ov-farbe", o.farbe);
+        const len = Math.max(1e-9, g.aus - g.an);
+        const ein = Math.max(0, Math.min(1, ((g.einBis ?? g.an) - g.an) / len)) * 100;
+        const aus = Math.max(0, Math.min(1, (g.aus - (g.ausAb ?? g.aus)) / len)) * 100;
+        b.title = (o.name || o.id) + (g.text ? " · " + g.text : "") + "\n"
+          + tlT("animator.ov.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · Schrägen: Ein-/Ausblendung · Doppelklick: öffnen")
+          + "\n" + tlT("animator.ov.bar_tip2", "Doppelklick auf eine freie Stelle der Zeile: weiterer Zeitraum · Rechtsklick: öffnen");
+        b.innerHTML =
+          `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
+          + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
+          + `<span class="tl-ov-name">${_esc(g.text || "")}</span>`
+          + `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
+          + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>`
+          + `<span class="tl-ov-rand" data-griff="l"></span><span class="tl-ov-rand" data-griff="r"></span>`;
+        mk.appendChild(b);
+      });
     }
   }
   function _ovVonId(id) { return _ov.find(o => o.id === id) || null; }
@@ -931,7 +939,18 @@ function mountTimelineBar(opts) {
       const b = ev.target.closest(".tl-ovbar");
       if (!b || b.classList.contains("ist-aus")) return;
       ev.preventDefault();
+      // Marc (Grilling Q12): Rechtsklick = Doppelklick = Fenster öffnen. Löschen eines
+      // Zeitraums sitzt dort (✕ je Zeitraum).
       _ovOeffnen(b.dataset.id);
+    });
+    // Doppelklick auf eine freie Stelle der Zeile: ein weiterer Zeitraum dort (24.09.2026).
+    spur.addEventListener("dblclick", (ev) => {
+      if (ev.target.closest(".tl-ovbar")) return;
+      if (zeile.classList.contains("ist-aus")) return;
+      const mk = zeile.querySelector(".lane-markers") || spur;
+      const r = mk.getBoundingClientRect();
+      const x = _viewOffset + ((ev.clientX - r.left) / Math.max(1, r.width)) / _viewZoom;
+      try { (cb.onOverlayZeitraumNeu || (() => {}))(zeile.dataset.id, Math.max(0, Math.min(1, x))); } catch (e) { console.warn("onOverlayZeitraumNeu:", e); }
     });
     const lab = zeile.querySelector(".lane-label");
     lab.addEventListener("dblclick", () => _ovOeffnen(zeile.dataset.id));
@@ -940,19 +959,21 @@ function mountTimelineBar(opts) {
     const b = ev.target.closest(".tl-ovbar");
     if (!b || ev.button !== 0 || b.classList.contains("ist-aus")) return;
     const id = b.dataset.id;
-    const o = _ovVonId(id);
+    const seg = +b.dataset.seg || 0;
+    const oBox = _ovVonId(id);
+    const o = oBox && oBox.segmente[seg];
     if (!o) return;
     ev.preventDefault();
     ev.stopPropagation();
     // Doppelklick selbst erkennen — nach jedem Loslassen wird neu gezeichnet,
     // ein natives dblclick kommt dann nie an (wie bei den Gruppen-Kacheln).
     const jetzt = Date.now();
-    if (_ovLetzterDruck && _ovLetzterDruck.id === id && jetzt - _ovLetzterDruck.t < 350) {
+    if (_ovLetzterDruck && _ovLetzterDruck.id === id && _ovLetzterDruck.seg === seg && jetzt - _ovLetzterDruck.t < 350) {
       _ovLetzterDruck = null;
       _ovOeffnen(id);
       return;
     }
-    _ovLetzterDruck = { id, t: jetzt };
+    _ovLetzterDruck = { id, seg, t: jetzt };
     const griffEl = ev.target.closest("[data-griff]");
     const griff = griffEl ? griffEl.dataset.griff : "schieben";
     const mk = zeile.querySelector(".lane-markers") || zeile;
@@ -993,21 +1014,21 @@ function mountTimelineBar(opts) {
       Object.assign(o, neu);
       _ovZeichnen();
       let txt = "";
-      try { txt = (cb.onOverlayText || (() => ""))(id, griff, neu) || ""; } catch (_) {}
+      try { txt = (cb.onOverlayText || (() => ""))(id, griff, neu, seg) || ""; } catch (_) {}
       setStatusHint(txt || null);
-      try { (cb.onOverlayVorschau || (() => {}))(id, griff, neu); } catch (_) {}
+      try { (cb.onOverlayVorschau || (() => {}))(id, griff, neu, seg); } catch (_) {}
     };
     const hoch = () => {
       document.removeEventListener("mousemove", bewegen, true);
       document.removeEventListener("mouseup", hoch, true);
       setStatusHint(null);
       if (!bewegt) {
-        _ovAuswahl = id;
+        _ovAuswahl = { id, seg };
         _ovZeichnen();
-        try { (cb.onOverlayAuswahl || (() => {}))(id); } catch (_) {}
+        try { (cb.onOverlayAuswahl || (() => {}))(id, seg); } catch (_) {}
         return;
       }
-      try { (cb.onOverlayZiehen || (() => {}))(id, griff, neu); } catch (e) { console.warn("onOverlayZiehen:", e); }
+      try { (cb.onOverlayZiehen || (() => {}))(id, griff, neu, seg); } catch (e) { console.warn("onOverlayZiehen:", e); }
     };
     document.addEventListener("mousemove", bewegen, true);
     document.addEventListener("mouseup", hoch, true);

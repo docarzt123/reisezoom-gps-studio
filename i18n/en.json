@@ -4155,5 +4155,11 @@
   "animator.ovbox.at_video_end": "seconds before the end of the video",
   "animator.ovbox.ein_s": "Fade-in duration",
   "animator.ovbox.aus_s": "Fade-out duration",
-  "animator.ovbox.time_hint_spur": "Easiest in the timeline: drag the bar under “Overlays”. At the end of the span the box is fully gone — the fade-out comes before it."
+  "animator.ovbox.time_hint_spur": "Easiest in the timeline: drag the bar under “Overlays”. At the end of the span the box is fully gone — the fade-out comes before it.",
+  "animator.ov.bar_tip2": "Double-click an empty spot in the row: another span · Right-click: open",
+  "animator.ov.seg_loeschen": "Delete this span",
+  "animator.ov.seg_neu": "Another span",
+  "animator.ovbox.time_n": "Span {n}",
+  "animator.ovbox.time_hint_mehr": "More spans: double-click an empty spot in the row.",
+  "animator.ov.mehr_zeitraeume": "This box has {n} spans — edit them in the timeline under “Overlays” or in the ✎ window."
 }
