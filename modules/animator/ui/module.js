@@ -9842,6 +9842,13 @@ function mountAnimator(body, headerActions, opts) {
         onGruppeZiehen: (id, vonS) => { const g = _gruppeMitId(id); if (!g) return; g.vorlauf_s = Math.max(0, +vonS || 0); g.fest = true; _gruppenNeu(); },
         onGruppeLaenge: (id, sek) => { const g = _gruppeMitId(id); if (!g) return; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); },
         onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
+        // 24.09.2026 — Overlay-Spur (docs/OVERLAY-BOXEN.md §6)
+        onOverlayNeu:      () => _ovSpurAktualisieren(),
+        onOverlaysOffen:   (v) => { _ovSpurOffen = !!v; try { localStorage.setItem("rz-ov-spur-offen", v ? "1" : "0"); } catch (_) {} },
+        onOverlayOeffnen:  (id) => { try { _ovBoxModal(id); } catch (err) { applog("warn", "[ov-spur] " + err); } },
+        onOverlayText:     (id, griff, neu) => _ovSpurText(id, griff, neu),
+        onOverlayVorschau: (id, griff, neu) => _ovSpurVorschau(id, griff, neu),
+        onOverlayZiehen:   (id, griff, neu) => { try { _ovSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[ov-spur] " + err); } },
         onGruppenStapel: (id, delta) => { if (_gruppenStapeln(id, delta)) _gruppenNeu(); },
         // 09.09.2026 — hoch in die Reihe, runter aus der Reihe (Marc: „einfach in die höhere Spur ziehen")
         onGruppenZeile: (id, ziel) => { if (_gruppenZeileWechseln(id, ziel)) _gruppenNeu(); },
@@ -14430,6 +14437,233 @@ function mountAnimator(body, headerActions, opts) {
   // Anteil am Punkt-Index (wie _ovUpdateLiveAt) → hier in Streckenanteil + Etappe
   // umgerechnet (wie __overlayTiming im Render). tSec < 0 = Ruhezustand.
   let _ovTimingSpeicher = {}, _ovTimingBoxen = null, _ovGrenzenRef = null, _ovGrenzen = {};
+
+  // ── Overlay-Spur in der Timeline (24.09.2026, docs/OVERLAY-BOXEN.md §6) ──────
+  // Die Leiste zeigt je Box einen Balken (Leisten-Positionen 0..1). Hier wird
+  // umgerechnet: Leiste ↔ Videosekunde (dieselben drei Abschnitte wie der
+  // Scrubber im Probelauf), Sekunde → Anker. Ein Rand hängt je nach Bereich
+  // (Marc): im Intro an Sekunden ab Videostart, in der Animation am Trackpunkt,
+  // im Halten an Sekunden vor dem Videoende.
+  const _OV_FARBE = { totals: "#e8a0ff", live: "#7fdcff", ele: "#9be58f" };
+  function _ovGesamtSek() {
+    return parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden()
+      + parseNum(document.getElementById("anim-hold")?.value, 0);
+  }
+  function _ovTrimAB() {
+    const tr = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const a = Math.max(0, Math.min(1, tr.start ?? 0));
+    return [a, Math.max(a, Math.min(1, tr.end ?? 1))];
+  }
+  /** Videosekunde → Leisten-Position (so wie der Scrubber im Probelauf läuft). */
+  function _ovLeisteAusZeit(tSek) {
+    const G = _ovGesamtSek();
+    if (!(G > 0)) return 0;
+    const p = Math.max(0, Math.min(1, tSek / G));
+    const ti = introFraction(), tf = trackFraction();
+    const [A, B] = _ovTrimAB();
+    const sVis = ti + A * (tf - ti), eVis = ti + B * (tf - ti);
+    if (p < ti) return (p / Math.max(1e-9, ti)) * sVis;
+    if (p < tf) { const ap = (p - ti) / Math.max(1e-9, tf - ti); return ti + (A + ap * (B - A)) * (tf - ti); }
+    return eVis + ((p - tf) / Math.max(1e-9, 1 - tf)) * (1 - eVis);
+  }
+  /** Leisten-Position → Videosekunde (Umkehrung von `_ovLeisteAusZeit`). */
+  function _ovZeitAusLeiste(x) {
+    const G = _ovGesamtSek();
+    if (!(G > 0)) return 0;
+    const ti = introFraction(), tf = trackFraction();
+    const [A, B] = _ovTrimAB();
+    const sVis = ti + A * (tf - ti), eVis = ti + B * (tf - ti);
+    let p;
+    if (x <= sVis) p = sVis > 0 ? (x / sVis) * ti : 0;
+    else if (x < eVis) { const m = (x - ti) / Math.max(1e-9, tf - ti); p = ti + ((m - A) / Math.max(1e-9, B - A)) * (tf - ti); }
+    else p = tf + ((x - eVis) / Math.max(1e-9, 1 - eVis)) * (1 - tf);
+    return Math.max(0, Math.min(1, p)) * G;
+  }
+  /** Streckenanteil, den der Laufpunkt zur Videosekunde t erreicht hat. */
+  function _ovAnteilBeiZeit(tSek) {
+    const tab = _ovStreckeZeit();
+    if (!tab.length) return null;
+    if (tSek <= tab[0][1]) return tab[0][0];
+    const n = tab.length;
+    if (tSek >= tab[n - 1][1]) return tab[n - 1][0];
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tab[m][1] < tSek) lo = m; else hi = m; }
+    const a = tab[lo], b = tab[hi];
+    return a[0] + (b[0] - a[0]) * (b[1] > a[1] ? (tSek - a[1]) / (b[1] - a[1]) : 0);
+  }
+  const _ov1 = (x) => Math.round(x * 10) / 10;
+  /** Videosekunde → Anker eines Balkenrands (rolle "von" | "bis"). `null` = Videoende. */
+  function _ovAnkerAusZeit(tSek, rolle) {
+    const G = _ovGesamtSek();
+    const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const animEnde = intro + animSekunden();
+    if (rolle === "bis" && tSek >= G - 0.05) return null;
+    if (tSek <= 0.05) return { art: "video_start", wert: 0 };
+    if (tSek < intro - 1e-6) return { art: "video_start", wert: _ov1(tSek) };
+    if (tSek > animEnde + 1e-6) return { art: "video_ende", wert: _ov1(G - tSek) };
+    const f = _ovAnteilBeiZeit(tSek);
+    if (f == null) return { art: "video_start", wert: _ov1(tSek) };
+    return { art: "strecke", wert: Math.round(f * 10000) / 10000 };
+  }
+  function _ovKontext() {
+    const R = window.rzOverlayBoxen;
+    const sr = _ovSeries;
+    if (R && sr && sr.cumDistM && sr.cumDistM.length > 1 && _ovGrenzenRef !== sr) {
+      _ovGrenzenRef = sr;
+      _ovGrenzen = (sr.stage && sr.stage.nr) ? R.etappenGrenzen(sr.cumDistM, sr.stage.nr) : {};
+    }
+    return {
+      intro_s: parseNum(document.getElementById("anim-intro")?.value, 0),
+      anim_s: animSekunden(),
+      hold_s: parseNum(document.getElementById("anim-hold")?.value, 0),
+      etappen: _ovGrenzen,
+      strecke_zeit: _ovStreckeZeit(),
+    };
+  }
+  /** Was eine Kante bedeutet, in Worten (Statuszeile beim Ziehen, Tooltip). */
+  function _ovAnkerText(a) {
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    if (!a) return t("animator.ov.spur_videoende", "Videoende");
+    if (a.art === "video_start") return zahl(a.wert) + " s";
+    if (a.art === "video_ende") return a.wert > 0
+      ? t("animator.ov.spur_vor_ende", "Videoende − {s} s").replace("{s}", zahl(a.wert))
+      : t("animator.ov.spur_videoende", "Videoende");
+    if (a.art === "strecke") {
+      const sr = _ovSeries, cd = sr && sr.cumDistM;
+      const km = (cd && cd.length > 1) ? (cd[cd.length - 1] - cd[0]) * a.wert / 1000 : null;
+      return km != null ? t("animator.ov.spur_bei_km", "bei {km} km").replace("{km}", zahl(km))
+        : Math.round(a.wert * 100) + " %";
+    }
+    return "";
+  }
+  let _ovSpurOffen = (() => { try { return localStorage.getItem("rz-ov-spur-offen") === "1"; } catch (_) { return false; } })();
+  let _ovSpurRaf = 0;
+  function _ovSpurAktualisieren() {
+    if (_isStaticFrame || !_tlBar || typeof _tlBar.setOverlays !== "function") return;
+    if (_ovSpurRaf) return;
+    _ovSpurRaf = requestAnimationFrame(() => { _ovSpurRaf = 0; try { _ovSpurJetzt(); } catch (e) { applog("warn", "[ov-spur] " + e); } });
+  }
+  function _ovSpurJetzt() {
+    const R = window.rzOverlayBoxen;
+    if (!R || !_tlBar) return;
+    const cfg = _ovCfg();
+    const G = _ovGesamtSek();
+    if (!(G > 0) || !document.getElementById("anim-overlays")?.checked) { _tlBar.setOverlays([]); return; }
+    const ctx = _ovKontext();
+    const liste = R.aufloesen(cfg).map((b) => {
+      const k = R.kanten(b.zeit, ctx) || { an: 0, aus: G };
+      const an = Math.max(0, Math.min(G, k.an));
+      const aus = Math.max(an, Math.min(G, isFinite(k.aus) ? k.aus : G));
+      const bl = b.blende || {};
+      let e = (bl.ein && bl.ein !== "none") ? +bl.ein_s || 0 : 0;
+      let a = (bl.aus && bl.aus !== "none") ? +bl.aus_s || 0 : 0;
+      if (e + a > aus - an && e + a > 0) { const f = (aus - an) / (e + a); e *= f; a *= f; }
+      const vonTxt = _ovAnkerText(b.zeit && b.zeit.von && b.zeit.von.art !== "s" ? b.zeit.von : { art: "video_start", wert: an });
+      const bisTxt = b.zeit && b.zeit.dauer_s ? _ovAnkerText({ art: "video_start", wert: aus })
+        : _ovAnkerText(b.zeit && b.zeit.bis ? (b.zeit.bis.art === "s" ? { art: "video_start", wert: aus } : b.zeit.bis) : null);
+      return {
+        id: b.id, name: _ovBoxName(b), enabled: !!b.enabled,
+        farbe: _OV_FARBE[b.id] || (b.typ === "live" ? "#7fdcff" : "#ffcf70"),
+        an: _ovLeisteAusZeit(an), aus: _ovLeisteAusZeit(aus),
+        einBis: _ovLeisteAusZeit(an + e), ausAb: _ovLeisteAusZeit(aus - a),
+        text: vonTxt + " – " + bisTxt,
+      };
+    });
+    _tlBar.setOverlays(liste, { offen: _ovSpurOffen, minAnteil: 0.5 / G });
+  }
+  /** Ein Rand ist gezogen worden → Zeit/Blende der Box speichern (ein Undo-Schritt). */
+  function _ovSpurGezogen(id, griff, neu) {
+    const R = window.rzOverlayBoxen;
+    if (!R) return;
+    // Ungerundet in den Anker: gerundet wird nur, was als Sekunde gespeichert wird —
+    // ein Trackpunkt sprang sonst bei schnellem Laufpunkt um Kilometer (in der App gesehen).
+    const tAn = _ovZeitAusLeiste(neu.an), tAus = _ovZeitAusLeiste(neu.aus);
+    const tEin = _ovZeitAusLeiste(neu.einBis), tAusAb = _ovZeitAusLeiste(neu.ausAb);
+    const b = R.aufloesen(_ovCfg()).find(x => x.id === id);
+    if (!b) return;
+    _ovAendern(id, (e) => {
+      if (griff === "schieben" || griff === "l" || griff === "r") {
+        e.zeit = { von: _ovAnkerAusZeit(tAn, "von") || { art: "video_start", wert: 0 },
+                   bis: _ovAnkerAusZeit(tAus, "bis") };
+      }
+      const bl = b.blende || {};
+      e.blende = e.blende || {};
+      if (griff === "ein") {
+        e.blende.ein_s = Math.max(0, _ov1(tEin - tAn));
+        if (!bl.ein || bl.ein === "none") e.blende.ein = "fade";
+      } else if (griff === "aus") {
+        e.blende.aus_s = Math.max(0, _ov1(tAus - tAusAb));
+        if (!bl.aus || bl.aus === "none") e.blende.aus = "fade";
+      } else if (griff === "l" || griff === "r") {
+        // Die Leiste hat die Blenden gekürzt, wenn der Balken zu kurz wurde.
+        const e2 = Math.max(0, _ov1(tEin - tAn)), a2 = Math.max(0, _ov1(tAus - tAusAb));
+        if (bl.ein && bl.ein !== "none" && e2 < (+bl.ein_s || 0) - 0.05) e.blende.ein_s = e2;
+        if (bl.aus && bl.aus !== "none" && a2 < (+bl.aus_s || 0) - 0.05) e.blende.aus_s = a2;
+      }
+    }, t("animator.ov.spur_undo", "Overlay-Zeit"), "ovspur:" + id + ":" + Date.now());
+  }
+  function _ovSpurText(id, griff, neu) {
+    const lab = { l: t("animator.ov.spur_anfang", "Anfang"), r: t("animator.ov.spur_ende", "Ende"),
+                  ein: t("animator.ov.spur_einblenden", "Einblenden"), aus: t("animator.ov.spur_ausblenden", "Ausblenden") };
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const tAn = _ovZeitAusLeiste(neu.an), tAus = _ovZeitAusLeiste(neu.aus);
+    if (griff === "ein") return lab.ein + " " + zahl(_ovZeitAusLeiste(neu.einBis) - tAn) + " s";
+    if (griff === "aus") return lab.aus + " " + zahl(tAus - _ovZeitAusLeiste(neu.ausAb)) + " s";
+    const an = lab.l + ": " + _ovAnkerText(_ovAnkerAusZeit(tAn, "von"));
+    const aus = lab.r + ": " + _ovAnkerText(_ovAnkerAusZeit(tAus, "bis"));
+    if (griff === "l") return an;
+    if (griff === "r") return aus;
+    return an + " · " + aus;
+  }
+  /** Beim Ziehen springt die Vorschau an den gezogenen Rand (Marc, Grilling Q17). */
+  function _ovSpurVorschau(id, griff, neu) {
+    const x = griff === "r" ? neu.aus : griff === "ein" ? neu.einBis : griff === "aus" ? neu.ausAb : neu.an;
+    try {
+      if (_tlBar && _tlBar.setScrubberBar) _tlBar.setScrubberBar(x);
+      const a = _tlBar ? _tlBar.barToTrack(x) : x;
+      scrubPreview(a, { light: true });
+    } catch (_) {}
+  }
+
+  /** Streckenanteil (wie `_ovTimingAt` ihn aus dem Laufpunkt bildet) → Videosekunde,
+   *  als Tabelle [[anteil, sekunde], …] für ui/js/overlay_boxen.js (24.09.2026,
+   *  Overlay-Spur). Gerechnet mit DERSELBEN Formel wie der Probelauf (Anim-Phase:
+   *  Fortschritt linear in der Zeit, Schnitt, Start-Verzögerung, Tempo-Tabelle) —
+   *  so hängt ein Balkenrand am Trackpunkt und die Box ist am Ende ganz weg.
+   *  Gemerkt, bis sich etwas ändert, das die Zuordnung verschiebt. */
+  let _ovSzCache = { key: "", tab: [] };
+  function _ovStreckeZeit() {
+    const sr = _ovSeries;
+    const tn = (currentCoords && currentCoords.length) || 0;
+    if (!sr || !sr.cumDistM || sr.cumDistM.length < 2 || tn < 2) return [];
+    const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const anim = animSekunden();
+    const trim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const trimA = Math.max(0, Math.min(1, trim.start ?? 0));
+    const trimB = Math.max(trimA, Math.min(1, trim.end ?? 1));
+    let hs = 0; try { hs = hauptStartAnteil() || 0; } catch (_) {}
+    const key = [intro, anim, trimA, trimB, hs, tn, sr.cumDistM.length, _paceMap ? _paceMap.length : 0,
+                 _paceMap ? _paceMap[Math.floor(_paceMap.length / 2)] : 0, sr.cumDistM[sr.cumDistM.length - 1]].join("|");
+    if (_ovSzCache.key === key && _ovSzCache.ref === sr && _ovSzCache.pm === _paceMap) return _ovSzCache.tab;
+    const cd = sr.cumDistM, n = cd.length, d0 = cd[0], sp = cd[n - 1] - d0;
+    const N = 800, tab = [];
+    let letzt = -1;
+    for (let k = 0; k <= N; k++) {
+      const ap = k / N;
+      const markerReal = trimA + ap * (trimB - trimA);
+      let cf = fracAusFortschritt(markerReal, tn);
+      if (hs > 0) {
+        const qEff = Math.max(0, Math.min(1, (ap - hs) / (1 - hs)));
+        cf = fracAusFortschritt(trimA + qEff * (trimB - trimA), tn);
+      }
+      const q = cf / Math.max(1, tn - 1);
+      const i = Math.max(0, Math.min(n - 1, Math.round(q * (n - 1))));
+      const f = sp > 0 ? (cd[i] - d0) / sp : i / (n - 1);
+      if (f > letzt + 1e-9) { tab.push([f, intro + ap * anim]); letzt = f; }
+    }
+    _ovSzCache = { key, ref: sr, pm: _paceMap, tab };
+    return tab;
+  }
   function _ovTimingAt(tSec, frac) {
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;
@@ -14460,6 +14694,7 @@ function mountAnimator(body, headerActions, opts) {
       anim_s: animSekunden(),   // 24.09.2026: echte Länge, „Ende des Tracks" stimmt sonst bei Reisen nicht
       hold_s: parseNum(document.getElementById("anim-hold")?.value, 0),
       etappen: _ovGrenzen,
+      strecke_zeit: _ovStreckeZeit(),
     };
     R.anwenden(root, _ovTimingBoxen, tSec, f, st, ctx, _ovTimingSpeicher);
   }
@@ -14559,24 +14794,46 @@ function mountAnimator(body, headerActions, opts) {
          ["pop", t("signs.entry.pop", "Aufpoppen")], ["both", t("signs.entry.both", "Ein- + Aufpoppen")]];
     return o.map(([v, l]) => `<option value="${v}" ${v === wert ? "selected" : ""}>${l}</option>`).join("");
   }
-  function _ovAusloeserHtml(rolle, a, dauer) {
-    // rolle "von" | "bis"; a = {art, wert} | null
-    const arten = [["s", t("animator.ovbox.at_s", "Sekunde im Video")], ["pct", t("animator.ovbox.at_pct", "Prozent der Strecke")],
-      ["start", t("animator.ovbox.at_start", "Start des Tracks")], ["ende", t("animator.ovbox.at_ende", "Ende des Tracks")]];
-    const et = _ovEtappenListe();
-    if (et.length) arten.push(["etappe_start", t("animator.ovbox.at_stage_start", "Anfang von Etappe")], ["etappe_ende", t("animator.ovbox.at_stage_end", "Ende von Etappe")]);
-    let art = a ? a.art : "";
+  /** Gesamtlänge der Strecke in km (für „Trackpunkt"). */
+  function _ovStreckeKm() {
+    const cd = _ovSeries && _ovSeries.cumDistM;
+    return (cd && cd.length > 1) ? (cd[cd.length - 1] - cd[0]) / 1000 : 0;
+  }
+  /** Ältere Auslöser (Sekunde, Prozent, Track-Start/-Ende, Etappe) in die drei
+   *  Anker der Overlay-Spur übersetzen — nur zum Anzeigen; gespeichert wird erst,
+   *  wenn man im Fenster etwas ändert (24.09.2026, Grilling Q18). */
+  function _ovAnkerNeu(a) {
+    if (!a) return null;
+    if (a.art === "video_start" || a.art === "video_ende" || a.art === "strecke") return a;
+    if (a.art === "s") return { art: "video_start", wert: a.wert };
+    if (a.art === "start") return { art: "strecke", wert: 0 };
+    if (a.art === "ende") return { art: "strecke", wert: 1 };
+    if (a.art === "pct") return { art: "strecke", wert: (+a.wert || 0) / 100 };
+    const et = (_ovKontext().etappen || {})[String(Math.trunc(+a.wert || 1))];
+    return { art: "strecke", wert: et ? (a.art === "etappe_start" ? et[0] : et[1]) : 0 };
+  }
+  function _ovAusloeserHtml(rolle, a0, dauer) {
+    // rolle "von" | "bis"; Anker der Overlay-Spur: Sekunde ab Videostart,
+    // Trackpunkt (km), Sekunden vor Videoende — dazu „bis Videoende" und Dauer.
+    const a = _ovAnkerNeu(a0);
+    const km = _ovStreckeKm();
+    const arten = [["video_start", t("animator.ovbox.at_video_start", "Sekunde ab Videostart")]];
+    if (km > 0) arten.push(["strecke", t("animator.ovbox.at_track_km", "am Trackpunkt (km)")]);
+    arten.push(["video_ende", t("animator.ovbox.at_video_end", "Sekunden vor Videoende")]);
+    let art = a ? a.art : (rolle === "von" ? "video_start" : "");
+    if (art === "strecke" && !(km > 0)) art = "video_start";
     if (rolle === "bis") {
-      arten.unshift(["", t("animator.ovbox.until_end", "bis zum Videoende")], ["dauer", t("animator.ovbox.for_dur", "für eine Dauer von")]);
+      arten.unshift(["", t("animator.ovbox.until_end", "bis zum Videoende")]);
+      arten.push(["dauer", t("animator.ovbox.for_dur", "für eine Dauer von")]);
       if (dauer) art = "dauer";
+      if (a && a.art === "video_ende" && !(a.wert > 0)) art = "";
     }
     const sel = `<select data-z="${rolle}.art">` + arten.map(([v, l]) => `<option value="${v}" ${v === art ? "selected" : ""}>${l}</option>`).join("") + `</select>`;
     let wert = "";
-    if (art === "s" || art === "dauer") wert = `<input type="number" data-z="${rolle}.wert" min="0" step="0.5" value="${art === "dauer" ? dauer : (a ? a.wert : 0)}"> s`;
-    else if (art === "pct") wert = `<input type="number" data-z="${rolle}.wert" min="0" max="100" step="1" value="${a ? a.wert : 0}"> %`;
-    else if (art === "etappe_start" || art === "etappe_ende") {
-      wert = `<select data-z="${rolle}.wert">` + et.map(x => `<option value="${x.nr}" ${a && +a.wert === x.nr ? "selected" : ""}>${_ovEsc(x.name)}</option>`).join("") + `</select>`;
-    }
+    const r1 = (x) => Math.round(x * 10) / 10;
+    if (art === "video_start" || art === "video_ende") wert = `<input type="number" data-z="${rolle}.wert" min="0" step="0.5" value="${a ? r1(+a.wert || 0) : 0}"> s`;
+    else if (art === "dauer") wert = `<input type="number" data-z="${rolle}.wert" min="0.5" step="0.5" value="${dauer}"> s`;
+    else if (art === "strecke") wert = `<input type="number" data-z="${rolle}.wert" data-km="1" min="0" max="${r1(km)}" step="0.1" value="${r1((a ? +a.wert || 0 : 0) * km)}"> km`;
     return sel + wert;
   }
   function _ovZeitHtml(pfadPraefix, eigen, zAufl, erbtText, hinweis) {
@@ -14667,11 +14924,14 @@ function mountAnimator(body, headerActions, opts) {
     h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_blend", "Blende und Zeitpunkt")}</h4>`;
     h += _ovZeileHtml("blende.ein", t("animator.overlay.entry", "Einblendung"), eb.ein == null, wieG, `<select data-k="blende.ein">${_ovBlendeOpts(b.blende.ein, false)}</select>`);
     h += _ovZeileHtml("blende.aus", t("animator.ovbox.exit", "Ausblendung"), eb.aus == null, wieG, `<select data-k="blende.aus">${_ovBlendeOpts(b.blende.aus, true)}</select>`);
-    h += _ovZeileHtml("blende.dauer_s", t("animator.ovbox.blende_s", "Dauer der Blende"), eb.dauer_s == null, wieG,
-      `<input type="number" data-k="blende.dauer_s" data-typ="num" min="0.1" max="5" step="0.1" value="${b.blende.dauer_s}"> s`);
+    // 24.09.2026 — Ein- und Ausblendung mit eigener Dauer (auch als Schrägen in der Timeline ziehbar).
+    h += _ovZeileHtml("blende.ein_s", t("animator.ovbox.ein_s", "Dauer Einblendung"), eb.ein_s == null && eb.dauer_s == null, wieG,
+      `<input type="number" data-k="blende.ein_s" data-typ="num" min="0" max="30" step="0.1" value="${b.blende.ein_s}"> s`);
+    h += _ovZeileHtml("blende.aus_s", t("animator.ovbox.aus_s", "Dauer Ausblendung"), eb.aus_s == null && eb.dauer_s == null, wieG,
+      `<input type="number" data-k="blende.aus_s" data-typ="num" min="0" max="30" step="0.1" value="${b.blende.aus_s}"> s`);
     h += _ovZeitHtml("", e.zeit ? b.zeit : null, b.zeit,
       standard ? t("animator.ovbox.inherit_sidebar", "wie in der Seitenleiste (⏱ Sekunden)") : t("animator.ovbox.inherit_whole", "die ganze Zeit"),
-      standard ? t("animator.ovbox.time_hint_std", "Mit eigenem Zeitpunkt gelten die ⏱-Sekunden in der Seitenleiste für diese Box nicht mehr.") : "");
+      t("animator.ovbox.time_hint_spur", "Am einfachsten in der Zeitleiste: unter „Overlays“ den Balken ziehen. Am Ende des Zeitraums ist die Box ganz weg — die Ausblendung liegt davor."));
     h += `</div>`;
     if (b.typ === "totals") {
       const bz = _ovBezugHtml("bezug", e.bezug != null, b.bezug, wieG);
@@ -14712,14 +14972,23 @@ function mountAnimator(body, headerActions, opts) {
     };
     const zeitAusFormular = (zeile) => {
       const g = (k) => zeile.querySelector(`[data-z="${k}"]`);
-      const vArt = g("von.art")?.value || "s";
-      const vWert = parseFloat(g("von.wert")?.value) || 0;
+      // 24.09.2026: Anker der Overlay-Spur; „km" wird zum Streckenanteil.
+      const km = _ovStreckeKm();
+      const anker = (art, el) => {
+        let w = parseFloat(el?.value) || 0;
+        if (art === "strecke") {
+          const kmIn = (el && el.hasAttribute("data-km")) ? w : 0;
+          // Das Feld zeigt km auf 0,1 gerundet — der gerundete Höchstwert IST das Ende (100 %).
+          w = km > 0 ? (kmIn >= Math.round(km * 10) / 10 - 1e-9 ? 1 : Math.max(0, Math.min(1, kmIn / km))) : 0;
+        }
+        return { art, wert: art === "strecke" ? Math.round(w * 10000) / 10000 : Math.max(0, w) };
+      };
+      const vArt = g("von.art")?.value || "video_start";
       const bArt = g("bis.art")?.value || "";
-      const bWert = parseFloat(g("bis.wert")?.value) || 0;
-      const z = { von: { art: vArt, wert: vWert } };
-      if (bArt === "dauer") z.dauer_s = bWert > 0 ? bWert : 10;
-      else if (bArt) z.bis = { art: bArt, wert: bWert || (bArt.startsWith("etappe") ? 1 : 0) };
-      if ((vArt === "etappe_start" || vArt === "etappe_ende") && !g("von.wert")) z.von.wert = 1;
+      const z = { von: anker(vArt, g("von.wert")) };
+      if (bArt === "dauer") { const d = parseFloat(g("bis.wert")?.value) || 0; z.dauer_s = d > 0 ? d : 10; }
+      else if (bArt) z.bis = anker(bArt, g("bis.wert"));
+      else z.bis = null;
       return z;
     };
     const aendern = (fn, label, undoKey, neuZeichnen) => {
@@ -14886,16 +15155,69 @@ function mountAnimator(body, headerActions, opts) {
         _ovAendern(row.getAttribute("data-id"), (e) => { e.enabled = on; }, t("animator.ovbox.show", "Anzeigen"));
       });
     }
-    // Standardboxen mit eigenem Zeitpunkt: die ⏱-Sekunden der Seitenleiste gelten nicht mehr.
+    _ovZeitFelderSync();
+  }
+  // 24.09.2026 (Overlay-Spur): die ⏱-Sekunden der Seitenleiste laufen mit dem Balken
+  // mit. Hat eine Standardbox eine eigene Zeit (Balken gezogen, ✎-Fenster), zeigen die
+  // Felder deren Sekunden, und eine Eingabe setzt die Zeit mit denselben Ankerregeln
+  // wie das Ziehen — statt der alten Sekundenfelder. „bis" vor „von" wird rot markiert
+  // (Beta-Tester: „25 – 1" — gemeint war „kurz vor Ende", die Box erschien nie).
+  const _OV_ZEIT_GRUPPEN = [["totals", "anim-overlay-totals-group"], ["live", "anim-overlay-live-group"], ["ele", "anim-overlay-elevation-group"]];
+  function _ovZeitFelderSync() {
+    const R = window.rzOverlayBoxen;
     const eigen = new Set(_ovBoxenRoh().filter(e => e && e.zeit).map(e => e.id));
-    for (const [id, gid] of [["totals", "anim-overlay-totals-group"], ["live", "anim-overlay-live-group"], ["ele", "anim-overlay-elevation-group"]]) {
+    const G = _ovGesamtSek();
+    const boxen = R ? R.aufloesen(_ovCfg()) : [];
+    const ctx = R ? _ovKontext() : null;
+    for (const [id, gid] of _OV_ZEIT_GRUPPEN) {
       const tm = document.querySelector("#" + gid + " .ov-timing");
       if (!tm) continue;
-      const aus = eigen.has(id);
-      tm.classList.toggle("ov-timing-ersetzt", aus);
-      tm.querySelectorAll("input").forEach(i => { i.disabled = aus; });
-      tm.title = aus ? t("animator.ovbox.time_replaced", "Diese Box hat einen eigenen Zeitpunkt (✎).") : t("animator.overlay.timing_tip");
+      _ovZeitFelderBinden(tm, id);
+      tm.classList.remove("ov-timing-ersetzt");
+      tm.querySelectorAll("input").forEach(i => { i.disabled = false; });
+      tm.title = t("animator.overlay.timing_tip");
+      tm.dataset.eigen = eigen.has(id) ? "1" : "";
+      const [vonEl, bisEl] = tm.querySelectorAll("input");
+      if (eigen.has(id) && R && vonEl && bisEl && document.activeElement !== vonEl && document.activeElement !== bisEl) {
+        const b = boxen.find(x => x.id === id);
+        const k = b && R.kanten(b.zeit, ctx);
+        if (k) {
+          vonEl.value = String(_ov1(k.an));
+          bisEl.value = (isFinite(k.aus) && k.aus < G - 0.05) ? String(_ov1(k.aus)) : "";
+        }
+      }
+      _ovZeitFelderPruefen(tm);
     }
+  }
+  function _ovZeitFelderPruefen(tm) {
+    const [vonEl, bisEl] = tm.querySelectorAll("input");
+    if (!vonEl || !bisEl) return;
+    const von = parseFloat(vonEl.value), bis = parseFloat(bisEl.value);
+    const falsch = isFinite(bis) && bis > 0 && bis <= (isFinite(von) ? von : 0);
+    bisEl.classList.toggle("ist-ungueltig", falsch);
+    bisEl.title = falsch ? t("animator.ov.bis_vor_von", "„bis“ liegt vor „von“ — so ist die Box nie zu sehen. „bis“ ist eine Sekunde im Video; leer = bis zum Ende. Einfacher: den Balken unter „Overlays“ in der Zeitleiste ziehen.") : "";
+  }
+  function _ovZeitFelderBinden(tm, id) {
+    if (tm.__rzOvGebunden) return;
+    tm.__rzOvGebunden = true;
+    // Capture auf dem Behälter: bei eigener Zeit erreicht die Eingabe den
+    // Standard-Speicher (bindSetting → overlay_*_from_s) gar nicht erst.
+    const abfangen = (ev) => {
+      if (!ev.target.matches || !ev.target.matches("input")) return;
+      _ovZeitFelderPruefen(tm);
+      if (tm.dataset.eigen !== "1") return;
+      ev.stopPropagation();
+      if (ev.type !== "change") return;
+      const [vonEl, bisEl] = tm.querySelectorAll("input");
+      const von = Math.max(0, parseFloat(vonEl.value) || 0);
+      const bis = parseFloat(bisEl.value);
+      _ovAendern(id, (e) => {
+        e.zeit = { von: _ovAnkerAusZeit(von, "von") || { art: "video_start", wert: 0 },
+                   bis: (isFinite(bis) && bis > 0) ? _ovAnkerAusZeit(bis, "bis") : null };
+      }, t("animator.ov.spur_undo", "Overlay-Zeit"));
+    };
+    tm.addEventListener("input", abfangen, true);
+    tm.addEventListener("change", abfangen, true);
   }
   function _ovBoxNeu() {
     const liste = _ovKopie(_ovBoxenRoh()) || [];
@@ -14907,6 +15229,7 @@ function mountAnimator(body, headerActions, opts) {
 
   function renderOverlayPreview() {
     _ovTimingBoxen = null;   // Einstellungen geändert → Zeitsteuerung neu auflösen
+    try { _ovSpurAktualisieren(); } catch (_) {}
     try { _applyAttribLook(); } catch (_) {}
     try { _overlayBoxenRendern(); } catch (e) {
       try { applog("warn", "[anim-ov] Vorschau: " + e); } catch (_) {}

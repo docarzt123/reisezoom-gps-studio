@@ -1184,3 +1184,5 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .ovbox-row .ovbox-row-mark { font-size: 11px; color: var(--accent, #ffb964); }
 .ovbox-fuss { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
 .ovbox-hinweis { font-size: 11.5px; color: var(--text-dim); margin: 2px 0 0; }
+/* 24.09.2026 — „bis" vor „von": rot statt stiller unsichtbarer Box. */
+.ov-time-in.ist-ungueltig { border-color: #ff6b6b !important; box-shadow: 0 0 0 1px rgba(255,107,107,.45); color: #ffb3b3 !important; }

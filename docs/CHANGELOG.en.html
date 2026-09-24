@@ -117,11 +117,15 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.723</span>
-    <span class="version-date">23 September 2026</span>
+    <span class="version-num">v0.9.724</span>
+    <span class="version-date">24 September 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
+    <li><strong>Drag stats boxes in the timeline</strong> &mdash; under “▸ Overlays” every box has a bar: it is the time the box is visible. Drag to move it, the edges set start and end, the two dots on top are fade-in and fade-out with their own duration. At the end of the bar the box is fully gone. “From second 25, gone 2 seconds before the end” now takes two drags.</li>
+    <li><strong>Edges stay where they belong</strong> &mdash; during the animation an edge is tied to a point on the track, at the end to “seconds before the end of the video”. Change tempo or length and the box moves along.</li>
+    <li><strong>“to” before “from” turns red</strong> &mdash; in the sidebar’s ⏱ seconds: a hint instead of a box that silently never shows. The fields follow the bar.</li>
+    <li><strong>Boxes on time in journeys</strong> &mdash; in merged tours with transitions the boxes were seconds off in the test run and the video. Fixed.</li>
     <li><strong>Style each stats box on its own</strong> &mdash; next to “Total stats”, “Live stats” and “Elevation profile”, ✎ opens “Style box”: own colours, font, corners, border and shadow per box, gentle fade in and out and a timing like “at the end of the track for 10 seconds”.</li>
     <li><strong>Figures per stage</strong> &mdash; for merged tours a totals box shows the whole route, the current stage or one particular stage.</li>
     <li><strong>Individual rows and more boxes</strong> &mdash; every row can get its own colour, size and timing; ＋ adds extra boxes, for example closing statistics in the middle of the frame. Everything can be undone.</li>

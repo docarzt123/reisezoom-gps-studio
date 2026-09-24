@@ -247,7 +247,7 @@ Gesamt ≈ 3–4 Arbeitstage kopflos. Risiken: die zwei Render-HTML-Kopien (zusa
 zuerst), Probelauf-Index für die Auslöser (Tempo-Kurve beachten), Modal-Größe in der
 Sidebar-Breite (deshalb Vollfenster wie der Schild-Editor).
 
-## 6. Overlay-Spur in der Timeline (Grilling 24.09.2026, noch nicht gebaut)
+## 6. Overlay-Spur in der Timeline (Grilling 24.09.2026, gebaut 24.09.2026 als v0.9.724 lokal)
 
 **Anlass:** Der Beta-Tester wollte die Gesamt-Stats ab Sekunde 25 zeigen und 2 s vor
 Ende ausblenden. Er trug `Zeit 25 – 1 s` ein und meinte mit der 1 „kurz vor Ende".
@@ -277,3 +277,15 @@ nicht eingetippt.
 ziehbare Kacheln mit zwei Rändern gibt es schon (`_gruppenMausDruck`, Zeilen per
 `_gruppenZeilenSicherstellen`), Achse 0–1 = Intro + Animation + Nachlauf
 (`module.js` ~4030), Undo `_animPushUndo(label, {force})`.
+
+**Stand 24.09.2026 — gebaut (v0.9.724 lokal, nicht getaggt).** Umsetzung wie oben; Architektur in
+`docs/DEVELOPER.md` („Overlay-Spur in der Timeline"). Geprüft: Modell unter node (Beta-Tester-Fall
+„ab 25 s, 2 s vor Ende ganz weg", Trackpunkt → Sekunde, getrennte Blenden, Kürzen), klassischer
+Alpha-Render mit Trackpunkt-Ende gemessen, WebKit mit echter Maus (`tests/test_overlay_spur_ui.py`),
+und in der echten App mit der Maus: Ränder, Schräge, Statuszeile, Probelauf (Box ab 104 % blendet aus,
+bei 112 % = Balkenende weg). **In der App gefunden und behoben:** lange Box-Namen verschoben die Balken
+gegen die Zeitachse (Beschriftungsspalte fest 84 px); Trackpunkt-Anker wurden aus auf 0,1 s gerundeter
+Zeit gebildet (in einer Reise ≈ 2 km daneben).
+
+**Bewusst so:** Ränder im Probelauf-Rundungsraster des Laufpunkts (ganze Punkte) — „am Trackpunkt 100 %"
+kann ~0,01 s vor dem Anim-Ende liegen. Trackpunkt in einer Pause (Halt) = Anfang der Pause.
