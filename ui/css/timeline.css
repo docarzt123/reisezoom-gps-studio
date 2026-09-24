@@ -371,7 +371,9 @@
 
 .timeline-ticks {
   position: absolute;
-  top: 22px;
+  /* 24.09.2026: bleibt an der Cluster-Zeile, auch wenn die Overlay-Spur darüber sitzt
+     (vorher fest 22 px — lag dann auf den Overlay-Balken). 22 px = 30 px − 8 px. */
+  top: calc(var(--tl-trim-top, 30px) - 8px);
   left: 0;
   right: 0;
   height: 12px;
@@ -721,8 +723,10 @@
      sondern beginnt UNTER der Cluster-Row (26 px + 2 px margin). So sind
      KF-Marker in der Cluster-Zeile auch dann klickbar, wenn sie direkt
      auf einem Trim-Handle-Anchor sitzen. */
-  top: 30px;
-  height: calc(100% - 30px);
+  /* 24.09.2026: Unterkante der Cluster-Zeile, von der Leiste gemessen (Overlay-Spur
+     darüber, Cluster-Zeile evtl. klein geklappt) — Rückfall wie bisher 30 px. */
+  top: var(--tl-trim-top, 30px);
+  height: calc(100% - var(--tl-trim-top, 30px));
   width: 14px;
   transform: translateX(-7px);
   z-index: 7;             /* über Scrubber (5) und Markers */
@@ -1040,7 +1044,7 @@ body.wert-zieht .timeline-marker.is-selected {
    Kopfzeile „Overlays" (aufklappbar, zugeklappt dünne Striche je Box) und je
    Box eine Zeile mit einem Balken: Schrägen = Ein-/Ausblendung, Ränder und
    Schrägen-Griffe ziehbar. Abgeschaltete Box grau gestrichelt, ohne Klicks. */
-.timeline-lane[data-kind="ovkopf"] { height: 20px; }
+.timeline-lane[data-kind="ovkopf"] { height: 15px; }
 .timeline-lane[data-kind="ovkopf"] .lane-label { cursor: pointer; color: #e8c6ff; }
 .timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(232,160,255,.12); }
 .timeline-lane[data-kind="ovkopf"] .lane-track { cursor: pointer; }
@@ -1049,7 +1053,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .ov-mini { pointer-events: none; }
 .ov-strich { position: absolute; height: 2px; border-radius: 1px; background: #e8a0ff; opacity: .85; }
 .ov-strich.ist-aus { opacity: .25; }
-.timeline-lane[data-kind="ovbox"] { height: 24px; }
+.timeline-lane[data-kind="ovbox"] { height: 16px; }
 /* Die Beschriftungsspalte bleibt 84 px breit, auch bei langen Box-Namen — sonst
    verrutscht der Balken gegen die Zeitachse (in der echten App gesehen, 24.09.2026). */
 .timeline-lane[data-kind="ovbox"] .lane-label,
@@ -1059,8 +1063,8 @@ body.wert-zieht .timeline-marker.is-selected {
 .timeline-lane[data-kind="ovbox"].ist-aus .lane-label { opacity: .5; }
 .tl-ovbar {
   --ov-farbe: #e8a0ff;
-  position: absolute; top: 3px; bottom: 3px; z-index: 2; pointer-events: auto;
-  box-sizing: border-box; border-radius: 4px; overflow: visible; cursor: grab;
+  position: absolute; top: 2px; bottom: 2px; z-index: 2; pointer-events: auto;
+  box-sizing: border-box; border-radius: 3px; overflow: visible; cursor: grab;
   border: 1px solid color-mix(in srgb, var(--ov-farbe) 70%, transparent);
   background: color-mix(in srgb, var(--ov-farbe) 26%, transparent);
   display: flex; align-items: center; justify-content: center;
@@ -1077,12 +1081,39 @@ body.wert-zieht .timeline-marker.is-selected {
 /* Der dunkle Keil über der Schräge = der Teil, in dem die Box noch nicht (mehr) voll da ist. */
 .tl-ov-ein { left: 0; background: rgba(12,12,16,.55); clip-path: polygon(0 0, 100% 0, 0 100%); }
 .tl-ov-aus { right: 0; background: rgba(12,12,16,.55); clip-path: polygon(0 0, 100% 0, 100% 100%); }
-.tl-ov-name { font-size: 9.5px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.tl-ov-name { font-size: 8.5px; line-height: 1; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 0 8px; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
-.tl-ov-griff { position: absolute; top: -2px; width: 8px; height: 8px; margin-left: -4px; z-index: 4;
+/* Die Blend-Punkte sitzen AUF der Oberkante (halb drüber) — bei den schmalen Balken
+   ragten sie sonst bis in die Mitte und schnappten dem Rand den Klick weg. */
+.tl-ov-griff { position: absolute; top: -5px; width: 8px; height: 8px; box-sizing: border-box; margin-left: -4px; z-index: 4;
   border-radius: 50%; background: #fff; border: 1px solid var(--ov-farbe); cursor: ew-resize; }
 .tl-ov-griff:hover { transform: scale(1.3); }
 .tl-ov-rand { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; z-index: 3; }
 .tl-ov-rand[data-griff="l"] { left: -1px; }
 .tl-ov-rand[data-griff="r"] { right: -1px; }
 .tl-ov-rand:hover { background: color-mix(in srgb, var(--ov-farbe) 60%, transparent); }
+
+/* 24.09.2026 — Overlay-Spur ganz oben (eigener Behälter über der Cluster-Zeile). */
+.timeline-ov { display: flex; flex-direction: column; gap: 1px; }
+.timeline-ov:empty { display: none; }
+.timeline-ov .timeline-lane[data-kind="ovkopf"] { border-radius: 6px 6px 0 0; }
+.timeline-ov .timeline-lane .lane-label { font-size: 9.5px; }
+
+/* 24.09.2026 (Marc: „jede Spur … kleiner klappen") — ▾ in der Beschriftung. */
+.lane-klapp { display: inline-block; width: 10px; flex: 0 0 10px; text-align: center; cursor: pointer;
+  font-size: 9px; color: var(--text-dim, #999); opacity: .7; user-select: none; }
+.lane-klapp:hover { opacity: 1; color: #fff; }
+.timeline-lane.ist-klein { height: 9px !important; }
+.timeline-lane.ist-klein .lane-label { font-size: 8px; }
+.timeline-lane.ist-klein .lane-name,
+.timeline-lane.ist-klein .lane-icon { display: none; }
+.timeline-lane.ist-klein .timeline-marker { transform: translate(-50%, -50%) scale(.42); }
+.timeline-lane.ist-klein .timeline-marker:hover { transform: translate(-50%, -50%) scale(.6); }
+.timeline-lane.ist-klein .tl-gruppe, .timeline-lane.ist-klein .tl-gruppe-band { top: 1px; bottom: 1px; }
+.timeline-lane.ist-klein .tl-gruppe-name, .timeline-lane.ist-klein .tl-gruppe-zahlen,
+.timeline-lane.ist-klein .tl-gruppe-sek, .timeline-lane.ist-klein .tl-gruppe-glyph,
+.timeline-lane.ist-klein .tl-gruppe-rand { display: none; }
+.timeline-cluster-row.ist-klein { height: 10px; }
+.timeline-cluster-row.ist-klein .lane-name, .timeline-cluster-row.ist-klein .lane-icon { display: none; }
+.timeline-cluster-row.ist-klein .timeline-marker { transform: translate(-50%, -50%) scale(.42); }
+.timeline-cluster-row.ist-klein .timeline-easing-symbol { display: none; }

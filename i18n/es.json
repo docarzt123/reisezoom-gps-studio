@@ -4161,5 +4161,6 @@
   "animator.ov.seg_neu": "Otro tramo",
   "animator.ovbox.time_n": "Tramo {n}",
   "animator.ovbox.time_hint_mehr": "Más tramos: doble clic en un hueco de la fila.",
-  "animator.ov.mehr_zeitraeume": "Esta caja tiene {n} tramos: edítalos en la línea de tiempo bajo «Overlays» o en la ventana ✎."
+  "animator.ov.mehr_zeitraeume": "Esta caja tiene {n} tramos: edítalos en la línea de tiempo bajo «Overlays» o en la ventana ✎.",
+  "animator.lane.klapp_tip": "Plegar o desplegar esta pista"
 }
