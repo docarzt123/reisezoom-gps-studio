@@ -4155,5 +4155,11 @@
   "animator.ovbox.at_video_end": "Sekunden vor Videoende",
   "animator.ovbox.ein_s": "Dauer Einblendung",
   "animator.ovbox.aus_s": "Dauer Ausblendung",
-  "animator.ovbox.time_hint_spur": "Am einfachsten in der Zeitleiste: unter „Overlays“ den Balken ziehen. Am Ende des Zeitraums ist die Box ganz weg — die Ausblendung liegt davor."
+  "animator.ovbox.time_hint_spur": "Am einfachsten in der Zeitleiste: unter „Overlays“ den Balken ziehen. Am Ende des Zeitraums ist die Box ganz weg — die Ausblendung liegt davor.",
+  "animator.ov.bar_tip2": "Doppelklick auf eine freie Stelle der Zeile: weiterer Zeitraum · Rechtsklick: öffnen",
+  "animator.ov.seg_loeschen": "Diesen Zeitraum löschen",
+  "animator.ov.seg_neu": "Weiterer Zeitraum",
+  "animator.ovbox.time_n": "Zeitraum {n}",
+  "animator.ovbox.time_hint_mehr": "Weitere Zeiträume: Doppelklick auf eine freie Stelle der Zeile.",
+  "animator.ov.mehr_zeitraeume": "Diese Box hat {n} Zeiträume — bearbeiten in der Zeitleiste unter „Overlays“ oder im ✎-Fenster."
 }

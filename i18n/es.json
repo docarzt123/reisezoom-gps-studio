@@ -4155,5 +4155,11 @@
   "animator.ovbox.at_video_end": "segundos antes del final del vídeo",
   "animator.ovbox.ein_s": "Duración de la entrada",
   "animator.ovbox.aus_s": "Duración de la salida",
-  "animator.ovbox.time_hint_spur": "Lo más fácil es en la línea de tiempo: arrastra la barra bajo «Overlays». Al final del tramo el recuadro ya no se ve: la salida va antes."
+  "animator.ovbox.time_hint_spur": "Lo más fácil es en la línea de tiempo: arrastra la barra bajo «Overlays». Al final del tramo el recuadro ya no se ve: la salida va antes.",
+  "animator.ov.bar_tip2": "Doble clic en un hueco de la fila: otro tramo · Clic derecho: abrir",
+  "animator.ov.seg_loeschen": "Borrar este tramo",
+  "animator.ov.seg_neu": "Otro tramo",
+  "animator.ovbox.time_n": "Tramo {n}",
+  "animator.ovbox.time_hint_mehr": "Más tramos: doble clic en un hueco de la fila.",
+  "animator.ov.mehr_zeitraeume": "Esta caja tiene {n} tramos: edítalos en la línea de tiempo bajo «Overlays» o en la ventana ✎."
 }

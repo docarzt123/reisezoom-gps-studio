@@ -197,6 +197,16 @@ def zeit_normal(z):
     return {"von": von, "bis": _ausloeser(z.get("bis")), "dauer_s": None}
 
 
+def zeit_liste(z):
+    """24.09.2026 — eine Box kann mehrere Zeiträume haben: `zeit` ist dann eine
+    Liste. → Liste normalisierter Zeiten (≥ 1) oder None (= keine eigene Zeit)."""
+    if isinstance(z, list):
+        out = [x for x in (zeit_normal(e) for e in z) if x is not None]
+        return out or None
+    zn = zeit_normal(z)
+    return [zn] if zn is not None else None
+
+
 def _zeit_alt(cfg, praefix):
     """Standardbox ohne eigene `zeit`: aus den alten Sekundenfeldern."""
     frm = max(0.0, _num(_get(cfg, praefix + "_from_s", 0), 0.0))
@@ -291,9 +301,10 @@ def aufloesen(cfg) -> list:
             position = pos_def if standard else "cc"
         stil = _stil_mischen(g_stil, e.get("stil"))
         blende = _blende_mischen(g_blende, e.get("blende"))
-        zeit = zeit_normal(e.get("zeit"))
-        if zeit is None:
-            zeit = _zeit_alt(cfg, _ALT[bid][0]) if standard else {"von": {"art": "s", "wert": 0.0}, "bis": None, "dauer_s": None}
+        zeiten = zeit_liste(e.get("zeit"))
+        if zeiten is None:
+            zeiten = [_zeit_alt(cfg, _ALT[bid][0]) if standard else {"von": {"art": "s", "wert": 0.0}, "bis": None, "dauer_s": None}]
+        zeit = zeiten[0]
         bezug = _bezug(e.get("bezug")) if typ == "totals" else "gesamt"
         zeilen = {}
         roh_z = e.get("zeilen") if isinstance(e.get("zeilen"), dict) else {}
@@ -313,7 +324,7 @@ def aufloesen(cfg) -> list:
                 }
         out.append({"id": bid, "typ": typ, "standard": standard, "enabled": enabled,
                     "position": position, "fields": fields, "titel": titel,
-                    "stil": stil, "blende": blende, "zeit": zeit, "bezug": bezug,
+                    "stil": stil, "blende": blende, "zeit": zeit, "zeiten": zeiten, "bezug": bezug,
                     "zeilen": zeilen})
     return out
 
@@ -325,7 +336,7 @@ def hat_zeitsteuerung(cfg) -> bool:
             continue
         if b["blende"]["ein"] != "none" or b["blende"]["aus"] != "none":
             return True
-        if not _zeit_trivial(b["zeit"]) or b["bezug"] == "laufend":
+        if len(b.get("zeiten") or []) > 1 or not _zeit_trivial(b["zeit"]) or b["bezug"] == "laufend":
             return True
         for z in b["zeilen"].values():
             if z["zeit"] is not None or z["bezug"] == "laufend":
@@ -343,11 +354,12 @@ def chart_boxen(cfg) -> list:
             continue
         frm = max(0.0, _num(ch.get("from_s"), 0.0))
         to = _num(ch.get("to_s"), 0.0)
+        z = {"von": {"art": "s", "wert": _rund(frm)},
+             "bis": ({"art": "s", "wert": _rund(to)} if to > 0 else None),
+             "dauer_s": None}
         out.append({"id": "chart-" + str(i), "typ": "chart", "standard": False, "enabled": True,
                     "blende": dict(g_blende), "bezug": "gesamt", "zeilen": {},
-                    "zeit": {"von": {"art": "s", "wert": _rund(frm)},
-                             "bis": ({"art": "s", "wert": _rund(to)} if to > 0 else None),
-                             "dauer_s": None}})
+                    "zeit": z, "zeiten": [z]})
     return out
 
 
