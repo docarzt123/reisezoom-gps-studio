@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import math
-import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -42,10 +41,6 @@ _HTTP_TIMEOUT = 20  # Sekunden
 # Seit v0.9.496 steht die Logik in core/net.py — sie wurde vorher an drei
 # Stellen einzeln gepflegt und fehlte an dreien.
 from . import net
-
-
-def _make_ssl_context() -> "ssl.SSLContext":
-    return net.ssl_context()
 
 
 _SSL_CTX = net.ssl_context()

@@ -290,11 +290,6 @@ def _norm(*, display, street, city, state, country, country_code, postcode,
     }
 
 
-def cache_size() -> int:
-    with _LOCK:
-        return len(_CACHE)
-
-
 # ── Ortsname → Koordinaten (die Suche andersherum) ──────────────────────────
 #
 # Die Textsuche im Archiv findet nur, was jemand hingeschrieben hat. „Teneriffa"

@@ -4014,7 +4014,7 @@ function mountAnimator(body, headerActions, opts) {
    *
    *  ⚠️ 08.09.2026 (Marc: „Render und Vorschau dürfen nicht auseinanderdriften"):
    *  Bei einer Reise kommen die Übergänge ZUSÄTZLICH zur eingestellten Dauer —
-   *  `_reise_segmente` im Render hängt sie an, die Vorschau quetschte aber alles
+   *  der Render (damals `_reise_segmente`) hängte sie an, die Vorschau quetschte aber alles
    *  in die eingestellten Sekunden. Gemessen: Plan 104 s, Probe-Lauf 100 s, ein
    *  1,0-s-Kinoflug dauerte in der Vorschau 0,87 s. Beide fragen jetzt hier. */
   function animSekunden() {
@@ -8727,9 +8727,12 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.228/23.09.2026 — Zeitsteuerung der Boxen (Auslöser, Blenden, Bezug je Etappe),
       // gleiche Regeln wie window.__overlayTiming im Render. Video-Sekunde = Fortschritt ×
       // Gesamtdauer (Intro + Animation + Halten); Streckenanteil vom Laufpunkt.
+      // 24.09.2026: die ECHTE Anim-Länge (animSekunden — bei Reisen mit Übergängen),
+      // nicht das Feld „Animation (s)". Sonst standen die Boxen bei 12 s Feld und 26 s
+      // echter Animation um Sekunden daneben (im Probelauf gemessen).
       try {
         const _ovTotalSec = (parseNum(document.getElementById("anim-intro")?.value, 0))
-          + (parseNum(document.getElementById("anim-dur")?.value, 0))
+          + animSekunden()
           + (parseNum(document.getElementById("anim-hold")?.value, 0));
         _ovTimingAt(timelineProgress * _ovTotalSec, coordFrac / Math.max(1, tn - 1));
       } catch (e) { try { applog("warn", "[anim-ov] Zeitsteuerung: " + e); } catch (_) {} }
@@ -14454,7 +14457,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     const ctx = {
       intro_s: parseNum(document.getElementById("anim-intro")?.value, 0),
-      anim_s: parseNum(document.getElementById("anim-dur")?.value, 0),
+      anim_s: animSekunden(),   // 24.09.2026: echte Länge, „Ende des Tracks" stimmt sonst bei Reisen nicht
       hold_s: parseNum(document.getElementById("anim-hold")?.value, 0),
       etappen: _ovGrenzen,
     };
@@ -16960,7 +16963,7 @@ function mountAnimator(body, headerActions, opts) {
   /* ── Gruppen: die eine Wahrheit über die Zeit (IDEAS §60, 09.09.2026) ──────
    *
    * Jede Tour ist Halt + Inhalt + Halt, alle Tracks eines Projekts sind gleich
-   * lang. Die Rechnung liegt in ui/js/spuren.js (wortgleich zu core/spuren.py);
+   * lang. Die Rechnung liegt in ui/js/spuren.js;
    * hier steht, was die Oberfläche dazutut:
    *   - der POOL: Haupt-Tour + Zusatz-Touren mit ihren Koordinaten,
    *   - der AUFBAU aus dem Projekt (gespeicherte Gruppen, sonst Umrechnung der
@@ -17092,8 +17095,8 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _gruppenWunsch() { return Math.max(0.1, parseNum(document.getElementById("anim-dur")?.value, 12)); }
   /** Inhaltslänge je Gruppe bei Faktor 1: der Wunsch, nach Umfang der
-   *  Taktgeber verteilt — bei EINER Gruppe der ganze Wunsch. Dieselbe Regel
-   *  wie `_reise_segmente` (Budget nach Punktzahl). */
+   *  Taktgeber verteilt — bei EINER Gruppe der ganze Wunsch. Budget nach
+   *  Punktzahl, wie früher im Render (`_reise_segmente`). */
   function _gruppenRohS() {
     const wunsch = _gruppenWunsch();
     const mass = _gruppen.map(g => _gruppenMass(_tourVon((g.mitglieder[0] || {}).gpx_path)));

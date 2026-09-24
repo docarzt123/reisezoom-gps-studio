@@ -4,9 +4,14 @@ Reines Modell ohne App-Importe. Drei Ebenen: global → Box → Zeile. Jeder Wer
 unten, der fehlt (oder None ist), erbt von oben. „Zurücksetzen" heißt: den
 Schlüssel weglassen.
 
-⚠️ WORTGLEICH zu ui/js/overlay_boxen.js (Auflösung + Zeitsteuerung). Der Wächter
-tests/test_overlay_boxen.py lässt beide auf dieselben Beispiele los und vergleicht
-das Ergebnis. Wer hier etwas ändert, ändert es dort mit.
+⚠️ Die AUFLÖSUNG ist WORTGLEICH zu ui/js/overlay_boxen.js: Python baut damit das
+Render-HTML (Boxen, Stil, Schriften), JavaScript die Vorschau. Der Wächter
+tests/test_overlay_boxen.py vergleicht beide. Wer hier etwas ändert, ändert es dort mit.
+
+Die ZEITSTEUERUNG (wann eine Box erscheint, Blenden, Auslöser) rechnet nur
+ui/js/overlay_boxen.js — Vorschau, Szene-Render und klassischer Render benutzen
+dieselbe Datei. Der Python-Zwilling lief nur in Tests und ist seit 24.09.2026 weg.
+Das Modell unten beschreibt, was `zeit` bedeutet:
 
 Zeitmodell
 ----------
@@ -44,7 +49,6 @@ STIL_KEYS = ("bg_color", "bg_opacity", "text_color", "font", "radius", "border_w
 BLENDE_KEYS = ("ein", "aus", "dauer_s")
 ZEILE_KEYS = ("text_color", "groesse", "fett")
 
-_EPS = 1e-9
 
 
 def _get(cfg, key, default=None):
@@ -337,125 +341,3 @@ def fonts_in_gebrauch(cfg) -> list:
         if f not in out:
             out.append(f)
     return out
-
-
-# ── Etappen ──────────────────────────────────────────────────────────────────
-
-def etappen_grenzen(cum_dist, stage_nr) -> dict:
-    """{nr: [anteil_start, anteil_ende]} als Streckenanteile 0..1."""
-    n = min(len(cum_dist or []), len(stage_nr or []))
-    if n < 1:
-        return {}
-    d0 = float(cum_dist[0])
-    span = float(cum_dist[n - 1]) - d0
-    out = {}
-    for i in range(n):
-        nr = int(stage_nr[i] or 0)
-        if nr < 1:
-            continue
-        f = (float(cum_dist[i]) - d0) / span if span > 0 else 0.0
-        if nr not in out:
-            out[nr] = [f, f]
-        else:
-            out[nr][1] = f
-    return {str(k): [_rund(v[0]), _rund(v[1])] for k, v in out.items()}
-
-
-# ── Zeitsteuerung ────────────────────────────────────────────────────────────
-
-def _eb(x):
-    """easeOutBack — gleich wie die alte Einblende (v0.9.479)."""
-    if x >= 1:
-        return 1.0
-    if x <= 0:
-        return 0.0
-    c1 = 1.70158
-    c3 = c1 + 1
-    p = x - 1
-    return 1 + c3 * p * p * p + c1 * p * p
-
-
-def _ziel(a, ctx):
-    """Auslöser → ("t", sekunde) oder ("f", streckenanteil). None = nie."""
-    if a is None:
-        return None
-    art, w = a["art"], a["wert"]
-    intro = _num(ctx.get("intro_s"), 0.0)
-    anim = _num(ctx.get("anim_s"), 0.0)
-    if art == "s":
-        return ("t", w)
-    if art == "start":
-        return ("t", intro)
-    if art == "ende":
-        return ("t", intro + anim)
-    if art == "pct":
-        return ("f", w / 100.0)
-    et = (ctx.get("etappen") or {}).get(str(int(w)))
-    if not et:
-        return None
-    return ("f", et[0] if art == "etappe_start" else et[1])
-
-
-def _erreicht_bei(ziel, key, t, frac, mem):
-    """Video-Sekunde, in der der Auslöser erreicht wurde, oder None."""
-    if ziel is None:
-        return None
-    kind, x = ziel
-    if kind == "t":
-        return x if t >= x - _EPS else None
-    if frac < x - _EPS:
-        mem.pop(key, None)
-        return None
-    if key not in mem:
-        # Erster Aufruf schon hinter der Stelle (Standbild, Sprung) → voll da.
-        mem[key] = t if mem.get("_lauf") else float("-inf")
-    return mem[key]
-
-
-def zustand(zeit, blende, t, frac, ctx, mem) -> dict:
-    """{sichtbar, deckkraft, pop} einer Box/Zeile zur Video-Sekunde t.
-
-    `mem` ist ein dict je Box/Zeile, das der Aufrufer über die Bilder hinweg
-    behält (Strecken-Auslöser). Rückwärts-Sprung setzt es zurück.
-    """
-    if zeit is None:
-        return {"sichtbar": True, "deckkraft": 1.0, "pop": 1.0}
-    last = mem.get("_t")
-    if last is not None and (t < last - 1e-6 or t - last > 1.0):
-        # Rücksprung oder großer Sprung nach vorn (Scrubben) → wie frisch
-        mem.clear()
-        last = None
-    mem["_lauf"] = last is not None
-    mem["_t"] = t
-    d = max(0.05, _num(blende.get("dauer_s"), 0.5))
-    ein, aus = blende.get("ein", "none"), blende.get("aus", "none")
-    t_on = _erreicht_bei(_ziel(zeit["von"], ctx), "von", t, frac, mem)
-    if t_on is None:
-        return {"sichtbar": False, "deckkraft": 0.0, "pop": 1.0}
-    if zeit.get("dauer_s"):
-        t_off = (t_on + zeit["dauer_s"]) if t_on != float("-inf") else None
-        if t_off is not None and t < t_off - _EPS:
-            t_off = None
-    else:
-        t_off = _erreicht_bei(_ziel(zeit.get("bis"), ctx), "bis", t, frac, mem)
-    p_in = 1.0 if t_on == float("-inf") else _clamp((t - t_on) / d, 0.0, 1.0)
-    p_out = 1.0
-    if t_off is not None:
-        if aus == "none":
-            if t > t_off + _EPS or t_off == float("-inf"):
-                return {"sichtbar": False, "deckkraft": 0.0, "pop": 1.0}
-        else:
-            p_out = 0.0 if t_off == float("-inf") else _clamp(1 - (t - t_off) / d, 0.0, 1.0)
-            if p_out <= 0:
-                return {"sichtbar": False, "deckkraft": 0.0, "pop": 1.0}
-    op = 1.0
-    pop = 1.0
-    if ein in ("fade", "both"):
-        op *= p_in
-    if aus in ("fade", "both"):
-        op *= p_out
-    if ein in ("pop", "both"):
-        pop *= _eb(p_in)
-    if aus in ("pop", "both"):
-        pop *= _eb(p_out)
-    return {"sichtbar": True, "deckkraft": _rund(op), "pop": _rund(pop)}

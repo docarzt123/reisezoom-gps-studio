@@ -31,10 +31,6 @@ def set_i18n_dir(path: Path) -> None:
     _i18n_dir = Path(path)
 
 
-def get_i18n_dir() -> Optional[Path]:
-    return _i18n_dir
-
-
 def available_locales() -> list[dict]:
     """Liste aller verfügbaren Sprachen mit Label.
     Format: [{"code": "de", "label": "Deutsch", "native_label": "Deutsch"}, …]
