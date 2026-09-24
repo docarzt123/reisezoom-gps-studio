@@ -1108,20 +1108,6 @@ async def render(cfg: HeightConfig,
 # ── Hilfen für die UI-Vorschau (sync, schnell) ───────────────────────────────
 
 
-def downsample_for_preview(elevations: list, max_points: int = 400) -> list:
-    """Reduziert die Höhen-Datenpunkte auf max_points für die Vorschau."""
-    if not elevations:
-        return []
-    n = len(elevations)
-    if n <= max_points:
-        return list(elevations)
-    step = max(1, n // max_points)
-    out = [elevations[i] for i in range(0, n, step)]
-    if out[-1] != elevations[-1]:
-        out.append(elevations[-1])
-    return out
-
-
 # ── Wegpunkte + Auto-Marker (v0.9.394) ───────────────────────────────────────
 
 

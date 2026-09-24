@@ -207,10 +207,6 @@ def schema_anlegen(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def fts_da() -> bool:
-    return _FTS_OK
-
-
 # ── Ordner ──────────────────────────────────────────────────────────────────
 
 def ordner_liste(conn: sqlite3.Connection) -> list:
@@ -411,10 +407,6 @@ def ist_fern(path) -> bool:
             _FERN_CACHE[wurzel] = da
         return da
     return p.startswith(("/mnt/", "/media/", "/net/", "/run/media/")) or "/gvfs/" in p
-
-
-def _stapel_fuer(path) -> int:
-    return STAPEL_FERN if ist_fern(path) else STAPEL
 
 
 def _tags_stapel(pfade: list) -> tuple:

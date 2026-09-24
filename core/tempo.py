@@ -42,16 +42,6 @@ def _sauber(x, vorgabe=0.0) -> float:
     return v if v == v and v not in (float("inf"), float("-inf")) else vorgabe
 
 
-def basis_aus_pace_mode(modus: str) -> str:
-    """Alt → neu: die drei Tempo-Voreinstellungen sind die drei Grundlagen."""
-    m = str(modus or "raw")
-    if m == "real":
-        return BASIS_ZEIT
-    if m == "even":
-        return BASIS_STRECKE
-    return BASIS_PUNKTE
-
-
 def _basis_pruefen(pts: Sequence, basis: str) -> str:
     """Ohne Zeitstempel gibt es keine Zeitachse — dann zählt die Strecke.
 

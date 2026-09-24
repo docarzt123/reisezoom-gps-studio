@@ -1329,21 +1329,6 @@ def resample_zeiten(points, s_m: float) -> "tuple[list | None, list | None]":
     return ([round(x, 1) for x in t_roh], [round(x, 1) for x in t_bew])
 
 
-def _bounds_zoom(points: list[TrackPoint], w: int, h: int) -> tuple[tuple[float, float, float, float], tuple[float, float], float]:
-    lons = [p.lon for p in points]
-    lats = [p.lat for p in points]
-    min_lon, max_lon = min(lons), max(lons)
-    min_lat, max_lat = min(lats), max(lats)
-    center = ((min_lon + max_lon) / 2, (min_lat + max_lat) / 2)
-    max_diff = max(max_lon - min_lon, max_lat - min_lat)
-    if max_diff == 0:
-        zoom = 15.0
-    else:
-        zoom = math.log2(360 / max_diff) + math.log2(min(w, h) / 512)
-        zoom = max(8.0, min(17.0, zoom - 0.8))
-    return (min_lon, min_lat, max_lon, max_lat), center, zoom
-
-
 _DASH_BASE = {
     # Werte in Mapbox-Linien-Dicken-Einheiten (`line-width` = 1.0).
     # Wir nutzen `line-cap: round` → dadurch wird ein Dash von Länge L
@@ -1462,32 +1447,6 @@ def _overlay_scale(render_height: int, dsf: float = 1.0) -> float:
     riesig."""
     css_height = render_height / max(dsf, 1.0)
     return max(0.5, css_height / 1080)
-
-
-def _overlay_windows(cfg: "AnimatorConfig") -> dict:
-    """Zeitfenster (in Video-Sekunden) pro Overlay-Box-ID. to<=0 = bis Ende."""
-    wins = {
-        "overlay-totals": [float(getattr(cfg, "overlay_totals_from_s", 0) or 0),
-                           float(getattr(cfg, "overlay_totals_to_s", 0) or 0)],
-        "overlay-live":   [float(getattr(cfg, "overlay_live_from_s", 0) or 0),
-                           float(getattr(cfg, "overlay_live_to_s", 0) or 0)],
-        "overlay-bottom": [float(getattr(cfg, "overlay_elevation_from_s", 0) or 0),
-                           float(getattr(cfg, "overlay_elevation_to_s", 0) or 0)],
-    }
-    # v0.9.443 — Zeitfenster der Daten-Diagramm-Overlays (dieselbe ID-Konvention
-    # wie im HTML: overlay-chart-<i>). Robust gegen nicht-numerische Werte aus
-    # alt/manuell editiertem Projekt-JSON (dürfen den Render-Build nicht kippen).
-    def _sec(v):
-        try:
-            return float(v or 0)
-        except (TypeError, ValueError):
-            return 0.0
-    for i, ch in enumerate(getattr(cfg, "charts", None) or []):
-        if not isinstance(ch, dict):
-            continue
-        wins[f"overlay-chart-{i}"] = [_sec(ch.get("from_s", 0)),
-                                      _sec(ch.get("to_s", 0))]
-    return wins
 
 
 def _overlay_has_timing(cfg: "AnimatorConfig") -> bool:
@@ -2482,6 +2441,53 @@ def wasserzeichen_lage(cfg, w_pct: float) -> tuple[float, float]:
     return (max(0.0, min(98.0, x)), max(0.0, min(98.0, y)))
 
 
+def _overlay_teile(cfg, total_stats, ds_points, cum_dist, cum_time, eles, e1, e2, tz_off, etappen,
+                   ele_min, ele_max, *, extra_keys, has_schwarm: bool, alpha_mode: bool):
+    """Was beide Render-Seiten (Mapbox/MapLibre-HTML und Alpha-HTML) für die
+    Stats-Boxen brauchen. 24.09.2026: stand vorher fast wortgleich zweimal da.
+
+    → (speed_json, grade_json, sensor_series_json, has_time, has_ele,
+       live_update_js, boxen_html, charts_html)
+    """
+    # v0.9.24 — Bei Track ohne Zeit/Höhe entsprechende Stat-Zeilen ausblenden
+    # statt „0 m" / „00:00" anzuzeigen. Marc-Selftest 2026-05-24: track_klein.gpx
+    # hat keine <ele>/<time>-Tags → Render zeigte trotzdem alle Zeilen mit
+    # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
+    has_time = bool(total_stats.get('duration_s'))
+    has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
+    # v0.9.321/323 — Stats-Editor: Pro-Punkt-Speed/Grade + Fahrzeit + echtes Max-Tempo.
+    speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
+    speed_json = json.dumps([round(x, 2) for x in speed_kmh])
+    grade_json = json.dumps([round(x, 2) for x in grade_pct])
+    sensor_series_json = _overlay_sensor_series_json(
+        ds_points, _ov_alle_live_felder(cfg), extra_keys=extra_keys)
+    total_stats = dict(total_stats)
+    total_stats.update({"start_epoch": e1, "end_epoch": e2, "tz_offset_min": tz_off,
+                        "lang": getattr(cfg, "ui_lang", "") or "de"})
+    # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
+    # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
+    # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
+    # den Tempo-Peak sonst wegglätten (Nutzer-Feedback: 43 km/h zu niedrig).
+    if has_time:
+        if not total_stats.get("max_speed_kmh"):
+            total_stats["max_speed_kmh"] = _max_kmh
+        if not total_stats.get("moving_time_s"):
+            total_stats["moving_time_s"] = _moving_s
+    else:
+        total_stats["max_speed_kmh"] = 0.0
+        total_stats["moving_time_s"] = 0.0
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
+    has_stages = (etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
+    live_update_js = _overlay_live_update_js_alle(cfg, has_time, has_ele, has_stages, has_schwarm)
+    boxen_html = _overlay_boxen_html(cfg, total_stats=total_stats, has_time=has_time, has_ele=has_ele, t=_t,
+                                     has_stages=has_stages, has_schwarm=has_schwarm,
+                                     ele_min=ele_min, ele_max=ele_max, alpha_mode=alpha_mode,
+                                     stage_values=_overlay_stage_values(cfg, total_stats, etappen, has_time, has_ele))
+    charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
+    return (speed_json, grade_json, sensor_series_json, has_time, has_ele,
+            live_update_js, boxen_html, charts_html)
+
+
 def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
                cum_time: list[float], total_stats: dict,
                bbox: tuple[float, float, float, float],
@@ -2807,47 +2813,15 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _cam_stab_amt = max(0.0, min(1.0, float(getattr(cfg, "follow_height_smooth", 0.0) or 0.0)))
     # Pos-Slot-Mapping → CSS-Klasse + Block-Reihenfolge
     # Master `show_overlays` bleibt führend. Einzelne `*_enabled` schalten Boxen aus.
-    # v0.9.24 — Bei Track ohne Zeit/Höhe entsprechende Stat-Zeilen ausblenden
-    # statt „0 m" / „00:00" anzuzeigen. Marc-Selftest 2026-05-24: track_klein.gpx
-    # hat keine <ele>/<time>-Tags → Render zeigte trotzdem alle Zeilen mit
-    # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
-    has_time = bool(total_stats.get('duration_s'))
-    has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
-    # v0.9.321/323 — Stats-Editor: Pro-Punkt-Speed/Grade + Fahrzeit + echtes Max-Tempo.
-    speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
-    speed_json = json.dumps([round(x, 2) for x in speed_kmh])
-    grade_json = json.dumps([round(x, 2) for x in grade_pct])
     # v0.9.448 — die Reihe, nach der eingefärbt wird, MUSS in `sensorSeries` landen,
     # auch wenn sie in keinem Overlay-Feld vorkommt (siehe _csrc oben).
-    _color_extra = [_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else []
-    sensor_series_json = _overlay_sensor_series_json(
-        ds_points, _ov_alle_live_felder(cfg), extra_keys=_color_extra)
-    total_stats = dict(total_stats)
-    total_stats.update({"start_epoch": _e1, "end_epoch": _e2, "tz_offset_min": _tz_off,
-                        "lang": getattr(cfg, "ui_lang", "") or "de"})
-    # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
-    # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
-    # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
-    # den Tempo-Peak sonst wegglätten (Nutzer-Feedback: 43 km/h zu niedrig).
-    if has_time:
-        if not total_stats.get("max_speed_kmh"):
-            total_stats["max_speed_kmh"] = _max_kmh
-        if not total_stats.get("moving_time_s"):
-            total_stats["moving_time_s"] = _moving_s
-    else:
-        total_stats["max_speed_kmh"] = 0.0
-        total_stats["moving_time_s"] = 0.0
-    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-    has_stages = (_etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
-    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Felder nur im Mapbox-HTML: das
-    # Alpha-HTML hat keine SCHWARM_-Konstanten, dort bleibt has_schwarm False.
-    has_schwarm = bool(schwarm_tours)
-    live_update_js = _overlay_live_update_js_alle(cfg, has_time, has_ele, has_stages, has_schwarm)
-    boxen_html = _overlay_boxen_html(cfg, total_stats=total_stats, has_time=has_time, has_ele=has_ele, t=_t,
-                                     has_stages=has_stages, has_schwarm=has_schwarm,
-                                     ele_min=ele_min, ele_max=ele_max,
-                                     stage_values=_overlay_stage_values(cfg, total_stats, _etappen, has_time, has_ele))
-    charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
+    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Felder nur im Mapbox-HTML.
+    (speed_json, grade_json, sensor_series_json, has_time, has_ele,
+     live_update_js, boxen_html, charts_html) = _overlay_teile(
+        cfg, total_stats, ds_points, cum_dist, cum_time, eles, _e1, _e2, _tz_off, _etappen,
+        ele_min, ele_max,
+        extra_keys=[_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else [],
+        has_schwarm=bool(schwarm_tours), alpha_mode=False)
     overlays_block = (_watermark_html(cfg)
                       + (_north_scale_html(cfg) if cfg.show_overlays else "")
                       + boxen_html + charts_html
@@ -4549,40 +4523,11 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     PAD = 0.08
     glow_w = cfg.line_width * 2.85
     # Overlay-HTML wiederverwenden (identisches Layout)
-    # v0.9.24 — Bei Track ohne Zeit/Höhe entsprechende Stat-Zeilen ausblenden
-    # statt „0 m" / „00:00" anzuzeigen. Marc-Selftest 2026-05-24: track_klein.gpx
-    # hat keine <ele>/<time>-Tags → Render zeigte trotzdem alle Zeilen mit
-    # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
-    has_time = bool(total_stats.get('duration_s'))
-    has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
-    # v0.9.321/323 — Stats-Editor: Pro-Punkt-Speed/Grade + Fahrzeit + echtes Max-Tempo.
-    speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
-    speed_json = json.dumps([round(x, 2) for x in speed_kmh])
-    grade_json = json.dumps([round(x, 2) for x in grade_pct])
-    sensor_series_json = _overlay_sensor_series_json(ds_points, _ov_alle_live_felder(cfg))
-    total_stats = dict(total_stats)
-    total_stats.update({"start_epoch": _e1, "end_epoch": _e2, "tz_offset_min": _tz_off,
-                        "lang": getattr(cfg, "ui_lang", "") or "de"})
-    # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
-    # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
-    # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
-    # den Tempo-Peak sonst wegglätten (Nutzer-Feedback: 43 km/h zu niedrig).
-    if has_time:
-        if not total_stats.get("max_speed_kmh"):
-            total_stats["max_speed_kmh"] = _max_kmh
-        if not total_stats.get("moving_time_s"):
-            total_stats["moving_time_s"] = _moving_s
-    else:
-        total_stats["max_speed_kmh"] = 0.0
-        total_stats["moving_time_s"] = 0.0
-    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-    has_stages = (_etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
-    live_update_js = _overlay_live_update_js_alle(cfg, has_time, has_ele, has_stages)
-    boxen_html = _overlay_boxen_html(cfg, total_stats=total_stats, has_time=has_time, has_ele=has_ele, t=_t,
-                                     has_stages=has_stages, has_schwarm=False,
-                                     ele_min=ele_min, ele_max=ele_max, alpha_mode=True,
-                                     stage_values=_overlay_stage_values(cfg, total_stats, _etappen, has_time, has_ele))
-    charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
+    # Overlay-Teile wie im Mapbox-HTML — das Alpha-HTML hat keine SCHWARM_-Konstanten.
+    (speed_json, grade_json, sensor_series_json, has_time, has_ele,
+     live_update_js, boxen_html, charts_html) = _overlay_teile(
+        cfg, total_stats, ds_points, cum_dist, cum_time, eles, _e1, _e2, _tz_off, _etappen,
+        ele_min, ele_max, extra_keys=None, has_schwarm=False, alpha_mode=True)
     overlays_block = (_watermark_html(cfg)
                       + (_north_scale_html(cfg, with_scale=False) if cfg.show_overlays else "")
                       + boxen_html + charts_html
@@ -4812,12 +4757,6 @@ requestAnimationFrame(() => {{ window._ready = true; }});
 </script></body></html>"""
 
 
-def _smoothstep(t: float) -> float:
-    """Klassisches 3t²−2t³ Ease-in/out für 0..1."""
-    t = max(0.0, min(1.0, t))
-    return t * t * (3.0 - 2.0 * t)
-
-
 def _punkte_verteilen(cfg, raw_points):
     """Punkte für den Render — Anzahl wie bisher, Verteilung nach Wahl.
 
@@ -4874,71 +4813,13 @@ def _punkte_verteilen(cfg, raw_points):
     )
 
 
-def _reise_segmente(tours: list, anim_total: int, fly_frames: int,
-                    intro_frames: int, hold_frames: int, fps: int):
-    """Zeitplan einer Reise: welche Etappe wie lange, welcher Übergang wie lange.
-
-    08.09.2026 (Marc: „jede Etappe hat ihre Zeit und die Übergänge definiert man
-    genauso wie die Reihenfolge"). Regeln:
-      * Etappe mit eigener Dauer (`dauer_s` > 0) bekommt genau diese.
-      * Der Rest des Budgets verteilt sich wie bisher nach Umfang (`n_raw`) auf
-        die Etappen ohne Angabe.
-      * Der Übergang, der IN eine Etappe führt, steht an dieser Etappe
-        (`ueber_s`, `ueber_stil`); ohne Angabe gilt die gemeinsame Flugdauer.
-      * Stil „schnitt" heißt: kein Übergangs-Segment, harter Schnitt.
-    Liefert (walk_frames, ueber, segments).
-    """
-    N = len(tours)
-    fest = [int(round(float(t.get("dauer_s") or 0) * fps)) if float(t.get("dauer_s") or 0) > 0 else 0
-            for t in tours]
-    offen = [i for i in range(N) if not fest[i]]
-    rest = max(0, anim_total - sum(fest))
-    offen_pts = sum(int(tours[i].get("n_raw") or 1) for i in offen) or 1
-    walk_frames = [0] * N
-    zugeteilt = 0
-    # ⚠️ Untergrenze wie in der Vorschau (`_reiseBauen`, MIN_ETAPPE_S = 0,3 s):
-    # feste Etappendauern gehen vom Budget ab und können die übrigen auf null
-    # drücken. Jede Etappe bekommt mindestens diese Bilder; das Video wird
-    # dadurch länger als die Vorgabe (08.09.2026).
-    min_frames = max(1, int(round(0.3 * fps)))
-    for k, i in enumerate(offen):
-        if k == len(offen) - 1:
-            wf = int(max(min_frames, rest - zugeteilt))
-        else:
-            wf = int(max(min_frames, round(rest * int(tours[i].get("n_raw") or 1) / offen_pts)))
-        walk_frames[i] = wf
-        zugeteilt += wf
-    for i in range(N):
-        if fest[i]:
-            walk_frames[i] = max(1, fest[i])
-
-    ueber = []
-    for i in range(1, N):
-        stil = str(tours[i].get("ueber_stil") or "kino")
-        s_i = tours[i].get("ueber_s")
-        n_f = fly_frames if s_i is None else int(round(float(s_i) * fps))
-        if stil == "schnitt":
-            n_f = 0
-        ueber.append((stil, max(0, n_f)))
-
-    segments = []
-    if intro_frames > 0:
-        segments.append(("intro", 0, intro_frames))
-    for i in range(N):
-        segments.append(("walk", i, walk_frames[i]))
-        if i < N - 1 and ueber[i][1] > 0:
-            segments.append(("fly", i, ueber[i][1]))
-    if hold_frames > 0:
-        segments.append(("hold", N - 1, hold_frames))
-    return walk_frames, ueber, segments
-
-
 # 09.09.2026 (IDEAS §60, Phase 6) — `_render_multi` ist weg. Mehrere Touren
 # rendern ausschließlich über die Szene (core/szene.py), die die Vorschau Bild
 # für Bild abspielt: Kette, Übergänge, Füll-Halte, parallele Gruppen und
-# Keyframes kommen dort aus EINER Rechnung (ui/js/spuren.js ↔ core/spuren.py).
-# `_reise_segmente` darüber bleibt als Vorschrift der Verteilregel stehen —
-# gegen sie ist core/spuren.py gemessen (tests/test_spuren_modell.py).
+# Keyframes kommen dort aus EINER Rechnung (ui/js/spuren.js). Die frühere
+# Verteilregel `_reise_segmente` und ihr Zwilling core/spuren.py liefen nur noch
+# in Tests und sind seit 24.09.2026 weg; tests/test_spuren_modell.py hält ihre
+# Etappenzeiten als Sollwerte fest.
 
 def _frame_black_ratio(img_bytes: bytes) -> float:
     """Anteil (0..1) nahezu schwarzer Pixel im Frame. v0.9.286 — dient dazu, einen

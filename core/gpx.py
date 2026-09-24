@@ -6,7 +6,7 @@ from __future__ import annotations
 import bisect
 import json
 import os
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from math import radians, sin, cos, sqrt, atan2
 from typing import List, Optional
@@ -551,10 +551,6 @@ def _punkt_lesen(el, v11: bool, trkpt10: bool):
     p.time = None if zeit is None else _zeit_lesen(zeit.text)
     p.extensions = list(ext) if (v11 and ext is not None) else []
     return p
-
-
-def _erstes(el, tag):
-    return el.find(tag)
 
 
 def _bounds_pruefen(el) -> None:
@@ -1164,10 +1160,3 @@ def punkte_nach_anteilen(pts: List[TrackPoint], anteile: List[float]) -> List[Tr
     raus[-1] = pts[-1]
     return raus
 
-
-def to_json(pts: List[TrackPoint], stats: TrackStats) -> dict:
-    """Serialisierbar fürs UI."""
-    return {
-        "points": [asdict(p) for p in pts],
-        "stats": asdict(stats),
-    }

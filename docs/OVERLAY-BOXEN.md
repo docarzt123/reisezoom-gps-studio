@@ -96,6 +96,13 @@ Schrittmodus wie der Szene-Render, Duplizieren, Zurücksetzen mit Rückfrage, L�
   die Vorschau keine Box).
 - Vorlagen übernehmen die neuen Schlüssel automatisch (Sperrliste statt Positivliste).
 
+**Aufgeräumt am 24.09.2026:** Die Zeitsteuerung (`zustand`, `ziel`, `erreichtBei`,
+`etappenGrenzen`) gibt es nur noch in `ui/js/overlay_boxen.js`. Der Python-Zwilling in
+`core/overlayboxen.py` lief nur im Paritätstest und ist weg; `tests/test_overlay_boxen.py`
+prüft dieselben Fälle jetzt direkt in der JS-Datei (`tests/_node.py`). Wortgleich in beiden
+Sprachen bleibt nur die **Auflösung** (`aufloesen`, `chart_boxen`, `zeit_normal`,
+`hat_zeitsteuerung`) — Python baut damit das Render-HTML.
+
 **Nebenbefunde, mit behoben:** Fade/Pop (v0.9.479) kam nie im Szene-Video an, weil die
 Vorschau nur harte Zeitfenster kannte; die Vorschau lud die Google-Schriften der Boxen nie
 (Vorschau und Szene-Video zeigten eine Ersatzschrift).
@@ -239,3 +246,34 @@ Vorschau nur harte Zeitfenster kannte; die Vorschau lud die Google-Schriften der
 Gesamt ≈ 3–4 Arbeitstage kopflos. Risiken: die zwei Render-HTML-Kopien (zusammenziehen
 zuerst), Probelauf-Index für die Auslöser (Tempo-Kurve beachten), Modal-Größe in der
 Sidebar-Breite (deshalb Vollfenster wie der Schild-Editor).
+
+## 6. Overlay-Spur in der Timeline (Grilling 24.09.2026, noch nicht gebaut)
+
+**Anlass:** Der Beta-Tester wollte die Gesamt-Stats ab Sekunde 25 zeigen und 2 s vor
+Ende ausblenden. Er trug `Zeit 25 – 1 s` ein und meinte mit der 1 „kurz vor Ende".
+Die Seitenleiste liest „bis Sekunde 1", also vor dem Start, und die Box erscheint nie.
+„X s vor Ende" gab es gar nicht. Marc: Zeiträume gehören grafisch in die Timeline,
+nicht eingetippt.
+
+**Entscheidungen (Marc, 24.09.2026):**
+
+| # | Frage | Entscheidung |
+|---|---|---|
+| 1 | Reihenfolge | Gleich die Timeline, kein Zwischen-Fix. Der Tester bekommt die fertige Version. |
+| 2 | Was bekommt einen Balken | Nur Boxen (Gesamt, Live, Höhenprofil, weitere Boxen). Keine Zeilen, kein Nordpfeil/Maßstab. |
+| 3 | Balkenende | Am Ende ist die Box **ganz weg**; die Blenden liegen **innerhalb** des Balkens. |
+| 4 | Blenden | Ein- und Ausblendung mit **eigener Dauer** je Seite, als Schrägen **ziehbar**, höchstens bis sie sich treffen. |
+| 5 | Einrasten | **Keins.** Ziehen, verschieben, fertig. |
+| 6 | Woran ein Rand hängt | Wie die Keyframes, automatisch nach Bereich: im **Intro** Sekunden ab Videostart, in der **Animation** am **Trackpunkt** (bleibt bei Tempo-/Dauer-Änderung an seinem Ort), im **Nachlauf** Sekunden vor Videoende. Eine neue Box geht über das ganze Video (Videostart → Videoende). Prozent/Etappe entfallen als eigene Auslöser. |
+| 7 | Aufbau | Aufklappbare Gruppe „Overlays", eine Zeile je Box; zugeklappt dünne Striche. Immer sichtbar, sobald eine Box an ist (die Leiste ist auch ohne Keyframe-Editor da). |
+| 8 | Klicks | Klick wählt aus; **Doppel- und Rechtsklick** öffnen das Box-Fenster (dort die Werte als Zahlen). Abgeschaltete Box: grau gestrichelt, reagiert nicht; an/aus nur in Seitenleiste oder Fenster. |
+| 9 | Ziehen | Vorschau springt an den gezogenen Rand, Statuszeile zeigt den Wert („Ende: Videoende − 2,0 s"). Undo wie überall (Stand vor dem Ziehen). |
+| 10 | Alte Projekte | Eingetragene Zeiten bleiben; Etappe/Prozent werden auf den Trackpunkt umgerechnet; alte gemeinsame Blendendauer gilt für beide Seiten. Unterschied: die Ausblendung liegt jetzt im Balken (Box um die Blendendauer früher weg). |
+| 11 | Sprachen | Zeitsteuerung nur in `ui/js/overlay_boxen.js`; Python liest nur die neuen Schlüssel und rechnet alte Projekte um. |
+| 12 | Tour-Map | Keine Spur (Standbild, keine Zeit) — Ausnahme von der Spiegelungsregel. |
+| 13 | Release | Erst mit der Timeline (0.9.724), 0.9.723 wird nicht einzeln veröffentlicht. |
+
+**Fakten aus dem Code (24.09.2026):** Leiste `ui/js/timeline.js` (`mountTimelineBar`),
+ziehbare Kacheln mit zwei Rändern gibt es schon (`_gruppenMausDruck`, Zeilen per
+`_gruppenZeilenSicherstellen`), Achse 0–1 = Intro + Animation + Nachlauf
+(`module.js` ~4030), Undo `_animPushUndo(label, {force})`.

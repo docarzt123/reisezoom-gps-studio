@@ -1,12 +1,11 @@
 /* Der Zeitplan eines Projekts: Gruppen, Halte, Inhalte — die EINE Wahrheit.
  *
- * Wortgleiches Gegenstück zu `core/spuren.py` (IDEAS §60, Marc 09.09.2026).
- * Der Python-Teil ist die Vorschrift und wird dort geprüft; dieser hier läuft
- * in der Oberfläche, weil die Vorschau den Plan SYNCHRON braucht — `_reiseBauen`
- * wird aus acht Stellen heraus gerufen, und eine zweite asynchrone Schicht
- * (Brücke → Antwort → Nachziehen) hat uns bei der Tempo-Kurve schon einen Tag
- * gekostet. Dass beide dasselbe rechnen, misst `tests/test_spuren_js_vs_py.py`
- * mit `node` an zufälligen Fällen — wer eine Seite anfasst, fasst beide an.
+ * IDEAS §60, Marc 09.09.2026. Lebt in der Oberfläche, weil die Vorschau den
+ * Plan SYNCHRON braucht — `_reiseBauen` wird aus acht Stellen heraus gerufen,
+ * und der Szene-Render spielt genau diese Vorschau ab. Einzige Fassung: der
+ * Python-Zwilling core/spuren.py lief nur in Tests und ist seit 24.09.2026 weg.
+ * Geprüft unter node: tests/test_spuren_modell.py, test_etappen_zeitplan.py,
+ * test_etappen_untergrenze.py.
  *
  *   * Alle Tracks eines Projekts sind gleich lang — so lang wie das Video.
  *     Ein Track ist Halt + Inhalt + Halt; die Anordnung steckt darin, wo seine
@@ -113,7 +112,7 @@
       return [g];
     }
 
-    // Nacheinander: dieselbe Zeitregel wie `_reise_segmente`.
+    // Nacheinander: Budget nach Umfang, feste Etappen vorab (früher `_reise_segmente`).
     const fest = [Math.max(0, sauber(a.etappe1_dauer_s, 0))].concat(extra.map(t => Math.max(0, sauber((t || {}).dauer_s, 0))));
     const budget = Math.max(0, sauber(a.duration_s, 12));
     const rest = Math.max(0, budget - fest.reduce((x, y) => x + y, 0));
@@ -146,7 +145,7 @@
   }
 
   const api = { MIN_INHALT_S, inhaltDauer, zeitplan, kameraGruppe, ueberlappt, zeilen, ausProjekt };
-  // Im Browser am Fenster; der Prüfstand (tests/test_spuren_js_vs_py.py) lädt die
-  // Datei unter node mit einem `window`-Schatten — kein CommonJS-Export nötig.
+  // Im Browser am Fenster; die Prüfstände (tests/_node.py) laden die Datei
+  // unter node mit einem `window`-Schatten — kein CommonJS-Export nötig.
   if (typeof window !== "undefined") window.rzSpuren = api;
 })();
