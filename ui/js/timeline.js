@@ -466,6 +466,7 @@ function mountTimelineBar(opts) {
   }
 
   function setGruppen(zeilen, gesamtS) {
+    _ovGeometrieMelden();
     _gruppenZeilen = Array.isArray(zeilen) ? zeilen.map(z => (z || []).slice()) : [];
     _gruppenGesamtS = (+gesamtS > 0) ? +gesamtS : 0;
     _gruppenZeilenSicherstellen();
@@ -792,6 +793,224 @@ function mountTimelineBar(opts) {
     document.addEventListener("mousemove", bewegen, true);
     document.addEventListener("mouseup", hoch, true);
     return true;
+  }
+
+  // ── Overlay-Spur (24.09.2026, Marc: „die Stats-Boxen grafisch in der Timeline …
+  //    einfach hinziehen, wo sie erscheinen sollen"; docs/OVERLAY-BOXEN.md §6) ──
+  // Eine aufklappbare Gruppe „Overlays" mit einer Zeile je Box. Ein Balken ist
+  // die Zeit der Box: am Anfang beginnt die Einblendung, am Ende ist sie ganz weg;
+  // die Schrägen innen sind Ein- und Ausblendung (je eigener Griff). Die Leiste
+  // rechnet NUR in Leisten-Positionen (0..1 über das ganze Video) — was daraus an
+  // Sekunden und Ankern wird, entscheidet das Modul (`onOverlayZiehen`).
+  // Kein Einrasten (Marc). Doppel- und Rechtsklick öffnen das Box-Fenster.
+  let _ov = [];                  // [{id, name, farbe, enabled, an, aus, einBis, ausAb}]
+  let _ovOffen = false;
+  let _ovMinAnteil = 0.005;      // kürzester Balken als Leisten-Anteil (Modul: 0,5 s)
+  let _ovLetzterDruck = null;
+  let _ovAuswahl = null;
+  /** Intro/Dauer/Trim/Gruppen geändert → das Modul rechnet die Balken neu (gebündelt). */
+  let _ovGeoRaf = 0;
+  function _ovGeometrieMelden() {
+    if (_ovGeoRaf || !cb.onOverlayNeu) return;
+    _ovGeoRaf = setTimeout(() => { _ovGeoRaf = 0; try { cb.onOverlayNeu(); } catch (e) { console.warn("onOverlayNeu:", e); } }, 0);
+  }
+  function setOverlays(liste, opts) {
+    _ov = Array.isArray(liste) ? liste.map(o => Object.assign({}, o)) : [];
+    const o = opts || {};
+    if (typeof o.offen === "boolean") _ovOffen = o.offen;
+    if (+o.minAnteil > 0) _ovMinAnteil = +o.minAnteil;
+    _ovZeilenSicherstellen();
+    _ovZeichnen();
+  }
+  function _ovZeilenSicherstellen() {
+    const lanes = host.querySelector(".timeline-lanes");
+    if (!lanes) return;
+    let kopf = lanes.querySelector('.timeline-lane[data-kind="ovkopf"]');
+    if (!_ov.length) {
+      lanes.querySelectorAll('.timeline-lane[data-kind="ovkopf"], .timeline-lane[data-kind="ovbox"]').forEach(x => x.remove());
+      return;
+    }
+    if (!kopf) {
+      kopf = document.createElement("div");
+      kopf.className = "timeline-lane";
+      kopf.dataset.kind = "ovkopf";
+      kopf.style.setProperty("--lane-color", "#e8a0ff");
+      kopf.innerHTML = `<div class="lane-label ov-kopf-label" role="button" tabindex="0" title="${_esc(tlT("animator.lane.overlays_tip", "Wann die Stats-Boxen zu sehen sind. Aufklappen, dann Balken ziehen: verschieben, Ränder ändern Anfang und Ende, die Schrägen innen sind Ein- und Ausblendung. Doppelklick oder Rechtsklick öffnet die Box."))}"><span class="lane-icon ov-kopf-pfeil">▸</span><span class="lane-name">${tlT("animator.lane.overlays", "Overlays")}</span></div>
+        <div class="lane-track"><div class="lane-markers ov-mini" id="tl-ov-mini"></div></div>`;
+      // ganz nach unten, unter die Kamera-Spuren? Nein — direkt unter Tempo/Gruppen,
+      // damit sie auch ohne Keyframe-Editor zusammen mit der Tempo-Spur sichtbar ist.
+      const gr = lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]');
+      const anker = gr.length ? gr[gr.length - 1] : lanes.querySelector('.timeline-lane[data-kind="tempo"]');
+      if (anker) anker.insertAdjacentElement("afterend", kopf); else lanes.prepend(kopf);
+      const umschalten = () => {
+        _ovOffen = !_ovOffen;
+        _ovZeilenSicherstellen(); _ovZeichnen();
+        try { (cb.onOverlaysOffen || (() => {}))(_ovOffen); } catch (e) { console.warn("onOverlaysOffen:", e); }
+      };
+      const lab = kopf.querySelector(".lane-label");
+      lab.addEventListener("click", umschalten);
+      lab.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); umschalten(); } });
+      kopf.querySelector(".lane-track").addEventListener("click", () => { if (!_ovOffen) umschalten(); });
+    }
+    kopf.classList.toggle("ist-offen", _ovOffen);
+    const pf = kopf.querySelector(".ov-kopf-pfeil"); if (pf) pf.textContent = _ovOffen ? "▾" : "▸";
+    // Box-Zeilen: genau die aktuellen, in Reihenfolge, direkt unter dem Kopf.
+    const da = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="ovbox"]'));
+    const soll = _ovOffen ? _ov.map(o => o.id) : [];
+    da.forEach(z => { if (soll.indexOf(z.dataset.id) < 0) z.remove(); });
+    let vorher = kopf;
+    for (const id of soll) {
+      let z = lanes.querySelector(`.timeline-lane[data-kind="ovbox"][data-id="${CSS.escape(id)}"]`);
+      if (!z) {
+        z = document.createElement("div");
+        z.className = "timeline-lane";
+        z.dataset.kind = "ovbox";
+        z.dataset.id = id;
+        z.innerHTML = `<div class="lane-label"><span class="lane-icon">▭</span><span class="lane-name"></span></div>
+          <div class="lane-track"><div class="lane-markers"></div></div>`;
+        _ovBinden(z);
+      }
+      if (vorher.nextElementSibling !== z) vorher.insertAdjacentElement("afterend", z);
+      vorher = z;
+    }
+  }
+  const _ovPct = (x) => _anchorToPct(x);
+  function _ovZeichnen() {
+    const mini = host.querySelector("#tl-ov-mini");
+    if (mini) {
+      mini.innerHTML = "";
+      const n = Math.max(1, _ov.length);
+      _ov.forEach((o, i) => {
+        const st = document.createElement("div");
+        st.className = "ov-strich" + (o.enabled ? "" : " ist-aus");
+        st.style.left = _ovPct(o.an) + "%";
+        st.style.width = Math.max(0.3, _ovPct(o.aus) - _ovPct(o.an)) + "%";
+        st.style.top = (3 + i * Math.max(2, 14 / n)) + "px";
+        if (o.farbe) st.style.background = o.farbe;
+        mini.appendChild(st);
+      });
+    }
+    if (!_ovOffen) return;
+    for (const o of _ov) {
+      const z = host.querySelector(`.timeline-lane[data-kind="ovbox"][data-id="${CSS.escape(o.id)}"]`);
+      if (!z) continue;
+      const nm = z.querySelector(".lane-name"); if (nm) nm.textContent = o.name || o.id;
+      const lab = z.querySelector(".lane-label"); if (lab) lab.title = o.name || o.id;
+      z.classList.toggle("ist-aus", !o.enabled);
+      z.classList.toggle("ist-auswahl", _ovAuswahl === o.id);
+      const mk = z.querySelector(".lane-markers");
+      mk.innerHTML = "";
+      const b = document.createElement("div");
+      b.className = "tl-ovbar" + (o.enabled ? "" : " ist-aus") + (_ovAuswahl === o.id ? " ist-auswahl" : "");
+      b.dataset.id = o.id;
+      const l = +_ovPct(o.an), r = +_ovPct(o.aus);
+      b.style.left = l + "%";
+      b.style.width = Math.max(0.4, r - l) + "%";
+      if (o.farbe) b.style.setProperty("--ov-farbe", o.farbe);
+      const len = Math.max(1e-9, o.aus - o.an);
+      const ein = Math.max(0, Math.min(1, ((o.einBis ?? o.an) - o.an) / len)) * 100;
+      const aus = Math.max(0, Math.min(1, (o.aus - (o.ausAb ?? o.aus)) / len)) * 100;
+      b.title = (o.name || o.id) + (o.text ? " · " + o.text : "") + "\n"
+        + tlT("animator.ov.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · Schrägen: Ein-/Ausblendung · Doppelklick: öffnen");
+      b.innerHTML =
+        `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
+        + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
+        + `<span class="tl-ov-name">${_esc(o.text || "")}</span>`
+        + `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
+        + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>`
+        + `<span class="tl-ov-rand" data-griff="l"></span><span class="tl-ov-rand" data-griff="r"></span>`;
+      mk.appendChild(b);
+    }
+  }
+  function _ovVonId(id) { return _ov.find(o => o.id === id) || null; }
+  function _ovOeffnen(id) { try { (cb.onOverlayOeffnen || (() => {}))(id); } catch (e) { console.warn("onOverlayOeffnen:", e); } }
+  function _ovBinden(zeile) {
+    const spur = zeile.querySelector(".lane-track");
+    spur.addEventListener("mousedown", (ev) => _ovMausDruck(ev, zeile));
+    spur.addEventListener("contextmenu", (ev) => {
+      const b = ev.target.closest(".tl-ovbar");
+      if (!b || b.classList.contains("ist-aus")) return;
+      ev.preventDefault();
+      _ovOeffnen(b.dataset.id);
+    });
+    const lab = zeile.querySelector(".lane-label");
+    lab.addEventListener("dblclick", () => _ovOeffnen(zeile.dataset.id));
+  }
+  function _ovMausDruck(ev, zeile) {
+    const b = ev.target.closest(".tl-ovbar");
+    if (!b || ev.button !== 0 || b.classList.contains("ist-aus")) return;
+    const id = b.dataset.id;
+    const o = _ovVonId(id);
+    if (!o) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    // Doppelklick selbst erkennen — nach jedem Loslassen wird neu gezeichnet,
+    // ein natives dblclick kommt dann nie an (wie bei den Gruppen-Kacheln).
+    const jetzt = Date.now();
+    if (_ovLetzterDruck && _ovLetzterDruck.id === id && jetzt - _ovLetzterDruck.t < 350) {
+      _ovLetzterDruck = null;
+      _ovOeffnen(id);
+      return;
+    }
+    _ovLetzterDruck = { id, t: jetzt };
+    const griffEl = ev.target.closest("[data-griff]");
+    const griff = griffEl ? griffEl.dataset.griff : "schieben";
+    const mk = zeile.querySelector(".lane-markers") || zeile;
+    const spurPx = (mk.getBoundingClientRect().width || 1) * _viewZoom;
+    const a0 = { an: o.an, aus: o.aus, einBis: o.einBis ?? o.an, ausAb: o.ausAb ?? o.aus };
+    let bewegt = false, neu = Object.assign({}, a0);
+    const minL = _ovMinAnteil;
+    const rechnen = (dx) => {
+      const d = dx / spurPx;
+      const n = Object.assign({}, a0);
+      const einB = a0.einBis - a0.an, ausB = a0.aus - a0.ausAb;
+      if (griff === "schieben") {
+        const dd = Math.max(-a0.an, Math.min(1 - a0.aus, d));
+        n.an += dd; n.aus += dd; n.einBis += dd; n.ausAb += dd;
+      } else if (griff === "l") {
+        n.an = Math.max(0, Math.min(a0.aus - minL, a0.an + d));
+      } else if (griff === "r") {
+        n.aus = Math.min(1, Math.max(a0.an + minL, a0.aus + d));
+      } else if (griff === "ein") {
+        n.einBis = Math.max(a0.an, Math.min(a0.ausAb, a0.einBis + d));
+      } else if (griff === "aus") {
+        n.ausAb = Math.min(a0.aus, Math.max(a0.einBis, a0.ausAb + d));
+      }
+      if (griff === "l" || griff === "r") {
+        // Die Blenden behalten ihre Länge, solange sie in den Balken passen.
+        const len = n.aus - n.an;
+        let e = einB, a = ausB;
+        if (e + a > len) { const f = len / Math.max(1e-9, e + a); e *= f; a *= f; }
+        n.einBis = n.an + e; n.ausAb = n.aus - a;
+      }
+      return n;
+    };
+    const bewegen = (e2) => {
+      const dx = e2.clientX - ev.clientX;
+      if (Math.abs(dx) > 2) bewegt = true;
+      if (!bewegt) return;
+      neu = rechnen(dx);
+      Object.assign(o, neu);
+      _ovZeichnen();
+      let txt = "";
+      try { txt = (cb.onOverlayText || (() => ""))(id, griff, neu) || ""; } catch (_) {}
+      setStatusHint(txt || null);
+      try { (cb.onOverlayVorschau || (() => {}))(id, griff, neu); } catch (_) {}
+    };
+    const hoch = () => {
+      document.removeEventListener("mousemove", bewegen, true);
+      document.removeEventListener("mouseup", hoch, true);
+      setStatusHint(null);
+      if (!bewegt) {
+        _ovAuswahl = id;
+        _ovZeichnen();
+        try { (cb.onOverlayAuswahl || (() => {}))(id); } catch (_) {}
+        return;
+      }
+      try { (cb.onOverlayZiehen || (() => {}))(id, griff, neu); } catch (e) { console.warn("onOverlayZiehen:", e); }
+    };
+    document.addEventListener("mousemove", bewegen, true);
+    document.addEventListener("mouseup", hoch, true);
   }
 
   function setEtappen(liste) {
@@ -1419,6 +1638,7 @@ function mountTimelineBar(opts) {
   function refresh() {
     // Wer alles zeichnet, braucht keinen angemeldeten Durchlauf mehr.
     _zeichnungVerwerfen();
+    try { _ovZeichnen(); } catch (e) { console.warn("Overlay-Spur:", e); }
     const events = getEvents();
     const clusters = computeClusters(events);
     // Cluster-Anchors für die Selektions-Mapping (Camera-Lanes)
@@ -1866,6 +2086,7 @@ function mountTimelineBar(opts) {
   let _introFraction = 0.0;   // ti: Position wo Intro endet, Anim beginnt
   // v0.9.59 — setTrackFraction nimmt jetzt zwei Argumente: tf (Anim-Ende) + ti (Intro-Ende)
   function setTrackFraction(tf, ti) {
+    _ovGeometrieMelden();
     const f = Math.max(0, Math.min(1, parseFloat(tf) || 1));
     const i = Math.max(0, Math.min(f, parseFloat(ti) || 0));
     _trackFraction = f;
@@ -2132,6 +2353,7 @@ function mountTimelineBar(opts) {
 
   // v0.9.41 — Trim-API
   function setTrim(start, end) {
+    _ovGeometrieMelden();
     setTrimVisual(start, end);
   }
 
@@ -2183,6 +2405,8 @@ function mountTimelineBar(opts) {
     getScrubAnchor: () => _scrubAnchor,
     setGruppen,
     getGruppen: () => _gruppenZeilen.map(z => z.slice()),
+    setOverlays,
+    getOverlays: () => ({ liste: _ov.map(o => Object.assign({}, o)), offen: _ovOffen }),
   };
 }
 

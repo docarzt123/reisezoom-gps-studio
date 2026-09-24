@@ -5,20 +5,20 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 23 Sep 2026 13:30:39 +0000</lastBuildDate>
+<lastBuildDate>Thu, 24 Sep 2026 12:13:19 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.723</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-723</link>
-<guid isPermaLink="false">gps-studio-v0.9.723</guid>
-<pubDate>Wed, 23 Sep 2026 12:00:00 +0000</pubDate>
-<description>Stats-Boxen einzeln gestalten — neben „Gesamt-Stats“, „Live-Stats“ und „Höhenprofil“ öffnet ✎ das Fenster „Box gestalten“: eigene Farben, Schrift, Ecken, Rahmen und Schatten je Box, sanftes Ein- und Ausblenden und ein Zeitpunkt wie „am Ende des Tracks für 10 Sekunden“.
+<title>v0.9.724</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-724</link>
+<guid isPermaLink="false">gps-studio-v0.9.724</guid>
+<pubDate>Thu, 24 Sep 2026 12:00:00 +0000</pubDate>
+<description>Stats-Boxen in der Zeitleiste ziehen — unter „▸ Overlays“ hat jede Box einen Balken: Er ist die Zeit, in der die Box zu sehen ist. Ziehen verschiebt ihn, die Ränder setzen Anfang und Ende, die zwei Punkte oben sind Ein- und Ausblendung mit eigener Dauer. Am Ende des Balkens ist die Box ganz weg. „Ab Sekunde 25 und 2 Sekunden vor Schluss wieder weg“ sind jetzt zwei Handgriffe.
 
-Zahlen je Etappe — bei zusammengeführten Touren zeigt eine Gesamt-Box wahlweise die ganze Strecke, die laufende Etappe oder eine bestimmte Etappe.
+Ränder bleiben, wo sie hingehören — während der Animation hängt ein Rand an einem Punkt auf dem Track, im Schluss an „Sekunden vor Videoende“. Ändert sich Tempo oder Länge, wandert die Box mit.
 
-Zeilen einzeln und weitere Boxen — jede Zeile kann eigene Farbe, Größe und Zeitpunkt bekommen; mit ＋ legst du zusätzliche Boxen an, zum Beispiel eine Schlussstatistik in der Bildmitte. Alles ist rückgängig machbar.
+„bis“ vor „von“ wird rot — in den ⏱-Sekunden der Seitenleiste: statt einer Box, die still nie erscheint, gibt es einen Hinweis. Die Felder laufen mit dem Balken mit.
 
-Einblendung jetzt auch im Video — „Einblenden“ und „Aufpoppen“ der Stats-Boxen waren im normalen Video bisher nicht zu sehen. Jetzt stimmen Vorschau, Probelauf und Video überein, auch bei den Schriften.</description>
+Boxen in Reisen zur richtigen Zeit — bei zusammengeführten Touren mit Übergängen standen die Boxen im Probelauf und im Video um Sekunden daneben. Behoben.</description>
 </item>
 <item>
 <title>v0.9.722</title>

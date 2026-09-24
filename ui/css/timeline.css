@@ -645,7 +645,7 @@
    Eigenschaften der Tour, nicht der Kamera. Ohne diese Ausnahme wäre die neue
    Spur genau für die Nutzer unerreichbar, die nie Keyframes anfassen. */
 .anim-timeline-host--kf-off .timeline-lanes { display: block !important; }
-.anim-timeline-host--kf-off .timeline-lane:not([data-kind="tempo"]):not([data-kind="gruppe"]) { display: none !important; }
+.anim-timeline-host--kf-off .timeline-lane:not([data-kind="tempo"]):not([data-kind="gruppe"]):not([data-kind="ovkopf"]):not([data-kind="ovbox"]) { display: none !important; }
 
 /* v0.9.9 — Mini-Track-Streifen wenn Lanes versteckt sind */
 .anim-timeline-host--kf-off #tl-track {
@@ -1035,3 +1035,54 @@ body.wert-zieht .timeline-marker.is-selected {
 /* Anfassbare Bänder (09.09.2026): Halt vor der ersten Gruppe und Übergänge — ziehen = Dauer, Klick = Stil */
 .tl-gruppe-band.ist-anfassbar { cursor: ew-resize; pointer-events: auto; }
 .tl-gruppe-band.ist-anfassbar:hover { filter: brightness(1.35); }
+
+/* ── Overlay-Spur (24.09.2026, docs/OVERLAY-BOXEN.md §6) ────────────────────
+   Kopfzeile „Overlays" (aufklappbar, zugeklappt dünne Striche je Box) und je
+   Box eine Zeile mit einem Balken: Schrägen = Ein-/Ausblendung, Ränder und
+   Schrägen-Griffe ziehbar. Abgeschaltete Box grau gestrichelt, ohne Klicks. */
+.timeline-lane[data-kind="ovkopf"] { height: 20px; }
+.timeline-lane[data-kind="ovkopf"] .lane-label { cursor: pointer; color: #e8c6ff; }
+.timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(232,160,255,.12); }
+.timeline-lane[data-kind="ovkopf"] .lane-track { cursor: pointer; }
+.timeline-lane[data-kind="ovkopf"].ist-offen .lane-track { cursor: default; }
+.timeline-lane[data-kind="ovkopf"].ist-offen .ov-mini { display: none; }
+.ov-mini { pointer-events: none; }
+.ov-strich { position: absolute; height: 2px; border-radius: 1px; background: #e8a0ff; opacity: .85; }
+.ov-strich.ist-aus { opacity: .25; }
+.timeline-lane[data-kind="ovbox"] { height: 24px; }
+/* Die Beschriftungsspalte bleibt 84 px breit, auch bei langen Box-Namen — sonst
+   verrutscht der Balken gegen die Zeitachse (in der echten App gesehen, 24.09.2026). */
+.timeline-lane[data-kind="ovbox"] .lane-label,
+.timeline-lane[data-kind="ovkopf"] .lane-label { min-width: 0; max-width: 84px; overflow: hidden; }
+.timeline-lane[data-kind="ovbox"] .lane-label { padding-left: 14px; }
+.timeline-lane[data-kind="ovbox"] .lane-markers { pointer-events: none; }
+.timeline-lane[data-kind="ovbox"].ist-aus .lane-label { opacity: .5; }
+.tl-ovbar {
+  --ov-farbe: #e8a0ff;
+  position: absolute; top: 3px; bottom: 3px; z-index: 2; pointer-events: auto;
+  box-sizing: border-box; border-radius: 4px; overflow: visible; cursor: grab;
+  border: 1px solid color-mix(in srgb, var(--ov-farbe) 70%, transparent);
+  background: color-mix(in srgb, var(--ov-farbe) 26%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  user-select: none; -webkit-user-drag: none;
+}
+.tl-ovbar:hover { background: color-mix(in srgb, var(--ov-farbe) 38%, transparent); }
+.tl-ovbar.ist-auswahl { box-shadow: 0 0 0 1px #fff inset; }
+.tl-ovbar.ist-aus {
+  pointer-events: none; cursor: default;
+  border: 1px dashed rgba(255,255,255,.3); background: rgba(255,255,255,.05);
+}
+.tl-ovbar.ist-aus .tl-ov-griff, .tl-ovbar.ist-aus .tl-ov-rand { display: none; }
+.tl-ov-rampe { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+/* Der dunkle Keil über der Schräge = der Teil, in dem die Box noch nicht (mehr) voll da ist. */
+.tl-ov-ein { left: 0; background: rgba(12,12,16,.55); clip-path: polygon(0 0, 100% 0, 0 100%); }
+.tl-ov-aus { right: 0; background: rgba(12,12,16,.55); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.tl-ov-name { font-size: 9.5px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 0 8px; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+.tl-ov-griff { position: absolute; top: -2px; width: 8px; height: 8px; margin-left: -4px; z-index: 4;
+  border-radius: 50%; background: #fff; border: 1px solid var(--ov-farbe); cursor: ew-resize; }
+.tl-ov-griff:hover { transform: scale(1.3); }
+.tl-ov-rand { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; z-index: 3; }
+.tl-ov-rand[data-griff="l"] { left: -1px; }
+.tl-ov-rand[data-griff="r"] { right: -1px; }
+.tl-ov-rand:hover { background: color-mix(in srgb, var(--ov-farbe) 60%, transparent); }

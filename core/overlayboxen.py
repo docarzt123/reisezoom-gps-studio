@@ -37,7 +37,11 @@ _HEX = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 STANDARD_IDS = ("totals", "live", "ele")
 BOX_TYPEN = ("totals", "live")
-AUSLOESER = ("s", "pct", "etappe_start", "etappe_ende", "start", "ende")
+# 24.09.2026 (Overlay-Spur, docs/OVERLAY-BOXEN.md §6): die Balkenränder der Timeline
+# sind `video_start` (s ab Videostart), `strecke` (Streckenanteil 0..1) und
+# `video_ende` (s vor Videoende). Die älteren Auslöser bleiben lesbar.
+AUSLOESER = ("s", "pct", "etappe_start", "etappe_ende", "start", "ende",
+             "video_start", "strecke", "video_ende")
 BLENDEN = ("none", "fade", "pop", "both")
 POSITIONEN = ("tl", "tr", "bl", "br", "tc", "bc", "cc", "ml", "mr", "tcw", "bcw")
 SCHRIFTEN = ("system", "nunito", "quicksand", "fredoka", "oswald", "bebas")
@@ -109,11 +113,13 @@ def global_stil(cfg) -> dict:
 
 
 def global_blende(cfg) -> dict:
-    return {
+    d = {
         "ein": _blendeart(_get(cfg, "overlay_entry", "none")),
         "aus": _blendeart(_get(cfg, "overlay_exit", "none")),
         "dauer_s": _rund(_clamp(_num(_get(cfg, "overlay_blende_s", 0.5), 0.5), 0.05, 10.0)),
     }
+    d["ein_s"] = d["aus_s"] = d["dauer_s"]
+    return d
 
 
 def _stil_mischen(basis: dict, ueber) -> dict:
@@ -150,6 +156,11 @@ def _blende_mischen(basis: dict, ueber) -> dict:
         out["aus"] = _blendeart(ueber.get("aus"), basis["aus"])
     if ueber.get("dauer_s") is not None:
         out["dauer_s"] = _rund(_clamp(_num(ueber.get("dauer_s"), basis["dauer_s"]), 0.05, 10.0))
+        out["ein_s"] = out["aus_s"] = out["dauer_s"]
+    # 24.09.2026 — Ein- und Ausblendung mit eigener Dauer (in der Timeline ziehbar).
+    for k in ("ein_s", "aus_s"):
+        if ueber.get(k) is not None:
+            out[k] = _rund(_clamp(_num(ueber.get(k), out[k]), 0.0, 30.0))
     return out
 
 
@@ -162,8 +173,10 @@ def _ausloeser(a):
     if art not in AUSLOESER:
         return None
     wert = _num(a.get("wert"), 0.0)
-    if art == "s":
+    if art in ("s", "video_start", "video_ende"):
         wert = max(0.0, wert)
+    elif art == "strecke":
+        wert = _clamp(wert, 0.0, 1.0)
     elif art == "pct":
         wert = _clamp(wert, 0.0, 100.0)
     elif art in ("etappe_start", "etappe_ende"):
@@ -210,8 +223,13 @@ def _bezug(v, default="gesamt"):
 
 
 def _zeit_trivial(z) -> bool:
-    return (z is None) or (z["von"]["art"] == "s" and z["von"]["wert"] <= 0
-                           and z["bis"] is None and not z["dauer_s"])
+    """Ganze Zeit sichtbar: ab Videostart bis Videoende."""
+    if z is None:
+        return True
+    von, bis = z["von"], z["bis"]
+    von_null = von["art"] in ("s", "video_start") and von["wert"] <= 0
+    bis_ende = bis is None or (bis["art"] == "video_ende" and bis["wert"] <= 0)
+    return von_null and bis_ende and not z["dauer_s"]
 
 
 # ── Auflösung ────────────────────────────────────────────────────────────────

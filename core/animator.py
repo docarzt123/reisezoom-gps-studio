@@ -1467,6 +1467,30 @@ def _read_overlay_boxen_js() -> str:
     return (base / "ui" / "js" / "overlay_boxen.js").read_text(encoding="utf-8")
 
 
+def _ov_strecke_zeit(cum_dist, intro_frames, anim_frames, start_idx, end_idx,
+                     cpf, cpf_eff, delay_frames, fps, max_n: int = 1500) -> list:
+    """[[Streckenanteil, Videosekunde], …] aufsteigend — wann der Laufpunkt der
+    Bildschleife eine Stelle erreicht (dieselbe idx-Formel wie in `render`).
+    Anteile wie in `window.__overlayTiming` (cumDistM[idx] relativ zur Spanne)."""
+    n = len(cum_dist or [])
+    if n < 2 or anim_frames < 1:
+        return []
+    d0 = float(cum_dist[0])
+    span = float(cum_dist[n - 1]) - d0
+    schritt = max(1, anim_frames // max_n)
+    out, letzt = [], -1.0
+    for af in list(range(0, anim_frames, schritt)) + [anim_frames - 1]:
+        rel = int(af * cpf)
+        if delay_frames:
+            rel = int(max(0, af - delay_frames) * cpf_eff)
+        idx = max(0, min(n - 1, min(start_idx + rel, end_idx)))
+        f = (float(cum_dist[idx]) - d0) / span if span > 0 else idx / (n - 1)
+        if f > letzt + 1e-9:
+            out.append([round(f, 6), round((intro_frames + af) / max(1, fps), 4)])
+            letzt = f
+    return out
+
+
 def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
     """<script>: window.__overlayTiming(tSekunde) blendet Boxen, Zeilen und
     Diagramme nach ihren Auslösern ein und aus (Blende, Pop) und setzt Bezug-
@@ -1487,6 +1511,7 @@ def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
         "if(cd&&cd.length>1){var k=Math.max(0,Math.min(i,cd.length-1)),d0=cd[0],sp=cd[cd.length-1]-d0;"
         "f=sp>0?(cd[k]-d0)/sp:k/(cd.length-1);}"
         "if(sn&&sn.length){st=sn[Math.max(0,Math.min(i,sn.length-1))]||0;}"
+        "if(!C.strecke_zeit&&window.__rzOvStreckeZeit){C.strecke_zeit=window.__rzOvStreckeZeit;}"
         "window.rzOverlayBoxen.anwenden(document,B,t,f,st,C,S);};})();</script>"
     )
 
@@ -5979,6 +6004,18 @@ async def render(
             # setPadding rufen wenn sich nichts ändert.
             _last_position_applied = None
             _ov_timed = _overlay_has_timing(cfg)  # v0.9.228 — Overlay-Zeitfenster aktiv?
+            if _ov_timed:
+                # 24.09.2026 (Overlay-Spur) — wann der Laufpunkt welchen Streckenanteil
+                # erreicht, mit GENAU der idx-Rechnung der Bildschleife unten. Damit rechnet
+                # ui/js/overlay_boxen.js Trackpunkt-Kanten vorab in Sekunden um, und eine
+                # Box ist am Balkenende ganz weg (die Ausblendung liegt davor).
+                try:
+                    await page.evaluate("window.__rzOvStreckeZeit = " + json.dumps(
+                        _ov_strecke_zeit(cum_dist, intro_frames, anim_frames, _start_idx, _end_idx,
+                                         coords_per_frame, coords_per_frame_eff, _haupt_delay_frames,
+                                         cfg.fps)))
+                except Exception as e:
+                    _log.warning("Overlay: Strecke→Zeit-Tabelle nicht gesetzt: %s", e)
             # ── Render-Timing-Diagnose (env RZ_RENDER_TIMING=1) ──────────────
             # Misst pro Frame, wo die Zeit draufgeht. Verändert den Render NICHT
             # (reine Messung). Summary wird am Ende geloggt. v0.9.245
