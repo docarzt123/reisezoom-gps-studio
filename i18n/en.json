@@ -4161,5 +4161,6 @@
   "animator.ov.seg_neu": "Another span",
   "animator.ovbox.time_n": "Span {n}",
   "animator.ovbox.time_hint_mehr": "More spans: double-click an empty spot in the row.",
-  "animator.ov.mehr_zeitraeume": "This box has {n} spans — edit them in the timeline under “Overlays” or in the ✎ window."
+  "animator.ov.mehr_zeitraeume": "This box has {n} spans — edit them in the timeline under “Overlays” or in the ✎ window.",
+  "animator.lane.klapp_tip": "Collapse or expand this lane"
 }

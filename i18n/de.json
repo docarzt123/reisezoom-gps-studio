@@ -4161,5 +4161,6 @@
   "animator.ov.seg_neu": "Weiterer Zeitraum",
   "animator.ovbox.time_n": "Zeitraum {n}",
   "animator.ovbox.time_hint_mehr": "Weitere Zeiträume: Doppelklick auf eine freie Stelle der Zeile.",
-  "animator.ov.mehr_zeitraeume": "Diese Box hat {n} Zeiträume — bearbeiten in der Zeitleiste unter „Overlays“ oder im ✎-Fenster."
+  "animator.ov.mehr_zeitraeume": "Diese Box hat {n} Zeiträume — bearbeiten in der Zeitleiste unter „Overlays“ oder im ✎-Fenster.",
+  "animator.lane.klapp_tip": "Spur klein- oder aufklappen"
 }

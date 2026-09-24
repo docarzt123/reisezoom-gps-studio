@@ -8916,10 +8916,17 @@ function mountAnimator(body, headerActions, opts) {
       // echte Texteingabe tabu (dort braucht man das Leerzeichen); bei Regler, Häkchen,
       // Auswahl und Knöpfen startet die Leertaste die Vorschau — und wird geschluckt,
       // damit sie nicht nebenbei das Häkchen kippt oder das Menü aufklappt.
+      // 24.09.2026 (Marc: „Probelauf mit Space klappt nicht immer, das soll IMMER gehen"):
+      // Zahlenfelder (⏱-Sekunden, Intro/Hold, Blendendauer …) galten als Texteingabe —
+      // wer dort etwas eintippte, behielt den Fokus, und die Leertaste war tot. In einem
+      // Zahlenfeld gibt es kein Leerzeichen; es zählt jetzt wie ein Regler.
       const istText = ae?.isContentEditable || tag === "textarea"
-        || (tag === "input" && !/^(range|checkbox|radio|color|button|submit|reset|file)$/i.test(ae.type || "text"));
+        || (tag === "input" && !/^(range|checkbox|radio|color|button|submit|reset|file|number)$/i.test(ae.type || "text"));
       const istSpace = (e.key === " " || e.code === "Space");
       if (istText) return;
+      // Gehaltene Leertaste: die Wiederholungen schalteten Start/Stopp im Takt der
+      // Tastenwiederholung — am Ende stand der Lauf zufällig an oder aus.
+      if (istSpace && e.repeat) { e.preventDefault(); e.stopPropagation(); return; }
       { const ov = document.getElementById("modal-overlay"); if (ov && !ov.hidden) return; }   // Dialog offen: Tasten gehören ihm
       if (!istSpace && (tag === "input" || tag === "select")) return;   // Pfeile gehören dem Regler
       if (istSpace) {

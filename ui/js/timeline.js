@@ -74,7 +74,7 @@ function mountTimelineBar(opts) {
   ];
   const lanesHtml = LANES.map(L => `
     <div class="timeline-lane" data-kind="${L.kind}" style="--lane-color: ${L.color};">
-      <div class="lane-label" title="${L.tip || L.label}"><span class="lane-icon">${L.icon}</span><span class="lane-name">${L.label}</span></div>
+      <div class="lane-label" title="${L.tip || L.label}"><span class="lane-klapp" role="button" title="${tlT("animator.lane.klapp_tip", "Spur klein- oder aufklappen")}">▾</span><span class="lane-icon">${L.icon}</span><span class="lane-name">${L.label}</span></div>
       <div class="lane-track">
         <div class="lane-axis"></div>
         <div class="lane-markers" id="tl-lane-${L.kind}"></div>
@@ -88,8 +88,12 @@ function mountTimelineBar(opts) {
              der den GANZEN Cluster (alle 4 Properties zusammen) verschiebt.
              Marc-Spec 2026-05-23: „mach doch oben drüber einen marker, um den
              cluster zu bewegen, das ist am intuitivsten". -->
+        <!-- 24.09.2026 (Marc: „die Overlays ganz nach oben, über Cluster") — eigener Behälter
+             für die Overlay-Spur; setOverlays() füllt ihn. -->
+        <div class="timeline-ov" id="tl-ov"></div>
         <div class="timeline-cluster-row" data-kind="__cluster">
           <div class="lane-label cluster-label" title="${tlT('animator.lane.cluster_tip', 'Klick: alle Properties auswählen · Drag: alle zusammen verschieben · Rechtsklick: alles löschen')}">
+            <span class="lane-klapp" role="button" title="${tlT("animator.lane.klapp_tip", "Spur klein- oder aufklappen")}">▾</span>
             <span class="lane-icon">🎬</span>
             <span class="lane-name">${tlT('animator.lane.cluster', 'Cluster')}</span>
           </div>
@@ -485,12 +489,13 @@ function mountTimelineBar(opts) {
       lane.dataset.kind = "gruppe";
       lane.dataset.zeile = String(i + 1);
       lane.style.setProperty("--lane-color", "#7fb8ff");
-      lane.innerHTML = `<div class="lane-label" title="${tlT("animator.lane.gruppe_tip", "Parallel: diese Gruppen laufen gleichzeitig mit der Zeile darüber. Ziehen verschiebt, die Ränder ändern die Länge, Doppelklick öffnet.")}"><span class="lane-icon">∥</span><span class="lane-name">${tlT("animator.lane.gruppe", "parallel")}</span></div>
+      lane.innerHTML = `<div class="lane-label" title="${tlT("animator.lane.gruppe_tip", "Parallel: diese Gruppen laufen gleichzeitig mit der Zeile darüber. Ziehen verschiebt, die Ränder ändern die Länge, Doppelklick öffnet.")}"><span class="lane-klapp" role="button" title="${tlT("animator.lane.klapp_tip", "Spur klein- oder aufklappen")}">▾</span><span class="lane-icon">∥</span><span class="lane-name">${tlT("animator.lane.gruppe", "parallel")}</span></div>
         <div class="lane-track"><div class="lane-axis"></div><div class="lane-markers" id="tl-lane-gruppe-${i + 1}"></div></div>`;
       // hinter der letzten Gruppen-Zeile bzw. hinter der Tempo-Spur
       const vorher = lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]');
       const anker = vorher.length ? vorher[vorher.length - 1] : tempoLane;
       anker.insertAdjacentElement("afterend", lane);
+      _kleinAnwenden(lane);
       _gruppenBinden(lane.querySelector(".lane-track"), i + 1);
     }
     const jetzt = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]'));
@@ -824,7 +829,7 @@ function mountTimelineBar(opts) {
     _ovZeichnen();
   }
   function _ovZeilenSicherstellen() {
-    const lanes = host.querySelector(".timeline-lanes");
+    const lanes = host.querySelector("#tl-ov");
     if (!lanes) return;
     let kopf = lanes.querySelector('.timeline-lane[data-kind="ovkopf"]');
     if (!_ov.length) {
@@ -838,11 +843,8 @@ function mountTimelineBar(opts) {
       kopf.style.setProperty("--lane-color", "#e8a0ff");
       kopf.innerHTML = `<div class="lane-label ov-kopf-label" role="button" tabindex="0" title="${_esc(tlT("animator.lane.overlays_tip", "Wann die Stats-Boxen zu sehen sind. Aufklappen, dann Balken ziehen: verschieben, Ränder ändern Anfang und Ende, die Schrägen innen sind Ein- und Ausblendung. Doppelklick oder Rechtsklick öffnet die Box."))}"><span class="lane-icon ov-kopf-pfeil">▸</span><span class="lane-name">${tlT("animator.lane.overlays", "Overlays")}</span></div>
         <div class="lane-track"><div class="lane-markers ov-mini" id="tl-ov-mini"></div></div>`;
-      // ganz nach unten, unter die Kamera-Spuren? Nein — direkt unter Tempo/Gruppen,
-      // damit sie auch ohne Keyframe-Editor zusammen mit der Tempo-Spur sichtbar ist.
-      const gr = lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]');
-      const anker = gr.length ? gr[gr.length - 1] : lanes.querySelector('.timeline-lane[data-kind="tempo"]');
-      if (anker) anker.insertAdjacentElement("afterend", kopf); else lanes.prepend(kopf);
+      // ganz oben, über der Cluster-Zeile (Marc, 24.09.2026) — eigener Behälter #tl-ov.
+      lanes.prepend(kopf);
       const umschalten = () => {
         _ovOffen = !_ovOffen;
         _ovZeilenSicherstellen(); _ovZeichnen();
@@ -858,6 +860,7 @@ function mountTimelineBar(opts) {
     // Box-Zeilen: genau die aktuellen, in Reihenfolge, direkt unter dem Kopf.
     const da = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="ovbox"]'));
     const soll = _ovOffen ? _ov.map(o => o.id) : [];
+    _ovHoeheMelden();
     da.forEach(z => { if (soll.indexOf(z.dataset.id) < 0) z.remove(); });
     let vorher = kopf;
     for (const id of soll) {
@@ -875,6 +878,56 @@ function mountTimelineBar(opts) {
       vorher = z;
     }
   }
+  /** Wo die Trim-Griffe beginnen: unter der Cluster-Zeile, die jetzt unter der
+   *  Overlay-Spur sitzt und klein geklappt sein kann (CSS-Variable --tl-trim-top). */
+  function _ovHoeheMelden() {
+    const box = host.querySelector("#tl-ov"), tr = host.querySelector("#tl-track");
+    if (!box || !tr) return;
+    requestAnimationFrame(() => {
+      try {
+        const cl = tr.querySelector(".timeline-cluster-row");
+        const unten = (cl && cl.offsetParent) ? cl.offsetTop + cl.offsetHeight + 2 : 30 + (box.offsetHeight || 0);
+        tr.style.setProperty("--tl-trim-top", unten + "px");
+      } catch (_) {}
+    });
+  }
+  // ── Spuren klein klappen (24.09.2026, Marc: „jede Spur … kleiner klappen, wie die
+  //    Overlays") — ▾ in der Beschriftung; gemerkt je Spur-Art im Browser-Speicher. ──
+  const _KLEIN_KEY = "rz-tl-klein";
+  function _kleinSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(_KLEIN_KEY) || "[]")); } catch (_) { return new Set(); }
+  }
+  function _kleinArt(el) { return el.dataset.kind === "gruppe" ? "gruppe" : el.dataset.kind; }
+  function _kleinAnwenden(el) {
+    const klein = _kleinSet().has(_kleinArt(el));
+    el.classList.toggle("ist-klein", klein);
+    const k = el.querySelector(".lane-klapp"); if (k) k.textContent = klein ? "▸" : "▾";
+  }
+  // Umschalten schon beim Drücken: ein echter Mausklick kam in WebKit nicht als
+  // „click" an (die Zeitleiste verarbeitet Drücken/Loslassen selbst) — per Skript
+  // ging es, mit der Maus nicht (Prüfstand 24.09.2026).
+  function _kleinUmschalten(el) {
+    const art = _kleinArt(el), set = _kleinSet();
+    if (set.has(art)) set.delete(art); else set.add(art);
+    try { localStorage.setItem(_KLEIN_KEY, JSON.stringify([...set])); } catch (_) {}
+    host.querySelectorAll(".timeline-lane, .timeline-cluster-row").forEach((x) => { if (_kleinArt(x) === art) _kleinAnwenden(x); });
+    _ovHoeheMelden();
+  }
+  host.addEventListener("mousedown", (ev) => {
+    const k = ev.target.closest && ev.target.closest(".lane-klapp");
+    if (!k) return;
+    ev.preventDefault(); ev.stopPropagation();
+    if (ev.button !== 0) return;
+    const el = k.closest(".timeline-lane, .timeline-cluster-row");
+    if (el) _kleinUmschalten(el);
+  }, true);
+  host.addEventListener("click", (ev) => {
+    if (ev.target.closest && ev.target.closest(".lane-klapp")) { ev.preventDefault(); ev.stopPropagation(); }
+  }, true);
+  // Höhe der Leiste ändert sich (Keyframe-Editor an/aus, Spuren klein) → Trim-Griffe neu ansetzen.
+  try { new ResizeObserver(() => _ovHoeheMelden()).observe(host.querySelector("#tl-track")); } catch (_) {}
+  host.querySelectorAll(".timeline-lane, .timeline-cluster-row").forEach(_kleinAnwenden);
+  _ovHoeheMelden();
   const _ovPct = (x) => _anchorToPct(x);
   function _ovZeichnen() {
     const mini = host.querySelector("#tl-ov-mini");
@@ -1659,6 +1712,7 @@ function mountTimelineBar(opts) {
   function refresh() {
     // Wer alles zeichnet, braucht keinen angemeldeten Durchlauf mehr.
     _zeichnungVerwerfen();
+    _ovHoeheMelden();
     try { _ovZeichnen(); } catch (e) { console.warn("Overlay-Spur:", e); }
     const events = getEvents();
     const clusters = computeClusters(events);
@@ -1817,6 +1871,7 @@ function mountTimelineBar(opts) {
   }
 
   function setEnabled(en) {
+    setTimeout(_ovHoeheMelden, 0);   // Cluster-Zeile ein/aus → Trim-Griffe neu ansetzen
     _enabled = !!en;
     host.classList.toggle("is-disabled", !_enabled);
     btnSnap.disabled = !_enabled;
