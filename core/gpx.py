@@ -141,6 +141,34 @@ def _compute_ascent_descent(eles, smooth_window: int = 5, threshold_m: float = 3
     return ascent, descent
 
 
+def _tempo_gefiltert(cum_time: list, cum_dist: list) -> list:
+    """Segment-Tempo (m/s, Segment i = Punkt i → i+1) nach dem Median-Filter
+    (Fenster 5) — die Grundlage des Spitzentempos in `compute_moving_and_max`.
+    Eigene Funktion seit 24.09.2026, damit `arten_stats` die Spitze eines
+    Abschnitts aus der Rechnung über den GANZEN Track nimmt: am Rand eines
+    kurzen Stücks ist das Fenster gekappt und ließ GPS-Sprünge durch
+    (Fahrt-Box zeigte 553 km/h, die Gesamt-Box 112)."""
+    seg = []  # Segment-Geschwindigkeiten in m/s
+    for i in range(1, len(cum_time)):
+        dt = cum_time[i] - cum_time[i - 1]
+        seg.append((cum_dist[i] - cum_dist[i - 1]) / dt if dt > 0 else 0.0)
+    HW_MED = 2  # ±2 → Fenster 5; killt isolierte Einzel-/Doppel-Ausreißer
+    # 14.09.2026: Median von Hand statt `statistics.median` (dieselbe Rechnung:
+    # sortieren, Mitte bzw. Mittel der zwei mittleren) — bei 150 000 Punkten
+    # sparte das den Funktionsaufruf-Overhead je Fenster, Ergebnis bitgleich.
+    ns = len(seg)
+    out = []
+    for i in range(ns):
+        lo = i - HW_MED if i > HW_MED else 0
+        hi = i + HW_MED + 1
+        if hi > ns:
+            hi = ns
+        w = sorted(seg[lo:hi])
+        k = len(w)
+        out.append(w[k // 2] if k % 2 == 1 else (w[k // 2 - 1] + w[k // 2]) / 2)
+    return out
+
+
 def compute_moving_and_max(pts: List[TrackPoint]) -> tuple[float, float]:
     """Bewegungszeit (s) + Spitzentempo (km/h) aus Trackpunkten.
 
@@ -176,26 +204,8 @@ def compute_moving_and_max(pts: List[TrackPoint]) -> tuple[float, float]:
     # Nachbarn überstimmt (egal ob bei 5 oder 500 km/h), echtes anhaltendes
     # Tempo (≥3 Nachbarpunkte einig) bleibt. Ein fester Cap würde nur schnelle
     # Tracks (Auto/Zug/Flug) fälschlich beschneiden.
-    seg = []  # Segment-Geschwindigkeiten in m/s
-    for i in range(1, n):
-        dt = cum_time[i] - cum_time[i - 1]
-        seg.append((cum_dist[i] - cum_dist[i - 1]) / dt if dt > 0 else 0.0)
-    HW_MED = 2  # ±2 → Fenster 5; killt isolierte Einzel-/Doppel-Ausreißer
-    max_ms = 0.0
-    # 14.09.2026: Median von Hand statt `statistics.median` (dieselbe Rechnung:
-    # sortieren, Mitte bzw. Mittel der zwei mittleren) — bei 150 000 Punkten
-    # sparte das den Funktionsaufruf-Overhead je Fenster, Ergebnis bitgleich.
-    ns = len(seg)
-    for i in range(ns):
-        lo = i - HW_MED if i > HW_MED else 0
-        hi = i + HW_MED + 1
-        if hi > ns:
-            hi = ns
-        w = sorted(seg[lo:hi])
-        k = len(w)
-        m = w[k // 2] if k % 2 == 1 else (w[k // 2 - 1] + w[k // 2]) / 2
-        if m > max_ms:
-            max_ms = m
+    gefiltert = _tempo_gefiltert(cum_time, cum_dist)
+    max_ms = max(gefiltert) if gefiltert else 0.0
 
     # --- Bewegungszeit: 60s-Gleitfenster, Netto-Verschiebung ---
     HW = 60.0
@@ -403,6 +413,64 @@ def etappen_stats(pts) -> dict:
             "start_epoch": ep[0] if ep else None, "end_epoch": ep[-1] if ep else None,
         }
     return out
+
+
+# 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart. Welche Arten zählen:
+# alles, was Bewegung ist; Pausen, Übernachtungen und Unsicheres nicht.
+ARTEN_MIT_ZAHLEN = ("wanderung", "spaziergang", "gehen", "laufen", "rad", "fahrt",
+                    "uebersetzen", "wassersport")
+
+
+def arten_stats(pts, bereiche) -> dict:
+    """Kennzahlen je Bewegungsart über die Logbuch-Bereiche ({art, t0, t1} in
+    Epoch) — gleiche Form wie `etappen_stats`, Schlüssel `art:<art>`. Mehrere
+    Bereiche derselben Art werden zusammengezählt (Strecke, Zeit, Höhenmeter),
+    Tempo-Spitze und Höhen sind Maximum/Minimum. Auf den VOLLEN Punkten rechnen.
+    Leer ohne Bereiche oder ohne Zeitstempel."""
+    from . import zeitzone as _zz
+    if not pts or not bereiche:
+        return {}
+    ep = [_zz.epoch_von_iso(p.time) for p in pts]
+    # Spitzentempo aus dem Filter über den ganzen Track (s. _tempo_gefiltert)
+    hat_zeit = bool(pts[-1].elapsed_s) and any(p.time for p in pts)
+    tempo = _tempo_gefiltert([p.elapsed_s for p in pts], [p.dist_m for p in pts]) if hat_zeit else []
+    je = {}
+    for b in bereiche:
+        try:
+            art = str(b.get("art") or "")
+            t0, t1 = float(b.get("t0")), float(b.get("t1"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if art not in ARTEN_MIT_ZAHLEN or t1 <= t0:
+            continue
+        idx = [i for i, e in enumerate(ep) if e is not None and t0 <= e <= t1]
+        if len(idx) < 2:
+            continue
+        g = [pts[i] for i in idx]
+        eles = [q.ele for q in g if q.ele is not None]
+        asc, desc = _compute_ascent_descent(eles) if len(eles) >= 2 else (0.0, 0.0)
+        mov, _vmax_stueck = compute_moving_and_max(g)
+        vmax = max((tempo[i] for i in range(idx[0], min(idx[-1], len(tempo)))), default=0.0) * 3.6
+        e0 = _zz.epoch_von_iso(g[0].time)
+        e1 = _zz.epoch_von_iso(g[-1].time)
+        x = je.setdefault("art:" + art, {"distance_m": 0.0, "duration_s": 0.0, "moving_time_s": 0.0,
+                                         "max_speed_kmh": 0.0, "ascent_m": 0.0, "descent_m": 0.0,
+                                         "ele_max": None, "ele_min": None,
+                                         "start_epoch": None, "end_epoch": None})
+        x["distance_m"] += max(0.0, g[-1].dist_m - g[0].dist_m)
+        x["duration_s"] += max(0.0, g[-1].elapsed_s - g[0].elapsed_s)
+        x["moving_time_s"] += float(mov or 0.0)
+        x["max_speed_kmh"] = max(x["max_speed_kmh"], float(vmax or 0.0))
+        x["ascent_m"] += asc
+        x["descent_m"] += desc
+        if eles:
+            x["ele_max"] = max(eles) if x["ele_max"] is None else max(x["ele_max"], max(eles))
+            x["ele_min"] = min(eles) if x["ele_min"] is None else min(x["ele_min"], min(eles))
+        if e0 is not None and (x["start_epoch"] is None or e0 < x["start_epoch"]):
+            x["start_epoch"] = e0
+        if e1 is not None and (x["end_epoch"] is None or e1 > x["end_epoch"]):
+            x["end_epoch"] = e1
+    return je
 
 
 def unsichtbare_bereiche(pts) -> list:

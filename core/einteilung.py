@@ -330,8 +330,28 @@ def zusammenfuehren(alt: List[dict], neu: List[dict]) -> List[dict]:
             continue
         ergebnis = _ausschneiden(ergebnis, h["t0"], h["t1"])
     ergebnis += [dict(h) for h in hand]
+    _anzeige_uebertragen(alt, ergebnis)
     ergebnis.sort(key=lambda b: (b["t0"], b["t1"]))
     return ergebnis
+
+
+def _anzeige_uebertragen(alt: List[dict], neu: List[dict]) -> None:
+    """Die Anzeige im Video (zeigen · blass · raffen · überspringen) ist eine
+    Darstellungswahl an automatischen Bereichen. Beim Neuberechnen bekommt jeder
+    neue automatische Bereich die Wahl des alten Bereichs, in dem seine Mitte
+    liegt (24.09.2026)."""
+    quellen = [b for b in (alt or []) if b.get("anzeige") and b.get("quelle") != "hand"
+               and not _ist_punkt(b)]
+    if not quellen:
+        return
+    for b in neu:
+        if b.get("quelle") == "hand" or _ist_punkt(b) or b.get("anzeige"):
+            continue
+        mitte = (float(b["t0"]) + float(b["t1"])) / 2
+        for q in quellen:
+            if float(q["t0"]) <= mitte <= float(q["t1"]):
+                b["anzeige"] = q["anzeige"]
+                break
 
 
 def neu_berechnen(conn: sqlite3.Connection, tour: str, art: str, points,
@@ -375,7 +395,8 @@ def bereich_setzen(conn: sqlite3.Connection, eid: str, t0: float, t1: float, art
 
 def bereich_aendern(conn: sqlite3.Connection, eid: str, bid, **felder) -> dict:
     """Art, Name, Notiz oder Anzeige ändern. Macht den Bereich zu Handarbeit,
-    außer bei der reinen Anzeige — die ist eine Darstellungswahl, keine Korrektur.
+    außer bei der reinen Anzeige — die ist eine Darstellungswahl, keine Korrektur
+    (sie überlebt das Neuberechnen über `_anzeige_uebertragen`).
 
     `bid` darf eine Liste sein (Logbuch §68: ein Eintrag besteht aus mehreren
     rohen Bereichen) — dann bekommen alle dieselben Felder.
@@ -393,6 +414,9 @@ def bereich_aendern(conn: sqlite3.Connection, eid: str, bid, **felder) -> dict:
             a = str(felder["anzeige"] or "")
             if a not in ANZEIGEN:
                 raise ValueError(f"unbekannte Anzeige: {a}")
+            # 24.09.2026 — bleibt „auto": Handarbeit würde den Eintrag aus dem
+            # Zusammenfassen im Logbuch nehmen (eine Fahrt zerfiel in Rad/Fahrt/Rad …).
+            # Das Neuberechnen trägt die Anzeige über die Zeit weiter (zusammenfuehren).
             b["anzeige"] = a
         if inhalt:
             b["quelle"] = "hand"

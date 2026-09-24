@@ -1564,6 +1564,12 @@ def _overlay_boxen_params(params: dict) -> dict:
             out["overlay_shadow"] = bool(params.get("overlay_shadow"))
         if isinstance(params.get("overlay_boxen"), list):
             out["overlay_boxen"] = [b for b in params["overlay_boxen"] if isinstance(b, dict)]
+        # 24.09.2026 — Bewegungsarten aus dem Logbuch ({art, t0, t1}) für „Zahlen für: nur Wanderung"
+        if isinstance(params.get("bewegung_bereiche"), list):
+            out["bewegung_bereiche"] = [m for m in params["bewegung_bereiche"] if isinstance(m, dict)]
+        # 24.09.2026 — Logbuch-Bereiche im Video (blass/überspringen → Linien-Maske)
+        if isinstance(params.get("logbuch_masken"), list):
+            out["logbuch_masken"] = [m for m in params["logbuch_masken"] if isinstance(m, dict)]
     except (TypeError, ValueError) as e:
         log.warning("[overlay] Box-Parameter unlesbar, nehme Standard: %s", e)
     return out
@@ -6155,6 +6161,8 @@ class Api:
                 "stage": cgpx.etappen_reihen(ds, stats.seg_names),
                 # 23.09.2026 — Kennzahlen je Etappe (Overlay-Box-Bezug), volle Punkte
                 "stage_stats": cgpx.etappen_stats(pts),
+                # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart aus dem Logbuch
+                "art_stats": self._art_stats_fuer(path, pts),
             }
             _t_ui = _ui_t()   # v0.9.507 — Katalog-Labels in der App-Sprache
             return {
@@ -10565,6 +10573,60 @@ class Api:
                     "hoechster": lb["hoechster"], "tage": tage, "n": len(lb["eintraege"])}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "vorhanden": False}
+
+    def _art_stats_fuer(self, path: str, pts) -> dict:
+        """Kennzahlen je Bewegungsart für die Vorschau (IDEAS §67 Q16). Leer, wenn
+        die Tour nicht im Archiv ist oder keine Zeitstempel hat."""
+        try:
+            r = self.animator_logbuch_bereiche(path)
+            if not r.get("ok"):
+                return {}
+            return cgpx.arten_stats(pts, r.get("bereiche") or [])
+        except Exception as e:  # noqa: BLE001
+            log.warning("art_stats: %s", e)
+            return {}
+
+    def animator_logbuch_bereiche(self, path: str) -> dict:
+        """Logbuch-Einträge einer Tour für den Animator (IDEAS §67 Q11 / §68 Q19,
+        24.09.2026): je Eintrag Art, Name, Uhrzeit, gewählte Anzeige im Video
+        (zeigen · blass · raffen · überspringen) und die Lage als Anteil der Punkte
+        (0..1 über die ganze Datei — dieselbe Achse wie die Tempo-Abschnitte).
+        Pausen/Übernachtungen zählen mit, Punkt-Einträge (Gipfel …) nicht."""
+        try:
+            lb = self.logbuch_lesen(path)
+            if not lb.get("ok"):
+                return {"ok": False, "grund": lb.get("grund") or "", "error": lb.get("error") or ""}
+            from core import logbuch as clb
+            pts, _st = cgpx.parse_gpx(path)
+            zeiten = [clb._epoch(getattr(p_, "time", None)) for p_ in pts]
+            n = len(pts)
+            gueltig = [(i, z) for i, z in enumerate(zeiten) if z is not None]
+
+            def anteil(t: float, erster: bool) -> float:
+                if n < 2 or not gueltig:
+                    return 0.0
+                if erster:
+                    i = next((i for i, z in gueltig if z >= t), gueltig[-1][0])
+                else:
+                    i = next((i for i, z in reversed(gueltig) if z <= t), gueltig[0][0])
+                return round(i / (n - 1), 6)
+
+            out = []
+            for e in lb.get("eintraege") or []:
+                t0, t1 = float(e.get("t0") or 0), float(e.get("t1") or 0)
+                if t1 <= t0:
+                    continue
+                out.append({"id": e.get("id"), "bids": e.get("bids") or [e.get("id")],
+                            "art": e.get("anzeige_art") or e.get("art") or "",
+                            "name": e.get("name") or "", "t0": t0, "t1": t1,
+                            "versatz_min": e.get("versatz_min") or 0,
+                            "strecke_m": float(e.get("strecke_m") or 0),
+                            "anzeige": e.get("anzeige") or "",
+                            "von": anteil(t0, True), "bis": anteil(t1, False)})
+            return {"ok": True, "eid": lb.get("eid"), "bereiche": out}
+        except Exception as e:  # noqa: BLE001
+            log.warning("animator_logbuch_bereiche: %s", e)
+            return {"ok": False, "error": str(e)}
 
     def logbuch_lesen(self, path: str, neu: bool = False) -> dict:
         """Das Logbuch der Tour zu dieser Datei: die lesbare Folge (core/logbuch)

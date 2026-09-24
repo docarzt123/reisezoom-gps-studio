@@ -221,6 +221,9 @@ def _bezug(v, default="gesamt"):
         return default
     if v in ("gesamt", "laufend"):
         return v
+    # 24.09.2026 (IDEAS §67 Q16) — Zahlen nur einer Bewegungsart, z. B. "art:wanderung"
+    if isinstance(v, str) and re.match(r"^art:[a-z_]{2,20}$", v):
+        return v
     if isinstance(v, bool):
         return default
     if isinstance(v, (int, float)):
@@ -336,10 +339,11 @@ def hat_zeitsteuerung(cfg) -> bool:
             continue
         if b["blende"]["ein"] != "none" or b["blende"]["aus"] != "none":
             return True
-        if len(b.get("zeiten") or []) > 1 or not _zeit_trivial(b["zeit"]) or b["bezug"] == "laufend":
+        # Bezug ≠ gesamt: der Wert wird zur Laufzeit gesetzt (auch feste Etappe / Bewegungsart)
+        if len(b.get("zeiten") or []) > 1 or not _zeit_trivial(b["zeit"]) or b["bezug"] != "gesamt":
             return True
         for z in b["zeilen"].values():
-            if z["zeit"] is not None or z["bezug"] == "laufend":
+            if z["zeit"] is not None or z["bezug"] != "gesamt":
                 return True
     return False
 

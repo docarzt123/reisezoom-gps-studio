@@ -1459,6 +1459,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **Figures per stage:** For merged tours, a totals box offers **“Figures for”**: the whole route, the **current stage** (the figures change with the stage in the video) or one particular stage.
 
+**Figures per movement type (since v0.9.724):** If the tour is in the archive and has a logbook, “Figures for” also offers **“hike only”, “drive only”, “bike only” …** — the box then shows distance, time, average speed and climb for that movement type only. A tour with a drive to the trailhead no longer mixes car and hike into one average. It is based on the tour’s logbook, including your corrections in the Inspector.
+
 **Individual rows:** At the bottom of the window every row of the box has a ✎. A row can get its own text colour, size (50–300 %), bold, its own timing, its own fades and its own stage figures. Without its own timing the row appears together with the box.
 
 **More boxes:** Below the elevation profile, **＋ Box** adds an extra box, for example a second totals box in the middle of the frame just for the end. In the window you choose heading, content (Total stats or Live stats), position and fields. In the list you switch each box on and off, **⧉** duplicates it, **✕** deletes it after asking.
@@ -2410,6 +2412,8 @@ When you open a tour from the archive, the logbook appears **below the map**: a 
 **Entry as a separate tour (since v0.9.718):** right-click an entry (timeline, list or ⋯) → **📥 Save as separate tour in archive …** turns exactly this stretch into a new tour — named after the entry (or type + date) and with a matching activity (hike → hiking, bike → bike, drive → car). This is how you pull the hike out of a file that also contains the drive, without setting anchors.
 
 **In the archive:** under a tour's key figures you now find the **logbook summary** (“5 h drive · 1 ferry · 2 hikes · highest point 1,240 m”, plus the number of days for trips) — or honestly “no logbook yet” until you have opened the tour in the inspector once.
+
+**In the video (since v0.9.724):** Every logbook section can be **shown**, drawn **faded**, **sped up** (runs 8× faster) or **skipped** in the video (the line is gone, the dot jumps across in a split second) — e.g. the drive between two hikes. Set it in the Inspector via ⋯ or right-click on the entry (**“In the video”**, with ⌘Z) or in the Animator in the **“📖 Log in the video”** section (a choice per entry; **“All at once”** at the top sets e.g. every drive in one go, and on trips over several days day headers structure the list). Both are the same setting; it belongs to the tour and survives re-detection. The Inspector list marks such entries with ◌ / ⏩ / ⤼. With several tours in a row the stage schedule leads; it does not apply there yet.
 
 > The logbook exists for tours in the **archive** (it belongs to the tour, not to the file). A file from outside gets a note. The plan is in `docs/LOGBUCH.md`.
 
