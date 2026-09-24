@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **Release candidate 0.9.724** (tag `rc/0.9.724` on bbee310, 24.09.2026): CI run 36047845329, macOS notarized; identical to the tester build. Not released — releasing means tag `v0.9.724` on the same commit, rename this section to `[0.9.724]`, then deploy on Marc's word.
+
 ### Added
 - **Overlay lane in the animator timeline** (beta tester: wanted the total stats "from 25 s, gone 2 s before the end" and typed "25 – 1", so the box never showed; Marc: "drag them where they should appear"; decisions `docs/OVERLAY-BOXEN.md` §6). "▸ Overlays" under the tracks opens one row per box; each **bar is the time the box is visible**. Drag to move, edges set start and end, the two dots on top are **fade-in and fade-out with their own duration** (dark wedge). **At the end of the bar the box is fully gone** — the fade-out lies inside. No snapping. An edge is tied to what lies under it, like keyframes: seconds from the video start in the intro, a **point on the track** during the animation (stays when tempo or duration change), seconds before the video end in the hold ("2.0 s before the end"). The preview jumps to the dragged edge, the status line names the anchor. Double-click or right-click opens the box window; a switched-off box is grey and dashed; every drag is one undo step. Visible without the keyframe editor too; collapsed it shows thin stripes.
 - **Several spans per box**: double-click an empty spot in a box's row to add another span (3 s); overlapping spans merge. Right-click opens the box window, which lists "Span 1, 2 …" with a ✕ each. `zeit` may be a list (`zeiten` in the resolved box, Python and JS; one span is stored as before). Sidebar ⏱ fields become display-only when a box has several spans.
