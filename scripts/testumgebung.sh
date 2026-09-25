@@ -142,6 +142,11 @@ case "${1:-}" in
       printf '  Fotoschutz %s: %s\n' "$( [ "$o" = "$APP_ORDNER" ] && echo test || echo normal)" \
         "$( [ -f "$o/testrechner.json" ] && echo an || echo AUS)"
     done
+    if [ -f "$APP_ORDNER/cloud_zustand.json" ]; then
+      echo "  Cloud:      $("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("adresse","?"))' "$APP_ORDNER/cloud_zustand.json")"
+    else
+      echo "  Cloud:      nicht eingerichtet"
+    fi
     laeuft_test_app && echo "  Test-App läuft" || echo "  Test-App läuft nicht"
     ;;
   *)
