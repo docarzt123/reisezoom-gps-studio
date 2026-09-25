@@ -94,8 +94,14 @@ Im Terminal (Arbeitsordner `…/Reisezoom-GPS-Studio`):
 
 ### A5. Dateien auswählen
 
-Die App öffnet macOS-Dateidialoge. Am schnellsten: im Dialog **⌘⇧G** drücken, den Pfad
-einfügen (z. B. `~/GPS-Studio-Test/Arbeit/zum-oeffnen/01-formate/`), Enter, Datei wählen.
+Die App öffnet macOS-Dateidialoge. Am schnellsten: im Dialog **⌘⇧G** drücken und den **vollständigen Pfad
+samt Dateinamen** einfügen (z. B. `~/GPS-Studio-Test/Arbeit/zum-oeffnen/06-tagesdateien/reise-tag-3-2026-08-12.gpx`),
+Enter — das markiert genau diese Datei —, dann noch einmal Enter (= „Öffnen“). Nur ein Ordner geht auch; dann die
+Datei in der Liste anklicken.
+
+**Dialoge der Test-App** (Öffnen, Speichern, Rückfragen) dürfen die gelbe Kennung verdecken — sie gehören zur
+Test-App. Prüfe die Kennung vor dem Öffnen des Dialogs und wieder, sobald er zu ist. Ein Dialog, der zu einem
+**anderen** Programm gehört (Titelzeile, Programmname oben links in der Menüleiste), wird nicht bedient.
 **Speichern-Dialog:** Ordner per ⌘⇧G ansteuern, ins Namensfeld **nur den Dateinamen** tippen (z. B.
 `AN-12-Schildkroete.png`) — ein ganzer Pfad im Namensfeld wird von macOS zu einem Dateinamen
 mit Doppelpunkten („:Users:…“).
@@ -251,7 +257,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | IN-07 | Punkt anklicken → **Alles davor abschneiden** | Track beginnt dort; ⌘Z nimmt zurück |
 | IN-08 | Nach Tempo einfärben | Farbskala sichtbar, schnelle Stellen andersfarbig |
 | IN-09 | **Höhe korrigieren** (Karte statt GPS) | Läuft, Höhenprofil ändert sich plausibel |
-| IN-10 | **Tracks verbinden**: `zum-oeffnen/06-tagesdateien/reise-tag-1-…gpx` öffnen, Tag 2 und Tag 3 „nach Uhrzeit" anhängen | Ein Track, drei Tage; Nahtstellen-Lücke wird angezeigt, nicht überbrückt |
+| IN-10 | **Tracks verbinden**: `~/GPS-Studio-Test/Arbeit/zum-oeffnen/06-tagesdateien/reise-tag-1-2026-08-10.gpx` öffnen, dann `…/reise-tag-2-2026-08-11.gpx` und `…/reise-tag-3-2026-08-12.gpx` je „nach Uhrzeit" anhängen (im Dialog ⌘⇧G + vollständiger Pfad, siehe A5) | Ein Track, drei Tage; Nahtstellen-Lücke wird angezeigt, nicht überbrückt |
 | IN-11 | Geplante Route **geplant-2025-10-20_Rheinstei** öffnen | Keine roten Befunde; „Zeitachse erzeugen" nur, wenn keine Zeiten da sind |
 | IN-12 | `testumgebung.sh oeffnen ~/GPS-Studio-Test/Arbeit/zum-oeffnen/01-formate/demo_komoot.kml` (Hinweis „liegt schon im Archiv“ ist richtig: dieselbe Strecke wie *mischfall-wanderung-mit-auto*, dort mit Zeiten) → im Track-Check **Zeitachse erzeugen**, Wunschtempo 4 km/h | Dauer ≈ 175,7 km / 4 km/h ≈ 44 h; Kopf und Logbuch zeigen danach Zeiten |
 
