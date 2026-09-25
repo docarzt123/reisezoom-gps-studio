@@ -4182,5 +4182,6 @@
   "animator.lb.alle_tip": "Setzt die Anzeige für alle Einträge dieser Art (z. B. alle Fahrten überspringen).",
   "logbuch.menue.im_video": "Im Video",
   "logbuch.undo.im_video": "Logbuch: Anzeige im Video",
-  "animator.ovbox.ref_art": "nur {art}"
+  "animator.ovbox.ref_art": "nur {art}",
+  "app.testrechner_tip": "Testrechner: Löschen und Überschreiben nur in {pfade}"
 }

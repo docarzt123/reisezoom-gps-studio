@@ -4182,5 +4182,6 @@
   "animator.lb.alle_tip": "Aplica la visualización a todas las entradas de este tipo (p. ej. saltar todos los trayectos en coche).",
   "logbuch.menue.im_video": "En el vídeo",
   "logbuch.undo.im_video": "Registro: vista en el vídeo",
-  "animator.ovbox.ref_art": "solo {art}"
+  "animator.ovbox.ref_art": "solo {art}",
+  "app.testrechner_tip": "Equipo de pruebas: borrar y sobrescribir solo en {pfade}"
 }
