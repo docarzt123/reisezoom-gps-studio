@@ -5,6 +5,7 @@
 #   scripts/testumgebung.sh zuruecksetzen vorbefuellt   frische Arbeitskopien, Bibliothek mit Archiv
 #   scripts/testumgebung.sh zuruecksetzen leer          frische Arbeitskopien, Erststart (Onboarding)
 #   scripts/testumgebung.sh starten                    installierte App MIT dem Test-App-Ordner starten
+#   scripts/testumgebung.sh vorne                      die Test-App nach vorne holen (nie die normale App)
 #   scripts/testumgebung.sh cloud-einrichten <adresse>  Test-Cloud anlegen (eigener Server-Ordner)
 #   scripts/testumgebung.sh status
 #
@@ -33,6 +34,21 @@ schutz_schreiben() {   # $1 = App-Ordner
 
 laeuft_test_app() {   # -ax: App-Prozesse haben kein Terminal; -E zeigt die Umgebung (RZ_APP_ORDNER)
   ps -axEww -o command= | grep -F "RZ_APP_ORDNER=$APP_ORDNER" | grep -v grep >/dev/null 2>&1
+}
+
+test_app_pid() {      # PID der Test-Instanz (nie die normale App)
+  local p
+  for p in $(pgrep -f "Reisezoom GPS Studio.app/Contents/MacOS" || true); do
+    if ps -Eww -o command= -p "$p" | grep -qF "RZ_APP_ORDNER=$APP_ORDNER"; then echo "$p"; return 0; fi
+  done
+  return 1
+}
+
+nach_vorne() {        # Test-Instanz per PID nach vorne holen — „activate" per Name würde die normale App starten
+  local p
+  p="$(test_app_pid)" || { echo "Die Test-App läuft nicht — erst: $0 starten"; return 1; }
+  osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $p) to true" >/dev/null
+  echo "✓ Test-App (PID $p) ist vorne"
 }
 
 einstellungen_schreiben() {   # Kartenschlüssel aus den Einstellungen dieses Rechners übernehmen
@@ -105,10 +121,12 @@ case "${1:-}" in
   starten)
     [ -d "$APP_ORDNER" ] || { echo "Erst: $0 zuruecksetzen vorbefuellt"; exit 1; }
     [ -f "$APP_ORDNER/testrechner.json" ] || schutz_schreiben "$APP_ORDNER"
-    if laeuft_test_app; then echo "Die Test-App läuft schon — nach vorne holen statt neu starten."; exit 1; fi
+    if laeuft_test_app; then nach_vorne; exit 0; fi
     open -n -a "$APP" --env "RZ_APP_ORDNER=$APP_ORDNER" --env "RZ_CLOUD_ABLAGE=datei"
     echo "✓ gestartet mit App-Ordner $APP_ORDNER (oben rechts steht „· TEST“)"
     ;;
+  vorne)
+    nach_vorne ;;
   cloud-einrichten)
     [ -n "${2:-}" ] || { echo "Adresse fehlt: $0 cloud-einrichten https://…/rz-cloud.php"; exit 2; }
     if laeuft_test_app; then echo "Die Test-App läuft noch — erst beenden (⌘Q)."; exit 1; fi
