@@ -74,12 +74,15 @@ Im Terminal (Arbeitsordner `…/Reisezoom-GPS-Studio`):
 ```bash
 ./scripts/testumgebung.sh status
 ```
+```bash
+./scripts/testumgebung.sh vorne
+```
 
 - **vorbefuellt**: Archiv mit 35 Touren (39 Dateien), zwei Sammlungen („Teneriffa Februar 2026",
   „Problemfälle"), Kartenschlüssel gesetzt, Sprache Deutsch. Standard für alle Blöcke.
 - **leer**: Erststart mit Onboarding, ohne Bibliothek und ohne Schlüssel. Nur für Block ER.
 - Vor dem Zurücksetzen die Test-App mit **⌘Q** beenden, sonst bricht das Skript ab.
-- `starten` verweigert einen zweiten Start, solange die Test-App läuft — dann das vorhandene Fenster nach vorne holen.
+- `starten` holt eine schon laufende Test-App nach vorne statt sie ein zweites Mal zu starten; `vorne` tut nur das.
 - Nach dem Start steht oben rechts **„v0.9.724 · TEST"** auf gelbem Grund. Fehlt das,
   sofort beenden — dann läuft die falsche App.
 
@@ -111,8 +114,14 @@ Zeiten ±1 min, Höhenmeter ±5 %. Die Anzeige rundet — 35,7 km und 35,72 km s
 **Vorsicht, fremde Fenster:** Auf diesem Rechner laufen zeitweise andere Automationen (z. B. ein
 Codex-Prüfauftrag alle 5 Minuten), die ein anderes Fenster nach vorne holen. Prüfe vor **jedem**
 Klick per Screenshot, dass GPS Studio vorne ist (Titel „GPS Studio by reisezoom.com", gelbes „TEST").
-Ist ein anderes Fenster vorne: nichts darin anklicken, GPS Studio nach vorne holen
-(`osascript -e 'tell application "Reisezoom GPS Studio" to activate'`), neu fotografieren.
+Ist ein anderes Fenster vorne: nichts darin anklicken, die Test-App nach vorne holen mit
+`"/Volumes/MacMini 2TB Acasis/Claude-Masterblaster/Reisezoom-GPS-Studio/scripts/testumgebung.sh" vorne`, neu fotografieren.
+
+**Nie die App anders starten oder aktivieren** — nicht über Dock, Finder, Spotlight, `open -a` oder
+`tell application "Reisezoom GPS Studio" to activate`. Das startet die **normale** App dieses Rechners
+(mit Marcs echter Bibliothek). Erkennbar an fehlendem „TEST" oder an einem Fenster „Deine Daten sind
+umgezogen" mit einem Pfad unter `~/Library/Application Support/…`: sofort ⌘Q, nichts darin anklicken,
+dann `testumgebung.sh starten`.
 
 
 - Ein macOS-Berechtigungs- oder Passwortfenster erscheint.
