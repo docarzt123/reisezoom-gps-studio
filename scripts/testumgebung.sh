@@ -6,6 +6,7 @@
 #   scripts/testumgebung.sh zuruecksetzen leer          frische Arbeitskopien, Erststart (Onboarding)
 #   scripts/testumgebung.sh starten                    installierte App MIT dem Test-App-Ordner starten
 #   scripts/testumgebung.sh vorne                      die Test-App nach vorne holen (nie die normale App)
+#   scripts/testumgebung.sh aufraeumen                 in _alt/ nur die letzten 2 Stände behalten
 #   scripts/testumgebung.sh cloud-einrichten <adresse>  Test-Cloud anlegen (eigener Server-Ordner)
 #   scripts/testumgebung.sh status
 #
@@ -17,7 +18,8 @@
 # verweigert GPS Studio jedes Löschen, Ersetzen und Foto-Überschreiben außerhalb der
 # Testwurzel (core/dateischutz.py) — die Fotos auf dem NAS bleiben unberührt.
 #
-# Zurücksetzen löscht nichts: der bisherige Stand wandert nach $RZ_TESTWURZEL/_alt/<Zeit>/.
+# Zurücksetzen legt den bisherigen Stand nach $RZ_TESTWURZEL/_alt/<Zeit>/; dort bleiben nur die letzten
+# ALT_BEHALTEN (=2) Stände, Älteres löscht das Skript (Marc, 25.09.2026). `aufraeumen` tut das einzeln.
 set -euo pipefail
 
 WURZEL="${RZ_TESTWURZEL:-$HOME/GPS-Studio-Test}"
@@ -34,6 +36,19 @@ schutz_schreiben() {   # $1 = App-Ordner
 
 laeuft_test_app() {   # -ax: App-Prozesse haben kein Terminal; -E zeigt die Umgebung (RZ_APP_ORDNER)
   ps -axEww -o command= | grep -F "RZ_APP_ORDNER=$APP_ORDNER" | grep -v grep >/dev/null 2>&1
+}
+
+ALT_BEHALTEN=2   # Marc, 25.09.2026: „behalte immer nur die letzten beiden Läufe"
+
+alt_aufraeumen() {   # nur Stände der Form _alt/JJJJMMTT-HHMMSS, die neuesten $ALT_BEHALTEN bleiben
+  [ -d "$WURZEL/_alt" ] || return 0
+  local weg
+  weg="$(ls -1 "$WURZEL/_alt" | grep -E '^[0-9]{8}-[0-9]{6}$' | sort -r | tail -n +$((ALT_BEHALTEN + 1)))"
+  [ -n "$weg" ] || return 0
+  while IFS= read -r d; do
+    rm -rf -- "$WURZEL/_alt/$d"
+  done <<< "$weg"
+  echo "aufgeräumt: $(printf '%s\n' "$weg" | wc -l | tr -d ' ') alte Stände aus _alt/ gelöscht, $ALT_BEHALTEN behalten"
 }
 
 test_app_pid() {      # PID der Test-Instanz (nie die normale App)
@@ -103,6 +118,7 @@ case "${1:-}" in
       if [ -e "$WURZEL/$d" ]; then mkdir -p "$WURZEL/_alt/$stamp"; mv "$WURZEL/$d" "$WURZEL/_alt/$stamp/"; fi
     done
     [ -d "$WURZEL/_alt/$stamp" ] && echo "bisheriger Stand → _alt/$stamp"
+    alt_aufraeumen
     arbeit_anlegen
     schutz_schreiben "$APP_ORDNER"
     # Test-Cloud-Zugang (Datei-Ablage, RZ_CLOUD_ABLAGE=datei) in den neuen App-Ordner mitnehmen
@@ -127,6 +143,8 @@ case "${1:-}" in
     ;;
   vorne)
     nach_vorne ;;
+  aufraeumen)
+    alt_aufraeumen; echo "  _alt: $(du -sh "$WURZEL/_alt" 2>/dev/null | cut -f1)" ;;
   cloud-einrichten)
     [ -n "${2:-}" ] || { echo "Adresse fehlt: $0 cloud-einrichten https://…/rz-cloud.php"; exit 2; }
     if laeuft_test_app; then echo "Die Test-App läuft noch — erst beenden (⌘Q)."; exit 1; fi

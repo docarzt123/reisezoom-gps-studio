@@ -65,7 +65,7 @@ Alles liegt unter `~/GPS-Studio-Test`:
 
 Die Arbeitskopien werden bei jedem Zurücksetzen frisch aus `Quellen/` angelegt. Was du
 kaputt machst, ist beim nächsten Zurücksetzen wieder heil; der vorige Stand liegt dann in
-`_alt/<Zeit>/`.
+`_alt/<Zeit>/` — dort bleiben nur die letzten zwei Stände, Älteres räumt das Skript selbst weg.
 
 ### A4. Starten, Zurücksetzen, Beenden
 
