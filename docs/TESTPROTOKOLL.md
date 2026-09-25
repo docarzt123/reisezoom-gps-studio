@@ -27,8 +27,14 @@ ein Erfolg deiner Arbeit — beschreibe ihn so, dass man ihn nachstellen kann.
 | **API-Schlüssel, Tokens, Passwörter** eintippen (Mapbox, MapTiler, Cloud-Passwort) | Die Test-App hat die Kartenschlüssel schon. Fragt die App danach: „kostenlos"/„später" wählen und notieren |
 | Die **normale App** benutzen (ohne „· TEST" oben rechts) | Nur über `scripts/testumgebung.sh starten` starten |
 | Dateien außerhalb von `~/GPS-Studio-Test` öffnen, speichern oder löschen — vor allem **nichts unter `/Volumes/Fotos`** | Speichern-Dialoge immer auf `~/GPS-Studio-Test/Ausgaben` stellen |
-| Release, Tag, Deploy, Upload auf reisezoom.com | — |
-| Die Cloud der normalen App berühren | Nur Block CL, nur mit der Test-Cloud |
+| Release, Tag, Deploy, eigene Uploads auf reisezoom.com (FTP, Browser …) | — |
+| Cloud-Einstellungen ändern, trennen, mit einer anderen Adresse verbinden | Nur ansehen (Block CL) |
+
+**Der automatische Cloud-Abgleich der Test-App ist erlaubt und gewollt.** Meldet die ☁-Anzeige
+„Änderungen erkannt — Hochladen startet gleich“ oder lädt sie hoch, ist das die **Test-Cloud**
+(`reisezoom.com/rz-cloud-testrechner/`) — kein Grund zum Anhalten. Prüfen kannst du das mit
+`testumgebung.sh status` (Zeile „Cloud:“). Anhalten nur, wenn dort **nicht** `rz-cloud-testrechner`
+steht oder die App eine andere Adresse anzeigt.
 
 Zur Sicherheit verweigert die App auf diesem Rechner ohnehin jedes Löschen und
 Überschreiben außerhalb von `~/GPS-Studio-Test` (Datei `testrechner.json` im App-Ordner).
@@ -145,7 +151,7 @@ Umgebung: `zuruecksetzen vorbefuellt`, `starten`.
 |---|---|---|
 | S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.724 · TEST", keine Fehlermeldung |
 | S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 35 Touren; links Sammlungen „Problemfälle" (19) und „Teneriffa Februar 2026" (5) |
-| S-03 | Suchfeld: `Teide` | Zwei Treffer („Teide Original", „Teide nochmal …") bzw. eine Tour mit „2×" |
+| S-03 | Suchfeld: `Teide` | Die Teide-Tour mit „2×" (angezeigt mit ihrem GPX-Titel „Pico del Teide Brutal …") über den Namen; dazu Treffer über die Gegend (Santiago del Teide, La Orotava). Der Hinweis nennt beide Zahlen (z. B. „4 Touren hier · 2 über den Namen") |
 | S-04 | Tour **kaputt-mit-absicht** anklicken | Kachel mit rotem ⚠︎; rechts Track-Check mit Sprung, Höhen-Müll, Lücke, Zeit rückwärts |
 | S-05 | Doppelklick auf **Wer sieht die Schildkröte 🐢** | Animator öffnet, Track auf der Karte, Strecke ≈ 15,8 km |
 | S-06 | **Probe-Lauf** (oder Leertaste) | Punkt läuft die Strecke ab, Stats-Box zählt hoch, Leertaste stoppt |
