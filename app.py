@@ -133,7 +133,16 @@ from core import zeitzone as czeit    # 11.09.2026: Zeitzone + Datum/Uhrzeit fü
 # Vor v0.4.3 wurde auf ALLEN Plattformen `~/Library/Application Support/`
 # verwendet — auf Win/Linux unkonventionell, aber funktional. Jetzt sauberer
 # Standard-Pfad pro OS.
+# 25.09.2026 — Eigener App-Ordner für eine Testumgebung (Marc: Testrechner). Mit
+# RZ_APP_ORDNER=/pfad liegt ALLES, was sonst im App-Ordner liegt (Einstellungen,
+# Bibliotheks-Zeiger, Renders, Caches, Papierkorb, Logs, Tour-Karten), dort — der
+# normale App-Ordner bleibt unberührt. Start: scripts/testumgebung.sh.
+APP_ORDNER_UEBERSCHRIEBEN = bool((os.environ.get("RZ_APP_ORDNER") or "").strip())
+
+
 def _app_support_dir() -> Path:
+    if APP_ORDNER_UEBERSCHRIEBEN:
+        return Path(os.environ["RZ_APP_ORDNER"].strip()).expanduser().resolve()
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "Reisezoom GPS Studio"
     if sys.platform == "win32":
@@ -157,7 +166,7 @@ else:
     MODULES_DIR = ROOT / "modules"
     I18N_DIR = ROOT / "i18n"
     # Dev-Modus: in den Projekt-Root schreiben (wie vorher).
-    APP_SUPPORT = ROOT
+    APP_SUPPORT = _app_support_dir() if APP_ORDNER_UEBERSCHRIEBEN else ROOT
 
 # i18n-Lib mit unserem Sprachfile-Verzeichnis verbinden
 ci18n.set_i18n_dir(I18N_DIR)
@@ -287,7 +296,7 @@ def _shrink_data_uri(uri: str, max_px: int = 520, quality: int = 82) -> str:
 _ds.app_ordner_setzen(APP_SUPPORT)   # 14.09.2026: Bereich + Papierkorb des Dateischutzes
 DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
-TOURMAPS_DIR = Path.home() / "Pictures" / "Reisezoom Tour Maps"
+TOURMAPS_DIR = (APP_SUPPORT / "Tour Maps") if APP_ORDNER_UEBERSCHRIEBEN else (Path.home() / "Pictures" / "Reisezoom Tour Maps")
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 LADEFLAGGE_FILE = APP_SUPPORT / "ladevorgang.json"   # 13.09.2026 — siehe Api.ladeflagge_setzen
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
@@ -8344,6 +8353,12 @@ class Api:
     # ══════════════════════════════════════════════════════════════════════
 
     ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner (docs/IDEAS §26)
+    # 25.09.2026 — Die Schlüsselbund-Einträge gelten für den ganzen Rechner. Ein eigener
+    # App-Ordner (RZ_APP_ORDNER, Testumgebung) bekommt deshalb eigene Einträge: Eine
+    # Test-Cloud überschreibt sonst den Zugang zur echten.
+    if APP_ORDNER_UEBERSCHRIEBEN:
+        import hashlib as _hl
+        ARCHIV_KENNUNG = "ordner-" + _hl.sha256(str(APP_SUPPORT).encode("utf-8")).hexdigest()[:12]
 
     def _cloud_sichtbar(self) -> bool:
         """Das Cloud-Archiv war seit v0.9.524 regulär sichtbar.
@@ -9832,7 +9847,27 @@ class Api:
             "log_path": str(LOG_PATH),
             "tour_maps_dir": str(TOURMAPS_DIR),
             "renders_dir": str(RENDERS_DIR),
+            # 25.09.2026 — Testrechner-Sperre (core/dateischutz.py): Wurzeln oder None
+            "testrechner": _ds.testrechner(),
+            "ui_frisch": self._ui_frisch_einmal(),
         }
+
+    def _ui_frisch_einmal(self) -> bool:
+        """25.09.2026 (Testumgebung): Liegt `ui-zuruecksetzen` im App-Ordner, soll die
+        Oberfläche ihren Browser-Speicher (Filter, eingeklappte Bereiche, Fensterlagen)
+        einmal leeren — scripts/testumgebung.sh legt die Marke beim Zurücksetzen ab.
+        WebKit teilt diesen Speicher auf dem Mac zwischen allen App-Ordnern."""
+        if getattr(self, "_ui_frisch", None) is None:
+            marke = APP_SUPPORT / "ui-zuruecksetzen"
+            self._ui_frisch = marke.is_file()
+            if self._ui_frisch:
+                try:
+                    _ds.loeschen(marke, "ui_zuruecksetzen", art=_ds.ART_TEMP)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("ui-zuruecksetzen nicht entfernt: %s", e)
+                log.info("Oberfläche startet frisch (Browser-Speicher wird geleert)")
+            return self._ui_frisch
+        return False
 
     def prepare_bug_report(self, context: str = "") -> dict:
         """Baut den vorbefüllten Bug-Report-Text (Subject + Body) und liefert

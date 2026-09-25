@@ -94,6 +94,55 @@ def app_ordner_setzen(pfad) -> None:
     with _LOCK:
         _app_ordner = _norm(pfad)
         _bereiche["app"] = {"pfad": _app_ordner, "nur_eigene": False}
+    testrechner_laden()
+
+
+# ── Testrechner-Sperre (25.09.2026) ─────────────────────────────────────────
+# Marc: „das bei dir ist die test app … wir müssen nur gucken, dass keine bilder von
+# mir gelöscht werden." Auf einem Testrechner liegt im App-Ordner `testrechner.json`
+# mit {"schreiben_nur_in": ["/pfad/zur/testumgebung", …]}. Dann ist jedes Löschen,
+# Verschieben, Ersetzen und Foto-Überschreiben NUR noch im App-Ordner, in eigenen
+# Temp-Ordnern und unter diesen Wurzeln erlaubt — auch wenn der Nutzer (oder ein
+# Test-Chat) ein Ziel ausdrücklich gewählt hat. Ohne die Datei ändert sich nichts.
+TESTRECHNER_DATEI = "testrechner.json"
+_testwurzeln: Optional[list] = None
+
+
+def testrechner_laden() -> Optional[list]:
+    """Liest `testrechner.json` im App-Ordner. Kaputte Datei = Sperre mit leerer
+    Wurzel-Liste (lieber zu streng als offen)."""
+    global _testwurzeln
+    import json
+    datei = (_app_ordner / TESTRECHNER_DATEI) if _app_ordner else None
+    with _LOCK:
+        if not datei or not datei.is_file():
+            _testwurzeln = None
+            return None
+        try:
+            d = json.loads(datei.read_text(encoding="utf-8"))
+            _testwurzeln = [_aufgeloest(Path(x).expanduser()) for x in (d.get("schreiben_nur_in") or [])]
+        except Exception as e:  # noqa: BLE001
+            log.error("[dateischutz] testrechner.json unlesbar (%s) — Sperre ohne Freigaben", e)
+            _testwurzeln = []
+        log.warning("[dateischutz] TESTRECHNER: Löschen/Ersetzen nur in %s",
+                    ", ".join(str(w) for w in _testwurzeln) or "(nur App-Ordner)")
+        return list(_testwurzeln)
+
+
+def testrechner() -> Optional[list]:
+    """Die freigegebenen Wurzeln als Text, oder None, wenn das kein Testrechner ist."""
+    with _LOCK:
+        return None if _testwurzeln is None else [str(w) for w in _testwurzeln]
+
+
+def _testrechner_grund(p: Path, bereich: tuple) -> str:
+    with _LOCK:
+        wurzeln = _testwurzeln
+    if wurzeln is None or bereich[0] in ("app", "temp"):
+        return ""
+    if any(_liegt_in(p, w) for w in wurzeln):
+        return ""
+    return "testrechner"
 
 
 def bereich_anmelden(name: str, pfad, nur_eigene: bool = False) -> None:
@@ -188,7 +237,7 @@ def pruefen(pfad, aktion: str) -> Path:
     """Beide Prüfungen. Liefert den aufgelösten Pfad oder wirft DateischutzFehler."""
     roh, p = _norm(pfad), _ziel(pfad)
     bereich = _bereich_von(p)
-    grund = "ausserhalb" if bereich is None else _sperrliste_grund(p, roh)
+    grund = "ausserhalb" if bereich is None else (_sperrliste_grund(p, roh) or _testrechner_grund(p, bereich))
     if grund:
         warum = grund
         log.error("[dateischutz] VERWEIGERT %s: %s (%s)", aktion, p, warum)

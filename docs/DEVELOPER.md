@@ -3626,6 +3626,15 @@ Manuelle Test-Runs (oben) vor jedem Commit / Build weiterhin empfohlen.
 
 ## 8 · Pflicht-Regeln für Änderungen
 
+### Testumgebung und Testrechner (25.09.2026)
+
+- **Protokoll:** `docs/TESTPROTOKOLL.md` (Regeln für den Test-Chat, Kurztest, Blöcke je Bereich mit IDs, Berichtsvorlage).
+- **Daten:** `scripts/testdaten_bauen.py [--wurzel ~/GPS-Studio-Test] [--neu]` baut `Quellen/` aus `tests/fixtures`, `tests/pruefsammlung/dateien` und fünf Komoot-Touren (per ID gesucht, die Namen tragen Emojis) plus erzeugten Fehlerdateien, Tagesdateien, Dubletten und Fotos (piexif, pillow-heif, ffmpeg); `SOLL-WERTE.md`/`soll-werte.json` aus `library.punkte_lesen` + `trackcheck.pruefen` + Logbuch.
+- **Steuerung:** `scripts/testumgebung.sh einrichten | zuruecksetzen vorbefuellt|leer | starten | status`. `vorbefuellt` ruft `scripts/testumgebung_befuellen.py` (Dev-App mit `RZ_APP_ORDNER`, liest `Arbeit/archiv` ein, zwei Sammlungen, `SOLL-ARCHIV.md` aus der Datenbank = die Marken, die das Archiv wirklich zeigt).
+- **`RZ_APP_ORDNER`** (`app.py`, `APP_ORDNER_UEBERSCHRIEBEN`): ersetzt `APP_SUPPORT` (auch im Dev-Modus), legt `TOURMAPS_DIR` hinein und setzt `Api.ARCHIV_KENNUNG = "ordner-<sha256[:12]>"` — die Schlüsselbund-Einträge (`core/cloud/keys.py`, Dienst + `feld:archiv`) gelten sonst rechnerweit. Start der installierten App: `open -n -a … --env RZ_APP_ORDNER=…`.
+- **Testrechner-Sperre** (`core/dateischutz.py`, `testrechner_laden`/`_testrechner_grund`): `testrechner.json` `{"schreiben_nur_in": [...]}` im App-Ordner → `pruefen` verweigert alles außerhalb von App-Ordner, eigenen Temp-Ordnern und den Wurzeln, auch `nutzer_ziel`. Kaputte Datei = keine Freigaben. `get_app_info().testrechner` → Topbar „· TEST" (`.version.ist-testrechner`). Test: `tests/test_testrechner.py`.
+- **Browser-Speicher:** WKWebView nutzt auf dem Mac `defaultDataStore` je Bundle-ID — Normal- und Test-App teilen localStorage. Marke `ui-zuruecksetzen` im App-Ordner → `get_app_info().ui_frisch` (einmal) → `app.js` leert local/sessionStorage und lädt neu.
+
 ### ⛔ Dateischutz — jeder Datei-Eingriff über `core/dateischutz.py` (Marc-Regel 14.09.2026)
 
 **Anlass:** Ein Nutzer hatte die Bibliothek direkt in den Wurzelordner seiner externen SSD gelegt. Der Umzug kopierte den ganzen Ordner samt Videos und löschte ihn danach mit `rmtree`. Marc: „bei allen File-Manipulationen, egal was: 1. immer ein Backup, 2. doppelt geprüft, dass nur das angefasst wird, was GPS Studio braucht."

@@ -1651,9 +1651,24 @@ window.addEventListener("DOMContentLoaded", async () => {
   // v0.9.331 — Edition bestimmt, welche Module sichtbar sind + Karten-Default.
   try {
     const info = await api().get_app_info();
+    // 25.09.2026 — Testumgebung zurückgesetzt: Browser-Speicher einmal leeren und neu laden
+    if (info && info.ui_frisch) {
+      try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
+      applog("info", "[ui] Browser-Speicher geleert (ui-zuruecksetzen) — lade neu");
+      location.reload();
+      return;
+    }
     window.RZ_EDITION = (info && info.edition) || "full";
     const tv = document.getElementById("topbar-version");
     if (tv && info && info.version) tv.textContent = "v" + info.version;
+    // 25.09.2026 — Testrechner: sichtbar „TEST", damit kein Bildschirmfoto mit der echten App verwechselt wird
+    if (tv && info && Array.isArray(info.testrechner)) {
+      tv.textContent += " · TEST";
+      tv.classList.add("ist-testrechner");
+      tv.title = t("app.testrechner_tip", "Testrechner: Löschen und Überschreiben nur in {pfade}")
+        .replace("{pfade}", info.testrechner.join(", ") || "—");
+      document.body.classList.add("testrechner");
+    }
     if (info && info.name) document.title = info.name;
     if (window.RZ_EDITION === "geotagger") {
       document.body.classList.add("edition-geotagger");

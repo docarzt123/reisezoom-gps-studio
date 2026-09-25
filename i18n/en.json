@@ -4182,5 +4182,6 @@
   "animator.lb.alle_tip": "Sets the display for every entry of this kind (e.g. skip all drives).",
   "logbuch.menue.im_video": "In the video",
   "logbuch.undo.im_video": "Log: display in the video",
-  "animator.ovbox.ref_art": "{art} only"
+  "animator.ovbox.ref_art": "{art} only",
+  "app.testrechner_tip": "Test machine: deleting and overwriting only in {pfade}"
 }
