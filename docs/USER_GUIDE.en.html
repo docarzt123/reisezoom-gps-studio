@@ -644,8 +644,9 @@ python app.py</code></pre>
 <li>The last module selection</li>
 <li>All render settings per module (style, pitch, resolution, color, codec, FPS, etc.)</li>
 <li>The last save folder (per module)</li>
-<li>The Mapbox token</li>
+<li>The Mapbox token and the other map keys — hidden in the settings, <strong>“👁 Show”</strong> reveals them</li>
 <li>The language selection</li>
+<li>The last opened tour and module, even if no project has been saved yet — reload photos in the Geotagger afterwards</li>
 </ul>
 <p>Settings file:</p>
 <ul>
@@ -1583,6 +1584,7 @@ python app.py</code></pre>
 <li>Set the filter back to <strong>&quot;All&quot;</strong> — both cameras keep their own offset.</li>
 </ol>
 <p> Each camera&#x27;s button shows its set offset as a small badge (e.g. <code>📷 OM-3 +1h</code>). Without a camera filter (&quot;All&quot;) you set the <strong>global default</strong>, which applies to all cameras without their own offset. The per-camera offsets stay saved and also take effect in the optional capture-time correction.</p>
+<p><strong>When the time zone stored IN the photo is wrong:</strong> Cameras that write their time zone can still be off — typically you set the clock to local time on holiday but leave the time zone setting at home. Every photo then claims e.g. +02:00 although the clock ran on UTC+1, and all photos land an hour early on the track (on a hike, well over a kilometre off). The app checks this per camera: if a shift puts clearly more photos on the track, the hint box shows <strong>“⚠️ … The time zone stored in the photos does not fit the track — with +1 h, 73 instead of 58 of 73 photos fall on the track”</strong> with <strong>Apply</strong>, which sets the offset for that camera only. It only suggests what is unambiguous: photos from a single hour in the middle of the tour cannot reveal a shift, so no hint appears.</p>
 <h3 id="when-the-position-is-uncertain">When the position is uncertain</h3>
 <p>If your track has a <strong>recording gap</strong> and a photo falls into it, the photo gets the nearest point in time. That is usually exactly right: step into a pub and you lose reception inside — the last point sits at the door, and that is where the photo was taken.</p>
 <p>It only goes wrong when the journey <strong>continued</strong> during the gap: the watch dies and you walk on for two hours. Or you pause recording and take the cable car up. Then the assigned point is kilometres away.</p>
@@ -1639,6 +1641,7 @@ python app.py</code></pre>
 <h3 id="auto-tag-via-image-recognition">Auto-tag via image recognition 🔍</h3>
 <p>On the <strong>Mac</strong> the Geotagger can automatically detect <strong>keywords</strong> for each photo — scenes and objects like &quot;outdoor, forest, deer, beach&quot;. This is done by the <strong>built-in Apple Vision framework</strong>: completely <strong>on the device</strong>, no internet, no account, no download, and fast (a fraction of a second per photo). Common terms are translated into German.</p>
 <p>Here&#x27;s how: click the <strong>&quot;🔍 Auto-tag (image recognition)&quot;</strong> button in the write section → the app analyzes all visible/checked photos → the suggestions land as <strong>pending changes</strong> (yellow, in the <code>Keywords</code> field) → you skim/correct them in the EXIF tab and then write them with <strong>&quot;Write tags&quot;</strong> (incl. backup). The AI only suggests — you decide.</p>
+<p><strong>Asks first:</strong> Before it starts, the app asks how many photos to recognise and roughly how long it takes — with <strong>“Only this photo”</strong> if one is selected. For fewer photos, untick tiles or use a filter.</p>
 <blockquote><strong>Windows / Linux:</strong> This function is <strong>not</strong> available there — Apple Vision is Mac-exclusive, and we didn&#x27;t want to bundle a huge AI model for it. The button is simply hidden there; everything else in the Geotagger works identically.</blockquote>
 <h3 id="global-fields-creator-copyright-for-the-whole-batch">Global fields — creator &amp; copyright for the whole batch</h3>
 <p>Some fields you want to <strong>set once and write to all photos</strong> — name, copyright, etc. For that there&#x27;s the <strong>&quot;✎ Global fields (creator, copyright …)&quot;</strong> button in the write section. In the form you enter what you need:</p>

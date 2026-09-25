@@ -843,7 +843,7 @@
   "geotagger.addr.state": "Estado / región",
   "geotagger.addr.street": "Calle / detalle",
   "geotagger.autotag.btn": "🔍 Auto-etiquetar (reconocimiento)",
-  "geotagger.autotag.done": "✓ {n} fotos etiquetadas — revisa + „Escribir etiquetas“.",
+  "geotagger.autotag.done": "✓ {n} fotos etiquetadas — revísalas y guárdalas con «Escribir GPS en las fotos».",
   "geotagger.autotag.no_photos": "No hay fotos visibles para etiquetar.",
   "geotagger.autotag.none": "No se encontraron palabras clave.",
   "geotagger.autotag.running": "Analizando fotos …",
@@ -4183,5 +4183,18 @@
   "logbuch.menue.im_video": "En el vídeo",
   "logbuch.undo.im_video": "Registro: vista en el vídeo",
   "animator.ovbox.ref_art": "solo {art}",
-  "app.testrechner_tip": "Equipo de pruebas: borrar y sobrescribir solo en {pfade}"
+  "app.testrechner_tip": "Equipo de pruebas: borrar y sobrescribir solo en {pfade}",
+  "geotagger.info.n_video_1": "{n} vídeo",
+  "geotagger.done.nur_angaben": "Solo datos añadidos (sin posición)",
+  "settings.key.zeigen": "👁 Mostrar",
+  "settings.key.verbergen": "Ocultar",
+  "geotagger.tz_hint.zone_falsch": "<b>{kam}</b>: la zona horaria guardada en las fotos no encaja con el track — con <b>{versatz}</b> caen {nachher} en lugar de {vorher} de {gesamt} fotos en el track (típico: reloj de la cámara en hora local, zona horaria aún la de casa).",
+  "geotagger.tz_hint.zone_falsch_ok": "{kam}: desfase {versatz} aplicado.",
+  "geotagger.autotag.frage_titel": "¿Iniciar el reconocimiento de imágenes?",
+  "geotagger.autotag.frage": "Reconocer palabras clave para <b>{n} fotos</b> (todas las visibles y marcadas). Tarda unos {sek} s. Las palabras clave solo se guardan con «Escribir GPS en las fotos».",
+  "geotagger.autotag.frage_tipp": "Menos fotos: desmarca miniaturas o elige un filtro arriba.",
+  "geotagger.autotag.nur_dieses": "Solo esta foto",
+  "geotagger.autotag.alle_starten": "Reconocer {n} fotos",
+  "geotagger.autotag.done_1": "✓ 1 foto etiquetada — revísala y guárdala con «Escribir GPS en las fotos».",
+  "geotagger.autotag.toast_1": "1 foto etiquetada — marcada como pendiente."
 }

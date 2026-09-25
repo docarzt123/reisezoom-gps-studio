@@ -643,8 +643,9 @@ python app.py</code></pre>
 <li>La última selección de módulo</li>
 <li>Todos los ajustes de render por módulo (estilo, pitch, resolución, color, códec, FPS, etc.)</li>
 <li>La última carpeta de guardado (por módulo)</li>
-<li>El token de Mapbox</li>
+<li>El token de Mapbox y las demás claves de mapas — ocultas en los ajustes, <strong>«👁 Mostrar»</strong> las enseña</li>
 <li>La selección de idioma</li>
+<li>La última ruta abierta y el módulo, aunque aún no haya un proyecto guardado — las fotos del Geotagger se vuelven a cargar después</li>
 </ul>
 <p>Archivo de ajustes:</p>
 <ul>
@@ -1594,6 +1595,7 @@ python app.py</code></pre>
 <li>Vuelve a poner el filtro en <strong>«Todas»</strong> — ambas cámaras conservan su propio offset.</li>
 </ol>
 <p> El botón de cada cámara muestra su offset fijado como una pequeña insignia (p. ej. <code>📷 OM-3 +1h</code>). Sin filtro de cámara («Todas») ajustas el <strong>estándar global</strong>, que vale para todas las cámaras sin offset propio. Los offsets por cámara quedan guardados y actúan también en la corrección opcional de la hora de captura.</p>
+<p><strong>Cuando la zona horaria guardada EN la foto es incorrecta:</strong> también las cámaras que guardan su zona horaria pueden fallar — típico: en vacaciones pones el reloj en hora local pero la zona horaria sigue siendo la de casa. Cada foto dice entonces p. ej. +02:00 aunque el reloj iba en UTC+1, y todas caen una hora antes en el track (en una ruta, más de un kilómetro fuera). La app lo comprueba por cámara: si un desfase coloca claramente más fotos en el track, el cuadro de aviso muestra <strong>«⚠️ … la zona horaria guardada en las fotos no encaja con el track — con +1 h caen 73 en lugar de 58 de 73 fotos en el track»</strong> con <strong>Aplicar</strong>, que fija el desfase solo para esa cámara. Solo se propone lo inequívoco: con fotos de una sola hora en mitad de la ruta no se puede detectar un desfase, y no aparece aviso.</p>
 <h3 id="cuando-la-posici-n-es-incierta">Cuando la posición es incierta</h3>
 <p>Si tu track tiene un <strong>hueco de grabación</strong> y una foto cae dentro, recibe el punto más cercano en el tiempo. Eso suele ser exactamente correcto: al entrar en un restaurante pierdes la cobertura — el último punto queda en la puerta, y ahí es donde se hizo la foto.</p>
 <p>Solo falla cuando durante el hueco <strong>se siguió avanzando</strong>: el reloj se queda sin batería y caminas dos horas más. O pausas la grabación y subes en teleférico. Entonces el punto asignado está a kilómetros.</p>
@@ -1651,6 +1653,7 @@ python app.py</code></pre>
 <h3 id="auto-tag-por-reconocimiento-de-imagen">Auto-tag por reconocimiento de imagen 🔍</h3>
 <p>En el <strong>Mac</strong>, el Geotagger puede reconocer automáticamente <strong>palabras clave</strong> para cada foto — escenas y objetos como «Exterior, Bosque, Corzo, Playa». Eso lo hace el <strong>framework Apple Vision integrado</strong>: completamente <strong>en el dispositivo</strong>, sin internet, sin cuenta, sin descarga, y rápido (fracciones de segundo por foto). Los términos frecuentes se traducen al alemán.</p>
 <p>Así funciona: haz clic en el botón <strong>«🔍 Auto-tag (reconocimiento de imagen)»</strong> en la sección de escritura → la app analiza todas las fotos visibles/marcadas → las sugerencias aterrizan como <strong>cambios pendientes</strong> (amarillos, en el campo <code>Keywords</code>) → los repasas/corriges en la pestaña EXIF y luego los escribes con <strong>«Escribir etiquetado»</strong> (incl. backup). La IA solo sugiere — tú decides.</p>
+<p><strong>Pregunta antes:</strong> antes de empezar, la app pregunta cuántas fotos reconocer y cuánto tardará aproximadamente — con <strong>«Solo esta foto»</strong> si hay una seleccionada. Para menos fotos, desmarca miniaturas o usa un filtro.</p>
 <blockquote><strong>Windows / Linux:</strong> esta función <strong>no</strong> existe ahí — Apple Vision es exclusivo de Mac, y no queríamos incluir para ello un enorme modelo de IA. El botón simplemente está oculto ahí; todo lo demás en el Geotagger funciona idéntico.</blockquote>
 <h3 id="campos-globales-autor-y-copyright-para-todo-el-lote">Campos globales — autor y copyright para todo el lote</h3>
 <p>Algunos campos quieres <strong>fijarlos una vez y escribirlos en todas las fotos</strong> — nombre, copyright, etc. Para eso hay en la sección de escritura el botón <strong>«✎ Campos globales (autor, copyright …)»</strong>. En el formulario introduces lo que necesitas:</p>

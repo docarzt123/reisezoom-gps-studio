@@ -155,12 +155,12 @@ Umgebung: `zuruecksetzen vorbefuellt`, `starten`.
 | S-04 | Tour **kaputt-mit-absicht** anklicken | Kachel mit rotem ⚠︎; rechts Track-Check mit Sprung, Höhen-Müll, Lücke, Zeit rückwärts |
 | S-05 | Doppelklick auf **Wer sieht die Schildkröte 🐢** | Animator öffnet, Track auf der Karte, Strecke ≈ 15,8 km |
 | S-06 | **Probe-Lauf** (oder Leertaste) | Punkt läuft die Strecke ab, Stats-Box zählt hoch, Leertaste stoppt |
-| S-07 | Reiter **Tour-Map**, Format YouTube 16:9, **Karte als PNG rendern** → `Ausgaben/` | PNG entsteht in ~10 s, Ergebnisansicht zeigt es |
+| S-07 | Reiter **Tour-Map**, Seitenverhältnis 16:9 mit 1920×1080 wählen (die Bezeichnung in der Liste kann anders lauten), **Karte als PNG rendern** → `Ausgaben/` | PNG entsteht in ~10–20 s; die Ergebnisansicht „✓ Bild fertig“ **zeigt das Bild** (kein kaputtes Bildsymbol) |
 | S-08 | Reiter **GPX-Inspektor** | Alle Punkte sichtbar, Befund-Kasten, Logbuch unten mit Einträgen |
-| S-09 | Reiter **Geotagger**, Ordner `Arbeit/fotos/geotagger/` laden | 17 Dateien (15 JPG, 1 HEIC, 1 Video) als Kacheln, Marker auf der Karte |
-| S-10 | Einstellungen (⚙) öffnen und schließen | Fenster öffnet, Karten-Schlüssel sind hinterlegt (nicht anzeigen lassen) |
+| S-09 | Reiter **Geotagger**, Ordner `Arbeit/fotos/geotagger/` laden. **Keine** Vorschläge übernehmen (das kommt in GT) | 17 Dateien als Kacheln; links „17 Medien aus Ordner (15 JPG + 1 HEIC + 1 Video)“ |
+| S-10 | Einstellungen (⚙) öffnen, Unterseiten MapTiler, Mapbox und Länder-Schlüssel ansehen, schließen. **„👁 Anzeigen“ nicht drücken** | Jedes Schlüsselfeld zeigt nur Punkte und hat daneben „👁 Anzeigen“; kein Schlüssel im Klartext |
 | S-11 | Hilfe → Erste Schritte | Hilfe öffnet, lesbar |
-| S-12 | App mit ⌘Q beenden, wieder starten | Kommt zurück, letzter Reiter/Projekt wieder da |
+| S-12 | Im Geotagger ist Masca geladen: App mit ⌘Q beenden, per `testumgebung.sh starten` neu starten, 20 s warten | Die App öffnet wieder den **Geotagger mit der Masca-Tour** (Fotos muss man neu laden — die gehören nicht zur Tour). Mit gespeichertem Projekt: dieses Projekt im letzten Modul |
 
 ---
 
@@ -347,28 +347,28 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| GT-01 | Ordner laden, **ohne** vorher einen Track zu laden | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
+| GT-01 | Geotagger leeren (✕ oben, bestätigen). Steht beim Versatz eine Kamera-Zeitzone (z. B. „UTC+2“), über ✎ auf UTC±0 zurückstellen. Dann Ordner `Arbeit/fotos/geotagger/` laden, **ohne** vorher einen Track zu laden | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
 | GT-02 | **Tracks verwenden** | Track auf der Karte, Fotos A_ liegen darauf |
-| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Hinweis „ohne Zeitzone" für EOS R6, Vorschlag „Aus dem Track gerechnet: UTC+2" |
+| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Hinweis „ohne Zeitzone" für EOS R6, Vorschlag „Aus dem Track gerechnet: UTC+2". Versatz-Anzeige oben: Wert groß, Kamera klein in der zweiten Zeile, nichts läuft unter ✎ oder ↺ |
 | GT-04 | Vorschlag **Übernehmen** (oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst) |
 | GT-05 | C_gleiche_minute_1–3 | Drei Fotos am selben Punkt, auffächerbar |
 | GT-06 | D_nach_tourende | Als unsicher/ohne Position gekennzeichnet |
 | GT-07 | E_hat_schon_gps | Behält seine Position |
 | GT-08 | F_heic.heic und G_video.mp4 | Werden gelesen und zugeordnet |
 | GT-09 | Globale Felder: Urheber `Testumgebung` | Wird für alle übernommen |
-| GT-10 📷 | **GPS in Fotos schreiben** → Zielordner **`~/GPS-Studio-Test/Ausgaben/getaggt`** | Kopien mit GPS dort; Originale in `Arbeit/fotos/geotagger` unverändert (mit `exiftool -gps:all <datei>` prüfen: leer) |
+| GT-10 📷 | **GPS in Fotos schreiben** → Zielordner **`~/GPS-Studio-Test/Ausgaben/getaggt`** | Kopien dort; Fertig-Dialog: **16 verortet** und **„Nur Angaben ergänzt (ohne Position)“ 1** (D_nach_tourende, bekam den Urheber aus GT-09, aber keine Position). Originale in `Arbeit/fotos/geotagger` unverändert (`exiftool -gps:all <datei>`: leer) |
 | GT-11 | Zielordner = Ordner der Originale (`Arbeit/fotos/geotagger`) | Rückfrage „Originale überschreiben?" + ZIP-Sicherung; bestätigen ist hier erlaubt (Testkopien) |
-| GT-12 | Schutzprobe: im Terminal `mkdir -p /tmp/rz-schutzprobe`, dann **Originale überschreiben** mit Fotos, die dort liegen (`cp ~/GPS-Studio-Test/Arbeit/fotos/geotagger/A_01.jpg /tmp/rz-schutzprobe/`, Ordner laden, Zielordner = derselbe) | Schreiben wird **verweigert** (Dateischutz, testrechner) — das ist Soll; `A_01.jpg` dort bleibt ohne GPS |
+| GT-12 | Schutzprobe: im Terminal `"/Volumes/MacMini 2TB Acasis/Claude-Masterblaster/Reisezoom-GPS-Studio/scripts/testumgebung.sh" schutzprobe` (legt `/tmp/rz-schutzprobe/A_01.jpg` an — das Skript darf das, du legst selbst nichts an). In der App diesen Ordner laden, **Zielordner = derselbe**, „Originale überschreiben“ bestätigen | Schreiben wird **verweigert** (Meldung mit „Dateischutz … testrechner“) — das ist Soll; `exiftool -gps:all /tmp/rz-schutzprobe/A_01.jpg` bleibt leer |
 
 **Echte Fotos** (`Arbeit/fotos/echt-ohne-gps/`, 76 Stück; Soll in `SOLL-WERTE.md`, Abschnitt „Echte Fotos"):
 
 | ID | Aktion | Erwartet |
 |---|---|---|
 | GT-20 | Geotagger leeren (✕), Ordner `echt-ohne-gps` laden | Archiv schlägt „Barranco de Masca" vor; 76 Fotos, zwei Kameras (Canon PowerShot G5 X Mark II, Pixel 6 Pro) |
-| GT-21 📷 | Tracks verwenden, Karte ansehen | Die 3 Pixel-Fotos liegen am Weg; die 73 Canon-Fotos liegen **gut 1 km versetzt** (ihre Zeitzone im Foto sagt +02:00, die Uhr lief aber auf Ortszeit UTC+1) — das ist der Testfall, kein App-Fehler |
-| GT-22 | Kamera-Knopf **Canon** → Versatz **+1 h** (Regler) — alternativ Referenzfoto: ein Canon-Foto anklicken und auf seine echte Stelle klicken | Canon-Fotos rücken auf den Weg; Badge zeigt den Versatz; Pixel-Fotos bleiben, wo sie waren |
-| GT-23 | Notieren, ob die App selbst einen Hinweis gibt („Zeitzone im Foto passt nicht zum Track" o. ä.) | Beobachtung für den Bericht (⚠️, wenn nichts kommt — dann muss man den Fehler selbst bemerken) |
-| GT-24 | Auto-Tag per Bilderkennung auf 5 Fotos | Sinnvolle Schlagworte (Schlucht, Berg, Meer …) |
+| GT-21 📷 | Tracks verwenden, Karte und den Hinweis-Kasten unter dem Versatz ansehen | Die 3 Pixel-Fotos liegen am Weg. Für die Canon erscheint **⚠️ „Canon PowerShot G5 X Mark II: Die Zeitzone im Foto passt nicht zum Track — mit +1 h liegen 73 statt 58 von 73 Fotos im Track“** mit Knopf „Übernehmen“ (Zahlen dürfen leicht abweichen) |
+| GT-22 | Im Hinweis **Übernehmen** klicken | Canon-Versatz +1 h (Kamera-Knopf Canon zeigt es), Canon-Fotos rücken auf den Weg, der Hinweis verschwindet; Pixel-Fotos bleiben, wo sie waren |
+| GT-23 | Gegenprobe: Kamera-Knopf **Pixel 6 Pro** und **Alle** ansehen | Für das Pixel kommt **kein** Zeitzonen-Hinweis (seine Zone stimmt) |
+| GT-24 | Ein Foto anklicken, dann **🔍 Auto-Tag (Bilderkennung)** | Rückfrage „Bilderkennung starten?“ mit Anzahl (76) und Dauer, Knöpfe „Nur dieses Foto“, „Abbrechen“, „76 Fotos erkennen“. **Nur dieses Foto** wählen → genau 1 Foto verschlagwortet (sinnvolle Wörter: Schlucht, Berg, Meer …). Danach noch einmal und **Abbrechen** → es startet nichts |
 | GT-25 📷 | GPS in Fotos schreiben → Zielordner `~/GPS-Studio-Test/Ausgaben/getaggt-echt` | 76 Kopien mit GPS |
 | GT-26 | Im Terminal: `.venv/bin/python scripts/testumgebung_fotovergleich.py ~/GPS-Studio-Test/Ausgaben/getaggt-echt` | Beide Kameras ✅, Median < 50 m (Rechenkern-Messung: Canon 17 m, Pixel 31 m) |
 

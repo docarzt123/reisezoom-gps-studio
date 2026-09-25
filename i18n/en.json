@@ -843,7 +843,7 @@
   "geotagger.addr.state": "State / region",
   "geotagger.addr.street": "Street / detail",
   "geotagger.autotag.btn": "🔍 Auto-tag (image recognition)",
-  "geotagger.autotag.done": "✓ {n} photos tagged — review + „Write tags“.",
+  "geotagger.autotag.done": "✓ {n} photos tagged — review and save with “Write GPS into photos”.",
   "geotagger.autotag.no_photos": "No visible photos to tag.",
   "geotagger.autotag.none": "No keywords found.",
   "geotagger.autotag.running": "Analyzing photos …",
@@ -4183,5 +4183,18 @@
   "logbuch.menue.im_video": "In the video",
   "logbuch.undo.im_video": "Log: display in the video",
   "animator.ovbox.ref_art": "{art} only",
-  "app.testrechner_tip": "Test machine: deleting and overwriting only in {pfade}"
+  "app.testrechner_tip": "Test machine: deleting and overwriting only in {pfade}",
+  "geotagger.info.n_video_1": "{n} video",
+  "geotagger.done.nur_angaben": "Details only (no position)",
+  "settings.key.zeigen": "👁 Show",
+  "settings.key.verbergen": "Hide",
+  "geotagger.tz_hint.zone_falsch": "<b>{kam}</b>: The time zone stored in the photos does not fit the track — with <b>{versatz}</b>, {nachher} instead of {vorher} of {gesamt} photos fall on the track (typical: camera clock on local time, time zone still set to home).",
+  "geotagger.tz_hint.zone_falsch_ok": "{kam}: offset {versatz} set.",
+  "geotagger.autotag.frage_titel": "Start image recognition?",
+  "geotagger.autotag.frage": "Recognise keywords for <b>{n} photos</b> (all visible, ticked photos). Takes about {sek} s. The keywords are only saved with “Write GPS into photos”.",
+  "geotagger.autotag.frage_tipp": "Fewer photos: untick tiles or pick a filter at the top.",
+  "geotagger.autotag.nur_dieses": "Only this photo",
+  "geotagger.autotag.alle_starten": "Recognise {n} photos",
+  "geotagger.autotag.done_1": "✓ 1 photo tagged — review and save with “Write GPS into photos”.",
+  "geotagger.autotag.toast_1": "1 photo tagged — marked as pending."
 }

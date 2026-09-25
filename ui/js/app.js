@@ -491,7 +491,7 @@ async function openSettingsModal(reiter) {
           <p class="set-help">${t("settings.maps.help.maptiler2", "Wichtig: Beim Schlüssel das Feld „Allowed HTTP origins“ leer lassen. Trägst du dort eine Website ein, sperrt MapTiler den Render aus, der ohne Browser-Adresse läuft — die Vorschau ginge, das Video bliebe schwarz.")}</p>
           <p class="set-help">${t("settings.maps.help.maptiler3", "Gratistarif: 100.000 Kachelabrufe pro Monat, das reicht für viele Renders — aber nur nicht-kommerzielle Nutzung. Für einen monetarisierten Kanal ist der Flex-Tarif (ca. 30 $/Monat) gedacht. Videos für Kanäle bis 100.000 Abonnenten sind laut MapTiler Cloud Terms §5 erlaubt, darüber vorher bei MapTiler nachfragen.")}</p>
           <p class="muted" style="margin:14px 0 4px;">${t("settings.maptiler.label", "MapTiler-Schlüssel")}</p>
-          <input type="text" id="md-maptiler-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
+          <input type="text" id="md-maptiler-key" class="rz-schluessel" autocomplete="off" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
                  placeholder="${t("settings.maptiler.placeholder", "API-Key aus cloud.maptiler.com")}" value="${(maptilerKey || "").replace(/"/g, '&quot;')}">
           <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">
             <a href="#" id="md-maptiler-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.maptiler.help_link", "Wie bekomme ich einen Schlüssel?")}</a>
@@ -503,11 +503,11 @@ async function openSettingsModal(reiter) {
           ${rzTermsDisclaimerHtml()}
           <p class="set-help">${t("settings.laender.intro", "Einige Länder geben ihre amtlichen Luftbilder frei, verlangen aber einen eigenen, kostenlosen Schlüssel je Nutzer. Trägst du ihn hier ein, nimmt „Satellit (kostenlos)“ dort automatisch das Landesluftbild statt Sentinel-2 — in Vorschau und Video, nicht in den Web-Karten-Exporten. Der Schlüssel bleibt auf diesem Rechner (die Kacheln laufen über den Zwischenspeicher der App). Videos dürfen veröffentlicht werden, die Nennung setzt die App.")}</p>
           <p class="muted" style="margin:14px 0 4px;">${t("settings.laender.dk", "Dänemark — Dataforsyningen-Token")} <span class="muted">(${t("settings.laender.dk_hint", "kostenloses Konto auf dataforsyningen.dk → Brugeradministration → Token")})</span></p>
-          <input type="text" id="md-dk-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(dkKey || "").replace(/"/g, '&quot;')}">
+          <input type="text" id="md-dk-key" class="rz-schluessel" autocomplete="off" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(dkKey || "").replace(/"/g, '&quot;')}">
           <p class="muted" style="margin:14px 0 4px;">${t("settings.laender.fi", "Finnland — Maanmittauslaitos api-key")} <span class="muted">(${t("settings.laender.fi_hint", "kostenlos per Formular auf maanmittauslaitos.fi, Karttakuvapalvelu WMTS")})</span></p>
-          <input type="text" id="md-fi-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(fiKey || "").replace(/"/g, '&quot;')}">
+          <input type="text" id="md-fi-key" class="rz-schluessel" autocomplete="off" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(fiKey || "").replace(/"/g, '&quot;')}">
           <p class="muted" style="margin:14px 0 4px;">${t("settings.laender.nz", "Neuseeland — LINZ-Basemaps-Schlüssel")} <span class="muted">(${t("settings.laender.nz_hint", "kostenlos auf basemaps.linz.govt.nz, der Wert hinter „api=“")})</span></p>
-          <input type="text" id="md-linz-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(linzKey || "").replace(/"/g, '&quot;')}">
+          <input type="text" id="md-linz-key" class="rz-schluessel" autocomplete="off" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" value="${(linzKey || "").replace(/"/g, '&quot;')}">
           <p class="set-help" style="margin-top:12px;">${t("settings.laender.sweden", "Schweden (Lantmäteriet, CC0) und Norwegen bieten keinen Kacheldienst für Luftbilder an — dort bleibt Sentinel-2 oder MapTiler.")}</p>
         </div>
 
@@ -521,7 +521,7 @@ async function openSettingsModal(reiter) {
             <span>${t("settings.mapbox.label")}</span>
             <span style="font-size:11px">${tokenStatusLabel}</span>
           </p>
-          <input type="text" id="md-mapbox-token" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
+          <input type="text" id="md-mapbox-token" class="rz-schluessel" autocomplete="off" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
                  placeholder="pk.eyJ1Ijoi..." value="${currentTok.replace(/"/g, '&quot;')}">
           <p class="muted" style="margin-top:6px; font-size:11px;">
             <a href="#" id="md-mapbox-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.mapbox.help_link")}</a>
@@ -737,6 +737,8 @@ function _bindSettingsModalHandlers() {
     openMapboxHelpModal(_bindSettingsModalHandlers);
   };
   // 03.09.2026 — dasselbe für MapTiler
+  // 25.09.2026 (Klicktest S-10): Schlüssel verdeckt, „Anzeigen" je Feld
+  rzSchluesselFelder(document.getElementById("modal-overlay") || document);
   const _mth = document.getElementById("md-maptiler-help-link");
   if (_mth) _mth.onclick = (e) => { e.preventDefault(); openMapTilerHelpModal(_bindSettingsModalHandlers); };
   // v0.8.0: Direkt-Link zum Mapbox-Usage-Dashboard. Öffnet im externen

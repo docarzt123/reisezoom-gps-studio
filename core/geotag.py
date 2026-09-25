@@ -187,6 +187,61 @@ def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dic
     }
 
 
+def zone_im_foto_pruefen(photo_times_utc, tracks, *, max_gap_seconds: float = 300.0,
+                         versatz_jetzt_s: float = 0.0) -> dict:
+    """25.09.2026 (Klicktest GT-23, Marcs Masca-Fotos) — Fotos MIT Zeitzone im Foto,
+    deren Zeitzone aber nicht stimmt: Die Canon G5 X II lief auf Teneriffa-Zeit (UTC+1),
+    schrieb aber +02:00 ins Foto. Alle Fotos lagen dadurch eine Stunde früher auf dem
+    Track — rund 1,7 km daneben, und die App sagte nichts.
+
+    Gerechnet wird wie in `zeitzone_raten`, nur als ZUSATZ-Versatz auf schon normierte
+    UTC-Zeiten (eine Kamera auf einmal): Welche Verschiebung (±3 h, 15-min-Schritte) legt
+    die meisten Fotos in einen der Tracks? Vorgeschlagen wird nur, wenn
+      · die beste Verschiebung klar mehr Fotos in den Track legt als die jetzige
+        (mind. 2 Fotos und 5 %), und danach ≥ 80 % der Fotos drinliegen,
+      · der Bereich gleich guter Verschiebungen schmal ist (≤ 90 min) und
+      · darin ein Zeitzonen-typischer Wert liegt (volle oder halbe Stunde).
+    Sonst: kein Vorschlag — lieber nichts als ein falscher Versatz.
+
+    `photo_times_utc`: [(pfad, naive UTC-datetime)], `tracks`: [List[TrackPoint]],
+    `versatz_jetzt_s`: bereits eingestellter Kamera-Versatz (Sekunden, + = Foto später).
+    Rückgabe: {"versatz_s": int|None, "vorher": int, "nachher": int, "gesamt": int}
+    """
+    def _naiv_utc(t):
+        return t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t
+
+    zeiten = [_naiv_utc(t) + timedelta(seconds=versatz_jetzt_s) for _p, t in photo_times_utc if t is not None]
+    spannen = []
+    for tr in tracks or []:
+        tt = _track_times(tr)
+        if tt and tt[0] is not None and tt[-1] is not None:
+            spannen.append((_naiv_utc(tt[0]) - timedelta(seconds=max_gap_seconds),
+                            _naiv_utc(tt[-1]) + timedelta(seconds=max_gap_seconds)))
+    leer = {"versatz_s": None, "vorher": 0, "nachher": 0, "gesamt": len(zeiten)}
+    if len(zeiten) < 3 or not spannen:
+        return leer
+
+    def treffer(minuten: int) -> int:
+        d = timedelta(minutes=minuten)
+        return sum(1 for z in zeiten if any(a <= z + d <= b for a, b in spannen))
+
+    werte = {m: treffer(m) for m in range(-180, 181, 15)}
+    vorher, best = werte[0], max(werte.values())
+    leer.update({"vorher": vorher, "nachher": vorher})
+    n = len(zeiten)
+    if best - vorher < max(2, 0.05 * n) or best < 0.8 * n:
+        return leer
+    gleich = sorted(m for m, v in werte.items() if v == best)
+    if gleich[-1] - gleich[0] > 90:
+        return leer
+    mitte = (gleich[0] + gleich[-1]) / 2
+    typisch = [m for m in gleich if m % 30 == 0]
+    if not typisch:
+        return leer
+    m = min(typisch, key=lambda x: (0 if x % 60 == 0 else 1, abs(x - mitte), abs(x)))
+    return {"versatz_s": m * 60, "vorher": vorher, "nachher": best, "gesamt": n}
+
+
 def match_photos(
     photo_times: list[tuple[str, Optional[datetime]]],
     track: List[TrackPoint],

@@ -687,8 +687,9 @@ python app.py</code></pre>
 <li>Letzte Modul-Auswahl</li>
 <li>Alle Render-Einstellungen pro Modul (Stil, Pitch, Auflösung, Farbe, Codec, FPS etc.)</li>
 <li>Letzter Save-Ordner (pro Modul)</li>
-<li>Mapbox-Token</li>
+<li>Mapbox-Token und die anderen Karten-Schlüssel — in den Einstellungen verdeckt, <strong>„👁 Anzeigen“</strong> zeigt sie</li>
 <li>Sprach-Auswahl</li>
+<li>Die zuletzt geöffnete Tour und das Modul, auch wenn noch kein Projekt gespeichert ist — Fotos im Geotagger lädst du danach neu</li>
 </ul>
 <p>Settings-Datei:</p>
 <ul>
@@ -1701,6 +1702,7 @@ python app.py</code></pre>
 <li>Filter wieder auf <strong>„Alle&quot;</strong> — beide Kameras behalten ihren eigenen Offset.</li>
 </ol>
 <p> Der Knopf jeder Kamera zeigt ihren gesetzten Offset als kleines Badge (z.B. <code>📷 OM-3 +1h</code>). Ohne Kamera-Filter („Alle&quot;) stellst du den <strong>globalen Standard</strong> ein, der für alle Kameras ohne eigenen Offset gilt. Die Pro-Kamera-Offsets bleiben gespeichert und greifen auch bei der optionalen Aufnahmezeit-Korrektur.</p>
+<p><strong>Wenn die Zeitzone IM Foto falsch ist:</strong> Auch Kameras, die ihre Zeitzone mitschreiben, können danebenliegen — typisch: Du stellst im Urlaub die Uhrzeit auf Ortszeit, die Zeitzonen-Einstellung bleibt aber auf „Deutschland“. Dann behauptet jedes Foto z. B. +02:00, obwohl die Uhr auf UTC+1 lief, und alle Fotos landen eine Stunde früher auf dem Track (bei einer Wanderung gut ein Kilometer daneben). Die App prüft das je Kamera: Legt eine Verschiebung deutlich mehr Fotos in den Track, steht im Hinweis-Kasten <strong>„⚠️ … Die Zeitzone im Foto passt nicht zum Track — mit +1 h liegen 73 statt 58 von 73 Fotos im Track“</strong> mit <strong>Übernehmen</strong>. Das setzt den Versatz nur für diese Kamera. Vorgeschlagen wird nur, was eindeutig ist: Stammen die Fotos aus einer Stunde mitten in der Tour, kann niemand die Verschiebung erkennen — dann kommt kein Hinweis.</p>
 <h3 id="wenn-die-position-unsicher-ist">Wenn die Position unsicher ist</h3>
 <p>Hat dein Track eine <strong>Aufzeichnungslücke</strong> und ein Foto fällt hinein, bekommt es den zeitlich nächstgelegenen Punkt. Das ist meistens genau richtig: Gehst du ins Wirtshaus, verlierst du drinnen den Empfang — der letzte Punkt liegt am Eingang, und dort war das Foto ja auch.</p>
 <p>Falsch wird es nur, wenn während der Lücke <strong>weitergegangen</strong> wurde: Die Uhr geht mit leerem Akku aus und du wanderst zwei Stunden weiter. Oder du pausierst die Aufzeichnung und fährst mit der Seilbahn hoch. Dann liegt der zugeordnete Punkt kilometerweit weg.</p>
@@ -1757,6 +1759,7 @@ python app.py</code></pre>
 <h3 id="auto-tag-per-bilderkennung">Auto-Tag per Bilderkennung 🔍</h3>
 <p>Auf dem <strong>Mac</strong> kann der Geotagger zu jedem Foto automatisch <strong>Stichwörter</strong> erkennen — Szenen und Objekte wie „Outdoor, Wald, Reh, Strand&quot;. Das macht das <strong>eingebaute Apple-Vision-Framework</strong>: komplett <strong>auf dem Gerät</strong>, ohne Internet, ohne Konto, ohne Download, und schnell (Bruchteile einer Sekunde pro Foto). Häufige Begriffe werden ins Deutsche übersetzt.</p>
 <p>So geht&#x27;s: Button <strong>„🔍 Auto-Tag (Bilderkennung)&quot;</strong> in der Schreib-Sektion klicken → die App analysiert alle sichtbaren/angehakten Fotos → die Vorschläge landen als <strong>ausstehende Änderungen</strong> (gelb, im <code>Keywords</code>-Feld) → du überfliegst/korrigierst sie im EXIF-Tab und schreibst sie dann mit <strong>„Taggen schreiben&quot;</strong> (inkl. Backup). Die KI schlägt nur vor — du entscheidest.</p>
+<p><strong>Rückfrage vorher:</strong> Bevor es losgeht, fragt die App, wie viele Fotos erkannt werden und wie lange das etwa dauert — mit <strong>„Nur dieses Foto“</strong>, wenn du gerade eins ausgewählt hast. Weniger Fotos: Häkchen an den Kacheln abwählen oder oben filtern.</p>
 <blockquote><strong>Windows / Linux:</strong> Diese Funktion gibt es dort <strong>nicht</strong> — Apple Vision ist Mac-exklusiv, und wir wollten dafür kein riesiges KI-Modell mitliefern. Der Button ist dort einfach ausgeblendet; alles andere im Geotagger funktioniert identisch.</blockquote>
 <h3 id="globale-felder-urheber-copyright-f-r-den-ganzen-stapel">Globale Felder — Urheber &amp; Copyright für den ganzen Stapel</h3>
 <p>Manche Felder willst du <strong>einmal setzen und auf alle Fotos schreiben</strong> — Name, Copyright usw. Dafür gibt es in der Schreib-Sektion den Button <strong>„✎ Globale Felder (Urheber, Copyright …)&quot;</strong>. Im Formular trägst du ein, was du brauchst:</p>

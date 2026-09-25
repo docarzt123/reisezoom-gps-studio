@@ -582,8 +582,9 @@ The **alpha mode** ("Without map" in the Animator) automatically uses lossless P
 - The last module selection
 - All render settings per module (style, pitch, resolution, color, codec, FPS, etc.)
 - The last save folder (per module)
-- The Mapbox token
+- The Mapbox token and the other map keys — hidden in the settings, **“👁 Show”** reveals them (since v0.9.724)
 - The language selection
+- The last opened tour and module, even if no project has been saved yet (since v0.9.724) — reload photos in the Geotagger afterwards
 
 Settings file:
 - macOS: `~/Library/Application Support/Reisezoom GPS Studio/settings.json`
@@ -2114,6 +2115,8 @@ because the clock really was wrong):
   4. Set the filter back to **"All"** — both cameras keep their own offset.
   Each camera's button shows its set offset as a small badge (e.g. `📷 OM-3 +1h`). Without a camera filter ("All") you set the **global default**, which applies to all cameras without their own offset. The per-camera offsets stay saved and also take effect in the optional capture-time correction.
 
+**When the time zone stored IN the photo is wrong (since v0.9.724):** Cameras that write their time zone can still be off — typically you set the clock to local time on holiday but leave the time zone setting at home. Every photo then claims e.g. +02:00 although the clock ran on UTC+1, and all photos land an hour early on the track (on a hike, well over a kilometre off). The app checks this per camera: if a shift puts clearly more photos on the track, the hint box shows **“⚠️ … The time zone stored in the photos does not fit the track — with +1 h, 73 instead of 58 of 73 photos fall on the track”** with **Apply**, which sets the offset for that camera only. It only suggests what is unambiguous: photos from a single hour in the middle of the tour cannot reveal a shift, so no hint appears.
+
 ### When the position is uncertain (since v0.9.499)
 
 If your track has a **recording gap** and a photo falls into it, the photo gets the
@@ -2184,6 +2187,8 @@ Clicking a photo (in the list or on the map pin) opens the preview panel on the 
 On the **Mac** the Geotagger can automatically detect **keywords** for each photo — scenes and objects like "outdoor, forest, deer, beach". This is done by the **built-in Apple Vision framework**: completely **on the device**, no internet, no account, no download, and fast (a fraction of a second per photo). Common terms are translated into German.
 
 Here's how: click the **"🔍 Auto-tag (image recognition)"** button in the write section → the app analyzes all visible/checked photos → the suggestions land as **pending changes** (yellow, in the `Keywords` field) → you skim/correct them in the EXIF tab and then write them with **"Write tags"** (incl. backup). The AI only suggests — you decide.
+
+**Asks first (since v0.9.724):** Before it starts, the app asks how many photos to recognise and roughly how long it takes — with **“Only this photo”** if one is selected. For fewer photos, untick tiles or use a filter.
 
 > **Windows / Linux:** This function is **not** available there — Apple Vision is Mac-exclusive, and we didn't want to bundle a huge AI model for it. The button is simply hidden there; everything else in the Geotagger works identically.
 
