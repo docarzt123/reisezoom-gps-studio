@@ -48,7 +48,11 @@ def komoot(kennung: str) -> Path:
     return treffer[0]
 
 
-FOTO_TOUR = TENERIFFA[3]
+# Fotos gehören zu Masca (05.05.2023) — dazu liefert Marc auch echte Fotos (Quellen/10-fotos/echt/).
+# Im Mai gilt auf Teneriffa UTC+1; die Canon steht auf deutscher Sommerzeit (UTC+2).
+FOTO_TOUR = "1106845751"
+FOTO_ORT_H = 1        # Ortszeit = UTC+1
+FOTO_CANON_H = 2      # Kamera-Uhr der Canon = UTC+2
 
 
 def kopieren(quelle: Path, ziel: Path, name: str | None = None) -> Path:
@@ -139,12 +143,13 @@ def teneriffa(q: Path):
     for f in TENERIFFA:
         kopieren(komoot(f), d)
     kopieren(komoot(LOGGER), q / "09-logger", "pico-viejo-mit-blickrichtung.gpx")
+    kopieren(komoot(FOTO_TOUR), q / "03-touren")   # Masca: die Tour zu den Fotos
 
 
 # ── Fotos ───────────────────────────────────────────────────────────────────
 
 def _foto(pfad: Path, zeit: dt.datetime, marke: str, modell: str, farbe, text: str,
-          gps: tuple | None = None, heic: bool = False):
+          gps: tuple | None = None, heic: bool = False, versatz: str = ""):
     from PIL import Image, ImageDraw, ImageFont
     import piexif
     img = Image.new("RGB", (1600, 1067), farbe)
@@ -162,6 +167,8 @@ def _foto(pfad: Path, zeit: dt.datetime, marke: str, modell: str, farbe, text: s
                   piexif.ImageIFD.DateTime: s},
           "Exif": {piexif.ExifIFD.DateTimeOriginal: s, piexif.ExifIFD.DateTimeDigitized: s},
           "GPS": {}, "1st": {}}
+    if versatz:        # moderne Kamera: Zeitzone steht im Foto (OffsetTimeOriginal, Exif 2.31)
+        ex["Exif"][piexif.ExifIFD.OffsetTimeOriginal] = versatz.encode()
     if gps:
         def dms(x):
             x = abs(x)
@@ -180,56 +187,64 @@ def _foto(pfad: Path, zeit: dt.datetime, marke: str, modell: str, farbe, text: s
 
 
 def fotos(q: Path) -> dict:
-    """Synthetische Fotos zur Tour „Wer sieht die Schildkröte" (21.02.2026, Teneriffa = UTC+0
-    im Februar, die Kamera-Uhrzeit ist also gleich UTC)."""
+    """Synthetische Fotos zur Tour Barranco de Masca (05.05.2023). EXIF-Zeiten sind
+    Kamera-Uhrzeiten (naiv): Insta360/iPhone in Ortszeit UTC+1 MIT Zeitzonen-Feld, die
+    Canon auf deutscher Sommerzeit UTC+2 OHNE Zeitzonen-Feld (alte Kamera, falsch gestellt)."""
     from core import gpx as G
     pts, _ = G.parse_gpx(str(komoot(FOTO_TOUR)))
     t0 = dt.datetime.fromisoformat(pts[0].time.replace("Z", "+00:00")).replace(tzinfo=None)
     t1 = dt.datetime.fromisoformat(pts[-1].time.replace("Z", "+00:00")).replace(tzinfo=None)
     dauer = (t1 - t0).total_seconds()
+    ort, canon = dt.timedelta(hours=FOTO_ORT_H), dt.timedelta(hours=FOTO_CANON_H)
+    vz = f"+{FOTO_ORT_H:02d}:00"
     d = q / "10-fotos" / "geotagger"
     d.mkdir(parents=True, exist_ok=True)
     liste = []
 
+    def bei(anteil: float) -> dt.datetime:
+        return (t0 + dt.timedelta(seconds=dauer * anteil)).replace(microsecond=0)
+
     def neu(name, zeit, marke, modell, farbe, text, **kw):
         _foto(d / name, zeit, marke, modell, farbe, text, **kw)
-        liste.append({"datei": name, "zeit_exif": zeit.isoformat(), "kamera": f"{marke} {modell}", **{
-            k: v for k, v in kw.items() if k in ("gps",)}, "text": text})
+        liste.append({"datei": name, "zeit_exif": zeit.isoformat(), "zeitzone_im_foto": kw.get("versatz") or "—",
+                      "kamera": f"{marke} {modell}", **{k: v for k, v in kw.items() if k in ("gps",)}, "text": text})
 
-    for i in range(6):     # Kamera A: Uhr stimmt
-        z = t0 + dt.timedelta(seconds=dauer * (0.08 + 0.16 * i))
-        neu(f"A_{i + 1:02d}.jpg", z.replace(microsecond=0), "Insta360", "X5", (40, 90 + 20 * i, 140), f"Kamera A · Foto {i + 1}")
-    for i in range(4):     # Kamera B: Uhr läuft 1 h vor (deutsche Zeit eingestellt)
-        z = t0 + dt.timedelta(seconds=dauer * (0.15 + 0.2 * i)) + dt.timedelta(hours=1)
-        neu(f"B_{i + 1:02d}.jpg", z.replace(microsecond=0), "Canon", "EOS R6", (150, 60, 40 + 25 * i),
-            f"Kamera B (+1 h) · Foto {i + 1}")
-    mitte = t0 + dt.timedelta(seconds=dauer * 0.5)
+    for i in range(6):     # Kamera A: Ortszeit, Zeitzone im Foto
+        neu(f"A_{i + 1:02d}.jpg", bei(0.08 + 0.16 * i) + ort, "Insta360", "X5", (40, 90 + 20 * i, 140),
+            f"Kamera A · Foto {i + 1}", versatz=vz)
+    for i in range(4):     # Kamera B: deutsche Sommerzeit, ohne Zeitzone
+        neu(f"B_{i + 1:02d}.jpg", bei(0.15 + 0.2 * i) + canon, "Canon", "EOS R6", (150, 60, 40 + 25 * i),
+            f"Kamera B (UTC+2, ohne Zone) · Foto {i + 1}")
     for i in range(3):     # drei Fotos in derselben Minute → Auffächern
-        neu(f"C_gleiche_minute_{i + 1}.jpg", (mitte + dt.timedelta(seconds=10 * i)).replace(microsecond=0),
-            "Insta360", "X5", (90, 40, 120), f"Gleiche Minute · {i + 1}")
-    neu("D_nach_tourende.jpg", (t1 + dt.timedelta(hours=2)).replace(microsecond=0), "Insta360", "X5",
-        (60, 60, 60), "2 h nach Tourende")
+        neu(f"C_gleiche_minute_{i + 1}.jpg", bei(0.5) + ort + dt.timedelta(seconds=10 * i), "Insta360", "X5",
+            (90, 40, 120), f"Gleiche Minute · {i + 1}", versatz=vz)
+    neu("D_nach_tourende.jpg", (t1 + dt.timedelta(hours=2)).replace(microsecond=0) + ort, "Insta360", "X5",
+        (60, 60, 60), "2 h nach Tourende", versatz=vz)
     p = pts[len(pts) // 3]
-    neu("E_hat_schon_gps.jpg", (t0 + dt.timedelta(seconds=dauer / 3)).replace(microsecond=0), "Apple", "iPhone 17 Pro",
-        (30, 120, 60), "Hat schon GPS", gps=(p.lat, p.lon))
-    neu("F_heic.heic", (t0 + dt.timedelta(seconds=dauer * 0.7)).replace(microsecond=0), "Apple", "iPhone 17 Pro",
-        (20, 100, 160), "HEIC-Foto", heic=True)
-    # kurzes Video mit Aufnahmezeit
-    zv = (t0 + dt.timedelta(seconds=dauer * 0.6)).replace(microsecond=0)
+    neu("E_hat_schon_gps.jpg", bei(1 / 3) + ort, "Apple", "iPhone 17 Pro", (30, 120, 60), "Hat schon GPS",
+        gps=(p.lat, p.lon), versatz=vz)
+    neu("F_heic.heic", bei(0.7) + ort, "Apple", "iPhone 17 Pro", (20, 100, 160), "HEIC-Foto", heic=True, versatz=vz)
+    zv = bei(0.6)          # Video: QuickTime speichert UTC
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=teal:s=640x360:d=3",
                     "-metadata", f"creation_time={zv.isoformat()}Z", "-c:v", "libx264", "-pix_fmt", "yuv420p",
                     str(d / "G_video.mp4")], check=True)
-    liste.append({"datei": "G_video.mp4", "zeit_exif": zv.isoformat(), "kamera": "Video", "text": "3-s-Video"})
+    liste.append({"datei": "G_video.mp4", "zeit_exif": zv.isoformat() + "Z", "zeitzone_im_foto": "UTC",
+                  "kamera": "Video", "text": "3-s-Video"})
 
     # Foto-Bestand: Unterordner + ein Duplikat
     b = q / "10-fotos" / "bestand"
-    for sub, namen in (("2026-02 Teneriffa/Tag 1", ["A_01.jpg", "A_02.jpg", "A_03.jpg"]),
-                       ("2026-02 Teneriffa/Tag 2", ["A_04.jpg", "B_01.jpg", "C_gleiche_minute_1.jpg"]),
+    for sub, namen in (("2023-05 Teneriffa/Masca Vormittag", ["A_01.jpg", "A_02.jpg", "A_03.jpg"]),
+                       ("2023-05 Teneriffa/Masca Nachmittag", ["A_04.jpg", "B_01.jpg", "C_gleiche_minute_1.jpg"]),
                        ("Sonstiges", ["E_hat_schon_gps.jpg", "F_heic.heic"])):
         for n in namen:
             kopieren(d / n, b / sub)
     kopieren(d / "A_01.jpg", b / "Sonstiges", "A_01 Kopie.jpg")
-    return {"tour": komoot(FOTO_TOUR).name, "tour_start_utc": t0.isoformat(), "tour_ende_utc": t1.isoformat(), "fotos": liste}
+    e = q / "10-fotos" / "echt"
+    e.mkdir(parents=True, exist_ok=True)
+    (e / "LIESMICH.txt").write_text("Hier legt Marc 10–20 echte Fotos der Masca-Tour ab (05.05.2023), "
+                                    "gern mit einem RAW, einem HEIC und einem kurzen Video.\n", encoding="utf-8")
+    return {"tour": komoot(FOTO_TOUR).name, "tour_start_utc": t0.isoformat(), "tour_ende_utc": t1.isoformat(),
+            "ortszeit": f"UTC+{FOTO_ORT_H}", "fotos": liste}
 
 
 def sonstiges(q: Path):
@@ -290,15 +305,17 @@ def soll_werte(q: Path, foto_info: dict) -> None:
         zeilen.append(f"| `{rel}` | {w['punkte']} | {w['strecke_km']} | {w['dauer']} | {w['bewegungszeit']} | "
                       f"{w['bergauf_m']} | {w.get('check_stufe', '—')} {w.get('check_kurz', '')} | {lbt} |")
     zeilen.append("\n## Fotos (10-fotos/geotagger)\n")
-    zeilen.append(f"Tour: `{foto_info['tour']}` — {foto_info['tour_start_utc']} bis {foto_info['tour_ende_utc']} (UTC = Ortszeit).\n")
-    zeilen.append("| Datei | Kamera | Aufnahmezeit (EXIF) | Erwartung |")
-    zeilen.append("|---|---|---|---|")
-    erw = {"A_": "liegt auf dem Track", "B_": "Uhr 1 h vor → erst nach Zeitkorrektur −1 h auf dem Track",
-           "C_": "drei am selben Punkt → auffächern", "D_": "außerhalb der Tourzeit → keine/unsichere Position",
-           "E_": "hat schon GPS → wird nicht verschoben", "F_": "HEIC wird gelesen und getaggt",
-           "G_": "Video wird erkannt"}
+    zeilen.append(f"Tour: `{foto_info['tour']}` — {foto_info['tour_start_utc']} bis {foto_info['tour_ende_utc']} UTC "
+                  f"(Ortszeit {foto_info['ortszeit']}).\n")
+    zeilen.append("| Datei | Kamera | Aufnahmezeit (EXIF, Kamera-Uhr) | Zeitzone im Foto | Erwartung |")
+    zeilen.append("|---|---|---|---|---|")
+    erw = {"A_": "liegt sofort auf dem Track", "B_": "ohne Zeitzone, Uhr auf UTC+2 → erst mit Kamera-Zeitzone UTC+2 "
+           "(Vorschlag „Aus dem Track gerechnet\") auf dem Track", "C_": "drei am selben Punkt → auffächern",
+           "D_": "außerhalb der Tourzeit → keine/unsichere Position", "E_": "hat schon GPS → wird nicht verschoben",
+           "F_": "HEIC wird gelesen und liegt auf dem Track", "G_": "Video (Zeit in UTC) liegt auf dem Track"}
     for x in foto_info["fotos"]:
-        zeilen.append(f"| `{x['datei']}` | {x['kamera']} | {x['zeit_exif']} | {erw.get(x['datei'][:2], '')} |")
+        zeilen.append(f"| `{x['datei']}` | {x['kamera']} | {x['zeit_exif']} | {x['zeitzone_im_foto']} | "
+                      f"{erw.get(x['datei'][:2], '')} |")
     (q / "SOLL-WERTE.md").write_text("\n".join(zeilen) + "\n", encoding="utf-8")
 
 

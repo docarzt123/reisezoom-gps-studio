@@ -45,7 +45,8 @@ Alles liegt unter `~/GPS-Studio-Test`:
 | `Bibliothek/` | Die Test-Bibliothek (Archiv-Datenbank, Projekte, Touren) |
 | `Arbeit/archiv/` | Tracks, die im Archiv stehen (vorbefüllt) |
 | `Arbeit/zum-oeffnen/` | Tracks, die **nicht** im Archiv sind: `01-formate`, `02-fehlerfaelle`, `06-tagesdateien` |
-| `Arbeit/fotos/geotagger/` | Testfotos zur Tour „Wer sieht die Schildkröte" (21.02.2026) |
+| `Arbeit/fotos/geotagger/` | Testfotos zur Tour „Barranco de Masca" (05.05.2023, Ortszeit UTC+1) |
+| `Arbeit/fotos/echt/` | Echte Fotos derselben Tour (von Marc; leer, solange nur `LIESMICH.txt` darin liegt) |
 | `Arbeit/fotos/bestand/` | Foto-Ordner mit Unterordnern und einem Duplikat |
 | `Arbeit/reiseroute/stationen.txt` | Stationen für die Reiseroute |
 | `Ausgaben/` | **Hierhin** speicherst du alles (Videos, PNGs, HTML, GPX, .rzproj) |
@@ -72,10 +73,11 @@ Im Terminal (Arbeitsordner `…/Reisezoom-GPS-Studio`):
 ./scripts/testumgebung.sh status
 ```
 
-- **vorbefuellt**: Archiv mit 34 Touren, zwei Sammlungen („Teneriffa Februar 2026",
+- **vorbefuellt**: Archiv mit 35 Touren (39 Dateien), zwei Sammlungen („Teneriffa Februar 2026",
   „Problemfälle"), Kartenschlüssel gesetzt, Sprache Deutsch. Standard für alle Blöcke.
 - **leer**: Erststart mit Onboarding, ohne Bibliothek und ohne Schlüssel. Nur für Block ER.
 - Vor dem Zurücksetzen die Test-App mit **⌘Q** beenden, sonst bricht das Skript ab.
+- `starten` verweigert einen zweiten Start, solange die Test-App läuft — dann das vorhandene Fenster nach vorne holen.
 - Nach dem Start steht oben rechts **„v0.9.724 · TEST"** auf gelbem Grund. Fehlt das,
   sofort beenden — dann läuft die falsche App.
 
@@ -104,6 +106,13 @@ Zeiten ±1 min, Höhenmeter ±5 %. Die Anzeige rundet — 35,7 km und 35,72 km s
 
 ### A7. Wann du aufhörst und fragst
 
+**Vorsicht, fremde Fenster:** Auf diesem Rechner laufen zeitweise andere Automationen (z. B. ein
+Codex-Prüfauftrag alle 5 Minuten), die ein anderes Fenster nach vorne holen. Prüfe vor **jedem**
+Klick per Screenshot, dass GPS Studio vorne ist (Titel „GPS Studio by reisezoom.com", gelbes „TEST").
+Ist ein anderes Fenster vorne: nichts darin anklicken, GPS Studio nach vorne holen
+(`osascript -e 'tell application "Reisezoom GPS Studio" to activate'`), neu fotografieren.
+
+
 - Ein macOS-Berechtigungs- oder Passwortfenster erscheint.
 - Die App friert länger als 2 Minuten ein oder stürzt ab (dann: Log sichern, neu starten,
   weiter mit dem nächsten Block).
@@ -124,7 +133,7 @@ Umgebung: `zuruecksetzen vorbefuellt`, `starten`.
 | ID | Aktion | Erwartet |
 |---|---|---|
 | S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.724 · TEST", keine Fehlermeldung |
-| S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 34 Touren; links Sammlungen „Problemfälle" (19) und „Teneriffa Februar 2026" (5) |
+| S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 35 Touren; links Sammlungen „Problemfälle" (19) und „Teneriffa Februar 2026" (5) |
 | S-03 | Suchfeld: `Teide` | Zwei Treffer („Teide Original", „Teide nochmal …") bzw. eine Tour mit „2×" |
 | S-04 | Tour **kaputt-mit-absicht** anklicken | Kachel mit rotem ⚠︎; rechts Track-Check mit Sprung, Höhen-Müll, Lücke, Zeit rückwärts |
 | S-05 | Doppelklick auf **Wer sieht die Schildkröte 🐢** | Animator öffnet, Track auf der Karte, Strecke ≈ 15,8 km |
@@ -154,7 +163,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | ER-02 | Ort wählen: `~/GPS-Studio-Test/Bibliothek` (neu anlegen) | Wird angenommen; keine Rückfrage nach Cloud-Ordnern |
 | ER-03 | Frage nach Mapbox-Token / Kartenanbieter | **Kostenlos** wählen. Nichts eintippen |
 | ER-04 | Archiv öffnen | Leere Fläche mit großem „+ Ordner hinzufügen" |
-| ER-05 | Ordner `~/GPS-Studio-Test/Arbeit/archiv` hinzufügen | Einlesen läuft mit Fortschritt, am Ende 34 Touren (38 Dateien, 4 mehrfach) |
+| ER-05 | Ordner `~/GPS-Studio-Test/Arbeit/archiv` hinzufügen | Einlesen läuft mit Fortschritt, am Ende 35 Touren (39 Dateien, 4 mehrfach) |
 | ER-06 | Frage „Bestand prüfen?" (falls sie kommt) | Beantworten mit „Prüfen"; Marken wie in `SOLL-ARCHIV.md` |
 | ER-07 | Animator mit einer Tour öffnen | Karte kostenlos (OSM/OpenFreeMap), Probe-Lauf geht |
 | ER-08 | Beenden und neu starten | Kein Onboarding mehr, Bibliothek wieder offen |
@@ -195,7 +204,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | FO-01 | Archiv → **Fotos** → Ordner hinzufügen `Arbeit/fotos/bestand` | Zwei Durchgänge (Dateien suchen, Aufnahmedaten lesen) mit Fortschritt |
 | FO-02 📷 | Rasteransicht | Nach Tagen gegliedert; 9 Dateien; HEIC mit Vorschaubild |
 | FO-03 | Kartenansicht | Punkt nur für `E_hat_schon_gps.jpg` (die anderen haben keine Koordinate, Kachel-„!") |
-| FO-04 | Ansicht **Nach Touren** | Fotos vom 21.02.2026 bei „Wer sieht die Schildkröte" |
+| FO-04 | Ansicht **Nach Touren** | Fotos vom 05.05.2023 bei „Barranco de Masca" |
 | FO-05 | Suche/Filter nach Kamera „Canon" | Nur B_01 |
 | FO-06 | Ordner wieder entfernen | Verschwindet aus dem Bestand; Dateien in `Arbeit/fotos/bestand` bleiben (im Finder prüfen) |
 
@@ -319,10 +328,10 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| GT-01 | Ordner laden, **ohne** vorher einen Track zu laden | Archiv schlägt „Wer sieht die Schildkröte" vor (Bestätigungsliste mit Fotozahl) |
+| GT-01 | Ordner laden, **ohne** vorher einen Track zu laden | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
 | GT-02 | **Tracks verwenden** | Track auf der Karte, Fotos A_ liegen darauf |
-| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen 1 h daneben bzw. außerhalb; Hinweis „ohne Zeitzone" mit Vorschlag |
-| GT-04 | Für Canon Offset −1 h (Slider oder Vorschlag übernehmen), zurück auf „Alle" | B_ liegen jetzt auf dem Track; Badge „📷 EOS R6 −1h" |
+| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Hinweis „ohne Zeitzone" für EOS R6, Vorschlag „Aus dem Track gerechnet: UTC+2" |
+| GT-04 | Vorschlag **Übernehmen** (oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst) |
 | GT-05 | C_gleiche_minute_1–3 | Drei Fotos am selben Punkt, auffächerbar |
 | GT-06 | D_nach_tourende | Als unsicher/ohne Position gekennzeichnet |
 | GT-07 | E_hat_schon_gps | Behält seine Position |
@@ -370,13 +379,14 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 
 ### CL — Test-Cloud (nur wenn eingerichtet)
 
-Die Test-App hat eine **eigene** Cloud-Kennung und darf nur mit der Test-Cloud verbunden
-werden. Adresse steht in `~/GPS-Studio-Test/TEST-CLOUD.txt`. Fehlt die Datei: Block ⏭.
-Passwort und Zugangsschlüssel trägt **Marc** ein, nicht du.
+Die Test-App ist mit der **Test-Cloud** `https://reisezoom.com/rz-cloud-testrechner/rz-cloud.php` verbunden
+(Zugang als Datei im Test-App-Ordner, bleibt beim Zurücksetzen erhalten; Adresse auch in
+`~/GPS-Studio-Test/TEST-CLOUD.txt`). Fehlt die Datei: Block ⏭. Passwort und Zugangsschlüssel
+liegen nur bei Marc/Claude — du tippst nichts davon ein und trennst die Cloud nicht.
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| CL-01 | ⚙ → Bibliothek & Cloud: Status | Zeigt die Test-Cloud-Adresse, nicht `reisezoom.com/rz-cloud/` |
+| CL-01 | ⚙ → Bibliothek & Cloud: Status | Zeigt `…/rz-cloud-testrechner/…`, **niemals** `reisezoom.com/rz-cloud/` (sonst sofort aufhören) |
 | CL-02 | Tour ändern (Schlagwort), 2 min warten | Auto-Abgleich lädt hoch (☁-Anzeige) |
 | CL-03 | Cloud-Übersicht | Anzahl oben ≈ Anzahl im Archiv |
 

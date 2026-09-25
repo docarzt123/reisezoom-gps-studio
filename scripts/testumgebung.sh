@@ -5,6 +5,7 @@
 #   scripts/testumgebung.sh zuruecksetzen vorbefuellt   frische Arbeitskopien, Bibliothek mit Archiv
 #   scripts/testumgebung.sh zuruecksetzen leer          frische Arbeitskopien, Erststart (Onboarding)
 #   scripts/testumgebung.sh starten                    installierte App MIT dem Test-App-Ordner starten
+#   scripts/testumgebung.sh cloud-einrichten <adresse>  Test-Cloud anlegen (eigener Server-Ordner)
 #   scripts/testumgebung.sh status
 #
 # Alles liegt unter $RZ_TESTWURZEL (Vorgabe ~/GPS-Studio-Test). Die App bekommt über
@@ -30,8 +31,8 @@ schutz_schreiben() {   # $1 = App-Ordner
   printf '{\n  "schreiben_nur_in": ["%s"],\n  "hinweis": "Testrechner (scripts/testumgebung.sh): Löschen/Ersetzen/Foto-Überschreiben nur in der Testwurzel."\n}\n' "$WURZEL" > "$1/testrechner.json"
 }
 
-laeuft_test_app() {
-  ps -Ewwo pid,command | grep -F "RZ_APP_ORDNER=$APP_ORDNER" | grep -v grep >/dev/null 2>&1
+laeuft_test_app() {   # -ax: App-Prozesse haben kein Terminal; -E zeigt die Umgebung (RZ_APP_ORDNER)
+  ps -axEww -o command= | grep -F "RZ_APP_ORDNER=$APP_ORDNER" | grep -v grep >/dev/null 2>&1
 }
 
 einstellungen_schreiben() {   # Kartenschlüssel aus den Einstellungen dieses Rechners übernehmen
@@ -88,6 +89,10 @@ case "${1:-}" in
     [ -d "$WURZEL/_alt/$stamp" ] && echo "bisheriger Stand → _alt/$stamp"
     arbeit_anlegen
     schutz_schreiben "$APP_ORDNER"
+    # Test-Cloud-Zugang (Datei-Ablage, RZ_CLOUD_ABLAGE=datei) in den neuen App-Ordner mitnehmen
+    for f in cloud-zugang.json cloud_zustand.json; do
+      [ -f "$WURZEL/_alt/$stamp/App-Ordner/$f" ] && cp -p "$WURZEL/_alt/$stamp/App-Ordner/$f" "$APP_ORDNER/" || true
+    done
     : > "$APP_ORDNER/ui-zuruecksetzen"   # beim nächsten Start leert die App ihren Browser-Speicher (Filter, Klappzustände)
     if [ "$modus" = "vorbefuellt" ]; then
       einstellungen_schreiben
@@ -100,8 +105,14 @@ case "${1:-}" in
   starten)
     [ -d "$APP_ORDNER" ] || { echo "Erst: $0 zuruecksetzen vorbefuellt"; exit 1; }
     [ -f "$APP_ORDNER/testrechner.json" ] || schutz_schreiben "$APP_ORDNER"
-    open -n -a "$APP" --env "RZ_APP_ORDNER=$APP_ORDNER"
+    if laeuft_test_app; then echo "Die Test-App läuft schon — nach vorne holen statt neu starten."; exit 1; fi
+    open -n -a "$APP" --env "RZ_APP_ORDNER=$APP_ORDNER" --env "RZ_CLOUD_ABLAGE=datei"
     echo "✓ gestartet mit App-Ordner $APP_ORDNER (oben rechts steht „· TEST“)"
+    ;;
+  cloud-einrichten)
+    [ -n "${2:-}" ] || { echo "Adresse fehlt: $0 cloud-einrichten https://…/rz-cloud.php"; exit 2; }
+    if laeuft_test_app; then echo "Die Test-App läuft noch — erst beenden (⌘Q)."; exit 1; fi
+    RZ_APP_ORDNER="$APP_ORDNER" RZ_CLOUD_ABLAGE=datei "$PY" "$REPO/scripts/testumgebung_cloud.py" "$WURZEL" "$2"
     ;;
   status)
     echo "Testwurzel:  $WURZEL"
