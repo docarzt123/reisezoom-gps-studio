@@ -555,6 +555,7 @@ DEFAULT_SETTINGS = {
     # Abschaltbar in den Einstellungen; dann startet die App im Archiv.
     "start_fortsetzen": True,
     "letztes_projekt": "",         # id, gesetzt von `projekt_aktivieren`
+    "letzte_tour": {},             # 25.09.2026: {"pfad", "bib"} der zuletzt geöffneten Tour — Rückfall fürs Fortsetzen ohne Projekt
     # 12.09.2026 — Der Fotobestand holt beim Öffnen von selbst nach, was fehlt:
     # Ungelesenes immer, ein vollständiger Blick in die Ordner höchstens alle
     # sechs Stunden. Abschaltbar, weil das auf einem Netzlaufwerk oder am
@@ -1326,6 +1327,16 @@ def _sync_tile_cache_settings() -> None:
 
 
 # ── Lokaler Media-HTTP-Server (v0.9.160) ──────────────────────────────────────
+
+# 25.09.2026 (Klicktest S-07): Der Server lieferte jede Datei als video/mp4 aus — auch das
+# PNG der Tour-Map, das die Ergebnisansicht darum als kaputtes Bild zeigte.
+_MEDIA_TYPEN = {".mov": "video/quicktime", ".webm": "video/webm", ".mp4": "video/mp4", ".m4v": "video/mp4",
+                ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+                ".gif": "image/gif", ".heic": "image/heic", ".svg": "image/svg+xml"}
+
+
+def _media_typ(pfad: str) -> str:
+    return _MEDIA_TYPEN.get(os.path.splitext(str(pfad))[1].lower(), "application/octet-stream")
 # WKWebView lädt <video src="file://…"> von externen Volumes/anderen Ordnern NICHT
 # zuverlässig: pywebview setzt `allowFileAccessFromFileURLs` (deshalb laden CSS/JS
 # cross-dir), aber NICHT `allowUniversalAccessFromFileURLs`, und Media-Elemente
@@ -1396,9 +1407,7 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             return
         try:
             fsize = os.path.getsize(fp)
-            low = fp.lower()
-            ctype = "video/quicktime" if low.endswith(".mov") else \
-                    "video/webm" if low.endswith(".webm") else "video/mp4"
+            ctype = _media_typ(fp)
             start, end, status = 0, fsize - 1, 200
             rng = self.headers.get("Range")
             if rng and rng.startswith("bytes="):
@@ -2850,6 +2859,17 @@ class Api:
             log.info("session_open_for_track: hash=%s name=%r active=%r",
                      track_hash, tour.get("name"), active_proj.get("name"))
             self._letztes_projekt_nachziehen(daten, track_hash)
+            # 25.09.2026 (Klicktest S-12): Ein schwebendes Projekt („Standard", noch ohne
+            # Änderung) lässt sich nicht wieder öffnen — die Tour schon.
+            # Gemerkt MIT der Bibliothek: nach einem Bibliothekswechsel (oder in Tests, die sich
+            # die Einstellungen teilen) darf keine Tour aus einer anderen Bibliothek aufgehen.
+            if gpx_path:
+                try:
+                    wert = {"pfad": str(gpx_path), "bib": str(BIB)}
+                    if (_load_settings() or {}).get("letzte_tour") != wert:
+                        _einstellung_merken("letzte_tour", wert)
+                except Exception:
+                    log.debug("letzte_tour nicht gemerkt", exc_info=True)
             return {
                 "ok": True,
                 "track_hash": track_hash,
@@ -11276,12 +11296,18 @@ class Api:
                 log.info("letzte_sitzung: nicht fortsetzen — letzter Ladevorgang nicht fertig")
                 return {"ok": True, "weiter": False, "grund": "ladeflagge"}
             pid = str(s.get("letztes_projekt") or "")
-            if not pid:
-                return {"ok": True, "weiter": False, "grund": "nichts_gemerkt"}
-            daten = _projekte.laden(DATEN_ORT)
-            p = (daten.get("projects") or {}).get(pid)
+            daten = _projekte.laden(DATEN_ORT) if pid else {}
+            p = (daten.get("projects") or {}).get(pid) if pid else None
             if not p:
-                return {"ok": True, "weiter": False, "grund": "projekt_weg"}
+                # 25.09.2026 (Klicktest S-12): Ohne gespeichertes Projekt wenigstens die
+                # zuletzt geöffnete Tour im zuletzt benutzten Modul wieder aufmachen.
+                lt = s.get("letzte_tour") or {}
+                tour = str(lt.get("pfad") or "") if isinstance(lt, dict) else ""
+                gleiche_bib = isinstance(lt, dict) and str(lt.get("bib") or "") == str(BIB)
+                if tour and gleiche_bib and Path(tour).is_file():
+                    return {"ok": True, "weiter": True, "tour_pfad": tour,
+                            "zuletzt_modul": str(s.get("active_module") or "")}
+                return {"ok": True, "weiter": False, "grund": "projekt_weg" if pid else "nichts_gemerkt"}
             # 12.09.2026 (Marc: „ich schließe die App, und wenn ich sie wieder
             # aufmache, geht sie im Animator auf und nicht im Archiv bei den
             # Fotos"): Das zuletzt geöffnete Projekt ist nur die halbe Antwort.
@@ -12994,7 +13020,8 @@ class Api:
                 out.add(p["path"])
         return out
 
-    def geotagger_zeitzone_vorschlag(self, max_gap_seconds: float = 300.0) -> dict:
+    def geotagger_zeitzone_vorschlag(self, max_gap_seconds: float = 300.0, cam_offsets=None,
+                                     offset_seconds: float = 0.0) -> dict:
         """Errechnet die Zeitzone der Kamera-Uhr aus dem Track (v0.9.540).
 
         Nur für Fotos OHNE eingebetteten Offset — die anderen bringen ihre
@@ -13005,12 +13032,13 @@ class Api:
         try:
             if not self._gtg_track or not self._gtg_photos:
                 return {"ok": False, "error": _ui_t()("error.track_oder_fotos_noch_nicht", "Track oder Fotos noch nicht geladen")}
+            zone_falsch = self._gt_zone_falsch(float(max_gap_seconds), cam_offsets or {}, float(offset_seconds or 0))
             phs = [(p["path"], datetime.fromisoformat(p["photo_time"]))
                    for p in self._gtg_photos
                    if p.get("photo_time") and not p.get("tz_known")]
             if not phs:
                 return {"ok": True, "minuten": None, "treffer": 0, "gesamt": 0,
-                        "eindeutig": False, "kandidaten": []}
+                        "eindeutig": False, "kandidaten": [], "zone_falsch": zone_falsch}
             r = cgeo.zeitzone_raten(phs, self._gtg_track,
                                     max_gap_seconds=float(max_gap_seconds))
             # 10.09.2026 (Echt-Test): bei mehreren Tracks entscheidet, mit welcher Zone die
@@ -13033,10 +13061,36 @@ class Api:
                 except Exception as e:
                     log.warning("geotagger_zeitzone_vorschlag (mehrere): %s", e)
             r["ok"] = True
+            r["zone_falsch"] = zone_falsch
             return r
         except Exception as e:
             log.warning("geotagger_zeitzone_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
+
+    def _gt_zone_falsch(self, max_gap_seconds: float, cam_offsets: dict, offset_seconds: float) -> list:
+        """25.09.2026 — Fotos MIT Zeitzone im Foto, je Kamera: passt die Zone nicht zum Track?
+        (core.geotag.zone_im_foto_pruefen). Berücksichtigt den schon eingestellten Versatz
+        der Kamera (bzw. den allgemeinen), damit nach „Übernehmen" nichts mehr kommt."""
+        je: dict = {}
+        for p in self._gtg_photos or []:
+            if p.get("photo_time") and p.get("tz_known"):
+                je.setdefault(str(p.get("camera") or ""), []).append(
+                    (p["path"], datetime.fromisoformat(p["photo_time"])))
+        tracks = [tr["points"] for tr in (self._gtg_tracks or []) if tr.get("points")] or [self._gtg_track]
+        aus = []
+        for kam, fotos in je.items():
+            jetzt = float((cam_offsets or {}).get(kam, offset_seconds) or 0)
+            try:
+                r = cgeo.zone_im_foto_pruefen(fotos, tracks, max_gap_seconds=max_gap_seconds, versatz_jetzt_s=jetzt)
+            except Exception as e:  # noqa: BLE001
+                log.warning("zone_im_foto_pruefen(%s): %s", kam, e)
+                continue
+            if r.get("versatz_s") is not None:
+                aus.append({"kamera": kam, "versatz_s": int(jetzt + r["versatz_s"]), "zusatz_s": int(r["versatz_s"]),
+                            "vorher": r["vorher"], "nachher": r["nachher"], "gesamt": r["gesamt"]})
+                log.info("Zeitzone im Foto passt nicht (%s): +%d s → %d statt %d von %d im Track",
+                         kam or "?", r["versatz_s"], r["nachher"], r["vorher"], r["gesamt"])
+        return aus
 
     def geotagger_match(self, offset_seconds: float = 0.0, max_gap_seconds: float = 600.0,
                         tz_offset_minutes: float = 0.0, cam_offsets=None,
@@ -13580,6 +13634,7 @@ class Api:
                 "running": True,
                 "total": total,
                 "done": 0,
+                "verortet": 0,      # 25.09.2026: davon mit geschriebener Position (Rest: nur Angaben)
                 "current_name": None,
                 "current_path": None,
                 "errors": [],
@@ -13916,6 +13971,8 @@ class Api:
                                 )
                     with self._write_lock:
                         self._write_state["done"] = self._write_state.get("done", 0) + 1
+                        if write_coords:
+                            self._write_state["verortet"] = self._write_state.get("verortet", 0) + 1
                 except Exception as e:
                     log.exception("_write_worker_run: [%d/%d] write_gps FEHLGESCHLAGEN für %s",
                                   idx + 1, len(items), m.get("path"))

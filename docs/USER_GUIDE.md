@@ -641,8 +641,9 @@ Der **Alpha-Modus** („Ohne Karte" im Animator) nutzt automatisch verlustfreie 
 - Letzte Modul-Auswahl
 - Alle Render-Einstellungen pro Modul (Stil, Pitch, Auflösung, Farbe, Codec, FPS etc.)
 - Letzter Save-Ordner (pro Modul)
-- Mapbox-Token
+- Mapbox-Token und die anderen Karten-Schlüssel — in den Einstellungen verdeckt, **„👁 Anzeigen“** zeigt sie (seit v0.9.724)
 - Sprach-Auswahl
+- Die zuletzt geöffnete Tour und das Modul, auch wenn noch kein Projekt gespeichert ist (seit v0.9.724) — Fotos im Geotagger lädst du danach neu
 
 Settings-Datei:
 - macOS: `~/Library/Application Support/Reisezoom GPS Studio/settings.json`
@@ -2328,6 +2329,8 @@ weil die Uhr wirklich falsch stand):
   4. Filter wieder auf **„Alle"** — beide Kameras behalten ihren eigenen Offset.
   Der Knopf jeder Kamera zeigt ihren gesetzten Offset als kleines Badge (z.B. `📷 OM-3 +1h`). Ohne Kamera-Filter („Alle") stellst du den **globalen Standard** ein, der für alle Kameras ohne eigenen Offset gilt. Die Pro-Kamera-Offsets bleiben gespeichert und greifen auch bei der optionalen Aufnahmezeit-Korrektur.
 
+**Wenn die Zeitzone IM Foto falsch ist (seit v0.9.724):** Auch Kameras, die ihre Zeitzone mitschreiben, können danebenliegen — typisch: Du stellst im Urlaub die Uhrzeit auf Ortszeit, die Zeitzonen-Einstellung bleibt aber auf „Deutschland“. Dann behauptet jedes Foto z. B. +02:00, obwohl die Uhr auf UTC+1 lief, und alle Fotos landen eine Stunde früher auf dem Track (bei einer Wanderung gut ein Kilometer daneben). Die App prüft das je Kamera: Legt eine Verschiebung deutlich mehr Fotos in den Track, steht im Hinweis-Kasten **„⚠️ … Die Zeitzone im Foto passt nicht zum Track — mit +1 h liegen 73 statt 58 von 73 Fotos im Track“** mit **Übernehmen**. Das setzt den Versatz nur für diese Kamera. Vorgeschlagen wird nur, was eindeutig ist: Stammen die Fotos aus einer Stunde mitten in der Tour, kann niemand die Verschiebung erkennen — dann kommt kein Hinweis.
+
 ### Wenn die Position unsicher ist (seit v0.9.499)
 
 Hat dein Track eine **Aufzeichnungslücke** und ein Foto fällt hinein, bekommt es den
@@ -2399,6 +2402,8 @@ Klick auf ein Foto (in der Liste oder auf den Karten-Pin) öffnet rechts das Vor
 Auf dem **Mac** kann der Geotagger zu jedem Foto automatisch **Stichwörter** erkennen — Szenen und Objekte wie „Outdoor, Wald, Reh, Strand". Das macht das **eingebaute Apple-Vision-Framework**: komplett **auf dem Gerät**, ohne Internet, ohne Konto, ohne Download, und schnell (Bruchteile einer Sekunde pro Foto). Häufige Begriffe werden ins Deutsche übersetzt.
 
 So geht's: Button **„🔍 Auto-Tag (Bilderkennung)"** in der Schreib-Sektion klicken → die App analysiert alle sichtbaren/angehakten Fotos → die Vorschläge landen als **ausstehende Änderungen** (gelb, im `Keywords`-Feld) → du überfliegst/korrigierst sie im EXIF-Tab und schreibst sie dann mit **„Taggen schreiben"** (inkl. Backup). Die KI schlägt nur vor — du entscheidest.
+
+**Rückfrage vorher (seit v0.9.724):** Bevor es losgeht, fragt die App, wie viele Fotos erkannt werden und wie lange das etwa dauert — mit **„Nur dieses Foto“**, wenn du gerade eins ausgewählt hast. Weniger Fotos: Häkchen an den Kacheln abwählen oder oben filtern.
 
 > **Windows / Linux:** Diese Funktion gibt es dort **nicht** — Apple Vision ist Mac-exklusiv, und wir wollten dafür kein riesiges KI-Modell mitliefern. Der Button ist dort einfach ausgeblendet; alles andere im Geotagger funktioniert identisch.
 

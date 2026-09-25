@@ -588,8 +588,9 @@ El **modo alfa** («Sin mapa» en el Animator) usa automáticamente fotogramas P
 - La última selección de módulo
 - Todos los ajustes de render por módulo (estilo, pitch, resolución, color, códec, FPS, etc.)
 - La última carpeta de guardado (por módulo)
-- El token de Mapbox
+- El token de Mapbox y las demás claves de mapas — ocultas en los ajustes, **«👁 Mostrar»** las enseña (desde v0.9.724)
 - La selección de idioma
+- La última ruta abierta y el módulo, aunque aún no haya un proyecto guardado (desde v0.9.724) — las fotos del Geotagger se vuelven a cargar después
 
 Archivo de ajustes:
 - macOS: `~/Library/Application Support/Reisezoom GPS Studio/settings.json`
@@ -2168,6 +2169,8 @@ realmente iba mal):
   4. Vuelve a poner el filtro en **«Todas»** — ambas cámaras conservan su propio offset.
   El botón de cada cámara muestra su offset fijado como una pequeña insignia (p. ej. `📷 OM-3 +1h`). Sin filtro de cámara («Todas») ajustas el **estándar global**, que vale para todas las cámaras sin offset propio. Los offsets por cámara quedan guardados y actúan también en la corrección opcional de la hora de captura.
 
+**Cuando la zona horaria guardada EN la foto es incorrecta (desde v0.9.724):** también las cámaras que guardan su zona horaria pueden fallar — típico: en vacaciones pones el reloj en hora local pero la zona horaria sigue siendo la de casa. Cada foto dice entonces p. ej. +02:00 aunque el reloj iba en UTC+1, y todas caen una hora antes en el track (en una ruta, más de un kilómetro fuera). La app lo comprueba por cámara: si un desfase coloca claramente más fotos en el track, el cuadro de aviso muestra **«⚠️ … la zona horaria guardada en las fotos no encaja con el track — con +1 h caen 73 en lugar de 58 de 73 fotos en el track»** con **Aplicar**, que fija el desfase solo para esa cámara. Solo se propone lo inequívoco: con fotos de una sola hora en mitad de la ruta no se puede detectar un desfase, y no aparece aviso.
+
 ### Cuando la posición es incierta (desde v0.9.499)
 
 Si tu track tiene un **hueco de grabación** y una foto cae dentro, recibe el punto más
@@ -2239,6 +2242,8 @@ Al hacer clic en una foto (en la lista o en el pin del mapa) se abre a la derech
 En el **Mac**, el Geotagger puede reconocer automáticamente **palabras clave** para cada foto — escenas y objetos como «Exterior, Bosque, Corzo, Playa». Eso lo hace el **framework Apple Vision integrado**: completamente **en el dispositivo**, sin internet, sin cuenta, sin descarga, y rápido (fracciones de segundo por foto). Los términos frecuentes se traducen al alemán.
 
 Así funciona: haz clic en el botón **«🔍 Auto-tag (reconocimiento de imagen)»** en la sección de escritura → la app analiza todas las fotos visibles/marcadas → las sugerencias aterrizan como **cambios pendientes** (amarillos, en el campo `Keywords`) → los repasas/corriges en la pestaña EXIF y luego los escribes con **«Escribir etiquetado»** (incl. backup). La IA solo sugiere — tú decides.
+
+**Pregunta antes (desde v0.9.724):** antes de empezar, la app pregunta cuántas fotos reconocer y cuánto tardará aproximadamente — con **«Solo esta foto»** si hay una seleccionada. Para menos fotos, desmarca miniaturas o usa un filtro.
 
 > **Windows / Linux:** esta función **no** existe ahí — Apple Vision es exclusivo de Mac, y no queríamos incluir para ello un enorme modelo de IA. El botón simplemente está oculto ahí; todo lo demás en el Geotagger funciona idéntico.
 

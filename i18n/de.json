@@ -843,7 +843,7 @@
   "geotagger.addr.state": "Bundesland / Region",
   "geotagger.addr.street": "Straße / Detail",
   "geotagger.autotag.btn": "🔍 Auto-Tag (Bilderkennung)",
-  "geotagger.autotag.done": "✓ {n} Fotos verschlagwortet — prüfen + „Taggen schreiben“.",
+  "geotagger.autotag.done": "✓ {n} Fotos verschlagwortet — prüfen und mit „GPS in Fotos schreiben“ speichern.",
   "geotagger.autotag.no_photos": "Keine sichtbaren Fotos zum Verschlagworten.",
   "geotagger.autotag.none": "Keine Stichwörter gefunden.",
   "geotagger.autotag.running": "Analysiere Fotos …",
@@ -4183,5 +4183,18 @@
   "logbuch.menue.im_video": "Im Video",
   "logbuch.undo.im_video": "Logbuch: Anzeige im Video",
   "animator.ovbox.ref_art": "nur {art}",
-  "app.testrechner_tip": "Testrechner: Löschen und Überschreiben nur in {pfade}"
+  "app.testrechner_tip": "Testrechner: Löschen und Überschreiben nur in {pfade}",
+  "geotagger.info.n_video_1": "{n} Video",
+  "geotagger.done.nur_angaben": "Nur Angaben ergänzt (ohne Position)",
+  "settings.key.zeigen": "👁 Anzeigen",
+  "settings.key.verbergen": "Verbergen",
+  "geotagger.tz_hint.zone_falsch": "<b>{kam}</b>: Die Zeitzone im Foto passt nicht zum Track — mit <b>{versatz}</b> liegen {nachher} statt {vorher} von {gesamt} Fotos im Track (typisch: Kamera-Uhr auf Ortszeit, Zeitzone noch von zu Hause).",
+  "geotagger.tz_hint.zone_falsch_ok": "{kam}: Versatz {versatz} gesetzt.",
+  "geotagger.autotag.frage_titel": "Bilderkennung starten?",
+  "geotagger.autotag.frage": "Stichwörter für <b>{n} Fotos</b> erkennen (alle sichtbaren, angehakten Fotos). Dauert etwa {sek} s. Die Stichwörter werden erst mit „GPS in Fotos schreiben“ gespeichert.",
+  "geotagger.autotag.frage_tipp": "Weniger Fotos: Häkchen an den Kacheln abwählen oder oben einen Filter wählen.",
+  "geotagger.autotag.nur_dieses": "Nur dieses Foto",
+  "geotagger.autotag.alle_starten": "{n} Fotos erkennen",
+  "geotagger.autotag.done_1": "✓ 1 Foto verschlagwortet — prüfen und mit „GPS in Fotos schreiben“ speichern.",
+  "geotagger.autotag.toast_1": "1 Foto verschlagwortet — als ausstehend markiert."
 }

@@ -4401,3 +4401,32 @@ function rzSprachCode() {
   return undefined;
 }
 window.rzSprachCode = rzSprachCode;
+
+
+/** 25.09.2026 (Klicktest S-10): API-Schlüssel standen in den Einstellungen im Klartext.
+ *  Jedes `input.rz-schluessel` wird verdeckt (WebKit-Punkte, KEIN type=password —
+ *  sonst bietet macOS an, ein „Passwort" zu sichern) und bekommt einen Knopf
+ *  „Anzeigen"/„Verbergen". Mehrfacher Aufruf ist harmlos. */
+function rzSchluesselFelder(wurzel) {
+  (wurzel || document).querySelectorAll("input.rz-schluessel").forEach((inp) => {
+    if (inp.dataset.verdeckt) return;
+    inp.dataset.verdeckt = "1";
+    inp.classList.add("ist-verdeckt");
+    const zeile = document.createElement("div");
+    zeile.className = "rz-schluessel-zeile";
+    inp.parentNode.insertBefore(zeile, inp);
+    zeile.appendChild(inp);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn btn-small rz-schluessel-zeigen";
+    const beschriften = () => {
+      const zu = inp.classList.contains("ist-verdeckt");
+      b.textContent = zu ? t("settings.key.zeigen", "👁 Anzeigen") : t("settings.key.verbergen", "Verbergen");
+      b.setAttribute("aria-pressed", zu ? "false" : "true");
+    };
+    b.addEventListener("click", (e) => { e.preventDefault(); inp.classList.toggle("ist-verdeckt"); beschriften(); });
+    beschriften();
+    zeile.appendChild(b);
+  });
+}
+window.rzSchluesselFelder = rzSchluesselFelder;

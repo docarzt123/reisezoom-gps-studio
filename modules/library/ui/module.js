@@ -5435,6 +5435,12 @@ function mountLibrary(body, headerActions) {
         // Ort verlassen, an dem man aufgehört hat.
         if (r && r.ok && r.weiter && r.projekt_id && r.zuletzt_modul !== "library") {
           await projektOeffnen(r.projekt_id, r.modul || undefined);
+        } else if (r && r.ok && r.weiter && r.tour_pfad && r.zuletzt_modul && r.zuletzt_modul !== "library") {
+          // 25.09.2026 (Klicktest S-12): noch kein gespeichertes Projekt — die Tour im letzten Modul öffnen
+          const ok = await window.loadGlobalGpx(r.tour_pfad, { stumm: true });
+          const mod = (window.RZGPS_MODULES || {})[r.zuletzt_modul] ? r.zuletzt_modul : "animator";
+          if (ok !== false && typeof switchMod === "function") switchMod(mod);
+          try { applog("info", "[bib] Fortsetzen ohne Projekt: " + r.zuletzt_modul); } catch (_) {}
         }
       } catch (e) {
         try { applog("warn", "[bib] Fortsetzen: " + e); } catch (_) {}

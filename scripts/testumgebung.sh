@@ -7,6 +7,7 @@
 #   scripts/testumgebung.sh starten                    installierte App MIT dem Test-App-Ordner starten
 #   scripts/testumgebung.sh vorne                      die Test-App nach vorne holen (nie die normale App)
 #   scripts/testumgebung.sh aufraeumen                 in _alt/ nur die letzten 2 Stände behalten
+#   scripts/testumgebung.sh schutzprobe                Probeordner für GT-12 (außerhalb der Testwurzel)
 #   scripts/testumgebung.sh cloud-einrichten <adresse>  Test-Cloud anlegen (eigener Server-Ordner)
 #   scripts/testumgebung.sh status
 #
@@ -143,6 +144,11 @@ case "${1:-}" in
     ;;
   vorne)
     nach_vorne ;;
+  schutzprobe)   # GT-12: ein Ordner AUSSERHALB der Testwurzel mit einer Fotokopie — die App muss sich weigern
+    PROBE="/tmp/rz-schutzprobe"
+    mkdir -p "$PROBE" && cp "$WURZEL/Quellen/10-fotos/geotagger/A_01.jpg" "$PROBE/A_01.jpg"
+    echo "✓ $PROBE/A_01.jpg angelegt (ohne GPS). In der App: Ordner laden, Zielordner = derselbe → muss verweigert werden."
+    echo "  Prüfen danach: exiftool -gps:all $PROBE/A_01.jpg  (Soll: leer)" ;;
   aufraeumen)
     alt_aufraeumen; echo "  _alt: $(du -sh "$WURZEL/_alt" 2>/dev/null | cut -f1)" ;;
   cloud-einrichten)

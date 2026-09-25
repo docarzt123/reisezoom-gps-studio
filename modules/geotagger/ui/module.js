@@ -395,12 +395,46 @@ function mountGeotagger(body, headerActions) {
     };
   }
 
+  /** Rückfrage vor der Bilderkennung: Anzahl, grobe Dauer, wie man eingrenzt, und
+   *  „Nur dieses Foto", wenn gerade eins ausgewählt ist. Liefert "alle", einen Pfad
+   *  oder null (abgebrochen). */
+  function _gtAutotagFragen(targets) {
+    return new Promise((fertig) => {
+      const n = targets.length;
+      const sek = Math.max(1, Math.round(n * 0.6));
+      const eins = selectedPath && targets.some(p => p.path === selectedPath) ? selectedPath : null;
+      const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      openModal({
+        title: t("geotagger.autotag.frage_titel", "Bilderkennung starten?"),
+        body: `<p>${t("geotagger.autotag.frage", "Stichwörter für <b>{n} Fotos</b> erkennen (alle sichtbaren, angehakten Fotos). Dauert etwa {sek} s. Die Stichwörter werden erst mit „GPS in Fotos schreiben“ gespeichert.").replace("{n}", n).replace("{sek}", sek)}</p>
+               <p class="muted" style="font-size:12px">${t("geotagger.autotag.frage_tipp", "Weniger Fotos: Häkchen an den Kacheln abwählen oder oben einen Filter wählen.")}</p>`,
+        footer: `${eins ? `<button class="btn" id="at-eins">${esc(t("geotagger.autotag.nur_dieses", "Nur dieses Foto"))}</button>` : ""}
+                 <button class="btn" id="at-nein">${t("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="at-ja">${t("geotagger.autotag.alle_starten", "{n} Fotos erkennen").replace("{n}", n)}</button>`,
+        closable: true,
+        onClose: () => fertig(null),
+      });
+      // Erst die Wahl melden, dann schließen — sonst kommt onClose (= abgebrochen) zuerst an
+      const zu = (w) => { fertig(w); try { openModal({}).close(); } catch (_) {} };
+      document.getElementById("at-ja").onclick = () => zu("alle");
+      document.getElementById("at-nein").onclick = () => zu(null);
+      const e = document.getElementById("at-eins");
+      if (e) e.onclick = () => zu(eins);
+    });
+  }
+
   // v0.9.349 — Auto-Tag per Bilderkennung (Apple Vision). Erkennt zu jedem
   // sichtbaren/angehakten Foto Stichwörter und legt sie als AUSSTEHENDE EXIF-Edits
   // (Keywords) ab → Nutzer prüft (gelb) und schreibt sie mit „Taggen schreiben".
-  async function _gtRunAutotag() {
-    const targets = _gtGlobalTargetPhotos();
+  async function _gtRunAutotag(nurPfade) {
+    const targets = nurPfade ? photos.filter(p => nurPfade.includes(p.path)) : _gtGlobalTargetPhotos();
     if (!targets.length) { toast(t("geotagger.autotag.no_photos", "Keine sichtbaren Fotos zum Verschlagworten."), "warn"); return; }
+    // 25.09.2026 (Klicktest GT-24): lief ohne Rückfrage sofort über ALLE angehakten Fotos.
+    if (!nurPfade) {
+      const wahl = await _gtAutotagFragen(targets);
+      if (!wahl) return;
+      if (wahl !== "alle") return _gtRunAutotag([wahl]);
+    }
     const paths = targets.map(p => p.path);
     let res;
     try { res = await api().geotagger_autotag_start(paths); }
@@ -471,10 +505,13 @@ function mountGeotagger(body, headerActions) {
     _gtRefreshWriteBtn();
     if (selectedPath && _gtExif.has(selectedPath)) { _gtRenderExif(selectedPath); }
     const st = document.getElementById("gt-autotag-status");
+    // 25.09.2026 (Selbsttest): „1 Fotos“ und ein Knopfname, den es nicht mehr gibt („Taggen schreiben“)
     if (st) st.textContent = n
-      ? t("geotagger.autotag.done", "✓ {n} Fotos verschlagwortet — prüfen + „Taggen schreiben“.").replace("{n}", n)
+      ? (n === 1 ? t("geotagger.autotag.done_1", "✓ 1 Foto verschlagwortet — prüfen und mit „GPS in Fotos schreiben“ speichern.")
+                 : t("geotagger.autotag.done", "✓ {n} Fotos verschlagwortet — prüfen und mit „GPS in Fotos schreiben“ speichern.")).replace("{n}", n)
       : t("geotagger.autotag.none", "Keine Stichwörter gefunden.");
-    if (n) toast(t("geotagger.autotag.toast", "{n} Fotos verschlagwortet — als ausstehend markiert.").replace("{n}", n), "success", 6000);
+    if (n) toast((n === 1 ? t("geotagger.autotag.toast_1", "1 Foto verschlagwortet — als ausstehend markiert.")
+                          : t("geotagger.autotag.toast", "{n} Fotos verschlagwortet — als ausstehend markiert.")).replace("{n}", n), "success", 6000);
     else if (!canceled) toast(t("geotagger.autotag.none", "Keine Stichwörter gefunden."), "warn");
   }
 
@@ -711,9 +748,21 @@ function mountGeotagger(body, headerActions) {
     if (tzOffsetMin) txt += "  ·  " + tzLabel(tzOffsetMin);   // v0.9.177
     // v0.9.354 — zeigen, für welche Kamera der Offset gerade gilt
     const cam = _gtOffsetCam();
-    if (cam) txt += "  ·  📷 " + (cam === _GT_CAM_UNKNOWN
-      ? t("geotagger.filter.cam_unknown", "Unbekannt") : cam);
-    document.getElementById("gt-off-display").textContent = txt;
+    // 25.09.2026 (Klicktest GT-03): Kamera in eigene, kleine Zeile — in einer Zeile lief
+    // „±0s · UTC+2 · 📷 Canon EOS R6" unter Stift und Zurücksetzen und brach im Namen um.
+    const el = document.getElementById("gt-off-display");
+    el.textContent = "";
+    const haupt = document.createElement("span");
+    haupt.className = "osv-haupt";
+    haupt.textContent = txt;
+    el.appendChild(haupt);
+    if (cam) {
+      const k = document.createElement("span");
+      k.className = "osv-cam";
+      k.textContent = "📷 " + (cam === _GT_CAM_UNKNOWN ? t("geotagger.filter.cam_unknown", "Unbekannt") : cam);
+      k.title = k.textContent;
+      el.appendChild(k);
+    }
   }
 
   // Slider initialisieren mit Settings-Wert
@@ -1560,13 +1609,17 @@ function mountGeotagger(body, headerActions) {
 
   // 13.09.2026 (Echt-App-Test): stand fest auf Deutsch — auch in der spanischen Oberfläche.
   function countLabel(photos, wie) {
-    const n_raw = photos.filter(p => p.is_raw).length;
+    // 25.09.2026 (Klicktest S-09): HEIC zählte als JPG, und „1 Videos"
+    const istHeic = (p) => /\.(heic|heif)$/i.test(String(p.path || p.name || ""));
     const n_vid = photos.filter(p => p.is_video).length;
-    const n_jpg = photos.length - n_raw - n_vid;
+    const n_heic = photos.filter(p => !p.is_video && istHeic(p)).length;
+    const n_raw = photos.filter(p => p.is_raw && !p.is_video && !istHeic(p)).length;
+    const n_jpg = photos.length - n_raw - n_vid - n_heic;
     const parts = [];
     if (n_jpg) parts.push(`${n_jpg} JPG`);
+    if (n_heic) parts.push(`${n_heic} HEIC`);
     if (n_raw) parts.push(`${n_raw} RAW`);
-    if (n_vid) parts.push(t("geotagger.info.n_videos", "{n} Videos").replace("{n}", n_vid));
+    if (n_vid) parts.push((n_vid === 1 ? t("geotagger.info.n_video_1", "{n} Video") : t("geotagger.info.n_videos", "{n} Videos")).replace("{n}", n_vid));
     const WIE = {
       ordner: t("geotagger.info.wie_ordner", "aus Ordner"),
       ordner_rek: t("geotagger.info.wie_ordner_rek", "aus Ordner + Unterordner"),
@@ -3105,15 +3158,48 @@ function mountGeotagger(body, headerActions) {
             (ohneTz[ohneTz.length - 1] && ohneTz[ohneTz.length - 1].path) || ""].join("|");
   }
 
+  let _zoneFalsch = [];         // 25.09.2026: Kameras, deren Zeitzone IM Foto nicht zum Track passt
+
   async function _gtTzVorschlagHolen(key) {
     _tzVorschlagKey = key;
     _tzVorschlag = null;
+    _zoneFalsch = [];
     try {
-      const r = await api().geotagger_zeitzone_vorschlag(300);
+      const r = await api().geotagger_zeitzone_vorschlag(300, Object.assign({}, _gtCamOffsets), _gtGlobalOffset || 0);
       if (isUnmounted || _tzVorschlagKey !== key) return;   // Fotos haben sich geändert
       _tzVorschlag = (r && r.ok && r.minuten != null && r.treffer > 0) ? r : null;
+      _zoneFalsch = (r && r.ok && Array.isArray(r.zone_falsch)) ? r.zone_falsch : [];
       _gtTzHinweisAktualisieren();
     } catch (_) { /* Vorschlag ist ein Extra, kein Muss */ }
+  }
+
+  function _gtVersatzText(sek) {
+    const v = Math.round(sek / 60), a = Math.abs(v), h = Math.floor(a / 60), m = a % 60;
+    return (v < 0 ? "−" : "+") + (h ? h + " h" : "") + (m ? (h ? " " : "") + m + " min" : (h ? "" : "0"));
+  }
+
+  // 25.09.2026 (Klicktest GT-23): Fotos MIT Zeitzone, die trotzdem nicht passt (Canon auf
+  // Ortszeit, im Foto aber +02:00). Liefert HTML-Zeilen mit „Übernehmen" je Kamera.
+  function _gtZoneFalschHtml() {
+    const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    return _zoneFalsch.map((z, i) => '<div class="gt-tz-vorschlag gt-zone-falsch"><span>⚠️ ' +
+      t("geotagger.tz_hint.zone_falsch", "<b>{kam}</b>: Die Zeitzone im Foto passt nicht zum Track — mit <b>{versatz}</b> liegen {nachher} statt {vorher} von {gesamt} Fotos im Track (typisch: Kamera-Uhr auf Ortszeit, Zeitzone noch von zu Hause).")
+        .replace("{kam}", esc(z.kamera || t("geotagger.filter.cam_unknown", "Unbekannt")))
+        .replace("{versatz}", _gtVersatzText(z.zusatz_s)).replace("{nachher}", z.nachher)
+        .replace("{vorher}", z.vorher).replace("{gesamt}", z.gesamt) + "</span>" +
+      ` <button class="btn btn-small" data-zone-falsch="${i}">${t("geotagger.tz_hint.apply", "Übernehmen")}</button></div>`).join("");
+  }
+
+  function _gtZoneFalschUebernehmen(z) {
+    const kam = z.kamera || "";
+    if (!kam) return;
+    if (z.versatz_s === _gtGlobalOffset) delete _gtCamOffsets[kam];
+    else _gtCamOffsets[kam] = z.versatz_s;
+    saveSettings({ geotagger: { cam_offsets: Object.assign({}, _gtCamOffsets) } });
+    try { _gtSyncSliderToContext(); } catch (_) {}
+    updateMatches();
+    toast(t("geotagger.tz_hint.zone_falsch_ok", "{kam}: Versatz {versatz} gesetzt.")
+      .replace("{kam}", kam).replace("{versatz}", _gtVersatzText(z.versatz_s)), "success");
   }
 
   function _gtTzHinweisAktualisieren() {
@@ -3122,7 +3208,18 @@ function mountGeotagger(body, headerActions) {
     const mitZeit = photos.filter(p => p && p.photo_time);
     if (!mitZeit.length) { box.hidden = true; return; }
     const ohneTz = mitZeit.filter(p => !p.tz_known);
-    if (!ohneTz.length) { box.hidden = true; return; }
+    // 25.09.2026 — Vorschlag auch für Fotos MIT Zeitzone holen (passt sie zum Track?);
+    // der Schlüssel enthält die eingestellten Versätze, damit „Übernehmen" neu rechnet.
+    const keyAlle = _gtTzKey(mitZeit) + "|" + JSON.stringify(_gtCamOffsets) + "|" + (_gtGlobalOffset || 0);
+    if (!ohneTz.length) {
+      if (currentGpxPath && _tzVorschlagKey !== keyAlle) _gtTzVorschlagHolen(keyAlle);
+      const zf = (_tzVorschlagKey === keyAlle) ? _gtZoneFalschHtml() : "";
+      if (!zf) { box.hidden = true; return; }
+      box.innerHTML = zf;
+      box.hidden = false;
+      _gtZoneFalschKnoepfe(box);
+      return;
+    }
     const kameras = [...new Set(ohneTz.map(p => (p.camera || "").trim()).filter(Boolean))];
     const wer = kameras.length ? kameras.join(", ") : t("geotagger.tz_hint.cameras_unknown", "diese Fotos");
     const alle = ohneTz.length === mitZeit.length;
@@ -3132,8 +3229,8 @@ function mountGeotagger(body, headerActions) {
         .replace("{wer}", String(wer).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])))
         .replace("{n}", ohneTz.length).replace("{gesamt}", mitZeit.length);
 
-    // Vorschlag nachziehen, sobald sich Track oder Fotoauswahl geändert haben
-    const key = _gtTzKey(ohneTz);
+    // Vorschlag nachziehen, sobald sich Track, Fotoauswahl oder Versätze geändert haben
+    const key = keyAlle;
     if (currentGpxPath && _tzVorschlagKey !== key) _gtTzVorschlagHolen(key);
 
     const v = (_tzVorschlagKey === key) ? _tzVorschlag : null;
@@ -3157,8 +3254,10 @@ function mountGeotagger(body, headerActions) {
       // legt die Fotos in den Track) — dann der Weg von Hand.
       html += " " + t("geotagger.tz_hint.fix", "Stell dafür die <b>Kamera-Zeitzone</b> ein (✎ neben dem Offset) oder setz ein <b>Referenz-Foto</b> auf die Karte.");
     }
+    if (_tzVorschlagKey === key) html += _gtZoneFalschHtml();
     box.innerHTML = html;
     box.hidden = false;
+    _gtZoneFalschKnoepfe(box);
     const btn = document.getElementById("gt-tz-uebernehmen");
     if (btn && v) {
       btn.onclick = () => {
@@ -3170,6 +3269,17 @@ function mountGeotagger(body, headerActions) {
       };
     }
   }
+
+  function _gtZoneFalschKnoepfe(box) {
+    box.querySelectorAll("[data-zone-falsch]").forEach((b) => {
+      const z = _zoneFalsch[+b.getAttribute("data-zone-falsch")];
+      if (z) b.onclick = () => _gtZoneFalschUebernehmen(z);
+    });
+  }
+
+  // Prüfstand (tests/test_zeitzone_im_foto.py): Zustand lesen
+  window.__rzGtZone = () => ({ zoneFalsch: _zoneFalsch.slice(), camOffsets: Object.assign({}, _gtCamOffsets),
+                                hinweis: (document.getElementById("gt-tz-hinweis") || {}).innerText || "" });
 
   function updateBadges() {
     try { _gtTzHinweisAktualisieren(); } catch (_) {}
@@ -4022,7 +4132,8 @@ function mountGeotagger(body, headerActions) {
     openModal({
       title: canceled ? t("geotagger.done.canceled", "Abgebrochen") : t("geotagger.done.title", "Fertig"),
       body: `
-        <div class="modal-stat-row"><span class="label">${t("geotagger.done.tagged", "Fotos getaggt")}</span><span class="val" style="color:var(--success)">${s.done}</span></div>
+        <div class="modal-stat-row"><span class="label">${t("geotagger.done.tagged", "Fotos getaggt")}</span><span class="val" style="color:var(--success)">${s.verortet != null ? s.verortet : s.done}</span></div>
+        ${(s.verortet != null && s.done > s.verortet) ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.nur_angaben", "Nur Angaben ergänzt (ohne Position)")}</span><span class="val muted">${s.done - s.verortet}</span></div>` : ''}
         ${s.skipped ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.failed", "Fehler / übersprungen")}</span><span class="val" style="color:var(--danger)">${s.skipped}</span></div>` : ''}
         ${s.skipped_existing ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.already", "Bereits getaggt (übersprungen)")}</span><span class="val muted">${s.skipped_existing}</span></div>` : ''}
         ${savedRow}

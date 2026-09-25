@@ -19,6 +19,24 @@
   color: var(--accent);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
+  /* 25.09.2026 — Platz für ✎ links und ↺ rechts; Kamera als zweite Zeile */
+  padding: 0 32px;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.offset-slider-value .osv-haupt { line-height: 1.25; }   /* darf an „ · “ umbrechen (lange Zonennamen) */
+.offset-slider-value .osv-cam {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .offset-slider-reset,
 .offset-slider-edit {
@@ -567,6 +585,8 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
 .gt-tz-hinweis b { font-weight: 600; }
 .gt-tz-vorschlag { margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .gt-tz-vorschlag .btn { padding: 3px 9px; font-size: 11px; }
+/* 25.09.2026 — Zeitzone im Foto falsch: Text als EIN Block (sonst wird jedes <b> ein Flex-Element), Knopf darunter */
+.gt-zone-falsch > span { flex: 1 1 100%; }
 
 /* 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Liste in der Seitenleiste, Chips */
 .gt-tracks-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }

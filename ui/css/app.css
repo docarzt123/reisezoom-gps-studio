@@ -3290,3 +3290,9 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 /* 25.09.2026 — Testrechner-Sperre aktiv (core/dateischutz.py, testrechner.json): gut sichtbar,
    damit ein Bildschirmfoto nie mit der echten App verwechselt wird. */
 .version.ist-testrechner { color: #111; background: #ffcc33; padding: 2px 8px; border-radius: 999px; font-weight: 700; opacity: 1; }
+
+/* 25.09.2026 — API-Schlüssel verdeckt (rzSchluesselFelder in util.js) */
+.rz-schluessel-zeile { display: flex; gap: 6px; align-items: center; }
+.rz-schluessel-zeile input { flex: 1 1 auto; min-width: 0; }
+input.rz-schluessel.ist-verdeckt { -webkit-text-security: disc; }
+.rz-schluessel-zeigen { flex: 0 0 auto; white-space: nowrap; }
