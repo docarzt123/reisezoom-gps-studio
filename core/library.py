@@ -94,6 +94,14 @@ PARSER_VERSION = 3   # 2 = Routen (<rte>) als Track, 22.08.2026 · 3 = beschädi
 # nichts und hält alles draußen, was offensichtlich kein Track ist.
 MEHRDEUTIGE_EXTS = {".json", ".txt", ".log"}
 
+# 25.09.2026 (Klicktest FE-03) — Ordner, in die nur AUSDRÜCKLICH gewählte Dateien
+# kommen (der Import-Ordner für „Einzelne Track-Datei“). Dort gilt die Inhalts-
+# Vorprüfung nicht: Wer eine .txt/.json bewusst importiert, soll erfahren, dass sie
+# keinen Track enthält — als Eintrag in der Liste nicht lesbarer Dateien, wie ein
+# leeres GPX. Sonst verschwand sie kommentarlos. Die App trägt den Ordner beim Start
+# ein (aufgelöster Pfad).
+EXPLIZITE_ORDNER: set = set()
+
 # Ordner, die beim Einlesen übersprungen werden — dort liegen App-interne
 # Kopien, die sonst als Dubletten der echten Touren auftauchen.
 SKIP_DIR_NAMES = {
@@ -787,18 +795,22 @@ def _iter_files(folder: str, recursive: bool) -> Iterable[Path]:
     base = Path(folder)
     if not base.is_dir():
         return
+    try:
+        explizit = str(base.resolve()) in EXPLIZITE_ORDNER   # 25.09.2026 — FE-03
+    except OSError:
+        explizit = False
     if recursive:
         for root, dirs, files in os.walk(base):
             dirs[:] = [d for d in dirs if d not in SKIP_DIR_NAMES and not d.startswith(".")]
             for f in files:
                 if _passende_endung(f) and not f.startswith("."):
                     voll = Path(root) / f
-                    if _sieht_nach_track_aus(voll):
+                    if explizit or _sieht_nach_track_aus(voll):
                         yield voll
     else:
         for f in sorted(base.iterdir()):
             if f.is_file() and _passende_endung(f.name) and not f.name.startswith("."):
-                if _sieht_nach_track_aus(f):
+                if explizit or _sieht_nach_track_aus(f):
                     yield f
 
 
@@ -3206,7 +3218,28 @@ def errors(conn: sqlite3.Connection, include_dismissed: bool = False,
            "filename COLLATE NOCASE")
     if limit:
         sql += f" LIMIT {int(limit)}"
-    return [_to_dict(r) for r in conn.execute(sql).fetchall()]
+    out = [_to_dict(r) for r in conn.execute(sql).fetchall()]
+    for d in out:   # 25.09.2026 (FE-01/FE-03): konkreter Grund je Datei
+        d["grund"] = fehler_grund(d.get("error") or "", d.get("error_kind") or "")
+    return out
+
+
+def fehler_grund(fehler: str, art: str = "") -> str:
+    """Kurzer, übersetzbarer Grund zu einer Fehler-Zeile (25.09.2026, Klicktest
+    FE-01/FE-03). Die Oberfläche zeigte nur die allgemeine Gruppen-Erklärung
+    („abgebrochene Übertragung, unbekanntes Format oder beschädigt“) — auch bei
+    einem GPX ohne einen einzigen Punkt oder einer Textdatei ohne Track.
+
+    Liefert einen Code, den die Oberfläche übersetzt, oder "":
+      * `keine_punkte` — Datei gelesen, aber ohne Trackpunkte
+      * `kein_track`   — Inhalt ist gar kein Track-Format (Text, fremdes JSON)
+    """
+    f = (fehler or "").lower()
+    if art == "no_points" or "keine trackpunkte" in f or "keine track-punkte" in f:
+        return "keine_punkte"
+    if "sieht nicht nach" in f or "kein track erkannt" in f:
+        return "kein_track"
+    return ""
 
 
 @_locked

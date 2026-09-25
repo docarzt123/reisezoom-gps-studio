@@ -108,7 +108,6 @@ function mountAnimator(body, headerActions, opts) {
   // initialization" — und weil das in einem `catch (_) {}` steckte, blieb die
   // Liste einfach leer, ohne ein Wort. Beides ist jetzt behoben.
   let _ghostSpuren = [];
-  let _ghostDragFrom = -1;      // Index der Zeile, die gerade gezogen wird
 
   body.innerHTML = `
     <aside class="panel" id="anim-panel">
@@ -1274,6 +1273,14 @@ function mountAnimator(body, headerActions, opts) {
               <button class="res-btn" data-w="2160" data-h="3840" title="2160×3840 · 9:16 Hochkant">4K↕</button>
               <button class="res-btn" data-w="1080" data-h="1920" title="1080×1920 · 9:16 Hochkant (Shorts/Reels)">1080↕</button>
             </div>
+            ${_isStaticFrame ? `<!-- 25.09.2026 (Klicktest TM-01: „keine Instagram-Vorgabe") — Social-Formate
+                 für das Standbild. Story = dieselbe Größe wie 1080↕, nur unter dem Namen,
+                 unter dem man sie sucht. -->
+            <div class="res-picker res-picker-social" style="margin-top:6px;">
+              <button class="res-btn" data-w="1080" data-h="1080" title="${t("tourmap.res.ig_square_tip", "Instagram-Beitrag quadratisch · 1080×1080 · 1:1")}">${t("tourmap.res.ig_square", "Insta 1:1")}</button>
+              <button class="res-btn" data-w="1080" data-h="1350" title="${t("tourmap.res.ig_portrait_tip", "Instagram-Beitrag hochkant · 1080×1350 · 4:5")}">${t("tourmap.res.ig_portrait", "Insta 4:5")}</button>
+              <button class="res-btn" data-w="1080" data-h="1920" title="${t("tourmap.res.story_tip", "Story / Reel · 1080×1920 · 9:16")}">${t("tourmap.res.story", "Story 9:16")}</button>
+            </div>` : ``}
             <div class="row-2 res-custom">
               <input type="number" id="anim-w" min="640" max="7680" step="2" value="3840" placeholder="${t("animator.field.width")}">
               <input type="number" id="anim-h" min="360" max="7680" step="2" value="2160" placeholder="${t("animator.field.height")}">
@@ -1986,6 +1993,15 @@ function mountAnimator(body, headerActions, opts) {
       onLoad: v => updateLabel("anim-static-bearing-v", Math.round(parseFloat(v) || 0), "°"),
       onChange: v => {
         updateLabel("anim-static-bearing-v", Math.round(parseFloat(v) || 0), "°");
+        // 25.09.2026 (Klicktest TM-05) — bei übernommener Animator-Kamera überspringt
+        // fitTrackPreview den Auto-Fit; der Regler drehte dann nichts mehr und zeigte
+        // etwas anderes als die Karte. Jetzt dreht er die Karte um ihre Mitte.
+        if (_isStaticFrame && _tmCamActive && map) {
+          const b = parseFloat(v) || 0;
+          try { if (Math.abs(map.getBearing() - b) > 0.01) map.jumpTo({ bearing: b }); } catch (_) {}
+          if (_tmCamSoll) _tmCamSoll = Object.assign({}, _tmCamSoll, { bearing: b });
+          return;
+        }
         if (_isStaticFrame) { try { fitTrackPreview(true); } catch (_) {} }
       },
     });
@@ -3627,45 +3643,21 @@ function mountAnimator(body, headerActions, opts) {
       // obenauf und deckt die anderen ab (siehe _ghostSpurenAufbauen). Wer den
       // offiziellen Weg unter seine Planungen legen will, muss ihn nach oben
       // ziehen können.
-      //
-      // Der Griff schaltet `draggable` nur für seine Zeile frei — sonst würde
-      // jedes Ziehen an einem Regler die Geste starten (dieselbe Lösung wie bei
-      // den Reiseroute-Stationen).
-      const griff = row.querySelector(".ghost-handle");
-      if (griff) {
-        griff.addEventListener("mousedown", () => { row.draggable = true; });
-        griff.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
-      }
-      row.addEventListener("dragstart", (ev) => {
-        _ghostDragFrom = i; row.classList.add("dragging");
-        try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
-      });
-      row.addEventListener("dragend", () => {
-        row.draggable = false; row.classList.remove("dragging");
-        box.querySelectorAll(".drag-over").forEach((r) => r.classList.remove("drag-over"));
-        _ghostDragFrom = -1;
-      });
-      row.addEventListener("dragover", (ev) => {
-        if (_ghostDragFrom < 0) return;
-        ev.preventDefault();
-        try { ev.dataTransfer.dropEffect = "move"; } catch (_) {}
-        row.classList.add("drag-over");
-      });
-      row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
-      row.addEventListener("drop", (ev) => {
-        ev.preventDefault();
-        row.classList.remove("drag-over");
-        const von = _ghostDragFrom;
-        _ghostDragFrom = -1;
-        if (von < 0 || von === i) return;
-        const liste = ghostSpuren();
-        const [bewegt] = liste.splice(von, 1);
-        liste.splice(i, 0, bewegt);
-        ghostSpurenSichern();
-        _ghostSpurenAufbauen();      // Zeichenreihenfolge neu aufbauen
-        _ghostListeZeichnen();
-      });
+      // 25.09.2026 — gezogen wird über rzSortierbar (Pointer statt HTML5-Drag, s. unten);
+      // nur der Griff startet die Geste, Regler und Farbfelder bleiben frei.
     });
+    // 25.09.2026 (Beta-Tester Windows, Klicktest RR-04) — Ziehen am ⠿ per Pointer-Ereignissen
+    // (ui/js/util.js rzSortierbar); HTML5-Drag&Drop kam in WebView2/WebKit nicht an.
+    rzSortierbar(box, { zeile: ".ghost-row", griff: ".ghost-handle", onEnde: (von, nach) => {
+      const liste = ghostSpuren();
+      if (von < 0 || von >= liste.length || nach < 0 || nach >= liste.length) { _ghostListeZeichnen(); return; }
+      try { const uc = window.__rzUndoControllers && window.__rzUndoControllers[_MODKEY]; if (uc) uc.push(t("ghosts.reorder_undo", "Reihenfolge der Zusatzspuren"), { force: true }); } catch (_) {}
+      const [bewegt] = liste.splice(von, 1);
+      liste.splice(nach, 0, bewegt);
+      ghostSpurenSichern();
+      _ghostSpurenAufbauen();      // Zeichenreihenfolge neu aufbauen
+      _ghostListeZeichnen();
+    } });
   }
 
   async function _ghostsHinzufuegen(ghosts) {
@@ -3995,10 +3987,17 @@ function mountAnimator(body, headerActions, opts) {
     const padTop = parseFloat(cs.paddingTop)    || 0;
     const avW = section.clientWidth - margin * 2;
     const avH = section.clientHeight - margin * 2 - padBot - padTop;
-    if (avW <= 0 || avH <= 0) return;
+    // 25.09.2026 (Klicktest AN-12/13) — im Render-Modus zählt der Platz in der Seite nicht:
+    // bei kleiner App-Vorschau (347×195) fährt die Szene ein ebenso kleines Fenster, in dem
+    // Seitenleiste und Zeitleiste keine Höhe mehr übrig lassen. Der frühe Ausstieg hier
+    // ließ den Viewport dann auf 278×156 stehen — nie bildfüllend, kein Fit, Render hing.
+    const _renderVp = !!(window.__rzRenderMode && window.__rzRenderMode.w);
+    if (!_renderVp && (avW <= 0 || avH <= 0)) return;
     const availAR = avW / avH;
     let w, h;
-    if (availAR > targetAR) {
+    if (_renderVp) {
+      w = window.__rzRenderMode.w; h = window.__rzRenderMode.h;
+    } else if (availAR > targetAR) {
       h = avH;
       w = h * targetAR;
     } else {
@@ -4410,6 +4409,7 @@ function mountAnimator(body, headerActions, opts) {
       if (!z) continue;
       z.hidden = false;
       z.textContent = satz;
+      z.dataset.quelle = "tempo";   // 25.09.2026 — s. _reiseBilanzZeigen
       z.classList.toggle("warnt", r.sek_halte > r.sek_strecke);
     }
   }
@@ -4474,6 +4474,29 @@ function mountAnimator(body, headerActions, opts) {
     if (weg) weg.onclick = () => { liste.splice(i, 1); fertig(liste); };
   }
 
+  /** Die Tempo-Spur mit der zuletzt geholten Kurve (neu) füllen.
+   *  25.09.2026 (Klicktest AN-03: Intro 2 / Animation 10 / Hold 2 → Spur zeigte
+   *  „Nachlauf 5,0 s") — Anlauf und Nachlauf sind gesperrte Halte, deren Länge
+   *  `_tempoAnzeige` aus den Feldern liest. An die Spur gingen sie aber nur, wenn
+   *  die Kurve neu geholt wurde, und das tat nur das Dauer-Feld. Intro und Hold
+   *  änderten die Geometrie (`setTrackFraction`), die Beschriftung blieb beim
+   *  alten Wert — und ein Hold, der beim Laden 0 war, erschien gar nicht. Die
+   *  Kurve selbst hängt nicht an Intro/Hold, darum genügt hier das Neuzeichnen
+   *  mit dem gemerkten Stand (keine Brücke). */
+  let _tempoSpurStand = null;   // { reise, halte, kurve } aus dem letzten paceMapLaden
+  function _tempoSpurZeigen(eintraege) {
+    const st = _tempoSpurStand;
+    if (!st || !_tlBar || !_tlBar.setTempo) return;
+    try {
+      const reise = st.reise;
+      const kurve = reise ? { dauer_s: animSekunden(), anteile: null } : st.kurve;
+      _tlBar.setTempo(_tempoAnzeige(reise ? [] : (eintraege || _tempoEintraege())), st.halte, kurve,
+                      reise ? t("animator.tempo.gruppen_hinweis",
+                                "Der Zeitplan kommt aus den Gruppen: Kachel ziehen verschiebt sie in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie.")
+                            : null);
+    } catch (_) {}
+  }
+
   async function paceMapLaden() {
     const lauf = ++_paceMapLauf;
     if (!currentGpx) { _paceMap = null; _tempoInfo = null; vorschauNeuZeichnen(); return; }
@@ -4530,18 +4553,13 @@ function mountAnimator(body, headerActions, opts) {
         _tempoInfo = r;
         if (!reise && !rate && r.rate) _tempoRateSichern(r.rate, basis);   // einmalig ableiten
         _tempoDauerAnzeigen(r, reise);
-        try {
-          if (_tlBar && _tlBar.setTempo)
-            _tlBar.setTempo(_tempoAnzeige(reise ? [] : eintraege), reise ? [] : (r.halte || []),
+        _tempoSpurStand = { reise, halte: reise ? [] : (r.halte || []),
                             // Bei einer Etappenfolge OHNE Tabelle (die Bahn ist
                             // schon gleichmäßig in Videozeit), aber MIT der
                             // Länge — die Kacheln beschriften sich daraus.
-                            reise ? { dauer_s: animSekunden(), anteile: null }
-                                  : { dauer_s: r.dauer_s, anteile: r.map },
-                            reise ? t("animator.tempo.gruppen_hinweis",
-                                      "Der Zeitplan kommt aus den Gruppen: Kachel ziehen verschiebt sie in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie.")
-                                  : null);
-        } catch (_) {}
+                            kurve: reise ? { dauer_s: animSekunden(), anteile: null }
+                                         : { dauer_s: r.dauer_s, anteile: r.map } };
+        _tempoSpurZeigen(eintraege);
         // §60 Punkt 6 — jetzt, mit neuer Kurve UND neuer Dauer im Feld: die
         // Keyframes an ihre Strecke nachziehen.
         try { _keyframesNachziehen(); } catch (e) { applog("warn", "[keyframes] " + e); }
@@ -9014,6 +9032,9 @@ function mountAnimator(body, headerActions, opts) {
              modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase,
              schilderLaden: (typeof window.__rzSchilderLaden === "function") ? window.__rzSchilderLaden() : 0 };
   };
+  // 25.09.2026 (Klicktest AN-12/13) — Anstoß für core/szene.py: steht alles bereit außer
+  // fitBase, den Ausschnitt einmal ausdrücklich berechnen (Wiederholungszähler zurück).
+  window.__rzAnimFit = () => { try { fitTrackPreview._retries = 0; fitTrackPreview(false); } catch (_) {} return _fitZoomBase; };
   window.__rzPreviewRun = () => { window.__rzStepMode = true; runTimelinePreview(true); };
   // 08.09.2026 — Prüfstand: Probe-Lauf ab einer Leisten-Position (0..1) starten, wie ein Klick auf
   // den Knopf nach dem Scrubben (kein Schrittmodus). __rzIntroBar() = Leisten-Position des Trackbeginns.
@@ -10186,6 +10207,8 @@ function mountAnimator(body, headerActions, opts) {
         _tlBar.setTrackFraction(trackFraction(), introFraction());
         const _onTfChange = () => {
           if (_tlBar && _tlBar.setTrackFraction) _tlBar.setTrackFraction(trackFraction(), introFraction());
+          // 25.09.2026 (Klicktest AN-03) — Anlauf-/Nachlauf-Kacheln mit den neuen Sekunden.
+          _tempoSpurZeigen();
           // 14.09.2026 (Marc: Intro dazu → Etappen-Kacheln begannen im Intro): die
           // Kacheln der Reise tragen Leisten-Anteile aus ti/tf — neu rechnen.
           // Gebündelt (Aufschub): die Trenner oben bleiben je Tastendruck live.
@@ -11275,7 +11298,6 @@ function mountAnimator(body, headerActions, opts) {
         ? trackAnker : geklemmt;
       _animSignsApplyMarkerAnchor(a);
     }
-    let _animSignDragFrom = -1;   // v0.9.198 — Drag-Reorder Quell-Index
     // 13.09.2026 — Neu bauen GEBÜNDELT. Vorher baute jedes geladene Bild und jede
     // Existenz-Antwort die komplette Liste (und alle 20 Bilder die Karte) neu:
     // bei 2830 Foto-Schildern quadratisch viel Arbeit, die Oberfläche fror ein
@@ -11321,7 +11343,7 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) { _sichtbar = null; }
       const baueZeile = (s, i) => {
         const off = (s.visible === false);
-        const row = el("div", { class: "sign-row" + (off ? " sign-row-off" : ""), draggable: "true", "data-idx": String(i) });
+        const row = el("div", { class: "sign-row" + (off ? " sign-row-off" : ""), "data-idx": String(i) });
         // ⠿ Drag-Handle
         const handle = el("div", { class: "sign-row-handle", title: t("signs.drag", "Ziehen zum Sortieren") }, "⠿");
         // ☑ Sichtbar-Checkbox
@@ -11359,22 +11381,17 @@ function mountAnimator(body, headerActions, opts) {
         // ✕ Löschen
         const del = el("button", { type: "button", class: "sign-row-del", title: t("signs.delete", "Löschen") }, "✕");
         del.addEventListener("click", (ev) => { ev.stopPropagation(); _animSignsDelete(i); });
+        // 25.09.2026 — ▲▼ als Rückfall zum Ziehen (rzSortierbar, unten am host gebunden)
+        const pfeile = el("span", { class: "sign-row-sort" });
+        pfeile.innerHTML = rzSortPfeile(i, list.length);
         row.appendChild(handle); row.appendChild(chk); row.appendChild(media);
-        row.appendChild(txt); row.appendChild(edit); row.appendChild(del);
-        // Drag-Reorder
-        row.addEventListener("dragstart", (ev) => {
-          _animSignDragFrom = i; row.classList.add("dragging");
-          try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
-        });
-        row.addEventListener("dragend", () => {
-          row.classList.remove("dragging");
-          host.querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over"));
-        });
-        row.addEventListener("dragover", (ev) => { ev.preventDefault(); try { ev.dataTransfer.dropEffect = "move"; } catch (_) {} row.classList.add("drag-over"); });
-        row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
-        row.addEventListener("drop", (ev) => { ev.preventDefault(); row.classList.remove("drag-over"); _animSignsReorder(_animSignDragFrom, i); });
+        row.appendChild(txt); row.appendChild(pfeile); row.appendChild(edit); row.appendChild(del);
         return row;
       };
+      // 25.09.2026 (Beta-Tester Windows, Klicktest RR-04) — Sortieren am ⠿ per Pointer-
+      // Ereignissen statt HTML5-Drag&Drop (ui/js/util.js rzSortierbar).
+      rzSortierbar(host, { zeile: ".sign-row", griff: ".sign-row-handle",
+                           onEnde: (von, nach) => _animSignsReorder(von, nach) });
       const HAPPEN = 150;
       const anhaengen = (ab) => {
         if (lauf !== _animListeLauf || !host.isConnected) return;
@@ -11540,7 +11557,6 @@ function mountAnimator(body, headerActions, opts) {
       const [moved] = l.splice(from, 1);
       l.splice(to, 0, moved);
       _animSignsSave(l); _animSignsAttachToMap(); _animSignsRenderList();
-      _animSignDragFrom = -1;
     }
     // Schild auf den nächsten Track-Punkt zu lng/lat setzen (Index zurück).
     function _animSignSnap(lng, lat) {
@@ -11771,13 +11787,16 @@ function mountAnimator(body, headerActions, opts) {
               <option value="signpost"${sel("signpost", c.style)}>${t("signs.style.signpost", "Wegweiser")}</option>
               <option value="plain"${sel("plain", c.style)}>${t("signs.style.plain", "Schlicht (Box)")}</option>
             </select>
-            <label>${t("signs.bg", "Hintergrund")}</label>
-            <span class="se-inline"><input type="color" id="se-bg" value="${_animEscapeHtml(bgResolved)}" data-none="${noneBg ? "1" : "0"}"><button type="button" class="se-auto-btn${noneBg ? " on" : ""}" id="se-bg-none" title="${t("signs.bg_none_hint", "Kein Hintergrund (transparent) — z.B. Bild ohne farbigen Rahmen")}">${t("signs.bg_none", "Keine")}</button></span>
+            <!-- 25.09.2026 (Beta-Tester) — „Hintergrund“ war beim Foto-Schild in Wahrheit der farbige
+                 Rahmen ums Foto (die Schildfläche), „Rahmen“ der äußere Rand darum. Jetzt:
+                 Schildfarbe · Deckkraft Schildfarbe · Außenrand. -->
+            <label>${t("signs.bg", "Schildfarbe")}</label>
+            <span class="se-inline"><input type="color" id="se-bg" value="${_animEscapeHtml(bgResolved)}" data-none="${noneBg ? "1" : "0"}"><button type="button" class="se-auto-btn${noneBg ? " on" : ""}" id="se-bg-none" title="${t("signs.bg_none_hint", "Keine Schildfarbe (transparent) — z. B. Foto ohne farbigen Rahmen")}">${t("signs.bg_none", "Keine")}</button></span>
             <label>${t("signs.radius", "Ecken")}</label>
             <input type="range" id="se-radius" min="0" max="28" step="1" value="${c.radius}">
-            <label>${t("signs.opacity", "Deckkraft Hintergrund")}</label>
+            <label>${t("signs.opacity", "Deckkraft Schildfarbe")}</label>
             <input type="range" id="se-opacity" min="20" max="100" step="5" value="${Math.round(c.opacity*100)}">
-            <label>${t("signs.border", "Rahmen")}</label>
+            <label>${t("signs.border", "Außenrand")}</label>
             <span class="se-inline"><input type="range" id="se-bw" min="0" max="10" step="1" value="${c.borderWidth}"><input type="color" id="se-bc" value="${_animEscapeHtml(c.borderColor !== "none" ? c.borderColor : "#ffffff")}"></span>
             <label id="se-deco-label" title="${t("signs.deco_len_hint", "Länge der Stangen beim Zielbanner / Wegweiser")}" style="${(c.style === "banner" || c.style === "signpost") ? "" : "display:none;"}">${t("signs.deco_len", "Stangen-Länge")}</label>
             <input type="range" id="se-deco" min="10" max="150" step="5" value="${Math.round((c.decoScale != null ? c.decoScale : 0.5) * 100)}" style="${(c.style === "banner" || c.style === "signpost") ? "" : "display:none;"}">
@@ -11793,10 +11812,10 @@ function mountAnimator(body, headerActions, opts) {
               <option value="left"${c.calloutDir === "left" ? " selected" : ""}>${t("signs.callout_dir.left", "◀ Links")}</option>
               <option value="right"${c.calloutDir === "right" ? " selected" : ""}>${t("signs.callout_dir.right", "▶ Rechts")}</option>
             </select>
-            <label id="se-ac-label" title="${t("signs.accent_hint", "Farbe von Sprechblasen-Spitze bzw. Stecknadel — unabhängig vom Hintergrund. „Auto“ = wie bisher.")}" style="${_animTailStyles(c.style) ? "" : "display:none;"}">${t("signs.accent", "Zeiger-Farbe")}</label>
+            <label id="se-ac-label" title="${t("signs.accent_hint", "Farbe von Sprechblasen-Spitze bzw. Stecknadel — unabhängig von der Schildfarbe. „Auto“ = wie bisher.")}" style="${_animTailStyles(c.style) ? "" : "display:none;"}">${t("signs.accent", "Zeiger-Farbe")}</label>
             <span class="se-inline" id="se-ac-wrap" style="${_animTailStyles(c.style) ? "" : "display:none;"}">
               <input type="color" id="se-ac" value="${_animEscapeHtml(acResolved)}" data-auto="${acAuto ? "1" : "0"}">
-              <button type="button" class="se-auto-btn${acAuto ? " on" : ""}" id="se-ac-auto" title="${t("signs.accent_auto_hint", "Zeiger folgt dem Hintergrund (bisheriges Verhalten)")}">${t("signs.auto", "Auto")}</button>
+              <button type="button" class="se-auto-btn${acAuto ? " on" : ""}" id="se-ac-auto" title="${t("signs.accent_auto_hint", "Zeiger folgt der Schildfarbe (bisheriges Verhalten)")}">${t("signs.auto", "Auto")}</button>
             </span>
             <label id="se-tp-label" title="${t("signs.tailpos_hint", "Wo der Zeiger an der Kante sitzt. Verschieben hilft, wenn die Spitze sonst genau auf der Spur liegt.")}" style="${_animTailStyles(c.style) ? "" : "display:none;"}">${t("signs.tailpos", "Zeiger-Position")}</label>
             <select id="se-tp" style="${_animTailStyles(c.style) ? "" : "display:none;"}">
@@ -11837,7 +11856,7 @@ function mountAnimator(body, headerActions, opts) {
             <label title="${t("signs.minWidth_hint", "0 = an den Text angepasst. Größer 0 gibt dem Schild eine feste Mindestbreite — erst dann verschiebt Links/Mitte/Rechts den Text sichtbar.")}">${t("signs.minWidth", "Breite")} <span class="label-val" id="se-mw-v">${(c.minWidth || 0) > 0 ? (c.minWidth + " px") : t("signs.minWidth_auto", "Auto")}</span></label>
             <input type="range" id="se-mw" min="0" max="500" step="10" value="${c.minWidth || 0}">
             <label>${t("signs.textColor", "Textfarbe")}</label>
-            <span class="se-inline"><input type="color" id="se-tc" value="${_animEscapeHtml(customTc ? c.textColor : "#ffffff")}" data-auto="${customTc ? "0" : "1"}"><button type="button" class="se-auto-btn" id="se-tc-auto" title="${t("signs.tc_auto_hint", "Automatischer Kontrast zum Hintergrund")}">${t("signs.auto", "Auto")}</button></span>
+            <span class="se-inline"><input type="color" id="se-tc" value="${_animEscapeHtml(customTc ? c.textColor : "#ffffff")}" data-auto="${customTc ? "0" : "1"}"><button type="button" class="se-auto-btn" id="se-tc-auto" title="${t("signs.tc_auto_hint", "Automatischer Kontrast zur Schildfarbe")}">${t("signs.auto", "Auto")}</button></span>
             <label>${t("signs.italic", "Kursiv")}</label>
             <span class="se-inline"><input type="checkbox" id="se-italic"${chk(c.italic)}></span>
           </div>
@@ -11869,8 +11888,8 @@ function mountAnimator(body, headerActions, opts) {
             </select>
             <label>${t("signs.before", "Vorlauf (Sek.)")}</label>
             <input type="number" id="se-before" min="0" max="30" step="0.5" value="${c.before}">
-            <label>${t("signs.after", "Sichtbar nach (Sek.)")}</label>
-            <input type="number" id="se-after" min="0" max="60" step="0.5" value="${c.after}" title="${t("signs.after_hint", "0 = bleibt bis zum Ende")}">
+            <label>${t("signs.after", "Bleibt sichtbar (Sek.)")}</label>
+            <input type="number" id="se-after" min="0" max="60" step="0.5" value="${c.after}" title="${t("signs.after_hint", "Wie lange das Schild sichtbar bleibt, nachdem der Punkt es erreicht hat · 0 = bis zum Ende")}">
           </div>
           <div class="se-time-anchor" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08);">
             <div style="font-size:11px; font-weight:600; margin-bottom:2px;">${t("signs.time_anchor", "Auslöse-Zeitpunkt")}</div>
@@ -12446,7 +12465,6 @@ function mountAnimator(body, headerActions, opts) {
     let _routePick = null;     // null | Zeilen-Index — aktiver per-Zeile-Karten-Pick
     let _routeChain = false;   // Klick-Modus: jeder Kartenklick hängt eine Station an
     let _routeBusy = false;
-    let _routeDragFrom = -1;     // 22.08.2026 — laufende Zieh-Geste in der Stationsliste
     function _routeStatus(msg, kind) {
       const el = document.getElementById("route-status");
       if (el) { el.textContent = msg || ""; el.style.color = (kind === "err") ? "#ff6b6b" : ""; }
@@ -12477,7 +12495,8 @@ function mountAnimator(body, headerActions, opts) {
           <div class="route-wp" data-i="${i}">
             <div class="route-wp-head">
               <span class="route-wp-handle" data-i="${i}" title="${t("route.drag", "Ziehen, um die Reihenfolge zu ändern")}">⠿</span>
-              <span class="route-wp-badge">${_routeBadge(i)}</span><span class="route-wp-role">${_routeRole(i)}</span></div>
+              <span class="route-wp-badge">${_routeBadge(i)}</span><span class="route-wp-role">${_routeRole(i)}</span>
+              <span class="route-wp-sort">${rzSortPfeile(i, n)}</span></div>
             <div class="route-pt-row">
               <input type="text" class="route-wp-input" data-i="${i}" value="${val}" placeholder="${t("route.placeholder", "Adresse / Ort oder lon,lat")}">
               <button type="button" class="btn btn-subtle route-wp-pick${active}" data-i="${i}" title="${t("route.pick", "Auf der Karte klicken")}">📍</button>
@@ -12505,41 +12524,16 @@ function mountAnimator(body, headerActions, opts) {
         const i = +b.dataset.i; _routeSetPickMode(_routePick === i ? null : i);
       }));
       cont.querySelectorAll(".route-wp-del").forEach((b) => b.addEventListener("click", () => _routeRemoveWp(+b.dataset.i)));
-      // 22.08.2026 (Marc) — Stationen mit dem Griff hoch/runter ziehen. Der
-      // Griff schaltet `draggable` nur für seine Zeile ein; sonst würde jede
-      // Textauswahl im Eingabefeld eine Drag-Geste starten.
-      cont.querySelectorAll(".route-wp").forEach((row) => {
-        const i = +row.dataset.i;
-        const handle = row.querySelector(".route-wp-handle");
-        if (handle) {
-          handle.addEventListener("mousedown", () => { row.draggable = true; });
-          handle.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
-        }
-        row.addEventListener("dragstart", (ev) => {
-          _routeDragFrom = i; row.classList.add("dragging");
-          try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
-        });
-        row.addEventListener("dragend", () => {
-          row.draggable = false; row.classList.remove("dragging");
-          cont.querySelectorAll(".drag-over").forEach((r) => r.classList.remove("drag-over"));
-        });
-        row.addEventListener("dragover", (ev) => {
-          if (_routeDragFrom < 0) return;
-          ev.preventDefault();
-          try { ev.dataTransfer.dropEffect = "move"; } catch (_) {}
-          row.classList.add("drag-over");
-        });
-        row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
-        row.addEventListener("drop", (ev) => {
-          ev.preventDefault(); row.classList.remove("drag-over");
-          _routeReorderWp(_routeDragFrom, i);
-        });
-      });
+      // 22.08.2026 (Marc) — Stationen mit dem Griff hoch/runter ziehen. Nur der
+      // Griff startet die Geste; Textauswahl im Eingabefeld bleibt frei.
+      // 25.09.2026 (Klicktest RR-04: „zwei Ziehversuche am ⠿ ohne Umordnung") — per
+      // Pointer-Ereignissen statt HTML5-Drag&Drop (ui/js/util.js rzSortierbar), ▲▼ dazu.
+      rzSortierbar(cont, { zeile: ".route-wp", griff: ".route-wp-handle",
+                           onEnde: (von, nach) => _routeReorderWp(von, nach) });
     }
     /** Station verschieben. Start/Ziel ergeben sich aus der Reihenfolge, das
      *  Ziehen ändert also auch die Rollen — genau so ist es gemeint. */
     function _routeReorderWp(from, to) {
-      _routeDragFrom = -1;
       if (from == null || from < 0 || to < 0 || from === to) return;
       if (from >= _routeWps.length || to >= _routeWps.length) return;
       const [moved] = _routeWps.splice(from, 1);
@@ -12751,7 +12745,15 @@ function mountAnimator(body, headerActions, opts) {
         let r;
         // 07.09.2026 — nahe Treffer bevorzugen: der zuletzt aufgelöste andere Wegpunkt als Bezug
         let _bias = null;
-        try { const o = _routeWps.find((x, j) => j !== i && x && x.lon != null && x.lat != null); if (o) _bias = [o.lon, o.lat]; } catch (_) {}
+        // 25.09.2026 (Klicktest RR-02) — die NACHBAR-Station zuerst (davor, dann danach), erst
+        // dann irgendeine: vorher bezog sich jede Station auf den Start (Berlin), auch wenn
+        // direkt davor Wernigerode stand — „Schierke" wurde zur Schierker Straße in Berlin.
+        try {
+          const aufgeloest = (x) => x && x.lon != null && x.lat != null;
+          const o = [_routeWps[i - 1], _routeWps[i + 1]].find(aufgeloest)
+                 || _routeWps.find((x, j) => j !== i && aufgeloest(x));
+          if (o) _bias = [o.lon, o.lat];
+        } catch (_) {}
         try { r = await rzWarten("route_geocode", () => api().route_geocode(txt, 1, _bias)); }
         catch (e) { return { coords: null, hadInput: true, err: "geocode_failed", detail: String(e && e.message || e) }; }
         if (r && r.ok && r.results && r.results.length) {
@@ -13172,6 +13174,7 @@ function mountAnimator(body, headerActions, opts) {
   });
   document.getElementById("anim-refit")?.addEventListener("click", () => {
     _tmCamActive = false;   // v0.9.412 — „⤢ Auf Track": übernommene Animator-Kamera aufheben
+    _tmCamSoll = null;
     _kameraGehoertNutzer = false;   // ausdrücklich zurück auf den Track
     _manualCamLoeschen();           // 05.09.2026 — „Anpassen" hebt die Handkamera auf
     if (currentBbox) {
@@ -13641,7 +13644,6 @@ function mountAnimator(body, headerActions, opts) {
     if (_animUndoCtrl) { try { _animUndoCtrl.push("Stats-Felder", { force: true }); } catch (_) {} }
     saveProjectSettings(_MODKEY, { ["overlay_" + box + "_fields"]: _ovGetFields(box) });
   }
-  let _ovDragEl = null;
   // v0.9.334/393 — Feld umbenennen (pro Projekt persistiert). Sensorfelder
   // (sensor:<key>) haben zusätzlich eine Einheit; Standard-Felder (moving_time …)
   // nur ein Label — dann wird die Einheit-Zeile weggelassen.
@@ -13695,11 +13697,11 @@ function mountAnimator(body, headerActions, opts) {
     const cont = document.getElementById("anim-ov-" + box + "-fields");
     if (!cont) return;
     const { order, on } = _ovReadOrder(box);
-    cont.innerHTML = order.map(id => {
+    cont.innerHTML = order.map((id, k) => {
       const f = _ovCat(box).find(x => x.id === id);
       const avail = _ovAvail(f.req);
       const checked = on.has(id) && avail;
-      return `<div class="ov-fieldrow${avail ? "" : " unavail"}" draggable="${avail ? "true" : "false"}" data-fid="${id}">`
+      return `<div class="ov-fieldrow${avail ? "" : " unavail"}" data-fid="${id}">`
         + `<span class="ov-grip" title="${t("animator.overlay.reorder", "Ziehen zum Sortieren")}">⠿</span>`
         + `<label class="ov-fieldlbl"><input type="checkbox" ${checked ? "checked" : ""} ${avail ? "" : "disabled"}>`
         + `<span>${_ovFieldLabel(id)}</span></label>`
@@ -13708,6 +13710,8 @@ function mountAnimator(body, headerActions, opts) {
         + ((typeof id === "string" && avail && (id.startsWith("sensor:") || _OV_FALLBACK_LABEL[id] != null))
             ? `<button type="button" class="ov-rename" data-fid="${id}" title="${t("animator.overlay.rename", "Umbenennen")}">✎</button>` : "")
         + (avail ? "" : `<span class="ov-unavail">${t("animator.statsfield.unavail", "—")}</span>`)
+        // 25.09.2026 — ▲▼ als Rückfall zum Ziehen (rzSortierbar, s. unten)
+        + (avail ? `<span class="ov-sort">${rzSortPfeile(k, order.length)}</span>` : "")
         + `</div>`;
     }).join("");
     // Checkbox-Änderung
@@ -13718,35 +13722,13 @@ function mountAnimator(body, headerActions, opts) {
     cont.querySelectorAll(".ov-rename").forEach(btn => {
       btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); _ovRenameField(btn.dataset.fid); });
     });
-    // Drag-Sortierung. v0.9.334 (Nutzer-Bug Windows): die Windows-WebView (Edge/
-    // WebView2) zeigt den „Verboten"-Cursor und verweigert das Ablegen, wenn im
-    // dragover/dragenter `dropEffect` nicht gesetzt wird und kein dataTransfer-
-    // Payload existiert. Darum: setData beim Start, dragenter+drop preventDefault,
-    // dropEffect="move" — plus Container-Ebene für die Lücken zwischen den Zeilen.
-    cont.querySelectorAll(".ov-fieldrow").forEach(row => {
-      row.addEventListener("dragstart", (e) => {
-        _ovDragEl = row; row.classList.add("ov-dragging");
-        try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", row.dataset.fid || ""); } catch (_) {}
-      });
-      row.addEventListener("dragend", () => { row.classList.remove("ov-dragging"); _ovDragEl = null; _ovPersist(box); renderOverlayPreview(); });
-      row.addEventListener("dragenter", (e) => { e.preventDefault(); });
-      row.addEventListener("drop", (e) => { e.preventDefault(); });
-      row.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
-        if (!_ovDragEl || _ovDragEl === row || row.parentElement !== cont) return;
-        const rect = row.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
-        cont.insertBefore(_ovDragEl, after ? row.nextSibling : row);
-      });
-    });
-    // Container-Ebene nur einmal binden (innerHTML-Reset entfernt diese Listener
-    // nicht) — macht auch die Zwischenräume zu gültigen Drop-Zonen.
-    if (!cont._ovDndBound) {
-      cont._ovDndBound = true;
-      cont.addEventListener("dragover", (e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch (_) {} });
-      cont.addEventListener("drop", (e) => { e.preventDefault(); });
-    }
+    // Sortieren. v0.9.334 (Nutzer-Bug Windows) hatte das HTML5-Drag&Drop für WebView2
+    // nachgebessert (dropEffect, setData, Container-Drop-Zone) — geholfen hat es nicht:
+    // 25.09.2026 (Beta-Tester Windows, v0.9.722, Video: am ⠿ bewegt sich nichts). Jetzt per
+    // Pointer-Ereignissen (ui/js/util.js rzSortierbar) plus ▲▼. Die Reihenfolge steht im DOM,
+    // _ovPersist liest sie von dort; nicht verfügbare Felder (`unavail`) bleiben stehen.
+    rzSortierbar(cont, { zeile: ".ov-fieldrow", griff: ".ov-grip",
+                         onEnde: () => { _ovPersist(box); renderOverlayPreview(); } });
   }
   function _ovRebuildEditors() { _ovBuildEditor("totals"); _ovBuildEditor("live"); try { _ovExtraListe(); } catch (_) {} }
   // Vorschau-Wert (Endzustand) für ein Feld — WYSIWYG-Annäherung.
@@ -16000,8 +15982,50 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) {}
         // v0.9.185 — Schilder via lebenden Handle leeren (closure-sicher).
         try { if (window.__rzAnimSigns && window.__rzAnimSigns.clearAll) window.__rzAnimSigns.clearAll(); } catch (_) {}
+        // 25.09.2026 (Klicktest PR-07: „Session schließen" — Kopf leer, aber die
+        // Karte zeigte weiter die Teide-Linie und die Zeitleiste 13,9 s).
+        try { _animLeerAnzeigen(); } catch (e) { try { applog("warn", `[onGpxLoaded] leeren: ${e}`); } catch (_) {} }
       }
     });
+  }
+
+  /** 25.09.2026 (Klicktest PR-07) — Karte und Zeitleiste in den Leerzustand.
+   *  Bisher setzte das Schließen der Sitzung nur die Variablen zurück; die
+   *  Quellen auf der Karte (Track, Ghost, Ghost-Spuren, Pins, Keyframe-Punkte,
+   *  Laufpunkt, Zusatztouren) und die Tempo-Spur behielten den alten Stand.
+   *  Die Quellen werden GELEERT statt entfernt — die Ebenen hängen daran, und
+   *  der nächste Track füllt sie über rebuildPreviewLayers() wieder. */
+  function _animLeerAnzeigen() {
+    const LEER = { type: "FeatureCollection", features: [] };
+    // Die Reise-Basis ist die Kopie der ersten Etappe — bleibt sie stehen, holt
+    // _reiseAblegen() (über die Tourenliste) den alten Track sofort zurück.
+    _reiseBasis = null; _reiseBasisSerie = null; _reiseBasisEle = null;
+    _reiseBahn = null;
+    currentCoords = null;
+    if (map) {
+      try {
+        for (const id of Object.keys((map.getStyle() || {}).sources || {})) {
+          if (id === "anim-dot" || id.startsWith("preview-") || id.startsWith("mtour-prev-")) {
+            try { const s = map.getSource(id); if (s && typeof s.setData === "function") s.setData(LEER); } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+    _extraTours = [];
+    try { _animClearExtraPreview(); } catch (_) {}
+    try { _animRenderToursList(); } catch (_) {}
+    _fullPreviewCoords = [];
+    // Tempo-Spur + Bilanz: ohne Track gibt es keine Dauer (wie beim App-Start).
+    _paceMap = null; _tempoInfo = null; _tempoSpurStand = null;
+    for (const id of ["anim-tempo-bilanz", "tl-tempo-bilanz"]) {
+      const z = document.getElementById(id);
+      if (z) { z.hidden = true; z.textContent = ""; }
+    }
+    if (_tlBar) {
+      try { if (_tlBar.setTempo) _tlBar.setTempo([], [], null, null); } catch (_) {}
+      try { if (_tlBar.refresh) _tlBar.refresh(); } catch (_) {}
+      try { if (_tlBar.updateStatusLabel) _tlBar.updateStatusLabel(); } catch (_) {}
+    }
   }
   // v0.8.2: Initial-Apply beim Modul-Mount wird im whenApiReady()-Block
   // gemacht (nach Map-Init). Sync hier wäre zu früh — `map` ist null.
@@ -16487,15 +16511,19 @@ function mountAnimator(body, headerActions, opts) {
       const pc = window.__pendingCameraForTourMap;
       window.__pendingCameraForTourMap = null;
       try {
-        map.jumpTo({ center: pc.center, zoom: pc.zoom, bearing: pc.bearing || 0, pitch: pc.pitch || 0 });
+        _tmCamSoll = pc;
         _tmCamActive = true;
+        _tmCamAnwenden();
+        _tmBearingReglerSetzen(pc.bearing || 0);
         try { if (typeof toast === "function") toast(t("tourmap.cam_taken", "Ausschnitt aus dem Animator übernommen. Mit ⤢ (Auf Track) zurücksetzen."), "info", 5000); } catch (_) {}
       } catch (_) {}
       return;
     }
     // v0.9.412 — freie Kamera aktiv (übernommen) → Auto-Fit überspringen, damit der
     // übernommene Ausschnitt beim Re-Layout/Resize nicht wieder auf den Track springt.
-    if (_isStaticFrame && _tmCamActive) return;
+    // 25.09.2026 — solange der Nutzer die Karte nicht selbst bewegt hat, den Animator-
+    // Bereich neu einpassen: beim ersten Aufruf steht das Format oft noch nicht fest.
+    if (_isStaticFrame && _tmCamActive) { if (_tmCamSoll) _tmCamAnwenden(); return; }
     let b = currentBbox;
     if (!b || !("min_lon" in b)) return;
     // 07.09.2026 — Standbild einer Komposition: Ausschnitt über ALLE Touren (Schwarm/Reise)
@@ -16528,7 +16556,11 @@ function mountAnimator(body, headerActions, opts) {
     // 0 oder sehr klein sein → fitBounds würde dann auf Weltansicht zoomen.
     // Wir verschieben den Fit auf den nächsten Frame. Max. 10 Re-Tries mit
     // 200 ms = 2 s Geduld (manche Re-Mount-Szenarien brauchen das).
-    if (vpMin < 200) {
+    // 25.09.2026 (Klicktest AN-12/13) — Schwelle 200 → 60 px. Eine echte, nur kleine
+    // Vorschau (App-Fenster klein: 347×195) galt als „noch nicht layoutet"; nach zehn
+    // Versuchen blieb _fitZoomBase für immer null, und die Szene wartete endlos auf fitBase.
+    // Nicht fertig layoutet heißt 0 oder wenige Pixel — das fängt 60 weiter ab.
+    if (vpMin < 60) {
       if (!fitTrackPreview._retries) fitTrackPreview._retries = 0;
       if (fitTrackPreview._retries < 10) {
         fitTrackPreview._retries++;
@@ -17424,11 +17456,17 @@ function mountAnimator(body, headerActions, opts) {
     const plan = _gruppenPlan || _gruppenPlanRechnen();
     const kette = _reiseAktiv() ? _reiseBahn.kette.map(k => k.g) : (_gruppen.length ? [_gruppen[0]] : []);
     const liste = [];
+    // 25.09.2026 (Klicktest RE-07) — ohne Reise-Bahn zeichnet die Hauptlinie den
+    // Haupt-Track (currentGpx). Übersprungen wird deshalb GENAU dieser, nicht blind
+    // Mitglied 0: steht er nicht vorn (Gruppen vor dem Haupt-Track gebaut, Gruppen
+    // zusammengelegt), fehlte sonst die erste Tour und der Haupt-Track lag doppelt.
+    const _hauptK = _pfadNFC(currentGpx || "");
     _gruppen.forEach((g, gi) => {
       const inKette = kette.includes(g);
       const lage = plan ? plan.lage(g.id) : null;
+      const _hauptHier = !_reiseAktiv() && inKette && !!_hauptK && g.mitglieder.some(m => _pfadNFC(m.gpx_path) === _hauptK);
       g.mitglieder.forEach((m, j) => {
-        if (j === 0 && inKette) return;
+        if (_hauptHier ? _pfadNFC(m.gpx_path) === _hauptK : (j === 0 && inKette)) return;
         const tour = _tourVon(m.gpx_path);
         if (!tour || !tour.coords || tour.coords.length < 2) return;
         // Render-Modus (gemeinsame Szene): feiner abtasten — Geometrie-Detail fürs Video,
@@ -17446,7 +17484,7 @@ function mountAnimator(body, headerActions, opts) {
                      color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path,
                      width: Math.max(0.5, +st.width || lw), stil: st,
                      dot: { show: st.dot_show !== false, style: st.dot_style === "arrow" ? "arrow" : "dot", size: Math.max(0.1, +st.dot_size || 1) },
-                     gruppe: g, gi, j, rolle: j === 0 ? "takt" : "mitglied",
+                     gruppe: g, gi, j, rolle: (j === 0 && !_hauptHier) ? "takt" : "mitglied",
                      inKette, lage, vorlauf: +m.vorlauf_s || 0 });
       });
     });
@@ -17864,8 +17902,16 @@ function mountAnimator(body, headerActions, opts) {
     for (const t of pool) {
       if (drin.has(_pfadNFC(t.gpx_path))) continue;
       drin.add(_pfadNFC(t.gpx_path));
+      // 25.09.2026 (Klicktest RE-07) — der HAUPT-Track kommt nach vorn, wie in
+      // rzSpuren.ausProjekt. Die Tour-Map baute die Gruppen, bevor currentGpx stand
+      // (nur die Zusatz-Touren, Haifischflosse zuerst); der Haupt-Track landete danach
+      // hier HINTEN. Mitglied 0 der Kettengruppe gilt aber als Haupt-Track (von der
+      // Hauptlinie gezeichnet) — so fiel die erste Zusatz-Tour aus Vorschau und PNG.
       if (_animAnordnung === "schwarm" && _gruppen.length) {
-        _gruppen[0].mitglieder.push({ gpx_path: t.gpx_path, vorlauf_s: 0, sichtbar_vor_inhalt: false });
+        const m = { gpx_path: t.gpx_path, vorlauf_s: 0, sichtbar_vor_inhalt: false };
+        if (t.haupt) _gruppen[0].mitglieder.unshift(m); else _gruppen[0].mitglieder.push(m);
+      } else if (t.haupt) {
+        _gruppen.unshift(_gruppeNeu(_gruppenIdFrei(), t.gpx_path, 0));
       } else {
         // hinten an die Kette: die Lücke legt `_ketteLegen` (gemeinsame Flugdauer)
         _gruppen.push(_gruppeNeu(_gruppenIdFrei(), t.gpx_path, 0));
@@ -18291,7 +18337,7 @@ function mountAnimator(body, headerActions, opts) {
                            _gruppen.length, _reiseBasis ? _reiseBasis.length : 0]);
   }
   function _reiseBauen() {
-    if (!_reiseGilt()) { _reiseBahn = null; _reiseSig = null; _gruppenPlanRechnen(); _tempoReiseStandPruefen(0); return null; }
+    if (!_reiseGilt()) { _reiseBahn = null; _reiseSig = null; _gruppenPlanRechnen(); _tempoReiseStandPruefen(0); try { _reiseBilanzZeigen(); } catch (_) {} return null; }
     // 09.09.2026 (§60) — die Bahn kommt aus dem ZEITPLAN der Gruppen: die
     // Kette (Zeile 0) in zeitlicher Folge, dazwischen Lücken = Übergänge,
     // davor und dahinter Füll-Halte. Dieselbe Mechanik wie zuvor die Etappen,
@@ -18489,8 +18535,22 @@ function mountAnimator(body, headerActions, opts) {
 
   function _reiseBilanzZeigen() {
     const host = document.getElementById("anim-reise-bilanz");
+    // 25.09.2026 (Klicktest RE-05) — ohne gültige Reise (Schwarm = EINE Gruppe) keine
+    // Reise-Bilanz. Vorher prüfte das nur `_reiseBahn` und wurde beim Wechsel auf „Als
+    // Schwarm" gar nicht mehr gerufen: unter der Zeitleiste stand weiter „Gesamt 30,2 s —
+    // Etappen 14,3 s, Übergänge 9,0 s · Halte 7,0 s", während die Leiste den Schwarm zeigte.
+    // Die Zeile unter der Tempo-Spur bekommt dann wieder die Tempo-Bilanz.
+    if (!_reiseAktiv()) {
+      if (host) { host.hidden = true; host.textContent = ""; }
+      const unten = document.getElementById("tl-tempo-bilanz");
+      if (unten && unten.dataset.quelle === "reise") {
+        unten.hidden = true; unten.textContent = ""; delete unten.dataset.quelle;
+        // ui-falle-ok: die Tempo-Bilanz ist nur Anzeige, sie kommt bei der nächsten Änderung sonst von selbst
+        setTimeout(() => { try { paceMapLaden(); } catch (_) {} }, 0);
+      }
+      return;
+    }
     if (!host) return;
-    if (!_reiseBahn) { host.hidden = true; return; }
     const e = _reiseBahn.sekEtappen || 0, u = _reiseBahn.sekUeber || 0;
     const g = e + u;
     host.hidden = false;
@@ -18517,6 +18577,7 @@ function mountAnimator(body, headerActions, opts) {
     if (unten) {
       unten.hidden = false;
       unten.textContent = txt;
+      unten.dataset.quelle = "reise";   // 25.09.2026 — woher die Zeile stammt (s. o.)
       unten.classList.toggle("warnt", u > e || eng);
     }
   }
@@ -18531,6 +18592,7 @@ function mountAnimator(body, headerActions, opts) {
     const hatteBahn = !!_reiseBahn;
     _reiseBahn = null;
     if (hatteBahn) _phasenAnLeiste();
+    try { _reiseBilanzZeigen(); } catch (_) {}   // 25.09.2026 (RE-05) — alte Reise-Bilanz weg
     try { if (_tlBar && _tlBar.setGruppen) _tlBar.setGruppen([]); } catch (_) {}
     if (_reiseBasis && currentCoords !== _reiseBasis) {
       currentCoords = _reiseBasis;
@@ -19301,6 +19363,46 @@ function mountAnimator(body, headerActions, opts) {
   let _snapshotRequest = null;
   let _lastRenderWasSnapshot = false;
   let _tmCamActive = false;   // v0.9.412 — Tour-Map: freie Kamera (aus Animator übernommen) statt Auto-Fit
+  // 25.09.2026 (Klicktest TM-05) — die übergebene Animator-Kamera samt Größe ihres
+  // Vorschau-Rahmens. Bleibt gesetzt, bis der Nutzer die Karte selbst bewegt.
+  let _tmCamSoll = null;
+  /** Den Animator-Ausschnitt in das Tour-Map-Format einpassen: gleiche Mitte und
+   *  Ausrichtung, Zoom so verschoben, dass das ganze Animator-Bild hineinpasst
+   *  (16:9 → 1:1 zoomt etwas heraus). Gleiche Ausrichtung = die Rahmen sind
+   *  gleich gedreht, darum reicht das Verhältnis der Seitenlängen. */
+  function _tmCamAnwenden() {
+    const pc = _tmCamSoll;
+    if (!pc || !map) return;
+    let z = +pc.zoom || 0;
+    try {
+      const cv = map.getCanvas();
+      const w2 = (cv && cv.clientWidth) || 0, h2 = (cv && cv.clientHeight) || 0;
+      if (pc.w > 0 && pc.h > 0 && w2 > 0 && h2 > 0) z += Math.log2(Math.min(w2 / pc.w, h2 / pc.h));
+    } catch (_) {}
+    try { map.jumpTo({ center: pc.center, zoom: z, bearing: pc.bearing || 0, pitch: pc.pitch || 0 }); } catch (_) {}
+    if (!map.__rzTmCamGebunden) {
+      map.__rzTmCamGebunden = true;
+      // Eigene Bewegung des Nutzers beendet das Nachführen; Drehen per Maus
+      // schreibt die neue Ausrichtung in den Regler (Regler = Karte).
+      for (const ev of ["dragstart", "zoomstart", "rotatestart", "pitchstart"]) {
+        try { map.on(ev, (e) => { if (e && e.originalEvent) _tmCamSoll = null; }); } catch (_) {}
+      }
+      try {
+        map.on("rotateend", (e) => {
+          if (e && e.originalEvent && _isStaticFrame && _tmCamActive) _tmBearingReglerSetzen(map.getBearing());
+        });
+      } catch (_) {}
+    }
+  }
+  /** Ausrichtungsregler der Tour-Map setzen, beschriften und speichern. */
+  function _tmBearingReglerSetzen(grad) {
+    const r = document.getElementById("anim-static-bearing");
+    if (!r) return;
+    const v = Math.max(-180, Math.min(180, Math.round(+grad || 0)));
+    if (String(r.value) === String(v)) { updateLabel("anim-static-bearing-v", v, "°"); return; }
+    r.value = String(v);
+    r.dispatchEvent(new Event("change", { bubbles: true }));
+  }
   function _animCameraCorrected(rw, rh) {
     if (!map) return null;
     try {
@@ -19359,10 +19461,29 @@ function mountAnimator(body, headerActions, opts) {
       const c = map.getCenter();
       // RAW-Kamera (Preview-Zoom); die Tour-Map wendet jumpTo an und rechnet beim
       // Render die eigene korrigierte Zoomstufe (eigene Auflösung).
+      // 25.09.2026 (Klicktest TM-05: Vilaflor 16:9/Satellit → Tour-Map blieb 1:1/
+      // OpenTopoMap, Ausschnitt anders, Ausrichtungsregler 90° bei nordorientierter
+      // Karte). Entscheidung: übernommen werden Ausschnitt (Mitte/Zoom/Ausrichtung/
+      // Neigung) und der KARTENSTIL (bewusste Wahl im Animator); das SEITENVERHÄLTNIS
+      // nicht — die Tour-Map hat ihre eigenen Format-Vorgaben (Insta, Poster …).
+      // Damit trotzdem derselbe Bereich zu sehen ist, reist die Größe des Vorschau-
+      // Rahmens mit (w/h, CSS-px); die Tour-Map rechnet den Zoom so um, dass das
+      // ganze Animator-Bild in ihr Format passt. Die Ausrichtung wird auf ganze Grad
+      // gerundet und in den Regler der Tour-Map geschrieben — Regler = Karte.
+      const cv = map.getCanvas();
+      const bearing = Math.round(map.getBearing());
+      const styleKey = document.getElementById("anim-style")?.value || "";
       window.__pendingCameraForTourMap = {
         center: [c.lng, c.lat], zoom: map.getZoom(),
-        bearing: map.getBearing(), pitch: map.getPitch(),
+        bearing, pitch: map.getPitch(),
+        w: (cv && cv.clientWidth) || 0, h: (cv && cv.clientHeight) || 0,
       };
+      // Vor dem Wechsel in den Tour-Map-Stand schreiben: so baut die Tour-Map ihre
+      // Karte gleich im richtigen Stil (ein Stil-/Engine-Wechsel NACH dem Aufbau
+      // hätte die Karte neu montiert und die übergebene Kamera verloren).
+      const patch = { static_bearing: bearing };
+      if (styleKey && styleKey !== "alpha") patch.map_style = styleKey;
+      try { saveProjectSettings("tourmap", patch); } catch (_) {}
     } catch (_) { toast(t("animator.snapshot.no_cam", "Karte nicht bereit."), "warn", 3000); return; }
     try { if (typeof switchMod === "function") switchMod("tourmap"); }
     catch (e) { try { window.switchMod && window.switchMod("tourmap"); } catch (_) {} }

@@ -14,6 +14,46 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.725** (25.09.2026 evening, built locally): everything from the full click test of 25.09.2026 (Codex, 160 steps: 93 ✅ 16 ❌ 31 ⚠️ 20 ⏭, report in `~/GPS-Studio-Test/Berichte/20260925-1508/`) plus the beta tester's Windows and wording notes.
+
+### Fixed — full click test 25.09.2026 (0.9.725)
+- **Data animator could not render at all** (DA-05): since 11.09.2026 both `HeightConfig(...)` calls passed a `tz_name` field that does not exist, so every render (all codecs, ProRes 4444 with alpha included) and the HTML export failed at once. A test now checks every config call in `app.py` against the real fields.
+- **"Current frame as image" and "Render video" hung at 4 % "Opening project"** (AN-12/13): with a small app window the preview was 347×195 CSS px and the scene renders at that size — the viewport kept its sidebar-limited size and the fit treated anything under 200 px as "not laid out yet", so the scene waited forever for the fit zoom. Render mode now always takes the render size, the fit threshold is 60 px, the progress text names what the scene is waiting for, a sign image that never loads no longer blocks the render (30 s, then it continues with a log warning), and a missing fit ends with a clear message after 60 s instead of hanging. The waiting log line now puts the deciding fields first.
+- **Scene videos from a tiny preview looked coarse**: the scene renders at least **640 CSS px wide** (`SZENE_MIN_BREITE`) and shifts the zoom by the same factor (`zoomShift`), so the framing stays the same while lines, labels and the attribution are finer (Marc, 25.09.2026).
+- **Swarm in the Tour-Map lost a tour** (RE-07): the groups were built before the main track was set, the main track was appended at the end and member 0 (a different tour) was skipped as "the main track" — Haifischflosse vanished, Vilaflor was drawn twice. The main track now goes first and is skipped by path.
+- **Swarm showed the old journey summary** (RE-05): "Total … stages … transitions" stayed under the timeline after switching to swarm.
+- **Geotagger done dialog counted a photo that keeps its own GPS as "details only"** (GT-10): 15/2 instead of 16/1.
+- **Geotagger time zone hint** (GT-03): counts only the filtered camera (the video without a camera no longer counts); when the track alone leaves a range of zones open (here UTC−0:30…+3:30) the hint names the range and offers the obvious zones (local time of the other photos, this computer's zone on that day) with *Apply*.
+- **Importing a file without a track** (FE-03/FE-01): `.txt`/`.json` without track data said "1 already there" and vanished; unknown file types were silently skipped. Non-track files are now refused with a clear message, text/JSON without a track goes to the list of unreadable files with the reason, and empty GPX files say "no track points".
+- **Fresh install said "Your data has moved"** on its second start (ER-01): the first start created empty stores in the app folder, which the next start took for old data. No migration without sessions; empty stores never count as old data. The yellow TEST mark of the test environment stays visible on the welcome screen and after the About dialog (AL-07).
+- **Settings → Library & Cloud ignored a connected cloud** (CL-01): now "✓ Connected with <address>" and *Manage cloud archive …*.
+- **Cloud trash showed "unknown entry" for every item** (CL-03): names are resolved again (tours, projects, register, cover images, old-model entries); the overview counts in the same unit on both sides ("45 objects here, 41 of them tour files incl. older versions").
+- **Language switch**: the cloud status text now changes at once; Spanish counters say "planificadas" (BI-03).
+- **Save dialogs suggested the name of an existing file** (BI-02, second library backup within the same minute) — now `…-2`, `-3`; GPX/KML export no longer suggests `.gpx.gpx` / `.kml.kml` (AL-03).
+- **Archive overview**: hours are labelled as moving time; the movement comparison has an "no type" column, so the sum adds up (AR-12).
+- **Photos: map stayed empty after switching to Grid/By tour and back** (FO-07): the map still hung in the old, detached container (0×0 canvas). It is moved into the new container and resized.
+- **Photos header** (FO-05): counts only the shown hits ("1 file", no whole-library "8 without coordinates"); the camera menu fills right after scanning.
+- **Inspector: Heal changed the track at once and made it longer** (IN-03): *Heal* now only shows a preview (orange outliers, magenta gaps, planned track-check steps); *✓ Apply* heals. Routed gap fills are only used when the route really starts and ends at the gap (20 % of the gap, 40–150 m) — before, a route could snap up to 1.5 km to the nearest road and the track grew by 5 km and 1.5 h.
+- **Inspector: after "Join tracks" or "Create time axis" the header, point count and logbook stayed on the old file** (IN-10/IN-12): they now show the new state at once (marked as a preview until saved, bridge `logbuch_vorschau`); *Create time axis* in the track check opens the collapsed section, scrolls to the tempo field and focuses it; *Discard changes* on a KML reloads the original, not the converted temp file. Logbook day headers are buttons (Enter/Space), so the stacked sticky headers can be hit reliably (IN-26).
+- **Inspector: "GPS (original)" was already the blended elevation** after *Apply*, and every further apply blended its own result again (IN-09).
+- **Projects: "New project" on a freshly opened tour did nothing** (PR-02; the error was swallowed), and *Duplicate* right after the first change copied the defaults instead of the project. Errors now show a message.
+- **"Close session" left the old track line and duration** in the animator map and timeline (PR-07).
+- **Data animator: auto-marker labels overlapped** (DA-04): labels are stacked, in preview and render.
+- **Reorder lists did not work on Windows** (beta tester: statistics field order): every ⠿ list used HTML5 drag & drop, which WebView2 does not deliver with `AllowExternalDrop=False`. New shared `rzSortierbar` (pointer events, live, Esc cancels, auto-scroll) plus ▲▼ buttons per row — stats fields, signs, route stations, ghost tracks, "Merge tours" (also RR-04).
+- **"Open as Tour-Map"** (TM-05): takes over map style and bearing and fits the same area into the Tour-Map format; the bearing slider matches the map and turns it.
+- **Route search "Schierke" found "Schierker Straße, Berlin"** (RR-02/03): an exact place-name match beats streets, Photon is asked again without a reference point when the place is missing, and the neighbouring station is the reference.
+- **Free satellite style: black blocks over the sea** (AN-01): the Spanish PNOA orthophoto is nearly black over water; a second sea mask from the same-zoom elevation tile makes dark bluish PNOA pixels at ≤ 0 m transparent (cache key `#sea2`).
+- **Hold/Intro changes did not reach the run-in/run-out tiles** of the timeline (AN-03).
+- **User guide start page** showed raw HTML and an old version number (AL-06).
+- **Test machine lock blocked the Leaflet preview's own temp folder** (log `VERWEIGERT leaflet_vorschau`).
+
+### Changed — 25.09.2026 evening
+- **Sign editor wording** (beta tester): "Background" → **"Sign colour"**, "Border" → **"Outer border"**, "Background opacity" → **"Sign colour opacity"**; "Visible after" → **"Stays visible"** with the hint "how long after the marker reaches it · 0 = until the end" (de/en/es).
+- **Tour-Map presets for Instagram**: 1:1 (1080×1080), 4:5 (1080×1350), Story 9:16 (1080×1920) (TM-01).
+- Feedback dialog: its only button is called **Close** (it never sends anything) (AL-08).
+- API key fields are real password fields, so screen readers no longer read them (S-10).
+- Test environment: `testumgebung.sh oeffnen <file>` opens a file from outside the archive like a double-click in Finder; `demo_komoot.kml` no longer sits in the test archive (same route as *mischfall-wanderung-mit-auto*, the archive rightly merged them and the mixed-case tour could not be found, AR-13); protocol adjusted for the German keyboard (sent ⌘Z arrives as ⌘Y), the save dialog, FO-08, AN-15, GT-03…05, IN-03/04, AR-06/14, RE-04, AL-01/02/04/05.
+
 > **Release candidate 0.9.724** (tag `rc/0.9.724` on bbee310, 24.09.2026): CI run 36047845329, macOS notarized; identical to the tester build. Not released — releasing means tag `v0.9.724` on the same commit, rename this section to `[0.9.724]`, then deploy on Marc's word.
 
 ### Added

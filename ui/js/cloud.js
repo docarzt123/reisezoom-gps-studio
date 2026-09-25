@@ -72,6 +72,9 @@
     if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.cloud_status) return;
     window.pywebview.api.cloud_status().then(function (s) {
       _stand = s;
+      // 25.09.2026 (Klicktest CL-01): derselbe Stand für die Einstellungen — die
+      // zeigten sonst „einrichten …“, während Anzeige und Dialog „verbunden“ sagten.
+      window.rzCloudZustand = s;
       // ⚠️ Versteckt heißt wirklich versteckt: keine Anzeige, kein Zeitgeber,
       // und `ui/js/app.js` liest dieses Merkmal, um den Abschnitt in den
       // Einstellungen wegzulassen. Siehe `_cloud_sichtbar()` in app.py.
@@ -108,6 +111,12 @@
     });
   }
   window.rzCloudStand = standHolen;
+  // 25.09.2026 (Klicktest BI-03): Nach einem Sprachwechsel (loadI18n → „rz-i18n-ready“)
+  // die Anzeige sofort in der neuen Sprache zeichnen — vorher blieb der deutsche
+  // Text bis zur nächsten Aktualisierung (bis zu 90 s) stehen.
+  window.addEventListener("rz-i18n-ready", function () {
+    if (_stand && window.rzCloudSichtbar) { try { anzeigen(_stand); } catch (_) {} }
+  });
 
   // ── Einstellungsfenster ────────────────────────────────────────────────
   function openCloudModal() {
@@ -219,8 +228,13 @@
       box.innerHTML =
         '<b>' + T("cloud.ferne_titel", "In der Cloud") + ':</b> ' + u.oben + ' ' +
           T("cloud.objekte", "Objekte") +
-        ' · <b>' + T("cloud.hier", "hier") + ':</b> ' + (l.touren || 0) + ' ' +
-          T("library.tours", "Touren") +
+        // 25.09.2026 (Klicktest CL-03): gleiche Einheit auf beiden Seiten — vorher
+        // „45 Objekte“ gegen „41 Touren“, und das Archiv zeigte 40 (die 41 sind
+        // Tourdateien samt älterer Versionen).
+        ' · <b>' + T("cloud.hier", "hier") + ':</b> ' + (l.objekte || 0) + ' ' +
+          T("cloud.objekte", "Objekte") +
+        ' <span class="muted">(' + T("cloud.davon_tourdateien", "davon {n} Tourdateien, ältere Versionen mitgezählt")
+          .replace("{n}", l.touren || 0) + ')</span>' +
         (u.offen ? ' · <span class="warnung">' + u.offen + ' ' +
             T("cloud.offen", "noch nicht hochgeladen") + '</span>' : '') +
         (u.nur_oben ? ' · <span class="muted">' + u.nur_oben + ' ' +

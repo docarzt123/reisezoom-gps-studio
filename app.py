@@ -172,7 +172,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.724"
+APP_VERSION = "0.9.725"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -430,6 +430,10 @@ TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
 IMPORTS_DIR.mkdir(parents=True, exist_ok=True)
 GPX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 cgpx.IMPORT_CACHE_DIR = str(IMPORTS_DIR)    # 22.08.2026: parse_gpx konvertiert Fremdformate selbst
+# 25.09.2026 (Klicktest FE-03): In den Import-Ordner kommen nur ausdrücklich gewählte
+# Dateien — dort liest das Archiv auch .txt/.json ohne Track-Inhalt ein, damit sie als
+# „nicht lesbar“ mit Grund in der Liste stehen, statt still zu verschwinden.
+clib.EXPLIZITE_ORDNER.add(str((APP_SUPPORT / "import").resolve()))
 
 # v0.9.153: schützt den Zugriff auf pywebviews internen Drag&Drop-Pfad-Puffer
 # (webview.dom._dnd_state['paths']) beim Auslesen via consume_drop_paths().
@@ -1072,6 +1076,49 @@ def _parse_extensions(file_types: tuple[str, ...]) -> list[str]:
     return exts
 
 
+def _freier_dateiname(ordner, name: str) -> str:
+    """25.09.2026 (Klicktest BI-02): Vorschlag für den Speichern-Dialog, der im
+    Ordner noch nicht existiert — sonst schlug eine zweite Sicherung in derselben
+    Minute denselben Namen vor und macOS fragte nach dem Ersetzen. Aus
+    „x.zip“ wird „x-2.zip“, „x-3.zip“ … (Marc-Regel: Ausgaben nie überschreiben)."""
+    try:
+        o = Path(ordner)
+        if not name or not o.is_dir() or not (o / name).exists():
+            return name
+        stamm, endung = os.path.splitext(name)
+        if stamm.lower().endswith(".gpx") and endung.lower() == ".gz":
+            stamm, endung = stamm[:-4], stamm[-4:] + endung
+        for n in range(2, 1000):
+            kandidat = f"{stamm}-{n}{endung}"
+            if not (o / kandidat).exists():
+                return kandidat
+    except OSError:
+        pass
+    return name
+
+
+def _export_stamm(src: str) -> str:
+    """25.09.2026 (Klicktest AL-03): Dateiname ohne Endung für Export-Vorschläge —
+    auch bei „x.gpx.gz“ (Bibliotheks-Kopien), sonst wurde daraus „x.gpx.gpx“."""
+    n = os.path.basename(str(src or ""))
+    if n.lower().endswith(".gz"):
+        n = n[:-3]
+    return os.path.splitext(n)[0] or "Track"
+
+
+def _doppelte_endung_weg(pfad: str, file_types) -> str:
+    """25.09.2026 (Klicktest AL-03): „tour.gpx.gpx“ → „tour.gpx“. Der macOS-Dialog
+    hängt bei GPX/KML die Endung ein zweites Mal an, wenn der Vorschlag sie schon
+    trägt (die App meldet diese Typen als Dokumenttypen ohne eigene UTI an)."""
+    if not pfad:
+        return pfad
+    for ext in _parse_extensions(file_types):
+        doppelt = "." + ext + "." + ext
+        if pfad.lower().endswith(doppelt):
+            return pfad[: -len(ext) - 1]
+    return pfad
+
+
 # ── Datei-Dialoge merken sich ihren Ordner — je Zweck (13.09.2026) ────────────
 # Windows-Tester: „wenn ich einen GPS-Track lade, merkt sich das Programm das
 # Verzeichnis. Aber ich habe die Tracks in einem anderen Verzeichnis (anderem
@@ -1174,17 +1221,26 @@ def _macos_save_panel(default_name: str, default_dir: str,
     def show():
         try:
             panel = NSSavePanel.savePanel()
+            exts = _parse_extensions(file_types)
+            if exts:
+                panel.setAllowedFileTypes_(exts)
             if default_name:
-                panel.setNameFieldStringValue_(default_name)
+                # 25.09.2026 (Klicktest AL-03): Bei GPX/KML schlug der Dialog
+                # „tour.gpx.gpx“ vor. Mit gesetzten Typen hängt NSSavePanel die
+                # Endung selbst an — der Vorschlag kommt deshalb ohne sie.
+                # ⚠️ Eigener Name: `default_name` hier neu zuzuweisen machte es in show()
+                # lokal → UnboundLocalError, jeder Speichern-Dialog blieb stumm (Lauf 2, S-07).
+                vorschlag = default_name
+                _stamm, _endung = os.path.splitext(vorschlag)
+                if len(exts) == 1 and _stamm and _endung[1:].lower() == exts[0]:
+                    vorschlag = _stamm
+                panel.setNameFieldStringValue_(vorschlag)
             if default_dir:
                 try:
                     url = NSURL.fileURLWithPath_(default_dir)
                     panel.setDirectoryURL_(url)
                 except Exception:
                     pass
-            exts = _parse_extensions(file_types)
-            if exts:
-                panel.setAllowedFileTypes_(exts)
             try:
                 NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
             except Exception:
@@ -1617,6 +1673,13 @@ class Api:
         _bib_da = bool(BIB_ORT) and cbib.ist_bibliothek(BIB_ORT)
         if _bib_da and not SESSIONS_FILE.exists():
             self._leere_app_ablage_wegraeumen()
+        elif not SESSIONS_FILE.exists():
+            # 25.09.2026 (Klicktest ER-01): Erststart ohne Bibliothek und ohne
+            # sessions.json — nichts zu überführen. Früher legte die Migration hier
+            # eine LEERE Ablage (projekte.json/touren.json) im App-Ordner an; die
+            # hielt `_bib_oeffnen` für Altbestand und zog sie „um“ — beim nächsten
+            # Start stand „Deine Daten sind umgezogen“ auf einer frischen Installation.
+            pass
         else:
             try:
                 _info = _projekte.migrieren_falls_noetig(
@@ -3005,8 +3068,19 @@ class Api:
         Macht das neue Projekt automatisch zum aktiven."""
         try:
             daten = _projekte.laden(DATEN_ORT)
-            if not _projekte.projekte_im(daten, track_hash):
+            # 25.09.2026 (Klicktest PR-02): Eine frisch geöffnete Tour hat nur ein
+            # SCHWEBENDES Projekt (Q15) — es steht in keiner Liste. Die Prüfung
+            # „gibt es Projekte?" lehnte deshalb „Neues Projekt" still ab, der Name
+            # tauchte nie auf. Bekannt ist der Kontext auch, wenn die Tour existiert.
+            if (not _projekte.projekte_im(daten, track_hash)
+                    and track_hash not in (daten.get("touren") or {})):
                 return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
+            # 25.09.2026 (Klicktest PR-02): „@aktiv" = das gerade aktive Projekt
+            # duplizieren. Die Oberfläche kennt nach dem stillen Festschreiben
+            # (erste Änderung) dessen Kennung noch nicht und schickte bisher ""
+            # — das Duplikat entstand dann aus den Vorgaben statt als Kopie.
+            if copy_from_id == "@aktiv":
+                copy_from_id = (_projekte._aktives_projekt(daten, track_hash) or {}).get("id") or ""
             defaults = self._session_get_global_defaults(vorlage_id or "")
             proj = _projekte.create(daten, track_hash,
                                     name or _sessions.DEFAULT_PROJECT_NAME,
@@ -3159,6 +3233,8 @@ class Api:
         schluessel = _dialog_schluessel("save", file_types)
         gemerkt = _dialog_ordner_lesen(schluessel)
         start_dir = gemerkt or default_dir or ""
+        if default_name and start_dir:
+            default_name = _freier_dateiname(start_dir, default_name)   # 25.09.2026 — BI-02
         pfad = ""
         if sys.platform == "darwin":
             try:
@@ -3179,6 +3255,7 @@ class Api:
             if not res:
                 return ""
             pfad = (res[0] if res else "") if isinstance(res, (list, tuple)) else str(res)
+        pfad = _doppelte_endung_weg(pfad, file_types)   # 25.09.2026 — AL-03
         if pfad:
             _dialog_ordner_merken(schluessel, pfad)
             # Dateischutz: der gewählte Speicherort darf angelegt/ersetzt werden (lang
@@ -4368,6 +4445,13 @@ class Api:
             ziel = APP_SUPPORT / "import"
             ziel.mkdir(parents=True, exist_ok=True)
             kopiert, uebersprungen, pfade = [], 0, []
+            # 25.09.2026 (Klicktest FE-03): Was kein Track ist, zählte bisher als
+            # „schon da“ („0 · 1 schon da“ für eine Textdatei). Jetzt getrennt:
+            #   abgelehnt  — Endung, die GPS Studio gar nicht liest → nicht kopiert
+            #   kein_track — .txt/.json/.log ohne Track-Inhalt → kopiert, damit sie
+            #                als „nicht lesbar“ mit Grund in der Fehlerliste steht
+            abgelehnt: list = []
+            kein_track: list = []
 
             def _inhalt(pf: Path) -> str:
                 h = hashlib.sha256()
@@ -4380,9 +4464,11 @@ class Api:
             for _i, roh in enumerate(_alle, 1):
                 src = Path(str(roh))
                 _vm("import_datei", "Kopiert ins Archiv und liest Strecke, Zeiten und Höhen: {name}", _i, len(_alle), name=src.name)
-                if not src.is_file() or src.suffix.lower() not in exts:
-                    uebersprungen += 1
+                if not src.is_file() or (src.suffix.lower() not in exts
+                                         and src.suffix.lower() not in clib.MEHRDEUTIGE_EXTS):
+                    abgelehnt.append(src.name)
                     continue
+                _ohne_track = not clib._sieht_nach_track_aus(src)
                 # 14.09.2026 — Gleichheit am INHALT festmachen, nicht an Name + Größe:
                 # zwei verschiedene Exporte mit gleichem Namen und zufällig gleicher
                 # Bytezahl wurden sonst still übersprungen und fehlten in `pfade`.
@@ -4403,19 +4489,25 @@ class Api:
                     d = ziel / f"{src.stem}-{n}{src.suffix}"
                     n += 1
                 if schon_da is not None:
-                    uebersprungen += 1
-                    pfade.append(str(schon_da))
+                    if _ohne_track:          # 25.09.2026 — kein Track ist nie „schon da“
+                        kein_track.append(src.name)
+                    else:
+                        uebersprungen += 1
+                        pfade.append(str(schon_da))
                     continue
                 shutil.copy2(src, d)
                 kopiert.append(d.name)
                 pfade.append(str(d))
+                if _ohne_track:
+                    kein_track.append(src.name)
             clib.add_folder(self._lib(), str(ziel), recursive=False)
-            log.info("library_import_files: %d kopiert, %d übersprungen → %s",
-                     len(kopiert), uebersprungen, ziel)
+            log.info("library_import_files: %d kopiert (%d ohne Track), %d übersprungen, %d abgelehnt → %s",
+                     len(kopiert), len(kein_track), uebersprungen, len(abgelehnt), ziel)
             # 09.09.2026 — die Archiv-Auswahl (rzArchivTourenWaehlen) hakt das
             # Importierte gleich an; dafür braucht sie die vollen Pfade.
             return {"ok": True, "kopiert": len(kopiert), "pfade": pfade,
-                    "uebersprungen": uebersprungen, "folder": str(ziel)}
+                    "uebersprungen": uebersprungen, "folder": str(ziel),
+                    "abgelehnt": abgelehnt, "kein_track": kein_track}
         except Exception as e:
             log.exception("library_import_files")
             return {"ok": False, "error": str(e)}
@@ -5890,7 +5982,7 @@ class Api:
             if not src or not os.path.exists(src):
                 return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
             gpx_path = self._ensure_gpx(src)   # .gpx bleibt, Fremdformat → Cache-GPX
-            default_name = os.path.splitext(os.path.basename(src))[0] + ".gpx"
+            default_name = _export_stamm(src) + ".gpx"   # 25.09.2026 — AL-03
             dest = self.pick_save_path(default_name, str(Path.home()),
                                        ["GPX (*.gpx)"])
             if not dest:
@@ -5917,7 +6009,7 @@ class Api:
             gpx_path = self._ensure_gpx(src)
             pts, _ = cgpx.parse_gpx(gpx_path)
             text = ctrackio.to_csv_string(pts)
-            default_name = os.path.splitext(os.path.basename(src))[0] + ".csv"
+            default_name = _export_stamm(src) + ".csv"   # 25.09.2026 — AL-03
             dest = self.pick_save_path(default_name, str(Path.home()), ["CSV (*.csv)"])
             if not dest:
                 return {"ok": False, "cancelled": True}
@@ -5956,7 +6048,7 @@ class Api:
                 _orig = None
             data, _mime = ctrackio.export_payload(pts, fmt, name, original=_orig)
             label = fmt.upper()
-            default_name = os.path.splitext(os.path.basename(src))[0] + "." + fmt
+            default_name = _export_stamm(src) + "." + fmt   # 25.09.2026 — AL-03
             dest = self.pick_save_path(default_name, str(Path.home()),
                                        [f"{label} (*.{fmt})"])
             if not dest:
@@ -7364,9 +7456,11 @@ class Api:
         if out_ext2.lower() != target_ext:
             out_path = out_stem2 + target_ext
 
+        # 25.09.2026 — kein tz_name: HeightConfig kennt keine Zeitzone (der
+        # Daten-Animator zeigt keine Uhrzeit). Seit 11.09. brach damit JEDER
+        # Render hier sofort mit „unexpected keyword argument 'tz_name'" ab.
         cfg = cheight.HeightConfig(
             ui_lang=_ui_sprache(),
-            tz_name=self._tz_fuer_track(gpx_path),
             gpx_path=gpx_path,
             output_path=out_path,
             codec=codec,
@@ -7474,9 +7568,8 @@ class Api:
                 out_name += ".html"
             out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
 
-            cfg = cheight.HeightConfig(
-            ui_lang=_ui_sprache(),
-                tz_name=self._tz_fuer_track(gpx_path),
+            cfg = cheight.HeightConfig(   # 25.09.2026 — ohne tz_name (s. Render)
+                ui_lang=_ui_sprache(),
                 gpx_path=gpx_path, output_path=out_path,
                 **_height_visual_cfg_kwargs(params),
             )
@@ -9494,8 +9587,11 @@ class Api:
             try:
                 cbib_m = teile["bibliothek"]
                 pruef, _ = cbib_m.bestand(BIB, self._lib() if BIB_BEREIT else None)
-                for n in list(pruef) + [cbib_m.NUTZERDATEN, cbib_m.PROJEKTE, cbib_m.TOUREN]:
-                    buch[teile["transport"].server_name(n)] = {"logisch": n}
+                # 25.09.2026 (Klicktest CL-03): Hier wurde nur „logisch“ gemerkt, gelesen
+                # aber „anzeige“ — deshalb stand JEDER Eintrag als „unbekannter Eintrag“
+                # da. Jetzt mit lesbarem Namen, und auch für gelöschte Touren und das
+                # alte Umschlag-Modell (track/…, kette/…, verzeichnis, sammlungen).
+                buch = self._cloud_korb_namen(teile["transport"].server_name, cbib_m, list(pruef))
             except Exception:
                 log.exception("Papierkorb: Namen auflösen")
             aus = []
@@ -9509,6 +9605,69 @@ class Api:
         except Exception as e:      # noqa: BLE001
             log.exception("cloud_papierkorb")
             return {"ok": False, "error": str(e)}
+
+    def _cloud_korb_namen(self, server_name, cbib_m, logische: list) -> dict:
+        """25.09.2026 (Klicktest CL-03): Hash-Name → {logisch, anzeige} für den
+        Cloud-Papierkorb. Kandidaten: der jetzige Bestand, dazu jede Tour, die das
+        Archiv oder das Tour-Register kennt (auch gelöschte), und die Namen des
+        alten Umschlag-Modells. Was danach unbekannt bleibt, zeigt die Oberfläche
+        weiter als „unbekannter Eintrag“ (mit Sammelhinweis)."""
+        _t = _ui_t()
+        tour_namen: dict = {}
+        tour_ids: dict = {}
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            for gh, t in ((daten.get("touren") or {}).items()):
+                if isinstance(t, dict):
+                    tour_namen[gh] = t.get("name") or ""
+                    if t.get("id"):
+                        tour_ids[t["id"]] = t.get("name") or ""
+        except Exception:
+            log.debug("Papierkorb: Tour-Register nicht lesbar", exc_info=True)
+        if BIB_BEREIT:
+            try:
+                for r in self._lib().execute(
+                        "SELECT geo_hash, COALESCE(NULLIF(display_name,''), name) n FROM tracks "
+                        "WHERE COALESCE(geo_hash,'') != ''").fetchall():
+                    if r["n"] or r["geo_hash"] not in tour_namen:
+                        tour_namen[r["geo_hash"]] = r["n"] or tour_namen.get(r["geo_hash"], "")
+            except Exception:
+                log.debug("Papierkorb: Archivnamen nicht lesbar", exc_info=True)
+
+        def tour_text(gh: str) -> str:
+            n = tour_namen.get(gh) or gh[:10]
+            return _t("cloud.korb_tour", "Tour „{name}“").replace("{name}", n)
+
+        feste = {
+            cbib_m.NUTZERDATEN: _t("cloud.korb_nutzerdaten", "Deine Angaben (Schlagwörter, Notizen, Sammlungen)"),
+            cbib_m.PROJEKTE: _t("cloud.korb_projekte", "Projekte"),
+            cbib_m.TOUREN: _t("cloud.korb_register", "Tour-Register"),
+            cbib_m.INHALT: _t("cloud.korb_inhalt", "Inhaltsverzeichnis des Archivs"),
+        }
+        alt = _t("cloud.korb_alt", "ältere Cloud-Fassung")
+        buch: dict = {}
+
+        def dazu(logisch: str, anzeige: str) -> None:
+            buch.setdefault(server_name(logisch), {"logisch": logisch, "anzeige": anzeige})
+
+        for n in list(logische) + list(feste):
+            if n in feste:
+                dazu(n, feste[n])
+            elif n.startswith("bib/track/"):
+                dazu(n, tour_text(n[len("bib/track/"):]))
+            elif n.startswith("bib/bild/"):
+                dazu(n, _t("cloud.korb_bild", "Titelbild {name}").replace("{name}", n[len("bib/bild/"):]))
+            else:
+                dazu(n, n)
+        for gh in tour_namen:
+            dazu(cbib_m.track_name(gh), tour_text(gh))
+            dazu(f"track/{gh}", tour_text(gh) + f" · {alt}")          # altes Umschlag-Modell
+        for tid, n in tour_ids.items():
+            dazu(f"kette/{tid}", _t("cloud.korb_kette", "Versionen von „{name}“").replace("{name}", n or tid[:8])
+                 + f" · {alt}")
+        dazu("verzeichnis", _t("cloud.korb_inhalt", "Inhaltsverzeichnis des Archivs") + f" · {alt}")
+        dazu("sammlungen", _t("cloud.korb_sammlungen", "Sammlungen") + f" · {alt}")
+        return buch
 
     @_nur_einmal("cloud_papierkorb")
     def cloud_papierkorb_zurueck(self, hex_name: str, zeit: int) -> dict:
@@ -10688,7 +10847,7 @@ class Api:
         über der Einteilung „Bewegung" plus Tage und Punkte. Fehlen die
         Einteilungen, werden sie hier berechnet; `neu` erzwingt es (Handarbeit
         bleibt, Q9). Zeiten kommen als Epoch plus Versatz der Ortszeit."""
-        from core import einteilung as ceint, logbuch as clb, zeitzone as czz
+        from core import einteilung as ceint, logbuch as clb
         try:
             tour, t = self._einteilung_tour(path)
             if not tour:
@@ -10726,38 +10885,87 @@ class Api:
                         e = ceint.neu_berechnen(conn, tour, art, pts, aktivitaet=aktivitaet or None,
                                                 wegpunkte=wegpunkte)
                     stand[art] = e
-            tage = [b for b in stand["tage"]["bereiche"] if b.get("art") == "tag"]
-            einst = self._logbuch_einstellungen(tour)
-            lb = clb.eintraege(stand["bewegung"]["bereiche"], pts, aktivitaet=aktivitaet, tage=tage,
-                               einstellungen=einst["wirksam"])
-            lat = lon = None
-            for p in pts:
-                la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
-                if la is not None:
-                    lat, lon = la, (p.get("lon") if isinstance(p, dict) else getattr(p, "lon", None))
-                    break
-            zone = ""
-            try:
-                zone = czz.zone_fuer(lat, lon, land=(t or {}).get("country") or "")
-            except Exception:  # noqa: BLE001
-                zone = "UTC"
-            for e in lb["eintraege"]:
-                e["versatz_min"] = czz.offset_min(zone, e["t0"])
-            for p in lb["punkte"]:
-                p["versatz_min"] = czz.offset_min(zone, p["t"])
-            for d in tage:
-                d["versatz_min"] = czz.offset_min(zone, d["t0"])
-            return {"ok": True, "tour": tour, "name": (t or {}).get("name") or "",
-                    "aktivitaet": aktivitaet, "zone": zone,
-                    "eid": stand["bewegung"]["id"], "eid_tage": stand["tage"]["id"],
-                    "tage": tage, "mehrtaegig": len(tage) > 1,
-                    "eintraege": lb["eintraege"], "punkte": lb["punkte"], "verborgen": lb["verborgen"],
-                    "roh": stand["bewegung"]["bereiche"],
-                    "zusammenfassung": lb["zusammenfassung"], "hoechster": lb["hoechster"],
-                    "einstellungen": lb["einstellungen"], "einst_global": einst["global"], "einst_tour": einst["tour"],
-                    "stand": {k: stand["bewegung"][k] for k in ("id", "tour", "art", "name", "bereiche")}}
+            return self._logbuch_antwort(tour, t, pts, stand, aktivitaet)
         except Exception as e:  # noqa: BLE001
             log.exception("logbuch_lesen")
+            return {"ok": False, "error": str(e)}
+
+    def _logbuch_antwort(self, tour: str, t, pts, stand: dict, aktivitaet: str) -> dict:
+        """Die Antwort des Logbuchs aus Tagen + Bewegung (gespeichert oder Vorschau):
+        lesbare Folge, Ortszeit-Versatz je Eintrag, Einstellungen, Stand für ⌘Z."""
+        from core import logbuch as clb, zeitzone as czz
+        tage = [b for b in stand["tage"]["bereiche"] if b.get("art") == "tag"]
+        einst = self._logbuch_einstellungen(tour)
+        lb = clb.eintraege(stand["bewegung"]["bereiche"], pts, aktivitaet=aktivitaet, tage=tage,
+                           einstellungen=einst["wirksam"])
+        lat = lon = None
+        for p in pts:
+            la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
+            if la is not None:
+                lat, lon = la, (p.get("lon") if isinstance(p, dict) else getattr(p, "lon", None))
+                break
+        zone = ""
+        try:
+            zone = czz.zone_fuer(lat, lon, land=(t or {}).get("country") or "")
+        except Exception:  # noqa: BLE001
+            zone = "UTC"
+        for e in lb["eintraege"]:
+            e["versatz_min"] = czz.offset_min(zone, e["t0"])
+        for p in lb["punkte"]:
+            p["versatz_min"] = czz.offset_min(zone, p["t"])
+        for d in tage:
+            d["versatz_min"] = czz.offset_min(zone, d["t0"])
+        return {"ok": True, "tour": tour, "name": (t or {}).get("name") or "",
+                "aktivitaet": aktivitaet, "zone": zone,
+                "eid": stand["bewegung"]["id"], "eid_tage": stand["tage"]["id"],
+                "tage": tage, "mehrtaegig": len(tage) > 1,
+                "eintraege": lb["eintraege"], "punkte": lb["punkte"], "verborgen": lb["verborgen"],
+                "roh": stand["bewegung"]["bereiche"],
+                "zusammenfassung": lb["zusammenfassung"], "hoechster": lb["hoechster"],
+                "einstellungen": lb["einstellungen"], "einst_global": einst["global"], "einst_tour": einst["tour"],
+                "stand": {k: stand["bewegung"][k] for k in ("id", "tour", "art", "name", "bereiche")}}
+
+    def logbuch_vorschau(self, path: str, points: list) -> dict:
+        """25.09.2026 (Klicktest IN-10/IN-12) — das Logbuch zum UNGESPEICHERTEN Stand des
+        Inspektors. Nach „Tracks verbinden" oder „Zeitachse erzeugen" blieb das Logbuch
+        beim Stand der Datei stehen (Tag 1 bzw. „ohne Zeit"). Hier werden Tage und
+        Bewegung aus den übergebenen Punkten erkannt, die Handarbeit der gespeicherten
+        Einteilung darübergelegt (`zusammenfuehren`) — und NICHTS in die Bibliothek
+        geschrieben. Bearbeiten geht erst nach dem Speichern (`vorschau: True`)."""
+        from core import einteilung as ceint, logbuch as clb
+        try:
+            tour, t = self._einteilung_tour(path)
+            if not tour:
+                return {"ok": False, "grund": "nicht_im_archiv",
+                        "error": _ui_t()("logbuch.nicht_im_archiv",
+                                         "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")}
+            pts = [{"lat": float(p["lat"]), "lon": float(p["lon"]), "ele": p.get("ele"), "time": p.get("time") or None}
+                   for p in (points or []) if isinstance(p, dict) and p.get("lat") is not None and p.get("lon") is not None]
+            if not any(clb._epoch(p["time"]) is not None for p in pts):
+                return {"ok": False, "grund": "ohne_zeit",
+                        "error": _ui_t()("logbuch.ohne_zeit", "Der Track hat keine Zeitstempel — ohne Uhrzeit gibt es kein Logbuch.")}
+            wegpunkte = []
+            if str(path).lower().endswith(".gpx"):
+                try:
+                    wegpunkte = cgpx.parse_waypoints(path)
+                except Exception:  # noqa: BLE001
+                    wegpunkte = []
+            aktivitaet = (t or {}).get("activity") or ""
+            conn = self._lib()
+            stand = {}
+            for art in ("tage", "bewegung"):
+                eid = ceint.einteilung_id(tour, art)
+                with clib._DB_LOCK:
+                    alt = ceint.eine(conn, eid)
+                neu = (ceint.berechnen_tage(pts) if art == "tage"
+                       else ceint.berechnen_bewegung(pts, aktivitaet or None, wegpunkte))
+                stand[art] = {"id": eid, "tour": tour, "art": art, "name": (alt or {}).get("name") or "",
+                              "bereiche": ceint.zusammenfuehren((alt or {}).get("bereiche") or [], neu)}
+            raus = self._logbuch_antwort(tour, t, pts, stand, aktivitaet)
+            raus["vorschau"] = True
+            return raus
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_vorschau")
             return {"ok": False, "error": str(e)}
 
     def gpxinspect_luecken(self, points: list, aktivitaet: str = "", mit_klein: bool = False) -> dict:
@@ -13060,12 +13268,52 @@ class Api:
                              "kandidaten": sorted(kand.items())}
                 except Exception as e:
                     log.warning("geotagger_zeitzone_vorschlag (mehrere): %s", e)
+            # 25.09.2026 (Klicktest GT-03) — Der Track allein entscheidet nicht, wenn die
+            # Fotos nur aus der Mitte einer Tagestour stammen: dann passt jede Zone über
+            # Stunden gleich gut, und es kam gar nichts. Stattdessen die Zonen anbieten, auf
+            # denen eine Kamera-Uhr praktisch immer steht — sofern sie in diesem Bereich liegen.
+            if r.get("minuten") is None and r.get("von") is not None:
+                r["naheliegend"] = self._gt_zonen_naheliegend(phs, r["von"], r["bis"])
             r["ok"] = True
             r["zone_falsch"] = zone_falsch
             return r
         except Exception as e:
             log.warning("geotagger_zeitzone_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
+
+    def _gt_zonen_naheliegend(self, phs: list, von: int, bis: int) -> list:
+        """25.09.2026 (Klicktest GT-03) — Naheliegende Kamera-Zeitzonen, wenn der Track
+        einen ganzen Bereich [von, bis] (Minuten) offenlässt:
+          · „ort":  die Zone, die die übrigen Fotos selbst mitbringen (Uhr auf Ortszeit),
+          · „heim": die Zone dieses Rechners am Aufnahmetag, Sommerzeit inklusive
+                    (Uhr von zu Hause nicht umgestellt — der häufigste Fall).
+        Nur, was im Bereich liegt; doppelte Werte einmal."""
+        kand = []
+        zaehl: dict = {}
+        for p in self._gtg_photos or []:
+            if not (p.get("tz_known") and p.get("photo_time") and p.get("photo_time_local")):
+                continue
+            try:
+                d = (datetime.fromisoformat(p["photo_time_local"]).replace(tzinfo=None)
+                     - datetime.fromisoformat(p["photo_time"]).replace(tzinfo=None))
+            except Exception:  # noqa: BLE001
+                continue
+            m = int(round(d.total_seconds() / 60))
+            zaehl[m] = zaehl.get(m, 0) + 1
+        if zaehl:
+            kand.append({"minuten": max(zaehl, key=zaehl.get), "quelle": "ort"})
+        try:
+            mitte = sorted(t for _p, t in phs)[len(phs) // 2]
+            kand.append({"minuten": int(round(mitte.astimezone().utcoffset().total_seconds() / 60)),
+                         "quelle": "heim"})
+        except Exception:  # noqa: BLE001
+            pass
+        aus, gesehen = [], set()
+        for z in kand:
+            if von <= z["minuten"] <= bis and z["minuten"] not in gesehen:
+                gesehen.add(z["minuten"])
+                aus.append(z)
+        return aus
 
     def _gt_zone_falsch(self, max_gap_seconds: float, cam_offsets: dict, offset_seconds: float) -> list:
         """25.09.2026 — Fotos MIT Zeitzone im Foto, je Kamera: passt die Zone nicht zum Track?
@@ -13971,7 +14219,11 @@ class Api:
                                 )
                     with self._write_lock:
                         self._write_state["done"] = self._write_state.get("done", 0) + 1
-                        if write_coords:
+                        # 25.09.2026 (Klicktest GT-10) — „verortet“ heißt: das Foto HAT
+                        # danach eine Position. Auch eigenes GPS, das bei „Behalten, nur
+                        # Fehlendes ergänzen“ stehen bleibt, zählt — sonst meldete der
+                        # Fertig-Dialog 15/2 statt 16/1.
+                        if write_coords or has_gps:
                             self._write_state["verortet"] = self._write_state.get("verortet", 0) + 1
                 except Exception as e:
                     log.exception("_write_worker_run: [%d/%d] write_gps FEHLGESCHLAGEN für %s",
@@ -14009,8 +14261,16 @@ class Api:
                             self._write_state["errors"].append(
                                 f"{path}: EXIF-Batch fehlgeschlagen: {e_ex}")
                     if path not in _phase_b_paths:
+                        # 25.09.2026 (GT-10) — nur EXIF-Felder bearbeitet: verortet,
+                        # wenn das Foto schon eine eigene Position hat.
+                        try:
+                            _hat_pos = cexif.read_gps(path) is not None
+                        except Exception:
+                            _hat_pos = False
                         with self._write_lock:
                             self._write_state["done"] = self._write_state.get("done", 0) + 1
+                            if _hat_pos:
+                                self._write_state["verortet"] = self._write_state.get("verortet", 0) + 1
         except Exception:
             log.exception("_write_worker_run: UNERWARTETER Fehler im Worker")
         finally:

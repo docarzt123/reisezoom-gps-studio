@@ -31,6 +31,7 @@
   let filter = {};
   let geladen = [];           // die bisher geholten Fotos
   let gesamt = 0;
+  let gesamtOhneGps = null;   // 25.09.2026 — „ohne Koordinate" unter den Treffern (null = noch unbekannt)
   let stand = {};
   let ordner = [];
   let scanTimer = 0;
@@ -145,7 +146,7 @@
             T("fotos.ordner_entfernen_ok", "Entfernen"), false);
           if (!ok) return;
           const r = await rzWarten("fotos_ordner_weg", () => api().fotos_ordner_weg(o.path, true)).catch((e) => ({ ok: false, error: String(e) }));
-          if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; navZeichnen(); neuLaden(); }
+          if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; await filterwerteLaden(); navZeichnen(); neuLaden(); }
           else if (r && r.error) toast(r.error, "warn");
         };
       });
@@ -319,6 +320,9 @@
           const r = await api().fotos_ordner();
           if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; nachschau = r.nachschau || nachschau; }
         } catch (_) {}
+        // 25.09.2026 (Klicktest FO-05: Kameramenü nur „Alle Kameras") — Kameras und Jahre
+        // wurden nur beim Öffnen gezählt; was erst danach eingelesen wurde, fehlte im Menü.
+        await filterwerteLaden();
         navZeichnen();
         neuLaden();
       }
@@ -350,6 +354,7 @@
       if (lauf !== ladeLauf || !angemeldet) return;   // inzwischen überholt
       if (!r || !r.ok) { if (!leise) toast((r && r.error) || "?", "warn"); return; }
       gesamt = r.n || 0;
+      if (r.ohne_koordinate != null) gesamtOhneGps = r.ohne_koordinate;   // nur mit der ersten Seite
       geladen = geladen.concat(r.fotos || []);
       // Beim Weiterblättern nur anhängen: ein vollständiges Neuzeichnen würde
       // die Ansicht nach oben reißen und bei tausenden Kacheln hängen.
@@ -430,10 +435,14 @@
 
   async function filterwerteLaden() {
     const r = await api().fotos_filterwerte().catch(() => null);
-    if (r && r.ok) {
+    if (r && r.ok && haupt) {
       stand = r.stand || {};
       haupt._kameras = r.kameras || [];
       haupt._jahre = r.jahre || [];
+      // 25.09.2026 — eine gewählte Kamera/ein Jahr, das es nicht mehr gibt (Ordner entfernt),
+      // fiele sonst unsichtbar weiter ins Gewicht: das Menü zeigt „Alle", gefiltert wird trotzdem.
+      if (filter.kamera && !haupt._kameras.some(k => k.kamera === filter.kamera)) delete filter.kamera;
+      if (filter.jahr && !haupt._jahre.some(j => +j.jahr === +filter.jahr)) delete filter.jahr;
     }
   }
 
@@ -475,9 +484,13 @@
   }
 
   function kopfHtml() {
-    const teile = [T("fotos.kopf", "{n} Dateien").replace("{n}", num(gesamt))];
+    // 25.09.2026 (Klicktest FO-05: „1 Dateien · 8 ohne Koordinate" bei EINEM Treffer) — Einzahl
+    // und die Zahl ohne Koordinate aus der gefilterten Menge, nicht aus dem ganzen Bestand.
+    const teile = [gesamt === 1 ? T("fotos.kopf_one", "1 Datei")
+                                : T("fotos.kopf", "{n} Dateien").replace("{n}", num(gesamt))];
     if (stand.ungelesen) teile.push(T("fotos.kopf_offen", "{n} noch ohne Aufnahmedaten").replace("{n}", num(stand.ungelesen)));
-    if (stand.ohne_koordinate) teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(stand.ohne_koordinate)));
+    const ohneGps = gesamtOhneGps != null ? gesamtOhneGps : (stand.ohne_koordinate || 0);
+    if (ohneGps) teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(ohneGps)));
     return `<div class="lib-head" id="foto-kopf">${fernHtml()}${esc(teile.join(" · "))}${kopfArbeitHtml()}</div>`;
   }
 
@@ -882,7 +895,22 @@
 
   function karteAufbauen() {
     if (karte) {
+      // 25.09.2026 (Klicktest FO-07: Karte nach „Nach Touren" → „Raster" → „Karte" leer, nur der
+      // Zähler stand da) — `zeichnen()` baut den Kasten jedes Mal neu, die alte Karte hing aber
+      // noch in ihrem alten, längst ausgehängten Kasten und malte ins Leere. Jetzt wandert ihr
+      // Kasten an die Stelle des neuen: Karte, Ausschnitt und geladene Kacheln bleiben erhalten.
+      const neu = document.getElementById("foto-karte");
+      let alt = null;
+      try { alt = karte.getContainer(); } catch (_) {}
+      if (neu && alt && alt !== neu) {
+        try { neu.replaceWith(alt); }
+        catch (_) { karteWeg(); }
+      }
+    }
+    if (karte) {
       try { karte.resize(); } catch (_) {}
+      // Nach dem Umhängen steht das Layout erst im nächsten Bild fest.
+      requestAnimationFrame(() => { try { if (karte) karte.resize(); } catch (_) {} });
       punkteLaden();
       return;
     }
@@ -925,6 +953,12 @@
       punkteLaden();
       if (spurenAn) spurenLaden();
     });
+  }
+
+  /** Die große Karte ganz abbauen (25.09.2026 — Rückfallweg, wenn das Umhängen scheitert). */
+  function karteWeg() {
+    if (karte) { try { karte.remove(); } catch (_) {} }
+    karte = null; karteLib = null; karteBereit = false;
   }
 
   const leer = () => ({ type: "FeatureCollection", features: [] });
@@ -986,6 +1020,7 @@
     const nahe = ((r && r.fotos) || []).filter(f =>
       Math.abs((f.lat || 0) - lat) < 0.002 && Math.abs((f.lon || 0) - lon) < 0.002);
     box.hidden = false;
+    detailKarteWeg();   // 25.09.2026 — die kleine Karte eines zuvor gezeigten Fotos nicht verwaist zurücklassen
     box.innerHTML = `
       <div class="foto-detail">
         <div class="foto-detail-kopf">${T("fotos.stelle", "Diese Stelle")}</div>

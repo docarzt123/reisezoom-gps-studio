@@ -111,16 +111,42 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     if not q:
         return []
     plang = lang if lang in ("de", "en", "fr", "it") else "en"
-    params = {"q": q, "lang": plang, "limit": max(1, min(10, int(limit)))}
-    if bias and len(bias) == 2:
-        params["lon"] = f"{float(bias[0]):.5f}"; params["lat"] = f"{float(bias[1]):.5f}"
-    try:
-        data = _http_get_json("https://photon.komoot.io/api/?" + urllib.parse.urlencode(params))
-    except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Geocoding (Photon) fehlgeschlagen: {e}") from e
+    n = max(1, min(10, int(limit)))
+    hat_bias = bool(bias and len(bias) == 2)
+
+    def _holen(mit_bias: bool) -> list:
+        # 25.09.2026 — immer 10 holen: die Auswahl unten braucht die Kandidaten,
+        # gekürzt wird erst am Ende.
+        params = {"q": q, "lang": plang, "limit": 10}
+        if mit_bias:
+            params["lon"] = f"{float(bias[0]):.5f}"; params["lat"] = f"{float(bias[1]):.5f}"
+        try:
+            data = _http_get_json("https://photon.komoot.io/api/?" + urllib.parse.urlencode(params))
+        except Exception as e:  # noqa: BLE001
+            raise RouteError(f"Geocoding (Photon) fehlgeschlagen: {e}") from e
+        return data.get("features", []) or []
+
+    feats = _holen(hat_bias)
+    # 25.09.2026 (Klicktest RR-02/03: Stationen Berlin Hbf → Wernigerode → „Schierke" + Enter
+    # ergab „Schierker Straße, Berlin", Route 483 km). Photon gewichtet die Nähe zum Bezugs-
+    # punkt so stark, dass mit Bezug Berlin NUR noch zwei Berliner Straßen kamen — der Ort im
+    # Harz fehlte in der Antwort ganz (echte Antworten 25.09.2026, tests/test_codexlauf_2509_
+    # animator.py). Steht der Suchtext genau so als ORT da, gewinnt der Ort gegen gleich-
+    # namige Straßen. Fehlt ein solcher Ort in der Antwort mit Bezug, einmal ohne Bezug
+    # nachfragen; unter mehreren gleichnamigen Orten gewinnt der nächste zum Bezug.
+    if hat_bias and not any(_ist_ort_namens(f, q) for f in feats):
+        try:
+            feats = feats + _holen(False)
+        except RouteError:
+            pass
+    orte = [f for f in feats if _ist_ort_namens(f, q)]
+    if orte:
+        if hat_bias:
+            orte.sort(key=lambda f: _abstand_grob(f, bias))
+        feats = orte + [f for f in feats if not _ist_ort_namens(f, q)]
     out: List[dict] = []
     seen = set()
-    for feat in data.get("features", []) or []:
+    for feat in feats:
         geom = feat.get("geometry") or {}
         c = geom.get("coordinates")
         p = feat.get("properties") or {}
@@ -137,7 +163,40 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
             continue
         seen.add(key)
         out.append({"name": name, "lon": float(c[0]), "lat": float(c[1])})
-    return out
+    return out[:n]
+
+
+# Photon-Arten, die ein ORT sind (nicht Straße, Haltestelle, Gebäude).
+_ORT_WERTE = {"city", "town", "village", "hamlet", "suburb", "locality", "municipality",
+              "island", "islet", "quarter", "neighbourhood", "borough", "isolated_dwelling"}
+_ORT_TYPEN = {"city", "district", "locality", "county", "state", "country"}
+
+
+def _namen_gleich(a: str, b: str) -> bool:
+    import unicodedata
+    def norm(x: str) -> str:
+        return " ".join(unicodedata.normalize("NFC", str(x or "")).casefold().split())
+    return bool(a) and norm(a) == norm(b)
+
+
+def _ist_ort_namens(feat: dict, query: str) -> bool:
+    """Treffer ist ein Ort (place/Stadt/Dorf …) und heißt genau wie der Suchtext."""
+    p = (feat or {}).get("properties") or {}
+    ort = (p.get("osm_key") == "place" and p.get("osm_value") in _ORT_WERTE) or p.get("type") in _ORT_TYPEN
+    if p.get("osm_key") in ("highway", "railway", "amenity", "building", "public_transport"):
+        ort = False
+    return bool(ort) and _namen_gleich(p.get("name") or "", query)
+
+
+def _abstand_grob(feat: dict, bias) -> float:
+    """Quadrat-Abstand in Grad (lon mit cos(lat) gestaucht) — nur zum Sortieren."""
+    try:
+        c = feat["geometry"]["coordinates"]
+        dx = (float(c[0]) - float(bias[0])) * math.cos(math.radians(float(bias[1])))
+        dy = float(c[1]) - float(bias[1])
+        return dx * dx + dy * dy
+    except Exception:  # noqa: BLE001
+        return 1e18
 
 
 # ── Freie Router: OSRM (Auto, unbegrenzt) + Valhalla (Fuß/Rad, FOSSGIS) ──────

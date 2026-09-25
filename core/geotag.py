@@ -160,6 +160,9 @@ def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dic
     if band > 120:
         leer["treffer"] = best
         leer["band"] = band
+        # 25.09.2026 (Klicktest GT-03) — Grenzen mitgeben: Die Oberfläche kann dann
+        # sagen, WELCHE Zonen alle passen, und naheliegende daraus anbieten.
+        leer["von"], leer["bis"] = gleich[0], gleich[-1]
         return leer
     mitte = gleich[len(gleich) // 2]
     # Nur anbieten, was es als Zeitzone wirklich gibt (siehe ECHTE_ZONEN). Passt

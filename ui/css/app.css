@@ -2941,6 +2941,8 @@ body.is-rendering .modal-overlay * {
 .gpxbar-extra {
   opacity: .75; font-style: italic; cursor: help;
 }
+/* 25.09.2026 — Kopfzeile zeigt den ungespeicherten Stand des Inspektors */
+.gpxbar-ungespeichert { color: var(--warn); cursor: help; }
 
 /* 03.09.2026 — Stil-Schalter über kleinen Karten (Geotagger, Inspektor, Archiv) */
 .rz-style-ctrl {
@@ -3290,9 +3292,26 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 /* 25.09.2026 — Testrechner-Sperre aktiv (core/dateischutz.py, testrechner.json): gut sichtbar,
    damit ein Bildschirmfoto nie mit der echten App verwechselt wird. */
 .version.ist-testrechner { color: #111; background: #ffcc33; padding: 2px 8px; border-radius: 999px; font-weight: 700; opacity: 1; }
+/* 25.09.2026 (Klicktest ER-01) — Willkommen/Bibliothekswahl/Umzug decken das ganze Fenster ab,
+   samt Versionsanzeige. Dort dieselbe Kennung oben rechts, über dem Schleier. */
+body.testrechner #bib-gate::before {
+  content: var(--rz-test-kennung, "TEST"); position: absolute; top: 10px; right: 14px; pointer-events: none;   /* „v0.9.725 · TEST“ aus versionAnzeigen() */
+  color: #111; background: #ffcc33; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: 12px;
+}
 
 /* 25.09.2026 — API-Schlüssel verdeckt (rzSchluesselFelder in util.js) */
 .rz-schluessel-zeile { display: flex; gap: 6px; align-items: center; }
 .rz-schluessel-zeile input { flex: 1 1 auto; min-width: 0; }
 input.rz-schluessel.ist-verdeckt { -webkit-text-security: disc; }
 .rz-schluessel-zeigen { flex: 0 0 auto; white-space: nowrap; }
+
+/* 25.09.2026 — ⠿-Listen per Pointer sortieren (rzSortierbar in util.js), ▲▼ als Rückfall */
+.ghost-handle, .sign-row-handle, .route-wp-handle, .ov-grip, .lib-merge-handle { touch-action: none; }
+.rz-sort-zieht { position: relative; z-index: 20; opacity: .92; box-shadow: 0 6px 18px rgba(0,0,0,.45);
+  background: var(--bg-2, #1c1c1f); border-radius: 6px; transition: none !important; }
+body.rz-sortiert, body.rz-sortiert * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+.rz-sort-pfeil { flex: 0 0 auto; background: none; border: 0; color: var(--text-dim, #888); padding: 0 3px;
+  font-size: 9px; line-height: 1; cursor: pointer; opacity: .55; }
+.rz-sort-pfeil:hover:not(:disabled) { color: var(--text, #eee); opacity: 1; }
+.rz-sort-pfeil:focus-visible { opacity: 1; outline: 1px solid var(--accent, #ff6b35); border-radius: 3px; }
+.rz-sort-pfeil:disabled { opacity: .18; cursor: default; }

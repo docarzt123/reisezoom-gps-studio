@@ -20,6 +20,7 @@ Vorsichtsregeln, die hier alle gelten:
 """
 from __future__ import annotations
 
+import json
 import shutil
 import sqlite3
 import time
@@ -57,9 +58,27 @@ APP_EIGENE_QUELLEN = ("import", "zusammengefuehrt", "cloud_touren",
 
 
 def noetig(app_support: Path) -> bool:
-    """Liegt im App-Ordner noch Bestand, der umziehen muss?"""
+    """Liegt im App-Ordner noch Bestand, der umziehen muss?
+
+    25.09.2026 (Klicktest ER-01): LEERE Ablagen (projekte.json ohne Projekte,
+    touren.json ohne Touren) sind kein Bestand. Frühere Versionen legten sie bei
+    jedem Erststart an; ein „Umzug“ davon meldete einer frischen Installation
+    „Deine Daten sind umgezogen“."""
     a = Path(app_support)
-    return any((a / q).exists() for q, _ in ZU_VERSCHIEBEN)
+    return any((a / q).exists() and not _leere_ablage(a / q) for q, _ in ZU_VERSCHIEBEN)
+
+
+def _leere_ablage(p: Path) -> bool:
+    """projekte.json/touren.json ohne jeden Inhalt? Alles andere (und jede
+    unlesbare Datei) gilt vorsichtshalber als Bestand."""
+    felder = {"projekte.json": ("projects", "aktiv"), "touren.json": ("touren",)}.get(p.name)
+    if not felder or not p.is_file():
+        return False
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(d, dict) and not any(d.get(k) for k in felder)
 
 
 def vorschau(app_support: Path) -> dict:

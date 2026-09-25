@@ -603,6 +603,25 @@ const RZ_WP_KIND_LABEL_DE = {{
   steep_up: "◤ Steilster Anstieg", steep_down: "◢ Steilster Abstieg",
 }};
 
+// 25.09.2026 (Klicktest DA-04) — Wegpunkt-Fahnen ohne Überdeckung legen.
+// `fahnen` = [{{x, y, w, h}}] mit Wunsch-y (Reihenfolge = Vorrang). Jede Fahne nimmt
+// die erste freie Zeile: Wunschhöhe, dann schrittweise darüber, zuletzt darunter;
+// nichts frei → Wunschhöhe. SYNCHRON zu _haFahnenLegen in modules/heightanim/ui/module.js.
+function _wpFahnenLegen(fahnen, oben, unten, luecke) {{
+  const belegt = [];
+  return fahnen.map((f) => {{
+    const schritt = f.h + luecke;
+    const frei = (y) => y >= oben - 0.5 && y + f.h <= unten + 0.5 && !belegt.some(b =>
+      f.x < b.x + b.w + luecke && b.x < f.x + f.w + luecke && y < b.y + b.h + luecke && b.y < y + f.h + luecke);
+    let y = null;
+    for (let k = 0; k < 60 && y == null; k++) if (frei(f.y - k * schritt)) y = f.y - k * schritt;
+    for (let k = 1; k < 60 && y == null; k++) if (frei(f.y + k * schritt)) y = f.y + k * schritt;
+    if (y == null) y = f.y;
+    belegt.push({{ x: f.x, y, w: f.w, h: f.h }});
+    return y;
+  }});
+}}
+
 function draw(progress) {{
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
@@ -765,45 +784,61 @@ function draw(progress) {{
   }}
 
   // ── Wegpunkte auf der Strecke (erscheinen sobald die Linie sie passiert) ──
+  // 25.09.2026 (Klicktest DA-04: Gipfel / steilster Anstieg / Punkt lagen
+  // übereinander) — erst ALLE Fahnen im Trimbereich legen (nach Distanz, damit
+  // keine springt, wenn während der Animation eine neue dazukommt), dann nur die
+  // schon passierten zeichnen. SYNCHRON zu modules/heightanim/ui/module.js.
   if (WAYPOINTS && WAYPOINTS.length && progress > 0) {{
+    // v0.9.447 — Wegpunkt-Fahne ist Text → TEXT_SCALE (Stiel/Punkt bleiben
+    // Geometrie und hängen weiter an SCALE).
+    const fs = Math.round(13 * TEXT_SCALE), fh = Math.round(18 * TEXT_SCALE);
+    const liste = [];
     for (const wp of WAYPOINTS) {{
       const wd = +wp.dist_m;
       if (!isFinite(wd) || wd < dTrimStart - 1 || wd > dTrimEnd + 1) continue;
-      if (progress < 1 && dCurrent < wd) continue;   // erst zeigen wenn passiert
       const wx = px(wd);
       const we = (wp.ele != null) ? +wp.ele : eleAtDist(wd);
       const wy = py(we);
-      const col = wp.color || "#ffb37a";
-      const stemTop = wy - Math.round(20 * SCALE);
+      const label = (wp.label || "").toString();
+      const e = {{ wp, wd, wx, wy, label, stemTop: wy - Math.round(20 * SCALE) }};
+      if (label) {{
+        e.tw = Math.round(label.length * fs * 0.62 + 16 * TEXT_SCALE);
+        e.bx = Math.max(PAD_L, Math.min(W - PAD_R - e.tw, wx - e.tw / 2));
+        e.by = Math.max(HEAD_H + Math.round(8 * TEXT_SCALE), e.stemTop - fh);
+      }}
+      liste.push(e);
+    }}
+    liste.sort((a, b) => a.wd - b.wd);
+    const mitText = liste.filter(e => e.label);
+    const ys = _wpFahnenLegen(mitText.map(e => ({{ x: e.bx, y: e.by, w: e.tw, h: fh }})),
+                              HEAD_H + Math.round(8 * TEXT_SCALE), H - PAD_B, Math.round(3 * TEXT_SCALE));
+    mitText.forEach((e, i) => {{ e.by = ys[i]; }});
+    for (const e of liste) {{
+      if (progress < 1 && dCurrent < e.wd) continue;   // erst zeigen wenn passiert
+      const col = e.wp.color || "#ffb37a";
+      // Stiel bis an die Fahne (sie kann nach oben oder unter den Punkt gerückt sein).
+      const y2 = !e.label ? e.stemTop : (e.by + fh <= e.wy ? e.by + fh : e.by);
       svg.appendChild(svgNS("line", {{
-        x1: wx, x2: wx, y1: wy, y2: stemTop,
+        x1: e.wx, x2: e.wx, y1: e.wy, y2,
         stroke: col, "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
       }}));
       svg.appendChild(svgNS("circle", {{
-        cx: wx, cy: wy, r: Math.max(3, LW * 1.1) * SCALE,
+        cx: e.wx, cy: e.wy, r: Math.max(3, LW * 1.1) * SCALE,
         fill: col, stroke: (BG === "transparent" ? "#1a1a1a" : BG),
         "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
       }}));
-      const label = (wp.label || "").toString();
-      if (label) {{
-        // v0.9.447 — Wegpunkt-Fahne ist Text → TEXT_SCALE (Stiel/Punkt bleiben
-        // Geometrie und hängen weiter an SCALE).
-        const fs = Math.round(13 * TEXT_SCALE);
-        const tw = Math.round(label.length * fs * 0.62 + 16 * TEXT_SCALE);
-        let bx = wx - tw / 2;
-        bx = Math.max(PAD_L, Math.min(W - PAD_R - tw, bx));
-        let by = stemTop - Math.round(18 * TEXT_SCALE);
-        by = Math.max(HEAD_H + Math.round(8 * TEXT_SCALE), by);
+      if (e.label) {{
         svg.appendChild(svgNS("rect", {{
-          x: bx, y: by, width: tw, height: Math.round(18 * TEXT_SCALE),
+          x: e.bx, y: e.by, width: e.tw, height: fh,
           rx: Math.round(4 * TEXT_SCALE), fill: "#2a2a2a",
           stroke: col, "stroke-width": Math.max(1, Math.round(SCALE)),
+          class: "ha-wp-fahne",
         }}));
         svg.appendChild(svgNS("text", {{
-          x: bx + tw / 2, y: by + Math.round(13 * TEXT_SCALE),
+          x: e.bx + e.tw / 2, y: e.by + Math.round(13 * TEXT_SCALE),
           fill: "#fff", "font-size": fs, "text-anchor": "middle",
           "font-family": "-apple-system, sans-serif",
-        }}, label));
+        }}, e.label));
       }}
     }}
   }}

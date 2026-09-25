@@ -677,12 +677,19 @@ async function openSettingsModal(reiter) {
         <p class="muted" style="font-size:11px; margin:0;">${t("cloud.stillgelegt",
           "Das Cloud-Archiv ist zurzeit stillgelegt, während die Tour-Bibliothek umgebaut wird. Bereits hochgeladene Daten bleiben unangetastet — die Cloud kommt danach zurück.")}</p>
       </div>` : ""}
-      ${!window.rzCloudSichtbar ? "" : `
+      ${!window.rzCloudSichtbar ? "" : (() => {
+        // 25.09.2026 (Klicktest CL-01): derselbe Stand wie ☁-Anzeige und Cloud-Dialog
+        // (cloud_status, Marker-Datei) — hier stand sonst immer nur „einrichten …“.
+        const cz = window.rzCloudZustand || {};
+        const verbunden = !!cz.eingerichtet;
+        return `
       <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
         <p class="muted" style="margin-bottom:6px">${t("cloud.titel", "Cloud-Archiv")}</p>
-        <button class="btn" id="md-cloud">${t("cloud.oeffnen", "Cloud-Archiv einrichten …")}</button>
-        <p class="muted" style="font-size:11px; margin-top:6px;">${t("cloud.optional", "Das ist freiwillig. Ohne Cloud arbeitet die App wie bisher, alles bleibt lokal.")}</p>
-      </div>`}
+        ${verbunden ? `<p style="font-size:12.5px; margin:0 0 8px;">✓ ${t("cloud.verbunden_mit", "Verbunden mit")} <code>${String(cz.adresse || "—").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))}</code></p>` : ""}
+        <button class="btn" id="md-cloud">${verbunden ? t("cloud.verwalten", "Cloud-Archiv verwalten …") : t("cloud.oeffnen", "Cloud-Archiv einrichten …")}</button>
+        ${verbunden ? "" : `<p class="muted" style="font-size:11px; margin-top:6px;">${t("cloud.optional", "Das ist freiwillig. Ohne Cloud arbeitet die App wie bisher, alles bleibt lokal.")}</p>`}
+      </div>`;
+      })()}
       </div>
 
     `,
@@ -1426,9 +1433,9 @@ async function openAboutModal() {
       try { toast(t("about.support.todo"), "info"); } catch (_) {}
     });
   });
-  // Topbar-Version auf Backend-Version syncen
-  const topbarV = document.getElementById("topbar-version");
-  if (topbarV && info.version) topbarV.textContent = "v" + info.version;
+  // Topbar-Version auf Backend-Version syncen — 25.09.2026 (Klicktest AL-07): über
+  // versionAnzeigen, sonst fiel „· TEST“ nach dem Über-Dialog weg.
+  versionAnzeigen(info);
   // v0.9.280 — manueller Update-Check aus dem Über-Dialog
   const upBtn = document.getElementById("about-check-update");
   if (upBtn) upBtn.onclick = async () => {
@@ -1620,6 +1627,30 @@ window.importProject = async function (pfad) {
   }
 };
 
+/** 25.09.2026 (Klicktest ER-01/AL-07) — Versionsanzeige oben rechts an EINER Stelle
+ *  zeichnen: Version plus gelbes „· TEST“, solange die Testrechner-Sperre aktiv ist.
+ *  Wer die Anzeige neu schreibt, ruft das hier auf — sonst verschwindet die Kennung. */
+let _versionInfo = null;
+function versionAnzeigen(info) {
+  const tv = document.getElementById("topbar-version");
+  if (!tv || !info) return;
+  _versionInfo = info;
+  if (info.version) tv.textContent = "v" + info.version;
+  const test = Array.isArray(info.testrechner);
+  tv.classList.toggle("ist-testrechner", test);
+  document.body.classList.toggle("testrechner", test);
+  if (test) {
+    tv.textContent += " · TEST";
+    // Lauf 2 (ER-01): der Willkommens-/Bibliotheks-Schleier zeigt dieselbe Kennung MIT Versionsnummer
+    try { document.documentElement.style.setProperty("--rz-test-kennung", JSON.stringify(tv.textContent)); } catch (_) {}
+    tv.title = t("app.testrechner_tip", "Testrechner: Löschen und Überschreiben nur in {pfade}")
+      .replace("{pfade}", info.testrechner.join(", ") || "—");
+  }
+}
+window.rzVersionAnzeigen = versionAnzeigen;
+// Sprachwechsel: Tooltip der TEST-Kennung in der neuen Sprache (BI-03)
+window.addEventListener("rz-i18n-ready", () => { if (_versionInfo) versionAnzeigen(_versionInfo); });
+
 window.addEventListener("DOMContentLoaded", async () => {
   await whenApiReady();
   // v0.9.472 — Boot-Schritt-Logging: zeigt in Bug-Report-Logs GENAU, bis wohin der
@@ -1637,6 +1668,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   // brauchen die Bibliothek nicht — also zuerst die Sprache.
   await loadI18n();
   applog && applog("info", "[boot] i18n geladen");
+  // 25.09.2026 (Klicktest ER-01): TEST-Kennung und Browser-Speicher-Reset VOR der
+  // Bibliotheksprüfung — Willkommen/Bibliothekswahl legen sich über das ganze Fenster,
+  // und bis hierher stand dort nie „TEST“.
+  let _appInfoFrueh = null;
+  try { _appInfoFrueh = await api().get_app_info(); } catch (_) {}
+  if (_appInfoFrueh && _appInfoFrueh.ui_frisch) {
+    try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
+    applog("info", "[ui] Browser-Speicher geleert (ui-zuruecksetzen) — lade neu");
+    location.reload();
+    return;
+  }
+  versionAnzeigen(_appInfoFrueh);
   try { await window.rzBibPruefen(); } catch (e) { applog && applog("warn", "[boot] bib: " + e); }
   applog && applog("info", "[boot] bibliothek geprueft");
   await loadSettings();
@@ -1661,16 +1704,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     window.RZ_EDITION = (info && info.edition) || "full";
-    const tv = document.getElementById("topbar-version");
-    if (tv && info && info.version) tv.textContent = "v" + info.version;
     // 25.09.2026 — Testrechner: sichtbar „TEST", damit kein Bildschirmfoto mit der echten App verwechselt wird
-    if (tv && info && Array.isArray(info.testrechner)) {
-      tv.textContent += " · TEST";
-      tv.classList.add("ist-testrechner");
-      tv.title = t("app.testrechner_tip", "Testrechner: Löschen und Überschreiben nur in {pfade}")
-        .replace("{pfade}", info.testrechner.join(", ") || "—");
-      document.body.classList.add("testrechner");
-    }
+    versionAnzeigen(info);
     if (info && info.name) document.title = info.name;
     if (window.RZ_EDITION === "geotagger") {
       document.body.classList.add("edition-geotagger");

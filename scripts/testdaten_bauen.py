@@ -94,7 +94,10 @@ def touren(q: Path):
 def trackcheck(q: Path):
     d = q / "04-trackcheck"
     for f in sorted(PRUEF.iterdir()):
-        if f.suffix in (".gpx", ".kml") and not f.name.startswith(("mischfall", "reise-", "unsicher-kurze")):
+        # 25.09.2026 — demo_komoot.kml ist dieselbe Strecke wie 05-bewegung/mischfall-wanderung-mit-auto.gpx,
+        # nur ohne Zeiten. Im Archiv wurden beide (richtig) zu EINER Tour mit dem Namen der KML — die
+        # Mischfall-Tour war dadurch unauffindbar (Klicktest AR-13). Die KML bleibt in 01-formate.
+        if f.suffix in (".gpx", ".kml") and not f.name.startswith(("mischfall", "reise-", "unsicher-kurze", "demo_komoot")):
             kopieren(f, d)
 
 

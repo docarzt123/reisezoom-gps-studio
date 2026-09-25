@@ -587,6 +587,8 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
 .gt-tz-vorschlag .btn { padding: 3px 9px; font-size: 11px; }
 /* 25.09.2026 — Zeitzone im Foto falsch: Text als EIN Block (sonst wird jedes <b> ein Flex-Element), Knopf darunter */
 .gt-zone-falsch > span { flex: 1 1 100%; }
+/* 25.09.2026 (Klicktest GT-03) — Track lässt einen Bereich offen: Satz über die volle Breite */
+.gt-tz-offen > span { flex: 1 1 100%; }
 
 /* 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Liste in der Seitenleiste, Chips */
 .gt-tracks-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
