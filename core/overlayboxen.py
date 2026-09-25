@@ -88,6 +88,8 @@ def _farbe(v, default):
 
 def _blendeart(v, default="none"):
     s = str(v or "").strip()
+    if s == "pop":      # 25.09.2026: nur noch drei Arten — „Aufpoppen" ist die Kombination (Twin: overlay_boxen.js)
+        s = "both"
     return s if s in BLENDEN else default
 
 

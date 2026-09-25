@@ -268,10 +268,13 @@ Vorher: Tour **Wer sieht die Schildkröte 🐢** im Animator.
 | AN-04 | Keyframe setzen („Hier Keyframe") an drei Stellen, Kamera dazwischen verändern | Probe-Lauf fliegt die Kamera durch die Keyframes |
 | AN-05 | Tempo-Spur: Halt einfügen | Probe-Lauf hält dort an |
 | AN-06 | Jede Spur der Zeitleiste mit ▾ klein klappen und wieder auf | Klappt; bleibt nach Neustart so |
-| AN-07 📷 | Overlays: Gesamt-Stats an; unter „▸ Overlays" den Balken der Box auf 3–8 s ziehen | Box erscheint im Probe-Lauf bei 3 s, ist bei 8 s ganz weg |
+| AN-07 📷 | Overlays: Gesamt-Stats an; unter „▸ Overlays“ den Balken der Box auf 3–8 s ziehen | Box erscheint im Probe-Lauf bei 3 s, ist bei 8 s ganz weg; am Balken stehen Sekunden (an einer Streckenkante zusätzlich „bei … km“) |
 | AN-08 | Doppelklick auf freie Stelle der Box-Zeile → zweiter Zeitraum | Zwei Balken; Rechtsklick öffnet das Fenster mit „Zeitraum 1, 2" |
-| AN-09 | Box-Fenster: Rahmen, Schatten, Einblendung „Pop" | Vorschau zeigt es |
+| AN-09 | Box-Fenster: Rahmen, Schatten, Einblendung | Einblend-Arten sind genau **Hart, Einblenden, Aufpoppen** (Ausblenden: Hart, Ausblenden, Wegpoppen); Vorschau zeigt es |
 | AN-10 | Leertaste nach Tippen in ein Zahlenfeld | Probe-Lauf startet trotzdem |
+| AN-15 | Seitenleiste Gesamt-Stats ⏱: „15“ – „2“ und rechts **„s vor Ende“** | Balken reicht von 15 s bis 2 s vor Ende; Felder und Balken zeigen dasselbe |
+| AN-16 | ⏱ „15“ – „5“ mit **„s ab Start“** | Feld „bis“ wird rot mit Hinweis („Meintest du s vor Ende?“), **Balken bleibt unverändert** |
+| AN-17 | Einen Blendenpunkt am Balken ziehen, dann unter „Aussehen“ die „Dauer der Blende“ ansehen | Unter der Dauer steht „Eigene Blenden … Gesamt …“ mit „Auf die Dauer oben zurücksetzen“; Klick → Hinweis weg, Balken zeigt wieder die Dauer oben |
 | AN-11 | Fotos auf der Karte: `Arbeit/fotos/geotagger/E_hat_schon_gps.jpg` hinzufügen | Schild/Foto an der richtigen Stelle |
 | AN-12 | **📸 Aktuellen Frame als Bild** → `Ausgaben/` | PNG entspricht der Vorschau |
 | AN-13 📷 | **▶ Video rendern**, 1920×1080, H.264 → `Ausgaben/` | Fortschritt mit Live-Bild; MP4 ≈ 14 s (Intro+10+Hold); im QuickTime abspielbar, Box 3–8 s |

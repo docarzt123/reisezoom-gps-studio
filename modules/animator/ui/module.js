@@ -926,7 +926,10 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="number" id="anim-ov-totals-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
                 <span class="ov-timing-dash">–</span>
                 <input type="number" id="anim-ov-totals-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <span class="ov-timing-unit">s</span>
+                <select class="ov-bis-art" title="${t("animator.ov.bis_art_tip", "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende")}">
+                  <option value="s">${t("animator.ov.bis_ab_start", "s ab Start")}</option>
+                  <option value="vor_ende">${t("animator.ov.bis_vor_ende", "s vor Ende")}</option>
+                </select>
               </div>
               <div class="ov-fieldeditor" id="anim-ov-totals-fields" data-ovbox="totals"></div>
               </div>
@@ -954,7 +957,10 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="number" id="anim-ov-live-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
                 <span class="ov-timing-dash">–</span>
                 <input type="number" id="anim-ov-live-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <span class="ov-timing-unit">s</span>
+                <select class="ov-bis-art" title="${t("animator.ov.bis_art_tip", "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende")}">
+                  <option value="s">${t("animator.ov.bis_ab_start", "s ab Start")}</option>
+                  <option value="vor_ende">${t("animator.ov.bis_vor_ende", "s vor Ende")}</option>
+                </select>
               </div>
               <div class="ov-fieldeditor" id="anim-ov-live-fields" data-ovbox="live"></div>
               </div>
@@ -988,7 +994,10 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="number" id="anim-ov-ele-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
                 <span class="ov-timing-dash">–</span>
                 <input type="number" id="anim-ov-ele-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <span class="ov-timing-unit">s</span>
+                <select class="ov-bis-art" title="${t("animator.ov.bis_art_tip", "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende")}">
+                  <option value="s">${t("animator.ov.bis_ab_start", "s ab Start")}</option>
+                  <option value="vor_ende">${t("animator.ov.bis_vor_ende", "s vor Ende")}</option>
+                </select>
               </div>
               </div>
             </div>
@@ -1064,8 +1073,8 @@ function mountAnimator(body, headerActions, opts) {
                 <select id="anim-ov-entry" class="pos-select">
                   <option value="none">${t("signs.entry.none", "Hart (sofort)")}</option>
                   <option value="fade">${t("signs.entry.fade", "Einblenden")}</option>
-                  <option value="pop">${t("signs.entry.pop", "Aufpoppen")}</option>
-                  <option value="both">${t("signs.entry.both", "Ein- + Aufpoppen")}</option>
+                  <option value="both">${t("animator.ovbox.aufpoppen", "Aufpoppen")}</option>
+                  <option value="pop" hidden>${t("animator.ovbox.aufpoppen", "Aufpoppen")}</option>
                 </select>
               </div>
               <!-- 23.09.2026 — Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten (global; je Box ✎) -->
@@ -1074,15 +1083,17 @@ function mountAnimator(body, headerActions, opts) {
                 <select id="anim-ov-exit" class="pos-select">
                   <option value="none">${t("animator.ovbox.exit_none", "Hart (sofort)")}</option>
                   <option value="fade">${t("animator.ovbox.exit_fade", "Ausblenden")}</option>
-                  <option value="pop">${t("animator.ovbox.exit_pop", "Wegpoppen")}</option>
-                  <option value="both">${t("animator.ovbox.exit_both", "Aus- + Wegpoppen")}</option>
+                  <option value="both">${t("animator.ovbox.wegpoppen", "Wegpoppen")}</option>
+                  <option value="pop" hidden>${t("animator.ovbox.wegpoppen", "Wegpoppen")}</option>
                 </select>
               </div>
               <div class="ov-style-row">
                 <label for="anim-ov-blende">${t("animator.ovbox.blende_s", "Dauer der Blende")}</label>
-                <input type="number" id="anim-ov-blende" class="ov-time-in" min="0.1" max="5" step="0.1" value="0.5">
+                <input type="number" id="anim-ov-blende" class="ov-time-in" min="0.1" max="10" step="0.1" value="0.5">
                 <span class="ov-style-val">s</span>
               </div>
+              <!-- 25.09.2026 — Boxen mit eigener Blende (aus der Zeitleiste/✎): hier gilt die Dauer oben nicht -->
+              <div class="ov-blende-eigen" id="anim-ov-blende-eigen" hidden></div>
               <div class="ov-style-row">
                 <label for="anim-ov-radius">${t("animator.ovbox.radius", "Ecken")}</label>
                 <input type="range" id="anim-ov-radius" min="0" max="40" step="1" value="12">
@@ -14755,9 +14766,13 @@ function mountAnimator(body, headerActions, opts) {
         let e = (bl.ein && bl.ein !== "none") ? +bl.ein_s || 0 : 0;
         let a = (bl.aus && bl.aus !== "none") ? +bl.aus_s || 0 : 0;
         if (e + a > aus - an && e + a > 0) { const f = (aus - an) / (e + a); e *= f; a *= f; }
-        const vonTxt = _ovAnkerText(z && z.von && z.von.art !== "s" ? z.von : { art: "video_start", wert: an });
+        // 25.09.2026 (Beta-Tester): Die ⏱-Felder sprechen Sekunden, der Balken sprach nur „bei 3,8 km“ —
+        // an einer Streckenkante steht jetzt beides: „15,0 s · bei 3,8 km“.
+        const mitSek = (anker, sek) => (anker && anker.art === "strecke")
+          ? _ovAnkerText({ art: "video_start", wert: sek }) + " · " + _ovAnkerText(anker) : _ovAnkerText(anker);
+        const vonTxt = mitSek(z && z.von && z.von.art !== "s" ? z.von : { art: "video_start", wert: an }, an);
         const bisTxt = z && z.dauer_s ? _ovAnkerText({ art: "video_start", wert: aus })
-          : _ovAnkerText(z && z.bis ? (z.bis.art === "s" ? { art: "video_start", wert: aus } : z.bis) : null);
+          : mitSek(z && z.bis ? (z.bis.art === "s" ? { art: "video_start", wert: aus } : z.bis) : null, aus);
         return { an: _ovLeisteAusZeit(an), aus: _ovLeisteAusZeit(aus),
                  einBis: _ovLeisteAusZeit(an + e), ausAb: _ovLeisteAusZeit(aus - a),
                  text: vonTxt + " – " + bisTxt };
@@ -14829,12 +14844,11 @@ function mountAnimator(body, headerActions, opts) {
       } else if (griff === "aus") {
         e.blende.aus_s = Math.max(0, _ov1(tAus - tAusAb));
         if (!bl.aus || bl.aus === "none") e.blende.aus = "fade";
-      } else if (griff === "l" || griff === "r") {
-        // Die Leiste hat die Blenden gekürzt, wenn der Balken zu kurz wurde.
-        const e2 = Math.max(0, _ov1(tEin - tAn)), a2 = Math.max(0, _ov1(tAus - tAusAb));
-        if (bl.ein && bl.ein !== "none" && e2 < (+bl.ein_s || 0) - 0.05) e.blende.ein_s = e2;
-        if (bl.aus && bl.aus !== "none" && a2 < (+bl.aus_s || 0) - 0.05) e.blende.aus_s = a2;
       }
+      // 25.09.2026 (Beta-Tester: „Zusammenspiel mit der Zeitleiste funktioniert nicht"): Wurde der
+      // Balken kürzer als beide Blenden, speicherte das Ziehen der Ränder die GEKÜRZTEN Blenden
+      // fest an der Box — danach galt die „Dauer der Blende“ aus „Aussehen“ für diese Box nicht
+      // mehr, auch nicht nach dem Wiederaufziehen. Die Zeitsteuerung kürzt ohnehin anteilig.
     }, t("animator.ov.spur_undo", "Overlay-Zeit"), "ovspur:" + id + ":" + Date.now());
   }
   /** Doppelklick auf eine freie Stelle: ein weiterer Zeitraum (3 s) ab dort. */
@@ -15045,12 +15059,15 @@ function mountAnimator(body, headerActions, opts) {
       + `<input type="checkbox" class="ovbox-erbt" data-erbt="${pfad}" ${erbt ? "checked" : ""} title="${_ovEsc(erbtText)}">`
       + `<span>${label}</span><div class="ovbox-wert">${wertHtml}</div></div>`;
   }
+  // 25.09.2026 (Beta-Tester: „Aufpoppen und Ein- + Aufpoppen ist das Gleiche"): nur noch drei Arten.
+  // „Aufpoppen" ist die frühere Kombination (both); altes „pop" wird wie both behandelt.
   function _ovBlendeOpts(wert, aus) {
+    if (wert === "pop") wert = "both";
     const o = aus
       ? [["none", t("animator.ovbox.exit_none", "Hart (sofort)")], ["fade", t("animator.ovbox.exit_fade", "Ausblenden")],
-         ["pop", t("animator.ovbox.exit_pop", "Wegpoppen")], ["both", t("animator.ovbox.exit_both", "Aus- + Wegpoppen")]]
+         ["both", t("animator.ovbox.wegpoppen", "Wegpoppen")]]
       : [["none", t("signs.entry.none", "Hart (sofort)")], ["fade", t("signs.entry.fade", "Einblenden")],
-         ["pop", t("signs.entry.pop", "Aufpoppen")], ["both", t("signs.entry.both", "Ein- + Aufpoppen")]];
+         ["both", t("animator.ovbox.aufpoppen", "Aufpoppen")]];
     return o.map(([v, l]) => `<option value="${v}" ${v === wert ? "selected" : ""}>${l}</option>`).join("");
   }
   /** Gesamtlänge der Strecke in km (für „Trackpunkt"). */
@@ -15465,44 +15482,69 @@ function mountAnimator(body, headerActions, opts) {
       const mehr = !!(bM && bM.zeiten && bM.zeiten.length > 1);
       tm.dataset.mehr = mehr ? "1" : "";
       tm.querySelectorAll("input").forEach(i => { i.readOnly = mehr; });
+      const artEl = tm.querySelector(".ov-bis-art");
+      if (artEl) artEl.disabled = mehr;
       if (mehr) tm.title = t("animator.ov.mehr_zeitraeume", "Diese Box hat {n} Zeiträume — bearbeiten in der Zeitleiste unter „Overlays“ oder im ✎-Fenster.").replace("{n}", String(bM.zeiten.length));
       if (eigen.has(id) && R && vonEl && bisEl && document.activeElement !== vonEl && document.activeElement !== bisEl) {
         const b = boxen.find(x => x.id === id);
         const k = b && R.kanten(b.zeit, ctx);
-        if (k) {
+        if (k && document.activeElement !== artEl) {
           vonEl.value = String(_ov1(k.an));
-          bisEl.value = (isFinite(k.aus) && k.aus < G - 0.05) ? String(_ov1(k.aus)) : "";
+          const roh = _ovBoxenRoh().find(e => e && e.id === id);
+          const zb = roh && roh.zeit && !Array.isArray(roh.zeit) ? roh.zeit.bis : null;
+          if (zb && zb.art === "video_ende" && +zb.wert > 0) {
+            if (artEl) artEl.value = "vor_ende";
+            bisEl.value = String(_ov1(+zb.wert));
+          } else {
+            if (artEl) artEl.value = "s";
+            bisEl.value = (isFinite(k.aus) && k.aus < G - 0.05) ? String(_ov1(k.aus)) : "";
+          }
         }
       }
       _ovZeitFelderPruefen(tm);
     }
   }
+  /** Liefert true, wenn von/bis zusammenpassen; markiert „bis“ sonst rot (25.09.2026: kennt „vor Ende“). */
   function _ovZeitFelderPruefen(tm) {
     const [vonEl, bisEl] = tm.querySelectorAll("input");
-    if (!vonEl || !bisEl) return;
-    const von = parseFloat(vonEl.value), bis = parseFloat(bisEl.value);
-    const falsch = isFinite(bis) && bis > 0 && bis <= (isFinite(von) ? von : 0);
+    if (!vonEl || !bisEl) return true;
+    const art = (tm.querySelector(".ov-bis-art") || {}).value || "s";
+    const G = _ovGesamtSek();
+    const von = parseFloat(vonEl.value), roh = parseFloat(bisEl.value);
+    const vonS = isFinite(von) ? von : 0;
+    let falsch = false;
+    if (isFinite(roh) && roh > 0) {
+      const bisAbs = art === "vor_ende" ? G - roh : roh;
+      falsch = !(bisAbs > vonS + 0.05);
+    }
     bisEl.classList.toggle("ist-ungueltig", falsch);
-    bisEl.title = falsch ? t("animator.ov.bis_vor_von", "„bis“ liegt vor „von“ — so ist die Box nie zu sehen. „bis“ ist eine Sekunde im Video; leer = bis zum Ende. Einfacher: den Balken unter „Overlays“ in der Zeitleiste ziehen.") : "";
+    bisEl.title = falsch ? (art === "vor_ende"
+      ? t("animator.ov.bis_vor_ende_falsch", "So endet die Box, bevor sie beginnt — „{n} s vor Ende“ liegt vor „von“. Nichts übernommen.").replace("{n}", String(roh))
+      : t("animator.ov.bis_vor_von", "„bis“ liegt vor „von“ — so ist die Box nie zu sehen. Nichts übernommen. Meintest du „s vor Ende“? Dann rechts umstellen."))
+      : "";
+    return !falsch;
   }
   function _ovZeitFelderBinden(tm, id) {
     if (tm.__rzOvGebunden) return;
     tm.__rzOvGebunden = true;
-    // Capture auf dem Behälter: bei eigener Zeit erreicht die Eingabe den
-    // Standard-Speicher (bindSetting → overlay_*_from_s) gar nicht erst.
+    // Capture auf dem Behälter: die Eingabe erreicht den alten Sekunden-Speicher
+    // (bindSetting → overlay_*_from_s) nicht mehr. 25.09.2026 (Beta-Tester: „15 – 5“ → rot,
+    // Balken auf Minimum): Jede gültige Eingabe wird eine echte Box-Zeit — Balken und Felder
+    // zeigen dasselbe; Ungültiges bleibt rot und wird NICHT übernommen.
     const abfangen = (ev) => {
-      if (!ev.target.matches || !ev.target.matches("input")) return;
-      _ovZeitFelderPruefen(tm);
-      if (tm.dataset.eigen !== "1") return;
+      if (!ev.target.matches || !ev.target.matches("input, select")) return;
+      const gueltig = _ovZeitFelderPruefen(tm);
       ev.stopPropagation();
       if (tm.dataset.mehr === "1") return;
-      if (ev.type !== "change") return;
+      if (ev.type !== "change" || !gueltig) return;
       const [vonEl, bisEl] = tm.querySelectorAll("input");
+      const art = (tm.querySelector(".ov-bis-art") || {}).value || "s";
       const von = Math.max(0, parseFloat(vonEl.value) || 0);
-      const bis = parseFloat(bisEl.value);
+      const roh = parseFloat(bisEl.value);
+      let bis = null;
+      if (isFinite(roh) && roh > 0) bis = art === "vor_ende" ? { art: "video_ende", wert: _ov1(roh) } : _ovAnkerAusZeit(roh, "bis");
       _ovAendern(id, (e) => {
-        e.zeit = { von: _ovAnkerAusZeit(von, "von") || { art: "video_start", wert: 0 },
-                   bis: (isFinite(bis) && bis > 0) ? _ovAnkerAusZeit(bis, "bis") : null };
+        e.zeit = { von: _ovAnkerAusZeit(von, "von") || { art: "video_start", wert: 0 }, bis };
       }, t("animator.ov.spur_undo", "Overlay-Zeit"));
     };
     tm.addEventListener("input", abfangen, true);
@@ -15516,9 +15558,39 @@ function mountAnimator(body, headerActions, opts) {
     _ovBoxModal(id);
   }
 
+  /** 25.09.2026 (Beta-Tester: „Zusammenspiel Zeitleiste ↔ Einstellen funktioniert nicht"):
+   *  Hat eine Box eigene Blenden-Dauern (Punkte am Balken gezogen oder ✎-Fenster), gilt die
+   *  „Dauer der Blende“ oben für sie nicht — das steht jetzt dort, mit einem Knopf zurück. */
+  function _ovBlendeEigenZeigen() {
+    const el = document.getElementById("anim-ov-blende-eigen");
+    if (!el) return;
+    const R = window.rzOverlayBoxen;
+    const roh = _ovBoxenRoh();
+    const eigen = roh.filter(e => e && e.blende && ["ein_s", "aus_s", "dauer_s"].some(k => e.blende[k] != null));
+    if (!eigen.length || !R) { el.hidden = true; el.innerHTML = ""; return; }
+    const aufg = R.aufloesen(_ovCfg());
+    const z = (v) => (Math.round((+v || 0) * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { maximumFractionDigits: 1 });
+    const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    const liste = eigen.map(e => {
+      const b = aufg.find(x => x.id === e.id) || { blende: {} };
+      return `${esc(_ovBoxName(b.id ? b : { id: e.id, typ: e.typ }))} (${z(b.blende.ein_s)} s / ${z(b.blende.aus_s)} s)`;
+    }).join(", ");
+    el.innerHTML = `<span>${t("animator.ovbox.blende_eigen", "Eigene Blenden (aus der Zeitleiste oder ✎): {liste} — dort gilt die Dauer oben nicht.").replace("{liste}", liste)}</span>
+      <button type="button" class="btn btn-small" id="anim-ov-blende-zurueck">${t("animator.ovbox.blende_zurueck", "Auf die Dauer oben zurücksetzen")}</button>`;
+    el.hidden = false;
+    document.getElementById("anim-ov-blende-zurueck").onclick = () => {
+      const neu = (_ovKopie(roh) || []).map(e => {
+        if (e && e.blende) { delete e.blende.ein_s; delete e.blende.aus_s; delete e.blende.dauer_s; _ovLeerWeg(e); }
+        return e;
+      }).filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1));
+      _ovSchreiben(neu, t("animator.ovbox.blende_zurueck", "Auf die Dauer oben zurücksetzen"));
+    };
+  }
+
   function renderOverlayPreview() {
     _ovTimingBoxen = null;   // Einstellungen geändert → Zeitsteuerung neu auflösen
     try { _ovSpurAktualisieren(); } catch (_) {}
+    try { _ovBlendeEigenZeigen(); } catch (e) { applog("warn", "[anim-ov] Blende-Hinweis: " + e); }
     try { _applyAttribLook(); } catch (_) {}
     try { _overlayBoxenRendern(); } catch (e) {
       try { applog("warn", "[anim-ov] Vorschau: " + e); } catch (_) {}

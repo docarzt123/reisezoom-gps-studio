@@ -4149,7 +4149,7 @@
   "animator.ov.spur_ende": "End",
   "animator.ov.spur_einblenden": "Fade in",
   "animator.ov.spur_ausblenden": "Fade out",
-  "animator.ov.bis_vor_von": "“to” is before “from” — the box would never show. “to” is a second in the video; empty = until the end. Easier: drag the bar under “Overlays” in the timeline.",
+  "animator.ov.bis_vor_von": "“to” lies before “from” — the box would never show. Nothing applied. Did you mean “s before end”? Switch it on the right.",
   "animator.ovbox.at_video_start": "second from the start of the video",
   "animator.ovbox.at_track_km": "at a point on the track (km)",
   "animator.ovbox.at_video_end": "seconds before the end of the video",
@@ -4196,5 +4196,13 @@
   "geotagger.autotag.nur_dieses": "Only this photo",
   "geotagger.autotag.alle_starten": "Recognise {n} photos",
   "geotagger.autotag.done_1": "✓ 1 photo tagged — review and save with “Write GPS into photos”.",
-  "geotagger.autotag.toast_1": "1 photo tagged — marked as pending."
+  "geotagger.autotag.toast_1": "1 photo tagged — marked as pending.",
+  "animator.ovbox.aufpoppen": "Pop",
+  "animator.ovbox.wegpoppen": "Pop out",
+  "animator.ovbox.blende_eigen": "Own fades (from the timeline or ✎): {liste} — the duration above does not apply there.",
+  "animator.ovbox.blende_zurueck": "Reset to the duration above",
+  "animator.ov.bis_ab_start": "s from start",
+  "animator.ov.bis_vor_ende": "s before end",
+  "animator.ov.bis_art_tip": "What “to” counts from: second from the video start, or seconds before the video end",
+  "animator.ov.bis_vor_ende_falsch": "The box would end before it starts — “{n} s before end” lies before “from”. Nothing applied."
 }

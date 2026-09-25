@@ -5,20 +5,20 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 25 Sep 2026 10:19:27 +0000</lastBuildDate>
+<lastBuildDate>Fri, 25 Sep 2026 11:50:13 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
 <title>v0.9.724</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-724</link>
 <guid isPermaLink="false">gps-studio-v0.9.724</guid>
 <pubDate>Thu, 24 Sep 2026 12:00:00 +0000</pubDate>
-<description>Zeitzone im Foto falsch? Die App merkt es — schreibt die Kamera eine Zeitzone, die nicht zur Uhr passt (Uhr auf Ortszeit, Zone noch von zu Hause), schlägt der Geotagger den passenden Versatz vor. Dazu: Rückfrage vor der Bilderkennung, verdeckte Karten-Schlüssel, die Tour-Map zeigt ihr fertiges Bild wieder, und nach dem Neustart geht die zuletzt offene Tour wieder auf.
+<description>Stats-Boxen einfacher zeitlich einstellen — beim „bis“-Feld wählst du jetzt „s ab Start“ oder „s vor Ende“; ein unpassender Wert bleibt rot und verstellt den Balken nicht mehr. Am Balken stehen Sekunden und Kilometer, es gibt nur noch drei Blend-Arten (Hart, Einblenden, Aufpoppen), und das Aussehen-Fenster sagt, wenn eine Box eigene Blenden hat.
+
+Zeitzone im Foto falsch? Die App merkt es — schreibt die Kamera eine Zeitzone, die nicht zur Uhr passt (Uhr auf Ortszeit, Zone noch von zu Hause), schlägt der Geotagger den passenden Versatz vor. Dazu: Rückfrage vor der Bilderkennung, verdeckte Karten-Schlüssel, die Tour-Map zeigt ihr fertiges Bild wieder, und nach dem Neustart geht die zuletzt offene Tour wieder auf.
 
 Die Autofahrt im Video überspringen — jeder Abschnitt aus dem Logbuch lässt sich im Video zeigen, blass zeichnen, raffen oder überspringen. Einstellen im Inspektor (⋯ am Eintrag) oder im Animator unter „📖 Logbuch im Video“ — dort mit „Alle auf einmal“ (z. B. alle Fahrten) und Tagesköpfen bei Reisen über mehrere Tage.
 
-Zahlen je Bewegungsart — eine Gesamt-Box kann „nur Wanderung“, „nur Fahrt“ usw. zeigen: kein Ø-Tempo mehr aus Auto und Wanderung zusammen.
-
-Leertaste startet den Probelauf zuverlässig — auch nachdem du in ein Zahlenfeld getippt hast (Sekunden, Intro, Hold …). Gehaltene Leertaste schaltet nicht mehr hin und her.</description>
+Zahlen je Bewegungsart — eine Gesamt-Box kann „nur Wanderung“, „nur Fahrt“ usw. zeigen: kein Ø-Tempo mehr aus Auto und Wanderung zusammen.</description>
 </item>
 <item>
 <title>v0.9.722</title>
