@@ -76,7 +76,14 @@ class Zugang:
 # ══════════════════════════════════════════════════════════════════════════
 
 def _schluesselbund():
-    """Den Schlüsselbund holen — oder None, wenn es hier keinen gibt."""
+    """Den Schlüsselbund holen — oder None, wenn es hier keinen gibt.
+
+    25.09.2026 — `RZ_CLOUD_ABLAGE=datei` (Testumgebung, scripts/testumgebung.sh):
+    Zugang und Schlüssel liegen dann in der Datei im App-Ordner statt im
+    rechnerweiten Schlüsselbund — kein Freigabe-Dialog, und der Zugang zieht mit
+    dem Test-App-Ordner um."""
+    if (os.environ.get("RZ_CLOUD_ABLAGE") or "").strip().lower() == "datei":
+        return None
     try:
         import keyring
         from keyring.backends import fail
