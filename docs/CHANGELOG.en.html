@@ -117,9 +117,25 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.725</span>
+    <span class="version-date">25 September 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Data animator renders again</strong> &mdash; since 11 September every render stopped at once, in every format. Fixed.</li>
+    <li><strong>No more hang at 4 %</strong> &mdash; "Current frame as image" and "Render video" stopped at "Opening project" with a small app window. The render now finishes, the display says what it is waiting for, and a preview narrower than 640 pixels is still rendered finely — same framing.</li>
+    <li><strong>Reordering on Windows too</strong> &mdash; stats fields, signs, stations and extra tracks can be dragged by the ⠿ handle everywhere; each row also has ▲▼.</li>
+    <li><strong>Clearer names in the sign editor</strong> &mdash; "Sign colour" instead of "Background", "Outer border" instead of "Border" and "Stays visible" instead of "Visible after" — thanks to a beta tester for the hint.</li>
+    <li><strong>Heal shows a preview first</strong> &mdash; in the inspector you see outliers and gaps before anything changes; only "Apply" heals. Gaps follow a path only if it really touches the gap — the track no longer jumps to the nearest road.</li>
+    <li><strong>Swarm, Tour-Map and travel route</strong> &mdash; no tour goes missing in a swarm, "Open as Tour-Map" takes over style and framing, new formats Instagram 1:1, 4:5 and Story 9:16, and the place search finds "Schierke" in the Harz instead of a street in Berlin.</li>
+    <li><strong>Many small fixes</strong> &mdash; satellite map without black areas over the sea, the photo map no longer stays empty, the geotagger counts correctly and suggests missing time zones, files without a track are clearly refused, "New project" works on freshly opened tours, no false "Your data has moved" after the first start.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.724</span>
     <span class="version-date">24 September 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <ul>
     <li><strong>Easier timing for stats boxes</strong> &mdash; the “to” field now offers “s from start” or “s before end”; an invalid value stays red and no longer breaks the bar. Bars show seconds and kilometres, there are only three fade kinds (hard, fade, pop), and the Look panel tells you when a box has its own fades.</li>

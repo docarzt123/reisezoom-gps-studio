@@ -406,7 +406,21 @@
     try { _renderCurrent(); } catch (_) {}
   };
 
+  // 25.09.2026 (Klicktest IN-10/IN-12) — Der Inspektor hängte Tag 2 und 3 an, die
+  // Kopfzeile blieb bei Tag 1 (377,9 km / 22:43). Sie zeigt die Datei; solange der
+  // Inspektor einen ungespeicherten Stand hat, meldet er dessen Zahlen hier an und
+  // die Kopfzeile sagt „ungespeichert" dazu. `null` nimmt die Vorschau wieder weg.
+  let _vorschau = null;   // { pfad, stats }
+  window.rzGpxBarVorschau = function (v) {
+    const neu = (v && v.stats) ? { pfad: v.pfad || "", stats: v.stats } : null;
+    if (JSON.stringify(neu) === JSON.stringify(_vorschau)) return;
+    _vorschau = neu;
+    try { _renderCurrent(); } catch (_) {}
+  };
+
   function templateLoaded(name, fullPath, stats) {
+    const vorschau = !!(_vorschau && _vorschau.pfad === fullPath);
+    if (vorschau) stats = _vorschau.stats;
     const dist = stats?.distance_km != null ? fmtKm(stats.distance_km * 1000) : "—";
     const time = stats?.duration_s != null ? fmtDur(stats.duration_s) : "—";
     const asc  = stats?.ascent_m   != null ? "↑ " + fmtMeter(stats.ascent_m)  : "—";
@@ -429,6 +443,10 @@
         <span class="gpxbar-stat">${escapeHtml(time)}</span>
         <span class="gpxbar-stat">${escapeHtml(asc)}</span>
         <span class="gpxbar-stat">${escapeHtml(desc)}</span>
+        ${vorschau ? `<span class="gpxbar-stat gpxbar-ungespeichert" title="${escapeAttr(
+          (typeof t === "function"
+            ? t("gpxbar.vorschau_tip", "Zahlen des Inspektors mit den noch nicht gespeicherten Änderungen. Die Datei selbst ist unverändert.")
+            : ""))}">· ${(typeof t === "function" ? t("gpxinspect.unsaved", "ungespeichert") : "ungespeichert")}</span>` : ""}
         ${_extraN > 0 ? `<span class="gpxbar-stat gpxbar-extra" title="${escapeAttr(
           (typeof t === "function"
             ? t("gpxbar.extra_tip", "Die Zahlen links gehören zur Haupt-Tour. Im Video stehen in den Overlays die Summen aller Touren.")

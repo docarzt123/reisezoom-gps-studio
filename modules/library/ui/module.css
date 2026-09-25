@@ -759,6 +759,7 @@
 .lib-merge-meta { flex: none; color: var(--text-muted); font-size: 11px; }
 .lib-merge-row.dragging { opacity: 0.45; }
 .lib-merge-row.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: -2px; }
+.lib-merge-sort { flex: none; display: inline-flex; gap: 1px; }   /* 25.09.2026 — ▲▼ (rzSortPfeile) */
 
 /* 👻 Ghost-Auswahl: sichtbar machen, wonach das Archiv gerade fragt
    (27.08.2026 — vorher landete die Tour als Haupt-Track statt als Ghost). */

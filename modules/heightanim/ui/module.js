@@ -974,6 +974,27 @@ function mountHeightAnim(body, headerActions) {
     }[kind] || kind);
   }
 
+  // 25.09.2026 (Klicktest DA-04) — Wegpunkt-Fahnen ohne Überdeckung legen.
+  // `fahnen` = [{x, y, w, h}] mit Wunsch-y (in Reihenfolge = Vorrang). Jede Fahne
+  // nimmt die erste freie Zeile: Wunschhöhe, dann schrittweise darüber, zuletzt
+  // darunter; nichts frei → Wunschhöhe. Gibt die y-Werte zurück.
+  // SYNCHRON zu _wpFahnenLegen in core/heightanim.py.
+  function _haFahnenLegen(fahnen, oben, unten, luecke) {
+    const belegt = [];
+    return fahnen.map((f) => {
+      const schritt = f.h + luecke;
+      const frei = (y) => y >= oben - 0.5 && y + f.h <= unten + 0.5 && !belegt.some(b =>
+        f.x < b.x + b.w + luecke && b.x < f.x + f.w + luecke && y < b.y + b.h + luecke && b.y < y + f.h + luecke);
+      let y = null;
+      for (let k = 0; k < 60 && y == null; k++) if (frei(f.y - k * schritt)) y = f.y - k * schritt;
+      for (let k = 1; k < 60 && y == null; k++) if (frei(f.y + k * schritt)) y = f.y + k * schritt;
+      if (y == null) y = f.y;
+      belegt.push({ x: f.x, y, w: f.w, h: f.h });
+      return y;
+    });
+  }
+  try { window.__rzHaFahnenLegen = _haFahnenLegen; } catch (_) {}
+
   // Distanz→Höhe-Interpolation auf den aktuellen Daten
   function _eleAtDistArr(dists, elevs, d) {
     const n = dists.length;
@@ -1440,22 +1461,39 @@ function mountHeightAnim(body, headerActions) {
     // ── Wegpunkte (erscheinen sobald die Linie sie passiert) ────────────────
     const _wps = buildWaypoints();
     if (_wps.length && _progress > 0) {
+      // 25.09.2026 (Klicktest DA-04: Gipfel / steilster Anstieg / Punkt lagen
+      // übereinander) — erst ALLE Fahnen im Trimbereich legen (nach Distanz,
+      // damit keine springt, wenn während der Animation eine neue dazukommt),
+      // dann nur die schon passierten zeichnen. Synchron zu core/heightanim.py.
+      const fs = 12, fh = 17;
+      const liste = [];
       for (const wp of _wps) {
         const wd = +wp.dist_m;
         if (!isFinite(wd) || wd < dTrimStart - 1 || wd > dTrimEnd + 1) continue;
-        if (_progress < 1 && dCurrent < wd) continue;
         const wx = px(wd), wy = py(wp.ele != null ? +wp.ele : _eleAtDist(wd));
-        const col = wp.color || "#ffb37a";
-        const stemTop = wy - 18;
-        _mk("line", { x1: wx, x2: wx, y1: wy, y2: stemTop, stroke: col, "stroke-width": "1.5" });
-        _mk("circle", { cx: wx, cy: wy, r: String(Math.max(3, lw * 1.1)), fill: col, stroke: bg, "stroke-width": "1.5" });
         const label = (wp.label || "").toString();
+        const e = { wp, wd, wx, wy, label, stemTop: wy - 18 };
         if (label) {
-          const fs = 12, tw = Math.round(label.length * fs * 0.62 + 14);
-          let bx = Math.max(padL, Math.min(w - padR - tw, wx - tw / 2));
-          let by = Math.max(headH + 6, stemTop - 17);
-          _mk("rect", { x: bx, y: by, width: tw, height: 17, rx: 4, fill: "#2a2a2a", stroke: col, "stroke-width": "1" });
-          _mk("text", { x: bx + tw / 2, y: by + 12, fill: "#fff", "font-size": fs, "text-anchor": "middle", "font-family": "-apple-system, sans-serif" }, label);
+          e.tw = Math.round(label.length * fs * 0.62 + 14);
+          e.bx = Math.max(padL, Math.min(w - padR - e.tw, wx - e.tw / 2));
+          e.by = Math.max(headH + 6, e.stemTop - fh);
+        }
+        liste.push(e);
+      }
+      liste.sort((a, b) => a.wd - b.wd);
+      const mitText = liste.filter(e => e.label);
+      const ys = _haFahnenLegen(mitText.map(e => ({ x: e.bx, y: e.by, w: e.tw, h: fh })), headH + 6, h - padB, 3);
+      mitText.forEach((e, i) => { e.by = ys[i]; });
+      for (const e of liste) {
+        if (_progress < 1 && dCurrent < e.wd) continue;
+        const col = e.wp.color || "#ffb37a";
+        // Stiel bis an die Fahne (sie kann nach oben oder unter den Punkt gerückt sein).
+        const y2 = !e.label ? e.stemTop : (e.by + fh <= e.wy ? e.by + fh : e.by);
+        _mk("line", { x1: e.wx, x2: e.wx, y1: e.wy, y2, stroke: col, "stroke-width": "1.5" });
+        _mk("circle", { cx: e.wx, cy: e.wy, r: String(Math.max(3, lw * 1.1)), fill: col, stroke: bg, "stroke-width": "1.5" });
+        if (e.label) {
+          _mk("rect", { x: e.bx, y: e.by, width: e.tw, height: fh, rx: 4, fill: "#2a2a2a", stroke: col, "stroke-width": "1", class: "ha-wp-fahne" });
+          _mk("text", { x: e.bx + e.tw / 2, y: e.by + 12, fill: "#fff", "font-size": fs, "text-anchor": "middle", "font-family": "-apple-system, sans-serif" }, e.label);
         }
       }
     }

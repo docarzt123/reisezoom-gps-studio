@@ -1003,10 +1003,17 @@ def abfrage(conn: sqlite3.Connection, filter: Optional[dict] = None,
         "ordner": "ordner ASC, dateiname ASC",
     }.get(sortierung, "aufnahme_utc DESC NULLS LAST, dateiname DESC")
     n = conn.execute(f"SELECT COUNT(*) FROM fotos WHERE {wo}", werte).fetchone()[0]
+    # 25.09.2026 — „ohne Koordinate" für die TREFFER, nicht für den ganzen Bestand:
+    # die Suche „Canon" zeigte „1 Dateien · 8 ohne Koordinate". Gezählt wie in
+    # `stand()`: nur Gelesenes, Ungelesenes hat noch gar keine Koordinate.
+    # Nur mit der ersten Seite — beim Weiterblättern ändert sich die Zahl nicht.
+    ohne = conn.execute(
+        f"SELECT COUNT(*) FROM fotos WHERE {wo} AND indexed_at IS NOT NULL "
+        f"AND (lat IS NULL OR lon IS NULL)", werte).fetchone()[0] if not int(offset) else None
     rows = conn.execute(
         f"SELECT {_SPALTEN} FROM fotos WHERE {wo} ORDER BY {ordnung} LIMIT ? OFFSET ?",
         werte + [int(limit), int(offset)]).fetchall()
-    return {"n": n, "fotos": [dict(r) for r in rows]}
+    return {"n": n, "ohne_koordinate": ohne, "fotos": [dict(r) for r in rows]}
 
 
 def zeile(conn: sqlite3.Connection, path: str) -> Optional[dict]:

@@ -138,7 +138,13 @@ def testrechner() -> Optional[list]:
 def _testrechner_grund(p: Path, bereich: tuple) -> str:
     with _LOCK:
         wurzeln = _testwurzeln
-    if wurzeln is None or bereich[0] in ("app", "temp"):
+        # 25.09.2026 — ein eigener Temp-Ordner bleibt eigener Temp-Ordner, auch wenn
+        # er zusätzlich als nutzer_ziel angemeldet ist (tourmap_leaflet macht das vor
+        # dem Aufräumen). _bereich_von liefert dann „nutzer_ziel“, und die Sperre
+        # verweigerte das Löschen der eigenen Zwischendateien. Fremde Nutzerziele
+        # außerhalb der Testwurzeln bleiben gesperrt.
+        eigener_temp = any(_liegt_in(p, Path(t)) for t in _temp_ordner)
+    if wurzeln is None or bereich[0] in ("app", "temp") or eigener_temp:
         return ""
     if any(_liegt_in(p, w) for w in wurzeln):
         return ""

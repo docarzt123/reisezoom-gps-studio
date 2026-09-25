@@ -39,30 +39,86 @@ DST = ROOT / "docs" / "USER_GUIDE.html"
 # Wenn wir später eine richtige `markdown`-Library wollen: hier austauschen.
 
 IMG_BASE = ROOT / "docs"   # relative Bild-Pfade (z.B. img/foo.png) liegen unter docs/
-_IMG_CACHE: dict[str, str] = {}
+_IMG_CACHE: dict[tuple[str, int], str] = {}
 
 
-def _img_data_tag(alt_html: str, src: str) -> str:
+def _verkleinert(raw: bytes, max_px: int) -> bytes:
+    """25.09.2026 — Bild auf höchstens `max_px` Breite (Pillow, wenn vorhanden). Das
+    Logo oben im Handbuch ist 2400 px breit, gezeigt wird es mit 420 px."""
+    if not max_px:
+        return raw
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(raw))
+        if im.width <= max_px:
+            return raw
+        im = im.resize((max_px, max(1, round(im.height * max_px / im.width))), Image.LANCZOS)
+        out = io.BytesIO()
+        im.save(out, format=im.format or "PNG", optimize=True)
+        return out.getvalue() if out.tell() < len(raw) else raw
+    except Exception:
+        return raw
+
+
+def _img_data_tag(alt_html: str, src: str, max_px: int = 0) -> str:
     """`<img>` für ein Bild. Lokale Pfade werden als base64-Data-URI eingebettet,
     damit die HTML-Datei komplett eigenständig bleibt (WKWebView / Deploy / Bundle
     brauchen keine Extra-Bilddateien). `alt_html` ist bereits HTML-escaped."""
     src = src.strip()
     data_src = src
     if "://" not in src and not src.startswith("data:"):
-        if src in _IMG_CACHE:
-            data_src = _IMG_CACHE[src]
+        if (src, max_px) in _IMG_CACHE:
+            data_src = _IMG_CACHE[(src, max_px)]
         else:
             p = (IMG_BASE / src).resolve()
             try:
-                raw = p.read_bytes()
+                raw = _verkleinert(p.read_bytes(), max_px)
                 mime = mimetypes.guess_type(str(p))[0] or "image/png"
                 b64 = base64.b64encode(raw).decode("ascii")
                 data_src = f"data:{mime};base64,{b64}"
-                _IMG_CACHE[src] = data_src
+                _IMG_CACHE[(src, max_px)] = data_src
             except OSError:
                 sys.stderr.write(f"⚠️  Bild fehlt, bleibe bei Pfad: {src}\n")
                 data_src = src  # Fallback: relativer Pfad
     return (f'<img class="doc-img" src="{data_src}" alt="{alt_html}" loading="lazy">')
+
+
+# 25.09.2026 (Klicktest AL-06: „Startseite zeigt rohen HTML-Absatz samt img-Tag") —
+# USER_GUIDE*.md beginnt mit `<p align="center"><img …></p>` (für GitHub). Der Parser
+# kannte kein Roh-HTML und machte daraus einen escapten Absatz. Jetzt: eine Zeile,
+# die NUR aus erlaubten Tags besteht, geht als HTML durch; Bilder darin werden wie
+# Markdown-Bilder eingebettet (Datei bleibt eigenständig). Alles andere bleibt Text.
+_RAW_TAGS = {"p", "img", "br", "div", "span", "figure", "figcaption", "center",
+             "a", "strong", "em", "b", "i", "kbd", "sub", "sup", "picture"}
+_RAW_LINE = re.compile(r"^\s*<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>.*>\s*$")
+
+
+def _raw_html_line(line: str) -> str | None:
+    """Roh-HTML-Zeile → sicheres HTML mit eingebetteten Bildern, sonst None."""
+    if not _RAW_LINE.match(line):
+        return None
+    tags = re.findall(r"</?\s*([a-zA-Z][a-zA-Z0-9]*)", line)
+    if not tags or any(t.lower() not in _RAW_TAGS for t in tags):
+        return None
+    if re.search(r"\bon[a-z]+\s*=|javascript:", line, flags=re.I):
+        return None
+
+    def _img(m: re.Match) -> str:
+        attrs = m.group(1)
+        src_m = re.search(r'\bsrc\s*=\s*"([^"]*)"', attrs)
+        if not src_m:
+            return ""
+        alt_m = re.search(r'\balt\s*=\s*"([^"]*)"', attrs)
+        w_m = re.search(r'\bwidth\s*=\s*"?(\d+)', attrs)
+        breite = int(w_m.group(1)) if w_m else 0
+        tag = _img_data_tag(_html.escape(alt_m.group(1) if alt_m else "", quote=True),
+                            src_m.group(1), max_px=breite * 2 if breite else 0)
+        tag = tag.replace('class="doc-img"', 'class="doc-img doc-raw-img"')
+        if breite:
+            tag = tag.replace("<img ", f'<img width="{breite}" ', 1)
+        return tag
+    return re.sub(r"<img\b([^>]*)>", _img, line.strip())
 
 
 def _inline(s: str) -> str:
@@ -156,6 +212,9 @@ def _strip_versions(md: str) -> str:
         # 6) Freistehende Versionsnummer in Fett mit Trenner: „**v0.3.3** — Beta."
         #    → „Beta." (auch mitten in der Zeile).
         ln = re.sub(rf"\*\*{_V}\*\*\s*[—–-]\s*", "", ln)
+        # 6b) 25.09.2026 (Klicktest AL-06: Startseite nannte „v0.9.628", die App war
+        #     v0.9.724) — freistehende Fett-Versionsnummer am Zeilenende → weg.
+        ln = re.sub(rf"\s*\*\*{_V}\*\*\s*$", "", ln)
         # 7) Nackte Versionsnummer direkt vor schließender Klammer: „(Beta v0.3.x)"
         #    → „(Beta)". Auch „(v0.9.446)" → „()" (danach weg-geräumt).
         ln = re.sub(rf"\s+{_V}(?=\s*\))", "", ln)
@@ -242,6 +301,15 @@ def md_to_html(md: str) -> str:
             cap = (f"<figcaption>{_inline(alt_raw)}</figcaption>"
                    if alt_raw.strip() else "")
             out.append(f"<figure>{tag}{cap}</figure>")
+            i += 1
+            continue
+
+        # Roh-HTML-Zeile (z. B. das zentrierte Logo oben) — siehe _raw_html_line
+        raw_html = _raw_html_line(line)
+        if raw_html is not None:
+            close_list()
+            out.append(raw_html if raw_html.lstrip().startswith(("<p", "<div", "<figure", "<center"))
+                       else f"<p>{raw_html}</p>")
             i += 1
             continue
 
@@ -529,6 +597,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     box-shadow: 0 4px 18px rgba(0,0,0,0.35);
   }}
   figure {{ margin: 1.6em 0; text-align: center; }}
+  /* 25.09.2026 — Roh-HTML-Bild (Logo oben, dunkle Schrift): helle Karte im dunklen Handbuch */
+  .doc-raw-img {{
+    display: inline-block;
+    background: #f6f7f9;
+    padding: 10px 18px;
+    box-shadow: none;
+  }}
   figcaption {{
     color: var(--text-muted);
     font-size: 12.5px;

@@ -6,6 +6,7 @@
 #   scripts/testumgebung.sh zuruecksetzen leer          frische Arbeitskopien, Erststart (Onboarding)
 #   scripts/testumgebung.sh starten                    installierte App MIT dem Test-App-Ordner starten
 #   scripts/testumgebung.sh vorne                      die Test-App nach vorne holen (nie die normale App)
+#   scripts/testumgebung.sh oeffnen <datei>            Datei von außerhalb öffnen wie per Doppelklick im Finder
 #   scripts/testumgebung.sh aufraeumen                 in _alt/ nur die letzten 2 Stände behalten
 #   scripts/testumgebung.sh schutzprobe                Probeordner für GT-12 (außerhalb der Testwurzel)
 #   scripts/testumgebung.sh cloud-einrichten <adresse>  Test-Cloud anlegen (eigener Server-Ordner)
@@ -143,6 +144,19 @@ case "${1:-}" in
     echo "✓ gestartet mit App-Ordner $APP_ORDNER (oben rechts steht „· TEST“)"
     ;;
   vorne)
+    nach_vorne ;;
+  oeffnen)   # 25.09.2026 — AN-25/AL-02: eine Datei von außerhalb öffnen wie per Doppelklick im Finder (Apple-Event „odoc")
+    DATEI="${2:-}"
+    [ -f "$DATEI" ] || { echo "Datei fehlt oder gibt es nicht: $0 oeffnen <pfad>"; exit 2; }
+    test_app_pid >/dev/null || { echo "Die Test-App läuft nicht — erst: $0 starten"; exit 1; }
+    # Läuft daneben die normale App, könnte macOS die Datei ihr geben → dann lieber nichts tun.
+    for p in $(pgrep -f "Reisezoom GPS Studio.app/Contents/MacOS" || true); do
+      if ! ps -Eww -o command= -p "$p" | grep -qF "RZ_APP_ORDNER=$APP_ORDNER"; then
+        echo "Die normale App läuft auch (PID $p) — erst beenden, sonst landet die Datei womöglich dort."; exit 1
+      fi
+    done
+    open -a "$APP" "$DATEI"
+    echo "✓ an die Test-App übergeben: $DATEI"
     nach_vorne ;;
   schutzprobe)   # GT-12: ein Ordner AUSSERHALB der Testwurzel mit einer Fotokopie — die App muss sich weigern
     PROBE="/tmp/rz-schutzprobe"

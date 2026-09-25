@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 25 Sep 2026 11:50:13 +0000</lastBuildDate>
+<lastBuildDate>Fri, 25 Sep 2026 17:56:58 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.725</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-725</link>
+<guid isPermaLink="false">gps-studio-v0.9.725</guid>
+<pubDate>Fri, 25 Sep 2026 12:00:00 +0000</pubDate>
+<description>Daten-Animator rendert wieder — seit dem 11. September brach jeder Render sofort ab, in allen Formaten. Behoben.
+
+Kein Hänger mehr bei 4 % — „Aktuellen Frame als Bild“ und „Video rendern“ blieben bei kleinem App-Fenster bei „Projekt öffnen“ stehen. Jetzt läuft der Render durch, die Anzeige sagt, worauf sie wartet, und ist die Vorschau kleiner als 640 Pixel, wird trotzdem fein gerendert — gleicher Ausschnitt.
+
+Sortieren auch unter Windows — die Reihenfolge der Statistik-Felder, Schilder, Stationen und Zusatzspuren lässt sich jetzt überall am ⠿-Griff ziehen; zusätzlich hat jede Zeile ▲▼.
+
+Klarere Namen im Schild-Editor — „Schildfarbe“ statt „Hintergrund“, „Außenrand“ statt „Rahmen“ und „Bleibt sichtbar“ statt „Sichtbar nach“ — danke an einen Beta-Tester für den Hinweis.</description>
+</item>
 <item>
 <title>v0.9.724</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-724</link>
@@ -197,19 +210,6 @@ Geotagger mit mehreren Tracks, nachgebessert — Der Track-Vorschlag kommt jetzt
 <guid isPermaLink="false">gps-studio-v0.9.686</guid>
 <pubDate>Thu, 10 Sep 2026 12:00:00 +0000</pubDate>
 <description>Geotagger: mehrere Tracks auf einmal — Ordner mit Fotos laden, fertig: GPX-Dateien neben den Fotos wandern ins Archiv, das Archiv sucht zu den Aufnahmezeiten alle passenden Touren und zeigt eine Bestätigungsliste (Häkchen je Tour, Fotos je Tour, Fotos ohne Tour). „Aus dem Archiv …“ holt weitere dazu. Jedes Foto landet auf dem Track, dessen Zeit passt; vorgegebene Tracks gewinnen, sonst der nähere Punkt; „↔ auch: …“ zeigt Doppel-Treffer. Alle Tracks in eigener Farbe auf der Karte, Liste in der Seitenleiste. (GitHub-Issue #7)</description>
-</item>
-<item>
-<title>v0.9.685</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-685</link>
-<guid isPermaLink="false">gps-studio-v0.9.685</guid>
-<pubDate>Wed, 09 Sep 2026 12:00:00 +0000</pubDate>
-<description>Übergang „Pause“ und Höhenprofil — Neben Kinoflug, Luftlinie und Schnitt gibt es die Pause: nichts passiert, Bild und Laufpunkt bleiben am Ende der Etappe stehen, der Halt bleibt, das Bild springt erst mit der nächsten Etappe. Das Höhenprofil einer Reise war immer platt (800 Punkte gegen 200 Höhen) — behoben. Neu darunter der Schalter „Ganze Strecke“ (Etappengrenzen als Marken) oder „Laufende Etappe“ (baut sich je Etappe neu auf, Name in der Kopfzeile).
-
-Aussehen je Track — Die Sektion „Linie“ ist weg. Jeder Eintrag unter „Tracks“ klappt mit ▸ sein eigenes Aussehen auf: Dicke, Linien-Stil mit Abstand, Schatten, Glow und Punktreduzierung in Prozent. Auch der Laufpunkt (zeigen, Kugel oder Pfeil, Größe) gehört jedem Track; das Häkchen „Form der Haupt-Tour für alle“ entfällt. Parallele Spuren zeigen Schatten, Glow, Muster und ihren eigenen Laufpunkt in Vorschau und Video. Ein neuer Track übernimmt das Aussehen von Track 1. „Aussehen auf alle übernehmen …“ kopiert von einem Track auf alle anderen, nur die angekreuzten Felder (die Farbe ist standardmäßig nicht dabei). Tempo-Modus und Pausen stehen in den Video-Einstellungen. Liegt eine Zusatz-Tour vorne in der Kette, zeichnet die Hauptlinie ihr Aussehen, und der Laufpunkt folgt der laufenden Etappe.
-
-Mehrere Tracks: Farbe und Höhenprofil — Beginnt die Reihe mit einer anderen Etappe als dem ersten Track, hatte die Linie trotzdem dessen Farbe; jetzt die Farbe der Etappe, die sie zeichnet. Zusatz-Touren brachten keine Höhen mit, das Profil war eine Gerade; jetzt laufen ihre Höhen mit.
-
-Quellenzeile — steht jetzt ganz oben in den Overlays; Standard ist die ganze Breite unten mit vollen Angaben.</description>
 </item>
 </channel>
 </rss>

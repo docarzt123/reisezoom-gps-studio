@@ -229,6 +229,59 @@ def sea_mask_for(z: int, x: int, y: int, size: int, cache_dir):
     return mask
 
 
+# 25.09.2026 (Klicktest AN-01: „Satellit kostenlos zeigt über dem Meer dauerhaft kantige
+# schwarze Flächen", Teneriffa/Los Cristianos) — die Meer-Maske kommt aus der z10-Terrarium-
+# Kachel (≈150 m/px), und dort steht das Meer küstennah auf 0 m statt darunter. Ein bis zwei
+# DEM-Pixel breit (bei z13 je 8×8 Kachelpixel) galt es deshalb als Land, PNOA blieb dort
+# opak fast schwarz (gemessen RGB ≈ 7–12/12–23/18–29) → Treppen-Rechtecke vor der Küste.
+# Die z10-Kachel ist dort zudem geglättet: offenes Meer 1 km vor Los Cristianos stand auf
+# +35…60 m. Oberhalb z10 ist das Meer in Terrarium dagegen FLACH 0 m und die Küstenlinie
+# scharf (z13 gemessen). Zusätzlich jetzt: wo die hochauflösende Terrarium-Kachel ≤ 0 m
+# zeigt (Meer oder Strand auf Meereshöhe), werden PNOA-Pixel durchsichtig, die so dunkel
+# und blaustichig sind wie dieses Meer — darunter liegen Sentinel-2 und Blue Marble.
+# Helles Küstenwasser (türkis) bleibt, Land über 0 m bleibt unangetastet (dunkle Lava).
+_KUESTE_RAW_MAX_Z = 15      # AWS-Terrarium reicht bis z15; darüber aus der Elternkachel
+MEER_DUNKEL_MAX = 40        # hellster Kanal eines „Meer"-Pixels (0–255)
+MEER_BLAU_MIN = 4           # Blau mindestens so viel über Rot (neutral-dunkle Schatten bleiben)
+SEA_MASK_VERSION = "#sea2"  # Zwischenspeicher-Schlüssel — alte Kacheln (#sea1) neu rechnen
+
+
+def kuesten_maske_for(z: int, x: int, y: int, size: int, cache_dir):
+    """PIL-L-Maske (255 = DEM ≤ 0 m, also Meer/Meereshöhe) für z/x/y aus der Terrarium-
+    Kachel DERSELBEN Zoomstufe (bis z15), weich hochskaliert. None ohne Höhendaten.
+    Höhe < 1 m ⇔ R < 128 oder (R == 128 und G == 0)."""
+    from PIL import Image, ImageChops
+    zz, xx, yy, crop = z, x, y, None
+    if z > _KUESTE_RAW_MAX_Z:
+        d = z - _KUESTE_RAW_MAX_Z
+        zz, xx, yy = _KUESTE_RAW_MAX_Z, x >> d, y >> d
+        n = 1 << d; sub = 256 // n
+        crop = ((x % n) * sub, (y % n) * sub, (x % n) * sub + sub, (y % n) * sub + sub)
+    im = _terrarium_raw(zz, xx, yy, cache_dir)
+    if im is None:
+        return None
+    if crop:
+        im = im.crop(crop)
+    r, g, _b = im.split()
+    unter = r.point(lambda v: 255 if v < 128 else 0)
+    genau = ImageChops.multiply(r.point(lambda v: 255 if v == 128 else 0),
+                                g.point(lambda v: 255 if v == 0 else 0))
+    mask = ImageChops.lighter(unter, genau)
+    if mask.size != (size, size):
+        mask = mask.resize((size, size), Image.BILINEAR)
+    return mask
+
+
+def meer_dunkel_maske(im):
+    """PIL-L-Maske (255 = so dunkel und blaustichig wie PNOA-Meer) eines RGB(A)-Bilds."""
+    from PIL import ImageChops
+    r, g, b = im.convert("RGB").split()
+    hellster = ImageChops.lighter(ImageChops.lighter(r, g), b)
+    dunkel = hellster.point(lambda v: 255 if v <= MEER_DUNKEL_MAX else 0)
+    blau = ImageChops.subtract(b, r).point(lambda v: 255 if v >= MEER_BLAU_MIN else 0)   # B > R
+    return ImageChops.multiply(dunkel, blau)
+
+
 def apply_sea_mask(body: bytes, ct: str, z: int, x: int, y: int, cache_dir) -> tuple[bytes, str]:
     """Orthofoto-Kachel: Meerpixel durchsichtig machen (PNG mit Alpha)."""
     try:
@@ -236,9 +289,20 @@ def apply_sea_mask(body: bytes, ct: str, z: int, x: int, y: int, cache_dir) -> t
         from PIL import Image, ImageChops
         im = Image.open(BytesIO(body)).convert("RGBA")
         mask = sea_mask_for(z, x, y, im.size[0], cache_dir)
-        if mask is None or mask.getextrema() == (255, 255):
+        kueste = kuesten_maske_for(z, x, y, im.size[0], cache_dir)
+        weg = None
+        if kueste is not None and kueste.getbbox():
+            weg = ImageChops.multiply(kueste, meer_dunkel_maske(im))
+            if not weg.getbbox():
+                weg = None
+        if (mask is None or mask.getextrema() == (255, 255)) and weg is None:
             return body, ct                       # keine Höhendaten / kein Meer in dieser Kachel
-        im.putalpha(ImageChops.multiply(im.split()[3], mask))
+        alpha = im.split()[3]
+        if mask is not None:
+            alpha = ImageChops.multiply(alpha, mask)
+        if weg is not None:
+            alpha = ImageChops.multiply(alpha, ImageChops.invert(weg))
+        im.putalpha(alpha)
         out = BytesIO(); im.save(out, format="PNG", compress_level=3)
         return out.getvalue(), "image/png"
     except Exception as e:      # noqa: BLE001
@@ -287,7 +351,7 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
         if region is None:
             return 404, "text/plain", b"unknown region"
         url = upstream_url(region, z, x, y, transparent)
-    _suffix = CLAMP_KEY_SUFFIX if terrain else ("#sea1" if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else "")
+    _suffix = CLAMP_KEY_SUFFIX if terrain else (SEA_MASK_VERSION if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else "")
     cp = cache_path(Path(cache_dir), url + _suffix) if cache_dir else None   # eigener Schlüssel je Nachbearbeitung
     if cp is not None and cache_fresh(cp):
         try:

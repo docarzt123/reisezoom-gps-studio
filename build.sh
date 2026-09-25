@@ -80,6 +80,15 @@ else
 fi
 # Quarantine-Flag raus (sonst meckert macOS beim ersten Doppelklick)
 xattr -dr com.apple.quarantine "/Applications/$APPNAME" 2>/dev/null || true
+# 25.09.2026 — Bundle bei LaunchServices neu anmelden. Nach rm -rf + cp -R direkt nach einem
+# vorigen Build meldete `open -n -a … --env` (Testumgebung) „kLSNoExecutableErr: The
+# executable is missing", obwohl die Datei da war — der Startdienst hatte den alten Stand.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+  -f "/Applications/$APPNAME" 2>/dev/null || true
+# … und die Kopie in dist/ abmelden: gleiche Bundle-ID, macOS griff in der Lücke auf sie
+# zurück (Codex-Lauf 3: ein Fenster aus dist/ mit „GPS Studio konnte nicht starten").
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+  -u "dist/$APPNAME" 2>/dev/null || true
 
 SIZE=$(du -sh "/Applications/$APPNAME" | cut -f1)
 echo ""

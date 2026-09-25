@@ -156,9 +156,11 @@
               : null;
             const name = wahl && wahl.name;
             if (name) {
-              await projectCreate(name, "", wahl.vorlageId || "");
+              const r = await projectCreate(name, "", wahl.vorlageId || "");
               if (typeof rebindAllSettings === "function") rebindAllSettings();
               if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged();
+              // 25.09.2026 (Klicktest PR-02): offene Projektliste im Archiv auffrischen.
+              if (r && r.ok) window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
             }
           } else if (action === "duplicate") {
             menu.hidden = true;
@@ -168,7 +170,9 @@
               project.name + " (Kopie)",
             );
             if (name) {
-              await projectCreate(name, project.id);
+              // 25.09.2026 (Klicktest PR-02): „@aktiv" — die Kennung kann hier noch
+              // leer sein (Projekt erst beim ersten Speichern entstanden).
+              await projectCreate(name, project.id || "@aktiv");
               if (typeof rebindAllSettings === "function") rebindAllSettings();
               if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged();
             }

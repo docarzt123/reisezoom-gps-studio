@@ -1,6 +1,6 @@
 # Testprotokoll GPS Studio — Klicktest für einen unabhängigen Test-Chat
 
-Stand: 25.09.2026 · App-Version 0.9.724 · Testrechner: Mac mini (dieser Rechner)
+Stand: 25.09.2026 · App-Version 0.9.725 · Testrechner: Mac mini (dieser Rechner)
 
 Dieses Dokument ist die Arbeitsanweisung für einen Chat **mit Computersteuerung**, der
 GPS Studio von Anfang bis Ende durchklickt und einen Bericht schreibt. Es setzt kein
@@ -84,19 +84,30 @@ Im Terminal (Arbeitsordner `…/Reisezoom-GPS-Studio`):
 ./scripts/testumgebung.sh vorne
 ```
 
-- **vorbefuellt**: Archiv mit 35 Touren (39 Dateien), zwei Sammlungen („Teneriffa Februar 2026",
+- **vorbefuellt**: Archiv mit 35 Touren (38 Dateien), zwei Sammlungen („Teneriffa Februar 2026",
   „Problemfälle"), Kartenschlüssel gesetzt, Sprache Deutsch. Standard für alle Blöcke.
 - **leer**: Erststart mit Onboarding, ohne Bibliothek und ohne Schlüssel. Nur für Block ER.
 - Vor dem Zurücksetzen die Test-App mit **⌘Q** beenden, sonst bricht das Skript ab.
 - `starten` holt eine schon laufende Test-App nach vorne statt sie ein zweites Mal zu starten; `vorne` tut nur das.
-- Nach dem Start steht oben rechts **„v0.9.724 · TEST"** auf gelbem Grund. Fehlt das,
+- Nach dem Start steht oben rechts **„v0.9.725 · TEST"** auf gelbem Grund. Fehlt das,
   sofort beenden — dann läuft die falsche App.
 
 ### A5. Dateien auswählen
 
 Die App öffnet macOS-Dateidialoge. Am schnellsten: im Dialog **⌘⇧G** drücken, den Pfad
 einfügen (z. B. `~/GPS-Studio-Test/Arbeit/zum-oeffnen/01-formate/`), Enter, Datei wählen.
-Drag & Drop aus dem Finder geht ebenfalls.
+**Speichern-Dialog:** Ordner per ⌘⇧G ansteuern, ins Namensfeld **nur den Dateinamen** tippen (z. B.
+`AN-12-Schildkroete.png`) — ein ganzer Pfad im Namensfeld wird von macOS zu einem Dateinamen
+mit Doppelpunkten („:Users:…“).
+
+Drag & Drop aus dem Finder ist **nicht** erlaubt (fremdes Fenster, siehe A7). Eine Datei **von außerhalb
+des Archivs** öffnest du wie per Doppelklick im Finder mit
+`"/Volumes/MacMini 2TB Acasis/Claude-Masterblaster/Reisezoom-GPS-Studio/scripts/testumgebung.sh" oeffnen <pfad>` — das gibt die Datei an die Test-App und holt sie nach vorne.
+
+**Tastenkürzel mit Z und Y:** Die Tastatur dieses Rechners ist deutsch belegt, die Steuerung sendet
+US-Tastencodes — ein gesendetes ⌘Z kommt als ⌘Y an und umgekehrt. Rückgängig/Wiederherstellen prüfst du
+darum über die Knöpfe **↶ Rückgängig / ↷ Wiederherstellen** (bzw. „Rückgängig“ im Modul). Das Kürzel selbst
+nur in AL-04, dort mit gesendetem ⌘Y (= ⌘Z auf der deutschen Tastatur).
 
 ### A6. Bericht
 
@@ -149,8 +160,8 @@ Umgebung: `zuruecksetzen vorbefuellt`, `starten`.
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.724 · TEST", keine Fehlermeldung |
-| S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 35 Touren; links Sammlungen „Problemfälle" (19) und „Teneriffa Februar 2026" (5) |
+| S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.725 · TEST", keine Fehlermeldung |
+| S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 35 Touren; links Sammlungen „Problemfälle" (18) und „Teneriffa Februar 2026" (5) |
 | S-03 | Suchfeld: `Teide` | Die Teide-Tour mit „2×" (angezeigt mit ihrem GPX-Titel „Pico del Teide Brutal …") über den Namen; dazu Treffer über die Gegend (Santiago del Teide, La Orotava). Der Hinweis nennt beide Zahlen (z. B. „4 Touren hier · 2 über den Namen") |
 | S-04 | Tour **kaputt-mit-absicht** anklicken | Kachel mit rotem ⚠︎; rechts Track-Check mit Sprung, Höhen-Müll, Lücke, Zeit rückwärts |
 | S-05 | Doppelklick auf **Wer sieht die Schildkröte 🐢** | Animator öffnet, Track auf der Karte, Strecke ≈ 15,8 km |
@@ -176,11 +187,11 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| ER-01 📷 | Starten | Onboarding „Wo soll deine Bibliothek liegen?" in drei Schritten |
+| ER-01 📷 | Starten | Willkommen „Wo soll deine Bibliothek liegen?“ (Bibliothek anlegen oder wählen); oben rechts auf dem Schleier gelb **„v0.9.725 · TEST“**. Kein Fenster „Deine Daten sind umgezogen“ |
 | ER-02 | Ort wählen: `~/GPS-Studio-Test/Bibliothek` (neu anlegen) | Wird angenommen; keine Rückfrage nach Cloud-Ordnern |
 | ER-03 | Frage nach Mapbox-Token / Kartenanbieter | **Kostenlos** wählen. Nichts eintippen |
 | ER-04 | Archiv öffnen | Leere Fläche mit großem „+ Ordner hinzufügen" |
-| ER-05 | Ordner `~/GPS-Studio-Test/Arbeit/archiv` hinzufügen | Einlesen läuft mit Fortschritt, am Ende 35 Touren (39 Dateien, 4 mehrfach) |
+| ER-05 | Ordner `~/GPS-Studio-Test/Arbeit/archiv` hinzufügen | Einlesen läuft mit Fortschritt, am Ende 35 Touren (38 Dateien, 3 mehrfach) |
 | ER-06 | Frage „Bestand prüfen?" (falls sie kommt) | Beantworten mit „Prüfen"; Marken wie in `SOLL-ARCHIV.md` |
 | ER-07 | Animator mit einer Tour öffnen | Karte kostenlos (OSM/OpenFreeMap), Probe-Lauf geht |
 | ER-08 | Beenden und neu starten | Kein Onboarding mehr, Bibliothek wieder offen |
@@ -204,7 +215,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | AR-03 | Filter: Arten → Rad | Nur Rad-Touren (u. a. fehlalarm-zitter-spike-rad) |
 | AR-04 | Filter: Zeitraum 2026 / ab 20 km | Liste passt, **Filter zurücksetzen** stellt alles her |
 | AR-05 | Sammlung **Teneriffa Februar 2026** öffnen | 5 Touren vom 17.–22.02.2026 |
-| AR-06 | Neue Sammlung `Test-Sammlung`, 3 Touren per ⌘-Klick hinzufügen, umbenennen, löschen | Alles klappt; Löschen der Sammlung löscht **keine** Touren |
+| AR-06 | Neue Sammlung `Test-Sammlung`, 3 Touren hinzufügen (Mehrfachauswahl per ⌘-Klick geht mit der Steuerung nicht — dann je Tour einzeln in die Sammlung legen), umbenennen, löschen | Alles klappt; Löschen der Sammlung löscht **keine** Touren |
 | AR-07 | Tour **Teide Original** favorisieren, Schlagwort `testwort` vergeben, Notiz schreiben | Favoriten-Zähler +1; Suche nach `testwort` findet sie |
 | AR-08 | **Doppelte finden** | Findet die Teide-Dublette und Vilaflor (03-touren ↔ Teneriffa-Woche) |
 | AR-09 | Tour **kaputt-mit-absicht**: Detail → Track-Check → bei „Zeit rückwärts" **Ist so in Ordnung** | Befund verschwindet, steht grau mit „wieder anzeigen"; Kachel-Marke bleibt rot (Sprung) |
@@ -212,7 +223,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | AR-11 | Übersichtskarte (🌍) | Alle Touren als Linien; Teneriffa, Brandenburg, Harz, Schottland/Nordsee erkennbar |
 | AR-12 | Statistik (📊) | Summen plausibel (km, Stunden, Anzahl) |
 | AR-13 | Fortbewegungsart von **mischfall-wanderung-mit-auto** auf „Wandern" setzen | Wird gespeichert, Filter „Wandern" findet sie |
-| AR-14 | Tour anklicken → rechts **Versionen** | Genau eine Version; Knöpfe ⬇ (Export nach `Ausgaben/`) funktioniert |
+| AR-14 | Tour anklicken, rechts die Details ansehen | Bei einer Tour mit **nur einer** Fassung gibt es keinen Bereich „Versionen“ — richtig so. Wurde eine Tour im Inspektor geändert und gespeichert (Block IN), hat sie zwei Fassungen: dort erscheint „Versionen“ mit beiden. Findest du keine solche Tour: ⏭ mit Notiz |
 
 ### FO — Fotos im Archiv (Bestand)
 
@@ -224,7 +235,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | FO-04 | Ansicht **Nach Touren** | Fotos vom 05.05.2023 bei „Barranco de Masca" |
 | FO-05 | Suche/Filter nach Kamera „Canon" | Nur B_01 |
 | FO-07 📷 | Zweiten Ordner hinzufügen: `Arbeit/fotos/echt-mit-gps` | 76 Fotos; Kartenansicht: Punktwolke entlang Barranco de Masca; Klick in die Wolke nennt die Tour |
-| FO-08 | Nach Touren → Barranco de Masca | 76 echte + die synthetischen Masca-Fotos |
+| FO-08 | Nach Touren → Barranco de Masca | 73 der 76 echten Fotos + die synthetischen bei Masca. **3 Canon-Fotos bleiben ohne Tour** — richtig so: die Canon schreibt +02:00, ihre Uhr lief aber auf UTC+1, dadurch liegen sie eine Stunde vor dem Trackbeginn. Die Fotoübersicht verschiebt keine Zeiten; das korrigiert erst der Geotagger (GT-20 ff.) |
 | FO-06 | Ordner wieder entfernen | Verschwindet aus dem Bestand; Dateien in `Arbeit/fotos/bestand` bleiben (im Finder prüfen) |
 
 ### IN — GPX-Inspektor
@@ -233,8 +244,8 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 |---|---|---|
 | IN-01 | Archiv: **kaputt-mit-absicht** → **Im Inspektor reparieren** | Inspektor mit Befund-Kasten: Sprung, Lücke (~790 m), Zeit rückwärts, 3 Höhen −600 m |
 | IN-02 | Im Befund-Kasten je Befund **Zeigen** | Karte springt zur Stelle |
-| IN-03 📷 | **🩹 Auto-Heilen** | Vorschau: orange Ausreißer, magenta Lücke; noch nichts geändert |
-| IN-04 | **Alle heilen**, dann ⌘Z, dann ⌘⇧Z | Heilen wirkt; Rückgängig stellt her; Wiederherstellen heilt wieder |
+| IN-03 📷 | **🩹 Heilen** | Kasten „Vorschau — noch nichts geändert“: orange Ausreißer, magenta Lücken, die geplanten Track-Check-Schritte; Track und Zahlen oben unverändert. Danach **✓ Übernehmen**: Track geheilt, Track-Check findet nichts mehr; Strecke ≈ 35,2 km, Dauer ≈ 13:23, ↑ ≈ 1800 m (die drei Höhen-Müllwerte sind weg) |
+| IN-04 | Nach IN-03 (übernommen): ↶ Rückgängig, dann ↷ Wiederherstellen (Knöpfe, siehe A5) | Heilen wirkt; Rückgängig stellt her; Wiederherstellen heilt wieder |
 | IN-05 | **Speichern** / Version | Neue Version im Archiv („V2"), Originaldatei in `Arbeit/archiv` unverändert (Größe/Datum im Finder) |
 | IN-06 | Tour **track_teufelsmauer**: Punkt anklicken → Punkt löschen; Anker A+B → Lücke füllen | Beides wirkt, Punktzahl ändert sich |
 | IN-07 | Punkt anklicken → **Alles davor abschneiden** | Track beginnt dort; ⌘Z nimmt zurück |
@@ -242,19 +253,19 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | IN-09 | **Höhe korrigieren** (Karte statt GPS) | Läuft, Höhenprofil ändert sich plausibel |
 | IN-10 | **Tracks verbinden**: `zum-oeffnen/06-tagesdateien/reise-tag-1-…gpx` öffnen, Tag 2 und Tag 3 „nach Uhrzeit" anhängen | Ein Track, drei Tage; Nahtstellen-Lücke wird angezeigt, nicht überbrückt |
 | IN-11 | Geplante Route **geplant-2025-10-20_Rheinstei** öffnen | Keine roten Befunde; „Zeitachse erzeugen" nur, wenn keine Zeiten da sind |
-| IN-12 | `zum-oeffnen/01-formate/demo_komoot.kml` öffnen → **Zeitachse erzeugen**, Wunschtempo 4 km/h | Dauer ≈ 175,7 km / 4 km/h ≈ 44 h |
+| IN-12 | `testumgebung.sh oeffnen ~/GPS-Studio-Test/Arbeit/zum-oeffnen/01-formate/demo_komoot.kml` (Hinweis „liegt schon im Archiv“ ist richtig: dieselbe Strecke wie *mischfall-wanderung-mit-auto*, dort mit Zeiten) → im Track-Check **Zeitachse erzeugen**, Wunschtempo 4 km/h | Dauer ≈ 175,7 km / 4 km/h ≈ 44 h; Kopf und Logbuch zeigen danach Zeiten |
 
 **Logbuch (im Inspektor, unten):**
 
 | ID | Aktion | Erwartet |
 |---|---|---|
 | IN-20 📷 | Tour **mischfall-wanderung-mit-auto** im Inspektor | Logbuch: Pausen, Spaziergänge, Fahrten, Rad, eine Überfahrt (Zahlen in `SOLL-WERTE.md`) |
-| IN-21 | Eintrag einer **Fahrt**: ⋯ → Art ändern → Wanderung; dann ⌘Z | Art wechselt; Rückgängig stellt her |
-| IN-22 | ⋯ → **Im Video → überspringen** | Eintrag trägt „⤼ überspringen"; ⌘Z nimmt es zurück |
+| IN-21 | Eintrag einer **Fahrt**: ⋯ → Art ändern → Wanderung; dann ↶ Rückgängig | Art wechselt; Rückgängig stellt her |
+| IN-22 | ⋯ → **Im Video → überspringen** | Eintrag trägt „⤼ überspringen"; ↶ Rückgängig nimmt es zurück |
 | IN-23 | ⋯ → Umbenennen `Testname` | Name steht am Eintrag |
 | IN-24 | Punkt-Modus: eigenen Punkt setzen, Name `Bank` | Punkt „Bank" in der Liste und auf der Karte |
 | IN-25 | Großes Logbuch-Fenster öffnen, nach Dauer sortieren, Fenster verschieben | Sortierung stimmt; Fenster bleibt nach Schließen/Öffnen an seiner Stelle |
-| IN-26 | Tour **reise-5-wochen** | Tagesköpfe (38 Tage), Klick auf einen Tag zoomt; keine Hänger > 10 s |
+| IN-26 | Tour **reise-5-wochen** | Tagesköpfe (38 Tage), Klick auf einen Tag zoomt **genau diesen** Tag (die Köpfe kleben oben übereinander — den gewünschten Kopf per Tastatur: anklicken/fokussieren, Enter); keine Hänger > 10 s. Logbuch-Summen ≈ 214 Pausen · 47 Spaziergänge · 37 Übernachtungen · 140 Fahrt · 2 Fähren (die App rechnet mit Tagen und der Archiv-Aktivität; `SOLL-WERTE.md` ohne beides und zeigt deshalb 146/53) |
 
 ### AN — Animator
 
@@ -272,7 +283,7 @@ Vorher: Tour **Wer sieht die Schildkröte 🐢** im Animator.
 | AN-08 | Doppelklick auf freie Stelle der Box-Zeile → zweiter Zeitraum | Zwei Balken; Rechtsklick öffnet das Fenster mit „Zeitraum 1, 2" |
 | AN-09 | Box-Fenster: Rahmen, Schatten, Einblendung | Einblend-Arten sind genau **Hart, Einblenden, Aufpoppen** (Ausblenden: Hart, Ausblenden, Wegpoppen); Vorschau zeigt es |
 | AN-10 | Leertaste nach Tippen in ein Zahlenfeld | Probe-Lauf startet trotzdem |
-| AN-15 | Seitenleiste Gesamt-Stats ⏱: „15“ – „2“ und rechts **„s vor Ende“** | Balken reicht von 15 s bis 2 s vor Ende; Felder und Balken zeigen dasselbe |
+| AN-15 | Seitenleiste Gesamt-Stats ⏱: „5“ – „2“ und rechts **„s vor Ende“** (das Video aus AN-03 ist 14 s lang) | Balken reicht von 5 s bis 2 s vor Ende; Felder und Balken zeigen dasselbe. Probe: „15“ – „2 s vor Ende“ muss rot werden („endet, bevor sie beginnt“) und wird nicht übernommen |
 | AN-16 | ⏱ „15“ – „5“ mit **„s ab Start“** | Feld „bis“ wird rot mit Hinweis („Meintest du s vor Ende?“), **Balken bleibt unverändert** |
 | AN-17 | Einen Blendenpunkt am Balken ziehen, dann unter „Aussehen“ die „Dauer der Blende“ ansehen | Unter der Dauer steht „Eigene Blenden … Gesamt …“ mit „Auf die Dauer oben zurücksetzen“; Klick → Hinweis weg, Balken zeigt wieder die Dauer oben |
 | AN-11 | Fotos auf der Karte: `Arbeit/fotos/geotagger/E_hat_schon_gps.jpg` hinzufügen | Schild/Foto an der richtigen Stelle |
@@ -289,7 +300,7 @@ Vorher: Tour **Wer sieht die Schildkröte 🐢** im Animator.
 | AN-22 | Fahrt → **blass**, dann **raffen (×8)** | Blass: Linie schwach; raffen: Linie normal, Abschnitt deutlich schneller |
 | AN-23 | Gesamt-Stats ✎ → Zahlen für: **nur Fahrt** | Box zeigt nur die Fahrt-Strecke (kleiner als 175,7 km), Max-Tempo nicht höher als bei „Ganze Strecke" |
 | AN-24 | Zurück auf zeigen, Box auf „Ganze Strecke" | Alles wie vorher |
-| AN-25 | Eine Datei **außerhalb** des Archivs öffnen: `zum-oeffnen/01-formate/track_teide.gpx` | Sektion sagt „Das Logbuch gibt es für Touren im Archiv." |
+| AN-25 | Eine Datei **außerhalb** des Archivs öffnen: `testumgebung.sh oeffnen ~/GPS-Studio-Test/Arbeit/zum-oeffnen/01-formate/track_teide.gpx` (siehe A5), die Frage nach dem Archiv mit „Nein“ beantworten | Sektion sagt „Das Logbuch gibt es für Touren im Archiv." |
 
 ### RE — Mehrere Touren (Reise, Schwarm, Zusammenführen)
 
@@ -298,7 +309,7 @@ Vorher: Tour **Wer sieht die Schildkröte 🐢** im Animator.
 | RE-01 | Sammlung Teneriffa → alle 5 wählen → **Als Reise** in den Animator | Etappen 1–5 in Reihenfolge, Übergänge Kinoflug |
 | RE-02 📷 | Probe-Lauf | Etappe für Etappe, Flug dazwischen, keine gerade Linie zwischen Etappen |
 | RE-03 | Etappe 3 Dauer 4 s, Übergang 2→3 „Schnitt" | Wirkt im Probe-Lauf |
-| RE-04 | Stats-Box „laufende Etappe" | Zahlen wechseln mit der Etappe |
+| RE-04 | Live-Box: in ihrer Feldliste **„Etappe“** und **„In dieser Etappe“** anhaken; im Fenster der Box (Doppelklick auf den Balken) als Bezug **„Laufende Etappe“** wählen | Zahlen wechseln mit der Etappe |
 | RE-05 | Dieselben 5 → **🌊 Als Schwarm animieren**, Modus „Echte Uhrzeit — mit Pausen" | Alle laufen gleichzeitig; Pausen = Punkt steht |
 | RE-06 | Kamera folgt: einer bestimmten Tour | Kamera begleitet sie, bleibt an ihrem Ziel |
 | RE-07 | Schwarm in der Tour-Map öffnen | Alle 5 in ihren Farben, PNG enthält alle |
@@ -352,9 +363,9 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 |---|---|---|
 | GT-01 | Geotagger leeren (✕ oben, bestätigen). Steht beim Versatz eine Kamera-Zeitzone (z. B. „UTC+2“), über ✎ auf UTC±0 zurückstellen. Dann Ordner `Arbeit/fotos/geotagger/` laden, **ohne** vorher einen Track zu laden | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
 | GT-02 | **Tracks verwenden** | Track auf der Karte, Fotos A_ liegen darauf |
-| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Hinweis „ohne Zeitzone" für EOS R6, Vorschlag „Aus dem Track gerechnet: UTC+2". Versatz-Anzeige oben: Wert groß, Kamera klein in der zweiten Zeile, nichts läuft unter ✎ oder ↺ |
-| GT-04 | Vorschlag **Übernehmen** (oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst) |
-| GT-05 | C_gleiche_minute_1–3 | Drei Fotos am selben Punkt, auffächerbar |
+| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Knopf zählt 4; Hinweis „ohne Zeitzone" nur für EOS R6 (das Video zählt nicht mit). Darunter „Aus dem Track allein nicht eindeutig: UTC−0:30 bis UTC+3:30 …" mit den Vorschlägen **UTC+1** (Ortszeit) und **UTC+2** (Zeitzone dieses Computers am Aufnahmetag), beide mit „Übernehmen". Versatz-Anzeige oben: Wert groß, Kamera klein in der zweiten Zeile, nichts läuft unter ✎ oder ↺ |
+| GT-04 | Beim Vorschlag **UTC+2** auf „Übernehmen" (oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track, UTC+2 hat ✓; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst). Das Video G_ darf mitwandern: Videos gelten bewusst als „Zeitzone unbekannt“, weil viele Kameras dort Ortszeit statt UTC speichern |
+| GT-05 | C_gleiche_minute_1–3 | Drei Fotos im Abstand von 10 s: eng beieinander (C1/C2 am selben Trackpunkt, C3 am nächsten, ca. 10 m weiter — die Zuordnung nimmt den zeitlich nächsten Punkt), als Gruppe auffächerbar |
 | GT-06 | D_nach_tourende | Als unsicher/ohne Position gekennzeichnet |
 | GT-07 | E_hat_schon_gps | Behält seine Position |
 | GT-08 | F_heic.heic und G_video.mp4 | Werden gelesen und zugeordnet |
@@ -391,13 +402,13 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| AL-01 | Alle Dateien aus `01-formate` nacheinander per Drag & Drop öffnen | Jede lädt; Werte ≈ `SOLL-WERTE.md` |
-| AL-02 | Frage „Soll die Tour ins Archiv?" beim Öffnen einer Datei von außerhalb | Erscheint; „Nein" lässt das Archiv unverändert |
+| AL-01 | Alle Dateien aus `01-formate` nacheinander mit `testumgebung.sh oeffnen <pfad>` öffnen (statt Drag & Drop, siehe A5) | Jede lädt; Werte ≈ `SOLL-WERTE.md` |
+| AL-02 | Frage „Tour ins Archiv aufnehmen?“ beim Öffnen einer Datei von außerhalb (`testumgebung.sh oeffnen …/01-formate/track_klein.gpx`) | Erscheint; „Nein" lässt das Archiv unverändert |
 | AL-03 | Menü **Als GPX / CSV / KML / GeoJSON exportieren** → `Ausgaben/` | Dateien entstehen, GPX lässt sich wieder öffnen |
-| AL-04 | Undo/Redo über mehrere Module | Jeder Schritt einzeln rückgängig |
-| AL-05 | Fenster klein ziehen (1280×720) und groß | Nichts überlappt, Seitenleisten scrollen |
+| AL-04 | Undo/Redo über mehrere Module — hier einmal per Tastenkürzel (gesendet als ⌘Y, siehe A5) | Jeder Schritt einzeln rückgängig |
+| AL-05 | Fenster klein und groß: Fenstermenü **Fenster → Zoomen** bzw. grüner Knopf; klein per `osascript -e 'tell application "System Events" to set size of front window of (first process whose frontmost is true) to {1280, 720}'` (nur wenn die Test-App vorne ist) | Nichts überlappt, Seitenleisten scrollen |
 | AL-06 | Hilfe-Menü: jede Seite einmal öffnen | Alles lesbar, Links öffnen den System-Browser |
-| AL-07 | Über-Dialog | Version 0.9.724, Credits mit Lizenzen (FFmpeg, MapLibre …) |
+| AL-07 | Über-Dialog | Version 0.9.725, Credits mit Lizenzen (FFmpeg, MapLibre …) |
 | AL-08 | Feedback-Dialog öffnen, **Abbrechen** | Öffnet, nichts wird gesendet |
 
 ### FE — Fehlerfälle
@@ -429,7 +440,7 @@ liegen nur bei Marc/Claude — du tippst nichts davon ein und trennst die Cloud 
 ## Teil D — Berichtsvorlage
 
 ```markdown
-# Testbericht GPS Studio 0.9.724 — <Datum Uhrzeit>
+# Testbericht GPS Studio 0.9.725 — <Datum Uhrzeit>
 
 Tester: <Chat-Bezeichnung> · Umgebung: vorbefuellt/leer · Dauer: <h>
 

@@ -27,6 +27,7 @@ import asyncio
 import base64
 import json
 import logging
+import math
 import os
 import re
 import sys
@@ -38,6 +39,9 @@ from . import animator as A
 from .frame_driver import FrameMuxer, muxer_fuer, teildatei
 
 _log = logging.getLogger("animator.szene")
+
+# 25.09.2026 — kleinste Render-Breite in CSS-px (Marc: „Mindestgröße von 640 px Breite").
+SZENE_MIN_BREITE = 640
 
 ROOT = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent.parent)
 UI_INDEX = ROOT / "ui" / "index.html"
@@ -148,6 +152,22 @@ _WARTE_BILD_JS = """async () => {
 }"""
 
 
+def _warte_zeile(letzte, laenge: int = 320) -> str:
+    """25.09.2026 — Warte-Zustand fürs Log. Vorher `json.dumps(…)[:240]`: der lange
+    GPX-Pfad (mit Emoji als \\u-Folgen) stand vorn und schnitt genau die Felder ab, an
+    denen es hing (pending, modal, fitBase, schilderLaden). Jetzt: `ok` und die kurzen
+    Felder zuerst, lange Texte (gpx, body, err) gekürzt ans Ende, Umlaute lesbar."""
+    if not isinstance(letzte, dict):
+        return json.dumps(letzte, ensure_ascii=False)[:laenge]
+    lang = ("gpx", "body", "err", "grund")
+    kurz = {k: v for k, v in letzte.items() if k not in lang}
+    for k in lang:
+        if k in letzte:
+            v = letzte[k]
+            kurz[k] = ("…" + v[-60:]) if isinstance(v, str) and len(v) > 60 else v
+    return json.dumps(kurz, ensure_ascii=False)[:laenge]
+
+
 async def _warte_auf(page, js: str, timeout_s: float, was: str, is_cancelled=None, intervall: float = 0.25):
     t0 = time.time()
     letzte = None
@@ -155,7 +175,7 @@ async def _warte_auf(page, js: str, timeout_s: float, was: str, is_cancelled=Non
     while time.time() - t0 < timeout_s:
         if time.time() > naechster_log:
             naechster_log = time.time() + 20
-            _log.info("Szene: warte auf %s … zuletzt %s", was, json.dumps(letzte)[:240])
+            _log.info("Szene: warte auf %s … zuletzt %s", was, _warte_zeile(letzte))
         if is_cancelled and is_cancelled():
             raise A.RenderCancelled()
         try:
@@ -167,7 +187,115 @@ async def _warte_auf(page, js: str, timeout_s: float, was: str, is_cancelled=Non
         if letzte is True:
             return letzte
         await asyncio.sleep(intervall)
-    raise RuntimeError(f"Szene: Warten auf {was} abgebrochen nach {timeout_s:.0f}s — zuletzt {json.dumps(letzte)[:300]}")
+    raise RuntimeError(f"Szene: Warten auf {was} abgebrochen nach {timeout_s:.0f}s — zuletzt {_warte_zeile(letzte, 400)}")
+
+
+def _warte_grund(b) -> str:
+    """25.09.2026 — woran die Bereitschaft (window.__rzAnimBereit) gerade hängt, in Worten.
+    Vorher stand in der App minutenlang nur „Szene: Projekt öffnen …" (Klicktest AN-12/13)."""
+    if not isinstance(b, dict):
+        return "Seite antwortet nicht"
+    if b.get("err"):
+        return "Fehler in der Seite: " + str(b.get("err"))[:80]
+    if b.get("grund") == "kein Animator":
+        return f"Animator öffnet nicht (Modul {b.get('mod') or '?'})"
+    if not b.get("map"):
+        return "Karte wird angelegt"
+    if not b.get("style"):
+        return "Kartenstil lädt"
+    if (b.get("coords") or 0) < 2:
+        return "Track lädt"
+    if b.get("pending"):
+        return "Touren werden übernommen"
+    if b.get("modal"):
+        return "Lade-Fenster offen"
+    if b.get("route") is False:
+        return "Routen-GPX lädt"
+    if not b.get("tiles"):
+        return "Kartenkacheln laden"
+    if b.get("fitBase") is None:
+        return "Kartenausschnitt noch nicht berechnet"
+    n = b.get("schilderLaden") or 0
+    if n > 0:
+        return f"{n} Schild-Bild{'er' if n != 1 else ''} laden"
+    return "noch nicht bereit"
+
+
+def _nur_noch(b, feld: str) -> bool:
+    """Steht alles bereit bis auf `feld` (fitBase / schilderLaden)?"""
+    if not isinstance(b, dict) or b.get("grund") or b.get("err"):
+        return False
+    basis = (b.get("map") and b.get("style") and b.get("tiles") and (b.get("coords") or 0) >= 2
+             and not b.get("pending") and not b.get("modal") and b.get("route") is not False)
+    if not basis:
+        return False
+    if feld == "fitBase":
+        return b.get("fitBase") is None
+    return b.get("fitBase") is not None and (b.get("schilderLaden") or 0) > 0
+
+
+async def _warte_bereit(page, js: str, timeout_s: float, was: str, is_cancelled, emit, fortschritt: float, text: str):
+    """25.09.2026 (Klicktest AN-12/13) — Warten auf den bereiten Animator, aber nicht mehr
+    blind. Der Grund steht im Fortschritt der App, und zwei Hänger lösen sich selbst:
+
+    - Kartenausschnitt (fitBase) fehlt, sonst alles da: nach 15 s einmal ausdrücklich
+      berechnen lassen (window.__rzAnimFit); bleibt er aus, nach 60 s mit verständlicher
+      Meldung abbrechen statt vier Minuten bei 4 % zu stehen.
+    - Nur noch Schild-Bilder fehlen: nach 30 s ohne sie weiter (Log-Warnung). Ein Bild,
+      das nicht lädt, soll nicht das ganze Video verhindern; das Schild zeichnet sich, sobald
+      sein Bild doch noch kommt, sonst ohne Bild.
+    """
+    t0 = time.time()
+    naechster_log = t0 + 20
+    letzte = None
+    grund_alt = None
+    angestossen = False
+    schilder_frei = False
+    fit_seit = None
+    while True:
+        if is_cancelled and is_cancelled():
+            raise A.RenderCancelled()
+        try:
+            letzte = await page.evaluate(js)
+        except Exception as e:      # noqa: BLE001
+            letzte = {"err": str(e)[:200]}
+        if isinstance(letzte, dict) and letzte.get("ok"):
+            return letzte
+        dt = time.time() - t0
+        grund = _warte_grund(letzte)
+        if dt > 4 and grund != grund_alt:
+            grund_alt = grund
+            emit(fortschritt, f"{text} ({grund})")
+        if time.time() > naechster_log:
+            naechster_log = time.time() + 20
+            _log.info("Szene: warte auf %s (%s, %.0f s) … zuletzt %s", was, grund, dt, _warte_zeile(letzte))
+        if _nur_noch(letzte, "fitBase"):
+            fit_seit = fit_seit or time.time()
+            if not angestossen and time.time() - fit_seit > 15:
+                angestossen = True
+                try:
+                    z = await page.evaluate("() => (window.__rzAnimFit ? window.__rzAnimFit() : null)")
+                except Exception as e:      # noqa: BLE001
+                    z = f"Fehler {e}"
+                _log.warning("Szene: Kartenausschnitt fehlte nach 15 s — neu berechnet (Zoom %s)", z)
+            elif time.time() - fit_seit > 60:
+                raise RuntimeError("Szene: Die Karte konnte keinen Ausschnitt für das Video berechnen "
+                                   "(Vorschau-Fläche zu klein oder Track ohne Ausdehnung?). "
+                                   f"Zustand: {_warte_zeile(letzte, 300)}")
+        else:
+            fit_seit = None
+        if not schilder_frei and dt > 30 and _nur_noch(letzte, "schilderLaden"):
+            schilder_frei = True
+            _log.warning("Szene: %s Schild-Bild(er) nach 30 s noch nicht geladen — Render läuft ohne "
+                         "Warten weiter", letzte.get("schilderLaden"))
+            try:
+                await page.evaluate("() => { window.__rzSzeneSchilderNichtAbwarten = true; }")
+            except Exception:      # noqa: BLE001
+                pass
+        if dt > timeout_s:
+            raise RuntimeError(f"Szene: {was} nach {timeout_s:.0f} s nicht bereit — {grund}. "
+                               f"Zustand: {_warte_zeile(letzte, 300)}")
+        await asyncio.sleep(0.5)
 
 
 async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, params=None, modul: Optional[str] = None):
@@ -189,6 +317,16 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     if pw < 200 or ph < 100:
         pw = max(1, int(round(cfg.width / A._render_dsf(cfg.width, cfg.height)))); ph = max(1, int(round(cfg.height / A._render_dsf(cfg.width, cfg.height))))
         _log.warning("Szene: keine Vorschau-Größe übergeben — nehme %dx%d CSS", pw, ph)
+    # 25.09.2026 (Marc, nach Klicktest AN-12/13) — Mindestbreite: bei einem kleinen App-Fenster
+    # (Vorschau 347 px) wurde das Video zur groben Vergrößerung der Mini-Vorschau — Linien,
+    # Schilder und Quellenzeile klobig. Unter SZENE_MIN_BREITE rendert die Szene breiter und
+    # verschiebt den Zoom um denselben Faktor (zoomShift), damit der Ausschnitt gleich bleibt;
+    # alles in CSS-px (Linien, Schrift) wirkt dann feiner als in der Mini-Vorschau.
+    vorschau_w = pw
+    if pw < SZENE_MIN_BREITE <= cfg.width:
+        pw = SZENE_MIN_BREITE
+        _log.info("Szene: Vorschau nur %d px breit — rendere mit %d px (Zoom +%.2f)", vorschau_w, pw, math.log2(pw / vorschau_w))
+    zoom_shift = math.log2(pw / vorschau_w) if vorschau_w > 0 else 0.0
     # Seitenverhältnis exakt wie das Video (Letterbox-Rundung der Vorschau ausgleichen)
     ph = max(1, int(round(pw * cfg.height / cfg.width)))
     dsf = cfg.width / pw
@@ -205,7 +343,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # der VORSCHAU gespeichert (kleinerer Viewport). Wie im klassischen Render:
     # abs_shift = zoom_correction (UI: log2(rw / Vorschau-Breite)) − log2(dsf).
     mode = {"w": vp_w, "h": vp_h, "fps": cfg.fps, "width": cfg.width, "height": cfg.height, "blur": round(blur_css, 3),
-            "zoomShift": 0.0,   # Viewport = Vorschau → kein Zoom-Versatz
+            "zoomShift": round(zoom_shift, 4),   # Viewport = Vorschau → 0; bei Mindestbreite log2(breiter/Vorschau)
             # 07.09.2026 — Paint-Übergangsdauer im Render-Modus. 0 ms wäre 2× schneller, ließ aber auf
             # Gelände-Stilen (Fuji OSM, Teide Satellit) die Rasterkacheln beim Zoomen in ganzen
             # Abschnitten ungezeichnet (WYS mean_diff 22/17 statt 3/5; 60 ms genauso); 300 ms = MapLibre-
@@ -234,9 +372,9 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && !(b.schilderLaden > 0); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
-    info = await _warte_auf(page, bereit_js, 240, "Projekt/Animator", is_cancelled, intervall=0.5)
-    _log.info("Szene: Animator bereit — %s", json.dumps(info)[:300])
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+    info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, "Szene: Projekt öffnen …")
+    _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")
     if modul and modul != "animator" and aktiv != modul:
         # 07.09.2026 — Rückfall: falls das Archiv nicht im gewünschten Modul geöffnet hat
@@ -245,8 +383,8 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
         emit(0.045, f"Szene: Modul {modul} …")
         await page.evaluate(f"() => {{ window.__rzAnimBereit = null; window.switchMod({json.dumps(modul)}); }}")
         await _warte_auf(page, f"() => ({{ ok: (typeof activeMod !== 'undefined' && activeMod === {json.dumps(modul)}) && typeof window.__rzAnimBereit === 'function' }})", 60, f"Modul {modul}", is_cancelled)
-        info = await _warte_auf(page, bereit_js, 240, f"Modul {modul} bereit", is_cancelled, intervall=0.5)
-        _log.info("Szene: %s bereit — %s", modul, json.dumps(info)[:300])
+        info = await _warte_bereit(page, bereit_js, 240, f"Modul {modul} bereit", is_cancelled, emit, 0.045, f"Szene: Modul {modul} …")
+        _log.info("Szene: %s bereit — %s", modul, _warte_zeile(info))
     # Nachladen (Gelände-Kacheln, Schilder-Bilder) kurz Zeit geben, dann Viewport prüfen.
     await page.wait_for_timeout(2500)
     vp = await page.evaluate("() => { const v = document.getElementById('anim-viewport'); const r = v && v.getBoundingClientRect(); return r ? { x: r.x, y: r.y, w: r.width, h: r.height, k: getComputedStyle(v).getPropertyValue('--rz-prev-k') } : null; }")

@@ -273,6 +273,16 @@
   cursor: pointer; font-size: 12px; }
 .gpxi-baft-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
   font-size: 12px; }
+/* 25.09.2026 — Heil-Vorschau (IN-03): Farbpunkte wie auf der Karte */
+.gpxi-healprev { border-color: rgba(245, 158, 11, .55); }
+.gpxi-healprev[hidden] { display: none; }
+.gpxi-healprev-row { font-size: 12px; display: flex; gap: 6px; align-items: baseline; margin: 2px 0; }
+.gpxi-healprev-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text-muted); display: inline-block; }
+.gpxi-healprev-dot.is-spike { background: #f59e0b; }
+.gpxi-healprev-dot.is-gap { background: #e879f9; }
+.gpxi-healprev-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.gpxi-healprev-btns { display: flex; gap: 6px; margin-top: 6px; }
 /* 01.09.2026 — Reduzieren: Beschriftung einzeilig, Wert rechtsbündig */
 .gpxi-reduce-lbl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .gpxi-reduce-lbl b { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent); }
@@ -590,3 +600,8 @@
 .gpxi-lb-fenster.ist-maximiert .gpxi-lbf-griff, .gpxi-lb-fenster.ist-maximiert .gpxi-lbf-eckzeichen { display: none; }
 .gpxi-lbf-eckzeichen { position: absolute; right: 3px; bottom: 3px; width: 12px; height: 12px; z-index: 4; pointer-events: none;
   background: linear-gradient(135deg, transparent 45%, #8d95a3 45%, #8d95a3 55%, transparent 55%, transparent 70%, #8d95a3 70%, #8d95a3 80%, transparent 80%); }
+
+/* 25.09.2026 (Klicktest IN-12) — Sprung aus dem Track-Check („Zeitachse erzeugen", „Zeiten …"):
+   das Ziel kurz aufleuchten lassen, damit man sieht, wohin es ging. */
+@keyframes gpxi-ziel-blink { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 3px var(--accent); } }
+.gpxi-ziel-blink { animation: gpxi-ziel-blink .6s ease-in-out 3; border-radius: 6px; }

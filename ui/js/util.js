@@ -1323,8 +1323,12 @@ async function openBugReportModal(context = "") {
         ${t("bugreport.hint")}
       </p>
     `,
+    // 25.09.2026 (Klicktest AL-08: „statt Abbrechen nur OK und X") — der Knopf löst
+    // nichts aus (nichts wird verschickt oder gespeichert), er schließt nur. „OK" klang
+    // nach Bestätigen/Absenden; ein zusätzliches „Abbrechen" täte genau dasselbe. Darum
+    // heißt er jetzt ehrlich „Schließen".
     footer: `
-      <button class="btn btn-primary" id="md-br-ok">${t("common.ok")}</button>
+      <button class="btn btn-primary" id="md-br-ok">${t("common.close", "Schließen")}</button>
     `,
   });
 
@@ -1807,6 +1811,9 @@ async function projectCreate(name, copyFromId, vorlageId) {
   // 11.09.2026: `vorlageId` = Vorlage für das neue Projekt (leer = Stern/„Mein Standard").
   const res = await rzWarten("session_create_project", () => api().session_create_project(_activeSession.track_hash, name || "", copyFromId || "", vorlageId || ""));
   if (res && res.ok === false && res.grund === "laeuft_bereits" && typeof toast === "function") toast(res.error, "warn");
+  // 25.09.2026 (Klicktest PR-02): Andere Fehler nicht mehr still schlucken —
+  // sonst steht der Nutzer da und das neue Projekt fehlt einfach.
+  else if (res && res.ok === false && res.error && typeof toast === "function") toast(res.error, "error");
   if (!res || !res.ok) return null;
   _activeProject = res.active_project;
   _projectsList = res.projects || [];
@@ -4403,15 +4410,175 @@ function rzSprachCode() {
 window.rzSprachCode = rzSprachCode;
 
 
+/** 25.09.2026 (Beta-Tester Windows, v0.9.722: „Estadísticas totales — die Felder lassen sich am
+ *  ⠿ nicht ziehen", Video: nichts bewegt sich; Klicktest RR-04: Reiseroute-Stationen ebenso).
+ *  Alle ⠿-Listen hingen an HTML5-Drag&Drop. Die Windows-WebView (WebView2) startet mit
+ *  `AllowExternalDrop=False` (app.py) — das schaltet dort auch das interne Ziehen ab, und in
+ *  WebKit kam die Geste im Test ebenfalls nicht zuverlässig an. Dieser Helfer sortiert mit
+ *  Pointer-Ereignissen: Maus/Finger am Griff drücken → die Zeile folgt dem Zeiger, die anderen
+ *  rücken live nach; Loslassen setzt, Esc bricht ab. Dazu je Zeile ▲▼ als Rückfall (und für
+ *  die Tastatur): Knöpfe mit `data-rz-sort="hoch"` / `"runter"` in der Zeile.
+ *
+ *    rzSortierbar(container, { zeile: ".x-row", griff: ".x-handle", onEnde(von, nach, zeile) })
+ *
+ *  Die Zeile wird im DOM schon verschoben; `onEnde` bekommt die Positionen unter den
+ *  Geschwister-Zeilen (von → nach, wie `splice(von, 1)` + `splice(nach, 0, x)`). Wer die Liste
+ *  danach neu zeichnet, darf das. Zeilen mit Klasse `unavail` oder `data-sort-aus` bleiben
+ *  stehen. Mehrfacher Aufruf (nach innerHTML-Neuaufbau) aktualisiert nur die Optionen. */
+function rzSortierbar(container, opts) {
+  if (!container) return;
+  container.__rzSortOpts = Object.assign({ zeile: null, griff: null, onEnde: null }, opts || {});
+  if (container.__rzSortierbar) return;
+  container.__rzSortierbar = true;
+  const O = () => container.__rzSortOpts;
+  const gesperrt = (r) => !r || r.classList.contains("unavail") || r.hasAttribute("data-sort-aus");
+  const geschwister = (r) => Array.from(r.parentElement ? r.parentElement.children : [])
+    .filter((x) => x.matches && x.matches(O().zeile));
+  const melden = (von, nach, row) => {
+    // Pfeile an den neuen Rändern sperren/freigeben (falls die Liste nicht neu gezeichnet wird).
+    try {
+      const l = geschwister(row);
+      l.forEach((r, k) => {
+        const h = r.querySelector('[data-rz-sort="hoch"]'), d = r.querySelector('[data-rz-sort="runter"]');
+        if (h) h.disabled = (k === 0);
+        if (d) d.disabled = (k === l.length - 1);
+      });
+    } catch (_) {}
+    try { if (typeof O().onEnde === "function") O().onEnde(von, nach, row); }
+    catch (e) { try { applog && applog("warn", "[sortieren] " + e); } catch (_) {} }
+  };
+  const scrollEltern = (el) => {
+    for (let p = el && el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const s = getComputedStyle(p).overflowY;
+      if ((s === "auto" || s === "scroll") && p.scrollHeight > p.clientHeight) return p;
+    }
+    return null;
+  };
+  let zug = null;
+
+  const ende = (abbrechen) => {
+    const z = zug; zug = null;
+    if (!z) return;
+    window.removeEventListener("pointermove", bewegen, true);
+    window.removeEventListener("pointerup", loslassen, true);
+    window.removeEventListener("pointercancel", abbruch, true);
+    window.removeEventListener("keydown", taste, true);
+    try { z.griff.releasePointerCapture && z.griff.releasePointerCapture(z.id); } catch (_) {}
+    z.row.style.transform = "";
+    z.row.classList.remove("rz-sort-zieht");
+    document.body.classList.remove("rz-sortiert");
+    if (!z.bewegt) return;
+    if (abbrechen) {
+      try { z.eltern.insertBefore(z.row, z.naechster && z.naechster.parentElement === z.eltern ? z.naechster : null); } catch (_) {}
+      return;
+    }
+    const nach = geschwister(z.row).indexOf(z.row);
+    if (nach >= 0 && nach !== z.von) melden(z.von, nach, z.row);
+  };
+  const bewegen = (e) => {
+    const z = zug;
+    if (!z || e.pointerId !== z.id) return;
+    if (!z.bewegt && Math.abs(e.clientY - z.startY) < 4) return;
+    e.preventDefault();
+    if (!z.bewegt) {
+      z.bewegt = true;
+      z.row.classList.add("rz-sort-zieht");
+      document.body.classList.add("rz-sortiert");
+    }
+    // Ziel: vor die erste andere Zeile, deren Mitte unter dem Zeiger liegt.
+    const andere = geschwister(z.row).filter((r) => r !== z.row && !gesperrt(r));
+    let vor = null;
+    for (const r of andere) {
+      const b = r.getBoundingClientRect();
+      if (e.clientY < b.top + b.height / 2) { vor = r; break; }
+    }
+    if (vor) { if (z.row.nextElementSibling !== vor) z.eltern.insertBefore(z.row, vor); }
+    else if (andere.length) {
+      const letzte = andere[andere.length - 1];
+      if (letzte.nextSibling !== z.row) z.eltern.insertBefore(z.row, letzte.nextSibling);
+    }
+    // Die Zeile folgt dem Zeiger (nach dem Umhängen neu gemessen).
+    z.row.style.transform = "";
+    const oben = z.row.getBoundingClientRect().top;
+    z.row.style.transform = `translateY(${Math.round(e.clientY - z.greifY - oben)}px)`;
+    // Am Rand der Seitenleiste mitrollen.
+    if (z.scroll) {
+      const b = z.scroll.getBoundingClientRect();
+      if (e.clientY < b.top + 28) z.scroll.scrollTop -= 14;
+      else if (e.clientY > b.bottom - 28) z.scroll.scrollTop += 14;
+    }
+  };
+  const loslassen = (e) => { if (zug && e.pointerId === zug.id) ende(false); };
+  const abbruch = (e) => { if (zug && e.pointerId === zug.id) ende(true); };
+  const taste = (e) => { if (zug && e.key === "Escape") { e.preventDefault(); e.stopPropagation(); ende(true); } };
+
+  container.addEventListener("pointerdown", (e) => {
+    if (zug || e.button !== 0 || !O().griff || !O().zeile) return;
+    const griff = e.target && e.target.closest ? e.target.closest(O().griff) : null;
+    if (!griff || !container.contains(griff)) return;
+    const row = griff.closest(O().zeile);
+    if (!row || gesperrt(row) || !container.contains(row)) return;
+    e.preventDefault();            // keine Textauswahl, kein natives Ziehen
+    const liste = geschwister(row);
+    zug = { row, griff, id: e.pointerId, von: liste.indexOf(row), eltern: row.parentElement,
+            naechster: row.nextSibling, startY: e.clientY,
+            greifY: e.clientY - row.getBoundingClientRect().top,
+            bewegt: false, scroll: scrollEltern(container) };
+    try { griff.setPointerCapture && griff.setPointerCapture(e.pointerId); } catch (_) {}
+    window.addEventListener("pointermove", bewegen, true);
+    window.addEventListener("pointerup", loslassen, true);
+    window.addEventListener("pointercancel", abbruch, true);
+    window.addEventListener("keydown", taste, true);
+  });
+  // Ein Griff ist kein Ziehpunkt für den Browser (Bild-/Link-Ziehen, alte draggable-Reste).
+  container.addEventListener("dragstart", (e) => {
+    if (e.target && e.target.closest && e.target.closest(O().griff)) e.preventDefault();
+  });
+  // ▲▼ — eine Position hoch/runter.
+  container.addEventListener("click", (e) => {
+    const b = e.target && e.target.closest ? e.target.closest("[data-rz-sort]") : null;
+    if (!b || !container.contains(b)) return;
+    const row = b.closest(O().zeile);
+    if (!row || gesperrt(row)) return;
+    e.preventDefault(); e.stopPropagation();
+    const liste = geschwister(row), von = liste.indexOf(row);
+    const um = b.getAttribute("data-rz-sort") === "hoch" ? -1 : 1;
+    let nach = von + um;
+    while (nach >= 0 && nach < liste.length && gesperrt(liste[nach])) nach += um;
+    if (von < 0 || nach < 0 || nach >= liste.length) return;
+    row.parentElement.insertBefore(row, um < 0 ? liste[nach] : liste[nach].nextSibling);
+    melden(von, nach, row);
+  });
+}
+window.rzSortierbar = rzSortierbar;
+
+/** Die zwei kleinen Pfeil-Knöpfe für rzSortierbar (HTML). `i`/`n` sperren oben/unten. */
+function rzSortPfeile(i, n) {
+  const hoch = (typeof t === "function") ? t("sort.hoch", "Nach oben") : "Nach oben";
+  const runter = (typeof t === "function") ? t("sort.runter", "Nach unten") : "Nach unten";
+  return `<button type="button" class="rz-sort-pfeil" data-rz-sort="hoch" title="${hoch}" aria-label="${hoch}"${i <= 0 ? " disabled" : ""}>▲</button>`
+       + `<button type="button" class="rz-sort-pfeil" data-rz-sort="runter" title="${runter}" aria-label="${runter}"${(n != null && i >= n - 1) ? " disabled" : ""}>▼</button>`;
+}
+window.rzSortPfeile = rzSortPfeile;
+
+
 /** 25.09.2026 (Klicktest S-10): API-Schlüssel standen in den Einstellungen im Klartext.
- *  Jedes `input.rz-schluessel` wird verdeckt (WebKit-Punkte, KEIN type=password —
- *  sonst bietet macOS an, ein „Passwort" zu sichern) und bekommt einen Knopf
- *  „Anzeigen"/„Verbergen". Mehrfacher Aufruf ist harmlos. */
+ *  Jedes `input.rz-schluessel` wird verdeckt und bekommt einen Knopf
+ *  „Anzeigen"/„Verbergen". Mehrfacher Aufruf ist harmlos.
+ *  25.09.2026 (Klicktest S-10, zweiter Lauf) — nur Punkte per `-webkit-text-security`
+ *  reichten nicht: die Bedienungshilfen (Accessibility) bekamen den Wert trotzdem im
+ *  Klartext. Jetzt echtes `type="password"` (verdeckt auch für VoiceOver & Co.),
+ *  „Anzeigen" schaltet auf `type="text"`. `autocomplete="off"` + die Ignorier-Merkmale
+ *  der Passwortmanager, damit niemand anbietet, den Schlüssel als Passwort zu sichern. */
 function rzSchluesselFelder(wurzel) {
   (wurzel || document).querySelectorAll("input.rz-schluessel").forEach((inp) => {
     if (inp.dataset.verdeckt) return;
     inp.dataset.verdeckt = "1";
     inp.classList.add("ist-verdeckt");
+    try { inp.type = "password"; } catch (_) {}
+    inp.setAttribute("autocomplete", "off");
+    inp.setAttribute("data-lpignore", "true");
+    inp.setAttribute("data-1p-ignore", "");
     const zeile = document.createElement("div");
     zeile.className = "rz-schluessel-zeile";
     inp.parentNode.insertBefore(zeile, inp);
@@ -4424,7 +4591,12 @@ function rzSchluesselFelder(wurzel) {
       b.textContent = zu ? t("settings.key.zeigen", "👁 Anzeigen") : t("settings.key.verbergen", "Verbergen");
       b.setAttribute("aria-pressed", zu ? "false" : "true");
     };
-    b.addEventListener("click", (e) => { e.preventDefault(); inp.classList.toggle("ist-verdeckt"); beschriften(); });
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      const zu = !inp.classList.toggle("ist-verdeckt");
+      try { inp.type = zu ? "text" : "password"; } catch (_) {}
+      beschriften();
+    });
     beschriften();
     zeile.appendChild(b);
   });

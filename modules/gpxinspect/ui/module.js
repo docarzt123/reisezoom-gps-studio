@@ -47,6 +47,7 @@ function mountGpxInspect(body, headerActions) {
   let _tcZeigeIdx = -1;             // welche Stelle davon wurde zuletzt angesprungen
   let _spikeIdx = -1;               // aktuell anvisierter Ausreißer (für Navigation)
   let _gaps = [];                   // v0.9.294 — erkannte Lücken [{a,b,dist}] (b=a+1) für Auto-Heilen
+  let _healPlan = null;             // 25.09.2026 — offene Heil-Vorschau {scope, lo, hi, doSpikes, doGaps, nurTempo}
   let _despikeRan = false;          // wurde schon mind. 1× gesucht? (Slider live-Update)
   let _dragging = false;            // ziehe gerade den ausgewählten Punkt? (v0.9.243)
   let _dragMoved = false;           // hat sich beim Ziehen wirklich was bewegt?
@@ -141,7 +142,7 @@ function mountGpxInspect(body, headerActions) {
             </div>
           </details>
           <details class="gpxi-sec" data-sec="heilen">
-            <summary class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></summary>
+            <summary class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen: Erst erscheint eine Vorschau (orange = Ausreißer, magenta = Lücken), „Übernehmen“ ändert den Track. Rückgängig jederzeit.")}">?</span></summary>
             <div class="gpxi-sec-body">
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
@@ -178,6 +179,16 @@ function mountGpxInspect(body, headerActions) {
                gewählt ist (02.09.2026: "was bedeutet hier keine auswahl?"). -->
           <div class="gpxi-sel" id="gpxi-sel" hidden>${t("gpxinspect.sel_klick_a", "Klicke auf der Karte den Punkt A an, dann Punkt B — dazwischen wird geheilt.")}</div>
           <button class="btn btn-primary gpxi-act" id="gpxi-heal-run">🩹 ${t("gpxinspect.heal_run", "Heilen")}</button>
+          <!-- 25.09.2026 (Testprotokoll IN-03) — „Heilen" zeigt erst eine Vorschau
+               (orange Ausreißer, magenta Lücken); erst „Übernehmen" ändert den Track. -->
+          <div class="gpxi-baft gpxi-healprev" id="gpxi-healprev" hidden>
+            <div class="gpxi-baft-head">👁 ${t("gpxinspect.heal_prev_title", "Vorschau — noch nichts geändert")}</div>
+            <div class="gpxi-healprev-rows" id="gpxi-healprev-rows"></div>
+            <div class="gpxi-healprev-btns">
+              <button type="button" class="btn btn-primary btn-sm" id="gpxi-heal-apply">✓ ${t("gpxinspect.heal_apply", "Übernehmen")}</button>
+              <button type="button" class="btn btn-sm" id="gpxi-heal-cancel">${t("gpxinspect.heal_cancel", "Abbrechen")}</button>
+            </div>
+          </div>
           <div class="gpxi-baft" id="gpxi-baft" hidden>
             <div class="gpxi-baft-head">✨ ${t("gpxinspect.baft_title", "Vorher → Nachher")}
               <button type="button" class="gpxi-baft-x" id="gpxi-baft-close" title="${t("common.close", "Schließen")}">✕</button></div>
@@ -658,6 +669,7 @@ function mountGpxInspect(body, headerActions) {
     try { profilVorschlagen(); } catch (_) {}
     // 13.09.2026 — Logbuch (§68 Q4): entsteht automatisch beim Öffnen.
     _lbZeiten = null; _lbZeitSort = null;
+    _lbSigDatei = _lbSignatur();   // 25.09.2026 — so sieht die Datei aus (Vorschau erst, wenn es abweicht)
     try { logbuchLaden(); } catch (e) { applog && applog("warn", "[logbuch] " + e); }
   }
 
@@ -829,7 +841,8 @@ function mountGpxInspect(body, headerActions) {
    * die das übliche Tempo der Umgebung (±15 Segmente) gebraucht hätte; alle
    * späteren Zeitstempel rücken entsprechend nach hinten. Positionen und
    * Strecke bleiben unangetastet, die Tour wird ein paar Sekunden länger. */
-  function tempoEntzerren() {
+  // 25.09.2026 — `trocken`: nur zählen (für die Heil-Vorschau), keine Zeit verschieben.
+  function tempoEntzerren(trocken) {
     if (!_hasTime) return 0;
     const n = _points.length;
     if (n < 3) return 0;
@@ -876,7 +889,7 @@ function mountGpxInspect(body, headerActions) {
           fixed++;
         }
       }
-      if (shiftMs > 0.5) _points[i].time = new Date(orig[i] + Math.round(shiftMs)).toISOString();
+      if (shiftMs > 0.5 && !trocken) _points[i].time = new Date(orig[i] + Math.round(shiftMs)).toISOString();
     }
     return fixed;
   }
@@ -1044,6 +1057,8 @@ function mountGpxInspect(body, headerActions) {
     { const r = document.getElementById("gpxi-speedrow"); if (r) r.hidden = true; }
     { const r = document.getElementById("gpxi-heal-tempo-row"); if (r) r.style.display = ""; }
     { const r = document.getElementById("gpxi-tempocap-row"); if (r) r.style.display = ""; }
+    // 25.09.2026 (Klicktest IN-12) — der Befund „ohne Zeit" im Track-Check gehört jetzt weg
+    try { analyseTrack(); } catch (_) {}
     return true;
   }
 
@@ -1358,6 +1373,17 @@ function mountGpxInspect(body, headerActions) {
     const L = _routePathLen(coords);
     const ref = Math.max(straightDist || 0, 30);   // kleine Lücken nicht überempfindlich
     return L > ref * maxRatio;
+  }
+  /** 25.09.2026 — Liegt die Route an der Lücke an? Anfang nahe A, Ende nahe B.
+   *  Erlaubt ist ein Versatz von 20 % der Lücke, mindestens 40 m (GPS-Rauschen neben
+   *  dem Weg), höchstens 150 m. Weiter weg hat der Router auf einen anderen Weg
+   *  eingerastet — dann lieber gerade füllen. */
+  function _routeLiegtAn(coords, A, B) {
+    if (!A || !B || !Array.isArray(coords) || coords.length < 2) return false;
+    const tol = Math.max(40, Math.min(150, 0.2 * _haversine(A, B)));
+    const c0 = coords[0], c1 = coords[coords.length - 1];
+    return _haversine(A, { lon: c0[0], lat: c0[1] }) <= tol
+        && _haversine(B, { lon: c1[0], lat: c1[1] }) <= tol;
   }
 
   async function fillGap() {
@@ -1798,6 +1824,9 @@ function mountGpxInspect(body, headerActions) {
   function clearSpikes() {
     _spikes = []; _spikeSet = new Set(); _spikeIdx = -1; _despikeRan = false;
     _gaps = []; try { renderGaps(); } catch (_) {}
+    // 25.09.2026 — eine offene Heil-Vorschau zeigt auf alte Indizes: mit abräumen
+    // (Undo, neuer Track, jede andere Bearbeitung laufen hier durch).
+    _healVorschauWeg();
   }
 
   // v0.9.294 — Lücken erkennen: ungewöhnlich lange Segmente (GPS-Dropouts), die KEINE
@@ -1869,57 +1898,138 @@ function mountGpxInspect(body, headerActions) {
   function _healScope() {
     return ((document.getElementById("gpxi-scope-ab") || {}).checked) ? "ab" : "track";
   }
-  async function runHeal() {
-    if (_drawMode || !_points.length || _mmBusy) return;
+  // 25.09.2026 (Testprotokoll IN-03: „Vorschau: orange Ausreißer, magenta Lücke; noch
+  // nichts geändert") — Heilen geht in zwei Schritten. „Heilen" sucht nur und zeigt,
+  // was passieren würde: Ausreißer als orange Punkte, Lücken als magenta Füll-Linie,
+  // die übrigen Schritte als Liste. Erst „Übernehmen" ändert den Track (Rückgängig wie
+  // bisher), „Abbrechen" räumt die Vorschau ab. Vorher lief alles sofort durch.
+  function _healOptionen() {
     const scope = _healScope();
     const doSpikes = !!((document.getElementById("gpxi-heal-spikes") || {}).checked);
     const doGaps = !!((document.getElementById("gpxi-heal-gaps") || {}).checked);
     if (!doSpikes && !doGaps) {
       toast(t("gpxinspect.heal_nothing_sel", "Nichts ausgewählt — hak an, was geheilt werden soll."), "info", 2800);
-      return;
+      return null;
     }
     let lo = 0, hi = _points.length - 1;
     if (scope === "ab") {
       if (_selA === null || _selB === null || _selB <= _selA) {
         toast(t("gpxinspect.heal_need_ab", "Bereich „Abschnitt A→B“: erst zwei Punkte auf der Karte setzen (A grün, B rot)."), "warn", 3600);
-        return;
+        return null;
       }
       lo = _selA; hi = _selB;
     }
-    // 1) Ausreißer glätten + Lücken füllen (je nach Checkbox, evtl. nur im Bereich).
-    if (doSpikes || doGaps) {
-      let groups = doSpikes ? detectSpikes() : [];
-      if (scope === "ab") groups = groups.filter((g) => g.from >= lo && g.to <= hi);
-      _spikes = groups; _spikeIdx = -1;
-      _spikeSet = new Set();
-      for (const g of groups) for (let k = g.from; k <= g.to; k++) _spikeSet.add(k);
-      let gaps = doGaps ? detectGaps() : [];
-      if (scope === "ab") gaps = gaps.filter((g) => g.a >= lo && g.b <= hi);
-      _gaps = gaps;
-      _selA = _selB = null;
+    return { scope, lo, hi, doSpikes, doGaps, nurTempo: false };
+  }
+  /** Ausreißer + Lücken nach dem Plan suchen (evtl. nur im Bereich) → _spikes/_gaps. */
+  function _healErkennen(plan) {
+    let groups = plan.doSpikes ? detectSpikes() : [];
+    if (plan.scope === "ab") groups = groups.filter((g) => g.from >= plan.lo && g.to <= plan.hi);
+    _spikes = groups; _spikeIdx = -1;
+    _spikeSet = new Set();
+    for (const g of groups) for (let k = g.from; k <= g.to; k++) _spikeSet.add(k);
+    let gaps = plan.doGaps ? detectGaps() : [];
+    if (plan.scope === "ab") gaps = gaps.filter((g) => g.a >= plan.lo && g.b <= plan.hi);
+    _gaps = gaps;
+  }
+  async function runHeal(altPlan) {
+    if (_drawMode || !_points.length || _mmBusy) return;
+    let plan = null;
+    if (altPlan && altPlan.lo != null) {
+      // Vorschau auffrischen (Häkchen/Regler geändert): Bereich bleibt, Häkchen neu lesen.
+      plan = Object.assign({}, altPlan, {
+        doSpikes: !!((document.getElementById("gpxi-heal-spikes") || {}).checked),
+        doGaps: !!((document.getElementById("gpxi-heal-gaps") || {}).checked) });
+      if (!plan.doSpikes && !plan.doGaps) { clearSpikes(); renderPoints(); updateUI(); return; }
+    } else {
+      plan = _healOptionen();
+    }
+    if (!plan) return;
+    _healErkennen(plan);
+    _selA = _selB = null;
+    const tempoAn = !!((document.getElementById("gpxi-heal-tempo") || {}).checked);
+    // v0.9.621 (Abnahme-Befund): ein sauberer Track mit reinem Tempo-Problem bekommt
+    // einen eigenen Schritt — hier nur gezählt (trocken), nichts verschoben.
+    plan.nurTempo = !_spikes.length && !_gaps.length;
+    const nT = (plan.nurTempo && tempoAn) ? tempoEntzerren(true) : 0;
+    if (plan.nurTempo && !nT) {
+      clearSpikes(); renderPoints(); updateUI();
+      toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
+      return;
+    }
+    _healPlan = plan;
+    renderPoints(); renderGaps(); updateUI();
+    _healVorschauZeigen(plan, nT, tempoAn);
+    // Übersicht: ganzen Track zeigen.
+    try { map.fitBounds(_trackBounds(), { padding: 50, duration: 600 }); } catch (_) {}
+  }
+  function _healVorschauZeigen(plan, nT, tempoAn) {
+    const box = document.getElementById("gpxi-healprev");
+    const rows = document.getElementById("gpxi-healprev-rows");
+    if (!box || !rows) return;
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const zeilen = [];
+    if (_spikes.length) {
+      zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot is-spike"></i>${esc(t("gpxinspect.heal_prev_spikes", "%n Ausreißer (orange) werden auf die Linie zwischen ihren Nachbarn gerückt").replace("%n", _spikes.length))}</div>`);
+    }
+    if (_gaps.length) {
+      const fillMode = (document.getElementById("gpxi-profile") || {}).value || "linear";
+      const summe = _gaps.reduce((s, g) => s + (g.dist || 0), 0);
+      const wie = fillMode === "linear"
+        ? t("gpxinspect.heal_prev_gaps_linear", "geradlinig")
+        : t("gpxinspect.heal_prev_gaps_route", "entlang der Wege, wo einer passt, sonst geradlinig");
+      zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot is-gap"></i>${esc(t("gpxinspect.heal_prev_gaps", "%n Lücken (magenta, zusammen %d) werden gefüllt — %w")
+        .replace("%n", _gaps.length).replace("%d", _fmtKm(summe)).replace("%w", wie))}</div>`);
+    }
+    if (!plan.nurTempo) {
+      // Zeiten/Höhen aus dem Track-Check (core/gpxheal) laufen beim Übernehmen vorneweg.
+      const kern = _healSchritte();
+      const zeile = (typeof rzTrackCheckZeile === "function") ? rzTrackCheckZeile : (b) => b.key + " " + b.n;
+      for (const b of ((_tc && _tc.befunde) || [])) {
+        if (kern && kern.indexOf(b.key) >= 0) zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot"></i>${esc(zeile(b))}</div>`);
+      }
+      if (tempoAn) zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot"></i>${esc(t("gpxinspect.heal_prev_tempo", "danach: unmögliches Tempo entzerren (nur die Zeit)"))}</div>`);
+    } else if (nT) {
+      zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot"></i>${esc(t("gpxinspect.heal_prev_tempo_n", "%n Tempo-Stellen werden entzerrt (nur die Zeit, Positionen bleiben)").replace("%n", nT))}</div>`);
+    }
+    zeilen.push(`<div class="gpxi-healprev-hint">${esc(t("gpxinspect.heal_prev_hint", "Erst „Übernehmen“ ändert den Track — Rückgängig geht danach wie immer."))}</div>`);
+    rows.innerHTML = zeilen.join("");
+    box.hidden = false;
+  }
+  function _healVorschauWeg() {
+    _healPlan = null;
+    const box = document.getElementById("gpxi-healprev");
+    if (box) box.hidden = true;
+  }
+  function healAbbrechen() {
+    clearSpikes();   // räumt auch die Vorschau-Box ab
+    try { renderPoints(); updateUI(); } catch (_) {}
+  }
+  async function healUebernehmen() {
+    const plan = _healPlan;
+    if (!plan || _drawMode || _mmBusy || !_points.length) return;
+    _healVorschauWeg();
+    if (plan.nurTempo) {
+      merkeVorher();
+      _pushUndo(t("gpxinspect.heal", "Heilen"));
+      const nT = tempoEntzerren();
+      _dirty = true; renderAll(); updateUI(); zeigeVorherNachher();
+      toast(t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT), "success", 3200);
+    } else {
+      // Frisch suchen: seit der Vorschau können Regler (Empfindlichkeit, Abstand) bewegt sein.
+      _healErkennen(plan);
       if (_spikes.length || _gaps.length) {
         merkeVorher();           // 29.08.2026 — für den Vorher/Nachher-Vergleich
-        await healAllSpikes();   // füllt Lücken laut Profil (Luftlinie oder Route)
+        await healAllSpikes(plan);   // füllt Lücken laut Profil (Luftlinie oder Route)
         zeigeVorherNachher();
-      } else if ((document.getElementById("gpxi-heal-tempo") || {}).checked) {
-        // v0.9.621 (Abnahme-Befund): Tempo-Entzerren lief nur als Anhängsel
-        // von healAllSpikes — ein sauberer Track mit reinem Tempo-Problem
-        // (z. B. gesetzter Deckel) bekam „Nichts zu heilen". Eigener Schritt.
-        merkeVorher();
-        _pushUndo(t("gpxinspect.heal", "Heilen"));
-        const nT = tempoEntzerren();
-        if (nT) {
-          _dirty = true; renderAll(); updateUI(); zeigeVorherNachher();
-          toast(t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt")
-            .replace("%t", nT), "success", 3200);
-        } else {
-          toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
-        }
       } else {
+        clearSpikes(); renderPoints(); updateUI();
         toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
       }
     }
-    // Übersicht: ganzen Track zeigen.
+    // Befund-Kasten auf den geheilten Stand bringen (wie „Reparieren") — sonst zeigt er
+    // den Zwischenstand aus healTimesAndData, also Sprung und Lücke, die es nicht mehr gibt.
+    try { await analyseTrack(); } catch (_) {}
     try { map.fitBounds(_trackBounds(), { padding: 50, duration: 600 }); } catch (_) {}
   }
   function _zoomToGap(k) {
@@ -2083,8 +2193,18 @@ function mountGpxInspect(body, headerActions) {
     box.querySelectorAll("[data-tc-show]").forEach((b) => b.onclick = () => trackCheckOk(b.dataset.tcShow, false));
     box.querySelectorAll("[data-tc-goto]").forEach((b) => b.onclick = () => {
       const ziel = b.dataset.tcGoto === "retime" ? "gpxi-wz-retime-run" : "gpxi-speedrow";
-      const sec = document.querySelector('.gpxi-sec[data-sec="bearbeiten"]'); if (sec) sec.open = true;
-      const el = document.getElementById(ziel); if (el) { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {} }
+      // 25.09.2026 (Klicktest IN-12) — „Zeitachse erzeugen" tat sichtbar nichts: geöffnet wurde
+      // „Bearbeiten", die Zeile steht aber unter „Punkte & Zeiten" — in einem zugeklappten
+      // Abschnitt scrollt nichts. Jetzt: den Abschnitt öffnen, in dem das Ziel wirklich steht,
+      // hinscrollen, kurz hervorheben und beim Tempo gleich ins Eingabefeld.
+      const el = document.getElementById(ziel);
+      if (!el) return;
+      const sec = el.closest("details.gpxi-sec"); if (sec) sec.open = true;
+      try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+      el.classList.remove("gpxi-ziel-blink"); void el.offsetWidth; el.classList.add("gpxi-ziel-blink");
+      setTimeout(() => { try { el.classList.remove("gpxi-ziel-blink"); } catch (_) {} }, 1800);
+      const feld = ziel === "gpxi-speedrow" ? document.getElementById("gpxi-speed-v") : null;
+      if (feld) { try { feld.focus({ preventScroll: true }); feld.select(); } catch (_) {} }
     });
   }
   /** Pause ≥ 2 min mit ≤ 100 m Versatz (Wirtshaus) — im Kern kein Befund, hier auch nicht füllen. */
@@ -2192,10 +2312,13 @@ function mountGpxInspect(body, headerActions) {
     try { analyseTrack(); } catch (_) {}
     return teile.join(" · ");
   }
-  async function healAllSpikes() {
+  async function healAllSpikes(plan) {
     _pushUndo(t("gpxinspect.heal_all", "Auto-Heilen"));
     const _datenMsg = await healTimesAndData();
-    if (_datenMsg) { try { detectSpikes && detectSpikes(); } catch (_) {} }
+    // 25.09.2026 — der Kern kann Punkte entfernt haben (Doppelpunkte, Kaltstart):
+    // Ausreißer/Lücken auf dem NEUEN Stand suchen, sonst zeigen die Indizes daneben.
+    // (Vorher stand hier ein detectSpikes() ohne Zuweisung — wirkungslos.)
+    if (_datenMsg && plan) { try { _healErkennen(plan); } catch (_) {} }
     if (!_spikes.length && !_gaps.length) {
       if (_datenMsg) { renderAll(); updateUI(); toast(t("gpxinspect.heal_done_data", "Geheilt: %d").replace("%d", _datenMsg), "success", 4500); }
       return;
@@ -2320,8 +2443,15 @@ function mountGpxInspect(body, headerActions) {
       const r = routes[i];
       // v0.9.315 — nur anwenden, wenn die Route KEIN Umweg/Schleife ist (sonst gerade
       // füllen). Schützt saubere Spuren davor, an Kreuzungen verbogen zu werden.
-      if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2 && !_routeIsDetour(r.coords, g.dist, 2.5)) {
-        _applyRoutedRange(g.a, g.b, r.coords);
+      // 25.09.2026 (Testprotokoll IN-03, Teide-Track): der Router rastet A und B auf den
+      // nächsten Weg ein — am Berg bis 1,5 km daneben. Die Route (oft 0 m lang) ersetzte
+      // dann A und B: der Track sprang zur Straße und zurück, +5 km, +1,5 h (Tempo-
+      // Entzerren) und vier neue Riesenlücken. Deshalb: Route nur, wenn sie an A und B
+      // anliegt; A und B selbst bleiben stehen, die Route kommt dazwischen.
+      if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2 && !_routeIsDetour(r.coords, g.dist, 2.5)
+          && _routeLiegtAn(r.coords, _points[g.a], _points[g.b])) {
+        const A = _points[g.a], B = _points[g.b];
+        _applyRoutedRange(g.a, g.b, [[A.lon, A.lat], ...r.coords, [B.lon, B.lat]]);
         routed++;
       } else {
         if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2) detour++;
@@ -2377,9 +2507,23 @@ function mountGpxInspect(body, headerActions) {
     const wEl = document.getElementById("gpxi-ele-weight");
     return Math.max(0, Math.min(1, (parseFloat(wEl && wEl.value) || 0) / 100));
   }
+  // 25.09.2026 (Testprotokoll IN-09: nach „Übernehmen" hieß das schon gemischte Profil
+  // „GPS (Original)", und jede weitere Übernahme mischte auf das Ergebnis drauf —
+  // 268 → 71 → 25 m) — die GPS-Höhen VOR der ersten Übernahme bleiben gemerkt. Gültig,
+  // solange die Punkte genau die übernommenen Höhen tragen; jede andere Änderung
+  // (Heilen, Undo auf einen anderen Stand, neuer Track) macht die Merkliste ungültig.
+  let _eleBasis = null;   // { gps: [...], res: [...] }
+  function _eleGpsReihe() {
+    const akt = _points.map(p => (p.ele == null || !isFinite(p.ele)) ? null : p.ele);
+    const b = _eleBasis;
+    if (b && b.res.length === akt.length && b.gps.length === akt.length
+        && akt.every((v, i) => v === b.res[i])) return b.gps.slice();
+    return akt;
+  }
   function _blendEles(w) {
+    const basis = _eleGpsReihe();
     return _points.map((p, i) => {
-      const gps = (p.ele == null || !isFinite(p.ele)) ? null : p.ele;
+      const gps = basis[i];
       const dem = _demEles ? _demEles[i] : null;
       if (dem == null || !isFinite(dem)) return gps;   // kein DEM → GPS behalten
       if (gps == null) return dem;
@@ -2422,7 +2566,7 @@ function mountGpxInspect(body, headerActions) {
     const W = 1000, H = 150, padT = 10, padB = 16;
     const cum = _cumDist();
     const x0 = cum[i0], x1 = cum[i1] || (x0 + 1), span = (x1 - x0) || 1;
-    const gpsArr = _points.map(p => (p.ele == null || !isFinite(p.ele)) ? null : p.ele);
+    const gpsArr = _eleGpsReihe();   // 25.09.2026 — nach Übernahme weiter das echte GPS-Original
     const demArr = _demEles;
     const w = _eleWeight();
     const resArr = _blendEles(w);
@@ -2802,15 +2946,20 @@ function mountGpxInspect(body, headerActions) {
     if (!_demEles || _demEles.length !== _points.length) return;
     const w = _eleWeight();
     const res = _blendEles(w);
-    const oldGain = _eleGain(_points.map(p => p.ele));
+    // 25.09.2026 (IN-09) — Mischung immer aus dem GPS-Original; „vorher" = Original.
+    const gpsOrig = _eleGpsReihe();
+    const oldGain = _eleGain(gpsOrig);
     _pushUndo(t("gpxinspect.ele_title", "Höhe korrigieren"));
     for (let i = 0; i < _points.length; i++) {
-      if (res[i] != null && isFinite(res[i])) _points[i].ele = Math.round(res[i] * 10) / 10;
+      // 0 % Karte = zurück zum Original, und zwar exakt (ohne Rundung auf 0,1 m).
+      if (w === 0 && gpsOrig[i] != null) _points[i].ele = gpsOrig[i];
+      else if (res[i] != null && isFinite(res[i])) _points[i].ele = Math.round(res[i] * 10) / 10;
     }
+    _eleBasis = { gps: gpsOrig, res: _points.map(p => (p.ele == null || !isFinite(p.ele)) ? null : p.ele) };
     _hasEle = true; _dirty = true;
     const newGain = _eleGain(_points.map(p => p.ele));
     renderAll(); updateUI();
-    drawEleProfile();   // GPS-Linie == jetzt Ergebnis → die beiden fallen zusammen
+    drawEleProfile();   // GPS-Linie bleibt das Original, Ergebnis = die übernommene Höhe
     const resEl = document.getElementById("gpxi-ele-result");
     if (resEl) resEl.textContent = t("gpxinspect.ele_done", "Übernommen: %old → %new Höhenmeter (%pct % Karte). Jetzt speichern.")
       .replace("%old", Math.round(oldGain)).replace("%new", Math.round(newGain)).replace("%pct", Math.round(w * 100));
@@ -3003,6 +3152,7 @@ function mountGpxInspect(body, headerActions) {
   function _fmtKm(m) { return (m / 1000 < 100) ? (m / 1000).toFixed(1) + " km" : Math.round(m / 1000) + " km"; }
   function updateUI() {
     try { _lbKnoepfe(); } catch (_) {}
+    try { _lbUndKopfNachziehen(); } catch (_) {}   // 25.09.2026 (IN-10/IN-12)
     const has = _points.length > 0;
     const empty = document.getElementById("gpxi-empty");
     const panel = document.getElementById("gpxi-panel");
@@ -3084,6 +3234,7 @@ function mountGpxInspect(body, headerActions) {
     setDisabled("gpxi-redo", _drawMode || !(_undo && _undo.canRedo()));
     // Auto-Despike: Button frei wenn Punkte da & nicht im Zeichnen-Modus.
     setDisabled("gpxi-heal-run", _drawMode || _mmBusy || !_points.length);
+    setDisabled("gpxi-heal-apply", _drawMode || _mmBusy || !_healPlan);   // 25.09.2026 — Heil-Vorschau
     setDisabled("gpxi-join", _drawMode || _mmBusy || !_points.length);
     const spikeBox = document.getElementById("gpxi-spikebox");
     const nSpk = _spikes.length, nGap = _gaps.length;
@@ -3299,7 +3450,15 @@ function mountGpxInspect(body, headerActions) {
   document.addEventListener("keydown", onKeyDown);
   _on("gpxi-undo", () => { if (_undo) _undo.undo(); });
   _on("gpxi-redo", () => { if (_undo) _undo.redo(); });
-  _on("gpxi-heal-run", runHeal);
+  _on("gpxi-heal-run", () => runHeal());
+  // 25.09.2026 — Heil-Vorschau: Übernehmen / Abbrechen; Häkchen oder Regler bei offener
+  // Vorschau ändern → Vorschau neu rechnen (sonst stimmt die Karte nicht mehr).
+  _on("gpxi-heal-apply", () => healUebernehmen());
+  _on("gpxi-heal-cancel", () => healAbbrechen());
+  for (const id of ["gpxi-heal-spikes", "gpxi-heal-gaps", "gpxi-heal-tempo", "gpxi-sens", "gpxi-profile"]) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => { if (_healPlan) runHeal(_healPlan); });
+  }
   // 31.08.2026 (der MTB-Kollege eines Beta-Testers): Reduzieren + Tempo
   { const _rEl = document.getElementById("gpxi-reduce-n");
     if (_rEl) _rEl.addEventListener("input", () => { try { reduzierVorschau(); } catch (e) { applog("warn", "[gpxi] Reduzier-Vorschau: " + e); } }); }
@@ -3433,6 +3592,12 @@ function mountGpxInspect(body, headerActions) {
     _selA = _selB = null; _dirty = true;
     clearSpikes(); _eleInvalidate();
     renderAll(); updateUI();
+    // 25.09.2026 (Klicktest IN-10) — Punkte-Regler stand danach noch auf der alten
+    // Punktzahl (1607 statt 4341), der Track-Check auf dem alten Track. Kopf und
+    // Logbuch zieht updateUI nach (_lbUndKopfNachziehen).
+    try { reduzierReglerSync(); } catch (_) {}
+    try { _pfeileBerechnen(); _punktFormAnwenden(); renderPoints(); } catch (_) {}
+    try { analyseTrack(); } catch (_) {}
     try { fitTrack(null); } catch (_) {}
 
     // Die Naht ehrlich benennen statt sie zu kaschieren. Der Nutzer entscheidet,
@@ -3476,7 +3641,10 @@ function mountGpxInspect(body, headerActions) {
     } }
   // 03.09.2026 — Gelände gibt es mit jeder Quelle; die Sperre „nur mit Token" ist weg.
   _on("gpxi-save", saveTrack);
-  _on("gpxi-reset", () => { if (_srcPath) loadTrack(_srcPath); });
+  // 25.09.2026 (Klicktest IN-12, app.log) — „Änderungen verwerfen" lud bei KML/FIT die
+  // umgewandelte Zwischendatei (_imports/…gpx): danach galt der Track als „nicht im Archiv",
+  // Logbuch und Speicherort zeigten ins Leere. Wieder die Datei des Nutzers laden.
+  _on("gpxi-reset", () => { const p = _origPath || _srcPath; if (p) loadTrack(p); });
 
   // ── Logbuch der Tour (13.09.2026, docs/LOGBUCH.md §68, Stufe 1) ─────────────
   // Marc: „wie wäre es, wenn der inspector eine art logbuch generiert, was wo war
@@ -3510,6 +3678,62 @@ function mountGpxInspect(body, headerActions) {
   let _lbRO = null;          // ResizeObserver des Strahls
   let _lbRAF = 0;
   let _lbPfad = null;        // für welche Datei das Logbuch gilt
+  // 25.09.2026 (Klicktest IN-10/IN-12) — Nach „Tracks verbinden" (Tag 2 + 3 an Tag 1) und
+  // „Zeitachse erzeugen" blieben Logbuch und Kopfzeile beim Stand der Datei: das Logbuch
+  // las nur die gespeicherte Einteilung, die Kopfzeile nur die Datei. Jetzt gilt: weicht
+  // die Zeitspanne der Punkte von der geladenen Datei ab, rechnet `logbuch_vorschau` das
+  // Logbuch aus den aktuellen Punkten (ohne etwas zu speichern), und die Kopfzeile zeigt
+  // die Zahlen des ungespeicherten Stands.
+  let _lbSigDatei = null;    // Zeitspanne der geladenen Datei
+  let _lbSigAktiv = null;    // Zeitspanne, für die das Logbuch zuletzt geladen wurde
+  let _lbSigTimer = 0;
+  let _lbLadeLauf = 0;       // nur der zuletzt gestartete Ladevorgang zeichnet
+  /** Erste und letzte Uhrzeit plus Zahl der Quelldateien — ändert sich beim Anhängen,
+   *  beim Erzeugen einer Zeitachse, beim Verschieben der Zeiten und beim Kappen, nicht
+   *  aber beim Heilen einzelner Stellen (dort bleibt das gespeicherte Logbuch gültig). */
+  function _lbSignatur() {
+    let a = NaN, b = NaN;
+    for (let i = 0; i < _points.length; i++) if (_points[i].time) { a = Date.parse(_points[i].time); break; }
+    for (let i = _points.length - 1; i >= 0; i--) if (_points[i].time) { b = Date.parse(_points[i].time); break; }
+    return [a, b, _sources.length];
+  }
+  /** Gleiche Zeitspanne? Bis 2 min Abweichung zählt als gleich — das Heilen verschiebt
+   *  Randzeiten um Millisekunden (Lücken-Routen), das ist keine neue Zeitspanne. */
+  function _lbSigGleich(x, y) {
+    if (!x || !y || x[2] !== y[2]) return false;
+    const nah = (u, v) => (isNaN(u) && isNaN(v)) || Math.abs(u - v) <= 120000;
+    return nah(x[0], y[0]) && nah(x[1], y[1]);
+  }
+  function _lbIstVorschau() { return !!(_lb && _lb.vorschau); }
+  function _lbVorschauSperre() {
+    if (!_lbIstVorschau()) return false;
+    toast(t("logbuch.vorschau_gesperrt", "Das Logbuch ist gerade eine Vorschau des ungespeicherten Tracks — bearbeiten lässt es sich nach dem Speichern."), "info", 5000);
+    return true;
+  }
+  /** Kopfzeile oben: Zahlen des ungespeicherten Stands (oder wieder die der Datei). */
+  function _kopfVorschau() {
+    if (typeof window.rzGpxBarVorschau !== "function") return;
+    if (isUnmounted || !_dirty || !_points.length || !_origPath) { window.rzGpxBarVorschau(null); return; }
+    const s = _trackStats();
+    window.rzGpxBarVorschau({ pfad: _origPath, stats: { distance_km: s.dist / 1000, duration_s: s.dur,
+                                                        ascent_m: s.asc, descent_m: s.desc, n_points: s.n } });
+  }
+  /** Nach jeder Änderung (aus updateUI, entprellt): Kopfzeile nachziehen und das Logbuch
+   *  neu laden, wenn sich die Zeitspanne geändert hat — auch zurück, z. B. nach ⌘Z. */
+  function _lbUndKopfNachziehen() {
+    if (_lbSigTimer) clearTimeout(_lbSigTimer);
+    _lbSigTimer = setTimeout(() => {
+      _lbSigTimer = 0;
+      if (isUnmounted) return;
+      try { _kopfVorschau(); } catch (_) {}
+      if (!_origPath || !_points.length || !_lbPfad || _lbSigGleich(_lbSignatur(), _lbSigAktiv)) return;
+      // Still nachladen: kein Netz-Lauf (dessen Hinweise überschrieben sonst die Meldung der
+      // Änderung, die das hier ausgelöst hat) — Ortsnamen nur aus dem Cache.
+      logbuchLaden(false, { ohneNetz: true }).then(() => {
+        if (!isUnmounted && _lb && !_lb.vorschau) { try { _lbNetzNachladen({ nurCache: true }); } catch (_) {} }
+      }).catch(() => {});
+    }, 250);
+  }
 
   const _lbEl = (id) => document.getElementById(id);
   const _lbEsc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -3603,10 +3827,17 @@ function mountGpxInspect(body, headerActions) {
     if (!wrap) return;
     if (!pfad || !_points.length) { wrap.hidden = true; _lb = null; _lbStandMerken(null); return; }
     _lbPfad = pfad;
+    // 25.09.2026 (IN-10/IN-12) — andere Zeitspanne als die Datei → Vorschau aus den Punkten
+    const sig = _lbSignatur(), vorschau = !_lbSigGleich(sig, _lbSigDatei), lauf = ++_lbLadeLauf;
+    _lbSigAktiv = sig;
     let r;
-    try { r = await rzWarten("logbuch_lesen", () => api().logbuch_lesen(pfad, !!neu)); }
+    try {
+      r = vorschau
+        ? await rzWarten("logbuch_lesen", () => api().logbuch_vorschau(pfad, _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time || null }))))
+        : await rzWarten("logbuch_lesen", () => api().logbuch_lesen(pfad, !!neu));
+    }
     catch (e) { r = { ok: false, error: String(e) }; }
-    if (isUnmounted || _lbPfad !== pfad || _origPath !== pfad) return;
+    if (isUnmounted || _lbPfad !== pfad || _origPath !== pfad || lauf !== _lbLadeLauf) return;
     const behalten = opt.auswahl || null, fensterAlt = opt.auswahl ? _lbFenster : null;
     _lbSel = null; _lbFenster = fensterAlt; _lbHover = null;
     _lbHighlight(null);
@@ -3628,7 +3859,10 @@ function mountGpxInspect(body, headerActions) {
     _lb = r;
     _lbStandMerken(r);
     try { await _lbEigeneLaden(); } catch (e) { applog && applog("warn", "[logbuch] eigene Spuren: " + e); }
-    if (note) note.hidden = true;
+    if (note) {
+      note.hidden = !r.vorschau;
+      if (r.vorschau) note.textContent = t("logbuch.vorschau_hinweis", "Vorschau des ungespeicherten Tracks — bearbeiten lässt sich das Logbuch nach dem Speichern.");
+    }
     if (koerper) koerper.hidden = _lbZuIst();
     applog && applog("info", `[logbuch] ${(r.eintraege || []).length} Einträge, ${(r.punkte || []).length} Punkte, ${(r.tage || []).length} Tage, Zone ${r.zone}`);
     logbuchRender();
@@ -3638,7 +3872,7 @@ function mountGpxInspect(body, headerActions) {
     // Saum auf der Karte zum (neuen) Ausschnitt nachziehen — ohne die Karte zu verschieben (_lbAusKarte)
     _lbAusKarte = true; try { _lbFensterAufKarte(true); } catch (_) {} finally { _lbAusKarte = false; }
     // Stufe 3: Ortsnamen und POIs im Hintergrund — beim Öffnen ganz, nach Änderungen nur aus dem Cache
-    if (!opt.ohneNetz) { try { _lbNetzNachladen(opt.auswahl !== undefined && opt.auswahl !== null ? { nurCache: true } : null); } catch (_) {} }
+    if (!opt.ohneNetz && !r.vorschau) { try { _lbNetzNachladen(opt.auswahl !== undefined && opt.auswahl !== null ? { nurCache: true } : null); } catch (_) {} }
   }
   function _lbZuIst() { const w = _lbEl("gpxi-logbuch"); return !!(w && w.classList.contains("ist-zu")); }
   function logbuchLeeren() {
@@ -3725,7 +3959,10 @@ function mountGpxInspect(body, headerActions) {
           const d = tage.get(z.tag);
           const km = es.filter(e => e.tag === z.tag).reduce((s, e) => s + (e.strecke_m || 0), 0);
           const titel = t("logbuch.tag", "Tag {n}", { n: z.tag }) + (d ? " · " + _lbTagText(d.t0, d.versatz_min, { weekday: "short", day: "numeric", month: "long" }) : "");
-          html += `<div class="gpxi-lb-tag" data-lb-tag="${z.tag}" title="${t("logbuch.tag_tip", "Klick: diesen Tag im Zeitstrahl aufziehen")}"><span>${titel}</span><span class="gpxi-lb-tag-meta">${km > 50 ? _lbKm(km) : ""}</span></div>`;
+          // 25.09.2026 (Klicktest IN-26) — role=button: Bedienhilfen (und Tastatur) drücken genau
+          // DIESEN Kopf. Die Köpfe kleben übereinander oben an der Liste; ein Druck nach Lage traf
+          // sonst den obersten sichtbaren — also meist einen anderen Tag.
+          html += `<div class="gpxi-lb-tag" role="button" tabindex="0" data-lb-tag="${z.tag}" title="${t("logbuch.tag_tip", "Klick: diesen Tag im Zeitstrahl aufziehen")}"><span>${titel}</span><span class="gpxi-lb-tag-meta">${km > 50 ? _lbKm(km) : ""}</span></div>`;
           letzter = z.tag;
         }
         html += z.html;
@@ -3740,7 +3977,10 @@ function mountGpxInspect(body, headerActions) {
       ev.stopPropagation(); const r = bt.getBoundingClientRect();
       _lbEintragMenue(_lbFinde(bt.dataset.vermutet), r.left, r.bottom + 2, null);
     }));
-    el.querySelectorAll("[data-lb-tag]").forEach(z => z.addEventListener("click", () => _lbTagZoom(parseInt(z.dataset.lbTag, 10))));
+    el.querySelectorAll("[data-lb-tag]").forEach(z => {
+      z.addEventListener("click", () => _lbTagZoom(parseInt(z.dataset.lbTag, 10)));
+      z.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); _lbTagZoom(parseInt(z.dataset.lbTag, 10)); } });
+    });
   }
   function _lbTagZoom(nr) {
     const d = (_lb && _lb.tage || []).find(x => x.nr === nr); if (!d) return;
@@ -4022,7 +4262,8 @@ function mountGpxInspect(body, headerActions) {
   let _lbMenueWeg = null;    // Klick-außerhalb-Listener des Menüs (wird beim Schließen abgemeldet)
 
   function _lbStandMerken(r) {
-    _lbStand = r && r.stand ? JSON.parse(JSON.stringify(r.stand)) : null;
+    // 25.09.2026 — eine Vorschau steht nicht in der Bibliothek: nie als Undo-Stand zurückschreiben
+    _lbStand = r && r.stand && !r.vorschau ? JSON.parse(JSON.stringify(r.stand)) : null;
     _lbEinst = r ? { global: r.einst_global || {}, tour: r.einst_tour || {} } : null;
   }
   /** Für den Undo-Schnappschuss des Inspektors: was das Logbuch gerade ist. */
@@ -4036,7 +4277,7 @@ function mountGpxInspect(body, headerActions) {
     if (!snap || !_lb || !snap.lbPfad || snap.lbPfad !== _lbPfad) return;
     let neu = false;
     try {
-      if (snap.lb && JSON.stringify(snap.lb) !== JSON.stringify(_lbStand)) {
+      if (snap.lb && !_lbIstVorschau() && JSON.stringify(snap.lb) !== JSON.stringify(_lbStand)) {
         await api().einteilung_stand_setzen(_lb.eid, snap.lb, _lb.tour);   // warte-ok: Teil des Undo-Schritts
         neu = true;
       }
@@ -4049,7 +4290,7 @@ function mountGpxInspect(body, headerActions) {
     if (neu) await logbuchLaden(false, { auswahl: _lbSel });
   }
   async function _lbAktion(label, aktion, params, opt) {
-    if (!_lb) return null;
+    if (!_lb || _lbVorschauSperre()) return null;
     opt = opt || {};
     const vorher = opt.ohneUndo ? null : _undoSnap();   // Undo-Schritt erst nach Erfolg (14.09.2026)
     let r;
@@ -4323,8 +4564,8 @@ function mountGpxInspect(body, headerActions) {
 
   // ── Eigener Bereich A→B, eigener Punkt, Einstellungen ────────────────────
   function _lbKnoepfe() {
-    const ab = _lbEl("gpxi-lb-ab"); if (ab) ab.disabled = !(_lb && _selA !== null && _selB !== null && !_lbAlles);
-    const pk = _lbEl("gpxi-lb-punkt"); if (pk) { pk.disabled = !_lb || _lbAlles; pk.classList.toggle("ist-an", _lbPunktModus); }
+    const ab = _lbEl("gpxi-lb-ab"); if (ab) ab.disabled = !(_lb && !_lb.vorschau && _selA !== null && _selB !== null && !_lbAlles);
+    const pk = _lbEl("gpxi-lb-punkt"); if (pk) { pk.disabled = !_lb || !!_lb.vorschau || _lbAlles; pk.classList.toggle("ist-an", _lbPunktModus); }
     const zr = _lbEl("gpxi-lb-einst"); if (zr) zr.disabled = !_lb;
   }
   function _lbBereichAB(ev) {
@@ -4456,7 +4697,7 @@ function mountGpxInspect(body, headerActions) {
   }
   /** Nach dem Logbuch: Ortsnamen und POIs im Hintergrund holen (Q4/Q10/Q11). */
   async function _lbNetzNachladen(opt) {
-    if (!_lb || !_lbPfad) return;
+    if (!_lb || !_lbPfad || _lb.vorschau) return;   // Vorschau: Kennungen sind nicht gespeichert
     const einst = _lb.einstellungen || {};
     const pfad = _lbPfad, lauf = ++_lbNetzLauf;
     if (opt && opt.nurCache) {   // nach einer Änderung: Kennungen sind neu, Namen kommen aus dem Cache
@@ -4876,6 +5117,7 @@ function mountGpxInspect(body, headerActions) {
     return true;
   }
   async function _lbEigenAnlegen(t0, t1) {
+    if (_lbVorschauSperre()) return;   // 25.09.2026 — erst speichern, dann eigene Spuren
     // Name der Spur: bestehende zur Auswahl, sonst neu
     const M = [{ text: t("logbuch.eigen.titel", "Eigene Spur"), aus: true }];
     for (const e of _lbEigene) M.push({ unter: true, symbol: "🏷", text: e.name || t("logbuch.eigen.ohne_name", "(ohne Namen)"), tu: () => _lbEigenBereich(e.id, t0, t1) });
@@ -5313,6 +5555,8 @@ function mountGpxInspect(body, headerActions) {
   // ── Cleanup ──────────────────────────────────────────────────────────────────
   return function cleanup() {
     isUnmounted = true;
+    // 25.09.2026 — die Kopfzeile gehört wieder der Datei (andere Module zeigen die Datei)
+    try { if (_lbSigTimer) { clearTimeout(_lbSigTimer); _lbSigTimer = 0; } if (window.rzGpxBarVorschau) window.rzGpxBarVorschau(null); } catch (_) {}
     try { if (_lbRO) { _lbRO.disconnect(); _lbRO = null; } } catch (_) {}
     try { if (_lbRAF) cancelAnimationFrame(_lbRAF); } catch (_) {}
     // 14.09.2026: Logbuch-Reste abräumen — großes Fenster (hängt an document.body), Menü, Timer, Globale.

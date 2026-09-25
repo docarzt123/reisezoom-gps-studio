@@ -3159,16 +3159,19 @@ function mountGeotagger(body, headerActions) {
   }
 
   let _zoneFalsch = [];         // 25.09.2026: Kameras, deren Zeitzone IM Foto nicht zum Track passt
+  let _tzOffen = null;          // 25.09.2026 (GT-03): Track lässt einen Bereich offen → {von, bis, naheliegend}
 
   async function _gtTzVorschlagHolen(key) {
     _tzVorschlagKey = key;
     _tzVorschlag = null;
     _zoneFalsch = [];
+    _tzOffen = null;
     try {
       const r = await api().geotagger_zeitzone_vorschlag(300, Object.assign({}, _gtCamOffsets), _gtGlobalOffset || 0);
       if (isUnmounted || _tzVorschlagKey !== key) return;   // Fotos haben sich geändert
       _tzVorschlag = (r && r.ok && r.minuten != null && r.treffer > 0) ? r : null;
       _zoneFalsch = (r && r.ok && Array.isArray(r.zone_falsch)) ? r.zone_falsch : [];
+      _tzOffen = (r && r.ok && r.minuten == null && Array.isArray(r.naheliegend) && r.naheliegend.length) ? r : null;
       _gtTzHinweisAktualisieren();
     } catch (_) { /* Vorschlag ist ein Extra, kein Muss */ }
   }
@@ -3182,7 +3185,9 @@ function mountGeotagger(body, headerActions) {
   // Ortszeit, im Foto aber +02:00). Liefert HTML-Zeilen mit „Übernehmen" je Kamera.
   function _gtZoneFalschHtml() {
     const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    return _zoneFalsch.map((z, i) => '<div class="gt-tz-vorschlag gt-zone-falsch"><span>⚠️ ' +
+    // 25.09.2026 (GT-03) — mit Kamera-Filter nur die Zeile dieser Kamera (Index bleibt für den Knopf)
+    return _zoneFalsch.map((z, i) => (_gtCamFilter && (z.kamera || _GT_CAM_UNKNOWN) !== _gtCamFilter) ? "" :
+      '<div class="gt-tz-vorschlag gt-zone-falsch"><span>⚠️ ' +
       t("geotagger.tz_hint.zone_falsch", "<b>{kam}</b>: Die Zeitzone im Foto passt nicht zum Track — mit <b>{versatz}</b> liegen {nachher} statt {vorher} von {gesamt} Fotos im Track (typisch: Kamera-Uhr auf Ortszeit, Zeitzone noch von zu Hause).")
         .replace("{kam}", esc(z.kamera || t("geotagger.filter.cam_unknown", "Unbekannt")))
         .replace("{versatz}", _gtVersatzText(z.zusatz_s)).replace("{nachher}", z.nachher)
@@ -3205,12 +3210,18 @@ function mountGeotagger(body, headerActions) {
   function _gtTzHinweisAktualisieren() {
     const box = document.getElementById("gt-tz-hinweis");
     if (!box) return;
-    const mitZeit = photos.filter(p => p && p.photo_time);
-    if (!mitZeit.length) { box.hidden = true; return; }
+    const alleMitZeit = photos.filter(p => p && p.photo_time);
+    // 25.09.2026 (Klicktest GT-03) — Der Hinweis zählt nur, was unter dem Kamera-Filter
+    // sichtbar ist, und keine Dateien ohne Kamera und ohne Zeitzone (Videos: QuickTime
+    // speichert UTC — „5 von 17 (Canon EOS R6)" zählte das Video mit).
+    const mitZeit = alleMitZeit.filter(p => (!_gtCamFilter || _gtPhotoCamera(p) === _gtCamFilter)
+                                            && (p.tz_known || p.camera));
+    if (!alleMitZeit.length) { box.hidden = true; return; }
     const ohneTz = mitZeit.filter(p => !p.tz_known);
     // 25.09.2026 — Vorschlag auch für Fotos MIT Zeitzone holen (passt sie zum Track?);
     // der Schlüssel enthält die eingestellten Versätze, damit „Übernehmen" neu rechnet.
-    const keyAlle = _gtTzKey(mitZeit) + "|" + JSON.stringify(_gtCamOffsets) + "|" + (_gtGlobalOffset || 0);
+    // Gerechnet wird immer über ALLE Fotos (die Kamera-Zeitzone gilt für alle ohne Zone).
+    const keyAlle = _gtTzKey(alleMitZeit) + "|" + JSON.stringify(_gtCamOffsets) + "|" + (_gtGlobalOffset || 0);
     if (!ohneTz.length) {
       if (currentGpxPath && _tzVorschlagKey !== keyAlle) _gtTzVorschlagHolen(keyAlle);
       const zf = (_tzVorschlagKey === keyAlle) ? _gtZoneFalschHtml() : "";
@@ -3249,6 +3260,25 @@ function mountGeotagger(body, headerActions) {
           ' <button class="btn btn-small" id="gt-tz-uebernehmen">' +
           t("geotagger.tz_hint.apply", "Übernehmen") + "</button></div>";
       }
+    } else if (_tzVorschlagKey === key && _tzOffen) {
+      // 25.09.2026 (Klicktest GT-03) — Der Track lässt einen ganzen Bereich offen (Fotos
+      // nur aus der Mitte der Tour). Statt still nichts: den Bereich nennen und die Zonen
+      // anbieten, auf denen Kamera-Uhren praktisch immer stehen (Ortszeit / zu Hause).
+      html += '<div class="gt-tz-vorschlag gt-tz-offen"><span>' +
+        t("geotagger.tz_hint.offen", "Aus dem Track allein nicht eindeutig: Jede Zeitzone von <b>{von}</b> bis <b>{bis}</b> legt die Fotos gleich gut in die Tourzeit. Naheliegend:")
+          .replace("{von}", _tzLabelKurz(_tzOffen.von)).replace("{bis}", _tzLabelKurz(_tzOffen.bis)) + "</span></div>";
+      _tzOffen.naheliegend.forEach((z) => {
+        const wo = z.quelle === "heim"
+          ? t("geotagger.tz_hint.quelle_heim", "Zeitzone dieses Computers am Aufnahmetag (Uhr von zu Hause nicht umgestellt)")
+          : t("geotagger.tz_hint.quelle_ort", "Ortszeit, wie die übrigen Fotos sie mitbringen");
+        html += '<div class="gt-tz-vorschlag"><span><b>' + _tzLabelKurz(z.minuten) + "</b> · " + wo +
+          (z.minuten === getTzOffsetMinutes()
+            ? " ✓ " + t("geotagger.tz_hint.eingestellt", "eingestellt") + "</span>"
+            : `</span> <button class="btn btn-small" data-tz-naheliegend="${parseInt(z.minuten) || 0}">${t("geotagger.tz_hint.apply", "Übernehmen")}</button>`) +
+          "</div>";
+      });
+      html += '<div class="gt-tz-vorschlag gt-tz-offen"><span>' +
+        t("geotagger.tz_hint.offen_sicher", "Sicher wird es mit einem <b>Referenz-Foto</b> auf der Karte.") + "</span></div>";
     } else {
       // Kein rechenbarer Vorschlag (kein Track geladen, oder keine Zeitzone
       // legt die Fotos in den Track) — dann der Weg von Hand.
@@ -3259,15 +3289,18 @@ function mountGeotagger(body, headerActions) {
     box.hidden = false;
     _gtZoneFalschKnoepfe(box);
     const btn = document.getElementById("gt-tz-uebernehmen");
-    if (btn && v) {
-      btn.onclick = () => {
-        tzOffsetMin = v.minuten;
-        saveSettings({ geotagger: { tz_offset_minutes: tzOffsetMin } });
-        updateOffsetDisplay();
-        updateMatches();
-        toast(t("geotagger.tz_hint.applied", "Kamera-Zeitzone auf {tz} gesetzt.").replace("{tz}", _tzLabelKurz(v.minuten)), "success");
-      };
-    }
+    if (btn && v) btn.onclick = () => _gtTzUebernehmen(v.minuten);
+    box.querySelectorAll("[data-tz-naheliegend]").forEach((b) => {
+      b.onclick = () => _gtTzUebernehmen(parseInt(b.getAttribute("data-tz-naheliegend")) || 0);
+    });
+  }
+
+  function _gtTzUebernehmen(minuten) {
+    tzOffsetMin = minuten;
+    saveSettings({ geotagger: { tz_offset_minutes: tzOffsetMin } });
+    updateOffsetDisplay();
+    updateMatches();
+    toast(t("geotagger.tz_hint.applied", "Kamera-Zeitzone auf {tz} gesetzt.").replace("{tz}", _tzLabelKurz(minuten)), "success");
   }
 
   function _gtZoneFalschKnoepfe(box) {

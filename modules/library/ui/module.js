@@ -184,6 +184,7 @@ function mountLibrary(body, headerActions) {
     }
     return art;
   };
+  const VGL_OHNE_ART = "__ohne_art__";   // 25.09.2026 (AR-12) — Spalte für Touren ohne Art
   const gruppenLabel = (schluessel) => schluessel.startsWith("grp:")
     ? GROUP_LABELS[schluessel.slice(4)] || schluessel
     : (ACT_LABELS[schluessel] || schluessel);
@@ -708,8 +709,8 @@ function mountLibrary(body, headerActions) {
     $("lib-head").innerHTML = `
       <span class="lib-head-count">${_total} ${T("library.tours", "Touren")}</span>
       <span class="lib-head-title">${esc(scopeTitle())}</span>
-      ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours", "Stunden")}</span>` : ""}
-      ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned", "geplant")}</span>` : ""}
+      ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours_moving_kurz", "Std. in Bewegung")}</span>` : ""}
+      ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned_n", "geplant")}</span>` : ""}
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
       ${_ortAktiv ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button" title="${T("library.area_off", "Nur Treffer im Text zeigen")}">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortAktiv.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")}${_ortAktiv.textTreffer ? ` · ${_ortAktiv.textTreffer} ${T("library.by_name", "über den Namen")}` : ""} ✕</button>` : ""}
       ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
@@ -2327,8 +2328,13 @@ function mountLibrary(body, headerActions) {
     const zeitraeume = [];
     const proArt = new Map();
     const zellen = new Map();      // "zeitraum|art" → Wert
+    let _nMitDatum = 0;
     for (const r of roh) {
-      if (!r.activity) continue;   // ohne erkannte Art hilft der Vergleich nicht
+      // 25.09.2026 (Klicktest AR-12): Touren ohne erkannte Art bekommen eine eigene
+      // Spalte „ohne Art“ — vorher fielen sie still heraus, und die Summe ging
+      // gegenüber der Übersicht nicht auf (7227 statt 7430 km).
+      const art = r.activity || VGL_OHNE_ART;
+      _nMitDatum += r.n || 0;
       const z = _vglEbene === "year" ? String(r.year)
         : _vglEbene === "week" ? r.week : r.month;
       if (!zeitraeume.includes(z)) zeitraeume.push(z);
@@ -2336,15 +2342,19 @@ function mountLibrary(body, headerActions) {
       // Beim Zusammenfassen fallen mehrere Zeilen auf dieselbe Zelle — deshalb
       // addieren statt setzen. Ohne das gewänne die zuletzt gelesene Radart und
       // der Rest verschwände lautlos.
-      const spalte = _vglGrp ? gruppeVon(r.activity) : r.activity;
+      const spalte = _vglGrp ? gruppeVon(art) : art;
       const schluessel = z + "|" + spalte;
       zellen.set(schluessel, (zellen.get(schluessel) || 0) + wert);
       proArt.set(spalte, (proArt.get(spalte) || 0) + wert);
     }
     if (!zeitraeume.length) return "";
 
-    // Nur Arten zeigen, die überhaupt vorkommen — die stärksten zuerst.
-    const arten = [...proArt.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    // Nur Arten zeigen, die überhaupt vorkommen — die stärksten zuerst, „ohne Art“ am Ende.
+    const arten = [...proArt.entries()]
+      .sort((a, b) => ((a[0] === VGL_OHNE_ART) - (b[0] === VGL_OHNE_ART)) || (b[1] - a[1]))
+      .map(x => x[0]);
+    // Touren ohne Datum lassen sich keinem Zeitraum zuordnen — sagen statt verschweigen.
+    const _ohneDatum = Math.max(0, (s.n_tracks || 0) - _nMitDatum);
     // Früher endeten die Monate nach zwei Jahren („Bei Monat werden die Monate
     // für 2 Jahre angezeigt. Auch hier wäre es schön, wenn alle Jahre
     // berücksichtigt werden."). Jetzt sind alle drin; die Tabelle scrollt.
@@ -2406,7 +2416,7 @@ function mountLibrary(body, headerActions) {
               ${vglKopf("", _vglEbene === "year" ? T("library.year", "Jahr")
                 : _vglEbene === "week" ? T("library.week", "Woche")
                 : T("library.month", "Monat"))}
-              ${arten.map(a => vglKopf(a, gruppenLabel(a))).join("")}
+              ${arten.map(a => vglKopf(a, a === VGL_OHNE_ART ? T("library.act_ohne_art", "ohne Art") : gruppenLabel(a))).join("")}
               ${vglKopf("sum", T("library.total", "Gesamt"), "lib-vgl-sum")}
             </tr></thead>
             <tbody>
@@ -2437,7 +2447,8 @@ function mountLibrary(body, headerActions) {
             ? " · " + T("library.stat_week_hint",
                 "{n} Wochen — mit einem Zeitraum oben wird die Tabelle lesbar.")
                 .replace("{n}", num(sichtbar.length))
-            : ""}</div>
+            : ""}${_ohneDatum ? " · " + T("library.stat_ohne_datum", "{n} Touren ohne Datum sind hier nicht enthalten.")
+              .replace("{n}", num(_ohneDatum)) : ""}</div>
       </div>`;
   }
 
@@ -2469,7 +2480,9 @@ function mountLibrary(body, headerActions) {
       [T("library.tours", "Touren"), num(s.n_tracks), ""],
       [T("library.distance", "Strecke"), num(s.total_km), "km"],
       [T("library.ascent", "Höhenmeter"), num(s.total_ascent_m), "m"],
-      [T("library.hours", "Stunden"), num(s.total_hours), "h"],
+      // 25.09.2026 (AR-12): Es ist die Bewegungszeit (moving_time) — so beschriften,
+      // sonst wirkt sie neben der Gesamtdauer einzelner Touren zu klein.
+      [T("library.hours_moving", "Stunden in Bewegung"), num(s.total_hours), "h"],
       [T("library.stat_avg", "Ø je Tour"), num(s.avg_km), "km"],
       [T("library.stat_longest", "Längste"), num(s.longest_km), "km"],
     ];
@@ -2498,7 +2511,7 @@ function mountLibrary(body, headerActions) {
             </div>
             <div class="lib-split-lbl">
               <span><b>${s.done.n}</b> ${T("library.done_short", "gemacht")} · ${num(s.done.km)} km</span>
-              <span><b>${s.planned.n}</b> ${T("library.planned", "geplant")} · ${num(s.planned.km)} km</span>
+              <span><b>${s.planned.n}</b> ${T("library.planned_n", "geplant")} · ${num(s.planned.km)} km</span>
             </div>
           </div>` : ""}
 
@@ -2518,9 +2531,9 @@ function mountLibrary(body, headerActions) {
           <div class="lib-chart">
             <div class="lib-chart-title">${T("library.stat_per_activity", "Nach Fortbewegung")}</div>
             <div class="lib-acts">
-              ${s.activities.filter(a => a.activity).map(a => `
+              ${s.activities.slice().sort((a, b) => (!a.activity) - (!b.activity)).map(a => `
                 <div class="lib-act-row">
-                  <span>${esc(ACT_LABELS[a.activity] || a.activity)}</span>
+                  <span>${esc(a.activity ? (ACT_LABELS[a.activity] || a.activity) : T("library.act_ohne_art", "ohne Art"))}</span>
                   <div class="lib-act-bar"><i style="width:${(a.n / s.n_tracks) * 100}%"></i></div>
                   <b>${a.n}</b><span class="lib-act-km">${num(a.km)} km</span>
                 </div>`).join("")}
@@ -2971,6 +2984,7 @@ function mountLibrary(body, headerActions) {
         <span class="lib-merge-n">${i + 1}</span>
         <span class="lib-merge-name">${esc(it.display_name || it.name || "")}</span>
         <span class="lib-merge-meta">${fmtDate(it.started_at)} · ${fmtKmVal(it.distance_m || 0)}</span>
+        <span class="lib-merge-sort">${rzSortPfeile(i, liste.length)}</span>
       </div>`).join("");
     const m = openModal({
       title: T("library.merge.title", "Touren zusammenführen"),
@@ -2999,31 +3013,24 @@ function mountLibrary(body, headerActions) {
       const nf = namensfeld();
       if (nf && !nf._userEdited) nf.value = nameVorschlag();
     };
-    let ziehtVon = -1;
+    // 25.09.2026 (Beta-Tester Windows, Klicktest RR-04) — Sortieren am ⠿ per Pointer-
+    // Ereignissen statt HTML5-Drag&Drop (ui/js/util.js rzSortierbar), ▲▼ dazu. Nebenbei
+    // erledigt: das interne Ziehen kann die Archiv-Import-Dropzone nicht mehr auslösen.
     const binden = () => {
-      host().querySelectorAll(".lib-merge-row").forEach((row) => {
-        const i = +row.dataset.i;
-        const griff = row.querySelector(".lib-merge-handle");
-        if (griff) griff.addEventListener("mousedown", () => { row.draggable = true; });
-        row.addEventListener("dragstart", (ev) => {
-          ziehtVon = i; row.classList.add("dragging");
-          try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
-        });
-        row.addEventListener("dragend", () => {
-          row.draggable = false; row.classList.remove("dragging");
-          host().querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over"));
-        });
-        row.addEventListener("dragover", (ev) => { if (ziehtVon < 0) return; ev.preventDefault(); ev.stopPropagation(); row.classList.add("drag-over"); });
-        row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
-        row.addEventListener("drop", (ev) => {
-          // stopPropagation: sonst fängt die Archiv-Import-Dropzone das
-          // interne Sortier-Drag ab und meldet „keine Dateien".
-          ev.preventDefault(); ev.stopPropagation(); row.classList.remove("drag-over");
-          if (ziehtVon < 0 || ziehtVon === i) { ziehtVon = -1; return; }
-          const [x] = liste.splice(ziehtVon, 1); liste.splice(i, 0, x); ziehtVon = -1;
-          neuZeichnen();
-        });
-      });
+      // Sortier-Ziehen bleibt im Dialog: Pointer-Sortieren erzeugt kein Drag-Ereignis, und
+      // rzSortierbar unterdrückt `dragstart` am Griff. Kommt trotzdem ein HTML5-Ziehen an
+      // (Text, Bild, alte Reste), endet es hier — sonst meldet die Archiv-Import-Dropzone
+      // „keine Dateien" (vorher: ev.stopPropagation() im drop/dragover je Zeile).
+      const h = host();
+      if (h && !h.__rzNurIntern) {
+        h.__rzNurIntern = true;
+        for (const typ of ["dragenter", "dragover", "dragleave", "drop"]) h.addEventListener(typ, (ev) => ev.stopPropagation());
+      }
+      rzSortierbar(host(), { zeile: ".lib-merge-row", griff: ".lib-merge-handle", onEnde: (von, nach) => {
+        if (von < 0 || nach < 0 || von >= liste.length || nach >= liste.length) { neuZeichnen(); return; }
+        const [x] = liste.splice(von, 1); liste.splice(nach, 0, x);
+        neuZeichnen();
+      } });
     };
     binden();
     const nf = namensfeld();
@@ -4677,15 +4684,24 @@ function mountLibrary(body, headerActions) {
     const res = await rzWarten("library_import_files", () => api().library_import_files(liste));
     if (!res || res.cancelled) return;
     if (!res.ok) { toast(res.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
+    // 25.09.2026 (Klicktest FE-03): Was kein Track ist, klar benennen — statt es als
+    // „schon da“ mitzuzählen. Ohne Track-Inhalt (.txt/.json) landet die Datei in der
+    // Liste nicht lesbarer Dateien; eine fremde Endung wird gar nicht übernommen.
+    const _keinTrack = res.kein_track || [], _abgelehnt = res.abgelehnt || [];
+    if (_abgelehnt.length) toast(T("library.import_abgelehnt", "„{name}“ ist keine Track-Datei — nicht übernommen.")
+      .replace("{name}", _abgelehnt.join("“, „")), "warn");
+    if (_keinTrack.length) toast(T("library.import_kein_track", "„{name}“ enthält keinen Track — steht jetzt in der Liste der nicht lesbaren Dateien.")
+      .replace("{name}", _keinTrack.join("“, „")), "warn");
     if (!res.kopiert && !res.uebersprungen) {
-      toast(T("library.import_none", "Keine Track-Dateien erkannt"), "warn");
+      if (!_abgelehnt.length && !_keinTrack.length) toast(T("library.import_none", "Keine Track-Dateien erkannt"), "warn");
       return;
     }
     // 14.09.2026 (Marc: „ich erwarte, dass ich im Archiv lande, wo die Tour vorausgewählt
     // ist"): merken, was gezeigt werden soll — die neuen UND die schon bekannten Dateien.
     _importZeigen = { geo: [...new Set(liste.map(pf => geoJeDatei[pf]).filter(Boolean))], pfade: (res.pfade || []).slice() };
-    toast(T("library.import_done", "Dateien importiert — Einlesen läuft")
-      + ` (${res.kopiert}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
+    const _nNeu = Math.max(0, res.kopiert - _keinTrack.length);   // 25.09.2026 — ohne die Nicht-Tracks
+    if (_nNeu || res.uebersprungen) toast(T("library.import_done", "Dateien importiert — Einlesen läuft")
+      + ` (${_nNeu}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
     await reloadFolders();
     if (_foldersModal) { try { _foldersModal.close(); } catch (_) {} _foldersModal = null; }
     if (!res.kopiert) { await importErgebnisZeigen(); return; }   // alles schon da: gleich zeigen
@@ -4693,6 +4709,13 @@ function mountLibrary(body, headerActions) {
   }
 
   let _importZeigen = null;
+  /** 25.09.2026 (Klicktest FE-01/FE-03): konkreter Grund je nicht lesbarer Datei
+   *  (Code aus core/library.fehler_grund) statt nur der allgemeinen Gruppen-Erklärung. */
+  function _fehlerGrund(code) {
+    if (code === "keine_punkte") return T("library.err_grund_keine_punkte", "Enthält keine Trackpunkte.");
+    if (code === "kein_track") return T("library.err_grund_kein_track", "Enthält keinen Track — kein GPS-Format erkannt.");
+    return "";
+  }
   /** Nach einem Import: Touren-Archiv → Alle Touren, Filter weg, das Importierte oben und
    *  ausgewählt, rechts im Detail offen (bei mehreren Dateien alle markiert). */
   async function importErgebnisZeigen() {
@@ -4874,6 +4897,7 @@ function mountLibrary(body, headerActions) {
         <label class="lib-dupe-item lib-dupe-pick">
           <input type="checkbox" class="lib-err-cb" data-path="${esc(i.path)}">
           <span class="lib-dupe-name">${esc(i.filename)}
+            ${i.grund ? `<span class="lib-err-ordner">${esc(_fehlerGrund(i.grund))}</span>` : ""}
             <span class="lib-err-ordner">${esc(_ordnerVon(i.path))}</span></span>
           ${i.hidden ? `<span class="lib-dupe-keep">${T("library.err_dismissed", "weggeräumt")}</span>` : ""}
         </label>
