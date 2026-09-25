@@ -46,7 +46,9 @@ Alles liegt unter `~/GPS-Studio-Test`:
 | `Arbeit/archiv/` | Tracks, die im Archiv stehen (vorbefüllt) |
 | `Arbeit/zum-oeffnen/` | Tracks, die **nicht** im Archiv sind: `01-formate`, `02-fehlerfaelle`, `06-tagesdateien` |
 | `Arbeit/fotos/geotagger/` | Testfotos zur Tour „Barranco de Masca" (05.05.2023, Ortszeit UTC+1) |
-| `Arbeit/fotos/echt/` | Echte Fotos derselben Tour (von Marc; leer, solange nur `LIESMICH.txt` darin liegt) |
+| `Arbeit/fotos/echt-ohne-gps/` | 76 echte Fotos von Marc zur selben Tour (Canon G5 X II + Pixel 6 Pro), GPS entfernt — für den Geotagger |
+| `Arbeit/fotos/echt-mit-gps/` | Dieselben 76 mit GPS (aus Lightroom) — für den Foto-Bestand |
+| `Arbeit/fotos/echt-soll-positionen.json` | Soll-Position je echtem Foto |
 | `Arbeit/fotos/bestand/` | Foto-Ordner mit Unterordnern und einem Duplikat |
 | `Arbeit/reiseroute/stationen.txt` | Stationen für die Reiseroute |
 | `Ausgaben/` | **Hierhin** speicherst du alles (Videos, PNGs, HTML, GPX, .rzproj) |
@@ -206,6 +208,8 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | FO-03 | Kartenansicht | Punkt nur für `E_hat_schon_gps.jpg` (die anderen haben keine Koordinate, Kachel-„!") |
 | FO-04 | Ansicht **Nach Touren** | Fotos vom 05.05.2023 bei „Barranco de Masca" |
 | FO-05 | Suche/Filter nach Kamera „Canon" | Nur B_01 |
+| FO-07 📷 | Zweiten Ordner hinzufügen: `Arbeit/fotos/echt-mit-gps` | 76 Fotos; Kartenansicht: Punktwolke entlang Barranco de Masca; Klick in die Wolke nennt die Tour |
+| FO-08 | Nach Touren → Barranco de Masca | 76 echte + die synthetischen Masca-Fotos |
 | FO-06 | Ordner wieder entfernen | Verschwindet aus dem Bestand; Dateien in `Arbeit/fotos/bestand` bleiben (im Finder prüfen) |
 
 ### IN — GPX-Inspektor
@@ -340,6 +344,18 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 | GT-10 📷 | **GPS in Fotos schreiben** → Zielordner **`~/GPS-Studio-Test/Ausgaben/getaggt`** | Kopien mit GPS dort; Originale in `Arbeit/fotos/geotagger` unverändert (mit `exiftool -gps:all <datei>` prüfen: leer) |
 | GT-11 | Zielordner = Ordner der Originale (`Arbeit/fotos/geotagger`) | Rückfrage „Originale überschreiben?" + ZIP-Sicherung; bestätigen ist hier erlaubt (Testkopien) |
 | GT-12 | Schutzprobe: im Terminal `mkdir -p /tmp/rz-schutzprobe`, dann **Originale überschreiben** mit Fotos, die dort liegen (`cp ~/GPS-Studio-Test/Arbeit/fotos/geotagger/A_01.jpg /tmp/rz-schutzprobe/`, Ordner laden, Zielordner = derselbe) | Schreiben wird **verweigert** (Dateischutz, testrechner) — das ist Soll; `A_01.jpg` dort bleibt ohne GPS |
+
+**Echte Fotos** (`Arbeit/fotos/echt-ohne-gps/`, 76 Stück; Soll in `SOLL-WERTE.md`, Abschnitt „Echte Fotos"):
+
+| ID | Aktion | Erwartet |
+|---|---|---|
+| GT-20 | Geotagger leeren (✕), Ordner `echt-ohne-gps` laden | Archiv schlägt „Barranco de Masca" vor; 76 Fotos, zwei Kameras (Canon PowerShot G5 X Mark II, Pixel 6 Pro) |
+| GT-21 📷 | Tracks verwenden, Karte ansehen | Die 3 Pixel-Fotos liegen am Weg; die 73 Canon-Fotos liegen **gut 1 km versetzt** (ihre Zeitzone im Foto sagt +02:00, die Uhr lief aber auf Ortszeit UTC+1) — das ist der Testfall, kein App-Fehler |
+| GT-22 | Kamera-Knopf **Canon** → Versatz **+1 h** (Regler) — alternativ Referenzfoto: ein Canon-Foto anklicken und auf seine echte Stelle klicken | Canon-Fotos rücken auf den Weg; Badge zeigt den Versatz; Pixel-Fotos bleiben, wo sie waren |
+| GT-23 | Notieren, ob die App selbst einen Hinweis gibt („Zeitzone im Foto passt nicht zum Track" o. ä.) | Beobachtung für den Bericht (⚠️, wenn nichts kommt — dann muss man den Fehler selbst bemerken) |
+| GT-24 | Auto-Tag per Bilderkennung auf 5 Fotos | Sinnvolle Schlagworte (Schlucht, Berg, Meer …) |
+| GT-25 📷 | GPS in Fotos schreiben → Zielordner `~/GPS-Studio-Test/Ausgaben/getaggt-echt` | 76 Kopien mit GPS |
+| GT-26 | Im Terminal: `.venv/bin/python scripts/testumgebung_fotovergleich.py ~/GPS-Studio-Test/Ausgaben/getaggt-echt` | Beide Kameras ✅, Median < 50 m (Rechenkern-Messung: Canon 17 m, Pixel 31 m) |
 
 ### PR — Projekte, Vorlagen, Tour-Assistent
 

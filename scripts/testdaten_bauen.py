@@ -238,12 +238,42 @@ def fotos(q: Path) -> dict:
         for n in namen:
             kopieren(d / n, b / sub)
     kopieren(d / "A_01.jpg", b / "Sonstiges", "A_01 Kopie.jpg")
-    e = q / "10-fotos" / "echt"
-    e.mkdir(parents=True, exist_ok=True)
-    (e / "LIESMICH.txt").write_text("Hier legt Marc 10–20 echte Fotos der Masca-Tour ab (05.05.2023), "
-                                    "gern mit einem RAW, einem HEIC und einem kurzen Video.\n", encoding="utf-8")
     return {"tour": komoot(FOTO_TOUR).name, "tour_start_utc": t0.isoformat(), "tour_ende_utc": t1.isoformat(),
             "ortszeit": f"UTC+{FOTO_ORT_H}", "fotos": liste}
+
+
+def echte_fotos(q: Path, wurzel: Path) -> dict:
+    """Marcs echte Masca-Fotos (Rohmaterial/masca-fotos, einmal vom Schreibtisch kopiert).
+
+    Befund 25.09.2026: Die Canon G5 X II lief auf Ortszeit (UTC+1), schreibt aber die Zeitzone
+    +02:00 ins Foto. Die vorhandenen Lightroom-Positionen passen mit UTC+1 (Median ~23 m) —
+    sie sind das Soll. Der Geotagger bekommt Kopien OHNE GPS (echt-ohne-gps), der Foto-Bestand
+    die Originale (echt-mit-gps)."""
+    roh = wurzel / "Rohmaterial" / "masca-fotos"
+    if not roh.is_dir() or not any(roh.glob("*.jpg")):
+        print("  (keine echten Fotos in", roh, "— übersprungen)")
+        return {}
+    mit, ohne = q / "10-fotos" / "echt-mit-gps", q / "10-fotos" / "echt-ohne-gps"
+    for d in (mit, ohne):
+        d.mkdir(parents=True, exist_ok=True)
+    for f in sorted(roh.glob("*.jpg")):
+        kopieren(f, mit)
+        kopieren(f, ohne)
+    subprocess.run(["exiftool", "-q", "-overwrite_original", "-gps:all=", "-xmp:GPSLatitude=", "-xmp:GPSLongitude=",
+                    str(ohne)], check=True)
+    r = subprocess.run(["exiftool", "-q", "-json", "-n", "-Model", "-DateTimeOriginal", "-OffsetTimeOriginal",
+                        "-GPSLatitude", "-GPSLongitude", str(mit)], capture_output=True, text=True, check=True)
+    soll = {Path(x["SourceFile"]).name: {"kamera": x.get("Model", ""), "zeit": x.get("DateTimeOriginal", ""),
+                                         "zeitzone_im_foto": x.get("OffsetTimeOriginal", ""),
+                                         "lat": x.get("GPSLatitude"), "lon": x.get("GPSLongitude")}
+            for x in json.loads(r.stdout)}
+    (q / "10-fotos" / "echt-soll-positionen.json").write_text(json.dumps(soll, ensure_ascii=False, indent=1),
+                                                             encoding="utf-8")
+    rest = subprocess.run(["exiftool", "-q", "-json", "-GPSLatitude", "-GPSLongitude", str(ohne)],
+                          capture_output=True, text=True).stdout
+    if any("GPSLatitude" in x or "GPSLongitude" in x for x in json.loads(rest or "[]")):
+        raise SystemExit("GPS in echt-ohne-gps nicht vollständig entfernt — Abbruch")
+    return soll
 
 
 def sonstiges(q: Path):
@@ -315,6 +345,22 @@ def soll_werte(q: Path, foto_info: dict) -> None:
     for x in foto_info["fotos"]:
         zeilen.append(f"| `{x['datei']}` | {x['kamera']} | {x['zeit_exif']} | {x['zeitzone_im_foto']} | "
                       f"{erw.get(x['datei'][:2], '')} |")
+    echt = foto_info.get("echt") or {}
+    if echt:
+        from collections import Counter
+        zaehl = Counter((v["kamera"], v["zeitzone_im_foto"]) for v in echt.values())
+        zeilen.append("\n## Echte Fotos (10-fotos/echt-ohne-gps, echt-mit-gps)\n")
+        zeilen.append(f"{len(echt)} Fotos von Marc, Masca 05.05.2023. Soll-Positionen (aus Lightroom) in "
+                      "`10-fotos/echt-soll-positionen.json`; vergleichen mit "
+                      "`.venv/bin/python scripts/testumgebung_fotovergleich.py <Ordner mit getaggten Fotos>`.\n")
+        zeilen.append("| Kamera | Zeitzone im Foto | Anzahl | Erwartung |")
+        zeilen.append("|---|---|---|---|")
+        for (kam, zz), n in zaehl.most_common():
+            erw = ("Uhr lief auf Ortszeit UTC+1, das Foto behauptet +02:00 → landet ~1 h daneben, bis die Kamera "
+                   "mit Offset +1 h korrigiert wird (Kamera-Knopf Canon, Regler oder Referenzfoto); danach Median < 50 m "
+                   "zum Soll (gemessen mit dem Rechenkern: 1,7 km → 17 m)") if zz == "+02:00" else \
+                  "Zeitzone stimmt → liegt sofort auf dem Track, Median < 50 m zum Soll"
+            zeilen.append(f"| {kam} | {zz or '—'} | {n} | {erw} |")
     (q / "SOLL-WERTE.md").write_text("\n".join(zeilen) + "\n", encoding="utf-8")
 
 
@@ -342,7 +388,8 @@ def main():
         schritt(q)
         print("✓", schritt.__name__)
     fi = fotos(q)
-    print("✓ fotos")
+    fi["echt"] = echte_fotos(q, wurzel)
+    print("✓ fotos", f"(echt: {len(fi['echt'])})")
     sonstiges(q)
     soll_werte(q, fi)
     print("✓ soll-werte →", q / "SOLL-WERTE.md")
