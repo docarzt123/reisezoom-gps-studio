@@ -4149,7 +4149,7 @@
   "animator.ov.spur_ende": "Final",
   "animator.ov.spur_einblenden": "Entrada",
   "animator.ov.spur_ausblenden": "Salida",
-  "animator.ov.bis_vor_von": "«hasta» está antes de «desde»: el recuadro nunca se vería. «hasta» es un segundo del vídeo; vacío = hasta el final. Más fácil: arrastra la barra bajo «Overlays» en la línea de tiempo.",
+  "animator.ov.bis_vor_von": "«hasta» queda antes de «desde» — la caja nunca se vería. No se aplica nada. ¿Querías «s antes del final»? Cámbialo a la derecha.",
   "animator.ovbox.at_video_start": "segundo desde el inicio del vídeo",
   "animator.ovbox.at_track_km": "en un punto del track (km)",
   "animator.ovbox.at_video_end": "segundos antes del final del vídeo",
@@ -4196,5 +4196,13 @@
   "geotagger.autotag.nur_dieses": "Solo esta foto",
   "geotagger.autotag.alle_starten": "Reconocer {n} fotos",
   "geotagger.autotag.done_1": "✓ 1 foto etiquetada — revísala y guárdala con «Escribir GPS en las fotos».",
-  "geotagger.autotag.toast_1": "1 foto etiquetada — marcada como pendiente."
+  "geotagger.autotag.toast_1": "1 foto etiquetada — marcada como pendiente.",
+  "animator.ovbox.aufpoppen": "Aparecer (pop)",
+  "animator.ovbox.wegpoppen": "Encoger",
+  "animator.ovbox.blende_eigen": "Fundidos propios (de la línea de tiempo o ✎): {liste} — la duración de arriba no se aplica ahí.",
+  "animator.ovbox.blende_zurueck": "Volver a la duración de arriba",
+  "animator.ov.bis_ab_start": "s desde el inicio",
+  "animator.ov.bis_vor_ende": "s antes del final",
+  "animator.ov.bis_art_tip": "Desde dónde cuenta «hasta»: segundo desde el inicio del vídeo o segundos antes del final",
+  "animator.ov.bis_vor_ende_falsch": "La caja terminaría antes de empezar — «{n} s antes del final» queda antes de «desde». No se aplica nada."
 }

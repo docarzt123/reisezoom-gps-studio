@@ -1205,3 +1205,12 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-lb-alle { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 6px 6px; font-size: 11px;
   border-bottom: 1px solid var(--border, #2a2f37); }
 .anim-lb-alle select { font-size: 11px; max-width: 150px; }
+
+/* 25.09.2026 — Hinweis: Boxen mit eigener Blende (die „Dauer der Blende“ gilt dort nicht) */
+.ov-blende-eigen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 6px;
+  padding: 6px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4; color: var(--text-dim, #aaa);
+  background: rgba(255, 179, 71, 0.08); border: 1px solid rgba(255, 179, 71, 0.3); }
+.ov-blende-eigen > span { flex: 1 1 100%; }
+
+/* 25.09.2026 — ⏱ „bis“: ab Start oder vor Ende */
+.ov-timing .ov-bis-art { font-size: 11px; padding: 1px 2px; max-width: 92px; }

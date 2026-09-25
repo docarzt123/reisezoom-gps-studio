@@ -46,7 +46,8 @@
     return HEX.test(s) ? s.toLowerCase() : def;
   }
   function blendeart(v, def) {
-    const s = String(v || "").trim();
+    let s = String(v || "").trim();
+    if (s === "pop") s = "both";   // 25.09.2026: nur noch drei Arten — „Aufpoppen" ist die Kombination
     return BLENDEN.indexOf(s) >= 0 ? s : (def === undefined ? "none" : def);
   }
   const rund = (x) => Math.floor(x * 10000 + 0.5) / 10000;

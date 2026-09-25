@@ -4149,7 +4149,7 @@
   "animator.ov.spur_ende": "Ende",
   "animator.ov.spur_einblenden": "Einblenden",
   "animator.ov.spur_ausblenden": "Ausblenden",
-  "animator.ov.bis_vor_von": "„bis“ liegt vor „von“ — so ist die Box nie zu sehen. „bis“ ist eine Sekunde im Video; leer = bis zum Ende. Einfacher: den Balken unter „Overlays“ in der Zeitleiste ziehen.",
+  "animator.ov.bis_vor_von": "„bis“ liegt vor „von“ — so ist die Box nie zu sehen. Nichts übernommen. Meintest du „s vor Ende“? Dann rechts umstellen.",
   "animator.ovbox.at_video_start": "Sekunde ab Videostart",
   "animator.ovbox.at_track_km": "am Trackpunkt (km)",
   "animator.ovbox.at_video_end": "Sekunden vor Videoende",
@@ -4196,5 +4196,13 @@
   "geotagger.autotag.nur_dieses": "Nur dieses Foto",
   "geotagger.autotag.alle_starten": "{n} Fotos erkennen",
   "geotagger.autotag.done_1": "✓ 1 Foto verschlagwortet — prüfen und mit „GPS in Fotos schreiben“ speichern.",
-  "geotagger.autotag.toast_1": "1 Foto verschlagwortet — als ausstehend markiert."
+  "geotagger.autotag.toast_1": "1 Foto verschlagwortet — als ausstehend markiert.",
+  "animator.ovbox.aufpoppen": "Aufpoppen",
+  "animator.ovbox.wegpoppen": "Wegpoppen",
+  "animator.ovbox.blende_eigen": "Eigene Blenden (aus der Zeitleiste oder ✎): {liste} — dort gilt die Dauer oben nicht.",
+  "animator.ovbox.blende_zurueck": "Auf die Dauer oben zurücksetzen",
+  "animator.ov.bis_ab_start": "s ab Start",
+  "animator.ov.bis_vor_ende": "s vor Ende",
+  "animator.ov.bis_art_tip": "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende",
+  "animator.ov.bis_vor_ende_falsch": "So endet die Box, bevor sie beginnt — „{n} s vor Ende“ liegt vor „von“. Nichts übernommen."
 }
