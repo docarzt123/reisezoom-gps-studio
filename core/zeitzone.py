@@ -92,6 +92,14 @@ def zone_fuer(lat: Optional[float], lon: Optional[float], land: str = "") -> str
         return "UTC"
     if not (math.isfinite(lat) and math.isfinite(lon)):   # NaN aus kaputten Punkten (14.09.2026)
         return "UTC"
+    # 26.09.2026 — Atlantik-Inseln liegen südlich/westlich des Europa-Kastens; ohne Land
+    # rechnete Teneriffa sonst mit Etc/GMT+1 (−60 min) statt Kanaren-Zeit (UTC+0/+1).
+    if 27.0 <= lat <= 29.6 and -18.5 <= lon <= -13.0:
+        return "Atlantic/Canary"
+    if 32.3 <= lat <= 33.3 and -17.5 <= lon <= -16.0:
+        return "Atlantic/Madeira"
+    if 36.7 <= lat <= 40.0 and -31.5 <= lon <= -24.5:
+        return "Atlantic/Azores"
     # Europa ohne Land: drei Streifen reichen (WET / CET / EET).
     if 34.0 <= lat <= 72.0 and -12.0 <= lon <= 42.0:
         if 49.5 < lat < 61.0 and lon < 1.8:

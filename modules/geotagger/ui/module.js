@@ -1536,6 +1536,17 @@ function mountGeotagger(body, headerActions) {
   // im Archiv schickt „Dieses Bild verorten" hierher (window.__rzGtOrdnerLaden).
   async function _gtOrdnerLaden(folder, recursive) {
     if (!folder) return;
+    // 26.09.2026 — Klicktest GT-03: Ein neuer Ordner hing seit v0.9.176 stumm an die
+    // Liste an (76 Masca-Fotos + 17 Testfotos = 93 Medien, der Vorschlag rechnete mit
+    // den alten). Liegen schon Fotos aus einem ANDEREN Ort in der Liste, fragen wir:
+    // Ersetzen (Standard) oder dazunehmen — Letzteres war der Wunsch eines Beta-Testers
+    // in v0.9.176 und bleibt deshalb wählbar. Ungeschriebene Änderungen nennt die Frage.
+    let ersetzen = false;
+    if (photos.some(p => !_gtImOrdner(p && p.path, folder, recursive))) {
+      const wahl = await _gtOrdnerFragen(folder);
+      if (!wahl) return;
+      ersetzen = wahl === "ersetzen";
+    }
     // v0.9.27 (Nutzer-Feedback): Ordner + Rekursiv-State persistieren
     saveSettings({ geotagger: { last_photos_dir: folder, last_photos_paths: [], folder_recursive: recursive } });
     stopThumbPolling();
@@ -1554,7 +1565,7 @@ function mountGeotagger(body, headerActions) {
       });
     }
     try {
-      res = await api().geotagger_load_photos_from_folder(folder, recursive); // warte-ok: eigener Fortschritt (rzStatus)
+      res = await api().geotagger_load_photos_from_folder(folder, recursive, ersetzen); // warte-ok: eigener Fortschritt (rzStatus)
     } finally { if (frei) frei(); if (frei2) frei2(); }
     if (window.rzStatus) {
       if (res && res.ok) {
@@ -1565,7 +1576,9 @@ function mountGeotagger(body, headerActions) {
       }
     }
     if (!res.ok) { toast(res.error, "error"); return; }
-    photos = _gtMergeRegistered(res.photos);   // v0.9.176 — ergänzen statt ersetzen
+    // 26.09.2026 (GT-03) — erst nach Erfolg: schlägt das Lesen fehl, bleibt die alte Liste.
+    if (ersetzen) _gtFotosZuruecksetzen();
+    photos = _gtMergeRegistered(res.photos);   // v0.9.176 — ergänzen (oder nach Rückfrage ersetzen)
     renderPhotoGrid();
     setLabel("gt-photos-info", countLabel(photos, recursive ? "ordner_rek" : "ordner"));
     if (res.warning) toast(res.warning, "warn", 6000);
@@ -1582,6 +1595,79 @@ function mountGeotagger(body, headerActions) {
   }
 
   window.__rzGtOrdnerLaden = _gtOrdnerLaden;
+
+  // 26.09.2026 — GT-03: liegt `pfad` in `ordner` (bei „mit Unterordnern" auch tiefer)?
+  // Fotos ohne Pfad (Drop läuft noch) zählen als „woanders".
+  function _gtImOrdner(pfad, ordner, rekursiv) {
+    if (!pfad || !ordner) return false;
+    const norm = (x) => String(x).replace(/\\/g, "/").replace(/\/+$/, "");
+    const p = norm(pfad), o = norm(ordner);
+    const i = p.lastIndexOf("/");
+    const dir = i >= 0 ? p.slice(0, i) : "";
+    return rekursiv ? (dir === o || dir.startsWith(o + "/")) : dir === o;
+  }
+
+  /** 26.09.2026 — GT-03: noch nicht geschriebene Handarbeit an den Fotos
+   *  (von Hand gesetzte Positionen, EXIF-Änderungen, Blickrichtungen). */
+  function _gtUngeschrieben() {
+    let n = _gtManual.size + _gtPendingExifPhotos();
+    _gtDir.forEach((v) => { if (v && v.src === "manual") n++; });
+    return n;
+  }
+
+  /** 26.09.2026 — GT-03: „Ersetzen oder dazunehmen?" Liefert "ersetzen", "dazu"
+   *  oder null (abgebrochen). Ersetzen ist der Standard (Enter). */
+  function _gtOrdnerFragen(folder) {
+    return new Promise((fertig) => {
+      const n = photos.length;
+      const offen = _gtUngeschrieben();
+      const name = _gtEsc(String(folder).replace(/[\\/]+$/, "").split(/[\\/]/).pop() || folder);
+      openModal({
+        title: t("geotagger.ordner_frage.titel", "Fotos ersetzen?"),
+        body: `<p>${t("geotagger.ordner_frage.text", "Es sind schon <b>{n} Medien</b> geladen. Sollen die Fotos aus <b>{ordner}</b> sie ersetzen oder dazukommen?").replace("{n}", n).replace("{ordner}", name)}</p>`
+          + (offen ? `<p class="gt-ordner-frage-warn" style="color:var(--warn, #d97706)">⚠️ ${t("geotagger.ordner_frage.offen", "{n} Änderung(en) an den bisherigen Fotos sind noch nicht geschrieben — beim Ersetzen gehen sie verloren.").replace("{n}", offen)}</p>` : ""),
+        footer: `<button class="btn" id="gt-of-nein">${t("common.cancel", "Abbrechen")}</button>
+                 <button class="btn" id="gt-of-dazu">${t("geotagger.ordner_frage.dazu", "Dazunehmen")}</button>
+                 <button class="btn btn-primary" id="gt-of-ersetzen">${t("geotagger.ordner_frage.ersetzen", "Ersetzen")}</button>`,
+        closable: true,
+        onClose: () => fertig(null),
+      });
+      // Erst die Wahl melden, dann schließen — sonst kommt onClose (= abgebrochen) zuerst an
+      const zu = (w) => { fertig(w); try { openModal({}).close(); } catch (_) {} };
+      document.getElementById("gt-of-ersetzen").onclick = () => zu("ersetzen");
+      document.getElementById("gt-of-dazu").onclick = () => zu("dazu");
+      document.getElementById("gt-of-nein").onclick = () => zu(null);
+      try { document.getElementById("gt-of-ersetzen").focus(); } catch (_) {}
+    });
+  }
+
+  /** 26.09.2026 — GT-03: nur die Fotos und alles, was an ihnen hängt, vergessen.
+   *  Tracks, Zeit-Offsets und Kamera-Zeitzonen bleiben — anders als beim roten ✕. */
+  function _gtFotosZuruecksetzen() {
+    stopThumbPolling();
+    photos = [];
+    matches = [];
+    selectedPath = null;
+    referencePath = null;
+    refMode = false;
+    _gtFilter = null;
+    _gtCamFilter = null;
+    _gtUnchecked.clear();
+    _gtManual.clear();
+    _gtDir.clear();
+    _gtAddr.clear();
+    try { _gtGeoSeen.clear(); } catch (_) {}
+    _gtExifEdits.clear(); _gtExif.clear();
+    try { hidePhotoPopup(); } catch (_) {}
+    try { const tz = document.getElementById("gt-tz-hinweis"); if (tz) tz.hidden = true; _tzVorschlag = null; _tzVorschlagKey = ""; } catch (_) {}
+    try { markers.forEach(m => { try { m.remove(); } catch (_) {} }); } catch (_) {}
+    markers = [];
+    // Der Undo-Stapel kennt nur Zustände der alten Fotos — zurück dorthin führt kein Weg.
+    try { if (_gtgUndoCtrl && _gtgUndoCtrl.reset) _gtgUndoCtrl.reset(); } catch (_) {}
+    try { renderFilterBar(); } catch (_) {}
+    try { _gtUpdateUnsavedBanner(); } catch (_) {}
+    try { updateSummary(); } catch (_) {}
+  }
 
   // 10.09.2026 — der frühere Nähe-Dialog (offerNearbyGpx, Radio-Buttons) ist durch
   // die Archiv-Bestätigungsliste ersetzt (_gtTracksVorschlagen, IDEAS §61).

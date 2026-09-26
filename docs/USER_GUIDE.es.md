@@ -1253,6 +1253,8 @@ despacio y no molesta; al siguiente arranque continúa donde lo dejó.
 
 ### El mapa general (botón del globo)
 
+**Muy alejado (desde el 26.09.2026):** si las rutas se reparten por media Europa, una ruta de un día ocupa una fracción de píxel. Entonces cada ruta aparece como un **punto**, y las rutas cercanas como un **marcador naranja más grande** (clic para acercar). A partir del zoom 7–9 toman el relevo las líneas.
+
 Cada ruta recibe **su propio color**, derivado de su recorrido — con setecientas rutas todas
 las líneas serían iguales y no se podría seguir ninguna. El color se mantiene entre sesiones.
 Las favoritas conservan su color de señal.
@@ -1863,6 +1865,8 @@ sin marcador, sin línea creciendo, los números quietos.
 (nombre), **Etapa n.º** (2 / 4), **En esta etapa** (distancia) y **Tiempo en la
 etapa**. Cada etapa puede tener además **su propio color**.
 
+Desde el 26.09.2026 también con **varias rutas seguidas** (viaje, «Todas en el Animator»): cada ruta es una etapa y **Fecha y hora** muestran la hora de esa ruta.
+
 > **Por cierto:** un GPX con varias etapas (varios `<trk>` o `<trkseg>`) también
 > se dibuja bien ahora — ya no cruza una línea el mapa entre etapas.
 
@@ -2013,6 +2017,7 @@ Sobre el perfil muestras una **barra de valores** — en la sección **«Barra d
 ### Puntos en el recorrido (desde v0.9.394) ⭐
 En la sección **«Puntos en el recorrido»** colocas marcadores etiquetados en el perfil — de cuatro fuentes, activables por separado:
 - **Colocar tú mismo:** haz clic en **«Colocar punto en el perfil»**, luego clic en la curva. Introduce el nombre, elige color, y luego renombra o elimina.
+  **Sin ratón (desde el 26.09.2026):** tras «Colocar punto en el perfil» aparece un campo **«o en km»** — escribe el kilómetro y pulsa Intro o «Colocar» (también vale la coma).
 - **De las fotos:** las fotos ubicadas en el proyecto aparecen en su posición del track (nombre = nombre de archivo).
 - **Waypoints GPX:** los POI `<wpt>` del archivo GPX (p. ej. de Komoot/Garmin) se adoptan.
 - **Marcadores automáticos:** el punto más alto/más bajo, así como el ascenso y el descenso más empinados, se detectan y etiquetan automáticamente.
@@ -2104,7 +2109,7 @@ Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el
 ### Flujo de trabajo
 1. **Cargar GPX** — el mapa muestra el track
 2. **Seleccionar fotos** — o bien «📁 Seleccionar fotos», «📁 Cargar carpeta entera», o arrastrar y soltar
-3. Los **mosaicos de foto** aparecen en el centro con miniaturas. Los marcadores en el mapa muestran dónde se ha asignado cada foto en función de la hora de captura. **Arrastrar más fotos o cargar otra carpeta amplía la lista** (desde v0.9.176 — se *añade*, no se reemplaza; los duplicados se omiten). Para vaciar, usa **«🗑 Eliminar todas»**.
+3. Los **mosaicos de foto** aparecen en el centro con miniaturas. Los marcadores en el mapa muestran dónde se ha asignado cada foto en función de la hora de captura. **Arrastrar más fotos o elegirlas con «Elegir fotos …» amplía la lista** (los duplicados se omiten). **Cargar otra carpeta** pregunta si debe **reemplazar** las fotos actuales (predeterminado) o **añadirse**; la pregunta menciona los cambios en las fotos actuales que aún no se han escrito. Para vaciar, usa **«🗑 Eliminar todas»**.
 4. **Comprobar el offset** (ver «Zonas horarias» más abajo) — normalmente cuadra directamente
 5. **«Escribir GPS en las fotos»** → **elegir carpeta de destino** → las **copias** ya etiquetadas aterrizan ahí, tus **originales quedan intactos** → listo, la carpeta se abre
 

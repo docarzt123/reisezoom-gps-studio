@@ -384,6 +384,13 @@ function mountHeightAnim(body, headerActions) {
             <p class="muted" id="height-add-hint" style="font-size:11px; margin:0 0 8px; display:none;">
               ${t("heightanim.points.add_hint", "Jetzt in die Kurve klicken um den Punkt zu setzen.")}
             </p>
+            <!-- 26.09.2026 (Klicktest DA-04) — Weg ohne Mausklick in die Grafik: Kilometer eingeben -->
+            <div id="height-add-km-row" style="display:none; gap:6px; align-items:center; margin:0 0 8px;">
+              <label for="height-add-km" style="font-size:11px;">${t("heightanim.points.at_km", "oder bei km")}</label>
+              <input type="text" inputmode="decimal" id="height-add-km" style="width:80px;"
+                     title="${t("heightanim.points.at_km_tip", "Kilometer entlang der Strecke eingeben und Enter drücken")}">
+              <button type="button" class="btn btn-subtle" id="height-add-km-set">${t("heightanim.points.at_km_set", "Setzen")}</button>
+            </div>
             <div id="height-wp-list" class="height-wp-list"></div>
           </div>
         </section>
@@ -2038,13 +2045,52 @@ function mountHeightAnim(body, headerActions) {
   // „Punkt setzen" → nächster Klick aufs Profil legt einen manuellen Punkt an
   const _addBtn = document.getElementById("height-add-point");
   const _addHint = document.getElementById("height-add-hint");
-  _addBtn?.addEventListener("click", () => {
-    _armAddPoint = !_armAddPoint;
+  const _addKmRow = document.getElementById("height-add-km-row");
+  const _addKm = document.getElementById("height-add-km");
+  // 26.09.2026 (DA-04) — erlaubter Bereich in km (sichtbarer Ausschnitt, falls gekürzt)
+  function _addKmBereich() {
+    const dists = (_currentData && _currentData.distances_m) || null;
+    if (!dists || !dists.length) return null;
+    const maxDist = dists[dists.length - 1] || 1;
+    return { maxDist, von: _trimStart * maxDist / 1000, bis: _trimEnd * maxDist / 1000 };
+  }
+  function _addPointArm(an) {
+    _armAddPoint = !!an;
     if (_addHint) _addHint.style.display = _armAddPoint ? "block" : "none";
-    _addBtn.classList.toggle("btn-primary", _armAddPoint);
+    if (_addKmRow) _addKmRow.style.display = _armAddPoint ? "flex" : "none";
+    _addBtn?.classList.toggle("btn-primary", _armAddPoint);
     const svg = document.getElementById("height-svg");
     if (svg) svg.style.cursor = _armAddPoint ? "crosshair" : "";
-  });
+    const b = _addKmBereich();
+    if (_addKm) _addKm.placeholder = b ? `${b.von.toFixed(1)}–${b.bis.toFixed(1)}` : "";
+  }
+  _addBtn?.addEventListener("click", () => _addPointArm(!_armAddPoint));
+  /** Punkt an Streckenanteil `frac` setzen — gemeinsam für Klick in die Kurve und km-Feld. */
+  function _addPointAt(frac) {
+    const name = window.prompt(t("heightanim.points.name_new", "Name des Punkts:"), t("heightanim.points.default_name", "Punkt"));
+    if (name == null) return;
+    _haPushUndo(t("undo.punkt_gesetzt", "Punkt gesetzt"));
+    _manualWps.push({ id: "m" + (_wpSeq++), dist_frac: Math.max(0, Math.min(1, frac)), label: name, color: "#ff6b35" });
+    _addPointArm(false);
+    if (_addKm) _addKm.value = "";
+    persistHeightWaypoints(); renderWaypointList(); drawElevationSvg();
+  }
+  function _addPointAtKm() {
+    const b = _addKmBereich();
+    if (!b) { try { if (typeof toast === "function") toast(t("heightanim.fill.no_track", "Erst einen Track (GPX) laden."), "info", 1600); } catch (_) {} return; }
+    const km = parseFloat(String((_addKm && _addKm.value) || "").replace(",", "."));
+    if (!isFinite(km) || km < b.von - 0.05 || km > b.bis + 0.05) {
+      try {
+        if (typeof toast === "function") toast(t("heightanim.points.at_km_range", "Bitte einen Wert zwischen {von} und {bis} km eingeben.")
+          .replace("{von}", b.von.toFixed(1)).replace("{bis}", b.bis.toFixed(1)), "warn", 2600);
+      } catch (_) {}
+      try { _addKm && _addKm.focus(); } catch (_) {}
+      return;
+    }
+    _addPointAt(km * 1000 / b.maxDist);
+  }
+  document.getElementById("height-add-km-set")?.addEventListener("click", _addPointAtKm);
+  _addKm?.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); _addPointAtKm(); } });
   document.getElementById("height-svg")?.addEventListener("click", (ev) => {
     if (!_armAddPoint || !_currentData || !_currentData.distances_m) return;
     const svg = document.getElementById("height-svg");
@@ -2056,16 +2102,7 @@ function mountHeightAnim(body, headerActions) {
     const dTrimStart = _trimStart * maxDist, dTrimSpan = Math.max(1, (_trimEnd - _trimStart) * maxDist);
     const xr = (ev.clientX - rect.left - padL) / plotW;   // 0..1 im Plot
     const distM = dTrimStart + Math.max(0, Math.min(1, xr)) * dTrimSpan;
-    const frac = Math.max(0, Math.min(1, distM / maxDist));
-    const name = window.prompt(t("heightanim.points.name_new", "Name des Punkts:"), t("heightanim.points.default_name", "Punkt"));
-    if (name == null) return;
-    _haPushUndo(t("undo.punkt_gesetzt", "Punkt gesetzt"));
-    _manualWps.push({ id: "m" + (_wpSeq++), dist_frac: frac, label: name, color: "#ff6b35" });
-    _armAddPoint = false;
-    if (_addHint) _addHint.style.display = "none";
-    _addBtn?.classList.remove("btn-primary");
-    if (svg) svg.style.cursor = "";
-    persistHeightWaypoints(); renderWaypointList(); drawElevationSvg();
+    _addPointAt(distM / maxDist);
   });
 
   // Slider-Labels live updaten

@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.726** (26.09.2026, built locally): the warnings and skipped steps of the second full Codex run (`~/GPS-Studio-Test/Berichte/20260925-2139/`, 94 steps: 61 ✅ 0 ❌ 15 ⚠️ 18 ⏭) fixed, then clicked through by Claude in the real app.
+
+### Fixed — second Codex run and own click test (0.9.726)
+- **Inspector: "Load elevation from map" was almost flat** (IN-09, 16 m climb instead of ~270 m in the Harz): `queryTerrainElevation` only reads the DEM tiles MapLibre has loaded (overview zoom). Elevation now comes from terrain tiles at a fixed zoom via the `dem_hoehen` bridge (z13, down to z10 for long trips); the map stays the offline fallback with exaggeration removed.
+- Inspector shows "⏳ Loading the tour …" instead of "Load a GPX …" while taking over the global track (S-08).
+- Heal toast separates "no path nearby" from "detour too long" (IN-03; the 20 %/40–150 m tolerance was checked against real router answers and kept).
+- **Travel route: every stop shows its found place** (RR-02): the line under a field is cleared while typing and shows searching/found/not found; stops already resolved are not geocoded again on "Compute route"; a running search is shared. Regression from 25.09. fixed: "Brocken" next to Wernigerode found a hamlet near Egestorf — the no-reference retry now only runs when nothing in the referenced answer matches exactly.
+- **Data animator: place a point by kilometre** (DA-04) — an "or at km" field next to "Put point on profile", for keyboard and accessibility users.
+- **Track exports suggest the tour name** (own click test AL-03): GPX/CSV/KML … used the source file name, so a duplicate file name ("fehlalarm-tempo-hopser.gpx") was offered for the "Teufelsmauerkammweg" tour.
+- Test environment: `testumgebung.sh starten` waits until a quitting instance is gone and retries once after re-registering the app (Codex run 3: `kLSNoExecutableErr` right after ⌘Q); `build.sh` re-registers the installed bundle and unregisters `dist/`.
+- **Trips (tours in a row) offer the stage fields** (RE-04): `_reiseAnwenden()` overwrote the rows with `stage: null`, so "Stage", "Stage no.", "In this stage", "Time in stage" stayed greyed out. New `_reiseEtappenReihen()` builds the same shape as merged tours (`nr`, `d0`, `t0`, `name`, `stage_stats`); the totals box can show the running stage.
+- "Open as Tour-Map" is gone from the travel-route module (it showed the tour, not the route) and explains when it is unavailable (TM-05).
+- **Resume after restart said "tour file not found"** (ER-08): auto-created solo projects carry no `gpx_paths`; `projekt_aktivieren` now resolves the tour's file (`_tour_pfad_aufloesen`), and resuming silently stays in the archive if a file really is gone.
+- **"Check all tours" showed "checking 0 of ?" and vanished** (AR-10): each run has a number, the UI follows it every 400 ms and leaves "🩺 Track check: 35 checked · N with findings" in the header.
+- **Archive overview map**: one marker per tour, nearby tours clustered, lines take over from zoom 7–9 (AR-11).
+- **Trips: "Date & time"/"Time" showed the first tour's clock at every stage**: the trip rows took `epochS`/`tz_offset_min` from the first tour and read them with trip indices. Extra tours now keep their epochs and zone; `_reiseSerieBauen` builds them per trip point (held during transitions and holds); totals "Date" and "Time from–to" cover the whole trip.
+- **Importing a GPX without track points said nothing** (FE-01): after reading, the archive now asks `library_fehler_fuer(paths)` and says "„leer.gpx“ contains no track points — listed under unreadable files"; the "new tour not found in the list" warning only when a tour was expected.
+- Time zone without a country: Canary Islands, Madeira and the Azores got a fixed zone from the longitude (Tenerife = Etc/GMT+1, one hour off); now `Atlantic/Canary`, `Atlantic/Madeira`, `Atlantic/Azores`.
+- Stage name in the live box and the stage list show the tour name (GPX title), not the file name with date and Komoot number (own click test RE-04).
+- Inspector help texts no longer ask for a Mapbox token for elevation and path snapping (free terrain model and route planner); the elevation legend says "Map (terrain model)".
+- **Geotagger: loading a second folder mixed both photo sets** (GT-03, 76 Masca photos + 17 test photos = 93; time-zone and track suggestions used all of them). "Load whole folder" adds on purpose since 0.9.176 (beta tester wish); it now asks **Replace** (default, warns about unwritten placements/EXIF edits) / **Add** / **Cancel** when photos from elsewhere are loaded. Replace clears the photo list only after the new folder was read; tracks, offsets and camera time zones stay. Reloading the same folder adds no duplicates.
+- **Overlay box window: "seconds before video end" snapped back to "until video end"** (AN-15): switching the kind saved `{video_ende, 0}`, which reads as "until the end". Switching now keeps the current end moment (e.g. 11 s of 14 s → 3 s before the end), default 2 s; same for "from".
+- **Inspector: point count and points slider stayed old after delete/fill/trim** (IN-06): `updateUI()` resyncs the slider whenever the point count changed; the slider stays at 100 % when the track grows.
+
 > **0.9.725** (25.09.2026 evening, built locally): everything from the full click test of 25.09.2026 (Codex, 160 steps: 93 ✅ 16 ❌ 31 ⚠️ 20 ⏭, report in `~/GPS-Studio-Test/Berichte/20260925-1508/`) plus the beta tester's Windows and wording notes.
 
 ### Fixed — full click test 25.09.2026 (0.9.725)

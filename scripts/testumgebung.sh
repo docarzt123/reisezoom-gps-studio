@@ -140,7 +140,16 @@ case "${1:-}" in
     [ -d "$APP_ORDNER" ] || { echo "Erst: $0 zuruecksetzen vorbefuellt"; exit 1; }
     [ -f "$APP_ORDNER/testrechner.json" ] || schutz_schreiben "$APP_ORDNER"
     if laeuft_test_app; then nach_vorne; exit 0; fi
-    open -n -a "$APP" --env "RZ_APP_ORDNER=$APP_ORDNER" --env "RZ_CLOUD_ABLAGE=datei"
+    # 26.09.2026 (Codex-Lauf 3): direkt nach ⌘Q meldete `open` zweimal „kLSNoExecutableErr: The
+    # executable is missing" — die alte Instanz war noch im Abbau. Erst warten, bis kein
+    # GPS-Studio-Prozess mehr da ist (max. 20 s); scheitert `open`, App neu anmelden und nochmal.
+    for _ in $(seq 1 40); do pgrep -f "Reisezoom GPS Studio.app/Contents/MacOS" >/dev/null || break; sleep 0.5; done
+    if ! open -n -a "$APP" --env "RZ_APP_ORDNER=$APP_ORDNER" --env "RZ_CLOUD_ABLAGE=datei" 2>/tmp/rz-open-fehler.txt; then
+      echo "  open scheiterte ($(tr -d '\n' < /tmp/rz-open-fehler.txt | cut -c1-120)) — melde die App neu an und versuche es noch einmal …"
+      /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" 2>/dev/null || true
+      sleep 2
+      open -n -a "$APP" --env "RZ_APP_ORDNER=$APP_ORDNER" --env "RZ_CLOUD_ABLAGE=datei"
+    fi
     echo "✓ gestartet mit App-Ordner $APP_ORDNER (oben rechts steht „· TEST“)"
     ;;
   vorne)

@@ -63,6 +63,11 @@ function mountLibrary(body, headerActions) {
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
   let _checkLauf = null;   // 10.09.2026 — laufender Track-Check „Alle prüfen" (Fortschritt im Kopf)
+  // 26.09.2026 (Klicktest AR-10) — Ergebnis des letzten Laufs bleibt im Kopf stehen
+  // („35 geprüft · 14 mit Befund"); der Toast allein ging unter. `_checkVerfolgt` =
+  // Nummer des Laufs, den _checkVerfolgen gerade beobachtet (dann hält sich der
+  // 5-s-Wächter heraus).
+  let _checkErgebnis = "", _checkVerfolgt = 0;
   let _autoPlaces = null;   // läuft der Ortslauf gerade?
   // Mehrfachauswahl: Menge der gewählten Pfade. Ist mehr als eine Tour gewählt,
   // zeigt die rechte Spalte das Sammel-Panel statt der Einzel-Ansicht — Werkzeuge
@@ -717,6 +722,7 @@ function mountLibrary(body, headerActions) {
       ${_checkLauf ? `<span class="lib-head-check">${T("trackcheck.progress", "🩺 Track-Check: prüfe {done} von {total}")
           .replace("{done}", _checkLauf.done || 0).replace("{total}", _checkLauf.total || "?")}
           <button type="button" id="lib-check-stop">${T("trackcheck.cancel", "Abbrechen")}</button></span>` : ""}
+      ${(!_checkLauf && _checkErgebnis) ? `<span class="lib-head-check is-done" id="lib-check-ergebnis">${esc(_checkErgebnis)}</span>` : ""}
       ${s.n_failed ? `<button class="lib-head-warn${s.n_nogps === s.n_failed ? " is-calm" : ""}" id="lib-show-errors">${s.n_failed} ${
         // Ist ALLES nur „ohne Koordinaten" (Rolle, Halle, Kraftraum), dann ist
         // nichts kaputt — dann darf hier auch nicht „nicht lesbar" stehen.
@@ -1527,9 +1533,17 @@ function mountLibrary(body, headerActions) {
     });
   }
 
-  async function projektOeffnen(pid, modulWunsch) {
+  // 26.09.2026 (Klicktest ER-08) — `opts.stumm`: Fortsetzen nach dem Start. Fehlt dort
+  // die Datei, bleibt das Archiv offen (das ist der sinnvolle Rückfall) — ohne Meldung,
+  // denn der Nutzer hat nichts angeklickt; der Grund steht im Log.
+  async function projektOeffnen(pid, modulWunsch, opts) {
+    const stumm = !!(opts && opts.stumm);
+    const melden = (text, art) => {
+      if (stumm) { try { applog("info", "[bib] Fortsetzen übersprungen: " + text); } catch (_) {} return; }
+      toast(text, art, 6000);
+    };
     const info = await rzWarten("projekt_aktivieren", () => api().projekt_aktivieren(pid)).catch((e) => ({ ok: false, error: String(e) }));
-    if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
+    if (!info || !info.ok) { melden((info && info.error) || "?", "error"); return; }
     // 06.09.2026 (Prüfstand): Eine noch nicht abgeholte Übergabe einer FRÜHEREN
     // Komposition darf nicht in dieses Projekt wandern — sonst bekam ein Solo-
     // Projekt 78 fremde Etappen und eine neue Menge. Solo/Frei räumen sie hier
@@ -1552,7 +1566,7 @@ function mountLibrary(body, headerActions) {
     if (info.ablauf === "reise" || info.ablauf === "schwarm") {
       const pfade = info.gpx_paths || [];
       if (pfade.length < 2 || k.pfade_ok === false) {
-        toast(T("library.proj_pfade_fehlen", "Nicht alle Tour-Dateien der Komposition wurden gefunden."), "warn", 6000);
+        melden(T("library.proj_pfade_fehlen", "Nicht alle Tour-Dateien der Komposition wurden gefunden."), "warn");
         return;
       }
       window.__rzPendingTours = pfade.slice(1);
@@ -1573,7 +1587,7 @@ function mountLibrary(body, headerActions) {
     // (`k` leer) — der Pfad kommt deshalb aus der Antwort der Brücke; die Liste ist nur der Rückfall.
     const haupt = (info.gpx_paths || [])[0] || k.haupt_pfad || "";
     if (!haupt) {
-      toast(T("library.proj_tour_fehlt", "Die Tour-Datei dieses Projekts wurde nicht gefunden."), "warn", 6000);
+      melden(T("library.proj_tour_fehlt", "Die Tour-Datei dieses Projekts wurde nicht gefunden."), "warn");
       return;
     }
     const ok = await window.loadGlobalGpx(haupt, { stumm: true });
@@ -2743,6 +2757,7 @@ function mountLibrary(body, headerActions) {
       applyMapData(data);
       return;
     }
+    const punkte = mapPunkte(data);
     if (_map) return;
 
     const created = createMap({
@@ -2771,15 +2786,34 @@ function mountLibrary(body, headerActions) {
     _map.on("load", () => {
       _mapReady = true;
       _map.addSource("lib-tracks", { type: "geojson", data });
-      // Weit draußen sind einzelne Touren nur noch Striche von Bruchteilen
-      // eines Pixels — dann übernehmen Punkte.
+      // 26.09.2026 (Klicktest AR-11: „35 Touren auf der Karte", aber im Überblick war
+      // nichts zu erkennen) — weit draußen ist eine Tagestour ein Bruchteil eines
+      // Pixels. Vorher übernahmen Punkte an JEDEM Stützpunkt der Linie (1,8–2,6 px,
+      // übereinander) — bei Teneriffa, Brandenburg, Harz und Schottland im selben
+      // Bild blieb davon ein Hauch. Jetzt: EINE Marke je Tour (Mitte der Strecke),
+      // nahe beieinander liegende Touren zu einer größeren Marke zusammengefasst;
+      // beim Heranzoomen (ab etwa Zoom 7) übernehmen die Linien.
+      _map.addSource("lib-tracks-pt", { type: "geojson", data: punkte,
+        cluster: true, clusterRadius: 28, clusterMaxZoom: 7 });
+      const _markeAus = ["interpolate", ["linear"], ["zoom"], 7, 1, 9, 0];
       _map.addLayer({
-        id: "lib-tracks-dot", type: "circle", source: "lib-tracks",
+        id: "lib-tracks-gruppe", type: "circle", source: "lib-tracks-pt",
+        filter: ["has", "point_count"],
         paint: {
-          "circle-color": ["get", "color"],
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.8, 6, 2.6, 9, 0],
-          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.9, 9, 0],
-          "circle-blur": 0.25,
+          "circle-color": SEL_COLOR,
+          "circle-radius": ["step", ["get", "point_count"], 8, 3, 10, 8, 13, 20, 16],
+          "circle-stroke-color": "#ffffff", "circle-stroke-width": 2,
+          "circle-opacity": _markeAus, "circle-stroke-opacity": _markeAus,
+        },
+      });
+      _map.addLayer({
+        id: "lib-tracks-marke", type: "circle", source: "lib-tracks-pt",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": ["case", ["==", ["get", "fav"], 1], FAV_COLOR, ["get", "color"]],
+          "circle-radius": 6,
+          "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5,
+          "circle-opacity": _markeAus, "circle-stroke-opacity": _markeAus,
         },
       });
       // Dunkle Kontur unter jeder Linie: auf hellen Feldern und Straßen war der
@@ -2829,11 +2863,29 @@ function mountLibrary(body, headerActions) {
       });
       // Klick ins Leere schließt die Info-Karte und hebt die Hervorhebung auf.
       _map.on("click", (e) => {
-        const hits = _map.queryRenderedFeatures(e.point, { layers: ["lib-tracks-hit"] });
+        const hits = _map.queryRenderedFeatures(e.point, { layers: ["lib-tracks-hit", "lib-tracks-marke", "lib-tracks-gruppe"] });
         if (!hits.length) { closeMapPopup(); _sel = null; store.set("sel", ""); applyMapSelection(); renderDetail(); }
       });
       _map.on("mouseenter", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = "pointer"; });
       _map.on("mouseleave", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = ""; });
+      // Marke einer Tour: wie ein Klick auf die Linie. Zusammengefasste Marke:
+      // hineinzoomen, bis sie sich auflöst.
+      _map.on("click", "lib-tracks-marke", (e) => {
+        const f = e.features && e.features[0];
+        const it = f && _items.find(x => x.path === f.properties.path);
+        if (!it) return;
+        select(it, { fly: false });
+        showMapPopup(it, e.lngLat);
+      });
+      _map.on("click", "lib-tracks-gruppe", (e) => {
+        const f = e.features && e.features[0];
+        if (!f) return;
+        _map.easeTo({ center: f.geometry.coordinates, zoom: Math.min(12, _map.getZoom() + 2.5), duration: 500 });
+      });
+      for (const id of ["lib-tracks-marke", "lib-tracks-gruppe"]) {
+        _map.on("mouseenter", id, () => { _map.getCanvas().style.cursor = "pointer"; });
+        _map.on("mouseleave", id, () => { _map.getCanvas().style.cursor = ""; });
+      }
       fitAll(data);
       applyMapSelection();
     });
@@ -2910,8 +2962,18 @@ function mountLibrary(body, headerActions) {
   // Default-Zoomstufe aller Touren zurückspringen. Einmal-Flag, vom
   // Chip-✕ gesetzt, beim nächsten Daten-Update verbraucht.
   let _mapKeepCamera = false;
+  /** Eine Marke je Tour: der mittlere Stützpunkt ihrer Strecke (26.09.2026, AR-11). */
+  function mapPunkte(data) {
+    return { type: "FeatureCollection", features: (data.features || []).map(f => {
+      const c = f.geometry.coordinates;
+      return { type: "Feature", properties: f.properties,
+               geometry: { type: "Point", coordinates: c[Math.floor(c.length / 2)] } };
+    }) };
+  }
   function applyMapData(data) {
     const src = _map.getSource("lib-tracks");
+    const pt = _map.getSource("lib-tracks-pt");
+    if (pt) pt.setData(mapPunkte(data));
     if (src) {
       src.setData(data);
       if (_mapKeepCamera) _mapKeepCamera = false;
@@ -4456,7 +4518,53 @@ function mountLibrary(body, headerActions) {
     let r; try { r = await api().library_track_check_alle(!!nurUngeprueft); } catch (e) { r = { ok: false, error: String(e) }; }
     if (!r || !r.ok) { toast(T("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
     _checkLauf = { done: 0, total: 0, running: true };
-    if (!_unmounted) { renderHead(); setTimeout(watchAutoThumbs, 800); }
+    _checkErgebnis = "";
+    if (!_unmounted) { renderHead(); _checkVerfolgen(r.lauf || 0); }
+  }
+  /** 26.09.2026 (Klicktest AR-10: die Zeile blieb bei „prüfe 0 von ?" und verschwand
+   *  ohne Abschlussmeldung) — den gestarteten Lauf eng verfolgen, statt auf den
+   *  5-s-Wächter zu warten: 35 Touren sind in gut einer Sekunde durch, der Zähler lief
+   *  nie sichtbar. Außerdem las ein gerade laufender Wächter-Aufruf noch den Stand VOR
+   *  dem Start (kein Ergebnis) — dann verschwand die Zeile ohne Meldung. */
+  async function _checkVerfolgen(lauf) {
+    _checkVerfolgt = lauf || -1;
+    const bis = Date.now() + 60 * 60 * 1000;
+    try {
+      while (!_unmounted && Date.now() < bis) {
+        let chk = null;
+        try { chk = await api().library_track_check_status(); } catch (_) {}
+        if (_unmounted) return;
+        if (chk && lauf && chk.lauf && chk.lauf !== lauf) { _checkLauf = null; renderHead(); return; }
+        if (chk && chk.running) { _checkLauf = chk; renderHead(); }
+        else if (chk) {
+          _checkLauf = null;
+          if (chk.error) { _checkErgebnis = ""; renderHead(); toast(T("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", chk.error), "error"); }
+          else if (chk.result) _checkFertig(chk.result);
+          else renderHead();
+          return;
+        }
+        await new Promise(r => setTimeout(r, 400));
+      }
+    } finally {
+      _checkVerfolgt = 0;
+    }
+  }
+  /** Ergebnis melden: Toast UND eine Zeile im Kopf, die stehen bleibt. */
+  function _checkFertig(r) {
+    const befund = (r.rot || 0) + (r.gelb || 0);
+    const geprueft = r.n || 0, gesamt = r.total || geprueft;
+    _checkErgebnis = (r.abgebrochen
+      ? T("trackcheck.done_head_abgebrochen", "🩺 Track-Check abgebrochen: {n} von {total} geprüft · {b} mit Befund")
+      : T("trackcheck.done_head", "🩺 Track-Check: {n} geprüft · {b} mit Befund"))
+      .replace("{n}", geprueft).replace("{total}", gesamt).replace("{b}", befund);
+    if (r.fehler) _checkErgebnis += " · " + T("trackcheck.done_head_fehler", "{f} nicht lesbar").replace("{f}", r.fehler);
+    toast(T("trackcheck.done_toast", "Track-Check fertig: {n} Touren geprüft — {rot} rot, {gelb} gelb.")
+      .replace("{n}", geprueft).replace("{rot}", r.rot || 0).replace("{gelb}", r.gelb || 0), "success", 5000);
+    renderHead();
+    // Marken der Kacheln nachziehen — nie mitten ins Tippen (s. watchAutoThumbs)
+    const a = document.activeElement;
+    const tippt = !!(a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT") && body.contains(a));
+    if (!tippt) reload();
   }
   // Nach dem Update EINMAL fragen (Marc: „nichts im Hintergrund, nach dem Update
   // wird gefragt, nicht nochmal, und sagen wo man es findet").
@@ -4698,7 +4806,8 @@ function mountLibrary(body, headerActions) {
     }
     // 14.09.2026 (Marc: „ich erwarte, dass ich im Archiv lande, wo die Tour vorausgewählt
     // ist"): merken, was gezeigt werden soll — die neuen UND die schon bekannten Dateien.
-    _importZeigen = { geo: [...new Set(liste.map(pf => geoJeDatei[pf]).filter(Boolean))], pfade: (res.pfade || []).slice() };
+    _importZeigen = { geo: [...new Set(liste.map(pf => geoJeDatei[pf]).filter(Boolean))], pfade: (res.pfade || []).slice(),
+                      gemeldet: _keinTrack.slice() };   // 26.09.2026 (FE-01) — schon beim Import gemeldet
     const _nNeu = Math.max(0, res.kopiert - _keinTrack.length);   // 25.09.2026 — ohne die Nicht-Tracks
     if (_nNeu || res.uebersprungen) toast(T("library.import_done", "Dateien importiert — Einlesen läuft")
       + ` (${_nNeu}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
@@ -4733,10 +4842,35 @@ function mountLibrary(body, headerActions) {
     try { renderCollections(); renderScopes(); } catch (_) {}
     await reload();   // _zuerstGeo bleibt — auch nachladen() braucht dieselbe Reihenfolge
     if (_unmounted) return;
+    // 26.09.2026 (Klicktest FE-01: „leer.gpx" — GPX ohne Trackpunkte) — die Endung sagt
+    // „Track", erst das Einlesen merkt, dass nichts drin ist. Die Oberfläche meldete nur
+    // „Dateien importiert — Einlesen läuft (1)" und loggte „neue Tour nicht gefunden".
+    // Jetzt: nach dem Einlesen nachsehen, welche importierten Dateien in der Liste nicht
+    // lesbarer Dateien stehen, und sie mit Grund melden — wie „kein-gpx.txt" beim Import.
+    let fehlerhaft = [];
+    if ((z.pfade || []).length) {
+      try { const r = await api().library_fehler_fuer(z.pfade); fehlerhaft = (r && r.ok && r.items) || []; }   // warte-ok: kurze Leseabfrage je importierter Datei, nach dem Einlesen im Hintergrund
+      catch (e) { applog && applog("warn", "[Archiv] Import: Fehlerliste nicht lesbar: " + e); }
+      if (_unmounted) return;
+    }
+    const gemeldet = new Set(z.gemeldet || []);
+    const zuMelden = fehlerhaft.filter(x => !gemeldet.has(x.name));
+    for (const art of ["keine_punkte", "kein_track", ""]) {
+      const namen = zuMelden.filter(x => (x.grund === art) || (!art && x.grund !== "keine_punkte" && x.grund !== "kein_track")).map(x => x.name);
+      if (!namen.length) continue;
+      const vorlage = art === "keine_punkte" ? T("library.import_keine_punkte", "„{name}“ enthält keine Trackpunkte — steht jetzt in der Liste der nicht lesbaren Dateien.")
+        : art === "kein_track" ? T("library.import_kein_track", "„{name}“ enthält keinen Track — steht jetzt in der Liste der nicht lesbaren Dateien.")
+        : T("library.import_nicht_lesbar", "„{name}“ ist nicht lesbar — steht jetzt in der Liste der nicht lesbaren Dateien.");
+      toast(vorlage.replace("{name}", namen.join("“, „")), "warn", 6000);
+    }
+    const fehlPfade = new Set(fehlerhaft.map(x => x.path));
     const geo = new Set(z.geo), pfade = new Set(z.pfade);
     const neu = _items.filter(it => geo.has(it.geo_hash) || pfade.has(it.path));
     if (!neu.length) {
-      applog && applog("warn", "[Archiv] Import: neue Tour nicht in der Liste gefunden (" + z.geo.join(",") + ")");
+      // Nur warnen, wenn wirklich eine Tour erwartet wurde (nicht alles in der Fehlerliste).
+      const erwartet = z.geo.length || (z.pfade || []).some(pf => !fehlPfade.has(pf));
+      if (erwartet) applog && applog("warn", "[Archiv] Import: neue Tour nicht in der Liste gefunden (" + z.geo.join(",") + ")");
+      else applog && applog("info", `[Archiv] Import: ${fehlerhaft.length} Datei(en) nicht lesbar, keine neue Tour`);
       return;
     }
     if (neu.length > 1) neu.forEach(it => _multi.add(it.path));
@@ -5458,7 +5592,7 @@ function mountLibrary(body, headerActions) {
         // nicht an einem Projekt, und ins Modul zu springen würde genau den
         // Ort verlassen, an dem man aufgehört hat.
         if (r && r.ok && r.weiter && r.projekt_id && r.zuletzt_modul !== "library") {
-          await projektOeffnen(r.projekt_id, r.modul || undefined);
+          await projektOeffnen(r.projekt_id, r.modul || undefined, { stumm: true });   // 26.09.2026 (ER-08)
         } else if (r && r.ok && r.weiter && r.tour_pfad && r.zuletzt_modul && r.zuletzt_modul !== "library") {
           // 25.09.2026 (Klicktest S-12): noch kein gespeichertes Projekt — die Tour im letzten Modul öffnen
           const ok = await window.loadGlobalGpx(r.tour_pfad, { stumm: true });
@@ -5485,12 +5619,11 @@ function mountLibrary(body, headerActions) {
     const wasRunning = !!_autoThumbs || !!_autoPlaces || !!_checkLauf;
     _autoThumbs = (st && st.running) ? st : null;
     _autoPlaces = (ort && ort.running) ? ort : null;
-    const checkWar = !!_checkLauf;
-    _checkLauf = (chk && chk.running) ? chk : null;
-    if (checkWar && !_checkLauf && chk && chk.result) {
-      const r = chk.result;
-      toast(T("trackcheck.done_toast", "Track-Check fertig: {n} Touren geprüft — {rot} rot, {gelb} gelb.")
-        .replace("{n}", r.n || 0).replace("{rot}", r.rot || 0).replace("{gelb}", r.gelb || 0), "success", 5000);
+    // 26.09.2026 (AR-10) — verfolgt _checkVerfolgen den Lauf, hält sich der Wächter heraus.
+    if (!_checkVerfolgt) {
+      const checkWar = !!_checkLauf;
+      _checkLauf = (chk && chk.running) ? chk : null;
+      if (checkWar && !_checkLauf && chk && chk.result) _checkFertig(chk.result);
     }
     // 22.08.2026 (Audit): nie mitten ins Tippen (Notiz/Schlagworte) hinein neu
     // rendern — der Auto-Tick ersetzte die Textarea und fraß die Eingabe.

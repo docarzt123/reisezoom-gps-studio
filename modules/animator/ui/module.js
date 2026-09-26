@@ -1368,7 +1368,10 @@ function mountAnimator(body, headerActions, opts) {
         <button class="btn btn-primary btn-block" id="anim-render" disabled>${t("animator.btn.render")}</button>
         ${!_isStaticFrame ? `
         <button class="btn btn-secondary btn-block" id="anim-snapshot" style="margin-top:8px;" disabled title="${t("animator.snapshot.tip", "Rendert genau den aktuell in der Vorschau gezeigten Frame (Teil-Track, Kamera, Overlays) als Bild in voller Auflösung.")}">📸 ${t("animator.btn.snapshot", "Aktuellen Frame als Bild")}</button>
-        <button class="btn btn-secondary btn-block" id="anim-open-tourmap" style="margin-top:6px;" disabled title="${t("animator.open_tourmap.tip", "Wechselt in die Tour-Map und übernimmt exakt den aktuellen Ausschnitt/Zoom/Drehung — dort als PNG oder interaktives HTML exportierbar.")}">🗺 ${t("animator.btn.open_tourmap", "Als Tour-Map öffnen")}</button>
+        ${!_isReiseroute ? `<button class="btn btn-secondary btn-block" id="anim-open-tourmap" style="margin-top:6px;" disabled title="${t("animator.open_tourmap.no_track", "Erst eine Tour laden — dann übernimmt die Tour-Map ihren Ausschnitt.")}">🗺 ${t("animator.btn.open_tourmap", "Als Tour-Map öffnen")}</button>` : ``}
+        <!-- 26.09.2026 (Klicktest TM-05) — in der Reiseroute gibt es den Knopf nicht mehr: die
+             Tour-Map zeigt die geladene Tour, nicht die berechnete Route, und dort blieb er
+             für immer ausgegraut, ohne zu sagen warum. Ohne Tour sagt der Tooltip, was fehlt. -->
         ` : ``}
       </div>
 
@@ -12508,7 +12511,10 @@ function mountAnimator(body, headerActions, opts) {
       cont.querySelectorAll(".route-wp-input").forEach((inp) => {
         inp.addEventListener("input", () => {
           const i = +inp.dataset.i, w = _routeWps[i];
-          if (w) { w.text = inp.value; w.lon = null; w.lat = null; w.label = null; }
+          if (w) { w.text = inp.value; w.lon = null; w.lat = null; w.label = null; w.geoFuer = null; }
+          // 26.09.2026 (Klicktest RR-02/RR-04) — die Zeile unter dem Feld zeigte nach dem
+          // Überschreiben weiter den ALTEN Treffer (z. B. „✓ Wernigerode" unter „Schierke").
+          _routeZeile(w, "");
         });
         inp.addEventListener("change", () => _routePersist());
         // 22.08.2026 (Marc) — Enter sucht die Adresse und fliegt hin, damit man
@@ -12690,6 +12696,8 @@ function mountAnimator(body, headerActions, opts) {
           lon: (w && w.lon != null) ? +w.lon : null,
           lat: (w && w.lat != null) ? +w.lat : null,
           label: (w && w.label) || null,
+          // 26.09.2026 (RR-02) — gespeicherte Treffer gelten für ihren Text (keine Neusuche)
+          geoFuer: (w && w.lon != null && w.lat != null && w.text) ? String(w.text).trim() : null,
         }));
       } else {
         // Migration alt → neu (nur Start/Ziel vorhanden).
@@ -12734,6 +12742,19 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.260 — gibt {coords, hadInput, err} zurück, damit _routeCompute die ECHTE
     // Ursache melden kann (vorher pauschal „Start fehlt", auch bei Geocoding-Fehler/
     // Netzproblem/leerem Treffer → Nutzer-Bugreport: irreführend).
+    /** 26.09.2026 (Klicktest RR-02: für „Schierke" stand kein gefundener Ort unter dem Feld,
+     *  während die Route lief) — die Zeile unter JEDER Station zeigt ihren Stand: „Suche …",
+     *  „✓ Ort" oder „✗ nicht gefunden". Über das Objekt statt über den Index, damit ein
+     *  Umsortieren während der Suche nicht die falsche Zeile trifft. */
+    function _routeZeile(w, text, fehler) {
+      const i = _routeWps.indexOf(w);
+      if (i < 0) return;
+      const el = document.querySelector(`.route-wp-resolved[data-i="${i}"]`);
+      if (!el) return;
+      el.textContent = text || "";
+      el.classList.toggle("route-wp-resolved-err", !!fehler);
+      el.style.color = fehler ? "#ff6b6b" : "";
+    }
     async function _routeResolve(i) {
       const w = _routeWps[i];
       if (!w) return { coords: null, hadInput: false, err: null };
@@ -12742,31 +12763,58 @@ function mountAnimator(body, headerActions, opts) {
       const m = txt.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
       if (m) { const a = parseFloat(m[1]), b = parseFloat(m[2]); w.lon = b; w.lat = a; return { coords: { lon: b, lat: a }, hadInput: true, err: null }; }
       if (txt) {
-        let r;
-        // 07.09.2026 — nahe Treffer bevorzugen: der zuletzt aufgelöste andere Wegpunkt als Bezug
-        let _bias = null;
-        // 25.09.2026 (Klicktest RR-02) — die NACHBAR-Station zuerst (davor, dann danach), erst
-        // dann irgendeine: vorher bezog sich jede Station auf den Start (Berlin), auch wenn
-        // direkt davor Wernigerode stand — „Schierke" wurde zur Schierker Straße in Berlin.
-        try {
-          const aufgeloest = (x) => x && x.lon != null && x.lat != null;
-          const o = [_routeWps[i - 1], _routeWps[i + 1]].find(aufgeloest)
-                 || _routeWps.find((x, j) => j !== i && aufgeloest(x));
-          if (o) _bias = [o.lon, o.lat];
-        } catch (_) {}
-        try { r = await rzWarten("route_geocode", () => api().route_geocode(txt, 1, _bias)); }
-        catch (e) { return { coords: null, hadInput: true, err: "geocode_failed", detail: String(e && e.message || e) }; }
-        if (r && r.ok && r.results && r.results.length) {
-          const h = r.results[0]; w.lon = h.lon; w.lat = h.lat; w.label = h.name;
-          const el = document.querySelector(`.route-wp-resolved[data-i="${i}"]`); if (el) el.textContent = `✓ ${h.name}`;
-          return { coords: { lon: h.lon, lat: h.lat }, hadInput: true, err: null };
+        // 26.09.2026 (RR-02) — für GENAU diesen Text schon gefunden (Enter, gespeichertes Projekt)
+        // → nicht noch einmal suchen. Vorher suchte „Route berechnen" jede Station neu, die Zeilen
+        // blieben bis dahin leer oder alt. Läuft die Suche gerade (Enter, dann sofort „Route
+        // berechnen"), wird auf sie gewartet statt ein zweites Mal gefragt.
+        if (w.lon != null && w.lat != null && w.geoFuer === txt) {
+          if (w.label) _routeZeile(w, `✓ ${w.label}`);
+          return { coords: { lon: w.lon, lat: w.lat }, hadInput: true, err: null };
         }
-        if (r && r.error === "no_token") return { coords: null, hadInput: true, err: "no_token" };
-        if (r && r.ok) return { coords: null, hadInput: true, err: "not_found" };  // ok, aber kein Treffer
-        return { coords: null, hadInput: true, err: "geocode_failed", detail: (r && r.error) || "unbekannt" };
+        if (w._suche && w._suche.txt === txt) return await w._suche.p;
+        const p = _routeGeocode(w, i, txt);
+        w._suche = { txt, p };
+        try { return await p; } finally { if (w._suche && w._suche.p === p) w._suche = null; }
       }
       // Kein Text → gespeicherte Koordinaten (aus Karten-Klick), falls vorhanden.
       return { coords: (w.lon != null ? { lon: w.lon, lat: w.lat } : null), hadInput: false, err: null };
+    }
+    async function _routeGeocode(w, i, txt) {
+      let r;
+      _routeZeile(w, "… " + t("route.wp_searching", "Suche …"));
+      // 07.09.2026 — nahe Treffer bevorzugen: der zuletzt aufgelöste andere Wegpunkt als Bezug
+      let _bias = null;
+      // 25.09.2026 (Klicktest RR-02) — die NACHBAR-Station zuerst (davor, dann danach), erst
+      // dann irgendeine: vorher bezog sich jede Station auf den Start (Berlin), auch wenn
+      // direkt davor Wernigerode stand — „Schierke" wurde zur Schierker Straße in Berlin.
+      try {
+        const aufgeloest = (x) => x && x.lon != null && x.lat != null;
+        const o = [_routeWps[i - 1], _routeWps[i + 1]].find(aufgeloest)
+               || _routeWps.find((x, j) => j !== i && aufgeloest(x));
+        if (o) _bias = [o.lon, o.lat];
+      } catch (_) {}
+      try { r = await rzWarten("route_geocode", () => api().route_geocode(txt, 1, _bias)); }
+      catch (e) {
+        _routeZeile(w, "✗ " + t("route.wp_failed", "Suche fehlgeschlagen"), true);
+        return { coords: null, hadInput: true, err: "geocode_failed", detail: String(e && e.message || e) };
+      }
+      // 26.09.2026 — inzwischen weitergetippt? Dann gehört der Treffer nicht mehr zum Feld.
+      if (String(w.text || "").trim() !== txt) {
+        const j = _routeWps.indexOf(w);
+        return j >= 0 ? _routeResolve(j) : { coords: null, hadInput: false, err: null };
+      }
+      if (r && r.ok && r.results && r.results.length) {
+        const h = r.results[0]; w.lon = h.lon; w.lat = h.lat; w.label = h.name; w.geoFuer = txt;
+        _routeZeile(w, `✓ ${h.name}`);
+        return { coords: { lon: h.lon, lat: h.lat }, hadInput: true, err: null };
+      }
+      if (r && r.error === "no_token") { _routeZeile(w, ""); return { coords: null, hadInput: true, err: "no_token" }; }
+      if (r && r.ok) {  // ok, aber kein Treffer
+        _routeZeile(w, "✗ " + t("route.wp_not_found", "nicht gefunden"), true);
+        return { coords: null, hadInput: true, err: "not_found" };
+      }
+      _routeZeile(w, "✗ " + t("route.wp_failed", "Suche fehlgeschlagen"), true);
+      return { coords: null, hadInput: true, err: "geocode_failed", detail: (r && r.error) || "unbekannt" };
     }
     async function _routeCompute() {
       if (_routeBusy) return;
@@ -13799,6 +13847,17 @@ function mountAnimator(body, headerActions, opts) {
       case "desc_done": return "↓ " + Math.round(descM) + " m";
       case "swarm_total": return (_extraTours.length + 1) + " · " + _ovFmtKm(km);
       case "swarm_underway": return "0 / " + (_extraTours.length + 1);
+      // 26.09.2026 (Klicktest RE-04) — Etappenfelder im Ruhezustand = Endzustand
+      // (letzte Etappe), wortgleich zu den Fällen in _ovUpdateLiveAt.
+      case "stage_name": case "stage_no": case "stage_dist": case "stage_time": {
+        const st = _sr.stage, n = (st && st.nr) ? st.nr.length : 0;
+        if (!n || !_sr.cumDistM || _sr.cumDistM.length < n) return "—";
+        const i = n - 1;
+        if (id === "stage_name") return st.name[i] || (t("animator.statsfield.stage_name", "Etappe") + " " + st.nr[i]);
+        if (id === "stage_no") return st.nr[i] + " / " + st.gesamt;
+        if (id === "stage_dist") return _ovFmtKm(Math.max(0, (_sr.cumDistM[i] - st.d0[i]) / 1000));
+        return (_sr.has_time && _sr.cumTimeS) ? _ovFmtDur(Math.max(0, _sr.cumTimeS[i] - st.t0[i])) : "—";
+      }
     }
     return "—";
   }
@@ -13904,8 +13963,9 @@ function mountAnimator(body, headerActions, opts) {
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i] + (_sw ? _sw.tzeit : 0)); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
-          case "datetime_now": if (sr.has_time && sr.epochS) v = fmtDateTimeJS(sr.epochS[i], sr.tz_offset_min || 0, sr.lang || "de"); break;
-          case "time_now": if (sr.has_time && sr.epochS) v = fmtTimeJS(sr.epochS[i], sr.tz_offset_min || 0); break;
+          // 26.09.2026 — Reise: Zeitzone je Punkt (tzOffS), sonst die der Tour
+          case "datetime_now": if (sr.has_time && sr.epochS) v = fmtDateTimeJS(sr.epochS[i], sr.tzOffS ? sr.tzOffS[i] : (sr.tz_offset_min || 0), sr.lang || "de"); break;
+          case "time_now": if (sr.has_time && sr.epochS) v = fmtTimeJS(sr.epochS[i], sr.tzOffS ? sr.tzOffS[i] : (sr.tz_offset_min || 0)); break;
           case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i] + (_sw ? _sw.asc : 0)) + " m"; break;
           // 29.08.2026 (Marc: „noch unterwegs funktioniert nicht") — das Feld
           // hatte in der VORSCHAU keinen Rechen-Fall (nur im Render). Spiegel
@@ -15089,9 +15149,10 @@ function mountAnimator(body, headerActions, opts) {
     const sel = `<select data-z="${rolle}.art">` + arten.map(([v, l]) => `<option value="${v}" ${v === art ? "selected" : ""}>${l}</option>`).join("") + `</select>`;
     let wert = "";
     const r1 = (x) => Math.round(x * 10) / 10;
-    if (art === "video_start" || art === "video_ende") wert = `<input type="number" data-z="${rolle}.wert" min="0" step="0.5" value="${a ? r1(+a.wert || 0) : 0}"> s`;
-    else if (art === "dauer") wert = `<input type="number" data-z="${rolle}.wert" min="0.5" step="0.5" value="${dauer}"> s`;
-    else if (art === "strecke") wert = `<input type="number" data-z="${rolle}.wert" data-km="1" min="0" max="${r1(km)}" step="0.1" value="${r1((a ? +a.wert || 0 : 0) * km)}"> km`;
+    // 26.09.2026 — data-art: zu welcher Art der Wert gehört (Klicktest AN-15, siehe zeitAusFormular).
+    if (art === "video_start" || art === "video_ende") wert = `<input type="number" data-z="${rolle}.wert" data-art="${art}" min="0" step="0.5" value="${a ? r1(+a.wert || 0) : 0}"> s`;
+    else if (art === "dauer") wert = `<input type="number" data-z="${rolle}.wert" data-art="dauer" min="0.5" step="0.5" value="${dauer}"> s`;
+    else if (art === "strecke") wert = `<input type="number" data-z="${rolle}.wert" data-art="strecke" data-km="1" min="0" max="${r1(km)}" step="0.1" value="${r1((a ? +a.wert || 0 : 0) * km)}"> km`;
     return sel + wert;
   }
   function _ovZeitHtml(pfadPraefix, eigen, zAufl, erbtText, hinweis, zeiten) {
@@ -15154,7 +15215,7 @@ function mountAnimator(body, headerActions, opts) {
       h += _ovZeileHtml(P + "blende.aus", t("animator.ovbox.exit", "Ausblendung"), !(ez.blende && ez.blende.aus != null), wieB,
         `<select data-k="${P}blende.aus">${_ovBlendeOpts(zl.blende.aus, true)}</select>`);
       h += `</div>`;
-      if (b.typ === "totals") h += `<div class="ovbox-sek">` + (_ovBezugHtml(P + "bezug", ez.bezug != null, zl.bezug, wieB) || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren.")}</p>`) + `</div>`;
+      if (b.typ === "totals") h += `<div class="ovbox-sek">` + (_ovBezugHtml(P + "bezug", ez.bezug != null, zl.bezug, wieB) || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren und bei mehreren Touren nacheinander.")}</p>`) + `</div>`;
       return h;
     }
     // ── Box ──
@@ -15205,7 +15266,7 @@ function mountAnimator(body, headerActions, opts) {
     h += `</div>`;
     if (b.typ === "totals") {
       const bz = _ovBezugHtml("bezug", e.bezug != null, b.bezug, wieG);
-      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_ref", "Zahlen")}</h4>` + (bz || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren.")}</p>`) + `</div>`;
+      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_ref", "Zahlen")}</h4>` + (bz || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren und bei mehreren Touren nacheinander.")}</p>`) + `</div>`;
     }
     if (b.typ !== "ele") {
       h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_rows", "Zeilen einzeln")}</h4><div class="ovbox-rows">`
@@ -15259,6 +15320,40 @@ function mountAnimator(body, headerActions, opts) {
       if (bArt === "dauer") { const d = parseFloat(g("bis.wert")?.value) || 0; z.dauer_s = d > 0 ? d : 10; }
       else if (bArt) z.bis = anker(bArt, g("bis.wert"));
       else z.bis = null;
+      // 26.09.2026 — Klicktest AN-15: „bis zum Videoende“ → „Sekunden vor Videoende“ sprang
+      // zurück. Das Wertfeld gab es vorher nicht, also wurde {video_ende, 0} gespeichert — und
+      // 0 s vor Ende IST „bis zum Videoende“, die Liste zeigte wieder das. Gehört das Wertfeld
+      // zu einer anderen Art (gerade umgestellt), nimmt „vor Ende“ den bisherigen Endpunkt
+      // mit; lag der schon am Videoende, gilt 2 s (bei kurzer Box die halbe Restzeit).
+      const G = _ovGesamtSek();
+      const umgestellt = (rolle, art) => { const el = g(rolle + ".wert"); return !el || el.getAttribute("data-art") !== art; };
+      const vonSek = () => {
+        if (z.von.art === "video_start") return z.von.wert;
+        if (z.von.art === "video_ende") return Math.max(0, G - z.von.wert);
+        const k = window.rzOverlayBoxen ? window.rzOverlayBoxen.kanten({ von: z.von }, _ovKontext()) : null;
+        return k && isFinite(k.an) ? k.an : 0;
+      };
+      const vorEnde = (bisher) => {
+        if (bisher > 0.05) return _ov1(bisher);
+        const rest = G > 0 ? G - vonSek() : 0;
+        return rest > 4 ? 2 : Math.max(0.1, _ov1(rest / 2));
+      };
+      if (z.bis && z.bis.art === "video_ende" && umgestellt("bis", "video_ende")) {
+        const el = g("bis.wert"), alt = el ? el.getAttribute("data-art") : "";
+        const w = parseFloat(el?.value) || 0;
+        let endeSek = alt === "video_start" ? w : (alt === "dauer" ? vonSek() + w : G);
+        if (alt === "strecke" && window.rzOverlayBoxen) {
+          const km = _ovStreckeKm();
+          const k = window.rzOverlayBoxen.kanten({ von: { art: "strecke", wert: km > 0 ? Math.min(1, w / km) : 1 } }, _ovKontext());
+          if (k && isFinite(k.an)) endeSek = k.an;
+        }
+        z.bis = { art: "video_ende", wert: vorEnde(G > 0 ? G - endeSek : 0) };
+      }
+      if (z.von.art === "video_ende" && umgestellt("von", "video_ende")) {
+        const el = g("von.wert"), alt = el ? el.getAttribute("data-art") : "";
+        const w = parseFloat(el?.value) || 0;
+        z.von = { art: "video_ende", wert: alt === "video_start" && G > w ? _ov1(G - w) : 2 };
+      }
       return z;
     };
     const aendern = (fn, label, undoKey, neuZeichnen) => {
@@ -15979,6 +16074,7 @@ function mountAnimator(body, headerActions, opts) {
           document.getElementById("anim-stats-empty").hidden = false;
           document.getElementById("anim-stats-cards").hidden = true;
           document.getElementById("anim-render").disabled = true;
+          _otmKnopfSetzen(false);   // 26.09.2026 (TM-05)
         } catch (_) {}
         // v0.9.185 — Schilder via lebenden Handle leeren (closure-sicher).
         try { if (window.__rzAnimSigns && window.__rzAnimSigns.clearAll) window.__rzAnimSigns.clearAll(); } catch (_) {}
@@ -16277,8 +16373,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.412 — Snapshot + „Als Tour-Map öffnen" freischalten, sobald ein Track da ist.
       const _snapBtn = document.getElementById("anim-snapshot");
       if (_snapBtn) _snapBtn.disabled = false;
-      const _otmBtn = document.getElementById("anim-open-tourmap");
-      if (_otmBtn) _otmBtn.disabled = false;
+      _otmKnopfSetzen(true);   // 26.09.2026 (TM-05) — frei + Tooltip mit dem, was er tut
     } catch (_) {}
     // v0.8.5: applyGlobalGpx wird IMMER aus onMapReady-Callback aufgerufen.
     // Zu dem Zeitpunkt ist `load`-Event garantiert gefeuert. `isStyleLoaded()`
@@ -16667,6 +16762,7 @@ function mountAnimator(body, headerActions, opts) {
       document.getElementById("anim-stats-cards").hidden = true;
       // Render-Button + Overlay-Preview zurücksetzen
       document.getElementById("anim-render").disabled = true;
+      _otmKnopfSetzen(false);   // 26.09.2026 (TM-05)
       renderOverlayPreview();
       // Punkte-Slider zurück auf Default „kein GPX geladen"
       configurePointCountSlider(0);
@@ -17701,18 +17797,37 @@ function mountAnimator(body, headerActions, opts) {
    *     wurde. Daraus baut `_reiseBauen` die Bahn.
    */
   function _dateiName(pfad) { return String(pfad || "").split("/").pop().replace(/\.[^.]+$/i, ""); }
+  // 26.09.2026 (Eigentest RE-04) — Etappenname im Video: der Name der Tour (GPX-Titel), nicht der
+  // Dateiname („2026-02-22_Cruz del Carmen … -2794475846“). Ein selbst vergebener Name gewinnt.
+  function _globalerTourName(pfad) {   // Name der global geladenen Tour, wenn es dieselbe Datei ist
+    try {
+      const nfc = (x) => String(x || "").normalize("NFC");
+      const gp = window.getGlobalGpxPath ? window.getGlobalGpxPath() : "";
+      return (gp && nfc(gp) === nfc(pfad) && window.getGlobalGpxData) ? ((window.getGlobalGpxData() || {}).name || "") : "";
+    } catch (_) { return ""; }
+  }
+  function _tourAnzeigeName(pfad, resName, gesetzt) {
+    const datei = _dateiName(pfad);
+    if (gesetzt && gesetzt !== datei) return gesetzt;
+    const n = String(resName || "").trim();
+    return n || gesetzt || datei;
+  }
   function _tourPool() {
     const raus = [];
     if (currentGpx) {
       raus.push({ gpx_path: currentGpx, coords: _reiseBasis || currentCoords || null,
-                  name: _animEtappe1Name || _dateiName(currentGpx),
+                  name: _animEtappe1Name || _tourAnzeigeName(currentGpx, _globalerTourName(currentGpx)),
                   line_color: (typeof currentLineColor === "function") ? currentLineColor() : (document.getElementById("anim-color")?.value || "#ff6b35"),
                   zeit: (_reiseBasisSerie && _reiseBasisSerie.cumTimeS) || null,
+                  // 26.09.2026 — Uhrzeit je Punkt + Zeitzone (Reise: „Datum & Uhrzeit" je Etappe)
+                  epochs: (_reiseBasisSerie && _reiseBasisSerie.epochS) || null,
+                  tz: (_reiseBasisSerie && _reiseBasisSerie.tz_offset_min) || 0,
                   ele: _reiseBasisEle || null, stats: _gpxStats || null, haupt: true, tr: null });
     }
     _extraTours.forEach((t, i) => { const d = _tourGeduennt(t); raus.push({
       gpx_path: t.gpx_path, coords: d.coords || null, name: t.name || _dateiName(t.gpx_path),
       line_color: t.line_color || "#35a7ff", zeit: Array.isArray(d.zeit) ? d.zeit : null,
+      epochs: Array.isArray(d.epochs) ? d.epochs : null, tz: +t.tz || 0,   // 26.09.2026
       ele: _hoehenAnPunkte(d.ele, d.coords ? d.coords.length : 0),   // 09.09.2026 — 200 Höhen zu 800 Punkten: abbilden statt verwerfen
       stats: t.stats || null, haupt: false, tr: t, extraIdx: i }); });
     return raus;
@@ -17792,12 +17907,12 @@ function mountAnimator(body, headerActions, opts) {
   function _tourGeduennt(tr) {
     const st = _stilVon(tr);
     const pct = Math.max(10, Math.min(100, +st.reduce_pct || 100));
-    if (pct >= 100 || !tr.coords || tr.coords.length < 20) return { coords: tr.coords, ele: tr.ele, zeit: tr.zeit };
+    if (pct >= 100 || !tr.coords || tr.coords.length < 20) return { coords: tr.coords, ele: tr.ele, zeit: tr.zeit, epochs: tr.epochs };
     if (tr.__duenn && tr.__duenn.pct === pct && tr.__duenn.n === tr.coords.length) return tr.__duenn;
     const n = tr.coords.length, ziel = Math.max(10, Math.round(n * pct / 100));
     const idx = []; for (let i = 0; i < ziel; i++) idx.push(Math.round(i * (n - 1) / (ziel - 1)));
     const pick = (arr) => (Array.isArray(arr) && arr.length === n) ? idx.map(i => arr[i]) : null;
-    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(_hoehenAnPunkte(tr.ele, n)), zeit: pick(tr.zeit) };
+    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(_hoehenAnPunkte(tr.ele, n)), zeit: pick(tr.zeit), epochs: pick(tr.epochs) };
     return tr.__duenn;
   }
   function _tourVon(gpx) {
@@ -18463,7 +18578,17 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _reiseSerieBauen(etappen, teilVon, istUeber, teile, gesamtN) {
     const cumDistM = [], cumTimeS = [], ele = [], etappeDist = [], etappeZeit = [];
+    // 26.09.2026 — Uhrzeit (Epoche) und Zeitzone je Bahnpunkt aus der jeweiligen Tour;
+    // im Übergang und in den Halten die letzte Zeit halten (vorn: die erste der Reise).
+    const epochS = [], tzOff = [];
     let dAcc = 0, tAcc = 0, hatZeit = true, hatHoehe = true;
+    let epLetzt = null, tzLetzt = 0, hatEpoch = false;
+    etappen.forEach((e, i) => {
+      const t = e.tour || {};
+      const ep = (Array.isArray(t.epochs) && t.epochs.length === e.coords.length) ? t.epochs : null;
+      if (i === 0 && ep) { epLetzt = ep.find(x => x != null); if (epLetzt === undefined) epLetzt = null; tzLetzt = +t.tz || 0; }
+      e.__ep = ep; e.__tz = +t.tz || 0;
+    });
     etappen.forEach((e, i) => {
       const idx = e.__idx || [];
       const cum = _cumDistBerechnen(e.coords);
@@ -18482,8 +18607,12 @@ function mountAnimator(body, headerActions, opts) {
         cumDistM.push(dAcc); cumTimeS.push(tAcc);
         ele.push(ele.length ? ele[ele.length - 1] : 0);
         etappeDist.push(0); etappeZeit.push(0);
+        epochS.push(epLetzt); tzOff.push(tzLetzt);
       }
       for (const k of idx) {
+        const epk = e.__ep ? e.__ep[k] : null;
+        if (epk != null) { epLetzt = epk; tzLetzt = e.__tz; hatEpoch = true; }
+        epochS.push(epk != null ? epk : epLetzt); tzOff.push(epk != null ? e.__tz : tzLetzt);
         cumDistM.push(dAcc + cum[k]);
         cumTimeS.push(tAcc + (zeit ? (zeit[k] - zeit[0]) : 0));
         ele.push(hoehen ? hoehen[k] : (ele.length ? ele[ele.length - 1] : 0));
@@ -18499,8 +18628,10 @@ function mountAnimator(body, headerActions, opts) {
       ele.push(ele.length ? ele[ele.length - 1] : 0);
       etappeDist.push(etappeDist.length ? etappeDist[etappeDist.length - 1] : 0);
       etappeZeit.push(etappeZeit.length ? etappeZeit[etappeZeit.length - 1] : 0);
+      epochS.push(epLetzt); tzOff.push(tzLetzt);
     }
     return { cumDistM, cumTimeS, ele, etappeDist, etappeZeit,
+             epochS: hatEpoch ? epochS : null, tzOff: hatEpoch ? tzOff : null,
              has_time: hatZeit, has_ele: hatHoehe };
   }
 
@@ -18595,12 +18726,78 @@ function mountAnimator(body, headerActions, opts) {
     try { _reiseBilanzZeigen(); } catch (_) {}   // 25.09.2026 (RE-05) — alte Reise-Bilanz weg
     try { if (_tlBar && _tlBar.setGruppen) _tlBar.setGruppen([]); } catch (_) {}
     if (_reiseBasis && currentCoords !== _reiseBasis) {
+      const etappenVorher = _reiseEtappenStand();
       currentCoords = _reiseBasis;
       if (_reiseBasisSerie) { _ovSeries = _reiseBasisSerie; _gpxElevations = _reiseBasisEle || _gpxElevations; }
       try { refreshPreviewTrackData(); } catch (_) {}
+      _reiseEtappenNachziehen(etappenVorher);   // 26.09.2026 (RE-04) — Etappenfelder wieder ausgrauen
     }
     try { applyLineColorToLayers(); } catch (_) {}
     try { _bahnStilAnwenden(); } catch (_) {}
+  }
+  /** 26.09.2026 (Klicktest RE-04) — Etappen-Reihen der Reise, in derselben Form
+   *  wie core/gpx.etappen_reihen / etappen_stats bei zusammengeführten Touren:
+   *    stage.nr    – Etappe je Bahnpunkt (1-basiert; im Übergang die Etappe DAVOR,
+   *                  im Halt vorn die erste, im Halt hinten die letzte)
+   *    stage.d0/t0 – Strecke/Zeit der Bahn am Beginn dieser Etappe, damit
+   *                  „In dieser Etappe" = cumDistM[i] − d0[i] (wie beim Render)
+   *    stage.name  – Name der Gruppe bzw. Tour
+   *    stage_stats – Kennzahlen je Etappe für „Zahlen für" in der Gesamt-Box
+   *  Ohne zwei Etappen: null (dann bleiben die Felder ausgegraut). */
+  function _reiseEtappenReihen(bahn) {
+    const sr = bahn && bahn.serie;
+    if (!sr || !Array.isArray(sr.cumDistM) || !bahn.teile || bahn.teile.length < 2) return null;
+    const n = sr.cumDistM.length, gesamt = bahn.teile.length;
+    const beginn = bahn.teile.map(te => ({
+      d: +sr.cumDistM[Math.min(n - 1, te.von)] || 0,
+      t: +(sr.cumTimeS || [])[Math.min(n - 1, te.von)] || 0,
+    }));
+    const namen = bahn.etappen.map(e => String((e.gruppe && e.gruppe.name) || (e.tour && e.tour.name) || ""));
+    const nr = new Array(n), d0 = new Array(n), t0 = new Array(n), name = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const k = Math.max(0, Math.min(gesamt - 1, (bahn.teilVon && bahn.teilVon[i]) || 0));
+      nr[i] = k + 1; d0[i] = beginn[k].d; t0[i] = beginn[k].t; name[i] = namen[k] || "";
+    }
+    const stage_stats = {};
+    bahn.etappen.forEach((e, k) => {
+      const st = (e.tour && e.tour.stats) || null;
+      if (!st) return;
+      stage_stats[String(k + 1)] = {
+        distance_m: (+st.distance_km || 0) * 1000, duration_s: +st.duration_s || 0,
+        moving_time_s: st.moving_time_s, max_speed_kmh: st.max_speed_kmh,
+        ascent_m: st.ascent_m, descent_m: st.descent_m, ele_max: st.ele_max, ele_min: st.ele_min,
+        // 26.09.2026 — Zeitraum der Etappe aus der Uhrzeit-Reihe der Bahn
+        start_epoch: st.start_epoch != null ? st.start_epoch : _reiseEpochRand(bahn, k, false),
+        end_epoch: st.end_epoch != null ? st.end_epoch : _reiseEpochRand(bahn, k, true),
+      };
+    });
+    return { stage: { nr, d0, t0, name, gesamt }, stage_stats };
+  }
+  /** Erste bzw. letzte Uhrzeit der Etappe k auf der Bahn (null ohne Zeiten). */
+  function _reiseEpochRand(bahn, k, ende) {
+    const ep = bahn.serie && bahn.serie.epochS, te = bahn.teile && bahn.teile[k];
+    if (!ep || !te) return null;
+    if (!ende) { for (let i = te.von; i <= te.bis; i++) if (ep[i] != null) return ep[i]; }
+    else { for (let i = te.bis; i >= te.von; i--) if (ep[i] != null) return ep[i]; }
+    return null;
+  }
+  /** Kurzform der Etappenlage (Anzahl + Namen) — ändert sie sich, müssen der
+   *  Feld-Editor und die Einblendung neu gebaut werden (Verfügbarkeit, Zeilen). */
+  function _reiseEtappenStand() {
+    const st = _ovSeries && _ovSeries.stage;
+    if (!st || !((st.gesamt || 0) > 1)) return "";
+    const namen = []; let letzte = null;
+    (st.nr || []).forEach((v, i) => { if (v !== letzte) { letzte = v; namen.push(st.name ? st.name[i] : ""); } });
+    return JSON.stringify([st.gesamt, namen]);
+  }
+  function _reiseEtappenNachziehen(vorher) {
+    if (_reiseEtappenStand() === vorher) return;
+    // Entkoppelt wie _bahnStilAnwenden: _reiseAnwenden läuft oft mitten im
+    // Aufbau der Touren-Vorschau.
+    setTimeout(() => {
+      try { _ovRebuildEditors(); renderOverlayPreview(); }
+      catch (e) { applog("warn", "[reise] Etappenfelder nachziehen: " + e); }
+    }, 0);
   }
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
   function _reiseAnwenden() {
@@ -18610,14 +18807,32 @@ function mountAnimator(body, headerActions, opts) {
     // also müssen die Reihen zur Bahn gehören, nicht mehr zur ersten Tour.
     const sr = _reiseBahn.serie;
     if (sr) {
+      const etappenVorher = _reiseEtappenStand();
+      // 26.09.2026 (Klicktest RE-04) — die Etappen der Reise SIND ihre Touren. Vorher
+      // stand hier `stage: null`: „Etappe", „Etappe Nr.", „In dieser Etappe" und „Zeit
+      // in der Etappe" blieben ausgegraut, obwohl die Bahn ihre Etappen kennt.
+      const et = _reiseEtappenReihen(_reiseBahn);
       _ovSeries = Object.assign({}, _reiseBasisSerie || {}, {
         cumDistM: sr.cumDistM, cumTimeS: sr.cumTimeS, ele: sr.ele,
         has_time: sr.has_time, has_ele: sr.has_ele,
         total_dist_m: sr.cumDistM[sr.cumDistM.length - 1],
         total_time_s: sr.cumTimeS[sr.cumTimeS.length - 1],
-        speedKmh: null, sensors: null, stage: null,
+        speedKmh: null, sensors: null,
+        stage: et ? et.stage : null, stage_stats: et ? et.stage_stats : {},
+        // 26.09.2026 — Uhrzeit je Bahnpunkt (vorher: epochS der ersten Tour, mit
+        // Bahn-Indizes gelesen → falsche Uhrzeit ab der zweiten Etappe) und Zeitraum
+        // der ganzen Reise für „Datum"/„Uhrzeit von–bis".
+        epochS: sr.epochS || null, tzOffS: sr.tzOff || null,
+        start_epoch: sr.epochS ? sr.epochS.find(x => x != null) : null,
+        end_epoch: sr.epochS ? [...sr.epochS].reverse().find(x => x != null) : null,
+        tz_offset_min: (sr.tzOff && sr.tzOff.length) ? sr.tzOff[0] : ((_reiseBasisSerie || {}).tz_offset_min || 0),
+        // Bewegungsarten aus dem Logbuch gelten nur für EINE Tour (das Logbuch ist in
+        // der Reise aus, s. animator.lb.reise) — sonst böte „Zahlen für" die Arten der
+        // ersten Etappe als Zahlen der ganzen Reise an.
+        art_stats: null,
       });
       _gpxElevations = sr.ele;
+      _reiseEtappenNachziehen(etappenVorher);
     }
     try { refreshPreviewTrackData(); } catch (_) {}
     try { applyLineColorToLayers(); } catch (_) {}   // 09.09.2026 — Farbe der ersten Etappe der Kette
@@ -18968,7 +19183,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
-    const name = (path.split("/").pop() || "Tour").replace(/\.[^.]+$/i, "");
+    const name = _tourAnzeigeName(path, _ladeRes && _ladeRes.name, "") || "Tour";
     _extraTours.push({ gpx_path: path, line_color: color, name, coords,
                        stil: _stilVonHaupt(),   // 09.09.2026 — neue Tracks übernehmen das Aussehen von Track 1
                        // 09.09.2026 (Marc: „Höhenprofil ist glatt") — die Höhen der Etappe, sonst
@@ -18977,6 +19192,12 @@ function mountAnimator(body, headerActions, opts) {
                        zeit: (_ladeRes && _ladeRes.series && _ladeRes.series.cumTimeS
                               && _ladeRes.series.cumTimeS.length === (coords || []).length)
                              ? _ladeRes.series.cumTimeS : null,
+                       // 26.09.2026 — Uhrzeit je Punkt und Zeitzone der Tour: in der Reise zeigt
+                       // „Datum & Uhrzeit" sonst die Zeiten der ersten Tour an fremden Punkten.
+                       epochs: (_ladeRes && _ladeRes.series && Array.isArray(_ladeRes.series.epochS)
+                                && _ladeRes.series.epochS.length === (coords || []).length)
+                               ? _ladeRes.series.epochS : null,
+                       tz: (_ladeRes && _ladeRes.series && +_ladeRes.series.tz_offset_min) || 0,
                        stats: (_ladeRes && _ladeRes.stats) || null });
     // §60: die neue Tour sofort einsortieren (Mitglied oder eigene Gruppe),
     // sonst rechnen Liste und Vorschau mit dem alten Stand.
@@ -19290,7 +19511,7 @@ function mountAnimator(body, headerActions, opts) {
           gesehen.add(_pfadNFC(pfad));
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
-                             name: t.name || "Tour", coords: res.coords,
+                             name: _tourAnzeigeName(pfad, res.name, t.name) || "Tour", coords: res.coords,
                              ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
                              stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
                              start_s: +t.start_s || 0,
@@ -19304,6 +19525,11 @@ function mountAnimator(body, headerActions, opts) {
                                     && res.has_time !== false
                                     && res.series.cumTimeS.length === (res.coords || []).length)
                                    ? res.series.cumTimeS : null,
+                             // 26.09.2026 — Uhrzeit je Punkt + Zeitzone (wie _animAddTourPath)
+                             epochs: (res.series && Array.isArray(res.series.epochS)
+                                      && res.series.epochS.length === (res.coords || []).length)
+                                     ? res.series.epochS : null,
+                             tz: (res.series && +res.series.tz_offset_min) || 0,
                              stats: res.stats || null });
         } else {
           fehlend++;
@@ -19454,6 +19680,18 @@ function mountAnimator(body, headerActions, opts) {
     try { document.getElementById("anim-render").click(); }
     catch (e) { _snapshotRequest = null; }
   });
+  /** 26.09.2026 (Klicktest TM-05) — „Als Tour-Map öffnen" frei (mit Track) oder
+   *  gesperrt mit einem Tooltip, der sagt, was fehlt. Eine Reise oder ein Schwarm
+   *  sperrt nicht: die Tour-Map zeigt alle Touren des Projekts, übergeben wird nur
+   *  der Ausschnitt. */
+  function _otmKnopfSetzen(frei) {
+    const b = document.getElementById("anim-open-tourmap");
+    if (!b) return;
+    b.disabled = !frei;
+    b.title = frei
+      ? t("animator.open_tourmap.tip", "Wechselt in die Tour-Map und übernimmt exakt den aktuellen Ausschnitt/Zoom/Drehung — dort als PNG oder interaktives HTML exportierbar.")
+      : t("animator.open_tourmap.no_track", "Erst eine Tour laden — dann übernimmt die Tour-Map ihren Ausschnitt.");
+  }
   document.getElementById("anim-open-tourmap")?.addEventListener("click", () => {
     if (!currentCoords || currentCoords.length < 2) { toast(t("animator.snapshot.no_track", "Erst GPX laden."), "warn", 3000); return; }
     if (!map) { toast(t("animator.snapshot.no_cam", "Karte nicht bereit."), "warn", 3000); return; }
