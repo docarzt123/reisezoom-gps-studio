@@ -172,7 +172,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.725"
+APP_VERSION = "0.9.726"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -5374,7 +5374,12 @@ class Api:
                 return {"ok": False, "error": "läuft bereits"}
             self._lib_check_running = True
         self._lib_check_stop = False
-        self._lib_check_state = {"done": 0, "total": 0, "current": "", "running": True}
+        # 26.09.2026 (Klicktest AR-10: „prüfe 0 von ?", dann weg, keine Abschlussmeldung) —
+        # jeder Lauf bekommt eine Nummer. Die Oberfläche verfolgt genau diesen Lauf und
+        # verwechselt ihn nicht mit dem Stand eines früheren (Ergebnis) oder noch keinem.
+        self._lib_check_lauf = int(getattr(self, "_lib_check_lauf", 0) or 0) + 1
+        lauf = self._lib_check_lauf
+        self._lib_check_state = {"done": 0, "total": 0, "current": "", "running": True, "lauf": lauf}
 
         def worker():
             try:
@@ -5391,7 +5396,7 @@ class Api:
                 self._lib_check_running = False
 
         threading.Thread(target=worker, daemon=True, name="library-track-check").start()
-        return {"ok": True}
+        return {"ok": True, "lauf": lauf}
 
     def library_track_check_status(self) -> dict:
         return dict(getattr(self, "_lib_check_state", {"running": False}))
@@ -5721,6 +5726,25 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "items": []}
 
+    def library_fehler_fuer(self, paths: list) -> dict:
+        """26.09.2026 (Klicktest FE-01): Welche der eben importierten Dateien sind nach
+        dem Einlesen in der Liste nicht lesbarer Dateien gelandet — mit Grund-Code
+        (`fehler_grund`). Gezielt je Pfad statt über `library_errors` (die ist gedeckelt
+        und sortiert; bei vielen Fehler-Zeilen fehlte die gesuchte womöglich)."""
+        try:
+            conn = self._lib()
+            items = []
+            with clib._DB_LOCK:
+                for pf in list(paths or [])[:500]:
+                    r = conn.execute("SELECT path, filename, error, error_kind FROM tracks "
+                                     "WHERE path = ? AND COALESCE(error,'') != ''", (str(pf),)).fetchone()
+                    if r:
+                        items.append({"path": r["path"], "name": r["filename"] or Path(r["path"]).name,
+                                      "grund": clib.fehler_grund(r["error"] or "", r["error_kind"] or "")})
+            return {"ok": True, "items": items}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e), "items": []}
+
     def library_dismiss_errors(self, paths: list, weg: bool = True) -> dict:
         """Fehler-Zeilen wegräumen oder zurückholen — ohne etwas zu löschen.
 
@@ -5970,6 +5994,19 @@ class Api:
         Wirft `cimports.TrackImportError` bei kaputten/leeren Fremdformaten."""
         return cimports.ensure_gpx(path, IMPORTS_DIR)
 
+    def _track_exportname(self, src: str) -> str:
+        """26.09.2026 (Eigentest AL-03): Namensvorschlag der Track-Exporte (GPX/CSV/KML …).
+        Vorgeschlagen wurde der Dateiname der Quelle — bei Dubletten im Archiv hieß die
+        „Teufelsmauerkammweg“-Tour dann „fehlalarm-tempo-hopser.gpx“. Jetzt wie beim
+        Projekt-Export: Name der Tour in der Bibliothek, sonst der Dateiname."""
+        try:
+            gh = self._track_geo_hash(self._ensure_gpx(src))
+            if gh:
+                return self._export_namensvorschlag(self._lib(), gh, None, src)
+        except Exception as e:  # noqa: BLE001
+            log.debug("Export-Name aus der Bibliothek: %s", e)
+        return _export_stamm(src)
+
     def export_current_gpx(self) -> dict:
         """v0.9.282 — „Als GPX exportieren" (Menü). Nimmt den aktuell geladenen
         Track (auch wenn er aus FIT/NMEA/KML/… stammt — dann liegt eine
@@ -5982,7 +6019,7 @@ class Api:
             if not src or not os.path.exists(src):
                 return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
             gpx_path = self._ensure_gpx(src)   # .gpx bleibt, Fremdformat → Cache-GPX
-            default_name = _export_stamm(src) + ".gpx"   # 25.09.2026 — AL-03
+            default_name = self._track_exportname(src) + ".gpx"   # 25.09.2026 — AL-03; 26.09.: Tourname
             dest = self.pick_save_path(default_name, str(Path.home()),
                                        ["GPX (*.gpx)"])
             if not dest:
@@ -6009,7 +6046,7 @@ class Api:
             gpx_path = self._ensure_gpx(src)
             pts, _ = cgpx.parse_gpx(gpx_path)
             text = ctrackio.to_csv_string(pts)
-            default_name = _export_stamm(src) + ".csv"   # 25.09.2026 — AL-03
+            default_name = self._track_exportname(src) + ".csv"   # 25.09.2026 — AL-03; 26.09.: Tourname
             dest = self.pick_save_path(default_name, str(Path.home()), ["CSV (*.csv)"])
             if not dest:
                 return {"ok": False, "cancelled": True}
@@ -6048,7 +6085,7 @@ class Api:
                 _orig = None
             data, _mime = ctrackio.export_payload(pts, fmt, name, original=_orig)
             label = fmt.upper()
-            default_name = _export_stamm(src) + "." + fmt   # 25.09.2026 — AL-03
+            default_name = self._track_exportname(src) + "." + fmt   # 25.09.2026 — AL-03; 26.09.: Tourname
             dest = self.pick_save_path(default_name, str(Path.home()),
                                        [f"{label} (*.{fmt})"])
             if not dest:
@@ -11343,6 +11380,25 @@ class Api:
 
     # ── Projekte-Bereich im Archiv (E1, IDEAS §39) ────────────────────────────
 
+    @staticmethod
+    def _tour_pfad_aufloesen(touren: dict, geo_hashes: list, conn=None) -> str:
+        """Datei einer Tour über ihre Fakten finden: zuletzt gesehener, noch
+        vorhandener Pfad der Tour, sonst der Archiv-Eintrag mit demselben geo_hash.
+        Leer, wenn keine Datei mehr da ist."""
+        for gh in geo_hashes or []:
+            for kand in reversed((touren.get(gh) or {}).get("gpx_paths") or []):
+                if kand and Path(str(kand)).exists():
+                    return str(kand)
+            if conn is not None:
+                try:
+                    row = conn.execute("SELECT path FROM tracks WHERE geo_hash = ? LIMIT 1",
+                                       (gh,)).fetchone()
+                    if row and Path(row["path"]).exists():
+                        return str(row["path"])
+                except Exception:
+                    pass
+        return ""
+
     def projekte_liste(self) -> dict:
         """Alle Projekte als Karten-Daten. Pfade werden über die Tour-Fakten
         und notfalls das Archiv aufgelöst; `haupt_pfad` + `exists` sagen dem
@@ -11384,23 +11440,7 @@ class Api:
                     if snap:
                         pfad = str(snap)
                 if not pfad or not Path(str(pfad)).exists():
-                    pfad = None
-                    for gh in (k.get("geo_hashes") or []):
-                        for kand in reversed((touren.get(gh) or {}).get("gpx_paths") or []):
-                            if Path(kand).exists():
-                                pfad = kand
-                                break
-                        if not pfad:
-                            try:
-                                row = conn.execute(
-                                    "SELECT path FROM tracks WHERE geo_hash = ? LIMIT 1",
-                                    (gh,)).fetchone()
-                                if row and Path(row["path"]).exists():
-                                    pfad = row["path"]
-                            except Exception:
-                                pass
-                        if pfad:
-                            break
+                    pfad = self._tour_pfad_aufloesen(touren, k.get("geo_hashes") or [], conn)
                 k["haupt_pfad"] = pfad or ""
                 k["exists"] = bool(pfad)
                 # Für Kompositionen: alle Pfade prüfen (Übergabe braucht sie).
@@ -11650,6 +11690,23 @@ class Api:
                             ersatz = str(snap)
                             break
                 pfade.append(ersatz or pf)
+            # 26.09.2026 (Klicktest ER-08: nach ⌘Q und Neustart „Die Tour-Datei dieses
+            # Projekts wurde nicht gefunden.") — ein Solo-Projekt, das bei der ersten
+            # Änderung entsteht (projekte.festschreiben), trägt KEINE gpx_paths; die Datei
+            # steht an der Tour. Beim Fortsetzen nach dem Start ist die Projektliste der
+            # Oberfläche noch nicht geladen, ihr `haupt_pfad` fehlte als Rückfall — also
+            # hier auflösen wie projekte_liste. Findet sich keine Datei, bleibt die Liste
+            # leer — die Oberfläche bleibt dann im Archiv, statt eine fehlende Datei zu laden.
+            if p.get("ablauf", "solo") not in ("reise", "schwarm") \
+                    and not str(p.get("kontext", "")).startswith("frei:") \
+                    and not (pfade and Path(str(pfade[0])).exists()):
+                try:
+                    conn = self._lib()
+                except Exception:
+                    conn = None
+                gefunden = self._tour_pfad_aufloesen(
+                    daten.get("touren") or {}, p.get("geo_hashes") or [p.get("kontext", "")], conn)
+                pfade = [gefunden] if gefunden else []
             return {"ok": True, "kontext": p.get("kontext", ""),
                     "frei": str(p.get("kontext", "")).startswith("frei:"),
                     "ablauf": p.get("ablauf", "solo"),
@@ -13068,12 +13125,20 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 
-    def geotagger_load_photos_from_folder(self, folder: str, recursive: bool = False) -> dict:
+    def geotagger_load_photos_from_folder(self, folder: str, recursive: bool = False,
+                                          ersetzen: bool = False) -> dict:
         """Wie geotagger_register_photos, aber findet die Dateien selbst im Ordner.
         Unterstützt Fotos UND Videos.
 
         v0.9.27 (Nutzer-Feedback): `recursive=True` durchsucht Unterordner
         mit Tiefen-Limit 3 (Performance-Schutz). Default off.
+
+        26.09.2026 — Klicktest GT-03: `ersetzen=True` wirft die bisherige
+        Fotoliste vorher weg. Seit v0.9.176 hängte jeder Ordner an — nach 76
+        Masca-Fotos und dem 17er-Testordner standen 93 Medien da, und der
+        Zeitzonen-/Track-Vorschlag rechnete mit den alten Fotos. Die Oberfläche
+        fragt jetzt „Ersetzen oder dazunehmen?“ und schickt die Antwort hierher.
+        Die Tracks bleiben stehen, nur die Fotos gehen.
         """
         try:
             files = []
@@ -13096,6 +13161,12 @@ class Api:
                     full = os.path.join(folder, entry)
                     if cexif.is_media(full):
                         files.append(full)
+            if ersetzen:
+                # Erst jetzt (der Ordner ließ sich lesen) die alte Liste leeren. Der
+                # Registrier-Aufruf hält einen laufenden Vorschau-Worker an und setzt
+                # Warteschlange + Zähler neu.
+                self._gtg_photos = []
+                self._gtg_by_path = {}
             return self.geotagger_register_photos(files)
         except Exception as e:
             return {"ok": False, "error": str(e)}

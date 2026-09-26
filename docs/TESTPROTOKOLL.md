@@ -195,12 +195,12 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 |---|---|---|
 | ER-01 📷 | Starten | Willkommen „Wo soll deine Bibliothek liegen?“ (Bibliothek anlegen oder wählen); oben rechts auf dem Schleier gelb **„v0.9.725 · TEST“**. Kein Fenster „Deine Daten sind umgezogen“ |
 | ER-02 | Ort wählen: `~/GPS-Studio-Test/Bibliothek` (neu anlegen) | Wird angenommen; keine Rückfrage nach Cloud-Ordnern |
-| ER-03 | Frage nach Mapbox-Token / Kartenanbieter | **Kostenlos** wählen. Nichts eintippen |
+| ER-03 | Nach dem Anlegen der Bibliothek: gibt es eine Frage nach Mapbox-Token / Kartenanbieter, **Kostenlos** wählen, nichts eintippen | Seit dem Umbau des Erststarts fragt die App meist nicht mehr — sie startet mit den kostenlosen Karten. Keine Frage = ✅ |
 | ER-04 | Archiv öffnen | Leere Fläche mit großem „+ Ordner hinzufügen" |
 | ER-05 | Ordner `~/GPS-Studio-Test/Arbeit/archiv` hinzufügen | Einlesen läuft mit Fortschritt, am Ende 35 Touren (38 Dateien, 3 mehrfach) |
 | ER-06 | Frage „Bestand prüfen?" (falls sie kommt) | Beantworten mit „Prüfen"; Marken wie in `SOLL-ARCHIV.md` |
 | ER-07 | Animator mit einer Tour öffnen | Karte kostenlos (OSM/OpenFreeMap), Probe-Lauf geht |
-| ER-08 | Beenden und neu starten | Kein Onboarding mehr, Bibliothek wieder offen |
+| ER-08 | Beenden und neu starten | Kein Onboarding mehr; die App macht dort weiter, wo sie beendet wurde (z. B. Animator mit der Schildkröten-Tour), **ohne** Fehlermeldung |
 
 ### BI — Bibliothek und Einstellungen
 
@@ -225,8 +225,8 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | AR-07 | Tour **Teide Original** favorisieren, Schlagwort `testwort` vergeben, Notiz schreiben | Favoriten-Zähler +1; Suche nach `testwort` findet sie |
 | AR-08 | **Doppelte finden** | Findet die Teide-Dublette und Vilaflor (03-touren ↔ Teneriffa-Woche) |
 | AR-09 | Tour **kaputt-mit-absicht**: Detail → Track-Check → bei „Zeit rückwärts" **Ist so in Ordnung** | Befund verschwindet, steht grau mit „wieder anzeigen"; Kachel-Marke bleibt rot (Sprung) |
-| AR-10 | **🩺 Alle Touren prüfen** | Fortschritt oben, „Abbrechen" daneben; danach gleiche Marken |
-| AR-11 | Übersichtskarte (🌍) | Alle Touren als Linien; Teneriffa, Brandenburg, Harz, Schottland/Nordsee erkennbar |
+| AR-10 | **🩺 Alle Touren prüfen** | Fortschritt oben („prüfe n von 35“), danach steht „🩺 Track-Check: 35 geprüft · N mit Befund“ im Kopf und bleibt stehen; gleiche Marken wie `SOLL-ARCHIV.md` |
+| AR-11 | Übersichtskarte (🌍) | Ausschnitt Teneriffa bis Schottland; jede Tour als Punkt, nahe Touren als größere orange Marke (Teneriffa, Brandenburg, Harz); Heranzoomen zeigt die Linien, Klick auf eine Sammelmarke zoomt hinein |
 | AR-12 | Statistik (📊) | Summen plausibel (km, Stunden, Anzahl) |
 | AR-13 | Fortbewegungsart von **mischfall-wanderung-mit-auto** auf „Wandern" setzen | Wird gespeichert, Filter „Wandern" findet sie |
 | AR-14 | Tour anklicken, rechts die Details ansehen | Bei einer Tour mit **nur einer** Fassung gibt es keinen Bereich „Versionen“ — richtig so. Wurde eine Tour im Inspektor geändert und gespeichert (Block IN), hat sie zwei Fassungen: dort erscheint „Versionen“ mit beiden. Findest du keine solche Tour: ⏭ mit Notiz |
@@ -315,7 +315,7 @@ Vorher: Tour **Wer sieht die Schildkröte 🐢** im Animator.
 | RE-01 | Sammlung Teneriffa → alle 5 wählen → **Als Reise** in den Animator | Etappen 1–5 in Reihenfolge, Übergänge Kinoflug |
 | RE-02 📷 | Probe-Lauf | Etappe für Etappe, Flug dazwischen, keine gerade Linie zwischen Etappen |
 | RE-03 | Etappe 3 Dauer 4 s, Übergang 2→3 „Schnitt" | Wirkt im Probe-Lauf |
-| RE-04 | Live-Box: in ihrer Feldliste **„Etappe“** und **„In dieser Etappe“** anhaken; im Fenster der Box (Doppelklick auf den Balken) als Bezug **„Laufende Etappe“** wählen | Zahlen wechseln mit der Etappe |
+| RE-04 | Live-Box: in ihrer Feldliste **„Etappe“** und **„In dieser Etappe“** anhaken; Gesamt-Box: im Fenster der Box (Doppelklick auf ihren Balken) unter „Zahlen“ **„Laufende Etappe“** wählen | Live-Box zählt die Etappen mit (1/5, 2/5 …) und die Strecke je Etappe neu; die Gesamt-Box zeigt die Zahlen der laufenden Etappe |
 | RE-05 | Dieselben 5 → **🌊 Als Schwarm animieren**, Modus „Echte Uhrzeit — mit Pausen" | Alle laufen gleichzeitig; Pausen = Punkt steht |
 | RE-06 | Kamera folgt: einer bestimmten Tour | Kamera begleitet sie, bleibt an ihrem Ziel |
 | RE-07 | Schwarm in der Tour-Map öffnen | Alle 5 in ihren Farben, PNG enthält alle |
@@ -339,7 +339,7 @@ Vorher: Tour **Wer sieht die Schildkröte 🐢** im Animator.
 | TM-02 | Ausrichtung 90°, Randabstand 20 %, Start/Ziel-Markierung an | Sofort sichtbar |
 | TM-03 | Kartenstil OpenTopoMap | Wechselt, Quellenzeile passt dazu |
 | TM-04 📷 | **Karte als PNG rendern** → `Ausgaben/` | PNG 1080×1080, gleicher Ausschnitt wie Vorschau |
-| TM-05 | Im Animator „🗺 Als Tour-Map öffnen" | Tour-Map übernimmt genau den Ausschnitt |
+| TM-05 | Im **Animator** (nicht in der Reiseroute) mit geladener Tour oder Reise „🗺 Als Tour-Map öffnen“ | Tour-Map übernimmt Ausschnitt, Kartenstil und Ausrichtung (bei einer Reise mit allen Etappen); der Ausrichtungsregler zeigt denselben Wert wie die Karte. Ohne geladene Tour ist der Knopf gesperrt und sagt warum |
 
 ### WK — Web-Karte
 
@@ -367,7 +367,7 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| GT-01 | Geotagger leeren (✕ oben, bestätigen). Steht beim Versatz eine Kamera-Zeitzone (z. B. „UTC+2“), über ✎ auf UTC±0 zurückstellen. Dann Ordner `Arbeit/fotos/geotagger/` laden, **ohne** vorher einen Track zu laden | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
+| GT-01 | Geotagger leeren (✕ oben, bestätigen). Steht beim Versatz eine Kamera-Zeitzone (z. B. „UTC+2“), über ✎ auf UTC±0 zurückstellen. Dann Ordner `Arbeit/fotos/geotagger/` laden, **ohne** vorher einen Track zu laden. Fragt die App „Ersetzen / Dazunehmen“ (weil noch Fotos von vorher geladen sind): **Ersetzen** | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
 | GT-02 | **Tracks verwenden** | Track auf der Karte, Fotos A_ liegen darauf |
 | GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Knopf zählt 4; Hinweis „ohne Zeitzone" nur für EOS R6 (das Video zählt nicht mit). Darunter „Aus dem Track allein nicht eindeutig: UTC−0:30 bis UTC+3:30 …" mit den Vorschlägen **UTC+1** (Ortszeit) und **UTC+2** (Zeitzone dieses Computers am Aufnahmetag), beide mit „Übernehmen". Versatz-Anzeige oben: Wert groß, Kamera klein in der zweiten Zeile, nichts läuft unter ✎ oder ↺ |
 | GT-04 | Beim Vorschlag **UTC+2** auf „Übernehmen" (oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track, UTC+2 hat ✓; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst). Das Video G_ darf mitwandern: Videos gelten bewusst als „Zeitzone unbekannt“, weil viele Kameras dort Ortszeit statt UTC speichern |
@@ -415,7 +415,7 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 | AL-05 | Fenster klein und groß: Fenstermenü **Fenster → Zoomen** bzw. grüner Knopf; klein per `osascript -e 'tell application "System Events" to set size of front window of (first process whose frontmost is true) to {1280, 720}'` (nur wenn die Test-App vorne ist) | Nichts überlappt, Seitenleisten scrollen |
 | AL-06 | Hilfe-Menü: jede Seite einmal öffnen | Alles lesbar, Links öffnen den System-Browser |
 | AL-07 | Über-Dialog | Version 0.9.725, Credits mit Lizenzen (FFmpeg, MapLibre …) |
-| AL-08 | Feedback-Dialog öffnen, **Abbrechen** | Öffnet, nichts wird gesendet |
+| AL-08 | Feedback-Dialog öffnen, **Schließen** | Öffnet, nichts wird gesendet (der Knopf heißt „Schließen“, weil er nichts sendet) |
 
 ### FE — Fehlerfälle
 

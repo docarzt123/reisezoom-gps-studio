@@ -860,7 +860,7 @@ in between (multi-day tour), the jump between two stages, and wide point spacing
 routes without time.
 
 **When it checks:** on import, when opened in the Inspector, per tour via "Check again" and for
-the whole archive via **"🩺 Check all tours"** bottom left (progress in the header, "Cancel" next
+the whole archive via **"🩺 Check all tours"** bottom left (progress in the header — at the end "🩺 Track check: 35 checked · N with findings" stays there —, "Cancel" next
 to it; about a minute per 1000 tours). After the update the archive asks **once** whether to
 check the existing tours — "Later" never asks again and tells you where the button is.
 **Nothing runs unasked in the background.** Checking only counts; your files are not changed.
@@ -1221,6 +1221,8 @@ and remembers it. While it runs, the header shows **“Naming the areas 47/493�
 time and does not get in the way; the next start continues where it left off.
 
 ### The overview map (globe button)
+
+**Far out (since 26.09.2026):** when tours are spread across half of Europe, a day tour is a fraction of a pixel. Each tour is then shown as a **dot**, nearby tours as a **larger orange marker** (click to zoom in). From about zoom 7–9 the lines take over.
 
 Every tour gets **its own colour**, derived from its route — with seven hundred tours all
 lines would otherwise look the same and none could be followed. The colour stays the same
@@ -1811,6 +1813,8 @@ moves: no marker, no growing line, the numbers stand still.
 The stage value runs on the left while the total keeps counting on the right.
 Each stage can also have **its own colour**.
 
+Since 26.09.2026 this also works for **several tours in a row** (trip, "All in the Animator"): each tour is a stage, and **Date & time** show the clock of that tour.
+
 > **By the way:** a single GPX with several stages (multiple `<trk>` or
 > `<trkseg>`, e.g. a multi-day tour in one file) is now drawn correctly too —
 > no more line running across the map between stages.
@@ -1957,6 +1961,7 @@ Above the profile you show a **value bar** — toggle it on/off in the **"Info b
 ### Points along the route (since v0.9.394) ⭐
 In the **"Points along the route"** section you place labeled markers into the profile — from four sources, individually toggleable:
 - **Set yourself:** click **"Place a point on the profile"**, then click into the curve. Enter a name, choose a color, rename or delete it later.
+  **Without the mouse (since 26.09.2026):** after "Place a point on the profile" an **"or at km"** field appears — type the kilometre, press Enter or "Set" (a comma works too).
 - **From the photos:** the photos located in the project appear at their track position (name = filename).
 - **GPX waypoints:** `<wpt>` POIs from the GPX file (e.g. from Komoot/Garmin) are taken over.
 - **Auto markers:** the highest/lowest point as well as the steepest ascent and descent are detected and labeled automatically.
@@ -2020,7 +2025,7 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 ### Workflow
 1. **Load a GPX** — the map shows the track
 2. **Select photos** — either "📁 Choose photos", "📁 Load a whole folder", or drag & drop
-3. **Photo tiles** appear in the middle with thumbnails. Markers on the map show where each photo was assigned based on capture time. **Dragging in more photos or loading another folder adds to the list** (since v0.9.176 — it's *added*, not replaced; duplicates are skipped). To clear it, use **"🗑 Remove all"**.
+3. **Photo tiles** appear in the middle with thumbnails. Markers on the map show where each photo was assigned based on capture time. **Dragging in more photos or picking them via "Choose photos …" adds to the list** (duplicates are skipped). **Loading a different folder** asks whether it should **replace** the current photos (default) or be **added**; the question mentions changes to the current photos that have not been written yet. To clear it, use **"🗑 Remove all"**.
 4. **Check the offset** (see "Time zones" below) — usually it fits right away
 5. **"Write GPS into photos"** → **choose a target folder** → the fully tagged **copies** land there, your **originals stay untouched** → done, the folder opens
 

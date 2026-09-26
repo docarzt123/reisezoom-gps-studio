@@ -931,7 +931,7 @@ in geplanten Routen ohne Zeit.
 
 **Wann geprüft wird:** beim Einlesen, beim Öffnen im Inspektor, je Tour auf „Neu prüfen" und
 für den ganzen Bestand über **„🩺 Alle Touren prüfen"** links unten (Fortschritt oben in der
-Kopfzeile, „Abbrechen" daneben; etwa eine Minute je 1000 Touren). Nach dem Update fragt das
+Kopfzeile, „Abbrechen" daneben; etwa eine Minute je 1000 Touren; am Ende bleibt „🩺 Track-Check: 35 geprüft · N mit Befund“ oben stehen). Nach dem Update fragt das
 Archiv **einmal**, ob es den Bestand prüfen soll — bei „Später" fragt es nie wieder und sagt, wo
 der Knopf ist. **Nichts läuft ungefragt im Hintergrund.** Geprüft wird nur gezählt; an deinen
 Dateien ändert sich dabei nichts.
@@ -1388,6 +1388,8 @@ und merkt sie sich. Oben steht währenddessen **„Gegenden werden benannt 47/49
 gemächlich und stört nicht; beim nächsten Start macht es weiter, wo es aufgehört hat.
 
 ### Die Übersichtskarte (Weltkugel-Knopf)
+
+**Weit herausgezoomt (seit 26.09.2026):** Liegen die Touren über halb Europa verteilt, wäre eine Tagestour nur ein Bruchteil eines Pixels. Deshalb steht dann jede Tour als **Punkt** auf der Karte, nahe Touren als **größere orange Marke** (Klick zoomt hinein). Ab etwa Zoom 7–9 übernehmen die Linien.
 
 Jede Tour bekommt eine **eigene Farbe**, abgeleitet aus ihrem Streckenverlauf — bei
 siebenhundert Touren wären sonst alle Linien gleich und keine mehr zu verfolgen. Die Farbe
@@ -2009,6 +2011,8 @@ Kamera: kein Laufpunkt, keine wachsende Linie, die Zahlen stehen still.
 **Zeit in der Etappe**. So läuft links der Tageswert mit, während rechts die
 Gesamtsumme weiterzählt. Jede Etappe kann außerdem **ihre eigene Farbe** haben.
 
+Das gilt seit 26.09.2026 auch für **mehrere Touren nacheinander** (Reise, „Alle im Animator“): jede Tour ist eine Etappe, und **Datum & Uhrzeit** zeigen die Zeit der jeweiligen Tour.
+
 > **Übrigens:** Auch eine einzelne GPX mit mehreren Etappen (mehrere `<trk>`
 > oder `<trkseg>`, z. B. eine Mehrtages-Tour aus einem Stück) wird jetzt
 > richtig gezeichnet — zwischen den Etappen läuft kein Strich mehr quer über
@@ -2164,6 +2168,7 @@ Getrennte Achsen sind Absicht: Höhe (m) und Puls (bpm) haben keinen gemeinsamen
 ### Punkte auf der Strecke (seit v0.9.394) ⭐
 In der Sektion **„Punkte auf der Strecke"** setzt du beschriftete Marker ins Profil — aus vier Quellen, einzeln zuschaltbar:
 - **Selbst setzen:** **„Punkt aufs Profil setzen"** klicken, dann in die Kurve klicken. Name eingeben, Farbe wählen, später umbenennen oder löschen.
+  **Ohne Maus (seit 26.09.2026):** Nach „Punkt aufs Profil setzen“ steht daneben ein Feld **„oder bei km“** — Kilometer eintippen, Enter oder „Setzen“, fertig (Komma geht auch).
 - **Aus den Fotos:** die im Projekt verorteten Fotos erscheinen an ihrer Track-Position (Name = Dateiname).
 - **GPX-Wegpunkte:** `<wpt>`-POIs aus der GPX-Datei (z. B. von Komoot/Garmin) werden übernommen.
 - **Auto-Marker:** höchster/tiefster Punkt sowie steilster An- und Abstieg werden automatisch erkannt und beschriftet.
@@ -2229,7 +2234,7 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 1. **GPX laden** — die Karte zeigt den Track. Oder erst die Fotos laden: dann sucht
    das Archiv die passenden Tracks selbst (siehe „Mehrere Tracks auf einmal" unten)
 2. **Fotos auswählen** — entweder „📁 Fotos auswählen", „📁 Ganzen Ordner laden", oder Drag & Drop
-3. **Foto-Tiles** erscheinen in der Mitte mit Thumbnails. Marker auf der Karte zeigen wo jedes Foto basierend auf Aufnahmezeit zugeordnet wurde. **Weitere Fotos reinziehen oder einen weiteren Ordner laden ergänzt die Liste** (seit v0.9.176 — wird *hinzugefügt*, nicht ersetzt; Dubletten werden übersprungen). Zum Leeren das **„🗑 Alle entfernen"** nutzen.
+3. **Foto-Tiles** erscheinen in der Mitte mit Thumbnails. Marker auf der Karte zeigen wo jedes Foto basierend auf Aufnahmezeit zugeordnet wurde. **Weitere Fotos reinziehen oder über „Fotos auswählen …“ holen ergänzt die Liste** (Dubletten werden übersprungen). **Einen anderen Ordner laden** fragt, ob er die bisherigen Fotos **ersetzen** (Standard) oder **dazukommen** soll; noch nicht geschriebene Änderungen an den bisherigen Fotos nennt die Frage. Zum Leeren das **„🗑 Alle entfernen"** nutzen.
 4. **Offset prüfen** (siehe „Zeitzonen" unten) — meist passt's direkt
 5. **„GPS in Fotos schreiben"** → **Zielordner wählen** → die fertig getaggten **Kopien** landen dort, deine **Originale bleiben unangetastet** → fertig, der Ordner öffnet sich
 

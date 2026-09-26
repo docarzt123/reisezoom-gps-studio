@@ -136,6 +136,8 @@
   font-size: 13px;
   line-height: 1.5;
 }
+/* 26.09.2026 (S-08) — globale Tour wird gerade übernommen */
+.gpxi-empty.gpxi-empty-laedt { color: var(--text, inherit); }
 .gpxi-panel { display: flex; flex-direction: column; gap: 7px; }
 /* v0.9.456 — `display:flex` schlägt das [hidden]-Attribut, dadurch stand die
    ganze Werkzeugleiste auch ohne geladenen Track da (JS setzt panel.hidden). */

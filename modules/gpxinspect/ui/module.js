@@ -36,6 +36,10 @@ function mountGpxInspect(body, headerActions) {
   let _localTimeN = 0, _tc = null;   // 10.09.2026 — Track-Check: Zeiten ohne Zone, letztes Ergebnis
   let _selA = null, _selB = null;   // Anker-Indizes (a <= b)
   let _dirty = false;
+  // 26.09.2026 (Klicktest S-08: nach dem Wechsel in den Inspektor stand erst „Lade ein GPX über
+  // die Leiste oben", obwohl global schon eine Tour offen war — sie kam nach der Karte). Solange
+  // die globale Tour übernommen wird, zeigt der Leerzustand „Tour wird geladen …".
+  let _tourKommt = false;
   let _drawMode = false;            // Pfad-zeichnen-Modus aktiv?
   let _drawPts = [];                // selbst gesetzte Stützpunkte [{lat,lon}]
   // v0.9.239 — Auto-Despike: erkannte Ausreißer-Gruppen + Navigations-State.
@@ -107,10 +111,13 @@ function mountGpxInspect(body, headerActions) {
   /** 14.09.2026: Schritt mit VORHER erfasstem Stand pushen — erst wenn die Brücke Erfolg
    *  gemeldet hat. Sonst bleibt bei Fehler/Abbruch ein leerer ⌘Z-Schritt liegen. */
   function _pushUndoMit(label, vorher) { if (_undo && vorher) _undo.push(label, { force: true, state: vorher }); }
+  // 26.09.2026 — Klicktest IN-06: Punktzahl, auf die der Punkte-Regler zuletzt eingestellt
+  // wurde. updateUI vergleicht sie mit dem Track und zieht den Regler nach (siehe dort).
+  let _reglerN = -1;
 
   body.innerHTML = `
     <div class="panel gpxi-side">
-        <div class="gpxi-empty" id="gpxi-empty">${t("gpxinspect.empty", "Lade ein GPX über die Leiste oben — dann erscheint hier jeder einzelne Track-Punkt.")}</div>
+        <div class="gpxi-empty" id="gpxi-empty" role="status">${t("gpxinspect.empty", "Lade ein GPX über die Leiste oben — dann erscheint hier jeder einzelne Track-Punkt.")}</div>
         <div class="gpxi-panel" id="gpxi-panel" hidden>
           <div class="gpxi-stat" id="gpxi-stat"></div>
           <div class="gpxi-statgrid" id="gpxi-statgrid"></div>
@@ -350,7 +357,7 @@ function mountGpxInspect(body, headerActions) {
         <div class="gpxi-eleprof-head">
           <span class="gpxi-eleprof-title">⛰ ${t("gpxinspect.ele_profile_title", "Höhenprofil")}</span>
           <span class="gpxi-eleleg"><i class="gpxi-sw gpxi-sw-gps"></i>${t("gpxinspect.ele_leg_gps", "GPS (Original)")}</span>
-          <span class="gpxi-eleleg"><i class="gpxi-sw gpxi-sw-dem"></i>${t("gpxinspect.ele_leg_map", "Karte (Mapbox)")}</span>
+          <span class="gpxi-eleleg"><i class="gpxi-sw gpxi-sw-dem"></i>${t("gpxinspect.ele_leg_map", "Karte (Geländemodell)")}</span>
           <span class="gpxi-eleleg"><i class="gpxi-sw gpxi-sw-res"></i>${t("gpxinspect.ele_leg_res", "Ergebnis")}</span>
           <span class="gpxi-eleprof-info" id="gpxi-eleprof-info"></span>
         </div>
@@ -391,6 +398,22 @@ function mountGpxInspect(body, headerActions) {
     </section>
   `;
 
+  // 26.09.2026 (S-08) — globale Tour schon da? Dann gleich „wird geladen" statt „Lade ein GPX".
+  function _leerText() {
+    const el = document.getElementById("gpxi-empty");
+    if (!el) return;
+    const laedt = _tourKommt && !_points.length;
+    el.classList.toggle("gpxi-empty-laedt", laedt);
+    el.setAttribute("aria-busy", laedt ? "true" : "false");
+    el.textContent = laedt
+      ? "⏳ " + t("gpxinspect.empty_loading", "Tour wird geladen …")
+      : t("gpxinspect.empty", "Lade ein GPX über die Leiste oben — dann erscheint hier jeder einzelne Track-Punkt.");
+  }
+  try { _tourKommt = !!(typeof getGlobalGpxPath === "function" && getGlobalGpxPath()); } catch (_) {}
+  _leerText();
+  // Sicherheitsnetz: kommt die Karte nie (Stil-Fehler), nicht ewig „wird geladen" zeigen.
+  if (_tourKommt) setTimeout(() => { if (!isUnmounted && !_points.length && _ladePfad == null) { _tourKommt = false; _leerText(); } }, 25000);
+
   // ── Map ──────────────────────────────────────────────────────────────────
   whenApiReady().then(async () => {
     if (isUnmounted) return;
@@ -407,6 +430,7 @@ function mountGpxInspect(body, headerActions) {
       });
     } catch (e) {
       applog && applog("error", "[gpxinspect] createMap warf: " + e);
+      _tourKommt = false; _leerText();   // 26.09.2026 (S-08) — ohne Karte lädt hier nichts
       return;
     }
     map = made.map;
@@ -618,9 +642,11 @@ function mountGpxInspect(body, headerActions) {
   async function loadTrack(path) {
     let res;
     _ladePfad = path;
+    _tourKommt = true; _leerText();   // 26.09.2026 (S-08)
     try { res = await rzWarten("gpxinspect_load", () => api().gpxinspect_load(path)); } catch (e) { res = { ok: false, error: String(e) }; }
-    finally { if (_ladePfad === path) _ladePfad = null; }
+    finally { if (_ladePfad === path) { _ladePfad = null; _tourKommt = false; } }
     if (isUnmounted) return;
+    _leerText();
     if (!res || !res.ok) {
       if (window.isMissingFileError && window.isMissingFileError(res && res.error)) window.showSourceMissingBanner(path);
       else toast((res && res.error) || t("error.gpx_generic", "GPX-Fehler"), "error", 5000);
@@ -687,6 +713,7 @@ function mountGpxInspect(body, headerActions) {
     try { if (map && map.getSource("gpxi-line")) map.getSource("gpxi-line").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {}
     try { if (map && map.getSource("gpxi-pts")) map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: [] }); } catch (_) {}
     _eleInvalidate();
+    _tourKommt = false;   // 26.09.2026 (S-08)
     updateUI();
   }
 
@@ -1008,7 +1035,12 @@ function mountGpxInspect(body, headerActions) {
     el.step = "1";
     // Neuer Track (oder Stand größer als der Track): auf 100 % = alle Punkte.
     // Der Regler zeigt damit immer die ECHTE Punktzahl dieses Tracks an.
-    if (!behalteStand || !el.value || parseInt(el.value, 10) > n) el.value = String(n);
+    // 26.09.2026 (IN-06): Stand er auf 100 %, bleibt er dort — auch wenn der Track
+    // wächst (Lücke füllen). Vorher blieb er auf der alten Zahl stehen und die
+    // Reduzier-Vorschau blendete den Track ab, ohne dass jemand reduzieren wollte.
+    const warVoll = _reglerN > 0 && parseInt(el.value, 10) >= _reglerN;
+    if (!behalteStand || warVoll || !el.value || parseInt(el.value, 10) > n) el.value = String(n);
+    _reglerN = _points.length;
     reduzierVorschau();
   }
 
@@ -2274,10 +2306,10 @@ function mountGpxInspect(body, headerActions) {
       } catch (_) { gaps = []; }
       if (isUnmounted) return;
       if (gaps.length) {
-        const { routed, detour } = await _lueckenRouten(gaps, _gapSpacing(), fillMode);
+        const { routed, detour, fern } = await _lueckenRouten(gaps, _gapSpacing(), fillMode);
         if (isUnmounted) return;
         teile.push(t("gpxinspect.heal_done_route_short", "%r Lücken an Wege angepasst, %l gerade gefüllt").replace("%r", routed).replace("%l", gaps.length - routed)
-          + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : ""));
+          + _routenVerworfenText(detour, fern));
       }
     }
     _dirty = true; clearSpikes(); trackCheckMarkierungWeg(); _selA = _selB = null;
@@ -2343,14 +2375,14 @@ function mountGpxInspect(body, headerActions) {
     // 2) Lücken füllen — von HINTEN nach VORNE, damit Indizes gültig bleiben.
     if (fillMode !== "linear" && nG) {
       // Route-Modus: jede Lücke entlang echter Wege/Straßen (Profil) routen.
-      const { routed, detour } = await _lueckenRouten(_gaps, spacing, fillMode);
+      const { routed, detour, fern } = await _lueckenRouten(_gaps, spacing, fillMode);
       const nT = ((document.getElementById("gpxi-heal-tempo") || {}).checked) ? tempoEntzerren() : 0;
       _dirty = true; clearSpikes(); _selA = _selB = null;
       renderAll(); updateUI();
       const msg = t("gpxinspect.heal_done_route", "Geheilt: %s Ausreißer · %r Lücken an Route angepasst, %l gerade gefüllt")
         .replace("%s", nS).replace("%r", routed).replace("%l", nG - routed)
         + (_datenMsg ? " · " + _datenMsg : "")
-        + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : "")
+        + _routenVerworfenText(detour, fern)
         + (nT ? " · " + t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT) : "");
       toast(msg, "success", 4000);
       return;
@@ -2411,6 +2443,17 @@ function mountGpxInspect(body, headerActions) {
     return geraten.map((x) => x || fallback);
   }
 
+  /** 26.09.2026 (Klicktest IN-03, Teide + „Zu Fuß / Wandern": „0 an Wege angepasst, 6 Umwege
+   *  verworfen"). Nachgemessen mit echten Router-Antworten (Valhalla): am Teide rastet der Router
+   *  500–1 500 m neben der Lücke ein — dort gibt es schlicht keinen Weg; auf Harz- und Potsdam-
+   *  Wegen liegen Start/Ende 1–36 m an A/B (Toleranz 40–150 m), dort wird nichts fälschlich
+   *  verworfen. Die Grenze bleibt, aber die Meldung sagt jetzt, WARUM gerade gefüllt wurde. */
+  function _routenVerworfenText(detour, fern) {
+    const teile = [];
+    if (fern) teile.push(t("gpxinspect.heal_no_way", "kein Weg in der Nähe: %n").replace("%n", fern));
+    if (detour) teile.push(t("gpxinspect.heal_detour_long", "zu langer Umweg: %n").replace("%n", detour));
+    return teile.length ? " (" + teile.join(", ") + ")" : "";
+  }
   async function _lueckenRouten(gaps, spacing, fillMode) {
     const gapsAB = gaps.map((g) => [_points[g.a].lon, _points[g.a].lat, _points[g.b].lon, _points[g.b].lat]);
     const profile = _profileFuerLuecken(gaps, fillMode);
@@ -2437,7 +2480,7 @@ function mountGpxInspect(body, headerActions) {
       toast(t("gpxinspect.match_no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen) — fülle linear."), "warn", 3500);
     }
     const routes = (res && res.ok && Array.isArray(res.routes)) ? res.routes : [];
-    let routed = 0, fillPts = 0, detour = 0;
+    let routed = 0, fillPts = 0, detour = 0, fern = 0;
     const order = gaps.map((g, i) => ({ g, i })).sort((x, y) => y.g.a - x.g.a);
     for (const { g, i } of order) {
       const r = routes[i];
@@ -2448,17 +2491,21 @@ function mountGpxInspect(body, headerActions) {
       // dann A und B: der Track sprang zur Straße und zurück, +5 km, +1,5 h (Tempo-
       // Entzerren) und vier neue Riesenlücken. Deshalb: Route nur, wenn sie an A und B
       // anliegt; A und B selbst bleiben stehen, die Route kommt dazwischen.
-      if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2 && !_routeIsDetour(r.coords, g.dist, 2.5)
-          && _routeLiegtAn(r.coords, _points[g.a], _points[g.b])) {
+      const hatRoute = !!(r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2);
+      const liegtAn = hatRoute && _routeLiegtAn(r.coords, _points[g.a], _points[g.b]);
+      if (liegtAn && !_routeIsDetour(r.coords, g.dist, 2.5)) {
         const A = _points[g.a], B = _points[g.b];
         _applyRoutedRange(g.a, g.b, [[A.lon, A.lat], ...r.coords, [B.lon, B.lat]]);
         routed++;
       } else {
-        if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2) detour++;
+        // 26.09.2026 — getrennt zählen: Router fand keinen Weg / rastete weit weg ein („ohne
+        // Weg in der Nähe") oder die anliegende Route ist ein zu langer Umweg.
+        if (liegtAn) detour++;
+        else if (hatRoute || (r && !r.error && r.reason !== "too_far")) fern++;
         fillPts += _linearFillGap(g, spacing);
       }
     }
-    return { routed, fillPts, detour };
+    return { routed, fillPts, detour, fern };
   }
   // Eine Lücke mit gerade interpolierten Punkten füllen (Position/Höhe/Zeit linear). Gibt
   // die Anzahl eingefügter Punkte zurück. b = a+1 → reines Einfügen bei a+1.
@@ -2890,35 +2937,74 @@ function mountGpxInspect(body, headerActions) {
   }
   function _hatGelaende() { try { return !!(map && map.getTerrain && map.getTerrain()); } catch (_) { return false; } }
   // DEM einmal samplen + Profil einblenden.
+  // 26.09.2026 (Klicktest IN-09: Harz-Track „GPS 269 m, Karte 16 m") — die Kartenhöhe kam aus
+  // queryTerrainElevation, also aus den Höhenkacheln, die MapLibre in der Übersicht gerade
+  // geladen hat: grobe Stufen bzw. deren Eltern-Kachel (MapLibre nimmt eine geladene gröbere,
+  // solange die feine fehlt), ein Pixel = Hunderte Meter → das Profil wird fast flach.
+  // Gemessen am Teufelsmauer-Track (Terrarium, core/demsample): z9 104 m, z11 183 m, z13
+  // 227 m Anstieg. Deshalb jetzt dieselbe Quelle wie die ruhige Kamera: Terrarium-Kacheln
+  // FESTER Stufe über die Brücke dem_hoehen (gecacht). Die Stufe richtet sich nach der
+  // Tourlänge, damit lange Reisen nicht Hunderte Kacheln laden. Die Karte bleibt Rückfall
+  // (offline, Brücke leer).
+  function _demZoomFuerTrack() {
+    const cum = _cumDist();
+    const L = cum[cum.length - 1] || 0;
+    let lat = 0; for (const p of _points) lat += p.lat; lat /= Math.max(1, _points.length);
+    const kachelM = (z) => 40075016 * Math.max(0.2, Math.cos(lat * Math.PI / 180)) / Math.pow(2, z);
+    let z = 13;
+    while (z > 10 && L / kachelM(z) > 120) z--;
+    return z;
+  }
+  async function _demAusKacheln() {
+    if (!api() || typeof api().dem_hoehen !== "function") return null;
+    let r = null;
+    // warte-ok: Knopf zeigt „Hole Höhen aus der Karte …" (knopfBeschaeftigt in loadEleProfile)
+    try { r = await api().dem_hoehen(_points.map(p => [p.lon, p.lat]), _demZoomFuerTrack()); } catch (_) { r = null; }
+    if (!r || !r.ok || !Array.isArray(r.hoehen) || r.hoehen.length !== _points.length) {
+      try { applog("warn", "[gpxinspect] Kartenhöhe aus Kacheln: " + JSON.stringify(r && (r.error || { n_ok: r.n_ok, n: r.n }))); } catch (_) {}
+      return null;
+    }
+    try { applog("info", `[gpxinspect] Kartenhöhe aus Kacheln z${r.z}: ${r.n_ok}/${r.n} Punkte`); } catch (_) {}
+    return r.hoehen.map(v => (v == null || !isFinite(v)) ? null : Math.round(v * 10) / 10);
+  }
   async function loadEleProfile() {
     const resEl = document.getElementById("gpxi-ele-result");
     if (_eleBusy || _points.length < 2 || !map) return;
-    if (!_hatGelaende()) {
-      const m = t("gpxinspect.ele_need_terrain", "Der gewählte Kartenstil hat kein Gelände — bitte einen anderen Stil wählen.");
-      if (resEl) resEl.textContent = m; toast(m, "warn"); return;
-    }
     _eleBusy = true;
     // v0.9.522 — gemeinsames Warte-Muster aus util.js statt Eigenbau.
     const frei = knopfBeschaeftigt("gpxi-ele-load", "gpxinspect.ele_working", "Hole Höhen aus der Karte …");
     await malPause();
     try {
-      // Track-Bbox anfahren (animate:false), auf 'idle' warten (DEM-Kacheln da), samplen, zurück.
-      const cam = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
-      try { map.fitBounds(_trackBounds(), { padding: 40, animate: false }); } catch (_) {}
-      await new Promise((resolve) => {
-        let done = false; const fin = () => { if (!done) { done = true; resolve(); } };
-        try { map.once("idle", fin); } catch (_) {}
-        setTimeout(fin, 9000);
-      });
+      // 26.09.2026 — zuerst die Kacheln fester Stufe (s. o.), die Karte nur als Rückfall.
+      let dem = await _demAusKacheln();
       if (isUnmounted) return;
-      let hit = 0;
-      const dem = _points.map(p => {
-        let v = null;
-        try { v = map.queryTerrainElevation([p.lon, p.lat]); } catch (_) {}
-        if (v == null || !isFinite(v)) return null;
-        hit++; return Math.round(v * 10) / 10;
-      });
-      try { map.jumpTo(cam); } catch (_) {}
+      let hit = dem ? dem.filter(v => v != null).length : 0;
+      if (!hit) {
+        if (!_hatGelaende()) {
+          const m = t("gpxinspect.ele_need_terrain", "Der gewählte Kartenstil hat kein Gelände — bitte einen anderen Stil wählen.");
+          if (resEl) resEl.textContent = m; toast(m, "warn"); return;
+        }
+        // Track-Bbox anfahren (animate:false), auf 'idle' warten (DEM-Kacheln da), samplen, zurück.
+        const cam = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+        try { map.fitBounds(_trackBounds(), { padding: 40, animate: false }); } catch (_) {}
+        await new Promise((resolve) => {
+          let done = false; const fin = () => { if (!done) { done = true; resolve(); } };
+          try { map.once("idle", fin); } catch (_) {}
+          setTimeout(fin, 9000);
+        });
+        if (isUnmounted) return;
+        // queryTerrainElevation liefert die Höhe MAL Überhöhung — herausrechnen.
+        let ueber = 1;
+        try { const tr = map.getTerrain && map.getTerrain(); if (tr && isFinite(tr.exaggeration) && tr.exaggeration > 0) ueber = tr.exaggeration; } catch (_) {}
+        hit = 0;
+        dem = _points.map(p => {
+          let v = null;
+          try { v = map.queryTerrainElevation([p.lon, p.lat]); } catch (_) {}
+          if (v == null || !isFinite(v)) return null;
+          hit++; return Math.round(v / ueber * 10) / 10;
+        });
+        try { map.jumpTo(cam); } catch (_) {}
+      }
       if (!hit) {
         const m = t("gpxinspect.ele_no_dem", "Keine Höhendaten gefunden (Internet/Token?).");
         if (resEl) resEl.textContent = m; toast(m, "warn"); return;
@@ -3153,12 +3239,17 @@ function mountGpxInspect(body, headerActions) {
   function updateUI() {
     try { _lbKnoepfe(); } catch (_) {}
     try { _lbUndKopfNachziehen(); } catch (_) {}   // 25.09.2026 (IN-10/IN-12)
+    // 26.09.2026 — Klicktest IN-06: „Diesen Punkt löschen" → Kopf 677, der Punkte-Regler
+    // blieb bei „678 / 678"; nach „Lücke füllen" ebenso. Nachgezogen wurde er nur an
+    // einzelnen Knöpfen (Anhängen, Heilen, Werkzeuge, Undo). Jede Bearbeitung endet hier
+    // in updateUI — also hier, sobald sich die Punktzahl geändert hat, für alle Wege.
+    if (_points.length && _points.length !== _reglerN) { try { reduzierReglerSync(true); } catch (_) {} }
     const has = _points.length > 0;
     const empty = document.getElementById("gpxi-empty");
     const panel = document.getElementById("gpxi-panel");
     if (empty) empty.hidden = has;
     if (panel) panel.hidden = !has;
-    if (!has) return;
+    if (!has) { _leerText(); return; }   // 26.09.2026 (S-08) — „wird geladen" oder „Lade ein GPX"
     // Stats
     let dist = 0;
     for (let i = 1; i < _points.length; i++) dist += _haversine(_points[i - 1], _points[i]);

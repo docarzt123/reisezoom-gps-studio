@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 25 Sep 2026 17:56:58 +0000</lastBuildDate>
+<lastBuildDate>Sat, 26 Sep 2026 06:43:46 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.726</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-726</link>
+<guid isPermaLink="false">gps-studio-v0.9.726</guid>
+<pubDate>Sat, 26 Sep 2026 12:00:00 +0000</pubDate>
+<description>Etappen bei mehreren Touren nacheinander — die Live-Box zeigt jetzt Etappe und Strecke in dieser Etappe, und die Uhrzeit ist die der jeweiligen Tour.
+
+Höhe aus der Karte stimmt — „Höhenprofil aus Karte laden“ im Inspektor lieferte bei manchen Touren ein fast flaches Profil. Jetzt kommen die Höhen aus Geländekacheln in fester Auflösung.
+
+Geotagger fragt vor dem Mischen — wer einen zweiten Fotoordner lädt, wählt jetzt „Ersetzen“ oder „Dazunehmen“ — vorher landeten beide Sätze in einer Liste.
+
+Archiv übersichtlicher — auf der Übersichtskarte ist jede Tour auch weit herausgezoomt als Punkt zu sehen, und „Alle Touren prüfen“ zeigt am Ende, wie viele Touren einen Befund haben.</description>
+</item>
 <item>
 <title>v0.9.725</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-725</link>
@@ -203,13 +216,6 @@ Archiv: mehrere Touren in den Papierkorb — Mehrere markieren (z. B. alle ausge
 Inspektor aufgeräumt — Sechs gleiche Klapp-Abschnitte statt Titel, Trennstriche und Mischformen: Anschauen &amp; prüfen, Heilen, Bearbeiten (Anker A→B, sortiert nach Abschnitt / am Punkt A / ganzer Track), Punkte &amp; Zeiten, Tracks verbinden, Höhe korrigieren. Rückgängig oben, Speichern klebt unten, eine Statuszeile sagt, was die Anker brauchen. Offene Abschnitte werden gemerkt.
 
 Geotagger mit mehreren Tracks, nachgebessert — Der Track-Vorschlag kommt jetzt auch, wenn schon ein Track offen ist. Die Kamera-Zeitzone wird über alle Tracks bestimmt (die, bei der die meisten Fotos auf irgendeinen Track fallen) und beim Übernehmen gleich gesetzt; die Zahlen im Dialog stimmen so mit dem Ergebnis überein. Dieselbe Tour unter zwei Archiv-Pfaden zählt nicht mehr als Doppel-Treffer, das Archiv wird je Foto-Tag gefragt (ein verirrtes Foto von 2020 kostete 13 Sekunden), die GPX-Leiste oben folgt dem Haupt-Track, „Workspace leeren“ räumt auch Track-Liste und Foto-Fenster.</description>
-</item>
-<item>
-<title>v0.9.686</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-686</link>
-<guid isPermaLink="false">gps-studio-v0.9.686</guid>
-<pubDate>Thu, 10 Sep 2026 12:00:00 +0000</pubDate>
-<description>Geotagger: mehrere Tracks auf einmal — Ordner mit Fotos laden, fertig: GPX-Dateien neben den Fotos wandern ins Archiv, das Archiv sucht zu den Aufnahmezeiten alle passenden Touren und zeigt eine Bestätigungsliste (Häkchen je Tour, Fotos je Tour, Fotos ohne Tour). „Aus dem Archiv …“ holt weitere dazu. Jedes Foto landet auf dem Track, dessen Zeit passt; vorgegebene Tracks gewinnen, sonst der nähere Punkt; „↔ auch: …“ zeigt Doppel-Treffer. Alle Tracks in eigener Farbe auf der Karte, Liste in der Seitenleiste. (GitHub-Issue #7)</description>
 </item>
 </channel>
 </rss>

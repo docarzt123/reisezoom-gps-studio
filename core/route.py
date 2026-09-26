@@ -134,7 +134,13 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     # animator.py). Steht der Suchtext genau so als ORT da, gewinnt der Ort gegen gleich-
     # namige Straßen. Fehlt ein solcher Ort in der Antwort mit Bezug, einmal ohne Bezug
     # nachfragen; unter mehreren gleichnamigen Orten gewinnt der nächste zum Bezug.
-    if hat_bias and not any(_ist_ort_namens(f, q) for f in feats):
+    # 26.09.2026 (Klicktest-Nachprüfung RR-02, echte Antworten): „Brocken" mit Bezug Wernigerode
+    # lieferte vorn den Gipfel (natural=peak, kein „Ort") — die Nachfrage ohne Bezug holte dann
+    # den Weiler „Brocken" bei Egestorf (Niedersachsen), und der gewann als Ort. Nachgefragt wird
+    # deshalb nur, wenn in der Antwort mit Bezug GAR NICHTS genau so heißt (Schierke-Fall: nur
+    # „Schierker Straße"). Heißt ein naher Treffer genau wie der Suchtext, bleibt er vorn.
+    genau_da = any(_namen_gleich(((f or {}).get("properties") or {}).get("name") or "", q) for f in feats)
+    if hat_bias and not genau_da and not any(_ist_ort_namens(f, q) for f in feats):
         try:
             feats = feats + _holen(False)
         except RouteError:
