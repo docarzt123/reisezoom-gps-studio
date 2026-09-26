@@ -1,6 +1,6 @@
 # Testprotokoll GPS Studio — Klicktest für einen unabhängigen Test-Chat
 
-Stand: 25.09.2026 · App-Version 0.9.725 · Testrechner: Mac mini (dieser Rechner)
+Stand: 26.09.2026 · App-Version 0.9.726 · Testrechner: Mac mini (dieser Rechner)
 
 Dieses Dokument ist die Arbeitsanweisung für einen Chat **mit Computersteuerung**, der
 GPS Studio von Anfang bis Ende durchklickt und einen Bericht schreibt. Es setzt kein
@@ -89,7 +89,7 @@ Im Terminal (Arbeitsordner `…/Reisezoom-GPS-Studio`):
 - **leer**: Erststart mit Onboarding, ohne Bibliothek und ohne Schlüssel. Nur für Block ER.
 - Vor dem Zurücksetzen die Test-App mit **⌘Q** beenden, sonst bricht das Skript ab.
 - `starten` holt eine schon laufende Test-App nach vorne statt sie ein zweites Mal zu starten; `vorne` tut nur das.
-- Nach dem Start steht oben rechts **„v0.9.725 · TEST"** auf gelbem Grund. Fehlt das,
+- Nach dem Start steht oben rechts **„v0.9.726 · TEST"** auf gelbem Grund. Fehlt das,
   sofort beenden — dann läuft die falsche App.
 
 ### A5. Dateien auswählen
@@ -166,7 +166,7 @@ Umgebung: `zuruecksetzen vorbefuellt`, `starten`.
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.725 · TEST", keine Fehlermeldung |
+| S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.726 · TEST", keine Fehlermeldung |
 | S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 35 Touren; links Sammlungen „Problemfälle" (18) und „Teneriffa Februar 2026" (5) |
 | S-03 | Suchfeld: `Teide` | Die Teide-Tour mit „2×" (angezeigt mit ihrem GPX-Titel „Pico del Teide Brutal …") über den Namen; dazu Treffer über die Gegend (Santiago del Teide, La Orotava). Der Hinweis nennt beide Zahlen (z. B. „4 Touren hier · 2 über den Namen") |
 | S-04 | Tour **kaputt-mit-absicht** anklicken | Kachel mit rotem ⚠︎; rechts Track-Check mit Sprung, Höhen-Müll, Lücke, Zeit rückwärts |
@@ -193,7 +193,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| ER-01 📷 | Starten | Willkommen „Wo soll deine Bibliothek liegen?“ (Bibliothek anlegen oder wählen); oben rechts auf dem Schleier gelb **„v0.9.725 · TEST“**. Kein Fenster „Deine Daten sind umgezogen“ |
+| ER-01 📷 | Starten | Willkommen „Wo soll deine Bibliothek liegen?“ (Bibliothek anlegen oder wählen); oben rechts auf dem Schleier gelb **„v0.9.726 · TEST“**. Kein Fenster „Deine Daten sind umgezogen“ |
 | ER-02 | Ort wählen: `~/GPS-Studio-Test/Bibliothek` (neu anlegen) | Wird angenommen; keine Rückfrage nach Cloud-Ordnern |
 | ER-03 | Nach dem Anlegen der Bibliothek: gibt es eine Frage nach Mapbox-Token / Kartenanbieter, **Kostenlos** wählen, nichts eintippen | Seit dem Umbau des Erststarts fragt die App meist nicht mehr — sie startet mit den kostenlosen Karten. Keine Frage = ✅ |
 | ER-04 | Archiv öffnen | Leere Fläche mit großem „+ Ordner hinzufügen" |
@@ -414,7 +414,7 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 | AL-04 | Undo/Redo über mehrere Module — hier einmal per Tastenkürzel (gesendet als ⌘Y, siehe A5) | Jeder Schritt einzeln rückgängig |
 | AL-05 | Fenster klein und groß: Fenstermenü **Fenster → Zoomen** bzw. grüner Knopf; klein per `osascript -e 'tell application "System Events" to set size of front window of (first process whose frontmost is true) to {1280, 720}'` (nur wenn die Test-App vorne ist) | Nichts überlappt, Seitenleisten scrollen |
 | AL-06 | Hilfe-Menü: jede Seite einmal öffnen | Alles lesbar, Links öffnen den System-Browser |
-| AL-07 | Über-Dialog | Version 0.9.725, Credits mit Lizenzen (FFmpeg, MapLibre …) |
+| AL-07 | Über-Dialog | Version 0.9.726, Credits mit Lizenzen (FFmpeg, MapLibre …) |
 | AL-08 | Feedback-Dialog öffnen, **Schließen** | Öffnet, nichts wird gesendet (der Knopf heißt „Schließen“, weil er nichts sendet) |
 
 ### FE — Fehlerfälle
@@ -446,7 +446,7 @@ liegen nur bei Marc/Claude — du tippst nichts davon ein und trennst die Cloud 
 ## Teil D — Berichtsvorlage
 
 ```markdown
-# Testbericht GPS Studio 0.9.725 — <Datum Uhrzeit>
+# Testbericht GPS Studio 0.9.726 — <Datum Uhrzeit>
 
 Tester: <Chat-Bezeichnung> · Umgebung: vorbefuellt/leer · Dauer: <h>
 
