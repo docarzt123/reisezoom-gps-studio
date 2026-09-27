@@ -14,7 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-> **0.9.727** (27.09.2026, built locally): Codex follow-up run (`~/GPS-Studio-Test/Berichte/20260926-2102/`, 23 required steps: 16 ✅ 0 ❌ 4 ⚠️ 3 ⏭ — the ⚠️/⏭ were outdated protocol rows, one false alarm fixed below).
+> **0.9.728** (27.09.2026, built locally): visual check (TESTING.md part B) found the geotagger bug below. **0.9.727**: Codex follow-up run (`~/GPS-Studio-Test/Berichte/20260926-2102/`, 23 required steps: 16 ✅ 0 ❌ 4 ⚠️ 3 ⏭ — the ⚠️/⏭ were outdated protocol rows, one false alarm fixed below).
+
+### Fixed — visual check before the release (0.9.728)
+- **Geotagger showed no track on the first visit** (TESTING.md B1, found while clicking through): `onMapReady` asked MapLibre's `isStyleLoaded()`, which stays false while tiles are still loading. A call that came after the map's `load` event then waited for a `load` that never comes again — the geotagger's "draw the track" callback was silently dropped; the second visit worked. After the first `load` the style-JSON flag from `createMap` (`__rzStyleReady`) now decides; during a style switch it waits for `style.load`. Maps not built by `createMap` behave as before (`ui/js/util.js`, test `test_onmapready_nach_load.py`).
 
 ### Fixed — Codex follow-up run (0.9.727)
 - **False "map service is not responding" when opening a very long tour** (IN-26, `reise-5-wochen`): fitting the view cancels pending tiles, WebKit reports them as `AJAXError: Load failed (0)` without an HTTP status, and a single one raised the banner. Errors without a status now warn only from the third failure of the same host within 10 s; real HTTP errors (502 …) still warn at once (`ui/js/util.js`, test `test_kachelwarnung_abbruch.py`).
