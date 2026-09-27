@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.728] – 2026-09-27
+
 > **0.9.728** (27.09.2026, built locally): visual check (TESTING.md part B) found the geotagger bug below. **0.9.727**: Codex follow-up run (`~/GPS-Studio-Test/Berichte/20260926-2102/`, 23 required steps: 16 ✅ 0 ❌ 4 ⚠️ 3 ⏭ — the ⚠️/⏭ were outdated protocol rows, one false alarm fixed below).
 
 ### Fixed — visual check before the release (0.9.728)
