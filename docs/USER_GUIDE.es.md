@@ -44,6 +44,8 @@ Si excepcionalmente macOS dice «está dañada y no se puede abrir» (p. ej. tra
 xattr -dr com.apple.quarantine "/Applications/Reisezoom GPS Studio.app"
 ```
 
+**Desinstalar (macOS):** cierra la app (⌘Q) y mueve `Reisezoom GPS Studio.app` de **Aplicaciones** a la Papelera. Para borrar también ajustes y cachés, elimina (Finder → ⌘⇧G → pega la ruta): `~/Library/Application Support/Reisezoom GPS Studio/`, `~/Library/Caches/com.reisezoom.gpsstudio/`, `~/Library/WebKit/com.reisezoom.gpsstudio/` y `~/Library/Preferences/com.reisezoom.gpsstudio.plist`. Con archivo en la nube: borra en **Acceso a Llaveros** las entradas «Reisezoom GPS Studio (Cloud-Archiv)». **Tu biblioteca** (rutas, proyectos) está en la carpeta que elegiste en el primer inicio — se queda intacta a propósito.
+
 ### Windows
 1. Haz doble clic en `ReisezoomGPSStudio-windows-setup.exe`
 2. Diálogo de SmartScreen: **«Más información»** → **«Ejecutar de todas formas»**
@@ -54,6 +56,8 @@ xattr -dr com.apple.quarantine "/Applications/Reisezoom GPS Studio.app"
 > **¿Quieres ir sobre seguro?** La versión de Windows (todavía) no está firmada. Quien lo desee puede comprobar de antemano el `.exe` descargado en un servicio como [VirusTotal](https://www.virustotal.com) — las builds proceden de una pipeline automatizada de GitHub sin pasos intermedios manuales.
 
 Desinstalar como cualquier otra app de Windows: **Panel de control → Aplicaciones y características → Reisezoom GPS Studio → Desinstalar**.
+
+Los ajustes y cachés están en `%APPDATA%\Reisezoom GPS Studio\` — para quitarlo todo, borra esa carpeta a mano después de desinstalar. La biblioteca se queda donde la creaste.
 
 ### Linux (desde el código fuente)
 
