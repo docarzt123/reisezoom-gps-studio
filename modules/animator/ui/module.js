@@ -9287,7 +9287,11 @@ function mountAnimator(body, headerActions, opts) {
     return {
       natuerlich: { sat: 25, con: 8, bri: 0, hue: 0, sharp: 15, relief: 35, haze: 15 },
       kraeftig:   { sat: 45, con: 20, bri: 0, hue: 0, sharp: 30, relief: 50, haze: 35 },
-      filmisch:   { sat: 14, con: 14, bri: -4, hue: -4, sharp: 20, relief: 60, haze: 25 },
+      // 27.09.2026 (Beta-Tester, Windows: „Filmisch springt zurück auf Eigene"): 14/−4/−4 lagen
+      // nicht auf dem Raster der Regler (Sättigung, Helligkeit, Farbton in 5er-Schritten) — der
+      // Regler rastete auf 15/−5/−5 ein, _lookSync erkannte den Look nicht mehr. Jeder Wert muss
+      // auf dem step seines Reglers liegen (Wächter tests/test_look_raster.py).
+      filmisch:   { sat: 15, con: 14, bri: -5, hue: -5, sharp: 20, relief: 60, haze: 25 },
     };
   }
   function _LOOK_IDS_() { return { sat: "anim-osat", con: "anim-ocon", bri: "anim-obri", hue: "anim-ohue", sharp: "anim-osharp", relief: "anim-orelief", haze: "anim-ohaze" }; }

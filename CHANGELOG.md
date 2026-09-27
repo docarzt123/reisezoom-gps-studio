@@ -14,7 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-> **0.9.730** (27.09.2026, built locally): "TEST" in the normal app — never again.
+> **0.9.731** (27.09.2026, built locally): two beta-tester reports (Windows, 0.9.722) fixed. **0.9.730**: "TEST" in the normal app — never again.
+
+### Fixed — beta tester reports (0.9.731)
+- **Aerial look "Film" jumped back to "Custom"** (reported on Windows; affects every system): the preset used saturation 14, brightness −4 and hue −4, but those sliders move in steps of 5 — the range input snapped to 15/−5/−5, `_lookSync` no longer matched and the select showed "Custom". The preset now uses 15/−5/−5 (visually the same). Guard `tests/test_look_raster.py`: every preset value must sit on its slider's grid, checked statically and with real `<input type=range>` in WebKit.
+- **"Fade-in" of the stats boxes had no effect** (only "Hard" seemed to work): `rzOverlayBoxen.zustand` returned "fully visible" for a box without its own time range — the normal case — before looking at the fades. Without a range the whole video is now the box's bar: fade/pop in from second 0, fade/pop out at the end of the video when its length is known. Same code in test run and render (`core/animator.py` embeds `ui/js/overlay_boxen.js`). Guard `tests/test_box_einblendung_ohne_zeitraum.py`. User guide DE/EN/ES updated.
+
 
 ### Fixed
 - **The normal app showed "· TEST" at the top right** (Marc, right after the 0.9.729 release, on this Mac and on a second Mac). The published build was never affected (checked: no `testrechner.json` in the v0.9.729 DMG; the app never writes that file). Cause: since 25.09 `scripts/testumgebung.sh einrichten` also wrote the test-machine lock into the **normal** app folder as a photo safety net, and a copy lived on as a leftover on the other Mac. The normal app then showed TEST and refused deleting/overwriting outside `~/GPS-Studio-Test`. Now three layers: (1) `core/dateischutz.testrechner_laden` honours the lock **only for a test app** (`RZ_APP_ORDNER` set) and ignores it otherwise (verified in the real app with a planted lock file: badge "v0.9.730", no TEST); (2) `testumgebung.sh` writes the lock only into the test app folder (`schutz_schreiben` refuses any other folder), and `einrichten`/`starten` remove a leftover from the normal app folder; `status` warns if one is there; (3) the leftover on this Mac was deleted. Test `test_testrechner.py` extended (normal app ignores the file; script never writes to the normal folder) — red without the fix.
