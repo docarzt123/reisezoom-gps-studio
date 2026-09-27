@@ -382,9 +382,15 @@
    *  frühere Weg über `mem` — ein Streckenauslöser merkt sich die Sekunde, in
    *  der er erreicht wurde, die Ausblendung beginnt dort. */
   function zustand(zeit, blende, t, frac, ctx, mem) {
-    if (!zeit) return { sichtbar: true, deckkraft: 1, pop: 1 };
+    // 27.09.2026 (Beta-Tester: „bei Aussehen der Stats-Boxen → Einblendung wirkt nur ‚Hart'"):
+    // Eine Box ohne eigenen Zeitraum (der Normalfall) kehrte hier sofort als voll sichtbar
+    // zurück — die globale Ein-/Ausblendung griff nie. Ohne Zeitraum gilt jetzt das ganze
+    // Video als Balken: Einblendung ab Sekunde 0, Ausblendung zum Videoende (wenn die Länge
+    // bekannt ist). Ohne Blende bleibt es beim schnellen Weg.
+    if (!zeit && !hatEin(blende) && !hatAus(blende)) return { sichtbar: true, deckkraft: 1, pop: 1 };
     const k = kanten(zeit, ctx);
-    if (k) {
+    if (k || !zeit) {
+      if (!k) return mischen(blende, 1, 1);
       const an = k.an, aus = k.aus;
       if (t < an - EPS || t > aus + EPS) return UNSICHTBAR();
       let a = hatEin(blende) ? blendeDauer(blende, "ein_s") : 0;

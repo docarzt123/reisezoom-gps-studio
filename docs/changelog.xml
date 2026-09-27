@@ -5,14 +5,18 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 27 Sep 2026 17:37:50 +0000</lastBuildDate>
+<lastBuildDate>Sun, 27 Sep 2026 17:59:41 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.730</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-730</link>
-<guid isPermaLink="false">gps-studio-v0.9.730</guid>
+<title>v0.9.731</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-731</link>
+<guid isPermaLink="false">gps-studio-v0.9.731</guid>
 <pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
-<description>Handbuch: Deinstallieren — wie man GPS Studio auf dem Mac komplett entfernt (App, Einstellungen, Zwischenspeicher, Schlüsselbund) und wo die Einstellungen unter Windows liegen. Die Bibliothek mit deinen Touren bleibt dabei stehen.
+<description>Look „Filmisch“ bleibt stehen — in der Luftbild-Optik sprang die Auswahl nach „Filmisch“ zurück auf „Eigene Einstellung“.
+
+Einblendung der Stats-Boxen wirkt — „Einblenden“ und „Aufpoppen“ unter „Aussehen der Stats-Boxen“ gelten jetzt auch für Boxen, die das ganze Video über zu sehen sind: rein am Anfang, raus am Ende.
+
+Handbuch: Deinstallieren — wie man GPS Studio auf dem Mac komplett entfernt (App, Einstellungen, Zwischenspeicher, Schlüsselbund) und wo die Einstellungen unter Windows liegen. Die Bibliothek mit deinen Touren bleibt dabei stehen.
 
 Interne Test-Sperre — eine nur für Entwicklertests gedachte Sperrdatei kann die normale App nicht mehr beeinflussen.</description>
 </item>
