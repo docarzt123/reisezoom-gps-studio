@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.729] – 2026-09-27
+
+### Docs
+- User guide (DE/EN/ES), FAQ: new entry "The map service … is not responding" — what the notice means, what helps, and that single cancelled tiles no longer trigger it (0.9.727). Shipped as its own version because the guide is part of the app bundle (in-app help).
+
 ## [0.9.728] – 2026-09-27
 
 > **0.9.728** (27.09.2026, built locally): visual check (TESTING.md part B) found the geotagger bug below. **0.9.727**: Codex follow-up run (`~/GPS-Studio-Test/Berichte/20260926-2102/`, 23 required steps: 16 ✅ 0 ❌ 4 ⚠️ 3 ⏭ — the ⚠️/⏭ were outdated protocol rows, one false alarm fixed below).

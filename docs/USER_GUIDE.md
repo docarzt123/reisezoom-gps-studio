@@ -2842,6 +2842,9 @@ Selbes Problem auf Windows. **„Weitere Informationen" → „Trotzdem ausführ
 ### Beim ersten Animator-Render dauert's lange
 Beim allerersten Render lädt die App einmalig Chromium für die Karten-Render-Pipeline runter (~150 MB). Modal erscheint mit Fortschritts-Anzeige. Danach läuft jeder weitere Render direkt los.
 
+### Hinweis „Der Kartendienst … antwortet nicht" (seit v0.9.727)
+Die Karte meldet das, wenn ein Kartendienst mehrmals hintereinander keine Kacheln liefert (Serverfehler oder keine Verbindung). Dann fehlen Teile der Karte. Abhilfe: kurz warten und die Ansicht leicht bewegen, oder einen anderen Kartenstil wählen. Einzelne abgebrochene Kacheln — etwa wenn eine sehr lange Tour die Ansicht einpasst — lösen den Hinweis nicht mehr aus; vor v0.9.727 erschien er dabei manchmal grundlos.
+
 ### „Mapbox-Token fehlt" beim Render
 Nur der **Animator-Render** braucht den Token. Tour-Map, Web Karte, Geotagger, GPX-Inspektor und Daten-Animator laufen auch ohne — die Tour-Map zeichnet dann mit einem OpenStreetMap-Stil statt Satellit oder 3D (seit v0.9.406). Eintragen im ⚙-Modal (auf dem Mac auch mit Cmd+,); wie du in zwei Minuten an einen kostenlosen kommst, steht in Kapitel 2.
 
