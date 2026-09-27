@@ -710,6 +710,15 @@ function createMap(opts) {
       const status = e && (e.status || e.statusCode || (/\((4\d\d|5\d\d)\)/.exec(msg) || /\b(4\d\d|5\d\d)\b/.exec(msg) || [])[1]);
       if (!host && !status) return;
       const key = host || "?"; const now = Date.now();
+      // 27.09.2026 (Klicktest IN-26): ohne HTTP-Status („Load failed (0)“) ist das meist eine
+      // abgebrochene Kachel — beim Einpassen einer großen Tour springt die Ansicht, MapLibre bricht
+      // offene Ladevorgänge ab. Ein einzelner solcher Fehler löste den Hinweis aus, obwohl der Dienst
+      // lief. Ohne Status erst ab dem dritten Fehler desselben Dienstes binnen 10 s warnen.
+      if (!status) {
+        const f = (seen["~" + key] || []).filter((t0) => now - t0 < 10000);
+        f.push(now); seen["~" + key] = f;
+        if (f.length < 3) { try { applog("info", "[map] Kachel abgebrochen/fehlgeschlagen " + key + " " + msg.slice(0, 120)); } catch (_) {} return; }
+      }
       if (seen[key] && now - seen[key] < 30000) return;
       seen[key] = now;
       const text = t("map.tile_error", "Kartendienst antwortet nicht ({host}{status}) — Kacheln fehlen. Später nochmal versuchen oder anderen Stil wählen.").replace("{host}", key).replace("{status}", status ? " · " + status : "");

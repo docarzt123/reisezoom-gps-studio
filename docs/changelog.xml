@@ -5,8 +5,15 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 26 Sep 2026 06:43:46 +0000</lastBuildDate>
+<lastBuildDate>Sun, 27 Sep 2026 12:55:20 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.727</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-727</link>
+<guid isPermaLink="false">gps-studio-v0.9.727</guid>
+<pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
+<description>Kein falscher Kartenalarm mehr — beim Öffnen einer sehr langen Tour meldete die Karte kurz „Der Kartendienst antwortet nicht“, obwohl alles lief. Einzelne abgebrochene Kacheln lösen den Hinweis jetzt nicht mehr aus, echte Ausfälle weiterhin schon.</description>
+</item>
 <item>
 <title>v0.9.726</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-726</link>
@@ -203,19 +210,6 @@ Reset-Start wie bei Final Cut — ⌘⌥ beim Start gedrückt halten (Windows: S
 Leertaste = Probe-Lauf, immer — Nach dem Verstellen eines Reglers oder Häkchens in der Seitenleiste tat die Leertaste nichts, weil das Element den Fokus behielt. Jetzt startet und stoppt sie den Probe-Lauf überall, außer wenn du gerade in ein Textfeld tippst.
 
 Die App installiert sich selbst (Mac) — Wer sie aus dem Download-Fenster startet, bekommt statt der Anleitung einen Knopf „In Programme installieren und starten“: Die App kopiert sich nach Programme, legt ältere Kopien in den Papierkorb, wirft das Download-Image aus und startet neu. Läuft sie schon aus Programme und liegt das Image noch herum oder eine zweite Kopie, bietet sie einmal das Aufräumen an. Dazu steht der erste Mausklick im Log, damit „reagiert nicht“ künftig eine Antwort hat.</description>
-</item>
-<item>
-<title>v0.9.687</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-687</link>
-<guid isPermaLink="false">gps-studio-v0.9.687</guid>
-<pubDate>Thu, 10 Sep 2026 12:00:00 +0000</pubDate>
-<description>Farbzonen: Zahl abgeschnitten — Bei „Mehrere Track-Farben“ wurde das Feld „ab … m“ so schmal, dass dreistellige Zahlen abgeschnitten waren (Windows). Das Feld hat jetzt eine feste Breite.
-
-Archiv: mehrere Touren in den Papierkorb — Mehrere markieren (z. B. alle ausgeblendeten) und „In den Papierkorb“ tat scheinbar nichts: Touren, die ein Projekt benutzt (jede im Animator geöffnete hat eins), lehnte das Archiv still ab. Jetzt kommt eine Rückfrage „Touren und Projekte zusammen löschen?“, und was nicht geht, wird gesagt.
-
-Inspektor aufgeräumt — Sechs gleiche Klapp-Abschnitte statt Titel, Trennstriche und Mischformen: Anschauen &amp; prüfen, Heilen, Bearbeiten (Anker A→B, sortiert nach Abschnitt / am Punkt A / ganzer Track), Punkte &amp; Zeiten, Tracks verbinden, Höhe korrigieren. Rückgängig oben, Speichern klebt unten, eine Statuszeile sagt, was die Anker brauchen. Offene Abschnitte werden gemerkt.
-
-Geotagger mit mehreren Tracks, nachgebessert — Der Track-Vorschlag kommt jetzt auch, wenn schon ein Track offen ist. Die Kamera-Zeitzone wird über alle Tracks bestimmt (die, bei der die meisten Fotos auf irgendeinen Track fallen) und beim Übernehmen gleich gesetzt; die Zahlen im Dialog stimmen so mit dem Ergebnis überein. Dieselbe Tour unter zwei Archiv-Pfaden zählt nicht mehr als Doppel-Treffer, das Archiv wird je Foto-Tag gefragt (ein verirrtes Foto von 2020 kostete 13 Sekunden), die GPX-Leiste oben folgt dem Haupt-Track, „Workspace leeren“ räumt auch Track-Liste und Foto-Fenster.</description>
 </item>
 </channel>
 </rss>

@@ -1,6 +1,6 @@
 # Testprotokoll GPS Studio — Klicktest für einen unabhängigen Test-Chat
 
-Stand: 26.09.2026 · App-Version 0.9.726 · Testrechner: Mac mini (dieser Rechner)
+Stand: 27.09.2026 · App-Version 0.9.727 · Testrechner: Mac mini (dieser Rechner)
 
 Dieses Dokument ist die Arbeitsanweisung für einen Chat **mit Computersteuerung**, der
 GPS Studio von Anfang bis Ende durchklickt und einen Bericht schreibt. Es setzt kein
@@ -89,7 +89,7 @@ Im Terminal (Arbeitsordner `…/Reisezoom-GPS-Studio`):
 - **leer**: Erststart mit Onboarding, ohne Bibliothek und ohne Schlüssel. Nur für Block ER.
 - Vor dem Zurücksetzen die Test-App mit **⌘Q** beenden, sonst bricht das Skript ab.
 - `starten` holt eine schon laufende Test-App nach vorne statt sie ein zweites Mal zu starten; `vorne` tut nur das.
-- Nach dem Start steht oben rechts **„v0.9.726 · TEST"** auf gelbem Grund. Fehlt das,
+- Nach dem Start steht oben rechts **„v0.9.727 · TEST"** auf gelbem Grund. Fehlt das,
   sofort beenden — dann läuft die falsche App.
 
 ### A5. Dateien auswählen
@@ -166,7 +166,7 @@ Umgebung: `zuruecksetzen vorbefuellt`, `starten`.
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.726 · TEST", keine Fehlermeldung |
+| S-01 📷 | App starten, 20 s warten | Fenster offen, oben rechts „v0.9.727 · TEST", keine Fehlermeldung |
 | S-02 | Reiter **📚 Archiv** → **Touren-Archiv** | 35 Touren; links Sammlungen „Problemfälle" (18) und „Teneriffa Februar 2026" (5) |
 | S-03 | Suchfeld: `Teide` | Die Teide-Tour mit „2×" (angezeigt mit ihrem GPX-Titel „Pico del Teide Brutal …") über den Namen; dazu Treffer über die Gegend (Santiago del Teide, La Orotava). Der Hinweis nennt beide Zahlen (z. B. „4 Touren hier · 2 über den Namen") |
 | S-04 | Tour **kaputt-mit-absicht** anklicken | Kachel mit rotem ⚠︎; rechts Track-Check mit Sprung, Höhen-Müll, Lücke, Zeit rückwärts |
@@ -193,7 +193,7 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 
 | ID | Aktion | Erwartet |
 |---|---|---|
-| ER-01 📷 | Starten | Willkommen „Wo soll deine Bibliothek liegen?“ (Bibliothek anlegen oder wählen); oben rechts auf dem Schleier gelb **„v0.9.726 · TEST“**. Kein Fenster „Deine Daten sind umgezogen“ |
+| ER-01 📷 | Starten | Willkommen „Wo soll deine Bibliothek liegen?“ (Bibliothek anlegen oder wählen); oben rechts auf dem Schleier gelb **„v0.9.727 · TEST“**. Kein Fenster „Deine Daten sind umgezogen“ |
 | ER-02 | Ort wählen: `~/GPS-Studio-Test/Bibliothek` (neu anlegen) | Wird angenommen; keine Rückfrage nach Cloud-Ordnern |
 | ER-03 | Nach dem Anlegen der Bibliothek: gibt es eine Frage nach Mapbox-Token / Kartenanbieter, **Kostenlos** wählen, nichts eintippen | Seit dem Umbau des Erststarts fragt die App meist nicht mehr — sie startet mit den kostenlosen Karten. Keine Frage = ✅ |
 | ER-04 | Archiv öffnen | Leere Fläche mit großem „+ Ordner hinzufügen" |
@@ -253,11 +253,11 @@ Umgebung: **`zuruecksetzen leer`**, dann `starten`. Danach für alle weiteren Bl
 | IN-03 📷 | **🩹 Heilen** | Kasten „Vorschau — noch nichts geändert“: orange Ausreißer, magenta Lücken, die geplanten Track-Check-Schritte; Track und Zahlen oben unverändert. Danach **✓ Übernehmen**: Track geheilt, Track-Check findet nichts mehr; Strecke ≈ 35,2 km, Dauer ≈ 13:23, ↑ ≈ 1800 m (die drei Höhen-Müllwerte sind weg) |
 | IN-04 | Nach IN-03 (übernommen): ↶ Rückgängig, dann ↷ Wiederherstellen (Knöpfe, siehe A5) | Heilen wirkt; Rückgängig stellt her; Wiederherstellen heilt wieder |
 | IN-05 | **Speichern** / Version | Neue Version im Archiv („V2"), Originaldatei in `Arbeit/archiv` unverändert (Größe/Datum im Finder) |
-| IN-06 | Tour **track_teufelsmauer**: Punkt anklicken → Punkt löschen; Anker A+B → Lücke füllen | Beides wirkt, Punktzahl ändert sich |
+| IN-06 | Tour **track_teufelsmauer**: Punkt anklicken → Punkt löschen; Anker A+B → Lücke füllen. Für A+B weit hineinzoomen, bis einzelne Punkte zu sehen sind, und zwei Punkte **nah hintereinander** anklicken (die Zeile unter „Bearbeiten" nennt die Punktnummern, Abstand ≤ 10 Punkte). Die Tour ist ein Rundweg, Anfang und Ende liegen dicht beieinander — bei weitem Zoom trifft der zweite Klick leicht das andere Ende | Beides wirkt, Punktzahl ändert sich |
 | IN-07 | Punkt anklicken → **Alles davor abschneiden** | Track beginnt dort; ⌘Z nimmt zurück |
 | IN-08 | Nach Tempo einfärben | Farbskala sichtbar, schnelle Stellen andersfarbig |
 | IN-09 | **Höhe korrigieren** (Karte statt GPS) | Läuft, Höhenprofil ändert sich plausibel |
-| IN-10 | **Tracks verbinden**: `~/GPS-Studio-Test/Arbeit/zum-oeffnen/06-tagesdateien/reise-tag-1-2026-08-10.gpx` öffnen, dann `…/reise-tag-2-2026-08-11.gpx` und `…/reise-tag-3-2026-08-12.gpx` je „nach Uhrzeit" anhängen (im Dialog ⌘⇧G + vollständiger Pfad, siehe A5) | Ein Track, drei Tage; Nahtstellen-Lücke wird angezeigt, nicht überbrückt |
+| IN-10 | **Tracks verbinden**: `~/GPS-Studio-Test/Arbeit/zum-oeffnen/06-tagesdateien/reise-tag-1-2026-08-10.gpx` öffnen, dann `…/reise-tag-2-2026-08-11.gpx` und `…/reise-tag-3-2026-08-12.gpx` je „nach Uhrzeit" anhängen (im Dialog ⌘⇧G + vollständiger Pfad, siehe A5) | Ein Track, drei Tage (≈ 4.341 Punkte, ≈ 1.542 km); die Nähte zwischen den Tagen (Nachtpausen, z. B. 230 m / 6:54 h und 31 m / 8:41 h) werden angezeigt, **nicht** überbrückt; Track-Check meldet sie als Lücken (größte ≈ 1,5 km) — das ist richtig |
 | IN-11 | Geplante Route **geplant-2025-10-20_Rheinstei** öffnen | Keine roten Befunde; „Zeitachse erzeugen" nur, wenn keine Zeiten da sind |
 | IN-12 | `testumgebung.sh oeffnen ~/GPS-Studio-Test/Arbeit/zum-oeffnen/01-formate/demo_komoot.kml` (Hinweis „liegt schon im Archiv“ ist richtig: dieselbe Strecke wie *mischfall-wanderung-mit-auto*, dort mit Zeiten) → im Track-Check **Zeitachse erzeugen**, Wunschtempo 4 km/h | Dauer ≈ 175,7 km / 4 km/h ≈ 44 h; Kopf und Logbuch zeigen danach Zeiten |
 
@@ -369,8 +369,8 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 |---|---|---|
 | GT-01 | Geotagger leeren (✕ oben, bestätigen). Steht beim Versatz eine Kamera-Zeitzone (z. B. „UTC+2“), über ✎ auf UTC±0 zurückstellen. Dann Ordner `Arbeit/fotos/geotagger/` laden, **ohne** vorher einen Track zu laden. Fragt die App „Ersetzen / Dazunehmen“ (weil noch Fotos von vorher geladen sind): **Ersetzen** | Archiv schlägt „Barranco de Masca" vor (Bestätigungsliste mit Fotozahl) |
 | GT-02 | **Tracks verwenden** | Track auf der Karte, Fotos A_ liegen darauf |
-| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Knopf zählt 4; Hinweis „ohne Zeitzone" nur für EOS R6 (das Video zählt nicht mit). Darunter „Aus dem Track allein nicht eindeutig: UTC−0:30 bis UTC+3:30 …" mit den Vorschlägen **UTC+1** (Ortszeit) und **UTC+2** (Zeitzone dieses Computers am Aufnahmetag), beide mit „Übernehmen". Versatz-Anzeige oben: Wert groß, Kamera klein in der zweiten Zeile, nichts läuft unter ✎ oder ↺ |
-| GT-04 | Beim Vorschlag **UTC+2** auf „Übernehmen" (oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track, UTC+2 hat ✓; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst). Das Video G_ darf mitwandern: Videos gelten bewusst als „Zeitzone unbekannt“, weil viele Kameras dort Ortszeit statt UTC speichern |
+| GT-03 📷 | Kamera-Knopf **Canon** | Fotos B_ liegen daneben (Kamera-Uhr UTC+2, Tour in UTC+1); Knopf zählt 4; Hinweis „ohne Zeitzone" nur für EOS R6 (das Video zählt nicht mit). Darunter „Aus dem Track allein nicht eindeutig: UTC−0:30 bis UTC+3:30 …" mit den Vorschlägen **UTC+1** (Ortszeit) und **UTC+2** (Zeitzone dieses Computers am Aufnahmetag). **UTC+2 ist schon aktiv** (✓, ohne „Übernehmen") — „Tracks verwenden" in GT-02 hat die errechnete Zone gleich übernommen (Hinweis „Kamera-Zeitzone auf UTC+2 gesetzt"); UTC+1 hat „Übernehmen". Versatz-Anzeige oben: Wert groß, Kamera klein in der zweiten Zeile, nichts läuft unter ✎ oder ↺ |
+| GT-04 | UTC+2 ist aktiv (siehe GT-03; nur falls nicht: beim Vorschlag **UTC+2** „Übernehmen" oder Kamera-Zeitzone UTC+2 von Hand), zurück auf „Alle" | B_ liegen jetzt auf dem Track, UTC+2 hat ✓; A_, C_, E_, F_ haben sich nicht bewegt (sie tragen ihre Zeitzone selbst). Das Video G_ darf mitwandern: Videos gelten bewusst als „Zeitzone unbekannt“, weil viele Kameras dort Ortszeit statt UTC speichern |
 | GT-05 | C_gleiche_minute_1–3 | Drei Fotos im Abstand von 10 s: eng beieinander (C1/C2 am selben Trackpunkt, C3 am nächsten, ca. 10 m weiter — die Zuordnung nimmt den zeitlich nächsten Punkt), als Gruppe auffächerbar |
 | GT-06 | D_nach_tourende | Als unsicher/ohne Position gekennzeichnet |
 | GT-07 | E_hat_schon_gps | Behält seine Position |
@@ -409,12 +409,12 @@ Fotos: `Arbeit/fotos/geotagger/` (Soll je Foto in `SOLL-WERTE.md`, Abschnitt Fot
 | ID | Aktion | Erwartet |
 |---|---|---|
 | AL-01 | Alle Dateien aus `01-formate` nacheinander mit `testumgebung.sh oeffnen <pfad>` öffnen (statt Drag & Drop, siehe A5) | Jede lädt; Werte ≈ `SOLL-WERTE.md` |
-| AL-02 | Frage „Tour ins Archiv aufnehmen?“ beim Öffnen einer Datei von außerhalb (`testumgebung.sh oeffnen …/01-formate/track_klein.gpx`) | Erscheint; „Nein" lässt das Archiv unverändert |
+| AL-02 | Frage „Tour ins Archiv aufnehmen?“ beim Öffnen einer Datei von außerhalb (`testumgebung.sh oeffnen …/01-formate/demo_track.nmea`) | Erscheint; „Nein" lässt das Archiv unverändert |
 | AL-03 | Menü **Als GPX / CSV / KML / GeoJSON exportieren** → `Ausgaben/` | Dateien entstehen, GPX lässt sich wieder öffnen |
 | AL-04 | Undo/Redo über mehrere Module — hier einmal per Tastenkürzel (gesendet als ⌘Y, siehe A5) | Jeder Schritt einzeln rückgängig |
 | AL-05 | Fenster klein und groß: Fenstermenü **Fenster → Zoomen** bzw. grüner Knopf; klein per `osascript -e 'tell application "System Events" to set size of front window of (first process whose frontmost is true) to {1280, 720}'` (nur wenn die Test-App vorne ist) | Nichts überlappt, Seitenleisten scrollen |
 | AL-06 | Hilfe-Menü: jede Seite einmal öffnen | Alles lesbar, Links öffnen den System-Browser |
-| AL-07 | Über-Dialog | Version 0.9.726, Credits mit Lizenzen (FFmpeg, MapLibre …) |
+| AL-07 | Über-Dialog | Version 0.9.727, Credits mit Lizenzen (FFmpeg, MapLibre …) |
 | AL-08 | Feedback-Dialog öffnen, **Schließen** | Öffnet, nichts wird gesendet (der Knopf heißt „Schließen“, weil er nichts sendet) |
 
 ### FE — Fehlerfälle
@@ -446,7 +446,7 @@ liegen nur bei Marc/Claude — du tippst nichts davon ein und trennst die Cloud 
 ## Teil D — Berichtsvorlage
 
 ```markdown
-# Testbericht GPS Studio 0.9.726 — <Datum Uhrzeit>
+# Testbericht GPS Studio 0.9.727 — <Datum Uhrzeit>
 
 Tester: <Chat-Bezeichnung> · Umgebung: vorbefuellt/leer · Dauer: <h>
 
