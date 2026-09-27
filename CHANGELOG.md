@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.727** (27.09.2026, built locally): Codex follow-up run (`~/GPS-Studio-Test/Berichte/20260926-2102/`, 23 required steps: 16 ✅ 0 ❌ 4 ⚠️ 3 ⏭ — the ⚠️/⏭ were outdated protocol rows, one false alarm fixed below).
+
+### Fixed — Codex follow-up run (0.9.727)
+- **False "map service is not responding" when opening a very long tour** (IN-26, `reise-5-wochen`): fitting the view cancels pending tiles, WebKit reports them as `AJAXError: Load failed (0)` without an HTTP status, and a single one raised the banner. Errors without a status now warn only from the third failure of the same host within 10 s; real HTTP errors (502 …) still warn at once (`ui/js/util.js`, test `test_kachelwarnung_abbruch.py`).
+- Test protocol: GT-03/GT-04 describe that "Use tracks" already applies the computed camera zone (UTC+2 ✓, toast); AL-02 uses a file that exists (`01-formate/demo_track.nmea`); IN-10 names the expected seam gaps; IN-06 explains how to set anchors A/B a few points apart.
+
 > **0.9.726** (26.09.2026, built locally): the warnings and skipped steps of the second full Codex run (`~/GPS-Studio-Test/Berichte/20260925-2139/`, 94 steps: 61 ✅ 0 ❌ 15 ⚠️ 18 ⏭) fixed, then clicked through by Claude in the real app.
 
 ### Fixed — second Codex run and own click test (0.9.726)
