@@ -92,6 +92,7 @@ from core import imports as cimports  # v0.9.282: universelle Track-Import-Schic
 from core import exif as cexif
 from core import geotag as cgeo
 from core import installation as cinstall  # 10.09.2026 — Selbst-Installation nach Programme (Mac)
+from core import selbstupdate as cupdate  # 27.09.2026 — Update ohne Neuinstallation
 from core import sun as csun
 from core import sensors as csens  # v0.9.507 — übersetzte Sensor-Labels  # v0.9.333 — Sonnenstand + Blickrichtung (Lichtstempel)
 from core import geocode as cgeocode  # v0.9.337 — Reverse-Geocoding (Adresse) via OSM
@@ -172,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.731"
+APP_VERSION = "0.9.732"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1934,14 +1935,14 @@ class Api:
                 tag = ""
                 try:
                     req = urllib.request.Request(
-                        UPDATE_MANIFEST_URL, headers={"User-Agent": _ua})
-                    with urllib.request.urlopen(req, timeout=5, context=_ctx) as resp:
+                        self._update_manifest_url(), headers={"User-Agent": _ua})
+                    with urllib.request.urlopen(req, timeout=5, context=_ctx) as resp:   # bei http:// (Prüfstand) ohne Wirkung
                         data = json.loads(resp.read().decode("utf-8"))
                     tag = str(data.get("version") or "").lstrip("vV").strip()
                 except Exception as e:  # noqa: BLE001 — Fallback unten
                     log.info("check_for_update: Manifest nicht erreichbar (%s) — "
                              "GitHub-Fallback", e)
-                if not tag:
+                if not tag and self._update_manifest_url() == UPDATE_MANIFEST_URL:   # Prüfstand: kein GitHub
                     req = urllib.request.Request(
                         UPDATE_RELEASES_API,
                         headers={"User-Agent": _ua,
@@ -1980,6 +1981,7 @@ class Api:
             "changelog_url": UPDATE_CHANGELOG_URL,  # v0.9.319 — „Was ist neu?"
             "dismissed": dismissed,
             "checked_network": do_network,
+            "selbst": self._updater().moeglich() if available else None,   # 27.09.2026
         }
 
     def update_dismiss(self, version: str) -> dict:
@@ -1992,6 +1994,104 @@ class Api:
                 _save_settings(s)
             return {"ok": True}
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Update ohne Neuinstallation (27.09.2026, core/selbstupdate.py) ─────────
+    # Marc: „können wir vielleicht auch ohne Neuinstallation updaten? falls ja, bau das so."
+    # Mac: Paket laden + prüfen (SHA-256, Signatur, gleiches Team), nach dem Beenden tauscht ein
+    # Helfer das Bundle aus und startet neu. Windows: geprüften Installer starten.
+    _UPDATER = None
+
+    def _updater(self):
+        if Api._UPDATER is None:
+            b = cinstall.bundle_pfad() if STARTUP_ENV.get("frozen") else None
+            Api._UPDATER = cupdate.Updater(APP_SUPPORT / "_update", bundle=b, plattform=sys.platform,
+                                           aktuelle_version=APP_VERSION, log=lambda m: log.info("[update] %s", m))
+            # Test-App (eigener App-Ordner): nie die installierte App unter /Applications austauschen —
+            # nur ein Bundle, das selbst in der Testwurzel liegt.
+            if APP_ORDNER_UEBERSCHRIEBEN and b is not None:
+                wurzeln = [Path(w) for w in (_ds.testrechner() or [])]
+                if not any(str(b.resolve()).startswith(str(w.resolve()) + os.sep) for w in wurzeln):
+                    Api._UPDATER.bundle = None
+        return Api._UPDATER
+
+    @staticmethod
+    def _update_ssl_ctx():
+        from core import net as _n   # gemeinsamer TLS-Kontext (findet Zertifikate auch im Bundle)
+        return _n.ssl_context()
+
+    @staticmethod
+    def _update_manifest_url() -> str:
+        # Prüfstand: eigene Manifest-Adresse nur in einer Test-App (RZ_APP_ORDNER).
+        eigen = (os.environ.get("RZ_UPDATE_MANIFEST_URL") or "").strip()
+        return eigen if (eigen and APP_ORDNER_UEBERSCHRIEBEN) else UPDATE_MANIFEST_URL
+
+    def update_starten(self) -> dict:
+        """Neueste Version laden und vorbereiten (Hintergrund; Stand über update_status)."""
+        try:
+            up = self._updater()
+            m = up.moeglich()
+            if not m.get("ok"):
+                return {"ok": False, "grund": m.get("grund"), "error": _ui_t()("update.err.nicht_moeglich", "Update ohne Neuinstallation geht hier nicht")}
+            url = self._update_manifest_url()
+            ua = f"ReisezoomGPSStudio/{APP_VERSION} ({'macOS' if sys.platform == 'darwin' else 'Windows'}; Update)"
+            manifest = cupdate.manifest_holen(url, ssl_ctx=self._update_ssl_ctx(), user_agent=ua)
+            paket = cupdate.paket_aus_manifest(manifest, url)
+            if not paket:
+                return {"ok": False, "error": _ui_t()("update.err.kein_paket", "Für dieses System steht kein Paket bereit")}
+            if _version_tuple(paket["version"]) <= _version_tuple(APP_VERSION):
+                return {"ok": False, "aktuell": True, "error": _ui_t()("update.err.aktuell", "Du hast schon die neueste Version.")}
+            team = cupdate.team_id(up.bundle) if (sys.platform == "darwin" and up.bundle) else ""
+            if sys.platform == "darwin" and not team:
+                return {"ok": False, "grund": "unsigniert",
+                        "error": _ui_t()("update.err.unsigniert", "Diese App ist nicht mit einer Entwickler-ID signiert — bitte manuell laden")}
+            up.aufraeumen()
+            r = up.starten(paket, ssl_ctx=self._update_ssl_ctx(), user_agent=ua, erwartetes_team=team)
+            if r.get("ok"):
+                log.info("[update] starte %s → %s (%s)", APP_VERSION, paket["version"], paket["url"])
+            return dict(r, version=paket["version"], size=paket["size"])
+        except Exception as e:  # noqa: BLE001
+            log.warning("[update] Start fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def update_status(self) -> dict:
+        try:
+            return dict(self._updater().status(), ok=True)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def update_abbrechen(self) -> dict:
+        try:
+            self._updater().abbrechen()
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def update_anwenden(self) -> dict:
+        """Helfer bzw. Installer starten und die App beenden (normaler Weg über das Fenster,
+        damit Fenstergröße und laufende Arbeiten wie bei ⌘Q gesichert/gestoppt werden)."""
+        try:
+            up = self._updater()
+            # Test-App: mit derselben Umgebung zurückkommen (eigener App-Ordner, Test-Cloud …)
+            start_env = ({k: os.environ[k] for k in ("RZ_APP_ORDNER", "RZ_CLOUD_ABLAGE", "RZ_CLOUD", "RZ_UPDATE_MANIFEST_URL")
+                          if os.environ.get(k)} if APP_ORDNER_UEBERSCHRIEBEN else None)
+            r = up.anwenden(os.getpid(), Path(LOG_PATH).parent / "update.log", start_env=start_env)
+            if not r.get("ok"):
+                return r
+
+            def _beenden():
+                time.sleep(0.4)   # die Antwort an die Oberfläche geht noch raus
+                try:
+                    import webview as _wv
+                    if _wv.windows:
+                        _wv.windows[0].destroy()
+                        return
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[update] Fenster ließ sich nicht schließen (%s) — beende hart", e)
+                os._exit(0)
+            threading.Thread(target=_beenden, daemon=True).start()
+            return r
+        except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
 
     # ── Settings ──────────────────────────────────────────────────────────────
@@ -15127,6 +15227,7 @@ def main() -> None:
                 _app_neu_starten()
         _reset_start_hook = (lambda: _reset_from_menu(_rg)) if _rg else None
         def _open_about_from_menu():      _trigger_js("window.openAboutModal && window.openAboutModal()")
+        def _check_updates_from_menu():   _trigger_js("window.openUpdateModal && window.openUpdateModal()")   # 27.09.2026 (Marc)
         def _open_mapbox_help_from_menu():_trigger_js("window.openMapboxHelpModal && window.openMapboxHelpModal()")
 
         # Marc's externe Web-Adressen — werden direkt im Standard-Browser geöffnet
@@ -15164,6 +15265,7 @@ def main() -> None:
         _menu_user_guide = _strings.get("menu.user_guide", "User Guide")
         _menu_log        = _strings.get("menu.open_log", "Open Log File")
         _menu_about      = _strings.get("menu.about", "About Reisezoom GPS Studio")
+        _menu_updates    = _strings.get("menu.check_updates", "Check for Updates …")   # 27.09.2026
         _menu_mapbox     = _strings.get("menu.mapbox_help", "Mapbox Token Help")
         _menu_feedback   = _strings.get("menu.feedback", "Feedback / Fehler melden…")
         _menu_support    = _strings.get("menu.support", "Entwicklung unterstützen")
@@ -15210,6 +15312,7 @@ def main() -> None:
                 MenuAction(_menu_youtube, _open_youtube),
                 MenuAction(_menu_blog, _open_blog),
                 MenuSeparator(),
+                MenuAction(_menu_updates, _check_updates_from_menu),
                 MenuAction(_menu_about, _open_about_from_menu),
             ]),
         ]

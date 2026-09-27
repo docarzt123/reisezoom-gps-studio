@@ -1509,47 +1509,150 @@ async function openFirstRunMapboxModal() {
 // zeigt bei neuerer Version ein dismissbares Banner unter der Topbar. `force`
 // (manueller „Suchen"-Button im Über-Dialog) umgeht Throttle + zeigt Toast.
 async function checkForUpdate(force = false) {
-  const banner = document.getElementById("update-banner");
+  // 27.09.2026 (Marc: „der Dialog hängt"): Die manuelle Suche aus dem Über-Dialog zeigte bei
+  // einer neuen Version nur das Banner unter der Kopfleiste — HINTER dem offenen Dialog. Der
+  // Knopf sprang zurück, sonst passierte sichtbar nichts. Manuell (Menü, Über-Dialog) läuft
+  // die Suche jetzt in einem eigenen Update-Fenster mit Ergebnis und „Jetzt aktualisieren".
+  if (force) { openUpdateModal(); return; }
   let res;
-  try { res = force ? await rzWarten("check_for_update", () => api().check_for_update(true)) : await api().check_for_update(false); }
-  catch (_) { if (force) toast(t("update.error"), "warn"); return; }
-  if (!res || !res.ok) { if (force) toast(t("update.error"), "warn"); return; }
-
-  if (res.available && (force || !res.dismissed)) {
-    if (banner) {
-      const txt = document.getElementById("update-banner-text");
-      if (txt) txt.innerHTML = t("update.banner", { v: res.latest });
-      const dl = document.getElementById("update-banner-dl");
-      if (dl) {
-        dl.textContent = t("update.download");
-        dl.onclick = () => { try { api().open_url(res.download_url || res.page_url); } catch (_) {} };
-      }
-      // v0.9.319 — „Was ist neu?": öffnet den User-Changelog, gefiltert auf die
-      // Versionen NEUER als die eigene (?since=<current>).
-      const cl = document.getElementById("update-banner-changelog");
-      if (cl) {
-        cl.textContent = t("update.whatsnew", "Was ist neu?");
-        cl.onclick = () => {
-          try {
-            const base = res.changelog_url || "https://reisezoom.com/downloads/gps-studio/latest/changelog.html";
-            const url = base + (base.indexOf("?") >= 0 ? "&" : "?") + "since=" + encodeURIComponent(res.current || "");
-            api().open_url(url);
-          } catch (_) {}
-        };
-      }
-      const x = document.getElementById("update-banner-close");
-      if (x) x.onclick = () => {
-        banner.hidden = true;
-        try { api().update_dismiss(res.latest); } catch (_) {}
-      };
-      banner.hidden = false;
-    }
-  } else {
-    if (banner) banner.hidden = true;
-    if (force) toast(t("update.uptodate", { v: res.current }), "success");
-  }
+  try { res = await api().check_for_update(false); } catch (_) { return; }
+  if (!res || !res.ok) return;
+  _updateBannerZeigen(res);
 }
 window.checkForUpdate = checkForUpdate;
+
+function _updateWasIstNeu(res) {
+  try {
+    const base = res.changelog_url || "https://reisezoom.com/downloads/gps-studio/latest/changelog.html";
+    api().open_url(base + (base.indexOf("?") >= 0 ? "&" : "?") + "since=" + encodeURIComponent(res.current || ""));
+  } catch (_) {}
+}
+
+function _updateBannerZeigen(res) {
+  const banner = document.getElementById("update-banner");
+  if (!banner) return;
+  if (!(res.available && !res.dismissed)) { banner.hidden = true; return; }
+  const txt = document.getElementById("update-banner-text");
+  if (txt) txt.innerHTML = t("update.banner", { v: res.latest });
+  const dl = document.getElementById("update-banner-dl");
+  if (dl) {
+    const selbst = !!(res.selbst && res.selbst.ok);
+    dl.textContent = selbst ? t("update.jetzt", "Jetzt aktualisieren") : t("update.download");
+    dl.onclick = () => {
+      if (selbst) { banner.hidden = true; openUpdateModal(res); return; }
+      try { api().open_url(res.download_url || res.page_url); } catch (_) {}
+    };
+  }
+  const cl = document.getElementById("update-banner-changelog");
+  if (cl) { cl.textContent = t("update.whatsnew", "Was ist neu?"); cl.onclick = () => _updateWasIstNeu(res); }
+  const x = document.getElementById("update-banner-close");
+  if (x) x.onclick = () => { banner.hidden = true; try { api().update_dismiss(res.latest); } catch (_) {} };
+  banner.hidden = false;
+}
+
+/** 27.09.2026 — Update-Fenster: suchen → Ergebnis → (Mac) laden, prüfen, neu starten /
+ *  (Windows) Installer laden, prüfen, starten. `vorab` = schon bekanntes Suchergebnis. */
+async function openUpdateModal(vorab) {
+  let _poll = null, _zu = false;
+  const m = openModal({
+    title: "⬆️ " + t("update.titel", "GPS Studio aktualisieren"),
+    body: `<div id="upd-body" class="upd-body"><p class="muted">${t("update.checking")}</p></div>`,
+    footer: `<div id="upd-foot" style="display:flex; gap:8px; justify-content:flex-end; width:100%;"></div>`,
+    onClose: () => { _zu = true; if (_poll) clearInterval(_poll); },
+  });
+  const body = () => document.getElementById("upd-body");
+  const foot = () => document.getElementById("upd-foot");
+  const knopf = (id, text, primaer) => `<button class="btn${primaer ? " btn-primary" : ""}" id="${id}">${text}</button>`;
+  const zeigen = (html, knoepfe) => { const b = body(), f = foot(); if (b) b.innerHTML = html; if (f) f.innerHTML = knoepfe || ""; };
+  const schliessen = () => { try { m.close(); } catch (_) {} };
+  const mb = (n) => (n / 1048576).toFixed(0);
+
+  let res = vorab;
+  if (!res) {
+    try { res = await api().check_for_update(true); } catch (_) { res = null; }   // warte-ok: das Update-Fenster zeigt selbst „Suche…“
+  }
+  if (_zu) return;
+  if (!res || !res.ok) {
+    zeigen(`<p>${t("update.error")}</p>`, knopf("upd-ok", t("common.ok", "OK"), true));
+    document.getElementById("upd-ok").onclick = schliessen;
+    return;
+  }
+  if (!res.available) {
+    zeigen(`<p>✅ ${t("update.uptodate", { v: res.current })}</p>`, knopf("upd-ok", t("common.ok", "OK"), true));
+    document.getElementById("upd-ok").onclick = schliessen;
+    const b = document.getElementById("update-banner"); if (b) b.hidden = true;
+    return;
+  }
+  const selbst = !!(res.selbst && res.selbst.ok);
+  const grundText = {
+    rechte: t("update.grund_rechte", "Für den Ordner, in dem GPS Studio liegt, fehlen Schreibrechte."),
+    nicht_installiert: t("update.grund_installiert", "GPS Studio läuft nicht aus dem Programme-Ordner."),
+    nicht_gebuendelt: t("update.grund_entwicklung", "Entwicklerfassung — bitte über git aktualisieren."),
+    plattform: t("update.grund_plattform", "Unter Linux aktualisierst du über den Quellcode."),
+  }[(res.selbst && res.selbst.grund) || ""] || "";
+  const art = (res.selbst && res.selbst.art) || "";
+  const hinweis = !selbst ? `<p class="muted">${t("update.nur_download", "Die neue Version lädst du wie gewohnt herunter.")} ${grundText}</p>`
+    : art === "installer" ? `<p class="muted">${t("update.hinweis_win", "GPS Studio lädt den Installer, prüft ihn und startet ihn. Die App schließt sich dafür; der Installer ersetzt die alte Version.")}</p>`
+    : `<p class="muted">${t("update.hinweis_mac", "GPS Studio lädt die neue Version, prüft sie und startet danach neu. Deine Projekte bleiben, wie sie sind; die alte Version landet im Papierkorb.")}</p>`;
+  zeigen(`<p>${t("update.verfuegbar", { v: res.latest, a: res.current })}</p>${hinweis}`,
+    `<button class="btn btn-ghost" id="upd-neu">${t("update.whatsnew", "Was ist neu?")}</button>` +
+    knopf("upd-spaeter", t("update.spaeter", "Später"), false) +
+    (selbst ? knopf("upd-los", t("update.jetzt", "Jetzt aktualisieren"), true)
+            : knopf("upd-dl", t("update.download"), true)));
+  document.getElementById("upd-neu").onclick = () => _updateWasIstNeu(res);
+  document.getElementById("upd-spaeter").onclick = schliessen;
+  if (!selbst) {
+    document.getElementById("upd-dl").onclick = () => { try { api().open_url(res.download_url || res.page_url); } catch (_) {} schliessen(); };
+    return;
+  }
+  document.getElementById("upd-los").onclick = async () => {
+    zeigen(`<p>${t("update.laedt", { v: res.latest })}</p><div class="upd-balken"><div id="upd-fill"></div></div><p class="muted" id="upd-zahl">0 %</p>`,
+      knopf("upd-abbr", t("common.cancel", "Abbrechen"), false));
+    document.getElementById("upd-abbr").onclick = async () => { try { await api().update_abbrechen(); } catch (_) {} };   // warte-ok: kehrt sofort zurück
+    let st;
+    try { st = await api().update_starten(); } catch (e) { st = { ok: false, error: String(e) }; }   // warte-ok: Fortschrittsbalken im Update-Fenster
+    if (!st || !st.ok) {
+      zeigen(`<p>⚠️ ${(st && st.error) || t("update.fehler", "Das Update ist fehlgeschlagen.")}</p>`,
+        knopf("upd-dl2", t("update.download"), true) + knopf("upd-zu", t("common.close", "Schließen"), false));
+      document.getElementById("upd-dl2").onclick = () => { try { api().open_url(res.download_url || res.page_url); } catch (_) {} schliessen(); };
+      document.getElementById("upd-zu").onclick = schliessen;
+      return;
+    }
+    _poll = setInterval(async () => {
+      let z; try { z = await api().update_status(); } catch (_) { return; }   // warte-ok: Abfrage alle 400 ms für den eigenen Balken
+      if (!z || _zu) return;
+      if (z.phase === "laden") {
+        const pct = z.total ? Math.floor(100 * z.bytes / z.total) : 0;
+        const fill = document.getElementById("upd-fill"); if (fill) fill.style.width = pct + "%";
+        const zahl = document.getElementById("upd-zahl"); if (zahl) zahl.textContent = `${pct} % · ${mb(z.bytes || 0)} / ${mb(z.total || 0)} MB`;
+      } else if (z.phase === "pruefen") {
+        const zahl = document.getElementById("upd-zahl"); if (zahl) zahl.textContent = t("update.prueft", "Prüfe Signatur und Prüfsumme …");
+        const fill = document.getElementById("upd-fill"); if (fill) fill.style.width = "100%";
+        const f = foot(); if (f) f.innerHTML = "";
+      } else if (z.phase === "bereit") {
+        clearInterval(_poll); _poll = null;
+        const win = z.art === "installer";
+        zeigen(`<p>✅ ${win ? t("update.bereit_win", "Der Installer ist geladen und geprüft.") : t("update.bereit_mac", { v: z.version })}</p>`
+          + `<p class="muted">${win ? t("update.neustart_win", "GPS Studio schließt sich jetzt und startet den Installer.") : t("update.neustart_mac", "GPS Studio beendet sich und startet in wenigen Sekunden neu.")}</p>`,
+          knopf("upd-spaeter2", t("update.spaeter", "Später"), false) + knopf("upd-neustart", win ? t("update.installieren", "Jetzt installieren") : t("update.neustarten", "Jetzt neu starten"), true));
+        document.getElementById("upd-spaeter2").onclick = schliessen;
+        document.getElementById("upd-neustart").onclick = async () => {
+          const b = document.getElementById("upd-neustart"); if (b) b.disabled = true;
+          let r; try { r = await api().update_anwenden(); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: die App beendet sich danach
+          if (!r || !r.ok) { toast((r && r.error) || t("update.fehler", "Das Update ist fehlgeschlagen."), "error", 8000); if (b) b.disabled = false; }
+        };
+      } else if (z.phase === "fehler" || z.phase === "abgebrochen") {
+        clearInterval(_poll); _poll = null;
+        const txt = z.phase === "abgebrochen" ? t("update.abgebrochen", "Update abgebrochen.") : `⚠️ ${z.code ? t("update.err." + z.code, z.error || "") : (z.error || t("update.fehler", "Das Update ist fehlgeschlagen."))}`;
+        zeigen(`<p>${txt}</p>`, knopf("upd-dl3", t("update.download"), false) + knopf("upd-zu3", t("common.close", "Schließen"), true));
+        document.getElementById("upd-dl3").onclick = () => { try { api().open_url(res.download_url || res.page_url); } catch (_) {} schliessen(); };
+        document.getElementById("upd-zu3").onclick = schliessen;
+      }
+    }, 400);
+  };
+}
+window.openUpdateModal = openUpdateModal;
+
 
 // v0.9.317 — „Als <Format> exportieren" (Menü). Exportiert den aktuell geladenen
 // Track (auch aus FIT/NMEA/KML/… importiert) in jedes Zielformat:

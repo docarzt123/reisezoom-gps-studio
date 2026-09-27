@@ -2783,10 +2783,15 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 
 ## 10 · FAQ
 
-### Wie bekomme ich neue Versionen? (seit v0.9.280)
-Die App prüft beim Start im Hintergrund, ob eine neuere Version vorliegt. Falls ja, erscheint oben ein dezentes Banner **„Neue Version vX.Y.Z ist verfügbar"** mit **Herunterladen**-Button (öffnet den passenden Mac-/Windows-Download im Browser). Mit dem **✕** blendest du den Hinweis für diese Version aus. Du kannst auch jederzeit manuell im **Über-Dialog** (Hilfe → Über) auf **„Nach Updates suchen"** klicken. Heruntergeladene Updates installierst du wie beim Erst-Setup (DMG/Installer) — die App ersetzt sich aus Sicherheitsgründen nicht selbst.
+### Wie bekomme ich neue Versionen? (seit v0.9.280, ohne Neuinstallation seit v0.9.732)
+Die App prüft beim Start im Hintergrund, ob eine neuere Version vorliegt (höchstens alle 12 Stunden). Falls ja, erscheint oben eine schmale Leiste **„Neue Version vX.Y.Z ist verfügbar"** mit **Jetzt aktualisieren** und **Was ist neu?**; mit **✕** blendest du den Hinweis für diese Version aus. Sofort nachsehen kannst du jederzeit über **Hilfe → Nach Updates suchen …** (oder im Über-Dialog) — dann öffnet sich das Update-Fenster mit dem Ergebnis.
 
-Der Update-Check ruft dafür eine kleine Datei auf reisezoom.com ab (höchstens alle 12 Stunden); dabei entstehen die üblichen Server-Logdaten wie bei jedem Webseiten-Aufruf — keine IDs, keine Telemetrie.
+**Aktualisieren ohne Neuinstallation (seit v0.9.732):**
+- **Mac:** **„Jetzt aktualisieren"** lädt die neue Version, prüft Prüfsumme und Signatur (sie muss vom selben Entwickler stammen) und zeigt dann **„Jetzt neu starten"**. GPS Studio beendet sich, tauscht sich aus und startet nach wenigen Sekunden neu. Deine Projekte und Einstellungen bleiben, wie sie sind; die alte Version liegt danach im **Papierkorb** (falls du zurück willst). Voraussetzung: GPS Studio liegt im Programme-Ordner und dein Benutzer darf dort schreiben — sonst bietet das Fenster wie früher **„Herunterladen"** an.
+- **Windows:** **„Jetzt aktualisieren"** lädt den Installer und prüft ihn; **„Jetzt installieren"** schließt GPS Studio und startet den gewohnten Installer, der die alte Version ersetzt (Windows fragt dabei nach Administratorrechten).
+- **Linux:** Aktualisieren über den Quellcode (git pull), wie bei der Installation.
+
+Der Update-Check ruft dafür eine kleine Datei auf reisezoom.com ab; dabei entstehen die üblichen Server-Logdaten wie bei jedem Webseiten-Aufruf — keine IDs, keine Telemetrie.
 
 **Die automatische Prüfung lässt sich abschalten** (⚙ Einstellungen → „Beim
 Start nach einer neuen Version suchen"). Aus heißt: Die App baut von sich aus
