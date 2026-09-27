@@ -726,7 +726,7 @@ function createMap(opts) {
       try { if (map.__rzServerBannerTimer) clearTimeout(map.__rzServerBannerTimer); map.__rzServerBannerTimer = setTimeout(() => { try { rzMapBanner(map, "server", null); } catch (_) {} }, 20000); } catch (_) {}
       try { applog("warn", "[map] Kachel-Fehler " + key + " " + (status || "") + " " + msg.slice(0, 120)); } catch (_) {}
     });
-    map.once("load", () => { try { rzMapCoverageBanners(map, spec); } catch (_) {} });
+    map.once("load", () => { map.__rzGeladen = true; try { rzMapCoverageBanners(map, spec); } catch (_) {} });   // __rzGeladen: s. onMapReady
   } catch (_) {}
   map.__rzSpec = spec;
   map.__rzStyleKey = spec.key;
@@ -1893,10 +1893,17 @@ function onMapReady(map, cb) {
   if (!_mapLebt(map)) return;
   const _cb = cb;
   cb = () => { try { _cb(); } finally { _neuaufbauFertig(); } };
-  const styleReady = map.isStyleLoaded();
-  applog("info", `[onMapReady] styleLoaded=${styleReady}`);
+  // 27.09.2026 (Sichtprüfung: Geotagger zeigte den Track beim ersten Betreten nicht) —
+  // MapLibres isStyleLoaded() ist erst true, wenn auch alle Kacheln da sind. Kam ein
+  // Aufruf NACH dem ersten `load`, während noch Kacheln luden, wartete er auf ein
+  // `load`, das nie wieder kommt — der Rückruf (hier: Track zeichnen) fiel still aus.
+  // Nach dem ersten `load` zählt deshalb „Stil-JSON geladen“ (__rzStyleReady aus
+  // createMap); läuft gerade ein Stilwechsel, wird auf dessen `style.load` gewartet.
+  const nachLoad = map.__rzGeladen === true;
+  const styleReady = nachLoad ? map.__rzStyleReady !== false : map.isStyleLoaded();
+  applog("info", `[onMapReady] styleLoaded=${styleReady}${nachLoad ? " (nach load)" : ""}`);
   if (styleReady) { try { cb(); } catch (err) { console.warn("onMapReady cb:", err); applog("error", "[onMapReady cb-sync] " + err); } return; }
-  map.once("load", () => {
+  map.once(nachLoad ? "style.load" : "load", () => {
     if (!_mapLebt(map)) {
       applog("info", "[onMapReady] Karte war beim load-Event schon abgebaut — Rückruf übersprungen");
       return;
