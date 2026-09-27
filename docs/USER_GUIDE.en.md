@@ -2598,6 +2598,9 @@ The same problem on Windows. **"More info" → "Run anyway"**.
 ### The first Animator render takes a long time
 On the very first render the app downloads Chromium once for the map render pipeline (~150 MB). A modal appears with a progress indicator. After that, every further render starts right away.
 
+### Notice "The map service … is not responding" (since v0.9.727)
+The map shows this when a map service fails to deliver tiles several times in a row (server error or no connection). Parts of the map are then missing. What helps: wait a moment and move the view slightly, or pick another map style. Single cancelled tiles — for example while a very long tour is fitted into the view — no longer trigger the notice; before v0.9.727 it sometimes appeared for no reason.
+
 ### "Mapbox token missing" on the render
 Animator + Tour-Map need a Mapbox token (the Geotagger doesn't). Enter it in the ⚙ modal. If you want to try without one first: OSM mode (the standard map without satellite), but Animator rendering stays disabled.
 

@@ -5,16 +5,18 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 27 Sep 2026 14:00:20 +0000</lastBuildDate>
+<lastBuildDate>Sun, 27 Sep 2026 15:36:59 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.728</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-728</link>
-<guid isPermaLink="false">gps-studio-v0.9.728</guid>
+<title>v0.9.729</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-729</link>
+<guid isPermaLink="false">gps-studio-v0.9.729</guid>
 <pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
 <description>Geotagger zeigt den Track sofort — beim ersten Wechsel in den Geotagger blieb die Karte manchmal ohne Track, erst beim zweiten Mal war er da.
 
-Kein falscher Kartenalarm mehr — beim Öffnen einer sehr langen Tour meldete die Karte kurz „Der Kartendienst antwortet nicht“, obwohl alles lief. Einzelne abgebrochene Kacheln lösen den Hinweis jetzt nicht mehr aus, echte Ausfälle weiterhin schon.</description>
+Kein falscher Kartenalarm mehr — beim Öffnen einer sehr langen Tour meldete die Karte kurz „Der Kartendienst antwortet nicht“, obwohl alles lief. Einzelne abgebrochene Kacheln lösen den Hinweis jetzt nicht mehr aus, echte Ausfälle weiterhin schon.
+
+Handbuch — neuer FAQ-Eintrag zum Hinweis „Der Kartendienst antwortet nicht“: was er bedeutet und was hilft.</description>
 </item>
 <item>
 <title>v0.9.726</title>

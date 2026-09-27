@@ -2658,6 +2658,9 @@ El mismo problema en Windows. **«Más información» → «Ejecutar de todas fo
 ### En el primer render del Animator tarda mucho
 En el primerísimo render, la app descarga una sola vez Chromium para la pipeline de render del mapa (~150 MB). Aparece un modal con indicación de progreso. Después, cada render posterior arranca directamente.
 
+### Aviso «El servicio de mapas … no responde» (desde v0.9.727)
+El mapa lo muestra cuando un servicio de mapas no entrega teselas varias veces seguidas (error del servidor o sin conexión). Entonces faltan partes del mapa. Qué ayuda: esperar un momento y mover un poco la vista, o elegir otro estilo de mapa. Las teselas canceladas sueltas — por ejemplo mientras una ruta muy larga se ajusta a la vista — ya no activan el aviso; antes de v0.9.727 aparecía a veces sin motivo.
+
 ### «Falta el token de Mapbox» al renderizar
 El Animator + el Tour-Map necesitan un token de Mapbox (el Geotagger no). Introdúcelo en el modal ⚙. Si primero quieres probar sin él: modo OSM (mapa estándar sin Satellite), pero el render del Animator queda desactivado.
 
