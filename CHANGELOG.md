@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.731] – 2026-09-27
+
 > **0.9.731** (27.09.2026, built locally): two beta-tester reports (Windows, 0.9.722) fixed. **0.9.730**: "TEST" in the normal app — never again.
 
 ### Fixed — beta tester reports (0.9.731)
