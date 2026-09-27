@@ -114,6 +114,16 @@ def testrechner_laden() -> Optional[list]:
     global _testwurzeln
     import json
     datei = (_app_ordner / TESTRECHNER_DATEI) if _app_ordner else None
+    # 27.09.2026 (Marc: „in der hochgeladenen Version steht rechts oben TEST … das darf in
+    # Zukunft nicht mehr passieren"): Die Datei lag auch im NORMALEN App-Ordner dieses
+    # Rechners — die echte App zeigte „· TEST" und sperrte Löschen außerhalb der Testwurzel.
+    # Die Sperre gilt deshalb nur noch für eine Test-App (eigener App-Ordner über
+    # RZ_APP_ORDNER, so startet scripts/testumgebung.sh). Die normale App ignoriert sie.
+    if not (os.environ.get("RZ_APP_ORDNER") or "").strip():
+        if datei and datei.is_file():
+            log.warning("[dateischutz] %s im normalen App-Ordner ignoriert — die Testrechner-Sperre "
+                        "gilt nur für die Test-App (RZ_APP_ORDNER)", datei)
+        datei = None
     with _LOCK:
         if not datei or not datei.is_file():
             _testwurzeln = None

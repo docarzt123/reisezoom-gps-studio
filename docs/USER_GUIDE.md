@@ -60,6 +60,8 @@ Falls macOS ausnahmsweise „beschädigt und kann nicht geöffnet werden" sagt (
 xattr -dr com.apple.quarantine "/Applications/Reisezoom GPS Studio.app"
 ```
 
+**Deinstallieren (macOS):** App beenden (⌘Q) und `Reisezoom GPS Studio.app` aus **Programme** in den Papierkorb legen. Wer auch Einstellungen und Zwischenspeicher loswerden will, löscht zusätzlich (Finder → ⌘⇧G → Pfad einfügen): `~/Library/Application Support/Reisezoom GPS Studio/`, `~/Library/Caches/com.reisezoom.gpsstudio/`, `~/Library/WebKit/com.reisezoom.gpsstudio/` und `~/Library/Preferences/com.reisezoom.gpsstudio.plist`. Mit Cloud-Archiv: in der **Schlüsselbundverwaltung** die Einträge „Reisezoom GPS Studio (Cloud-Archiv)“ löschen. **Deine Bibliothek** (Touren, Projekte) liegt in dem Ordner, den du beim ersten Start gewählt hast — sie bleibt absichtlich stehen.
+
 ### Windows
 1. `ReisezoomGPSStudio-windows-setup.exe` doppelklicken
 2. SmartScreen-Dialog: **„Weitere Informationen"** → **„Trotzdem ausführen"**
@@ -70,6 +72,8 @@ xattr -dr com.apple.quarantine "/Applications/Reisezoom GPS Studio.app"
 > **Ganz sichergehen?** Die Windows-Version ist (noch) nicht signiert. Wer möchte, kann die heruntergeladene `.exe` vorab bei einem Dienst wie [VirusTotal](https://www.virustotal.com) gegenprüfen — die Builds stammen aus einer automatisierten GitHub-Pipeline ohne manuelle Zwischenschritte.
 
 Deinstallieren wie jede andere Windows-App: **Systemsteuerung → Apps & Features → Reisezoom GPS Studio → Deinstallieren**.
+
+Einstellungen und Zwischenspeicher liegen unter `%APPDATA%\Reisezoom GPS Studio\` — wer alles loswerden will, löscht diesen Ordner nach dem Deinstallieren von Hand. Die Bibliothek bleibt, wo du sie angelegt hast.
 
 ### Linux (aus Quellcode)
 

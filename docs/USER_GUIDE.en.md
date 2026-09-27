@@ -44,6 +44,8 @@ If macOS unexpectedly says "damaged and can't be opened" (e.g. after an incomple
 xattr -dr com.apple.quarantine "/Applications/Reisezoom GPS Studio.app"
 ```
 
+**Uninstalling (macOS):** quit the app (⌘Q) and move `Reisezoom GPS Studio.app` from **Applications** to the Trash. To also remove settings and caches, delete (Finder → ⌘⇧G → paste the path): `~/Library/Application Support/Reisezoom GPS Studio/`, `~/Library/Caches/com.reisezoom.gpsstudio/`, `~/Library/WebKit/com.reisezoom.gpsstudio/` and `~/Library/Preferences/com.reisezoom.gpsstudio.plist`. With a cloud archive: delete the entries "Reisezoom GPS Studio (Cloud-Archiv)" in **Keychain Access**. **Your library** (tours, projects) lives in the folder you chose on first start — it is deliberately left alone.
+
 ### Windows
 1. Double-click `ReisezoomGPSStudio-windows-setup.exe`
 2. SmartScreen dialog: **"More info"** → **"Run anyway"**
@@ -54,6 +56,8 @@ xattr -dr com.apple.quarantine "/Applications/Reisezoom GPS Studio.app"
 > **Want to be extra safe?** The Windows version is not (yet) signed. If you like, you can check the downloaded `.exe` beforehand with a service like [VirusTotal](https://www.virustotal.com) — the builds come from an automated GitHub pipeline with no manual intermediate steps.
 
 Uninstall like any other Windows app: **Control Panel → Apps & Features → Reisezoom GPS Studio → Uninstall**.
+
+Settings and caches live in `%APPDATA%\Reisezoom GPS Studio\` — to remove everything, delete that folder by hand after uninstalling. The library stays where you created it.
 
 ### Linux (from source)
 

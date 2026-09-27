@@ -5,8 +5,17 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 27 Sep 2026 15:36:59 +0000</lastBuildDate>
+<lastBuildDate>Sun, 27 Sep 2026 17:37:50 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.730</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-730</link>
+<guid isPermaLink="false">gps-studio-v0.9.730</guid>
+<pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
+<description>Handbuch: Deinstallieren — wie man GPS Studio auf dem Mac komplett entfernt (App, Einstellungen, Zwischenspeicher, Schlüsselbund) und wo die Einstellungen unter Windows liegen. Die Bibliothek mit deinen Touren bleibt dabei stehen.
+
+Interne Test-Sperre — eine nur für Entwicklertests gedachte Sperrdatei kann die normale App nicht mehr beeinflussen.</description>
+</item>
 <item>
 <title>v0.9.729</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-729</link>
@@ -201,19 +210,6 @@ Der Inspektor zeigt, was er gefunden hat — und was er tun würde — Unter jed
 Fähre, Flug und Autozug sind kein Fehler mehr — Eine Strecke, die wirklich zurückgelegt, aber nicht aufgezeichnet wurde, heißt jetzt Überfahrt ohne Aufzeichnung : grau, benannt, und es wird nichts daran repariert. Vorher entschied die Länge der Pause darüber, ob dieselbe Fähre stillschweigend geschluckt oder beinahe als Ausreißer behandelt wurde. Außerdem rechnet der Track-Check seine Schwellen jetzt je Abschnitt : Bei einer Wohnmobil-Reise mit Spaziergängen lag die Ausreißer-Schwelle vorher bei 539 km/h, in den Fußabschnitten konnte also nie etwas auffallen. Auch beim Lückenfüllen wird das Routen-Profil je Lücke passend gewählt.
 
 Sichtbares Feedback, wo etwas geladen wird — Ein Kasten unten rechts sagt jetzt, was gerade passiert, wie weit es ist, und bietet Abbrechen an, wo ein Abbruch möglich ist — ohne die App zu sperren. Dazu kommen die Fotos eines Projekts in Häppchen statt alle auf einmal: Die Liste steht sofort, die Bilder tröpfeln herein. Anlass war ein Projekt mit 2830 Fotos, bei dem die App minutenlang wie tot wirkte.</description>
-</item>
-<item>
-<title>v0.9.688</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-688</link>
-<guid isPermaLink="false">gps-studio-v0.9.688</guid>
-<pubDate>Thu, 10 Sep 2026 12:00:00 +0000</pubDate>
-<description>Track-Check: die App sagt, was am Track nicht stimmt — bevor du es im Video siehst, und bietet die Reparatur mit einem Klick an. Vierzehn Befund-Arten, nur was die App auch reparieren kann: Sprünge, Kaltstart-Ausreißer, Höhen-Müll, beschädigte Datei (rot — sieht man im fertigen Video); Lücken, fehlende Höhe, unmögliches Tempo, Zeit rückwärts, Doppelpunkte, gleiche Sekunden (10-Hz-Actioncams), Standdrift, Uhr falsch (gelb — verschlechtert Bild oder Daten); ohne Zeitstempel, Zeiten ohne Zeitzone (grau, nur Hinweis). Drei Orte: Warnschild auf der Archiv-Kachel mit Zeile und Knöpfen in der Detailspalte („Im Inspektor reparieren“, „Neu prüfen“, „Ist so in Ordnung“ je Befund-Art), Befund-Kasten ganz oben im Inspektor mit Häkchen je Befund und einem „Reparieren“, das nur Angehaktes ausführt (Rückgängig, Vorher/Nachher wie gewohnt), und ein Hinweis beim Laden in jedem anderen Modul. „Reparieren“ füllt Lücken entlang echter Wege mit dem Profil aus „Lücken füllen als“ (vorbelegt aus der Fortbewegungsart der Tour), Luftlinie nur auf Wunsch, ohne Netz oder bei Umwegen. Geprüft wird beim Import, beim Öffnen im Inspektor, je Tour auf Knopfdruck und fürs ganze Archiv über „Alle Touren prüfen“ (links unten, Fortschritt oben, abbrechbar); nach dem Update fragt das Archiv einmal, ob der Bestand geprüft werden soll (etwa eine Minute je 1000 Touren). Nichts läuft ungefragt im Hintergrund. Eine Wirtshaus-Pause am selben Ort, eine Nachtpause mit Kilometern dazwischen und der Sprung zwischen Etappen sind nie ein Befund. Beschädigte GPX-Dateien (abgeschnitten, „&amp;“ im Namen, Kopf fehlt) stehen in der Fehlerliste als „beschädigt, reparierbar“ mit Reparieren-Knopf; die heile Fassung landet als Tour im Archiv, deine Datei bleibt.
-
-Reset-Start wie bei Final Cut — ⌘⌥ beim Start gedrückt halten (Windows: Strg+Alt) oder Hilfe → „Einstellungen zurücksetzen und neu starten …“. Nach einer Rückfrage stehen Fensterlage, Kartenstil, zuletzt offenes Projekt und alle Regler wieder auf Werkseinstellung, die alte Datei bleibt als Sicherung daneben, Karten-Schlüssel und Sprache werden mitgenommen, Touren, Projekte und Archiv bleiben unangetastet. Der Menüpunkt funktioniert auch, wenn die Oberfläche selbst nicht auf Klicks reagiert.
-
-Leertaste = Probe-Lauf, immer — Nach dem Verstellen eines Reglers oder Häkchens in der Seitenleiste tat die Leertaste nichts, weil das Element den Fokus behielt. Jetzt startet und stoppt sie den Probe-Lauf überall, außer wenn du gerade in ein Textfeld tippst.
-
-Die App installiert sich selbst (Mac) — Wer sie aus dem Download-Fenster startet, bekommt statt der Anleitung einen Knopf „In Programme installieren und starten“: Die App kopiert sich nach Programme, legt ältere Kopien in den Papierkorb, wirft das Download-Image aus und startet neu. Läuft sie schon aus Programme und liegt das Image noch herum oder eine zweite Kopie, bietet sie einmal das Aufräumen an. Dazu steht der erste Mausklick im Log, damit „reagiert nicht“ künftig eine Antwort hat.</description>
 </item>
 </channel>
 </rss>

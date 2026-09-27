@@ -16,9 +16,13 @@
 # RZ_APP_ORDNER einen eigenen App-Ordner — Einstellungen, Bibliothek, Renders, Papierkorb,
 # Cloud-Zugang: alles getrennt vom normalen App-Ordner dieses Rechners.
 #
-# Fotoschutz: `testrechner.json` im Test-App-Ordner UND im normalen App-Ordner. Dann
-# verweigert GPS Studio jedes Löschen, Ersetzen und Foto-Überschreiben außerhalb der
-# Testwurzel (core/dateischutz.py) — die Fotos auf dem NAS bleiben unberührt.
+# Fotoschutz: `testrechner.json` NUR im Test-App-Ordner. Dann verweigert die Test-App jedes
+# Löschen, Ersetzen und Foto-Überschreiben außerhalb der Testwurzel (core/dateischutz.py).
+# 27.09.2026 (Marc: „in der hochgeladenen Version steht rechts oben TEST … das darf in Zukunft
+# nicht mehr passieren"): Früher lag die Datei zusätzlich im NORMALEN App-Ordner — Marcs echte
+# App zeigte dann „· TEST" und durfte außerhalb der Testwurzel nichts löschen. Das Skript fasst
+# den normalen App-Ordner nicht mehr an und räumt einen alten Rest dort weg; die App beachtet
+# die Sperre ohnehin nur noch mit RZ_APP_ORDNER (also nur als Test-App).
 #
 # Zurücksetzen legt den bisherigen Stand nach $RZ_TESTWURZEL/_alt/<Zeit>/; dort bleiben nur die letzten
 # ALT_BEHALTEN (=2) Stände, Älteres löscht das Skript (Marc, 25.09.2026). `aufraeumen` tut das einzeln.
@@ -31,7 +35,15 @@ PY="$REPO/.venv/bin/python"
 APP_ORDNER="$WURZEL/App-Ordner"
 NORMALER_APP_ORDNER="$HOME/Library/Application Support/Reisezoom GPS Studio"
 
-schutz_schreiben() {   # $1 = App-Ordner
+normalen_schutz_weg() {   # alter Rest aus der Zeit vor dem 27.09.2026
+  if [ -f "$NORMALER_APP_ORDNER/testrechner.json" ]; then
+    rm -f "$NORMALER_APP_ORDNER/testrechner.json"
+    echo "✓ alte Testrechner-Sperre aus dem normalen App-Ordner entfernt (normale App einmal neu starten)"
+  fi
+}
+
+schutz_schreiben() {   # $1 = App-Ordner (nur der Test-App-Ordner!)
+  [ "$1" = "$APP_ORDNER" ] || { echo "schutz_schreiben: nur für den Test-App-Ordner" >&2; return 1; }
   mkdir -p "$1"
   printf '{\n  "schreiben_nur_in": ["%s"],\n  "hinweis": "Testrechner (scripts/testumgebung.sh): Löschen/Ersetzen/Foto-Überschreiben nur in der Testwurzel."\n}\n' "$WURZEL" > "$1/testrechner.json"
 }
@@ -106,8 +118,8 @@ case "${1:-}" in
     mkdir -p "$WURZEL"
     [ -d "$WURZEL/Quellen" ] || "$PY" "$REPO/scripts/testdaten_bauen.py" --wurzel "$WURZEL"
     schutz_schreiben "$APP_ORDNER"
-    schutz_schreiben "$NORMALER_APP_ORDNER"
-    echo "✓ Fotoschutz im Test-App-Ordner und im normalen App-Ordner dieses Rechners"
+    normalen_schutz_weg
+    echo "✓ Fotoschutz im Test-App-Ordner (der normale App-Ordner bleibt unberührt)"
     echo "  Weiter: $0 zuruecksetzen vorbefuellt"
     ;;
   zuruecksetzen)
@@ -139,6 +151,7 @@ case "${1:-}" in
   starten)
     [ -d "$APP_ORDNER" ] || { echo "Erst: $0 zuruecksetzen vorbefuellt"; exit 1; }
     [ -f "$APP_ORDNER/testrechner.json" ] || schutz_schreiben "$APP_ORDNER"
+    normalen_schutz_weg
     if laeuft_test_app; then nach_vorne; exit 0; fi
     # 26.09.2026 (Codex-Lauf 3): direkt nach ⌘Q meldete `open` zweimal „kLSNoExecutableErr: The
     # executable is missing" — die alte Instanz war noch im Abbau. Erst warten, bis kein
@@ -185,10 +198,10 @@ case "${1:-}" in
     for d in Quellen Arbeit App-Ordner Bibliothek Ausgaben Berichte _alt; do
       printf '  %-11s %s\n' "$d" "$( [ -e "$WURZEL/$d" ] && du -sh "$WURZEL/$d" | cut -f1 || echo '—')"
     done
-    for o in "$APP_ORDNER" "$NORMALER_APP_ORDNER"; do
-      printf '  Fotoschutz %s: %s\n' "$( [ "$o" = "$APP_ORDNER" ] && echo test || echo normal)" \
-        "$( [ -f "$o/testrechner.json" ] && echo an || echo AUS)"
-    done
+    printf '  Fotoschutz Test-App: %s\n' "$( [ -f "$APP_ORDNER/testrechner.json" ] && echo an || echo AUS)"
+    if [ -f "$NORMALER_APP_ORDNER/testrechner.json" ]; then
+      echo "  ⚠️  normaler App-Ordner hat eine Testrechner-Sperre — gehört dort nicht hin ($0 starten entfernt sie)"
+    fi
     if [ -f "$APP_ORDNER/cloud_zustand.json" ]; then
       echo "  Cloud:      $("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("adresse","?"))' "$APP_ORDNER/cloud_zustand.json")"
     else
