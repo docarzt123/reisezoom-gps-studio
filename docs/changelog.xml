@@ -5,8 +5,19 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 27 Sep 2026 17:59:41 +0000</lastBuildDate>
+<lastBuildDate>Sun, 27 Sep 2026 20:29:23 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.732</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-732</link>
+<guid isPermaLink="false">gps-studio-v0.9.732</guid>
+<pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
+<description>Update ohne Neuinstallation — auf dem Mac lädt „Jetzt aktualisieren“ die neue Version, prüft sie und startet GPS Studio neu; die alte Version landet im Papierkorb. Unter Windows lädt und prüft die App den Installer und startet ihn.
+
+„Nach Updates suchen …“ im Hilfe-Menü — mit eigenem Update-Fenster. Vorher wirkte die Suche im Über-Dialog eingefroren, wenn es eine neue Version gab.
+
+Update-Hinweis wieder schmal — die Leiste füllte das halbe Fenster.</description>
+</item>
 <item>
 <title>v0.9.731</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-731</link>
@@ -201,19 +212,6 @@ Unterwegs ohne Laufwerk: Die App sagt es — Über dem Raster steht deutlich, we
 Die eigentliche Ursache des abbrechenden Einlesens — Eine Hilfsfunktion, die gelernte Vorschau-Schlüssel speichert, schloss ihre Datenbank-Transaktion nur ab, wenn sie etwas geändert hatte. Fand sie nichts, blieb die Transaktion offen und hielt die ganze Bibliothek gesperrt, bis der Hintergrundlauf aufgab. Jetzt schließt sie immer ab — im Prüfstand laufen 300 Dateien in drei Sekunden durch, während nebenher geschrieben wird.
 
 Das Einlesen der Fotos brach nach zwei Sekunden ab — ohne ein Wort — Im Log stand „database is locked&quot;: Der Hintergrundlauf öffnet eine eigene Verbindung zur Bibliothek, die Oberfläche schrieb im selben Moment, und die Datenbank kannte weder WAL noch eine Wartezeit. Also war der Lauf tot, bevor er begann, und in der Kopfzeile stand wieder „Jetzt einlesen&quot;, als wäre nichts gewesen. Die Bibliothek läuft jetzt im WAL-Modus mit 30 Sekunden Geduld, der Lauf versucht das Öffnen fünfmal, und scheitert doch etwas, steht der Grund sichtbar da — mit einem Knopf zum erneuten Versuch.</description>
-</item>
-<item>
-<title>v0.9.691</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-691</link>
-<guid isPermaLink="false">gps-studio-v0.9.691</guid>
-<pubDate>Sat, 12 Sep 2026 12:00:00 +0000</pubDate>
-<description>Fotos auswählen statt alles übernehmen — „Aus Geotagger&quot; und „Fotos hinzufügen&quot; zeigen jetzt eine Liste mit Vorschaubildern und Häkchen , statt stillschweigend jedes Foto mit Koordinate zu nehmen. Bis 60 Fotos ist alles vorgewählt, darüber schlägt die App eine über die Zeit verteilte Auswahl vor und sagt auch warum — im Animator wird aus jedem Foto ein Schild. Knöpfe für Alle, Keine und „Verteilt vorschlagen&quot;.
-
-Der Inspektor zeigt, was er gefunden hat — und was er tun würde — Unter jeder Befund-Zeile steht jetzt in einem Satz, was die Reparatur macht („Der ausgerissene Punkt wandert zurück auf die Linie zwischen seinen Nachbarn&quot;). Der neue Knopf Zeigen markiert die Fundstellen auf der Karte in Magenta und springt sie der Reihe nach an.
-
-Fähre, Flug und Autozug sind kein Fehler mehr — Eine Strecke, die wirklich zurückgelegt, aber nicht aufgezeichnet wurde, heißt jetzt Überfahrt ohne Aufzeichnung : grau, benannt, und es wird nichts daran repariert. Vorher entschied die Länge der Pause darüber, ob dieselbe Fähre stillschweigend geschluckt oder beinahe als Ausreißer behandelt wurde. Außerdem rechnet der Track-Check seine Schwellen jetzt je Abschnitt : Bei einer Wohnmobil-Reise mit Spaziergängen lag die Ausreißer-Schwelle vorher bei 539 km/h, in den Fußabschnitten konnte also nie etwas auffallen. Auch beim Lückenfüllen wird das Routen-Profil je Lücke passend gewählt.
-
-Sichtbares Feedback, wo etwas geladen wird — Ein Kasten unten rechts sagt jetzt, was gerade passiert, wie weit es ist, und bietet Abbrechen an, wo ein Abbruch möglich ist — ohne die App zu sperren. Dazu kommen die Fotos eines Projekts in Häppchen statt alle auf einmal: Die Liste steht sofort, die Bilder tröpfeln herein. Anlass war ein Projekt mit 2830 Fotos, bei dem die App minutenlang wie tot wirkte.</description>
 </item>
 </channel>
 </rss>

@@ -74,7 +74,11 @@ html, body {
 
 body {
   display: grid;
-  grid-template-rows: 56px 1fr;     /* Top-Bar + Inhalt */
+  /* 27.09.2026 — vier Zeilen: Top-Bar, Update-Hinweis, Quelldatei-fehlt-Hinweis, Inhalt. Vorher
+     zwei (56px 1fr): ein sichtbarer Hinweis rutschte in die 1fr-Zeile, wurde halb so hoch wie das
+     Fenster, und der Inhalt fiel in eine implizite Zeile darunter (beim Update-Test gesehen).
+     Ausgeblendet sind die beiden auto-Zeilen 0 px hoch — Layout wie bisher. */
+  grid-template-rows: 56px auto auto 1fr;
   /* v0.9.488 — die EINE Spalte muss ausdrücklich `minmax(0, 1fr)` sein
      (Marc: „die seite ist minimal zu breit"). Ohne Angabe legt das Grid eine
      implizite `auto`-Spalte an, und die ist so breit wie ihr breitester Inhalt:
@@ -3315,3 +3319,14 @@ body.rz-sortiert, body.rz-sortiert * { cursor: grabbing !important; user-select:
 .rz-sort-pfeil:hover:not(:disabled) { color: var(--text, #eee); opacity: 1; }
 .rz-sort-pfeil:focus-visible { opacity: 1; outline: 1px solid var(--accent, #ff6b35); border-radius: 3px; }
 .rz-sort-pfeil:disabled { opacity: .18; cursor: default; }
+
+/* 27.09.2026 — Update-Fenster (openUpdateModal): Fortschrittsbalken beim Laden der neuen Version */
+.upd-body p { margin: 0 0 10px; line-height: 1.5; }
+.upd-balken { height: 8px; border-radius: 4px; background: var(--border, #333); overflow: hidden; margin: 6px 0 4px; }
+.upd-balken > div { height: 100%; width: 0; background: var(--accent, #ff6b35); transition: width 0.3s ease; }
+
+/* 27.09.2026 — feste Grid-Zeilen je Leiste (siehe body): Hinweise nehmen nur ihre eigene Höhe ein. */
+body > .topbar { grid-row: 1; }
+body > #update-banner { grid-row: 2; }
+body > #source-missing-banner { grid-row: 3; }
+body > #main { grid-row: 4; }

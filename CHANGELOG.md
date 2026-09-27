@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.732** (27.09.2026, built locally): update without reinstalling; "Check for Updates" in the Help menu; the update dialog no longer seems frozen.
+
+### Added
+- **Update without reinstalling** (Marc: "can we update without reinstalling? if so, build it"; replaces the decision of 19.06.2026 "deliberately no self-update"). New `core/selbstupdate.py` + bridge `update_starten/update_status/update_abbrechen/update_anwenden`. **Mac:** downloads the DMG, checks size + SHA-256 from the manifest, mounts it read-only, copies the app next to the running bundle, verifies `codesign --deep --strict`, requires the **same Team ID** as the running bundle and the manifest's version; "Restart now" quits the app, a detached helper waits for the PID, moves the old bundle to the Trash (named with its version), moves the new one into place and relaunches (a test app with its own app folder comes back as a test app). The running program never overwrites itself. **Windows:** downloads and checks the installer, "Install now" closes the app and starts the usual installer (same AppId replaces the installation; not silent — needs admin rights and there is no Windows test machine). Not possible (dev mode, translocated/started from a disk image, folder not writable, ad-hoc signed, test app outside the test root) → "Download" as before.
+- **Help → Check for Updates …** directly in the menu, and an **update window** (search → up to date / available → progress → restart). The banner offers "Update now".
+
+### Fixed
+- **"Check for updates" in the About dialog seemed to hang** (Marc, on 0.9.729): with a new version available the result only went into the banner under the top bar — behind the open About dialog. Now the update window opens on top.
+- **The update banner filled half the window** (seen in the real-app test): `body` was a two-row grid (`56px 1fr`), a visible banner took the `1fr` row and the content fell into an implicit row below. Four fixed rows now (top bar, update banner, missing-source banner, main).
+- Tests: `tests/test_selbstupdate.py` (manifest, download with checksum/size/cancel, real DMGs with a Developer-ID and an ad-hoc signed mini app, the helper really executed), `tests/test_update_dialog.py` (WebKit, real bridge, local manifest). Real run on the Mac mini: probe app 0.9.732 → local manifest + DMG 0.9.733 → banner → update window → restart → bundle swapped, 0.9.733 running, old version in the Trash.
+
 ## [0.9.731] – 2026-09-27
 
 > **0.9.731** (27.09.2026, built locally): two beta-tester reports (Windows, 0.9.722) fixed. **0.9.730**: "TEST" in the normal app — never again.

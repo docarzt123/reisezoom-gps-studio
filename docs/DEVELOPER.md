@@ -5397,3 +5397,44 @@ zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
   `anim-signs-lyr`. Klassisch: `__glSigma` im Schild-Block, CSS-Filter nur ohne Schilder. Szene: CSS-Style `#rz-render-blur`
   wird entfernt, sobald die Ebene liegt. Messskripte der Sitzung: 4K, Streifenfoto, Kantenstärke Schild/Karte.
 - **Archiv:** `n_merged` mit `haupt`/`hidden`; `_offeneTourMerken` / `_offeneTourSchliessen` in `modules/library/ui/module.js`.
+
+## Update ohne Neuinstallation — `core/selbstupdate.py` (27.09.2026, v0.9.732)
+
+Marc: „können wir vielleicht auch ohne Neuinstallation updaten? falls ja, bau das so." — ersetzt die
+Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update", IDEAS §4.9 bzw. Update-Check-Abschnitt).
+
+- **Suche:** `Api.check_for_update(force)` wie bisher (Manifest auf reisezoom.com, 12-h-Bremse, GitHub als
+  stiller Rückfall), liefert zusätzlich `selbst` = `Updater.moeglich()` → `{ok, art: bundle|installer}` oder
+  `{ok: False, grund: rechte|nicht_installiert|nicht_gebuendelt|plattform}`.
+- **Oberfläche:** `openUpdateModal()` in `ui/js/app.js` — eigenes Fenster (stapelt über dem Über-Dialog):
+  suchen → aktuell / verfügbar → Fortschritt (Poll `update_status` alle 400 ms) → bereit → „Jetzt neu starten"
+  bzw. „Jetzt installieren". Vorher landete das Ergebnis der manuellen Suche nur im Banner HINTER dem offenen
+  Über-Dialog („der Dialog hängt"). Menü: **Hilfe → Nach Updates suchen …** (`_check_updates_from_menu`).
+- **Brücke:** `update_starten` (Manifest → `paket_aus_manifest` → Version > eigene → Team-ID des laufenden
+  Bundles → `Updater.starten`), `update_status`, `update_abbrechen`, `update_anwenden` (Helfer/Installer
+  starten, dann `webview.windows[0].destroy()` → normaler Schließweg `_on_closing`).
+- **Mac:** Paket nach `APP_SUPPORT/_update/`, Größe + SHA-256 aus dem Manifest, DMG `hdiutil attach -readonly
+  -nobrowse` → `ditto` nach `<Bundle-Ordner>/.Reisezoom GPS Studio.app.update` (gleicher Datenträger →
+  `mv` ist ein Umbenennen) → `codesign --verify --deep --strict` + **TeamIdentifier muss dem laufenden Bundle
+  gleichen** + CFBundleShortVersionString = Manifest-Version. Erst dann `bereit`.
+  Helfer (`helfer_skript`, /bin/sh, abgekoppelt): wartet per `kill -0` auf die PID (max. 120 s), `mv` altes
+  Bundle nach `$HOME/.Trash/Reisezoom GPS Studio <alte Version>.app`, `mv` Staging an den Platz, `lsregister -f`,
+  `open -n` (Test-App: mit `--env` für RZ_APP_ORDNER/RZ_CLOUD_ABLAGE/RZ_CLOUD/RZ_UPDATE_MANIFEST_URL). Schlägt
+  ein `mv` fehl, kommt das alte Bundle zurück. Log: `logs/update.log`. **Das laufende Programm überschreibt sich
+  nie selbst** (PyInstaller lädt Module/Dateien bei Bedarf aus dem Bundle nach).
+- **Windows:** geprüfter Installer (Inno Setup, gleiche AppId → ersetzt) wird mit DETACHED_PROCESS gestartet,
+  die App beendet sich. Nicht still (`/SILENT`): braucht Admin-Rechte, und ohne Windows-Testrechner ist ein
+  stiller Austausch samt Neustart nicht prüfbar.
+- **Nicht möglich** (→ „Herunterladen"): kein Bundle (Entwicklermodus), App-Translocation oder Start aus
+  /Volumes, Bundle-Ordner nicht beschreibbar, laufendes Bundle ohne Developer-ID (ad-hoc). In einer **Test-App**
+  (RZ_APP_ORDNER) nur, wenn das Bundle selbst unter einer Testrechner-Wurzel liegt — nie /Applications.
+- **Prüfstand:** `RZ_UPDATE_MANIFEST_URL` (nur mit RZ_APP_ORDNER) + `http://127.0.0.1` erlaubt.
+  `tests/test_selbstupdate.py` (Manifest, Download mit Prüfsumme/Größe/Abbruch, echte DMG mit Developer-ID- und
+  ad-hoc-signierter Mini-App, Helfer wirklich ausgeführt mit eigenem HOME), `tests/test_update_dialog.py`
+  (WebKit: Fenster oben, beide Versionen, Grund, Ablauf bis `update_anwenden`, Hilfe-Menü).
+  Echt-Durchlauf 27.09.2026 auf dem Mac mini: Probe-App 0.9.732 in `~/GPS-Studio-Test/Update-Probe`, lokales
+  Manifest + DMG 0.9.733 → Banner → Update-Fenster → laden/prüfen (4 s) → Neustart → Bundle ausgetauscht,
+  0.9.733 läuft als Test-App, alte Version im Papierkorb.
+- **Layout-Fix dazu:** `body` hat vier Grid-Zeilen (`56px auto auto 1fr`), Top-Bar/Update-Banner/Quelldatei-
+  Banner/`#main` sitzen fest darin. Vorher (`56px 1fr`) fiel ein sichtbares Banner in die 1fr-Zeile und wurde
+  halb so hoch wie das Fenster.

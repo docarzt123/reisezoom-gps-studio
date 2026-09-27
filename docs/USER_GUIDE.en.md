@@ -2559,10 +2559,15 @@ On render errors an error modal opens automatically with an expandable log excer
 
 ## 10 · FAQ
 
-### How do I get new versions? (since v0.9.280)
-On startup the app checks in the background whether a newer version is available. If so, a subtle banner appears at the top, **"New version vX.Y.Z is available"**, with a **Download** button (opens the matching Mac/Windows download in the browser). With the **✕** you dismiss the notice for this version. You can also click **"Check for updates"** at any time manually in the **About dialog** (Help → About). You install downloaded updates like the first setup (DMG/installer) — the app doesn't replace itself, for security reasons.
+### How do I get new versions? (since v0.9.280, without reinstalling since v0.9.732)
+On startup the app checks in the background whether a newer version is available (at most every 12 hours). If so, a slim bar appears at the top, **"New version vX.Y.Z is available"**, with **Update now** and **What's new?**; the **✕** dismisses the notice for this version. To check right away, use **Help → Check for Updates …** (or the About dialog) — the update window opens with the result.
 
-The update check fetches a small file from reisezoom.com (at most every 12 hours); this produces the usual server log data like any website visit — no IDs, no telemetry.
+**Updating without reinstalling (since v0.9.732):**
+- **Mac:** **"Update now"** downloads the new version, checks its checksum and signature (it must come from the same developer) and then shows **"Restart now"**. GPS Studio quits, swaps itself and restarts after a few seconds. Your projects and settings stay as they are; the old version ends up in the **Trash** (in case you want to go back). Requirement: GPS Studio lives in the Applications folder and your user may write there — otherwise the window offers **"Download"** as before.
+- **Windows:** **"Update now"** downloads and checks the installer; **"Install now"** closes GPS Studio and starts the usual installer, which replaces the old version (Windows asks for administrator rights).
+- **Linux:** update from the source code (git pull), as for the installation.
+
+The update check fetches a small file from reisezoom.com; this produces the usual server log data like any website visit — no IDs, no telemetry.
 
 **The automatic check can be switched off** (⚙ Settings → “Check for a new
 version at startup”). Off means: the app makes no network connection on its
