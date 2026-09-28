@@ -47,7 +47,7 @@ TRACKGEBUNDEN = {
         "timeline_events", "keyframes_enabled", "render_start_anchor", "render_end_anchor",
         "timeline_anchor_v", "timeline_schema_v", "timeline_dedupe_v",
         "manual_cam", "static_zoom", "static_bearing", "static_padding", "static_pins",
-        "trim_start", "trim_end", "extra_tours", "ghosts", "ghost_gpx_path",
+        "trim_start", "trim_end", "extra_tours", "ghosts", "ghost_gpx_path", "ghost_dash_zv",
         "gruppen", "tempo_eintraege", "tours_ablauf", "tours_dezent", "tours_dot_haupt",
         "tours_fokus", "tours_haupt_start_s", "tour_colors", "etappe1_dauer_s", "etappe1_name",
         "charts", "track_color_stops", "signs", "photos", "last_save_dir",

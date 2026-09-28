@@ -3529,6 +3529,7 @@ function mountAnimator(body, headerActions, opts) {
   // Für die automatischen Tests greifbar (wie window.__libMap in den anderen
   // Modulen) — der Zustand liegt sonst modul-intern.
   try { window.__rzGhostSpuren = () => _ghostSpuren; } catch (_) {}
+  try { window.__rzGhostNeuAufbauen = () => _ghostSpurenAufbauen(); } catch (_) {}   // 28.09.2026 — Prüfstand (test_ghost_strich_szene.py)
 
   function ghostSpurenSichern() {
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.ghosts_geaendert", "Ghost-Spuren geändert")); } catch (_) {}   // 10.09.2026
@@ -3694,6 +3695,45 @@ function mountAnimator(body, headerActions, opts) {
     _ghostListeZeichnen();
   }
 
+  /** 28.09.2026 (Marc: „Ghost-Tracks sind in der Vorschau durchgezogen, im Render gestrichelt") —
+   *  Bezugs-Zoom der Strichelung = Zoom der Vorschau. Vorher der EINPASS-Zoom des Videos (+ log2(1/k)):
+   *  wer herauszoomte, bekam Striche von Bruchteilen eines Pixels (sah durchgezogen aus), der klassische
+   *  Render rechnete sie für den Zoom am Videoanfang neu (sah gestrichelt aus). Jetzt: im Ruhezustand der
+   *  AKTUELLE Zoom, im Projekt gemerkt (`ghost_dash_zv`); beim Abspielen und in der Szene (Render) der
+   *  gemerkte Wert — dieselben Stücke wie in der Vorschau, und nichts wandert während der Fahrt. */
+  let _ghostDashZvWert = null;
+  function _ghostDashZv() {
+    const laeuft = !!_previewRaf || !!window.__rzStepMode;
+    let gemerkt = NaN;
+    try { gemerkt = parseFloat((getActiveProject() || {})[_MODKEY]?.ghost_dash_zv); } catch (_) {}
+    if (laeuft) {
+      if (_ghostDashZvWert != null) return _ghostDashZvWert;
+      if (isFinite(gemerkt)) return (_ghostDashZvWert = gemerkt);
+    }
+    // Bezug = Zoom der VORSCHAU (nicht + log2(1/k)): Linienbreiten gelten in Vorschau-px, die Szene
+    // vergrößert alles über die Pixeldichte. Mit dem Video-Zoom waren die Striche um k zu kurz (1,9 px
+    // bei 2,5 px Breite) — die runden Enden füllten die Lücken, die Spur sah durchgezogen aus.
+    const zv = map.getZoom();
+    _ghostDashZvWert = zv;
+    if (!laeuft && !(isFinite(gemerkt) && Math.abs(gemerkt - zv) < 0.01) && ghostSpuren().some(g => g && g.dashed !== false && g.show !== false)) {
+      try { saveProjectSettings(_MODKEY, { ghost_dash_zv: Math.round(zv * 1000) / 1000 }); } catch (_) {}
+    }
+    return zv;
+  }
+  /** Im Ruhezustand bei Zoomänderung neu stricheln (nicht beim Abspielen — sonst wandern die Striche). */
+  let _ghostZoomHook = null;
+  function _ghostZoomHookSetzen() {
+    if (!map || _ghostZoomHook === map) return;
+    _ghostZoomHook = map;
+    map.on("zoomend", () => {
+      if (_previewRaf || window.__rzStepMode) return;
+      if (!ghostSpuren().some(g => g && g.dashed !== false && g.show !== false)) return;
+      const zv = map.getZoom();
+      if (_ghostDashZvWert != null && Math.abs(zv - _ghostDashZvWert) < 0.25) return;
+      _ghostSpurenAufbauen();
+    });
+  }
+
   function _ghostSpurenAufbauen() {
     // ⚠️ 27.08.2026 (Marc: „die ghost tracks sind geladen, aber ich sehe sie
     // nicht in der preview") — Vorher stand hier ein stilles `return`, wenn der
@@ -3705,6 +3745,7 @@ function mountAnimator(body, headerActions, opts) {
     // aussteigen.
     if (!_whenStyleReady("ghostSpuren", _ghostSpurenAufbauen)) return;
     if (!map) return;
+    _ghostZoomHookSetzen();
     const spuren = ghostSpuren();
     // Erst abräumen, was es nicht mehr gibt (oder anders aussieht) — Paint-
     // Eigenschaften ließen sich zwar setzen, aber beim Löschen/Umsortieren
@@ -3727,8 +3768,7 @@ function mountAnimator(body, headerActions, opts) {
         // (Vorschau-Zoom + log2(1/k)).
         let _data = { type: "Feature", geometry: { type: "LineString", coordinates: co } };
         if (g.dashed !== false && window.rzDashGeometry) {
-          const k = (map.__rzLabelK > 0) ? map.__rzLabelK : 1;
-          const zv = ((_fitZoomBase != null) ? _fitZoomBase : map.getZoom()) + Math.log2(1 / k);
+          const zv = _ghostDashZv();
           const [dM, gM] = window.rzDashMeters(Number(g.width) || 2.5, [2, 2], zv, co[0][1]);
           _data = { type: "Feature", geometry: { type: "MultiLineString", coordinates: window.rzDashGeometry(co, dM, gM) } };
         }
@@ -19876,10 +19916,16 @@ function mountAnimator(body, headerActions, opts) {
     // im Backend nur als Fallback verwendet wenn interpolate_camera keinen
     // Match findet — bei vorhandenen Keyframes greift immer ein Keyframe.
 
+    // 28.09.2026 — WYSIWYG: vorher Projekt sichern/festschreiben, sonst rendert eine frisch geöffnete Tour
+    // ohne Projekt-Kennung über den klassischen Generator (andere Quellenzeile, andere Strichelung).
+    let _szenePid = null;
+    try { _szenePid = (typeof window.projektFuerRenderSichern === "function") ? await window.projektFuerRenderSichern(_MODKEY) : null; }
+    catch (e) { applog && applog("warn", "[render] Projekt sichern: " + e); }
+    if (!_szenePid) applog && applog("warn", "[render] kein Projekt — Render läuft klassisch (nicht WYSIWYG)");
     const params = {
       gpx_path: currentGpx,
       // 06.09.2026 — gemeinsame Szene: der Render öffnet dieses Projekt kopflos in der Vorschau (core/szene.py)
-      szene_projekt_id: (typeof getActiveProject === "function" && getActiveProject()) ? (getActiveProject().id || null) : null,
+      szene_projekt_id: _szenePid || ((typeof getActiveProject === "function" && getActiveProject()) ? (getActiveProject().id || null) : null),
       // 07.09.2026 — welches Modul die Szene öffnen soll (Animator, Reiseroute oder Tour-Map = staticFrame)
       szene_modul: _MODKEY,
       // Vorschau-Viewport in CSS-px: der Render fährt die Vorschau in GENAU dieser Größe mit
