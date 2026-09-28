@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.733** (28.09.2026, built locally): signs in the timeline, collections when importing, WYSIWYG for source line and ghost tracks, aligned keyframe dots.
+
 ### Fixed
 - **Keyframe dots in the timeline were not aligned** (Marc, screenshot): the label column had only `flex-basis: 84px`, so it grew with its content — "▾ 🧭 Drehung" 94 px, "▾ 📍 Erdpunkt" 96.5 px, the cluster row 90 px — and each lane (with its keyframe dots) started somewhere else. Label columns are now fixed at 84 px (long names end in "…", full name in the tooltip). Measured in WebKit in DE/ES/EN: all lanes and the cluster row start at the same x. Test `tests/test_timeline_spuren_buendig.py`.
 - **Video did not look like the preview (map source line, ghost tracks)** (Marc: "WYSIWYG is not given for the map credits" / "ghost tracks are solid in the preview, dashed in the render"). A freshly opened tour only has a *floating* project (empty id, Q15). The render button then sent `szene_projekt_id: null`, so the video came from the classic generator instead of the preview scene — with its own source line layout and its own dash lengths. Now `projektFuerRenderSichern()` (`ui/js/util.js`) flushes pending changes and writes the floating project before every render; `session_update_project_settings` returns the new id. Checked in the real app: log "vor dem Render festgeschrieben" → "Szene: Viewport = Vorschau", source line in video and preview identical.
