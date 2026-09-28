@@ -4761,6 +4761,66 @@ function mountLibrary(body, headerActions) {
     });
   }
 
+  /** 28.09.2026 (Marc: „beim Einlesen einzelner Tracks sollte man denen gleich eine oder mehrere
+   *  Sammlungen hinzufügen können") — nach der Dateiauswahl: vorhandene Sammlungen anhaken und/oder
+   *  eine neue anlegen. Die gerade geöffnete Sammlung ist vorbelegt. Eingeordnet wird erst nach dem
+   *  Einlesen (Sammlungen hängen an der Streckenkennung, die entsteht beim Einlesen).
+   *  → {ids: [...], neu: "Name"} · {ids: [], neu: ""} = ohne Sammlung · null = Import abbrechen */
+  function sammlungWahl(anzahl) {
+    return new Promise((fertig) => {
+      let beantwortet = false;
+      const zeilen = _collections.map(c => `
+        <label class="lib-imp-col"><input type="checkbox" value="${c.id}"${state.collection_id === c.id ? " checked" : ""}>
+          <span>${esc(c.name)}</span> <span class="lib-hint">${num(c.n || 0)}</span></label>`).join("");
+      const m = openModal({
+        title: "📁 " + T("library.imp_col_titel", "In Sammlungen einordnen"),
+        body: `<div class="lib-fmodal">
+          <p>${anzahl === 1 ? T("library.imp_col_text_1", "Die Tour gleich einer oder mehreren Sammlungen zuordnen? Das geht auch später noch.")
+                            : T("library.imp_col_text", "Die {n} Touren gleich einer oder mehreren Sammlungen zuordnen? Das geht auch später noch.").replace("{n}", num(anzahl))}</p>
+          ${zeilen ? `<div class="lib-imp-cols">${zeilen}</div>` : ""}
+          <label class="lib-imp-col lib-imp-col-neu">${T("library.imp_col_neu", "Neue Sammlung")}
+            <input type="text" id="lib-imp-col-neu" placeholder="${esc(T("library.imp_col_neu_ph", "Name, z. B. Harz 2026"))}"></label>
+          <div class="lib-actions" style="margin-top:12px;">
+            <button class="btn btn-sm" id="lib-imp-col-ohne">${T("library.imp_col_ohne", "Ohne Sammlung")}</button>
+            <button class="btn btn-sm btn-primary" id="lib-imp-col-ok">${T("library.imp_col_ok", "Aufnehmen")}</button>
+          </div>
+        </div>`,
+        onClose: () => { if (!beantwortet) { beantwortet = true; fertig(null); } },
+      });
+      const ende = (wert) => { if (beantwortet) return; beantwortet = true; m.close(); fertig(wert); };
+      const wahl = () => ({
+        ids: [...document.querySelectorAll(".lib-imp-cols input:checked")].map(x => parseInt(x.value, 10)).filter(Boolean),
+        neu: ((document.getElementById("lib-imp-col-neu") || {}).value || "").trim(),
+      });
+      document.getElementById("lib-imp-col-ohne").onclick = () => ende({ ids: [], neu: "" });
+      document.getElementById("lib-imp-col-ok").onclick = () => ende(wahl());
+      const feld = document.getElementById("lib-imp-col-neu");
+      if (feld) feld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ende(wahl()); } });
+    });
+  }
+
+  /** Nach dem Einlesen: die importierten (und schon bekannten) Touren in die gewählten Sammlungen. */
+  async function sammlungenZuordnen(wahl, pfade) {
+    if (!wahl || !(pfade || []).length || (!wahl.ids.length && !wahl.neu)) return;
+    applog && applog("info", `[Archiv] Import: Sammlungen ${JSON.stringify(wahl)} für ${pfade.length} Datei(en)`);
+    const namen = [];
+    try {
+      for (const cid of wahl.ids) {
+        const r = await api().library_collection_add(cid, pfade);   // warte-ok: kurzer DB-Eintrag je Sammlung
+        applog && applog("info", `[Archiv] Import: Sammlung ${cid} + ${r && r.added} Tour(en)${r && r.error ? " — " + r.error : ""}`);
+        const c = _collections.find(x => x.id === cid);
+        if (r && r.ok && c) namen.push(c.name);
+      }
+      if (wahl.neu) {
+        const r = await api().library_collection_create(wahl.neu, pfade);   // warte-ok: kurzer DB-Eintrag
+        if (r && r.ok) namen.push(wahl.neu);
+        else if (r && r.error) toast(r.error, "error");
+      }
+    } catch (e) { applog && applog("warn", "[Archiv] Import: Sammlungen: " + e); }
+    await reloadCollections();
+    if (namen.length) toast(T("library.imp_col_done", "In Sammlung eingeordnet: {namen}").replace("{namen}", "„" + namen.join("“, „") + "“"), "success", 5000);
+  }
+
   async function importSingleFiles(paths) {
     let liste = paths || null;
     if (!liste) {
@@ -4769,6 +4829,9 @@ function mountLibrary(body, headerActions) {
       if (!w.ok) { toast(w.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
       liste = w.paths;
     }
+    // 28.09.2026 — Sammlungen gleich beim Einlesen (Abbrechen = gar nicht importieren)
+    const _colWahl = await sammlungWahl((liste || []).length);
+    if (_colWahl === null) return;
     let geoJeDatei = {};
     try {
       const pr = await rzWarten("library_import_pruefen", () => api().library_import_pruefen(liste));
@@ -4779,7 +4842,7 @@ function mountLibrary(body, headerActions) {
         if (!await importFrage(bekannt, neue.length)) {
           if (!neue.length) {
             // 14.09.2026 (Marc): nichts Neues → die vorhandene Tour zeigen statt nur „schon da"
-            _importZeigen = { geo: [...new Set(bekannt.map(e => e.geo_hash).filter(Boolean))], pfade: bekannt.map(e => e.tour_pfad).filter(Boolean) };
+            _importZeigen = { geo: [...new Set(bekannt.map(e => e.geo_hash).filter(Boolean))], pfade: bekannt.map(e => e.tour_pfad).filter(Boolean), sammlungen: _colWahl };
             await importErgebnisZeigen();
             return;
           }
@@ -4807,7 +4870,7 @@ function mountLibrary(body, headerActions) {
     // 14.09.2026 (Marc: „ich erwarte, dass ich im Archiv lande, wo die Tour vorausgewählt
     // ist"): merken, was gezeigt werden soll — die neuen UND die schon bekannten Dateien.
     _importZeigen = { geo: [...new Set(liste.map(pf => geoJeDatei[pf]).filter(Boolean))], pfade: (res.pfade || []).slice(),
-                      gemeldet: _keinTrack.slice() };   // 26.09.2026 (FE-01) — schon beim Import gemeldet
+                      gemeldet: _keinTrack.slice(), sammlungen: _colWahl };   // 26.09.2026 (FE-01) — schon beim Import gemeldet
     const _nNeu = Math.max(0, res.kopiert - _keinTrack.length);   // 25.09.2026 — ohne die Nicht-Tracks
     if (_nNeu || res.uebersprungen) toast(T("library.import_done", "Dateien importiert — Einlesen läuft")
       + ` (${_nNeu}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
@@ -4817,6 +4880,7 @@ function mountLibrary(body, headerActions) {
     startScan(false, res.folder);
   }
 
+  window.rzArchivImportieren = importSingleFiles;   // 28.09.2026 — auch für den Prüfstand (test_import_sammlungen.py)
   let _importZeigen = null;
   /** 25.09.2026 (Klicktest FE-01/FE-03): konkreter Grund je nicht lesbarer Datei
    *  (Code aus core/library.fehler_grund) statt nur der allgemeinen Gruppen-Erklärung. */
@@ -4830,6 +4894,8 @@ function mountLibrary(body, headerActions) {
   async function importErgebnisZeigen() {
     const z = _importZeigen; _importZeigen = null;
     if (!z || _unmounted) return;
+    if (z.sammlungen) await sammlungenZuordnen(z.sammlungen, z.pfade);   // 28.09.2026 — jetzt sind die Touren eingelesen
+    if (_unmounted) return;
     if (_foldersModal) { try { _foldersModal.close(); } catch (_) {} _foldersModal = null; }
     if (_fotoView) fotoViewSetzen(false);
     if (_projView || _vorlView) projViewSetzen(false);

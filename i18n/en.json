@@ -4309,5 +4309,13 @@
   "update.err.signatur": "The signature of the new version is invalid.",
   "update.err.team": "The new version is not from the same developer — not installed.",
   "update.err.version": "The package contains a different version than announced.",
-  "update.err.netz": "No connection to the update server."
+  "update.err.netz": "No connection to the update server.",
+  "library.imp_col_titel": "Add to collections",
+  "library.imp_col_text_1": "Add the tour to one or more collections right away? You can also do this later.",
+  "library.imp_col_text": "Add the {n} tours to one or more collections right away? You can also do this later.",
+  "library.imp_col_neu": "New collection",
+  "library.imp_col_neu_ph": "Name, e.g. Harz 2026",
+  "library.imp_col_ohne": "No collection",
+  "library.imp_col_ok": "Import",
+  "library.imp_col_done": "Added to collection: {namen}"
 }
