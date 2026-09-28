@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.732] – 2026-09-28
+
 > **0.9.732** (27.09.2026, built locally): update without reinstalling; "Check for Updates" in the Help menu; the update dialog no longer seems frozen.
 
 ### Added
