@@ -2668,7 +2668,7 @@
   "signs.align.center": "Mitte",
   "signs.align.left": "Links",
   "signs.align.right": "Rechts",
-  "signs.always": "Ganze Zeit zeigen",
+  "signs.always": "Ganze Zeit",
   "signs.apply_all": "🎨 Stil + Verhalten auf alle",
   "signs.apply_all_done": "Stil + Verhalten auf alle übertragen.",
   "signs.apply_all_hint": "Aussehen (Form/Farben/Schrift/Schatten/Größe) UND Verhalten (Timing/Einblendung/Zoom/Ganze-Zeit-zeigen) auf alle anderen übertragen — Text/Bild/Position/Sichtbar-Häkchen bleiben",
@@ -4317,5 +4317,11 @@
   "library.imp_col_neu_ph": "Name, z. B. Harz 2026",
   "library.imp_col_ohne": "Ohne Sammlung",
   "library.imp_col_ok": "Aufnehmen",
-  "library.imp_col_done": "In Sammlung eingeordnet: {namen}"
+  "library.imp_col_done": "In Sammlung eingeordnet: {namen}",
+  "animator.lane.schilder": "Schilder",
+  "animator.lane.schilder_tip": "Wann die Schilder zu sehen sind. Aufklappen, dann Balken ziehen: verschieben ändert den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“. Doppelklick oder Rechtsklick öffnet das Schild.",
+  "animator.sg.bar_tip": "Ziehen: verschieben · Ränder: Anfang/Ende · Doppelklick oder Rechtsklick: Schild öffnen",
+  "signs.sg_immer_tip": "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen.",
+  "signs.undo_zeit": "Schild-Zeit geändert",
+  "signs.photo_row": "Foto"
 }
