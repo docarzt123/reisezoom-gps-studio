@@ -2668,7 +2668,7 @@
   "signs.align.center": "Center",
   "signs.align.left": "Left",
   "signs.align.right": "Right",
-  "signs.always": "Show whole time",
+  "signs.always": "Whole time",
   "signs.apply_all": "🎨 Apply style + behavior to all",
   "signs.apply_all_done": "Style + behavior applied to all.",
   "signs.apply_all_hint": "Apply appearance (shape/colors/font/shadow/size) AND behavior (timing/entry/zoom/show-whole-time) to all others — text/image/position/visibility stay",
@@ -4317,5 +4317,11 @@
   "library.imp_col_neu_ph": "Name, e.g. Harz 2026",
   "library.imp_col_ohne": "No collection",
   "library.imp_col_ok": "Import",
-  "library.imp_col_done": "Added to collection: {namen}"
+  "library.imp_col_done": "Added to collection: {namen}",
+  "animator.lane.schilder": "Signs",
+  "animator.lane.schilder_tip": "When the signs are visible. Expand, then drag the bars: moving changes the moment, the edges change lead-in and “Stays visible”. Double-click or right-click opens the sign.",
+  "animator.sg.bar_tip": "Drag: move · Edges: start/end · Double-click or right-click: open sign",
+  "signs.sg_immer_tip": "“Show the whole time” is on — switch it off in the sign window to drag the bar.",
+  "signs.undo_zeit": "Sign timing changed",
+  "signs.photo_row": "Photo"
 }

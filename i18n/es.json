@@ -2668,7 +2668,7 @@
   "signs.align.center": "Centro",
   "signs.align.left": "Izquierda",
   "signs.align.right": "Derecha",
-  "signs.always": "Mostrar todo el tiempo",
+  "signs.always": "Todo el tiempo",
   "signs.apply_all": "🎨 Aplicar estilo + comportamiento a todos",
   "signs.apply_all_done": "Estilo + comportamiento aplicados a todos.",
   "signs.apply_all_hint": "Aplicar apariencia (forma/colores/fuente/sombra/tamaño) Y comportamiento (timing/entrada/zoom/mostrar-todo-el-tiempo) a todos los demás — texto/imagen/posición/visibilidad se mantienen",
@@ -4317,5 +4317,11 @@
   "library.imp_col_neu_ph": "Nombre, p. ej. Harz 2026",
   "library.imp_col_ohne": "Sin colección",
   "library.imp_col_ok": "Importar",
-  "library.imp_col_done": "Añadido a la colección: {namen}"
+  "library.imp_col_done": "Añadido a la colección: {namen}",
+  "animator.lane.schilder": "Carteles",
+  "animator.lane.schilder_tip": "Cuándo se ven los carteles. Despliega y arrastra las barras: moverlas cambia el momento, los bordes cambian la anticipación y «Sigue visible». Doble clic o clic derecho abre el cartel.",
+  "animator.sg.bar_tip": "Arrastrar: mover · Bordes: inicio/fin · Doble clic o clic derecho: abrir cartel",
+  "signs.sg_immer_tip": "«Mostrar todo el tiempo» está activo — desactívalo en la ventana del cartel para poder arrastrar la barra.",
+  "signs.undo_zeit": "Tiempo del cartel cambiado",
+  "signs.photo_row": "Foto"
 }

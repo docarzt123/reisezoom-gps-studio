@@ -10110,6 +10110,12 @@ function mountAnimator(body, headerActions, opts) {
         onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
         // 24.09.2026 — Overlay-Spur (docs/OVERLAY-BOXEN.md §6)
         onOverlayNeu:      () => _ovSpurAktualisieren(),
+        // 28.09.2026 — Schilder-Spur (Marc: „Schilder wie die Overlays in der Timeline, ziehen, wie lange und wo")
+        onSchildNeu:       () => _sgSpurAktualisieren(),
+        onSchilderOffen:   (v) => { _sgSpurOffen = !!v; try { localStorage.setItem("rz-sg-spur-offen", v ? "1" : "0"); } catch (_) {} },
+        onSchildOeffnen:   (id) => { try { const i = _sgIndexVonId(id); const S = window.__rzAnimSigns && window.__rzAnimSigns.spur; if (i >= 0 && S) S.oeffnen(i); } catch (err) { applog("warn", "[sg-spur] " + err); } },
+        onSchildText:      (id, griff, neu) => _sgSpurText(id, griff, neu),
+        onSchildZiehen:    (id, griff, neu) => { try { _sgSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[sg-spur] " + err); } },
         onOverlaysOffen:   (v) => { _ovSpurOffen = !!v; try { localStorage.setItem("rz-ov-spur-offen", v ? "1" : "0"); } catch (_) {} },
         onOverlayOeffnen:  (id) => { try { _ovBoxModal(id); } catch (err) { applog("warn", "[ov-spur] " + err); } },
         onOverlayText:     (id, griff, neu) => _ovSpurText(id, griff, neu),
@@ -11364,6 +11370,7 @@ function mountAnimator(body, headerActions, opts) {
     // 11.09.2026 — Undo-Rückweg (der Controller steht weiter oben, außerhalb dieses Blocks).
     window._animSignsNachUndo = (l) => { _animSignsSave(l); _animSignsAttachToMap(); _animSignsRenderList(); };
     function _animSignsRenderList() {
+      try { _sgSpurAktualisieren(); } catch (_) {}   // 28.09.2026 — Schilder-Spur folgt der Liste
       const host = document.getElementById("anim-signs-list");
       if (!host) return;
       host.innerHTML = "";
@@ -13086,6 +13093,14 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.171 — Schilder-Helper für scrubPreview/step + GPX-Load exposen.
     window.__rzAnimSigns = {
       refreshIfEditing: () => { if (_animSignEditMode) _animSignsAttachToMap(); },   // 22.08.2026 (Schatten-Richtung live)
+      // 28.09.2026 — für die Schilder-Spur in der Zeitleiste (anderer Scope, siehe _sgSpurJetzt)
+      spur: {
+        show: () => _animSignsShow(), list: () => _animSignsList(), normalize: (x) => _animSignNormalize(x),
+        ankerFuer: (lng, lat) => _animSignAnchorForLngLat(lng, lat), dauer: () => _animSignsDuration(),
+        speichern: (l, label) => _animSignsSave(l, label), bildUebernehmen: (ziel, el) => _animSetImgEl(ziel, el),
+        neuZeichnen: () => { if (!_animSignsUpdateInPlace()) _animSignsAttachToMap(); _animSignsRenderList(); },
+        oeffnen: (i) => _animSignsOpenEditor(i),
+      },
       updateAtAnchor: _animSignsUpdateAtAnchor,
       applyMarkerAnchor: _animSignsApplyMarkerAnchor,
       attach: _animSignsAttachToMap,
@@ -14829,9 +14844,128 @@ function mountAnimator(body, headerActions, opts) {
     }
     return "";
   }
+  // ── Schilder-Spur (28.09.2026, Marc: „Schilder muss man sich wie die Overlays auch irgendwie in der
+  //    Timeline anzeigen lassen können und man muss ziehen können, wie lange und wo sie zu sehen sind") ──
+  // Ein Balken je Schild = die Zeit, in der es zu sehen ist — genau so, wie der Probelauf es zeigt
+  // (__rzSignMeta: sichtbar, solange der Schild-Anker zwischen a_show und a_hide liegt). Der Schild-Anker
+  // läuft im Intro bis trimA, in der Animation von trimA bis trimB, im Hold weiter — jeweils mit
+  // 1/anim_s je Sekunde (Probelauf, v0.9.253). Ziehen: verschieben = fester Zeitpunkt (timeAnchor),
+  // linker Rand = Vorlauf (before), rechter Rand = „Bleibt sichtbar" (after; ganz rechts = bis zum Ende).
+  let _sgSpurOffen = (() => { try { return localStorage.getItem("rz-sg-spur-offen") === "1"; } catch (_) { return false; } })();
+  let _sgSpurRaf = 0;
+  const _sgS = () => (window.__rzAnimSigns && window.__rzAnimSigns.spur) || null;
+  const _sgIdVon = (i) => "s" + i;
+  function _sgIndexVonId(id) { const i = parseInt(String(id || "").slice(1), 10); return isFinite(i) ? i : -1; }
+  function _sgPhasen() {
+    const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const anim = Math.max(0.001, animSekunden());
+    const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
+    const [A, B] = _ovTrimAB();
+    return { intro, anim, hold, A, B, G: intro + anim + hold };
+  }
+  /** Schild-Anker → Videosekunde (Umkehrung der Anker-Berechnung im Probelauf). */
+  function _sgZeitAusAnker(a, ph) {
+    ph = ph || _sgPhasen();
+    if (!(a < 1.5)) return ph.G;                       // a_hide = 2 → bis zum Ende
+    if (a < ph.A) return Math.max(0, ph.intro - (ph.A - a) * ph.anim);
+    if (a <= ph.B) return ph.intro + (ph.B > ph.A ? (a - ph.A) / (ph.B - ph.A) : 0) * ph.anim;
+    return Math.min(ph.G, ph.intro + ph.anim + (a - ph.B) * ph.anim);
+  }
+  /** Videosekunde → Schild-Anker. */
+  function _sgAnkerAusZeit(t, ph) {
+    ph = ph || _sgPhasen();
+    if (t < ph.intro) return ph.A - (ph.intro - t) / ph.anim;
+    if (t <= ph.intro + ph.anim) return ph.A + ((t - ph.intro) / ph.anim) * (ph.B - ph.A);
+    return ph.B + (t - ph.intro - ph.anim) / ph.anim;
+  }
+  function _sgMeta(s) {
+    const sn = _sgS().normalize(s);
+    const A = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _sgS().ankerFuer(Number(sn.lon), Number(sn.lat));
+    const dur = _sgS().dauer();
+    const m = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: A }, dur) : { a_show: A, a_hide: 2, fade: 0, pop: 0 };
+    return { sn, A, dur, m };
+  }
+  function _sgSpurAktualisieren() {
+    if (_isStaticFrame || !_tlBar || typeof _tlBar.setSchilder !== "function") return;
+    if (_sgSpurRaf) return;
+    _sgSpurRaf = requestAnimationFrame(() => { _sgSpurRaf = 0; try { _sgSpurJetzt(); } catch (e) { applog("warn", "[sg-spur] " + e); } });
+  }
+  function _sgSpurJetzt() {
+    if (!_sgS()) { _tlBar.setSchilder([]); return; }
+    const ph = _sgPhasen();
+    const liste = (_sgS().show() && ph.G > 0) ? _sgS().list() : [];
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const zeilen = [];
+    liste.forEach((s, i) => {
+      if (!s || !((s.text || "").trim() || s.imageSrc)) return;
+      const { sn, m } = _sgMeta(s);
+      const immer = !!sn.alwaysVisible;
+      const tAn = immer ? 0 : _sgZeitAusAnker(m.a_show, ph);
+      const tAus = immer ? ph.G : _sgZeitAusAnker(m.a_hide, ph);
+      const blende = sn.entry === "fade" || sn.entry === "both" ? 0.6 : (sn.entry === "pop" ? 0.5 : 0);
+      const name = (sn.text || "").trim().split("\n")[0] || (sn.imageSrc ? t("signs.photo_row", "Foto") + " " + (i + 1) : "#" + (i + 1));
+      zeilen.push({
+        id: _sgIdVon(i), name, enabled: s.visible !== false, farbe: sn.color && sn.color !== "auto" ? sn.color : "#ff8a5c",
+        tip: immer ? t("signs.sg_immer_tip", "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen.") : "",
+        segmente: [{ an: _ovLeisteAusZeit(tAn), aus: _ovLeisteAusZeit(tAus),
+                     einBis: _ovLeisteAusZeit(Math.min(tAus, tAn + blende)), ausAb: _ovLeisteAusZeit(tAus),
+                     text: immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + (m.a_hide >= 1.5 ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s")),
+                     festL: immer, festR: immer }],
+      });
+    });
+    _tlBar.setSchilder(zeilen, { offen: _sgSpurOffen, minAnteil: 0.3 / Math.max(1, ph.G) });
+  }
+  /** Aus der gezogenen Balken-Lage (Leisten-Positionen) die neuen Schild-Werte. */
+  function _sgWerteAusBalken(s, griff, neu) {
+    const ph = _sgPhasen();
+    const { sn, A, dur, m } = _sgMeta(s);
+    const tAn = _ovZeitAusLeiste(neu.an), tAus = _ovZeitAusLeiste(neu.aus);
+    const aShow = _sgAnkerAusZeit(tAn, ph), aHide = _sgAnkerAusZeit(tAus, ph);
+    const out = {};
+    const bisEnde = tAus >= ph.G - 0.05;
+    if (griff === "schieben") {
+      out.timeAnchor = Math.round((A + (aShow - m.a_show)) * 100000) / 100000;
+      if (!(m.a_hide >= 1.5) && bisEnde) out.after = 0;
+    } else if (griff === "l") {
+      if (aShow <= A) out.before = Math.max(0, Math.round((A - aShow) * dur * 10) / 10);
+      else {   // Anfang hinter den Anker gezogen: der Anker wandert mit, das Ende bleibt
+        out.timeAnchor = Math.round(aShow * 100000) / 100000; out.before = 0;
+        if (!(m.a_hide >= 1.5)) out.after = Math.max(0.1, Math.round((m.a_hide - aShow) * dur * 10) / 10);
+      }
+    } else if (griff === "r") {
+      out.after = bisEnde ? 0 : Math.max(0.1, Math.round((aHide - A) * dur * 10) / 10);
+      if (aHide < A) { out.timeAnchor = Math.round(aHide * 100000) / 100000; out.after = 0.1; out.before = Math.max(0, Math.round((aHide - aShow) * dur * 10) / 10); }
+    }
+    return { out, sn, ph };
+  }
+  function _sgSpurText(id, griff, neu) {
+    if (!_sgS()) return "";
+    const i = _sgIndexVonId(id); const s = _sgS().list()[i]; if (!s) return "";
+    const tAn = _ovZeitAusLeiste(neu.an), tAus = _ovZeitAusLeiste(neu.aus), G = _sgPhasen().G;
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return "🚩 " + zahl(tAn) + " s – " + (tAus >= G - 0.05 ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s");
+  }
+  function _sgSpurGezogen(id, griff, neu) {
+    if (!_sgS()) return;
+    const i = _sgIndexVonId(id); const l = _sgS().list(); const s = l[i];
+    if (!s) return;
+    if (_sgS().normalize(s).alwaysVisible) { toast(t("signs.sg_immer_tip", "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen."), "info", 5000); _sgSpurAktualisieren(); return; }
+    const { out } = _sgWerteAusBalken(s, griff, neu);
+    const l2 = l.slice();
+    const vorher = l2[i];
+    l2[i] = { ...vorher, ...out };
+    if (vorher && vorher._imgEl) _sgS().bildUebernehmen(l2[i], vorher._imgEl);
+    _sgS().speichern(l2, t("signs.undo_zeit", "Schild-Zeit geändert"));
+    _sgS().neuZeichnen();
+    _sgSpurAktualisieren();
+    applog && applog("info", `[sg-spur] Schild ${i + 1}: ${griff} → ${JSON.stringify(out)}`);
+  }
+  window.__rzSgSpur = { jetzt: () => _sgSpurJetzt(), zeitAusAnker: (a) => _sgZeitAusAnker(a), ankerAusZeit: (t0) => _sgAnkerAusZeit(t0) };   // Prüfstand
+
   let _ovSpurOffen = (() => { try { return localStorage.getItem("rz-ov-spur-offen") === "1"; } catch (_) { return false; } })();
   let _ovSpurRaf = 0;
   function _ovSpurAktualisieren() {
+    try { _sgSpurAktualisieren(); } catch (_) {}   // 28.09.2026 — gleiche Anlässe (Dauer, Intro, Trim, Projekt)
     if (_isStaticFrame || !_tlBar || typeof _tlBar.setOverlays !== "function") return;
     if (_ovSpurRaf) return;
     _ovSpurRaf = requestAnimationFrame(() => { _ovSpurRaf = 0; try { _ovSpurJetzt(); } catch (e) { applog("warn", "[ov-spur] " + e); } });

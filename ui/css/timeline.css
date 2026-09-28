@@ -1124,3 +1124,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .timeline-cluster-row.ist-klein .lane-name, .timeline-cluster-row.ist-klein .lane-icon { display: none; }
 .timeline-cluster-row.ist-klein .timeline-marker { transform: translate(-50%, -50%) scale(.42); }
 .timeline-cluster-row.ist-klein .timeline-easing-symbol { display: none; }
+/* 28.09.2026 — Schilder-Spur (gleicher Baustein wie die Overlays, _balkenGruppe): eigene Farbe */
+.timeline-sg:empty { display: none; }
+.timeline-sg .timeline-lane[data-kind="ovkopf"] .lane-label { color: #ffc2a8; }
+.timeline-sg .timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(255, 138, 92, .12); }
