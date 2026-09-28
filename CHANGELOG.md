@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- **Video did not look like the preview (map source line, ghost tracks)** (Marc: "WYSIWYG is not given for the map credits" / "ghost tracks are solid in the preview, dashed in the render"). A freshly opened tour only has a *floating* project (empty id, Q15). The render button then sent `szene_projekt_id: null`, so the video came from the classic generator instead of the preview scene — with its own source line layout and its own dash lengths. Now `projektFuerRenderSichern()` (`ui/js/util.js`) flushes pending changes and writes the floating project before every render; `session_update_project_settings` returns the new id. Checked in the real app: log "vor dem Render festgeschrieben" → "Szene: Viewport = Vorschau", source line in video and preview identical.
+- **Ghost dashes looked solid in the preview**: the dash length used the *fit* zoom of the video (+ log2(1/k)); zoomed out, a dash shrank to a fraction of a pixel and the round caps closed the gaps. Now the dashes follow the current preview zoom (rebuilt on `zoomend` when idle), the zoom is stored in the project (`animator.ghost_dash_zv`, excluded from templates) and the scene uses exactly that while rendering — same pieces as in the preview, nothing wanders while the camera moves. Test `tests/test_ghost_strich_szene.py`.
+
 ### Added
 - **Collections right when importing single tracks** (Marc: "when importing single tracks you should be able to add them to one or more collections right away"): after picking the files (button or drag & drop) a window "Add to collections" lists the existing collections to tick plus a field for a new one; the collection open at the moment is ticked already. "No collection" imports as before, ✕ cancels. The tours are added once scanned (collections hang on the geo hash, which the scan creates) — tours already in the archive too. `modules/library/ui/module.js` `sammlungWahl`/`sammlungenZuordnen`, test `tests/test_import_sammlungen.py` (WebKit, real bridge, own library).
 

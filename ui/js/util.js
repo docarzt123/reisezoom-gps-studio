@@ -2224,6 +2224,36 @@ function _projectRootFlushNow() {
                          + (err && err.message ? err.message : err)));
 }
 
+/** 28.09.2026 (Marc: „WYSIWYG ist bei den Kartenhinweisen nicht gegeben“ / „Ghost-Tracks in der
+ *  Vorschau durchgezogen, im Render gestrichelt“) — Vor dem Rendern: offene Änderungen SOFORT wegschreiben
+ *  und ein schwebendes Projekt (frisch geöffnete Tour, noch nichts verstellt → Kennung "") festschreiben.
+ *  Ohne Kennung schickte der Render-Knopf `szene_projekt_id: null`, und das Video kam aus dem klassischen
+ *  Generator statt aus der Vorschau (core/szene.py) — mit eigener Quellenzeile und eigener Strichelung.
+ *  Die Szene liest das GESPEICHERTE Projekt, darum auch das Warten auf die offenen Patches.
+ *  → Kennung des Projekts oder null. */
+async function projektFuerRenderSichern(modul) {
+  const warten = [];
+  const _senden = (pending, ziel, fn) => { if (pending && ziel) warten.push(fn(pending, ziel)); };
+  clearTimeout(_projectSaveTimer); clearTimeout(_projectRootSaveTimer);
+  const p1 = _projectPendingPatch, z1 = _projectPendingZiel, p2 = _projectRootPendingPatch, z2 = _projectRootPendingZiel;
+  _projectPendingPatch = null; _projectPendingZiel = null; _projectRootPendingPatch = null; _projectRootPendingZiel = null;
+  _senden(p1, z1, (pp, z) => Promise.all(Object.entries(pp).map(([mod, mp]) => api().session_update_project_settings(z.hash, z.id, mod, mp))));   // warte-ok: Millisekunden, direkt vor dem Render
+  _senden(p2, z2, (pp, z) => api().session_update_project_root(z.hash, z.id, pp));   // warte-ok: Millisekunden, direkt vor dem Render
+  try { await Promise.all(warten); } catch (e) { applog("warn", "[projekt] Speichern vor dem Render: " + e); }
+  if (_activeSession && _activeProject && !_activeProject.id) {
+    try {
+      const r = await api().session_update_project_settings(_activeSession.track_hash, "", modul || "animator", {});   // warte-ok: Millisekunden
+      if (r && r.ok && r.project_id) {
+        _activeProject.id = r.project_id;
+        delete _activeProject.schwebend;
+        applog("info", "[projekt] vor dem Render festgeschrieben: " + r.project_id);
+      }
+    } catch (e) { applog("warn", "[projekt] Festschreiben vor dem Render: " + e); }
+  }
+  return (_activeProject && _activeProject.id) || null;
+}
+window.projektFuerRenderSichern = projektFuerRenderSichern;
+
 /** Tief-Merge des Patches in target (in-place). Sections werden objekt-merged. */
 function _mergePatchInto(target, patch) {
   for (const [k, v] of Object.entries(patch)) {

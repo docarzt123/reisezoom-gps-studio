@@ -3264,7 +3264,9 @@ class Api:
                     _projekte.stand_schreiben(DATEN_ORT, pr)
             except Exception:
                 log.exception("Projekt-Stand schreiben")
-            return {"ok": True}
+            # 28.09.2026 — die Kennung zurückgeben: bei einem eben festgeschriebenen (vorher
+            # schwebenden) Projekt kennt die Oberfläche sie sonst nicht (→ Render klassisch statt Szene).
+            return {"ok": True, "project_id": project_id}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
