@@ -4309,5 +4309,13 @@
   "update.err.signatur": "Die Signatur der neuen Version ist ungültig.",
   "update.err.team": "Die neue Version stammt nicht vom selben Entwickler — nicht installiert.",
   "update.err.version": "Im Paket steckt eine andere Version als angekündigt.",
-  "update.err.netz": "Keine Verbindung zum Update-Server."
+  "update.err.netz": "Keine Verbindung zum Update-Server.",
+  "library.imp_col_titel": "In Sammlungen einordnen",
+  "library.imp_col_text_1": "Die Tour gleich einer oder mehreren Sammlungen zuordnen? Das geht auch später noch.",
+  "library.imp_col_text": "Die {n} Touren gleich einer oder mehreren Sammlungen zuordnen? Das geht auch später noch.",
+  "library.imp_col_neu": "Neue Sammlung",
+  "library.imp_col_neu_ph": "Name, z. B. Harz 2026",
+  "library.imp_col_ohne": "Ohne Sammlung",
+  "library.imp_col_ok": "Aufnehmen",
+  "library.imp_col_done": "In Sammlung eingeordnet: {namen}"
 }

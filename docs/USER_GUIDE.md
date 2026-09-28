@@ -1203,7 +1203,7 @@ TCX, KML …) — etwa frisch von Komoot heruntergeladen — muss nicht erst in
 einen beobachteten Ordner: **„📂 Ordner & Einlesen" → „+ Einzelne
 Track-Datei …"**, oder die Datei einfach **aufs Archiv ziehen**. Die App
 kopiert sie in ihren eigenen Import-Ordner (das Original bleibt liegen,
-Dubletten werden übersprungen) und liest sie sofort ein. **Seit v0.9.713** schließt sich danach das Fenster, das Archiv springt auf „Touren-Archiv → Alle Touren“ (Sammlung, Suche und Filter werden aufgehoben) und zeigt die neue Tour ganz oben, ausgewählt und rechts im Detail offen — bei mehreren Dateien sind alle neuen markiert. Kennt das Archiv die Datei schon, zeigt „Vorhandene Tour zeigen“ die bestehende Tour.
+Dubletten werden übersprungen) und liest sie sofort ein. **Seit v0.9.713** schließt sich danach das Fenster, das Archiv springt auf „Touren-Archiv → Alle Touren“ (Sammlung, Suche und Filter werden aufgehoben) und zeigt die neue Tour ganz oben, ausgewählt und rechts im Detail offen — bei mehreren Dateien sind alle neuen markiert. Kennt das Archiv die Datei schon, zeigt „Vorhandene Tour zeigen“ die bestehende Tour. **Seit v0.9.733** fragt die App nach der Dateiauswahl, ob die Touren gleich **in eine oder mehrere Sammlungen** sollen: vorhandene Sammlungen anhaken und/oder unter **„Neue Sammlung“** einen Namen eintippen, dann **„Aufnehmen“**. Ist gerade eine Sammlung geöffnet, ist sie schon angehakt. **„Ohne Sammlung“** nimmt die Dateien wie bisher auf, **✕** bricht den Import ab. Eingeordnet wird, sobald die Touren eingelesen sind — auch Touren, die schon im Archiv lagen.
 
 **Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.

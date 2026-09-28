@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Collections right when importing single tracks** (Marc: "when importing single tracks you should be able to add them to one or more collections right away"): after picking the files (button or drag & drop) a window "Add to collections" lists the existing collections to tick plus a field for a new one; the collection open at the moment is ticked already. "No collection" imports as before, ✕ cancels. The tours are added once scanned (collections hang on the geo hash, which the scan creates) — tours already in the archive too. `modules/library/ui/module.js` `sammlungWahl`/`sammlungenZuordnen`, test `tests/test_import_sammlungen.py` (WebKit, real bridge, own library).
+
 ## [0.9.732] – 2026-09-28
 
 > **0.9.732** (27.09.2026, built locally): update without reinstalling; "Check for Updates" in the Help menu; the update dialog no longer seems frozen.

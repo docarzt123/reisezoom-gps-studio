@@ -3330,3 +3330,9 @@ body > .topbar { grid-row: 1; }
 body > #update-banner { grid-row: 2; }
 body > #source-missing-banner { grid-row: 3; }
 body > #main { grid-row: 4; }
+
+/* 28.09.2026 — Import: in Sammlungen einordnen */
+.lib-imp-cols { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; margin: 8px 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; }
+.lib-imp-col { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.lib-imp-col-neu { margin-top: 8px; gap: 10px; }
+.lib-imp-col-neu input { flex: 1; }
