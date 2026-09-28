@@ -408,6 +408,9 @@ Everything is done with the mouse:
   follows), transition, „run in sequence", the tours in the group with **„detach"**, which tour
   the camera follows, and **„merge with another group"** — the tours then run at the same time
   in one group, as a swarm.
+- **◼ Show whole** (right-click or double-click → Display): the group does not draw itself but
+  is visible whole for as long as its tile lasts — with fade in/out at the white dots. More in
+  the next section.
 - **Arrange** above the list computes everything once: **⏭ in sequence**, **∥ all from 0**,
   **🏁 finish together** (every group gets the factor that makes it arrive with the others) and
   **🕐 real time** (length and start as recorded). After that it is an ordinary arrangement you
@@ -420,6 +423,57 @@ several tours now.
 **Keyframes** hang on the track: set one at a bridge, insert a hold before it later or make an
 earlier group longer, and the keyframe is still at the bridge. A hold can carry several
 keyframes — the camera may move while the marker stands.
+
+### ◼ Tours "Show whole" — instead of ghost tracks (since v0.9.734)
+
+Sometimes a tour only makes sense in context: the official trail, your plan, yesterday's
+loop — and on top, what you walked today. That used to be the ghost tracks. Since v0.9.734
+such a line is simply a **tour set to "Show whole"**: it does not draw itself, it is **there
+all at once** — for as long as its bar in the timeline lasts.
+
+**How to add one:**
+
+- In the animator, **＋ Add tour** and click **◼** on the tour in the Tracks list. If the tour
+  shares a group with others, it becomes its own group — the others keep animating. Click ◼
+  again to make it animated.
+- In the **archive**, every tour offers **◼ As whole tour** (also in the map popup and the
+  right-click menu, several with ⌘/Ctrl-click). The tour goes into the animator without
+  replacing the main track.
+- In the timeline, right-click the tile → **◼ Show whole** / **▶ Animated**, or double-click →
+  **Display**.
+
+**When and how long:** dragging the tile sets **from when** the route is visible; the right edge
+sets **how long**. All the way right = until the end of the video (it then grows with the
+video). The two white dots on the tile are **fade in** and **fade out** — drag them to change
+the duration. In the group window (double-click) you pick the kind: **Cut**, **Fade**
+(opacity), **Pop in** (the line grows with a small overshoot, like the overlay boxes) or **Both**.
+
+**What a whole tour does not do** — it is a backdrop:
+
+- It does **not make the video longer**; the length comes only from the animated tours.
+- It is **not** counted in the stats boxes and is **not a stage**.
+- It has **no moving dot** and lies **below** the animated tours.
+- The **main tour** always draws itself — to show it whole, load another tour as the main tour.
+
+**Example** (Marc's wish): Teide pops in, a second and a half later Vilaflor, and from 3 s on
+Pico Viejo starts drawing. Teide from 0 s with "Pop in", Vilaflor from 1.5 s with "Pop in",
+drag the main tour to 3 s in the timeline.
+
+**Look:** as for any tour, in the **▸** panel below the entry — colour, width, line style
+(dashed etc.), shadow, glow and, new, **opacity** (for all tours).
+
+**Old projects:** ghost tracks turn into tours set to "Show whole" over the whole video when the
+project is opened — with their colour, opacity, width and dashes, hard without fades, as they
+looked before. If a ghost track was a tour already in the project, that tour gets **"Show the
+whole route faintly"** switched on. A file that can no longer be loaded stays as a background
+line (the section "👻 Old ghost tracks" is then still shown).
+
+### Show the whole route faintly — for every tour (since v0.9.734)
+
+The former "ghost track" (the whole route faint in the background, the line draws on top) now
+belongs to **every tour**. In a tour's **▸** panel: **Show the whole route faintly**, plus
+**opacity** (5–80 %, default 30 %) and **colour** (default: the tour's colour). For the main
+tour these are the same settings as before.
 
 ### Step 7 — Joining daily files into one tour
 
@@ -1419,7 +1473,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
     3. **"Auto"** switches back to automatic position detection.
     This works identically in the preview and the finished video. (For **photo cards** this happens automatically via the photo's capture time.)
   - **Preview help:** the **"Show ALL signs in the preview"** checkbox — shows all signs at once while placing (preview only; in the video the timing still applies).
-- **Ghost track (since v0.9.169)** — shows the **entire route** semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: **its own ghost-track color** (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and **opacity** (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.
+- **Show the whole route faintly (formerly "ghost track", since v0.9.169; since v0.9.734 in every tour's ▸ panel)** — shows the **entire route** semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: **its own ghost-track color** (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and **opacity** (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.
 - **Multiple track colours (since v0.9.435, extended v0.9.448)** — the track line can **change colour**. The **"Colour by"** picker decides what drives it:
   - **Distance (km)** — colour stops **at km** (number), **at the current marker position** (adopts the scrubber position) or **at all GPX waypoints** (automatic). The first colour applies from km 0 (= track colour).
   - **Any data series of the track** — since v0.9.448 this offers **everything the Data Animator can plot**: elevation, speed, gradient and every sensor value from FIT/TCX files (**heart rate, power, cadence, temperature** …). The list only shows **what the loaded track actually contains**; the unit is in brackets.
@@ -2069,32 +2123,6 @@ track (first in the list) stays the one in the GPX bar; the session belongs to i
 > fields and ignores them (since v0.9.545 during the fast read as well), so your
 > photos are matched to the track by capture time. If RAW files used to end up
 > “in the Atlantic” for you: that was the reason.
-
-### Ghost tracks: several routes in the background (since v0.9.544)
-
-Sometimes a tour only makes sense in context: the official trail, your plan, and
-what you actually walked. That is what the **👻 Ghost tracks** item inside the
-animator's "Tracks" section is for.
-
-Add as many tracks as you need: **＋ Add ghost track …** opens the picker from the
-**archive** (search, tick several; the main track and existing ghosts are greyed
-out). If a file is not in the archive yet, **"Import file …"** in the picker adds
-it there first and ticks it.
-
-> **The other way round works too:** while browsing the archive, every tour
-> offers **👻 Use as ghost track** (also in the map popup). Several at once: mark
-> them with ⌘/Ctrl-click.
-
-Each track is set up on its own: colour, opacity, line width, and dashed or
-solid. The checkbox on the left hides a track without deleting it.
-
-A typical setup: the official trail strong and solid, the planned loops thin and
-dashed, and on top your actual tour, animated. The tracks belong to the project
-and appear in the finished video.
-
-**Order:** drag by the **⠿** handle or use the **▲▼** arrows next to the name (since v0.9.720 —
-on Windows only the arrows work reliably). The bottom track is drawn on top. Several files picked
-at once in the file dialog arrive sorted by file name (01, 02, 03 …).
 
 ### Time-zone magic
 The app reads the `OffsetTimeOriginal` EXIF tag from each photo and converts the

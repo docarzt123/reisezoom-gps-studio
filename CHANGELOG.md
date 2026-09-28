@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.734** (28.09.2026, built locally): tours "Show whole" replace ghost tracks (IDEAS §72); opacity and "show the whole route faintly" for every tour; the main tour keeps its start after reopening.
+
+### Added
+- **Tours "Show whole" instead of ghost tracks** (IDEAS §72; Marc: "pops, then the next tour comes up as a complete loop, and then a track starts running" — and, in the grilling, "maybe ghosts are superfluous: a tour that is shown complete for as long as its bar is"). A group now has a display mode `modus: "animiert" | "ganz"`. A "ganz" group does not draw: the whole route is there from `vorlauf_s` for `ganz_s` seconds (`null` = until the end of the video, grows with it), with separate fade-in/-out (`blende: {ein, aus, ein_s, aus_s}`; none / fade / pop = width with easeOutBack like the overlay boxes / both). It never sits in the chain (row ≥ 1), does not lengthen the video (`rzSpuren.zeitplan` computes the length from animated groups only and clips ganz bars at the end), is not counted in stats boxes, is not a stage, has no moving dot and lies below the animated tours (layers `ganz-prev-*` inserted under `preview-ghost`). The main-track group cannot be "ganz" (hint instead). Switch it: ◼ per tour in the Tracks list (a tour sharing a group is split off first), right-click on the timeline tile, or the group window (double-click → "Display", with visible-from/for and both fades; transition and "in the row" fields are hidden for ganz). The tile shows `ist-ganz`, "◼ N s" and two white fade handles to drag. The archive button "As ghost track" is now "◼ As whole tour" and adds such tours. Checked in the real app (Teide pops at 0 s, Vilaflor at 1.5 s, Pico Viejo draws from 3 s) and in the rendered video (Teide invisible at 0.0 s, thin at 0.1 s, overshoot at 0.2–0.3 s).
+- **Opacity for every tour** (`stil.opacity`, main tour `animator.line_opacity`): slider in each tour's look panel and in "apply look to all"; applied to preview line/glow/highlight, chain stages (mtour), swarm lines (feature property `op`) and ganz tours.
+- **"Show the whole route faintly" for every tour** (§72 Q13/Q14): the former "ghost track (whole route faint)" now sits in each tour's look panel — on/off, opacity 5–80 % (default 30), colour (default: tour colour). Main tour: the existing `ghost_track_*` settings (their old controls are hidden); extra tours: `stil.blass_show / blass_opacity_pct / blass_color`, layers `ganz-prev-blass-*` at the very bottom.
+
+### Changed
+- **Ghost tracks are gone as a separate system; old projects are converted on open** (§72 Q1): after the tours are restored, every ghost with a file path becomes a tour "Show whole" over the whole video (hard, no fades), keeping colour, opacity, width and dashes; a ghost lying on a tour already in the project switches on that tour's "whole route faintly". Ghosts that cannot be loaded stay as background lines (the old section only shows up then). Not while rendering. One toast tells what happened.
+
+### Fixed
+- **A main tour dragged later in the timeline was back at 0 s after reopening** (found in the click test): when a project is opened the main track is not known yet (`currentGpx` empty), so `_gruppenAufbauen` dropped its saved group and `_gruppenSync` created a new one at 0 s. Members whose tour is not in the pool yet are now parked and put back at their old place as soon as the tour arrives.
+
 > **0.9.733** (28.09.2026, built locally): signs in the timeline, collections when importing, WYSIWYG for source line and ghost tracks, aligned keyframe dots.
 
 ### Fixed

@@ -366,6 +366,8 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.line_width")} <span class="label-val" id="anim-lw-v">3.5 px</span></label>
             <input type="range" id="anim-lw" min="1" max="10" step="0.5" value="3.5">
           </div>
+          <!-- §72 Q10 — Deckkraft der Haupt-Tour; bedient wird sie im Aussehen-Panel des Tracks -->
+          <div class="field" hidden><input type="range" id="anim-line-opacity" min="0.05" max="1" step="0.05" value="1"></div>
           <div class="field">
             <label class="field-label" for="anim-line-style">${t("animator.field.line_style")}</label>
             <select id="anim-line-style">
@@ -396,7 +398,10 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
             <input type="range" id="anim-glow-strength" min="0" max="10" step="0.5" value="0">
           </div>
-          <!-- v0.9.169 — Ghost-Track: ganze Route schwach vorgezeichnet -->
+          <!-- v0.9.169 — Ghost-Track: ganze Route schwach vorgezeichnet.
+               §72 (28.09.2026): bedient im Aussehen-Panel des Tracks („Ganze Strecke blass zeigen");
+               die Felder bleiben unsichtbar im DOM (bindSetting, applyGhost, Render lesen sie). -->
+          <div hidden id="anim-ghost-alt">
           <label class="checkbox-row" title="${t("animator.ghost.tooltip", "Zeigt die ganze Route schon schwach/transparent im Hintergrund; nur der animierte Teil wird voll gezeichnet.")}">
             <input type="checkbox" id="anim-ghost-enabled">
             <span>${t("animator.toggle.ghost_track", "Ghost-Track (ganze Route schwach)")}</span>
@@ -408,6 +413,7 @@ function mountAnimator(body, headerActions, opts) {
           <div class="field" id="anim-ghost-opacity-field" hidden>
             <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
             <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
+          </div>
           </div>
           
         </div>
@@ -565,7 +571,7 @@ function mountAnimator(body, headerActions, opts) {
            der Animation, jede mit eigenem Aussehen. Sein Anwendungsfall: der
            offizielle Wanderweg als durchgehende Linie, die geplanten Rundtouren
            dünn gestrichelt, darüber die gelaufene Tour animiert. -->
-      <section class="section section-sub" data-accordion-section="ghosts">
+      <section class="section section-sub" data-accordion-section="ghosts" hidden>
         <button class="section-collapse-header" type="button">
           <span>${t("ghosts.section", "👻 Ghost-Spuren")}</span>
           <span class="collapse-arrow">▸</span>
@@ -2615,6 +2621,9 @@ function mountAnimator(body, headerActions, opts) {
     bindSetting("route-ghost-dashed", _MODKEY, "ghost_gpx_dashed", { type: "bool",
       onChange: () => _applyGhostGpx() });
   }
+  bindSetting("anim-line-opacity", _MODKEY, "line_opacity", { type: "number",
+    onLoad: () => { try { _hauptDeckkraftAnwenden(); } catch (_) {} },   // ui-falle-ok: Karte kann beim Laden noch fehlen
+    onChange: () => _hauptDeckkraftAnwenden() });
   bindSetting("anim-lw", _MODKEY, "line_width", { type: "number",
     onLoad: v => updateLabel("anim-lw-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => updateLabel("anim-lw-v", parseFloat(v).toFixed(1), " px") });
@@ -3562,6 +3571,10 @@ function mountAnimator(body, headerActions, opts) {
     const box = document.getElementById("ghosts-list");
     if (!box) return;
     const spuren = ghostSpuren();
+    // §72 — Ghost-Spuren sind Touren mit „Ganz zeigen" geworden. Der Abschnitt zeigt sich nur noch,
+    // wenn alte Spuren übrig sind, die sich nicht als Tour laden ließen (Datei weg).
+    { const sek = box.closest('[data-accordion-section="ghosts"]'); if (sek) sek.hidden = !spuren.length;
+      const plus = document.getElementById("ghosts-add-archive"); if (plus) plus.hidden = true; }
     if (!spuren.length) {
       box.innerHTML = `<p class="hint" style="opacity:.7">${t("ghosts.empty", "Noch keine Ghost-Spur.")}</p>`;
       return;
@@ -4871,12 +4884,12 @@ function mountAnimator(body, headerActions, opts) {
       // Spiegelung core/animator.py.
       map.addLayer({ id: "preview-glow", type: "line", source: "preview-track",
         layout: trackLayout,
-        paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35, "line-blur": gs, ...(dash ? { "line-dasharray": dasharrayFor(lw * (2.0 + 0.21 * gs)) } : {}), ...zOffPaint } });
+        paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35 * _hauptDeckkraft(), "line-blur": gs, ...(dash ? { "line-dasharray": dasharrayFor(lw * (2.0 + 0.21 * gs)) } : {}), ...zOffPaint } });
     }
     if (!map.getLayer("preview-line")) {
       map.addLayer({ id: "preview-line", type: "line", source: "preview-track",
         layout: trackLayout,
-        paint: { "line-color": color, "line-width": lw, "line-opacity": 0.95, ...dashPaint, ...zOffPaint } });
+        paint: { "line-color": color, "line-width": lw, "line-opacity": 0.95 * _hauptDeckkraft(), ...dashPaint, ...zOffPaint } });
     }
     // v0.8.10 — Röhre (Nutzer-Wunsch): weißer Highlight-Streifen oben auf
     // der Linie, simuliert eine zylindrische Oberfläche → wirkt plastischer.
@@ -4885,7 +4898,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!map.getLayer("preview-highlight")) {
       map.addLayer({ id: "preview-highlight", type: "line", source: "preview-track",
         layout: { ...trackLayout, "visibility": "none" },
-        paint: { "line-color": "#ffffff", "line-width": lw * 0.35, "line-opacity": 0.55, "line-blur": 0.6, ...zOffPaint } });
+        paint: { "line-color": "#ffffff", "line-width": lw * 0.35, "line-opacity": 0.55 * _hauptDeckkraft(), "line-blur": 0.6, ...zOffPaint } });
     }
     // Schatten-Sichtbarkeit + Glow-Sichtbarkeit + Alpha-Background + Hide-Labels
     // nach jedem Rebuild neu setzen (Style-Wechsel resettet sonst alle Layer).
@@ -9885,17 +9898,15 @@ function mountAnimator(body, headerActions, opts) {
         window.__rzPendingGhosts = null;
         setTimeout(async () => {
           if (_animUnmounted) return;
+          // §72 Q7 — „Als ganze Tour" aus dem Archiv: Touren mit „Ganz zeigen" statt Ghost-Spuren.
+          // Erst den Restore der Touren abwarten, sonst überschreibt er die neuen gleich wieder.
           try {
-            const res = await rzWarten("ghosts_laden", () => api().ghosts_laden(pendingGhosts));
-            if (res && res.ok) {
-              await _ghostsHinzufuegen(res.ghosts);
-              applog("info", `[Animator] ${(res.ghosts || []).length} Ghost-Spur(en) aus dem Archiv`);
-              if ((res.fehler || []).length) {
-                toast(t("ghosts.partly", "{n} Datei(en) konnten nicht gelesen werden.")
-                  .replace("{n}", res.fehler.length), "warn", 6000);
-              }
-            }
-          } catch (e) { applog("error", `[Ghosts] aus Archiv: ${e}`); }
+            try { await _animLoadTours(); } catch (_) {}
+            if (_animUnmounted) return;
+            const r = await _ganzTourenAnlegen(pendingGhosts);
+            applog("info", `[Animator] aus dem Archiv als „Ganz zeigen": ${r.neu.length} neu, ${r.blass.length} blass, ${r.fehl.length} fehl`);
+            if (r.fehl.length) toast(t("ghosts.partly", "{n} Datei(en) konnten nicht gelesen werden.").replace("{n}", r.fehl.length), "warn", 6000);
+          } catch (e) { applog("error", `[ganz] aus Archiv: ${e}`); }
         }, 1200);
       }
 
@@ -10106,7 +10117,13 @@ function mountAnimator(body, headerActions, opts) {
         onTempoOeffnen: (i, e) => { try { _tempoEintragOeffnen(i, e); } catch (err) { applog("warn", "[tempo] " + err); } },
         // §60 (09.09.2026) — Gruppen-Zeilen: ziehen, Länge, öffnen, stapeln
         onGruppeZiehen: (id, vonS) => { const g = _gruppeMitId(id); if (!g) return; g.vorlauf_s = Math.max(0, +vonS || 0); g.fest = true; _gruppenNeu(); },
-        onGruppeLaenge: (id, sek) => { const g = _gruppeMitId(id); if (!g) return; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); },
+        onGruppeLaenge: (id, sek) => { const g = _gruppeMitId(id); if (!g) return;
+          _gruppeLaengeSetzen(g, +sek || 0);   // §72: bei „Ganz zeigen" die Sichtdauer
+          _gruppenNeu(); },
+        // 28.09.2026 §72 — Darstellung und Blenden einer Gruppe
+        onGruppeModus: (id, modus) => { try { _gruppeModusSetzen(id, modus); } catch (err) { applog("warn", "[ganz] " + err); } },
+        onGruppeBlende: (id, art, sek) => { const g = _gruppeMitId(id); if (!g || !_gruppeIstGanz(g)) return;
+          g.blende = Object.assign({}, g.blende || {}, { [art === "ein" ? "ein_s" : "aus_s"]: Math.max(0, +sek || 0) }); _gruppenNeu(); },
         onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
         // 24.09.2026 — Overlay-Spur (docs/OVERLAY-BOXEN.md §6)
         onOverlayNeu:      () => _ovSpurAktualisieren(),
@@ -13864,7 +13881,7 @@ function mountAnimator(body, headerActions, opts) {
     // Gesamtsumme"). Vorher zeigte die Gesamt-Einblendung die Zahlen der ERSTEN
     // Tour, während der Punkt längst durch die dritte lief.
     if (_extraTours.length && (_istSchwarm() || _reiseAktiv())) {
-      for (const tr of _extraTours) {
+      for (const tr of _statsTouren()) {   // §72: Kulisse zählt nicht
         const st = tr.stats;
         if (!st) continue;
         km += st.distance_km || 0;
@@ -13904,8 +13921,8 @@ function mountAnimator(body, headerActions, opts) {
       case "ele_low": return eleL != null ? Math.round(eleL) + " m" : "—";
       case "asc_done": return "↑ " + Math.round(ascM) + " m";
       case "desc_done": return "↓ " + Math.round(descM) + " m";
-      case "swarm_total": return (_extraTours.length + 1) + " · " + _ovFmtKm(km);
-      case "swarm_underway": return "0 / " + (_extraTours.length + 1);
+      case "swarm_total": return (_statsTouren().length + 1) + " · " + _ovFmtKm(km);
+      case "swarm_underway": return "0 / " + (_statsTouren().length + 1);
       // 26.09.2026 (Klicktest RE-04) — Etappenfelder im Ruhezustand = Endzustand
       // (letzte Etappe), wortgleich zu den Fällen in _ovUpdateLiveAt.
       case "stage_name": case "stage_no": case "stage_dist": case "stage_time": {
@@ -13991,7 +14008,7 @@ function mountAnimator(body, headerActions, opts) {
               const d = sr.cumDistM[iRef] || 0;
               const frac = totD > 0 ? Math.max(0, Math.min(1, d / totD)) : 1;
               let done = d, gesamt = totD, asc = 0, desc = 0, tzeit = 0;
-              for (const tr of _extraTours) {
+              for (const tr of _statsTouren()) {   // §72: Kulisse zählt nicht
                 if (!tr.coords || tr.coords.length < 2) continue;
                 const cum = _cumDistFuer(tr, tr.coords);
                 const L = cum[cum.length - 1] || 0;
@@ -14033,14 +14050,14 @@ function mountAnimator(body, headerActions, opts) {
             if (_animAblauf !== "schwarm" || !_extraTours.length) break;
             let m = (i < n - 1) ? 1 : 0;
             const frac2 = totD > 0 ? Math.max(0, Math.min(1, (sr.cumDistM[iRef] || 0) / totD)) : 1;
-            for (const tr of _extraTours) {
+            for (const tr of _statsTouren()) {
               if (!tr.coords || tr.coords.length < 2) continue;
               const k = _swIdxVerzoegert(tr.coords.length - 1, _swAchseFuer(tr),
                 _cumDistFuer(tr, tr.coords), _swStartAnteil(tr),
                 frac2, sr.cumDistM[iRef] || 0, totD);
               if (k < tr.coords.length - 2) m++;
             }
-            v = m + " / " + (_extraTours.length + 1);
+            v = m + " / " + (_statsTouren().length + 1);
             break;
           }
           case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i] + (_sw ? _sw.desc : 0)) + " m"; break;
@@ -16979,6 +16996,12 @@ function mountAnimator(body, headerActions, opts) {
   const _stilOffen = new Set();
   function _stilPanelBauen(ziel, tr) {
     const st = _stilVon(ziel === "haupt" ? "haupt" : tr);
+    // §72 Q11 — eine Tour in „Ganz zeigen" hat keinen Laufpunkt
+    const ganz = !!(tr && (() => { const gv = _gruppeVon(tr.gpx_path); return gv && _gruppeIstGanz(gv.g); })());
+    // §72 Q13/Q14 — „Ganze Strecke blass zeigen": Haupt-Tour über ihre Felder anim-ghost-*, jede weitere im eigenen Stil
+    const blass = ziel === "haupt"
+      ? { show: currentGhostEnabled(), pct: Math.round(currentGhostOpacity() * 100), color: currentGhostColor() }
+      : { show: !!(tr.stil || {}).blass_show, pct: Math.round(_blassDeckkraft(tr.stil || {}) * 100), color: (tr.stil || {}).blass_color || tr.line_color || "#35a7ff" };
     const opt = (v, k) => `<option value="${v}"${st.line_style === v ? " selected" : ""}>${t("animator.line_style." + k, k)}</option>`;
     const el = document.createElement("div");
     el.className = "anim-stil-panel";
@@ -16993,15 +17016,39 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-stil="shadow" min="0" max="10" step="0.5" value="${st.shadow}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.field.glow_strength", "Glow-Stärke")} <b data-v="glow">${st.glow}</b></label>
         <input type="range" data-stil="glow" min="0" max="10" step="0.5" value="${st.glow}"></div>
+      <div class="anim-stil-zeile"><label>${t("animator.stil.deckkraft", "Deckkraft")} <b data-v="opacity">${Math.round(_deckkraft(st) * 100)}</b> %</label>
+        <input type="range" data-stil="opacity" min="0.05" max="1" step="0.05" value="${_deckkraft(st)}"></div>
+      <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-blass="show"${blass.show ? " checked" : ""}> ${t("animator.blass.show", "Ganze Strecke blass zeigen")}</label></div>
+      <div class="anim-stil-zeile" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label>${t("animator.blass.opacity", "Deckkraft der blassen Strecke")} <b data-v="blass_opacity">${blass.pct}</b> %</label>
+        <input type="range" data-blass="opacity" min="5" max="80" step="5" value="${blass.pct}"></div>
+      <div class="anim-stil-zeile" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label>${t("animator.blass.color", "Farbe der blassen Strecke")}</label>
+        <input type="color" data-blass="color" value="${_animEscapeHtml(blass.color)}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.stil.reduce", "Punkte")} <b data-v="reduce_pct">${st.reduce_pct}</b> %</label>
         <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>
-      <div class="anim-stil-zeile ist-check"><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
-      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
+      <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
+      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
         <select data-stil="dot_style"><option value="dot"${st.dot_style !== "arrow" ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option></select></div>
-      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
+      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
         <input type="range" data-stil="dot_size" min="0.5" max="3" step="0.1" value="${st.dot_size}"></div>
-      <div class="anim-stil-zeile" data-nur-pfeil ${st.dot_show && st.dot_style === "arrow" ? "" : "hidden"}><label>${t("animator.dot.smooth", "Ruhe des Pfeils")} <b data-v="dot_smooth">${dotGlaettung()}</b> <span class="muted">(${t("animator.stil.alle_pfeile", "alle Pfeile")})</span></label>
+      <div class="anim-stil-zeile" data-nur-pfeil ${st.dot_show && !ganz && st.dot_style === "arrow" ? "" : "hidden"}><label>${t("animator.dot.smooth", "Ruhe des Pfeils")} <b data-v="dot_smooth">${dotGlaettung()}</b> <span class="muted">(${t("animator.stil.alle_pfeile", "alle Pfeile")})</span></label>
         <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
+    el.querySelectorAll("[data-blass]").forEach(inp => inp.addEventListener(inp.type === "range" ? "input" : "change", () => {
+      const art = inp.dataset.blass;
+      if (art === "show") el.querySelectorAll("[data-nur-blass]").forEach(z => { z.hidden = !inp.checked; });
+      if (art === "opacity") { const b = el.querySelector('[data-v="blass_opacity"]'); if (b) b.textContent = inp.value; }
+      if (ziel === "haupt") {
+        const id = { show: "anim-ghost-enabled", opacity: "anim-ghost-opacity", color: "anim-ghost-color" }[art];
+        const f = document.getElementById(id); if (!f) return;
+        if (art === "show") f.checked = inp.checked; else f.value = inp.value;
+        f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true }));
+        return;
+      }
+      const tr2 = _extraTours[ziel]; if (!tr2) return;
+      const patch = art === "show" ? { blass_show: inp.checked } : art === "opacity" ? { blass_opacity_pct: parseFloat(inp.value) } : { blass_color: inp.value };
+      tr2.stil = Object.assign({}, tr2.stil || {}, patch);
+      _animPersistTours();
+      try { _animDrawExtraToursPreview(); } catch (e) { applog("warn", "[blass] " + e); }
+    }));
     // „Ruhe des Pfeils" ist die Lesebreite der Richtung — eine Zahl für alle Pfeile.
     el.querySelectorAll("[data-global]").forEach(inp => inp.addEventListener("input", () => {
       const ziel = document.getElementById(inp.dataset.global); if (!ziel) return;
@@ -17010,11 +17057,11 @@ function mountAnimator(body, headerActions, opts) {
     }));
     el.querySelectorAll("[data-stil]").forEach(inp => {
       const k = inp.dataset.stil;
-      const zeig = () => { const b = el.querySelector(`[data-v="${k}"]`); if (b) b.textContent = inp.value; };
+      const zeig = () => { const b = el.querySelector(`[data-v="${k}"]`); if (b) b.textContent = k === "opacity" ? Math.round(parseFloat(inp.value) * 100) : inp.value; };
       const sicht = () => {
         const show = el.querySelector('[data-stil="dot_show"]').checked, pfeil = el.querySelector('[data-stil="dot_style"]').value === "arrow";
-        el.querySelectorAll("[data-nur-dot]").forEach(z => { z.hidden = !show; });
-        el.querySelectorAll("[data-nur-pfeil]").forEach(z => { z.hidden = !(show && pfeil); });
+        el.querySelectorAll("[data-nur-dot]").forEach(z => { z.hidden = !show || ganz; });
+        el.querySelectorAll("[data-nur-pfeil]").forEach(z => { z.hidden = !(show && pfeil) || ganz; });
       };
       const anwenden = () => {
         const wert = (k === "line_style" || k === "dot_style") ? inp.value : (k === "dot_show") ? inp.checked : parseFloat(inp.value);
@@ -17045,6 +17092,7 @@ function mountAnimator(body, headerActions, opts) {
     const felder = [["width", t("animator.field.line_width", "Track-Dicke"), true], ["line_style", t("animator.stil.stil_abstand", "Stil + Abstand"), true],
                     ["shadow", t("animator.field.shadow_strength", "Schatten"), true], ["glow", t("animator.field.glow_strength", "Glow"), true],
                     ["reduce_pct", t("animator.stil.reduce", "Punkte (%)"), true], ["dot", t("animator.dot.show", "Laufpunkt"), true],
+                    ["opacity", t("animator.stil.deckkraft", "Deckkraft"), true],
                     ["color", t("animator.tours.color", "Farbe"), false]];
     const m = openModal({
       title: "⇉ " + t("animator.stil.alle", "Aussehen auf alle übernehmen …"),
@@ -17071,6 +17119,7 @@ function mountAnimator(body, headerActions, opts) {
       if (gew.has("glow")) patch.glow = src.glow;
       if (gew.has("reduce_pct")) patch.reduce_pct = src.reduce_pct;
       if (gew.has("dot")) { patch.dot_show = src.dot_show; patch.dot_style = src.dot_style; patch.dot_size = src.dot_size; }
+      if (gew.has("opacity")) patch.opacity = src.opacity;
       if (q !== "haupt") { _stilSetzenHaupt(patch); if (gew.has("color") && srcFarbe) { const f = document.getElementById("anim-color"); if (f) { f.value = srcFarbe; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); } } }
       _extraTours.forEach((tr, i) => {
         if (String(i) === q) return;
@@ -17280,6 +17329,7 @@ function mountAnimator(body, headerActions, opts) {
     const _reise = _gruppen.length > 1;
     const _gruppeFeldWert = (gpx) => {
       const gv = _gruppeVon(gpx);
+      if (gv && _gruppeIstGanz(gv.g)) return gv.g.ganz_s == null ? "" : gv.g.ganz_s;   // §72: Sichtdauer, leer = bis zum Ende
       if (!gv || Math.abs((+gv.g.faktor || 1) - 1) < 1e-9) return "";
       const L = _gruppeLaenge(gv.g);
       return L > 0 ? (Math.round(L * 10) / 10) : "";
@@ -17347,9 +17397,9 @@ function mountAnimator(body, headerActions, opts) {
         inp.addEventListener("blur", () => schliessen(true));
       });
     };
-    const _dauerFeld = (wert, titel) =>
+    const _dauerFeld = (wert, titel, platz) =>
       `<input type="number" class="anim-etappe-dauer" min="0" step="0.5" value="${wert || ""}"
-              placeholder="auto" title="${_animEscapeHtml(titel)}"><span class="anim-etappe-einheit">s</span>`;
+              placeholder="${_animEscapeHtml(platz || "auto")}" title="${_animEscapeHtml(titel)}"><span class="anim-etappe-einheit">s</span>`;
     if (_reise && _extraTours.length > 1) {
       const leiste = document.createElement("div");
       leiste.className = "anim-sort-leiste";
@@ -17416,7 +17466,7 @@ function mountAnimator(body, headerActions, opts) {
       const gv = _gruppeVon(tr.gpx_path);
       const takt = !!(gv && gv.j === 0);
       const gr = gv ? gv.g : null;
-      if (_reise && takt && gv.gi > 0) {
+      if (_reise && takt && gv.gi > 0 && !_gruppeIstGanz(gr)) {   // §72: eine ganz gezeigte Tour hat keinen Übergang
         const ur = document.createElement("div");
         ur.className = "anim-ueber-row";
         const stil = gr.ueber_stil || "kino";
@@ -17454,10 +17504,13 @@ function mountAnimator(body, headerActions, opts) {
         <span class="anim-tour-name${_reise ? " ist-umbenennbar" : ""}"${_reise ? ` data-etappe="${i + 2}"` : ""}
               title="${_animEscapeHtml(_reise ? t("animator.tours.umbenennen", "Etappe umbenennen") : tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
         ${_reise ? "<span class=\"anim-etappe-zeile\">" : ""}
-        ${_reise && takt ? _dauerFeld(_gruppeFeldWert(tr.gpx_path), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
+        ${_reise && takt ? (gr && _gruppeIstGanz(gr)
+            ? _dauerFeld(_gruppeFeldWert(tr.gpx_path), t("animator.tours.ganz_dauer_hint", "Wie lange die ganze Runde zu sehen ist. Leer = bis zum Videoende."), "∞")
+            : _dauerFeld(_gruppeFeldWert(tr.gpx_path), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))) : ""}
         ${(gv && !takt && gr.mitglieder.length > 1) ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+gr.mitglieder[gv.j].vorlauf_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
           <button type="button" class="anim-tour-btn anim-stil-toggle" data-act="stil" title="${t("animator.stil.toggle", "Aussehen dieses Tracks")}">${_stilOffen.has(tr.gpx_path) ? "▾" : "▸"}</button>
+          ${(gr && _gruppeHatHaupt(gr) && !(gr.mitglieder.length > 1)) ? "" : `<button type="button" class="anim-tour-btn anim-ganz-toggle${gr && _gruppeIstGanz(gr) ? " ist-an" : ""}" data-act="ganz" aria-pressed="${gr && _gruppeIstGanz(gr) ? "true" : "false"}" title="${_animEscapeHtml(gr && _gruppeIstGanz(gr) ? t("animator.tours.ganz_an", "Ganz zeigen — die ganze Runde ist auf einmal da. Klick: wieder animiert") : t("animator.tours.ganz_aus", "Animiert — Klick: ganz zeigen (ganze Runde auf einmal, so lange wie ihr Balken)"))}">◼</button>`}
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
           <button type="button" class="anim-tour-btn" data-act="down" ${i === _extraTours.length - 1 ? "disabled" : ""} title="${t("animator.tours.down", "nach unten")}">↓</button>
           <button type="button" class="anim-tour-btn anim-tour-del" data-act="del" title="${t("animator.tours.remove", "entfernen")}">✕</button>
@@ -17489,6 +17542,7 @@ function mountAnimator(body, headerActions, opts) {
           if (map && map.getSource("swarm-prev-lines")) _animDrawExtraToursPreview();
         } catch (_) {}
       });
+      row.querySelector('[data-act="ganz"]')?.addEventListener("click", () => _tourGanzUmschalten(tr.gpx_path));
       row.querySelector('[data-act="stil"]').addEventListener("click", () => {
         if (_stilOffen.has(tr.gpx_path)) _stilOffen.delete(tr.gpx_path); else _stilOffen.add(tr.gpx_path);
         _animRenderToursList();
@@ -17523,6 +17577,11 @@ function mountAnimator(body, headerActions, opts) {
     try { if (_sw3dSrc) map.off("sourcedata", _sw3dSrc); if (_sw3dIdle) map.off("idle", _sw3dIdle); } catch (_) {}
     _sw3d = null; _sw3dSrc = null; _sw3dIdle = null; window.__rzSw3dPrev = null;
     _swPrev = [];
+    try {   // 28.09.2026 §72 — „Ganz zeigen"-Ebenen
+      for (const l of (map.getStyle()?.layers || [])) if (l.id && l.id.startsWith("ganz-prev-")) { try { map.removeLayer(l.id); } catch (_) {} }
+      for (const sid of Object.keys(map.getStyle()?.sources || {})) if (sid.startsWith("ganz-prev-")) { try { map.removeSource(sid); } catch (_) {} }
+    } catch (_) {}
+    _ganzPrev = [];
     // ALLE mtour-Layer entfernen — per Präfix über den Style, nicht bis zu
     // einer festen Zahl. Der alte 64er-Deckel ließ bei 137 Reise-Etappen die
     // Layer 64–136 für immer stehen: nach dem Wechsel auf Schwarm lagen sie
@@ -17573,6 +17632,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   const _swHauptCum = {};   // Cache-Träger für den Haupt-Track
   let _swPrev = [];          // [{coords (gedünnt), cum, color}] — nur Schwarm-Modus
+  let _ganzPrev = [];        // 28.09.2026 §72 — Touren „Ganz zeigen": [{g, lage, ebenen, gpx_path, zuletzt}]
   // 06.09.2026 — Schwarm-Linien über dem Gelände (rz-line3d, wie der Render seit v0.9.658):
   // drapierte Linien am Gelände flimmern (Kanten-Verdeckung), die Vorschau IST jetzt das
   // Video (core/szene.py), also muss sie selbst flimmerfrei sein. null = drapiert.
@@ -17736,6 +17796,7 @@ function mountAnimator(body, headerActions, opts) {
     // zusammengelegt), fehlte sonst die erste Tour und der Haupt-Track lag doppelt.
     const _hauptK = _pfadNFC(currentGpx || "");
     _gruppen.forEach((g, gi) => {
+      if (_gruppeIstGanz(g) && !_gruppeHatHaupt(g)) return;   // §72 — eigene Ebenen, s. _ganzPrevBauen
       const inKette = kette.includes(g);
       const lage = plan ? plan.lage(g.id) : null;
       const _hauptHier = !_reiseAktiv() && inKette && !!_hauptK && g.mitglieder.some(m => _pfadNFC(m.gpx_path) === _hauptK);
@@ -17791,22 +17852,23 @@ function mountAnimator(body, headerActions, opts) {
         data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "swarm-prev-shadow", type: "line", source: "swarm-prev-lines", filter: [">", ["get", "shadow"], 0], layout: lay,
         paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": ["*", ["get", "width"], 2.2], "line-blur": ["get", "shadow"],
+                 "line-opacity": ["coalesce", ["get", "op"], 1],
                  "line-translate": [sMittel * Math.cos(sr), sMittel * Math.sin(sr)] } });
       map.addLayer({ id: "swarm-prev-glow", type: "line", source: "swarm-prev-lines", filter: [">", ["get", "glow"], 0], layout: lay,
         paint: { "line-color": ["get", "color"], "line-width": ["*", ["get", "width"], ["+", 2.0, ["*", 0.21, ["get", "glow"]]]],
-                 "line-blur": ["get", "glow"], "line-opacity": 0.8 } });
+                 "line-blur": ["get", "glow"], "line-opacity": ["*", 0.8, ["coalesce", ["get", "op"], 1]] } });
       const muster = new Map();
       _swPrev.forEach(t => { const d = _dashFuerStil(t.stil, t.stil.width); t.dk = d ? t.stil.line_style + "|" + (+t.stil.spacing || 1) : "solid"; if (!muster.has(t.dk)) muster.set(t.dk, d); });
       let n = 0;
       for (const [dk, d] of muster) {
-        const paint = { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "width"], Math.max(1, lw * 0.8)], "line-opacity": 0.9 };
+        const paint = { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "width"], Math.max(1, lw * 0.8)], "line-opacity": ["*", 0.9, ["coalesce", ["get", "op"], 1]] };
         if (d) paint["line-dasharray"] = d;
         map.addLayer({ id: "swarm-prev-lines" + (n ? "-" + n : ""), type: "line", source: "swarm-prev-lines",
           filter: ["==", ["get", "dk"], dk], layout: lay, paint });
         n++;
       }
       map.addLayer({ id: "swarm-prev-hl", type: "line", source: "swarm-prev-lines", filter: ["==", ["get", "tube"], 1], layout: lay,
-        paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": ["*", ["get", "width"], 0.35], "line-opacity": 0.9 } });
+        paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": ["*", ["get", "width"], 0.35], "line-opacity": ["*", 0.9, ["coalesce", ["get", "op"], 1]] } });
       map.addSource("swarm-prev-dots", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
       // Pfeil je Tour in Tour-Farbe — wortgleich zum Render (rz-sw-arrow-i); immer
@@ -17874,7 +17936,138 @@ function mountAnimator(body, headerActions, opts) {
     return tour.coords[Math.max(0, Math.min(tour.coords.length - 1, k))];
   }
 
+  // ── Touren „Ganz zeigen" (28.09.2026, IDEAS §72) ────────────────────────────────────────────
+  // Marc: „eine Tour, die komplett eingeblendet ist und so lange angezeigt wird, wie ihr Balken ist."
+  // Je Mitglied einer „Ganz zeigen"-Gruppe eine eigene Quelle mit der GANZEN Runde, im Aussehen der
+  // Tour (Farbe, Breite, Linienart, Schatten, Glow, Deckkraft), ohne Laufpunkt, UNTER allen
+  // animierten Linien (Q9). Sichtbarkeit, Ein-/Ausblendung und Aufpoppen rechnet _ganzAdvance je Bild
+  // aus der Animationszeit — derselbe Aufruf wie für den Schwarm, also in Vorschau, Probelauf und
+  // Szene-Render gleich (WYSIWYG).
+  function _ganzUnterId() {
+    for (const id of ["preview-ghost", "preview-shadow", "preview-glow", "preview-line"]) if (map.getLayer(id)) return id;
+    return undefined;
+  }
+  function _ganzPrevBauen() {
+    _ganzPrev = [];
+    if (!map) return;
+    const plan = _gruppenPlan || _gruppenPlanRechnen();
+    let n = 0;
+    const unter = _ganzUnterId();
+    const lay = { "line-cap": "round", "line-join": "round" };
+    // §72 Q13/Q14 — „Ganze Strecke blass zeigen" je animierter Zusatz-Tour: die ganze Runde schwach
+    // im Hintergrund, das ganze Video lang, ganz unten (zuerst eingefügt = unter allem anderen).
+    // Die Haupt-Tour hat dafür ihre eigene Ebene (preview-ghost, Felder anim-ghost-*).
+    let nb = 0;
+    for (const g of _gruppen) {
+      if (_gruppeIstGanz(g)) continue;
+      for (const m of g.mitglieder) {
+        const tour = _tourVon(m.gpx_path);
+        if (!tour || tour.haupt || !tour.coords || tour.coords.length < 2) continue;
+        const st = (tour.tr || tour).stil || {};
+        if (!st.blass_show) continue;
+        const bst = _stilVon(tour);
+        const id = "ganz-prev-blass-" + (nb++);
+        try {
+          map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: tour.coords } } });
+          const d = _dashFuerStil(bst, bst.width);
+          map.addLayer({ id, type: "line", source: id, layout: lay,
+            paint: { "line-color": st.blass_color || tour.line_color || "#35a7ff", "line-width": Math.max(0.5, +bst.width || 3.5),
+                     "line-opacity": _blassDeckkraft(st), ...(d ? { "line-dasharray": d } : {}) } }, unter);
+        } catch (e) { applog && applog("warn", "[blass] " + id + ": " + e); }
+      }
+    }
+    for (const g of _gruppen) {
+      if (!_gruppeIstGanz(g) || _gruppeHatHaupt(g)) continue;
+      const lage = plan ? plan.lage(g.id) : null;
+      for (const m of g.mitglieder) {
+        const tour = _tourVon(m.gpx_path);
+        if (!tour || !tour.coords || tour.coords.length < 2) continue;
+        const st = _stilVon(tour);
+        const farbe = tour.line_color || "#35a7ff";
+        const op = _deckkraft(st);
+        const w = Math.max(0.5, +st.width || 3.5);
+        const id = "ganz-prev-" + (n++);
+        const dash = (ww) => { const d = _dashFuerStil(st, ww); return d ? { "line-dasharray": d } : {}; };
+        const ebenen = [];
+        try {
+          map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: tour.coords } } });
+          if (+st.shadow > 0) {
+            const sr = currentShadowDir() * Math.PI / 180;
+            map.addLayer({ id: id + "-shadow", type: "line", source: id, layout: lay,
+              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": w * 2.2, "line-blur": +st.shadow, "line-opacity": op,
+                       "line-translate": [st.shadow * Math.cos(sr), st.shadow * Math.sin(sr)], ...dash(w * 2.2) } }, unter);
+            ebenen.push({ id: id + "-shadow", op, w: w * 2.2 });
+          }
+          if (+st.glow > 0) {
+            const gw = w * (2.0 + 0.21 * st.glow);
+            map.addLayer({ id: id + "-glow", type: "line", source: id, layout: lay,
+              paint: { "line-color": farbe, "line-width": gw, "line-blur": +st.glow, "line-opacity": 0.8 * op, ...dash(gw) } }, unter);
+            ebenen.push({ id: id + "-glow", op: 0.8 * op, w: gw });
+          }
+          map.addLayer({ id: id + "-line", type: "line", source: id, layout: lay,
+            paint: { "line-color": farbe, "line-width": w, "line-opacity": 0.9 * op, ...dash(w) } }, unter);
+          ebenen.push({ id: id + "-line", op: 0.9 * op, w });
+          if (st.line_style === "tube") {
+            map.addLayer({ id: id + "-hl", type: "line", source: id, layout: lay,
+              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": w * 0.35, "line-opacity": 0.9 * op } }, unter);
+            ebenen.push({ id: id + "-hl", op: 0.9 * op, w: w * 0.35 });
+          }
+        } catch (e) { applog && applog("warn", "[ganz] " + id + ": " + e); }
+        _ganzPrev.push({ g, lage, ebenen, gpx_path: tour.gpx_path, zuletzt: null });
+      }
+    }
+    if (_ganzPrev.length) applog && applog("info", `[ganz] ${_ganzPrev.length} Tour(en) „Ganz zeigen": ` + _ganzPrev.map(x => `${x.g.id} ${x.lage ? x.lage.von_s.toFixed(1) + "–" + (x.lage.bisEnde ? "Ende" : x.lage.bis_s.toFixed(1)) : "?"}`).join(", "));
+  }
+  /** Ein-/Ausblenden, Aufpoppen: Deckkraft-Faktor und Breiten-Faktor bei Animationszeit tA. */
+  function _ganzZustand(g, lage, tA, dauer) {
+    if (!lage) return { an: true, op: 1, w: 1 };
+    const EPS = 1e-6;
+    const vonStart = lage.von_s <= EPS, bisEnde = lage.bisEnde || lage.bis_s >= dauer - 1e-3;
+    if (!vonStart && tA < lage.von_s - EPS) return { an: false, op: 0, w: 1 };
+    if (!bisEnde && tA > lage.bis_s + EPS) return { an: false, op: 0, w: 1 };
+    const bl = g.blende || {};
+    const ein = bl.ein || "none", aus = bl.aus || "none";
+    let a = (ein !== "none") ? Math.max(0, +bl.ein_s || 0) : 0;
+    let b = (aus !== "none" && !bisEnde) ? Math.max(0, +bl.aus_s || 0) : 0;
+    const len = Math.max(0, lage.bis_s - lage.von_s);
+    if (a + b > len && a + b > 0) { const f = len / (a + b); a *= f; b *= f; }
+    const pIn = a > 0 ? Math.max(0, Math.min(1, (tA - lage.von_s) / a)) : 1;
+    const pOut = b > 0 ? Math.max(0, Math.min(1, (lage.bis_s - tA) / b)) : 1;
+    const back = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };   // wie die Overlay-Boxen: leicht über das Ziel
+    let op = 1, w = 1;
+    if (ein === "fade" || ein === "both") op *= pIn;
+    if (aus === "fade" || aus === "both") op *= pOut;
+    if (ein === "pop" || ein === "both") w *= Math.max(0, back(pIn));
+    if (aus === "pop" || aus === "both") w *= Math.max(0, back(pOut));
+    return { an: op > 0.001 && w > 0.001, op, w };
+  }
+  function _ganzAdvance(coordFrac, voll) {
+    if (!_ganzPrev.length || !map) return;
+    const plan = _gruppenPlan;
+    const dauer = plan ? plan.dauer_s : animSekunden();
+    const tA = _swZeitBei(coordFrac);
+    for (const e of _ganzPrev) {
+      const z = (voll || _isStaticFrame) ? { an: true, op: 1, w: 1 } : _ganzZustand(e.g, plan ? plan.lage(e.g.id) : e.lage, tA, dauer);
+      const key = z.an ? (Math.round(z.op * 1000) + "|" + Math.round(z.w * 1000)) : "aus";
+      if (key === e.zuletzt) continue;
+      e.zuletzt = key;
+      for (const eb of e.ebenen) {
+        try {
+          if (!map.getLayer(eb.id)) continue;
+          map.setLayoutProperty(eb.id, "visibility", z.an ? "visible" : "none");
+          if (z.an) {
+            map.setPaintProperty(eb.id, "line-opacity", Math.max(0, Math.min(1, eb.op * z.op)));
+            map.setPaintProperty(eb.id, "line-width", Math.max(0.01, eb.w * z.w));
+          }
+        } catch (_) {}
+      }
+    }
+  }
+  window.__rzGanz = { liste: () => _ganzPrev.map(e => ({ gid: e.g.id, gpx: e.gpx_path, zuletzt: e.zuletzt, ebenen: e.ebenen.map(x => x.id) })),
+                      zustand: (gid, tA) => { const g = _gruppeMitId(gid); return g ? _ganzZustand(g, _gruppenPlan ? _gruppenPlan.lage(gid) : null, tA, _gruppenPlan ? _gruppenPlan.dauer_s : 0) : null; } };   // Prüfstand
+
   function _animSchwarmPreviewAdvance(coordFrac, vollesBild) {
+    try { _ganzAdvance(coordFrac, vollesBild); } catch (e) { applog && applog("warn", "[ganz] " + e); }
     if (!_swPrev.length || !map) return;
     if (!map.getSource("swarm-prev-lines")) return;
     if (!currentCoords || currentCoords.length < 2) return;
@@ -17894,7 +18087,7 @@ function mountAnimator(body, headerActions, opts) {
       t.__k = kP;
       const st = t.stil || {}, dot = t.dot || { show: true, style: "dot", size: 1 };
       linien.push({ type: "Feature", properties: { color: t.color, width: t.width, shadow: +st.shadow || 0, glow: +st.glow || 0,
-                                                   dk: t.dk || "solid", tube: st.line_style === "tube" ? 1 : 0 },
+                                                   dk: t.dk || "solid", tube: st.line_style === "tube" ? 1 : 0, op: _deckkraft(st) },
         geometry: { type: "LineString",
           coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
       punkte.push({ type: "Feature",
@@ -18016,7 +18209,19 @@ function mountAnimator(body, headerActions, opts) {
   // im Projekt (extra_tours[i].stil); fehlt ein Feld (alte Projekte), gilt Track 1.
   // 09.09.2026 (Marc: „warum ist das global? das könnte man doch auch auf
   // Trackebene ziehen") — der Laufpunkt (zeigen, Form, Größe) gehört auch dazu.
-  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "reduce_pct", "dot_show", "dot_style", "dot_size"];
+  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "reduce_pct", "dot_show", "dot_style", "dot_size", "opacity"];
+  /** §72 Q10 — Deckkraft eines Stils (0.05 … 1), fehlt sie: 1. */
+  function _deckkraft(st) { const o = st ? +st.opacity : NaN; return isFinite(o) ? Math.max(0.05, Math.min(1, o)) : 1; }
+  /** §72 Q14 — Deckkraft der blassen ganzen Strecke (Prozent 5 … 80 wie bei der Haupt-Tour, Standard 30). */
+  function _blassDeckkraft(st) { const p = st ? +st.blass_opacity_pct : NaN; return (isFinite(p) ? Math.max(5, Math.min(80, p)) : 30) / 100; }
+  function _hauptDeckkraft() { const el = document.getElementById("anim-line-opacity"); const o = el ? parseFloat(el.value) : NaN; return isFinite(o) ? Math.max(0.05, Math.min(1, o)) : 1; }
+  /** Deckkraft der Haupt-Tour auf die bestehenden Ebenen legen (ohne Neuaufbau). */
+  function _hauptDeckkraftAnwenden() {
+    if (!map) return;
+    const o = _hauptDeckkraft();
+    for (const [id, basis] of [["preview-line", 0.95], ["preview-glow", 0.35], ["preview-highlight", 0.55]])
+      if (map.getLayer(id)) map.setPaintProperty(id, "line-opacity", basis * o);
+  }
   // Der Punkte-Regler von Track 1 (#anim-pointcount) zählt in PUNKTEN (10 … n),
   // das Panel in Prozent — hier wird umgerechnet.
   function _hauptPunkteProzent() {
@@ -18030,7 +18235,7 @@ function mountAnimator(body, headerActions, opts) {
     return { width: v("anim-lw", 3.5), line_style: document.getElementById("anim-line-style")?.value || "solid",
              spacing: v("anim-line-spacing", 1), shadow: v("anim-shadow-strength", 0), glow: v("anim-glow-strength", 0),
              reduce_pct: _hauptPunkteProzent(),
-             dot_show: dotZeigen(), dot_style: dotStil(), dot_size: dotGroesse() };
+             dot_show: dotZeigen(), dot_style: dotStil(), dot_size: dotGroesse(), opacity: _hauptDeckkraft() };
   }
   function _stilSetzenHaupt(patch) {
     const setz = (id, wert) => { const el = document.getElementById(id); if (!el || wert == null) return;
@@ -18047,6 +18252,7 @@ function mountAnimator(body, headerActions, opts) {
     if (patch.dot_show != null) { const cb = document.getElementById("anim-dot-show"); if (cb) { cb.checked = !!patch.dot_show; cb.dispatchEvent(new Event("change", { bubbles: true })); } }
     if (patch.dot_style != null) setz("anim-dot-style", patch.dot_style);
     if (patch.dot_size != null) setz("anim-dot-size", patch.dot_size);
+    if (patch.opacity != null) setz("anim-line-opacity", patch.opacity);
   }
   /** Der wirksame Stil einer Tour: Pool-Eintrag, Zusatz-Tour oder "haupt". */
   function _stilVon(x) {
@@ -18118,15 +18324,39 @@ function mountAnimator(body, headerActions, opts) {
    *  Punktzahl, wie früher im Render (`_reise_segmente`). */
   function _gruppenRohS() {
     const wunsch = _gruppenWunsch();
-    const mass = _gruppen.map(g => _gruppenMass(_tourVon((g.mitglieder[0] || {}).gpx_path)));
+    // §72: „Ganz zeigen"-Gruppen bekommen kein Zeitbudget (sie zeichnen nicht, ihre Länge ist ganz_s).
+    const mass = _gruppen.map(g => _gruppeIstGanz(g) ? 0 : _gruppenMass(_tourVon((g.mitglieder[0] || {}).gpx_path)));
     const summe = mass.reduce((a, b) => a + b, 0) || 1;
+    const nAnim = mass.filter(m => m > 0).length;
     const raus = {};
-    _gruppen.forEach((g, i) => { raus[g.id] = _gruppen.length === 1 ? wunsch : wunsch * mass[i] / summe; });
+    _gruppen.forEach((g, i) => { raus[g.id] = nAnim <= 1 ? (mass[i] > 0 || !nAnim ? wunsch : 0) : wunsch * mass[i] / summe; });
     return raus;
+  }
+  /** 28.09.2026 (IDEAS §72) — Darstellung einer Gruppe: „animiert" (zeichnet, Standard) oder „ganz"
+   *  (die ganze Runde ist `ganz_s` Sekunden lang da, leer = bis zum Videoende; Ein-/Ausblendung wie
+   *  bei den Overlays: none | fade | pop | both, je eigene Dauer). Normalisiert, auch zum Speichern. */
+  const _GANZ_BLENDEN = ["none", "fade", "pop", "both"];
+  function _gruppeGanzFelder(g) {
+    const bl = (g && g.blende && typeof g.blende === "object") ? g.blende : {};
+    const art = (x, d) => (_GANZ_BLENDEN.includes(x) ? x : d);
+    const sek = (x, d) => { const v = parseFloat(x); return isFinite(v) ? Math.max(0, Math.min(30, Math.round(v * 100) / 100)) : d; };
+    const ganz = !!g && g.modus === "ganz";
+    return { modus: ganz ? "ganz" : "animiert",
+             ganz_s: (g && g.ganz_s != null && +g.ganz_s > 0) ? Math.round(+g.ganz_s * 1000) / 1000 : null,
+             blende: { ein: art(bl.ein, "fade"), aus: art(bl.aus, "fade"), ein_s: sek(bl.ein_s, 0.6), aus_s: sek(bl.aus_s, 0.6) } };
+  }
+  function _gruppeIstGanz(g) { return !!g && g.modus === "ganz"; }
+  /** §72 Q4 — eine Tour in einer „Ganz zeigen"-Gruppe ist Kulisse: sie zählt in keiner Stats-Box. */
+  function _tourIstKulisse(tr) { const gv = tr && tr.gpx_path ? _gruppeVon(tr.gpx_path) : null; return !!(gv && _gruppeIstGanz(gv.g) && !_gruppeHatHaupt(gv.g)); }
+  function _statsTouren() { return _extraTours.filter(tr => !_tourIstKulisse(tr)); }
+  /** Enthält die Gruppe den Haupt-Track? Den zeichnet die Hauptlinie — er kann (noch) nicht „ganz". */
+  function _gruppeHatHaupt(g) {
+    const hk = _pfadNFC(currentGpx || "");
+    return !!g && !!hk && g.mitglieder.some(m => _pfadNFC(m.gpx_path) === hk);
   }
   function _gruppeNeu(id, gpx, vorlauf) {
     return { id, name: "", faktor: 1.0, vorlauf_s: vorlauf || 0, ueber_s: null, ueber_stil: "kino",
-             leit_gpx: "", zu: true, fest: false, eintraege: [], keyframes: [],
+             leit_gpx: "", zu: true, fest: false, eintraege: [], keyframes: [], ..._gruppeGanzFelder(null),
              mitglieder: [{ gpx_path: gpx, vorlauf_s: 0, sichtbar_vor_inhalt: false }] };
   }
   function _gruppenIdFrei() {
@@ -18155,20 +18385,32 @@ function mountAnimator(body, headerActions, opts) {
     const pool = _tourPool();
     const da = new Set(pool.map(t => _pfadNFC(t.gpx_path)));
     let raus = [];
+    _gruppenWartend = new Map();
     if (Array.isArray(gespeichert) && gespeichert.length) {
-      raus = gespeichert.map((g, i) => ({
+      // 28.09.2026 — Mitglieder, deren Tour noch nicht im Pool ist, NICHT wegwerfen, sondern parken:
+      // beim Öffnen steht der Haupt-Track oft noch nicht fest (currentGpx leer), seine Gruppe fiel dann
+      // raus und `_gruppenSync` legte sie mit Start 0 neu an — ein von Hand auf 3 s gelegter Haupt-Track
+      // stand nach jedem Öffnen wieder bei 0 (§72-Klicktest). Kommt die Tour dazu, holt `_gruppenSync`
+      // sie an ihren alten Platz zurück.
+      const alle = gespeichert.map((g, i) => ({
         id: String(g.id || ("g" + (i + 1))), name: String(g.name || ""),
         faktor: (+g.faktor > 0) ? +g.faktor : 1.0, vorlauf_s: Math.max(0, +g.vorlauf_s || 0),
         ueber_s: (g.ueber_s == null || g.ueber_s === "") ? null : Math.max(0, +g.ueber_s || 0),
         ueber_stil: g.ueber_stil || "kino", leit_gpx: String(g.leit_gpx || ""),
         zu: g.zu !== false, fest: g.fest === true, zeile: Math.max(0, Math.trunc(+g.zeile || 0)),
+        ..._gruppeGanzFelder(g),   // 28.09.2026 §72
         eintraege: Array.isArray(g.eintraege) ? g.eintraege.slice() : [],
         keyframes: Array.isArray(g.keyframes) ? g.keyframes.slice() : [],
         mitglieder: (Array.isArray(g.mitglieder) ? g.mitglieder : [])
-          .filter(m => m && m.gpx_path && da.has(_pfadNFC(m.gpx_path)))
+          .filter(m => m && m.gpx_path)
           .map(m => ({ gpx_path: m.gpx_path, vorlauf_s: Math.max(0, +m.vorlauf_s || 0),
                        sichtbar_vor_inhalt: m.sichtbar_vor_inhalt === true })),
-      })).filter(g => g.mitglieder.length);
+      }));
+      alle.forEach((g, gi) => {
+        g.mitglieder.forEach((mm, j) => { if (!da.has(_pfadNFC(mm.gpx_path))) _gruppenWartend.set(_pfadNFC(mm.gpx_path), { g, gi, j, m: mm }); });
+        g.mitglieder = g.mitglieder.filter(mm => da.has(_pfadNFC(mm.gpx_path)));
+      });
+      raus = alle.filter(g => g.mitglieder.length);
     } else {
       const roh = {}, groesse = {};
       const wunsch = _gruppenWunsch();
@@ -18185,6 +18427,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** Gruppen mit dem Pool abgleichen: verschwundene Touren raus, neue nach
    *  der Anordnung dazu, leere Gruppen weg, Kennungen eindeutig. */
+  let _gruppenWartend = new Map();   // Pfad → geparktes Mitglied samt Gruppe (siehe _gruppenAufbauen)
   function _gruppenSync() {
     const pool = _tourPool();
     const da = new Set(pool.map(t => _pfadNFC(t.gpx_path)));
@@ -18195,6 +18438,14 @@ function mountAnimator(body, headerActions, opts) {
     for (const t of pool) {
       if (drin.has(_pfadNFC(t.gpx_path))) continue;
       drin.add(_pfadNFC(t.gpx_path));
+      // Geparkt beim Aufbau (Tour kam erst später in den Pool)? → an den alten Platz zurück.
+      const wart = _gruppenWartend.get(_pfadNFC(t.gpx_path));
+      if (wart) {
+        _gruppenWartend.delete(_pfadNFC(t.gpx_path));
+        if (_gruppen.includes(wart.g)) wart.g.mitglieder.splice(Math.min(wart.j, wart.g.mitglieder.length), 0, wart.m);
+        else { wart.g.mitglieder = [wart.m]; _gruppen.splice(Math.min(wart.gi, _gruppen.length), 0, wart.g); }
+        continue;
+      }
       // 25.09.2026 (Klicktest RE-07) — der HAUPT-Track kommt nach vorn, wie in
       // rzSpuren.ausProjekt. Die Tour-Map baute die Gruppen, bevor currentGpx stand
       // (nur die Zusatz-Touren, Haifischflosse zuerst); der Haupt-Track landete danach
@@ -18242,7 +18493,7 @@ function mountAnimator(body, headerActions, opts) {
     // sie im Plan ihre eigene Zeile.
     let pos = null;
     for (const g of _gruppen) {
-      if (g.fest) continue;
+      if (g.fest || _gruppeIstGanz(g)) continue;   // §72: „Ganz zeigen" liegt nie in der Kette
       const inh = S.inhaltDauer(g, rohS[g.id]);
       if (pos != null) {
         const luecke = g.ueber_stil === "schnitt" ? 0 : (g.ueber_s == null ? flug : Math.max(0, +g.ueber_s || 0));
@@ -18301,7 +18552,10 @@ function mountAnimator(body, headerActions, opts) {
       return { id, name: g.name || (tour ? tour.name : id), farbe: tour ? tour.line_color : "",
                von: bar(l.von_s), bis: bar(l.bis_s), vonS: l.von_s, sek: l.inhalt_s, faktor: +g.faktor || 1,
                n: g.mitglieder.length, inKette: kette.has(id), kamera: g === _gruppen[0],
-               ueber_stil: g.ueber_stil || "kino", fest: g.fest === true, zeile: +g.zeile || 0 };
+               ueber_stil: g.ueber_stil || "kino", fest: g.fest === true, zeile: +g.zeile || 0,
+               // 28.09.2026 §72
+               ganz: _gruppeIstGanz(g), haupt: _gruppeHatHaupt(g), bisEnde: !!l.bisEnde,
+               ein: (g.blende || {}).ein, aus: (g.blende || {}).aus, einS: (g.blende || {}).ein_s, ausS: (g.blende || {}).aus_s };
     }).filter(Boolean));
     const gesamt = parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden()
       + parseNum(document.getElementById("anim-hold")?.value, 0);
@@ -18322,6 +18576,41 @@ function mountAnimator(body, headerActions, opts) {
     try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
   }
   function _gruppeMitId(id) { return _gruppen.find(g => g.id === id) || null; }
+  /** 28.09.2026 §72 — „Animiert" ↔ „Ganz zeigen". Beim Wechsel zu „ganz" behält die Gruppe ihre Lage
+   *  (von … bis), wird von Hand gelegt (fest) und rutscht aus der Kette in eine eigene Zeile. */
+  function _gruppeModusSetzen(id, modus) {
+    const g = _gruppeMitId(id); if (!g) return false;
+    if (modus === "ganz" && _gruppeHatHaupt(g)) {
+      toast(t("animator.gruppe.ganz_haupt", "Die Haupt-Tour zeichnet immer — lade eine andere Tour dazu und zeige diese ganz."), "info", 6000);
+      return false;
+    }
+    try { _animPushUndo(t("animator.gruppe.undo_modus", "Darstellung geändert")); } catch (_) {}
+    if (modus === "ganz") {
+      const l = _gruppenPlan ? _gruppenPlan.lage(g.id) : null;
+      g.modus = "ganz"; g.fest = true;
+      if (l) { g.vorlauf_s = l.von_s; g.ganz_s = (l.bis_s >= (_gruppenPlan.dauer_s - 0.05)) ? null : Math.round(l.inhalt_s * 1000) / 1000; }
+      if (!(+g.zeile >= 1)) g.zeile = 1;
+      g.blende = Object.assign({ ein: "fade", aus: "fade", ein_s: 0.6, aus_s: 0.6 }, g.blende || {});
+    } else {
+      g.modus = "animiert"; g.ganz_s = null;
+    }
+    _gruppenNeu();
+    applog && applog("info", `[ganz] Gruppe ${g.id} → ${g.modus}`);
+    return true;
+  }
+  /** §72 Q16 — der Schalter in der Tracks-Liste gilt für EINE Tour: steckt sie mit anderen in einer
+   *  Gruppe, wird sie vorher gelöst (eigene Gruppe), damit die anderen weiter animiert laufen. */
+  function _tourGanzUmschalten(gpx) {
+    let gv = _gruppeVon(gpx); if (!gv) return false;
+    if (_gruppeIstGanz(gv.g)) return _gruppeModusSetzen(gv.g.id, "animiert");
+    if (gv.g.mitglieder.length > 1) {
+      _gruppenLoesen(gpx);
+      try { _gruppenPlanRechnen(); } catch (_) {}
+      gv = _gruppeVon(gpx); if (!gv) return false;
+      toast(t("animator.tours.ganz_geloest", "Die Tour ist jetzt eine eigene Gruppe — die anderen laufen weiter animiert."), "info", 4000);
+    }
+    return _gruppeModusSetzen(gv.g.id, "ganz");
+  }
   /** Eine Gruppe im Stapel verschieben (+1 = nach oben = mehr Kamera-Vorrang). */
   /** Eine Gruppe in die Reihe holen (+1) oder aus ihr lösen (−1).
    *  In die Reihe: nicht mehr `fest`, und in der Liste dorthin, wo sie zeitlich
@@ -18454,13 +18743,41 @@ function mountAnimator(body, headerActions, opts) {
       body: `<div class="lib-fmodal anim-gruppe-modal">
         <label class="field-label" for="gr-name">${t("animator.gruppe.name", "Name")}</label>
         <input type="text" id="gr-name" class="lib-input" value="${_animEscapeHtml(g.name || "")}" placeholder="${_animEscapeHtml(tour0 ? tour0.name : "")}">
-        <div class="anim-gruppe-zeile">
+        <label class="field-label" for="gr-modus" style="margin-top:8px">${t("animator.gruppe.darstellung", "Darstellung")}</label>
+        <select id="gr-modus" class="lib-select"${_gruppeHatHaupt(g) ? " disabled" : ""}>
+          <option value="animiert"${_gruppeIstGanz(g) ? "" : " selected"}>▶ ${t("animator.gruppe.animiert", "Animiert")} — ${t("animator.gruppe.animiert_hint", "die Linie zeichnet sich mit dem Laufpunkt")}</option>
+          <option value="ganz"${_gruppeIstGanz(g) ? " selected" : ""}>◼ ${t("animator.gruppe.ganz", "Ganz zeigen")} — ${t("animator.gruppe.ganz_hint", "die ganze Runde ist auf einmal da, so lange wie ihr Balken")}</option>
+        </select>
+        ${_gruppeHatHaupt(g) ? `<div class="lib-hint">${t("animator.gruppe.ganz_haupt", "Die Haupt-Tour zeichnet immer — lade eine andere Tour dazu und zeige diese ganz.")}</div>` : ""}
+        <div id="gr-ganz-felder" ${_gruppeIstGanz(g) ? "" : "hidden"}>
+          <div class="anim-gruppe-zeile" style="margin-top:6px">
+            <div><label class="field-label" for="gr-ganz-von">${t("animator.gruppe.ganz_von", "Ab Sekunde")}</label>
+              <input type="number" id="gr-ganz-von" class="lib-input" min="0" step="0.5" value="${Math.round((+g.vorlauf_s || 0) * 10) / 10}"></div>
+            <div><label class="field-label" for="gr-ganz-s">${t("animator.gruppe.ganz_s", "Zu sehen (s)")}</label>
+              <input type="number" id="gr-ganz-s" class="lib-input" min="0.3" step="0.5" value="${g.ganz_s == null ? "" : g.ganz_s}" placeholder="${t("animator.gruppe.bis_ende", "bis zum Ende")}"></div>
+          </div>
+          <div class="anim-gruppe-zeile">
+            <div><label class="field-label" for="gr-ein">${t("animator.gruppe.einblenden", "Einblenden")}</label>
+              <select id="gr-ein" class="lib-select">${["none", "fade", "pop", "both"].map(v => `<option value="${v}"${((g.blende || {}).ein || "fade") === v ? " selected" : ""}>${t("animator.gruppe.blende_" + v, { none: "Hart", fade: "Einblenden", pop: "Aufpoppen", both: "Beides" }[v])}</option>`).join("")}</select></div>
+            <div><label class="field-label" for="gr-ein-s">${t("animator.gruppe.dauer_s", "Dauer (s)")}</label>
+              <input type="number" id="gr-ein-s" class="lib-input" min="0" step="0.1" value="${(g.blende || {}).ein_s ?? 0.6}"></div>
+          </div>
+          <div class="anim-gruppe-zeile">
+            <div><label class="field-label" for="gr-aus">${t("animator.gruppe.ausblenden", "Ausblenden")}</label>
+              <select id="gr-aus" class="lib-select">${["none", "fade", "pop", "both"].map(v => `<option value="${v}"${((g.blende || {}).aus || "fade") === v ? " selected" : ""}>${t("animator.gruppe.blende_aus_" + v, { none: "Hart", fade: "Ausblenden", pop: "Wegpoppen", both: "Beides" }[v])}</option>`).join("")}</select></div>
+            <div><label class="field-label" for="gr-aus-s">${t("animator.gruppe.dauer_s", "Dauer (s)")}</label>
+              <input type="number" id="gr-aus-s" class="lib-input" min="0" step="0.1" value="${(g.blende || {}).aus_s ?? 0.6}"></div>
+          </div>
+          <div class="lib-hint">${t("animator.gruppe.ganz_hinweis", "Kulisse: zählt nicht in den Stats-Boxen und ist keine Etappe; liegt unter den animierten Touren.")}</div>
+        </div>
+        <div class="anim-gruppe-zeile" id="gr-anim-felder" ${_gruppeIstGanz(g) ? "hidden" : ""}>
           <div><label class="field-label" for="gr-sek">${t("animator.gruppe.laenge", "Länge im Video (s)")}</label>
             <input type="number" id="gr-sek" class="lib-input" min="0.3" step="0.5" value="${(Math.round(L * 10) / 10)}"></div>
           <div><label class="field-label" for="gr-faktor">${t("animator.gruppe.faktor", "Faktor")}</label>
             <input type="number" id="gr-faktor" class="lib-input" min="0.01" step="0.1" value="${(Math.round((+g.faktor || 1) * 100) / 100)}"></div>
         </div>
-        <div class="lib-hint">${t("animator.gruppe.faktor_hinweis", "Gespeichert wird der Faktor gegen die Grundraffung; die Länge ist das Ergebnis. 0,5× ist halb so schnell und braucht doppelt so viel Videozeit.")}</div>
+        <div class="lib-hint" id="gr-anim-hint" ${_gruppeIstGanz(g) ? "hidden" : ""}>${t("animator.gruppe.faktor_hinweis", "Gespeichert wird der Faktor gegen die Grundraffung; die Länge ist das Ergebnis. 0,5× ist halb so schnell und braucht doppelt so viel Videozeit.")}</div>
+        <div data-nur-animiert ${_gruppeIstGanz(g) ? "hidden" : ""}>
         ${gi > 0 ? `<div class="anim-gruppe-zeile" style="margin-top:8px">
           <div><label class="field-label" for="gr-ueber">${t("animator.tours.ueber_stil", "Übergang zur nächsten Etappe")}</label>
             <select id="gr-ueber" class="lib-select">
@@ -18475,6 +18792,7 @@ function mountAnimator(body, headerActions, opts) {
         <label class="chk" style="margin-top:8px"><input type="checkbox" id="gr-kette"${g.fest ? "" : " checked"}>
           <span>${t("animator.gruppe.kette", "In der Reihe mitlaufen (nach der vorigen Gruppe)")}</span></label>
         <div class="lib-hint">${t("animator.gruppe.kette_hinweis", "Aus: die Gruppe bleibt, wo du sie hingezogen hast — auch parallel zu anderen.")}</div>
+        </div>
         <label class="field-label" style="margin-top:10px">${t("animator.gruppe.mitglieder", "Touren in dieser Gruppe")}</label>
         <div class="anim-gruppe-mitglieder">${g.mitglieder.map((mm, j) => {
           const tr = _tourVon(mm.gpx_path);
@@ -18497,6 +18815,13 @@ function mountAnimator(body, headerActions, opts) {
         </div>
       </div>`,
     });
+    // §72 — Darstellung umschalten blendet die passenden Felder ein
+    const modEl = document.getElementById("gr-modus");
+    if (modEl) modEl.addEventListener("change", () => {
+      const ganz = modEl.value === "ganz";
+      for (const [id, zeig] of [["gr-ganz-felder", ganz], ["gr-anim-felder", !ganz], ["gr-anim-hint", !ganz]]) { const e = document.getElementById(id); if (e) e.hidden = !zeig; }
+      document.querySelectorAll(".anim-gruppe-modal [data-nur-animiert]").forEach(e => { e.hidden = ganz; });
+    });
     // Länge ↔ Faktor gekoppelt: wer eines eingibt, sieht das andere.
     const sekEl = document.getElementById("gr-sek"), fEl = document.getElementById("gr-faktor");
     if (sekEl && fEl) {
@@ -18515,6 +18840,21 @@ function mountAnimator(body, headerActions, opts) {
       const zu = document.getElementById("gr-zusammen");
       // Die andere Gruppe kommt HIERHER: Name, Faktor und Lage dieser Gruppe bleiben.
       if (zu && zu.value) _gruppenZusammenlegen(zu.value, g.id);
+      // §72 — Darstellung und Blenden
+      const mo = document.getElementById("gr-modus");
+      if (mo && !mo.disabled) {
+        const warGanz = _gruppeIstGanz(g);
+        if (mo.value === "ganz" && !warGanz) { m.close(); _gruppeModusSetzen(g.id, "ganz"); return; }
+        if (mo.value !== "ganz" && warGanz) { m.close(); _gruppeModusSetzen(g.id, "animiert"); return; }
+        if (mo.value === "ganz") {
+          const von = parseFloat(document.getElementById("gr-ganz-von")?.value); if (isFinite(von)) g.vorlauf_s = Math.max(0, von);
+          const gs = (document.getElementById("gr-ganz-s")?.value || "").trim(); g.ganz_s = gs === "" ? null : Math.max(0.3, parseFloat(gs) || 0.3);
+          const sek = (id) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? Math.max(0, Math.min(30, v)) : 0.6; };
+          g.blende = { ein: document.getElementById("gr-ein")?.value || "fade", aus: document.getElementById("gr-aus")?.value || "fade",
+                       ein_s: sek("gr-ein-s"), aus_s: sek("gr-aus-s") };
+          g.fest = true;
+        }
+      }
       m.close();
       _gruppenNeu();
     };
@@ -18538,6 +18878,14 @@ function mountAnimator(body, headerActions, opts) {
     window.__rzGruppenZusammen = (vonId, inId) => { _gruppenZusammenlegen(vonId, inId); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenLoesen = (gpx) => { _gruppenLoesen(gpx); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppeOeffnen = (id) => _gruppeOeffnen(id);
+    window.__rzGruppeModus = (id, modus) => _gruppeModusSetzen(id, modus);
+    window.__rzTourGanz = (gpx) => _tourGanzUmschalten(gpx);
+    window.__rzStilSetzen = (i, patch) => _stilSetzen(i, patch);
+    window.__rzGruppeBlende = (id, art, sek) => { const g = _gruppeMitId(id); if (!g) return null;
+      g.blende = Object.assign({}, g.blende || {}, { [art === "ein" ? "ein_s" : "aus_s"]: Math.max(0, +sek || 0) }); _gruppenNeu(); return g.blende; };
+    window.__rzGruppeBlendeArt = (id, art, typ) => { const g = _gruppeMitId(id); if (!g) return null;
+      g.blende = Object.assign({}, g.blende || {}, { [art === "ein" ? "ein" : "aus"]: typ }); _gruppenNeu(); return g.blende; };
+    window.__rzStatsTouren = () => _statsTouren().map(x => x.gpx_path);
   } catch (_) {}
   /** Länge des Inhalts einer Gruppe im Video (aus dem Plan). */
   function _gruppeLaenge(g) {
@@ -18547,6 +18895,13 @@ function mountAnimator(body, headerActions, opts) {
   /** Länge eingeben → Faktor speichern (§60 Punkt 4). 0 = Faktor 1 (Anteil). */
   function _gruppeLaengeSetzen(g, L) {
     if (!g) return;
+    // §72: bei „Ganz zeigen" ist die Länge die Zeit, in der die Runde zu sehen ist; reicht sie bis ans
+    // Videoende, bleibt sie offen (null = bis zum Ende — wächst mit, wenn das Video länger wird).
+    if (_gruppeIstGanz(g)) {
+      const G = _gruppenPlan ? _gruppenPlan.dauer_s : animSekunden(); const s2 = Math.max(0.3, +L || 0);
+      g.ganz_s = (!(L > 0) || (+g.vorlauf_s || 0) + s2 >= G - 0.05) ? null : Math.round(s2 * 1000) / 1000; g.fest = true;
+      return;
+    }
     const rohS = (_gruppenPlan && _gruppenPlan.rohS) ? _gruppenPlan.rohS : _gruppenRohS();
     const roh = Math.max(1e-6, +rohS[g.id] || 0);
     g.faktor = (L > 0) ? roh / Math.max(0.3, L) : 1.0;
@@ -18572,9 +18927,10 @@ function mountAnimator(body, headerActions, opts) {
     window.__rzGruppen = () => ({
       gruppen: _gruppen.map(g => ({ id: g.id, name: g.name, faktor: g.faktor, vorlauf_s: g.vorlauf_s,
         ueber_s: g.ueber_s, ueber_stil: g.ueber_stil, leit_gpx: g.leit_gpx, fest: g.fest, zeile: +g.zeile || 0,
+        modus: g.modus || "animiert", ganz_s: g.ganz_s == null ? null : g.ganz_s, blende: g.blende || null,
         mitglieder: g.mitglieder.map(m => ({ gpx_path: m.gpx_path, vorlauf_s: m.vorlauf_s })) })),
       plan: _gruppenPlan ? { dauer_s: _gruppenPlan.dauer_s, zeilen: _gruppenPlan.zeilen,
-        lagen: _gruppenPlan.lagen.map(l => ({ id: l.id, von_s: l.von_s, bis_s: l.bis_s, nachlauf_s: l.nachlauf_s })) } : null,
+        lagen: _gruppenPlan.lagen.map(l => ({ id: l.id, von_s: l.von_s, bis_s: l.bis_s, nachlauf_s: l.nachlauf_s, ganz: !!l.ganz, bisEnde: !!l.bisEnde })) } : null,
       ablauf: _animAblauf, anordnung: _animAnordnung, animSekunden: animSekunden(),
       bahn: _reiseAktiv(), gilt: _reiseGilt(),
       overlay: _swPrev.map(x => ({ gpx_path: x.gpx_path, rolle: x.rolle, gruppe: x.gruppe.id, k: x.__k == null ? null : x.__k, n1: x.coords.length - 1 })),
@@ -19207,6 +19563,7 @@ function mountAnimator(body, headerActions, opts) {
         const k = id.slice("mtour-prev-".length);
         // 09.09.2026 — jede Etappe mit IHREM Aussehen: Schatten, Glow, Linie, Röhre
         const st = _stilVon(e.tour);
+        const op = _deckkraft(st);   // §72 Q10 — Deckkraft gehört zum Aussehen jeder Tour
         const farbe = e.tour.line_color || "#35a7ff";
         const lay = { "line-cap": "round", "line-join": "round" };
         const dash = (w) => { const d = _dashFuerStil(st, w); return d ? { "line-dasharray": d } : {}; };
@@ -19216,27 +19573,28 @@ function mountAnimator(body, headerActions, opts) {
           if (st.shadow > 0) {
             const sr = currentShadowDir() * Math.PI / 180;
             map.addLayer({ id: "mtour-prev-shadow-" + k, type: "line", source: id, layout: lay,
-              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": st.width * 2.2, "line-blur": st.shadow,
+              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": st.width * 2.2, "line-blur": st.shadow, "line-opacity": op,
                        "line-translate": [st.shadow * Math.cos(sr), st.shadow * Math.sin(sr)], ...dash(st.width * 2.2) } });
           }
           if (st.glow > 0) {
             map.addLayer({ id: "mtour-prev-glow-" + k, type: "line", source: id, layout: lay,
               paint: { "line-color": farbe, "line-width": st.width * (2.0 + 0.21 * st.glow), "line-blur": st.glow,
-                       "line-opacity": 0.8, ...dash(st.width * (2.0 + 0.21 * st.glow)) } });
+                       "line-opacity": 0.8 * op, ...dash(st.width * (2.0 + 0.21 * st.glow)) } });
           }
           map.addLayer({
             id: "mtour-prev-line-" + k, type: "line", source: id, layout: lay,
-            paint: { "line-color": farbe, "line-width": st.width, "line-opacity": 0.9, ...dash(st.width) },
+            paint: { "line-color": farbe, "line-width": st.width, "line-opacity": 0.9 * op, ...dash(st.width) },
           });
           if (st.line_style === "tube") {
             map.addLayer({ id: "mtour-prev-hl-" + k, type: "line", source: id, layout: lay,
-              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": st.width * 0.35, "line-opacity": 0.9 } });
+              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": st.width * 0.35, "line-opacity": 0.9 * op } });
           }
         } catch (err) { console.warn("extra-tour preview:", err); }
       });
       try { refreshPreviewTrackData(); } catch (_) {}
     }
     _swPrevBauen(lw);
+    try { _ganzPrevBauen(); } catch (e) { applog("warn", "[ganz] Ebenen: " + e); }
     // 07.09.2026 — Tour-Map (Standbild): alle Touren ganz gezeichnet, keine Laufpunkte
     if (_isStaticFrame && _swPrev.length) {
       try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
@@ -19386,6 +19744,91 @@ function mountAnimator(body, headerActions, opts) {
     _animFitAllTours();
   }
 
+  /** 28.09.2026 §72 — Touren als „Ganz zeigen" dazulegen (Archiv-Knopf, Umstellung alter Ghost-Spuren).
+   *  Jede wird eine eigene Gruppe: ab `von_s`, bis zum Ende (ganz_s null), unter den animierten Touren.
+   *  `aussehen(pfad)` darf je Tour Farbe/Stil liefern ({line_color, stil}); `blende` gilt für alle.
+   *  Liegt die Datei schon als Tour im Projekt, wird nichts doppelt geladen:
+   *    Haupt-Tour  → ihre „Ganze Strecke blass zeigen" wird eingeschaltet (das war der Ghost ja),
+   *    Zusatz-Tour → ebenso, in ihrem Stil (blass_show).
+   *  Liefert { neu, blass, fehl } (Pfade). */
+  async function _ganzTourenAnlegen(pfade, { aussehen = null, blende = null, vonS = 0 } = {}) {
+    const raus = { neu: [], blass: [], fehl: [] };
+    for (const p of (pfade || [])) {
+      if (!p) continue;
+      const a = aussehen ? (aussehen(p) || {}) : {};
+      if (_pfadNFC(p) === _pfadNFC(currentGpx)) {
+        const set = (id, v, chk) => { const f = document.getElementById(id); if (!f || v == null) return; if (chk) f.checked = !!v; else f.value = String(v);
+          f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); };
+        set("anim-ghost-enabled", true, true);
+        if (a.line_color) set("anim-ghost-color", a.line_color);
+        if (a.stil && a.stil.opacity != null) set("anim-ghost-opacity", Math.max(5, Math.min(80, Math.round(+a.stil.opacity * 100 / 5) * 5)));
+        raus.blass.push(p); continue;
+      }
+      const da = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(p));
+      if (da) {
+        da.stil = Object.assign({}, da.stil || {}, { blass_show: true },
+          a.line_color ? { blass_color: a.line_color } : {},
+          (a.stil && a.stil.opacity != null) ? { blass_opacity_pct: Math.max(5, Math.min(80, Math.round(+a.stil.opacity * 100))) } : {});
+        raus.blass.push(p); continue;
+      }
+      const vorher = _extraTours.length;
+      try { await _animAddTourPath(p); } catch (e) { applog("warn", "[ganz] " + p + ": " + e); }
+      if (_extraTours.length <= vorher) { raus.fehl.push(p); continue; }
+      const tr = _extraTours[_extraTours.length - 1];
+      if (a.line_color) tr.line_color = a.line_color;
+      tr.stil = Object.assign({}, tr.stil || {}, { dot_show: false }, a.stil || {});
+      tr.__duenn = null;
+      let gv = _gruppeVon(tr.gpx_path);
+      if (gv && gv.g.mitglieder.length > 1) { _gruppenLoesen(tr.gpx_path); gv = _gruppeVon(tr.gpx_path); }
+      if (!gv) { raus.fehl.push(p); continue; }
+      const g = gv.g;
+      g.modus = "ganz"; g.fest = true; g.vorlauf_s = Math.max(0, +vonS || 0); g.ganz_s = null;
+      g.zeile = Math.max(1, +g.zeile || 0);
+      g.blende = Object.assign({ ein: "fade", aus: "fade", ein_s: 0.6, aus_s: 0.6 }, blende || {});
+      raus.neu.push(tr.gpx_path);
+    }
+    if (raus.neu.length || raus.blass.length) _gruppenNeu();
+    return raus;
+  }
+  window.__rzGanzTourenAnlegen = (pfade, opt) => _ganzTourenAnlegen(pfade, opt || {});
+
+  /** 28.09.2026 §72 Q1 — alte Projekte: die Ghost-Spuren (`<modul>.ghosts`) werden beim Öffnen zu
+   *  Touren in „Ganz zeigen" über das ganze Video (hart, ohne Blende — so sahen sie vorher aus), mit
+   *  ihrer Farbe, Deckkraft, Breite und Strichelung. Was sich nicht als Tour laden lässt (Datei weg,
+   *  kein Pfad), bleibt als Ghost-Spur liegen und wird weiter gezeichnet — nichts geht verloren. */
+  let _ghostUmstellungLaeuft = false;
+  async function _ghostsUmstellen() {
+    if (_ghostUmstellungLaeuft || window.__rzRenderMode || _animUnmounted) return 0;
+    let a = null;
+    try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
+    const alt = (a && Array.isArray(a.ghosts)) ? a.ghosts.filter(Boolean) : [];
+    if (!alt.length || !currentGpx) return 0;
+    _ghostUmstellungLaeuft = true;
+    try {
+      const nachPfad = new Map();
+      for (const g of alt) if (g.path && !nachPfad.has(_pfadNFC(g.path))) nachPfad.set(_pfadNFC(g.path), g);
+      const pfade = [...nachPfad.values()].filter(g => g.show !== false).map(g => g.path);
+      const aussehen = (p) => { const g = nachPfad.get(_pfadNFC(p)) || {};
+        return { line_color: g.color || undefined,
+                 stil: { opacity: g.opacity != null ? Math.max(0.05, Math.min(1, +g.opacity)) : 0.6, width: Math.max(0.5, +g.width || 2.5),
+                         line_style: g.dashed === false ? "solid" : "dashed", shadow: 0, glow: 0, dot_show: false } }; };
+      const r = await _ganzTourenAnlegen(pfade, { aussehen, blende: { ein: "none", aus: "none", ein_s: 0, aus_s: 0 } });
+      const umgestellt = new Set(r.neu.concat(r.blass).map(_pfadNFC));
+      // Ausgeblendete (show:false) waren unsichtbar — sie fallen weg. Was nicht umstellbar war, bleibt.
+      const bleibt = alt.filter(g => g.show !== false && !umgestellt.has(_pfadNFC(g.path || "")));
+      _ghostSpuren = bleibt.slice();
+      ghostSpurenSichern();
+      try { _ghostSpurenAufbauen(); _ghostListeZeichnen(); } catch (e) { applog("warn", "[ghost→ganz] " + e); }
+      applog("info", `[ghost→ganz] ${alt.length} Ghost-Spur(en): ${r.neu.length} als Tour „Ganz zeigen", ${r.blass.length} als blasse Strecke, ${bleibt.length} bleiben`);
+      if (r.neu.length || r.blass.length) {
+        toast(t("animator.ganz.umgestellt", "Die Ghost-Spuren dieses Projekts sind jetzt Touren mit „Ganz zeigen“ — zu finden unter Tracks und in der Zeitleiste.")
+          + (bleibt.length ? " " + t("animator.ganz.umgestellt_rest", "{n} ließ(en) sich nicht laden und bleiben als Hintergrundlinie.").replace("{n}", bleibt.length) : ""), "info", 8000);
+      }
+      return r.neu.length + r.blass.length;
+    } finally { _ghostUmstellungLaeuft = false; }
+  }
+  window.__rzGhostsUmstellen = () => _ghostsUmstellen();
+
   // Prüfstand-Griffe für den Wechsel Einzeltour ↔ Reise
   // (tests/test_tempo_reise_wechsel.py). Genau die Wege, die auch das Archiv
   // und der „✕"-Knopf gehen.
@@ -19438,6 +19881,7 @@ function mountAnimator(body, headerActions, opts) {
           id: g.id, name: g.name || "", faktor: +g.faktor || 1, vorlauf_s: r3(+g.vorlauf_s || 0),
           ueber_s: (g.ueber_s == null) ? null : r3(+g.ueber_s), ueber_stil: g.ueber_stil || "kino",
           leit_gpx: g.leit_gpx || "", zu: g.zu !== false, fest: g.fest === true, zeile: Math.max(0, Math.trunc(+g.zeile || 0)),
+          ..._gruppeGanzFelder(g),   // 28.09.2026 §72 — Darstellung „Ganz zeigen"
           mitglieder: g.mitglieder.map(m => ({ gpx_path: m.gpx_path, vorlauf_s: r3(+m.vorlauf_s || 0),
                                                sichtbar_vor_inhalt: m.sichtbar_vor_inhalt === true })) })),
         extra_tours: _extraTours.map(t => ({
@@ -19562,6 +20006,8 @@ function mountAnimator(body, headerActions, opts) {
     _animToursLaufend = (async () => {
       try {
         await _animLoadToursInner();
+        // §72 — nach dem Laden der Touren (sonst überschriebe der Restore die neuen gleich wieder)
+        if (!_animToursNochmal) { try { await _ghostsUmstellen(); } catch (e) { applog("warn", "[ghost→ganz] " + e); } }
       } finally {
         _animToursLaufend = null;
         if (_animToursNochmal) { _animToursNochmal = false; await _animLoadTours(); }

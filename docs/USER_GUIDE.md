@@ -463,6 +463,9 @@ Alles lässt sich mit der Maus machen:
   eintippen, das andere folgt), Übergang, „in der Reihe mitlaufen", die Touren in der Gruppe
   mit **„lösen"**, welcher Tour die Kamera folgt, und **„mit einer anderen Gruppe
   zusammenlegen"** — dann laufen die Touren gleichzeitig in einer Gruppe, als Schwarm.
+- **◼ Ganz zeigen** (Rechtsklick oder Doppelklick → Darstellung): Die Gruppe zeichnet sich nicht,
+  sondern ist so lange ganz zu sehen, wie ihre Kachel reicht — mit Ein- und Ausblenden an den
+  weißen Punkten. Mehr dazu im nächsten Abschnitt.
 - **Anordnen** über der Liste rechnet einmal alles durch: **⏭ nacheinander**, **∥ alle ab 0**,
   **🏁 gleichzeitig im Ziel** (jede Gruppe bekommt den Faktor, mit dem sie zusammen mit den
   anderen ankommt) und **🕐 echte Uhrzeit** (Dauer und Start wie aufgezeichnet). Danach ist es
@@ -476,6 +479,60 @@ wie vorher — der Schwarm ist jetzt einfach eine Gruppe mit mehreren Touren.
 später davor einen Halt einfügt oder eine frühere Gruppe verlängert, findet den Keyframe
 weiterhin an der Brücke. In einem Halt können mehrere Keyframes liegen — die Kamera darf sich
 also bewegen, während der Laufpunkt steht.
+
+### ◼ Touren „Ganz zeigen" — statt Ghost-Spuren (seit v0.9.734)
+
+Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine Planung,
+die Runde vom Vortag — und darüber läuft, was du heute gelaufen bist. Dafür gab es früher
+die Ghost-Spuren. Seit v0.9.734 ist so eine Linie einfach eine **Tour mit der Darstellung
+„Ganz zeigen"**: Sie zeichnet sich nicht, sondern ist **auf einmal ganz da** — so lange, wie
+ihr Balken in der Zeitleiste reicht.
+
+**So legst du eine an:**
+
+- Im Animator **＋ Tour hinzufügen** und in der Tracks-Liste an der Tour auf **◼** klicken.
+  Steckt die Tour mit anderen in einer Gruppe, wird sie dabei eine eigene Gruppe — die anderen
+  laufen weiter animiert. Noch ein Klick auf ◼ macht sie wieder animiert.
+- Im **Archiv** an jeder Tour **◼ Als ganze Tour** (auch im Karten-Popup und im Rechtsklick,
+  mehrere mit ⌘/Strg-Klick). Die Tour kommt in den Animator, ohne den Haupt-Track zu ersetzen.
+- In der Zeitleiste Rechtsklick auf die Kachel → **◼ Ganz zeigen** bzw. **▶ Animiert**, oder
+  Doppelklick → **Darstellung**.
+
+**Wann und wie lange:** Die Kachel ziehen legt fest, **ab wann** die Runde zu sehen ist; der
+rechte Rand, **wie lange**. Ganz nach rechts = bis zum Videoende (dann wächst sie mit, wenn
+das Video länger wird). Die beiden weißen Punkte an der Kachel sind **Einblenden** und
+**Ausblenden** — ziehen ändert die Dauer. Im Gruppenfenster (Doppelklick) stellst du die Art
+ein: **Hart**, **Einblenden** (Deckkraft), **Aufpoppen** (die Linie wächst mit einem kleinen
+Überschwinger, wie bei den Overlay-Boxen) oder **Beides**.
+
+**Was eine ganze Tour nicht tut** — sie ist Kulisse:
+
+- Sie macht das Video **nicht länger**; die Länge kommt nur von den animierten Touren.
+- Sie zählt **nicht** in den Stats-Boxen und ist **keine Etappe**.
+- Sie hat **keinen Laufpunkt** und liegt **unter** den animierten Touren.
+- Die **Haupt-Tour** zeichnet sich immer — willst du sie ganz zeigen, lade eine andere Tour
+  als Haupt-Tour.
+
+**Beispiel** (Marcs Wunsch): Teide poppt auf, anderthalb Sekunden später Vilaflor, und ab 3 s
+läuft der Pico Viejo los. Teide ab 0 s mit „Aufpoppen", Vilaflor ab 1,5 s mit „Aufpoppen",
+die Haupt-Tour in der Zeitleiste auf 3 s ziehen.
+
+**Aussehen:** wie bei jeder Tour im Panel **▸** unter dem Eintrag — Farbe, Dicke, Linien-Stil
+(gestrichelt usw.), Schatten, Glow und neu **Deckkraft** (gilt für alle Touren).
+
+**Alte Projekte:** Ghost-Spuren werden beim Öffnen automatisch zu Touren mit „Ganz zeigen"
+über das ganze Video — mit ihrer Farbe, Deckkraft, Breite und Strichelung, hart ohne Blende,
+so wie sie vorher aussahen. Lag eine Ghost-Spur auf einer Tour, die schon im Projekt ist,
+wird bei dieser Tour **„Ganze Strecke blass zeigen"** eingeschaltet. Lässt sich eine Datei nicht
+mehr laden, bleibt sie als Hintergrundlinie liegen (dann siehst du den Abschnitt „👻 Alte
+Ghost-Spuren" noch).
+
+### Ganze Strecke blass zeigen — für jede Tour (seit v0.9.734)
+
+Der frühere „Ghost-Track" (die ganze Route schwach im Hintergrund, darüber zeichnet sich die
+Linie) gehört jetzt **jeder Tour** einzeln. Im Aussehen-Panel **▸** einer Tour:
+**Ganze Strecke blass zeigen**, dazu **Deckkraft** (5–80 %, Standard 30 %) und **Farbe**
+(Standard: die Farbe der Tour). Bei der Haupt-Tour sind es dieselben Einstellungen wie früher.
 
 ### Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden
 
@@ -1097,7 +1154,7 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
   **Rückgängig** nimmt sie wieder heraus.
 - **Rechtsklick auf eine Tour:** öffnet dasselbe Angebot wie die Spalte rechts, nur direkt an
   der Tour: die fünf Werkzeuge (Animator, Tour-Karte, Daten-Animator, Fotos verorten,
-  Inspektor), „Details anzeigen", „Als Ghost-Spur", Favorit, Umbenennen, „Im Finder zeigen",
+  Inspektor), „Details anzeigen", „◼ Als ganze Tour", Favorit, Umbenennen, „Im Finder zeigen",
   „Zu Sammlung", „Aus dieser Sammlung nehmen" (wenn du gerade in einer bist) und „In den
   Papierkorb". Hast du mehrere Touren markiert und klickst eine davon mit rechts an, gilt das
   Menü für alle.
@@ -1595,7 +1652,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
     3. **„Auto"** stellt wieder auf automatische Positions-Erkennung um.
     Das funktioniert in Vorschau und fertigem Video identisch. (Bei **Foto-Karten** passiert das automatisch über die Aufnahme-Zeit des Fotos.)
   - **Vorschau-Hilfe:** Checkbox **„In der Vorschau ALLE Schilder zeigen"** — zeigt beim Platzieren alle Schilder gleichzeitig (nur Vorschau; im Video gilt weiter das Timing).
-- **Ghost-Track (seit v0.9.169)** — zeigt die **komplette Route** schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: **eigene Ghost-Track-Farbe** (eigener Color-Picker, unabhängig von der Track-Farbe — z.B. dezentes Grau, seit v0.9.170) und **Deckkraft** (Slider 5–80 %, Default 30 %). Wirkt in Vorschau und Render inkl. Alpha/Transparent-Modus. Standard aus.
+- **Ganze Strecke blass zeigen (früher „Ghost-Track", seit v0.9.169; seit v0.9.734 im Aussehen-Panel ▸ jeder Tour)** — zeigt die **komplette Route** schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: **eigene Farbe** (unabhängig von der Track-Farbe — z.B. dezentes Grau) und **Deckkraft** (5–80 %, Standard 30 %). Wirkt in Vorschau und Video. Standard aus.
 - **Mehrere Track-Farben (seit v0.9.435, erweitert v0.9.448)** — die Track-Linie kann die **Farbe wechseln**. Mit dem Selektor **„Einfärben nach"** wählst du, wonach:
   - **Distanz (km)** — Farb-Stops **ab km** (Zahl), **an der aktuellen Marker-Position** (übernimmt die Scrubber-Position) oder **an allen GPX-Wegpunkten** (automatisch). Die erste Farbe gilt ab km 0 (= Track-Farbe).
   - **Jede Datenreihe des Tracks** — seit v0.9.448 steht hier **alles zur Auswahl, was auch der Daten-Animator plotten kann**: Höhe, Tempo, Steigung und sämtliche Sensorwerte aus FIT/TCX-Dateien (**Puls, Leistung, Trittfrequenz, Temperatur** …). Die Liste zeigt **nur, was der geladene Track wirklich enthält**; die Einheit steht in Klammern dahinter.
@@ -2280,33 +2337,6 @@ weiterhin der in der GPX-Leiste; die Sitzung gehört ihm.
 > leeren Felder erkennt und ignoriert die App (seit v0.9.545 auch beim schnellen
 > Einlesen), damit deine Fotos über die Aufnahmezeit auf den Track kommen. Wenn
 > dir früher RAWs „im Atlantik" begegnet sind: Das war der Grund.
-
-### Ghost-Spuren: mehrere Tracks im Hintergrund (seit v0.9.544)
-
-Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine
-Planung, und was du am Ende wirklich gelaufen bist. Dafür gibt es im Animator den
-Unterpunkt **👻 Ghost-Spuren** in der Sektion „Tracks“.
-
-Füge so viele Tracks hinzu, wie du brauchst: **＋ Ghost-Spur hinzufügen …** öffnet
-die Auswahl aus dem **Archiv** (Suche, mehrere anhaken, der Haupt-Track und schon
-vorhandene Spuren sind ausgegraut). Liegt eine Datei noch nicht im Archiv, nimmt
-**„Datei importieren …"** in der Auswahl sie erst dorthin auf und hakt sie an.
-
-> **Andersherum geht es auch:** Wer im Archiv stöbert, findet an jeder Tour
-> **👻 Als Ghost-Spur übernehmen** (auch im Karten-Popup). Mehrere auf einmal:
-> mit ⌘/Strg-Klick markieren und „👻 Diese N als Ghost-Spuren übernehmen".
-
-Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt
-oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.
-
-**Reihenfolge:** am Griff **⠿** ziehen oder die Pfeile **▲▼** neben dem Namen nutzen (seit
-v0.9.720 — auf Windows geht nur der Weg über die Pfeile zuverlässig). Die unterste Spur
-liegt obenauf. Wählst du im Datei-Dialog mehrere Dateien auf einmal, kommen sie nach
-Dateiname geordnet an (01, 02, 03 …).
-
-Ein typischer Aufbau: der offizielle Weg kräftig und durchgezogen, die geplanten
-Runden dünn gestrichelt, und darüber läuft animiert deine tatsächliche Tour. Die
-Spuren gehören zum Projekt und sind im fertigen Video zu sehen.
 
 ### Zeitzonen-Magie
 Die App liest den `OffsetTimeOriginal`-EXIF-Tag aus jedem Foto und rechnet die

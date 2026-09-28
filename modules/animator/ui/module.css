@@ -1142,6 +1142,9 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-stil-zeile input[type="range"] { width: 100%; margin: 0; }
 .anim-stil-zeile select { width: 100%; font-size: 12px; }
 .anim-stil-toggle { font-size: 11px; }
+/* §72 — „Ganz zeigen" je Tour in der Tracks-Liste */
+.anim-ganz-toggle { font-size: 10px; opacity: .55; }
+.anim-ganz-toggle.ist-an { opacity: 1; color: var(--accent, #ff6b35); }
 .anim-stil-alle .anim-stil-check { display: block; color: var(--text, #eee); font-size: 12.5px; padding: 3px 0; cursor: pointer; }
 .anim-stil-alle .anim-stil-check input { margin-right: 6px; }
 .anim-stil-zeile.ist-check label { display: flex; align-items: center; gap: 6px; color: var(--text, #eee); cursor: pointer; }
