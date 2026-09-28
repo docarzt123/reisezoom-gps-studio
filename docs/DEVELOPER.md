@@ -893,6 +893,69 @@ Min/Max und Titel neu, sobald sich der Ausschnitt ändert (`_ovEleAusschnittZule
 Etappe). Der Render läuft über die Szene (= diese UI); der klassische Pfad ignoriert das
 Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 
+### „Ganz zeigen": Touren als Kulisse statt Ghost-Spuren (seit 28.09.2026, IDEAS §72) ⚠️ PFLICHTLEKTÜRE
+
+Eine Gruppe hat eine **Darstellung**: `modus: "animiert" | "ganz"`. Felder (Projekt,
+`animator.gruppen[]`, gelesen über `_gruppeGanzFelder(g)`, also in `_gruppeNeu`,
+`_gruppenAufbauen` und `_animPersistTours` gleich):
+
+| Feld | Bedeutung |
+|---|---|
+| `modus` | `"ganz"` = die ganze Runde ist auf einmal da; sonst animiert |
+| `ganz_s` | Sichtdauer in s; `null` = bis zum Videoende (wächst mit) |
+| `blende` | `{ein, aus, ein_s, aus_s}`, Arten `none/fade/pop/both`, Standard fade 0,6 s |
+
+**Zeitplan (`ui/js/spuren.js`):** `istGanz(g)`; eine ganze Gruppe hat `inhalt = ganz_s`,
+liegt nie in Zeile 0 (`zeile ≥ 1`), zählt **nicht** zur Videolänge (`dauer` nur aus den
+animierten Lagen) und wird am Ende abgeschnitten (`lage.bisEnde`, `lage.ganz`).
+`_ketteLegen` überspringt sie, `_gruppenRohS` gibt ihr 0 Budget. Nur ganze Gruppen → die
+Länge kommt aus dem Wunsch (`mindestS`). `_gruppeLaengeSetzen` setzt bei ganzen Gruppen
+`ganz_s` (bis ans Ende gezogen = `null`) statt des Faktors — alle Wege (Zeitleiste,
+Seitenleiste, Prüfstand) gehen darüber.
+
+**Zeichnen (`modules/animator/ui/module.js`):** `_ganzPrevBauen()` (aus
+`_animDrawExtraToursPreview`, nach `_swPrevBauen`) baut je Mitglied eine Quelle
+`ganz-prev-N` mit der ganzen Route und die Ebenen `-shadow/-glow/-line/-hl` im Stil der Tour
+(× `_deckkraft(st)`), eingefügt **unter** `preview-ghost` (`_ganzUnterId`). `_ganzAdvance`
+(erste Zeile von `_animSchwarmPreviewAdvance`, läuft also in Vorschau, Probelauf und Szene
+gleich) setzt je Bild `visibility`, `line-opacity` und `line-width` aus
+`_ganzZustand(g, lage, tA, dauer)` (Einblenden = Deckkraft, Aufpoppen = Breite mit
+easeOutBack wie die Overlay-Boxen; kein Ausblenden, wenn bis zum Ende). `_swPrevBauen`
+überspringt ganze Gruppen (kein Laufpunkt). `_statsTouren()` / `_tourIstKulisse` halten sie aus
+den Stats-Boxen. Die Haupt-Tour-Gruppe kann nicht ganz sein (`_gruppeHatHaupt`).
+
+**Umschalten:** `_gruppeModusSetzen(id, modus)` (Undo-Schritt, Lage bleibt, `fest`, Zeile ≥ 1);
+`_tourGanzUmschalten(gpx)` (Tracks-Liste ◼: löst die Tour vorher aus einer geteilten Gruppe);
+Zeitleiste `cb.onGruppeModus` / `cb.onGruppeBlende` (`ui/js/timeline.js`: Kachel `ist-ganz`,
+Rampen `.tl-ov-rampe`, Griffe `.tl-gruppe-blende[data-blende]`); Gruppenfenster
+`gr-modus`, `gr-ganz-von`, `gr-ganz-s`, `gr-ein(-s)`, `gr-aus(-s)` — Übergang und „in der
+Reihe" (`[data-nur-animiert]`) sind dort bei „ganz" versteckt.
+
+**Anlegen/Umstellen:** `_ganzTourenAnlegen(pfade, {aussehen, blende, vonS})` — für den
+Archiv-Knopf (`window.__rzPendingGhosts`, wartet vorher auf `_animLoadTours`) und die
+Umstellung alter Projekte `_ghostsUmstellen()` (am Ende von `_animLoadTours`, nicht im
+Render-Modus): Ghost mit Pfad → Tour „ganz" über das ganze Video, hart; Ghost auf einer Tour,
+die schon da ist → deren „Ganze Strecke blass zeigen". Nicht ladbare bleiben in
+`animator.ghosts` und werden weiter von `_ghostSpurenAufbauen` gezeichnet (Abschnitt nur dann
+sichtbar). **Grenze:** der klassische Renderpfad (`core/animator.py`, transparenter Hintergrund)
+kennt ganze Touren nicht — gerendert wird über die Szene.
+
+**Aussehen je Tour (neu):** `STIL_FELDER` hat `opacity` (Haupt-Tour: verstecktes
+`#anim-line-opacity` → `animator.line_opacity`, `_hauptDeckkraftAnwenden`); Schwarm-Features
+tragen `op`, mtour- und Ganz-Ebenen multiplizieren. „Ganze Strecke blass zeigen" je
+Zusatz-Tour: `stil.blass_show / blass_opacity_pct / blass_color` → Ebenen
+`ganz-prev-blass-N` ganz unten; die Haupt-Tour nutzt weiter `ghost_track_*`
+(`preview-ghost`), bedient im Panel.
+
+**Laden (behoben 28.09.2026):** `_gruppenAufbauen` parkt Mitglieder, deren Tour noch nicht im
+Pool ist (`_gruppenWartend`), statt sie zu verwerfen; `_gruppenSync` setzt sie an ihren alten
+Platz zurück, sobald die Tour da ist. Vorher fiel die Haupt-Tour-Gruppe beim Öffnen raus
+(`currentGpx` noch leer) und kam mit Start 0 neu.
+
+Tests: `tests/test_ganz_zeigen.py` (WebKit, echte Brücke: Schalter, Ebenen, Zeitverlauf,
+Stats, Kachel, Menü, Haupt-Tour gesperrt, Deckkraft, blasse Strecke, Speichern, Gruppenfenster,
+Umstellung, Neuladen), `tests/test_spuren_modell.py` Abschnitt 10.
+
 ### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026) — abgelöst durch die Gruppen (oben), Regeln gelten weiter
 
 Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste
@@ -3837,7 +3900,7 @@ nichts im Log:
    Mount-Initialisierung: `map` ist dort ebenfalls noch gesperrt.
 
 **Konsequenz für Tests:** Quelltextprüfungen finden so etwas nicht. Der
-Oberflächentest in echtem Chromium (`tests/test_ghost_spuren_ui.py`) hat alle
+Oberflächentest in echtem Chromium (`tests/test_ghost_spuren_ui.py`, seit §72 entfernt — die Oberfläche gibt es nicht mehr) hat alle
 drei Fehler gefunden — Muster: `MOCK_API_JS` aus `scripts/selftest_ui.py` laden,
 Brückenantwort direkt am fertigen Objekt setzen (der Mock-Proxy beantwortet
 unbekannte Methoden sonst mit einem leeren `{ok:true}`), dann klicken.

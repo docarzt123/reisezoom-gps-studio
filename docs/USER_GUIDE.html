@@ -568,11 +568,44 @@ python app.py</code></pre>
 </ul>
 <p> eintippen, das andere folgt), Übergang, „in der Reihe mitlaufen&quot;, die Touren in der Gruppe  mit <strong>„lösen&quot;</strong>, welcher Tour die Kamera folgt, und <strong>„mit einer anderen Gruppe  zusammenlegen&quot;</strong> — dann laufen die Touren gleichzeitig in einer Gruppe, als Schwarm.</p>
 <ul>
+<li><strong>◼ Ganz zeigen</strong> (Rechtsklick oder Doppelklick → Darstellung): Die Gruppe zeichnet sich nicht,</li>
+</ul>
+<p> sondern ist so lange ganz zu sehen, wie ihre Kachel reicht — mit Ein- und Ausblenden an den  weißen Punkten. Mehr dazu im nächsten Abschnitt.</p>
+<ul>
 <li><strong>Anordnen</strong> über der Liste rechnet einmal alles durch: <strong>⏭ nacheinander</strong>, <strong>∥ alle ab 0</strong>,</li>
 </ul>
 <p> <strong>🏁 gleichzeitig im Ziel</strong> (jede Gruppe bekommt den Faktor, mit dem sie zusammen mit den  anderen ankommt) und <strong>🕐 echte Uhrzeit</strong> (Dauer und Start wie aufgezeichnet). Danach ist es  eine gewöhnliche Anordnung, die Sie weiterschieben können.</p>
 <p>Ein Projekt, das Sie nur öffnen und ansehen, bleibt unverändert; erst eine Änderung schreibt die Gruppen hinein. Alte Etappen- und Schwarm-Projekte sehen nach dem Öffnen aus wie vorher — der Schwarm ist jetzt einfach eine Gruppe mit mehreren Touren.</p>
 <p><strong>Keyframes</strong> hängen dabei an der Strecke: Wer bei einer Brücke einen Keyframe setzt und später davor einen Halt einfügt oder eine frühere Gruppe verlängert, findet den Keyframe weiterhin an der Brücke. In einem Halt können mehrere Keyframes liegen — die Kamera darf sich also bewegen, während der Laufpunkt steht.</p>
+<h3 id="touren-ganz-zeigen-statt-ghost-spuren">◼ Touren „Ganz zeigen&quot; — statt Ghost-Spuren</h3>
+<p>Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine Planung, die Runde vom Vortag — und darüber läuft, was du heute gelaufen bist. Dafür gab es früher die Ghost-Spuren. ist so eine Linie einfach eine <strong>Tour mit der Darstellung „Ganz zeigen&quot;</strong>: Sie zeichnet sich nicht, sondern ist <strong>auf einmal ganz da</strong> — so lange, wie ihr Balken in der Zeitleiste reicht.</p>
+<p><strong>So legst du eine an:</strong></p>
+<ul>
+<li>Im Animator <strong>＋ Tour hinzufügen</strong> und in der Tracks-Liste an der Tour auf <strong>◼</strong> klicken.</li>
+</ul>
+<p> Steckt die Tour mit anderen in einer Gruppe, wird sie dabei eine eigene Gruppe — die anderen  laufen weiter animiert. Noch ein Klick auf ◼ macht sie wieder animiert.</p>
+<ul>
+<li>Im <strong>Archiv</strong> an jeder Tour <strong>◼ Als ganze Tour</strong> (auch im Karten-Popup und im Rechtsklick,</li>
+</ul>
+<p> mehrere mit ⌘/Strg-Klick). Die Tour kommt in den Animator, ohne den Haupt-Track zu ersetzen.</p>
+<ul>
+<li>In der Zeitleiste Rechtsklick auf die Kachel → <strong>◼ Ganz zeigen</strong> bzw. <strong>▶ Animiert</strong>, oder</li>
+</ul>
+<p> Doppelklick → <strong>Darstellung</strong>.</p>
+<p><strong>Wann und wie lange:</strong> Die Kachel ziehen legt fest, <strong>ab wann</strong> die Runde zu sehen ist; der rechte Rand, <strong>wie lange</strong>. Ganz nach rechts = bis zum Videoende (dann wächst sie mit, wenn das Video länger wird). Die beiden weißen Punkte an der Kachel sind <strong>Einblenden</strong> und <strong>Ausblenden</strong> — ziehen ändert die Dauer. Im Gruppenfenster (Doppelklick) stellst du die Art ein: <strong>Hart</strong>, <strong>Einblenden</strong> (Deckkraft), <strong>Aufpoppen</strong> (die Linie wächst mit einem kleinen Überschwinger, wie bei den Overlay-Boxen) oder <strong>Beides</strong>.</p>
+<p><strong>Was eine ganze Tour nicht tut</strong> — sie ist Kulisse:</p>
+<ul>
+<li>Sie macht das Video <strong>nicht länger</strong>; die Länge kommt nur von den animierten Touren.</li>
+<li>Sie zählt <strong>nicht</strong> in den Stats-Boxen und ist <strong>keine Etappe</strong>.</li>
+<li>Sie hat <strong>keinen Laufpunkt</strong> und liegt <strong>unter</strong> den animierten Touren.</li>
+<li>Die <strong>Haupt-Tour</strong> zeichnet sich immer — willst du sie ganz zeigen, lade eine andere Tour</li>
+</ul>
+<p> als Haupt-Tour.</p>
+<p><strong>Beispiel</strong> (Marcs Wunsch): Teide poppt auf, anderthalb Sekunden später Vilaflor, und ab 3 s läuft der Pico Viejo los. Teide ab 0 s mit „Aufpoppen&quot;, Vilaflor ab 1,5 s mit „Aufpoppen&quot;, die Haupt-Tour in der Zeitleiste auf 3 s ziehen.</p>
+<p><strong>Aussehen:</strong> wie bei jeder Tour im Panel <strong>▸</strong> unter dem Eintrag — Farbe, Dicke, Linien-Stil (gestrichelt usw.), Schatten, Glow und neu <strong>Deckkraft</strong> (gilt für alle Touren).</p>
+<p><strong>Alte Projekte:</strong> Ghost-Spuren werden beim Öffnen automatisch zu Touren mit „Ganz zeigen&quot; über das ganze Video — mit ihrer Farbe, Deckkraft, Breite und Strichelung, hart ohne Blende, so wie sie vorher aussahen. Lag eine Ghost-Spur auf einer Tour, die schon im Projekt ist, wird bei dieser Tour <strong>„Ganze Strecke blass zeigen&quot;</strong> eingeschaltet. Lässt sich eine Datei nicht mehr laden, bleibt sie als Hintergrundlinie liegen (dann siehst du den Abschnitt „👻 Alte Ghost-Spuren&quot; noch).</p>
+<h3 id="ganze-strecke-blass-zeigen-f-r-jede-tour">Ganze Strecke blass zeigen — für jede Tour</h3>
+<p>Der frühere „Ghost-Track&quot; (die ganze Route schwach im Hintergrund, darüber zeichnet sich die Linie) gehört jetzt <strong>jeder Tour</strong> einzeln. Im Aussehen-Panel <strong>▸</strong> einer Tour: <strong>Ganze Strecke blass zeigen</strong>, dazu <strong>Deckkraft</strong> (5–80 %, Standard 30 %) und <strong>Farbe</strong> (Standard: die Farbe der Tour). Bei der Haupt-Tour sind es dieselben Einstellungen wie früher.</p>
 <h3 id="schritt-7-mehrere-tagesdateien-zu-einer-tour-verbinden">Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden</h3>
 <p>Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Gesamttour.</p>
 <ol>
@@ -945,7 +978,7 @@ python app.py</code></pre>
 <ul>
 <li><strong>Rechtsklick auf eine Tour:</strong> öffnet dasselbe Angebot wie die Spalte rechts, nur direkt an</li>
 </ul>
-<p> der Tour: die fünf Werkzeuge (Animator, Tour-Karte, Daten-Animator, Fotos verorten,  Inspektor), „Details anzeigen&quot;, „Als Ghost-Spur&quot;, Favorit, Umbenennen, „Im Finder zeigen&quot;,  „Zu Sammlung&quot;, „Aus dieser Sammlung nehmen&quot; (wenn du gerade in einer bist) und „In den  Papierkorb&quot;. Hast du mehrere Touren markiert und klickst eine davon mit rechts an, gilt das  Menü für alle.</p>
+<p> der Tour: die fünf Werkzeuge (Animator, Tour-Karte, Daten-Animator, Fotos verorten,  Inspektor), „Details anzeigen&quot;, „◼ Als ganze Tour&quot;, Favorit, Umbenennen, „Im Finder zeigen&quot;,  „Zu Sammlung&quot;, „Aus dieser Sammlung nehmen&quot; (wenn du gerade in einer bist) und „In den  Papierkorb&quot;. Hast du mehrere Touren markiert und klickst eine davon mit rechts an, gilt das  Menü für alle.</p>
 <ul>
 <li><strong>Anzeigen:</strong> Links auf die Sammlung klicken — dann siehst du nur ihre Touren, und zwar in</li>
 </ul>
@@ -1179,7 +1212,7 @@ python app.py</code></pre>
 <p> Das funktioniert in Vorschau und fertigem Video identisch. (Bei <strong>Foto-Karten</strong> passiert das automatisch über die Aufnahme-Zeit des Fotos.)</p>
 <ul>
 <li><strong>Vorschau-Hilfe:</strong> Checkbox <strong>„In der Vorschau ALLE Schilder zeigen&quot;</strong> — zeigt beim Platzieren alle Schilder gleichzeitig (nur Vorschau; im Video gilt weiter das Timing).</li>
-<li><strong>Ghost-Track</strong> — zeigt die <strong>komplette Route</strong> schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: <strong>eigene Ghost-Track-Farbe</strong> (eigener Color-Picker, unabhängig von der Track-Farbe — z.B. dezentes Grau) und <strong>Deckkraft</strong> (Slider 5–80 %, Default 30 %). Wirkt in Vorschau und Render inkl. Alpha/Transparent-Modus. Standard aus.</li>
+<li><strong>Ganze Strecke blass zeigen (früher „Ghost-Track&quot;; im Aussehen-Panel ▸ jeder Tour)</strong> — zeigt die <strong>komplette Route</strong> schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: <strong>eigene Farbe</strong> (unabhängig von der Track-Farbe — z.B. dezentes Grau) und <strong>Deckkraft</strong> (5–80 %, Standard 30 %). Wirkt in Vorschau und Video. Standard aus.</li>
 <li><strong>Mehrere Track-Farben</strong> — die Track-Linie kann die <strong>Farbe wechseln</strong>. Mit dem Selektor <strong>„Einfärben nach&quot;</strong> wählst du, wonach:</li>
 <li><strong>Distanz (km)</strong> — Farb-Stops <strong>ab km</strong> (Zahl), <strong>an der aktuellen Marker-Position</strong> (übernimmt die Scrubber-Position) oder <strong>an allen GPX-Wegpunkten</strong> (automatisch). Die erste Farbe gilt ab km 0 (= Track-Farbe).</li>
 <li><strong>Jede Datenreihe des Tracks</strong> — steht hier <strong>alles zur Auswahl, was auch der Daten-Animator plotten kann</strong>: Höhe, Tempo, Steigung und sämtliche Sensorwerte aus FIT/TCX-Dateien (<strong>Puls, Leistung, Trittfrequenz, Temperatur</strong> …). Die Liste zeigt <strong>nur, was der geladene Track wirklich enthält</strong>; die Einheit steht in Klammern dahinter.</li>
@@ -1693,15 +1726,6 @@ python app.py</code></pre>
 <blockquote>leeren Felder erkennt und ignoriert die App (seit v0.9.545 auch beim schnellen</blockquote>
 <blockquote>Einlesen), damit deine Fotos über die Aufnahmezeit auf den Track kommen. Wenn</blockquote>
 <blockquote>dir früher RAWs „im Atlantik&quot; begegnet sind: Das war der Grund.</blockquote>
-<h3 id="ghost-spuren-mehrere-tracks-im-hintergrund">Ghost-Spuren: mehrere Tracks im Hintergrund</h3>
-<p>Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine Planung, und was du am Ende wirklich gelaufen bist. Dafür gibt es im Animator den Unterpunkt <strong>👻 Ghost-Spuren</strong> in der Sektion „Tracks“.</p>
-<p>Füge so viele Tracks hinzu, wie du brauchst: <strong>＋ Ghost-Spur hinzufügen …</strong> öffnet die Auswahl aus dem <strong>Archiv</strong> (Suche, mehrere anhaken, der Haupt-Track und schon vorhandene Spuren sind ausgegraut). Liegt eine Datei noch nicht im Archiv, nimmt <strong>„Datei importieren …&quot;</strong> in der Auswahl sie erst dorthin auf und hakt sie an.</p>
-<blockquote><strong>Andersherum geht es auch:</strong> Wer im Archiv stöbert, findet an jeder Tour</blockquote>
-<blockquote><strong>👻 Als Ghost-Spur übernehmen</strong> (auch im Karten-Popup). Mehrere auf einmal:</blockquote>
-<blockquote>mit ⌘/Strg-Klick markieren und „👻 Diese N als Ghost-Spuren übernehmen&quot;.</blockquote>
-<p>Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.</p>
-<p><strong>Reihenfolge:</strong> am Griff <strong>⠿</strong> ziehen oder die Pfeile <strong>▲▼</strong> neben dem Namen nutzen (seit v0.9.720 — auf Windows geht nur der Weg über die Pfeile zuverlässig). Die unterste Spur liegt obenauf. Wählst du im Datei-Dialog mehrere Dateien auf einmal, kommen sie nach Dateiname geordnet an (01, 02, 03 …).</p>
-<p>Ein typischer Aufbau: der offizielle Weg kräftig und durchgezogen, die geplanten Runden dünn gestrichelt, und darüber läuft animiert deine tatsächliche Tour. Die Spuren gehören zum Projekt und sind im fertigen Video zu sehen.</p>
 <h3 id="zeitzonen-magie">Zeitzonen-Magie</h3>
 <p>Die App liest den <code>OffsetTimeOriginal</code>-EXIF-Tag aus jedem Foto und rechnet die Aufnahmezeit nach UTC um. Schreibt deine Kamera diesen Tag, passt der Track <strong>sofort</strong>, ohne dass du irgendetwas einstellst.</p>
 <p><strong>Nicht jede Kamera schreibt ihn.</strong> Der Tag kam erst mit <strong>Exif 2.31</strong> (2016); in Kameras steckt er verbreitet ab etwa <strong>2017/2018</strong>. Ältere Modelle speichern nur die Uhrzeit — <strong>die Uhr kann völlig richtig gestellt sein</strong>, es fehlt bloß die Angabe, wie weit sie von UTC entfernt war. Genau dann liegen Fotos und Track um den Zeitzonen-Abstand auseinander (in Deutschland im Sommer 2 Stunden), obwohl beides für sich stimmt. Die App sagt dir das jetzt: Sobald Fotos ohne gespeicherte Zeitzone geladen sind, steht unter dem Offset-Regler ein Hinweis mit den betroffenen Kameras.</p>

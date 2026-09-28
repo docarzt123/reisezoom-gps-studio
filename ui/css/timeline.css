@@ -1128,3 +1128,8 @@ body.wert-zieht .timeline-marker.is-selected {
 .timeline-sg:empty { display: none; }
 .timeline-sg .timeline-lane[data-kind="ovkopf"] .lane-label { color: #ffc2a8; }
 .timeline-sg .timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(255, 138, 92, .12); }
+
+/* 28.09.2026 §72 — Gruppe „Ganz zeigen": gefüllte Kachel (die Runde ist ganz da), Blend-Schrägen und Griffe */
+.tl-gruppe.ist-ganz { background: color-mix(in srgb, var(--tl-gruppe-farbe, #35a7ff) 35%, rgba(20,22,30,.85)); border-style: solid; border-top: 2px solid rgba(255,255,255,.35); overflow: visible; }
+.tl-gruppe.ist-ganz .tl-ov-rampe { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.tl-gruppe-blende { position: absolute; top: -4px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); cursor: ew-resize; z-index: 4; }

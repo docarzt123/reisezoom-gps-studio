@@ -413,6 +413,9 @@ Todo se hace con el ratón:
   sigue), transición, „correr en secuencia", las rutas del grupo con **„separar"**, a qué ruta
   sigue la cámara, y **„unir con otro grupo"** — entonces las rutas corren a la vez en un grupo,
   como enjambre.
+- **◼ Mostrar entera** (clic derecho o doble clic → Visualización): el grupo no se dibuja, sino
+  que se ve entero mientras dure su bloque — con aparecer/desaparecer en los puntos blancos. Más
+  en la sección siguiente.
 - **Ordenar** sobre la lista lo calcula todo una vez: **⏭ en secuencia**, **∥ todos desde 0**,
   **🏁 llegar a la vez** (cada grupo recibe el factor con el que llega junto a los demás) y
   **🕐 hora real** (duración e inicio como se grabó). Después es una disposición normal que puedes
@@ -425,6 +428,58 @@ simplemente un grupo con varias rutas.
 Los **keyframes** cuelgan de la ruta: pon uno en un puente, inserta después una parada antes o
 alarga un grupo anterior, y el keyframe sigue en el puente. Una parada puede llevar varios
 keyframes — la cámara puede moverse mientras el punto está quieto.
+
+### ◼ Rutas «Mostrar entera» — en lugar de rutas fantasma (desde v0.9.734)
+
+A veces una ruta solo se entiende en contexto: el sendero oficial, tu plan, la vuelta del día
+anterior — y encima, lo que caminaste hoy. Para eso existían las rutas fantasma. Desde v0.9.734
+esa línea es simplemente una **ruta con la visualización «Mostrar entera»**: no se dibuja, sino
+que **aparece entera de golpe** — mientras dure su barra en la línea de tiempo.
+
+**Cómo añadirla:**
+
+- En el animador, **＋ Añadir ruta** y en la lista de Tracks pulsa **◼** en la ruta. Si comparte
+  grupo con otras, pasa a ser un grupo propio — las demás siguen animadas. Otro clic en ◼ la
+  vuelve a animar.
+- En el **archivo**, cada ruta ofrece **◼ Como ruta entera** (también en el popup del mapa y en
+  el clic derecho; varias con ⌘/Ctrl+clic). La ruta entra en el animador sin sustituir el track
+  principal.
+- En la línea de tiempo, clic derecho en el bloque → **◼ Mostrar entera** / **▶ Animada**, o
+  doble clic → **Visualización**.
+
+**Cuándo y cuánto tiempo:** arrastrar el bloque fija **desde cuándo** se ve la ruta; el borde
+derecho, **cuánto tiempo**. Del todo a la derecha = hasta el final del vídeo (crece con él). Los
+dos puntos blancos del bloque son **aparecer** y **desaparecer** — arrastrarlos cambia la
+duración. En la ventana del grupo (doble clic) eliges el tipo: **Corte**, **Fundido**
+(opacidad), **Emerger** (la línea crece con un pequeño rebote, como los recuadros de overlay)
+o **Ambos**.
+
+**Lo que no hace una ruta entera** — es decorado:
+
+- **No alarga el vídeo**; la duración sale solo de las rutas animadas.
+- **No** cuenta en los recuadros de estadísticas y **no es una etapa**.
+- **No tiene punto** en movimiento y queda **debajo** de las rutas animadas.
+- La **ruta principal** siempre se dibuja — para mostrarla entera, carga otra como principal.
+
+**Ejemplo** (el deseo de Marc): el Teide emerge, segundo y medio después Vilaflor, y desde los
+3 s empieza a dibujarse el Pico Viejo. Teide desde 0 s con «Emerger», Vilaflor desde 1,5 s con
+«Emerger», y la ruta principal arrastrada a 3 s en la línea de tiempo.
+
+**Aspecto:** como en cualquier ruta, en el panel **▸** bajo la entrada — color, grosor, estilo
+de línea (discontinua, etc.), sombra, brillo y, nuevo, **opacidad** (para todas las rutas).
+
+**Proyectos antiguos:** al abrirlos, las rutas fantasma se convierten en rutas «Mostrar entera»
+durante todo el vídeo — con su color, opacidad, grosor y trazo, sin fundidos, tal como se veían.
+Si una ruta fantasma era una ruta que ya está en el proyecto, en esa ruta se activa **«Mostrar la
+ruta completa atenuada»**. Un archivo que ya no se puede cargar se queda como línea de fondo
+(entonces sigue apareciendo la sección «👻 Rutas fantasma antiguas»).
+
+### Mostrar la ruta completa atenuada — para cada ruta (desde v0.9.734)
+
+El antiguo «Ghost-Track» (la ruta completa tenue al fondo, encima se dibuja la línea) pertenece
+ahora a **cada ruta**. En el panel **▸** de una ruta: **Mostrar la ruta completa atenuada**, con
+**opacidad** (5–80 %, por defecto 30 %) y **color** (por defecto, el de la ruta). En la ruta
+principal son los mismos ajustes de antes.
 
 ### Paso 7 — Unir archivos diarios en una sola ruta
 
@@ -1452,7 +1507,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
     3. **«Auto»** vuelve a activar el reconocimiento automático de posición.
     Esto funciona igual en la vista previa y en el vídeo final. (En las **tarjetas de foto** ocurre automáticamente a partir de la hora de captura de la foto.)
   - **Ayuda de vista previa:** casilla **«Mostrar TODOS los carteles en la vista previa»** — muestra todos los carteles a la vez al colocarlos (solo vista previa; en el vídeo sigue rigiendo el timing).
-- **Ghost-Track (desde v0.9.169)** — muestra la **ruta completa** ya semitransparente en el fondo, mientras que solo la parte animada se dibuja encima con opacidad total. Así se ve desde el principio hacia dónde va el recorrido. Ajustable: **color propio del ghost-track** (selector de color propio, independiente del color del track — p. ej. un gris discreto, desde v0.9.170) y **opacidad** (slider 5–80 %, por defecto 30 %). Funciona en la vista previa y en el render, incluido el modo alfa/transparente. Desactivado por defecto.
+- **Mostrar la ruta completa atenuada (antes «Ghost-Track», desde v0.9.169; desde v0.9.734 en el panel ▸ de cada ruta)** — muestra la **ruta completa** ya semitransparente en el fondo, mientras que solo la parte animada se dibuja encima con opacidad total. Así se ve desde el principio hacia dónde va el recorrido. Ajustable: **color propio del ghost-track** (selector de color propio, independiente del color del track — p. ej. un gris discreto, desde v0.9.170) y **opacidad** (slider 5–80 %, por defecto 30 %). Funciona en la vista previa y en el render, incluido el modo alfa/transparente. Desactivado por defecto.
 - **Varios colores de track (desde v0.9.435, ampliado en v0.9.448)** — la línea del track puede **cambiar de color**. El selector **«Colorear según»** decide en función de qué:
   - **Distancia (km)** — paradas de color **en km** (número), **en la posición actual del marcador** (adopta la posición del scrubber) o **en todos los waypoints del GPX** (automático). El primer color se aplica desde el km 0 (= color del track).
   - **Cualquier serie de datos de la pista** — desde la v0.9.448 aquí está **todo lo que el Animador de datos puede representar**: altitud, velocidad, pendiente y cualquier valor de sensor de archivos FIT/TCX (**pulso, potencia, cadencia, temperatura**…). La lista solo muestra **lo que la pista cargada contiene realmente**; la unidad aparece entre paréntesis.
@@ -1636,26 +1691,6 @@ parado, número de paradas y cuántos segundos quedan en el vídeo.
 Puedes **desplazar** el mapa de la vista previa con el ratón (clic+arrastrar) y hacer **zoom** con la rueda de scroll. El render adopta tu posición 1:1 — lo que ves en la vista previa es lo que sale en el vídeo.
 
 Cuando quieras volver a centrar el track: botón **⤢** abajo a la derecha.
-
-### Rutas fantasma: varias rutas de fondo (desde v0.9.544)
-
-A veces una ruta solo se entiende en contexto: el sendero oficial, tu plan y lo
-que realmente caminaste. Para eso está la sección **👻 Rutas fantasma** del
-Animador.
-
-Añade tantas rutas como necesites — **📚 Del archivo** o **📂 Archivo**.
-
-> **El camino por el archivo:** con **📚 Del archivo …** el catálogo se
-> convierte en un **selector puro**: una barra arriba dice qué se está
-> eligiendo, y en la ruta seleccionada solo aparece **👻 Usar como ruta
-> fantasma** (también vale un doble clic). «Abrir en el animador» y las demás
-> herramientas quedan ocultas mientras tanto, para que una ruta no acabe
-> siendo tu ruta principal por error. Varias a la vez: márcalas con
-> ⌘/Ctrl+clic. **Cancelar** devuelve el catálogo a la normalidad.
-
-Cada ruta se configura por separado: color, opacidad, grosor y trazo continuo
-o discontinuo. La casilla de la izquierda oculta una ruta sin borrarla. Las
-rutas pertenecen al proyecto y aparecen en el vídeo final.
 
 ### Camera-Keyframes (barra de línea de tiempo, desde v0.7) ⭐
 
@@ -2073,24 +2108,6 @@ No hace falta plugin de WordPress; sin Mapbox/CDN — el archivo funciona de for
 > lectura rápida), de modo que tus fotos se asignan al track por la hora de
 > captura. Si antes tus RAW acababan «en el Atlántico»: ese era el motivo.
 
-### Trazas fantasma: varios tracks de fondo (desde v0.9.544)
-
-A veces una ruta solo se entiende en su contexto: el sendero oficial, tu
-planificación y lo que al final caminaste. Para eso está el apartado
-**👻 Trazas fantasma** dentro de la sección «Tracks» del animador.
-
-Añade tantos tracks como necesites: **＋ Añadir ruta fantasma …** abre el selector
-del **archivo** (búsqueda, marcar varias; la ruta principal y las trazas ya
-presentes aparecen atenuadas). Si un archivo aún no está en el archivo,
-**«Importar archivo …»** en el selector lo añade primero y lo marca. Al revés
-también: en el archivo cada ruta ofrece «👻 Como traza fantasma en el animador».
-Cada traza se ajusta por separado: color, opacidad, grosor de línea y discontinua o
-continua. La casilla de la izquierda oculta una traza sin borrarla.
-
-Un montaje típico: el sendero oficial marcado y continuo, las circulares
-planificadas finas y discontinuas, y encima tu ruta real, animada. Las trazas
-forman parte del proyecto y se ven en el vídeo final.
-
 ## 6 · Módulo: Geotagger — etiquetar fotos con GPS
 
 > **El Geotagger existe en dos variantes:**
@@ -2104,10 +2121,6 @@ forman parte del proyecto y se ven en el vídeo final.
 > *La antigua app en solitario «Reisezoom Geotagger» ya no se compila desde el
 > 15/08/2026: su única ventaja era prescindir del token de Mapbox, y la app
 > completa hace tiempo que no lo necesita.*
-
-**Orden:** arrastra por el asa **⠿** o usa las flechas **▲▼** junto al nombre (desde v0.9.720; en
-Windows solo las flechas funcionan de forma fiable). La traza de abajo se dibuja encima. Si eliges
-varios archivos a la vez en el diálogo, llegan ordenados por nombre (01, 02, 03 …).
 
 ### Qué hace
 Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el punto del track que le corresponde. Escribe las coordenadas GPS como tag EXIF en la foto. **Funciona con JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) y vídeo (MP4/MOV/INSV)** (herramienta web: solo JPG).

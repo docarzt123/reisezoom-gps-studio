@@ -526,11 +526,43 @@ python app.py</code></pre>
 </ul>
 <p> follows), transition, „run in sequence&quot;, the tours in the group with <strong>„detach&quot;</strong>, which tour  the camera follows, and <strong>„merge with another group&quot;</strong> — the tours then run at the same time  in one group, as a swarm.</p>
 <ul>
+<li><strong>◼ Show whole</strong> (right-click or double-click → Display): the group does not draw itself but</li>
+</ul>
+<p> is visible whole for as long as its tile lasts — with fade in/out at the white dots. More in  the next section.</p>
+<ul>
 <li><strong>Arrange</strong> above the list computes everything once: <strong>⏭ in sequence</strong>, <strong>∥ all from 0</strong>,</li>
 </ul>
 <p> <strong>🏁 finish together</strong> (every group gets the factor that makes it arrive with the others) and  <strong>🕐 real time</strong> (length and start as recorded). After that it is an ordinary arrangement you  can keep shifting.</p>
 <p>A project you only open and look at stays untouched; only a change writes the groups into it. Old stage and swarm projects look as before after opening — the swarm is simply a group with several tours now.</p>
 <p><strong>Keyframes</strong> hang on the track: set one at a bridge, insert a hold before it later or make an earlier group longer, and the keyframe is still at the bridge. A hold can carry several keyframes — the camera may move while the marker stands.</p>
+<h3 id="tours-show-whole-instead-of-ghost-tracks">◼ Tours &quot;Show whole&quot; — instead of ghost tracks</h3>
+<p>Sometimes a tour only makes sense in context: the official trail, your plan, yesterday&#x27;s loop — and on top, what you walked today. That used to be the ghost tracks. such a line is simply a <strong>tour set to &quot;Show whole&quot;</strong>: it does not draw itself, it is <strong>there all at once</strong> — for as long as its bar in the timeline lasts.</p>
+<p><strong>How to add one:</strong></p>
+<ul>
+<li>In the animator, <strong>＋ Add tour</strong> and click <strong>◼</strong> on the tour in the Tracks list. If the tour</li>
+</ul>
+<p> shares a group with others, it becomes its own group — the others keep animating. Click ◼  again to make it animated.</p>
+<ul>
+<li>In the <strong>archive</strong>, every tour offers <strong>◼ As whole tour</strong> (also in the map popup and the</li>
+</ul>
+<p> right-click menu, several with ⌘/Ctrl-click). The tour goes into the animator without  replacing the main track.</p>
+<ul>
+<li>In the timeline, right-click the tile → <strong>◼ Show whole</strong> / <strong>▶ Animated</strong>, or double-click →</li>
+</ul>
+<p> <strong>Display</strong>.</p>
+<p><strong>When and how long:</strong> dragging the tile sets <strong>from when</strong> the route is visible; the right edge sets <strong>how long</strong>. All the way right = until the end of the video (it then grows with the video). The two white dots on the tile are <strong>fade in</strong> and <strong>fade out</strong> — drag them to change the duration. In the group window (double-click) you pick the kind: <strong>Cut</strong>, <strong>Fade</strong> (opacity), <strong>Pop in</strong> (the line grows with a small overshoot, like the overlay boxes) or <strong>Both</strong>.</p>
+<p><strong>What a whole tour does not do</strong> — it is a backdrop:</p>
+<ul>
+<li>It does <strong>not make the video longer</strong>; the length comes only from the animated tours.</li>
+<li>It is <strong>not</strong> counted in the stats boxes and is <strong>not a stage</strong>.</li>
+<li>It has <strong>no moving dot</strong> and lies <strong>below</strong> the animated tours.</li>
+<li>The <strong>main tour</strong> always draws itself — to show it whole, load another tour as the main tour.</li>
+</ul>
+<p><strong>Example</strong> (Marc&#x27;s wish): Teide pops in, a second and a half later Vilaflor, and from 3 s on Pico Viejo starts drawing. Teide from 0 s with &quot;Pop in&quot;, Vilaflor from 1.5 s with &quot;Pop in&quot;, drag the main tour to 3 s in the timeline.</p>
+<p><strong>Look:</strong> as for any tour, in the <strong>▸</strong> panel below the entry — colour, width, line style (dashed etc.), shadow, glow and, new, <strong>opacity</strong> (for all tours).</p>
+<p><strong>Old projects:</strong> ghost tracks turn into tours set to &quot;Show whole&quot; over the whole video when the project is opened — with their colour, opacity, width and dashes, hard without fades, as they looked before. If a ghost track was a tour already in the project, that tour gets <strong>&quot;Show the whole route faintly&quot;</strong> switched on. A file that can no longer be loaded stays as a background line (the section &quot;👻 Old ghost tracks&quot; is then still shown).</p>
+<h3 id="show-the-whole-route-faintly-for-every-tour">Show the whole route faintly — for every tour</h3>
+<p>The former &quot;ghost track&quot; (the whole route faint in the background, the line draws on top) now belongs to <strong>every tour</strong>. In a tour&#x27;s <strong>▸</strong> panel: <strong>Show the whole route faintly</strong>, plus <strong>opacity</strong> (5–80 %, default 30 %) and <strong>colour</strong> (default: the tour&#x27;s colour). For the main tour these are the same settings as before.</p>
 <h3 id="step-7-joining-daily-files-into-one-tour">Step 7 — Joining daily files into one tour</h3>
 <p>The most common case on a trip: one recording per day, but you want the whole journey.</p>
 <ol>
@@ -1083,7 +1115,7 @@ python app.py</code></pre>
 <p> This works identically in the preview and the finished video. (For <strong>photo cards</strong> this happens automatically via the photo&#x27;s capture time.)</p>
 <ul>
 <li><strong>Preview help:</strong> the <strong>&quot;Show ALL signs in the preview&quot;</strong> checkbox — shows all signs at once while placing (preview only; in the video the timing still applies).</li>
-<li><strong>Ghost track</strong> — shows the <strong>entire route</strong> semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: <strong>its own ghost-track color</strong> (its own color picker, independent of the track color — e.g. a subtle gray) and <strong>opacity</strong> (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.</li>
+<li><strong>Show the whole route faintly (formerly &quot;ghost track&quot;; in every tour&#x27;s ▸ panel)</strong> — shows the <strong>entire route</strong> semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: <strong>its own ghost-track color</strong> (its own color picker, independent of the track color — e.g. a subtle gray) and <strong>opacity</strong> (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.</li>
 <li><strong>Multiple track colours</strong> — the track line can <strong>change colour</strong>. The <strong>&quot;Colour by&quot;</strong> picker decides what drives it:</li>
 <li><strong>Distance (km)</strong> — colour stops <strong>at km</strong> (number), <strong>at the current marker position</strong> (adopts the scrubber position) or <strong>at all GPX waypoints</strong> (automatic). The first colour applies from km 0 (= track colour).</li>
 <li><strong>Any data series of the track</strong> — this offers <strong>everything the Data Animator can plot</strong>: elevation, speed, gradient and every sensor value from FIT/TCX files (<strong>heart rate, power, cadence, temperature</strong> …). The list only shows <strong>what the loaded track actually contains</strong>; the unit is in brackets.</li>
@@ -1576,15 +1608,6 @@ python app.py</code></pre>
 <blockquote>fields and ignores them, so your</blockquote>
 <blockquote>photos are matched to the track by capture time. If RAW files used to end up</blockquote>
 <blockquote>“in the Atlantic” for you: that was the reason.</blockquote>
-<h3 id="ghost-tracks-several-routes-in-the-background">Ghost tracks: several routes in the background</h3>
-<p>Sometimes a tour only makes sense in context: the official trail, your plan, and what you actually walked. That is what the <strong>👻 Ghost tracks</strong> item inside the animator&#x27;s &quot;Tracks&quot; section is for.</p>
-<p>Add as many tracks as you need: <strong>＋ Add ghost track …</strong> opens the picker from the <strong>archive</strong> (search, tick several; the main track and existing ghosts are greyed out). If a file is not in the archive yet, <strong>&quot;Import file …&quot;</strong> in the picker adds it there first and ticks it.</p>
-<blockquote><strong>The other way round works too:</strong> while browsing the archive, every tour</blockquote>
-<blockquote>offers <strong>👻 Use as ghost track</strong> (also in the map popup). Several at once: mark</blockquote>
-<blockquote>them with ⌘/Ctrl-click.</blockquote>
-<p>Each track is set up on its own: colour, opacity, line width, and dashed or solid. The checkbox on the left hides a track without deleting it.</p>
-<p>A typical setup: the official trail strong and solid, the planned loops thin and dashed, and on top your actual tour, animated. The tracks belong to the project and appear in the finished video.</p>
-<p><strong>Order:</strong> drag by the <strong>⠿</strong> handle or use the <strong>▲▼</strong> arrows next to the name (since v0.9.720 on Windows only the arrows work reliably). The bottom track is drawn on top. Several files picked at once in the file dialog arrive sorted by file name (01, 02, 03 …).</p>
 <h3 id="time-zone-magic">Time-zone magic</h3>
 <p>The app reads the <code>OffsetTimeOriginal</code> EXIF tag from each photo and converts the capture time to UTC. If your camera writes that tag, the track fits <strong>right away</strong>, without you setting anything.</p>
 <p><strong>Not every camera writes it.</strong> The tag only arrived with <strong>Exif 2.31</strong> (2016) and became common in cameras around <strong>2017/2018</strong>. Older models store the clock time only — <strong>the clock can be perfectly correct</strong>, what is missing is how far it was from UTC. Exactly then photos and track sit apart by the time-zone offset (two hours in German summer), although each of them is right on its own. The app now tells you: as soon as photos without a stored time zone are loaded, a note appears under the offset slider naming the cameras concerned.</p>

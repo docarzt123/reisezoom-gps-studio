@@ -36,22 +36,35 @@
 
   /** Den Zeitplan rechnen: wo jede Gruppe liegt und wie lang das Video wird.
    *  `mindestS` (der Wunsch aus „Animation (s)") verlängert, verkürzt nie. */
+  /** 28.09.2026 (IDEAS §72) — Darstellung „Ganz zeigen": die Gruppe zeichnet nicht, ihre ganze Runde
+   *  ist von `vorlauf_s` an da, `ganz_s` Sekunden lang (leer = bis zum Videoende). Sie bestimmt die
+   *  Videolänge NICHT (Q8) und liegt nie in der Kette (Zeile 0), sondern darunter. */
+  function istGanz(g) { return !!g && g.modus === "ganz"; }
+
   function zeitplan(gruppen, rohS, mindestS) {
     const hinweise = [];
     const lagen = [];
     for (const g of gruppen || []) {
       const vor = Math.max(0, sauber(g.vorlauf_s, 0));
-      const inh = inhaltDauer(g, (rohS || {})[g.id] || 0);
-      lagen.push({ id: g.id, vorlauf_s: vor, inhalt_s: inh, nachlauf_s: 0,
-                   zeile: Math.max(0, Math.trunc(sauber(g.zeile, 0))),
+      const ganz = istGanz(g);
+      const inh = ganz ? Math.max(MIN_INHALT_S, sauber(g.ganz_s, 0) || 0) : inhaltDauer(g, (rohS || {})[g.id] || 0);
+      lagen.push({ id: g.id, vorlauf_s: vor, inhalt_s: inh, nachlauf_s: 0, ganz,
+                   bisEnde: ganz && !(sauber(g.ganz_s, 0) > 0),
+                   zeile: ganz ? Math.max(1, Math.trunc(sauber(g.zeile, 1))) : Math.max(0, Math.trunc(sauber(g.zeile, 0))),
                    get von_s() { return this.vorlauf_s; },
                    get bis_s() { return this.vorlauf_s + this.inhalt_s; },
                    get gesamt_s() { return this.vorlauf_s + this.inhalt_s + this.nachlauf_s; } });
     }
     let dauer = 0;
-    for (const l of lagen) dauer = Math.max(dauer, l.bis_s);
+    for (const l of lagen) if (!l.ganz) dauer = Math.max(dauer, l.bis_s);
     if ((mindestS || 0) > dauer + 1e-9) dauer = +mindestS;
     if (!(dauer > 0)) return { dauer_s: 0, lagen: [], hinweise: ["keine Gruppen"] };
+    // „Ganz zeigen": am Videoende abgeschnitten; ohne eigene Länge bis zum Ende.
+    for (const l of lagen) {
+      if (!l.ganz) continue;
+      l.vorlauf_s = Math.min(l.vorlauf_s, Math.max(0, dauer - MIN_INHALT_S));
+      l.inhalt_s = l.bisEnde ? Math.max(MIN_INHALT_S, dauer - l.vorlauf_s) : Math.max(MIN_INHALT_S, Math.min(l.inhalt_s, dauer - l.vorlauf_s));
+    }
     for (const l of lagen) l.nachlauf_s = Math.max(0, dauer - l.bis_s);
     for (const l of lagen) {
       if (Math.abs(l.gesamt_s - dauer) > 1e-6) hinweise.push(`${l.id}: ${l.gesamt_s.toFixed(3)} s statt ${dauer.toFixed(3)} s`);
@@ -144,7 +157,7 @@
     return gruppen;
   }
 
-  const api = { MIN_INHALT_S, inhaltDauer, zeitplan, kameraGruppe, ueberlappt, zeilen, ausProjekt };
+  const api = { istGanz, MIN_INHALT_S, inhaltDauer, zeitplan, kameraGruppe, ueberlappt, zeilen, ausProjekt };
   // Im Browser am Fenster; die Prüfstände (tests/_node.py) laden die Datei
   // unter node mit einem `window`-Schatten — kein CommonJS-Export nötig.
   if (typeof window !== "undefined") window.rzSpuren = api;

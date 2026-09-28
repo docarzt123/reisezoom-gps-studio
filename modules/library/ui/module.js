@@ -2145,7 +2145,7 @@ function mountLibrary(body, headerActions) {
       eintraege.push("-");
       eintraege.push({ text: "ℹ️ " + T("library.ctx_details", "Details anzeigen"), tun: () => { select(it); } });
     }
-    eintraege.push({ text: "👻 " + T("library.ghost.take_short", "Als Ghost-Spur"), tun: () => alsGhost(pfade) });
+    eintraege.push({ text: "◼ " + T("library.ghost.take_short", "Als ganze Tour"), tun: () => alsGhost(pfade) });
     if (!viele) {
       eintraege.push("-");
       eintraege.push({ text: (it.fav ? "☆ " + T("library.ctx_unfav", "Kein Favorit mehr")
@@ -2915,9 +2915,9 @@ function mountLibrary(body, headerActions) {
         <div class="lib-colchips lib-pop-cols"></div>
         <div class="lib-pop-btns">
           ${_ghostModus()
-            ? `<button class="btn btn-primary btn-sm" data-pop="ghost">👻 ${T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>`
+            ? `<button class="btn btn-primary btn-sm" data-pop="ghost">◼ ${T("library.ghost.take", "Als ganze Tour übernehmen")}</button>`
             : `<button class="btn btn-primary btn-sm" data-pop="open">${T("library.open_animator", "Im Animator öffnen")}</button>
-          <button class="btn btn-sm" data-pop="ghost">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>
+          <button class="btn btn-sm" data-pop="ghost">◼ ${T("library.ghost.take_short", "Als ganze Tour")}</button>
           <button class="btn btn-sm" data-pop="col">+ ${T("library.col_add", "Zu Sammlung")}</button>`}
         </div>
       </div>`).addTo(_map);
@@ -3177,8 +3177,8 @@ function mountLibrary(body, headerActions) {
            animiert, sondern als Hintergrundlinien (offizieller Weg, Planungen …).
            Gleicher Übergabeweg wie „Alle im Animator" (window.__rzPendingGhosts). -->
       <button class="btn ${_ghostModus() ? "btn-primary" : ""} btn-sm" id="lib-m-ghosts" style="width:100%;margin-top:6px;">${
-        _ghostModus() ? `👻 ${T("library.ghost.take_n", "Diese {n} als Ghost-Spuren übernehmen").replace("{n}", _multi.size)}`
-                      : T("library.ghosts.action", "👻 Als Ghost-Spur in den Animator")}</button>
+        _ghostModus() ? `◼ ${T("library.ghost.take_n", "Diese {n} als ganze Touren übernehmen").replace("{n}", _multi.size)}`
+                      : T("library.ghosts.action", "◼ Als ganze Tour in den Animator")}</button>
       </div>
       ${_ghostModus() ? "" : `<div class="lib-actions">
         <button class="btn btn-ghost btn-sm" id="lib-m-fav">★ ${T("library.fav_on", "Als Favorit")}</button>
@@ -3411,8 +3411,8 @@ function mountLibrary(body, headerActions) {
 
       <div class="lib-actions">
         ${_ghostModus()
-          ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1" style="width:100%">👻 ${
-              T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>`
+          ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1" style="width:100%">◼ ${
+              T("library.ghost.take", "Als ganze Tour übernehmen")}</button>`
           : `<button class="btn btn-primary btn-sm" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
         <button class="btn btn-sm" data-open="tourmap">${T("library.open_tourmap", "Tour-Karte")}</button>
         <button class="btn btn-sm" data-open="heightanim">${T("library.open_height", "Daten-Animator")}</button>
@@ -3420,7 +3420,7 @@ function mountLibrary(body, headerActions) {
         <button class="btn btn-sm" data-open="gpxinspect">${T("library.open_inspect", "Inspektor")}</button>
         <button class="btn btn-sm" data-ghost="1" title="${esc(T("library.ghost.hint",
             "Legt die Tour als unbewegte Hintergrundlinie in den Animator — der Haupt-Track bleibt, wie er ist."))
-          }">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>`}
+          }">◼ ${T("library.ghost.take_short", "Als ganze Tour")}</button>`}
       </div>
 
       <div class="lib-detail-rows" id="lib-d-rows">
@@ -4441,7 +4441,7 @@ function mountLibrary(body, headerActions) {
   function _ghostBannerHtml() {
     if (!_ghostModus()) return "";
     return `<div class="lib-ghost-bar" id="lib-ghost-bar">
-      <span>👻 ${T("library.ghost.mode",
+      <span>◼ ${T("library.ghost.mode",
         "Ghost-Spur auswählen: Tour anklicken und „Als Ghost-Spur übernehmen“ (oder Doppelklick). Mehrere gehen mit ⌘/Strg-Klick. Die anderen Werkzeuge sind so lange ausgeblendet.")}</span>
       <button class="btn btn-ghost btn-sm" id="lib-ghost-bar-x" type="button">${T("common.cancel", "Abbrechen")}</button>
     </div>`;

@@ -549,22 +549,35 @@ function mountTimelineBar(opts) {
       else band(pos, g.von, "ueber", tlT("animator.gruppe.uebergang", "Übergang") + " · " + tlT("animator.gruppe.ueber_tip", "Ziehen: Dauer · Klick: Flug, Luftlinie oder Schnitt"), g.ueber_stil, g.id);
       const k = document.createElement("button");
       k.type = "button";
-      k.className = "tl-gruppe" + (g.kamera ? " ist-kamera" : "") + (g.fest ? " ist-fest" : "") + (g.n > 1 ? " hat-mitglieder" : "");
+      k.className = "tl-gruppe" + (g.kamera ? " ist-kamera" : "") + (g.fest ? " ist-fest" : "") + (g.n > 1 ? " hat-mitglieder" : "") + (g.ganz ? " ist-ganz" : "");
       k.dataset.id = g.id;
       k.draggable = false;
       k.style.left = _anchorToPct(g.von) + "%";
       k.style.width = Math.max(0.4, _anchorToPct(g.bis) - _anchorToPct(g.von)) + "%";
-      if (g.farbe) k.style.borderLeftColor = g.farbe;
+      if (g.farbe) { k.style.borderLeftColor = g.farbe; k.style.setProperty("--tl-gruppe-farbe", g.farbe); }
       const wPx = (g.bis - g.von) * _viewZoom * breitePx;
       const fTxt = zahl(+g.faktor || 1) + "×";
       const sTxt = g.sek > 0 ? zahl(g.sek) + " s" : "";
       k.title = `${g.name || g.id}` + (g.n > 1 ? ` · ${g.n} ${tlT("animator.gruppe.touren", "Touren")}` : "")
-        + ` · ${fTxt} · ${sTxt}` + (g.kamera ? " · " + tlT("animator.gruppe.kamera", "die Kamera folgt dieser Gruppe") : "")
-        + "\n" + tlT("animator.gruppe.tip", "Ziehen: in der Zeit verschieben · Ränder: Länge · Doppelklick: öffnen");
+        + (g.ganz ? ` · ${tlT("animator.gruppe.ganz", "Ganz zeigen")} · ${sTxt}` : ` · ${fTxt} · ${sTxt}`)
+        + (g.kamera ? " · " + tlT("animator.gruppe.kamera", "die Kamera folgt dieser Gruppe") : "")
+        + "\n" + (g.ganz ? tlT("animator.gruppe.ganz_tip", "Ziehen: verschieben · Ränder: wie lange sie zu sehen ist · weiße Punkte: Ein-/Ausblendung · Doppelklick: öffnen")
+                          : tlT("animator.gruppe.tip", "Ziehen: in der Zeit verschieben · Ränder: Länge · Doppelklick: öffnen"));
       const name = wPx >= 44 ? `<span class="tl-gruppe-name">${(g.n > 1 ? "👥 " : "")}${_esc(g.name || g.id)}</span>` : "";
       const zahlen = wPx >= 96 ? `<span class="tl-gruppe-zahlen">${fTxt}${sTxt ? " · " + sTxt : ""}</span>`
         : (wPx >= 60 && Math.abs((+g.faktor || 1) - 1) > 1e-9 ? `<span class="tl-gruppe-zahlen">${fTxt}</span>` : "");
-      k.innerHTML = `<span class="tl-gruppe-rand" data-rand="l"></span>${name}${zahlen}<span class="tl-gruppe-rand" data-rand="r"></span>`;
+      // 28.09.2026 §72 — „Ganz zeigen": Schrägen + Griffe für Ein-/Ausblendung (wie die Overlay-Balken)
+      let blend = "";
+      if (g.ganz) {
+        const len = Math.max(1e-9, +g.sek || 0);
+        const ein = (g.ein && g.ein !== "none") ? Math.max(0, Math.min(1, (+g.einS || 0) / len)) * 100 : 0;
+        const aus = (g.aus && g.aus !== "none" && !g.bisEnde) ? Math.max(0, Math.min(1, (+g.ausS || 0) / len)) * 100 : 0;
+        blend = `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span><span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
+          + (g.ein && g.ein !== "none" ? `<span class="tl-gruppe-blende" data-blende="ein" style="left:${ein}%"></span>` : "")
+          + (g.aus && g.aus !== "none" && !g.bisEnde ? `<span class="tl-gruppe-blende" data-blende="aus" style="left:${100 - aus}%"></span>` : "");
+      }
+      const zahlenGanz = g.ganz && wPx >= 96 ? `<span class="tl-gruppe-zahlen">◼ ${sTxt}</span>` : zahlen;
+      k.innerHTML = `${blend}<span class="tl-gruppe-rand" data-rand="l"></span>${name}${g.ganz ? zahlenGanz : zahlen}<span class="tl-gruppe-rand" data-rand="r"></span>`;
       el.appendChild(k);
       pos = g.bis;
     });
@@ -639,6 +652,38 @@ function mountTimelineBar(opts) {
       _gruppenMenue(ev, k.dataset.id);
     });
   }
+  /** 28.09.2026 §72 — Ein-/Ausblende-Griff einer „Ganz zeigen"-Kachel ziehen (Sekunden). */
+  function _gruppenBlendeDruck(ev, lane, k, g, art) {
+    const mk = lane.querySelector(".lane-markers") || lane;
+    const spurPx = mk.getBoundingClientRect().width || 1;
+    const ges = _gruppenSekJeAnteil();
+    const sekJePx = ges > 0 ? ges / spurPx / _viewZoom : 0;
+    const s0 = art === "ein" ? (+g.einS || 0) : (+g.ausS || 0);
+    const len = Math.max(0.1, +g.sek || 0);
+    let neu = s0, bewegt = false;
+    const bewegen = (e2) => {
+      const dx = e2.clientX - ev.clientX;
+      if (Math.abs(dx) > 2) bewegt = true;
+      neu = Math.max(0, Math.min(len, s0 + (art === "ein" ? dx : -dx) * sekJePx));
+      const gr = k.querySelector(`.tl-gruppe-blende[data-blende="${art}"]`);
+      const ra = k.querySelector(art === "ein" ? ".tl-ov-ein" : ".tl-ov-aus");
+      const pct = neu / len * 100;
+      if (ra) ra.style.width = pct + "%";
+      if (gr) gr.style.left = (art === "ein" ? pct : 100 - pct) + "%";
+      setStatusHint((art === "ein" ? tlT("animator.gruppe.einblenden", "Einblenden") : tlT("animator.gruppe.ausblenden", "Ausblenden")) + ` ${neu.toFixed(1)} s`);
+    };
+    const hoch = () => {
+      document.removeEventListener("mousemove", bewegen, true);
+      document.removeEventListener("mouseup", hoch, true);
+      setStatusHint(null);
+      if (bewegt) { try { (cb.onGruppeBlende || (() => {}))(g.id, art, Math.round(neu * 100) / 100); } catch (e) { console.warn("onGruppeBlende:", e); } }
+      _gruppenAlleZeichnen();
+    };
+    document.addEventListener("mousemove", bewegen, true);
+    document.addEventListener("mouseup", hoch, true);
+    return true;
+  }
+
   function _gruppenMenue(ev, id) {
     const g = _gruppeVonId(id);
     const eintraege = [
@@ -651,6 +696,9 @@ function mountTimelineBar(opts) {
       tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, "eigen"); } catch (e) { console.warn("onGruppenZeile:", e); } } });
     if (g && !g.kamera) eintraege.push({ text: tlT("animator.gruppe.menu_kamera", "Kamera folgt dieser Gruppe (nach oben)"),
       tun: () => { try { (cb.onGruppenStapel || (() => {}))(id, 99); } catch (e) { console.warn("onGruppenStapel:", e); } } });
+    // 28.09.2026 §72 — Darstellung umschalten (die Haupt-Tour zeichnet immer)
+    if (g && !g.haupt) eintraege.push({ text: g.ganz ? "▶ " + tlT("animator.gruppe.menu_animiert", "Animiert (Linie zeichnet)") : "◼ " + tlT("animator.gruppe.menu_ganz", "Ganz zeigen (ganze Runde auf einmal)"),
+      tun: () => { try { (cb.onGruppeModus || (() => {}))(id, g.ganz ? "animiert" : "ganz"); } catch (e) { console.warn("onGruppeModus:", e); } } });
     _menueZeigen(ev, eintraege);
   }
   /** Ein Band (Halt vor der ersten Gruppe, Übergang) ziehen = Dauer ändern;
@@ -715,6 +763,8 @@ function mountTimelineBar(opts) {
     const g = _gruppeVonId(id);
     if (!g) return false;
     ev.preventDefault();
+    const blGriff = ev.target.closest(".tl-gruppe-blende");
+    if (blGriff) return _gruppenBlendeDruck(ev, lane, k, g, blGriff.dataset.blende);
     // Doppelklick selbst erkennen — die Zeile wird nach jedem Loslassen neu
     // gezeichnet, ein natives dblclick kommt nie an (dieselbe Falle wie in der
     // Tempo-Spur, 08.09.2026 gemessen).
