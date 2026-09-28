@@ -3529,7 +3529,7 @@ function mountAnimator(body, headerActions, opts) {
   // Für die automatischen Tests greifbar (wie window.__libMap in den anderen
   // Modulen) — der Zustand liegt sonst modul-intern.
   try { window.__rzGhostSpuren = () => _ghostSpuren; } catch (_) {}
-  try { window.__rzGhostNeuAufbauen = () => _ghostSpurenAufbauen(); } catch (_) {}   // 28.09.2026 — Prüfstand (test_ghost_strich_szene.py)
+  window.__rzGhostNeuAufbauen = () => _ghostSpurenAufbauen();   // 28.09.2026 — Prüfstand (test_ghost_strich_szene.py)
 
   function ghostSpurenSichern() {
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.ghosts_geaendert", "Ghost-Spuren geändert")); } catch (_) {}   // 10.09.2026
