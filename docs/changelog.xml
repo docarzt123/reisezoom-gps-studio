@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 28 Sep 2026 07:29:24 +0000</lastBuildDate>
+<lastBuildDate>Mon, 28 Sep 2026 14:19:23 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.733</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-733</link>
+<guid isPermaLink="false">gps-studio-v0.9.733</guid>
+<pubDate>Mon, 28 Sep 2026 12:00:00 +0000</pubDate>
+<description>Schilder in der Zeitleiste — unter den Overlays zeigt die Zeile „Schilder“ je Schild einen Balken: wann es zu sehen ist. Ziehen verschiebt den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“.
+
+Sammlungen gleich beim Einlesen — einzelne Tracks lassen sich beim Import direkt einer oder mehreren Sammlungen zuordnen, auch einer neuen.
+
+Video = Vorschau — die Quellenzeile und gestrichelte Ghost-Spuren sehen im Video jetzt genau aus wie in der Vorschau.
+
+Keyframe-Punkte untereinander — in der Zeitleiste stehen die Punkte aller Spuren wieder exakt übereinander.</description>
+</item>
 <item>
 <title>v0.9.732</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-732</link>
@@ -199,19 +212,6 @@ Die Reparatur erfand keine Tempo-Fehler mehr — Fehlende Zeitstempel am Anfang 
 <guid isPermaLink="false">gps-studio-v0.9.700</guid>
 <pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
 <description>Aufnahmen einer Actioncam mit 10 Hz gelten wieder als Aufnahme — Das Archiv hielt sie für geplante Routen, weil viele Punkte in derselben Sekunde liegen. Dadurch wurden sie mit dem falschen Maßstab geprüft. Im Hintergrund ist außerdem die Erkennung entstanden, was auf einer Tour gemacht wurde — Gehen, Rad, Fahrt, Fähre, Halte und Pausen —, gemessen an über 400 echten Touren. Sichtbar wird sie mit den nächsten Schritten.</description>
-</item>
-<item>
-<title>v0.9.699</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-699</link>
-<guid isPermaLink="false">gps-studio-v0.9.699</guid>
-<pubDate>Sat, 12 Sep 2026 12:00:00 +0000</pubDate>
-<description>Mehrere Laufwerke: Der Hinweis nennt das fehlende — Hast du Ordner auf verschiedenen Laufwerken, steht jetzt da, welches fehlt — mit dem Laufwerksnamen („NAS“, „SD Karte“), nicht dem letzten Ordnerteil. Fehlen nur einzelne Ordner, steht das so da, jeder fehlende Ordner ist aufgelistet, und der Satz daneben sagt, dass die Ordner auf den übrigen Laufwerken ganz normal gelesen werden. In der Seitenleiste steht das Laufwerk an jedem Ordner.
-
-Unterwegs ohne Laufwerk: Die App sagt es — Über dem Raster steht deutlich, welches Laufwerk fehlt, was trotzdem geht (Suche, Karte und Vorschaubilder kommen aus der Bibliothek), welchen Stand du siehst, und dass die App von selbst weiterliest, sobald es wieder da ist. Kein „Jetzt einlesen&quot; und kein Fortschrittsbalken über Bilder, die gar nicht kommen können. Die Seitenleiste markiert den Ordner, und die Detailspalte sagt, dass das Original fehlt — und zeigt die Vorschau trotzdem. Kommt das Laufwerk zurück, merkt die App das binnen zwanzig Sekunden und macht weiter.
-
-Die eigentliche Ursache des abbrechenden Einlesens — Eine Hilfsfunktion, die gelernte Vorschau-Schlüssel speichert, schloss ihre Datenbank-Transaktion nur ab, wenn sie etwas geändert hatte. Fand sie nichts, blieb die Transaktion offen und hielt die ganze Bibliothek gesperrt, bis der Hintergrundlauf aufgab. Jetzt schließt sie immer ab — im Prüfstand laufen 300 Dateien in drei Sekunden durch, während nebenher geschrieben wird.
-
-Das Einlesen der Fotos brach nach zwei Sekunden ab — ohne ein Wort — Im Log stand „database is locked&quot;: Der Hintergrundlauf öffnet eine eigene Verbindung zur Bibliothek, die Oberfläche schrieb im selben Moment, und die Datenbank kannte weder WAL noch eine Wartezeit. Also war der Lauf tot, bevor er begann, und in der Kopfzeile stand wieder „Jetzt einlesen&quot;, als wäre nichts gewesen. Die Bibliothek läuft jetzt im WAL-Modus mit 30 Sekunden Geduld, der Lauf versucht das Öffnen fünfmal, und scheitert doch etwas, steht der Grund sichtbar da — mit einem Knopf zum erneuten Versuch.</description>
 </item>
 </channel>
 </rss>
