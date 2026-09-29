@@ -4633,5 +4633,7 @@
   "animator.spur_glatt": "Spur glätten",
   "animator.spur_glatt.hint": "Nimmt das GPS-Zittern und kleine Zacken aus der Spur. Linie, Pfeil und Kamera laufen dann ruhiger. Der Wert ist die Streckenlänge, über die geglättet wird — 0 = Originalspur.",
   "animator.field.follow_glatt": "Kamerabahn glätten",
-  "animator.field.follow_glatt_tip": "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit"
+  "animator.field.follow_glatt_tip": "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit",
+  "szene.vorwaermen_n": "Szene: Kacheln vorwärmen {i} von {n} …",
+  "menu.reveal_log": "Logdatei im Finder zeigen"
 }

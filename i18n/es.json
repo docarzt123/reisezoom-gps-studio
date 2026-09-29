@@ -4633,5 +4633,7 @@
   "animator.spur_glatt": "Suavizar traza",
   "animator.spur_glatt.hint": "Quita el temblor del GPS y los pequeños zigzags de la traza; la línea, la flecha y la cámara se mueven con más calma. El valor es la distancia sobre la que se suaviza — 0 = traza original.",
   "animator.field.follow_glatt": "Suavizar recorrido de cámara",
-  "animator.field.follow_glatt_tip": "0 = cámara justo sobre el punto; más alto = mira a un recorrido suavizado y no gira con cada curva"
+  "animator.field.follow_glatt_tip": "0 = cámara justo sobre el punto; más alto = mira a un recorrido suavizado y no gira con cada curva",
+  "szene.vorwaermen_n": "Escena: precargando teselas {i} de {n} …",
+  "menu.reveal_log": "Mostrar archivo de registro en Finder"
 }

@@ -1471,6 +1471,7 @@ python app.py</code></pre>
 <p>During the render you see the frame currently being produced in the preview window. If the combination of style and camera angle doesn&#x27;t suit you: click <strong>&quot;⨯ Cancel&quot;</strong> — the half-finished file is deleted immediately and you can reconfigure without having waited 5 min for a render that turns out to be nothing.</p>
 <h3 id="preview-video">Preview = video ⭐</h3>
 <p>The finished video is literally the preview in high resolution: the same map, the same lines, dashes, signs, overlays and the same camera path, just drawn at the video&#x27;s pixel density. What you see in the test run is what you get — line widths and sign sizes in the video are exactly as large <strong>relative to the frame width</strong> as in the preview. Tip: judge the preview at the window size you render with; a much wider window shows (and renders) the signs a little smaller in relation to the picture.</p>
+<p><strong>Prewarming tiles (faster):</strong> before the first frame the render loads the map tiles along the camera path — first coarsely across the whole video, then finer. It takes at most 45 seconds and shows its progress as &quot;prewarming tiles 12 of 120&quot;. When you render the same place again most of it is already cached and it continues after a few seconds. Measured with an empty cache (20 s portrait video): prewarming 45 s instead of 104 s, whole render 185 s instead of 226 s.</p>
 <p>With the swarm on 3D terrain, the lines now run just above the terrain in the preview too (no more flickering on ridges) — just like in the video.</p>
 <p>Should a render with the new method ever fail to finish, there is a fallback to the previous generator: add <code>&quot;render_engine&quot;: &quot;klassisch&quot;</code> to <code>settings.json</code> (or start the app with <code>RZ_RENDER_KLASSISCH=1</code>). Alpha export (transparent background) and the Tour-Map still image still use the previous method anyway.</p>
 <h3 id="photos-on-the-map">📷 Photos on the map ⭐</h3>
@@ -2043,6 +2044,9 @@ python app.py</code></pre>
 <li><strong>🔑 Set up a Mapbox token</strong> — the step-by-step guide</li>
 <li><strong>📧 Feedback / bug report to Marc</strong> — see below</li>
 <li><strong>📋 Open log file</strong> — for technical diagnosis on errors</li>
+</ol>
+<p> The macOS <strong>Help</strong> menu also has <strong>&quot;Show Log File in Finder&quot;</strong> — handy to copy or send the file.</p>
+<ol>
 <li><strong>ℹ About the app</strong> — version, paths, credits</li>
 </ol>
 <h3 id="send-bug-reports-to-marc">Send bug reports to Marc</h3>

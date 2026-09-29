@@ -2024,6 +2024,8 @@ Während des Renders siehst du das aktuell entstehende Frame im Vorschau-Fenster
 ### Vorschau = Video (seit v0.9.658) ⭐
 Das fertige Video ist seit v0.9.658 wörtlich die Vorschau in hoher Auflösung: dieselbe Karte, dieselben Linien, Strichelungen, Schilder, Overlays und derselbe Kamerapfad, nur mit der Pixeldichte des Videos gezeichnet. Was du im Probelauf siehst, bekommst du auch — Linienbreiten und Schildgrößen sind im Video **relativ zur Bildbreite** genauso groß wie in der Vorschau. Tipp: Beurteile die Vorschau bei der Fenstergröße, mit der du auch renderst; ein deutlich breiteres Fenster zeigt (und rendert) die Schilder etwas kleiner im Verhältnis zum Bild.
 
+**Kacheln vorwärmen (seit v0.9.742 schneller):** Vor dem ersten Bild lädt der Render die Kartenkacheln entlang der Kamerafahrt vor — erst grob über das ganze Video, dann feiner. Das dauert höchstens 45 Sekunden, der Fortschritt steht als „Kacheln vorwärmen 12 von 120“ da. Beim zweiten Render derselben Stelle ist das meiste schon im Speicher und es geht nach wenigen Sekunden weiter. Gemessen mit leerem Speicher (20-s-Video hochkant): Vorwärmen 45 s statt 104 s, ganzer Render 185 s statt 226 s.
+
 Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp über dem Gelände (kein Flimmern an Graten mehr) — genau wie im Video.
 
 Sollte ein Render mit dem neuen Weg einmal nicht durchlaufen, gibt es einen Rückfall auf den bisherigen Generator: in `settings.json` `"render_engine": "klassisch"` eintragen (oder die App mit `RZ_RENDER_KLASSISCH=1` starten). Alpha-Export (transparenter Hintergrund) und das Tour-Map-Standbild nutzen ohnehin noch den bisherigen Weg.
@@ -2837,6 +2839,7 @@ Klick auf **?** oben rechts (oder macOS-Menü **Hilfe**) öffnet ein Modal mit f
 2. **🔑 Mapbox-Token einrichten** — die Schritt-für-Schritt-Anleitung
 3. **📧 Feedback / Bug-Report an Marc** — siehe unten
 4. **📋 Logdatei öffnen** — für technische Diagnose bei Fehlern
+   Im macOS-Menü **Hilfe** gibt es außerdem **„Logdatei im Finder zeigen“** (seit v0.9.742) — praktisch, um die Datei zu kopieren oder weiterzuschicken.
 5. **ℹ Über die App** — Version, Pfade, Credits
 
 ### Bug-Reports an Marc senden

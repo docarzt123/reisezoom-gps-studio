@@ -2005,6 +2005,8 @@ Durante el render ves el fotograma que se está generando en ese momento en la v
 ### Vista previa = vídeo (desde v0.9.658) ⭐
 Desde v0.9.658 el vídeo terminado es literalmente la vista previa en alta resolución: el mismo mapa, las mismas líneas, discontinuas, carteles, overlays y la misma trayectoria de cámara, solo que dibujados con la densidad de píxeles del vídeo. Lo que ves en la prueba es lo que obtienes: el grosor de las líneas y el tamaño de los carteles son en el vídeo **en proporción al ancho de imagen** exactamente igual de grandes que en la vista previa. Consejo: valora la vista previa con el tamaño de ventana con el que también renderizas; una ventana mucho más ancha muestra (y renderiza) los carteles algo más pequeños en relación con la imagen.
 
+**Precarga de teselas (más rápida desde v0.9.742):** antes del primer fotograma el render carga las teselas del mapa a lo largo del recorrido de la cámara, primero de forma aproximada en todo el vídeo y luego más fina. Tarda como máximo 45 segundos y muestra el progreso como «precargando teselas 12 de 120». Si vuelves a renderizar el mismo lugar, casi todo está ya en caché y continúa en pocos segundos. Medido con la caché vacía (vídeo vertical de 20 s): precarga 45 s en vez de 104 s, render completo 185 s en vez de 226 s.
+
 En el enjambre con terreno 3D, las líneas van ahora también en la vista previa justo por encima del terreno (sin parpadeo en las crestas), igual que en el vídeo.
 
 Si alguna vez un render con el nuevo método no llega al final, hay una vuelta atrás al generador anterior: pon `"render_engine": "klassisch"` en `settings.json` (o arranca la app con `RZ_RENDER_KLASSISCH=1`). La exportación con alfa (fondo transparente) y la imagen fija de Tour-Map siguen usando de todos modos el método anterior.
@@ -2820,6 +2822,7 @@ Al hacer clic en **?** arriba a la derecha (o en el menú de macOS **Ayuda**) se
 2. **🔑 Configurar el token de Mapbox** — la guía paso a paso
 3. **📧 Feedback / reporte de bug a Marc** — ver más abajo
 4. **📋 Abrir el archivo de log** — para el diagnóstico técnico en caso de errores
+   En el menú **Ayuda** de macOS también está **«Mostrar archivo de registro en Finder»** (desde v0.9.742), práctico para copiar o enviar el archivo.
 5. **ℹ Acerca de la app** — versión, rutas, créditos
 
 ### Enviar reportes de bugs a Marc
