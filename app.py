@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.738"
+APP_VERSION = "0.9.739"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -12047,6 +12047,136 @@ class Api:
         except Exception as e:
             log.error("projekt_touren_setzen: %s", e)
             return {"ok": False, "error": str(e)}
+
+    # ── Schnell-Video (IDEAS §71, 29.09.2026) ────────────────────────────────
+    # Tour → Dialog → fertiges Video. Der Dialog (ui/js/schnellvideo.js) holt hier die
+    # Vorschlagswerte, lässt ein Projekt mit fertiger Animator-Konfiguration anlegen und
+    # rendert dann über den normalen Animator (Szene) in eine Zwischendatei; „Speichern …"
+    # verschiebt sie an den gewählten Ort, „Teilen" öffnet das System-Teilen-Menü.
+
+    def schnellvideo_vorschlag(self, path: str) -> dict:
+        """Name, Datum, Region und Ausdehnung einer Tour + die zuletzt gewählten Optionen."""
+        try:
+            pf = str(path or "")
+            pts, st = cgpx.parse_gpx(self._ensure_gpx(pf))
+            if len(pts) < 2:
+                return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "Der Track hat zu wenige Punkte.")}
+            lons = [q.lon for q in pts]; lats = [q.lat for q in pts]
+            name, ort = "", ""
+            try:
+                with sqlite3.connect(str(LIBRARY_DB)) as con:
+                    row = con.execute("SELECT COALESCE(NULLIF(display_name,''), name), place, region, country "
+                                      "FROM tracks WHERE path = ?", (pf,)).fetchone()
+                if row:
+                    name = row[0] or ""
+                    ort = ", ".join(x for x in (row[1], row[2]) if x) or (row[3] or "")
+            except Exception as e:  # noqa: BLE001 — Archiv optional (Datei von außen)
+                log.info("schnellvideo_vorschlag: kein Archiv-Eintrag (%s)", e)
+            def _ep(iso):
+                try:
+                    return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp()
+                except Exception:  # noqa: BLE001
+                    return None
+            zeiten = [q.time for q in pts if q.time]
+            start = _ep(zeiten[0]) if zeiten else None
+            ende = _ep(zeiten[-1]) if zeiten else None
+            if not name:
+                name = st.name or Path(pf).stem
+            return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende,
+                    "bbox": [min(lons), min(lats), max(lons), max(lats)],
+                    "distance_km": round((st.distance_m or 0) / 1000, 2),
+                    "letzte": (_load_settings().get("schnellvideo_letzte") or {})}
+        except Exception as e:
+            log.error("schnellvideo_vorschlag: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def schnellvideo_anlegen(self, path: str, name: str, animator: dict, letzte: dict = None) -> dict:
+        """Projekt „<Tour> · Schnell-Video" mit fertiger Animator-Konfiguration anlegen.
+        `herkunft = "schnellvideo"` → steht unter „Automatisch angelegt", bis man es umbenennt."""
+        try:
+            pf = str(path or "")
+            gh = self._track_geo_hash(pf)
+            if not gh:
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden: {p}").replace("{p}", pf)}
+            daten = _projekte.laden(DATEN_ORT)
+            p = _projekte.projekt_frei_anlegen(daten, (name or "").strip() or Path(pf).stem,
+                                               self._session_get_global_defaults(""))
+            r = _projekte.projekt_touren_setzen(daten, p["id"], [(gh, pf)])
+            if not r.get("ok"):
+                return r
+            ziel = p.setdefault("animator", {})
+            for k, v in (animator or {}).items():
+                ziel[k] = v
+            p["herkunft"] = "schnellvideo"
+            p["letztes_modul"] = "animator"
+            _projekte.speichern(DATEN_ORT, daten)
+            if isinstance(letzte, dict):
+                self.settings_set({"schnellvideo_letzte": letzte})
+            log.info("Schnell-Video: Projekt %s für %s angelegt", p["id"], Path(pf).name)
+            return {"ok": True, "project_id": p["id"]}
+        except Exception as e:
+            log.error("schnellvideo_anlegen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def schnellvideo_ziel(self, name: str) -> dict:
+        """Zwischendatei für den Render (App-Ordner `_renders`, Zeitstempel im Namen)."""
+        try:
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            import re as _re
+            roh = _re.sub(r"[^\w\-. ]+", "", str(name or "Schnell-Video"), flags=_re.UNICODE).strip() or "Schnell-Video"
+            roh = _re.sub(r"\s+", " ", roh)
+            stempel = datetime.now().strftime("%Y%m%d-%H%M%S")
+            return {"ok": True, "path": str(RENDERS_DIR / f"{stempel}-{roh[:60]}.mp4")}
+        except Exception as e:
+            log.error("schnellvideo_ziel: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def datei_speichern_unter(self, quelle: str, ziel: str) -> dict:
+        """Fertiges Schnell-Video aus `_renders` an den im Speichern-Dialog gewählten Ort
+        verschieben (das Ziel hat pick_save_path freigegeben)."""
+        try:
+            q = Path(str(quelle or ""))
+            if not q.is_file():
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden: {p}").replace("{p}", str(q))}
+            z = _ds.verschieben(q, str(ziel), "schnellvideo_speichern")
+            return {"ok": True, "path": str(z)}
+        except Exception as e:
+            log.error("datei_speichern_unter: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def datei_teilen(self, path: str) -> dict:
+        """Mac: System-Teilen-Menü (AirDrop, Nachrichten, Mail …) über dem Fenster.
+        Windows/Linux: Ordner mit der Datei öffnen (Q14)."""
+        pf = str(path or "")
+        if not Path(pf).is_file():
+            return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden: {p}").replace("{p}", pf)}
+        if sys.platform != "darwin":
+            return self.reveal_in_finder(pf) | {"art": "ordner"}
+        try:
+            import AppKit  # type: ignore
+            from Foundation import NSURL  # type: ignore
+            from PyObjCTools import AppHelper  # type: ignore
+
+            def _zeigen():
+                try:
+                    app = AppKit.NSApplication.sharedApplication()
+                    fenster = app.keyWindow() or app.mainWindow() or (app.windows()[0] if app.windows() else None)
+                    if fenster is None:
+                        return
+                    ansicht = fenster.contentView()
+                    url = NSURL.fileURLWithPath_(pf)
+                    picker = AppKit.NSSharingServicePicker.alloc().initWithItems_([url])
+                    rahmen = ansicht.bounds()
+                    rect = AppKit.NSMakeRect(rahmen.size.width / 2 - 1, rahmen.size.height / 2 - 1, 2, 2)
+                    picker.showRelativeToRect_ofView_preferredEdge_(rect, ansicht, AppKit.NSMinYEdge)
+                    self._teilen_picker = picker   # Referenz halten, sonst räumt ObjC ihn weg
+                except Exception as e:  # noqa: BLE001
+                    log.error("datei_teilen (Picker): %s", e)
+            AppHelper.callAfter(_zeigen)
+            return {"ok": True, "art": "menue"}
+        except Exception as e:
+            log.error("datei_teilen: %s", e)
+            return self.reveal_in_finder(pf) | {"art": "ordner"}
 
     def projekt_detail(self, project_id: str) -> dict:
         """v0.9.623 (Marc: „wir brauchen eine komplette Projekt-Detail-Seite"):

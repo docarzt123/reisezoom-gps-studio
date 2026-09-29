@@ -817,6 +817,41 @@ vivo** «Fecha y hora» y «Hora» en el punto actual. Se muestra la **hora loca
 horaria sale del país de la ruta en el archivo (Canarias, Azores y países con varias zonas según la
 longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la app.
 
+### 🎬 Vídeo rápido — un vídeo de la ruta listo con pocas decisiones (desde v0.9.739) ⭐
+
+¿Solo quieres un vídeo bonito de tu ruta, sin keyframes ni ajustes? Usa el **vídeo rápido**: en el
+**archivo**, en la ruta, **🎬 Vídeo rápido …** (columna de detalles a la derecha o clic derecho), o en el
+**animador**, debajo de «Renderizar vídeo», para la ruta abierta.
+
+El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxima vez:
+
+- **Formato:** 9:16 vertical (preseleccionado, para el móvil, Reels, Shorts), 16:9 o 1:1.
+- **Duración:** Corto 20 s, Normal 40 s, Largo 60 s.
+- **Calidad:** 1080 o 4K.
+- **Estilo de mapa:** con tu estilo predeterminado. Si el estilo no está autorizado para vídeos
+  comerciales, aparece un aviso debajo; puedes renderizar igualmente.
+- **Título y subtítulo:** con el nombre de la ruta y fecha · lugar, editables.
+- **Durante el recorrido:** «Datos durante el recorrido» (distancia y altitud) y «Perfil de altitud»: dos casillas.
+- **Tarjeta final:** qué valores aparecen en grande al final (distancia, subida, bajada, tiempo en
+  movimiento, tiempo, velocidad media, fecha).
+
+**El vídeo:** el título aparece sobre la vista general (la vuelta tenue al fondo); luego la cámara vuela
+hasta el inicio y sigue el recorrido mientras se dibuja la línea; al final vuelve a la vista general y
+aparece la tarjeta final.
+
+**Renderizar vídeo** te muestra en directo cómo se hace el vídeo. Cuando termina, **«💾 Guardar …»** lo pone
+donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (AirDrop, Mensajes, Mail, Fotos …);
+en Windows se abre la carpeta con el vídeo.
+
+**Abrir en el animador** crea lo mismo pero no renderiza: así el vídeo rápido es la base de tu propio vídeo.
+El recorrido de cámara son keyframes normales, y el título y la tarjeta final los cambias en
+**Overlays → Título y tarjeta final**.
+
+El proyecto se llama «Nombre de la ruta · Vídeo rápido» y aparece en **Proyectos → Creados
+automáticamente**. Si le cambias el nombre, pasa a tus proyectos.
+
+> Aún no incluido (llegará más adelante): fotos de la ruta con una breve parada, música, viajes con varias rutas.
+
 ### 🧭 Asistente de ruta — de la ruta al proyecto terminado (desde v0.9.689) ⭐
 
 **Archivo → «Asistente de ruta…» (⌘⇧N).** Una ventana, tres datos, un botón:

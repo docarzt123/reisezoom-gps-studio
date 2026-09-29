@@ -829,6 +829,41 @@ in der **Live-Box** „Datum & Uhrzeit“ und „Uhrzeit“ am aktuellen Punkt. 
 Länder mit mehreren Zonen nach Längengrad), sonst aus der Lage der Tour. Das Format folgt der
 App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
 
+### 🎬 Schnell-Video — fertiges Tourvideo mit wenigen Entscheidungen (seit v0.9.739) ⭐
+
+Du willst einfach ein schönes Video deiner Tour, ohne Keyframes und Einstellungen? Dann nimm das
+**Schnell-Video**: im **Archiv** an der Tour **🎬 Schnell-Video …** (Detailspalte rechts oder Rechtsklick),
+oder im **Animator** unter „Video rendern" für die offene Tour.
+
+Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs nächste Mal:
+
+- **Format:** 9:16 hochkant (vorgewählt, fürs Handy, Reels, Shorts), 16:9 oder 1:1.
+- **Länge:** Kurz 20 s, Normal 40 s, Lang 60 s.
+- **Qualität:** 1080 oder 4K.
+- **Kartenstil:** vorbelegt mit deinem Standard. Hat der Stil keine Freigabe für kommerzielle Videos,
+  steht ein Hinweis darunter — rendern geht trotzdem.
+- **Titel und Unterzeile:** vorbelegt mit dem Tournamen und Datum · Ort, änderbar.
+- **Unterwegs:** „Zahlen unterwegs" (Strecke und Höhe) und „Höhenprofil" — zwei Häkchen.
+- **Schlusskarte:** welche Werte am Ende groß stehen (Strecke, Bergauf, Bergab, Bewegungszeit, Zeit,
+  Ø Tempo, Datum).
+
+**Das Video:** Der Titel steht über der Gesamtsicht (die Runde blass im Hintergrund), dann fliegt die
+Kamera zum Start und folgt der Strecke, während sich die Linie zeichnet; am Ende zieht sie sich in die
+Gesamtsicht zurück, und die Schlusskarte erscheint.
+
+**Video rendern** zeigt dir live, wie das Video entsteht. Ist es fertig, **„💾 Speichern …"** legt es
+dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü (AirDrop, Nachrichten, Mail,
+Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
+
+**Im Animator öffnen** legt dasselbe an, rendert aber nicht — dann ist das Schnell-Video die Grundlage für
+dein eigenes Video: Die Kamerafahrt sind normale Keyframes, Titel und Schlusskarte stellst du unter
+**Overlays → Titel & Schlusskarte** um.
+
+Das Projekt heißt „Tourname · Schnell-Video" und steht unter **Projekte → Automatisch angelegt**. Benennst
+du es um, wandert es zu deinen Projekten.
+
+> Noch nicht dabei (kommt später): Fotos der Tour mit kurzem Halt, Musik, Reisen mit mehreren Touren.
+
 ### 🧭 Tour-Assistent — von der Tour zum fertigen Projekt (seit v0.9.689) ⭐
 
 **Datei → „Tour-Assistent…“ (⌘⇧N).** Ein Fenster, drei Angaben, ein Knopf:

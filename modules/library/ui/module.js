@@ -2142,6 +2142,7 @@ function mountLibrary(body, headerActions) {
       for (const [slug, text] of werkzeuge) {
         eintraege.push({ text, tun: () => { select(it); openIn(slug); } });
       }
+      eintraege.push({ text: "🎬 " + T("schnell.knopf", "Schnell-Video …"), tun: () => { select(it); if (window.rzSchnellVideo) window.rzSchnellVideo(it.path); } });   // §71
       eintraege.push("-");
       eintraege.push({ text: "ℹ️ " + T("library.ctx_details", "Details anzeigen"), tun: () => { select(it); } });
     }
@@ -3414,6 +3415,7 @@ function mountLibrary(body, headerActions) {
           ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1" style="width:100%">◼ ${
               T("library.ghost.take", "Als ganze Tour übernehmen")}</button>`
           : `<button class="btn btn-primary btn-sm" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
+        <button class="btn btn-sm" data-schnellvideo="1" title="${esc(T("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte."))}">🎬 ${T("schnell.knopf", "Schnell-Video …")}</button>
         <button class="btn btn-sm" data-open="tourmap">${T("library.open_tourmap", "Tour-Karte")}</button>
         <button class="btn btn-sm" data-open="heightanim">${T("library.open_height", "Daten-Animator")}</button>
         <button class="btn btn-sm" data-open="geotagger">${T("library.open_geotagger", "Fotos verorten")}</button>
@@ -3498,6 +3500,7 @@ function mountLibrary(body, headerActions) {
       </div>`;
 
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
+    box.querySelectorAll("[data-schnellvideo]").forEach(b => { b.onclick = () => { if (_sel && window.rzSchnellVideo) window.rzSchnellVideo(_sel.path); }; });   // §71
     try { _logbuchKurz(it); } catch (_) {}
     box.querySelectorAll("[data-ghost]").forEach(b => { b.onclick = () => alsGhost(_sel ? [_sel.path] : []); });
     bindCheckBox(it);

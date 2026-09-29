@@ -893,6 +893,15 @@ Min/Max und Titel neu, sobald sich der Ausschnitt ändert (`_ovEleAusschnittZule
 Etappe). Der Render läuft über die Szene (= diese UI); der klassische Pfad ignoriert das
 Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 
+### Schnell-Video (IDEAS §71, seit 29.09.2026)
+
+- **Dialog + Ablauf:** `ui/js/schnellvideo.js` (`window.rzSchnellVideo(pfad)`), Einstieg Archiv (`[data-schnellvideo]`, Rechtsklick) und Animator (`#anim-schnellvideo`). Holt `schnellvideo_vorschlag`, baut `animatorPatch()` (Backend-Schlüssel wie app.py: width/height/fps/intro_s/duration_s/hold_s/map_style/keyframes_enabled/timeline_events/camera_follow_track/overlay_*/ghost_track_*/schnellkarte), legt per `schnellvideo_anlegen` ein freies Projekt an (Tour gesetzt, `herkunft: "schnellvideo"`), öffnet es wie der Tour-Assistent (Event `rz-projekt-oeffnen`) und startet auf Wunsch den Render, sobald `window.__rzSchnellBereit(pid)` stimmt.
+- **Kamerafahrt:** `kamerafahrt(bbox, animS)` erzeugt 7 Punkte × 4 Spuren (pitch/bearing/zoom/center). Anker: Intro < 0, Halten > 1 (1/animS je Sekunde). Zoom nur als `value_offset` zur Einpass-Kamera (formatunabhängig); `center` fest im Überblick, `null` im Flug (Track-Punkt mit `camera_follow_track`); gemischte Abschnitte löst `_interpCenter` auf, `_maybeFlyToInterp` macht den Bogen.
+- **Titel- und Schlusskarte:** `animator.schnellkarte = {titel_an, titel, unter, titel_s, schluss_an, felder[]}`, DOM-Ebene `#anim-sk` (Größen in `cqmin`, liegt über `#anim-overlay-preview`), `_skAnwenden(tSec)` aus `_ovTimingAt` (Probelauf/Szene) und `scrubPreview` (Zeit per `_sgZeitAusAnker`). Werte über `_ovFieldValue`. Einstellbereich in Overlays (`#anim-sk-editor`). Die Tour-Map zeigt die Karte nicht (`_isStaticFrame`).
+- **Render ohne Speichern-Dialog:** `window.__rzSchnellRender({ziel, name})` → Render-Knopf mit `_skRenderNext` (kein Rechte-Modal, `savePath = ziel` aus `schnellvideo_ziel` in `_renders`). Fertig-Bereich: `_skFertigKnoepfe` → `datei_speichern_unter` (dateischutz `verschieben`, Ziel aus `pick_save_path`) und `datei_teilen` (macOS `NSSharingServicePicker` über `AppHelper.callAfter`, sonst Ordner öffnen).
+- **Projektliste:** `core/projekte.alle_projekte` zählt `herkunft == "schnellvideo"` zu „Automatisch angelegt"; `rename` entfernt die Herkunft.
+- **Tests:** `tests/test_schnellvideo.py`. **Später:** Fotos mit Halt (§70), Musik (Tonspur in `core/szene._ffmpeg_cmd`), Reisen.
+
 ### Dreisprachigkeit — wo Texte übersetzt werden (Stand 29.09.2026, i18n-Durchgang) ⚠️ PFLICHTLEKTÜRE
 
 - **Oberfläche (JS):** `t(key, "Deutscher Rückfall", params?)` (ui/js/util.js), lokale Aliase `T`, `tlT`, `tr`. Nie Text ohne `t()` in toast/openModal/innerHTML/title/placeholder. `index.html`: `data-i18n*`; der Notfall-Startbildschirm läuft vor i18n und hat eine eigene Tabelle `RZ_TXT` (de/en/es).

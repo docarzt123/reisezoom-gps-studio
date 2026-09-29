@@ -539,6 +539,7 @@ def rename(daten: dict, project_id: str, new_name: str) -> bool:
     if not p:
         return False
     p["name"] = new_name
+    p.pop("herkunft", None)   # umbenannt = eigenes Projekt (Schnell-Video wandert nach oben)
     _angefasst(p)
     return True
 
@@ -916,7 +917,8 @@ def alle_projekte(daten: dict) -> list:
         out.append({
             "id": pid, "name": name,
             "status": p.get("status", "aktiv"),
-            "auto": bool(p.get("auto")) and je_kontext.get(p.get("kontext") or "", 1) < 2,
+            "auto": (bool(p.get("auto")) and je_kontext.get(p.get("kontext") or "", 1) < 2)
+                    or p.get("herkunft") == "schnellvideo",   # §71: Schnell-Video-Projekte, bis man sie umbenennt
             "created_at": p.get("created_at"), "modified_at": p.get("modified_at"),
             "kontext": p.get("kontext", ""),
             "ablauf": p.get("ablauf", "solo"),
