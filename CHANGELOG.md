@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+---
+
+## [0.9.736] – 2026-09-29
+
+> Release 29.09.2026 — contains 0.9.733–0.9.736.
+
 > **0.9.736** (29.09.2026, built locally): signs — no more "Show the whole time" checkbox; whole time = full-width bar.
 
 ### Changed
