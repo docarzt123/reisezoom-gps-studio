@@ -5,20 +5,20 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 28 Sep 2026 14:19:23 +0000</lastBuildDate>
+<lastBuildDate>Tue, 29 Sep 2026 08:28:56 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.733</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-733</link>
-<guid isPermaLink="false">gps-studio-v0.9.733</guid>
-<pubDate>Mon, 28 Sep 2026 12:00:00 +0000</pubDate>
-<description>Schilder in der Zeitleiste — unter den Overlays zeigt die Zeile „Schilder“ je Schild einen Balken: wann es zu sehen ist. Ziehen verschiebt den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“.
+<title>v0.9.736</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-736</link>
+<guid isPermaLink="false">gps-studio-v0.9.736</guid>
+<pubDate>Tue, 29 Sep 2026 12:00:00 +0000</pubDate>
+<description>„Ganze Zeit“ ohne Haken — ein Schild, das das ganze Video zu sehen ist, hat einfach einen Balken über die volle Breite — Ränder hineinziehen macht ein Zeitfenster daraus, ganz nach außen wieder die ganze Zeit. Neue Schilder übernehmen „ganze Zeit“ nicht mehr vom vorigen.
 
-Sammlungen gleich beim Einlesen — einzelne Tracks lassen sich beim Import direkt einer oder mehreren Sammlungen zuordnen, auch einer neuen.
+Schilder blenden ein und aus wie die Overlays — in der Zeitleiste an den weißen Punkten ziehen oder im Schild-Fenster Dauer und Art der Ein- und Ausblendung wählen (auch Wegpoppen).
 
-Video = Vorschau — die Quellenzeile und gestrichelte Ghost-Spuren sehen im Video jetzt genau aus wie in der Vorschau.
+Touren „Ganz zeigen“ statt Ghost-Spuren — eine Tour kann jetzt auf einmal ganz erscheinen statt sich zu zeichnen — so lange, wie ihr Balken in der Zeitleiste reicht, mit Einblenden oder Aufpoppen. Schalter ◼ in der Tracks-Liste, in der Zeitleiste und im Archiv („Als ganze Tour“). Alte Ghost-Spuren werden beim Öffnen automatisch umgestellt.
 
-Keyframe-Punkte untereinander — in der Zeitleiste stehen die Punkte aller Spuren wieder exakt übereinander.</description>
+Deckkraft für jede Tour — im Aussehen-Panel jeder Tour.</description>
 </item>
 <item>
 <title>v0.9.732</title>
