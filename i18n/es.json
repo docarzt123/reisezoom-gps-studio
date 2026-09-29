@@ -4629,5 +4629,9 @@
   "warte.schnellvideo_anlegen.titel": "Creando el vídeo rápido",
   "warte.schnellvideo_anlegen.text": "Se crea el proyecto con recorrido de cámara, título y tarjeta final",
   "warte.datei_speichern_unter.titel": "Guardando el vídeo",
-  "warte.datei_speichern_unter.text": "Moviendo el archivo al lugar elegido"
+  "warte.datei_speichern_unter.text": "Moviendo el archivo al lugar elegido",
+  "animator.spur_glatt": "Suavizar traza",
+  "animator.spur_glatt.hint": "Quita el temblor del GPS y los pequeños zigzags de la traza; la línea, la flecha y la cámara se mueven con más calma. El valor es la distancia sobre la que se suaviza — 0 = traza original.",
+  "animator.field.follow_glatt": "Suavizar recorrido de cámara",
+  "animator.field.follow_glatt_tip": "0 = cámara justo sobre el punto; más alto = mira a un recorrido suavizado y no gira con cada curva"
 }

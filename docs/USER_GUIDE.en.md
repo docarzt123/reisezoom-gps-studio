@@ -829,6 +829,16 @@ The dialog asks only a few things — the app remembers your choice for next tim
 to the start and follows the route while the line draws; at the end it pulls back to the overview and the
 end card appears.
 
+**Only landscape and route (since v0.9.741):** roads, place names, POIs, railways and borders are hidden.
+If you want them, switch them back on in the Animator under **Map**.
+
+**Arrow and chase camera (since v0.9.741):** along the way an **arrow** points in the direction of travel
+and the camera flies **behind the arrow** — the direction of travel points up in the frame. To keep this
+calm even for a short video of a long, twisty route, the quick video smooths three times: the track itself
+(GPS jitter removed), the arrow direction (over a stretch of route depending on speed — at a hairpin the
+arrow turns instead of flipping) and the camera heading (from the smoothed direction of travel, plus the
+calm camera). The heading ends up as ordinary keyframes in the timeline, so you can change it.
+
 **Render video** shows you live how the video is made. When it is done, **"💾 Save …"** puts it wherever
 you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, Mail, Photos …); on Windows
 the folder with the video opens.
@@ -1651,7 +1661,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   parallel rows the profile shows the chain's path.
 - **North arrow** (since 2026-09-04, beta-tester request) — rotates with the camera, so it always points north even when the view is turned or sweeping. Default **on**, bottom right.
 - **Scale bar** (since 2026-09-04) — bar with a round length (100 m, 500 m, 2 km …) that follows the zoom; measured at the centre of the frame. Default **on**, bottom left. The alpha render (no map) drops it because there is no map; the north arrow stays.
-- **Source line** (since 2026-09-07) — crediting the map sources is mandatory and always stays visible, but you choose the **corner** (bottom right, bottom left, top right, top left) and the **width** (narrow = tall block, medium, wide = flat line, full width = bar along the bottom edge) so it does not cover the elevation profile or the north arrow. Preview and video show it at the same size.
+- **Source line** (since 2026-09-07) — crediting the map sources is mandatory and always stays visible, but you choose the **corner** (bottom right, bottom left, top right, top left) and the **width** (narrow = tall block, medium, wide = flat line, full width = bar along the bottom edge) so it does not cover the elevation profile or the north arrow. Preview and video show it at the same size. Since v0.9.741 it is much smaller: the text is 1.2 % of the short side of the frame (13 pixels in a 1080 video), in the same proportion for every format and window size.
 - **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. “⤢ Fit” brings back the overview; once you set a keyframe, the keyframe wins.
 - **Free satellite everywhere** (since 2026-09-05; zoom staging since v0.9.656: in wide views the style shows Sentinel-2 only, the official aerial imagery fades in from zoom 12 and is complete at 13.5 — since v0.9.658 one step later than before, because Sentinel stays pixel-sharp up to there): where no official aerial imagery exists (Hamburg, New Zealand, USA …) the style now shows Sentinel-2 satellite imagery (10 m, 2016, EOX) instead of an empty area. A banner on the map tells you. No houses or trails at that resolution, but landscape, rivers and city structure; for close-ups pick another style (MapTiler, OpenStreetMap). The credit “Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016” appears in the attribution line; videos may be published.
 - **ProRes 422 HQ** (since 2026-09-05): Settings → video codec, for editing in Final Cut or Resolve. Output is .mov and large.
@@ -1756,6 +1766,8 @@ render.
 - **Rotation** 0–60° — the camera's sweep during the video. At 0 = no rotation. At 20° it rotates a steady 20° over the length of the video.
 - **Camera follows track** — the camera stays on the moving point instead of on the whole route.
   - **Camera inertia** (appears then) — soft trailing instead of hard sticking to the point (against GPS jitter).
+  - **Smooth camera path** (since v0.9.741, 0–1000 m) — the camera looks at a smoothed path instead of every kink of the track; in fast videos of twisty routes the map stops jerking back and forth. The point drifts a little around the centre instead. 0 = exactly above the point.
+- **Smooth track** (Track section, below "Points", since v0.9.741, 0–200 m) — removes GPS jitter and small zigzags. Line, moving point/arrow, camera and the faint whole route then use the smoothed track. 0 = original track.
 - **Terrain exaggeration** 0–4× — how pronounced the mountains look
 
 **Time & size:**

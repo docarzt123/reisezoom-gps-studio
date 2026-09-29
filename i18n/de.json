@@ -4629,5 +4629,9 @@
   "warte.schnellvideo_anlegen.titel": "Schnell-Video wird angelegt",
   "warte.schnellvideo_anlegen.text": "Projekt mit Kamerafahrt, Titel und Schlusskarte entsteht",
   "warte.datei_speichern_unter.titel": "Video wird gespeichert",
-  "warte.datei_speichern_unter.text": "Die Datei wird an den gewählten Ort gelegt"
+  "warte.datei_speichern_unter.text": "Die Datei wird an den gewählten Ort gelegt",
+  "animator.spur_glatt": "Spur glätten",
+  "animator.spur_glatt.hint": "Nimmt das GPS-Zittern und kleine Zacken aus der Spur. Linie, Pfeil und Kamera laufen dann ruhiger. Der Wert ist die Streckenlänge, über die geglättet wird — 0 = Originalspur.",
+  "animator.field.follow_glatt": "Kamerabahn glätten",
+  "animator.field.follow_glatt_tip": "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit"
 }

@@ -355,6 +355,20 @@ function mountAnimator(body, headerActions, opts) {
               ${t("animator.point_count.hint")}
             </div>
           </div>
+          <!-- 29.09.2026 (Marc: „reduziere den track, dass der pfeil ruhig bleibt") — Spur glätten:
+               Linie, Laufpunkt/Pfeil, Kamera-Folgen und blasse Gesamtroute laufen auf der
+               geglätteten Spur. Punktzahl bleibt (Reihen am Index stimmen weiter). -->
+          <div class="field">
+            <label class="field-label">${t("animator.spur_glatt", "Spur glätten")}
+              <span class="label-val" id="anim-spur-glatt-v">0 m</span>
+              <button type="button" class="field-help" data-help="spur_glatt">?</button>
+            </label>
+            <input type="range" id="anim-spur-glatt" min="0" max="200" step="5" value="0">
+            <div class="muted field-help-content" data-help-content="spur_glatt" hidden
+                 style="font-size:11px; margin-top:6px; line-height:1.45;">
+              ${t("animator.spur_glatt.hint", "Nimmt das GPS-Zittern und kleine Zacken aus der Spur. Linie, Pfeil und Kamera laufen dann ruhiger. Der Wert ist die Streckenlänge, über die geglättet wird — 0 = Originalspur.")}
+            </div>
+          </div>
           <!-- 09.09.2026 (Marc: „ein Track ist immer ein Eintrag unter Tracks"): Die Farbe
                des ersten Tracks steht bei seinem Eintrag in der Liste, wie bei allen anderen.
                Das Feld bleibt im DOM (bindSetting, Handler, Render lesen es), nur unsichtbar. -->
@@ -680,6 +694,11 @@ function mountAnimator(body, headerActions, opts) {
               <label class="field-label">${t("animator.field.follow_inertia", "Kamera-Trägheit")} <span class="label-val" id="anim-follow-inertia-v">0%</span></label>
               <input type="range" id="anim-follow-inertia" min="0" max="100" step="5" value="0"
                      title="${t("animator.field.follow_inertia_tip", "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach")}">
+              <!-- 29.09.2026 (Marc: „flieg die Kamera immer dem Pfeil hinterher … ggf. doppelt glätten") —
+                   die Kamera schaut auf eine geglättete Bahn statt auf jeden Knick der Spur. -->
+              <label class="field-label" style="margin-top:8px;">${t("animator.field.follow_glatt", "Kamerabahn glätten")} <span class="label-val" id="anim-follow-glatt-v">0 m</span></label>
+              <input type="range" id="anim-follow-glatt" min="0" max="1000" step="25" value="0"
+                     title="${t("animator.field.follow_glatt_tip", "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit")}">
             </div>
 
             <!-- v0.9.310 — Standbild-Modus (Tour-Map): feste Kamera-Regler.
@@ -2054,6 +2073,9 @@ function mountAnimator(body, headerActions, opts) {
   // WICHTIG (Marc-Bug v0.9.277): _fiSync MUSS auch beim PROJEKTWECHSEL laufen. bindSetting
   // setzt die Follow-Checkbox dann programmatisch (kein `change`-Event) → darum `onLoad: _fiSync`
   // an der Follow-Bindung, sonst bleibt der Regler nach Projektwechsel versteckt obwohl Follow an.
+  bindSetting("anim-follow-glatt", _MODKEY, "camera_follow_glatt_m", { type: "number",
+    onLoad: () => { const v = document.getElementById("anim-follow-glatt-v"); if (v) v.textContent = _folgeGlattM() + " m"; },
+    onChange: () => { const v = document.getElementById("anim-follow-glatt-v"); if (v) v.textContent = _folgeGlattM() + " m"; try { if (!_previewRaf && _tlBar) scrubPreview(_tlBar.getScrubber(), { skipSelectionSync: true }); } catch (_) {} } });
   const _fiLbl = () => { const v = document.getElementById("anim-follow-inertia-v"); const s = document.getElementById("anim-follow-inertia"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
   // v0.9.318 — „Kamera-Höhe halten"-Regler ersetzt durch „Ruhige Kamera (3D)"-Checkbox
   // (entkoppelte FreeCamera). Default AUS = alter Modus. _fiSync togglet nur noch die
@@ -2069,6 +2091,7 @@ function mountAnimator(body, headerActions, opts) {
   // den Probelauf (falls gerade einer läuft → neu starten, sonst egal).
   const _smoothCamSync = () => { try { if (_previewRaf) runTimelinePreview(true); } catch (_) {} };
   bindSetting("anim-smooth-camera", _MODKEY, "smooth_camera_3d", { type: "bool", onChange: _smoothCamSync });
+  bindSetting("anim-spur-glatt", _MODKEY, "spur_glaetten_m", { type: "number", onLoad: (v) => _spurNeu(v), onChange: (v) => _spurNeu(v) });
   document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
   document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
   _fiSync(); _fiLbl();
@@ -4094,6 +4117,8 @@ function mountAnimator(body, headerActions, opts) {
     // w breit → Nennung mit demselben Faktor verkleinern (CSS: --rz-prev-k).
     const _prevK = Math.max(0.2, w * Math.max(1, Math.max(rw, rh) / 1920) / rw);
     try { wrap.style.setProperty("--rz-prev-k", String(_prevK)); } catch (_) {}
+    // 29.09.2026 abends — Maßeinheit der Quellenzeile: 1 % der kurzen Bildseite (Vorschau wie Video, s. module.css)
+    try { wrap.style.setProperty("--rz-attrib-u", (Math.min(w, h) / 100).toFixed(3) + "px"); } catch (_) {}
     // 04.09.2026 — Beschriftungen ebenfalls im Render-Maßstab (WYSIWYG überall).
     try { if (map && window.rzScaleMapLabels) window.rzScaleMapLabels(map, _prevK); } catch (_) {}
     if (map) {
@@ -5643,8 +5668,10 @@ function mountAnimator(body, headerActions, opts) {
    *  wäre. Beide benutzen jetzt dieselbe Formel (util.js → kursAusSpur, im
    *  Render gespiegelt als __rzKurs in core/animator.py). */
   function _kursAn(coords, i) {
+    // 29.09.2026 — glatt entlang der Strecke, am gebrochenen Index (util.js kursGlattAn)
     const g = kursGlaettung(dotGlaettung());
-    return kursAusSpur(coords, i, g.basisM, g.minPunkte);
+    const sigM = Math.max(g.basisM, +(_activeProject?.[_MODKEY]?.marker_dot_glatt_m) || 0);   // Schnell-Video: je nach Tempo
+    return kursGlattAn(coords, i, g.basisM, g.minPunkte, sigM);
   }
 
   /** Pfeil-Bild — identisch zum Render, nur ohne f-string-Klammern. */
@@ -5776,9 +5803,11 @@ function mountAnimator(body, headerActions, opts) {
         return;
       }
       const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
+      const _brg = _kursAn(currentCoords, f), _pos = coordBeiFrac(currentCoords, f);
+      window.__rzDotZuletzt = { c: _pos, brg: _brg };   // Prüfstand (Ruhe des Pfeils, test_schnellvideo)
       rzSetDataLatest(map, src, { type: "Feature",
-                    properties: { brg: _kursAn(currentCoords, Math.ceil(f)) },
-                    geometry: { type: "Point", coordinates: coordBeiFrac(currentCoords, f) } });
+                    properties: { brg: _brg },
+                    geometry: { type: "Point", coordinates: _pos } });
     } catch (_) {}
   }
 
@@ -7545,7 +7574,7 @@ function mountAnimator(body, headerActions, opts) {
         easeArgs.center = [fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]];
       }
     } else if (cameraFollow) {
-      const tp = _fokusZiel(coordIdx) || currentCoords[coordIdx];
+      const tp = _folgePunkt(coordFrac) || currentCoords[coordIdx];
       easeArgs.center = tp.slice ? tp.slice() : tp;
     }
     // 05.09.2026 — Handkamera ohne Keyframes: exakt die eingestellte Ansicht halten
@@ -8548,8 +8577,9 @@ function mountAnimator(body, headerActions, opts) {
             let ll;
             if (ip.center) ll = ip.center.slice();
             else if (_fFollow) {
-              const ci = Math.max(0, Math.min(_ftn - 1, Math.round(_markerAt(a) * (_ftn - 1))));
-              ll = currentCoords[ci] ? [currentCoords[ci][0], currentCoords[ci][1]] : _fStatic;
+              // 29.09.2026 — derselbe Folgepunkt wie Probelauf/Laufpunkt (Tempo-Verteilung, gebrochener
+              // Index, Kamerabahn); vorher linear über den Punktindex → Bildmitte und Pfeil liefen auseinander.
+              ll = _folgePunkt(trackFracAusAnkerHaupt(a)) || _fStatic;
             } else ll = _runFitCam
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
@@ -8870,7 +8900,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       else if (cameraFollow2) {
         _didFollow = true;
-        const _tgt = _fokusZiel(coordFrac) || currentCoords[coordIdx];
+        const _tgt = _folgePunkt(coordFrac) || currentCoords[coordIdx];
         // v0.9.277 (Nutzer) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
         // 30fps-Render referenziert → Vorschau wirkt genauso träge wie das Video.
         const _inertia = (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100;
@@ -9571,7 +9601,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function applyTerrain() {
-    if (!map) return;
+    if (!map || !document.getElementById("anim-terrain")) return;   // 29.09.2026 — Stil-Rückruf nach dem Aushängen (Szene: JS-Fehler beim Modulwechsel)
     const want = currentTerrainOn();
     // 06.09.2026 — Schwarm-Linien: bei Gelände über rz-line3d, sonst drapiert → bei Umschaltung neu bauen.
     try { if (_swPrev.length && (!!_sw3d) !== !!(window.rzLine3d && want && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain && !_swPrevGestaltet())) setTimeout(() => { try { _animDrawExtraToursPreview(); } catch (_) {} }, 0); } catch (_) {}
@@ -10086,7 +10116,10 @@ function mountAnimator(body, headerActions, opts) {
         _kartenGroessePruefen("Flächenänderung");
         // Die Fläche darf sich neu vermessen — die Kamera bleibt, wenn sie
         // dem Nutzer gehört (Welt-Sicht, eigenes Ziehen/Zoomen).
-        if (currentBbox && !_kameraGehoertNutzer) fitTrackPreview(false);
+        // 29.09.2026 — nie während Probelauf/Szene-Render: die Gesamtsicht (fitBounds, Richtung 10°)
+        // landete sonst zeitversetzt zwischen zwei Bildern — gemessen bis 160° Ausreißer in EINEM
+        // Bild (Schnell-Video), auch in normalen Videos bis 10°.
+        if (currentBbox && !_kameraGehoertNutzer && !_previewRaf && !window.__rzStepMode) fitTrackPreview(false);
       }, 200);
     };
     // ResizeObserver: Section-Größe ändert sich → Viewport neu fitten + Refit
@@ -10107,7 +10140,7 @@ function mountAnimator(body, headerActions, opts) {
           syncTimelineHeight();
           updateAnimatorViewport();
           _kartenGroessePruefen("Zeitleiste");
-          if (currentBbox && !_kameraGehoertNutzer) fitTrackPreview(false);
+          if (currentBbox && !_kameraGehoertNutzer && !_previewRaf && !window.__rzStepMode) fitTrackPreview(false);   // 29.09.2026 — s. oben
         }, 200);
       });
       _animTimelineObserver.observe(tlHostEl);
@@ -14898,6 +14931,63 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) { return false; }
   };
   window.__rzSchnellKarte = { anwenden: (s) => _skAnwenden(s), cfg: () => _skCfg() };   // Prüfstand
+  // 29.09.2026 (Marc: „mach als Trackpunkt den Pfeil und flieg die Kamera immer dem Pfeil hinterher …
+  // ggf. muss die Kamera doppelt geglättet werden") — Verfolger-Blickrichtung als Keyframes.
+  // Glättung 1: Fahrtrichtung aus einem LANGEN Stück der (schon geglätteten) Spur — Länge je nach Tour.
+  // Glättung 2: Gauß über die Zeit (σ ≈ 1,5 s) auf der abgewickelten Richtung. Danach nur so viele
+  // Keyframes, dass die gerade Verbindung höchstens ~1,5° abweicht (max. 2,5 s Abstand).
+  // Ausgewertet wird im Animator selbst: Spur, Tempo-Verteilung und Schnitt sind nur hier bekannt.
+  // Ersetzt die Richtungs-Keyframes im Track-Abschnitt (Anker 0…1); Intro/Halten bleiben.
+  function _kursKeyframes(opts) {
+    const o = opts || {};
+    const co = currentCoords;
+    if (!co || co.length < 3) return null;
+    const a = _activeProject?.[_MODKEY] || {};
+    const animS = Math.max(2, +a.duration_s || +document.getElementById("anim-dur")?.value || 20);
+    let lenM = 0; for (let i = 1; i < co.length; i++) lenM += kursMeter(co[i - 1], co[i]);
+    const fenster = o.fenster_m || Math.max(250, Math.min(1500, lenM / 15));
+    const N = Math.max(40, Math.min(480, Math.round(animS * 8)));
+    const roh = [];
+    for (let k = 0; k < N; k++) {
+      const an = k / (N - 1);
+      roh.push(kursGlattAn(co, trackFracAusAnker(an), fenster, 3));   // Glättung 1: langes Stück + Gauß entlang der Strecke
+    }
+    const u = [roh[0]];
+    for (let k = 1; k < N; k++) { let d = (roh[k] - roh[k - 1]) % 360; if (d > 180) d -= 360; if (d < -180) d += 360; u.push(u[k - 1] + d); }
+    const sig = Math.max(0.5, (o.glatt_s || 1.5) * (N - 1) / animS);
+    const g = u.map((_, i) => {
+      const r = Math.min(Math.ceil(3 * sig), i, N - 1 - i);
+      let sw = 0, sx = 0;
+      for (let j = i - r; j <= i + r; j++) { const d = (j - i) / sig, w = Math.exp(-0.5 * d * d); sx += u[j] * w; sw += w; }
+      return sx / sw;
+    });
+    // Keyframes ausdünnen (Douglas-Peucker auf Zeit × Winkel), Abstand höchstens maxS
+    const tol = o.tol_grad || 1.5, maxGap = Math.max(2, Math.round((o.max_s || 2.5) * (N - 1) / animS));
+    const halten = new Set([0, N - 1]);
+    const dp = (i0, i1) => {
+      if (i1 - i0 < 2) return;
+      let best = -1, bi = -1;
+      for (let i = i0 + 1; i < i1; i++) {
+        const lin = g[i0] + (g[i1] - g[i0]) * (i - i0) / (i1 - i0), e = Math.abs(g[i] - lin);
+        if (e > best) { best = e; bi = i; }
+      }
+      if (best > tol || i1 - i0 > maxGap) { halten.add(bi); dp(i0, bi); dp(bi, i1); }
+    };
+    dp(0, N - 1);
+    const idx = [...halten].sort((x, y) => x - y);
+    return idx.map(i => ({ anchor: Math.round(i / (N - 1) * 1e6) / 1e6, value: Math.round(g[i] * 100) / 100 }));
+  }
+  window.__rzSchnellKamera = (opts) => {
+    const kf = _kursKeyframes(opts);
+    if (!kf || !kf.length) return 0;
+    const alt = (getRawTimelineEvents() || []).slice();
+    const easing0 = (alt.find(e => e && e.kind === "bearing" && Math.abs((+e.anchor || 0)) < 1e-6) || {}).easing || "ease_in_out";
+    const rest = alt.filter(e => !(e && e.kind === "bearing" && +e.anchor >= -1e-6 && +e.anchor <= 1 + 1e-6));
+    const neu = kf.map((k, i) => ({ kind: "bearing", anchor: k.anchor, value: k.value, easing: i === 0 ? easing0 : "linear" }));
+    setTimelineEvents(rest.concat(neu).sort((x, y) => (+x.anchor || 0) - (+y.anchor || 0)));
+    return neu.length;
+  };
+  window.__rzKursKeyframes = _kursKeyframes;   // Prüfstand
   _skEditorBinden();
 
   // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
@@ -16753,12 +16843,61 @@ function mountAnimator(body, headerActions, opts) {
     try { paceAnzeigen(); } catch (_) {}
   }
 
+  // 29.09.2026 — Spur glätten (Meter, 0 = aus). Wert aus dem Projekt, sonst aus dem Regler;
+  // Render-Parameter spur_glaetten_m (klassischer Render: core/animator.py spur_glaetten).
+  var _spurRoh = null;   // var: bindSetting-onLoad kann vor dieser Zeile laufen (keine TDZ)
+  function _spurGlattM() {
+    const a = _activeProject?.[_MODKEY];
+    const v = (a && a.spur_glaetten_m != null) ? +a.spur_glaetten_m
+      : parseFloat(document.getElementById("anim-spur-glatt")?.value);
+    return isFinite(v) ? Math.max(0, Math.min(500, v)) : 0;
+  }
+  function _spurAnwenden(roh, mWert) {
+    const m = (mWert != null && isFinite(+mWert)) ? Math.max(0, +mWert) : _spurGlattM();
+    return (m > 0 && window.rzSpurGlaetten && roh && roh.length > 2) ? rzSpurGlaetten(roh, m) : roh;
+  }
+  function _spurNeu(v) {
+    const m = (v != null && isFinite(+v)) ? Math.max(0, +v) : _spurGlattM();
+    const lbl = document.getElementById("anim-spur-glatt-v");
+    if (lbl) lbl.textContent = Math.round(m) + " m";
+    if (!_spurRoh || _reiseGilt()) return;
+    currentCoords = _spurAnwenden(_spurRoh, m);
+    _reiseBasis = currentCoords;
+    _fullPreviewCoords = currentCoords.slice();
+    try { applyPointCountToPreview(); } catch (_) {}
+    try { refreshPreviewTrackData(); } catch (_) {}
+    try { applyGhost(); } catch (_) {}
+    try { dotSetzen(_dotFracZuletzt); } catch (_) {}
+  }
+
+  // 29.09.2026 — gemeinsamer Folgepunkt der Kamera (Probelauf, ruhige Kamera, Scrubben): am
+  // GEBROCHENEN Index (vorher ganze Punkte → die Bildmitte sprang von Punkt zu Punkt, der Pfeil
+  // wackelte im Bild) und auf Wunsch auf einer geglätteten Kamerabahn (camera_follow_glatt_m).
+  var _kamBahnCache = null;
+  function _folgeGlattM() {
+    const v = parseFloat(document.getElementById("anim-follow-glatt")?.value);
+    return isFinite(v) ? Math.max(0, Math.min(3000, Math.round(v))) : 0;
+  }
+  function _kameraBahn() {
+    const m = _folgeGlattM();
+    if (!(m > 0) || !currentCoords || currentCoords.length < 3 || !window.rzSpurGlaetten) return currentCoords;
+    if (!_kamBahnCache || _kamBahnCache.co !== currentCoords || _kamBahnCache.m !== m) _kamBahnCache = { co: currentCoords, m, bahn: rzSpurGlaetten(currentCoords, m) };
+    return _kamBahnCache.bahn;
+  }
+  function _folgePunkt(frac) {
+    const z = _fokusZiel(frac);
+    if (z) return [z[0], z[1]];
+    const b = _kameraBahn();
+    return (b && b.length) ? coordBeiFrac(b, Math.max(0, Math.min(b.length - 1, +frac || 0))) : null;
+  }
+
   function drawPreview(res) {
     applog("info", `[drawPreview] n_coords=${res?.coords?.length} hasSource=${!!map?.getSource?.("preview-track")}`);
-    currentCoords = res.coords;
+    _spurRoh = res.coords;
+    currentCoords = _spurAnwenden(res.coords);   // 29.09.2026 — Spur glätten (0 = Original)
     // 08.09.2026 — die erste Etappe merken; bei einer Reise ersetzt die
     // Etappen-Bahn den Track (siehe _reiseAnwenden).
-    _reiseBasis = res.coords;
+    _reiseBasis = currentCoords;
     _reiseBasisSerie = res.series || null;      // Reihen der ERSTEN Etappe
     _reiseBasisEle = res.elevations || null;
     _reiseBahn = null;
@@ -20778,6 +20917,8 @@ function mountAnimator(body, headerActions, opts) {
       // Center pro Frame zum aktuellen Track-Punkt. Im KF-Modus per KF gesteuert.
       camera_follow_track: !!document.getElementById("anim-camera-follow")?.checked,
       camera_follow_inertia: (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100,
+      spur_glaetten_m: _spurGlattM(),
+      camera_follow_glatt_m: _folgeGlattM(),
       smooth_camera_3d: !!document.getElementById("anim-smooth-camera")?.checked,  // v0.9.318 entkoppelte FreeCamera
       show_overlays: !_isReiseroute && !!document.getElementById("anim-overlays")?.checked,
       line_color: document.getElementById("anim-color").value,
@@ -20850,6 +20991,7 @@ function mountAnimator(body, headerActions, opts) {
       marker_dot_style: dotStil(),
       marker_dot_size: dotGroesse(),
       marker_dot_smooth: dotGlaettung(),
+      marker_dot_glatt_m: +(_activeProject?.[_MODKEY]?.marker_dot_glatt_m) || 0,
       // v0.9.506 — Verteilung + Pausen.
       pace_mode: (document.getElementById("anim-pace")?.value) || "raw",
       pause_mode: (document.getElementById("anim-pause-mode")?.value) || "trim",

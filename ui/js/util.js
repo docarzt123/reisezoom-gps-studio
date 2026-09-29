@@ -3602,6 +3602,35 @@ function kursMeter(a, b) {
   return Math.hypot((b[1] - a[1]) * rad,
                     (b[0] - a[0]) * rad * Math.cos((a[1] + b[1]) / 2 * rad)) * R;
 }
+/** 29.09.2026 (Marc: „reduziere den track, damit der pfeil ruhig bleibt") — Spur glätten.
+ *  Gauß über die Streckenlänge (σ = m / 2), Fenster je Punkt SYMMETRISCH auf den kürzeren
+ *  Abstand zu Start/Ende gekürzt: Anfang und Ende bleiben exakt, die Spur schrumpft nicht.
+ *  Punktzahl und Reihenfolge bleiben — alle Reihen, die am Punkt-Index hängen (Höhen,
+ *  Zeiten, Anker), stimmen weiter. Zusätzliche Werte je Punkt ([lon, lat, …]) bleiben.
+ *  Spiegel: core/animator.py spur_glaetten (Wächter tests/test_schnellvideo.py). */
+function rzSpurGlaetten(coords, meter) {
+  const n = coords ? coords.length : 0, m = +meter || 0;
+  if (n < 3 || !(m > 0)) return coords;
+  const cum = [0];
+  for (let i = 1; i < n; i++) cum.push(cum[i - 1] + kursMeter(coords[i - 1], coords[i]));
+  const sig = m / 2, ges = cum[n - 1], out = new Array(n);
+  let lo = 0, hi = 0;
+  for (let i = 0; i < n; i++) {
+    const r = Math.min(3 * sig, cum[i], ges - cum[i]);
+    if (r <= 0) { out[i] = coords[i].slice(); continue; }
+    while (cum[lo] < cum[i] - r) lo++;
+    if (hi < i) hi = i;
+    while (hi + 1 < n && cum[hi + 1] <= cum[i] + r) hi++;
+    let sx = 0, sy = 0, sw = 0;
+    for (let k = lo; k <= hi; k++) {
+      const d = (cum[k] - cum[i]) / sig, w = Math.exp(-0.5 * d * d);
+      sx += coords[k][0] * w; sy += coords[k][1] * w; sw += w;
+    }
+    const p = coords[i].slice(); p[0] = sx / sw; p[1] = sy / sw; out[i] = p;
+  }
+  return out;
+}
+window.rzSpurGlaetten = rzSpurGlaetten;
 /** Regler 0–10 → (Basislänge in Metern, Mindestzahl Punkte). */
 function kursGlaettung(stufe) {
   const v = Math.max(0, Math.min(10, +stufe || 0));
@@ -3632,6 +3661,51 @@ function kursAusSpur(coords, i, basisM, minPunkte) {
   if (!c1 || !c2) return kursPeilung(coords[a], coords[b]);
   return kursPeilung([x1 / c1, y1 / c1], [x2 / c2, y2 / c2]);
 }
+
+/** 29.09.2026 (Marc: „der Pfeil springt") — Pfeilrichtung glatt entlang der Strecke.
+ *  kursAusSpur je Punkt, abgewickelt, dann Gauß über die Streckenlänge (σ = basisM): an einer
+ *  Spitzkehre dreht der Pfeil über ein Stück Weg, statt in einem Bild umzuklappen. Abgefragt wird
+ *  am GEBROCHENEN Index (zwischen zwei Punkten interpoliert), nicht mehr gestuft je Punkt.
+ *  Ohne Gedächtnis über Bilder hinweg (nur vom Ort abhängig). Zwischenspeicher je coords-Liste.
+ *  σ = sigM (Standard basisM; das Schnell-Video setzt marker_dot_glatt_m je nach Tempo).
+ *  Spiegel: __rzKurs in core/animator.py (klassischer Render, KURS_SIGMA_M). */
+const _kursReihenCache = new WeakMap();
+function kursReihe(coords, basisM, minPunkte, sigM) {
+  const n = coords ? coords.length : 0;
+  if (n < 2) return null;
+  const sig = Math.max(1, +sigM || basisM), key = basisM + "|" + minPunkte + "|" + sig;
+  let c = _kursReihenCache.get(coords);
+  if (c && c[key]) return c[key];
+  const u = new Float64Array(n), cum = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const h = kursAusSpur(coords, i, basisM, minPunkte);
+    if (i === 0) { u[0] = h; continue; }
+    let d = (h - u[i - 1]) % 360; if (d > 180) d -= 360; if (d < -180) d += 360;
+    u[i] = u[i - 1] + d;
+    cum[i] = cum[i - 1] + kursMeter(coords[i - 1], coords[i]);
+  }
+  const out = new Float64Array(n);
+  let lo = 0, hi = 0;
+  for (let i = 0; i < n; i++) {
+    while (cum[lo] < cum[i] - 3 * sig) lo++;
+    if (hi < i) hi = i;
+    while (hi + 1 < n && cum[hi + 1] <= cum[i] + 3 * sig) hi++;
+    let sw = 0, sx = 0;
+    for (let k = lo; k <= hi; k++) { const d = (cum[k] - cum[i]) / sig, w = Math.exp(-0.5 * d * d); sx += u[k] * w; sw += w; }
+    out[i] = sx / sw;
+  }
+  if (!c) { c = {}; _kursReihenCache.set(coords, c); }
+  c[key] = out;
+  return out;
+}
+function kursGlattAn(coords, f, basisM, minPunkte, sigM) {
+  const r = kursReihe(coords, basisM, minPunkte, sigM);
+  if (!r) return 0;
+  const n = r.length, x = Math.max(0, Math.min(n - 1, +f || 0)), i = Math.min(n - 2, Math.floor(x));
+  const v = n < 2 ? r[0] : r[i] + (r[i + 1] - r[i]) * (x - i);
+  return ((v % 360) + 360) % 360;
+}
+window.kursGlattAn = kursGlattAn;
 
 // 04.09.2026 — Nordpfeil (Spiegel von core/northarrow.py, Wächter tests/test_north_scale.py)
 window.RZ_NORTH_SVG = "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" class=\"rz-north-bg\" fill=\"rgba(0,0,0,0.55)\"/><text x=\"32\" y=\"15\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"800\" fill=\"#ffffff\" font-family=\"sans-serif\">N</text><polygon points=\"32,17 40,42 32,37 24,42\" fill=\"#e8452c\"/><polygon points=\"32,58 24,42 32,37 40,42\" fill=\"#ffffff\" fill-opacity=\"0.85\"/></svg>";
