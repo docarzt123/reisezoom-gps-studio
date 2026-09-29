@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.735** (29.09.2026, built locally): fade-in and fade-out for signs, like the overlays.
+
+### Added
+- **Signs fade in and out like the overlays** (Marc: "no fade like with the overlays, I thought it would work the same"). New sign fields `entry_s`, `exit` (none / fade / pop / both) and `exit_s`; `rzSignMeta` (`ui/js/sign_draw.js`) returns separate `fadeIn/fadeOut/popOut` spans (shrunk proportionally when they do not fit, no fade-out when the sign stays until the end), `rzSignDeckkraft` is used by the GPU and DOM paths, pop-out = pop-in reversed. Sign window: "Fade-in duration", "Fade-out", "Fade-out duration". Timeline: the sign bars now have the two white dots (`blendenGriffe`), dragging sets `entry_s`/`exit_s` (and turns "Cut" into "Fade"). Old signs without `exit` behave exactly as before (fade-in ⇒ 0.6 s fade-out too). Classic render passes the fields through (`core/animator.py`). Checked in the real app (fade-in 1.1 s, fade-out 1.6 s by dragging); test `tests/test_schilder_spur.py` section G.
+- Re-checked Marc's report "can't drag signs shorter or longer" in the real app, including a sign starting at the very beginning of the intro: both edges drag fine on the Mac mini (log `[sg-spur] Schild 1: l/r`). Note in the guide: the "▸ Signs" row must be open — the collapsed strip only shows the bars.
+
 > **0.9.734** (28.09.2026, built locally): tours "Show whole" replace ghost tracks (IDEAS §72); opacity and "show the whole route faintly" for every tour; the main tour keeps its start after reopening.
 
 ### Added

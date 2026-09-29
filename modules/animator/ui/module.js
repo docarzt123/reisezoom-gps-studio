@@ -10700,6 +10700,7 @@ function mountAnimator(body, headerActions, opts) {
       calloutDir: "bottom",  // v0.9.408 — Sprechblasen-Pfeilrichtung: "bottom" | "top" | "left" | "right"
       shadow: false, shadowColor: "#000000", shadowBlur: 8, shadowStrength: 0.55,
       zoomScale: true, before: 0, after: 0, entry: "none",
+      entry_s: null, exit: null, exit_s: null,   // 29.09.2026 — Blenden wie bei den Overlays (null = altes Verhalten, sign_draw.js rzSignMeta)
       alwaysVisible: false,  // v0.9.188 — ganze Zeit sichtbar (kein Timing-Fenster)
       anchorMode: "track",   // track = Anker rastet, free = freie Position
       imageSrc: "",          // v0.9.189 — optionales Bild; Schild MIT Bild = Foto-Karte (Text = Bildunterschrift)
@@ -11335,7 +11336,7 @@ function mountAnimator(body, headerActions, opts) {
         if (_animSignsPreviewAll || _isStaticFrame || _animSignForceIdx === fi) { visible = true; op = 1; }
         else {
           visible = (M >= meta.a_show && M <= meta.a_hide);
-          if (visible && meta.fade > 0) op = Math.max(0, Math.min(1, Math.min((M - meta.a_show) / meta.fade, (meta.a_hide - M) / meta.fade, 1)));
+          if (visible) op = Math.max(0, Math.min(1, window.__rzSignDeckkraft ? window.__rzSignDeckkraft(meta, M) : 1));
         }
         const wrap = mk.wrap;
         const dispVal = visible ? "" : "none";
@@ -11957,6 +11958,17 @@ function mountAnimator(body, headerActions, opts) {
               <option value="pop"${sel("pop", c.entry)}>${t("signs.entry.pop", "Aufpoppen")}</option>
               <option value="both"${sel("both", c.entry)}>${t("signs.entry.both", "Ein- + Aufpoppen")}</option>
             </select>
+            <label>${t("signs.entry_s", "Dauer Einblendung (Sek.)")}</label>
+            <input type="number" id="se-entry-s" min="0" max="10" step="0.1" value="${c.entry_s == null ? "" : c.entry_s}" placeholder="${c.entry === "pop" ? "0.5" : "0.6"}">
+            <label>${t("signs.exit", "Ausblendung")}</label>
+            <select id="se-exit">
+              ${(() => { const ex = (c.exit == null || c.exit === "") ? ((c.entry === "fade" || c.entry === "both") ? "fade" : "none") : c.exit;
+                return [["none", t("signs.exit.none", "Hart (sofort)")], ["fade", t("signs.exit.fade", "Ausblenden")], ["pop", t("signs.exit.pop", "Wegpoppen")], ["both", t("signs.exit.both", "Aus- + Wegpoppen")]]
+                  .map(([v, l]) => `<option value="${v}"${v === ex ? " selected" : ""}>${l}</option>`).join(""); })()}
+            </select>
+            <label>${t("signs.exit_s", "Dauer Ausblendung (Sek.)")}</label>
+            <input type="number" id="se-exit-s" min="0" max="10" step="0.1" value="${c.exit_s == null ? "" : c.exit_s}" placeholder="0.6">
+            <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${t("signs.exit_hint", "Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet („Bleibt sichtbar“ größer 0). In der Zeitleiste lassen sich beide Dauern an den weißen Punkten ziehen.")}</div>
             <label>${t("signs.before", "Vorlauf (Sek.)")}</label>
             <input type="number" id="se-before" min="0" max="30" step="0.5" value="${c.before}">
             <label>${t("signs.after", "Bleibt sichtbar (Sek.)")}</label>
@@ -12046,6 +12058,9 @@ function mountAnimator(body, headerActions, opts) {
           zoomScale: $("#se-zoom").checked,
           alwaysVisible: $("#se-always").checked,
           entry: $("#se-entry").value,
+          entry_s: (() => { const v = ($("#se-entry-s")?.value || "").trim(); return v === "" ? null : Math.max(0, parseFloat(v) || 0); })(),
+          exit: $("#se-exit") ? $("#se-exit").value : null,
+          exit_s: (() => { const v = ($("#se-exit-s")?.value || "").trim(); return v === "" ? null : Math.max(0, parseFloat(v) || 0); })(),
           before: parseFloat($("#se-before").value) || 0,
           after: parseFloat($("#se-after").value) || 0,
         };
@@ -12198,7 +12213,7 @@ function mountAnimator(body, headerActions, opts) {
           "align", "size", "radius", "padding", "opacity", "borderColor", "borderWidth", "decoScale", "direction",
           "shadow", "shadowColor", "shadowBlur", "shadowStrength", "imageSize",
           // Verhalten
-          "zoomScale", "entry", "before", "after", "alwaysVisible"];
+          "zoomScale", "entry", "entry_s", "exit", "exit_s", "before", "after", "alwaysVisible"];
         const patch = {}; APPLY_KEYS.forEach(k => patch[k] = src[k]);
         const l2 = l.map((s, i) => (i === idx ? s : { ...s, ...patch }));
         // v0.9.201 — gecachtes Bild-Element ALLER Schilder droppen, damit das Icon
@@ -14915,17 +14930,18 @@ function mountAnimator(body, headerActions, opts) {
     const zeilen = [];
     liste.forEach((s, i) => {
       if (!s || !((s.text || "").trim() || s.imageSrc)) return;
-      const { sn, m } = _sgMeta(s);
+      const { sn, m, dur } = _sgMeta(s);
       const immer = !!sn.alwaysVisible;
       const tAn = immer ? 0 : _sgZeitAusAnker(m.a_show, ph);
       const tAus = immer ? ph.G : _sgZeitAusAnker(m.a_hide, ph);
-      const blende = sn.entry === "fade" || sn.entry === "both" ? 0.6 : (sn.entry === "pop" ? 0.5 : 0);
+      const einS = immer ? 0 : Math.max(m.fadeIn || 0, m.pop || 0) * dur, ausS = immer ? 0 : Math.max(m.fadeOut || 0, m.popOut || 0) * dur;
       const name = (sn.text || "").trim().split("\n")[0] || (sn.imageSrc ? t("signs.photo_row", "Foto") + " " + (i + 1) : "#" + (i + 1));
       zeilen.push({
         id: _sgIdVon(i), name, enabled: s.visible !== false, farbe: sn.color && sn.color !== "auto" ? sn.color : "#ff8a5c",
         tip: immer ? t("signs.sg_immer_tip", "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen.") : "",
         segmente: [{ an: _ovLeisteAusZeit(tAn), aus: _ovLeisteAusZeit(tAus),
-                     einBis: _ovLeisteAusZeit(Math.min(tAus, tAn + blende)), ausAb: _ovLeisteAusZeit(tAus),
+                     einBis: _ovLeisteAusZeit(Math.min(tAus, tAn + einS)), ausAb: _ovLeisteAusZeit(Math.max(tAn, tAus - ausS)),
+                     ohneBlende: immer,
                      text: immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + (m.a_hide >= 1.5 ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s")),
                      festL: immer, festR: immer }],
       });
@@ -14949,6 +14965,16 @@ function mountAnimator(body, headerActions, opts) {
         out.timeAnchor = Math.round(aShow * 100000) / 100000; out.before = 0;
         if (!(m.a_hide >= 1.5)) out.after = Math.max(0.1, Math.round((m.a_hide - aShow) * dur * 10) / 10);
       }
+    } else if (griff === "ein") {
+      // 29.09.2026 — weißer Punkt links: Dauer der Einblendung; war „Hart", wird daraus „Einblenden"
+      out.entry_s = Math.max(0, Math.round((_ovZeitAusLeiste(neu.einBis) - tAn) * 10) / 10);
+      if (!sn.entry || sn.entry === "none") out.entry = "fade";
+      if (out.entry_s <= 0.05) { out.entry = "none"; out.entry_s = null; }
+    } else if (griff === "aus") {
+      out.exit_s = Math.max(0, Math.round((tAus - _ovZeitAusLeiste(neu.ausAb)) * 10) / 10);
+      const exAlt = (sn.exit == null || sn.exit === "") ? ((sn.entry === "fade" || sn.entry === "both") ? "fade" : "none") : sn.exit;
+      out.exit = exAlt === "none" ? "fade" : exAlt;
+      if (out.exit_s <= 0.05) { out.exit = "none"; out.exit_s = null; }
     } else if (griff === "r") {
       out.after = bisEnde ? 0 : Math.max(0.1, Math.round((aHide - A) * dur * 10) / 10);
       if (aHide < A) { out.timeAnchor = Math.round(aHide * 100000) / 100000; out.after = 0.1; out.before = Math.max(0, Math.round((aHide - aShow) * dur * 10) / 10); }

@@ -4320,7 +4320,7 @@
   "library.imp_col_done": "In Sammlung eingeordnet: {namen}",
   "animator.lane.schilder": "Schilder",
   "animator.lane.schilder_tip": "Wann die Schilder zu sehen sind. Aufklappen, dann Balken ziehen: verschieben ändert den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“. Doppelklick oder Rechtsklick öffnet das Schild.",
-  "animator.sg.bar_tip": "Ziehen: verschieben · Ränder: Anfang/Ende · Doppelklick oder Rechtsklick: Schild öffnen",
+  "animator.sg.bar_tip": "Ziehen: verschieben · Ränder: Anfang/Ende · weiße Punkte: Ein-/Ausblendung · Doppelklick oder Rechtsklick: Schild öffnen",
   "signs.sg_immer_tip": "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen.",
   "signs.undo_zeit": "Schild-Zeit geändert",
   "signs.photo_row": "Foto",
@@ -4358,5 +4358,13 @@
   "animator.tours.ganz_an": "Ganz zeigen — die ganze Runde ist auf einmal da. Klick: wieder animiert",
   "animator.tours.ganz_aus": "Animiert — Klick: ganz zeigen (ganze Runde auf einmal, so lange wie ihr Balken)",
   "animator.tours.ganz_geloest": "Die Tour ist jetzt eine eigene Gruppe — die anderen laufen weiter animiert.",
-  "animator.tours.ganz_dauer_hint": "Wie lange die ganze Runde zu sehen ist. Leer = bis zum Videoende."
+  "animator.tours.ganz_dauer_hint": "Wie lange die ganze Runde zu sehen ist. Leer = bis zum Videoende.",
+  "signs.entry_s": "Dauer Einblendung (Sek.)",
+  "signs.exit": "Ausblendung",
+  "signs.exit.none": "Hart (sofort)",
+  "signs.exit.fade": "Ausblenden",
+  "signs.exit.pop": "Wegpoppen",
+  "signs.exit.both": "Aus- + Wegpoppen",
+  "signs.exit_s": "Dauer Ausblendung (Sek.)",
+  "signs.exit_hint": "Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet („Bleibt sichtbar“ größer 0). In der Zeitleiste lassen sich beide Dauern an den weißen Punkten ziehen."
 }

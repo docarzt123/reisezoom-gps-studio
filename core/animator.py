@@ -3254,6 +3254,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "before": float(_sg(s, "before", 0)),
             "after": float(_sg(s, "after", 0)),
             "entry": _sg(s, "entry", "none"),
+            # 29.09.2026 — Blenden wie bei den Overlays (None = altes Verhalten in rzSignMeta)
+            "entry_s": _sg(s, "entry_s", None),
+            "exit": _sg(s, "exit", None),
+            "exit_s": _sg(s, "exit_s", None),
             # v0.9.189 — Schild MIT Bild (= Foto-Karte). Thumb serverseitig erzeugen.
             "imageSrc": str(_sg(s, "imageSrc", "") or ""),
             "thumb": _sign_thumb(s),

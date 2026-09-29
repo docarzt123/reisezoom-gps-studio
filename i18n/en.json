@@ -4320,7 +4320,7 @@
   "library.imp_col_done": "Added to collection: {namen}",
   "animator.lane.schilder": "Signs",
   "animator.lane.schilder_tip": "When the signs are visible. Expand, then drag the bars: moving changes the moment, the edges change lead-in and “Stays visible”. Double-click or right-click opens the sign.",
-  "animator.sg.bar_tip": "Drag: move · Edges: start/end · Double-click or right-click: open sign",
+  "animator.sg.bar_tip": "Drag: move · edges: start/end · white dots: fade in/out · double-click or right-click: open sign",
   "signs.sg_immer_tip": "“Show the whole time” is on — switch it off in the sign window to drag the bar.",
   "signs.undo_zeit": "Sign timing changed",
   "signs.photo_row": "Photo",
@@ -4358,5 +4358,13 @@
   "animator.tours.ganz_an": "Show whole — the whole route appears at once. Click: animated again",
   "animator.tours.ganz_aus": "Animated — click: show whole (entire route at once, for as long as its bar)",
   "animator.tours.ganz_geloest": "The tour is now its own group — the others keep animating.",
-  "animator.tours.ganz_dauer_hint": "How long the whole route stays visible. Empty = until the end of the video."
+  "animator.tours.ganz_dauer_hint": "How long the whole route stays visible. Empty = until the end of the video.",
+  "signs.entry_s": "Fade-in duration (s)",
+  "signs.exit": "Fade-out",
+  "signs.exit.none": "Cut (instant)",
+  "signs.exit.fade": "Fade out",
+  "signs.exit.pop": "Pop out",
+  "signs.exit.both": "Fade + pop out",
+  "signs.exit_s": "Fade-out duration (s)",
+  "signs.exit_hint": "It only fades out if the sign disappears before the end of the video (“Stays visible” above 0). In the timeline you can drag both durations at the white dots."
 }
