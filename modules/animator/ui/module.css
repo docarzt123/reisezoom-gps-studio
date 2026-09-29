@@ -1223,3 +1223,22 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 
 /* 25.09.2026 — ⏱ „bis“: ab Start oder vor Ende */
 .ov-timing .ov-bis-art { font-size: 11px; padding: 1px 2px; max-width: 92px; }
+
+/* ── 29.09.2026 §71 — Titel- und Schlusskarte (Schnell-Video) ─────────────────
+   Liegt über der Karte und den Overlay-Boxen; Größen relativ zur Vorschau (cqmin),
+   damit 9:16, 16:9 und 1:1 gleich wirken und die Szene das Video genau so zeichnet. */
+.sk-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; container-type: size; }
+.sk-titel { position: absolute; left: 6cqw; right: 6cqw; top: 20cqh; text-align: center; color: #fff;
+  text-shadow: 0 0.4cqmin 2cqmin rgba(0,0,0,.65), 0 0 0.6cqmin rgba(0,0,0,.5); }
+.sk-t1 { font: 800 8cqmin/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .01em; }
+.sk-t2 { margin-top: 1.6cqmin; font: 600 3.6cqmin/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; opacity: .92; }
+.sk-t2:empty { display: none; }
+.sk-schluss { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 3cqmin 6cqmin; max-width: 88cqw;
+  padding: 4cqmin 6cqmin; border-radius: 3cqmin; background: rgba(12, 14, 20, .58);
+  box-shadow: 0 1cqmin 4cqmin rgba(0,0,0,.35); color: #fff; }
+.sk-wert { display: flex; flex-direction: column; align-items: center; min-width: 18cqmin; }
+.sk-wert b { font: 800 6.4cqmin/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: nowrap; }
+.sk-wert span { margin-top: .8cqmin; font: 600 2.6cqmin/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.anim-sk-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 4px; font-size: 11.5px; }

@@ -3336,3 +3336,11 @@ body > #main { grid-row: 4; }
 .lib-imp-col { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .lib-imp-col-neu { margin-top: 8px; gap: 10px; }
 .lib-imp-col-neu input { flex: 1; }
+
+/* 29.09.2026 §71 — Schnell-Video-Dialog */
+.sv-dialog .field-label { display: block; margin-top: 10px; }
+.sv-reihe { display: flex; gap: 6px; flex-wrap: wrap; }
+.sv-reihe .sv-wahl.is-on { background: var(--accent, #ff6b35); color: #fff; border-color: var(--accent, #ff6b35); }
+.sv-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
+.sv-dialog .chk { display: flex; align-items: center; gap: 6px; }
+.sv-hinweis { margin-top: 6px; font-size: 12px; line-height: 1.4; color: #f5c16c; }

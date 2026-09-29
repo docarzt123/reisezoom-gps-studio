@@ -807,6 +807,41 @@ The stats editor of the Animator (and the Tour Map) has four new fields: in the 
 comes from the tour's country in the archive (Canary Islands, Azores and multi-zone countries by
 longitude), otherwise from the tour's location. The format follows the app language.
 
+### 🎬 Quick video — a finished tour video with just a few choices (since v0.9.739) ⭐
+
+You just want a nice video of your tour, without keyframes and settings? Use the **quick video**: in the
+**archive**, on the tour, **🎬 Quick video …** (detail column on the right or right-click), or in the
+**Animator** below "Render video" for the open tour.
+
+The dialog asks only a few things — the app remembers your choice for next time:
+
+- **Format:** 9:16 portrait (preselected, for phones, Reels, Shorts), 16:9 or 1:1.
+- **Length:** Short 20 s, Normal 40 s, Long 60 s.
+- **Quality:** 1080 or 4K.
+- **Map style:** preset with your default. If the style is not cleared for commercial videos, a note
+  appears below it — you can still render.
+- **Title and subtitle:** preset with the tour name and date · place, editable.
+- **Along the way:** "Numbers along the way" (distance and elevation) and "Elevation profile" — two checkboxes.
+- **End card:** which values appear large at the end (distance, ascent, descent, moving time, time,
+  average speed, date).
+
+**The video:** the title sits over the overview (the loop faint in the background), then the camera flies
+to the start and follows the route while the line draws; at the end it pulls back to the overview and the
+end card appears.
+
+**Render video** shows you live how the video is made. When it is done, **"💾 Save …"** puts it wherever
+you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, Mail, Photos …); on Windows
+the folder with the video opens.
+
+**Open in Animator** creates the same but does not render — the quick video is then the basis for your own
+video: the camera flight is made of normal keyframes, and you change title and end card under
+**Overlays → Title & end card**.
+
+The project is called "Tour name · Quick video" and appears under **Projects → Created automatically**. If
+you rename it, it moves to your projects.
+
+> Not included yet (coming later): photos of the tour with a short stop, music, trips with several tours.
+
 ### 🧭 Tour assistant — from the tour to the finished project (since v0.9.689) ⭐
 
 **File → “Tour assistant…” (⌘⇧N).** One window, three inputs, one button:

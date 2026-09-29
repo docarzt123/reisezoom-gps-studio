@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.739** (29.09.2026, built locally): quick video (IDEAS §71).
+
+### Added
+- **Quick video — a finished tour video with a few choices** (IDEAS §71; Marc, grilling 29.09.2026: "komoot now has a prominent video feature, we urgently need a kind of quick video"). Entry points: archive detail column + right-click (`🎬 Quick video …`) and the Animator (below "Render video"). New `ui/js/schnellvideo.js`: dialog with format (9:16 preselected / 16:9 / 1:1), length (20/40/60 s), quality (1080/4K), map style (default preselected; rights note if not cleared for commercial video, rendering still allowed), title + subtitle (tour name / date · place), two checkboxes (numbers along the way, elevation profile) and the end-card values (7, preselected distance, ascent, moving time); remembers the last choice (`settings.schnellvideo_letzte`). It builds a normal Animator configuration: intro 3 s + animation + hold 4 s, 30 fps, generated camera flight as ordinary keyframes (overview with fixed center → fly in to the start → follow camera with pitch 55° and a slight turn → back to the overview; zoom as offset to the fit camera, so it works in every format), camera follow on, faint whole route (50 %) so the overview shows the loop, live box with distance/elevation, elevation profile, no totals box. Backend (`app.py`): `schnellvideo_vorschlag`, `schnellvideo_anlegen` (project "<tour> · Quick video", `herkunft: "schnellvideo"` → listed under "Created automatically" until renamed), `schnellvideo_ziel` (temp file in `_renders` with timestamp), `datei_speichern_unter` (moves it to the save-dialog target via dateischutz), `datei_teilen` (macOS `NSSharingServicePicker`; Windows/Linux: reveal folder).
+- **Title & end card in the Animator** (`animator.schnellkarte`): a new DOM layer over the map (`#anim-sk`, sizes in `cqmin`, so the scene renders it exactly), title visible from 0 s and fading out, end card from the start of the hold; editable under Overlays → "Title & end card"; shown while scrubbing and in the test run.
+- **Render without save dialog** for the quick video (`window.__rzSchnellRender`): live progress as usual; the done panel adds "💾 Save …" and "📤 Share".
+- Checked in the real app on the Mac mini: archive → dialog → render (20 s, 1080×1920, ~4 min) → share menu (AirDrop, Messages, Mail, Photos …) → save; second run from the Animator with the remembered choices. Test `tests/test_schnellvideo.py` (WebKit, real bridge). User guide DE/EN/ES.
+
 > **0.9.738** (29.09.2026, built locally): source register notes in three languages; German beginner chapter uses "du".
 
 ### Changed

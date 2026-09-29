@@ -1173,6 +1173,16 @@ function mountAnimator(body, headerActions, opts) {
               </div>
             </div>
           </div>
+          ${_isStaticFrame ? "" : `
+          <!-- 29.09.2026 §71 — Titel- und Schlusskarte (legt das Schnell-Video an, hier änderbar) -->
+          <div class="field anim-sk-editor" id="anim-sk-editor" style="margin-top:12px">
+            <div class="field-label">🎬 ${t("schnell.karte.titel_bereich", "Titel & Schlusskarte")}</div>
+            <label class="chk"><input type="checkbox" id="anim-sk-titel-an"><span>${t("schnell.karte.titel_an", "Titel am Anfang")}</span></label>
+            <input type="text" id="anim-sk-titel" class="lib-input" placeholder="${t("schnell.titel", "Titel")}" style="margin-top:4px">
+            <input type="text" id="anim-sk-unter" class="lib-input" placeholder="${t("schnell.unterzeile", "Unterzeile")}" style="margin-top:4px">
+            <label class="chk" style="margin-top:8px"><input type="checkbox" id="anim-sk-schluss-an"><span>${t("schnell.karte.schluss_an", "Schlusskarte am Ende")}</span></label>
+            <div class="anim-sk-felder" id="anim-sk-felder"></div>
+          </div>`}
         </div>
       </section>
 
@@ -1372,6 +1382,7 @@ function mountAnimator(body, headerActions, opts) {
 
       <div class="section">
         <button class="btn btn-primary btn-block" id="anim-render" disabled>${t("animator.btn.render")}</button>
+        ${!_isStaticFrame && !_isReiseroute ? `<button class="btn btn-secondary btn-block" id="anim-schnellvideo" style="margin-top:8px;" title="${t("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte.")}">🎬 ${t("schnell.knopf", "Schnell-Video …")}</button>` : ""}
         ${!_isStaticFrame ? `
         <button class="btn btn-secondary btn-block" id="anim-snapshot" style="margin-top:8px;" disabled title="${t("animator.snapshot.tip", "Rendert genau den aktuell in der Vorschau gezeigten Frame (Teil-Track, Kamera, Overlays) als Bild in voller Auflösung.")}">📸 ${t("animator.btn.snapshot", "Aktuellen Frame als Bild")}</button>
         ${!_isReiseroute ? `<button class="btn btn-secondary btn-block" id="anim-open-tourmap" style="margin-top:6px;" disabled title="${t("animator.open_tourmap.no_track", "Erst eine Tour laden — dann übernimmt die Tour-Map ihren Ausschnitt.")}">🗺 ${t("animator.btn.open_tourmap", "Als Tour-Map öffnen")}</button>` : ``}
@@ -1417,6 +1428,11 @@ function mountAnimator(body, headerActions, opts) {
         <!-- Overlay-Vorschau (Stats-Boxen, Höhenprofil) liegt absolut über der Karte.
              Wird von renderOverlayPreview() in JS gefüllt. -->
         <div class="overlay-preview-layer" id="anim-overlay-preview" aria-hidden="true"></div>
+        <!-- 29.09.2026 §71 — Titel- und Schlusskarte (Schnell-Video). Liegt in der Vorschau und damit im Video. -->
+        <div class="sk-layer" id="anim-sk" aria-hidden="true">
+          <div class="sk-titel" hidden><div class="sk-t1"></div><div class="sk-t2"></div></div>
+          <div class="sk-schluss" hidden></div>
+        </div>
         <!-- v0.9.443 — Diagramm-Overlays (iframes). EIGENER Layer, damit
              renderOverlayPreview() (setzt oben innerHTML) die iframes nicht
              bei jedem Aufruf neu lädt. Diff-Update via _chartsPreviewRender(). -->
@@ -1459,6 +1475,8 @@ function mountAnimator(body, headerActions, opts) {
         <video id="anim-video" controls autoplay muted></video>
         <img id="anim-still-img" class="render-still-img" hidden alt="">
         <div class="render-done-buttons">
+          <button class="btn btn-primary" id="anim-sk-save" hidden>💾 ${t("schnell.speichern", "Speichern …")}</button>
+          <button class="btn" id="anim-sk-share" hidden>📤 ${t("schnell.teilen", "Teilen")}</button>
           <button class="btn" id="anim-play-video">${t("animator.btn.play_video", "▶ Abspielen")}</button>
           <button class="btn" id="anim-open-folder">${t("animator.btn.reveal")}</button>
           <button class="btn" id="anim-copy-sources" title="${t("animator.btn.copy_sources_tip", "Vollständige Quellenangaben (Anbieter, Datensatz, Lizenz mit Links) für die Videobeschreibung oder den Abspann in die Zwischenablage.")}">${t("animator.btn.copy_sources", "Quellentext kopieren")}</button>
@@ -1911,6 +1929,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _animSessionUnsubs.push(onSessionChanged(() => {
       try { _ovSyncGroups(); } catch (e) { applog && applog("warn", `[anim] _ovSyncGroups: ${e}`); }
       try { _alteZoomKeyframesPruefen(); } catch (e) { applog && applog("warn", `[anim] kf-Prüfung: ${e}`); }
+      try { _skInhaltKey = ""; _skEditorSync(); } catch (e) { applog && applog("warn", `[schnell] nach Projektwechsel: ${e}`); }
       // Sitzung/Projekt gewechselt (auch beim Start!) → Ghost-Spuren holen.
       try {
         _ghostSpurenLaden();
@@ -7423,6 +7442,7 @@ function mountAnimator(body, headerActions, opts) {
   let _scrubRaf = 0, _scrubZiel = null, _scrubLetzt = null;   // 04.09.2026 — Scrub-Zusammenfassung je Bild
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
+    try { _skAnwenden(_sgZeitAusAnker(anchor)); } catch (_) {}   // §71 Titel/Schlusskarte am Zeitregler
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
     // Wird von selectEvent() benutzt — sonst löscht der sync sofort wieder
     // die gerade gesetzte Per-Property-Selektion.
@@ -14775,6 +14795,111 @@ function mountAnimator(body, headerActions, opts) {
     const k = ss ? Object.keys(ss).map(Number).filter(n => n > 0) : [];
     return k.length ? Math.max(...k) : 0;
   }
+  // ── Schnell-Video: Titel- und Schlusskarte (IDEAS §71, 29.09.2026) ──────────
+  // Gespeichert im Projekt unter animator.schnellkarte = { titel_an, titel, unter, titel_s,
+  // schluss_an, felder[] }. Gezeichnet als DOM-Ebene über der Karte → die Szene nimmt sie mit
+  // ins Video (Vorschau = Video). Titel: von 0 s, blendet über 0,6 s aus bis titel_s.
+  // Schlusskarte: mit Beginn des Haltens (mind. die letzten 2,5 s), blendet 0,6 s ein.
+  const _SK_FELDER = ["dist_total", "elev_gain", "elev_loss", "moving_time", "duration", "avg_speed", "date"];
+  let _skRenderNext = null, _skLetzter = null, _skInhaltKey = "";
+  function _skCfg() {
+    const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    const a = (p && p[_MODKEY]) || (_settingsCache && _settingsCache[_MODKEY]) || {};
+    return (a && typeof a.schnellkarte === "object") ? a.schnellkarte : null;
+  }
+  function _skSpeichern(patch) {
+    const neu = Object.assign({ titel_an: false, titel: "", unter: "", titel_s: 3, schluss_an: false, felder: [] }, _skCfg() || {}, patch);
+    saveProjectSettings(_MODKEY, { schnellkarte: neu });
+    _skInhaltKey = "";
+  }
+  function _skAnwenden(tSec) {
+    const lay = document.getElementById("anim-sk"); if (!lay) return;
+    const ti = lay.querySelector(".sk-titel"), sc = lay.querySelector(".sk-schluss");
+    const c = _skCfg();
+    if (!c || _isStaticFrame || !(tSec >= 0)) { ti.hidden = true; sc.hidden = true; return; }
+    const felder = (Array.isArray(c.felder) ? c.felder : []).filter(f => _SK_FELDER.includes(f));
+    const key = [c.titel, c.unter, felder.join(","), (window.rzSprachCode ? window.rzSprachCode() : "")].join("|");
+    if (key !== _skInhaltKey) {
+      _skInhaltKey = key;
+      ti.querySelector(".sk-t1").textContent = c.titel || "";
+      ti.querySelector(".sk-t2").textContent = c.unter || "";
+      sc.innerHTML = felder.map(f => {
+        const v = (typeof _ovFieldValue === "function" ? _ovFieldValue(f) : null) || "—";
+        return `<div class="sk-wert"><b>${_animEscapeHtml(String(v))}</b><span>${_animEscapeHtml(t("animator.statsfield." + f, _OV_FALLBACK_LABEL[f] || f))}</span></div>`;
+      }).join("");
+    }
+    const tDauer = Math.max(0.5, +c.titel_s || 3);
+    const opT = (c.titel_an && (c.titel || c.unter) && tSec <= tDauer) ? Math.max(0, Math.min(1, (tDauer - tSec) / 0.6)) : 0;
+    const G = _ovGesamtSek(), hold = parseNum(document.getElementById("anim-hold")?.value, 0);
+    const ab = G - Math.max(2.5, hold);
+    const opS = (c.schluss_an && felder.length && tSec >= ab) ? Math.max(0, Math.min(1, (tSec - ab) / 0.6)) : 0;
+    ti.hidden = !(opT > 0.001); ti.style.opacity = String(Math.round(opT * 1000) / 1000);
+    sc.hidden = !(opS > 0.001); sc.style.opacity = String(Math.round(opS * 1000) / 1000);
+  }
+  function _skEditorSync() {
+    const box = document.getElementById("anim-sk-editor"); if (!box) return;
+    const c = _skCfg() || {};
+    const set = (id, v, chk) => { const e = document.getElementById(id); if (!e || document.activeElement === e) return; if (chk) e.checked = !!v; else e.value = v || ""; };
+    set("anim-sk-titel-an", c.titel_an, true); set("anim-sk-titel", c.titel); set("anim-sk-unter", c.unter); set("anim-sk-schluss-an", c.schluss_an, true);
+    const fb = document.getElementById("anim-sk-felder");
+    if (fb) {
+      const an = new Set(Array.isArray(c.felder) ? c.felder : []);
+      fb.innerHTML = _SK_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sk-feld="${f}"${an.has(f) ? " checked" : ""}><span>${_animEscapeHtml(t("animator.statsfield." + f, _OV_FALLBACK_LABEL[f] || f))}</span></label>`).join("");
+      fb.querySelectorAll("[data-sk-feld]").forEach(cb => cb.addEventListener("change", () => {
+        _skSpeichern({ felder: [...fb.querySelectorAll("[data-sk-feld]:checked")].map(x => x.dataset.skFeld) });
+        _skJetztZeigen();
+      }));
+    }
+  }
+  function _skJetztZeigen() {
+    try { _skAnwenden(_sgZeitAusAnker(_tlBar ? _tlBar.getScrubber() : 0)); } catch (_) {}
+  }
+  function _skEditorBinden() {
+    const b = (id, ev, fn) => { const e = document.getElementById(id); if (e && !e.__rzSk) { e.__rzSk = true; e.addEventListener(ev, fn); } };
+    b("anim-sk-titel-an", "change", (e) => { _skSpeichern({ titel_an: e.target.checked }); _skJetztZeigen(); });
+    b("anim-sk-schluss-an", "change", (e) => { _skSpeichern({ schluss_an: e.target.checked }); _skJetztZeigen(); });
+    b("anim-sk-titel", "input", (e) => { _skSpeichern({ titel: e.target.value }); _skJetztZeigen(); });
+    b("anim-sk-unter", "input", (e) => { _skSpeichern({ unter: e.target.value }); _skJetztZeigen(); });
+    b("anim-schnellvideo", "click", () => { if (currentGpx && typeof window.rzSchnellVideo === "function") window.rzSchnellVideo(currentGpx); });
+    _skEditorSync();
+  }
+  /** Fertig-Bereich nach einem Schnell-Video: „Speichern …" verschiebt die Zwischendatei an den
+   *  gewählten Ort, „Teilen" öffnet das System-Teilen-Menü (Windows: Ordner). */
+  function _skFertigKnoepfe(pfad) {
+    const sv = document.getElementById("anim-sk-save"), sh = document.getElementById("anim-sk-share");
+    if (!sv || !sh) return;
+    const aktiv = !!_skLetzter;
+    sv.hidden = !aktiv; sh.hidden = !aktiv;
+    if (!aktiv) return;
+    let aktuell = pfad;
+    const name = (_skLetzter.name || "Schnell-Video") + ".mp4";
+    sv.onclick = async () => {
+      const ziel = await api().pick_save_path(name, "", ["MP4 (*.mp4)"]);   // warte-ok: Systemdialog
+      if (!ziel) return;
+      const r = await rzWarten("datei_speichern_unter", () => api().datei_speichern_unter(aktuell, ziel));
+      if (r && r.ok) {
+        aktuell = r.path;
+        toast(t("schnell.gespeichert", "Gespeichert: {file}").replace("{file}", String(r.path).split(/[\\/]/).pop()), "success", 5000);
+        const of = document.getElementById("anim-open-folder"); if (of) of.onclick = () => api().reveal_in_finder(aktuell);
+        const pb = document.getElementById("anim-play-video"); if (pb) pb.onclick = () => api().open_path(aktuell);
+      } else toast((r && r.error) || t("common.error", "Fehler"), "error", 6000);
+    };
+    sh.onclick = async () => {
+      const r = await api().datei_teilen(aktuell);   // warte-ok: öffnet nur das System-Menü
+      if (!r || !r.ok) toast((r && r.error) || t("common.error", "Fehler"), "error", 6000);
+    };
+  }
+  window.__rzSchnellRender = (opts) => { _skRenderNext = opts || {}; const b = document.getElementById("anim-render"); if (b) b.click(); return true; };
+  window.__rzSchnellBereit = (pid) => {
+    try {
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const b = document.getElementById("anim-render");
+      return !!(map && map.loaded && map.loaded() && currentGpx && p && p.id === pid && !_animToursLaufend && b && !b.disabled);
+    } catch (_) { return false; }
+  };
+  window.__rzSchnellKarte = { anwenden: (s) => _skAnwenden(s), cfg: () => _skCfg() };   // Prüfstand
+  _skEditorBinden();
+
   // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
   // Anteil am Punkt-Index (wie _ovUpdateLiveAt) → hier in Streckenanteil + Etappe
   // umgerechnet (wie __overlayTiming im Render). tSec < 0 = Ruhezustand.
@@ -15218,6 +15343,7 @@ function mountAnimator(body, headerActions, opts) {
     return tab;
   }
   function _ovTimingAt(tSec, frac) {
+    try { _skAnwenden(tSec); } catch (e) { applog("warn", "[schnell] Karte: " + e); }
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;
     if (!R) return;
@@ -20396,6 +20522,8 @@ function mountAnimator(body, headerActions, opts) {
 
   document.getElementById("anim-render").addEventListener("click", async () => {
     if (!currentGpx) return;
+    // 29.09.2026 §71 — vom Schnell-Video ausgelöst? Dann Zwischendatei statt Speichern-Dialog.
+    const _sk = _skRenderNext; _skRenderNext = null; _skLetzter = _sk;
     // Alpha-Modus braucht keinen Mapbox-Token (keine Map). Skip Token-Check.
     // v0.6.0: Alpha-Modus = Stil "alpha". Alpha + OSM ist OK (kein Token nötig).
     const alphaModeActive = document.getElementById("anim-style").value === "alpha";
@@ -20409,7 +20537,7 @@ function mountAnimator(body, headerActions, opts) {
     const _videoOkNow = (map && map.__rzSpec && typeof map.__rzSpec.videoOk === "boolean")
       ? map.__rzSpec.videoOk
       : (typeof mapStyleVideoOk === "function" ? mapStyleVideoOk(_styleNow) : true);
-    if (!alphaModeActive && !_isStaticFrame && !_snapshotRequest && !window.__rzRightsAck && !_videoOkNow) {
+    if (!_sk && !alphaModeActive && !_isStaticFrame && !_snapshotRequest && !window.__rzRightsAck && !_videoOkNow) {
       openModal({
         title: t("mapstyle.rights_modal.title", "Mapbox-Stil: Videorechte nötig"),
         body: `<p>${t("mapstyle.rights_hint", "Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. einen kostenlosen Stil oder MapTiler wählen.")}</p>
@@ -20449,12 +20577,12 @@ function mountAnimator(body, headerActions, opts) {
     const fileFilter = _asPng ? ["PNG (*.png)"] : (needsMov ? ["MOV (*.mov)"] : ["MP4 (*.mp4)"]);
     const lastDir = (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].last_save_dir) || "";
 
-    const savePath = await api().pick_save_path(defaultName, lastDir, fileFilter); // warte-ok: Systemdialog
+    const savePath = _sk ? _sk.ziel : await api().pick_save_path(defaultName, lastDir, fileFilter); // warte-ok: Systemdialog
     if (!savePath) return;   // User hat abgebrochen
 
-    // Last-Dir merken fürs nächste Mal
+    // Last-Dir merken fürs nächste Mal (nicht beim Schnell-Video: das rendert in eine Zwischendatei)
     const dir = savePath.substring(0, savePath.lastIndexOf("/"));
-    if (dir) saveSettings({ animator: { last_save_dir: dir } });
+    if (dir && !_sk) saveSettings({ animator: { last_save_dir: dir } });
 
     // User-Viewport snapshotten — Marc's manueller Pan/Zoom in der Preview
     // soll im Render erhalten bleiben. Wenn override_* gesetzt sind, baut
@@ -21066,6 +21194,7 @@ function mountAnimator(body, headerActions, opts) {
       document.getElementById("anim-new").onclick = () => {
         done.classList.add("hidden");
       };
+      try { _skFertigKnoepfe(s.output); } catch (e) { applog("warn", "[schnell] Fertig-Knöpfe: " + e); }
       toast(t("animator.toast.render_done", "Video fertig: {file}", { file: s.output.split("/").slice(-1)[0] }), "success", 6000);
       return;
     }
