@@ -5653,7 +5653,9 @@ function mountLibrary(body, headerActions) {
     // Programmstart dort weitermachen, wo zuletzt gearbeitet wurde — dasselbe
     // Projekt, dieselbe Tour, dasselbe Modul. Danach nie wieder, sonst käme
     // man aus dem Archiv nicht mehr heraus.
-    if (!window.__rzFortsetzenGeprueft) {
+    // 29.09.2026 — nie in der Render-Seite (core/szene.py): dort öffnete „Fortsetzen" das zuletzt benutzte
+    // Projekt im Animator, bevor die Szene ihr Projekt fand → „Warten auf Projektkarte abgebrochen".
+    if (!window.__rzFortsetzenGeprueft && !window.__rzRenderMode) {
       window.__rzFortsetzenGeprueft = true;
       try {
         const r = await api().letzte_sitzung();

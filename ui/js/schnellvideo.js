@@ -51,8 +51,7 @@
     const punkte = [
       { s: 0, c: mitte, z: -0.15, p: 25, b: 0, e: "linear" },                       // Überblick
       { s: 1.2, c: mitte, z: -0.15, p: 25, b: 0, e: "linear" },                     // … kurz stehen
-      { a: 0, c: null, z: zNah, p: 55, b: 0, e: "ease_in_out" },                    // hinein zum Start
-      { a: 0.5, c: null, z: zNah, p: 55, b: 20, e: "linear" },                      // Flug, leicht drehend
+      { a: 0, c: null, z: zNah, p: 55, b: 0, e: "ease_in_out" },                    // hinein zum Start (Richtung: __rzSchnellKamera)
       { a: 1, c: null, z: zNah, p: 55, b: 0, e: "linear" },                         // Ziel
       { s: INTRO_S + animS + 1.8, c: mitte, z: -0.15, p: 25, b: 0, e: "ease_in_out" }, // zurück in die Gesamtsicht
       { s: INTRO_S + animS + HOLD_S, c: mitte, z: -0.15, p: 25, b: 0, e: "linear" },
@@ -68,6 +67,17 @@
     return ev.sort((x, y) => x.anchor - y.anchor);
   }
 
+  /** 29.09.2026 — Spur glätten je nach Tourgröße: ~20 m (Wanderung) … ~90 m (lange Radtour). */
+  function spurGlattM(bbox) {
+    return Math.max(15, Math.min(100, Math.round(14 * Math.sqrt(Math.max(0.1, diagonaleKm(bbox))) / 5) * 5));
+  }
+
+  /** Meter Strecke je Sekunde Animation (Streckenlänge aus dem Vorschlag, sonst Diagonale × 2,5). */
+  function mProS(v, animS) {
+    const m = (+v.distance_km > 0) ? +v.distance_km * 1000 : diagonaleKm(v.bbox) * 2500;
+    return m / Math.max(1, animS);
+  }
+
   /** Animator-Einstellungen des Schnell-Video-Projekts (Backend-Schlüssel, wie app.py sie kennt). */
   function animatorPatch(w, v) {
     const [bw, bh] = FORMATE[w.format] || FORMATE["9:16"];
@@ -81,6 +91,21 @@
       keyframes_enabled: true,
       timeline_events: kamerafahrt(v.bbox, animS),
       camera_follow_track: true,
+      // 29.09.2026 (Marc: „mach als Trackpunkt den Pfeil und flieg die Kamera immer dem Pfeil hinterher,
+      // reduziere den Track, dass der Pfeil ruhig bleibt") — Pfeil mit größter Ruhe, geglättete Spur,
+      // ruhige Kamera (dichte Stützstellen + Gelände-Tiefpass). Die Blickrichtung setzt der Animator
+      // nach dem Öffnen aus der geglätteten Fahrtrichtung (window.__rzSchnellKamera).
+      marker_dot_show: true, marker_dot_style: "arrow", marker_dot_size: 1.4, marker_dot_smooth: 10,
+      spur_glaetten_m: spurGlattM(v.bbox),
+      // Pfeilrichtung über ~0,4 s Fahrt geglättet, Kamera schaut auf eine Bahn über ~0,5 s Fahrt (gemessen: Karte zuckt 2,5–4 statt 16 ‰, Pfeil bleibt nahe der Mitte):
+      // bei 20 s über 25 km fliegt der Pfeil ~60 m je Bild — eine feste Ruhe-Stufe reicht da nicht.
+      marker_dot_glatt_m: Math.round(Math.max(60, Math.min(1500, 0.4 * mProS(v, animS)))),
+      camera_follow_glatt_m: Math.round(Math.max(50, Math.min(3000, 0.5 * mProS(v, animS))) / 25) * 25,
+      smooth_camera_3d: true,
+      // 29.09.2026 (Marc: „Straßen, Orte, Grenzen usw. alles ausblenden beim Schnell-Video") — nur Landschaft
+      // und Strecke. Dieselben Schalter wie Karte → „Alle aus" im Animator (Straßen-/Bahnlinien inklusive).
+      show_place_labels: false, show_road_labels: false, show_poi_labels: false,
+      show_transit_labels: false, show_admin_boundaries: false,
       // Im Überblick sieht man sofort die ganze Runde: blass im Hintergrund, darüber zeichnet sich die Linie.
       ghost_track_enabled: true, ghost_track_opacity_pct: 50,
       overlay_totals_enabled: false,
@@ -193,10 +218,13 @@
       window.__rzStartProjekte = true;
       if (typeof switchMod === "function") switchMod("library");
       window.dispatchEvent(new CustomEvent("rz-projekt-oeffnen", { detail: { id: r.project_id, modul: "animator" } }));
-      if (!rendern) return;
       const bereit = await warteAufAnimator(r.project_id, 90);
-      if (!bereit) { toast(T("schnell.nicht_bereit", "Der Animator ist noch nicht bereit — starte das Video dort mit „Video rendern“."), "warn", 8000); return; }
-      await new Promise(res => setTimeout(res, 1500));   // Karte und Kacheln kurz ankommen lassen
+      if (!bereit) { if (rendern) toast(T("schnell.nicht_bereit", "Der Animator ist noch nicht bereit — starte das Video dort mit „Video rendern“."), "warn", 8000); return; }
+      await new Promise(res => setTimeout(res, 1500));   // Karte, Kacheln und Tempo-Verteilung kurz ankommen lassen
+      // Verfolger-Blickrichtung aus der geglätteten Spur (auch für „Im Animator öffnen")
+      try { const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] Blickrichtung: ${n} Keyframes`); } catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
+      if (!rendern) return;
+      await new Promise(res => setTimeout(res, 800));   // gespeicherte Keyframes ankommen lassen
       let ziel;
       try { ziel = await api().schnellvideo_ziel(name); } catch (_) { ziel = null; }   // warte-ok: sofort
       if (!ziel || !ziel.ok) { toast((ziel && ziel.error) || T("common.error", "Fehler"), "error", 6000); return; }

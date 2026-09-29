@@ -64,6 +64,7 @@ _SCHREIBEND = re.compile(
 _BRIDGE_JS = r"""
 (() => {
   window.__rzKeinPmBoot = true;
+window.__rzFortsetzenGeprueft = true;   // 29.09.2026: kein „Fortsetzen“ des zuletzt benutzten Projekts in der Render-Seite
   window.__rzRenderMode = __RZ_MODE__;
   window.__rzKeep = __RZ_KEEP__;   // Diagnose: Render-Modus-Abkürzungen einzeln behalten (RZ_KEEP=trans,fade,rfade,globe)
   window.__rzStepMode = true;

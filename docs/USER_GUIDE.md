@@ -851,6 +851,17 @@ Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs näc
 Kamera zum Start und folgt der Strecke, während sich die Linie zeichnet; am Ende zieht sie sich in die
 Gesamtsicht zurück, und die Schlusskarte erscheint.
 
+**Nur Landschaft und Strecke (seit v0.9.741):** Straßen, Ortsnamen, POIs, Bahnlinien und Grenzen sind
+ausgeblendet. Willst du sie doch, stellst du sie im Animator unter **Karte** wieder an.
+
+**Pfeil und Verfolgerkamera (seit v0.9.741):** Unterwegs zeigt ein **Pfeil** in Fahrtrichtung, und die
+Kamera fliegt **hinter dem Pfeil her** — die Fahrtrichtung zeigt nach oben ins Bild. Damit das auch bei
+einem kurzen Video über eine lange Kehrenstrecke ruhig bleibt, glättet das Schnell-Video dreifach:
+die Spur selbst (GPS-Zittern raus), die Pfeilrichtung (je nach Tempo über ein Stück Weg, an einer
+Spitzkehre dreht der Pfeil statt umzuklappen) und die Blickrichtung der Kamera (aus der geglätteten
+Fahrtrichtung, dazu die ruhige Kamera). Die Blickrichtung steht danach als normale Keyframes in der
+Zeitleiste und lässt sich ändern.
+
 **Video rendern** zeigt dir live, wie das Video entsteht. Ist es fertig, **„💾 Speichern …"** legt es
 dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü (AirDrop, Nachrichten, Mail,
 Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
@@ -1710,7 +1721,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Nordpfeil** (seit 04.09.2026, Beta-Tester-Wunsch) — dreht mit der Kamera, zeigt also immer nach Norden, auch bei gedrehter oder schwenkender Ansicht. Standard **an**, unten rechts.
 - **Maßstab** (seit 04.09.2026) — Maßstabsleiste mit runder Länge (100 m, 500 m, 2 km …), die sich beim Zoomen anpasst; gemessen in der Bildmitte. Standard **an**, unten links. Im Alpha-Render (ohne Karte) entfällt sie, weil es dort keine Karte gibt, der Nordpfeil bleibt.
   Beide lassen sich wie jede Box abschalten und in eine andere Ecke legen.
-- **Quellenzeile** (seit 07.09.2026) — die Nennung der Kartenquellen ist Pflicht und bleibt immer sichtbar, aber du bestimmst **Ecke** (unten rechts, unten links, oben rechts, oben links) und **Breite** (schmal = hoher Block, mittel, breit = flache Zeile, ganze Breite = Leiste am unteren Rand), damit sie Höhenprofil oder Nordpfeil nicht verdeckt. Vorschau und Video zeigen sie gleich groß.
+- **Quellenzeile** (seit 07.09.2026) — die Nennung der Kartenquellen ist Pflicht und bleibt immer sichtbar, aber du bestimmst **Ecke** (unten rechts, unten links, oben rechts, oben links) und **Breite** (schmal = hoher Block, mittel, breit = flache Zeile, ganze Breite = Leiste am unteren Rand), damit sie Höhenprofil oder Nordpfeil nicht verdeckt. Vorschau und Video zeigen sie gleich groß. Seit v0.9.741 ist sie deutlich kleiner: Die Schrift misst 1,2 % der kurzen Bildseite (im 1080er-Video 13 Pixel), bei jedem Format und jeder Fenstergröße gleich im Verhältnis zum Bild.
 - **Karte von Hand einstellen, ohne Keyframes** (seit 05.09.2026): Zoomst, schwenkst oder neigst du die Karte in der Vorschau und hast keine Keyframes gesetzt, dann ist genau das die Kamera, im Probelauf, beim Ziehen des Reglers und im Video. „⤢ Anpassen" holt die Gesamtansicht zurück; sobald du einen Keyframe setzt, gilt der Keyframe.
 - **Satellit (kostenlos) überall** (seit 05.09.2026, Zoom-Stufung seit v0.9.656: bei weiten Ansichten zeigt der Stil nur Sentinel-2, die Landesluftbilder blenden ab Zoom 12 ein, voll ab 13,5 — seit v0.9.658 eine Stufe später als zuvor, weil Sentinel bis dahin pixelscharf reicht): Wo es keine amtlichen Luftbilder gibt (Hamburg, Neuseeland, USA …), zeigt der Stil jetzt Sentinel-2-Satellitenbilder (10 m, Jahrgang 2016, EOX) statt einer leeren Fläche. Ein Banner auf der Karte sagt es dir. Häuser und Wege sieht man darauf nicht, Landschaft, Flüsse und Stadtstruktur schon; für Nahaufnahmen einen anderen Stil wählen (MapTiler, OpenStreetMap). Die Nennung „Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016" steht in der Quellenzeile, Videos dürfen veröffentlicht werden.
 - **ProRes 422 HQ** (seit 05.09.2026): in Einstellungen → Video-Codec, für den Schnitt in Final Cut oder Resolve. Datei wird .mov und groß.
@@ -1815,6 +1826,8 @@ renderst.
 - **Rotation** 0–60° — Sweep der Kamera während des Videos. Bei 0 = keine Rotation. Bei 20° dreht sie sich um 20° gleichmäßig über die Video-Länge.
 - **Kamera folgt Track** — die Kamera bleibt am laufenden Punkt statt auf der ganzen Route.
   - **Kamera-Trägheit** (erscheint dann) — weiches Nachziehen statt hartem Kleben am Punkt (gegen GPS-Zittern).
+  - **Kamerabahn glätten** (seit v0.9.741, 0–1000 m) — die Kamera schaut auf eine geglättete Bahn statt auf jeden Knick der Spur; bei schnellen Videos über kurvige Strecken zuckt die Karte dann nicht mehr hin und her. Der Punkt wandert dafür etwas um die Bildmitte. 0 = genau über dem Punkt.
+- **Spur glätten** (Abschnitt Track, unter „Punkte", seit v0.9.741, 0–200 m) — nimmt GPS-Zittern und kleine Zacken aus der Spur. Linie, Laufpunkt/Pfeil, Kamera und blasse Gesamtroute laufen dann auf der geglätteten Spur. 0 = Originalspur.
 - **Terrain-Übertreibung** 0–4× — wie ausgeprägt die Berge wirken
 
 **Zeit & Größe:**

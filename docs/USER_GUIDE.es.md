@@ -839,6 +839,17 @@ El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxim
 hasta el inicio y sigue el recorrido mientras se dibuja la línea; al final vuelve a la vista general y
 aparece la tarjeta final.
 
+**Solo paisaje y recorrido (desde v0.9.741):** carreteras, nombres de lugares, POI, vías de tren y fronteras
+están ocultos. Si los quieres, actívalos de nuevo en el Animador en **Mapa**.
+
+**Flecha y cámara de persecución (desde v0.9.741):** durante el recorrido una **flecha** señala la
+dirección de la marcha y la cámara vuela **detrás de la flecha**: la dirección de la marcha apunta hacia
+arriba en la imagen. Para que se vea tranquilo incluso en un vídeo corto de una ruta larga con curvas, el
+vídeo rápido suaviza tres veces: la traza (sin el temblor del GPS), la dirección de la flecha (sobre un tramo
+según la velocidad; en una curva cerrada la flecha gira en vez de darse la vuelta de golpe) y la dirección
+de la cámara (a partir de la dirección suavizada, más la cámara tranquila). La dirección queda como
+keyframes normales en la línea de tiempo y se puede cambiar.
+
 **Renderizar vídeo** te muestra en directo cómo se hace el vídeo. Cuando termina, **«💾 Guardar …»** lo pone
 donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (AirDrop, Mensajes, Mail, Fotos …);
 en Windows se abre la carpeta con el vídeo.
@@ -1690,7 +1701,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
   cabecera). Con pistas paralelas el perfil muestra el trazado de la cadena.
 - **Flecha del norte** (desde 04.09.2026, petición de un probador) — gira con la cámara, así que siempre señala al norte aunque la vista esté girada o en barrido. Por defecto **activada**, abajo a la derecha.
 - **Escala** (desde 04.09.2026) — barra con una longitud redonda (100 m, 500 m, 2 km …) que sigue el zoom; medida en el centro del encuadre. Por defecto **activada**, abajo a la izquierda. En el render alfa (sin mapa) se omite porque no hay mapa; la flecha del norte se mantiene.
-- **Línea de fuentes** (desde 07.09.2026) — citar las fuentes del mapa es obligatorio y siempre queda visible, pero tú eliges la **esquina** (abajo derecha, abajo izquierda, arriba derecha, arriba izquierda) y el **ancho** (estrecha = bloque alto, media, ancha = línea plana, ancho completo = barra en el borde inferior) para que no tape el perfil de altitud ni la flecha del norte. La vista previa y el vídeo la muestran del mismo tamaño.
+- **Línea de fuentes** (desde 07.09.2026) — citar las fuentes del mapa es obligatorio y siempre queda visible, pero tú eliges la **esquina** (abajo derecha, abajo izquierda, arriba derecha, arriba izquierda) y el **ancho** (estrecha = bloque alto, media, ancha = línea plana, ancho completo = barra en el borde inferior) para que no tape el perfil de altitud ni la flecha del norte. La vista previa y el vídeo la muestran del mismo tamaño. Desde v0.9.741 es bastante más pequeña: el texto mide el 1,2 % del lado corto de la imagen (13 píxeles en un vídeo 1080), en la misma proporción con cualquier formato y tamaño de ventana.
 - **Ajustar el mapa a mano, sin keyframes** (desde 05.09.2026): si haces zoom, desplazas o inclinas la vista previa y no tienes keyframes, esa vista es la cámara: en la prueba, al arrastrar el tirador y en el vídeo. «⤢ Ajustar» devuelve la vista general; en cuanto pones un keyframe, manda el keyframe.
 - **Satélite gratis en todas partes** (desde 05.09.2026; escalonado por zoom desde v0.9.656: en vistas amplias el estilo muestra solo Sentinel-2, las ortofotos oficiales aparecen a partir del zoom 12 y del todo a partir de 13,5; desde v0.9.658 un nivel más tarde que antes, porque Sentinel se ve nítido hasta ahí): donde no hay ortofotos oficiales (Hamburgo, Nueva Zelanda, EE. UU. …) el estilo muestra ahora imágenes Sentinel-2 (10 m, 2016, EOX) en vez de una zona vacía. Un aviso en el mapa te lo indica. A esa resolución no se ven casas ni senderos, pero sí paisaje, ríos y estructura urbana; para primeros planos elige otro estilo (MapTiler, OpenStreetMap). La atribución «Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016» aparece en la línea de fuentes; los vídeos se pueden publicar.
 - **ProRes 422 HQ** (desde 05.09.2026): en Ajustes → códec de vídeo, para editar en Final Cut o Resolve. El archivo es .mov y grande.
@@ -1795,6 +1806,8 @@ renderizar.
 - **Rotación** 0–60° — barrido de la cámara durante el vídeo. Con 0 = sin rotación. Con 20° gira 20° de forma uniforme a lo largo de la duración del vídeo.
 - **La cámara sigue el track** — la cámara permanece en el punto en movimiento en lugar de en toda la ruta.
   - **Inercia de la cámara** (aparece entonces) — seguimiento suave en vez de un pegado duro al punto (contra el temblor del GPS).
+  - **Suavizar recorrido de cámara** (desde v0.9.741, 0–1000 m) — la cámara mira a un recorrido suavizado en vez de a cada quiebro de la traza; en vídeos rápidos de rutas con curvas el mapa deja de dar tirones. A cambio el punto se mueve un poco alrededor del centro. 0 = justo sobre el punto.
+- **Suavizar traza** (sección Traza, bajo «Puntos», desde v0.9.741, 0–200 m) — quita el temblor del GPS y los pequeños zigzags. La línea, el punto/flecha, la cámara y la ruta completa tenue usan entonces la traza suavizada. 0 = traza original.
 - **Exageración del terreno** 0–4× — lo pronunciadas que parecen las montañas
 
 **Tiempo y tamaño:**

@@ -4629,5 +4629,9 @@
   "warte.schnellvideo_anlegen.titel": "Creating quick video",
   "warte.schnellvideo_anlegen.text": "Project with camera flight, title and end card is being created",
   "warte.datei_speichern_unter.titel": "Saving video",
-  "warte.datei_speichern_unter.text": "Moving the file to the chosen place"
+  "warte.datei_speichern_unter.text": "Moving the file to the chosen place",
+  "animator.spur_glatt": "Smooth track",
+  "animator.spur_glatt.hint": "Removes GPS jitter and small zigzags from the track, so the line, arrow and camera run more calmly. The value is the distance over which it is smoothed — 0 = original track.",
+  "animator.field.follow_glatt": "Smooth camera path",
+  "animator.field.follow_glatt_tip": "0 = camera exactly above the point; higher = it looks at a smoothed path and doesn't swing with every bend"
 }

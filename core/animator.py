@@ -258,6 +258,8 @@ class AnimatorConfig:
     # bei GPS-Rauschen), 1 = sehr träge/weich (Kamera zieht sanft nach). Exponentielle
     # Glättung des Folge-Zentrums über die Frames.
     camera_follow_inertia: float = 0.0
+    # 29.09.2026 — Spur glätten (Meter, 0 = aus), Spiegel der Vorschau (rzSpurGlaetten)
+    spur_glaetten_m: float = 0.0
     # v0.9.311 (Marc) — Kamera-Höhe glätten bei „Kamera folgt Track" + Terrain:
     # 0 = aus (Kamera reitet 1:1 auf dem Gelände → hüpft bei starkem Pitch),
     # 0..1 = Tiefpass auf die Geländehöhe unter der Kamera-Mitte (1 = sehr ruhig).
@@ -436,6 +438,7 @@ class AnimatorConfig:
     # 02.09.2026 — Ruhe des Pfeils, Regler 0–10 (siehe ui/js/util.js
     # `kursGlaettung`): 0 = folgt jeder Zuckung, 10 = zeigt die grobe Richtung.
     marker_dot_smooth: float = 5.0
+    marker_dot_glatt_m: float = 0.0   # 29.09.2026 — σ der Pfeilrichtung entlang der Strecke (0 = aus Ruhe-Stufe)
     # Alpha-Channel-Modus: kein Karten-Background, nur Track + Punkt + Overlays
     # auf transparentem Hintergrund. Output ist dann eine ProRes-4444-.mov,
     # die in Premiere/Final Cut/DaVinci/Resolve direkt als Overlay-Layer
@@ -3460,6 +3463,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _kurs_stufe = max(0.0, min(10.0, float(getattr(cfg, "marker_dot_smooth", 5.0) or 0.0)))
     _kurs_basis_m = 10 + _kurs_stufe * 10
     _kurs_min_punkte = max(2, round(_kurs_basis_m / 3))
+    # 29.09.2026 — Glättung der Pfeilrichtung entlang der Strecke (σ); Schnell-Video: je nach Tempo
+    _kurs_sigma_m = max(float(_kurs_basis_m), float(getattr(cfg, "marker_dot_glatt_m", 0.0) or 0.0))
     _interactive_boot_js = ""
     if getattr(cfg, "interactive_export", False):
         _interactive_boot_js = """
@@ -3703,6 +3708,7 @@ const KURS_BASIS_M = {_kurs_basis_m};
 // Marcs Masca-Aufzeichnung von 22,6° auf 7,0° je Bild (Sprünge über 30°:
 // 23 % → 1,8 %). Mehr wäre glatter, würde aber echte Kehren verschlucken.
 const KURS_MIN_PUNKTE = {_kurs_min_punkte};
+const KURS_SIGMA_M = {_kurs_sigma_m};
 
 /** Kurs (Grad, 0 = Norden) am Punkt `i` — aus einer Strecke von mindestens
  *  KURS_BASIS_M um den Punkt herum, nicht aus einem einzelnen Wegstück.
@@ -3711,7 +3717,41 @@ const KURS_MIN_PUNKTE = {_kurs_min_punkte};
  *  Punkt ab, nicht davon, welche Bilder vorher gerendert wurden. Sonst sähe
  *  dasselbe Bild bei Vorschau, Neu-Rendern und Sprung an eine Stelle
  *  unterschiedlich aus. */
+// 29.09.2026 — Spiegel von kursReihe/kursGlattAn (ui/js/util.js): Richtung je Punkt,
+// abgewickelt, Gauß über die Streckenlänge (σ = KURS_BASIS_M) — an Spitzkehren dreht der Pfeil
+// über ein Stück Weg statt umzuklappen. Zwischenspeicher je coords-Liste.
+const __rzKursCache = new WeakMap();
 function __rzKurs(coords, i) {{
+  const n = coords ? coords.length : 0;
+  if (n < 2) return 0;
+  let r = __rzKursCache.get(coords);
+  if (!r) {{
+    const u = new Float64Array(n), cum = new Float64Array(n);
+    for (let k = 0; k < n; k++) {{
+      const h = __rzKursRoh(coords, k);
+      if (k === 0) {{ u[0] = h; continue; }}
+      let d = (h - u[k - 1]) % 360; if (d > 180) d -= 360; if (d < -180) d += 360;
+      u[k] = u[k - 1] + d;
+      cum[k] = cum[k - 1] + __rzMeter(coords[k - 1], coords[k]);
+    }}
+    const sig = Math.max(1, KURS_SIGMA_M);
+    r = new Float64Array(n);
+    let lo = 0, hi = 0;
+    for (let k = 0; k < n; k++) {{
+      while (cum[lo] < cum[k] - 3 * sig) lo++;
+      if (hi < k) hi = k;
+      while (hi + 1 < n && cum[hi + 1] <= cum[k] + 3 * sig) hi++;
+      let sw = 0, sx = 0;
+      for (let j = lo; j <= hi; j++) {{ const d = (cum[j] - cum[k]) / sig, w = Math.exp(-0.5 * d * d); sx += u[j] * w; sw += w; }}
+      r[k] = sx / sw;
+    }}
+    __rzKursCache.set(coords, r);
+  }}
+  const x = Math.max(0, Math.min(n - 1, +i || 0)), k0 = Math.min(n - 2, Math.floor(x));
+  const v = r[k0] + (r[k0 + 1] - r[k0]) * (x - k0);
+  return ((v % 360) + 360) % 360;
+}}
+function __rzKursRoh(coords, i) {{
   const n = coords ? coords.length : 0;
   if (n < 2) return 0;
   const mitte = Math.max(0, Math.min(n - 1, i));
@@ -4865,7 +4905,62 @@ requestAnimationFrame(() => {{ window._ready = true; }});
 </script></body></html>"""
 
 
+def spur_glaetten(coords, meter):
+    """29.09.2026 — Spur glätten, Spiegel von `rzSpurGlaetten` (ui/js/util.js).
+
+    `coords` = Liste von [lon, lat, …]. Gauß über die Streckenlänge (σ = meter/2),
+    Fenster je Punkt symmetrisch auf den kürzeren Abstand zu Start/Ende gekürzt —
+    Anfang und Ende bleiben exakt. Punktzahl bleibt. Abstand wie `kursMeter`.
+    """
+    n = len(coords or [])
+    m = float(meter or 0)
+    if n < 3 or m <= 0:
+        return coords
+    rad, R = math.pi / 180.0, 6371000.0
+
+    def dist(a, b):
+        return math.hypot((b[1] - a[1]) * rad, (b[0] - a[0]) * rad * math.cos((a[1] + b[1]) / 2 * rad)) * R
+    cum = [0.0]
+    for i in range(1, n):
+        cum.append(cum[-1] + dist(coords[i - 1], coords[i]))
+    sig, ges = m / 2.0, cum[-1]
+    out = []
+    lo = hi = 0
+    for i in range(n):
+        r = min(3 * sig, cum[i], ges - cum[i])
+        if r <= 0:
+            out.append(list(coords[i]))
+            continue
+        while cum[lo] < cum[i] - r:
+            lo += 1
+        hi = max(hi, i)
+        while hi + 1 < n and cum[hi + 1] <= cum[i] + r:
+            hi += 1
+        sx = sy = sw = 0.0
+        for k in range(lo, hi + 1):
+            d = (cum[k] - cum[i]) / sig
+            w = math.exp(-0.5 * d * d)
+            sx += coords[k][0] * w
+            sy += coords[k][1] * w
+            sw += w
+        p = list(coords[i])
+        p[0], p[1] = sx / sw, sy / sw
+        out.append(p)
+    return out
+
+
 def _punkte_verteilen(cfg, raw_points):
+    """Verteilen (s. `_punkte_verteilen_roh`), danach ggf. Spur glätten (29.09.2026)."""
+    pts = _punkte_verteilen_roh(cfg, raw_points)
+    m = float(getattr(cfg, "spur_glaetten_m", 0.0) or 0.0)
+    if m <= 0 or len(pts) < 3:
+        return pts
+    import dataclasses
+    glatt = spur_glaetten([[p.lon, p.lat] for p in pts], m)
+    return [dataclasses.replace(p, lon=g[0], lat=g[1]) for p, g in zip(pts, glatt)]
+
+
+def _punkte_verteilen_roh(cfg, raw_points):
     """Punkte für den Render — Anzahl wie bisher, Verteilung nach Wahl.
 
     Die Frame-Schleife läuft über die Punkt-REIHENFOLGE

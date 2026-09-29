@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.739"
+APP_VERSION = "0.9.741"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -651,6 +651,7 @@ DEFAULT_SETTINGS = {
         # statisch auf Bbox-Center (aus, Default). Im KF-Modus ignoriert.
         "camera_follow_track": False,
         "camera_follow_inertia_pct": 0,  # v0.9.275 — Trägheit (0..100 %) beim Kamera-Folgen
+        "spur_glaetten_m": 0,            # 29.09.2026 — Spur glätten (Meter, 0 = Originalspur)
         "smooth_camera_3d": False,  # v0.9.318 — Ruhige Kamera (entkoppelte FreeCamera gegen Berg-Hüpfen); Default AUS (alter, gut getesteter Modus). Ersetzt den toten follow_height_smooth_pct-Regler.
         # Stats-Overlays: pro Box enabled + Position (tl/tr/bl/br/bc)
         "overlay_totals_enabled": True,
@@ -6945,6 +6946,7 @@ class Api:
             track_style=_be_track_style,
             camera_follow_track=bool(params.get("camera_follow_track", False)),
             camera_follow_inertia=float(params.get("camera_follow_inertia", 0.0)),
+            spur_glaetten_m=float(params.get("spur_glaetten_m", 0.0) or 0.0),   # 29.09.2026
             smooth_camera_3d=bool(params.get("smooth_camera_3d", False)),  # v0.9.318 — entkoppelte FreeCamera
             timeline_events=list(params.get("timeline_events", []) or []),
             tour_colors=dict(params.get("tour_colors") or {}),   # 23.08.2026 — Farbe je Etappe
@@ -6997,6 +6999,7 @@ class Api:
             marker_dot_style=str(params.get("marker_dot_style", "dot") or "dot"),
             marker_dot_size=float(params.get("marker_dot_size", 1.0) or 1.0),
             marker_dot_smooth=float(params.get("marker_dot_smooth", 5.0) or 0.0),
+            marker_dot_glatt_m=float(params.get("marker_dot_glatt_m", 0.0) or 0.0),   # 29.09.2026
             pace_mode=str(params.get("pace_mode", "raw") or "raw"),
             # 08.09.2026 — Tempo-Kurve aus der Vorschau (Halte, Abschnitte).
             pace_map=(list(params.get("pace_map") or []) or None),

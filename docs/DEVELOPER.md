@@ -3278,6 +3278,14 @@ Datensatz, Lizenz + Links, „Daten bearbeitet", Link); Knopf `#anim-copy-source
 Zwischenablage über `navigator.clipboard`, sonst Brücke `copy_to_clipboard`
 (pbcopy/clip/xclip). Web-Karten-Exporte bleiben immer „voll".
 
+**Quellenzeile-Maßstab (29.09.2026, v0.9.741 — ersetzt den Faktor aus 0.9.740):** Alle Maße der Zeile
+(Schrift 1,2, Innen-/Außenabstand, Rundung) laufen in `--rz-attrib-u` = 1 % der KURZEN Seite des Viewports in
+CSS-px (`updateAnimatorViewport`). Vorschau (z. B. 360×640) und Szene (640×1138 bei Mindestbreite) haben damit
+denselben Bildanteil ohne Umrechnung. Ausdrücklich auch `.maplibregl-compact`/`-compact-show` (MapLibre schaltet
+„compact" nach Kartenbreite), `min-height: 0`. 0.9.740 hatte stattdessen `--rz-attrib-k = 2^zoomShift` × feste px —
+WYSIWYG, aber so groß wie die Vorschau-px (9:16: 27 px im 1080er-Video). Wächter: `tests/test_quellenzeile_szene.py`
+(Szene mit/ohne Mindestbreite, Schrift = 1,2 % der kurzen Seite).
+
 **Kacheldichte am Pixelmaßstab (07.09.2026, Marc: „die ganze Insel ist
 unscharf"):** MapLibre wählt die Kachelstufe aus `zoom + log2(512/tileSize)`,
 ohne `devicePixelRatio`. Eine 256-px-Kachel deckt also 256 CSS-Pixel, und auf
@@ -4404,6 +4412,31 @@ Farbe in Zoom- und Haltephase gegen den Referenz-Render) und
 Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
+
+## Spur glätten, Pfeilrichtung, Folgepunkt, Verfolgerkamera (29.09.2026, v0.9.741)
+
+- **Spur glätten** `spur_glaetten_m` (Projekt/Regler `#anim-spur-glatt`): `drawPreview` hält die Rohspur in
+  `_spurRoh`, `currentCoords = _spurAnwenden(roh)` (`rzSpurGlaetten`, util.js: Gauß über die Strecke, σ = m/2,
+  Fenster je Punkt symmetrisch auf den Abstand zu Start/Ende gekürzt → Enden exakt, Punktzahl gleich). `_spurNeu`
+  zieht Linie, Ghost, Laufpunkt nach. Klassischer Render: `animator.spur_glaetten` in `_punkte_verteilen` (Wrapper um
+  `_punkte_verteilen_roh`). Bei Reisen (`_reiseGilt`) aus.
+- **Pfeilrichtung** `kursReihe`/`kursGlattAn` (util.js): `kursAusSpur` je Punkt, abgewickelt, Gauß über die
+  Strecke (σ = Ruhe-Basis bzw. `marker_dot_glatt_m`), Abfrage am gebrochenen Index; Cache je coords-Liste (WeakMap).
+  Render-Spiegel: `__rzKurs` (Cache) + `__rzKursRoh`, `KURS_SIGMA_M`.
+- **Folgepunkt** `_folgePunkt(frac)`: Schwarm-Fokus, sonst `coordBeiFrac(_kameraBahn(), frac)`; `_kameraBahn` =
+  `rzSpurGlaetten(currentCoords, camera_follow_glatt_m)` (Cache). Genutzt von Probelauf, `_faithBuild`
+  (jetzt über `trackFracAusAnkerHaupt(a)` statt linear über den Index) und `scrubPreview`. Klassischer Render
+  kennt `camera_follow_glatt_m` nicht (nur Alpha-Export läuft noch klassisch).
+- **Verfolgerkamera** `_kursKeyframes(opts)` / `window.__rzSchnellKamera()`: Richtung aus `kursGlattAn(co, frac,
+  fenster, 3)` (fenster = lenM/15, 250–1500 m) an N = 8/s Stellen, abgewickelt, Gauß über die Zeit (σ 1,5 s),
+  Douglas-Peucker (1,5°, ≤ 2,5 s) → Richtungs-Keyframes im Track-Abschnitt (Anker 0…1) ersetzen. Das Schnell-Video
+  ruft es nach `__rzSchnellBereit` (+1,5 s) auf, auch bei „Im Animator öffnen".
+- **Kein Refit im Lauf:** die ResizeObserver (Viewport, Zeitleiste) rufen `fitTrackPreview` nicht, solange
+  `_previewRaf` oder `__rzStepMode` gesetzt ist — vorher landete die Gesamtsicht zeitversetzt zwischen zwei Bildern.
+- **Prüfstand:** `window.__rzDotZuletzt` (Lage + Richtung des Laufpunkts), `window.__rzKursKeyframes`.
+  Wächter: `tests/test_schnellvideo.py` (H), `tests/test_schnellvideo_ruhe.py` (Szene Bild für Bild gemessen).
+- **Bekannt, nicht angefasst:** Der Regler „Punkte" (`point_count`) wirkt im Probelauf/Szenen-Render nur auf die
+  ruhende Linie; die laufende Linie, Laufpunkt und Kamera nutzen immer die 800 Vorschau-Punkte.
 
 ## Gemeinsame Szene: Render = Vorschau in Videogröße — `core/szene.py` (06.09.2026)
 
