@@ -11946,8 +11946,7 @@ function mountAnimator(body, headerActions, opts) {
 
           <div class="se-group-title">${t("signs.grp.behavior", "Verhalten & Timing")}</div>
           <div class="se-grid">
-            <label>${t("signs.always", "Ganze Zeit zeigen")}</label>
-            <span class="se-inline"><input type="checkbox" id="se-always"${chk(c.alwaysVisible)}></span>
+            ${c.alwaysVisible ? `<div class="se-hint" id="se-always-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 4px;">${t("signs.always_hint", "Dieses Schild ist das ganze Video zu sehen (Balken über die volle Breite). Wann es kommt und geht, ziehst du in der Zeitleiste an den Rändern des Balkens.")}</div>` : ""}
             <label>${t("signs.zoomScale", "Mit Zoom wachsen")}</label>
             <span class="se-inline"><input type="checkbox" id="se-zoom"${chk(c.zoomScale)}></span>
             <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${t("signs.zoomScale_hint", "Wächst das Schild beim Zoomen mit, erscheint seine Schrift laufend in einer anderen Größe — dabei zittern die Buchstaben sichtbar. Aus = ruhige, scharfe Schrift.")}</div>
@@ -12056,7 +12055,10 @@ function mountAnimator(body, headerActions, opts) {
           shadowStrength: (parseInt($("#se-ss").value, 10) || 55) / 100,
           imageSize: parseInt($("#se-img-size").value, 10) || 60,
           zoomScale: $("#se-zoom").checked,
-          alwaysVisible: $("#se-always").checked,
+          // 29.09.2026 (Marc) — kein Haken mehr: „ganze Zeit" = Balken über die volle Breite. Wer im Fenster
+          // Vorlauf oder „Bleibt sichtbar" ändert, legt das Schild damit wieder auf ein Zeitfenster.
+          alwaysVisible: !!c.alwaysVisible && (parseFloat($("#se-before").value) || 0) === (Number(c.before) || 0)
+                                           && (parseFloat($("#se-after").value) || 0) === (Number(c.after) || 0),
           entry: $("#se-entry").value,
           entry_s: (() => { const v = ($("#se-entry-s")?.value || "").trim(); return v === "" ? null : Math.max(0, parseFloat(v) || 0); })(),
           exit: $("#se-exit") ? $("#se-exit").value : null,
@@ -12075,7 +12077,7 @@ function mountAnimator(body, headerActions, opts) {
           _animSetImgEl(l2[idx], _prevSign._imgEl);
         }
         // Stil/Verhalten (ohne Text) als Default fürs nächste Schild merken
-        const { text, ...rest } = patch;
+        const { text, alwaysVisible: _av, ...rest } = patch;   // „ganze Zeit" erbt das nächste Schild nicht (29.09.2026)
         _animSignLast = { ..._animSignLast, ...rest };
         _animSignsSave(l2);
         // v0.9.254 — Live-Update ohne Layer/Source-Neuaufbau (kein Flackern beim
@@ -12213,7 +12215,7 @@ function mountAnimator(body, headerActions, opts) {
           "align", "size", "radius", "padding", "opacity", "borderColor", "borderWidth", "decoScale", "direction",
           "shadow", "shadowColor", "shadowBlur", "shadowStrength", "imageSize",
           // Verhalten
-          "zoomScale", "entry", "entry_s", "exit", "exit_s", "before", "after", "alwaysVisible"];
+          "zoomScale", "entry", "entry_s", "exit", "exit_s", "before", "after"];
         const patch = {}; APPLY_KEYS.forEach(k => patch[k] = src[k]);
         const l2 = l.map((s, i) => (i === idx ? s : { ...s, ...patch }));
         // v0.9.201 — gecachtes Bild-Element ALLER Schilder droppen, damit das Icon
@@ -14938,12 +14940,12 @@ function mountAnimator(body, headerActions, opts) {
       const name = (sn.text || "").trim().split("\n")[0] || (sn.imageSrc ? t("signs.photo_row", "Foto") + " " + (i + 1) : "#" + (i + 1));
       zeilen.push({
         id: _sgIdVon(i), name, enabled: s.visible !== false, farbe: sn.color && sn.color !== "auto" ? sn.color : "#ff8a5c",
-        tip: immer ? t("signs.sg_immer_tip", "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen.") : "",
+        tip: "",
         segmente: [{ an: _ovLeisteAusZeit(tAn), aus: _ovLeisteAusZeit(tAus),
                      einBis: _ovLeisteAusZeit(Math.min(tAus, tAn + einS)), ausAb: _ovLeisteAusZeit(Math.max(tAn, tAus - ausS)),
                      ohneBlende: immer,
                      text: immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + (m.a_hide >= 1.5 ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s")),
-                     festL: immer, festR: immer }],
+                     immer }],
       });
     });
     _tlBar.setSchilder(zeilen, { offen: _sgSpurOffen, minAnteil: 0.3 / Math.max(1, ph.G) });
@@ -14956,6 +14958,22 @@ function mountAnimator(body, headerActions, opts) {
     const aShow = _sgAnkerAusZeit(tAn, ph), aHide = _sgAnkerAusZeit(tAus, ph);
     const out = {};
     const bisEnde = tAus >= ph.G - 0.05;
+    // 29.09.2026 (Marc: „ganze Zeit heißt einfach, dass der Balken komplett breit ist") — kein Haken mehr.
+    // Beide Ränder ganz außen = ganze Zeit; zieht man einen Rand hinein, wird daraus ein Zeitfenster.
+    const abStart = tAn <= 0.05;
+    if ((griff === "l" || griff === "r" || griff === "schieben") && abStart && bisEnde) {
+      out.alwaysVisible = true;
+      return { out, sn, ph };
+    }
+    if (sn.alwaysVisible) {
+      if (griff !== "l" && griff !== "r") return { out, sn, ph };   // ganzer Balken: verschieben/Blenden ohne Wirkung
+      // Aus „ganzer Zeit" ein Fenster machen: Zeitpunkt = neuer Anfang, Vorlauf 0, Ende wie gezogen
+      out.alwaysVisible = false;
+      out.timeAnchor = Math.round(aShow * 100000) / 100000;
+      out.before = 0;
+      out.after = bisEnde ? 0 : Math.max(0.1, Math.round((aHide - aShow) * dur * 10) / 10);
+      return { out, sn, ph };
+    }
     if (griff === "schieben") {
       out.timeAnchor = Math.round((A + (aShow - m.a_show)) * 100000) / 100000;
       if (!(m.a_hide >= 1.5) && bisEnde) out.after = 0;
@@ -14992,7 +15010,6 @@ function mountAnimator(body, headerActions, opts) {
     if (!_sgS()) return;
     const i = _sgIndexVonId(id); const l = _sgS().list(); const s = l[i];
     if (!s) return;
-    if (_sgS().normalize(s).alwaysVisible) { toast(t("signs.sg_immer_tip", "„Ganze Zeit zeigen“ ist an — im Schild-Fenster ausschalten, dann lässt sich der Balken ziehen."), "info", 5000); _sgSpurAktualisieren(); return; }
     const { out } = _sgWerteAusBalken(s, griff, neu);
     const l2 = l.slice();
     const vorher = l2[i];
