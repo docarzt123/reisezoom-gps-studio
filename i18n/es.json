@@ -4366,5 +4366,6 @@
   "signs.exit.pop": "Desaparecer de golpe",
   "signs.exit.both": "Desvanecer + de golpe",
   "signs.exit_s": "Duración de la salida (s)",
-  "signs.exit_hint": "Solo se desvanece si el cartel desaparece antes del final del vídeo («Sigue visible» mayor que 0). En la línea de tiempo puedes arrastrar ambas duraciones en los puntos blancos."
+  "signs.exit_hint": "Solo se desvanece si el cartel desaparece antes del final del vídeo («Sigue visible» mayor que 0). En la línea de tiempo puedes arrastrar ambas duraciones en los puntos blancos.",
+  "signs.always_hint": "Este cartel se ve durante todo el vídeo (barra a lo ancho). Cuándo aparece y desaparece lo arrastras en los bordes de su barra en la línea de tiempo."
 }

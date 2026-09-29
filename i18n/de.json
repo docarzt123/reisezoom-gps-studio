@@ -4366,5 +4366,6 @@
   "signs.exit.pop": "Wegpoppen",
   "signs.exit.both": "Aus- + Wegpoppen",
   "signs.exit_s": "Dauer Ausblendung (Sek.)",
-  "signs.exit_hint": "Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet („Bleibt sichtbar“ größer 0). In der Zeitleiste lassen sich beide Dauern an den weißen Punkten ziehen."
+  "signs.exit_hint": "Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet („Bleibt sichtbar“ größer 0). In der Zeitleiste lassen sich beide Dauern an den weißen Punkten ziehen.",
+  "signs.always_hint": "Dieses Schild ist das ganze Video zu sehen (Balken über die volle Breite). Wann es kommt und geht, ziehst du in der Zeitleiste an den Rändern des Balkens."
 }

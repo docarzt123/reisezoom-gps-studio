@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.736** (29.09.2026, built locally): signs — no more "Show the whole time" checkbox; whole time = full-width bar.
+
+### Changed
+- **"Show the whole time" is no longer a checkbox** (Marc: "that's why dragging didn't work for me: 'whole time' was ticked. Do we still need it now that it's shown graphically? 'Whole time' simply means the bar is full width"). The sign window drops the checkbox (hint instead when a sign is whole-time); in the timeline a whole-time bar has draggable edges — dragging one inward turns it into a time window (moment = new start, lead-in 0, "stays visible" as dragged), dragging both edges all the way out makes it whole-time again (`_sgWerteAusBalken`). Changing lead-in/"stays visible" in the sign window also ends whole-time. **New signs no longer inherit whole-time** from the last edited sign (that is how Marc's signs all ended up whole-time), and "apply to all" no longer copies it. Test `tests/test_schilder_spur.py` section H.
+
 > **0.9.735** (29.09.2026, built locally): fade-in and fade-out for signs, like the overlays.
 
 ### Added
