@@ -975,15 +975,15 @@ function mountTimelineBar(opts) {
           const len = Math.max(1e-9, sg.aus - sg.an);
           const ein = Math.max(0, Math.min(1, ((sg.einBis ?? sg.an) - sg.an) / len)) * 100;
           const aus = Math.max(0, Math.min(1, (sg.aus - (sg.ausAb ?? sg.aus)) / len)) * 100;
-          b.title = (o.name || o.id) + (sg.text ? " · " + sg.text : "") + "\n" + (o.tip || (g.blendenGriffe
+          b.title = (o.name || o.id) + (sg.text ? " · " + sg.text : "") + "\n" + (o.tip || (g.zeitraumNeu
             ? tlT("animator.ov.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · Schrägen: Ein-/Ausblendung · Doppelklick: öffnen")
               + "\n" + tlT("animator.ov.bar_tip2", "Doppelklick auf eine freie Stelle der Zeile: weiterer Zeitraum · Rechtsklick: öffnen")
-            : tlT("animator.sg.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · Doppelklick oder Rechtsklick: Schild öffnen")));
+            : tlT("animator.sg.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · weiße Punkte: Ein-/Ausblendung · Doppelklick oder Rechtsklick: Schild öffnen")));
           b.innerHTML =
             `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
             + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
             + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`
-            + (g.blendenGriffe ? `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
+            + (g.blendenGriffe && !sg.ohneBlende ? `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
                                + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>` : "")
             + (sg.festL ? "" : `<span class="tl-ov-rand" data-griff="l"></span>`)
             + (sg.festR ? "" : `<span class="tl-ov-rand" data-griff="r"></span>`);
@@ -1151,7 +1151,7 @@ function mountTimelineBar(opts) {
           text: "onOverlayText", vorschau: "onOverlayVorschau", auswahl: "onOverlayAuswahl", ziehen: "onOverlayZiehen" },
   });
   const _sgGruppe = _balkenGruppe({
-    box: "#tl-sg", miniId: "tl-sg-mini", farbe: "#ff8a5c", zeilenIcon: "🚩", blendenGriffe: false, zeitraumNeu: false,
+    box: "#tl-sg", miniId: "tl-sg-mini", farbe: "#ff8a5c", zeilenIcon: "🚩", blendenGriffe: true, zeitraumNeu: false,   // 29.09.2026 — Blenden wie bei den Overlays
     kopfTitel: tlT("animator.lane.schilder", "Schilder"),
     kopfTip: tlT("animator.lane.schilder_tip", "Wann die Schilder zu sehen sind. Aufklappen, dann Balken ziehen: verschieben ändert den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“. Doppelklick oder Rechtsklick öffnet das Schild."),
     rc: { neu: "onSchildNeu", offen: "onSchilderOffen", oeffnen: "onSchildOeffnen",

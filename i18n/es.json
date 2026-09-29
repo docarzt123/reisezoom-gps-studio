@@ -4320,7 +4320,7 @@
   "library.imp_col_done": "Añadido a la colección: {namen}",
   "animator.lane.schilder": "Carteles",
   "animator.lane.schilder_tip": "Cuándo se ven los carteles. Despliega y arrastra las barras: moverlas cambia el momento, los bordes cambian la anticipación y «Sigue visible». Doble clic o clic derecho abre el cartel.",
-  "animator.sg.bar_tip": "Arrastrar: mover · Bordes: inicio/fin · Doble clic o clic derecho: abrir cartel",
+  "animator.sg.bar_tip": "Arrastrar: mover · bordes: inicio/fin · puntos blancos: entrada/salida · doble clic o clic derecho: abrir cartel",
   "signs.sg_immer_tip": "«Mostrar todo el tiempo» está activo — desactívalo en la ventana del cartel para poder arrastrar la barra.",
   "signs.undo_zeit": "Tiempo del cartel cambiado",
   "signs.photo_row": "Foto",
@@ -4358,5 +4358,13 @@
   "animator.tours.ganz_an": "Mostrar entera: la ruta entera aparece de golpe. Clic: animada otra vez",
   "animator.tours.ganz_aus": "Animada: clic para mostrarla entera (toda la ruta de golpe, mientras dure su barra)",
   "animator.tours.ganz_geloest": "La ruta es ahora un grupo propio; las demás siguen animadas.",
-  "animator.tours.ganz_dauer_hint": "Cuánto tiempo se ve la ruta entera. Vacío = hasta el final del vídeo."
+  "animator.tours.ganz_dauer_hint": "Cuánto tiempo se ve la ruta entera. Vacío = hasta el final del vídeo.",
+  "signs.entry_s": "Duración de la entrada (s)",
+  "signs.exit": "Salida",
+  "signs.exit.none": "Corte (inmediato)",
+  "signs.exit.fade": "Desvanecer",
+  "signs.exit.pop": "Desaparecer de golpe",
+  "signs.exit.both": "Desvanecer + de golpe",
+  "signs.exit_s": "Duración de la salida (s)",
+  "signs.exit_hint": "Solo se desvanece si el cartel desaparece antes del final del vídeo («Sigue visible» mayor que 0). En la línea de tiempo puedes arrastrar ambas duraciones en los puntos blancos."
 }

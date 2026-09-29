@@ -549,7 +549,7 @@
     // v0.9.479b — nur anfassen, wenn wirklich ein Schild Aufpoppen nutzt. Sonst KEIN
     // setData/popScale (die icon-size ist dann der reine Zoom-Ausdruck → scharf, kein Zittern).
     var anyPop = false;
-    for (var j = 0; j < metas.length; j++) { if (metas[j] && metas[j].pop > 0) { anyPop = true; break; } }
+    for (var j = 0; j < metas.length; j++) { if (metas[j] && (metas[j].pop > 0 || metas[j].popOut > 0)) { anyPop = true; break; } }
     var popRunning = false;   // poppt in DIESEM Frame gerade etwas auf?
     if (anyPop && fc && fc.features) {
       if (!map.__rzSignPopLast) map.__rzSignPopLast = [];
@@ -559,7 +559,10 @@
         // Nur INNERHALB des Aufpopp-Fensters skalieren. Davor (Schild noch
         // ausgefiltert) und danach bleibt der Wert 1 — sonst stünde der
         // datengetriebene Ausdruck die halbe Animation lang unnötig an.
-        if (mk.pop > 0 && M >= mk.a_show && M < mk.a_show + mk.pop) {
+        if (mk.popOut > 0 && M > mk.a_hide - mk.popOut && M <= mk.a_hide) {
+          ps = rzPopScale((mk.a_hide - M) / mk.popOut);   // Wegpoppen = Aufpoppen rückwärts
+          popRunning = true;
+        } else if (mk.pop > 0 && M >= mk.a_show && M < mk.a_show + mk.pop) {
           ps = rzPopScale((M - mk.a_show) / mk.pop);
           // Ganzes Fenster, nicht „ps ≠ 1": easeOutBack schwingt kurz über 1 hinaus und
           // läuft durch die 1 hindurch. Am Fenster festzumachen verhindert, dass mitten
@@ -600,15 +603,22 @@
         if (!(M >= vS && M <= vH)) op = 0;
       }
       // Fade (Ein-/Ausblenden) über icon-opacity = PAINT-Property → feature-state erlaubt.
-      if (op > 0 && m.fade > 0) {
-        op = Math.min((M - m.a_show) / m.fade, (m.a_hide - M) / m.fade, 1);
-        op = Math.max(0, Math.min(1, op));
-      }
+      if (op > 0) op = Math.max(0, Math.min(1, rzSignDeckkraft(m, M)));
       var opq = Math.round(op * 1000) / 1000;
       if (map.__rzSignOpLast[i] === opq) continue;
       map.__rzSignOpLast[i] = opq;
       try { map.setFeatureState({ source: src, id: i }, { op: op }); } catch (_) {}
     }
+  }
+
+  // Deckkraft eines Schilds beim Anker M aus Ein- und Ausblenden (getrennt; alte Metas: `fade` beidseitig).
+  function rzSignDeckkraft(m, M) {
+    var fi = (m.fadeIn != null) ? m.fadeIn : (m.fade || 0);
+    var fo = (m.fadeOut != null) ? m.fadeOut : (m.fade || 0);
+    var op = 1;
+    if (fi > 0) op = Math.min(op, (M - m.a_show) / fi);
+    if (fo > 0) op = Math.min(op, (m.a_hide - M) / fo);
+    return op;
   }
 
   // Sekunden → Anchor-Bruchteil (Marker läuft in `durationSec` über den Track).
@@ -620,7 +630,7 @@
   // Aus einem Schild-Objekt + Track-Anchor + Animationsdauer die Frame-Meta bauen.
   function rzSignMeta(sign, durationSec) {
     // „Ganze Zeit anzeigen" → von Anfang bis Ende sichtbar, kein Timing-Fenster.
-    if (sign.alwaysVisible) return { a_show: -1, a_hide: 2, fade: 0, pop: 0 };
+    if (sign.alwaysVisible) return { a_show: -1, a_hide: 2, fade: 0, pop: 0, fadeIn: 0, fadeOut: 0, popOut: 0 };
     var A = (typeof sign.track_anchor === "number") ? sign.track_anchor : 0;
     var before = rzSignSecToAnchor(sign.before, durationSec);
     var after = Number(sign.after) || 0;
@@ -640,15 +650,32 @@
     //   both  → beides gleichzeitig.
     // Scale-Pop geht NICHT über feature-state (icon-size = LAYOUT), daher fährt
     // rzSignApplyFrame den popScale per setData ins Feature (nur im kurzen Fenster).
-    var fadeSpan = (entry === "fade" || entry === "both") ? rzSignSecToAnchor(0.6, durationSec) : 0;
-    var popSpan  = (entry === "pop"  || entry === "both") ? rzSignSecToAnchor(0.5, durationSec) : 0;
-    return { a_show: aShow, a_hide: aHide, fade: fadeSpan, pop: popSpan };
+    // 29.09.2026 (Marc: „Blende wie bei den Overlays") — Ein- und Ausblenden getrennt, mit eigener Dauer:
+    //   entry / entry_s  (Einblenden; ohne entry_s: 0,6 s Einblenden bzw. 0,5 s Aufpoppen wie bisher)
+    //   exit  / exit_s   (Ausblenden: none | fade | pop | both; ohne `exit` gilt das alte Verhalten —
+    //                     wer einblendet, blendet auch 0,6 s aus, Aufpoppen ohne Ausblenden)
+    // `fade`/`pop` bleiben als Einblende-Spannen erhalten (ältere Aufrufer).
+    var exit = (sign.exit == null || sign.exit === "") ? ((entry === "fade" || entry === "both") ? "fade" : "none") : String(sign.exit);
+    var inS = (sign.entry_s != null && sign.entry_s !== "" && isFinite(Number(sign.entry_s))) ? Math.max(0, Number(sign.entry_s)) : null;
+    var outS = (sign.exit_s != null && sign.exit_s !== "" && isFinite(Number(sign.exit_s))) ? Math.max(0, Number(sign.exit_s)) : 0.6;
+    var fadeSpan = (entry === "fade" || entry === "both") ? rzSignSecToAnchor(inS == null ? 0.6 : inS, durationSec) : 0;
+    var popSpan  = (entry === "pop"  || entry === "both") ? rzSignSecToAnchor(inS == null ? (entry === "pop" ? 0.5 : 0.6) : inS, durationSec) : 0;
+    var bisEnde = !(aHide < 1.5);
+    var fadeOut = (!bisEnde && (exit === "fade" || exit === "both")) ? rzSignSecToAnchor(outS, durationSec) : 0;
+    var popOut  = (!bisEnde && (exit === "pop"  || exit === "both")) ? rzSignSecToAnchor(outS, durationSec) : 0;
+    // Passen beide Blenden nicht ins Fenster, werden sie anteilig gekürzt (wie bei den Overlay-Boxen).
+    var fenster = Math.max(0, aHide - aShow), rein = Math.max(fadeSpan, popSpan), raus = Math.max(fadeOut, popOut);
+    if (!bisEnde && rein + raus > fenster && rein + raus > 0) {
+      var f = fenster / (rein + raus); fadeSpan *= f; popSpan *= f; fadeOut *= f; popOut *= f;
+    }
+    return { a_show: aShow, a_hide: aHide, fade: fadeSpan, pop: popSpan, fadeIn: fadeSpan, fadeOut: fadeOut, popOut: popOut };
   }
 
   if (typeof window !== "undefined") {
     window.__rzDrawSign = rzDrawSign;
     window.__rzSignFrame = rzSignApplyFrame;
     window.__rzSignMeta = rzSignMeta;
+    window.__rzSignDeckkraft = rzSignDeckkraft;
     window.__rzSignIconSize = rzSignIconSize;
     window.__rzSignDpr = rzSignDpr;
   }
