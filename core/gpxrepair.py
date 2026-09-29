@@ -21,6 +21,7 @@ no_root, no_namespace, binary_tail.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import re
 from typing import List, Optional
 
@@ -78,7 +79,7 @@ def reparieren(data: bytes) -> dict:
     schritte: List[str] = []
     text = _dekodieren(data)
     if text is None:
-        return {"ok": False, "error": "kein Text", "schritte": [], "n_points": 0}
+        return {"ok": False, "error": _i18n.t_aktiv("reparatur.err_kein_text", "Die Datei enthält keinen Text"), "schritte": [], "n_points": 0}
 
     # 1) Nullbytes / Steuerzeichen am Ende (voller Speicher, harter Reset)
     if "\x00" in text:
@@ -87,7 +88,7 @@ def reparieren(data: bytes) -> dict:
     text = "".join(ch for ch in text if ch >= " " or ch in "\t\r\n")
 
     if "<trkpt" not in text and "<rtept" not in text and "<wpt" not in text:
-        return {"ok": False, "error": "keine Punkte in der Datei", "schritte": schritte, "n_points": 0}
+        return {"ok": False, "error": _i18n.t_aktiv("reparatur.err_keine_punkte", "Keine Punkte in der Datei"), "schritte": schritte, "n_points": 0}
 
     # 2) Unmaskierte Zeichen im Text
     if _AMP_ROH.search(text):
@@ -127,12 +128,12 @@ def reparieren(data: bytes) -> dict:
         treffer = list(_LETZTER_PUNKT.finditer(text))
         m = treffer[-1] if treffer else None
         if m is None:
-            return {"ok": False, "error": "kein vollständiger Punkt", "schritte": schritte, "n_points": 0}
+            return {"ok": False, "error": _i18n.t_aktiv("reparatur.err_kein_ganzer_punkt", "Kein vollständiger Punkt in der Datei"), "schritte": schritte, "n_points": 0}
         text = _tags_schliessen(text[:m.end()])
         schritte.append("truncated")
         n = _parsen(text)
     if n <= 0:
-        return {"ok": False, "error": "nach der Reparatur nicht lesbar", "schritte": schritte, "n_points": max(n, 0)}
+        return {"ok": False, "error": _i18n.t_aktiv("reparatur.err_unlesbar", "Nach der Reparatur nicht lesbar"), "schritte": schritte, "n_points": max(n, 0)}
     return {"ok": True, "data": text.encode("utf-8"), "schritte": schritte, "n_points": n}
 
 

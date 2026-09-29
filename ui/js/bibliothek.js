@@ -49,7 +49,11 @@
       sicherung_unmoeglich: T("bib.g_sicherung_unmoeglich", "Es ließ sich keine Sicherung anlegen — deshalb wurde abgebrochen."),
       db_unlesbar: T("bib.g_db_unlesbar", "Die kopierte Datenbank war nicht lesbar — der bisherige Bestand bleibt liegen."),
       nicht_wegraeumbar: T("bib.g_nicht_wegraeumbar", "Der alte Ordner ließ sich nicht wegräumen."),
+      ziel_in_quelle: T("bib.g_ziel_in_quelle", "Der Zielordner liegt innerhalb der bisherigen Bibliothek."),
+      nicht_richtbar: T("bib.g_nicht_richtbar", "Die gespeicherten Bildpfade ließen sich nicht anpassen."),
     };
+    // Einzelne Datei, die beim Umzug nicht mitkam (core/umzug.py, ohne `grund`).
+    if (!g && r && r.datei) return T("bib.g_datei", "Die Datei {datei} ließ sich nicht übernehmen.").replace("{datei}", r.datei);
     // 14.09.2026: Doppelstart-Ablehnung aus dem Backend bringt ihren Text schon mit.
     if ((g === "laeuft_bereits" || g === "umzug_laeuft") && r.error) return r.error;
     return m[g] || g || (r && r.error) || "?";
@@ -278,6 +282,7 @@
     start:      "Wird vorbereitet …",
     sichern:    "Sicherung wird angelegt …",
     aufnehmen:  "Touren werden in die Bibliothek kopiert …",
+    pruefen:    "Bibliothek wird geprüft …",
     aufraeumen: "Alter Ort wird aufgeräumt …",
     fertig:     "Fertig.",
   };
@@ -302,8 +307,10 @@
       if (!r) return;
       if (bar) bar.style.width = Math.round((r.anteil || 0) * 100) + "%";
       if (txt) {
-        var name = SCHRITTE[r.schritt] || SCHRITTE.start;
-        txt.textContent = T("bib.umzug_schritt_" + (r.schritt || "start"), name);
+        // Beim Kopieren meldet core/umzug.py den Ordnernamen als Schritt
+        // (import, sessions …) — den gibt es nicht als Text, das ist „aufnehmen".
+        var s = SCHRITTE[r.schritt] ? r.schritt : (r.schritt ? "aufnehmen" : "start");
+        txt.textContent = T("bib.umzug_schritt_" + s, SCHRITTE[s]);
       }
       if (r.fertig) {
         clearInterval(tick);

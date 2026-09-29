@@ -29,6 +29,7 @@ damit ihre Undo-Schritte an.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import json
 import sqlite3
 import uuid
@@ -372,7 +373,7 @@ def neu_berechnen(conn: sqlite3.Connection, tour: str, art: str, points,
 def _laden(conn, eid) -> dict:
     e = eine(conn, eid)
     if e is None:
-        raise KeyError(f"Einteilung nicht gefunden: {eid}")
+        raise KeyError(_i18n.t_aktiv("error.einteilung_fehlt", "Einteilung nicht gefunden") + f": {eid}")
     return e
 
 
@@ -380,7 +381,7 @@ def _finden(e: dict, bid: str) -> int:
     for k, b in enumerate(e["bereiche"]):
         if b["id"] == bid:
             return k
-    raise KeyError(f"Bereich nicht gefunden: {bid}")
+    raise KeyError(_i18n.t_aktiv("einteilung.err_bereich_fehlt", "Bereich nicht gefunden") + f": {bid}")
 
 
 def bereich_setzen(conn: sqlite3.Connection, eid: str, t0: float, t1: float, art: str,
@@ -479,7 +480,7 @@ def teilen(conn: sqlite3.Connection, eid: str, bid: str, t: float) -> dict:
     k = _finden(e, bid)
     b = e["bereiche"][k]
     if not (b["t0"] < t < b["t1"]):
-        raise ValueError("Schnitt liegt nicht im Bereich")
+        raise ValueError(_i18n.t_aktiv("einteilung.err_schnitt", "Schnitt liegt nicht im Bereich"))
     links = dict(_ohne_masse(b), t1=float(t), quelle="hand")
     # `grenze`: eine bewusst gesetzte Grenze — das Logbuch legt gleichartige Nachbarn
     # sonst beim Lesen wieder zusammen (Marc, 13.09.2026: „der teilt viel weiter hinten").
@@ -494,10 +495,10 @@ def _nachbarn(e: dict, bid_a: str, bid_b: str):
     getrennt — der geht dann mit auf. Punkte dazwischen bleiben stehen."""
     a, b = e["bereiche"][_finden(e, bid_a)], e["bereiche"][_finden(e, bid_b)]
     if _ist_punkt(a) or _ist_punkt(b):
-        raise ValueError("Punkte haben keine gemeinsame Grenze")
+        raise ValueError(_i18n.t_aktiv("einteilung.err_keine_grenze", "Punkte haben keine gemeinsame Grenze"))
     l, r = (a, b) if a["t0"] <= b["t0"] else (b, a)
     if l["t1"] > r["t0"] + 1e-6:
-        raise ValueError("die Bereiche überlappen sich")
+        raise ValueError(_i18n.t_aktiv("einteilung.err_ueberlappen", "Die Bereiche überlappen sich"))
     zwischen = [x for x in e["bereiche"] if not _ist_punkt(x) and x is not l and x is not r
                 and x["t0"] >= l["t1"] - 1e-6 and x["t1"] <= r["t0"] + 1e-6]
     return l, r, zwischen
@@ -514,7 +515,7 @@ def teilen_bei_zeit(conn: sqlite3.Connection, eid: str, t: float, kurz_s: float 
     bereiche = [b for b in e["bereiche"] if not _ist_punkt(b)]
     b = next((x for x in bereiche if x["t0"] < t < x["t1"]), None)
     if b is None:
-        raise ValueError("Schnitt liegt nicht im Bereich")
+        raise ValueError(_i18n.t_aktiv("einteilung.err_schnitt", "Schnitt liegt nicht im Bereich"))
     kurz = b["art"] in ("halt", "pause") and b.get("quelle") == "auto" and (b["t1"] - b["t0"]) < kurz_s
     if kurz:
         davor = [x for x in bereiche if x["t1"] <= b["t0"] + 1e-6]
@@ -549,7 +550,7 @@ def grenze_setzen(conn: sqlite3.Connection, eid: str, bid_links: str, bid_rechts
     e = _laden(conn, eid)
     l, r, zwischen = _nachbarn(e, bid_links, bid_rechts)
     if not (l["t0"] < t < r["t1"]):
-        raise ValueError("Grenze läge außerhalb der beiden Bereiche")
+        raise ValueError(_i18n.t_aktiv("einteilung.err_grenze_aussen", "Grenze läge außerhalb der beiden Bereiche"))
     weg = {id(x) for x in zwischen}
     e["bereiche"] = [x for x in e["bereiche"] if id(x) not in weg]
     l["t1"] = r["t0"] = float(t)

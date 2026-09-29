@@ -27,6 +27,7 @@ Foto-Vorschaubilder. Das bleibt im App-Ordner.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import gzip
 import json
 import os
@@ -861,7 +862,7 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
     ort = Path(ort)
     ziel = Path(ziel)
     if not ist_bibliothek(ort):
-        return {"ok": False, "error": "kein Bibliotheks-Ordner"}
+        return {"ok": False, "error": _i18n.t_aktiv("bib.err_kein_ordner", "Kein Bibliotheks-Ordner")}
 
     aus = () if alles else ZIP_SPARSAM_AUS
 

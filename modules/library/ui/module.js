@@ -920,8 +920,8 @@ function mountLibrary(body, headerActions) {
     deine.sort((a, b) => (rang[a.status] ?? 0) - (rang[b.status] ?? 0)
       || String(b.modified_at || "").localeCompare(String(a.modified_at || "")));
     autos.sort((a, b) => String(b.modified_at || "").localeCompare(String(a.modified_at || "")));
-    const MODUL_CHIP = { animator: ["🎬", "Animator"], tourmap: ["🗺", "Tour-Map"],
-                         geotagger: ["📷", "Geotagger"], heightanim: ["📈", T("library.proj_daten", "Daten")] };
+    const MODUL_CHIP = { animator: ["🎬", T("modules.animator.name", "Animator")], tourmap: ["🗺", T("modules.tourmap.name", "Tour-Map")],
+                         geotagger: ["📷", T("modules.geotagger.name", "Geotagger")], heightanim: ["📈", T("library.proj_daten", "Daten")] };
     const karte = (p) => {
       const ablauf = p.frei
         ? `🆕 ${T("library.proj_frei", "Noch keine Touren — mit ➕ hinzufügen oder leer öffnen (Reiseroute, Kartenflug)")}`
@@ -953,7 +953,7 @@ function mountLibrary(body, headerActions) {
       return `<div class="lib-proj-karte${p.status === "fertig" ? " fertig" : ""}" data-pid="${p.id}">
         <div class="lib-proj-thumb" data-pthumb="${p.id}">${p.frei ? "🗂" : "🗺"}</div>
         <div class="lib-proj-kopf">
-          <span class="lib-proj-name">${esc(p.name)}</span>${fehlt}${up}
+          <span class="lib-proj-name">${esc((window.rzProjektName ? window.rzProjektName(p.name) : p.name))}</span>${fehlt}${up}
           <select class="lib-proj-status" data-pid="${p.id}" title="${T("library.proj_status", "Status")}">
             <option value="aktiv"${p.status === "aktiv" ? " selected" : ""}>${T("library.proj_st_aktiv", "aktiv")}</option>
             <option value="idee"${p.status === "idee" ? " selected" : ""}>${T("library.proj_st_idee", "Idee")}</option>
@@ -1235,8 +1235,8 @@ function mountLibrary(body, headerActions) {
     if (!res || !res.ok) { box.innerHTML = ""; return; }
     const p = res.projekt;
     const kartenInfo = _projekte.find(x => x.id === pid) || {};
-    const MODUL_LBL = { animator: ["🎬", "Animator"], reiseroute: ["🧭", "Reiseroute"],
-                        tourmap: ["🗺", "Tour-Map"], geotagger: ["📷", "Geotagger"],
+    const MODUL_LBL = { animator: ["🎬", T("modules.animator.name", "Animator")], reiseroute: ["🧭", T("modules.reiseroute.name", "Reiseroute")],
+                        tourmap: ["🗺", T("modules.tourmap.name", "Tour-Map")], geotagger: ["📷", T("modules.geotagger.name", "Geotagger")],
                         heightanim: ["📈", T("library.proj_daten", "Daten")] };
     const ablauf = p.frei ? T("library.proj_frei_kurz", "Leeres Projekt")
       : p.ablauf === "schwarm" ? `🌊 ${T("schwarm.name", "Schwarm")} · ${T("animator.pace." + (p.schwarm_modus === "gleich" ? "even" : p.schwarm_modus), p.schwarm_modus)}`
@@ -1256,7 +1256,7 @@ function mountLibrary(body, headerActions) {
       </div>`;
     box.innerHTML = `
       <div class="lib-proj-thumb" data-pdthumb style="height:150px;margin:0 0 10px;border-radius:8px;">${p.frei ? "🗂" : "🗺"}</div>
-      <div style="font-weight:700;font-size:15px;margin-bottom:2px;">${esc(p.name)}</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:2px;">${esc((window.rzProjektName ? window.rzProjektName(p.name) : p.name))}</div>
       <div class="lib-hint">${ablauf}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;">
         <button class="btn btn-primary btn-sm" data-pd-open>${T("library.proj_open", "Öffnen")}</button>
@@ -3680,7 +3680,7 @@ function mountLibrary(body, headerActions) {
               const zeilen = pr.map(p => {
                 const hier = p.gh === zielGh;
                 return `<div class="lib-fassung${hier ? " is-on" : ""}">
-                  <span class="lib-fassung-info">🎬 ${esc(p.name)} · ${
+                  <span class="lib-fassung-info">🎬 ${esc((window.rzProjektName ? window.rzProjektName(p.name) : p.name))} · ${
                     T("library.vproj_v", "Version {n}").replace("{n}", p.version || "?")}</span>
                   ${hier ? `<span class="muted">${T("library.vproj_hier", "benutzt diese Version")}</span>`
                          : `<button class="btn btn-sm" data-vpid="${esc(p.id)}" data-vpalt="${p.gh}">${
@@ -3802,7 +3802,7 @@ function mountLibrary(body, headerActions) {
     $("lib-d-cover").onclick = async () => {
       const res = await api().library_set_cover(it.path, ""); // warte-ok: Systemdialog
       if (res.cancelled) return;
-      if (!res.ok) { toast(res.error || "Bild konnte nicht gesetzt werden", "error"); return; }
+      if (!res.ok) { toast(res.error || T("library.cover_fehler", "Bild konnte nicht gesetzt werden"), "error"); return; }
       it.cover = (res.track && res.track.cover) || "";
       it.thumb_url = res.thumb_url || it.thumb_url;
       renderDetail(); renderView();
@@ -3966,7 +3966,7 @@ function mountLibrary(body, headerActions) {
       if (!weiter) return;
       res = await rzWarten("library_trash", () => api().library_trash(it.path, true)).catch((e) => ({ ok: false, error: String(e) }));
     }
-    if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
+    if (!res.ok) { toast(res.error || T("library.nicht_moeglich", "Nicht möglich"), "error"); return; }
     if (_warOffen) await _offeneTourSchliessen();
     toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
     _sel = null; store.set("sel", ""); renderDetail(); reload();
@@ -4214,7 +4214,7 @@ function mountLibrary(body, headerActions) {
     if (dup) dup.onclick = async () => {
       dup.disabled = true;
       const r = await api().library_collection_duplicate(cid);
-      if (!r || !r.ok) { dup.disabled = false; toast((r && r.error) || "Fehler", "error"); return; }
+      if (!r || !r.ok) { dup.disabled = false; toast((r && r.error) || T("common.error", "Fehler"), "error"); return; }
       let kopieId = r.id;
       _libUndoPush(T("library.undo.col_dup", "Sammlung dupliziert"),
         async () => { await api().library_collection_delete(kopieId); },
@@ -5416,7 +5416,7 @@ function mountLibrary(body, headerActions) {
       const m = openModal({
         title: "🧩 " + T("vorlagen.neu_aus_projekt", "Neue Vorlage aus Projekt …"),
         body: `<label class="vorl-feld">${T("vorlagen.projekt_waehlen", "Projekt")}
-                 <select id="lib-vn-proj" class="lib-select" style="width:100%">${alle.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("")}</select></label>
+                 <select id="lib-vn-proj" class="lib-select" style="width:100%">${alle.map(p => `<option value="${esc(p.id)}">${esc((window.rzProjektName ? window.rzProjektName(p.name) : p.name))}</option>`).join("")}</select></label>
                <label class="vorl-feld">${T("vorlagen.name", "Name der Vorlage")}
                  <input type="text" id="lib-vn-name" class="lib-input" value="${esc(alle[0].name)}"></label>`,
         footer: `<button class="btn" id="lib-vn-ab">${T("common.cancel", "Abbrechen")}</button>

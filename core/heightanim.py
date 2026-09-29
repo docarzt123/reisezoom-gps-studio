@@ -971,7 +971,7 @@ async def render(cfg: HeightConfig,
 
     pts, stats = cgpx.parse_gpx(cfg.gpx_path)
     if len(pts) < 2:
-        raise ValueError("GPX hat zu wenig Punkte (< 2)")
+        raise ValueError(_i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)"))
     # Downsample auf ~1000 für Render — Browser-Side SVG ist sonst zäh
     ds = cgpx.downsample(pts, 1000)
     distances_m = [p.dist_m for p in ds]
@@ -1552,7 +1552,10 @@ def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: lis
     )
     page = _re.sub(r"<style>.*?</style>", lambda m: new_style, page, count=1, flags=_re.S)
     page = page.replace('preserveAspectRatio="none"', 'preserveAspectRatio="xMidYMid meet"', 1)
-    page = page.replace("<title>height-render</title>", "<title>Datenprofil</title>", 1)
+    # 29.09.2026 — Seitentitel der exportierten Datei in der App-Sprache
+    import html as _h
+    _titel = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("heightanim.export.titel", "Datenprofil")
+    page = page.replace("<title>height-render</title>", "<title>" + _h.escape(_titel) + "</title>", 1)
     dur_ms = max(100.0, float(cfg.duration_s) * 1000.0)
     hold_ms = max(0.0, float(cfg.hold_s) * 1000.0)
     end_behaviour = ("if(HOLD>0){held=ts;}else{t0=ts;}" if loop
@@ -1590,7 +1593,8 @@ def make_embed_snippet(standalone_html: str, cfg: "HeightConfig") -> str:
     import html as _h
     w, h = int(cfg.width), int(cfg.height)
     esc = _h.escape(standalone_html, quote=True)
-    return ('<iframe title="Datenprofil" loading="lazy" '
+    _titel = _h.escape(_i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("heightanim.export.titel", "Datenprofil"), quote=True)
+    return ('<iframe title="' + _titel + '" loading="lazy" '
             'style="width:100%;max-width:' + str(w) + 'px;aspect-ratio:' + str(w) + '/' + str(h)
             + ';border:0;display:block;margin:1rem auto" '
             'srcdoc="' + esc + '"></iframe>')

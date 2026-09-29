@@ -17,6 +17,7 @@ austauscht.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import os
 import plistlib
 import re
@@ -111,12 +112,12 @@ def installieren(quelle: Path, ziel_ordner: Path = ZIEL_ORDNER, *,
     say = log or (lambda _m: None)
     quelle = Path(quelle)
     if not quelle.exists() or quelle.suffix != ".app":
-        return {"ok": False, "error": f"Quelle fehlt: {quelle}"}
+        return {"ok": False, "error": _i18n.t_aktiv("install.err_quelle_fehlt", "Quelle fehlt: ") + str(quelle)}
     ziel = ziel_ordner / f"{APP_NAME}.app"
     if quelle.resolve() == ziel.resolve():
         return {"ok": True, "ziel": str(ziel), "ersetzt": [], "unveraendert": True}
     if not os.access(ziel_ordner, os.W_OK):
-        return {"ok": False, "error": "Programme-Ordner nicht beschreibbar", "grund": "rechte"}
+        return {"ok": False, "error": _i18n.t_aktiv("install.err_nicht_beschreibbar", "Programme-Ordner nicht beschreibbar"), "grund": "rechte"}
     tmp = ziel_ordner / f"{APP_NAME}.app.neu"
     # Die „.neu"-Kopie ist unsere eigene Zwischenstufe dieses Vorgangs. Sie liegt in
     # /Applications (kein GPS-Studio-Bereich) → genau diesen Pfad anmelden.
@@ -152,7 +153,7 @@ def installieren(quelle: Path, ziel_ordner: Path = ZIEL_ORDNER, *,
             say(f"alte Kopie weg: {alt}")
         except Exception as e:  # noqa: BLE001
             _tmp_weg()
-            return {"ok": False, "error": f"Alte Kopie lässt sich nicht entfernen: {alt} ({e})"}
+            return {"ok": False, "error": _i18n.t_aktiv("install.err_alte_kopie", "Alte Kopie lässt sich nicht entfernen: ") + f"{alt} ({e})"}
     _ds.nutzer_ziel(ziel)
     _ds.umbenennen(tmp, ziel, "installation")
     say(f"installiert: {ziel}")

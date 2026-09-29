@@ -86,8 +86,8 @@ function mountHeightAnim(body, headerActions) {
               <div class="res-picker">
                 <button type="button" class="res-btn" data-w="3840" data-h="2160" title="3840×2160 · 16:9">4K</button>
                 <button type="button" class="res-btn" data-w="1920" data-h="1080" title="1920×1080 · 16:9">1080p</button>
-                <button type="button" class="res-btn" data-w="2160" data-h="3840" title="2160×3840 · 9:16 Hochkant">4K↕</button>
-                <button type="button" class="res-btn" data-w="1080" data-h="1920" title="1080×1920 · 9:16 Hochkant (Shorts/Reels)">1080↕</button>
+                <button type="button" class="res-btn" data-w="2160" data-h="3840" title="2160×3840 · 9:16 ${t("common.res_hochkant", "Hochkant")}">4K↕</button>
+                <button type="button" class="res-btn" data-w="1080" data-h="1920" title="1080×1920 · 9:16 ${t("common.res_hochkant", "Hochkant")} (Shorts/Reels)">1080↕</button>
               </div>
               <div class="row-2 res-custom">
                 <input type="number" id="height-w" min="640" max="7680" step="2" value="1920" placeholder="${t("animator.field.width")}">
@@ -460,7 +460,7 @@ function mountHeightAnim(body, headerActions) {
         </div>
       </div>
       <div class="height-anim-bar" id="height-anim-bar">
-        <button type="button" class="height-play-btn" id="height-play" aria-label="Play/Pause" title="Play/Pause">▶</button>
+        <button type="button" class="height-play-btn" id="height-play" aria-label="${t("heightanim.play_pause", "Abspielen/Pause")}" title="${t("heightanim.play_pause", "Abspielen/Pause")}">▶</button>
         <div class="height-track-wrap" id="height-track-wrap">
           <!-- Shade-Overlays für nicht-getrimmten Bereich -->
           <div class="height-trim-shade height-trim-shade-left" id="height-trim-shade-left"></div>
@@ -1966,12 +1966,12 @@ function mountHeightAnim(body, headerActions) {
         const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
         ((proj && proj.photos) || []).forEach((p, i) => {
           if (p.visible === false) return;
-          const nm = (p.name || p.filename || "Foto").split("/").pop().replace(/\.[^.]+$/, "");
+          const nm = (p.name || p.filename || t("heightanim.points.photo_default", "Foto")).split("/").pop().replace(/\.[^.]+$/, "");
           rows.push({ kind: "photo", key: "photo:" + i, label: "📷 " + nm, color: "#7ab8ff", hidden: !!_wpHidden["photo:" + i] });
         });
       } catch (_) {}
     }
-    if (_wpSources.gpx) _gpxWaypoints.forEach((g, i) => rows.push({ kind: "gpx", key: "gpx:" + i, label: "◆ " + (g.name || "Wegpunkt"), color: "#7ae0a0", hidden: !!_wpHidden["gpx:" + i] }));
+    if (_wpSources.gpx) _gpxWaypoints.forEach((g, i) => rows.push({ kind: "gpx", key: "gpx:" + i, label: "◆ " + (g.name || t("heightanim.points.wp_default", "Wegpunkt")), color: "#7ae0a0", hidden: !!_wpHidden["gpx:" + i] }));
     if (_wpSources.auto) _autoMarkers.forEach((a) => rows.push({ kind: "auto", key: "auto:" + a.kind, label: _autoLabel(a.kind), color: "#ffb37a", hidden: !!_wpHidden["auto:" + a.kind] }));
     if (!rows.length) {
       host.innerHTML = `<p class="muted" style="font-size:11px; margin:4px 0;">${t("heightanim.points.empty", "Noch keine Punkte. Quellen oben aktivieren oder unten einen Punkt setzen.")}</p>`;

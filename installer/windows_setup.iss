@@ -116,6 +116,9 @@ VersionInfoCopyright=© 2026 Reisezoom
 [Languages]
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+; 29.09.2026 — die App gibt es auch auf Spanisch; der Installer soll es auch sein
+; (Spanish.isl gehört zum Standardumfang von Inno Setup 6).
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

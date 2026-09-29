@@ -43,6 +43,7 @@ Entschlüsselung würde anstandslos gelingen.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import hashlib
 import hmac
 import json
@@ -143,9 +144,10 @@ class VerpackterSchluessel:
         import base64
         d = json.loads(text)
         if d.get("format") != "RZC1":
-            raise CloudKryptoFehler(
-                f"Unbekanntes Schlüsselformat {d.get('format')!r} — "
-                "vermutlich von einer neueren Fassung der App angelegt.")
+            raise CloudKryptoFehler(_i18n.t_aktiv(
+                "cloud.err_schluesselformat",
+                "Unbekanntes Schlüsselformat — vermutlich von einer neueren Fassung der App angelegt.")
+                + f" ({d.get('format')!r})")
         e = base64.b64decode
         return VerpackterSchluessel(
             salz=e(d["salz"]), nonce=e(d["nonce"]), paket=e(d["paket"]),
@@ -168,7 +170,7 @@ def archiv_anlegen(passwort: str | None = None) -> tuple[bytes, str, VerpackterS
     """
     passwort = passwort or passwort_wuerfeln()
     if not passwort_gueltig(passwort):
-        raise CloudKryptoFehler("Passwort hat nicht die erwartete Form.")
+        raise CloudKryptoFehler(_i18n.t_aktiv("cloud.err_passwort_form", "Passwort hat nicht die erwartete Form."))
     datenschluessel = secrets.token_bytes(SCHLUESSEL_LEN)
     return datenschluessel, passwort, schluessel_verpacken(datenschluessel, passwort)
 
@@ -184,15 +186,15 @@ def schluessel_verpacken(datenschluessel: bytes, passwort: str) -> VerpackterSch
 def schluessel_auspacken(verpackt: VerpackterSchluessel, passwort: str) -> bytes:
     """Datenschlüssel zurückgewinnen — der Weg, den Gerät 2 geht."""
     if not passwort_gueltig(passwort):
-        raise FalschesPasswort("Passwort hat nicht die erwartete Form.")
+        raise FalschesPasswort(_i18n.t_aktiv("cloud.err_passwort_form", "Passwort hat nicht die erwartete Form."))
     ableitung = _passwort_zu_schluessel(passwort, verpackt.salz,
                                         verpackt.n, verpackt.r, verpackt.p)
     try:
         return AESGCM(ableitung).decrypt(verpackt.nonce, verpackt.paket,
                                          b"rz-archiv-schluessel")
     except Exception as e:      # InvalidTag & Co. — Ursache nie durchreichen
-        raise FalschesPasswort(
-            "Dieses Passwort schließt das Archiv nicht auf.") from e
+        raise FalschesPasswort(_i18n.t_aktiv(
+            "cloud.err_passwort_falsch", "Dieses Passwort schließt das Archiv nicht auf.")) from e
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -228,8 +230,8 @@ def oeffnen(datenschluessel: bytes, name: str, umschlag: bytes) -> bytes:
         return AESGCM(datenschluessel).decrypt(nonce, ct, name.encode("utf-8"))
     except Exception as e:
         raise CloudKryptoFehler(
-            f"Umschlag {name!r} lässt sich nicht öffnen — falscher Schlüssel, "
-            "vertauschter Name oder beschädigt.") from e
+            f"{name!r}: " + _i18n.t_aktiv("cloud.err_umschlag",
+                                 "lässt sich nicht öffnen — falscher Schlüssel, vertauschter Name oder beschädigt.")) from e
 
 
 # ══════════════════════════════════════════════════════════════════════════

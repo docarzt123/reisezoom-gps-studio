@@ -20,6 +20,7 @@ sonst schlägt die Namensbindung aus `crypto.py` fehl. Nicht verwechseln.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import hashlib
 import json
 import os
@@ -81,7 +82,7 @@ def adresse_pruefen(adresse: str) -> str:
     `RZ_CLOUD_HTTP=1`."""
     a = (adresse or "").strip()
     if not a:
-        raise CloudFehler("Keine Adresse angegeben.")
+        raise CloudFehler(_i18n.t_aktiv("cloud.err_keine_adresse", "Keine Adresse angegeben."))
     if "://" not in a:
         a = "https://" + a
     teile = urllib.parse.urlsplit(a)
@@ -92,7 +93,7 @@ def adresse_pruefen(adresse: str) -> str:
     if schema == "http":
         if host in ("localhost", "127.0.0.1", "::1") or os.environ.get("RZ_CLOUD_HTTP") == "1":
             return a
-        raise UnsichereAdresse("Nur https:// ist erlaubt — http:// würde den Zugangsschlüssel unverschlüsselt übertragen.")
+        raise UnsichereAdresse(_i18n.t_aktiv("cloud.nur_https", "Nur https:// ist erlaubt — über http:// ginge der Zugangsschlüssel unverschlüsselt durchs Netz."))
     raise CloudFehler(f"Unbekanntes Adress-Schema: {schema or '?'}")
 
 
@@ -142,9 +143,9 @@ class Gegenstelle:
             raise CloudFehler(f"Server meldet {e.code}: {text}") from e
         except urllib.error.URLError as e:
             raise NichtErreichbar(
-                f"{self.adresse} ist nicht erreichbar: {e.reason}") from e
+                f"{self.adresse} — " + _i18n.t_aktiv("cloud.err_nicht_erreichbar", "nicht erreichbar: ") + str(e.reason)) from e
         except TimeoutError as e:
-            raise NichtErreichbar("Zeitüberschreitung.") from e
+            raise NichtErreichbar(_i18n.t_aktiv("cloud.err_zeit", "Zeitüberschreitung.")) from e
 
         if roh:
             return daten
@@ -157,11 +158,13 @@ class Gegenstelle:
             # Zeile 1" hilft niemandem.
             anfang = daten[:60].decode("utf-8", "replace").strip()
             raise CloudFehler(
-                "Der Server antwortet nicht wie die Gegenstelle des GPS Studios. "
-                f"Zeigt die Adresse wirklich auf rz-cloud.php? (Anfang: {anfang!r})"
+                _i18n.t_aktiv("cloud.err_fremder_server",
+                    "Der Server antwortet nicht wie die Gegenstelle des GPS Studios. "
+                    "Zeigt die Adresse wirklich auf rz-cloud.php?")
+                + f" ({anfang!r})"
             ) from e
         if not d.get("ok"):
-            raise CloudFehler(d.get("fehler") or "Unbekannter Fehler.")
+            raise CloudFehler(d.get("fehler") or _i18n.t_aktiv("animator.render_error.unknown", "Unbekannter Fehler"))
         return d
 
     # ── außen ────────────────────────────────────────────────────────────
@@ -170,11 +173,11 @@ class Gegenstelle:
         """Ohne Zugang: Spricht dort überhaupt unsere Gegenstelle?"""
         d = self._anfragen("info")
         if d.get("dienst") != "reisezoom-cloud":
-            raise CloudFehler("Dort antwortet etwas anderes als ein GPS-Studio-Archiv.")
+            raise CloudFehler(_i18n.t_aktiv("cloud.err_kein_archiv", "Dort antwortet etwas anderes als ein GPS-Studio-Archiv."))
         if int(d.get("format", 0)) > FORMAT:
-            raise FormatZuNeu(
-                "Dieses Archiv wurde von einer neueren Fassung des GPS Studios "
-                "angelegt. Bitte aktualisiere die App.")
+            raise FormatZuNeu(_i18n.t_aktiv(
+                "cloud.err_format_neu",
+                "Dieses Archiv wurde von einer neueren Fassung des GPS Studios angelegt. Bitte aktualisiere die App."))
         return d
 
     def anlegen(self, verpackter_schluessel_json: str) -> str:

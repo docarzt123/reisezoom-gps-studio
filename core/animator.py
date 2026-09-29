@@ -86,11 +86,12 @@ def find_ffmpeg() -> str:
             return bundled
     except Exception:
         pass
-    raise RuntimeError(
+    raise RuntimeError(_i18n.t_aktiv(
+        "animator.err_ffmpeg_fehlt",
         "ffmpeg nicht gefunden — weder im System-PATH noch als gebündeltes Binary. "
         "Bitte einmalig installieren: `brew install ffmpeg` (macOS), "
         "https://ffmpeg.org/download.html (Windows), `apt install ffmpeg` (Linux)."
-    )
+    ))
 
 from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
                   unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot,
@@ -674,7 +675,10 @@ OVERLAY_LIVE_FIELDS = [
     # links der Tageswert, rechts die Gesamtsumme. `requires: "stages"` blendet
     # sie bei einer normalen Einzeltour aus.
     {"id": "stage_name",   "requires": "stages", "label": "Etappe",
-     "js": "(STAGE_NAME[idx] || ('Etappe ' + STAGE_NR[idx]))"},
+     # 29.09.2026 — Etappe ohne Namen: Vorlage „Etappe {n}" aus der App-Sprache
+     # (animator.stage_fallback_name, wortgleich mit der Vorschau), als
+     # [vor, nach] in STAGE_FB — ohne geschweifte Klammern im JS-Schnipsel.
+     "js": "(STAGE_NAME[idx] || (STAGE_FB[0] + STAGE_NR[idx] + STAGE_FB[1]))"},
     {"id": "stage_no",     "requires": "stages", "label": "Etappe Nr.",
      "js": "(STAGE_NR[idx] + ' / ' + STAGE_TOTAL)"},
     {"id": "stage_dist",   "requires": "stages", "label": "In dieser Etappe",
@@ -2544,6 +2548,17 @@ def _overlay_teile(cfg, total_stats, ds_points, cum_dist, cum_time, eles, e1, e2
             live_update_js, boxen_html, charts_html)
 
 
+def _stage_fb_json(cfg) -> str:
+    """29.09.2026 — Name für Etappen ohne eigenen Namen, in der App-Sprache.
+    Als JSON-Paar [vor, nach] um die Etappennummer (Vorlage „Etappe {n}")."""
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
+    vorlage = _t("animator.stage_fallback_name", "Etappe {n}") or "Etappe {n}"
+    if "{n}" not in vorlage:
+        vorlage = vorlage + " {n}"
+    vor, nach = vorlage.split("{n}", 1)
+    return json.dumps([vor, nach])
+
+
 def _seg_masken(cfg, ds_points) -> list:
     """Unsichtbare Stücke (Etappen-Übergänge) + Logbuch-Masken als [[i, j]] bzw.
     [[i, j, deckkraft]] über die Render-Punkte (24.09.2026). Synchron zu
@@ -2728,6 +2743,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
     stage_name_json = json.dumps(_etappen["name"])
     stage_total_json = json.dumps(_etappen["gesamt"])
+    stage_fb_json = _stage_fb_json(cfg)
     seg_mask_js = _SEG_MASK_JS + _GRAD_LUECKEN_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
@@ -3031,7 +3047,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                 if isinstance(_src, dict) and "attribution" in _src:
                     _src["attribution"] = ""
             style_expr = json.dumps(_spec["style"])
-        _extra_attr = _kq.kurz_nennung(_ids, str(getattr(cfg, "attrib_link", "") or "")).replace("'", "\\'")
+        # 29.09.2026 — „bearbeitet"/„Quellen" stehen im Video: in der App-Sprache,
+        # dieselben Schlüssel wie der JS-Spiegel rzKurzNennung (Vorschau = Render).
+        _ta = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
+        _extra_attr = _kq.kurz_nennung(_ids, str(getattr(cfg, "attrib_link", "") or ""),
+                                       bearbeitet=_ta("attrib.bearbeitet", "bearbeitet"),
+                                       quellen_wort=_ta("attrib.quellen", "Quellen")).replace("'", "\\'")
     common_opts = (
         "  preserveDrawingBuffer:true, antialias:true, fadeDuration:0,\n"
         "  prefetchZoomDelta:6, attributionControl:false, maxPitch:85\n"   # maxPitch: MapLibre-Standard 60 klemmte Keyframes (04.09.2026)
@@ -3493,7 +3514,7 @@ const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
 const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
 // 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
 const STAGE_NR = {stage_nr_json}, STAGE_D0 = {stage_d0_json}, STAGE_T0 = {stage_t0_json};
-const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json};
+const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json}, STAGE_FB = {stage_fb_json};
 const cumGeoM = (() => {{
   const out = [0];
   for (let i = 1; i < allCoords.length; i++) {{
@@ -4538,7 +4559,7 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
     else:
         points = downsample(raw_points, max(2, cfg.point_count))
     if len(points) < 2:
-        raise ValueError("GPX hat zu wenige Punkte für die Tour-Karte.")
+        raise ValueError(_i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("animator.err_zu_wenige_tourkarte", "GPX hat zu wenige Punkte für die Tour-Karte."))
     cum_dist = [0.0] + [points[i].dist_m for i in range(1, len(points))]
     cum_time = [0.0] + [points[i].elapsed_s for i in range(1, len(points))]
     if total_stats.duration_s == 0:
@@ -4582,6 +4603,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
     stage_name_json = json.dumps(_etappen["name"])
     stage_total_json = json.dumps(_etappen["gesamt"])
+    stage_fb_json = _stage_fb_json(cfg)
     seg_mask_js = _SEG_MASK_JS + _GRAD_LUECKEN_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
@@ -4672,7 +4694,7 @@ const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
 const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
 // 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
 const STAGE_NR = {stage_nr_json}, STAGE_D0 = {stage_d0_json}, STAGE_T0 = {stage_t0_json};
-const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json};
+const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json}, STAGE_FB = {stage_fb_json};
 const cumGeoM = (() => {{
   const out = [0];
   for (let i = 1; i < allCoords.length; i++) {{
@@ -5062,7 +5084,7 @@ async def render_frame(
     raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
     points = _punkte_verteilen(cfg, raw_points)
     if len(points) < 2:
-        raise ValueError("GPX hat zu wenige Punkte für ein Standbild.")
+        raise ValueError(_i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("animator.err_zu_wenige_standbild", "GPX hat zu wenige Punkte für ein Standbild."))
 
     cum_dist = [0.0] + [points[i].dist_m for i in range(1, len(points))]
     cum_time = [0.0] + [points[i].elapsed_s for i in range(1, len(points))]

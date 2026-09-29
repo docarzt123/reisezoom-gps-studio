@@ -517,7 +517,8 @@ python app.py</code></pre>
 <blockquote>Touren markieren und an den Animator übergeben, während das Projekt offen ist.</blockquote>
 <blockquote>Liegt eine Tour noch nicht im Archiv, nimmt <strong>„Datei importieren …&quot;</strong> in der</blockquote>
 <blockquote>Auswahl sie erst ins Archiv auf und hakt sie gleich an (auch FIT, KML und Co.).</blockquote>
-<blockquote>Die Sektion ist auch bei einer einzelnen Tour da.</blockquote>
+<blockquote>Die Sektion ist auch bei einer einzelnen Tour da. Jede neue Tour wird</blockquote>
+<blockquote>eine Gruppe am Ende der Kette; zieh sie in der Zeitleiste an eine andere Stelle.</blockquote>
 <ul>
 <li><strong>Dauer</strong> — leer (<strong>aut</strong>) heißt: Diese Etappe bekommt ihren Anteil an der</li>
 </ul>
@@ -879,24 +880,25 @@ python app.py</code></pre>
 <p><strong>Wann geprüft wird:</strong> beim Einlesen, beim Öffnen im Inspektor, je Tour auf „Neu prüfen&quot; und für den ganzen Bestand über <strong>„🩺 Alle Touren prüfen&quot;</strong> links unten (Fortschritt oben in der Kopfzeile, „Abbrechen&quot; daneben; etwa eine Minute je 1000 Touren; am Ende bleibt „🩺 Track-Check: 35 geprüft · N mit Befund“ oben stehen). Nach dem Update fragt das Archiv <strong>einmal</strong>, ob es den Bestand prüfen soll — bei „Später&quot; fragt es nie wieder und sagt, wo der Knopf ist. <strong>Nichts läuft ungefragt im Hintergrund.</strong> Geprüft wird nur gezählt; an deinen Dateien ändert sich dabei nichts.</p>
 <p><strong>Beschädigte Dateien:</strong> Steht eine GPX in der Fehlerliste als „beschädigt, reparierbar&quot; (abgeschnittene Übertragung, ein „&amp;&quot; im Namen, fehlende Kopfzeile), legt <strong>„🩹 Reparieren&quot;</strong> eine heile Fassung als Tour ins Archiv. Deine Datei bleibt, wie sie ist.</p>
 <h3 id="die-reise-touren-nacheinander-mit-eigenen-etappenzeiten">🧭 Die Reise — Touren nacheinander, mit eigenen Etappenzeiten</h3>
-<p>Mehrere Touren im Animator, Ablauf <strong>Reise</strong>: sie laufen nacheinander, dazwischen fliegt die Kamera zur nächsten Etappe. In der Liste <strong>„Weitere Touren&quot;</strong> steht jetzt auch die erste Tour als <strong>Etappe 1</strong>, und jede Etappe hat ein eigenes Feld für ihre <strong>Dauer im Video</strong>:</p>
+<p>Mehrere Touren im Animator, Ablauf <strong>Reise</strong>: sie laufen nacheinander, dazwischen fliegt die Kamera zur nächsten Etappe. In der <strong>Tracks-Liste</strong> steht jetzt auch die erste Tour als <strong>Etappe 1</strong>, und jede Etappe hat ein eigenes Feld für ihre <strong>Dauer im Video</strong>:</p>
 <ul>
 <li><strong>Feld leer</strong> — die Etappe bekommt ihren Anteil aus der Gesamtdauer, verteilt nach Umfang.</li>
 </ul>
 <p> Genau so lief es vorher.</p>
 <ul>
-<li><strong>Zahl eingetragen</strong> — die Etappe läuft genau so lange. Tragen Sie bei allen Etappen etwas</li>
+<li><strong>Zahl eingetragen</strong> — die Etappe läuft genau so lange. Trägst du bei allen Etappen etwas</li>
 </ul>
 <p> ein, ergibt deren Summe die Länge der Animation.</p>
 <p>Zwischen zwei Etappen sitzt der <strong>Übergang</strong> mit eigenem Stil und eigener Dauer:</p>
 <ul>
 <li><strong>Kinoflug</strong> — die Kamera zoomt heraus, fliegt hinüber und wieder heran (Standard).</li>
 <li><strong>Luftlinie</strong> — geradeaus, ohne Herauszoomen.</li>
+<li><strong>Pause</strong> — der Laufpunkt wartet, die Kamera bleibt stehen; mit der nächsten Etappe springt das Bild weiter.</li>
 <li><strong>Schnitt</strong> — kein Übergang; das nächste Bild steht schon am Beginn der nächsten Etappe.</li>
 </ul>
 <p>Bleibt das Dauer-Feld des Übergangs leer, gilt die gemeinsame <strong>Flugdauer</strong> darunter.</p>
 <p><strong>Der Probelauf zeigt die Reise jetzt wirklich</strong>: Etappe für Etappe, mit dem Flug dazwischen. Während eines Übergangs verschwindet der Laufpunkt — er steht ja am Ende der alten Etappe, und die Kamera ist unterwegs. Zwischen den Etappen zieht <strong>keine gerade Linie</strong> über die Karte; jede Etappe ist ein eigener Strang.</p>
-<p>Wer die Kamera führt: Haben Sie <strong>Keyframes</strong> gesetzt, gelten die. Ist <strong>Kamera folgt Track</strong> an, folgt sie dem Laufpunkt über alle Etappen. Sonst hält sie je Etappe deren Gesamtsicht, genau wie das gerenderte Video.</p>
+<p>Wer die Kamera führt: Hast du <strong>Keyframes</strong> gesetzt, gelten die. Ist <strong>Kamera folgt Track</strong> an, folgt sie dem Laufpunkt über alle Etappen. Sonst hält sie je Etappe deren Gesamtsicht, genau wie das gerenderte Video.</p>
 <h3 id="der-schwarm-alle-touren-laufen-gleichzeitig">🌊 Der Schwarm — alle Touren laufen gleichzeitig</h3>
 <p>Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle <strong>„🌊 Als Schwarm animieren …&quot;</strong> — ein kleiner Dialog fragt nach dem <strong>Geschwindigkeitsmodus</strong>, dann geht die Auswahl <strong>direkt in den Animator</strong>:</p>
 <ul>
@@ -1554,8 +1556,8 @@ python app.py</code></pre>
 <p>Bereich <strong>„👻 GPX-Ghost&quot;</strong>: anzeigen an/aus, <strong>Farbe</strong>, <strong>Deckkraft</strong>, <strong>Linienbreite</strong>, <strong>gestrichelt</strong>. Wirkt live in der Vorschau und im gerenderten Video. (Im Reiseroute-Modul sind dafür die Stats-Overlays ausgeblendet.)</p>
 <h3 id="wird-gespeichert">Wird gespeichert</h3>
 <p>Alle Stationen (Start, Zwischenziele, Ziel), Stil, Detailgrad, Profil <strong>und die zuletzt berechnete Route</strong> werden im Projekt gespeichert — nach einem Neustart ist alles wieder da (die Route erscheint ohne erneutes Berechnen).</p>
-<h3 id="braucht-einen-mapbox-token">Braucht einen Mapbox-Token</h3>
-<p>Straßen-Routen + Adress-Suche laufen über Mapbox (derselbe Token wie die Karte, siehe Erste Schritte). Die Flugroute (Großkreis) braucht keinen API-Call.</p>
+<h3 id="mapbox-token-nur-noch-r-ckfall">Mapbox-Token — nur noch Rückfall</h3>
+<p>Straßen-Routen rechnet die App seit 07.09.2026 über freie OpenStreetMap-Dienste (siehe „Ohne Mapbox&quot; oben). Ein Mapbox-Token (derselbe wie für die Karte) springt nur ein, wenn diese Dienste einmal nicht antworten. Die Flugroute (Großkreis) braucht gar keinen Dienst.</p>
 <h2 id="5-modul-tour-map-statische-karten-png">5 · Modul: Tour-Map — Statische Karten-PNG</h2>
 <h3 id="was-es-macht">Was es macht</h3>
 <p>Wie der Animator, aber <strong>ein einziges Bild statt einem Video</strong>. Output: PNG in beliebiger Auflösung. Einsatz: YouTube-Thumbnails, Instagram-Posts, Blog-Cover, Komoot-Galerie-Bilder.</p>

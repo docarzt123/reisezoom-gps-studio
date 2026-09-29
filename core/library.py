@@ -42,6 +42,7 @@ Zwei Hashes pro Tour:
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import functools
 import io
 import json
@@ -2120,7 +2121,7 @@ def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -
         r = conn.execute("SELECT path, filename, recorded, recorded_user, activity FROM tracks WHERE path = ?",
                          (path,)).fetchone()
     if not r:
-        return {"ok": False, "error": "nicht im Archiv"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv")}
     try:
         pts, stats = punkte_lesen(path, import_cache)
     except Exception as e:  # noqa: BLE001
@@ -2128,7 +2129,7 @@ def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -
     w = _check_werte(pts, stats, r["filename"] or "", geplant=not ist_aufgezeichnet(r),
                      aktivitaet=r["activity"] or None)
     if not w["check_ts"]:
-        return {"ok": False, "error": "Prüfung fehlgeschlagen"}
+        return {"ok": False, "error": _i18n.t_aktiv("library.err_pruefung", "Prüfung fehlgeschlagen")}
     with _DB_LOCK:
         conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",
                      (w["check_json"], w["check_stufe"], w["check_ts"], path))
@@ -2136,7 +2137,7 @@ def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -
         row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
                            (path,)).fetchone()
     if row is None:      # inzwischen aus dem Archiv entfernt
-        return {"ok": False, "error": "nicht im Archiv"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv")}
     return {"ok": True, "check": _check_dict(dict(row))}
 
 
@@ -2255,7 +2256,7 @@ def set_check_ok(conn: sqlite3.Connection, path: str, key: str, ok: bool) -> dic
         return {"ok": False, "error": "unbekannte Befund-Art"}
     r = conn.execute("SELECT geo_hash, name FROM tracks WHERE path = ?", (path,)).fetchone()
     if not r or not r["geo_hash"]:
-        return {"ok": False, "error": "nicht im Archiv"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv")}
     gh = r["geo_hash"]
     now = _now_iso()
     conn.execute("INSERT INTO track_meta(geo_hash, last_name, first_seen, last_seen) "
@@ -3235,11 +3236,43 @@ def fehler_grund(fehler: str, art: str = "") -> str:
       * `kein_track`   — Inhalt ist gar kein Track-Format (Text, fremdes JSON)
     """
     f = (fehler or "").lower()
-    if art == "no_points" or "keine trackpunkte" in f or "keine track-punkte" in f:
+    if art == "no_points" or "keine trackpunkte" in f or "keine track-punkte" in f \
+            or any(x in f for x in _fehler_fragmente(_GRUND_KEINE_PUNKTE)):
         return "keine_punkte"
-    if "sieht nicht nach" in f or "kein track erkannt" in f:
+    if "sieht nicht nach" in f or "kein track erkannt" in f \
+            or any(x in f for x in _fehler_fragmente(_GRUND_KEIN_TRACK)):
         return "kein_track"
     return ""
+
+
+# 29.09.2026 — Die Import-Meldungen sind seit heute übersetzt (core/imports.py,
+# core/gpx.py). Gespeicherte Fehlertexte können also in jeder App-Sprache
+# vorliegen; `fehler_grund` erkennt sie deshalb an den Übersetzungen ALLER
+# Sprachen wieder (die festen deutschen Bruchstücke oben bleiben für Altbestand).
+_GRUND_KEINE_PUNKTE = ("import.err_keine_punkte", "gpx.err_keine_punkte")
+_GRUND_KEIN_TRACK = ("import.err_kein_nmea", "import.err_kein_geojson")
+_FRAGMENT_CACHE: dict = {}
+
+
+def _fehler_fragmente(keys: tuple) -> tuple:
+    if keys in _FRAGMENT_CACHE:
+        return _FRAGMENT_CACHE[keys]
+    out: set = set()
+    try:
+        for loc in _i18n.available_locales():
+            d = _i18n.load(loc["code"])
+            for k in keys:
+                v = d.get(k)
+                if not isinstance(v, str):
+                    continue
+                for teil in re.split(r"\{\w+\}", v):
+                    teil = teil.strip(" .—-:").lower()
+                    if len(teil) >= 12:
+                        out.add(teil)
+    except Exception:  # noqa: BLE001 — Einordnung ist Komfort, nie ein Absturzgrund
+        pass
+    _FRAGMENT_CACHE[keys] = tuple(out)
+    return _FRAGMENT_CACHE[keys]
 
 
 @_locked

@@ -3,6 +3,7 @@ GPX-Parsing + Stats. Wrapper um gpxpy mit ergonomischen Helfern für UI/Renderer
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import bisect
 import json
 import os
@@ -815,7 +816,7 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
                 pts.append(TrackPoint(lat=p.latitude, lon=p.longitude, ele=p.elevation,
                                       time=t_iso, seg=max(0, seg_no), extra={}))
     if not pts:
-        raise ValueError("GPX enthält keine Trackpunkte")
+        raise ValueError(_i18n.t_aktiv("gpx.err_keine_punkte", "GPX enthält keine Trackpunkte"))
 
     # v0.9.330 — Sensor-Sidecar (Variante B): index-gleiche Zusatzreihen mergen.
     _tour_meta = _load_sidecar_into(pts, path)

@@ -46,9 +46,10 @@
       wrap.hidden = false;
       // Format: "Session-Name · Projekt-Name"
       const sname = session.name || "?";
-      const pname = project.name || "Standard";
+      const pname = window.rzProjektName ? window.rzProjektName(project.name) : (project.name || tT("topbar.project.default_name", "Standard"));
       label.textContent = `${sname} · ${pname}`;
-      label.title = `Session: ${sname}\nAktives Projekt: ${pname}`;
+      label.title = tT("topbar.project.label_title", "Session: {session}\nAktives Projekt: {projekt}")
+        .replace("{session}", sname).replace("{projekt}", pname);
     }
 
     function renderMenu() {
@@ -90,7 +91,7 @@
       }
       const stats = session.stats || {};
       const distKm = stats.distance_m ? (stats.distance_m / 1000).toFixed(1) + " km" : "";
-      const nPts = stats.n_points ? `${stats.n_points} Punkte` : "";
+      const nPts = stats.n_points ? `${stats.n_points} ${tT("gpxinspect.points", "Punkte")}` : "";
       const statInfo = [distKm, nPts].filter(Boolean).join(" · ");
 
       let html = `<div class="topbar-project-menu-section-title">${tT("topbar.project.session_label", "Session")}</div>`;
@@ -102,7 +103,7 @@
         const bullet = p.is_active ? "●" : "○";
         html += `<button type="button" class="topbar-project-menu-item${p.is_active ? " is-active" : ""}" data-action="switch" data-id="${escapeAttr(p.id)}">
                   <span class="item-bullet">${bullet}</span>
-                  <span class="item-name">${escapeHtml(p.name)}</span>
+                  <span class="item-name">${escapeHtml(window.rzProjektName ? window.rzProjektName(p.name) : p.name)}</span>
                  </button>`;
       }
       html += `<div class="topbar-project-menu-sep"></div>`;
@@ -152,7 +153,7 @@
             menu.hidden = true;
             // 11.09.2026: Name + Vorlage in einem Fenster (Vorlage vorbelegt mit ★).
             const wahl = (typeof window.rzNeuesProjektModal === "function")
-              ? await window.rzNeuesProjektModal(suggestName(projects, "Projekt"))
+              ? await window.rzNeuesProjektModal(suggestName(projects, tT("topbar.project.name_base", "Projekt")))
               : null;
             const name = wahl && wahl.name;
             if (name) {
@@ -167,7 +168,7 @@
             const name = await promptModal(
               tT("topbar.project.dup_title", "Projekt duplizieren"),
               tT("topbar.project.dup_msg", "Name für das Duplikat:"),
-              project.name + " (Kopie)",
+              project.name + " " + tT("library.col_copy_suffix", "(Kopie)"),
             );
             if (name) {
               // 25.09.2026 (Klicktest PR-02): „@aktiv" — die Kennung kann hier noch

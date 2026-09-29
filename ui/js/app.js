@@ -189,7 +189,7 @@ function renderMod() {
   const mod = reg[activeMod];
   if (!mod) {
     document.getElementById("main").innerHTML =
-      '<div class="empty-state"><div class="empty-state-title">Kein Modul aktiv</div></div>';
+      `<div class="empty-state"><div class="empty-state-title">${t("app.no_module", "Kein Modul aktiv")}</div></div>`;
     return;
   }
   const m = mod.manifest;
@@ -374,6 +374,32 @@ function _bindMapQuiz() {
 }
 window.rzRightsTableHtml = rzRightsTableHtml;
 window.rzMapQuizHtml = rzMapQuizHtml;
+
+/** Kennungen (`grund`) aus core/bibliothek.py bzw. app.py als Satz in der
+ *  Sprache des Nutzers. Vorher landete z. B. „kein_schreibrecht" roh im Toast. */
+function _bibGrundText(r) {
+  if (!r) return "?";
+  if (r.cloud) {
+    return t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", r.cloud);
+  }
+  const g = r.grund || "";
+  // Doppelstart-Ablehnung bringt ihren (übersetzten) Text schon mit.
+  if ((g === "laeuft_bereits" || g === "umzug_laeuft") && r.error) return r.error;
+  const m = {
+    keine_bibliothek: t("bib.keine_bibliothek_dort", "In diesem Ordner liegt keine GPS-Studio-Bibliothek."),
+    kein_ordner: t("bib.g_kein_ordner", "Das ist kein Ordner."),
+    eltern_fehlt: t("bib.g_eltern_fehlt", "Den übergeordneten Ordner gibt es nicht."),
+    kein_schreibrecht: t("bib.g_kein_schreibrecht", "Dort darf GPS Studio nicht schreiben."),
+    ziel_nicht_leer: t("bib.g_ziel_nicht_leer", "Der Zielordner ist nicht leer."),
+    ziel_in_quelle: t("bib.g_ziel_in_quelle", "Der Zielordner liegt innerhalb der bisherigen Bibliothek."),
+    kopie_unvollstaendig: t("bib.g_kopie_unvollstaendig", "Die Kopie blieb unvollständig — es wurde nichts geändert."),
+    sicherung_fehlt: t("bib.g_sicherung_fehlt", "Diese Sicherung gibt es nicht mehr."),
+    sicherung_unmoeglich: t("bib.g_sicherung_unmoeglich", "Es ließ sich keine Sicherung anlegen — deshalb wurde abgebrochen."),
+    db_unlesbar: t("bib.g_db_unlesbar", "Die kopierte Datenbank war nicht lesbar — der bisherige Bestand bleibt liegen."),
+    nicht_wegraeumbar: t("bib.g_nicht_wegraeumbar", "Der alte Ordner ließ sich nicht wegräumen."),
+  };
+  return m[g] || r.error || g || "?";
+}
 
 async function openSettingsModal(reiter) {
   // 12.09.2026 — Aufruf mit Reiter-Namen ("bibliothek") öffnet den Dialog dort.
@@ -807,7 +833,7 @@ function _bindSettingsModalHandlers() {
             const r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(x.pfad));
             if (r && r.ok) { location.reload(); return; }
             b.disabled = false;
-            toast((r && (r.grund || r.error)) || "?", "warn");
+            toast(_bibGrundText(r), "warn");
           };
         });
       }
@@ -849,7 +875,7 @@ function _bindSettingsModalHandlers() {
           const r2 = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(x.pfad));
           if (r2 && r2.ok) { location.reload(); return; }
           b.disabled = false;
-          toast((r2 && (r2.grund || r2.error)) || "?", "warn");
+          toast(_bibGrundText(r2), "warn");
         };
       });
       liste.querySelectorAll("[data-bibforget]").forEach(b => {
@@ -912,13 +938,11 @@ function _bindSettingsModalHandlers() {
   if (_bibWechseln) _bibWechseln.onclick = async () => {
     const w = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
     if (!w || w.cancelled) return;
-    if (!w.ok) { toast(w.cloud
-      ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
-      : (w.grund || w.error || "?"), "warn"); return; }
+    if (!w.ok) { toast(_bibGrundText(w), "warn"); return; }
     if (!w.vorhanden) { toast(t("bib.keine_bibliothek_dort", "In diesem Ordner liegt keine GPS-Studio-Bibliothek."), "warn", 5000); return; }
     const r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(w.pfad));
     if (r && r.ok) { location.reload(); return; }
-    toast((r && (r.grund || r.error)) || "?", "warn");
+    toast(_bibGrundText(r), "warn");
   };
   // Den Umzugsbericht gibt es nur, wenn wirklich einer stattgefunden hat.
   (async () => {
@@ -937,16 +961,14 @@ function _bindSettingsModalHandlers() {
   if (_bibUmz) _bibUmz.onclick = async () => {
     const w = await api().bibliothek_ordner_waehlen(); // warte-ok: Systemdialog
     if (!w || w.cancelled) return;
-    if (!w.ok) { toast(w.cloud
-      ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
-      : (w.grund || w.error || "?"), "warn"); return; }
+    if (!w.ok) { toast(_bibGrundText(w), "warn"); return; }
     _bibUmz.disabled = true;
     _bibUmz.textContent = t("bib.zieht_um", "Wird verschoben …");
     const r = await rzWarten("bibliothek_umziehen", () => api().bibliothek_umziehen(w.pfad)).catch((e) => ({ ok: false, error: String(e) }));
     if (r && r.ok) { location.reload(); return; }
     _bibUmz.disabled = false;
     _bibUmz.textContent = t("bib.umziehen", "An anderen Ort verschieben …");
-    toast((r && ((/laeuft/.test(r.grund || "") && r.error) || r.grund || r.error)) || "?", "warn");
+    toast(_bibGrundText(r), "warn");
   };
 
   const _cloudBtn = document.getElementById("md-cloud");
@@ -1012,7 +1034,7 @@ function _bindSettingsModalHandlers() {
     if (r && r.ok) {
       const sz = document.getElementById("md-tc-size"); if (sz) sz.textContent = t("settings.tilecache.size", "{mb} MB belegt").replace("{mb}", "0");
       toast(t("settings.tilecache.cleared", "Kachel-Zwischenspeicher geleert"), "success");
-    } else toast((r && r.error) || "Fehler", "error");
+    } else toast((r && r.error) || t("common.error", "Fehler"), "error");
   });
   document.getElementById("md-ok-set").onclick = async () => {
     const newLang = document.getElementById("md-lang").value;
@@ -1359,19 +1381,19 @@ async function openAboutModal() {
         <ul style="margin:6px 0 0 18px; padding:0; font-size:11px;">
           <li>
             <a href="#" class="md-about-link" data-url="https://ffmpeg.org/">FFmpeg</a>
-            — LGPLv2.1+ / GPLv2+ (libx264/libx265 sind GPL-Komponenten)
+            — LGPLv2.1+ / GPLv2+ (${t("about.credits.ffmpeg_gpl", "libx264/libx265 sind GPL-Komponenten")})
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://www.mapbox.com/legal/tos">Mapbox GL JS</a>
-            — Mapbox Terms of Service (gebündelt)
+            — Mapbox Terms of Service (${t("about.credits.bundled", "gebündelt")})
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://maplibre.org/">MapLibre GL JS</a>
-            — BSD-3-Clause (Karten ohne Mapbox-Token, gebündelt)
+            — BSD-3-Clause (${t("about.credits.maplibre", "Karten ohne Mapbox-Token, gebündelt")})
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
-            — BSD-2-Clause (Web-Karten-Export, gebündelt)
+            — BSD-2-Clause (${t("about.credits.leaflet", "Web-Karten-Export, gebündelt")})
           </li>
           <!-- 03.09.2026 — Kartenanbieter zur Auswahl: Datenquellen mit Lizenz -->
           <li>
@@ -1379,15 +1401,15 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://openfreemap.org/">OpenFreeMap</a> — MIT ·
             <a href="#" class="md-about-link" data-url="https://openmaptiles.org/">OpenMapTiles</a> — BSD-3 / CC BY 4.0 ·
             <a href="#" class="md-about-link" data-url="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — ODbL ·
-            <a href="#" class="md-about-link" data-url="https://www.maptiler.com/copyright/">MapTiler</a> — MapTiler Cloud Terms (eigener Schlüssel) ·
-            <a href="#" class="md-about-link" data-url="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> — Mapzen/Tilezen (SRTM, EU-DEM, 3DEP u.&nbsp;a.) ·
+            <a href="#" class="md-about-link" data-url="https://www.maptiler.com/copyright/">MapTiler</a> — MapTiler Cloud Terms (${t("about.credits.own_key", "eigener Schlüssel")}) ·
+            <a href="#" class="md-about-link" data-url="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> — Mapzen/Tilezen (SRTM, EU-DEM, 3DEP ${t("about.credits.etc", "u. a.")}) ·
             ${t("about.credits.orthos", "staatliche Orthofotos der Landesvermessungen (dl-de/by-2-0, CC BY 4.0 u. a.; Nennung im Bild)")}
           </li>
           <!-- 07.09.2026 — Routing und Ortssuche ohne Token (OpenStreetMap-Dienste) -->
           <li>
             ${t("about.credits.routing", "Routen, Wege-Snapping und Ortssuche")}:
-            <a href="#" class="md-about-link" data-url="https://project-osrm.org/">OSRM</a> — BSD-2-Clause (Demo-Server, Auto) ·
-            <a href="#" class="md-about-link" data-url="https://valhalla.openstreetmap.de/">Valhalla</a> — MIT (FOSSGIS e.&nbsp;V., Fuß/Rad/Auto) ·
+            <a href="#" class="md-about-link" data-url="https://project-osrm.org/">OSRM</a> — BSD-2-Clause (${t("about.credits.osrm", "Demo-Server, Auto")}) ·
+            <a href="#" class="md-about-link" data-url="https://valhalla.openstreetmap.de/">Valhalla</a> — MIT (FOSSGIS e.&nbsp;V., ${t("about.credits.valhalla", "Fuß/Rad/Auto")}) ·
             <a href="#" class="md-about-link" data-url="https://photon.komoot.io/">Photon</a> — Apache-2.0 (Komoot) ·
             <a href="#" class="md-about-link" data-url="https://nominatim.org/">Nominatim</a> — GPL-2.0 · ${t("about.credits.routing_data", "Daten: OpenStreetMap-Mitwirkende (ODbL)")}
           </li>
@@ -1398,17 +1420,17 @@ async function openAboutModal() {
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://playwright.dev/">Playwright</a> — Apache-2.0 ·
-            <a href="#" class="md-about-link" data-url="https://www.chromium.org/">Chromium</a> — BSD-3-Clause (Render-Engine, gebündelt auf macOS + Windows)
+            <a href="#" class="md-about-link" data-url="https://www.chromium.org/">Chromium</a> — BSD-3-Clause (${t("about.credits.chromium", "Render-Engine, gebündelt auf macOS + Windows")})
           </li>
           <li>
-            <a href="#" class="md-about-link" data-url="https://exiftool.org/">ExifTool</a> — Artistic License (gebündelt auf macOS + Windows)
+            <a href="#" class="md-about-link" data-url="https://exiftool.org/">ExifTool</a> — Artistic License (${t("about.credits.bundled_mac_win", "gebündelt auf macOS + Windows")})
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://github.com/bigcat88/pillow_heif">pillow-heif</a> — BSD-3-Clause ·
             <a href="#" class="md-about-link" data-url="https://github.com/strukturag/libheif">libheif</a> — LGPL v3
           </li>
           <li>
-            <a href="#" class="md-about-link" data-url="https://github.com/polyvertex/fitdecode">fitdecode</a> — MIT (FIT-Import: Garmin/Wahoo)
+            <a href="#" class="md-about-link" data-url="https://github.com/polyvertex/fitdecode">fitdecode</a> — MIT (${t("about.credits.fitdecode", "FIT-Import: Garmin/Wahoo")})
           </li>
         </ul>
       </div>

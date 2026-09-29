@@ -31,6 +31,7 @@ durch `_run`, das der Prüfstand austauschen kann.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import hashlib
 import json
 import os
@@ -337,7 +338,7 @@ class Updater:
                 erwartetes_team: str = "") -> dict:
         with self._lock:
             if self._thread and self._thread.is_alive():
-                return {"ok": False, "error": "Ein Update läuft bereits"}
+                return {"ok": False, "error": _i18n.t_aktiv("update.err.laeuft", "Ein Update läuft bereits")}
             self.st = {"phase": "laden", "version": paket["version"], "bytes": 0, "total": paket["size"]}
         self._abbruch = False
 
@@ -374,7 +375,7 @@ class Updater:
         """Helfer/Installer abgekoppelt starten. Danach muss die App sich beenden."""
         st = self.status()
         if st.get("phase") != "bereit":
-            return {"ok": False, "error": "Kein Update bereit"}
+            return {"ok": False, "error": _i18n.t_aktiv("update.err.nicht_bereit", "Kein Update bereit")}
         if st.get("art") == "bundle":
             skript = self.ordner / "update-helfer.sh"
             skript.write_text(helfer_skript(pid, self.bundle, Path(st["stage"]), self.aktuell, logdatei,
@@ -387,7 +388,7 @@ class Updater:
         if st.get("art") == "installer":
             exe = st.get("installer")
             if not exe or not Path(exe).is_file():
-                return {"ok": False, "error": "Installer fehlt"}
+                return {"ok": False, "error": _i18n.t_aktiv("update.err.installer_fehlt", "Installer fehlt")}
             flags = 0x00000008 | 0x00000200   # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
             subprocess.Popen([exe], close_fds=True, creationflags=flags)
             self.log(f"Installer gestartet ({exe})")
