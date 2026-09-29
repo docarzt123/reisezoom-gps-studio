@@ -301,7 +301,7 @@ function rzQuellenRegisterHtml() {
   const rows = q.map(x => `<tr>
     <td>${link(x.dataset_url, x.provider)}<br><small class="muted">${esc(x.dataset)}</small></td>
     <td>${link(x.license_url, x.license)}</td>
-    <td title="${esc(x.notes)}">${ico(x.commercial_video)} ${stTxt(x.commercial_video)}${x.render_server && x.render_server !== "ok" ? `<br><small>⚠️ ${srvTxt(x.render_server)}</small>` : ""}</td>
+    <td title="${esc(t("kq." + x.id + ".notes", x.notes || ""))}">${ico(x.commercial_video)} ${stTxt(x.commercial_video)}${x.render_server && x.render_server !== "ok" ? `<br><small>⚠️ ${srvTxt(x.render_server)}</small>` : ""}</td>
     <td><small>${esc(x.onscreen_credit)}</small></td>
     <td>${dt(x.checked_at)}</td></tr>`).join("");
   const faellig = (pr.faellig || []);

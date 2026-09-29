@@ -16,6 +16,8 @@ PRÜFPFLICHT: Jeder Eintrag trägt `checked_at`. Ist ein Eintrag älter als
 PRUEF_INTERVALL_TAGE, schlägt tests/test_kartenquellen.py fehl (die Release-Suite
 wird rot) und die App zeigt in der Rechte-Tabelle einen Hinweis. Bei der Prüfung:
 Quelle nachlesen, Felder anpassen, `checked_at` setzen.
+Ändert sich dabei `notes`, auch die Übersetzungen `kq.<id>.notes` in i18n/de|en|es.json
+nachziehen (29.09.2026; tests/test_kartenquellen.py prüft, dass de.json = notes ist).
 
 Diese Datei wird aus den Recherche-JSONs erzeugt (scratch register/gen_modul.py),
 darf aber auch von Hand gepflegt werden — Einträge sind gewöhnliche Dicts.
