@@ -223,10 +223,10 @@ sonst sehen zwei Versionen derselben Tour gleich aus.
 
 Dieses Kapitel ist für den allerersten Tag gedacht. Es geht einmal geradeaus durch —
 installieren, Track laden, erstes Bild, erstes Video. Alles andere in diesem Handbuch ist
-Nachschlagewerk; hier steht nur, was Sie wirklich brauchen.
+Nachschlagewerk; hier steht nur, was du wirklich brauchst.
 
-Entstanden ist der Leitfaden aus echten Fragen von Einsteigern. Wenn Sie an einer Stelle
-hängen, merken Sie sich die **Schrittnummer** — damit lässt sich am schnellsten helfen.
+Entstanden ist der Leitfaden aus echten Fragen von Einsteigern. Wenn du an einer Stelle
+hängst, merk dir die **Schrittnummer** — damit lässt sich am schnellsten helfen.
 
 ### Schritt 1 — Programm installieren und öffnen
 
@@ -239,11 +239,11 @@ die ausführliche Anleitung steht in Kapitel 1.
 - **Windows:** Setup starten, SmartScreen mit **„Weitere Informationen" → „Trotzdem
   ausführen"** bestätigen, durchklicken.
 
-Beim ersten Start werden Sie gefragt, ob Sie mit oder ohne Mapbox-Zugang arbeiten wollen.
+Beim ersten Start wirst du gefragt, ob du mit oder ohne Mapbox-Zugang arbeiten willst.
 
 ### Schritt 2 — Die Frage nach dem Mapbox-Token
 
-Das ist die einzige Hürde am Anfang, und sie entscheidet, was Sie machen können:
+Das ist die einzige Hürde am Anfang, und sie entscheidet, was du machen kannst:
 
 | | ohne Token | mit Token (kostenlos) |
 |---|---|---|
@@ -252,55 +252,55 @@ Das ist die einzige Hürde am Anfang, und sie entscheidet, was Sie machen könne
 | Tour-Karte als Bild | ✅ (Standard-Karte) | ✅ (auch Satellit & 3D) |
 | **Video mit dem Animator** | ❌ | ✅ |
 
-**Wenn Sie ein Video wollen, brauchen Sie den Token.** Er ist kostenlos, dauert zwei Minuten
+**Wenn du ein Video willst, brauchst du den Token.** Er ist kostenlos, dauert zwei Minuten
 und die Anleitung steht in Kapitel 2. Ohne ihn meldet sich der Animator später mit
 „Render braucht Mapbox-Token" — das ist keine Fehlfunktion, sondern genau diese fehlende
 Angabe.
 
-Nachtragen können Sie ihn jederzeit: **⚙ oben rechts** (macOS auch über Menü → Einstellungen).
+Nachtragen kannst du ihn jederzeit: **⚙ oben rechts** (macOS auch über Menü → Einstellungen).
 
 ### Schritt 3 — Track laden
 
 Oben sitzt die Track-Leiste. Zwei Wege:
 
-1. Auf **„📁 Track-Datei auswählen …"** klicken und Ihre Datei wählen, **oder**
+1. Auf **„📁 Track-Datei auswählen …"** klicken und deine Datei wählen, **oder**
 2. die Datei einfach in das Fenster ziehen.
 
 Es müssen keine GPX-Dateien sein — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON und NMEA werden
 ebenso gelesen und im Hintergrund umgewandelt.
 
 Danach steht oben der Name der Tour mit Strecke, Dauer und Höhenmetern. **Der geladene Track
-gilt für alle Module** — Sie laden ihn einmal und wechseln dann frei zwischen den Werkzeugen.
+gilt für alle Module** — du lädst ihn einmal und wechselst dann frei zwischen den Werkzeugen.
 
-> **Viele Dateien statt einer?** Wenn Sie eine Reise als Tagesdateien vorliegen haben, machen
-> Sie zuerst Schritt 7 — daraus wird eine einzige Tour.
+> **Viele Dateien statt einer?** Wenn du eine Reise als Tagesdateien vorliegen hast, mach
+> zuerst Schritt 7 — daraus wird eine einzige Tour.
 
 ### Schritt 4 — Welches Modul ist das richtige?
 
-Oben in der Leiste stehen die Werkzeuge. Was Sie vorhaben, entscheidet:
+Oben in der Leiste stehen die Werkzeuge. Was du vorhast, entscheidet:
 
-| Sie wollen … | Modul |
+| Du willst … | Modul |
 |---|---|
 | ein **Bild** der Tour für Blog, Fotobuch oder Ausdruck | **Tour-Map** |
 | ein **Video**, in dem die Strecke nachgezeichnet wird | **Animator** |
 | **Fotos** mit den Koordinaten der Tour versehen | **Geotagger** |
 | einen Track **reparieren** oder mehrere **verbinden** | **GPX-Inspektor** |
-| einen Überblick über **alle** Ihre Touren | **Archiv** |
+| einen Überblick über **alle** deine Touren | **Archiv** |
 | Puls, Höhe, Tempo als **Diagramm-Video** | **Daten-Animator** |
 
-Fangen Sie mit der **Tour-Map** an. Sie ist in zwei Minuten fertig, und Sie sehen sofort, ob
-Ihr Track vollständig ist.
+Fang mit der **Tour-Map** an. Sie ist in zwei Minuten fertig, und du siehst sofort, ob
+dein Track vollständig ist.
 
 ### Schritt 5 — Erstes Ergebnis: die Tour-Karte
 
 1. Oben auf **„Tour-Map"** klicken.
-2. Kurz warten, bis die Karte aufgebaut ist — Ihre Strecke liegt darauf.
+2. Kurz warten, bis die Karte aufgebaut ist — deine Strecke liegt darauf.
 3. Links **„🗺️ Karte"** → **„Stil"**: Satellit sieht in Bergen gut aus, die Standard-Karte
    ist bei Städten besser lesbar.
 4. Unten links auf **„🗺 Karte als PNG rendern"**, Speicherort und Namen wählen.
-5. Nach ein paar Sekunden liegt das PNG bereit — **„Im Finder zeigen"** führt Sie hin.
+5. Nach ein paar Sekunden liegt das PNG bereit — **„Im Finder zeigen"** führt dich hin.
 
-Sind alle Tage Ihrer Reise auf dem Bild? Dann stimmt der Track, und Sie können weiter zum
+Sind alle Tage deiner Reise auf dem Bild? Dann stimmt der Track, und du kannst weiter zum
 Video.
 
 ### Schritt 6 — Das erste Video mit dem Animator
@@ -310,7 +310,7 @@ Vier Schritte, mehr braucht es beim ersten Mal nicht.
 1. Oben auf **„Animator"** klicken und warten, bis die Karte steht.
 2. Links unter **„🎬 Video-Einstellungen"** bei **„Animation (s)"** eintragen, wie lang das
    Video werden soll. Für eine Tagestour reichen 20 Sekunden, für eine Zwei-Wochen-Reise
-   nehmen Sie **40 bis 60** — sonst rast die Linie durchs Bild. Alternativ stellen Sie
+   nimm **40 bis 60** — sonst rast die Linie durchs Bild. Alternativ stellst du
    darunter auf **„Echtzeit ÷ Faktor"** um: Die Animation bekommt einen echten
    Zeitbezug — eine 6-Stunden-Tour ÷ 100 läuft 3:39 Minuten, die Rechnung steht
    live daneben. Braucht Zeitstempel im Track; ohne bleibt der Modus grau.
@@ -318,11 +318,11 @@ Vier Schritte, mehr braucht es beim ersten Mal nicht.
    Fotobuch-Video; 4K sieht kaum besser aus und dauert beim Berechnen ein Vielfaches.
 4. Unter der Karte auf **„▶ Probe-Lauf"**. Das Programm fliegt die Strecke einmal ab, so wie
    es später im Video aussieht — **ohne** dass etwas berechnet wird. Passt das Tempo nicht,
-   ändern Sie die Zahl aus Schritt 2 und lassen es noch einmal laufen. Das kostet nichts.
+   änderst du die Zahl aus Schritt 2 und lässt es noch einmal laufen. Das kostet nichts.
 5. Erst wenn es gefällt: **„▶ Video rendern"** (ganz unten in derselben Sektion), Speicherort
    und Namen wählen.
-6. Jetzt rechnet das Programm, der Fortschritt läuft mit. Das dauert **einige Minuten** — Sie
-   können den Rechner weiter benutzen, nur die App sollte offen bleiben.
+6. Jetzt rechnet das Programm, der Fortschritt läuft mit. Das dauert **einige Minuten** — du
+   kannst den Rechner weiter benutzen, nur die App sollte offen bleiben.
 7. Am Ende erscheinen **„▶ Abspielen"** und **„Im Finder zeigen"**.
 
 Alles andere — Kartenstil, Neigung, Track-Farbe, die eingeblendeten Zahlen, Schilder,
@@ -334,40 +334,40 @@ Keyframes — ist Feinschliff für später. Kapitel 3 erklärt es in Ruhe.
 ### Die Tempo-Spur — anhalten und langsamer werden
 
 Unter der Karte liegt eine schmale Spur mit der Aufschrift **⏱ Tempo**. Der Gedanke
-dahinter ist einfach: **Ihr Video ist eine Beschleunigung Ihrer Tour.** Eine
+dahinter ist einfach: **Dein Video ist eine Beschleunigung deiner Tour.** Eine
 Grundraffung sagt, wie stark — „140-fach gegenüber echt", oder bei Touren ohne
 Zeitstempel „so viele Kilometer je Videosekunde". Wie lang das Video wird, ergibt
-sich daraus. Die Zeile direkt unter der Spur sagt es Ihnen laufend: die Raffung, die
+sich daraus. Die Zeile direkt unter der Spur sagt es dir laufend: die Raffung, die
 Gesamtlänge, und wie viel davon Strecke und wie viel Stillstand ist.
 
 Die Spur liegt **über** den Keyframe-Spuren und ist **lückenlos gekachelt** — wie der
 Tempo-Editor in Final Cut über dem Clip. Jede Kachel sagt, was dort gilt und wie lange
-es dauert: „1,0× 6,0 s" für die Grundraffung, „⏸ 4,0 s" für einen Halt. So sehen Sie auf
+es dauert: „1,0× 6,0 s" für die Grundraffung, „⏸ 4,0 s" für einen Halt. So siehst du auf
 einen Blick, was wo liegt.
 
-In die Spur legen Sie zwei Dinge:
+In die Spur legst du zwei Dinge:
 
 - **Halt** — **Doppelklick auf freie Fläche** (oder Rechtsklick → „Halt hier"). Die
   Strecke bleibt an dieser Stelle stehen, das Video läuft weiter. Ein Halt **verlängert** das Video um seine Sekunden. Im Editor (Doppelklick)
-  stellen Sie ein, wie lange gehalten wird und was die Kamera dabei macht: still stehen
-  (dann gelten Ihre Keyframes) oder sich langsam um die Stelle drehen.
+  stellst du ein, wie lange gehalten wird und was die Kamera dabei macht: still stehen
+  (dann gelten deine Keyframes) oder sich langsam um die Stelle drehen.
 - **Abschnitt** — von links nach rechts ziehen. Dieser Teil der Strecke läuft mit einem
   eigenen Faktor gegen die Grundraffung. **0,5× heißt halb so schnell** — und braucht
   darum doppelt so viel Videozeit.
 
 Ein **einfacher Klick** legt nichts an, er setzt nur den Scrubber — so entstehen keine
-Pausen aus Versehen. Einen Halt ziehen Sie an seinen **Rändern** länger und kürzer; die
+Pausen aus Versehen. Einen Halt ziehst du an seinen **Rändern** länger und kürzer; die
 Kachel wächst dabei sofort mit, und die Zeile unter der Spur zeigt laufend die Sekunden.
 **Rechtsklick** öffnet ein kleines Menü: auf einem Eintrag **Öffnen** und **Löschen**, auf
 freier Fläche **Halt hier** oder **langsamer Abschnitt hier**.
 
 **Jeder Eintrag ist so breit gezeichnet, wie er im Video dauert.** Ein Halt von fünf
-Sekunden ist in einem 22-Sekunden-Video knapp ein Viertel der Leiste — Sie sehen also
+Sekunden ist in einem 22-Sekunden-Video knapp ein Viertel der Leiste — du siehst also
 direkt, wie viel Zeit er kostet. Schraffierte, gestrichelte Bänder stammen aus anderen
 Einstellungen und lassen sich hier nicht anfassen: **Anlauf** und **Nachlauf** aus den
 Video-Einstellungen, bei einer Reise zusätzlich die **Übergänge** zwischen den Etappen.
 
-Tragen Sie umgekehrt bei **„Animation (s)"** eine Wunschlänge ein, rechnet das Programm
+Trägst du umgekehrt bei **„Animation (s)"** eine Wunschlänge ein, rechnet das Programm
 die Grundraffung passend zurück — Halte eingeschlossen. „Mach 20 Sekunden daraus"
 ergibt also wirklich 20 Sekunden.
 
@@ -392,7 +392,7 @@ und darunter ihre Bedienung:
 > eine Gruppe am Ende der Kette; zieh sie in der Zeitleiste an eine andere Stelle.
 
 - **Dauer** — leer (**aut**) heißt: Diese Etappe bekommt ihren Anteil an der
-  Animationsdauer nach Umfang. Tragen Sie eine Zahl ein, bekommt sie genau diese
+  Animationsdauer nach Umfang. Trägst du eine Zahl ein, bekommt sie genau diese
   Sekunden, und der Rest teilt sich den verbleibenden Rest.
 - **Name** — anklicken, tippen, Enter: die Etappe heißt fortan so. Die Datei auf der
   Festplatte bleibt unangetastet, der Name gehört zum Projekt.
@@ -421,7 +421,7 @@ und darunter ihre Bedienung:
   heißt „die gemeinsame Kinoflug-Dauer ganz unten".
 
 In der **Tempo-Spur** über der Zeitleiste bekommt jede Etappe ihre eigene Kachel mit
-ihrem Namen und ihrer Farbe — dort sehen Sie, welche Etappe an welcher Stelle des Videos
+ihrem Namen und ihrer Farbe — dort siehst du, welche Etappe an welcher Stelle des Videos
 läuft und wie lange sie dauert.
 
 **Die Übergänge kommen zur Animationsdauer dazu.** Unter der Liste steht deshalb, wie
@@ -445,14 +445,14 @@ nur darin, wo ihre Halte liegen.
 Alles lässt sich mit der Maus machen:
 
 - **Kachel ziehen** — die Gruppe wandert in der Zeit. Landet sie über einer anderen, laufen
-  beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo Sie sie hingelegt haben.
+  beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo du sie hingelegt hast.
 - **Übergang anfassen** — das Band zwischen zwei Gruppen lässt sich **ziehen** (Dauer des
-  Übergangs) und **anklicken**: dann wählen Sie Kinoflug, Luftlinie, Pause oder Schnitt direkt in der
+  Übergangs) und **anklicken**: dann wählst du Kinoflug, Luftlinie, Pause oder Schnitt direkt in der
   Zeitleiste. Auch der Halt vor der ersten Gruppe lässt sich ziehen.
 - **Ränder ziehen** — die Gruppe wird länger oder kürzer; gespeichert wird der **Faktor**
   (0,5× = halb so schnell, doppelte Zeit). Die folgenden Gruppen rücken nach.
-- **Nach oben oder unten ziehen** — wie Spuren im Schnittprogramm: Die Zeile, über der Sie
-  loslassen, leuchtet auf, und die Gruppe rutscht hinein. Zeile 1 ist die **Reihe**: dort läuft
+- **Nach oben oder unten ziehen** — wie Spuren im Schnittprogramm: Die Zeile, über der du
+  loslässt, leuchtet auf, und die Gruppe rutscht hinein. Zeile 1 ist die **Reihe**: dort läuft
   sie nach der Gruppe, die vor ihr beginnt, mit Übergang. Eine andere Zeile: sie bleibt an
   ihrer Zeit und läuft parallel; liegt dort schon etwas im Weg, rutscht sie dahinter. Über die
   oberste oder unter die unterste Zeile hinaus: eine **eigene Spur**. „In die Reihe" und
@@ -470,9 +470,9 @@ Alles lässt sich mit der Maus machen:
 - **Anordnen** über der Liste rechnet einmal alles durch: **⏭ nacheinander**, **∥ alle ab 0**,
   **🏁 gleichzeitig im Ziel** (jede Gruppe bekommt den Faktor, mit dem sie zusammen mit den
   anderen ankommt) und **🕐 echte Uhrzeit** (Dauer und Start wie aufgezeichnet). Danach ist es
-  eine gewöhnliche Anordnung, die Sie weiterschieben können.
+  eine gewöhnliche Anordnung, die du weiterschieben kannst.
 
-Ein Projekt, das Sie nur öffnen und ansehen, bleibt unverändert; erst eine Änderung
+Ein Projekt, das du nur öffnest und ansiehst, bleibt unverändert; erst eine Änderung
 schreibt die Gruppen hinein. Alte Etappen- und Schwarm-Projekte sehen nach dem Öffnen aus
 wie vorher — der Schwarm ist jetzt einfach eine Gruppe mit mehreren Touren.
 
@@ -550,11 +550,11 @@ Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Ge
 7. Unten auf **„Geheilten Track speichern …"** und die Gesamttour als neue Datei ablegen,
    z. B. `Suedschweden-2026-gesamt.gpx`.
 
-Diese Gesamtdatei laden Sie dann oben in der Leiste — und machen mit Schritt 4 weiter.
+Diese Gesamtdatei lädst du dann oben in der Leiste — und machst mit Schritt 4 weiter.
 
-> **Zu den Lücken zwischen den Tagen:** Sie haben nachts nicht aufgezeichnet, also fehlt dort
+> **Zu den Lücken zwischen den Tagen:** Du hast nachts nicht aufgezeichnet, also fehlt dort
 > ein Stück. Das Programm zieht dort **bewusst keine Linie** und rechnet die Lücke auch nicht
-> als gefahrene Strecke mit. Ihre Gesamtkilometer stimmen also, und es gibt keine falschen
+> als gefahrene Strecke mit. Deine Gesamtkilometer stimmen also, und es gibt keine falschen
 > geraden Striche quer über die Karte. Im Video springt die Kamera an diesen Stellen weiter —
 > das wirkt wie ein Szenenwechsel und ist so gewollt.
 
@@ -565,8 +565,8 @@ Diese Gesamtdatei laden Sie dann oben in der Leiste — und machen mit Schritt 4
   App unter Windows einmalig Chromium nach (~150 MB).
 - **Video ist zu schnell** → „Animation (s)" erhöhen, Probe-Lauf wiederholen.
 - **Ein Tag fehlt in der Gesamttour** → in Schritt 7 wurde eine Datei nicht angehängt; im
-  Inspektor sehen Sie in der Punkteliste, wo die Tour endet.
-- **Sonst:** **Hilfe → Fehler melden** in der App. Dort können Sie das Protokoll mit einem
+  Inspektor siehst du in der Punkteliste, wo die Tour endet.
+- **Sonst:** **Hilfe → Fehler melden** in der App. Dort kannst du das Protokoll mit einem
   Klick auf den Schreibtisch legen und mitschicken — das erspart viel Rätselraten.
 
 

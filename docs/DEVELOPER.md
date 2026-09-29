@@ -900,7 +900,8 @@ Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 - **Ins Video/Export Gezeichnetes** (Etappennamen, Quellenzeile, Web-Karten-Export, Daten-Animator-Export) geht über denselben Übersetzer — Vorschau und Video lauten gleich.
 - **Gespeicherte Merker bleiben deutsch:** Standard-Projekt heißt im Speicher „Standard" (core/projekte.py erkennt es daran), gezeigt wird `rzProjektName(name)`. Ähnlich `fotos.FEHLTEXT_KEINE_DATEN`, `zeitzone.LAND_ZONE`.
 - **Prüfen:** `scripts/check_i18n.py` (Schlüssel de/en/es deckungsgleich), `scripts/check_hartkodierte_sprache.py`, `tests/test_keine_hartkodierte_sprache.py`. Grober Volltext-Scan (viele Fehlalarme, zum Durchsehen): Literale mit deutschen Wörtern außerhalb von `t()` — siehe CHANGELOG 0.9.737.
-- **Offen:** Quellen-Register `core/kartenquellen.py` (≈ 46 deutsche Rechts-/Lizenztexte, roh angezeigt), macOS-Dateityp-Name im Info.plist, Installer-Anzeigename.
+- **Quellen-Register:** die Anmerkungen (`notes`) stehen übersetzt als `kq.<id>.notes` (app.js `rzQuellenRegisterHtml`). Anbieter, Datensatz, Lizenz und Nennformel bleiben im Original (amtliche Bezeichnung bzw. vorgeschriebene Nennung). `tests/test_kartenquellen.py` schlägt fehl, wenn `notes` geändert wird, ohne de/en/es nachzuziehen.
+- **Offen:** macOS-Dateityp-Name im Info.plist, Installer-Anzeigename.
 
 ### „Ganz zeigen": Touren als Kulisse statt Ghost-Spuren (seit 28.09.2026, IDEAS §72) ⚠️ PFLICHTLEKTÜRE
 

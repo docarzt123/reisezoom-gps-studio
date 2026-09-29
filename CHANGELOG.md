@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.738** (29.09.2026, built locally): source register notes in three languages; German beginner chapter uses "du".
+
+### Changed
+- **Map source register: notes translated** (Marc: "yes, do it"). The 46 explanatory notes (our reading of licence and service terms, shown as tooltip in the register) are now in English and Spanish (`kq.<id>.notes`). Provider, dataset, licence and the prescribed attribution formula stay in the original on purpose. `tests/test_kartenquellen.py` fails if a German note changes without the translations.
+- **German user guide, chapter "Erste Schritte"**: switched from "Sie" to "du" like the rest of the guide (Marc).
+
 > **0.9.737** (29.09.2026, built locally): the whole app checked for German/English/Spanish (Marc: "go through the whole tool and check that everything is in three languages").
 
 ### Fixed
