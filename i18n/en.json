@@ -4633,5 +4633,7 @@
   "animator.spur_glatt": "Smooth track",
   "animator.spur_glatt.hint": "Removes GPS jitter and small zigzags from the track, so the line, arrow and camera run more calmly. The value is the distance over which it is smoothed — 0 = original track.",
   "animator.field.follow_glatt": "Smooth camera path",
-  "animator.field.follow_glatt_tip": "0 = camera exactly above the point; higher = it looks at a smoothed path and doesn't swing with every bend"
+  "animator.field.follow_glatt_tip": "0 = camera exactly above the point; higher = it looks at a smoothed path and doesn't swing with every bend",
+  "szene.vorwaermen_n": "Scene: prewarming tiles {i} of {n} …",
+  "menu.reveal_log": "Show Log File in Finder"
 }

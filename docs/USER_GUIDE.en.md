@@ -1962,6 +1962,8 @@ During the render you see the frame currently being produced in the preview wind
 ### Preview = video (since v0.9.658) ⭐
 Since v0.9.658 the finished video is literally the preview in high resolution: the same map, the same lines, dashes, signs, overlays and the same camera path, just drawn at the video's pixel density. What you see in the test run is what you get — line widths and sign sizes in the video are exactly as large **relative to the frame width** as in the preview. Tip: judge the preview at the window size you render with; a much wider window shows (and renders) the signs a little smaller in relation to the picture.
 
+**Prewarming tiles (faster since v0.9.742):** before the first frame the render loads the map tiles along the camera path — first coarsely across the whole video, then finer. It takes at most 45 seconds and shows its progress as "prewarming tiles 12 of 120". When you render the same place again most of it is already cached and it continues after a few seconds. Measured with an empty cache (20 s portrait video): prewarming 45 s instead of 104 s, whole render 185 s instead of 226 s.
+
 With the swarm on 3D terrain, the lines now run just above the terrain in the preview too (no more flickering on ridges) — just like in the video.
 
 Should a render with the new method ever fail to finish, there is a fallback to the previous generator: add `"render_engine": "klassisch"` to `settings.json` (or start the app with `RZ_RENDER_KLASSISCH=1`). Alpha export (transparent background) and the Tour-Map still image still use the previous method anyway.
@@ -2767,6 +2769,7 @@ Clicking **?** at the top right (or the macOS **Help** menu) opens a modal with 
 2. **🔑 Set up a Mapbox token** — the step-by-step guide
 3. **📧 Feedback / bug report to Marc** — see below
 4. **📋 Open log file** — for technical diagnosis on errors
+   The macOS **Help** menu also has **"Show Log File in Finder"** (since v0.9.742) — handy to copy or send the file.
 5. **ℹ About the app** — version, paths, credits
 
 ### Send bug reports to Marc

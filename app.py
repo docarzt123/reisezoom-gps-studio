@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.741"
+APP_VERSION = "0.9.742"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -15357,6 +15357,7 @@ def main() -> None:
         def _open_quickstart_from_menu(): _trigger_js("window.openQuickstart && window.openQuickstart()")
         def _open_user_guide_from_menu(): _trigger_js("window.pywebview && window.pywebview.api.open_user_guide()")
         def _open_log_from_menu():        _trigger_js("window.pywebview && window.pywebview.api.open_log()")
+        def _reveal_log_from_menu():      _trigger_js("window.pywebview && window.pywebview.api.reveal_log_in_finder()")   # 29.09.2026 (Marc)
         def _reset_from_menu(grund: str = "Menü Hilfe"):
             # 10.09.2026 — nativer Dialog, nicht unsere Oberfläche: beim Tester nahm die
             # keine Klicks an, das Menü oben aber schon. Danach Neustart frisch im Archiv.
@@ -15410,6 +15411,7 @@ def main() -> None:
         _menu_reset = _strings.get("menu.reset", "Einstellungen zurücksetzen und neu starten …")
         _menu_user_guide = _strings.get("menu.user_guide", "User Guide")
         _menu_log        = _strings.get("menu.open_log", "Open Log File")
+        _menu_log_finder = _strings.get("menu.reveal_log", "Show Log File in Finder")
         _menu_about      = _strings.get("menu.about", "About Reisezoom GPS Studio")
         _menu_updates    = _strings.get("menu.check_updates", "Check for Updates …")   # 27.09.2026
         _menu_mapbox     = _strings.get("menu.mapbox_help", "Mapbox Token Help")
@@ -15452,6 +15454,7 @@ def main() -> None:
                 MenuAction(_menu_mapbox, _open_mapbox_help_from_menu),
                 MenuAction(_menu_feedback, _open_feedback_from_menu),
                 MenuAction(_menu_log, _open_log_from_menu),
+                MenuAction(_menu_log_finder, _reveal_log_from_menu),
                 MenuAction(_menu_reset, _reset_from_menu),
                 MenuSeparator(),
                 MenuAction(_menu_support, _open_support_from_menu),

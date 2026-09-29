@@ -152,6 +152,32 @@ _WARTE_BILD_JS = """async () => {
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 60)));
   return performance.now() - t0;
 }"""
+# 29.09.2026 — Vorwärmen: kürzere Wartegrenze je Halt (sonst bis 5 s × 200 Halte bei kaltem Speicher/langsamer Leitung)
+_WARTE_VORWAERMEN_JS = _WARTE_BILD_JS.replace("setTimeout(on, 5000)", "setTimeout(on, 2500)")
+
+
+def _grob_nach_fein(n: int) -> list:
+    """Halte-Reihenfolge fürs Vorwärmen: erst Anfang/Ende, dann Mitte, Viertel, Achtel …
+    (29.09.2026). Jeder Anfang der Liste deckt das ganze Video grob ab — ein früher Abbruch
+    oder das Zeitbudget lassen so keine späten Abschnitte kalt. Vorher liefen die Halte der
+    Reihe nach; die ersten 12 lagen alle im (schon geladenen) Intro, und das „früh beendet"
+    griff, obwohl die eigentliche Strecke noch gar nicht vorgewärmt war."""
+    if n <= 0:
+        return []
+    if n == 1:
+        return [0]
+    raus, gesehen = [0, n - 1], {0, n - 1}
+    schritt = n - 1
+    while len(raus) < n and schritt > 1:
+        schritt = schritt / 2.0
+        k = schritt
+        while k < n - 1:
+            i = int(round(k))
+            if i not in gesehen:
+                gesehen.add(i); raus.append(i)
+            k += 2 * schritt
+    raus += [i for i in range(n) if i not in gesehen]
+    return raus
 
 
 def _warte_zeile(letzte, laenge: int = 320) -> str:
@@ -463,14 +489,23 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                 # Lauf, der zu 92 Prozent aus Treffern bestand.
                 _warten = []
                 _halte = 0
-                for _i in range(_vorwaermen):
+                # 29.09.2026 (Marc: „Kacheln vorwärmen dauert immer ziemlich lange … dann hängt's bei mir"):
+                # grob → fein, höchstens 2,5 s je Halt, Zeitbudget (Standard 45 s, RZ_VORWAERMEN_S),
+                # Fortschritt je Halt sichtbar.
+                _budget_s = float(os.environ.get("RZ_VORWAERMEN_S", "45") or 45)
+                _txt = _i18n.t_aktiv("szene.vorwaermen_n", "Szene: Kacheln vorwärmen {i} von {n} …")
+                for _i in _grob_nach_fein(_vorwaermen):
                     if is_cancelled and is_cancelled():
                         raise A.RenderCancelled()
+                    if time.time() - _t_vw > _budget_s:
+                        _log.info("Szene: Vorwärmen nach Zeitbudget %.0f s beendet (%d von %d)", _budget_s, _halte, _vorwaermen)
+                        break
                     _tv = (total_frames - 1) / cfg.fps * _i / (_vorwaermen - 1)
                     await page.evaluate(f"() => window.__rzPreviewStep.seek({_tv:.6f})")
-                    _ms = await page.evaluate(_WARTE_BILD_JS)
+                    _ms = await page.evaluate(_WARTE_VORWAERMEN_JS)
                     _warten.append(float(_ms) if isinstance(_ms, (int, float)) else 0.0)
-                    _halte = _i + 1
+                    _halte += 1
+                    emit(0.05, _txt.replace("{i}", str(_halte)).replace("{n}", str(_vorwaermen)))
                     if _halte >= 12 and _halte % 6 == 0:
                         _letzte = sorted(_warten[-6:])[3]
                         # Schwelle aus Messungen (Masca, 4K): kalt wartet ein Halt

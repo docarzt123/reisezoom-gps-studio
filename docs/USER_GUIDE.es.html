@@ -1477,6 +1477,7 @@ python app.py</code></pre>
 <p>Durante el render ves el fotograma que se está generando en ese momento en la ventana de vista previa. Si la combinación de estilo y ángulo de cámara no te convence: haz clic en <strong>«⨯ Cancelar»</strong> — entonces el archivo a medias se elimina de inmediato y puedes reconfigurar sin haber esperado 5 min a un render que luego no vale.</p>
 <h3 id="vista-previa-v-deo">Vista previa = vídeo ⭐</h3>
 <p>El vídeo terminado es literalmente la vista previa en alta resolución: el mismo mapa, las mismas líneas, discontinuas, carteles, overlays y la misma trayectoria de cámara, solo que dibujados con la densidad de píxeles del vídeo. Lo que ves en la prueba es lo que obtienes: el grosor de las líneas y el tamaño de los carteles son en el vídeo <strong>en proporción al ancho de imagen</strong> exactamente igual de grandes que en la vista previa. Consejo: valora la vista previa con el tamaño de ventana con el que también renderizas; una ventana mucho más ancha muestra (y renderiza) los carteles algo más pequeños en relación con la imagen.</p>
+<p><strong>Precarga de teselas (más rápida):</strong> antes del primer fotograma el render carga las teselas del mapa a lo largo del recorrido de la cámara, primero de forma aproximada en todo el vídeo y luego más fina. Tarda como máximo 45 segundos y muestra el progreso como «precargando teselas 12 de 120». Si vuelves a renderizar el mismo lugar, casi todo está ya en caché y continúa en pocos segundos. Medido con la caché vacía (vídeo vertical de 20 s): precarga 45 s en vez de 104 s, render completo 185 s en vez de 226 s.</p>
 <p>En el enjambre con terreno 3D, las líneas van ahora también en la vista previa justo por encima del terreno (sin parpadeo en las crestas), igual que en el vídeo.</p>
 <p>Si alguna vez un render con el nuevo método no llega al final, hay una vuelta atrás al generador anterior: pon <code>&quot;render_engine&quot;: &quot;klassisch&quot;</code> en <code>settings.json</code> (o arranca la app con <code>RZ_RENDER_KLASSISCH=1</code>). La exportación con alfa (fondo transparente) y la imagen fija de Tour-Map siguen usando de todos modos el método anterior.</p>
 <h3 id="fotos-en-el-mapa">📷 Fotos en el mapa ⭐</h3>
@@ -2054,6 +2055,9 @@ python app.py</code></pre>
 <li><strong>🔑 Configurar el token de Mapbox</strong> — la guía paso a paso</li>
 <li><strong>📧 Feedback / reporte de bug a Marc</strong> — ver más abajo</li>
 <li><strong>📋 Abrir el archivo de log</strong> — para el diagnóstico técnico en caso de errores</li>
+</ol>
+<p> En el menú <strong>Ayuda</strong> de macOS también está <strong>«Mostrar archivo de registro en Finder»</strong>, práctico para copiar o enviar el archivo.</p>
+<ol>
 <li><strong>ℹ Acerca de la app</strong> — versión, rutas, créditos</li>
 </ol>
 <h3 id="enviar-reportes-de-bugs-a-marc">Enviar reportes de bugs a Marc</h3>

@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.742** (30.09.2026, built locally): faster, bounded tile prewarming; "Show Log File in Finder".
+
+### Changed
+- **Tile prewarming in the scene render** (Marc: "prewarming always takes quite long … then it hangs for me"): (1) stops are visited coarse → fine (`szene._grob_nach_fein`: start/end, middle, quarters, eighths …) — before, they ran in order and the first 12 all lay in the already cached intro, so "stopped early" fired although the route itself was never prewarmed; (2) at most 2.5 s wait per stop (`_WARTE_VORWAERMEN_JS`; frames keep 5 s) — before up to 5 s × 200 stops with a cold cache; (3) time budget 45 s (`RZ_VORWAERMEN_S`); (4) progress per stop ("Scene: prewarming tiles {i} of {n} …", `szene.vorwaermen_n`). Measured with an EMPTY tile cache (copy of the test environment, quick video 9:16, 20 s): prewarming 104 → 45 s, whole render 226 → 185 s (without prewarming 281 s); warm cache 110 → 117 s (within noise). Test `tests/test_vorwaermen.py` (order, limits, texts, menu, real cold run incl. cancel during prewarming < 4 s).
+
+### Added
+- **Help menu: "Show Log File in Finder"** (Marc: "a menu entry to show the log in the Finder is missing, then I could have copied it over") — uses the existing bridge `reveal_log_in_finder`.
+
 > **0.9.741** (29.09.2026, built locally): quick video with arrow and chase camera; calmer camera in all videos.
 
 ### Added

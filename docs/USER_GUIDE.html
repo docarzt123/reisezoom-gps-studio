@@ -1482,6 +1482,7 @@ python app.py</code></pre>
 <p>Während des Renders siehst du das aktuell entstehende Frame im Vorschau-Fenster. Wenn dir die Kombination aus Stil und Kamera-Winkel nicht passt: <strong>„⨯ Abbrechen&quot;</strong> klicken — dann wird die halb-fertige Datei sofort gelöscht und du kannst neu konfigurieren, ohne 5 Min auf einen Render gewartet zu haben, der dann nichts wird.</p>
 <h3 id="vorschau-video">Vorschau = Video ⭐</h3>
 <p>Das fertige Video ist wörtlich die Vorschau in hoher Auflösung: dieselbe Karte, dieselben Linien, Strichelungen, Schilder, Overlays und derselbe Kamerapfad, nur mit der Pixeldichte des Videos gezeichnet. Was du im Probelauf siehst, bekommst du auch — Linienbreiten und Schildgrößen sind im Video <strong>relativ zur Bildbreite</strong> genauso groß wie in der Vorschau. Tipp: Beurteile die Vorschau bei der Fenstergröße, mit der du auch renderst; ein deutlich breiteres Fenster zeigt (und rendert) die Schilder etwas kleiner im Verhältnis zum Bild.</p>
+<p><strong>Kacheln vorwärmen:</strong> Vor dem ersten Bild lädt der Render die Kartenkacheln entlang der Kamerafahrt vor — erst grob über das ganze Video, dann feiner. Das dauert höchstens 45 Sekunden, der Fortschritt steht als „Kacheln vorwärmen 12 von 120“ da. Beim zweiten Render derselben Stelle ist das meiste schon im Speicher und es geht nach wenigen Sekunden weiter. Gemessen mit leerem Speicher (20-s-Video hochkant): Vorwärmen 45 s statt 104 s, ganzer Render 185 s statt 226 s.</p>
 <p>Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp über dem Gelände (kein Flimmern an Graten mehr) — genau wie im Video.</p>
 <p>Sollte ein Render mit dem neuen Weg einmal nicht durchlaufen, gibt es einen Rückfall auf den bisherigen Generator: in <code>settings.json</code> <code>&quot;render_engine&quot;: &quot;klassisch&quot;</code> eintragen (oder die App mit <code>RZ_RENDER_KLASSISCH=1</code> starten). Alpha-Export (transparenter Hintergrund) und das Tour-Map-Standbild nutzen ohnehin noch den bisherigen Weg.</p>
 <h3 id="fotos-auf-der-karte">📷 Fotos auf der Karte ⭐</h3>
@@ -2055,6 +2056,9 @@ python app.py</code></pre>
 <li><strong>🔑 Mapbox-Token einrichten</strong> — die Schritt-für-Schritt-Anleitung</li>
 <li><strong>📧 Feedback / Bug-Report an Marc</strong> — siehe unten</li>
 <li><strong>📋 Logdatei öffnen</strong> — für technische Diagnose bei Fehlern</li>
+</ol>
+<p> Im macOS-Menü <strong>Hilfe</strong> gibt es außerdem <strong>„Logdatei im Finder zeigen“</strong> — praktisch, um die Datei zu kopieren oder weiterzuschicken.</p>
+<ol>
 <li><strong>ℹ Über die App</strong> — Version, Pfade, Credits</li>
 </ol>
 <h3 id="bug-reports-an-marc-senden">Bug-Reports an Marc senden</h3>
