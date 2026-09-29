@@ -10,6 +10,7 @@ obwohl sich nichts geändert hat.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import io
 import json
 import zipfile
@@ -81,7 +82,7 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
                                 (geo_hash,)).fetchone()
     if zeile is None:
         if zeile_ersatz is None:
-            raise KeyError(f"Tour {geo_hash} steht nicht im Archiv.")
+            raise KeyError(_i18n.t_aktiv("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv") + f" ({geo_hash})")
         zeile = dict(zeile_ersatz)
         zeile.setdefault("geo_hash", geo_hash)
 
@@ -102,7 +103,7 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
         # Platte hätte sonst für alle Touren dort GPX-lose Umschläge gebaut,
         # deren Prüfsumme abweicht — und die guten Cloud-Kopien überschrieben.
         if not quelle.is_file():
-            raise FileNotFoundError(f"Tour {geo_hash}: Datei nicht erreichbar ({quelle})")
+            raise FileNotFoundError(f"{geo_hash}: " + _i18n.t_aktiv("fotos.fehlt_datei", "Datei nicht erreichbar") + f" ({quelle})")
         schreiben("track.gpx", quelle.read_bytes())
 
         tour = {k: zeile[k] for k in zeile.keys() if k != "path"}
@@ -173,7 +174,7 @@ def menge_umschlag_bauen(pfade: list, hashes: list, projekte: dict | None,
         for i, pfad in enumerate(pfade):
             q = Path(pfad)
             if not q.is_file():
-                raise FileNotFoundError(f"Tour {i + 1}: Datei nicht erreichbar ({q})")
+                raise FileNotFoundError(f"#{i + 1}: " + _i18n.t_aktiv("fotos.fehlt_datei", "Datei nicht erreichbar") + f" ({q})")
             roh = q.read_bytes()
             schreiben(f"tracks/{i + 1:02d}.gpx", roh)
             namen.append(q.name)

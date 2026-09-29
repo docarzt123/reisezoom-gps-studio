@@ -142,6 +142,39 @@ def uebersetzer(code: str):
     return t
 
 
+# 29.09.2026 — aktive App-Sprache für core-Module ohne eigene Config.
+# Meldungen aus core/*.py (z. B. „Zu wenige Punkte zum Speichern", Import-
+# Fehler, Update-Fehler) landen als Toast beim Nutzer, die Module kennen die
+# App-Sprache aber nicht. app.py meldet hier beim Start eine Quelle an
+# (`sprach_quelle_setzen(_ui_sprache)`); ohne Quelle bleibt es beim deutschen
+# Rückfall — genau wie vorher, also nie schlechter.
+_sprach_quelle = None
+
+
+def sprach_quelle_setzen(fn) -> None:
+    """app.py hängt hier `_ui_sprache` ein (liefert den aktiven Sprachcode)."""
+    global _sprach_quelle
+    _sprach_quelle = fn
+
+
+def sprache_aktiv(standard: str = "de") -> str:
+    """Aktiver Sprachcode (z. B. für `<html lang>` in Exporten)."""
+    try:
+        return (_sprach_quelle() if _sprach_quelle is not None else "") or standard
+    except Exception:  # noqa: BLE001
+        return standard
+
+
+def t_aktiv(key: str, fallback: str = "") -> str:
+    """t(key, fallback) in der aktiven App-Sprache — für core-Module."""
+    try:
+        if _sprach_quelle is None:
+            return fallback
+        return uebersetzer(_sprach_quelle())(key, fallback)
+    except Exception:  # noqa: BLE001 — eine Übersetzung darf nie etwas kippen
+        return fallback
+
+
 def resolve(code: str) -> str:
     """Übersetzt 'auto' zur tatsächlichen System-Sprache."""
     if code == "auto" or not code:

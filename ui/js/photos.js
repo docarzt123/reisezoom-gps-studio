@@ -439,14 +439,14 @@
       meta.className = "photos-list-meta";
       const nameEl = document.createElement("div");
       nameEl.className = "photos-list-name";
-      const base = (p.path || "").split("/").pop() || "(unbenannt)";
+      const base = (p.path || "").split("/").pop() || ((window.t && window.t("photos.unbenannt", "(unbenannt)")) || "(unbenannt)");
       nameEl.textContent = base;
       const coordEl = document.createElement("div");
       coordEl.className = "photos-list-coord";
       if (p.lat != null && p.lon != null) {
         coordEl.textContent = `${Number(p.lat).toFixed(5)}, ${Number(p.lon).toFixed(5)}`;
       } else {
-        coordEl.textContent = "(kein GPS)";
+        coordEl.textContent = (window.t && window.t("photos.kein_gps", "(kein GPS)")) || "(kein GPS)";
       }
       meta.appendChild(nameEl);
       meta.appendChild(coordEl);

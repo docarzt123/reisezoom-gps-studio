@@ -1129,7 +1129,7 @@ function mountGeotagger(body, headerActions) {
       if (st && st.ok && st.has_state && Array.isArray(st.photos) && st.photos.length) {
         photos = st.photos;
         renderPhotoGrid();
-        setLabel("gt-photos-info", `${photos.length} Fotos (gecacht)`);
+        setLabel("gt-photos-info", t("geotagger.info.cached", "{n} Fotos (gecacht)", { n: photos.length }));
         // Match neu rechnen falls GPX da ist
         if (typeof getGlobalGpxPath === "function") {
           const gpxPath = getGlobalGpxPath();
@@ -1505,9 +1505,9 @@ function mountGeotagger(body, headerActions) {
   document.getElementById("gt-pick-photos").addEventListener("click", async () => {
     // pywebview file_types: jeder Filter ist eine Option im Picker-Popup-Menü
     const filters = [
-      "Medien (*.jpg;*.jpeg;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng;*.heic;*.mp4;*.mov;*.m4v;*.insv;*.insp)",
-      "Fotos (*.jpg;*.jpeg;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng;*.heic)",
-      "Videos (*.mp4;*.mov;*.m4v;*.insv;*.insp;*.mts)",
+      t("geotagger.dlg.media", "Medien") + " (*.jpg;*.jpeg;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng;*.heic;*.mp4;*.mov;*.m4v;*.insv;*.insp)",
+      t("geotagger.dlg.photos", "Fotos") + " (*.jpg;*.jpeg;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng;*.heic)",
+      t("geotagger.dlg.videos", "Videos") + " (*.mp4;*.mov;*.m4v;*.insv;*.insp;*.mts)",
       "JPEG (*.jpg;*.jpeg)",
       "RAW (*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng)",
     ];
@@ -1753,7 +1753,7 @@ function mountGeotagger(body, headerActions) {
         touched++;
       }
       const prog = res.progress || { total: 0, done: 0, running: false };
-      showGridLoader(prog.done, prog.total, "Lade Thumbnails");
+      showGridLoader(prog.done, prog.total, t("geotagger.loader.thumbs", "Lade Thumbnails"));
       // v0.9.522 — bei sehr vielen Fotos verzichtet das Backend auf eingebettete
       // Vorschaubilder (WebView-Absturz beim 20.000er-Test). Einmal erklären.
       if (prog.thumbs_capped && !window.__gtThumbDeckelHinweis) {
@@ -1802,7 +1802,7 @@ function mountGeotagger(body, headerActions) {
     el.classList.add("show");
     const pct = total > 0 ? (done / total) * 100 : 0;
     el.querySelector(".photo-grid-loader-text").textContent =
-      `${label || "Lade Thumbnails"}: ${done} / ${total}`;
+      `${label || t("geotagger.loader.thumbs", "Lade Thumbnails")}: ${done} / ${total}`;
     el.querySelector(".photo-grid-loader-fill").style.width = pct.toFixed(1) + "%";
   }
   function hideGridLoader() {
@@ -1870,7 +1870,7 @@ function mountGeotagger(body, headerActions) {
     // Loader-Header
     const loader = el("div", { class: "photo-grid-loader", id: "gt-grid-loader" });
     loader.innerHTML = `
-      <div class="photo-grid-loader-text">Lade Thumbnails …</div>
+      <div class="photo-grid-loader-text">${t("geotagger.loader.thumbs", "Lade Thumbnails")} …</div>
       <div class="photo-grid-loader-bar"><div class="photo-grid-loader-fill"></div></div>
     `;
     grid.appendChild(loader);
@@ -1900,7 +1900,7 @@ function mountGeotagger(body, headerActions) {
       thumbWrap.appendChild(img);
       // Video-Badge mit Play-Icon
       if (p.is_video) {
-        thumbWrap.appendChild(el("div", { class: "tile-video-badge", title: "Video" }, "▶"));
+        thumbWrap.appendChild(el("div", { class: "tile-video-badge", title: t("geotagger.tile.video", "Video") }, "▶"));
       }
       // Wenn beim Drop noch hochgeladen wird: Status-Marker im Thumb-Bereich
       if (isUploading) {
@@ -2026,7 +2026,7 @@ function mountGeotagger(body, headerActions) {
     // Anklicken der Kachel Code ausgeführt. Der Helfer war längst da — in der
     // EXIF-Tabelle daneben steht er überall, nur hier fehlte er.
     nameEl.innerHTML = _gtEsc(ph.name) +
-      (m.path === referencePath ? ' <span class="ref-pin">🎯 Referenz</span>' : '');
+      (m.path === referencePath ? ' <span class="ref-pin">🎯 ' + _gtEsc(t("geotagger.ref_pin", "Referenz")) + '</span>' : '');
 
     const bits = [];
     const _capStr = _gtCaptureLocalStr(m.path);   // v0.9.361 — lokale Zeit + Offset
@@ -3776,7 +3776,7 @@ function mountGeotagger(body, headerActions) {
     if (!res || !res.ok) {
       if (statusEl) statusEl.textContent = res && res.disabled
         ? t("geotagger.geocode.disabled", "Adress-Suche ist in den Einstellungen aus.")
-        : ((res && res.error) || "Fehler");
+        : ((res && res.error) || t("common.error", "Fehler"));
       return;
     }
     if (btn) btn.disabled = true;
@@ -3946,7 +3946,7 @@ function mountGeotagger(body, headerActions) {
       ? t("geotagger.offset.per_camera", "pro Kamera")
       : fmtSeconds(offsetSec);
     const timeAdjustBlock = (adjustTime && (offsetSec !== 0 || _hasCamOff))
-      ? `<div class="modal-stat-row"><span class="label">⏰ Foto-Aufnahmezeit anpassen</span><span class="val" style="color:var(--warn)">${toWrite} × ${offsetTxt}</span></div>`
+      ? `<div class="modal-stat-row"><span class="label">${t("write_modal.row.time_adjust", "⏰ Foto-Aufnahmezeit anpassen")}</span><span class="val" style="color:var(--warn)">${toWrite} × ${offsetTxt}</span></div>`
       : '';
     // v0.9.370 — wie viele Fotos bekommen ihre Aufnahmezeit aus der Track-Zeit gesetzt.
     const _setTimeCount = writable.filter(m => _gtEffectiveSetTime(m.camera || _GT_CAM_UNKNOWN)).length;
@@ -3954,18 +3954,16 @@ function mountGeotagger(body, headerActions) {
       ? `<div class="modal-stat-row"><span class="label">🕒 ${t("geotagger.settime.summary_row", "Aufnahmezeit auf Track-Zeit")}</span><span class="val" style="color:var(--warn)">${_setTimeCount}</span></div>`
       : '';
     const summary = `
-      <div class="modal-stat-row"><span class="label">Erkannte Fotos im Track</span><span class="val">${writable.length}</span></div>
-      <div class="modal-stat-row"><span class="label">Davon mit bereits gesetztem GPS</span><span class="val">${withExisting}</span></div>
+      <div class="modal-stat-row"><span class="label">${t("write_modal.row.detected", "Erkannte Fotos im Track")}</span><span class="val">${writable.length}</span></div>
+      <div class="modal-stat-row"><span class="label">${t("write_modal.row.with_existing", "Davon mit bereits gesetztem GPS")}</span><span class="val">${withExisting}</span></div>
       ${withExisting ? `<div class="modal-stat-row"><span class="label">${modeRowLabel}</span><span class="val muted">${withExisting}</span></div>` : ''}
-      <div class="modal-stat-row"><span class="label"><strong>Werden getaggt</strong></span><span class="val" style="color:var(--accent)">${toWrite}</span></div>
+      <div class="modal-stat-row"><span class="label"><strong>${t("write_modal.row.will_tag", "Werden getaggt")}</strong></span><span class="val" style="color:var(--accent)">${toWrite}</span></div>
       ${exifEditCount ? `<div class="modal-stat-row"><span class="label">✎ ${t("geotagger.exif.summary_row", "Bearbeitete EXIF-Felder")}</span><span class="val" style="color:var(--accent)">${exifEditCount}</span></div>` : ''}
       ${globalActive ? `<div class="modal-stat-row"><span class="label">🌐 ${t("geotagger.gf.summary_row", "Globale Felder")}</span><span class="val" style="color:var(--accent)">${globalFieldCount} × ${globalTargets.length} ${t("geotagger.gf.summary_photos", "Fotos")}</span></div>` : ''}
       ${timeAdjustBlock}
       ${setTimeBlock}
       <p class="muted" style="margin-top:14px; line-height:1.45; font-size:12px">
-        💾 Gleich wählst du einen <b>Zielordner</b> — dorthin schreiben wir die
-        getaggten Kopien. Deine <b>Originale bleiben unangetastet</b> (sie sind damit
-        selbst die Sicherung).
+        💾 ${t("geotagger.write.zielordner_hinweis", "Gleich wählst du einen <b>Zielordner</b> — dorthin schreiben wir die getaggten Kopien. Deine <b>Originale bleiben unangetastet</b> (sie sind damit selbst die Sicherung).")}
       </p>
     `;
 
@@ -3979,11 +3977,11 @@ function mountGeotagger(body, headerActions) {
     // 15.09.2026 (Marc) — neue Tour: alte Foto-Sicherungen früherer Touren anbieten zu löschen.
     if (!(await _gtFruehereSicherungenFragen(writable.map(m => m.path)))) return;
     openModal({
-      title: "Schreibvorgang starten?",
+      title: t("write_modal.title", "Schreibvorgang starten?"),
       body: summary,
       footer: `
         <button class="btn" id="modal-cancel">${t("common.cancel", "Abbrechen")}</button>
-        <button class="btn btn-primary" id="modal-ok">Schreiben starten</button>
+        <button class="btn btn-primary" id="modal-ok">${t("write_modal.btn.start", "Schreiben starten")}</button>
       `,
     });
     document.getElementById("modal-cancel").onclick = () => {
@@ -4107,17 +4105,17 @@ function mountGeotagger(body, headerActions) {
     }
     if (!res || !res.ok) {
       _writeFlowLaeuft = false;
-      openModal({ title: "Fehler", body: `<p>${res.error}</p>`,
-        footer: '<button class="btn btn-primary" id="md-x">OK</button>' });
+      openModal({ title: t("common.error", "Fehler"), body: `<p>${res.error}</p>`,
+        footer: `<button class="btn btn-primary" id="md-x">${t("common.ok", "OK")}</button>` });
       document.getElementById("md-x").onclick = () => openModal({}).close();
       return;
     }
     // Progress-Modal
     let canceled = false;
     const m = openModal({
-      title: "GPS wird geschrieben …",
+      title: t("progress_modal.title", "GPS wird geschrieben …"),
       body: `
-        <div class="modal-current-file" id="md-current">Vorbereitung …</div>
+        <div class="modal-current-file" id="md-current">${t("progress_modal.preparing", "Vorbereitung …")}</div>
         <div class="modal-progress">
           <div class="modal-progress-bar"><div class="modal-progress-fill" id="md-fill"></div></div>
           <div class="modal-progress-text">
@@ -4125,7 +4123,7 @@ function mountGeotagger(body, headerActions) {
             <span id="md-pct">0%</span>
           </div>
         </div>
-        ${res.skipped_existing ? `<p class="muted">${res.skipped_existing} Fotos mit bereits vorhandenem GPS werden übersprungen.</p>` : ''}
+        ${res.skipped_existing ? `<p class="muted">${t("progress_modal.skipped_info", "{n} Fotos mit bereits vorhandenem GPS werden übersprungen.", { n: res.skipped_existing })}</p>` : ''}
       `,
       footer: `<button class="btn btn-danger" id="md-cancel">${t("common.cancel", "Abbrechen")}</button>`,
       closable: false,
@@ -4226,7 +4224,7 @@ function mountGeotagger(body, headerActions) {
     const errLines = (s.errors || []).slice(0, 8).map(e =>
       `<div>${e.replace(/^.*\//, '… ')}</div>`).join('');
     const errBlock = (s.errors && s.errors.length)
-      ? `<div class="modal-error-list">${errLines}${s.errors.length > 8 ? `<div>+${s.errors.length - 8} weitere</div>` : ''}</div>`
+      ? `<div class="modal-error-list">${errLines}${s.errors.length > 8 ? `<div>${t("result_modal.more_errors", "+{n} weitere", { n: s.errors.length - 8 })}</div>` : ''}</div>`
       : '';
     // v0.9.372 — Neues Modell: getaggte Fotos liegen als Kopien im gewählten
     // Zielordner (Originale unangetastet). Kein Export-Schritt, kein Backup-ZIP mehr.
@@ -4471,8 +4469,8 @@ function mountGeotagger(body, headerActions) {
     photos = photos.concat(pending);   // ANHÄNGEN
     renderPhotoGrid();
     setLabel("gt-photos-info",
-      `${pending.length} Foto(s) werden importiert …`);
-    showGridLoader(0, pending.length, "Importiere Dateien");
+      t("geotagger.info.importing", "{n} Fotos werden importiert …", { n: pending.length }));
+    showGridLoader(0, pending.length, t("geotagger.loader.importing", "Importiere Dateien"));
 
     let doneCount = 0;
 
@@ -4484,7 +4482,7 @@ function mountGeotagger(body, headerActions) {
         ph._uploading = false;
         doneCount++;
         updatePendingTileState(ph);
-        showGridLoader(doneCount, pending.length, "Importiere Dateien");
+        showGridLoader(doneCount, pending.length, t("geotagger.loader.importing", "Importiere Dateien"));
       }
     }
 
@@ -4521,7 +4519,7 @@ function mountGeotagger(body, headerActions) {
           doneCount++;
           // Tile-State sichtbar machen — kein full re-render, gezielt update
           updatePendingTileState(ph);
-          showGridLoader(doneCount, pending.length, "Importiere Dateien");
+          showGridLoader(doneCount, pending.length, t("geotagger.loader.importing", "Importiere Dateien"));
         }
       }));
     }
@@ -4542,7 +4540,7 @@ function mountGeotagger(body, headerActions) {
     photos = _gtMergeRegistered(res.photos);
     renderPhotoGrid();
     setLabel("gt-photos-info", countLabel(photos, "importiert"));
-    showGridLoader(0, photos.length, "Lade Thumbnails");
+    showGridLoader(0, photos.length, t("geotagger.loader.thumbs", "Lade Thumbnails"));
     pollThumbs(new Set());
   }
 

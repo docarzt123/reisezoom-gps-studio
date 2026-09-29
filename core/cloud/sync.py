@@ -25,6 +25,7 @@ wie es getan wird — damit es sich ohne laufende App prüfen lässt.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -125,9 +126,10 @@ class Abgleich:
             except Exception as fehler:      # noqa: BLE001
                 e.fehler.append(f"{name}: {fehler}")
                 if len(e.fehler) >= FEHLER_GRENZE:
-                    e.fehler.append(
-                        f"Nach {FEHLER_GRENZE} Fehlern abgebrochen — "
-                        "hier stimmt etwas Grundsätzliches nicht.")
+                    e.fehler.append(_i18n.t_aktiv(
+                        "cloud.err_zu_viele_fehler",
+                        "Nach {n} Fehlern abgebrochen — hier stimmt etwas Grundsätzliches nicht.")
+                        .replace("{n}", str(FEHLER_GRENZE)))
                     break
             if fortschritt:
                 fortschritt(i, gesamt, name)

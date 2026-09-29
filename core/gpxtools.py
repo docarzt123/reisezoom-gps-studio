@@ -10,6 +10,7 @@ einzige Ausnahme ist `retime_points`, das per Auftrag genau `time` neu setzt.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -76,7 +77,7 @@ def reverse_points(points: List[dict]) -> dict:
     rückwärts und jedes Auswertungsprogramm würde die Datei ablehnen.
     """
     if len(points) < 2:
-        return {"ok": False, "error": "zu wenige Punkte", "points": points}
+        return {"ok": False, "error": _i18n.t_aktiv("error.zu_wenige_punkte", "Zu wenige Punkte"), "points": points}
 
     rev = list(reversed(points))
     times = [_parse(p.get("time")) for p in points]
@@ -109,7 +110,7 @@ def split_points(points: List[dict], at_index: Optional[int] = None,
     """
     n = len(points)
     if n < 4:
-        return {"ok": False, "error": "zu wenige Punkte zum Teilen"}
+        return {"ok": False, "error": _i18n.t_aktiv("gpxtools.err_teilen", "Zu wenige Punkte zum Teilen")}
 
     if at_index is None:
         if at_km is None:
@@ -149,7 +150,7 @@ def rotate_start(points: List[dict], at_index: int,
     """
     n = len(points)
     if n < 4:
-        return {"ok": False, "error": "zu wenige Punkte"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.zu_wenige_punkte", "Zu wenige Punkte")}
     at_index = max(0, min(n - 1, int(at_index)))
     if at_index == 0:
         return {"ok": True, "points": _renum(points), "count": n, "gap_m": 0.0,
@@ -205,7 +206,7 @@ def retime_points(points: List[dict], mode: str = "shift",
     """
     n = len(points)
     if n < 2:
-        return {"ok": False, "error": "zu wenige Punkte"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.zu_wenige_punkte", "Zu wenige Punkte")}
 
     times = [_parse(p.get("time")) for p in points]
     has_all = all(t is not None for t in times)
@@ -213,7 +214,7 @@ def retime_points(points: List[dict], mode: str = "shift",
 
     if mode in ("shift", "start", "duration") and not has_all:
         return {"ok": False, "error": "no_times",
-                "hint": "Dieser Track hat keine Zeiten — mit Modus 'speed' welche erzeugen."}
+                "hint": _i18n.t_aktiv("gpxtools.hint_keine_zeiten", "Dieser Track hat keine Zeiten — mit Modus 'speed' welche erzeugen.")}
 
     out: List[dict] = []
 
@@ -225,7 +226,7 @@ def retime_points(points: List[dict], mode: str = "shift",
     elif mode == "start":
         base = _parse(start_iso)
         if base is None:
-            return {"ok": False, "error": "start_iso fehlt oder unlesbar"}
+            return {"ok": False, "error": _i18n.t_aktiv("gpxtools.err_startzeit", "Startzeit fehlt oder ist unlesbar")}
         d = base - times[0]
         for p, t in zip(points, times):
             q = dict(p); q["time"] = _iso(t + d); out.append(q)
@@ -236,7 +237,7 @@ def retime_points(points: List[dict], mode: str = "shift",
         if want <= 0:
             return {"ok": False, "error": "duration_s muss > 0 sein"}
         if have <= 0:
-            return {"ok": False, "error": "Track hat keine messbare Dauer"}
+            return {"ok": False, "error": _i18n.t_aktiv("gpxtools.err_keine_dauer", "Track hat keine messbare Dauer")}
         k = want / have
         for p, t in zip(points, times):
             q = dict(p)
@@ -283,7 +284,7 @@ def km_splits(points: List[dict], every_km: float = 1.0) -> dict:
     kommen immerhin die Höhen-Werte, damit die Tabelle nicht leer bleibt.
     """
     if len(points) < 2:
-        return {"ok": False, "error": "zu wenige Punkte"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.zu_wenige_punkte", "Zu wenige Punkte")}
     step = max(0.1, float(every_km or 1.0)) * 1000.0
 
     rows = []

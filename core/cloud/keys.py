@@ -33,6 +33,7 @@ sehen — auf einem fremden Bildschirm.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import base64
 import json
 import os
@@ -108,12 +109,13 @@ def ablage_beschreibung() -> str:
         import keyring
         name = keyring.get_keyring().__class__.__name__
         if "macOS" in name or name == "Keyring":
-            return "Im Schlüsselbund dieses Macs."
+            return _i18n.t_aktiv("cloud.ablage_mac", "Im Schlüsselbund dieses Macs.")
         if "Windows" in name:
-            return "In der Anmeldeinformationsverwaltung von Windows."
-        return "Im Schlüsselbund des Systems."
-    return ("Dieses System hat keinen Schlüsselbund. Zugang und Schlüssel liegen "
-            "in einer Datei, die nur du lesen kannst — nicht verschlüsselt.")
+            return _i18n.t_aktiv("cloud.ablage_windows", "In der Anmeldeinformationsverwaltung von Windows.")
+        return _i18n.t_aktiv("cloud.ablage_system", "Im Schlüsselbund des Systems.")
+    return _i18n.t_aktiv("cloud.ablage_datei",
+                        "Dieses System hat keinen Schlüsselbund. Zugang und Schlüssel liegen "
+                        "in einer Datei, die nur du lesen kannst — nicht verschlüsselt.")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -222,10 +224,10 @@ def _ablegen(archiv: str, feld: str, wert: str, basis: Path | None) -> None:
         try:
             ok, _ = _mit_zeitgrenze(kr.set_password, DIENST, _konto(archiv, feld), wert)
         except Exception as e:
-            raise SchluesselAblageFehler(f"Schlüsselbund lehnt ab: {e}") from e
+            raise SchluesselAblageFehler(_i18n.t_aktiv("cloud.err_schluesselbund_ab", "Schlüsselbund lehnt ab: ") + str(e)) from e
         if not ok:
-            raise SchluesselAblageFehler(
-                "Der Schlüsselbund hat nicht geantwortet (Freigabe-Dialog?).")
+            raise SchluesselAblageFehler(_i18n.t_aktiv(
+                "cloud.err_schluesselbund_still", "Der Schlüsselbund hat nicht geantwortet (Freigabe-Dialog?)."))
         return
     if basis is None:
         raise SchluesselAblageFehler(
@@ -245,10 +247,10 @@ def _holen(archiv: str, feld: str, basis: Path | None) -> str | None:
         try:
             ok, wert = _mit_zeitgrenze(kr.get_password, DIENST, _konto(archiv, feld))
         except Exception as e:
-            raise SchluesselAblageFehler(f"Schlüsselbund lehnt ab: {e}") from e
+            raise SchluesselAblageFehler(_i18n.t_aktiv("cloud.err_schluesselbund_ab", "Schlüsselbund lehnt ab: ") + str(e)) from e
         if not ok:
-            raise SchluesselAblageFehler(
-                "Der Schlüsselbund hat nicht geantwortet (Freigabe-Dialog?).")
+            raise SchluesselAblageFehler(_i18n.t_aktiv(
+                "cloud.err_schluesselbund_still", "Der Schlüsselbund hat nicht geantwortet (Freigabe-Dialog?)."))
         if wert:
             return wert
         # ok, aber leer → wirklich nicht vorhanden; ggf. Datei-Rückfall

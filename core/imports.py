@@ -24,6 +24,7 @@ Format ergänzt, fügt einen `_parse_*` hinzu und trägt die Endung in `_DISPATC
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import hashlib
 import json
 import logging
@@ -316,7 +317,7 @@ def _parse_kmz(path: str) -> List[Point]:
         kml_name = "doc.kml" if "doc.kml" in names else next(
             (n for n in names if n.lower().endswith(".kml")), None)
         if not kml_name:
-            raise TrackImportError("KMZ enthält keine KML-Datei.")
+            raise TrackImportError(_i18n.t_aktiv("import.err_kmz_ohne_kml", "KMZ enthält keine KML-Datei."))
         data = z.read(kml_name).decode("utf-8", errors="replace")
     return _parse_kml_string(data)
 
@@ -450,18 +451,19 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
     ext = os.path.splitext(path)[1].lower()
     key = _DISPATCH.get(ext)
     if key is None:
-        raise TrackImportError(f"Unbekanntes Track-Format: {ext}")
+        raise TrackImportError(_i18n.t_aktiv("import.err_format", "Unbekanntes Track-Format: ") + str(ext))
     if key == "sniff":
         if _looks_like_nmea(path):
             key = "nmea"
         else:
-            raise TrackImportError(
-                f"{ext}-Datei sieht nicht nach NMEA aus — kein Track erkannt.")
+            # ⚠️ library.fehler_grund erkennt diesen Satz wieder (alle Sprachen)
+            raise TrackImportError(_i18n.t_aktiv(
+                "import.err_kein_nmea", "{ext}-Datei sieht nicht nach NMEA aus — kein Track erkannt.").replace("{ext}", str(ext)))
     elif key == "sniff_json":
         key = "geojson" if _looks_like_geojson(path) else None
         if key is None:
-            raise TrackImportError(
-                ".json sieht nicht nach GeoJSON-Track aus.")
+            raise TrackImportError(_i18n.t_aktiv(
+                "import.err_kein_geojson", ".json sieht nicht nach GeoJSON-Track aus."))
     parser = {
         "fit": _parse_fit, "nmea": _parse_nmea, "kml": _parse_kml,
         "kmz": _parse_kmz, "tcx": _parse_tcx, "geojson": _parse_geojson,
@@ -469,7 +471,7 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
     rows = parser(path, meta_out) if key == "fit" else parser(path)
     if not rows:
         # Gelesen werden konnte die Datei — sie hat nur keine Positionen.
-        raise NoTrackPoints("Keine Track-Punkte in der Datei gefunden.")
+        raise NoTrackPoints(_i18n.t_aktiv("import.err_keine_punkte", "Keine Track-Punkte in der Datei gefunden."))
     return rows
 
 
@@ -681,7 +683,7 @@ def ensure_gpx(path: str, cache_dir) -> str:
     tour: Optional[dict] = {} if ext == ".fit" else None
     pts, extras = parse_track(path, tour)
     if not pts:
-        raise NoTrackPoints("Keine Track-Punkte in der Datei gefunden.")
+        raise NoTrackPoints(_i18n.t_aktiv("import.err_keine_punkte", "Keine Track-Punkte in der Datei gefunden."))
     name = os.path.splitext(os.path.basename(path))[0]
     tmp = out + ".tmp"
     write_gpx(pts, tmp, name=name)

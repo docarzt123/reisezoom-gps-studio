@@ -22,6 +22,7 @@ Zwei Dinge, die hier bewusst NICHT passieren:
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import math
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -115,9 +116,9 @@ def merge(
     Returns {ok, points, meta:{...}} bzw. {ok:False, error}.
     """
     if not a_points:
-        return {"ok": False, "error": "Kein Track im Editor"}
+        return {"ok": False, "error": _i18n.t_aktiv("gpxmerge.err_kein_track", "Kein Track im Editor")}
     if not b_points or len(b_points) < 2:
-        return {"ok": False, "error": "Der angehängte Track hat zu wenige Punkte"}
+        return {"ok": False, "error": _i18n.t_aktiv("gpxmerge.err_zu_wenige", "Der angehängte Track hat zu wenige Punkte")}
 
     mode = (mode or MODE_APPEND).lower()
     if mode not in (MODE_APPEND, MODE_PREPEND, MODE_TIME):
@@ -144,7 +145,7 @@ def merge(
     if mode == MODE_TIME:
         if not both_timed:
             return {"ok": False,
-                    "error": 'Für „nach Zeit sortieren“ brauchen beide Tracks Zeitstempel'}
+                    "error": _i18n.t_aktiv("gpxmerge.err_zeit", 'Für „nach Zeit sortieren“ brauchen beide Tracks Zeitstempel')}
         mode = MODE_PREPEND if b_start < a_start else MODE_APPEND
 
     first, second = (a_points, b) if mode == MODE_APPEND else (b, a_points)

@@ -14,7 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
----
+> **0.9.737** (29.09.2026, built locally): the whole app checked for German/English/Spanish (Marc: "go through the whole tool and check that everything is in three languages").
+
+### Fixed
+- **Untranslated text across the app**: a scan of every string literal plus six parallel reviews (UI shell, animator/timeline, archive/photos, geotagger/inspector/data animator/web map, util.js, Python backend) found and translated about 300 places that were German in the English/Spanish UI or output — 183 new i18n keys (de/en/es). Highlights: the whole geotagger write/progress dialog, render status texts of animator, tour map, data animator and the scene renderer, native file-dialog filters, error texts returned by the bridge and by core modules (route, repair, merge, import, cloud, update …), the web-map export (`<html lang>`, titles, consent), the bug-report mail text, the emergency start screen, About/credits, module names in the archive, raw backend codes in library toasts, the stage name drawn into the video ("Stage 3"), the default project name ("Standard" is stored as-is but shown translated via `rzProjektName`).
+- New in `core/i18n.py`: `sprach_quelle_setzen()`, `t_aktiv(key, fallback)`, `sprache_aktiv()` so core modules without their own config use the active app language (German without a registered source, e.g. in subprocesses). `library.fehler_grund` also recognises the translated "no track / no points" texts.
+- Packaging: Windows installer offers Spanish; macOS bundle declares `CFBundleLocalizations` de/en/es so system dialogs (save/open, services) follow the app language.
+- User guide: EN and ES were missing whole sections and paragraphs (intro still at v0.3.3, "The journey", "Preview = video", "Join tracks", "Support the project", archive details, animator settings, route planner, tour map, FAQ); DE got the missing note about new tours in the timeline. Outdated statements fixed in all three (route planner no longer needs Mapbox, "Pause" transition, tour list naming).
 
 ## [0.9.736] – 2026-09-29
 

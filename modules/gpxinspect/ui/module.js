@@ -3093,7 +3093,7 @@ function mountGpxInspect(body, headerActions) {
                                                    _sources.length > 1 ? _sources : null));
         } catch (e) { res = { ok: false, error: String(e) }; }
         if (isUnmounted) return;
-        if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
+        if (!res || !res.ok) { toast((res && res.error) || t("gpxinspect.save_failed", "Speichern fehlgeschlagen"), "error", 6000); return; }
         _dirty = false; updateUI();
         const teile = [t("gpxinspect.ersetzt_toast", "Im Archiv ersetzt.")];
         if (res.collections) teile.push(t("gpxinspect.ersetzt_col", "%n Sammlungs-Einträge umgezogen").replace("%n", res.collections));
@@ -3128,7 +3128,7 @@ function mountGpxInspect(body, headerActions) {
                                         _sources.length > 1 ? _sources : null));
     } catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
-    if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
+    if (!res || !res.ok) { toast((res && res.error) || t("gpxinspect.save_failed", "Speichern fehlgeschlagen"), "error", 6000); return; }
     _dirty = false; updateUI();
     const note = document.getElementById("gpxi-note");
     const savedMsg = t("gpxinspect.saved", "Gespeichert: ") + res.out_path
@@ -3420,7 +3420,7 @@ function mountGpxInspect(body, headerActions) {
       let res;
       try { res = await rzWarten("gpxinspect_save_teile", () => api().gpxinspect_save_teile(r.parts, _srcPath, _sources.length > 1 ? _sources : null)); }
       catch (e) { res = { ok: false, error: String(e) }; }
-      if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
+      if (!res || !res.ok) { toast((res && res.error) || t("gpxinspect.save_failed", "Speichern fehlgeschlagen"), "error", 6000); return; }
       const txt = t("gpxinspect.wz_split_saved", "Gespeichert: ") + (res.pfade || []).join(" · ");
       _wzNote(txt); toast(txt, "success", 7000);
       return;
@@ -3458,7 +3458,8 @@ function mountGpxInspect(body, headerActions) {
     if (!r || !Array.isArray(r.splits)) return;
     const fmtD = (s) => (s == null ? "–" : _fmtDur(s * 1000));
     const rows = r.splits.map((z, i) => `<tr><td>${(i + 1)}</td><td>${z.km.toFixed(2)}</td><td>${(z.dist_m / 1000).toFixed(2)}</td><td>${fmtD(z.duration_s)}</td><td>${z.kmh != null ? z.kmh.toFixed(1) : "–"}</td><td>${Math.round(z.up_m)}</td><td>${Math.round(z.down_m)}</td></tr>`).join("");
-    const csv = ["Nr;km bis;Strecke km;Dauer;km/h;Auf m;Ab m"].concat(r.splits.map((z, i) => [i + 1, z.km.toFixed(2), (z.dist_m / 1000).toFixed(2), fmtD(z.duration_s), z.kmh != null ? z.kmh.toFixed(1) : "", Math.round(z.up_m), Math.round(z.down_m)].join(";"))).join("\n");
+    const csv = [[t("gpxinspect.wz_col_nr", "Nr"), t("gpxinspect.wz_col_km", "km bis"), t("gpxinspect.wz_col_dist", "Strecke") + " km",
+                 t("gpxinspect.wz_col_dur", "Dauer"), "km/h", t("gpxinspect.wz_col_up", "Auf m"), t("gpxinspect.wz_col_down", "Ab m")].join(";")].concat(r.splits.map((z, i) => [i + 1, z.km.toFixed(2), (z.dist_m / 1000).toFixed(2), fmtD(z.duration_s), z.kmh != null ? z.kmh.toFixed(1) : "", Math.round(z.up_m), Math.round(z.down_m)].join(";"))).join("\n");
     const m = openModal({
       title: "📊 " + t("gpxinspect.wz_splits_title", "Runden-Tabelle") + ` (${r.every_km} km · ${r.total_km} km)`,
       body: `<div style="max-height:52vh;overflow:auto"><table class="gpxi-wz-tabelle"><thead><tr><th>#</th><th>${t("gpxinspect.wz_col_km", "km bis")}</th><th>${t("gpxinspect.wz_col_dist", "Strecke")}</th><th>${t("gpxinspect.wz_col_dur", "Dauer")}</th><th>km/h</th><th>↑ m</th><th>↓ m</th></tr></thead><tbody>${rows}</tbody></table></div>`,

@@ -557,6 +557,8 @@
         attribution_enabled: !!el("wk-attribution")?.checked,
         consent_text: (el("wk-consent-text")?.value || "").trim() || DEFAULT_CONSENT,
         consent_button: (el("wk-consent-button")?.value || "").trim() || T("tourmap.html.consent_button_default", "Karte laden"),
+        // Seitentitel der exportierten Karte in App-Sprache (das Backend hängt sonst fest „— Karte" an).
+        title: (String(gpxPath).split(/[\\/]/).pop().replace(/\.[^.]+$/, "") || "GPX") + " — " + T("webkarte.export_title_suffix", "Karte"),
         ...(map ? (() => { const c = map.getCenter(); return { view_center: [c.lat, c.lng], view_zoom: map.getZoom() }; })() : {}),
         width: 1120, height: 640,
       };

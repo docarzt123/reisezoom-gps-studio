@@ -13,6 +13,7 @@ neuer Punkte (Lücke füllen) werden lat/lon/ele UND time interpoliert.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import os
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -194,7 +195,7 @@ def save_points(
     Returns {ok, out_path, count, sensors_kept, fmt}.
     """
     if not points or len(points) < 2:
-        return {"ok": False, "error": "Zu wenige Punkte zum Speichern"}
+        return {"ok": False, "error": _i18n.t_aktiv("gpxedit.err_zu_wenige", "Zu wenige Punkte zum Speichern")}
     fmt = (fmt or "gpx").lower()
     if fmt not in ("gpx", "tcx"):
         fmt = "gpx"
@@ -222,7 +223,7 @@ def save_points(
         si = p.get("si")
         si_list.append(si if isinstance(si, int) and si >= 0 else 0)
     if len(pts) < 2:
-        return {"ok": False, "error": "Zu wenige gültige Punkte"}
+        return {"ok": False, "error": _i18n.t_aktiv("gpxedit.err_zu_wenige_gueltige", "Zu wenige gültige Punkte")}
 
     # Sensoren re-indizieren und an die Punkte hängen (für den eingebetteten Export).
     out_extra = _reindex_extra(oi_list, src_path, si_list=si_list, sources=sources)

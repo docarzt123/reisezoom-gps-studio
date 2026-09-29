@@ -3,6 +3,7 @@ Geotagging-Logik: matched EXIF-Datetimes auf GPX-Trackpunkte (mit Zeitversatz).
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -390,7 +391,7 @@ def derive_offset_from_reference(
             best_d = d
             best_idx = i
     if best_idx is None:
-        raise ValueError("Track hat keine Punkte mit Zeitstempel")
+        raise ValueError(_i18n.t_aktiv("geotag.err_keine_zeiten", "Track hat keine Punkte mit Zeitstempel"))
     track_time = times[best_idx]
     # photo_time_local ist naive (Kamera-Uhr), wir behandeln sie als UTC-equivalent für die Differenz
     photo_as_utc = reference_photo_time_local.replace(tzinfo=timezone.utc)

@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.736"
+APP_VERSION = "0.9.737"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1317,6 +1317,11 @@ def _vm(key: str, fallback: str, n: int = 0, gesamt: int = 0, **werte) -> None:
     _vorgang_melden(txt, n, gesamt)
 
 
+# 29.09.2026 — core-Module (gpxedit, imports, selbstupdate …) übersetzen ihre
+# Meldungen über `ci18n.t_aktiv`; die Sprache holen sie sich hier ab.
+ci18n.sprach_quelle_setzen(_ui_sprache)
+
+
 def _ui_t():
     """t(key, fallback) in der aktiven App-Sprache — für Backend-Antworten,
     deren Texte im UI oder in Exporten landen (Sensor-Kataloge, Serien-Listen)."""
@@ -1863,11 +1868,11 @@ class Api:
         import webbrowser
         try:
             if not url:
-                return {"ok": False, "error": "Leere URL"}
+                return {"ok": False, "error": _ui_t()("error.url_leer", "Leere URL")}
             if url.startswith(("http://", "https://", "mailto:")):
                 webbrowser.open(url, new=2)
                 return {"ok": True}
-            return {"ok": False, "error": "Ungültige URL"}
+            return {"ok": False, "error": _ui_t()("error.url_ungueltig", "Ungültige URL")}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -2385,7 +2390,7 @@ class Api:
         """Undo von Löschen."""
         try:
             if not isinstance(vorlage, dict) or not vorlage.get("id"):
-                return {"ok": False, "error": "keine Vorlage"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_fehlt", "Vorlage nicht gefunden")}
             vd = self._vorlagen_laden()
             _vorlagen.wieder_einsetzen(vd, vorlage)
             if als_standard:
@@ -3948,7 +3953,7 @@ class Api:
         try:
             ort = Path(pfad) if pfad else BIB
             if not ort or not cbib.ist_bibliothek(ort):
-                return {"ok": False, "error": "kein Bibliotheks-Ordner"}
+                return {"ok": False, "error": _ui_t()("bib.err_kein_ordner", "Kein Bibliotheks-Ordner")}
             if name:
                 return {"ok": True, "name": cbib.name_setzen(ort, name)}
             return {"ok": True, "name": cbib.name_lesen(ort)}
@@ -3974,7 +3979,7 @@ class Api:
         Speichern-Dialog; der Vorschlag trägt einen Zeitstempel.
         """
         if not BIB_BEREIT:
-            return {"ok": False, "error": "keine Bibliothek offen"}
+            return {"ok": False, "error": _ui_t()("bib.err_keine_offen", "Keine Bibliothek geöffnet")}
         try:
             if not ziel:
                 ziel = self.pick_save_path(cbib.zip_name_vorschlag(BIB),
@@ -4633,7 +4638,7 @@ class Api:
         läuft nur über die übergebenen Ordner, der Rest bleibt unangetastet."""
         with self._start_lock:
             if getattr(self, "_lib_scan_running", False):
-                return {"ok": False, "error": "läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
             self._lib_scan_running = True
         self._lib_scan_stop = False
         self._lib_scan_state = {"done": 0, "total": 0, "current": "", "running": True}
@@ -4703,7 +4708,7 @@ class Api:
                 if not path:
                     return {"ok": False, "abbruch": True}
             if not cfotos.ordner_hinzu(self._lib(), path, bool(recursive)):
-                return {"ok": False, "error": "kein Ordner"}
+                return {"ok": False, "error": _ui_t()("error.kein_ordner", "Kein Ordner")}
             return {"ok": True, "ordner": cfotos.ordner_liste(self._lib())}
         except Exception as e:
             log.exception("fotos_ordner_hinzu")
@@ -4764,7 +4769,7 @@ class Api:
         """
         with self._start_lock:
             if getattr(self, "_foto_scan_running", False):
-                return {"ok": False, "error": "läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
             self._foto_scan_running = True
         self._foto_scan_stop = False
         # 18.09.2026 (Marc: „was tatsächlich passiert, sieht man nicht") — `art` sagt, WARUM gelesen wird
@@ -4914,7 +4919,7 @@ class Api:
             conn = self._lib()
             d = cfotos.zeile(conn, path)
             if not d:
-                return {"ok": False, "error": "nicht im Bestand"}
+                return {"ok": False, "error": _ui_t()("fotos.err_nicht_im_bestand", "Dieses Foto ist nicht im Bestand")}
             d["tags"] = cfotos.tags_lesen(conn, path)
             # Liegt das Original gerade erreichbar? Ein einziger Blick, und bei
             # einem abgehängten Laufwerk scheitert er sofort.
@@ -5198,7 +5203,7 @@ class Api:
         """
         with self._start_lock:
             if getattr(self, "_lib_maps_running", False):
-                return {"ok": False, "error": "läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
             self._lib_maps_running = True      # sofort belegen, unten ggf. freigeben
         token = (_load_settings() or {}).get("mapbox_token") or ""   # 07.09.2026: tokenfrei (Sentinel-2), Mapbox nur Rückfall
         if auto:
@@ -5259,7 +5264,7 @@ class Api:
         Dienst — den fragen wir freundlich, nicht im Sturm.
         """
         if getattr(self, "_lib_places_running", False):
-            return {"ok": False, "error": "läuft bereits"}
+            return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
         # Der Schalter „Adress-Suche" gilt auch hier. Vorher wurde er NUR im
         # Geotagger geprüft — dieser Lauf startet aber von selbst beim ersten
         # Blick ins Archiv und macht bis zu sechs Abfragen je Tour. Bei 710
@@ -5382,7 +5387,7 @@ class Api:
         """Ohne `image_path` öffnet sich der Bild-Dialog."""
         try:
             if not image_path:
-                picked = self.pick_file("open", ("Bilder (*.jpg;*.jpeg;*.png;*.heic;*.tif;*.tiff)",), False)
+                picked = self.pick_file("open", (_ui_t()("filter.images", "Bilder") + " (*.jpg;*.jpeg;*.png;*.heic;*.tif;*.tiff)",), False)
                 if not picked:
                     return {"ok": False, "cancelled": True}
                 image_path = picked[0]
@@ -5473,7 +5478,7 @@ class Api:
         NUR auf Knopfdruck („Alle Touren prüfen") oder nach der einmaligen Frage."""
         with self._start_lock:
             if getattr(self, "_lib_check_running", False):
-                return {"ok": False, "error": "läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
             self._lib_check_running = True
         self._lib_check_stop = False
         # 26.09.2026 (Klicktest AR-10: „prüfe 0 von ?", dann weg, keine Abschlussmeldung) —
@@ -5560,8 +5565,8 @@ class Api:
             if len(roh) < 1024:
                 return {"ok": False, "error": _ui_t()("error.die_karte_war_noch_leer", "Die Karte war noch leer.")}
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            vorschlag = f"{(name or 'Archiv-Karte').strip()}_{stamp}.png"
-            pfad = self.pick_save_path(vorschlag, "", ["PNG-Bild (*.png)"])
+            vorschlag = f"{(name or _ui_t()('library.karte_dateiname', 'Archiv-Karte')).strip()}_{stamp}.png"
+            pfad = self.pick_save_path(vorschlag, "", [_ui_t()("filter.png_bild", "PNG Bild") + " (*.png)"])
             if not pfad:
                 return {"ok": False, "cancelled": True}
             if not str(pfad).lower().endswith(".png"):
@@ -5874,7 +5879,7 @@ class Api:
         try:
             r = clib.datei_reparieren(str(path or ""))
             if not r.get("ok"):
-                return {"ok": False, "error": r.get("error") or "nicht reparierbar",
+                return {"ok": False, "error": r.get("error") or _ui_t()("reparatur.err_nicht_reparierbar", "Nicht reparierbar"),
                         "schritte": r.get("schritte") or []}
             GPX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
             tmp = GPX_CACHE_DIR / f"repariert-{uuid.uuid4().hex[:10]}.gpx"
@@ -5882,7 +5887,7 @@ class Api:
             try:
                 gh = self._track_geo_hash(str(tmp))
                 if not gh:
-                    return {"ok": False, "error": "keine Strecke nach der Reparatur"}
+                    return {"ok": False, "error": _ui_t()("reparatur.err_keine_strecke", "Nach der Reparatur ist keine Strecke übrig")}
                 cbib.version_bytes_ablegen(BIB, r["data"], gh)
             finally:
                 # eigene Zwischendatei — die Datei des Nutzers wird hier nie verändert
@@ -5891,7 +5896,7 @@ class Api:
             auf = clib.version_aufnehmen(conn, cbib.version_datei(BIB, gh), LIBRARY_THUMBS, IMPORTS_DIR,
                                          map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
             if not auf.get("ok"):
-                return {"ok": False, "error": auf.get("error") or "Aufnahme fehlgeschlagen"}
+                return {"ok": False, "error": auf.get("error") or _ui_t()("archiv.fehler", "Konnte nicht ins Archiv gelegt werden.")}
             try:
                 clib.touren_bestimmen(conn)
             except Exception:  # noqa: BLE001
@@ -5937,7 +5942,7 @@ class Api:
         """Bild-Datei auswählen + Thumbnail (data-URL) zurückgeben.
         Für „Schild mit Bild" — ein Schild kann optional ein Bild anzeigen."""
         try:
-            types = ("Bilder (*.jpg;*.jpeg;*.png;*.heic;*.heif;*.webp;*.tif;*.tiff;*.gif;*.bmp)",)
+            types = (_ui_t()("filter.images", "Bilder") + " (*.jpg;*.jpeg;*.png;*.heic;*.heif;*.webp;*.tif;*.tiff;*.gif;*.bmp)",)
             res = self.pick_file("open", types, False)
             if not res:
                 return {"ok": True, "cancelled": True}
@@ -6218,7 +6223,7 @@ class Api:
         """
         try:
             if aus_dialog:
-                pfade = self.pick_file("open", ("Tracks (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea)",), True)
+                pfade = self.pick_file("open", (_ui_t()("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea)",), True)
             pfade = [str(x) for x in (pfade or []) if x]
             if not pfade:
                 return {"ok": True, "ghosts": [], "cancelled": True}
@@ -6236,7 +6241,7 @@ class Api:
                     pts, stats = cgpx.parse_gpx(gpx)
                     ds = cgpx.downsample(pts, 600)
                     if len(ds) < 2:
-                        fehler.append(f"{Path(pf).name}: zu wenige Punkte")
+                        fehler.append(f"{Path(pf).name}: " + _ui_t()("error.zu_wenige_punkte", "Zu wenige Punkte"))
                         continue
                     raus.append({
                         "name": (stats.name or Path(pf).stem)[:60],
@@ -6760,7 +6765,7 @@ class Api:
             if self._render_state.get("running"):
                 return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
             # Platz sofort belegen; die eigentliche Prüfung läuft darunter.
-            self._render_state = {"running": True, "progress": 0.0, "status": "Prüfe …",
+            self._render_state = {"running": True, "progress": 0.0, "status": _ui_t()("render.status.pruefe", "Prüfe …"),
                                   "output": "", "error": "", "cancel_requested": False, "cancelled": False}
         try:
             res = self._animator_start_render_inner(params)
@@ -6770,7 +6775,7 @@ class Api:
         if not (isinstance(res, dict) and res.get("ok")):
             # Thread nie gestartet → Platz wieder freigeben
             with self._start_lock:
-                if self._render_state.get("status") == "Prüfe …":
+                if self._render_state.get("status") == _ui_t()("render.status.pruefe", "Prüfe …"):
                     self._render_state["running"] = False
         return res
 
@@ -6811,7 +6816,7 @@ class Api:
         else:
             missing = [t["gpx_path"] for t in tracks if not Path(t["gpx_path"]).exists()]
             if missing:
-                return {"ok": False, "error": "Tour-GPX fehlt: " + ", ".join(Path(m).name for m in missing)}
+                return {"ok": False, "error": _ui_t()("error.tour_gpx_fehlt", "Tour-GPX fehlt: ") + ", ".join(Path(m).name for m in missing)}
 
         # Pre-Flight: Chromium-Browser für Playwright vorhanden?
         # Sonst krieg der User einen kryptischen „Executable doesn't exist"-
@@ -6821,7 +6826,7 @@ class Api:
             return {
                 "ok": False,
                 "error_code": "playwright_browser_missing",
-                "error": pw.get("error") or "Playwright Chromium-Browser nicht installiert.",
+                "error": pw.get("error") or _ui_t()("error.playwright_fehlt", "Playwright Chromium-Browser nicht installiert."),
                 "browsers_path": pw.get("browsers_path"),
             }
 
@@ -7093,7 +7098,7 @@ class Api:
             # v0.9.417 — „ganze Route zeigen" (Vorschau-Toggle) → Snapshot voller Track.
             cfg.snapshot_full_track = bool(params.get("snapshot_full_track", False))
 
-        self._render_state = {"running": True, "progress": 0.0, "status": "Starte …",
+        self._render_state = {"running": True, "progress": 0.0, "status": _ui_t()("animator.status.start", "Starte …"),
                               "output": out_path, "error": "", "log_path": str(LOG_PATH),
                               "preview_b64": "", "cancel_requested": False,
                               "cancelled": False}
@@ -7226,19 +7231,19 @@ class Api:
                     loop.close()
                 self._render_state["running"] = False
                 self._render_state["progress"] = 1.0
-                self._render_state["status"] = "Fertig."
+                self._render_state["status"] = _ui_t()("animator.progress.done", "Fertig.")
                 rlog.info("Render OK in %.1fs → %s", time.time() - t0, out_path)
             except canim.RenderCancelled:
                 # Sauberer User-Abbruch — KEIN Fehler.
                 self._render_state["running"] = False
                 self._render_state["cancelled"] = True
-                self._render_state["status"] = "Abgebrochen"
+                self._render_state["status"] = _ui_t()("result_modal.title_cancelled", "Abgebrochen")
                 self._render_state["error"] = ""
                 rlog.info("Render abgebrochen vom User nach %.1fs", time.time() - t0)
             except Exception as e:
                 tb = traceback.format_exc()
                 self._render_state["error"] = str(e) + "\n" + tb
-                self._render_state["status"] = "Fehler"
+                self._render_state["status"] = _ui_t()("common.error", "Fehler")
                 self._render_state["running"] = False
                 rlog.error("Render fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
                 rlog.error("Traceback:\n%s", tb)
@@ -7287,7 +7292,7 @@ class Api:
             return {
                 "ok": False,
                 "error_code": "playwright_browser_missing",
-                "error": pw.get("error") or "Playwright Chromium-Browser nicht installiert.",
+                "error": pw.get("error") or _ui_t()("error.playwright_fehlt", "Playwright Chromium-Browser nicht installiert."),
                 "browsers_path": pw.get("browsers_path"),
             }
 
@@ -7414,7 +7419,7 @@ class Api:
             override_zoom=float(params["override_zoom"]) if params.get("override_zoom") is not None else None,
         )
 
-        self._tourmap_state = {"running": True, "progress": 0.0, "status": "Starte …",
+        self._tourmap_state = {"running": True, "progress": 0.0, "status": _ui_t()("animator.status.start", "Starte …"),
                                "output": out_path, "error": "", "log_path": str(LOG_PATH),
                                "cancel_requested": False, "cancelled": False}
 
@@ -7448,7 +7453,7 @@ class Api:
                     loop.close()
                 self._tourmap_state["running"] = False
                 self._tourmap_state["progress"] = 1.0
-                self._tourmap_state["status"] = "Fertig."
+                self._tourmap_state["status"] = _ui_t()("animator.progress.done", "Fertig.")
                 tlog.info("Tour-Karte OK in %.1fs → %s", time.time() - t0, out_path)
             except Exception as e:
                 tb = traceback.format_exc()
@@ -7456,12 +7461,12 @@ class Api:
                 if "Vom User abgebrochen" in str(e):
                     self._tourmap_state["running"] = False
                     self._tourmap_state["cancelled"] = True
-                    self._tourmap_state["status"] = "Abgebrochen"
+                    self._tourmap_state["status"] = _ui_t()("result_modal.title_cancelled", "Abgebrochen")
                     self._tourmap_state["error"] = ""
                     tlog.info("Tour-Karte abgebrochen vom User nach %.1fs", time.time() - t0)
                 else:
                     self._tourmap_state["error"] = str(e) + "\n" + tb
-                    self._tourmap_state["status"] = "Fehler"
+                    self._tourmap_state["status"] = _ui_t()("common.error", "Fehler")
                     self._tourmap_state["running"] = False
                     tlog.error("Tour-Karte fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
                     tlog.error("Traceback:\n%s", tb)
@@ -7548,7 +7553,7 @@ class Api:
         with self._start_lock:
             if self._height_render_state.get("running"):
                 return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
-            self._height_render_state = {"running": True, "progress": 0.0, "status": "Prüfe …",
+            self._height_render_state = {"running": True, "progress": 0.0, "status": _ui_t()("render.status.pruefe", "Prüfe …"),
                                          "output": "", "error": ""}
         try:
             res = self._heightanim_start_render_inner(params)
@@ -7557,7 +7562,7 @@ class Api:
             res = {"ok": False, "error": str(e)}
         if not (isinstance(res, dict) and res.get("ok")):
             with self._start_lock:
-                if self._height_render_state.get("status") == "Prüfe …":
+                if self._height_render_state.get("status") == _ui_t()("render.status.pruefe", "Prüfe …"):
                     self._height_render_state["running"] = False
         return res
 
@@ -7573,7 +7578,7 @@ class Api:
             return {
                 "ok": False,
                 "error_code": "playwright_browser_missing",
-                "error": pw.get("error") or "Playwright Chromium-Browser nicht installiert.",
+                "error": pw.get("error") or _ui_t()("error.playwright_fehlt", "Playwright Chromium-Browser nicht installiert."),
                 "browsers_path": pw.get("browsers_path"),
             }
 
@@ -7609,7 +7614,7 @@ class Api:
         )
 
         self._height_render_state = {
-            "running": True, "progress": 0.0, "status": "Starte …",
+            "running": True, "progress": 0.0, "status": _ui_t()("animator.status.start", "Starte …"),
             "output": out_path, "error": "", "log_path": str(LOG_PATH),
             "preview_b64": "", "cancel_requested": False, "cancelled": False,
         }
@@ -7656,18 +7661,18 @@ class Api:
                     loop.close()
                 self._height_render_state["running"] = False
                 self._height_render_state["progress"] = 1.0
-                self._height_render_state["status"] = "Fertig."
+                self._height_render_state["status"] = _ui_t()("animator.progress.done", "Fertig.")
                 rlog.info("Render OK in %.1fs → %s", time.time() - t0, out_path)
             except cheight.RenderCancelled:
                 self._height_render_state["running"] = False
                 self._height_render_state["cancelled"] = True
-                self._height_render_state["status"] = "Abgebrochen"
+                self._height_render_state["status"] = _ui_t()("result_modal.title_cancelled", "Abgebrochen")
                 self._height_render_state["error"] = ""
                 rlog.info("Render abgebrochen vom User nach %.1fs", time.time() - t0)
             except Exception as e:
                 tb = traceback.format_exc()
                 self._height_render_state["error"] = str(e) + "\n" + tb
-                self._height_render_state["status"] = "Fehler"
+                self._height_render_state["status"] = _ui_t()("common.error", "Fehler")
                 self._height_render_state["running"] = False
                 rlog.error("Render fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
                 rlog.error("Traceback:\n%s", tb)
@@ -7728,7 +7733,7 @@ class Api:
                     cfg.series_b = ""
             elif _sid_b:
                 cfg.series_b = ""
-            replay = params.get("replay_label") or "↻ Neu starten"
+            replay = params.get("replay_label") or ("↻ " + _ui_t()("heightanim.html.replay", "Neu starten"))
             # v0.9.513 — „erstellt mit"-Backlink wie in der Web-Karte (Default an).
             _cred_on = bool(params.get("attribution_enabled", True))
             html_doc = cheight.make_standalone_html(
@@ -7877,8 +7882,8 @@ class Api:
             if bool(params.get("consent_enabled", False)):
                 html_doc = ctourhtml.wrap_with_consent(
                     html_inner,
-                    params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
-                    params.get("consent_button") or "Karte laden",
+                    params.get("consent_text") or _ui_t()("tourmap.html.consent_default", ctourhtml.DEFAULT_CONSENT_TEXT),
+                    params.get("consent_button") or _ui_t()("tourmap.html.consent_button_default", "Karte laden"),
                 )
             else:
                 html_doc = html_inner
@@ -8062,7 +8067,7 @@ class Api:
                 "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),
                 "view_zoom": params.get("view_zoom"),
-                "title": params.get("title") or (Path(gpx_path).stem + " — Karte"),
+                "title": params.get("title") or (Path(gpx_path).stem + _ui_t()("webkarte.titel_zusatz", " — Karte")),
                 "credit_text": credit_text, "credit_url": credit_url,
                 "width": w, "height": h,
             }
@@ -8093,8 +8098,8 @@ class Api:
                         log.warning("Consent-Vorschaubild fehlgeschlagen: %s", e)
                 html_doc = ctourhtml.wrap_with_consent(
                     inner,
-                    params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
-                    params.get("consent_button") or "Karte laden",
+                    params.get("consent_text") or _ui_t()("tourmap.html.consent_default", ctourhtml.DEFAULT_CONSENT_TEXT),
+                    params.get("consent_button") or _ui_t()("tourmap.html.consent_button_default", "Karte laden"),
                     bg_uri, credit_html)
             else:
                 html_doc = inner
@@ -8366,7 +8371,7 @@ class Api:
                 return {"ok": False, "error": "nur macOS"}
             b = cinstall.bundle_pfad()
             if not b:
-                return {"ok": False, "error": "kein App-Bundle (Entwicklungsstart?)"}
+                return {"ok": False, "error": _ui_t()("install.err_kein_bundle", "Kein App-Bundle (Entwicklungsstart?)")}
             images = cinstall.images_mit_app()
             # Dateischutz: ältere App-Kopien sind die ausdrückliche Wahl dieses Knopfs
             # (nutzer_ziel), sie gehen in den System-Papierkorb (rückholbar).
@@ -8560,7 +8565,7 @@ class Api:
         try:
             p = Path(path)
             if not p.exists():
-                return {"ok": False, "error": f"Datei nicht gefunden: {path}"}
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden") + f": {path}"}
             return self._open_path_native(p)
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -8574,7 +8579,7 @@ class Api:
         try:
             p = Path(path)
             if not p.exists():
-                return {"ok": False, "error": f"Datei nicht gefunden: {path}"}
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden") + f": {path}"}
             port = _ensure_media_server()
             token = _secrets.token_urlsafe(16)
             _media_registry[token] = str(p.resolve())
@@ -9490,7 +9495,7 @@ class Api:
                                               projekte=sess, zeile_ersatz=ersatz)
             if not ziel:
                 default_name = self._export_namensvorschlag(conn, geo_hash, sess, src) + ".rzproj"
-                ziel = self.pick_save_path(default_name, str(Path.home()), ["Reisezoom-Projekt (*.rzproj)"])
+                ziel = self.pick_save_path(default_name, str(Path.home()), [_ui_t()("filter.rzproj", "Reisezoom Projekt") + " (*.rzproj)"])
                 if not ziel:
                     return {"ok": False, "cancelled": True}
             if not ziel.lower().endswith(".rzproj"):
@@ -9525,7 +9530,7 @@ class Api:
             roh = archiv_m.menge_umschlag_bauen(pfade, hashes, sess, meta)
             if not ziel:
                 default_name = re.sub(r"[^\w\-. ]+", "_", aktiv.get("name") or "Schwarm") + ".rzproj"
-                ziel = self.pick_save_path(default_name, str(Path.home()), ["Reisezoom-Projekt (*.rzproj)"])
+                ziel = self.pick_save_path(default_name, str(Path.home()), [_ui_t()("filter.rzproj", "Reisezoom Projekt") + " (*.rzproj)"])
                 if not ziel:
                     return {"ok": False, "cancelled": True}
             if not ziel.lower().endswith(".rzproj"):
@@ -9683,7 +9688,7 @@ class Api:
         """.rzproj einspielen (Dialog, wenn kein Pfad). Läuft ohne Cloud."""
         try:
             if not pfad:
-                res = self.pick_file("open", ("Reisezoom-Projekt (*.rzproj;*.zip)",), False)
+                res = self.pick_file("open", (_ui_t()("filter.rzproj", "Reisezoom Projekt") + " (*.rzproj;*.zip)",), False)
                 if not res:
                     return {"ok": False, "cancelled": True}
                 pfad = res[0]
@@ -9844,9 +9849,9 @@ class Api:
                     klar = n
                     break
             if klar is None:
-                return {"ok": False, "error": "Zu diesem Eintrag ist der Name "
-                        "nicht mehr bekannt — wiederherstellen geht nur auf dem "
-                        "Rechner, der die Tour kannte."}
+                return {"ok": False, "error": _ui_t()("cloud.papierkorb_name_unbekannt",
+                        "Zu diesem Eintrag ist der Name nicht mehr bekannt — wiederherstellen "
+                        "geht nur auf dem Rechner, der die Tour kannte.")}
             roh = g.papierkorb_holen(hex_name, int(zeit))
             # Entschlüsseln prüft zugleich die Bindung an den logischen Namen —
             # ein vertauschter Umschlag flöge hier auf.
@@ -10225,11 +10230,15 @@ class Api:
             # Selbe OS-Label-Funktion wie im App-Start-Log → konsistent
             os_label = clog.get_os_label()
 
+            # 29.09.2026 — Anrede, Anleitung und Platzhalter in der App-Sprache: der
+            # Nutzer liest und bearbeitet diesen Text. Die Diagnosezeilen darunter
+            # (Version, OS, Log) bleiben technisch und für Marc.
+            _t = _ui_t()
             body = (
-                "Hallo Marc,\n\n"
-                "ich hatte mit Reisezoom GPS Studio ein Problem.\n"
-                "Beschreibe hier kurz was du gemacht hast bevor der Fehler kam:\n\n"
-                "[hier deinen Text einfügen]\n\n"
+                _t("bugreport.mail_anrede", "Hallo Marc,") + "\n\n"
+                + _t("bugreport.mail_problem", "ich hatte mit Reisezoom GPS Studio ein Problem.") + "\n"
+                + _t("bugreport.mail_beschreibe", "Beschreibe hier kurz was du gemacht hast bevor der Fehler kam:") + "\n\n"
+                + _t("bugreport.mail_platzhalter", "[hier deinen Text einfügen]") + "\n\n"
                 "---\n"
                 f"App-Version: {APP_VERSION}\n"
                 f"OS: {os_label}\n"
@@ -10243,13 +10252,13 @@ class Api:
             short_for_mailto = body
             if len(body) > 6000:
                 short_for_mailto = (
-                    "Hallo Marc,\n\n"
-                    "[Beschreibe was du gemacht hast]\n\n"
+                    _t("bugreport.mail_anrede", "Hallo Marc,") + "\n\n"
+                    + _t("bugreport.mail_platzhalter_kurz", "[Beschreibe was du gemacht hast]") + "\n\n"
                     "---\n"
                     f"App-Version: {APP_VERSION}\n"
                     f"OS: {os_label}\n\n"
-                    f"Vollständiger Log liegt unter:\n{LOG_PATH}\n"
-                    "(Hilfe → Logdatei öffnen + als Anhang dranhängen)"
+                    + _t("bugreport.mail_log_liegt", "Vollständiger Log liegt unter:") + f"\n{LOG_PATH}\n"
+                    + _t("bugreport.mail_log_anhaengen", "(Hilfe → Logdatei öffnen + als Anhang dranhängen)")
                 )
             mailto = (
                 "mailto:marc@reisezoom.com"
@@ -10298,7 +10307,7 @@ class Api:
 
             result = {"ok": True, "browser_present": False, "browsers_path": str(browsers_path)}
             if not browsers_path.exists():
-                result["error"] = f"Browser-Cache-Ordner existiert nicht: {browsers_path}"
+                result["error"] = _ui_t()("playwright.err_kein_cache", "Browser-Cache-Ordner existiert nicht: ") + str(browsers_path)
                 return result
             # Wir suchen den neuesten chromium_headless_shell-Eintrag
             candidates = sorted(
@@ -10307,7 +10316,7 @@ class Api:
                 key=lambda d: d.name, reverse=True,
             )
             if not candidates:
-                result["error"] = f"Kein chromium_headless_shell in {browsers_path}"
+                result["error"] = _ui_t()("playwright.err_kein_shell", "Kein chromium_headless_shell in ") + str(browsers_path)
                 return result
 
             # Executable-Pfad — pro Plattform/Architektur unterschiedliches
@@ -10343,8 +10352,9 @@ class Api:
                         result["executable"] = str(exe)
                         return result
             result["error"] = (
-                f"chrome-headless-shell-Binärdatei nicht im Cache gefunden "
-                f"(gesucht in: {', '.join(subdirs)} unter {browsers_path})"
+                _ui_t()("playwright.err_kein_binary",
+                        "chrome-headless-shell-Binärdatei nicht im Cache gefunden (gesucht in: {orte} unter {pfad})")
+                .replace("{orte}", ", ".join(subdirs)).replace("{pfad}", str(browsers_path))
             )
             return result
         except Exception as e:
@@ -10371,7 +10381,7 @@ class Api:
             out = (proc.stdout or "") + "\n" + (proc.stderr or "")
             log.info("playwright_install_chromium: rc=%s\n%s", proc.returncode, out[:2000])
             if proc.returncode != 0:
-                return {"ok": False, "error": f"Install fehlgeschlagen (rc={proc.returncode})", "log": out}
+                return {"ok": False, "error": _ui_t()("animator.playwright_missing.failed", "Download fehlgeschlagen") + f" (rc={proc.returncode})", "log": out}
             return {"ok": True, "log": out}
         except Exception as e:
             log.error("playwright_install_chromium: %s\n%s", e, traceback.format_exc())
@@ -10383,7 +10393,7 @@ class Api:
         try:
             p = LOG_PATH
             if not p.exists():
-                return {"ok": True, "path": str(p), "text": "(Logdatei existiert noch nicht)"}
+                return {"ok": True, "path": str(p), "text": _ui_t()("log.noch_keine_datei", "(Logdatei existiert noch nicht)")}
             size = p.stat().st_size
             with open(p, "rb") as fh:
                 if size > max_bytes:
@@ -10588,7 +10598,7 @@ class Api:
         try:
             tour, _t = self._einteilung_tour(path)
             if not tour:
-                return {"ok": False, "error": "nicht im Archiv", "einteilungen": []}
+                return {"ok": False, "error": _ui_t()("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv"), "einteilungen": []}
             with clib._DB_LOCK:
                 return self._einteilung_antwort(self._lib(), tour)
         except Exception as e:  # noqa: BLE001
@@ -10601,7 +10611,7 @@ class Api:
         try:
             tour, t = self._einteilung_tour(path)
             if not tour:
-                return {"ok": False, "error": "nicht im Archiv"}
+                return {"ok": False, "error": _ui_t()("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv")}
             pts, _stats = clib.punkte_lesen(path, IMPORTS_DIR)
             wegpunkte = []
             if str(path).lower().endswith(".gpx"):
@@ -10677,7 +10687,7 @@ class Api:
         try:
             tour, _t = self._einteilung_tour(path)
             if not tour:
-                return {"ok": False, "error": "nicht im Archiv"}
+                return {"ok": False, "error": _ui_t()("error.nicht_im_archiv", "Diese Tour liegt nicht im Archiv")}
             conn = self._lib()
             with clib._DB_LOCK:
                 e = ceint.eigen_anlegen(conn, tour, name)
@@ -11229,7 +11239,7 @@ class Api:
                 res = cgpxedit.save_points(list(pts or []), out, name=f"{stem} Teil {k}", src_path=src_path,
                                            fmt="gpx", sources=list(sources) if sources else None)
                 if not res.get("ok"):
-                    return {"ok": False, "error": res.get("error") or "Speichern fehlgeschlagen", "pfade": raus}
+                    return {"ok": False, "error": res.get("error") or _ui_t()("error.speichern_fehl", "Speichern fehlgeschlagen"), "pfade": raus}
                 raus.append(out)
             return {"ok": True, "pfade": raus}
         except Exception as e:  # noqa: BLE001
@@ -11271,7 +11281,7 @@ class Api:
             res = cgpxedit.save_points(pts, str(out), name=titel, src_path=src_path or None, fmt="gpx",
                                        sources=list(sources) if sources else None)
             if not res.get("ok"):
-                return {"ok": False, "error": res.get("error") or "Speichern fehlgeschlagen"}
+                return {"ok": False, "error": res.get("error") or _ui_t()("error.speichern_fehl", "Speichern fehlgeschlagen")}
             conn = self._lib()
             clib.add_folder(conn, str(ziel), recursive=False)
             clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ziel)],
@@ -13022,8 +13032,9 @@ class Api:
                 "ok": True,
                 "photos": list(self._gtg_photos),   # VOLLE Liste (alt + neu)
                 "added": len(registered),
-                "warning": (f"{skipped_no_exiftool} RAW-Datei(en) übersprungen — "
-                            "ExifTool nicht gefunden. (macOS: 'brew install exiftool')")
+                "warning": (_ui_t()("geotagger.raw_ohne_exiftool",
+                                        "{n} RAW-Datei(en) übersprungen — ExifTool nicht gefunden. (macOS: 'brew install exiftool')")
+                            .replace("{n}", str(skipped_no_exiftool)))
                             if skipped_no_exiftool else None,
             }
         except Exception as e:
@@ -13219,10 +13230,10 @@ class Api:
             self._gtg_photos = out
             result = {"ok": True, "photos": out}
             if skipped_no_exiftool:
-                result["warning"] = (
-                    f"{skipped_no_exiftool} RAW-Dateien übersprungen — "
-                    "exiftool fehlt. Installiere: 'brew install exiftool'"
-                )
+                result["warning"] = _ui_t()(
+                    "geotagger.raw_ohne_exiftool",
+                    "{n} RAW-Datei(en) übersprungen — ExifTool nicht gefunden. (macOS: 'brew install exiftool')"
+                ).replace("{n}", str(skipped_no_exiftool))
             return result
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
@@ -14136,7 +14147,7 @@ class Api:
                 except Exception as e_mk:
                     log.exception("_write_worker_run: Zielordner nicht anlegbar")
                     with self._write_lock:
-                        self._write_state["errors"].append(f"Zielordner nicht nutzbar: {e_mk}")
+                        self._write_state["errors"].append(_ui_t()("geotagger.w.ziel_unbrauchbar", "Zielordner nicht nutzbar: ") + str(e_mk))
                 path_map: dict = {}
                 used_out: set = set()   # v0.9.388 — Basename-Kollisionen im selben Batch verhindern
                 n_copy = len(src_list)
@@ -14157,7 +14168,7 @@ class Api:
                             path_map[src] = None
                             with self._write_lock:
                                 self._write_state["errors"].append(
-                                    f"{os.path.basename(src)}: würde Original überschreiben — übersprungen")
+                                    f"{os.path.basename(src)}: " + _ui_t()("geotagger.w.wuerde_ueberschreiben", "würde Original überschreiben — übersprungen"))
                         continue
                     # v0.9.388 — Namensgleichheit im selben Batch (zwei Kameras mit
                     # "IMG_0001.JPG", DCIM-Rollover 100CANON/101CANON, folder_recursive):
@@ -14184,7 +14195,7 @@ class Api:
                         path_map[src] = None
                         with self._write_lock:
                             self._write_state["errors"].append(
-                                f"{os.path.basename(src)}: Kopie fehlgeschlagen: {e_cp}")
+                                f"{os.path.basename(src)}: " + _ui_t()("geotagger.w.kopie_fehl", "Kopie fehlgeschlagen: ") + str(e_cp))
                 log.info("_write_worker_run: Phase 0 — %d/%d Foto(s) nach %s kopiert",
                          sum(1 for v in path_map.values() if v), n_copy, dest_dir)
 
@@ -14264,7 +14275,7 @@ class Api:
                     log.exception("_write_worker_run: Phase A — Sicherung FEHLGESCHLAGEN → Originale bleiben unverändert")
                     with self._write_lock:
                         self._write_state["errors"].append(
-                            f"Sicherung fehlgeschlagen — Originale werden nicht verändert: {e_bk}")
+                            _ui_t()("geotagger.w.sicherung_fehl", "Sicherung fehlgeschlagen — Originale werden nicht verändert: ") + str(e_bk))
                     if not kopien:
                         return
                     # Kopien im Zielordner laufen weiter, nur die In-Place-Fotos fallen raus.
@@ -14355,7 +14366,7 @@ class Api:
                                           idx + 1, len(items), path)
                             with self._write_lock:
                                 self._write_state["errors"].append(
-                                    f"{path}: Adresse schreiben fehlgeschlagen: {e_addr}")
+                                    f"{path}: " + _ui_t()("geotagger.w.adresse_fehl", "Adresse schreiben fehlgeschlagen: ") + str(e_addr))
                     log.info("_write_worker_run: [%d/%d] OK → %s (coords=%s dir=%s addr=%s)",
                              idx + 1, len(items), path, write_coords, img_dir is not None, addr is not None)
                     # v0.9.281 (Nutzer): Aufnahmezeit aus Track setzen. v0.9.370 — jetzt
@@ -14372,7 +14383,7 @@ class Api:
                                           idx + 1, len(items), m.get("path"))
                             with self._write_lock:
                                 self._write_state["errors"].append(
-                                    f"{m['path']}: Aufnahmezeit aus Track fehlgeschlagen: {e3}"
+                                    f"{m['path']}: " + _ui_t()("geotagger.w.zeit_aus_track_fehl", "Aufnahmezeit aus Track fehlgeschlagen: ") + str(e3)
                                 )
                     # Optionale Zeit-Korrektur (verschiebt DateTimeOriginal/CreateDate/ModifyDate)
                     # v0.9.354 — pro Kamera: eigener Offset des Fotos vor dem globalen.
@@ -14382,13 +14393,13 @@ class Api:
                             if not cexif.shift_datetime(m["path"], _shift, gesichert=_gs):
                                 # 22.08.2026 (Audit): Videos/unbekannte Typen
                                 # liefen still durch — jetzt sichtbar im Protokoll.
-                                raise RuntimeError("Dateityp unterstützt keine Zeit-Korrektur")
+                                raise RuntimeError(_ui_t()("geotagger.w.typ_ohne_zeitkorrektur", "Dateityp unterstützt keine Zeit-Korrektur"))
                         except Exception as e2:
                             log.exception("_write_worker_run: [%d/%d] Zeit-Korrektur FEHLGESCHLAGEN für %s",
                                           idx + 1, len(items), m.get("path"))
                             with self._write_lock:
                                 self._write_state["errors"].append(
-                                    f"{m['path']}: Zeit-Korrektur fehlgeschlagen: {e2}"
+                                    f"{m['path']}: " + _ui_t()("geotagger.w.zeitkorrektur_fehl", "Zeit-Korrektur fehlgeschlagen: ") + str(e2)
                                 )
                     with self._write_lock:
                         self._write_state["done"] = self._write_state.get("done", 0) + 1
@@ -14432,7 +14443,7 @@ class Api:
                         log.exception("_write_worker_run: EXIF-Batch fehlgeschlagen für %s", path)
                         with self._write_lock:
                             self._write_state["errors"].append(
-                                f"{path}: EXIF-Batch fehlgeschlagen: {e_ex}")
+                                f"{path}: " + _ui_t()("geotagger.w.exif_batch_fehl", "EXIF-Batch fehlgeschlagen: ") + str(e_ex))
                     if path not in _phase_b_paths:
                         # 25.09.2026 (GT-10) — nur EXIF-Felder bearbeitet: verortet,
                         # wenn das Foto schon eine eigene Position hat.

@@ -147,7 +147,7 @@
     if (verdeckt.fotos) teile.push(t("ladeflagge.n_fotos", "{n} Fotos").replace("{n}", verdeckt.fotos.toLocaleString()));
     bar.querySelector(".source-missing-banner-text").textContent =
       t("ladeflagge.banner", "Sicher geöffnet: {inhalt} dieses Projekts sind ausgeblendet, nicht gelöscht. Änderungen daran sind gesperrt, bis du sie dazuholst.")
-        .replace("{inhalt}", teile.join(" und ") || "—");
+        .replace("{inhalt}", teile.join(" " + t("common.and", "und") + " ") || "—");
     const knopf = bar.querySelector("[data-sb=laden]");
     knopf.textContent = t("ladeflagge.dazuholen", "Schilder und Fotos dazuholen");
     knopf.onclick = () => {

@@ -24,6 +24,8 @@ from __future__ import annotations
 import base64
 import html as _html
 
+from . import i18n as _i18n  # 29.09.2026 — Exportseite in der App-Sprache
+
 # Tokenfreie OSM-Kachel-Stile. `sub` = a/b/c-Subdomains ("" = keine),
 # `max` = maxZoom des Providers. Katalog ist SYNCHRON zu ui/js/util.js
 # (RZ_OSM_TILE_STYLES) — bei Änderung beide pflegen.
@@ -95,8 +97,8 @@ def wrap_with_consent(inner_html: str, consent_text: str, consent_button: str,
     der HTML (kein externer Abruf) → DSGVO-konform, es lädt nichts nach.
     """
     b64 = base64.b64encode(inner_html.encode("utf-8")).decode("ascii")
-    txt = _html.escape(consent_text or DEFAULT_CONSENT_TEXT).replace("\n", "<br>")
-    btn = _html.escape(consent_button or "Karte laden")
+    txt = _html.escape(consent_text or _i18n.t_aktiv("tourmap.html.consent_default", DEFAULT_CONSENT_TEXT)).replace("\n", "<br>")
+    btn = _html.escape(consent_button or _i18n.t_aktiv("tourmap.html.consent_button_default", "Karte laden"))
     has_bg = bool(bg_data_uri)
     if has_bg:
         bg_style = ("background-image:url('" + bg_data_uri + "');background-size:cover;"
@@ -107,7 +109,7 @@ def wrap_with_consent(inner_html: str, consent_text: str, consent_button: str,
         inner_color = "color:#2a2f3a"
     return (
         "<!DOCTYPE html>\n"
-        '<html lang="de"><head><meta charset="utf-8">'
+        '<html lang="' + _html.escape(_i18n.sprache_aktiv(), quote=True) + '"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<style>"
         "html,body{margin:0;height:100%}"
@@ -154,7 +156,8 @@ def make_tourmap_embed_snippet(standalone_html: str, width: int = 1120, height: 
     Isoliert vom Theme-CSS, kein Upload nötig — die komplette Karte steckt im srcdoc."""
     w, h = int(width or 1120), int(height or 640)
     esc = _html.escape(standalone_html, quote=True)
-    return ('<iframe title="Tour-Karte" loading="lazy" allowfullscreen '
+    titel = _html.escape(_i18n.t_aktiv("tourmap.export.iframe_titel", "Tour-Karte"), quote=True)
+    return ('<iframe title="' + titel + '" loading="lazy" allowfullscreen '
             'style="width:100%;max-width:' + str(w) + 'px;aspect-ratio:' + str(w) + '/' + str(h)
             + ';border:0;display:block;margin:1rem auto;border-radius:10px" '
             'srcdoc="' + esc + '"></iframe>')

@@ -23,6 +23,7 @@ Der klassische Generator (core/animator.render) bleibt als Rückfall:
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import asyncio
 import base64
 import json
@@ -194,31 +195,31 @@ def _warte_grund(b) -> str:
     """25.09.2026 — woran die Bereitschaft (window.__rzAnimBereit) gerade hängt, in Worten.
     Vorher stand in der App minutenlang nur „Szene: Projekt öffnen …" (Klicktest AN-12/13)."""
     if not isinstance(b, dict):
-        return "Seite antwortet nicht"
+        return _i18n.t_aktiv("szene.g_seite_still", "Seite antwortet nicht")
     if b.get("err"):
-        return "Fehler in der Seite: " + str(b.get("err"))[:80]
+        return _i18n.t_aktiv("szene.g_seitenfehler", "Fehler in der Seite: ") + str(b.get("err"))[:80]
     if b.get("grund") == "kein Animator":
-        return f"Animator öffnet nicht (Modul {b.get('mod') or '?'})"
+        return _i18n.t_aktiv("szene.g_kein_animator", "Animator öffnet nicht (Modul {modul})").replace("{modul}", str(b.get('mod') or '?'))
     if not b.get("map"):
-        return "Karte wird angelegt"
+        return _i18n.t_aktiv("szene.g_karte", "Karte wird angelegt")
     if not b.get("style"):
-        return "Kartenstil lädt"
+        return _i18n.t_aktiv("szene.g_stil", "Kartenstil lädt")
     if (b.get("coords") or 0) < 2:
-        return "Track lädt"
+        return _i18n.t_aktiv("szene.g_track", "Track lädt")
     if b.get("pending"):
-        return "Touren werden übernommen"
+        return _i18n.t_aktiv("szene.g_touren", "Touren werden übernommen")
     if b.get("modal"):
-        return "Lade-Fenster offen"
+        return _i18n.t_aktiv("szene.g_modal", "Lade-Fenster offen")
     if b.get("route") is False:
-        return "Routen-GPX lädt"
+        return _i18n.t_aktiv("szene.g_route", "Routen-GPX lädt")
     if not b.get("tiles"):
-        return "Kartenkacheln laden"
+        return _i18n.t_aktiv("szene.g_kacheln", "Kartenkacheln laden")
     if b.get("fitBase") is None:
-        return "Kartenausschnitt noch nicht berechnet"
+        return _i18n.t_aktiv("szene.g_ausschnitt", "Kartenausschnitt noch nicht berechnet")
     n = b.get("schilderLaden") or 0
     if n > 0:
-        return f"{n} Schild-Bild{'er' if n != 1 else ''} laden"
-    return "noch nicht bereit"
+        return _i18n.t_aktiv("szene.g_schilder", "{n} Schild-Bilder laden").replace("{n}", str(n))
+    return _i18n.t_aktiv("szene.g_nicht_bereit", "noch nicht bereit")
 
 
 def _nur_noch(b, feld: str) -> bool:
@@ -279,9 +280,10 @@ async def _warte_bereit(page, js: str, timeout_s: float, was: str, is_cancelled,
                     z = f"Fehler {e}"
                 _log.warning("Szene: Kartenausschnitt fehlte nach 15 s — neu berechnet (Zoom %s)", z)
             elif time.time() - fit_seit > 60:
-                raise RuntimeError("Szene: Die Karte konnte keinen Ausschnitt für das Video berechnen "
-                                   "(Vorschau-Fläche zu klein oder Track ohne Ausdehnung?). "
-                                   f"Zustand: {_warte_zeile(letzte, 300)}")
+                raise RuntimeError(_i18n.t_aktiv("szene.err_kein_ausschnitt",
+                                       "Die Karte konnte keinen Ausschnitt für das Video berechnen "
+                                       "(Vorschau-Fläche zu klein oder Track ohne Ausdehnung?)")
+                                   + f" — {_warte_zeile(letzte, 300)}")
         else:
             fit_seit = None
         if not schilder_frei and dt > 30 and _nur_noch(letzte, "schilderLaden"):
@@ -293,8 +295,8 @@ async def _warte_bereit(page, js: str, timeout_s: float, was: str, is_cancelled,
             except Exception:      # noqa: BLE001
                 pass
         if dt > timeout_s:
-            raise RuntimeError(f"Szene: {was} nach {timeout_s:.0f} s nicht bereit — {grund}. "
-                               f"Zustand: {_warte_zeile(letzte, 300)}")
+            raise RuntimeError(_i18n.t_aktiv("szene.err_zeitgrenze", "Nach {s} s nicht bereit: ").replace("{s}", f"{timeout_s:.0f}")
+                               + f"{grund} ({was}) — {_warte_zeile(letzte, 300)}")
         await asyncio.sleep(0.5)
 
 
@@ -351,7 +353,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0)}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
     await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
-    emit(0.02, "Szene: App laden …")
+    emit(0.02, _i18n.t_aktiv("szene.app_laden", "Szene: App laden …"))
     await page.goto(f"file://{UI_INDEX.resolve()}", wait_until="domcontentloaded")
     # Kachel-Cache erst NACH dem Laden der Seite einhängen: die Routen-Abfangung
     # ließ das file://-Laden der App mit net::ERR_FAILED scheitern (06.09.2026).
@@ -361,7 +363,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
         _log.warning("Szene: Kachel-Cache nicht installiert: %s", e)
     await _warte_auf(page, "() => ({ ok: !!(window.RZGPS_MODULES && window.switchMod && window.loadGlobalGpx) })", 30, "App-Start", is_cancelled)
     await page.wait_for_timeout(1500)
-    emit(0.04, "Szene: Projekt öffnen …")
+    emit(0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     await page.evaluate("() => { try { window.switchMod('library'); } catch (_) {} }")
     await _warte_auf(page, "() => ({ ok: typeof window.rzProjektOeffnen === 'function' })", 20, "Archiv", is_cancelled)
     # Projekte-Reiter zeigen: erst damit kennt das Archiv die Projektliste (haupt_pfad usw.)
@@ -373,17 +375,17 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
         const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
-    info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, "Szene: Projekt öffnen …")
+    info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")
     if modul and modul != "animator" and aktiv != modul:
         # 07.09.2026 — Rückfall: falls das Archiv nicht im gewünschten Modul geöffnet hat
         # (Reiseroute und Tour-Map sind dasselbe Animator-Modul in anderem Modus), ausdrücklich
         # umschalten und auf die frische Bereitschaft der neuen Einhängung warten.
-        emit(0.045, f"Szene: Modul {modul} …")
+        emit(0.045, _i18n.t_aktiv("szene.modul", "Szene: Modul {modul} …").replace("{modul}", str(modul)))
         await page.evaluate(f"() => {{ window.__rzAnimBereit = null; window.switchMod({json.dumps(modul)}); }}")
         await _warte_auf(page, f"() => ({{ ok: (typeof activeMod !== 'undefined' && activeMod === {json.dumps(modul)}) && typeof window.__rzAnimBereit === 'function' }})", 60, f"Modul {modul}", is_cancelled)
-        info = await _warte_bereit(page, bereit_js, 240, f"Modul {modul} bereit", is_cancelled, emit, 0.045, f"Szene: Modul {modul} …")
+        info = await _warte_bereit(page, bereit_js, 240, f"Modul {modul} bereit", is_cancelled, emit, 0.045, _i18n.t_aktiv("szene.modul", "Szene: Modul {modul} …").replace("{modul}", str(modul)))
         _log.info("Szene: %s bereit — %s", modul, _warte_zeile(info))
     # Nachladen (Gelände-Kacheln, Schilder-Bilder) kurz Zeit geben, dann Viewport prüfen.
     await page.wait_for_timeout(2500)
@@ -420,7 +422,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
     async with async_playwright() as p:
         browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
         try:
-            emit(0.05, "Szene: Probelauf im Schrittmodus …")
+            emit(0.05, _i18n.t_aktiv("szene.probelauf", "Szene: Probelauf im Schrittmodus …"))
             await page.evaluate("() => window.__rzPreviewRun()")
             await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
             # ⚠️ 09.09.2026 (Marc) — DIE VORSCHAU BESTIMMT DIE LÄNGE, und zwar wirklich.
@@ -450,7 +452,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", str(_vw_std)) or 0)
             if _vorwaermen > 1:
                 _t_vw = time.time()
-                emit(0.05, f"Szene: Kacheln vorwärmen ({_vorwaermen}) …")
+                emit(0.05, _i18n.t_aktiv("szene.vorwaermen", "Szene: Kacheln vorwärmen ({n}) …").replace("{n}", str(_vorwaermen)))
                 # 08.09.2026 — Ist alles schon da, ist jeder weitere Halt verschenkte
                 # Zeit (Marcs zweiter Masca-Lauf: 90 s Vorwaermen, kaum noch Ertrag).
                 # Gemessen wird die WARTEZEIT je Halt, die `_WARTE_BILD_JS` zurueckgibt,
@@ -515,13 +517,13 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             except BaseException as _fehler:
                 mux.abbrechen("abgebrochen" if isinstance(_fehler, A.RenderCancelled) else "Fehler")
                 raise
-            emit(0.92, "ffmpeg finalisiert …")
+            emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
             mux.abschliessen(is_cancelled)
             _log.info("Szene: Kacheln %s", json.dumps(getattr(page, "_rz_tile_stats", None)))
         finally:
             try: await browser.close()
             except Exception: pass
-    emit(1.0, "Fertig.")
+    emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))
     return cfg.output_path
 
 
@@ -541,7 +543,7 @@ async def render_szene_still(cfg, *, api, projekt_id: str, params: Optional[dict
     async with async_playwright() as p:
         browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul="tourmap")
         try:
-            emit(0.6, "Szene: Standbild …")
+            emit(0.6, _i18n.t_aktiv("szene.standbild", "Szene: Standbild …"))
             # Kacheln/Gelände/Schilder nachladen lassen, dann zweimal ruhig abwarten (Kamerahöhe mit Gelände)
             for _k in range(2):
                 await page.evaluate(_WARTE_BILD_JS)
@@ -558,7 +560,7 @@ async def render_szene_still(cfg, *, api, projekt_id: str, params: Optional[dict
         finally:
             try: await browser.close()
             except Exception: pass
-    emit(1.0, "Fertig.")
+    emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))
     return cfg.output_path
 
 
@@ -602,5 +604,5 @@ async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params:
         finally:
             try: await browser.close()
             except Exception: pass
-    emit(1.0, "Fertig.")
+    emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))
     return cfg.output_path

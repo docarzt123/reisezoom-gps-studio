@@ -2,15 +2,31 @@
 
 <p align="center"><img src="../logo-originale-mit-text/gps-studio-lockup-color.png" alt="GPS Studio by reisezoom.com" width="420"></p>
 
-Cross-platform suite for GPS workflows (macOS · Windows · Linux). **v0.3.3** — Beta.
+Cross-platform suite for GPS workflows (macOS · Windows · Linux). **v0.9.628**
 
-Modules:
-- **Animator** — GPX track as an animated 3D map video (MP4)
-- **Travel Route** — the journey there as a video: start/destination → calculated route animated, with the loaded GPX shown as a ghost
-- **Tour-Map** — GPX track as a static PNG (e.g. for YouTube thumbnails)
-- **Geotagger** — write GPS coordinates from a GPX into JPG / RAW / video EXIF
-- **GPX Inspector** — repair a track point by point: heal outliers, fill gaps, move points, trim the start/end
+> **🚀 New here?** Every module has its own **quick start** — via **Help → Quick Start** (or the help window) you get 3 steps with a screenshot for exactly the module you are in.
+
+The eight modules, roughly in the order you use them:
+
+**Collect**
+- **Library** 📚 — all your tours in one place: scan folders, search, filter, build collections, statistics across all years. **This is where the app starts.**
+
+**Repair**
+- **GPX Inspector** 🔍 — repair a track: heal outliers, fill gaps, correct the elevation, move points, trim the start/end, cut out middle sections, join several recordings
+  Since 08.09.2026 **Auto-heal** first smooths the data: seconds with several points (e.g. ten points per second from action cams) are spread across the second, time jumps backwards are smoothed, missing times and elevations are filled in, duplicate points and points without coordinates are removed. Before that, an analysis box shows what was found, with a tick per point. The same in the web tool "Heal GPX".
   **Since 25.09.2026 🩹 Heal shows a preview first** ("Preview — nothing changed yet": orange outliers, magenta gaps, the planned track-check steps); only **✓ Apply** changes the track, *Cancel* discards. A gap follows a path only if the path really touches both ends of the gap — otherwise it is filled in a straight line instead of letting the track jump to the nearest road.
+
+**Enrich**
+- **Geotagger** 📷 — write GPS coordinates from the track into JPG / RAW / video EXIF
+
+**Show**
+- **Animator** 🎬 — the track as an animated 3D map video (MP4, up to 4K, also with an alpha channel for editing)
+- **Tour Map** 🗺 — the track as a static PNG (e.g. for YouTube thumbnails)
+- **Web Map** 🌐 — interactive map as HTML to embed in your blog
+- **Data Animator** 📊 — elevation, heart rate, speed or power as an animated chart video
+- **Travel Route** 🛣️ — the journey there as a video: start/destination → calculated route animated, with the loaded GPX shown as a ghost
+
+The **Overlay** tab is a placeholder for a feature that has not been built yet (see chapter 12). Above everything sits the **project** — your workbook for a tour, holding the state of all modules, earlier versions and the history.
 
 ---
 
@@ -349,6 +365,37 @@ base speed-up to match — holds included. "Make it 20 seconds" really gives 20 
 > **With several stages** (arrangement "in sequence") the lane is locked and only
 > displays: there the **stage lengths and transitions** make the schedule, see the next
 > section.
+
+### Several stages: order, duration and transitions
+
+When several tours come into the project together ("in sequence"), they are listed on the left
+under **"Tracks"** (right below the map) as numbered entries — the first track too, even if it
+is the only one. Each entry shows its colour (that is also where you change it), its name and
+its controls below:
+
+- **Duration** — empty (**auto**) means this stage gets its share of the animation length by
+  size. Enter a number and it gets exactly those seconds; the others share what is left.
+- **Name** — click, type, Enter: the stage is called that from now on. The file on disk
+  stays untouched; the name belongs to the project.
+- **↑ ↓ ✕** — change the order or remove the stage. Faster with many stages: the buttons
+  **"by date"**, **"by name"** and **"⇅"** above the list.
+- **▸ Look** — opens the look of **this** track below the entry (see "The look of each
+  track" below).
+- Between two stages sits the **transition**: **Cinematic flight** (zooms out, flies across,
+  zooms back in), **Straight line** (travels straight), **Pause** (nothing moves: the picture
+  and the running dot stay at the end of the stage, the hold stays in the timeline, the picture
+  only jumps with the next stage) or **Cut** (jumps without anything in between). The seconds
+  next to it apply to this one transition only; empty means "the shared cinematic flight
+  length at the very bottom".
+
+In the **speed lane** above the timeline every stage gets its own tile with its name and its
+colour — there you see which stage runs at which point of the video and how long it lasts.
+
+**The transitions are added to the animation length.** That is why the list shows below it how
+long the video really gets — split into stages and transitions. The line turns orange when the
+flights outweigh the stages or when fixed stage durations leave the other stages almost no time;
+then it also says how much each remaining stage gets. Every stage keeps at least three tenths of
+a second — better a slightly longer video than a stage that rushes by invisibly.
 
 ### Adding tours to an open project
 
@@ -927,6 +974,34 @@ check the existing tours — "Later" never asks again and tells you where the bu
 transfer, an "&" in the name, missing header), **"🩹 Repair"** puts a healthy copy into the
 archive as a tour. Your file stays as it is.
 
+### 🧭 The journey — tours in sequence, with their own stage times (since v0.9.671)
+Several tours in the Animator, sequence **journey**: they run one after another, and in between
+the camera flies to the next stage. The **Tracks** list now also shows the first tour as
+**stage 1**, and every stage has its own field for its **length in the video**:
+
+- **Field empty** — the stage gets its share of the total length, split by size.
+  That is exactly how it worked before.
+- **Number entered** — the stage runs exactly that long. Fill in every stage and their sum
+  is the length of the animation.
+
+Between two stages sits the **transition**, with its own style and its own length:
+
+- **Cinematic flight** — the camera zooms out, flies across and zooms back in (default).
+- **Straight line** — straight across, without zooming out.
+- **Pause** — the moving dot waits and the camera stays put; the picture moves on with the next stage.
+- **Cut** — no transition; the next picture already sits at the start of the next stage.
+
+If the transition's length field stays empty, the shared **flight time** below applies.
+
+**The test run now really shows the journey** (since v0.9.672): stage by stage, with the
+flight in between. During a transition the running dot disappears — it sits at the end of the
+old stage while the camera is on its way. **No straight line** is drawn across the map between
+the stages; every stage is a strand of its own.
+
+Who leads the camera: if you have set **keyframes**, they apply. If **Camera follows track**
+is on, it follows the running dot across all stages. Otherwise it holds each stage's overall
+view, just like the rendered video.
+
 ### 🌊 The swarm — all tours run at once (since v0.9.557, fully in the Animator since v0.9.569)
 Select several tours (⌘/Ctrl-click) or open a collection and choose
 **"🌊 Animate as a swarm …"** — a small dialog asks for the **speed mode**,
@@ -997,9 +1072,14 @@ any module:
   journey/swarm line-ups move along automatically. **"Save as new file …"** is
   the previous way; without the archive nothing changes.
 
+**And the cloud?** If you have set it up, the added tour goes up on its own — the sync takes
+everything that is in the archive and notices the change by itself. It does not happen
+instantly: there has to be about a minute and a half of quiet first, so that not every little
+thing ties up the line.
+
 It only asks when you open a file yourself. App start, library clicks and
 cloud imports stay silent. A **"no"** can be remembered per tour (checkbox in
-the dialog).
+the dialog), and then the question never comes back for that tour.
 
 **The sidebar on the left decides which tours you see at all:**
 
@@ -1018,11 +1098,52 @@ creates a “(copy)” with the same tours in the same order — handy for build
 without touching the original (and its Animator settings). The app remembers the
 section you were last in.
 
+**Done or only planned?** The app works this out by itself — no matter which app the track
+comes from:
+
+| Clue | Meaning |
+|---|---|
+| Sensor data (heart rate, cadence …) | definitely **done** — that only comes from recording |
+| “(Completed)”, “Recorded”, “Planned” in the name | taken over directly |
+| no timestamps | cannot be a recording → **planned** |
+| otherwise: the **rhythm** | a recording has breaks and a varying pace, a planned route runs through evenly |
+
+The last point is an estimate — it is right for about 9 out of 10 tours. That is why you can
+set each tour to **Done**, **Planned** or **Automatic** in the right-hand column; below it you
+see how the app recognised it. Your decision survives a rescan.
+
+**Collections — several tours as one unit.** A multi-day tour consists of six GPX files, a
+trip of twenty. As a collection they belong together:
+
+- **Create:** select a tour → on the right **“+ Add to collection”** → pick an existing one or
+  create a new one. Or **“+ New collection”** below the collections on the left. Faster via the
+  filter: search for “Märkischer Landweg” and take **“All 5 matches into a collection”**.
+- **Drag in:** simply drag a tour (or a whole selection) onto the collection on the left. The
+  collection lights up as soon as you are over it; letting go puts the tours in, and **Undo**
+  takes them out again.
+- **Right-click a tour:** opens the same choices as the right-hand column, just right at the
+  tour: the five tools (Animator, tour map, data animator, geotagger, inspector), “Show
+  details”, “◼ As whole tour”, favourite, rename, “Show in file manager”, “Add to collection”,
+  “Remove from collection” (when you are in one) and “Move to trash”. If you have marked
+  several tours and right-click one of them, the menu applies to all.
+- **Show:** click the collection on the left — you then see only its tours, in **their own
+  order** (stage 1, 2, 3 …), sorted by date.
+- **Carry on:** **“All in the Animator”** hands the whole collection to the Animator — first
+  stage as the main track, all others as additional tours. Six stages become one video.
+- A tour may sit in any number of collections; deleting a collection deletes **no** tours.
+
 **Four views**, switchable on the right of the bar (the app remembers your choice):
 **▦ Cards** for browsing, **☰ List** for comparing many tours at a glance, **🌍 Map** —
 every filtered tour on one world map, clicking a line selects it — and **📊 Statistics**.
 Far-away tours are drawn as dots on the map and only turn into lines as you zoom in;
-otherwise they would be invisible.
+otherwise they would be invisible. They are drawn in **magenta with a dark outline**: the map
+itself has orange roads and beige areas, and an orange track simply vanished on it. Favourites
+are amber.
+
+**Clicking a tour** on the map highlights it (white outline, orange line, on top) and opens a
+small **info card** right on the map: name, date, activity, distance, ascent, duration — and
+the two buttons **“Open in Animator”** and **“+ Add to collection”**. A click into empty space
+closes it again.
 
 **The statistics** always add up exactly what is selected right now — so “this collection
 only”, “done tours only” or “2024 only” work as well. They show tours, kilometres, ascent,
@@ -1457,16 +1578,18 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Track color + thickness** — freely selectable
 - **Line style** (since v0.6.5) — Solid / Dashed / Dotted / Dash-dot / **Tube**. For dash/dot variants there's an additional **spacing** slider (multiplies the dash or dot lengths). "Tube" (since v0.8.10, in the line-style dropdown since v0.8.12) lays a white highlight strip on top of the line → makes it look more three-dimensional, like a hose.
 - **Drop shadow under the track** (since v0.4) — makes the track look like a line floating above the map. Strength 0–10 px (default 4). With 3D terrain active, the shadow stays on the ground while the track is rendered 150 m above it → a three-dimensional 3D look.
+- **Shadow direction (global, since v0.9.478)** — right below the shadow strength, the **"Shadow direction"** slider (0–360°) sets where the light comes from: **0° = right, 90° = bottom, 180° = left, 270° = top**. It is **one shared light source** — it applies to the **track shadow** and to the **drop shadow of all signs** (waypoint signs) at the same time, so everything looks lit by the same sun.
 - **Waypoint signs (since v0.9.171, fully customizable since v0.9.179)** — place text signs along the route (e.g. "Summit reached!"). The **"🚩 Signs"** area in the sidebar:
   - **Placing:** **"📍 On track"** → click on the track (snaps into place), or **"📌 Place freely"** → click **anywhere** on the map (e.g. a landmark off the route). With free placement, the **display timing** still follows the nearest track point (anchored to the track + a free coordinate offset).
   - **Editing:** Clicking a sign (in the list or on the map) opens a **floating editor panel** — freely draggable by its header bar (⠿), even out of the map. The sign currently being edited is always visible (no matter where the playback point sits).
-  - **Look (all live):** shape (speech bubble · destination banner · pin · signpost · plain), **sign colour** + text color (the **"Sign colour" picker** — called "Background" until 25.09.2026 is the **one** box/bubble color of the sign — since v0.9.271 there is no separate "accent color" and no "Auto" anymore), font (System · Rounded · Narrow · Serif · Monospace · Bold display), size/weight/italic/alignment, multi-line text, corner radius, opacity, **outer border** (width + color; called "Border" until 25.09.2026), **post length** (only for destination banner + signpost — how long the posts/pole under the sign are) and drop shadow. **Add image** turns the sign into a **photo card** (the text then becomes the caption); the image size is adjustable separately.
+  - **Moving (drag & drop):** in the editor click **"↔ Move"** — then you **drag the sign straight on the map** to where you want it and let go. It takes the new position as a **free placement** (the display time then follows the nearest track point anew). The editor window stays where you put it.
+  - **Look (all live):** shape (speech bubble · destination banner · pin · signpost · plain), **sign colour** + text color (the **"Sign colour" picker** — called "Background" until 25.09.2026 is the **one** box/bubble color of the sign — since v0.9.271 there is no separate "accent color" and no "Auto" anymore), font (System · Rounded · Narrow · Serif · Monospace · Bold display), size/weight/italic/**alignment** (left/centre/right — visible as soon as you set a fixed minimum width > 0 under **"Width"**; with "Auto" the box hugs the text and alignment has no room to act, since v0.9.479), multi-line text, corner radius, **background opacity** (since v0.9.478 the slider dims **only the sign colour** — the text stays fully readable), **outer border** (width + color; called "Border" until 25.09.2026), **post length** (only for destination banner + signpost — how long the posts/pole under the sign are) and **drop shadow** (softness down to **0** = hard edge since v0.9.478; the **direction** comes from the global "Shadow direction" slider in the track section). **Add image** turns the sign into a **photo card** (the text then becomes the caption); the image size is adjustable separately.
     - **Speech-bubble arrow direction (since v0.9.408):** With the **speech bubble** style you choose in the editor under **"Arrow direction"** where the tip points — **down, up, left or right**. The bubble automatically shifts to the opposite side so the tip always points at the location. (Analogous to choosing the direction on the signpost; applies to Animator and Tour-Map.)
     - **Pointer colour + pointer position (since v0.9.481):** For **speech bubble** and **pin** signs, **"Pointer colour"** in the editor sets the colour of the tip or the pin — independently of the background. The **"Auto"** button means "as before": the pointer follows the background. This also enables **background "None" (transparent) plus a coloured pin**; previously the pointer disappeared along with the background. Below it, **"Pointer position"** offers **left · centre · right** — handy when the tip would otherwise sit right on the trace and cover the track: leave the sign where it is and slide the pointer aside. With background **“None”** and pointer colour **“Auto”** the pointer stays invisible (there is no background colour for it to follow) — just pick a colour of your own in that case.
     - **One color instead of two (since v0.9.271):** There used to be an "accent color" **and** a "background" — both filled the same area, which was confusing. Now there's only the **"Sign colour" picker** = the color of the sign (for the pin, also of the drop). You set the **border** separately under "Border".
     - **Sign colour "None" (transparent, since v0.9.269):** For the sign colour you can now choose **"None"** alongside "Auto" → the sign box becomes completely **transparent**. Handy for **photo cards without a colored frame**: then you see only the image (plus an optional border), instead of a colored edge around the photo that, together with the border, would otherwise look like a **double frame**.
   - **Editing is flicker-free (since v0.9.255):** When dragging the sliders (size, corners, border, shadow, post length …) the preview updates instantly and smoothly. In the test run and the finished video the signs move fluidly along with the camera.
-  - **Behavior & timing:** "Grow with zoom" on/off, **"Show the whole time"** (since v0.9.736 no checkbox any more: whole time = bar across the full width in the timeline; continuously visible), **lead-in** X sec. (appears earlier) + **"Stays visible"** X sec. (how long it stays after the marker reaches it; 0 = stays until the end), **fade** (hard/fade-in). Otherwise it appears in the video exactly when the marker reaches the point; it stands upright facing the camera. **Since v0.9.204:** A sign right at the start of the track with a **lead-in** now already appears **in the intro** (lead-in = 1 sec → shows up in the last intro second, instead of popping up only at the track start).
+  - **Behavior & timing:** "Grow with zoom" on/off, **"Show the whole time"** (since v0.9.736 no checkbox any more: whole time = bar across the full width in the timeline; continuously visible), **lead-in** X sec. (appears earlier) + **"Stays visible"** X sec. (how long it stays after the marker reaches it — called "Visible after" until 25.09.2026; 0 = stays until the end), **Reveal** — since v0.9.479 four real variants: **Hard** (there instantly), **Fade in** (faded in gently), **Pop** (scales up with a slight overshoot) and **Fade + pop** (both together). Before, the animated variants looked the same. Otherwise it appears in the video exactly when the marker reaches the point; it stands upright facing the camera. **Since v0.9.204:** A sign right at the start of the track with a **lead-in** now already appears **in the intro** (lead-in = 1 sec → shows up in the last intro second, instead of popping up only at the track start).
   - **Trigger timing (since v0.9.259) — for out-and-back routes:** If your track passes the same spot **twice** (e.g. out and back), the app can't tell from the click position alone which pass you mean. The solution is in the **"Trigger timing"** block:
     1. Move the timeline **scrubber** to exactly the moment when the marker is at the spot on the **desired pass**.
     2. Click **🕐 "To timeline position"** → the sign is fixed to exactly this moment (status line: "Fixed time: NN %").
@@ -1493,12 +1616,18 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   parallel rows the profile shows the chain's path.
 - **North arrow** (since 2026-09-04, beta-tester request) — rotates with the camera, so it always points north even when the view is turned or sweeping. Default **on**, bottom right.
 - **Scale bar** (since 2026-09-04) — bar with a round length (100 m, 500 m, 2 km …) that follows the zoom; measured at the centre of the frame. Default **on**, bottom left. The alpha render (no map) drops it because there is no map; the north arrow stays.
+- **Source line** (since 2026-09-07) — crediting the map sources is mandatory and always stays visible, but you choose the **corner** (bottom right, bottom left, top right, top left) and the **width** (narrow = tall block, medium, wide = flat line, full width = bar along the bottom edge) so it does not cover the elevation profile or the north arrow. Preview and video show it at the same size.
 - **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. “⤢ Fit” brings back the overview; once you set a keyframe, the keyframe wins.
-- **Free satellite everywhere** (since 2026-09-05): where no official aerial imagery exists (Hamburg, New Zealand, USA …) the style now shows Sentinel-2 satellite imagery (10 m, 2016, EOX) instead of an empty area. A banner on the map tells you. No houses or trails at that resolution, but landscape, rivers and city structure; for close-ups pick another style (MapTiler, OpenStreetMap). The credit “Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016” appears in the attribution line; videos may be published.
+- **Free satellite everywhere** (since 2026-09-05; zoom staging since v0.9.656: in wide views the style shows Sentinel-2 only, the official aerial imagery fades in from zoom 12 and is complete at 13.5 — since v0.9.658 one step later than before, because Sentinel stays pixel-sharp up to there): where no official aerial imagery exists (Hamburg, New Zealand, USA …) the style now shows Sentinel-2 satellite imagery (10 m, 2016, EOX) instead of an empty area. A banner on the map tells you. No houses or trails at that resolution, but landscape, rivers and city structure; for close-ups pick another style (MapTiler, OpenStreetMap). The credit “Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016” appears in the attribution line; videos may be published.
 - **ProRes 422 HQ** (since 2026-09-05): Settings → video codec, for editing in Final Cut or Resolve. Output is .mov and large.
 - **Export swarm/journey** (since 2026-09-05): “Export project (.rzproj)” now packs **all** tracks and the swarm/journey project of a composition. The recipient imports it as usual and the composition opens right in the Animator. Before, only the first track arrived, without the project.
 - **Mac: double-click on .rzproj** works since 2026-09-05 while GPS Studio is already running (previously only at launch).
 - **Starry sky (globe)** (since 2026-09-05, beta-tester request) — in the **Map** section: on/off, density, size and twinkle. Visible once the camera is far enough out (world approach, intro). Preview and video show the same stars. Mapbox styles do not have the group; Mapbox brings its own sky.
+- **Preview quality** (since 2026-09-07) — Settings → Maps, at the very bottom: "full" (like the video), "brisk" (four times fewer tiles per frame, tile density as before 7 Sept) or "fast" (additionally half the image resolution; on Retina Macs this barely adds speed). Helps when the preview stutters. It only affects the window: video and still image always render in full, camera, route and overlays are identical. The app reloads the interface after the change.
+- **Source line: full or short** (since 2026-09-07) — in the "Source line" overlay group next to corner and width: "full" shows every source with its licence in the picture (as before). "short (names + link)" shows the short names of the sources in the picture, "modified" and then "Sources: <your link>" — the link must lead straight to the complete details for this video (your page, the video description). The names stay in the picture because many licences require visible credit; the links to licence and dataset sit behind your link. Without a link only the names and "modified" appear. Same in preview and video, not in the Web Map. After every render there is a **"Copy source text"** button: the complete text for the video description or the end credits (provider, dataset, licence with links, "Data modified", your link).
+- **Source register** (since 2026-09-07) — in the settings under **Maps**, expandable in the rights table: for every map service the data licence with a link, whether commercial videos are allowed (✅ checked and allowed · 💰 buy rights · ⚠️ not verified or server rules · ❌ not allowed), the required credit in the picture and the date it was checked. Every service was read up on individually on 7 Sept 2026; since then the credit in the picture comes from this register, with a modification note where the licence requires one. It is re-checked at least every six months; if an entry is overdue, a note says so. The map badges in the style picker follow the register: CyclOSM and Humanitarian are not cleared for videos (the OpenStreetMap France server serves non-commercial sites only), OpenStreetMap and OpenTopoMap carry the note "video: mind server rules" (frame-by-frame rendering only by arrangement or with your own tile server). This is our reading, not legal advice — the links are right next to it.
+- **Sharpness** (since 2026-09-07) — the last slider of the "Imagery look" or "Map look" (below "Hue"), 0–100 % (default 0): an unsharp mask on the map image, the same in preview and video (not in the Web Map exports). It only affects the map image, not the route, signs, labels, figures, elevation profile or source line. Background: the free Sentinel-2 layer (10 m, from 2016) is soft over islands and coasts without official aerial imagery — that is the source data, not the app. 40–60 % makes it readable; above that it gets grainy. Since the same day all raster maps on Retina screens and in the video fetch one or two tile levels deeper, so that one tile pixel lands on roughly one image pixel (before, they were enlarged 2 to 5 times).
+- **Relief, haze and looks** (since 2026-09-17) — in the "Imagery look": **Relief** lays light and shadow from the terrain data over the aerial imagery (default 0 = off; the looks set 35–60 %), so the flat Sentinel-2 layer gets depth. **Remove haze** (0–100 %, default 0) takes the blue veil out of satellite imagery — technically a black point per colour channel on the map image, in the same layer as the sharpness; 15–35 % is the sweet spot, more looks harsh. The "Map look" (OSM, OpenTopoMap …) has "Remove haze" too. The **Look** selector (Natural / Vivid / Cinematic) sets all seven sliders at once; "Custom" means at least one slider differs. Everything the same in preview and video, undo with ⌘Z, not in the Web Map exports.
 - **Map look** (since 2026-09-05) — also in the **Map** section, for every map except the official aerial imagery (which has its own “Aerial look”). Raster maps such as OpenStreetMap or OpenTopoMap: saturation, contrast, brightness, hue. Vector maps such as OpenFreeMap or MapTiler: brightness only, technically a dimming layer below the track so the track stays bright while the map recedes. Default 0 = map as delivered, “↺ Default” resets.
   Both can be switched off and moved to another corner like any box. The **Web map** (Leaflet) has the same two switches; north is always up there and the scale bar comes from Leaflet.
 
@@ -1538,6 +1667,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 **Apply to all boxes, reset:** “Apply to all boxes” copies the look and fades of the open box to all others. Timing and figures stay per box. “Reset this box” and “Reset all” remove the individual settings after asking. Every change can be undone with ⌘Z, the preview shows it at once, and fades and timing look in the test run exactly as in the video.
 
 **New in the sidebar:** “Stats box appearance” now also has **Exit**, **Fade duration**, **Corners**, **Border** with colour and **Shadow** for all boxes together.
+
+**Shadow + entrance of the stats boxes (since v0.9.479):** the boxes now cast a **direction-dependent shadow** that follows the same **global light source** as the track and the signs (the **"Shadow direction"** slider in the track section). There is also the **"Entrance"** selector (Hard / Fade in / Pop / Fade + pop) — it decides how the boxes appear in the **rendered video** (and in the test run).
 
 **Positions (since v0.9.284):** stats boxes in a **3×3 grid** — four corners plus **top (↥)**, **bottom (↧)**, **left (⇤)**, **right (⇥)** centered and **center (✛)** (e.g. for a title/opening overlay). The **elevation profile** is narrower and additionally offers **top wide / bottom wide** (across the full width).
 
@@ -1781,6 +1912,13 @@ When you render only part of the track, you can choose whether the **track line 
 ### Live render preview
 During the render you see the frame currently being produced in the preview window. If the combination of style and camera angle doesn't suit you: click **"⨯ Cancel"** — the half-finished file is deleted immediately and you can reconfigure without having waited 5 min for a render that turns out to be nothing.
 
+### Preview = video (since v0.9.658) ⭐
+Since v0.9.658 the finished video is literally the preview in high resolution: the same map, the same lines, dashes, signs, overlays and the same camera path, just drawn at the video's pixel density. What you see in the test run is what you get — line widths and sign sizes in the video are exactly as large **relative to the frame width** as in the preview. Tip: judge the preview at the window size you render with; a much wider window shows (and renders) the signs a little smaller in relation to the picture.
+
+With the swarm on 3D terrain, the lines now run just above the terrain in the preview too (no more flickering on ridges) — just like in the video.
+
+Should a render with the new method ever fail to finish, there is a fallback to the previous generator: add `"render_engine": "klassisch"` to `settings.json` (or start the app with `RZ_RENDER_KLASSISCH=1`). Alpha export (transparent background) and the Tour-Map still image still use the previous method anyway.
+
 ### 📷 Photos on the map (since v0.9.74) ⭐
 
 Photos with GPS EXIF appear as small thumbnails at their capture position. Perfect for travel vlogs: the track runs along, and the photo points are visible as polaroids on the map.
@@ -1888,13 +2026,17 @@ Travel Route is a **full-fledged clone of the Animator**: everything that works 
 
 ### Workflow
 1. **Load a GPX** (the hike) — as usual via the GPX bar. In the Travel Route tab it appears automatically as a **ghost** (faint line).
-2. The **"🛫 Route / journey"** area: choose a **style** — **🛣️ Follow the road** (Mapbox route) or **✈️ Flight path (great circle)** (the shortest path on the globe, like real flights — it bows poleward on the map).
+2. The **"🛫 Route / journey"** area: choose a **style** — **🛣️ Follow the road** (road route via OpenStreetMap services, no token needed) or **✈️ Flight path (great circle)** (the shortest path on the globe, like real flights — it bows poleward on the map).
 3. Enter **stations** — **start, any number of waypoints, and destination**. Type each station as an **address/place** (e.g. "Dresden Hauptbahnhof"), set it via **📍 click on the map**, or as `lat,lon`. **"➕ Waypoint"** inserts a station before the destination; **✕** removes one. With **"📍 Click mode"** you simply click the stations **one after another on the map** — each click appears as a new station in the list (Esc ends it). Handy when the real route (e.g. a ferry) doesn't follow the direct path.
 4. For "Follow the road": **mode of travel** (car/foot/bike) + a **detail level** slider (fine → coarse). Coarse makes a deliberately **flowing, simplified** line that loosely follows the route (not as fine-grained as a real hike). The animation always stays smooth.
 5. **"Calculate route"** → the route is loaded as an animated track, the hike remains as a ghost behind it. Distance + travel time are shown below the button.
 6. Continue as in the Animator: test run, camera, signs, **render video**.
 
 > **The detail level takes effect only at the next "Calculate route"** — move the slider, then recalculate.
+
+> **Without Mapbox (since 07.09.2026):** "Follow the road" calculates via free OpenStreetMap services: car via OSRM (any length), foot and bike via Valhalla (up to 100 km or 150 km per route; beyond that the app switches to the OSRM road network). A Mapbox token is now only a fallback if the free services do not answer. The same applies in the Inspector to "snap to paths" and "Route A→B (follow roads)".
+
+> **Check place names (since 07.09.2026):** the place search asks Photon first (OpenStreetMap, no token) and understands local-language names such as "Teneriffa" or "Kapstadt"; before, Mapbox returned a Teneriffe in Australia for that, and the flight from Berlin went once around the world. A typo still finds some place ("berin" → Berin in Hungary) — the **✓ line below the field** always shows what was found. If it is wrong: add to the name ("Berlin, Germany") or set it with 📍 on the map. A waypoint that is already resolved pulls the search for the next stations towards nearby matches.
 
 ### Reordering and checking stops (since v0.9.538)
 
@@ -1913,8 +2055,8 @@ The **"👻 GPX ghost"** area: show on/off, **color**, **opacity**, **line width
 ### What gets saved
 All stations (start, waypoints, destination), style, detail level, profile **and the last calculated route** are stored in the project — after a restart everything is back (the route appears without recalculating).
 
-### Needs a Mapbox token
-Road routes + address search run via Mapbox (the same token as the map, see Getting Started). The flight path (great circle) needs no API call.
+### Mapbox token — only a fallback
+Since 07.09.2026 road routes are computed with free OpenStreetMap services (see "Without Mapbox" above). A Mapbox token (the same as for the map) only steps in if those services do not answer. The flight path (great circle) needs no service at all.
 
 ## 5 · Module: Tour-Map — static map PNG
 
@@ -1930,7 +2072,11 @@ The Tour-Map is **the same interface as the Animator** — just in **still-image
 2. **Choose a format**: YouTube 16:9 (1920×1080) · 4K · Shorts 9:16 (1080×1920) · Instagram 1:1 (1080×1080) · or custom
 3. **Style + camera** as in the Animator — map style, line look, tilt, zoom level, signs/photos
 4. **Fine-tune the framing** with the camera controls (see below) or directly with pan/zoom on the map
-5. **"🗺 Render map as PNG"** → save dialog → the PNG is ready in 3-5 seconds
+5. **"🗺 Render map as PNG"** → save dialog → the PNG is ready in about 10 seconds
+
+**Compositions (since 07.09.2026):** if you open a swarm or journey project in the Tour Map, it shows all tours in their colours, fits the framing to all of them, and the PNG contains them; with a swarm the totals box counts all tours together.
+
+Since 07.09.2026 the PNG, like the video, is made from the preview itself (see "Preview = video"): the same map, the same labels, signs, pins and the source line, just at the chosen image size. What the preview shows relative to its width, the image shows too.
 
 ### Still-image camera controls (since v0.9.310)
 In the **Camera** section there are three controls that only appear in still-image mode — all take effect **instantly, live in the preview**:
@@ -2250,7 +2396,7 @@ These values are **stored as a profile** — you type name + copyright **once**,
 As soon as photos are assigned, the app **automatically** determines the **complete address** (street, town, state, country) for each and shows it in the photo popup. On tagging it's written into the photo as **IPTC + XMP** — Lightroom, Apple Photos & Co. then show the location and country. The **"📍 Fetch addresses"** button is now only for **re-fetching**.
 
 - **Clever instead of slow:** the lookup runs as a **3-tier pyramid** — first one query on the centroid of all photos (= country), then one per ~1-km area (= town), then finely the street. That way all images are roughly filled after a few queries, with the street following.
-- **Provider selectable** (⚙ → "Address search"): **Automatic** (uses Mapbox if you have a token stored, otherwise Photon), **Mapbox** (fastest, needs a token), **Photon/Komoot** or **Nominatim/OpenStreetMap** — all without an account except Mapbox. Each option is explained in the dialog.
+- **Provider selectable** (⚙ → "Address search"): **Automatic** (since 07.09.2026 always Photon, no token needed; Mapbox only if you choose it explicitly and a token is stored), **Mapbox** (fastest, needs a token), **Photon/Komoot** or **Nominatim/OpenStreetMap** — all without an account except Mapbox. Each option is explained in the dialog.
 - **Can be turned off:** in the settings the address search can be **disabled** entirely — then nothing is sent to the internet at all, and you type addresses by hand as needed.
 - **Correctable per photo:** if an address is wrong, adjust it via the **✎** in the photo popup.
 
@@ -2381,6 +2527,23 @@ With **‹ / Next ›** you jump through the outliers, **🩹 Heal all** applies
 
 **"Snap the whole track to the path network"** lays the **complete** track onto Mapbox roads and **overwrites your points** — this can create detours/loops at junctions. Hence, since v0.9.315, with a **warning + 2-click confirmation**. For just gaps/outliers, rather use the normal **Heal**.
 
+### 🔗 Join tracks — since v0.9.456
+Two recordings that are really **one tour**? Typical when the watch stopped halfway, the battery died or a multi-day tour comes as **one file per day**. Under **"🔗 Join tracks"** you append another file to the loaded track:
+
+1. Choose **Insert**: *at the end* (the usual case), *at the start*, or *by time of day* — then the timestamps decide what comes first.
+2. Click **Append another track …** and pick the file (any supported format: GPX, FIT, TCX, KML …).
+
+After that it is **one** track: heal, trim, correct the elevation, save — everything as usual. In the Animator, Tour-Map and Data Animator it runs as one unit too.
+
+**What happens to the times:**
+- If the appended track comes **later in time** than the first one, all timestamps stay **unchanged**. The real break in between is part of your tour and is not retouched away.
+- If the two **overlap** (or the new one comes before), it is shifted back — otherwise the time axis would run backwards and speed, duration and charts would be nonsense. **Pause in between** sets how many seconds of gap this creates.
+- **Without timestamps** nothing is shifted; only the chosen order counts.
+
+**The gap at the seam** is shown to you (distance and time) — but **not bridged automatically**. A straight line from A to B would be a route you never took. If you want to close it, use **🩹 Heal → "Fill gaps with points"** afterwards: that routes along real paths.
+
+**Sensor data** (heart rate, power, cadence, temperature) stays with its own recording per section — the heart rate from track 1 is not blended into track 2.
+
 ### ⛰ Correct elevation (map instead of GPS) — since v0.9.292
 GPS elevation values are often noisy — especially with poor reception the elevation jumps a few meters back and forth, and in the end there are far too many **elevation meters** in the stats (e.g. 1800 instead of 1400). Here you can blend the **smooth terrain elevation from the Mapbox map** (digital elevation model) with your GPS elevation — and see **exactly what happens**:
 
@@ -2399,10 +2562,12 @@ GPS elevation values are often noisy — especially with poor reception the elev
 The classic flow: you are already building in the **Animator**, notice the
 track is off, repair it in the inspector, save — and the animator used to
 start empty, because a healed track is a **new tour** to the app (tours are
-recognised by their coordinates, not their file name). The inspector therefore
+recognised by their coordinates, not their file name — which is why the app finds your
+projects even after renaming). The inspector therefore
 asks **once after saving** whether your work should come along. Say yes and
 **all projects** of the tour move over — animator (camera, keyframes, look),
-tour map, geotagger, elevation animator, plus photos and signs.
+tour map, geotagger, elevation animator, plus photos and signs. The project that was last
+active is at the front again afterwards.
 
 > **Honest caveat:** depending on **how much** was healed, the transfer may
 > not fit everywhere. Keyframes, signs and photo pins sit at a **position on
@@ -2412,7 +2577,7 @@ tour map, geotagger, elevation animator, plus photos and signs.
 > after the transfer.
 
 **The old tour stays untouched.** If you don't like the result, just open the
-original file again.
+original file again — everything there is unchanged.
 
 ### 🗂 How the sidebar is organised (since v0.9.687)
 The track figures and ↩︎/↪︎ at the top, **Save** and **Discard** pinned at the bottom. In between six collapsible sections — whatever you leave open stays open next time:
@@ -2604,8 +2769,19 @@ version at startup”). Off means: the app makes no network connection on its
 own — it only fetches maps when you display one, using your own Mapbox
 account. The manual button in the About dialog keeps working.
 
-### "Can't be opened because it is from an unidentified developer" (macOS)
-The app is not signed with a $99/year Apple Developer cert. Solution: **right-click → Open** instead of double-clicking (see Installation).
+### How can I support the project? (since 07.09.2026)
+The **About dialog** (logo top left → "About") has buttons for supporting:
+Ko-fi and PayPal for the development of the app (covers developer account, signing,
+servers), and below them the free services the app runs on without any key:
+OpenStreetMap Foundation, FOSSGIS e. V. (runs the routing and address services),
+OpenFreeMap (vector maps) and MapLibre (the map library). They live on donations
+and members — any support there also keeps this app free.
+
+### "Really open?" on the first launch (macOS)
+macOS shows this prompt for **every** app downloaded from the web, signed ones included — confirm it
+once and never again. Since v0.9.4x the app is **signed and notarized by Apple**; the old
+"unidentified developer" block with the right-click trick is gone. If it still appears, the file
+was not downloaded completely — download it again.
 
 ### "Allow GPS Studio to find devices on local networks?" (macOS)
 macOS (since 15) asks this the first time you start a build with a new
@@ -2641,12 +2817,12 @@ On the very first render the app downloads Chromium once for the map render pipe
 The map shows this when a map service fails to deliver tiles several times in a row (server error or no connection). Parts of the map are then missing. What helps: wait a moment and move the view slightly, or pick another map style. Single cancelled tiles — for example while a very long tour is fitted into the view — no longer trigger the notice; before v0.9.727 it sometimes appeared for no reason.
 
 ### "Mapbox token missing" on the render
-Animator + Tour-Map need a Mapbox token (the Geotagger doesn't). Enter it in the ⚙ modal. If you want to try without one first: OSM mode (the standard map without satellite), but Animator rendering stays disabled.
+Only the **Animator render** needs the token. Tour Map, Web Map, Geotagger, GPX Inspector and Data Animator run without one — the Tour Map then draws with an OpenStreetMap style instead of satellite or 3D (since v0.9.406). Enter it in the ⚙ modal (on the Mac also with Cmd+,); how to get a free one in two minutes is explained in chapter 2.
 
 ### My RAW format isn't recognized
 Currently supported: CR3, CR2, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW, HEIC, HEIF. If your format is missing: mail Marc, probably easy to add.
 
-**HEIC special:** iPhone photos (HEIC) work **out of the box** since v0.9.57 — the necessary decoder plugin (`pillow-heif` with libheif) is in the app bundle, you need no separately installed tool. For the other RAW formats you still need **ExifTool** on the system (on macOS via `brew install exiftool`, on Windows the official standalone builds). If ExifTool is missing, the Geotagger sees this on photo import and skips the RAW files.
+**HEIC and RAW need nothing extra.** iPhone photos (HEIC) work out of the box since v0.9.57, RAW since v0.9.61: both the decoder plugin (`pillow-heif` with libheif) and **ExifTool** are built into the app bundle on macOS and Windows. You install nothing. Only on **Linux** (running from source) do you get ExifTool from the package manager — the commands are in chapter 1.
 
 ### The render eats hours / seems to hang
 **Small window (since 25.09.2026):** if the progress stops at "Opening project …", the display now says what it is waiting for (e.g. "loading 1 sign image"). A sign image that does not load no longer blocks the render after 30 s. If the preview is very small (under 640 px wide, e.g. with a small app window), GPS Studio still renders at 640 px width: same framing, but lines, text and the attribution are fine instead of coarsely enlarged.
@@ -2723,14 +2899,15 @@ On Windows/Linux, `Ctrl + …` instead of `Cmd + …` accordingly, and `Ctrl + Y
 
 ---
 
-## 12 · Known Limitations (Beta v0.3.x)
+## 12 · Known Limitations (as of v0.9.628)
 
 - **macOS**: Apple Silicon only (M1/M2/M3/M4) — no Intel Mac
-- **The app is not code-signed** → a first-launch hurdle via right-click → Open
-- **Multi-track**: one GPX per render — multi-track comparison is coming later
-- **Video overlay** (live stats over an existing MP4): not yet implemented
-- **High-resolution geocoding** (a photo exactly on the trail curve): not implemented; points are snapped to the nearest track point
-- **Custom fonts/logos in the overlay**: not possible
+- **The Windows build is not signed** → SmartScreen speaks up once (macOS is signed + notarized)
+- **Video overlay** — laying live values over an existing MP4: not built yet. That is why the "Overlay" tab is labelled "soon". Until then, render in the Animator with **"Animation without map (alpha channel)"** and put the `.mov` over your footage in your editing program — the result is the same.
+- **Your own font files** cannot be loaded; you choose from the built-in ones. You can still get a **logo** into the picture: as an image in a waypoint sign.
+- **Auto-tag via image recognition** is only available on the Mac (Apple Vision).
+
+**What used to be here and no longer applies:** several tours in one video work since v0.9.539 (merging), v0.9.544 (ghost tracks) and v0.9.557 (swarm — up to 96 tours at once). Since v0.9.166 photos can be placed freely on the map instead of only snapping to the nearest track point.
 
 The full roadmap is in the repo under `docs/IDEAS.md`.
 

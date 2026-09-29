@@ -22,6 +22,7 @@ import html as _html
 import json
 from core.northarrow import NORTH_SVG
 from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
+from core import i18n as _i18n  # 29.09.2026 — Exportseite in der App-Sprache
 
 LEAFLET_VERSION = "1.9.4"
 
@@ -77,9 +78,10 @@ def make_leaflet_html(params: dict) -> str:
         "attr": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }
     show_pins = bool(params.get("show_pins", True))
-    start_label = str(params.get("start_label", "Start"))
-    end_label = str(params.get("end_label", "Ziel"))
-    title = str(params.get("title", "Tour-Karte"))
+    # 29.09.2026 — Rückfälle in der App-Sprache (app.py liefert sie meist schon mit)
+    start_label = str(params.get("start_label") or _i18n.t_aktiv("webkarte.start", "Start"))
+    end_label = str(params.get("end_label") or _i18n.t_aktiv("webkarte.ziel", "Ziel"))
+    title = str(params.get("title") or _i18n.t_aktiv("tourmap.export.iframe_titel", "Tour-Karte"))
 
     signs = []
     for s in (params.get("signs") or []):
@@ -188,6 +190,7 @@ def make_leaflet_html(params: dict) -> str:
     credit_html = credit_link_html(params.get("credit_text"), params.get("credit_url"))
 
     return LEAFLET_TEMPLATE % {
+        "lang": _html.escape(_i18n.sprache_aktiv(), quote=True),
         "title": _html.escape(title),
         "leaflet_head": leaflet_head,
         "credit": credit_html,
@@ -207,7 +210,7 @@ def credit_link_html(text, url) -> str:
 
 
 LEAFLET_TEMPLATE = """<!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8">
+<html lang="%(lang)s"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%(title)s</title>
 %(leaflet_head)s

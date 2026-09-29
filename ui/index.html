@@ -58,7 +58,15 @@
       inst_lauf: 'Installiere … das dauert einen Moment.',
       inst_ok: '✓ Installiert — die App startet gleich neu.',
       inst_fehler: 'Das hat nicht geklappt: {e}. Dann bitte den Weg unten.',
-      inst_hinweis: 'Oder mit einem Klick: Die App kopiert sich selbst in den Programme-Ordner, wirft das Download-Image aus und startet neu.'
+      inst_hinweis: 'Oder mit einem Klick: Die App kopiert sich selbst in den Programme-Ordner, wirft das Download-Image aus und startet neu.',
+      keine_verbindung: 'keine Verbindung',
+      fe_js: 'JavaScript-Fehler beim Start',
+      fe_datei: 'Programmdatei fehlt oder ist beschädigt',
+      fe_datei_text: 'Nicht ladbar: {src}  —  Bitte die App neu aus dem Original-Download installieren.',
+      fe_init: 'Fehler beim Initialisieren',
+      fe_unbekannt: 'Unbekannter Fehler',
+      fe_zeit: 'Zeitüberschreitung beim Laden',
+      fe_zeit_text: 'Die Oberfläche hat sich nach 25 Sekunden nicht gemeldet.'
     },
     en: {
       titel: 'GPS Studio could not start',
@@ -83,7 +91,15 @@
       inst_lauf: 'Installing … this takes a moment.',
       inst_ok: '✓ Installed — the app restarts in a second.',
       inst_fehler: 'That did not work: {e}. Please use the steps below.',
-      inst_hinweis: 'Or with one click: the app copies itself into the Applications folder, ejects the download image and restarts.'
+      inst_hinweis: 'Or with one click: the app copies itself into the Applications folder, ejects the download image and restarts.',
+      keine_verbindung: 'no connection',
+      fe_js: 'JavaScript error during startup',
+      fe_datei: 'Program file is missing or damaged',
+      fe_datei_text: 'Could not load: {src}  —  Please reinstall the app from the original download.',
+      fe_init: 'Error during initialization',
+      fe_unbekannt: 'Unknown error',
+      fe_zeit: 'Loading timed out',
+      fe_zeit_text: 'The interface did not respond within 25 seconds.'
     },
     es: {
       titel: 'GPS Studio no ha podido arrancar',
@@ -108,7 +124,15 @@
       inst_lauf: 'Instalando … tarda un momento.',
       inst_ok: '✓ Instalada: la aplicación se reinicia enseguida.',
       inst_fehler: 'No ha funcionado: {e}. Usa los pasos de abajo.',
-      inst_hinweis: 'O con un clic: la aplicación se copia sola a la carpeta Aplicaciones, expulsa la imagen de descarga y se reinicia.'
+      inst_hinweis: 'O con un clic: la aplicación se copia sola a la carpeta Aplicaciones, expulsa la imagen de descarga y se reinicia.',
+      keine_verbindung: 'sin conexión',
+      fe_js: 'Error de JavaScript al arrancar',
+      fe_datei: 'Falta un archivo del programa o está dañado',
+      fe_datei_text: 'No se puede cargar: {src}  —  Vuelve a instalar la aplicación desde la descarga original.',
+      fe_init: 'Error al inicializar',
+      fe_unbekannt: 'Error desconocido',
+      fe_zeit: 'Tiempo de carga agotado',
+      fe_zeit_text: 'La interfaz no ha respondido en 25 segundos.'
     }
   };
   // sprache-ok-ende
@@ -173,12 +197,14 @@
       try {
         var pr = api && api.selbst_installieren && api.selbst_installieren();
         if (pr && pr.then) pr.then(function (r) { if (r && r.ok) { if (st) st.textContent = TX.inst_ok; } else fehl(r && r.error); }).catch(fehl);
-        else fehl('keine Verbindung');
+        else fehl(TX.keine_verbindung);
       } catch (e) { fehl(e); }
     };
   }
 
-  window.__rzShowStartError = function (title, detail) {
+  // `anzeige` = optional {titel, detail} in der Sprache des Nutzers; ins Log
+  // (und in __rzStartErrors) geht weiterhin der deutsche Text.
+  window.__rzShowStartError = function (title, detail, anzeige) {
     window.__rzStartErrors.push(title + ' | ' + detail);
     toBackend(title + ' | ' + detail);
     if (shown) return;
@@ -206,8 +232,8 @@
           (isTranslo ? TX.sub_translo : TX.sub_fehler) + '</div>' +
         '<div id="rz-translo">' + (isTranslo ? transloBanner() : '') + '</div>' +
         '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px;margin-bottom:22px">' +
-          '<div style="color:#ff6b35;font-weight:600;margin-bottom:4px">' + esc(title) + '</div>' +
-          '<div style="color:#8b949e;font-size:12.5px;word-break:break-word">' + esc(detail) + '</div>' +
+          '<div style="color:#ff6b35;font-weight:600;margin-bottom:4px">' + esc((anzeige && anzeige.titel) || title) + '</div>' +
+          '<div style="color:#8b949e;font-size:12.5px;word-break:break-word">' + esc((anzeige && anzeige.detail) || detail) + '</div>' +
         '</div>' +
         '<div style="font-weight:600;color:#fff;margin-bottom:6px" id="rz-se-loghead">' + TX.log_kopf + '</div>' +
         '<div style="margin-bottom:12px">' + TX.log_text + '</div>' +
@@ -276,9 +302,9 @@
   // WICHTIG: Der Fehler-Bildschirm erscheint NUR solange die Oberfläche noch nicht
   // steht (__rzBooted). Sonst würde ein harmloser später Fehler die laufende App
   // zudecken. Ins app.log wandert der Fehler aber IMMER.
-  function fail(title, detail) {
+  function fail(title, detail, anzeige) {
     if (window.__rzBooted) { toBackend(title + ' | ' + detail, true); return; }
-    window.__rzShowStartError(title, detail);
+    window.__rzShowStartError(title, detail, anzeige);
   }
 
   // 1) Klassische JS-Fehler (inkl. Syntaxfehler in nachgeladenen Dateien)
@@ -286,8 +312,8 @@
     // 08.09.2026: Shader-Übersetzungsfehler (Metal/ANGLE) enthalten den ganzen übersetzten
     // Quelltext — davon nur die ersten drei Zeilen ins Log; die Karte schaltet in util.js um.
     if (/MSL compilation error|Program failed to link/.test(String(msg))) msg = String(msg).split('\n').slice(0, 3).join(' | ');
-    fail('JavaScript-Fehler beim Start',
-      msg + (src ? ('  —  ' + String(src).split('/').pop() + ':' + line) : ''));
+    var d = msg + (src ? ('  —  ' + String(src).split('/').pop() + ':' + line) : '');
+    fail('JavaScript-Fehler beim Start', d, { titel: TX.fe_js, detail: d });
     return false;
   };
   // 2) Datei konnte gar nicht geladen werden (<script>/<link> 404 o. ä.).
@@ -295,17 +321,21 @@
   window.addEventListener('error', function (e) {
     var el = e && e.target;
     if (el && (el.tagName === 'SCRIPT' || el.tagName === 'LINK')) {
+      var quelle = (el.src || el.href || '?');
       fail('Programmdatei fehlt oder ist beschädigt',
-        'Nicht ladbar: ' + (el.src || el.href || '?') +
-        '  —  Bitte die App neu aus dem Original-Download installieren.');
+        'Nicht ladbar: ' + quelle +
+        '  —  Bitte die App neu aus dem Original-Download installieren.',
+        { titel: TX.fe_datei, detail: TX.fe_datei_text.replace('{src}', quelle) });
     }
   }, true);
   // 3) Abgelehnte Promises — der Start läuft async, ein Fehler darin landet
   //    NICHT bei window.onerror. Häufigster echter Startfehler.
   window.addEventListener('unhandledrejection', function (e) {
     var r = e && e.reason;
+    var hat = !!(r && (r.message || r));
     fail('Fehler beim Initialisieren',
-      (r && (r.message || r)) ? String(r.message || r) : 'Unbekannter Fehler');
+      hat ? String(r.message || r) : 'Unbekannter Fehler',
+      { titel: TX.fe_init, detail: hat ? String(r.message || r) : TX.fe_unbekannt });
   });
   // 4) Watchdog: nichts abgestürzt, aber die Oberfläche kommt trotzdem nicht hoch
   //    (z. B. hängende Netzwerk-Anfrage) → nach 25 s trotzdem etwas Lesbares zeigen.
@@ -319,7 +349,8 @@
       if (window.__rzBooted) return;
       if (window.__rzOnboarding) { watchdog(); return; }
       window.__rzShowStartError('Zeitüberschreitung beim Laden',
-        'Die Oberfläche hat sich nach 25 Sekunden nicht gemeldet.');
+        'Die Oberfläche hat sich nach 25 Sekunden nicht gemeldet.',
+        { titel: TX.fe_zeit, detail: TX.fe_zeit_text });
     }, 25000);
   })();
 })();
@@ -381,9 +412,9 @@
 <div class="update-banner" id="update-banner" hidden>
   <span class="update-banner-icon">⬆️</span>
   <span class="update-banner-text" id="update-banner-text"></span>
-  <button class="update-banner-changelog" id="update-banner-changelog" type="button">Was ist neu?</button>
-  <button class="update-banner-dl" id="update-banner-dl" type="button">Herunterladen</button>
-  <button class="update-banner-x" id="update-banner-close" type="button" title="Ausblenden">✕</button>
+  <button class="update-banner-changelog" id="update-banner-changelog" type="button" data-i18n="update.whatsnew">Was ist neu?</button>
+  <button class="update-banner-dl" id="update-banner-dl" type="button" data-i18n="update.download">Herunterladen</button>
+  <button class="update-banner-x" id="update-banner-close" type="button" data-i18n-title="common.hide" title="Ausblenden">✕</button>
 </div>
 
 <!-- Quelldatei-fehlt-Banner. Per JS gezeigt wenn die zuletzt geladene GPX-Datei

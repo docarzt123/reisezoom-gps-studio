@@ -47,6 +47,7 @@ Nebenläufigkeit: EIN RLock für beide Dateien; Speichern schreibt atomar
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import json
 import logging
 import os
@@ -1062,7 +1063,7 @@ def projekt_version_setzen(daten: dict, project_id: str, alt_gh: str,
     if not t_alt or not t_neu or not t_alt.get("id") or t_alt.get("id") != t_neu.get("id"):
         return {"ok": False, "error": "andere Tour"}
     if alt_gh not in (p.get("geo_hashes") or []) and p.get("kontext") != alt_gh:
-        return {"ok": False, "error": "Version gehört nicht zu diesem Projekt"}
+        return {"ok": False, "error": _i18n.t_aktiv("projekt.err_version_fremd", "Version gehört nicht zu diesem Projekt")}
     aktiv = daten.setdefault("aktiv", {})
     alt_kontext = p.get("kontext")
     if p.get("geo_hashes"):

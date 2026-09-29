@@ -143,7 +143,7 @@ window.addEventListener("error", (ev) => {
 window.addEventListener("unhandledrejection", (ev) => {
   console.error("[Unhandled Promise]", ev.reason);
   try {
-    const msg = (ev.reason && (ev.reason.message || ev.reason.toString())) || "unbekannt";
+    const msg = (ev.reason && (ev.reason.message || ev.reason.toString())) || t("error.unknown", "unbekannt");
     toast(t("error.promise", "Promise-Fehler") + ": " + msg, "error", 7000);
   } catch (_) {}
 });
@@ -1210,6 +1210,14 @@ function t(key, fallbackOrParams, maybeParams) {
   }
   return s;
 }
+
+/** Anzeigename eines Projekts. Das Backend legt das Standard-Projekt mit dem festen Namen
+ *  „Standard" an und erkennt es daran (core/projekte.py) — gespeichert bleibt er deshalb deutsch,
+ *  gezeigt wird er in der App-Sprache (29.09.2026, i18n-Durchgang). */
+function rzProjektName(name) {
+  return (!name || name === "Standard") ? t("topbar.project.default_name", "Standard") : name;
+}
+window.rzProjektName = rzProjektName;
 
 function i18nMeta() { return _i18nMeta; }
 
@@ -2893,8 +2901,10 @@ function setupDropZone(opts) {
     const filtered = collected.filter(c => matches(c.relPath));
     if (!filtered.length) {
       const got = collected.slice(0, 4).map(c => c.relPath).join(", ");
-      const extra = collected.length > 4 ? ` …und ${collected.length - 4} weitere` : "";
-      toast(`Falscher Dateityp. Erwartet: ${accept.join(", ")}. Gefunden: ${got}${extra}`, "warn", 7000);
+      const extra = collected.length > 4
+        ? " " + t("error.drop_weitere", "…und {n} weitere").replace("{n}", collected.length - 4) : "";
+      toast(t("error.drop_falscher_typ", "Falscher Dateityp. Erwartet: {erwartet}. Gefunden: {gefunden}")
+        .replace("{erwartet}", accept.join(", ")).replace("{gefunden}", got + extra), "warn", 7000);
       return;
     }
     try {

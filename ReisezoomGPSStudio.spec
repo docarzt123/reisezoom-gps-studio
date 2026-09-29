@@ -306,6 +306,12 @@ if _sys.platform == "darwin":
             "CFBundleShortVersionString": _APP_VERSION,
             "CFBundleVersion": _APP_VERSION,
             "NSHumanReadableCopyright": "© 2026 Reisezoom",
+            # 29.09.2026 — Ohne diese Angabe hält macOS die App für rein englisch:
+            # Knöpfe der System-Dialoge (Sichern/Öffnen-Panel, „Abbrechen"), das
+            # Dienste-Menü usw. standen dann auch in deutscher/spanischer
+            # Systemsprache auf Englisch. Die App selbst ist de/en/es.
+            "CFBundleDevelopmentRegion": "en",
+            "CFBundleLocalizations": ["de", "en", "es"],
             "NSHighResolutionCapable": True,
             "NSRequiresAquaSystemAppearance": False,  # Dark-Mode ok
             # WKWebView braucht in NSAppTransportSecurity oft erweiterte Rechte

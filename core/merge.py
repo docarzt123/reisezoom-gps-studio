@@ -27,6 +27,7 @@ Punkte, nicht die Uhr — und Strecke/Zeit lassen die Etappe ohnehin weg.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -129,7 +130,7 @@ def zusammenfuehren(touren: Iterable, uebergaenge: Optional[list] = None, *,
     """
     tl = [t if isinstance(t, Tour) else Tour(**t) for t in touren]
     if len(tl) < 2:
-        raise ValueError("Zum Zusammenführen braucht es mindestens zwei Touren.")
+        raise ValueError(_i18n.t_aktiv("merge.err_zwei_touren", "Zum Zusammenführen braucht es mindestens zwei Touren."))
     ue = list(uebergaenge or [])
     while len(ue) < len(tl) - 1:
         ue.append(Uebergang())
@@ -143,7 +144,7 @@ def zusammenfuehren(touren: Iterable, uebergaenge: Optional[list] = None, *,
     for i, tour in enumerate(tl):
         pts, stats = _gpx.parse_gpx(tour.path)
         if not pts:
-            raise ValueError(f"{tour.name or Path(tour.path).name}: keine Punkte.")
+            raise ValueError(f"{tour.name or Path(tour.path).name}: " + _i18n.t_aktiv("merge.err_keine_punkte", "keine Punkte."))
         if len(pts) > max_punkte_je_tour:
             pts = _gpx.downsample(pts, max_punkte_je_tour)
 

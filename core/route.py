@@ -17,6 +17,7 @@ Kein neues Pip-Paket: HTTP via urllib, GPX-Schreiben via gpxpy (schon da).
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import json
 import math
 import urllib.error
@@ -77,7 +78,7 @@ def geocode(query: str, token: str, *, limit: int = 1) -> List[dict]:
     if not q:
         return []
     if not token:
-        raise RouteError("Mapbox-Token nicht konfiguriert")
+        raise RouteError(_i18n.t_aktiv("route.err_kein_token", "Mapbox-Token nicht konfiguriert"))
     enc = urllib.parse.quote(q)
     url = (
         f"{_MAPBOX_BASE}/geocoding/v5/mapbox.places/{enc}.json"
@@ -86,7 +87,7 @@ def geocode(query: str, token: str, *, limit: int = 1) -> List[dict]:
     try:
         data = _http_get_json(url)
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Geocoding fehlgeschlagen: {e}") from e
+        raise RouteError(_i18n.t_aktiv("route.err_geocoding", "Geocoding fehlgeschlagen: ") + str(e)) from e
     out: List[dict] = []
     for feat in data.get("features", []):
         center = feat.get("center")
@@ -123,7 +124,7 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
         try:
             data = _http_get_json("https://photon.komoot.io/api/?" + urllib.parse.urlencode(params))
         except Exception as e:  # noqa: BLE001
-            raise RouteError(f"Geocoding (Photon) fehlgeschlagen: {e}") from e
+            raise RouteError("Photon — " + _i18n.t_aktiv("route.err_geocoding", "Geocoding fehlgeschlagen: ") + str(e)) from e
         return data.get("features", []) or []
 
     feats = _holen(hat_bias)
@@ -264,7 +265,7 @@ def _route_osrm(pts, profile: str) -> dict:
     try:
         data = _http_get_json(url)
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"OSRM nicht erreichbar: {e}") from e
+        raise RouteError("OSRM — " + _i18n.t_aktiv("route.err_nicht_erreichbar", "nicht erreichbar: ") + str(e)) from e
     code = data.get("code")
     if code != "Ok":
         if code == "NoRoute":
@@ -305,7 +306,7 @@ def _route_valhalla(pts, profile: str) -> dict:
             raise RouteError("no_route" if ec == 442 else "zu_weit") from e
         raise RouteError(f"Valhalla: {msg.get('error') or e}") from e
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Valhalla nicht erreichbar: {e}") from e
+        raise RouteError("Valhalla — " + _i18n.t_aktiv("route.err_nicht_erreichbar", "nicht erreichbar: ") + str(e)) from e
     trip = data.get("trip") or {}
     coords: List[List[float]] = []
     for leg in trip.get("legs") or []:
@@ -327,16 +328,16 @@ def _route_mapbox(pts, prof: str, token: str) -> dict:
     try:
         data = _http_get_json(url)
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Directions-Anfrage fehlgeschlagen: {e}") from e
+        raise RouteError(_i18n.t_aktiv("route.err_directions", "Routen-Anfrage fehlgeschlagen: ") + str(e)) from e
     code = data.get("code")
     if code != "Ok":
         if code == "NoRoute":
             raise RouteError("no_route")
-        raise RouteError(f"Keine Route gefunden ({data.get('message') or code or 'Unbekannter Fehler'})")
+        raise RouteError(_i18n.t_aktiv("route.err_keine_route", "Keine Route gefunden") + f" ({data.get('message') or code or '?'})")
     r0 = (data.get("routes") or [None])[0] or {}
     coords = [[float(c[0]), float(c[1])] for c in ((r0.get("geometry") or {}).get("coordinates") or []) if len(c) >= 2]
     if len(coords) < 2:
-        raise RouteError("Route enthält zu wenige Punkte")
+        raise RouteError(_i18n.t_aktiv("route.err_zu_wenige", "Route enthält zu wenige Punkte"))
     return {"coords": coords, "distance_m": float(r0.get("distance") or 0.0),
             "duration_s": float(r0.get("duration") or 0.0), "provider": "mapbox"}
 
@@ -395,9 +396,9 @@ def road_route(
     """
     pts = [(float(lon), float(lat)) for lon, lat in waypoints]
     if len(pts) < 2:
-        raise RouteError("Mindestens Start und Ziel nötig")
+        raise RouteError(_i18n.t_aktiv("route.err_start_ziel", "Mindestens Start und Ziel nötig"))
     if len(pts) > 25:
-        raise RouteError("Maximal 25 Wegpunkte")
+        raise RouteError(_i18n.t_aktiv("route.err_max_wegpunkte", "Maximal 25 Wegpunkte"))
     if coarseness is None:
         coarseness = 0.55 if grob else 0.1
     coarseness = max(0.0, min(1.0, float(coarseness)))
@@ -577,7 +578,7 @@ def arc_route(
     """
     pts = [(float(lon), float(lat)) for lon, lat in waypoints]
     if len(pts) < 2:
-        raise RouteError("Mindestens Start und Ziel nötig")
+        raise RouteError(_i18n.t_aktiv("route.err_start_ziel", "Mindestens Start und Ziel nötig"))
     seg_count = len(pts) - 1
     per_seg = max(16, int(n_points / seg_count))
     coords: List[List[float]] = []
@@ -643,7 +644,7 @@ def _match_chunk_mapbox(coords, token: str, profile: str, r: int):
     try:
         data = _http_get_json(url)
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Map-Matching fehlgeschlagen: {e}") from e
+        raise RouteError(_i18n.t_aktiv("route.err_matching", "Map-Matching fehlgeschlagen: ") + str(e)) from e
     if data.get("code") != "Ok" or not data.get("matchings"):
         return list(coords), False
     out = ((data["matchings"][0] or {}).get("geometry") or {}).get("coordinates") or []
@@ -657,7 +658,7 @@ def _match_chunk_osrm(coords, r: int):
     try:
         data = _http_get_json(url)
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"OSRM-Matching nicht erreichbar: {e}") from e
+        raise RouteError("OSRM-Matching — " + _i18n.t_aktiv("route.err_nicht_erreichbar", "nicht erreichbar: ") + str(e)) from e
     if data.get("code") != "Ok" or not data.get("matchings"):
         return list(coords), False
     out: List[List[float]] = []
@@ -676,7 +677,7 @@ def _match_chunk_valhalla(coords, profile: str, r: int):
     except urllib.error.HTTPError:
         return list(coords), False        # 400 = kein Match möglich (zu weit weg vom Wegenetz)
     except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Valhalla-Matching nicht erreichbar: {e}") from e
+        raise RouteError("Valhalla-Matching — " + _i18n.t_aktiv("route.err_nicht_erreichbar", "nicht erreichbar: ") + str(e)) from e
     out: List[List[float]] = []
     for leg in (data.get("trip") or {}).get("legs") or []:
         seg = _decode_polyline(leg.get("shape") or "", 6)
@@ -734,7 +735,7 @@ def map_match(
     prof = _PROFILES.get(str(profile or "walking"), "walking")
     pts = [[float(c[0]), float(c[1])] for c in coords if isinstance(c, (list, tuple)) and len(c) >= 2]
     if len(pts) < 2:
-        raise RouteError("Mindestens 2 Punkte zum Matchen nötig")
+        raise RouteError(_i18n.t_aktiv("route.err_matching_punkte", "Mindestens 2 Punkte zum Matchen nötig"))
 
     if len(pts) <= _MATCH_MAX:
         out, ok = _match_chunk(pts, token, prof, radius_m, provider)

@@ -388,7 +388,8 @@ und darunter ihre Bedienung:
 > Touren markieren und an den Animator übergeben, während das Projekt offen ist.
 > Liegt eine Tour noch nicht im Archiv, nimmt **„Datei importieren …"** in der
 > Auswahl sie erst ins Archiv auf und hakt sie gleich an (auch FIT, KML und Co.).
-> Die Sektion ist seit v0.9.682 auch bei einer einzelnen Tour da.
+> Die Sektion ist seit v0.9.682 auch bei einer einzelnen Tour da. Jede neue Tour wird
+> eine Gruppe am Ende der Kette; zieh sie in der Zeitleiste an eine andere Stelle.
 
 - **Dauer** — leer (**aut**) heißt: Diese Etappe bekommt ihren Anteil an der
   Animationsdauer nach Umfang. Tragen Sie eine Zahl ein, bekommt sie genau diese
@@ -1003,18 +1004,19 @@ heile Fassung als Tour ins Archiv. Deine Datei bleibt, wie sie ist.
 
 ### 🧭 Die Reise — Touren nacheinander, mit eigenen Etappenzeiten (seit v0.9.671)
 Mehrere Touren im Animator, Ablauf **Reise**: sie laufen nacheinander, dazwischen fliegt die
-Kamera zur nächsten Etappe. In der Liste **„Weitere Touren"** steht jetzt auch die erste Tour
+Kamera zur nächsten Etappe. In der **Tracks-Liste** steht jetzt auch die erste Tour
 als **Etappe 1**, und jede Etappe hat ein eigenes Feld für ihre **Dauer im Video**:
 
 - **Feld leer** — die Etappe bekommt ihren Anteil aus der Gesamtdauer, verteilt nach Umfang.
   Genau so lief es vorher.
-- **Zahl eingetragen** — die Etappe läuft genau so lange. Tragen Sie bei allen Etappen etwas
+- **Zahl eingetragen** — die Etappe läuft genau so lange. Trägst du bei allen Etappen etwas
   ein, ergibt deren Summe die Länge der Animation.
 
 Zwischen zwei Etappen sitzt der **Übergang** mit eigenem Stil und eigener Dauer:
 
 - **Kinoflug** — die Kamera zoomt heraus, fliegt hinüber und wieder heran (Standard).
 - **Luftlinie** — geradeaus, ohne Herauszoomen.
+- **Pause** — der Laufpunkt wartet, die Kamera bleibt stehen; mit der nächsten Etappe springt das Bild weiter.
 - **Schnitt** — kein Übergang; das nächste Bild steht schon am Beginn der nächsten Etappe.
 
 Bleibt das Dauer-Feld des Übergangs leer, gilt die gemeinsame **Flugdauer** darunter.
@@ -1024,7 +1026,7 @@ Flug dazwischen. Während eines Übergangs verschwindet der Laufpunkt — er ste
 alten Etappe, und die Kamera ist unterwegs. Zwischen den Etappen zieht **keine gerade Linie**
 über die Karte; jede Etappe ist ein eigener Strang.
 
-Wer die Kamera führt: Haben Sie **Keyframes** gesetzt, gelten die. Ist **Kamera folgt Track**
+Wer die Kamera führt: Hast du **Keyframes** gesetzt, gelten die. Ist **Kamera folgt Track**
 an, folgt sie dem Laufpunkt über alle Etappen. Sonst hält sie je Etappe deren Gesamtsicht,
 genau wie das gerenderte Video.
 
@@ -2119,8 +2121,8 @@ Bereich **„👻 GPX-Ghost"**: anzeigen an/aus, **Farbe**, **Deckkraft**, **Lin
 ### Wird gespeichert
 Alle Stationen (Start, Zwischenziele, Ziel), Stil, Detailgrad, Profil **und die zuletzt berechnete Route** werden im Projekt gespeichert — nach einem Neustart ist alles wieder da (die Route erscheint ohne erneutes Berechnen).
 
-### Braucht einen Mapbox-Token
-Straßen-Routen + Adress-Suche laufen über Mapbox (derselbe Token wie die Karte, siehe Erste Schritte). Die Flugroute (Großkreis) braucht keinen API-Call.
+### Mapbox-Token — nur noch Rückfall
+Straßen-Routen rechnet die App seit 07.09.2026 über freie OpenStreetMap-Dienste (siehe „Ohne Mapbox" oben). Ein Mapbox-Token (derselbe wie für die Karte) springt nur ein, wenn diese Dienste einmal nicht antworten. Die Flugroute (Großkreis) braucht gar keinen Dienst.
 
 ## 5 · Modul: Tour-Map — Statische Karten-PNG
 

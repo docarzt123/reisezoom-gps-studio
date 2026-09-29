@@ -22,6 +22,7 @@ Diagramm-Fortschritt) bleiben in den Modulen — die sind wirklich verschieden.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import logging
 import os
 import subprocess
@@ -101,12 +102,13 @@ def ffmpeg_gestorben(ff, err_th, err_buf, frame: int, total: int, out_path: str)
     _log.error("ffmpeg starb bei Frame %d/%d (returncode=%s), Ziel: %s\nffmpeg-Ausgabe:\n%s",
                frame, total, rc, out_path, err or "(keine — vermutlich von außen beendet)")
     if err:
-        return RuntimeError(f"ffmpeg brach ab (Frame {frame}/{total}): {err.splitlines()[-1][:300]}")
+        return RuntimeError(_i18n.t_aktiv("render.err_ffmpeg_ab", "ffmpeg brach ab") + f" (Frame {frame}/{total}): {err.splitlines()[-1][:300]}")
     return RuntimeError(
-        f"ffmpeg brach bei Frame {frame}/{total} ohne Meldung ab. Häufigste "
-        f"Ursachen: ein Virenscanner blockiert das Schreiben, das Ziel liegt "
-        f"auf einem Netz-/Wechsellaufwerk oder die Platte ist voll. "
-        f"Ziel war: {out_path}")
+        _i18n.t_aktiv("render.err_ffmpeg_still",
+            "ffmpeg brach bei Frame {frame} ohne Meldung ab. Häufigste Ursachen: ein Virenscanner "
+            "blockiert das Schreiben, das Ziel liegt auf einem Netz-/Wechsellaufwerk oder die Platte "
+            "ist voll. Ziel war: {ziel}")
+        .replace("{frame}", f"{frame}/{total}").replace("{ziel}", str(out_path)))
 
 
 # Endung → ffmpeg-Muxer. ⚠️ Ohne ausdrückliches `-f` scheitert JEDER Render:
@@ -208,7 +210,7 @@ class FrameMuxer:
             except Exception:
                 pass
             teil_wegraeumen(self.output_path)
-            raise RuntimeError(f"ffmpeg hat die Datei nicht fertiggestellt (Zeitgrenze {max_s // 60} min).")
+            raise RuntimeError(_i18n.t_aktiv("render.err_ffmpeg_zeit", "ffmpeg hat die Datei nicht fertiggestellt (Zeitgrenze {min} min).").replace("{min}", str(max_s // 60)))
         try:
             self._err_th.join(timeout=2)
         except Exception:

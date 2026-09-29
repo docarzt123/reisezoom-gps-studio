@@ -15,6 +15,7 @@ ein RAW-Format gelesen werden soll → ExifToolMissingError mit Hinweis.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import atexit
 import json
 import logging
@@ -677,7 +678,7 @@ def _ensure_daemon():
     d = _ExifToolDaemon.get("read")
     if d is None:
         raise ExifToolMissingError(
-            "exiftool nicht gefunden. Installation: 'brew install exiftool'"
+            _i18n.t_aktiv("exif.err_fehlt", "exiftool nicht gefunden. Installation: 'brew install exiftool'")
         )
     return d
 
@@ -690,7 +691,7 @@ def _ensure_write_daemon():
     d = _ExifToolDaemon.get("write")
     if d is None:
         raise ExifToolMissingError(
-            "exiftool nicht gefunden. Installation: 'brew install exiftool'"
+            _i18n.t_aktiv("exif.err_fehlt", "exiftool nicht gefunden. Installation: 'brew install exiftool'")
         )
     return d
 
@@ -2138,7 +2139,7 @@ def write_exif_tag(path: str, tag: str, value: str, gesichert: bool = False) -> 
     Wirft RuntimeError, wenn das Tag nicht beschreibbar ist oder exiftool meckert."""
     tag = (tag or "").strip()
     if not exif_tag_writable(tag):
-        raise RuntimeError(f"Feld „{tag}“ ist nicht editierbar (abgeleitet/Datei-Feld).")
+        raise RuntimeError(_i18n.t_aktiv("exif.err_nicht_editierbar", "Feld „{tag}“ ist nicht editierbar (abgeleitet/Datei-Feld).").replace("{tag}", tag))
     val = "" if value is None else str(value)
     _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()

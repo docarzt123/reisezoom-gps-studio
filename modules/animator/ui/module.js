@@ -1276,8 +1276,8 @@ function mountAnimator(body, headerActions, opts) {
             <div class="res-picker">
               <button class="res-btn" data-w="3840" data-h="2160" title="3840×2160 · 16:9">4K</button>
               <button class="res-btn" data-w="1920" data-h="1080" title="1920×1080 · 16:9">1080p</button>
-              <button class="res-btn" data-w="2160" data-h="3840" title="2160×3840 · 9:16 Hochkant">4K↕</button>
-              <button class="res-btn" data-w="1080" data-h="1920" title="1080×1920 · 9:16 Hochkant (Shorts/Reels)">1080↕</button>
+              <button class="res-btn" data-w="2160" data-h="3840" title="2160×3840 · 9:16 ${t("common.res_hochkant", "Hochkant")}">4K↕</button>
+              <button class="res-btn" data-w="1080" data-h="1920" title="1080×1920 · 9:16 ${t("common.res_hochkant", "Hochkant")} (Shorts/Reels)">1080↕</button>
             </div>
             ${_isStaticFrame ? `<!-- 25.09.2026 (Klicktest TM-01: „keine Instagram-Vorgabe") — Social-Formate
                  für das Standbild. Story = dieselbe Größe wie 1080↕, nur unter dem Namen,
@@ -6307,7 +6307,7 @@ function mountAnimator(body, headerActions, opts) {
     const base = effectiveFitZoomBase();
     if (base == null) {
       console.warn("[snapshot] _fitZoomBase noch nicht gesetzt — bitte kurz warten und nochmal versuchen");
-      toast("Karte noch nicht stabil — KF bitte gleich nochmal setzen", "warn", 3000);
+      toast(t("animator.kf.map_not_ready", "Karte noch nicht stabil — KF bitte gleich nochmal setzen"), "warn", 3000);
       return;
     }
     const zoomOff = +(curZoom - base).toFixed(2);
@@ -12899,7 +12899,7 @@ function mountAnimator(body, headerActions, opts) {
         return { coords: null, hadInput: true, err: "not_found" };
       }
       _routeZeile(w, "✗ " + t("route.wp_failed", "Suche fehlgeschlagen"), true);
-      return { coords: null, hadInput: true, err: "geocode_failed", detail: (r && r.error) || "unbekannt" };
+      return { coords: null, hadInput: true, err: "geocode_failed", detail: (r && r.error) || t("animator.render_error.unknown", "Unbekannter Fehler") };
     }
     async function _routeCompute() {
       if (_routeBusy) return;
@@ -12931,8 +12931,8 @@ function mountAnimator(body, headerActions, opts) {
         // 55 → fein war heimlich grob (bei Fußwegen ein Strich). isNaN-Guard.
         const _coarseRaw = parseFloat((document.getElementById("route-coarse") || {}).value);
         const coarseness = (isNaN(_coarseRaw) ? 55 : _coarseRaw) / 100;
-        const sName = (_routeWps[0] && _routeWps[0].text) || "Start";
-        const eName = (_routeWps[_routeWps.length - 1] && _routeWps[_routeWps.length - 1].text) || "Ziel";
+        const sName = (_routeWps[0] && _routeWps[0].text) || t("route.start", "Start");
+        const eName = (_routeWps[_routeWps.length - 1] && _routeWps[_routeWps.length - 1].text) || t("route.end", "Ziel");
         const name = `${sName} → ${eName}`.slice(0, 60);
         const res = await rzWarten("route_compute", () => api().route_compute({
           waypoints: resolved, mode, profile, coarseness, name,
@@ -14080,7 +14080,7 @@ function mountAnimator(body, headerActions, opts) {
           case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i] + (_sw ? _sw.desc : 0)) + " m"; break;
           case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
           // 23.08.2026 — Etappen-Werte, wortgleich zu core/animator.py
-          case "stage_name": if (sr.stage) v = sr.stage.name[i] || ("Etappe " + sr.stage.nr[i]); break;
+          case "stage_name": if (sr.stage) v = sr.stage.name[i] || t("animator.stage_fallback_name", "Etappe {n}", { n: sr.stage.nr[i] }); break;
           case "stage_no": if (sr.stage) v = sr.stage.nr[i] + " / " + sr.stage.gesamt; break;
           case "stage_dist": if (sr.stage) v = _ovFmtKm(Math.max(0, (sr.cumDistM[i] - sr.stage.d0[i]) / 1000)); break;
           case "stage_time": if (sr.stage && sr.has_time) v = _ovFmtDur(Math.max(0, sr.cumTimeS[i] - sr.stage.t0[i])); break;
@@ -16126,7 +16126,7 @@ function mountAnimator(body, headerActions, opts) {
 
   async function loadGpxByPath(path) {
     const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
-    if (!res.ok) { toast(res.error || "GPX-Fehler", "error"); return; }
+    if (!res.ok) { toast(res.error || t("animator.toast.gpx_error", "GPX-Fehler"), "error"); return; }
     currentGpx = path;
     _gpxStats = res.stats;
     // v0.9.530 — Echtzeit-÷-Faktor-Modus kennt jetzt die echte Dauer (oder
@@ -16167,7 +16167,7 @@ function mountAnimator(body, headerActions, opts) {
     configurePointCountSlider(res.stats.n_points);
     try { paceAnzeigen(); } catch (_) {}
 
-    toast("GPX geladen: " + res.name, "success", 2500);
+    toast(t("animator.toast.gpx_loaded", "GPX geladen: {name}", { name: res.name }), "success", 2500);
   }
 
   /** Linear-resample: nimmt aus `arr` exakt `target` gleichmäßig verteilte
@@ -17346,7 +17346,7 @@ function mountAnimator(body, headerActions, opts) {
         const aktiv = cb && cb.checked;
         sel.innerHTML = `<option value="">${t("animator.fokus.none", "niemandem (Gesamtsicht)")}</option>
           <option value="haupt">${t("animator.fokus.haupt", "der längsten Tour")}</option>`
-          + _extraTours.map(tr => `<option value="${esc(tr.gpx_path)}">${esc(tr.name || "Tour")}</option>`).join("");
+          + _extraTours.map(tr => `<option value="${esc(tr.gpx_path)}">${esc(tr.name || t("library.tour", "Tour"))}</option>`).join("");
         sel.value = !aktiv ? "" : (_animFokusPfad || "haupt");
         if (sel.value === "" && aktiv) sel.value = "haupt";
       }
@@ -19762,7 +19762,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
-    const name = _tourAnzeigeName(path, _ladeRes && _ladeRes.name, "") || "Tour";
+    const name = _tourAnzeigeName(path, _ladeRes && _ladeRes.name, "") || t("library.tour", "Tour");
     _extraTours.push({ gpx_path: path, line_color: color, name, coords,
                        stil: _stilVonHaupt(),   // 09.09.2026 — neue Tracks übernehmen das Aussehen von Track 1
                        // 09.09.2026 (Marc: „Höhenprofil ist glatt") — die Höhen der Etappe, sonst
@@ -20178,7 +20178,7 @@ function mountAnimator(body, headerActions, opts) {
           gesehen.add(_pfadNFC(pfad));
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
-                             name: _tourAnzeigeName(pfad, res.name, t.name) || "Tour", coords: res.coords,
+                             name: _tourAnzeigeName(pfad, res.name, t.name) || (typeof window.t === "function" ? window.t("library.tour", "Tour") : "Tour"), coords: res.coords,
                              ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
                              stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
                              start_s: +t.start_s || 0,
@@ -20837,7 +20837,7 @@ function mountAnimator(body, headerActions, opts) {
           // Nach erfolgreicher Installation Render direkt erneut starten
           const r2 = await api().animator_start_render(params);
           if (!r2.ok) {
-            toast(r2.error || "Fehler beim Start", "error", 6000);
+            toast(r2.error || t("heightanim.toast.start_failed", "Render konnte nicht starten"), "error", 6000);
             return;
           }
           document.getElementById("anim-progress").classList.add("show");
@@ -20848,7 +20848,7 @@ function mountAnimator(body, headerActions, opts) {
         });
         return;
       }
-      toast(res.error || "Fehler beim Start", "error");
+      toast(res.error || t("heightanim.toast.start_failed", "Render konnte nicht starten"), "error");
       return;
     }
     document.getElementById("anim-progress").classList.add("show");
@@ -21066,7 +21066,7 @@ function mountAnimator(body, headerActions, opts) {
       document.getElementById("anim-new").onclick = () => {
         done.classList.add("hidden");
       };
-      toast("Video fertig: " + s.output.split("/").slice(-1)[0], "success", 6000);
+      toast(t("animator.toast.render_done", "Video fertig: {file}", { file: s.output.split("/").slice(-1)[0] }), "success", 6000);
       return;
     }
     pollTimer = setTimeout(pollStatus, 350);
@@ -21115,7 +21115,7 @@ function mountAnimator(body, headerActions, opts) {
         </details>
         <details>
           <summary style="cursor:pointer; font-size:12px; color: var(--text-dim);">${t("animator.render_error.show_log")} <span class="muted" style="font-size:11px;">— ${escapeHtml(logPathResolved)}</span></summary>
-          <pre style="margin:8px 0 0 0; padding:10px 12px; background:#0a0a0a; border:1px solid var(--border); border-radius:6px; font-size:10.5px; line-height:1.45; max-height:260px; overflow:auto; white-space:pre-wrap; color: var(--text-dim);">${escapeHtml(logTail || "(Logdatei leer oder nicht lesbar)")}</pre>
+          <pre style="margin:8px 0 0 0; padding:10px 12px; background:#0a0a0a; border:1px solid var(--border); border-radius:6px; font-size:10.5px; line-height:1.45; max-height:260px; overflow:auto; white-space:pre-wrap; color: var(--text-dim);">${escapeHtml(logTail || t("animator.render_error.log_empty", "(Logdatei leer oder nicht lesbar)"))}</pre>
         </details>
       `,
       footer: `

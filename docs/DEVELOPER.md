@@ -893,6 +893,15 @@ Min/Max und Titel neu, sobald sich der Ausschnitt ändert (`_ovEleAusschnittZule
 Etappe). Der Render läuft über die Szene (= diese UI); der klassische Pfad ignoriert das
 Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 
+### Dreisprachigkeit — wo Texte übersetzt werden (Stand 29.09.2026, i18n-Durchgang) ⚠️ PFLICHTLEKTÜRE
+
+- **Oberfläche (JS):** `t(key, "Deutscher Rückfall", params?)` (ui/js/util.js), lokale Aliase `T`, `tlT`, `tr`. Nie Text ohne `t()` in toast/openModal/innerHTML/title/placeholder. `index.html`: `data-i18n*`; der Notfall-Startbildschirm läuft vor i18n und hat eine eigene Tabelle `RZ_TXT` (de/en/es).
+- **Backend (Python):** in app.py `_ui_t()(key, fallback)`; in core-Modulen `core.i18n.t_aktiv(key, fallback)` / `sprache_aktiv()` (app.py meldet `_ui_sprache` per `sprach_quelle_setzen()` an; ohne Anmeldung, z. B. im Unterprozess, Deutsch). Codes (`grund`, `no_route` …) übersetzt das UI selbst — dort keinen Text zurückgeben.
+- **Ins Video/Export Gezeichnetes** (Etappennamen, Quellenzeile, Web-Karten-Export, Daten-Animator-Export) geht über denselben Übersetzer — Vorschau und Video lauten gleich.
+- **Gespeicherte Merker bleiben deutsch:** Standard-Projekt heißt im Speicher „Standard" (core/projekte.py erkennt es daran), gezeigt wird `rzProjektName(name)`. Ähnlich `fotos.FEHLTEXT_KEINE_DATEN`, `zeitzone.LAND_ZONE`.
+- **Prüfen:** `scripts/check_i18n.py` (Schlüssel de/en/es deckungsgleich), `scripts/check_hartkodierte_sprache.py`, `tests/test_keine_hartkodierte_sprache.py`. Grober Volltext-Scan (viele Fehlalarme, zum Durchsehen): Literale mit deutschen Wörtern außerhalb von `t()` — siehe CHANGELOG 0.9.737.
+- **Offen:** Quellen-Register `core/kartenquellen.py` (≈ 46 deutsche Rechts-/Lizenztexte, roh angezeigt), macOS-Dateityp-Name im Info.plist, Installer-Anzeigename.
+
 ### „Ganz zeigen": Touren als Kulisse statt Ghost-Spuren (seit 28.09.2026, IDEAS §72) ⚠️ PFLICHTLEKTÜRE
 
 Eine Gruppe hat eine **Darstellung**: `modus: "animiert" | "ganz"`. Felder (Projekt,

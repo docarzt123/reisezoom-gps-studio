@@ -28,6 +28,7 @@ so dastehen — nicht heimlich im Hintergrund passieren.
 """
 from __future__ import annotations
 
+from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import json
 import time
 import urllib.parse
@@ -87,7 +88,7 @@ def fill_elevation(points: List[dict], dataset: str = "eudem25m",
     """
     n = len(points)
     if n < 2:
-        return {"ok": False, "error": "zu wenige Punkte"}
+        return {"ok": False, "error": _i18n.t_aktiv("error.zu_wenige_punkte", "Zu wenige Punkte")}
     if dataset not in DATASETS:
         return {"ok": False, "error": f"unbekannter Datensatz: {dataset}"}
 
@@ -119,13 +120,13 @@ def fill_elevation(points: List[dict], dataset: str = "eudem25m",
         vals = lookup_elevations([(points[k]["lat"], points[k]["lon"]) for k in anchors],
                                  dataset=dataset, base_url=base_url)
     except Exception as e:                                   # Netz/Dienst weg
-        return {"ok": False, "error": f"DEM nicht erreichbar: {e}",
-                "hint": "Später erneut versuchen — der offene Dienst hat ein Tageslimit."}
+        return {"ok": False, "error": _i18n.t_aktiv("dem.err_nicht_erreichbar", "DEM nicht erreichbar: ") + str(e),
+                "hint": _i18n.t_aktiv("dem.hint_tageslimit", "Später erneut versuchen — der offene Dienst hat ein Tageslimit.")}
 
     known = [(k, v) for k, v in zip(anchors, vals) if v is not None]
     if len(known) < 2:
-        return {"ok": False, "error": "Der Datensatz liefert für diese Gegend keine Werte",
-                "hint": "Bei Tracks außerhalb Europas den weltweiten Datensatz wählen."}
+        return {"ok": False, "error": _i18n.t_aktiv("dem.err_keine_werte", "Der Datensatz liefert für diese Gegend keine Werte"),
+                "hint": _i18n.t_aktiv("dem.hint_weltweit", "Bei Tracks außerhalb Europas den weltweiten Datensatz wählen.")}
 
     # 3) zwischen den Stützstellen linear interpolieren
     dem: List[Optional[float]] = [None] * n
