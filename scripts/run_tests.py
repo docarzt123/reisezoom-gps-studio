@@ -57,6 +57,7 @@ BEDINGT = {
     "test_reise_szene_render.py": ("netz", "langsam"),   # 09.09.2026: Etappenfolge über die Szene, Video == Vorschau
     "test_overlay_boxen_szene.py": ("netz", "langsam"),   # 23.09.2026: Overlay-Boxen über den Szenen-Render in 4K + 1080p gemessen
     "test_quellenzeile_szene.py": ("netz",),           # 29.09.2026: Quellenzeile Video == Vorschau auch bei Mindestbreite (9:16)
+    "test_overlay_skin.py": ("netz",),                 # 30.09.2026: Skin „Frei“ — Vorschau == klassischer Render, Logo-Plakette
     "test_schnellvideo_ruhe.py": ("netz",),            # 29.09.2026: Pfeil/Kamera ruhig im Szenen-Render, keine Einzelbild-Sprünge
     "test_vorwaermen.py": ("netz",),                   # 29.09.2026: Kacheln vorwärmen grob → fein, Budget, Abbrechen
     "test_punkte_regler.py": ("netz",),                # 30.09.2026: Punkte-Regler wirkt auch im Probelauf/Video

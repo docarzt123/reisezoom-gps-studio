@@ -82,6 +82,13 @@
     return m / Math.max(1, animS);
   }
 
+  /** 30.09.2026 — Logo-Plakette oben mittig (Breite in % der Videobreite je Format; die 1,6 %
+   *  sind der Innenabstand der Plakette, WM_PILLE in modules/animator/ui/module.js). */
+  function logoLage(format) {
+    const w = { "9:16": 30, "1:1": 22, "16:9": 15 }[format] || 22;
+    return { x: Math.round((50 - w / 2 - 1.6) * 100) / 100, y: 2.5, w, op: 1 };
+  }
+
   /** Animator-Einstellungen des Schnell-Video-Projekts (Backend-Schlüssel, wie app.py sie kennt). */
   function animatorPatch(w, v) {
     const [bw, bh] = FORMATE[w.format] || FORMATE["9:16"];
@@ -116,11 +123,16 @@
       show_transit_labels: false, show_admin_boundaries: false,
       // Im Überblick sieht man sofort die ganze Runde: blass im Hintergrund, darüber zeichnet sich die Linie.
       ghost_track_enabled: true, ghost_track_opacity_pct: 50,
+      // 30.09.2026 (Marc, nach dem Komoot-Video) — Skin „Frei": Zahlen ohne Kasten oben mittig
+      // unter dem Logo (Strecke · Höhenmeter · Zeit), Höhenprofil unten breit, dunkle Verläufe.
+      overlay_skin: "frei",
       overlay_totals_enabled: false,
       overlay_live_enabled: !!w.zahlen,
-      overlay_live_fields: ["dist_done", "ele_now"],
+      overlay_live_position: "tc",
+      overlay_live_fields: ["dist_done", "asc_done", "time_elapsed"],
       overlay_elevation_enabled: !!w.profil,
-      overlay_elevation_position: "bc",
+      overlay_elevation_position: "bcw",
+      watermark_lage: logoLage(w.format),
       schnellkarte: { titel_an: !!(w.titel || w.unter), titel: w.titel, unter: w.unter, titel_s: INTRO_S,
                       schluss_an: w.felder.length > 0, felder: w.felder.slice() },
     };

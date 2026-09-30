@@ -13,6 +13,7 @@ import io
 import json
 import logging
 import math
+import re
 import os
 import shutil
 import subprocess
@@ -330,6 +331,10 @@ class AnimatorConfig:
     overlay_border_color: str = "#ffffff"
     overlay_shadow: bool = True
     overlay_boxen: list = field(default_factory=list)
+    # 30.09.2026 (Marc, nach dem Komoot-Video) — Skin aller Einblendungen:
+    # "kasten" (bisher) | "frei" (ohne Kasten, große Zahl + kleine Einheit, Verläufe
+    # oben/unten, Logo als Plakette). WYSIWYG-Spiegel: module.css [data-skin="frei"].
+    overlay_skin: str = "kasten"
     # 24.09.2026 (IDEAS §67 Q11) — Logbuch-Bereiche mit Anzeige im Video:
     # [{von, bis (Anteil 0..1 der Punkte), deckkraft}] — 0 = Linie unsichtbar
     # (überspringen), 0,25 = blass. Raffen/Überspringen-Tempo steckt in pace_map.
@@ -838,7 +843,7 @@ def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, 
         lbl = _overlay_label_ov(fid, f["label"], overrides, t)
         sv = (stage_values or {}).get(fid)
         sv_attr = (' data-stage-values="' + _esc(json.dumps(sv, ensure_ascii=False)).replace('"', "&quot;") + '"') if sv else ""
-        rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"{sv_attr}><span class="label">{lbl}</span><span class="value">{val}</span></div>')
+        rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"{sv_attr}><span class="label">{lbl}</span><span class="value">{wert_html(val)}</span></div>')
     return "\n".join(rows)
 
 
@@ -905,13 +910,13 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
             lines.append(
                 f"  {{ var _e=document.getElementById('{prefix}{_sensor_dom_id(key)}');"
                 f" if(_e){{ var _v=(sensorSeries[{json.dumps(key)}]||[])[idx];"
-                f" _e.textContent=(_v==null?'\\u2013':(Math.round(_v)+{unit_js})); }} }}")
+                f" _rzW(_e,(_v==null?'\\u2013':(Math.round(_v)+{unit_js}))); }} }}")
             continue
         f = _OVERLAY_LIVE_BY_ID.get(fid)
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         _js = _SCHWARM_LIVE_JS.get(fid, f["js"]) if has_schwarm else f["js"]
-        lines.append(f"  {{ var _e=document.getElementById('{prefix}live-{fid}'); if(_e) _e.textContent = {_js}; }}")
+        lines.append(f"  {{ var _e=document.getElementById('{prefix}live-{fid}'); if(_e) _rzW(_e, {_js}); }}")
     return "\n".join(lines)
 
 
@@ -1070,6 +1075,73 @@ def _overlay_live_update_js_alle(cfg, has_time: bool, has_ele: bool, has_stages:
     return "\n".join(x for x in teile if x)
 
 
+def _ist_frei(cfg) -> bool:
+    return str(getattr(cfg, "overlay_skin", "kasten") or "kasten") == "frei"
+
+
+# 30.09.2026 (Skin „Frei") — Zahl und Einheit getrennt, damit die Einheit klein neben
+# der großen Zahl steht. SYNCHRON zu wertTeilen in ui/js/overlay_boxen.js.
+_EINHEIT_RE = re.compile(r"^(.*\d)(\s?)([A-Za-zµ°%/²³]{1,5})$")
+
+
+def wert_teilen(txt) -> tuple[str, str]:
+    s = "" if txt is None else str(txt)
+    m = _EINHEIT_RE.match(s)
+    return (m.group(1), m.group(3)) if m else (s, "")
+
+
+def wert_html(txt) -> str:
+    """Wert als HTML: Einheit in <span class="ov-u">; Text ist schon entschärft
+    oder Klartext aus den Formatierern (keine Tags)."""
+    z, u = wert_teilen(txt)
+    return f'{z}<span class="ov-u"> {u}</span>' if u else z
+
+
+def _skin_frei_css(px, alpha_mode: bool) -> str:
+    """Skin „Frei" für den klassischen Render — Spiegel des Blocks
+    `.overlay-preview-layer[data-skin="frei"]` in modules/animator/ui/module.css."""
+    return f"""
+  .stats-box, #overlay-bottom {{ background: none; box-shadow: none; border: 0;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    text-shadow: 0 {px(1)} {px(6)} rgba(0,0,0,0.55); }}
+  .stats-box {{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+    column-gap: {px(36)}; row-gap: {px(14)}; padding: 0; min-width: 0;
+    width: max-content; max-width: calc(100% - {px(80)}); }}
+  .stats-box .ov-titel {{ flex-basis: 100%; text-align: center; margin-bottom: 0; }}
+  .stat-row, .pos-tr .stat-row, .pos-br .stat-row, .pos-mr .stat-row,
+  .pos-tc .stat-row, .pos-cc .stat-row, .pos-bc .stat-row {{
+    flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; padding: 0; }}
+  .label {{ font-size: calc({px(14)} * var(--rz-ov-gr, 1)); letter-spacing: 0.06em; opacity: 0.9; font-weight: 500; }}
+  .value {{ font-size: calc({px(40)} * var(--rz-ov-gr, 1)); font-weight: 700; line-height: 1.05;
+    white-space: nowrap; letter-spacing: -0.01em; }}
+  .ov-u {{ font-size: 0.5em; font-weight: 600; letter-spacing: 0.02em; margin-left: 0.08em; }}
+  #overlay-bottom {{ padding: 0; }}
+  .ele-header {{ font-size: {px(14)}; }}
+  .ele-title {{ font-size: {px(14)}; opacity: 0.9; letter-spacing: 0.06em; }}
+  .ele-minmax {{ font-size: {px(15)}; font-weight: 600; opacity: 0.95; }}
+  #ele-active-line {{ stroke: #ffffff; }}
+  #ele-grad stop {{ stop-color: #ffffff; }}
+  #ele-dot {{ stroke: #ffffff; }}
+  #elevation-svg {{ filter: drop-shadow(0 {px(1)} {px(4)} rgba(0,0,0,0.45)); }}
+  .pos-tl, .pos-tc, .pos-tr, .pos-tcw {{ top: max({px(40)}, var(--rz-wm-unten, 0px)); }}
+  /* ohne z-index: liegt per DOM-Reihenfolge über der Karte und unter den Boxen */
+  .rz-skin-verlauf {{ position: absolute; left: 0; right: 0; pointer-events: none; }}
+  #rz-verlauf-oben {{ top: 0; height: 26%;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.62), rgba(0,0,0,0.28) 55%, rgba(0,0,0,0)); }}
+  #rz-verlauf-unten {{ bottom: 0; height: 34%;
+    background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.32) 55%, rgba(0,0,0,0)); }}
+"""
+
+
+def _skin_verlauf_html(cfg, alpha_mode: bool = False) -> str:
+    """Dunkle Verläufe oben/unten (Skin „Frei"). Im Alpha-Export nicht — dort
+    liegt das Video des Nutzers darunter, der Verlauf wäre ein grauer Schleier."""
+    if not _ist_frei(cfg) or alpha_mode or not getattr(cfg, "show_overlays", True):
+        return ""
+    return ('<div class="rz-skin-verlauf" id="rz-verlauf-oben"></div>'
+            '<div class="rz-skin-verlauf" id="rz-verlauf-unten"></div>')
+
+
 def _overlay_boxen_css(cfg, px, alpha_mode: bool = False) -> str:
     """Stil je Box und je Zeile (Farben, Schrift, Ecken, Rahmen, Schatten, Größe,
     Fettung). WYSIWYG-Spiegel: _ovBoxStil/_ovZeilenStil in modules/animator/ui/module.js."""
@@ -1089,9 +1161,12 @@ def _overlay_boxen_css(cfg, px, alpha_mode: bool = False) -> str:
         rahmen = (f"{px(st['border_w'])} solid {st['border_color']}" if st["border_w"] > 0 else "none")
         # Id + Attribut schlägt die Grundregeln (#overlay-bottom, .stats-box)
         sel = f'#{_ov_dom_id(b)}[data-ovbox="{b["id"]}"]'
-        regeln.append(f"  {sel} {{ background: rgba({r},{g},{bb},{round(a, 3)}); color: {st['text_color']};"
-                      f" font-family: {_font_stack(st['font'])}; border-radius: {px(st['radius'])};"
-                      f" border: {rahmen}; box-shadow: {schatten}; }}")
+        if _ist_frei(cfg):   # Skin „Frei": kein Kasten — nur Schrift und Farbe (wie _ovBoxStil)
+            regeln.append(f"  {sel} {{ color: {st['text_color']}; font-family: {_font_stack(st['font'])}; }}")
+        else:
+            regeln.append(f"  {sel} {{ background: rgba({r},{g},{bb},{round(a, 3)}); color: {st['text_color']};"
+                          f" font-family: {_font_stack(st['font'])}; border-radius: {px(st['radius'])};"
+                          f" border: {rahmen}; box-shadow: {schatten}; }}")
         if b["typ"] == "ele":
             regeln.append(f"  {sel} .ele-header {{ color: {st['text_color']}; }}")
         for fid, z in (b.get("zeilen") or {}).items():
@@ -1521,6 +1596,9 @@ def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
            "hold_s": float(getattr(cfg, "hold_s", 0) or 0)}
     return (
         "<script>" + _read_overlay_boxen_js() + "</script>"
+        # 30.09.2026 — Live-Werte mit getrennter Einheit (Skin „Frei"), s. wertSetzen
+        "<script>window._rzW=function(e,t){var o=window.rzOverlayBoxen;"
+        "if(o&&o.wertSetzen)o.wertSetzen(e,t);else e.textContent=t;};</script>"
         "<script>(function(){var B=" + json.dumps(boxen).replace("</", "<\\/") + ",C=" + json.dumps(ctx) + ",S={};"
         "window.__overlayTiming=function(t){"
         "var i=window.__rzOvIdx|0,f=0,st=0;"
@@ -1748,6 +1826,7 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   .chart-ov {{ position: absolute; overflow: hidden; pointer-events: none; }}
   .chart-ov-frame {{ width: 100%; height: 100%; border: 0; display: block;
     background: transparent; }}
+{_skin_frei_css(px, alpha_mode) if _ist_frei(cfg) else ""}
 {_overlay_boxen_css(cfg, px, alpha_mode)}
 """
 
@@ -2505,9 +2584,31 @@ def _watermark_html(cfg) -> str:
     w = max(2.0, min(60.0, float(getattr(cfg, "watermark_w_pct", 12.0) or 12.0)))
     op = max(0.05, min(1.0, float(getattr(cfg, "watermark_opacity", 0.9) or 0.9)))
     x, y = wasserzeichen_lage(cfg, w)
-    return (f'<img id="rz-watermark" src="data:{mime};base64,{b64}" alt="" '
+    # 30.09.2026 (Skin „Frei") — Logo auf dunkler Plakette; sitzt es oben mittig,
+    # rücken die oberen Einblendungen darunter (--rz-wm-unten). SYNCHRON zu
+    # WM_PILLE / _wmAbstandSetzen in modules/animator/ui/module.js.
+    pille, abstand = "", ""
+    if _ist_frei(cfg):
+        pille = (f" padding:{WM_PILLE['py']}vw {WM_PILLE['px']}vw; background:{WM_PILLE['bg']};"
+                 " border-radius:999px; box-sizing:content-box;")
+        seite = None
+        try:
+            with Image.open(io.BytesIO(roh)) as im:
+                seite = im.height / max(1, im.width)
+        except Exception:
+            seite = None   # SVG o. Ä.: keine Maße → nichts verschieben
+        mitte = x + w / 2 + WM_PILLE["px"]
+        if seite and y < 20 and 30 < mitte < 70:
+            s_ov = _overlay_scale(cfg.height, _render_dsf(cfg.width, cfg.height))
+            abstand = (f'<style>:root {{ --rz-wm-unten: calc({y}vh + {round(w * seite + 2 * WM_PILLE["py"], 4)}vw'
+                       f' + {round(18 * s_ov, 1)}px); }}</style>')
+    return (abstand + f'<img id="rz-watermark" src="data:{mime};base64,{b64}" alt="" '
             f'style="position:absolute; left:{x}%; top:{y}%; width:{w}vw; height:auto; '
-            f'opacity:{op}; z-index:40; pointer-events:none;">')
+            f'opacity:{op}; z-index:40; pointer-events:none;{pille}">')
+
+
+# Plakette hinter dem Logo (Skin „Frei"): Innenabstand in vw — SYNCHRON zu WM_PILLE (module.js).
+WM_PILLE = {"px": 1.6, "py": 0.9, "bg": "rgba(14,16,22,0.62)"}
 
 
 def wasserzeichen_lage(cfg, w_pct: float) -> tuple[float, float]:
@@ -2935,7 +3036,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         ele_min, ele_max,
         extra_keys=[_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else [],
         has_schwarm=bool(schwarm_tours), alpha_mode=False)
-    overlays_block = (_watermark_html(cfg)
+    overlays_block = (_watermark_html(cfg) + _skin_verlauf_html(cfg)
                       + (_north_scale_html(cfg) if cfg.show_overlays else "")
                       + boxen_html + charts_html
                       + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
