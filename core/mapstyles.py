@@ -295,6 +295,8 @@ ORTHO_REGIONS = [
      # angefordert (max 4×) und in der Weiche auf 512 px verkleinert — dasselbe
      # Bildmaterial in allen Entfernungen, keine Farbkante.
      "scale_z": 14,
+     # 30.09.2026 — höchstens 6 Abrufe zugleich über die Weiche (MacBook-Render: viele gleichzeitige → 502)
+     "max_parallel": 6,
      # 04.09.2026: PNOA liefert küstennah OPAKE fast schwarze Meer-Kacheln, je
      # Zoomstufe anders zugeschnitten → dunkle Rechtecke im Meer („Klippen" am
      # Küstenrand). Die Weiche macht Pixel durchsichtig, wo die Meerestiefe

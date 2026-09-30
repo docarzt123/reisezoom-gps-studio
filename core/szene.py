@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from . import animator as A
+from . import tileproxy as _tileproxy
 from .frame_driver import FrameMuxer, muxer_fuer, teildatei
 
 _log = logging.getLogger("animator.szene")
@@ -149,11 +150,40 @@ _WARTE_BILD_JS = """async () => {
     await new Promise((r) => { let done = false; const on = () => { if (done) return; done = true; try { m.off('idle', on); } catch (_) {} r(); };
       try { m.on('idle', on); } catch (_) { r(); } setTimeout(on, 5000); });
   }
-  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 60)));
+  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, __RZ_RUHE_MS__)));
   return performance.now() - t0;
-}"""
+}""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "60") or 0)))   # 30.09.2026 Messung: feste Pause je Bild
 # 29.09.2026 — Vorwärmen: kürzere Wartegrenze je Halt (sonst bis 5 s × 200 Halte bei kaltem Speicher/langsamer Leitung)
 _WARTE_VORWAERMEN_JS = _WARTE_BILD_JS.replace("setTimeout(on, 5000)", "setTimeout(on, 2500)")
+
+
+def _stoerung_hinweis(page) -> str:
+    """30.09.2026 (Marc: „wenn so ein Fehler auftaucht, gib es direkt beim Rendern aus — dann weiß man, warum es
+    lange dauert"): Hinweis für die Fortschrittszeile, wenn Kartendienste gerade nicht liefern. Quellen: die
+    Kachel-Weiche (Landes-Luftbilder, Name der Region) und der Kachelspeicher der Szene (Dienste direkt, Hostname)."""
+    teile = []
+    try:
+        for rid, v in _tileproxy.stoerungen().items():
+            if v["fehlend"] > 0:
+                # 30.09.2026 — Dienstname in der App-Sprache: „Luftbild Spanien“ / „Aerial imagery Spain“ / „Ortofoto España“
+                land = _i18n.t_aktiv("mapregion." + rid, v["name"].replace("Luftbild ", ""))
+                teile.append((_i18n.t_aktiv("szene.luftbild", "Luftbild {name}").replace("{name}", land), v["fehlend"]))
+    except Exception:
+        pass
+    try:
+        for host, urls in ((getattr(page, "_rz_tile_stats", None) or {}).get("aus") or {}).items():
+            if urls:
+                teile.append((_i18n.t_aktiv("szene.kartendienst", "Kartendienst {name}").replace("{name}", str(host)), len(urls)))
+    except Exception:
+        pass
+    if not teile:
+        return ""
+    vorlage = _i18n.t_aktiv("szene.kacheln_fehlen", "⚠️ {dienst} antwortet nicht – {n} Kacheln fehlen, es geht weiter")
+    return " · " + "; ".join(vorlage.replace("{dienst}", str(d)).replace("{n}", str(n)) for d, n in teile)
+
+
+def _stats_json(stats) -> str:
+    return json.dumps(stats, default=lambda o: len(o) if isinstance(o, (set, frozenset)) else str(o))
 
 
 def _grob_nach_fein(n: int) -> list:
@@ -372,7 +402,9 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # der VORSCHAU gespeichert (kleinerer Viewport). Wie im klassischen Render:
     # abs_shift = zoom_correction (UI: log2(rw / Vorschau-Breite)) − log2(dsf).
     mode = {"w": vp_w, "h": vp_h, "fps": cfg.fps, "width": cfg.width, "height": cfg.height, "blur": round(blur_css, 3),
-            "zoomShift": round(zoom_shift, 4),   # Viewport = Vorschau → 0; bei Mindestbreite log2(breiter/Vorschau)
+            "zoomShift": round(zoom_shift, 4),
+            # 30.09.2026 — Kacheldichte (params.kachel_stufen oder RZ_KACHEL_STUFEN; None = Standard)
+            "kachelStufen": (lambda v: None if v in (None, "") else int(v))((params or {}).get("kachel_stufen", os.environ.get("RZ_KACHEL_STUFEN"))),   # Viewport = Vorschau → 0; bei Mindestbreite log2(breiter/Vorschau)
             # 07.09.2026 — Paint-Übergangsdauer im Render-Modus. 0 ms wäre 2× schneller, ließ aber auf
             # Gelände-Stilen (Fuji OSM, Teide Satellit) die Rasterkacheln beim Zoomen in ganzen
             # Abschnitten ungezeichnet (WYS mean_diff 22/17 statt 3/5; 60 ms genauso); 300 ms = MapLibre-
@@ -385,6 +417,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # Kachel-Cache erst NACH dem Laden der Seite einhängen: die Routen-Abfangung
     # ließ das file://-Laden der App mit net::ERR_FAILED scheitern (06.09.2026).
     try:
+        _tileproxy.stoerungen_zuruecksetzen()   # 30.09.2026 — Ausfälle je Render zählen
         page._rz_tile_stats = await A._install_tile_cache(page, cfg)
     except Exception as e:      # noqa: BLE001
         _log.warning("Szene: Kachel-Cache nicht installiert: %s", e)
@@ -425,6 +458,57 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     return browser, page, dsf, ss
 
 
+# 30.09.2026 (Marc: „das dauert immer noch ewig" — gemessen: kalt wartet jedes Bild ~280 ms auf Kacheln, der
+# Server braucht je Kachel seine Zeit) — VORLÄUFER: eine zweite unsichtbare Seite mit demselben Projekt fährt der
+# Bildschleife voraus und lässt an jeder Stelle die Karte ihre Kacheln laden (kein Bild). Beide Seiten teilen den
+# Kachelspeicher (Weiche + Playwright-Route), die Bildschleife findet die Kacheln dann vor. Die Karte fordert
+# genau an, was sie braucht (Neigung, Gelände, Pixeldichte) — keine eigene Kachelrechnung. Fehler im Vorläufer
+# beenden nur den Vorläufer, nie den Render. RZ_VORLAEUFER=0 schaltet ab (Messen).
+VORLAEUFER_SCHRITT = int(os.environ.get("RZ_VORLAEUFER_SCHRITT", "6"))   # Bilder zwischen zwei Halten (0,2 s bei 30 fps; 15 gemessen deutlich schlechter)
+VORLAEUFER_VORSPRUNG = 300      # höchstens so viele Bilder voraus (10 s)
+VORLAEUFER_MIN_VORSPRUNG = 12   # holt die Bildschleife auf, springt er so weit vor
+# Nicht aufs vollständige Laden warten: es reicht, dass die Karte die Anfragen losschickt — Weiche und
+# Playwright-Route holen und speichern die Kachel auch, wenn die Karte schon weitergesprungen ist.
+_WARTE_VORLAEUFER_JS = _WARTE_BILD_JS.replace("setTimeout(on, 5000)", "setTimeout(on, " + os.environ.get("RZ_VORLAEUFER_MS", "500") + ")")
+
+
+async def _vorlaeufer(p, cfg, api, projekt_id, params, modul, zustand, is_cancelled):
+    """Fährt der Bildschleife voraus (zustand["bild"] = aktuelles Bild der Schleife, zustand["ende"] = Bildzahl)."""
+    browser = None
+    t0 = time.time(); halte = 0
+    try:
+        browser, page, _dsf, _ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, lambda a, b: None, params, modul=modul)
+        await page.evaluate("() => window.__rzPreviewRun()")
+        await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Vorläufer", is_cancelled)
+        zustand["bereit"] = True
+        _log.info("Szene: Vorläufer bereit nach %.1f s", time.time() - t0)
+        pos = 0
+        while not zustand.get("stop"):
+            ende = int(zustand.get("ende") or 0)
+            bild = int(zustand.get("bild") or 0)
+            if pos >= ende:
+                break
+            if pos < bild + VORLAEUFER_MIN_VORSPRUNG:
+                pos = bild + VORLAEUFER_MIN_VORSPRUNG
+                continue
+            if pos > bild + VORLAEUFER_VORSPRUNG:
+                await asyncio.sleep(0.1)
+                continue
+            await page.evaluate(f"() => window.__rzPreviewStep.seek({pos / cfg.fps:.6f})")
+            await page.evaluate(_WARTE_VORLAEUFER_JS)
+            halte += 1
+            zustand["stand"] = pos
+            pos += VORLAEUFER_SCHRITT
+    except Exception as e:      # noqa: BLE001
+        if not zustand.get("stop"):
+            _log.warning("Szene: Vorläufer beendet: %s", str(e)[:200])
+    finally:
+        _log.info("Szene: Vorläufer: %d Halte in %.1f s", halte, time.time() - t0)
+        if browser is not None:
+            try: await browser.close()
+            except Exception: pass
+
+
 async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                        on_progress: Optional[Callable[[float, str], None]] = None,
                        on_preview: Optional[Callable[[str], None]] = None,
@@ -447,7 +531,17 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
               cfg.width, cfg.height, cfg.codec)
 
     async with async_playwright() as p:
-        browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
+        _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0"
+        _vl = {"bild": 0, "ende": total_frames, "stop": False, "stand": 0, "bereit": False}
+        _vl_task = asyncio.create_task(_vorlaeufer(p, cfg, api, projekt_id, params, modul, _vl, is_cancelled)) if _vl_an else None
+        try:
+            browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
+        except BaseException:
+            _vl["stop"] = True
+            if _vl_task is not None:
+                try: await asyncio.wait_for(_vl_task, 15)
+                except BaseException: pass
+            raise
         try:
             emit(0.05, _i18n.t_aktiv("szene.probelauf", "Szene: Probelauf im Schrittmodus …"))
             await page.evaluate("() => window.__rzPreviewRun()")
@@ -467,6 +561,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                           "(%.2f s statt %.2f s)", aus_vorschau, total_frames,
                           total_ms / 1000.0, erwartet_ms / 1000.0)
                 total_frames = aus_vorschau
+            _vl["ende"] = total_frames
             # 08.09.2026 - Kacheln vorwaermen (wie der klassische Pfad seit v0.9.19 ueber
             # window.prewarmTiles): N Haltepunkte ueber die Zeitachse, je einmal auf idle
             # warten. Die Karte holt die Kacheln je Halt gebuendelt und parallel; ohne das
@@ -476,7 +571,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             # Dichte: rund 6 Haltepunkte je Sekunde Video, mindestens 12, hoechstens 200.
             # Kalt gemessen (Masca, 4 s, 4K): ohne 2336 ms/Bild, 24 Halte 1703, 48 Halte 1611.
             _vw_std = max(12, min(200, round(total_frames / max(1, cfg.fps) * 6)))
-            _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", str(_vw_std)) or 0)
+            # 30.09.2026 — mit Vorläufer entfällt das Vorwärmen vor dem ersten Bild: er lädt ohnehin voraus,
+            # die Bildschleife startet sofort (RZ_VORWAERMEN erzwingt es weiterhin).
+            _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", "0" if _vl_task is not None else str(_vw_std)) or 0)
             if _vorwaermen > 1:
                 _t_vw = time.time()
                 emit(0.05, _i18n.t_aktiv("szene.vorwaermen", "Szene: Kacheln vorwärmen ({n}) …").replace("{n}", str(_vorwaermen)))
@@ -505,7 +602,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     _ms = await page.evaluate(_WARTE_VORWAERMEN_JS)
                     _warten.append(float(_ms) if isinstance(_ms, (int, float)) else 0.0)
                     _halte += 1
-                    emit(0.05, _txt.replace("{i}", str(_halte)).replace("{n}", str(_vorwaermen)))
+                    emit(0.05, _txt.replace("{i}", str(_halte)).replace("{n}", str(_vorwaermen)) + _stoerung_hinweis(page))
                     if _halte >= 12 and _halte % 6 == 0:
                         _letzte = sorted(_warten[-6:])[3]
                         # Schwelle aus Messungen (Masca, 4K): kalt wartet ein Halt
@@ -523,20 +620,31 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             cfg.skalieren_in_ffmpeg = True
             mux = FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
             preview_every = max(1, cfg.fps // 10)
+            # 30.09.2026 (Marc: „das Komoot-Video rendert so schnell, bei uns dauert es ewig") — wohin geht die
+            # Zeit je Bild? Summen je Schritt, am Ende eine Logzeile „Szene: Zeit je Bild …".
+            _z = {"seek": 0.0, "warten": 0.0, "greifen": 0.0, "schreiben": 0.0}
+            _hinweis_alt = ""
+            _t_bilder = time.time()
             try:
                 for frame in range(total_frames):
                     if is_cancelled and is_cancelled():
                         raise A.RenderCancelled()
+                    _vl["bild"] = frame
                     t = frame / cfg.fps
+                    _t = time.perf_counter()
                     await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
+                    _z["seek"] += time.perf_counter() - _t; _t = time.perf_counter()
                     await page.evaluate(_WARTE_BILD_JS)
+                    _z["warten"] += time.perf_counter() - _t
                     if _SEEK2:
                         # 07.09.2026 — mit Gelände bezieht MapLibre die Kamerahöhe auf die Bodenhöhe im
                         # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht
                         # (Einzelbild-Weg macht das seit 06.09. so). Zweiter Sprung nach dem Laden.
                         await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
                         await page.evaluate(_WARTE_BILD_JS)
+                    _t = time.perf_counter()
                     shot = await A._grab_frame(page, cfg)
+                    _z["greifen"] += time.perf_counter() - _t
                     if frame <= 2:
                         for _k in range(6):
                             if A._frame_black_ratio(shot) < 0.05:
@@ -545,18 +653,36 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                             await asyncio.sleep(0.5)
                             await page.evaluate(_WARTE_BILD_JS)
                             shot = await A._grab_frame(page, cfg)
+                    _t = time.perf_counter()
                     mux.schreiben(shot, frame + 1)
+                    _z["schreiben"] += time.perf_counter() - _t
                     if on_preview and frame % preview_every == 0:
                         try: on_preview(base64.b64encode(shot).decode("ascii"))
                         except Exception: pass
-                    emit(0.05 + 0.87 * (frame + 1) / total_frames, f"Frame {frame + 1} / {total_frames}")
+                    if frame % 10 == 0:
+                        _hinweis_alt = _stoerung_hinweis(page)   # 30.09.2026 — Kartendienst-Ausfälle sichtbar machen
+                    emit(0.05 + 0.87 * (frame + 1) / total_frames, f"Frame {frame + 1} / {total_frames}" + _hinweis_alt)
             except BaseException as _fehler:
                 mux.abbrechen("abgebrochen" if isinstance(_fehler, A.RenderCancelled) else "Fehler")
                 raise
+            _n = max(1, total_frames)
+            _log.info("Szene: Zeit je Bild %.0f ms (springen %.0f · warten auf Karte %.0f · Bild greifen %.0f · schreiben %.0f) — %d Bilder in %.1f s",
+                      (time.time() - _t_bilder) * 1000 / _n, _z["seek"] * 1000 / _n, _z["warten"] * 1000 / _n,
+                      _z["greifen"] * 1000 / _n, _z["schreiben"] * 1000 / _n, _n, time.time() - _t_bilder)
             emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
             mux.abschliessen(is_cancelled)
-            _log.info("Szene: Kacheln %s", json.dumps(getattr(page, "_rz_tile_stats", None)))
+            _log.info("Szene: Kacheln %s", _stats_json(getattr(page, "_rz_tile_stats", None)))
+            _gl = _tileproxy.geladen()
+            _log.info("Szene: über die Kachel-Weiche aus dem Netz geladen: %d Kacheln, %.1f MB", _gl["kacheln"], _gl["bytes"] / 1e6)
+            _st = _tileproxy.stoerungen()
+            if _st or ((getattr(page, "_rz_tile_stats", None) or {}).get("aus")):
+                _log.warning("Szene: Kartendienste mit Ausfällen — Weiche %s · direkt %s", json.dumps(_st, ensure_ascii=False),
+                             _stats_json((getattr(page, "_rz_tile_stats", None) or {}).get("aus")))
         finally:
+            _vl["stop"] = True
+            if _vl_task is not None:
+                try: await asyncio.wait_for(_vl_task, 15)
+                except BaseException: pass
             try: await browser.close()
             except Exception: pass
     emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))

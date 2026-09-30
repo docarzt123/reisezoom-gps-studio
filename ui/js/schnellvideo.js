@@ -47,12 +47,15 @@
     const anker = (s) => s < INTRO_S ? -(INTRO_S - s) / animS
       : (s <= INTRO_S + animS ? (s - INTRO_S) / animS : 1 + (s - INTRO_S - animS) / animS);
     const mitte = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
-    const zNah = Math.max(1, Math.min(4.5, Math.log2(Math.max(0.5, diagonaleKm(bbox)) / 2)));
+    // 30.09.2026 (Marc, Vergleich mit Komoot: „die Kamera fliegt tiefer, mehr über den Track") — eine halbe Stufe
+    // näher und 45° statt 55°: steiler von oben, kaum Horizont. Getestet: +1 Stufe war im steilen Gelände zu nah.
+    const zNah = Math.max(1.5, Math.min(5, Math.log2(Math.max(0.5, diagonaleKm(bbox)) / 2) + 0.5));
+    const NEIGUNG = 45;
     const punkte = [
       { s: 0, c: mitte, z: -0.15, p: 25, b: 0, e: "linear" },                       // Überblick
       { s: 1.2, c: mitte, z: -0.15, p: 25, b: 0, e: "linear" },                     // … kurz stehen
-      { a: 0, c: null, z: zNah, p: 55, b: 0, e: "ease_in_out" },                    // hinein zum Start (Richtung: __rzSchnellKamera)
-      { a: 1, c: null, z: zNah, p: 55, b: 0, e: "linear" },                         // Ziel
+      { a: 0, c: null, z: zNah, p: NEIGUNG, b: 0, e: "ease_in_out" },                    // hinein zum Start (Richtung: __rzSchnellKamera)
+      { a: 1, c: null, z: zNah, p: NEIGUNG, b: 0, e: "linear" },                         // Ziel
       { s: INTRO_S + animS + 1.8, c: mitte, z: -0.15, p: 25, b: 0, e: "ease_in_out" }, // zurück in die Gesamtsicht
       { s: INTRO_S + animS + HOLD_S, c: mitte, z: -0.15, p: 25, b: 0, e: "linear" },
     ];
@@ -67,9 +70,10 @@
     return ev.sort((x, y) => x.anchor - y.anchor);
   }
 
-  /** 29.09.2026 — Spur glätten je nach Tourgröße: ~20 m (Wanderung) … ~90 m (lange Radtour). */
+  /** 29.09.2026 — Spur glätten je nach Tourgröße. 30.09.2026 (Marc wählte im Vergleichsclip „rechts“): doppelt so
+   *  stark wie zuerst (~40 m Wanderung … ~200 m lange Radtour), damit Linie und Pfeil dieselbe ruhige Form haben. */
   function spurGlattM(bbox) {
-    return Math.max(15, Math.min(100, Math.round(14 * Math.sqrt(Math.max(0.1, diagonaleKm(bbox))) / 5) * 5));
+    return Math.max(30, Math.min(200, Math.round(28 * Math.sqrt(Math.max(0.1, diagonaleKm(bbox))) / 5) * 5));
   }
 
   /** Meter Strecke je Sekunde Animation (Streckenlänge aus dem Vorschlag, sonst Diagonale × 2,5). */
@@ -99,8 +103,12 @@
       spur_glaetten_m: spurGlattM(v.bbox),
       // Pfeilrichtung über ~0,4 s Fahrt geglättet, Kamera schaut auf eine Bahn über ~0,5 s Fahrt (gemessen: Karte zuckt 2,5–4 statt 16 ‰, Pfeil bleibt nahe der Mitte):
       // bei 20 s über 25 km fliegt der Pfeil ~60 m je Bild — eine feste Ruhe-Stufe reicht da nicht.
-      marker_dot_glatt_m: Math.round(Math.max(60, Math.min(1500, 0.4 * mProS(v, animS)))),
-      camera_follow_glatt_m: Math.round(Math.max(50, Math.min(3000, 0.5 * mProS(v, animS))) / 25) * 25,
+      // 30.09.2026 (Marc: „die Pfeilrichtung läuft manchmal nicht genau mit der Strecke, wirkt aufgesetzt … der muss
+      // schön in die richtige Richtung gucken"): Richtung aus dem RÜCKBLICK auf die gezeichnete Linie (¾ der
+      // Spur-Glättung, util.js kursRueckblickAn) — gemessen Abweichung zur Linie im Median < 1° (vorher 25°).
+      // Kamerabahn etwas enger (~0,35 s Fahrt), weil die Kamera näher ist — sonst wandert der Pfeil weit aus der Mitte.
+      marker_dot_rueckblick_m: Math.round(0.75 * spurGlattM(v.bbox)),
+      camera_follow_glatt_m: Math.round(Math.max(50, Math.min(3000, 0.35 * mProS(v, animS))) / 25) * 25,
       smooth_camera_3d: true,
       // 29.09.2026 (Marc: „Straßen, Orte, Grenzen usw. alles ausblenden beim Schnell-Video") — nur Landschaft
       // und Strecke. Dieselben Schalter wie Karte → „Alle aus" im Animator (Straßen-/Bahnlinien inklusive).
@@ -136,6 +144,49 @@
       await new Promise(r => setTimeout(r, 400));
     }
     return false;
+  }
+
+  /** 30.09.2026 (Marc: „Wenn ich Schnell-Video mache, geht er kurz zum Animator … dann springt er zum
+   *  Rendern, da haben wir ein großes schwarzes Loch … es sieht so aus, als müsste man da etwas tun"):
+   *  eigener Bildschirm über der ganzen App — Titel, Kartenbild, Schritte, Live-Bild, am Ende Speichern /
+   *  Teilen. Der Animator arbeitet unsichtbar dahinter (derselbe Render-Weg wie bisher). z-index unter den
+   *  Modalen (1000), damit Fehler-Fenster und Systemdialoge darüber erscheinen. */
+  function buehne(titel) {
+    const el = document.createElement("div");
+    el.className = "sv-buehne"; el.id = "sv-buehne";
+    el.innerHTML = `<div class="sv-b-kopf">🎬 ${esc(T("schnell.titel_dialog", "Schnell-Video"))}<span>${esc(titel)}</span></div>
+      <div class="sv-b-bild"><img alt="" hidden><video controls playsinline hidden></video><div class="sv-b-text"></div></div>
+      <div class="sv-b-fuss">
+        <div class="sv-b-balken"><div></div></div>
+        <div class="sv-b-status"></div>
+        <div class="sv-b-knoepfe">
+          <button type="button" class="btn" data-b="abbrechen">⨯ ${esc(T("animator.btn.cancel", "Abbrechen"))}</button>
+          <button type="button" class="btn btn-primary" data-b="speichern" hidden>💾 ${esc(T("schnell.speichern", "Speichern …"))}</button>
+          <button type="button" class="btn" data-b="teilen" hidden>📤 ${esc(T("schnell.teilen", "Teilen"))}</button>
+          <button type="button" class="btn" data-b="animator" hidden>${esc(T("schnell.im_animator", "Im Animator öffnen"))}</button>
+          <button type="button" class="btn" data-b="schliessen" hidden>${esc(T("common.close", "Schließen"))}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    const $ = (q) => el.querySelector(q);
+    const img = $(".sv-b-bild img"), vid = $(".sv-b-bild video"), txt = $(".sv-b-text");
+    const knopf = (k) => el.querySelector(`[data-b="${k}"]`);
+    let hatLiveBild = false;
+    const api_ = {
+      el,
+      schritt(text) { $(".sv-b-status").textContent = text || ""; if (!hatLiveBild) txt.textContent = text || ""; },
+      fortschritt(p) { $(".sv-b-balken div").style.width = Math.round(Math.max(0, Math.min(1, p)) * 100) + "%"; },
+      startbild(url) { if (!url || hatLiveBild) return; img.src = url; img.hidden = false; img.classList.add("ist-startbild"); },
+      livebild(b64) { hatLiveBild = true; img.src = "data:image/jpeg;base64," + b64; img.hidden = false; img.classList.remove("ist-startbild"); txt.textContent = ""; },
+      knopf,
+      fertig(url) {
+        txt.textContent = ""; img.hidden = true; vid.hidden = false; vid.src = url; try { const pr = vid.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
+        knopf("abbrechen").hidden = true; ["speichern", "teilen", "animator", "schliessen"].forEach(k => { knopf(k).hidden = false; });
+      },
+      fehler(text) { txt.textContent = text; img.classList.add("ist-startbild"); knopf("abbrechen").hidden = true; knopf("schliessen").hidden = false; },
+      zu() { try { vid.pause(); } catch (_) {} el.remove(); },
+    };
+    return api_;
   }
 
   async function rzSchnellVideo(pfad) {
@@ -207,31 +258,101 @@
       w.felder = [...box.querySelectorAll("[data-sv-feld]:checked")].map(x => x.dataset.svFeld);
       const letzte = { format: w.format, laenge: w.laenge, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, felder: w.felder };
       const name = (v.name || "Tour") + " · " + T("schnell.titel_dialog", "Schnell-Video");
+      // Beim Rendern sofort den eigenen Bildschirm zeigen — der Animator arbeitet unsichtbar dahinter.
+      let B = null;
+      if (rendern) { m.close(); B = buehne(v.name || ""); B.schritt(T("schnell.b.anlegen", "Projekt wird angelegt …")); B.fortschritt(0.01); }
       let r;
-      try { r = await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte)); }
-      catch (e) { r = { ok: false, error: String(e) }; }
-      if (!r || !r.ok) { laeuft = false; toast((r && r.error) || T("common.error", "Fehler"), "error", 6000); return; }
+      try {
+        r = rendern ? await api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte)   // warte-ok: eigener Bildschirm zeigt den Schritt
+          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte));
+      } catch (e) { r = { ok: false, error: String(e) }; }
+      if (!r || !r.ok) {
+        laeuft = false;
+        if (B) { B.fehler((r && r.error) || T("common.error", "Fehler")); B.knopf("schliessen").onclick = () => B.zu(); }
+        else toast((r && r.error) || T("common.error", "Fehler"), "error", 6000);
+        return;
+      }
       try { applog("info", `[schnell] Projekt ${r.project_id} · ${w.format} · ${w.laenge} · ${w.qualitaet} · ${w.stil} · rendern=${rendern}`); } catch (_) {}
-      m.close();
+      if (!B) m.close();
       // Öffnen über das Archiv — derselbe Weg wie beim Tour-Assistenten.
       window.__rzProjektOeffnenId = r.project_id;
       window.__rzStartProjekte = true;
       if (typeof switchMod === "function") switchMod("library");
       window.dispatchEvent(new CustomEvent("rz-projekt-oeffnen", { detail: { id: r.project_id, modul: "animator" } }));
+      if (B) { B.schritt(T("schnell.b.karte", "Karte wird geladen …")); B.fortschritt(0.02); }
       const bereit = await warteAufAnimator(r.project_id, 90);
-      if (!bereit) { if (rendern) toast(T("schnell.nicht_bereit", "Der Animator ist noch nicht bereit — starte das Video dort mit „Video rendern“."), "warn", 8000); return; }
+      if (!bereit) {
+        if (B) { B.fehler(T("schnell.nicht_bereit", "Der Animator ist noch nicht bereit — starte das Video dort mit „Video rendern“.")); B.knopf("schliessen").onclick = () => B.zu(); }
+        return;
+      }
       await new Promise(res => setTimeout(res, 1500));   // Karte, Kacheln und Tempo-Verteilung kurz ankommen lassen
+      if (B && window.__rzKartenBild) { try { B.startbild(await window.__rzKartenBild()); } catch (_) {} }
       // Verfolger-Blickrichtung aus der geglätteten Spur (auch für „Im Animator öffnen")
       try { const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] Blickrichtung: ${n} Keyframes`); } catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
       if (!rendern) return;
       await new Promise(res => setTimeout(res, 800));   // gespeicherte Keyframes ankommen lassen
       let ziel;
       try { ziel = await api().schnellvideo_ziel(name); } catch (_) { ziel = null; }   // warte-ok: sofort
-      if (!ziel || !ziel.ok) { toast((ziel && ziel.error) || T("common.error", "Fehler"), "error", 6000); return; }
-      if (typeof window.__rzSchnellRender === "function") window.__rzSchnellRender({ ziel: ziel.path, name: (v.name || "Tour") + " – " + T("schnell.titel_dialog", "Schnell-Video") });
+      if (!ziel || !ziel.ok) { B.fehler((ziel && ziel.error) || T("common.error", "Fehler")); B.knopf("schliessen").onclick = () => B.zu(); return; }
+      B.schritt(T("schnell.b.start", "Video wird gestartet …")); B.fortschritt(0.03);
+      const dateiName = (v.name || "Tour") + " – " + T("schnell.titel_dialog", "Schnell-Video");
+      if (typeof window.__rzSchnellRender === "function") window.__rzSchnellRender({ ziel: ziel.path, name: dateiName, buehne: true });
+      buehneVerfolgen(B, dateiName);
     };
     document.getElementById("sv-animator").onclick = () => los(false);
     document.getElementById("sv-rendern").onclick = () => los(true);
+  }
+
+  /** Fortschritt des Renders im eigenen Bildschirm zeigen (derselbe Status wie im Animator). */
+  function buehneVerfolgen(B, dateiName) {
+    let aktuell = null, begonnen = false, zu = false;
+    const zurueck = () => { zu = true; B.zu(); if (typeof switchMod === "function") switchMod("library"); };
+    B.knopf("abbrechen").onclick = async () => {
+      B.knopf("abbrechen").disabled = true; B.schritt(T("animator.cancel.requesting", "Wird abgebrochen …"));
+      try { await api().animator_cancel(); } catch (_) {}   // warte-ok: setzt nur das Flag
+    };
+    B.knopf("schliessen").onclick = zurueck;
+    B.knopf("animator").onclick = () => { zu = true; B.zu(); };   // der Animator steht schon dahinter
+    B.knopf("speichern").onclick = async () => {
+      const ziel = await api().pick_save_path(dateiName + ".mp4", "", ["MP4 (*.mp4)"]);   // warte-ok: Systemdialog
+      if (!ziel) return;
+      const r = await rzWarten("datei_speichern_unter", () => api().datei_speichern_unter(aktuell, ziel));
+      if (r && r.ok) { aktuell = r.path; toast(T("schnell.gespeichert", "Gespeichert: {file}").replace("{file}", String(r.path).split(/[\\/]/).pop()), "success", 5000); }
+      else toast((r && r.error) || T("common.error", "Fehler"), "error", 6000);
+    };
+    B.knopf("teilen").onclick = async () => {
+      const r = await api().datei_teilen(aktuell);   // warte-ok: öffnet nur das System-Menü
+      if (!r || !r.ok) toast((r && r.error) || T("common.error", "Fehler"), "error", 6000);
+    };
+    let letztesBild = "";
+    const t0 = Date.now();
+    const runde = async () => {
+      if (zu) return;
+      let s = null;
+      try { s = await api().animator_status(); } catch (_) {}   // warte-ok: Statusabfrage
+      if (s) {
+        if (s.running) begonnen = true;
+        if (!begonnen) {   // Stand eines früheren Renders — unserer läuft noch nicht
+          if (Date.now() - t0 > 20000) { B.fehler(T("schnell.b.fehler", "Das Video konnte nicht erstellt werden. Details stehen im Fehlerfenster.")); return; }
+          setTimeout(runde, 500); return;
+        }
+        if (s.status) B.schritt(s.status);
+        B.fortschritt(Math.max(0.03, s.progress || 0));
+        if (s.preview_b64 && s.preview_b64 !== letztesBild) { letztesBild = s.preview_b64; B.livebild(s.preview_b64); }
+        if (s.cancelled) { zurueck(); toast(T("animator.cancel.toast", "Render abgebrochen"), "info", 4000); return; }
+        if (s.error) { B.fehler(T("schnell.b.fehler", "Das Video konnte nicht erstellt werden. Details stehen im Fehlerfenster.")); return; }
+        if (!s.running && (s.progress || 0) >= 1 && s.output) {
+          aktuell = s.output;
+          B.schritt(T("schnell.b.fertig", "✓ Dein Video ist fertig")); B.fortschritt(1);
+          let url = null;
+          try { const m = await api().serve_media(s.output); if (m && m.ok && m.url) url = m.url; } catch (_) {}   // warte-ok: sofort
+          B.fertig(url || encodeURI("file://" + s.output));
+          return;
+        }
+      }
+      setTimeout(runde, 500);
+    };
+    setTimeout(runde, 300);
   }
 
   window.rzSchnellVideo = rzSchnellVideo;

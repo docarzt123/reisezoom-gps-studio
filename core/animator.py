@@ -1853,8 +1853,11 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         except OSError as e:
             _log.warning("Kachel-Zwischenspeicher nicht nutzbar: %s", e)
             d = None
-    stats = {"hit": 0, "miss": 0, "store": 0, "fehler": {}}
+    stats = {"hit": 0, "miss": 0, "store": 0, "fehler": {}, "ersatz": 0, "aus": {}}
     cors = {"Access-Control-Allow-Origin": "*"}
+    # 30.09.2026 — gescheiterte Adressen merken (s. tileproxy): nach drei Fehlversuchen für NACHHOLEN_S
+    # sofort abbrechen statt bei jedem Bild erneut mit Pausen zu versuchen. stats["aus"]: Dienst → Adressen.
+    _fehl_url: dict = {}
 
     async def handler(route):
         req = route.request
@@ -1866,6 +1869,11 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         url, _over = _tileproxy.wms_oversample_url(url)
         h = hashlib.sha1((url + (_tileproxy.CLAMP_KEY_SUFFIX if _terr else "")).encode("utf-8")).hexdigest()
         f = (d / h[:2] / (h + ".bin")) if d is not None else None
+        _tf = _fehl_url.get(url)
+        if _tf is not None and time.time() - _tf < _tileproxy.NACHHOLEN_S:
+            try: await route.abort()
+            except Exception: pass
+            return
         if f is not None and _tileproxy.cache_fresh(f):     # 90-Tage-Frist, s. tileproxy
             try:
                 raw = f.read_bytes()
@@ -1896,7 +1904,19 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
             return
         if resp.status >= 400:
             stats["fehler"][str(resp.status)] = stats["fehler"].get(str(resp.status), 0) + 1
+            if resp.status in (429, 502, 503, 504):
+                _fehl_url[url] = time.time()
+                try:
+                    from urllib.parse import urlparse as _up
+                    stats["aus"].setdefault(_up(url).hostname or "?", set()).add(url)
+                except Exception:
+                    pass
         stats["miss"] += 1
+        if (resp.headers.get(_tileproxy.ERSATZ_HEADER.lower()) or resp.headers.get(_tileproxy.ERSATZ_HEADER)):
+            stats["ersatz"] += 1     # Ersatz-Kachel der Weiche: durchreichen, NIE speichern
+            try: await route.fulfill(status=200, content_type="image/png", body=await resp.body(), headers=cors)
+            except Exception: pass
+            return
         try:
             ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
             body = await resp.body()

@@ -862,7 +862,12 @@ Spitzkehre dreht der Pfeil statt umzuklappen) und die Blickrichtung der Kamera (
 Fahrtrichtung, dazu die ruhige Kamera). Die Blickrichtung steht danach als normale Keyframes in der
 Zeitleiste und lässt sich ändern.
 
-**Video rendern** zeigt dir live, wie das Video entsteht. Ist es fertig, **„💾 Speichern …"** legt es
+**Seit v0.9.748:** Die Kamera fliegt näher und steiler von oben (45° statt 55°, eine halbe Stufe näher) — mehr
+über dem Track, kaum Horizont. Der Pfeil zeigt genau in die Richtung, aus der die gezeichnete Linie gerade kommt;
+dafür ist die Linie etwas stärker geglättet. In engen Kehren dreht der Pfeil deshalb sichtbar mit — so, wie die
+Linie wirklich verläuft.
+
+**Video rendern** öffnet seit v0.9.744 einen eigenen Schnell-Video-Bildschirm über der ganzen App: oben der Tourname, in der Mitte zuerst das Kartenbild deiner Tour mit dem aktuellen Schritt (Projekt anlegen, Karte laden, Kacheln vorwärmen …), dann live das entstehende Video, darunter der Fortschritt und „Abbrechen“. Der Animator arbeitet unsichtbar dahinter — du musst dort nichts tun. **Schließen** bringt dich zurück ins Archiv, **Im Animator öffnen** zeigt das Projekt zum Weiterbearbeiten. Ist es fertig, **„💾 Speichern …"** legt es
 dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü (AirDrop, Nachrichten, Mail,
 Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
 
@@ -1827,6 +1832,7 @@ renderst.
 - **Kamera folgt Track** — die Kamera bleibt am laufenden Punkt statt auf der ganzen Route.
   - **Kamera-Trägheit** (erscheint dann) — weiches Nachziehen statt hartem Kleben am Punkt (gegen GPS-Zittern).
   - **Kamerabahn glätten** (seit v0.9.741, 0–1000 m) — die Kamera schaut auf eine geglättete Bahn statt auf jeden Knick der Spur; bei schnellen Videos über kurvige Strecken zuckt die Karte dann nicht mehr hin und her. Der Punkt wandert dafür etwas um die Bildmitte. 0 = genau über dem Punkt.
+- **Punkte** (Abschnitt Track) — vereinfacht die Spur: links = wenige Punkte, gerade Verbindungen dazwischen. Seit v0.9.743 laufen Linie, Laufpunkt/Pfeil und Kamera beim Scrubben, im Probelauf und im fertigen Video auf dieser vereinfachten Spur (vorher sah man die Vereinfachung nur an der ruhenden Linie). Schneller rendert es dadurch kaum — die Zeit hängt vor allem am Laden der Kartenkacheln. Bei Reisen mit mehreren Etappen wirkt der Regler nicht.
 - **Spur glätten** (Abschnitt Track, unter „Punkte", seit v0.9.741, 0–200 m) — nimmt GPS-Zittern und kleine Zacken aus der Spur. Linie, Laufpunkt/Pfeil, Kamera und blasse Gesamtroute laufen dann auf der geglätteten Spur. 0 = Originalspur.
 - **Terrain-Übertreibung** 0–4× — wie ausgeprägt die Berge wirken
 
@@ -2023,6 +2029,12 @@ Während des Renders siehst du das aktuell entstehende Frame im Vorschau-Fenster
 
 ### Vorschau = Video (seit v0.9.658) ⭐
 Das fertige Video ist seit v0.9.658 wörtlich die Vorschau in hoher Auflösung: dieselbe Karte, dieselben Linien, Strichelungen, Schilder, Overlays und derselbe Kamerapfad, nur mit der Pixeldichte des Videos gezeichnet. Was du im Probelauf siehst, bekommst du auch — Linienbreiten und Schildgrößen sind im Video **relativ zur Bildbreite** genauso groß wie in der Vorschau. Tipp: Beurteile die Vorschau bei der Fenstergröße, mit der du auch renderst; ein deutlich breiteres Fenster zeigt (und rendert) die Schilder etwas kleiner im Verhältnis zum Bild.
+
+**Wenn ein Kartendienst ausfällt (seit v0.9.745):** Liefert ein Luftbild-Dienst beim Rendern keine Kacheln (Serverfehler), wartet die App nicht mehr bei jedem Bild darauf: Seit v0.9.747 füllt die App die Stelle mit dem passenden Ausschnitt der nächstgröberen Kachel desselben Luftbilds (etwas weicher, aber gleiche Farben — keine hellen Flecken, kein Blinken); nur wenn auch die fehlt, scheint das Sentinel-Satellitenbild durch. Nach 20 Sekunden wird die Kachel einmal leise neu versucht. Im Fortschritt steht dann z. B. „⚠️ Luftbild Spanien antwortet nicht – 12 Kacheln fehlen, es geht weiter“. So weißt du, warum etwas unschärfer ist, und der Render hängt nicht mehr (vorher: bis zu 5 Sekunden Warten je Bild).
+
+**Kein schwarzes Bild mehr beim Start (seit v0.9.744):** Bis das erste Bild gerendert ist, zeigt das Fortschrittsfeld das Kartenbild, das beim Klick auf „Video rendern“ in der Vorschau zu sehen war — gedimmt, darüber der aktuelle Schritt. Danach übernimmt das Live-Bild.
+
+**Vorausladen beim Rendern (seit v0.9.746):** Während das Video Bild für Bild entsteht, fährt ein zweiter, unsichtbarer „Vorläufer“ der Kamerafahrt ein paar Sekunden voraus und lädt schon die Kartenkacheln für die nächsten Bilder. Das Vorwärmen vor dem ersten Bild entfällt dadurch. Gemessen mit leerem Kachelspeicher (20-s-Video hochkant): 164 statt 314 Sekunden; mit gefülltem Speicher etwa gleich schnell wie vorher. Das gilt für jedes Video aus Animator, Reiseroute und Tour-Map.
 
 **Kacheln vorwärmen (seit v0.9.742 schneller):** Vor dem ersten Bild lädt der Render die Kartenkacheln entlang der Kamerafahrt vor — erst grob über das ganze Video, dann feiner. Das dauert höchstens 45 Sekunden, der Fortschritt steht als „Kacheln vorwärmen 12 von 120“ da. Beim zweiten Render derselben Stelle ist das meiste schon im Speicher und es geht nach wenigen Sekunden weiter. Gemessen mit leerem Speicher (20-s-Video hochkant): Vorwärmen 45 s statt 104 s, ganzer Render 185 s statt 226 s.
 

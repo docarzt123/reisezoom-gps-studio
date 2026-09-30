@@ -1923,6 +1923,10 @@ function mountAnimator(body, headerActions, opts) {
   let _tlBar = null;
   let _kfEditorBound = false;
   let _previewRaf = null;
+  // 29./30.09.2026 — Rohspur (vor Punkte-Regler und Spur glätten), s. _spurAnwenden/_spurNeu. Hier oben deklariert (vor den bindSetting-Aufrufen,
+  // deren onLoad schon beim Einhängen _spurNeu ruft):
+  // weiter unten stand „var _spurRoh = null“ — die Modul-Funktion läuft asynchron, drawPreview lief davor, die Zuweisung löschte die Rohspur wieder.
+  let _spurRoh = null;
   // 14.09.2026 — Projekt-Vorschaubild (util.js rzProjektVorschauAufnehmen, 4 s nach
   // dem Speichern) soll nicht mitten in einem Probelauf fotografieren: Bild vom
   // halben Lauf, dazu ein triggerRepaint + render-Warten im laufenden Bild.
@@ -5668,6 +5672,9 @@ function mountAnimator(body, headerActions, opts) {
    *  wäre. Beide benutzen jetzt dieselbe Formel (util.js → kursAusSpur, im
    *  Render gespiegelt als __rzKurs in core/animator.py). */
   function _kursAn(coords, i) {
+    // 30.09.2026 — Schnell-Video: Richtung aus dem Rückblick der gezeichneten Linie (marker_dot_rueckblick_m, util.js)
+    const _rb = +(_activeProject?.[_MODKEY]?.marker_dot_rueckblick_m) || 0;
+    if (_rb > 0 && window.kursRueckblickAn) return kursRueckblickAn(coords, i, _rb);
     // 29.09.2026 — glatt entlang der Strecke, am gebrochenen Index (util.js kursGlattAn)
     const g = kursGlaettung(dotGlaettung());
     const sigM = Math.max(g.basisM, +(_activeProject?.[_MODKEY]?.marker_dot_glatt_m) || 0);   // Schnell-Video: je nach Tempo
@@ -14922,6 +14929,19 @@ function mountAnimator(body, headerActions, opts) {
       if (!r || !r.ok) toast((r && r.error) || t("common.error", "Fehler"), "error", 6000);
     };
   }
+  // 30.09.2026 (Marc: „da haben wir ein großes schwarzes Loch, obwohl eine Karte zu sehen war") — das
+  // aktuelle Kartenbild der Vorschau als JPEG. Ohne preserveDrawingBuffer ist der Puffer nur im
+  // render-Ereignis gültig: dort lesen, Neuzeichnen anstoßen, nach 1,5 s aufgeben.
+  function _kartenBild() {
+    return new Promise((fertig) => {
+      if (!map) { fertig(null); return; }
+      let da = false;
+      const nimm = () => { if (da) return; da = true; try { fertig(map.getCanvas().toDataURL("image/jpeg", 0.82)); } catch (_) { fertig(null); } };
+      try { map.once("render", nimm); map.triggerRepaint(); } catch (_) { fertig(null); return; }
+      setTimeout(() => { if (!da) { da = true; fertig(null); } }, 1500);
+    });
+  }
+  window.__rzKartenBild = _kartenBild;
   window.__rzSchnellRender = (opts) => { _skRenderNext = opts || {}; const b = document.getElementById("anim-render"); if (b) b.click(); return true; };
   window.__rzSchnellBereit = (pid) => {
     try {
@@ -16428,44 +16448,52 @@ function mountAnimator(body, headerActions, opts) {
     lbl.textContent = `${restored} / ${nPoints}`;
     // currentCoords sind die downsampled-800-Punkte aus dem Bridge-Load.
     // Wir merken sie einmal als „voll" — Slider-Drag resampelt davon weiter.
-    _fullPreviewCoords = currentCoords ? currentCoords.slice() : [];
-    // Falls reduziert: Preview gleich resamplen sodass die Punkte-Optik passt.
-    if (restored < nPoints) {
-      applyPointCountToPreview();
-    }
+    // 30.09.2026 — immer: der Regler steht jetzt auf dem Projektwert; Spur daraus neu bauen
+    // (drawPreview hat ohne Punkte-Reduktion gezeichnet, weil der Regler da noch vom vorigen Projekt stand).
+    _spurNeu();
   }
 
-  // Voll-Coords-Snapshot: 800 Punkte vom Backend (Frontend-Preview-Auflösung).
-  // Beim Slider-Drag resampeln wir davon weiter runter — das ist visuell
-  // praktisch identisch zum echten Backend-Resampling der Raw-Points.
-  let _fullPreviewCoords = [];
 
+  // 30.09.2026 (Task „Punkte-Regler WYSIWYG"): Der Regler wirkte nur auf die RUHENDE Linie — beim
+  // Scrubben, im Probelauf und damit im Video liefen Linie, Laufpunkt und Kamera auf allen Punkten.
+  // Jetzt baut _punkteReduziert eine Spur mit DERSELBEN Punktzahl: die behaltenen Punkte stehen an
+  // ihrem Index, dazwischen gerade Verbindungen. Form = reduzierte Linie, alle Reihen am Punkt-Index
+  // (Höhen, Zeiten, Anker, Tempo) stimmen weiter. currentCoords = glätten(reduziert(roh)) — dieselbe
+  // Reihenfolge wie der klassische Render (_punkte_verteilen: verteilen, dann spur_glaetten).
+  function _punkteZiel(n) {
+    const sl = document.getElementById("anim-pointcount");
+    if (!sl || sl.disabled || !n) return n;
+    const v = parseInt(sl.value), maxN = parseInt(sl.max);
+    if (!(v > 0) || !(maxN > 0) || v >= maxN) return n;
+    // Tester-Befund (ein Beta-Tester, 29.08.2026): proportional (800·v/maxN) landete
+    // links bei 2 Punkten — bei einer RUNDTOUR ist Start≈Ziel und die Linie
+    // unsichtbar („keine Spur zu sehen"). Bis 800 nehmen wir v DIREKT (der
+    // Render nutzt ja auch genau v Punkte), erst darüber proportional.
+    return Math.max(3, Math.min(n, v <= n ? v : Math.round(n * (v / maxN))));
+  }
+  function _punkteReduziert(roh) {
+    const n = roh ? roh.length : 0, t = _punkteZiel(n);
+    if (n < 3 || t >= n) return roh;
+    const step = (n - 1) / (t - 1), out = new Array(n);
+    for (let k = 0; k < t - 1; k++) {
+      const j0 = Math.round(k * step), j1 = Math.round((k + 1) * step);
+      const a = roh[j0], b = roh[j1];
+      for (let i = j0; i <= j1; i++) {
+        const f = j1 > j0 ? (i - j0) / (j1 - j0) : 0;
+        const p = roh[i].slice(); p[0] = a[0] + (b[0] - a[0]) * f; p[1] = a[1] + (b[1] - a[1]) * f; out[i] = p;
+      }
+    }
+    return out;
+  }
+  window.__rzPunkteReduziert = (roh) => _punkteReduziert(roh);   // Prüfstand
+  window.__rzSpurStand = () => ({ roh: _spurRoh ? _spurRoh.length : null, jetzt: currentCoords ? currentCoords.length : null,
+    ziel: _punkteZiel(currentCoords ? currentCoords.length : 0), reduziert: !!(_spurRoh && currentCoords && _spurRoh !== currentCoords),
+    reise: _reiseGilt() });   // Prüfstand
   function applyPointCountToPreview() {
-    if (!map || !_fullPreviewCoords.length) return;
     const sl = document.getElementById("anim-pointcount");
     const lbl = document.getElementById("anim-pointcount-v");
-    if (!sl || sl.disabled) return;
-    const v = parseInt(sl.value);
-    const maxN = parseInt(sl.max);
-    // Map-Source-Update: Preview-Track auf reduzierte Coords umschalten
-    let coords = _fullPreviewCoords;
-    if (v < maxN) {
-      // Tester-Befund (ein Beta-Tester, 29.08.2026): proportional (800·v/maxN) landete
-      // links bei 2 Punkten — bei einer RUNDTOUR ist Start≈Ziel und die Linie
-      // unsichtbar („keine Spur zu sehen"). Bis 800 nehmen wir v DIREKT (der
-      // Render nutzt ja auch genau v Punkte), erst darüber proportional.
-      const targetIn800 = Math.max(3, Math.min(_fullPreviewCoords.length,
-        v <= _fullPreviewCoords.length ? v
-          : Math.round(_fullPreviewCoords.length * (v / maxN))));
-      coords = resampleArray(_fullPreviewCoords, targetIn800);
-    }
-    try {
-      const src = map.getSource("preview-track");
-      if (src) {
-        rzSetDataLatest(map, src, { type: "Feature", geometry: { type: "LineString", coordinates: coords } });
-      }
-    } catch (_) {}
-    if (lbl) lbl.textContent = `${v} / ${maxN}`;
+    if (sl && lbl && !sl.disabled) lbl.textContent = `${parseInt(sl.value)} / ${parseInt(sl.max)}`;
+    _spurNeu();
   }
 
   // v0.9.221 (Reiseroute) — Robuster Restore mit Retry. Problem davor: beim
@@ -16564,7 +16592,6 @@ function mountAnimator(body, headerActions, opts) {
     _extraTours = [];
     try { _animClearExtraPreview(); } catch (_) {}
     try { _animRenderToursList(); } catch (_) {}
-    _fullPreviewCoords = [];
     // Tempo-Spur + Bilanz: ohne Track gibt es keine Dauer (wie beim App-Start).
     _paceMap = null; _tempoInfo = null; _tempoSpurStand = null;
     for (const id of ["anim-tempo-bilanz", "tl-tempo-bilanz"]) {
@@ -16845,16 +16872,16 @@ function mountAnimator(body, headerActions, opts) {
 
   // 29.09.2026 — Spur glätten (Meter, 0 = aus). Wert aus dem Projekt, sonst aus dem Regler;
   // Render-Parameter spur_glaetten_m (klassischer Render: core/animator.py spur_glaetten).
-  var _spurRoh = null;   // var: bindSetting-onLoad kann vor dieser Zeile laufen (keine TDZ)
   function _spurGlattM() {
     const a = _activeProject?.[_MODKEY];
     const v = (a && a.spur_glaetten_m != null) ? +a.spur_glaetten_m
       : parseFloat(document.getElementById("anim-spur-glatt")?.value);
     return isFinite(v) ? Math.max(0, Math.min(500, v)) : 0;
   }
-  function _spurAnwenden(roh, mWert) {
+  function _spurAnwenden(roh, mWert, ohnePunkte) {
     const m = (mWert != null && isFinite(+mWert)) ? Math.max(0, +mWert) : _spurGlattM();
-    return (m > 0 && window.rzSpurGlaetten && roh && roh.length > 2) ? rzSpurGlaetten(roh, m) : roh;
+    const r = ohnePunkte ? roh : _punkteReduziert(roh);   // 30.09.2026 — Punkte-Regler zuerst (wie der klassische Render)
+    return (m > 0 && window.rzSpurGlaetten && r && r.length > 2) ? rzSpurGlaetten(r, m) : r;
   }
   function _spurNeu(v) {
     const m = (v != null && isFinite(+v)) ? Math.max(0, +v) : _spurGlattM();
@@ -16863,8 +16890,6 @@ function mountAnimator(body, headerActions, opts) {
     if (!_spurRoh || _reiseGilt()) return;
     currentCoords = _spurAnwenden(_spurRoh, m);
     _reiseBasis = currentCoords;
-    _fullPreviewCoords = currentCoords.slice();
-    try { applyPointCountToPreview(); } catch (_) {}
     try { refreshPreviewTrackData(); } catch (_) {}
     try { applyGhost(); } catch (_) {}
     try { dotSetzen(_dotFracZuletzt); } catch (_) {}
@@ -16873,7 +16898,7 @@ function mountAnimator(body, headerActions, opts) {
   // 29.09.2026 — gemeinsamer Folgepunkt der Kamera (Probelauf, ruhige Kamera, Scrubben): am
   // GEBROCHENEN Index (vorher ganze Punkte → die Bildmitte sprang von Punkt zu Punkt, der Pfeil
   // wackelte im Bild) und auf Wunsch auf einer geglätteten Kamerabahn (camera_follow_glatt_m).
-  var _kamBahnCache = null;
+  var _kamBahnCache;   // ohne Zuweisung, s. _spurRoh
   function _folgeGlattM() {
     const v = parseFloat(document.getElementById("anim-follow-glatt")?.value);
     return isFinite(v) ? Math.max(0, Math.min(3000, Math.round(v))) : 0;
@@ -16894,7 +16919,7 @@ function mountAnimator(body, headerActions, opts) {
   function drawPreview(res) {
     applog("info", `[drawPreview] n_coords=${res?.coords?.length} hasSource=${!!map?.getSource?.("preview-track")}`);
     _spurRoh = res.coords;
-    currentCoords = _spurAnwenden(res.coords);   // 29.09.2026 — Spur glätten (0 = Original)
+    currentCoords = _spurAnwenden(res.coords);   // 29.09.2026 Spur glätten, 30.09.2026 Punkte-Regler — auch bei jedem Neuzeichnen (Stilwechsel); configurePointCountSlider zieht mit dem Projektwert nach (_spurNeu)
     // 08.09.2026 — die erste Etappe merken; bei einer Reise ersetzt die
     // Etappen-Bahn den Track (siehe _reiseAnwenden).
     _reiseBasis = currentCoords;
@@ -17270,7 +17295,6 @@ function mountAnimator(body, headerActions, opts) {
       // Punkte-Slider zurück auf Default „kein GPX geladen"
       configurePointCountSlider(0);
     } catch (_) {}
-    _fullPreviewCoords = [];
     // v0.9.156 — Multi-Track-Liste + Preview-Layer mit zurücksetzen.
     _extraTours = [];
     try { _animClearExtraPreview(); } catch (_) {}
@@ -20661,6 +20685,7 @@ function mountAnimator(body, headerActions, opts) {
 
   document.getElementById("anim-render").addEventListener("click", async () => {
     if (!currentGpx) return;
+    const _startBild = _kartenBild();   // 30.09.2026 — Platzhalter bis zum ersten gerenderten Bild (s. unten)
     // 29.09.2026 §71 — vom Schnell-Video ausgelöst? Dann Zwischendatei statt Speichern-Dialog.
     const _sk = _skRenderNext; _skRenderNext = null; _skLetzter = _sk;
     // Alpha-Modus braucht keinen Mapbox-Token (keine Map). Skip Token-Check.
@@ -20992,6 +21017,7 @@ function mountAnimator(body, headerActions, opts) {
       marker_dot_size: dotGroesse(),
       marker_dot_smooth: dotGlaettung(),
       marker_dot_glatt_m: +(_activeProject?.[_MODKEY]?.marker_dot_glatt_m) || 0,
+      marker_dot_rueckblick_m: +(_activeProject?.[_MODKEY]?.marker_dot_rueckblick_m) || 0,
       // v0.9.506 — Verteilung + Pausen.
       pace_mode: (document.getElementById("anim-pace")?.value) || "raw",
       pause_mode: (document.getElementById("anim-pause-mode")?.value) || "trim",
@@ -21130,8 +21156,15 @@ function mountAnimator(body, headerActions, opts) {
       const img = document.getElementById("anim-preview");
       const ph  = document.getElementById("anim-preview-placeholder");
       const cancelBtn = document.getElementById("anim-cancel");
-      if (img) { img.src = ""; img.classList.remove("visible"); }
-      if (ph)  ph.style.display = "";
+      if (img) { img.src = ""; img.classList.remove("visible", "ist-startbild"); }
+      if (ph)  { ph.style.display = ""; ph.classList.remove("ueber-bild"); }
+      // 30.09.2026 — statt schwarzer Fläche das Kartenbild vom Klick (gedimmt), darüber der Schritt
+      // (App laden, Projekt öffnen, Kacheln vorwärmen …), bis das erste gerenderte Bild kommt.
+      _startBild.then((url) => {
+        if (!url || !img || _lastPreviewB64) return;
+        img.src = url; img.classList.add("visible", "ist-startbild");
+        if (ph) ph.classList.add("ueber-bild");
+      }).catch(() => {});
       if (cancelBtn) {
         cancelBtn.disabled = false;
         cancelBtn.textContent = "⨯ " + t("animator.btn.cancel");
@@ -21232,8 +21265,12 @@ function mountAnimator(body, headerActions, opts) {
       const img = document.getElementById("anim-preview");
       const ph  = document.getElementById("anim-preview-placeholder");
       if (img) img.src = "data:image/jpeg;base64," + s.preview_b64;
-      if (img) img.classList.add("visible");
+      if (img) { img.classList.add("visible"); img.classList.remove("ist-startbild"); }
       if (ph)  ph.style.display = "none";
+    } else if (!_lastPreviewB64 && s.status) {
+      // 30.09.2026 — vor dem ersten Bild: der aktuelle Schritt steht in der Bildfläche
+      const ph = document.getElementById("anim-preview-placeholder");
+      if (ph && ph.style.display !== "none") ph.textContent = s.status;
     }
 
     if (s.cancelled) {
@@ -21337,7 +21374,7 @@ function mountAnimator(body, headerActions, opts) {
         done.classList.add("hidden");
       };
       try { _skFertigKnoepfe(s.output); } catch (e) { applog("warn", "[schnell] Fertig-Knöpfe: " + e); }
-      toast(t("animator.toast.render_done", "Video fertig: {file}", { file: s.output.split("/").slice(-1)[0] }), "success", 6000);
+      if (!(_skLetzter && _skLetzter.buehne)) toast(t("animator.toast.render_done", "Video fertig: {file}", { file: s.output.split("/").slice(-1)[0] }), "success", 6000);   // 30.09.2026: Schnell-Video-Bildschirm meldet selbst
       return;
     }
     pollTimer = setTimeout(pollStatus, 350);

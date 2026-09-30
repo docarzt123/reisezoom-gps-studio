@@ -117,66 +117,28 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.742</span>
+    <span class="version-num">v0.9.748</span>
     <span class="version-date">30 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
+    <li><strong>🎬 Vídeo rápido: cámara más cerca, flecha en la dirección de la línea</strong> &mdash; la cámara vuela más baja y más inclinada sobre la traza, y la flecha apunta exactamente hacia donde va la línea dibujada.</li>
+    <li><strong>Se acabaron las manchas claras que parpadean en la ortofoto</strong> &mdash; si falta una tesela, la app rellena el sitio con la imagen más gruesa de la misma ortofoto; además carga menos al servidor de mapas español para que fallen menos teselas.</li>
+    <li><strong>Los vídeos se renderizan aproximadamente el doble de rápido con la caché vacía</strong> &mdash; mientras se crea el vídeo, la app ya carga el mapa de los próximos segundos; desaparece la precarga previa. Vale para todos los vídeos.</li>
+    <li><strong>El render ya no se atasca si falla un servicio de mapas</strong> &mdash; ya no se espera en cada fotograma por las teselas que faltan; el progreso muestra qué servicio no responde.</li>
+    <li><strong>🎬 El vídeo rápido se renderiza en su propia pantalla</strong> &mdash; ya sin pasar por el Animador: la imagen del mapa de tu ruta, cada paso, después el vídeo en directo y al final Guardar o Compartir.</li>
+    <li><strong>Ya no hay imagen negra al empezar el render</strong> &mdash; hasta que está el primer fotograma ves el mapa de la vista previa y lo que está pasando.</li>
+    <li><strong>El control «Puntos» ahora también se aplica al vídeo</strong> &mdash; la traza simplificada se ve al desplazarte, en la prueba y en el vídeo final, no solo en la línea en reposo.</li>
     <li><strong>El render empieza antes</strong> &mdash; la precarga de las teselas del mapa es más rápida y dura como máximo 45 segundos; ahora ves cuánto falta.</li>
     <li><strong>Menú Ayuda: «Mostrar archivo de registro en Finder»</strong> &mdash; para copiarlo o enviarlo rápido.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.741</span>
-    <span class="version-date">29 de septiembre de 2026</span>
-  </div>
-  <ul>
     <li><strong>🎬 Vídeo rápido con flecha y cámara de persecución</strong> &mdash; durante el recorrido una flecha señala la dirección de la marcha y la cámara vuela detrás de ella. Carreteras, lugares y fronteras quedan ocultos: solo paisaje y recorrido. La traza, la flecha y la dirección se suavizan para que se vea tranquilo incluso en vídeos cortos de rutas con curvas.</li>
     <li><strong>Cámara más tranquila en todos los vídeos</strong> &mdash; ya no hay fotogramas sueltos en los que la cámara saltaba; la cámara que sigue se desliza en vez de saltar de punto en punto, y la flecha gira en las curvas cerradas en vez de darse la vuelta de golpe.</li>
     <li><strong>El renderizado a veces se detenía</strong> (&laquo;esperando la tarjeta del proyecto&raquo;) &mdash; corregido.</li>
     <li><strong>Créditos del mapa mucho más pequeños</strong> &mdash; menos llamativos en la imagen, del mismo tamaño en la vista previa y en el vídeo.</li>
     <li><strong>Nuevo en el Animador:</strong> «Suavizar traza» y «Suavizar recorrido de cámara».</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.740</span>
-    <span class="version-date">29 de septiembre de 2026</span>
-  </div>
-  <ul>
     <li><strong>Créditos del mapa en el vídeo igual que en la vista previa</strong> &mdash; la pequeña línea con los proveedores del mapa salía bastante más pequeña en el vídeo final (sobre todo en vertical 9:16) que en la vista previa. Ahora tiene exactamente el mismo tamaño y posición.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.739</span>
-    <span class="version-date">29 de septiembre de 2026</span>
-  </div>
-  <ul>
     <li><strong>🎬 Vídeo rápido</strong> &mdash; un vídeo terminado de tu ruta con pocas decisiones: formato (9:16, 16:9, 1:1), duración, calidad, estilo de mapa, título y tarjeta final. Vista general, vuelo a lo largo del recorrido y vista final con tus datos; se renderiza en directo y luego lo guardas o lo compartes. En cada ruta del archivo y en el animador.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.738</span>
-    <span class="version-date">29 de septiembre de 2026</span>
-  </div>
-  <ul>
     <li><strong>Registro de fuentes en tres idiomas</strong> &mdash; las notas sobre licencia y condiciones de uso de cada fuente de mapas están ahora también en inglés y español.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.737</span>
-    <span class="version-date">29 de septiembre de 2026</span>
-  </div>
-  <ul>
     <li><strong>Todo en tres idiomas</strong> &mdash; revisada toda la app en alemán, inglés y español: unos 300 textos que en inglés o español seguían en alemán (mensajes, diálogos, estado del render, diálogos de archivo, exportación del mapa web, informe de errores, nombres de etapa en el vídeo) ya están traducidos. El manual vuelve a estar completo en los tres idiomas.</li>
   </ul>
 </article>

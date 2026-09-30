@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.742"
+APP_VERSION = "0.9.748"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1449,7 +1449,11 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Cache-Control", "max-age=86400")
+            if ctileproxy.ist_ersatz(body):   # 30.09.2026: Ersatz-Kachel nie zwischenspeichern (Browser, Szene-Speicher)
+                self.send_header("Cache-Control", "no-store")
+                self.send_header(ctileproxy.ERSATZ_HEADER, "1")
+            else:
+                self.send_header("Cache-Control", "max-age=86400")
             self.end_headers()
             if not head_only:
                 try: self.wfile.write(body)

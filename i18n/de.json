@@ -344,7 +344,7 @@
   "animator.playwright_missing.installing": "Lade Browser herunter (~150 MB, einen Moment) …",
   "animator.playwright_missing.success": "Browser bereit — Render startet.",
   "animator.playwright_missing.title": "Browser für Render fehlt",
-  "animator.point_count.hint": "Standard sind alle Punkte aus deinem GPX. Ziehe den Slider nach links um den Track gröber zu machen — die Vorschau aktualisiert sich live. Wirkt sich aufs Rendern aus: weniger Punkte = etwas schneller. Render-Zeit hängt aber v.a. von Dauer × FPS × Auflösung ab. Hinweis: Der Probe-Lauf zeigt weiterhin die volle Punktdichte — die Reduktion wirkt im gerenderten Video (und in der Standbild-Vorschau der Linie).",
+  "animator.point_count.hint": "Standard sind alle Punkte aus deinem GPX. Ziehe den Regler nach links, um den Track gröber zu machen: Linie, Laufpunkt/Pfeil und Kamera laufen dann auf der vereinfachten Spur — beim Scrubben, im Probelauf und im fertigen Video gleich. Die Render-Zeit ändert sich dadurch kaum; sie hängt vor allem vom Laden der Kartenkacheln ab.",
   "animator.pos.bc": "↧ unten",
   "animator.pos.bcw": "↧ unten breit",
   "animator.pos.bl": "↙ unten links",
@@ -4635,5 +4635,13 @@
   "animator.field.follow_glatt": "Kamerabahn glätten",
   "animator.field.follow_glatt_tip": "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit",
   "szene.vorwaermen_n": "Szene: Kacheln vorwärmen {i} von {n} …",
-  "menu.reveal_log": "Logdatei im Finder zeigen"
+  "menu.reveal_log": "Logdatei im Finder zeigen",
+  "schnell.b.anlegen": "Projekt wird angelegt …",
+  "schnell.b.karte": "Karte wird geladen …",
+  "schnell.b.start": "Video wird gestartet …",
+  "schnell.b.fertig": "✓ Dein Video ist fertig",
+  "schnell.b.fehler": "Das Video konnte nicht erstellt werden. Details stehen im Fehlerfenster.",
+  "szene.kacheln_fehlen": "⚠️ {dienst} antwortet nicht – {n} Kacheln fehlen, es geht weiter",
+  "szene.luftbild": "Luftbild {name}",
+  "szene.kartendienst": "Kartendienst {name}"
 }
