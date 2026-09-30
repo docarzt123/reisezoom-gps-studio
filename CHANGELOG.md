@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.749** (30.09.2026, built locally): overlay skin "Frei" (open, Komoot-like) for all overlays; logo badge top centre; quick video uses it.
+
+### Added
+- **Overlay skin "Frei" for all overlays** (Marc, after the Komoot flyover: "the studio boxes need different skins, generic, and our watermark top centre"). New project key `overlay_skin` = `kasten` (default, unchanged) | `frei`; switch "Stil" at the top of "Aussehen der Stats-Boxen". Frei: no box (background, border and shadow dropped in `_ovBoxStil` / `_overlay_boxen_css`), values side by side (`width: max-content`, wraps only when the frame is too narrow), label small and uppercase above the value, value 40 px @1080 with the unit at half size, text shadow, elevation profile without box as a white line with a white gradient, dark gradients top (26 %) and bottom (34 %) of the frame (preview: `::before/::after` of the overlay layer; classic render: `#rz-verlauf-oben/-unten`, not in the alpha export), quick-video end card without box. Trilingual.
+- **Number and unit split** for every value (`wertTeilen` / `wertHtml` / `wertSetzen` in `ui/js/overlay_boxen.js`, Python twin `wert_teilen` / `wert_html` in `core/animator.py`): only a short unit after a digit is split off (km, m, km/h, %, bpm, °C …); dates, times and durations stay whole. In "Kasten" the unit inherits size and font, so the look is unchanged. All write paths use it (preview rows, live values per frame, stage values, classic render via `_rzW`).
+- **Watermark badge + "Oben mittig"** — in "Frei" the logo sits on a dark pill (`WM_PILLE`, padding in % of the width / vw, same in preview and render); new button "Oben mittig" centres it at the top. When the logo sits top centre, the upper slots (tl/tc/tr/tcw) move below it (`--rz-wm-unten`, measured in the preview, computed from the image aspect in the classic render).
+- **Quick video uses "Frei"**: logo badge top centre (30 % / 22 % / 15 % width for 9:16 / 1:1 / 16:9; only if the defaults have a watermark — `watermark_lage` moves the existing one), below it distance · elevation gain · time (`tc`), elevation profile full width at the bottom (`bcw`).
+- `tests/test_overlay_skin.py`: JS = Python split on 14 samples; texts DE/EN/ES; WYSIWYG preview (scene) vs classic render: no box, three values side by side, unit ½, values below the badge — measured identical (value 71.1 px, box top 162 px, logo bottom 130 px at 1080×1920).
+
+### Fixed
+- HTML changelogs: an old "Latest" badge on v0.9.718 removed.
+
 ---
 
 ## [0.9.748] – 2026-09-30

@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.748"
+APP_VERSION = "0.9.749"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1647,6 +1647,8 @@ def _overlay_boxen_params(params: dict) -> dict:
             out["overlay_border_color"] = str(params.get("overlay_border_color"))
         if params.get("overlay_shadow") is not None:
             out["overlay_shadow"] = bool(params.get("overlay_shadow"))
+        if params.get("overlay_skin") in ("kasten", "frei"):
+            out["overlay_skin"] = str(params.get("overlay_skin"))
         if isinstance(params.get("overlay_boxen"), list):
             out["overlay_boxen"] = [b for b in params["overlay_boxen"] if isinstance(b, dict)]
         # 24.09.2026 — Bewegungsarten aus dem Logbuch ({art, t0, t1}) für „Zahlen für: nur Wanderung"
@@ -12113,7 +12115,16 @@ class Api:
                 return r
             ziel = p.setdefault("animator", {})
             for k, v in (animator or {}).items():
+                if k == "watermark_lage":
+                    continue
                 ziel[k] = v
+            # 30.09.2026 (Skin „Frei") — das Wasserzeichen aus den Vorgaben (eigenes Logo
+            # oder GPS-Studio) wandert oben in die Mitte. Wer es in den Vorgaben
+            # abgeschaltet hat, bekommt auch im Schnell-Video keins.
+            lage = (animator or {}).get("watermark_lage")
+            wm = ziel.get("watermark")
+            if isinstance(lage, dict) and isinstance(wm, dict) and wm.get("path"):
+                ziel["watermark"] = {**wm, **{k: lage[k] for k in ("x", "y", "w", "op") if k in lage}}
             p["herkunft"] = "schnellvideo"
             p["letztes_modul"] = "animator"
             _projekte.speichern(DATEN_ORT, daten)

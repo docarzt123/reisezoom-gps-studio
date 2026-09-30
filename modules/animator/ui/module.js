@@ -1068,6 +1068,16 @@ function mountAnimator(body, headerActions, opts) {
             <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
             <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
               <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
+              <!-- 30.09.2026 (Marc, nach dem Komoot-Video) — Skin für ALLE Einblendungen:
+                   „Kasten" = bisheriger Look, „Frei" = ohne Kasten, große Zahl, kleine
+                   Einheit, Verläufe oben/unten, Logo als Plakette. -->
+              <div class="ov-style-row">
+                <label for="anim-ov-skin" title="${t("animator.overlay.skin_hint", "Kasten: Werte in halbtransparenten Boxen. Frei: ohne Boxen, große Zahlen mit kleiner Einheit, dunkle Verläufe oben und unten, Logo als Plakette.")}">${t("animator.overlay.skin", "Stil")}</label>
+                <select id="anim-ov-skin" class="pos-select">
+                  <option value="kasten">${t("animator.overlay.skin_kasten", "Kasten")}</option>
+                  <option value="frei">${t("animator.overlay.skin_frei", "Frei (ohne Kasten)")}</option>
+                </select>
+              </div>
               <div class="ov-style-row">
                 <label for="anim-ov-font">${t("animator.overlay.font", "Schrift")}</label>
                 <select id="anim-ov-font" class="pos-select">
@@ -1182,6 +1192,7 @@ function mountAnimator(body, headerActions, opts) {
                 <div style="margin-top:6px">
                   <button type="button" class="field-help" data-help="wm_drag">?</button>
                   <span class="muted-note">🖱 ${t("animator.wm.drag_kurz", "Platzieren")}</span>
+                  <button type="button" id="anim-wm-obenmitte" class="ghost-btn" style="margin-left:6px">⬆ ${t("animator.wm.oben_mitte", "Oben mittig")}</button>
                 </div>
                 <div class="muted-note field-help-content" data-help-content="wm_drag" hidden
                      style="margin-top:4px">${t("animator.wm.drag_hint", "Zieh das Logo in der Vorschau mit der Maus dorthin, wo es sitzen soll.")}</div>
@@ -2851,6 +2862,7 @@ function mountAnimator(body, headerActions, opts) {
   // 23.09.2026 — Overlay-Boxen: Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten (global).
   // Je Box/Zeile abweichend über ✎ (Modal _ovBoxModal), gespeichert in overlay_boxen.
   const _ovNeu = () => { try { renderOverlayPreview(); _ovExtraListe(); } catch (_) {} };
+  bindSetting("anim-ov-skin", _MODKEY, "overlay_skin", { onChange: _ovNeu });
   bindSetting("anim-ov-exit", _MODKEY, "overlay_exit", { onChange: _ovNeu });
   bindSetting("anim-ov-blende", _MODKEY, "overlay_blende_s", { type: "number", onChange: _ovNeu });
   bindSetting("anim-ov-radius", _MODKEY, "overlay_radius", { type: "number",
@@ -3360,12 +3372,48 @@ function mountAnimator(body, headerActions, opts) {
     img.id = "anim-wm-preview";
     img.dataset.wmPath = _wm.path;
     img.src = uri;
+    img.addEventListener("load", () => _wmAbstandSetzen());
     _wmPreviewStyle(img);
     _wmDragAktivieren(img, layer);
     layer.appendChild(img);
   }
+  // 30.09.2026 (Skin „Frei") — das Logo sitzt auf einer dunklen Plakette. Innenabstand
+  // in % der Breite (Render: vw) — SYNCHRON zu WM_PILLE in core/animator.py.
+  const WM_PILLE = { px: 1.6, py: 0.9, bg: "rgba(14,16,22,0.62)" };
   function _wmPreviewStyle(img) {
-    img.style.cssText = `position:absolute; left:${_wm.x}%; top:${_wm.y}%; width:${_wm.w}%; height:auto; opacity:${_wm.op}; z-index:40; pointer-events:auto; cursor:move; user-select:none; -webkit-user-drag:none;`;
+    const pille = (typeof _ovSkin === "function") && _ovSkin() === "frei";
+    const pl = pille ? ` padding:${WM_PILLE.py}% ${WM_PILLE.px}%; background:${WM_PILLE.bg}; border-radius:999px; box-sizing:content-box;` : "";
+    img.style.cssText = `position:absolute; left:${_wm.x}%; top:${_wm.y}%; width:${_wm.w}%; height:auto; opacity:${_wm.op}; z-index:40; pointer-events:auto; cursor:move; user-select:none; -webkit-user-drag:none;${pl}`;
+    _wmAbstandSetzen();
+  }
+  /** 30.09.2026 (Skin „Frei") — sitzt das Logo oben in der Mitte, rücken die oberen
+   *  Einblendungen darunter (--rz-wm-unten, CSS in module.css). Gemessen im Pixel-
+   *  raum des Overlay-Layers (= Videopixel). SYNCHRON zu wasserzeichen_unten_px
+   *  in core/animator.py. */
+  function _wmAbstandSetzen() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const img = layer.querySelector("#anim-wm-preview");
+    const pille = (typeof _ovSkin === "function") && _ovSkin() === "frei";
+    const lh = layer.offsetHeight || 0, lw = layer.offsetWidth || 0;
+    let unten = 0;
+    if (pille && img && img.offsetHeight > 0 && lh > 0 && lw > 0) {
+      const mitte = (img.offsetLeft + img.offsetWidth / 2) / lw;
+      if (img.offsetTop < lh * 0.2 && mitte > 0.3 && mitte < 0.7) {
+        const k = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
+        unten = img.offsetTop + img.offsetHeight + 18 * k;
+      }
+    }
+    if (unten > 0) layer.style.setProperty("--rz-wm-unten", unten.toFixed(1) + "px");
+    else layer.style.removeProperty("--rz-wm-unten");
+  }
+  /** 30.09.2026 — Logo waagrecht mittig an den oberen Rand (wie bei Komoot). */
+  function _wmObenMittig() {
+    const pille = (typeof _ovSkin === "function") && _ovSkin() === "frei";
+    _wm.x = +(50 - _wm.w / 2 - (pille ? WM_PILLE.px : 0)).toFixed(2);
+    _wm.y = 2.5;
+    _wmPersist();
+    try { watermarkPreviewAnwenden(); } catch (_) {}
   }
   /** 30.08.2026 (Marc: „mit der maus hinziehen, wo es hin soll") — das Logo
    *  in der Vorschau frei verschieben; gespeichert wird die linke obere Ecke
@@ -3385,6 +3433,7 @@ function mountAnimator(body, headerActions, opts) {
       const up = () => {
         window.removeEventListener("mousemove", move);
         window.removeEventListener("mouseup", up);
+        _wmAbstandSetzen();
         _wmPersist();
       };
       window.addEventListener("mousemove", move);
@@ -3456,6 +3505,8 @@ function mountAnimator(body, headerActions, opts) {
     };
     const eigen = document.getElementById("anim-wm-eigen");
     if (eigen) eigen.onclick = () => { _wmEigenesWaehlen().then(ok => { if (!ok) _wmUiSync(); }); };
+    const obenMitte = document.getElementById("anim-wm-obenmitte");
+    if (obenMitte) obenMitte.onclick = () => _wmObenMittig();
     const zurueck = document.getElementById("anim-wm-standard");
     if (zurueck) zurueck.onclick = () => {
       _wm.path = WM_STANDARD.path;
@@ -14074,7 +14125,7 @@ function mountAnimator(body, headerActions, opts) {
           const arr = sr.sensors ? sr.sensors[key] : null;
           const raw = arr ? arr[i] : null;
           v = (raw == null) ? "–" : (Math.round(raw) + _ovSensorUnit(key));
-          if (v != null) el.textContent = v;
+          if (v != null) _ovWertSetzen(el, v);
           return;
         }
         // 28.08.2026 (Marc): Im Schwarm sind die Distanz-Felder SUMMEN über
@@ -14145,7 +14196,7 @@ function mountAnimator(body, headerActions, opts) {
           case "stage_dist": if (sr.stage) v = _ovFmtKm(Math.max(0, (sr.cumDistM[i] - sr.stage.d0[i]) / 1000)); break;
           case "stage_time": if (sr.stage && sr.has_time) v = _ovFmtDur(Math.max(0, sr.cumTimeS[i] - sr.stage.t0[i])); break;
         }
-        if (v != null) el.textContent = v;
+        if (v != null) _ovWertSetzen(el, v);
       });
     }
     _ovUpdateEleProfileAt(frac);
@@ -14724,6 +14775,7 @@ function mountAnimator(body, headerActions, opts) {
     let charts = [];
     try { charts = (_charts || []).map(c => ({ from_s: c.from_s, to_s: c.to_s })); } catch (_) {}
     return {
+      overlay_skin: $("anim-ov-skin")?.value === "frei" ? "frei" : "kasten",
       overlay_font: $("anim-ov-font")?.value || "system",
       overlay_text_color: $("anim-ov-textcolor")?.value || "#ffffff",
       overlay_bg_color: $("anim-ov-bgcolor")?.value || "#000000",
@@ -14758,7 +14810,16 @@ function mountAnimator(body, headerActions, opts) {
              bewegung_bereiche: _lbBereiche.map(b => ({ art: b.art, t0: b.t0, t1: b.t1 })),   // Zahlen je Bewegungsart
              overlay_exit: c.overlay_exit, overlay_blende_s: c.overlay_blende_s, overlay_radius: c.overlay_radius,
              overlay_border_w: c.overlay_border_w, overlay_border_color: c.overlay_border_color,
-             overlay_shadow: c.overlay_shadow, overlay_boxen: c.overlay_boxen };
+             overlay_shadow: c.overlay_shadow, overlay_boxen: c.overlay_boxen, overlay_skin: c.overlay_skin };
+  }
+  // 30.09.2026 (Skin „Frei") — Zahl und Einheit getrennt setzen (ui/js/overlay_boxen.js).
+  function _ovWertHtml(w) {
+    const o = window.rzOverlayBoxen;
+    return o && o.wertHtml ? o.wertHtml(w) : String(w);
+  }
+  function _ovWertSetzen(el, w) {
+    const o = window.rzOverlayBoxen;
+    if (o && o.wertSetzen) o.wertSetzen(el, w); else el.textContent = w;
   }
   function _ovAufgeloest() {
     try { return window.rzOverlayBoxen ? window.rzOverlayBoxen.aufloesen(_ovCfg()) : []; }
@@ -14780,8 +14841,16 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
   // Box-/Zeilenstil inline — WYSIWYG-Spiegel von _overlay_boxen_css (core/animator.py).
+  function _ovSkin() {
+    return document.getElementById("anim-ov-skin")?.value === "frei" ? "frei" : "kasten";
+  }
   function _ovBoxStil(b) {
     const st = b.stil, k = "var(--overlay-scale)";
+    // 30.09.2026 — Skin „Frei": kein Kasten (Hintergrund, Rahmen, Schatten entfallen);
+    // Schrift und Farbe bleiben. WYSIWYG-Spiegel: _overlay_css (core/animator.py).
+    if (_ovSkin() === "frei") {
+      return `font-family:${OVERLAY_FONT_STACK[st.font] || OVERLAY_FONT_STACK.system}; color:${st.text_color};`;
+    }
     const shadow = st.shadow
       ? `calc(var(--rz-ov-shx, 0) * ${k} * 1px) calc(var(--rz-ov-shy, 6) * ${k} * 1px) calc(22px * ${k}) rgba(0,0,0,0.45)`
       : "none";
@@ -16156,6 +16225,8 @@ function mountAnimator(body, headerActions, opts) {
     try { _chartsPreviewRender(false); } catch (_) {}
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
+    layer.dataset.skin = _ovSkin();   // 30.09.2026 — CSS: .overlay-preview-layer[data-skin="frei"]
+    { const sk = document.getElementById("anim-sk"); if (sk) sk.dataset.skin = layer.dataset.skin; }
     // v0.9.479 — Stats-Box-Schatten folgt der GLOBALEN Lichtquelle (wie Track + Schilder),
     // immer sichtbar (Beta-Tester-Wunsch „Stats auch Schatten"). Richtung aus dem Track-Schatten-
     // Richtungsregler; fester Versatz, damit der Schatten unabhängig vom Track-Schatten wirkt.
@@ -16280,7 +16351,7 @@ function mountAnimator(body, headerActions, opts) {
         }
       }
       return `<div class="ov-row" data-f="${escA(id)}"${sv}${rStil ? ` style="${rStil}"` : ""}><span class="ov-l">${_ovFieldLabel(id)}</span>`
-        + `<span class="ov-v" data-ovid="${escA(id)}"${vStil ? ` style="${vStil}"` : ""}>${wert}</span></div>`;
+        + `<span class="ov-v" data-ovid="${escA(id)}"${vStil ? ` style="${vStil}"` : ""}>${_ovWertHtml(wert)}</span></div>`;
     }).join("");
 
     let html = "";

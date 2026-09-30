@@ -9,7 +9,8 @@
  *   - unter node im Wächter (vorher globalThis.window = globalThis setzen).
  *
  * window.rzOverlayBoxen = { aufloesen, chartBoxen, zustand, anwenden, etappenGrenzen,
- *                            hatZeitsteuerung, zeitNormal, globalStil, globalBlende }
+ *                            hatZeitsteuerung, zeitNormal, globalStil, globalBlende,
+ *                            wertTeilen, wertHtml, wertSetzen }
  */
 (function (root) {
   "use strict";
@@ -476,7 +477,30 @@
     const key = bz === "laufend" ? String(stageNr || "") : bz === "gesamt" ? "gesamt" : String(bz);
     const txt = (key in werte) ? werte[key] : (werte.gesamt !== undefined ? werte.gesamt : "–");
     const v = el.querySelector(".value, .ov-v");
-    if (v && v.textContent !== txt) v.textContent = txt;
+    if (v) wertSetzen(v, txt);
+  }
+  // 30.09.2026 (Skin „Frei") — Zahl und Einheit getrennt, damit die Einheit klein
+  // neben der großen Zahl stehen kann („12,3 km"). Nur eine KURZE Einheit am Ende
+  // nach einer Ziffer wird abgetrennt (km, m, km/h, %, bpm, °C …) — Datum, Uhrzeit
+  // und Dauer bleiben ganz. Beim Skin „Kasten" sieht die Aufteilung aus wie vorher
+  // (die Einheit erbt Größe und Schrift). SYNCHRON zu wert_teilen in core/animator.py.
+  const EINHEIT_RE = /^(.*\d)(\s?)([A-Za-zµ°%\/²³]{1,5})$/;
+  function wertTeilen(txt) {
+    const s = String(txt == null ? "" : txt);
+    const m = EINHEIT_RE.exec(s);
+    return m ? [m[1], m[3]] : [s, ""];
+  }
+  function esc(x) { return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  function wertHtml(txt) {
+    const t = wertTeilen(txt);
+    return t[1] ? esc(t[0]) + '<span class="ov-u"> ' + esc(t[1]) + "</span>" : esc(t[0]);
+  }
+  function wertSetzen(el, txt) {
+    const s = String(txt == null ? "" : txt);
+    if (el.textContent === s) return;   // Textinhalt = Zahl + " " + Einheit, also unverändert
+    const t = wertTeilen(s);
+    if (t[1]) el.innerHTML = wertHtml(s);
+    else el.textContent = s;
   }
   function anwenden(root, boxen, t, frac, stageNr, ctx, speicher) {
     if (!root || !boxen) return;
@@ -508,7 +532,7 @@
   }
 
   const api = { aufloesen, chartBoxen, zustand, anwenden, etappenGrenzen, hatZeitsteuerung,
-                zeitNormal, globalStil, globalBlende, bezugWert, kanten, gesamtS, ausTabelle, zeitListe, zustandListe,
+                zeitNormal, globalStil, globalBlende, bezugWert, wertTeilen, wertHtml, wertSetzen, kanten, gesamtS, ausTabelle, zeitListe, zustandListe,
                 STANDARD_IDS, AUSLOESER, BLENDEN, POSITIONEN, SCHRIFTEN };
   // Unter node (Wächter) setzt der Aufrufer vorher globalThis.window = globalThis.
   if (root) root.rzOverlayBoxen = api;
