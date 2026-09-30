@@ -15688,7 +15688,7 @@ function mountAnimator(body, headerActions, opts) {
     return e;
   }
   const _hlKlemm = (x, a, b) => Math.max(a, Math.min(b, x));
-  // Prüf-Haken (tests/test_highlights.py): Liste mit Videosekunde je Highlight.
+  // Prüf-Haken (tests/test_track_highlights.py): Liste mit Videosekunde je Highlight.
   window.__rzHighlights = () => { const tab = _ovStreckeZeit(); return _hlListe().map(h => ({ art: h.art, i: h.i, f: h.f, wert: h.wert, t: _hlSekunde(tab, h.f) })); };
   /** Pro Bild: Sichtbarkeit aus der Videosekunde, Lage aus der Kamera (map.project). */
   function _hlAnwenden(tSec) {
