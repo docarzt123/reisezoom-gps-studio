@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- **Error message "Fehler beim Initialisieren" after a quick video without rendering** (Marc, log 30.09.2026 20:50): the quick video opens the project via the archive and moves straight on to the Animator; the archive's tour list was still loading and then wrote into its detail column, which no longer existed (`box.innerHTML` on null). `renderDetail` / `renderMulti` in the library module now stop when the column is gone; `tests/test_schnellvideo.py` checks it.
+
 > **0.9.750** (30.09.2026, built locally): highlights from the track like Komoot (highest point, steepest section, top speed, halfway, GPX waypoints); quick video shows them.
 
 ### Added

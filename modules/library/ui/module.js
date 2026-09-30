@@ -3139,6 +3139,7 @@ function mountLibrary(body, headerActions) {
 
   function renderMulti() {
     const box = $("lib-detail");
+    if (!box) return;   // 30.09.2026 — Archiv schon verlassen (s. renderDetail)
     const n = _multi.size;
     box.innerHTML = `
       <div class="lib-multi-head">
@@ -3365,6 +3366,11 @@ function mountLibrary(body, headerActions) {
     // Der Start lud die Tourenliste nach und schrieb danach das Tour-Detail hinein.
     if (_fotoView) return;
     const box = $("lib-detail");
+    // 30.09.2026 (Marc, Fehlermeldung „Fehler beim Initialisieren … box.innerHTML"):
+    // Schnell-Video ohne Rendern öffnet das Projekt über das Archiv und springt gleich
+    // in den Animator weiter. Die Tourenliste des Archivs lädt dabei noch nach und
+    // wollte danach in die rechte Spalte schreiben, die es nicht mehr gab.
+    if (!box) return;
     if (_multi.size > 1) { renderMulti(); return; }
     if (!_sel) {
       box.innerHTML = _ghostBannerHtml() + `<div class="lib-detail-empty">${T("library.pick_hint", "Tour auswählen — dann kannst du sie hier direkt in ein Werkzeug übernehmen.")}
