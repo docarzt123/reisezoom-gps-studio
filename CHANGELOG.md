@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.750** (30.09.2026, built locally): highlights from the track like Komoot (highest point, steepest section, top speed, halfway, GPX waypoints); quick video shows them.
+
+### Added
+- **⭐ Highlights from the track** (Marc: "the POIs you can pull straight from the track, just like Komoot"). New group "Highlights" in the Animator overlays (project keys `highlights_enabled`, `highlights_arten`): highest point, steepest section, top speed, halfway, waypoints from the GPX. Computed in `_hlBerechnen` from the per-point series (index-aligned with `currentCoords`): elevation median-filtered (±3 points) so a single GPS jump is neither the highest point nor the steepest section; steepest = grade over a window (≥ 150 m, 2 % of the tour, ≤ 500 m, at least 3 %); top speed robust (≤ 98th percentile × 1.15, at least 3 km/h, needs time stamps); nothing in the first/last 3 %; highlights closer than 6 % of the distance → the more important one stays. Display (`_hlAnwenden`, per frame via `_ovTimingAt`, so preview run = scene render): 2.5 s ahead a yellow dot (at the frame edge while the spot is off-screen), from 1.6 s before to 1.6 s after the spot a yellow pin + dark pill (yellow label, big value, small unit), anchored with `map.project`, 0.35 s fades, kept inside the frame at the sides/top. Sizes in video pixels (`--overlay-scale`). The classic render (alpha export only) shows no highlights. Trilingual.
+- **Quick video**: new option "Highlights" (on by default); the numbers option now says what it shows (distance, elevation gain, time).
+- `tests/test_highlights.py`: calculation on a synthetic tour (ramp, elevation spike, speed outlier, waypoints, spacing, time mapping) and scene timing (dot before, pill at the spot near the running point, gone after).
+
 > **0.9.749** (30.09.2026, built locally): overlay skin "Frei" (open, Komoot-like) for all overlays; logo badge top centre; quick video uses it.
 
 ### Added
