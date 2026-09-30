@@ -133,6 +133,9 @@
       overlay_elevation_enabled: !!w.profil,
       overlay_elevation_position: "bcw",
       watermark_lage: logoLage(w.format),
+      // 30.09.2026 — Highlights aus dem Track wie bei Komoot (Animator: _hlAnwenden)
+      highlights_enabled: !!w.highlights,
+      highlights_arten: ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"],
       schnellkarte: { titel_an: !!(w.titel || w.unter), titel: w.titel, unter: w.unter, titel_s: INTRO_S,
                       schluss_an: w.felder.length > 0, felder: w.felder.slice() },
     };
@@ -214,6 +217,7 @@
       qualitaet: L.qualitaet === "4k" ? "4k" : "1080",
       stil: L.stil || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
       zahlen: !!L.zahlen, profil: !!L.profil,
+      highlights: L.highlights !== false,   // 30.09.2026 — Standard an
       felder: Array.isArray(L.felder) ? L.felder.filter(f => SCHLUSS_FELDER.includes(f)) : SCHLUSS_STANDARD.slice(),
       titel: v.name || "", unter: [datumText(v), v.ort].filter(Boolean).join(" · "),
     };
@@ -238,6 +242,7 @@
         <label class="field-label">${esc(T("schnell.unterwegs", "Unterwegs"))}</label>
         <label class="chk"><input type="checkbox" id="sv-zahlen"${w.zahlen ? " checked" : ""}><span>${esc(T("schnell.zahlen", "Zahlen unterwegs (Strecke und Höhe)"))}</span></label>
         <label class="chk"><input type="checkbox" id="sv-profil"${w.profil ? " checked" : ""}><span>${esc(T("schnell.profil", "Höhenprofil"))}</span></label>
+        <label class="chk"><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}><span>${esc(T("schnell.highlights", "Highlights (höchster Punkt, steilste Stelle, halbe Strecke …)"))}</span></label>
         <label class="field-label">${esc(T("schnell.schlusskarte", "Schlusskarte"))}</label>
         <div class="sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
       </div>`,
@@ -267,8 +272,9 @@
       w.unter = box.querySelector("#sv-unter").value.trim();
       w.zahlen = box.querySelector("#sv-zahlen").checked;
       w.profil = box.querySelector("#sv-profil").checked;
+      w.highlights = box.querySelector("#sv-highlights").checked;
       w.felder = [...box.querySelectorAll("[data-sv-feld]:checked")].map(x => x.dataset.svFeld);
-      const letzte = { format: w.format, laenge: w.laenge, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, felder: w.felder };
+      const letzte = { format: w.format, laenge: w.laenge, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder };
       const name = (v.name || "Tour") + " · " + T("schnell.titel_dialog", "Schnell-Video");
       // Beim Rendern sofort den eigenen Bildschirm zeigen — der Animator arbeitet unsichtbar dahinter.
       let B = null;

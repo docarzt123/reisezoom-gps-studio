@@ -1171,6 +1171,21 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
               <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
             </div>
+            ${_isStaticFrame ? "" : `
+            <!-- 30.09.2026 — Highlights aus dem Track (wie bei Komoot) -->
+            <div class="overlay-group" id="anim-hl-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <label class="ov-style-title" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="anim-hl-on">
+                <span>⭐ ${t("animator.hl.title", "Highlights")}</span>
+              </label>
+              <div class="muted-note" style="margin-top:4px">${t("animator.hl.hint", "Besondere Stellen der Tour erscheinen im Video an der Karte, kurz bevor der Punkt sie erreicht.")}</div>
+              <div id="anim-hl-arten" class="anim-hl-arten">
+                ${["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"].map(a => `<label><input type="checkbox" data-hl-art="${a}" checked> ${
+                  { hoechster: t("animator.hl.hoechster", "Höchster Punkt"), steilste: t("animator.hl.steilste", "Steilste Stelle"),
+                    schnellste: t("animator.hl.schnellste", "Höchstes Tempo"), halbe: t("animator.hl.halbe", "Halbe Strecke"),
+                    wegpunkte: t("animator.hl.wegpunkte", "Wegpunkte aus der GPX") }[a]}</label>`).join("")}
+              </div>
+            </div>`}
             <!-- 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen
                  mehr marketing") — eigenes Logo im Video, WYSIWYG. -->
             <div class="overlay-group" id="anim-wm-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
@@ -2863,6 +2878,16 @@ function mountAnimator(body, headerActions, opts) {
   // Je Box/Zeile abweichend über ✎ (Modal _ovBoxModal), gespeichert in overlay_boxen.
   const _ovNeu = () => { try { renderOverlayPreview(); _ovExtraListe(); } catch (_) {} };
   bindSetting("anim-ov-skin", _MODKEY, "overlay_skin", { onChange: _ovNeu });
+  // 30.09.2026 — Highlights: Schalter + Auswahl (Liste der Arten, eigene Anbindung)
+  const _hlNeu = () => { if (_hlCache) _hlCache.key = ""; try { if (_hlLetztT != null) _hlAnwenden(_hlLetztT); } catch (_) {} };
+  bindSetting("anim-hl-on", _MODKEY, "highlights_enabled", { type: "bool", onChange: _hlNeu });
+  (function bindHlArten() {
+    const box = document.getElementById("anim-hl-arten");
+    if (!box) return;
+    const gespeichert = _activeProject?.[_MODKEY]?.highlights_arten;
+    if (Array.isArray(gespeichert)) box.querySelectorAll("input[data-hl-art]").forEach(e => { e.checked = gespeichert.includes(e.getAttribute("data-hl-art")); });
+    box.addEventListener("change", () => { saveProjectSettings(_MODKEY, { highlights_arten: _hlArtenGewaehlt() }); _hlNeu(); });
+  })();
   bindSetting("anim-ov-exit", _MODKEY, "overlay_exit", { onChange: _ovNeu });
   bindSetting("anim-ov-blende", _MODKEY, "overlay_blende_s", { type: "number", onChange: _ovNeu });
   bindSetting("anim-ov-radius", _MODKEY, "overlay_radius", { type: "number",
@@ -15521,8 +15546,211 @@ function mountAnimator(body, headerActions, opts) {
     _ovSzCache = { key, ref: sr, pm: _paceMap, tab };
     return tab;
   }
+  // ── ⭐ Highlights aus dem Track (30.09.2026, Marc: „die POIs, die man direkt aus dem
+  // Track ziehen kann, genau so wie es bei Komoot auch ist") ──────────────────────
+  // Höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke, GPX-Wegpunkte.
+  // An der Karte verankert: kurz vorher ein gelber Punkt (am Bildrand, solange die
+  // Stelle noch nicht im Bild ist), dann Stecknadel + dunkle Pille mit gelber
+  // Beschriftung und großem Wert, nach der Stelle wieder weg. Läuft über
+  // _ovTimingAt, also im Probelauf und im Szene-Render gleich. Der klassische Render
+  // (nur noch Alpha-Export ohne Karte) zeigt keine Highlights.
+  const HL_ARTEN = ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"];
+  const HL_VOR_S = 1.6, HL_NACH_S = 1.6, HL_BLENDE_S = 0.35, HL_VORSCHAU_S = 2.5;
+  const HL_ICON = {
+    hoechster: '<path d="M7 20V4M7 5h10l-2.6 3.8L17 12.6H7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>',
+    steilste: '<path d="M3.5 19.5L20.5 6v13.5z" fill="currentColor"/>',
+    schnellste: '<path d="M4.5 16.5a7.5 7.5 0 0 1 15 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 16.5l4.2-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+    halbe: '<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/>',
+    wegpunkte: '<circle cx="12" cy="10" r="3.2" fill="currentColor"/><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="2"/>',
+  };
+  // var statt let: die Anbindung der Schalter steht weiter oben im Aufbau (Totzone).
+  var _hlCache = { key: "", liste: [] };
+  var _hlLetztT = null;
+  function _hlEin() {
+    return !_isStaticFrame && !!document.getElementById("anim-hl-on")?.checked;
+  }
+  function _hlArtenGewaehlt() {
+    const a = [];
+    document.querySelectorAll("#anim-hl-arten input[data-hl-art]").forEach(e => { if (e.checked) a.push(e.getAttribute("data-hl-art")); });
+    return a;
+  }
+  /** Highlights aus der Per-Punkt-Reihe (index-gleich zu currentCoords). Reihenfolge =
+   *  Vorrang: liegen zwei zu dicht beieinander, bleibt das wichtigere. */
+  function _hlBerechnen(sr, coords, arten) {
+    const cd = sr && sr.cumDistM, n = cd ? cd.length : 0;
+    if (n < 10 || !coords || coords.length !== n) return [];
+    const d0 = cd[0], L = cd[n - 1] - d0;
+    if (!(L > 200)) return [];
+    const aus = [];
+    const anteil = (i) => (cd[i] - d0) / L;
+    // Höhe mit gleitendem Median (±3 Punkte): ein einzelner GPS-Höhensprung wird
+    // sonst zum höchsten Punkt oder — am Fensterrand — zur „steilsten Stelle".
+    let eg = null;
+    if (sr.has_ele && sr.ele) {
+      eg = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const w = sr.ele.slice(Math.max(0, i - 3), Math.min(n, i + 4)).sort((a, b) => a - b);
+        eg[i] = w[w.length >> 1];
+      }
+    }
+    const rand = (i) => { const f = anteil(i); return f < 0.03 || f > 0.97; };   // Start/Ziel zeigt der Film ohnehin
+    if (arten.includes("hoechster") && eg) {
+      let bi = 0; for (let i = 1; i < n; i++) if (eg[i] > eg[bi]) bi = i;
+      if (!rand(bi)) aus.push({ art: "hoechster", i: bi, wert: Math.round(eg[bi]) + " m" });
+    }
+    if (arten.includes("steilste") && eg) {
+      // Steigung über ein Fenster (≥ 150 m, bei langen Touren 2 % der Strecke, max. 500 m) —
+      // ein einzelner Höhen-Sprung im GPS wäre sonst die „steilste Stelle".
+      const W = Math.max(150, Math.min(500, 0.02 * L));
+      let best = 0, bi = -1, j = 0;
+      for (let i = 0; i < n; i++) {
+        if (j < i) j = i;
+        while (j < n - 1 && cd[j] - cd[i] < W) j++;
+        const dd = cd[j] - cd[i];
+        if (dd < W * 0.9) break;
+        const g = (eg[j] - eg[i]) / dd * 100;
+        if (Math.abs(g) > Math.abs(best)) {
+          best = g;
+          const mitte = cd[i] + dd / 2; let k = i; while (k < j && cd[k] < mitte) k++;
+          bi = k;
+        }
+      }
+      if (bi >= 0 && Math.abs(best) >= 3 && !rand(bi)) aus.push({ art: "steilste", i: bi, wert: Math.round(Math.abs(best)) + " %" });
+    }
+    if (arten.includes("schnellste") && sr.has_time && sr.speedKmh) {
+      // Ausreißer-fest: höchstens das 98-%-Quantil ×1,15 zählt (ein GPS-Sprung ist kein Tempo).
+      const sp = sr.speedKmh.slice().filter(x => x > 0).sort((a, b) => a - b);
+      const q = sp.length ? sp[Math.floor(sp.length * 0.98)] * 1.15 : 0;
+      let bi = -1;
+      for (let i = 0; i < n; i++) { const v = sr.speedKmh[i]; if (v <= q && (bi < 0 || v > sr.speedKmh[bi])) bi = i; }
+      if (bi >= 0 && sr.speedKmh[bi] >= 3 && !rand(bi)) aus.push({ art: "schnellste", i: bi, wert: Math.round(sr.speedKmh[bi]) + " km/h" });
+    }
+    if (arten.includes("halbe")) {
+      let bi = 0; while (bi < n - 1 && cd[bi] - d0 < L / 2) bi++;
+      aus.push({ art: "halbe", i: bi, wert: _ovFmtKm(L / 2000) });
+    }
+    if (arten.includes("wegpunkte") && Array.isArray(sr.waypoints)) {
+      for (const w of sr.waypoints.slice(0, 12)) {
+        const m = (+w.km || 0) * 1000 + d0;
+        let bi = 0; while (bi < n - 1 && cd[bi] < m) bi++;
+        const name = String(w.name || "").trim();
+        if (name && !rand(bi)) aus.push({ art: "wegpunkte", i: bi, wert: name.length > 28 ? name.slice(0, 27) + "…" : name });
+      }
+    }
+    // Zu dicht beieinander (< 6 % der Strecke) → das spätere in der Vorrang-Liste fällt weg.
+    const bleibt = [];
+    for (const h of aus) {
+      h.f = anteil(h.i);
+      if (bleibt.some(b => Math.abs(b.f - h.f) < 0.06)) continue;
+      bleibt.push(h);
+    }
+    return bleibt.sort((a, b) => a.f - b.f);
+  }
+  function _hlListe() {
+    const sr = _ovSeries, co = currentCoords;
+    if (!_hlEin() || !sr || !co) return [];
+    const arten = _hlArtenGewaehlt();
+    const key = arten.join(",") + "|" + co.length + "|" + (sr.cumDistM ? sr.cumDistM.length : 0) + "|" + (co[0] || []).join(",") + "|" + (co[co.length - 1] || []).join(",");
+    if (_hlCache.key === key && _hlCache.ref === sr && _hlCache.co === co) return _hlCache.liste;
+    let liste = [];
+    try { liste = _hlBerechnen(sr, co, arten); } catch (e) { applog("warn", "[hl] Berechnung: " + e); }
+    _hlCache = { key, ref: sr, co, liste };
+    return liste;
+  }
+  /** Streckenanteil → Videosekunde (Tabelle aus _ovStreckeZeit, linear dazwischen). */
+  function _hlSekunde(tab, f) {
+    if (!tab || !tab.length) return null;
+    if (f <= tab[0][0]) return tab[0][1];
+    let lo = 0, hi = tab.length - 1;
+    if (f >= tab[hi][0]) return tab[hi][1];
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tab[m][0] <= f) lo = m; else hi = m; }
+    const a = tab[lo], b = tab[hi], u = (f - a[0]) / Math.max(1e-9, b[0] - a[0]);
+    return a[1] + u * (b[1] - a[1]);
+  }
+  function _hlText(art) {
+    return {
+      hoechster: t("animator.hl.hoechster", "Höchster Punkt"),
+      steilste: t("animator.hl.steilste", "Steilste Stelle"),
+      schnellste: t("animator.hl.schnellste", "Höchstes Tempo"),
+      halbe: t("animator.hl.halbe", "Halbe Strecke"),
+      wegpunkte: t("animator.hl.wegpunkt", "Wegpunkt"),
+    }[art] || art;
+  }
+  function _hlEbene() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return null;
+    let e = layer.querySelector(":scope > .hl-layer");
+    if (!e) {
+      e = document.createElement("div");
+      e.className = "hl-layer"; e.id = "anim-hl";
+      layer.insertBefore(e, layer.firstChild);   // unter den Boxen, über den Verläufen
+    }
+    return e;
+  }
+  const _hlKlemm = (x, a, b) => Math.max(a, Math.min(b, x));
+  // Prüf-Haken (tests/test_highlights.py): Liste mit Videosekunde je Highlight.
+  window.__rzHighlights = () => { const tab = _ovStreckeZeit(); return _hlListe().map(h => ({ art: h.art, i: h.i, f: h.f, wert: h.wert, t: _hlSekunde(tab, h.f) })); };
+  /** Pro Bild: Sichtbarkeit aus der Videosekunde, Lage aus der Kamera (map.project). */
+  function _hlAnwenden(tSec) {
+    _hlLetztT = tSec;
+    const ebene = _hlEbene();
+    if (!ebene) return;
+    const liste = (tSec == null || tSec < 0) ? [] : _hlListe();
+    if (!liste.length || !map) { if (ebene.childElementCount) ebene.innerHTML = ""; return; }
+    const tab = _ovStreckeZeit();
+    const layer = ebene.parentElement;
+    const LW = layer.offsetWidth, LH = layer.offsetHeight;
+    const cw = map.getContainer().clientWidth || 1;
+    const k = LW / cw;   // Karten-CSS-px → Layer-px (Videopixel)
+    const s = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
+    const rand = 30 * s;
+    const co = currentCoords;
+    const sichtbar = new Set();
+    for (let n = 0; n < liste.length; n++) {
+      const h = liste[n];
+      const t0 = _hlSekunde(tab, h.f);
+      if (t0 == null) continue;
+      const a = t0 - HL_VOR_S, b = t0 + HL_NACH_S, v = a - HL_VORSCHAU_S;
+      if (tSec < v || tSec > b) continue;
+      const pille = tSec >= a;
+      const rein = pille ? _hlKlemm((tSec - a) / HL_BLENDE_S, 0, 1) : _hlKlemm((tSec - v) / HL_BLENDE_S, 0, 1);
+      const raus = _hlKlemm((b - tSec) / HL_BLENDE_S, 0, 1);
+      const op = Math.min(rein, raus);
+      const c = co[Math.min(h.i, co.length - 1)];
+      let p;
+      try { p = map.project(c); } catch (_) { continue; }
+      let x = p.x * k, y = p.y * k;
+      const drin = x >= rand && x <= LW - rand && y >= rand && y <= LH - rand;
+      const id = "hl-" + n;
+      sichtbar.add(id);
+      let el = ebene.querySelector(`[data-hl="${id}"]`);
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "hl"; el.setAttribute("data-hl", id); el.setAttribute("data-hl-art", h.art);
+        el.innerHTML = `<div class="hl-punkt"></div><div class="hl-pille"><div class="hl-pin"><svg viewBox="0 0 24 24">${HL_ICON[h.art] || ""}</svg></div>`
+          + `<div class="hl-txt"><span class="hl-l">${_animEscapeHtml(_hlText(h.art))}</span><span class="hl-v">${_ovWertHtml(h.wert)}</span></div></div>`;
+        ebene.appendChild(el);
+      }
+      const pl = el.querySelector(".hl-pille");
+      if (pille) {
+        // Pille seitlich und oben im Bild halten; nach unten darf sie mit der Stelle
+        // aus dem Bild wandern (sonst schiebt sie sich übers Höhenprofil).
+        const pw = pl.offsetWidth || 0, ph = pl.offsetHeight || 0, abst = 22 * s;
+        x = _hlKlemm(x, rand + pw / 2, LW - rand - pw / 2);
+        y = Math.max(y, rand + ph + abst);
+      } else if (!drin) {
+        x = _hlKlemm(x, rand, LW - rand); y = _hlKlemm(y, rand, LH - rand);   // Vorschau-Punkt am Bildrand
+      }
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      el.style.opacity = op.toFixed(3);
+      pl.style.visibility = pille ? "" : "hidden";
+      pl.style.setProperty("--hl-pop", pille ? (0.85 + 0.15 * rein).toFixed(3) : "0.85");
+    }
+    for (const el of Array.from(ebene.children)) if (!sichtbar.has(el.getAttribute("data-hl"))) el.remove();
+  }
   function _ovTimingAt(tSec, frac) {
     try { _skAnwenden(tSec); } catch (e) { applog("warn", "[schnell] Karte: " + e); }
+    try { _hlAnwenden(tSec); } catch (e) { applog("warn", "[hl] Anzeige: " + e); }
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;
     if (!R) return;
