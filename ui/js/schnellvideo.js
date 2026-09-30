@@ -134,8 +134,9 @@
       overlay_elevation_position: "bcw",
       watermark_lage: logoLage(w.format),
       // 30.09.2026 — Highlights aus dem Track wie bei Komoot (Animator: _hlAnwenden)
-      highlights_enabled: !!w.highlights,
+      highlights_enabled: !!w.highlights,   // werden beim Öffnen zu Schildern (Animator: _hlSchilderAbgleichen)
       highlights_arten: ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"],
+      highlights_stil: "pille", highlights_farbmodus: "eine", highlights_farbe: "#ffc21a",
       schnellkarte: { titel_an: !!(w.titel || w.unter), titel: w.titel, unter: w.unter, titel_s: INTRO_S,
                       schluss_an: w.felder.length > 0, felder: w.felder.slice() },
     };

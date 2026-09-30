@@ -73,9 +73,197 @@
     if (n <= RZ_SIGN_BILD_VOLL) return 2;
     return Math.max(0.5, Math.round(2 * Math.sqrt(RZ_SIGN_BILD_VOLL / n) * 100) / 100);
   }
+  // ── Highlight-Schilder (30.09.2026, Marc: „mach das als Schilder … lass uns den
+  // Komoot-Look auch behalten, dann haben wir gleich verschiedene Styles") ────────
+  // Fünf Stile für Kennzahl-Schilder: Text = „Beschriftung\nWert", `icon` = Art
+  // (hoechster|steilste|schnellste|halbe|wegpunkte). Entwürfe: pille (bisheriger
+  // Look), hl_pin (Kasten über gelber Stecknadel), hl_rund (runder Pin, Karte rechts),
+  // hl_form (Form je Art, gerahmte Karte), hl_pinsel (Pinselstrich-Banner).
+  // Geometrie in einem Ortssystem mit dem Geo-Punkt bei (0,0); das Bild wird um die
+  // senkrechte Achse symmetrisch angelegt, damit icon-anchor „bottom" (= Mitte unten)
+  // genau auf der Stelle sitzt — auch wenn die Karte rechts vom Pin steht.
+  var RZ_HL_STILE = { pille: 1, hl_pin: 1, hl_rund: 1, hl_form: 1, hl_pinsel: 1 };
+  var RZ_HL_FARBEN = { hoechster: "#ffc21a", steilste: "#f2553d", schnellste: "#2fa8f0", halbe: "#4cc66a", wegpunkte: "#9b6bf2" };
+  var RZ_HL_ICONS = {
+    hoechster: [["M1.5 21.5L9.2 9.6l3.9 5.6 2.6-3.6 6.8 9.9z", "f"], ["M9.2 10V2.6", "s", 1.8], ["M9.2 2.8h5.6l-1.7 2 1.7 2H9.2z", "f"]],
+    steilste: [["M2 21.8L22 10.4v11.4z", "f"], ["M3.8 13.6L12.6 4.8", "s", 2.3], ["M8.4 4.4h4.6V9", "s", 2.3]],
+    schnellste: [["M3.9 17.8a8.8 8.8 0 1 1 16.2 0", "s", 2.5], ["M12 15.3l4.8-5.8", "s", 2.5], ["M13.8 15.3a1.8 1.8 0 1 1-3.6 0a1.8 1.8 0 1 1 3.6 0z", "f"]],
+    halbe: [["M20.6 12a8.6 8.6 0 1 1-17.2 0a8.6 8.6 0 1 1 17.2 0z", "s", 2.3], ["M12 3.4a8.6 8.6 0 0 0 0 17.2z", "f"]],
+    wegpunkte: [["M12 22.6s-7.2-7.7-7.2-13.2a7.2 7.2 0 0 1 14.4 0c0 5.5-7.2 13.2-7.2 13.2zM14.7 9.4a2.7 2.7 0 1 0-5.4 0a2.7 2.7 0 1 0 5.4 0z", "fe"]],
+  };
+  var RZ_HL_FORM = { hoechster: "tri", steilste: "quad", schnellste: "kreis", halbe: "kreis", wegpunkte: "raute" };
+  var RZ_HL_EINHEIT = /^(.*\d)(\s?)([A-Za-zµ°%\/²³]{1,5})$/;
+  function rzHlIcon(ctx, art, cx, cy, gr, farbe) {
+    var spec = RZ_HL_ICONS[art];
+    if (!spec || typeof Path2D === "undefined") return;
+    ctx.save();
+    ctx.translate(cx - gr / 2, cy - gr / 2);
+    ctx.scale(gr / 24, gr / 24);
+    ctx.fillStyle = farbe; ctx.strokeStyle = farbe; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (var i = 0; i < spec.length; i++) {
+      var p = new Path2D(spec[i][0]);
+      if (spec[i][1] === "s") { ctx.lineWidth = spec[i][2] || 2; ctx.stroke(p); }
+      else ctx.fill(p, spec[i][1] === "fe" ? "evenodd" : "nonzero");
+    }
+    ctx.restore();
+  }
+  // Pseudo-Zufall aus dem Text (Pinselkanten sollen bei jedem Zeichnen gleich aussehen)
+  function rzHlZufall(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return function () { h = Math.imul(h ^ (h >>> 15), 2246822507); h ^= h >>> 13; return ((h >>> 0) % 10000) / 10000; };
+  }
+  function rzDrawHighlight(o, dpr) {
+    var st = o.style, u = Math.max(8, Number(o.size) || 26) * dpr, d = dpr;
+    var akz = o.color || "#ffc21a";
+    var art = RZ_HL_ICONS[o.icon] ? o.icon : "";
+    var zl = String(o.text == null ? "" : o.text).split("\n");
+    var label = zl.length > 1 ? zl[0].toUpperCase() : "";
+    var wert = zl.length > 1 ? zl.slice(1).join(" ") : (zl[0] || "");
+    var em = RZ_HL_EINHEIT.exec(wert), zahl = em ? em[1] : wert, einh = em ? em[3] : "";
+    var ff = fontStack(o.font);
+    var fL = "700 " + (0.4 * u) + "px " + ff, fZ = "800 " + u + "px " + ff, fE = "600 " + (0.52 * u) + "px " + ff;
+    var mc = document.createElement("canvas").getContext("2d");
+    mc.font = fL; var wL = label ? mc.measureText(label).width : 0;
+    mc.font = fZ; var wZ = mc.measureText(zahl).width;
+    mc.font = fE; var wE = einh ? mc.measureText(einh).width + 0.16 * u : 0;
+    var tw = Math.max(wL, wZ + wE), hL = label ? 0.52 * u : 0, th = hL + 0.98 * u;
+    // Text zeichnen: (x, yOben) = linke/mittige Oberkante des Textblocks
+    function text(ctx, x, y, mitte, fLab, fWert) {
+      ctx.textBaseline = "alphabetic";
+      if (label) { ctx.font = fL; ctx.fillStyle = fLab; ctx.textAlign = mitte ? "center" : "left"; ctx.fillText(label, x, y + 0.4 * u); }
+      var yb = y + hL + 0.8 * u, x0 = mitte ? x - (wZ + wE) / 2 : x;
+      ctx.textAlign = "left"; ctx.font = fZ; ctx.fillStyle = fWert; ctx.fillText(zahl, x0, yb);
+      if (einh) { ctx.font = fE; ctx.fillText(einh, x0 + wZ + 0.16 * u, yb); }
+    }
+    function rr(ctx, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    function schatten(ctx, an) {
+      ctx.shadowColor = an ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0)"; ctx.shadowBlur = an ? 10 * d : 0;
+      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = an ? 3 * d : 0;
+    }
+    function tropfen(ctx, cy, R, tipY) {
+      ctx.beginPath(); ctx.moveTo(0, tipY);
+      ctx.quadraticCurveTo(-R * 1.2, cy + R * 0.55, -R, cy); ctx.arc(0, cy, R, Math.PI, 0, false);
+      ctx.quadraticCurveTo(R * 1.2, cy + R * 0.55, 0, tipY); ctx.closePath();
+    }
+    function ring(ctx) {   // Leuchtring am Boden
+      ctx.save(); ctx.shadowColor = akz; ctx.shadowBlur = 8 * d;
+      ctx.beginPath(); ctx.ellipse(0, -0.2 * u, 0.5 * u, 0.18 * u, 0, 0, Math.PI * 2);
+      ctx.lineWidth = 0.1 * u; ctx.strokeStyle = akz; ctx.stroke();
+      ctx.restore();
+      ctx.beginPath(); ctx.ellipse(0, -0.2 * u, 0.16 * u, 0.06 * u, 0, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
+    }
+    function stiel(ctx, y0, y1) {
+      ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(0, y1); ctx.lineWidth = 0.08 * u; ctx.strokeStyle = akz; ctx.lineCap = "round"; ctx.stroke();
+    }
+    var DUNKEL = "#17191e";
+    // Ausdehnung je Stil (links, rechts, oben) im Ortssystem
+    var R = (st === "hl_pin" ? 1.3 : 1.15) * u, L = 0, Rr = 0, oben = 0, plan = {};
+    if (st === "pille") {
+      var pd = 1.5 * u, ins = 0.2 * u, gap = 0.34 * u, padR = 0.6 * u;
+      var pw = ins + pd + gap + tw + padR, ph = pd + 2 * ins, py = -(0.55 * u) - ph;
+      plan = { pw: pw, ph: ph, py: py, pd: pd, ins: ins, gap: gap };
+      L = Rr = pw / 2; oben = -py;
+    } else if (st === "hl_pin") {
+      var tipY = -0.2 * u, cy = tipY - 1.8 * R, cw = tw + 1.0 * u, ch = th + 0.62 * u, cyTop = cy - R - 0.3 * u - ch;
+      plan = { tipY: tipY, cy: cy, cw: cw, ch: ch, cyTop: cyTop };
+      L = Rr = Math.max(cw / 2, R * 1.25); oben = -cyTop;
+    } else {
+      var stielH = 1.7 * u, cyc = -0.2 * u - stielH - R;
+      var kx = R * 0.55, cx0 = R + 0.42 * u, ch2 = Math.max(th + 0.6 * u, R * 1.55);
+      var cw2 = (cx0 - kx) + tw + 0.6 * u;
+      if (st === "hl_pinsel") { ch2 = hL + 0.5 * u + 1.35 * u; cw2 = (cx0 - kx) + Math.max(wL + 0.7 * u, wZ + wE + 0.9 * u); }
+      plan = { cyc: cyc, kx: kx, cx0: cx0, ch: ch2, cw: cw2, ky: cyc - ch2 / 2 };
+      L = R * 1.2; Rr = kx + cw2 + 0.3 * u; oben = -(Math.min(cyc - R * 1.25, plan.ky - 0.25 * u));
+    }
+    var rand = 14 * d, halb = Math.max(L, Rr) + rand;
+    var W = Math.ceil(halb * 2), H = Math.ceil(oben + rand);
+    var c = document.createElement("canvas"); c.width = Math.max(2, W); c.height = Math.max(2, H);
+    var ctx = c.getContext("2d");
+    ctx.translate(W / 2, H);
+    ctx.globalAlpha = (o.opacity != null ? Math.max(0, Math.min(1, Number(o.opacity))) : 1);
+    if (st === "pille") {
+      // Punkt auf der Stelle, darüber die dunkle Pille mit rundem Pin links
+      ctx.beginPath(); ctx.arc(0, -0.3 * u, 0.26 * u, 0, Math.PI * 2); ctx.fillStyle = akz; ctx.fill();
+      ctx.lineWidth = 0.1 * u; ctx.strokeStyle = DUNKEL; ctx.stroke();
+      schatten(ctx, true); rr(ctx, -plan.pw / 2, plan.py, plan.pw, plan.ph, plan.ph / 2); ctx.fillStyle = "rgba(20,20,22,0.92)"; ctx.fill(); schatten(ctx, false);
+      var px = -plan.pw / 2 + plan.ins + plan.pd / 2, pyc = plan.py + plan.ph / 2;
+      ctx.beginPath(); ctx.arc(px, pyc, plan.pd / 2, 0, Math.PI * 2); ctx.fillStyle = akz; ctx.fill();
+      rzHlIcon(ctx, art, px, pyc, plan.pd * 0.58, DUNKEL);
+      text(ctx, px + plan.pd / 2 + plan.gap, pyc - th / 2, false, akz, "#ffffff");
+    } else if (st === "hl_pin") {
+      ring(ctx);
+      schatten(ctx, true); tropfen(ctx, plan.cy, R, plan.tipY); ctx.fillStyle = akz; ctx.fill(); schatten(ctx, false);
+      ctx.beginPath(); ctx.arc(0, plan.cy, R * 0.74, 0, Math.PI * 2); ctx.fillStyle = DUNKEL; ctx.fill();
+      rzHlIcon(ctx, art, 0, plan.cy, R * 0.9, "#ffffff");
+      schatten(ctx, true); rr(ctx, -plan.cw / 2, plan.cyTop, plan.cw, plan.ch, 0.28 * u); ctx.fillStyle = "rgba(22,24,28,0.94)"; ctx.fill(); schatten(ctx, false);
+      ctx.lineWidth = 0.09 * u; ctx.strokeStyle = akz; ctx.stroke();
+      text(ctx, 0, plan.cyTop + (plan.ch - th) / 2, true, "#ffffff", "#ffffff");
+    } else {
+      var p = plan, ky = p.ky;
+      ring(ctx); stiel(ctx, -0.3 * u, p.cyc + R * 0.9);
+      if (st === "hl_rund" || st === "hl_form") {
+        // Karte rechts (hinter dem Pin), mit Farbe als Ecke (rund) bzw. Rahmen (form)
+        schatten(ctx, true);
+        ctx.beginPath();
+        if (st === "hl_form") {
+          var sch = 0.45 * u;
+          ctx.moveTo(p.kx, ky); ctx.lineTo(p.kx + p.cw - sch, ky); ctx.lineTo(p.kx + p.cw, ky + sch);
+          ctx.lineTo(p.kx + p.cw, ky + p.ch); ctx.lineTo(p.kx, ky + p.ch); ctx.closePath();
+        } else rr(ctx, p.kx, ky, p.cw, p.ch, 0.22 * u);
+        ctx.fillStyle = "rgba(18,20,24,0.9)"; ctx.fill(); schatten(ctx, false);
+        if (st === "hl_form") { ctx.lineWidth = 0.07 * u; ctx.strokeStyle = akz; ctx.stroke(); }
+        else { ctx.lineWidth = 1 * d; ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.stroke();
+               ctx.fillStyle = akz; ctx.fillRect(p.cx0 - 0.3 * u, ky - 0.16 * u, 0.22 * u, 0.58 * u); }
+        text(ctx, p.cx0, ky + (p.ch - th) / 2, false, "#e3e6ea", "#ffffff");
+        schatten(ctx, true);
+        var form = st === "hl_form" ? (RZ_HL_FORM[art] || "kreis") : "kreis";
+        ctx.beginPath();
+        if (form === "tri") { ctx.moveTo(0, p.cyc - R * 1.2); ctx.lineTo(R * 1.15, p.cyc + R * 0.75); ctx.lineTo(0.18 * R, p.cyc + R * 0.75); ctx.lineTo(0, p.cyc + R * 1.15); ctx.lineTo(-0.18 * R, p.cyc + R * 0.75); ctx.lineTo(-R * 1.15, p.cyc + R * 0.75); ctx.closePath(); }
+        else if (form === "quad") { rr(ctx, -R, p.cyc - R, 2 * R, 2 * R, 0.18 * R); ctx.moveTo(-0.28 * R, p.cyc + R - 1); ctx.lineTo(0, p.cyc + R * 1.35); ctx.lineTo(0.28 * R, p.cyc + R - 1); }
+        else if (form === "raute") { ctx.moveTo(0, p.cyc - R * 1.2); ctx.lineTo(R * 1.1, p.cyc); ctx.lineTo(0, p.cyc + R * 1.2); ctx.lineTo(-R * 1.1, p.cyc); ctx.closePath(); }
+        else if (st === "hl_form") { tropfen(ctx, p.cyc, R, p.cyc + R * 1.55); }
+        else { ctx.arc(0, p.cyc, R, 0, Math.PI * 2); }
+        ctx.fillStyle = akz; ctx.fill(); schatten(ctx, false);
+        rzHlIcon(ctx, art, 0, p.cyc + (form === "tri" ? R * 0.18 : 0), R * (form === "tri" ? 0.95 : 1.05), DUNKEL);
+      } else {   // hl_pinsel
+        var zf = rzHlZufall(String(o.text || "") + art);
+        var strich = function (x, y, w, h, farbe) {
+          var n = Math.max(6, Math.round(w / (0.35 * u))), j = 0.07 * u, i;
+          ctx.beginPath(); ctx.moveTo(x, y + zf() * j);
+          for (i = 1; i <= n; i++) ctx.lineTo(x + w * i / n, y + (zf() - 0.3) * j * 1.6);
+          for (i = 0; i < 5; i++) ctx.lineTo(x + w + (zf() * 0.5 + (i % 2 ? 0.1 : 0.45)) * u * 0.6, y + h * (i + 0.5) / 5);
+          for (i = n; i >= 0; i--) ctx.lineTo(x + w * i / n, y + h - (zf() - 0.3) * j * 1.6);
+          ctx.closePath(); ctx.fillStyle = farbe; ctx.fill();
+        };
+        schatten(ctx, true);
+        var wy = ky + hL + 0.5 * u;
+        strich(p.kx, wy - 0.12 * u, p.cw - 0.6 * u, 1.35 * u, akz);
+        if (label) strich(p.kx + 0.3 * u, ky, wL + p.cx0 - p.kx + 0.2 * u, hL + 0.2 * u, "#f3f3f1");
+        schatten(ctx, false);
+        ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+        if (label) { ctx.font = fL; ctx.fillStyle = "#16181d"; ctx.fillText(label, p.cx0, ky + 0.47 * u); }
+        ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 3 * d; ctx.shadowOffsetY = 1 * d;   // Weiß auf Gelb lesbar halten
+        ctx.font = fZ; ctx.fillStyle = "#ffffff"; ctx.fillText(zahl, p.cx0, wy + 1.0 * u);
+        if (einh) { ctx.font = fE; ctx.fillText(einh, p.cx0 + wZ + 0.16 * u, wy + 1.0 * u); }
+        schatten(ctx, false);
+        schatten(ctx, true);
+        tropfen(ctx, p.cyc, R, p.cyc + R * 1.6); ctx.fillStyle = akz; ctx.fill(); schatten(ctx, false);
+        ctx.beginPath(); ctx.arc(0, p.cyc, R * 0.76, 0, Math.PI * 2); ctx.fillStyle = DUNKEL; ctx.fill();
+        rzHlIcon(ctx, art, 0, p.cyc, R * 0.95, "#ffffff");
+      }
+    }
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
+  }
+
   function rzDrawSign(o) {
     o = o || {};
     var dpr = (Number(o.__dpr) > 0) ? Number(o.__dpr) : 2;
+    if (RZ_HL_STILE[o.style]) return rzDrawHighlight(o, dpr);
     var fontPx = Math.max(8, Number(o.size) || 40);
     var fs = fontPx * dpr;
     var weight = Number(o.weight) || 700;
@@ -678,6 +866,8 @@
     window.__rzSignDeckkraft = rzSignDeckkraft;
     window.__rzSignIconSize = rzSignIconSize;
     window.__rzSignDpr = rzSignDpr;
+    window.__rzHlStile = RZ_HL_STILE;
+    window.__rzHlFarben = RZ_HL_FARBEN;
   }
   if (typeof globalThis !== "undefined") {
     globalThis.__rzDrawSign = rzDrawSign;

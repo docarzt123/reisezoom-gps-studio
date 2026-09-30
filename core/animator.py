@@ -3419,6 +3419,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             # auf der Spur saß.
             "accent": (str(_sg(s, "accent", "auto") or "auto")),
             "tailPos": (_sg(s, "tailPos", "center") if _sg(s, "tailPos", "center") in ("left", "right") else "center"),
+            # 30.09.2026 — Symbol der Kennzahl-Stile (pille, hl_*; sign_draw.js RZ_HL_ICONS)
+            "icon": str(_sg(s, "icon", "") or ""),
         } for s in _signs_input]
         # v0.9.224/225 — render_scale in die icon-size-Stützwerte gerechnet (s.u.).
         _ss = float(getattr(cfg, "render_scale", 1.0) or 1.0)
