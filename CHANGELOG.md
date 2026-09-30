@@ -14,6 +14,57 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+---
+
+## [0.9.748] – 2026-09-30
+
+> Release 30.09.2026 — contains 0.9.737–0.9.748.
+
+> **0.9.748** (30.09.2026, built locally): quick video camera closer; arrow points along the drawn line.
+
+### Changed
+- **Quick video camera closer and steeper** (Marc, comparing with the Komoot flyover: "the camera flies lower, more over the track"): follow zoom +0.5 level (`zNah`), pitch 45° instead of 55°; camera path smoothing ~0.35 s of travel instead of 0.5 s (closer camera → the arrow would drift further from the centre). Tested +1 level: too close in steep terrain.
+- **Quick video arrow points along the drawn line** (Marc: "the arrow direction doesn't run exactly with the track, looks stuck on … it has to look nicely in the right direction"; he chose the look-back variant in a side-by-side clip). New `kursRueckblickAn(coords, f, meter)` (util.js): bearing from the point `meter` back along the track to the current fractional position — exactly the direction the drawn line comes from. Project key `marker_dot_rueckblick_m` (used by `_kursAn` when > 0; render param passed on; the classic render does not mirror it — alpha export only). Quick video: track smoothing doubled (`spurGlattM` ~40–200 m) and look-back = ¾ of it. Measured (20 s 9:16, 25 km with hairpins): deviation arrow ↔ line median 25° → 0.7°, 90 % 67° → 3.6°; the arrow turns where the line really turns (in hairpins up to 180° within a frame at ~64 m per frame). Also measured and rejected: centred narrow smoothing (14°/46°), look-back on the 40 m track (spins more). `tests/test_schnellvideo_ruhe.py` now checks the arrow–line deviation; `tests/test_schnellvideo.py` checks pitch 45° and the look-back function.
+
+> **0.9.747** (30.09.2026, built locally): missing aerial tiles filled from the coarser tile; gentler on the Spanish server.
+
+### Fixed
+- **Pale, flickering patches where aerial tiles were missing** (Marc's MacBook render "78 Aldea Blanca": 72 substitutes, 55 tiles still missing at the end; the patches jumped between frames). Causes: (1) the transparent substitute let the much paler Sentinel image show through; (2) with the tilted camera MapLibre switches zoom levels for the same spot from frame to frame — one level real, the other transparent → blinking; (3) from the MacBook many simultaneous requests (two scene pages × up to 16) made the Spanish WMS answer 502 — the same tiles loaded instantly from the Mac mini. Now: `tileproxy._eltern_ersatz` cuts the matching quarter/sixteenth out of the next coarser tile of the SAME service that is already in the cache (up to 4 levels), upscales it and serves it as the substitute (`_Ersatz`, never stored, same bytes every time → no blinking); only without a parent the transparent 1×1 remains. `max_parallel` = 6 for `es` (`_drossel` semaphore per region), and 5xx answers are retried after 1 s and 2 s before giving up. Measured with every third Spanish tile ≥ z15 failing permanently (warm cache, 523 substitutes): old = pale checkerboard, new = practically seamless. `tests/test_kachel_ausfall.py` checks quarter, size, repeatability and multi-level parents.
+
+> **0.9.746** (30.09.2026, built locally): forerunner page loads tiles ahead while rendering.
+
+### Changed
+- **Scene render: forerunner loads map tiles ahead** (Marc: "stay with high quality … load ahead in parallel while rendering"). `szene._vorlaeufer`: a second invisible page with the same project starts together with the main page, runs `VORLAEUFER_SCHRITT` = 6 frames per stop (0.2 s), at most `VORLAEUFER_VORSPRUNG` = 300 frames (10 s) ahead and at least 12 frames; per stop it only waits until the map has sent its requests (`_WARTE_VORLAEUFER_JS`, ≤ 0.5 s) — the tile proxy and the Playwright route finish and store tiles even when the map has moved on. Both pages share the tile cache. With the forerunner the pre-frame prewarming is skipped (`RZ_VORWAERMEN` still forces it; `RZ_VORLAEUFER=0` disables the forerunner). Errors in the forerunner only end the forerunner; cancelling stops both browsers. Measured back to back (Mac mini, empty cache, quick video 9:16 20 s): **314 → 164 s**, wait per frame 356 → 184 ms; warm cache 118 → 111 s. Bigger steps (15 frames) were measured much worse (5 s per stop — each jump rebuilds the view). New `tests/test_vorlaeufer.py`; `tests/test_vorwaermen.py` checks the fallback path with `RZ_VORLAEUFER=0`.
+- Tested and **rejected** (see IDEAS §75): Spanish aerial imagery as JPEG (7× less data but 4× slower — the server renders JPEG per request), one coarser tile level (−20 % time, visibly softer). The render-mode tile density switch stays available (`__rzRenderMode.kachelStufen`, param `kachel_stufen`, `RZ_KACHEL_STUFEN`), off by default.
+
+> **0.9.745** (30.09.2026, built locally): a failing map service no longer stalls the render; time per frame in the log.
+
+### Fixed
+- **Render stalled for minutes when a map service returned errors** (Marc's MacBook: 40 s quick video took 822 s; the Spanish aerial imagery PNOA answered "502 Bad Gateway" 140×). Each failed tile was requested again on EVERY frame — the scene's tile route retried 3× with 0.5/1/2 s pauses, each triggering 2 attempts in the tile proxy — and the frame waited up to the 5 s idle limit; the tile never arrived anyway (hole, Sentinel underneath). Now: `core/tileproxy.py` answers a failed image tile with a transparent 1×1 PNG (`ist_ersatz`, header `X-RZ-Ersatz`, `Cache-Control: no-store`), remembers it (next request instant) and retries ONCE in the background after `NACHHOLEN_S` = 20 s (success → normal tile in the cache). Terrain tiles keep the 502 (a transparent Terrarium tile would mean −32768 m). The scene's tile route (`animator._install_tile_cache`) never stores the substitute and remembers failed direct URLs (abort instead of retries for 20 s). Counters reset at every render start.
+- Measured (new `tests/test_kachel_ausfall.py`): scene render with ALL Spanish aerial tiles from z15 failing (1191 tiles) finishes in 157 s (normal ~115 s); no substitute tile ends up in the cache.
+
+### Added
+- **Render progress names failing map services**: "⚠️ Aerial imagery Spain is not responding – 12 tiles missing, rendering continues" (`szene._stoerung_hinweis`, keys `szene.kacheln_fehlen`, `szene.luftbild` + `mapregion.<id>`, `szene.kartendienst` for direct services; DE/EN/ES) during prewarming and frames; summary line in the log at the end.
+- **Log: data loaded through the tile proxy per render** — `Szene: über die Kachel-Weiche aus dem Netz geladen: n Kacheln, x MB` (`tileproxy.geladen()`).
+- **Log: time per frame** — `Szene: Zeit je Bild … (springen · warten auf Karte · Bild greifen · schreiben)`. Measured on the Mac mini (20 s 9:16, warm): 161 ms per frame, of which a fixed 60 ms settle pause (`RZ_BILD_RUHE_MS` for measuring; without it some overlays lag one frame behind — to be fixed before the pause can go, see IDEAS §75).
+
+> **0.9.744** (30.09.2026, built locally): quick video renders in its own screen; no black hole before the first frame.
+
+### Changed
+- **Quick video: own full-screen stage instead of the detour through the Animator** (Marc: "it briefly goes to the Animator, you see the keyframes being set, then it jumps to rendering … it looks as if you had to do something there"). `ui/js/schnellvideo.js` `buehne()`: fixed layer over the whole app (z-index 900, below modals so error windows and system dialogs stay on top) with tour name, image area, progress bar, step text and cancel; the dialog closes and the stage appears immediately, the project is created without the extra wait modal; after the Animator is ready the stage shows the tour's map image (`window.__rzKartenBild`), then the live frames; when done: video, "💾 Save …", "📤 Share", "Open in the Animator", "Close" (→ archive). `buehneVerfolgen()` polls `animator_status` like the Animator; the state of an earlier render is ignored until ours runs (20 s start timeout → error). The Animator's own "Video ready" toast is suppressed for stage renders (`_skLetzter.buehne`).
+- **Every Animator/Tour-Map render: map image instead of a black area until the first frame**: on "Render video" the current preview map is grabbed (`_kartenBild()`: read the canvas in the `render` event, no `preserveDrawingBuffer` needed), shown dimmed in the progress area with the current step on top ("Scene: prewarming tiles 34 of 120 …"); the first rendered frame replaces it.
+
+### Fixed
+- Quick-video stage: `video.play()` rejection on an unplayable file is caught.
+- Test `tests/test_schnellvideo.py` section I (WebKit, real bridge, render status simulated): map image in the Animator progress, stage covers the app at once, map image, stale status ignored, prewarm step, live frame, done view, no second toast, close → archive.
+
+> **0.9.743** (30.09.2026, built locally): "Points" slider WYSIWYG.
+
+### Fixed
+- **Animator "Points" slider (`point_count`) only thinned the resting line** — when scrubbing, in the test run and therefore in the scene video, line, moving point and camera used all 800 preview points (the classic render did reduce, so preview and video disagreed with the slider). Now `_punkteReduziert` builds the track with the SAME number of points: the kept points stay at their index, straight connections in between — same shape as the reduced line, every per-index series (elevations, times, anchors, pace) still matches. `currentCoords = smooth(reduce(raw))`, the same order as the classic render (`_punkte_verteilen`: distribute, then `spur_glaetten`); `drawPreview` applies it on every redraw, `configurePointCountSlider` recomputes with the project value. Journeys (several stages) are not affected (own stage track). Hint text updated in DE/EN/ES (the probe run now shows it; render time hardly changes).
+- **Raw track could be reset to null after loading** — `var _spurRoh = null` sat below `drawPreview` in the async module function; now declared at the top (before the `bindSetting` calls whose onLoad already runs `_spurNeu`). Changing "Smooth track" could silently do nothing before.
+- Measured in the scene page (new `tests/test_punkte_regler.py`, single tour 9:16): 30 points → the whole line has 19 bends (before: 527), the moving point lies exactly on it, the follow camera centres on it.
+
 > **0.9.742** (30.09.2026, built locally): faster, bounded tile prewarming; "Show Log File in Finder".
 
 ### Changed

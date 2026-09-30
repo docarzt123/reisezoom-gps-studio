@@ -850,7 +850,12 @@ según la velocidad; en una curva cerrada la flecha gira en vez de darse la vuel
 de la cámara (a partir de la dirección suavizada, más la cámara tranquila). La dirección queda como
 keyframes normales en la línea de tiempo y se puede cambiar.
 
-**Renderizar vídeo** te muestra en directo cómo se hace el vídeo. Cuando termina, **«💾 Guardar …»** lo pone
+**Desde v0.9.748:** la cámara vuela más cerca y mira más desde arriba (45° en vez de 55°, medio nivel más cerca):
+más sobre la traza, casi sin horizonte. La flecha apunta exactamente en la dirección de la que viene la línea
+dibujada; para ello la línea se suaviza un poco más. En curvas cerradas la flecha gira visiblemente, tal como
+va la línea en realidad.
+
+**Renderizar vídeo** abre, desde v0.9.744, una pantalla propia del vídeo rápido sobre toda la app: arriba el nombre de la ruta, en el centro primero la imagen del mapa de tu ruta con el paso actual (creando el proyecto, cargando el mapa, precargando teselas …), después el vídeo mientras se crea, debajo el progreso y «Cancelar». El Animador trabaja de forma invisible detrás; no tienes que hacer nada allí. **Cerrar** te devuelve al archivo, **Abrir en el Animador** muestra el proyecto para seguir editándolo. Cuando termina, **«💾 Guardar …»** lo pone
 donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (AirDrop, Mensajes, Mail, Fotos …);
 en Windows se abre la carpeta con el vídeo.
 
@@ -1807,6 +1812,7 @@ renderizar.
 - **La cámara sigue el track** — la cámara permanece en el punto en movimiento en lugar de en toda la ruta.
   - **Inercia de la cámara** (aparece entonces) — seguimiento suave en vez de un pegado duro al punto (contra el temblor del GPS).
   - **Suavizar recorrido de cámara** (desde v0.9.741, 0–1000 m) — la cámara mira a un recorrido suavizado en vez de a cada quiebro de la traza; en vídeos rápidos de rutas con curvas el mapa deja de dar tirones. A cambio el punto se mueve un poco alrededor del centro. 0 = justo sobre el punto.
+- **Puntos** (sección Traza) — simplifica la traza: a la izquierda, pocos puntos unidos en línea recta. Desde v0.9.743 la línea, el punto/flecha y la cámara siguen esta traza simplificada al desplazarte, en la prueba y en el vídeo final (antes solo se veía en la línea en reposo). El render apenas se acelera: el tiempo depende sobre todo de cargar las teselas del mapa. En viajes con varias etapas el control no tiene efecto.
 - **Suavizar traza** (sección Traza, bajo «Puntos», desde v0.9.741, 0–200 m) — quita el temblor del GPS y los pequeños zigzags. La línea, el punto/flecha, la cámara y la ruta completa tenue usan entonces la traza suavizada. 0 = traza original.
 - **Exageración del terreno** 0–4× — lo pronunciadas que parecen las montañas
 
@@ -2004,6 +2010,12 @@ Durante el render ves el fotograma que se está generando en ese momento en la v
 
 ### Vista previa = vídeo (desde v0.9.658) ⭐
 Desde v0.9.658 el vídeo terminado es literalmente la vista previa en alta resolución: el mismo mapa, las mismas líneas, discontinuas, carteles, overlays y la misma trayectoria de cámara, solo que dibujados con la densidad de píxeles del vídeo. Lo que ves en la prueba es lo que obtienes: el grosor de las líneas y el tamaño de los carteles son en el vídeo **en proporción al ancho de imagen** exactamente igual de grandes que en la vista previa. Consejo: valora la vista previa con el tamaño de ventana con el que también renderizas; una ventana mucho más ancha muestra (y renderiza) los carteles algo más pequeños en relación con la imagen.
+
+**Si un servicio de mapas falla (desde v0.9.745):** si un servicio de ortofotos no entrega teselas durante el render (error del servidor), la app ya no espera por ellas en cada fotograma: desde v0.9.747 la app rellena el sitio con la parte correspondiente de la tesela más gruesa de la misma ortofoto (algo más suave pero con los mismos colores: sin manchas claras ni parpadeo); solo si también falta se ve la imagen de satélite Sentinel. La tesela se reintenta una vez, sin ruido, a los 20 segundos. El progreso muestra p. ej. «⚠️ La ortofoto de España no responde – faltan 12 teselas, el render continúa». Así sabes por qué algo se ve menos nítido, y el render ya no se atasca (antes: hasta 5 segundos de espera por fotograma).
+
+**Ya no hay imagen negra al empezar (desde v0.9.744):** hasta que se renderiza el primer fotograma, la zona de progreso muestra la imagen del mapa que había en la vista previa al pulsar «Renderizar vídeo», atenuada y con el paso actual encima. Después toma el relevo la imagen en directo.
+
+**Carga anticipada al renderizar (desde v0.9.746):** mientras el vídeo se crea fotograma a fotograma, un segundo «precursor» invisible va unos segundos por delante del recorrido de la cámara y ya carga las teselas del mapa para los siguientes fotogramas. Ya no hace falta precargar antes del primer fotograma. Medido con la caché vacía (vídeo vertical de 20 s): 164 en vez de 314 segundos; con la caché llena, más o menos igual de rápido que antes. Vale para todos los vídeos del Animador, Ruta de viaje y Tour-Map.
 
 **Precarga de teselas (más rápida desde v0.9.742):** antes del primer fotograma el render carga las teselas del mapa a lo largo del recorrido de la cámara, primero de forma aproximada en todo el vídeo y luego más fina. Tarda como máximo 45 segundos y muestra el progreso como «precargando teselas 12 de 120». Si vuelves a renderizar el mismo lugar, casi todo está ya en caché y continúa en pocos segundos. Medido con la caché vacía (vídeo vertical de 20 s): precarga 45 s en vez de 104 s, render completo 185 s en vez de 226 s.
 

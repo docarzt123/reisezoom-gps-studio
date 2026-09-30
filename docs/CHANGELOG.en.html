@@ -117,66 +117,28 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.742</span>
+    <span class="version-num">v0.9.748</span>
     <span class="version-date">30 September 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
+    <li><strong>🎬 Quick video: camera closer, arrow follows the line</strong> &mdash; the camera flies lower and steeper over the track, and the arrow points exactly where the drawn line is going.</li>
+    <li><strong>No more pale, flickering patches in aerial imagery</strong> &mdash; if an aerial tile is missing, the app fills the spot from the coarser image of the same imagery; it also goes easier on the Spanish map server so fewer tiles fail.</li>
+    <li><strong>Videos render about twice as fast with an empty tile cache</strong> &mdash; while the video is being made, the app already loads the map for the next seconds; the prewarming beforehand is gone. Applies to all videos.</li>
+    <li><strong>Rendering no longer stalls when a map service fails</strong> &mdash; missing aerial tiles are no longer waited for on every frame; the progress shows which service is not responding.</li>
+    <li><strong>🎬 Quick video renders in its own screen</strong> &mdash; no more detour through the Animator: your tour's map image, the individual steps, then the video live and at the end Save or Share.</li>
+    <li><strong>No more black picture when rendering starts</strong> &mdash; until the first frame is ready you see the map from the preview and what is happening right now.</li>
+    <li><strong>“Points” slider now also applies to the video</strong> &mdash; you see the simplified track when scrubbing, in the test run and in the finished video, not only on the resting line.</li>
     <li><strong>Rendering starts faster</strong> &mdash; preloading the map tiles is quicker and takes at most 45 seconds; you now see how far along it is.</li>
     <li><strong>Help menu: “Show Log File in Finder”</strong> &mdash; to copy or send it quickly.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.741</span>
-    <span class="version-date">29 September 2026</span>
-  </div>
-  <ul>
     <li><strong>🎬 Quick video with arrow and chase camera</strong> &mdash; along the way an arrow points in the direction of travel and the camera flies behind it. Roads, places and borders are hidden — just landscape and route. Track, arrow and heading are smoothed so it stays calm even in short videos of twisty routes.</li>
     <li><strong>Calmer camera in all videos</strong> &mdash; single frames where the camera briefly jumped away are gone; the follow camera glides instead of hopping from point to point, and the arrow turns at hairpins instead of flipping.</li>
     <li><strong>Rendering sometimes stopped</strong> (&ldquo;waiting for project card&rdquo;) &mdash; fixed.</li>
     <li><strong>Map credits much smaller</strong> &mdash; less prominent in the picture, the same size in preview and video.</li>
     <li><strong>New in the Animator:</strong> “Smooth track” and “Smooth camera path”.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.740</span>
-    <span class="version-date">29 September 2026</span>
-  </div>
-  <ul>
     <li><strong>Map credits in the video match the preview</strong> &mdash; the small line naming the map providers was noticeably smaller in the finished video (especially in 9:16 portrait) than in the preview. Now it has exactly the same size and position.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.739</span>
-    <span class="version-date">September 29, 2026</span>
-  </div>
-  <ul>
     <li><strong>🎬 Quick video</strong> &mdash; a finished video of your tour with just a few choices: format (9:16, 16:9, 1:1), length, quality, map style, title and end card. Overview, flight along the route, final view with your numbers — rendered live, then save or share. On every tour in the archive and in the Animator.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.738</span>
-    <span class="version-date">September 29, 2026</span>
-  </div>
-  <ul>
     <li><strong>Source register in three languages</strong> &mdash; the notes on licence and terms of use for every map source are now also in English and Spanish.</li>
-  </ul>
-</article>
-
-<article class="version">
-  <div class="version-head">
-    <span class="version-num">v0.9.737</span>
-    <span class="version-date">September 29, 2026</span>
-  </div>
-  <ul>
     <li><strong>Everything in three languages</strong> &mdash; the whole app checked in German, English and Spanish: about 300 places that were still German in English or Spanish (messages, dialogs, render status, file dialogs, web-map export, bug report, stage names in the video) are now translated. The user guide is complete again in all three languages.</li>
   </ul>
 </article>

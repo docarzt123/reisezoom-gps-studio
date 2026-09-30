@@ -344,7 +344,7 @@
   "animator.playwright_missing.installing": "Descargando navegador (~150 MB, un momento) …",
   "animator.playwright_missing.success": "Navegador listo — comienza el renderizado.",
   "animator.playwright_missing.title": "Falta el navegador para renderizar",
-  "animator.point_count.hint": "Por defecto se usan todos los puntos del GPX. Arrastra el control hacia la izquierda para hacer el trazado más simple — la vista previa se actualiza al instante. Afecta al render: menos puntos = ligeramente más rápido. El tiempo depende sobre todo de duración × FPS × resolución. Nota: la prueba sigue mostrando la densidad completa — la reducción se aplica al vídeo renderizado (y a la vista fija de la línea).",
+  "animator.point_count.hint": "Por defecto se usan todos los puntos de tu GPX. Mueve el control a la izquierda para simplificar la traza: la línea, el punto/flecha y la cámara siguen entonces la traza simplificada, igual al desplazarte, en la prueba y en el vídeo final. El tiempo de render apenas cambia; depende sobre todo de la carga de las teselas del mapa.",
   "animator.pos.bc": "↧ abajo",
   "animator.pos.bcw": "↧ abajo ancho",
   "animator.pos.bl": "↙ abajo izquierda",
@@ -4635,5 +4635,13 @@
   "animator.field.follow_glatt": "Suavizar recorrido de cámara",
   "animator.field.follow_glatt_tip": "0 = cámara justo sobre el punto; más alto = mira a un recorrido suavizado y no gira con cada curva",
   "szene.vorwaermen_n": "Escena: precargando teselas {i} de {n} …",
-  "menu.reveal_log": "Mostrar archivo de registro en Finder"
+  "menu.reveal_log": "Mostrar archivo de registro en Finder",
+  "schnell.b.anlegen": "Creando el proyecto …",
+  "schnell.b.karte": "Cargando el mapa …",
+  "schnell.b.start": "Iniciando el vídeo …",
+  "schnell.b.fertig": "✓ Tu vídeo está listo",
+  "schnell.b.fehler": "No se pudo crear el vídeo. Los detalles están en la ventana de error.",
+  "szene.kacheln_fehlen": "⚠️ {dienst} no responde – faltan {n} teselas, el render continúa",
+  "szene.luftbild": "La ortofoto de {name}",
+  "szene.kartendienst": "El servicio de mapas {name}"
 }

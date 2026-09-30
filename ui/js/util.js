@@ -663,6 +663,9 @@ function rzPreviewQuality() {
 function rzApplyPreviewQuality() {
   const q = rzPreviewQuality();
   window.__rzTileDensityMax = (q === "voll") ? undefined : 0;
+  // 30.09.2026 — Render: Kacheldichte kann die Szene vorgeben (__rzRenderMode.kachelStufen, 0 = keine Verfeinerung
+  // nach Pixelmaßstab = ¼ der Kacheln; fehlt → wie bisher bis zu 2 Stufen)
+  if (window.__rzRenderMode && typeof window.__rzRenderMode.kachelStufen === "number") window.__rzTileDensityMax = window.__rzRenderMode.kachelStufen;
   window.__rzPreviewPixelRatio = (q === "schnell") ? 1 : undefined;
   window.__rzPreviewMesh = undefined;   // 08.09.2026: Netz bleibt 128 — 64 gab in «schnell» 171 statt 136 Flacker-Blöcke (30-fps-Aufnahme Masca) bei kaum Tempo
   return q;
@@ -3706,6 +3709,30 @@ function kursGlattAn(coords, f, basisM, minPunkte, sigM) {
   return ((v % 360) + 360) % 360;
 }
 window.kursGlattAn = kursGlattAn;
+
+/** 30.09.2026 (Marc: „die Pfeilrichtung läuft nicht genau mit der Strecke, wirkt aufgesetzt") — Richtung aus dem
+ *  RÜCKBLICK: vom Punkt `meter` zurück (entlang der Strecke) zur aktuellen Position am gebrochenen Index `f`.
+ *  Genau die Richtung, aus der die gezeichnete Linie an der Spitze kommt — der Pfeil kann nie neben der Linie
+ *  stehen. Streckenlängen je coords-Liste zwischengespeichert. Am Anfang (weniger als `meter` gelaufen) vorwärts. */
+const _kursCumCache = new WeakMap();
+function kursRueckblickAn(coords, f, meter) {
+  const n = coords ? coords.length : 0;
+  if (n < 2) return 0;
+  let cum = _kursCumCache.get(coords);
+  if (!cum) { cum = new Float64Array(n); for (let i = 1; i < n; i++) cum[i] = cum[i - 1] + kursMeter(coords[i - 1], coords[i]); _kursCumCache.set(coords, cum); }
+  const x = Math.max(0, Math.min(n - 1, +f || 0)), i0 = Math.min(n - 2, Math.floor(x)), t = x - i0;
+  const posAn = (d) => {   // Koordinate bei Streckenlänge d
+    let lo = 0, hi = n - 1;
+    d = Math.max(0, Math.min(cum[n - 1], d));
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= d) lo = mid; else hi = mid; }
+    const span = cum[hi] - cum[lo], u = span > 0 ? (d - cum[lo]) / span : 0;
+    return [coords[lo][0] + (coords[hi][0] - coords[lo][0]) * u, coords[lo][1] + (coords[hi][1] - coords[lo][1]) * u];
+  };
+  const dHier = cum[i0] + (cum[i0 + 1] - cum[i0]) * t, m = Math.max(5, +meter || 50);
+  const a = dHier >= m ? posAn(dHier - m) : posAn(0), b = dHier >= m ? posAn(dHier) : posAn(Math.min(cum[n - 1], m));
+  return kursPeilung(a, b);
+}
+window.kursRueckblickAn = kursRueckblickAn;
 
 // 04.09.2026 — Nordpfeil (Spiegel von core/northarrow.py, Wächter tests/test_north_scale.py)
 window.RZ_NORTH_SVG = "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" class=\"rz-north-bg\" fill=\"rgba(0,0,0,0.55)\"/><text x=\"32\" y=\"15\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"800\" fill=\"#ffffff\" font-family=\"sans-serif\">N</text><polygon points=\"32,17 40,42 32,37 24,42\" fill=\"#e8452c\"/><polygon points=\"32,58 24,42 32,37 40,42\" fill=\"#ffffff\" fill-opacity=\"0.85\"/></svg>";

@@ -1020,6 +1020,10 @@ input[type="color"] {
   transition: opacity 0.3s ease-in;
 }
 .render-preview.visible { opacity: 1; }
+/* 30.09.2026 — Kartenbild vom Klick als Platzhalter bis zum ersten gerenderten Bild (kein schwarzes Loch) */
+.render-preview.ist-startbild { filter: brightness(0.55) saturate(0.85); }
+.render-preview-placeholder.ueber-bild { color: #fff; font-style: normal; font-weight: 600; font-size: 14px;
+  text-shadow: 0 1px 6px rgba(0,0,0,.8); }
 .render-preview-placeholder {
   position: absolute;
   inset: 0;
@@ -3343,4 +3347,21 @@ body > #main { grid-row: 4; }
 .sv-reihe .sv-wahl.is-on { background: var(--accent, #ff6b35); color: #fff; border-color: var(--accent, #ff6b35); }
 .sv-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
 .sv-dialog .chk { display: flex; align-items: center; gap: 6px; }
+/* 30.09.2026 — Schnell-Video-Bildschirm über der ganzen App (unter den Modalen, z-index 1000) */
+.sv-buehne { position: fixed; inset: 0; z-index: 900; background: var(--bg, #0e1014); display: flex; flex-direction: column;
+  align-items: center; gap: 14px; padding: 22px 24px 20px; }
+.sv-b-kopf { font-size: 18px; font-weight: 700; display: flex; gap: 12px; align-items: baseline; max-width: 100%; }
+.sv-b-kopf span { font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-b-bild { position: relative; flex: 1 1 0; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center;
+  background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.sv-b-bild img, .sv-b-bild video { width: 100%; height: 100%; object-fit: contain; }
+.sv-b-bild img.ist-startbild { filter: brightness(0.5) saturate(0.85); }
+.sv-b-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center;
+  color: #fff; font-size: 15px; font-weight: 600; text-shadow: 0 1px 6px rgba(0,0,0,.8); pointer-events: none; }
+.sv-b-text:empty { display: none; }
+.sv-b-fuss { width: min(560px, 100%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sv-b-balken { width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.sv-b-balken div { height: 100%; width: 0; background: var(--accent, #ff6b35); transition: width .4s ease; }
+.sv-b-status { font-size: 13px; color: var(--text-muted); min-height: 1.2em; text-align: center; }
+.sv-b-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .sv-hinweis { margin-top: 6px; font-size: 12px; line-height: 1.4; color: #f5c16c; }

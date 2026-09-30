@@ -35,6 +35,133 @@ from . import mapstyles as ms
 from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 
 _log = logging.getLogger("rzgps.tileproxy")
+
+# 30.09.2026 (Marc: 14-Minuten-Render, der spanische Luftbild-Dienst antwortete 140× mit 502) — gescheiterte
+# Kacheln merken: statt bei JEDEM Bild neu zu versuchen (und bis zur Zeitgrenze zu warten), liefert die Weiche
+# eine durchsichtige Ersatz-Kachel (darunter liegt Sentinel) und versucht es EINMAL im Hintergrund nach
+# NACHHOLEN_S Sekunden — klappt es, liegt die Kachel für die nächsten Male im Speicher. Die Ersatz-Kachel trägt
+# den Kopf ERSATZ_HEADER und wird NIE gespeichert (weder hier noch im Playwright-Speicher der Szene).
+import threading as _threading
+NACHHOLEN_S = 20.0
+ERSATZ_HEADER = "X-RZ-Ersatz"
+_LEER_PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63606060600000000500017aa857500000000049454e44ae426082")   # 1×1 durchsichtig
+_fehl_lock = _threading.Lock()
+_fehl: dict = {}          # (region, z, x, y, t) → {"t": zeitpunkt, "nachgeholt": bool}
+_stoerung: dict = {}      # region → {"name": str, "fehlend": set(), "nachgeholt": int}
+_geladen = {"bytes": 0, "kacheln": 0}   # 30.09.2026 — aus dem Netz geladen seit dem letzten Zurücksetzen (Log je Render)
+
+
+class _Ersatz(bytes):
+    """Ersatz-Kachel (nie speichern, nie im Browser zwischenspeichern)."""
+
+
+_LEER_ERSATZ = _Ersatz(_LEER_PNG)
+_ersatz_bild: dict = {}   # key → _Ersatz (aus der Elternkachel geschnitten), solange die Kachel fehlt
+
+
+def ist_ersatz(body: bytes) -> bool:
+    return isinstance(body, _Ersatz)
+
+
+_parallel_lock = _threading.Lock()
+_parallel: dict = {}      # region → Semaphore (region["max_parallel"])
+
+
+def _drossel(region: Optional[dict]):
+    """Höchstens region["max_parallel"] Abrufe zugleich beim Dienst (30.09.2026, PNOA: viele zugleich → 502)."""
+    n = int((region or {}).get("max_parallel") or 0)
+    if n <= 0:
+        return None
+    with _parallel_lock:
+        sem = _parallel.get(region["id"])
+        if sem is None:
+            sem = _parallel[region["id"]] = _threading.BoundedSemaphore(n)
+    return sem
+
+
+def _cache_suffix(region: Optional[dict], z: int) -> str:
+    return SEA_MASK_VERSION if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else ""
+
+
+def _eltern_ersatz(region_id: str, z: int, x: int, y: int, transparent: bool, cache_dir) -> Optional[bytes]:
+    """30.09.2026 (Marc: „die fehlenden Kacheln springen hin und her" — helle Sentinel-Flecken, die zwischen
+    zwei Zoomstufen blinken): Ersatz aus der nächstgröberen Kachel DESSELBEN Dienstes, die schon im Speicher
+    liegt (bis 4 Stufen), passendes Viertel/Sechzehntel ausgeschnitten und hochskaliert. Dasselbe Luftbild,
+    nur weicher — keine Farbkante, kein Blinken."""
+    if not cache_dir:
+        return None
+    region = next((r for r in ms.ORTHO_REGIONS if r["id"] == region_id), None)
+    if region is None:
+        return None
+    for k in range(1, 5):
+        pz = z - k
+        if pz < 0:
+            break
+        px, py = x >> k, y >> k
+        try:
+            cp = cache_path(Path(cache_dir), upstream_url(region, pz, px, py, transparent) + _cache_suffix(region, pz))
+            if not cp.exists():
+                continue
+            raw = cp.read_bytes(); nl = raw.index(b"\n")
+            from io import BytesIO
+            from PIL import Image
+            im = Image.open(BytesIO(raw[nl + 1:])).convert("RGBA")
+            w = im.size[0]; teil = w / (2 ** k)
+            ox, oy = (x - (px << k)) * teil, (y - (py << k)) * teil
+            aus = im.crop((int(round(ox)), int(round(oy)), int(round(ox + teil)), int(round(oy + teil)))).resize((w, w), Image.BILINEAR)
+            out = BytesIO(); aus.save(out, format="PNG", compress_level=3)
+            return out.getvalue()
+        except Exception as e:      # noqa: BLE001
+            _log.debug("Eltern-Ersatz z%d: %s", pz, e)
+    return None
+
+
+def _ersatz_fuer(key: tuple, cache_dir) -> bytes:
+    b = _ersatz_bild.get(key)
+    if b is None:
+        e = _eltern_ersatz(key[0], key[1], key[2], key[3], key[4], cache_dir)
+        b = _Ersatz(e) if e else _LEER_ERSATZ
+        if e:
+            _ersatz_bild[key] = b
+    return b
+
+
+def stoerungen() -> dict:
+    """Region → {name, fehlend (Anzahl Kacheln, die gerade fehlen), nachgeholt}. Für Render-Hinweis und Log."""
+    with _fehl_lock:
+        return {r: {"name": v["name"], "fehlend": len(v["fehlend"]), "nachgeholt": v["nachgeholt"]} for r, v in _stoerung.items()}
+
+
+def stoerungen_zuruecksetzen() -> None:
+    """Zu Beginn jedes Renders: Zähler leeren UND gemerkte Fehler vergessen (der Dienst bekommt eine neue Chance)."""
+    with _fehl_lock:
+        _stoerung.clear()
+        _fehl.clear()
+        _ersatz_bild.clear()
+        _geladen["bytes"] = 0; _geladen["kacheln"] = 0
+
+
+def geladen() -> dict:
+    """Über die Weiche aus dem Netz geladen seit dem letzten Zurücksetzen: {"bytes", "kacheln"}."""
+    with _fehl_lock:
+        return dict(_geladen)
+
+
+def _region_name(region_id: str) -> str:
+    r = next((x for x in ms.ORTHO_REGIONS if x.get("id") == region_id), None)
+    return ("Luftbild " + r["name"]) if (r and r.get("name")) else region_id
+
+
+def _fehler_merken(key: tuple, nachholen) -> None:
+    with _fehl_lock:
+        neu = key not in _fehl
+        _fehl[key] = {"t": time.time()}
+        st = _stoerung.setdefault(key[0], {"name": _region_name(key[0]), "fehlend": set(), "nachgeholt": 0})
+        st["fehlend"].add(key[1:])
+    if neu:
+        tm = _threading.Timer(NACHHOLEN_S, nachholen)
+        tm.daemon = True
+        tm.start()
 _UA = {"User-Agent": "ReisezoomGPSStudio (+https://reisezoom.com/gps)"}
 
 
@@ -337,7 +464,35 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
                cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
     """(status, content_type, body). 404 bei unbekannter Region, 502 wenn der
     Dienst nicht antwortet. Erfolgreiche Bilder landen im Zwischenspeicher.
-    `terrain-aws` = AWS-Terrarium mit Klemme (Meerestiefen → 0 m)."""
+    `terrain-aws` = AWS-Terrarium mit Klemme (Meerestiefen → 0 m).
+    Bild-Kacheln, die gescheitert sind: durchsichtige Ersatz-Kachel (`ist_ersatz`), einmal nachholen."""
+    key = (region_id, z, x, y, bool(transparent))
+    terrain_frage = region_id == ms.TERRAIN_AWS_PROXY_ID
+    if not terrain_frage:
+        with _fehl_lock:
+            f = _fehl.get(key)
+        if f is not None:
+            return 200, "image/png", _ersatz_fuer(key, cache_dir)      # gemerkt: nicht erneut warten
+    st, ct, body = _fetch_tile_roh(region_id, z, x, y, transparent, cache_dir, timeout)
+    if st == 502 and not terrain_frage:
+        def nachholen():
+            s2, _c2, _b2 = _fetch_tile_roh(region_id, z, x, y, transparent, cache_dir, timeout)
+            with _fehl_lock:
+                if s2 == 200:
+                    _fehl.pop(key, None); _ersatz_bild.pop(key, None)
+                    sr = _stoerung.get(region_id)
+                    if sr is not None:
+                        sr["fehlend"].discard(key[1:]); sr["nachgeholt"] += 1
+                else:
+                    _fehl[key] = {"t": time.time()}
+            _log.info("Kachel %s z%d/%d/%d nachgeholt: %s", region_id, z, x, y, "ok" if s2 == 200 else f"weiter Fehler {s2}")
+        _fehler_merken(key, nachholen)
+        return 200, "image/png", _ersatz_fuer(key, cache_dir)
+    return st, ct, body
+
+
+def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
+                    cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
     if z < 0 or z > 22:
         return 404, "text/plain", b"bad zoom"
     terrain = region_id == ms.TERRAIN_AWS_PROXY_ID
@@ -362,16 +517,30 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
             pass
     from . import net
     body = b""; ct = ""; fehler = None
-    for _versuch in range(2):                   # 04.09.2026: einmal wiederholen — unter Last kippten einzelne AWS-Kacheln mit 502
+    # 30.09.2026 (Marc, MacBook: der spanische Dienst antwortete bei vielen gleichzeitigen Anfragen mit 502 — zwei
+    # Szene-Seiten × 16 Anfragen): höchstens region["max_parallel"] Abrufe zugleich, bei 5xx neuer Versuch nach 1 s / 2 s.
+    _sem = _drossel(region)
+    for _versuch in range(3):                   # 04.09.2026: wiederholen — unter Last kippten einzelne Kacheln mit 502
         try:
-            req = urllib.request.Request(url, headers=_UA)
-            with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
-                ct = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-                body = resp.read()
+            if _sem is not None:
+                _sem.acquire()
+            try:
+                req = urllib.request.Request(url, headers=_UA)
+                with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
+                    ct = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                    body = resp.read()
+            finally:
+                if _sem is not None:
+                    _sem.release()
             fehler = None
+            with _fehl_lock:
+                _geladen["bytes"] += len(body); _geladen["kacheln"] += 1
             break
         except Exception as e:      # noqa: BLE001
             fehler = e
+            code = getattr(e, "code", None)
+            if _versuch < 2 and (code is None or int(code) >= 500):
+                time.sleep(1.0 * (_versuch + 1))
     if fehler is not None:
         _log.warning("Kachel %s z%d/%d/%d: %s", region_id, z, x, y, fehler)
         return 502, "text/plain", str(fehler).encode("utf-8", "ignore")

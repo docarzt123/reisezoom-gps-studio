@@ -839,7 +839,12 @@ calm even for a short video of a long, twisty route, the quick video smooths thr
 arrow turns instead of flipping) and the camera heading (from the smoothed direction of travel, plus the
 calm camera). The heading ends up as ordinary keyframes in the timeline, so you can change it.
 
-**Render video** shows you live how the video is made. When it is done, **"💾 Save …"** puts it wherever
+**Since v0.9.748:** the camera flies closer and looks down more steeply (45° instead of 55°, half a level closer) —
+more over the track, hardly any horizon. The arrow points exactly in the direction the drawn line is coming from;
+the line is smoothed a little more for this. In tight hairpins the arrow therefore turns visibly — just as the
+line really runs.
+
+**Render video** opens, since v0.9.744, a quick-video screen of its own over the whole app: the tour name at the top, in the middle first the map image of your tour with the current step (creating the project, loading the map, prewarming tiles …), then the video as it is being made, below it the progress and "Cancel". The Animator works invisibly behind it — you don't need to do anything there. **Close** takes you back to the archive, **Open in the Animator** shows the project for further editing. When it is done, **"💾 Save …"** puts it wherever
 you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, Mail, Photos …); on Windows
 the folder with the video opens.
 
@@ -1767,6 +1772,7 @@ render.
 - **Camera follows track** — the camera stays on the moving point instead of on the whole route.
   - **Camera inertia** (appears then) — soft trailing instead of hard sticking to the point (against GPS jitter).
   - **Smooth camera path** (since v0.9.741, 0–1000 m) — the camera looks at a smoothed path instead of every kink of the track; in fast videos of twisty routes the map stops jerking back and forth. The point drifts a little around the centre instead. 0 = exactly above the point.
+- **Points** (Track section) — simplifies the track: left = few points with straight connections. Since v0.9.743 line, moving point/arrow and camera follow this simplified track when scrubbing, in the test run and in the finished video (before, only the resting line showed it). It hardly makes rendering faster — the time mostly goes into loading map tiles. The slider has no effect on journeys with several stages.
 - **Smooth track** (Track section, below "Points", since v0.9.741, 0–200 m) — removes GPS jitter and small zigzags. Line, moving point/arrow, camera and the faint whole route then use the smoothed track. 0 = original track.
 - **Terrain exaggeration** 0–4× — how pronounced the mountains look
 
@@ -1961,6 +1967,12 @@ During the render you see the frame currently being produced in the preview wind
 
 ### Preview = video (since v0.9.658) ⭐
 Since v0.9.658 the finished video is literally the preview in high resolution: the same map, the same lines, dashes, signs, overlays and the same camera path, just drawn at the video's pixel density. What you see in the test run is what you get — line widths and sign sizes in the video are exactly as large **relative to the frame width** as in the preview. Tip: judge the preview at the window size you render with; a much wider window shows (and renders) the signs a little smaller in relation to the picture.
+
+**When a map service fails (since v0.9.745):** if an aerial imagery service returns no tiles while rendering (server error), the app no longer waits for them on every frame: since v0.9.747 the app fills the spot with the matching part of the next coarser tile of the same aerial imagery (a little softer but the same colours — no pale patches, no flicker); only if that is missing too does the Sentinel satellite image show through. The tile is quietly retried once after 20 seconds. The progress then says e.g. "⚠️ Aerial imagery Spain is not responding – 12 tiles missing, rendering continues". So you know why something looks softer, and the render no longer stalls (before: up to 5 seconds of waiting per frame).
+
+**No more black picture at the start (since v0.9.744):** until the first frame is rendered, the progress area shows the map image that was in the preview when you clicked "Render video" — dimmed, with the current step on top. Then the live image takes over.
+
+**Loading ahead while rendering (since v0.9.746):** while the video is made frame by frame, a second, invisible "forerunner" runs a few seconds ahead of the camera path and already loads the map tiles for the next frames. Prewarming before the first frame is no longer needed. Measured with an empty tile cache (20 s portrait video): 164 instead of 314 seconds; with a filled cache about as fast as before. This applies to every video from the Animator, Travel route and Tour map.
 
 **Prewarming tiles (faster since v0.9.742):** before the first frame the render loads the map tiles along the camera path — first coarsely across the whole video, then finer. It takes at most 45 seconds and shows its progress as "prewarming tiles 12 of 120". When you render the same place again most of it is already cached and it continues after a few seconds. Measured with an empty cache (20 s portrait video): prewarming 45 s instead of 104 s, whole render 185 s instead of 226 s.
 

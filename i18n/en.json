@@ -344,7 +344,7 @@
   "animator.playwright_missing.installing": "Downloading browser (~150 MB, this may take a moment) …",
   "animator.playwright_missing.success": "Browser ready — render starts.",
   "animator.playwright_missing.title": "Render browser missing",
-  "animator.point_count.hint": "Default is all points from your GPX. Drag the slider left to make the track coarser — the preview updates live. Affects render: fewer points = slightly faster. Render time depends mostly on duration × FPS × resolution. Note: the trial run still shows the full point density — the reduction applies to the rendered video (and the still preview of the line).",
+  "animator.point_count.hint": "By default all points from your GPX are used. Drag the slider to the left to make the track coarser: line, moving point/arrow and camera then follow the simplified track — the same when scrubbing, in the test run and in the finished video. Render time hardly changes; it mostly depends on loading the map tiles.",
   "animator.pos.bc": "↧ bottom",
   "animator.pos.bcw": "↧ bottom wide",
   "animator.pos.bl": "↙ bottom left",
@@ -4635,5 +4635,13 @@
   "animator.field.follow_glatt": "Smooth camera path",
   "animator.field.follow_glatt_tip": "0 = camera exactly above the point; higher = it looks at a smoothed path and doesn't swing with every bend",
   "szene.vorwaermen_n": "Scene: prewarming tiles {i} of {n} …",
-  "menu.reveal_log": "Show Log File in Finder"
+  "menu.reveal_log": "Show Log File in Finder",
+  "schnell.b.anlegen": "Creating the project …",
+  "schnell.b.karte": "Loading the map …",
+  "schnell.b.start": "Starting the video …",
+  "schnell.b.fertig": "✓ Your video is ready",
+  "schnell.b.fehler": "The video could not be created. Details are in the error window.",
+  "szene.kacheln_fehlen": "⚠️ {dienst} is not responding – {n} tiles missing, rendering continues",
+  "szene.luftbild": "Aerial imagery {name}",
+  "szene.kartendienst": "Map service {name}"
 }

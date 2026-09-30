@@ -4414,6 +4414,60 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Vorläufer im Szenen-Render (30.09.2026, v0.9.746)
+
+- `szene._vorlaeufer(p, cfg, api, projekt_id, params, modul, zustand, is_cancelled)`: zweite Seite über
+  `_seite_vorbereiten` (eigenes Chromium, gleicher Viewport/DSF → gleiche Kacheln), Probelauf im Schrittmodus, dann
+  Schleife: `pos` ≥ `zustand["bild"] + VORLAEUFER_MIN_VORSPRUNG` (12), ≤ `bild + VORLAEUFER_VORSPRUNG` (300), Schritt
+  `VORLAEUFER_SCHRITT` (6, `RZ_VORLAEUFER_SCHRITT`), je Halt `seek` + `_WARTE_VORLAEUFER_JS` (Idle-Grenze
+  `RZ_VORLAEUFER_MS`, Standard 500 ms). `render_szene` startet ihn als Task VOR der Hauptseite, setzt `_vl["bild"]`
+  je Bild und `_vl["ende"]` nach der Längenkorrektur, stoppt/erwartet ihn im `finally` (15 s). Mit Vorläufer
+  `_vorwaermen` = 0 (außer `RZ_VORWAERMEN`). `RZ_VORLAEUFER=0` schaltet ab. Logzeilen: `Vorläufer bereit nach … s`,
+  `Vorläufer: n Halte in … s`.
+- Warum so: Tile-Proxy (`fetch_tile`) und Playwright-Route (`_install_tile_cache`) laden und speichern eine Kachel
+  auch dann fertig, wenn die Karte die Anfrage abbricht — der Vorläufer muss nur Anfragen auslösen.
+- Kacheldichte im Render (`__rzRenderMode.kachelStufen` ← `params.kachel_stufen` / `RZ_KACHEL_STUFEN`, liest
+  `rzApplyPreviewQuality`): 0 = keine Verfeinerung nach Pixelmaßstab. Standard aus (−20 % Zeit, sichtbar weicher).
+- Wächter: `tests/test_vorlaeufer.py` (langsam), `tests/test_vorwaermen.py` (Rückfallweg ohne Vorläufer).
+
+## Kartendienst-Ausfall und Zeit je Bild (30.09.2026, v0.9.745)
+
+- **Weiche** (`core/tileproxy.py`): `fetch_tile` = Hülle um `_fetch_tile_roh`. Bild-Kachel gescheitert → Ersatz
+  (`_Ersatz`-bytes, `ist_ersatz(body)`): seit v0.9.747 `_eltern_ersatz` = passender Ausschnitt der nächstgröberen
+  Kachel desselben Dienstes aus dem Speicher (bis 4 Stufen, `_cache_suffix` wie beim Speichern), je Schlüssel
+  gemerkt in `_ersatz_bild` (gleiche Bytes → kein Blinken); ohne Elternkachel `_LEER_ERSATZ` (1×1 durchsichtig).
+  `_drossel(region)`: Semaphore je Region (`max_parallel`, `es` = 6), 5xx → neuer Versuch nach 1 s / 2 s. Früher: `_LEER_PNG`
+  (1×1 durchsichtig), gemerkt in `_fehl` (Schlüssel region,z,x,y,t), `threading.Timer(NACHHOLEN_S)`
+  holt EINMAL nach (ok → aus `_fehl`, `_stoerung[region].nachgeholt += 1`, Kachel im Speicher). Gelände (`terrain-aws`)
+  behält 502. `stoerungen()` (Region → name „Luftbild <Land>", fehlend, nachgeholt), `stoerungen_zuruecksetzen()` leert
+  Zähler UND `_fehl` (Szene ruft es vor `_install_tile_cache`). app.py-Handler: Ersatz → `Cache-Control: no-store` +
+  `X-RZ-Ersatz: 1`.
+- **Szene-Route** (`animator._install_tile_cache`): Antwort mit `x-rz-ersatz` → durchreichen, nie speichern
+  (`stats["ersatz"]`); 429/502/503/504 nach den drei Versuchen → `_fehl_url[url]`, 20 s lang `route.abort()`;
+  `stats["aus"]` Host → Adressen. Log über `szene._stats_json` (Mengen → Anzahl).
+- **Hinweis**: `szene._stoerung_hinweis(page)` hängt „⚠️ Kartendienst … – n Kacheln fehlen, es geht weiter“ an die
+  Fortschrittszeile (Vorwärmen je Halt, Bilder alle 10 Bilder neu berechnet), am Ende `Szene: Kartendienste mit Ausfällen`.
+- **Zeit je Bild**: Summen `_z` in der Bildschleife → `Szene: Zeit je Bild … ms (springen · warten auf Karte · Bild
+  greifen · schreiben)`. `_WARTE_BILD_JS` feste Pause über `RZ_BILD_RUHE_MS` (Standard 60) — nur zum Messen.
+- Wächter: `tests/test_kachel_ausfall.py`.
+
+## Schnell-Video-Bildschirm und Startbild im Render-Fortschritt (30.09.2026, v0.9.744)
+
+- **`buehne(titel)`** (`ui/js/schnellvideo.js`): fester Layer `#sv-buehne` (z-index 900 < Modale 1000) mit
+  `schritt/fortschritt/startbild/livebild/fertig/fehler/zu`. „Video rendern" im Dialog: Dialog zu, Bühne auf,
+  `schnellvideo_anlegen` direkt (kein rzWarten-Modal), Projekt öffnen wie bisher (unsichtbar dahinter), nach
+  `__rzSchnellBereit` + 1,5 s `__rzKartenBild()` als Startbild, `__rzSchnellKamera`, `__rzSchnellRender({…, buehne: true})`.
+- **`buehneVerfolgen(B, name)`**: pollt `animator_status` (500 ms); bis `running` einmal wahr war, wird der Stand
+  ignoriert (alter Render), nach 20 s ohne Start → Fehler. Fertig: `serve_media` → `<video>`, Speichern
+  (`pick_save_path` + `datei_speichern_unter`), Teilen (`datei_teilen`), „Im Animator öffnen" (Bühne zu),
+  „Schließen" (Bühne zu, `switchMod("library")`). Abbrechen → `animator_cancel`.
+- **Startbild im Animator-Fortschritt**: `_kartenBild()` (module.js, `window.__rzKartenBild`) liest das Canvas im
+  `render`-Ereignis (ohne preserveDrawingBuffer), `triggerRepaint`, 1,5 s Grenze. Der Render-Klick holt es als
+  Allererstes; `#anim-preview.ist-startbild` (gedimmt), `#anim-preview-placeholder.ueber-bild` zeigt `s.status`,
+  bis `preview_b64` kommt. Gilt für Animator und Tour-Map.
+- Wächter: `tests/test_schnellvideo.py` Abschnitt I (Render-Status nachgespielt über eine Proxy-Hülle um
+  `pywebview.api`).
+
 ## Spur glätten, Pfeilrichtung, Folgepunkt, Verfolgerkamera (29.09.2026, v0.9.741)
 
 - **Spur glätten** `spur_glaetten_m` (Projekt/Regler `#anim-spur-glatt`): `drawPreview` hält die Rohspur in
@@ -4421,6 +4475,10 @@ Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
   Fenster je Punkt symmetrisch auf den Abstand zu Start/Ende gekürzt → Enden exakt, Punktzahl gleich). `_spurNeu`
   zieht Linie, Ghost, Laufpunkt nach. Klassischer Render: `animator.spur_glaetten` in `_punkte_verteilen` (Wrapper um
   `_punkte_verteilen_roh`). Bei Reisen (`_reiseGilt`) aus.
+- **Pfeilrichtung aus dem Rückblick** (30.09.2026, v0.9.748) `kursRueckblickAn(coords, f, meter)` (util.js): Peilung vom
+  Punkt `meter` zurück (entlang der Strecke, Streckenlängen je coords-Liste im WeakMap-Cache, Binärsuche) zur
+  Position am gebrochenen Index; am Anfang vorwärts. Aktiv, wenn `marker_dot_rueckblick_m` > 0 (Schnell-Video: ¾ der
+  Spur-Glättung). Klassischer Render ohne Spiegel (nur Alpha-Export).
 - **Pfeilrichtung** `kursReihe`/`kursGlattAn` (util.js): `kursAusSpur` je Punkt, abgewickelt, Gauß über die
   Strecke (σ = Ruhe-Basis bzw. `marker_dot_glatt_m`), Abfrage am gebrochenen Index; Cache je coords-Liste (WeakMap).
   Render-Spiegel: `__rzKurs` (Cache) + `__rzKursRoh`, `KURS_SIGMA_M`.
@@ -4436,8 +4494,12 @@ Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
   `_previewRaf` oder `__rzStepMode` gesetzt ist — vorher landete die Gesamtsicht zeitversetzt zwischen zwei Bildern.
 - **Prüfstand:** `window.__rzDotZuletzt` (Lage + Richtung des Laufpunkts), `window.__rzKursKeyframes`.
   Wächter: `tests/test_schnellvideo.py` (H), `tests/test_schnellvideo_ruhe.py` (Szene Bild für Bild gemessen).
-- **Bekannt, nicht angefasst:** Der Regler „Punkte" (`point_count`) wirkt im Probelauf/Szenen-Render nur auf die
-  ruhende Linie; die laufende Linie, Laufpunkt und Kamera nutzen immer die 800 Vorschau-Punkte.
+- **Punkte-Regler (30.09.2026, v0.9.743):** `_punkteZiel(n)` (bis 800 der Reglerwert direkt, darüber anteilig) und
+  `_punkteReduziert(roh)` — gleiche Punktzahl, behaltene Punkte (`round(k·step)`) an ihrem Index, gerade Verbindungen
+  dazwischen. `_spurAnwenden(roh)` = glätten(reduzieren(roh)); `applyPointCountToPreview` → `_spurNeu()`. `_spurRoh`
+  ist oben bei `_previewRaf` deklariert (die Modul-Funktion ist asynchron; ein `var … = null` weiter unten setzte
+  die Rohspur nach `drawPreview` zurück). Bei Reisen (`_reiseGilt`) keine Wirkung. Prüfstand `window.__rzSpurStand()`,
+  `window.__rzPunkteReduziert`. Wächter `tests/test_punkte_regler.py`.
 
 ## Gemeinsame Szene: Render = Vorschau in Videogröße — `core/szene.py` (06.09.2026)
 
