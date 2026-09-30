@@ -1552,8 +1552,7 @@ def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: lis
     )
     page = _re.sub(r"<style>.*?</style>", lambda m: new_style, page, count=1, flags=_re.S)
     page = page.replace('preserveAspectRatio="none"', 'preserveAspectRatio="xMidYMid meet"', 1)
-    # 29.09.2026 — Seitentitel der exportierten Datei in der App-Sprache
-    import html as _h
+    # 29.09.2026 — Seitentitel der exportierten Datei in der App-Sprache (_h = html, oben importiert)
     _titel = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("heightanim.export.titel", "Datenprofil")
     page = page.replace("<title>height-render</title>", "<title>" + _h.escape(_titel) + "</title>", 1)
     dur_ms = max(100.0, float(cfg.duration_s) * 1000.0)
