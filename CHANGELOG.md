@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.751** (30.09.2026, built locally): highlights are now normal signs, five new sign styles (key figure: label + value + symbol), sign announcement dot.
+
+### Changed
+- **Highlights are signs now** (Marc: "do it as signs … and keep the current look too, then we have different styles right away"). The separate overlay layer from 0.9.750 is gone. "Highlights" in the Animator creates **automatic signs** (`auto` = kind, `auto_sig` = fingerprint at creation): `_hlSchilderAbgleichen` replaces/removes unchanged ones when the track (load, smoothing) or the selection/style/colours change; a sign edited by hand no longer matches its fingerprint, stays, and that kind is not set again. Editable in the sign list, the timeline sign track, ⌘Z; shown by preview, scene and classic render like every sign. Never written inside the render page. Quick video: signs are created before the render starts (`__rzSchnellBereit`, project flushed immediately).
+- Highlights group: **look** (five styles) and **colours** ("one per kind": yellow/red/blue/green/purple, or "one for all" with a colour); quick video uses "Pill" in one colour.
+
+### Added
+- **Five key-figure sign styles** in the shared engine (`ui/js/sign_draw.js`, `rzDrawHighlight`): Pill, Box with pin, Round with card, Shape with frame (shape per kind), Brush stroke — first line = label (upper case), second = value with small unit, new sign field `icon` (highest point, steepest, speed, halfway, waypoint; Path2D). Image is symmetric around the geo point (anchor bottom centre). Editor: new style group, symbol and colour; the DOM editor shows the canvas image (pixel-equal). Classic render whitelist carries `icon`.
+- **Sign announcement** (sign field `vorschau_s`, seconds): a small dot in the sign colour appears before the sign, at the frame edge while the spot is off-screen, and fades into the sign (`_vorankuendigung`, preview/scene only). Auto highlight signs use 2.5 s.
+- `tests/test_track_highlights.py`: engine (all five styles, anchor), auto signs (style, colour per kind, symbol, two lines), second pass changes nothing, hand-edited sign stays without duplicate, announcement dot before/after.
+
 ### Fixed
 - **Error message "Fehler beim Initialisieren" after a quick video without rendering** (Marc, log 30.09.2026 20:50): the quick video opens the project via the archive and moves straight on to the Animator; the archive's tour list was still loading and then wrote into its detail column, which no longer existed (`box.innerHTML` on null). `renderDetail` / `renderMulti` in the library module now stop when the column is gone; `tests/test_schnellvideo.py` checks it.
 

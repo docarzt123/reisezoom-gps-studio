@@ -1179,6 +1179,25 @@ function mountAnimator(body, headerActions, opts) {
                 <span>⭐ ${t("animator.hl.title", "Highlights")}</span>
               </label>
               <div class="muted-note" style="margin-top:4px">${t("animator.hl.hint", "Besondere Stellen der Tour erscheinen im Video an der Karte, kurz bevor der Punkt sie erreicht.")}</div>
+              <div class="ov-style-row" style="margin-top:6px">
+                <label for="anim-hl-stil">${t("animator.hl.stil", "Aussehen")}</label>
+                <select id="anim-hl-stil" class="pos-select">
+                  <option value="pille">${t("signs.style.pille", "Pille")}</option>
+                  <option value="hl_pin">${t("signs.style.hl_pin", "Kasten mit Stecknadel")}</option>
+                  <option value="hl_rund">${t("signs.style.hl_rund", "Rund mit Karte")}</option>
+                  <option value="hl_form">${t("signs.style.hl_form", "Form mit Rahmen")}</option>
+                  <option value="hl_pinsel">${t("signs.style.hl_pinsel", "Pinselstrich")}</option>
+                </select>
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-hl-farbmodus">${t("animator.hl.farben", "Farben")}</label>
+                <select id="anim-hl-farbmodus" class="pos-select">
+                  <option value="art">${t("animator.hl.farben_art", "je Art eigene")}</option>
+                  <option value="eine">${t("animator.hl.farben_eine", "eine für alle")}</option>
+                </select>
+                <input type="color" id="anim-hl-farbe" value="#ffc21a" title="${t("animator.hl.farbe", "Farbe für alle")}">
+              </div>
+              <div class="muted-note">${t("animator.hl.schilder_hint", "Die Highlights werden Schilder: in der Schilder-Liste änderbar. Von Hand geänderte bleiben, die übrigen passt die App an, wenn sich Track oder Auswahl ändern.")}</div>
               <div id="anim-hl-arten" class="anim-hl-arten">
                 ${["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"].map(a => `<label><input type="checkbox" data-hl-art="${a}" checked> ${
                   { hoechster: t("animator.hl.hoechster", "Höchster Punkt"), steilste: t("animator.hl.steilste", "Steilste Stelle"),
@@ -2879,8 +2898,12 @@ function mountAnimator(body, headerActions, opts) {
   const _ovNeu = () => { try { renderOverlayPreview(); _ovExtraListe(); } catch (_) {} };
   bindSetting("anim-ov-skin", _MODKEY, "overlay_skin", { onChange: _ovNeu });
   // 30.09.2026 — Highlights: Schalter + Auswahl (Liste der Arten, eigene Anbindung)
-  const _hlNeu = () => { if (_hlCache) _hlCache.key = ""; try { if (_hlLetztT != null) _hlAnwenden(_hlLetztT); } catch (_) {} };
+  const _hlNeu = () => { try { _hlSchilderAbgleichen(false); } catch (e) { applog("warn", "[hl] " + e); } };
   bindSetting("anim-hl-on", _MODKEY, "highlights_enabled", { type: "bool", onChange: _hlNeu });
+  bindSetting("anim-hl-stil", _MODKEY, "highlights_stil", { onChange: _hlNeu });
+  const _hlFarbSync = () => { const m = document.getElementById("anim-hl-farbmodus"), f = document.getElementById("anim-hl-farbe"); if (m && f) f.hidden = m.value !== "eine"; };
+  bindSetting("anim-hl-farbmodus", _MODKEY, "highlights_farbmodus", { onLoad: _hlFarbSync, onChange: () => { _hlFarbSync(); _hlNeu(); } });
+  bindSetting("anim-hl-farbe", _MODKEY, "highlights_farbe", { onChange: _hlNeu });
   (function bindHlArten() {
     const box = document.getElementById("anim-hl-arten");
     if (!box) return;
@@ -11435,6 +11458,26 @@ function mountAnimator(body, headerActions, opts) {
       _animSignLastAnchorM = M;
       if (_animSignEditMode) _animSignsApplyDOM(M);
       else _animSignsApplyGPU(M);
+      try { _animSignsVorankuendigung(M); } catch (_) {}
+    }
+    // 30.09.2026 — Vorankündigung (`vorschau_s`): Punkt vor dem Schild, siehe _vorankuendigung.
+    const _vkAnker = new WeakMap();
+    function _animSignsVorankuendigung(M) {
+      const vk = window.__rzVorankuendigung;
+      if (!vk) return;
+      if (_animSignsPreviewAll || _isStaticFrame || _animSignEditMode || !(M >= -1)) { vk([]); return; }
+      const dur = Math.max(0.1, _animSignsDuration()), bl = 0.35 / dur, pkt = [];
+      for (const sn of _animSignsList()) {
+        const vs = Number(sn && sn.vorschau_s) || 0;
+        if (vs <= 0 || sn.visible === false || sn.alwaysVisible) continue;
+        let A = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _vkAnker.get(sn);
+        if (A == null) { A = _animSignAnchorForLngLat(sn.lon, sn.lat); _vkAnker.set(sn, A); }
+        const zeigen = A - (Number(sn.before) || 0) / dur, von = zeigen - vs / dur;
+        if (M < von || M > zeigen + bl) continue;
+        const op = Math.min(Math.max(0, Math.min(1, (M - von) / bl)), Math.max(0, Math.min(1, (zeigen + bl - M) / bl)));
+        if (op > 0.001) pkt.push({ lon: sn.lon, lat: sn.lat, farbe: sn.color, op });
+      }
+      vk(pkt);
     }
     // GPU-Modus: Sichtbarkeits-Fenster via setFilter + Fade via feature-state.
     function _animSignsApplyGPU(M) {
@@ -11994,7 +12037,22 @@ function mountAnimator(body, headerActions, opts) {
               <option value="pin"${sel("pin", c.style)}>${t("signs.style.pin", "Stecknadel")}</option>
               <option value="signpost"${sel("signpost", c.style)}>${t("signs.style.signpost", "Wegweiser")}</option>
               <option value="plain"${sel("plain", c.style)}>${t("signs.style.plain", "Schlicht (Box)")}</option>
+              <optgroup label="${t("signs.style.grp_hl", "Kennzahl (Beschriftung ↵ Wert)")}">
+                <option value="pille"${sel("pille", c.style)}>${t("signs.style.pille", "Pille")}</option>
+                <option value="hl_pin"${sel("hl_pin", c.style)}>${t("signs.style.hl_pin", "Kasten mit Stecknadel")}</option>
+                <option value="hl_rund"${sel("hl_rund", c.style)}>${t("signs.style.hl_rund", "Rund mit Karte")}</option>
+                <option value="hl_form"${sel("hl_form", c.style)}>${t("signs.style.hl_form", "Form mit Rahmen")}</option>
+                <option value="hl_pinsel"${sel("hl_pinsel", c.style)}>${t("signs.style.hl_pinsel", "Pinselstrich")}</option>
+              </optgroup>
             </select>
+            <!-- 30.09.2026 — Kennzahl-Stile: Symbol + Farbe je Schild -->
+            <label class="se-hl-row" style="${_istHlStil(c.style) ? "" : "display:none;"}">${t("signs.icon", "Symbol")}</label>
+            <select id="se-icon" class="se-hl-row" style="${_istHlStil(c.style) ? "" : "display:none;"}">
+              <option value=""${sel("", c.icon || "")}>${t("signs.icon_none", "keins")}</option>
+              ${HL_ARTEN.map(a => `<option value="${a}"${sel(a, c.icon || "")}>${_hlText(a)}</option>`).join("")}
+            </select>
+            <label class="se-hl-row" style="${_istHlStil(c.style) ? "" : "display:none;"}">${t("signs.hl_color", "Farbe")}</label>
+            <input type="color" id="se-hlcolor" class="se-hl-row" value="${_animEscapeHtml(/^#[0-9a-f]{6}$/i.test(c.color || "") ? c.color : "#ffc21a")}" style="${_istHlStil(c.style) ? "" : "display:none;"}">
             <!-- 25.09.2026 (Beta-Tester) — „Hintergrund“ war beim Foto-Schild in Wahrheit der farbige
                  Rahmen ums Foto (die Schildfläche), „Rahmen“ der äußere Rand darum. Jetzt:
                  Schildfarbe · Deckkraft Schildfarbe · Außenrand. -->
@@ -12167,6 +12225,8 @@ function mountAnimator(body, headerActions, opts) {
         const patch = {
           text: $("#se-text").value || "",
           style: $("#se-style").value,
+          icon: ($("#se-icon") || {}).value || "",
+          ...(_istHlStil($("#se-style").value) && $("#se-hlcolor") ? { color: $("#se-hlcolor").value } : {}),
           bg: $("#se-bg").dataset.none === "1" ? "none" : $("#se-bg").value,
           accent: ($("#se-ac") && $("#se-ac").dataset.auto === "1") ? "auto"
                 : (($("#se-ac") || {}).value || "auto"),
@@ -12265,6 +12325,7 @@ function mountAnimator(body, headerActions, opts) {
       // Stangen). Beim Form-Wechsel ein-/ausblenden.
       { const _seStyle = $("#se-style");
         if (_seStyle) _seStyle.addEventListener("change", () => {
+          panel.querySelectorAll(".se-hl-row").forEach(e => { e.style.display = _istHlStil(_seStyle.value) ? "" : "none"; });
           const showDeco = (_seStyle.value === "banner" || _seStyle.value === "signpost");
           const lbl = $("#se-deco-label"), inp = $("#se-deco");
           if (lbl) lbl.style.display = showDeco ? "" : "none";
@@ -15041,7 +15102,10 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const b = document.getElementById("anim-render");
-      return !!(map && map.loaded && map.loaded() && currentGpx && p && p.id === pid && !_animToursLaufend && b && !b.disabled);
+      const ok = !!(map && map.loaded && map.loaded() && currentGpx && p && p.id === pid && !_animToursLaufend && b && !b.disabled);
+      // 30.09.2026 — Highlight-Schilder stehen VOR dem Render im Projekt (die Szene lädt es neu)
+      if (ok && window.__rzAnimSigns) { _hlSchilderAbgleichen(true); if (typeof _projectRootFlushNow === "function") _projectRootFlushNow(); }
+      return ok && !!window.__rzAnimSigns;
     } catch (_) { return false; }
   };
   window.__rzSchnellKarte = { anwenden: (s) => _skAnwenden(s), cfg: () => _skCfg() };   // Prüfstand
@@ -15547,25 +15611,12 @@ function mountAnimator(body, headerActions, opts) {
     return tab;
   }
   // ── ⭐ Highlights aus dem Track (30.09.2026, Marc: „die POIs, die man direkt aus dem
-  // Track ziehen kann, genau so wie es bei Komoot auch ist") ──────────────────────
-  // Höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke, GPX-Wegpunkte.
-  // An der Karte verankert: kurz vorher ein gelber Punkt (am Bildrand, solange die
-  // Stelle noch nicht im Bild ist), dann Stecknadel + dunkle Pille mit gelber
-  // Beschriftung und großem Wert, nach der Stelle wieder weg. Läuft über
-  // _ovTimingAt, also im Probelauf und im Szene-Render gleich. Der klassische Render
-  // (nur noch Alpha-Export ohne Karte) zeigt keine Highlights.
+  // Track ziehen kann, genau so wie es bei Komoot auch ist" — dann: „mach das als Schilder")
+  // Höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke, GPX-Wegpunkte werden
+  // zu normalen, automatisch gepflegten Schildern (Kennzahl-Stile in sign_draw.js):
+  // editierbar, in der Liste und Zeitleiste, in Vorschau, Szene und klassischem Render.
   const HL_ARTEN = ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"];
-  const HL_VOR_S = 1.6, HL_NACH_S = 1.6, HL_BLENDE_S = 0.35, HL_VORSCHAU_S = 2.5;
-  const HL_ICON = {
-    hoechster: '<path d="M7 20V4M7 5h10l-2.6 3.8L17 12.6H7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>',
-    steilste: '<path d="M3.5 19.5L20.5 6v13.5z" fill="currentColor"/>',
-    schnellste: '<path d="M4.5 16.5a7.5 7.5 0 0 1 15 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 16.5l4.2-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
-    halbe: '<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/>',
-    wegpunkte: '<circle cx="12" cy="10" r="3.2" fill="currentColor"/><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="2"/>',
-  };
-  // var statt let: die Anbindung der Schalter steht weiter oben im Aufbau (Totzone).
-  var _hlCache = { key: "", liste: [] };
-  var _hlLetztT = null;
+  function _istHlStil(st) { return ["pille", "hl_pin", "hl_rund", "hl_form", "hl_pinsel"].includes(st); }
   function _hlEin() {
     return !_isStaticFrame && !!document.getElementById("anim-hl-on")?.checked;
   }
@@ -15646,26 +15697,61 @@ function mountAnimator(body, headerActions, opts) {
     }
     return bleibt.sort((a, b) => a.f - b.f);
   }
-  function _hlListe() {
-    const sr = _ovSeries, co = currentCoords;
-    if (!_hlEin() || !sr || !co) return [];
-    const arten = _hlArtenGewaehlt();
-    const key = arten.join(",") + "|" + co.length + "|" + (sr.cumDistM ? sr.cumDistM.length : 0) + "|" + (co[0] || []).join(",") + "|" + (co[co.length - 1] || []).join(",");
-    if (_hlCache.key === key && _hlCache.ref === sr && _hlCache.co === co) return _hlCache.liste;
-    let liste = [];
-    try { liste = _hlBerechnen(sr, co, arten); } catch (e) { applog("warn", "[hl] Berechnung: " + e); }
-    _hlCache = { key, ref: sr, co, liste };
-    return liste;
+  /** Automatische Schilder aus den Highlights abgleichen (30.09.2026, Marc: „mach das
+   *  als Schilder"). Auto-Schilder tragen `auto` (Art, bei Wegpunkten „wegpunkte:<Name>")
+   *  und `auto_sig` (Fingerabdruck beim Anlegen). Unverändert → wird ersetzt/entfernt;
+   *  von Hand geändert (Fingerabdruck passt nicht mehr) → bleibt als eigenes Schild stehen
+   *  und diese Art wird nicht neu gesetzt. `leise`: ohne ⌘Z-Schritt (beim Öffnen).
+   *  Im Render-Fenster (Szene) wird nie geschrieben. */
+  const HL_SCHILD = { before: 1.6, after: 1.6, entry: "both", entry_s: 0.35, exit: "fade", exit_s: 0.35,
+                      vorschau_s: 2.5, anchorMode: "track", zoomScale: false, visible: true };
+  function _hlSig(s) {
+    return [s.text, (+s.lat).toFixed(6), (+s.lon).toFixed(6), s.style, s.size, s.color, s.icon || "",
+            s.visible === false ? 0 : 1, +s.before || 0, +s.after || 0].join("|");
   }
-  /** Streckenanteil → Videosekunde (Tabelle aus _ovStreckeZeit, linear dazwischen). */
-  function _hlSekunde(tab, f) {
-    if (!tab || !tab.length) return null;
-    if (f <= tab[0][0]) return tab[0][1];
-    let lo = 0, hi = tab.length - 1;
-    if (f >= tab[hi][0]) return tab[hi][1];
-    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tab[m][0] <= f) lo = m; else hi = m; }
-    const a = tab[lo], b = tab[hi], u = (f - a[0]) / Math.max(1e-9, b[0] - a[0]);
-    return a[1] + u * (b[1] - a[1]);
+  function _hlStil() {
+    const a = _activeProject?.[_MODKEY] || {};
+    return {
+      stil: _istHlStil(a.highlights_stil) ? a.highlights_stil : "pille",
+      farbmodus: a.highlights_farbmodus === "eine" ? "eine" : "art",
+      farbe: /^#[0-9a-f]{6}$/i.test(a.highlights_farbe || "") ? a.highlights_farbe : "#ffc21a",
+      groesse: Number(a.highlights_groesse) > 0 ? Number(a.highlights_groesse) : 30,
+    };
+  }
+  function _hlSchilderAbgleichen(leise) {
+    const sg = window.__rzAnimSigns && window.__rzAnimSigns.spur;
+    if (!sg || _isStaticFrame || _isReiseroute || window.__rzRenderMode || !_activeProject) return 0;
+    const sr = _ovSeries, co = currentCoords;
+    if (_hlEin() && (!sr || !co)) return 0;   // Track noch nicht geladen → später
+    const alt = (sg.list() || []).slice();
+    const bleiben = alt.filter(s => !(s && s.auto && s.auto_sig === _hlSig(s)));
+    const belegt = new Set(bleiben.filter(s => s && s.auto).map(s => s.auto));
+    const neu = [];
+    if (_hlEin()) {
+      const ps = _hlStil();
+      let liste = [];
+      try { liste = _hlBerechnen(sr, co, _hlArtenGewaehlt()); } catch (e) { applog("warn", "[hl] Berechnung: " + e); }
+      for (const h of liste) {
+        const key = h.art === "wegpunkte" ? "wegpunkte:" + h.wert : h.art;
+        if (belegt.has(key)) continue;
+        const c = co[Math.min(h.i, co.length - 1)];
+        const farbe = ps.farbmodus === "art" ? ((window.__rzHlFarben || {})[h.art] || ps.farbe) : ps.farbe;
+        const s = sg.normalize({ ...HL_SCHILD, style: ps.stil, color: farbe, size: ps.groesse, icon: h.art,
+                                 text: _hlText(h.art) + "\n" + h.wert, lat: c[1], lon: c[0], auto: key });
+        s.auto_sig = _hlSig(s);
+        neu.push(s);
+      }
+    }
+    const gleich = (a, b) => a.length === b.length && a.every((x, i) => x.auto === b[i].auto && _hlSig(x) === _hlSig(b[i]));
+    const altAuto = alt.filter(s => s && s.auto && s.auto_sig === _hlSig(s));
+    if (gleich(altAuto, neu)) return 0;
+    const warUndo = window.__rzUndoApplying;
+    if (leise) window.__rzUndoApplying = true;
+    try { sg.speichern(bleiben.concat(neu), leise ? undefined : t("animator.hl.undo", "Highlights")); }
+    finally { if (leise) window.__rzUndoApplying = warUndo; }
+    try { sg.neuZeichnen(); } catch (e) { applog("warn", "[hl] Schilder neu zeichnen: " + e); }
+    try { applog("info", `[hl] Schilder abgeglichen: ${neu.length} automatisch, ${bleiben.length} weitere`); } catch (_) {}
+    return neu.length;
   }
   function _hlText(art) {
     return {
@@ -15676,81 +15762,58 @@ function mountAnimator(body, headerActions, opts) {
       wegpunkte: t("animator.hl.wegpunkt", "Wegpunkt"),
     }[art] || art;
   }
-  function _hlEbene() {
+  /** Vorankündigung (Schild-Feld `vorschau_s`): ein kleiner Punkt in der Schildfarbe
+   *  erscheint `vorschau_s` Sekunden vor dem Schild — am Bildrand, solange die Stelle
+   *  noch nicht im Bild ist — und geht in das Schild über. Pro Bild aufgerufen aus
+   *  _animSignsApplyMarkerAnchor mit [{lon, lat, farbe, op}]. Nur Vorschau/Szene. */
+  function _vorankuendigung(punkte) {
     const layer = document.getElementById("anim-overlay-preview");
-    if (!layer) return null;
-    let e = layer.querySelector(":scope > .hl-layer");
-    if (!e) {
-      e = document.createElement("div");
-      e.className = "hl-layer"; e.id = "anim-hl";
-      layer.insertBefore(e, layer.firstChild);   // unter den Boxen, über den Verläufen
+    if (!layer) return;
+    let ebene = layer.querySelector(":scope > .hl-layer");
+    if (!punkte || !punkte.length || !map) { if (ebene) ebene.innerHTML = ""; return; }
+    if (!ebene) {
+      ebene = document.createElement("div"); ebene.className = "hl-layer";
+      layer.insertBefore(ebene, layer.firstChild);
     }
-    return e;
-  }
-  const _hlKlemm = (x, a, b) => Math.max(a, Math.min(b, x));
-  // Prüf-Haken (tests/test_track_highlights.py): Liste mit Videosekunde je Highlight.
-  window.__rzHighlights = () => { const tab = _ovStreckeZeit(); return _hlListe().map(h => ({ art: h.art, i: h.i, f: h.f, wert: h.wert, t: _hlSekunde(tab, h.f) })); };
-  /** Pro Bild: Sichtbarkeit aus der Videosekunde, Lage aus der Kamera (map.project). */
-  function _hlAnwenden(tSec) {
-    _hlLetztT = tSec;
-    const ebene = _hlEbene();
-    if (!ebene) return;
-    const liste = (tSec == null || tSec < 0) ? [] : _hlListe();
-    if (!liste.length || !map) { if (ebene.childElementCount) ebene.innerHTML = ""; return; }
-    const tab = _ovStreckeZeit();
-    const layer = ebene.parentElement;
     const LW = layer.offsetWidth, LH = layer.offsetHeight;
-    const cw = map.getContainer().clientWidth || 1;
-    const k = LW / cw;   // Karten-CSS-px → Layer-px (Videopixel)
+    const k = LW / (map.getContainer().clientWidth || 1);
     const s = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
     const rand = 30 * s;
-    const co = currentCoords;
-    const sichtbar = new Set();
-    for (let n = 0; n < liste.length; n++) {
-      const h = liste[n];
-      const t0 = _hlSekunde(tab, h.f);
-      if (t0 == null) continue;
-      const a = t0 - HL_VOR_S, b = t0 + HL_NACH_S, v = a - HL_VORSCHAU_S;
-      if (tSec < v || tSec > b) continue;
-      const pille = tSec >= a;
-      const rein = pille ? _hlKlemm((tSec - a) / HL_BLENDE_S, 0, 1) : _hlKlemm((tSec - v) / HL_BLENDE_S, 0, 1);
-      const raus = _hlKlemm((b - tSec) / HL_BLENDE_S, 0, 1);
-      const op = Math.min(rein, raus);
-      const c = co[Math.min(h.i, co.length - 1)];
-      let p;
-      try { p = map.project(c); } catch (_) { continue; }
-      let x = p.x * k, y = p.y * k;
-      const drin = x >= rand && x <= LW - rand && y >= rand && y <= LH - rand;
-      const id = "hl-" + n;
-      sichtbar.add(id);
-      let el = ebene.querySelector(`[data-hl="${id}"]`);
-      if (!el) {
-        el = document.createElement("div");
-        el.className = "hl"; el.setAttribute("data-hl", id); el.setAttribute("data-hl-art", h.art);
-        el.innerHTML = `<div class="hl-punkt"></div><div class="hl-pille"><div class="hl-pin"><svg viewBox="0 0 24 24">${HL_ICON[h.art] || ""}</svg></div>`
-          + `<div class="hl-txt"><span class="hl-l">${_animEscapeHtml(_hlText(h.art))}</span><span class="hl-v">${_ovWertHtml(h.wert)}</span></div></div>`;
-        ebene.appendChild(el);
-      }
-      const pl = el.querySelector(".hl-pille");
-      if (pille) {
-        // Pille seitlich und oben im Bild halten; nach unten darf sie mit der Stelle
-        // aus dem Bild wandern (sonst schiebt sie sich übers Höhenprofil).
-        const pw = pl.offsetWidth || 0, ph = pl.offsetHeight || 0, abst = 22 * s;
-        x = _hlKlemm(x, rand + pw / 2, LW - rand - pw / 2);
-        y = Math.max(y, rand + ph + abst);
-      } else if (!drin) {
-        x = _hlKlemm(x, rand, LW - rand); y = _hlKlemm(y, rand, LH - rand);   // Vorschau-Punkt am Bildrand
-      }
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      el.style.opacity = op.toFixed(3);
-      pl.style.visibility = pille ? "" : "hidden";
-      pl.style.setProperty("--hl-pop", pille ? (0.85 + 0.15 * rein).toFixed(3) : "0.85");
-    }
-    for (const el of Array.from(ebene.children)) if (!sichtbar.has(el.getAttribute("data-hl"))) el.remove();
+    while (ebene.childElementCount > punkte.length) ebene.lastChild.remove();
+    while (ebene.childElementCount < punkte.length) { const d = document.createElement("div"); d.className = "hl-punkt"; ebene.appendChild(d); }
+    punkte.forEach((pt, i) => {
+      const el = ebene.children[i];
+      let p; try { p = map.project([pt.lon, pt.lat]); } catch (_) { return; }
+      const x = Math.max(rand, Math.min(LW - rand, p.x * k)), y = Math.max(rand, Math.min(LH - rand, p.y * k));
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+      el.style.background = pt.farbe || "#ffc21a";
+      el.style.opacity = String(Math.round(pt.op * 1000) / 1000);
+      el.dataset.ll = (+pt.lon).toFixed(5) + "," + (+pt.lat).toFixed(5);   // welches Schild (Prüfstand)
+    });
   }
+  window.__rzVorankuendigung = _vorankuendigung;
+  /** Nach dem Laden/Glätten: abgleichen, sobald Schilder-Modul, Reihe und Linie stehen
+   *  (die Karte und damit das Schilder-Modul kommen oft erst nach dem Track). */
+  var _hlLadeLauf = 0;   // var: _spurNeu kann schon beim Aufbau laufen (Totzone)
+  function _hlBeimLaden() {
+    const lauf = ++_hlLadeLauf;
+    let n = 0;
+    const versuch = () => {
+      if (lauf !== _hlLadeLauf) return;
+      if (window.__rzAnimSigns && _ovSeries && currentCoords && currentCoords.length === (_ovSeries.cumDistM || []).length) {
+        try { _hlSchilderAbgleichen(true); } catch (e) { applog("warn", "[hl] beim Laden: " + e); }
+      } else if (++n < 40) setTimeout(versuch, 250);
+    };
+    setTimeout(versuch, 0);
+  }
+  // Prüf-Haken (tests/test_track_highlights.py)
+  window.__rzHighlights = () => {
+    const sr = _ovSeries, co = currentCoords;
+    return (sr && co) ? _hlBerechnen(sr, co, _hlArtenGewaehlt()).map(h => ({ art: h.art, i: h.i, f: h.f, wert: h.wert })) : [];
+  };
+  window.__rzHighlightsAbgleichen = (leise) => _hlSchilderAbgleichen(leise);
   function _ovTimingAt(tSec, frac) {
     try { _skAnwenden(tSec); } catch (e) { applog("warn", "[schnell] Karte: " + e); }
-    try { _hlAnwenden(tSec); } catch (e) { applog("warn", "[hl] Anzeige: " + e); }
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;
     if (!R) return;
@@ -16668,6 +16731,7 @@ function mountAnimator(body, headerActions, opts) {
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
+    _hlBeimLaden();   // 30.09.2026 — Highlight-Schilder zum (neuen) Track
     _segStartsBasis = Array.isArray(res.seg_starts) ? res.seg_starts : [];
     _segStartsSetzen();
     _lbLaden().catch((e) => applog("warn", `[logbuch-video] Laden: ${e && e.message || e}`));   // 24.09.2026 — Logbuch im Video
@@ -17131,6 +17195,7 @@ function mountAnimator(body, headerActions, opts) {
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
+    _hlBeimLaden();   // 30.09.2026 — Highlight-Schilder zum (neuen) Track
     _segStartsBasis = Array.isArray(res.seg_starts) ? res.seg_starts : [];
     _segStartsSetzen();
     _lbLaden().catch((e) => applog("warn", `[logbuch-video] Laden: ${e && e.message || e}`));   // 24.09.2026 — Logbuch im Video
@@ -17189,6 +17254,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!_spurRoh || _reiseGilt()) return;
     currentCoords = _spurAnwenden(_spurRoh, m);
     _reiseBasis = currentCoords;
+    _hlBeimLaden();   // Highlight-Schilder sitzen auf der geglätteten Linie
     try { refreshPreviewTrackData(); } catch (_) {}
     try { applyGhost(); } catch (_) {}
     try { dotSetzen(_dotFracZuletzt); } catch (_) {}

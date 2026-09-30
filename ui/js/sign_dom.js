@@ -153,6 +153,28 @@
     var px = function (v) { return (Number(v) * unit) + "px"; };
 
     var styleName = o.style || "callout";
+    // 30.09.2026 — Highlight-Stile (pille, hl_*) zeichnet NUR die Canvas-Engine
+    // (sign_draw.js); der Editor zeigt deren Bild. So sind Editor, Probelauf und Video
+    // pixelgleich, ohne einen zweiten DOM-Nachbau je Stil.
+    if (window.__rzHlStile && window.__rzHlStile[styleName] && window.__rzDrawSign) {
+      var hk = [styleName, o.text, o.icon, o.size, o.color, o.font, o.opacity].join("|");
+      if (wrap.__hlKey !== hk) {
+        var r = window.__rzDrawSign(Object.assign({}, o, { __dpr: 2 }));
+        var cv = document.createElement("canvas"); cv.width = r.data.width; cv.height = r.data.height;
+        cv.getContext("2d").putImageData(r.data, 0, 0);
+        img.src = cv.toDataURL("image/png");
+        wrap.__hlKey = hk; wrap.__hlW = r.data.width / r.dpr;
+      }
+      card.className = "rz-sign rz-sign--hl";
+      card.style.cssText = "background:transparent;padding:0;border:none;box-shadow:none;filter:none;opacity:1;transform-origin:bottom center";
+      img.style.cssText = "display:block;height:auto;width:" + px(wrap.__hlW);
+      cap.style.display = "none"; cap.textContent = "";
+      ["rz-sign__pin", "rz-sign__poles", "rz-sign__arrow"].forEach(function (k) { var e = card.querySelector("." + k); if (e) e.remove(); });
+      wrap.style.paddingTop = ""; wrap.style.paddingLeft = ""; wrap.style.paddingRight = ""; wrap.style.paddingBottom = "0px";
+      wrap.style.opacity = "1";
+      return;
+    }
+    wrap.__hlKey = null;
     var accent = o.color || "#ff6b35";
     var boxFill;
     if (styleName === "banner" || styleName === "signpost" || styleName === "plain") boxFill = accent;
