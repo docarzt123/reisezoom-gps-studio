@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 29 Sep 2026 08:28:56 +0000</lastBuildDate>
+<lastBuildDate>Wed, 30 Sep 2026 15:33:51 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.748</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-748</link>
+<guid isPermaLink="false">gps-studio-v0.9.748</guid>
+<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
+<description>🎬 Schnell-Video: Kamera näher dran, Pfeil schaut in Linienrichtung — die Kamera fliegt tiefer und steiler über den Track, und der Pfeil zeigt genau dorthin, wohin die gezeichnete Linie läuft.
+
+Keine hellen, flackernden Flecken mehr im Luftbild — fehlt eine Luftbild-Kachel, füllt die App die Stelle mit dem gröberen Bild desselben Luftbilds; außerdem schont sie den spanischen Kartenserver, damit weniger Kacheln ausfallen.
+
+Videos rendern mit leerem Kachelspeicher etwa doppelt so schnell — während das Video entsteht, lädt die App die Karte für die nächsten Sekunden schon voraus; das Vorwärmen vorab entfällt. Gilt für alle Videos.
+
+Render hängt nicht mehr, wenn ein Kartendienst ausfällt — fehlende Luftbild-Kacheln werden nicht mehr bei jedem Bild neu abgewartet; im Fortschritt steht, welcher Dienst gerade nicht antwortet.</description>
+</item>
 <item>
 <title>v0.9.736</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-736</link>
@@ -205,13 +218,6 @@ Viele kleine Fehler aus dem Test in der echten App — Der Foto-Scan sperrt die 
 Der Track-Check kennt jetzt die Bewegungsart — und hört auf, Fehlalarme zu melden — Jede Stelle wird an dem gemessen, was du dort gemacht hast: Gehen, Rad, Laufen, Fahrt, Fähre, Halt oder Pause. Ausreißer meldet er erst, wenn ein Punkt wirklich sichtbar neben dem Weg liegt; Zittern beim Stehen ist ein Halt; eine Autofahrt mitten in der Wanderung ist Fahrt, kein Tempo-Fehler; Lücken zählen nach fehlender Bewegung statt nach Metern, kleine erscheinen grau; und Doppelpunkte werden beim Reparieren still mitbereinigt. Gemessen an über 700 echten Touren: rot von 16 auf 2 — genau die zwei, die wirklich Ausreißer sind — und gelb von 146 auf 88 . Repariert wird genau das, was der Kasten meldet.
 
 Die Reparatur erfand keine Tempo-Fehler mehr — Fehlende Zeitstempel am Anfang oder Ende wurden in 1-Sekunden-Schritten ergänzt und sahen danach wie 360 km/h aus. Jetzt geht es mit dem echten Tempo der Tour weiter.</description>
-</item>
-<item>
-<title>v0.9.700</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-700</link>
-<guid isPermaLink="false">gps-studio-v0.9.700</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Aufnahmen einer Actioncam mit 10 Hz gelten wieder als Aufnahme — Das Archiv hielt sie für geplante Routen, weil viele Punkte in derselben Sekunde liegen. Dadurch wurden sie mit dem falschen Maßstab geprüft. Im Hintergrund ist außerdem die Erkennung entstanden, was auf einer Tour gemacht wurde — Gehen, Rad, Fahrt, Fähre, Halte und Pausen —, gemessen an über 400 echten Touren. Sichtbar wird sie mit den nächsten Schritten.</description>
 </item>
 </channel>
 </rss>
