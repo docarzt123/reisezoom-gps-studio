@@ -1591,11 +1591,13 @@ function mountAnimator(body, headerActions, opts) {
       _ctZiehenBinden();
       // 01.10.2026 (Marc: „im Animator Schnell-Video drücken, passiert gar nichts") — die Bindung lag im
       // alten Titelkarten-Editor (_skEditorBinden) und ist mit ihm beim Container-Umbau (0.9.752) verschwunden.
-      document.getElementById("anim-schnellvideo")?.addEventListener("click", () => {
+      document.getElementById("anim-schnellvideo")?.addEventListener("click", async () => {
         if (!currentGpx || typeof window.rzSchnellVideo !== "function") { toast(t("schnell.kein_track", "Erst eine Tour laden."), "info", 4000); return; }
         // 01.10.2026 (Marc) — aus dem Animator mit offenem Projekt: zusätzlich „In dieses Projekt übernehmen";
         // „Meinen Look behalten" ist vorbelegt, sobald das Projekt Einblendungen hat (Vorlage/eigener Look).
-        const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+        // frische Tour = schwebendes Projekt: festschreiben, damit „In dieses Projekt übernehmen" geht
+        const proj = window.rzAktivesProjektSichern ? await window.rzAktivesProjektSichern()
+          : ((typeof getActiveProject === "function") ? getActiveProject() : null);
         let projekt = null;
         if (proj && proj.id) {
           const kf = (getRawTimelineEvents() || []).filter(e => e && e.kind).length;

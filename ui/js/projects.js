@@ -202,14 +202,19 @@
             }
           } else if (action === "vorlage_anwenden") {
             menu.hidden = true;
+            // 01.10.2026 — schwebendes Projekt (frische Tour) zuerst festschreiben
+            const pr = (!project.id && window.rzAktivesProjektSichern) ? (await window.rzAktivesProjektSichern()) || project : project;
+            if (!pr.id) { toast(tT("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
             if (typeof window.rzVorlageAnwendenModal === "function") {
-              await window.rzVorlageAnwendenModal(project.id, project.name, {
+              await window.rzVorlageAnwendenModal(pr.id, pr.name, {
                 anwenden: (vid) => window.rzVorlageAufAktivesProjekt(vid),
               });
             }
           } else if (action === "vorlage_speichern") {
             menu.hidden = true;
-            if (typeof window.rzVorlageSpeichernModal === "function") await window.rzVorlageSpeichernModal(project.id, project.name);
+            const pr = (!project.id && window.rzAktivesProjektSichern) ? (await window.rzAktivesProjektSichern()) || project : project;
+            if (!pr.id) { toast(tT("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
+            if (typeof window.rzVorlageSpeichernModal === "function") await window.rzVorlageSpeichernModal(pr.id, pr.name);
           } else if (action === "export_project") {
             menu.hidden = true;
             if (window.exportProject) await window.exportProject();
