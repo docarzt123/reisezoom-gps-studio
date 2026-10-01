@@ -38,3 +38,11 @@ sind (sie hängen an der Karte). Ziel: vereinfachen UND universeller machen.
 Das Schnell-Video muss ein **ganz normales Animator-Projekt** sein und sich „langsam von Hand"
 mit den Bordmitteln des Animators nachbauen lassen: Container statt Titel-/Schlusskarte,
 Highlights als Schilder, Kamera als Keyframes, Wasserzeichen als Logo-Container.
+
+## Umsetzung (v0.9.752, 30.09.2026 nachts)
+- Gebaut wie oben entschieden; Architektur in `docs/DEVELOPER.md`, Kapitel „Einblendungen als Container — eine Render-Pipeline“.
+- **Q2:** Raster beim Ziehen **1 %** statt 2 % (feiner, Einrasten an Rand und Mitte bleibt).
+- **Q8 (Sicherung):** Der Umzug schreibt nur `container`, `container_v`, `verlauf` dazu — die alten Schlüssel bleiben im Projekt stehen (werden nicht mehr gelesen). Damit ist jeder alte Stand wiederherstellbar, dazu die Projekt-Fassungen.
+- **Zeitgruppe im Editor:** Zusätzlich zur Zeitleisten-Spur stehen die Zeiträume als Sekunden im Editor (von–bis, „＋ Zeitraum“, „ganzes Video“) und die Blenden (Art + Dauer) — damit das Schnell-Video Feld für Feld von Hand nachbaubar ist.
+- **Schnell-Video:** `tests/test_schnellvideo_nachbau.py` baut jede Einblendung nur über die Oberfläche nach. Dabei gefunden und behoben: Pfeilrichtung „aus der gezeichneten Linie“ hatte kein Bedienelement; Verlauf-Regler konnte 62/72 % nicht (Schritt 5 → 1); getippte Zeiten genau am Animationsende landeten 0,08 s daneben.
+- **Offen:** Python-Spiegel der Spur-Algorithmen in `core/animator.py` (nur noch von Tests genutzt); 4K-Alpha ist langsam (erlaubt, Q10).

@@ -82,11 +82,53 @@
     return m / Math.max(1, animS);
   }
 
-  /** 30.09.2026 — Logo-Plakette oben mittig (Breite in % der Videobreite je Format; die 1,6 %
-   *  sind der Innenabstand der Plakette, WM_PILLE in modules/animator/ui/module.js). */
-  function logoLage(format) {
-    const w = { "9:16": 30, "1:1": 22, "16:9": 15 }[format] || 22;
-    return { x: Math.round((50 - w / 2 - 1.6) * 100) / 100, y: 2.5, w, op: 1 };
+  /** 30.09.2026 (Marc: „das Schnell-Video muss ein ganz normales Animator-Projekt sein, das man
+   *  langsam von Hand nachbauen kann") — die Einblendungen sind normale Container aus den Vorlagen
+   *  des Animators (ui/js/container.js), nur vorbelegt: Logo-Plakette oben mittig, darunter die
+   *  Werte (Stil „Frei"), Höhenprofil unten breit, Titel, Untertitel, Schlusskarte, Nordpfeil +
+   *  Maßstab. Kurze Bildseite = 1080 px in allen Formaten → Maße in cqmin passen überall. */
+  function einblendungen(w) {
+    const C = window.rzContainer;
+    if (!C) return [];
+    const S = C.STILE, liste = [];
+    const breit = { "9:16": 30, "1:1": 22, "16:9": 15 }[w.format] || 22;   // Logo-Breite in % der Bildbreite
+    const logo = C.stilAnwenden(C.neu("logo", T), "plakette");
+    Object.assign(logo, { anker: "tc", x: 0, y: 2.5, deckkraft: 1, innen: 0.5, schriftgroesse: 1.6 });
+    logo.zeilen[0].b = breit;
+    liste.push(C.normalisieren(logo));
+    const y2 = w.format === "16:9" ? 13 : w.format === "1:1" ? 12 : 9;   // unter der Plakette
+    if (w.zahlen) liste.push(C.normalisieren(Object.assign({}, S.frei, {
+      stil: "frei", vorlage: "live", name: T("container.v.live", "Live-Werte"), anker: "tc", x: 0, y: y2, inhalt_h: "c",
+      zeilen: [C.wert("dist_done", "live"), C.wert("asc_done", "live"), C.wert("time_elapsed", "live")] })));
+    // Höhenprofil links unten, endet vor Nordpfeil + Maßstab rechts unten (Maßstab beginnt bei
+    // ~76 % der Breite in 9:16, ~78 % in 1:1, ~87 % in 16:9 — gemessen im Render 30.09.2026)
+    const profilB = { "9:16": 70, "1:1": 72, "16:9": 80 }[w.format] || 72;
+    if (w.profil) liste.push(C.normalisieren(Object.assign({}, S.frei, {
+      stil: "frei", vorlage: "hoehe", name: T("container.v.hoehe", "Höhenprofil"), anker: "bl", x: 3, y: 3, inhalt_h: "l",
+      anordnung: "unter", beschriftung: "aus", schriftgroesse: 1.3, zeilenabstand: 0.4,
+      zeilen: [C.zeile("text", { text: T("container.v.hoehe_kopf", "HÖHENPROFIL · Min {ele_low} · Max {ele_high}") }),
+               C.zeile("diagramm", { art: "hoehe", b: profilB, h: 9, linienfarbe: "#ffffff" })] })));
+    if (w.titel) {
+      const ti = C.neu("titel", T);
+      ti.zeilen[0].text = w.titel;
+      ti.zeit = { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: INTRO_S } };
+      liste.push(C.normalisieren(ti));
+    }
+    if (w.unter) {
+      const un = C.neu("titel", T);
+      Object.assign(un, { name: T("container.v.untertitel", "Untertitel"), y: w.titel ? 31 : 20, schriftgroesse: 3.6 });
+      un.zeilen[0].text = w.unter;
+      un.zeit = { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: INTRO_S } };
+      liste.push(C.normalisieren(un));
+    }
+    if (w.felder.length) {
+      const sk = C.neu("schluss", T);
+      sk.zeilen = w.felder.map(f => C.wert(f, "gesamt"));
+      sk.zeit = { von: { art: "video_ende", wert: HOLD_S }, bis: null };
+      liste.push(C.normalisieren(sk));
+    }
+    liste.push(C.neu("nord", T));
+    return liste;
   }
 
   /** Animator-Einstellungen des Schnell-Video-Projekts (Backend-Schlüssel, wie app.py sie kennt). */
@@ -123,22 +165,13 @@
       show_transit_labels: false, show_admin_boundaries: false,
       // Im Überblick sieht man sofort die ganze Runde: blass im Hintergrund, darüber zeichnet sich die Linie.
       ghost_track_enabled: true, ghost_track_opacity_pct: 50,
-      // 30.09.2026 (Marc, nach dem Komoot-Video) — Skin „Frei": Zahlen ohne Kasten oben mittig
-      // unter dem Logo (Strecke · Höhenmeter · Zeit), Höhenprofil unten breit, dunkle Verläufe.
-      overlay_skin: "frei",
-      overlay_totals_enabled: false,
-      overlay_live_enabled: !!w.zahlen,
-      overlay_live_position: "tc",
-      overlay_live_fields: ["dist_done", "asc_done", "time_elapsed"],
-      overlay_elevation_enabled: !!w.profil,
-      overlay_elevation_position: "bcw",
-      watermark_lage: logoLage(w.format),
+      // 30.09.2026 — Einblendungen als normale Container + dunkle Verläufe oben/unten
+      container: einblendungen(w), container_v: 1,
+      verlauf: { oben: { an: true, staerke: 0.62 }, unten: { an: true, staerke: 0.72 } },
       // 30.09.2026 — Highlights aus dem Track wie bei Komoot (Animator: _hlAnwenden)
       highlights_enabled: !!w.highlights,   // werden beim Öffnen zu Schildern (Animator: _hlSchilderAbgleichen)
       highlights_arten: ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"],
       highlights_stil: "pille", highlights_farbmodus: "eine", highlights_farbe: "#ffc21a",
-      schnellkarte: { titel_an: !!(w.titel || w.unter), titel: w.titel, unter: w.unter, titel_s: INTRO_S,
-                      schluss_an: w.felder.length > 0, felder: w.felder.slice() },
     };
   }
 

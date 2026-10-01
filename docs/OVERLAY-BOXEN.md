@@ -1,5 +1,7 @@
 # Overlay-Boxen einzeln einstellen (23.09.2026)
 
+> ⚠️ **Abgelöst seit v0.9.752 (30.09.2026)** durch die Einblendungs-Container — siehe `docs/OVERLAY-CONTAINER.md`. Dieses Dokument bleibt als Begründung der Zeitsteuerung (`ui/js/overlay_boxen.js`), die die Container weiter nutzen.
+
 **Anlass:** Beta-Tester (05./22.09.2026): „das Aussehen der Stats-Boxen ist bei allen
 Einblendungen fast gleich … vielleicht ein leichtes Ein- und Ausblenden" und „ich möchte,
 dass die Statistik zum Ende der Route für 10 s eingeblendet wird und dann wieder

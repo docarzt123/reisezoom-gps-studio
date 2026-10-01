@@ -1243,94 +1243,89 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 /* 25.09.2026 — ⏱ „bis“: ab Start oder vor Ende */
 .ov-timing .ov-bis-art { font-size: 11px; padding: 1px 2px; max-width: 92px; }
 
-/* ── 29.09.2026 §71 — Titel- und Schlusskarte (Schnell-Video) ─────────────────
-   Liegt über der Karte und den Overlay-Boxen; Größen relativ zur Vorschau (cqmin),
-   damit 9:16, 16:9 und 1:1 gleich wirken und die Szene das Video genau so zeichnet. */
-.sk-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; container-type: size; }
-.sk-titel { position: absolute; left: 6cqw; right: 6cqw; top: 20cqh; text-align: center; color: #fff;
-  text-shadow: 0 0.4cqmin 2cqmin rgba(0,0,0,.65), 0 0 0.6cqmin rgba(0,0,0,.5); }
-.sk-t1 { font: 800 8cqmin/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .01em; }
-.sk-t2 { margin-top: 1.6cqmin; font: 600 3.6cqmin/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; opacity: .92; }
-.sk-t2:empty { display: none; }
-.sk-schluss { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 3cqmin 6cqmin; max-width: 88cqw;
-  padding: 4cqmin 6cqmin; border-radius: 3cqmin; background: rgba(12, 14, 20, .58);
-  box-shadow: 0 1cqmin 4cqmin rgba(0,0,0,.35); color: #fff; }
-.sk-wert { display: flex; flex-direction: column; align-items: center; min-width: 18cqmin; }
-.sk-wert b { font: 800 6.4cqmin/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: nowrap; }
-.sk-wert span { margin-top: .8cqmin; font: 600 2.6cqmin/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
-.anim-sk-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 4px; font-size: 11.5px; }
 
-/* ── 30.09.2026 — Skin „Frei" (Marc, nach dem Komoot-Video) ────────────────────
-   Gilt für ALLE Einblendungen: keine Kästen, Werte nebeneinander, Beschriftung klein
-   und in Großbuchstaben ÜBER der großen Zahl, Einheit klein daneben, dunkle Verläufe
-   oben und unten für die Lesbarkeit. Hintergrund/Rahmen/Schatten der Box lässt
-   _ovBoxStil in diesem Skin weg (kein !important nötig).
-   SYNCHRON zu _overlay_css (core/animator.py, Zweig overlay_skin == "frei"). */
-.overlay-preview-layer .ov-u { font-size: inherit; font-weight: inherit; }
-.overlay-preview-layer[data-skin="frei"]::before,
-.overlay-preview-layer[data-skin="frei"]::after {
-  content: ""; position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none;
-}
-.overlay-preview-layer[data-skin="frei"]::before {
-  top: 0; height: 26%;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.62), rgba(0,0,0,0.28) 55%, rgba(0,0,0,0));
-}
-.overlay-preview-layer[data-skin="frei"]::after {
-  bottom: 0; height: 34%;
-  background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.32) 55%, rgba(0,0,0,0));
-}
-.overlay-preview-layer[data-skin="frei"] .ov-box,
-.overlay-preview-layer[data-skin="frei"] .ov-ele-box {
-  background: none; box-shadow: none; border: 0;
-  -webkit-backdrop-filter: none; backdrop-filter: none;
-  text-shadow: 0 calc(1px * var(--overlay-scale)) calc(6px * var(--overlay-scale)) rgba(0,0,0,0.55);
-}
-.overlay-preview-layer[data-skin="frei"] .ov-box {
-  display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
-  column-gap: calc(36px * var(--overlay-scale)); row-gap: calc(14px * var(--overlay-scale));
-  padding: 0; min-width: 0;
-  /* max-content: sonst schrumpft die Box bei „mittig" (left:50 %) auf die halbe Breite
-     und die Spalten brechen untereinander */
-  width: max-content; max-width: calc(100% - 80px * var(--overlay-scale));
-}
-.overlay-preview-layer[data-skin="frei"] .ov-titel { flex-basis: 100%; text-align: center; margin-bottom: 0; }
-.overlay-preview-layer[data-skin="frei"] .ov-row,
-.overlay-preview-layer[data-skin="frei"] .pos-tr .ov-row,
-.overlay-preview-layer[data-skin="frei"] .pos-br .ov-row,
-.overlay-preview-layer[data-skin="frei"] .pos-mr .ov-row {
-  flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; padding: 0;
-}
-.overlay-preview-layer[data-skin="frei"] .ov-l {
-  font-size: calc(14px * var(--overlay-scale) * var(--rz-ov-gr, 1));
-  letter-spacing: 0.06em; opacity: 0.9; font-weight: 500;
-}
-.overlay-preview-layer[data-skin="frei"] .ov-v {
-  font-size: calc(40px * var(--overlay-scale) * var(--rz-ov-gr, 1));
-  font-weight: 700; line-height: 1.05; white-space: nowrap; letter-spacing: -0.01em;
-}
-.overlay-preview-layer[data-skin="frei"] .ov-u {
-  font-size: 0.5em; font-weight: 600; letter-spacing: 0.02em; margin-left: 0.08em;
-}
-/* Höhenprofil: ohne Kasten, weiße Linie mit weißem Verlauf (wie bei Komoot) */
-.overlay-preview-layer[data-skin="frei"] .ov-ele-box { padding: 0; }
-.overlay-preview-layer[data-skin="frei"] .ov-ele-header { font-size: calc(14px * var(--overlay-scale)); }
-.overlay-preview-layer[data-skin="frei"] .ov-ele-title { opacity: 0.9; letter-spacing: 0.06em; }
-.overlay-preview-layer[data-skin="frei"] .ov-ele-minmax { font-size: calc(15px * var(--overlay-scale)); font-weight: 600; opacity: 0.95; }
-.overlay-preview-layer[data-skin="frei"] #ov-ele-line { stroke: #ffffff; }
-.overlay-preview-layer[data-skin="frei"] #ov-ele-grad stop { stop-color: #ffffff; }
-.overlay-preview-layer[data-skin="frei"] #ov-ele-dot { stroke: #ffffff; }
-.overlay-preview-layer[data-skin="frei"] .ov-ele-svg { filter: drop-shadow(0 calc(1px * var(--overlay-scale)) calc(4px * var(--overlay-scale)) rgba(0,0,0,0.45)); }
-/* Logo oben mittig → obere Einblendungen rücken darunter (--rz-wm-unten aus _wmAbstandSetzen) */
-.overlay-preview-layer[data-skin="frei"] .pos-tl,
-.overlay-preview-layer[data-skin="frei"] .pos-tc,
-.overlay-preview-layer[data-skin="frei"] .pos-tr,
-.overlay-preview-layer[data-skin="frei"] .pos-tcw { top: max(calc(40px * var(--overlay-scale)), var(--rz-wm-unten, 0px)); }
-/* Schlusskarte des Schnell-Videos im Skin „Frei": ohne Kasten, Zahlen mit Schatten */
-.sk-layer[data-skin="frei"] .sk-schluss { background: none; box-shadow: none;
-  text-shadow: 0 0.3cqmin 1.6cqmin rgba(0,0,0,.7), 0 0 0.5cqmin rgba(0,0,0,.5); }
-.sk-layer[data-skin="frei"] .sk-wert span { text-transform: none; letter-spacing: .02em; }
+/* ── CONTAINER-CSS (Anfang) ── 30.09.2026 — Einblendungen als Container ─────────────
+   docs/OVERLAY-CONTAINER.md. Der Layer ist im Videopixel-Raum dimensioniert; als
+   size-Container liefert er cqmin/cqw/cqh → Schrift in % der kurzen Bildseite, Lage und
+   feste Größe in % der Bildfläche, alle Abstände in em. Diesen Abschnitt liest auch der
+   Web-Karten-Export (core/animator.py, container_css) — bitte die Marken stehen lassen. */
+.overlay-preview-layer { container-type: size; }
+.overlay-preview-layer .ct { position: absolute; box-sizing: border-box; line-height: 1.15; }
+.overlay-preview-layer .ct-karte { position: relative; box-sizing: border-box; overflow: hidden;
+  width: max-content; max-width: calc(100cqw - 4cqmin); display: flex; flex-direction: column;
+  justify-content: var(--ct-jv, flex-start); align-items: var(--ct-jh, flex-start); }
+.overlay-preview-layer .ct-karte.ct-fest { max-width: none; }
+.overlay-preview-layer .ct-hgbild { position: absolute; inset: 0; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+.overlay-preview-layer .ct-inhalt { position: relative; display: flex; flex-direction: column; gap: var(--ct-zeile, 0.3em);
+  align-items: var(--ct-jh, flex-start); max-width: 100%; }
+.overlay-preview-layer .ct-neben .ct-inhalt { flex-direction: row; flex-wrap: wrap; column-gap: var(--ct-spalte, 1em);
+  row-gap: var(--ct-zeile, 0.3em); justify-content: var(--ct-jh, flex-start); align-items: flex-end; }
+.overlay-preview-layer .ct-z { max-width: 100%; }
+.overlay-preview-layer .ct-wert { display: flex; align-items: baseline; gap: var(--ct-spalte, 1em); }
+.overlay-preview-layer .ct-unter.ct-bes-links .ct-wert { justify-content: space-between; align-self: stretch; }
+.overlay-preview-layer .ct-bes-oben .ct-wert { flex-direction: column; align-items: var(--ct-jh, flex-start); gap: 0; }
+.overlay-preview-layer .ct-neben.ct-bes-oben .ct-wert { align-items: center; }
+.overlay-preview-layer .ct-l { font-size: var(--ct-bes, 0.5em); font-weight: 500; opacity: 0.85; letter-spacing: 0.06em; white-space: nowrap; }
+.overlay-preview-layer .ct-gross .ct-l { text-transform: uppercase; }
+.overlay-preview-layer .ct-v { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.05; }
+.overlay-preview-layer .ct-v .ov-u { font-size: var(--ct-einh, 1em); font-weight: 600; }
+.overlay-preview-layer .ct-text { font-weight: 700; white-space: pre-wrap; overflow-wrap: anywhere; }
+.overlay-preview-layer .ct-dia { position: relative; flex: none; }
+.overlay-preview-layer .ct-dia svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.overlay-preview-layer .ct-chart-host { position: absolute; inset: 0; }
+.overlay-preview-layer .ct-bild { display: block; height: auto; user-select: none; -webkit-user-drag: none; }
+.overlay-preview-layer .ct .ov-north { position: relative; width: 3.3em; height: 3.3em; flex: none; }
+.overlay-preview-layer .ct .ov-scale { position: relative; font-size: 0.6em; }
+/* Verläufe oben/unten (Projekteinstellung „verlauf", Q16) — hinter allen Containern */
+.overlay-preview-layer.vl-oben::before, .overlay-preview-layer.vl-unten::after {
+  content: ""; position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none; }
+.overlay-preview-layer.vl-oben::before { top: 0; height: 26%;
+  background: linear-gradient(to bottom, rgba(0,0,0,var(--vl-oben, 0.62)), rgba(0,0,0,calc(var(--vl-oben, 0.62) * 0.45)) 55%, rgba(0,0,0,0)); }
+.overlay-preview-layer.vl-unten::after { bottom: 0; height: 34%;
+  background: linear-gradient(to top, rgba(0,0,0,var(--vl-unten, 0.72)), rgba(0,0,0,calc(var(--vl-unten, 0.72) * 0.45)) 55%, rgba(0,0,0,0)); }
+/* ── CONTAINER-CSS (Ende) ── */
+/* Bearbeiten in der App (nicht im Video/Export): ziehbar, aktiver Container markiert */
+body:not(.rz-render-mode) #anim-overlay-preview .ct { pointer-events: auto; cursor: move; }
+body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outline: 2px dashed rgba(255, 193, 26, 0.9); outline-offset: 0.2em; }
+/* Seitenleiste: Container-Liste */
+.ct-kopf { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.ct-kopf select { max-width: 60%; }
+.ct-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.ct-zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--border, rgba(255,255,255,.14));
+  border-radius: 7px; font-size: 12px; background: rgba(255,255,255,0.02); }
+.ct-zeile.ct-aus { opacity: 0.5; }
+.ct-zeile.ct-offen { border-color: var(--accent, #ff6b35); }
+.ct-zeile.rz-sort-zieht, .ct-ez.rz-sort-zieht { opacity: 0.85; position: relative; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.ct-griff { cursor: grab; color: var(--text-dim, #9aa); user-select: none; touch-action: none; }
+.ct-sort { flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.ct-sort .rz-sort-pfeil { font-size: 8px; padding: 0 2px; }
+.ct-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.ct-lage { color: var(--text-dim, #9aa); font-size: 10.5px; white-space: nowrap; }
+.ct-knopf { background: none; border: 1px solid var(--border, rgba(255,255,255,.14)); border-radius: 5px; color: var(--text-dim, #aab);
+  cursor: pointer; font-size: 11.5px; line-height: 1; padding: 3px 5px; }
+.ct-knopf:hover { color: var(--accent, #ff6b35); border-color: var(--accent, #ff6b35); }
+/* Editor-Fenster */
+.ct-editor { width: 300px; }
+.ct-editor .sign-editor-body { max-height: min(78vh, 720px); }
+.ct-stile { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.ct-stil { padding: 5px 2px; font-size: 11.5px; border-radius: 6px; cursor: pointer; background: var(--bg-3, #141821);
+  color: var(--text, #e6eaf2); border: 1px solid var(--border, rgba(255,255,255,.14)); }
+.ct-stil.on { border-color: var(--accent, #ff6b35); color: var(--accent, #ff6b35); }
+.ct-anker { display: grid; grid-template-columns: repeat(3, 22px); grid-template-rows: repeat(3, 16px); gap: 3px; margin: 2px 0 4px; }
+.ct-ank { border: 1px solid var(--border, rgba(255,255,255,.25)); border-radius: 3px; background: var(--bg-3, #141821); cursor: pointer; padding: 0; }
+.ct-ank.on { background: var(--accent, #ff6b35); border-color: var(--accent, #ff6b35); }
+.ct-ez-reihe { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ct-ez-zahl { display: inline-flex; align-items: center; gap: 3px; }
+.ct-ez-zahl input { width: 64px; }
+.ct-ez-zahl small { color: var(--text-dim, #9aa); font-size: 10.5px; }
+.ct-mehr summary { cursor: pointer; font-size: 11px; color: var(--text-dim, #9aa); margin: 4px 0; }
+.ct-ez-liste { display: flex; flex-direction: column; gap: 5px; }
+.ct-ez { border: 1px solid var(--border, rgba(255,255,255,.14)); border-radius: 7px; padding: 5px 6px; }
+.ct-ez-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.ct-ez-kopf b { flex: 1; font-size: 11.5px; }
+.ct-ez-body { display: flex; flex-direction: column; gap: 4px; }
+.ct-ez-body input[type="number"] { width: 60px; }
+.ct-ez-datei { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text-dim, #9aa); }
 
 /* ── 30.09.2026 — Vorankündigung von Schildern (Feld vorschau_s, _vorankuendigung) ──
    Kleiner Punkt in der Schildfarbe, im Overlay-Layer (Videopixel); Lage, Farbe und

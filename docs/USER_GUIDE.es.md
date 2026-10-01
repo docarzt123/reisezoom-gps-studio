@@ -860,8 +860,9 @@ donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (Air
 en Windows se abre la carpeta con el vídeo.
 
 **Abrir en el animador** crea lo mismo pero no renderiza: así el vídeo rápido es la base de tu propio vídeo.
-El recorrido de cámara son keyframes normales, y el título y la tarjeta final los cambias en
-**Overlays → Título y tarjeta final**.
+El recorrido de cámara son keyframes normales, y el título y la tarjeta final los cambias en **Superposiciones** (título, subtítulo y tarjeta final son superposiciones normales).
+
+**Rehacerlo a mano (desde v0.9.752):** todo lo que muestra el vídeo rápido es un proyecto normal del Animator: superposiciones (placa con logo, valores en directo, perfil de altitud, título y subtítulo en la intro, tarjeta final en la pausa, flecha del norte), degradados arriba y abajo, momentos destacados como carteles, flecha con «Dirección según la línea dibujada», cámara suave y keyframes para el vuelo de cámara. Todos esos ajustes están en el Animator, así que también puedes montar el vídeo tú mismo paso a paso.
 
 El proyecto se llama «Nombre de la ruta · Vídeo rápido» y aparece en **Proyectos → Creados
 automáticamente**. Si le cambias el nombre, pasa a tus proyectos.
@@ -1297,6 +1298,11 @@ muestra la dirección general. El valor por defecto es el nivel 5 (60 m), que
 basta para grabaciones cada segundo, donde el ruido del GPS y el movimiento
 real tienen el mismo tamaño.
 
+**Dirección según la línea dibujada (desde v0.9.752):** debajo hay un interruptor con un
+control en metros. Si está activado, la flecha apunta hacia donde va la línea ya dibujada en los
+últimos metros: queda siempre justo sobre la línea y «Estabilidad de la flecha» deja de aplicarse.
+El vídeo rápido usa exactamente este ajuste.
+
 **Buscar duplicadas:** el botón de abajo a la izquierda agrupa los archivos con un
 **recorrido idéntico**, útil tras una exportación masiva que descargó la misma ruta varias
 veces.
@@ -1652,7 +1658,6 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 6. El render se ejecuta — la vista previa en directo muestra cada fotograma
 7. Listo → la vista de resultado muestra el MP4 + el botón «Mostrar en el Finder»
 
-> **Superposiciones: controles solo si la caja está activada (desde v0.9.452):** la posición, la ventana de tiempo y la lista de campos solo aparecen cuando la caja está **activada**: una caja desactivada no sale en el vídeo, así que su posición no tendría efecto. Las cajas activadas muestran **todos** sus controles directamente, sin desplegar. Las desactivadas se reducen a su fila de título con el interruptor.
 
 > **Etiquetas del mapa como chips (desde v0.9.451):** lugares, calles, puntos de interés, transporte y fronteras son una fila compacta de **chips**: tocar cambia el estado y al pasar el cursor aparece la descripción completa.
 
@@ -1696,16 +1701,26 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
   Cada parada tiene **valor + color**, 🗑 la quita. El interruptor **«Transición»** define si el color cambia **brusco** (bandas nítidas) o como un **degradado** suave. Funciona WYSIWYG en la vista previa, la prueba y el render. Desactivado por defecto. *(De momento solo animador de un track.)*
 - **Mapa sin etiquetas** (desde v0.4.4) — oculta nombres de lugares, nombres de calles e iconos de POI en el mapa. Convierte el mapa en un fondo puro — un buen look si quieres que el track sea el protagonista visual en vez de una vista tipo Google Maps. Funciona con todos los estilos de mapa y también en el módulo Tour-Map.
 
-**Overlays** (todos activables por separado, libremente colocables):
-- **Caja de totales** — valores totales del track
-- **Caja en directo** — valores que corren durante la animación
-- **Perfil de altitud** — línea animada. En un viaje con varias etapas (desde v0.9.683)
-  eliges debajo qué muestra el perfil: **Viaje completo** (por defecto: una curva sobre
-  todas las etapas, los límites como marcas discontinuas; transiciones y paradas quedan
-  quietas) o **Etapa en curso** (el perfil se reconstruye con cada etapa, su nombre en la
-  cabecera). Con pistas paralelas el perfil muestra el trazado de la cadena.
-- **Flecha del norte** (desde 04.09.2026, petición de un probador) — gira con la cámara, así que siempre señala al norte aunque la vista esté girada o en barrido. Por defecto **activada**, abajo a la derecha.
-- **Escala** (desde 04.09.2026) — barra con una longitud redonda (100 m, 500 m, 2 km …) que sigue el zoom; medida en el centro del encuadre. Por defecto **activada**, abajo a la izquierda. En el render alfa (sin mapa) se omite porque no hay mapa; la flecha del norte se mantiene.
+**🧱 Superposiciones (desde v0.9.752)** — Todo lo que queda fijo en la imagen es una **superposición**: valores, perfil de altitud, gráficos, flecha del norte y escala, título, tarjeta final, logo. Una superposición es una caja hecha de **filas**.
+
+- **Crear:** en la barra lateral, en «Superposiciones», elige una plantilla en **«＋ Nueva superposición»**: *Valores en directo*, *Totales*, *Perfil de altitud*, *Título*, *Tarjeta final*, *Logo*, *Flecha del norte + escala*, *Marco* o *Vacía*. El editor se abre como ventana flotante (se mueve por la cabecera).
+- **Lista:** casilla = mostrar, **✎** abre el editor, **⧉** duplica, **✕** borra. El orden se cambia arrastrando **⠿** o con **▲▼**: más abajo en la lista significa más delante en la imagen.
+- **Colocar:** **arrastra la superposición en la vista previa** (cuadrícula del 1 %, se ajusta a bordes y centro, un paso de ⌘Z por arrastre) o, en el editor, en **Posición y tamaño**: **ancla** (nueve puntos) más **desplazamiento** en porcentaje de la imagen. Tamaño **automático** (tan grande como el contenido) o **fijo** (ancho y alto en %), además de la alineación del contenido.
+- **Estilo = plantilla del aspecto:** **Caja** (caja semitransparente), **Libre** (números grandes sin caja, rótulo pequeño encima, sombra de texto), **Placa** (píldora oscura redondeada) y **Ninguno**. Un clic pone los valores del estilo; después cambias cualquier valor tú mismo: disposición (una bajo otra/una junto a otra), rótulo (encima del valor, a la izquierda, sin rótulo), tipografía, tamaño, color de texto y de fondo con opacidad, imagen de fondo (rellenar/ajustar, opacidad), relleno, espaciado de filas y columnas. En **Más**: color de acento, esquinas, borde, sombra, sombra de texto, desenfoque, mayúsculas, tamaño de rótulo y unidad, opacidad. Todas las filas de una superposición tienen el mismo aspecto: si una fila debe verse distinta, usa una segunda superposición.
+- **Filas** (**＋ Añadir fila**, ordenar con ⠿ o ▲▼):
+  - **Valor** — un campo (lista abajo) **en directo**, **total**, en viajes la **etapa en curso** o una etapa concreta, en rutas con cuaderno **solo conducción**, **solo a pie**, etc. El rótulo se puede renombrar u ocultar.
+  - **Texto libre** — cualquier texto; `{dist_total}`, `{ele_high}`, etc. insertan valores.
+  - **Gráfico** — el perfil de altitud (color de línea; en viajes todo el recorrido o la etapa en curso) o cualquier serie de datos del track (su aspecto lo diseñas en el Animador de Datos), con ancho y alto propios en %.
+  - **Imagen** — imagen propia o el logo de GPS Studio, ancho en %.
+  - **Flecha del norte** y **escala**.
+- **Tiempo:** sin intervalo, una superposición se ve durante todo el vídeo. **＋ Intervalo** añade uno (segundos desde–hasta, vacío = hasta el final); puede haber varios, y **todo el vídeo** los quita. Además **entrada** y **salida** (directa, suave, emergente) con duración. En la **línea de tiempo** cada superposición tiene una barra en la pista «▸ Overlays»: arrastrar la mueve, los bordes cambian inicio y fin, los puntos blancos los fundidos. Un tiempo en la intro va ligado al inicio del vídeo, durante la animación a un punto de la ruta y en la pausa final al final del vídeo, así sigue siendo correcto si cambias la duración o el ritmo.
+- **Degradados:** bajo la lista añades un **degradado** oscuro arriba y abajo (intensidad en %), para que el texto claro se lea sobre cualquier mapa.
+- **Medidas:** tipografía en porcentaje del lado corto de la imagen, espacios relativos a la tipografía, posición y tamaño en porcentaje de la imagen. Por eso una superposición se ve igual con cualquier tamaño de ventana y en el vídeo, también en 4K y en vertical.
+- **Los proyectos antiguos** se conservan al abrirlos: cajas de datos, perfil de altitud, gráficos, flecha del norte/escala, marca de agua (pasa a ser el logo), el título y la tarjeta final del vídeo rápido se convierten en superposiciones, el estilo «Libre» en degradados. No se pierde nada.
+- **Tour-Map** y **Mapa web** muestran las mismas superposiciones.
+
+**Más ajustes (mapa, fuentes, exportación):**
+
 - **Línea de fuentes** (desde 07.09.2026) — citar las fuentes del mapa es obligatorio y siempre queda visible, pero tú eliges la **esquina** (abajo derecha, abajo izquierda, arriba derecha, arriba izquierda) y el **ancho** (estrecha = bloque alto, media, ancha = línea plana, ancho completo = barra en el borde inferior) para que no tape el perfil de altitud ni la flecha del norte. La vista previa y el vídeo la muestran del mismo tamaño. Desde v0.9.741 es bastante más pequeña: el texto mide el 1,2 % del lado corto de la imagen (13 píxeles en un vídeo 1080), en la misma proporción con cualquier formato y tamaño de ventana.
 - **Ajustar el mapa a mano, sin keyframes** (desde 05.09.2026): si haces zoom, desplazas o inclinas la vista previa y no tienes keyframes, esa vista es la cámara: en la prueba, al arrastrar el tirador y en el vídeo. «⤢ Ajustar» devuelve la vista general; en cuanto pones un keyframe, manda el keyframe.
 - **Satélite gratis en todas partes** (desde 05.09.2026; escalonado por zoom desde v0.9.656: en vistas amplias el estilo muestra solo Sentinel-2, las ortofotos oficiales aparecen a partir del zoom 12 y del todo a partir de 13,5; desde v0.9.658 un nivel más tarde que antes, porque Sentinel se ve nítido hasta ahí): donde no hay ortofotos oficiales (Hamburgo, Nueva Zelanda, EE. UU. …) el estilo muestra ahora imágenes Sentinel-2 (10 m, 2016, EOX) en vez de una zona vacía. Un aviso en el mapa te lo indica. A esa resolución no se ven casas ni senderos, pero sí paisaje, ríos y estructura urbana; para primeros planos elige otro estilo (MapTiler, OpenStreetMap). La atribución «Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016» aparece en la línea de fuentes; los vídeos se pueden publicar.
@@ -1719,11 +1734,11 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 - **Nitidez** (desde 07.09.2026) — el último control del «Aspecto de la ortofoto» o del «Aspecto del mapa» (debajo de «Tono»), 0–100 % (por defecto 0): una máscara de enfoque sobre la imagen del mapa, igual en la vista previa y en el vídeo (no en las exportaciones de mapa web). Solo actúa sobre la imagen del mapa, no sobre la ruta, carteles, rótulos, cifras, perfil de altitud ni línea de fuentes. Contexto: la capa libre Sentinel-2 (10 m, de 2016) es blanda sobre islas y costas sin ortofoto oficial; son los datos, no la app. Con 40–60 % se lee bien; más allá se vuelve granulosa. Desde ese mismo día, todos los mapas ráster en pantallas Retina y en el vídeo cargan uno o dos niveles de teselas más profundos, para que un píxel de tesela caiga más o menos en un píxel de imagen (antes se ampliaban de 2 a 5 veces).
 - **Relieve, bruma y estilos** (desde 17.09.2026) — en el «Aspecto de la ortofoto»: **Relieve** pone luz y sombra de los datos del terreno sobre las ortofotos (por defecto 0 = apagado; los estilos lo ponen en 35–60 %), para que la plana capa Sentinel-2 gane profundidad. **Quitar bruma** (0–100 %, por defecto 0) elimina el velo azul de las imágenes de satélite; técnicamente un punto negro por canal de color sobre la imagen del mapa, en la misma capa que la nitidez; 15–35 % es el punto ideal, más resulta duro. En el «Aspecto del mapa» (OSM, OpenTopoMap …) también está «Quitar bruma». El selector **Estilo** (Natural / Intenso / Cinematográfico) ajusta los siete controles a la vez; «Personalizado» significa que al menos un control es distinto. Todo igual en la vista previa y en el vídeo, se deshace con ⌘Z, no en las exportaciones de mapa web.
 - **Aspecto del mapa** (desde 05.09.2026) — también en la sección **Mapa**, para todos los mapas salvo las ortofotos oficiales (que tienen su propio «Aspecto de la ortofoto»). Mapas ráster como OpenStreetMap u OpenTopoMap: saturación, contraste, brillo, tono. Mapas vectoriales como OpenFreeMap o MapTiler: solo brillo, técnicamente una capa de atenuación bajo la ruta para que la ruta siga clara y el mapa retroceda. Por defecto 0 = mapa tal cual, «↺ Predeterminado» restablece.
-  Ambas se pueden desactivar y mover a otra esquina como cualquier caja. El **Mapa web** (Leaflet) tiene los mismos dos interruptores; allí el norte siempre está arriba y la escala la pone Leaflet.
+  El **Mapa web** (Leaflet) tiene los mismos dos interruptores; allí el norte siempre está arriba y la escala la pone Leaflet.
 
-**🆕 Editor de estadísticas (desde v0.9.321): tú eliges qué se muestra — y en qué orden.** Bajo la caja de totales y la caja en directo hay, en cada caso, una **lista de campos**. Marcar/desmarcar la casilla determina qué aparece; con el **tirador ⠿ arrastras los campos** al orden deseado. Valores seleccionables:
+**Ordenar en todas partes con ⠿ o ▲▼ (desde el 25.09.2026):** cualquier lista con asa ⠿ — superposiciones y sus filas, carteles y fotos, paradas de la ruta de viaje, trazas fantasma, «Unir rutas» — se puede arrastrar por el asa (Esc cancela) o mover con los pequeños **▲▼** de cada fila. Ahora también funciona en Windows.
 
-**Ordenar en todas partes con ⠿ o ▲▼ (desde el 25.09.2026):** cualquier lista con asa ⠿ — campos de estadísticas, carteles y fotos, paradas de la ruta de viaje, trazas fantasma, «Unir rutas» — se puede arrastrar por el asa (Esc cancela) o mover con los pequeños **▲▼** de cada fila. Ahora también funciona en Windows.
+**¿Qué valores hay?** En una fila de tipo **Valor** eliges el campo. Los campos que tu track no ofrece no aparecen; si un campo elegido deja de estar disponible (p. ej. «etapa» tras deshacer un viaje), sigue seleccionado pero en gris. Valores disponibles:
 - **En directo (corre con la animación):** Recorrido, Restante, **Velocidad (km/h)**, Transcurrido, **Tiempo restante**, Altitud, **Pendiente (%)**.
   - *WYSIWYG (desde v0.9.325):* estos valores ya corren **en la vista previa** — al arrastrar el scrubber y en el ensayo cuentan exactamente igual que en el vídeo final, y el perfil de altitud se rellena hasta la posición del marcador. Así ves de antemano, fotograma a fotograma, cómo se verán las estadísticas en el render.
 - **Total:** Distancia, Tiempo (tiempo total), **Tiempo en movimiento** (tiempo de desplazamiento sin pausas), **Ø Velocidad** (a partir del tiempo en movimiento), **Ø Velocidad (total)** (a partir del tiempo total), **Velocidad máx.**, Desnivel positivo, Desnivel negativo, **Punto más alto**, **Punto más bajo**.
@@ -1734,81 +1749,11 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
   - **✎ Renombrar y unidad (desde v0.9.334):** cada campo de sensor tiene un **✎**. Con él puedes cambiar la **etiqueta y la unidad por proyecto** — hacer legibles abreviaturas crípticas de dispositivo como `GRD_PCT` o `NGP`, renombrar «cadencia» al correr como «cadencia de zancada / spm», o indicar la velocidad en «nudos» al navegar a vela. «Restablecer» devuelve el valor por defecto.
 - Los valores que tu track no proporciona (p. ej. velocidad/tiempo sin marcas de tiempo, altitud/pendiente sin datos de altitud) se **atenúan automáticamente**.
 
-**🎨 Aspecto de las cajas de estadísticas (desde v0.9.321):** al final de la sección de overlays eliges **tipografía** (Sistema, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **color de texto**, **color de fondo** y **opacidad del fondo** — se aplica a todas las cajas, con vista previa en directo en el mapa.
-
-**🎨 Estilo «Con caja» o «Libre» (desde v0.9.749):** Arriba del todo en «Aspecto de las cajas» está **Estilo**. **Con caja** es el aspecto de siempre: valores en cajas semitransparentes. **Libre** prescinde de las cajas: los números van grandes uno al lado del otro, la unidad pequeña al lado y la etiqueta pequeña encima. Un degradado oscuro arriba y abajo mantiene todo legible sobre cualquier mapa, y el perfil de altitud pasa a ser una línea blanca. El estilo se aplica a todos los rótulos: estadísticas totales y en vivo, perfil de altitud, cajas adicionales y la tarjeta final del vídeo rápido. En el estilo «Libre» la marca de agua va sobre una placa oscura. **⬆ Arriba al centro** en «Marca de agua» la coloca arriba en el centro, y las cajas superiores se desplazan debajo automáticamente. El vídeo rápido usa «Libre» por sí solo.
-
 **⭐ Momentos destacados (desde v0.9.750, como carteles desde v0.9.751):** En los rótulos hay un grupo llamado **Momentos destacados**. Si está activado, la app coloca en el mapa los puntos especiales de tu ruta como **carteles**: **Punto más alto**, **Tramo más empinado**, **Velocidad máxima**, **Mitad del recorrido** y **Waypoints del GPX**. En **Aspecto** eliges uno de cinco estilos (Píldora, Caja con chincheta, Redondo con tarjeta, Forma con marco, Pincelada) y en **Colores** «uno por tipo» o «uno para todos». Cada cartel muestra arriba la etiqueta en pequeño y debajo el valor en grande. Poco antes de que aparezca, un pequeño punto de su color lo anuncia. Si el lugar aún está fuera de la imagen, el punto se sitúa en el borde. Los carteles de momentos destacados están en la lista de carteles y en la línea de tiempo, y puedes cambiarlos, moverlos o borrarlos como cualquier cartel (⌘Z funciona). Si cambias la ruta o la selección, la app ajusta los carteles de momentos destacados. Los que hayas editado a mano se quedan. El tramo más empinado se mide sobre al menos 150 m para que un solo error del GPS no cuente. El vídeo rápido coloca los momentos destacados por sí solo, como «Píldora» en un solo color.
 
 **Estilos de dato para tus propios carteles (desde v0.9.751):** Los cinco estilos están disponibles para cualquier cartel en el editor de carteles, en **Forma**. Escribe la etiqueta en la primera línea y el valor en la segunda, p. ej. «Cruz de la cumbre» ↵ «2513 m». Después eliges un **Símbolo** y un **Color**.
 
-**✎ Diseñar cada caja por separado (desde v0.9.723):** Junto a los títulos **Estadísticas totales**, **Estadísticas en vivo** y **Perfil de altitud** hay un **✎**. Abre la ventana **«Diseñar caja»**. Allí la caja recibe su propio aspecto: fondo, opacidad, color de texto, tipografía, esquinas, borde y sombra. Cada valor tiene una casilla **«igual que todas las cajas»**. Si la desmarcas, la caja usa su propio valor; si la vuelves a marcar, hereda de nuevo de «Aspecto de las cajas».
-
 **¿Cuándo se ve un cartel? (desde v0.9.733)** Justo debajo de los overlays, la línea de tiempo tiene la fila **«▸ Carteles»**. Un clic abre una fila por cartel (con texto o imagen); cada **barra es el tiempo en que el cartel se ve en el vídeo** — igual que en el ensayo. **Arrastra la barra** para mover el momento del cartel (recibe un momento fijo; la anticipación y «Sigue visible» no cambian). El **borde izquierdo** cambia la **anticipación** (cuánto antes del punto aparece), el **borde derecho** cambia **«Sigue visible»**; arrastrado del todo a la derecha significa **hasta el final**. La línea de estado muestra los segundos mientras arrastras. **Doble clic o clic derecho** abre la ventana del cartel. **«Todo el tiempo» (desde v0.9.736 sin casilla):** un cartel visible durante todo el vídeo tiene simplemente una barra a lo ancho. Si arrastras un borde hacia dentro, se convierte en una ventana de tiempo; si llevas ambos bordes del todo afuera, vuelve a ser todo el tiempo. Los carteles nuevos ya no heredan «todo el tiempo» del anterior. Un cartel oculto se ve gris. Cada cambio es un paso de ⌘Z. **Entrada y salida (desde v0.9.735):** como en los overlays, la barra tiene dos **puntos blancos** — a la izquierda la **entrada**, a la derecha la **salida**. Arrastrarlos cambia la duración (la cuña oscura la muestra); «Corte» pasa a «Fundido», y arrastrado del todo atrás vuelve a «Corte». En la ventana del cartel están **«Duración de la entrada»**, **«Salida»** (Corte, Desvanecer, Desaparecer de golpe, Desvanecer + de golpe) y **«Duración de la salida»**. Solo se desvanece si el cartel desaparece antes del final del vídeo. Los carteles antiguos se ven igual que antes (0,6 s de entrada y la misma salida). **Para arrastrar, la fila «▸ Carteles» debe estar abierta** — la franja plegada solo muestra las barras.
-
-**¿Cuándo aparece la caja? (desde v0.9.724)** La fila **«▸ Overlays» está arriba del todo** en la línea de tiempo, encima de «Cluster». **Cada pista se puede plegar:** un clic en la **▾** al inicio de su nombre la reduce a una franja fina y otro clic la despliega; la app lo recuerda por pista.  Lo más fácil es en la **línea de tiempo bajo el mapa**: haz clic en **«▸ Overlays»** y se abre una fila por caja. Cada **barra es el tiempo en que se ve la caja**. **Arrastra** la barra para moverla y sus **bordes** para cambiar inicio y final. Los dos **puntos blancos** de arriba son la **entrada** y la **salida**: arrástralos y la caja aparece o desaparece suavemente durante ese tiempo (lo muestra la cuña oscura). **Al final de la barra la caja ya no se ve**: la salida va antes. Mientras arrastras, la vista previa salta a ese punto y la línea de estado dice a qué está atado el borde: en la **intro**, a segundos desde el inicio del vídeo; **durante la animación, a un punto del track** («en el km 349,3»: se queda ahí aunque cambies el ritmo o la duración); en la **pausa final**, a segundos antes del final («2,0 s antes del final»: se mantiene 2 s antes del final aunque el vídeo se alargue). Ejemplo: mostrar los datos totales desde el segundo 25 y que desaparezcan 2 segundos antes del final: borde izquierdo a 25 s, borde derecho a «2 s antes del final», listo. **Doble clic o clic derecho** en una barra abre la ventana de la caja; ahí están los mismos valores como números («segundo desde el inicio del vídeo», «en un punto del track (km)», «segundos antes del final del vídeo», «durante») y la **duración de entrada y de salida** por separado. Una caja desactivada se ve gris y discontinua. Los **segundos ⏱ de la barra lateral** siguen a la barra; «hasta» es un segundo del vídeo (vacío = hasta el final). Si «hasta» queda antes de «desde», el campo se pone rojo. Los proyectos anteriores conservan sus tiempos; una salida configurada ahora va dentro del tramo, así que la caja desaparece una duración de transición antes que antes. **Mostrar una caja varias veces:** doble clic en un hueco de la fila añade ahí otro tramo (3 s; luego arrástralo). Los tramos que se solapan se unen en uno. En la ventana de la caja aparecen «Tramo 1», «Tramo 2»… cada uno con una ✕ para borrarlo; en ese caso los campos ⏱ de la barra lateral solo muestran.
-
-**Tiempo en la barra lateral (⏱) — desde el inicio o antes del final (desde v0.9.724):** junto al segundo campo eliges desde dónde cuenta «hasta»: **«s desde el inicio»** (segundo del vídeo) o **«s antes del final»**. «⏱ 15 – 2 s antes del final» significa: desde el segundo 15, y 2 segundos antes del final la caja desaparece. Si «hasta» no queda detrás de «desde», el campo se pone rojo y **no se aplica nada** — la barra queda como estaba. Barra y campos muestran siempre lo mismo; en un borde de ruta la barra muestra ambas cosas, p. ej. «15,0 s · a 3,8 km».
-
-**Fundidos y «Aspecto»:** la entrada y la salida tienen tres tipos — **Directo**, **Fundido** y **Pop** (crece / se encoge). La **«duración del fundido»** en «Aspecto» vale para todas las cajas, **salvo** que hayas ajustado tú el fundido de una caja (arrastrando los puntos blancos de la barra o en la ventana ✎). Entonces, debajo de la duración aparece qué cajas tienen fundidos propios, con **«Volver a la duración de arriba»**. Si una barra se vuelve más corta que ambos fundidos, se acortan proporcionalmente solo para mostrarla — no se guarda nada. **Las cajas sin rango de tiempo propio** (visibles todo el tiempo) también tienen fundido desde v0.9.731: entran al principio del vídeo y salen al final — antes allí solo funcionaba «Directo». Se ve en el ensayo y en el vídeo, no en la vista previa fija.
-
-**Cifras por etapa:** En tours unidos, una caja de totales ofrece **«Cifras de»**: la ruta completa, la **etapa actual** (las cifras cambian con la etapa en el vídeo) o una etapa concreta.
-
-**Cifras por tipo de movimiento (desde v0.9.724):** Si el tour está en el archivo y tiene cuaderno, «Cifras de» ofrece además **«solo caminata», «solo trayecto», «solo bici»…**: la caja muestra distancia, tiempo, velocidad media y desnivel solo de ese tipo. Un tour con trayecto en coche ya no mezcla coche y caminata en una sola media. Se basa en el cuaderno del tour, con tus correcciones del Inspector.
-
-**Filas por separado:** Abajo en la ventana cada fila de la caja tiene un ✎. Una fila puede tener su propio color de texto, tamaño (50–300 %), negrita, momento propio, transiciones propias y cifras de etapa propias. Sin momento propio, la fila aparece junto con la caja.
-
-**Más cajas:** Bajo el perfil de altitud, **＋ Caja** añade una caja adicional, por ejemplo unas segundas estadísticas totales en el centro de la imagen solo para el final. En la ventana eliges título, contenido (Estadísticas totales o Estadísticas en vivo), posición y campos. En la lista activas y desactivas cada caja, **⧉** la duplica y **✕** la elimina tras preguntar.
-
-**Aplicar a todas las cajas, restablecer:** «Aplicar a todas las cajas» copia el aspecto y las transiciones de la caja abierta a todas las demás. El momento y las cifras se mantienen por caja. «Restablecer esta caja» y «Restablecer todas» eliminan los ajustes propios tras preguntar. Cada cambio se puede deshacer con ⌘Z, la vista previa lo muestra al instante, y las transiciones y momentos se ven en la prueba exactamente igual que en el vídeo.
-
-**Nuevo en la barra lateral:** «Aspecto de las cajas» incluye ahora también **Salida**, **Duración de la transición**, **Esquinas**, **Borde** con color y **Sombra** para todas las cajas a la vez.
-
-**Sombra + aparición de las cajas de estadísticas (desde v0.9.479):** las cajas proyectan ahora una **sombra según la dirección**, que sigue la misma **fuente de luz global** que el track y los carteles (control **«Dirección de la sombra»** en la sección del track). Además está el selector **«Aparición»** (Directo / Fundido / Aparecer (pop) / Fundido + pop): decide cómo aparecen las cajas en el **vídeo renderizado** (y en la prueba).
-
-**Posiciones (desde v0.9.284):** las cajas de estadísticas en una **cuadrícula de 3×3** — las cuatro esquinas más **arriba (↥)**, **abajo (↧)**, **izquierda (⇤)**, **derecha (⇥)** centradas y **centro (✛)** (p. ej. para un rótulo de título/apertura). El **perfil de altitud** es más estrecho y ofrece además **arriba ancho / abajo ancho** (a lo largo de todo el ancho).
-
-**💧 Marca de agua (desde v0.9.632):** Al final de la sección de overlays
-hay una casilla **💧 Marca de agua** — activada o desactivada, nada más. Si
-está activada, debajo aparecen **«🖼 imagen propia …»** (con ↩︎ para volver al
-logo de GPS Studio), el **tamaño** en porcentaje del ancho del vídeo y la
-**opacidad**. La **posición la fijas directamente en la vista previa:
-arrastra el logo con el ratón hasta donde deba estar.**
-
-**Los proyectos nuevos** empiezan con el logo de GPS Studio abajo a la derecha
-(15 %, 65 % de opacidad) — discreto pero legible. Un clic lo desactiva y esa
-decisión se mantiene. **Los proyectos existentes nunca reciben una marca de
-agua**: el valor por defecto se aplica al crear un proyecto, no al abrirlo.
-
-La marca de agua aparece en el vídeo renderizado, en la imagen fija y en la
-exportación alfa — la vista previa la muestra fiel al píxel (WYSIWYG). La
-imagen se incrusta al renderizar; en 4K y vertical queda automáticamente en el
-mismo sitio, porque todo se calcula en porcentaje del área del vídeo. El logo
-integrado se guarda como marcador, no como ruta de archivo, así un proyecto
-exportado muestra el logo también en otro ordenador.
-
-**📊 Gráficos en el vídeo (desde v0.9.443):** en la sección de overlays, debajo del perfil de altitud sencillo, está el apartado **📊 Gráficos**. Con él superpones **tantos** gráficos de series de datos totalmente diseñados como quieras directamente sobre el vídeo del mapa — altitud, pulso, velocidad, potencia y cualquier otra serie que ofrezca tu track, incluyendo **zonas de color** y un **segundo eje Y**.
-
-![Dos gráficos en el vídeo final: el perfil de altitud a lo ancho abajo y la curva de velocidad a su derecha — ambos van sincronizados con la posición en el mapa.](img/diagramme-im-video.jpg)
-
-- **«＋ Añadir gráfico»** crea una tarjeta. Por cada gráfico eliges la **serie de datos**, la **posición** (9 esquinas/centros), el **ancho** y el **alto**, además de una **ventana temporal** (desde/hasta el segundo del vídeo).
-- **Opacidad de primer plano y de fondo por separado (desde v0.9.445):** con **«Opacidad del gráfico»** controlas la curva y las etiquetas, y con **«Opacidad del fondo»** la caja que hay detrás. Si bajas el **fondo a 0 %**, el mapa se transparenta por completo y solo la línea de datos flota sobre el vídeo. La vista previa lo muestra ahora **WYSIWYG** (transparencia real en lugar de una caja blanca).
-- **Ejes por gráfico (desde v0.9.447):** cada tarjeta de gráfico tiene sus propios controles **«Ejes»** y **«Fuente de ejes»** (8–60 px). Prevalecen sobre el estilo adoptado del Animador de datos, de modo que una superposición pequeña puede llevar etiquetas grandes o prescindir por completo de los ejes. Importante: el tamaño de fuente se refiere a la **resolución del vídeo**, no a la caja del gráfico.
-
-![La tarjeta de gráfico en la barra lateral: serie de datos, posición, ancho/alto, opacidad separada para el gráfico (primer plano) y el fondo, y «Adoptar del Animador de Datos».](img/diagramme-sidebar.png)
-
-- **El aspecto lo diseñas en el Animador de Datos** (color de línea, área, zonas de color, barra de información, marcador, segunda serie …) y luego pulsas **«🎨 Adoptar del Animador de Datos»** en el gráfico — después el gráfico se ve exactamente igual. Así puedes, por ejemplo, configurar un gráfico de pulso elaborado, adoptarlo y colocar un segundo para la altitud al lado.
-- Cada gráfico **va sincronizado con el punto del mapa**: el marcador se sitúa justo sobre la posición actual — ya lo ves en la vista previa al arrastrar el scrubber y en el ensayo.
-- Funciona también en la **exportación alfa** (ProRes 4444 .mov transparente): los gráficos quedan entonces como una capa de overlay propia sobre tu vídeo en Premiere / Final Cut / DaVinci.
-- El **perfil de altitud sencillo de siempre** permanece sin cambios — los gráficos son una herramienta adicional, no un sustituto.
-
-**⏱ Ventana temporal por caja** (desde v0.9.228): bajo cada caja de overlay puedes
-ajustar **a partir de qué segundo y hasta qué segundo del vídeo** se muestra
-— p. ej. mostrar la caja en directo solo a partir del segundo 2, u ocultar la caja de totales
-después del segundo 8. Dos campos «desde … s» / «hasta … s», contados sobre el
-**vídeo completo** (intro + animación + hold). **Vacío o 0** = como hasta ahora (visible todo
-el tiempo). La aparición/desaparición ya la ves en el **ensayo**, antes de
-renderizar.
 
 **Cámara:**
 - **🎥 Cámara estable (terreno 3D)** (casilla, arriba del todo en la sección, **por defecto: desactivada**) — *contra el rebote arriba-abajo de la cámara sobre terreno montañoso.* En vuelos de cámara con keyframes sobre terreno 3D, la cámara normalmente «cabalga» sobre las montañas y rebota hacia arriba en cada subida y hacia abajo en el valle (sobre todo con inclinación fuerte). Marca esta casilla y la cámara vuela **desacoplada por el espacio, como un dron** — en tus keyframes acierta exactamente el encuadre configurado, y entre ellos se mueve de forma estable, sin el rebote del terreno. **Por defecto está desactivada** (comportamiento clásico); actívala solo si el rebote sobre las montañas te molesta. Se aplica tanto en el **ensayo** como en el **render** final (lo que ves es lo que obtienes). *Consejo:* si un proyecto concreto con la cámara estable activada se ve raro alguna vez (p. ej. una aproximación desde la vista mundial), simplemente desmárcala de nuevo.
@@ -1877,7 +1822,7 @@ parado, número de paradas y cuántos segundos quedan en el vídeo.
   ℹ️ El tiempo de render depende **mucho más** de **duración × FPS × resolución** que del número de puntos. Si un render tarda demasiado: reduce primero FPS/resolución.
 
 - **Animación sin mapa (canal alfa)** ⭐ **Para composición en editor de vídeo**:
-  - Activa la casilla → renderiza **solo track + punto + overlays de estadísticas** sobre fondo transparente.
+  - Activa la casilla → renderiza **solo track, punto, carteles y superposiciones** sobre fondo transparente; desde v0.9.752 por el mismo camino que cualquier vídeo, es decir, tal como lo muestra la vista previa (también con varias rutas).
   - La salida es un archivo **`.mov`** (ProRes 4444 con canal alfa, más grande que un MP4 pero apto para NLE).
   - En **Premiere Pro, Final Cut Pro, DaVinci Resolve, CapCut Pro** puedes superponer este archivo directamente **sobre vídeo real** — el track aparece como overlay animado sobre tu material de dron, GoPro o vlog.
   - En este modo **no se requiere** un token de Mapbox (no se renderiza ningún mapa).

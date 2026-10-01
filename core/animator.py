@@ -13,7 +13,6 @@ import io
 import json
 import logging
 import math
-import re
 import os
 import shutil
 import subprocess
@@ -31,12 +30,12 @@ from .frame_driver import (TEIL as _TEIL, teildatei as _teildatei,   # noqa: E40
                            fertigstellen as _fertigstellen, teil_wegraeumen as _teil_wegraeumen,
                            drain_stderr as _drain_stderr, ffmpeg_gestorben as _ffmpeg_gestorben)
 
-from .frame_driver import muxer_fuer as _muxer_fuer   # noqa: E402
+from .frame_driver import muxer_fuer as _muxer_fuer   # noqa: E402, F401  (Tests importieren es von hier)
 
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from PIL import Image
 
@@ -101,11 +100,6 @@ from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
 from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from . import i18n as _i18n
 from . import zeitzone as _zeit   # 11.09.2026 — Datum/Uhrzeit in den Einblendungen
-from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
-from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
-from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
-from . import overlayboxen as _ovb    # 23.09.2026: Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
-from .frame_driver import FrameMuxer    # 22.08.2026: gemeinsamer ffmpeg-Lebenslauf
 
 
 # 03.09.2026 — Die Stilliste lebt in core/mapstyles.py (Mapbox, MapTiler,
@@ -278,79 +272,16 @@ class AnimatorConfig:
     # 23.08.2026 — Farbe je Etappe eines zusammengeführten Tracks: {"1": "#rrggbb", …}
     tour_colors: dict = field(default_factory=dict)
     show_overlays: bool = True          # Master-Schalter (Backwards-Compat)
-    # Granulare Overlay-Steuerung (überschreibt show_overlays NICHT — Master bleibt führend).
-    # Position: tl|tr|bl|br|bc (bc = bottom-center für volle Breite)
-    overlay_totals_enabled: bool = True
-    overlay_totals_position: str = "tl"
-    overlay_live_enabled: bool = True
-    overlay_live_position: str = "tr"
-    overlay_elevation_enabled: bool = True
-    overlay_elevation_position: str = "bc"
-    # 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „Jeder Geo-Mensch wäre
-    # überrascht … Nordpfeil und Maßstab dürfen nicht fehlen — abschaltbar,
-    # aber per Default an"). Pfeil dreht mit dem Kamera-Bearing, Maßstab
-    # folgt Zoom/Breite (Bildmitte). Im Alpha-Render (keine Karte) nur der Pfeil.
-    overlay_north_enabled: bool = True
-    overlay_north_position: str = "br"
-    overlay_scale_enabled: bool = True
-    overlay_scale_position: str = "bl"
-    # v0.9.228 — Zeitfenster pro Overlay-Box (Nutzer-Wunsch „anzeigen ab Sek X
-    # bis Sek Y"). In VIDEO-Sekunden (intro + anim + hold). from_s default 0 =
-    # ab Start; to_s default 0 = bis Ende (kein oberes Limit). Der Render-Loop
-    # ruft window.__overlayTiming(videoSekunde) pro Frame → Box wird ein-/
-    # ausgeblendet (visibility). Default 0/0 = ganze Zeit sichtbar (wie bisher).
-    overlay_totals_from_s: float = 0.0
-    overlay_totals_to_s: float = 0.0
-    overlay_live_from_s: float = 0.0
-    overlay_live_to_s: float = 0.0
-    overlay_elevation_from_s: float = 0.0
-    overlay_elevation_to_s: float = 0.0
-    # v0.9.321 — Stats-Editor: wählbare + sortierbare Felder pro Box. Leere/None
-    # Liste = Default-Felder (= bisheriges Verhalten, Backward-Compat). IDs siehe
-    # OVERLAY_LIVE_FIELDS / OVERLAY_TOTAL_FIELDS.
-    overlay_live_fields: list = field(default_factory=lambda: list(DEFAULT_LIVE_FIELDS))
-    overlay_totals_fields: list = field(default_factory=lambda: list(DEFAULT_TOTAL_FIELDS))
-    # v0.9.334 — projekt-eigene Umbenennung/Einheit für Sensorfelder:
-    #   {key: {"label": str, "unit": str}}  (z.B. {"cadence": {"label":"Schrittfrequenz","unit":"spm"}})
-    overlay_field_overrides: dict = field(default_factory=dict)
-    # Globales Styling aller Stats-Boxen.
-    overlay_font: str = "system"        # Key aus _OVERLAY_FONTS
-    overlay_text_color: str = "#ffffff"
-    overlay_bg_color: str = "#000000"
-    overlay_bg_opacity: float = 0.55    # 0..1
-    # v0.9.479 — Einblende-Animation der Stats-Boxen: none|fade|pop|both (Beta-Tester-Wunsch).
-    overlay_entry: str = "none"
-    # 23.09.2026 — Overlay-Boxen einzeln einstellen (docs/OVERLAY-BOXEN.md, Beta-Tester:
-    # „Statistik am Ende der Route 10 s einblenden und wieder ausblenden"). Globale
-    # Werte (Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten) + je Box/Zeile nur
-    # die Abweichungen in `overlay_boxen`. Aufgelöst von core/overlayboxen.py.
-    overlay_exit: str = "none"
-    overlay_blende_s: float = 0.5
-    overlay_radius: float = 12.0
-    overlay_border_w: float = 0.0
-    overlay_border_color: str = "#ffffff"
-    overlay_shadow: bool = True
-    overlay_boxen: list = field(default_factory=list)
-    # 30.09.2026 (Marc, nach dem Komoot-Video) — Skin aller Einblendungen:
-    # "kasten" (bisher) | "frei" (ohne Kasten, große Zahl + kleine Einheit, Verläufe
-    # oben/unten, Logo als Plakette). WYSIWYG-Spiegel: module.css [data-skin="frei"].
-    overlay_skin: str = "kasten"
+    # 30.09.2026 — Einblendungen als Container (docs/OVERLAY-CONTAINER.md): Der Web-Karten-Export
+    # bekommt sie als fertiges HTML aus der Vorschau (module.js _ctExportHtml), dazu die Verläufe.
+    container_html: str = ""
+    container_verlauf: dict = field(default_factory=dict)
     # 24.09.2026 (IDEAS §67 Q11) — Logbuch-Bereiche mit Anzeige im Video:
     # [{von, bis (Anteil 0..1 der Punkte), deckkraft}] — 0 = Linie unsichtbar
     # (überspringen), 0,25 = blass. Raffen/Überspringen-Tempo steckt in pace_map.
     logbuch_masken: list = field(default_factory=list)
     # 24.09.2026 (IDEAS §67 Q16) — Logbuch-Bereiche [{art, t0, t1}] für Zahlen je Bewegungsart
     bewegung_bereiche: list = field(default_factory=list)
-    # v0.9.443 — Daten-Diagramme als Overlay. Jedes Diagramm ist ein voll
-    # konfiguriertes Daten-Animator-Chart (Höhe, Puls, Tempo, Farbzonen, 2.
-    # Achse …), eingebettet als transparentes <iframe srcdoc=_make_html>. Es
-    # wird pro Frame über die Distanz-Fraktion synchron zum Karten-Punkt
-    # getrieben (siehe advanceFrame). Mehrere gleichzeitig möglich. Das simple
-    # overlay_elevation_* bleibt davon UNBERÜHRT (additiv). Schema pro Eintrag:
-    #   {"series": str, "position": str (pos-Slot), "width": int, "height": int,
-    #    "opacity": int(0..100), "from_s": float, "to_s": float,
-    #    "style": {…HeightConfig-Style-Felder aus dem Daten-Animator-Snapshot…}}
-    charts: list = field(default_factory=list)
     codec: str = "h264"                 # "h264" oder "h265" (HEVC, kleinere Files)
     crf: int = 20                       # Qualität: niedriger = besser, 18-22 typisch
     # v0.9.245 — Frame-Erfassung: JPEG ist ~16× schneller zu encoden+übertragen
@@ -407,15 +338,6 @@ class AnimatorConfig:
     # tracks") — Zusatz-Touren übernehmen die Laufpunkt-Form der Haupt-Tour
     # (praktisch: Pfeil in Fahrtrichtung für den ganzen Schwarm).
     schwarm_dot_haupt_form: bool = False
-    watermark_path: str = ""
-    watermark_pos: str = "br"           # Alt-Projekte (v0.9.632): tl|tr|bl|br
-    # 30.08.2026 (Marc: „mit der maus hinziehen, wo es hin soll") — freie
-    # Position: linke obere Ecke des Logos in % der Videofläche. -1 = nicht
-    # gesetzt → aus watermark_pos abgeleitet (Abwärtskompatibilität).
-    watermark_x_pct: float = -1.0
-    watermark_y_pct: float = -1.0
-    watermark_w_pct: float = 12.0
-    watermark_opacity: float = 0.9
     # Nur bei "real": was mit Standzeiten passiert. "show" (voll ausspielen),
     # "trim" (auf `pause_trim_s` kürzen) oder "skip" (ganz raus). Ohne
     # Behandlung wäre der ehrlichste Modus der langweiligste — bei einer
@@ -634,77 +556,10 @@ def _shadow_dxdy(cfg) -> tuple:
     return (d * math.cos(a), d * math.sin(a))
 
 
-def _format_km(m: float) -> str:
-    return f"{m / 1000:.1f} km" if m < 100000 else f"{m / 1000:.0f} km"
 
 
-def _format_dur(s: float) -> str:
-    s = int(s)
-    h, rem = divmod(s, 3600)
-    m, sec = divmod(rem, 60)
-    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m:02d}:{sec:02d}"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Stats-Overlay-Feld-Katalog (v0.9.321) — wählbare + sortierbare Felder.
-# Single source of truth fürs Backend; das Frontend (modules/animator/ui/module.js,
-# `OVERLAY_FIELD_CATALOG`) spiegelt diese IDs/Labels/Requires — bei Änderung BEIDE
-# pflegen. `requires`: "none" | "time" (braucht Zeitstempel) | "ele" (braucht Höhe).
-#   LIVE-Feld `js`  = JS-Ausdruck der aus `idx` den Anzeige-String macht (im
-#     per-Frame-updateOverlays). Verfügbare Symbole: cumDistM, cumTimeS, elevations,
-#     speedKmh, gradePct, TOTAL_DIST_M, TOTAL_TIME_S, fmtKmJS(km), fmtDurJS(sec).
-#   TOTAL-Feld `py` = Funktion(total_stats)->Wert-HTML (server-seitig statisch).
-OVERLAY_LIVE_FIELDS = [
-    {"id": "dist_done",    "requires": "none", "label": "Zur&uuml;ckgelegt", "accent": True,
-     "js": "fmtKmJS(cumDistM[idx]/1000)"},
-    {"id": "dist_left",    "requires": "none", "label": "Verbleibend",
-     "js": "fmtKmJS(Math.max(0,(TOTAL_DIST_M-cumDistM[idx])/1000))"},
-    {"id": "speed",        "requires": "time", "label": "Tempo",
-     "js": "Math.round(speedKmh[idx])+' km/h'"},
-    {"id": "time_elapsed", "requires": "time", "label": "Vergangen",
-     "js": "fmtDurJS(cumTimeS[idx])"},
-    {"id": "time_left",    "requires": "time", "label": "Restzeit",
-     "js": "fmtDurJS(Math.max(0,TOTAL_TIME_S-cumTimeS[idx]))"},
-    {"id": "ele_now",      "requires": "ele",  "label": "H&ouml;he",
-     "js": "Math.round(elevations[idx])+' m'"},
-    # 11.09.2026 (Marc) — Datum und Uhrzeit am aktuellen Punkt (Zeitzone der Tour).
-    {"id": "datetime_now", "requires": "time", "label": "Datum &amp; Uhrzeit",
-     "js": "fmtDateTimeJS(epochS[idx],TZ_OFF_MIN,DATE_LANG)"},
-    {"id": "time_now",     "requires": "time", "label": "Uhrzeit",
-     "js": "fmtTimeJS(epochS[idx],TZ_OFF_MIN)"},
-    {"id": "grade",        "requires": "ele",  "label": "Steigung",
-     "js": "(gradePct[idx]>=0?'+':'')+gradePct[idx].toFixed(0)+' %'"},
-    # 29.08.2026 (Marc) — kumulierte Höhenmeter bis zum aktuellen Punkt.
-    {"id": "asc_done",     "requires": "ele",  "label": "Bergauf bisher",
-     "js": "'\u2191 '+Math.round(cumAscM[idx])+' m'"},
-    {"id": "desc_done",    "requires": "ele",  "label": "Bergab bisher",
-     "js": "'\u2193 '+Math.round(cumDescM[idx])+' m'"},
-    # 23.08.2026 (Marc) — Etappen-Werte für zusammengeführte Mehr-Touren-Tracks:
-    # links der Tageswert, rechts die Gesamtsumme. `requires: "stages"` blendet
-    # sie bei einer normalen Einzeltour aus.
-    {"id": "stage_name",   "requires": "stages", "label": "Etappe",
-     # 29.09.2026 — Etappe ohne Namen: Vorlage „Etappe {n}" aus der App-Sprache
-     # (animator.stage_fallback_name, wortgleich mit der Vorschau), als
-     # [vor, nach] in STAGE_FB — ohne geschweifte Klammern im JS-Schnipsel.
-     "js": "(STAGE_NAME[idx] || (STAGE_FB[0] + STAGE_NR[idx] + STAGE_FB[1]))"},
-    {"id": "stage_no",     "requires": "stages", "label": "Etappe Nr.",
-     "js": "(STAGE_NR[idx] + ' / ' + STAGE_TOTAL)"},
-    {"id": "stage_dist",   "requires": "stages", "label": "In dieser Etappe",
-     "js": "fmtKmJS(Math.max(0,(cumDistM[idx]-STAGE_D0[idx])/1000))"},
-    {"id": "stage_time",   "requires": "stages", "label": "Zeit in der Etappe",
-     "js": "fmtDurJS(Math.max(0,cumTimeS[idx]-STAGE_T0[idx]))"},
-    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Zähler: wie viele Touren sind noch
-    # unterwegs? Zählt den Haupt-Track mit; „unterwegs" heißt: die bereits
-    # zurückgelegte Distanz des Haupt-Tracks liegt vor dem Ende der Tour
-    # (kleine Toleranz von einem Schrittabstand, sonst flackert der letzte
-    # Frame). `requires: "schwarm"` blendet das Feld überall sonst aus.
-    {"id": "swarm_underway", "requires": "schwarm", "label": "Noch unterwegs",
-     "js": ("(function(){const d=swarmRefD(idx);"
-            "let m=(idx<cumDistM.length-1)?1:0;"
-            "for(let i=0;i<SCHWARM_N;i++){"
-            "if(!swarmFertig(i,d))m++;}"
-            "return m+' / '+(SCHWARM_N+1);})()")},
-]
 # 29.08.2026 (Marc: „gesamtstats beim schwarm sollten die summe anzeigen von
 # allen touren") — im Schwarm zeigen die Gesamt-Felder die SUMME über alle
 # Touren (Ø-Tempo = Schnitt aus den Summen, Max/Höchster/Tiefster = Extremwert).
@@ -714,141 +569,20 @@ def _sw(ts, key, sonst):
     return ts.get(key) if ts.get("swarm_n") and ts.get(key) is not None else sonst
 
 
-OVERLAY_TOTAL_FIELDS = [
-    {"id": "dist_total", "requires": "none", "label": "Strecke",
-     "py": lambda ts: _format_km(_sw(ts, "swarm_dist_m", ts["distance_m"]))},
-    {"id": "duration",   "requires": "time", "label": "Zeit",
-     "py": lambda ts: _format_dur(_sw(ts, "swarm_duration_s", ts["duration_s"]))},
-    # 11.09.2026 (Marc) — Datum (Mehrtagestour: Zeitraum) und Uhrzeit von … bis.
-    {"id": "date",       "requires": "time", "label": "Datum",
-     "py": lambda ts: _zeit.fmt_zeitraum(ts.get("start_epoch"), ts.get("end_epoch"), ts.get("tz_offset_min", 0), ts.get("lang", "de"))},
-    {"id": "time_span",  "requires": "time", "label": "Uhrzeit",
-     "py": lambda ts: _zeit.fmt_uhrzeit_spanne(ts.get("start_epoch"), ts.get("end_epoch"), ts.get("tz_offset_min", 0))},
-    {"id": "moving_time", "requires": "time", "label": "Bewegungszeit",
-     "py": lambda ts: _format_dur(_sw(ts, "swarm_moving_s",
-                                      ts.get("moving_time_s") or ts.get("duration_s") or 0))},
-    {"id": "avg_speed",  "requires": "time", "label": "&Oslash; Tempo",
-     # v0.9.323 (Nutzer-Feedback): Ø aus FAHRZEIT (ohne Pausen), nicht aus Gesamtzeit. 1 Nachkomma.
-     "py": lambda ts: (f'{_sw(ts, "swarm_dist_m", ts["distance_m"]) / _sw(ts, "swarm_moving_s", (ts.get("moving_time_s") or ts["duration_s"])) * 3.6:.1f} km/h'
-                       if _sw(ts, "swarm_moving_s", (ts.get("moving_time_s") or ts.get("duration_s"))) else "—")},
-    {"id": "avg_speed_total", "requires": "time", "label": "&Oslash; Tempo (gesamt)",
-     # Ø aus GESAMTZEIT (inkl. Pausen) — wählbar als zweites Feld.
-     "py": lambda ts: (f'{_sw(ts, "swarm_dist_m", ts["distance_m"]) / _sw(ts, "swarm_duration_s", ts["duration_s"]) * 3.6:.1f} km/h'
-                       if _sw(ts, "swarm_duration_s", ts.get("duration_s")) else "—")},
-    {"id": "max_speed",  "requires": "time", "label": "Max. Tempo",
-     "py": lambda ts: f'{_sw(ts, "swarm_max_kmh", ts.get("max_speed_kmh", 0)):.1f} km/h'},
-    {"id": "elev_gain",  "requires": "ele",  "label": "Bergauf",
-     "py": lambda ts: f'&uarr; {_sw(ts, "swarm_ascent_m", ts["ascent_m"]):.0f} m'},
-    {"id": "elev_loss",  "requires": "ele",  "label": "Bergab",
-     "py": lambda ts: f'&darr; {_sw(ts, "swarm_descent_m", ts["descent_m"]):.0f} m'},
-    {"id": "ele_high",   "requires": "ele",  "label": "H&ouml;chster Punkt",
-     "py": lambda ts: f'{_sw(ts, "swarm_ele_max", ts["ele_max"]):.0f} m'},
-    {"id": "ele_low",    "requires": "ele",  "label": "Tiefster Punkt",
-     "py": lambda ts: f'{_sw(ts, "swarm_ele_min", ts["ele_min"]):.0f} m'},
-    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Gesamtwert: Tourenzahl + Strecke ALLER
-    # Touren zusammen (die normalen Felder zeigen bewusst die längste Tour).
-    {"id": "swarm_total", "requires": "schwarm", "label": "Touren gesamt",
-     "py": lambda ts: f'{ts.get("swarm_n", 0)} &middot; {_format_km(ts.get("swarm_dist_m", 0))}'},
-]
-# 28.08.2026 (Marc: „der soll immer die summe anzeigen beim schwarm") — im
-# Schwarm-Ablauf rechnen die Distanz-Felder über ALLE Touren: „Zurückgelegt"
-# ist, wie weit der ganze Schwarm bis jetzt gelaufen ist, „Verbleibend" der
-# Rest bis alle im Ziel sind. Die Helfer swarmDoneM/SWARM_TOTAL_M definiert
-# das Render-HTML nur, wenn Schwarm-Touren da sind (deshalb greifen die
-# Overrides ausschließlich bei has_schwarm).
-_SCHWARM_LIVE_JS = {
-    "dist_done": "fmtKmJS(swarmDoneM(idx)/1000)",
-    "dist_left": "fmtKmJS(Math.max(0,(SWARM_TOTAL_M-swarmDoneM(idx))/1000))",
-    # 29.08.2026 (Marc-Nebenbefund): auch Höhenmeter und Zeit sind im Schwarm
-    # Summen über alle Touren, nicht nur der Haupt-Track.
-    "asc_done": "'\u2191 '+Math.round(cumAscM[idx]+swarmSum(SCHWARM_ASC_TOT,idx))+' m'",
-    "desc_done": "'\u2193 '+Math.round(cumDescM[idx]+swarmSum(SCHWARM_DESC_TOT,idx))+' m'",
-    "time_elapsed": "fmtDurJS(cumTimeS[idx]+swarmSum(SCHWARM_DUR,idx))",
-}
 
-_OVERLAY_LIVE_BY_ID = {f["id"]: f for f in OVERLAY_LIVE_FIELDS}
-_OVERLAY_TOTAL_BY_ID = {f["id"]: f for f in OVERLAY_TOTAL_FIELDS}
 DEFAULT_LIVE_FIELDS = ["dist_done", "time_elapsed", "ele_now"]
 DEFAULT_TOTAL_FIELDS = ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"]
 
-# Render-sichere Font-Auswahl. System = body-Default; alle anderen werden per
-# Google-Fonts-<link> im Render-Head geladen (Headless-Chromium hat Netz). NIE
-# Comic Sans/Chalkboard/Marker Felt (globale Projektregel).
-_OVERLAY_FONTS = {
-    "system":    (None, "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif"),
-    "nunito":    ("Nunito:wght@400;600;700",      "'Nunito', sans-serif"),
-    "quicksand": ("Quicksand:wght@400;500;700",   "'Quicksand', sans-serif"),
-    "fredoka":   ("Fredoka:wght@400;500;600",     "'Fredoka', sans-serif"),
-    "oswald":    ("Oswald:wght@400;500;600",      "'Oswald', sans-serif"),
-    "bebas":     ("Bebas+Neue",                   "'Bebas Neue', sans-serif"),
-}
 
 
-def _overlay_field_available(requires: str, has_time: bool, has_ele: bool,
-                            has_stages: bool = False,
-                            has_schwarm: bool = False) -> bool:
-    if requires == "time":
-        return has_time
-    if requires == "ele":
-        return has_ele
-    if requires == "stages":     # 23.08.2026 — nur bei zusammengeführten Touren
-        return has_stages
-    if requires == "schwarm":    # 28.08.2026 — nur im Schwarm-Ablauf
-        return has_schwarm
-    return True
 
 
-def _esc(text) -> str:
-    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _overlay_label_ov(fid, default_label, overrides, t=None):
-    """v0.9.393 — projekt-eigene Umbenennung auch für STANDARD-Overlay-Felder
-    (nicht nur Sensorfelder). Override-Key = Feld-id (z.B. "moving_time").
-
-    v0.9.507 — Reihenfolge: Umbenennung des Nutzers > Übersetzung in der
-    App-Sprache > einprogrammiertes deutsches Fallback. Die Übersetzung kommt
-    aus DENSELBEN Schlüsseln wie die Vorschau (`animator.statsfield.<id>`) —
-    Vorschau und Render müssen wortgleich sein. Der User-Text und die
-    Übersetzung werden escaped; das Katalog-Default enthält bereits HTML-
-    Entities (&uuml; …) und bleibt unangetastet."""
-    o = (overrides or {}).get(fid)
-    if isinstance(o, dict) and o.get("label"):
-        return _esc(o["label"])
-    if t is not None:
-        uebersetzt = t("animator.statsfield." + str(fid), "")
-        if uebersetzt:
-            return _esc(uebersetzt)
-    return default_label
 
 
-def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None, t=None,
-                         has_stages: bool = False, has_schwarm: bool = False,
-                         stage_values=None) -> str:
-    """23.09.2026 — jede Zeile trägt `data-f` (Zeilen-Stil/-Zeit, core/overlayboxen)
-    und, wenn Etappen-Werte da sind, `data-stage-values` (Bezug je Etappe)."""
-    rows = []
-    for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
-        f = _OVERLAY_TOTAL_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
-            continue
-        try:
-            # 28.08.2026 (Marc): Im Schwarm ist „Strecke" die Summe ALLER Touren.
-            if has_schwarm and fid == "dist_total" and total_stats.get("swarm_dist_m"):
-                val = _format_km(total_stats["swarm_dist_m"])
-            else:
-                val = f["py"](total_stats)
-        except Exception:
-            continue
-        lbl = _overlay_label_ov(fid, f["label"], overrides, t)
-        sv = (stage_values or {}).get(fid)
-        sv_attr = (' data-stage-values="' + _esc(json.dumps(sv, ensure_ascii=False)).replace('"', "&quot;") + '"') if sv else ""
-        rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"{sv_attr}><span class="label">{lbl}</span><span class="value">{wert_html(val)}</span></div>')
-    return "\n".join(rows)
 
 
-def _sensor_dom_id(key: str) -> str:
-    return "live-sensor-" + key
 
 
 def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
@@ -873,51 +607,8 @@ def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
     return json.dumps(out)
 
 
-def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None, t=None,
-                       has_stages: bool = False, has_schwarm: bool = False, prefix: str = "") -> str:
-    """`prefix` = Element-ID-Präfix der Box (Standard-Live-Box "", Zusatzboxen
-    "<id>-"), damit mehrere Live-Boxen ihre Werte getrennt bekommen (23.09.2026)."""
-    rows = []
-    for fid in (field_ids or DEFAULT_LIVE_FIELDS):
-        # v0.9.331 — FIT-Sensorfeld (sensor:<key>) → Label aus der Registry.
-        # v0.9.334 — projekt-eigene Umbenennung/Einheit (overrides) hat Vorrang.
-        if isinstance(fid, str) and fid.startswith("sensor:"):
-            key = fid.split(":", 1)[1]
-            lbl, _u = _sensors.field_meta_ov(key, overrides, t)
-            rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"><span class="label">{lbl}</span>'
-                        f'<span class="value" id="{prefix}{_sensor_dom_id(key)}">&mdash;</span></div>')
-            continue
-        f = _OVERLAY_LIVE_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
-            continue
-        accent = " accent" if f.get("accent") else ""
-        lbl = _overlay_label_ov(fid, f["label"], overrides, t)  # v0.9.393/507 — Umbenennung > Übersetzung
-        rows.append(f'<div class="stat-row" data-f="{_esc(fid)}"><span class="label">{lbl}</span><span class="value{accent}" id="{prefix}live-{fid}">&mdash;</span></div>')
-    return "\n".join(rows)
 
 
-def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=None,
-                            has_stages: bool = False, has_schwarm: bool = False, prefix: str = "") -> str:
-    """JS-Zeilen für updateOverlays(idx): pro aktivem Live-Feld ein textContent-Set.
-    Wird als literaler Block in den per-Frame-Loop injiziert (kein f-string-Reparse)."""
-    lines = []
-    for fid in (field_ids or DEFAULT_LIVE_FIELDS):
-        # v0.9.331 — Sensor-Live-Wert aus sensorSeries[key][idx] (gerundet + Einheit).
-        if isinstance(fid, str) and fid.startswith("sensor:"):
-            key = fid.split(":", 1)[1]
-            _, unit = _sensors.field_meta_ov(key, overrides)
-            unit_js = json.dumps((" " + unit) if unit else "")
-            lines.append(
-                f"  {{ var _e=document.getElementById('{prefix}{_sensor_dom_id(key)}');"
-                f" if(_e){{ var _v=(sensorSeries[{json.dumps(key)}]||[])[idx];"
-                f" _rzW(_e,(_v==null?'\\u2013':(Math.round(_v)+{unit_js}))); }} }}")
-            continue
-        f = _OVERLAY_LIVE_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
-            continue
-        _js = _SCHWARM_LIVE_JS.get(fid, f["js"]) if has_schwarm else f["js"]
-        lines.append(f"  {{ var _e=document.getElementById('{prefix}live-{fid}'); if(_e) _rzW(_e, {_js}); }}")
-    return "\n".join(lines)
 
 
 # ── Overlay-Boxen einzeln (23.09.2026, docs/OVERLAY-BOXEN.md) ────────────────
@@ -925,256 +616,36 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
 # zweimal da. Box = [data-ovbox="<id>"], Zeile = [data-f="<fid>"] — dieselben
 # Selektoren wie die Vorschau, damit ui/js/overlay_boxen.js beide bedient.
 
-_OV_DOM_ID = {"totals": "overlay-totals", "live": "overlay-live", "ele": "overlay-bottom"}
 
 
-def _ov_dom_id(box: dict) -> str:
-    return _OV_DOM_ID[box["id"]] if box.get("standard") else "overlay-" + str(box["id"])
 
 
-def _ov_prefix(box: dict) -> str:
-    """Element-ID-Präfix der Live-Werte: Standardbox "" (live-<fid>), Zusatzbox "<id>-"."""
-    return "" if box.get("standard") else str(box["id"]) + "-"
 
 
-def _ov_boxen(cfg) -> list:
-    try:
-        return _ovb.aufloesen(cfg)
-    except Exception as e:   # noqa: BLE001 — kaputte Box-Einstellung darf den Render nicht kippen
-        _log.warning("[overlay] Boxen nicht auflösbar, nehme Standard: %s", e)
-        return _ovb.aufloesen({})
 
 
-def _ov_alle_live_felder(cfg) -> list:
-    """Vereinigung der Felder aller aktiven Live-Boxen (für sensorSeries)."""
-    out = []
-    for b in _ov_boxen(cfg):
-        if b["typ"] == "live" and b["enabled"]:
-            for f in b["fields"] or []:
-                if f not in out:
-                    out.append(f)
-    return out
 
 
-def _overlay_boxen_html(cfg, *, total_stats, has_time: bool, has_ele: bool, t, has_stages: bool,
-                        has_schwarm: bool, ele_min: float, ele_max: float, alpha_mode: bool = False,
-                        stage_values=None) -> str:
-    """HTML aller Stats-Boxen + Höhenprofil (Reihenfolge wie die Vorschau)."""
-    if not cfg.show_overlays:
-        return ""
-    ov = getattr(cfg, "overlay_field_overrides", None)
-    out = []
-    for b in _ov_boxen(cfg):
-        if not b["enabled"]:
-            continue
-        dom, pos = _ov_dom_id(b), b["position"]
-        titel = f'<div class="ov-titel">{_esc(b["titel"])}</div>' if b.get("titel") else ""
-        if b["typ"] == "totals":
-            rows = _overlay_totals_rows(b["fields"], total_stats, has_time, has_ele, ov, t=t,
-                                        has_stages=has_stages, has_schwarm=has_schwarm,
-                                        stage_values=stage_values)
-            if rows:
-                out.append(f'\n<div id="{dom}" data-ovbox="{b["id"]}" class="stats-box pos-{pos}">\n  {titel}{rows}\n</div>')
-        elif b["typ"] == "live":
-            rows = _overlay_live_rows(b["fields"], has_time, has_ele, ov, t=t, has_stages=has_stages,
-                                      has_schwarm=has_schwarm, prefix=_ov_prefix(b))
-            if rows:
-                out.append(f'\n<div id="{dom}" data-ovbox="{b["id"]}" class="stats-box pos-{pos}">\n  {titel}{rows}\n</div>')
-        elif b["typ"] == "ele" and has_ele:
-            # Höhenprofil nur wenn echte Höhendaten vorhanden — sonst leerer Strich.
-            bg_op = "0.45" if alpha_mode else "0.25"
-            out.append(f"""
-<div id="overlay-bottom" data-ovbox="ele" class="pos-{pos}">
-  <div class="ele-header">
-    <span class="ele-title">{_esc(t("animator.overlay.elevation_title", "Höhenprofil"))}</span>
-    <span class="ele-minmax">{_esc(t("animator.overlay.ele_min", "Min"))} {ele_min:.0f} m<span class="sep">&bull;</span>{_esc(t("animator.overlay.ele_max", "Max"))} {ele_max:.0f} m</span>
-  </div>
-  <svg id="elevation-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
-    <defs>
-      <linearGradient id="ele-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="{cfg.line_color}" stop-opacity="0.55"/>
-        <stop offset="100%" stop-color="{cfg.line_color}" stop-opacity="0.02"/>
-      </linearGradient>
-    </defs>
-    <polyline id="ele-bg-line" fill="none" stroke="rgba(255,255,255,{bg_op})" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-    <polygon id="ele-active-fill" fill="url(#ele-grad)"/>
-    <polyline id="ele-active-line" fill="none" stroke="{cfg.line_color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle id="ele-dot" r="4.5" fill="#ffffff" stroke="{cfg.line_color}" stroke-width="2"/>
-  </svg>
-</div>""")
-    return "".join(out)
 
 
-def _overlay_stage_values(cfg, total_stats: dict, etappen, has_time: bool, has_ele: bool) -> dict:
-    """{fid: {"gesamt": text, "<nr>": text}} für Gesamt-Zeilen, deren Box oder Zeile
-    einen Bezug auf eine Etappe hat (laufend oder Nr.). Leer ohne Etappen oder
-    ohne solchen Bezug — dann bleibt das HTML wie bisher. 23.09.2026."""
-    try:
-        ts = total_stats or {}
-        # 24.09.2026 — Etappen (ab zwei) und Bewegungsarten (Logbuch) teilen sich
-        # den Mechanismus: Schlüssel "1", "2" … bzw. "art:wanderung" ….
-        stats = dict(ts.get("stage_stats") or {}) if (etappen or {}).get("gesamt", 0) > 1 else {}
-        stats.update(ts.get("art_stats") or {})
-        if not stats:
-            return {}
-        felder = set()
-        for b in _ov_boxen(cfg):
-            if b["typ"] != "totals" or not b["enabled"]:
-                continue
-            bezuege = [b["bezug"]] + [z["bezug"] for z in b["zeilen"].values()]
-            if any(x != "gesamt" for x in bezuege):
-                felder.update(b["fields"] or [])
-        if not felder:
-            return {}
-        return _stage_values_aus(felder, stats, has_time, has_ele,
-                                 ts.get("tz_offset_min", 0), ts.get("lang", "de"), gesamt=ts)
-    except Exception as e:   # noqa: BLE001
-        _log.warning("[overlay] Etappen-Werte nicht berechenbar: %s", e)
-        return {}
 
 
-def _stage_values_aus(felder, stage_stats: dict, has_time: bool, has_ele: bool,
-                      tz_offset_min: int = 0, lang: str = "de", gesamt=None) -> dict:
-    """Werte als KLARTEXT (die Zeitsteuerung setzt textContent — keine Entities)."""
-    import html as _html
-    out = {}
-    for fid in felder:
-        f = _OVERLAY_TOTAL_BY_ID.get(fid)
-        if not f or f["requires"] in ("stages", "schwarm"):
-            continue
-        if not _overlay_field_available(f["requires"], has_time, has_ele):
-            continue
-        werte = {}
-        for nr, st in stage_stats.items():
-            ts = dict(st)
-            ts.setdefault("tz_offset_min", tz_offset_min)
-            ts.setdefault("lang", lang)
-            try:
-                werte[str(nr)] = _html.unescape(f["py"](ts))
-            except Exception:   # noqa: BLE001 — Feld ohne Daten in dieser Etappe
-                werte[str(nr)] = "\u2014"
-        if werte and gesamt is not None:
-            try:
-                werte["gesamt"] = _html.unescape(f["py"](gesamt))
-            except Exception:   # noqa: BLE001
-                pass
-        if werte:
-            out[fid] = werte
-    return out
 
 
-def _overlay_live_update_js_alle(cfg, has_time: bool, has_ele: bool, has_stages: bool = False,
-                                 has_schwarm: bool = False) -> str:
-    """Live-Werte aller aktiven Live-Boxen je Bild setzen (jede mit eigenem Präfix)."""
-    ov = getattr(cfg, "overlay_field_overrides", None)
-    teile = []
-    for b in _ov_boxen(cfg):
-        if b["typ"] == "live" and b["enabled"]:
-            teile.append(_overlay_live_update_js(b["fields"], has_time, has_ele, ov, has_stages,
-                                                 has_schwarm, prefix=_ov_prefix(b)))
-    return "\n".join(x for x in teile if x)
 
 
-def _ist_frei(cfg) -> bool:
-    return str(getattr(cfg, "overlay_skin", "kasten") or "kasten") == "frei"
 
 
-# 30.09.2026 (Skin „Frei") — Zahl und Einheit getrennt, damit die Einheit klein neben
-# der großen Zahl steht. SYNCHRON zu wertTeilen in ui/js/overlay_boxen.js.
-_EINHEIT_RE = re.compile(r"^(.*\d)(\s?)([A-Za-zµ°%/²³]{1,5})$")
 
 
-def wert_teilen(txt) -> tuple[str, str]:
-    s = "" if txt is None else str(txt)
-    m = _EINHEIT_RE.match(s)
-    return (m.group(1), m.group(3)) if m else (s, "")
 
 
-def wert_html(txt) -> str:
-    """Wert als HTML: Einheit in <span class="ov-u">; Text ist schon entschärft
-    oder Klartext aus den Formatierern (keine Tags)."""
-    z, u = wert_teilen(txt)
-    return f'{z}<span class="ov-u"> {u}</span>' if u else z
 
 
-def _skin_frei_css(px, alpha_mode: bool) -> str:
-    """Skin „Frei" für den klassischen Render — Spiegel des Blocks
-    `.overlay-preview-layer[data-skin="frei"]` in modules/animator/ui/module.css."""
-    return f"""
-  .stats-box, #overlay-bottom {{ background: none; box-shadow: none; border: 0;
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-    text-shadow: 0 {px(1)} {px(6)} rgba(0,0,0,0.55); }}
-  .stats-box {{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
-    column-gap: {px(36)}; row-gap: {px(14)}; padding: 0; min-width: 0;
-    width: max-content; max-width: calc(100% - {px(80)}); }}
-  .stats-box .ov-titel {{ flex-basis: 100%; text-align: center; margin-bottom: 0; }}
-  .stat-row, .pos-tr .stat-row, .pos-br .stat-row, .pos-mr .stat-row,
-  .pos-tc .stat-row, .pos-cc .stat-row, .pos-bc .stat-row {{
-    flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; padding: 0; }}
-  .label {{ font-size: calc({px(14)} * var(--rz-ov-gr, 1)); letter-spacing: 0.06em; opacity: 0.9; font-weight: 500; }}
-  .value {{ font-size: calc({px(40)} * var(--rz-ov-gr, 1)); font-weight: 700; line-height: 1.05;
-    white-space: nowrap; letter-spacing: -0.01em; }}
-  .ov-u {{ font-size: 0.5em; font-weight: 600; letter-spacing: 0.02em; margin-left: 0.08em; }}
-  #overlay-bottom {{ padding: 0; }}
-  .ele-header {{ font-size: {px(14)}; }}
-  .ele-title {{ font-size: {px(14)}; opacity: 0.9; letter-spacing: 0.06em; }}
-  .ele-minmax {{ font-size: {px(15)}; font-weight: 600; opacity: 0.95; }}
-  #ele-active-line {{ stroke: #ffffff; }}
-  #ele-grad stop {{ stop-color: #ffffff; }}
-  #ele-dot {{ stroke: #ffffff; }}
-  #elevation-svg {{ filter: drop-shadow(0 {px(1)} {px(4)} rgba(0,0,0,0.45)); }}
-  .pos-tl, .pos-tc, .pos-tr, .pos-tcw {{ top: max({px(40)}, var(--rz-wm-unten, 0px)); }}
-  /* ohne z-index: liegt per DOM-Reihenfolge über der Karte und unter den Boxen */
-  .rz-skin-verlauf {{ position: absolute; left: 0; right: 0; pointer-events: none; }}
-  #rz-verlauf-oben {{ top: 0; height: 26%;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.62), rgba(0,0,0,0.28) 55%, rgba(0,0,0,0)); }}
-  #rz-verlauf-unten {{ bottom: 0; height: 34%;
-    background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.32) 55%, rgba(0,0,0,0)); }}
-"""
 
 
-def _skin_verlauf_html(cfg, alpha_mode: bool = False) -> str:
-    """Dunkle Verläufe oben/unten (Skin „Frei"). Im Alpha-Export nicht — dort
-    liegt das Video des Nutzers darunter, der Verlauf wäre ein grauer Schleier."""
-    if not _ist_frei(cfg) or alpha_mode or not getattr(cfg, "show_overlays", True):
-        return ""
-    return ('<div class="rz-skin-verlauf" id="rz-verlauf-oben"></div>'
-            '<div class="rz-skin-verlauf" id="rz-verlauf-unten"></div>')
 
 
-def _overlay_boxen_css(cfg, px, alpha_mode: bool = False) -> str:
-    """Stil je Box und je Zeile (Farben, Schrift, Ecken, Rahmen, Schatten, Größe,
-    Fettung). WYSIWYG-Spiegel: _ovBoxStil/_ovZeilenStil in modules/animator/ui/module.js."""
-    sr = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 45.0))
-    shx, shy = 9.0 * math.cos(sr), 9.0 * math.sin(sr)
-    sh_op = 0.5 if alpha_mode else 0.45
-    regeln = []
-    for b in _ov_boxen(cfg):
-        if not b["enabled"]:
-            continue
-        st = b["stil"]
-        r, g, bb = _hex_to_rgb(st["bg_color"], (0, 0, 0))
-        a = st["bg_opacity"]
-        if alpha_mode:
-            a = min(1.0, a + 0.07)   # auf NLE-Composite etwas kräftiger
-        schatten = (f"{px(shx)} {px(shy)} {px(22)} rgba(0,0,0,{sh_op})" if st["shadow"] else "none")
-        rahmen = (f"{px(st['border_w'])} solid {st['border_color']}" if st["border_w"] > 0 else "none")
-        # Id + Attribut schlägt die Grundregeln (#overlay-bottom, .stats-box)
-        sel = f'#{_ov_dom_id(b)}[data-ovbox="{b["id"]}"]'
-        if _ist_frei(cfg):   # Skin „Frei": kein Kasten — nur Schrift und Farbe (wie _ovBoxStil)
-            regeln.append(f"  {sel} {{ color: {st['text_color']}; font-family: {_font_stack(st['font'])}; }}")
-        else:
-            regeln.append(f"  {sel} {{ background: rgba({r},{g},{bb},{round(a, 3)}); color: {st['text_color']};"
-                          f" font-family: {_font_stack(st['font'])}; border-radius: {px(st['radius'])};"
-                          f" border: {rahmen}; box-shadow: {schatten}; }}")
-        if b["typ"] == "ele":
-            regeln.append(f"  {sel} .ele-header {{ color: {st['text_color']}; }}")
-        for fid, z in (b.get("zeilen") or {}).items():
-            zs = f'{sel} [data-f="{_esc(fid)}"]'
-            regeln.append(f"  {zs} {{ color: {z['text_color']}; --rz-ov-gr: {z['groesse']}; }}")
-            if z.get("fett") is not None:
-                regeln.append(f"  {zs} .value {{ font-weight: {800 if z['fett'] else 400}; }}")
-    return "\n".join(regeln)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -1264,39 +735,12 @@ def _overlay_compute_speed_grade(points, cum_dist, cum_time, eles, has_time: boo
     return speed, grade, moving_time_s, max_speed_kmh
 
 
-def _overlay_font_link(cfg: "AnimatorConfig") -> str:
-    """<link> zu den Google-Fonts ALLER Overlay-Schriften in Gebrauch (global + je
-    Box, 23.09.2026) — "" wenn nur die Systemschrift läuft."""
-    try:
-        keys = _ovb.fonts_in_gebrauch(cfg)
-    except Exception:   # noqa: BLE001 — kaputte Box-Einstellung darf den Render nicht kippen
-        keys = [(getattr(cfg, "overlay_font", "") or "system").lower()]
-    fam = [(_OVERLAY_FONTS.get(k) or _OVERLAY_FONTS["system"])[0] for k in keys]
-    fam = [f for f in fam if f]
-    if not fam:
-        return ""
-    return ('<link href="https://fonts.googleapis.com/css2?'
-            + "&".join("family=" + f for f in fam) + '&display=swap" rel="stylesheet">')
 
 
-def _font_stack(key: str) -> str:
-    return (_OVERLAY_FONTS.get((key or "system").lower()) or _OVERLAY_FONTS["system"])[1]
 
 
-def _overlay_font_family(cfg: "AnimatorConfig") -> str:
-    key = (getattr(cfg, "overlay_font", "") or "system").lower()
-    spec = _OVERLAY_FONTS.get(key) or _OVERLAY_FONTS["system"]
-    return spec[1]
 
 
-def _hex_to_rgb(hex_color: str, fallback=(0, 0, 0)) -> tuple[int, int, int]:
-    try:
-        h = (hex_color or "").lstrip("#")
-        if len(h) == 3:
-            h = "".join(c * 2 for c in h)
-        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
-    except Exception:
-        return fallback
 
 
 def ghost_liste(cfg) -> list:
@@ -1460,15 +904,6 @@ def _dasharray_mapbox(line_style: str, spacing: float = 1.0, faktor: float = 1.0
     return "[" + ", ".join(f"{v * s:.2f}" for v in base) + "]"
 
 
-def _dasharray_svg(line_style: str, line_width: float, spacing: float = 1.0) -> str:
-    """Variante für SVG-Polylines im Alpha-Render. SVG-`stroke-dasharray`
-    ist in absoluten Pixeln (nicht Liniendicken-Einheiten wie Mapbox),
-    daher multiplizieren wir mit `line_width`. `spacing` analog Mapbox."""
-    base = _DASH_BASE.get(line_style)
-    if not base:
-        return ""
-    s = max(0.1, float(spacing))
-    return ",".join(f"{v * line_width * s:.1f}" for v in base)
 
 
 def _render_dsf(width: int, height: int) -> float:
@@ -1526,90 +961,14 @@ def _render_ss(width: int, height: int) -> float:
     return 1.0
 
 
-def _overlay_scale(render_height: int, dsf: float = 1.0) -> float:
-    """Skalierungs-Faktor für die Stats-Boxen relativ zur Render-Höhe.
-    Base = 1080 (Full HD, scale 1.0). Bei 4K (2160) ergibt das scale 2.0 →
-    Pixel-Werte werden doppelt so groß, damit die Boxen optisch konsistent
-    bleiben. Min 0.5 als Untergrenze für sehr kleine Test-Renders (z.B. 360p),
-    sonst werden Texte unlesbar.
-    Marc-Bug-Report v0.6.3: vorher waren alle CSS-Pixel hartkodiert → Boxen
-    wirkten bei 4K winzig, bei Shorts (1080×1920) riesig.
-    v0.9.20: Wenn der Render mit DSF>1 läuft (siehe `_render_dsf`), ist die
-    effektive CSS-Höhe `render_height / dsf` — Skalierung muss DARAUF basieren,
-    sonst werden Overlays bei 4K doppelt gescaled (CSS-Scale × DSF) und
-    riesig."""
-    css_height = render_height / max(dsf, 1.0)
-    return max(0.5, css_height / 1080)
 
 
-def _overlay_has_timing(cfg: "AnimatorConfig") -> bool:
-    """True wenn der Render-Loop window.__overlayTiming pro Bild rufen muss:
-    Blende (ein/aus), Zeitfenster/Auslöser, Bezug „laufende Etappe" — je Box,
-    je Zeile oder bei einem Diagramm. Regeln: core/overlayboxen.hat_zeitsteuerung."""
-    try:
-        return _ovb.hat_zeitsteuerung(cfg)
-    except Exception as e:   # noqa: BLE001
-        _log.warning("[overlay] Zeitsteuerung nicht bestimmbar: %s", e)
-        return False
 
 
-def _read_overlay_boxen_js() -> str:
-    """Die GEMEINSAME Box-Logik (ui/js/overlay_boxen.js) — dieselbe Datei, die die
-    Vorschau lädt. Eine Quelle für Auflösung, Auslöser und Blenden (23.09.2026)."""
-    base = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent.parent)
-    return (base / "ui" / "js" / "overlay_boxen.js").read_text(encoding="utf-8")
 
 
-def _ov_strecke_zeit(cum_dist, intro_frames, anim_frames, start_idx, end_idx,
-                     cpf, cpf_eff, delay_frames, fps, max_n: int = 1500) -> list:
-    """[[Streckenanteil, Videosekunde], …] aufsteigend — wann der Laufpunkt der
-    Bildschleife eine Stelle erreicht (dieselbe idx-Formel wie in `render`).
-    Anteile wie in `window.__overlayTiming` (cumDistM[idx] relativ zur Spanne)."""
-    n = len(cum_dist or [])
-    if n < 2 or anim_frames < 1:
-        return []
-    d0 = float(cum_dist[0])
-    span = float(cum_dist[n - 1]) - d0
-    schritt = max(1, anim_frames // max_n)
-    out, letzt = [], -1.0
-    for af in list(range(0, anim_frames, schritt)) + [anim_frames - 1]:
-        rel = int(af * cpf)
-        if delay_frames:
-            rel = int(max(0, af - delay_frames) * cpf_eff)
-        idx = max(0, min(n - 1, min(start_idx + rel, end_idx)))
-        f = (float(cum_dist[idx]) - d0) / span if span > 0 else idx / (n - 1)
-        if f > letzt + 1e-9:
-            out.append([round(f, 6), round((intro_frames + af) / max(1, fps), 4)])
-            letzt = f
-    return out
 
 
-def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
-    """<script>: window.__overlayTiming(tSekunde) blendet Boxen, Zeilen und
-    Diagramme nach ihren Auslösern ein und aus (Blende, Pop) und setzt Bezug-
-    Werte je Etappe. Streckenanteil und Etappe kommen vom zuletzt gezeichneten
-    Punkt (updateOverlays setzt window.__rzOvIdx). 23.09.2026 — vorher nur
-    Sekundenfenster + Einblendung."""
-    boxen = [b for b in _ov_boxen(cfg) if b["enabled"]] + _ovb.chart_boxen(cfg)
-    ctx = {"intro_s": float(getattr(cfg, "intro_s", 0) or 0),
-           "anim_s": float(getattr(cfg, "duration_s", 0) or 0),
-           "hold_s": float(getattr(cfg, "hold_s", 0) or 0)}
-    return (
-        "<script>" + _read_overlay_boxen_js() + "</script>"
-        # 30.09.2026 — Live-Werte mit getrennter Einheit (Skin „Frei"), s. wertSetzen
-        "<script>window._rzW=function(e,t){var o=window.rzOverlayBoxen;"
-        "if(o&&o.wertSetzen)o.wertSetzen(e,t);else e.textContent=t;};</script>"
-        "<script>(function(){var B=" + json.dumps(boxen).replace("</", "<\\/") + ",C=" + json.dumps(ctx) + ",S={};"
-        "window.__overlayTiming=function(t){"
-        "var i=window.__rzOvIdx|0,f=0,st=0;"
-        "var cd=(typeof cumDistM!=='undefined')?cumDistM:null,sn=(typeof STAGE_NR!=='undefined')?STAGE_NR:null;"
-        "if(!C.etappen){C.etappen=(cd&&sn)?window.rzOverlayBoxen.etappenGrenzen(cd,sn):{};}"
-        "if(cd&&cd.length>1){var k=Math.max(0,Math.min(i,cd.length-1)),d0=cd[0],sp=cd[cd.length-1]-d0;"
-        "f=sp>0?(cd[k]-d0)/sp:k/(cd.length-1);}"
-        "if(sn&&sn.length){st=sn[Math.max(0,Math.min(i,sn.length-1))]||0;}"
-        "if(!C.strecke_zeit&&window.__rzOvStreckeZeit){C.strecke_zeit=window.__rzOvStreckeZeit;}"
-        "window.rzOverlayBoxen.anwenden(document,B,t,f,st,C,S);};})();</script>"
-    )
 
 
 def _chart_axis_over(ch: dict) -> dict:
@@ -1630,205 +989,10 @@ def _chart_axis_over(ch: dict) -> dict:
     return out
 
 
-def _charts_html(cfg: "AnimatorConfig", ds_points, cum_dist) -> str:
-    """v0.9.443 — HTML-Block der Daten-Diagramm-Overlays.
-
-    Jedes Diagramm ist ein voll konfiguriertes, TRANSPARENTES Daten-Animator-
-    Chart (heightanim._make_html), eingebettet als <iframe srcdoc=…>. Positioniert
-    per pos-Slot-Klasse (wie die anderen Overlays), Größe/Deckkraft per Inline-
-    Style. Getrieben wird pro Frame über window.__advanceCharts (siehe
-    updateOverlays). Die iframe-Innenauflösung == CSS-Boxgröße → der Browser
-    rastert das iframe am Seiten-DSF (scharf, verzerrungsfrei; im PoC verifiziert).
-    """
-    charts = getattr(cfg, "charts", None) or []
-    if not charts or not ds_points:
-        return ""
-    import html as _htmlmod
-    s = _overlay_scale(cfg.height, _render_dsf(cfg.width, cfg.height))
-    ov = getattr(cfg, "overlay_field_overrides", None)
-    out = []
-    for i, ch in enumerate(charts):
-        if not isinstance(ch, dict) or not ch.get("enabled", True):
-            continue
-        style = ch.get("style") or {}
-        series_a = ch.get("series") or style.get("series_a") or "ele"
-        series_b = ch.get("series_b") or style.get("series_b") or ""
-        cw = max(120, int(round(int(ch.get("width", 640) or 640) * s)))
-        chh = max(80, int(round(int(ch.get("height", 300) or 300) * s)))
-        # v0.9.444 — Vorder-/Hintergrund-Deckkraft getrennt, BEIDE ins Chart-Dokument
-        # gebacken (bg = rgba, fg = SVG-Opacity). Kein transparentes iframe + CSS-
-        # Container → keine weiße iframe-Basis in WKWebView. Rückfall: altes `opacity`.
-        _old_op = ch.get("opacity", None)
-        fg = ch.get("fg_opacity", _old_op if _old_op is not None else 100)
-        bg = ch.get("bg_opacity", 100)
-        fg_op = max(0, min(100, int(fg or 0))) / 100.0
-        bg_op = max(0, min(100, int(bg or 0))) / 100.0
-        try:
-            chart_html = _cheight.resolve_overlay_chart(
-                ds_points, cum_dist, style,
-                series_a=series_a, series_b=series_b,
-                width=cw, height=chh,
-                fg_opacity=fg_op, bg_opacity=bg_op, overrides=ov,
-                # v0.9.447 — Schriftskala an die VIDEO-Auflösung koppeln, nicht an
-                # die (kleine) Diagramm-Box. Sonst ergibt ein 270-px-Overlay eine
-                # 5-px-Beschriftung, die niemand lesen kann.
-                text_scale=s,
-                style_over=_chart_axis_over(ch))
-        except Exception as e:  # ein kaputtes Diagramm darf den Render nicht kippen
-            _log.warning("Chart-Overlay %d konnte nicht gebaut werden: %s", i, e)
-            continue
-        srcdoc = _htmlmod.escape(chart_html, quote=True)
-        pos = str(ch.get("position", "br") or "br")
-        _br, _bg2, _bb = _hex_to_rgb(style.get("background_color", "#1a1a1a"), (26, 26, 26))
-        bg_css = f"rgba({_br},{_bg2},{_bb},{bg_op:.3f})"  # Fallback hinter dem iframe
-        out.append(
-            f'<div id="overlay-chart-{i}" data-ovbox="chart-{i}" class="chart-ov pos-{pos}" '
-            f'style="width:{cw}px;height:{chh}px;background:{bg_css};">'
-            f'<iframe class="chart-ov-frame" scrolling="no" frameborder="0" '
-            f'srcdoc="{srcdoc}"></iframe></div>')
-    return "".join(out)
 
 
-def _chart_driver_js(cfg: "AnimatorConfig") -> str:
-    """<script> das die Chart-iframes pro Frame synchron treibt. Definiert
-    window.__advanceCharts(distFrac) und window.__chartsReady(). Nur ausgegeben,
-    wenn überhaupt Diagramme aktiv sind."""
-    n = len([c for c in (getattr(cfg, "charts", None) or [])
-             if isinstance(c, dict) and c.get("enabled", True)])
-    if n <= 0:
-        return ""
-    return (
-        "<script>"
-        "window.__chartFrames=function(){return Array.prototype.slice.call("
-        "document.querySelectorAll('.chart-ov-frame'));};"
-        "window.__advanceCharts=function(f){var fr=window.__chartFrames();"
-        "for(var i=0;i<fr.length;i++){try{var w=fr[i].contentWindow;"
-        "if(w&&typeof w.advanceFrame==='function')w.advanceFrame(f);}catch(e){}}};"
-        "window.__chartsReady=function(){var fr=window.__chartFrames();"
-        "for(var i=0;i<fr.length;i++){try{if(!(fr[i].contentWindow&&"
-        "fr[i].contentWindow._ready===true))return false;}catch(e){return false;}}"
-        "return true;};"
-        "</script>"
-    )
 
 
-def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
-    """Liefert das CSS für die Stats-/Höhenprofil-Overlay-Boxen mit
-    auflösungs-abhängiger Skalierung. Wird sowohl in `_make_html` als auch
-    in `_make_html_alpha` aufgerufen.
-
-    Im Alpha-Modus (kein Karten-Hintergrund) sind die Boxen etwas dunkler
-    + Shadow etwas stärker, damit sie auf einem beliebigen NLE-Composit-
-    Hintergrund noch lesbar sind.
-
-    v0.9.20: Skalierung respektiert den Browser-DSF. Bei 4K-Render mit
-    DSF=2 ist die effektive CSS-Höhe nur 1080, also overlay-scale=1.0 — die
-    Boxen bleiben in CSS-Pixeln gleich groß wie bei 1080p, werden aber im
-    physischen Output 2× größer (durch DSF). Resultat: gleicher visueller
-    Anteil am Frame wie bisher, aber WYSIWYG zur Preview."""
-    s = _overlay_scale(cfg.height, _render_dsf(cfg.width, cfg.height))
-    def px(n: float) -> str:
-        return f"{round(n * s, 1)}px"
-    # v0.9.321 — Stats-Editor-Styling: BG-Farbe/Opacity, Textfarbe, Schrift aus cfg.
-    _bgr, _bgg, _bgb = _hex_to_rgb(getattr(cfg, "overlay_bg_color", "#000000"), (0, 0, 0))
-    _bg_a = max(0.0, min(1.0, float(getattr(cfg, "overlay_bg_opacity", 0.55) or 0.0)))
-    if alpha_mode:
-        _bg_a = min(1.0, _bg_a + 0.07)   # auf NLE-Composite etwas kräftiger
-    bg_css = f"rgba({_bgr},{_bgg},{_bgb},{round(_bg_a, 3)})"
-    sh_op = 0.5 if alpha_mode else 0.45
-    # v0.9.479 — Stats-Box-Schatten folgt der GLOBALEN Lichtquelle (wie Track + Schilder),
-    # fester Versatz (9 CSS-px) damit er unabhängig vom Track-Schatten immer sichtbar ist.
-    # WYSIWYG zur Vorschau (module.css .ov-box + renderOverlayPreview()).
-    _ov_sr = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 45.0))
-    _ov_shx, _ov_shy = 9.0 * math.cos(_ov_sr), 9.0 * math.sin(_ov_sr)
-    box_shadow = f"box-shadow: {px(_ov_shx)} {px(_ov_shy)} {px(22)} rgba(0,0,0,{sh_op});"
-    # 23.09.2026 — Ecken/Rahmen/Schatten global einstellbar; je Box/Zeile siehe
-    # _overlay_boxen_css (hängt unten an und schlägt diese Grundregeln).
-    _gst = _ovb.global_stil(cfg)
-    if not _gst["shadow"]:
-        box_shadow = "box-shadow: none;"
-    _radius = px(_gst["radius"])
-    _border = (f"border: {px(_gst['border_w'])} solid {_gst['border_color']};" if _gst["border_w"] > 0 else "")
-    _txt = getattr(cfg, "overlay_text_color", "#ffffff") or "#ffffff"
-    _font = _overlay_font_family(cfg)
-    return f"""
-  .stats-box {{
-    position: absolute; background: {bg_css};
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-    border-radius: {_radius}; padding: {px(18)} {px(22)}; color: {_txt};
-    font-family: {_font}; {_border}
-    min-width: {px(260)}; {box_shadow}
-  }}
-  .ov-titel {{ font-size: {px(13)}; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-    margin-bottom: {px(6)}; opacity: 0.92; }}
-  /* Universal-Position-Slots (auch für #overlay-bottom). Margin in CSS-Pixel
-     wird ebenfalls skaliert, damit der Abstand zum Frame-Rand relativ gleich
-     bleibt — sonst kleben Boxen bei 4K am Rand. */
-  /* v0.9.479 — Aufpopp-/Einblende-Animation: --rz-ov-pop (Skala) + --rz-ov-op (Deckkraft)
-     werden von __overlayTiming pro Frame gesetzt. Der Scale-Faktor steckt IN jedem
-     Positions-transform (sonst würde er das Zentrier-translate überschreiben). transform-
-     origin je nach Ecke, damit die Box beim Aufpoppen an ihrer Kante „klebt". Default 1/1
-     → kein Eingriff. */
-  /* 04.09.2026 — Nordpfeil + Maßstab (WYSIWYG: module.css .ov-north/.ov-scale) */
-  .rz-north {{ position: absolute; width: {px(72)}; height: {px(72)}; z-index: 45; pointer-events: none; }}
-  .rz-north svg {{ width: 100%; height: 100%; display: block; transform: rotate(var(--rz-north, 0deg));
-    filter: drop-shadow(0 {px(2)} {px(6)} rgba(0,0,0,.5)); }}
-  .rz-scale {{ position: absolute; z-index: 45; pointer-events: none; color: #fff; font-family: {_font};
-    font-size: {px(13)}; font-weight: 700; letter-spacing: .5px;
-    text-shadow: 0 0 {px(4)} rgba(0,0,0,.9), 0 0 {px(10)} rgba(0,0,0,.6); }}
-  .rz-scale-txt {{ margin-bottom: {px(3)}; }}
-  .rz-scale-bar {{ height: {px(8)}; width: var(--rz-scale-w, {px(120)}); box-sizing: border-box;
-    border: {px(2)} solid #fff; border-top: none; box-shadow: 0 {px(1)} {px(4)} rgba(0,0,0,.6); }}
-  .pos-tl {{ top: {px(40)}; left: {px(40)}; transform: scale(var(--rz-ov-pop,1)); transform-origin: top left; }}
-  .pos-tr {{ top: {px(40)}; right: {px(40)}; text-align: right; transform: scale(var(--rz-ov-pop,1)); transform-origin: top right; }}
-  .pos-bl {{ bottom: {px(40)}; left: {px(40)}; transform: scale(var(--rz-ov-pop,1)); transform-origin: bottom left; }}
-  .pos-br {{ bottom: {px(40)}; right: {px(40)}; text-align: right; transform: scale(var(--rz-ov-pop,1)); transform-origin: bottom right; }}
-  /* v0.9.283/284 (Nutzer-Wunsch) — mittige Positionen. Kompakte, zentrierte Boxen
-     (nicht über volle Breite gestreckt), Inhalt zentriert:
-       tc = oben mittig · bc = unten mittig · cc = Bildschirm-Mitte
-       ml = links mittig · mr = rechts mittig (vertikal zentriert am Seitenrand)
-     Volle Breite NUR fürs Höhenprofil (tcw/bcw = oben/unten breit). */
-  .pos-tc {{ top: {px(40)}; left: 50%; transform: translateX(-50%) scale(var(--rz-ov-pop,1)); transform-origin: top center; text-align: center; }}
-  .pos-bc {{ bottom: {px(40)}; left: 50%; transform: translateX(-50%) scale(var(--rz-ov-pop,1)); transform-origin: bottom center; text-align: center; }}
-  .pos-cc {{ top: 50%; left: 50%; transform: translate(-50%, -50%) scale(var(--rz-ov-pop,1)); transform-origin: center; text-align: center; }}
-  .pos-ml {{ top: 50%; left: {px(40)}; transform: translateY(-50%) scale(var(--rz-ov-pop,1)); transform-origin: left center; }}
-  .pos-mr {{ top: 50%; right: {px(40)}; transform: translateY(-50%) scale(var(--rz-ov-pop,1)); transform-origin: right center; text-align: right; }}
-  .pos-tcw {{ top: {px(40)}; left: 10%; right: 10%; }}
-  .pos-bcw {{ bottom: {px(40)}; left: 10%; right: 10%; }}
-  .stat-row {{ display: flex; justify-content: space-between; align-items: baseline; gap: {px(28)}; padding: {px(4)} 0; }}
-  .pos-tr .stat-row, .pos-br .stat-row, .pos-mr .stat-row {{ justify-content: flex-end; gap: {px(18)}; }}
-  .pos-tc .stat-row, .pos-cc .stat-row, .pos-bc .stat-row {{ justify-content: center; gap: {px(18)}; }}
-  .label {{ font-size: calc({px(11)} * var(--rz-ov-gr, 1)); letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.72; font-weight: 500; }}
-  .value {{ font-size: calc({px(22)} * var(--rz-ov-gr, 1)); font-weight: 600; font-variant-numeric: tabular-nums; }}
-  .stat-row {{ transform-origin: center; }}
-  .accent {{ font-weight: 800; }}  /* v0.9.327: Akzent erbt die Textfarbe, hebt sich nur über Fettung ab (vorher hart line_color → Textfarbe wirkte nicht) */
-  #overlay-bottom {{
-    position: absolute;
-    height: {px(170)}; background: {bg_css}; font-family: {_font};
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-    border-radius: {_radius}; padding: {px(14)} {px(22)} {px(10)}; {_border}
-    {box_shadow}
-    display: flex; flex-direction: column;
-  }}
-  /* Wenn das Höhenprofil in einer Ecke landet, kompaktere Breite (skaliert). */
-  /* v0.9.284 (Nutzer) — Höhenprofil: schmal (feste Breite) bei allen normalen
-     Positionen; nur „oben breit"/„unten breit" (tcw/bcw) gehen über volle Breite. */
-  #overlay-bottom.pos-tl, #overlay-bottom.pos-tr, #overlay-bottom.pos-bl,
-  #overlay-bottom.pos-br, #overlay-bottom.pos-tc, #overlay-bottom.pos-bc,
-  #overlay-bottom.pos-cc, #overlay-bottom.pos-ml, #overlay-bottom.pos-mr {{ width: {px(480)}; }}
-  .ele-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: {px(6)}; color: {_txt}; }}
-  .ele-title {{ font-size: {px(11)}; letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.72; font-weight: 500; }}
-  .ele-minmax {{ font-size: {px(12)}; opacity: 0.8; font-variant-numeric: tabular-nums; }}
-  .ele-minmax .sep {{ margin: 0 {px(10)}; opacity: 0.4; }}
-  #elevation-svg {{ flex: 1; width: 100%; display: block; }}
-  /* v0.9.443 — Daten-Diagramm-Overlays: positionierter Container + randloses,
-     transparentes iframe (das Chart bringt seinen eigenen Hintergrund mit). */
-  .chart-ov {{ position: absolute; overflow: hidden; pointer-events: none; }}
-  .chart-ov-frame {{ width: 100%; height: 100%; border: 0; display: block;
-    background: transparent; }}
-{_skin_frei_css(px, alpha_mode) if _ist_frei(cfg) else ""}
-{_overlay_boxen_css(cfg, px, alpha_mode)}
-"""
 
 
 # v0.9.171 — Schild als Canvas-Bild zeichnen, 4 Stile (callout/banner/pin/
@@ -2519,19 +1683,61 @@ def wasserzeichen_pfad(pfad: str) -> str:
     return ""
 
 
-def _north_scale_html(cfg, with_scale: bool = True) -> str:
-    """Nordpfeil + Maßstab (04.09.2026). Pro Frame aktualisiert `__rzNorthScale`
-    (s. _north_scale_js): --rz-north (Drehung) und --rz-scale-w (Balkenbreite).
-    WYSIWYG-Spiegel: renderOverlayPreview()/_ovUpdateNorthScale() im Animator-Modul."""
-    from core.northarrow import NORTH_SVG
-    out = ""
-    if getattr(cfg, "overlay_north_enabled", True):
-        out += (f'<div id="overlay-north" class="rz-north pos-{getattr(cfg, "overlay_north_position", "br") or "br"}">'
-                f'{NORTH_SVG}</div>')
-    if with_scale and getattr(cfg, "overlay_scale_enabled", True):
-        out += (f'<div id="overlay-scale" class="rz-scale pos-{getattr(cfg, "overlay_scale_position", "bl") or "bl"}">'
-                '<div class="rz-scale-txt" id="rz-scale-txt"></div><div class="rz-scale-bar" id="rz-scale-bar"></div></div>')
-    return out
+
+
+_CONTAINER_CSS_CACHE: dict = {}
+
+
+def _container_css() -> str:
+    """CSS der Container aus modules/animator/ui/module.css (Abschnitt zwischen den
+    Marken „CONTAINER-CSS (Anfang/Ende)") — dieselbe Datei wie in der App."""
+    if "css" in _CONTAINER_CSS_CACHE:
+        return _CONTAINER_CSS_CACHE["css"]
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    css = ""
+    for pfad in (base / "modules" / "animator" / "ui" / "module.css",
+                 Path(__file__).resolve().parent.parent / "modules" / "animator" / "ui" / "module.css"):
+        try:
+            t = pfad.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        a = t.find("/* ── CONTAINER-CSS (Anfang)")
+        b = t.find("/* ── CONTAINER-CSS (Ende)")
+        if a >= 0 and b > a:
+            css = t[a:b]
+            break
+    if not css:
+        _log.warning("Container-CSS nicht gefunden — Einblendungen im Export ohne Gestaltung")
+    _CONTAINER_CSS_CACHE["css"] = css
+    return css
+
+
+def _container_block(cfg) -> str:
+    """Einblendungen (Container) für den Web-Karten-Export: fertiges HTML aus der
+    Vorschau in einem Layer über der Karte. Maße in cqmin/cqw/em → skaliert mit der
+    Größe der eingebetteten Karte."""
+    html = str(getattr(cfg, "container_html", "") or "")
+    if not html or not cfg.show_overlays:
+        return ""
+    v = getattr(cfg, "container_verlauf", None) or {}
+    kl = "overlay-preview-layer" + (" vl-oben" if (v.get("oben") or {}).get("an") else "") \
+        + (" vl-unten" if (v.get("unten") or {}).get("an") else "")
+    stil = (f"--vl-oben:{float((v.get('oben') or {}).get('staerke', 0.62) or 0):.3f};"
+            f"--vl-unten:{float((v.get('unten') or {}).get('staerke', 0.72) or 0):.3f};")
+    return (f'<div id="rz-container" class="{kl}" style="position:absolute;inset:0;pointer-events:none;z-index:5;{stil}">'
+            + html + "</div>")
+
+
+def _container_font_link(cfg) -> str:
+    """Google-Schriften, die in den Containern vorkommen (Nunito, Oswald …)."""
+    html = str(getattr(cfg, "container_html", "") or "")
+    spec = {"Nunito": "Nunito:wght@400;600;700", "Quicksand": "Quicksand:wght@400;500;700",
+            "Fredoka": "Fredoka:wght@400;500;600", "Oswald": "Oswald:wght@400;500;600", "Bebas Neue": "Bebas+Neue"}
+    fam = [v for k, v in spec.items() if k in html]
+    if not fam:
+        return ""
+    return ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
+            + "&".join("family=" + f for f in fam) + '&display=swap">')
 
 
 def _north_scale_js() -> str:
@@ -2540,136 +1746,45 @@ def _north_scale_js() -> str:
     return """
 <script>
 window.__rzNorthScale = function(brgOverride, m) {
-  // m = Karte (kommt aus updateOverlays; `const map` steht in einem späteren Script → nicht lexikalisch greifen)
-  var n = document.getElementById('overlay-north'), s = document.getElementById('overlay-scale');
+  // 30.09.2026 — Container: alle .ov-north / .ov-scale (wie die Vorschau, _ovUpdateNorthScale)
   m = m || null;
   var brg = (typeof brgOverride === 'number') ? brgOverride : ((m && m.getBearing) ? (m.getBearing() || 0) : 0);
-  if (n) n.style.setProperty('--rz-north', (-brg) + 'deg');
-  if (!s || !m || !m.unproject) return;
-  var bar = document.getElementById('rz-scale-bar'), txt = document.getElementById('rz-scale-txt');
-  if (!bar) return;
-  if (!window.__rzScaleMaxW) window.__rzScaleMaxW = bar.offsetWidth || 120;
-  var maxW = window.__rzScaleMaxW, dist = 0;
-  // rechnerisch statt unproject (unter MapLibre-Gelände = GPU-Rücklesen, s. Vorschau)
+  document.querySelectorAll('.ov-north').forEach(function (n) { n.style.setProperty('--rz-north', (-brg) + 'deg'); });
+  var ss = document.querySelectorAll('.ov-scale');
+  if (!ss.length || !m || !m.getZoom) return;
+  var lay = document.getElementById('rz-container');
+  var maxW = 120 * Math.max(0.5, ((lay && lay.offsetHeight) || 1080) / 1080), dist = 0;
   try { var lat = m.getCenter().lat, zm = m.getZoom(); dist = 40075016.686 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, zm)) * maxW; } catch (_) { dist = 0; }
   if (!(dist > 0) || !isFinite(dist)) return;
   var p10 = Math.pow(10, Math.floor(Math.log(dist) / Math.LN10)), r = dist / p10;
   r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;
   var nice = r * p10;
-  s.style.setProperty('--rz-scale-w', (maxW * nice / dist) + 'px');
-  if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + ' km' : Math.round(nice) + ' m';
+  ss.forEach(function (s) {
+    s.style.setProperty('--rz-scale-w', (maxW * nice / dist) + 'px');
+    var txt = s.querySelector('.ov-scale-txt');
+    if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + ' km' : Math.round(nice) + ' m';
+  });
 };
 </script>"""
 
 
-def _watermark_html(cfg) -> str:
-    """Wasserzeichen als eingebettetes <img> (data-URI, offline-fest).
-
-    Breite/Abstand in % der Viewportbreite → skaliert automatisch mit jeder
-    Auflösung (kein RENDER_SCALE nötig). Liegt ÜBER der Karte und UNTER den
-    Overlay-Boxen (die kommen später im DOM). WYSIWYG-Spiegel:
-    `watermarkPreviewAnwenden` in modules/animator/ui/module.js."""
-    pfad = wasserzeichen_pfad(str(getattr(cfg, "watermark_path", "") or ""))
-    if not pfad:
-        return ""
-    try:
-        roh = Path(pfad).read_bytes()
-    except OSError as e:
-        _log.warning("Wasserzeichen nicht lesbar (%s) — wird weggelassen: %s", pfad, e)
-        return ""
-    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-            ".webp": "image/webp", ".gif": "image/gif",
-            ".svg": "image/svg+xml"}.get(Path(pfad).suffix.lower(), "image/png")
-    b64 = base64.b64encode(roh).decode("ascii")
-    w = max(2.0, min(60.0, float(getattr(cfg, "watermark_w_pct", 12.0) or 12.0)))
-    op = max(0.05, min(1.0, float(getattr(cfg, "watermark_opacity", 0.9) or 0.9)))
-    x, y = wasserzeichen_lage(cfg, w)
-    # 30.09.2026 (Skin „Frei") — Logo auf dunkler Plakette; sitzt es oben mittig,
-    # rücken die oberen Einblendungen darunter (--rz-wm-unten). SYNCHRON zu
-    # WM_PILLE / _wmAbstandSetzen in modules/animator/ui/module.js.
-    pille, abstand = "", ""
-    if _ist_frei(cfg):
-        pille = (f" padding:{WM_PILLE['py']}vw {WM_PILLE['px']}vw; background:{WM_PILLE['bg']};"
-                 " border-radius:999px; box-sizing:content-box;")
-        seite = None
-        try:
-            with Image.open(io.BytesIO(roh)) as im:
-                seite = im.height / max(1, im.width)
-        except Exception:
-            seite = None   # SVG o. Ä.: keine Maße → nichts verschieben
-        mitte = x + w / 2 + WM_PILLE["px"]
-        if seite and y < 20 and 30 < mitte < 70:
-            s_ov = _overlay_scale(cfg.height, _render_dsf(cfg.width, cfg.height))
-            abstand = (f'<style>:root {{ --rz-wm-unten: calc({y}vh + {round(w * seite + 2 * WM_PILLE["py"], 4)}vw'
-                       f' + {round(18 * s_ov, 1)}px); }}</style>')
-    return (abstand + f'<img id="rz-watermark" src="data:{mime};base64,{b64}" alt="" '
-            f'style="position:absolute; left:{x}%; top:{y}%; width:{w}vw; height:auto; '
-            f'opacity:{op}; z-index:40; pointer-events:none;{pille}">')
 
 
-# Plakette hinter dem Logo (Skin „Frei"): Innenabstand in vw — SYNCHRON zu WM_PILLE (module.js).
-WM_PILLE = {"px": 1.6, "py": 0.9, "bg": "rgba(14,16,22,0.62)"}
 
 
-def wasserzeichen_lage(cfg, w_pct: float) -> tuple[float, float]:
-    """Freie Position (x/y in % der Videofläche, linke obere Ecke des Logos).
-    Alt-Projekte tragen nur die Ecke (`watermark_pos`) — daraus wird einmalig
-    eine x/y-Lage abgeleitet, wortgleich zur Migration in `_wmLaden`
-    (modules/animator/ui/module.js)."""
-    x = float(getattr(cfg, "watermark_x_pct", -1.0))
-    y = float(getattr(cfg, "watermark_y_pct", -1.0))
-    if x < 0 or y < 0:
-        pos = getattr(cfg, "watermark_pos", "br")
-        x = 2.0 if pos in ("tl", "bl") else max(2.0, 98.0 - w_pct)
-        y = 2.0 if pos in ("tl", "tr") else 80.0
-    return (max(0.0, min(98.0, x)), max(0.0, min(98.0, y)))
 
 
-def _overlay_teile(cfg, total_stats, ds_points, cum_dist, cum_time, eles, e1, e2, tz_off, etappen,
-                   ele_min, ele_max, *, extra_keys, has_schwarm: bool, alpha_mode: bool):
-    """Was beide Render-Seiten (Mapbox/MapLibre-HTML und Alpha-HTML) für die
-    Stats-Boxen brauchen. 24.09.2026: stand vorher fast wortgleich zweimal da.
-
-    → (speed_json, grade_json, sensor_series_json, has_time, has_ele,
-       live_update_js, boxen_html, charts_html)
-    """
-    # v0.9.24 — Bei Track ohne Zeit/Höhe entsprechende Stat-Zeilen ausblenden
-    # statt „0 m" / „00:00" anzuzeigen. Marc-Selftest 2026-05-24: track_klein.gpx
-    # hat keine <ele>/<time>-Tags → Render zeigte trotzdem alle Zeilen mit
-    # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
+def _reihen_json(cfg, total_stats, ds_points, cum_dist, cum_time, eles, *, extra_keys):
+    """Per-Punkt-Reihen der HTML-Seite (Tempo, Steigung, Sensoren — für die Einfärbung
+    des Tracks) und ob Zeit/Höhe vorliegen. 30.09.2026: früher `_overlay_teile`, das auch
+    die Stats-Boxen baute; die Einblendungen kommen jetzt als Container-HTML."""
     has_time = bool(total_stats.get('duration_s'))
     has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
-    # v0.9.321/323 — Stats-Editor: Pro-Punkt-Speed/Grade + Fahrzeit + echtes Max-Tempo.
     speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
-    sensor_series_json = _overlay_sensor_series_json(
-        ds_points, _ov_alle_live_felder(cfg), extra_keys=extra_keys)
-    total_stats = dict(total_stats)
-    total_stats.update({"start_epoch": e1, "end_epoch": e2, "tz_offset_min": tz_off,
-                        "lang": getattr(cfg, "ui_lang", "") or "de"})
-    # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
-    # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
-    # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
-    # den Tempo-Peak sonst wegglätten (Nutzer-Feedback: 43 km/h zu niedrig).
-    if has_time:
-        if not total_stats.get("max_speed_kmh"):
-            total_stats["max_speed_kmh"] = _max_kmh
-        if not total_stats.get("moving_time_s"):
-            total_stats["moving_time_s"] = _moving_s
-    else:
-        total_stats["max_speed_kmh"] = 0.0
-        total_stats["moving_time_s"] = 0.0
-    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-    has_stages = (etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
-    live_update_js = _overlay_live_update_js_alle(cfg, has_time, has_ele, has_stages, has_schwarm)
-    boxen_html = _overlay_boxen_html(cfg, total_stats=total_stats, has_time=has_time, has_ele=has_ele, t=_t,
-                                     has_stages=has_stages, has_schwarm=has_schwarm,
-                                     ele_min=ele_min, ele_max=ele_max, alpha_mode=alpha_mode,
-                                     stage_values=_overlay_stage_values(cfg, total_stats, etappen, has_time, has_ele))
-    charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
-    return (speed_json, grade_json, sensor_series_json, has_time, has_ele,
-            live_update_js, boxen_html, charts_html)
+    sensor_series_json = _overlay_sensor_series_json(ds_points, [], extra_keys=extra_keys)
+    return (speed_json, grade_json, sensor_series_json, has_time, has_ele)
 
 
 def _stage_fb_json(cfg) -> str:
@@ -2708,8 +1823,6 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                schwarm_tours: "list | None" = None) -> str:
     # Alpha-Modus: keine Mapbox-Map, nur Track + Punkt + Overlays auf
     # transparentem Hintergrund (für Composit über echtes Video in NLEs).
-    if cfg.transparent_background:
-        return _make_html_alpha(cfg, ds_points, cum_dist, cum_time, total_stats, bbox)
     # 03.09.2026 — Stil auflösen: Anbieter, Engine, Gelände und Nennung kommen
     # aus core/mapstyles.py. Ausweichen (kein Schlüssel, keine Abdeckung) wird
     # dort entschieden und hier nur noch protokolliert — nie abgebrochen.
@@ -3008,8 +2121,6 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         color_metric_js = {"ele": "elevations", "speed": "speedKmh", "grade": "gradePct"}[_csrc]
     else:
         color_metric_js = f"__rzFillGaps(sensorSeries[{json.dumps(_csrc)}])"
-    ele_min = min(eles)
-    ele_max = max(eles)
     min_lon, min_lat, max_lon, max_lat = bbox
     # Padding-Faktor: gleiche Formel wie Frontend (modules/animator/ui/module.js
     # → fitTrackPreview). 8 % der kürzeren Render-Achse ergibt einen
@@ -3030,16 +2141,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # v0.9.448 — die Reihe, nach der eingefärbt wird, MUSS in `sensorSeries` landen,
     # auch wenn sie in keinem Overlay-Feld vorkommt (siehe _csrc oben).
     # 28.08.2026 (IDEAS §38 M2) — Schwarm-Felder nur im Mapbox-HTML.
-    (speed_json, grade_json, sensor_series_json, has_time, has_ele,
-     live_update_js, boxen_html, charts_html) = _overlay_teile(
-        cfg, total_stats, ds_points, cum_dist, cum_time, eles, _e1, _e2, _tz_off, _etappen,
-        ele_min, ele_max,
-        extra_keys=[_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else [],
-        has_schwarm=bool(schwarm_tours), alpha_mode=False)
-    overlays_block = (_watermark_html(cfg) + _skin_verlauf_html(cfg)
-                      + (_north_scale_html(cfg) if cfg.show_overlays else "")
-                      + boxen_html + charts_html
-                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
+    (speed_json, grade_json, sensor_series_json, has_time, has_ele) = _reihen_json(
+        cfg, total_stats, ds_points, cum_dist, cum_time, eles,
+        extra_keys=[_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else [])
+    # 30.09.2026 — Einblendungen: Container-HTML aus der Vorschau (Web-Karte); Videos laufen
+    # alle über die Szene (core/szene.py) und brauchen diese Seite nicht mehr.
+    live_update_js = ""
+    overlays_block = _container_block(cfg) + _north_scale_js()
     # JS-Block für Karten-Feinabstimmung. Wird im `style.load`-Callback
     # ausgespielt. Zwei Mechanismen parallel:
     #
@@ -3618,7 +2726,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 {gl_head}
-{_overlay_font_link(cfg)}
+{_container_font_link(cfg)}
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body, html {{ width: 100%; height: 100%; overflow: hidden;
@@ -3626,7 +2734,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     -webkit-font-smoothing: antialiased;
   }}
   #map {{ width: 100%; height: 100%; }}
-{_map_blur_css}{_overlay_css(cfg)}
+{_map_blur_css}{_container_css()}
 </style></head>
 <body>
 <div id="map"></div>
@@ -4745,287 +3853,6 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
     return _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
 
 
-def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
-                     cum_time: list[float], total_stats: dict,
-                     bbox: tuple[float, float, float, float]) -> str:
-    """Alpha-Channel-Variante: kein Mapbox, kein Terrain, nur SVG-Track auf
-    transparentem Hintergrund. Identische window.advanceFrame() / window.isReady() /
-    window.getInitialView()-API wie die Mapbox-Variante, damit `render()` keine
-    Sonderbehandlung braucht.
-
-    Projektion: simpel Bbox→Pixel (kein Mercator-Verzerrungs-Korrekturschritt — bei
-    Track-typischen Bbox-Größen kaum sichtbar, und der User legt das eh als Overlay
-    über echtes Video, wo perfekte Geo-Genauigkeit eh nicht das Ziel ist).
-    """
-    coords_json = json.dumps([[p.lon, p.lat] for p in ds_points])
-    seg_starts_json = json.dumps(_seg_masken(cfg, ds_points))
-    dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
-    _etappen = core_gpx_etappen(ds_points, (total_stats or {}).get("seg_names"))
-    stage_nr_json = json.dumps(_etappen["nr"])
-    stage_d0_json = json.dumps([round(x, 2) for x in _etappen["d0"]])
-    stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
-    stage_name_json = json.dumps(_etappen["name"])
-    stage_total_json = json.dumps(_etappen["gesamt"])
-    stage_fb_json = _stage_fb_json(cfg)
-    seg_mask_js = _SEG_MASK_JS + _GRAD_LUECKEN_JS
-    eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
-    elevations_json = json.dumps(eles)
-    total_asc_json = json.dumps(round(float(total_stats.get("ascent_m") or 0), 1))
-    total_desc_json = json.dumps(round(float(total_stats.get("descent_m") or 0), 1))
-    cum_dist_json = json.dumps(cum_dist)
-    cum_time_json = json.dumps(cum_time)
-    # 11.09.2026 — absolute Zeit je Punkt + Zeitzone (Datum/Uhrzeit-Felder).
-    _ep = [_zeit.epoch_von_iso(getattr(p, "time", None)) for p in ds_points]
-    _ep_da = [e for e in _ep if e is not None]
-    _e1, _e2 = (_ep_da[0], _ep_da[-1]) if _ep_da else (None, None)
-    _mid = ds_points[len(ds_points) // 2] if ds_points else None
-    _tzn = getattr(cfg, "tz_name", "") or _zeit.zone_fuer(getattr(_mid, "lat", None), getattr(_mid, "lon", None))
-    _tz_off = _zeit.offset_min(_tzn, _e1)
-    epoch_json = json.dumps(_ep)
-    tz_off_json = json.dumps(_tz_off)
-    lang_json = json.dumps(getattr(cfg, "ui_lang", "") or "de")
-    zeit_js = _zeit.JS_FORMATE
-    ele_min = min(eles)
-    ele_max = max(eles)
-    min_lon, min_lat, max_lon, max_lat = bbox
-    # Track-Bbox auf Frame projizieren mit 8 % Innen-Padding (gleicher Wert
-    # wie Mapbox-Pfad). Aspect-Lock: Track-Aspect wird im Frame zentriert,
-    # damit nichts verzerrt aussieht.
-    PAD = 0.08
-    glow_w = cfg.line_width * 2.85
-    # Overlay-HTML wiederverwenden (identisches Layout)
-    # Overlay-Teile wie im Mapbox-HTML — das Alpha-HTML hat keine SCHWARM_-Konstanten.
-    (speed_json, grade_json, sensor_series_json, has_time, has_ele,
-     live_update_js, boxen_html, charts_html) = _overlay_teile(
-        cfg, total_stats, ds_points, cum_dist, cum_time, eles, _e1, _e2, _tz_off, _etappen,
-        ele_min, ele_max, extra_keys=None, has_schwarm=False, alpha_mode=True)
-    overlays_block = (_watermark_html(cfg)
-                      + (_north_scale_html(cfg, with_scale=False) if cfg.show_overlays else "")
-                      + boxen_html + charts_html
-                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
-    return f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-{_overlay_font_link(cfg)}
-<style>
-  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-  html, body {{ width: {cfg.width}px; height: {cfg.height}px; overflow: hidden;
-    background: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }}
-  #track-svg {{ position: absolute; top:0; left:0; width:100%; height:100%; }}
-{_overlay_css(cfg, alpha_mode=True)}
-</style></head>
-<body>
-<svg id="track-svg" viewBox="0 0 {cfg.width} {cfg.height}" preserveAspectRatio="none">
-  <defs>
-    <!-- OPTIONAL: Schlagschatten via feDropShadow. Wird über `filter`-Attribut
-         auf die track-Polyline + Dot angewendet wenn shadow_enabled.
-         Im Alpha-Modus ist das die saubere Lösung — feDropShadow respektiert
-         den Alpha-Kanal des Inputs und schreibt halbtransparente Pixel,
-         die im NLE-Composit korrekt mitziehen. -->
-    <filter id="trk-shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="{_shadow_dxdy(cfg)[0]:.1f}" dy="{_shadow_dxdy(cfg)[1]:.1f}"
-        stdDeviation="{cfg.shadow_strength * 0.6:.1f}"
-        flood-color="#000000" flood-opacity="0.7"/>
-    </filter>
-  </defs>
-  {(f'<polyline id="trk-ghost" fill="none" stroke="{cfg.ghost_track_color}" stroke-opacity="{max(0.0, min(1.0, cfg.ghost_track_opacity)):.2f}"'
-     f' stroke-width="{cfg.line_width:.2f}" stroke-linejoin="round" stroke-linecap="round"'
-     + (f' stroke-dasharray="{_dasharray_svg(cfg.line_style, cfg.line_width, cfg.line_style_spacing)}"' if _dasharray_svg(cfg.line_style, cfg.line_width, cfg.line_style_spacing) else "")
-     + '/>') if cfg.ghost_track_enabled and cfg.ghost_track_opacity > 0 else '<!-- ghost track disabled -->'}
-  <g {('filter="url(#trk-shadow)"' if cfg.shadow_enabled and cfg.shadow_strength > 0 else "")}>
-    {(f'<polyline id="trk-glow" fill="none" stroke="{cfg.line_color}" stroke-opacity="0.35"'
-       f' stroke-width="{glow_w:.2f}" stroke-linejoin="round" stroke-linecap="round"'
-       + (f' stroke-dasharray="{_dasharray_svg(cfg.line_style, glow_w, cfg.line_style_spacing)}"' if _dasharray_svg(cfg.line_style, glow_w, cfg.line_style_spacing) else "")
-       + f' style="filter: blur({cfg.glow_strength:.1f}px);"/>') if cfg.glow_enabled and cfg.glow_strength > 0 else '<!-- glow disabled -->'}
-    <polyline id="trk-line" fill="none" stroke="{cfg.line_color}" stroke-opacity="0.95"
-      stroke-width="{cfg.line_width:.2f}" stroke-linejoin="round" stroke-linecap="round"
-      {(f'stroke-dasharray="{_dasharray_svg(cfg.line_style, cfg.line_width, cfg.line_style_spacing)}"' if _dasharray_svg(cfg.line_style, cfg.line_width, cfg.line_style_spacing) else "")}/>
-    <circle id="trk-dot-glow" r="10" fill="#fff" fill-opacity="0.3"/>
-    <circle id="trk-dot-core" r="5" fill="#fff" stroke="{cfg.line_color}" stroke-width="2"/>
-  </g>
-</svg>
-{overlays_block}
-<script>
-const allCoords = {coords_json};
-// 23.08.2026 — Etappen: Startindizes; dazu die GEOMETRISCHE Kumulativlänge
-// (inkl. Verbindungsstücke) — `line-progress` misst gezeichnete Länge, während
-// cumDistM Etappengrenzen bewusst NICHT mitzählt. Für die Maske brauchen wir
-// die Geometrie, für Farbwerte weiterhin cumDistM.
-const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
-const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
-// 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
-const STAGE_NR = {stage_nr_json}, STAGE_D0 = {stage_d0_json}, STAGE_T0 = {stage_t0_json};
-const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json}, STAGE_FB = {stage_fb_json};
-const cumGeoM = (() => {{
-  const out = [0];
-  for (let i = 1; i < allCoords.length; i++) {{
-    const a = allCoords[i - 1], b = allCoords[i];
-    const dy = (b[1] - a[1]) * 111320;
-    const dx = (b[0] - a[0]) * 111320 * Math.cos((a[1] + b[1]) * Math.PI / 360);
-    out.push(out[i - 1] + Math.sqrt(dx * dx + dy * dy));
-  }}
-  return out;
-}})();
-{seg_mask_js}
-const elevations = {elevations_json};
-const cumDistM = {cum_dist_json};
-const cumTimeS = {cum_time_json};
-const epochS = {epoch_json};   // 11.09.2026 — absolute Zeit je Punkt (Datum/Uhrzeit-Felder)
-const TZ_OFF_MIN = {tz_off_json};
-const DATE_LANG = {lang_json};
-const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
-const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
-const sensorSeries = {sensor_series_json};   // v0.9.330 — FIT-Sensorwerte pro Punkt (key → [werte])
-// 29.08.2026 (Marc: „warum gibts da nicht auch bergauf bergab?") — kumulierte
-// Höhenmeter je Punkt. Roh-Summen über die downsampled Höhen überschätzen
-// (Rauschen), darum werden sie auf die GEGLÄTTETEN Gesamtwerte der Stats
-// skaliert: das Live-Feld endet exakt beim „Bergauf"-Gesamtwert.
-const TOTAL_ASC_M = {total_asc_json};
-const TOTAL_DESC_M = {total_desc_json};
-const cumAscM = [0], cumDescM = [0];
-for (let i = 1; i < elevations.length; i++) {{
-  const dE = elevations[i] - elevations[i - 1];
-  cumAscM.push(cumAscM[i - 1] + Math.max(0, dE));
-  cumDescM.push(cumDescM[i - 1] + Math.max(0, -dE));
-}}
-(function () {{
-  const a = cumAscM[cumAscM.length - 1], b = cumDescM[cumDescM.length - 1];
-  if (a > 0 && TOTAL_ASC_M > 0) {{ const f = TOTAL_ASC_M / a; for (let i = 0; i < cumAscM.length; i++) cumAscM[i] *= f; }}
-  if (b > 0 && TOTAL_DESC_M > 0) {{ const f = TOTAL_DESC_M / b; for (let i = 0; i < cumDescM.length; i++) cumDescM[i] *= f; }}
-}})();
-const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
-const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
-function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
-function fmtDurJS(sec){{ sec=Math.max(0,Math.floor(sec)); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60,p=function(n){{return n<10?'0'+n:''+n;}}; return h>0?h+':'+p(m)+':'+p(s):p(m)+':'+p(s); }}
-{zeit_js}
-const totalPoints = allCoords.length;
-const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
-// v0.9.55 (Marc): Pre-Trim-Sichtbarkeit. Wenn False, startet die gezeichnete
-// Linie am Trim-Start statt am Track-Anfang (= „Pre-Trim"-Portion ausgeblendet).
-const SHOW_PRETRIM_TRACK = {str(cfg.show_pretrim_track).lower()};
-const TRIM_START_IDX = Math.max(0, Math.min(totalPoints - 1, Math.floor({float(cfg.render_start_anchor)} * (totalPoints - 1))));
-const W = {cfg.width}, H = {cfg.height};
-const PAD = {PAD};
-const BBOX = [{min_lon}, {min_lat}, {max_lon}, {max_lat}];
-// Aspect-Lock-Projektion: Track-Bbox auf Frame mappen, dabei das Aspect
-// erhalten (keine Verzerrung) und im Frame zentrieren. Mercator-Korrektur
-// (cos(lat)) wäre für hohe Breiten besser, aber für Track-typische ~10 km
-// Bboxes ist der Fehler unter 1 % und im Composit unsichtbar.
-const innerW = W * (1 - 2*PAD);
-const innerH = H * (1 - 2*PAD);
-const trackW = BBOX[2] - BBOX[0];
-const trackH = BBOX[3] - BBOX[1];
-const scale = Math.min(innerW / Math.max(trackW, 1e-9), innerH / Math.max(trackH, 1e-9));
-const offsetX = (W - trackW * scale) / 2;
-const offsetY = (H - trackH * scale) / 2;
-function projX(lon){{ return offsetX + (lon - BBOX[0]) * scale; }}
-function projY(lat){{ return H - (offsetY + (lat - BBOX[1]) * scale); }}  // Y flippen (SVG)
-const projected = allCoords.map(c => [projX(c[0]).toFixed(2), projY(c[1]).toFixed(2)]);
-
-// v0.9.24 — Flags, siehe _make_html. Im Alpha-Modus kann der Track auch ohne
-// ele/time kommen → DOM-Elemente fehlen dann conditional, JS muss null-safe sein.
-const HAS_ELE = {str(has_ele).lower()};
-const HAS_TIME = {str(has_time).lower()};
-const SVG_W = 1000, SVG_H = 120, PAD_Y = 10;
-// 28.08.2026 — `Math.min.apply(null, arr)` legt JEDES Element als Argument auf
-// den Stack; ab ~100k Punkten (Marcs 96-Touren-Schwarm) stirbt das ganze Skript
-// mit „Maximum call stack size exceeded", danach fehlt window.isReady und der
-// Render bricht ab. Schleife statt apply — unspektakulär und unbegrenzt.
-let eleMin = 0, eleMax = 1;
-if (HAS_ELE && elevations.length) {{
-  eleMin = eleMax = elevations[0];
-  for (let i = 1; i < elevations.length; i++) {{
-    const v = elevations[i];
-    if (v < eleMin) eleMin = v; else if (v > eleMax) eleMax = v;
-  }}
-}}
-const eleRange = (eleMax - eleMin) || 1;
-function eleToY(e){{return SVG_H - PAD_Y - ((e - eleMin)/eleRange)*(SVG_H - PAD_Y*2);}}
-function idxToX(i){{return (i / Math.max(1, totalPoints - 1)) * SVG_W;}}
-if (SHOW_OVERLAYS && HAS_ELE) {{
-  const bgLine = document.getElementById('ele-bg-line');
-  if (bgLine) {{
-    const bgPts = elevations.map((e,i)=>`${{idxToX(i).toFixed(2)}},${{eleToY(e).toFixed(2)}}`).join(' ');
-    bgLine.setAttribute('points', bgPts);
-  }}
-}}
-function updateOverlays(idx) {{
-  window.__rzOvIdx = idx;   // 23.09.2026 — für __overlayTiming (Streckenanteil/Etappe)
-  if (!SHOW_OVERLAYS) return;
-  // v0.9.443 — Daten-Diagramm-Overlays synchron treiben. distFrac = Distanz-
-  // Anteil des aktuellen Punkts → Chart-Marker landet exakt unter dem Karten-
-  // Punkt (korrekte km-Labels + Wert), unabhängig von der Punktdichte.
-  if (window.__advanceCharts) {{
-    const __cn = totalPoints;
-    const __ci = Math.max(0, Math.min(idx, __cn - 1));
-    const __csp = (typeof cumDistM !== 'undefined' && cumDistM.length === __cn)
-                  ? (cumDistM[__cn - 1] - cumDistM[0]) : 0;
-    const __cdf = __csp > 0 ? (cumDistM[__ci] - cumDistM[0]) / __csp
-                            : (__cn > 1 ? __ci / (__cn - 1) : 0);
-    window.__advanceCharts(__cdf);
-  }}
-  // v0.9.325 — katalog-getriebene Live-Felder (identisch zu _make_html). VORHER
-  // setzte der Alpha-Render noch die alten IDs live-dist/-time/-ele → seit dem
-  // Stats-Editor (v0.9.321) blieben die Live-Stats im transparenten Video eingefroren.
-{live_update_js}
-  if (HAS_ELE) {{
-    const elActive = document.getElementById('ele-active-line');
-    if (elActive) {{
-      const pts = [], pairs = [];
-      for (let i=0; i<=idx; i++) {{
-        const x=idxToX(i).toFixed(2), y=eleToY(elevations[i]).toFixed(2);
-        pts.push(`${{x}},${{y}}`); pairs.push([x,y]);
-      }}
-      const ps = pts.join(' ');
-      elActive.setAttribute('points', ps);
-      if (pairs.length >= 2) {{
-        const elFill = document.getElementById('ele-active-fill');
-        if (elFill) elFill.setAttribute('points',
-          `${{pairs[0][0]}},${{SVG_H}} ${{ps}} ${{pairs[pairs.length-1][0]}},${{SVG_H}}`);
-      }}
-      const dot = document.getElementById('ele-dot');
-      if (dot) {{
-        dot.setAttribute('cx', idxToX(idx).toFixed(2));
-        dot.setAttribute('cy', eleToY(elevations[idx]).toFixed(2));
-      }}
-    }}
-  }}
-}}
-window._ready = false;
-window.isReady = () => window._ready === true && (typeof window.__chartsReady !== 'function' || window.__chartsReady());
-window.getInitialView = () => ({{ center: [0, 0], zoom: 0 }});  // dummy fürs render-loop
-window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
-  try {{ if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), (window.__rzStarsFrame++) / (window.__rzStarsFps || 30)); }} catch(_){{}}
-  if (SHOW_OVERLAYS && window.__rzNorthScale) window.__rzNorthScale(brg);   // 04.09.2026 Nordpfeil (kein Maßstab ohne Karte)
-  const safe = Math.max(0, Math.min(idx, totalPoints-1));
-  // v0.9.55: optional Pre-Trim-Portion (projected[0..TRIM_START_IDX-1]) ausblenden.
-  const sliceStart = SHOW_PRETRIM_TRACK ? 0 : Math.min(TRIM_START_IDX, safe);
-  const ptsArr = projected.slice(sliceStart, safe+1);
-  const ptsStr = ptsArr.map(p => p[0]+','+p[1]).join(' ');
-  // Glow ist optional (v0.6.8) — Element kann fehlen wenn glow_enabled=False
-  const _trkGlow = document.getElementById('trk-glow');
-  if (_trkGlow) _trkGlow.setAttribute('points', ptsStr);
-  // v0.9.169 — Ghost: ganze Route EINMAL setzen (statisch, voller Track).
-  const _trkGhost = document.getElementById('trk-ghost');
-  if (_trkGhost && !window._ghostSet) {{
-    _trkGhost.setAttribute('points', projected.map(p => p[0]+','+p[1]).join(' '));
-    window._ghostSet = true;
-  }}
-  document.getElementById('trk-line').setAttribute('points', ptsStr);
-  const head = ptsArr[ptsArr.length-1] || projected[0];
-  document.getElementById('trk-dot-glow').setAttribute('cx', head[0]);
-  document.getElementById('trk-dot-glow').setAttribute('cy', head[1]);
-  document.getElementById('trk-dot-core').setAttribute('cx', head[0]);
-  document.getElementById('trk-dot-core').setAttribute('cy', head[1]);
-  updateOverlays(safe);
-}};
-window.waitForRender = () => new Promise(r => setTimeout(r, 5));
-// SVG ist sofort fertig — kein Map-Tile-Loading.
-window.advanceFrame(0, 0, 0, 0, 0, 0);
-requestAnimationFrame(() => {{ window._ready = true; }});
-</script></body></html>"""
 
 
 def spur_glaetten(coords, meter):
@@ -5269,229 +4096,8 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
                             cfg.transparent_background, q if is_jpeg else 0)
 
 
-async def render_frame(
-    cfg: AnimatorConfig,
-    on_progress: Optional[Callable[[float, str], None]] = None,
-    is_cancelled: Optional[Callable[[], bool]] = None,
-) -> str:
-    """v0.9.307 — Rendert EINEN statischen Frame als PNG (Tour-Map = ein
-    Standbild vom Animator). Nutzt exakt dieselbe `_make_html`-Pipeline wie das
-    Video → garantierte Optik-Parität (WYSIWYG), nur:
-      - volle Strecke gezeichnet (advanceFrame auf letzten Punkt),
-      - alle Fotos/Schilder/Overlays sichtbar (markerAnchor = 1.0),
-      - feste Kamera (Bounds-Fit + pitch + bearing), kein Sweep/Spin/Keyframe,
-      - kein ffmpeg, ein PNG.
-    Gibt den Pfad zur PNG-Datei (cfg.output_path) zurück.
-    """
-    def emit(p: float, msg: str) -> None:
-        if on_progress:
-            try: on_progress(p, msg)
-            except Exception: pass
-    # v0.9.507 — Fortschritt + Overlay-Beschriftungen in der App-Sprache.
-    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-
-    def check_cancel() -> None:
-        if is_cancelled and is_cancelled():
-            raise RenderCancelled("Vom User abgebrochen")
-
-    emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
-    _log.info("render_frame() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
-    # 03.09.2026 — ohne Token weicht der Stil auf „Satellit (kostenlos)" aus
-    # (core/mapstyles.resolve); eine Warnung gibt es nur noch dort.
-
-    raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
-    points = _punkte_verteilen(cfg, raw_points)
-    if len(points) < 2:
-        raise ValueError(_i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("animator.err_zu_wenige_standbild", "GPX hat zu wenige Punkte für ein Standbild."))
-
-    cum_dist = [0.0] + [points[i].dist_m for i in range(1, len(points))]
-    cum_time = [0.0] + [points[i].elapsed_s for i in range(1, len(points))]
-    if total_stats.duration_s == 0:
-        cum_time = [(d / cum_dist[-1] if cum_dist[-1] else 0) for d in cum_dist]
-
-    lons = [p.lon for p in points]; lats = [p.lat for p in points]
-    bbox = (min(lons), min(lats), max(lons), max(lats))
-    total_stats_dict = {
-        "distance_m": total_stats.distance_m, "duration_s": total_stats.duration_s,
-        "ascent_m": total_stats.ascent_m, "descent_m": total_stats.descent_m,
-        "ele_min": total_stats.ele_min, "ele_max": total_stats.ele_max,
-        "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
-        "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
-        # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
-        "seg_names": list(getattr(total_stats, "seg_names", []) or []),
-        # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
-        "stage_stats": core_gpx_etappen_stats(raw_points),
-        # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
-        "art_stats": core_gpx_arten_stats(raw_points, getattr(cfg, "bewegung_bereiche", None) or []),
-    }
-
-    _schwarm_frame = None
-    if (getattr(cfg, "tracks", None) and len(cfg.tracks) >= 2
-            and getattr(cfg, "tracks_ablauf", "reise") == "schwarm"):
-        _schwarm_frame = _schwarm_touren_vorbereiten(cfg)
-    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox,
-                      schwarm_tours=_schwarm_frame)
-
-    emit(0.1, _t("animator.progress.render_map", "Karte rendern …"))
-    from playwright.async_api import async_playwright
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox",
-                  # v0.9.387 — unterdrückt Chromecast/DIAL/mDNS-Geräte-Suche → kein macOS-„Lokales Netzwerk"-Dialog.
-                  "--disable-background-networking", "--disable-features=MediaRouter,DialMediaRouteProvider",
-                  "--no-first-run", "--no-default-browser-check"],
-        )
-        try:
-            # 22.08.2026 (Audit): derselbe Alpha-Fall wie v0.9.388 in render() —
-            # _make_html_alpha misst in cfg-Pixeln, mit DSF>1 wurde nur das
-            # linke obere Viertel erfasst (Standbild/Snapshot ≥ 4K beschnitten).
-            if cfg.transparent_background:
-                _dsf, _ss = 1.0, 1.0
-            else:
-                _dsf = _render_dsf(cfg.width, cfg.height)
-                _ss = _render_ss(cfg.width, cfg.height)
-            _vp_w = max(1, int(round(cfg.width / _dsf)))
-            _vp_h = max(1, int(round(cfg.height / _dsf)))
-            page = await browser.new_page(
-                viewport={"width": _vp_w, "height": _vp_h},
-                device_scale_factor=_dsf * _ss,
-            )
-            _tc_stats = await _install_tile_cache(page, cfg)
-            page.on("console", lambda m: _log.info("page.console [%s] %s", m.type, m.text))
-            page.on("pageerror", lambda e: _log.error("page.pageerror: %s", e))
-            await page.set_content(html)
-
-            check_cancel()
-            ready = False
-            # 04.09.2026 — WMS-Landesdienste (Satellit (kostenlos)) brauchen beim
-            # ersten Mal deutlich länger als Mapbox (PNOA-Kacheln in 4× Größe):
-            # 30 s → 90 s, sonst kam ein halb geladenes Standbild (Gelände-Kanten).
-            _ready_s = 90 if (cfg.map_spec or {}).get("kind") == "gov" else 30
-            for _i in range(_ready_s * 2):
-                ready = await page.evaluate("window.isReady()")
-                if ready: break
-                await asyncio.sleep(0.5)
-            if not ready:
-                _log.warning("Standbild: Map nicht ready nach %ds — fahre fort.", _ready_s)
-            # Auf Schild-Bilder warten (Foto-Karten), damit sie im Frame sind.
-            if cfg.signs_show and cfg.signs:
-                for _i in range(40):
-                    try:
-                        if await page.evaluate("window.__signsReady === true"): break
-                    except Exception: break
-                    await asyncio.sleep(0.25)
-            if not cfg.transparent_background:
-                await asyncio.sleep(3)  # Terrain-Tiles nachladen
-
-            view = await page.evaluate("window.getInitialView()")
-            if isinstance(view, dict):
-                center = view.get("center") or [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2]
-                zoom = view.get("zoom", 12)
-            else:
-                center = [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2]; zoom = 12
-            try: await page.evaluate(f"window.__rzGhostDashRebuild && window.__rzGhostDashRebuild({float(zoom):.4f})")
-            except Exception as _e: _log.warning("Ghost-Strichelung: %s", _e)
-
-            # v0.9.412 — Kamera-Übernahme aus der Live-Vorschau (Snapshot / „als
-            # Tour-Map öffnen"): exakter Ausschnitt/Zoom/Drehung/Neigung statt Fit.
-            _snap_cam = getattr(cfg, "snapshot_center", None)
-            if _snap_cam and len(_snap_cam) == 2:
-                center = [float(_snap_cam[0]), float(_snap_cam[1])]
-                if getattr(cfg, "snapshot_zoom", None) is not None:
-                    # 04.09.2026 (Marc: „das ist doch nicht WYSIWYG", 4K-Projekt): der
-                    # Schnappschuss-Zoom kommt aus correctedZoom(map, W, H) in GERÄTE-
-                    # Pixeln; die Render-Seite läuft im CSS-Viewport W/dsf (4K → dsf 2 =
-                    # 1920 px). Ohne Abzug von log2(dsf) war der Schnappschuss bei 4K eine
-                    # ganze Zoomstufe enger als die Vorschau (bei 1920 passte es, dsf 1).
-                    # Der Video-Pfad zieht dieselbe Korrektur ab (abs_shift).
-                    _snap_dsf = _render_dsf(cfg.width, cfg.height)
-                    zoom = float(cfg.snapshot_zoom) - (math.log2(_snap_dsf) if _snap_dsf > 0 else 0.0)
-            _snap_bearing = float(cfg.snapshot_bearing) if getattr(cfg, "snapshot_bearing", None) is not None else float(cfg.bearing)
-            _snap_pitch = float(cfg.snapshot_pitch) if getattr(cfg, "snapshot_pitch", None) is not None else float(cfg.pitch)
-            # Marker-Position: snapshot_anchor gesetzt → Teil-Track + laufender Punkt
-            # (Animator-Frame). None → volle Strecke, Punkt aus (Tour-Map-Standbild).
-            _snap_anchor = getattr(cfg, "snapshot_anchor", None)
-            if _snap_anchor is not None:
-                _a = max(0.0, min(1.0, float(_snap_anchor)))
-                frame_idx = int(round(_a * (len(points) - 1)))
-            else:
-                frame_idx = len(points) - 1
-            # v0.9.417 — Snapshot bei „ganze Route zeigen": volle Track-Linie zeichnen,
-            # Punkt bleibt am Scrubber. Nur sinnvoll wenn ein Anker gesetzt ist (Animator-
-            # Snapshot); beim Tour-Map-Standbild ist ohnehin die ganze Strecke sichtbar.
-            _full_track = bool(getattr(cfg, "snapshot_full_track", False)) and _snap_anchor is not None
-            await page.evaluate(
-                f"window.advanceFrame({frame_idx}, {_snap_bearing}, "
-                f"{float(center[0])}, {float(center[1])}, {float(zoom)}, {_snap_pitch}, "
-                f"true, {'true' if _full_track else 'false'})"
-            )
-            # v0.9.412 — Overlay-Zeitfenster (Live-Box „ab Sek X"): auf die Snapshot-Zeit setzen.
-            if getattr(cfg, "snapshot_time_s", 0.0):
-                try:
-                    await page.evaluate(
-                        f"window.__overlayTiming && window.__overlayTiming({float(cfg.snapshot_time_s):.3f})"
-                    )
-                except Exception:
-                    pass
-            # Den laufenden Punkt nur im Voll-Strecke-Standbild ausblenden; beim
-            # Animator-Frame-Snapshot (snapshot_anchor gesetzt) gehört er dazu.
-            if _snap_anchor is None:
-                await page.evaluate(
-                    "['dot-core','dot-glow'].forEach(id => { try { "
-                    "if (map.getLayer(id)) map.setLayoutProperty(id,'visibility','none'); } catch(_){} });"
-                )
-            try: await page.evaluate("window.waitForRender()")
-            except Exception: pass
-            # 03.09.2026 — Standbild über WMS-Dienste (Landes-Orthofotos): der
-            # 5-s-Deckel von waitForRender schnappte zu, bevor alle Kacheln da
-            # waren → unscharfer Untergrund (Blue Marble) im fertigen Bild.
-            # Wie im Video (Smart-Tile-Retry): solange `areTilesLoaded()` nein
-            # sagt, bis zu 6 × 2 s nachwarten.
-            for _tr in range(6):
-                try: _tiles_ok = await page.evaluate("map.areTilesLoaded()")
-                except Exception: _tiles_ok = True
-                if _tiles_ok: break
-                _log.warning(f"Standbild: Kacheln fehlen, Nachwarten {_tr+1}/6 …")
-                check_cancel()
-                await asyncio.sleep(2.0)
-                try: await page.evaluate("window.waitForRender()")
-                except Exception: pass
-
-            shot = await _grab_still_png(page, cfg)
-            # Schwarz-Frame-Schutz (wie im Video, Frame 0): triggerRepaint + neu greifen.
-            for _bk in range(6):
-                if cfg.transparent_background: break
-                if _frame_black_ratio(shot) < 0.05: break
-                _log.warning(f"Standbild ~schwarz — triggerRepaint + neu greifen ({_bk+1}/6) …")
-                try: await page.evaluate("map.triggerRepaint && map.triggerRepaint()")
-                except Exception: pass
-                await asyncio.sleep(0.5)
-                try: await page.evaluate("window.waitForRender()")
-                except Exception: pass
-                shot = await _grab_still_png(page, cfg)
-
-            check_cancel()
-            with open(cfg.output_path, "wb") as f:
-                f.write(shot)
-            _log.info("render_frame() fertig → %s (%d bytes)", cfg.output_path, len(shot))
-            emit(1.0, _t("animator.progress.done", "Fertig"))
-            return cfg.output_path
-        finally:
-            try: await browser.close()
-            except Exception: pass
 
 
-async def _grab_still_png(page, cfg: "AnimatorConfig") -> bytes:
-    """PNG-Capture für das Standbild (immer PNG, SSAA-Downscale wie im Video)."""
-    _ss = _render_ss(cfg.width, cfg.height)
-    if cfg.transparent_background:
-        raw = await page.screenshot(type="png", omit_background=True)
-    else:
-        raw = await page.screenshot(type="png")
-    if _ss <= 1.0:
-        return raw
-    return _downscale_frame(raw, cfg.width, cfg.height, cfg.transparent_background, 0)
 
 
 def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
@@ -5616,1198 +4222,3 @@ def fokus_koordinate(fokus: dict, cum_dist: list, idx: int) -> tuple:
     return (c[0], c[1])
 
 
-async def render(
-    cfg: AnimatorConfig,
-    on_progress: Optional[Callable[[float, str], None]] = None,
-    on_preview: Optional[Callable[[str], None]] = None,
-    is_cancelled: Optional[Callable[[], bool]] = None,
-) -> str:
-    """
-    Hauptrenderer. Async, ruft Callbacks zur Kommunikation mit der UI:
-    - on_progress(p:0..1, status_text:str)            → Fortschritt
-    - on_preview(b64_jpeg:str)                        → kleines JPEG-Thumb der aktuell gerenderten Frame
-    - is_cancelled() -> bool                          → wird vor jedem Frame geprüft;
-                                                        liefert True → `RenderCancelled` wird geworfen
-
-    Gibt Pfad zur Output-MP4 zurück.
-    """
-    def emit(p: float, msg: str) -> None:
-        if on_progress:
-            try:
-                on_progress(p, msg)
-            except Exception:
-                pass
-    # v0.9.507 — Fortschritt + Overlay-Beschriftungen in der App-Sprache.
-    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-
-    def check_cancel() -> None:
-        if is_cancelled and is_cancelled():
-            raise RenderCancelled("Vom User abgebrochen")
-
-    def push_preview(png_bytes: bytes) -> None:
-        if not on_preview:
-            return
-        try:
-            img = Image.open(io.BytesIO(png_bytes))
-            # Downscale auf max 1280×1280 (longest edge) — kompromiss aus
-            # „sieht auf MacBook-Display gut aus" und „Bridge-base64 bleibt
-            # unter ~250 KB pro Frame bei q72". 720 war zu klein und wirkte
-            # auf Retina-Displays gepixelt.
-            img.thumbnail((1280, 1280), Image.LANCZOS)
-            # JPEG mag kein RGBA
-            if img.mode in ("RGBA", "LA", "P"):
-                img = img.convert("RGB")
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=72, optimize=False)
-            b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-            on_preview(b64)
-        except Exception as e:
-            _log.debug("preview encode failed: %s", e)
-
-    emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
-    _log.info("render() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
-    if not cfg.transparent_background:
-        # 03.09.2026 — ohne Token weicht ein Mapbox-Stil auf „Satellit (kostenlos)"
-        # aus (core/mapstyles.resolve); hier nur noch ein Hinweis, keine Drohung.
-        _st = _mapstyles.STYLE_BY_KEY.get(cfg.map_style, {})
-        if _st.get("provider") == "mapbox" and not (cfg.mapbox_token or "").startswith("pk."):
-            _log.info("Mapbox-Stil ohne Token gewünscht — der Render weicht auf einen kostenlosen Stil aus.")
-    # v0.9.156 — Multi-Track läuft in einem eigenen, isolierten Render-Pfad,
-    # damit der battle-tested Single-Track-Code unverändert bleibt.
-    # IDEAS §38 (28.08.2026) — Ausnahme SCHWARM: alle Touren gleichzeitig.
-    # Der läuft absichtlich über GENAU DIESEN Single-Track-Pfad (Haupt-Track =
-    # längste Tour = Zeitachse; Keyframes, ruhige Kamera, Trim, Overlays gelten
-    # unverändert) — nur die Zusatz-Touren wachsen als Linien im selben Takt mit.
-    _schwarm = None
-    if getattr(cfg, "tracks", None) and len(cfg.tracks) >= 2:
-        if getattr(cfg, "tracks_ablauf", "reise") == "schwarm":
-            _schwarm = _schwarm_touren_vorbereiten(cfg)
-            # Marc (29.08.2026): „nicht, dass eine tour raussticht" — die
-            # Haupt-Tour bekommt Schwarm-Optik: gleiche Linienbreite, kein
-            # Schatten/Glow (der Laufpunkt folgt unten im DOT-Block).
-            if _schwarm and getattr(cfg, "schwarm_haupt_dezent", False):
-                cfg.line_width = max(0.5, round(float(cfg.line_width or 3.0) * 0.8, 2))
-                cfg.shadow_enabled = False
-                cfg.glow_enabled = False
-        else:
-            # §60 Phase 6: den Etappen-Pfad gibt es im klassischen Generator nicht
-            # mehr — Kompositionen rendern über die Szene. Wer den klassischen Weg
-            # erzwingt (RZ_RENDER_KLASSISCH=1), bekommt ehrlich nur die Haupt-Tour.
-            _log.warning("Klassischer Generator: %d Touren nacheinander gibt es hier nicht mehr — "
-                         "es wird nur die Haupt-Tour gerendert (Kompositionen laufen über die Szene).",
-                         len(cfg.tracks))
-    raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
-    # Punkte-Anzahl auflösen:
-    #   point_count == 0 oder >= n_raw  → alle Original-Punkte
-    #   point_count <  2               → Minimum 2 (Linie braucht 2 Punkte)
-    #   sonst                          → downsample auf exakt point_count
-    points = _punkte_verteilen(cfg, raw_points)
-    _log.info("GPX geparst: %d Punkte → %d Punkte (point_count=%s), %.1f km, %ds, %.0f m↑ / %.0f m↓",
-              len(raw_points), len(points), cfg.point_count or "all",
-              total_stats.distance_m / 1000.0, total_stats.duration_s,
-              total_stats.ascent_m, total_stats.descent_m)
-
-    # cumulative arrays für downsampled points
-    cum_dist = [0.0]
-    cum_time = [0.0]
-    for i in range(1, len(points)):
-        # nutze einfach die schon kumulierten Werte
-        cum_dist.append(points[i].dist_m)
-        cum_time.append(points[i].elapsed_s)
-    if total_stats.duration_s == 0:
-        # Fallback: linear über Distanz
-        cum_time = [(d / cum_dist[-1] * 1.0 if cum_dist[-1] else 0) for d in cum_dist]
-
-    # Bbox aus den downsampled Track-Punkten — Mapbox in der Headless-Page
-    # macht den Fit selbst (bounds + fitBoundsOptions im Map-Konstruktor).
-    lons = [p.lon for p in points]
-    lats = [p.lat for p in points]
-    bbox = (min(lons), min(lats), max(lons), max(lats))
-
-    total_stats_dict = {
-        "distance_m": total_stats.distance_m,
-        "duration_s": total_stats.duration_s,
-        "ascent_m": total_stats.ascent_m,
-        "descent_m": total_stats.descent_m,
-        "ele_min": total_stats.ele_min,
-        "ele_max": total_stats.ele_max,
-        "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
-        "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
-        # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
-        "seg_names": list(getattr(total_stats, "seg_names", []) or []),
-        # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
-        "stage_stats": core_gpx_etappen_stats(raw_points),
-        # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
-        "art_stats": core_gpx_arten_stats(raw_points, getattr(cfg, "bewegung_bereiche", None) or []),
-    }
-
-    # v0.9.41: bei stats_use_trim die Stats für den Trim-Bereich neu rechnen.
-    # cum_dist + cum_time müssen relativ zum Trim-Start = 0 reskaliert werden
-    # damit der Live-Counter im Render bei 0 m / 0:00 anfängt.
-    # v0.9.53 (Marc-Klärung): Trim = Track-Position (0..1 von realem Track).
-    # Render-Zeit ist FIX = dur + hold. Trim cuttet welcher Track-Abschnitt
-    # während der Anim-Phase abgefahren wird. Hold hängt sich immer hinten dran.
-    _trim_s = max(0.0, min(1.0, float(getattr(cfg, "render_start_anchor", 0.0))))
-    _trim_e = max(0.0, min(1.0, float(getattr(cfg, "render_end_anchor", 1.0))))
-    if _trim_e <= _trim_s:
-        _trim_s, _trim_e = 0.0, 1.0
-    _stats_start_idx = int(_trim_s * (len(points) - 1))
-    _stats_end_idx   = int(_trim_e * (len(points) - 1))
-    if getattr(cfg, "stats_use_trim", True) and (_trim_s > 0.0 or _trim_e < 1.0):
-        # Distance/Time: kumulativ relativ zum Trim-Start
-        _trim_dist_start = cum_dist[_stats_start_idx] if _stats_start_idx < len(cum_dist) else 0.0
-        _trim_time_start = cum_time[_stats_start_idx] if _stats_start_idx < len(cum_time) else 0.0
-        cum_dist = [max(0.0, d - _trim_dist_start) for d in cum_dist]
-        cum_time = [max(0.0, t - _trim_time_start) for t in cum_time]
-        # Trim-Subset für ele-Stats
-        _trim_eles = [p.ele for p in points[_stats_start_idx:_stats_end_idx + 1] if p.ele is not None]
-        _trim_dist = (cum_dist[_stats_end_idx] - cum_dist[_stats_start_idx]) if _stats_end_idx < len(cum_dist) else 0.0
-        _trim_time = (cum_time[_stats_end_idx] - cum_time[_stats_start_idx]) if _stats_end_idx < len(cum_time) else 0.0
-        # Ascent/Descent für den Trim-Bereich via core/gpx.compute-Helper
-        try:
-            from . import gpx as _gpx
-            _asc, _dsc = _gpx._compute_ascent_descent([p.ele for p in points[_stats_start_idx:_stats_end_idx + 1]])
-        except Exception:
-            _asc = total_stats.ascent_m  # Fallback
-            _dsc = total_stats.descent_m
-        # Bewegungszeit + Max-Tempo für den Trim-Bereich auf VOLLER Auflösung
-        # (raw_points-Subset nach Trim-Fraktion) — sonst glättet das Render-
-        # Downsampling den Tempo-Peak weg.
-        try:
-            from . import gpx as _gpx
-            _rs = int(_trim_s * (len(raw_points) - 1))
-            _re = int(_trim_e * (len(raw_points) - 1))
-            _trim_moving, _trim_max = _gpx.compute_moving_and_max(raw_points[_rs:_re + 1])
-        except Exception:
-            _trim_moving = getattr(total_stats, "moving_time_s", 0.0)
-            _trim_max = getattr(total_stats, "max_speed_kmh", 0.0)
-        total_stats_dict = {
-            "distance_m": _trim_dist,
-            "duration_s": _trim_time,
-            "ascent_m": _asc,
-            "descent_m": _dsc,
-            "ele_min": min(_trim_eles) if _trim_eles else total_stats.ele_min,
-            "ele_max": max(_trim_eles) if _trim_eles else total_stats.ele_max,
-            "moving_time_s": _trim_moving,
-            "max_speed_kmh": _trim_max,
-        }
-        _log.info("Stats (Trim %.0f%%-%.0f%%): %.1f km, %ds, %.0f m↑ / %.0f m↓",
-                  _trim_s * 100, _trim_e * 100,
-                  _trim_dist / 1000.0, _trim_time, _asc, _dsc)
-
-    # IDEAS §38 M2 — Fokus-Tour: „Kamera folgt" zielt auf DIESE Zusatz-Tour
-    # statt auf den Haupt-Track; ist sie fertig, bleibt die Kamera stehen
-    # (fokus_koordinate klemmt ans Tour-Ende).
-    _fokus = None
-    if _schwarm and getattr(cfg, "schwarm_fokus_gpx", ""):
-        _fokus = next((t for t in _schwarm
-                       if t.get("gpx_path") == cfg.schwarm_fokus_gpx), None)
-        if _fokus is None:
-            _log.warning("Schwarm-Fokus %r nicht in den Zusatz-Touren — folge dem Haupt-Track",
-                         cfg.schwarm_fokus_gpx)
-        else:
-            _log.info("Schwarm-Fokus: Kamera folgt %s", cfg.schwarm_fokus_gpx)
-            # M3: fokus_koordinate braucht Modus + Zeitachse (synchron zum JS).
-            _fokus = dict(_fokus)
-            _f_modus = str(getattr(cfg, "schwarm_modus", "gleich") or "gleich")
-            _f_pausen = bool(getattr(cfg, "schwarm_pausen", True))
-            _fokus["modus"] = _f_modus
-            _fokus["haupt_total_m"] = cum_dist[-1] if cum_dist else 0.0
-            if _f_modus == "uhrzeit":
-                _fokus["t"] = _fokus.get("t_roh" if _f_pausen else "t_bew")
-                _f_dauern = [((t.get("t_roh" if _f_pausen else "t_bew") or [0.0])[-1])
-                             for t in _schwarm]
-                _f_haupt = float((total_stats_dict.get("duration_s") if _f_pausen
-                                  else (total_stats_dict.get("moving_time_s")
-                                        or total_stats_dict.get("duration_s"))) or 0.0)
-                _fokus["t_axis"] = max([_f_haupt] + _f_dauern)
-    if _schwarm:
-        # IDEAS §38 M2 — Gesamtwerte für das Overlay-Feld „Touren gesamt":
-        # Tourenzahl inkl. Haupt-Track, Strecke = Summe aller Touren (die
-        # normalen Felder zeigen bewusst weiter die längste Tour).
-        total_stats_dict["swarm_n"] = len(_schwarm) + 1
-        total_stats_dict["swarm_dist_m"] = (cum_dist[-1] if cum_dist else 0.0) + sum(
-            (len(t["coords"]) - 1) * t["step_m"] for t in _schwarm)
-        # 29.08.2026 (Marc): die Gesamt-Felder zeigen im Schwarm die SUMME
-        # über alle Touren (Ø-Tempo als Schnitt daraus, Max/Extrem als
-        # Maximum/Minimum) — nicht mehr nur die längste Tour.
-        _sts = [t.get("stats") or {} for t in _schwarm]
-        total_stats_dict["swarm_duration_s"] = total_stats_dict["duration_s"] + sum(
-            s.get("duration_s") or 0 for s in _sts)
-        total_stats_dict["swarm_moving_s"] = (total_stats_dict.get("moving_time_s")
-            or total_stats_dict["duration_s"] or 0) + sum(
-            (s.get("moving_time_s") or s.get("duration_s") or 0) for s in _sts)
-        total_stats_dict["swarm_ascent_m"] = (total_stats_dict.get("ascent_m") or 0) + sum(
-            s.get("ascent_m") or 0 for s in _sts)
-        total_stats_dict["swarm_descent_m"] = (total_stats_dict.get("descent_m") or 0) + sum(
-            s.get("descent_m") or 0 for s in _sts)
-        total_stats_dict["swarm_max_kmh"] = max(
-            [total_stats_dict.get("max_speed_kmh") or 0]
-            + [s.get("max_speed_kmh") or 0 for s in _sts])
-        _hoehen = [s.get("ele_max") for s in _sts if s.get("ele_max") is not None]
-        _tiefen = [s.get("ele_min") for s in _sts if s.get("ele_min") is not None]
-        if total_stats_dict.get("ele_max") is not None:
-            _hoehen.append(total_stats_dict["ele_max"])
-        if total_stats_dict.get("ele_min") is not None:
-            _tiefen.append(total_stats_dict["ele_min"])
-        if _hoehen:
-            total_stats_dict["swarm_ele_max"] = max(_hoehen)
-        if _tiefen:
-            total_stats_dict["swarm_ele_min"] = min(_tiefen)
-    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox,
-                      schwarm_tours=_schwarm)
-
-    # v0.9.53 (Marc-Klärung): Trim-Range = welcher Abschnitt des REALEN Tracks
-    # gerendert wird. Render-Output-Länge IMMER fix = intro + dur + hold Sekunden.
-    # v0.9.59: intro_s erlaubt einen Hold am ANFANG (Marker steht am trim_start).
-    # v0.9.458 — Frame-Zahlen MÜSSEN int sein (landen in range()): Dauer/Hold
-    # sind freie Zahlenfelder in der UI — tippt jemand „7.5" oder „2,5", kam
-    # hier ein float an und der Render starb mit „'float' object cannot be
-    # interpreted as an integer". Ganze Zahlen (der Normalfall) kommen aus JS
-    # als int an, deshalb blieb das lange unsichtbar.
-    intro_frames = max(0, int(round(float(getattr(cfg, "intro_s", 0) or 0) * cfg.fps)))   # 22.08.2026: 2.5 s blieb 2 s
-    anim_frames = max(1, int(round(cfg.duration_s * cfg.fps)))
-    hold_frames = int(round(cfg.hold_s * cfg.fps))
-    total_frames = intro_frames + anim_frames + hold_frames
-    _trim_start = max(0.0, min(1.0, float(cfg.render_start_anchor)))
-    _trim_end   = max(0.0, min(1.0, float(cfg.render_end_anchor)))
-    if _trim_end <= _trim_start:
-        _trim_start, _trim_end = 0.0, 1.0
-    _trim_span = _trim_end - _trim_start
-    _start_idx = int(_trim_start * (len(points) - 1))
-    _end_idx   = int(_trim_end   * (len(points) - 1))
-    _trim_n = max(1, _end_idx - _start_idx + 1)
-    coords_per_frame = _trim_n / max(1, anim_frames)
-    # 29.08.2026 — Haupt-Start-Verzögerung (nur mit Schwarm sinnvoll): in der
-    # Anim-Phase steht der Haupt-Track erst still und läuft dann RENORMIERT
-    # (schneller) bis zum Ende. Die Schwarm-Referenzachse bleibt unverzögert.
-    _haupt_delay_frames = 0
-    if getattr(cfg, "schwarm_haupt_start_s", 0) and len(cfg.tracks) >= 2:
-        _haupt_delay_frames = min(anim_frames - 1, max(0, int(round(
-            float(cfg.schwarm_haupt_start_s) * cfg.fps))))
-    coords_per_frame_eff = _trim_n / max(1, anim_frames - _haupt_delay_frames)
-    # v0.9.204 — Schild-Vorlauf reicht ins Intro. Im Intro friert der Marker am
-    # trim_start ein (idx = _start_idx → markerAnchor = base_anchor). Der
-    # Schild-FILTER bekommt aber pro Intro-Frame einen NEGATIV laufenden Anker
-    # (base_anchor − (intro_frames − frame)/anim_frames), damit ein Schild mit
-    # Vorlauf (`before`, aShow = A − before in Anim-Sekunden) seine Einblendung
-    # über die letzte Intro-Sekunde abspielt statt erst am Track-Start
-    # aufzuploppen. Rate 1/anim_frames pro Frame = 1/anim_s pro Sekunde, exakt
-    # die Einheit von rzSignSecToAnchor → before=N s blendet N s vor Track-Start
-    # ein. Hold-Seite unangetastet (greift gratis via aHide-Default 2.0).
-    # ── Kamera-Keyframes hängen am TRACK, nicht an der Uhr (v0.9.511) ──────
-    # Marc: „der keyframe muss am track kleben". So ist es auch seit jeher in
-    # `render_start_anchor` dokumentiert („daher bleiben gesetzte Keyframes
-    # track-anchor-bezogen wenn der User den Trim verschiebt") — ausgewertet
-    # wurde bisher aber gegen `timeline_progress`, also gegen die Zeit. Ohne
-    # Schnitt ist das dasselbe; mit Schnitt ist die Zeit gestaucht, weil die
-    # Anim-Phase trim_start…trim_end über die volle Dauer verteilt.
-    # In Intro und Hold läuft der Anker mit derselben Rate WEITER (über die
-    # Trim-Grenzen hinaus), damit die Kamera dort anfliegen und nachschwenken
-    # kann, statt einzufrieren.
-    _anker_von = (_start_idx / (len(points) - 1)) if len(points) > 1 else 0.0
-    _anker_bis = (_end_idx / (len(points) - 1)) if len(points) > 1 else 1.0
-    _anker_pro_frame = (_anker_bis - _anker_von) / max(1, anim_frames)
-
-    # ⚠️ Wo der Anlauf anfängt und der Nachlauf aufhört (Marc-Entscheidung
-    # 18.08.2026, „die Leiste hat recht"): am linken bzw. rechten Rand der
-    # Zeitleiste. In Track-Ankern ist der linke Rand −Intro/Animation und der
-    # rechte 1 + Nachlauf/Animation — unabhängig vom Schnitt, genau die Werte,
-    # die `barToTrack(0)` und `barToTrack(1)` in der Oberfläche liefern.
-    # Der Anlauf fährt also den weggeschnittenen Anfang der Strecke ab und
-    # kommt am Schnitt-Anfang an; ohne Schnitt bleibt es der Anflug von
-    # außerhalb, den es vorher schon gab.
-    _anker_links = -(intro_frames / max(1, anim_frames))
-    _anker_rechts = 1.0 + (hold_frames / max(1, anim_frames))
-
-    # ⚠️ Keyframes werden entlang der ZEIT interpoliert, nicht entlang der
-    # Strecke (19.08.2026). Der Anker läuft in den drei Phasen verschieden
-    # schnell — im Anlauf drückt sich der weggeschnittene Anfang in wenige
-    # Sekunden. Wer über den Anker interpoliert, sieht die Kamera genau am
-    # gelben Griff abbremsen (Marc, an seinem Projekt: Faktor 3,3).
-    # `anchor` bleibt unangetastet; Track-folgen-Keyframes schlagen darüber
-    # weiter ihren Punkt nach.
-    _ti_zeit = intro_frames / max(1, total_frames)
-    _tf_zeit = (intro_frames + anim_frames) / max(1, total_frames)
-    _events_zeit = _timeline.mit_zeit(cfg.timeline_events, ti=_ti_zeit, tf=_tf_zeit,
-                                      trim_a=_anker_von, trim_b=_anker_bis)
-
-    def _kamera_anker(fr: int) -> float:
-        """Frame → Stelle im Track. Anlauf und Nachlauf laufen über genau den
-        Bereich, den der Scrubber in der Oberfläche sichtbar abfährt."""
-        if fr < intro_frames:
-            _p = fr / max(1, intro_frames)
-            return _anker_links + _p * (_anker_von - _anker_links)
-        if fr < intro_frames + anim_frames:
-            _rel = int((fr - intro_frames) * coords_per_frame)
-            _i = min(_start_idx + _rel, _end_idx)
-            return (_i / (len(points) - 1)) if len(points) > 1 else 0.0
-        if hold_frames <= 0:
-            return _anker_bis
-        _p = (fr - intro_frames - anim_frames) / hold_frames
-        return _anker_bis + _p * (_anker_rechts - _anker_bis)
-
-
-    _sign_base_anchor = (_start_idx / (len(points) - 1)) if len(points) > 1 else 0.0
-    # v0.9.253 — analog für die Hold-Phase: Schild-Anker läuft ÜBER das Track-
-    # Ende hinaus weiter (gleiche Rate wie Anim), damit ein „Ausblenden nach N s"
-    # das in den Hold fällt (aHide > end_anchor) auch wirklich erreicht wird.
-    _sign_end_anchor = (_end_idx / (len(points) - 1)) if len(points) > 1 else 1.0
-
-    # v0.9.143 (Marc-Bug „frei → Track-folgen"): Resolver Timeline-Anchor (0..1)
-    # → Track-Punkt [lon, lat]. Spiegelt JS `trackIdxFromTimelineAnchor` +
-    # `_trackPointAtAnchor`. Phasen: Intro = Stillstand am trim_start, Anim =
-    # walk trim_start→end, Hold = Stillstand am trim_end. Wird an
-    # interpolate_properties durchgereicht, damit ein gemischtes center-Segment
-    # (ein KF frei, einer Track-folgen) glatt zwischen freier Position und
-    # Track-Punkt pant statt einzufrieren + zu springen (WYSIWYG mit Preview).
-    _ti_frac = intro_frames / max(1, total_frames)
-    _tf_frac = (intro_frames + anim_frames) / max(1, total_frames)
-
-    def _track_point_at(anchor):
-        n = len(points)
-        if n < 1:
-            return None
-        if n < 2:
-            return [points[0].lon, points[0].lat]
-        # ⚠️ `anchor` ist ein TRACK-Anker (22.08.2026, Audit): Aufrufer sind
-        # `_interpolate_center_property`/`_maybe_flyto_interp`, die den Anker
-        # des Keyframes übergeben — genau wie die Vorschau
-        # (`_trackPointAtAnchor` → `trackFracAusAnker`: auf den Schnitt
-        # klemmen, Punkt nachschlagen). Vorher wurde der Wert als ZEITANTEIL
-        # gedeutet (Relikt aus der Zeit vor v0.9.511/520) → bei gemischten
-        # „frei ↔ Track-folgen"-Keyframes mit Anlauf oder Schnitt flog das
-        # Video zu einem anderen Punkt als die Vorschau.
-        marker_real = max(_trim_start, min(_trim_end, max(0.0, min(1.0, float(anchor)))))
-        idx_tp = max(0, min(n - 1, round(marker_real * (n - 1))))
-        return [points[idx_tp].lon, points[idx_tp].lat]
-
-    emit(0.02, _t("animator.progress.load_map", "Karte laden") + f" ({cfg.map_style}) …")
-
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as p:
-        t_pw = time.time()
-        try:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox",
-                      # v0.9.387 — unterdrückt Chromecast/DIAL/mDNS-Geräte-Suche → kein macOS-„Lokales
-                      # Netzwerk"-Zugriffs-Dialog beim Render (wir brauchen nur normales Internet für Tiles).
-                      "--disable-background-networking", "--disable-features=MediaRouter,DialMediaRouteProvider",
-                      "--no-first-run", "--no-default-browser-check"],
-            )
-        except Exception as e:
-            _log.error("Playwright/Chromium-Start fehlgeschlagen: %s", e)
-            _log.error("Hinweis: ggf. `playwright install chromium` in der App-Venv ausführen.")
-            raise
-        _log.info("Chromium gestartet in %.1fs", time.time() - t_pw)
-
-        # v0.9.20 — DSF-skaliertes Viewport: Playwright bekommt CSS-Viewport
-        # = cfg.size/dsf + device_scale_factor=dsf. Output-Canvas wird trotzdem
-        # cfg.width × cfg.height physisch, aber Mapbox malt line-widths/blur/
-        # font-sizes als CSS-Pixel → bei 4K mit DSF=2 wird eine 3.5-px-Linie
-        # als 7 Device-Pixel im Output, matched die Retina-Preview-Optik.
-        # v0.9.388 — Alpha/Transparent-Render: DSF & SSAA auf 1.0 erzwingen.
-        # `_make_html_alpha` dimensioniert Body/SVG/Track-Projektion in
-        # cfg.width×cfg.height CSS-Pixeln. Mit dem normalen DSF>1 (bei 4K =2) ist der
-        # CSS-Viewport aber nur cfg.width/dsf → der Screenshot erfasste nur das linke
-        # obere Viertel, rechts/unten platzierte Overlays lagen außerhalb des Bildes.
-        # Bei DSF=1 gilt CSS-px == Device-px == cfg.width → volles, korrektes Bild.
-        if cfg.transparent_background:
-            _dsf = 1.0
-            _ss = 1.0
-        else:
-            _dsf = _render_dsf(cfg.width, cfg.height)
-            _ss = _render_ss(cfg.width, cfg.height)  # v0.9.286: SSAA gegen 4K-Flimmern
-        _vp_w = max(1, int(round(cfg.width / _dsf)))
-        _vp_h = max(1, int(round(cfg.height / _dsf)))
-        _log.info("Playwright viewport=%dx%d CSS · DSF=%.2f · SSAA=%.2f · output=%dx%d device px",
-                  _vp_w, _vp_h, _dsf, _ss, cfg.width, cfg.height)
-        if _ss > 1.0:
-            _log.info("SSAA aktiv (4K): Capture %dx%d → Lanczos-Downscale auf %dx%d",
-                      int(_vp_w * _dsf * _ss), int(_vp_h * _dsf * _ss), cfg.width, cfg.height)
-        page = await browser.new_page(
-            viewport={"width": _vp_w, "height": _vp_h},
-            device_scale_factor=_dsf * _ss,
-        )
-        _tc_stats = await _install_tile_cache(page, cfg)
-
-        # RZ_SLOWNET — nur Fehlersuche (Beta-Tester 21.08.2026): Mapbox-Requests
-        # künstlich verzögern, um langsame Verbindungen nachzustellen.
-        #   RZ_SLOWNET=dem:8   → nur Terrain-DEM-Kacheln 8 s verzögern
-        #   RZ_SLOWNET=all:5   → alle Mapbox-Requests 5 s verzögern
-        _slow = os.environ.get("RZ_SLOWNET", "")
-        if _slow:
-            _was, _, _sek = _slow.partition(":")
-            _sek_f = float(_sek or 5)
-            async def _bremse(route):
-                url = route.request.url
-                dem = ("terrain-dem" in url) or ("raster-dem" in url)
-                if (_was == "all" and "mapbox" in url) or (_was == "dem" and dem):
-                    await asyncio.sleep(_sek_f)
-                await route.continue_()
-            await page.route("**/*", _bremse)
-            _log.warning("RZ_SLOWNET aktiv: %s → +%.1fs Latenz", _was, _sek_f)
-
-        # Console-Logs aus dem Headless-Chromium ins App-Log spiegeln —
-        # dort landen z.B. Mapbox-Token-Fehler („Unauthorized") und WebGL-Errors.
-        def _on_console(msg):
-            try:
-                _log.info("page.console [%s] %s", msg.type, msg.text)
-            except Exception:
-                pass
-
-        def _on_pageerror(err):
-            _log.error("page.pageerror: %s", err)
-
-        page.on("console", _on_console)
-        page.on("pageerror", _on_pageerror)
-
-        # RZ_DUMP_HTML=/pfad — die fertige Render-Seite mitschreiben. Nur zum
-        # Nachsehen beim Entwickeln (welche Layer entstehen wirklich?), im
-        # Normalbetrieb aus.
-        _dump = os.environ.get("RZ_DUMP_HTML")
-        if _dump:
-            try:
-                Path(_dump).write_text(html, encoding="utf-8")
-                _log.info("Render-HTML geschrieben: %s (%d KB)", _dump, len(html) // 1024)
-            except OSError as e:
-                _log.warning("RZ_DUMP_HTML: %s", e)
-        await page.set_content(html)
-
-        ready = False
-        for _i in range((90 if (getattr(cfg, "map_spec", None) or {}).get("kind") == "gov" else 30) * 2):   # 04.09.2026: WMS-Dienste brauchen länger
-            ready = await page.evaluate("window.isReady()")
-            if ready:
-                break
-            await asyncio.sleep(0.5)
-        if not ready:
-            # 22.08.2026 (Audit): War ein ECHTER Kartenfehler die Ursache
-            # (Token 401/403, Stil nicht ladbar), gibt es nichts zu rendern —
-            # abbrechen statt ein schwarzes Video als „Fertig" zu liefern.
-            # Bloß langsam (Netz) bleibt weiterhin tolerant.
-            try:
-                _merr = await page.evaluate("window.__mapErrors || []")
-            except Exception:
-                _merr = []
-            _hart = [m for m in (_merr or [])
-                     if (m.get("status") in (401, 403, 404))
-                     or any(w in str(m.get("msg", "")).lower()
-                            for w in ("unauthorized", "forbidden", "invalid token",
-                                      "style", "not found"))]
-            if _hart:
-                raise RuntimeError(_t("animator.karte_fehler",
-                                      "Die Karte konnte nicht geladen werden (Mapbox-Token oder Stil): ")
-                                   + "; ".join(str(m.get("msg")) for m in _hart[:3]))
-            _log.warning("Map wurde innerhalb von 30s nicht ready — render läuft trotzdem weiter "
-                         "(Mapbox-Fehler: %s).", _merr[:3] if _merr else "keine")
-        else:
-            _log.info("Map ready nach ~%.1fs", _i * 0.5)
-
-        # v0.9.189 — Auf geladene Schild-Bilder warten (Foto-Karten), damit sie
-        # in JEDEM Frame da sind und nicht erst nach den ersten Frames auftauchen.
-        if cfg.signs_show and cfg.signs:
-            for _i in range(40):
-                try:
-                    if await page.evaluate("window.__signsReady === true"):
-                        break
-                except Exception:
-                    break
-                await asyncio.sleep(0.25)
-
-        # Im Alpha-Modus gibt's kein Mapbox-Terrain → keine Wartezeit nötig.
-        if not cfg.transparent_background:
-            await asyncio.sleep(3)  # Terrain-Tiles nachladen
-
-        # Center+Zoom aus Mapbox's Bounds-Fit auslesen — diese Werte nutzen wir
-        # für advanceFrame() in jedem Frame (Map bleibt statisch über die
-        # Animation, nur Bearing + Track wachsen).
-        view = await page.evaluate("window.getInitialView()")
-        if isinstance(view, dict):
-            center = view.get("center") or [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-            zoom = view.get("zoom", 12)
-        else:
-            center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-            zoom = 12
-        try: await page.evaluate(f"window.__rzGhostDashRebuild && window.__rzGhostDashRebuild({float(zoom):.4f})")
-        except Exception as _e: _log.warning("Ghost-Strichelung: %s", _e)
-        # Defensive: ist center wirklich [lon, lat]?
-        if not (isinstance(center, (list, tuple)) and len(center) == 2
-                and all(isinstance(v, (int, float)) for v in center)):
-            _log.warning("Unexpected center from Mapbox: %r → falling back to bbox-midpoint", center)
-            center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-        _log.info("Initial view from Mapbox bounds-fit: center=[%.6f, %.6f] zoom=%.2f",
-                  center[0], center[1], zoom)
-
-        # v0.9.157 — WYSIWYG-Zoom-Korrektur. `cfg.zoom_correction` ist der vom
-        # Frontend gelieferte Delta `correctedZoom(map,W,H) - map.getZoom()`
-        # (= log2(min(W/pw, H/ph))). Der Render-CSS-Viewport ist cfg.size/dsf,
-        # daher zusätzlich `- log2(dsf)`. interpolate_properties addiert das auf
-        # den absoluten KF-Zoom (value_absolute), bevor der Offset gegen die
-        # Fit-Base gebildet wird → frame_zoom = value_absolute + _zoom_abs_shift,
-        # exakt wie der alte Classic-correctedZoom-Pfad. 0 wenn kein Wert kam.
-        _zoom_abs_shift = float(getattr(cfg, "zoom_correction", 0.0) or 0.0) - (
-            math.log2(_dsf) if _dsf and _dsf > 0 else 0.0
-        )
-        if _zoom_abs_shift:
-            _log.info("Zoom-WYSIWYG-Korrektur: correction=%.3f dsf=%.2f → abs_shift=%.3f",
-                      getattr(cfg, "zoom_correction", 0.0), _dsf, _zoom_abs_shift)
-
-        # v0.9.19 — Tile-Cache-Prewarm: vor der eigentlichen Frame-Loop
-        # 12 evenly-spaced Kamera-Positionen durchfliegen + auf `idle` warten.
-        # Mapbox lädt damit die Tiles für alle Track-Abschnitte vorab in den
-        # Browser-Cache. Die echte Frame-Loop fliegt anschließend durch
-        # gecachte Tiles → per-Frame `idle` fires in ~50 ms statt ~1–3 s.
-        # Kein Quality-Loss, nur initial ~5–15 s Vorlauf.
-        # v0.9.24 — Alpha-Modus hat kein Mapbox → kein Tile-Cache zu prewarmen.
-        # Skip statt späterer TypeError „prewarmTiles is not a function".
-        prewarm_samples = []
-        PREWARM_N = 0 if cfg.transparent_background else 12
-        for i in range(PREWARM_N):
-            tprog = i / max(1, PREWARM_N - 1)
-            # ⚠️ Zeit-Achse wie die Frame-Schleife (20.08.2026) — `tprog` IST eine
-            # Zeit. Mit rohen Events wurden die Prewarm-Kameras an Anker-Stellen
-            # berechnet; die Weltsicht des Anlaufs blieb kalt.
-            pitch_p, bearing_p, zoom_off_p, kf_c, _pos_p, _rot_p = _timeline.interpolate_properties(
-                _events_zeit, tprog,
-                default_pitch=cfg.pitch, default_rotation=cfg.rotation,
-                fit_zoom_base=zoom,  # v0.9.65: für van-Wijk-Flug-Kurve
-                cinematic_flyto=cfg.cinematic_flyto,  # v0.9.84
-                track_point_at=_track_point_at,  # v0.9.143
-                zoom_abs_shift=_zoom_abs_shift,  # v0.9.157: WYSIWYG-Zoom-Korrektur
-            )
-            pw_pitch = pitch_p if pitch_p is not None else cfg.pitch
-            pw_bearing = bearing_p if bearing_p is not None else (
-                -10.0 + tprog * cfg.rotation
-            )
-            pw_zoom_off = zoom_off_p if zoom_off_p is not None else 0.0
-            pw_zoom_off = max(-22.0, min(22.0, pw_zoom_off))
-            pw_zoom = zoom + pw_zoom_off
-            # Center: priority KF-center > camera_follow_track > bbox-center
-            if kf_c:
-                pw_lon, pw_lat = kf_c[0], kf_c[1]
-            elif cfg.camera_follow_track and len(points) > 0:
-                _idx = min(int(tprog * (len(points) - 1)), len(points) - 1)
-                # v0.9.275 (Nutzer) — TrackPoint ist ein dataclass, NICHT subscriptable.
-                # Dieselbe Falle wie v0.9.124 im Haupt-Loop, hier im Tile-Prewarm übersehen
-                # → „'TrackPoint' object is not subscriptable" beim Render mit „Kamera folgt Track".
-                if _fokus is not None:
-                    pw_lon, pw_lat = fokus_koordinate(_fokus, cum_dist, _idx)
-                else:
-                    pw_lon, pw_lat = points[_idx].lon, points[_idx].lat
-            else:
-                pw_lon, pw_lat = center[0], center[1]
-            prewarm_samples.append([pw_bearing, pw_lon, pw_lat, pw_zoom, pw_pitch])
-        if prewarm_samples:
-            import json as _json
-            emit(0.04, _t("animator.progress.prewarm", "Tile-Cache vorwärmen") + f" ({PREWARM_N}) …")
-            try:
-                check_cancel()
-                # 22.08.2026 (Audit): Zeitgrenze — ein JS-Hänger im Prewarm hing
-                # den Render ohne Meldung; danach noch einmal Abbruch prüfen.
-                await asyncio.wait_for(
-                    page.evaluate(f"window.prewarmTiles({_json.dumps(prewarm_samples)})"),
-                    timeout=90)
-                check_cancel()
-            except RenderCancelled:
-                raise
-            except Exception as e:
-                # Prewarm ist Best-Effort — bei Fehler einfach mit unprewarmer
-                # Frame-Loop weitermachen (alte Geschwindigkeit, kein Render-Stop).
-                _log.warning("Tile-Cache-Prewarm fehlgeschlagen, fahre fort: %s", e)
-
-        emit(0.05, _t("animator.progress.map_ready", "Karte bereit, rendere Frames …"))
-
-        # 08.09.2026 - Verkleinern (SSAA/Rundung) uebernimmt ffmpeg, nicht PIL:
-        # muss VOR dem Bau des Befehls stehen (siehe _vf_args, _grab_frame).
-        cfg.skalieren_in_ffmpeg = True
-        ffmpeg_bin = find_ffmpeg()
-        _log.info("ffmpeg: %s", ffmpeg_bin)
-        codec = (cfg.codec or "h264").lower()
-        alpha = cfg.transparent_background
-        # Drei Codec-Modi (Auswahl orthogonal zur Alpha-Frage):
-        #   1) alpha       → ProRes 4444 MIT Alpha-Plane (yuva444p10le, .mov)
-        #   2) prores      → ProRes 4444 OHNE Alpha (yuv444p10le, .mov) —
-        #                    Master-Qualität für YouTube-Workflow
-        #   3) h264/h265   → Standard MP4 (yuv420p, +faststart)
-        # Wenn Alpha aktiv: User-Codec-Wahl wird auf prores forciert (UI sollte
-        # das selbst tun, hier als Defensive). Output-Ext kommt von app.py.
-        if alpha:
-            ffmpeg_cmd = [
-                ffmpeg_bin, "-y", "-loglevel", "error",
-                "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4",
-                "-pix_fmt", "yuva444p10le",
-                "-vendor", "ap10",   # Apple-Vendor-ID (Premiere strenger als ffmpeg)
-            ]
-        elif codec == "prores422":
-            # 05.09.2026 (Marc): ProRes 422 HQ — Schnitt-Standard (FCP/Resolve), halb so groß wie 4444, kein Alpha.
-            ffmpeg_cmd = [
-                ffmpeg_bin, "-y", "-loglevel", "error",
-                "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "3",
-                "-pix_fmt", "yuv422p10le", "-vendor", "ap10",
-            ]
-        elif codec in ("prores", "prores4444"):
-            # ProRes 4444 ohne Alpha — Studio-Master für YouTube-Master-Cuts.
-            # Sehr groß (~5–10× MP4), aber verlustfrei genug für Color-Grading.
-            ffmpeg_cmd = [
-                ffmpeg_bin, "-y", "-loglevel", "error",
-                "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4",
-                "-pix_fmt", "yuv444p10le",
-                "-vendor", "ap10",
-            ]
-        else:
-            vcodec = "libx265" if codec in ("h265", "hevc") else "libx264"
-            # v0.9.19 — `-preset fast` statt `medium`: ~30–40 % schnellerer
-            # Encode bei identischer Quality (CRF ist Constant-Rate-Factor,
-            # ändert sich nicht mit Preset). File wird ca. 5–10 % größer.
-            # v0.9.157 — ZURÜCK auf `yuv420p` (war v0.9.22–0.9.156 `yuv444p`).
-            # Marc-Bug: „nach dem Rendern kann ich das Video nicht mehr im GPS
-            # Studio abspielen". Ursache: H.264 High-4:4:4-Predictive (yuv444p
-            # + `-profile:v high444`) bzw. H.265 main444 kann Apples
-            # AVFoundation/WKWebView NICHT decodieren → das `<video>`-Element im
-            # Result-View (und QuickTime) bleibt schwarz. `yuv420p` (High-
-            # Profile) ist universell abspielbar (WKWebView, QuickTime, Web,
-            # YouTube). Die 4:4:4-Farbtreue aus v0.9.22 bleibt über den
-            # **ProRes-Codec** verfügbar (Editing-Master, oben). h264/h265 sind
-            # die Deliverable-/Preview-Codecs → 4:2:0 ist hier korrekt.
-            pix_fmt = "yuv420p"
-            ffmpeg_cmd = [
-                ffmpeg_bin, "-y", "-loglevel", "error",
-                "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                # v0.9.245 — JPEG-Frames sind Full-Range (→ yuvj420p). Auf Standard-
-                # Limited-Range (tv) normalisieren, damit der Output farblich
-                # identisch zu den bisherigen PNG-Renders bleibt.
-                *_vf_args(cfg),
-                "-c:v", vcodec, "-preset", (cfg.encoder_preset or "fast"), "-crf", str(cfg.crf),
-                "-pix_fmt", pix_fmt, "-movflags", "+faststart",
-            ]
-            # hvc1-Tag für H.265 (sonst spielt QuickTime/Safari .mp4 nicht ab).
-            if vcodec == "libx265":
-                ffmpeg_cmd += ["-tag:v", "hvc1"]
-        # ⚠️ Format explizit — aus `.rzpart` kann ffmpeg keins ableiten.
-        ffmpeg_cmd += ["-f", _muxer_fuer(cfg.output_path),
-                       _teildatei(cfg.output_path)]
-        # 22.08.2026 — gemeinsamer Treiber (core/frame_driver.py)
-        mux = FrameMuxer(ffmpeg_cmd, cfg.output_path, total_frames,
-                         log=_log, cancelled_cls=RenderCancelled)
-
-        try:
-            # Preview alle ~3 Frames pushen — bei 30fps reicht das für eine
-            # flüssige Live-Vorschau und überlastet die Bridge nicht.
-            preview_every = max(1, cfg.fps // 10)
-            # Bearing-Sweep läuft GLEICHMÄSSIG über die GESAMTE Video-Länge
-            # (anim + hold). Vorher gab's nach dem Track-Ende einen plötzlich
-            # schnelleren Sweep (hardcoded +3°), was bei niedriger rotation
-            # so wirkte als ob die Kamera erst dann anfängt zu schwenken.
-            # v0.9.107 — Spin-Akkumulation entfernt. Drehung kommt jetzt
-            # aus center.lng-Werten pro KF (= position-Lane).
-            # Letzten applied padding cachen damit wir nicht jedem Frame
-            # setPadding rufen wenn sich nichts ändert.
-            _last_position_applied = None
-            _ov_timed = _overlay_has_timing(cfg)  # v0.9.228 — Overlay-Zeitfenster aktiv?
-            if _ov_timed:
-                # 24.09.2026 (Overlay-Spur) — wann der Laufpunkt welchen Streckenanteil
-                # erreicht, mit GENAU der idx-Rechnung der Bildschleife unten. Damit rechnet
-                # ui/js/overlay_boxen.js Trackpunkt-Kanten vorab in Sekunden um, und eine
-                # Box ist am Balkenende ganz weg (die Ausblendung liegt davor).
-                try:
-                    await page.evaluate("window.__rzOvStreckeZeit = " + json.dumps(
-                        _ov_strecke_zeit(cum_dist, intro_frames, anim_frames, _start_idx, _end_idx,
-                                         coords_per_frame, coords_per_frame_eff, _haupt_delay_frames,
-                                         cfg.fps)))
-                except Exception as e:
-                    _log.warning("Overlay: Strecke→Zeit-Tabelle nicht gesetzt: %s", e)
-            # ── Render-Timing-Diagnose (env RZ_RENDER_TIMING=1) ──────────────
-            # Misst pro Frame, wo die Zeit draufgeht. Verändert den Render NICHT
-            # (reine Messung). Summary wird am Ende geloggt. v0.9.245
-            _rt = bool(os.environ.get("RZ_RENDER_TIMING"))
-            _rt_acc = {"wait": 0.0, "tiles": 0.0, "shot": 0.0, "write": 0.0}
-            _rt_frames = 0
-            _rt_first = None
-            if _rt:
-                try:
-                    _gpu = await page.evaluate(
-                        "(()=>{try{const c=document.createElement('canvas');"
-                        "const g=c.getContext('webgl')||c.getContext('experimental-webgl');"
-                        "const d=g.getExtension('WEBGL_debug_renderer_info');"
-                        "return d?g.getParameter(d.UNMASKED_RENDERER_WEBGL):g.getParameter(g.RENDERER);}"
-                        "catch(e){return 'unknown';}})()"
-                    )
-                except Exception:
-                    _gpu = "unknown"
-                _log.warning("⏱ RENDER-TIMING aktiv | GPU-Renderer: %s | %dx%d @ %dfps | %d Frames",
-                             _gpu, cfg.width, cfg.height, cfg.fps, total_frames)
-            # v0.9.275 (Nutzer) — Trägheit beim „Kamera folgt Track": exponentielle Glättung
-            # des Folge-Zentrums über die Frames. inertia 0 → k=1 (hart, wie bisher),
-            # inertia 1 → k≈0.03 (sehr weich, Kamera zieht sanft nach).
-            # v0.9.277 (Nutzer: „100 % zu wenig träge") — quadratische Kurve + tieferer Boden,
-            # damit hohe Werte spürbar weicher ziehen (100 % ≈ k 0.005 → sehr träge).
-            _foll_inertia = max(0.0, min(1.0, float(getattr(cfg, "camera_follow_inertia", 0.0))))
-            _foll_k = max(0.005, (1.0 - _foll_inertia) ** 2)
-            _foll_lon = None
-            _foll_lat = None
-            # v0.9.318 — Entkoppelte FreeCamera (gegen Berg-Hüpfen, Sandbox-validiert):
-            # pro Keyframe-Anker die exakte 3D-Kamera (Pos+Orientierung) auslesen, im
-            # Loop dazwischen interpolieren. Klassik/<2 KFs → unberührt (alter Pfad).
-            # 22.08.2026 — auch an, wenn nur einzelne Abschnitte „ruhig" sind (smooth_in am Ziel-Keyframe).
-            _smooth_all = bool(getattr(cfg, "smooth_camera_3d", False))
-            _smooth_seg = any(isinstance(_e, dict) and _e.get("smooth_in") for _e in _events_zeit)
-            _smooth_cam = (_smooth_all or _smooth_seg) and os.environ.get("RZ_NOFAITHFUL") != "1"
-            # 03.09.2026: auf MapLibre gab es keine FreeCamera → klassische Kamera.
-            # 04.09.2026 (Marc): Engine-Adapter `__rzCamRead/__rzCamApply` im HTML —
-            # MapLibre 5 rechnet aus Kameraposition + Richtung/Neigung dieselbe
-            # Ansicht (`calculateCameraOptionsFromCameraLngLatAltRotation`). Die
-            # ruhige Kamera läuft damit in ALLEN Stilen.
-            _use_faithful = False
-            if _smooth_cam and total_frames > 2:
-                _cam_kinds = ("center", "pitch", "zoom", "bearing", "position", "rotation")
-                # ⚠️ Stützstellen auf der ZEIT-Achse (20.08.2026). Zwei Fehler
-                # steckten hier:
-                #   1. `0.0 <= a <= 1.0` warf jeden Keyframe im Anlauf und im
-                #      Nachlauf weg. Die Kamera hatte dort keine Stützstelle,
-                #      hielt also den Wert der Stelle bei 0 — und das ist der
-                #      Keyframe DANACH. Genau das hat der Nutzer gemeldet:
-                #      „der erste Keyframe übernimmt die Position des zweiten".
-                #   2. Zoom-Keyframes haben gar kein `value`, sondern
-                #      `value_absolute`/`value_offset` — die Abfrage übersah
-                #      sie stillschweigend.
-                # Gesucht wird jetzt in `zeit`, und der Loop unten sucht mit
-                # `timeline_progress` — vorher waren die Stützstellen nach Anker
-                # abgelegt und die Suche lief über die Zeit. Das passte nur
-                # zusammen, solange es weder Anlauf noch Nachlauf noch Schnitt gab.
-                def _hat_wert(_ev):
-                    return any(_ev.get(k) is not None
-                               for k in ("value", "value_absolute", "value_offset"))
-
-                # 22.08.2026 — DICHT abtasten statt nur an den Keyframe-Zeiten.
-                # Vorher bekam die entkoppelte FreeCamera nur die Kameras AN den
-                # Keyframes und zog dazwischen eine Gerade im Mercator-Raum:
-                # kein Kino-Flug-Bogen, keine Easing-Kurve, kein Track-Folgen
-                # zwischen zwei Keyframes, und die Höhe (z) linear statt der
-                # Zoom-Stufe — „in der Vorschau stimmt der Zoom, im Video haut
-                # er ab" (Nutzer aus Spanien, zweimal gemeldet, mit Video).
-                # Jetzt wird die Kamera für (fast) jedes Bild genau so gerechnet
-                # wie in der Vorschau; das Berg-Hüpfen nimmt ein Tiefpass über
-                # die Kameraposition (siehe __camPrepFaithful) heraus.
-                _n_samp = max(2, min(int(total_frames), 2400))
-                _anchors = [k / (_n_samp - 1) for k in range(_n_samp)]
-                _glatt_fenster = max(1, int(round(_n_samp / max(1.0, total_frames / float(cfg.fps)) * 1.0)))
-                if len(_anchors) >= 2:
-                    def _idx_at_frame(_fr):
-                        if _fr < intro_frames:
-                            return _start_idx
-                        if _fr < intro_frames + anim_frames:
-                            _rel = int((_fr - intro_frames) * coords_per_frame)
-                            return min(_start_idx + _rel, _end_idx)
-                        return _end_idx
-                    _kf_cam_list = []
-                    for _zeitp in _anchors:
-                        # `_a` bleibt der Track-Anker dieser Stelle — für den
-                        # Track-Nachschlag und den Bearing-Vorgabewert.
-                        _fr = int(round(_zeitp * max(1, total_frames - 1)))
-                        _a = _kamera_anker(_fr)
-                        _pp, _bp, _zop, _kc, _kpos, _kr = _timeline.interpolate_properties(
-                            _events_zeit, _zeitp,
-                            default_pitch=cfg.pitch, default_rotation=cfg.rotation,
-                            fit_zoom_base=zoom, cinematic_flyto=cfg.cinematic_flyto,
-                            track_point_at=_track_point_at, zoom_abs_shift=_zoom_abs_shift,
-                        )
-                        _pf = _pp if _pp is not None else cfg.pitch
-                        _bf = _bp if _bp is not None else (-10.0 + _zeitp * cfg.rotation)   # Zeit, nicht Anker (22.08.2026)
-                        _zo = max(-22.0, min(22.0, _zop if _zop is not None else 0.0))
-                        _idx = _idx_at_frame(_fr)
-                        if _kc:
-                            _lo, _la = _kc[0], _kc[1]
-                        elif cfg.camera_follow_track and _idx < len(points):
-                            if _fokus is not None:
-                                _lo, _la = fokus_koordinate(_fokus, cum_dist, _idx)
-                            else:
-                                _lo, _la = points[_idx].lon, points[_idx].lat
-                        else:
-                            _lo, _la = center[0], center[1]
-                        # 08.09.2026 — GPX-Höhe des Streckenpunkts (× Überhöhung) als Rückfall, wenn
-                        # MapLibres Höhenabfrage 0 liefert (keine Kacheln) — synchron zur Vorschau.
-                        _ele_g = None
-                        try:
-                            _pe = points[min(_idx, len(points) - 1)].ele if _idx < len(points) else None
-                            if _pe is not None and getattr(cfg, "enable_terrain", False):
-                                _ele_g = float(_pe) * float(getattr(cfg, "exaggeration", 1.0) or 1.0)
-                        except Exception:
-                            _ele_g = None
-                        _kf_cam_list.append({
-                            "t": _zeitp, "lng": _lo, "lat": _la,
-                            "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf, "ele": _ele_g,
-                        })
-                    # 08.09.2026 — Geländehöhe je Stützstelle aus FESTER Kachelstufe (core/demsample),
-                    # nicht aus den zufällig geladenen Höhenkacheln der Render-Seite: synchron zur
-                    # Vorschau (module.js _faithBuild, api dem_hoehen). Nur freies Gelände (Terrarium).
-                    if getattr(cfg, "enable_terrain", False) and getattr(cfg, "map_engine", "mapbox") != "mapbox" and _kf_cam_list:
-                        try:
-                            from . import demsample as _demsample
-                            _hs = _demsample.hoehen([[_k["lng"], _k["lat"]] for _k in _kf_cam_list], cache_dir=TILE_CACHE_DIR)
-                            _exg = float(getattr(cfg, "exaggeration", 1.0) or 1.0)
-                            _n_dem = 0
-                            for _k, _h in zip(_kf_cam_list, _hs):
-                                if _h is not None:
-                                    _k["ele"] = float(_h) * _exg; _k["dem"] = True; _n_dem += 1
-                            _log.info("Ruhige Kamera: Höhen fest z%d für %d/%d Stützstellen", _demsample.DEM_ZOOM, _n_dem, len(_kf_cam_list))
-                        except Exception as _e:  # noqa: BLE001
-                            _log.warning("Ruhige Kamera: feste Höhen nicht verfügbar (%s) — Kartenweg", _e)
-                    _gew = ([1.0] * len(_anchors)) if _smooth_all else _timeline.glatt_gewichte(_events_zeit, _anchors, _glatt_fenster)
-                    for _k, _g in zip(_kf_cam_list, _gew):
-                        _k["g"] = _g
-                    # Außerhalb markierter Abschnitte (Gewicht 0) läuft der klassische
-                    # Kamera-Pfad — die FreeCamera hat eigene Regeln (z.B. Globus-Anflug),
-                    # und Marcs Projekt zeigte genau das, sobald ein Abschnitt markiert war.
-                    _gew_faithful = _gew
-                    await page.evaluate("([cams, w])=>window.__camPrepFaithful(cams, w)", [_kf_cam_list, _glatt_fenster])
-                    _use_faithful = True
-                    if _rt:
-                        _log.info("🎥 entkoppelte FreeCamera aktiv (%d Keyframes)", len(_kf_cam_list))
-            # 31.08.2026 — strenges Kachel-Warten bei Zoom-Änderung (Beta-Tester-
-            # „Kachelbildung"). RZ_TILE_STRICT=0 schaltet es für Vergleiche ab.
-            _tile_streng = os.environ.get("RZ_TILE_STRICT", "1") != "0"
-            _prev_frame_zoom = float("nan")
-            for frame in range(total_frames):
-                # Cancel-Check VOR jeder teuren Frame-Operation
-                check_cancel()
-                # v0.9.71 (Marc-Bug): timeline_progress MUSS die Zeit-Position
-                # (= 0..1 über gesamtes Output-Video) sein, damit der Render zur
-                # Preview passt. Vorher wurde timeline_progress per Phase auf
-                # [0, _trim_start] / [_trim_start, _trim_end] / [_trim_end, 1]
-                # gemappt — das war die TRACK-Position, NICHT die Zeit. KFs
-                # liegen aber auf der Timeline (= Zeit-Achse), nicht auf dem
-                # Track. Preview rechnet timeline_progress = elapsed/totalMs ✓
-                # — Render muss analog rechnen.
-                #
-                # idx (Marker-Position auf realem Track) bleibt per Phase
-                # gemappt: INTRO = stillstand am _start_idx, ANIM = walk,
-                # HOLD = stillstand am _end_idx.
-                if total_frames > 1:
-                    timeline_progress = frame / (total_frames - 1)
-                else:
-                    timeline_progress = 0.0
-                if frame < intro_frames:
-                    idx = _start_idx
-                elif frame < intro_frames + anim_frames:
-                    anim_frame = frame - intro_frames
-                    rel = int(anim_frame * coords_per_frame)
-                    if _haupt_delay_frames:
-                        rel = int(max(0, anim_frame - _haupt_delay_frames)
-                                  * coords_per_frame_eff)
-                    idx = min(_start_idx + rel, _end_idx)
-                else:
-                    idx = _end_idx
-                # Schwarm-Referenz: UNVERZÖGERTER Fortschritt, damit die
-                # Zusatz-Touren nicht mit dem wartenden Haupt-Track warten.
-                if _haupt_delay_frames:
-                    if frame < intro_frames:
-                        _swref = _start_idx
-                    elif frame < intro_frames + anim_frames:
-                        _swref = min(_start_idx + int((frame - intro_frames)
-                                     * coords_per_frame), _end_idx)
-                    else:
-                        _swref = _end_idx
-                    swref_js = f"window.__rzSwarmRefIdx={_swref};"
-                else:
-                    swref_js = ""
-                pitch_p, bearing_p, zoom_off_p, kf_center, kf_position, kf_rotation = _timeline.interpolate_properties(
-                    _events_zeit, frame / max(1, total_frames - 1),   # v0.9.520: Zeit, nicht Anker
-                    default_pitch=cfg.pitch,
-                    default_rotation=cfg.rotation,
-                    fit_zoom_base=zoom,
-                    cinematic_flyto=cfg.cinematic_flyto,
-                    track_point_at=_track_point_at,
-                    zoom_abs_shift=_zoom_abs_shift,  # v0.9.157: WYSIWYG-Zoom-Korrektur
-                )
-                pitch_f = pitch_p if pitch_p is not None else cfg.pitch
-                bearing = bearing_p if bearing_p is not None else (
-                    -10.0 + timeline_progress * cfg.rotation
-                )
-                zoom_off = zoom_off_p if zoom_off_p is not None else 0.0
-                # v0.7.9: Sanity-Clamp gegen runaway zoom_offset.
-                # v0.8.17: Range stark aufgeweitet (war -5..+6) — Slider im
-                # KF-Editor erlaubt absoluten Mapbox-Zoom 0–22, d.h. der Offset
-                # vom Auto-Fit kann größer werden als +6 wenn der Auto-Fit
-                # niedrig liegt (z.B. großer Track, Auto-Fit-Zoom = 10, User
-                # will Detail-Ansicht auf Zoom 18 → Offset = +8). Mapbox selbst
-                # clamped intern auf 0–22 beim render → keine echte Gefahr.
-                zoom_off = max(-22.0, min(22.0, zoom_off))
-                frame_zoom = zoom + zoom_off
-                # v0.8.7: Wenn Keyframe einen expliziten center hat, nutze ihn
-                # statt Track-Punkt (Marc-Wunsch: freie Karten-Position pro
-                # Keyframe). Sonst:
-                # v0.8.17: Classic-Modus respektiert `camera_follow_track` — wenn
-                # an, folgt die Kamera dem aktuellen Track-Punkt. Sonst bleibt
-                # sie auf dem statischen Bbox-Center (was bis v0.8.16 Default war).
-                if kf_center:
-                    frame_lon = kf_center[0]
-                    frame_lat = kf_center[1]
-                elif cfg.camera_follow_track and idx < len(points):
-                    # v0.9.124 — TrackPoint ist ein dataclass, NICHT subscriptable.
-                    if _fokus is not None:
-                        _tlon, _tlat = fokus_koordinate(_fokus, cum_dist, idx)
-                    else:
-                        _tlon = points[idx].lon
-                        _tlat = points[idx].lat
-                    # v0.9.275 (Nutzer) — Trägheit: Folge-Zentrum glätten (gegen GPS-Wackeln).
-                    if _foll_lon is None or _foll_k >= 0.999:
-                        _foll_lon, _foll_lat = _tlon, _tlat
-                    else:
-                        _foll_lon += (_tlon - _foll_lon) * _foll_k
-                        _foll_lat += (_tlat - _foll_lat) * _foll_k
-                    frame_lon = _foll_lon
-                    frame_lat = _foll_lat
-                else:
-                    frame_lon = center[0]
-                    frame_lat = center[1]
-                # v0.9.136 — Welt-Drehung-Lane abgeschafft (Insta360-Modell):
-                # die Drehung steckt jetzt direkt in der abgewickelten
-                # center.lng (interpolate_properties + van-Wijk-Entkopplung in
-                # timeline.py). frame_lon kann daher Werte > 180 / < -180
-                # annehmen (mehrere Umdrehungen) — Mapbox setCenter normalisiert
-                # das beim Rendern automatisch, Frame-für-Frame entsteht so eine
-                # gleichmäßige Erd-Drehung. Kein additiver kf_rotation-Offset
-                # mehr (kf_rotation ist None). Position/Padding nutzt _zf_frame
-                # weiterhin als Welt→Track Fade-Out.
-                _zf_frame = max(0.0, min(1.0, (8.0 - frame_zoom) / 4.0))
-                # v0.9.123 — Padding mit zoomFade gewichten (additive Welt-X/Y).
-                if _zf_frame > 0 and kf_position is not None:
-                    sx_eff = float(kf_position.get("x", 0)) * _zf_frame
-                    sy_eff = float(kf_position.get("y", 0)) * _zf_frame
-                    pos_key = (round(sx_eff, 2), round(sy_eff, 2))
-                    if pos_key != _last_position_applied:
-                        pad_js = (
-                            "(() => { const vp = map.getCanvas(); "
-                            f"const vpW = (vp && vp.clientWidth)  || {cfg.width}; "
-                            f"const vpH = (vp && vp.clientHeight) || {cfg.height}; "
-                            f"const sx = {sx_eff}; const sy = {sy_eff}; "
-                            "const padX = Math.abs(sx) / 100 * vpW; "
-                            "const padY = Math.abs(sy) / 100 * vpH; "
-                            "map.setPadding({ "
-                            "top: sy < 0 ? padY : 0, "
-                            "bottom: sy > 0 ? padY : 0, "
-                            "left: sx > 0 ? padX : 0, "
-                            "right: sx < 0 ? padX : 0 }); })()"
-                        )
-                        try: await page.evaluate(pad_js)
-                        except Exception: pass
-                        _last_position_applied = pos_key
-                elif _zf_frame <= 0 and _last_position_applied not in (None, (0, 0)):
-                    # Track-Zoom: padding zurück auf 0
-                    try: await page.evaluate("map.setPadding({top:0,bottom:0,left:0,right:0})")
-                    except Exception: pass
-                    _last_position_applied = (0, 0)
-
-                _rt_t = time.perf_counter() if _rt else 0.0
-                _g_fr = 1.0
-                if _use_faithful and not _smooth_all:
-                    _gi = int(round(timeline_progress * (len(_gew_faithful) - 1)))
-                    _g_fr = _gew_faithful[max(0, min(len(_gew_faithful) - 1, _gi))]
-                if _use_faithful and _g_fr > 0:
-                    # Daten (Linie/Punkt/Overlays) ohne Kamera, dann entkoppelte FreeCamera.
-                    await page.evaluate(
-                        f"{swref_js}window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f}, false)"
-                    )
-                    await page.evaluate(f"window.__camFaithful({timeline_progress})")
-                    if os.environ.get("RZ_CAMDEBUG") == "1":
-                        try:
-                            _g = await page.evaluate("window.__camGesetzt")
-                            if _g:
-                                _log.info("CAMSET f=%d soll_pz=%.9f ist_pz=%.9f hub=%.9f zoom=%.2f",
-                                          frame, _g["soll_z"], _g["ist_z"], _g["hub"], _g["zoom"])
-                        except Exception:
-                            pass
-                else:
-                    await page.evaluate(
-                        f"{swref_js}window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f})"
-                    )
-                # v0.9.228 — Overlay-Zeitfenster (Nutzer): Box pro Video-Sekunde
-                # ein-/ausblenden. Nur wenn überhaupt ein Fenster gesetzt ist.
-                if _ov_timed:
-                    await page.evaluate(
-                        f"window.__overlayTiming && window.__overlayTiming({frame / max(1, cfg.fps):.3f})"
-                    )
-                # v0.9.204 — Intro: Schild-Filter mit negativem Anker übersteuern,
-                # damit ein Schild-Vorlauf (`before`) ins Intro reicht. advanceFrame
-                # hat den Filter gerade auf base_anchor gesetzt; hier overriden wir
-                # NUR den Schild-Filter (Marker/Dot bleiben am trim_start eingefroren).
-                if frame < intro_frames and anim_frames > 0:
-                    _sign_intro_anchor = _sign_base_anchor - (intro_frames - frame) / anim_frames
-                    await page.evaluate(
-                        f"window.__signsAnchorFilter && window.__signsAnchorFilter({_sign_intro_anchor})"
-                    )
-                # v0.9.253 — Hold: Schild-Anker über das Track-Ende hinaus
-                # weiterlaufen lassen (gleiche Rate), sonst friert er bei
-                # end_anchor ein und „Ausblenden nach N s" im Hold greift nie.
-                elif frame >= intro_frames + anim_frames and anim_frames > 0:
-                    _sign_hold_anchor = _sign_end_anchor + (frame - intro_frames - anim_frames + 1) / anim_frames
-                    await page.evaluate(
-                        f"window.__signsAnchorFilter && window.__signsAnchorFilter({_sign_hold_anchor})"
-                    )
-                # 31.08.2026 (gemeldete „Kachelbildung"): Frames mit Zoom-
-                # Änderung (Anflug, Zoom-Keyframes) warten STRENG, bis die
-                # Ziel-Zoomstufe vollständig geladen ist — sonst mischt der
-                # Frame Eltern- und Kind-Kacheln verschiedener Aufnahme-
-                # Chargen mit harter Kante (raster-fade-duration ist 0).
-                if _tile_streng and abs(frame_zoom - _prev_frame_zoom) > 1e-6:
-                    await page.evaluate("window.waitForTilesStrict()")
-                else:
-                    await page.evaluate("window.waitForRender()")
-                _prev_frame_zoom = frame_zoom
-                # RZ_CAMDEBUG=1 — Kamera-Fährte pro Frame: befohlener Zoom vs.
-                # das, was Mapbox danach wirklich meldet (inkl. Kamera-Höhe).
-                # Nur für Fehlersuche (Tester-Report 21.08.2026: „Render-Zoom
-                # weicht von der Vorschau ab"); kostet einen evaluate pro Frame.
-                if os.environ.get("RZ_CAMDEBUG") == "1":
-                    try:
-                        _dbg = await page.evaluate(
-                            "JSON.stringify({z: +map.getZoom().toFixed(3),"
-                            " lat: +map.getCenter().lat.toFixed(5),"
-                            " lng: +map.getCenter().lng.toFixed(5),"
-                            " p: +map.getPitch().toFixed(1),"
-                            " alt: (function(){try{return +window.__rzCamRead().pos[2].toExponential(3);}catch(e){return null;}})(),"
-                            " elev: (function(){try{var e=map.queryTerrainElevation(map.getCenter());return e==null?null:+e.toFixed(0);}catch(e){return null;}})(),"
-                            " ce: (function(){try{return +map.getCenterElevation().toFixed(0);}catch(e){return null;}})(),"
-                            " mid_m: (function(){try{var c=map.getCanvas(),m=map.unproject([c.clientWidth/2,c.clientHeight/2]),g=map.getCenter();var R=6371000,d=Math.PI/180;return Math.round(R*Math.hypot((m.lng-g.lng)*d*Math.cos(g.lat*d),(m.lat-g.lat)*d));}catch(e){return null;}})()})"
-                        )
-                        _log.info("CAMDEBUG f=%d t=%.4f soll_z=%.3f soll_pitch=%.1f ist=%s",
-                                  frame, timeline_progress, frame_zoom, pitch_f, _dbg)
-                    except Exception as _e:
-                        _log.info("CAMDEBUG f=%d evaluate-Fehler: %s", frame, _e)
-                # v0.9.286 (Marc-Bug: erster Frame teils schwarz) — Frame 0 extra
-                # absichern: direkt nach dem instant `jumpTo` kann `areTilesLoaded()`
-                # spurious `true` liefern (Tile-Requests des Startbilds sind noch
-                # nicht registriert) → der Retry-Loop unten bräche sofort ab und der
-                # Screenshot würde schwarz/halbleer. Einmal kurz settlen + neu
-                # rendern, damit der Loop echte Tile-Stati sieht. Nur Frame 0 →
-                # einmalig ~0,4 s, kein Quality-Loss.
-                if frame == 0:
-                    await asyncio.sleep(0.4)
-                    try: await page.evaluate("window.waitForRender()")
-                    except Exception: pass
-                if _rt:
-                    _now = time.perf_counter(); _rt_acc["wait"] += _now - _rt_t; _rt_t = _now
-                # v0.9.125 — Smart-Tile-Retry. Bei großen Zoom-Sprüngen (z.B.
-                # Welt → Track) kann der 5s-Hard-Cap von waitForRender zuschnappen
-                # bevor Mapbox alle Tiles geladen hat → weiße Flecken im Frame.
-                # Marc-Wunsch: prüfen und gezielt nochmal warten.
-                # `map.areTilesLoaded()` gibt direkt zurück ob noch was in-flight ist.
-                # Max 3 Versuche, dann Frame mit Glitch akzeptieren (besser als hängen).
-                tile_retries = 0
-                while tile_retries < 5:     # 03.09.2026: 3 → 5 (langsame WMS-Dienste)
-                    try:
-                        tiles_ok = await page.evaluate("map.areTilesLoaded()")
-                    except Exception:
-                        tiles_ok = True  # API fehlt → akzeptieren
-                    if tiles_ok:
-                        break
-                    tile_retries += 1
-                    _log.warning(
-                        f"Frame {frame + 1}: Tiles fehlen, Retry {tile_retries}/5 — warte 2 s …"
-                    )
-                    check_cancel()
-                    await asyncio.sleep(2.0)
-                    try:
-                        await page.evaluate("window.waitForRender()")
-                    except Exception: pass
-                if _rt:
-                    _now = time.perf_counter(); _rt_acc["tiles"] += _now - _rt_t; _rt_t = _now
-                # Bei Alpha-Modus: omit_background=True → PNG mit transparentem
-                # Hintergrund (sonst füllt Chromium den body mit Weiß).
-                # ffmpeg's image2pipe-Decoder erkennt RGBA-PNGs automatisch.
-                shot = await _grab_frame(page, cfg)
-                # v0.9.286 (Marc-Bug: erster Frame teils schwarz) — robuster
-                # Schwarz-Frame-Schutz für die ersten Frames. `areTilesLoaded()`
-                # kann nach dem Start-Sprung `true` melden (Kacheln im Cache durchs
-                # Prewarm), obwohl die Satelliten-Kacheln noch NICHT gemalt sind →
-                # der Screenshot ist großflächig schwarz. Wir messen den Schwarz-
-                # Anteil direkt am Bild und greifen neu, bis er sauber ist (max 8×1s).
-                # Nur Frame 0–2 und nicht im Alpha-Modus (transparenter Hintergrund
-                # liest sich sonst als „schwarz" → würde endlos retrien).
-                # 03.09.2026 — Weltkugel-Anflug: bei kleinem Zoom ist die halbe Fläche
-                # legitim Weltraum (dunkel). Der Schwarz-Schutz würde sechsmal neu
-                # greifen und „Buffer eingefroren" melden — dort aussetzen.
-                _globe_start = False
-                if frame <= 2:
-                    try: _globe_start = float(await page.evaluate("map.getZoom()")) < 5.0
-                    except Exception: _globe_start = False
-                if frame <= 2 and not cfg.transparent_background and not _globe_start:
-                    # ECHTE URSACHE (v0.9.286, Log-bestätigt): bei den statischen
-                    # Intro-Frames (Stillstand, identische Kamera) macht Mapbox KEIN
-                    # Repaint → der WebGL-Buffer bleibt auf der unfertigen Erst-
-                    # Bemalung (noch nicht geladene = schwarze Kacheln) eingefroren.
-                    # Bloßes Neu-Greifen half NICHT (8× kein Effekt im Log), weil
-                    # immer derselbe eingefrorene Buffer abgegriffen wurde. Erst ein
-                    # erzwungenes `triggerRepaint()` malt den Buffer mit den inzwischen
-                    # geladenen Kacheln neu. Schwelle 5 % (sauber ≈ 0 %, kaputt >10 %).
-                    for _bk in range(6):
-                        _bratio = _frame_black_ratio(shot)
-                        if _bratio < 0.05:
-                            break
-                        _log.warning(
-                            f"Frame {frame + 1}: ~{int(_bratio * 100)}% schwarz "
-                            f"(Buffer eingefroren) — triggerRepaint + neu greifen ({_bk + 1}/6) …"
-                        )
-                        try:
-                            await page.evaluate(
-                                "map.triggerRepaint && map.triggerRepaint()"
-                            )
-                        except Exception:
-                            pass
-                        await asyncio.sleep(0.5)
-                        try:
-                            await page.evaluate("window.waitForRender()")
-                        except Exception:
-                            pass
-                        shot = await _grab_frame(page, cfg)
-                if _rt:
-                    _now = time.perf_counter(); _rt_acc["shot"] += _now - _rt_t; _rt_t = _now
-                mux.schreiben(shot, frame + 1)
-                if _rt:
-                    _now = time.perf_counter(); _rt_acc["write"] += _now - _rt_t
-                    _rt_frames += 1
-                    if _rt_first is None:
-                        _rt_first = sum(_rt_acc.values())  # Frame 0 = inkl. Erst-Tile-Last
-                # Live-Preview ans UI durchreichen (jeden N-ten Frame)
-                if frame % preview_every == 0:
-                    push_preview(shot)
-                # 0.05–0.92 für die Render-Phase, 0.92–1.0 für ffmpeg-Finalize
-                emit(0.05 + 0.87 * (frame + 1) / total_frames,
-                     f"Frame {frame + 1} / {total_frames}")
-            if _rt and _rt_frames > 0:
-                _tot = sum(_rt_acc.values())
-                _lines = ["", "════════ RENDER-TIMING-REPORT ════════",
-                          f"Frames gemessen: {_rt_frames}  |  Auflösung: {cfg.width}x{cfg.height} @ {cfg.fps}fps",
-                          f"Gesamt-Render-Zeit (nur Frame-Loop): {_tot:.1f}s  →  {_tot/_rt_frames*1000:.0f} ms/Frame im Schnitt",
-                          f"Frame 0 (mit Erst-Tile-Last): {(_rt_first or 0):.2f}s",
-                          "── Phasen (Summe / Anteil / ø pro Frame) ──"]
-                for _k, _label in [("wait", "Kamera+Render-Settle (waitForRender)"),
-                                   ("tiles", "Tile-Warten/Retries (areTilesLoaded)"),
-                                   ("shot", "Screenshot (PNG-Encode+Transfer)"),
-                                   ("write", "An ffmpeg pipen")]:
-                    _v = _rt_acc[_k]; _pct = 100 * _v / _tot if _tot else 0
-                    _lines.append(f"  {_label:<40} {_v:7.1f}s  {_pct:5.1f}%  {_v/_rt_frames*1000:6.0f} ms")
-                _lines.append("══════════════════════════════════════")
-                _log.warning("\n".join(_lines))
-        except BaseException as _fehler:
-            # Abbruch ODER Fehler: ffmpeg beenden, Teildatei weg, Browser zu. Das
-            # ENDGÜLTIGE Ziel bleibt unangetastet — dort könnte ein älteres Video liegen.
-            mux.abbrechen("abgebrochen" if isinstance(_fehler, RenderCancelled) else "Fehler")
-            try:
-                await browser.close()
-            except Exception:
-                pass
-            raise
-
-        emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
-        mux.abschliessen(is_cancelled)   # warten (Zeitgrenze), prüfen, Teildatei → Ziel
-
-        await browser.close()
-
-    emit(1.0, _t("animator.progress.done", "Fertig."))
-    return cfg.output_path

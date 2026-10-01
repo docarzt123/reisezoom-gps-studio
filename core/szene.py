@@ -18,8 +18,12 @@ Schildgrößen, Kamera) kam daher. Jetzt fährt der Render die VORSCHAU selbst:
      dieselbe Schleife, die den Probelauf in der App treibt
   5. Screenshot je Bild → ffmpeg (FrameMuxer), wie beim klassischen Render
 
-Der klassische Generator (core/animator.render) bleibt als Rückfall:
-`RZ_RENDER_KLASSISCH=1` oder settings.render_engine = "klassisch".
+Seit 0.9.752 (30.09.2026, Marc: „wir sollten alles über eine pipeline machen")
+ist das der EINZIGE Render-Weg — auch Standbild, Einzelbild und der transparente
+Export (ProRes 4444): `mode["transparent"]` blendet Grundkarte, Raster- und
+Relief-Ebenen, Sterne und Namensnennung aus, der Screenshot nimmt den Alpha-Kanal
+mit. Der klassische Generator (core/animator.render) und `RZ_RENDER_KLASSISCH`
+sind entfernt; core/animator.py baut nur noch die Web-Karte (build_interactive_html).
 """
 from __future__ import annotations
 
@@ -87,6 +91,9 @@ window.__rzFortsetzenGeprueft = true;   // 29.09.2026: kein „Fortsetzen“ des
   document.addEventListener("DOMContentLoaded", () => { try {
     document.body.classList.add("rz-render-mode");
     if (__RZ_MODE__.blur > 0) { const st = document.createElement("style"); st.id = "rz-render-blur"; st.textContent = "#anim-viewport .maplibregl-canvas, #anim-viewport .mapboxgl-canvas { filter: blur(" + __RZ_MODE__.blur + "px); }"; document.head.appendChild(st); }
+    // 30.09.2026 — transparenter Export (eine Pipeline): Seite und Karten-Hintergrund durchsichtig,
+    // die Grundkarte blendet die Seite selbst aus (module.js _alphaRenderEbenen).
+    if (__RZ_MODE__.transparent) { const st = document.createElement("style"); st.id = "rz-render-alpha"; st.textContent = "html, body, body.rz-render-mode, .anim-canvas, #anim-viewport, #anim-viewport .maplibregl-map, #anim-viewport .mapboxgl-map, #anim-viewport .maplibregl-canvas-container { background: transparent !important; background-image: none !important; } #anim-alpha-preview-hint { display: none !important; } body.rz-render-mode * { visibility: hidden; } body.rz-render-mode #anim-viewport, body.rz-render-mode #anim-viewport * { visibility: visible; } #anim-viewport .rz-stars-twinkle, #anim-viewport .maplibregl-ctrl-attrib, #anim-viewport .mapboxgl-ctrl-attrib { display: none !important; }"; document.head.appendChild(st); }
   } catch (_) {} });
   window.dispatchEvent(new Event("pywebviewready"));
 })();
@@ -409,7 +416,8 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             # Gelände-Stilen (Fuji OSM, Teide Satellit) die Rasterkacheln beim Zoomen in ganzen
             # Abschnitten ungezeichnet (WYS mean_diff 22/17 statt 3/5; 60 ms genauso); 300 ms = MapLibre-
             # Standard ist korrekt. Ursache offen (IDEAS §53a), RZ_TRANS_MS zum Messen.
-            "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0)}
+            "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0),
+            "transparent": bool(getattr(cfg, "transparent_background", False))}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
     await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
     emit(0.02, _i18n.t_aktiv("szene.app_laden", "Szene: App laden …"))
@@ -531,7 +539,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
               cfg.width, cfg.height, cfg.codec)
 
     async with async_playwright() as p:
-        _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0"
+        _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0" and not getattr(cfg, "transparent_background", False)   # Alpha: keine Kacheln
         _vl = {"bild": 0, "ende": total_frames, "stop": False, "stand": 0, "bereit": False}
         _vl_task = asyncio.create_task(_vorlaeufer(p, cfg, api, projekt_id, params, modul, _vl, is_cancelled)) if _vl_an else None
         try:

@@ -107,7 +107,7 @@ from core import sessions as _sessions
 from core import projekte as _projekte  # v0.8.0: Sessions + Projekte
 from core import vorlagen as _vorlagen   # 11.09.2026: Vorlagen = leere Projekte (docs/TOUR-ASSISTENT.md)
 # v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
-# canim.render_frame() (Standbild-Modus des Animators). Kein ctmap mehr.
+# die Szene (core/szene.py, render_szene_still). Kein ctmap mehr.
 from core import i18n as ci18n
 from core import logger as clog
 from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Map
@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.751"
+APP_VERSION = "0.9.752"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1633,33 +1633,6 @@ def _nur_einmal(gruppe: str):
     return deko
 
 
-def _overlay_boxen_params(params: dict) -> dict:
-    """23.09.2026 — neue Overlay-Schlüssel aus den Render-Parametern (fehlt einer,
-    greift der AnimatorConfig-Standard = Verhalten vor dem Umbau)."""
-    out = {}
-    try:
-        if params.get("overlay_exit") is not None:
-            out["overlay_exit"] = str(params.get("overlay_exit") or "none")
-        for k in ("overlay_blende_s", "overlay_radius", "overlay_border_w"):
-            if params.get(k) is not None:
-                out[k] = float(params.get(k))
-        if params.get("overlay_border_color"):
-            out["overlay_border_color"] = str(params.get("overlay_border_color"))
-        if params.get("overlay_shadow") is not None:
-            out["overlay_shadow"] = bool(params.get("overlay_shadow"))
-        if params.get("overlay_skin") in ("kasten", "frei"):
-            out["overlay_skin"] = str(params.get("overlay_skin"))
-        if isinstance(params.get("overlay_boxen"), list):
-            out["overlay_boxen"] = [b for b in params["overlay_boxen"] if isinstance(b, dict)]
-        # 24.09.2026 — Bewegungsarten aus dem Logbuch ({art, t0, t1}) für „Zahlen für: nur Wanderung"
-        if isinstance(params.get("bewegung_bereiche"), list):
-            out["bewegung_bereiche"] = [m for m in params["bewegung_bereiche"] if isinstance(m, dict)]
-        # 24.09.2026 — Logbuch-Bereiche im Video (blass/überspringen → Linien-Maske)
-        if isinstance(params.get("logbuch_masken"), list):
-            out["logbuch_masken"] = [m for m in params["logbuch_masken"] if isinstance(m, dict)]
-    except (TypeError, ValueError) as e:
-        log.warning("[overlay] Box-Parameter unlesbar, nehme Standard: %s", e)
-    return out
 
 
 class Api:
@@ -6843,14 +6816,8 @@ class Api:
         #   - transparent_background=True → backwards-compat mit altem UI
         map_style = params.get("map_style", "satellite")
         alpha = bool(params.get("transparent_background", False)) or (map_style == "alpha")
-        # 22.08.2026 (Audit): Multi-Track-Render + Alpha ist im Render-Kern nicht
-        # vorhanden (_make_html_alpha kennt advanceFrameMulti nicht) — lieber
-        # klar ablehnen als beim ersten Frame mit „is not a function" sterben.
-        if alpha and len(tracks) >= 2:
-            return {"ok": False, "error": _ui_t()(
-                "animator.alpha_multi",
-                "„Ohne Karte (Alpha)“ geht derzeit nur mit einer einzelnen Tour — "
-                "bitte die weiteren Touren entfernen oder einen Kartenstil wählen.")}
+        # 30.09.2026 — Alpha läuft über die Szene wie jedes Video (eine Pipeline): auch mit
+        # mehreren Touren, Schildern, Pfeil und Kamerafahrt.
         # v0.9.245 — Encoding-/Frame-Qualität kommt zentral aus den globalen
         # Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
         _rq = _load_settings().get("render", {}) or {}
@@ -6957,36 +6924,6 @@ class Api:
             timeline_events=list(params.get("timeline_events", []) or []),
             tour_colors=dict(params.get("tour_colors") or {}),   # 23.08.2026 — Farbe je Etappe
             show_overlays=bool(params.get("show_overlays", True)),
-            overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
-            overlay_totals_position=params.get("overlay_totals_position", "tl"),
-            overlay_live_enabled=bool(params.get("overlay_live_enabled", True)),
-            overlay_live_position=params.get("overlay_live_position", "tr"),
-            overlay_north_enabled=bool(params.get("overlay_north_enabled", True)),   # 04.09.2026 Nordpfeil
-            overlay_north_position=params.get("overlay_north_position", "br") or "br",
-            overlay_scale_enabled=bool(params.get("overlay_scale_enabled", True)),   # 04.09.2026 Maßstab
-            overlay_scale_position=params.get("overlay_scale_position", "bl") or "bl",
-            overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", True)),
-            overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
-            # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
-            overlay_live_fields=(list(params.get("overlay_live_fields") or []) or None),
-            overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
-            overlay_field_overrides=(params.get("overlay_field_overrides") or {}),
-            overlay_font=params.get("overlay_font", "system"),
-            overlay_text_color=params.get("overlay_text_color", "#ffffff"),
-            overlay_bg_color=params.get("overlay_bg_color", "#000000"),
-            overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
-            overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
-            # 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
-            **_overlay_boxen_params(params),
-            # v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y")
-            overlay_totals_from_s=float(params.get("overlay_totals_from_s", 0) or 0),
-            overlay_totals_to_s=float(params.get("overlay_totals_to_s", 0) or 0),
-            overlay_live_from_s=float(params.get("overlay_live_from_s", 0) or 0),
-            overlay_live_to_s=float(params.get("overlay_live_to_s", 0) or 0),
-            overlay_elevation_from_s=float(params.get("overlay_elevation_from_s", 0) or 0),
-            overlay_elevation_to_s=float(params.get("overlay_elevation_to_s", 0) or 0),
-            # v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich).
-            charts=list(params.get("charts") or []),
             codec=codec,
             crf=_g_crf,
             frame_format=_g_frame_format,
@@ -7073,13 +7010,6 @@ class Api:
             # 29.08.2026 (Marc, Schorfheide): Haupt-Tour startet verzögert
             schwarm_haupt_start_s=max(0.0, float(params.get("schwarm_haupt_start_s", 0) or 0)),
             schwarm_dot_haupt_form=bool(params.get("schwarm_dot_haupt_form")),
-            # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
-            watermark_path=wasserzeichen_pfad(str(params.get("watermark_path", "") or "")),
-            watermark_pos=str(params.get("watermark_pos", "br") or "br"),
-            watermark_x_pct=float(params.get("watermark_x_pct", -1.0) if params.get("watermark_x_pct") is not None else -1.0),
-            watermark_y_pct=float(params.get("watermark_y_pct", -1.0) if params.get("watermark_y_pct") is not None else -1.0),
-            watermark_w_pct=float(params.get("watermark_w_pct", 12.0) or 12.0),
-            watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
             # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
             schwarm_modus=(str(params.get("schwarm_modus") or "gleich")
                            if str(params.get("schwarm_modus") or "gleich") in ("gleich", "ziel", "uhrzeit")
@@ -7186,55 +7116,31 @@ class Api:
                 asyncio.set_event_loop(loop)
                 try:
                     # 06.09.2026 — gemeinsame Szene (Marc: echtes WYSIWYG): der Render fährt
-                    # die VORSCHAU kopflos in Videogröße, Bild für Bild (core/szene.py). Der
-                    # klassische Generator bleibt als Rückfall: RZ_RENDER_KLASSISCH=1 oder
-                    # settings.render_engine = "klassisch".
+                    # die VORSCHAU kopflos in Videogröße, Bild für Bild (core/szene.py).
                     _szene_pid = params.get("szene_projekt_id")
-                    _klassisch = bool(os.environ.get("RZ_RENDER_KLASSISCH")) or (_load_settings().get("render_engine") == "klassisch")
                     _still = getattr(cfg, "still_frame", False)
                     _szene_modul = str(params.get("szene_modul") or ("tourmap" if _still else "animator"))
-                    # 07.09.2026 stand hier eine Weiche: Touren NACHEINANDER gingen stur zum
-                    # klassischen Generator, „bis die Vorschau eine Reise abspielen kann".
-                    # 09.09.2026 — sie kann es (Etappen mit ihrer Zeit, Übergänge als Flug), also
-                    # ist die Weiche weg: eine Etappenfolge rendert über dieselbe Szene wie alles
-                    # andere. Der Schwarm lief ohnehin schon darüber. Rückfall bleibt
-                    # RZ_RENDER_KLASSISCH=1 bzw. settings.render_engine = "klassisch".
-                    # 14.09.2026 (Nachttest): „Aktuellen Frame als Bild" (snapshot_center gesetzt) fiel in den
-                    # Video-Zweig — die Einzelbild-Weiche darunter war unerreichbar, es lief ein ganzes 4K-Video
-                    # in eine .png-Datei. Ein Einzelbild ist nie ein Video.
+                    # 30.09.2026 (Marc: „wir sollten alles über eine Pipeline machen") — Video, Standbild,
+                    # Einzelbild und der transparente Export laufen alle über die Szene (die Vorschau,
+                    # kopflos in Videogröße). Den klassischen Generator gibt es nicht mehr.
+                    # 14.09.2026: „Aktuellen Frame als Bild" (snapshot_center) ist nie ein Video.
                     _einzelbild = getattr(cfg, "snapshot_center", None) is not None
-                    if _szene_pid and not _klassisch and not _still and not _einzelbild and not cfg.transparent_background:
-                        from core import szene as cszene
-                        loop.run_until_complete(cszene.render_szene(
-                            cfg, api=self, projekt_id=str(_szene_pid), params=params, modul=_szene_modul,
-                            on_progress=on_progress, on_preview=on_preview, is_cancelled=is_cancelled,
-                        ))
-                    elif _szene_pid and not _klassisch and _still and not cfg.transparent_background:
-                        # 07.09.2026 — Tour-Map-Standbild über die gemeinsame Szene (Vorschau = Bild). Die Tour-Map
-                        # schickt bei übernommener Kamera auch snapshot_center — für die Szene unerheblich, die
-                        # Kamera IST die der Vorschau.
-                        from core import szene as cszene
+                    if not _szene_pid:
+                        raise RuntimeError(_ui_t()("error.render_ohne_projekt", "Rendern geht nur aus einem geöffneten Projekt."))
+                    from core import szene as cszene
+                    if _still:
                         loop.run_until_complete(cszene.render_szene_still(
                             cfg, api=self, projekt_id=str(_szene_pid), params=params,
                             on_progress=on_progress, is_cancelled=is_cancelled))
-                    elif _szene_pid and not _klassisch and not _still and getattr(cfg, "snapshot_center", None) is not None and not cfg.transparent_background:
-                        # Einzelbild aus der gemeinsamen Szene (Aktuellen Frame als Bild) — zur Videozeit des Scrubbers.
-                        from core import szene as cszene
+                    elif _einzelbild:
                         loop.run_until_complete(cszene.render_szene_frame(
                             cfg, api=self, projekt_id=str(_szene_pid), t_sek=float(getattr(cfg, "snapshot_time_s", 0.0) or 0.0), params=params, modul=_szene_modul,
                             on_progress=on_progress, is_cancelled=is_cancelled,
                         ))
-                    elif _still or getattr(cfg, "snapshot_center", None) is not None:
-                        # Standbild (Tour-Map) ODER Snapshot (Animator-Frame) — ein PNG, kein Video/ffmpeg.
-                        loop.run_until_complete(canim.render_frame(
-                            cfg, on_progress=on_progress, is_cancelled=is_cancelled,
-                        ))
                     else:
-                        loop.run_until_complete(canim.render(
-                            cfg,
-                            on_progress=on_progress,
-                            on_preview=on_preview,
-                            is_cancelled=is_cancelled,
+                        loop.run_until_complete(cszene.render_szene(
+                            cfg, api=self, projekt_id=str(_szene_pid), params=params, modul=_szene_modul,
+                            on_progress=on_progress, on_preview=on_preview, is_cancelled=is_cancelled,
                         ))
                 finally:
                     loop.close()
@@ -7281,218 +7187,8 @@ class Api:
         Stats zurück (gleiche Shape wie animator_load_gpx)."""
         return self.animator_load_gpx(path)
 
-    def tourmap_render(self, params: dict) -> dict:
-        """Rendert eine statische Tour-Karte als PNG. Async im Thread, gleiches
-        Polling-Pattern wie der Animator."""
-        if self._tourmap_state.get("running"):
-            return {"ok": False, "error": _ui_t()("error.tour_karten_render_laeuft_bereits", "Tour-Karten-Render läuft bereits")}
 
-        gpx_path = params.get("gpx_path", "")
-        if not gpx_path or not Path(gpx_path).exists():
-            return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
 
-        # 03.09.2026 — kein Token nötig: ohne Mapbox weicht der Stil aus.
-        token = _active_mapbox_token()
-        _sync_tile_cache_settings()
-
-        # Pre-Flight: Chromium für Playwright vorhanden?
-        pw = self.playwright_check()
-        if not pw.get("ok") or not pw.get("browser_present"):
-            return {
-                "ok": False,
-                "error_code": "playwright_browser_missing",
-                "error": pw.get("error") or _ui_t()("error.playwright_fehlt", "Playwright Chromium-Browser nicht installiert."),
-                "browsers_path": pw.get("browsers_path"),
-            }
-
-        # Output: bevorzugt der vom UI per Save-Dialog gewählte Pfad,
-        # ansonsten Default in ~/Pictures/Reisezoom Tour Maps/
-        out_name = params.get("output_name") or (
-            Path(gpx_path).stem + "_" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".png"
-        )
-        if not out_name.lower().endswith(".png"):
-            out_name += ".png"
-        out_path = params.get("output_path") or str(TOURMAPS_DIR / out_name)
-        # Endung immer erzwingen — User könnte im Save-Dialog ".png" entfernt haben
-        if not out_path.lower().endswith(".png"):
-            out_path += ".png"
-
-        # v0.8.12 — Bridge-Translation tube (synchron Animator).
-        _ui_line_style = params.get("line_style", "solid")
-        if _ui_line_style == "tube":
-            _be_line_style = "solid"
-            _be_track_style = "tube"
-        else:
-            _be_line_style = _ui_line_style
-            _be_track_style = params.get("track_style", "flat")
-        # v0.9.307 — Tour-Map = ein statischer Frame vom Animator. Statt der
-        # eigenen TourmapConfig/render_png bauen wir eine AnimatorConfig mit
-        # still_frame=True und rendern über canim.render_frame() → EINE
-        # Render-Pipeline, kein Doppel-Code mehr. Felder 1:1 wie früher.
-        cfg = canim.AnimatorConfig(
-            ui_lang=_ui_sprache(),
-            tz_name=self._tz_fuer_track(gpx_path),
-            gpx_path=gpx_path,
-            output_path=out_path,
-            mapbox_token=token,
-            maptiler_key=_active_maptiler_key(),
-            tile_proxy_base=_tile_proxy_base(),
-            still_frame=True,
-            map_style=params.get("map_style", "satellite"),
-            width=int(params.get("width", 1920)),
-            height=int(params.get("height", 1080)),
-            pitch=float(params.get("pitch", 35)),
-            bearing=float(params.get("bearing", -10)),
-            padding_pct=float(params.get("padding_pct", 8)),
-            exaggeration=float(params.get("exaggeration", 1.5)),
-            ortho_sat=float(params.get("ortho_sat", 25) or 0), ortho_con=float(params.get("ortho_con", 8) or 0),
-            ortho_bri=float(params.get("ortho_bri", 0) or 0), ortho_hue=float(params.get("ortho_hue", 0) or 0),
-            map_sat=float(params.get("map_sat", 0) or 0), map_con=float(params.get("map_con", 0) or 0),
-            map_bri=float(params.get("map_bri", 0) or 0), map_hue=float(params.get("map_hue", 0) or 0),
-            map_sharp=float(params.get("map_sharp", 0) or 0),
-            ortho_relief=float(params.get("ortho_relief", 0) or 0), map_haze=float(params.get("map_haze", 0) or 0),
-            attrib_mode=str(params.get("attrib_mode", "voll") or "voll"), attrib_link=str(params.get("attrib_link", "") or ""),
-            stars_enabled=bool(params.get("stars_enabled", True)), stars_twinkle=bool(params.get("stars_twinkle", True)),
-            stars_density=float(params.get("stars_density", 50) or 0), stars_size=float(params.get("stars_size", 50) or 0),
-            enable_terrain=bool(params.get("enable_terrain", True)),
-            hide_labels=bool(params.get("hide_labels", False)),
-            light_preset=params.get("light_preset", "day"),
-            show_place_labels=bool(params.get("show_place_labels", True)),
-            show_road_labels=bool(params.get("show_road_labels", True)),
-            show_poi_labels=bool(params.get("show_poi_labels", True)),
-            show_transit_labels=bool(params.get("show_transit_labels", True)),
-            show_admin_boundaries=bool(params.get("show_admin_boundaries", True)),
-            line_color=params.get("line_color", "#ff6b35"),
-            line_width=float(params.get("line_width", 4.5)),
-            line_style=_be_line_style,
-            line_style_spacing=float(params.get("line_style_spacing", 1.0)),
-            track_style=_be_track_style,
-            shadow_dir=_zahl(params.get("shadow_dir"), 45.0),   # v0.9.478 — globale Lichtquelle
-            glow_enabled=bool(params.get("glow_enabled", True)),
-            glow_strength=float(params.get("glow_strength", 4.0)),
-            map_smoothing=float(params.get("map_smoothing", 1.3)),
-            ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
-            ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
-            ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
-            # v0.9.435 — Mehrfarbiger Track (Farbwechsel ab km/Marker/Wegpunkt)
-            track_colors_enabled=bool(params.get("track_colors_enabled", False)),
-            track_colors_mode=str(params.get("track_colors_mode", "hard")),
-            track_colors_source=str(params.get("track_colors_source", "distance")),
-            track_color_stops=list(params.get("track_color_stops") or []),
-            ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
-            ghosts=(params.get("ghosts") or []),      # 27.08.2026 — N Ghost-Spuren
-            ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),
-            ghost_gpx_opacity=float(params.get("ghost_gpx_opacity", 0.60)),
-            ghost_gpx_width=float(params.get("ghost_gpx_width", 2.5)),
-            ghost_gpx_dashed=bool(params.get("ghost_gpx_dashed", True)),
-            show_overlays=bool(params.get("show_overlays", True)),
-            overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
-            overlay_totals_position=params.get("overlay_totals_position", "tl"),
-            # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
-            watermark_path=wasserzeichen_pfad(str(params.get("watermark_path", "") or "")),
-            watermark_pos=str(params.get("watermark_pos", "br") or "br"),
-            watermark_x_pct=float(params.get("watermark_x_pct", -1.0) if params.get("watermark_x_pct") is not None else -1.0),
-            watermark_y_pct=float(params.get("watermark_y_pct", -1.0) if params.get("watermark_y_pct") is not None else -1.0),
-            watermark_w_pct=float(params.get("watermark_w_pct", 12.0) or 12.0),
-            watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
-            # Tour-Map (Standbild) hat keine Live-Box (zeit-animiert).
-            overlay_live_enabled=False,
-            overlay_north_enabled=bool(params.get("overlay_north_enabled", True)),   # 04.09.2026 Nordpfeil
-            overlay_north_position=params.get("overlay_north_position", "br") or "br",
-            overlay_scale_enabled=bool(params.get("overlay_scale_enabled", True)),   # 04.09.2026 Maßstab
-            overlay_scale_position=params.get("overlay_scale_position", "bl") or "bl",
-            overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
-            overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
-            # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
-            overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
-            overlay_field_overrides=(params.get("overlay_field_overrides") or {}),
-            overlay_font=params.get("overlay_font", "system"),
-            overlay_text_color=params.get("overlay_text_color", "#ffffff"),
-            overlay_bg_color=params.get("overlay_bg_color", "#000000"),
-            overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
-            overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
-            # 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
-            **_overlay_boxen_params(params),
-            show_pins=bool(params.get("show_pins", True)),
-            # v0.9.74 — Foto-Pins (nummerierte Kreise im Standbild-Render)
-            photos=list(params.get("photos") or []),
-            photos_size_px=int(params.get("photos_size_px", 48) or 48),
-            photos_show=bool(params.get("photos_show", True)),
-            signs=list(params.get("signs") or []),
-            signs_show=bool(params.get("signs_show", True)),
-            signs_size_px=int(params.get("signs_size_px", 40) or 40),
-            signs_style=str(params.get("signs_style", "callout") or "callout"),
-            signs_color=str(params.get("signs_color", "#ff6b35") or "#ff6b35"),
-            render_scale=float(params.get("render_scale", 1.0) or 1.0),
-            override_center=tuple(params["override_center"]) if params.get("override_center") else None,
-            override_zoom=float(params["override_zoom"]) if params.get("override_zoom") is not None else None,
-        )
-
-        self._tourmap_state = {"running": True, "progress": 0.0, "status": _ui_t()("animator.status.start", "Starte …"),
-                               "output": out_path, "error": "", "log_path": str(LOG_PATH),
-                               "cancel_requested": False, "cancelled": False}
-
-        tlog = clog.get_logger("tourmap.render")
-        tlog.info("─" * 60)
-        tlog.info("Tour-Karte-Render gestartet")
-        tlog.info("  GPX:        %s", gpx_path)
-        tlog.info("  Output:     %s", out_path)
-        tlog.info("  Style:      %s   Auflösung: %dx%d", cfg.map_style, cfg.width, cfg.height)
-        tlog.info("  Kamera:     pitch=%.1f° bearing=%.1f° padding=%.1f%%",
-                  cfg.pitch, cfg.bearing, cfg.padding_pct)
-
-        def on_progress(p: float, msg: str) -> None:
-            self._tourmap_state["progress"] = p
-            self._tourmap_state["status"] = msg
-            tlog.info("  [%5.1f%%] %s", p * 100, msg)
-
-        def is_cancelled() -> bool:
-            return bool(self._tourmap_state.get("cancel_requested", False))
-
-        def worker() -> None:
-            t0 = time.time()
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    loop.run_until_complete(canim.render_frame(
-                        cfg, on_progress=on_progress, is_cancelled=is_cancelled,
-                    ))
-                finally:
-                    loop.close()
-                self._tourmap_state["running"] = False
-                self._tourmap_state["progress"] = 1.0
-                self._tourmap_state["status"] = _ui_t()("animator.progress.done", "Fertig.")
-                tlog.info("Tour-Karte OK in %.1fs → %s", time.time() - t0, out_path)
-            except Exception as e:
-                tb = traceback.format_exc()
-                # Cancel landet als RuntimeError("Vom User abgebrochen") — als Cancel behandeln
-                if "Vom User abgebrochen" in str(e):
-                    self._tourmap_state["running"] = False
-                    self._tourmap_state["cancelled"] = True
-                    self._tourmap_state["status"] = _ui_t()("result_modal.title_cancelled", "Abgebrochen")
-                    self._tourmap_state["error"] = ""
-                    tlog.info("Tour-Karte abgebrochen vom User nach %.1fs", time.time() - t0)
-                else:
-                    self._tourmap_state["error"] = str(e) + "\n" + tb
-                    self._tourmap_state["status"] = _ui_t()("common.error", "Fehler")
-                    self._tourmap_state["running"] = False
-                    tlog.error("Tour-Karte fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
-                    tlog.error("Traceback:\n%s", tb)
-
-        self._tourmap_thread = threading.Thread(target=worker, daemon=True)
-        self._tourmap_thread.start()
-        return {"ok": True}
-
-    def tourmap_status(self) -> dict:
-        return dict(self._tourmap_state)
-
-    def tourmap_cancel(self) -> dict:
-        if not self._tourmap_state.get("running"):
-            return {"ok": False, "error": _ui_t()("error.kein_render_laeuft", "Kein Render läuft")}
-        self._tourmap_state["cancel_requested"] = True
-        log.info("tourmap_cancel angefordert")
-        return {"ok": True}
 
     # ── Höhen-Animator (v0.9.92, Phase 1 — UI-Skelett) ───────────────────────
     # Vorerst nur GPX-Load + Render-Stub. Render wirft NotImplementedError;
@@ -7854,26 +7550,9 @@ class Api:
                 glow_strength=float(params.get("glow_strength", 4.0) or 4.0),
                 # Overlays (Stats-Box) 1:1 wie in der Vorschau — WYSIWYG.
                 show_overlays=bool(params.get("show_overlays", True)),
-                overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
-                overlay_totals_position=params.get("overlay_totals_position", "tl"),
-                overlay_live_enabled=False,
-                overlay_north_enabled=bool(params.get("overlay_north_enabled", True)),   # 04.09.2026 Nordpfeil
-                overlay_north_position=params.get("overlay_north_position", "br") or "br",
-                overlay_scale_enabled=bool(params.get("overlay_scale_enabled", True)),   # 04.09.2026 Maßstab
-                overlay_scale_position=params.get("overlay_scale_position", "bl") or "bl",
-                # v0.9.416 — Höhenprofil-Overlay explizit aus Params (Backend-Default
-                # ist True → sonst erschien es im Export trotz ausgeschalteter Vorschau).
-                overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
-                overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
-                overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
-                overlay_field_overrides=(params.get("overlay_field_overrides") or {}),
-                overlay_font=params.get("overlay_font", "system"),
-                overlay_text_color=params.get("overlay_text_color", "#ffffff"),
-                overlay_bg_color=params.get("overlay_bg_color", "#000000"),
-                overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
-                overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
-                # 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md)
-                **_overlay_boxen_params(params),
+                # 30.09.2026 — Einblendungen als Container: fertiges HTML aus der Vorschau
+                container_html=str(params.get("container_html") or ""),
+                container_verlauf=(params.get("container_verlauf") if isinstance(params.get("container_verlauf"), dict) else {}),
                 show_pins=bool(params.get("show_pins", True)),
                 photos=list(params.get("photos") or []),
                 photos_size_px=int(params.get("photos_size_px", 48) or 48),
@@ -12114,17 +11793,22 @@ class Api:
             if not r.get("ok"):
                 return r
             ziel = p.setdefault("animator", {})
+            wm = ziel.get("watermark")   # aus den Vorgaben
             for k, v in (animator or {}).items():
-                if k == "watermark_lage":
-                    continue
                 ziel[k] = v
-            # 30.09.2026 (Skin „Frei") — das Wasserzeichen aus den Vorgaben (eigenes Logo
-            # oder GPS-Studio) wandert oben in die Mitte. Wer es in den Vorgaben
-            # abgeschaltet hat, bekommt auch im Schnell-Video keins.
-            lage = (animator or {}).get("watermark_lage")
-            wm = ziel.get("watermark")
-            if isinstance(lage, dict) and isinstance(wm, dict) and wm.get("path"):
-                ziel["watermark"] = {**wm, **{k: lage[k] for k in ("x", "y", "w", "op") if k in lage}}
+            # 30.09.2026 — Logo-Container: Bild aus den Vorgaben (eigenes Logo oder GPS-Studio).
+            # Wer das Wasserzeichen in den Vorgaben abgeschaltet hat, bekommt auch im
+            # Schnell-Video keins.
+            cont = ziel.get("container")
+            if isinstance(cont, list):
+                logo = next((c for c in cont if isinstance(c, dict) and c.get("vorlage") == "logo"), None)
+                if logo is not None:
+                    if isinstance(wm, dict) and wm.get("path"):
+                        for z in logo.get("zeilen") or []:
+                            if isinstance(z, dict) and z.get("typ") == "bild":
+                                z["pfad"] = str(wm["path"])
+                    else:
+                        cont.remove(logo)
             p["herkunft"] = "schnellvideo"
             p["letztes_modul"] = "animator"
             _projekte.speichern(DATEN_ORT, daten)

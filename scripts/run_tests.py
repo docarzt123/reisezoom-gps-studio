@@ -51,14 +51,12 @@ BEDINGT = {
     #   · der MP4-Test braucht Karte und Token (~17 s)
     #   · der Alpha-Test rendert ohne Karte, braucht also gar nichts (~4 s)
     # Das kostet die Reihe etwa 20 Sekunden. Der Fehler kostete vier Releases.
-    "test_animator_render.py": ("token", "netz"),
     "test_schwarm_m1_render.py": ("token", "netz"),   # 28.08.2026: Schwarm über den ANIMATOR-Pfad
     "test_render_alle_karten.py": ("netz",),          # 05.09.2026: JEDER Kartenstil rendert (Mapbox/MapTiler nur mit Schlüssel, sonst übersprungen)
     "test_reise_szene_render.py": ("netz", "langsam"),   # 09.09.2026: Etappenfolge über die Szene, Video == Vorschau
-    "test_overlay_boxen_szene.py": ("netz", "langsam"),   # 23.09.2026: Overlay-Boxen über den Szenen-Render in 4K + 1080p gemessen
     "test_quellenzeile_szene.py": ("netz",),           # 29.09.2026: Quellenzeile Video == Vorschau auch bei Mindestbreite (9:16)
-    "test_overlay_skin.py": ("netz",),                 # 30.09.2026: Skin „Frei“ — Vorschau == klassischer Render, Logo-Plakette
-    "test_track_highlights.py": ("netz",),             # 30.09.2026: Highlights aus dem Track (Komoot) — Berechnung + Szene
+    "test_track_highlights.py": ("netz",),
+    "test_container_szene.py": ("netz",),              # 30.09.2026: Container in der Szene, Alpha über die Szene, Web-Karte             # 30.09.2026: Highlights aus dem Track (Komoot) — Berechnung + Szene
     "test_schnellvideo_ruhe.py": ("netz",),            # 29.09.2026: Pfeil/Kamera ruhig im Szenen-Render, keine Einzelbild-Sprünge
     "test_vorwaermen.py": ("netz",),                   # 29.09.2026: Kacheln vorwärmen grob → fein, Budget, Abbrechen
     "test_punkte_regler.py": ("netz",),                # 30.09.2026: Punkte-Regler wirkt auch im Probelauf/Video
@@ -66,7 +64,6 @@ BEDINGT = {
     "test_vorlaeufer.py": ("netz", "langsam"),         # 30.09.2026: Vorläufer lädt beim Rendern voraus (kalter Render, Abbruch)
     "test_tempo_szene_render.py": ("netz", "langsam"),  # 08.09.2026: Tempo-Kurve über den Szenen-Render belegt (die schnelle Fassung ist test_tempo_wirkung.py)
     "test_render_matrix.py": ("netz", "langsam"),     # 06.09.2026 abends: Gelände-Matrix über die gemeinsame Szene (Marcs Archiv-Kopie): Wackeltest, Riss-Test, Kurzrender — NUR Release (langsam)
-    "test_animator_alpha.py": (),
     "test_geotagger_e2e.py": ("fixtures",),
     "test_raw_geotagging.py": ("fixtures",),
     "test_video_geotagging.py": ("fixtures",),
