@@ -250,7 +250,10 @@
   /** 01.10.2026 (Marc) — „Ablauf" des Schnell-Videos: was an der Tour hängt und bei „In dieses Projekt
    *  übernehmen" mit „Meinen Look behalten" übernommen wird. Alles andere (Format, Kartenstil, Beschriftungen,
    *  Einblendungen, Verläufe, Highlights, blasse Runde) ist Look und bleibt dann, wie es ist. */
+  // Highlights (an/aus + welche) sind Inhalt an der Strecke → Ablauf (Marc 01.10.2026: „die Highlights müssen
+  // doch als Schilder drin sein"); ihr Aussehen (Stil, Farben) bleibt Look.
   const ABLAUF = ["fps", "intro_s", "hold_s", "duration_s", "keyframes_enabled", "timeline_events", "camera_follow_track",
+                  "highlights_enabled", "highlights_arten",
                   "marker_dot_show", "marker_dot_style", "marker_dot_size", "marker_dot_smooth", "marker_dot_rueckblick_m",
                   "spur_glaetten_m", "camera_follow_glatt_m", "smooth_camera_3d"];
   function nurAblauf(patch) {
@@ -385,7 +388,17 @@
       try { window.__rzUndoApplying = true; const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] übernommen in ${P.id} · Look ${look ? "behalten" : "neu"} · Blickrichtung ${n} Keyframes`); }
       catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
       finally { setTimeout(() => { window.__rzUndoApplying = false; }, 0); }
-      try { if (window.__rzSchnellBereit) window.__rzSchnellBereit(P.id); } catch (_) {}   // Highlight-Schilder abgleichen
+      // Highlight-Schilder abgleichen — bis der Track mit den neuen Einstellungen steht (max. ~6 s)
+      // (ohne Highlights einmal abgleichen: entfernt vorhandene automatische Highlight-Schilder)
+      if (!patch.highlights_enabled) { try { if (window.__rzHlAbgleichen) window.__rzHlAbgleichen(); } catch (_) {} }
+      else {
+        for (let i = 0; i < 12; i++) {
+          let n = 0;
+          try { n = window.__rzHlAbgleichen ? window.__rzHlAbgleichen() : 0; } catch (_) {}
+          if (n > 0) { applog("info", `[schnell] ${n} Highlight-Schilder`); break; }
+          await new Promise(res => setTimeout(res, 500));
+        }
+      }
       toast(T("schnell.uebernommen", "Schnell-Video übernommen — die Keyframes kannst du jetzt anpassen."), "success", 5000);
     };
     const los = async (rendern) => {

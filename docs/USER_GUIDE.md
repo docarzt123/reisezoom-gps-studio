@@ -880,8 +880,8 @@ Projekt offen ist, gibt es unten im Dialog drei Knöpfe:
   danach an. Vorhandene Keyframes werden ersetzt; hat das Projekt schon welche, warnt der Dialog und fragt
   vorher nach. Ein **⌘Z** holt alles zurück (vorher wird außerdem ein Arbeitsstand gesichert).
   **„Meinen Look behalten“** (vorbelegt, sobald das Projekt Einblendungen hat) übernimmt nur den Ablauf:
-  Kamerafahrt, Intro/Animation/Halten, Verfolgerkamera, Pfeil, Spur- und Kameraglättung. Kartenstil, Format,
-  Einblendungen, Verläufe und Highlights bleiben, wie sie sind — Titel und Schlusskarte kommen dann nicht dazu.
+  Kamerafahrt, Intro/Animation/Halten, Verfolgerkamera, Pfeil, Spur- und Kameraglättung und die Highlights als Schilder
+  (seit v0.9.762). Kartenstil, Format, Einblendungen, Verläufe und das Aussehen der Highlights bleiben, wie sie sind — Titel und Schlusskarte kommen dann nicht dazu.
   Ohne Haken kommt das ganze Schnell-Video ins Projekt. So geht auch: Vorlage anwenden, dann Schnell-Video mit
   „Meinen Look behalten“ — dein Look plus die Kamerafahrt.
 - **Neues Projekt** — legt ein eigenes Projekt „Tourname · Schnell-Video“ an (wie bisher „Im Animator öffnen“).

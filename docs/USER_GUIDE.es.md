@@ -868,8 +868,9 @@ proyecto abierto, el diálogo tiene tres botones abajo:
   Los keyframes existentes se sustituyen; si el proyecto ya tiene, el diálogo avisa y pregunta antes. Un
   **⌘Z** lo devuelve todo (antes se guarda además un estado de trabajo).
   **«Mantener mi aspecto»** (marcado si el proyecto ya tiene superposiciones) solo toma los tiempos: vuelo de
-  cámara, intro/animación/pausa final, cámara de persecución, flecha, suavizado de ruta y de cámara. Estilo de
-  mapa, formato, superposiciones, degradados y momentos destacados quedan como están; el título y la tarjeta
+  cámara, intro/animación/pausa final, cámara de persecución, flecha, suavizado de ruta y de cámara y los momentos
+  destacados como carteles (desde v0.9.762). Estilo de mapa, formato, superposiciones, degradados y el aspecto de
+  los momentos destacados quedan como están; el título y la tarjeta
   final no se añaden. Sin marcar, entra todo el vídeo rápido. También funciona: aplicar una plantilla y luego
   el vídeo rápido con «Mantener mi aspecto»: tu aspecto más el vuelo de cámara.
 - **Proyecto nuevo** — crea un proyecto aparte «Nombre de la ruta · Vídeo rápido» (lo que antes hacía «Abrir en

@@ -857,8 +857,8 @@ project is open, the dialog has three buttons at the bottom:
   there. Existing keyframes are replaced; if the project has some, the dialog warns and asks first. One **⌘Z**
   brings everything back (a work state is also saved beforehand).
   **“Keep my look”** (preselected as soon as the project has overlays) only takes the timing: camera flight,
-  intro/animation/hold, chase camera, arrow, track and camera smoothing. Map style, format, overlays, gradients
-  and highlights stay as they are — title and end card are not added then. Unchecked, the whole quick video goes
+  intro/animation/hold, chase camera, arrow, track and camera smoothing and the highlights as signs (since v0.9.762).
+  Map style, format, overlays, gradients and the look of the highlights stay as they are — title and end card are not added then. Unchecked, the whole quick video goes
   into the project. This also works: apply a template, then quick video with “Keep my look” — your look plus
   the camera flight.
 - **New project** — creates a separate project “Tour name · Quick video” (what “Open in Animator” did).

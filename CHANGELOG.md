@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.762** (01.10.2026, built locally): "Apply to this project" brings the highlights as signs.
+
+### Fixed
+- **Highlights missing after applying the quick video to the project** (Marc: "the highlights have to be in there as signs"). Two causes: (1) with "Keep my look" the highlight switch counted as look and was not applied — on/off and kinds are now part of the timing (`ABLAUF`), their look (style, colours) stays look; (2) the signs were only matched via `__rzSchnellBereit`, which skips while the Animator is not render-ready right after applying. New `window.__rzHlAbgleichen()` always matches (and saves); the quick video retries for up to 6 s until the track with the new settings is there; with highlights unchecked it removes existing automatic highlight signs. `tests/test_schnellvideo_uebernehmen.py` checks signs in both modes (fails without the fix).
+- User guide: "Keep my look" now lists highlights under what is applied.
+
 > **0.9.761** (01.10.2026, built locally): pausing the preview keeps line and arrow together; collapsing the cluster hides the camera tracks.
 
 ### Fixed

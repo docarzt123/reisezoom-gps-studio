@@ -13946,6 +13946,17 @@ function mountAnimator(body, headerActions, opts) {
   }
   window.__rzKartenBild = _kartenBild;
   window.__rzSchnellRender = (opts) => { _skRenderNext = opts || {}; const b = document.getElementById("anim-render"); if (b) b.click(); return true; };
+  // 01.10.2026 (Marc: „die Highlights müssen doch als Schilder drin sein") — nach „In dieses Projekt
+  // übernehmen" IMMER abgleichen (nicht erst, wenn der Render-Knopf bereit ist wie bei __rzSchnellBereit).
+  // Liefert die Zahl der Highlight-Schilder; ist der Track noch nicht da, ein Versuch später.
+  window.__rzHlAbgleichen = () => {
+    try {
+      _hlSchilderAbgleichen(true);
+      if (typeof _projectRootFlushNow === "function") _projectRootFlushNow();
+      const sg = window.__rzAnimSigns && window.__rzAnimSigns.spur;
+      return sg ? (sg.list() || []).filter(x => x && x.auto).length : 0;
+    } catch (e) { applog("warn", "[hl] Abgleich nach Übernehmen: " + e); return 0; }
+  };
   window.__rzSchnellBereit = (pid) => {
     try {
       const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
