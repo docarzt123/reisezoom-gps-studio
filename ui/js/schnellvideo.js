@@ -259,7 +259,9 @@
       .sort((a, b) => a.bei - b.bei);
     return wahl.map(f => ({
       text: "", imageSrc: f.path, lat: f.lat, lon: f.lon, anchorMode: "track", style: "callout", imageSize: 44,
-      entry: "pop", before: 0.6, after: 0,
+      // kleines Foto-Schild: kurz vorher auf, nach dem Stopp wieder weg — sonst stehen am Ende alle Karten
+      // auf der Gesamtsicht und verdecken die Schlusskarte (01.10.2026, Teide-Demo)
+      entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
       stopp: true, stopp_s: STOPP.sek, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5,
       stopp_ortzeit: true, stopp_exif: false,
     }));

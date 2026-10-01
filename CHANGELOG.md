@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.765** (01.10.2026, built locally): photo-stop time is local time at the place of capture; quick-video photo cards disappear after their stop.
+
+### Fixed
+- **Photo-stop caption showed the camera's time zone** (Teide demo: camera on German time → 07:38 instead of 06:38 on Tenerife). `_fotostopp_texte` now uses the zone at the photo's location (`czeit.zone_fuer`); only where that zone is coarse (`Etc/…`, no DST) the zone stored in the photo wins. `schnellvideo_fotos` passes the position along.
+- **Quick video: small photo cards covered the end card** — they now pop out 1.5 s after their stop (`after: 1.5`, `exit: "pop"`).
+
 > **0.9.764** (01.10.2026, built locally): photo stops — like Relive, with the photo large in the picture.
 
 ### Added
