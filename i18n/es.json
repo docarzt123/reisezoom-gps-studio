@@ -4793,5 +4793,7 @@
   "warte.schnellvideo_uebernehmen.text": "El vuelo de cámara y los ajustes entran en el proyecto",
   "schnell.eigen": "Propia",
   "schnell.wie_animator": "Como en el Animator",
-  "schnell.eigen_einheit": "segundos en total (mínimo {n})"
+  "schnell.eigen_einheit": "segundos en total (mínimo {n})",
+  "animator.lane.cluster_auf": "Mostrar de nuevo las pistas de cámara",
+  "animator.lane.cluster_zu": "Plegar las pistas de cámara (inclinación, giro, zoom, posición, encuadre)"
 }

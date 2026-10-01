@@ -4793,5 +4793,7 @@
   "warte.schnellvideo_uebernehmen.text": "Camera flight and settings are written into the project",
   "schnell.eigen": "Custom",
   "schnell.wie_animator": "As in the Animator",
-  "schnell.eigen_einheit": "seconds in total (at least {n})"
+  "schnell.eigen_einheit": "seconds in total (at least {n})",
+  "animator.lane.cluster_auf": "Show the camera tracks again",
+  "animator.lane.cluster_zu": "Collapse the camera tracks (pitch, rotation, zoom, position, framing)"
 }

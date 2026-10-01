@@ -1811,6 +1811,13 @@ If you want the track centered again: the **⤢** button at the bottom right.
 
 ### Camera keyframes (timeline bar, since v0.7) ⭐
 
+**Cluster and collapsing tracks (since v0.9.761):** the **Cluster** row sums up the camera tracks below it (pitch,
+rotation, zoom, position, framing): one marker per point in time where any of them has a keyframe. A click selects
+all of them at that time, dragging moves them together, right-click deletes them, a double-click in the cluster row
+creates all of them (a double-click in a single track only that one). Every track can be narrowed with **▾** at the
+front of its label. **If you collapse the cluster, the camera tracks below disappear completely** and everything
+moves up; the narrow cluster still shows the markers. **▸** brings them back. The app remembers this.
+
 > **Since v0.8.16 this is an optional pro feature.** Default for new projects: just a "🎥 Keyframe editor" checkbox in the sidebar. Only when enabled: the timeline bar appears under the map, the detail editor becomes accessible in the sidebar, and map pins are drawn. Existing projects with keyframes are enabled automatically.
 
 With the timeline bar **below** the map preview you can shape the camera flow dynamically — freely set tilt, rotation and zoom at any points in the track. The engine interpolates cleanly between the keyframes (just like in Premiere or Final Cut).
