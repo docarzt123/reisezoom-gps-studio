@@ -220,7 +220,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path vendor/exiftool/windows | Out-Null
 
           $url = "https://downloads.sourceforge.net/project/exiftool/exiftool-${ver}_64.zip"
-          & curl.exe -fSL --retry 3 -o et.zip $url
+          & curl.exe -fSL --retry 5 --retry-delay 15 --retry-all-errors -o et.zip $url   # 01.10.2026: SourceForge 522/523 wurden sonst nicht wiederholt
           if ($LASTEXITCODE -ne 0) { throw "curl-Download fehlgeschlagen (exit $LASTEXITCODE): $url" }
 
           # ZIP-Magic-Byte-Check: echte ZIP beginnt mit 0x50 0x4B ("PK").
