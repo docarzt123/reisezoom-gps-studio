@@ -4790,5 +4790,8 @@
   "schnell.undo_label": "Schnell-Video übernommen",
   "schnell.uebernommen": "Schnell-Video übernommen — die Keyframes kannst du jetzt anpassen.",
   "warte.schnellvideo_uebernehmen.titel": "Schnell-Video wird übernommen",
-  "warte.schnellvideo_uebernehmen.text": "Kamerafahrt und Einstellungen kommen ins Projekt"
+  "warte.schnellvideo_uebernehmen.text": "Kamerafahrt und Einstellungen kommen ins Projekt",
+  "schnell.eigen": "Eigene",
+  "schnell.wie_animator": "Wie im Animator",
+  "schnell.eigen_einheit": "Sekunden gesamt (mindestens {n})"
 }

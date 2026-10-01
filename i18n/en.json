@@ -4790,5 +4790,8 @@
   "schnell.undo_label": "Quick video applied",
   "schnell.uebernommen": "Quick video applied — you can now adjust the keyframes.",
   "warte.schnellvideo_uebernehmen.titel": "Applying quick video",
-  "warte.schnellvideo_uebernehmen.text": "Camera flight and settings are written into the project"
+  "warte.schnellvideo_uebernehmen.text": "Camera flight and settings are written into the project",
+  "schnell.eigen": "Custom",
+  "schnell.wie_animator": "As in the Animator",
+  "schnell.eigen_einheit": "seconds in total (at least {n})"
 }

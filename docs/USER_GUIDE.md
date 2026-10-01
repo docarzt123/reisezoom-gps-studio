@@ -838,7 +838,9 @@ oder im **Animator** unter „Video rendern" für die offene Tour.
 Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs nächste Mal:
 
 - **Format:** 9:16 hochkant (vorgewählt, fürs Handy, Reels, Shorts), 16:9 oder 1:1.
-- **Länge:** Kurz 20 s, Normal 40 s, Lang 60 s.
+- **Länge:** Kurz 20 s, Normal 40 s, Lang 60 s oder **Eigene** (Sekunden gesamt, 15–600, wird gemerkt). Aus dem Animator
+  heraus gibt es zusätzlich **„Wie im Animator · N s“** mit der Länge, die dort gerade eingestellt ist (bei einer Reise
+  samt Übergängen) — beim Übernehmen ins Projekt bleibt die Gesamtlänge genau so.
 - **Qualität:** 1080 oder 4K.
 - **Kartenstil:** vorbelegt mit deinem Standard. Hat der Stil keine Freigabe für kommerzielle Videos,
   steht ein Hinweis darunter — rendern geht trotzdem.

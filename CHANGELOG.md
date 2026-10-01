@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.760** (01.10.2026, built locally): quick video with a custom length and "as in the Animator".
+
+### Added
+- **Quick video: custom length** (Marc). Besides Short/Normal/Long there is *Custom* (total seconds, 15–600; at least intro + hold + 8 s of flight; remembered like the other choices as `eigen_s`). From the Animator there is also **"As in the Animator · N s"** with the video length currently set there (intro + animation + hold; for a journey the transitions between stages are included). Not remembered — it belongs to that project.
+
+### Fixed
+- **Applying the quick video to a journey made the video longer than chosen**: the transitions between stages come on top of the animation duration (here 3 s), so "25 s" became 28 s and "as in the Animator" grew with every apply. The Animator now passes the transition time and the quick video subtracts it from the animation duration. `tests/test_schnellvideo_uebernehmen.py` (part E): button shows the real length, custom 25 s → 25 s on a journey, "as in the Animator" stays 25 s, limits 15/600 s. Test hook `window.__rzAnimLaengeS`.
+
 > **0.9.759** (01.10.2026, built locally): templates work on a freshly opened tour.
 
 ### Fixed

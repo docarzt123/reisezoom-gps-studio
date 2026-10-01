@@ -22,6 +22,15 @@
   const SCHLUSS_FELDER = ["dist_total", "elev_gain", "elev_loss", "moving_time", "duration", "avg_speed", "date"];
   const SCHLUSS_STANDARD = ["dist_total", "elev_gain", "moving_time"];
   const INTRO_S = 3, HOLD_S = 4, FPS = 30;
+  // 01.10.2026 (Marc) — eigene Länge: mindestens Intro + Halten + 8 s Fahrt, höchstens 10 Minuten
+  const LAENGE_MIN = INTRO_S + HOLD_S + 8, LAENGE_MAX = 600;
+  const laengeKlemmen = (x) => Math.max(LAENGE_MIN, Math.min(LAENGE_MAX, Math.round(+x || 0)));
+  /** Gesamtlänge in Sekunden: kurz/normal/lang · „eigen" (w.eigenS) · „animator" (w.animatorS, aus dem Animator). */
+  function laengeS(w) {
+    if (w.laenge === "eigen") return laengeKlemmen(w.eigenS);
+    if (w.laenge === "animator" && w.animatorS) return laengeKlemmen(w.animatorS);
+    return LAENGEN[w.laenge] || 40;
+  }
 
   function datumText(v) {
     if (!v || !v.start_epoch) return "";
@@ -135,7 +144,7 @@
   function animatorPatch(w, v) {
     const [bw, bh] = FORMATE[w.format] || FORMATE["9:16"];
     const f = w.qualitaet === "4k" ? 2 : 1;
-    const gesamt = LAENGEN[w.laenge] || 40;
+    const gesamt = laengeS(w);
     const animS = Math.max(8, gesamt - INTRO_S - HOLD_S);
     return {
       width: bw * f, height: bh * f, fps: FPS,
@@ -255,6 +264,7 @@
   async function rzSchnellVideo(pfad, opts) {
     if (!pfad) return;
     const P = (opts && opts.projekt && opts.projekt.id) ? opts.projekt : null;
+    const animS = (opts && +opts.animatorS > 0) ? Math.round(+opts.animatorS * 10) / 10 : 0;   // Länge im Animator (Intro + Animation + Halten)
     let v;
     try { v = await rzWarten("schnellvideo_vorschlag", () => api().schnellvideo_vorschlag(pfad)); }
     catch (e) { v = { ok: false, error: String(e) }; }
@@ -262,7 +272,8 @@
     const L = v.letzte || {};
     const w = {
       format: FORMATE[L.format] ? L.format : "9:16",
-      laenge: LAENGEN[L.laenge] ? L.laenge : "normal",
+      laenge: (LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal",
+      eigenS: laengeKlemmen(L.eigen_s || 30), animatorS: animS,
       qualitaet: L.qualitaet === "4k" ? "4k" : "1080",
       stil: L.stil || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
       zahlen: !!L.zahlen, profil: !!L.profil,
@@ -278,7 +289,12 @@
         <label class="field-label">${esc(T("schnell.format", "Format"))}</label>
         ${knopfReihe("format", [["9:16", "9:16 " + T("schnell.format_hoch", "hochkant")], ["16:9", "16:9"], ["1:1", "1:1"]], w.format)}
         <label class="field-label">${esc(T("schnell.laenge", "Länge"))}</label>
-        ${knopfReihe("laenge", [["kurz", T("schnell.kurz", "Kurz") + " · 20 s"], ["normal", T("schnell.normal", "Normal") + " · 40 s"], ["lang", T("schnell.lang", "Lang") + " · 60 s"]], w.laenge)}
+        ${knopfReihe("laenge", [["kurz", T("schnell.kurz", "Kurz") + " · 20 s"], ["normal", T("schnell.normal", "Normal") + " · 40 s"], ["lang", T("schnell.lang", "Lang") + " · 60 s"],
+                                ["eigen", T("schnell.eigen", "Eigene")]].concat(animS ? [["animator", T("schnell.wie_animator", "Wie im Animator") + " · " + String(animS).replace(".", ",") + " s"]] : []), w.laenge)}
+        <div class="sv-eigen" id="sv-eigen-zeile"${w.laenge === "eigen" ? "" : " hidden"}>
+          <input type="number" id="sv-eigen" class="lib-input" min="${LAENGE_MIN}" max="${LAENGE_MAX}" step="1" value="${w.eigenS}" style="width:90px">
+          <span class="muted">${esc(T("schnell.eigen_einheit", "Sekunden gesamt (mindestens {n})").replace("{n}", LAENGE_MIN))}</span>
+        </div>
         <label class="field-label">${esc(T("schnell.qualitaet", "Qualität"))}</label>
         ${knopfReihe("qualitaet", [["1080", "1080"], ["4k", "4K"]], w.qualitaet)}
         <label class="field-label" for="sv-stil">${esc(T("schnell.stil", "Kartenstil"))}</label>
@@ -310,6 +326,10 @@
       const b = e.target.closest("[data-sv-wert]"); if (!b) return;
       w[r.dataset.svGruppe] = b.dataset.svWert;
       r.querySelectorAll("[data-sv-wert]").forEach(x => x.classList.toggle("is-on", x === b));
+      if (r.dataset.svGruppe === "laenge") {
+        const z = box.querySelector("#sv-eigen-zeile"); if (z) z.hidden = w.laenge !== "eigen";
+        if (w.laenge === "eigen") box.querySelector("#sv-eigen")?.focus();
+      }
     }));
     const rechte = () => {
       const s = box.querySelector("#sv-stil").value, h = box.querySelector("#sv-rechte");
@@ -329,7 +349,9 @@
       w.profil = box.querySelector("#sv-profil").checked;
       w.highlights = box.querySelector("#sv-highlights").checked;
       w.felder = [...box.querySelectorAll("[data-sv-feld]:checked")].map(x => x.dataset.svFeld);
-      return { format: w.format, laenge: w.laenge, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder };
+      w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen")?.value || w.eigenS);
+      // „Wie im Animator" gilt nur für dieses Projekt — gemerkt wird die vorige Wahl
+      return { format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder };
     };
     /** In das offene Projekt schreiben: ein ⌘Z-Schritt („Schnell-Video übernommen"), vorher ein Arbeitsstand. */
     const uebernehmen = async () => {
@@ -337,6 +359,8 @@
       const letzte = werteLesen();
       const look = !!box.querySelector("#sv-look")?.checked;
       const voll = animatorPatch(w, v);
+      // Reise: Übergänge kommen zur Dauer dazu → abziehen, damit die gewählte Gesamtlänge stimmt
+      if (P.uebergangS > 0) voll.duration_s = Math.max(8, Math.round((voll.duration_s - P.uebergangS) * 100) / 100);
       const patch = look ? nurAblauf(voll) : voll;
       m.close();
       if (P.keyframes > 0) {

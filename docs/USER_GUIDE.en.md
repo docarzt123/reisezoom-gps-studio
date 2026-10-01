@@ -816,7 +816,9 @@ You just want a nice video of your tour, without keyframes and settings? Use the
 The dialog asks only a few things — the app remembers your choice for next time:
 
 - **Format:** 9:16 portrait (preselected, for phones, Reels, Shorts), 16:9 or 1:1.
-- **Length:** Short 20 s, Normal 40 s, Long 60 s.
+- **Length:** Short 20 s, Normal 40 s, Long 60 s or **Custom** (seconds in total, 15–600, remembered). From the Animator
+  there is also **“As in the Animator · N s”** with the length currently set there (for a journey including the
+  transitions) — applied to the project, the total length stays exactly that.
 - **Quality:** 1080 or 4K.
 - **Map style:** preset with your default. If the style is not cleared for commercial videos, a note
   appears below it — you can still render.
