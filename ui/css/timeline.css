@@ -1133,3 +1133,11 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-gruppe.ist-ganz { background: color-mix(in srgb, var(--tl-gruppe-farbe, #35a7ff) 35%, rgba(20,22,30,.85)); border-style: solid; border-top: 2px solid rgba(255,255,255,.35); overflow: visible; }
 .tl-gruppe.ist-ganz .tl-ov-rampe { position: absolute; top: 0; bottom: 0; pointer-events: none; }
 .tl-gruppe-blende { position: absolute; top: -4px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); cursor: ew-resize; z-index: 4; }
+
+/* 01.10.2026 — Cluster zugeklappt: die Kamera-Spuren darunter verschwinden (timeline.js _kleinAnwenden) */
+.tl-kf-zu .timeline-lane[data-kind="pitch"],
+.tl-kf-zu .timeline-lane[data-kind="bearing"],
+.tl-kf-zu .timeline-lane[data-kind="zoom"],
+.tl-kf-zu .timeline-lane[data-kind="center"],
+.tl-kf-zu .timeline-lane[data-kind="position"],
+.tl-kf-zu .timeline-lane[data-kind="camera"] { display: none !important; }

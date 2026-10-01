@@ -1852,6 +1852,13 @@ Cuando quieras volver a centrar el track: botón **⤢** abajo a la derecha.
 
 ### Camera-Keyframes (barra de línea de tiempo, desde v0.7) ⭐
 
+**Cluster y plegar pistas (desde v0.9.761):** la fila **Cluster** resume las pistas de cámara de debajo
+(inclinación, giro, zoom, posición, encuadre): un marcador por cada momento en que alguna tiene un keyframe. Un clic
+los selecciona todos en ese momento, arrastrar los mueve juntos, clic derecho los borra, doble clic en la fila
+Cluster los crea todos (doble clic en una pista sola, solo esa). Cada pista se estrecha con **▾** delante del
+nombre. **Si pliegas el Cluster, las pistas de cámara de debajo desaparecen por completo** y todo sube; el Cluster
+estrecho sigue mostrando los marcadores. **▸** las recupera. La app lo recuerda.
+
 > **Desde v0.8.16 es una función Pro opcional.** Por defecto en los proyectos nuevos: solo una casilla «🎥 Editor de keyframes» en la barra lateral. Solo al activarla: aparece la barra de línea de tiempo bajo el mapa, el editor de detalle se hace accesible en la barra lateral, se dibujan los pines en el mapa. Los proyectos existentes con keyframes se activan automáticamente.
 
 Con la barra de línea de tiempo **bajo** la vista previa del mapa puedes diseñar el flujo de cámara de forma dinámica — fijando libremente inclinación, giro y zoom en cualquier punto del track. El motor interpola limpiamente entre los keyframes (igual que en Premiere o Final Cut).

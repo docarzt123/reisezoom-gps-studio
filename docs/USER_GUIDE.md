@@ -1869,6 +1869,14 @@ Wenn du den Track wieder mittig haben willst: Button **⤢** unten rechts.
 
 ### Camera-Keyframes (Timeline-Bar, seit v0.7) ⭐
 
+**Cluster und Spuren klappen (seit v0.9.761):** Die Zeile **Cluster** fasst die Kamera-Spuren darunter zusammen
+(Neigung, Drehung, Zoom, Position, Bildlage): ein Marker je Zeitpunkt, an dem eine von ihnen einen Keyframe hat.
+Klick wählt alle an diesem Zeitpunkt aus, Ziehen verschiebt sie gemeinsam, Rechtsklick löscht sie, Doppelklick in
+die Cluster-Zeile legt alle zusammen an (Doppelklick in eine einzelne Spur nur diese eine). Jede Spur lässt sich
+mit **▾** vorn in der Beschriftung schmal klappen. **Klappst du den Cluster zu, verschwinden die Kamera-Spuren
+darunter ganz** und alles rutscht nach oben; der schmale Cluster zeigt weiter die Marker. **▸** holt sie zurück.
+Die App merkt sich das.
+
 > **Seit v0.8.16 ist das ein optionales Pro-Feature.** Default neuer Projekte: nur eine Checkbox „🎥 Keyframe-Editor" in der Sidebar. Erst wenn aktiviert: Timeline-Bar erscheint unter der Karte, Detail-Editor wird in der Sidebar zugänglich, Karten-Pins werden gezeichnet. Bestehende Projekte mit Keyframes werden automatisch aktiviert.
 
 Mit der Timeline-Bar **unter** der Karten-Vorschau kannst du den Kamera-Flow dynamisch gestalten — Neigung, Drehung und Zoom an beliebigen Punkten im Track frei setzen. Die Engine interpoliert sauber zwischen den Keyframes (genau wie in Premiere oder Final Cut).

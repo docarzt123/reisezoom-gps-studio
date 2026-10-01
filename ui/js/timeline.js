@@ -1117,6 +1117,14 @@ function mountTimelineBar(opts) {
     const klein = _kleinSet().has(_kleinArt(el));
     el.classList.toggle("ist-klein", klein);
     const k = el.querySelector(".lane-klapp"); if (k) k.textContent = klein ? "▸" : "▾";
+    // 01.10.2026 (Marc: „wenn man den Cluster oben ausblendet, … dass die ganzen Keyframes ausgeblendet
+    // werden, also zusammenrutschen") — der Cluster fasst die Kamera-Spuren zusammen (KF_KINDS); zu =
+    // die Spuren darunter verschwinden ganz, der schmale Cluster-Streifen zeigt weiter die Marker.
+    if (el.classList.contains("timeline-cluster-row")) {
+      host.classList.toggle("tl-kf-zu", klein);
+      if (k) k.title = klein ? tlT("animator.lane.cluster_auf", "Kamera-Spuren wieder zeigen")
+                             : tlT("animator.lane.cluster_zu", "Kamera-Spuren (Neigung, Drehung, Zoom, Position, Bildlage) einklappen");
+    }
   }
   // Umschalten schon beim Drücken: ein echter Mausklick kam in WebKit nicht als
   // „click" an (die Zeitleiste verarbeitet Drücken/Loslassen selbst) — per Skript

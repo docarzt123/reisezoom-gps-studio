@@ -4793,5 +4793,7 @@
   "warte.schnellvideo_uebernehmen.text": "Kamerafahrt und Einstellungen kommen ins Projekt",
   "schnell.eigen": "Eigene",
   "schnell.wie_animator": "Wie im Animator",
-  "schnell.eigen_einheit": "Sekunden gesamt (mindestens {n})"
+  "schnell.eigen_einheit": "Sekunden gesamt (mindestens {n})",
+  "animator.lane.cluster_auf": "Kamera-Spuren wieder zeigen",
+  "animator.lane.cluster_zu": "Kamera-Spuren (Neigung, Drehung, Zoom, Position, Bildlage) einklappen"
 }

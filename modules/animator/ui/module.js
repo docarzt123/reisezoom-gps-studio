@@ -5453,21 +5453,28 @@ function mountAnimator(body, headerActions, opts) {
   }
   // Kleine Helfer-Fn die den preview-track-Source neu setzt — egal ob
   // voller Track oder bis zum aktuellen Scrubber-Punkt.
-  function refreshPreviewTrackData() {
+  /** Linie im Ruhezustand neu setzen. `fracVorgabe` = Position auf dem Haupt-Track (Kommazahl);
+   *  ohne Vorgabe aus dem Scrubber. 01.10.2026 (Marc: „Space zum Pausieren — der Track ist entweder
+   *  nicht beim Pfeil, sondern zu weit hinten, oder schon weiter als der Pfeil"): Die Linie endete hier
+   *  am GERUNDETEN Punkt (Math.round), im Probelauf aber zwischen den Punkten am Pfeil (v0.9.510). Jetzt
+   *  wie dort: bis floor(f) plus der interpolierte Punkt — und beim Stopp mit der Position des Pfeils. */
+  function refreshPreviewTrackData(fracVorgabe) {
     if (!map || !currentCoords) return;
     try {
       const src = map.getSource("preview-track");
       if (!src) return;
       const scrubAnchor = _tlBar ? _tlBar.getScrubber() : 0;
       const coordIdxRoh = trackIdxFromTimelineAnchor(scrubAnchor);   // Schwarm-Referenz
-      const coordIdx = Math.max(0, Math.min(currentCoords.length - 1,
-        Math.round(trackFracAusAnkerHaupt(scrubAnchor))));
+      const nMax = currentCoords.length - 1;
+      const f = Math.max(0, Math.min(nMax, (typeof fracVorgabe === "number" && isFinite(fracVorgabe)) ? fracVorgabe : trackFracAusAnkerHaupt(scrubAnchor)));
+      const coordIdx = Math.round(f);
       const startIdx = lineStartCoordIdx();
       let coords, ai0, ai1;
       if (previewFullTrack()) {
         coords = currentCoords; ai0 = 0; ai1 = currentCoords.length - 1;
       } else {
-        coords = currentCoords.slice(startIdx, coordIdx + 1);
+        coords = currentCoords.slice(startIdx, Math.floor(f) + 1);
+        if (f > startIdx && f > Math.floor(f)) coords = coords.concat([coordBeiFrac(currentCoords, f)]);
         ai0 = startIdx; ai1 = coordIdx;
         // v0.9.469 (Marc-Bug: „Track wird nicht gezeichnet") — bei
         // „Ganzer Track" AUS und Scrubber ganz am Anfang ist die getrimmte
@@ -5483,6 +5490,7 @@ function mountAnimator(body, headerActions, opts) {
         type: "Feature",
         geometry: _reiseGeometrie(coords, ai0),
       });
+      window.__rzLinieRuhe = { ende: coords[coords.length - 1], voll: coords === currentCoords, f };   // Prüfstand
       // 🌊 Schwarm: Die Zusatz-Touren folgen demselben Stand — voll, wenn der
       // Haupt-Track voll gezeigt wird (auch im 1-Punkt-Ruhefall oben), sonst
       // bis zur Distanz an der Scrubber-Position.
@@ -7865,7 +7873,8 @@ function mountAnimator(body, headerActions, opts) {
       // wiederherstellen — der respektiert previewFullTrack() (= Toggle
       // „Ganzer Track" aus → bei Scrubber-Position trimmen) statt blind
       // den kompletten Track zu zeigen.
-      refreshPreviewTrackData();
+      // 01.10.2026 — genau dort, wo der Pfeil im letzten Bild stand (nicht neu aus dem Scrubber gerechnet)
+      refreshPreviewTrackData(_dotFracZuletzt);
       return;
     }
     // v0.9.254 (Nutzer-Bug #5) — beim START eines Probe-Laufs das echte Schild-Timing

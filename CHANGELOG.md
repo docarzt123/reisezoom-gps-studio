@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.761** (01.10.2026, built locally): pausing the preview keeps line and arrow together; collapsing the cluster hides the camera tracks.
+
+### Fixed
+- **After pausing the preview with Space the line ended next to the arrow** (Marc: "either too far back — the arrow stands alone in the landscape — or a bit ahead of it"). While playing, line and arrow use the same fractional position; on stop `refreshPreviewTrackData` recomputed the line from the scrubber and ended it at the *rounded* point. Now it takes an optional position (on stop: the arrow's last one) and ends between the points like the playing preview. Measured: up to 10 m gap before, 0.0 m now. `tests/test_pause_linie_pfeil.py` (five Space stops, line end read from the map source).
+
+### Changed
+- **Collapsing the Cluster row hides the camera tracks** (pitch, rotation, zoom, position, framing) — everything below moves up, the narrow cluster still shows the markers; remembered like the other collapsed tracks. `tests/test_cluster_zuklappen.py`.
+- User guide (DE/EN/ES): paragraph on Cluster and collapsing tracks (the old one went with the overlay chapter).
+
 > **0.9.760** (01.10.2026, built locally): quick video with a custom length and "as in the Animator".
 
 ### Added
