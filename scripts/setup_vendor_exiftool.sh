@@ -34,7 +34,12 @@ cd "${VENDOR}"
 if [ ! -f "macos/exiftool" ]; then
   echo "📥 Lade ExifTool ${EXIFTOOL_VERSION} (macOS) …"
   TMP_TAR="macos-${EXIFTOOL_VERSION}.tar.gz"
-  curl -fsSL "${SF_BASE}/Image-ExifTool-${EXIFTOOL_VERSION}.tar.gz" -o "${TMP_TAR}"
+  # 01.10.2026 — SourceForge fiel beim Release v0.9.754 mit 522/523 aus: erst mehrere
+  # Versuche dort, dann das offizielle Repository auf GitHub (gleicher Perl-Inhalt).
+  if ! curl -fsSL --retry 4 --retry-delay 10 --retry-all-errors "${SF_BASE}/Image-ExifTool-${EXIFTOOL_VERSION}.tar.gz" -o "${TMP_TAR}"; then
+    echo "  ⚠ SourceForge nicht erreichbar — lade von GitHub (exiftool/exiftool, Tag ${EXIFTOOL_VERSION})"
+    curl -fsSL --retry 3 --retry-delay 5 "https://github.com/exiftool/exiftool/archive/refs/tags/${EXIFTOOL_VERSION}.tar.gz" -o "${TMP_TAR}"
+  fi
   rm -rf macos
   mkdir -p macos
   tar -xzf "${TMP_TAR}" -C macos --strip-components=1
@@ -42,10 +47,11 @@ if [ ! -f "macos/exiftool" ]; then
   cd macos
   rm -rf t html Changes MANIFEST META.json META.yml Makefile.PL \
          README windows_exiftool config_files arg_files \
-         perl-Image-ExifTool.spec fmt_files build_geolocation 2>/dev/null || true
+         perl-Image-ExifTool.spec fmt_files build_geolocation .github .pre-commit-hooks.yaml build_tag_lookup validate pp_build_exe.args windows_exiftool.txt 2>/dev/null || true
   cd ..
   rm -f "${TMP_TAR}"
   chmod +x macos/exiftool
+  [ "$(macos/exiftool -ver)" = "${EXIFTOOL_VERSION}" ] || { echo "  ❌ falsche ExifTool-Version: $(macos/exiftool -ver)"; exit 1; }
   echo "  ✅ macOS ExifTool $(macos/exiftool -ver)"
 else
   echo "  ✓ macOS ExifTool $(macos/exiftool -ver) (schon vorhanden)"

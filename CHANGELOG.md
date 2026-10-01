@@ -16,9 +16,14 @@ Bei jeder neuen Version:
 
 ---
 
-## [0.9.754] – 2026-10-01
+## [0.9.755] – 2026-10-01
 
-> Release 01.10.2026 — contains 0.9.749–0.9.754.
+> Release 01.10.2026 — contains 0.9.749–0.9.755. (Tag v0.9.754 was never published: the CI build failed while SourceForge was down.)
+
+> **0.9.755** (01.10.2026): release build no longer depends on SourceForge being up.
+
+### Fixed
+- **Release build failed when SourceForge was down** (522/523 for the ExifTool download on 01.10.2026). macOS: several attempts at SourceForge, then the official ExifTool repository on GitHub (same Perl distribution; version is checked after unpacking). Windows: `curl --retry-all-errors` with pauses (522/523 were not retried before).
 
 > **0.9.754** (01.10.2026, built locally): leaving a module closes everything it opened above the app.
 
