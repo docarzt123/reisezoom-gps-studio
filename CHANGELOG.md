@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.763** (01.10.2026, built locally): cancelling a quick-video render no longer leaves the Animator greyed out.
+
+### Fixed
+- **Animator greyed out and unusable after cancelling a quick-video render** (Marc: "cancelled — landed in the archive, which was already wrong; opened the project again, the Animator was greyed out and I couldn't do anything"). Cancelling on the quick-video screen switched to the archive, which unmounted the Animator before its status poll could lift the render lock (`body.is-rendering`); on re-entry the Animator only checked for a *running* render and never lifted a stale lock. Now: cancel stays in the Animator and lifts the lock itself; "Close" only returns to the archive when the quick video was started there; on entering the Animator a stale lock is lifted when nothing is rendering.
+- **Project opened twice after a quick video** (double `loadGlobalGpx`, "Style is not done loading" in the log): the library honoured both `__rzProjektOeffnenId` and the `rz-projekt-oeffnen` event; it now ignores a second call for the same project within 3 s.
+
+### Changed
+- **Quick video from the Animator with an open project: "Apply to this project" is the main button**, "Render video" is secondary (Marc wanted keyframes and ended up rendering).
+- `tests/test_schnellvideo_abbruch.py`: real render from the Animator, cancel, stale lock, single open — fails 4× without the fix.
+- User guide (DE/EN/ES): what Cancel and Close do on the quick-video screen.
+
 > **0.9.762** (01.10.2026, built locally): "Apply to this project" brings the highlights as signs.
 
 ### Fixed

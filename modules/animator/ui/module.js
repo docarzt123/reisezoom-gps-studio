@@ -20466,7 +20466,14 @@ function mountAnimator(body, headerActions, opts) {
   (async () => {
     try {
       const s = await api().animator_status();
-      if (_animUnmounted || !s || !s.running) return;
+      if (_animUnmounted || !s) return;
+      // 01.10.2026 (Marc: „abgebrochen, Projekt wieder geöffnet → Animator ausgegraut, nichts ging mehr") —
+      // wurde der Render beendet, während der Animator nicht offen war (Abbruch im Schnell-Video-
+      // Bildschirm → Modulwechsel), blieb body.is-rendering stehen. Läuft nichts: Sperre aufheben.
+      if (!s.running) {
+        if (document.body.classList.contains("is-rendering")) { setRenderingState(false); applog("info", "[Animator] liegengebliebene Render-Sperre aufgehoben"); }
+        return;
+      }
       setRenderingState(true);
       // 22.08.2026 (Audit): ohne .show war die Oberfläche gesperrt, aber weder
       // Fortschritt noch Abbrechen-Knopf sichtbar — genau das sollte hier weg.

@@ -846,7 +846,7 @@ more over the track, hardly any horizon. The arrow points exactly in the directi
 the line is smoothed a little more for this. In tight hairpins the arrow therefore turns visibly — just as the
 line really runs.
 
-**Render video** opens, since v0.9.744, a quick-video screen of its own over the whole app: the tour name at the top, in the middle first the map image of your tour with the current step (creating the project, loading the map, prewarming tiles …), then the video as it is being made, below it the progress and "Cancel". The Animator works invisibly behind it — you don't need to do anything there. **Close** takes you back to the archive, **Open in the Animator** shows the project for further editing. When it is done, **"💾 Save …"** puts it wherever
+**Render video** opens, since v0.9.744, a quick-video screen of its own over the whole app: the tour name at the top, in the middle first the map image of your tour with the current step (creating the project, loading the map, prewarming tiles …), then the video as it is being made, below it the progress and "Cancel". The Animator works invisibly behind it — you don't need to do anything there. **Close** takes you back to the archive (if you started the quick video in the Animator, you stay there), **Cancel** stops the video and leaves you in the Animator with the new project, **Open in the Animator** shows the project for further editing. When it is done, **"💾 Save …"** puts it wherever
 you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, Mail, Photos …); on Windows
 the folder with the video opens.
 
