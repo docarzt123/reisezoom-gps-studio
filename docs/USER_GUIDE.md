@@ -872,8 +872,9 @@ dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü 
 Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
 
 **Im Animator öffnen** legt dasselbe an, rendert aber nicht — dann ist das Schnell-Video die Grundlage für
-dein eigenes Video: Die Kamerafahrt sind normale Keyframes, Titel und Schlusskarte stellst du unter
-**Overlays → Titel & Schlusskarte** um.
+dein eigenes Video: Die Kamerafahrt sind normale Keyframes, Titel und Schlusskarte stellst du unter **Einblendungen** um (Titel, Untertitel, Schlusskarte sind normale Einblendungen).
+
+**Von Hand nachbauen (seit v0.9.752):** Alles, was das Schnell-Video zeigt, ist ein normales Animator-Projekt — Einblendungen (Logo-Plakette, Live-Werte, Höhenprofil, Titel und Untertitel im Intro, Schlusskarte im Halten, Nordpfeil), Verläufe oben und unten, Highlights als Schilder, Pfeil mit „Richtung aus der gezeichneten Linie“, ruhige Kamera und Keyframes für die Kamerafahrt. Jede dieser Einstellungen findest du im Animator; du kannst das Video also auch Schritt für Schritt selbst bauen.
 
 Das Projekt heißt „Tourname · Schnell-Video" und steht unter **Projekte → Automatisch angelegt**. Benennst
 du es um, wandert es zu deinen Projekten.
@@ -1297,6 +1298,11 @@ grobe Richtung. Voreingestellt ist Stufe 5 (60 m); das genügt für
 sekündliche Aufzeichnungen, bei denen GPS-Rauschen und echte Bewegung
 gleich groß sind.
 
+**Richtung aus der gezeichneten Linie (seit v0.9.752):** Darunter steht ein Schalter mit
+Regler in Metern. Ist er an, zeigt der Pfeil dorthin, wohin die schon gezeichnete Linie über die
+letzten Meter läuft — er liegt dann immer genau auf der Linie, „Ruhe des Pfeils“ wirkt nicht mehr.
+Das Schnell-Video nutzt genau diese Einstellung.
+
 **Doppelte finden:** Der Knopf unten links gruppiert Dateien mit **identischem
 Streckenverlauf** — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach
 heruntergeladen wurde.
@@ -1671,7 +1677,6 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 6. Render läuft — Live-Vorschau zeigt jedes Frame
 7. Fertig → Result-View zeigt MP4 + „Im Finder zeigen"-Button
 
-> **Overlays: Regler nur bei eingeschalteter Box (seit v0.9.452):** Position, Zeitfenster und Feldliste erscheinen nur, wenn die jeweilige Box auch **an** ist — eine ausgeschaltete Box erscheint ja nicht im Video, ihre Position wäre folgenlos. Eingeschaltete Boxen zeigen **alle** Regler direkt, ohne Aufklappen. Ausgeschaltete schrumpfen auf ihre Titelzeile mit dem Schalter.
 
 > **Karten-Beschriftungen als Chips (seit v0.9.451):** Ortsnamen, Straßen, Sehenswürdigkeiten, ÖPNV und Grenzen sind eine kompakte **Chip-Zeile** — antippen schaltet um, die Erklärung erscheint beim Draufzeigen.
 
@@ -1715,17 +1720,26 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   Pro Stop stellst du **Wert + Farbe** ein, 🗑 entfernt ihn. Der Schalter **„Übergang"** legt fest, ob die Farbe **hart** (crispe Bänder) oder als weicher **Verlauf** wechselt. Wirkt WYSIWYG in Vorschau, Probelauf und Render. Standard aus. *(Aktuell nur Einzeltrack-Animator.)*
 - **Karte ohne Beschriftungen** (seit v0.4.4) — blendet Ortsnamen, Straßennamen und POI-Icons auf der Karte aus. Macht die Karte zum reinen Hintergrund — guter Look wenn du den Track als visuellen Hauptdarsteller haben willst statt einer Google-Maps-mäßigen Übersicht. Funktioniert mit allen Karten-Stilen und auch im Tour-Map-Modul.
 
-**Overlays** (alle einzeln togglebar, frei platzierbar):
-- **Totals-Box** — Gesamt-Werte des Tracks
-- **Live-Box** — Werte, die während der Animation mitlaufen
-- **Höhenprofil** — animierte Linie. Bei einer Reise mit mehreren Etappen (seit v0.9.683)
-  wählst du darunter, was das Profil zeigt: **Ganze Strecke** (Standard — eine Kurve über
-  alle Etappen, die Etappengrenzen als gestrichelte Marken; Übergänge und Halte stehen
-  still) oder **Laufende Etappe** (das Profil baut sich mit jeder Etappe neu auf, ihr Name
-  steht in der Kopfzeile). Bei parallelen Spuren zeigt das Profil die Bahn der Kette.
-- **Nordpfeil** (seit 04.09.2026, Beta-Tester-Wunsch) — dreht mit der Kamera, zeigt also immer nach Norden, auch bei gedrehter oder schwenkender Ansicht. Standard **an**, unten rechts.
-- **Maßstab** (seit 04.09.2026) — Maßstabsleiste mit runder Länge (100 m, 500 m, 2 km …), die sich beim Zoomen anpasst; gemessen in der Bildmitte. Standard **an**, unten links. Im Alpha-Render (ohne Karte) entfällt sie, weil es dort keine Karte gibt, der Nordpfeil bleibt.
-  Beide lassen sich wie jede Box abschalten und in eine andere Ecke legen.
+**🧱 Einblendungen (seit v0.9.752)** — Alles, was fest im Bild steht, ist eine **Einblendung**: Werte, Höhenprofil, Diagramme, Nordpfeil und Maßstab, Titel, Schlusskarte, Logo. Eine Einblendung ist ein Kasten mit **Zeilen**.
+
+- **Anlegen:** In der Seitenleiste unter „Einblendungen“ wählst du bei **„＋ Neue Einblendung“** eine Vorlage: *Live-Werte*, *Gesamt*, *Höhenprofil*, *Titel*, *Schlusskarte*, *Logo*, *Nordpfeil + Maßstab*, *Rahmen* oder *Leer*. Der Editor öffnet sich als schwebendes Fenster (an der Kopfzeile verschiebbar).
+- **Liste:** Häkchen = zeigen, **✎** öffnet den Editor, **⧉** dupliziert, **✕** löscht. Reihenfolge am **⠿** ziehen oder mit **▲▼**: weiter unten in der Liste liegt im Bild weiter vorn.
+- **Platzieren:** die Einblendung in der Vorschau **mit der Maus ziehen** (1-%-Raster, rastet an Rand und Mitte ein, ein ⌘Z-Schritt je Zug) oder im Editor unter **Lage und Größe**: **Anker** (neun Punkte) plus **Abstand** in Prozent des Bildes. Größe **automatisch** (so groß wie der Inhalt) oder **fest** (Breite und Höhe in %), dazu die Ausrichtung des Inhalts.
+- **Stil = Vorlage für das Aussehen:** **Kasten** (halbtransparente Box), **Frei** (große Zahlen ohne Kasten, Beschriftung klein darüber, Textschatten), **Plakette** (dunkle, runde Pille) und **ohne**. Ein Klick setzt die Werte des Stils, danach änderst du jeden Wert selbst: Anordnung (untereinander/nebeneinander), Beschriftung (über dem Wert, links daneben, aus), Schrift, Schriftgröße, Text- und Hintergrundfarbe mit Deckkraft, Hintergrundbild (füllen/einpassen, Deckkraft), Innen-, Zeilen- und Spaltenabstand. Unter **Mehr**: Akzentfarbe, Ecken, Rahmen, Schatten, Textschatten, Weichzeichner, Großbuchstaben, Größe von Beschriftung und Einheit, Deckkraft. In einer Einblendung sehen alle Zeilen gleich aus — soll eine Zeile anders aussehen, nimm eine zweite Einblendung.
+- **Zeilen** (**＋ Zeile hinzufügen**, sortieren mit ⠿ oder ▲▼):
+  - **Wert** — ein Feld (Liste unten) mit Bezug **läuft mit**, **Gesamt**, bei Reisen **laufende Etappe** oder eine bestimmte Etappe, bei Touren mit Logbuch **nur Fahrt**, **nur Gehen** usw. Die Beschriftung lässt sich umbenennen oder ausblenden.
+  - **Freitext** — beliebiger Text; `{dist_total}`, `{ele_high}` usw. setzen Werte ein.
+  - **Diagramm** — das Höhenprofil (Linienfarbe; bei Reisen ganze Strecke oder laufende Etappe) oder jede Datenreihe des Tracks (den Look gestaltest du im Daten-Animator), mit eigener Breite und Höhe in %.
+  - **Bild** — eigenes Bild oder das GPS-Studio-Logo, Breite in %.
+  - **Nordpfeil** und **Maßstab**.
+- **Zeit:** Ohne Zeitraum ist eine Einblendung das ganze Video über zu sehen. **＋ Zeitraum** legt einen an (Sekunden von–bis, leer = bis zum Ende), mehrere sind möglich; **ganzes Video** nimmt sie wieder weg. Dazu **Einblendung** und **Ausblendung** (hart, weich, aufpoppen) mit Dauer. In der **Zeitleiste** hat jede Einblendung in der Spur „▸ Overlays“ einen Balken: ziehen verschiebt, die Ränder ändern Anfang und Ende, die weißen Punkte die Blenden. Eine Zeit im Intro hängt am Videostart, in der Animation an einem Punkt der Strecke, im Halten am Videoende — so bleibt sie richtig, wenn du Dauer oder Tempo änderst.
+- **Verläufe:** Unter der Liste legst du oben und unten einen dunklen **Verlauf** ins Bild (Stärke in %), damit helle Schrift auf jeder Karte lesbar bleibt.
+- **Maße:** Schrift in Prozent der kurzen Bildseite, Abstände relativ zur Schrift, Lage und Größe in Prozent des Bildes. Deshalb sieht eine Einblendung bei jeder Fenstergröße und im Video gleich aus, auch in 4K und hochkant.
+- **Alte Projekte** werden beim Öffnen übernommen: Werte-Boxen, Höhenprofil, Diagramme, Nordpfeil/Maßstab, Wasserzeichen (wird zum Logo), Titel und Schlusskarte des Schnell-Videos werden zu Einblendungen, der Stil „Frei“ zu Verläufen. Es geht nichts verloren.
+- **Tour-Map** und **Web-Karte** zeigen dieselben Einblendungen.
+
+**Weitere Einstellungen (Karte, Quellen, Export):**
+
 - **Quellenzeile** (seit 07.09.2026) — die Nennung der Kartenquellen ist Pflicht und bleibt immer sichtbar, aber du bestimmst **Ecke** (unten rechts, unten links, oben rechts, oben links) und **Breite** (schmal = hoher Block, mittel, breit = flache Zeile, ganze Breite = Leiste am unteren Rand), damit sie Höhenprofil oder Nordpfeil nicht verdeckt. Vorschau und Video zeigen sie gleich groß. Seit v0.9.741 ist sie deutlich kleiner: Die Schrift misst 1,2 % der kurzen Bildseite (im 1080er-Video 13 Pixel), bei jedem Format und jeder Fenstergröße gleich im Verhältnis zum Bild.
 - **Karte von Hand einstellen, ohne Keyframes** (seit 05.09.2026): Zoomst, schwenkst oder neigst du die Karte in der Vorschau und hast keine Keyframes gesetzt, dann ist genau das die Kamera, im Probelauf, beim Ziehen des Reglers und im Video. „⤢ Anpassen" holt die Gesamtansicht zurück; sobald du einen Keyframe setzt, gilt der Keyframe.
 - **Satellit (kostenlos) überall** (seit 05.09.2026, Zoom-Stufung seit v0.9.656: bei weiten Ansichten zeigt der Stil nur Sentinel-2, die Landesluftbilder blenden ab Zoom 12 ein, voll ab 13,5 — seit v0.9.658 eine Stufe später als zuvor, weil Sentinel bis dahin pixelscharf reicht): Wo es keine amtlichen Luftbilder gibt (Hamburg, Neuseeland, USA …), zeigt der Stil jetzt Sentinel-2-Satellitenbilder (10 m, Jahrgang 2016, EOX) statt einer leeren Fläche. Ein Banner auf der Karte sagt es dir. Häuser und Wege sieht man darauf nicht, Landschaft, Flüsse und Stadtstruktur schon; für Nahaufnahmen einen anderen Stil wählen (MapTiler, OpenStreetMap). Die Nennung „Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016" steht in der Quellenzeile, Videos dürfen veröffentlicht werden.
@@ -1740,9 +1754,9 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Relief, Dunst und Looks** (seit 17.09.2026) — in der „Luftbild-Optik": **Relief** legt Licht und Schatten aus den Geländedaten über die Luftbilder (Standard 0 = aus; die Looks stellen 35–60 %), damit die flache Sentinel-2-Ebene Tiefe bekommt. **Dunst entfernen** (0–100 %, Standard 0) zieht den blauen Schleier aus Satellitenbildern heraus — technisch ein Schwarzpunkt je Farbkanal auf dem Kartenbild, in derselben Ebene wie die Schärfe; 15–35 % sind der Sweet Spot, mehr wirkt hart. In der „Karten-Optik" (OSM, OpenTopoMap …) gibt es „Dunst entfernen" ebenfalls. Die Auswahl **Look** (Natürlich / Kräftig / Filmisch) stellt alle sieben Regler auf einmal; „Eigene Einstellung" heißt: mindestens ein Regler weicht ab. Alles in Vorschau und Video gleich, rückgängig mit ⌘Z, nicht in den Web-Karten-Exporten.
 - **Karten-Optik** (seit 05.09.2026) — ebenfalls im Abschnitt **Karte**, für alle Karten außer den amtlichen Luftbildern (die haben ihre eigene „Luftbild-Optik"). Rasterkarten wie OpenStreetMap oder OpenTopoMap: Sättigung, Kontrast, Helligkeit, Farbton. Vektorkarten wie OpenFreeMap oder MapTiler: nur Helligkeit, technisch eine Abdunkel-Ebene unter der Strecke, damit die Strecke hell bleibt und die Karte zurücktritt. Standard 0 = Karte wie geliefert, „↺ Standard" setzt zurück. In der **Web-Karte** (Leaflet) gibt es dieselben zwei Schalter; dort ist Norden immer oben, der Maßstab kommt von Leaflet.
 
-**🆕 Stats-Editor (seit v0.9.321): du wählst, was angezeigt wird — und in welcher Reihenfolge.** Unter der Totals- und der Live-Box steht jeweils eine **Feldliste**. Häkchen setzen/entfernen bestimmt, was erscheint; mit dem **⠿-Griff ziehst du die Felder in die gewünschte Reihenfolge**. Wählbare Werte:
+**Sortieren überall mit ⠿ oder ▲▼ (seit 25.09.2026):** Jede Liste mit ⠿-Griff — Einblendungen und ihre Zeilen, Schilder und Fotos, Reiseroute-Stationen, Zusatzspuren, „Touren zusammenführen“ — lässt sich am Griff ziehen (Esc bricht ab) oder mit den kleinen **▲▼** je Zeile verschieben. Das funktioniert jetzt auch unter Windows.
 
-**Sortieren überall mit ⠿ oder ▲▼ (seit 25.09.2026):** Jede Liste mit ⠿-Griff — Stats-Felder, Schilder und Fotos, Reiseroute-Stationen, Zusatzspuren, „Touren zusammenführen“ — lässt sich am Griff ziehen (Esc bricht ab) oder mit den kleinen **▲▼** je Zeile verschieben. Das funktioniert jetzt auch unter Windows.
+**Welche Werte gibt es?** In einer Zeile vom Typ **Wert** wählst du das Feld. Felder, die dein Track nicht hergibt, stehen nicht zur Wahl; ist ein gewähltes Feld nicht mehr verfügbar (etwa „Etappe“, nachdem eine Reise aufgelöst wurde), bleibt es ausgegraut stehen. Wählbare Werte:
 - **Live (läuft mit der Animation mit):** Zurückgelegt, Verbleibend, **Tempo (km/h)**, Vergangen, **Restzeit**, Höhe, **Steigung (%)**.
   - *WYSIWYG (seit v0.9.325):* Diese Werte laufen schon **in der Vorschau** mit — beim Ziehen des Scrubbers und im Probelauf zählen sie genau wie im fertigen Video, und das Höhenprofil füllt sich bis zur Marker-Position. Du siehst also vorab bildgenau, wie die Stats im Render aussehen.
 - **Gesamt:** Strecke, Zeit (Gesamtzeit), **Fahrzeit** (Bewegungszeit ohne Pausen), **Ø Tempo** (aus Fahrzeit), **Ø Tempo (gesamt)** (aus Gesamtzeit), **Max. Tempo**, Bergauf, Bergab, **Höchster Punkt**, **Tiefster Punkt**.
@@ -1753,82 +1767,11 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - **✎ Umbenennen & Einheit (seit v0.9.334):** Jedes Sensorfeld hat ein **✎**. Damit kannst du **Bezeichnung und Einheit pro Projekt** ändern — kryptische Geräte-Kürzel wie `GRD_PCT` oder `NGP` lesbar machen, „Trittfrequenz" beim Laufen in „Schrittfrequenz / spm" umbenennen oder beim Segeln die Geschwindigkeit in „Knoten" angeben. „Zurücksetzen" stellt den Standard wieder her.
 - Werte, die dein Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel, Höhe/Steigung ohne Höhendaten), werden **automatisch ausgegraut**.
 
-**🎨 Aussehen der Stats-Boxen (seit v0.9.321):** unten in der Overlays-Sektion wählst du **Schriftart** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **Textfarbe**, **Hintergrundfarbe** und **Deckkraft des Hintergrunds** — gilt für alle Boxen, mit Live-Vorschau auf der Karte.
-
-**🎨 Stil „Kasten“ oder „Frei“ (seit v0.9.749):** Ganz oben unter „Aussehen der Stats-Boxen“ steht **Stil**. **Kasten** ist der bisherige Look: Werte in halbtransparenten Boxen. **Frei** kommt ohne Kästen aus: die Zahlen stehen groß nebeneinander, die Einheit klein daneben und die Beschriftung klein darüber. Oben und unten liegt ein dunkler Verlauf, damit alles auf jedem Kartenbild lesbar bleibt, und das Höhenprofil wird eine weiße Linie. Der Stil gilt für alle Einblendungen, also Gesamt- und Live-Stats, Höhenprofil, weitere Boxen und die Schlusskarte des Schnell-Videos. Im Stil „Frei“ sitzt das Wasserzeichen auf einer dunklen Plakette. Mit **⬆ Oben mittig** unter „Wasserzeichen“ setzt du es oben in die Mitte, und die oberen Boxen rücken dann automatisch darunter. Das Schnell-Video nimmt „Frei“ von selbst.
-
 **⭐ Highlights (seit v0.9.750, als Schilder seit v0.9.751):** Unter den Einblendungen gibt es die Gruppe **Highlights**. Ist sie an, setzt die App besondere Stellen deiner Tour als **Schilder** auf die Karte: **Höchster Punkt**, **Steilste Stelle**, **Höchstes Tempo**, **Halbe Strecke** und **Wegpunkte aus der GPX**. Unter **Aussehen** wählst du einen von fünf Stilen (Pille, Kasten mit Stecknadel, Rund mit Karte, Form mit Rahmen, Pinselstrich), unter **Farben** „je Art eigene“ oder „eine für alle“. Jedes Highlight-Schild zeigt oben klein die Beschriftung und darunter groß den Wert. Kurz bevor es erscheint, kündigt ein kleiner Punkt in seiner Farbe es an. Liegt die Stelle noch außerhalb des Bildes, sitzt der Punkt am Bildrand. Die Highlight-Schilder stehen in der Schilder-Liste und in der Zeitleiste, du kannst sie wie jedes Schild ändern, verschieben oder löschen (⌘Z geht). Änderst du den Track oder die Auswahl, passt die App die Highlight-Schilder an. Die, die du von Hand geändert hast, bleiben stehen. Die steilste Stelle wird über mindestens 150 m gemessen, damit ein einzelner GPS-Messfehler nicht zählt. Das Schnell-Video setzt die Highlights von selbst, als „Pille“ in einer Farbe.
 
 **Kennzahl-Stile für eigene Schilder (seit v0.9.751):** Die fünf Stile gibt es im Schild-Editor unter **Form** für jedes Schild. Schreib in die erste Zeile die Beschriftung und in die zweite den Wert, z. B. „Gipfelkreuz“ ↵ „2513 m“. Dazu wählst du ein **Symbol** und eine **Farbe**.
 
-**✎ Jede Box einzeln gestalten (seit v0.9.723):** Neben den Überschriften **Gesamt-Stats**, **Live-Stats** und **Höhenprofil** sitzt ein **✎**. Er öffnet das Fenster **„Box gestalten“**. Dort bekommt die Box ihr eigenes Aussehen: Hintergrund, Deckkraft, Textfarbe, Schrift, Ecken, Rahmen und Schatten. Jeder Wert hat ein Häkchen **„wie alle Boxen“**. Nimmst du es weg, gilt ab dann der eigene Wert, setzt du es wieder, erbt die Box wieder von den Einstellungen unter „Aussehen der Stats-Boxen“.
-
 **Wann ist ein Schild zu sehen? (seit v0.9.733)** Direkt unter den Overlays steht in der Zeitleiste die Zeile **„▸ Schilder“**. Ein Klick klappt eine Zeile je Schild auf (mit Text oder Bild); jeder **Balken ist die Zeit, in der das Schild im Video zu sehen ist** — genau so, wie der Probelauf es zeigt. **Balken ziehen** verschiebt den Zeitpunkt des Schilds (es bekommt einen festen Zeitpunkt, Vorlauf und „Bleibt sichtbar“ bleiben gleich). Der **linke Rand** ändert den **Vorlauf** (wie früh es vor dem Punkt erscheint), der **rechte Rand** ändert **„Bleibt sichtbar“**; ganz nach rechts gezogen heißt **bis zum Ende**. Die Statuszeile zeigt beim Ziehen die Sekunden. **Doppelklick oder Rechtsklick** öffnet das Schild-Fenster. **„Ganze Zeit“ (seit v0.9.736 ohne Haken):** Ein Schild, das das ganze Video zu sehen ist, hat einfach einen Balken über die volle Breite. Ziehst du einen Rand hinein, wird daraus ein Zeitfenster; ziehst du beide Ränder ganz nach außen, ist es wieder die ganze Zeit. Neue Schilder übernehmen „ganze Zeit“ nicht mehr vom vorigen Schild. Ein ausgeblendetes Schild ist grau. Jede Änderung ist ein ⌘Z-Schritt. **Ein- und Ausblenden (seit v0.9.735):** Wie bei den Overlays sitzen oben am Balken zwei **weiße Punkte** — links die **Einblendung**, rechts die **Ausblendung**. Ziehen ändert die Dauer (der dunkle Keil zeigt sie); aus „Hart“ wird dabei „Einblenden“ bzw. „Ausblenden“, ganz zurückgezogen wieder „Hart“. Im Schild-Fenster stehen dazu **„Dauer Einblendung“**, **„Ausblendung“** (Hart, Ausblenden, Wegpoppen, Aus- + Wegpoppen) und **„Dauer Ausblendung“**. Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet. Ältere Schilder sehen aus wie vorher (Einblenden 0,6 s und genauso lang wieder ausblenden). **Zum Ziehen muss die Zeile „▸ Schilder“ aufgeklappt sein** — im zugeklappten Streifen sind die Balken nur zu sehen.
-
-**Wann erscheint die Box? (seit v0.9.724)** Die Zeile **„▸ Overlays“ steht ganz oben** in der Zeitleiste, über „Cluster“. **Jede Spur lässt sich klein klappen:** ein Klick auf das **▾** vorn in der Beschriftung macht sie zum schmalen Streifen, noch ein Klick wieder groß; die App merkt sich das je Spur.  Am einfachsten in der **Zeitleiste unter der Karte**: Klick auf **„▸ Overlays“** klappt eine Zeile je Box auf. Jeder **Balken ist die Zeit, in der die Box zu sehen ist**. Balken **ziehen** verschiebt ihn, die **Ränder** ändern Anfang und Ende. Die beiden **weißen Punkte** oben am Balken sind die **Einblendung** und die **Ausblendung**: ziehen, und die Box blendet so lange weich ein oder aus (der dunkle Keil zeigt es). **Am Ende des Balkens ist die Box ganz weg** — die Ausblendung liegt davor. Beim Ziehen springt die Vorschau an die Stelle, und die Statuszeile sagt, woran der Rand hängt: Im **Intro** an Sekunden ab Videostart, **während der Animation an einem Punkt auf dem Track** („bei 349,3 km“ — er bleibt dort, auch wenn du Tempo oder Dauer änderst), im **Halten am Schluss** an Sekunden vor dem Videoende („Videoende − 2,0 s“ — bleibt 2 s vor Ende, auch wenn das Video länger wird). Beispiel: Die Gesamtstatistik soll ab Sekunde 25 erscheinen und 2 Sekunden vor dem Ende weg sein — linken Rand auf 25 s, rechten Rand auf „Videoende − 2 s“, fertig. **Doppelklick oder Rechtsklick** auf einen Balken öffnet das Fenster der Box; dort stehen dieselben Werte als Zahlen („Sekunde ab Videostart“, „am Trackpunkt (km)“, „Sekunden vor Videoende“, „für eine Dauer von“) und die **Dauer der Einblendung und der Ausblendung** getrennt. Eine abgeschaltete Box ist grau gestrichelt. Die **⏱-Sekunden in der Seitenleiste** laufen mit dem Balken mit; „bis“ ist dort eine Sekunde im Video (leer = bis zum Ende). Liegt „bis“ vor „von“, wird das Feld rot. Ältere Projekte behalten ihre Zeiten; eine eingestellte Ausblendung liegt jetzt innerhalb der Zeit, die Box verschwindet also um die Blendendauer früher als vorher. **Mehrmals ein- und ausblenden:** Doppelklick auf eine freie Stelle der Zeile legt dort einen weiteren Zeitraum an (3 s, danach ziehen). Überlappen sich zwei Zeiträume, werden sie zu einem zusammengelegt. Im Fenster der Box stehen dann „Zeitraum 1“, „Zeitraum 2“ … mit je einem ✕ zum Löschen; die ⏱-Felder der Seitenleiste sind in dem Fall nur Anzeige.
-
-**Zeit in der Seitenleiste (⏱) — ab Start oder vor Ende (seit v0.9.724):** Neben dem zweiten Feld wählst du, wovon „bis“ zählt: **„s ab Start“** (Sekunde im Video) oder **„s vor Ende“**. „⏱ 15 – 2 s vor Ende“ heißt also: ab Sekunde 15, und 2 Sekunden vor Schluss ist die Box weg. Passt „bis“ nicht hinter „von“, wird das Feld rot und **nichts** wird übernommen — der Balken bleibt, wie er war. Balken und Felder zeigen immer dasselbe; am Balken steht an einer Streckenkante beides, z. B. „15,0 s · bei 3,8 km“.
-
-**Blenden und „Aussehen“:** Einblendung und Ausblendung gibt es in drei Arten — **Hart**, **Einblenden/Ausblenden** (weich) und **Aufpoppen/Wegpoppen** (wächst heraus bzw. schrumpft weg). Die **„Dauer der Blende“** unter „Aussehen“ gilt für alle Boxen, **außer** du hast bei einer Box die Blende selbst eingestellt (die weißen Punkte am Balken gezogen oder im ✎-Fenster). Dann steht unter der Dauer, welche Box eigene Blenden hat, mit **„Auf die Dauer oben zurücksetzen“**. Wird ein Balken kürzer als beide Blenden, werden sie nur für die Anzeige anteilig verkürzt — gespeichert wird dabei nichts. **Boxen ohne eigenen Zeitraum** (die ganze Zeit sichtbar) blenden seit v0.9.731 ebenfalls: ein am Videoanfang, aus am Videoende — vorher wirkte dort nur „Hart“. Zu sehen im Probelauf und im Video, nicht in der stehenden Vorschau.
-
-**Zahlen je Etappe:** Bei zusammengeführten Touren wählst du für eine Gesamt-Box **„Zahlen für“**: die ganze Strecke, die **laufende Etappe** (die Zahlen wechseln im Video mit der Etappe) oder eine bestimmte Etappe.
-
-**Zahlen je Bewegungsart (seit v0.9.724):** Ist die Tour im Archiv und hat ein Logbuch, bietet „Zahlen für“ zusätzlich **„nur Wanderung“, „nur Fahrt“, „nur Rad“ …** — die Box zeigt dann Strecke, Zeit, Ø-Tempo, Höhenmeter nur dieser Bewegungsart. So steht bei einer Tour mit Anfahrt nicht mehr ein Ø-Tempo aus Autofahrt und Wanderung zusammen. Grundlage ist das Logbuch der Tour, inklusive deiner Korrekturen im Inspektor.
-
-**Zeilen einzeln:** Unten im Fenster steht jede Zeile der Box mit einem ✎. Eine Zeile kann eine eigene Textfarbe, Größe (50–300 %), Fettung, einen eigenen Zeitpunkt, eine eigene Blende und eigene Etappen-Zahlen bekommen. Ohne eigenen Zeitpunkt erscheint die Zeile zusammen mit der Box.
-
-**Weitere Boxen:** Unter dem Höhenprofil legt **＋ Box** eine zusätzliche Box an, zum Beispiel eine zweite Gesamtstatistik in der Bildmitte nur für das Ende. Im Fenster wählst du Überschrift, Inhalt (Gesamt-Stats oder Live-Stats), Position und Felder. In der Liste schaltest du jede Box an und aus, **⧉** dupliziert sie, **✕** löscht sie nach Rückfrage.
-
-**Auf alle Boxen übernehmen, zurücksetzen:** „Auf alle Boxen übernehmen“ kopiert Aussehen und Blende der offenen Box auf alle anderen. Zeitpunkt und Zahlen bleiben je Box. „Diese Box zurücksetzen“ und „Alle zurücksetzen“ entfernen die eigenen Einstellungen nach einer Rückfrage. Jede Änderung ist mit ⌘Z rückgängig zu machen, die Vorschau zeigt sie sofort, und Blenden und Zeitpunkte siehst du im Probelauf genau wie im Video.
-
-**Neu in der Seitenleiste:** Unter „Aussehen der Stats-Boxen“ gibt es jetzt auch **Ausblendung**, **Dauer der Blende**, **Ecken**, **Rahmen** mit Farbe und **Schatten** für alle Boxen gemeinsam.
-
-**Schatten + Einblendung der Stats-Boxen (seit v0.9.479):** Die Boxen werfen jetzt einen **richtungsabhängigen Schatten**, der derselben **globalen Lichtquelle** folgt wie Track und Schilder (Regler **„Schatten-Richtung"** in der Track-Sektion). Zusätzlich gibt es den Selektor **„Einblendung"** (Hart / Einblenden / Aufpoppen / Ein- + Aufpoppen) — er bestimmt, wie die Boxen im **gerenderten Video** (und im Probe-Lauf) erscheinen.
-
-**Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).
-
-**💧 Wasserzeichen (seit v0.9.632):** Ganz unten in der Overlays-Sektion
-steht ein Häkchen **💧 Wasserzeichen** — an oder aus, mehr nicht. Ist es an,
-erscheint darunter **„🖼 eigenes Bild …"** (mit ↩︎ zurück zum
-GPS-Studio-Logo), **Größe** in Prozent der Videobreite und **Deckkraft**.
-Die **Position bestimmst du direkt in der Vorschau: Logo mit der Maus
-dorthin ziehen, wo es sitzen soll.**
-
-**Neue Projekte** starten mit dem GPS-Studio-Logo unten rechts (15 %,
-65 % Deckkraft) — dezent, aber lesbar. Ausschalten genügt ein Klick, und die
-Entscheidung bleibt. **Bestehende Projekte bekommen nachträglich kein
-Wasserzeichen**: Der Standard wird beim Anlegen eines Projekts gesetzt, nicht
-beim Öffnen.
-
-Das Wasserzeichen erscheint im gerenderten Video, im Standbild-Export und im
-Alpha-Export — die Vorschau zeigt es bildgenau (WYSIWYG). Beim Rendern wird
-das Bild eingebettet; bei 4K und Hochkant sitzt es automatisch an derselben
-Stelle, weil alles in Prozent der Videofläche gerechnet wird. Das eingebaute
-Logo wird als Platzhalter gespeichert, nicht als Dateipfad — ein exportiertes
-Projekt zeigt damit auch auf einem anderen Rechner das Logo.
-
-**📊 Diagramme im Video (seit v0.9.443):** In der Overlays-Sektion gibt es unter dem einfachen Höhenprofil den Abschnitt **📊 Diagramme**. Damit blendest du **beliebig viele** voll gestaltete Datenreihen-Diagramme direkt ins Karten-Video ein — Höhe, Puls, Tempo, Leistung und jede andere Reihe, die dein Track hergibt, inklusive **Farbzonen** und **zweiter Y-Achse**.
-
-![Zwei Diagramme im fertigen Video: das Höhenprofil unten über die volle Breite, die Tempo-Kurve rechts daneben — beide laufen synchron zur Position auf der Karte.](img/diagramme-im-video.jpg)
-
-- **„＋ Diagramm hinzufügen"** legt eine Karte an. Pro Diagramm wählst du die **Datenreihe**, die **Position** (9 Ecken/Mitten), **Breite** und **Höhe** sowie ein **Zeitfenster** (ab/bis Video-Sekunde).
-- **Vorder- und Hintergrund-Deckkraft getrennt (seit v0.9.445):** Mit **„Deckkraft Diagramm"** steuerst du die Kurve und Beschriftung, mit **„Deckkraft Hintergrund"** die Box dahinter. Ziehst du den **Hintergrund auf 0 %**, scheint die Karte vollständig durch und nur die Datenlinie schwebt über dem Video. Die Vorschau zeigt das jetzt **WYSIWYG** (echte Transparenz statt eines weißen Kastens).
-- **Achsen pro Diagramm (seit v0.9.447):** Jede Diagramm-Karte hat eigene Schalter **„Achsen"** und **„Schrift Achsen"** (8–60 px). Sie überstimmen den Stil aus dem Daten-Animator — so kann ein kleines Overlay große Beschriftung tragen oder ganz ohne Achsen auskommen. Wichtig: Die Schriftgröße bezieht sich auf die **Video-Auflösung**, nicht auf die Diagramm-Box.
-
-![Die Diagramm-Karte in der Seitenleiste: Datenreihe, Position, Breite/Höhe, getrennte Deckkraft für Diagramm (Vordergrund) und Hintergrund sowie „Aus Daten-Animator übernehmen".](img/diagramme-sidebar.png)
-
-- **Den Look gestaltest du im Daten-Animator** (Linienfarbe, Fläche, Farbzonen, Info-Leiste, Marker, zweite Reihe …) und klickst dann im Diagramm auf **„🎨 Aus Daten-Animator übernehmen"** — das Diagramm sieht danach genau so aus. So kannst du z.B. ein aufwendiges Puls-Diagramm einstellen, übernehmen und daneben ein zweites für die Höhe legen.
-- Jedes Diagramm **läuft synchron zum Punkt auf der Karte**: der Marker sitzt exakt über der aktuellen Position — das siehst du schon in der Vorschau beim Scrubben und im Probelauf.
-- Funktioniert auch im **Alpha-Export** (transparente ProRes-4444-.mov): die Diagramme liegen dann als eigener Overlay-Layer über deinem Video in Premiere / Final Cut / DaVinci.
-- Das **bisherige einfache Höhenprofil** bleibt unverändert — die Diagramme sind ein zusätzliches Werkzeug, kein Ersatz.
-
-**⏱ Zeitfenster pro Box** (seit v0.9.228): Unter jeder Overlay-Box kannst du
-einstellen, **ab welcher und bis zu welcher Video-Sekunde** sie eingeblendet
-wird — z.B. die Live-Box erst ab Sekunde 2 zeigen, oder die Totals-Box nach
-Sekunde 8 wieder ausblenden. Zwei Felder „ab … s" / „bis … s", gezählt über das
-**ganze Video** (Intro + Animation + Hold). **Leer oder 0** = wie bisher (ganze
-Zeit sichtbar). Das Ein-/Ausblenden siehst du schon im **Probelauf**, bevor du
-renderst.
 
 **Kamera:**
 - **🎥 Ruhige Kamera (3D-Terrain)** (Checkbox, ganz oben in der Sektion, **Standard: aus**) — *gegen das Hoch-Runter-Hüpfen der Kamera über bergigem Gelände.* Bei Keyframe-Kameraflügen über 3D-Terrain „reitet" die Kamera normalerweise auf den Bergen mit und hüpft auf jeder Steigung hoch und im Tal runter (vor allem bei starker Neigung). Hak diese Box an, dann fliegt die Kamera **entkoppelt durch den Raum wie eine Drohne** — an deinen Keyframes trifft sie exakt das eingestellte Bild, dazwischen läuft sie ruhig, ohne das Gelände-Hüpfen. **Standard ist aus** (klassisches Verhalten); nur anhaken, wenn dich das Hüpfen über Bergen stört. Gilt sowohl im **Probelauf** als auch im fertigen **Render** (was du siehst, kriegst du). *Tipp:* Falls ein spezielles Projekt mit eingeschalteter ruhiger Kamera mal komisch aussieht (z.B. ein Anflug aus der Welt-Ansicht), einfach wieder aushaken.
@@ -1896,7 +1839,7 @@ Stillstand, Zahl der Pausen und wie viele Sekunden davon im Video übrig bleiben
   ℹ️ Die Render-Zeit hängt **viel stärker** von **Dauer × FPS × Auflösung** ab als von der Punkte-Anzahl. Wenn ein Render zu lange dauert: erst FPS/Auflösung reduzieren.
 
 - **Animation ohne Karte (Alpha-Kanal)** ⭐ **Für Video-Editor-Composit**:
-  - Aktiviere die Checkbox → rendert **nur Track + Punkt + Stats-Overlays** auf transparentem Hintergrund.
+  - Aktiviere die Checkbox → rendert **nur Track, Punkt, Schilder und Einblendungen** auf transparentem Hintergrund — seit v0.9.752 über denselben Weg wie jedes Video, also genau so, wie die Vorschau es zeigt (auch mit mehreren Touren).
   - Output ist eine **`.mov`-Datei** (ProRes 4444 mit Alpha-Kanal, größer als MP4 aber dafür NLE-tauglich).
   - In **Premiere Pro, Final Cut Pro, DaVinci Resolve, CapCut Pro** kannst du diese Datei direkt **über echtes Video** legen — der Track erscheint als animiertes Overlay auf deinem Drohnen-, GoPro- oder Vlog-Material.
   - Mapbox-Token ist in diesem Modus **nicht erforderlich** (es wird ja keine Karte gerendert).

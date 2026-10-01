@@ -14,6 +14,31 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.752** (30.09.2026, built locally): **overlays are containers** — one building block for everything on screen, one render pipeline (scene) incl. transparent export, quick video built only from normal Animator containers and reproducible by hand.
+
+### Changed
+- **⚠️ Overlays rebuilt as containers** (grilling 30.09.2026, `docs/OVERLAY-CONTAINER.md`). One building block for everything anchored to the frame: stats, elevation profile, charts, north arrow + scale bar, title and end card, logo/watermark. A container has an **anchor** (9 positions) plus offset in % of the frame, size automatic or fixed, a **layout** (stacked / side by side), a **style = template** (Box, Free, Badge, None — clicking a style sets its values, every value stays editable) and a list of **rows**: value (live / total / stage / movement type), free text with `{field}` tokens, chart (elevation profile or data series, own width/height), image, north arrow, scale bar. Timing per container with several time spans plus fade/pop in and out; a row that needs its own timing is its own container. Background image per container. Units: font size in `cqmin` (share of the shorter frame side), spacing in `em`, position/size in % — identical at every preview size and in the video. Gradients top/bottom are a separate project setting.
+- **Sidebar**: list of containers ("＋ New overlay" from templates: Live values, Totals, Elevation profile, Title, End card, Logo, North arrow + scale bar, Frame, Empty), on/off, duplicate, delete, sort (pointer + ▲▼, works in WebView2). **Floating editor** like the sign editor. **Drag in the preview** (1 % grid, snaps to edges and centre, one ⌘Z step per drag). Timeline track "Overlays": one bar per container.
+- **Old projects are migrated losslessly** on opening (`rzContainer.migrieren`): totals/live/extra boxes (rows with own timing → own containers), elevation profile, charts, north arrow/scale bar, watermark → logo container, quick-video title/end card → containers, skin "Frei" → gradients, master switch off → containers off. Project keys `animator.container`, `container_v: 1`, `verlauf`.
+- **One render pipeline**: every video, still and single frame renders through the scene (`core/szene.py`, the app preview in a headless browser). The **transparent export (ProRes 4444 with alpha)** now also goes through the scene: base map, raster/hillshade layers, stars and attribution hidden, app UI invisible, overlays and signs kept. Multi-tour alpha works now.
+- **Tour-Map / web map** use the same containers (HTML export carries the container HTML plus the container CSS read from `module.css`).
+- **Quick video = a normal Animator project built only from containers**: logo badge, live values, elevation profile, title + subtitle (intro), end card (hold), north arrow, gradients, highlights as signs. `tests/test_schnellvideo_nachbau.py` proves that every setting the wizard writes has a control in the Animator and rebuilds every overlay by hand (template, style, anchor, each field, rows, time spans) — equal field by field and in effective seconds.
+- Times typed in the editor exactly at the end of the intro or the animation are anchored to video start/end (a stroke anchor was ~0.1 s off there).
+- Quick video: elevation profile anchored bottom left and sized per format (70 / 72 / 80 %) so it ends before the north arrow + scale bar (it ran into the scale bar before); checked in real 9:16, 16:9 and 1:1 renders.
+- Sidebar: the explanations of Overlays and Highlights moved behind ? buttons (sidebar rule: no running text).
+
+### Added
+- Arrow direction **"Direction from the drawn line"** (look-back in metres) in the running-point group — the quick video used it without a control.
+- Editor: background image opacity; stage/movement-type totals in value rows; fields that are no longer available (e.g. stage after dissolving a journey) stay selected but greyed out; the open editor redraws when availability or video length changes.
+- Test hooks `window.__rzContainer` (list, save, editor, times), `window.__rzCtHoehe(frac, id)`.
+- Tests: `test_container_modell.py`, `test_container_ui.py`, `test_container_szene.py` (WYSIWYG across preview sizes, alpha via scene, web export), `test_schnellvideo_nachbau.py`; `tests/szene_umgebung.py` (copy of the test environment for scene renders). Adapted to containers: logbook, journey stages, pause transition, swarm, click-test findings (AN-15, sorting), all-maps render (now via scene), sign thumbnails render (via scene), `scripts/selftest_renders.py` (via scene).
+
+### Fixed
+- Tests that copy the test environment (~1.5 GB each) left their copies in the temp folder — 109 GB filled the disk tonight. They now clean up via `atexit`, also when a test aborts.
+
+### Removed
+- The classic renderer (`core/animator.render`, `render_frame`, the alpha HTML) and all Python overlay builders (stats boxes, watermark, charts, north/scale HTML, skins), `core/overlayboxen.py`, ~70 old overlay UI functions and their sidebar groups, the old overlay/watermark/chart config fields and `tourmap_render` (the Tour-Map already rendered via the scene). `RZ_RENDER_KLASSISCH` has no effect any more.
+
 > **0.9.751** (30.09.2026, built locally): highlights are now normal signs, five new sign styles (key figure: label + value + symbol), sign announcement dot.
 
 ### Changed

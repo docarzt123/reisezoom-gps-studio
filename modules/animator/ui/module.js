@@ -486,6 +486,23 @@ function mountAnimator(body, headerActions, opts) {
                      style="font-size:11px; margin-top:6px; line-height:1.45;">
                   ${t("animator.dot.smooth_hint", "Links folgt der Pfeil jeder Zuckung, rechts zeigt er die grobe Richtung. In Klammern steht, aus wie viel Streckenlänge um den Punkt herum die Richtung abgelesen wird.")}
                 </div>
+                <!-- 30.09.2026 — das Schnell-Video richtet den Pfeil an der gezeichneten Linie aus
+                     (Rückblick). Damit man es von Hand nachbauen kann, gibt es den Schalter auch hier. -->
+                <label class="checkbox-row" style="margin-top:8px;">
+                  <input type="checkbox" id="anim-dot-rb">
+                  <span>${t("animator.dot.rueckblick", "Richtung aus der gezeichneten Linie")}</span>
+                  <button type="button" class="field-help" data-help="dot_rb">?</button>
+                </label>
+                <div id="anim-dot-rb-row" hidden>
+                  <label class="field-label">${t("animator.dot.rueckblick_m", "Rückblick")}
+                    <span class="label-val" id="anim-dot-rb-v">100 m</span>
+                  </label>
+                  <input type="range" id="anim-dot-rb-m" min="20" max="400" step="5" value="100">
+                </div>
+                <div class="muted field-help-content" data-help-content="dot_rb" hidden
+                     style="font-size:11px; margin-top:6px; line-height:1.45;">
+                  ${t("animator.dot.rueckblick_hint", "Der Pfeil zeigt dorthin, wohin die schon gezeichnete Linie läuft — gemessen über die letzten Meter. So liegt er immer genau auf der Linie. „Ruhe des Pfeils“ wirkt dann nicht.")}
+                </div>
               </div>
             </div>
           </div>
@@ -927,222 +944,36 @@ function mountAnimator(body, headerActions, opts) {
               <input type="text" id="anim-ov-attrib-link" class="pos-select" style="flex:1 1 100%;" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
               </div>
             </div>
-            <div class="overlay-group" id="anim-overlay-totals-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-totals" checked>
-                <span>${t("animator.overlay.totals")}</span>
-              </label>
-                <button type="button" class="ov-box-edit" data-ovbox-edit="totals" title="${t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt")}">✎</button>
-              <div class="ov-group-details">
-              <select id="anim-ov-totals-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tc">${t("animator.pos.tc")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="ml">${t("animator.pos.ml")}</option>
-                <option value="cc">${t("animator.pos.cc")}</option>
-                <option value="mr">${t("animator.pos.mr")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="bc">${t("animator.pos.bc")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-              </select>
-              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
-                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-                <input type="number" id="anim-ov-totals-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
-                <span class="ov-timing-dash">–</span>
-                <input type="number" id="anim-ov-totals-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <select class="ov-bis-art" title="${t("animator.ov.bis_art_tip", "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende")}">
-                  <option value="s">${t("animator.ov.bis_ab_start", "s ab Start")}</option>
-                  <option value="vor_ende">${t("animator.ov.bis_vor_ende", "s vor Ende")}</option>
+            <!-- 30.09.2026 — Einblendungen als Container (docs/OVERLAY-CONTAINER.md): ein Baustein
+                 für Werte, Summen, Freitext, Diagramme, Bilder/Logo, Nordpfeil und Maßstab. -->
+            <div class="overlay-group ct-bereich" id="ct-bereich">
+              <div class="ct-kopf">
+                <span class="ov-style-title">📦 ${t("container.titel", "Einblendungen")} <button type="button" class="field-help" data-help="ct_hilfe">?</button></span>
+                <select id="ct-neu" class="pos-select" title="${t("container.neu_tip", "Neue Einblendung aus einer Vorlage")}">
+                  <option value="">＋ ${t("container.neu", "Neue Einblendung")}</option>
+                  ${_isStaticFrame ? "" : `<option value="live">${t("container.v.live", "Live-Werte")}</option>`}
+                  <option value="gesamt">${t("container.v.gesamt", "Gesamtsumme")}</option>
+                  <option value="hoehe">${t("container.v.hoehe", "Höhenprofil")}</option>
+                  <option value="titel">${t("container.v.titel", "Titel")}</option>
+                  ${_isStaticFrame ? "" : `<option value="schluss">${t("container.v.schluss", "Schlusskarte")}</option>`}
+                  <option value="logo">${t("container.v.logo", "Logo")}</option>
+                  <option value="nord">${t("container.v.nord", "Nordpfeil + Maßstab")}</option>
+                  <option value="rahmen">${t("container.v.rahmen", "Rahmen / Vollbild")}</option>
+                  <option value="leer">${t("container.v.leer", "Einblendung")}</option>
                 </select>
               </div>
-              <div class="ov-fieldeditor" id="anim-ov-totals-fields" data-ovbox="totals"></div>
-              </div>
+              <div id="ct-liste" class="ct-liste"></div>
+              <div class="muted field-help-content" data-help-content="ct_hilfe" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("container.hinweis", "In der Vorschau ziehen zum Verschieben, anklicken zum Gestalten. Wann eine Einblendung zu sehen ist, stellst du in der Zeitleiste ein.")}</div>
             </div>
-            <div class="overlay-group" id="anim-overlay-live-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-live" checked>
-                <span>${t("animator.overlay.live")}</span>
-              </label>
-                <button type="button" class="ov-box-edit" data-ovbox-edit="live" title="${t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt")}">✎</button>
-              <div class="ov-group-details">
-              <select id="anim-ov-live-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tc">${t("animator.pos.tc")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="ml">${t("animator.pos.ml")}</option>
-                <option value="cc">${t("animator.pos.cc")}</option>
-                <option value="mr">${t("animator.pos.mr")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="bc">${t("animator.pos.bc")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-              </select>
-              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
-                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-                <input type="number" id="anim-ov-live-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
-                <span class="ov-timing-dash">–</span>
-                <input type="number" id="anim-ov-live-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <select class="ov-bis-art" title="${t("animator.ov.bis_art_tip", "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende")}">
-                  <option value="s">${t("animator.ov.bis_ab_start", "s ab Start")}</option>
-                  <option value="vor_ende">${t("animator.ov.bis_vor_ende", "s vor Ende")}</option>
-                </select>
-              </div>
-              <div class="ov-fieldeditor" id="anim-ov-live-fields" data-ovbox="live"></div>
-              </div>
-            </div>
-            <div class="overlay-group" id="anim-overlay-elevation-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-ele" checked>
-                <span>${t("animator.overlay.elevation")}</span>
-              </label>
-                <button type="button" class="ov-box-edit" data-ovbox-edit="ele" title="${t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt")}">✎</button>
-              <div class="ov-group-details">
-              <select id="anim-ov-ele-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="bc">${t("animator.pos.bc")}</option>
-                <option value="bcw">${t("animator.pos.bcw")}</option>
-                <option value="tc">${t("animator.pos.tc")}</option>
-                <option value="tcw">${t("animator.pos.tcw")}</option>
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-              </select>
-              <!-- 09.09.2026 (Marc: „bau den Schalter") — Höhenprofil über die ganze Reise
-                   (Etappengrenzen als Marken) oder nur die laufende Etappe (baut sich je
-                   Etappe neu auf). Nur bei einer Kette mit mehreren Etappen sichtbar. -->
-              <select id="anim-ov-ele-scope" class="pos-select" hidden title="${t("animator.overlay.ele_scope_tip", "Ganze Strecke: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf.")}">
-                <option value="reise">${t("animator.overlay.ele_scope_reise", "Ganze Strecke")}</option>
-                <option value="etappe">${t("animator.overlay.ele_scope_etappe", "Laufende Etappe")}</option>
-              </select>
-              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
-                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-                <input type="number" id="anim-ov-ele-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
-                <span class="ov-timing-dash">–</span>
-                <input type="number" id="anim-ov-ele-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <select class="ov-bis-art" title="${t("animator.ov.bis_art_tip", "Wovon „bis“ gezählt wird: Sekunde ab Videostart oder Sekunden vor dem Videoende")}">
-                  <option value="s">${t("animator.ov.bis_ab_start", "s ab Start")}</option>
-                  <option value="vor_ende">${t("animator.ov.bis_vor_ende", "s vor Ende")}</option>
-                </select>
-              </div>
-              </div>
-            </div>
-            <!-- 23.09.2026 — Weitere Boxen (docs/OVERLAY-BOXEN.md): freie Liste zusätzlicher
-                 Gesamt-/Live-Boxen, je Box eigener Look, eigene Blende, eigener Zeitpunkt. -->
-            <div class="overlay-group" id="anim-ov-extra-group">
-              <div class="ov-extra-kopf">
-                <span>${t("animator.ovbox.extra_title", "Weitere Boxen")}</span>
-                <button type="button" class="btn btn-sm" id="anim-ov-extra-add" title="${t("animator.ovbox.add_tip", "Neue Box hinzufügen, z. B. die Gesamtstatistik am Ende für 10 Sekunden")}">＋ ${t("animator.ovbox.add", "Box")}</button>
-              </div>
-              <div id="anim-ov-extra-list" class="ov-extra-list"></div>
-            </div>
-
-            <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
-            <div class="overlay-group" id="anim-overlay-north-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-north" checked>
-                <span>${t("animator.overlay.north", "Nordpfeil")}</span>
-              </label>
-              <div class="ov-group-details">
-              <select id="anim-ov-north-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="br">${t("animator.pos.br")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="tl">${t("animator.pos.tl")}</option>
-              </select>
-              </div>
-            </div>
-            <div class="overlay-group" id="anim-overlay-scale-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-scale" checked>
-                <span>${t("animator.overlay.scale", "Maßstab")}</span>
-              </label>
-              <div class="ov-group-details">
-              <select id="anim-ov-scale-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-              </select>
-              </div>
-            </div>
-
-            <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
-            <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
-              <!-- 30.09.2026 (Marc, nach dem Komoot-Video) — Skin für ALLE Einblendungen:
-                   „Kasten" = bisheriger Look, „Frei" = ohne Kasten, große Zahl, kleine
-                   Einheit, Verläufe oben/unten, Logo als Plakette. -->
+            <div class="overlay-group ct-verlauf" id="ct-verlauf" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title">🌗 ${t("container.verlaeufe", "Dunkle Verläufe")}</div>
               <div class="ov-style-row">
-                <label for="anim-ov-skin" title="${t("animator.overlay.skin_hint", "Kasten: Werte in halbtransparenten Boxen. Frei: ohne Boxen, große Zahlen mit kleiner Einheit, dunkle Verläufe oben und unten, Logo als Plakette.")}">${t("animator.overlay.skin", "Stil")}</label>
-                <select id="anim-ov-skin" class="pos-select">
-                  <option value="kasten">${t("animator.overlay.skin_kasten", "Kasten")}</option>
-                  <option value="frei">${t("animator.overlay.skin_frei", "Frei (ohne Kasten)")}</option>
-                </select>
+                <label class="checkbox-row inline"><input type="checkbox" id="ct-vl-oben-an"><span>${t("container.verlauf_oben", "oben")}</span></label>
+                <input type="range" id="ct-vl-oben-st" min="0" max="100" step="1" value="62">
               </div>
               <div class="ov-style-row">
-                <label for="anim-ov-font">${t("animator.overlay.font", "Schrift")}</label>
-                <select id="anim-ov-font" class="pos-select">
-                  <option value="system">${t("animator.overlay.font_system", "System (Standard)")}</option>
-                  <option value="nunito">Nunito</option>
-                  <option value="quicksand">Quicksand</option>
-                  <option value="fredoka">Fredoka</option>
-                  <option value="oswald">Oswald</option>
-                  <option value="bebas">Bebas Neue</option>
-                </select>
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-textcolor">${t("animator.overlay.text_color", "Textfarbe")}</label>
-                <input type="color" id="anim-ov-textcolor" value="#ffffff">
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-bgcolor">${t("animator.overlay.bg_color", "Hintergrund")}</label>
-                <input type="color" id="anim-ov-bgcolor" value="#000000">
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-bgopacity">${t("animator.overlay.bg_opacity", "Deckkraft Hintergrund")}</label>
-                <input type="range" id="anim-ov-bgopacity" min="0" max="100" step="5" value="55">
-                <span class="ov-style-val" id="anim-ov-bgopacity-val">55 %</span>
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-entry" title="${t("animator.overlay.entry_hint", "Wie die Stats-Boxen im Video erscheinen. Nur im gerenderten Video/Probe-Lauf sichtbar.")}">${t("animator.overlay.entry", "Einblendung")}</label>
-                <select id="anim-ov-entry" class="pos-select">
-                  <option value="none">${t("signs.entry.none", "Hart (sofort)")}</option>
-                  <option value="fade">${t("signs.entry.fade", "Einblenden")}</option>
-                  <option value="both">${t("animator.ovbox.aufpoppen", "Aufpoppen")}</option>
-                  <option value="pop" hidden>${t("animator.ovbox.aufpoppen", "Aufpoppen")}</option>
-                </select>
-              </div>
-              <!-- 23.09.2026 — Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten (global; je Box ✎) -->
-              <div class="ov-style-row">
-                <label for="anim-ov-exit" title="${t("animator.ovbox.exit_hint", "Wie die Stats-Boxen am Ende ihres Zeitfensters verschwinden. Nur im Video und im Probelauf sichtbar.")}">${t("animator.ovbox.exit", "Ausblendung")}</label>
-                <select id="anim-ov-exit" class="pos-select">
-                  <option value="none">${t("animator.ovbox.exit_none", "Hart (sofort)")}</option>
-                  <option value="fade">${t("animator.ovbox.exit_fade", "Ausblenden")}</option>
-                  <option value="both">${t("animator.ovbox.wegpoppen", "Wegpoppen")}</option>
-                  <option value="pop" hidden>${t("animator.ovbox.wegpoppen", "Wegpoppen")}</option>
-                </select>
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-blende">${t("animator.ovbox.blende_s", "Dauer der Blende")}</label>
-                <input type="number" id="anim-ov-blende" class="ov-time-in" min="0.1" max="10" step="0.1" value="0.5">
-                <span class="ov-style-val">s</span>
-              </div>
-              <!-- 25.09.2026 — Boxen mit eigener Blende (aus der Zeitleiste/✎): hier gilt die Dauer oben nicht -->
-              <div class="ov-blende-eigen" id="anim-ov-blende-eigen" hidden></div>
-              <div class="ov-style-row">
-                <label for="anim-ov-radius">${t("animator.ovbox.radius", "Ecken")}</label>
-                <input type="range" id="anim-ov-radius" min="0" max="40" step="1" value="12">
-                <span class="ov-style-val" id="anim-ov-radius-val">12</span>
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-border-w">${t("animator.ovbox.border", "Rahmen")}</label>
-                <input type="number" id="anim-ov-border-w" class="ov-time-in" min="0" max="12" step="0.5" value="0">
-                <input type="color" id="anim-ov-border-color" value="#ffffff" title="${t("animator.ovbox.border_color", "Rahmenfarbe")}">
-              </div>
-              <div class="ov-style-row">
-                <label class="checkbox-row inline" for="anim-ov-shadow">
-                  <input type="checkbox" id="anim-ov-shadow" checked>
-                  <span>${t("animator.ovbox.shadow", "Schatten")}</span>
-                </label>
+                <label class="checkbox-row inline"><input type="checkbox" id="ct-vl-unten-an"><span>${t("container.verlauf_unten", "unten")}</span></label>
+                <input type="range" id="ct-vl-unten-st" min="0" max="100" step="1" value="72">
               </div>
             </div>
             <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
@@ -1161,24 +992,15 @@ function mountAnimator(body, headerActions, opts) {
                 <span>${t("animator.overlay.show_pretrim")}</span>
               </label>
             </div>
-            <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
-            <div class="overlay-group" id="anim-charts-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
-                <span>📊 ${t("animator.charts.title", "Diagramme")}</span>
-                <span class="ov-help" title="${t("animator.charts.help", "Blende voll gestaltete Daten-Diagramme (Höhe, Puls, Tempo …) ins Video ein. Gestalte den Look im Daten-Animator und übernimm ihn hier. Läuft synchron zum Punkt auf der Karte.")}">?</span>
-              </div>
-              <div id="anim-charts-list" class="charts-list"></div>
-              <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
-              <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
-            </div>
             ${_isStaticFrame ? "" : `
             <!-- 30.09.2026 — Highlights aus dem Track (wie bei Komoot) -->
             <div class="overlay-group" id="anim-hl-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
               <label class="ov-style-title" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                 <input type="checkbox" id="anim-hl-on">
                 <span>⭐ ${t("animator.hl.title", "Highlights")}</span>
+                <button type="button" class="field-help" data-help="hl_hilfe">?</button>
               </label>
-              <div class="muted-note" style="margin-top:4px">${t("animator.hl.hint", "Besondere Stellen der Tour erscheinen im Video an der Karte, kurz bevor der Punkt sie erreicht.")}</div>
+              <div class="muted field-help-content" data-help-content="hl_hilfe" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("animator.hl.hint", "Besondere Stellen der Tour erscheinen im Video an der Karte, kurz bevor der Punkt sie erreicht.")} ${t("animator.hl.schilder_hint", "Die Highlights werden Schilder: in der Schilder-Liste änderbar. Von Hand geänderte bleiben, die übrigen passt die App an, wenn sich Track oder Auswahl ändern.")}</div>
               <div class="ov-style-row" style="margin-top:6px">
                 <label for="anim-hl-stil">${t("animator.hl.stil", "Aussehen")}</label>
                 <select id="anim-hl-stil" class="pos-select">
@@ -1197,7 +1019,6 @@ function mountAnimator(body, headerActions, opts) {
                 </select>
                 <input type="color" id="anim-hl-farbe" value="#ffc21a" title="${t("animator.hl.farbe", "Farbe für alle")}">
               </div>
-              <div class="muted-note">${t("animator.hl.schilder_hint", "Die Highlights werden Schilder: in der Schilder-Liste änderbar. Von Hand geänderte bleiben, die übrigen passt die App an, wenn sich Track oder Auswahl ändern.")}</div>
               <div id="anim-hl-arten" class="anim-hl-arten">
                 ${["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"].map(a => `<label><input type="checkbox" data-hl-art="${a}" checked> ${
                   { hoechster: t("animator.hl.hoechster", "Höchster Punkt"), steilste: t("animator.hl.steilste", "Steilste Stelle"),
@@ -1205,48 +1026,7 @@ function mountAnimator(body, headerActions, opts) {
                     wegpunkte: t("animator.hl.wegpunkte", "Wegpunkte aus der GPX") }[a]}</label>`).join("")}
               </div>
             </div>`}
-            <!-- 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen
-                 mehr marketing") — eigenes Logo im Video, WYSIWYG. -->
-            <div class="overlay-group" id="anim-wm-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <!-- 01.09.2026 (Marc, nach Screenshot: „da überlagert sich ein
-                   bisschen … macht doch einfach die Checkbox direkt vor
-                   Wasserzeichen … und das Fragezeichen kann weg"): EIN Schalter
-                   im Titel, darunter Datei/Größe/Deckkraft. Kein zweites
-                   Ein-Aus, kein Hilfe-Fragezeichen. -->
-              <label class="ov-style-title" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="checkbox" id="anim-wm-on">
-                <span>💧 ${t("animator.wm.title", "Wasserzeichen")}</span>
-              </label>
-              <div id="anim-wm-opts" hidden>
-                <div style="display:flex; gap:6px; margin-top:8px">
-                  <button type="button" id="anim-wm-eigen" class="ghost-btn" style="flex:1">🖼 ${t("animator.wm.v_eigen", "eigenes Bild …")}</button>
-                  <button type="button" id="anim-wm-standard" class="ghost-btn" hidden title="${t("animator.wm.zurueck", "Wieder das GPS-Studio-Logo nehmen")}">↩︎</button>
-                </div>
-                <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
-                <div style="margin-top:6px">
-                  <button type="button" class="field-help" data-help="wm_drag">?</button>
-                  <span class="muted-note">🖱 ${t("animator.wm.drag_kurz", "Platzieren")}</span>
-                  <button type="button" id="anim-wm-obenmitte" class="ghost-btn" style="margin-left:6px">⬆ ${t("animator.wm.oben_mitte", "Oben mittig")}</button>
-                </div>
-                <div class="muted-note field-help-content" data-help-content="wm_drag" hidden
-                     style="margin-top:4px">${t("animator.wm.drag_hint", "Zieh das Logo in der Vorschau mit der Maus dorthin, wo es sitzen soll.")}</div>
-                <label class="field-label" style="margin-top:6px">${t("animator.wm.size", "Größe")} <span id="anim-wm-w-v">12 %</span></label>
-                <input type="range" id="anim-wm-w" min="3" max="40" step="1" value="12">
-                <label class="field-label" style="margin-top:6px">${t("animator.wm.opacity", "Deckkraft")} <span id="anim-wm-op-v">90 %</span></label>
-                <input type="range" id="anim-wm-op" min="10" max="100" step="5" value="90">
-              </div>
-            </div>
           </div>
-          ${_isStaticFrame ? "" : `
-          <!-- 29.09.2026 §71 — Titel- und Schlusskarte (legt das Schnell-Video an, hier änderbar) -->
-          <div class="field anim-sk-editor" id="anim-sk-editor" style="margin-top:12px">
-            <div class="field-label">🎬 ${t("schnell.karte.titel_bereich", "Titel & Schlusskarte")}</div>
-            <label class="chk"><input type="checkbox" id="anim-sk-titel-an"><span>${t("schnell.karte.titel_an", "Titel am Anfang")}</span></label>
-            <input type="text" id="anim-sk-titel" class="lib-input" placeholder="${t("schnell.titel", "Titel")}" style="margin-top:4px">
-            <input type="text" id="anim-sk-unter" class="lib-input" placeholder="${t("schnell.unterzeile", "Unterzeile")}" style="margin-top:4px">
-            <label class="chk" style="margin-top:8px"><input type="checkbox" id="anim-sk-schluss-an"><span>${t("schnell.karte.schluss_an", "Schlusskarte am Ende")}</span></label>
-            <div class="anim-sk-felder" id="anim-sk-felder"></div>
-          </div>`}
         </div>
       </section>
 
@@ -1492,15 +1272,6 @@ function mountAnimator(body, headerActions, opts) {
         <!-- Overlay-Vorschau (Stats-Boxen, Höhenprofil) liegt absolut über der Karte.
              Wird von renderOverlayPreview() in JS gefüllt. -->
         <div class="overlay-preview-layer" id="anim-overlay-preview" aria-hidden="true"></div>
-        <!-- 29.09.2026 §71 — Titel- und Schlusskarte (Schnell-Video). Liegt in der Vorschau und damit im Video. -->
-        <div class="sk-layer" id="anim-sk" aria-hidden="true">
-          <div class="sk-titel" hidden><div class="sk-t1"></div><div class="sk-t2"></div></div>
-          <div class="sk-schluss" hidden></div>
-        </div>
-        <!-- v0.9.443 — Diagramm-Overlays (iframes). EIGENER Layer, damit
-             renderOverlayPreview() (setzt oben innerHTML) die iframes nicht
-             bei jedem Aufruf neu lädt. Diff-Update via _chartsPreviewRender(). -->
-        <div class="overlay-preview-layer" id="anim-charts-preview" aria-hidden="true"></div>
       </div>
       <!-- Resolution-Badge zeigt aktuelles Format permanent (synchron zu Tour-Map) -->
       <div class="anim-resolution-badge" id="anim-res-badge"></div>
@@ -1814,14 +1585,22 @@ function mountAnimator(body, headerActions, opts) {
     } catch (e) {
       applog && applog("error", `[ghost] Aufbau beim Öffnen: ${e && e.message || e}`);
     }
-    // 💧 Wasserzeichen: Bedienung binden + Stand aus dem Projekt holen.
+    // 30.09.2026 — Einblendungen (Container): alte Projekte übersetzen, Liste + Ziehen binden.
     try {
-      _wmBinden();
-      _wmLaden();
+      _ctListeBinden();
+      _ctZiehenBinden();
+      // Videolänge geändert → Sekunden im offenen Editor neu (Anker bleiben, ihre Zeit wandert)
+      ["anim-intro", "anim-dur", "anim-hold"].forEach(k => document.getElementById(k)?.addEventListener("change", () => {
+        try { if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog && applog("warn", "[container] Editor nach Längenänderung: " + e); }
+      }));
     } catch (e) {
-      applog && applog("warn", `[wm] Aufbau beim Öffnen: ${e && e.message || e}`);
-      console.warn("[ghost] Aufbau:", e);
+      applog && applog("error", `[container] Aufbau beim Öffnen: ${e && e.message || e}`);
     }
+    // Übersetzen + erstes Zeichnen erst nach dem Aufbau (Totzone der Zustände weiter unten)
+    setTimeout(() => {
+      try { _ctUmzug(); _ctListeZeichnen(); if (window.__rzCtVerlaufSync) window.__rzCtVerlaufSync(); renderOverlayPreview(); }
+      catch (e) { applog && applog("error", `[container] Aufbau beim Öffnen: ${e && e.message || e}`); }
+    }, 0);
   }
 
   // v0.8.20 — Help-Button-Click-Handler ist jetzt global in ui/js/util.js
@@ -1880,18 +1659,7 @@ function mountAnimator(body, headerActions, opts) {
       // 2) Gebundene Controls: Werte + sichtbare Wirkung (Farbe→Karte, Breite, …).
       try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
       try { if (typeof rzReapplySection === "function") rzReapplySection(_MODKEY, before); } catch (_) {}
-      // 3) Custom-Controls (nicht via bindSetting): Stats-Editor-Felder + BG-Opacity.
-      try {
-        const op = snap.overlay_bg_opacity, sl = document.getElementById("anim-ov-bgopacity"), lb = document.getElementById("anim-ov-bgopacity-val");
-        if (sl && typeof op === "number") { sl.value = String(Math.round(op * 100)); if (lb) lb.textContent = sl.value + " %"; }
-      } catch (_) {}
-      try { _ovRebuildEditors(); } catch (_) {}
-      // v0.9.444 — Diagramme sind eigener In-Memory-State; nach dem Settings-
-      // Restore neu laden + Liste/Vorschau neu zeichnen (sonst zeigt Undo den
-      // wiederhergestellten Settings-Block, aber die alten Diagramme).
-      try { _chartsLoad(); _chartsRenderList(); } catch (_) {}
       try { renderOverlayPreview(); } catch (_) {}
-      try { _chartsPreviewRender(true); } catch (_) {}
       // 10.09.2026 — Tracks/Gruppen/Aussehen, Tempo-Spur, Ghost-Spuren, Laufpunkt
       // liegen im Speicher des Moduls, nicht in gebundenen Feldern: aus dem
       // wiederhergestellten Block nachziehen.
@@ -1917,7 +1685,7 @@ function mountAnimator(body, headerActions, opts) {
    *  Einstellungs-Blocks die Modul-Zustände nachziehen, die nicht an Feldern hängen. */
   function _animUndoNachziehen(snap) {
     // 23.09.2026 — Overlay-Boxen: Liste + offenes Modal auf den zurückgeholten Stand
-    try { _ovTimingBoxen = null; _ovExtraListe(); if (_ovModal) _ovModalZeichnen(); } catch (e) { applog("warn", "[undo] overlay-boxen: " + e); }
+    try { _ovTimingBoxen = null; _ctListeZeichnen(); if (window.__rzCtVerlaufSync) window.__rzCtVerlaufSync(); if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog("warn", "[undo] einblendungen: " + e); }
     // Tempo-Spur: Liste verwerfen, aus dem Projekt neu lesen, Kurve holen
     _tempoListe = null; _tempoListeVon = null;
     try { paceMapLaden(); } catch (e) { applog("warn", "[undo] tempo: " + e); }
@@ -1997,15 +1765,14 @@ function mountAnimator(body, headerActions, opts) {
     try { _animSessionUnsubs.push(onSessionChanged(() => {
       try { _ovSyncGroups(); } catch (e) { applog && applog("warn", `[anim] _ovSyncGroups: ${e}`); }
       try { _alteZoomKeyframesPruefen(); } catch (e) { applog && applog("warn", `[anim] kf-Prüfung: ${e}`); }
-      try { _skInhaltKey = ""; _skEditorSync(); } catch (e) { applog && applog("warn", `[schnell] nach Projektwechsel: ${e}`); }
+      try { if (_ctEditId) _ctEditorZu(); _ctUmzug(); _ctListeZeichnen(); if (window.__rzCtVerlaufSync) window.__rzCtVerlaufSync(); renderOverlayPreview(); }
+      catch (e) { applog && applog("error", `[container] nach Projektwechsel: ${e}`); }
       // Sitzung/Projekt gewechselt (auch beim Start!) → Ghost-Spuren holen.
       try {
         _ghostSpurenLaden();
         _ghostListeZeichnen();
         _ghostSpurenAufbauen();
       } catch (e) { applog && applog("warn", `[ghost] nach Projektwechsel: ${e}`); }
-      // ui-falle-ok: Vorschau-Kür — _wmLaden loggt über applog selbst nicht, Fehler hier sind kosmetisch
-      try { _wmLaden(); } catch (e) { applog && applog("warn", `[wm] nach Projektwechsel: ${e}`); }
     })); } catch (e) { applog && applog("error", `[anim] Sitzungs-Listener: ${e}`); }
   }
 
@@ -2686,12 +2453,6 @@ function mountAnimator(body, headerActions, opts) {
       try { rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi(); }
       catch (e) { applog && applog("warn", `[farben] nach Projektwechsel: ${e}`); }
     })); } catch (e) { applog && applog("error", `[farben] Sitzungs-Listener: ${e}`); }
-    // v0.9.444 — Diagramme sind projekt-eigener State: bei Projekt-Wechsel/-Neuanlage
-    // aus dem NEUEN Projekt neu laden (sonst bleibt das alte Diagramm stehen).
-    try { _animSessionUnsubs.push(onSessionChanged(() => {
-      try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); }
-      catch (e) { applog && applog("warn", `[diagramme] nach Projektwechsel: ${e}`); }
-    })); } catch (e) { applog && applog("error", `[diagramme] Sitzungs-Listener: ${e}`); }
   }
   // v0.9.211 (Reiseroute) — GPX-Ghost-Config (Elemente existieren nur hier).
   if (_isReiseroute) {
@@ -2736,90 +2497,42 @@ function mountAnimator(body, headerActions, opts) {
     fld.style.display = hide ? "none" : "";
   }
   syncLineSpacingVisibility();
-  // v0.9.452 (Hebel 2) — Overlay-Gruppen als Karten: Position, Zeitfenster und
-  // Feldliste erscheinen nur, wenn das Overlay auch AN ist. Ein ausgeschaltetes
-  // Overlay hat nichts zu konfigurieren — das ist kein Verstecken, sondern das
-  // Weglassen von Reglern für etwas, das im Video gar nicht vorkommt. Aktive
-  // Overlays zeigen unverändert alles direkt (kein Aufklappen).
-  const _OV_GROUPS = [
-    { cb: "anim-ov-totals", group: "anim-overlay-totals-group" },
-    { cb: "anim-ov-live",   group: "anim-overlay-live-group" },
-    { cb: "anim-ov-ele",    group: "anim-overlay-elevation-group" },
-    { cb: "anim-ov-north",  group: "anim-overlay-north-group" },   // 04.09.2026
-    { cb: "anim-ov-scale",  group: "anim-overlay-scale-group" },
-  ];
-  // 07.09.2026 (Marc: „mach die einzelnen gruppen auch einklappbar wie die obergruppe, das wird
-  // sonst zu unübersichtlich"): jede Overlay-Gruppe hat einen Pfeil in der Titelzeile; Details nur,
-  // wenn das Overlay AN und die Gruppe AUFGEKLAPPT ist. Aufgeklappte Gruppen merkt sich das Modul
-  // in settings[_MODKEY].open_overlay_groups (wie open_sections der Abschnitte). Standard: zu.
+  // Quellenzeile: Gruppe auf-/zuklappen (07.09.2026, Marc); Stand in settings[_MODKEY].open_overlay_groups.
+  // 30.09.2026 — die übrigen Overlay-Gruppen sind durch die Container-Liste ersetzt.
   let _ovOpen = new Set();
   try {
     const cur = (_settingsCache && _settingsCache[_MODKEY]) || {};
     if (Array.isArray(cur.open_overlay_groups)) _ovOpen = new Set(cur.open_overlay_groups);
   } catch (_) {}
-  function _ovOpenMerken() {
-    try {
-      const arr = Array.from(_ovOpen);
-      if (_settingsCache) _settingsCache[_MODKEY] = Object.assign({}, _settingsCache[_MODKEY] || {}, { open_overlay_groups: arr });
-      saveSettings({ [_MODKEY]: { open_overlay_groups: arr } });
-    } catch (_) {}
-  }
-  function _ovToggleSetup() {
-    document.querySelectorAll("#anim-overlay-groups .overlay-group").forEach(box => {
-      const row = box.querySelector(".checkbox-row");
-      if (!row || row.querySelector(".ov-group-toggle")) return;
+  function _ovSyncGroups() {
+    const ab = document.getElementById("anim-overlay-attrib-group");
+    if (!ab) return;
+    const row = ab.querySelector(".checkbox-row");
+    if (row && !row.querySelector(".ov-group-toggle")) {
       const b = document.createElement("button");
       b.type = "button"; b.className = "ov-group-toggle"; b.title = t("animator.overlay.group_toggle", "Einstellungen ein-/ausklappen");
       b.textContent = "▾";
       b.addEventListener("click", (ev) => {
         ev.preventDefault(); ev.stopPropagation();
-        if (_ovOpen.has(box.id)) _ovOpen.delete(box.id); else _ovOpen.add(box.id);
-        _ovOpenMerken(); _ovSyncGroups();
+        if (_ovOpen.has(ab.id)) _ovOpen.delete(ab.id); else _ovOpen.add(ab.id);
+        try {
+          const arr = Array.from(_ovOpen);
+          if (_settingsCache) _settingsCache[_MODKEY] = Object.assign({}, _settingsCache[_MODKEY] || {}, { open_overlay_groups: arr });
+          saveSettings({ [_MODKEY]: { open_overlay_groups: arr } });
+        } catch (_) {}
+        _ovSyncGroups();
       });
       row.appendChild(b);
-    });
-  }
-  function _ovSyncGroups() {
-    const master = document.getElementById("anim-overlays");
-    const masterOn = !master || master.checked;
-    _ovToggleSetup();
-    for (const g of _OV_GROUPS) {
-      const cb = document.getElementById(g.cb);
-      const box = document.getElementById(g.group);
-      if (!cb || !box) continue;
-      const on = masterOn && cb.checked;
-      box.classList.toggle("ov-group--on", on);
-      const open = _ovOpen.has(box.id);
-      box.classList.toggle("ov-group--open", on && open);
-      const det = box.querySelector(".ov-group-details");
-      if (det) det.hidden = !(on && open);
-      const tg = box.querySelector(".ov-group-toggle"); if (tg) tg.hidden = !on;
     }
-    // Quellenzeile: immer an, nur auf/zu
-    const ab = document.getElementById("anim-overlay-attrib-group");
-    if (ab) {
-      const open = _ovOpen.has(ab.id);
-      ab.classList.toggle("ov-group--open", open);
-      const det = ab.querySelector(".ov-group-details"); if (det) det.hidden = !open;
-    }
-    // Master aus: die gesamte Overlay-Konfiguration wird bereits von
-    // syncOverlayConfigVisibility() ausgeblendet (#anim-overlay-groups.hidden) —
-    // hier ist nichts weiter zu tun.
+    const open = _ovOpen.has(ab.id);
+    ab.classList.toggle("ov-group--open", open);
+    const det = ab.querySelector(".ov-group-details"); if (det) det.hidden = !open;
   }
   window.__animSyncOverlayGroups = _ovSyncGroups;
   document.getElementById("anim-overlays")?.addEventListener("change", _ovSyncGroups);
 
   // Overlay-Toggles + Positionen
-  bindSetting("anim-ov-totals", _MODKEY, "overlay_totals_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
-  bindSetting("anim-ov-totals-pos", _MODKEY, "overlay_totals_position");
-  bindSetting("anim-ov-live", _MODKEY, "overlay_live_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
-  bindSetting("anim-ov-live-pos", _MODKEY, "overlay_live_position");
-  bindSetting("anim-ov-ele", _MODKEY, "overlay_elevation_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
-  bindSetting("anim-ov-ele-pos", _MODKEY, "overlay_elevation_position");
-  bindSetting("anim-ov-ele-scope", _MODKEY, "overlay_elevation_scope");   // 09.09.2026 — ganze Reise | laufende Etappe
   // 04.09.2026 — Nordpfeil + Maßstab
-  bindSetting("anim-ov-north", _MODKEY, "overlay_north_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
-  bindSetting("anim-ov-north-pos", _MODKEY, "overlay_north_position");
   // 07.09.2026 — Quellenzeile: Ecke + Breite als Datenattribute am Viewport (CSS in module.css);
   // dieselbe DOM im Render (gemeinsame Szene) → WYSIWYG ohne weiteren Code.
   function _applyAttribLayout() {
@@ -2878,25 +2591,11 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ov-attrib-pos", _MODKEY, "attrib_position", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
   bindSetting("anim-ov-attrib-w", _MODKEY, "attrib_width", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
   try { _applyAttribLayout(); } catch (_) {}
-  bindSetting("anim-ov-scale", _MODKEY, "overlay_scale_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
-  bindSetting("anim-ov-scale-pos", _MODKEY, "overlay_scale_position");
   // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). 0 = ab Start /
   // bis Ende. number-Bind speichert/restored projekt-bewusst.
-  bindSetting("anim-ov-totals-from", _MODKEY, "overlay_totals_from_s", { type: "number" });
-  bindSetting("anim-ov-totals-to", _MODKEY, "overlay_totals_to_s", { type: "number" });
-  bindSetting("anim-ov-live-from", _MODKEY, "overlay_live_from_s", { type: "number" });
-  bindSetting("anim-ov-live-to", _MODKEY, "overlay_live_to_s", { type: "number" });
-  bindSetting("anim-ov-ele-from", _MODKEY, "overlay_elevation_from_s", { type: "number" });
-  bindSetting("anim-ov-ele-to", _MODKEY, "overlay_elevation_to_s", { type: "number" });
   // v0.9.321 — Stats-Editor: globales Styling (Schrift/Textfarbe/BG/Opacity).
-  bindSetting("anim-ov-font", _MODKEY, "overlay_font", { onChange: renderOverlayPreview });
-  bindSetting("anim-ov-textcolor", _MODKEY, "overlay_text_color", { onChange: renderOverlayPreview });
-  bindSetting("anim-ov-bgcolor", _MODKEY, "overlay_bg_color", { onChange: renderOverlayPreview });
-  bindSetting("anim-ov-entry", _MODKEY, "overlay_entry", { onChange: () => { try { renderOverlayPreview(); } catch (_) {} } });   // v0.9.479 — Stats-Einblende-Animation (nur Render/Probe-Lauf)
   // 23.09.2026 — Overlay-Boxen: Ausblendung, Blende-Dauer, Ecken, Rahmen, Schatten (global).
   // Je Box/Zeile abweichend über ✎ (Modal _ovBoxModal), gespeichert in overlay_boxen.
-  const _ovNeu = () => { try { renderOverlayPreview(); _ovExtraListe(); } catch (_) {} };
-  bindSetting("anim-ov-skin", _MODKEY, "overlay_skin", { onChange: _ovNeu });
   // 30.09.2026 — Highlights: Schalter + Auswahl (Liste der Arten, eigene Anbindung)
   const _hlNeu = () => { try { _hlSchilderAbgleichen(false); } catch (e) { applog("warn", "[hl] " + e); } };
   bindSetting("anim-hl-on", _MODKEY, "highlights_enabled", { type: "bool", onChange: _hlNeu });
@@ -2911,36 +2610,6 @@ function mountAnimator(body, headerActions, opts) {
     if (Array.isArray(gespeichert)) box.querySelectorAll("input[data-hl-art]").forEach(e => { e.checked = gespeichert.includes(e.getAttribute("data-hl-art")); });
     box.addEventListener("change", () => { saveProjectSettings(_MODKEY, { highlights_arten: _hlArtenGewaehlt() }); _hlNeu(); });
   })();
-  bindSetting("anim-ov-exit", _MODKEY, "overlay_exit", { onChange: _ovNeu });
-  bindSetting("anim-ov-blende", _MODKEY, "overlay_blende_s", { type: "number", onChange: _ovNeu });
-  bindSetting("anim-ov-radius", _MODKEY, "overlay_radius", { type: "number",
-    onLoad: (v) => { const l = document.getElementById("anim-ov-radius-val"); if (l) l.textContent = String(v); },
-    onChange: (v) => { const l = document.getElementById("anim-ov-radius-val"); if (l) l.textContent = String(v); _ovNeu(); } });
-  bindSetting("anim-ov-border-w", _MODKEY, "overlay_border_w", { type: "number", onChange: _ovNeu });
-  bindSetting("anim-ov-border-color", _MODKEY, "overlay_border_color", { onChange: _ovNeu });
-  bindSetting("anim-ov-shadow", _MODKEY, "overlay_shadow", { type: "bool", onChange: _ovNeu });
-  document.querySelectorAll(".ov-box-edit[data-ovbox-edit]").forEach(b => b.addEventListener("click", (ev) => {
-    ev.preventDefault(); ev.stopPropagation(); _ovBoxModal(b.getAttribute("data-ovbox-edit"));
-  }));
-  document.getElementById("anim-ov-extra-add")?.addEventListener("click", (ev) => { ev.preventDefault(); _ovBoxNeu(); });
-  // BG-Opacity: gespeichert als 0..1, UI-Slider 0..100 → eigene Anbindung.
-  (function bindOvOpacity() {
-    const sl = document.getElementById("anim-ov-bgopacity");
-    const lbl = document.getElementById("anim-ov-bgopacity-val");
-    if (!sl) return;
-    const stored = _activeProject?.[_MODKEY]?.overlay_bg_opacity;
-    if (typeof stored === "number") sl.value = String(Math.round(stored * 100));
-    const sync = () => { if (lbl) lbl.textContent = sl.value + " %"; };
-    sync();
-    sl.addEventListener("input", () => {
-      sync();
-      if (_animUndoCtrl) { try { _animUndoCtrl.push("Deckkraft", { force: (window.__rzLastUndoEl !== "anim-ov-bgopacity") }); window.__rzLastUndoEl = "anim-ov-bgopacity"; } catch (_) {} }
-      saveProjectSettings(_MODKEY, { overlay_bg_opacity: (parseFloat(sl.value) || 0) / 100 });
-      renderOverlayPreview();
-    });
-  })();
-  // (Feld-Editoren werden weiter unten gebaut, sobald der Feld-Katalog initialisiert
-  //  ist — siehe `_ovRebuildEditors()` nach dem Katalog-Block. TDZ-Schutz.)
   // v0.9.41 — Stats-Quelle bei aktivem Trim
   bindSetting("anim-stats-use-trim", _MODKEY, "stats_use_trim", { type: "bool" });
   // v0.9.55 (Marc): Pre-Trim-Track-Linie im Render an/aus
@@ -3371,219 +3040,9 @@ function mountAnimator(body, headerActions, opts) {
   const GHOST_FARBEN = ["#7fa8ff", "#ffd166", "#7ed957", "#ff8fa3", "#c77dff",
                         "#4ecdc4", "#ffa94d", "#a0e7e5"];
 
-  // ── 💧 Wasserzeichen (30.08.2026) ──────────────────────────────────────
-  // (Zustand steht weiter oben — siehe `_wm`.)
-  function _wmPersist() {
-    try { saveProjectSettings(_MODKEY, { watermark: { ..._wm } }); } catch (_) {}
-  }
-  function _wmUiSync() {
-    const name = document.getElementById("anim-wm-name");
-    const opts = document.getElementById("anim-wm-opts");
-    const an = document.getElementById("anim-wm-on");
-    const sel = document.getElementById("anim-wm-quelle");
-    if (!name) return;
-    const eingebaut = WM_EINGEBAUT.includes(_wm.path);
-    name.textContent = (_wm.path && !eingebaut) ? _wm.path.split("/").pop() : "";
-    if (an) an.checked = !!_wm.path;
-    const zurueck = document.getElementById("anim-wm-standard");
-    if (zurueck) zurueck.hidden = eingebaut || !_wm.path;
-    if (opts) opts.hidden = !_wm.path;
-    const w = document.getElementById("anim-wm-w");
-    if (w) { w.value = _wm.w; const v = document.getElementById("anim-wm-w-v"); if (v) v.textContent = _wm.w + " %"; }
-    const op = document.getElementById("anim-wm-op");
-    if (op) { op.value = Math.round(_wm.op * 100); const v = document.getElementById("anim-wm-op-v"); if (v) v.textContent = Math.round(_wm.op * 100) + " %"; }
-  }
-  /** WYSIWYG-Spiegel zu `_watermark_html` (core/animator.py): gleiches Bild,
-   *  gleiche Ecke, Breite in % der VORSCHAU-Breite (Render: % der Videobreite). */
-  async function watermarkPreviewAnwenden() {
-    const layer = document.getElementById("anim-overlay-preview");
-    if (!layer) return;
-    // Schneller Weg: Bild steht schon — nur Lage/Größe nachziehen (kein
-    // Bridge-Roundtrip, und der Doppel-Bug (zwei parallele Läufe hängten
-    // je ein <img> an) kann gar nicht erst entstehen.
-    const alt = layer.querySelector("#anim-wm-preview");
-    if (alt && _wm.path && alt.dataset.wmPath === _wm.path) {
-      _wmPreviewStyle(alt);
-      return;
-    }
-    const lauf = ++_wmPrevLauf;
-    alt?.remove();
-    if (!_wm.path) return;
-    let uri = "";
-    try {
-      const r = await api().watermark_data(_wm.path);
-      uri = (r && r.ok && r.data_uri) || "";
-    } catch (_) {}
-    if (!uri || lauf !== _wmPrevLauf) return;   // veralteter Lauf → verwerfen
-    layer.querySelector("#anim-wm-preview")?.remove();
-    const img = document.createElement("img");
-    img.id = "anim-wm-preview";
-    img.dataset.wmPath = _wm.path;
-    img.src = uri;
-    img.addEventListener("load", () => _wmAbstandSetzen());
-    _wmPreviewStyle(img);
-    _wmDragAktivieren(img, layer);
-    layer.appendChild(img);
-  }
   // 30.09.2026 (Skin „Frei") — das Logo sitzt auf einer dunklen Plakette. Innenabstand
   // in % der Breite (Render: vw) — SYNCHRON zu WM_PILLE in core/animator.py.
   const WM_PILLE = { px: 1.6, py: 0.9, bg: "rgba(14,16,22,0.62)" };
-  function _wmPreviewStyle(img) {
-    const pille = (typeof _ovSkin === "function") && _ovSkin() === "frei";
-    const pl = pille ? ` padding:${WM_PILLE.py}% ${WM_PILLE.px}%; background:${WM_PILLE.bg}; border-radius:999px; box-sizing:content-box;` : "";
-    img.style.cssText = `position:absolute; left:${_wm.x}%; top:${_wm.y}%; width:${_wm.w}%; height:auto; opacity:${_wm.op}; z-index:40; pointer-events:auto; cursor:move; user-select:none; -webkit-user-drag:none;${pl}`;
-    _wmAbstandSetzen();
-  }
-  /** 30.09.2026 (Skin „Frei") — sitzt das Logo oben in der Mitte, rücken die oberen
-   *  Einblendungen darunter (--rz-wm-unten, CSS in module.css). Gemessen im Pixel-
-   *  raum des Overlay-Layers (= Videopixel). SYNCHRON zu wasserzeichen_unten_px
-   *  in core/animator.py. */
-  function _wmAbstandSetzen() {
-    const layer = document.getElementById("anim-overlay-preview");
-    if (!layer) return;
-    const img = layer.querySelector("#anim-wm-preview");
-    const pille = (typeof _ovSkin === "function") && _ovSkin() === "frei";
-    const lh = layer.offsetHeight || 0, lw = layer.offsetWidth || 0;
-    let unten = 0;
-    if (pille && img && img.offsetHeight > 0 && lh > 0 && lw > 0) {
-      const mitte = (img.offsetLeft + img.offsetWidth / 2) / lw;
-      if (img.offsetTop < lh * 0.2 && mitte > 0.3 && mitte < 0.7) {
-        const k = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
-        unten = img.offsetTop + img.offsetHeight + 18 * k;
-      }
-    }
-    if (unten > 0) layer.style.setProperty("--rz-wm-unten", unten.toFixed(1) + "px");
-    else layer.style.removeProperty("--rz-wm-unten");
-  }
-  /** 30.09.2026 — Logo waagrecht mittig an den oberen Rand (wie bei Komoot). */
-  function _wmObenMittig() {
-    const pille = (typeof _ovSkin === "function") && _ovSkin() === "frei";
-    _wm.x = +(50 - _wm.w / 2 - (pille ? WM_PILLE.px : 0)).toFixed(2);
-    _wm.y = 2.5;
-    _wmPersist();
-    try { watermarkPreviewAnwenden(); } catch (_) {}
-  }
-  /** 30.08.2026 (Marc: „mit der maus hinziehen, wo es hin soll") — das Logo
-   *  in der Vorschau frei verschieben; gespeichert wird die linke obere Ecke
-   *  in % der Videofläche, wortgleich zu `wasserzeichen_lage` im Render. */
-  function _wmDragAktivieren(img, layer) {
-    img.addEventListener("mousedown", (e) => {
-      e.preventDefault(); e.stopPropagation();
-      const r = layer.getBoundingClientRect();
-      const startX = e.clientX, startY = e.clientY;
-      const beginX = _wm.x, beginY = _wm.y;
-      const move = (ev) => {
-        _wm.x = Math.max(0, Math.min(98, beginX + ((ev.clientX - startX) / Math.max(1, r.width)) * 100));
-        _wm.y = Math.max(0, Math.min(98, beginY + ((ev.clientY - startY) / Math.max(1, r.height)) * 100));
-        img.style.left = _wm.x + "%";
-        img.style.top = _wm.y + "%";
-      };
-      const up = () => {
-        window.removeEventListener("mousemove", move);
-        window.removeEventListener("mouseup", up);
-        _wmAbstandSetzen();
-        _wmPersist();
-      };
-      window.addEventListener("mousemove", move);
-      window.addEventListener("mouseup", up);
-    });
-  }
-  function _wmLaden() {
-    let a = null;
-    try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
-    const w = a && a.watermark;
-    // 01.09.2026: Wer das eingebaute Logo früher von Hand ausgewählt hat, trägt
-    // einen absoluten Pfad im Projekt — der zeigt auf einem anderen Rechner ins
-    // Leere. Bekannte Dateinamen werden auf den Sentinel gehoben.
-    const _wmMigrieren = (pfad) => {
-      const datei = String(pfad || "").split("/").pop().toLowerCase();
-      if (String(pfad || "").startsWith("@")) return "@lockup-white";
-      const eigene = new Set([
-        "wm-lockup-white.png", "logo-lockup.png", "gps-studio-lockup-white-watermark.png",
-        "wm-lockup-color.png", "gps-studio-lockup-color.png",
-        "wm-mark-white.png", "gps-studio-mark-white-clean.png", "gps-studio-logo-weiss-ohne-text.png",
-        "wm-mark-orange.png", "gps-studio-logo-orange-ohne-text.png",
-      ]);
-      return eigene.has(datei) ? "@lockup-white" : pfad;
-    };
-    if (w && typeof w === "object") {
-      const breite = Math.max(3, Math.min(40, +w.w || 12));
-      let x = +w.x, y = +w.y;
-      if (!isFinite(x) || !isFinite(y)) {
-        // Migration v0.9.632-Ecken → freie Lage (wortgleich zu wasserzeichen_lage)
-        const pos = ["tl", "tr", "bl", "br"].includes(w.pos) ? w.pos : "br";
-        x = (pos === "tl" || pos === "bl") ? 2 : Math.max(2, 98 - breite);
-        y = (pos === "tl" || pos === "tr") ? 2 : 80;
-      }
-      _wm = { path: _wmMigrieren(String(w.path || "")), x: Math.max(0, Math.min(98, x)),
-              y: Math.max(0, Math.min(98, y)), w: breite,
-              op: Math.max(0.1, Math.min(1, +w.op || 0.9)) };
-    } else {
-      // 01.09.2026 (Marc: „für alle Projekte, die zwei Beta-Tester schon
-      // haben, kommt jetzt das Wasserzeichen nicht rein") — hier wird KEIN
-      // Standard mehr gesetzt. Neue Projekte bringen ihn aus dem Store mit
-      // (core/sessions.py `_project_from_defaults`), bestehende bleiben ohne.
-      _wm = { path: "", x: WM_STANDARD.x, y: WM_STANDARD.y, w: WM_STANDARD.w, op: WM_STANDARD.op };
-    }
-    _wmUiSync();
-    // ui-falle-ok: reine Vorschau-Kür — Fehler loggt watermarkPreviewAnwenden nicht kritisch
-    try { watermarkPreviewAnwenden(); } catch (_) {}
-  }
-  async function _wmEigenesWaehlen() {
-    const res = await api().pick_file("open", ["Bilder (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false); // warte-ok: Systemdialog
-    const pfad = Array.isArray(res) ? res[0] : "";
-    if (!pfad) return false;
-    _wmEigen = pfad; _wm.path = pfad;
-    _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
-    return true;
-  }
-  function _wmBinden() {
-    // 01.09.2026 (Marc): „ein ganz einfacher Knopf, Wasserzeichen an oder aus,
-    // und dann eben eine Auswahl."
-    const an = document.getElementById("anim-wm-on");
-    if (an) an.onchange = () => {
-      if (an.checked) {
-        // Einschalten nimmt das GPS-Studio-Logo — oder das zuletzt gewählte
-        // eigene Bild, falls es eines gab.
-        _wm.path = _wmEigen || WM_STANDARD.path;
-      } else {
-        _wm.path = "";
-      }
-      _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
-    };
-    const eigen = document.getElementById("anim-wm-eigen");
-    if (eigen) eigen.onclick = () => { _wmEigenesWaehlen().then(ok => { if (!ok) _wmUiSync(); }); };
-    const obenMitte = document.getElementById("anim-wm-obenmitte");
-    if (obenMitte) obenMitte.onclick = () => _wmObenMittig();
-    const zurueck = document.getElementById("anim-wm-standard");
-    if (zurueck) zurueck.onclick = () => {
-      _wm.path = WM_STANDARD.path;
-      _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
-    };
-    const w = document.getElementById("anim-wm-w");
-    if (w) w.oninput = () => {
-      // 02.09.2026 (Beta-Tester: „lässt sich in der Größe verändern,
-      // verschiebt sich dadurch aber"): Gespeichert wird die LINKE OBERE Ecke.
-      // Wird das Logo größer, wächst es nach rechts unten — es wandert also
-      // beim Größerziehen aus seiner Ecke heraus. Jetzt bleibt die MITTE
-      // stehen: die Ecke wird um die halbe Änderung zurückgesetzt.
-      const alt_w = _wm.w;
-      const neu_w = +w.value || 12;
-      const img = document.getElementById("anim-wm-preview");
-      const lay = document.getElementById("anim-overlay-preview");
-      if (img && lay && img.naturalWidth > 0 && lay.clientHeight > 0) {
-        // Höhe in % der Fläche folgt aus dem Seitenverhältnis des Bildes.
-        const hoehe = (br) => br * (img.naturalHeight / img.naturalWidth)
-                            * (lay.clientWidth / lay.clientHeight);
-        _wm.x = Math.max(0, Math.min(98, _wm.x + (alt_w - neu_w) / 2));
-        _wm.y = Math.max(0, Math.min(98, _wm.y + (hoehe(alt_w) - hoehe(neu_w)) / 2));
-      }
-      _wm.w = neu_w;
-      _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
-    };
-    const op = document.getElementById("anim-wm-op");
-    if (op) op.oninput = () => { _wm.op = (+op.value || 90) / 100; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
-  }
 
   function _ghostSpurenLaden() {
     let a = null;
@@ -4247,15 +3706,6 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.443 — der Diagramm-Layer wird EXAKT wie der Overlay-Layer
       // dimensioniert (Render-Pixel-Raum + transform-scale auf Letterbox),
       // sonst bleibt er 0×0 und `overflow:hidden` schneidet die iframes weg.
-      const clayer = document.getElementById("anim-charts-preview");
-      if (clayer) {
-        clayer.style.width  = rw + "px";
-        clayer.style.height = rh + "px";
-        clayer.style.transform = `scale(${scale})`;
-        clayer.style.transformOrigin = "top left";
-        clayer.style.setProperty("--overlay-scale", overlayScale);
-        try { _chartsPreviewRender(false); } catch (_) {}
-      }
     }
 
     if (badge) {
@@ -5758,6 +5208,12 @@ function mountAnimator(body, headerActions, opts) {
   }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
+  /** Rückblick in Metern (0 = aus): Pfeilrichtung aus der gezeichneten Linie (util.js kursRueckblickAn). */
+  function dotRueckblick() {
+    if (!document.getElementById("anim-dot-rb")?.checked) return 0;
+    const v = parseFloat(document.getElementById("anim-dot-rb-m")?.value);
+    return isFinite(v) ? Math.max(20, Math.min(400, v)) : 100;
+  }
   function dotGlaettung() {
     const el = document.getElementById("anim-dot-smooth");
     const v = el ? parseFloat(el.value) : 5;
@@ -5772,7 +5228,7 @@ function mountAnimator(body, headerActions, opts) {
    *  Render gespiegelt als __rzKurs in core/animator.py). */
   function _kursAn(coords, i) {
     // 30.09.2026 — Schnell-Video: Richtung aus dem Rückblick der gezeichneten Linie (marker_dot_rueckblick_m, util.js)
-    const _rb = +(_activeProject?.[_MODKEY]?.marker_dot_rueckblick_m) || 0;
+    const _rb = dotRueckblick();
     if (_rb > 0 && window.kursRueckblickAn) return kursRueckblickAn(coords, i, _rb);
     // 29.09.2026 — glatt entlang der Strecke, am gebrochenen Index (util.js kursGlattAn)
     const g = kursGlaettung(dotGlaettung());
@@ -7577,7 +7033,7 @@ function mountAnimator(body, headerActions, opts) {
   let _scrubRaf = 0, _scrubZiel = null, _scrubLetzt = null;   // 04.09.2026 — Scrub-Zusammenfassung je Bild
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
-    try { _skAnwenden(_sgZeitAusAnker(anchor)); } catch (_) {}   // §71 Titel/Schlusskarte am Zeitregler
+    try { _ovTimingAt(_sgZeitAusAnker(anchor), (currentCoords && currentCoords.length > 1) ? Math.max(0, Math.min(1, anchor)) : 0); } catch (_) {}   // 30.09.2026 — Container-Zeiten am Zeitregler
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
     // Wird von selectEvent() benutzt — sonst löscht der sync sofort wieder
     // die gerade gesetzte Per-Property-Selektion.
@@ -9660,7 +9116,32 @@ function mountAnimator(body, headerActions, opts) {
     });
   }
 
+  /** 30.09.2026 (eine Pipeline, docs/OVERLAY-CONTAINER.md Q10) — transparenter Export über die
+   *  Szene: im Render-Fenster mit __rzRenderMode.transparent alle Ebenen der Grundkarte aus
+   *  (Hintergrund, Raster/Luftbild, Schummerung, Vektor-Kacheln inkl. Beschriftung). Spur,
+   *  Laufpunkt, Schilder und Foto-Pins (GeoJSON) bleiben, der Hintergrund der Seite ist
+   *  durchsichtig (szene.py), die Aufnahme nimmt den Alpha-Kanal mit (ProRes 4444). */
+  function _alphaRenderEbenen() {
+    if (!map || !(window.__rzRenderMode && window.__rzRenderMode.transparent)) return;
+    let st = null;
+    try { st = map.getStyle(); } catch (_) { return; }
+    const quellen = (st && st.sources) || {};
+    for (const l of (st && st.layers) || []) {
+      let weg = l.type === "background" || l.type === "raster" || l.type === "hillshade" || l.type === "color-relief";
+      if (!weg && l.source) { const q = quellen[l.source]; weg = !!q && (q.type === "vector" || q.type === "raster" || q.type === "raster-dem"); }
+      if (!weg) continue;
+      try { if (map.getLayoutProperty(l.id, "visibility") !== "none") map.setLayoutProperty(l.id, "visibility", "none"); } catch (_) {}
+    }
+    try { if (typeof map.setSky === "function") map.setSky({}); } catch (_) {}
+    try { if (typeof map.setFog === "function") map.setFog(null); } catch (_) {}
+    if (!map.__rzAlphaHook) {
+      map.__rzAlphaHook = true;
+      let raf = 0;
+      map.on("styledata", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; _alphaRenderEbenen(); }); });
+    }
+  }
   function applyAlphaPreview() {
+    if (window.__rzRenderMode && window.__rzRenderMode.transparent) { _alphaRenderEbenen(); return; }
     // Im Alpha-Modus wird im Render KEINE Karte sein. Damit der User das
     // VOR dem Render sieht, legen wir einen dunklen Background-Layer
     // ZWISCHEN Karten-Tiles und Track-Layer (Mapbox-Z-Stack: beforeId =
@@ -10293,7 +9774,7 @@ function mountAnimator(body, headerActions, opts) {
         onSchildText:      (id, griff, neu) => _sgSpurText(id, griff, neu),
         onSchildZiehen:    (id, griff, neu) => { try { _sgSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[sg-spur] " + err); } },
         onOverlaysOffen:   (v) => { _ovSpurOffen = !!v; try { localStorage.setItem("rz-ov-spur-offen", v ? "1" : "0"); } catch (_) {} },
-        onOverlayOeffnen:  (id) => { try { _ovBoxModal(id); } catch (err) { applog("warn", "[ov-spur] " + err); } },
+        onOverlayOeffnen:  (id) => { try { _ctEditorOeffnen(id); } catch (err) { applog("warn", "[ov-spur] " + err); } },
         onOverlayText:     (id, griff, neu) => _ovSpurText(id, griff, neu),
         onOverlayVorschau: (id, griff, neu) => _ovSpurVorschau(id, griff, neu),
         onOverlayZiehen:   (id, griff, neu, seg) => { try { _ovSpurGezogen(id, griff, neu, seg); } catch (err) { applog("warn", "[ov-spur] " + err); } },
@@ -13315,7 +12796,6 @@ function mountAnimator(body, headerActions, opts) {
     // Initial-Bind nach Mount (Buttons existieren schon im DOM)
     _animPhotosBindUi();
     _animSignsBindUi();
-    try { _chartsInit(); } catch (_) {}   // v0.9.443 — Diagramm-Overlays laden + Liste/Vorschau
     if (_isReiseroute) _routeBindUi();  // v0.9.205/208 — Route nur im Reiseroute-Modul
     // v0.9.222 — _routeRestore/_routeRestoreGpx leben in DIESEM whenApiReady-
     // Closure. Der onGpxLoaded-Handler (mountAnimator-Scope, eine Ebene höher)
@@ -13612,15 +13092,26 @@ function mountAnimator(body, headerActions, opts) {
     if (smRow) smRow.hidden = (dotStil() !== "arrow");
     const smV = document.getElementById("anim-dot-smooth-v");
     if (smV) smV.textContent = dotGlaettung() + " (" + kursGlaettung(dotGlaettung()).basisM + " m)";
+    const rbAn = !!document.getElementById("anim-dot-rb")?.checked;
+    const rbRow = document.getElementById("anim-dot-rb-row");
+    if (rbRow) rbRow.hidden = !rbAn;
+    const rbV = document.getElementById("anim-dot-rb-v");
+    if (rbV) rbV.textContent = (parseFloat(document.getElementById("anim-dot-rb-m")?.value) || 100) + " m";
+    const smEl = document.getElementById("anim-dot-smooth");
+    if (smEl) smEl.disabled = rbAn;
     if (!speichern) return;
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.laufpunkt_geaendert", "Laufpunkt geändert")); } catch (_) {}   // 10.09.2026
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(),
-                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung() };
+                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(),
+                    marker_dot_rueckblick_m: dotRueckblick() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
     else if (typeof saveSettings === "function") saveSettings({ animator: patch });
   }
 
   document.getElementById("anim-dot-smooth")?.addEventListener("input", () => dotGeaendert(true));
+  document.getElementById("anim-dot-rb")?.addEventListener("change", () => dotGeaendert(true));
+  document.getElementById("anim-dot-rb-m")?.addEventListener("input", () => dotGeaendert(false));
+  document.getElementById("anim-dot-rb-m")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-show")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-style")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-size")?.addEventListener("input", () => dotGeaendert(false));
@@ -13675,6 +13166,10 @@ function mountAnimator(body, headerActions, opts) {
       if (gr && a.marker_dot_size) gr.value = a.marker_dot_size;
       const sm = document.getElementById("anim-dot-smooth");
       if (sm && a.marker_dot_smooth != null) sm.value = a.marker_dot_smooth;
+      const rb = document.getElementById("anim-dot-rb"), rbm = document.getElementById("anim-dot-rb-m");
+      const rbW = +a.marker_dot_rueckblick_m || 0;
+      if (rb) rb.checked = rbW > 0;
+      if (rbm && rbW > 0) rbm.value = rbW;
       dotGeaendert(false);
   }
 
@@ -13960,115 +13455,12 @@ function mountAnimator(body, headerActions, opts) {
     return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
   }
 
-  // Gespeicherte Auswahl (Projekt) → {order:[alle ids in Reihenfolge], on:Set}
-  function _ovReadOrder(box) {
-    const cat = _ovCat(box).map(f => f.id);
-    let saved = _activeProject?.[_MODKEY]?.["overlay_" + box + "_fields"];
-    if (!Array.isArray(saved) || !saved.length) saved = OVERLAY_DEFAULT_FIELDS[box];
-    saved = saved.filter(id => cat.includes(id));
-    const on = new Set(saved);
-    const order = saved.concat(cat.filter(id => !on.has(id)));
-    return { order, on };
+  // 30.09.2026 — Feld-Verfügbarkeit hängt am Track: Container-Liste und Vorschau nachziehen.
+  function _ovRebuildEditors() {
+    try { _ctListeZeichnen(); renderOverlayPreview(); } catch (e) { applog("warn", "[container] " + e); }
+    // Feld-Verfügbarkeit hat sich evtl. geändert (Reise ↔ Einzeltour) → offenen Editor neu zeichnen
+    try { if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog("warn", "[container] Editor: " + e); }
   }
-  // Aktuelle Auswahl aus dem DOM (Reihenfolge + nur angehakte, verfügbare Felder)
-  function _ovGetFields(box) {
-    const cont = document.getElementById("anim-ov-" + box + "-fields");
-    if (!cont) return OVERLAY_DEFAULT_FIELDS[box].slice();
-    return Array.from(cont.querySelectorAll(".ov-fieldrow"))
-      .filter(r => !r.classList.contains("unavail") && r.querySelector("input")?.checked)
-      .map(r => r.dataset.fid);
-  }
-  function _ovPersist(box) {
-    if (_animUndoCtrl) { try { _animUndoCtrl.push("Stats-Felder", { force: true }); } catch (_) {} }
-    saveProjectSettings(_MODKEY, { ["overlay_" + box + "_fields"]: _ovGetFields(box) });
-  }
-  // v0.9.334/393 — Feld umbenennen (pro Projekt persistiert). Sensorfelder
-  // (sensor:<key>) haben zusätzlich eine Einheit; Standard-Felder (moving_time …)
-  // nur ein Label — dann wird die Einheit-Zeile weggelassen.
-  function _ovRenameField(id) {
-    if (typeof id !== "string") return;
-    const isSensor = id.startsWith("sensor:");
-    const key = isSensor ? id.slice(7) : id;   // Override-Key: Sensor-Key bzw. Feld-id
-    if (!isSensor && _OV_FALLBACK_LABEL[id] == null) return;  // kein bekanntes Standard-Feld
-    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const base = isSensor
-      ? (_ovSensorMeta(key) || { key: key, label: key, unit: "" })
-      : { key: key, label: t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id), unit: "" };
-    const o = _ovOverrides()[key];
-    const cur = isSensor
-      ? _ovResolvedMeta(key)
-      : { label: (o && o.label) || base.label, unit: base.unit };
-    openModal({
-      title: t("animator.overlay.rename_title", "Feld umbenennen"),
-      body: `<div style="display:flex;flex-direction:column;gap:12px;min-width:280px;">`
-        + `<label>${t("animator.overlay.rename_label", "Bezeichnung")}<br>`
-        + `<input id="ovrn-label" type="text" value="${esc(cur.label)}" style="width:100%;box-sizing:border-box;"></label>`
-        + (isSensor
-            ? `<label>${t("animator.overlay.rename_unit", "Einheit")}<br>`
-              + `<input id="ovrn-unit" type="text" value="${esc(cur.unit)}" style="width:100%;box-sizing:border-box;"></label>`
-            : "")
-        + `<div class="muted" style="font-size:12px;">${t("animator.overlay.rename_default", "Standard")}: ${esc(base.label)}${base.unit ? (" · " + esc(base.unit)) : ""}</div>`
-        + `</div>`,
-      footer: `<button class="btn" id="ovrn-reset">${t("animator.overlay.rename_reset", "Zurücksetzen")}</button>`
-        + `<button class="btn btn-primary" id="ovrn-save">${t("common.save", "Speichern")}</button>`,
-    });
-    const apply = (ov) => {
-      const all = Object.assign({}, _ovOverrides());
-      if (ov === null) delete all[key]; else all[key] = ov;
-      if (_settingsCache) { _settingsCache[_MODKEY] = _settingsCache[_MODKEY] || {}; _settingsCache[_MODKEY].overlay_field_overrides = all; }
-      saveProjectSettings(_MODKEY, { overlay_field_overrides: all });
-      try { openModal({}).close(); } catch (_) {}
-      _ovRebuildEditors(); renderOverlayPreview();
-    };
-    document.getElementById("ovrn-save").onclick = () => {
-      const lbl = (document.getElementById("ovrn-label").value || "").trim();
-      const unitEl = document.getElementById("ovrn-unit");
-      const unit = unitEl ? (unitEl.value || "").trim() : base.unit;
-      // Nichts geändert ggü. Default → Override entfernen (sauber halten).
-      if (lbl === base.label && unit === base.unit) apply(null);
-      else apply({ label: lbl, unit: unit });
-    };
-    document.getElementById("ovrn-reset").onclick = () => apply(null);
-    setTimeout(() => { try { document.getElementById("ovrn-label").focus(); } catch (_) {} }, 60);
-  }
-  function _ovBuildEditor(box) {
-    const cont = document.getElementById("anim-ov-" + box + "-fields");
-    if (!cont) return;
-    const { order, on } = _ovReadOrder(box);
-    cont.innerHTML = order.map((id, k) => {
-      const f = _ovCat(box).find(x => x.id === id);
-      const avail = _ovAvail(f.req);
-      const checked = on.has(id) && avail;
-      return `<div class="ov-fieldrow${avail ? "" : " unavail"}" data-fid="${id}">`
-        + `<span class="ov-grip" title="${t("animator.overlay.reorder", "Ziehen zum Sortieren")}">⠿</span>`
-        + `<label class="ov-fieldlbl"><input type="checkbox" ${checked ? "checked" : ""} ${avail ? "" : "disabled"}>`
-        + `<span>${_ovFieldLabel(id)}</span></label>`
-        // v0.9.334 — Sensorfelder umbenennen / Einheit ändern (Nutzer-Wunsch).
-        // v0.9.393 — auch Standard-Felder umbenennbar (z.B. „Bewegungszeit" → „Gehzeit"/„Flugzeit").
-        + ((typeof id === "string" && avail && (id.startsWith("sensor:") || _OV_FALLBACK_LABEL[id] != null))
-            ? `<button type="button" class="ov-rename" data-fid="${id}" title="${t("animator.overlay.rename", "Umbenennen")}">✎</button>` : "")
-        + (avail ? "" : `<span class="ov-unavail">${t("animator.statsfield.unavail", "—")}</span>`)
-        // 25.09.2026 — ▲▼ als Rückfall zum Ziehen (rzSortierbar, s. unten)
-        + (avail ? `<span class="ov-sort">${rzSortPfeile(k, order.length)}</span>` : "")
-        + `</div>`;
-    }).join("");
-    // Checkbox-Änderung
-    cont.querySelectorAll(".ov-fieldrow input").forEach(cb => {
-      cb.addEventListener("change", () => { _ovPersist(box); renderOverlayPreview(); });
-    });
-    // v0.9.334 — Umbenennen-Knopf pro Sensorfeld
-    cont.querySelectorAll(".ov-rename").forEach(btn => {
-      btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); _ovRenameField(btn.dataset.fid); });
-    });
-    // Sortieren. v0.9.334 (Nutzer-Bug Windows) hatte das HTML5-Drag&Drop für WebView2
-    // nachgebessert (dropEffect, setData, Container-Drop-Zone) — geholfen hat es nicht:
-    // 25.09.2026 (Beta-Tester Windows, v0.9.722, Video: am ⠿ bewegt sich nichts). Jetzt per
-    // Pointer-Ereignissen (ui/js/util.js rzSortierbar) plus ▲▼. Die Reihenfolge steht im DOM,
-    // _ovPersist liest sie von dort; nicht verfügbare Felder (`unavail`) bleiben stehen.
-    rzSortierbar(cont, { zeile: ".ov-fieldrow", griff: ".ov-grip",
-                         onEnde: () => { _ovPersist(box); renderOverlayPreview(); } });
-  }
-  function _ovRebuildEditors() { _ovBuildEditor("totals"); _ovBuildEditor("live"); try { _ovExtraListe(); } catch (_) {} }
   // Vorschau-Wert (Endzustand) für ein Feld — WYSIWYG-Annäherung.
   function _ovFieldValue(id) {
     // v0.9.330 — FIT-Sensorfeld: Endzustand = letzter vorhandener Messwert.
@@ -14285,97 +13677,10 @@ function mountAnimator(body, headerActions, opts) {
         if (v != null) _ovWertSetzen(el, v);
       });
     }
-    _ovUpdateEleProfileAt(frac);
-    // v0.9.443 — Diagramm-Overlays synchron mittreiben (Distanz-Fraktion, wie im Render).
-    try { _chartsPreviewAdvance(frac); } catch (_) {}
+    // 30.09.2026 — Höhenprofile + Datendiagramme der Container mittreiben
+    try { _ctDiagrammeAt(frac); } catch (e) { applog("warn", "[container] Diagramme: " + e); }
   }
 
-  // ── Höhenprofil: Ausschnitt (09.09.2026, Marc: „bau den Schalter") ──────────
-  // „reise": eine Kurve über alle Etappen, Etappengrenzen als Marken.
-  // „etappe": nur die laufende Etappe (Index-Bereich ihrer Punkte); das Profil
-  // baut sich mit jedem Etappenwechsel neu auf. Ohne Kette gibt es nichts zu
-  // wählen — dann ist der Ausschnitt der ganze Track.
-  function _ovEleScope() {
-    const sel = document.getElementById("anim-ov-ele-scope");
-    const kette = _reiseAktiv() && _reiseBahn && _reiseBahn.teile && _reiseBahn.teile.length > 1;
-    if (sel) sel.hidden = !kette;
-    return (kette && sel && sel.value === "etappe") ? "etappe" : "reise";
-  }
-  /** Ausschnitt der Höhenreihe für den Bahn-Index `idx`: {von, bis, name, marken[]}. */
-  function _ovEleAusschnitt(idx) {
-    const n = (_gpxElevations || []).length;
-    const alles = { von: 0, bis: Math.max(0, n - 1), name: "", marken: [] };
-    if (!_reiseAktiv() || !_reiseBahn || !_reiseBahn.teile || _reiseBahn.teile.length < 2) return alles;
-    if (_ovEleScope() === "etappe") {
-      const i = Math.max(0, Math.min(n - 1, Math.round(+idx || 0)));
-      const k = Math.max(0, Math.min(_reiseBahn.teile.length - 1, _reiseBahn.teilVon[i] || 0));
-      const te = _reiseBahn.teile[k];
-      const e = _reiseBahn.etappen[k];
-      return { von: te.von, bis: te.bis, k, name: (e && e.tour && e.tour.name) || "", marken: [] };
-    }
-    // Ganze Reise: Marken an jedem Etappenbeginn ab der zweiten
-    return Object.assign(alles, { marken: _reiseBahn.teile.slice(1).map(te => te.von) });
-  }
-  let _ovEleAusschnittZuletzt = null;
-  // Höhenprofil progressiv bis zum Marker füllen (wie ele-active-line im Render).
-  function _ovUpdateEleProfileAt(frac) {
-    const line = document.getElementById("ov-ele-line");
-    if (!line || !_gpxElevations || _gpxElevations.length < 2) return;
-    const W = 1000, H = 120, PY = 10;
-    const n = _gpxElevations.length;
-    let idx = Math.round(Math.max(0, Math.min(1, frac)) * (n - 1));
-    if (idx < 0) idx = 0; else if (idx > n - 1) idx = n - 1;
-    const a = _ovEleAusschnitt(idx);
-    const key = a.von + ":" + a.bis;
-    const teil = _gpxElevations.slice(a.von, a.bis + 1);
-    const eMin = Math.min(...teil), eMax = Math.max(...teil);
-    const eRng = (eMax - eMin) || 1;
-    const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
-    const xOf = (i) => ((i - a.von) / Math.max(1, a.bis - a.von)) * W;
-    if (key !== _ovEleAusschnittZuletzt) {
-      // Etappenwechsel (oder anderer Ausschnitt): Hintergrundkurve, Marken, Kopfzeile neu
-      _ovEleAusschnittZuletzt = key;
-      const bg = document.getElementById("ov-ele-bg");
-      if (bg) {
-        bg.setAttribute("points", teil.map((e, i) => `${xOf(a.von + i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" "));
-        // Etappen-Marken neu setzen (die Kette kann nach dem Aufbau der Box entstanden sein)
-        const svg = bg.parentNode;
-        svg.querySelectorAll(".ov-ele-marke").forEach(m => m.remove());
-        const anker = document.getElementById("ov-ele-fill");
-        a.marken.forEach(i => {
-          const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-          l.setAttribute("class", "ov-ele-marke");
-          l.setAttribute("x1", xOf(i).toFixed(1)); l.setAttribute("x2", xOf(i).toFixed(1));
-          l.setAttribute("y1", "0"); l.setAttribute("y2", String(H));
-          l.setAttribute("stroke", "rgba(255,255,255,0.35)"); l.setAttribute("stroke-width", "1"); l.setAttribute("stroke-dasharray", "3 3");
-          if (anker) svg.insertBefore(l, anker); else svg.appendChild(l);
-        });
-      }
-      const mm = document.querySelector(".ov-ele-minmax");
-      if (mm) mm.textContent = `${t("animator.overlay.ele_min", "Min")} ${Math.round(eMin)} m · ${t("animator.overlay.ele_max", "Max")} ${Math.round(eMax)} m`;
-      const tt = document.querySelector(".ov-ele-title");
-      if (tt) tt.textContent = t("animator.overlay.elevation_title") + (a.name ? " · " + a.name : "");
-    }
-    const pairs = [];
-    for (let i = a.von; i <= Math.min(idx, a.bis); i++) pairs.push([xOf(i), yOf(_gpxElevations[i])]);
-    if (!pairs.length) pairs.push([xOf(a.von), yOf(_gpxElevations[a.von])]);
-    const ps = pairs.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-    line.setAttribute("points", ps);
-    const fill = document.getElementById("ov-ele-fill");
-    if (fill && pairs.length >= 2) {
-      fill.setAttribute("points", `${pairs[0][0].toFixed(1)},${H} ${ps} ${pairs[pairs.length - 1][0].toFixed(1)},${H}`);
-    }
-    const dot = document.getElementById("ov-ele-dot");
-    if (dot && pairs.length) {
-      dot.setAttribute("cx", pairs[pairs.length - 1][0].toFixed(1));
-      dot.setAttribute("cy", pairs[pairs.length - 1][1].toFixed(1));
-    }
-  }
-  window.__rzOvEle = (frac) => { _ovUpdateEleProfileAt(frac); const b = document.getElementById("ov-ele-bg");
-    return { scope: _ovEleScope(), titel: (document.querySelector(".ov-ele-title") || {}).textContent || "",
-             bgPunkte: b ? b.getAttribute("points").split(" ").length : 0,
-             marken: document.querySelectorAll(".ov-ele-marke").length,
-             minmax: (document.querySelector(".ov-ele-minmax") || {}).textContent || "" }; };   // Prüfstand
   // ════════════════════════════════════════════════════════════════════════
   // v0.9.443 — Daten-Diagramme als Overlay
   // Jedes Diagramm ist ein voll gestaltetes Daten-Animator-Chart, im Render als
@@ -14409,252 +13714,15 @@ function mountAnimator(body, headerActions, opts) {
     return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0];
   }
 
-  function _chartDefault() {
-    return {
-      id: _chartNewId(),
-      series: (_chartSeries[0] && _chartSeries[0].id) || "ele",
-      series_b: "",
-      position: "br", width: 640, height: 300,
-      fg_opacity: 100, bg_opacity: 100,
-      // v0.9.447 — Achsen pro Diagramm: an/aus + Schriftgröße (in Video-Pixeln
-      // bei 1080p; skaliert mit der Render-Auflösung).
-      show_axes: true, axis_font_size: 20,
-      from_s: 0, to_s: 0, style: null,
-    };
-  }
 
-  function _chartSeriesOptions(sel) {
-    if (!_chartSeries.length) {
-      return `<option value="${_chartEsc(sel || "ele")}">${_chartEsc(sel || "ele")}</option>`;
-    }
-    return _chartSeries.map((s) =>
-      `<option value="${_chartEsc(s.id)}"${s.id === sel ? " selected" : ""}>${_chartEsc(s.label)}${s.unit ? " (" + _chartEsc(s.unit) + ")" : ""}</option>`).join("");
-  }
-  function _chartPosOptions(sel) {
-    return _CHART_POS.map((p) =>
-      `<option value="${p}"${p === sel ? " selected" : ""}>${_chartEsc(t("animator.pos." + p))}</option>`).join("");
-  }
 
-  function _chartsPersist() {
-    try {
-      if (typeof saveProjectSettings === "function") {
-        saveProjectSettings(_MODKEY, { charts: _charts.map((c) => Object.assign({}, c)) });
-      }
-    } catch (_) {}
-  }
 
-  function _chartsLoad() {
-    let a = null;
-    try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
-    if (!a && typeof _settingsCache !== "undefined") a = (_settingsCache && _settingsCache[_MODKEY]) || {};
-    const list = (a && Array.isArray(a.charts)) ? a.charts : [];
-    _charts = list.map((c) => ({
-      id: c.id || _chartNewId(),
-      series: c.series || "ele",
-      series_b: c.series_b || "",
-      position: _CHART_POS.includes(c.position) ? c.position : "br",
-      width: Math.max(300, Math.min(1600, parseInt(c.width, 10) || 640)),
-      height: Math.max(160, Math.min(900, parseInt(c.height, 10) || 300)),
-      // v0.9.444 — Vordergrund/Hintergrund getrennt; altes `opacity` → Vordergrund.
-      fg_opacity: _chartClampOp(c.fg_opacity != null ? c.fg_opacity : (c.opacity != null ? c.opacity : 100), 100),
-      bg_opacity: _chartClampOp(c.bg_opacity, 100),
-      show_axes: c.show_axes !== false,
-      axis_font_size: Math.max(6, Math.min(80, parseInt(c.axis_font_size, 10) || 20)),
-      from_s: parseFloat(c.from_s) || 0,
-      to_s: parseFloat(c.to_s) || 0,
-      style: c.style || null,
-    }));
-  }
 
-  function _chartCardHtml(ch, i) {
-    const hasStyle = !!(ch.style && typeof ch.style === "object");
-    return `
-    <div class="chart-card" data-chart-id="${ch.id}">
-      <div class="chart-card-head">
-        <span class="chart-card-title">📊 ${t("animator.charts.item", "Diagramm")} ${i + 1}</span>
-        <button type="button" class="chart-del" data-act="del" title="${_chartEsc(t("animator.charts.remove", "Entfernen"))}">✕</button>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.series", "Datenreihe")}</label>
-        <select class="pos-select" data-act="series">${_chartSeriesOptions(ch.series)}</select>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.position", "Position")}</label>
-        <select class="pos-select" data-act="pos">${_chartPosOptions(ch.position)}</select>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.width", "Breite")}</label>
-        <input type="range" data-act="w" min="300" max="1600" step="20" value="${ch.width}">
-        <span class="chart-val" data-val="w">${ch.width}</span>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.height", "Höhe")}</label>
-        <input type="range" data-act="h" min="160" max="900" step="10" value="${ch.height}">
-        <span class="chart-val" data-val="h">${ch.height}</span>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.fg_opacity", "Deckkraft Diagramm")}</label>
-        <input type="range" data-act="fgop" min="0" max="100" step="5" value="${ch.fg_opacity}">
-        <span class="chart-val" data-val="fgop">${ch.fg_opacity}%</span>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.bg_opacity", "Deckkraft Hintergrund")}</label>
-        <input type="range" data-act="bgop" min="0" max="100" step="5" value="${ch.bg_opacity}">
-        <span class="chart-val" data-val="bgop">${ch.bg_opacity}%</span>
-      </div>
-      <div class="chart-row">
-        <label>${t("animator.charts.axes", "Achsen")}</label>
-        <input type="checkbox" data-act="axes"${ch.show_axes ? " checked" : ""}>
-        <span class="chart-val"></span>
-      </div>
-      <div class="chart-row"${ch.show_axes ? "" : ' style="opacity:.4"'}>
-        <label>${t("animator.charts.axis_font", "Schrift Achsen")}</label>
-        <input type="range" data-act="axfont" min="8" max="60" step="1" value="${ch.axis_font_size}"${ch.show_axes ? "" : " disabled"}>
-        <span class="chart-val" data-val="axfont">${ch.axis_font_size} px</span>
-      </div>
-      <div class="ov-timing" title="${_chartEsc(t("animator.overlay.timing_tip"))}">
-        <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-        <input type="number" class="ov-time-in" data-act="from" min="0" step="0.5" placeholder="0" value="${ch.from_s || ""}">
-        <span class="ov-timing-dash">–</span>
-        <input type="number" class="ov-time-in" data-act="to" min="0" step="0.5" placeholder="${_chartEsc(t("animator.overlay.timing_end"))}" value="${ch.to_s || ""}">
-        <span class="ov-timing-unit">s</span>
-      </div>
-      <button type="button" class="ghost-btn chart-adopt" data-act="adopt" style="width:100%; margin-top:4px;">🎨 ${t("animator.charts.adopt", "Aus Daten-Animator übernehmen")}</button>
-      <div class="chart-style-note muted-note">${hasStyle ? t("animator.charts.style_custom", "Eigener Stil übernommen") : t("animator.charts.style_default", "Standard-Stil")}</div>
-    </div>`;
-  }
 
-  function _chartsRenderList() {
-    const list = document.getElementById("anim-charts-list");
-    const empty = document.getElementById("anim-charts-empty");
-    if (!list) return;
-    list.innerHTML = _charts.map((c, i) => _chartCardHtml(c, i)).join("");
-    if (empty) {
-      empty.textContent = _charts.length ? "" :
-        (_chartSeries.length ? t("animator.charts.empty", "Noch keine Diagramme hinzugefuegt.")
-                             : t("animator.charts.empty_nogpx", "Erst einen Track laden, dann Diagramme hinzufuegen."));
-    }
-  }
 
-  function _chartById(id) { return _charts.find((c) => c.id === id) || null; }
 
-  function _chartAdopt(id) {
-    const ch = _chartById(id);
-    if (!ch) return;
-    _animPushUndo(t("undo.diagramm_stil_uebernommen", "Diagramm-Stil übernommen"), { force: true });
-    let style = null;
-    try {
-      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-      style = proj && proj.heightanim && proj.heightanim.chart_style;
-    } catch (_) {}
-    if (style && typeof style === "object") {
-      ch.style = JSON.parse(JSON.stringify(style));
-      // v0.9.443 — die im Daten-Animator gewählte Serie mitnehmen, wenn der Track
-      // sie hergibt (sonst bleibt die Karten-Serie).
-      if (style.series_a && _chartSeries.some((s) => s.id === style.series_a)) ch.series = style.series_a;
-      ch.series_b = (style.series_b && _chartSeries.some((s) => s.id === style.series_b)) ? style.series_b : "";
-      // v0.9.447 — die Karten-Achsenwerte mitziehen, sonst überstimmen die alten
-      // Karten-Werte (style_over) den gerade übernommenen Stil und es sieht
-      // kaputt aus.
-      if (style.show_axes !== undefined) ch.show_axes = style.show_axes !== false;
-      if (style.axis_font_size !== undefined) {
-        ch.axis_font_size = Math.max(6, Math.min(80, parseInt(style.axis_font_size, 10) || 20));
-      }
-      if (typeof toast === "function") toast(t("animator.charts.adopt_ok", "Stil aus dem Daten-Animator übernommen."), "ok", 2500);
-    } else {
-      // v0.9.444 — nichts im Daten-Animator eingestellt: sauber auf den STANDARD-
-      // Stil zurücksetzen (identisch zum Aussehen eines frischen Diagramms und zum
-      // Daten-Animator-Default) statt eine Warnung zu zeigen.
-      ch.style = null;
-      if (typeof toast === "function") toast(t("animator.charts.adopt_default", "Standard-Stil übernommen (im Daten-Animator ist noch nichts eingestellt)."), "info", 3000);
-    }
-    _chartsPersist();
-    _chartsRenderList();
-    _chartsPreviewRender(true);
-  }
 
-  function _chartsBindUi() {
-    const list = document.getElementById("anim-charts-list");
-    const addBtn = document.getElementById("anim-chart-add");
-    if (addBtn && !addBtn._bound) {
-      addBtn._bound = true;
-      addBtn.addEventListener("click", () => {
-        _animPushUndo(t("undo.diagramm_hinzugefuegt", "Diagramm hinzugefügt"), { force: true });
-        _charts.push(_chartDefault());
-        _chartsPersist(); _chartsRenderList(); _chartsPreviewRender(true);
-      });
-    }
-    if (list && !list._bound) {
-      list._bound = true;
-      const onEdit = (e) => {
-        const card = e.target.closest("[data-chart-id]");
-        if (!card) return;
-        const ch = _chartById(card.getAttribute("data-chart-id"));
-        if (!ch) return;
-        const act = e.target.getAttribute("data-act");
-        if (!act) return;
-        // Undo VOR der Mutation (throttled → ein Slider-Zug = ein Schritt).
-        _animPushUndo(t("undo.diagramm_angepasst", "Diagramm angepasst"));
-        let sigChange = false;
-        if (act === "series") { ch.series = e.target.value; sigChange = true; }
-        else if (act === "pos") { ch.position = e.target.value; }
-        else if (act === "w") { ch.width = parseInt(e.target.value, 10) || 640; card.querySelector('[data-val="w"]').textContent = ch.width; sigChange = true; }
-        else if (act === "h") { ch.height = parseInt(e.target.value, 10) || 300; card.querySelector('[data-val="h"]').textContent = ch.height; sigChange = true; }
-        else if (act === "fgop") { ch.fg_opacity = _chartClampOp(e.target.value, 100); card.querySelector('[data-val="fgop"]').textContent = ch.fg_opacity + "%"; }
-        else if (act === "bgop") { ch.bg_opacity = _chartClampOp(e.target.value, 100); card.querySelector('[data-val="bgop"]').textContent = ch.bg_opacity + "%"; }
-        // v0.9.447 — Achsen pro Diagramm.
-        else if (act === "axes") {
-          ch.show_axes = !!e.target.checked;
-          const row = card.querySelector('[data-act="axfont"]')?.closest(".chart-row");
-          const sl = card.querySelector('[data-act="axfont"]');
-          if (sl) sl.disabled = !ch.show_axes;
-          if (row) row.style.opacity = ch.show_axes ? "" : ".4";
-          sigChange = true;
-        }
-        else if (act === "axfont") {
-          ch.axis_font_size = Math.max(6, Math.min(80, parseInt(e.target.value, 10) || 20));
-          card.querySelector('[data-val="axfont"]').textContent = ch.axis_font_size + " px";
-          sigChange = true;
-        }
-        else if (act === "from") { ch.from_s = parseFloat(e.target.value) || 0; }
-        else if (act === "to") { ch.to_s = parseFloat(e.target.value) || 0; }
-        else return;
-        _chartsPersist();
-        _chartsPreviewRender(sigChange);
-      };
-      list.addEventListener("change", onEdit);
-      list.addEventListener("input", onEdit);
-      list.addEventListener("click", (e) => {
-        const card = e.target.closest("[data-chart-id]");
-        if (!card) return;
-        const act = e.target.getAttribute("data-act");
-        const id = card.getAttribute("data-chart-id");
-        if (act === "del") {
-          _animPushUndo(t("undo.diagramm_entfernt", "Diagramm entfernt"), { force: true });
-          _charts = _charts.filter((c) => c.id !== id);
-          delete _chartPreviewSig[id];
-          _chartsPersist(); _chartsRenderList(); _chartsPreviewRender(true);
-        } else if (act === "adopt") {
-          _chartAdopt(id);
-        }
-      });
-    }
-  }
 
-  // ── Live-Vorschau ─────────────────────────────────────────────────────────
-  function _chartPosStyle(pos, m) {
-    switch (pos) {
-      case "tl": return `top:${m}px;left:${m}px;`;
-      case "tc": return `top:${m}px;left:50%;transform:translateX(-50%);`;
-      case "tr": return `top:${m}px;right:${m}px;`;
-      case "ml": return `top:50%;left:${m}px;transform:translateY(-50%);`;
-      case "cc": return `top:50%;left:50%;transform:translate(-50%,-50%);`;
-      case "mr": return `top:50%;right:${m}px;transform:translateY(-50%);`;
-      case "bl": return `bottom:${m}px;left:${m}px;`;
-      case "bc": return `bottom:${m}px;left:50%;transform:translateX(-50%);`;
-      case "br": default: return `bottom:${m}px;right:${m}px;`;
-    }
-  }
 
   function _chartFracToDist(frac) {
     frac = Math.max(0, Math.min(1, frac || 0));
@@ -14695,121 +13763,8 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) { host.innerHTML = ""; }
   }
 
-  // Diagramm-Boxen im eigenen Layer diffen (nicht neu bauen → kein Flackern).
-  // fetchNew=true erzwingt Neu-Holen des Inline-SVGs (Serie/Stil/Größe geändert).
-  function _chartsPreviewRender(fetchNew) {
-    const layer = document.getElementById("anim-charts-preview");
-    if (!layer) return;
-    const _gpxNow = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-    if (_isReiseroute || !_charts.length || !_gpxNow) { layer.innerHTML = ""; return; }
-    // Der Layer wird (wie #anim-overlay-preview) im RENDER-Pixel-Raum
-    // dimensioniert + per transform:scale auf die Letterbox verkleinert.
-    // Boxen also in Render-px positionieren, Skala = --overlay-scale (= rh/1080),
-    // identisch zu core/animator.py._overlay_scale → WYSIWYG zum Render.
-    const psc = parseFloat(getComputedStyle(layer).getPropertyValue("--overlay-scale")) || 1;
-    const m = Math.round(40 * psc);
-    const master = document.getElementById("anim-overlays")?.checked ?? true;
-    if (!master) { layer.innerHTML = ""; return; }
-    const seen = {};
-    _charts.forEach((ch, ci) => {
-      seen[ch.id] = true;
-      const inlineId = _chartInlineId(ch.id);
-      let box = layer.querySelector(`.chart-ov-prev[data-chart-id="${ch.id}"]`);
-      if (!box) {
-        box = document.createElement("div");
-        box.className = "chart-ov-prev";
-        box.setAttribute("data-chart-id", ch.id);
-        box.setAttribute("data-inline-id", inlineId);
-        const bg = document.createElement("div");
-        bg.className = "chart-ov-prev-bg";
-        const host = document.createElement("div");
-        host.className = "chart-ov-prev-host";
-        box.appendChild(bg);
-        box.appendChild(host);
-        layer.appendChild(box);
-      }
-      const w = Math.round(ch.width * psc), h = Math.round(ch.height * psc);
-      const fgOpN = _chartClampOp(ch.fg_opacity, 100) / 100;   // → im SVG gebacken
-      const bgOpN = _chartClampOp(ch.bg_opacity, 100) / 100;   // → hier als bg-DIV
-      // Hintergrund als eigenes DIV: rgba(farbe, bgDeckkraft) über der Karte.
-      // Bei 0 vollständig transparent → Karte scheint durch (echtes WYSIWYG).
-      const bgc = _chartHex2rgb((ch.style && ch.style.background_color) || "#1a1a1a");
-      const _bgCss = `rgba(${bgc[0]},${bgc[1]},${bgc[2]},${bgOpN.toFixed(3)})`;
-      box.style.cssText = `position:absolute;overflow:hidden;pointer-events:none;`
-        + `width:${w}px;height:${h}px;`
-        + _chartPosStyle(ch.position, m);
-      box.setAttribute("data-ovbox", "chart-" + ci);   // 23.09.2026 — Zeitfenster/Blende im Probelauf (overlay_boxen.js)
-      const bgDiv = box.querySelector(".chart-ov-prev-bg");
-      if (bgDiv) bgDiv.style.cssText = `position:absolute;inset:0;background:${_bgCss};`;
-      const host = box.querySelector(".chart-ov-prev-host");
-      if (host) host.style.cssText = `position:absolute;inset:0;`;
-      // Inline-SVG nur neu holen wenn sich Serie/Stil/Größe/fg geändert hat
-      // (bg steckt NICHT mehr im SVG → nicht Teil der Fetch-Signatur).
-      const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-      const sig = JSON.stringify([ch.series, ch.series_b, ch.style, w, h, fgOpN, gpxPath,
-        ch.show_axes, ch.axis_font_size]);
-      if (fetchNew || _chartPreviewSig[ch.id] !== sig) {
-        _chartPreviewSig[ch.id] = sig;
-        const cid = ch.id;
-        if (gpxPath && host) {
-          api().animator_chart_preview_html({
-            gpx_path: gpxPath, series: ch.series, series_b: ch.series_b,
-            style: ch.style || {}, width: w, height: h,
-            fg_opacity: fgOpN, bg_opacity: bgOpN, inline_id: inlineId,
-            overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
-            // v0.9.447 — Achsen pro Diagramm + Textskala der Vorschau-Box, damit
-            // die Beschriftung genauso groß wirkt wie später im Video.
-            show_axes: ch.show_axes, axis_font_size: ch.axis_font_size,
-            text_scale: psc,
-          }).then((res) => {
-            // Stale-Guard: beim schnellen Ziehen laufen mehrere Fetches; nur die
-            // noch aktuelle Antwort einbetten (kein Zurückspringen).
-            if (res && res.ok && res.html && _chartPreviewSig[cid] === sig) {
-              _chartInjectInline(host, res.html, inlineId);
-              // direkt auf den aktuellen Scrub-Fortschritt setzen
-              try {
-                const fn = window.__rzInlineCharts && window.__rzInlineCharts[inlineId];
-                if (fn) fn(_chartFracToDist(_chartLastFrac));
-              } catch (_) {}
-            }
-          }).catch(() => {});
-        }
-      }
-    });
-    // verwaiste Boxen entfernen (+ Registrierung freigeben)
-    Array.prototype.slice.call(layer.querySelectorAll(".chart-ov-prev")).forEach((b) => {
-      if (!seen[b.getAttribute("data-chart-id")]) {
-        try {
-          const iid = b.getAttribute("data-inline-id");
-          if (iid && window.__rzInlineCharts) delete window.__rzInlineCharts[iid];
-        } catch (_) {}
-        b.remove();
-      }
-    });
-  }
 
-  function _chartsPreviewAdvance(frac) {
-    _chartLastFrac = Math.max(0, Math.min(1, frac || 0));
-    const layer = document.getElementById("anim-charts-preview");
-    if (!layer) return;
-    const df = _chartFracToDist(_chartLastFrac);
-    const reg = window.__rzInlineCharts || {};
-    Array.prototype.slice.call(layer.querySelectorAll(".chart-ov-prev")).forEach((b) => {
-      try {
-        const iid = b.getAttribute("data-inline-id");
-        if (iid && typeof reg[iid] === "function") reg[iid](df);
-      } catch (_) {}
-    });
-  }
 
-  function _chartsInit() {
-    _chartsLoad();
-    _chartsRenderList();
-    _chartsBindUi();
-    _chartsPreviewRender(true);
-  }
-  // global erreichbar für Debug / Teardown
-  window.__rzChartsPreviewRender = _chartsPreviewRender;
 
   // Initialer Editor-Aufbau — hier sind Katalog-Consts + _gpxStats sicher initialisiert.
   _ovRebuildEditors();
@@ -14839,65 +13794,6 @@ function mountAnimator(body, headerActions, opts) {
     vp.style.setProperty("--rz-attrib-bg", `rgba(${r},${g},${b},${op.toFixed(2)})`);
     vp.style.setProperty("--rz-attrib-fg", fg);
   }
-  // ── 23.09.2026 Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md) ───────────────
-  // Die Vorschau löst die Boxen mit DERSELBEN Datei auf wie der Render
-  // (ui/js/overlay_boxen.js). `_ovCfg()` liefert dieselben Schlüssel, die auch als
-  // Render-Parameter rausgehen — eine Quelle, kein zweites Regelwerk.
-  function _ovProj() {
-    return (typeof _activeProject !== "undefined" && _activeProject && _activeProject[_MODKEY]) || {};
-  }
-  function _ovBoxenRoh() {
-    // Projekt zuerst; ohne aktives Projekt landet saveProjectSettings in den
-    // globalen Einstellungen (Muster _ovOverrides).
-    const proj = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
-    const b = proj ? proj.overlay_boxen
-      : (_settingsCache && _settingsCache[_MODKEY] ? _settingsCache[_MODKEY].overlay_boxen : null);
-    return Array.isArray(b) ? b : [];
-  }
-  function _ovCfg() {
-    const $ = (id) => document.getElementById(id);
-    const num = (id, d) => { const v = parseFloat($(id)?.value); return isNaN(v) ? d : v; };
-    const chk = (id, d) => { const e = $(id); return e ? !!e.checked : d; };
-    let charts = [];
-    try { charts = (_charts || []).map(c => ({ from_s: c.from_s, to_s: c.to_s })); } catch (_) {}
-    return {
-      overlay_skin: $("anim-ov-skin")?.value === "frei" ? "frei" : "kasten",
-      overlay_font: $("anim-ov-font")?.value || "system",
-      overlay_text_color: $("anim-ov-textcolor")?.value || "#ffffff",
-      overlay_bg_color: $("anim-ov-bgcolor")?.value || "#000000",
-      overlay_bg_opacity: num("anim-ov-bgopacity", 55) / 100,
-      overlay_entry: $("anim-ov-entry")?.value || "none",
-      overlay_exit: $("anim-ov-exit")?.value || "none",
-      overlay_blende_s: num("anim-ov-blende", 0.5),
-      overlay_radius: num("anim-ov-radius", 12),
-      overlay_border_w: num("anim-ov-border-w", 0),
-      overlay_border_color: $("anim-ov-border-color")?.value || "#ffffff",
-      overlay_shadow: chk("anim-ov-shadow", true),
-      overlay_totals_enabled: chk("anim-ov-totals", true),
-      overlay_totals_position: $("anim-ov-totals-pos")?.value || "tl",
-      overlay_totals_fields: _ovGetFields("totals"),
-      overlay_totals_from_s: num("anim-ov-totals-from", 0), overlay_totals_to_s: num("anim-ov-totals-to", 0),
-      // v0.9.309 — im Standbild (Tour-Map) keine Live-Box (zeit-animiert).
-      overlay_live_enabled: !_isStaticFrame && chk("anim-ov-live", true),
-      overlay_live_position: $("anim-ov-live-pos")?.value || "tr",
-      overlay_live_fields: _ovGetFields("live"),
-      overlay_live_from_s: num("anim-ov-live-from", 0), overlay_live_to_s: num("anim-ov-live-to", 0),
-      overlay_elevation_enabled: chk("anim-ov-ele", true),
-      overlay_elevation_position: $("anim-ov-ele-pos")?.value || "bc",
-      overlay_elevation_from_s: num("anim-ov-ele-from", 0), overlay_elevation_to_s: num("anim-ov-ele-to", 0),
-      overlay_boxen: _ovBoxenRoh(),
-      charts,
-    };
-  }
-  /** Nur die neuen Schlüssel für die Render-Parameter (die alten schickt der Aufrufer). */
-  function _ovRenderParams() {
-    const c = _ovCfg();
-    return { logbuch_masken: _lbMaskenAnteile(),   // 24.09.2026 — klassischer Render (Alpha): blass/überspringen
-             bewegung_bereiche: _lbBereiche.map(b => ({ art: b.art, t0: b.t0, t1: b.t1 })),   // Zahlen je Bewegungsart
-             overlay_exit: c.overlay_exit, overlay_blende_s: c.overlay_blende_s, overlay_radius: c.overlay_radius,
-             overlay_border_w: c.overlay_border_w, overlay_border_color: c.overlay_border_color,
-             overlay_shadow: c.overlay_shadow, overlay_boxen: c.overlay_boxen, overlay_skin: c.overlay_skin };
-  }
   // 30.09.2026 (Skin „Frei") — Zahl und Einheit getrennt setzen (ui/js/overlay_boxen.js).
   function _ovWertHtml(w) {
     const o = window.rzOverlayBoxen;
@@ -14906,10 +13802,6 @@ function mountAnimator(body, headerActions, opts) {
   function _ovWertSetzen(el, w) {
     const o = window.rzOverlayBoxen;
     if (o && o.wertSetzen) o.wertSetzen(el, w); else el.textContent = w;
-  }
-  function _ovAufgeloest() {
-    try { return window.rzOverlayBoxen ? window.rzOverlayBoxen.aufloesen(_ovCfg()) : []; }
-    catch (e) { try { applog("warn", "[anim-ov] Boxen nicht auflösbar: " + e); } catch (_) {} return []; }
   }
   // Google-Schriften der Boxen nachladen (Render lädt sie per <link> im Kopf; die
   // Vorschau hatte sie nie — Oswald & Co. liefen dort als Ersatzschrift, und damit
@@ -14925,25 +13817,6 @@ function mountAnimator(body, headerActions, opts) {
       l.href = "https://fonts.googleapis.com/css2?family=" + spec + "&display=swap";
       document.head.appendChild(l);
     }
-  }
-  // Box-/Zeilenstil inline — WYSIWYG-Spiegel von _overlay_boxen_css (core/animator.py).
-  function _ovSkin() {
-    return document.getElementById("anim-ov-skin")?.value === "frei" ? "frei" : "kasten";
-  }
-  function _ovBoxStil(b) {
-    const st = b.stil, k = "var(--overlay-scale)";
-    // 30.09.2026 — Skin „Frei": kein Kasten (Hintergrund, Rahmen, Schatten entfallen);
-    // Schrift und Farbe bleiben. WYSIWYG-Spiegel: _overlay_css (core/animator.py).
-    if (_ovSkin() === "frei") {
-      return `font-family:${OVERLAY_FONT_STACK[st.font] || OVERLAY_FONT_STACK.system}; color:${st.text_color};`;
-    }
-    const shadow = st.shadow
-      ? `calc(var(--rz-ov-shx, 0) * ${k} * 1px) calc(var(--rz-ov-shy, 6) * ${k} * 1px) calc(22px * ${k}) rgba(0,0,0,0.45)`
-      : "none";
-    const border = st.border_w > 0 ? `calc(${st.border_w}px * ${k}) solid ${st.border_color}` : "none";
-    return `font-family:${OVERLAY_FONT_STACK[st.font] || OVERLAY_FONT_STACK.system}; color:${st.text_color};`
-      + ` background:${_ovHexRgba(st.bg_color, st.bg_opacity)}; border-radius:calc(${st.radius}px * ${k});`
-      + ` border:${border}; box-shadow:${shadow};`;
   }
   // Kennzahlen je Etappe → Text je Feld (gleiche Formeln wie _ovFieldValue, nur
   // mit den Werten der Etappe). {"<nr>": text, gesamt: text} oder null.
@@ -14997,67 +13870,6 @@ function mountAnimator(body, headerActions, opts) {
   // Schlusskarte: mit Beginn des Haltens (mind. die letzten 2,5 s), blendet 0,6 s ein.
   const _SK_FELDER = ["dist_total", "elev_gain", "elev_loss", "moving_time", "duration", "avg_speed", "date"];
   let _skRenderNext = null, _skLetzter = null, _skInhaltKey = "";
-  function _skCfg() {
-    const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
-    const a = (p && p[_MODKEY]) || (_settingsCache && _settingsCache[_MODKEY]) || {};
-    return (a && typeof a.schnellkarte === "object") ? a.schnellkarte : null;
-  }
-  function _skSpeichern(patch) {
-    const neu = Object.assign({ titel_an: false, titel: "", unter: "", titel_s: 3, schluss_an: false, felder: [] }, _skCfg() || {}, patch);
-    saveProjectSettings(_MODKEY, { schnellkarte: neu });
-    _skInhaltKey = "";
-  }
-  function _skAnwenden(tSec) {
-    const lay = document.getElementById("anim-sk"); if (!lay) return;
-    const ti = lay.querySelector(".sk-titel"), sc = lay.querySelector(".sk-schluss");
-    const c = _skCfg();
-    if (!c || _isStaticFrame || !(tSec >= 0)) { ti.hidden = true; sc.hidden = true; return; }
-    const felder = (Array.isArray(c.felder) ? c.felder : []).filter(f => _SK_FELDER.includes(f));
-    const key = [c.titel, c.unter, felder.join(","), (window.rzSprachCode ? window.rzSprachCode() : "")].join("|");
-    if (key !== _skInhaltKey) {
-      _skInhaltKey = key;
-      ti.querySelector(".sk-t1").textContent = c.titel || "";
-      ti.querySelector(".sk-t2").textContent = c.unter || "";
-      sc.innerHTML = felder.map(f => {
-        const v = (typeof _ovFieldValue === "function" ? _ovFieldValue(f) : null) || "—";
-        return `<div class="sk-wert"><b>${_animEscapeHtml(String(v))}</b><span>${_animEscapeHtml(t("animator.statsfield." + f, _OV_FALLBACK_LABEL[f] || f))}</span></div>`;
-      }).join("");
-    }
-    const tDauer = Math.max(0.5, +c.titel_s || 3);
-    const opT = (c.titel_an && (c.titel || c.unter) && tSec <= tDauer) ? Math.max(0, Math.min(1, (tDauer - tSec) / 0.6)) : 0;
-    const G = _ovGesamtSek(), hold = parseNum(document.getElementById("anim-hold")?.value, 0);
-    const ab = G - Math.max(2.5, hold);
-    const opS = (c.schluss_an && felder.length && tSec >= ab) ? Math.max(0, Math.min(1, (tSec - ab) / 0.6)) : 0;
-    ti.hidden = !(opT > 0.001); ti.style.opacity = String(Math.round(opT * 1000) / 1000);
-    sc.hidden = !(opS > 0.001); sc.style.opacity = String(Math.round(opS * 1000) / 1000);
-  }
-  function _skEditorSync() {
-    const box = document.getElementById("anim-sk-editor"); if (!box) return;
-    const c = _skCfg() || {};
-    const set = (id, v, chk) => { const e = document.getElementById(id); if (!e || document.activeElement === e) return; if (chk) e.checked = !!v; else e.value = v || ""; };
-    set("anim-sk-titel-an", c.titel_an, true); set("anim-sk-titel", c.titel); set("anim-sk-unter", c.unter); set("anim-sk-schluss-an", c.schluss_an, true);
-    const fb = document.getElementById("anim-sk-felder");
-    if (fb) {
-      const an = new Set(Array.isArray(c.felder) ? c.felder : []);
-      fb.innerHTML = _SK_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sk-feld="${f}"${an.has(f) ? " checked" : ""}><span>${_animEscapeHtml(t("animator.statsfield." + f, _OV_FALLBACK_LABEL[f] || f))}</span></label>`).join("");
-      fb.querySelectorAll("[data-sk-feld]").forEach(cb => cb.addEventListener("change", () => {
-        _skSpeichern({ felder: [...fb.querySelectorAll("[data-sk-feld]:checked")].map(x => x.dataset.skFeld) });
-        _skJetztZeigen();
-      }));
-    }
-  }
-  function _skJetztZeigen() {
-    try { _skAnwenden(_sgZeitAusAnker(_tlBar ? _tlBar.getScrubber() : 0)); } catch (_) {}
-  }
-  function _skEditorBinden() {
-    const b = (id, ev, fn) => { const e = document.getElementById(id); if (e && !e.__rzSk) { e.__rzSk = true; e.addEventListener(ev, fn); } };
-    b("anim-sk-titel-an", "change", (e) => { _skSpeichern({ titel_an: e.target.checked }); _skJetztZeigen(); });
-    b("anim-sk-schluss-an", "change", (e) => { _skSpeichern({ schluss_an: e.target.checked }); _skJetztZeigen(); });
-    b("anim-sk-titel", "input", (e) => { _skSpeichern({ titel: e.target.value }); _skJetztZeigen(); });
-    b("anim-sk-unter", "input", (e) => { _skSpeichern({ unter: e.target.value }); _skJetztZeigen(); });
-    b("anim-schnellvideo", "click", () => { if (currentGpx && typeof window.rzSchnellVideo === "function") window.rzSchnellVideo(currentGpx); });
-    _skEditorSync();
-  }
   /** Fertig-Bereich nach einem Schnell-Video: „Speichern …" verschiebt die Zwischendatei an den
    *  gewählten Ort, „Teilen" öffnet das System-Teilen-Menü (Windows: Ordner). */
   function _skFertigKnoepfe(pfad) {
@@ -15108,7 +13920,6 @@ function mountAnimator(body, headerActions, opts) {
       return ok && !!window.__rzAnimSigns;
     } catch (_) { return false; }
   };
-  window.__rzSchnellKarte = { anwenden: (s) => _skAnwenden(s), cfg: () => _skCfg() };   // Prüfstand
   // 29.09.2026 (Marc: „mach als Trackpunkt den Pfeil und flieg die Kamera immer dem Pfeil hinterher …
   // ggf. muss die Kamera doppelt geglättet werden") — Verfolger-Blickrichtung als Keyframes.
   // Glättung 1: Fahrtrichtung aus einem LANGEN Stück der (schon geglätteten) Spur — Länge je nach Tour.
@@ -15166,7 +13977,6 @@ function mountAnimator(body, headerActions, opts) {
     return neu.length;
   };
   window.__rzKursKeyframes = _kursKeyframes;   // Prüfstand
-  _skEditorBinden();
 
   // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
   // Anteil am Punkt-Index (wie _ovUpdateLiveAt) → hier in Streckenanteil + Etappe
@@ -15234,8 +14044,11 @@ function mountAnimator(body, headerActions, opts) {
     const animEnde = intro + animSekunden();
     if (rolle === "bis" && tSek >= G - 0.05) return null;
     if (tSek <= 0.05) return { art: "video_start", wert: 0 };
-    if (tSek < intro - 1e-6) return { art: "video_start", wert: _ov1(tSek) };
-    if (tSek > animEnde + 1e-6) return { art: "video_ende", wert: _ov1(G - tSek) };
+    // Genau am Ende des Intros bzw. der Animation: an Videostart/-ende hängen, nicht an der
+    // Strecke — der Streckenanteil lässt sich dort nur auf ~0,1 s genau zurückrechnen
+    // (Schlusskarte „ab 36 s" landete sonst bei 35,92 s; Nachbau-Test 30.09.2026).
+    if (tSek < intro + 0.05) return { art: "video_start", wert: _ov1(tSek) };
+    if (tSek > animEnde - 0.05) return { art: "video_ende", wert: _ov1(G - tSek) };
     const f = _ovAnteilBeiZeit(tSek);
     if (f == null) return { art: "video_start", wert: _ov1(tSek) };
     return { art: "strecke", wert: Math.round(f * 10000) / 10000 };
@@ -15423,14 +14236,24 @@ function mountAnimator(body, headerActions, opts) {
     if (_ovSpurRaf) return;
     _ovSpurRaf = requestAnimationFrame(() => { _ovSpurRaf = 0; try { _ovSpurJetzt(); } catch (e) { applog("warn", "[ov-spur] " + e); } });
   }
+  /** 30.09.2026 — Container als Spur-Einträge (alle, auch ausgeschaltete). */
+  var _CT_SPUR_FARBE = { live: "#7fdcff", gesamt: "#e8a0ff", hoehe: "#9be58f", titel: "#ffd166", schluss: "#ffa94d",
+                           logo: "#c9ced8", nord: "#c9ced8", diagramm: "#4ecdc4", rahmen: "#c77dff" };
+  function _ctSpurBoxen() {
+    const C = window.rzContainer;
+    if (!C) return [];
+    return _ctListe().map(c => {
+      const b = C.timingBoxen([Object.assign({}, c, { an: true })])[0];
+      return Object.assign(b, { enabled: !!c.an, name: _ctName(c), farbe: _CT_SPUR_FARBE[c.vorlage] || "#ffcf70" });
+    });
+  }
   function _ovSpurJetzt() {
     const R = window.rzOverlayBoxen;
     if (!R || !_tlBar) return;
-    const cfg = _ovCfg();
     const G = _ovGesamtSek();
     if (!(G > 0) || !document.getElementById("anim-overlays")?.checked) { _tlBar.setOverlays([]); return; }
     const ctx = _ovKontext();
-    const liste = R.aufloesen(cfg).map((b) => {
+    const liste = _ctSpurBoxen().map((b) => {
       const bl = b.blende || {};
       const segmente = (b.zeiten && b.zeiten.length ? b.zeiten : [b.zeit]).map((z) => {
         const k = R.kanten(z, ctx) || { an: 0, aus: G };
@@ -15450,16 +14273,9 @@ function mountAnimator(body, headerActions, opts) {
                  einBis: _ovLeisteAusZeit(an + e), ausAb: _ovLeisteAusZeit(aus - a),
                  text: vonTxt + " – " + bisTxt };
       });
-      return {
-        id: b.id, name: _ovBoxName(b), enabled: !!b.enabled,
-        farbe: _OV_FARBE[b.id] || (b.typ === "live" ? "#7fdcff" : "#ffcf70"),
-        segmente,
-      };
+      return { id: b.id, name: b.name, enabled: !!b.enabled, farbe: b.farbe, segmente };
     });
     _tlBar.setOverlays(liste, { offen: _ovSpurOffen, minAnteil: 0.5 / G });
-    // Die ⏱-Felder zeigen dieselben Sekunden wie die Balken — auch direkt nach dem
-    // Laden eines Projekts (in der App gesehen: „0 – Ende" neben einem gekürzten Balken).
-    try { _ovZeitFelderSync(); } catch (_) {}
   }
   /** Die Zeiträume einer Box als Liste von Zeit-Objekten (wie gespeichert). */
   function _ovZeitenVon(b) {
@@ -15500,7 +14316,7 @@ function mountAnimator(body, headerActions, opts) {
     // ein Trackpunkt sprang sonst bei schnellem Laufpunkt um Kilometer (in der App gesehen).
     const tAn = _ovZeitAusLeiste(neu.an), tAus = _ovZeitAusLeiste(neu.aus);
     const tEin = _ovZeitAusLeiste(neu.einBis), tAusAb = _ovZeitAusLeiste(neu.ausAb);
-    const b = R.aufloesen(_ovCfg()).find(x => x.id === id);
+    const b = _ctSpurBoxen().find(x => x.id === id);
     if (!b) return;
     _ovAendern(id, (e) => {
       if (griff === "schieben" || griff === "l" || griff === "r") {
@@ -15527,7 +14343,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Doppelklick auf eine freie Stelle: ein weiterer Zeitraum (3 s) ab dort. */
   function _ovZeitraumNeu(id, x) {
     const R = window.rzOverlayBoxen;
-    const b = R && R.aufloesen(_ovCfg()).find(q => q.id === id);
+    const b = R && _ctSpurBoxen().find(q => q.id === id);
     if (!b) return;
     const G = _ovGesamtSek();
     const tA = Math.max(0, Math.min(G - 0.5, _ovZeitAusLeiste(x)));
@@ -15540,7 +14356,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _ovZeitraumWeg(id, seg) {
     const R = window.rzOverlayBoxen;
-    const b = R && R.aufloesen(_ovCfg()).find(q => q.id === id);
+    const b = R && _ctSpurBoxen().find(q => q.id === id);
     if (!b || !(b.zeiten && b.zeiten.length > 1)) return;
     _ovAendern(id, (e) => {
       const liste = _ovZeitenVon(b);
@@ -15813,19 +14629,15 @@ function mountAnimator(body, headerActions, opts) {
   };
   window.__rzHighlightsAbgleichen = (leise) => _hlSchilderAbgleichen(leise);
   function _ovTimingAt(tSec, frac) {
-    try { _skAnwenden(tSec); } catch (e) { applog("warn", "[schnell] Karte: " + e); }
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;
     if (!R) return;
     if (tSec < 0) {
-      try { const c = _ovCfg(); R.anwenden(root, R.aufloesen(c).concat(R.chartBoxen(c)), -1, 0, 0, {}, {}); } catch (_) {}
+      try { R.anwenden(root, window.rzContainer.timingBoxen(_ctListe()), -1, 0, 0, {}, {}); } catch (_) {}
       _ovTimingSpeicher = {}; _ovTimingBoxen = null;
       return;
     }
-    if (!_ovTimingBoxen) {
-      const c = _ovCfg();
-      _ovTimingBoxen = R.aufloesen(c).filter(b => b.enabled).concat(R.chartBoxen(c));
-    }
+    if (!_ovTimingBoxen) _ovTimingBoxen = window.rzContainer.timingBoxen(_ctListe());
     const sr = _ovSeries;
     let f = Math.max(0, Math.min(1, frac || 0)), st = 0;
     if (sr && sr.cumDistM && sr.cumDistM.length > 1) {
@@ -15846,6 +14658,11 @@ function mountAnimator(body, headerActions, opts) {
       strecke_zeit: _ovStreckeZeit(),
     };
     R.anwenden(root, _ovTimingBoxen, tSec, f, st, ctx, _ovTimingSpeicher);
+    // Der Container im Editor bleibt sichtbar (wie ein Schild im Schild-Editor)
+    if (_ctEditId && !window.__rzRenderMode) {
+      const el = root.querySelector(`.ct[data-ctid="${CSS.escape(_ctEditId)}"]`);
+      if (el) { el.style.visibility = ""; el.style.opacity = ""; el.style.setProperty("--rz-ov-pop", "1"); }
+    }
   }
 
   // ── Modal „Box gestalten" + Liste „Weitere Boxen" (23.09.2026) ─────────────
@@ -15857,67 +14674,8 @@ function mountAnimator(body, headerActions, opts) {
   let _ovModal = null;   // { id, zeile } solange das Fenster offen ist
   const _ovEsc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const _ovKopie = (x) => JSON.parse(JSON.stringify(x == null ? null : x));
-  function _ovBoxName(b) {
-    if (b.id === "totals") return t("animator.overlay.totals", "Gesamt");
-    if (b.id === "live") return t("animator.overlay.live", "Live");
-    if (b.id === "ele") return t("animator.overlay.elevation", "Höhenprofil");
-    if (b.titel) return b.titel;
-    return (b.typ === "live" ? t("animator.overlay.live", "Live") : t("animator.overlay.totals", "Gesamt"))
-      + " · " + t("animator.pos." + b.position, b.position);
-  }
-  function _ovLeerWeg(e) {
-    const leer = (o) => o && typeof o === "object" && !Array.isArray(o) && !Object.keys(o).length;
-    if (e.zeilen && typeof e.zeilen === "object") {
-      for (const f of Object.keys(e.zeilen)) {
-        const z = e.zeilen[f] || {};
-        for (const k of Object.keys(z)) { if (z[k] == null) delete z[k]; else if (leer(z[k])) delete z[k]; }
-        if (z.blende) { for (const k of Object.keys(z.blende)) if (z.blende[k] == null) delete z.blende[k]; if (leer(z.blende)) delete z.blende; }
-        if (leer(z)) delete e.zeilen[f];
-      }
-    }
-    for (const k of ["stil", "blende", "zeilen"]) {
-      if (e[k] && typeof e[k] === "object") { for (const kk of Object.keys(e[k])) if (e[k][kk] == null) delete e[k][kk]; }
-      if (leer(e[k])) delete e[k];
-    }
-    for (const k of ["zeit", "bezug"]) if (e[k] == null) delete e[k];
-  }
-  function _ovSchreiben(liste, label, undoKey) {
-    if (_animUndoCtrl) {
-      try {
-        const force = !undoKey || window.__rzLastUndoEl !== undoKey;
-        _animUndoCtrl.push(label || t("animator.ovbox.undo", "Overlay-Box"), { force });
-        window.__rzLastUndoEl = undoKey || null;
-      } catch (_) {}
-    }
-    saveProjectSettings(_MODKEY, { overlay_boxen: liste });
-    renderOverlayPreview();
-    _ovExtraListe();
-  }
-  /** Eintrag `id` ändern (fn bekommt eine Kopie), leere Teile aufräumen, speichern. */
-  function _ovAendern(id, fn, label, undoKey) {
-    const liste = _ovKopie(_ovBoxenRoh()) || [];
-    let e = liste.find(x => x && x.id === id);
-    if (!e) { e = { id }; liste.push(e); }
-    fn(e);
-    _ovLeerWeg(e);
-    const rein = liste.filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1));
-    _ovSchreiben(rein, label, undoKey);
-  }
-  function _ovPfad(obj, pfad, wert) {
-    const teile = pfad.split(".");
-    let o = obj;
-    for (let i = 0; i < teile.length - 1; i++) {
-      if (!o[teile[i]] || typeof o[teile[i]] !== "object") o[teile[i]] = {};
-      o = o[teile[i]];
-    }
-    const k = teile[teile.length - 1];
-    if (wert === null || wert === undefined) delete o[k]; else o[k] = wert;
-  }
-  function _ovPfadLesen(obj, pfad) {
-    let o = obj;
-    for (const k of pfad.split(".")) { if (!o || typeof o !== "object") return undefined; o = o[k]; }
-    return o;
-  }
+  /** 30.09.2026 — Zeitleisten-Änderungen (Zeit/Blende) gehen an den Container. */
+  function _ovAendern(id, fn, label, undoKey) { _ctAendern(id, fn, label, undoKey); }
   function _ovEtappenListe() {
     const ss = _ovSeries && _ovSeries.stage_stats;
     const nrs = ss ? Object.keys(ss).map(Number).filter(n => n > 0).sort((a, b) => a - b) : [];
@@ -15929,752 +14687,877 @@ function mountAnimator(body, headerActions, opts) {
     });
   }
 
-  // ── HTML-Bausteine des Modals ──
-  function _ovZeileHtml(pfad, label, erbt, erbtText, wertHtml) {
-    return `<div class="ovbox-zeile${erbt ? " erbt" : ""}">`
-      + `<input type="checkbox" class="ovbox-erbt" data-erbt="${pfad}" ${erbt ? "checked" : ""} title="${_ovEsc(erbtText)}">`
-      + `<span>${label}</span><div class="ovbox-wert">${wertHtml}</div></div>`;
-  }
-  // 25.09.2026 (Beta-Tester: „Aufpoppen und Ein- + Aufpoppen ist das Gleiche"): nur noch drei Arten.
-  // „Aufpoppen" ist die frühere Kombination (both); altes „pop" wird wie both behandelt.
-  function _ovBlendeOpts(wert, aus) {
-    if (wert === "pop") wert = "both";
-    const o = aus
-      ? [["none", t("animator.ovbox.exit_none", "Hart (sofort)")], ["fade", t("animator.ovbox.exit_fade", "Ausblenden")],
-         ["both", t("animator.ovbox.wegpoppen", "Wegpoppen")]]
-      : [["none", t("signs.entry.none", "Hart (sofort)")], ["fade", t("signs.entry.fade", "Einblenden")],
-         ["both", t("animator.ovbox.aufpoppen", "Aufpoppen")]];
-    return o.map(([v, l]) => `<option value="${v}" ${v === wert ? "selected" : ""}>${l}</option>`).join("");
-  }
   /** Gesamtlänge der Strecke in km (für „Trackpunkt"). */
   function _ovStreckeKm() {
     const cd = _ovSeries && _ovSeries.cumDistM;
     return (cd && cd.length > 1) ? (cd[cd.length - 1] - cd[0]) / 1000 : 0;
   }
-  /** Ältere Auslöser (Sekunde, Prozent, Track-Start/-Ende, Etappe) in die drei
-   *  Anker der Overlay-Spur übersetzen — nur zum Anzeigen; gespeichert wird erst,
-   *  wenn man im Fenster etwas ändert (24.09.2026, Grilling Q18). */
-  function _ovAnkerNeu(a) {
-    if (!a) return null;
-    if (a.art === "video_start" || a.art === "video_ende" || a.art === "strecke") return a;
-    if (a.art === "s") return { art: "video_start", wert: a.wert };
-    if (a.art === "start") return { art: "strecke", wert: 0 };
-    if (a.art === "ende") return { art: "strecke", wert: 1 };
-    if (a.art === "pct") return { art: "strecke", wert: (+a.wert || 0) / 100 };
-    const et = (_ovKontext().etappen || {})[String(Math.trunc(+a.wert || 1))];
-    return { art: "strecke", wert: et ? (a.art === "etappe_start" ? et[0] : et[1]) : 0 };
-  }
-  function _ovAusloeserHtml(rolle, a0, dauer) {
-    // rolle "von" | "bis"; Anker der Overlay-Spur: Sekunde ab Videostart,
-    // Trackpunkt (km), Sekunden vor Videoende — dazu „bis Videoende" und Dauer.
-    const a = _ovAnkerNeu(a0);
-    const km = _ovStreckeKm();
-    const arten = [["video_start", t("animator.ovbox.at_video_start", "Sekunde ab Videostart")]];
-    if (km > 0) arten.push(["strecke", t("animator.ovbox.at_track_km", "am Trackpunkt (km)")]);
-    arten.push(["video_ende", t("animator.ovbox.at_video_end", "Sekunden vor Videoende")]);
-    let art = a ? a.art : (rolle === "von" ? "video_start" : "");
-    if (art === "strecke" && !(km > 0)) art = "video_start";
-    if (rolle === "bis") {
-      arten.unshift(["", t("animator.ovbox.until_end", "bis zum Videoende")]);
-      arten.push(["dauer", t("animator.ovbox.for_dur", "für eine Dauer von")]);
-      if (dauer) art = "dauer";
-      if (a && a.art === "video_ende" && !(a.wert > 0)) art = "";
-    }
-    const sel = `<select data-z="${rolle}.art">` + arten.map(([v, l]) => `<option value="${v}" ${v === art ? "selected" : ""}>${l}</option>`).join("") + `</select>`;
-    let wert = "";
-    const r1 = (x) => Math.round(x * 10) / 10;
-    // 26.09.2026 — data-art: zu welcher Art der Wert gehört (Klicktest AN-15, siehe zeitAusFormular).
-    if (art === "video_start" || art === "video_ende") wert = `<input type="number" data-z="${rolle}.wert" data-art="${art}" min="0" step="0.5" value="${a ? r1(+a.wert || 0) : 0}"> s`;
-    else if (art === "dauer") wert = `<input type="number" data-z="${rolle}.wert" data-art="dauer" min="0.5" step="0.5" value="${dauer}"> s`;
-    else if (art === "strecke") wert = `<input type="number" data-z="${rolle}.wert" data-art="strecke" data-km="1" min="0" max="${r1(km)}" step="0.1" value="${r1((a ? +a.wert || 0 : 0) * km)}"> km`;
-    return sel + wert;
-  }
-  function _ovZeitHtml(pfadPraefix, eigen, zAufl, erbtText, hinweis, zeiten) {
-    // 24.09.2026 — mehrere Zeiträume: je Zeitraum ein eigener Block (data-seg).
-    const liste = (zeiten && zeiten.length > 1) ? zeiten : [eigen || zAufl];
-    const mehr = liste.length > 1;
-    let h = "";
-    liste.forEach((z, i) => {
-      const inner = `<div class="ovbox-wert" style="flex-direction:column;align-items:flex-start;gap:6px;">`
-        + `<div>${t("animator.ovbox.from", "Ab")}: ${_ovAusloeserHtml("von", z ? z.von : { art: "s", wert: 0 }, null)}</div>`
-        + `<div>${t("animator.ovbox.until", "Bis")}: ${_ovAusloeserHtml("bis", z ? z.bis : null, z ? z.dauer_s : null)}</div></div>`;
-      const titel = mehr ? t("animator.ovbox.time_n", "Zeitraum {n}").replace("{n}", String(i + 1)) : t("animator.ovbox.time", "Zeitpunkt");
-      h += `<div class="ovbox-zeile${(eigen || mehr) ? "" : " erbt"}" data-zeit="${pfadPraefix}zeit"${mehr ? ` data-seg="${i}"` : ""}>`
-        + (i === 0 ? `<input type="checkbox" class="ovbox-erbt" data-erbt="${pfadPraefix}zeit" ${(eigen || mehr) ? "" : "checked"} title="${_ovEsc(erbtText)}">` : `<span></span>`)
-        + `<span>${titel}${mehr ? ` <button type="button" class="ovbox-seg-weg" data-act="seg-weg" data-seg="${i}" title="${_ovEsc(t("animator.ov.seg_loeschen", "Diesen Zeitraum löschen"))}">✕</button>` : ""}</span>${inner}</div>`;
-    });
-    return h + (hinweis ? `<p class="ovbox-hinweis">${hinweis}</p>` : "");
-  }
-  function _ovBezugHtml(pfad, eigen, wert, erbtText) {
-    const et = _ovEtappenListe();
-    // 24.09.2026 (IDEAS §67 Q16) — Bewegungsarten aus dem Logbuch: „nur Wanderung" …
-    const arten = Object.keys((_ovSeries && _ovSeries.art_stats) || {});
-    if (!et.length && !arten.length) return "";
-    const opts = [["gesamt", t("animator.ovbox.ref_all", "Ganze Strecke")]]
-      .concat(et.length ? [["laufend", t("animator.ovbox.ref_running", "Laufende Etappe")]] : [])
-      .concat(et.map(x => [String(x.nr), x.name]))
-      .concat(arten.map(k => [k, t("animator.ovbox.ref_art", "nur {art}").replace("{art}", t("logbuch.art." + k.slice(4), k.slice(4)))]));
-    const sel = `<select data-k="${pfad}" data-typ="bezug">` + opts.map(([v, l]) => `<option value="${v}" ${String(wert) === v ? "selected" : ""}>${_ovEsc(l)}</option>`).join("") + `</select>`;
-    return _ovZeileHtml(pfad, t("animator.ovbox.ref", "Zahlen für"), !eigen, erbtText, sel);
-  }
 
-  function _ovModalHtml() {
-    const aufl = _ovAufgeloest();
-    const b = aufl.find(x => x.id === _ovModal.id);
-    if (!b) return `<p>${t("animator.ovbox.gone", "Diese Box gibt es nicht mehr.")}</p>`;
-    const e = _ovBoxenRoh().find(x => x && x.id === b.id) || { id: b.id };
-    const global = window.rzOverlayBoxen.globalStil(_ovCfg());
-    const gBl = window.rzOverlayBoxen.globalBlende(_ovCfg());
-    const standard = _OV_STANDARD.includes(b.id);
-    const wieG = t("animator.ovbox.inherit_global", "wie alle Boxen (Haken weg = eigener Wert)");
-    const fid = _ovModal.zeile;
-    if (fid) {
-      // ── Zeile ──
-      const zl = (b.zeilen || {})[fid] || { text_color: b.stil.text_color, groesse: 1, fett: null, zeit: null, blende: b.blende, bezug: b.bezug };
-      const ez = (e.zeilen || {})[fid] || {};
-      const wieB = t("animator.ovbox.inherit_box", "wie die Box (Haken weg = eigener Wert)");
-      const P = "zeilen." + fid + ".";
-      let h = `<button type="button" class="btn btn-sm" data-act="zurueck">← ${_ovEsc(_ovBoxName(b))}</button>`;
-      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.row", "Zeile")}: ${_ovEsc(_ovFieldLabel(fid))}</h4>`;
-      h += _ovZeileHtml(P + "text_color", t("animator.overlay.text_color", "Textfarbe"), ez.text_color == null, wieB,
-        `<input type="color" data-k="${P}text_color" value="${zl.text_color}">`);
-      h += _ovZeileHtml(P + "groesse", t("animator.ovbox.size", "Größe"), ez.groesse == null, wieB,
-        `<input type="range" data-k="${P}groesse" data-typ="pct" min="50" max="300" step="5" value="${Math.round(zl.groesse * 100)}"><span>${Math.round(zl.groesse * 100)} %</span>`);
-      h += _ovZeileHtml(P + "fett", t("animator.ovbox.bold", "Fett"), ez.fett == null, wieB,
-        `<select data-k="${P}fett" data-typ="bool"><option value="1" ${zl.fett ? "selected" : ""}>${t("animator.ovbox.bold_yes", "fett")}</option><option value="0" ${zl.fett === false ? "selected" : ""}>${t("animator.ovbox.bold_no", "normal")}</option></select>`);
-      h += `</div><div class="ovbox-sek"><h4>${t("animator.ovbox.sec_blend", "Blende und Zeitpunkt")}</h4>`;
-      h += _ovZeitHtml(P, ez.zeit ? zl.zeit : null, b.zeit, wieB, t("animator.ovbox.row_time_hint", "Ohne eigenen Zeitpunkt erscheint die Zeile zusammen mit der Box."));
-      h += _ovZeileHtml(P + "blende.ein", t("animator.overlay.entry", "Einblendung"), !(ez.blende && ez.blende.ein != null), wieB,
-        `<select data-k="${P}blende.ein">${_ovBlendeOpts(zl.blende.ein, false)}</select>`);
-      h += _ovZeileHtml(P + "blende.aus", t("animator.ovbox.exit", "Ausblendung"), !(ez.blende && ez.blende.aus != null), wieB,
-        `<select data-k="${P}blende.aus">${_ovBlendeOpts(zl.blende.aus, true)}</select>`);
-      h += `</div>`;
-      if (b.typ === "totals") h += `<div class="ovbox-sek">` + (_ovBezugHtml(P + "bezug", ez.bezug != null, zl.bezug, wieB) || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren und bei mehreren Touren nacheinander.")}</p>`) + `</div>`;
-      return h;
-    }
-    // ── Box ──
-    let h = "";
-    if (!standard) {
-      const cat = _ovCat(b.typ);
-      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_box", "Box")}</h4>`
-        + `<div class="ovbox-zeile"><span></span><span>${t("animator.ovbox.title", "Überschrift")}</span><div class="ovbox-wert"><input type="text" data-k="titel" data-typ="text" maxlength="80" value="${_ovEsc(e.titel || "")}" placeholder="${_ovEsc(t("animator.ovbox.title_ph", "z. B. Die ganze Tour"))}"></div></div>`
-        + `<div class="ovbox-zeile"><span></span><span>${t("animator.ovbox.type", "Inhalt")}</span><div class="ovbox-wert"><select data-k="typ" data-typ="typ">`
-        + `<option value="totals" ${b.typ === "totals" ? "selected" : ""}>${t("animator.overlay.totals", "Gesamt")}</option>`
-        + `<option value="live" ${b.typ === "live" ? "selected" : ""}>${t("animator.overlay.live", "Live")}</option></select></div></div>`
-        + `<div class="ovbox-zeile"><span></span><span>${t("animator.overlay.position", "Position")}</span><div class="ovbox-wert"><select data-k="position" data-typ="text">`
-        + _OV_POS.map(p => `<option value="${p}" ${p === b.position ? "selected" : ""}>${t("animator.pos." + p, p)}</option>`).join("") + `</select></div></div>`
-        + `<div class="ovbox-zeile"><span></span><span>${t("animator.ovbox.fields", "Felder")}</span><div class="ovbox-wert">`
-        + cat.filter(f => _ovAvail(f.req)).map(f => `<label class="checkbox-row inline"><input type="checkbox" data-feld="${_ovEsc(f.id)}" ${(b.fields || []).includes(f.id) ? "checked" : ""}><span>${_ovEsc(_ovFieldLabel(f.id))}</span></label>`).join("")
-        + `</div></div></div>`;
-    }
-    const es = e.stil || {};
-    h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_look", "Aussehen")}</h4>`;
-    h += _ovZeileHtml("stil.bg_color", t("animator.overlay.bg_color", "Hintergrund"), es.bg_color == null, wieG, `<input type="color" data-k="stil.bg_color" value="${b.stil.bg_color}">`);
-    h += _ovZeileHtml("stil.bg_opacity", t("animator.overlay.bg_opacity", "Deckkraft Hintergrund"), es.bg_opacity == null, wieG,
-      `<input type="range" data-k="stil.bg_opacity" data-typ="pct" min="0" max="100" step="5" value="${Math.round(b.stil.bg_opacity * 100)}"><span>${Math.round(b.stil.bg_opacity * 100)} %</span>`);
-    h += _ovZeileHtml("stil.text_color", t("animator.overlay.text_color", "Textfarbe"), es.text_color == null, wieG, `<input type="color" data-k="stil.text_color" value="${b.stil.text_color}">`);
-    h += _ovZeileHtml("stil.font", t("animator.overlay.font", "Schrift"), es.font == null, wieG,
-      `<select data-k="stil.font">` + Object.keys(OVERLAY_FONT_STACK).map(k => `<option value="${k}" ${k === b.stil.font ? "selected" : ""}>${k === "system" ? t("animator.overlay.font_system", "System (Standard)") : ({ nunito: "Nunito", quicksand: "Quicksand", fredoka: "Fredoka", oswald: "Oswald", bebas: "Bebas Neue" })[k]}</option>`).join("") + `</select>`);
-    h += _ovZeileHtml("stil.radius", t("animator.ovbox.radius", "Ecken"), es.radius == null, wieG,
-      `<input type="range" data-k="stil.radius" data-typ="num" min="0" max="40" step="1" value="${b.stil.radius}"><span>${b.stil.radius}</span>`);
-    h += _ovZeileHtml("stil.border_w", t("animator.ovbox.border", "Rahmen"), es.border_w == null, wieG,
-      `<input type="number" data-k="stil.border_w" data-typ="num" min="0" max="12" step="0.5" value="${b.stil.border_w}"> px`);
-    h += _ovZeileHtml("stil.border_color", t("animator.ovbox.border_color", "Rahmenfarbe"), es.border_color == null, wieG, `<input type="color" data-k="stil.border_color" value="${b.stil.border_color}">`);
-    h += _ovZeileHtml("stil.shadow", t("animator.ovbox.shadow", "Schatten"), es.shadow == null, wieG,
-      `<select data-k="stil.shadow" data-typ="bool"><option value="1" ${b.stil.shadow ? "selected" : ""}>${t("animator.ovbox.on", "an")}</option><option value="0" ${b.stil.shadow ? "" : "selected"}>${t("animator.ovbox.off", "aus")}</option></select>`);
-    h += `</div>`;
-    const eb = e.blende || {};
-    h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_blend", "Blende und Zeitpunkt")}</h4>`;
-    h += _ovZeileHtml("blende.ein", t("animator.overlay.entry", "Einblendung"), eb.ein == null, wieG, `<select data-k="blende.ein">${_ovBlendeOpts(b.blende.ein, false)}</select>`);
-    h += _ovZeileHtml("blende.aus", t("animator.ovbox.exit", "Ausblendung"), eb.aus == null, wieG, `<select data-k="blende.aus">${_ovBlendeOpts(b.blende.aus, true)}</select>`);
-    // 24.09.2026 — Ein- und Ausblendung mit eigener Dauer (auch als Schrägen in der Timeline ziehbar).
-    h += _ovZeileHtml("blende.ein_s", t("animator.ovbox.ein_s", "Dauer Einblendung"), eb.ein_s == null && eb.dauer_s == null, wieG,
-      `<input type="number" data-k="blende.ein_s" data-typ="num" min="0" max="30" step="0.1" value="${b.blende.ein_s}"> s`);
-    h += _ovZeileHtml("blende.aus_s", t("animator.ovbox.aus_s", "Dauer Ausblendung"), eb.aus_s == null && eb.dauer_s == null, wieG,
-      `<input type="number" data-k="blende.aus_s" data-typ="num" min="0" max="30" step="0.1" value="${b.blende.aus_s}"> s`);
-    h += _ovZeitHtml("", e.zeit ? b.zeit : null, b.zeit,
-      standard ? t("animator.ovbox.inherit_sidebar", "wie in der Seitenleiste (⏱ Sekunden)") : t("animator.ovbox.inherit_whole", "die ganze Zeit"),
-      t("animator.ovbox.time_hint_spur", "Am einfachsten in der Zeitleiste: unter „Overlays“ den Balken ziehen. Am Ende des Zeitraums ist die Box ganz weg — die Ausblendung liegt davor.")
-        + " " + t("animator.ovbox.time_hint_mehr", "Weitere Zeiträume: Doppelklick auf eine freie Stelle der Zeile."),
-      b.zeiten);
-    h += `</div>`;
-    if (b.typ === "totals") {
-      const bz = _ovBezugHtml("bezug", e.bezug != null, b.bezug, wieG);
-      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_ref", "Zahlen")}</h4>` + (bz || `<p class="ovbox-hinweis">${t("animator.ovbox.ref_none", "Zahlen je Etappe gibt es bei zusammengeführten Touren und bei mehreren Touren nacheinander.")}</p>`) + `</div>`;
-    }
-    if (b.typ !== "ele") {
-      h += `<div class="ovbox-sek"><h4>${t("animator.ovbox.sec_rows", "Zeilen einzeln")}</h4><div class="ovbox-rows">`
-        + (b.fields || []).map(f => `<div class="ovbox-row"><span class="ovbox-row-name">${_ovEsc(_ovFieldLabel(f))}</span>`
-          + ((e.zeilen && e.zeilen[f]) ? `<span class="ovbox-row-mark">● ${t("animator.ovbox.row_own", "eigen")}</span>` : "")
-          + `<button type="button" class="ov-box-edit" data-act="zeile" data-f="${_ovEsc(f)}">✎</button></div>`).join("")
-        + `</div></div>`;
-    }
-    return h;
-  }
 
-  function _ovModalZeichnen() {
-    const root = document.getElementById("ovbox-root");
-    if (!root || !_ovModal) return;
-    const scroll = root.scrollTop;
-    root.innerHTML = _ovModalHtml();
-    root.scrollTop = scroll;
-    const titleEl = document.getElementById("modal-title");
-    const b = _ovAufgeloest().find(x => x.id === _ovModal.id);
-    if (titleEl && b) titleEl.textContent = t("animator.ovbox.modal_title", "Box gestalten") + ": " + _ovBoxName(b);
-    _ovModalBinden();
-  }
-  function _ovModalBinden() {
-    const root = document.getElementById("ovbox-root");
-    if (!root || root.__rzOvGebunden) return;
-    root.__rzOvGebunden = true;
-    const wertVon = (el) => {
-      const typ = el.getAttribute("data-typ") || "";
-      if (typ === "pct") return (parseFloat(el.value) || 0) / 100;
-      if (typ === "num") { const v = parseFloat(el.value); return isNaN(v) ? null : v; }
-      if (typ === "bool") return el.value === "1";
-      if (typ === "bezug") return (el.value === "gesamt" || el.value === "laufend" || /^art:/.test(el.value)) ? el.value : (parseInt(el.value, 10) || "gesamt");   // art:… = Bewegungsart (24.09.2026)
-      return el.value;
-    };
-    const zeitAusFormular = (zeile) => {
-      const g = (k) => zeile.querySelector(`[data-z="${k}"]`);
-      // 24.09.2026: Anker der Overlay-Spur; „km" wird zum Streckenanteil.
-      const km = _ovStreckeKm();
-      const anker = (art, el) => {
-        let w = parseFloat(el?.value) || 0;
-        if (art === "strecke") {
-          const kmIn = (el && el.hasAttribute("data-km")) ? w : 0;
-          // Das Feld zeigt km auf 0,1 gerundet — der gerundete Höchstwert IST das Ende (100 %).
-          w = km > 0 ? (kmIn >= Math.round(km * 10) / 10 - 1e-9 ? 1 : Math.max(0, Math.min(1, kmIn / km))) : 0;
-        }
-        return { art, wert: art === "strecke" ? Math.round(w * 10000) / 10000 : Math.max(0, w) };
-      };
-      const vArt = g("von.art")?.value || "video_start";
-      const bArt = g("bis.art")?.value || "";
-      const z = { von: anker(vArt, g("von.wert")) };
-      if (bArt === "dauer") { const d = parseFloat(g("bis.wert")?.value) || 0; z.dauer_s = d > 0 ? d : 10; }
-      else if (bArt) z.bis = anker(bArt, g("bis.wert"));
-      else z.bis = null;
-      // 26.09.2026 — Klicktest AN-15: „bis zum Videoende“ → „Sekunden vor Videoende“ sprang
-      // zurück. Das Wertfeld gab es vorher nicht, also wurde {video_ende, 0} gespeichert — und
-      // 0 s vor Ende IST „bis zum Videoende“, die Liste zeigte wieder das. Gehört das Wertfeld
-      // zu einer anderen Art (gerade umgestellt), nimmt „vor Ende“ den bisherigen Endpunkt
-      // mit; lag der schon am Videoende, gilt 2 s (bei kurzer Box die halbe Restzeit).
-      const G = _ovGesamtSek();
-      const umgestellt = (rolle, art) => { const el = g(rolle + ".wert"); return !el || el.getAttribute("data-art") !== art; };
-      const vonSek = () => {
-        if (z.von.art === "video_start") return z.von.wert;
-        if (z.von.art === "video_ende") return Math.max(0, G - z.von.wert);
-        const k = window.rzOverlayBoxen ? window.rzOverlayBoxen.kanten({ von: z.von }, _ovKontext()) : null;
-        return k && isFinite(k.an) ? k.an : 0;
-      };
-      const vorEnde = (bisher) => {
-        if (bisher > 0.05) return _ov1(bisher);
-        const rest = G > 0 ? G - vonSek() : 0;
-        return rest > 4 ? 2 : Math.max(0.1, _ov1(rest / 2));
-      };
-      if (z.bis && z.bis.art === "video_ende" && umgestellt("bis", "video_ende")) {
-        const el = g("bis.wert"), alt = el ? el.getAttribute("data-art") : "";
-        const w = parseFloat(el?.value) || 0;
-        let endeSek = alt === "video_start" ? w : (alt === "dauer" ? vonSek() + w : G);
-        if (alt === "strecke" && window.rzOverlayBoxen) {
-          const km = _ovStreckeKm();
-          const k = window.rzOverlayBoxen.kanten({ von: { art: "strecke", wert: km > 0 ? Math.min(1, w / km) : 1 } }, _ovKontext());
-          if (k && isFinite(k.an)) endeSek = k.an;
-        }
-        z.bis = { art: "video_ende", wert: vorEnde(G > 0 ? G - endeSek : 0) };
-      }
-      if (z.von.art === "video_ende" && umgestellt("von", "video_ende")) {
-        const el = g("von.wert"), alt = el ? el.getAttribute("data-art") : "";
-        const w = parseFloat(el?.value) || 0;
-        z.von = { art: "video_ende", wert: alt === "video_start" && G > w ? _ov1(G - w) : 2 };
-      }
-      return z;
-    };
-    const aendern = (fn, label, undoKey, neuZeichnen) => {
-      if (!_ovModal) return;
-      _ovAendern(_ovModal.id, fn, label, undoKey);
-      if (neuZeichnen) _ovModalZeichnen();
-    };
-    // Regler/Farben live (ein Undo-Schritt je Element), Auswahllisten/Häkchen mit Neuaufbau.
-    root.addEventListener("input", (ev) => {
-      const el = ev.target;
-      const k = el.getAttribute && el.getAttribute("data-k");
-      if (!k || el.tagName === "SELECT" || el.type === "text") return;
-      const pfad = k;   // Zeilen-Regler tragen „zeilen.<fid>.…" schon selbst
-      const w = wertVon(el);
-      const lbl = el.nextElementSibling;
-      if (lbl && lbl.tagName === "SPAN" && el.type === "range") lbl.textContent = el.getAttribute("data-typ") === "pct" ? Math.round(w * 100) + " %" : String(w);
-      aendern((e) => _ovPfad(e, pfad, w), t("animator.ovbox.undo", "Overlay-Box"), "ovbox:" + _ovModal.id + ":" + pfad, false);
-    });
-    root.addEventListener("change", (ev) => {
-      const el = ev.target;
-      if (!el || !el.getAttribute) return;
-      const erbt = el.getAttribute("data-erbt");
-      if (erbt) {
-        const pfad = erbt;
-        if (el.checked) { aendern((e) => _ovPfad(e, pfad, null), t("animator.ovbox.undo", "Overlay-Box"), null, true); return; }
-        // Haken weg → aktuellen (geerbten) Wert als eigenen übernehmen
-        const b = _ovAufgeloest().find(x => x.id === _ovModal.id);
-        let wert;
-        if (/(^|\.)zeit$/.test(pfad)) wert = _ovKopie((pfad.startsWith("zeilen.") ? null : (b && b.zeit)) || (b && b.zeit) || { von: { art: "s", wert: 0 } });
-        else if (pfad.startsWith("zeilen.")) {
-          const rest = pfad.split(".").slice(2).join(".");
-          const zl = (b && b.zeilen && b.zeilen[_ovModal.zeile]) || { text_color: b.stil.text_color, groesse: 1, fett: false, blende: b.blende, bezug: b.bezug };
-          wert = _ovPfadLesen(zl, rest);
-          if (rest === "fett" && wert == null) wert = false;
-        } else wert = _ovPfadLesen(b, pfad);
-        if (wert === undefined) wert = null;
-        aendern((e) => _ovPfad(e, pfad, wert == null ? (pfad.endsWith("fett") ? false : wert) : _ovKopie(wert)), t("animator.ovbox.undo", "Overlay-Box"), null, true);
-        return;
-      }
-      if (el.hasAttribute("data-z")) {
-        const zeile = el.closest("[data-zeit]");
-        const pfad = zeile.getAttribute("data-zeit");
-        if (zeile.hasAttribute("data-seg")) {
-          // Einer von mehreren Zeiträumen: nur diesen ersetzen, dann sortieren/zusammenlegen.
-          const i = +zeile.getAttribute("data-seg") || 0;
-          const bAkt = (window.rzOverlayBoxen && window.rzOverlayBoxen.aufloesen(_ovCfg()).find(x => x.id === _ovModal.id)) || null;
-          aendern((e) => {
-            const liste = bAkt ? _ovZeitenVon(bAkt) : [];
-            liste[i] = zeitAusFormular(zeile);
-            _ovZeitenSetzen(e, liste);
-          }, t("animator.ovbox.undo_time", "Zeitpunkt der Box"), null, el.tagName === "SELECT");
-          return;
-        }
-        aendern((e) => _ovPfad(e, pfad, zeitAusFormular(zeile)), t("animator.ovbox.undo_time", "Zeitpunkt der Box"), null, el.tagName === "SELECT");
-        return;
-      }
-      if (el.hasAttribute("data-feld")) {
-        const felder = Array.from(root.querySelectorAll("[data-feld]")).filter(x => x.checked).map(x => x.getAttribute("data-feld"));
-        aendern((e) => { e.fields = felder; }, t("animator.ovbox.undo_fields", "Felder der Box"), null, true);
-        return;
-      }
-      const k = el.getAttribute("data-k");
-      if (!k) return;
-      if (k === "typ") {
-        const typ = el.value === "live" ? "live" : "totals";
-        aendern((e) => { e.typ = typ; delete e.fields; delete e.zeilen; if (typ === "live") delete e.bezug; }, t("animator.ovbox.undo", "Overlay-Box"), null, true);
-        return;
-      }
-      if (el.tagName === "SELECT" || el.type === "text" || el.type === "checkbox") {
-        const pfad = k;
-        const w = wertVon(el);
-        aendern((e) => _ovPfad(e, pfad, w), t("animator.ovbox.undo", "Overlay-Box"), null, el.tagName === "SELECT");
-      }
-    });
-    root.addEventListener("click", (ev) => {
-      const btn = ev.target.closest && ev.target.closest("[data-act]");
-      if (!btn || !_ovModal) return;
-      const act = btn.getAttribute("data-act");
-      if (act === "seg-weg") { _ovZeitraumWeg(_ovModal.id, +btn.getAttribute("data-seg") || 0); _ovModalZeichnen(); return; }
-      if (act === "zeile") { _ovModal.zeile = btn.getAttribute("data-f"); _ovModalZeichnen(); }
-      else if (act === "zurueck") { _ovModal.zeile = null; _ovModalZeichnen(); }
-    });
-  }
 
-  function _ovBoxModal(id, zeile) {
-    _ovModal = { id, zeile: zeile || null };
-    openModal({
-      title: t("animator.ovbox.modal_title", "Box gestalten"),
-      body: `<div id="ovbox-root" class="ovbox-modal"></div>`,
-      footer: `<div class="ovbox-fuss">`
-        + `<button class="btn" id="ovbox-alle" title="${_ovEsc(t("animator.ovbox.apply_all_tip", "Aussehen und Blende dieser Box auf alle anderen Boxen übertragen (Zeitpunkt und Zahlen bleiben je Box)"))}">${t("animator.ovbox.apply_all", "Auf alle Boxen übernehmen")}</button>`
-        + `<button class="btn" id="ovbox-reset">${t("animator.ovbox.reset", "Diese Box zurücksetzen")}</button>`
-        + `<button class="btn" id="ovbox-reset-alle">${t("animator.ovbox.reset_all", "Alle zurücksetzen")}</button>`
-        + `<button class="btn btn-primary" id="ovbox-zu">${t("common.close", "Schließen")}</button></div>`,
-      onClose: () => { _ovModal = null; },
-    });
-    _ovModalZeichnen();
-    const wieder = () => { if (_ovModal) _ovBoxModal(_ovModal.id, _ovModal.zeile); };
-    document.getElementById("ovbox-zu").onclick = () => { _ovModal = null; try { openModal({}).close(); } catch (_) {} };
-    document.getElementById("ovbox-alle").onclick = () => {
-      const quelle = _ovBoxenRoh().find(x => x && x.id === id) || {};
-      const liste = _ovKopie(_ovBoxenRoh()) || [];
-      const ids = _ovAufgeloest().map(b => b.id);
-      for (const bid of ids) {
-        if (bid === id) continue;
-        let e = liste.find(x => x && x.id === bid);
-        if (!e) { e = { id: bid }; liste.push(e); }
-        if (quelle.stil) e.stil = _ovKopie(quelle.stil); else delete e.stil;
-        if (quelle.blende) e.blende = _ovKopie(quelle.blende); else delete e.blende;
-      }
-      _ovSchreiben(liste.filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1)), t("animator.ovbox.apply_all", "Auf alle Boxen übernehmen"));
-      _ovModalZeichnen();
-      try { toast(t("animator.ovbox.applied", "Aussehen auf alle Boxen übertragen."), "success"); } catch (_) {}
-    };
-    document.getElementById("ovbox-reset").onclick = async () => {
-      const ok = await window.rzConfirm(t("animator.ovbox.reset", "Diese Box zurücksetzen"),
-        t("animator.ovbox.reset_q", "Alle eigenen Einstellungen dieser Box (Aussehen, Blende, Zeitpunkt, Zahlen, Zeilen) entfernen? Die Box sieht danach aus wie alle anderen."),
-        t("animator.ovbox.reset_ok", "Zurücksetzen"), true);
-      if (ok) _ovAendern(id, (e) => { delete e.stil; delete e.blende; delete e.zeit; delete e.bezug; delete e.zeilen; }, t("animator.ovbox.reset", "Diese Box zurücksetzen"));
-      wieder();
-    };
-    document.getElementById("ovbox-reset-alle").onclick = async () => {
-      const ok = await window.rzConfirm(t("animator.ovbox.reset_all", "Alle zurücksetzen"),
-        t("animator.ovbox.reset_all_q", "Die eigenen Einstellungen ALLER Boxen entfernen? Zusätzliche Boxen bleiben erhalten, sehen aber wieder aus wie eingestellt unter „Aussehen der Stats-Boxen“."),
-        t("animator.ovbox.reset_ok", "Zurücksetzen"), true);
-      if (ok) {
-        const liste = (_ovKopie(_ovBoxenRoh()) || []).map(e => { delete e.stil; delete e.blende; delete e.zeit; delete e.bezug; delete e.zeilen; return e; })
-          .filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1));
-        _ovSchreiben(liste, t("animator.ovbox.reset_all", "Alle zurücksetzen"));
-      }
-      wieder();
-    };
-  }
 
-  function _ovExtraListe() {
-    const el = document.getElementById("anim-ov-extra-list");
-    if (!el) return;
-    const aufl = _ovAufgeloest();
-    const extras = aufl.filter(b => !_OV_STANDARD.includes(b.id));
-    el.innerHTML = extras.length
-      ? extras.map(b => `<div class="ov-extra-row${b.enabled ? "" : " aus"}" data-id="${_ovEsc(b.id)}">`
-          + `<input type="checkbox" data-act="an" ${b.enabled ? "checked" : ""} title="${_ovEsc(t("animator.ovbox.show", "Anzeigen"))}">`
-          + `<span class="ov-extra-name">${_ovEsc(_ovBoxName(b))}</span>`
-          + `<button type="button" class="ov-box-edit" data-act="edit" title="${_ovEsc(t("animator.ovbox.edit_tip", "Diese Box einzeln gestalten: Farben, Schrift, Rahmen, Blende, Zeitpunkt"))}">✎</button>`
-          + `<button type="button" class="ov-box-edit" data-act="dup" title="${_ovEsc(t("animator.ovbox.dup", "Duplizieren"))}">⧉</button>`
-          + `<button type="button" class="ov-box-edit" data-act="del" title="${_ovEsc(t("animator.ovbox.del", "Löschen"))}">✕</button></div>`).join("")
-      : `<div class="ov-extra-leer">${t("animator.ovbox.extra_empty", "Noch keine zusätzliche Box.")}</div>`;
-    if (!el.__rzOvGebunden) {
-      el.__rzOvGebunden = true;
-      el.addEventListener("click", async (ev) => {
-        const btn = ev.target.closest && ev.target.closest("[data-act]");
-        const row = ev.target.closest && ev.target.closest("[data-id]");
-        if (!btn || !row) return;
-        const id = row.getAttribute("data-id");
-        const act = btn.getAttribute("data-act");
-        if (act === "edit") _ovBoxModal(id);
-        else if (act === "dup") {
-          const liste = _ovKopie(_ovBoxenRoh()) || [];
-          const q = liste.find(x => x && x.id === id);
-          if (!q) return;
-          const n = _ovKopie(q); n.id = "box_" + Math.random().toString(36).slice(2, 8);
-          liste.splice(liste.indexOf(q) + 1, 0, n);
-          _ovSchreiben(liste, t("animator.ovbox.dup", "Duplizieren"));
-        } else if (act === "del") {
-          const b = _ovAufgeloest().find(x => x.id === id);
-          const ok = await window.rzConfirm(t("animator.ovbox.del", "Löschen"),
-            t("animator.ovbox.del_q", "Die Box „{name}“ löschen?").replace("{name}", b ? _ovBoxName(b) : id), t("animator.ovbox.del", "Löschen"), true);
-          if (ok) _ovSchreiben((_ovKopie(_ovBoxenRoh()) || []).filter(x => x && x.id !== id), t("animator.ovbox.del", "Löschen"));
-        }
-      });
-      el.addEventListener("change", (ev) => {
-        const cb = ev.target;
-        const row = cb.closest && cb.closest("[data-id]");
-        if (!row || cb.getAttribute("data-act") !== "an") return;
-        const on = !!cb.checked;
-        _ovAendern(row.getAttribute("data-id"), (e) => { e.enabled = on; }, t("animator.ovbox.show", "Anzeigen"));
-      });
-    }
-    _ovZeitFelderSync();
-  }
   // 24.09.2026 (Overlay-Spur): die ⏱-Sekunden der Seitenleiste laufen mit dem Balken
   // mit. Hat eine Standardbox eine eigene Zeit (Balken gezogen, ✎-Fenster), zeigen die
   // Felder deren Sekunden, und eine Eingabe setzt die Zeit mit denselben Ankerregeln
   // wie das Ziehen — statt der alten Sekundenfelder. „bis" vor „von" wird rot markiert
   // (Beta-Tester: „25 – 1" — gemeint war „kurz vor Ende", die Box erschien nie).
   const _OV_ZEIT_GRUPPEN = [["totals", "anim-overlay-totals-group"], ["live", "anim-overlay-live-group"], ["ele", "anim-overlay-elevation-group"]];
-  function _ovZeitFelderSync() {
-    const R = window.rzOverlayBoxen;
-    const eigen = new Set(_ovBoxenRoh().filter(e => e && e.zeit).map(e => e.id));
-    const G = _ovGesamtSek();
-    const boxen = R ? R.aufloesen(_ovCfg()) : [];
-    const ctx = R ? _ovKontext() : null;
-    for (const [id, gid] of _OV_ZEIT_GRUPPEN) {
-      const tm = document.querySelector("#" + gid + " .ov-timing");
-      if (!tm) continue;
-      _ovZeitFelderBinden(tm, id);
-      tm.classList.remove("ov-timing-ersetzt");
-      tm.querySelectorAll("input").forEach(i => { i.disabled = false; });
-      tm.title = t("animator.overlay.timing_tip");
-      tm.dataset.eigen = eigen.has(id) ? "1" : "";
-      const [vonEl, bisEl] = tm.querySelectorAll("input");
-      const bM = boxen.find(x => x.id === id);
-      const mehr = !!(bM && bM.zeiten && bM.zeiten.length > 1);
-      tm.dataset.mehr = mehr ? "1" : "";
-      tm.querySelectorAll("input").forEach(i => { i.readOnly = mehr; });
-      const artEl = tm.querySelector(".ov-bis-art");
-      if (artEl) artEl.disabled = mehr;
-      if (mehr) tm.title = t("animator.ov.mehr_zeitraeume", "Diese Box hat {n} Zeiträume — bearbeiten in der Zeitleiste unter „Overlays“ oder im ✎-Fenster.").replace("{n}", String(bM.zeiten.length));
-      if (eigen.has(id) && R && vonEl && bisEl && document.activeElement !== vonEl && document.activeElement !== bisEl) {
-        const b = boxen.find(x => x.id === id);
-        const k = b && R.kanten(b.zeit, ctx);
-        if (k && document.activeElement !== artEl) {
-          vonEl.value = String(_ov1(k.an));
-          const roh = _ovBoxenRoh().find(e => e && e.id === id);
-          const zb = roh && roh.zeit && !Array.isArray(roh.zeit) ? roh.zeit.bis : null;
-          if (zb && zb.art === "video_ende" && +zb.wert > 0) {
-            if (artEl) artEl.value = "vor_ende";
-            bisEl.value = String(_ov1(+zb.wert));
-          } else {
-            if (artEl) artEl.value = "s";
-            bisEl.value = (isFinite(k.aus) && k.aus < G - 0.05) ? String(_ov1(k.aus)) : "";
-          }
-        }
-      }
-      _ovZeitFelderPruefen(tm);
+
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Einblendungen als Container (30.09.2026, docs/OVERLAY-CONTAINER.md) ────
+  // Ein Baustein für alles am Bildschirm: Anker + Abstand, Zeilen (Wert, Freitext,
+  // Diagramm, Bild, Nordpfeil, Maßstab), Stil = Template. Modell: ui/js/container.js.
+  // Gespeichert unter <modul>.container (+ container_v = 1, verlauf). Alte Projekte
+  // werden beim Öffnen übersetzt (_ctUmzug). Gezeichnet im Overlay-Layer (Videopixel,
+  // container-type: size → Schrift in cqmin), die Szene nimmt ihn 1:1 ins Video.
+  // ══════════════════════════════════════════════════════════════════════════
+  var _ctCache = { roh: undefined, liste: [] };   // var: Aufrufe schon während des Aufbaus
+  var _ctBilder = new Map();                      // Bildpfad → data-URI (oder Promise)
+  var _ctChartHtml = new Map();                   // Signatur → Inline-SVG-HTML
+  var _ctEditId = null;                           // offener Editor
+  function _ctRoh() {
+    const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    if (p) return p.container;
+    // Ohne offenes Projekt: aus den Vorgaben (settings) übersetzen — nur im Speicher.
+    const a = (_settingsCache && _settingsCache[_MODKEY]) || {};
+    if (a.container_v === 1) return a.container;
+    if (!window.rzContainer) return undefined;
+    if (!_ctRoh.__memo || _ctRoh.__memo.von !== a) {
+      let liste = [];
+      try {
+        const { W, H } = _ctFormat();
+        liste = window.rzContainer.migrieren(a, parseInt(a.width, 10) || W, parseInt(a.height, 10) || H, t).container;
+        if (_isStaticFrame) liste = liste.filter(c => c.vorlage !== "live");
+      } catch (e) { applog("warn", "[container] Vorgaben übersetzen: " + e); }
+      _ctRoh.__memo = { von: a, liste };
     }
+    return _ctRoh.__memo.liste;
   }
-  /** Liefert true, wenn von/bis zusammenpassen; markiert „bis“ sonst rot (25.09.2026: kennt „vor Ende“). */
-  function _ovZeitFelderPruefen(tm) {
-    const [vonEl, bisEl] = tm.querySelectorAll("input");
-    if (!vonEl || !bisEl) return true;
-    const art = (tm.querySelector(".ov-bis-art") || {}).value || "s";
-    const G = _ovGesamtSek();
-    const von = parseFloat(vonEl.value), roh = parseFloat(bisEl.value);
-    const vonS = isFinite(von) ? von : 0;
-    let falsch = false;
-    if (isFinite(roh) && roh > 0) {
-      const bisAbs = art === "vor_ende" ? G - roh : roh;
-      falsch = !(bisAbs > vonS + 0.05);
+  /** Zustände können schon vor ihrer Zeile gebraucht werden (frühe Aufrufe beim Aufbau). */
+  function _ctZustand() {
+    if (!_ctCache) _ctCache = { roh: undefined, liste: [] };
+    if (!_ctBilder) _ctBilder = new Map();
+    if (!_ctChartHtml) _ctChartHtml = new Map();
+    if (_ctLetztFrac === undefined) _ctLetztFrac = 1;
+  }
+  function _ctListe() {
+    _ctZustand();
+    const roh = _ctRoh();
+    if (_ctCache.roh === roh && roh !== undefined) return _ctCache.liste;
+    _ctCache = { roh, liste: window.rzContainer ? window.rzContainer.liste(roh) : [] };
+    return _ctCache.liste;
+  }
+  function _ctVerlauf() {
+    const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    const a = p || (_settingsCache && _settingsCache[_MODKEY]) || {};
+    const v = (a && typeof a.verlauf === "object" && a.verlauf) || {};
+    const teil = (x, d) => ({ an: !!(x && x.an), staerke: Math.max(0, Math.min(1, x && isFinite(+x.staerke) ? +x.staerke : d)) });
+    return { oben: teil(v.oben, 0.62), unten: teil(v.unten, 0.72) };
+  }
+  function _ctFormat() {
+    return { W: parseInt(document.getElementById("anim-w")?.value, 10) || 1920,
+             H: parseInt(document.getElementById("anim-h")?.value, 10) || 1080 };
+  }
+  /** Speichern (ein ⌘Z-Schritt je Geste, undoKey bündelt Regler/Ziehen). */
+  function _ctSpeichern(liste, label, undoKey, extra) {
+    if (_animUndoCtrl && !window.__rzUndoApplying) {
+      try {
+        const force = !undoKey || window.__rzLastUndoEl !== undoKey;
+        _animUndoCtrl.push(label || t("container.undo", "Einblendung"), { force });
+        window.__rzLastUndoEl = undoKey || null;
+      } catch (_) {}
     }
-    bisEl.classList.toggle("ist-ungueltig", falsch);
-    bisEl.title = falsch ? (art === "vor_ende"
-      ? t("animator.ov.bis_vor_ende_falsch", "So endet die Box, bevor sie beginnt — „{n} s vor Ende“ liegt vor „von“. Nichts übernommen.").replace("{n}", String(roh))
-      : t("animator.ov.bis_vor_von", "„bis“ liegt vor „von“ — so ist die Box nie zu sehen. Nichts übernommen. Meintest du „s vor Ende“? Dann rechts umstellen."))
-      : "";
-    return !falsch;
+    saveProjectSettings(_MODKEY, Object.assign({ container: liste.map(c => Object.assign({}, c)), container_v: 1 }, extra || {}));
+    renderOverlayPreview();
+    _ctListeZeichnen();
+    if (_ctEditId) _ctEditorZeichnen();
   }
-  function _ovZeitFelderBinden(tm, id) {
-    if (tm.__rzOvGebunden) return;
-    tm.__rzOvGebunden = true;
-    // Capture auf dem Behälter: die Eingabe erreicht den alten Sekunden-Speicher
-    // (bindSetting → overlay_*_from_s) nicht mehr. 25.09.2026 (Beta-Tester: „15 – 5“ → rot,
-    // Balken auf Minimum): Jede gültige Eingabe wird eine echte Box-Zeit — Balken und Felder
-    // zeigen dasselbe; Ungültiges bleibt rot und wird NICHT übernommen.
-    const abfangen = (ev) => {
-      if (!ev.target.matches || !ev.target.matches("input, select")) return;
-      const gueltig = _ovZeitFelderPruefen(tm);
-      ev.stopPropagation();
-      if (tm.dataset.mehr === "1") return;
-      if (ev.type !== "change" || !gueltig) return;
-      const [vonEl, bisEl] = tm.querySelectorAll("input");
-      const art = (tm.querySelector(".ov-bis-art") || {}).value || "s";
-      const von = Math.max(0, parseFloat(vonEl.value) || 0);
-      const roh = parseFloat(bisEl.value);
-      let bis = null;
-      if (isFinite(roh) && roh > 0) bis = art === "vor_ende" ? { art: "video_ende", wert: _ov1(roh) } : _ovAnkerAusZeit(roh, "bis");
-      _ovAendern(id, (e) => {
-        e.zeit = { von: _ovAnkerAusZeit(von, "von") || { art: "video_start", wert: 0 }, bis };
-      }, t("animator.ov.spur_undo", "Overlay-Zeit"));
-    };
-    tm.addEventListener("input", abfangen, true);
-    tm.addEventListener("change", abfangen, true);
+  function _ctAendern(id, fn, label, undoKey) {
+    const liste = JSON.parse(JSON.stringify(_ctListe()));
+    const c = liste.find(x => x.id === id);
+    if (!c) return;
+    fn(c);
+    const i = liste.indexOf(c);
+    liste[i] = window.rzContainer.normalisieren(c);
+    _ctSpeichern(liste, label, undoKey);
   }
-  function _ovBoxNeu() {
-    const liste = _ovKopie(_ovBoxenRoh()) || [];
-    const id = "box_" + Math.random().toString(36).slice(2, 8);
-    liste.push({ id, typ: "totals", position: "cc", enabled: true });
-    _ovSchreiben(liste, t("animator.ovbox.add", "Box"));
-    _ovBoxModal(id);
-  }
-
-  /** 25.09.2026 (Beta-Tester: „Zusammenspiel Zeitleiste ↔ Einstellen funktioniert nicht"):
-   *  Hat eine Box eigene Blenden-Dauern (Punkte am Balken gezogen oder ✎-Fenster), gilt die
-   *  „Dauer der Blende“ oben für sie nicht — das steht jetzt dort, mit einem Knopf zurück. */
-  function _ovBlendeEigenZeigen() {
-    const el = document.getElementById("anim-ov-blende-eigen");
-    if (!el) return;
-    const R = window.rzOverlayBoxen;
-    const roh = _ovBoxenRoh();
-    const eigen = roh.filter(e => e && e.blende && ["ein_s", "aus_s", "dauer_s"].some(k => e.blende[k] != null));
-    if (!eigen.length || !R) { el.hidden = true; el.innerHTML = ""; return; }
-    const aufg = R.aufloesen(_ovCfg());
-    const z = (v) => (Math.round((+v || 0) * 10) / 10).toLocaleString((window.rzSprachCode ? window.rzSprachCode() : undefined), { maximumFractionDigits: 1 });
-    const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-    const liste = eigen.map(e => {
-      const b = aufg.find(x => x.id === e.id) || { blende: {} };
-      return `${esc(_ovBoxName(b.id ? b : { id: e.id, typ: e.typ }))} (${z(b.blende.ein_s)} s / ${z(b.blende.aus_s)} s)`;
-    }).join(", ");
-    el.innerHTML = `<span>${t("animator.ovbox.blende_eigen", "Eigene Blenden (aus der Zeitleiste oder ✎): {liste} — dort gilt die Dauer oben nicht.").replace("{liste}", liste)}</span>
-      <button type="button" class="btn btn-small" id="anim-ov-blende-zurueck">${t("animator.ovbox.blende_zurueck", "Auf die Dauer oben zurücksetzen")}</button>`;
-    el.hidden = false;
-    document.getElementById("anim-ov-blende-zurueck").onclick = () => {
-      const neu = (_ovKopie(roh) || []).map(e => {
-        if (e && e.blende) { delete e.blende.ein_s; delete e.blende.aus_s; delete e.blende.dauer_s; _ovLeerWeg(e); }
-        return e;
-      }).filter(x => x && !(_OV_STANDARD.includes(x.id) && Object.keys(x).length <= 1));
-      _ovSchreiben(neu, t("animator.ovbox.blende_zurueck", "Auf die Dauer oben zurücksetzen"));
-    };
-  }
-
-  function renderOverlayPreview() {
-    _ovTimingBoxen = null;   // Einstellungen geändert → Zeitsteuerung neu auflösen
-    try { _ovSpurAktualisieren(); } catch (_) {}
-    try { _ovBlendeEigenZeigen(); } catch (e) { applog("warn", "[anim-ov] Blende-Hinweis: " + e); }
-    try { _applyAttribLook(); } catch (_) {}
-    try { _overlayBoxenRendern(); } catch (e) {
-      try { applog("warn", "[anim-ov] Vorschau: " + e); } catch (_) {}
+  /** Umzug alter Projekte (Q8): einmal je Projekt/Modul, leise (kein ⌘Z), Sicherung
+   *  macht der Dateischutz beim Speichern. */
+  function _ctUmzug() {
+    if (!window.rzContainer || _isReiseroute) return false;
+    const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    if (!p || p.container_v === 1) return false;
+    const { W, H } = _ctFormat();
+    let m;
+    try { m = window.rzContainer.migrieren(p, parseInt(p.width, 10) || W, parseInt(p.height, 10) || H, t); }
+    catch (e) { applog("error", "[container] Umzug fehlgeschlagen: " + e); return false; }
+    let liste = m.container;
+    if (_isStaticFrame) liste = liste.filter(c => c.vorlage !== "live");   // Tour-Map: keine Live-Werte (wie bisher)
+    if (window.__rzRenderMode) {
+      // Render-Fenster (Szene): nur im Speicher übersetzen, nie ins Projekt schreiben
+      Object.assign(p, { container: liste, container_v: 1, verlauf: m.verlauf });
+      _ctCache = { roh: undefined, liste: [] };
+      applog("info", `[container] im Render-Fenster übersetzt (nicht gespeichert): ${liste.length} Einblendungen`);
+      return true;
     }
-    try { watermarkPreviewAnwenden(); } catch (_) {}
+    const warUndo = window.__rzUndoApplying;
+    window.__rzUndoApplying = true;
+    try { saveProjectSettings(_MODKEY, { container: liste, container_v: 1, verlauf: m.verlauf }); }
+    finally { window.__rzUndoApplying = warUndo; }
+    applog("info", `[container] Projekt übersetzt: ${liste.length} Einblendungen` + (m.hinweise.length ? " · " + m.hinweise.join(", ") : ""));
+    return true;
   }
 
-  function _overlayBoxenRendern() {
-    // v0.9.443 — Diagramm-Overlays im eigenen Layer aktuell halten (Position/
-    // Größe/Deckkraft; kein srcdoc-Refetch wenn unverändert). Läuft VOR den
-    // Early-Returns, damit auch das Leeren bei Reiseroute/Master-Aus greift.
-    try { _chartsPreviewRender(false); } catch (_) {}
-    const layer = document.getElementById("anim-overlay-preview");
-    if (!layer) return;
-    layer.dataset.skin = _ovSkin();   // 30.09.2026 — CSS: .overlay-preview-layer[data-skin="frei"]
-    { const sk = document.getElementById("anim-sk"); if (sk) sk.dataset.skin = layer.dataset.skin; }
-    // v0.9.479 — Stats-Box-Schatten folgt der GLOBALEN Lichtquelle (wie Track + Schilder),
-    // immer sichtbar (Beta-Tester-Wunsch „Stats auch Schatten"). Richtung aus dem Track-Schatten-
-    // Richtungsregler; fester Versatz, damit der Schatten unabhängig vom Track-Schatten wirkt.
-    // WYSIWYG zum Render (core/animator.py::_overlay_css).
-    try {
-      const _sr = currentShadowDir() * Math.PI / 180;
-      layer.style.setProperty("--rz-ov-shx", (9 * Math.cos(_sr)).toFixed(2));
-      layer.style.setProperty("--rz-ov-shy", (9 * Math.sin(_sr)).toFixed(2));
-    } catch (_) {}
-    // v0.9.215 — Reiseroute hat keine Stats-Overlays (Sektion entfernt). Ohne
-    // diesen Guard liefert `?.checked ?? true` für die fehlenden Checkboxen
-    // `true` → Overlays würden fälschlich angezeigt.
-    if (_isReiseroute) { layer.innerHTML = ""; return; }
-    const master = document.getElementById("anim-overlays")?.checked ?? true;
-    const totals = document.getElementById("anim-ov-totals")?.checked ?? true;
-    // v0.9.309 — im Standbild (Tour-Map) keine Live-Box (zeit-animiert).
-    const live   = !_isStaticFrame && (document.getElementById("anim-ov-live")?.checked ?? true);
-    const ele    = document.getElementById("anim-ov-ele")?.checked ?? true;
-    const posT   = document.getElementById("anim-ov-totals-pos")?.value || "tl";
-    const posL   = document.getElementById("anim-ov-live-pos")?.value || "tr";
-    const posE   = document.getElementById("anim-ov-ele-pos")?.value || "bc";
-    const color  = currentLineColor();
-
-    if (!master) { layer.innerHTML = ""; return; }
-
-    // Stats: echte Zahlen wenn GPX geladen, sonst Demo-Werte als Platzhalter
-    const s = _gpxStats;
-    const fmtKmLocal = (km) => km < 100 ? km.toFixed(1) + " km" : km.toFixed(0) + " km";
-    const fmtDurLocal = (sec) => {
-      sec = Math.max(0, Math.floor(sec));
-      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60;
-      const pad = n => n < 10 ? "0" + n : "" + n;
-      return h > 0 ? h + ":" + pad(m) + ":" + pad(x) : pad(m) + ":" + pad(x);
-    };
-    const distTxt = s ? fmtKmLocal(s.distance_km) : "—";
-    const dur     = s ? s.duration_s : 0;
-    const durTxt  = s ? fmtDurLocal(dur) : "—";
-    const ascTxt  = s ? Math.round(s.ascent_m) + " m"  : "—";
-    const descTxt = s ? Math.round(s.descent_m) + " m" : "—";
-    const eleMaxTxt = s && s.ele_max != null ? Math.round(s.ele_max) + " m" : "—";
-
-    // v0.9.290 (Nutzer): ruhende Vorschau zeigt den ENDZUSTAND (100 %, = letzter
-    // Frame) statt 50 %. Die alten 50 %-Demowerte sahen aus wie echte „schon
-    // halbe Strecke gefahren"-Daten und verwirrten vor dem Render. Die animierte
-    // Vorschau (Probe-Lauf) und der Render selbst zählen weiterhin korrekt 0→Ende.
-    const liveDistTxt = s ? fmtKmLocal(s.distance_km) : "0.0 km";
-    const liveTimeTxt = s ? fmtDurLocal(dur) : "00:00";
-    const liveEleTxt  = (_gpxElevations && _gpxElevations.length)
-      ? Math.round(_gpxElevations[_gpxElevations.length - 1]) + " m"
-      : (s && s.ele_max != null ? Math.round(s.ele_max) + " m" : "0 m");
-
-    // Höhenprofil-SVG: einfache Polyline aus _gpxElevations (v0.9.290: 100% =
-    // Endzustand gefüllt, passend zur Live-Stat oben).
-    let eleSvg = "";
-    if (ele && _gpxElevations && _gpxElevations.length > 1) {
-      const W = 1000, H = 120, PY = 10;
-      // 09.09.2026 — Ausschnitt nach Schalter (Ruhezustand = Ende → letzte Etappe)
-      const _a = _ovEleAusschnitt(_gpxElevations.length - 1);
-      _ovEleAusschnittZuletzt = _a.von + ":" + _a.bis;
-      const _teil = _gpxElevations.slice(_a.von, _a.bis + 1);
-      const eMin = Math.min(..._teil);
-      const eMax = Math.max(..._teil);
-      const eRng = (eMax - eMin) || 1;
-      const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
-      const xOf = (i) => ((i - _a.von) / Math.max(1, _a.bis - _a.von)) * W;
-      const bgPts = _teil.map((e, i) => `${xOf(_a.von + i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" ");
-      const markenSvg = _a.marken.map(i => `<line class="ov-ele-marke" x1="${xOf(i).toFixed(1)}" y1="0" x2="${xOf(i).toFixed(1)}" y2="${H}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="3 3"/>`).join("");
-      const titelZusatz = _a.name ? " · " + _animEscapeHtml(_a.name) : "";
-      const activePairs = [];
-      for (let i = _a.von; i <= _a.bis; i++) activePairs.push([xOf(i), yOf(_gpxElevations[i])]);
-      const activePts = activePairs.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-      const fillPts = activePairs.length >= 2
-        ? `${activePairs[0][0].toFixed(1)},${H} ${activePts} ${activePairs[activePairs.length - 1][0].toFixed(1)},${H}`
-        : "";
-      const dotX = activePairs.length ? activePairs[activePairs.length - 1][0].toFixed(1) : 0;
-      const dotY = activePairs.length ? activePairs[activePairs.length - 1][1].toFixed(1) : 0;
-      eleSvg = `
-        <div class="ov-ele-header">
-          <span class="ov-ele-title">${t("animator.overlay.elevation_title")}${titelZusatz}</span>
-          <span class="ov-ele-minmax">${t("animator.overlay.ele_min", "Min")} ${Math.round(eMin)} m · ${t("animator.overlay.ele_max", "Max")} ${Math.round(eMax)} m</span>
-        </div>
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="ov-ele-svg">
-          <defs>
-            <linearGradient id="ov-ele-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="${color}" stop-opacity="0.55"/>
-              <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
-            </linearGradient>
-          </defs>
-          <polyline id="ov-ele-bg" points="${bgPts}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-          ${markenSvg}
-          <polygon id="ov-ele-fill" points="${fillPts}" fill="url(#ov-ele-grad)"/>
-          <polyline id="ov-ele-line" points="${activePts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-          <circle id="ov-ele-dot" cx="${dotX}" cy="${dotY}" r="4.5" fill="#ffffff" stroke="${color}" stroke-width="2"/>
-        </svg>`;
+  // ── Zeichnen ──
+  function _ctEsc(x) { return String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function _ctLageCss(c) {
+    const x = c.x, y = c.y, a = c.anker;
+    const h = a[1], v = a[0];
+    let s = "", tr = "", org = "";
+    if (h === "l") { s += `left:${x}%;`; org = "left"; }
+    else if (h === "r") { s += `right:${x}%;`; org = "right"; }
+    else { s += `left:calc(50% + ${x}%);`; tr += "translateX(-50%) "; org = "center"; }
+    if (v === "t") { s += `top:${y}%;`; org = "top " + org; }
+    else if (v === "b") { s += `bottom:${y}%;`; org = "bottom " + org; }
+    else { s += `top:calc(50% + ${y}%);`; tr += "translateY(-50%) "; org = "center " + org; }
+    return s + `transform:${tr}scale(var(--rz-ov-pop, 1));transform-origin:${org};`;
+  }
+  function _ctKarteCss(c) {
+    const S = [];
+    S.push(`font-family:${OVERLAY_FONT_STACK[c.schrift] || OVERLAY_FONT_STACK.system}`);
+    S.push(`color:${c.textfarbe}`);
+    S.push(`--ct-akzent:${c.akzent}`);
+    S.push(`--ct-bes:${c.beschr_faktor}em`);
+    S.push(`--ct-einh:${c.einheit_faktor}em`);
+    S.push(`--ct-zeile:${c.zeilenabstand}em`);
+    S.push(`--ct-spalte:${c.spaltenabstand}em`);
+    if (c.hg_deckkraft > 0) S.push(`background:${_ovHexRgba(c.hg_farbe, c.hg_deckkraft)}`);
+    if (c.unschaerfe && c.hg_deckkraft > 0) S.push("-webkit-backdrop-filter:blur(0.36em);backdrop-filter:blur(0.36em)");
+    S.push(`padding:${c.innen}em`);
+    S.push(`border-radius:${c.ecken}em`);
+    if (c.rahmen_b > 0) S.push(`border:${c.rahmen_b}em solid ${c.rahmen_farbe}`);
+    if (c.schatten) {
+      let r = 45; try { r = currentShadowDir(); } catch (_) {}
+      const rad = r * Math.PI / 180;
+      S.push(`box-shadow:${(0.41 * Math.cos(rad)).toFixed(3)}em ${(0.41 * Math.sin(rad)).toFixed(3)}em 1em rgba(0,0,0,0.45)`);
     }
-
-    // 23.09.2026 — Boxen aus dem gemeinsamen Modell (ui/js/overlay_boxen.js): Standard-
-    // boxen + „Weitere Boxen", je Box eigener Stil, je Zeile Farbe/Größe/Fettung und
-    // Bezug auf eine Etappe. Ruhezustand = Endzustand (Bezug „laufend" = letzte Etappe).
-    const boxen = _ovAufgeloest();
-    try { _ovFontsLaden(Array.from(new Set(boxen.filter(b => b.enabled).map(b => b.stil.font)))); }
-    catch (e) { try { applog("warn", "[anim-ov] Schriften nachladen: " + e); } catch (_) {} }
-    const escA = (x) => String(x).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    const letzte = _ovLetzteEtappe();
-    const rowsHtml = (b) => (b.fields || []).filter(id => {
-      const f = _ovCat(b.typ).find(x => x.id === id);
-      return f && _ovAvail(f.req);
-    }).map(id => {
-      const zl = (b.zeilen || {})[id];
-      // v0.9.327 — Akzent (Zurückgelegt) erbt die Textfarbe, hebt sich nur über Fettung ab.
-      let vStil = (id === "dist_done") ? "font-weight:800;" : "";
-      if (zl && zl.fett != null) vStil = `font-weight:${zl.fett ? 800 : 400};`;
-      const rStil = zl ? `color:${zl.text_color};--rz-ov-gr:${zl.groesse};` : "";
-      let wert = _ovFieldValue(id), sv = "";
-      if (b.typ === "totals") {
-        const werte = _ovEtappenWerte(id);
-        const bz = zl ? zl.bezug : b.bezug;
-        if (werte && bz !== "gesamt") {
+    if (c.textschatten) S.push("text-shadow:0 0.03em 0.18em rgba(0,0,0,0.6), 0 0 0.05em rgba(0,0,0,0.4)");
+    if (c.deckkraft < 1) S.push(`opacity:${c.deckkraft}`);
+    if (c.groesse === "fest") S.push(`width:${c.b}cqw;height:${c.h}cqh`);
+    const jh = { l: "flex-start", c: "center", r: "flex-end" }[c.inhalt_h];
+    const jv = { t: "flex-start", m: "center", b: "flex-end" }[c.inhalt_v];
+    S.push(`--ct-jh:${jh};--ct-jv:${jv};text-align:${{ l: "left", c: "center", r: "right" }[c.inhalt_h]}`);
+    return S.join(";") + ";";
+  }
+  function _ctTextToken(s) {
+    return String(s || "").replace(/\{([a-z_:0-9]+)\}/g, (m, id) => {
+      try { const v = _ovFieldValue(id); return (v == null || v === "") ? "–" : String(v); } catch (_) { return m; }
+    });
+  }
+  function _ctZeileHtml(c, z, letzte) {
+    const escA = _ctEsc;
+    if (z.typ === "wert") {
+      const live = z.bezug === "live";
+      const f = _ovCat(live ? "live" : "totals").find(x => x.id === z.feld);
+      if (!f || !_ovAvail(f.req)) return "";
+      let wert = _ovFieldValue(z.feld), sv = "";
+      if (!live) {
+        const werte = _ovEtappenWerte(z.feld);
+        if (werte && z.bezug !== "gesamt") {
           sv = ` data-stage-values="${escA(JSON.stringify(werte))}"`;
-          const key = bz === "laufend" ? String(letzte) : String(bz);
+          const key = z.bezug === "laufend" ? String(letzte) : String(z.bezug);
           if (key in werte) wert = werte[key];
         }
       }
-      return `<div class="ov-row" data-f="${escA(id)}"${sv}${rStil ? ` style="${rStil}"` : ""}><span class="ov-l">${_ovFieldLabel(id)}</span>`
-        + `<span class="ov-v" data-ovid="${escA(id)}"${vStil ? ` style="${vStil}"` : ""}>${_ovWertHtml(wert)}</span></div>`;
-    }).join("");
-
-    let html = "";
-    for (const b of boxen) {
-      if (!b.enabled) continue;
-      if (b.typ === "live" && _isStaticFrame) continue;   // Standbild: keine Live-Werte
-      const stil = _ovBoxStil(b);
-      if (b.typ === "ele") {
-        if (eleSvg) html += `<div class="ov-ele-box pos-${b.position}" data-ovbox="ele" data-ovtyp="ele" style="${stil}">${eleSvg}</div>`;
-        continue;
-      }
-      const r = rowsHtml(b);
-      if (!r) continue;
-      const titel = b.titel ? `<div class="ov-titel">${_animEscapeHtml(b.titel)}</div>` : "";
-      html += `<div class="ov-box pos-${b.position}" data-ovbox="${escA(b.id)}" data-ovtyp="${b.typ}" style="${stil}">${titel}${r}</div>`;
+      const zeigeL = c.beschriftung !== "aus" && !z.label_aus;
+      const lab = (z.label != null && z.label !== "") ? _ctEsc(z.label) : _ovFieldLabel(z.feld);
+      return `<div class="ct-z ct-wert" data-f="${escA(z.id)}"${live ? ' data-ovtyp="live"' : ""}${sv}>`
+        + (zeigeL ? `<span class="ct-l">${lab}</span>` : "")
+        + `<span class="ct-v ov-v" data-ovid="${escA(z.feld)}">${_ovWertHtml(wert)}</span></div>`;
     }
-    // 04.09.2026 — Nordpfeil + Maßstab (Standard an; Render-Spiegel: _north_scale_html)
-    {
-      const _mst = document.getElementById("anim-overlays");
-      const _on = !_mst || _mst.checked;
-      if (_on && document.getElementById("anim-ov-north")?.checked) {
-        const p = document.getElementById("anim-ov-north-pos")?.value || "br";
-        html += `<div class="ov-north pos-${p}" data-ovbox="north">${window.RZ_NORTH_SVG || ""}</div>`;
-      }
-      if (_on && document.getElementById("anim-ov-scale")?.checked) {
-        const p = document.getElementById("anim-ov-scale-pos")?.value || "bl";
-        html += `<div class="ov-scale pos-${p}" data-ovbox="scale"><div class="ov-scale-txt"></div><div class="ov-scale-bar"></div></div>`;
-      }
+    if (z.typ === "text") {
+      const txt = _ctEsc(_ctTextToken(z.text)).replace(/\n/g, "<br>");
+      return `<div class="ct-z ct-text" data-f="${escA(z.id)}">${txt || "&nbsp;"}</div>`;
     }
-    layer.innerHTML = html;
-    try { _ovUpdateNorthScale(true); } catch (_) {}
+    if (z.typ === "diagramm") {
+      const box = `width:${z.b}cqw;height:${z.h}cqh;`;
+      if (z.art === "daten") {
+        return `<div class="ct-z ct-dia ct-daten" data-f="${escA(z.id)}" style="${box}"><div class="ct-chart-host"></div></div>`;
+      }
+      const lc = z.linienfarbe || currentLineColor();
+      const gid = "ctg_" + String(z.id).replace(/[^A-Za-z0-9_]/g, "");
+      return `<div class="ct-z ct-dia ct-hoehe" data-f="${escA(z.id)}" data-bereich="${z.bereich}" style="${box}">`
+        + `<svg viewBox="0 0 1000 120" preserveAspectRatio="none" class="ct-ele-svg"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
+        + `<stop offset="0%" stop-color="${lc}" stop-opacity="0.55"/><stop offset="100%" stop-color="${lc}" stop-opacity="0.02"/></linearGradient></defs>`
+        + `<polyline class="ct-ele-bg" points="" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`
+        + `<g class="ct-ele-marken"></g>`
+        + `<polygon class="ct-ele-fill" points="" fill="url(#${gid})"/>`
+        + `<polyline class="ct-ele-line" points="" fill="none" stroke="${lc}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`
+        + `<circle class="ct-ele-dot" cx="0" cy="0" r="4.5" fill="#ffffff" stroke="${lc}" stroke-width="2"/></svg></div>`;
+    }
+    if (z.typ === "bild") {
+      return `<div class="ct-z ct-bildz" data-f="${escA(z.id)}"><img class="ct-bild" data-bild="${escA(z.pfad)}" alt="" draggable="false" style="width:${z.b}cqw"></div>`;
+    }
+    if (z.typ === "nord") return `<div class="ct-z ct-nord ov-north" data-f="${escA(z.id)}">${window.RZ_NORTH_SVG || ""}</div>`;
+    if (z.typ === "massstab") return `<div class="ct-z ct-mass ov-scale" data-f="${escA(z.id)}"><div class="ov-scale-txt"></div><div class="ov-scale-bar"></div></div>`;
+    return "";
   }
+  function _ctHtml(c, letzte) {
+    const zeilen = c.zeilen.map(z => _ctZeileHtml(c, z, letzte)).join("");
+    const hg = c.hg_bild ? `<div class="ct-hgbild" data-bild="${_ctEsc(c.hg_bild)}" style="background-size:${c.hg_bild_modus === "einpassen" ? "contain" : "cover"};opacity:${c.hg_bild_deckkraft}"></div>` : "";
+    const kl = `ct-karte ct-${c.anordnung} ct-bes-${c.beschriftung}${c.gross ? " ct-gross" : ""}${c.groesse === "fest" ? " ct-fest" : ""}`;
+    return `<div class="ct" data-ovbox="${_ctEsc(c.id)}" data-ctid="${_ctEsc(c.id)}" style="${_ctLageCss(c)}font-size:${c.schriftgroesse}cqmin;">`
+      + `<div class="${kl}" style="${_ctKarteCss(c)}">${hg}<div class="ct-inhalt">${zeilen}</div></div></div>`;
+  }
+  function _ctRendern() {
+    _ctZustand();
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const v = _ctVerlauf();
+    layer.classList.toggle("vl-oben", v.oben.an);
+    layer.classList.toggle("vl-unten", v.unten.an);
+    layer.style.setProperty("--vl-oben", String(v.oben.staerke));
+    layer.style.setProperty("--vl-unten", String(v.unten.staerke));
+    const master = document.getElementById("anim-overlays")?.checked ?? true;
+    if (_isReiseroute || !master || !window.rzContainer) { layer.querySelectorAll(":scope > .ct").forEach(e => e.remove()); return; }
+    const liste = _ctListe().filter(c => c.an);
+    try { _ovFontsLaden(Array.from(new Set(liste.map(c => c.schrift)))); } catch (e) { applog("warn", "[container] Schriften: " + e); }
+    let letzte = 0; try { letzte = _ovLetzteEtappe(); } catch (_) {}
+    const html = liste.map(c => _ctHtml(c, letzte)).join("");
+    // Vorankündigungs-Punkte (.hl-layer) bleiben, alles andere wird neu geschrieben
+    layer.querySelectorAll(":scope > .ct").forEach(e => e.remove());
+    layer.insertAdjacentHTML("beforeend", html);
+    _ctBilderSetzen(layer);
+    _ctChartsSetzen(layer);
+    try { _ctHoeheAt(_ctLetztFrac, true); } catch (e) { applog("warn", "[container] Höhenprofil: " + e); }
+    try { _ovUpdateNorthScale(true); } catch (_) {}
+    if (_ctEditId) layer.querySelector(`.ct[data-ctid="${CSS.escape(_ctEditId)}"]`)?.classList.add("ct-aktiv");
+  }
+  function _ctBildLaden(pfad) {
+    if (_ctBilder.has(pfad)) return _ctBilder.get(pfad);
+    const p = api().watermark_data(pfad).then(r => {
+      const uri = (r && r.ok && r.data_uri) || "";
+      _ctBilder.set(pfad, uri);
+      return uri;
+    }).catch(() => { _ctBilder.delete(pfad); return ""; });
+    _ctBilder.set(pfad, p);
+    return p;
+  }
+  function _ctBilderSetzen(root) {
+    root.querySelectorAll("[data-bild]").forEach(el => {
+      const pfad = el.getAttribute("data-bild");
+      if (!pfad) return;
+      const setz = (uri) => {
+        if (!uri) return;
+        if (el.tagName === "IMG") { if (el.getAttribute("src") !== uri) el.src = uri; }
+        else el.style.backgroundImage = `url("${uri}")`;
+      };
+      const v = _ctBildLaden(pfad);
+      if (typeof v === "string") setz(v); else v.then(setz);
+    });
+  }
+  // Datendiagramme: Inline-SVG vom Backend (wie bisher die Diagramm-Overlays), je
+  // Signatur zwischengespeichert — ein Neuaufbau der Container holt sie nicht neu.
+  function _ctChartsSetzen(layer) {
+    const gpx = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+    if (!gpx) return;
+    const LW = layer.offsetWidth || 1, LH = layer.offsetHeight || 1;
+    const psc = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
+    const byId = {};
+    _ctListe().forEach(c => c.zeilen.forEach(z => { byId[z.id] = z; }));
+    layer.querySelectorAll(".ct-daten").forEach(el => {
+      const z = byId[el.getAttribute("data-f")];
+      if (!z || !z.chart) return;
+      const host = el.querySelector(".ct-chart-host");
+      const w = Math.round(z.b / 100 * LW), h = Math.round(z.h / 100 * LH);
+      const inlineId = "ct" + String(z.id).replace(/[^A-Za-z0-9_]/g, "");
+      el.setAttribute("data-inline-id", inlineId);
+      const ch = z.chart;
+      const sig = JSON.stringify([gpx, ch, w, h, psc]);
+      const setz = (html) => {
+        if (!html || !host.isConnected) return;
+        _chartInjectInline(host, html, inlineId);
+        try { const fn = window.__rzInlineCharts && window.__rzInlineCharts[inlineId]; if (fn) fn(_chartFracToDist(_ctLetztFrac)); } catch (_) {}
+      };
+      if (_ctChartHtml.has(sig)) { setz(_ctChartHtml.get(sig)); return; }
+      api().animator_chart_preview_html({
+        gpx_path: gpx, series: ch.series, series_b: ch.series_b, style: ch.style || {}, width: w, height: h,
+        fg_opacity: ch.fg_opacity / 100, bg_opacity: ch.bg_opacity / 100, inline_id: inlineId,
+        overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
+        show_axes: ch.show_axes, axis_font_size: ch.axis_font_size, text_scale: psc,
+      }).then(res => {
+        if (res && res.ok && res.html) { _ctChartHtml.set(sig, res.html); setz(res.html); }
+        else applog("warn", "[container] Diagramm: " + ((res && res.error) || "leer"));
+      }).catch(e => applog("warn", "[container] Diagramm: " + e));
+    });
+  }
+  var _ctLetztFrac = 1;   // Ruhezustand = Ende
+  /** Pro Bild (Probelauf/Szene/Scrubben): Höhenprofile und Datendiagramme nachziehen. */
+  function _ctDiagrammeAt(frac) {
+    _ctZustand();
+    _ctLetztFrac = Math.max(0, Math.min(1, frac || 0));
+    _ctHoeheAt(_ctLetztFrac, false);
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const reg = window.__rzInlineCharts || {};
+    const df = _chartFracToDist(_ctLetztFrac);
+    layer.querySelectorAll(".ct-daten[data-inline-id]").forEach(el => {
+      const fn = reg[el.getAttribute("data-inline-id")];
+      if (typeof fn === "function") { try { fn(df); } catch (_) {} }
+    });
+  }
+  /** Ausschnitt der Höhenreihe (ganze Strecke | laufende Etappe) — wie bisher _ovEleAusschnitt. */
+  function _ctEleAusschnitt(idx, bereich) {
+    const n = (_gpxElevations || []).length;
+    const alles = { von: 0, bis: Math.max(0, n - 1), name: "", marken: [] };
+    const kette = _reiseAktiv() && _reiseBahn && _reiseBahn.teile && _reiseBahn.teile.length > 1;
+    if (!kette) return alles;
+    if (bereich === "etappe") {
+      const i = Math.max(0, Math.min(n - 1, Math.round(+idx || 0)));
+      const k = Math.max(0, Math.min(_reiseBahn.teile.length - 1, _reiseBahn.teilVon[i] || 0));
+      const te = _reiseBahn.teile[k], e = _reiseBahn.etappen[k];
+      return { von: te.von, bis: te.bis, k, name: (e && e.tour && e.tour.name) || "", marken: [] };
+    }
+    return Object.assign(alles, { marken: _reiseBahn.teile.slice(1).map(te => te.von) });
+  }
+  function _ctHoeheAt(frac, neu) {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer || !_gpxElevations || _gpxElevations.length < 2) return;
+    const W = 1000, H = 120, PY = 10, n = _gpxElevations.length;
+    const idx = Math.max(0, Math.min(n - 1, Math.round(Math.max(0, Math.min(1, frac)) * (n - 1))));
+    layer.querySelectorAll(".ct-hoehe").forEach(el => {
+      const a = _ctEleAusschnitt(idx, el.getAttribute("data-bereich"));
+      const key = a.von + ":" + a.bis;
+      const teil = _gpxElevations.slice(a.von, a.bis + 1);
+      const eMin = Math.min(...teil), eMax = Math.max(...teil), eRng = (eMax - eMin) || 1;
+      const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
+      const xOf = (i) => ((i - a.von) / Math.max(1, a.bis - a.von)) * W;
+      if (neu || el.__ctKey !== key) {
+        el.__ctKey = key;
+        const bg = el.querySelector(".ct-ele-bg");
+        if (bg) bg.setAttribute("points", teil.map((e, i) => `${xOf(a.von + i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" "));
+        const mk = el.querySelector(".ct-ele-marken");
+        if (mk) mk.innerHTML = a.marken.map(i => `<line x1="${xOf(i).toFixed(1)}" x2="${xOf(i).toFixed(1)}" y1="0" y2="${H}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="3 3"/>`).join("");
+      }
+      const pairs = [];
+      for (let i = a.von; i <= Math.min(idx, a.bis); i++) pairs.push([xOf(i), yOf(_gpxElevations[i])]);
+      if (!pairs.length) pairs.push([xOf(a.von), yOf(_gpxElevations[a.von])]);
+      const ps = pairs.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+      el.querySelector(".ct-ele-line")?.setAttribute("points", ps);
+      const fill = el.querySelector(".ct-ele-fill");
+      if (fill) fill.setAttribute("points", pairs.length >= 2 ? `${pairs[0][0].toFixed(1)},${H} ${ps} ${pairs[pairs.length - 1][0].toFixed(1)},${H}` : "");
+      const dot = el.querySelector(".ct-ele-dot");
+      if (dot) { const q = pairs[pairs.length - 1]; dot.setAttribute("cx", q[0].toFixed(1)); dot.setAttribute("cy", q[1].toFixed(1)); }
+    });
+  }
+
+  // ── Liste in der Seitenleiste (Q12) ──
+  function _ctName(c) {
+    if (c.name) return c.name;
+    const z = c.zeilen[0];
+    if (!z) return t("container.v.leer", "Einblendung");
+    if (z.typ === "wert") return _ovFieldLabel(z.feld);
+    if (z.typ === "text") return String(z.text || "").slice(0, 30) || t("container.z.text", "Freitext");
+    return t("container.z." + z.typ, z.typ);
+  }
+  function _ctListeZeichnen() {
+    const box = document.getElementById("ct-liste");
+    if (!box) return;
+    const liste = _ctListe();
+    box.innerHTML = liste.length ? liste.map((c, i) => `<div class="ct-zeile${c.an ? "" : " ct-aus"}${c.id === _ctEditId ? " ct-offen" : ""}" data-ct="${_ctEsc(c.id)}">`
+        + `<span class="ct-griff" title="${_ctEsc(t("container.sortieren", "Ziehen zum Sortieren (oben = hinten)"))}">⠿</span>`
+        + `<input type="checkbox" class="ct-an"${c.an ? " checked" : ""} title="${_ctEsc(t("container.an", "anzeigen"))}">`
+        + `<span class="ct-name">${_ctEsc(_ctName(c))}</span>`
+        + `<span class="ct-lage">${_ctEsc(t("animator.pos." + c.anker, c.anker))}</span>`
+        + `<span class="ct-sort">${rzSortPfeile(i, liste.length)}</span>`
+        + `<button type="button" class="ct-knopf ct-edit" title="${_ctEsc(t("container.bearbeiten", "Gestalten"))}">✎</button>`
+        + `<button type="button" class="ct-knopf ct-dup" title="${_ctEsc(t("container.duplizieren", "Duplizieren"))}">⧉</button>`
+        + `<button type="button" class="ct-knopf ct-weg" title="${_ctEsc(t("container.loeschen", "Löschen"))}">✕</button></div>`).join("")
+      : `<div class="muted-note">${t("container.leer", "Noch keine Einblendung — oben eine Vorlage wählen.")}</div>`;
+  }
+  function _ctListeBinden() {
+    const box = document.getElementById("ct-liste");
+    const neuSel = document.getElementById("ct-neu");
+    if (neuSel) neuSel.addEventListener("change", () => {
+      const v = neuSel.value; neuSel.value = "";
+      if (!v || !window.rzContainer) return;
+      const c = window.rzContainer.neu(v, t);
+      if (v === "titel") { try { c.zeilen[0].text = (currentGpx && _gpxStats && _gpxStats.name) || c.zeilen[0].text; } catch (_) {} }
+      _ctSpeichern(_ctListe().concat([c]), t("container.neu", "Neue Einblendung"));
+      _ctEditorOeffnen(c.id);
+    });
+    if (!box) return;
+    box.addEventListener("click", (ev) => {
+      const zeile = ev.target.closest(".ct-zeile"); if (!zeile) return;
+      const id = zeile.getAttribute("data-ct");
+      if (ev.target.closest(".ct-edit") || ev.target.closest(".ct-name")) { _ctEditorOeffnen(id); return; }
+      if (ev.target.closest(".ct-dup")) {
+        const liste = JSON.parse(JSON.stringify(_ctListe()));
+        const i = liste.findIndex(c => c.id === id); if (i < 0) return;
+        const k = JSON.parse(JSON.stringify(liste[i]));
+        k.id = window.rzContainer.neueId("c"); k.zeilen.forEach(z => { z.id = window.rzContainer.neueId("z"); });
+        k.y = Math.min(90, k.y + 4);
+        liste.splice(i + 1, 0, k);
+        _ctSpeichern(liste, t("container.duplizieren", "Duplizieren"));
+        return;
+      }
+      if (ev.target.closest(".ct-weg")) {
+        if (_ctEditId === id) _ctEditorZu();
+        _ctSpeichern(_ctListe().filter(c => c.id !== id), t("container.loeschen", "Löschen"));
+      }
+    });
+    box.addEventListener("change", (ev) => {
+      const cb = ev.target.closest(".ct-an"); if (!cb) return;
+      const id = cb.closest(".ct-zeile").getAttribute("data-ct");
+      _ctAendern(id, c => { c.an = cb.checked; }, t("container.an", "anzeigen"));
+    });
+    // Sortieren per Ziehen (Reihenfolge = Stapel: später = weiter vorn). Pointer statt
+    // HTML5-Drag&Drop — das kommt in WebView2 (Windows) nicht an (ui/js/util.js rzSortierbar).
+    rzSortierbar(box, { zeile: ".ct-zeile", griff: ".ct-griff", onEnde: (von, nach) => {
+      const liste = _ctListe().slice();
+      if (von < 0 || von >= liste.length) return;
+      const [x] = liste.splice(von, 1); liste.splice(nach, 0, x);
+      _ctSpeichern(liste, t("container.sortieren", "Reihenfolge"));
+    } });
+    // Verläufe (Q16)
+    const vl = (teil, feld) => document.getElementById(`ct-vl-${teil}-${feld}`);
+    const vlSync = () => {
+      const v = _ctVerlauf();
+      for (const teil of ["oben", "unten"]) {
+        const an = vl(teil, "an"), st = vl(teil, "st");
+        if (an) an.checked = v[teil].an;
+        if (st) { st.value = String(Math.round(v[teil].staerke * 100)); st.disabled = !v[teil].an; }
+      }
+    };
+    vlSync();
+    for (const teil of ["oben", "unten"]) {
+      const schreib = (label) => {
+        const v = _ctVerlauf();
+        v[teil] = { an: !!vl(teil, "an")?.checked, staerke: (parseInt(vl(teil, "st")?.value, 10) || 0) / 100 };
+        if (_animUndoCtrl) { try { _animUndoCtrl.push(label, { force: window.__rzLastUndoEl !== "ct-vl-" + teil }); window.__rzLastUndoEl = "ct-vl-" + teil; } catch (_) {} }
+        saveProjectSettings(_MODKEY, { verlauf: v });
+        vlSync(); renderOverlayPreview();
+      };
+      vl(teil, "an")?.addEventListener("change", () => schreib(t("container.verlauf", "Verlauf")));
+      vl(teil, "st")?.addEventListener("input", () => schreib(t("container.verlauf", "Verlauf")));
+    }
+    window.__rzCtVerlaufSync = vlSync;
+  }
+
+  // ── Ziehen in der Vorschau (Q2): Anker bleibt, Abstand ändert sich; Raster 1 %,
+  // Einrasten an Rand und Mitte. Ein ⌘Z-Schritt je Geste. ──
+  function _ctZiehenBinden() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer || layer.__ctZiehen) return;
+    layer.__ctZiehen = true;
+    layer.addEventListener("mousedown", (e) => {
+      if (window.__rzRenderMode || e.button !== 0) return;
+      const el = e.target.closest(".ct");
+      if (!el) return;
+      const id = el.getAttribute("data-ctid");
+      const c = _ctListe().find(x => x.id === id);
+      if (!c) return;
+      e.preventDefault(); e.stopPropagation();
+      const r = layer.getBoundingClientRect();
+      const x0 = e.clientX, y0 = e.clientY, cx0 = c.x, cy0 = c.y;
+      const sx = c.anker[1] === "r" ? -1 : 1, sy = c.anker[0] === "b" ? -1 : 1;
+      let bewegt = false, nx = cx0, ny = cy0;
+      const undoKey = "ct-zieh:" + id + ":" + Date.now();
+      const move = (ev) => {
+        const dx = (ev.clientX - x0) / Math.max(1, r.width) * 100, dy = (ev.clientY - y0) / Math.max(1, r.height) * 100;
+        if (!bewegt && Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) < 3) return;
+        bewegt = true;
+        const rast = (v) => { const q = Math.round(v); return Math.abs(v - q) < 0.35 ? q : Math.round(v * 10) / 10; };
+        nx = rast(cx0 + sx * dx); ny = rast(cy0 + sy * dy);
+        if (c.anker[1] === "c" && Math.abs(nx) < 0.8) nx = 0;
+        if ((c.anker[0] === "m" || c.anker === "cc") && Math.abs(ny) < 0.8) ny = 0;
+        const probe = Object.assign({}, c, { x: nx, y: ny });
+        el.style.cssText = _ctLageCss(probe) + `font-size:${c.schriftgroesse}cqmin;`;
+      };
+      const up = () => {
+        window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+        if (bewegt) _ctAendern(id, (x) => { x.x = nx; x.y = ny; }, t("container.verschieben", "Einblendung verschieben"), undoKey);
+        else _ctEditorOeffnen(id);
+      };
+      window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    }, true);
+  }
+
+  // ── Editor (Q12/Q21): schwebendes Fenster wie beim Schild-Editor ──
+  function _ctEditorZu() {
+    _ctEditId = null;
+    document.getElementById("ct-editor")?.remove();
+    document.querySelectorAll("#anim-overlay-preview .ct-aktiv").forEach(e => e.classList.remove("ct-aktiv"));
+    _ctListeZeichnen();
+  }
+  function _ctEditorOeffnen(id) {
+    _ctEditId = id;
+    let p = document.getElementById("ct-editor");
+    if (!p) {
+      p = document.createElement("div");
+      p.id = "ct-editor";
+      p.className = "sign-editor sign-editor-full ct-editor";
+      document.body.appendChild(p);
+      let pos = null;
+      try { pos = JSON.parse(localStorage.getItem("rz_ct_editor_pos") || "null"); } catch (_) {}
+      const x = pos ? pos.x : Math.max(8, window.innerWidth - 340), y = pos ? pos.y : 70;
+      p.style.left = Math.max(2, Math.min(window.innerWidth - 300, x)) + "px";
+      p.style.top = Math.max(2, Math.min(window.innerHeight - 200, y)) + "px";
+      p.style.position = "fixed";
+      _ctEditorBinden(p);
+    }
+    _ctEditorZeichnen();
+    _ctListeZeichnen();
+    document.querySelectorAll("#anim-overlay-preview .ct").forEach(e => e.classList.toggle("ct-aktiv", e.getAttribute("data-ctid") === id));
+  }
+  function _ctOpt(v, sel, txt) { return `<option value="${_ctEsc(v)}"${String(v) === String(sel) ? " selected" : ""}>${_ctEsc(txt)}</option>`; }
+  function _ctFeldOptionen(z) {
+    const live = z.bezug === "live";
+    // Nicht verfügbare Felder fehlen — außer dem gewählten: der bleibt sichtbar, aber ausgegraut
+    // (z. B. „Etappe“, nachdem die Reise aufgelöst wurde), damit die Wahl nicht still springt.
+    return _ovCat(live ? "live" : "totals").filter(f => _ovAvail(f.req) || f.id === z.feld)
+      .map(f => _ovAvail(f.req) ? _ctOpt(f.id, z.feld, _ovFieldLabel(f.id))
+        : `<option value="${_ctEsc(f.id)}" selected disabled>${_ctEsc(_ovFieldLabel(f.id))}</option>`).join("");
+  }
+  function _ctBezugOptionen(z) {
+    const o = [["live", t("container.bezug.live", "läuft mit")], ["gesamt", t("container.bezug.gesamt", "Gesamt")]];
+    if (_ovHasStages()) {
+      o.push(["laufend", t("container.bezug.laufend", "laufende Etappe")]);
+      _ovEtappenListe().forEach(e => o.push([String(e.nr), e.name]));
+    }
+    const arten = (_ovSeries && _ovSeries.art_stats) ? Object.keys(_ovSeries.art_stats) : [];
+    arten.forEach(k => o.push([k, t("container.bezug.art", "nur") + " " + t("logbuch.art." + k.slice(4), k.slice(4))]));
+    return o.map(([v, txt]) => _ctOpt(v, String(z.bezug), txt)).join("");
+  }
+  function _ctZeileEditorHtml(z, i, n) {
+    const kopf = `<div class="ct-ez" data-z="${_ctEsc(z.id)}"><div class="ct-ez-kopf"><span class="ct-griff">⠿</span><b>${_ctEsc(t("container.z." + z.typ, z.typ))}</b>`
+      + `<span class="ct-sort">${rzSortPfeile(i, n)}</span>`
+      + `<button type="button" class="ct-knopf" data-za="weg" title="${_ctEsc(t("container.loeschen", "Löschen"))}">✕</button></div><div class="ct-ez-body">`;
+    let b = "";
+    if (z.typ === "wert") {
+      b += `<select data-zk="bezug">${_ctBezugOptionen(z)}</select><select data-zk="feld">${_ctFeldOptionen(z)}</select>`
+        + `<div class="ct-ez-reihe"><input type="text" data-zk="label" placeholder="${_ctEsc(_ovFieldLabel(z.feld))}" value="${_ctEsc(z.label || "")}">`
+        + `<label title="${_ctEsc(t("container.label_aus", "Beschriftung ausblenden"))}"><input type="checkbox" data-zk="label_aus"${z.label_aus ? " checked" : ""}> ${_ctEsc(t("container.aus", "aus"))}</label></div>`;
+    } else if (z.typ === "text") {
+      b += `<textarea data-zk="text" rows="2" placeholder="${_ctEsc(t("container.text_ph", "Text — {dist_total} setzt einen Wert ein"))}">${_ctEsc(z.text)}</textarea>`;
+    } else if (z.typ === "diagramm") {
+      const reihen = [["hoehe", t("container.dia.hoehe", "Höhenprofil")]].concat((_chartSeries || []).map(s => ["daten:" + s.id, s.label + (s.unit ? " (" + s.unit + ")" : "")]));
+      const akt = z.art === "hoehe" ? "hoehe" : "daten:" + ((z.chart && z.chart.series) || "ele");
+      b += `<select data-zk="reihe">${reihen.map(([v, txt]) => _ctOpt(v, akt, txt)).join("")}</select>`
+        + `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="3" max="100" step="1" value="${z.b}"> %</label>`
+        + `<label>${_ctEsc(t("container.hoehe", "Höhe"))} <input type="number" data-zk="h" min="2" max="100" step="1" value="${z.h}"> %</label></div>`;
+      if (z.art === "hoehe") {
+        b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.linie", "Linie"))} <input type="color" data-zk="linienfarbe" value="${_ctEsc(z.linienfarbe || currentLineColor())}"></label>`
+          + `<button type="button" class="ct-knopf" data-za="linie-weg" title="${_ctEsc(t("container.linie_wie_track", "wie der Track"))}">↺</button>`
+          + (_reiseAktiv() ? `<select data-zk="bereich">${_ctOpt("reise", z.bereich, t("animator.overlay.ele_scope_reise", "Ganze Strecke"))}${_ctOpt("etappe", z.bereich, t("animator.overlay.ele_scope_etappe", "Laufende Etappe"))}</select>` : "")
+          + `</div>`;
+      } else {
+        b += `<label><input type="checkbox" data-zk="show_axes"${z.chart.show_axes ? " checked" : ""}> ${_ctEsc(t("animator.charts.axes", "Achsen"))}</label>`;
+      }
+    } else if (z.typ === "bild") {
+      const name = z.pfad === "@lockup-white" ? t("container.logo_gpsstudio", "GPS-Studio-Logo") : String(z.pfad || "").split("/").pop();
+      b += `<div class="ct-ez-reihe"><span class="ct-ez-datei">${_ctEsc(name || "—")}</span><button type="button" class="ct-knopf" data-za="bild">🖼</button>`
+        + `<button type="button" class="ct-knopf" data-za="logo" title="${_ctEsc(t("container.logo_gpsstudio", "GPS-Studio-Logo"))}">↺</button></div>`
+        + `<label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="1" max="100" step="0.5" value="${z.b}"> %</label>`;
+    }
+    return kopf + b + `</div></div>`;
+  }
+  function _ctEditorZeichnen() {
+    const p = document.getElementById("ct-editor");
+    const c = _ctListe().find(x => x.id === _ctEditId);
+    if (!p) return;
+    if (!c) { _ctEditorZu(); return; }
+    const aktivEl = document.activeElement && p.contains(document.activeElement) ? document.activeElement : null;
+    const fokus = aktivEl ? { k: aktivEl.getAttribute("data-k") || aktivEl.getAttribute("data-zk"), z: aktivEl.closest("[data-z]")?.getAttribute("data-z"), s: aktivEl.selectionStart } : null;
+    const sel = (k, opts) => `<select data-k="${k}">${opts.map(([v, txt]) => _ctOpt(v, c[k], txt)).join("")}</select>`;
+    const zahl = (k, min, max, step, einh) => `<span class="ct-ez-zahl"><input type="number" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${c[k]}"><small>${einh}</small></span>`;
+    const farb = (k) => `<input type="color" data-k="${k}" value="${_ctEsc(c[k])}">`;
+    const stile = [["kasten", t("container.stil.kasten", "Kasten")], ["frei", t("container.stil.frei", "Frei")], ["plakette", t("container.stil.plakette", "Plakette")], ["ohne", t("container.stil.ohne", "ohne")]];
+    p.innerHTML = `<div class="sign-editor-head" id="ct-editor-kopf"><span>${_ctEsc(t("container.editor", "Einblendung"))}</span>`
+      + `<button type="button" class="sign-editor-x" id="ct-editor-x" title="${_ctEsc(t("common.close", "Schließen"))}">✕</button></div>`
+      + `<div class="sign-editor-body">`
+      + `<input type="text" data-k="name" value="${_ctEsc(c.name)}" placeholder="${_ctEsc(_ctName(c))}">`
+      + `<div class="se-group-title">${_ctEsc(t("container.gr.stil", "Stil"))}</div>`
+      + `<div class="ct-stile">${stile.map(([v, txt]) => `<button type="button" class="ct-stil${c.stil === v ? " on" : ""}" data-stil="${v}">${_ctEsc(txt)}</button>`).join("")}</div>`
+      + `<div class="se-grid">`
+      + `<label>${_ctEsc(t("container.anordnung", "Anordnung"))}</label>${sel("anordnung", [["unter", t("container.anordnung.unter", "untereinander")], ["neben", t("container.anordnung.neben", "nebeneinander")]])}`
+      + `<label>${_ctEsc(t("container.beschriftung", "Beschriftung"))}</label>${sel("beschriftung", [["oben", t("container.beschriftung.oben", "über dem Wert")], ["links", t("container.beschriftung.links", "links daneben")], ["aus", t("container.beschriftung.aus", "aus")]])}`
+      + `<label>${_ctEsc(t("animator.overlay.font", "Schrift"))}</label>${sel("schrift", [["system", t("animator.overlay.font_system", "System (Standard)")], ["nunito", "Nunito"], ["quicksand", "Quicksand"], ["fredoka", "Fredoka"], ["oswald", "Oswald"], ["bebas", "Bebas Neue"]])}`
+      + `<label>${_ctEsc(t("container.schriftgroesse", "Schriftgröße"))}</label>${zahl("schriftgroesse", 0.3, 40, 0.1, "%")}`
+      + `<label>${_ctEsc(t("container.textfarbe", "Textfarbe"))}</label>${farb("textfarbe")}`
+      + `<label>${_ctEsc(t("container.hintergrund", "Hintergrund"))}</label><span class="ct-ez-reihe">${farb("hg_farbe")}<input type="range" data-k="hg_deckkraft" min="0" max="1" step="0.05" value="${c.hg_deckkraft}"></span>`
+      + `<label>${_ctEsc(t("container.hgbild", "Hintergrundbild"))}</label><span class="ct-ez-reihe"><button type="button" class="ct-knopf" data-a="hgbild">🖼</button>`
+      + (c.hg_bild ? `<button type="button" class="ct-knopf" data-a="hgbild-weg">✕</button>${sel("hg_bild_modus", [["fuellen", t("container.hgbild.fuellen", "füllen")], ["einpassen", t("container.hgbild.einpassen", "einpassen")]])}`
+          + `<input type="range" data-k="hg_bild_deckkraft" min="0.05" max="1" step="0.05" value="${c.hg_bild_deckkraft}" title="${_ctEsc(t("container.deckkraft", "Deckkraft"))}">` : "") + `</span>`
+      + `<label>${_ctEsc(t("container.innen", "Innenabstand"))}</label>${zahl("innen", 0, 10, 0.05, "em")}`
+      + `<label>${_ctEsc(t("container.zeilenabstand", "Zeilenabstand"))}</label>${zahl("zeilenabstand", 0, 10, 0.05, "em")}`
+      + `<label>${_ctEsc(t("container.spaltenabstand", "Spaltenabstand"))}</label>${zahl("spaltenabstand", 0, 20, 0.05, "em")}`
+      + `</div>`
+      + `<div class="se-group-title">${_ctEsc(t("container.gr.lage", "Lage und Größe"))}</div>`
+      + `<div class="ct-anker">${window.rzContainer.ANKER.map(a => `<button type="button" class="ct-ank${c.anker === a ? " on" : ""}" data-anker="${a}" title="${_ctEsc(t("animator.pos." + a, a))}"></button>`).join("")}</div>`
+      + `<div class="se-grid">`
+      + `<label>${_ctEsc(t("container.abstand", "Abstand"))}</label><span class="ct-ez-reihe">${zahl("x", -100, 100, 0.5, "% ↔")}${zahl("y", -100, 100, 0.5, "% ↕")}</span>`
+      + `<label>${_ctEsc(t("container.groesse", "Größe"))}</label>${sel("groesse", [["auto", t("container.groesse.auto", "automatisch")], ["fest", t("container.groesse.fest", "fest")]])}`
+      + (c.groesse === "fest" ? `<label></label><span class="ct-ez-reihe">${zahl("b", 1, 100, 0.5, "% ↔")}${zahl("h", 1, 100, 0.5, "% ↕")}</span>` : "")
+      + `<label>${_ctEsc(t("container.inhalt", "Inhalt"))}</label><span class="ct-ez-reihe">${sel("inhalt_h", [["l", "⇤"], ["c", "↔"], ["r", "⇥"]])}${sel("inhalt_v", [["t", "⤒"], ["m", "↕"], ["b", "⤓"]])}</span>`
+      + `</div>`
+      + _ctZeitHtml(c)
+      + `<details class="ct-mehr"><summary>${_ctEsc(t("container.mehr", "Mehr"))}</summary><div class="se-grid">`
+      + `<label>${_ctEsc(t("container.akzent", "Akzentfarbe"))}</label>${farb("akzent")}`
+      + `<label>${_ctEsc(t("container.ecken", "Ecken"))}</label>${zahl("ecken", 0, 99, 0.05, "em")}`
+      + `<label>${_ctEsc(t("container.rahmen", "Rahmen"))}</label><span class="ct-ez-reihe">${zahl("rahmen_b", 0, 2, 0.02, "em")}${farb("rahmen_farbe")}</span>`
+      + `<label>${_ctEsc(t("container.schatten", "Schatten"))}</label><input type="checkbox" data-k="schatten"${c.schatten ? " checked" : ""}>`
+      + `<label>${_ctEsc(t("container.textschatten", "Textschatten"))}</label><input type="checkbox" data-k="textschatten"${c.textschatten ? " checked" : ""}>`
+      + `<label>${_ctEsc(t("container.unschaerfe", "Weichzeichner"))}</label><input type="checkbox" data-k="unschaerfe"${c.unschaerfe ? " checked" : ""}>`
+      + `<label>${_ctEsc(t("container.gross", "Großbuchstaben"))}</label><input type="checkbox" data-k="gross"${c.gross ? " checked" : ""}>`
+      + `<label>${_ctEsc(t("container.beschr_faktor", "Beschriftung"))}</label>${zahl("beschr_faktor", 0.15, 2, 0.05, "em")}`
+      + `<label>${_ctEsc(t("container.einheit_faktor", "Einheit"))}</label>${zahl("einheit_faktor", 0.2, 1, 0.05, "em")}`
+      + `<label>${_ctEsc(t("container.deckkraft", "Deckkraft"))}</label><input type="range" data-k="deckkraft" min="0.05" max="1" step="0.05" value="${c.deckkraft}">`
+      + `</div></details>`
+      + `<div class="se-group-title">${_ctEsc(t("container.gr.zeilen", "Zeilen"))}</div>`
+      + `<div class="ct-ez-liste">${c.zeilen.map((z, i, a) => _ctZeileEditorHtml(z, i, a.length)).join("")}</div>`
+      + `<select id="ct-zeile-neu">${_ctOpt("", "", "＋ " + t("container.zeile_neu", "Zeile hinzufügen"))}`
+      + ["wert", "text", "diagramm", "bild", "nord", "massstab"].map(ty => _ctOpt(ty, "", t("container.z." + ty, ty))).join("") + `</select>`
+      + `<div class="muted-note">${_ctEsc(t("container.hinweis_zeit", "Wann die Einblendung zu sehen ist, stellst du in der Zeitleiste ein (Spur „Einblendungen“)."))}</div>`
+      + `</div>`;
+    if (fokus && fokus.k) {
+      const q = fokus.z ? p.querySelector(`[data-z="${CSS.escape(fokus.z)}"] [data-zk="${fokus.k}"]`) : p.querySelector(`[data-k="${fokus.k}"]`);
+      if (q) { q.focus(); try { if (fokus.s != null && q.setSelectionRange) q.setSelectionRange(fokus.s, fokus.s); } catch (_) {} }
+    }
+  }
+  /** Zeit-Gruppe im Editor: Blenden + Zeiträume in Videosekunden (die Balken der Zeitleiste
+   *  in Zahlen). Ohne Zeitraum ist der Container das ganze Video da. */
+  function _ctZeiten(c) {
+    const R = window.rzOverlayBoxen;
+    const zs = (R && R.zeitListe(c.zeit)) || [];
+    const ctx = _ovKontext(), G = _ovGesamtSek();
+    return zs.map(z => { const k = R.kanten(z, ctx) || { an: 0, aus: G }; return { z, an: k.an, aus: isFinite(k.aus) ? k.aus : G }; });
+  }
+  function _ctZeitHtml(c) {
+    const bl = c.blende || {};
+    const art = (v) => (v === "pop" ? "both" : (v || "none"));
+    const zahl1 = (x) => (Math.round(x * 10) / 10);
+    const ein = `<select data-b="ein">${_ctOpt("none", art(bl.ein), t("signs.entry.none", "Hart (sofort)"))}${_ctOpt("fade", art(bl.ein), t("signs.entry.fade", "Einblenden"))}${_ctOpt("both", art(bl.ein), t("animator.ovbox.aufpoppen", "Aufpoppen"))}</select>`;
+    const aus = `<select data-b="aus">${_ctOpt("none", art(bl.aus), t("animator.ovbox.exit_none", "Hart (sofort)"))}${_ctOpt("fade", art(bl.aus), t("animator.ovbox.exit_fade", "Ausblenden"))}${_ctOpt("both", art(bl.aus), t("animator.ovbox.wegpoppen", "Wegpoppen"))}</select>`;
+    const dauer = (k, v) => `<span class="ct-ez-zahl"><input type="number" data-b="${k}" min="0" max="30" step="0.1" value="${zahl1(isFinite(+v) ? +v : 0.5)}"><small>s</small></span>`;
+    const zeiten = _ctZeiten(c);
+    const G = _ovGesamtSek();
+    const segs = zeiten.length ? zeiten.map((x, i) => `<div class="ct-ez-reihe ct-seg" data-seg="${i}">`
+        + `<span class="ct-ez-zahl"><input type="number" data-seg-von min="0" step="0.1" value="${zahl1(x.an)}"><small>s</small></span> –`
+        + `<span class="ct-ez-zahl"><input type="number" data-seg-bis min="0" step="0.1" value="${x.aus >= G - 0.05 ? "" : zahl1(x.aus)}" placeholder="${_ctEsc(t("animator.overlay.timing_end", "Ende"))}"><small>s</small></span>`
+        + `<button type="button" class="ct-knopf" data-a="seg-weg" title="${_ctEsc(t("animator.ov.seg_loeschen", "Diesen Zeitraum löschen"))}">✕</button></div>`).join("")
+      : `<div class="muted-note">${_ctEsc(t("container.zeit_ganz", "Das ganze Video über zu sehen."))}</div>`;
+    return `<div class="se-group-title">${_ctEsc(t("container.gr.zeit", "Zeit"))}</div>`
+      + `<div class="se-grid"><label>${_ctEsc(t("animator.overlay.entry", "Einblendung"))}</label><span class="ct-ez-reihe">${ein}${dauer("ein_s", bl.ein_s)}</span>`
+      + `<label>${_ctEsc(t("animator.ovbox.exit", "Ausblendung"))}</label><span class="ct-ez-reihe">${aus}${dauer("aus_s", bl.aus_s)}</span></div>`
+      + `<div class="ct-zeiten">${segs}</div>`
+      + `<div class="ct-ez-reihe"><button type="button" class="ct-knopf" data-a="seg-neu">＋ ${_ctEsc(t("container.zeitraum", "Zeitraum"))}</button>`
+      + (zeiten.length ? `<button type="button" class="ct-knopf" data-a="seg-ganz">${_ctEsc(t("container.zeit_ganz_knopf", "ganzes Video"))}</button>` : "") + `</div>`;
+  }
+  function _ctEditorBinden(p) {
+    // Fenster ziehen (Kopfzeile), Lage merken
+    p.addEventListener("mousedown", (e) => {
+      const kopf = e.target.closest("#ct-editor-kopf");
+      if (!kopf || e.target.closest("button")) return;
+      e.preventDefault();
+      const r = p.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+      const move = (ev) => { p.style.left = Math.max(0, Math.min(window.innerWidth - 60, ev.clientX - dx)) + "px"; p.style.top = Math.max(0, Math.min(window.innerHeight - 30, ev.clientY - dy)) + "px"; };
+      const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+        try { localStorage.setItem("rz_ct_editor_pos", JSON.stringify({ x: parseInt(p.style.left, 10), y: parseInt(p.style.top, 10) })); } catch (_) {} };
+      window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    });
+    const id = () => _ctEditId;
+    const wertVon = (el) => el.type === "checkbox" ? el.checked : (el.type === "number" || el.type === "range") ? parseFloat(el.value) : el.value;
+    const aufC = (el, live) => {
+      const k = el.getAttribute("data-k");
+      if (!k) return false;
+      let v = wertVon(el);
+      if ((el.type === "number" || el.type === "range") && !isFinite(v)) return true;
+      _ctAendern(id(), (c) => {
+        c[k] = v;
+        if (k === "anordnung" || k === "beschriftung" || k === "schriftgroesse" || k === "textfarbe" || k === "hg_farbe" || k === "hg_deckkraft") c.stil = c.stil;   // Werte gehören dem Container (Q28)
+      }, t("container.editor", "Einblendung"), live ? "ct-ed:" + id() + ":" + k : null);
+      return true;
+    };
+    const aufZ = (el, live) => {
+      const k = el.getAttribute("data-zk"), zid = el.closest("[data-z]")?.getAttribute("data-z");
+      if (!k || !zid) return false;
+      let v = wertVon(el);
+      _ctAendern(id(), (c) => {
+        const z = c.zeilen.find(x => x.id === zid); if (!z) return;
+        if (k === "reihe") {
+          if (v === "hoehe") { z.art = "hoehe"; }
+          else { z.art = "daten"; z.chart = Object.assign({ series: "ele", show_axes: true, axis_font_size: 20, fg_opacity: 100, bg_opacity: 0 }, z.chart || {}, { series: String(v).slice(6) }); }
+        } else if (k === "show_axes") { z.chart = Object.assign({}, z.chart || {}, { show_axes: !!v }); }
+        else if (k === "bezug") {
+          z.bezug = /^\d+$/.test(v) ? parseInt(v, 10) : v;
+          const live = z.bezug === "live";
+          if (!_ovCat(live ? "live" : "totals").some(f => f.id === z.feld)) z.feld = (live ? OVERLAY_DEFAULT_FIELDS.live : OVERLAY_DEFAULT_FIELDS.totals)[0];
+        } else if (k === "label") { z.label = String(v).trim() === "" ? null : String(v); }
+        else if (k === "b" || k === "h") { if (isFinite(v)) z[k] = v; }
+        else z[k] = v;
+      }, t("container.zeile", "Zeile"), live ? "ct-ez:" + zid + ":" + k : null);
+      return true;
+    };
+    p.addEventListener("input", (e) => {
+      const el = e.target;
+      if (el.type === "range" || el.type === "color" || el.tagName === "TEXTAREA" || (el.type === "text" && el.getAttribute("data-zk"))) {
+        aufC(el, true) || aufZ(el, true);
+      } else if (el.type === "text" && el.getAttribute("data-k") === "name") aufC(el, true);
+    });
+    p.addEventListener("change", (e) => {
+      const el = e.target;
+      if (el.id === "ct-zeile-neu") {
+        const ty = el.value; el.value = "";
+        if (!ty) return;
+        _ctAendern(id(), (c) => {
+          const R = window.rzContainer;
+          const z = ty === "wert" ? R.wert(c.zeilen.some(x => x.typ === "wert" && x.bezug === "live") ? "time_elapsed" : "dist_total", c.zeilen.some(x => x.typ === "wert" && x.bezug === "live") ? "live" : "gesamt")
+            : ty === "bild" ? R.zeile("bild", { pfad: "@lockup-white", b: 15 })
+            : ty === "diagramm" ? R.zeile("diagramm", { art: "hoehe", b: 25, h: 11 })
+            : ty === "text" ? R.zeile("text", { text: t("container.v.leer_text", "Text") }) : R.zeile(ty);
+          c.zeilen.push(z);
+        }, t("container.zeile_neu", "Zeile hinzufügen"));
+        return;
+      }
+      if (el.type === "range" || el.type === "color" || el.tagName === "TEXTAREA") return;   // schon bei input
+      if (el.type === "text") return;
+      const bk = el.getAttribute("data-b");
+      if (bk) {
+        const v = el.tagName === "SELECT" ? el.value : Math.max(0, parseFloat(el.value) || 0);
+        _ctAendern(id(), (c) => { c.blende = Object.assign({ ein: "none", aus: "none", ein_s: 0.5, aus_s: 0.5 }, c.blende || {}, { [bk]: v }); },
+          t("container.gr.zeit", "Zeit"));
+        return;
+      }
+      const seg = el.closest("[data-seg]");
+      if (seg && (el.hasAttribute("data-seg-von") || el.hasAttribute("data-seg-bis"))) {
+        const i = parseInt(seg.getAttribute("data-seg"), 10);
+        _ctAendern(id(), (c) => {
+          const liste = _ctZeiten(c).map(x => x.z);
+          const vonEl = seg.querySelector("[data-seg-von]"), bisEl = seg.querySelector("[data-seg-bis]");
+          const tv = Math.max(0, parseFloat(vonEl.value) || 0);
+          const tbRoh = bisEl.value.trim();
+          const tb = tbRoh === "" ? _ovGesamtSek() : Math.max(tv + 0.1, parseFloat(tbRoh) || 0);
+          liste[i] = { von: _ovAnkerAusZeit(tv, "von") || { art: "video_start", wert: 0 }, bis: _ovAnkerAusZeit(tb, "bis") };
+          _ovZeitenSetzen(c, liste);
+        }, t("container.gr.zeit", "Zeit"));
+        return;
+      }
+      aufC(el, false) || aufZ(el, false);
+    });
+    p.addEventListener("click", async (e) => {
+      if (e.target.closest("#ct-editor-x")) { _ctEditorZu(); return; }
+      const st = e.target.closest("[data-stil]");
+      if (st) {
+        const name = st.getAttribute("data-stil");
+        const liste = JSON.parse(JSON.stringify(_ctListe()));
+        const i = liste.findIndex(c => c.id === id()); if (i < 0) return;
+        liste[i] = window.rzContainer.stilAnwenden(liste[i], name);
+        _ctSpeichern(liste, t("container.gr.stil", "Stil"));
+        return;
+      }
+      const an = e.target.closest("[data-anker]");
+      if (an) {
+        const a = an.getAttribute("data-anker");
+        _ctAendern(id(), (c) => { c.anker = a; c.x = a[1] === "c" ? 0 : 3; c.y = (a[0] === "m" || a === "cc") ? 0 : 3; }, t("container.gr.lage", "Lage"));
+        return;
+      }
+      const za = e.target.closest("[data-za]"), a = e.target.closest("[data-a]");
+      const zid = e.target.closest("[data-z]")?.getAttribute("data-z");
+      if (za && zid) {
+        const was = za.getAttribute("data-za");
+        if (was === "weg") { _ctAendern(id(), (c) => { c.zeilen = c.zeilen.filter(z => z.id !== zid); }, t("container.loeschen", "Löschen")); return; }
+        if (was === "linie-weg") { _ctAendern(id(), (c) => { const z = c.zeilen.find(x => x.id === zid); if (z) z.linienfarbe = null; }, t("container.linie", "Linie")); return; }
+        if (was === "logo") { _ctAendern(id(), (c) => { const z = c.zeilen.find(x => x.id === zid); if (z) z.pfad = "@lockup-white"; }, t("container.z.bild", "Bild")); return; }
+        if (was === "bild") {
+          const pfad = await _ctBildWaehlen();
+          if (pfad) _ctAendern(id(), (c) => { const z = c.zeilen.find(x => x.id === zid); if (z) z.pfad = pfad; }, t("container.z.bild", "Bild"));
+          return;
+        }
+      }
+      if (a && a.getAttribute("data-a").startsWith("seg-")) {
+        const was = a.getAttribute("data-a");
+        const seg = a.closest("[data-seg]");
+        _ctAendern(id(), (c) => {
+          const liste = _ctZeiten(c).map(x => x.z);
+          if (was === "seg-weg" && seg) { liste.splice(parseInt(seg.getAttribute("data-seg"), 10), 1); }
+          else if (was === "seg-ganz") { liste.length = 0; }
+          else if (was === "seg-neu") {
+            const G = _ovGesamtSek(), letzt = _ctZeiten(c).reduce((m, x) => Math.max(m, x.aus), 0);
+            const tA = Math.min(Math.max(0, G - 1), liste.length ? letzt + 1 : 0), tB = Math.min(G, tA + 3);
+            liste.push({ von: _ovAnkerAusZeit(tA, "von") || { art: "video_start", wert: 0 }, bis: _ovAnkerAusZeit(tB, "bis") });
+          }
+          if (!liste.length) delete c.zeit; else _ovZeitenSetzen(c, liste);
+        }, t("container.gr.zeit", "Zeit"));
+        return;
+      }
+      if (a) {
+        const was = a.getAttribute("data-a");
+        if (was === "hgbild") { const pfad = await _ctBildWaehlen(); if (pfad) _ctAendern(id(), (c) => { c.hg_bild = pfad; }, t("container.hgbild", "Hintergrundbild")); }
+        if (was === "hgbild-weg") _ctAendern(id(), (c) => { c.hg_bild = ""; }, t("container.hgbild", "Hintergrundbild"));
+      }
+    });
+    // Zeilen sortieren per Ziehen (Pointer, wie die Liste) oder ▲▼
+    rzSortierbar(p, { zeile: ".ct-ez", griff: ".ct-ez-kopf .ct-griff", onEnde: (von, nach) => {
+      _ctAendern(id(), (c) => {
+        if (von < 0 || von >= c.zeilen.length) return;
+        const [x] = c.zeilen.splice(von, 1); c.zeilen.splice(nach, 0, x);
+      }, t("container.sortieren", "Reihenfolge"));
+    } });
+  }
+  async function _ctBildWaehlen() {
+    try {
+      const res = await api().pick_file("open", [t("container.bilder_filter", "Bilder") + " (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false); // warte-ok: Systemdialog
+      return Array.isArray(res) ? (res[0] || "") : "";
+    } catch (e) { applog("warn", "[container] Bild wählen: " + e); return ""; }
+  }
+  /** Web-Karte (Tour-Map → HTML): die Container so, wie die Vorschau sie gerade zeigt
+   *  (Endstand, Bilder als data-URI). Das CSS liest der Export aus module.css
+   *  (Abschnitt CONTAINER-CSS) — kein Nachbau in Python. */
+  function _ctExportHtml() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return {};
+    const html = Array.from(layer.querySelectorAll(":scope > .ct")).map(e => {
+      const k = e.cloneNode(true);
+      k.classList.remove("ct-aktiv"); k.style.visibility = ""; k.style.opacity = ""; k.style.removeProperty("--rz-ov-pop");
+      return k.outerHTML;
+    }).join("");
+    return { container_html: html, container_verlauf: _ctVerlauf() };
+  }
+  window.__rzCtZeit = (tSec, frac) => _ovTimingAt(tSec, frac == null ? 0 : frac);   // Prüfstand
+  window.__rzContainer = { liste: () => _ctListe(), speichern: (l, label) => _ctSpeichern(l, label), editor: (id) => _ctEditorOeffnen(id),
+                           umzug: () => _ctUmzug(), rendern: () => _ctRendern(),
+                           zeiten: (c) => _ctZeiten(c).map(x => [x.an, x.aus]), offen: () => _ctEditId };   // Prüfstand
+  // Prüfstand: Höhenprofil-Zeile an einer Stelle (Ausschnitt, Etappen-Marken, Punkte der Hintergrundkurve)
+  window.__rzCtHoehe = (frac, ctid) => {
+    _ctDiagrammeAt(frac);
+    const el = document.querySelector(ctid ? `#anim-overlay-preview .ct[data-ctid="${CSS.escape(ctid)}"] .ct-hoehe` : "#anim-overlay-preview .ct-hoehe");
+    if (!el) return null;
+    const n = (_gpxElevations || []).length;
+    const a = _ctEleAusschnitt(Math.round(Math.max(0, Math.min(1, frac)) * (n - 1)), el.getAttribute("data-bereich"));
+    const bg = (el.querySelector(".ct-ele-bg")?.getAttribute("points") || "").trim();
+    return { bereich: el.getAttribute("data-bereich"), k: a.k ?? null, name: a.name, von: a.von, bis: a.bis,
+             marken: el.querySelectorAll(".ct-ele-marken line").length, bgPunkte: bg ? bg.split(/\s+/).length : 0 };
+  };
+
+  function renderOverlayPreview() {
+    try { _ovTimingBoxen = null; } catch (_) { return; }   // Einstellungen geändert → Zeitsteuerung neu auflösen (vor dem Aufbau: noch nichts zu zeichnen)
+    try { _ovSpurAktualisieren(); } catch (_) {}
+    try { _applyAttribLook(); } catch (_) {}
+    try { _ctRendern(); } catch (e) { try { applog("warn", "[container] Vorschau: " + e); } catch (_) {} }
+    try { _ctZeitAmRegler(); } catch (e) { try { applog("warn", "[container] Zeitregler: " + e); } catch (_) {} }
+  }
+  /** 30.09.2026 — Die ruhende Vorschau zeigt die Container so, wie sie an der Stelle des
+   *  Zeitreglers im Video zu sehen sind (Titel am Anfang, Schlusskarte am Ende). Im Probelauf
+   *  und im Szene-Render steuert _ovTimingAt pro Bild. Tour-Map: alles sichtbar. */
+  function _ctZeitAmRegler() {
+    if (_isStaticFrame || window.__rzStepMode || _previewRaf || !_tlBar || typeof _tlBar.getScrubber !== "function") return;
+    const a = _tlBar.getScrubber();
+    if (!(a >= 0)) return;
+    _ovTimingAt(_sgZeitAusAnker(a), Math.max(0, Math.min(1, a)));
+  }
+
 
   // 04.09.2026 — Nordpfeil dreht mit dem Bearing, Maßstab folgt Zoom/Breite
   // (Bildmitte, wie MapLibre ScaleControl). Spiegel von __rzNorthScale im Render.
@@ -16689,8 +15572,8 @@ function mountAnimator(body, headerActions, opts) {
   function _ovUpdateNorthScale(force) {
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer || !map) return;
-    const n = layer.querySelector(".ov-north"), s = layer.querySelector(".ov-scale");
-    if (!n && !s) return;
+    const nn = layer.querySelectorAll(".ov-north"), ss = layer.querySelectorAll(".ov-scale");
+    if (!nn.length && !ss.length) return;
     const now = performance.now();
     if (!force && now - _ovNSLast < 120) return;
     _ovNSLast = now;
@@ -16699,8 +15582,8 @@ function mountAnimator(body, headerActions, opts) {
     const key = brg.toFixed(1) + "|" + zoom.toFixed(2) + "|" + lat.toFixed(2);
     if (!force && key === _ovNSKey) return;
     _ovNSKey = key;
-    if (n) n.style.setProperty("--rz-north", (-brg) + "deg");
-    if (!s) return;
+    nn.forEach(n => n.style.setProperty("--rz-north", (-brg) + "deg"));
+    if (!ss.length) return;
     const ovs = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
     const host = map.getContainer(); const sw = host.clientWidth || 1;
     const k = (layer.offsetWidth ? sw / layer.offsetWidth : 1);   // Layer-px → Bildschirm-px (Layer ist rw breit, auf sw skaliert)
@@ -16711,9 +15594,11 @@ function mountAnimator(body, headerActions, opts) {
     const p10 = Math.pow(10, Math.floor(Math.log10(dist))); let r = dist / p10;
     r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;
     const nice = r * p10;
-    s.style.setProperty("--rz-scale-w", (maxLayer * nice / dist) + "px");
-    const txt = s.querySelector(".ov-scale-txt");
-    if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + " km" : Math.round(nice) + " m";
+    ss.forEach(s => {
+      s.style.setProperty("--rz-scale-w", (maxLayer * nice / dist) + "px");
+      const txt = s.querySelector(".ov-scale-txt");
+      if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + " km" : Math.round(nice) + " m";
+    });
   }
 
   // v0.9.228 → 23.09.2026: Zeitsteuerung der Vorschau-Boxen im Probelauf läuft über
@@ -16742,7 +15627,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
     try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
     try { _etappenFarbenZeichnen(); } catch (e) { applog("warn", "[etappenfarbe] Liste: " + e); }   // 20.09.2026 — Farbe je Etappe
-    try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
+    try { renderOverlayPreview(); } catch (e) { applog("warn", "[container] nach Track: " + e); }
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
     document.getElementById("anim-stats-empty").hidden = true;
     document.getElementById("anim-stats-cards").hidden = false;
@@ -17206,7 +16091,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
     try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
     try { _etappenFarbenZeichnen(); } catch (e) { applog("warn", "[etappenfarbe] Liste: " + e); }   // 20.09.2026 — Farbe je Etappe
-    try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
+    try { renderOverlayPreview(); } catch (e) { applog("warn", "[container] nach Track: " + e); }
     try {
       document.getElementById("anim-stats-empty").hidden = true;
       document.getElementById("anim-stats-cards").hidden = false;
@@ -21317,39 +20202,6 @@ function mountAnimator(body, headerActions, opts) {
       line_width: parseFloat(document.getElementById("anim-lw").value) * lineScale,
       line_style: document.getElementById("anim-line-style").value,
       line_style_spacing: parseFloat(document.getElementById("anim-line-spacing").value),
-      // v0.9.215 — null-safe (Overlay-Sektion ist im Reiseroute-Modul entfernt)
-      // + in Reiseroute IMMER aus (dort gibt es keine Stats-Overlays).
-      overlay_totals_enabled: !_isReiseroute && !!document.getElementById("anim-ov-totals")?.checked,
-      overlay_totals_position: document.getElementById("anim-ov-totals-pos")?.value || "top-left",
-      overlay_live_enabled: !_isReiseroute && !_isStaticFrame && !!document.getElementById("anim-ov-live")?.checked,
-      overlay_live_position: document.getElementById("anim-ov-live-pos")?.value || "bottom-left",
-      overlay_north_enabled: !!document.getElementById("anim-ov-north")?.checked,   // 04.09.2026
-      overlay_north_position: document.getElementById("anim-ov-north-pos")?.value || "br",
-      overlay_scale_enabled: !!document.getElementById("anim-ov-scale")?.checked,
-      overlay_scale_position: document.getElementById("anim-ov-scale-pos")?.value || "bl",
-      overlay_elevation_enabled: !_isReiseroute && !!document.getElementById("anim-ov-ele")?.checked,
-      overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
-      overlay_elevation_scope: document.getElementById("anim-ov-ele-scope")?.value || "reise",   // 09.09.2026
-      // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). Leeres
-      // Feld / 0 = ab Start bzw. bis Ende.
-      overlay_totals_from_s: parseNum(document.getElementById("anim-ov-totals-from")?.value, 0),
-      overlay_totals_to_s: parseNum(document.getElementById("anim-ov-totals-to")?.value, 0),
-      overlay_live_from_s: parseNum(document.getElementById("anim-ov-live-from")?.value, 0),
-      overlay_live_to_s: parseNum(document.getElementById("anim-ov-live-to")?.value, 0),
-      overlay_elevation_from_s: parseNum(document.getElementById("anim-ov-ele-from")?.value, 0),
-      overlay_elevation_to_s: parseNum(document.getElementById("anim-ov-ele-to")?.value, 0),
-      // v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
-      overlay_totals_fields: _ovGetFields("totals"),
-      overlay_live_fields: _ovGetFields("live"),
-      overlay_field_overrides: _ovOverrides(),   // v0.9.334 — Umbenennung/Einheit
-      // v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich)
-      charts: (typeof _charts !== "undefined") ? _charts.map((c) => Object.assign({}, c)) : [],
-      overlay_font: document.getElementById("anim-ov-font")?.value || "system",
-      overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
-      overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
-      overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),  // v0.9.409 — Falsy-Zero-Fix (0 % war 55 %)
-      overlay_entry: document.getElementById("anim-ov-entry")?.value || "none",  // v0.9.479 — Stats-Einblende-Animation
-        ..._ovRenderParams(),   // 23.09.2026 — Ausblendung, Blende, Ecken, Rahmen, Schatten, Boxen je einzeln
       // codec/crf/frame_format kommen jetzt server-seitig aus den globalen
       // Render-Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
       // v0.9.157 — override_* abgeschafft (Classic = 2 hidden KFs, s.o.).
@@ -21887,25 +20739,9 @@ function mountAnimator(body, headerActions, opts) {
         show_pins: (document.getElementById("anim-static-pins")?.checked ?? true),
         // Overlays (Stats-Box) 1:1 wie Vorschau.
         show_overlays: !!document.getElementById("anim-overlays")?.checked,
-        overlay_totals_enabled: !!document.getElementById("anim-ov-totals")?.checked,
-        overlay_totals_position: document.getElementById("anim-ov-totals-pos")?.value || "top-left",
-        overlay_north_enabled: !!document.getElementById("anim-ov-north")?.checked,   // 04.09.2026
-        overlay_north_position: document.getElementById("anim-ov-north-pos")?.value || "br",
-        overlay_scale_enabled: !!document.getElementById("anim-ov-scale")?.checked,
-        overlay_scale_position: document.getElementById("anim-ov-scale-pos")?.value || "bl",
-        // v0.9.416 — Höhenprofil-Overlay 1:1 wie Vorschau (Default im Backend ist AN
-        // → ohne dieses Feld erschien es im Export, auch wenn die Vorschau es aus hat).
-        overlay_elevation_enabled: !!document.getElementById("anim-ov-ele")?.checked,
-        overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
-        overlay_elevation_scope: document.getElementById("anim-ov-ele-scope")?.value || "reise",   // 09.09.2026
-        overlay_totals_fields: (typeof _ovGetFields === "function") ? _ovGetFields("totals") : null,
-        overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
-        overlay_font: document.getElementById("anim-ov-font")?.value || "system",
-        overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
-        overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
-        overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),
-        overlay_entry: document.getElementById("anim-ov-entry")?.value || "none",  // v0.9.479 — Stats-Einblende-Animation
-        ..._ovRenderParams(),   // 23.09.2026 — Ausblendung, Blende, Ecken, Rahmen, Schatten, Boxen je einzeln
+        // 30.09.2026 — Einblendungen (Container) als fertiges HTML aus der Vorschau: Werte im
+        // Endstand, Bilder als data-URI, Diagramme als Inline-SVG. Kein Nachbau in Python.
+        ...(() => { try { return _ctExportHtml(); } catch (e) { applog("warn", "[container] Export-HTML: " + e); return {}; } })(),
         // Schilder + Foto-Pins ROH (werden im Browser via __rzDrawSign gezeichnet).
         signs: signs,
         signs_show: (typeof a.signs_show === "boolean") ? a.signs_show : true,

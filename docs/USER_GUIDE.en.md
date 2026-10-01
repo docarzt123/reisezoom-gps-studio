@@ -849,8 +849,9 @@ you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, M
 the folder with the video opens.
 
 **Open in Animator** creates the same but does not render — the quick video is then the basis for your own
-video: the camera flight is made of normal keyframes, and you change title and end card under
-**Overlays → Title & end card**.
+video: the camera flight is made of normal keyframes, and you change title and end card under **Overlays** (title, subtitle and end card are normal overlays).
+
+**Rebuild it by hand (since v0.9.752):** everything the quick video shows is a normal Animator project — overlays (logo badge, live values, elevation profile, title and subtitle in the intro, end card in the hold, north arrow), gradients top and bottom, highlights as signs, arrow with “Direction from the drawn line”, smooth camera and keyframes for the camera flight. Every one of these settings is in the Animator, so you can also build the video yourself step by step.
 
 The project is called "Tour name · Quick video" and appears under **Projects → Created automatically**. If
 you rename it, it moves to your projects.
@@ -1268,6 +1269,11 @@ follows every twitch, to the right it shows the general direction. The
 default is level 5 (60 m); that is enough for one-second recordings, where
 GPS noise and real movement are the same size.
 
+**Direction from the drawn line (since v0.9.752):** below it there is a switch with a slider in
+metres. When it's on, the arrow points where the already drawn line runs over the last metres — it
+always sits exactly on the line, and “Arrow steadiness” no longer applies. The quick video uses
+exactly this setting.
+
 **Find duplicates:** the button at the bottom left groups files with an **identical route** —
 handy after a bulk export that downloaded the same tour several times.
 
@@ -1612,7 +1618,6 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 6. The render runs — the live preview shows every frame
 7. Done → the result view shows the MP4 + a "Show in Finder" button
 
-> **Overlays: controls only for boxes that are on (since v0.9.452):** position, time window and field list only appear when the box is actually **enabled** — a disabled box doesn't show up in the video, so its position has no effect. Enabled boxes show **all** their controls directly, nothing to expand. Disabled ones shrink to their title row with the switch.
 
 > **Map labels as chips (since v0.9.451):** places, roads, points of interest, transit and borders are a compact **chip row** — tap to toggle, hover for the full description.
 
@@ -1656,16 +1661,26 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   Each stop has **value + colour**, 🗑 removes it. The **"Transition"** switch sets whether the colour changes **hard** (crisp bands) or as a soft **gradient**. Works WYSIWYG in preview, probe run and render. Off by default. *(Single-track animator only for now.)*
 - **Map without labels** (since v0.4.4) — hides place names, street names and POI icons on the map. Turns the map into a pure background — a good look when you want the track as the visual lead actor instead of a Google-Maps-style overview. Works with all map styles and also in the Tour-Map module.
 
-**Overlays** (all individually toggleable, freely placeable):
-- **Totals box** — total values of the track
-- **Live box** — values that update during the animation
-- **Elevation profile** — animated line. For a journey with several stages (since v0.9.683)
-  you choose below it what the profile shows: **Whole journey** (default — one curve over
-  all stages, stage boundaries as dashed marks; transitions and holds stand still) or
-  **Running stage** (the profile rebuilds with every stage, its name in the header). With
-  parallel rows the profile shows the chain's path.
-- **North arrow** (since 2026-09-04, beta-tester request) — rotates with the camera, so it always points north even when the view is turned or sweeping. Default **on**, bottom right.
-- **Scale bar** (since 2026-09-04) — bar with a round length (100 m, 500 m, 2 km …) that follows the zoom; measured at the centre of the frame. Default **on**, bottom left. The alpha render (no map) drops it because there is no map; the north arrow stays.
+**🧱 Overlays (since v0.9.752)** — Everything that stays fixed in the frame is an **overlay**: values, elevation profile, charts, north arrow and scale bar, title, end card, logo. An overlay is a box made of **rows**.
+
+- **Create:** in the sidebar under “Overlays”, pick a template from **“＋ New overlay”**: *Live values*, *Totals*, *Elevation profile*, *Title*, *End card*, *Logo*, *North arrow + scale bar*, *Frame* or *Empty*. The editor opens as a floating window (drag it by its header).
+- **List:** checkbox = show, **✎** opens the editor, **⧉** duplicates, **✕** deletes. Change the order by dragging **⠿** or with **▲▼**: lower in the list means further in front in the picture.
+- **Place:** **drag the overlay in the preview** (1 % grid, snaps to edges and centre, one ⌘Z step per drag), or in the editor under **Position and size**: **anchor** (nine points) plus **offset** in percent of the frame. Size **automatic** (as big as the content) or **fixed** (width and height in %), plus the alignment of the content.
+- **Style = template for the look:** **Box** (semi-transparent box), **Free** (big numbers without a box, small label above, text shadow), **Badge** (dark rounded pill) and **None**. One click sets the style's values; after that you change any value yourself: layout (stacked/side by side), label (above the value, to the left, off), font, font size, text and background colour with opacity, background image (fill/fit, opacity), padding, row and column spacing. Under **More**: accent colour, corners, border, shadow, text shadow, blur, capitals, size of label and unit, opacity. All rows of one overlay look the same — if one row should look different, use a second overlay.
+- **Rows** (**＋ Add row**, reorder with ⠿ or ▲▼):
+  - **Value** — a field (list below) that is **live**, **total**, for journeys the **running stage** or a specific stage, for tours with a logbook **driving only**, **walking only** etc. The label can be renamed or hidden.
+  - **Free text** — any text; `{dist_total}`, `{ele_high}` etc. insert values.
+  - **Chart** — the elevation profile (line colour; for journeys the whole route or the running stage) or any data series of the track (you design its look in the Data Animator), with its own width and height in %.
+  - **Image** — your own image or the GPS Studio logo, width in %.
+  - **North arrow** and **scale bar**.
+- **Time:** without a time span an overlay is visible for the whole video. **＋ Time span** adds one (seconds from–to, empty = until the end), several are possible; **whole video** removes them again. Plus **fade in** and **fade out** (hard, soft, pop) with duration. In the **timeline** every overlay has a bar in the “▸ Overlays” track: drag to move, the edges change start and end, the white dots the fades. A time in the intro is tied to the video start, during the animation to a point on the route, in the hold to the video end — so it stays right when you change duration or pace.
+- **Gradients:** below the list you add a dark **gradient** at the top and bottom of the frame (strength in %), so light text stays readable on any map.
+- **Units:** font size in percent of the shorter side of the frame, spacing relative to the font, position and size in percent of the frame. That's why an overlay looks the same at any window size and in the video, in 4K and portrait too.
+- **Older projects** carry over when opened: stats boxes, elevation profile, charts, north arrow/scale bar, watermark (becomes the logo), the quick video's title and end card become overlays, the “Free” style becomes gradients. Nothing gets lost.
+- **Tour Map** and **Web map** show the same overlays.
+
+**More settings (map, sources, export):**
+
 - **Source line** (since 2026-09-07) — crediting the map sources is mandatory and always stays visible, but you choose the **corner** (bottom right, bottom left, top right, top left) and the **width** (narrow = tall block, medium, wide = flat line, full width = bar along the bottom edge) so it does not cover the elevation profile or the north arrow. Preview and video show it at the same size. Since v0.9.741 it is much smaller: the text is 1.2 % of the short side of the frame (13 pixels in a 1080 video), in the same proportion for every format and window size.
 - **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. “⤢ Fit” brings back the overview; once you set a keyframe, the keyframe wins.
 - **Free satellite everywhere** (since 2026-09-05; zoom staging since v0.9.656: in wide views the style shows Sentinel-2 only, the official aerial imagery fades in from zoom 12 and is complete at 13.5 — since v0.9.658 one step later than before, because Sentinel stays pixel-sharp up to there): where no official aerial imagery exists (Hamburg, New Zealand, USA …) the style now shows Sentinel-2 satellite imagery (10 m, 2016, EOX) instead of an empty area. A banner on the map tells you. No houses or trails at that resolution, but landscape, rivers and city structure; for close-ups pick another style (MapTiler, OpenStreetMap). The credit “Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016” appears in the attribution line; videos may be published.
@@ -1679,11 +1694,11 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Sharpness** (since 2026-09-07) — the last slider of the "Imagery look" or "Map look" (below "Hue"), 0–100 % (default 0): an unsharp mask on the map image, the same in preview and video (not in the Web Map exports). It only affects the map image, not the route, signs, labels, figures, elevation profile or source line. Background: the free Sentinel-2 layer (10 m, from 2016) is soft over islands and coasts without official aerial imagery — that is the source data, not the app. 40–60 % makes it readable; above that it gets grainy. Since the same day all raster maps on Retina screens and in the video fetch one or two tile levels deeper, so that one tile pixel lands on roughly one image pixel (before, they were enlarged 2 to 5 times).
 - **Relief, haze and looks** (since 2026-09-17) — in the "Imagery look": **Relief** lays light and shadow from the terrain data over the aerial imagery (default 0 = off; the looks set 35–60 %), so the flat Sentinel-2 layer gets depth. **Remove haze** (0–100 %, default 0) takes the blue veil out of satellite imagery — technically a black point per colour channel on the map image, in the same layer as the sharpness; 15–35 % is the sweet spot, more looks harsh. The "Map look" (OSM, OpenTopoMap …) has "Remove haze" too. The **Look** selector (Natural / Vivid / Cinematic) sets all seven sliders at once; "Custom" means at least one slider differs. Everything the same in preview and video, undo with ⌘Z, not in the Web Map exports.
 - **Map look** (since 2026-09-05) — also in the **Map** section, for every map except the official aerial imagery (which has its own “Aerial look”). Raster maps such as OpenStreetMap or OpenTopoMap: saturation, contrast, brightness, hue. Vector maps such as OpenFreeMap or MapTiler: brightness only, technically a dimming layer below the track so the track stays bright while the map recedes. Default 0 = map as delivered, “↺ Default” resets.
-  Both can be switched off and moved to another corner like any box. The **Web map** (Leaflet) has the same two switches; north is always up there and the scale bar comes from Leaflet.
+  The **Web map** (Leaflet) has the same two switches; north is always up there and the scale bar comes from Leaflet.
 
-**🆕 Stats editor (since v0.9.321): you choose what's shown — and in what order.** Below the Totals and the Live box there's a **field list** each. Checking/unchecking determines what appears; with the **⠿ handle you drag the fields into the order you want**. Selectable values:
+**Reorder everywhere with ⠿ or ▲▼ (since 25.09.2026):** every list with a ⠿ handle — overlays and their rows, signs and photos, route stations, ghost tracks, "Merge tours" — can be dragged by the handle (Esc cancels) or moved with the small **▲▼** on each row. This now works on Windows too.
 
-**Reorder everywhere with ⠿ or ▲▼ (since 25.09.2026):** every list with a ⠿ handle — stats fields, signs and photos, route stations, ghost tracks, "Merge tours" — can be dragged by the handle (Esc cancels) or moved with the small **▲▼** on each row. This now works on Windows too.
+**Which values are there?** In a **Value** row you pick the field. Fields your track can't provide are not offered; if a chosen field is no longer available (say “stage” after a journey was dissolved), it stays selected but greyed out. Available values:
 - **Live (updates with the animation):** Traveled, Remaining, **Speed (km/h)**, Elapsed, **Time left**, Elevation, **Gradient (%)**.
   - *WYSIWYG (since v0.9.325):* These values already update **in the preview** — while dragging the scrubber and in the test run they count exactly as in the finished video, and the elevation profile fills up to the marker position. So you see in advance, pixel-accurate, how the stats will look in the render.
 - **Totals:** Distance, Time (total time), **Moving time** (motion time without pauses), **Ø speed** (from moving time), **Ø speed (overall)** (from total time), **Max. speed**, Ascent, Descent, **Highest point**, **Lowest point**.
@@ -1694,81 +1709,11 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   - **✎ Rename & unit (since v0.9.334):** Every sensor field has a **✎**. With it you can change the **label and unit per project** — make cryptic device abbreviations like `GRD_PCT` or `NGP` readable, rename "cadence" to "step rate / spm" for running, or specify speed in "knots" for sailing. "Reset" restores the default.
 - Values your track doesn't provide (e.g. speed/time without timestamps, elevation/gradient without altitude data) are **automatically grayed out**.
 
-**🎨 Appearance of the stats boxes (since v0.9.321):** at the bottom of the Overlays section you choose **font** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **text color**, **background color** and **background opacity** — applies to all boxes, with a live preview on the map.
-
-**🎨 Style “Boxed” or “Open” (since v0.9.749):** At the top of “Stats box appearance” there is **Style**. **Boxed** is the familiar look: values in semi-transparent boxes. **Open** has no boxes: the numbers sit big side by side, the unit small next to them and the label small above. A dark gradient at the top and bottom keeps everything readable on any map, and the elevation profile becomes a white line. The style applies to all overlays: total and live stats, elevation profile, extra boxes and the quick-video end card. In the “Open” style the watermark sits on a dark badge. **⬆ Top center** under “Watermark” puts it at the top centre, and the upper boxes then move below it automatically. The quick video uses “Open” by itself.
-
 **⭐ Highlights (since v0.9.750, as signs since v0.9.751):** The overlays have a group called **Highlights**. When it's on, the app places special spots of your tour as **signs** on the map: **Highest point**, **Steepest section**, **Top speed**, **Halfway** and **Waypoints from the GPX**. Under **Look** you pick one of five styles (Pill, Box with pin, Round with card, Shape with frame, Brush stroke), under **Colours** "one per kind" or "one for all". Each highlight sign shows the label small on top and the value big below. Shortly before it appears, a small dot in its colour announces it. If the spot is still outside the frame, the dot sits at the edge. The highlight signs are in the sign list and in the timeline, and you can change, move or delete them like any sign (⌘Z works). If you change the track or the selection, the app adjusts the highlight signs. The ones you edited by hand stay. The steepest section is measured over at least 150 m so that a single GPS error doesn't count. The quick video sets the highlights by itself, as "Pill" in one colour.
 
 **Key-figure styles for your own signs (since v0.9.751):** The five styles are available for every sign in the sign editor under **Shape**. Put the label on the first line and the value on the second, e.g. "Summit cross" ↵ "2513 m". Then pick a **Symbol** and a **Colour**.
 
-**✎ Style each box on its own (since v0.9.723):** Next to the headings **Total stats**, **Live stats** and **Elevation profile** there is a **✎**. It opens the **“Style box”** window. There the box gets its own look: background, opacity, text colour, font, corners, border and shadow. Every value has a tick **“same as all boxes”**. Untick it and the box uses its own value; tick it again and the box inherits from “Stats box appearance” again.
-
 **When is a sign visible? (since v0.9.733)** Right below the overlays the timeline has a **“▸ Signs”** row. A click opens one row per sign (with text or image); each **bar is the time the sign is visible in the video** — exactly as the test run shows it. **Drag the bar** to move the sign's moment (it gets a fixed moment; lead-in and “Stays visible” stay the same). The **left edge** changes the **lead-in** (how early it appears before the point), the **right edge** changes **“Stays visible”**; dragged all the way right means **until the end**. The status line shows the seconds while you drag. **Double-click or right-click** opens the sign window. **“Whole time” (since v0.9.736 without a checkbox):** a sign visible for the whole video simply has a bar across the full width. Drag an edge inward and it becomes a time window; drag both edges all the way out and it is the whole time again. New signs no longer inherit “whole time” from the previous sign. A hidden sign is grey. Every change is one ⌘Z step. **Fade in and out (since v0.9.735):** as with the overlays, the bar has two **white dots** — left the **fade-in**, right the **fade-out**. Dragging changes the duration (the dark wedge shows it); “Cut” becomes “Fade”, dragged all the way back it is “Cut” again. The sign window has **“Fade-in duration”**, **“Fade-out”** (Cut, Fade out, Pop out, Fade + pop out) and **“Fade-out duration”**. It only fades out if the sign disappears before the end of the video. Older signs look as before (0.6 s fade-in and the same fade-out). **To drag, the “▸ Signs” row must be open** — the collapsed strip only shows the bars.
-
-**When does the box appear? (since v0.9.724)** The **“▸ Overlays” row sits at the very top** of the timeline, above “Cluster”. **Every lane can be collapsed:** click the **▾** at the start of its label to fold it into a thin strip, click again to open it; the app remembers this per lane.  Easiest in the **timeline under the map**: click **“▸ Overlays”** to open one row per box. Each **bar is the time the box is visible**. **Drag** the bar to move it, drag its **edges** to change start and end. The two **white dots** on top of the bar are the **fade-in** and **fade-out**: drag them and the box fades in or out over that time (the dark wedge shows it). **At the end of the bar the box is fully gone** — the fade-out comes before it. While you drag, the preview jumps to that spot and the status line tells you what the edge is tied to: in the **intro** to seconds from the start of the video, **during the animation to a point on the track** (“at 349.3 km” — it stays there even if you change tempo or duration), in the **hold at the end** to seconds before the end of the video (“2.0 s before the end” — stays 2 s before the end even if the video gets longer). Example: show the total stats from second 25 and have them gone 2 seconds before the end — left edge to 25 s, right edge to “2 s before the end”, done. **Double-click or right-click** a bar to open the box’s window; it shows the same values as numbers (“second from the start of the video”, “at a point on the track (km)”, “seconds before the end of the video”, “for a duration of”) and **separate fade-in and fade-out durations**. A switched-off box is grey and dashed. The **⏱ seconds in the sidebar** follow the bar; “to” there is a second in the video (empty = until the end). If “to” is before “from”, the field turns red. Older projects keep their timing; a fade-out now lies inside the span, so the box disappears one fade duration earlier than before. **Show a box several times:** double-click an empty spot in the row to add another span there (3 s, then drag it). Spans that overlap are merged into one. The box window then lists “Span 1”, “Span 2” … each with a ✕ to delete it; the sidebar ⏱ fields only display in that case.
-
-**Time in the sidebar (⏱) — from start or before end (since v0.9.724):** Next to the second field you choose what “to” counts from: **“s from start”** (second in the video) or **“s before end”**. “⏱ 15 – 2 s before end” means: from second 15, and 2 seconds before the end the box is gone. If “to” does not come after “from”, the field turns red and **nothing** is applied — the bar stays as it was. Bar and fields always show the same; at a track edge the bar shows both, e.g. “15.0 s · at 3.8 km”.
-
-**Fades and “Look”:** Fade-in and fade-out come in three kinds — **Hard**, **Fade** and **Pop** (grows in / shrinks away). The **“fade duration”** under “Look” applies to all boxes **unless** you set a box's fades yourself (dragged the white dots on the bar or in the ✎ window). Then the list below the duration names those boxes, with **“Reset to the duration above”**. If a bar gets shorter than both fades, they are shortened proportionally for display only — nothing is saved. **Boxes without their own time range** (visible the whole time) fade too since v0.9.731: in at the start of the video, out at its end — before, only “Hard” had any effect there. Visible in the test run and the video, not in the still preview.
-
-**Figures per stage:** For merged tours, a totals box offers **“Figures for”**: the whole route, the **current stage** (the figures change with the stage in the video) or one particular stage.
-
-**Figures per movement type (since v0.9.724):** If the tour is in the archive and has a logbook, “Figures for” also offers **“hike only”, “drive only”, “bike only” …** — the box then shows distance, time, average speed and climb for that movement type only. A tour with a drive to the trailhead no longer mixes car and hike into one average. It is based on the tour’s logbook, including your corrections in the Inspector.
-
-**Individual rows:** At the bottom of the window every row of the box has a ✎. A row can get its own text colour, size (50–300 %), bold, its own timing, its own fades and its own stage figures. Without its own timing the row appears together with the box.
-
-**More boxes:** Below the elevation profile, **＋ Box** adds an extra box, for example a second totals box in the middle of the frame just for the end. In the window you choose heading, content (Total stats or Live stats), position and fields. In the list you switch each box on and off, **⧉** duplicates it, **✕** deletes it after asking.
-
-**Apply to all boxes, reset:** “Apply to all boxes” copies the look and fades of the open box to all others. Timing and figures stay per box. “Reset this box” and “Reset all” remove the individual settings after asking. Every change can be undone with ⌘Z, the preview shows it at once, and fades and timing look in the test run exactly as in the video.
-
-**New in the sidebar:** “Stats box appearance” now also has **Exit**, **Fade duration**, **Corners**, **Border** with colour and **Shadow** for all boxes together.
-
-**Shadow + entrance of the stats boxes (since v0.9.479):** the boxes now cast a **direction-dependent shadow** that follows the same **global light source** as the track and the signs (the **"Shadow direction"** slider in the track section). There is also the **"Entrance"** selector (Hard / Fade in / Pop / Fade + pop) — it decides how the boxes appear in the **rendered video** (and in the test run).
-
-**Positions (since v0.9.284):** stats boxes in a **3×3 grid** — four corners plus **top (↥)**, **bottom (↧)**, **left (⇤)**, **right (⇥)** centered and **center (✛)** (e.g. for a title/opening overlay). The **elevation profile** is narrower and additionally offers **top wide / bottom wide** (across the full width).
-
-**💧 Watermark (since v0.9.632):** At the bottom of the overlays section
-there is a **💧 Watermark** checkbox — on or off, that's it. When it's on,
-below it appear **"🖼 own image …"** (with ↩︎ back to the GPS Studio logo),
-**size** as a percentage of the video width, and **opacity**. You set the
-**position directly in the preview: drag the logo with the mouse to wherever
-it should sit.**
-
-**New projects** start with the GPS Studio logo in the bottom right (15 %,
-65 % opacity) — discreet but readable. One click turns it off, and that
-decision sticks. **Existing projects never get a watermark added**: the
-default is applied when a project is created, not when it is opened.
-
-The watermark appears in the rendered video, the still-image export and the
-alpha export — the preview shows it pixel-true (WYSIWYG). The image is
-embedded at render time; at 4K and portrait it automatically sits in the same
-spot, because everything is calculated in percent of the video area. The
-built-in logo is stored as a placeholder rather than a file path, so an
-exported project shows the logo on another machine too.
-
-**📊 Charts in the video (since v0.9.443):** in the Overlays section, below the simple elevation profile, there's the **📊 Charts** area. With it you overlay **as many** fully styled data-series charts as you like directly onto the map video — elevation, heart rate, speed, power and any other series your track provides, including **color zones** and a **second Y axis**.
-
-![Two charts in the finished video: the elevation profile along the full width at the bottom and the speed curve next to it on the right — both run in sync with the position on the map.](img/diagramme-im-video.jpg)
-
-- **"＋ Add chart"** creates a card. Per chart you pick the **data series**, the **position** (9 corners/centers), **width** and **height**, plus a **time window** (from/to video second).
-- **Separate foreground and background opacity (since v0.9.445):** **"Chart opacity"** controls the curve and labels, **"Background opacity"** the box behind it. Pull the **background down to 0 %** and the map shows fully through, with only the data line floating over the video. The preview now shows this **WYSIWYG** (real transparency instead of a white box).
-- **Per-chart axes (since v0.9.447):** every chart card has its own **"Axes"** and **"Axis font size"** (8–60 px) controls. They override the style adopted from the Data Animator — so a small overlay can carry large labels, or do without axes entirely. Note: the font size refers to the **video resolution**, not to the chart box.
-
-![The chart card in the sidebar: data series, position, width/height, separate opacity for chart (foreground) and background, plus "Adopt from Data Animator".](img/diagramme-sidebar.png)
-
-- **You design the look in the Data Animator** (line color, area, color zones, info bar, marker, second series …) and then click **"🎨 Adopt from Data Animator"** on the chart — after that the chart looks exactly the same. So you can, for example, set up an elaborate heart-rate chart, adopt it, and place a second one for elevation next to it.
-- Every chart **stays in sync with the point on the map**: the marker sits exactly above the current position — you see this already in the preview while scrubbing and in the dry run.
-- Works in the **alpha export** too (transparent ProRes 4444 .mov): the charts then sit as their own overlay layer above your video in Premiere / Final Cut / DaVinci.
-- The **existing simple elevation profile** stays unchanged — the charts are an additional tool, not a replacement.
-
-**⏱ Time window per box** (since v0.9.228): Under each overlay box you can
-set **from which and up to which video second** it's shown — e.g. show the
-Live box only from second 2, or hide the Totals box again after
-second 8. Two fields "from … s" / "to … s", counted over the
-**whole video** (intro + animation + hold). **Empty or 0** = as before (visible
-the whole time). You can see the fade in/out already in the **test run**, before you
-render.
 
 **Camera:**
 - **🎥 Steady camera (3D terrain)** (checkbox, at the very top of the section, **default: off**) — *against the up-and-down bobbing of the camera over mountainous terrain.* With keyframe camera flights over 3D terrain, the camera normally "rides" the mountains and bobs up on every climb and down in the valley (especially with a steep tilt). Check this box and the camera **flies decoupled through space like a drone** — it hits exactly the framing you set at your keyframes, and moves steadily in between, without the terrain bobbing. **The default is off** (classic behavior); only check it if the bobbing over mountains bothers you. Applies both in the **test run** and in the finished **render** (what you see is what you get). *Tip:* If a specific project with the steady camera enabled ever looks odd (e.g. an approach from the world view), just uncheck it again.
@@ -1836,7 +1781,7 @@ video.
   ℹ️ Render time depends **much more** on **duration × FPS × resolution** than on the number of points. If a render takes too long: reduce FPS/resolution first.
 
 - **Animation without map (alpha channel)** ⭐ **For video-editor compositing**:
-  - Enable the checkbox → renders **only track + point + stats overlays** on a transparent background.
+  - Enable the checkbox → renders **only track, point, signs and overlays** on a transparent background — since v0.9.752 through the same path as every video, so exactly as the preview shows it (several tours too).
   - The output is a **`.mov` file** (ProRes 4444 with an alpha channel, larger than MP4 but NLE-ready).
   - In **Premiere Pro, Final Cut Pro, DaVinci Resolve, CapCut Pro** you can lay this file directly **over real video** — the track appears as an animated overlay on your drone, GoPro or vlog footage.
   - A Mapbox token is **not required** in this mode (no map is rendered, after all).
