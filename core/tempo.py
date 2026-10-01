@@ -9,6 +9,9 @@ Einträge:
 * **Halt** (`{"art": "halt", "bei": 0..1, "sek": 3.0, "kamera": "kino"}`) —
   die Strecke steht, die Videozeit läuft weiter. Ein Etappen-Übergang ist genau
   das, nur mit Kamerabewegung; `kamera` sagt, welche.
+* **Fotostopp** — ein Halt mit `kamera: "fotostopp"` und `ref`, den die Oberfläche
+  aus einem Foto-Schild mit Häkchen „Fotostopp" ableitet (01.10.2026). Hier ist
+  er ein Halt wie jeder andere; `ref` wird nur durchgereicht.
 * **Tempo** (`{"art": "tempo", "von": 0..1, "bis": 0..1, "faktor": 0.5}`) —
   dieser Abschnitt läuft mit dem Faktor GEGEN die Grundraffung. Ändert man die
   Grundraffung, ziehen alle Abschnitte mit.
@@ -169,8 +172,11 @@ def kurve(pts: Sequence, *, basis: str = BASIS_STRECKE, rate: float = 1.0,
         if sek <= 0:
             continue
         bei = max(0.0, min(1.0, _sauber(e.get("bei"), 0.0)))
-        halte.append({"bei": bei, "sek": sek, "kamera": str(e.get("kamera") or "kino"),
-                      "idx": int(round(bei * (n - 1)))})
+        h = {"bei": bei, "sek": sek, "kamera": str(e.get("kamera") or "kino"),
+             "idx": int(round(bei * (n - 1)))}
+        if e.get("ref"):                 # 01.10.2026 — Fotostopp: welches Foto-Schild (Vorschau/Render ordnen zu)
+            h["ref"] = str(e.get("ref"))
+        halte.append(h)
     halte.sort(key=lambda h: h["bei"])
 
     sek_strecke = sum(kosten)

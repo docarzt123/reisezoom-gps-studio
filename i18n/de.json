@@ -4795,5 +4795,20 @@
   "schnell.wie_animator": "Wie im Animator",
   "schnell.eigen_einheit": "Sekunden gesamt (mindestens {n})",
   "animator.lane.cluster_auf": "Kamera-Spuren wieder zeigen",
-  "animator.lane.cluster_zu": "Kamera-Spuren (Neigung, Drehung, Zoom, Position, Bildlage) einklappen"
+  "animator.lane.cluster_zu": "Kamera-Spuren (Neigung, Drehung, Zoom, Position, Bildlage) einklappen",
+  "signs.grp.stopp": "📸 Fotostopp",
+  "signs.stopp": "Hier anhalten",
+  "signs.stopp_hint": "Erreicht der Track das Foto, hält er an: Die Kamera fährt heran, das Foto erscheint groß, danach geht es weiter. Das Video wird um Anflug, Foto und Abflug länger.",
+  "signs.stopp_s": "Foto zeigen (Sek.)",
+  "signs.stopp_anflug": "Anflug (Sek.)",
+  "signs.stopp_abflug": "Abflug (Sek.)",
+  "signs.stopp_zoom": "Heranfahren",
+  "signs.stopp_ortzeit": "Ort und Uhrzeit",
+  "signs.stopp_exif": "Kameradaten (EXIF)",
+  "animator.tempo.fotostopp": "Fotostopp",
+  "schnell.fotostopps": "📸 Fotostopps",
+  "schnell.fotos_suchen": "Fotos dieser Tour werden gesucht …",
+  "schnell.fotos_info": "{n} Fotostopps · je {s} s, von der Länge abgezogen",
+  "schnell.fotos_zu_viele": "für diese Länge passen nicht alle — die besten kommen rein",
+  "schnell.fotos_keine": "Keine Fotos zu dieser Tour im Foto-Archiv."
 }

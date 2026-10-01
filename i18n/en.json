@@ -4795,5 +4795,20 @@
   "schnell.wie_animator": "As in the Animator",
   "schnell.eigen_einheit": "seconds in total (at least {n})",
   "animator.lane.cluster_auf": "Show the camera tracks again",
-  "animator.lane.cluster_zu": "Collapse the camera tracks (pitch, rotation, zoom, position, framing)"
+  "animator.lane.cluster_zu": "Collapse the camera tracks (pitch, rotation, zoom, position, framing)",
+  "signs.grp.stopp": "📸 Photo stop",
+  "signs.stopp": "Stop here",
+  "signs.stopp_hint": "When the track reaches the photo it stops: the camera moves in, the photo appears large, then it moves on. The video gets longer by approach, photo and departure.",
+  "signs.stopp_s": "Show photo (sec.)",
+  "signs.stopp_anflug": "Approach (sec.)",
+  "signs.stopp_abflug": "Departure (sec.)",
+  "signs.stopp_zoom": "Move in",
+  "signs.stopp_ortzeit": "Place and time",
+  "signs.stopp_exif": "Camera data (EXIF)",
+  "animator.tempo.fotostopp": "Photo stop",
+  "schnell.fotostopps": "📸 Photo stops",
+  "schnell.fotos_suchen": "Looking for photos of this tour …",
+  "schnell.fotos_info": "{n} photo stops · {s} s each, taken from the length",
+  "schnell.fotos_zu_viele": "not all fit this length — the best ones go in",
+  "schnell.fotos_keine": "No photos of this tour in the photo archive."
 }
