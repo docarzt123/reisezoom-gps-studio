@@ -4776,5 +4776,6 @@
   "container.zeile": "Row",
   "container.zeile_neu": "Add row",
   "container.zeilenabstand": "Row spacing",
-  "error.render_ohne_projekt": "Rendering only works from an open project."
+  "error.render_ohne_projekt": "Rendering only works from an open project.",
+  "schnell.kein_track": "Load a tour first."
 }

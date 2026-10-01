@@ -4776,5 +4776,6 @@
   "container.zeile": "Zeile",
   "container.zeile_neu": "Zeile hinzufügen",
   "container.zeilenabstand": "Zeilenabstand",
-  "error.render_ohne_projekt": "Rendern geht nur aus einem geöffneten Projekt."
+  "error.render_ohne_projekt": "Rendern geht nur aus einem geöffneten Projekt.",
+  "schnell.kein_track": "Erst eine Tour laden."
 }

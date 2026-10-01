@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.757** (01.10.2026, built locally): the "Quick video …" button in the Animator works again.
+
+### Fixed
+- **"Quick video …" in the Animator did nothing** (Marc) — regression from 0.9.752: the click handler lived in the old title-card editor binding (`_skEditorBinden`), which was removed with that editor in the container rebuild. Rebound in the container init; without a loaded tour a hint appears. `tests/test_schnellvideo.py` now clicks the button and expects the dialog (before it only checked that the button exists). A scan of all element ids in the Animator found no other control that lost its code in the rebuild.
+
 > **0.9.756** (01.10.2026, built locally): render log counts frames that stall on the map; tile-outage test no longer depends on machine load.
 
 ### Changed
