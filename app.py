@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.757"
+APP_VERSION = "0.9.758"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -11799,16 +11799,7 @@ class Api:
             # 30.09.2026 — Logo-Container: Bild aus den Vorgaben (eigenes Logo oder GPS-Studio).
             # Wer das Wasserzeichen in den Vorgaben abgeschaltet hat, bekommt auch im
             # Schnell-Video keins.
-            cont = ziel.get("container")
-            if isinstance(cont, list):
-                logo = next((c for c in cont if isinstance(c, dict) and c.get("vorlage") == "logo"), None)
-                if logo is not None:
-                    if isinstance(wm, dict) and wm.get("path"):
-                        for z in logo.get("zeilen") or []:
-                            if isinstance(z, dict) and z.get("typ") == "bild":
-                                z["pfad"] = str(wm["path"])
-                    else:
-                        cont.remove(logo)
+            self._schnell_logo_bild(ziel, wm)
             p["herkunft"] = "schnellvideo"
             p["letztes_modul"] = "animator"
             _projekte.speichern(DATEN_ORT, daten)
@@ -11818,6 +11809,52 @@ class Api:
             return {"ok": True, "project_id": p["id"]}
         except Exception as e:
             log.error("schnellvideo_anlegen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def _schnell_logo_bild(self, ziel: dict, wm) -> None:
+        """Logo-Container des Schnell-Videos: Bild aus den Vorgaben, sonst Container weg."""
+        cont = ziel.get("container")
+        if not isinstance(cont, list):
+            return
+        logo = next((c for c in cont if isinstance(c, dict) and c.get("vorlage") == "logo"), None)
+        if logo is None:
+            return
+        if isinstance(wm, dict) and wm.get("path"):
+            for z in logo.get("zeilen") or []:
+                if isinstance(z, dict) and z.get("typ") == "bild":
+                    z["pfad"] = str(wm["path"])
+        else:
+            cont.remove(logo)
+
+    def schnellvideo_uebernehmen(self, project_id: str, animator: dict, letzte: dict = None) -> dict:
+        """01.10.2026 (Marc) — Schnell-Video in das OFFENE Projekt übernehmen statt ein neues
+        anzulegen: die Werte des Assistenten in den Animator-Block schreiben (Keyframes werden
+        ersetzt). Vorher ein Arbeitsstand wie bei „Vorlage anwenden"; Antwort {vorher, nachher}
+        für den Undo-Schritt im Modul."""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(project_id)
+            if not p:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            try:
+                _projekte.stand_schreiben(DATEN_ORT, p, erzwingen=True)
+            except Exception:
+                log.exception("Projekt-Stand vor Schnell-Video")
+            ziel = p.setdefault("animator", {})
+            vorher = json.loads(json.dumps(ziel))
+            patch = json.loads(json.dumps(animator or {}))
+            ziel.update(patch)
+            if "container" in patch:
+                self._schnell_logo_bild(ziel, (self._session_get_global_defaults("").get("animator") or {}).get("watermark"))
+            _projekte._angefasst(p)
+            _projekte.speichern(DATEN_ORT, daten)
+            if isinstance(letzte, dict):
+                self.settings_set({"schnellvideo_letzte": letzte})
+            log.info("Schnell-Video in Projekt %s übernommen (%d Schlüssel%s)", project_id, len(patch),
+                     ", mit Einblendungen" if "container" in patch else ", Look behalten")
+            return {"ok": True, "vorher": {"animator": vorher}, "nachher": {"animator": json.loads(json.dumps(ziel))}}
+        except Exception as e:
+            log.error("schnellvideo_uebernehmen: %s", e)
             return {"ok": False, "error": str(e)}
 
     def schnellvideo_ziel(self, name: str) -> dict:

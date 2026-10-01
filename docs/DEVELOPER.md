@@ -4427,6 +4427,19 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Schnell-Video in dieses Projekt übernehmen (01.10.2026, v0.9.758)
+
+`ui/js/schnellvideo.js rzSchnellVideo(pfad, {projekt: {id, keyframes, hatLook}})` — der Animator-Knopf übergibt
+das offene Projekt (`hatLook` = Projekt hat Container). Dann drei Wege: `uebernehmen()` · `los(false)` (neues
+Projekt) · `los(true)` (rendern). `uebernehmen`: Patch = `animatorPatch(w, v)`, mit „Meinen Look behalten“
+gefiltert auf `ABLAUF` (`nurAblauf`, Prüfstand `__rzSchnellAblauf`); Rückfrage bei vorhandenen Keyframes
+(`rzConfirm`); Brücke `schnellvideo_uebernehmen(pid, patch, letzte)` schreibt `stand_schreiben(erzwingen)` +
+`animator.update(patch)` (Logo-Bild aus den Vorgaben wie beim Anlegen, `_schnell_logo_bild`) und liefert
+`{vorher, nachher}`; das Modul übernimmt es wie `rzVorlageAufAktivesProjekt` (`rzSetModuleSettingsLocal`,
+`applyState(nachher, label, vorher)`). Die Blickrichtung (`__rzSchnellKamera`) läuft unter
+`__rzUndoApplying`, damit es EIN ⌘Z-Schritt bleibt; danach `__rzSchnellBereit(pid)` (Highlight-Schilder).
+Prüfstand `window.__rzKeyframes = {liste, setzen}`. Wächter: `tests/test_schnellvideo_uebernehmen.py`.
+
 ## Hänger statt Gesamtzeit messen (01.10.2026, v0.9.756)
 
 `core/szene.render_szene` zählt je Bild die Wartezeit auf die Karte (`_WARTE_BILD_JS`, Grenze 5 s):

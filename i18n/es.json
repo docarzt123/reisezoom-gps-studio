@@ -4777,5 +4777,18 @@
   "container.zeile_neu": "Añadir fila",
   "container.zeilenabstand": "Espacio entre filas",
   "error.render_ohne_projekt": "Solo se puede renderizar desde un proyecto abierto.",
-  "schnell.kein_track": "Carga primero una ruta."
+  "schnell.kein_track": "Carga primero una ruta.",
+  "schnell.in_projekt": "Aplicar a este proyecto",
+  "schnell.in_projekt_titel": "Aplicar a este proyecto",
+  "schnell.neues_projekt": "Proyecto nuevo",
+  "schnell.look_behalten": "Mantener mi aspecto — solo el vuelo de cámara y los tiempos",
+  "schnell.look_hinweis": "Sin marcar, también entran en el proyecto el formato, el estilo de mapa, las superposiciones, el título y la tarjeta final del vídeo rápido.",
+  "schnell.kf_warnung": "El proyecto ya tiene {n} keyframes; se sustituirán por el vuelo de cámara (⌘Z los recupera).",
+  "schnell.kf_frage_titel": "¿Sustituir keyframes?",
+  "schnell.kf_ersetzen": "Sustituir",
+  "schnell.nichts_geaendert": "No se ha cambiado nada.",
+  "schnell.undo_label": "Vídeo rápido aplicado",
+  "schnell.uebernommen": "Vídeo rápido aplicado; ahora puedes ajustar los keyframes.",
+  "warte.schnellvideo_uebernehmen.titel": "Aplicando vídeo rápido",
+  "warte.schnellvideo_uebernehmen.text": "El vuelo de cámara y los ajustes entran en el proyecto"
 }

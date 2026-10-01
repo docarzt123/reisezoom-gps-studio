@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.758** (01.10.2026, built locally): "Quick video …" in the Animator can apply the quick video to the open project.
+
+### Added
+- **Apply the quick video to this project** (Marc: "open the Animator, press quick video and already have some keyframes … then keep adjusting"). From the Animator with an open project the dialog offers three ways: *Apply to this project*, *New project*, *Render video*. Applying writes the wizard's values into the project's Animator block (bridge `schnellvideo_uebernehmen`: work state first, returns before/after) and the module takes it as one undo step (`applyState`, like applying a template); the heading keyframes (`__rzSchnellKamera`) join that step. Existing keyframes are replaced — the dialog warns and a confirmation asks first. **"Keep my look"** (preselected when the project has overlays) takes only the timing (`ABLAUF`: fps, intro/hold/duration, keyframes, chase camera, arrow, track/camera smoothing) — map style, format, overlays, gradients, highlights stay, no title/end card. Unchecked, the full quick video is applied. Highlight signs are matched afterwards.
+- `tests/test_schnellvideo_uebernehmen.py`: dialog (three ways, preselection, warning), apply with look kept (keyframes replaced incl. heading, overlays/map style unchanged, no title/end card, saved), one ⌘Z back, apply without look (quick-video overlays incl. title and end card).
+
 > **0.9.757** (01.10.2026, built locally): the "Quick video …" button in the Animator works again.
 
 ### Fixed

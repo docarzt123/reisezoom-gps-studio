@@ -859,6 +859,21 @@ va la línea en realidad.
 donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (AirDrop, Mensajes, Mail, Fotos …);
 en Windows se abre la carpeta con el vídeo.
 
+**Desde el Animator: tres caminos (desde v0.9.758).** Si pulsas «🎬 Vídeo rápido …» en el Animator con un
+proyecto abierto, el diálogo tiene tres botones abajo:
+
+- **Aplicar a este proyecto** — el vuelo de cámara entra en *tu* proyecto como keyframes y luego lo ajustas.
+  Los keyframes existentes se sustituyen; si el proyecto ya tiene, el diálogo avisa y pregunta antes. Un
+  **⌘Z** lo devuelve todo (antes se guarda además un estado de trabajo).
+  **«Mantener mi aspecto»** (marcado si el proyecto ya tiene superposiciones) solo toma los tiempos: vuelo de
+  cámara, intro/animación/pausa final, cámara de persecución, flecha, suavizado de ruta y de cámara. Estilo de
+  mapa, formato, superposiciones, degradados y momentos destacados quedan como están; el título y la tarjeta
+  final no se añaden. Sin marcar, entra todo el vídeo rápido. También funciona: aplicar una plantilla y luego
+  el vídeo rápido con «Mantener mi aspecto»: tu aspecto más el vuelo de cámara.
+- **Proyecto nuevo** — crea un proyecto aparte «Nombre de la ruta · Vídeo rápido» (lo que antes hacía «Abrir en
+  el animador»). Tu proyecto abierto no se toca.
+- **🎬 Renderizar vídeo** — proyecto nuevo y el vídeo directamente.
+
 **Abrir en el animador** crea lo mismo pero no renderiza: así el vídeo rápido es la base de tu propio vídeo.
 El recorrido de cámara son keyframes normales, y el título y la tarjeta final los cambias en **Superposiciones** (título, subtítulo y tarjeta final son superposiciones normales).
 
