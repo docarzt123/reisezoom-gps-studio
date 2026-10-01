@@ -5,8 +5,68 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 30 Sep 2026 15:33:51 +0000</lastBuildDate>
+<lastBuildDate>Thu, 01 Oct 2026 08:02:14 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.755</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-755</link>
+<guid isPermaLink="false">gps-studio-v0.9.755</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Beim Modulwechsel bleibt nichts mehr offen — das Rechtsklick-Menü im Archiv und das Menü der Zeitleiste verschwinden jetzt mit dem Modul, wie schon die Editoren.</description>
+</item>
+<item>
+<title>v0.9.753</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-753</link>
+<guid isPermaLink="false">gps-studio-v0.9.753</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Einblendungs-Editor schließt beim Verlassen des Animators — wer bei offenem Editor ins Archiv wechselte, hatte das Fenster weiter vor sich.</description>
+</item>
+<item>
+<title>v0.9.752</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-752</link>
+<guid isPermaLink="false">gps-studio-v0.9.752</guid>
+<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
+<description>🧱 Einblendungen neu gebaut: ein Baustein für alles — Werte, Höhenprofil, Diagramme, Nordpfeil und Maßstab, Titel, Schlusskarte und Logo sind jetzt „Einblendungen“: frei platzierbare Kästen mit Anker und Abstand, einem Stil als Vorlage (Kasten, Frei, Plakette, ohne) und Zeilen, die du beliebig kombinierst. Jede Einblendung hat eigene Zeiten mit Ein- und Ausblenden. In der Vorschau ziehen, im schwebenden Editor gestalten.
+
+Alte Projekte werden übernommen — Werte-Kästen, Höhenprofil, Diagramme, Wasserzeichen, Titel und Schlusskarte werden beim Öffnen automatisch zu Einblendungen, ohne dass etwas verloren geht.
+
+🎞 Ein Render-Weg für alles — auch das Video mit transparentem Hintergrund entsteht jetzt genau so, wie die Vorschau aussieht. Mehrere Touren mit Transparenz gehen jetzt auch.
+
+🎬 Schnell-Video = normales Projekt — alles, was das Schnell-Video zeigt, sind normale Einblendungen und Einstellungen des Animators. Du kannst es öffnen, ändern oder komplett von Hand nachbauen.</description>
+</item>
+<item>
+<title>v0.9.751</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-751</link>
+<guid isPermaLink="false">gps-studio-v0.9.751</guid>
+<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
+<description>⭐ Highlights werden Schilder — höchster Punkt, steilste Stelle und Co. stehen jetzt als normale Schilder in der Liste und in der Zeitleiste: ändern, verschieben, löschen, ⌘Z. Änderst du den Track, passt die App sie an; von Hand geänderte bleiben.
+
+🏷 Fünf neue Schilder-Stile für Kennzahlen — Pille, Kasten mit Stecknadel, Rund mit Karte, Form mit Rahmen und Pinselstrich, mit Symbol und kleiner Einheit. Bei den Highlights wählbar, dazu Farben je Art oder eine für alle; im Schild-Editor für jedes Schild.
+
+Schilder kündigen sich an — kurz vorher erscheint ein kleiner Punkt in der Schildfarbe, am Bildrand, solange die Stelle noch nicht im Bild ist.
+
+Fehlermeldung nach dem Schnell-Video ohne Rendern behoben — „Fehler beim Initialisieren“ kam, weil das Archiv nach dem Wechsel in den Animator noch schreiben wollte.</description>
+</item>
+<item>
+<title>v0.9.750</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-750</link>
+<guid isPermaLink="false">gps-studio-v0.9.750</guid>
+<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
+<description>⭐ Highlights aus dem Track — wie bei Komoot: höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke und die Wegpunkte aus der GPX erscheinen im Video an der Karte. Kurz vorher ein gelber Punkt, an der Stelle eine Stecknadel mit dunkler Pille und dem Wert, danach blendet es wieder aus. Einschalten im Animator bei den Einblendungen unter „Highlights“.
+
+🎬 Schnell-Video mit Highlights — neues Häkchen „Highlights“, standardmäßig an.</description>
+</item>
+<item>
+<title>v0.9.749</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-749</link>
+<guid isPermaLink="false">gps-studio-v0.9.749</guid>
+<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
+<description>🎨 Neuer Stil für alle Einblendungen: „Frei“ — ohne Kästen: große Zahlen mit kleiner Einheit, die Beschriftung klein darüber, dunkle Verläufe oben und unten, das Höhenprofil als weiße Linie. Umschalten im Animator unter „Aussehen der Stats-Boxen“ → „Stil“. „Kasten“ bleibt wie bisher.
+
+💧 Logo als Plakette oben in der Mitte — im Stil „Frei“ sitzt das Wasserzeichen auf einer dunklen Plakette; der neue Knopf „Oben mittig“ setzt es dorthin, und die Zahlen rücken automatisch darunter.
+
+🎬 Schnell-Video im neuen Stil — Logo oben mittig, darunter Strecke, Höhenmeter und Zeit, unten das Höhenprofil über die ganze Breite; die Schlusskarte ohne Kasten.</description>
+</item>
 <item>
 <title>v0.9.748</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-748</link>
@@ -166,58 +226,6 @@ Behoben: Eine zweite Bibliothek überschrieb die Cloud-Kopie der ersten. Die Clo
 <guid isPermaLink="false">gps-studio-v0.9.710</guid>
 <pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
 <description>Logbuch: Ortsnamen, Sehenswürdigkeiten und ein großes Fenster — Steht das Logbuch, schlägt die App im Hintergrund Ortsnamen nach (kostenlos, Kasten unten rechts): Pausen und Punkte bekommen „in La Orotava, Kanarische Inseln“, Fahrten „von … nach …“. Namen aus deiner Aufzeichnungs-App gehen vor; Nachgeschlagenes bleibt gemerkt und wird ohne Internet später nachgetragen. Sehenswürdigkeiten am Weg (OpenStreetMap) erscheinen als eigene POI-Spur im Zeitstrahl (Menge einstellbar, ausblendbar); Gipfel, Pässe, Burgen und alles nahe einer Pause landen gleich im Logbuch, jede andere Marke kommt per Klick hinein. Beides lässt sich in ⚙ abschalten — das Logbuch selbst braucht nie Internet. Das ⤢ große Fenster zeigt das ganze Logbuch als verschiebbare, sortierbare Tabelle (Zeit, Art, Name, Ort, Dauer, km, Höhenmeter, Tempo) mit Mehrfachauswahl (Umschalt-Klick) und Sammelaktionen; Doppelklick auf den Namen benennt um.</description>
-</item>
-<item>
-<title>v0.9.709</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-709</link>
-<guid isPermaLink="false">gps-studio-v0.9.709</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Logbuch: alles lässt sich ändern — und ⌘Z nimmt es zurück — Jeder Eintrag hat ein ⋯-Menü (auch Rechtsklick in der Liste oder auf einen Block im Zeitstrahl): umbenennen, Notiz, Art ändern (Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport, Pause), hier oder in der Mitte teilen, mit dem vorherigen oder nächsten zusammenlegen, löschen — das Gelöschte geht im Nachbarn auf, es bleibt kein Loch. Grenzen zwischen zwei Einträgen ziehst du direkt im Zeitstrahl. „＋ A→B“ macht aus dem Abschnitt zwischen den Ankern A und B einen eigenen Eintrag, „📍 Punkt“ setzt mit dem nächsten Klick auf die Karte einen eigenen Punkt. Jeder Schritt ist ein ⌘Z-Schritt; deine Handarbeit überlebt jede Neuberechnung. Über ⚙ stellst du ein, ab wie vielen Minuten Stillstand eine Pause ist, ab wann Gehen eine Wanderung ist und wann kurzes „Rad“ zwischen zwei Fahrten als Fahrt gilt — nur für diese Tour oder als Standard für alle.</description>
-</item>
-<item>
-<title>v0.9.708</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-708</link>
-<guid isPermaLink="false">gps-studio-v0.9.708</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Datei-Dialoge merken sich ihren Ordner — je Zweck — Ein Windows-Tester hat seine Tracks auf einem anderen Laufwerk als die Videos, und der Dialog öffnete immer im Programmordner. Jetzt merkt sich jede Art von Dialog ihren eigenen Ordner: Tracks öffnen, Videos speichern, Bilder wählen, Ordner wählen. Beim Speichern gewinnt der zuletzt für diese Dateiart gewählte Ordner; ein verschwundenes Laufwerk wird übergangen.</description>
-</item>
-<item>
-<title>v0.9.707</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-707</link>
-<guid isPermaLink="false">gps-studio-v0.9.707</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Logbuch: Wassersport, weißes Blatt, schmale Quellenzeile — Eine Tour mit der Aktivität Boot/Kajak/SUP zeigt ihre langsamen Abschnitte als Wassersport statt als Wanderung (die Art je Eintrag ändern kommt mit der nächsten Stufe). Das Logbuch ist jetzt ein weißes Blatt mit dunkler Schrift unter der dunklen Karte, und die Quellenzeile der Karte im Inspektor ist eine schmale Leiste über die ganze Breite statt eines Kastens in der Ecke.</description>
-</item>
-<item>
-<title>v0.9.706</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-706</link>
-<guid isPermaLink="false">gps-studio-v0.9.706</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Neu: das Logbuch der Tour — Stufe 1 — Der Inspektor zeigt unter der Karte, was wann war: einen Zeitstrahl über die ganze Breite (Spuren Tage · Bewegung mit dem Höhenprofil als Silhouette · Punkte) und rechts daneben ein mitlaufendes Logbuch . Fahrten, Fähren, Wanderungen und Spaziergänge, Pausen ab zehn Minuten, Übernachtungen, der höchste Punkt sowie Start und Ziel je Tag — automatisch aus dem Track erkannt, ohne Internet, sobald du eine Tour aus dem Archiv öffnest. Jeder Eintrag trägt Uhrzeit von–bis in der Ortszeit der Tour, Dauer, Strecke, Höhenmeter und Tempo; mehrtägige Reisen sind nach Tagen gegliedert. Klick auf einen Eintrag hebt den Abschnitt auf der Karte hervor und zoomt hin, Klick auf den Track wählt den Eintrag, die Maus über dem Track setzt eine Marke im Zeitstrahl, Esc hebt auf. Doppelklick auf einen Tag zieht ihn auf, das Mausrad zoomt, „alles zeigen“ holt auch kurze Halte zurück. Was die Erkennung nur vermutet (etwa langsames Fahren durch Ortschaften), steht als „vermutet“ dabei. Bearbeiten, Ortsnamen und Sehenswürdigkeiten kommen in den nächsten Stufen.</description>
-</item>
-<item>
-<title>v0.9.705</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-705</link>
-<guid isPermaLink="false">gps-studio-v0.9.705</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>„Workspace leeren“ und „Projekt schließen“ löschen keine Schilder mehr — Beide leerten die Module, solange das Projekt noch offen war, und speicherten dabei eine leere Schilderliste hinein. Jetzt wird das Projekt zuerst geschlossen, und aus dem Projekt geht nichts verloren.
-
-Ein hängendes Projekt öffnet sich beim Start nicht mehr von selbst — Die App setzte das letzte Projekt fort, bevor du die Frage „ohne Schilder und Fotos öffnen?“ beantworten konntest. Jetzt wartet sie auf deine Antwort.
-
-Geotagger: Fotos mit eigenem GPS landen nicht bei einer Reise woanders — Track-Vorschläge schauten nur auf die Uhrzeit. Jetzt zählt auch, wo das Foto aufgenommen wurde: Eine Tour, die zu dieser Zeit weit weg war, wird nicht mehr angeboten.
-
-Viele kleine Fehler aus dem Test in der echten App — Der Foto-Scan sperrt die Bibliothek nicht mehr so lange, dass andere Aktionen scheitern. Die Foto-Auswahl zeigt wieder richtige Kacheln. „Aus dem Archiv …“ führt ins Touren-Archiv, die Foto-Seitenleiste verschwindet beim Wechsel zu den Projekten, und die Menüleiste sowie einige Texte und Datumsangaben sind jetzt in allen Sprachen übersetzt.</description>
-</item>
-<item>
-<title>v0.9.701</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-701</link>
-<guid isPermaLink="false">gps-studio-v0.9.701</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Sicherheit der Bibliothek nach dem Umbau der Datenbank — Seit v0.9.697 schreibt die Bibliothek zuerst in eine Nebendatei. Vier Stellen wussten das noch nicht: Der automatische Cloud-Abgleich bemerkte neue Touren zu spät, die ZIP-Sicherung packte die Datenbank roh ein, das Zurückholen einer Sicherung ließ die Nebendatei der kaputten Datenbank liegen, und der Umzug der Bibliothek führte sie vorher nicht zusammen. Alle vier sind behoben und an einer Datenbank geprüft, deren neueste Einträge nur in der Nebendatei stehen.
-
-Der Track-Check kennt jetzt die Bewegungsart — und hört auf, Fehlalarme zu melden — Jede Stelle wird an dem gemessen, was du dort gemacht hast: Gehen, Rad, Laufen, Fahrt, Fähre, Halt oder Pause. Ausreißer meldet er erst, wenn ein Punkt wirklich sichtbar neben dem Weg liegt; Zittern beim Stehen ist ein Halt; eine Autofahrt mitten in der Wanderung ist Fahrt, kein Tempo-Fehler; Lücken zählen nach fehlender Bewegung statt nach Metern, kleine erscheinen grau; und Doppelpunkte werden beim Reparieren still mitbereinigt. Gemessen an über 700 echten Touren: rot von 16 auf 2 — genau die zwei, die wirklich Ausreißer sind — und gelb von 146 auf 88 . Repariert wird genau das, was der Kasten meldet.
-
-Die Reparatur erfand keine Tempo-Fehler mehr — Fehlende Zeitstempel am Anfang oder Ende wurden in 1-Sekunden-Schritten ergänzt und sahen danach wie 360 km/h aus. Jetzt geht es mit dem echten Tempo der Tour weiter.</description>
 </item>
 </channel>
 </rss>

@@ -4427,6 +4427,14 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Hänger statt Gesamtzeit messen (01.10.2026, v0.9.756)
+
+`core/szene.render_szene` zählt je Bild die Wartezeit auf die Karte (`_WARTE_BILD_JS`, Grenze 5 s):
+Bilder ≥ 4,5 s gelten als Hänger, dazu das längste Warten. Logzeile nach „Zeit je Bild …“ und
+`szene.LETZTE_ZEITEN = {bilder, haenger, warte_max_s, je_bild_ms}`. Zeitprüfungen in Tests auf diese
+Zahlen stützen, nicht auf die Gesamtzeit — die schwankt mit der Rechnerlast um Faktor 2 und mehr
+(30.09./01.10.2026: „Bild greifen“ 50 → 220–245 ms je Bild bei unverändertem Code, auch für 0.9.748).
+
 ## Was am body hängt, räumt das Modul ab (01.10.2026, v0.9.753/754)
 
 Schwebende Fenster und Menüs hängen an `document.body` (damit sie über Karte und Seitenleiste
