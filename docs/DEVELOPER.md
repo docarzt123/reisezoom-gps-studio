@@ -4456,7 +4456,7 @@ Text Ort + Uhrzeit, EXIF als Häkchen (aus) · Logbuch-Einträge ohne Foto und V
    Einblendungen): Karte mit weißem Rahmen, Größe aus der Viewport-Höhe, Mittelpunkt von `map.project(Foto)` zur
    Bildmitte, `scale 0.08→1`, Abdunkelung 35 %. Aufruf im Probelauf-Schritt neben `_ovTimingAt` und in `scrubPreview`.
    Bild: `sign_image_thumb(src, 1440 im Render / 1000)`, Text: neue Brücke `fotostopp_info(path)` → `_fotostopp_texte`
-   (Foto-Bestand, sonst exiftool): `{ort, zeit, datum, exif}`. Der Render wartet über `__rzSchilderLaden` (+
+   (Foto-Bestand, sonst exiftool): `{ort, zeit, datum, exif}`; Uhrzeit = Zone am Aufnahmeort (`czeit.zone_fuer`), bei grober Zone (`Etc/…`) die Zone aus dem Foto (v0.9.765). Der Render wartet über `__rzSchilderLaden` (+
    `__rzFotostoppLaden`) auf die großen Bilder.
 4. Editor: Gruppe „📸 Fotostopp" unter „Bild" (`#se-stopp-block`, nur mit Bild sichtbar).
 

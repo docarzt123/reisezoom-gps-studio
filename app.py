@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.764"
+APP_VERSION = "0.9.765"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1340,8 +1340,18 @@ def _fotostopp_texte(d: dict) -> dict:
             utc = None
     zeit = datum = ""
     if utc is not None:
+        # Ortszeit am AUFNAHMEORT (01.10.2026, Teide-Demo: Kamera stand auf deutscher Zeit → 07:38 statt
+        # 06:38). Ist die Zone dort nur grob bestimmt (Etc/…, ohne Sommerzeit), gilt die Zone aus dem Foto.
+        tz_min = d.get("tz_minuten")
         try:
-            lokal = datetime.fromtimestamp(float(utc), timezone.utc) + timedelta(minutes=int(d.get("tz_minuten") or 0))
+            if d.get("lat") is not None and d.get("lon") is not None:
+                zone = czeit.zone_fuer(float(d["lat"]), float(d["lon"]), "")
+                if zone and (not zone.startswith("Etc/") or tz_min is None):
+                    tz_min = czeit.offset_min(zone, float(utc))
+        except Exception:   # noqa: BLE001
+            pass
+        try:
+            lokal = datetime.fromtimestamp(float(utc), timezone.utc) + timedelta(minutes=int(tz_min or 0))
             zeit, datum = lokal.strftime("%H:%M"), lokal.strftime("%Y-%m-%d")
         except Exception:   # noqa: BLE001
             pass
@@ -6083,7 +6093,7 @@ class Api:
                      "objektiv": w("LensModel", "LensID", "Lens"), "iso": w("ISO", "ISOSpeed"),
                      "blende": w("FNumber", "ApertureValue"), "brennweite": w("FocalLength"),
                      "belichtung": w("ExposureTime", "ShutterSpeed"), "ort": w("City", "Sub-location"),
-                     "_dt": m.get("datetime")}
+                     "_dt": m.get("datetime"), "lat": m.get("lat"), "lon": m.get("lon")}
             return {"ok": True, **_fotostopp_texte(d)}
         except Exception as e:   # noqa: BLE001
             log.warning("fotostopp_info: %s", e)
@@ -11917,7 +11927,7 @@ class Api:
             raus = []
             for f in wahl:
                 q = pts[f["idx"]]
-                info = _fotostopp_texte({"aufnahme_utc": f.get("epoch"), "tz_minuten": f.get("tz")})
+                info = _fotostopp_texte({"aufnahme_utc": f.get("epoch"), "tz_minuten": f.get("tz"), "lat": q.lat, "lon": q.lon})
                 raus.append({"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
                              "zeit": info.get("zeit", ""), "wert": f["wert"],
                              "thumb": self._photo_thumbnail_data_url(f["path"], 160)})
