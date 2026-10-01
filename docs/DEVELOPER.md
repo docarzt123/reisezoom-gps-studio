@@ -4452,7 +4452,7 @@ Text Ort + Uhrzeit, EXIF als Häkchen (aus) · Logbuch-Einträge ohne Foto und V
    Mitte gleitet zum Foto (abgewickelte Länge), Zoom + `stopp_zoom·k`. Eingebaut an **drei** Stellen — Probelauf
    (neben dem Orbit-Halt), Stützstellen der ruhigen Kamera (`_plan`, vor dem Klemmen) und `scrubPreview`. Der Render
    (core/szene.py) läuft über den Probelauf-Schritt, also dieselbe Rechnung.
-3. `_fotostoppZeigen(tSek)` zeichnet `#anim-fotostopp` (`.fs-buehne` in `#anim-viewport`, z-index 6 = über den
+3. Seit v0.9.766 zeigt `_fotostoppZeigen` auch den **Foto-Pin** (`.fs-pins`/`.fs-pin`): ab `ab_s − FS_PIN_VORLAUF` (2,5 s, Zeit aus der Kurve), Aufpoppen `FS_PIN_AUF`, im Stopp ausgeblendet (`1 − 3p`), danach stehend; das große Foto wächst aus der Pin-Mitte. Die Fotokarte eines Stopp-Schilds zeichnet `_animSignsAttachGPU` nicht mehr (nur Editier-Modus), `__rzSchilderLaden` zählt sie nicht. `_fotostoppZeigen(tSek)` zeichnet `#anim-fotostopp` (`.fs-buehne` in `#anim-viewport`, z-index 6 = über den
    Einblendungen): Karte mit weißem Rahmen, Größe aus der Viewport-Höhe, Mittelpunkt von `map.project(Foto)` zur
    Bildmitte, `scale 0.08→1`, Abdunkelung 35 %. Aufruf im Probelauf-Schritt neben `_ovTimingAt` und in `scrubPreview`.
    Bild: `sign_image_thumb(src, 1440 im Render / 1000)`, Text: neue Brücke `fotostopp_info(path)` → `_fotostopp_texte`

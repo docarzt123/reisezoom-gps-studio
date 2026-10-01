@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.766** (01.10.2026, built locally): photo stops get a photo pin that appears before the stop; no second card behind the big photo.
+
+### Changed
+- **Photo pin instead of the sign's photo card** (Marc, Teide demo: "two signs one behind the other — white frame in front, black behind" and "I'd like a pin where a photo is, like the highlights — this way they appear out of nowhere"). On the map a photo stop is now a round pin with the photo, white rim and a point on the spot. It pops up 2.5 s before the stop (timed from the tempo curve, not the sign anchor — the sign appeared late after the hold), the big photo grows out of it, and afterwards it stays where it is. The sign's photo card is only drawn while editing; `__rzSchilderLaden` no longer waits for it.
+- Test `test_fotostopp.py`: pin 3 s before / 1 s before / during / after, no second card plus the counter-check without the stop.
+
 > **0.9.765** (01.10.2026, built locally): photo-stop time is local time at the place of capture; quick-video photo cards disappear after their stop.
 
 ### Fixed
