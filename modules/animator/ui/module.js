@@ -4131,48 +4131,94 @@ function mountAnimator(body, headerActions, opts) {
   }
   const _fsEsc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let _fsZeitLetzt = null, _fsSichtbar = false;
-  /** Das große Foto für die Animationssekunde `tSek` zeichnen (null/negativ = weg). Probelauf, Scrubben, Render. */
+  /** Foto-Pin + großes Foto für die Animationssekunde `tSek` zeichnen (null/negativ = weg).
+   *  Probelauf, Scrubben, Render.
+   *  01.10.2026 (Marc, Teide-Demo: „da kommen 2 Schilder hintereinander … ich hätte gern einen Pin, wo ein
+   *  Foto ist, wie bei den Highlights — so erscheinen die quasi aus dem Nichts"): Ein Fotostopp ist auf der
+   *  Karte ein runder FOTO-PIN (statt der Fotokarte des Schilds). Er erscheint FS_PIN_VORLAUF s vor dem Stopp
+   *  (Zeit aus der Tempo-Kurve, nicht aus dem Schild-Anker), im Stopp wächst das große Foto aus ihm heraus
+   *  (der Pin ist dann weg), danach steht er wieder an seiner Stelle. */
+  const FS_PIN_VORLAUF = 2.5, FS_PIN_AUF = 0.35;
   function _fotostoppZeigen(tSek) {
     _fsZeitLetzt = tSek;
-    const fs = (tSek == null || !(tSek >= 0)) ? null : _fotostoppBei(tSek);
+    const aktiv = !(tSek == null || !(tSek >= 0));
+    const fs = aktiv ? _fotostoppBei(tSek) : null;
+    const hs = aktiv ? ((_tempoInfo && _tempoInfo.halte) || []).filter(h => h.kamera === "fotostopp" && tSek >= h.ab_s - FS_PIN_VORLAUF) : [];
     let el = document.getElementById("anim-fotostopp");
     const vp = document.getElementById("anim-viewport");
-    if (!el && fs && vp) {
+    if (!el && (fs || hs.length) && vp) {
       el = document.createElement("div");
       el.id = "anim-fotostopp"; el.className = "fs-buehne"; el.setAttribute("aria-hidden", "true"); el.style.display = "none";
-      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><img alt=""><div class="fs-text"></div></div>`;
+      el.innerHTML = `<div class="fs-pins"></div><div class="fs-dunkel"></div><div class="fs-karte"><img alt=""><div class="fs-text"></div></div>`;
       vp.insertBefore(el, document.getElementById("anim-overlay-preview"));
     }
     if (!el) return;
-    const e = fs ? _fsBildHolen(fs.s) : null;
-    if (!fs || !(fs.p > 0) || !e || !e.el || !vp) {
+    if (!vp || (!fs && !hs.length)) {
       if (_fsSichtbar) { el.style.display = "none"; _fsSichtbar = false; }
       return;
     }
     const W = vp.offsetWidth || 1, H = vp.offsetHeight || 1;
-    const img = el.querySelector("img"), karte = el.querySelector(".fs-karte"), txt = el.querySelector(".fs-text");
-    if (img.src !== e.el.src) img.src = e.el.src;
-    const asp = (e.el.naturalWidth || 4) / Math.max(1, e.el.naturalHeight || 3);
-    const zeilen = _fsZeilen(fs.s, e.info);
-    const fz = H * 0.034, pad = H * 0.014;
-    const textH = zeilen.length ? zeilen.length * fz * 1.3 + pad * 0.7 : 0;
-    let bh = H * 0.70 - textH, bw = bh * asp;
-    if (bw > W * 0.86) { bw = W * 0.86; bh = bw / asp; }
-    const kw = bw + 2 * pad, kh = bh + 2 * pad + textH;
-    let px = W / 2, py = H / 2;   // aus dem Pin heraus
-    try { const q = map.project(fs.ll); if (isFinite(q.x) && isFinite(q.y)) { px = q.x; py = q.y; } } catch (_) {}
-    const p = fs.p, sc = 0.08 + 0.92 * p;
-    const cx = px + (W / 2 - px) * p, cy = py + (H / 2 - py) * p;
-    Object.assign(karte.style, { width: kw + "px", height: kh + "px", padding: pad + "px", borderRadius: (pad * 0.5) + "px",
-      transform: `translate(${cx - kw / 2}px, ${cy - kh / 2}px) scale(${sc})`, opacity: String(Math.min(1, p * 2.5)),
-      boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
-    Object.assign(img.style, { width: bw + "px", height: bh + "px" });
-    const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
-    if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
-    Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
-    el.querySelector(".fs-dunkel").style.opacity = String(0.35 * p);
+    const proj = (ll) => { try { const q = map.project(ll); if (isFinite(q.x) && isFinite(q.y)) return [q.x, q.y]; } catch (_) {} return null; };
+    // ── Pins ──
+    const d = Math.min(W, H) * 0.12, rand = d * 0.07, spitze = d * 0.22;
+    const pinsEl = el.querySelector(".fs-pins");
+    const sichtbar = [];
+    for (const h of hs) {
+      const s = _fsSchilderAlle()[parseInt(String(h.ref || "").slice(3), 10)];
+      if (!_fsAktiv(s)) continue;
+      const e = _fsBildHolen(s);
+      const q = proj([+s.lon, +s.lat]);
+      if (!e.el || !q) continue;
+      const auf = Math.max(0, Math.min(1, (tSek - (h.ab_s - FS_PIN_VORLAUF)) / FS_PIN_AUF));
+      const imStopp = (fs && fs.s === s) ? fs.p : 0;
+      const op = auf * (1 - Math.min(1, imStopp * 3));
+      if (op <= 0.001) continue;
+      sichtbar.push({ src: e.el.src, x: q[0], y: q[1], op, sc: 0.3 + 0.7 * (1 - Math.pow(1 - auf, 3)) });
+    }
+    while (pinsEl.childElementCount > sichtbar.length) pinsEl.lastChild.remove();
+    while (pinsEl.childElementCount < sichtbar.length) {
+      const p = document.createElement("div"); p.className = "fs-pin"; p.innerHTML = `<img alt=""><i></i>`; pinsEl.appendChild(p);
+    }
+    sichtbar.forEach((pt, i) => {
+      const p = pinsEl.children[i], im = p.firstChild;
+      if (im.src !== pt.src) im.src = pt.src;
+      Object.assign(p.style, { width: d + "px", height: d + "px", borderWidth: rand + "px", opacity: String(pt.op),
+        transform: `translate(${pt.x - d / 2}px, ${pt.y - d - spitze}px) scale(${pt.sc})`, transformOrigin: `50% ${d + spitze}px`,
+        boxShadow: `0 ${d * 0.06}px ${d * 0.2}px rgba(0,0,0,0.45)` });
+      Object.assign(p.lastChild.style, { borderWidth: `${spitze}px ${spitze * 0.6}px 0`, bottom: (-spitze - rand * 0.6) + "px",
+        marginLeft: (-spitze * 0.6) + "px" });
+    });
+    // ── großes Foto ──
+    const karte = el.querySelector(".fs-karte"), dunkel = el.querySelector(".fs-dunkel");
+    const e = fs ? _fsBildHolen(fs.s) : null;
+    if (!fs || !(fs.p > 0) || !e || !e.el) {
+      karte.style.display = "none"; dunkel.style.opacity = "0";
+    } else {
+      const img = karte.querySelector("img"), txt = karte.querySelector(".fs-text");
+      if (img.src !== e.el.src) img.src = e.el.src;
+      const asp = (e.el.naturalWidth || 4) / Math.max(1, e.el.naturalHeight || 3);
+      const zeilen = _fsZeilen(fs.s, e.info);
+      const fz = H * 0.034, pad = H * 0.014;
+      const textH = zeilen.length ? zeilen.length * fz * 1.3 + pad * 0.7 : 0;
+      let bh = H * 0.70 - textH, bw = bh * asp;
+      if (bw > W * 0.86) { bw = W * 0.86; bh = bw / asp; }
+      const kw = bw + 2 * pad, kh = bh + 2 * pad + textH;
+      const q = proj(fs.ll) || [W / 2, H / 2 + d / 2 + spitze];
+      const px = q[0], py = q[1] - d / 2 - spitze;   // aus der Mitte des Pins heraus
+      const p = fs.p, sc = Math.max(0.05, Math.min(1, (d / Math.max(kw, kh)) + (1 - d / Math.max(kw, kh)) * p));
+      const cx = px + (W / 2 - px) * p, cy = py + (H / 2 - py) * p;
+      Object.assign(karte.style, { display: "", width: kw + "px", height: kh + "px", padding: pad + "px", borderRadius: (pad * 0.5) + "px",
+        transform: `translate(${cx - kw / 2}px, ${cy - kh / 2}px) scale(${sc})`, opacity: String(Math.min(1, p * 2.5)),
+        boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
+      Object.assign(img.style, { width: bw + "px", height: bh + "px" });
+      const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
+      if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
+      Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
+      dunkel.style.opacity = String(0.35 * p);
+    }
     if (!_fsSichtbar) { el.style.display = ""; _fsSichtbar = true; }
   }
+
   window.__rzFotostopp = { halte: () => _fotostoppHalte(), bei: (t) => _fotostoppBei(t), zeigen: (t) => _fotostoppZeigen(t), zuletzt: () => _fsZeitLetzt };   // Prüfstand
 
   let _tempoSchreibt = false;   // verhindert die Schleife Dauer → Kurve → Dauer
@@ -10869,7 +10915,9 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.256 — HYBRID-Dispatch: Editor offen → DOM-Marker (flackerfrei), sonst →
       // GPU-Symbol-Layer (flüssig, kein Schwimmen).
       if (_animSignEditMode) _animSignsAttachDOM(allSigns, list);
-      else _animSignsAttachGPU(allSigns, list);
+      // 01.10.2026 — Fotostopps zeigt die Fotostopp-Ebene als Foto-Pin (_fotostoppZeigen); die Fotokarte
+      // des Schilds nur beim Bearbeiten (sonst zwei Karten hintereinander, Marc: Teide-Demo)
+      else _animSignsAttachGPU(allSigns, list.filter(s => !(s.stopp && s.imageSrc)));
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       _animSignsUpdateAtAnchor(a);
     }
@@ -10950,7 +10998,7 @@ function mountAnimator(body, headerActions, opts) {
      *  beginnt erst bei 0 (vorher pauschal 2,5 s — zu knapp, wenn große Bilder nachgerechnet werden). */
     window.__rzSchilderLaden = () => {
       try { if (!map || !_animSignsShow()) return 0;   // aus = es wird nichts geladen, also auch nicht warten
-        return _animSignsList().filter(x => x && x.imageSrc && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length
+        return _animSignsList().filter(x => x && x.imageSrc && !x.stopp && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length
           + (window.__rzFotostoppLaden ? window.__rzFotostoppLaden() : 0); }   // 01.10.2026 — + große Fotostopp-Bilder
       catch (_) { return 0; }
     };

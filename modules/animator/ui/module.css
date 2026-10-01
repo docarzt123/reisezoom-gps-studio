@@ -1343,8 +1343,19 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 /* 01.10.2026 — Fotostopp: das Foto groß über der Karte, wächst aus dem Pin (Vorschau = Video).
    Liegt ÜBER den Einblendungen (#anim-overlay-preview, z-index 5) — das Foto ist in diesem Moment die
    Hauptsache; sonst schnitt z. B. das Höhenprofil die Bildunterschrift ab. */
-.fs-buehne { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 6; }
+/* Die Bühne selbst ist KEIN Stapel-Kontext (z-index auto): Pins liegen UNTER den Einblendungen (z 4 < 5,
+   sonst verdeckte ein Pin am Ende die Schlusskarte — Teide-Demo), Abdunkelung + großes Foto DARÜBER (z 6). */
+.fs-buehne { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.fs-buehne .fs-pins { z-index: 4; }
+.fs-buehne .fs-dunkel, .fs-buehne .fs-karte { z-index: 6; }
 .fs-buehne .fs-dunkel { position: absolute; inset: 0; background: #000; opacity: 0; }
+/* Foto-Pin: rund, weißer Rand, Spitze auf die Stelle (Größen aus JS) */
+.fs-buehne .fs-pins { position: absolute; inset: 0; z-index: 4; }
+.fs-buehne .fs-pin { position: absolute; left: 0; top: 0; box-sizing: border-box; border-radius: 50%; border: 0 solid #fff;
+  background: #fff; will-change: transform; }
+.fs-buehne .fs-pin img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.fs-buehne .fs-pin i { position: absolute; left: 50%; width: 0; height: 0; border-style: solid;
+  border-color: #fff transparent transparent; }
 .fs-buehne .fs-karte { position: absolute; left: 0; top: 0; box-sizing: border-box; background: #fff;
   transform-origin: 50% 50%; display: flex; flex-direction: column; align-items: center; will-change: transform; }
 .fs-buehne .fs-karte img { display: block; object-fit: cover; }
