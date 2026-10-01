@@ -857,7 +857,7 @@ más sobre la traza, casi sin horizonte. La flecha apunta exactamente en la dire
 dibujada; para ello la línea se suaviza un poco más. En curvas cerradas la flecha gira visiblemente, tal como
 va la línea en realidad.
 
-**Renderizar vídeo** abre, desde v0.9.744, una pantalla propia del vídeo rápido sobre toda la app: arriba el nombre de la ruta, en el centro primero la imagen del mapa de tu ruta con el paso actual (creando el proyecto, cargando el mapa, precargando teselas …), después el vídeo mientras se crea, debajo el progreso y «Cancelar». El Animador trabaja de forma invisible detrás; no tienes que hacer nada allí. **Cerrar** te devuelve al archivo, **Abrir en el Animador** muestra el proyecto para seguir editándolo. Cuando termina, **«💾 Guardar …»** lo pone
+**Renderizar vídeo** abre, desde v0.9.744, una pantalla propia del vídeo rápido sobre toda la app: arriba el nombre de la ruta, en el centro primero la imagen del mapa de tu ruta con el paso actual (creando el proyecto, cargando el mapa, precargando teselas …), después el vídeo mientras se crea, debajo el progreso y «Cancelar». El Animador trabaja de forma invisible detrás; no tienes que hacer nada allí. **Cerrar** te devuelve al archivo (si iniciaste el vídeo rápido en el Animador, te quedas allí), **Cancelar** detiene el vídeo y te deja en el Animador con el proyecto nuevo, **Abrir en el Animador** muestra el proyecto para seguir editándolo. Cuando termina, **«💾 Guardar …»** lo pone
 donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (AirDrop, Mensajes, Mail, Fotos …);
 en Windows se abre la carpeta con el vídeo.
 

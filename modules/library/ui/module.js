@@ -5449,8 +5449,13 @@ function mountLibrary(body, headerActions) {
   window.addEventListener("rz-vorlagen-geaendert", () => { if (!_unmounted && _vorlView) renderVorlagen(); });
   // 11.09.2026 — frisches Projekt-Vorschaubild: Sitzungs-Cache der Kachel verwerfen.
   // 11.09.2026 — Tour-Assistent: ein eben angelegtes Projekt öffnen (mit Track, im Modul).
+  let _aufZurufId = null;
   const _projektAufZuruf = async (id, modul) => {
     if (_unmounted || !id) return;
+    // 01.10.2026 — Schnell-Video setzt __rzProjektOeffnenId UND schickt das Ereignis: sonst zweimal
+    // geöffnet (doppeltes loadGlobalGpx, „Style is not done loading").
+    if (_aufZurufId === id) return;
+    _aufZurufId = id; setTimeout(() => { if (_aufZurufId === id) _aufZurufId = null; }, 3000);
     const res = await api().projekte_liste();
     _projekte = (res && res.projekte) || [];
     window.__rzProjektOeffnenId = null;

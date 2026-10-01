@@ -267,6 +267,7 @@
   async function rzSchnellVideo(pfad, opts) {
     if (!pfad) return;
     const P = (opts && opts.projekt && opts.projekt.id) ? opts.projekt : null;
+    const ausAnimator = !!opts;   // aus dem Animator aufgerufen (das Archiv übergibt keine opts)
     const animS = (opts && +opts.animatorS > 0) ? Math.round(+opts.animatorS * 10) / 10 : 0;   // Länge im Animator (Intro + Animation + Halten)
     let v;
     try { v = await rzWarten("schnellvideo_vorschlag", () => api().schnellvideo_vorschlag(pfad)); }
@@ -320,9 +321,9 @@
           ${P.keyframes > 0 ? `<p class="sv-hinweis" style="margin-top:6px">⚠️ ${esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes))}</p>` : ""}
         </div>` : ""}
       </div>`,
-      footer: (P ? `<button type="button" class="btn" id="sv-uebernehmen">${esc(T("schnell.in_projekt", "In dieses Projekt übernehmen"))}</button>` : "")
+      footer: (P ? `<button type="button" class="btn btn-primary" id="sv-uebernehmen">${esc(T("schnell.in_projekt", "In dieses Projekt übernehmen"))}</button>` : "")
         + `<button type="button" class="btn" id="sv-animator">${esc(P ? T("schnell.neues_projekt", "Neues Projekt") : T("schnell.im_animator", "Im Animator öffnen"))}</button>
-               <button type="button" class="btn btn-primary" id="sv-rendern">🎬 ${esc(T("schnell.rendern", "Video rendern"))}</button>`,
+               <button type="button" class="btn${P ? "" : " btn-primary"}" id="sv-rendern">🎬 ${esc(T("schnell.rendern", "Video rendern"))}</button>`,
     });
     const box = document.getElementById("modal-body");
     box.querySelectorAll("[data-sv-gruppe]").forEach(r => r.addEventListener("click", (e) => {
@@ -444,7 +445,7 @@
       B.schritt(T("schnell.b.start", "Video wird gestartet …")); B.fortschritt(0.03);
       const dateiName = (v.name || "Tour") + " – " + T("schnell.titel_dialog", "Schnell-Video");
       if (typeof window.__rzSchnellRender === "function") window.__rzSchnellRender({ ziel: ziel.path, name: dateiName, buehne: true });
-      buehneVerfolgen(B, dateiName);
+      buehneVerfolgen(B, dateiName, ausAnimator);
     };
     document.getElementById("sv-animator").onclick = () => los(false);
     if (P) document.getElementById("sv-uebernehmen").onclick = () => uebernehmen();
@@ -452,9 +453,14 @@
   }
 
   /** Fortschritt des Renders im eigenen Bildschirm zeigen (derselbe Status wie im Animator). */
-  function buehneVerfolgen(B, dateiName) {
+  function buehneVerfolgen(B, dateiName, ausAnimator) {
     let aktuell = null, begonnen = false, zu = false;
-    const zurueck = () => { zu = true; B.zu(); if (typeof switchMod === "function") switchMod("library"); };
+    // „Schließen": aus dem Archiv gestartet → zurück ins Archiv; aus dem Animator → dort bleiben
+    const zurueck = () => { zu = true; B.zu(); if (!ausAnimator && typeof switchMod === "function") switchMod("library"); };
+    // 01.10.2026 (Marc: „vom Abbruch aus ist er im Archiv gelandet, was ja schon falsch war … dann war der
+    // Animator ausgegraut") — nach dem Abbruch im Animator bleiben (das Projekt ist dort offen) und die
+    // Render-Sperre selbst lösen; der Animator kann es nicht, wenn er inzwischen nicht mehr offen ist.
+    const abgebrochen = () => { zu = true; B.zu(); try { if (typeof setRenderingState === "function") setRenderingState(false); } catch (_) {} };
     B.knopf("abbrechen").onclick = async () => {
       B.knopf("abbrechen").disabled = true; B.schritt(T("animator.cancel.requesting", "Wird abgebrochen …"));
       try { await api().animator_cancel(); } catch (_) {}   // warte-ok: setzt nur das Flag
@@ -487,7 +493,7 @@
         if (s.status) B.schritt(s.status);
         B.fortschritt(Math.max(0.03, s.progress || 0));
         if (s.preview_b64 && s.preview_b64 !== letztesBild) { letztesBild = s.preview_b64; B.livebild(s.preview_b64); }
-        if (s.cancelled) { zurueck(); toast(T("animator.cancel.toast", "Render abgebrochen"), "info", 4000); return; }
+        if (s.cancelled) { abgebrochen(); toast(T("animator.cancel.toast", "Render abgebrochen"), "info", 4000); return; }
         if (s.error) { B.fehler(T("schnell.b.fehler", "Das Video konnte nicht erstellt werden. Details stehen im Fehlerfenster.")); return; }
         if (!s.running && (s.progress || 0) >= 1 && s.output) {
           aktuell = s.output;

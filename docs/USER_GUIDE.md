@@ -869,7 +869,7 @@ Zeitleiste und lässt sich ändern.
 dafür ist die Linie etwas stärker geglättet. In engen Kehren dreht der Pfeil deshalb sichtbar mit — so, wie die
 Linie wirklich verläuft.
 
-**Video rendern** öffnet seit v0.9.744 einen eigenen Schnell-Video-Bildschirm über der ganzen App: oben der Tourname, in der Mitte zuerst das Kartenbild deiner Tour mit dem aktuellen Schritt (Projekt anlegen, Karte laden, Kacheln vorwärmen …), dann live das entstehende Video, darunter der Fortschritt und „Abbrechen“. Der Animator arbeitet unsichtbar dahinter — du musst dort nichts tun. **Schließen** bringt dich zurück ins Archiv, **Im Animator öffnen** zeigt das Projekt zum Weiterbearbeiten. Ist es fertig, **„💾 Speichern …"** legt es
+**Video rendern** öffnet seit v0.9.744 einen eigenen Schnell-Video-Bildschirm über der ganzen App: oben der Tourname, in der Mitte zuerst das Kartenbild deiner Tour mit dem aktuellen Schritt (Projekt anlegen, Karte laden, Kacheln vorwärmen …), dann live das entstehende Video, darunter der Fortschritt und „Abbrechen“. Der Animator arbeitet unsichtbar dahinter — du musst dort nichts tun. **Schließen** bringt dich zurück ins Archiv (hast du das Schnell-Video im Animator gestartet, bleibst du dort), **Abbrechen** stoppt das Video und lässt dich im Animator beim neuen Projekt, **Im Animator öffnen** zeigt das Projekt zum Weiterbearbeiten. Ist es fertig, **„💾 Speichern …"** legt es
 dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü (AirDrop, Nachrichten, Mail,
 Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
 
