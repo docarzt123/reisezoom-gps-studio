@@ -151,6 +151,20 @@
 
   const MODUL_SEKTION = { animator: "animator", tourmap: "tourmap", heightanim: "heightanim", geotagger: "geotagger", webkarte: "webkarte" };
 
+  /** 01.10.2026 (Marc: „Vorlage anwenden / als Vorlage speichern → ‚Kein Projekt aktiv‘") — eine frisch
+   *  geöffnete Tour hat ein SCHWEBENDES Projekt (Kennung "" bis zur ersten Änderung, Q15 vom 02.09.2026).
+   *  Wer eine Vorlage anwenden oder speichern will, will genau dieses Projekt: festschreiben (derselbe Weg
+   *  wie vor dem Render, util.js projektFuerRenderSichern) statt abzulehnen. → Projekt mit Kennung oder null. */
+  async function rzAktivesProjektSichern() {
+    let proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    if (proj && !proj.id && typeof window.projektFuerRenderSichern === "function") {
+      const mod = (typeof window.rzActiveModuleForUndo === "function") ? window.rzActiveModuleForUndo() : null;
+      try { await window.projektFuerRenderSichern(MODUL_SEKTION[mod] || "animator"); } catch (e) { applog("warn", "[vorlagen] Festschreiben: " + e); }
+      proj = getActiveProject();
+    }
+    return (proj && proj.id) ? proj : null;
+  }
+
   /** Vorlagen-Leiste oben in der Seitenleiste eines Gestaltungs-Moduls (Marc,
    *  11.09.2026: „Vorlagen müssen für alle module gelten wo man grafisch was
    *  baut"). KEINE Auswahl, die einen Zustand vortäuscht — eine Vorlage ist nur
@@ -162,14 +176,14 @@
     const wire = () => {
       const a = document.getElementById(an), b = document.getElementById(sp);
       if (!a || !b) return false;
-      a.onclick = () => {
-        const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-        if (!proj || !proj.id) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
+      a.onclick = async () => {
+        const proj = await rzAktivesProjektSichern();
+        if (!proj) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
         rzVorlageAnwendenModal(proj.id, proj.name || "", { anwenden: (vid) => rzVorlageAufAktivesProjekt(vid) });
       };
-      b.onclick = () => {
-        const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-        if (!proj || !proj.id) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
+      b.onclick = async () => {
+        const proj = await rzAktivesProjektSichern();
+        if (!proj) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
         rzVorlageSpeichernModal(proj.id, proj.name || "");
       };
       return true;
@@ -184,8 +198,8 @@
 
   /** Vorlage auf das AKTIVE Projekt legen — im Modul, mit Undo-Schritt. */
   async function rzVorlageAufAktivesProjekt(vid) {
-    const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-    if (!proj || !proj.id) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return false; }
+    const proj = await rzAktivesProjektSichern();
+    if (!proj) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return false; }
     const r = await rzWarten("vorlage_anwenden", () => api().vorlage_anwenden(proj.id, vid));
     if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return false; }
     const nachher = r.nachher || {}, vorher = r.vorher || {};
@@ -221,5 +235,6 @@
   window.rzVorlageSpeichernModal = rzVorlageSpeichernModal;
   window.rzVorlageAnwendenModal = rzVorlageAnwendenModal;
   window.rzVorlageAufAktivesProjekt = rzVorlageAufAktivesProjekt;
+  window.rzAktivesProjektSichern = rzAktivesProjektSichern;
   window.rzVorlagenLeiste = rzVorlagenLeiste;
 })();

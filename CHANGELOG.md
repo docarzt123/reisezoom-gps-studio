@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.759** (01.10.2026, built locally): templates work on a freshly opened tour.
+
+### Fixed
+- **"Apply template …" / "Save as template …" said "No project active"** (Marc). A freshly opened tour has a *floating* project (no id until the first change, Q15 of 02.09.2026); the template bar in Animator/Tour Map/Data Animator/Web map and the project menu in the header rejected it. New `rzAktivesProjektSichern()` (ui/js/vorlagen.js) commits the floating project first — the same way the render button does (`projektFuerRenderSichern`) — and is used by the template bar, applying a template, the header menu and the Animator's quick-video button (so "Apply to this project" is offered for a fresh tour too). Searched the UI for other actions rejecting a floating project: none (the project thumbnail is skipped on purpose, render and export already handle it). `tests/test_vorlagen_schwebend.py`: save as template, apply a template directly on a fresh tour (applied, project gets an id) and the header menu — all from the floating state; failed 5× before the fix.
+
 > **0.9.758** (01.10.2026, built locally): "Quick video …" in the Animator can apply the quick video to the open project.
 
 ### Added
