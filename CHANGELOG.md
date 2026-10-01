@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.754** (01.10.2026, built locally): leaving a module closes everything it opened above the app.
+
+### Fixed
+- **Menus/dialogs survived a module switch** (Marc: "go through the whole app and look for such things"). Reviewed every element modules hang on `body`: the archive's context menu and the drag chip (sorting into a collection) and the timeline's right-click menu and easing dialog were not removed when the module was left; now the module cleanup / `timeline.destroy()` removes them. Already correct: sign editor, logbook window + menu (inspector), geotagger drag ghost, help bubble; global by design: library gate, wait window, quick-video screen. Global key handlers use live handles that the animator clears on leave.
+- New `tests/test_modulwechsel_aufraeumen.py`: opens the overlay editor, sign editor, timeline menu and archive menu, switches modules, then walks through all modules and compares what hangs on `body` before/after (fails without the fixes).
+
 > **0.9.753** (01.10.2026, built locally): the overlay editor closes when you leave the Animator.
 
 ### Fixed
