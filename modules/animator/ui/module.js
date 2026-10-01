@@ -20829,6 +20829,9 @@ function mountAnimator(body, headerActions, opts) {
 
   return () => {
     _animUnmounted = true;
+    // 01.10.2026 (Marc: „Container-Dialog offen, zurück ins Archiv → bleibt offen") — der
+    // Einblendungs-Editor hängt am body, nicht im Modul; beim Verlassen schließen.
+    try { _ctEditId = null; document.getElementById("ct-editor")?.remove(); } catch (_) {}
     // 14.09.2026 — Undo-Controller dieses Mounts abmelden, sonst bleibt er nach dem Tab-Wechsel
     // registriert und ⌘Z dreht Einstellungen eines Moduls zurück, das gar nicht offen ist.
     try { if (window.__rzUndoControllers[_MODKEY] === _animUndoCtrl) delete window.__rzUndoControllers[_MODKEY]; } catch (_) {}
