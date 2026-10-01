@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.756** (01.10.2026, built locally): render log counts frames that stall on the map; tile-outage test no longer depends on machine load.
+
+### Changed
+- **Scene render counts stalls** instead of only timing: frames whose map wait reaches the 5 s limit, and the longest wait, are logged (`Szene: längstes Warten auf die Karte … · Bilder an der 5-s-Grenze: n`) and kept in `szene.LETZTE_ZEITEN` for tests.
+- **`tests/test_kachel_ausfall.py`** checks the actual bug of 30.09. (every affected frame waited up to 5 s) — no frame at the limit, longest wait under 3 s — instead of a total time under 240 s. The total time depended on machine load: 157 s on 30.09. midday, 258–318 s today for 0.9.748 and 0.9.755 alike (screenshots about 5× slower than on 30.09. midday; suspected cause: load on the Mac mini). Counter-check: tiles that hang for 6 s → 78 of 100 frames at the limit, test fails.
+
 ---
 
 ## [0.9.755] – 2026-10-01

@@ -161,6 +161,9 @@ _WARTE_BILD_JS = """async () => {
   return performance.now() - t0;
 }""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "60") or 0)))   # 30.09.2026 Messung: feste Pause je Bild
 # 29.09.2026 — Vorwärmen: kürzere Wartegrenze je Halt (sonst bis 5 s × 200 Halte bei kaltem Speicher/langsamer Leitung)
+# Prüfstand: Zeiten des letzten Video-Renders (Hänger an der Warte-Grenze, längstes Warten, ms je Schritt)
+LETZTE_ZEITEN: dict = {}
+
 _WARTE_VORWAERMEN_JS = _WARTE_BILD_JS.replace("setTimeout(on, 5000)", "setTimeout(on, 2500)")
 
 
@@ -631,6 +634,10 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             # 30.09.2026 (Marc: „das Komoot-Video rendert so schnell, bei uns dauert es ewig") — wohin geht die
             # Zeit je Bild? Summen je Schritt, am Ende eine Logzeile „Szene: Zeit je Bild …".
             _z = {"seek": 0.0, "warten": 0.0, "greifen": 0.0, "schreiben": 0.0}
+            # 01.10.2026 — Hänger zählen statt Gesamtzeit messen: ein Bild, das bis an die Grenze von
+            # _WARTE_BILD_JS (5 s) auf die Karte wartet, ist der Fehler vom 30.09. (Kartendienst-Ausfall).
+            # Die Gesamtzeit hängt an der Rechnerlast, diese Zahl nicht.
+            _haenger, _warte_max = 0, 0.0
             _hinweis_alt = ""
             _t_bilder = time.time()
             try:
@@ -643,7 +650,11 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
                     _z["seek"] += time.perf_counter() - _t; _t = time.perf_counter()
                     await page.evaluate(_WARTE_BILD_JS)
-                    _z["warten"] += time.perf_counter() - _t
+                    _w = time.perf_counter() - _t
+                    _z["warten"] += _w
+                    _warte_max = max(_warte_max, _w)
+                    if _w >= 4.5:
+                        _haenger += 1
                     if _SEEK2:
                         # 07.09.2026 — mit Gelände bezieht MapLibre die Kamerahöhe auf die Bodenhöhe im
                         # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht
@@ -677,6 +688,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             _log.info("Szene: Zeit je Bild %.0f ms (springen %.0f · warten auf Karte %.0f · Bild greifen %.0f · schreiben %.0f) — %d Bilder in %.1f s",
                       (time.time() - _t_bilder) * 1000 / _n, _z["seek"] * 1000 / _n, _z["warten"] * 1000 / _n,
                       _z["greifen"] * 1000 / _n, _z["schreiben"] * 1000 / _n, _n, time.time() - _t_bilder)
+            _log.info("Szene: längstes Warten auf die Karte %.0f ms · Bilder an der 5-s-Grenze: %d", _warte_max * 1000, _haenger)
+            LETZTE_ZEITEN.clear()
+            LETZTE_ZEITEN.update(bilder=_n, haenger=_haenger, warte_max_s=_warte_max, je_bild_ms={k: v * 1000 / _n for k, v in _z.items()})
             emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
             mux.abschliessen(is_cancelled)
             _log.info("Szene: Kacheln %s", _stats_json(getattr(page, "_rz_tile_stats", None)))
