@@ -4790,5 +4790,8 @@
   "schnell.undo_label": "Vídeo rápido aplicado",
   "schnell.uebernommen": "Vídeo rápido aplicado; ahora puedes ajustar los keyframes.",
   "warte.schnellvideo_uebernehmen.titel": "Aplicando vídeo rápido",
-  "warte.schnellvideo_uebernehmen.text": "El vuelo de cámara y los ajustes entran en el proyecto"
+  "warte.schnellvideo_uebernehmen.text": "El vuelo de cámara y los ajustes entran en el proyecto",
+  "schnell.eigen": "Propia",
+  "schnell.wie_animator": "Como en el Animator",
+  "schnell.eigen_einheit": "segundos en total (mínimo {n})"
 }

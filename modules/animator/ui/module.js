@@ -1603,7 +1603,18 @@ function mountAnimator(body, headerActions, opts) {
           const kf = (getRawTimelineEvents() || []).filter(e => e && e.kind).length;
           projekt = { id: proj.id, keyframes: kf, hatLook: _ctListe().length > 0 };
         }
-        window.rzSchnellVideo(currentGpx, { projekt });
+        // 01.10.2026 (Marc) — die Länge im Animator als Wahl anbieten (Intro + Animation + Halten)
+        // Bei einer Reise kommen die Übergänge zur eingestellten Dauer dazu (animSekunden > Dauer-Feld):
+        // „uebergangS" zieht das Schnell-Video beim Übernehmen ab, damit die gewählte Gesamtlänge stimmt.
+        let animatorS = 0, uebergangS = 0;
+        try {
+          const _i = parseNum(document.getElementById("anim-intro")?.value, 0), _a = animSekunden(), _h = parseNum(document.getElementById("anim-hold")?.value, 0);
+          animatorS = _i + _a + _h;
+          uebergangS = Math.max(0, _a - parseNum(document.getElementById("anim-dur")?.value, _a));
+          applog("info", `[schnell] Länge im Animator: ${_i} + ${_a} + ${_h} = ${animatorS} s (Übergänge ${uebergangS} s)`);
+        } catch (e) { applog("warn", "[schnell] Länge im Animator: " + e); }
+        if (projekt) projekt.uebergangS = uebergangS;
+        window.rzSchnellVideo(currentGpx, { projekt, animatorS });
       });
       // Videolänge geändert → Sekunden im offenen Editor neu (Anker bleiben, ihre Zeit wandert)
       ["anim-intro", "anim-dur", "anim-hold"].forEach(k => document.getElementById(k)?.addEventListener("change", () => {
@@ -13994,6 +14005,7 @@ function mountAnimator(body, headerActions, opts) {
   };
   window.__rzKursKeyframes = _kursKeyframes;   // Prüfstand
   window.__rzKeyframes = { liste: () => (getRawTimelineEvents() || []).slice(), setzen: (l) => setTimelineEvents(l) };   // Prüfstand
+  window.__rzAnimLaengeS = () => parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden() + parseNum(document.getElementById("anim-hold")?.value, 0);   // Prüfstand: echte Videolänge
 
   // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
   // Anteil am Punkt-Index (wie _ovUpdateLiveAt) → hier in Streckenanteil + Etappe

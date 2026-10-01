@@ -826,7 +826,9 @@ longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la a
 El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxima vez:
 
 - **Formato:** 9:16 vertical (preseleccionado, para el móvil, Reels, Shorts), 16:9 o 1:1.
-- **Duración:** Corto 20 s, Normal 40 s, Largo 60 s.
+- **Duración:** Corto 20 s, Normal 40 s, Largo 60 s o **Propia** (segundos en total, 15–600, se recuerda). Desde el
+  Animator hay además **«Como en el Animator · N s»** con la duración que tiene ahora (en un viaje, con las
+  transiciones); al aplicarlo al proyecto, la duración total queda exactamente así.
 - **Calidad:** 1080 o 4K.
 - **Estilo de mapa:** con tu estilo predeterminado. Si el estilo no está autorizado para vídeos
   comerciales, aparece un aviso debajo; puedes renderizar igualmente.
