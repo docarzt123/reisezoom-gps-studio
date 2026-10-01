@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.764** (01.10.2026, built locally): photo stops — like Relive, with the photo large in the picture.
+
+### Added
+- **Photo stop on photo signs** (Marc: "when you reach the pin the camera moves close so the photo is large, then moves on after a few seconds"; "the photo stop is basically a souped-up photo sign"). New box "Stop here" in the sign editor (only with an image): the track holds at the photo, the camera moves in (0–4 zoom levels), the photo grows out of the pin to ~70 % of the frame height with a white frame, caption (own text, place · time of capture, optional EXIF line), then back. Approach / photo / departure seconds adjustable. Shown as a locked "Photo stop" hold in the tempo track. Preview, scrubbing, smooth camera and video do the same (`_fotostoppBei`, `_fsKamera`, `_fotostoppZeigen`; `core/tempo.py` passes `ref`). New bridge `fotostopp_info`.
+- **Quick video with photo stops**: the dialog suggests up to eight photos of the tour from the photo archive (one per tenth of the route, photos from breaks and series first, ≥ 7 % apart; bridge `schnellvideo_fotos`), shown as a strip to deselect. Each stop costs 1 + 3 + 1 s and is **taken from the chosen length**; at most as many as leave 40 % for the route. "New project", "render" and "apply to this project" carry the stops (`schilder`); applying replaces earlier quick-video stops, keeps own signs, one ⌘Z step.
+
+### Fixed
+- Quick-video bearing keyframes were placed at the track fraction instead of the time; after a hold the camera direction ran ahead. Now mapped through the tempo curve.
+
+### Tests
+- `tests/test_fotostopp.py`, `tests/test_schnellvideo_fotostopps.py` (incl. a real render with pixel check and the smooth-camera samples).
+
 > **0.9.763** (01.10.2026, built locally): cancelling a quick-video render no longer leaves the Animator greyed out.
 
 ### Fixed

@@ -3962,6 +3962,8 @@ function mountAnimator(body, headerActions, opts) {
    *  die Spur zeigt nur, was sie im Video bedeuten. */
   function _tempoAnzeige(eigene) {
     const raus = (eigene || []).slice();
+    // 01.10.2026 — Fotostopps: Länge und Lage kommen aus dem Foto-Schild (Doppelklick aufs Schild)
+    try { for (const h of _fotostoppHalte()) raus.push({ ...h, gesperrt: true, rolle: "fotostopp", titel: t("animator.tempo.fotostopp", "Fotostopp") }); } catch (_) {}
     const introS = parseNum(document.getElementById("anim-intro")?.value, 0);
     const holdS = parseNum(document.getElementById("anim-hold")?.value, 0);
     if (introS > 0) raus.push({ art: "halt", bei: 0, sek: introS, kamera: "nichts",
@@ -3998,6 +4000,181 @@ function mountAnimator(body, headerActions, opts) {
     }
     return null;
   }
+  // ── Fotostopp (01.10.2026) ──────────────────────────────────────────────────
+  // Marc: „wie bei Relive … wenn man den Pin erreicht hat, fährt die Kamera nah ran, sodass das Foto
+  // ziemlich groß zu sehen ist, und fährt nach ein paar Sekunden wieder weiter" — und: „der Fotostopp
+  // muss im Prinzip ein aufgebohrtes Foto-Schild sein". Also ein Foto-Schild mit Häkchen `stopp`:
+  //   1. ein Halt in der Tempo-Kurve (core/tempo.py, kamera "fotostopp", ref "fs:<Index im Schild-Array>"),
+  //   2. die Kamera fährt im Halt an das Foto heran und wieder zurück — im Probelauf, in der ruhigen
+  //      Kamera (Stützstellen) und beim Scrubben, also auch im Video (core/szene.py = diese Seite),
+  //   3. das Foto erscheint groß über der Karte (#anim-fotostopp), wächst aus dem Pin heraus.
+  // Bei einer Reise (Etappen-Zeitplan) gibt es keine Fotostopps — die Kurve verteilt dort nichts.
+  const FS_STD = { sek: 3, anflug: 1, abflug: 1, zoom: 1.5 };
+  const _fsZahl = (v, std, lo, hi) => {
+    const x = Number(v);
+    return Math.max(lo, Math.min(hi, (v == null || v === "" || !isFinite(x)) ? std : x));
+  };
+  function _fsWerte(s) {
+    return { sek: _fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30), anflug: _fsZahl(s.stopp_anflug_s, FS_STD.anflug, 0, 5),
+             abflug: _fsZahl(s.stopp_abflug_s, FS_STD.abflug, 0, 5), zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4) };
+  }
+  function _fsSchilderAlle() {
+    try { return (_activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) ? _activeProject[_SIGNS_KEY] : []; }
+    catch (_) { return []; }
+  }
+  const _fsAktiv = (s) => !!(s && s.stopp && s.imageSrc && s.visible !== false);
+  /** Stelle des Stopps auf der Strecke (Punkt-Anteil wie `bei` in core/tempo.py): Zeitanker des Fotos,
+   *  sonst der nächste Trackpunkt. null, solange der Track fehlt. */
+  function _fsAnkerFrisch(s) {
+    if (typeof s.timeAnchor === "number") return Math.max(0, Math.min(1, s.timeAnchor));
+    const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+    if (n < 2 || !isFinite(+s.lat) || !isFinite(+s.lon)) return null;
+    const lat = +s.lat, lng = +s.lon, cl = Math.cos(lat * Math.PI / 180);
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < n; i++) {
+      const c = currentCoords[i], dx = (lng - c[0]) * cl, dy = lat - c[1], d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best / (n - 1);
+  }
+  const _fsAnker = (s) => (typeof s.stopp_bei === "number") ? Math.max(0, Math.min(1, s.stopp_bei)) : _fsAnkerFrisch(s);
+  function _fotostoppHalte() {
+    let reise = false;
+    try { reise = _reiseGilt(); } catch (_) {}
+    if (reise) return [];
+    const raus = [];
+    _fsSchilderAlle().forEach((s, i) => {
+      if (!_fsAktiv(s)) return;
+      const bei = _fsAnker(s);
+      if (bei == null) return;
+      const w = _fsWerte(s);
+      raus.push({ art: "halt", bei: Math.round(bei * 1e6) / 1e6, sek: Math.round((w.anflug + w.sek + w.abflug) * 1000) / 1000,
+                  kamera: "fotostopp", ref: "fs:" + i });
+    });
+    return raus;
+  }
+  let _fsKurveStand = "";   // welche Stopps die zuletzt geholte Kurve kennt
+  // Aus dem Schild-Scope (Speichern): Stelle merken und — wenn sich Stopps geändert haben — die Kurve neu holen.
+  window.__rzFotostoppAnker = (s) => _fsAnkerFrisch(s);
+  window.__rzFotostoppGeaendert = () => {
+    try { if (JSON.stringify(_fotostoppHalte()) !== _fsKurveStand) paceMapLaden(); } catch (e) { applog("warn", "[fotostopp] Kurve: " + e); }
+  };
+  /** Steht die Animationssekunde `tSek` (ohne Anlauf) in einem Fotostopp? Liefert Stand und Gewichte:
+   *  k = Kamera (0..1, glatt hin und zurück), p = Foto (0..1, wächst in der zweiten Hälfte des Anflugs). */
+  function _fotostoppBei(tSek) {
+    if (tSek == null || !isFinite(tSek)) return null;
+    const hs = (_tempoInfo && _tempoInfo.halte) || [];
+    for (const h of hs) {
+      if (h.kamera !== "fotostopp" || !(tSek >= h.ab_s && tSek <= h.bis_s)) continue;
+      const i = parseInt(String(h.ref || "").slice(3), 10);
+      const s = _fsSchilderAlle()[i];
+      if (!_fsAktiv(s)) return null;
+      const w = _fsWerte(s), u = tSek - h.ab_s, ges = Math.max(1e-6, h.bis_s - h.ab_s);
+      const glatt = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+      const k = Math.min(w.anflug > 0 ? u / w.anflug : 1, w.abflug > 0 ? (ges - u) / w.abflug : 1);
+      const dIn = Math.max(0.3, w.anflug * 0.5), dOut = Math.max(0.3, w.abflug * 0.5);
+      const pIn = (u - Math.max(0, w.anflug - dIn)) / dIn;
+      const pOut = (ges - Math.max(0, w.abflug - dOut) - u) / dOut;
+      return { s, i, w, u, ges, k: glatt(k), p: glatt(Math.min(pIn, pOut)), ll: [+s.lon, +s.lat] };
+    }
+    return null;
+  }
+  /** Kamera im Fotostopp: Mitte gleitet zum Foto, Zoom um `stopp_zoom` Stufen hinein (und zurück). */
+  function _fsKamera(args, fs, mitteJetzt) {
+    if (!fs || !(fs.k > 0)) return;
+    const c = args.center || mitteJetzt;
+    if (c) {
+      const lng = fs.ll[0] + 360 * Math.round((c[0] - fs.ll[0]) / 360);   // abgewickelte Länge (Welt-Drehung)
+      args.center = [c[0] + (lng - c[0]) * fs.k, c[1] + (fs.ll[1] - c[1]) * fs.k];
+    }
+    args.zoom = (args.zoom != null ? args.zoom : map.getZoom()) + fs.w.zoom * fs.k;
+  }
+  // Großes Bild + Bildunterschrift je Foto (Datei → { el, laden, info })
+  const _fsBilder = new Map();
+  function _fsBildHolen(s) {
+    const src = s.imageSrc;
+    let e = _fsBilder.get(src);
+    if (e) return e;
+    e = { el: null, laden: true, info: null };
+    _fsBilder.set(src, e);
+    const stufe = window.__rzRenderMode ? 1440 : 1000;
+    Promise.all([
+      api().sign_image_thumb(src, stufe).catch(() => null),   // warte-ok: Hintergrund, der Render wartet über __rzSchilderLaden
+      api().fotostopp_info(src).catch(() => null),             // warte-ok: dito
+    ]).then(([r, inf]) => {
+      e.info = (inf && inf.ok) ? inf : {};
+      if (!(r && r.ok && r.thumb)) { e.laden = false; applog("warn", "[fotostopp] Bild fehlt: " + String(src).split("/").pop()); return; }
+      const im = new Image();
+      im.onload = () => { e.el = im; e.laden = false; try { if (_fsZeitLetzt != null) _fotostoppZeigen(_fsZeitLetzt); } catch (_) {} };
+      im.onerror = () => { e.laden = false; };
+      im.src = r.thumb;
+    });
+    return e;
+  }
+  /** Für core/szene.py (über __rzSchilderLaden): wie viele Fotostopp-Bilder fehlen noch? Stößt das Laden an. */
+  window.__rzFotostoppLaden = () => {
+    let n = 0;
+    try { for (const s of _fsSchilderAlle()) if (_fsAktiv(s) && _fsBildHolen(s).laden) n++; } catch (_) {}
+    return n;
+  };
+  /** Zeilen unter dem Foto: eigener Text, Ort · Uhrzeit, Kameradaten. */
+  function _fsZeilen(s, info) {
+    const z = [];
+    const eigen = String(s.text || "").trim();
+    if (eigen) z.push({ k: "fs-z1", t: eigen });
+    if (s.stopp_ortzeit !== false && info) {
+      const l = [info.ort, info.zeit].filter(Boolean).join(" · ");
+      if (l) z.push({ k: eigen ? "fs-z2" : "fs-z1", t: l });
+    }
+    if (s.stopp_exif && info && info.exif) z.push({ k: "fs-z3", t: info.exif });
+    return z;
+  }
+  const _fsEsc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let _fsZeitLetzt = null, _fsSichtbar = false;
+  /** Das große Foto für die Animationssekunde `tSek` zeichnen (null/negativ = weg). Probelauf, Scrubben, Render. */
+  function _fotostoppZeigen(tSek) {
+    _fsZeitLetzt = tSek;
+    const fs = (tSek == null || !(tSek >= 0)) ? null : _fotostoppBei(tSek);
+    let el = document.getElementById("anim-fotostopp");
+    const vp = document.getElementById("anim-viewport");
+    if (!el && fs && vp) {
+      el = document.createElement("div");
+      el.id = "anim-fotostopp"; el.className = "fs-buehne"; el.setAttribute("aria-hidden", "true"); el.style.display = "none";
+      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><img alt=""><div class="fs-text"></div></div>`;
+      vp.insertBefore(el, document.getElementById("anim-overlay-preview"));
+    }
+    if (!el) return;
+    const e = fs ? _fsBildHolen(fs.s) : null;
+    if (!fs || !(fs.p > 0) || !e || !e.el || !vp) {
+      if (_fsSichtbar) { el.style.display = "none"; _fsSichtbar = false; }
+      return;
+    }
+    const W = vp.offsetWidth || 1, H = vp.offsetHeight || 1;
+    const img = el.querySelector("img"), karte = el.querySelector(".fs-karte"), txt = el.querySelector(".fs-text");
+    if (img.src !== e.el.src) img.src = e.el.src;
+    const asp = (e.el.naturalWidth || 4) / Math.max(1, e.el.naturalHeight || 3);
+    const zeilen = _fsZeilen(fs.s, e.info);
+    const fz = H * 0.034, pad = H * 0.014;
+    const textH = zeilen.length ? zeilen.length * fz * 1.3 + pad * 0.7 : 0;
+    let bh = H * 0.70 - textH, bw = bh * asp;
+    if (bw > W * 0.86) { bw = W * 0.86; bh = bw / asp; }
+    const kw = bw + 2 * pad, kh = bh + 2 * pad + textH;
+    let px = W / 2, py = H / 2;   // aus dem Pin heraus
+    try { const q = map.project(fs.ll); if (isFinite(q.x) && isFinite(q.y)) { px = q.x; py = q.y; } } catch (_) {}
+    const p = fs.p, sc = 0.08 + 0.92 * p;
+    const cx = px + (W / 2 - px) * p, cy = py + (H / 2 - py) * p;
+    Object.assign(karte.style, { width: kw + "px", height: kh + "px", padding: pad + "px", borderRadius: (pad * 0.5) + "px",
+      transform: `translate(${cx - kw / 2}px, ${cy - kh / 2}px) scale(${sc})`, opacity: String(Math.min(1, p * 2.5)),
+      boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
+    Object.assign(img.style, { width: bw + "px", height: bh + "px" });
+    const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
+    if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
+    Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
+    el.querySelector(".fs-dunkel").style.opacity = String(0.35 * p);
+    if (!_fsSichtbar) { el.style.display = ""; _fsSichtbar = true; }
+  }
+  window.__rzFotostopp = { halte: () => _fotostoppHalte(), bei: (t) => _fotostoppBei(t), zeigen: (t) => _fotostoppZeigen(t), zuletzt: () => _fsZeitLetzt };   // Prüfstand
+
   let _tempoSchreibt = false;   // verhindert die Schleife Dauer → Kurve → Dauer
 
   function _tempoBasis() {
@@ -4218,7 +4395,7 @@ function mountAnimator(body, headerActions, opts) {
         basis,
         rate: rate || 0,
         dauer_s: parseNum(document.getElementById("anim-dur")?.value, 12),
-        eintraege: reise ? [] : eintraege.concat(_lbTempo()),   // 24.09.2026 — + Logbuch raffen/überspringen
+        eintraege: reise ? [] : eintraege.concat(_lbTempo(), _fotostoppHalte()),   // 24.09.2026 — + Logbuch raffen/überspringen; 01.10.2026 + Fotostopps
         fps: parseNum(document.getElementById("anim-fps")?.value, 30),
         pause_mode: document.getElementById("anim-pause-mode")?.value || "trim",
         pause_min_s: (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60,
@@ -4229,6 +4406,7 @@ function mountAnimator(body, headerActions, opts) {
       });
       if (lauf !== _paceMapLauf) return;             // veraltete Antwort
       if (r && r.ok && Array.isArray(r.map)) {
+        _fsKurveStand = JSON.stringify(_fotostoppHalte());
         _paceMap = reise ? null : r.map;
         _tempoInfo = r;
         if (!reise && !rate && r.rate) _tempoRateSichern(r.rate, basis);   // einmalig ableiten
@@ -7069,6 +7247,8 @@ function mountAnimator(body, headerActions, opts) {
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
     try { _ovTimingAt(_sgZeitAusAnker(anchor), (currentCoords && currentCoords.length > 1) ? Math.max(0, Math.min(1, anchor)) : 0); } catch (_) {}   // 30.09.2026 — Container-Zeiten am Zeitregler
+    const _fsT = (() => { try { return _sgZeitAusAnker(anchor) - parseNum(document.getElementById("anim-intro")?.value, 0); } catch (_) { return null; } })();
+    try { _fotostoppZeigen(_fsT); } catch (_) {}   // 01.10.2026 — Fotostopp am Zeitregler
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
     // Wird von selectEvent() benutzt — sonst löscht der sync sofort wieder
     // die gerade gesetzte Per-Property-Selektion.
@@ -7177,6 +7357,7 @@ function mountAnimator(body, headerActions, opts) {
     // 05.09.2026 — Handkamera ohne Keyframes: exakt die eingestellte Ansicht halten
     { const _mcS = (!interp.center) ? _manualCamGet() : null;
       if (_mcS) { easeArgs.zoom = _mcS.zoom; easeArgs.center = _mcS.center.slice(); easeArgs.pitch = _mcS.pitch; easeArgs.bearing = _mcS.bearing; } }
+    try { _fsKamera(easeArgs, _fotostoppBei(_fsT), (() => { const g = map.getCenter(); return [g.lng, g.lat]; })()); } catch (_) {}   // 01.10.2026 — Fotostopp
     // v0.9.136 — Welt-Drehung steckt jetzt in der *abgewickelten* center.lng
     // (Insta360-Modell). interpolateCameraJs liefert die bereits korrekt
     // abgewickelte center.lng (siehe _maybeFlyToInterp + _interpScalar).
@@ -8181,6 +8362,10 @@ function mountAnimator(body, headerActions, opts) {
             } else ll = _runFitCam
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
+            { // 01.10.2026 — Fotostopp: dieselbe Ranfahrt wie im Probelauf (_fsKamera)
+              const _fs = _fotostoppBei((tz * totalMs - introMs) / 1000);
+              if (_fs && _fs.k > 0) { const o = { center: ll, zoom: zm }; _fsKamera(o, _fs); ll = o.center; zm = o.zoom; }
+            }
             zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
             _plan.push({ tz, a, ip, zm, ll });
           }
@@ -8535,6 +8720,8 @@ function mountAnimator(body, headerActions, opts) {
         if (_h && _h.kamera === "orbit") {
           jumpArgs.bearing = (jumpArgs.bearing || 0) + (_tSek - _h.ab_s) * _ORBIT_GRAD_JE_S;
         }
+        // 01.10.2026 — Fotostopp: an das Foto heranfahren (gleiche Rechnung in den Stützstellen der ruhigen Kamera)
+        if (_h && _h.kamera === "fotostopp") _fsKamera(jumpArgs, _fotostoppBei(_tSek), (() => { const g = map.getCenter(); return [g.lng, g.lat]; })());
       }
       const _rKamRoh = _reiseKamera(coordFrac);
       let _rKam = _rKamRoh;
@@ -8649,6 +8836,7 @@ function mountAnimator(body, headerActions, opts) {
           + (parseNum(document.getElementById("anim-hold")?.value, 0));
         _ovTimingAt(timelineProgress * _ovTotalSec, coordFrac / Math.max(1, tn - 1));
       } catch (e) { try { applog("warn", "[anim-ov] Zeitsteuerung: " + e); } catch (_) {} }
+      try { _fotostoppZeigen((timelineProgress * totalMs - introMs) / 1000); } catch (e) { try { applog("warn", "[fotostopp] " + e); } catch (_) {} }
       // Scrubber visuell — siehe Berechnung oben (durch Trim-Handles wandernd).
       if (_tlBar) _tlBar.setScrubberBar(scrubberVis);
       if (window.__rzStepMode) return;   // Render-Modus: Bild für Bild von außen (window.__rzPreviewStep.seek)
@@ -10382,6 +10570,9 @@ function mountAnimator(body, headerActions, opts) {
       imageSrc: "",          // v0.9.189 — optionales Bild; Schild MIT Bild = Foto-Karte (Text = Bildunterschrift)
       imageSize: 60,         // v0.9.190 — Bildbreite separat vom Schrift-Größe-Slider (20..160 → ×5 px)
       visible: true,         // v0.9.198 — pro Schild/Foto an/aus (Checkbox in der Liste)
+      // 01.10.2026 — Fotostopp (nur mit Bild): anhalten, ranfahren, Foto groß. Siehe _fotostoppHalte.
+      stopp: false, stopp_s: 3, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5,
+      stopp_ortzeit: true, stopp_exif: false,
     };
     // Merkt sich die zuletzt benutzten Stil-/Verhaltens-Eigenschaften fürs nächste Schild.
     let _animSignLast = { ...(_SIGN_DEFAULTS) };
@@ -10415,6 +10606,7 @@ function mountAnimator(body, headerActions, opts) {
       o.imageSrc = String(o.imageSrc || "");
       o.imageSize = Number(o.imageSize) || 60;
       o.visible = (o.visible === false) ? false : true;   // v0.9.198 — Default sichtbar
+      o.stopp = !!o.stopp; o.stopp_ortzeit = o.stopp_ortzeit !== false; o.stopp_exif = !!o.stopp_exif;
       return o;
     }
     // v0.9.408 — Marker-/Icon-Anker eines Schilds. Bei callout folgt er der
@@ -10431,6 +10623,11 @@ function mountAnimator(body, headerActions, opts) {
       // In-Memory: normalisiert, BEHÄLT transiente Bild-Felder (`_imgEl`/`thumb`),
       // damit Bilder nicht bei jedem Save neu geladen werden müssen.
       const inMem = (list || []).map(_animSignNormalize);
+      // 01.10.2026 — Fotostopp: Stelle auf der Strecke festhalten (auch ohne geladenen Track nutzbar, z. B. im Render)
+      for (const m of inMem) {
+        if (!m.stopp) { delete m.stopp_bei; continue; }
+        try { const a = window.__rzFotostoppAnker ? window.__rzFotostoppAnker(m) : null; if (a != null) m.stopp_bei = Math.round(a * 1e6) / 1e6; } catch (_) {}
+      }
       // v0.9.195 — das non-enumerable `_imgEl` überlebt den normalize-Spread nicht,
       // daher vom Original-Objekt zurückhängen (sonst lädt das Bild nach jedem Save neu).
       inMem.forEach((m, i) => { const o = (list || [])[i]; if (o && o._imgEl) _animSetImgEl(m, o._imgEl); });
@@ -10444,6 +10641,7 @@ function mountAnimator(body, headerActions, opts) {
       try {
         if (typeof saveActiveProjectPatch === "function") saveActiveProjectPatch({ [_SIGNS_KEY]: persist });
       } catch (_) {}
+      try { if (window.__rzFotostoppGeaendert) window.__rzFotostoppGeaendert(); } catch (_) {}   // 01.10.2026
     }
     // Nächster Track-Index zu einer Klick-Position (rastet das Schild auf den Track).
     function _animSignsNearestIdx(lng, lat) {
@@ -10566,7 +10764,8 @@ function mountAnimator(body, headerActions, opts) {
     const _animSignImgSig = new Map();
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
-                               "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc"]);
+                               "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
+                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_ortzeit", "stopp_exif", "stopp_bei"]);
     // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
     // zwischen zwei Aufbauten dasselbe (jede Änderung erzeugt über `_animSignsSave` neue
     // Objekte), nur Bild und Pixelmaß können sich noch ändern — die stehen im Merker mit.
@@ -10751,7 +10950,8 @@ function mountAnimator(body, headerActions, opts) {
      *  beginnt erst bei 0 (vorher pauschal 2,5 s — zu knapp, wenn große Bilder nachgerechnet werden). */
     window.__rzSchilderLaden = () => {
       try { if (!map || !_animSignsShow()) return 0;   // aus = es wird nichts geladen, also auch nicht warten
-        return _animSignsList().filter(x => x && x.imageSrc && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length; }
+        return _animSignsList().filter(x => x && x.imageSrc && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length
+          + (window.__rzFotostoppLaden ? window.__rzFotostoppLaden() : 0); }   // 01.10.2026 — + große Fotostopp-Bilder
       catch (_) { return 0; }
     };
     function _animSignDprFuer(s, dprBild, nBild) {
@@ -11514,6 +11714,7 @@ function mountAnimator(body, headerActions, opts) {
       const c = _animSignNormalize(list[idx]);
       const sel = (v, cv) => v === cv ? " selected" : "";
       const chk = (b) => b ? " checked" : "";
+      const _fsZahlE = (v, std) => { const x = Number(v); return (v == null || v === "" || !isFinite(x)) ? std : x; };   // 01.10.2026 Fotostopp-Felder
       const noneBg = c.bg === "none";                              // v0.9.269 — Hintergrund „Keine" (transparent)
       // v0.9.270 — EINE Box-/Hintergrundfarbe. „Akzentfarbe" + „Auto" entfallen. Der Picker zeigt
       // direkt die wirksame Farbe: gesetzte bg, sonst (legacy „auto"/leer) die Form-Standardfarbe.
@@ -11543,6 +11744,27 @@ function mountAnimator(body, headerActions, opts) {
           <div class="se-grid" id="se-img-size-row" style="margin-top:6px; ${c.imageSrc ? "" : "display:none;"}">
             <label>${t("signs.image_size", "Bildgröße")}</label>
             <input type="range" id="se-img-size" min="20" max="160" step="4" value="${c.imageSize}">
+          </div>
+          <!-- 01.10.2026 (Marc: „wie bei Relive", „ein aufgebohrtes Foto-Schild") — Fotostopp -->
+          <div id="se-stopp-block" style="${c.imageSrc ? "" : "display:none;"}">
+            <div class="se-group-title">${t("signs.grp.stopp", "📸 Fotostopp")}</div>
+            <div class="se-grid">
+              <label for="se-stopp">${t("signs.stopp", "Hier anhalten")}</label>
+              <span class="se-inline"><input type="checkbox" id="se-stopp"${chk(c.stopp)}></span>
+              <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${t("signs.stopp_hint", "Erreicht der Track das Foto, hält er an: Die Kamera fährt heran, das Foto erscheint groß, danach geht es weiter. Das Video wird um Anflug, Foto und Abflug länger.")}</div>
+              <label for="se-stopp-s">${t("signs.stopp_s", "Foto zeigen (Sek.)")}</label>
+              <input type="number" id="se-stopp-s" min="0.5" max="30" step="0.5" value="${_fsZahlE(c.stopp_s, 3)}">
+              <label for="se-stopp-an">${t("signs.stopp_anflug", "Anflug (Sek.)")}</label>
+              <input type="number" id="se-stopp-an" min="0" max="5" step="0.1" value="${_fsZahlE(c.stopp_anflug_s, 1)}">
+              <label for="se-stopp-ab">${t("signs.stopp_abflug", "Abflug (Sek.)")}</label>
+              <input type="number" id="se-stopp-ab" min="0" max="5" step="0.1" value="${_fsZahlE(c.stopp_abflug_s, 1)}">
+              <label for="se-stopp-zoom">${t("signs.stopp_zoom", "Heranfahren")}</label>
+              <input type="range" id="se-stopp-zoom" min="0" max="4" step="0.25" value="${_fsZahlE(c.stopp_zoom, 1.5)}">
+              <label for="se-stopp-ortzeit">${t("signs.stopp_ortzeit", "Ort und Uhrzeit")}</label>
+              <span class="se-inline"><input type="checkbox" id="se-stopp-ortzeit"${chk(c.stopp_ortzeit !== false)}></span>
+              <label for="se-stopp-exif">${t("signs.stopp_exif", "Kameradaten (EXIF)")}</label>
+              <span class="se-inline"><input type="checkbox" id="se-stopp-exif"${chk(c.stopp_exif)}></span>
+            </div>
           </div>
 
           <div class="se-group-title">${t("signs.grp.shape", "Form & Akzent")}</div>
@@ -11778,6 +12000,14 @@ function mountAnimator(body, headerActions, opts) {
           exit_s: (() => { const v = ($("#se-exit-s")?.value || "").trim(); return v === "" ? null : Math.max(0, parseFloat(v) || 0); })(),
           before: parseFloat($("#se-before").value) || 0,
           after: parseFloat($("#se-after").value) || 0,
+          // 01.10.2026 — Fotostopp
+          stopp: !!($("#se-stopp") && $("#se-stopp").checked),
+          stopp_s: parseFloat($("#se-stopp-s")?.value) || 3,
+          stopp_anflug_s: (() => { const v = parseFloat($("#se-stopp-an")?.value); return isFinite(v) ? v : 1; })(),
+          stopp_abflug_s: (() => { const v = parseFloat($("#se-stopp-ab")?.value); return isFinite(v) ? v : 1; })(),
+          stopp_zoom: (() => { const v = parseFloat($("#se-stopp-zoom")?.value); return isFinite(v) ? v : 1.5; })(),
+          stopp_ortzeit: $("#se-stopp-ortzeit") ? $("#se-stopp-ortzeit").checked : true,
+          stopp_exif: !!($("#se-stopp-exif") && $("#se-stopp-exif").checked),
         };
         // v0.9.254 — das gecachte Bild-Element (`_imgEl`) ist NON-ENUMERABLE und
         // überlebt den Objekt-Spread NICHT. Vor dem Neubau merken und danach wieder
@@ -11790,7 +12020,7 @@ function mountAnimator(body, headerActions, opts) {
           _animSetImgEl(l2[idx], _prevSign._imgEl);
         }
         // Stil/Verhalten (ohne Text) als Default fürs nächste Schild merken
-        const { text, alwaysVisible: _av, ...rest } = patch;   // „ganze Zeit" erbt das nächste Schild nicht (29.09.2026)
+        const { text, alwaysVisible: _av, stopp: _st, ...rest } = patch;   // „ganze Zeit" erbt das nächste Schild nicht (29.09.2026), der Fotostopp auch nicht (01.10.2026)
         _animSignLast = { ..._animSignLast, ...rest };
         _animSignsSave(l2);
         // v0.9.254 — Live-Update ohne Layer/Source-Neuaufbau (kein Flackern beim
@@ -11960,6 +12190,7 @@ function mountAnimator(body, headerActions, opts) {
         $("#se-img-clear").style.display = "";
         const nm = $("#se-img-name"); if (nm) { nm.style.display = ""; nm.textContent = (r.path || "").split("/").pop(); }
         const szr = $("#se-img-size-row"); if (szr) szr.style.display = "";
+        const fsb = $("#se-stopp-block"); if (fsb) fsb.style.display = "";
         $("#se-text").placeholder = t("signs.caption_ph", "Bildunterschrift (optional)");
       };
       $("#se-img-clear").onclick = () => {
@@ -11973,6 +12204,7 @@ function mountAnimator(body, headerActions, opts) {
         $("#se-img-clear").style.display = "none";
         const nm = $("#se-img-name"); if (nm) nm.style.display = "none";
         const szr = $("#se-img-size-row"); if (szr) szr.style.display = "none";
+        const fsb = $("#se-stopp-block"); if (fsb) fsb.style.display = "none";
         $("#se-text").placeholder = t("signs.modal_ph", "z.B. Gipfel erreicht!");
       };
       if (focusText) { try { tEl.focus(); } catch (_) {} }
@@ -14011,7 +14243,9 @@ function mountAnimator(body, headerActions, opts) {
     };
     dp(0, N - 1);
     const idx = [...halten].sort((x, y) => x - y);
-    return idx.map(i => ({ anchor: Math.round(i / (N - 1) * 1e6) / 1e6, value: Math.round(g[i] * 100) / 100 }));
+    // 01.10.2026 — Anker ist eine ZEIT (wie jeder Keyframe), i/(N-1) eine STELLE: über die Tempo-Kurve
+    // umrechnen. Sonst lief die Blickrichtung nach jedem Halt (Fotostopp) der Strecke voraus.
+    return idx.map(i => ({ anchor: Math.round(_fortschrittAusStrecke(i / (N - 1)) * 1e6) / 1e6, value: Math.round(g[i] * 100) / 100 }));
   }
   window.__rzSchnellKamera = (opts) => {
     const kf = _kursKeyframes(opts);

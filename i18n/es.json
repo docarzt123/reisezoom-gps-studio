@@ -4795,5 +4795,20 @@
   "schnell.wie_animator": "Como en el Animator",
   "schnell.eigen_einheit": "segundos en total (mínimo {n})",
   "animator.lane.cluster_auf": "Mostrar de nuevo las pistas de cámara",
-  "animator.lane.cluster_zu": "Plegar las pistas de cámara (inclinación, giro, zoom, posición, encuadre)"
+  "animator.lane.cluster_zu": "Plegar las pistas de cámara (inclinación, giro, zoom, posición, encuadre)",
+  "signs.grp.stopp": "📸 Parada de foto",
+  "signs.stopp": "Parar aquí",
+  "signs.stopp_hint": "Cuando la ruta llega a la foto, se detiene: la cámara se acerca, la foto aparece en grande y luego continúa. El vídeo se alarga lo que duren la aproximación, la foto y la salida.",
+  "signs.stopp_s": "Mostrar foto (s)",
+  "signs.stopp_anflug": "Aproximación (s)",
+  "signs.stopp_abflug": "Salida (s)",
+  "signs.stopp_zoom": "Acercar",
+  "signs.stopp_ortzeit": "Lugar y hora",
+  "signs.stopp_exif": "Datos de cámara (EXIF)",
+  "animator.tempo.fotostopp": "Parada de foto",
+  "schnell.fotostopps": "📸 Paradas de foto",
+  "schnell.fotos_suchen": "Buscando fotos de esta ruta …",
+  "schnell.fotos_info": "{n} paradas de foto · {s} s cada una, descontadas de la duración",
+  "schnell.fotos_zu_viele": "no caben todas en esta duración: entran las mejores",
+  "schnell.fotos_keine": "No hay fotos de esta ruta en el archivo de fotos."
 }

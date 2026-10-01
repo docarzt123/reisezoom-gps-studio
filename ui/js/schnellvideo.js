@@ -247,6 +247,24 @@
     return api_;
   }
 
+  /** 01.10.2026 (Marc: „das Schnell-Video wie bei Relive mit Fotos pimpen") — Fotostopps. Jedes gewählte Foto
+   *  wird ein Foto-Schild mit Häkchen „Fotostopp" (dasselbe, was man im Animator von Hand setzt). Ein Stopp
+   *  kostet 1 + 3 + 1 s und wird von der Länge ABGEZOGEN (Marc, Q3) — deshalb höchstens so viele, dass
+   *  für die Strecke noch 40 % der Animationszeit bleiben; bei Überzahl gehen die besten vor. */
+  const STOPP = { sek: 3, anflug: 1, abflug: 1 };
+  const STOPP_KOSTEN = STOPP.sek + STOPP.anflug + STOPP.abflug;
+  function fotostoppSchilder(fotos, animS) {
+    const max = Math.max(0, Math.floor(animS * 0.6 / STOPP_KOSTEN));
+    const wahl = (fotos || []).slice().sort((a, b) => (b.wert || 0) - (a.wert || 0) || a.bei - b.bei).slice(0, max)
+      .sort((a, b) => a.bei - b.bei);
+    return wahl.map(f => ({
+      text: "", imageSrc: f.path, lat: f.lat, lon: f.lon, anchorMode: "track", style: "callout", imageSize: 44,
+      entry: "pop", before: 0.6, after: 0,
+      stopp: true, stopp_s: STOPP.sek, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5,
+      stopp_ortzeit: true, stopp_exif: false,
+    }));
+  }
+
   /** 01.10.2026 (Marc) — „Ablauf" des Schnell-Videos: was an der Tour hängt und bei „In dieses Projekt
    *  übernehmen" mit „Meinen Look behalten" übernommen wird. Alles andere (Format, Kartenstil, Beschriftungen,
    *  Einblendungen, Verläufe, Highlights, blasse Runde) ist Look und bleibt dann, wie es ist. */
@@ -312,6 +330,9 @@
         <label class="chk"><input type="checkbox" id="sv-zahlen"${w.zahlen ? " checked" : ""}><span>${esc(T("schnell.zahlen", "Zahlen unterwegs (Strecke und Höhe)"))}</span></label>
         <label class="chk"><input type="checkbox" id="sv-profil"${w.profil ? " checked" : ""}><span>${esc(T("schnell.profil", "Höhenprofil"))}</span></label>
         <label class="chk"><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}><span>${esc(T("schnell.highlights", "Highlights (höchster Punkt, steilste Stelle, halbe Strecke …)"))}</span></label>
+        <label class="field-label">${esc(T("schnell.fotostopps", "📸 Fotostopps"))}</label>
+        <div class="sv-fotos" id="sv-fotos"><span class="muted">${esc(T("schnell.fotos_suchen", "Fotos dieser Tour werden gesucht …"))}</span></div>
+        <div class="muted sv-fotos-info" id="sv-fotos-info"></div>
         <label class="field-label">${esc(T("schnell.schlusskarte", "Schlusskarte"))}</label>
         <div class="sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
         ${P ? `<div class="sv-projekt">
@@ -344,6 +365,41 @@
     box.querySelector("#sv-stil").addEventListener("change", rechte);
     rechte();
 
+    // Fotostopps: Vorschlag aus dem Foto-Bestand, im Dialog abwählbar (Marc, Q1 „beides")
+    w.fotos = []; w.fotosAus = new Set();
+    const animSJetzt = () => Math.max(8, laengeS(w) - INTRO_S - HOLD_S);
+    const fotosInfo = () => {
+      const z = box.querySelector("#sv-fotos-info"); if (!z) return;
+      const an = w.fotos.filter((_, i) => !w.fotosAus.has(i));
+      if (!w.fotos.length) { z.textContent = ""; return; }
+      const n = fotostoppSchilder(an, animSJetzt()).length;
+      z.textContent = T("schnell.fotos_info", "{n} Fotostopps · je {s} s, von der Länge abgezogen").replace("{n}", n).replace("{s}", STOPP_KOSTEN)
+        + (n < an.length ? " · " + T("schnell.fotos_zu_viele", "für diese Länge passen nicht alle — die besten kommen rein") : "");
+    };
+    const fotosZeigen = () => {
+      const l = box.querySelector("#sv-fotos"); if (!l) return;
+      if (!w.fotos.length) { l.innerHTML = `<span class="muted">${esc(T("schnell.fotos_keine", "Keine Fotos zu dieser Tour im Foto-Archiv."))}</span>`; fotosInfo(); return; }
+      l.innerHTML = w.fotos.map((f, i) => `<button type="button" class="sv-foto${w.fotosAus.has(i) ? "" : " is-on"}" data-sv-foto="${i}" title="${esc(String(f.path).split(/[\\/]/).pop())}">`
+        + (f.thumb ? `<img src="${f.thumb}" alt="">` : `<span class="sv-foto-leer">📷</span>`) + `<span class="sv-foto-zeit">${esc(f.zeit || "")}</span></button>`).join("");
+      fotosInfo();
+    };
+    box.querySelector("#sv-fotos")?.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-sv-foto]"); if (!b) return;
+      const i = +b.dataset.svFoto;
+      if (w.fotosAus.has(i)) w.fotosAus.delete(i); else w.fotosAus.add(i);
+      b.classList.toggle("is-on", !w.fotosAus.has(i));
+      fotosInfo();
+    });
+    box.querySelectorAll("[data-sv-gruppe='laenge']").forEach(r => r.addEventListener("click", () => setTimeout(fotosInfo, 0)));
+    box.querySelector("#sv-eigen")?.addEventListener("input", () => { w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen").value || w.eigenS); fotosInfo(); });
+    (async () => {
+      let r = null;
+      try { r = await api().schnellvideo_fotos(pfad); } catch (_) {}   // warte-ok: Hintergrund, der Dialog ist schon bedienbar
+      w.fotos = (r && r.ok && Array.isArray(r.fotos)) ? r.fotos : [];
+      fotosZeigen();
+    })();
+    const schilderJetzt = () => fotostoppSchilder(w.fotos.filter((_, i) => !w.fotosAus.has(i)), animSJetzt());
+
     let laeuft = false;
     const werteLesen = () => {
       w.stil = box.querySelector("#sv-stil").value;
@@ -375,12 +431,15 @@
       }
       laeuft = true;
       let r;
-      try { r = await rzWarten("schnellvideo_uebernehmen", () => api().schnellvideo_uebernehmen(P.id, patch, letzte)); }
+      const schilder = schilderJetzt();
+      try { r = await rzWarten("schnellvideo_uebernehmen", () => api().schnellvideo_uebernehmen(P.id, patch, letzte, schilder)); }
       catch (e) { r = { ok: false, error: String(e) }; }
       laeuft = false;
       if (!r || !r.ok) { toast((r && r.error) || T("common.error", "Fehler"), "error", 6000); return; }
       const nachher = (r.nachher || {}).animator || {}, vorher = (r.vorher || {}).animator || null;
       try { window.rzSetModuleSettingsLocal("animator", nachher); } catch (_) {}
+      // Fotostopps sind Schilder (Projekt-Wurzel): im selben ⌘Z-Schritt (Undo-Stand mit __signs)
+      if (Array.isArray((r.nachher || {}).signs)) { nachher.__signs = r.nachher.signs; if (vorher) vorher.__signs = (r.vorher || {}).signs || []; }
       const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
       const label = T("schnell.undo_label", "Schnell-Video übernommen");
       if (ctrl && typeof ctrl.applyState === "function") ctrl.applyState(nachher, label, vorher);
@@ -411,8 +470,9 @@
       if (rendern) { m.close(); B = buehne(v.name || ""); B.schritt(T("schnell.b.anlegen", "Projekt wird angelegt …")); B.fortschritt(0.01); }
       let r;
       try {
-        r = rendern ? await api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte)   // warte-ok: eigener Bildschirm zeigt den Schritt
-          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte));
+        const schilder = schilderJetzt();
+        r = rendern ? await api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte, schilder)   // warte-ok: eigener Bildschirm zeigt den Schritt
+          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte, schilder));
       } catch (e) { r = { ok: false, error: String(e) }; }
       if (!r || !r.ok) {
         laeuft = false;
@@ -513,4 +573,5 @@
   window.__rzSchnellKamerafahrt = kamerafahrt;   // Prüfstand
   window.__rzSchnellPatch = animatorPatch;       // Prüfstand
   window.__rzSchnellAblauf = nurAblauf;          // Prüfstand
+  window.__rzSchnellFotostopps = fotostoppSchilder;   // Prüfstand
 })();

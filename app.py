@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.763"
+APP_VERSION = "0.9.764"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1321,6 +1321,51 @@ def _vm(key: str, fallback: str, n: int = 0, gesamt: int = 0, **werte) -> None:
 # 29.09.2026 — core-Module (gpxedit, imports, selbstupdate …) übersetzen ihre
 # Meldungen über `ci18n.t_aktiv`; die Sprache holen sie sich hier ab.
 ci18n.sprach_quelle_setzen(_ui_sprache)
+
+
+def _fotostopp_texte(d: dict) -> dict:
+    """Bildunterschrift-Bausteine eines Fotostopps (01.10.2026): Ort, Ortszeit, EXIF-Zeile.
+    `d` ist eine Zeile des Foto-Bestands (core/fotos.py) oder dasselbe aus der Datei gelesen."""
+    def zahl(v):
+        m = re.search(r"[-+]?\d+(?:[.,]\d+)?", str(v or ""))
+        return float(m.group(0).replace(",", ".")) if m else None
+
+    def kurz(x):
+        return (f"{x:.1f}".rstrip("0").rstrip(".")) if x is not None else ""
+    utc = d.get("aufnahme_utc")
+    if utc is None and d.get("_dt") is not None:
+        try:
+            utc = d["_dt"].replace(tzinfo=timezone.utc).timestamp()
+        except Exception:   # noqa: BLE001
+            utc = None
+    zeit = datum = ""
+    if utc is not None:
+        try:
+            lokal = datetime.fromtimestamp(float(utc), timezone.utc) + timedelta(minutes=int(d.get("tz_minuten") or 0))
+            zeit, datum = lokal.strftime("%H:%M"), lokal.strftime("%Y-%m-%d")
+        except Exception:   # noqa: BLE001
+            pass
+    teile = []
+    if str(d.get("kamera") or "").strip():
+        teile.append(str(d["kamera"]).strip())
+    bw = zahl(d.get("brennweite"))
+    if bw:
+        teile.append(f"{kurz(bw)} mm")
+    bl = zahl(d.get("blende"))
+    if bl:
+        teile.append(f"f/{kurz(bl)}")
+    be = str(d.get("belichtung") or "").strip()
+    if be:
+        if "/" in be:
+            teile.append(be.split()[0] + " s")
+        else:
+            x = zahl(be)
+            if x:
+                teile.append((f"1/{round(1 / x)} s") if x < 0.5 else f"{kurz(x)} s")
+    iso = zahl(d.get("iso"))
+    if iso:
+        teile.append(f"ISO {int(iso)}")
+    return {"ort": str(d.get("ort") or "").strip(), "zeit": zeit, "datum": datum, "exif": " · ".join(teile)}
 
 
 def _ui_t():
@@ -6015,6 +6060,33 @@ class Api:
             thumb = self._photo_thumbnail_data_url(path, max(64, min(1440, int(max_px or 600))))
             return {"ok": bool(thumb), "thumb": thumb}
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def fotostopp_info(self, path: str) -> dict:
+        """01.10.2026 (Marc, Fotostopp wie bei Relive) — was unter dem großen Foto stehen kann:
+        Ort, Uhrzeit (Ortszeit der Aufnahme) und eine EXIF-Zeile („X5 · 24 mm · f/8 · 1/500 s").
+        Erst aus dem Foto-Bestand, sonst direkt aus der Datei."""
+        try:
+            if not path or not os.path.exists(path):
+                return {"ok": False, "error": "not found"}
+            d = None
+            try:
+                d = cfotos.zeile(self._lib(), path)
+            except Exception:   # noqa: BLE001 — Bestand fehlt → aus der Datei
+                d = None
+            if not d or d.get("aufnahme_utc") is None:
+                m = (cexif.read_meta_viele([path]) or {}).get(path) or {}
+                tags = (cexif.read_alle_tags_viele([path]) or {}).get(path) or {}
+                w = lambda *ns: next((str(tags[n]).strip() for n in ns if tags.get(n) not in (None, "")), "")   # noqa: E731
+                d = {"aufnahme_utc": None, "tz_minuten": m.get("tz_minutes"),
+                     "kamera": m.get("camera") or (w("Make") + " " + w("Model")).strip(),
+                     "objektiv": w("LensModel", "LensID", "Lens"), "iso": w("ISO", "ISOSpeed"),
+                     "blende": w("FNumber", "ApertureValue"), "brennweite": w("FocalLength"),
+                     "belichtung": w("ExposureTime", "ShutterSpeed"), "ort": w("City", "Sub-location"),
+                     "_dt": m.get("datetime")}
+            return {"ok": True, **_fotostopp_texte(d)}
+        except Exception as e:   # noqa: BLE001
+            log.warning("fotostopp_info: %s", e)
             return {"ok": False, "error": str(e)}
 
     # ── Foto-Pins (v0.9.74, geteilt zwischen Animator + Tour-Map) ─────────────
@@ -11778,7 +11850,97 @@ class Api:
             log.error("schnellvideo_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def schnellvideo_anlegen(self, path: str, name: str, animator: dict, letzte: dict = None) -> dict:
+    def schnellvideo_fotos(self, path: str, n_max: int = 8) -> dict:
+        """01.10.2026 (Marc, Fotostopps „wie bei Relive"; Q1: automatisch vorschlagen, im Dialog abwählbar) —
+        Fotos dieser Tour aus dem Foto-Bestand (Zeitfenster der Tour), der Strecke zugeordnet (GPS, sonst
+        Aufnahmezeit) und verteilt ausgewählt: höchstens eins je Zehntel der Strecke, mindestens 7 % Abstand,
+        höchstens `n_max`.
+        Fotos aus einer Pause (≥ 3 min an einer Stelle) und aus Fotoserien gehen vor.
+        Liefert je Foto {path, lat, lon (Trackpunkt), bei (Punkt-Anteil wie core/tempo.py), zeit, thumb, wert}."""
+        from core import highlights as chl
+        try:
+            pf = str(path or "")
+            pts, _st = cgpx.parse_gpx(self._ensure_gpx(pf))
+            n = len(pts)
+            if n < 2:
+                return {"ok": True, "fotos": [], "n_gesamt": 0}
+            gh = self._track_geo_hash(pf) or ""
+            try:
+                rows = (cfotos.fotos_einer_tour(self._lib(), gh, "" if gh else pf) or {}).get("fotos") or []
+            except Exception as e:   # noqa: BLE001 — kein Foto-Bestand
+                log.info("schnellvideo_fotos: kein Foto-Bestand (%s)", e)
+                rows = []
+            fotos = []
+            for r in rows:
+                if (r.get("art") or "foto") != "foto" or not r.get("path") or not os.path.exists(r["path"]):
+                    continue
+                dt = None
+                if r.get("aufnahme_utc") is not None:
+                    dt = datetime.fromtimestamp(float(r["aufnahme_utc"]), timezone.utc).isoformat()
+                fotos.append({"path": r["path"], "lat": r.get("lat"), "lon": r.get("lon"), "datetime": dt,
+                              "tz": r.get("tz_minuten")})
+            punkte = [{"lat": q.lat, "lon": q.lon, "time": q.time} for q in pts]
+            zu = [f for f in chl.fotos_zuordnen(punkte, fotos, 0) if f.get("idx") is not None]
+            if not zu:
+                return {"ok": True, "fotos": [], "n_gesamt": len(fotos)}
+            halte = chl.halte_punkte(punkte)
+            ep = sorted(f["epoch"] for f in zu if f.get("epoch") is not None)
+
+            def wert(f):
+                w = 0.0
+                if any(h["idx_a"] - 5 <= f["idx"] <= h["idx_b"] + 5 for h in halte):
+                    w += 2                                      # in einer Pause aufgenommen
+                e = f.get("epoch")
+                if e is not None and sum(1 for x in ep if abs(x - e) <= 120) >= 3:
+                    w += 1                                      # Teil einer Fotoserie
+                return w
+            kandidaten = []
+            for f in zu:
+                bei = f["idx"] / (n - 1)
+                if 0.03 < bei < 0.97:
+                    kandidaten.append(dict(f, bei=bei, wert=wert(f)))
+            # je Zehntel das beste (bei Gleichstand das zur Fach-Mitte nächste), dann die besten n_max
+            faecher = {}
+            for f in kandidaten:
+                k = min(9, int(f["bei"] * 10))
+                mitte = (k + 0.5) / 10
+                schl = (f["wert"], -abs(f["bei"] - mitte))
+                if k not in faecher or schl > faecher[k][0]:
+                    faecher[k] = (schl, f)
+            wahl = []
+            for f in sorted((v[1] for v in faecher.values()), key=lambda f: (-f["wert"], f["bei"])):
+                if len(wahl) >= max(0, int(n_max)):
+                    break
+                if all(abs(f["bei"] - g["bei"]) >= 0.07 for g in wahl):   # Stopps nicht direkt hintereinander
+                    wahl.append(f)
+            wahl.sort(key=lambda f: f["bei"])
+            raus = []
+            for f in wahl:
+                q = pts[f["idx"]]
+                info = _fotostopp_texte({"aufnahme_utc": f.get("epoch"), "tz_minuten": f.get("tz")})
+                raus.append({"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
+                             "zeit": info.get("zeit", ""), "wert": f["wert"],
+                             "thumb": self._photo_thumbnail_data_url(f["path"], 160)})
+            log.info("Schnell-Video-Fotos: %d von %d Fotos der Tour (%d der Strecke zugeordnet)", len(raus), len(fotos), len(zu))
+            return {"ok": True, "fotos": raus, "n_gesamt": len(fotos)}
+        except Exception as e:
+            log.error("schnellvideo_fotos: %s", e)
+            return {"ok": False, "error": str(e), "fotos": []}
+
+    @staticmethod
+    def _schnell_schilder_einsetzen(p: dict, schilder) -> int:
+        """Fotostopp-Schilder des Schnell-Videos ins Projekt: frühere des Schnell-Videos (quelle
+        „schnellvideo") ersetzen, eigene Schilder bleiben; ein Foto, das schon als Schild da ist,
+        bekommt kein zweites. None = Schilder nicht anfassen."""
+        if schilder is None:
+            return 0
+        alt = [s for s in (p.get("signs") or []) if isinstance(s, dict) and s.get("quelle") != "schnellvideo"]
+        da = {s.get("imageSrc") for s in alt if s.get("imageSrc")}
+        neu = [dict(s, quelle="schnellvideo") for s in (schilder or []) if isinstance(s, dict) and s.get("imageSrc") not in da]
+        p["signs"] = alt + neu
+        return len(neu)
+
+    def schnellvideo_anlegen(self, path: str, name: str, animator: dict, letzte: dict = None, schilder: list = None) -> dict:
         """Projekt „<Tour> · Schnell-Video" mit fertiger Animator-Konfiguration anlegen.
         `herkunft = "schnellvideo"` → steht unter „Automatisch angelegt", bis man es umbenennt."""
         try:
@@ -11800,6 +11962,7 @@ class Api:
             # Wer das Wasserzeichen in den Vorgaben abgeschaltet hat, bekommt auch im
             # Schnell-Video keins.
             self._schnell_logo_bild(ziel, wm)
+            self._schnell_schilder_einsetzen(p, schilder)   # 01.10.2026 — Fotostopps
             p["herkunft"] = "schnellvideo"
             p["letztes_modul"] = "animator"
             _projekte.speichern(DATEN_ORT, daten)
@@ -11826,7 +11989,7 @@ class Api:
         else:
             cont.remove(logo)
 
-    def schnellvideo_uebernehmen(self, project_id: str, animator: dict, letzte: dict = None) -> dict:
+    def schnellvideo_uebernehmen(self, project_id: str, animator: dict, letzte: dict = None, schilder: list = None) -> dict:
         """01.10.2026 (Marc) — Schnell-Video in das OFFENE Projekt übernehmen statt ein neues
         anzulegen: die Werte des Assistenten in den Animator-Block schreiben (Keyframes werden
         ersetzt). Vorher ein Arbeitsstand wie bei „Vorlage anwenden"; Antwort {vorher, nachher}
@@ -11846,13 +12009,17 @@ class Api:
             ziel.update(patch)
             if "container" in patch:
                 self._schnell_logo_bild(ziel, (self._session_get_global_defaults("").get("animator") or {}).get("watermark"))
+            signs_vorher = json.loads(json.dumps(p.get("signs") or []))
+            n_fs = self._schnell_schilder_einsetzen(p, schilder)   # 01.10.2026 — Fotostopps (frühere ersetzen)
             _projekte._angefasst(p)
             _projekte.speichern(DATEN_ORT, daten)
             if isinstance(letzte, dict):
                 self.settings_set({"schnellvideo_letzte": letzte})
             log.info("Schnell-Video in Projekt %s übernommen (%d Schlüssel%s)", project_id, len(patch),
                      ", mit Einblendungen" if "container" in patch else ", Look behalten")
-            return {"ok": True, "vorher": {"animator": vorher}, "nachher": {"animator": json.loads(json.dumps(ziel))}}
+            return {"ok": True, "vorher": {"animator": vorher, "signs": signs_vorher},
+                    "nachher": {"animator": json.loads(json.dumps(ziel)), "signs": json.loads(json.dumps(p.get("signs") or []))},
+                    "fotostopps": n_fs}
         except Exception as e:
             log.error("schnellvideo_uebernehmen: %s", e)
             return {"ok": False, "error": str(e)}

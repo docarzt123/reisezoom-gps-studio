@@ -4427,6 +4427,52 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Fotostopp am Foto-Schild + Schnell-Video mit Fotos (01.10.2026, v0.9.764)
+
+Marc: „wie bei Relive … die Kamera fährt nah ran, das Foto ist groß zu sehen, nach ein paar Sekunden weiter" und
+„der Fotostopp muss im Prinzip ein aufgebohrtes Foto-Schild sein". Entscheidungen (Fragerunde): Fotos automatisch
+vorschlagen + im Dialog abwählbar · Foto wächst aus dem Pin (~70 % Höhe) · Stopp-Zeit von der Länge **abziehen** ·
+Text Ort + Uhrzeit, EXIF als Häkchen (aus) · Logbuch-Einträge ohne Foto und Videoclips später.
+
+**Datenmodell — Felder am Schild** (`_SIGN_DEFAULTS`, nur mit `imageSrc` wirksam): `stopp` (bool), `stopp_s` (3),
+`stopp_anflug_s` (1), `stopp_abflug_s` (1), `stopp_zoom` (1,5 Stufen), `stopp_ortzeit` (true), `stopp_exif` (false),
+`stopp_bei` (Punkt-Anteil, beim Speichern aus `timeAnchor` bzw. nächstem Trackpunkt gesetzt — `_animSignsSave` über
+`window.__rzFotostoppAnker`), beim Schnell-Video zusätzlich `quelle: "schnellvideo"`. Alle `stopp*` stehen in
+`_SIG_OHNE` (kein Neurastern des kleinen Schilds) und werden nicht aufs nächste Schild vererbt (`stopp`).
+
+**Ablauf (`modules/animator/ui/module.js`, Block „Fotostopp" über `_tempoSchreibt`, Mount-Scope):**
+1. `_fotostoppHalte()` → Halte `{art:"halt", bei, sek: anflug+foto+abflug, kamera:"fotostopp", ref:"fs:<Index>"}`;
+   `paceMapLaden` hängt sie an die Einträge (nicht bei Reise), `_tempoAnzeige` zeigt sie gesperrt
+   (`rolle:"fotostopp"`). `core/tempo.py` reicht `ref` in `halte` durch. Weil die Wunschdauer die Halte enthält
+   (`rate_fuer_wunschdauer`), werden Stopps bei abgeleiteter Raffung von der Länge abgezogen; mit gespeicherter
+   Raffung verlängern sie das Video (wie jeder Halt). `window.__rzFotostoppGeaendert` (aus `_animSignsSave`) holt
+   die Kurve neu, wenn sich die Stopps geändert haben (`_fsKurveStand`).
+2. `_fotostoppBei(tSek)` (Animationssekunde ohne Anlauf) → `{s, w, k, p, ll}`: `k` Kamera-Gewicht (smoothstep,
+   Anflug/Abflug), `p` Foto (wächst in der zweiten Anflug-Hälfte, min. 0,3 s). `_fsKamera(args, fs, mitte)`:
+   Mitte gleitet zum Foto (abgewickelte Länge), Zoom + `stopp_zoom·k`. Eingebaut an **drei** Stellen — Probelauf
+   (neben dem Orbit-Halt), Stützstellen der ruhigen Kamera (`_plan`, vor dem Klemmen) und `scrubPreview`. Der Render
+   (core/szene.py) läuft über den Probelauf-Schritt, also dieselbe Rechnung.
+3. `_fotostoppZeigen(tSek)` zeichnet `#anim-fotostopp` (`.fs-buehne` in `#anim-viewport`, z-index 6 = über den
+   Einblendungen): Karte mit weißem Rahmen, Größe aus der Viewport-Höhe, Mittelpunkt von `map.project(Foto)` zur
+   Bildmitte, `scale 0.08→1`, Abdunkelung 35 %. Aufruf im Probelauf-Schritt neben `_ovTimingAt` und in `scrubPreview`.
+   Bild: `sign_image_thumb(src, 1440 im Render / 1000)`, Text: neue Brücke `fotostopp_info(path)` → `_fotostopp_texte`
+   (Foto-Bestand, sonst exiftool): `{ort, zeit, datum, exif}`. Der Render wartet über `__rzSchilderLaden` (+
+   `__rzFotostoppLaden`) auf die großen Bilder.
+4. Editor: Gruppe „📸 Fotostopp" unter „Bild" (`#se-stopp-block`, nur mit Bild sichtbar).
+
+**Schnell-Video:** Brücke `schnellvideo_fotos(path, n_max=8)` — `cfotos.fotos_einer_tour` (Foto-Bestand, Zeitfenster),
+`chl.fotos_zuordnen` (GPS ≤ Grenze, sonst Zeit) auf denselben Punkten wie `core/tempo.py` (`cgpx.parse_gpx`), Wert
++2 in einer Pause (`chl.halte_punkte`), +1 in einer Serie (≥ 3 Fotos in ±2 min); je Zehntel das beste, ≥ 7 % Abstand,
+höchstens `n_max`; Schild-Lage = Trackpunkt. Dialog: Bildleiste `#sv-fotos` (Klick = ab/an), `fotostoppSchilder(fotos,
+animS)` begrenzt auf `floor(animS·0,6/5)` (die besten). `schnellvideo_anlegen(…, schilder)` / `schnellvideo_uebernehmen(…,
+schilder)` → `_schnell_schilder_einsetzen`: frühere `quelle:"schnellvideo"` ersetzen, eigene bleiben, kein zweites Schild
+für dasselbe Foto; `uebernehmen` liefert `signs` in `vorher/nachher` → `__signs` im Undo-Stand (ein ⌘Z-Schritt).
+Nebenbei: `_kursKeyframes` (Blickrichtung) rechnet Stelle → Zeit über `_fortschrittAusStrecke` (lief nach Halten vor).
+
+Prüfstand: `window.__rzFotostopp` {halte, bei, zeigen, zuletzt}, `window.__rzSchnellFotostopps`.
+Tests: `tests/test_fotostopp.py` (Halt, Gewichte, Scrubben mit Foto + Zoom, Häkchen, ruhige Kamera, echter Render mit
+Pixelprüfung), `tests/test_schnellvideo_fotostopps.py` (Auswahl, Bildleiste, neues Projekt, Übernehmen + ⌘Z).
+
 ## Schnell-Video in dieses Projekt übernehmen (01.10.2026, v0.9.758)
 
 `ui/js/schnellvideo.js rzSchnellVideo(pfad, {projekt: {id, keyframes, hatLook}})` — der Animator-Knopf übergibt
