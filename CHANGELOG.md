@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.767** (01.10.2026, built locally): photo pins sit on the track in the video too.
+
+### Fixed
+- **Photo pins in the wrong place after the stop** (Marc: "after the photos were shown the pins are in the wrong place"). The pins were DOM elements placed with `map.project`; in the preview they matched the line, in the rendered video they drifted off it as soon as the camera moved on. They are now a MapLibre symbol layer (`fs-pins`, images drawn per photo: round photo, white rim, point) that the map draws in the same frame as the line — like the signs. Opacity via feature-state, pop-in via `icon-size`; as a map layer it sits below the overlays automatically.
+
 > **0.9.766** (01.10.2026, built locally): photo stops get a photo pin that appears before the stop; no second card behind the big photo.
 
 ### Changed

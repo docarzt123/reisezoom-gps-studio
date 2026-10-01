@@ -4131,6 +4131,83 @@ function mountAnimator(body, headerActions, opts) {
   }
   const _fsEsc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let _fsZeitLetzt = null, _fsSichtbar = false;
+  // Foto-Pins als Kartenebene (01.10.2026): im Video lagen die per map.project gesetzten DOM-Pins nach dem
+  // Stopp neben der Linie (Marc: „nach dem die Fotos angezeigt wurden sind die Pins an der falschen Stelle"),
+  // in der Vorschau nicht. Eine Symbol-Ebene zeichnet MapLibre im selben Bild wie die Linie — wie die Schilder.
+  // Liegt damit auch automatisch unter den Einblendungen. Deckkraft per feature-state, Aufpoppen über icon-size.
+  const FS_PIN_SRC = "fs-pins-src", FS_PIN_EBENE = "fs-pins";
+  let _fsPinBau = "", _fsPinGroesse = 0, _fsPinPop = "";
+  function _fsPinBild(im, d) {
+    const dpr = Math.max(2, Math.min(4, Number(window.devicePixelRatio) || 1));
+    const sp = d * 0.22, rand = d * 0.07, m = d * 0.16;
+    const cw = d + 2 * m, ch = d + sp + 2 * m;
+    const c = document.createElement("canvas");
+    c.width = Math.ceil(cw * dpr); c.height = Math.ceil(ch * dpr);
+    const g = c.getContext("2d"); g.scale(dpr, dpr);
+    const cx = m + d / 2, cy = m + d / 2;
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.45)"; g.shadowBlur = d * 0.14; g.shadowOffsetY = d * 0.05;
+    g.fillStyle = "#fff";
+    g.beginPath(); g.moveTo(cx - sp * 0.6, cy + d / 2 - rand); g.lineTo(cx, m + d + sp); g.lineTo(cx + sp * 0.6, cy + d / 2 - rand); g.closePath(); g.fill();
+    g.beginPath(); g.arc(cx, cy, d / 2, 0, Math.PI * 2); g.fill();
+    g.restore();
+    g.save();
+    g.beginPath(); g.arc(cx, cy, d / 2 - rand, 0, Math.PI * 2); g.clip();
+    const iw = im.naturalWidth || 1, ih = im.naturalHeight || 1, k = Math.min(iw, ih);
+    try { g.drawImage(im, (iw - k) / 2, (ih - k) / 2, k, k, cx - d / 2 + rand, cy - d / 2 + rand, d - 2 * rand, d - 2 * rand); } catch (_) {}
+    g.restore();
+    return { data: g.getImageData(0, 0, c.width, c.height), dpr, unten: m };
+  }
+  function _fsPinsSetzen(pins, d) {
+    if (!map || !map.getStyle) return;
+    let style; try { style = map.getStyle(); } catch (_) { return; }
+    if (!style) return;
+    // Bilder + Ebene (neu) aufbauen, wenn sich Fotos, Größe oder die Karte geändert haben
+    const alle = [];
+    _fsSchilderAlle().forEach((s, i) => { if (_fsAktiv(s)) { const e = _fsBildHolen(s); if (e.el) alle.push({ i, s, e }); } });
+    const dR = Math.round(d * 2) / 2;
+    const sig = dR + "|" + alle.map(x => x.i + ":" + x.s.imageSrc + ":" + (+x.s.lon).toFixed(6) + "," + (+x.s.lat).toFixed(6)).join(";");
+    const fehlt = !map.getSource(FS_PIN_SRC) || !map.getLayer(FS_PIN_EBENE);
+    if (sig !== _fsPinBau || fehlt) {
+      if (!alle.length && fehlt) return;
+      try {
+        let unten = 0;
+        for (const x of alle) {
+          const id = "fs-pin-" + x.i;
+          const b = _fsPinBild(x.e.el, dR); unten = b.unten;
+          if (map.hasImage(id)) map.removeImage(id);
+          map.addImage(id, b.data, { pixelRatio: b.dpr });
+        }
+        const fc = { type: "FeatureCollection", features: alle.map(x => ({ type: "Feature", id: x.i,
+          properties: { img: "fs-pin-" + x.i, sc: 1 }, geometry: { type: "Point", coordinates: [+x.s.lon, +x.s.lat] } })) };
+        if (map.getSource(FS_PIN_SRC)) map.getSource(FS_PIN_SRC).setData(fc);
+        else map.addSource(FS_PIN_SRC, { type: "geojson", data: fc });
+        if (!map.getLayer(FS_PIN_EBENE)) {
+          map.addLayer({ id: FS_PIN_EBENE, type: "symbol", source: FS_PIN_SRC, layout: {
+              "icon-image": ["get", "img"], "icon-size": ["get", "sc"], "icon-anchor": "bottom", "icon-offset": [0, unten],
+              "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport" },
+            paint: { "icon-opacity": ["coalesce", ["feature-state", "op"], 0] } });
+        } else map.setLayoutProperty(FS_PIN_EBENE, "icon-offset", [0, unten]);
+        _fsPinBau = sig; _fsPinGroesse = dR; _fsPinPop = "";
+      } catch (e) { applog("warn", "[fotostopp] Pin-Ebene: " + e); return; }
+    }
+    // Deckkraft je Pin, Aufpoppen (icon-size) nur, solange einer aufpoppt
+    const op = new Map(pins.map(p => [p.i, p]));
+    const pop = [];
+    for (const x of alle) {
+      const p = op.get(x.i);
+      try { map.setFeatureState({ source: FS_PIN_SRC, id: x.i }, { op: p ? Math.round(p.op * 1000) / 1000 : 0 }); } catch (_) {}
+      pop.push(p ? Math.round(p.sc * 100) / 100 : 1);
+    }
+    const popSig = pop.join(",");
+    if (popSig !== _fsPinPop) {
+      _fsPinPop = popSig;
+      try {
+        map.getSource(FS_PIN_SRC).setData({ type: "FeatureCollection", features: alle.map((x, k) => ({ type: "Feature", id: x.i,
+          properties: { img: "fs-pin-" + x.i, sc: pop[k] }, geometry: { type: "Point", coordinates: [+x.s.lon, +x.s.lat] } })) });
+      } catch (_) {}
+    }
+  }
   /** Foto-Pin + großes Foto für die Animationssekunde `tSek` zeichnen (null/negativ = weg).
    *  Probelauf, Scrubben, Render.
    *  01.10.2026 (Marc, Teide-Demo: „da kommen 2 Schilder hintereinander … ich hätte gern einen Pin, wo ein
@@ -4146,53 +4223,33 @@ function mountAnimator(body, headerActions, opts) {
     const hs = aktiv ? ((_tempoInfo && _tempoInfo.halte) || []).filter(h => h.kamera === "fotostopp" && tSek >= h.ab_s - FS_PIN_VORLAUF) : [];
     let el = document.getElementById("anim-fotostopp");
     const vp = document.getElementById("anim-viewport");
-    if (!el && (fs || hs.length) && vp) {
+    if (!el && fs && vp) {
       el = document.createElement("div");
       el.id = "anim-fotostopp"; el.className = "fs-buehne"; el.setAttribute("aria-hidden", "true"); el.style.display = "none";
-      el.innerHTML = `<div class="fs-pins"></div><div class="fs-dunkel"></div><div class="fs-karte"><img alt=""><div class="fs-text"></div></div>`;
+      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><img alt=""><div class="fs-text"></div></div>`;
       vp.insertBefore(el, document.getElementById("anim-overlay-preview"));
     }
-    if (!el) return;
-    if (!vp || (!fs && !hs.length)) {
-      if (_fsSichtbar) { el.style.display = "none"; _fsSichtbar = false; }
-      return;
-    }
-    const W = vp.offsetWidth || 1, H = vp.offsetHeight || 1;
+    const W = (vp && vp.offsetWidth) || 1, H = (vp && vp.offsetHeight) || 1;
     const proj = (ll) => { try { const q = map.project(ll); if (isFinite(q.x) && isFinite(q.y)) return [q.x, q.y]; } catch (_) {} return null; };
-    // ── Pins ──
-    const d = Math.min(W, H) * 0.12, rand = d * 0.07, spitze = d * 0.22;
-    const pinsEl = el.querySelector(".fs-pins");
-    const sichtbar = [];
+    // ── Pins: Kartenebene (von MapLibre im selben Bild gezeichnet wie die Linie) ──
+    const d = Math.min(W, H) * 0.12, spitze = d * 0.22;
+    const pins = [];
     for (const h of hs) {
-      const s = _fsSchilderAlle()[parseInt(String(h.ref || "").slice(3), 10)];
+      const i = parseInt(String(h.ref || "").slice(3), 10);
+      const s = _fsSchilderAlle()[i];
       if (!_fsAktiv(s)) continue;
-      const e = _fsBildHolen(s);
-      const q = proj([+s.lon, +s.lat]);
-      if (!e.el || !q) continue;
       const auf = Math.max(0, Math.min(1, (tSek - (h.ab_s - FS_PIN_VORLAUF)) / FS_PIN_AUF));
       const imStopp = (fs && fs.s === s) ? fs.p : 0;
-      const op = auf * (1 - Math.min(1, imStopp * 3));
-      if (op <= 0.001) continue;
-      sichtbar.push({ src: e.el.src, x: q[0], y: q[1], op, sc: 0.3 + 0.7 * (1 - Math.pow(1 - auf, 3)) });
+      pins.push({ i, s, op: auf * (1 - Math.min(1, imStopp * 3)), sc: 0.3 + 0.7 * (1 - Math.pow(1 - auf, 3)) });
     }
-    while (pinsEl.childElementCount > sichtbar.length) pinsEl.lastChild.remove();
-    while (pinsEl.childElementCount < sichtbar.length) {
-      const p = document.createElement("div"); p.className = "fs-pin"; p.innerHTML = `<img alt=""><i></i>`; pinsEl.appendChild(p);
-    }
-    sichtbar.forEach((pt, i) => {
-      const p = pinsEl.children[i], im = p.firstChild;
-      if (im.src !== pt.src) im.src = pt.src;
-      Object.assign(p.style, { width: d + "px", height: d + "px", borderWidth: rand + "px", opacity: String(pt.op),
-        transform: `translate(${pt.x - d / 2}px, ${pt.y - d - spitze}px) scale(${pt.sc})`, transformOrigin: `50% ${d + spitze}px`,
-        boxShadow: `0 ${d * 0.06}px ${d * 0.2}px rgba(0,0,0,0.45)` });
-      Object.assign(p.lastChild.style, { borderWidth: `${spitze}px ${spitze * 0.6}px 0`, bottom: (-spitze - rand * 0.6) + "px",
-        marginLeft: (-spitze * 0.6) + "px" });
-    });
+    _fsPinsSetzen(pins, d);
     // ── großes Foto ──
+    if (!el) return;
     const karte = el.querySelector(".fs-karte"), dunkel = el.querySelector(".fs-dunkel");
     const e = fs ? _fsBildHolen(fs.s) : null;
     if (!fs || !(fs.p > 0) || !e || !e.el) {
-      karte.style.display = "none"; dunkel.style.opacity = "0";
+      if (_fsSichtbar) { el.style.display = "none"; _fsSichtbar = false; }
+      return;
     } else {
       const img = karte.querySelector("img"), txt = karte.querySelector(".fs-text");
       if (img.src !== e.el.src) img.src = e.el.src;
