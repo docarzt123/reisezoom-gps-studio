@@ -238,8 +238,23 @@
     return api_;
   }
 
-  async function rzSchnellVideo(pfad) {
+  /** 01.10.2026 (Marc) — „Ablauf" des Schnell-Videos: was an der Tour hängt und bei „In dieses Projekt
+   *  übernehmen" mit „Meinen Look behalten" übernommen wird. Alles andere (Format, Kartenstil, Beschriftungen,
+   *  Einblendungen, Verläufe, Highlights, blasse Runde) ist Look und bleibt dann, wie es ist. */
+  const ABLAUF = ["fps", "intro_s", "hold_s", "duration_s", "keyframes_enabled", "timeline_events", "camera_follow_track",
+                  "marker_dot_show", "marker_dot_style", "marker_dot_size", "marker_dot_smooth", "marker_dot_rueckblick_m",
+                  "spur_glaetten_m", "camera_follow_glatt_m", "smooth_camera_3d"];
+  function nurAblauf(patch) {
+    const o = {};
+    for (const k of ABLAUF) if (k in patch) o[k] = patch[k];
+    return o;
+  }
+
+  /** opts.projekt = { id, keyframes, hatLook } — aus dem Animator mit offenem Projekt: dann gibt es
+   *  zusätzlich „In dieses Projekt übernehmen". */
+  async function rzSchnellVideo(pfad, opts) {
     if (!pfad) return;
+    const P = (opts && opts.projekt && opts.projekt.id) ? opts.projekt : null;
     let v;
     try { v = await rzWarten("schnellvideo_vorschlag", () => api().schnellvideo_vorschlag(pfad)); }
     catch (e) { v = { ok: false, error: String(e) }; }
@@ -279,8 +294,15 @@
         <label class="chk"><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}><span>${esc(T("schnell.highlights", "Highlights (höchster Punkt, steilste Stelle, halbe Strecke …)"))}</span></label>
         <label class="field-label">${esc(T("schnell.schlusskarte", "Schlusskarte"))}</label>
         <div class="sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
+        ${P ? `<div class="sv-projekt">
+          <label class="field-label">${esc(T("schnell.in_projekt_titel", "In dieses Projekt übernehmen"))}</label>
+          <label class="chk"><input type="checkbox" id="sv-look"${P.hatLook ? " checked" : ""}><span>${esc(T("schnell.look_behalten", "Meinen Look behalten — nur Kamerafahrt und Ablauf übernehmen"))}</span></label>
+          <p class="muted" style="margin:2px 0 0;font-size:11.5px">${esc(T("schnell.look_hinweis", "Ohne Haken kommen auch Format, Kartenstil, Einblendungen, Titel und Schlusskarte des Schnell-Videos ins Projekt."))}</p>
+          ${P.keyframes > 0 ? `<p class="sv-hinweis" style="margin-top:6px">⚠️ ${esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes))}</p>` : ""}
+        </div>` : ""}
       </div>`,
-      footer: `<button type="button" class="btn" id="sv-animator">${esc(T("schnell.im_animator", "Im Animator öffnen"))}</button>
+      footer: (P ? `<button type="button" class="btn" id="sv-uebernehmen">${esc(T("schnell.in_projekt", "In dieses Projekt übernehmen"))}</button>` : "")
+        + `<button type="button" class="btn" id="sv-animator">${esc(P ? T("schnell.neues_projekt", "Neues Projekt") : T("schnell.im_animator", "Im Animator öffnen"))}</button>
                <button type="button" class="btn btn-primary" id="sv-rendern">🎬 ${esc(T("schnell.rendern", "Video rendern"))}</button>`,
     });
     const box = document.getElementById("modal-body");
@@ -299,8 +321,7 @@
     rechte();
 
     let laeuft = false;
-    const los = async (rendern) => {
-      if (laeuft) return; laeuft = true;
+    const werteLesen = () => {
       w.stil = box.querySelector("#sv-stil").value;
       w.titel = box.querySelector("#sv-titel").value.trim();
       w.unter = box.querySelector("#sv-unter").value.trim();
@@ -308,7 +329,44 @@
       w.profil = box.querySelector("#sv-profil").checked;
       w.highlights = box.querySelector("#sv-highlights").checked;
       w.felder = [...box.querySelectorAll("[data-sv-feld]:checked")].map(x => x.dataset.svFeld);
-      const letzte = { format: w.format, laenge: w.laenge, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder };
+      return { format: w.format, laenge: w.laenge, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder };
+    };
+    /** In das offene Projekt schreiben: ein ⌘Z-Schritt („Schnell-Video übernommen"), vorher ein Arbeitsstand. */
+    const uebernehmen = async () => {
+      if (laeuft) return;
+      const letzte = werteLesen();
+      const look = !!box.querySelector("#sv-look")?.checked;
+      const voll = animatorPatch(w, v);
+      const patch = look ? nurAblauf(voll) : voll;
+      m.close();
+      if (P.keyframes > 0) {
+        const ja = await window.rzConfirm(T("schnell.kf_frage_titel", "Keyframes ersetzen?"),
+          T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes),
+          T("schnell.kf_ersetzen", "Ersetzen"), true);
+        if (!ja) { toast(T("schnell.nichts_geaendert", "Nichts geändert."), "info", 3000); return; }
+      }
+      laeuft = true;
+      let r;
+      try { r = await rzWarten("schnellvideo_uebernehmen", () => api().schnellvideo_uebernehmen(P.id, patch, letzte)); }
+      catch (e) { r = { ok: false, error: String(e) }; }
+      laeuft = false;
+      if (!r || !r.ok) { toast((r && r.error) || T("common.error", "Fehler"), "error", 6000); return; }
+      const nachher = (r.nachher || {}).animator || {}, vorher = (r.vorher || {}).animator || null;
+      try { window.rzSetModuleSettingsLocal("animator", nachher); } catch (_) {}
+      const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
+      const label = T("schnell.undo_label", "Schnell-Video übernommen");
+      if (ctrl && typeof ctrl.applyState === "function") ctrl.applyState(nachher, label, vorher);
+      // Blickrichtung aus der geglätteten Spur — gehört zum selben ⌘Z-Schritt (kein eigener)
+      await new Promise(res => setTimeout(res, 1200));
+      try { window.__rzUndoApplying = true; const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] übernommen in ${P.id} · Look ${look ? "behalten" : "neu"} · Blickrichtung ${n} Keyframes`); }
+      catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
+      finally { setTimeout(() => { window.__rzUndoApplying = false; }, 0); }
+      try { if (window.__rzSchnellBereit) window.__rzSchnellBereit(P.id); } catch (_) {}   // Highlight-Schilder abgleichen
+      toast(T("schnell.uebernommen", "Schnell-Video übernommen — die Keyframes kannst du jetzt anpassen."), "success", 5000);
+    };
+    const los = async (rendern) => {
+      if (laeuft) return; laeuft = true;
+      const letzte = werteLesen();
       const name = (v.name || "Tour") + " · " + T("schnell.titel_dialog", "Schnell-Video");
       // Beim Rendern sofort den eigenen Bildschirm zeigen — der Animator arbeitet unsichtbar dahinter.
       let B = null;
@@ -352,6 +410,7 @@
       buehneVerfolgen(B, dateiName);
     };
     document.getElementById("sv-animator").onclick = () => los(false);
+    if (P) document.getElementById("sv-uebernehmen").onclick = () => uebernehmen();
     document.getElementById("sv-rendern").onclick = () => los(true);
   }
 
@@ -410,4 +469,5 @@
   window.rzSchnellVideo = rzSchnellVideo;
   window.__rzSchnellKamerafahrt = kamerafahrt;   // Prüfstand
   window.__rzSchnellPatch = animatorPatch;       // Prüfstand
+  window.__rzSchnellAblauf = nurAblauf;          // Prüfstand
 })();

@@ -848,6 +848,21 @@ line really runs.
 you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, Mail, Photos …); on Windows
 the folder with the video opens.
 
+**From the Animator: three ways (since v0.9.758).** If you press “🎬 Quick video …” in the Animator while a
+project is open, the dialog has three buttons at the bottom:
+
+- **Apply to this project** — the camera flight goes into *your* project as keyframes, and you adjust it from
+  there. Existing keyframes are replaced; if the project has some, the dialog warns and asks first. One **⌘Z**
+  brings everything back (a work state is also saved beforehand).
+  **“Keep my look”** (preselected as soon as the project has overlays) only takes the timing: camera flight,
+  intro/animation/hold, chase camera, arrow, track and camera smoothing. Map style, format, overlays, gradients
+  and highlights stay as they are — title and end card are not added then. Unchecked, the whole quick video goes
+  into the project. This also works: apply a template, then quick video with “Keep my look” — your look plus
+  the camera flight.
+- **New project** — creates a separate project “Tour name · Quick video” (what “Open in Animator” did).
+  Your open project stays untouched.
+- **🎬 Render video** — new project and the video right away.
+
 **Open in Animator** creates the same but does not render — the quick video is then the basis for your own
 video: the camera flight is made of normal keyframes, and you change title and end card under **Overlays** (title, subtitle and end card are normal overlays).
 

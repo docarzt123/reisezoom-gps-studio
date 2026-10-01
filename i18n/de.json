@@ -4777,5 +4777,18 @@
   "container.zeile_neu": "Zeile hinzufügen",
   "container.zeilenabstand": "Zeilenabstand",
   "error.render_ohne_projekt": "Rendern geht nur aus einem geöffneten Projekt.",
-  "schnell.kein_track": "Erst eine Tour laden."
+  "schnell.kein_track": "Erst eine Tour laden.",
+  "schnell.in_projekt": "In dieses Projekt übernehmen",
+  "schnell.in_projekt_titel": "In dieses Projekt übernehmen",
+  "schnell.neues_projekt": "Neues Projekt",
+  "schnell.look_behalten": "Meinen Look behalten — nur Kamerafahrt und Ablauf übernehmen",
+  "schnell.look_hinweis": "Ohne Haken kommen auch Format, Kartenstil, Einblendungen, Titel und Schlusskarte des Schnell-Videos ins Projekt.",
+  "schnell.kf_warnung": "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).",
+  "schnell.kf_frage_titel": "Keyframes ersetzen?",
+  "schnell.kf_ersetzen": "Ersetzen",
+  "schnell.nichts_geaendert": "Nichts geändert.",
+  "schnell.undo_label": "Schnell-Video übernommen",
+  "schnell.uebernommen": "Schnell-Video übernommen — die Keyframes kannst du jetzt anpassen.",
+  "warte.schnellvideo_uebernehmen.titel": "Schnell-Video wird übernommen",
+  "warte.schnellvideo_uebernehmen.text": "Kamerafahrt und Einstellungen kommen ins Projekt"
 }

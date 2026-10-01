@@ -4777,5 +4777,18 @@
   "container.zeile_neu": "Add row",
   "container.zeilenabstand": "Row spacing",
   "error.render_ohne_projekt": "Rendering only works from an open project.",
-  "schnell.kein_track": "Load a tour first."
+  "schnell.kein_track": "Load a tour first.",
+  "schnell.in_projekt": "Apply to this project",
+  "schnell.in_projekt_titel": "Apply to this project",
+  "schnell.neues_projekt": "New project",
+  "schnell.look_behalten": "Keep my look — only take the camera flight and timing",
+  "schnell.look_hinweis": "Unchecked, the quick video's format, map style, overlays, title and end card come into the project too.",
+  "schnell.kf_warnung": "The project already has {n} keyframes — they will be replaced by the camera flight (⌘Z brings them back).",
+  "schnell.kf_frage_titel": "Replace keyframes?",
+  "schnell.kf_ersetzen": "Replace",
+  "schnell.nichts_geaendert": "Nothing changed.",
+  "schnell.undo_label": "Quick video applied",
+  "schnell.uebernommen": "Quick video applied — you can now adjust the keyframes.",
+  "warte.schnellvideo_uebernehmen.titel": "Applying quick video",
+  "warte.schnellvideo_uebernehmen.text": "Camera flight and settings are written into the project"
 }

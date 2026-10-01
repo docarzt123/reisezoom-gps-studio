@@ -1592,8 +1592,16 @@ function mountAnimator(body, headerActions, opts) {
       // 01.10.2026 (Marc: „im Animator Schnell-Video drücken, passiert gar nichts") — die Bindung lag im
       // alten Titelkarten-Editor (_skEditorBinden) und ist mit ihm beim Container-Umbau (0.9.752) verschwunden.
       document.getElementById("anim-schnellvideo")?.addEventListener("click", () => {
-        if (currentGpx && typeof window.rzSchnellVideo === "function") window.rzSchnellVideo(currentGpx);
-        else toast(t("schnell.kein_track", "Erst eine Tour laden."), "info", 4000);
+        if (!currentGpx || typeof window.rzSchnellVideo !== "function") { toast(t("schnell.kein_track", "Erst eine Tour laden."), "info", 4000); return; }
+        // 01.10.2026 (Marc) — aus dem Animator mit offenem Projekt: zusätzlich „In dieses Projekt übernehmen";
+        // „Meinen Look behalten" ist vorbelegt, sobald das Projekt Einblendungen hat (Vorlage/eigener Look).
+        const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+        let projekt = null;
+        if (proj && proj.id) {
+          const kf = (getRawTimelineEvents() || []).filter(e => e && e.kind).length;
+          projekt = { id: proj.id, keyframes: kf, hatLook: _ctListe().length > 0 };
+        }
+        window.rzSchnellVideo(currentGpx, { projekt });
       });
       // Videolänge geändert → Sekunden im offenen Editor neu (Anker bleiben, ihre Zeit wandert)
       ["anim-intro", "anim-dur", "anim-hold"].forEach(k => document.getElementById(k)?.addEventListener("change", () => {
@@ -13983,6 +13991,7 @@ function mountAnimator(body, headerActions, opts) {
     return neu.length;
   };
   window.__rzKursKeyframes = _kursKeyframes;   // Prüfstand
+  window.__rzKeyframes = { liste: () => (getRawTimelineEvents() || []).slice(), setzen: (l) => setTimelineEvents(l) };   // Prüfstand
 
   // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
   // Anteil am Punkt-Index (wie _ovUpdateLiveAt) → hier in Streckenanteil + Etappe

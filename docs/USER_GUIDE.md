@@ -871,6 +871,21 @@ Linie wirklich verläuft.
 dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü (AirDrop, Nachrichten, Mail,
 Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
 
+**Aus dem Animator: drei Wege (seit v0.9.758).** Drückst du „🎬 Schnell-Video …“ im Animator, während ein
+Projekt offen ist, gibt es unten im Dialog drei Knöpfe:
+
+- **In dieses Projekt übernehmen** — die Kamerafahrt kommt als Keyframes in *dein* Projekt, und du passt sie
+  danach an. Vorhandene Keyframes werden ersetzt; hat das Projekt schon welche, warnt der Dialog und fragt
+  vorher nach. Ein **⌘Z** holt alles zurück (vorher wird außerdem ein Arbeitsstand gesichert).
+  **„Meinen Look behalten“** (vorbelegt, sobald das Projekt Einblendungen hat) übernimmt nur den Ablauf:
+  Kamerafahrt, Intro/Animation/Halten, Verfolgerkamera, Pfeil, Spur- und Kameraglättung. Kartenstil, Format,
+  Einblendungen, Verläufe und Highlights bleiben, wie sie sind — Titel und Schlusskarte kommen dann nicht dazu.
+  Ohne Haken kommt das ganze Schnell-Video ins Projekt. So geht auch: Vorlage anwenden, dann Schnell-Video mit
+  „Meinen Look behalten“ — dein Look plus die Kamerafahrt.
+- **Neues Projekt** — legt ein eigenes Projekt „Tourname · Schnell-Video“ an (wie bisher „Im Animator öffnen“).
+  Dein offenes Projekt bleibt unberührt.
+- **🎬 Video rendern** — neues Projekt und gleich das Video.
+
 **Im Animator öffnen** legt dasselbe an, rendert aber nicht — dann ist das Schnell-Video die Grundlage für
 dein eigenes Video: Die Kamerafahrt sind normale Keyframes, Titel und Schlusskarte stellst du unter **Einblendungen** um (Titel, Untertitel, Schlusskarte sind normale Einblendungen).
 
