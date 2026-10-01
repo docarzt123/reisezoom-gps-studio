@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+---
+
+## [0.9.754] – 2026-10-01
+
+> Release 01.10.2026 — contains 0.9.749–0.9.754.
+
 > **0.9.754** (01.10.2026, built locally): leaving a module closes everything it opened above the app.
 
 ### Fixed
