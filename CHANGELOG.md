@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.753** (01.10.2026, built locally): the overlay editor closes when you leave the Animator.
+
+### Fixed
+- **Overlay editor stayed open after switching to the archive** (Marc): the floating editor hangs on `body`, not inside the module; the module cleanup now closes it. `tests/test_container_ui.py` checks archive switch and return.
+
 > **0.9.752** (30.09.2026, built locally): **overlays are containers** — one building block for everything on screen, one render pipeline (scene) incl. transparent export, quick video built only from normal Animator containers and reproducible by hand.
 
 ### Changed
