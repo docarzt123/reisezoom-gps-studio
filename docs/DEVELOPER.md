@@ -4427,6 +4427,19 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Was am body hängt, räumt das Modul ab (01.10.2026, v0.9.753/754)
+
+Schwebende Fenster und Menüs hängen an `document.body` (damit sie über Karte und Seitenleiste
+hinaus können) und überleben deshalb einen Modulwechsel, wenn die Aufräum-Funktion des Moduls
+(`return () => {…}` / `cleanup()`, gerufen von `switchMod` über `activeCleanup`) sie nicht entfernt.
+**Regel: wer etwas an body hängt, entfernt es im Cleanup** (oder es ist bewusst global).
+Stand: Animator — `#ct-editor`, Schild-Editor (`__rzAnimSignsCloseEditor`), Esc-Handles
+`__rzAnimSignsEsc`/`__rzRouteEsc` genullt; Zeitleiste — `destroy()` schließt `.tl-menue` und den
+Kurven-Dialog; Archiv — `kontextmenuZu()` + Zieh-Marke `.lib-ziehchip`; Inspektor — Logbuch-Fenster,
+Menü, Info. Bewusst global: `#bib-gate`, Warte-Fenster (`rzStatus`), Schnell-Video-Bühne,
+Hilfe-Sprechblase (schließt bei mouseout/focusout). Wächter: `tests/test_modulwechsel_aufraeumen.py`
+(vergleicht die sichtbaren body-Kinder vor/nach einem Rundgang durch alle Module).
+
 ## Einblendungen als Container — eine Render-Pipeline (30.09.2026, v0.9.752)
 
 Spezifikation und alle Entscheidungen: `docs/OVERLAY-CONTAINER.md` (Grilling Q1–Q29).

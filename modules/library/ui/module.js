@@ -5722,6 +5722,9 @@ function mountLibrary(body, headerActions) {
 
   return function cleanup() {
     _unmounted = true;
+    // 01.10.2026 — was am body hängt, muss mit weg (Kontextmenü, Zieh-Marke beim Sammlung-Ziehen)
+    try { kontextmenuZu(); } catch (_) {}
+    try { if (_zieht) { _zieht.chip.remove(); _zieht = null; } document.body.classList.remove("lib-zieht"); } catch (_) {}
     clearTimeout(_scanTimer);
     clearTimeout(_mapsTimer);
     clearInterval(_autoWatch);

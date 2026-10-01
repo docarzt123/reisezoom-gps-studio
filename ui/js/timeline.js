@@ -2522,7 +2522,9 @@ function mountTimelineBar(opts) {
   function setScrubberTrack(a) { setScrubberVisual(_trackToBar(a)); }
 
   return {
-    destroy: () => { for (const [ev, fn] of _winListeners.splice(0)) { try { window.removeEventListener(ev, fn); } catch (_) {} } },
+    destroy: () => { for (const [ev, fn] of _winListeners.splice(0)) { try { window.removeEventListener(ev, fn); } catch (_) {} }
+      // 01.10.2026 — Menü und Kurven-Dialog hängen am body: beim Modulwechsel mit abräumen
+      try { _menueSchliessen(); } catch (_) {} try { _closeEasingModal(); } catch (_) {} },
     setEtappen,
     trackToBar: _trackToBar,
     barToTrack: _barToTrack,
