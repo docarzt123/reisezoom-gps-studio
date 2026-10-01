@@ -4776,5 +4776,6 @@
   "container.zeile": "Fila",
   "container.zeile_neu": "Añadir fila",
   "container.zeilenabstand": "Espacio entre filas",
-  "error.render_ohne_projekt": "Solo se puede renderizar desde un proyecto abierto."
+  "error.render_ohne_projekt": "Solo se puede renderizar desde un proyecto abierto.",
+  "schnell.kein_track": "Carga primero una ruta."
 }

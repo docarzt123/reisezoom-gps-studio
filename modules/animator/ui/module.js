@@ -1589,6 +1589,12 @@ function mountAnimator(body, headerActions, opts) {
     try {
       _ctListeBinden();
       _ctZiehenBinden();
+      // 01.10.2026 (Marc: „im Animator Schnell-Video drücken, passiert gar nichts") — die Bindung lag im
+      // alten Titelkarten-Editor (_skEditorBinden) und ist mit ihm beim Container-Umbau (0.9.752) verschwunden.
+      document.getElementById("anim-schnellvideo")?.addEventListener("click", () => {
+        if (currentGpx && typeof window.rzSchnellVideo === "function") window.rzSchnellVideo(currentGpx);
+        else toast(t("schnell.kein_track", "Erst eine Tour laden."), "info", 4000);
+      });
       // Videolänge geändert → Sekunden im offenen Editor neu (Anker bleiben, ihre Zeit wandert)
       ["anim-intro", "anim-dur", "anim-hold"].forEach(k => document.getElementById(k)?.addEventListener("change", () => {
         try { if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog && applog("warn", "[container] Editor nach Längenänderung: " + e); }
