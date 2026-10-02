@@ -4009,14 +4009,15 @@ function mountAnimator(body, headerActions, opts) {
   //      Kamera (Stützstellen) und beim Scrubben, also auch im Video (core/szene.py = diese Seite),
   //   3. das Foto erscheint groß über der Karte (#anim-fotostopp), wächst aus dem Pin heraus.
   // Bei einer Reise (Etappen-Zeitplan) gibt es keine Fotostopps — die Kurve verteilt dort nichts.
-  const FS_STD = { sek: 3, anflug: 1, abflug: 1, zoom: 1.5 };
+  const FS_STD = { sek: 3, anflug: 1, abflug: 1, zoom: 1.5, schwenk: 2, ken: 8 };   // schwenk in Grad, ken in % (02.10.2026)
   const _fsZahl = (v, std, lo, hi) => {
     const x = Number(v);
     return Math.max(lo, Math.min(hi, (v == null || v === "" || !isFinite(x)) ? std : x));
   };
   function _fsWerte(s) {
     return { sek: _fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30), anflug: _fsZahl(s.stopp_anflug_s, FS_STD.anflug, 0, 5),
-             abflug: _fsZahl(s.stopp_abflug_s, FS_STD.abflug, 0, 5), zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4) };
+             abflug: _fsZahl(s.stopp_abflug_s, FS_STD.abflug, 0, 5), zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4),
+             schwenk: _fsZahl(s.stopp_schwenk, FS_STD.schwenk, 0, 10), ken: _fsZahl(s.stopp_ken, FS_STD.ken, 0, 30) };
   }
   function _fsSchilderAlle() {
     try { return (_activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) ? _activeProject[_SIGNS_KEY] : []; }
@@ -4065,7 +4066,8 @@ function mountAnimator(body, headerActions, opts) {
    *  (die Strecke läuft noch), der Halt (Fotozeit), Abflug NACH dem Halt (die Strecke läuft schon weiter).
    *  k = Kamera (0..1, glatt hin und zurück), p = Foto (ist bei Ankunft voll da, schrumpft im Abflug),
    *  ken = Fortschritt der langsamen Foto-Vergrößerung (0..1), dreh = Schwenk in Grad (nur im Halt). */
-  const FS_SCHWENK_GRAD = 2, FS_KEN = 0.08;   // 02.10.2026 Marc: „Bewegung der Karte etwas weniger" (4 → 2°)
+  // 02.10.2026 (Marc: „das muss man einstellen können, auch den Zoomeffekt beim Foto") — je Schild
+  // `stopp_schwenk` (Grad, Standard 2) und `stopp_ken` (Prozent, Standard 8), siehe _fsWerte.
   function _fotostoppBei(tSek) {
     if (tSek == null || !isFinite(tSek)) return null;
     const hs = (_tempoInfo && _tempoInfo.halte) || [];
@@ -4083,7 +4085,7 @@ function mountAnimator(body, headerActions, opts) {
       const p = Math.min((tSek - (h.ab_s - dIn)) / dIn, ((h.bis_s + dOut) - tSek) / dOut);
       const ken = (tSek - (h.ab_s - dIn)) / Math.max(0.1, (h.bis_s - h.ab_s) + dIn + dOut);
       const u = (tSek - h.ab_s) / Math.max(0.1, h.bis_s - h.ab_s);
-      const dreh = (u > 0 && u < 1) ? FS_SCHWENK_GRAD * Math.sin(2 * Math.PI * u) : 0;
+      const dreh = (u > 0 && u < 1) ? w.schwenk * Math.sin(2 * Math.PI * u) : 0;
       return { s, i, w, h, k: glatt(k), p: glatt(p), ken: Math.max(0, Math.min(1, ken)), dreh, ll: [+s.lon, +s.lat] };
     }
     return null;
@@ -4282,7 +4284,7 @@ function mountAnimator(body, headerActions, opts) {
         boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
       Object.assign(img.parentNode.style, { width: bw + "px", height: bh + "px" });
       // 02.10.2026 (Marc: „das Foto selber soll durchgehend leicht gezoomt werden") — Ken Burns
-      Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + FS_KEN * fs.ken).toFixed(4)})` });
+      Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + fs.w.ken / 100 * fs.ken).toFixed(4)})` });
       const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
       if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
       Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
@@ -10690,7 +10692,7 @@ function mountAnimator(body, headerActions, opts) {
       imageSize: 60,         // v0.9.190 — Bildbreite separat vom Schrift-Größe-Slider (20..160 → ×5 px)
       visible: true,         // v0.9.198 — pro Schild/Foto an/aus (Checkbox in der Liste)
       // 01.10.2026 — Fotostopp (nur mit Bild): anhalten, ranfahren, Foto groß. Siehe _fotostoppHalte.
-      stopp: false, stopp_s: 3, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5,
+      stopp: false, stopp_s: 3, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 8,
       stopp_ortzeit: true, stopp_exif: false,
     };
     // Merkt sich die zuletzt benutzten Stil-/Verhaltens-Eigenschaften fürs nächste Schild.
@@ -10884,7 +10886,7 @@ function mountAnimator(body, headerActions, opts) {
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
                                "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
-                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_ortzeit", "stopp_exif", "stopp_bei"]);
+                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_ortzeit", "stopp_exif", "stopp_bei"]);
     // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
     // zwischen zwei Aufbauten dasselbe (jede Änderung erzeugt über `_animSignsSave` neue
     // Objekte), nur Bild und Pixelmaß können sich noch ändern — die stehen im Merker mit.
@@ -11881,6 +11883,10 @@ function mountAnimator(body, headerActions, opts) {
               <input type="number" id="se-stopp-ab" min="0" max="5" step="0.1" value="${_fsZahlE(c.stopp_abflug_s, 1)}">
               <label for="se-stopp-zoom">${t("signs.stopp_zoom", "Heranfahren")}</label>
               <input type="range" id="se-stopp-zoom" min="0" max="4" step="0.25" value="${_fsZahlE(c.stopp_zoom, 1.5)}">
+              <label for="se-stopp-schwenk">${t("signs.stopp_schwenk", "Karte schwenken (°)")}</label>
+              <input type="number" id="se-stopp-schwenk" min="0" max="10" step="0.5" value="${_fsZahlE(c.stopp_schwenk, 2)}">
+              <label for="se-stopp-ken">${t("signs.stopp_ken", "Foto heranzoomen (%)")}</label>
+              <input type="number" id="se-stopp-ken" min="0" max="30" step="1" value="${_fsZahlE(c.stopp_ken, 8)}">
               <label for="se-stopp-ortzeit">${t("signs.stopp_ortzeit", "Ort und Uhrzeit")}</label>
               <span class="se-inline"><input type="checkbox" id="se-stopp-ortzeit"${chk(c.stopp_ortzeit !== false)}></span>
               <label for="se-stopp-exif">${t("signs.stopp_exif", "Kameradaten (EXIF)")}</label>
@@ -12127,6 +12133,8 @@ function mountAnimator(body, headerActions, opts) {
           stopp_anflug_s: (() => { const v = parseFloat($("#se-stopp-an")?.value); return isFinite(v) ? v : 1; })(),
           stopp_abflug_s: (() => { const v = parseFloat($("#se-stopp-ab")?.value); return isFinite(v) ? v : 1; })(),
           stopp_zoom: (() => { const v = parseFloat($("#se-stopp-zoom")?.value); return isFinite(v) ? v : 1.5; })(),
+          stopp_schwenk: (() => { const v = parseFloat($("#se-stopp-schwenk")?.value); return isFinite(v) ? Math.max(0, Math.min(10, v)) : 2; })(),
+          stopp_ken: (() => { const v = parseFloat($("#se-stopp-ken")?.value); return isFinite(v) ? Math.max(0, Math.min(30, v)) : 8; })(),
           stopp_ortzeit: $("#se-stopp-ortzeit") ? $("#se-stopp-ortzeit").checked : true,
           stopp_exif: !!($("#se-stopp-exif") && $("#se-stopp-exif").checked),
         };

@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.770** (02.10.2026, built locally): map sway and photo zoom of a photo stop are adjustable.
+
+### Added
+- Photo stop: **Map sway (°)** (0–10, default 2) and **Photo zoom (%)** (0–30, default 8) per photo sign in the sign editor (Marc: "that has to be adjustable, also the zoom effect on the photo"). Fields `stopp_schwenk`, `stopp_ken`; the quick video sets the defaults. Test `test_fotostopp.py` C3 (5°/20 % and 0/0).
+
 > **0.9.769** (02.10.2026, built locally): calmer camera sway during a photo stop.
 
 ### Changed
