@@ -4427,6 +4427,15 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Signatur: Developer ID G2 (02.10.2026)
+
+Apples alte Developer-ID-Zertifizierungsstelle läuft am **01.02.2027** aus. Neues Zertifikat „Developer ID Application:
+Marc Arzt (848J87A7F6)“, SHA-1 `1E1AF6B2…`, Aussteller „Developer ID Certification Authority, OU=G2“, gültig bis
+17.09.2031, liegt mit dem Zwischenzertifikat `DeveloperIDG2CA.cer` im Anmelde-Schlüsselbund des Mac mini (codesign:
+„Immer erlauben“). Weil altes und neues Zertifikat gleich heißen, signiert `build.sh` per SHA-1 und nimmt die gültige
+Identität mit dem spätesten Ablauf. **Offen:** die CI (`release.yml`) importiert noch das alte .p12 aus den Secrets
+`MACOS_CERT_P12_BASE64`/`MACOS_CERT_PASSWORD` — vor dem 01.02.2027 durch ein .p12 des neuen Zertifikats ersetzen.
+
 ## Fotostopp am Foto-Schild + Schnell-Video mit Fotos (01.10.2026, v0.9.764)
 
 **Stand v0.9.768 (02.10.2026):** Halt = nur `stopp_s`; `_fotostoppBei` gilt von `ab_s − anflug` bis `bis_s + abflug`
