@@ -954,6 +954,7 @@ function mountAnimator(body, headerActions, opts) {
                   ${_isStaticFrame ? "" : `<option value="live">${t("container.v.live", "Live-Werte")}</option>`}
                   <option value="gesamt">${t("container.v.gesamt", "Gesamtsumme")}</option>
                   <option value="hoehe">${t("container.v.hoehe", "Höhenprofil")}</option>
+                  ${_isStaticFrame ? "" : `<option value="uebersicht">${t("container.v.uebersicht", "Übersichtskarte")}</option>`}
                   <option value="titel">${t("container.v.titel", "Titel")}</option>
                   ${_isStaticFrame ? "" : `<option value="schluss">${t("container.v.schluss", "Schlusskarte")}</option>`}
                   <option value="logo">${t("container.v.logo", "Logo")}</option>
@@ -1080,6 +1081,65 @@ function mountAnimator(body, headerActions, opts) {
       </section>
 
       <!-- Video-Einstellungen (Akkordeon) — Dauer/Hold + Auflösung + FPS + Codec -->
+      ${_isStaticFrame ? "" : `
+      <!-- 02.10.2026 (Marc: „Bereite auch die Musik vor … Klicksound, wenn ein Foto kommt … eine Audiospur") -->
+      <section class="section" data-accordion-section="ton" id="anim-ton-section">
+        <button class="section-collapse-header" type="button">
+          <span>${t("animator.section.ton", "🎵 Musik und Ton")}</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="section-collapse-body" hidden>
+          <label class="checkbox" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="anim-ton-musik-an">
+            <span>${t("animator.ton.musik_an", "Musik unterlegen")}</span>
+            <button type="button" class="field-help" data-help="ton_hilfe">?</button>
+          </label>
+          <div class="muted field-help-content" data-help-content="ton_hilfe" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("animator.ton.hilfe", "Die Musik läuft vom Anfang bis zum Ende des Videos und wiederholt sich nahtlos. „Unterwegs“ ist ein eigenes Stück der App — frei für YouTube & Co. Bei eigener Musik brauchst du selbst die Rechte. In der Vorschau hörst du alles beim Abspielen (🔊 neben der Zeit schaltet den Ton der Vorschau aus).")} ${t("animator.ton.clip_hinweis", "Den Ton eines Videoclips schaltest du am Clip selbst ein (Schild öffnen).")}</div>
+          <div class="ov-style-row" style="margin-top:6px">
+            <label for="anim-ton-musik">${t("animator.ton.stueck", "Stück")}</label>
+            <select id="anim-ton-musik" class="pos-select" style="flex:1; min-width:0">
+              <option value="builtin:unterwegs">${t("animator.ton.unterwegs", "Unterwegs (eingebaut)")}</option>
+              <option value="builtin:weite">${t("animator.ton.weite", "Weite — ruhig, filmisch")}</option>
+              <option value="builtin:gipfelsturm">${t("animator.ton.gipfelsturm", "Gipfelsturm — treibend")}</option>
+              <option value="builtin:rast">${t("animator.ton.rast", "Rast — Lo-Fi, entspannt")}</option>
+              <option value="builtin:grat">${t("animator.ton.grat", "Grat — episch")}</option>
+              <option value="builtin:wanderlied">${t("animator.ton.wanderlied", "Wanderlied — Folk, Gitarre")}</option>
+            </select>
+            <button type="button" class="btn btn-small" id="anim-ton-datei" title="${t("animator.ton.datei_tip", "Eigene Musik wählen (MP3, M4A, WAV, FLAC …)")}">…</button>
+          </div>
+          <div class="ov-style-row">
+            <label for="anim-ton-musik-laut">${t("animator.ton.laut", "Lautstärke")}</label>
+            <input type="range" id="anim-ton-musik-laut" min="0" max="100" step="1" value="70" style="flex:1">
+            <span class="muted" id="anim-ton-musik-laut-w" style="width:34px; text-align:right">70 %</span>
+          </div>
+          <div class="row-2">
+            <div class="field"><label for="anim-ton-ein">${t("animator.ton.ein", "Einblenden (s)")}</label>
+              <input type="number" id="anim-ton-ein" min="0" max="10" step="0.1" value="1"></div>
+            <div class="field"><label for="anim-ton-aus">${t("animator.ton.aus", "Ausblenden (s)")}</label>
+              <input type="number" id="anim-ton-aus" min="0" max="15" step="0.1" value="2.5"></div>
+          </div>
+          <label class="checkbox" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <input type="checkbox" id="anim-ton-klick-an">
+            <span>${t("animator.ton.klick_an", "📷 Klick bei jedem Fotostopp")}</span>
+          </label>
+          <div class="ov-style-row">
+            <label for="anim-ton-klick-klang">${t("animator.ton.klang", "Klang")}</label>
+            <select id="anim-ton-klick-klang" class="pos-select" style="flex:1; min-width:0">
+              ${[["a", "Spiegelreflex"], ["b", "Spiegellos, kurz"], ["c", "Analog mit Filmtransport"], ["d", "Messsucher, leise"],
+                 ["e", "Handy"], ["f", "Sofortbild mit Motor"], ["g", "Pop"], ["h", "Holz"], ["i", "Glöckchen"], ["j", "Wusch + Klick"]]
+                .map(([k, d]) => `<option value="builtin:klick_${k}">${t("animator.ton.klick_" + k, d)}</option>`).join("")}
+              <option value="builtin:klick">${t("animator.ton.klick_alt", "Einfach")}</option>
+            </select>
+            <button type="button" class="btn btn-small" id="anim-ton-klick-datei" title="${t("animator.ton.klick_datei_tip", "Eigenen Klang wählen (WAV, MP3, M4A …)")}">…</button>
+            <button type="button" class="btn btn-small" id="anim-ton-klick-hoeren" title="${t("schnell.musik_hoeren", "Probehören")}">▶</button>
+          </div>
+          <div class="ov-style-row">
+            <label for="anim-ton-klick-laut">${t("animator.ton.laut", "Lautstärke")}</label>
+            <input type="range" id="anim-ton-klick-laut" min="0" max="100" step="1" value="25" style="flex:1">
+            <span class="muted" id="anim-ton-klick-laut-w" style="width:34px; text-align:right">25 %</span>
+          </div>
+        </div>
+      </section>`}
       <section class="section" data-accordion-section="video">
         <button class="section-collapse-header" type="button">
           <span>${t("animator.section.video")}</span>
@@ -2625,6 +2685,76 @@ function mountAnimator(body, headerActions, opts) {
   // Je Box/Zeile abweichend über ✎ (Modal _ovBoxModal), gespeichert in overlay_boxen.
   // 30.09.2026 — Highlights: Schalter + Auswahl (Liste der Arten, eigene Anbindung)
   const _hlNeu = () => { try { _hlSchilderAbgleichen(false); } catch (e) { applog("warn", "[hl] " + e); } };
+  // 02.10.2026 — Musik und Ton (Projekt: animator.ton_*)
+  (function bindTon() {
+    if (_isStaticFrame || !document.getElementById("anim-ton-section")) return;
+    const neu = () => { try { _sgSpurAktualisieren(); } catch (_) {} };
+    const wertAnzeigen = () => {
+      for (const id of ["anim-ton-musik-laut", "anim-ton-klick-laut"]) {
+        const e = document.getElementById(id), w = document.getElementById(id + "-w");
+        if (e && w) w.textContent = Math.round(+e.value || 0) + " %";
+      }
+      const an = !!document.getElementById("anim-ton-musik-an")?.checked;
+      document.querySelectorAll("#anim-ton-musik, #anim-ton-datei, #anim-ton-musik-laut, #anim-ton-ein, #anim-ton-aus").forEach(e => { e.disabled = !an; });
+      const k = !!document.getElementById("anim-ton-klick-an")?.checked;
+      const kl = document.getElementById("anim-ton-klick-laut"); if (kl) kl.disabled = !k;
+      document.querySelectorAll("#anim-ton-klick-klang, #anim-ton-klick-datei, #anim-ton-klick-hoeren").forEach(e => { e.disabled = !k; });
+    };
+    // eigene Datei: als eigene Zeile in der Auswahl (Dateiname), Wert = Pfad
+    const eigeneZeile = (pfad) => {
+      const sel = document.getElementById("anim-ton-musik");
+      if (!sel || !pfad || pfad.startsWith("builtin:")) return;
+      let o = [...sel.options].find(x => x.value === pfad);
+      if (!o) { o = document.createElement("option"); o.value = pfad; o.textContent = "🎵 " + String(pfad).split(/[\\/]/).pop(); sel.appendChild(o); }
+      sel.value = pfad;
+    };
+    bindSetting("anim-ton-musik-an", _MODKEY, "ton_musik_an", { type: "bool", onLoad: wertAnzeigen, onChange: () => { wertAnzeigen(); neu(); } });
+    bindSetting("anim-ton-musik", _MODKEY, "ton_musik", { onLoad: (v) => { eigeneZeile(v); }, onChange: neu });
+    bindSetting("anim-ton-musik-laut", _MODKEY, "ton_musik_laut", { type: "number", onLoad: wertAnzeigen, onChange: () => { wertAnzeigen(); neu(); } });
+    bindSetting("anim-ton-ein", _MODKEY, "ton_musik_ein", { type: "number", onChange: neu });
+    bindSetting("anim-ton-aus", _MODKEY, "ton_musik_aus", { type: "number", onChange: neu });
+    bindSetting("anim-ton-klick-an", _MODKEY, "ton_klick_an", { type: "bool", onLoad: wertAnzeigen, onChange: () => { wertAnzeigen(); neu(); } });
+    // eigener Klang: wie bei der Musik als eigene Zeile in der Auswahl
+    const eigenerKlang = (pfad) => {
+      const sel = document.getElementById("anim-ton-klick-klang");
+      if (!sel || !pfad || pfad.startsWith("builtin:")) return;
+      let o = [...sel.options].find(x => x.value === pfad);
+      if (!o) { o = document.createElement("option"); o.value = pfad; o.textContent = "🔈 " + String(pfad).split(/[\\/]/).pop(); sel.appendChild(o); }
+      sel.value = pfad;
+    };
+    bindSetting("anim-ton-klick-klang", _MODKEY, "ton_klick_klang", { onLoad: (v) => eigenerKlang(v), onChange: () => { _tonKlick = null; neu(); } });
+    document.getElementById("anim-ton-klick-datei")?.addEventListener("click", async () => {
+      let r = null;
+      try { r = await api().pick_file("open", ["Audio (*.wav;*.mp3;*.m4a;*.aac;*.flac;*.ogg;*.aif;*.aiff)"]); } catch (_) {}   // warte-ok: Systemdialog
+      const pfad = Array.isArray(r) ? r[0] : r;
+      if (!pfad) return;
+      eigenerKlang(String(pfad));
+      document.getElementById("anim-ton-klick-klang").dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    document.getElementById("anim-ton-klick-hoeren")?.addEventListener("click", async () => {
+      // Probehören: in der Nutzeraktion freischalten, dann den gewählten Klang einmal
+      const ctx = _tonKontext(); if (ctx && ctx.state !== "running") { try { ctx.resume(); } catch (_) {} }
+      let url = "";
+      try { const r = await api().ton_url(_tonWerte().klickKlang); url = (r && r.ok && r.url) || ""; } catch (_) {}   // warte-ok: sofort
+      if (!url) return;
+      const a = new Audio(url); a.volume = _tonWerte().klickLaut || 0.8;
+      const p = a.play(); if (p && p.catch) p.catch(() => {});
+    });
+    bindSetting("anim-ton-klick-laut", _MODKEY, "ton_klick_laut", { type: "number", onLoad: wertAnzeigen, onChange: () => { wertAnzeigen(); neu(); } });
+    document.querySelectorAll("#anim-ton-musik-laut, #anim-ton-klick-laut").forEach(e => e.addEventListener("input", wertAnzeigen));
+    document.getElementById("anim-ton-datei")?.addEventListener("click", async () => {
+      let r = null;
+      try { r = await api().pick_file("open", ["Audio (*.mp3;*.m4a;*.aac;*.wav;*.flac;*.ogg;*.opus;*.aif;*.aiff)"]); } catch (_) {}   // warte-ok: Systemdialog
+      const pfad = Array.isArray(r) ? r[0] : r;
+      if (!pfad) return;
+      eigeneZeile(String(pfad));
+      const sel = document.getElementById("anim-ton-musik");
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      const an = document.getElementById("anim-ton-musik-an");
+      if (an && !an.checked) { an.checked = true; an.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    wertAnzeigen();
+  })();
   bindSetting("anim-hl-on", _MODKEY, "highlights_enabled", { type: "bool", onChange: _hlNeu });
   bindSetting("anim-hl-stil", _MODKEY, "highlights_stil", { onChange: _hlNeu });
   const _hlFarbSync = () => { const m = document.getElementById("anim-hl-farbmodus"), f = document.getElementById("anim-hl-farbe"); if (m && f) f.hidden = m.value !== "eine"; };
@@ -4014,10 +4144,14 @@ function mountAnimator(body, headerActions, opts) {
     const x = Number(v);
     return Math.max(lo, Math.min(hi, (v == null || v === "" || !isFinite(x)) ? std : x));
   };
+  // 02.10.2026 — Videoclip als Fotostopp (Schild mit `clip`: {pfad, ab, dauer, laenge, ton, laut}; imageSrc = Standbild):
+  // der Halt dauert so lange wie der gewählte Ausschnitt, kein Ken-Burns (der Clip bewegt sich selbst).
+  const _fsClipDauer = (s) => _fsZahl(s.clip.dauer, 4, 0.5, 30);
   function _fsWerte(s) {
-    return { sek: _fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30), anflug: _fsZahl(s.stopp_anflug_s, FS_STD.anflug, 0, 5),
+    const c = !!(s && s.clip && s.clip.pfad);
+    return { sek: c ? _fsClipDauer(s) : _fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30), anflug: _fsZahl(s.stopp_anflug_s, FS_STD.anflug, 0, 5),
              abflug: _fsZahl(s.stopp_abflug_s, FS_STD.abflug, 0, 5), zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4),
-             schwenk: _fsZahl(s.stopp_schwenk, FS_STD.schwenk, 0, 10), ken: _fsZahl(s.stopp_ken, FS_STD.ken, 0, 30) };
+             schwenk: _fsZahl(s.stopp_schwenk, FS_STD.schwenk, 0, 10), ken: c ? 0 : _fsZahl(s.stopp_ken, FS_STD.ken, 0, 30) };
   }
   function _fsSchilderAlle() {
     try { return (_activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) ? _activeProject[_SIGNS_KEY] : []; }
@@ -4111,9 +4245,19 @@ function mountAnimator(body, headerActions, opts) {
     e = { el: null, laden: true, info: null };
     _fsBilder.set(src, e);
     const stufe = window.__rzRenderMode ? 1440 : 1000;
+    const clip = s.clip && s.clip.pfad ? s.clip : null;
+    // Clip: fehlt das Standbild (Cache geleert), legt die App es neu an
+    const bild = async () => {
+      let r = await api().sign_image_thumb(src, stufe).catch(() => null);   // warte-ok: Hintergrund, der Render wartet über __rzSchilderLaden
+      if (!(r && r.ok && r.thumb) && clip) {
+        const sb = await api().clip_standbild(clip.pfad, Math.min(0.5, (+clip.laenge || 3) / 3)).catch(() => null);   // warte-ok: dito
+        if (sb && sb.ok) r = await api().sign_image_thumb(sb.path, stufe).catch(() => null);   // warte-ok: dito
+      }
+      return r;
+    };
     Promise.all([
-      api().sign_image_thumb(src, stufe).catch(() => null),   // warte-ok: Hintergrund, der Render wartet über __rzSchilderLaden
-      api().fotostopp_info(src).catch(() => null),             // warte-ok: dito
+      bild(),
+      api().fotostopp_info(clip ? clip.pfad : src, isFinite(+s.lat) ? +s.lat : null, isFinite(+s.lon) ? +s.lon : null).catch(() => null),   // warte-ok: dito
     ]).then(([r, inf]) => {
       e.info = (inf && inf.ok) ? inf : {};
       if (!(r && r.ok && r.thumb)) { e.laden = false; applog("warn", "[fotostopp] Bild fehlt: " + String(src).split("/").pop()); return; }
@@ -4127,8 +4271,42 @@ function mountAnimator(body, headerActions, opts) {
   /** Für core/szene.py (über __rzSchilderLaden): wie viele Fotostopp-Bilder fehlen noch? Stößt das Laden an. */
   window.__rzFotostoppLaden = () => {
     let n = 0;
-    try { for (const s of _fsSchilderAlle()) if (_fsAktiv(s) && _fsBildHolen(s).laden) n++; } catch (_) {}
+    try {
+      for (const s of _fsSchilderAlle()) {
+        if (!_fsAktiv(s)) continue;
+        if (_fsBildHolen(s).laden) n++;
+        if (s.clip && s.clip.pfad && _fsClipHolen(s).laden) n++;
+      }
+    } catch (_) {}
     return n;
+  };
+  // ── Clip-Einzelbilder (core/clips.py → Medien-Server). Im Video in Videobildrate und groß genug für die Karte,
+  //    in der Vorschau 25 Bilder/s, 540 px hoch. Bild n gehört zur Halt-Sekunde (n−1)/fps.
+  const _fsClips = new Map();
+  function _fsClipHolen(s) {
+    const c = s.clip, rm = window.__rzRenderMode;
+    const fps = rm ? Math.max(1, +rm.fps || 30) : 25;
+    const hoehe = rm ? Math.round(Math.min(1440, Math.max(360, (+rm.height || 1080) * 0.75))) : 540;
+    const dauer = _fsClipDauer(s), ab = Math.max(0, +c.ab || 0);
+    const key = [c.pfad, ab, dauer, fps, hoehe].join("|");
+    let e = _fsClips.get(key);
+    if (e) return e;
+    e = { laden: true, muster: "", n: 0, fps };
+    _fsClips.set(key, e);
+    api().clip_bilder(c.pfad, ab, dauer, fps, hoehe).then((r) => {   // warte-ok: Hintergrund, der Render wartet über __rzFotostoppLaden
+      if (r && r.ok) { e.muster = r.muster; e.n = r.n; e.fps = r.fps; }
+      else applog("warn", "[clip] Bilder fehlen: " + String(c.pfad).split(/[\\/]/).pop() + " " + ((r && r.error) || ""));
+      e.laden = false;
+      try { if (_fsZeitLetzt != null) _fotostoppZeigen(_fsZeitLetzt); } catch (_) {}
+    }).catch(() => { e.laden = false; });
+    return e;
+  }
+  /** core/szene.py wartet je Bild darauf, dass das gerade gesetzte Clip-Bild geladen ist (höchstens 4 s). */
+  window.__rzClipWarte = () => {
+    const img = document.querySelector("#anim-fotostopp .fs-bild img");
+    if (!img || !img.__clip || (img.complete && img.naturalWidth > 0)) return Promise.resolve(true);
+    return new Promise((r) => { const fertig = () => r(true); img.addEventListener("load", fertig, { once: true });
+      img.addEventListener("error", fertig, { once: true }); setTimeout(fertig, 4000); });
   };
   /** Zeilen unter dem Foto: eigener Text, Ort · Uhrzeit, Kameradaten. */
   function _fsZeilen(s, info) {
@@ -4150,7 +4328,7 @@ function mountAnimator(body, headerActions, opts) {
   // Liegt damit auch automatisch unter den Einblendungen. Deckkraft per feature-state, Aufpoppen über icon-size.
   const FS_PIN_SRC = "fs-pins-src", FS_PIN_EBENE = "fs-pins";
   let _fsPinBau = "", _fsPinGroesse = 0, _fsPinPop = "";
-  function _fsPinBild(im, d) {
+  function _fsPinBild(im, d, clip) {
     const dpr = Math.max(2, Math.min(4, Number(window.devicePixelRatio) || 1));
     const sp = d * 0.22, rand = d * 0.07, m = d * 0.16;
     const cw = d + 2 * m, ch = d + sp + 2 * m;
@@ -4169,6 +4347,11 @@ function mountAnimator(body, headerActions, opts) {
     const iw = im.naturalWidth || 1, ih = im.naturalHeight || 1, k = Math.min(iw, ih);
     try { g.drawImage(im, (iw - k) / 2, (ih - k) / 2, k, k, cx - d / 2 + rand, cy - d / 2 + rand, d - 2 * rand, d - 2 * rand); } catch (_) {}
     g.restore();
+    if (clip) {   // 02.10.2026 — Videoclip: ▶ im Pin
+      const r = d * 0.2;
+      g.fillStyle = "rgba(0,0,0,0.5)"; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.moveTo(cx - r * 0.35, cy - r * 0.5); g.lineTo(cx + r * 0.55, cy); g.lineTo(cx - r * 0.35, cy + r * 0.5); g.closePath(); g.fill();
+    }
     return { data: g.getImageData(0, 0, c.width, c.height), dpr, unten: m };
   }
   function _fsPinsSetzen(pins, d) {
@@ -4179,7 +4362,7 @@ function mountAnimator(body, headerActions, opts) {
     const alle = [];
     _fsSchilderAlle().forEach((s, i) => { if (_fsAktiv(s)) { const e = _fsBildHolen(s); if (e.el) alle.push({ i, s, e }); } });
     const dR = Math.round(d * 2) / 2;
-    const sig = dR + "|" + alle.map(x => x.i + ":" + x.s.imageSrc + ":" + (+x.s.lon).toFixed(6) + "," + (+x.s.lat).toFixed(6)).join(";");
+    const sig = dR + "|" + alle.map(x => x.i + ":" + x.s.imageSrc + (x.s.clip ? "▶" : "") + ":" + (+x.s.lon).toFixed(6) + "," + (+x.s.lat).toFixed(6)).join(";");
     const fehlt = !map.getSource(FS_PIN_SRC) || !map.getLayer(FS_PIN_EBENE);
     if (sig !== _fsPinBau || fehlt) {
       if (!alle.length && fehlt) return;
@@ -4187,38 +4370,33 @@ function mountAnimator(body, headerActions, opts) {
         let unten = 0;
         for (const x of alle) {
           const id = "fs-pin-" + x.i;
-          const b = _fsPinBild(x.e.el, dR); unten = b.unten;
+          const b = _fsPinBild(x.e.el, dR, !!(x.s.clip && x.s.clip.pfad)); unten = b.unten;
           if (map.hasImage(id)) map.removeImage(id);
           map.addImage(id, b.data, { pixelRatio: b.dpr });
         }
-        const fc = { type: "FeatureCollection", features: alle.map(x => ({ type: "Feature", id: x.i,
-          properties: { img: "fs-pin-" + x.i, sc: 1 }, geometry: { type: "Point", coordinates: [+x.s.lon, +x.s.lat] } })) };
-        if (map.getSource(FS_PIN_SRC)) map.getSource(FS_PIN_SRC).setData(fc);
-        else map.addSource(FS_PIN_SRC, { type: "geojson", data: fc });
+        if (!map.getSource(FS_PIN_SRC)) map.addSource(FS_PIN_SRC, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         if (!map.getLayer(FS_PIN_EBENE)) {
           map.addLayer({ id: FS_PIN_EBENE, type: "symbol", source: FS_PIN_SRC, layout: {
               "icon-image": ["get", "img"], "icon-size": ["get", "sc"], "icon-anchor": "bottom", "icon-offset": [0, unten],
               "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport" },
-            paint: { "icon-opacity": ["coalesce", ["feature-state", "op"], 0] } });
+            paint: { "icon-opacity": ["coalesce", ["get", "op"], 0] } });
         } else map.setLayoutProperty(FS_PIN_EBENE, "icon-offset", [0, unten]);
         _fsPinBau = sig; _fsPinGroesse = dR; _fsPinPop = "";
       } catch (e) { applog("warn", "[fotostopp] Pin-Ebene: " + e); return; }
     }
-    // Deckkraft je Pin, Aufpoppen (icon-size) nur, solange einer aufpoppt
+    // Deckkraft und Aufpoppen als Eigenschaften der Punkte (02.10.2026: vorher feature-state — direkt nach setData
+    // warf MapLibre „Length of new data is 6, which doesn't match current length of 0", als neue Stopps die alten
+    // ersetzten). Neu gesetzt wird nur, wenn sich etwas ändert; ruhige Bilder kosten nichts.
     const op = new Map(pins.map(p => [p.i, p]));
-    const pop = [];
-    for (const x of alle) {
+    const feats = alle.map(x => {
       const p = op.get(x.i);
-      try { map.setFeatureState({ source: FS_PIN_SRC, id: x.i }, { op: p ? Math.round(p.op * 1000) / 1000 : 0 }); } catch (_) {}
-      pop.push(p ? Math.round(p.sc * 100) / 100 : 1);
-    }
-    const popSig = pop.join(",");
+      return { type: "Feature", id: x.i, properties: { img: "fs-pin-" + x.i, sc: p ? Math.round(p.sc * 100) / 100 : 1, op: p ? Math.round(p.op * 1000) / 1000 : 0 },
+               geometry: { type: "Point", coordinates: [+x.s.lon, +x.s.lat] } };
+    });
+    const popSig = feats.map(f => f.id + ":" + f.properties.sc + ":" + f.properties.op).join(",");
     if (popSig !== _fsPinPop) {
       _fsPinPop = popSig;
-      try {
-        map.getSource(FS_PIN_SRC).setData({ type: "FeatureCollection", features: alle.map((x, k) => ({ type: "Feature", id: x.i,
-          properties: { img: "fs-pin-" + x.i, sc: pop[k] }, geometry: { type: "Point", coordinates: [+x.s.lon, +x.s.lat] } })) });
-      } catch (_) {}
+      try { map.getSource(FS_PIN_SRC).setData({ type: "FeatureCollection", features: feats }); } catch (_) {}
     }
   }
   /** Foto-Pin + großes Foto für die Animationssekunde `tSek` zeichnen (null/negativ = weg).
@@ -4267,7 +4445,18 @@ function mountAnimator(body, headerActions, opts) {
       return;
     } else {
       const img = karte.querySelector("img"), txt = karte.querySelector(".fs-text");
-      if (img.src !== e.el.src) img.src = e.el.src;
+      let quelle = e.el.src;
+      img.__clip = false;
+      if (fs.s.clip && fs.s.clip.pfad) {
+        const c = _fsClipHolen(fs.s);
+        if (c.muster && c.n > 0) {
+          const u = Math.max(0, tSek - fs.h.ab_s);
+          const n = Math.max(1, Math.min(c.n, 1 + Math.floor(u * c.fps + 1e-6)));
+          quelle = c.muster.replace("{i}", String(n));
+          img.__clip = true;
+        }
+      }
+      if (img.src !== quelle) img.src = quelle;
       const asp = (e.el.naturalWidth || 4) / Math.max(1, e.el.naturalHeight || 3);
       const zeilen = _fsZeilen(fs.s, e.info);
       const fz = H * 0.034, pad = H * 0.014;
@@ -4294,6 +4483,242 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   window.__rzFotostopp = { halte: () => _fotostoppHalte(), bei: (t) => _fotostoppBei(t), zeigen: (t) => _fotostoppZeigen(t), zuletzt: () => _fsZeitLetzt };   // Prüfstand
+
+  // ── Musik und Ton (02.10.2026) ──────────────────────────────────────────────
+  // Marc: „Bereite auch die Musik vor und komponiere direkt erstmal ein Stück, das endlos läuft … Klicksound, wenn
+  // ein Foto kommt … wir bräuchten also eine Audiospur." Ein Tonplan in Videosekunden (_tonPlan) ist die eine
+  // Wahrheit: die Vorschau spielt danach, core/szene.py holt ihn nach dem letzten Bild (window.__rzTonPlan) und
+  // core/tonspur.py mischt daraus die Tonspur. Einstellungen im Projekt (animator.ton_*), gebunden wie alle anderen.
+  const _tonEl = (id) => document.getElementById(id);
+  const TON_KLICK_VOR_HALT = 0.1;   // s vor dem Halt: das Foto ist da (Anflug-Ende), der Auslöser „sitzt"
+  function _tonWerte() {
+    const n = (id, std) => { const v = parseFloat(_tonEl(id)?.value); return isFinite(v) ? v : std; };
+    return { musikAn: !!_tonEl("anim-ton-musik-an")?.checked, musik: _tonEl("anim-ton-musik")?.value || "builtin:unterwegs",
+             laut: Math.max(0, Math.min(100, n("anim-ton-musik-laut", 70))) / 100,
+             ein: Math.max(0, n("anim-ton-ein", 1)), aus: Math.max(0, n("anim-ton-aus", 2.5)),
+             klickAn: !!_tonEl("anim-ton-klick-an")?.checked,   // Standard aus: bestehende Projekte bekommen keinen Klick untergeschoben
+             klickLaut: Math.max(0, Math.min(100, n("anim-ton-klick-laut", 25))) / 100,   // 02.10.2026 Marc: „ganz subtil"
+             klickKlang: _tonEl("anim-ton-klick-klang")?.value || "builtin:klick_a" };
+  }
+  /** Tonplan in Videosekunden (Anlauf + Animation + Halten): Musik, Klick beim Erscheinen jedes Fotos, Clip-Ton. */
+  function _tonPlan() {
+    if (_isStaticFrame) return null;
+    let ph; try { ph = _sgPhasen(); } catch (_) { return null; }
+    const w = _tonWerte();
+    const plan = { G: ph.G, klicks: [], clips: [], ducken: 0.35, klick_datei: w.klickKlang };
+    if (w.musikAn && w.laut > 0) plan.musik = { datei: w.musik, laut: w.laut, ein_s: w.ein, aus_s: w.aus, ab_s: 0 };
+    for (const h of ((_tempoInfo && _tempoInfo.halte) || [])) {
+      if (h.kamera !== "fotostopp") continue;
+      const s = _fsSchilderAlle()[parseInt(String(h.ref || "").slice(3), 10)];
+      if (!_fsAktiv(s)) continue;
+      const fw = _fsWerte(s);
+      if (s.clip && s.clip.pfad) {
+        if (s.clip.ton) plan.clips.push({ pfad: s.clip.pfad, ab: Math.max(0, +s.clip.ab || 0), dauer: fw.sek, t: ph.intro + h.ab_s,
+                                          laut: Math.max(0, Math.min(1.5, s.clip.laut != null ? +s.clip.laut : 1)) });
+      } else if (w.klickAn && w.klickLaut > 0) {
+        // 02.10.2026 (Marc: „der Fotoklick kommt ein bisschen zu früh") — nicht mehr, wenn das Foto zu wachsen beginnt,
+        // sondern wenn es groß angekommen ist (kurz vor dem Halt)
+        plan.klicks.push({ t: Math.max(0, ph.intro + h.ab_s - TON_KLICK_VOR_HALT), laut: w.klickLaut });
+      }
+    }
+    return plan;
+  }
+  window.__rzTonPlan = () => { try { return _tonPlan(); } catch (e) { applog("warn", "[ton] Plan: " + e); return null; } };
+  // Lautstärke-Hülle der Musik zur Videozeit t (wie core/tonspur.py: quadratische Rampen, Ducken unter Clip-Ton)
+  function _tonHuelle(plan, t) {
+    const m = plan.musik; if (!m) return 0;
+    let g = 1;
+    if (m.ein_s > 0 && t < m.ein_s) g *= Math.pow(Math.max(0, t / m.ein_s), 2);
+    if (m.aus_s > 0 && t > plan.G - m.aus_s) g *= Math.pow(Math.max(0, (plan.G - t) / m.aus_s), 2);
+    for (const c of plan.clips) if (c.laut > 0 && t >= c.t - 0.4 && t <= c.t + c.dauer + 0.4) {
+      const k = t < c.t ? (c.t - t) / 0.4 : t > c.t + c.dauer ? (t - c.t - c.dauer) / 0.4 : 0;
+      g *= plan.ducken + (1 - plan.ducken) * Math.max(0, Math.min(1, k));
+    }
+    return g * m.laut;
+  }
+  // ── Vorschau: spielt, solange der Probelauf läuft (🔊 neben der Zeit schaltet den Vorschau-Ton aus) ──
+  const _TON_VS_KEY = "rz-anim-ton-vorschau";
+  const _tonVorschauAn = () => { try { return localStorage.getItem(_TON_VS_KEY) !== "0"; } catch (_) { return true; } };
+  const _tonUrls = new Map();   // eigene Datei → Medien-Server-Adresse
+  // Eingebaut wie eigene Dateien über den Medien-Server (HTTP mit Range — so spielt WKWebView <audio> verlässlich)
+  function _tonUrl(datei) {
+    if (!datei) return "";
+    if (_tonUrls.has(datei)) return _tonUrls.get(datei);
+    _tonUrls.set(datei, "");
+    api().ton_url(datei).then(r => { if (r && r.ok) _tonUrls.set(datei, r.url); }).catch(() => {});   // warte-ok: Hintergrund
+    return "";
+  }
+  const _tonV = { musik: null, clips: new Map(), letztT: null, klick: null };
+  function _tonMusikElement(url) {
+    const a = new Audio(url); a.loop = true; a.preload = "auto"; a.__url = url;
+    // Der Medien-Server hält nur die letzten 50 Dateien — fällt die Musik heraus, beim nächsten Mal neu anmelden
+    a.addEventListener("error", () => { for (const [k, v] of _tonUrls) if (v === url) _tonUrls.delete(k); if (_tonV.musik === a) _tonV.musik = null; });
+    return a;
+  }
+  function _tonStumm() {
+    try { if (_tonV.musik && !_tonV.musik.paused) _tonV.musik.pause(); } catch (_) {}
+    for (const q of _tonV.clips.values()) { try { q.src.stop(); } catch (_) {} }
+    _tonV.clips.clear();
+    _tonV.letztT = null;
+  }
+  function _tonNachstellen(a, soll, dauer) {
+    if (!(isFinite(soll))) return;
+    const ist = a.currentTime || 0;
+    let d = Math.abs(ist - soll);
+    if (dauer > 0) d = Math.min(d, dauer - d);   // Loop: kurz vor dem Ende ist „vorn" nah
+    if (d > 0.3) { try { a.currentTime = soll; } catch (_) {} }
+  }
+  function _tonVorschauTakt() {
+    if (window.__rzRenderMode || _isStaticFrame) return;
+    const laeuft = !!_previewRaf && _tonVorschauAn();
+    if (!laeuft) { if (_tonV.letztT != null || (_tonV.musik && !_tonV.musik.paused)) _tonStumm(); return; }
+    const plan = _tonPlan();
+    if (!plan) return;
+    const t = _tpZeitJetzt();
+    // Musik
+    const url = plan.musik ? _tonUrl(plan.musik.datei) : "";
+    if (!url) { try { if (_tonV.musik && !_tonV.musik.paused) _tonV.musik.pause(); } catch (_) {} }
+    else {
+      if (!_tonV.musik || _tonV.musik.__url !== url) {
+        try { if (_tonV.musik) _tonV.musik.pause(); } catch (_) {}
+        _tonV.musik = _tonMusikElement(url);
+      }
+      const a = _tonV.musik, dur = a.duration;
+      if (isFinite(dur) && dur > 0) _tonNachstellen(a, t % dur, dur);
+      a.volume = Math.max(0, Math.min(1, _tonHuelle(plan, t)));
+      if (a.paused) { const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+    }
+    // Klicks: beim Überschreiten der Marke (Sprünge über 0,5 s klicken nicht) — Web Audio
+    const vor = _tonV.letztT;
+    if (vor != null && t > vor && t - vor < 0.5) {
+      const ku = _tonKlickUrl();
+      for (const k of plan.klicks) if (k.t > vor && k.t <= t && ku) _tonPufferSpielen(ku, 0, k.laut);
+    }
+    // Clip-Ton (Web Audio, Ausschnitt als kleine WAV vom Backend)
+    const aktiv = new Set();
+    for (const c of plan.clips) {
+      if (!(t >= c.t && t <= c.t + c.dauer)) continue;
+      const key = c.pfad + "|" + c.ab + "|" + c.dauer;
+      aktiv.add(key);
+      const url = _tonClipUrl(c);
+      const buf = url ? _tonPufferHolen(url) : null;
+      if (!buf) continue;
+      let q = _tonV.clips.get(key);
+      const soll = t - c.t, ctx = _tonKontext();
+      if (q && Math.abs((ctx.currentTime - q.t0) + q.ab - soll) > 0.3) { try { q.src.stop(); } catch (_) {} q = null; }
+      if (!q) { const src = _tonPufferSpielen(url, soll, c.laut); if (src) _tonV.clips.set(key, { src, t0: ctx.currentTime, ab: soll }); }
+    }
+    for (const [k, q] of _tonV.clips) if (!aktiv.has(k)) { try { q.src.stop(); } catch (_) {} _tonV.clips.delete(k); }
+    _tonV.letztT = t;
+  }
+  // Web Audio: ein Kontext, beim Abspielen (Nutzeraktion) freigeschaltet; Puffer je Adresse (XHR — fetch kann kein file://)
+  let _tonCtx = null;
+  const _tonPuffer = new Map();
+  function _tonKontext() {
+    if (!_tonCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) { try { _tonCtx = new C(); } catch (_) { _tonCtx = null; } } }
+    return _tonCtx;
+  }
+  function _tonPufferHolen(url) {
+    const v = _tonPuffer.get(url);
+    if (v && typeof v === "object") return v;
+    if (v !== undefined) return null;
+    const ctx = _tonKontext(); if (!ctx || !url) return null;
+    _tonPuffer.set(url, "laedt");
+    const x = new XMLHttpRequest();
+    x.open("GET", url); x.responseType = "arraybuffer";
+    x.onload = () => { try { ctx.decodeAudioData(x.response, (b) => _tonPuffer.set(url, b), () => _tonPuffer.set(url, "fehlt")); } catch (_) { _tonPuffer.set(url, "fehlt"); } };
+    x.onerror = () => _tonPuffer.set(url, "fehlt");
+    try { x.send(); } catch (_) { _tonPuffer.set(url, "fehlt"); }
+    return null;
+  }
+  function _tonPufferSpielen(url, ab, laut) {
+    const ctx = _tonKontext(), buf = _tonPufferHolen(url);
+    if (!ctx || !buf || ctx.state !== "running") return null;
+    try {
+      const s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = buf; g.gain.value = Math.max(0, Math.min(1.5, laut));
+      s.connect(g); g.connect(ctx.destination);
+      s.start(0, Math.max(0, Math.min(buf.duration - 0.01, ab || 0)));
+      return s;
+    } catch (_) { return null; }
+  }
+  // Klick über den Medien-Server (XHR auf file:// blockt WebKit je nach Einstellung)
+  let _tonKlick = null;
+  function _tonKlickUrl() {
+    if (_tonKlick !== null) return _tonKlick;
+    _tonKlick = "";
+    api().ton_url(_tonWerte().klickKlang).then(r => { if (r && r.ok) { _tonKlick = r.url; _tonPufferHolen(r.url); } }).catch(() => {});   // warte-ok: Hintergrund
+    return "";
+  }
+  const _tonClipUrls = new Map();
+  function _tonClipUrl(c) {
+    const key = c.pfad + "|" + c.ab + "|" + c.dauer;
+    if (_tonClipUrls.has(key)) return _tonClipUrls.get(key);
+    _tonClipUrls.set(key, "");
+    api().clip_ton(c.pfad, c.ab, c.dauer).then(r => { if (r && r.ok) _tonClipUrls.set(key, r.url); }).catch(() => {});   // warte-ok: Hintergrund
+    return "";
+  }
+  /** Im Klick/Tastendruck (runTimelinePreview): Kontext freischalten, Musik-Element einmal in der Nutzeraktion starten —
+   *  WebKit lässt Ton sonst ggf. nicht zu; einmal so gestartet, darf das Element später weiterspielen. */
+  function _tonEntsperren() {
+    if (window.__rzRenderMode || _isStaticFrame || !_tonVorschauAn()) return;
+    const ctx = _tonKontext();
+    if (ctx && ctx.state !== "running") { try { ctx.resume(); } catch (_) {} }
+    try { const ku = _tonKlickUrl(); if (ku) _tonPufferHolen(ku); } catch (_) {}
+    const plan = _tonPlan();
+    const url = plan && plan.musik ? _tonUrl(plan.musik.datei) : "";
+    if (!url) return;
+    if (!_tonV.musik || _tonV.musik.__url !== url) {
+      try { if (_tonV.musik) _tonV.musik.pause(); } catch (_) {}
+      _tonV.musik = _tonMusikElement(url);
+    }
+    const a = _tonV.musik;
+    if (a.paused) { a.volume = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+  }
+  let _tonTakt = null;
+  if (!_isStaticFrame && !window.__rzRenderMode) _tonTakt = setInterval(() => { try { _tonVorschauTakt(); } catch (_) {} }, 50);
+  // ── Spur „Ton" in der Zeitleiste ──
+  let _tonSpurOffen = (() => { try { return localStorage.getItem("rz-ton-spur-offen") === "1"; } catch (_) { return false; } })();
+  function _tonSpurJetzt() {
+    if (_isStaticFrame || !_tlBar || typeof _tlBar.setTon !== "function") return;
+    const plan = _tonPlan();
+    if (!plan || !(plan.G > 0)) { _tlBar.setTon([]); return; }
+    // Adressen schon jetzt holen: dann kann der erste Druck auf ▶ den Ton freischalten (Nutzeraktion)
+    try { if (plan.musik) _tonUrl(plan.musik.datei); if (plan.klicks.length) _tonKlickUrl(); } catch (_) {}
+    const L = (t) => _ovLeisteAusZeit(Math.max(0, Math.min(plan.G, t)));
+    const w = _tonWerte();
+    const name = w.musik.startsWith("builtin:") ? t("animator.ton.unterwegs", "Unterwegs (eingebaut)") : String(w.musik).split(/[\\/]/).pop();
+    const zeilen = [{ id: "musik", name: t("animator.ton.musik", "Musik"), enabled: !!plan.musik, farbe: "#5ccfa0",
+      tip: plan.musik ? "" : t("animator.ton.musik_aus_tip", "Keine Musik — Doppelklick auf „Musik“ öffnet die Einstellungen."),
+      segmente: [{ an: L(0), aus: L(plan.G), einBis: L(plan.musik ? plan.musik.ein_s : 0), ausAb: L(plan.G - (plan.musik ? plan.musik.aus_s : 0)),
+                   festL: true, festR: true, text: plan.musik ? "♪ " + name + " · " + Math.round(w.laut * 100) + " %" : t("animator.ton.keine_musik", "keine Musik") }] }];
+    if (plan.klicks.length) zeilen.push({ id: "klick", name: t("animator.ton.klick", "Foto-Klick"), enabled: true, farbe: "#ffd166",
+      segmente: plan.klicks.map(k => ({ an: L(k.t), aus: L(k.t + 0.25), ohneBlende: true, festL: true, festR: true, marke: true, text: "" })) });
+    if (plan.clips.length) zeilen.push({ id: "clipton", name: t("animator.ton.clipton", "Clip-Ton"), enabled: true, farbe: "#7fb2ff",
+      segmente: plan.clips.map(c => ({ an: L(c.t), aus: L(c.t + c.dauer), ohneBlende: true, festL: true, festR: true, marke: true,
+                                       text: String(c.pfad).split(/[\\/]/).pop() })) });
+    _tlBar.setTon(zeilen, { offen: _tonSpurOffen });
+  }
+  function _tonSpurGezogen(id, griff, neu) {
+    if (id !== "musik" || (griff !== "ein" && griff !== "aus")) { _tonSpurJetzt(); return; }
+    const G = _sgPhasen().G;
+    const r1 = (x) => Math.round(x * 10) / 10;
+    const el = griff === "ein" ? _tonEl("anim-ton-ein") : _tonEl("anim-ton-aus");
+    const v = griff === "ein" ? r1(_ovZeitAusLeiste(neu.einBis)) : r1(G - _ovZeitAusLeiste(neu.ausAb));
+    if (el) { el.value = String(Math.max(0, v)); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); }
+    _tonSpurJetzt();
+  }
+  function _tonSektionOeffnen() {
+    const sec = document.getElementById("anim-ton-section"); if (!sec) return;
+    const b = sec.querySelector(".section-collapse-body"), h = sec.querySelector(".section-collapse-header");
+    if (b && b.hidden && h) h.click();
+    try { sec.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {}
+    if (_ansicht && !_ansicht().seite) { try { const a = _ansicht(); a.seite = true; localStorage.setItem(_ANSICHT_KEY, JSON.stringify(a)); _ansichtAnwenden(); } catch (_) {} }
+  }
+  window.__rzTon = { plan: () => _tonPlan(), spur: () => _tonSpurJetzt(), vorschau: () => _tonV, takt: () => _tonVorschauTakt(),
+                     kontext: () => (_tonCtx ? _tonCtx.state : null),
+                     puffer: () => [..._tonPuffer.entries()].map(([k, v]) => [String(k).split("/").pop(), typeof v === "object" ? +v.duration.toFixed(2) : v]),
+                     clipsLaufen: () => _tonV.clips.size };   // Prüfstand
 
   let _tempoSchreibt = false;   // verhindert die Schleife Dauer → Kurve → Dauer
 
@@ -8137,6 +8562,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function runTimelinePreview(forceStart) {
+    try { _tonEntsperren(); } catch (_) {}   // 02.10.2026 — im Klick/Tastendruck: Ton für die Vorschau freischalten
     if (!map) return;
     // v0.9.409 — Cold-Start-Heilung (Beta-Tester-Bug): Nach App-Neustart ist die
     // gemerkte Route zwar sichtbar, aber `currentCoords` (Modul-State) kann leer
@@ -9154,6 +9580,13 @@ function mountAnimator(body, headerActions, opts) {
       // Tastenwiederholung — am Ende stand der Lauf zufällig an oder aus.
       if (istSpace && e.repeat) { e.preventDefault(); e.stopPropagation(); return; }
       { const ov = document.getElementById("modal-overlay"); if (ov && !ov.hidden) return; }   // Dialog offen: Tasten gehören ihm
+      // 02.10.2026 (Marc: „mit Command+ und Command- die Timeline zoomen") — ⌘+ / ⌘− / ⌘0 (Windows: Strg)
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && ["+", "=", "-", "_", "0"].includes(e.key)) {
+        const id = (e.key === "+" || e.key === "=") ? "tl-zoom-in" : e.key === "0" ? "tl-zoom-reset" : "tl-zoom-out";
+        const b = document.getElementById(id);
+        if (b && b.offsetParent) { e.preventDefault(); e.stopPropagation(); b.click(); }
+        return;
+      }
       if (!istSpace && (tag === "input" || tag === "select")) return;   // Pfeile gehören dem Regler
       if (istSpace) {
         // Space: Probe-Lauf toggle (Start/Stop). Ohne Koordinaten-Vorprüfung — der
@@ -10122,6 +10555,14 @@ function mountAnimator(body, headerActions, opts) {
         onOverlayNeu:      () => _ovSpurAktualisieren(),
         // 28.09.2026 — Schilder-Spur (Marc: „Schilder wie die Overlays in der Timeline, ziehen, wie lange und wo")
         onSchildNeu:       () => _sgSpurAktualisieren(),
+        // 02.10.2026 — Ton-Spur (Musik, Foto-Klicks, Clip-Ton)
+        onTonNeu:          () => _sgSpurAktualisieren(),
+        onTonOffen:        (v) => { _tonSpurOffen = !!v; try { localStorage.setItem("rz-ton-spur-offen", v ? "1" : "0"); } catch (_) {} },
+        onTonOeffnen:      () => _tonSektionOeffnen(),
+        onTonText:         (id, griff, neu) => { if (id !== "musik") return null; const G = _sgPhasen().G, z = (x) => (Math.round(x * 10) / 10).toLocaleString(window.rzSprachCode ? window.rzSprachCode() : undefined);
+                                                 return griff === "ein" ? t("animator.ton.ein", "Einblenden (s)") + ": " + z(_ovZeitAusLeiste(neu.einBis)) + " s"
+                                                      : griff === "aus" ? t("animator.ton.aus", "Ausblenden (s)") + ": " + z(G - _ovZeitAusLeiste(neu.ausAb)) + " s" : null; },
+        onTonZiehen:       (id, griff, neu) => { try { _tonSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[ton] " + err); } },
         onSchilderOffen:   (v) => { _sgSpurOffen = !!v; try { localStorage.setItem("rz-sg-spur-offen", v ? "1" : "0"); } catch (_) {} },
         onSchildOeffnen:   (id) => { try { const i = _sgIndexVonId(id); const S = window.__rzAnimSigns && window.__rzAnimSigns.spur; if (i >= 0 && S) S.oeffnen(i); } catch (err) { applog("warn", "[sg-spur] " + err); } },
         onSchildText:      (id, griff, neu) => _sgSpurText(id, griff, neu),
@@ -10894,7 +11335,7 @@ function mountAnimator(body, headerActions, opts) {
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
                                "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
-                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_ortzeit", "stopp_exif", "stopp_bei"]);
+                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_ortzeit", "stopp_exif", "stopp_bei", "clip"]);
     // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
     // zwischen zwei Aufbauten dasselbe (jede Änderung erzeugt über `_animSignsSave` neue
     // Objekte), nur Bild und Pixelmaß können sich noch ändern — die stehen im Merker mit.
@@ -11883,8 +12324,8 @@ function mountAnimator(body, headerActions, opts) {
               <label for="se-stopp">${t("signs.stopp", "Hier anhalten")}</label>
               <span class="se-inline"><input type="checkbox" id="se-stopp"${chk(c.stopp)}></span>
               <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${t("signs.stopp_hint", "Erreicht der Track das Foto, hält er an: Die Kamera fährt heran, das Foto erscheint groß, danach geht es weiter. Das Video wird um Anflug, Foto und Abflug länger.")}</div>
-              <label for="se-stopp-s">${t("signs.stopp_s", "Foto zeigen (Sek.)")}</label>
-              <input type="number" id="se-stopp-s" min="0.5" max="30" step="0.5" value="${_fsZahlE(c.stopp_s, 3)}">
+              <label for="se-stopp-s"${c.clip && c.clip.pfad ? ' style="display:none"' : ""}>${t("signs.stopp_s", "Foto zeigen (Sek.)")}</label>
+              <input type="number" id="se-stopp-s"${c.clip && c.clip.pfad ? ' style="display:none"' : ""} min="0.5" max="30" step="0.5" value="${_fsZahlE(c.stopp_s, 3)}">
               <label for="se-stopp-an">${t("signs.stopp_anflug", "Anflug (Sek.)")}</label>
               <input type="number" id="se-stopp-an" min="0" max="5" step="0.1" value="${_fsZahlE(c.stopp_anflug_s, 1)}">
               <label for="se-stopp-ab">${t("signs.stopp_abflug", "Abflug (Sek.)")}</label>
@@ -11893,13 +12334,27 @@ function mountAnimator(body, headerActions, opts) {
               <input type="range" id="se-stopp-zoom" min="0" max="4" step="0.25" value="${_fsZahlE(c.stopp_zoom, 1.5)}">
               <label for="se-stopp-schwenk">${t("signs.stopp_schwenk", "Karte schwenken (°)")}</label>
               <input type="number" id="se-stopp-schwenk" min="0" max="10" step="0.5" value="${_fsZahlE(c.stopp_schwenk, 2)}">
-              <label for="se-stopp-ken">${t("signs.stopp_ken", "Foto heranzoomen (%)")}</label>
-              <input type="number" id="se-stopp-ken" min="0" max="30" step="1" value="${_fsZahlE(c.stopp_ken, 8)}">
+              <label for="se-stopp-ken"${c.clip && c.clip.pfad ? ' style="display:none"' : ""}>${t("signs.stopp_ken", "Foto heranzoomen (%)")}</label>
+              <input type="number" id="se-stopp-ken"${c.clip && c.clip.pfad ? ' style="display:none"' : ""} min="0" max="30" step="1" value="${_fsZahlE(c.stopp_ken, 8)}">
               <label for="se-stopp-ortzeit">${t("signs.stopp_ortzeit", "Ort und Uhrzeit")}</label>
               <span class="se-inline"><input type="checkbox" id="se-stopp-ortzeit"${chk(c.stopp_ortzeit !== false)}></span>
               <label for="se-stopp-exif">${t("signs.stopp_exif", "Kameradaten (EXIF)")}</label>
               <span class="se-inline"><input type="checkbox" id="se-stopp-exif"${chk(c.stopp_exif)}></span>
             </div>
+            ${c.clip && c.clip.pfad ? `
+            <!-- 02.10.2026 — Videoclip: Ausschnitt und Ton -->
+            <div class="se-group-title">${t("signs.grp.clip", "🎞 Videoclip")}</div>
+            <div class="se-grid">
+              <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${_animEscapeHtml(String(c.clip.pfad).split(/[\\/]/).pop())} · ${_fsZahlE(c.clip.laenge, 0)} s</div>
+              <label for="se-clip-ab">${t("signs.clip_ab", "Ab Sekunde")}</label>
+              <input type="number" id="se-clip-ab" min="0" max="${Math.max(0, (+c.clip.laenge || 0) - 0.5)}" step="0.1" value="${_fsZahlE(c.clip.ab, 0)}">
+              <label for="se-clip-dauer">${t("signs.clip_dauer", "Länge (Sek.)")}</label>
+              <input type="number" id="se-clip-dauer" min="0.5" max="30" step="0.1" value="${_fsZahlE(c.clip.dauer, 4)}">
+              <label for="se-clip-ton">${t("signs.clip_ton", "Originalton")}</label>
+              <span class="se-inline"><input type="checkbox" id="se-clip-ton"${chk(c.clip.ton)}></span>
+              <label for="se-clip-laut">${t("animator.ton.laut", "Lautstärke")}</label>
+              <input type="range" id="se-clip-laut" min="0" max="150" step="5" value="${Math.round((c.clip.laut != null ? +c.clip.laut : 1) * 100)}">
+            </div>` : ""}
           </div>
 
           <div class="se-group-title">${t("signs.grp.shape", "Form & Akzent")}</div>
@@ -12145,6 +12600,15 @@ function mountAnimator(body, headerActions, opts) {
           stopp_ken: (() => { const v = parseFloat($("#se-stopp-ken")?.value); return isFinite(v) ? Math.max(0, Math.min(30, v)) : 8; })(),
           stopp_ortzeit: $("#se-stopp-ortzeit") ? $("#se-stopp-ortzeit").checked : true,
           stopp_exif: !!($("#se-stopp-exif") && $("#se-stopp-exif").checked),
+          // 02.10.2026 — Videoclip: Ausschnitt (ab/Länge, innerhalb der Clip-Länge) und Ton
+          ...(l2[idx].clip && l2[idx].clip.pfad ? { clip: (() => {
+            const c0 = l2[idx].clip, lang = Math.max(0.5, +c0.laenge || 30);
+            const ab = Math.max(0, Math.min(lang - 0.5, parseFloat($("#se-clip-ab")?.value) || 0));
+            const dauer = Math.max(0.5, Math.min(30, lang - ab, parseFloat($("#se-clip-dauer")?.value) || 4));
+            const laut = parseFloat($("#se-clip-laut")?.value);
+            return Object.assign({}, c0, { ab: Math.round(ab * 10) / 10, dauer: Math.round(dauer * 10) / 10,
+                                           ton: !!($("#se-clip-ton") && $("#se-clip-ton").checked), laut: isFinite(laut) ? laut / 100 : 1 });
+          })() } : {}),
         };
         // v0.9.254 — das gecachte Bild-Element (`_imgEl`) ist NON-ENUMERABLE und
         // überlebt den Objekt-Spread NICHT. Vor dem Neubau merken und danach wieder
@@ -13419,7 +13883,7 @@ function mountAnimator(body, headerActions, opts) {
     el.innerHTML = `<span class="anim-ueb-schild">${t("animator.ueb.nur_ansicht", "nur Ansicht")}</span>`
       + `<button type="button" class="anim-ueb-zu" title="${t("animator.ueb.zu", "Übersicht ausblenden")}">–</button>`
       + `<button type="button" class="anim-ueb-fit" hidden title="${t("animator.ueb.fit", "Ansicht zurücksetzen: deine von Hand eingestellte Ansicht verwerfen, wieder der ganze Track")}">⤢</button>`
-      + `<svg class="anim-ueb-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><polyline class="anim-ueb-track" points=""/>`
+      + `<svg class="anim-ueb-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><path class="anim-ueb-track" d=""/>`
       + `<polygon class="anim-ueb-rahmen" points=""/><circle class="anim-ueb-punkt" r="3" cx="-20" cy="-20"/></svg>`;
     const auf = document.createElement("button");
     auf.type = "button"; auf.id = "anim-uebersicht-auf"; auf.className = "anim-ueb-auf"; auf.textContent = "🗺";
@@ -13443,6 +13907,36 @@ function mountAnimator(body, headerActions, opts) {
     if (_uebTimer) clearInterval(_uebTimer);
     _uebTimer = setInterval(_uebZeichnen, 100);
   }
+  /** Strecke in Linienzüge zerlegen: an den Tourgrenzen einer Reise und an großen Sprüngen (> 2 km und > 8 % der
+   *  Ausdehnung). Liefert je Teil die ausgedünnten Indizes (höchstens ~max Punkte insgesamt, Grenzen immer dabei). */
+  function _spurTeile(cs, max) {
+    const n = Array.isArray(cs) ? cs.length : 0;
+    if (n < 2) return [];
+    const grenzen = new Set();
+    try {
+      if (_reiseAktiv() && _reiseBahn && Array.isArray(_reiseBahn.teile) && _reiseBahn.teile.length > 1)
+        for (const te of _reiseBahn.teile.slice(1)) if (te.von > 0 && te.von < n) grenzen.add(te.von);
+    } catch (_) {}
+    let la0 = Infinity, la1 = -Infinity, lo0 = Infinity, lo1 = -Infinity;
+    for (const c of cs) { if (c[1] < la0) la0 = c[1]; if (c[1] > la1) la1 = c[1]; if (c[0] < lo0) lo0 = c[0]; if (c[0] > lo1) lo1 = c[0]; }
+    const cl = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+    const diag = Math.hypot((la1 - la0) * 111320, (lo1 - lo0) * 111320 * cl);
+    const sprung = Math.max(2000, diag * 0.08);
+    for (let i = 1; i < n; i++) {
+      const a = cs[i - 1], b = cs[i];
+      if (Math.hypot((b[1] - a[1]) * 111320, (b[0] - a[0]) * 111320 * cl) > sprung) grenzen.add(i);
+    }
+    const g = [...grenzen].sort((x, y) => x - y);
+    const schritt = Math.max(1, Math.floor(n / (max || 500)));
+    const teile = [];
+    let a = 0;
+    for (const b of g.concat([n])) {
+      if (b - a >= 2) { const t = []; for (let i = a; i < b; i += schritt) t.push(i); if (t[t.length - 1] !== b - 1) t.push(b - 1); teile.push(t); }
+      a = b;
+    }
+    return teile;
+  }
+  window.__rzSpurTeile = (cs, max) => _spurTeile(cs, max);   // Prüfstand
   function _uebZeichnen() {
     const el = document.getElementById("anim-uebersicht");
     if (!el || el.hidden || !map || !Array.isArray(currentCoords) || currentCoords.length < 2) return;
@@ -13460,11 +13954,10 @@ function mountAnimator(body, headerActions, opts) {
       _uebRahmen = { x0, y1, w, h, W, H, key };
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       const P0 = (lng, lat) => [(_uebMx(lng) - x0) / w * W, (y1 - _uebMy(lat)) / h * H];
-      const schritt = Math.max(1, Math.floor(n / 500)), pts = [];
-      for (let i = 0; i < n; i += schritt) { const p = P0(currentCoords[i][0], currentCoords[i][1]); pts.push(p[0].toFixed(1) + "," + p[1].toFixed(1)); }
-      const pl = P0(z[0], z[1]); pts.push(pl[0].toFixed(1) + "," + pl[1].toFixed(1));
+      // 02.10.2026 (Marc, Screenshot „66 Seen", 15 Touren): je Tour ein eigener Linienzug — vorher eine Linie über
+      // alle, die Sprünge zwischen den Touren wurden zu Diagonalen quer durchs Bild
       const linie = el.querySelector(".anim-ueb-track");
-      linie.setAttribute("points", pts.join(" "));
+      linie.setAttribute("d", _spurTeile(currentCoords, 500).map(t => "M" + t.map(i => { const p = P0(currentCoords[i][0], currentCoords[i][1]); return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L")).join(""));
       try { linie.style.stroke = currentLineColor(); } catch (_) {}
     }
     const R = _uebRahmen, mitte = (R.x0 + R.w / 2) * 180 / Math.PI;
@@ -13486,7 +13979,8 @@ function mountAnimator(body, headerActions, opts) {
   }
   window.__rzUebersicht = () => { const el = document.getElementById("anim-uebersicht"); if (!el) return null;   // Prüfstand
     return { zustand: _uebZustand(), hidden: el.hidden, gross: el.classList.contains("gross"), w: el.clientWidth,
-             punkte: (el.querySelector(".anim-ueb-track").getAttribute("points") || "").split(" ").filter(Boolean).length,
+             punkte: ((el.querySelector(".anim-ueb-track").getAttribute("d") || "").match(/[ML]/g) || []).length,
+             teile: ((el.querySelector(".anim-ueb-track").getAttribute("d") || "").match(/M/g) || []).length,
              rahmen: el.querySelector(".anim-ueb-rahmen").getAttribute("points") || "",
              punkt: [+el.querySelector(".anim-ueb-punkt").getAttribute("cx"), +el.querySelector(".anim-ueb-punkt").getAttribute("cy")], W: el.clientWidth, H: el.clientHeight }; };
   _uebAufbauen();
@@ -13559,6 +14053,7 @@ function mountAnimator(body, headerActions, opts) {
     const el = document.getElementById("anim-transport"); if (!el || !el.offsetParent) return;
     const z = el.querySelector(".tp-zeit"); if (z) z.textContent = `${_tpText(_tpZeitJetzt())} / ${_tpText(_tpG())}`;
     const p = el.querySelector('[data-tp="play"]'); if (p) { const an = !!_previewRaf; p.textContent = an ? "⏸" : "▶"; p.classList.toggle("an", an); }
+    const tb = el.querySelector('[data-tp="ton"]'); if (tb) { const an = _tonVorschauAn(); tb.textContent = an ? "🔊" : "🔇"; tb.classList.toggle("ist-stumm", !an); }
   }
   function _tpAufbauen() {
     if (_isStaticFrame || window.__rzRenderMode) return;
@@ -13576,7 +14071,8 @@ function mountAnimator(body, headerActions, opts) {
       ["kante+", "⇥", k(t("animator.tp.kante_vor", "Zur nächsten Kante (Keyframe, Einblendung, Schild, Halt)"), "↓")],
       ["ende", "⏭", k(t("animator.tp.ende", "Zum Ende"), t("animator.tp.taste_ende", "Ende"))],
     ].map(([id, sym, tip]) => `<button type="button" class="tp-knopf" data-tp="${id}" title="${tip}">${sym}</button>`).join("")
-      + `<span class="tp-zeit">0:00.0 / 0:00.0</span>`;
+      + `<span class="tp-aussen"><span class="tp-zeit">0:00.0 / 0:00.0</span>`
+      + `<button type="button" class="tp-knopf tp-ton" data-tp="ton" title="${t("animator.tp.ton", "Ton der Vorschau an/aus (Musik, Klicks, Clip-Ton)")}">🔊</button></span>`;
     host.appendChild(el);
     _tpPlatzieren();
     el.addEventListener("click", (e) => {
@@ -13589,6 +14085,7 @@ function mountAnimator(body, headerActions, opts) {
       else if (was === "bild+") _tpBild(gross ? _tpFps() : 1);
       else if (was === "kante-") _tpKante(-1);
       else if (was === "kante+") _tpKante(1);
+      else if (was === "ton") { try { localStorage.setItem(_TON_VS_KEY, _tonVorschauAn() ? "0" : "1"); } catch (_) {} if (!_tonVorschauAn()) _tonStumm(); }
       b.blur();
       setTimeout(_tpAnzeigen, 50);
     });
@@ -14786,6 +15283,33 @@ function mountAnimator(body, headerActions, opts) {
     if (_sgSpurRaf) return;
     _sgSpurRaf = requestAnimationFrame(() => { _sgSpurRaf = 0; try { _sgSpurJetzt(); } catch (e) { applog("warn", "[sg-spur] " + e); } });
   }
+  // 02.10.2026 (Marc: „Höhenprofil ganz klein in der Timeline … dass sich der Track abhebt") — ~300 Werte je
+  // Streckenanteil an die Tempo-Spur; neu nur, wenn sich die Höhen geändert haben.
+  let _hoeheLetzt = undefined;
+  function _hoeheSpurSync() {
+    if (!_tlBar || typeof _tlBar.setHoehe !== "function" || _hoeheLetzt === _gpxElevations) return;
+    _hoeheLetzt = _gpxElevations;
+    const e = Array.isArray(_gpxElevations) ? _gpxElevations : [];
+    const gueltig = e.filter(x => isFinite(+x) && +x !== 0).length > e.length * 0.3;
+    if (e.length < 2 || !gueltig) { _tlBar.setHoehe(null); return; }
+    const N = Math.min(300, e.length), raus = [];
+    for (let i = 0; i < N; i++) {
+      const a = i / (N - 1) * (e.length - 1), i0 = Math.floor(a), i1 = Math.min(e.length - 1, i0 + 1), f = a - i0;
+      raus.push((+e[i0] || 0) * (1 - f) + (+e[i1] || 0) * f);
+    }
+    _tlBar.setHoehe(raus);
+  }
+  // Fotostopps zeichnen keine Fotokarte (nur den Pin) → kein geladenes Bild am Schild: kleines Vorschaubild holen.
+  const _sgMini = new Map();
+  function _sgMiniBild(src) {
+    if (!src) return "";
+    if (_sgMini.has(src)) return _sgMini.get(src);
+    _sgMini.set(src, "");
+    api().sign_image_thumb(src, 96).then(r => {   // warte-ok: Hintergrund, die Spur zeichnet danach neu
+      if (r && r.ok && r.thumb) { _sgMini.set(src, r.thumb); _sgSpurAktualisieren(); }
+    }).catch(() => {});
+    return "";
+  }
   function _sgSpurJetzt() {
     if (!_sgS()) { _tlBar.setSchilder([]); return; }
     const ph = _sgPhasen();
@@ -14803,14 +15327,22 @@ function mountAnimator(body, headerActions, opts) {
       zeilen.push({
         id: _sgIdVon(i), name, enabled: s.visible !== false, farbe: sn.color && sn.color !== "auto" ? sn.color : "#ff8a5c",
         tip: "",
+        // 02.10.2026 — Foto klein im Balken (sonst das Symbol: Highlight-Zeichen, 📸 beim Fotostopp, 🚩)
+        bild: s.thumb || (s._imgEl && s._imgEl.src && s._imgEl.src.length < 400000 ? s._imgEl.src : "") || _sgMiniBild(s.imageSrc),
+        symbol: (s.clip && s.clip.pfad) ? "▶" : (s.imageSrc ? "📷" : "🚩"),
+        // Highlight-Pille, Logbuch-Schild: ihr Zeichen (Gipfel, Tasse …) in ihrer Farbe
+        iconSvg: (!s.imageSrc && s.icon && window.__rzHlIconSvg) ? window.__rzHlIconSvg(s.icon, sn.color && sn.color !== "auto" ? sn.color : null) : "",
         segmente: [{ an: _ovLeisteAusZeit(tAn), aus: _ovLeisteAusZeit(tAus),
                      einBis: _ovLeisteAusZeit(Math.min(tAus, tAn + einS)), ausAb: _ovLeisteAusZeit(Math.max(tAn, tAus - ausS)),
                      ohneBlende: immer,
-                     text: immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + (m.a_hide >= 1.5 ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s")),
+                     // 02.10.2026 (Marc: „den Namen des Schildes … sehen") — Name vorn, Zeit dahinter
+                     text: name.replace(/\s+/g, " ") + " · " + (immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + (m.a_hide >= 1.5 ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s"))),
                      immer }],
       });
     });
     _tlBar.setSchilder(zeilen, { offen: _sgSpurOffen, minAnteil: 0.3 / Math.max(1, ph.G) });
+    try { _tonSpurJetzt(); } catch (e) { applog("warn", "[ton] Spur: " + e); }
+    try { _hoeheSpurSync(); } catch (_) {}
     _kantenSg = zeilen.filter(x => x.enabled && !x.segmente[0].immer).flatMap(x => [x.segmente[0].an * ph.G, x.segmente[0].aus * ph.G]);   // 02.10.2026
   }
   /** Aus der gezogenen Balken-Lage (Leisten-Positionen) die neuen Schild-Werte. */
@@ -14895,7 +15427,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** 30.09.2026 — Container als Spur-Einträge (alle, auch ausgeschaltete). */
   var _CT_SPUR_FARBE = { live: "#7fdcff", gesamt: "#e8a0ff", hoehe: "#9be58f", titel: "#ffd166", schluss: "#ffa94d",
-                           logo: "#c9ced8", nord: "#c9ced8", diagramm: "#4ecdc4", rahmen: "#c77dff" };
+                           logo: "#c9ced8", nord: "#c9ced8", diagramm: "#4ecdc4", rahmen: "#c77dff", uebersicht: "#5ccfa0" };
   function _ctSpurBoxen() {
     const C = window.rzContainer;
     if (!C) return [];
@@ -15192,6 +15724,18 @@ function mountAnimator(body, headerActions, opts) {
       groesse: Number(a.highlights_groesse) > 0 ? Number(a.highlights_groesse) : 30,
     };
   }
+  const _hlGipfel = new Map();   // "lat,lon" → Name | "" (keiner) | null (wird gefragt)
+  function _hlGipfelName(lat, lon) {
+    const k = (+lat).toFixed(5) + "," + (+lon).toFixed(5);
+    if (_hlGipfel.has(k)) return _hlGipfel.get(k) || "";
+    _hlGipfel.set(k, null);
+    api().ort_am_punkt(lat, lon, 300, true).then(r => {   // warte-ok: Hintergrund, das Schild wird danach neu abgeglichen
+      const n = (r && r.ok && r.ort && r.ort.name) || "";
+      _hlGipfel.set(k, n);
+      if (n) { try { _hlSchilderAbgleichen(true); } catch (_) {} }
+    }).catch(() => _hlGipfel.delete(k));
+    return "";
+  }
   function _hlSchilderAbgleichen(leise) {
     const sg = window.__rzAnimSigns && window.__rzAnimSigns.spur;
     if (!sg || _isStaticFrame || _isReiseroute || window.__rzRenderMode || !_activeProject) return 0;
@@ -15210,8 +15754,10 @@ function mountAnimator(body, headerActions, opts) {
         if (belegt.has(key)) continue;
         const c = co[Math.min(h.i, co.length - 1)];
         const farbe = ps.farbmodus === "art" ? ((window.__rzHlFarben || {})[h.art] || ps.farbe) : ps.farbe;
+        // 02.10.2026 — am höchsten Punkt der Name des Gipfels, wenn einer daneben liegt (sonst „Höchster Punkt")
+        const gipfel = h.art === "hoechster" ? _hlGipfelName(c[1], c[0]) : "";
         const s = sg.normalize({ ...HL_SCHILD, style: ps.stil, color: farbe, size: ps.groesse, icon: h.art,
-                                 text: _hlText(h.art) + "\n" + h.wert, lat: c[1], lon: c[0], auto: key });
+                                 text: (gipfel || _hlText(h.art)) + "\n" + h.wert, lat: c[1], lon: c[0], auto: key });
         s.auto_sig = _hlSig(s);
         neu.push(s);
       }
@@ -15550,6 +16096,16 @@ function mountAnimator(body, headerActions, opts) {
       if (z.art === "daten") {
         return `<div class="ct-z ct-dia ct-daten" data-f="${escA(z.id)}" style="${box}"><div class="ct-chart-host"></div></div>`;
       }
+      if (z.art === "karte") {   // 02.10.2026 — Übersichtskarte (gezeichnet in _ctKarteAt)
+        const lc = z.linienfarbe || currentLineColor();
+        return `<div class="ct-z ct-dia ct-karte-ueb" data-f="${escA(z.id)}" style="${box}">`
+          + `<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" class="ct-ueb-svg">`
+          // Strichstärken in Kästchen-Einheiten (1000 = Kantenlänge) → wachsen mit der Größe der Karte
+          + `<path class="ct-ueb-bg ct-ueb-schatten" d="" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>`
+          + `<path class="ct-ueb-bg" d="" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>`
+          + `<path class="ct-ueb-line" d="" fill="none" stroke="${lc}" stroke-width="19" stroke-linejoin="round" stroke-linecap="round"/>`
+          + `<circle class="ct-ueb-dot" cx="0" cy="0" r="30" fill="#ffffff" stroke="${lc}" stroke-width="14"/></svg></div>`;
+      }
       const lc = z.linienfarbe || currentLineColor();
       const gid = "ctg_" + String(z.id).replace(/[^A-Za-z0-9_]/g, "");
       return `<div class="ct-z ct-dia ct-hoehe" data-f="${escA(z.id)}" data-bereich="${z.bereich}" style="${box}">`
@@ -15596,6 +16152,7 @@ function mountAnimator(body, headerActions, opts) {
     _ctBilderSetzen(layer);
     _ctChartsSetzen(layer);
     try { _ctHoeheAt(_ctLetztFrac, true); } catch (e) { applog("warn", "[container] Höhenprofil: " + e); }
+    try { _ctKarteAt(_ctLetztFrac, true); } catch (e) { applog("warn", "[container] Übersichtskarte: " + e); }
     try { _ovUpdateNorthScale(true); } catch (_) {}
     if (_ctEditId) layer.querySelector(`.ct[data-ctid="${CSS.escape(_ctEditId)}"]`)?.classList.add("ct-aktiv");
   }
@@ -15663,6 +16220,7 @@ function mountAnimator(body, headerActions, opts) {
     _ctZustand();
     _ctLetztFrac = Math.max(0, Math.min(1, frac || 0));
     _ctHoeheAt(_ctLetztFrac, false);
+    try { _ctKarteAt(_ctLetztFrac, false); } catch (_) {}
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
     const reg = window.__rzInlineCharts || {};
@@ -15685,6 +16243,54 @@ function mountAnimator(body, headerActions, opts) {
       return { von: te.von, bis: te.bis, k, name: (e && e.tour && e.tour.name) || "", marken: [] };
     }
     return Object.assign(alles, { marken: _reiseBahn.teile.slice(1).map(te => te.von) });
+  }
+  // 02.10.2026 — Übersichtskarte im Video: ganze Strecke (Mercator, eingepasst), gefahrener Teil darüber, Punkt.
+  // Höchstens ~800 Punkte (gleichmäßig ausgedünnt); die Zeichnung hängt am Track, nicht an Kacheln → im Video sofort da.
+  let _ctUebCache = null;
+  function _ctUebPunkte() {
+    const cs = currentCoords;
+    if (!Array.isArray(cs) || cs.length < 2) return null;
+    if (_ctUebCache && _ctUebCache.cs === cs) return _ctUebCache;
+    const n = cs.length;
+    const mx = (lon) => lon * Math.PI / 180, my = (lat) => Math.log(Math.tan(Math.PI / 4 + Math.max(-85, Math.min(85, lat)) * Math.PI / 360));
+    const teile = _spurTeile(cs, 800);   // je Tour ein Linienzug (Reise), Sprünge getrennt
+    const roh = [];
+    for (const t of teile) for (const i of t) roh.push([i, mx(cs[i][0]), my(cs[i][1])]);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of roh) { if (p[1] < x0) x0 = p[1]; if (p[1] > x1) x1 = p[1]; if (p[2] < y0) y0 = p[2]; if (p[2] > y1) y1 = p[2]; }
+    const span = Math.max(x1 - x0, y1 - y0) || 1e-9, rand = 90, s = (1000 - 2 * rand) / span;
+    const ox = rand + ((1000 - 2 * rand) - (x1 - x0) * s) / 2, oy = rand + ((1000 - 2 * rand) - (y1 - y0) * s) / 2;
+    const pts = roh.map(p => [p[0], ox + (p[1] - x0) * s, oy + (y1 - p[2]) * s]);
+    const starts = new Set(teile.map(t => t[0]));
+    const pfad = (liste) => liste.map(p => (starts.has(p[0]) ? "M" : "L") + p[1].toFixed(1) + "," + p[2].toFixed(1)).join("");
+    _ctUebCache = { cs, n, pts, starts, pfad, alle: pfad(pts) };
+    return _ctUebCache;
+  }
+  function _ctKarteAt(frac, neu) {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const els = layer.querySelectorAll(".ct-karte-ueb");
+    if (!els.length) return;
+    const P = _ctUebPunkte();
+    if (!P) return;
+    const idx = Math.max(0, Math.min(P.n - 1, Math.round(Math.max(0, Math.min(1, frac)) * (P.n - 1))));
+    let k = 0;
+    while (k < P.pts.length - 1 && P.pts[k + 1][0] <= idx) k++;
+    const gefahren = P.pts.slice(0, k + 1);
+    // genau bis zum Punkt (zwischen zwei ausgedünnten Stützpunkten desselben Teils)
+    let jetzt = [P.pts[k][1], P.pts[k][2]];
+    if (k < P.pts.length - 1 && !P.starts.has(P.pts[k + 1][0])) {
+      const a = P.pts[k], b = P.pts[k + 1], f = (idx - a[0]) / Math.max(1, b[0] - a[0]);
+      jetzt = [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+      gefahren.push([-1, jetzt[0], jetzt[1]]);
+    }
+    const linie = gefahren.length >= 2 ? P.pfad(gefahren) : "";
+    els.forEach(el => {
+      el.querySelectorAll(".ct-ueb-bg").forEach(bg => { if (neu || bg.getAttribute("d") !== P.alle) bg.setAttribute("d", P.alle); });
+      el.querySelector(".ct-ueb-line")?.setAttribute("d", linie);
+      const d = el.querySelector(".ct-ueb-dot");
+      if (d) { d.setAttribute("cx", jetzt[0].toFixed(1)); d.setAttribute("cy", jetzt[1].toFixed(1)); }
+    });
   }
   function _ctHoeheAt(frac, neu) {
     const layer = document.getElementById("anim-overlay-preview");
@@ -15908,12 +16514,13 @@ function mountAnimator(body, headerActions, opts) {
       b += `<textarea data-zk="text" rows="2" placeholder="${_ctEsc(t("container.text_ph", "Text — {dist_total} setzt einen Wert ein"))}">${_ctEsc(z.text)}</textarea>`;
       b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.zeile_groesse", "Größe"))} <input type="number" data-zk="gr_pct" min="20" max="300" step="5" value="${Math.round((+z.gr || 1) * 100)}"> %</label></div>`;
     } else if (z.typ === "diagramm") {
-      const reihen = [["hoehe", t("container.dia.hoehe", "Höhenprofil")]].concat((_chartSeries || []).map(s => ["daten:" + s.id, s.label + (s.unit ? " (" + s.unit + ")" : "")]));
-      const akt = z.art === "hoehe" ? "hoehe" : "daten:" + ((z.chart && z.chart.series) || "ele");
+      const reihen = [["hoehe", t("container.dia.hoehe", "Höhenprofil")], ["karte", t("container.dia.karte", "Übersichtskarte")]]
+        .concat((_chartSeries || []).map(s => ["daten:" + s.id, s.label + (s.unit ? " (" + s.unit + ")" : "")]));
+      const akt = z.art === "hoehe" ? "hoehe" : z.art === "karte" ? "karte" : "daten:" + ((z.chart && z.chart.series) || "ele");
       b += `<select data-zk="reihe">${reihen.map(([v, txt]) => _ctOpt(v, akt, txt)).join("")}</select>`
         + `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="3" max="100" step="1" value="${z.b}"> %</label>`
         + `<label>${_ctEsc(t("container.hoehe", "Höhe"))} <input type="number" data-zk="h" min="2" max="100" step="1" value="${z.h}"> %</label></div>`;
-      if (z.art === "hoehe") {
+      if (z.art === "hoehe" || z.art === "karte") {
         b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.linie", "Linie"))} <input type="color" data-zk="linienfarbe" value="${_ctEsc(z.linienfarbe || currentLineColor())}"></label>`
           + `<button type="button" class="ct-knopf" data-za="linie-weg" title="${_ctEsc(t("container.linie_wie_track", "wie der Track"))}">↺</button>`
           + (_reiseAktiv() ? `<select data-zk="bereich">${_ctOpt("reise", z.bereich, t("animator.overlay.ele_scope_reise", "Ganze Strecke"))}${_ctOpt("etappe", z.bereich, t("animator.overlay.ele_scope_etappe", "Laufende Etappe"))}</select>` : "")
@@ -16053,7 +16660,7 @@ function mountAnimator(body, headerActions, opts) {
       _ctAendern(id(), (c) => {
         const z = c.zeilen.find(x => x.id === zid); if (!z) return;
         if (k === "reihe") {
-          if (v === "hoehe") { z.art = "hoehe"; }
+          if (v === "hoehe" || v === "karte") { z.art = v; }
           else { z.art = "daten"; z.chart = Object.assign({ series: "ele", show_axes: true, axis_font_size: 20, fg_opacity: 100, bg_opacity: 0 }, z.chart || {}, { series: String(v).slice(6) }); }
         } else if (k === "show_axes") { z.chart = Object.assign({}, z.chart || {}, { show_axes: !!v }); }
         else if (k === "bezug") {
@@ -18794,6 +19401,17 @@ function mountAnimator(body, headerActions, opts) {
     const ti = introFraction(), tf = trackFraction(), dauer = Math.max(0.001, plan.dauer_s || 0);
     const bar = (sek) => ti + Math.max(0, Math.min(1, sek / dauer)) * (tf - ti);
     const kette = new Set(_reiseBahn.kette.map(k => k.g.id));
+    // 02.10.2026 (Marc: „in der Timeline das Höhenprofil der jeweiligen Tour, wenn ich groß zoome") — je Kachel ihr
+    // Ausschnitt der Höhenreihe (die Teile der Kette liegen hintereinander in _gpxElevations)
+    const teilVon = new Map();
+    try { (_reiseBahn.kette || []).forEach((k, i) => { const te = (_reiseBahn.teile || [])[i]; if (te) teilVon.set(k.g.id, te); }); } catch (_) {}
+    const hoeheVon = (id) => {
+      const te = teilVon.get(id), e = _gpxElevations;
+      if (!te || !Array.isArray(e) || te.bis - te.von < 2) return null;
+      const N = Math.min(120, te.bis - te.von + 1), raus = [];
+      for (let i = 0; i < N; i++) raus.push(+e[te.von + Math.round(i / (N - 1) * (te.bis - te.von))] || 0);
+      return raus.some(x => x !== 0) ? raus : null;
+    };
     const zeilen = (plan.zeilen || []).map(ids => ids.map(id => {
       const g = _gruppen.find(x => x.id === id); const l = plan.lage(id);
       if (!g || !l) return null;
@@ -18804,7 +19422,8 @@ function mountAnimator(body, headerActions, opts) {
                ueber_stil: g.ueber_stil || "kino", fest: g.fest === true, zeile: +g.zeile || 0,
                // 28.09.2026 §72
                ganz: _gruppeIstGanz(g), haupt: _gruppeHatHaupt(g), bisEnde: !!l.bisEnde,
-               ein: (g.blende || {}).ein, aus: (g.blende || {}).aus, einS: (g.blende || {}).ein_s, ausS: (g.blende || {}).aus_s };
+               ein: (g.blende || {}).ein, aus: (g.blende || {}).aus, einS: (g.blende || {}).ein_s, ausS: (g.blende || {}).aus_s,
+               hoehe: hoeheVon(id) };
     }).filter(Boolean));
     const gesamt = parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden()
       + parseNum(document.getElementById("anim-hold")?.value, 0);
@@ -21508,6 +22127,7 @@ function mountAnimator(body, headerActions, opts) {
     _animUnmounted = true;
     try { if (_uebTimer) clearInterval(_uebTimer); _uebTimer = null; } catch (_) {}   // 02.10.2026 Übersichtskarte
     try { if (_tpTimer) clearInterval(_tpTimer); _tpTimer = null; } catch (_) {}     // 02.10.2026 Abspielleiste
+    try { if (_tonTakt) clearInterval(_tonTakt); _tonTakt = null; _tonStumm(); } catch (_) {}   // 02.10.2026 Vorschau-Ton
     try { body.classList.remove("ohne-seite", "ohne-zeit"); } catch (_) {}
     // 01.10.2026 (Marc: „Container-Dialog offen, zurück ins Archiv → bleibt offen") — der
     // Einblendungs-Editor hängt am body, nicht im Modul; beim Verlassen schließen.

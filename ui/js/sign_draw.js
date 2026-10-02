@@ -83,13 +83,18 @@
   // senkrechte Achse symmetrisch angelegt, damit icon-anchor „bottom" (= Mitte unten)
   // genau auf der Stelle sitzt — auch wenn die Karte rechts vom Pin steht.
   var RZ_HL_STILE = { pille: 1, hl_pin: 1, hl_rund: 1, hl_form: 1, hl_pinsel: 1 };
-  var RZ_HL_FARBEN = { hoechster: "#ffc21a", steilste: "#f2553d", schnellste: "#2fa8f0", halbe: "#4cc66a", wegpunkte: "#9b6bf2" };
+  var RZ_HL_FARBEN = { hoechster: "#ffc21a", steilste: "#f2553d", schnellste: "#2fa8f0", halbe: "#4cc66a", wegpunkte: "#9b6bf2",
+                       pause: "#e0a96d", uebernachtung: "#8fa8ff", notiz: "#f2d36b" };   // 02.10.2026 Logbuch im Schnell-Video
   var RZ_HL_ICONS = {
     hoechster: [["M1.5 21.5L9.2 9.6l3.9 5.6 2.6-3.6 6.8 9.9z", "f"], ["M9.2 10V2.6", "s", 1.8], ["M9.2 2.8h5.6l-1.7 2 1.7 2H9.2z", "f"]],
     steilste: [["M2 21.8L22 10.4v11.4z", "f"], ["M3.8 13.6L12.6 4.8", "s", 2.3], ["M8.4 4.4h4.6V9", "s", 2.3]],
     schnellste: [["M3.9 17.8a8.8 8.8 0 1 1 16.2 0", "s", 2.5], ["M12 15.3l4.8-5.8", "s", 2.5], ["M13.8 15.3a1.8 1.8 0 1 1-3.6 0a1.8 1.8 0 1 1 3.6 0z", "f"]],
     halbe: [["M20.6 12a8.6 8.6 0 1 1-17.2 0a8.6 8.6 0 1 1 17.2 0z", "s", 2.3], ["M12 3.4a8.6 8.6 0 0 0 0 17.2z", "f"]],
     wegpunkte: [["M12 22.6s-7.2-7.7-7.2-13.2a7.2 7.2 0 0 1 14.4 0c0 5.5-7.2 13.2-7.2 13.2zM14.7 9.4a2.7 2.7 0 1 0-5.4 0a2.7 2.7 0 1 0 5.4 0z", "fe"]],
+    // 02.10.2026 — Logbuch: Tasse (Pause), Mond (Übernachtung), Stift (Notiz)
+    pause: [["M3.5 9h13v5.5a5.5 5.5 0 0 1-5.5 5.5H9a5.5 5.5 0 0 1-5.5-5.5z", "f"], ["M16.5 11h1.8a2.7 2.7 0 0 1 0 5.4h-1.8", "s", 2], ["M8 2.8c-1.1 1.5 1.1 2.6 0 4.2M12 2.8c-1.1 1.5 1.1 2.6 0 4.2", "s", 1.6]],
+    uebernachtung: [["M15.5 3.2a9 9 0 1 0 5.3 13.6A7.4 7.4 0 0 1 15.5 3.2z", "f"]],
+    notiz: [["M4 20.2l1.2-4.6L16.4 4.4l3.4 3.4L8.6 19z", "f"], ["M3.5 21.5h17", "s", 1.8]],
   };
   var RZ_HL_FORM = { hoechster: "tri", steilste: "quad", schnellste: "kreis", halbe: "kreis", wegpunkte: "raute" };
   var RZ_HL_EINHEIT = /^(.*\d)(\s?)([A-Za-zµ°%\/²³]{1,5})$/;
@@ -868,6 +873,16 @@
     window.__rzSignDpr = rzSignDpr;
     window.__rzHlStile = RZ_HL_STILE;
     window.__rzHlFarben = RZ_HL_FARBEN;
+    // 02.10.2026 — Symbol als kleines SVG (Zeitleiste: Highlight-Pille zeigt ihr Zeichen im Balken)
+    window.__rzHlIconSvg = function (art, farbe) {
+      var spec = RZ_HL_ICONS[art];
+      if (!spec) return "";
+      var f = /^#[0-9a-f]{3,8}$/i.test(String(farbe || "")) ? farbe : "#ffc21a";
+      return '<svg viewBox="0 0 24 24" width="100%" height="100%">' + spec.map(function (x) {
+        return x[1] === "s" ? '<path d="' + x[0] + '" fill="none" stroke="' + f + '" stroke-width="' + (x[2] || 2) + '" stroke-linecap="round" stroke-linejoin="round"/>'
+                            : '<path d="' + x[0] + '" fill="' + f + '"' + (x[1] === "fe" ? ' fill-rule="evenodd"' : "") + "/>";
+      }).join("") + "</svg>";
+    };
   }
   if (typeof globalThis !== "undefined") {
     globalThis.__rzDrawSign = rzDrawSign;

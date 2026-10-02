@@ -4430,6 +4430,60 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Ton, Videoclips, Übersichtskarte, Schnell-Video „Mehr“ (02.10.2026, v0.9.778)
+
+**Ton (eine Wahrheit: der Tonplan).** `module.js` Block „Musik und Ton“: `_tonPlan()` liefert in Videosekunden
+`{G, musik: {datei, laut, ein_s, aus_s, ab_s}, klicks: [{t, laut}], clips: [{pfad, ab, dauer, t, laut}], ducken, klick_datei}`
+— Klick = Halt-Beginn − Anflug (Foto beginnt zu wachsen), Clip-Ton = Halt-Beginn. Einstellungen gebunden über
+`bindSetting` als `animator.ton_musik_an|ton_musik|ton_musik_laut|ton_musik_ein|ton_musik_aus|ton_klick_an|ton_klick_laut`
+(Abschnitt `#anim-ton-section`, nicht bei `_isStaticFrame`). `window.__rzTonPlan` holt `core/szene.py` nach dem letzten Bild,
+`core/tonspur.py` mischt (`mischen`: ffmpeg → f32le 48 kHz, Musik geloopt + quadratische Rampen + Ducken unter Clip-Ton,
+Klicks, weiche Begrenzung über −1 dBFS → WAV) und legt die Spur an (`anlegen`: `-c:v copy`, AAC bzw. Opus bei WebM;
+GIF/Bildfolgen ohne Ton). Eingebaute Dateien: `builtin:<stück>` (`tonspur.STUECKE`: unterwegs aus `scripts/musik_komponieren.py`, weite/gipfelsturm/rast/grat/wanderlied aus `scripts/musik_stile.py`) und `builtin:klick|klick_a|klick_b|klick_c` (Einstellung `ton_klick_klang`, Klick = Halt-Beginn − 0,1 s) → `ui/audio/` (kommt mit `ui/` ins
+Bundle; neu erzeugen mit `scripts/musik_komponieren.py`). Vorschau: `_tonVorschauTakt` alle 50 ms, solange `_previewRaf`
+läuft — Musik als `<audio>` (Adresse über `api.ton_url` → Medien-Server, HTTP mit Range; auch die eingebaute), nachgestellt
+auf `t % Dauer` (Schwelle 0,3 s), Lautstärke aus `_tonHuelle` (gleiche Rampen wie Python). Klick und Clip-Ton über **Web Audio**
+(`_tonKontext`, Puffer per XHR vom Medien-Server — `clip_ton` schneidet den Ausschnitt als WAV, der Server sendet dafür
+`Access-Control-Allow-Origin: *`; XHR auf `file://` blockt WebKit je nach Einstellung). **Freischalten:** `runTimelinePreview`
+ruft zuerst `_tonEntsperren()` — in der Nutzeraktion wird der Audio-Kontext fortgesetzt und das Musik-Element einmal
+gestartet (WKWebView verlangt sonst evtl. eine Geste). 🔊 in der Abspielleiste (`localStorage rz-anim-ton-vorschau`).
+Zeitleiste: `_tonGruppe` (gleicher Baustein `_balkenGruppe` wie Overlays/Schilder, Box `#tl-ton`), API `setTon/getTon`;
+Segmente mit `marke: true` sind nicht ziehbar. `onTonZiehen` schreibt Ein-/Ausblenden zurück. Prüfstand `window.__rzTon`.
+
+**Videoclips.** Ein Clip ist ein Fotostopp-Schild mit `clip: {pfad, ab, dauer, laenge, ton, laut}`, `imageSrc` = Standbild
+(`core/clips.py standbild`, Cache `APP_SUPPORT/clip_cache/<sha1(pfad|größe|mtime)>/`). `_fsWerte`: Halt = `clip.dauer`,
+kein Ken-Burns. `_fsClipHolen` → `api.clip_bilder(pfad, ab, dauer, fps, hoehe)` (Vorschau 25 fps/540 px, Render
+Videobildrate/0,75 × Höhe ≤ 1440) → JPEG-Folge, ausgeliefert vom Medien-Server unter `/clip/<token>/<n>.jpg`
+(`_media_ordner`, nur registrierte Ordner, Name streng `\d+.jpg`). Bild n = Halt-Sekunde (n−1)/fps; der Render wartet je
+Bild über `window.__rzClipWarte` (in `_WARTE_BILD_JS`) und vorab über `__rzFotostoppLaden`. Warum keine `<video>`:
+Playwright-Chromium spielt kein H.264/HEVC, und Bildgenauigkeit beim Springen ist nicht garantiert. `_SIG_OHNE` enthält
+`clip`. Pins: Deckkraft/Größe als Eigenschaften (`["get","op"]`), kein feature-state mehr (MapLibre-Fehler „Length of new data…“).
+Suche: `schnellvideo_fotos(…, art="video")` / `schnellvideo_clips` (nur `cclips.taugt`: keine .insv/.lrv), dazu `clip_info`, `clip_standbild`.
+
+**Übersichtskarte als Einblendung.** `container.js`: Zeilentyp `diagramm` mit `art: "karte"`, Vorlage `uebersicht`.
+`_ctZeileHtml` legt ein SVG (viewBox 1000², Strichstärken in Kästchen-Einheiten) an, `_ctKarteAt(frac)` zeichnet je Bild
+(aus `_ctDiagrammeAt`, also Vorschau, Scrubben, Render): Strecke ≤ 800 Punkte in Mercator eingepasst (`_ctUebPunkte`,
+Cache an `currentCoords`), gefahrener Teil bis zum interpolierten Punkt.
+
+**Gipfel statt Gemeinde.** `core/highlights.ort_am_punkt(lat, lon, radius, nur_gipfel)` fragt Photon (`/reverse` mit
+`osm_tag`-Filtern, zwei Stufen: Gipfel/Pass, dann Hütte/Aussicht/Burg …; Overpass war beim Test überlastet).
+`Api._ort_am_punkt` cacht in `APP_SUPPORT/ort_punkt_cache.json` (Treffer dauerhaft, „nichts" 30 Tage, ohne Netz nicht).
+`fotostopp_info(path, lat, lon)` ersetzt `ort` durch „Symbol Name" (Gemeinde in `gemeinde`); der Animator übergibt die
+Schild-Stelle für Fotos ohne GPS. Highlights: `_hlGipfelName` (Gipfel ≤ 300 m) → Schildtext, gleicht danach neu ab.
+
+**Zeitleiste.** Reise: `_gruppenAnLeiste` gibt je Kachel `hoehe` (Ausschnitt aus `_gpxElevations` über `_reiseBahn.teile`), `_gruppeHoeheSvg` zeichnet es in die Kachel. Schild-Zeilen tragen `iconSvg` (`window.__rzHlIconSvg(art, farbe)`). ⌘+/⌘−/⌘0 in `_keyNav` → Zoom-Knöpfe. Spurhöhe: Griff `.tl-hoehe-griff`, Faktor `--tl-s` auf dem Host (alle Spurhöhen `calc(Npx * var(--tl-s))`), `getSpurFaktor/setSpurFaktor`. Übersichtskarten: `_spurTeile(cs, max)` trennt an Tourgrenzen und Sprüngen, beide zeichnen `path` mit M/L. `setHoehe(werte)` (Werte je Streckenanteil, aus `_hoeheSpurSync` ~300 Stück) → `_hoeheZeichnen` am Ende
+von `_tempoZeichnen`: SVG `.tl-hoehe`, x = `_anchorToPct(_trackToBar(_videoAusStrecke(a)))`. Schild-Balken: Zeile trägt
+`bild` (thumb, `_imgEl` oder `_sgMiniBild` = `sign_image_thumb(…, 96)`) bzw. `symbol`; `_balkenGruppe` rendert `.tl-ov-bild`.
+
+**Schnell-Video „Mehr“.** `<details id="sv-mehr">`, Zutaten `[data-sv-zutat]` mit Schaltern `#sv-fotos-an|sv-clips-an|sv-clipton|
+sv-logbuch|sv-musik-an|sv-klick|sv-uebersicht|sv-schluss-an`. `stoppsWaehlen(fotos, clips, animS, mitTon)`: Budget animS/2,
+Clips (+1 Wert, max. 4 s) und Fotos (3 s) nach Wert, Abstand ≥ 4 %. `logbuchAnwenden(stopps, eintraege)` aus
+`api.schnellvideo_logbuch` (Pausen ≥ 5 min und Notizen mit `von/bis/bei`, `icon` pause|uebernachtung|notiz; Symbole in
+`sign_draw.js RZ_HL_ICONS`). Schalterstand wird in `werteLesen` gesichert (`stand`), weil Übernehmen/Rendern den Dialog
+schließen, bevor die Schilder gebaut werden. Gemerkt in `schnellvideo_letzte`: `mehr_offen, fotos_an, clips_an, clip_ton,
+logbuch, musik_an, musik, klick, uebersicht, schluss_an`; `ton_*` gehören zum Ablauf (`ABLAUF`). Prüfstände
+`__rzSchnellStopps`, `__rzSchnellLogbuch`. Tests: `tests/test_ton_und_clips.py`, `tests/test_schnellvideo_mehr.py`.
+
 ## Videoeditor-Steuerung (02.10.2026, v0.9.775)
 
 `module.js` Block „Videoeditor-Steuerung“: Zeit = Videosekunde, Leiste = t / G (`_sgPhasen().G`); `_tpGeheZu(t)` hält einen
