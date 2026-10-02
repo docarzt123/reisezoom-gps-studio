@@ -4907,5 +4907,12 @@
   "signs.clips_passen_nicht": "None of the clips matches the tour (place or recording time).",
   "signs.clips_dupes": "These clips are already in.",
   "signs.clips_geladen": "%n video clips added as stops.",
-  "signs.clips_ohne_stelle": "%n didn't match the tour."
+  "signs.clips_ohne_stelle": "%n didn't match the tour.",
+  "animator.farbraum": "Colour space",
+  "animator.farbraum.sdr": "SDR (standard)",
+  "animator.farbraum.hlg": "HDR · HLG (recommended)",
+  "animator.farbraum.pq": "HDR · PQ (HDR10)",
+  "animator.farbraum.hilfe": "HDR matches the video to HDR footage in an HDR timeline (Final Cut, DaVinci, YouTube) — a normal video looks grey there. The map is converted to the HDR colour space (BT.2020), white at 203 nits, 10 bit. HLG also looks good on normal screens; PQ (HDR10) is for pure HDR projects. The video is HEVC (or ProRes if ProRes is set). With an alpha background there is no HDR.",
+  "map_config.chip.gebaeude": "🏠 3D buildings",
+  "map_config.gebaeude_tip": "Buildings from OpenStreetMap as 3D blocks with real footprint and height (from district zoom). Height from floors or metres, otherwise a default. Source: OpenFreeMap, © OpenStreetMap."
 }

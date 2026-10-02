@@ -123,9 +123,46 @@ def _bridge_factory(api):
     return bridge
 
 
+# 02.10.2026 — HDR (IDEAS §73): Farbangaben je Kurve. SDR-Weiß → 203 nits (BT.2408): HLG-Signal 0,75, PQ 0,58.
+_HDR_TRC = {"hlg": "arib-std-b67", "pq": "smpte2084"}
+
+
+def _hdr_cmd(cfg, farbraum: str, ffmpeg_bin: str) -> list[str]:
+    """Bildstrom (sRGB) → linear (Weiß = 203 nits) → BT.2020 + HLG/PQ, 10 Bit. ProRes bleibt ProRes (422 HQ),
+    alles andere wird HEVC Main10 (H.264 kann kein HDR, das Player und Schnittprogramme verstehen)."""
+    trc = _HDR_TRC[farbraum]
+    vf = []
+    if getattr(cfg, "skalieren_in_ffmpeg", False):
+        vf.append(f"format=rgb24,scale={int(cfg.width)}:{int(cfg.height)}:flags=lanczos")
+    vf += ["format=gbrp",
+           "zscale=tin=iec61966-2-1:pin=bt709:min=gbr:rin=full:t=linear:p=bt709:m=gbr:r=full:npl=203",
+           "format=gbrpf32le",
+           f"zscale=tin=linear:pin=bt709:min=gbr:rin=full:t={trc}:p=bt2020:m=bt2020nc:r=limited:npl=203"]
+    farbe = ["-color_primaries", "bt2020", "-color_trc", trc, "-colorspace", "bt2020nc", "-color_range", "tv"]
+    codec = (cfg.codec or "h264").lower()
+    cmd = [ffmpeg_bin, "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-"]
+    if codec.startswith("prores"):
+        cmd += ["-vf", ",".join(vf + ["format=yuv422p10le"]), "-c:v", "prores_ks", "-profile:v", "3", "-vendor", "ap10", *farbe]
+    else:
+        x265 = f"colorprim=bt2020:transfer={trc}:colormatrix=bt2020nc:range=limited:repeat-headers=1"
+        if farbraum == "pq":   # HDR10: Mastering-Angaben (P3-D65-Monitor, 1000 nits), Inhalte bis 203 nits
+            x265 += ":hdr10=1:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=203,203"
+        cmd += ["-vf", ",".join(vf + ["format=yuv420p10le"]), "-c:v", "libx265", "-profile:v", "main10",
+                "-preset", (cfg.encoder_preset or "fast"), "-crf", str(cfg.crf), "-x265-params", x265,
+                *farbe, "-tag:v", "hvc1", "-movflags", "+faststart"]
+    cmd += ["-f", muxer_fuer(cfg.output_path), teildatei(cfg.output_path)]
+    return cmd
+
+
 def _ffmpeg_cmd(cfg) -> list[str]:
     """Wie core/animator.render — Codec-Zweige 1:1 (h264/h265/prores/prores422)."""
     ffmpeg_bin = A.find_ffmpeg()
+    farbraum = str(getattr(cfg, "farbraum", "sdr") or "sdr").lower()
+    if farbraum in _HDR_TRC and not cfg.transparent_background:
+        hdr_bin = A.find_ffmpeg_mit("zscale")
+        if hdr_bin:
+            return _hdr_cmd(cfg, farbraum, hdr_bin)
+        _log.warning("Szene: HDR (%s) gewünscht, aber kein ffmpeg mit zscale gefunden — Video wird SDR", farbraum)
     codec = (cfg.codec or "h264").lower()
     if codec in ("prores", "prores4444") and cfg.transparent_background:
         cmd = [ffmpeg_bin, "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",

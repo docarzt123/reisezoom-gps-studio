@@ -206,10 +206,35 @@ def ort_am_punkt(lat: float, lon: float, radius_m: float = 350.0, nur_gipfel: bo
             if d > radius_m * 1.05:
                 continue
             if best is None or d < best[0]:
-                best = (d, {"name": name, "art": a[0], "symbol": a[1], "abstand_m": round(d)})
+                best = (d, {"name": name, "art": a[0], "symbol": a[1], "abstand_m": round(d),
+                            "osm": (str(pr.get("osm_type") or ""), pr.get("osm_id"))})
         if best:
-            return best[1]
+            ort = best[1]
+            osm = ort.pop("osm", None)
+            # 02.10.2026 (Marc: „bei den Bildern an Gipfeln auch die Höhe") — Höhe aus dem OSM-Objekt selbst
+            # (Teide: ele=3715; die GPS-Höhe im Foto sagte 3768). Nur Gipfel/Pässe; ohne Netz ohne Höhe.
+            if http is None and ort["art"] in ("gipfel", "pass") and osm and osm[1]:
+                ort["ele"] = _osm_ele(osm[0], osm[1], timeout)
+            return ort
     return None
+
+
+OSM_API = "https://api.openstreetmap.org/api/0.6"
+
+
+def _osm_ele(typ: str, osm_id, timeout: float = 6.0) -> Optional[float]:
+    art = {"N": "node", "W": "way", "R": "relation"}.get(str(typ).upper()[:1])
+    if not art:
+        return None
+    try:
+        req = urllib.request.Request(f"{OSM_API}/{art}/{int(osm_id)}.json", headers={"User-Agent": "ReisezoomGPSStudio"})
+        with urllib.request.urlopen(req, timeout=timeout, context=cnet.ssl_context()) as resp:
+            el = (json.loads(resp.read().decode("utf-8", errors="replace")).get("elements") or [{}])[0]
+        v = str((el.get("tags") or {}).get("ele") or "").replace(",", ".").split()[0]
+        return round(float(v)) if v else None
+    except Exception as e:  # noqa: BLE001
+        log.info("OSM-Höhe %s/%s: %s", art, osm_id, e)
+        return None
 
 
 def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
