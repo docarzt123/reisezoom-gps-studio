@@ -101,7 +101,9 @@
     if (!C) return [];
     const S = C.STILE, liste = [];
     const breit = { "9:16": 30, "1:1": 22, "16:9": 15 }[w.format] || 22;   // Logo-Breite in % der Bildbreite
-    const logo = C.stilAnwenden(C.neu("logo", T), "plakette");
+    // 02.10.2026 (Marc: „wo kommt die dunkle Hinterlegung des Logos her? … das sieht blöd aus, lass das weg") —
+    // Stil „Ohne" statt „Plakette"; wer auf heller Karte eine Unterlage will, stellt im Animator den Stil um.
+    const logo = C.stilAnwenden(C.neu("logo", T), "ohne");
     Object.assign(logo, { anker: "tc", x: 0, y: 2.5, deckkraft: 1, innen: 0.5, schriftgroesse: 1.6 });
     logo.zeilen[0].b = breit;
     liste.push(C.normalisieren(logo));
@@ -117,18 +119,17 @@
       anordnung: "unter", beschriftung: "aus", schriftgroesse: 1.3, zeilenabstand: 0.4,
       zeilen: [C.zeile("text", { text: T("container.v.hoehe_kopf", "HÖHENPROFIL · Min {ele_low} · Max {ele_high}") }),
                C.zeile("diagramm", { art: "hoehe", b: profilB, h: 9, linienfarbe: "#ffffff" })] })));
-    if (w.titel) {
+    // 02.10.2026 (Marc: „im 16:9 liegen Titel und Untertitel übereinander") — EINE Einblendung mit zwei Zeilen:
+    // bricht der Titel um, rutscht der Untertitel mit (vorher zwei Einblendungen mit fester Höhe).
+    if (w.titel || w.unter) {
       const ti = C.neu("titel", T);
-      ti.zeilen[0].text = w.titel;
+      ti.zeilen = [];
+      if (w.titel) ti.zeilen.push(C.zeile("text", { text: w.titel }));
+      if (w.unter) ti.zeilen.push(C.zeile("text", { text: w.unter, gr: w.titel ? 0.45 : 1 }));
+      if (!w.titel) ti.schriftgroesse = 3.6;
+      ti.zeilenabstand = 0.15;
       ti.zeit = { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: INTRO_S } };
       liste.push(C.normalisieren(ti));
-    }
-    if (w.unter) {
-      const un = C.neu("titel", T);
-      Object.assign(un, { name: T("container.v.untertitel", "Untertitel"), y: w.titel ? 31 : 20, schriftgroesse: 3.6 });
-      un.zeilen[0].text = w.unter;
-      un.zeit = { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: INTRO_S } };
-      liste.push(C.normalisieren(un));
     }
     if (w.felder.length) {
       const sk = C.neu("schluss", T);

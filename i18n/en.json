@@ -2853,7 +2853,7 @@
   "tourmap.btn.next": "Close",
   "tourmap.btn.open_image": "🖼 Open image",
   "tourmap.btn.pick_gpx": "📁 Choose track file …",
-  "tourmap.btn.refit": "Fit to track",
+  "tourmap.btn.refit": "Show whole track",
   "tourmap.btn.render": "🗺 Render map as PNG",
   "tourmap.cam_taken": "View taken over from the Animator. Reset with ⤢ (Fit to track).",
   "tourmap.dnd.hint": "Drag GPX file here",
@@ -4816,5 +4816,10 @@
   "schnell.fotos_ordner": "Choose folder …",
   "schnell.fotos_dateien": "Choose photos …",
   "schnell.fotos_lesen": "Reading photos and matching them to the route …",
-  "schnell.fotos_passen_nicht": "None of the chosen photos fits the tour (place or time taken)."
+  "schnell.fotos_passen_nicht": "None of the chosen photos fits the tour (place or time taken).",
+  "szene.m_springt": "map moving to the spot … {s} s",
+  "szene.m_karte": "waiting for the map (tiles, terrain) … {s} s",
+  "szene.m_gelaende": "loading terrain heights … {s} s",
+  "szene.m_greifen": "capturing the frame … {s} s",
+  "container.zeile_groesse": "Size"
 }

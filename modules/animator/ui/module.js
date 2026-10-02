@@ -15296,7 +15296,8 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (z.typ === "text") {
       const txt = _ctEsc(_ctTextToken(z.text)).replace(/\n/g, "<br>");
-      return `<div class="ct-z ct-text" data-f="${escA(z.id)}">${txt || "&nbsp;"}</div>`;
+      const gr = (+z.gr > 0 && +z.gr !== 1) ? ` style="font-size:${+z.gr}em"` : "";   // 02.10.2026 Größe je Zeile
+      return `<div class="ct-z ct-text" data-f="${escA(z.id)}"${gr}>${txt || "&nbsp;"}</div>`;
     }
     if (z.typ === "diagramm") {
       const box = `width:${z.b}cqw;height:${z.h}cqh;`;
@@ -15659,6 +15660,7 @@ function mountAnimator(body, headerActions, opts) {
         + `<label title="${_ctEsc(t("container.label_aus", "Beschriftung ausblenden"))}"><input type="checkbox" data-zk="label_aus"${z.label_aus ? " checked" : ""}> ${_ctEsc(t("container.aus", "aus"))}</label></div>`;
     } else if (z.typ === "text") {
       b += `<textarea data-zk="text" rows="2" placeholder="${_ctEsc(t("container.text_ph", "Text — {dist_total} setzt einen Wert ein"))}">${_ctEsc(z.text)}</textarea>`;
+      b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.zeile_groesse", "Größe"))} <input type="number" data-zk="gr_pct" min="20" max="300" step="5" value="${Math.round((+z.gr || 1) * 100)}"> %</label></div>`;
     } else if (z.typ === "diagramm") {
       const reihen = [["hoehe", t("container.dia.hoehe", "Höhenprofil")]].concat((_chartSeries || []).map(s => ["daten:" + s.id, s.label + (s.unit ? " (" + s.unit + ")" : "")]));
       const akt = z.art === "hoehe" ? "hoehe" : "daten:" + ((z.chart && z.chart.series) || "ele");
@@ -15814,6 +15816,7 @@ function mountAnimator(body, headerActions, opts) {
           if (!_ovCat(live ? "live" : "totals").some(f => f.id === z.feld)) z.feld = (live ? OVERLAY_DEFAULT_FIELDS.live : OVERLAY_DEFAULT_FIELDS.totals)[0];
         } else if (k === "label") { z.label = String(v).trim() === "" ? null : String(v); }
         else if (k === "b" || k === "h") { if (isFinite(v)) z[k] = v; }
+        else if (k === "gr_pct") { if (isFinite(v)) z.gr = Math.max(0.2, Math.min(3, v / 100)); }
         else z[k] = v;
       }, t("container.zeile", "Zeile"), live ? "ct-ez:" + zid + ":" + k : null);
       return true;
@@ -20936,7 +20939,10 @@ function mountAnimator(body, headerActions, opts) {
       document.getElementById("anim-progress").classList.remove("show");
       setRenderingState(false);     // v0.9.12 — UI wieder freigeben
       const done = document.getElementById("anim-done");
-      done.classList.remove("hidden");
+      // 02.10.2026 (Marc: „vom Archiv aus Schnell-Video rendern, dann ‚Im Animator' → ich lande auf der Fertig-Seite
+      // des Animators statt in der Zeitleiste") — beim Schnell-Video zeigt dessen eigener Bildschirm das Ergebnis
+      // (Abspielen, Speichern, Teilen); die Fertig-Seite des Animators bleibt zu.
+      if (!(_skLetzter && _skLetzter.buehne)) done.classList.remove("hidden");
       const _fileName = s.output.split("/").slice(-1)[0];
       // v0.9.390 — Standbild-Modus (Tour-Map): das Ergebnis ist EIN PNG, kein
       // Video. Der Fertig-Bereich zeigte fälschlich Video-Player + „▶ Abspielen"
