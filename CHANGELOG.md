@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.772** (02.10.2026, built locally): highlight pre-announcement dots only appear at their spot on the track.
+
+### Fixed
+- **Small yellow dots wandering over the map** (Marc, 66 Seen #7 quick video: "tiny dots fly along on the map and then stop where the POI is … it should only be visible where it actually is on the track"). The pre-announcement dot of a highlight was clamped to the frame edge while its spot was off-screen; with the quick video's turning follow camera it slid along the edge (measured in the video: 6.8–8.4 s along the top, 14–16 s top and down the left edge) until the spot came into view. Now there is no dot while the spot is off-screen; when it is in view the dot sits exactly at the spot. `tests/test_track_highlights.py`: series over the lead time (no dot off-screen, dot ≤ 3 px from its spot) — fails with the old code.
+
 ### Build
 - **Signing with the new Developer ID certificate (G2)** — Apple's previous Developer ID authority expires on 01.02.2027; the new certificate (valid until 17.09.2031) is in the Mac mini keychain together with the G2 intermediate. While both certificates exist they have the same name, so `build.sh` now signs by SHA-1 and picks the valid identity with the latest expiry. The CI secrets `MACOS_CERT_P12_BASE64`/`MACOS_CERT_PASSWORD` now hold the new certificate (02.10.2026).
 

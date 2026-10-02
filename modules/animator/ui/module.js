@@ -14991,9 +14991,12 @@ function mountAnimator(body, headerActions, opts) {
     }[art] || art;
   }
   /** Vorankündigung (Schild-Feld `vorschau_s`): ein kleiner Punkt in der Schildfarbe
-   *  erscheint `vorschau_s` Sekunden vor dem Schild — am Bildrand, solange die Stelle
-   *  noch nicht im Bild ist — und geht in das Schild über. Pro Bild aufgerufen aus
-   *  _animSignsApplyMarkerAnchor mit [{lon, lat, farbe, op}]. Nur Vorschau/Szene. */
+   *  erscheint `vorschau_s` Sekunden vor dem Schild an SEINER Stelle und geht in das Schild über.
+   *  02.10.2026 (Marc: „kleine gelbe Punkte fliegen über die Karte und bleiben dann am POI stehen …
+   *  der soll erst da zu sehen sein, wo er auch auf dem Track ist") — kein Randpunkt mehr: Liegt die
+   *  Stelle außerhalb des Bilds, gibt es keinen Punkt. Am Rand festgeklemmt rutschte er mit der
+   *  mitdrehenden Kamera am Bildrand entlang. Pro Bild aus _animSignsApplyMarkerAnchor mit
+   *  [{lon, lat, farbe, op}]. Nur Vorschau/Szene. */
   function _vorankuendigung(punkte) {
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
@@ -15005,14 +15008,17 @@ function mountAnimator(body, headerActions, opts) {
     }
     const LW = layer.offsetWidth, LH = layer.offsetHeight;
     const k = LW / (map.getContainer().clientWidth || 1);
-    const s = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
-    const rand = 30 * s;
-    while (ebene.childElementCount > punkte.length) ebene.lastChild.remove();
-    while (ebene.childElementCount < punkte.length) { const d = document.createElement("div"); d.className = "hl-punkt"; ebene.appendChild(d); }
-    punkte.forEach((pt, i) => {
+    const sichtbar = [];
+    for (const pt of punkte) {
+      let p; try { p = window.rzProjektGezeichnet ? window.rzProjektGezeichnet(map, [pt.lon, pt.lat]) : map.project([pt.lon, pt.lat]); } catch (_) { continue; }   // 02.10.2026 Gelände wie gezeichnet
+      const x = p.x * k, y = p.y * k;
+      if (!(x >= 0 && x <= LW && y >= 0 && y <= LH)) continue;   // außerhalb des Bilds: kein Punkt (kein Randpunkt)
+      sichtbar.push({ pt, x, y });
+    }
+    while (ebene.childElementCount > sichtbar.length) ebene.lastChild.remove();
+    while (ebene.childElementCount < sichtbar.length) { const d = document.createElement("div"); d.className = "hl-punkt"; ebene.appendChild(d); }
+    sichtbar.forEach(({ pt, x, y }, i) => {
       const el = ebene.children[i];
-      let p; try { p = window.rzProjektGezeichnet ? window.rzProjektGezeichnet(map, [pt.lon, pt.lat]) : map.project([pt.lon, pt.lat]); } catch (_) { return; }   // 02.10.2026 Gelände wie gezeichnet
-      const x = Math.max(rand, Math.min(LW - rand, p.x * k)), y = Math.max(rand, Math.min(LH - rand, p.y * k));
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
       el.style.background = pt.farbe || "#ffc21a";
       el.style.opacity = String(Math.round(pt.op * 1000) / 1000);
