@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.769** (02.10.2026, built locally): calmer camera sway during a photo stop.
+
+### Changed
+- Photo stop: the camera sways ±2° instead of ±4° while the photo is shown (Marc: "a bit less movement of the map while a picture is shown").
+
 > **0.9.768** (02.10.2026, built locally): photo stops with motion; points in terrain where the map draws them.
 
 ### Changed

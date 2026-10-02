@@ -4065,7 +4065,7 @@ function mountAnimator(body, headerActions, opts) {
    *  (die Strecke läuft noch), der Halt (Fotozeit), Abflug NACH dem Halt (die Strecke läuft schon weiter).
    *  k = Kamera (0..1, glatt hin und zurück), p = Foto (ist bei Ankunft voll da, schrumpft im Abflug),
    *  ken = Fortschritt der langsamen Foto-Vergrößerung (0..1), dreh = Schwenk in Grad (nur im Halt). */
-  const FS_SCHWENK_GRAD = 4, FS_KEN = 0.08;
+  const FS_SCHWENK_GRAD = 2, FS_KEN = 0.08;   // 02.10.2026 Marc: „Bewegung der Karte etwas weniger" (4 → 2°)
   function _fotostoppBei(tSek) {
     if (tSek == null || !isFinite(tSek)) return null;
     const hs = (_tempoInfo && _tempoInfo.halte) || [];
