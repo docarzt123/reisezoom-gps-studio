@@ -75,7 +75,10 @@ async def main() -> int:
         }""")
         await pg.wait_for_timeout(2500)
 
-        # Animator ist Default-Modul; Schilder-Akkordeon aufklappen
+        # 02.10.2026 — die App startet seit dem Archiv-Umbau im Archiv, nicht mehr im Animator: hinwechseln
+        await pg.evaluate("() => window.switchMod && window.switchMod('animator')")
+        await pg.wait_for_timeout(2500)
+        # Schilder-Akkordeon aufklappen
         await pg.evaluate("""() => {
           const s = document.getElementById('anim-signs-section');
           const b = s && s.querySelector('.section-collapse-body');
