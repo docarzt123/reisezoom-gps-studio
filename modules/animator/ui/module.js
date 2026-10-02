@@ -9126,8 +9126,9 @@ function mountAnimator(body, headerActions, opts) {
       try { window.removeEventListener("keydown", window.__rzAnimKeyNav, true); window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
     }
     const _keyNav = (e) => {
-      // Nur reagieren wenn der Animator gerade sichtbar ist
-      const panel = document.getElementById("anim-panel");
+      // Nur reagieren wenn der Animator gerade sichtbar ist — an der Vorschau gemessen, nicht an der Seitenleiste
+      // (die lässt sich seit 02.10.2026 ausblenden, dann waren die Tasten tot)
+      const panel = document.getElementById("anim-drop");
       if (!panel || !panel.offsetParent) return;
       // v0.9.67: Cmd/Ctrl+Z (Undo) wird vom globalen Listener in util.js
       // verarbeitet — modul-übergreifend (Animator + Tour-Map + Geotagger).
@@ -9165,19 +9166,26 @@ function mountAnimator(body, headerActions, opts) {
       }
       if (!currentCoords || currentCoords.length < 2) return;
 
-      const step = e.shiftKey ? 10 : 1;
+      // 02.10.2026 (Marc: „wie in einem Videoeditor") — in Videozeit: ←/→ ein Bild, mit ⇧ eine Sekunde,
+      // ↑/↓ vorige/nächste Kante, Pos1/Ende Anfang/Ende des Videos (vorher: Trackpunkte, Track-Anfang/-Ende).
       let handled = false;
-      if (e.key === "ArrowLeft") {
-        jumpTrackPoints(-step);
+      if (e.key === "ArrowLeft" && !_isStaticFrame) {
+        _tpBild(e.shiftKey ? -_tpFps() : -1);
         handled = true;
-      } else if (e.key === "ArrowRight") {
-        jumpTrackPoints(+step);
+      } else if (e.key === "ArrowRight" && !_isStaticFrame) {
+        _tpBild(e.shiftKey ? _tpFps() : 1);
+        handled = true;
+      } else if (e.key === "ArrowUp" && !_isStaticFrame) {
+        _tpKante(-1);
+        handled = true;
+      } else if (e.key === "ArrowDown" && !_isStaticFrame) {
+        _tpKante(1);
         handled = true;
       } else if (e.key === "Home") {
-        jumpToAnchor(0);
+        if (_isStaticFrame) jumpToAnchor(0); else _tpGeheZu(0);
         handled = true;
       } else if (e.key === "End") {
-        jumpToAnchor(1);
+        if (_isStaticFrame) jumpToAnchor(1); else _tpGeheZu(_tpG());
         handled = true;
       } else if (e.key === "k" || e.key === "K") {
         // v0.8.20 — K: Keyframe an aktueller Scrubber-Position hinzufügen
@@ -13483,6 +13491,118 @@ function mountAnimator(body, headerActions, opts) {
              punkt: [+el.querySelector(".anim-ueb-punkt").getAttribute("cx"), +el.querySelector(".anim-ueb-punkt").getAttribute("cy")], W: el.clientWidth, H: el.clientHeight }; };
   _uebAufbauen();
 
+  // ── Videoeditor-Steuerung (02.10.2026) ──────────────────────────────────────
+  // Marc: „ein richtiger Play-Button direkt bei der Vorschau … Frame vor, Frame zurück, zur nächsten Kante springen,
+  // wo das nächste Element anfängt, mit Pfeiltasten" und „Timeline und Sidebar einzeln ausblenden wie bei Final Cut,
+  // mein Vorschaubild wird größer". Zeit = Videosekunde (Anlauf + Animation + Halten), Leiste = t / G.
+  // Kanten: Anfang, Ende von Anlauf/Animation, Ende, Keyframes, Halte (inkl. Fotostopps), Einblendungen, Schilder.
+  let _kantenOv = [], _kantenSg = [], _tpTimer = null;
+  const _tpG = () => { try { return _sgPhasen().G; } catch (_) { return 0; } };
+  const _tpFps = () => Math.max(1, parseNum(document.getElementById("anim-fps")?.value, 30));
+  function _tpZeitJetzt() {
+    const G = _tpG();
+    if (!_tlBar || !(G > 0)) return 0;
+    return Math.max(0, Math.min(G, _tlBar.trackToBar(_tlBar.getScrubber()) * G));
+  }
+  function _tpGeheZu(t) {
+    const G = _tpG();
+    if (!_tlBar || !(G > 0)) return;
+    if (_previewRaf) runTimelinePreview();   // läuft → erst anhalten (sonst überschreibt der Lauf den Sprung)
+    jumpToAnchor(_tlBar.barToTrack(Math.max(0, Math.min(1, t / G))));
+    _tpAnzeigen();
+  }
+  function _tpBild(n) {
+    const f = _tpFps(), t = _tpZeitJetzt();
+    _tpGeheZu((Math.round(t * f) + n) / f);
+  }
+  function _tpKanten() {
+    const G = _tpG();
+    if (!(G > 0)) return [];
+    let ph = { intro: 0, anim: G }; try { ph = _sgPhasen(); } catch (_) {}
+    const k = [0, ph.intro, ph.intro + ph.anim, G];
+    try { for (const e of (getRawTimelineEvents() || [])) if (e && KF_LANES.includes(e.kind)) k.push(_tlBar.trackToBar(+e.anchor || 0) * G); } catch (_) {}
+    try { for (const h of ((_tempoInfo && _tempoInfo.halte) || [])) k.push(ph.intro + h.ab_s, ph.intro + h.bis_s); } catch (_) {}
+    k.push(..._kantenOv, ..._kantenSg);
+    return [...new Set(k.filter(x => isFinite(x) && x >= 0 && x <= G + 1e-6).map(x => Math.round(Math.min(G, x) * 1000) / 1000))].sort((a, b) => a - b);
+  }
+  function _tpKante(richtung) {
+    const t = _tpZeitJetzt(), eps = 0.5 / _tpFps(), ks = _tpKanten();
+    const z = richtung > 0 ? ks.find(x => x > t + eps) : ks.slice().reverse().find(x => x < t - eps);
+    if (z != null) _tpGeheZu(z);
+  }
+  const _tpText = (s) => { s = Math.max(0, s); const m = Math.floor(s / 60), r = s - m * 60; return `${m}:${r < 10 ? "0" : ""}${r.toFixed(1)}`; };
+  function _tpAnzeigen() {
+    const el = document.getElementById("anim-transport"); if (!el || !el.offsetParent) return;
+    const z = el.querySelector(".tp-zeit"); if (z) z.textContent = `${_tpText(_tpZeitJetzt())} / ${_tpText(_tpG())}`;
+    const p = el.querySelector('[data-tp="play"]'); if (p) { const an = !!_previewRaf; p.textContent = an ? "⏸" : "▶"; p.classList.toggle("an", an); }
+  }
+  function _tpAufbauen() {
+    if (_isStaticFrame || window.__rzRenderMode) return;
+    const host = document.getElementById("anim-drop");
+    if (!host || document.getElementById("anim-transport")) return;
+    const k = (txt, taste) => `${txt} (${taste})`;
+    const el = document.createElement("div");
+    el.id = "anim-transport"; el.className = "anim-transport";
+    el.innerHTML = [
+      ["anfang", "⏮", k(t("animator.tp.anfang", "Zum Anfang"), "Pos1")],
+      ["kante-", "⇤", k(t("animator.tp.kante_zurueck", "Zur vorigen Kante (Keyframe, Einblendung, Schild, Halt)"), "↑")],
+      ["bild-", "◀︎", k(t("animator.tp.bild_zurueck", "Ein Bild zurück — mit ⇧ eine Sekunde"), "←")],
+      ["play", "▶", k(t("animator.tp.play", "Abspielen / Anhalten"), t("animator.tp.leertaste", "Leertaste"))],
+      ["bild+", "▶︎", k(t("animator.tp.bild_vor", "Ein Bild vor — mit ⇧ eine Sekunde"), "→")],
+      ["kante+", "⇥", k(t("animator.tp.kante_vor", "Zur nächsten Kante (Keyframe, Einblendung, Schild, Halt)"), "↓")],
+      ["ende", "⏭", k(t("animator.tp.ende", "Zum Ende"), t("animator.tp.taste_ende", "Ende"))],
+    ].map(([id, sym, tip]) => `<button type="button" class="tp-knopf" data-tp="${id}" title="${tip}">${sym}</button>`).join("")
+      + `<span class="tp-zeit">0:00.0 / 0:00.0</span>`;
+    host.appendChild(el);
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-tp]"); if (!b) return;
+      const was = b.dataset.tp, gross = e.shiftKey;
+      if (was === "play") runTimelinePreview();
+      else if (was === "anfang") _tpGeheZu(0);
+      else if (was === "ende") _tpGeheZu(_tpG());
+      else if (was === "bild-") _tpBild(gross ? -_tpFps() : -1);
+      else if (was === "bild+") _tpBild(gross ? _tpFps() : 1);
+      else if (was === "kante-") _tpKante(-1);
+      else if (was === "kante+") _tpKante(1);
+      b.blur();
+      setTimeout(_tpAnzeigen, 50);
+    });
+    if (_tpTimer) clearInterval(_tpTimer);
+    _tpTimer = setInterval(_tpAnzeigen, 150);
+  }
+  // Seitenleiste / Zeitleiste ausblenden (Knöpfe oben rechts, je Gerät gemerkt)
+  const _ANSICHT_KEY = "rz-anim-ansicht";
+  const _ansicht = () => { try { return Object.assign({ seite: true, zeit: true }, JSON.parse(localStorage.getItem(_ANSICHT_KEY) || "{}")); } catch (_) { return { seite: true, zeit: true }; } };
+  function _ansichtAnwenden() {
+    if (window.__rzRenderMode) return;
+    const a = _ansicht();
+    body.classList.toggle("ohne-seite", !a.seite);
+    body.classList.toggle("ohne-zeit", !a.zeit && !_isStaticFrame);
+    document.querySelectorAll("[data-ansicht]").forEach(b => { const k = b.dataset.ansicht; b.classList.toggle("an", !!a[k]); b.setAttribute("aria-pressed", a[k] ? "true" : "false"); });
+    const cv = document.getElementById("anim-drop");
+    if (cv && !a.zeit && !_isStaticFrame) cv.style.setProperty("--anim-tl-h", "0px");
+    else if (cv) { const h = document.getElementById("anim-timeline-host"); if (h) cv.style.setProperty("--anim-tl-h", (h.offsetHeight || 0) + "px"); }
+    setTimeout(() => { try { window.dispatchEvent(new Event("resize")); if (map) map.resize(); } catch (_) {} }, 30);
+  }
+  function _ansichtKnoepfe() {
+    if (!headerActions || window.__rzRenderMode || headerActions.querySelector(".anim-ansicht")) return;
+    const box = document.createElement("div");
+    box.className = "anim-ansicht";
+    box.innerHTML = `<button type="button" class="ansicht-knopf" data-ansicht="seite" title="${t("animator.ansicht.seite", "Seitenleiste ein-/ausblenden")}"><span class="ak-seite"></span></button>`
+      + (_isStaticFrame ? "" : `<button type="button" class="ansicht-knopf" data-ansicht="zeit" title="${t("animator.ansicht.zeit", "Zeitleiste ein-/ausblenden")}"><span class="ak-zeit"></span></button>`);
+    headerActions.appendChild(box);
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ansicht]"); if (!b) return;
+      const a = _ansicht(); a[b.dataset.ansicht] = !a[b.dataset.ansicht];
+      try { localStorage.setItem(_ANSICHT_KEY, JSON.stringify(a)); } catch (_) {}
+      _ansichtAnwenden(); b.blur();
+    });
+  }
+  window.__rzTransport = { zeit: () => _tpZeitJetzt(), G: () => _tpG(), kanten: () => _tpKanten(), geheZu: (t) => _tpGeheZu(t), ansicht: () => _ansicht() };   // Prüfstand
+  _tpAufbauen();
+  _ansichtKnoepfe();
+  _ansichtAnwenden();
+
   document.getElementById("anim-refit")?.addEventListener("click", () => _aufTrackEinpassen());
   // Tour-Map-Knopf ⤢ und (Animator) ⤢ in der Übersichtskarte: Handansicht verwerfen, Gesamtansicht, ganze Linie
   function _aufTrackEinpassen() {
@@ -14665,6 +14785,7 @@ function mountAnimator(body, headerActions, opts) {
       });
     });
     _tlBar.setSchilder(zeilen, { offen: _sgSpurOffen, minAnteil: 0.3 / Math.max(1, ph.G) });
+    _kantenSg = zeilen.filter(x => x.enabled && !x.segmente[0].immer).flatMap(x => [x.segmente[0].an * ph.G, x.segmente[0].aus * ph.G]);   // 02.10.2026
   }
   /** Aus der gezogenen Balken-Lage (Leisten-Positionen) die neuen Schild-Werte. */
   function _sgWerteAusBalken(s, griff, neu) {
@@ -14786,6 +14907,7 @@ function mountAnimator(body, headerActions, opts) {
       return { id: b.id, name: b.name, enabled: !!b.enabled, farbe: b.farbe, segmente };
     });
     _tlBar.setOverlays(liste, { offen: _ovSpurOffen, minAnteil: 0.5 / G });
+    _kantenOv = liste.filter(x => x.enabled).flatMap(x => x.segmente.flatMap(sg => [sg.an * G, sg.aus * G]));   // 02.10.2026 Kanten für ↑/↓
   }
   /** Die Zeiträume einer Box als Liste von Zeit-Objekten (wie gespeichert). */
   function _ovZeitenVon(b) {
@@ -21359,6 +21481,8 @@ function mountAnimator(body, headerActions, opts) {
   return () => {
     _animUnmounted = true;
     try { if (_uebTimer) clearInterval(_uebTimer); _uebTimer = null; } catch (_) {}   // 02.10.2026 Übersichtskarte
+    try { if (_tpTimer) clearInterval(_tpTimer); _tpTimer = null; } catch (_) {}     // 02.10.2026 Abspielleiste
+    try { body.classList.remove("ohne-seite", "ohne-zeit"); } catch (_) {}
     // 01.10.2026 (Marc: „Container-Dialog offen, zurück ins Archiv → bleibt offen") — der
     // Einblendungs-Editor hängt am body, nicht im Modul; beim Verlassen schließen.
     try { _ctEditId = null; document.getElementById("ct-editor")?.remove(); } catch (_) {}

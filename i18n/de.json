@@ -4826,5 +4826,16 @@
   "animator.ueb.zu": "Übersicht ausblenden",
   "animator.ueb.auf": "Übersicht einblenden",
   "animator.ueb.nur_ansicht": "nur Ansicht",
-  "animator.ueb.fit": "Ansicht zurücksetzen: deine von Hand eingestellte Ansicht verwerfen, wieder der ganze Track"
+  "animator.ueb.fit": "Ansicht zurücksetzen: deine von Hand eingestellte Ansicht verwerfen, wieder der ganze Track",
+  "animator.tp.anfang": "Zum Anfang",
+  "animator.tp.kante_zurueck": "Zur vorigen Kante (Keyframe, Einblendung, Schild, Halt)",
+  "animator.tp.bild_zurueck": "Ein Bild zurück — mit ⇧ eine Sekunde",
+  "animator.tp.play": "Abspielen / Anhalten",
+  "animator.tp.leertaste": "Leertaste",
+  "animator.tp.bild_vor": "Ein Bild vor — mit ⇧ eine Sekunde",
+  "animator.tp.kante_vor": "Zur nächsten Kante (Keyframe, Einblendung, Schild, Halt)",
+  "animator.tp.ende": "Zum Ende",
+  "animator.tp.taste_ende": "Ende",
+  "animator.ansicht.seite": "Seitenleiste ein-/ausblenden",
+  "animator.ansicht.zeit": "Zeitleiste ein-/ausblenden"
 }

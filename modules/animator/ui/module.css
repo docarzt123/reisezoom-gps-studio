@@ -1380,3 +1380,31 @@ body.is-rendering .anim-ueb, body.is-rendering .anim-ueb-auf { pointer-events: n
 .anim-ueb-fit { position: absolute; top: 2px; right: 24px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
   background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 12px; line-height: 16px; cursor: pointer; }
 .anim-ueb-fit[hidden] { display: none; }
+
+/* 02.10.2026 — Videoeditor: Abspielleiste an der Vorschau + Seiten-/Zeitleiste ausblenden (wie Final Cut) */
+.anim-transport { position: absolute; left: 50%; bottom: calc(var(--anim-tl-h, 230px) + 14px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; padding: 3px 6px; border-radius: 9px; z-index: 49;
+  background: rgba(14, 18, 24, 0.82); border: 1px solid rgba(255, 255, 255, 0.12); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  opacity: 0.72; transition: opacity 0.15s, bottom 0.18s ease; }
+.anim-transport:hover, .anim-transport:focus-within { opacity: 1; }
+.anim-transport .tp-knopf { min-width: 28px; height: 26px; padding: 0 5px; border: 0; border-radius: 6px; background: transparent;
+  color: #fff; font-size: 14px; line-height: 26px; cursor: pointer; }
+.anim-transport .tp-knopf:hover { background: rgba(255, 255, 255, 0.12); }
+.anim-transport .tp-knopf[data-tp="play"] { min-width: 34px; font-size: 15px; background: var(--accent, #ff6b35); }
+.anim-transport .tp-knopf[data-tp="play"].an { background: rgba(255, 255, 255, 0.22); }
+.anim-transport .tp-zeit { margin-left: 6px; font: 600 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(255, 255, 255, 0.85);
+  font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
+body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
+.anim-ansicht { display: inline-flex; gap: 4px; margin-left: 8px; }
+.ansicht-knopf { width: 30px; height: 24px; padding: 3px; border-radius: 6px; border: 1px solid var(--border, rgba(255,255,255,0.15));
+  background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ansicht-knopf.an { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.35); }
+.ansicht-knopf span { position: relative; width: 20px; height: 14px; border: 1.5px solid currentColor; border-radius: 2px; color: var(--text-dim, #9aa4b0); }
+.ansicht-knopf.an span { color: var(--accent, #ff6b35); }
+.ansicht-knopf .ak-seite::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: currentColor; opacity: 0.85; }
+.ansicht-knopf .ak-zeit::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: currentColor; opacity: 0.85; }
+.ohne-seite #anim-panel { display: none !important; }
+/* die Seitenleiste ist die erste Spalte des Modul-Rasters (360px 1fr): ohne sie eine Spalte, sonst rutschte die Vorschau
+   in die 360-px-Spalte und wurde SCHMALER */
+.module-body.ohne-seite { grid-template-columns: minmax(0, 1fr); }
+.ohne-zeit #anim-timeline-host { display: none !important; }

@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.775** (02.10.2026, built locally): the Animator works more like a video editor.
+
+### Added
+- **Transport bar at the preview** (Marc: "a real play button right at the preview … frame forward, frame back, jump to the next edge"): ⏮ ⇤ ◀︎ ▶/⏸ ▶︎ ⇥ ⏭ + time "0:06.8 / 0:16.0"; ⇧ = one second. Video time (intro + animation + hold), never in the video.
+- **Hide sidebar and timeline separately** (Marc: "like Final Cut, buttons at the top … my preview gets larger"): two switches top right, remembered per device (`rz-anim-ansicht`); Tour-Map only has the sidebar switch.
+
+### Changed
+- **Keys in video time:** ←/→ one frame (snapped to the frame grid), ⇧ one second, ↑/↓ previous/next edge (intro/animation/hold boundaries, keyframes, holds incl. photo stops, overlays, signs), Home/End = video start/end. Before: GPS points and track start/end. The key handler now checks the preview's visibility instead of the sidebar's (with the sidebar hidden the keys were dead).
+
+### Fixed
+- With the sidebar hidden the preview became narrower — the module grid put it into the 360 px column; now one column.
+
+Test: `tests/test_videoeditor.py` (keys, edges, play/pause, hide/show incl. sizes and keys without sidebar, Tour-Map).
+
 > **0.9.774** (02.10.2026, built locally): overview map in the Animator instead of "Zoom to track".
 
 ### Added

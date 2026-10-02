@@ -4427,6 +4427,16 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Videoeditor-Steuerung (02.10.2026, v0.9.775)
+
+`module.js` Block „Videoeditor-Steuerung“: Zeit = Videosekunde, Leiste = t / G (`_sgPhasen().G`); `_tpGeheZu(t)` hält einen
+laufenden Probelauf an und ruft `jumpToAnchor(_tlBar.barToTrack(t/G))`; `_tpBild(n)` rastet aufs Bildraster (`anim-fps`);
+`_tpKanten()` = 0, Anlauf-Ende, Animations-Ende, G, Keyframes (`trackToBar(anchor)·G`), Halte (`intro + ab_s/bis_s`, auch
+Fotostopps), `_kantenOv` (aus `_ovSpurJetzt`) und `_kantenSg` (aus `_sgSpurJetzt`). `#anim-transport` in `#anim-drop`
+(nicht im Render-Modus/Tour-Map); Tastatur in `_keyNav` (Sichtbarkeit jetzt an `#anim-drop`). Ausblenden: Knöpfe
+`[data-ansicht]` in `headerActions`, Klassen `ohne-seite`/`ohne-zeit` an `#module-body` (Raster dann eine Spalte),
+`--anim-tl-h` 0, Zustand `localStorage rz-anim-ansicht`. Prüfstand `window.__rzTransport`, Test `tests/test_videoeditor.py`.
+
 ## Übersichtskarte im Animator (02.10.2026, v0.9.774)
 
 `modules/animator/ui/module.js` Block „Übersichtskarte“: `_uebAufbauen()` (nicht bei `_isStaticFrame`/`__rzRenderMode`)

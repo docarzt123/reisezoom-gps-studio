@@ -1901,12 +1901,15 @@ Con la barra de línea de tiempo **bajo** la vista previa del mapa puedes diseñ
 
 **Ensayo:** el **botón ▶** reproduce todo el track en tu duración de animación real (o sea, si has configurado 12 s, el ensayo dura 12 s). Un segundo clic (o <kbd>Espacio</kbd>) lo detiene al instante. Es una función de vista previa pura, no hace falta renderizar.
 
+**Barra de reproducción y vista completa (desde v0.9.775, como en un editor de vídeo):** bajo la vista previa hay una barra de reproducción: ⏮ inicio · ⇤ borde anterior · ◀︎ un fotograma atrás · ▶/⏸ reproducir · ▶︎ un fotograma adelante · ⇥ borde siguiente · ⏭ final, y al lado el tiempo («0:06.8 / 0:16.0»). Con ⇧ los botones de fotograma saltan un segundo. Arriba a la derecha, dos interruptores como en Final Cut ocultan por separado la **barra lateral** y la **línea de tiempo**: la vista previa se agranda y las teclas siguen funcionando. El estado se recuerda.
+
 **Navegación por teclado** (como en un NLE):
 | Tecla | Acción |
 |---|---|
-| <kbd>←</kbd> / <kbd>→</kbd> | Un punto GPS adelante/atrás |
-| <kbd>⇧</kbd> + <kbd>←</kbd>/<kbd>→</kbd> | Salto de 10 |
-| <kbd>Inicio</kbd> / <kbd>Fin</kbd> | Inicio / final del track |
+| <kbd>←</kbd> / <kbd>→</kbd> | Un fotograma atrás/adelante (desde v0.9.775; antes, un punto GPS) |
+| <kbd>⇧</kbd> + <kbd>←</kbd>/<kbd>→</kbd> | Un segundo atrás/adelante |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Al borde anterior/siguiente: inicio y fin de entrada, animación y final, keyframes, pausas y paradas de foto, rótulos, carteles |
+| <kbd>Inicio</kbd> / <kbd>Fin</kbd> | Inicio / final del vídeo (con entrada y final) |
 | <kbd>Espacio</kbd> | Iniciar/detener ensayo |
 | <kbd>Supr</kbd> / <kbd>Retroceso</kbd> | Eliminar el keyframe seleccionado |
 
