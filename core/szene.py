@@ -167,6 +167,31 @@ LETZTE_ZEITEN: dict = {}
 _WARTE_VORWAERMEN_JS = _WARTE_BILD_JS.replace("setTimeout(on, 5000)", "setTimeout(on, 2500)")
 
 
+async def _mit_meldung(aw, melden, is_cancelled=None, ab_s: float = 1.0):
+    """02.10.2026 (Marc: „an manchen Frames steht er so lang, dass man fast denkt, er wäre abgestürzt") — einen
+    Schritt eines Bildes abwarten und, solange er länger als `ab_s` dauert, jede Sekunde `melden(sekunden)` rufen.
+    Abbrechen greift auch während des Wartens."""
+    aufgabe = asyncio.ensure_future(aw)
+    t0 = time.perf_counter()
+    gemeldet = False
+    try:
+        while True:
+            fertig, _ = await asyncio.wait({aufgabe}, timeout=ab_s if not gemeldet else 1.0)
+            if fertig:
+                return aufgabe.result()
+            if is_cancelled and is_cancelled():
+                aufgabe.cancel()
+                raise A.RenderCancelled()
+            gemeldet = True
+            try:
+                melden(time.perf_counter() - t0)
+            except Exception:   # noqa: BLE001 — Meldung darf den Render nie stören
+                pass
+    finally:
+        if not aufgabe.done():
+            aufgabe.cancel()
+
+
 def _stoerung_hinweis(page) -> str:
     """30.09.2026 (Marc: „wenn so ein Fehler auftaucht, gib es direkt beim Rendern aus — dann weiß man, warum es
     lange dauert"): Hinweis für die Fortschrittszeile, wenn Kartendienste gerade nicht liefern. Quellen: die
@@ -647,9 +672,15 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     _vl["bild"] = frame
                     t = frame / cfg.fps
                     _t = time.perf_counter()
-                    await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
+                    _p = 0.05 + 0.87 * frame / total_frames
+                    def _meldung(schluessel, vorgabe, _f=frame, _p=_p):
+                        return lambda sek: emit(_p, f"Frame {_f + 1} / {total_frames} · "
+                                                + _i18n.t_aktiv(schluessel, vorgabe).replace("{s}", f"{sek:.0f}") + _hinweis_alt)
+                    await _mit_meldung(page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})"),
+                                       _meldung("szene.m_springt", "Karte springt zur Stelle … {s} s"), is_cancelled)
                     _z["seek"] += time.perf_counter() - _t; _t = time.perf_counter()
-                    await page.evaluate(_WARTE_BILD_JS)
+                    await _mit_meldung(page.evaluate(_WARTE_BILD_JS),
+                                       _meldung("szene.m_karte", "wartet auf die Karte (Kacheln, Gelände) … {s} s"), is_cancelled)
                     _w = time.perf_counter() - _t
                     _z["warten"] += _w
                     _warte_max = max(_warte_max, _w)
@@ -660,9 +691,11 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                         # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht
                         # (Einzelbild-Weg macht das seit 06.09. so). Zweiter Sprung nach dem Laden.
                         await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
-                        await page.evaluate(_WARTE_BILD_JS)
+                        await _mit_meldung(page.evaluate(_WARTE_BILD_JS),
+                                           _meldung("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s"), is_cancelled)
                     _t = time.perf_counter()
-                    shot = await A._grab_frame(page, cfg)
+                    shot = await _mit_meldung(A._grab_frame(page, cfg),
+                                              _meldung("szene.m_greifen", "nimmt das Bild auf … {s} s"), is_cancelled)
                     _z["greifen"] += time.perf_counter() - _t
                     if frame <= 2:
                         for _k in range(6):

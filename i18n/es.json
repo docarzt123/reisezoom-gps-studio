@@ -2853,7 +2853,7 @@
   "tourmap.btn.next": "Cerrar",
   "tourmap.btn.open_image": "🖼 Abrir imagen",
   "tourmap.btn.pick_gpx": "📁 Elegir archivo de track …",
-  "tourmap.btn.refit": "Ajustar al recorrido",
+  "tourmap.btn.refit": "Mostrar toda la ruta",
   "tourmap.btn.render": "🗺 Renderizar mapa como PNG",
   "tourmap.cam_taken": "Vista adoptada del Animator. Restablece con ⤢ (Ajustar a la ruta).",
   "tourmap.dnd.hint": "Arrastra GPX aquí",
@@ -4816,5 +4816,10 @@
   "schnell.fotos_ordner": "Elegir carpeta …",
   "schnell.fotos_dateien": "Elegir fotos …",
   "schnell.fotos_lesen": "Leyendo las fotos y asignándolas al recorrido …",
-  "schnell.fotos_passen_nicht": "Ninguna de las fotos elegidas encaja con la ruta (lugar u hora de la toma)."
+  "schnell.fotos_passen_nicht": "Ninguna de las fotos elegidas encaja con la ruta (lugar u hora de la toma).",
+  "szene.m_springt": "el mapa va al lugar … {s} s",
+  "szene.m_karte": "esperando al mapa (teselas, relieve) … {s} s",
+  "szene.m_gelaende": "cargando alturas del relieve … {s} s",
+  "szene.m_greifen": "capturando el fotograma … {s} s",
+  "container.zeile_groesse": "Tamaño"
 }

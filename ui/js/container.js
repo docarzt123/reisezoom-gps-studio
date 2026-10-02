@@ -93,6 +93,9 @@
       out.label_aus = !!z.label_aus;
     } else if (typ === "text") {
       out.text = String(istNix(z.text) ? "" : z.text).slice(0, 400);
+      // 02.10.2026 — Größe dieser Zeile relativ zur Schriftgröße des Containers (Titel + Untertitel in EINER
+      // Einblendung, Marc: „Titel und Untertitel liegen übereinander")
+      out.gr = rund(clamp(num(z.gr, 1), 0.2, 3), 3);
     } else if (typ === "diagramm") {
       out.art = z.art === "daten" ? "daten" : "hoehe";
       out.b = rund(clamp(num(z.b, 40), 3, 100), 2);
@@ -167,11 +170,34 @@
   }
   function liste(roh) {
     const gesehen = {};
-    return (Array.isArray(roh) ? roh : []).filter(istDict).map(normalisieren).filter((c) => {
+    return titelPaarZusammen((Array.isArray(roh) ? roh : []).filter(istDict).map(normalisieren).filter((c) => {
       if (gesehen[c.id]) c.id = neueId("c");
       gesehen[c.id] = true;
       return true;
-    });
+    }));
+  }
+  /** 02.10.2026 (Marc: „im 16:9-Schnell-Video liegen Titel und Untertitel übereinander") — bis v0.9.772 legte das
+   *  Schnell-Video Titel und Untertitel als ZWEI Einblendungen mit fester Höhe an; bricht der Titel um, landet der
+   *  Untertitel in seiner zweiten Zeile. Ein solches Paar (beide Vorlage „titel", oben mittig, eine Textzeile,
+   *  dieselbe Zeit, Untertitel kleiner und darunter) wird zu EINER Einblendung mit zwei Zeilen zusammengelegt —
+   *  der Untertitel steht dann immer unter dem Titel, egal wie viele Zeilen der hat. */
+  function titelPaarZusammen(cs) {
+    const raus = cs.slice();
+    for (let i = 0; i < raus.length; i++) {
+      const a = raus[i];
+      if (!a || a.vorlage !== "titel" || a.anker !== "tc" || a.zeilen.length !== 1 || a.zeilen[0].typ !== "text") continue;
+      const j = raus.findIndex((b, k) => k !== i && b && b.vorlage === "titel" && b.anker === "tc" && b.zeilen.length === 1
+        && b.zeilen[0].typ === "text" && b.schriftgroesse < a.schriftgroesse && b.y > a.y
+        && JSON.stringify(b.zeit || null) === JSON.stringify(a.zeit || null));
+      if (j < 0) continue;
+      const b = raus[j];
+      a.zeilen = [a.zeilen[0], Object.assign({}, b.zeilen[0], { gr: rund(b.schriftgroesse / a.schriftgroesse * (b.zeilen[0].gr || 1), 3) })];
+      a.zeilenabstand = Math.max(a.zeilenabstand || 0, 0.15);
+      if (a.x === 3) a.x = 0;   // alter Schnell-Video-Titel: Rand-Abstand der Ecken statt Mitte (s. VORLAGEN.titel)
+      raus.splice(j, 1);
+      if (j < i) i--;
+    }
+    return raus;
   }
   /** Stil-Template anwenden (Q28): alle Werte des Stils überschreiben die des Containers. */
   function stilAnwenden(c, stilName) {
@@ -194,8 +220,10 @@
       anker: "bc", schriftgroesse: 1.05, beschriftung: "aus", zeilenabstand: 0.4,
       zeilen: [zeile("text", { text: t("container.v.hoehe_kopf", "HÖHENPROFIL · Min {ele_low} · Max {ele_high}") }),
                zeile("diagramm", { art: "hoehe", b: 25, h: 11 })] })),
+    // x: 0 — mittig heißt mittig. Ohne Angabe galt der Rand-Abstand 3 % der Ecken-Anker: der Titel saß 3 % rechts
+    // der Mitte und ragte umgebrochen über den rechten Rand (02.10.2026, Schnell-Video 16:9).
     titel: (t) => normalisieren(Object.assign({}, STILE.ohne, { stil: "ohne", vorlage: "titel", name: t("container.v.titel", "Titel"),
-      anker: "tc", y: 20, schriftgroesse: 8, textschatten: true, inhalt_h: "c",
+      anker: "tc", x: 0, y: 20, schriftgroesse: 8, textschatten: true, inhalt_h: "c",
       zeilen: [zeile("text", { text: t("container.v.titel_text", "Meine Tour") })],
       zeit: { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: 3 } },
       blende: { ein: "none", aus: "fade", ein_s: 0.6, aus_s: 0.6 } })),
@@ -394,14 +422,13 @@
     const sk = istDict(a.schnellkarte) ? a.schnellkarte : null;
     if (sk) {
       const ts = Math.max(0.5, num(sk.titel_s, 3));
-      if (sk.titel_an && sk.titel) aus.push(normalisieren(Object.assign({}, STILE.ohne, {
+      // Titel und Untertitel in EINER Einblendung (02.10.2026, s. titelPaarZusammen)
+      const tz = [];
+      if (sk.titel_an && sk.titel) tz.push(zeile("text", { text: sk.titel }));
+      if (sk.titel_an && sk.unter) tz.push(zeile("text", { text: sk.unter, gr: sk.titel ? 0.45 : 1 }));
+      if (tz.length) aus.push(normalisieren(Object.assign({}, STILE.ohne, {
         id: neueId("c"), stil: "ohne", name: t("container.v.titel", "Titel"), vorlage: "titel", anker: "tc", x: 0, y: 20,
-        schriftgroesse: 8, textschatten: true, inhalt_h: "c", zeilen: [zeile("text", { text: sk.titel })],
-        zeit: { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: ts } },
-        blende: { ein: "none", aus: "fade", ein_s: 0.6, aus_s: 0.6 } })));
-      if (sk.titel_an && sk.unter) aus.push(normalisieren(Object.assign({}, STILE.ohne, {
-        id: neueId("c"), stil: "ohne", name: t("container.v.untertitel", "Untertitel"), vorlage: "titel", anker: "tc", x: 0,
-        y: sk.titel ? 30 : 20, schriftgroesse: 3.6, textschatten: true, inhalt_h: "c", zeilen: [zeile("text", { text: sk.unter })],
+        schriftgroesse: sk.titel ? 8 : 3.6, zeilenabstand: 0.15, textschatten: true, inhalt_h: "c", zeilen: tz,
         zeit: { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: ts } },
         blende: { ein: "none", aus: "fade", ein_s: 0.6, aus_s: 0.6 } })));
       const felder = (Array.isArray(sk.felder) ? sk.felder : []).filter(Boolean);

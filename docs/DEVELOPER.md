@@ -4427,6 +4427,20 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Einblendungen: Größe je Textzeile, Titel + Untertitel in einer Einblendung (02.10.2026, v0.9.773)
+
+`ui/js/container.js`: Textzeilen haben `gr` (0,2–3, Standard 1) = Schriftgröße relativ zum Container
+(`module.js` rendert `font-size:${gr}em`; Editorfeld „Größe %“ = `data-zk="gr_pct"`). Das Schnell-Video legt Titel und
+Untertitel als EINE Einblendung an (Untertitel `gr` 0,45, `zeilenabstand` 0,15); `liste()` legt alte Paare zusammen
+(`titelPaarZusammen`: beide Vorlage „titel“, `tc`, eine Textzeile, gleiche `zeit`, Untertitel kleiner und tiefer; x 3 → 0).
+Vorlage `titel` hat jetzt `x: 0` (vorher Rand-Vorgabe 3 % → rechts der Mitte). Löst Q14 („einheitlich je Container“) ab.
+
+## Render: Lebenszeichen je Bild (02.10.2026, v0.9.773)
+
+`core/szene.py _mit_meldung(aw, melden, is_cancelled, ab_s=1)`: wartet auf einen Schritt und ruft nach 1 s jede Sekunde
+`melden(sekunden)`; Abbrechen greift während des Wartens. Eingesetzt für Springen, `_WARTE_BILD_JS`, Gelände-Nachsprung
+und `_grab_frame`; Meldung „Frame N / M · <Schritt> … X s“ (i18n `szene.m_*`). Test `tests/test_render_meldung.py`.
+
 ## Signatur: Developer ID G2 (02.10.2026)
 
 Apples alte Developer-ID-Zertifizierungsstelle läuft am **01.02.2027** aus. Neues Zertifikat „Developer ID Application:

@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.773** (02.10.2026, built locally): quick-video title and subtitle no longer overlap; live progress while a frame takes long; logo without backing; "Open in Animator" goes to the timeline.
+
+### Fixed
+- **Title and subtitle on top of each other** (Marc, quick video 16:9: "title and subtitle lie on top of each other"). They were two overlays with fixed heights; a title that wraps (e.g. "66 Seen #10: Rauen 🔁 Hangelsberg (Completed)") ran into the subtitle. Now ONE overlay with two text lines; text lines have their own **size** (`gr`, editor field "Size %", 20–300 %), the subtitle 45 %. Old pairs are merged when read (`titelPaarZusammen`), so existing projects fit in the Animator too. The title template is now centred (`x: 0` — before it got the 3 % corner margin and sat right of centre, wrapped titles ran over the right edge). Q14 ("uniform per overlay") superseded. Tests: `test_schnellvideo_titel.py` (16:9, 9:16, 1:1, old project; layout measured), `test_container_modell.py`, `test_schnellvideo_nachbau.py` (size set via the editor).
+- **"Open in Animator" after a quick-video render showed the Animator's done page** instead of the timeline — the quick-video screen shows the result itself, the Animator's done page stays closed.
+
+### Changed
+- **Render shows a live sign when a frame takes long** (Marc: "on some frames it stands so long you think it crashed"). Every step of a frame (move, wait for the map, terrain reload, capture) that takes longer than 1 s updates the progress line every second: "Frame 312 / 900 · waiting for the map (tiles, terrain) … 4 s". Cancel works during the wait. `core/szene.py _mit_meldung`, test `test_render_meldung.py`.
+- **Quick video: logo without the dark plaque** (Marc: "looks silly, leave it out") — style "None"; switch it in the Animator under Overlays → Logo → Style if a light map needs a backing.
+- Button "⤢ Auf Track zoomen" renamed "Show whole track" (it resets to the overview of the whole track and the full line, and drops a hand-set view).
+
 > **0.9.772** (02.10.2026, built locally): highlight pre-announcement dots only appear at their spot on the track.
 
 ### Fixed
