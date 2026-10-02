@@ -1972,13 +1972,26 @@ document.addEventListener("click", (e) => {
     tip.setAttribute("role", "tooltip");
     if (inhalt.html) tip.innerHTML = inhalt.html; else tip.textContent = inhalt.text;
     document.body.appendChild(tip);
-    const r = btn.getBoundingClientRect();
+    aktiv = btn;
+    setzen();
+  }
+  function setzen() {
+    if (!tip || !aktiv) return;
+    const r = aktiv.getBoundingClientRect();
     const w = tip.offsetWidth, h = tip.offsetHeight;
     let x = r.left, y = r.bottom + 6;
     if (x + w > window.innerWidth - 8) x = Math.max(8, window.innerWidth - w - 8);
     if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 6);
     tip.style.left = x + "px"; tip.style.top = y + "px";
-    aktiv = btn;
+  }
+  /** 02.10.2026 — beim Scrollen mitwandern statt verschwinden: ein „?" am unteren Rand einer Spalte scrollte
+   *  beim Anklicken (Fokus) ein Stück ins Bild, das Scroll-Ereignis schloss die Blase sofort wieder — der Klick
+   *  zeigte nichts (selftest_archiv, Detailspalte). Weg erst, wenn der Knopf aus dem Bild ist. */
+  function beimScrollen() {
+    if (!tip || !aktiv) return;
+    const r = aktiv.getBoundingClientRect();
+    if (!aktiv.isConnected || r.bottom < 0 || r.top > window.innerHeight || r.width === 0) { weg(); return; }
+    setzen();
   }
   function weg() { if (tip) { tip.remove(); tip = null; } aktiv = null; }
   document.addEventListener("mouseover", (e) => {
@@ -1992,12 +2005,12 @@ document.addEventListener("click", (e) => {
     if (nach && aktiv.contains(nach)) return;
     weg();
   });
-  document.addEventListener("scroll", weg, true);
+  document.addEventListener("scroll", beimScrollen, true);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") weg(); });
   window.__rzHilfeTip = () => tip;   // Prüfstand
   document.addEventListener("focusin", (e) => { const btn = e.target.closest && e.target.closest(MARKER); if (btn) zeigen(btn); });
   document.addEventListener("focusout", weg);
-  window.addEventListener("scroll", weg, true);
+  window.addEventListener("scroll", beimScrollen, true);
   window.addEventListener("resize", weg);
 })();
 

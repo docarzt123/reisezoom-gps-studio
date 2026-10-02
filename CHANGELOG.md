@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.776** (02.10.2026, built locally): help bubbles show reliably; test maintenance after the full click-through.
+
+### Fixed
+- **Clicking a "?" at the bottom of a column showed no bubble** (found by `selftest_archiv`, archive detail column): focusing the "?" scrolled the column a little and the scroll handler closed the bubble immediately. The bubble now follows its button while scrolling and only closes when the button leaves the view (`ui/js/util.js`).
+
+### Tests
+- Full suite: 324/326 green, the two red ones were test problems — `test_selbstupdate` signed with the certificate *name* (ambiguous since the G2 switch, two certificates with the same name; now by SHA-1; the app itself checks the team ID), `test_render_matrix` counted the "Live values" overlay in the terrain wobble test (78-tour swarm: 0.1 ms = 22 min; overlays hidden for this measurement, terrain 0 px).
+- Click-through self-tests: `selftest_signs` (app starts in the archive now), `selftest_keyframes` (Alt on a value marker changes the value since v0.9.512; copy test on the cluster), `selftest_archiv` (single bubble system since 09.09.2026) brought up to date.
+
 > **0.9.775** (02.10.2026, built locally): the Animator works more like a video editor.
 
 ### Added

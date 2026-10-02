@@ -277,9 +277,11 @@ async def main() -> int:
         # gemeinsamen Helfer aus util.js bliebe das Symbol stumm.
         await page.click("#lib-detail .lib-act-paar .rz-q")
         await page.wait_for_timeout(300)
+        # 02.10.2026 — seit 09.09.2026 gibt es nur noch EIN Blasen-System (util.js, `.rz-hilfe-tip`, Prüfstand
+        # window.__rzHilfeTip); das alte `#rz-tip` mit display:block existiert nicht mehr.
         sichtbar = await page.evaluate("""() => {
-          const t = document.getElementById("rz-tip");
-          return !!t && t.style.display === "block" && t.textContent.length > 20;
+          const t = window.__rzHilfeTip ? window.__rzHilfeTip() : null;
+          return !!t && !!t.isConnected && t.offsetWidth > 0 && t.textContent.length > 20;
         }""")
         sagen(sichtbar, "ein Klick auf „?“ zeigt die Blase")
 

@@ -112,8 +112,10 @@ async def main() -> int:
         sagen("copy" not in rufe, "und NICHT „kopieren“", str(rufe))
 
         # ── 2. Mit Alt wird dupliziert ─────────────────────────────────────
-        print("\n[2] Mit Alt wird dupliziert")
-        m = await kasten('.timeline-marker[data-kind="pitch"][data-anchor="0.2"]')
+        print("\n[2] Mit Alt wird dupliziert (auf dem Cluster)")
+        # 02.10.2026 — seit v0.9.512 ändert Alt auf einem WERT-Marker (Neigung, Drehung, Zoom, Lage) den Wert
+        # (Marc-Wunsch); Duplizieren mit Alt gilt auf dem Cluster. Der Test zog noch am Neigungs-Marker.
+        m = await kasten('.timeline-marker[data-kind="__cluster"]')
         await page.evaluate("window.__ruf = []")
         await page.keyboard.down("Alt")
         await page.mouse.move(m["x"], m["y"])
