@@ -4901,5 +4901,11 @@
   "animator.ton.klick_i": "Little bell",
   "animator.ton.klick_j": "Whoosh + click",
   "animator.ton.klick_datei_tip": "Choose your own sound (WAV, MP3, M4A …)",
-  "animator.timeline.hoehe_tip": "Drag: taller or lower lanes · Double-click: default"
+  "animator.timeline.hoehe_tip": "Drag: taller or lower lanes · Double-click: default",
+  "signs.add_clips": "🎞 Add video clips",
+  "signs.add_clips_tip": "Choose video clips (MP4, MOV …) — they go where they were recorded (GPS, otherwise recording time) and play there as a stop.",
+  "signs.clips_passen_nicht": "None of the clips matches the tour (place or recording time).",
+  "signs.clips_dupes": "These clips are already in.",
+  "signs.clips_geladen": "%n video clips added as stops.",
+  "signs.clips_ohne_stelle": "%n didn't match the tour."
 }

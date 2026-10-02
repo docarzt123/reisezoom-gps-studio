@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.778] – 2026-10-02
+
+> Release 02.10.2026 — contains 0.9.756–0.9.778 (photo stops and quick video with photos, Developer ID G2 certificate, overlays as one title, live render progress, overview map, video-editor controls, music and sound, video clips, quick video "More", summit names, timeline thumbnails). Full suite 322/324 (one flaky under load, green alone; one text check fixed), plus test_render_alle_karten and test_render_matrix green.
+
 > **0.9.778** (02.10.2026, built locally): music and sound, video clips, overview map in the video, quick video with "More".
 
 ### Added
@@ -29,12 +33,14 @@ Bei jeder neuen Version:
 - **Quick video "More"** (Marc: "stay with the quick video and add an extended option"): top stays quick (format, length, title, subtitle), below a collapsible **"More"** with the ingredients as switches and a short summary (📸 4 · 🎞 1 · 📖 · 🎵 · 🗺 · 🏁): photo stops, **video clips** (found in the photo archive or chosen), **logbook** (a break in which a photo was taken becomes its caption, e.g. "☕ Pause · 25 min"; long breaks and own notes without photo become short signs in the highlight look with cup/moon/pen icons), **music** (+ click, listen), **overview map**, **end card**, numbers, profile, highlights, quality, map style. Found things are preselected; the choice is remembered (also whether "More" was open). Photos and clips share the time budget (half of the animation, clips first).
 - **Summit name instead of the municipality** (Marc, Teide demo: "summit — it says La Orotava. That's a really striking spot … look up which summit it is and write it there"): the caption of a photo stop shows the most striking named place within 350 m of where the photo was taken (summit/pass first, then hut, viewpoint, castle, waterfall …), e.g. "🌋 Teide · 16:16"; without one it stays the municipality. The "Highest point" highlight carries the summit name when a summit lies within 300 m. Lookup via Photon (komoot) — Overpass was overloaded for minutes during testing — remembered in `ort_punkt_cache.json` (hits forever, "nothing" for 30 days, no network = not remembered). `core/highlights.ort_am_punkt`, `Api.ort_am_punkt`, test `test_ort_am_punkt.py`.
 - **Timeline, round 2** (Marc: "when I zoom in I want to see the elevation profile of each tour … the sign's name … in a pill its icon … Cmd+ / Cmd− to zoom … drag the top edge to make the lanes taller or lower"): in a trip every tour tile carries its own small elevation profile; sign bars show name + time and, for highlight/logbook pills, their icon (SVG from `sign_draw.js`, `window.__rzHlIconSvg`); **⌘+ / ⌘− / ⌘0** zoom the timeline (Windows: Ctrl); a grip on the top edge scales all lane heights (0.6–2.2×, CSS `--tl-s`, remembered in `rz-tl-spurhoehe`, double-click = default).
+- **"🎞 Add video clips" in the Animator** (Marc: "build the button"): next to "Add photos" — choose clips, the app places them where they were recorded (GPS, otherwise recording time) as clip stops (4 s from the first quarter, sound off; change it in the sign). `schnellvideo_clips(…, alle=True)` takes every matching clip without thinning out.
 - **Photo click**: sound A ("DSLR") at 25 % by default — "very subtle".
 - **Overview maps with trips** (Marc's screenshot "66 Seen", 15 tours): both the Animator overview and the overview map in the video drew all tours as ONE line, so the gaps between tours became diagonals across the map. Now one line per tour (`_spurTeile`: trip boundaries + jumps > 2 km / 8 % of the extent).
 - **Overview map below the numbers** in 9:16 and 1:1 quick videos (it covered "Elapsed" in the Teide demo).
 - **Timeline thumbnails** (Marc: "the elevation profile very small in the timeline … and for signs with a photo, show the photo small"): elevation profile as a quiet background of the track lane (mapped through the tempo curve, so it stands still during halts); sign bars show their photo (or ▶ / symbol), sign rows a little taller.
 
 ### Fixed
+- **Choosing clips yourself never found anything** (quick video "Choose clips …", found through the new button): `core/photos.expand_paths` only lists photos — clips are now listed separately (files and folders).
 - **Full test suite after the changes:** 320 passed, 3 failed — all three from this version and fixed: direct file operations in `core/tonspur.py`, `core/clips.py`, the place cache (now through `core/dateischutz`), an open explanatory text in the sidebar (moved behind "?"), one extra timeline draw per keystroke on trips (`setHoehe` now ignores identical values).
 - **Photo-stop pins**: MapLibre threw "Length of new data is 6, which doesn't match current length of 0" when new stops replaced old ones (feature-state right after `setData`). Opacity and pop size are now feature properties, updated only on change.
 - **Quick video**: taking over into a project / rendering read the new switches after the dialog had closed → 0 stops. The switch states are now captured when the values are read.
