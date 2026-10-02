@@ -4436,6 +4436,11 @@ Fotostopps), `_kantenOv` (aus `_ovSpurJetzt`) und `_kantenSg` (aus `_sgSpurJetzt
 (nicht im Render-Modus/Tour-Map); Tastatur in `_keyNav` (Sichtbarkeit jetzt an `#anim-drop`). Ausblenden: Knöpfe
 `[data-ansicht]` in `headerActions`, Klassen `ohne-seite`/`ohne-zeit` an `#module-body` (Raster dann eine Spalte),
 `--anim-tl-h` 0, Zustand `localStorage rz-anim-ansicht`. Prüfstand `window.__rzTransport`, Test `tests/test_videoeditor.py`.
+Seit v0.9.777 sitzt die Leiste unten: `_tpPlatzieren()` (aus `_tpAufbauen`, `_ansichtAnwenden` und dem 150-ms-Takt
+`_tpAnzeigen`) hängt `#anim-transport` in `#anim-timeline-host .timeline-actions`, ordnet deren Kinder einmalig in
+`.tl-akt-links` / `.tl-akt-rechts` (nur „Alle weg“) und setzt `.mit-transport` (Raster `1fr auto 1fr`, `#tl-btn-play`
+ausgeblendet, `.tp-zeit` absolut rechts neben der Gruppe, damit ▶ exakt mittig bleibt). Bei `ohne-zeit` zurück in
+`#anim-drop` mit Klasse `schwebend` (bottom 14 px).
 
 ## Übersichtskarte im Animator (02.10.2026, v0.9.774)
 

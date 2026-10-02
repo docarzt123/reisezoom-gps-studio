@@ -1395,6 +1395,21 @@ body.is-rendering .anim-ueb, body.is-rendering .anim-ueb-auf { pointer-events: n
 .anim-transport .tp-zeit { margin-left: 6px; font: 600 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
 body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
+/* angedockt in der Knopfzeile der Zeitleiste: links Keyframe/Schalter, MITTE Abspielen, rechts „Alle weg" */
+.timeline-actions.mit-transport { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.timeline-actions.mit-transport .tl-akt-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.timeline-actions.mit-transport .tl-akt-rechts { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.timeline-actions.mit-transport .tl-akt-rechts .timeline-btn-clear { margin-left: 0; }
+.timeline-actions.mit-transport .timeline-btn-play { display: none !important; }
+.timeline-actions .anim-transport { position: relative; left: auto; bottom: auto; transform: none; opacity: 1; z-index: auto; padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.05); border-color: var(--border, rgba(255, 255, 255, 0.12)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.timeline-actions .anim-transport .tp-knopf { color: var(--text, #eee); }
+.timeline-actions .anim-transport .tp-knopf[data-tp="play"] { color: #fff; min-width: 40px; }
+.timeline-actions .anim-transport .tp-zeit { color: var(--text-dim, #b8b8b8); position: absolute; left: calc(100% + 4px); top: 50%;
+  transform: translateY(-50%); margin: 0; text-align: left; white-space: nowrap; pointer-events: none; }
+/* Platz für die außen angehängte Zeit, damit „Alle weg" nicht darunter rutscht */
+.timeline-actions.mit-transport .tl-akt-rechts { padding-left: 104px; }
+.anim-transport.schwebend { bottom: 14px; }
 .anim-ansicht { display: inline-flex; gap: 4px; margin-left: 8px; }
 .ansicht-knopf { width: 30px; height: 24px; padding: 3px; border-radius: 6px; border: 1px solid var(--border, rgba(255,255,255,0.15));
   background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
