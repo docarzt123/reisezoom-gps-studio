@@ -5,227 +5,169 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 01 Oct 2026 08:02:14 +0000</lastBuildDate>
+<lastBuildDate>Fri, 02 Oct 2026 20:34:58 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.755</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-755</link>
-<guid isPermaLink="false">gps-studio-v0.9.755</guid>
+<title>v0.9.779</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-779</link>
+<guid isPermaLink="false">gps-studio-v0.9.779</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>HDR-Video — neu unter Video-Einstellungen: Farbraum HDR (HLG oder PQ). Damit passt die Karte in eine HDR-Timeline zu deinen HDR-Aufnahmen, statt dort grau zu wirken.
+
+Gipfelhöhe — unter Gipfelfotos steht jetzt auch die Höhe („🌋 Teide · 3715 m“).</description>
+</item>
+<item>
+<title>v0.9.778</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-778</link>
+<guid isPermaLink="false">gps-studio-v0.9.778</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Musik und Ton — ein eigenes Stück der App („Unterwegs“, endlos und frei nutzbar) oder deine eigene Musik unter dem Video, sanft ein- und ausgeblendet, dazu ein Kamera-Klick bei jedem Fotostopp. Im Animator mit eigener Ton-Spur in der Zeitleiste, beim Abspielen schon zu hören.
+
+Videoclips — kurze Clips deiner Kamera erscheinen wie Fotostopps an der Stelle, wo sie entstanden sind, und laufen dort ab — auf Wunsch mit Originalton.
+
+Übersichtskarte im Video — die ganze Runde klein in der Ecke, der gefahrene Teil wächst mit.
+
+Schnell-Video mit „Mehr“ — oben bleibt alles schnell, unter „Mehr“ wählst du die Zutaten: Fotos, Videoclips, Logbuch (Pausen als Bildunterschrift oder kleines Schild), Musik, Übersichtskarte, Schlusskarte.</description>
+</item>
+<item>
+<title>v0.9.777</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-777</link>
+<guid isPermaLink="false">gps-studio-v0.9.777</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Abspielleiste ganz unten — die Steuerleiste sitzt jetzt in der Knopfzeile unter der Zeitleiste, der Abspielknopf genau in der Mitte. Die Vorschau bleibt oben frei.</description>
+</item>
+<item>
+<title>v0.9.776</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-776</link>
+<guid isPermaLink="false">gps-studio-v0.9.776</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Hilfe-Blasen — ein Klick auf ein „?“ ganz unten in einer Spalte zeigt die Erklärung jetzt zuverlässig (vorher verschwand sie sofort wieder).</description>
+</item>
+<item>
+<title>v0.9.775</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-775</link>
+<guid isPermaLink="false">gps-studio-v0.9.775</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Animator wie ein Videoeditor — Abspielleiste direkt unter der Vorschau (Anfang, Kanten, Bild vor/zurück, Abspielen, Ende), Pfeiltasten springen bildgenau oder zur nächsten Kante, und Seitenleiste und Zeitleiste lassen sich oben rechts einzeln ausblenden für eine große Vorschau.</description>
+</item>
+<item>
+<title>v0.9.774</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-774</link>
+<guid isPermaLink="false">gps-studio-v0.9.774</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Übersichtskarte im Animator — ein kleines Fenster zeigt den ganzen Track, den gerade gezeigten Ausschnitt und die Position. Klick macht es größer. Es ist nur eine Hilfe und erscheint nie im Video. Der Knopf „Auf Track zoomen“ ist dafür weg.</description>
+</item>
+<item>
+<title>v0.9.773</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-773</link>
+<guid isPermaLink="false">gps-studio-v0.9.773</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Schnell-Video: Titel und Untertitel — ein langer Titel schiebt den Untertitel jetzt nach unten statt ihn zu überdecken, in allen Formaten. Textzeilen in Einblendungen haben eine eigene Größe.
+
+Render meldet sich — dauert ein Bild länger, zählt die Anzeige mit („wartet auf die Karte … 4 s“).
+
+Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem Render direkt zur Zeitleiste.</description>
+</item>
+<item>
+<title>v0.9.772</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-772</link>
+<guid isPermaLink="false">gps-studio-v0.9.772</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Keine wandernden Punkte mehr — der kleine Punkt, der ein Highlight ankündigt, erscheint nur noch an seiner Stelle auf dem Track und nicht mehr am Bildrand, wo er mit der Kamera mitwanderte.</description>
+</item>
+<item>
+<title>v0.9.771</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-771</link>
+<guid isPermaLink="false">gps-studio-v0.9.771</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Schnell-Video: eigene Fotos wählen — findet das Foto-Archiv keine Fotos zur Tour, kannst du im Dialog einen Ordner oder einzelne Fotos wählen. Sie werden über GPS oder die Aufnahmezeit der Strecke zugeordnet.</description>
+</item>
+<item>
+<title>v0.9.770</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-770</link>
+<guid isPermaLink="false">gps-studio-v0.9.770</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotostopp einstellbar — wie weit die Karte während des Fotos schwenkt und wie stark das Foto heranzoomt, stellst du jetzt am Foto-Schild ein.</description>
+</item>
+<item>
+<title>v0.9.769</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-769</link>
+<guid isPermaLink="false">gps-studio-v0.9.769</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotostopp ruhiger — die Karte schwenkt während des Fotos nur noch halb so weit.</description>
+</item>
+<item>
+<title>v0.9.768</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-768</link>
+<guid isPermaLink="false">gps-studio-v0.9.768</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotostopp mit Bewegung — das Foto ist schon groß, wenn der Track ankommt, und beim Ausblenden läuft er sofort weiter. Während das Foto zu sehen ist, schwenkt die Kamera leicht, und das Foto zoomt langsam heran.
+
+Punkte im Gelände an der richtigen Stelle — die Vorankündigungspunkte der Highlights und die Foto-Pins sprangen im Video im Gebirge neben die Strecke. Behoben.</description>
+</item>
+<item>
+<title>v0.9.767</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-767</link>
+<guid isPermaLink="false">gps-studio-v0.9.767</guid>
 <pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Beim Modulwechsel bleibt nichts mehr offen — das Rechtsklick-Menü im Archiv und das Menü der Zeitleiste verschwinden jetzt mit dem Modul, wie schon die Editoren.</description>
+<description>Foto-Pins an der richtigen Stelle — im fertigen Video lagen die Pins nach dem Stopp neben der Strecke. Jetzt zeichnet die Karte sie selbst, genau auf der Linie.</description>
 </item>
 <item>
-<title>v0.9.753</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-753</link>
-<guid isPermaLink="false">gps-studio-v0.9.753</guid>
+<title>v0.9.766</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-766</link>
+<guid isPermaLink="false">gps-studio-v0.9.766</guid>
 <pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Einblendungs-Editor schließt beim Verlassen des Animators — wer bei offenem Editor ins Archiv wechselte, hatte das Fenster weiter vor sich.</description>
+<description>Foto-Pin — ein Fotostopp hat jetzt einen runden Pin mit dem Foto. Er taucht 2,5 Sekunden vorher auf, das große Foto wächst aus ihm heraus, danach bleibt er an seiner Stelle. Die doppelte Karte hinter dem Foto ist weg.</description>
 </item>
 <item>
-<title>v0.9.752</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-752</link>
-<guid isPermaLink="false">gps-studio-v0.9.752</guid>
-<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
-<description>🧱 Einblendungen neu gebaut: ein Baustein für alles — Werte, Höhenprofil, Diagramme, Nordpfeil und Maßstab, Titel, Schlusskarte und Logo sind jetzt „Einblendungen“: frei platzierbare Kästen mit Anker und Abstand, einem Stil als Vorlage (Kasten, Frei, Plakette, ohne) und Zeilen, die du beliebig kombinierst. Jede Einblendung hat eigene Zeiten mit Ein- und Ausblenden. In der Vorschau ziehen, im schwebenden Editor gestalten.
+<title>v0.9.765</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-765</link>
+<guid isPermaLink="false">gps-studio-v0.9.765</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotostopp: Uhrzeit vor Ort — die Uhrzeit unter dem Foto ist jetzt die Ortszeit am Aufnahmeort, auch wenn die Kamera noch auf deutscher Zeit stand.
 
-Alte Projekte werden übernommen — Werte-Kästen, Höhenprofil, Diagramme, Wasserzeichen, Titel und Schlusskarte werden beim Öffnen automatisch zu Einblendungen, ohne dass etwas verloren geht.
-
-🎞 Ein Render-Weg für alles — auch das Video mit transparentem Hintergrund entsteht jetzt genau so, wie die Vorschau aussieht. Mehrere Touren mit Transparenz gehen jetzt auch.
-
-🎬 Schnell-Video = normales Projekt — alles, was das Schnell-Video zeigt, sind normale Einblendungen und Einstellungen des Animators. Du kannst es öffnen, ändern oder komplett von Hand nachbauen.</description>
+Schnell-Video: aufgeräumter Schluss — die kleinen Fotokarten verschwinden nach ihrem Stopp wieder und verdecken die Schlusskarte nicht mehr.</description>
 </item>
 <item>
-<title>v0.9.751</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-751</link>
-<guid isPermaLink="false">gps-studio-v0.9.751</guid>
-<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
-<description>⭐ Highlights werden Schilder — höchster Punkt, steilste Stelle und Co. stehen jetzt als normale Schilder in der Liste und in der Zeitleiste: ändern, verschieben, löschen, ⌘Z. Änderst du den Track, passt die App sie an; von Hand geänderte bleiben.
+<title>v0.9.764</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-764</link>
+<guid isPermaLink="false">gps-studio-v0.9.764</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotostopps wie bei Relive — ein Foto-Schild bekommt das Häkchen „Hier anhalten“: Der Track hält am Foto, die Kamera fährt heran, das Foto erscheint groß mit Ort und Uhrzeit (auf Wunsch mit Kameradaten), dann geht es weiter.
 
-🏷 Fünf neue Schilder-Stile für Kennzahlen — Pille, Kasten mit Stecknadel, Rund mit Karte, Form mit Rahmen und Pinselstrich, mit Symbol und kleiner Einheit. Bei den Highlights wählbar, dazu Farben je Art oder eine für alle; im Schild-Editor für jedes Schild.
-
-Schilder kündigen sich an — kurz vorher erscheint ein kleiner Punkt in der Schildfarbe, am Bildrand, solange die Stelle noch nicht im Bild ist.
-
-Fehlermeldung nach dem Schnell-Video ohne Rendern behoben — „Fehler beim Initialisieren“ kam, weil das Archiv nach dem Wechsel in den Animator noch schreiben wollte.</description>
+Schnell-Video mit Fotos — der Dialog schlägt Fotos deiner Tour aus dem Foto-Archiv vor; per Klick abwählbar. Die Stopps gehen von der gewählten Länge ab.</description>
 </item>
 <item>
-<title>v0.9.750</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-750</link>
-<guid isPermaLink="false">gps-studio-v0.9.750</guid>
-<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
-<description>⭐ Highlights aus dem Track — wie bei Komoot: höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke und die Wegpunkte aus der GPX erscheinen im Video an der Karte. Kurz vorher ein gelber Punkt, an der Stelle eine Stecknadel mit dunkler Pille und dem Wert, danach blendet es wieder aus. Einschalten im Animator bei den Einblendungen unter „Highlights“.
+<title>v0.9.763</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-763</link>
+<guid isPermaLink="false">gps-studio-v0.9.763</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Schnell-Video abbrechen — nach dem Abbrechen bleibst du im Animator, und er ist nicht mehr ausgegraut. Vorher landete man im Archiv, und beim Wiederöffnen ließ sich der Animator nicht mehr bedienen.
 
-🎬 Schnell-Video mit Highlights — neues Häkchen „Highlights“, standardmäßig an.</description>
+Schnell-Video im Animator — „In dieses Projekt übernehmen“ ist jetzt der Hauptknopf, „Video rendern“ steht daneben.</description>
 </item>
 <item>
-<title>v0.9.749</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-749</link>
-<guid isPermaLink="false">gps-studio-v0.9.749</guid>
-<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
-<description>🎨 Neuer Stil für alle Einblendungen: „Frei“ — ohne Kästen: große Zahlen mit kleiner Einheit, die Beschriftung klein darüber, dunkle Verläufe oben und unten, das Höhenprofil als weiße Linie. Umschalten im Animator unter „Aussehen der Stats-Boxen“ → „Stil“. „Kasten“ bleibt wie bisher.
-
-💧 Logo als Plakette oben in der Mitte — im Stil „Frei“ sitzt das Wasserzeichen auf einer dunklen Plakette; der neue Knopf „Oben mittig“ setzt es dorthin, und die Zahlen rücken automatisch darunter.
-
-🎬 Schnell-Video im neuen Stil — Logo oben mittig, darunter Strecke, Höhenmeter und Zeit, unten das Höhenprofil über die ganze Breite; die Schlusskarte ohne Kasten.</description>
+<title>v0.9.762</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-762</link>
+<guid isPermaLink="false">gps-studio-v0.9.762</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Highlights beim Übernehmen ins Projekt — „In dieses Projekt übernehmen“ legt jetzt auch die Highlights als Schilder an, auch mit „Meinen Look behalten“.</description>
 </item>
 <item>
-<title>v0.9.748</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-748</link>
-<guid isPermaLink="false">gps-studio-v0.9.748</guid>
-<pubDate>Wed, 30 Sep 2026 12:00:00 +0000</pubDate>
-<description>🎬 Schnell-Video: Kamera näher dran, Pfeil schaut in Linienrichtung — die Kamera fliegt tiefer und steiler über den Track, und der Pfeil zeigt genau dorthin, wohin die gezeichnete Linie läuft.
+<title>v0.9.761</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-761</link>
+<guid isPermaLink="false">gps-studio-v0.9.761</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Pause im Probelauf: Linie und Pfeil bleiben zusammen — nach Space stand der Pfeil manchmal allein vor der Linie oder die Linie schon ein Stück weiter (bis zu 10 m). Jetzt endet sie genau am Pfeil.
 
-Keine hellen, flackernden Flecken mehr im Luftbild — fehlt eine Luftbild-Kachel, füllt die App die Stelle mit dem gröberen Bild desselben Luftbilds; außerdem schont sie den spanischen Kartenserver, damit weniger Kacheln ausfallen.
-
-Videos rendern mit leerem Kachelspeicher etwa doppelt so schnell — während das Video entsteht, lädt die App die Karte für die nächsten Sekunden schon voraus; das Vorwärmen vorab entfällt. Gilt für alle Videos.
-
-Render hängt nicht mehr, wenn ein Kartendienst ausfällt — fehlende Luftbild-Kacheln werden nicht mehr bei jedem Bild neu abgewartet; im Fortschritt steht, welcher Dienst gerade nicht antwortet.</description>
+Cluster zuklappen blendet die Kamera-Spuren aus — Neigung, Drehung, Zoom, Position und Bildlage verschwinden, alles rutscht hoch; der Cluster zeigt weiter die Marker.</description>
 </item>
 <item>
-<title>v0.9.736</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-736</link>
-<guid isPermaLink="false">gps-studio-v0.9.736</guid>
-<pubDate>Tue, 29 Sep 2026 12:00:00 +0000</pubDate>
-<description>„Ganze Zeit“ ohne Haken — ein Schild, das das ganze Video zu sehen ist, hat einfach einen Balken über die volle Breite — Ränder hineinziehen macht ein Zeitfenster daraus, ganz nach außen wieder die ganze Zeit. Neue Schilder übernehmen „ganze Zeit“ nicht mehr vom vorigen.
-
-Schilder blenden ein und aus wie die Overlays — in der Zeitleiste an den weißen Punkten ziehen oder im Schild-Fenster Dauer und Art der Ein- und Ausblendung wählen (auch Wegpoppen).
-
-Touren „Ganz zeigen“ statt Ghost-Spuren — eine Tour kann jetzt auf einmal ganz erscheinen statt sich zu zeichnen — so lange, wie ihr Balken in der Zeitleiste reicht, mit Einblenden oder Aufpoppen. Schalter ◼ in der Tracks-Liste, in der Zeitleiste und im Archiv („Als ganze Tour“). Alte Ghost-Spuren werden beim Öffnen automatisch umgestellt.
-
-Deckkraft für jede Tour — im Aussehen-Panel jeder Tour.</description>
-</item>
-<item>
-<title>v0.9.732</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-732</link>
-<guid isPermaLink="false">gps-studio-v0.9.732</guid>
-<pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
-<description>Update ohne Neuinstallation — auf dem Mac lädt „Jetzt aktualisieren“ die neue Version, prüft sie und startet GPS Studio neu; die alte Version landet im Papierkorb. Unter Windows lädt und prüft die App den Installer und startet ihn.
-
-„Nach Updates suchen …“ im Hilfe-Menü — mit eigenem Update-Fenster. Vorher wirkte die Suche im Über-Dialog eingefroren, wenn es eine neue Version gab.
-
-Update-Hinweis wieder schmal — die Leiste füllte das halbe Fenster.</description>
-</item>
-<item>
-<title>v0.9.731</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-731</link>
-<guid isPermaLink="false">gps-studio-v0.9.731</guid>
-<pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
-<description>Look „Filmisch“ bleibt stehen — in der Luftbild-Optik sprang die Auswahl nach „Filmisch“ zurück auf „Eigene Einstellung“.
-
-Einblendung der Stats-Boxen wirkt — „Einblenden“ und „Aufpoppen“ unter „Aussehen der Stats-Boxen“ gelten jetzt auch für Boxen, die das ganze Video über zu sehen sind: rein am Anfang, raus am Ende.
-
-Handbuch: Deinstallieren — wie man GPS Studio auf dem Mac komplett entfernt (App, Einstellungen, Zwischenspeicher, Schlüsselbund) und wo die Einstellungen unter Windows liegen. Die Bibliothek mit deinen Touren bleibt dabei stehen.
-
-Interne Test-Sperre — eine nur für Entwicklertests gedachte Sperrdatei kann die normale App nicht mehr beeinflussen.</description>
-</item>
-<item>
-<title>v0.9.729</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-729</link>
-<guid isPermaLink="false">gps-studio-v0.9.729</guid>
-<pubDate>Sun, 27 Sep 2026 12:00:00 +0000</pubDate>
-<description>Geotagger zeigt den Track sofort — beim ersten Wechsel in den Geotagger blieb die Karte manchmal ohne Track, erst beim zweiten Mal war er da.
-
-Kein falscher Kartenalarm mehr — beim Öffnen einer sehr langen Tour meldete die Karte kurz „Der Kartendienst antwortet nicht“, obwohl alles lief. Einzelne abgebrochene Kacheln lösen den Hinweis jetzt nicht mehr aus, echte Ausfälle weiterhin schon.
-
-Handbuch — neuer FAQ-Eintrag zum Hinweis „Der Kartendienst antwortet nicht“: was er bedeutet und was hilft.</description>
-</item>
-<item>
-<title>v0.9.726</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-726</link>
-<guid isPermaLink="false">gps-studio-v0.9.726</guid>
-<pubDate>Sat, 26 Sep 2026 12:00:00 +0000</pubDate>
-<description>Etappen bei mehreren Touren nacheinander — die Live-Box zeigt jetzt Etappe und Strecke in dieser Etappe, und die Uhrzeit ist die der jeweiligen Tour.
-
-Höhe aus der Karte stimmt — „Höhenprofil aus Karte laden“ im Inspektor lieferte bei manchen Touren ein fast flaches Profil. Jetzt kommen die Höhen aus Geländekacheln in fester Auflösung.
-
-Geotagger fragt vor dem Mischen — wer einen zweiten Fotoordner lädt, wählt jetzt „Ersetzen“ oder „Dazunehmen“ — vorher landeten beide Sätze in einer Liste.
-
-Archiv übersichtlicher — auf der Übersichtskarte ist jede Tour auch weit herausgezoomt als Punkt zu sehen, und „Alle Touren prüfen“ zeigt am Ende, wie viele Touren einen Befund haben.</description>
-</item>
-<item>
-<title>v0.9.725</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-725</link>
-<guid isPermaLink="false">gps-studio-v0.9.725</guid>
-<pubDate>Fri, 25 Sep 2026 12:00:00 +0000</pubDate>
-<description>Daten-Animator rendert wieder — seit dem 11. September brach jeder Render sofort ab, in allen Formaten. Behoben.
-
-Kein Hänger mehr bei 4 % — „Aktuellen Frame als Bild“ und „Video rendern“ blieben bei kleinem App-Fenster bei „Projekt öffnen“ stehen. Jetzt läuft der Render durch, die Anzeige sagt, worauf sie wartet, und ist die Vorschau kleiner als 640 Pixel, wird trotzdem fein gerendert — gleicher Ausschnitt.
-
-Sortieren auch unter Windows — die Reihenfolge der Statistik-Felder, Schilder, Stationen und Zusatzspuren lässt sich jetzt überall am ⠿-Griff ziehen; zusätzlich hat jede Zeile ▲▼.
-
-Klarere Namen im Schild-Editor — „Schildfarbe“ statt „Hintergrund“, „Außenrand“ statt „Rahmen“ und „Bleibt sichtbar“ statt „Sichtbar nach“ — danke an einen Beta-Tester für den Hinweis.</description>
-</item>
-<item>
-<title>v0.9.724</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-724</link>
-<guid isPermaLink="false">gps-studio-v0.9.724</guid>
-<pubDate>Thu, 24 Sep 2026 12:00:00 +0000</pubDate>
-<description>Stats-Boxen einfacher zeitlich einstellen — beim „bis“-Feld wählst du jetzt „s ab Start“ oder „s vor Ende“; ein unpassender Wert bleibt rot und verstellt den Balken nicht mehr. Am Balken stehen Sekunden und Kilometer, es gibt nur noch drei Blend-Arten (Hart, Einblenden, Aufpoppen), und das Aussehen-Fenster sagt, wenn eine Box eigene Blenden hat.
-
-Zeitzone im Foto falsch? Die App merkt es — schreibt die Kamera eine Zeitzone, die nicht zur Uhr passt (Uhr auf Ortszeit, Zone noch von zu Hause), schlägt der Geotagger den passenden Versatz vor. Dazu: Rückfrage vor der Bilderkennung, verdeckte Karten-Schlüssel, die Tour-Map zeigt ihr fertiges Bild wieder, und nach dem Neustart geht die zuletzt offene Tour wieder auf.
-
-Die Autofahrt im Video überspringen — jeder Abschnitt aus dem Logbuch lässt sich im Video zeigen, blass zeichnen, raffen oder überspringen. Einstellen im Inspektor (⋯ am Eintrag) oder im Animator unter „📖 Logbuch im Video“ — dort mit „Alle auf einmal“ (z. B. alle Fahrten) und Tagesköpfen bei Reisen über mehrere Tage.
-
-Zahlen je Bewegungsart — eine Gesamt-Box kann „nur Wanderung“, „nur Fahrt“ usw. zeigen: kein Ø-Tempo mehr aus Auto und Wanderung zusammen.</description>
-</item>
-<item>
-<title>v0.9.722</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-722</link>
-<guid isPermaLink="false">gps-studio-v0.9.722</guid>
-<pubDate>Tue, 22 Sep 2026 12:00:00 +0000</pubDate>
-<description>Windows: Foto-Bestand las gar keine Aufnahmedaten — alle Fotos hießen „keine Aufnahmedaten lesbar“, obwohl Zeit und GPS in den Dateien stehen. Die Zuordnung der exiftool-Antworten scheiterte an der Pfad-Schreibweise (Schrägstrich gegen Backslash). Behoben; der Mac war nie betroffen.</description>
-</item>
-<item>
-<title>v0.9.721</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-721</link>
-<guid isPermaLink="false">gps-studio-v0.9.721</guid>
-<pubDate>Mon, 21 Sep 2026 12:00:00 +0000</pubDate>
-<description>Foto-Schilder scharf — importierte Fotos waren in Vorschau und Video weich: die Vorschau zeigte nur ein winziges Listenbild, der 4K-Render vergrößerte ein 600-px-Bild. Beides behoben, das Foto ist im fertigen Video sichtbar schärfer.
-
-Farbe je Etappe — bei zusammengeführten Touren lässt sich im Animator unter „Tracks“ jetzt für jede Etappe eine Farbe wählen. Die Farbe gilt von der ersten Sekunde an, vorher lief Etappe 1 zunächst in der allgemeinen Track-Farbe.
-
-„Mehrere Track-Farben“ ausschalten — der Track wird wieder einfarbig, vorher blieb er bunt.
-
-Projekt exportieren — schlägt den Namen der Tour vor statt einer Zeichenfolge wie „6537f309….gpx“.</description>
-</item>
-<item>
-<title>v0.9.718</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-718</link>
-<guid isPermaLink="false">gps-studio-v0.9.718</guid>
-<pubDate>Mon, 14 Sep 2026 12:00:00 +0000</pubDate>
-<description>Dateischutz — GPS Studio löscht, verschiebt oder überschreibt Dateien nur noch nach doppelter Prüfung, und nur, was ihm selbst gehört. Was gelöscht oder überschrieben wird, landet vorher 14 Tage im eigenen Papierkorb von GPS Studio.
-
-Warten sperrt die Oberfläche — wo du warten musst, erscheint ein Fenster mit dem, was gerade passiert, und nichts anderes lässt sich in der Zeit auslösen. Wichtige Vorgänge wie das Verschieben der Bibliothek können nicht mehr doppelt laufen.
-
-Geotagger — beim Schreiben direkt in die Originalfotos wird immer vorher gesichert; Abbrechen löscht keine Originale mehr.
-
-OpenStreetMap-Karten zeigten in der Web-Karte „Access blocked“ — sie laufen jetzt über den Kachel-Zwischenspeicher von GPS Studio.</description>
-</item>
-<item>
-<title>v0.9.713</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-713</link>
-<guid isPermaLink="false">gps-studio-v0.9.713</guid>
-<pubDate>Mon, 14 Sep 2026 12:00:00 +0000</pubDate>
-<description>Logbuch auf der Karte — Höchster Punkt, eigene Punkte und Sehenswürdigkeiten stehen als Marken auf der Karte. Ein Klick sagt, was das ist , und bietet Umbenennen, Notiz, Löschen. Ein Befund sagt, was kaputt ist, und fragt gleich „Reparieren?“. Rechtsklick auf den Track öffnet dasselbe Menü wie im Zeitstrahl. Zoomst du im Zeitstrahl , zeigt die Karte denselben Abschnitt — und andersrum. „POIs“ aus nimmt die Sehenswürdigkeiten überall heraus.
-
-Behoben: Einen POI im Logbuch zu löschen zeigte „bid“ und tat nichts. Gelöschte automatische Punkte kommen beim Neu-Erkennen nicht wieder.
-
-Behoben: Tausende Foto-Schilder ließen die Vorschau abstürzen — Nachgestellt mit 2830 Foto-Schildern: Der Probelauf trieb den Web-Prozess auf 32 GB, macOS beendete ihn. Jetzt bleibt die Spitze bei 4 bis 6 GB, ein 4K-Render des Projekts läuft durch. Die Schilder sehen gleich groß aus, bei sehr vielen mit etwas weniger Pixeln.
-
-Behoben: Eine zweite Bibliothek überschrieb die Cloud-Kopie der ersten. Die Cloud gehört jetzt zu genau einer Bibliothek.</description>
-</item>
-<item>
-<title>v0.9.711</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-711</link>
-<guid isPermaLink="false">gps-studio-v0.9.711</guid>
-<pubDate>Mon, 14 Sep 2026 12:00:00 +0000</pubDate>
-<description>Logbuch: Befunde-Spur, eigene Spuren, Kurzfassung im Archiv — Der Zeitstrahl bekommt eine Befunde -Spur: jede Fundstelle des Track-Checks als Raute in ihrer Farbe, Klick springt auf der Karte hin. Eigene Spuren („mit den Kindern“, „Regen“) legst du über „＋ A→B → Eigene Spur …“ an, das Häkchen „Eigene“ zeigt sie, Rechtsklick benennt um oder entfernt — alles mit ⌘Z. Im Archiv steht unter den Kennzahlen jetzt die Kurzfassung des Logbuchs („5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt 1.240 m“) oder ehrlich „noch kein Logbuch“.</description>
-</item>
-<item>
-<title>v0.9.710</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-710</link>
-<guid isPermaLink="false">gps-studio-v0.9.710</guid>
-<pubDate>Sun, 13 Sep 2026 12:00:00 +0000</pubDate>
-<description>Logbuch: Ortsnamen, Sehenswürdigkeiten und ein großes Fenster — Steht das Logbuch, schlägt die App im Hintergrund Ortsnamen nach (kostenlos, Kasten unten rechts): Pausen und Punkte bekommen „in La Orotava, Kanarische Inseln“, Fahrten „von … nach …“. Namen aus deiner Aufzeichnungs-App gehen vor; Nachgeschlagenes bleibt gemerkt und wird ohne Internet später nachgetragen. Sehenswürdigkeiten am Weg (OpenStreetMap) erscheinen als eigene POI-Spur im Zeitstrahl (Menge einstellbar, ausblendbar); Gipfel, Pässe, Burgen und alles nahe einer Pause landen gleich im Logbuch, jede andere Marke kommt per Klick hinein. Beides lässt sich in ⚙ abschalten — das Logbuch selbst braucht nie Internet. Das ⤢ große Fenster zeigt das ganze Logbuch als verschiebbare, sortierbare Tabelle (Zeit, Art, Name, Ort, Dauer, km, Höhenmeter, Tempo) mit Mehrfachauswahl (Umschalt-Klick) und Sammelaktionen; Doppelklick auf den Namen benennt um.</description>
+<title>v0.9.760</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-760</link>
+<guid isPermaLink="false">gps-studio-v0.9.760</guid>
+<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
+<description>Schnell-Video mit eigener Länge — neben Kurz, Normal und Lang gibt es „Eigene“ (Sekunden) und aus dem Animator heraus „Wie im Animator“ mit der dort eingestellten Länge. Bei Reisen stimmt die Länge jetzt auch nach dem Übernehmen genau.</description>
 </item>
 </channel>
 </rss>

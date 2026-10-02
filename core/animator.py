@@ -52,6 +52,31 @@ class RenderCancelled(Exception):
 _log = logging.getLogger("animator")
 
 
+_FFMPEG_FILTER: dict = {}
+
+
+def find_ffmpeg_mit(filtername: str) -> Optional[str]:
+    """02.10.2026 — ein ffmpeg, das `filtername` kann (HDR braucht zscale; Homebrews ffmpeg hat es nicht, das
+    gebündelte imageio-ffmpeg schon). Reihenfolge wie find_ffmpeg, dann das gebündelte. None, wenn keins."""
+    kandidaten = [find_ffmpeg()]
+    try:
+        import imageio_ffmpeg
+        kandidaten.append(imageio_ffmpeg.get_ffmpeg_exe())
+    except Exception:  # noqa: BLE001
+        pass
+    for exe in kandidaten:
+        key = (exe, filtername)
+        if key not in _FFMPEG_FILTER:
+            try:
+                r = subprocess.run([exe, "-hide_banner", "-filters"], capture_output=True, text=True, timeout=20)
+                _FFMPEG_FILTER[key] = any(z.split()[1:2] == [filtername] for z in r.stdout.splitlines() if z.strip())
+            except Exception:  # noqa: BLE001
+                _FFMPEG_FILTER[key] = False
+        if _FFMPEG_FILTER[key]:
+            return exe
+    return None
+
+
 def find_ffmpeg() -> str:
     """Sucht ffmpeg robust.
 
@@ -372,6 +397,9 @@ class AnimatorConfig:
     # über echtes Video gelegt werden kann. Pitch/Bearing/Terrain werden
     # in diesem Modus ignoriert (2D top-down macht für Composit am meisten Sinn).
     transparent_background: bool = False
+    # 02.10.2026 (Marc: „könnte man auch in HDR rendern", IDEAS §73) — "sdr" | "hlg" | "pq". HDR = SDR-Bild sauber
+    # in BT.2020 mit HLG- bzw. PQ-Kurve, SDR-Weiß auf 203 nits (ITU-R BT.2408), 10 Bit HEVC oder ProRes.
+    farbraum: str = "sdr"
     # Schlagschatten unter der Track-Linie. Macht den Track plastischer —
     # er sieht aus als würde er ein Stückchen über der Karte schweben.
     # `shadow_enabled` = Master-Toggle; `shadow_strength` ist die Offset-Distanz

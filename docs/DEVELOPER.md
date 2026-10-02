@@ -4430,6 +4430,26 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## 3D-Häuser (02.10.2026, v0.9.779)
+
+`_gebaeudeAnwenden()` (Animator/Tour-Map, Schalter `#anim-mc-gebaeude` → `animator.gebaeude_3d`): fill-extrusion `rz-gebaeude-3d`
+auf der OpenMapTiles-Ebene `building` — Quelle: die vorhandene OpenFreeMap-/OpenMapTiles-Quelle des Stils, sonst eigene
+`rz-gebaeude-src` (`https://tiles.openfreemap.org/planet`). Höhe `render_height` (Standard 6 m), Basis `render_min_height`,
+ab z13 (z13→14 hochgefahren), `hide_3d` gefiltert, vor `preview-ghost`/`preview-line` (also unter dem Track). Stil-eigene
+fill-extrusion-Ebenen (Liberty) folgen dem Schalter, dann keine eigene. Aufgerufen aus `rebuildPreviewLayers` (nach jedem
+Stilwechsel) und beim Umschalten. Prüfstand `window.__rzGebaeude` (Anzahl über `querySourceFeatures` — 3D-Klötze liefert
+`queryRenderedFeatures` nicht). Test `tests/test_gebaeude_3d.py`.
+
+## HDR-Render (02.10.2026, v0.9.779)
+
+`AnimatorConfig.farbraum` ("sdr"|"hlg"|"pq", Projekt `animator.farbraum`, Feld `#anim-farbraum`, Render-Param `farbraum`).
+`core/szene._ffmpeg_cmd` → bei HLG/PQ (und nicht Alpha) `_hdr_cmd`: `format=gbrp` → `zscale` sRGB→linear (npl=203) →
+`gbrpf32le` → `zscale` linear→BT.2020 + `arib-std-b67`/`smpte2084`, limited → `yuv420p10le` + libx265 Main10
+(`-x265-params colorprim/transfer/colormatrix/range`, PQ: `hdr10`, `master-display` P3-D65 1000 nits, `max-cll=203,203`)
+bzw. ProRes 422 HQ `yuv422p10le`; Container-Tags `-color_*`. `A.find_ffmpeg_mit("zscale")` (gecacht) — Homebrew-ffmpeg
+hat kein zscale, das gebündelte imageio-ffmpeg schon; ohne → SDR + Log-Warnung. Die Tonspur (`-c:v copy`) behält die
+Farbangaben. Test `tests/test_hdr_render.py` (Pegel nach BT.2408, ffprobe-Tags mit/ohne Ton, SDR unverändert).
+
 ## Ton, Videoclips, Übersichtskarte, Schnell-Video „Mehr“ (02.10.2026, v0.9.778)
 
 **Ton (eine Wahrheit: der Tonplan).** `module.js` Block „Musik und Ton“: `_tonPlan()` liefert in Videosekunden

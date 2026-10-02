@@ -174,7 +174,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.778"
+APP_VERSION = "0.9.779"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -6095,7 +6095,7 @@ class Api:
         except (TypeError, ValueError):
             return None
         pfad = APP_SUPPORT / "ort_punkt_cache.json"
-        key = f"{lat:.4f},{lon:.4f},{int(radius_m)},{int(bool(nur_gipfel))}"
+        key = f"{lat:.4f},{lon:.4f},{int(radius_m)},{int(bool(nur_gipfel))},v2"   # v2: mit Gipfelhöhe
         with self._ORT_CACHE_LOCK:
             try:
                 cache = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
@@ -6148,7 +6148,7 @@ class Api:
                      "objektiv": w("LensModel", "LensID", "Lens"), "iso": w("ISO", "ISOSpeed"),
                      "blende": w("FNumber", "ApertureValue"), "brennweite": w("FocalLength"),
                      "belichtung": w("ExposureTime", "ShutterSpeed"), "ort": w("City", "Sub-location"),
-                     "_dt": m.get("datetime"), "lat": m.get("lat"), "lon": m.get("lon")}
+                     "_dt": m.get("datetime"), "lat": m.get("lat"), "lon": m.get("lon"), "ele": m.get("alt")}
             texte = _fotostopp_texte(d)
             # Markanter Ort an der Aufnahmestelle (GPS des Fotos, sonst die Stelle des Schilds) statt der Gemeinde
             la = d.get("lat") if d.get("lat") is not None else lat
@@ -6158,6 +6158,13 @@ class Api:
                 if poi:
                     texte["gemeinde"] = texte.get("ort", "")
                     texte["ort"] = f"{poi['symbol']} {poi['name']}"
+                    # Höhe am Gipfel/Pass (Marc 02.10.2026): aus OSM, sonst die GPS-Höhe des Fotos
+                    ele = poi.get("ele")
+                    if ele is None and poi.get("art") in ("gipfel", "pass") and d.get("ele") is not None:
+                        try: ele = round(float(d["ele"]))
+                        except (TypeError, ValueError): ele = None
+                    if ele is not None and poi.get("art") in ("gipfel", "pass"):
+                        texte["ort"] += f" · {int(ele)} m"
                     texte["poi"] = poi
             return {"ok": True, **texte}
         except Exception as e:   # noqa: BLE001
@@ -7097,6 +7104,7 @@ class Api:
             pause_min_s=float(params.get("pause_min_s", 120) or 120),
             pause_trim_s=float(params.get("pause_trim_s", 5) or 5),
             transparent_background=alpha,
+            farbraum=(str(params.get("farbraum") or "sdr").lower() if str(params.get("farbraum") or "sdr").lower() in ("sdr", "hlg", "pq") else "sdr"),
             shadow_enabled=bool(params.get("shadow_enabled", True)),
             shadow_strength=float(params.get("shadow_strength", 4.0)),
             shadow_dir=_zahl(params.get("shadow_dir"), 45.0),   # v0.9.478 — globale Lichtquelle

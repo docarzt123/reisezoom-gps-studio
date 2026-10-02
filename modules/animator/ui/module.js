@@ -321,6 +321,10 @@ function mountAnimator(body, headerActions, opts) {
               <label class="chip-toggle" title="${t("map_config.elements.transit")}"><input type="checkbox" id="anim-mc-transit" checked><span>${t("map_config.chip.transit", "ÖPNV")}</span></label>
               <label class="chip-toggle" title="${t("map_config.elements.admin")} — ${t("map_config.elements.admin_hint")}"><input type="checkbox" id="anim-mc-admin" checked><span>${t("map_config.chip.admin", "Grenzen")}</span></label>
             </div>
+            <!-- 02.10.2026 (Marc: „bau jetzt die 3D-Häuser") — Gebäude aus OpenStreetMap als Klötze -->
+            <div class="chip-row" style="margin-top:6px">
+              <label class="chip-toggle" title="${t("map_config.gebaeude_tip", "Gebäude aus OpenStreetMap als 3D-Klötze in echter Grundfläche und Höhe (ab Stadtteil-Zoom). Höhe aus Stockwerken oder Metern, sonst Standardhöhe. Quelle: OpenFreeMap, © OpenStreetMap.")}"><input type="checkbox" id="anim-mc-gebaeude"><span>${t("map_config.chip.gebaeude", "🏠 3D-Häuser")}</span></label>
+            </div>
             <div class="quick-toggle-row">
               <button type="button" class="btn btn-subtle" id="anim-mc-all-off">${t("map_config.all_off")}</button>
               <button type="button" class="btn btn-subtle" id="anim-mc-all-on">${t("map_config.all_on")}</button>
@@ -1220,6 +1224,19 @@ function mountAnimator(body, headerActions, opts) {
               </select>
             </div>
           </div>
+          ${_isStaticFrame ? "" : `
+          <!-- 02.10.2026 (Marc: „bau den HDR-Render", IDEAS §73) -->
+          <div class="field">
+            <label class="field-label" for="anim-farbraum">${t("animator.farbraum", "Farbraum")}
+              <button type="button" class="field-help" data-help="farbraum">?</button>
+            </label>
+            <select id="anim-farbraum" class="select">
+              <option value="sdr">${t("animator.farbraum.sdr", "SDR (Standard)")}</option>
+              <option value="hlg">${t("animator.farbraum.hlg", "HDR · HLG (empfohlen)")}</option>
+              <option value="pq">${t("animator.farbraum.pq", "HDR · PQ (HDR10)")}</option>
+            </select>
+            <div class="muted field-help-content" data-help-content="farbraum" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("animator.farbraum.hilfe", "HDR passt das Video zu HDR-Aufnahmen in einer HDR-Timeline (Final Cut, DaVinci, YouTube) — ein normales Video wirkt dort grau. Die Karte wird dafür in den HDR-Farbraum (BT.2020) umgerechnet, Weiß auf 203 nits, 10 Bit. HLG läuft auch auf normalen Bildschirmen gut; PQ (HDR10) ist für reine HDR-Projekte. Das Video wird HEVC (oder ProRes, wenn ProRes eingestellt ist). Mit Alpha-Hintergrund gibt es kein HDR.")}</div>
+          </div>`}
           <div class="field">
             <label class="field-label">${t("animator.field.map_smoothing")} <span class="label-val" id="anim-map-smoothing-v">1.3 px</span></label>
             <input type="range" id="anim-map-smoothing" min="0" max="3" step="0.1" value="1.3">
@@ -1520,6 +1537,7 @@ function mountAnimator(body, headerActions, opts) {
     { type: "bool", onChange: () => applyHideLabels() });
   bindSetting("anim-mc-admin", _MODKEY, "show_admin_boundaries",
     { type: "bool", onChange: () => applyHideLabels() });
+  bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onChange: () => { try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } } });
   // Quick "Alle aus" / "Alle an"
   (function setupMcQuickButtons() {
     const ids = ["anim-mc-places","anim-mc-roads","anim-mc-poi","anim-mc-transit","anim-mc-admin"];
@@ -2173,6 +2191,7 @@ function mountAnimator(body, headerActions, opts) {
     onLoad:   () => updateResButtons(),
     onChange: () => updateResButtons() });
   bindSetting("anim-fps", _MODKEY, "fps", { type: "number" });
+  bindSetting("anim-farbraum", _MODKEY, "farbraum");   // 02.10.2026 — HDR
   // (Codec-Auswahl ist in die globalen Einstellungen „Qualität & Export" gewandert.)
   // Performance + Alpha (v0.4)
   // point_count wird nach GPX-Load dynamisch konfiguriert (Max = n_points).
@@ -5127,6 +5146,59 @@ function mountAnimator(body, headerActions, opts) {
     try { return !(map && map.__rzEngine === "mapbox"); } catch (_) { return isOsmMode(); }
   }
 
+  // ── 3D-Häuser (02.10.2026) ──────────────────────────────────────────────────
+  // Gebäude aus OpenStreetMap (OpenMapTiles-Schema über OpenFreeMap: Ebene „building", render_height /
+  // render_min_height) als fill-extrusion. Bringt der Stil schon OpenMapTiles mit (OFM Liberty/Bright/Positron),
+  // wird dessen Quelle genutzt, sonst eine eigene. Liegt unter dem Track (vor „preview-ghost"). Stilseitige
+  // 3D-Gebäude (Liberty) folgen demselben Schalter, damit es keine doppelten Klötze gibt.
+  const GEB_SRC = "rz-gebaeude-src", GEB_EBENE = "rz-gebaeude-3d", GEB_TILES = "https://tiles.openfreemap.org/planet";
+  function _gebaeudeAn() { return !!document.getElementById("anim-mc-gebaeude")?.checked; }
+  function _gebaeudeFarbe() {
+    const k = String(map && map.__rzStyleKey || "");
+    if (/sat|ortho|hybrid|free_satellite/.test(k)) return "#e9e3d8";   // hell-warm auf Luftbild
+    if (/positron|light/.test(k)) return "#d9d9de";
+    if (/dark/.test(k)) return "#3a3f4a";
+    return "#d6cfc4";
+  }
+  function _gebaeudeAnwenden() {
+    if (!map || !map.getStyle) return;
+    let st; try { st = map.getStyle(); } catch (_) { return; }
+    if (!st) return;
+    const an = _gebaeudeAn();
+    // Stil-eigene Gebäude-Klötze (z. B. OFM Liberty „building-3d") an denselben Schalter hängen
+    for (const l of (st.layers || [])) {
+      if (l.type === "fill-extrusion" && l.id !== GEB_EBENE) { try { map.setLayoutProperty(l.id, "visibility", an ? "visible" : "none"); } catch (_) {} }
+    }
+    const eigeneDa = (st.layers || []).some(l => l.type === "fill-extrusion" && l.id !== GEB_EBENE);
+    if (!an || eigeneDa) { if (map.getLayer(GEB_EBENE)) map.setLayoutProperty(GEB_EBENE, "visibility", "none"); return; }
+    // Quelle: vorhandene OpenMapTiles-Quelle des Stils, sonst eigene
+    let src = Object.keys(st.sources || {}).find(id => { const q = st.sources[id]; return q && q.type === "vector" && /openfreemap|openmaptiles/i.test(String(q.url || (q.tiles || [])[0] || "")); });
+    if (!src) {
+      src = GEB_SRC;
+      if (!map.getSource(GEB_SRC)) map.addSource(GEB_SRC, { type: "vector", url: GEB_TILES, attribution: "© OpenMapTiles © OpenStreetMap" });
+    }
+    const vor = ["preview-ghost", "preview-ghost-gpx", "preview-shadow", "preview-glow", "preview-line"].find(id => map.getLayer(id));
+    if (!map.getLayer(GEB_EBENE)) {
+      map.addLayer({ id: GEB_EBENE, type: "fill-extrusion", source: src, "source-layer": "building", minzoom: 13,
+        filter: ["!=", ["get", "hide_3d"], true],
+        paint: {
+          "fill-extrusion-color": _gebaeudeFarbe(),
+          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, ["coalesce", ["get", "render_height"], 6]],
+          "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, ["coalesce", ["get", "render_min_height"], 0]],
+          "fill-extrusion-opacity": 0.92,
+          "fill-extrusion-vertical-gradient": true,
+        } }, vor);
+    } else {
+      map.setLayoutProperty(GEB_EBENE, "visibility", "visible");
+      map.setPaintProperty(GEB_EBENE, "fill-extrusion-color", _gebaeudeFarbe());
+      if (vor) { try { map.moveLayer(GEB_EBENE, vor); } catch (_) {} }
+    }
+  }
+  window.__rzGebaeude = { an: () => _gebaeudeAn(), anwenden: () => _gebaeudeAnwenden(),
+                          ebene: () => !!(map && map.getLayer(GEB_EBENE)), sichtbar: () => { try { return map.getLayoutProperty(GEB_EBENE, "visibility") !== "none" && !!map.getLayer(GEB_EBENE); } catch (_) { return false; } },
+                          // 3D-Klötze gibt MapLibre über queryRenderedFeatures nicht heraus → aus der Kachelquelle zählen
+                          anzahl: () => { try { const l = map.getLayer(GEB_EBENE); return l ? map.querySourceFeatures(l.source, { sourceLayer: "building" }).length : 0; } catch (_) { return -1; } },
+                          reihenfolge: () => { try { const ids = map.getStyle().layers.map(l => l.id); return { geb: ids.indexOf(GEB_EBENE), track: ids.indexOf("preview-line") }; } catch (_) { return null; } } };   // Prüfstand
   function rebuildPreviewLayers() {
     if (!map) return;
     if (!_whenStyleReady("rebuildPreview", rebuildPreviewLayers)) return;
@@ -5290,6 +5362,7 @@ function mountAnimator(body, headerActions, opts) {
       const _da = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       dotSetzen(trackFracAusAnker(_da));
     } catch (e) { rzSwallow(e, "dot@rebuild"); }
+    try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); }   // 02.10.2026 — 3D-Häuser nach jedem Stilwechsel
   }
 
   // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
@@ -15765,15 +15838,15 @@ function mountAnimator(body, headerActions, opts) {
       groesse: Number(a.highlights_groesse) > 0 ? Number(a.highlights_groesse) : 30,
     };
   }
-  const _hlGipfel = new Map();   // "lat,lon" → Name | "" (keiner) | null (wird gefragt)
+  const _hlGipfel = new Map();   // "lat,lon" → {name, ele} | "" (keiner) | null (wird gefragt)
   function _hlGipfelName(lat, lon) {
     const k = (+lat).toFixed(5) + "," + (+lon).toFixed(5);
     if (_hlGipfel.has(k)) return _hlGipfel.get(k) || "";
     _hlGipfel.set(k, null);
     api().ort_am_punkt(lat, lon, 300, true).then(r => {   // warte-ok: Hintergrund, das Schild wird danach neu abgeglichen
-      const n = (r && r.ok && r.ort && r.ort.name) || "";
-      _hlGipfel.set(k, n);
-      if (n) { try { _hlSchilderAbgleichen(true); } catch (_) {} }
+      const o = (r && r.ok && r.ort && r.ort.name) ? { name: r.ort.name, ele: r.ort.ele } : "";
+      _hlGipfel.set(k, o);
+      if (o) { try { _hlSchilderAbgleichen(true); } catch (_) {} }
     }).catch(() => _hlGipfel.delete(k));
     return "";
   }
@@ -15798,7 +15871,9 @@ function mountAnimator(body, headerActions, opts) {
         // 02.10.2026 — am höchsten Punkt der Name des Gipfels, wenn einer daneben liegt (sonst „Höchster Punkt")
         const gipfel = h.art === "hoechster" ? _hlGipfelName(c[1], c[0]) : "";
         const s = sg.normalize({ ...HL_SCHILD, style: ps.stil, color: farbe, size: ps.groesse, icon: h.art,
-                                 text: (gipfel || _hlText(h.art)) + "\n" + h.wert, lat: c[1], lon: c[0], auto: key });
+                                 // Gipfel: Name UND seine Höhe aus OpenStreetMap (Teide 3715 statt GPS 3727)
+                                 text: (gipfel ? gipfel.name : _hlText(h.art)) + "\n" + (gipfel && isFinite(+gipfel.ele) && gipfel.ele ? Math.round(+gipfel.ele) + " m" : h.wert),
+                                 lat: c[1], lon: c[0], auto: key });
         s.auto_sig = _hlSig(s);
         neu.push(s);
       }
@@ -21571,6 +21646,7 @@ function mountAnimator(body, headerActions, opts) {
         return isNaN(v) ? 5 : v;
       })(),
       transparent_background: document.getElementById("anim-style").value === "alpha",
+      farbraum: document.getElementById("anim-farbraum")?.value || "sdr",   // 02.10.2026 — HDR
       // v0.4/v0.9.309: Schlagschatten — Slider IST der Schalter (Stärke 0 = aus).
       shadow_enabled: currentShadowEnabled(),
       shadow_strength: currentShadowStrength(),
