@@ -173,7 +173,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.770"
+APP_VERSION = "0.9.771"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -11860,13 +11860,16 @@ class Api:
             log.error("schnellvideo_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def schnellvideo_fotos(self, path: str, n_max: int = 8) -> dict:
+    def schnellvideo_fotos(self, path: str, n_max: int = 8, quellen: list = None) -> dict:
         """01.10.2026 (Marc, Fotostopps „wie bei Relive"; Q1: automatisch vorschlagen, im Dialog abwählbar) —
         Fotos dieser Tour aus dem Foto-Bestand (Zeitfenster der Tour), der Strecke zugeordnet (GPS, sonst
         Aufnahmezeit) und verteilt ausgewählt: höchstens eins je Zehntel der Strecke, mindestens 7 % Abstand,
         höchstens `n_max`.
         Fotos aus einer Pause (≥ 3 min an einer Stelle) und aus Fotoserien gehen vor.
-        Liefert je Foto {path, lat, lon (Trackpunkt), bei (Punkt-Anteil wie core/tempo.py), zeit, thumb, wert}."""
+        Liefert je Foto {path, lat, lon (Trackpunkt), bei (Punkt-Anteil wie core/tempo.py), zeit, thumb, wert}.
+
+        02.10.2026 (Marc: „wenn keine Fotos zu finden sind, biete die Möglichkeit, welche bereitzustellen") —
+        `quellen` = selbst gewählte Dateien/Ordner statt des Foto-Bestands (EXIF-GPS, sonst Aufnahmezeit)."""
         from core import highlights as chl
         try:
             pf = str(path or "")
@@ -11874,23 +11877,41 @@ class Api:
             n = len(pts)
             if n < 2:
                 return {"ok": True, "fotos": [], "n_gesamt": 0}
-            gh = self._track_geo_hash(pf) or ""
-            try:
-                rows = (cfotos.fotos_einer_tour(self._lib(), gh, "" if gh else pf) or {}).get("fotos") or []
-            except Exception as e:   # noqa: BLE001 — kein Foto-Bestand
-                log.info("schnellvideo_fotos: kein Foto-Bestand (%s)", e)
-                rows = []
             fotos = []
-            for r in rows:
-                if (r.get("art") or "foto") != "foto" or not r.get("path") or not os.path.exists(r["path"]):
-                    continue
-                dt = None
-                if r.get("aufnahme_utc") is not None:
-                    dt = datetime.fromtimestamp(float(r["aufnahme_utc"]), timezone.utc).isoformat()
-                fotos.append({"path": r["path"], "lat": r.get("lat"), "lon": r.get("lon"), "datetime": dt,
-                              "tz": r.get("tz_minuten")})
+            tz_tour = 0
+            if quellen:
+                from core import photos as cphotos
+                dateien = [p for p in cphotos.expand_paths(list(quellen)) if cexif.is_photo(p)]
+                meta = cexif.read_meta_viele(dateien) if dateien else {}
+                try:   # Fotos ohne Zeitzone: Ortszeit der Tour
+                    e0 = next((datetime.fromisoformat(str(q.time).replace("Z", "+00:00")).timestamp() for q in pts if q.time), None)
+                    tz_tour = czeit.offset_min(self._tz_fuer_track(pf), e0)
+                except Exception:   # noqa: BLE001
+                    tz_tour = 0
+                for p in dateien:
+                    m = meta.get(p) or {}
+                    dt = m.get("datetime")
+                    iso = None
+                    if dt is not None:
+                        iso = (dt.replace(tzinfo=timezone.utc) if m.get("tz_minutes") is not None else dt).isoformat()
+                    fotos.append({"path": p, "lat": m.get("lat"), "lon": m.get("lon"), "datetime": iso, "tz": m.get("tz_minutes")})
+            else:
+                gh = self._track_geo_hash(pf) or ""
+                try:
+                    rows = (cfotos.fotos_einer_tour(self._lib(), gh, "" if gh else pf) or {}).get("fotos") or []
+                except Exception as e:   # noqa: BLE001 — kein Foto-Bestand
+                    log.info("schnellvideo_fotos: kein Foto-Bestand (%s)", e)
+                    rows = []
+                for r in rows:
+                    if (r.get("art") or "foto") != "foto" or not r.get("path") or not os.path.exists(r["path"]):
+                        continue
+                    dt = None
+                    if r.get("aufnahme_utc") is not None:
+                        dt = datetime.fromtimestamp(float(r["aufnahme_utc"]), timezone.utc).isoformat()
+                    fotos.append({"path": r["path"], "lat": r.get("lat"), "lon": r.get("lon"), "datetime": dt,
+                                  "tz": r.get("tz_minuten")})
             punkte = [{"lat": q.lat, "lon": q.lon, "time": q.time} for q in pts]
-            zu = [f for f in chl.fotos_zuordnen(punkte, fotos, 0) if f.get("idx") is not None]
+            zu = [f for f in chl.fotos_zuordnen(punkte, fotos, tz_tour) if f.get("idx") is not None]
             if not zu:
                 return {"ok": True, "fotos": [], "n_gesamt": len(fotos)}
             halte = chl.halte_punkte(punkte)

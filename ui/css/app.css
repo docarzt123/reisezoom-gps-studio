@@ -3358,6 +3358,7 @@ body > #main { grid-row: 4; }
 .sv-foto-zeit { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9.5px; line-height: 1.3; color: #fff;
   background: rgba(0, 0, 0, 0.55); text-align: center; }
 .sv-fotos-info { font-size: 11.5px; margin-bottom: 4px; }
+.sv-fotos-knoepfe { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; margin-top: 4px; }
 .sv-dialog .chk { display: flex; align-items: center; gap: 6px; }
 /* 30.09.2026 — Schnell-Video-Bildschirm über der ganzen App (unter den Modalen, z-index 1000) */
 .sv-buehne { position: fixed; inset: 0; z-index: 900; background: var(--bg, #0e1014); display: flex; flex-direction: column;

@@ -843,7 +843,7 @@ El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxim
   Ese tiempo **se descuenta de la duración elegida**: 40 s siguen siendo 40 s. Para que quede tiempo para el
   recorrido, solo caben tantas paradas como dejen libre la mitad del tiempo de animación; la línea bajo las imágenes
   dice cuántas serán. Las paradas son carteles de foto normales con la casilla «Parada de foto» marcada (ver
-  Carteles); en el Animador las cambias como cualquier cartel.
+  Carteles); en el Animador las cambias como cualquier cartel. **Si el archivo no tiene fotos** (desde v0.9.771), el diálogo ofrece **📁 Elegir carpeta …** y **🖼 Elegir fotos …**: la app asigna las fotos al recorrido por su posición GPS o, si no la tienen, por la hora de la toma, y propone las paradas.
 
 **El vídeo:** el título aparece sobre la vista general (la vuelta tenue al fondo); luego la cámara vuela
 hasta el inicio y sigue el recorrido mientras se dibuja la línea; al final vuelve a la vista general y

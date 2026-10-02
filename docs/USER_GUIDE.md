@@ -855,7 +855,7 @@ Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs näc
   wird **von der gewählten Länge abgezogen** — 40 s bleiben 40 s. Damit für die Strecke genug bleibt, passen
   höchstens so viele Stopps hinein, dass die Hälfte der Animationszeit übrig bleibt; die Zeile unter den Bildern sagt,
   wie viele es werden. Die Stopps sind ganz normale Foto-Schilder mit Häkchen „Fotostopp“ (siehe Schilder) —
-  im Animator änderst du sie wie jedes Schild.
+  im Animator änderst du sie wie jedes Schild. **Findet das Archiv keine Fotos** (seit v0.9.771), bietet der Dialog **📁 Ordner wählen …** und **🖼 Fotos wählen …** an: Die App ordnet die Fotos über ihre GPS-Position der Strecke zu, sonst über die Aufnahmezeit, und schlägt daraus die Stopps vor.
 
 **Das Video:** Der Titel steht über der Gesamtsicht (die Runde blass im Hintergrund), dann fliegt die
 Kamera zum Start und folgt der Strecke, während sich die Linie zeichnet; am Ende zieht sie sich in die

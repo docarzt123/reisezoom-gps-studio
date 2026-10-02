@@ -4812,5 +4812,9 @@
   "schnell.fotos_zu_viele": "für diese Länge passen nicht alle — die besten kommen rein",
   "schnell.fotos_keine": "Keine Fotos zu dieser Tour im Foto-Archiv.",
   "signs.stopp_schwenk": "Karte schwenken (°)",
-  "signs.stopp_ken": "Foto heranzoomen (%)"
+  "signs.stopp_ken": "Foto heranzoomen (%)",
+  "schnell.fotos_ordner": "Ordner wählen …",
+  "schnell.fotos_dateien": "Fotos wählen …",
+  "schnell.fotos_lesen": "Fotos werden gelesen und der Strecke zugeordnet …",
+  "schnell.fotos_passen_nicht": "Keins der gewählten Fotos passt zur Tour (Ort oder Aufnahmezeit)."
 }

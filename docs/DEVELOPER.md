@@ -4467,7 +4467,7 @@ Text Ort + Uhrzeit, EXIF als Häkchen (aus) · Logbuch-Einträge ohne Foto und V
    `__rzFotostoppLaden`) auf die großen Bilder.
 4. Editor: Gruppe „📸 Fotostopp" unter „Bild" (`#se-stopp-block`, nur mit Bild sichtbar).
 
-**Schnell-Video:** Brücke `schnellvideo_fotos(path, n_max=8)` — `cfotos.fotos_einer_tour` (Foto-Bestand, Zeitfenster),
+**Schnell-Video:** Brücke `schnellvideo_fotos(path, n_max=8, quellen=None)` (seit v0.9.771 mit `quellen` = gewählte Dateien/Ordner statt Bestand: `cexif.read_meta_viele`, Fotos ohne Zone in Ortszeit der Tour; Dialog-Knöpfe `[data-sv-fotoquelle]`) — `cfotos.fotos_einer_tour` (Foto-Bestand, Zeitfenster),
 `chl.fotos_zuordnen` (GPS ≤ Grenze, sonst Zeit) auf denselben Punkten wie `core/tempo.py` (`cgpx.parse_gpx`), Wert
 +2 in einer Pause (`chl.halte_punkte`), +1 in einer Serie (≥ 3 Fotos in ±2 min); je Zehntel das beste, ≥ 7 % Abstand,
 höchstens `n_max`; Schild-Lage = Trackpunkt. Dialog: Bildleiste `#sv-fotos` (Klick = ab/an), `fotostoppSchilder(fotos,

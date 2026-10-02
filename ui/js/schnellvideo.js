@@ -381,12 +381,36 @@
     };
     const fotosZeigen = () => {
       const l = box.querySelector("#sv-fotos"); if (!l) return;
-      if (!w.fotos.length) { l.innerHTML = `<span class="muted">${esc(T("schnell.fotos_keine", "Keine Fotos zu dieser Tour im Foto-Archiv."))}</span>`; fotosInfo(); return; }
+      if (!w.fotos.length) {
+        // 02.10.2026 (Marc: „wenn keine Fotos zu finden sind, biete die Möglichkeit, welche bereitzustellen")
+        const satz = w.fotosEigen ? T("schnell.fotos_passen_nicht", "Keins der gewählten Fotos passt zur Tour (Ort oder Aufnahmezeit).")
+                                  : T("schnell.fotos_keine", "Keine Fotos zu dieser Tour im Foto-Archiv.");
+        l.innerHTML = `<span class="muted">${esc(satz)}</span>
+          <span class="sv-fotos-knoepfe"><button type="button" class="btn btn-small" data-sv-fotoquelle="ordner">📁 ${esc(T("schnell.fotos_ordner", "Ordner wählen …"))}</button>
+          <button type="button" class="btn btn-small" data-sv-fotoquelle="dateien">🖼 ${esc(T("schnell.fotos_dateien", "Fotos wählen …"))}</button></span>`;
+        fotosInfo(); return;
+      }
       l.innerHTML = w.fotos.map((f, i) => `<button type="button" class="sv-foto${w.fotosAus.has(i) ? "" : " is-on"}" data-sv-foto="${i}" title="${esc(String(f.path).split(/[\\/]/).pop())}">`
         + (f.thumb ? `<img src="${f.thumb}" alt="">` : `<span class="sv-foto-leer">📷</span>`) + `<span class="sv-foto-zeit">${esc(f.zeit || "")}</span></button>`).join("");
       fotosInfo();
     };
+    const fotosAusQuelle = async (art) => {
+      let q = [];
+      try {
+        q = art === "ordner" ? await api().pick_file("folder", [])   // warte-ok: Systemdialog
+                             : await api().pick_file("open", ["Fotos (*.jpg;*.jpeg;*.heic;*.heif;*.png;*.dng;*.arw;*.cr3;*.nef)"], true);   // warte-ok: Systemdialog
+      } catch (_) { q = []; }
+      if (!q || !q.length) return;
+      const l = box.querySelector("#sv-fotos");
+      if (l) l.innerHTML = `<span class="muted">${esc(T("schnell.fotos_lesen", "Fotos werden gelesen und der Strecke zugeordnet …"))}</span>`;
+      let r = null;
+      try { r = await rzWarten("schnellvideo_fotos", () => api().schnellvideo_fotos(pfad, 8, q)); } catch (_) {}
+      w.fotosEigen = true; w.fotosAus = new Set();
+      w.fotos = (r && r.ok && Array.isArray(r.fotos)) ? r.fotos : [];
+      fotosZeigen();
+    };
     box.querySelector("#sv-fotos")?.addEventListener("click", (e) => {
+      const q = e.target.closest("[data-sv-fotoquelle]"); if (q) { fotosAusQuelle(q.dataset.svFotoquelle); return; }
       const b = e.target.closest("[data-sv-foto]"); if (!b) return;
       const i = +b.dataset.svFoto;
       if (w.fotosAus.has(i)) w.fotosAus.delete(i); else w.fotosAus.add(i);
