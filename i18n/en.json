@@ -4810,5 +4810,7 @@
   "schnell.fotos_suchen": "Looking for photos of this tour …",
   "schnell.fotos_info": "{n} photo stops · {s} s each, taken from the length",
   "schnell.fotos_zu_viele": "not all fit this length — the best ones go in",
-  "schnell.fotos_keine": "No photos of this tour in the photo archive."
+  "schnell.fotos_keine": "No photos of this tour in the photo archive.",
+  "signs.stopp_schwenk": "Map sway (°)",
+  "signs.stopp_ken": "Photo zoom (%)"
 }
