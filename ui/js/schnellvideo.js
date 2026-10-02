@@ -249,12 +249,13 @@
 
   /** 01.10.2026 (Marc: „das Schnell-Video wie bei Relive mit Fotos pimpen") — Fotostopps. Jedes gewählte Foto
    *  wird ein Foto-Schild mit Häkchen „Fotostopp" (dasselbe, was man im Animator von Hand setzt). Ein Stopp
-   *  kostet 1 + 3 + 1 s und wird von der Länge ABGEZOGEN (Marc, Q3) — deshalb höchstens so viele, dass
-   *  für die Strecke noch 40 % der Animationszeit bleiben; bei Überzahl gehen die besten vor. */
+   *  hält 3 s an (An- und Abflug laufen seit 02.10.2026 während der Fahrt) und wird von der Länge ABGEZOGEN
+   *  (Marc, Q3) — deshalb höchstens so viele, dass für die Strecke die Hälfte der Animationszeit bleibt;
+   *  bei Überzahl gehen die besten vor. */
   const STOPP = { sek: 3, anflug: 1, abflug: 1 };
-  const STOPP_KOSTEN = STOPP.sek + STOPP.anflug + STOPP.abflug;
+  const STOPP_KOSTEN = STOPP.sek;   // nur der Halt verlängert; An-/Abflug während der Fahrt
   function fotostoppSchilder(fotos, animS) {
-    const max = Math.max(0, Math.floor(animS * 0.6 / STOPP_KOSTEN));
+    const max = Math.max(0, Math.floor(animS * 0.5 / STOPP_KOSTEN));
     const wahl = (fotos || []).slice().sort((a, b) => (b.wert || 0) - (a.wert || 0) || a.bei - b.bei).slice(0, max)
       .sort((a, b) => a.bei - b.bei);
     return wahl.map(f => ({

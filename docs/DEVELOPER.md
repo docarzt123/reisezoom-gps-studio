@@ -4429,6 +4429,13 @@ Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 
 ## Fotostopp am Foto-Schild + Schnell-Video mit Fotos (01.10.2026, v0.9.764)
 
+**Stand v0.9.768 (02.10.2026):** Halt = nur `stopp_s`; `_fotostoppBei` gilt von `ab_s − anflug` bis `bis_s + abflug`
+(Strecke läuft dabei), `p` voll bei Ankunft (Wachsen über `max(0,3, anflug·0,6)` davor), `ken` 0..1 (Bild-Zoom
+`FS_KEN` = 8 %), `dreh` = `FS_SCHWENK_GRAD`·sin(2π·u) im Halt (in `_fsKamera` auf die Drehung, in den Stützstellen
+als `db`). Pin ab `ab_s − anflug − 2,5 s`. Bildschirmpunkte im Gelände über `window.rzProjektGezeichnet(map, ll)`
+(ui/js/maplibre-camera.js: Höhe auf tileZoom + deltaZoom wie gezeichnet; `map.project` nimmt tileZoom → am Teide 57 px
+daneben) — Fotostopp und Highlight-Vorankündigung. Test `tests/test_projektion_gelaende.py`.
+
 Marc: „wie bei Relive … die Kamera fährt nah ran, das Foto ist groß zu sehen, nach ein paar Sekunden weiter" und
 „der Fotostopp muss im Prinzip ein aufgebohrtes Foto-Schild sein". Entscheidungen (Fragerunde): Fotos automatisch
 vorschlagen + im Dialog abwählbar · Foto wächst aus dem Pin (~70 % Höhe) · Stopp-Zeit von der Länge **abziehen** ·
