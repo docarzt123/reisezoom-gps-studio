@@ -4433,8 +4433,10 @@ Apples alte Developer-ID-Zertifizierungsstelle läuft am **01.02.2027** aus. Neu
 Marc Arzt (848J87A7F6)“, SHA-1 `1E1AF6B2…`, Aussteller „Developer ID Certification Authority, OU=G2“, gültig bis
 17.09.2031, liegt mit dem Zwischenzertifikat `DeveloperIDG2CA.cer` im Anmelde-Schlüsselbund des Mac mini (codesign:
 „Immer erlauben“). Weil altes und neues Zertifikat gleich heißen, signiert `build.sh` per SHA-1 und nimmt die gültige
-Identität mit dem spätesten Ablauf. **Offen:** die CI (`release.yml`) importiert noch das alte .p12 aus den Secrets
-`MACOS_CERT_P12_BASE64`/`MACOS_CERT_PASSWORD` — vor dem 01.02.2027 durch ein .p12 des neuen Zertifikats ersetzen.
+Identität mit dem spätesten Ablauf. Die CI (`release.yml`) bekommt seit 02.10.2026 das .p12 des NEUEN Zertifikats
+(Secrets `MACOS_CERT_P12_BASE64`/`MACOS_CERT_PASSWORD`; das Passwort liegt lokal in `~/.claude/secrets/macos-cert-p12.env`).
+Der Schlüsselbund exportiert .p12 mit RC2-40 — openssl 3 liest das nur mit `-legacy`, `security import` (Runner) schon.
+Beim nächsten Release-Build prüfen, dass der Mac-Build mit `1E1AF6B2…` signiert ist.
 
 ## Fotostopp am Foto-Schild + Schnell-Video mit Fotos (01.10.2026, v0.9.764)
 
