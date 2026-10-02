@@ -1707,7 +1707,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 **More settings (map, sources, export):**
 
 - **Source line** (since 2026-09-07) — crediting the map sources is mandatory and always stays visible, but you choose the **corner** (bottom right, bottom left, top right, top left) and the **width** (narrow = tall block, medium, wide = flat line, full width = bar along the bottom edge) so it does not cover the elevation profile or the north arrow. Preview and video show it at the same size. Since v0.9.741 it is much smaller: the text is 1.2 % of the short side of the frame (13 pixels in a 1080 video), in the same proportion for every format and window size.
-- **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. “⤢ Fit” brings back the overview; once you set a keyframe, the keyframe wins.
+- **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. To get back to the overview use **⤢ in the overview map** (since v0.9.774, it only appears for a hand-set view without keyframes); once you set a keyframe, the keyframe wins.
 - **Free satellite everywhere** (since 2026-09-05; zoom staging since v0.9.656: in wide views the style shows Sentinel-2 only, the official aerial imagery fades in from zoom 12 and is complete at 13.5 — since v0.9.658 one step later than before, because Sentinel stays pixel-sharp up to there): where no official aerial imagery exists (Hamburg, New Zealand, USA …) the style now shows Sentinel-2 satellite imagery (10 m, 2016, EOX) instead of an empty area. A banner on the map tells you. No houses or trails at that resolution, but landscape, rivers and city structure; for close-ups pick another style (MapTiler, OpenStreetMap). The credit “Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016” appears in the attribution line; videos may be published.
 - **ProRes 422 HQ** (since 2026-09-05): Settings → video codec, for editing in Final Cut or Resolve. Output is .mov and large.
 - **Export swarm/journey** (since 2026-09-05): “Export project (.rzproj)” now packs **all** tracks and the swarm/journey project of a composition. The recipient imports it as usual and the composition opens right in the Animator. Before, only the first track arrived, without the project.
@@ -1817,7 +1817,9 @@ video.
 **Manual map position (WYSIWYG):**
 You can **pan** the preview map with the mouse (click+drag) and **zoom** with the scroll wheel. The render adopts your position 1:1 — what you see in the preview is what comes out in the video.
 
-If you want the track centered again: the **⤢** button at the bottom right.
+If you want the track centered again: in the Tour-Map the **⤢** button at the bottom right, in the Animator **⤢** in the overview map.
+
+**🗺 Overview map in the Animator (since v0.9.774):** at the bottom right of the preview a small window with a dashed border and the tag “view only” shows the whole track, a white frame for the section the preview currently shows, and the position dot — handy when the camera is close. Click: larger/smaller, “–”: hide, 🗺: show again. It's only a helper in the Animator and **never appears in the video**. The former “⤢ Zoom to track” button is gone from the Animator (with keyframes it only zoomed out briefly and jumped back).
 
 ### Camera keyframes (timeline bar, since v0.7) ⭐
 

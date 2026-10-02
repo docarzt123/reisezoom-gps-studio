@@ -4821,5 +4821,10 @@
   "szene.m_karte": "waiting for the map (tiles, terrain) … {s} s",
   "szene.m_gelaende": "loading terrain heights … {s} s",
   "szene.m_greifen": "capturing the frame … {s} s",
-  "container.zeile_groesse": "Size"
+  "container.zeile_groesse": "Size",
+  "animator.ueb.tip": "Overview: whole track, white frame = section shown. Click: larger/smaller.",
+  "animator.ueb.zu": "Hide overview",
+  "animator.ueb.auf": "Show overview",
+  "animator.ueb.nur_ansicht": "view only",
+  "animator.ueb.fit": "Reset view: drop the view you set by hand, back to the whole track"
 }

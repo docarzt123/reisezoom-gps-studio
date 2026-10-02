@@ -1289,7 +1289,7 @@ function mountAnimator(body, headerActions, opts) {
       </div>
       <!-- Refit-Button — User pant manuell und kann mit einem Klick wieder
            auf den Track-Extent springen (analog Tour-Map). -->
-      <button class="anim-refit-btn" id="anim-refit" title="${t("tourmap.btn.refit")}">⤢</button>
+      ${_isStaticFrame ? `<button class="anim-refit-btn" id="anim-refit" title="${t("tourmap.btn.refit")}">⤢</button>` : ""}
       <!-- Timeline-Bar (v0.7.0) — Camera-Keyframes. Wird von timeline.js
            gefüllt; siehe mountTimelineBar() unten in mountAnimator(). -->
       <div class="anim-timeline-host" id="anim-timeline-host"></div>
@@ -13387,7 +13387,105 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-pitch").addEventListener("input", e => {
     if (map) map.setPitch(parseFloat(e.target.value) || 0);
   });
-  document.getElementById("anim-refit")?.addEventListener("click", () => {
+  // ── Übersichtskarte (02.10.2026) ────────────────────────────────────────────
+  // Marc: „ein kleines Fenster mit der ganzen Karte, das anzeigt, welcher Ausschnitt gerade gezeigt wird … mit einem
+  // Klick groß machen" — statt des Knopfs „Auf Track zoomen", der bei Keyframes nur kurz rauszoomte. Leichte SVG-
+  // Zeichnung (keine zweite Karte, keine Kacheln): ganzer Track, Rahmen des sichtbaren Ausschnitts (dreht mit), Laufpunkt.
+  // Nur im Animator, nie im Video (Render-Modus und Tour-Map bauen sie nicht). Zustand je Gerät: klein | gross | aus.
+  const _UEB_KEY = "rz-uebersicht";
+  let _uebTimer = null, _uebRahmen = null;
+  const _uebZustand = () => { try { return localStorage.getItem(_UEB_KEY) || "klein"; } catch (_) { return "klein"; } };
+  const _uebZustandSetzen = (z) => { try { localStorage.setItem(_UEB_KEY, z); } catch (_) {} };
+  // Mercator in EINER Einheit: x = Länge im Bogenmaß, y = ln(tan(π/4 + φ/2)) — sonst (x in Grad) war der Track platt.
+  const _uebMx = (lng) => lng * Math.PI / 180;
+  const _uebMy = (lat) => { const r = Math.max(-85, Math.min(85, lat)) * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + r / 2)); };
+  function _uebAufbauen() {
+    if (_isStaticFrame || window.__rzRenderMode) return;
+    const host = document.getElementById("anim-drop");
+    if (!host || document.getElementById("anim-uebersicht")) return;
+    const el = document.createElement("div");
+    el.id = "anim-uebersicht"; el.className = "anim-ueb";
+    el.title = t("animator.ueb.tip", "Übersicht: ganzer Track, weißer Rahmen = gezeigter Ausschnitt. Klick: größer/kleiner.");
+    // Gestrichelter Rand + Schild „nur Ansicht": Hilfe im Animator, nicht im Video (Marc: „klar ersichtlich, was nur
+    // Hilfestellung im Animator ist und was tatsächlich im Video zu sehen ist")
+    el.innerHTML = `<span class="anim-ueb-schild">${t("animator.ueb.nur_ansicht", "nur Ansicht")}</span>`
+      + `<button type="button" class="anim-ueb-zu" title="${t("animator.ueb.zu", "Übersicht ausblenden")}">–</button>`
+      + `<button type="button" class="anim-ueb-fit" hidden title="${t("animator.ueb.fit", "Ansicht zurücksetzen: deine von Hand eingestellte Ansicht verwerfen, wieder der ganze Track")}">⤢</button>`
+      + `<svg class="anim-ueb-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><polyline class="anim-ueb-track" points=""/>`
+      + `<polygon class="anim-ueb-rahmen" points=""/><circle class="anim-ueb-punkt" r="3" cx="-20" cy="-20"/></svg>`;
+    const auf = document.createElement("button");
+    auf.type = "button"; auf.id = "anim-uebersicht-auf"; auf.className = "anim-ueb-auf"; auf.textContent = "🗺";
+    auf.title = t("animator.ueb.auf", "Übersicht einblenden");
+    host.appendChild(el); host.appendChild(auf);
+    const anwenden = () => {
+      const z = _uebZustand();
+      el.hidden = z === "aus"; auf.hidden = z !== "aus";
+      el.classList.toggle("gross", z === "gross");
+      _uebRahmen = null;
+      requestAnimationFrame(_uebZeichnen);
+    };
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".anim-ueb-fit")) { _aufTrackEinpassen(); return; }
+      if (e.target.closest(".anim-ueb-zu")) _uebZustandSetzen("aus");
+      else _uebZustandSetzen(_uebZustand() === "gross" ? "klein" : "gross");
+      anwenden();
+    });
+    auf.addEventListener("click", () => { _uebZustandSetzen("klein"); anwenden(); });
+    anwenden();
+    if (_uebTimer) clearInterval(_uebTimer);
+    _uebTimer = setInterval(_uebZeichnen, 100);
+  }
+  function _uebZeichnen() {
+    const el = document.getElementById("anim-uebersicht");
+    if (!el || el.hidden || !map || !Array.isArray(currentCoords) || currentCoords.length < 2) return;
+    const svg = el.querySelector("svg");
+    const W = el.clientWidth || 100, H = el.clientHeight || 100;
+    const n = currentCoords.length, a = currentCoords[0], z = currentCoords[n - 1];
+    const key = `${n}:${a[0]},${a[1]}:${z[0]},${z[1]}:${W}x${H}`;
+    if (!_uebRahmen || _uebRahmen.key !== key) {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const c of currentCoords) { const x = _uebMx(c[0]), y = _uebMy(c[1]); if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      let w = Math.max(1e-9, x1 - x0), h = Math.max(1e-9, y1 - y0);
+      const pad = 0.12 * Math.max(w, h); x0 -= pad; x1 += pad; y0 -= pad; y1 += pad; w = x1 - x0; h = y1 - y0;
+      const asp = W / H;
+      if (w / h > asp) { const nh = w / asp; y0 -= (nh - h) / 2; y1 += (nh - h) / 2; h = nh; } else { const nw = h * asp; x0 -= (nw - w) / 2; x1 += (nw - w) / 2; w = nw; }
+      _uebRahmen = { x0, y1, w, h, W, H, key };
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const P0 = (lng, lat) => [(_uebMx(lng) - x0) / w * W, (y1 - _uebMy(lat)) / h * H];
+      const schritt = Math.max(1, Math.floor(n / 500)), pts = [];
+      for (let i = 0; i < n; i += schritt) { const p = P0(currentCoords[i][0], currentCoords[i][1]); pts.push(p[0].toFixed(1) + "," + p[1].toFixed(1)); }
+      const pl = P0(z[0], z[1]); pts.push(pl[0].toFixed(1) + "," + pl[1].toFixed(1));
+      const linie = el.querySelector(".anim-ueb-track");
+      linie.setAttribute("points", pts.join(" "));
+      try { linie.style.stroke = currentLineColor(); } catch (_) {}
+    }
+    const R = _uebRahmen, mitte = (R.x0 + R.w / 2) * 180 / Math.PI;
+    const P = (lng, lat) => { const l = lng + 360 * Math.round((mitte - lng) / 360); return [(_uebMx(l) - R.x0) / R.w * R.W, (R.y1 - _uebMy(lat)) / R.h * R.H]; };
+    try {
+      const c = map.getContainer(), cw = c.clientWidth, ch = c.clientHeight;
+      const p = map.getPitch(), oben = p > 55 ? ch * Math.min(0.45, (p - 55) / 50) : 0;   // über dem Horizont liefert unproject Unsinn
+      const ecken = [[0, oben], [cw, oben], [cw, ch], [0, ch]].map(([x, y]) => map.unproject([x, y]));
+      const q = ecken.map(e => P(e.lng, e.lat));
+      if (q.every(v => isFinite(v[0]) && isFinite(v[1]))) el.querySelector(".anim-ueb-rahmen").setAttribute("points", q.map(v => v[0].toFixed(1) + "," + v[1].toFixed(1)).join(" "));
+    } catch (_) {}
+    const d = window.__rzDotZuletzt && window.__rzDotZuletzt.c;
+    if (d) { const v = P(d[0], d[1]), punkt = el.querySelector(".anim-ueb-punkt"); punkt.setAttribute("cx", v[0].toFixed(1)); punkt.setAttribute("cy", v[1].toFixed(1)); }
+    // ⤢ nur, wenn es eine Handansicht gibt und keine Kamera-Keyframes (mit Keyframes gilt der Keyframe)
+    try {
+      const hand = !!_manualCamGet(), kf = keyframesEnabled() && (getRawTimelineEvents() || []).some(e => e && KF_LANES.includes(e.kind));
+      const fit = el.querySelector(".anim-ueb-fit"); if (fit) fit.hidden = !(hand && !kf);
+    } catch (_) {}
+  }
+  window.__rzUebersicht = () => { const el = document.getElementById("anim-uebersicht"); if (!el) return null;   // Prüfstand
+    return { zustand: _uebZustand(), hidden: el.hidden, gross: el.classList.contains("gross"), w: el.clientWidth,
+             punkte: (el.querySelector(".anim-ueb-track").getAttribute("points") || "").split(" ").filter(Boolean).length,
+             rahmen: el.querySelector(".anim-ueb-rahmen").getAttribute("points") || "",
+             punkt: [+el.querySelector(".anim-ueb-punkt").getAttribute("cx"), +el.querySelector(".anim-ueb-punkt").getAttribute("cy")], W: el.clientWidth, H: el.clientHeight }; };
+  _uebAufbauen();
+
+  document.getElementById("anim-refit")?.addEventListener("click", () => _aufTrackEinpassen());
+  // Tour-Map-Knopf ⤢ und (Animator) ⤢ in der Übersichtskarte: Handansicht verwerfen, Gesamtansicht, ganze Linie
+  function _aufTrackEinpassen() {
     _tmCamActive = false;   // v0.9.412 — „⤢ Auf Track": übernommene Animator-Kamera aufheben
     _tmCamSoll = null;
     _kameraGehoertNutzer = false;   // ausdrücklich zurück auf den Track
@@ -13408,7 +13506,7 @@ function mountAnimator(body, headerActions, opts) {
     } else {
       toast(t("animator.stats.empty_hint"), "info", 2000);
     }
-  });
+  }
   document.getElementById("anim-rot").addEventListener("input", e => {
     // Im Render macht das Backend einen Sweep, in der Preview zeigen wir
     // das End-Bearing nur informativ — wird beim Render-Snapshot ignoriert
@@ -21260,6 +21358,7 @@ function mountAnimator(body, headerActions, opts) {
 
   return () => {
     _animUnmounted = true;
+    try { if (_uebTimer) clearInterval(_uebTimer); _uebTimer = null; } catch (_) {}   // 02.10.2026 Übersichtskarte
     // 01.10.2026 (Marc: „Container-Dialog offen, zurück ins Archiv → bleibt offen") — der
     // Einblendungs-Editor hängt am body, nicht im Modul; beim Verlassen schließen.
     try { _ctEditId = null; document.getElementById("ct-editor")?.remove(); } catch (_) {}

@@ -1767,7 +1767,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 **Weitere Einstellungen (Karte, Quellen, Export):**
 
 - **Quellenzeile** (seit 07.09.2026) — die Nennung der Kartenquellen ist Pflicht und bleibt immer sichtbar, aber du bestimmst **Ecke** (unten rechts, unten links, oben rechts, oben links) und **Breite** (schmal = hoher Block, mittel, breit = flache Zeile, ganze Breite = Leiste am unteren Rand), damit sie Höhenprofil oder Nordpfeil nicht verdeckt. Vorschau und Video zeigen sie gleich groß. Seit v0.9.741 ist sie deutlich kleiner: Die Schrift misst 1,2 % der kurzen Bildseite (im 1080er-Video 13 Pixel), bei jedem Format und jeder Fenstergröße gleich im Verhältnis zum Bild.
-- **Karte von Hand einstellen, ohne Keyframes** (seit 05.09.2026): Zoomst, schwenkst oder neigst du die Karte in der Vorschau und hast keine Keyframes gesetzt, dann ist genau das die Kamera, im Probelauf, beim Ziehen des Reglers und im Video. „⤢ Anpassen" holt die Gesamtansicht zurück; sobald du einen Keyframe setzt, gilt der Keyframe.
+- **Karte von Hand einstellen, ohne Keyframes** (seit 05.09.2026): Zoomst, schwenkst oder neigst du die Karte in der Vorschau und hast keine Keyframes gesetzt, dann ist genau das die Kamera, im Probelauf, beim Ziehen des Reglers und im Video. Zurück zur Gesamtansicht geht es mit **⤢ in der Übersichtskarte** (seit v0.9.774, erscheint nur bei einer Handansicht ohne Keyframes); sobald du einen Keyframe setzt, gilt der Keyframe.
 - **Satellit (kostenlos) überall** (seit 05.09.2026, Zoom-Stufung seit v0.9.656: bei weiten Ansichten zeigt der Stil nur Sentinel-2, die Landesluftbilder blenden ab Zoom 12 ein, voll ab 13,5 — seit v0.9.658 eine Stufe später als zuvor, weil Sentinel bis dahin pixelscharf reicht): Wo es keine amtlichen Luftbilder gibt (Hamburg, Neuseeland, USA …), zeigt der Stil jetzt Sentinel-2-Satellitenbilder (10 m, Jahrgang 2016, EOX) statt einer leeren Fläche. Ein Banner auf der Karte sagt es dir. Häuser und Wege sieht man darauf nicht, Landschaft, Flüsse und Stadtstruktur schon; für Nahaufnahmen einen anderen Stil wählen (MapTiler, OpenStreetMap). Die Nennung „Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016" steht in der Quellenzeile, Videos dürfen veröffentlicht werden.
 - **ProRes 422 HQ** (seit 05.09.2026): in Einstellungen → Video-Codec, für den Schnitt in Final Cut oder Resolve. Datei wird .mov und groß.
 - **Schwarm/Reise exportieren** (seit 05.09.2026): „Projekt exportieren (.rzproj)" packt bei einer Komposition jetzt **alle** Touren und das Schwarm-/Reise-Projekt ein. Der Empfänger importiert das Paket wie gewohnt, die Komposition öffnet sich direkt im Animator. Vorher kam nur die erste Tour ohne Projekt an.
@@ -1876,7 +1876,9 @@ Stillstand, Zahl der Pausen und wie viele Sekunden davon im Video übrig bleiben
 **Manuelle Karten-Position (WYSIWYG):**
 Du kannst die Vorschau-Karte mit der Maus **panen** (Click+Drag) und mit Scroll-Wheel **zoomen**. Der Render übernimmt deine Position 1:1 — was du in der Vorschau siehst, kommt im Video raus.
 
-Wenn du den Track wieder mittig haben willst: Button **⤢** unten rechts.
+Wenn du den Track wieder mittig haben willst: in der Tour-Map Button **⤢** unten rechts, im Animator **⤢** in der Übersichtskarte.
+
+**🗺 Übersichtskarte im Animator (seit v0.9.774):** Unten rechts in der Vorschau zeigt ein kleines Fenster mit gestricheltem Rand und dem Schild „nur Ansicht“ den ganzen Track, einen weißen Rahmen für den Ausschnitt, den die Vorschau gerade zeigt, und den Laufpunkt — praktisch, wenn die Kamera nah dran ist. Klick: größer/kleiner, „–“: ausblenden, 🗺: wieder einblenden. Sie ist nur eine Hilfe im Animator und erscheint **nie im Video**. Der frühere Knopf „⤢ Auf Track zoomen“ ist im Animator weg (mit Keyframes zoomte er nur kurz heraus und sprang zurück).
 
 ### Camera-Keyframes (Timeline-Bar, seit v0.7) ⭐
 
