@@ -3718,6 +3718,9 @@ Variablen, undefinierte Namen/Tippfehler, bugbear) — **kein** Stil-Genörgel. 
 ```
 Läuft auch in CI (`.github/workflows/lint.yml`) bei jedem Push — **separat** von
 release.yml, blockiert also weder Build noch Release (nur ✗-Hinweis am Commit).
+Seit 02.10.2026 prüft auch der lokale `.git/hooks/pre-push` mit `.venv/bin/ruff check .` (nach dem
+Testernamen-Wächter) und bricht den Push bei Funden ab. Der Hook ist nicht versioniert — auf einem neuen Rechner
+`pip install ruff` in die `.venv` und den Block aus dieser Beschreibung nachtragen.
 
 ### CI-Stand
 - **Release** (`release.yml`): Tag-Push → macOS-DMG + Windows-EXE → GitHub-Release.
