@@ -4812,5 +4812,9 @@
   "schnell.fotos_zu_viele": "no caben todas en esta duración: entran las mejores",
   "schnell.fotos_keine": "No hay fotos de esta ruta en el archivo de fotos.",
   "signs.stopp_schwenk": "Balanceo del mapa (°)",
-  "signs.stopp_ken": "Zoom de la foto (%)"
+  "signs.stopp_ken": "Zoom de la foto (%)",
+  "schnell.fotos_ordner": "Elegir carpeta …",
+  "schnell.fotos_dateien": "Elegir fotos …",
+  "schnell.fotos_lesen": "Leyendo las fotos y asignándolas al recorrido …",
+  "schnell.fotos_passen_nicht": "Ninguna de las fotos elegidas encaja con la ruta (lugar u hora de la toma)."
 }

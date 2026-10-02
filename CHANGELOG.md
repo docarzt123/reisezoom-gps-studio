@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.771** (02.10.2026, built locally): quick video — provide photos yourself when the archive has none.
+
+### Added
+- **Quick video: choose photos when none are found** (Marc: "if no photos can be found, offer a way to provide some"). Instead of only "No photos of this tour in the photo archive" the dialog offers **📁 Choose folder …** and **🖼 Choose photos …**. `schnellvideo_fotos(path, n_max, quellen)` reads the chosen files (EXIF via `read_meta_viele`), matches them by GPS or else by time taken (photos without a time zone in the tour's local time) and picks up to eight as usual. If none fits: "None of the chosen photos fits the tour", with the buttons again. Test `test_schnellvideo_fotostopps.py` part E (photos without GPS, matched by time).
+
 > **0.9.770** (02.10.2026, built locally): map sway and photo zoom of a photo stop are adjustable.
 
 ### Added

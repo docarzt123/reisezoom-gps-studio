@@ -832,7 +832,7 @@ The dialog asks only a few things — the app remembers your choice for next tim
   photo, the camera moves in, the photo appears large, then it moves on (a 3 s hold per stop, moving in and out while the track runs). That time is
   **taken from the chosen length** — 40 s stay 40 s. So that enough is left for the route, only as many stops fit
   as leave half of the animation time; the line under the pictures says how many it will be. The stops are
-  ordinary photo signs with the “Photo stop” box ticked (see Signs) — in the Animator you change them like any sign.
+  ordinary photo signs with the “Photo stop” box ticked (see Signs) — in the Animator you change them like any sign. **If the archive has no photos** (since v0.9.771), the dialog offers **📁 Choose folder …** and **🖼 Choose photos …**: the app matches the photos to the route by their GPS position, otherwise by the time they were taken, and suggests the stops from them.
 
 **The video:** the title sits over the overview (the loop faint in the background), then the camera flies
 to the start and follows the route while the line draws; at the end it pulls back to the overview and the

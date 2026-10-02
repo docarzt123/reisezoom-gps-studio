@@ -4812,5 +4812,9 @@
   "schnell.fotos_zu_viele": "not all fit this length — the best ones go in",
   "schnell.fotos_keine": "No photos of this tour in the photo archive.",
   "signs.stopp_schwenk": "Map sway (°)",
-  "signs.stopp_ken": "Photo zoom (%)"
+  "signs.stopp_ken": "Photo zoom (%)",
+  "schnell.fotos_ordner": "Choose folder …",
+  "schnell.fotos_dateien": "Choose photos …",
+  "schnell.fotos_lesen": "Reading photos and matching them to the route …",
+  "schnell.fotos_passen_nicht": "None of the chosen photos fits the tour (place or time taken)."
 }
