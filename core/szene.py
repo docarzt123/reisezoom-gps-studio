@@ -673,9 +673,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     t = frame / cfg.fps
                     _t = time.perf_counter()
                     _p = 0.05 + 0.87 * frame / total_frames
-                    def _meldung(schluessel, vorgabe, _f=frame, _p=_p):
+                    def _meldung(schluessel, vorgabe, _f=frame, _p=_p, _h=_hinweis_alt):
                         return lambda sek: emit(_p, f"Frame {_f + 1} / {total_frames} · "
-                                                + _i18n.t_aktiv(schluessel, vorgabe).replace("{s}", f"{sek:.0f}") + _hinweis_alt)
+                                                + _i18n.t_aktiv(schluessel, vorgabe).replace("{s}", f"{sek:.0f}") + _h)
                     await _mit_meldung(page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})"),
                                        _meldung("szene.m_springt", "Karte springt zur Stelle … {s} s"), is_cancelled)
                     _z["seek"] += time.perf_counter() - _t; _t = time.perf_counter()

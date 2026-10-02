@@ -19,6 +19,9 @@ Bei jeder neuen Version:
 ### Changed
 - **Transport bar at the bottom, play button in the middle** (Marc: "move the control bar all the way down, where 'Hier KF', 'Ganzer Track' … are — then we don't lose space at the top. The play button must be in the middle"): the bar no longer floats over the preview but sits in the timeline's button row, which is now three columns (keyframe button and switches left · transport centred · "Alle weg" right). The play button is exactly in the middle of the row, the time hangs to its right. The old "Probe-Lauf" button is gone there (same function as ▶). With the timeline hidden, the bar floats at the bottom edge of the preview. Test `test_videoeditor.py` extended (position, centre, floating, back).
 
+### Build
+- **Lint (ruff) red since 0.9.773:** B023 in `core/szene.py` — the render progress message read `_hinweis_alt` from the loop instead of binding it. Now bound as a default argument; no behaviour change.
+
 > **0.9.776** (02.10.2026, built locally): help bubbles show reliably; test maintenance after the full click-through.
 
 ### Fixed
