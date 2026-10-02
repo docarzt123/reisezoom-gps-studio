@@ -4048,7 +4048,9 @@ function mountAnimator(body, headerActions, opts) {
       const bei = _fsAnker(s);
       if (bei == null) return;
       const w = _fsWerte(s);
-      raus.push({ art: "halt", bei: Math.round(bei * 1e6) / 1e6, sek: Math.round((w.anflug + w.sek + w.abflug) * 1000) / 1000,
+      // 02.10.2026 (Marc: „das Foto soll kurz vor Erreichen schon herangezoomt sein, beim Ausblenden soll der Track
+      // direkt weiterlaufen") — der Halt ist nur die Fotozeit; An- und Abflug laufen während der Fahrt.
+      raus.push({ art: "halt", bei: Math.round(bei * 1e6) / 1e6, sek: Math.round(w.sek * 1000) / 1000,
                   kamera: "fotostopp", ref: "fs:" + i });
     });
     return raus;
@@ -4059,23 +4061,30 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzFotostoppGeaendert = () => {
     try { if (JSON.stringify(_fotostoppHalte()) !== _fsKurveStand) paceMapLaden(); } catch (e) { applog("warn", "[fotostopp] Kurve: " + e); }
   };
-  /** Steht die Animationssekunde `tSek` (ohne Anlauf) in einem Fotostopp? Liefert Stand und Gewichte:
-   *  k = Kamera (0..1, glatt hin und zurück), p = Foto (0..1, wächst in der zweiten Hälfte des Anflugs). */
+  /** Ist die Animationssekunde `tSek` (ohne Anlauf) im Bereich eines Fotostopps? Bereich = Anflug VOR dem Halt
+   *  (die Strecke läuft noch), der Halt (Fotozeit), Abflug NACH dem Halt (die Strecke läuft schon weiter).
+   *  k = Kamera (0..1, glatt hin und zurück), p = Foto (ist bei Ankunft voll da, schrumpft im Abflug),
+   *  ken = Fortschritt der langsamen Foto-Vergrößerung (0..1), dreh = Schwenk in Grad (nur im Halt). */
+  const FS_SCHWENK_GRAD = 4, FS_KEN = 0.08;
   function _fotostoppBei(tSek) {
     if (tSek == null || !isFinite(tSek)) return null;
     const hs = (_tempoInfo && _tempoInfo.halte) || [];
     for (const h of hs) {
-      if (h.kamera !== "fotostopp" || !(tSek >= h.ab_s && tSek <= h.bis_s)) continue;
+      if (h.kamera !== "fotostopp") continue;
       const i = parseInt(String(h.ref || "").slice(3), 10);
       const s = _fsSchilderAlle()[i];
-      if (!_fsAktiv(s)) return null;
-      const w = _fsWerte(s), u = tSek - h.ab_s, ges = Math.max(1e-6, h.bis_s - h.ab_s);
+      if (!_fsAktiv(s)) continue;
+      const w = _fsWerte(s), t0 = h.ab_s - w.anflug, t1 = h.bis_s + w.abflug;
+      if (!(tSek >= t0 && tSek <= t1)) continue;
       const glatt = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
-      const k = Math.min(w.anflug > 0 ? u / w.anflug : 1, w.abflug > 0 ? (ges - u) / w.abflug : 1);
-      const dIn = Math.max(0.3, w.anflug * 0.5), dOut = Math.max(0.3, w.abflug * 0.5);
-      const pIn = (u - Math.max(0, w.anflug - dIn)) / dIn;
-      const pOut = (ges - Math.max(0, w.abflug - dOut) - u) / dOut;
-      return { s, i, w, u, ges, k: glatt(k), p: glatt(Math.min(pIn, pOut)), ll: [+s.lon, +s.lat] };
+      const k = tSek < h.ab_s ? (w.anflug > 0 ? (tSek - t0) / w.anflug : 1)
+              : tSek > h.bis_s ? (w.abflug > 0 ? (t1 - tSek) / w.abflug : 1) : 1;
+      const dIn = Math.max(0.3, w.anflug * 0.6), dOut = Math.max(0.3, w.abflug * 0.6);
+      const p = Math.min((tSek - (h.ab_s - dIn)) / dIn, ((h.bis_s + dOut) - tSek) / dOut);
+      const ken = (tSek - (h.ab_s - dIn)) / Math.max(0.1, (h.bis_s - h.ab_s) + dIn + dOut);
+      const u = (tSek - h.ab_s) / Math.max(0.1, h.bis_s - h.ab_s);
+      const dreh = (u > 0 && u < 1) ? FS_SCHWENK_GRAD * Math.sin(2 * Math.PI * u) : 0;
+      return { s, i, w, h, k: glatt(k), p: glatt(p), ken: Math.max(0, Math.min(1, ken)), dreh, ll: [+s.lon, +s.lat] };
     }
     return null;
   }
@@ -4088,6 +4097,8 @@ function mountAnimator(body, headerActions, opts) {
       args.center = [c[0] + (lng - c[0]) * fs.k, c[1] + (fs.ll[1] - c[1]) * fs.k];
     }
     args.zoom = (args.zoom != null ? args.zoom : map.getZoom()) + fs.w.zoom * fs.k;
+    // 02.10.2026 (Marc: „die Kamera soll sich leicht hin und her bewegen, dass Bewegung im Bild bleibt")
+    if (fs.dreh) args.bearing = (args.bearing != null ? args.bearing : map.getBearing()) + fs.dreh;
   }
   // Großes Bild + Bildunterschrift je Foto (Datei → { el, laden, info })
   const _fsBilder = new Map();
@@ -4220,17 +4231,17 @@ function mountAnimator(body, headerActions, opts) {
     _fsZeitLetzt = tSek;
     const aktiv = !(tSek == null || !(tSek >= 0));
     const fs = aktiv ? _fotostoppBei(tSek) : null;
-    const hs = aktiv ? ((_tempoInfo && _tempoInfo.halte) || []).filter(h => h.kamera === "fotostopp" && tSek >= h.ab_s - FS_PIN_VORLAUF) : [];
+    const hs = aktiv ? ((_tempoInfo && _tempoInfo.halte) || []).filter(h => h.kamera === "fotostopp") : [];
     let el = document.getElementById("anim-fotostopp");
     const vp = document.getElementById("anim-viewport");
     if (!el && fs && vp) {
       el = document.createElement("div");
       el.id = "anim-fotostopp"; el.className = "fs-buehne"; el.setAttribute("aria-hidden", "true"); el.style.display = "none";
-      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><img alt=""><div class="fs-text"></div></div>`;
+      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><div class="fs-bild"><img alt=""></div><div class="fs-text"></div></div>`;
       vp.insertBefore(el, document.getElementById("anim-overlay-preview"));
     }
     const W = (vp && vp.offsetWidth) || 1, H = (vp && vp.offsetHeight) || 1;
-    const proj = (ll) => { try { const q = map.project(ll); if (isFinite(q.x) && isFinite(q.y)) return [q.x, q.y]; } catch (_) {} return null; };
+    const proj = (ll) => { try { const q = window.rzProjektGezeichnet ? window.rzProjektGezeichnet(map, ll) : map.project(ll); if (isFinite(q.x) && isFinite(q.y)) return [q.x, q.y]; } catch (_) {} return null; };
     // ── Pins: Kartenebene (von MapLibre im selben Bild gezeichnet wie die Linie) ──
     const d = Math.min(W, H) * 0.12, spitze = d * 0.22;
     const pins = [];
@@ -4238,7 +4249,9 @@ function mountAnimator(body, headerActions, opts) {
       const i = parseInt(String(h.ref || "").slice(3), 10);
       const s = _fsSchilderAlle()[i];
       if (!_fsAktiv(s)) continue;
-      const auf = Math.max(0, Math.min(1, (tSek - (h.ab_s - FS_PIN_VORLAUF)) / FS_PIN_AUF));
+      const pinAb = h.ab_s - _fsWerte(s).anflug - FS_PIN_VORLAUF;   // 2,5 s vor dem Anflug
+      if (tSek < pinAb) continue;
+      const auf = Math.max(0, Math.min(1, (tSek - pinAb) / FS_PIN_AUF));
       const imStopp = (fs && fs.s === s) ? fs.p : 0;
       pins.push({ i, s, op: auf * (1 - Math.min(1, imStopp * 3)), sc: 0.3 + 0.7 * (1 - Math.pow(1 - auf, 3)) });
     }
@@ -4267,7 +4280,9 @@ function mountAnimator(body, headerActions, opts) {
       Object.assign(karte.style, { display: "", width: kw + "px", height: kh + "px", padding: pad + "px", borderRadius: (pad * 0.5) + "px",
         transform: `translate(${cx - kw / 2}px, ${cy - kh / 2}px) scale(${sc})`, opacity: String(Math.min(1, p * 2.5)),
         boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
-      Object.assign(img.style, { width: bw + "px", height: bh + "px" });
+      Object.assign(img.parentNode.style, { width: bw + "px", height: bh + "px" });
+      // 02.10.2026 (Marc: „das Foto selber soll durchgehend leicht gezoomt werden") — Ken Burns
+      Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + FS_KEN * fs.ken).toFixed(4)})` });
       const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
       if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
       Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
@@ -8465,12 +8480,13 @@ function mountAnimator(body, headerActions, opts) {
             } else ll = _runFitCam
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
+            let _fsDreh = 0;
             { // 01.10.2026 — Fotostopp: dieselbe Ranfahrt wie im Probelauf (_fsKamera)
               const _fs = _fotostoppBei((tz * totalMs - introMs) / 1000);
-              if (_fs && _fs.k > 0) { const o = { center: ll, zoom: zm }; _fsKamera(o, _fs); ll = o.center; zm = o.zoom; }
+              if (_fs && _fs.k > 0) { const o = { center: ll, zoom: zm, bearing: 0 }; _fsKamera(o, _fs); ll = o.center; zm = o.zoom; _fsDreh = o.bearing; }
             }
             zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
-            _plan.push({ tz, a, ip, zm, ll });
+            _plan.push({ tz, a, ip, zm, ll, db: _fsDreh });
           }
           let _demH = null;
           if (_demFest()) {
@@ -8481,8 +8497,8 @@ function mountAnimator(body, headerActions, opts) {
             } catch (e) { try { applog("warn", "[faith-build] dem_hoehen fehlgeschlagen: " + e); } catch (_) {} }
           }
           for (let _k = 0; _k < _plan.length; _k++) {
-            const { tz, a, ip, zm, ll } = _plan[_k];
-            map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
+            const { tz, a, ip, zm, ll, db } = _plan[_k];
+            map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: (ip.bearing || 0) + (db || 0) });
             let ez = null, eM = null;
             const _hFest = _demH ? _demH[_k] : null;
             if (_hFest != null && isFinite(_hFest)) {
@@ -8824,7 +8840,7 @@ function mountAnimator(body, headerActions, opts) {
           jumpArgs.bearing = (jumpArgs.bearing || 0) + (_tSek - _h.ab_s) * _ORBIT_GRAD_JE_S;
         }
         // 01.10.2026 — Fotostopp: an das Foto heranfahren (gleiche Rechnung in den Stützstellen der ruhigen Kamera)
-        if (_h && _h.kamera === "fotostopp") _fsKamera(jumpArgs, _fotostoppBei(_tSek), (() => { const g = map.getCenter(); return [g.lng, g.lat]; })());
+        { const _fs = _fotostoppBei(_tSek); if (_fs) _fsKamera(jumpArgs, _fs, (() => { const g = map.getCenter(); return [g.lng, g.lat]; })()); }
       }
       const _rKamRoh = _reiseKamera(coordFrac);
       let _rKam = _rKamRoh;
@@ -14987,7 +15003,7 @@ function mountAnimator(body, headerActions, opts) {
     while (ebene.childElementCount < punkte.length) { const d = document.createElement("div"); d.className = "hl-punkt"; ebene.appendChild(d); }
     punkte.forEach((pt, i) => {
       const el = ebene.children[i];
-      let p; try { p = map.project([pt.lon, pt.lat]); } catch (_) { return; }
+      let p; try { p = window.rzProjektGezeichnet ? window.rzProjektGezeichnet(map, [pt.lon, pt.lat]) : map.project([pt.lon, pt.lat]); } catch (_) { return; }   // 02.10.2026 Gelände wie gezeichnet
       const x = Math.max(rand, Math.min(LW - rand, p.x * k)), y = Math.max(rand, Math.min(LH - rand, p.y * k));
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
       el.style.background = pt.farbe || "#ffc21a";

@@ -98,6 +98,23 @@
     // (z. B. Kamera über das Gelände heben); Vergleich mit getZoom()/getPitch() zeigt das.
     try { window.__rzCamSet = { zoom: zoom, pitch: bp[1], bearing: bp[0], elev: elev, alt: altM, lat: cLat, lng: cLng }; } catch (_) {}
   }
+  /** 02.10.2026 — Bildschirmpunkt einer Stelle mit der Geländehöhe, mit der MapLibre die Karte ZEICHNET.
+   *  `map.project` fragt die Höhe auf `tileZoom` ab, gezeichnet wird mit den Kacheln auf tileZoom + deltaZoom.
+   *  Am Teide lieferte die gröbere Stufe 3670 m statt 3280 m (×1,5) → im Video 57 px neben der Linie
+   *  (Foto-Pins, Vorankündigungs-Punkte). Ohne Gelände oder bei Mapbox: map.project. */
+  function rzProjektGezeichnet(map, ll) {
+    try {
+      const T = map.terrain, tr = map.transform, ML = window.maplibregl;
+      if (!T || !tr || !ML || typeof tr.locationToScreenPoint !== "function" || typeof T.getElevationForLngLatZoom !== "function") return map.project(ll);
+      const L = new ML.LngLat(ll[0], ll[1]);
+      const z = Math.min(24, Math.round(tr.tileZoom || 0) + (T.deltaZoom != null ? T.deltaZoom : 1));
+      let e = T.getElevationForLngLatZoom(L, z);
+      if (e == null || !isFinite(e)) e = T.getElevationForLngLatZoom(L, tr.tileZoom);
+      const fest = { getElevationForLngLatZoom: () => e, getElevationForLngLat: () => e, getElevation: () => e };
+      return tr.locationToScreenPoint(L, fest);
+    } catch (_) { return map.project(ll); }
+  }
+  window.rzProjektGezeichnet = rzProjektGezeichnet;
   window.rzMlCamRead = rzMlCamRead;
   window.rzMlCamApply = rzMlCamApply;
 })();

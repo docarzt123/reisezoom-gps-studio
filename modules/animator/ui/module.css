@@ -1349,7 +1349,8 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .fs-buehne .fs-dunkel { position: absolute; inset: 0; background: #000; opacity: 0; }
 .fs-buehne .fs-karte { position: absolute; left: 0; top: 0; box-sizing: border-box; background: #fff;
   transform-origin: 50% 50%; display: flex; flex-direction: column; align-items: center; will-change: transform; }
-.fs-buehne .fs-karte img { display: block; object-fit: cover; }
+.fs-buehne .fs-bild { overflow: hidden; }
+.fs-buehne .fs-karte img { display: block; object-fit: cover; transform-origin: 50% 45%; }
 .fs-buehne .fs-text { width: 100%; box-sizing: border-box; text-align: center; color: #1d252d; line-height: 1.3;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs-buehne .fs-z1 { font-weight: 700; }

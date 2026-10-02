@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.768** (02.10.2026, built locally): photo stops with motion; points in terrain where the map draws them.
+
+### Changed
+- **Photo stop flows into the ride** (Marc: "the photo should already be zoomed in shortly before reaching the stop, and the track should continue straight away when it fades out"). The hold is only the photo time (3 s); approach and departure run while the track moves — the photo is full size on arrival and shrinks while the track already continues. Quick video: a stop costs 3 s, at most half of the animation time goes to stops.
+- **Motion during the photo** (Marc: "the camera should move slightly back and forth so there is motion, and the photo itself should zoom slightly the whole time"): the camera swings ±4° during the hold (also in the smooth-camera samples), the photo zooms slowly by 8 % (Ken Burns) from appearing to disappearing.
+
+### Fixed
+- **Points in terrain off the line in the video** (Marc: "the POIs are not shown correctly"; the highlight pre-announcement dots jumped, photo pins drifted). `map.project` reads the terrain height at `tileZoom`, MapLibre draws with tileZoom + deltaZoom — on the Teide 3670 m instead of 3280 m (×1.5), 57 px off right after a stop. New `rzProjektGezeichnet` (ui/js/maplibre-camera.js) projects with the drawn height; used by the highlight pre-announcement and the photo stop. `tests/test_projektion_gelaende.py`: Chromium like the render, a map-drawn circle vs. the computed point — 0.2–0.3 px (map.project: 57 px).
+
 > **0.9.767** (01.10.2026, built locally): photo pins sit on the track in the video too.
 
 ### Fixed
