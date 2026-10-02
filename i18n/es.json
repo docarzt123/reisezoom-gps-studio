@@ -4901,5 +4901,11 @@
   "animator.ton.klick_i": "Campanita",
   "animator.ton.klick_j": "Silbido + clic",
   "animator.ton.klick_datei_tip": "Elegir un sonido propio (WAV, MP3, M4A …)",
-  "animator.timeline.hoehe_tip": "Arrastrar: pistas más altas o más bajas · Doble clic: estándar"
+  "animator.timeline.hoehe_tip": "Arrastrar: pistas más altas o más bajas · Doble clic: estándar",
+  "signs.add_clips": "🎞 Añadir clips de vídeo",
+  "signs.add_clips_tip": "Elige clips de vídeo (MP4, MOV …): van al lugar donde se grabaron (GPS o, si no, hora de grabación) y se reproducen allí como parada.",
+  "signs.clips_passen_nicht": "Ninguno de los clips encaja con la ruta (lugar u hora).",
+  "signs.clips_dupes": "Estos clips ya están.",
+  "signs.clips_geladen": "%n clips de vídeo añadidos como paradas.",
+  "signs.clips_ohne_stelle": "%n no encajaban con la ruta."
 }

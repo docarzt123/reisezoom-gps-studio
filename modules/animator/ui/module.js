@@ -1051,6 +1051,8 @@ function mountAnimator(body, headerActions, opts) {
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-add-photos">${t("signs.add_photos", "📷 Fotos hinzufügen")}</button>
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-add-gtg">${t("photos.from_geotagger", "Aus Geotagger")}</button>
           </div>
+          ${_isStaticFrame ? "" : `<button type="button" class="btn btn-subtle" style="width:100%; margin-top:6px;" id="anim-signs-add-clips"
+                  title="${t("signs.add_clips_tip", "Videoclips (MP4, MOV …) wählen — sie kommen an die Stelle, an der sie aufgenommen wurden (GPS, sonst Aufnahmezeit), und laufen dort als Stopp ab.")}">${t("signs.add_clips", "🎞 Videoclips hinzufügen")}</button>`}
           <!-- 11.09.2026 (Marc: „gibts im animator auch einen knopf?") — Highlights aus OpenStreetMap
                für den offenen Track, dazu zu den vorhandenen Schildern, als ein ⌘Z-Schritt. -->
           <button type="button" class="btn btn-subtle" style="width:100%; margin-top:6px;" id="anim-signs-highlights"
@@ -12947,6 +12949,42 @@ function mountAnimator(body, headerActions, opts) {
       if (!window.pywebview?.api?.photos_load) return;
       return _animSignsAddPhotosFromBridge(() => rzWarten("photos_load", () => window.pywebview.api.photos_load(pathsOrFolder)));
     }
+    /** 02.10.2026 — Videoclips wählen → der Strecke zuordnen (GPS, sonst Aufnahmezeit) → Clip-Stopps
+     *  (wie im Schnell-Video: 4 s aus dem ersten Viertel, Ton aus; änderbar im Schild). */
+    async function _animSignsImportClips(vorgabe) {
+      const gpx = (typeof currentGpx === "string" && currentGpx) ? currentGpx : "";
+      if (!gpx || !Array.isArray(currentCoords) || currentCoords.length < 2) { toast(t("signs.need_track", "Erst eine GPX-Route laden."), "warn"); return; }
+      let r = vorgabe || null;
+      if (!r) { try { r = await api().pick_file("open", ["Video (*.mp4;*.mov;*.m4v;*.mts;*.m2ts;*.mkv;*.avi)"], true); } catch (_) {} }   // warte-ok: Systemdialog
+      const pfade = Array.isArray(r) ? r.filter(Boolean) : (r ? [r] : []);
+      if (!pfade.length) return;
+      let res = null;
+      try { res = await rzWarten("schnellvideo_clips", () => api().schnellvideo_clips(gpx, 200, pfade, true)); } catch (e) { res = { ok: false, error: String(e) }; }
+      const clips = (res && res.ok && Array.isArray(res.clips)) ? res.clips : [];
+      if (!clips.length) { toast(t("signs.clips_passen_nicht", "Keiner der Clips passt zur Tour (Ort oder Aufnahmezeit)."), "warn", 4500); return; }
+      const da = new Set(_animSignsList().filter(s => s.clip && s.clip.pfad).map(s => s.clip.pfad));
+      const list = _animSignsList().slice();
+      let neu = 0;
+      for (const c of clips) {
+        if (!c.path || da.has(c.path)) continue;
+        const lang = Math.max(0.5, +c.dauer || 4), dauer = Math.round(Math.min(4, lang) * 10) / 10;
+        list.push({ ...(_SIGN_DEFAULTS), text: "", imageSrc: c.standbild, thumb: c.thumb || undefined,
+          lat: Number(c.lat), lon: Number(c.lon), anchorMode: "track", visible: true, timeAnchor: Number(c.bei),
+          entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
+          stopp: true, stopp_s: dauer, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5, stopp_schwenk: 1.5, stopp_ken: 0,
+          stopp_ortzeit: true, stopp_exif: false,
+          clip: { pfad: c.path, ab: Math.round(Math.max(0, (lang - dauer) * 0.25) * 10) / 10, dauer, laenge: lang, ton: false, laut: 1 } });
+        da.add(c.path); neu++;
+      }
+      if (!neu) { toast(t("signs.clips_dupes", "Diese Clips sind schon drin."), "info", 2500); return; }
+      _animSignsSave(list);
+      _animSignsAttachToMap();
+      _animSignsRenderList();
+      const weg = pfade.length - clips.length;
+      toast(t("signs.clips_geladen", "%n Videoclips als Stopps angelegt.").replace("%n", neu)
+            + (weg > 0 ? " " + t("signs.clips_ohne_stelle", "%n passten nicht zur Tour.").replace("%n", weg) : ""), "ok", 4000);
+    }
+    window.__rzClipsImportieren = (pfade) => _animSignsImportClips(pfade);   // Prüfstand: wie der Knopf, ohne Systemdialog
     function _animSignsImportFromGeotagger() {
       if (!window.pywebview?.api?.photos_from_geotagger) return;
       return _animSignsAddPhotosFromBridge(() => rzWarten("photos_from_geotagger", () => window.pywebview.api.photos_from_geotagger()));
@@ -13035,6 +13073,9 @@ function mountAnimator(body, headerActions, opts) {
           });
         });
       }
+      // 02.10.2026 (Marc: „bau den Knopf noch") — Videoclips als Clip-Stopps
+      const addClips = document.getElementById("anim-signs-add-clips");
+      if (addClips && !addClips._wired) { addClips._wired = true; addClips.addEventListener("click", () => _animSignsImportClips()); }
       const addGtg = document.getElementById("anim-signs-add-gtg");
       if (addGtg && !addGtg._wired) {
         addGtg._wired = true;

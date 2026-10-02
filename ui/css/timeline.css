@@ -60,7 +60,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: calc(26px * var(--tl-s, 1));   /* 02.10.2026 — Spurhöhe ziehbar (--tl-s, Griff oben an der Zeitleiste) */
+  height: calc(26px * var(--tl-s, 1));   /* --tl-s: Spurhöhe */
   background:
     linear-gradient(180deg, rgba(255, 209, 102, 0.07), rgba(255, 209, 102, 0.02));
   border-radius: 6px 6px 0 0;

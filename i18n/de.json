@@ -4901,5 +4901,11 @@
   "animator.ton.klick_i": "Glöckchen",
   "animator.ton.klick_j": "Wusch + Klick",
   "animator.ton.klick_datei_tip": "Eigenen Klang wählen (WAV, MP3, M4A …)",
-  "animator.timeline.hoehe_tip": "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard"
+  "animator.timeline.hoehe_tip": "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard",
+  "signs.add_clips": "🎞 Videoclips hinzufügen",
+  "signs.add_clips_tip": "Videoclips (MP4, MOV …) wählen — sie kommen an die Stelle, an der sie aufgenommen wurden (GPS, sonst Aufnahmezeit), und laufen dort als Stopp ab.",
+  "signs.clips_passen_nicht": "Keiner der Clips passt zur Tour (Ort oder Aufnahmezeit).",
+  "signs.clips_dupes": "Diese Clips sind schon drin.",
+  "signs.clips_geladen": "%n Videoclips als Stopps angelegt.",
+  "signs.clips_ohne_stelle": "%n passten nicht zur Tour."
 }

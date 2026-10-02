@@ -11925,7 +11925,7 @@ class Api:
             log.error("schnellvideo_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def schnellvideo_fotos(self, path: str, n_max: int = 8, quellen: list = None, art: str = "foto") -> dict:
+    def schnellvideo_fotos(self, path: str, n_max: int = 8, quellen: list = None, art: str = "foto", alle: bool = False) -> dict:
         """01.10.2026 (Marc, Fotostopps „wie bei Relive"; Q1: automatisch vorschlagen, im Dialog abwählbar) —
         Fotos dieser Tour aus dem Foto-Bestand (Zeitfenster der Tour), der Strecke zugeordnet (GPS, sonst
         Aufnahmezeit) und verteilt ausgewählt: höchstens eins je Zehntel der Strecke, mindestens 7 % Abstand,
@@ -11950,7 +11950,16 @@ class Api:
             tz_tour = 0
             if quellen:
                 from core import photos as cphotos
-                dateien = [p for p in cphotos.expand_paths(list(quellen)) if passt(p)]
+                if clip:   # expand_paths kennt nur Fotos — Clips selbst auflisten (Dateien und Ordner, nicht rekursiv)
+                    dateien = []
+                    for q in quellen:
+                        qp = Path(os.path.abspath(str(q or "")))
+                        if qp.is_dir():
+                            dateien += [str(c) for c in sorted(qp.iterdir()) if c.is_file() and passt(str(c))]
+                        elif qp.is_file() and passt(str(qp)):
+                            dateien.append(str(qp))
+                else:
+                    dateien = [p for p in cphotos.expand_paths(list(quellen)) if passt(p)]
                 meta = cexif.read_meta_viele(dateien) if dateien else {}
                 try:   # Fotos ohne Zeitzone: Ortszeit der Tour
                     e0 = next((datetime.fromisoformat(str(q.time).replace("Z", "+00:00")).timestamp() for q in pts if q.time), None)
@@ -11999,7 +12008,7 @@ class Api:
             kandidaten = []
             for f in zu:
                 bei = f["idx"] / (n - 1)
-                if 0.03 < bei < 0.97:
+                if alle or 0.03 < bei < 0.97:
                     kandidaten.append(dict(f, bei=bei, wert=wert(f)))
             # je Zehntel das beste (bei Gleichstand das zur Fach-Mitte nächste), dann die besten n_max
             faecher = {}
@@ -12009,8 +12018,8 @@ class Api:
                 schl = (f["wert"], -abs(f["bei"] - mitte))
                 if k not in faecher or schl > faecher[k][0]:
                     faecher[k] = (schl, f)
-            wahl = []
-            for f in sorted((v[1] for v in faecher.values()), key=lambda f: (-f["wert"], f["bei"])):
+            wahl = sorted(kandidaten, key=lambda f: f["bei"])[: max(1, int(n_max))] if alle else []   # „alle": selbst gewählt
+            for f in ([] if alle else sorted((v[1] for v in faecher.values()), key=lambda f: (-f["wert"], f["bei"]))):
                 if len(wahl) >= max(0, int(n_max)):
                     break
                 if all(abs(f["bei"] - g["bei"]) >= 0.07 for g in wahl):   # Stopps nicht direkt hintereinander
@@ -12040,10 +12049,11 @@ class Api:
             log.error("schnellvideo_fotos: %s", e)
             return {"ok": False, "error": str(e), "fotos": []}
 
-    def schnellvideo_clips(self, path: str, n_max: int = 4, quellen: list = None) -> dict:
+    def schnellvideo_clips(self, path: str, n_max: int = 4, quellen: list = None, alle: bool = False) -> dict:
         """02.10.2026 (Marc: „Videos wäre auch noch was") — Videoclips der Tour (Foto-Bestand: art „video",
-        sonst selbst gewählte Dateien), verteilt wie die Fotos. Je Clip zusätzlich Länge, Ton, Standbild."""
-        r = self.schnellvideo_fotos(path, n_max, quellen, art="video")
+        sonst selbst gewählte Dateien), verteilt wie die Fotos. Je Clip zusätzlich Länge, Ton, Standbild.
+        `alle` (Animator „Videoclips hinzufügen"): jeden passenden Clip nehmen, ohne Ausdünnen."""
+        r = self.schnellvideo_fotos(path, n_max, quellen, art="video", alle=alle)
         if isinstance(r, dict) and "fotos" in r:
             r["clips"] = r.pop("fotos")
         return r
