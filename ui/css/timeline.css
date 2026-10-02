@@ -60,7 +60,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: 26px;
+  height: calc(26px * var(--tl-s, 1));   /* 02.10.2026 — Spurhöhe ziehbar (--tl-s, Griff oben an der Zeitleiste) */
   background:
     linear-gradient(180deg, rgba(255, 209, 102, 0.07), rgba(255, 209, 102, 0.02));
   border-radius: 6px 6px 0 0;
@@ -165,7 +165,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: 22px;
+  height: calc(22px * var(--tl-s, 1));
   background: rgba(255, 255, 255, 0.02);
 }
 /* v0.9.227 — Marker-/Foto-Reserve-Spuren entfernt (Schilder+Fotos haben ihr
@@ -931,7 +931,7 @@ body.wert-zieht .timeline-marker.is-selected {
 /* Die Tempo-Spur trägt Bänder statt Punkte und ist die einzige Spur, die auch
    ohne Keyframe-Editor steht — sie bekommt deshalb etwas mehr Höhe, damit
    Sekunden und Faktor lesbar bleiben (Marc, 08.09.2026). */
-.timeline-lane[data-kind="tempo"] { height: 30px; }
+.timeline-lane[data-kind="tempo"] { height: calc(30px * var(--tl-s, 1)); }
 .timeline-lane[data-kind="tempo"] .tl-tempo-block { top: 4px; bottom: 4px; }
 .timeline-lane[data-kind="tempo"] .tl-tempo-halt { top: 3px; bottom: 3px; }
 
@@ -978,7 +978,7 @@ body.wert-zieht .timeline-marker.is-selected {
    Ab zwei Gruppen ist die Tempo-Spur die erste Zeile: jede Kachel eine Gruppe
    (Name, Faktor, Sekunden), die Lücke zwischen zwei Inhalten der Übergang,
    davor und dahinter der Halt. Überlappende Gruppen bekommen eigene Zeilen. */
-.timeline-lane[data-kind="gruppe"] { height: 30px; }
+.timeline-lane[data-kind="gruppe"] { height: calc(30px * var(--tl-s, 1)); }
 .timeline-lane[data-kind="gruppe"] .lane-axis { display: none; }
 .timeline-lane[data-kind="gruppe"] .lane-track { cursor: default; }
 .timeline-lane[data-kind="gruppe"] .lane-markers { pointer-events: none; }
@@ -1051,7 +1051,7 @@ body.wert-zieht .timeline-marker.is-selected {
    Kopfzeile „Overlays" (aufklappbar, zugeklappt dünne Striche je Box) und je
    Box eine Zeile mit einem Balken: Schrägen = Ein-/Ausblendung, Ränder und
    Schrägen-Griffe ziehbar. Abgeschaltete Box grau gestrichelt, ohne Klicks. */
-.timeline-lane[data-kind="ovkopf"] { height: 15px; }
+.timeline-lane[data-kind="ovkopf"] { height: calc(15px * var(--tl-s, 1)); }
 .timeline-lane[data-kind="ovkopf"] .lane-label { cursor: pointer; color: #e8c6ff; }
 .timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(232,160,255,.12); }
 .timeline-lane[data-kind="ovkopf"] .lane-track { cursor: pointer; }
@@ -1060,7 +1060,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .ov-mini { pointer-events: none; }
 .ov-strich { position: absolute; height: 2px; border-radius: 1px; background: #e8a0ff; opacity: .85; }
 .ov-strich.ist-aus { opacity: .25; }
-.timeline-lane[data-kind="ovbox"] { height: 16px; }
+.timeline-lane[data-kind="ovbox"] { height: calc(16px * var(--tl-s, 1)); }
 /* Die Beschriftungsspalte bleibt 84 px breit, auch bei langen Box-Namen — sonst
    verrutscht der Balken gegen die Zeitachse (in der echten App gesehen, 24.09.2026). */
 .timeline-lane[data-kind="ovbox"] .lane-label,
@@ -1141,3 +1141,35 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-kf-zu .timeline-lane[data-kind="center"],
 .tl-kf-zu .timeline-lane[data-kind="position"],
 .tl-kf-zu .timeline-lane[data-kind="camera"] { display: none !important; }
+
+/* 02.10.2026 — Ton-Spur (Musik, Foto-Klicks, Clip-Ton), gleicher Baustein wie Overlays/Schilder */
+.timeline-ton:empty { display: none; }
+.timeline-ton .timeline-lane[data-kind="ovkopf"] .lane-label { color: #a8ecd0; }
+.timeline-ton .timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(92, 207, 160, .12); }
+/* Klick-Marken: schmal, nicht ziehbar */
+.timeline-ton .tl-ovbar.ist-marke { cursor: default; min-width: 3px; border-radius: 2px; }
+/* 02.10.2026 — Schild-Balken mit Foto vorn (Marc: „dass man in der Timeline direkt sieht, worum es geht") */
+.tl-ov-bild { flex: 0 0 auto; height: calc(100% - 2px); aspect-ratio: 1; margin-left: 2px; border-radius: 2px;
+  background: center / cover no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.55); pointer-events: none; }
+.tl-ov-symbol { flex: 0 0 auto; font-size: 9px; line-height: 1; margin-left: 2px; pointer-events: none; }
+.tl-ov-icon { flex: 0 0 auto; height: calc(100% - 4px); aspect-ratio: 1; margin-left: 3px; pointer-events: none; display: inline-flex; }
+.tl-ovbar:has(.tl-ov-bild), .tl-ovbar:has(.tl-ov-symbol), .tl-ovbar:has(.tl-ov-icon) { justify-content: flex-start; }
+.timeline-lane.ist-klein .tl-ov-icon { display: none; }
+.timeline-lane.ist-klein .tl-ov-bild, .timeline-lane.ist-klein .tl-ov-symbol { display: none; }
+/* 02.10.2026 — Höhenprofil als leiser Hintergrund der Track-Spur */
+.tl-hoehe { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
+.tl-hoehe polygon { fill: rgba(120, 200, 255, .16); }
+.tl-hoehe polyline { fill: none; stroke: rgba(150, 215, 255, .55); stroke-width: 1; }
+.timeline-lane.ist-klein .tl-hoehe { opacity: .7; }
+/* Schild-Zeilen etwas höher, damit das Foto im Balken erkennbar ist (02.10.2026) */
+.timeline-sg .timeline-lane[data-kind="ovbox"] { height: calc(22px * var(--tl-s, 1)); }
+.timeline-sg .tl-ov-name { font-size: 9.5px; }
+.tl-gruppe .tl-gruppe-hoehe { z-index: 0; border-radius: inherit; }
+.tl-gruppe .tl-gruppe-name, .tl-gruppe .tl-gruppe-zahlen { position: relative; z-index: 1; }
+/* 02.10.2026 (Marc: „am oberen Ende der Timeline den Bereich größer oder kleiner ziehen, dann werden die Spuren
+   höher oder niedriger") — Griff an der Oberkante */
+.tl-hoehe-griff { position: absolute; left: 0; right: 0; top: 0; height: 7px; cursor: ns-resize; z-index: 30; }
+.tl-hoehe-griff::after { content: ""; position: absolute; left: 50%; top: 3px; width: 36px; height: 3px; margin-left: -18px;
+  border-radius: 2px; background: rgba(255,255,255,.18); transition: background .15s; }
+.tl-hoehe-griff:hover::after, .tl-hoehe-griff.zieht::after { background: rgba(255,255,255,.55); }
+.timeline-bar { position: relative; }

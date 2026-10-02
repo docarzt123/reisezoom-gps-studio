@@ -156,6 +156,62 @@ class KeinNetz(Exception):
     """Overpass nicht erreichbar (Netz, Zeitüberschreitung, Serverfehler)."""
 
 
+# ── Benannter Ort an EINER Stelle (02.10.2026) ──────────────────────────────
+# Marc (Teide-Demo): „Gipfel — da steht La Orotava. Dabei ist das wirklich ein super markanter Punkt … bei den höchsten
+# Stellen könnte man gucken, welcher Gipfel das ist, und den direkt hinschreiben." Für die Bildunterschrift eines
+# Fotostopps und den Gipfelnamen am „Höchsten Punkt". Nur markante Arten (Gipfel, Pass, Hütte, Aussicht, Burg …),
+# keine Orte — den Ort kennt die Bildunterschrift schon.
+PHOTON_REVERSE = "https://photon.komoot.io/reverse"
+#: Photon-Filter je Stufe: erst Gipfel/Pässe (die markanten), dann der Rest. Symbol wie ARTEN.
+PUNKT_STUFEN = (
+    (("natural:peak", "gipfel", "⛰"), ("natural:volcano", "gipfel", "🌋"), ("natural:saddle", "pass", "🏔"),
+     ("mountain_pass:yes", "pass", "🏔")),
+    (("tourism:alpine_hut", "huette", "🏠"), ("tourism:wilderness_hut", "huette", "🏠"), ("tourism:viewpoint", "aussicht", "👁"),
+     ("natural:waterfall", "wasserfall", "💦"), ("historic:castle", "burg", "🏰"), ("historic:ruins", "ruine", "🏚"),
+     ("man_made:lighthouse", "leuchtturm", "🗼"), ("natural:glacier", "gletscher", "🧊"), ("natural:cave_entrance", "hoehle", "🕳")),
+)
+
+
+def _photon_reverse(lat: float, lon: float, radius_km: float, tags: List[str], timeout: float) -> List[dict]:
+    q = [("lat", f"{lat:.6f}"), ("lon", f"{lon:.6f}"), ("radius", f"{radius_km:.3f}"), ("limit", "5")] + [("osm_tag", t) for t in tags]
+    url = PHOTON_REVERSE + "?" + urllib.parse.urlencode(q)
+    req = urllib.request.Request(url, headers={"User-Agent": "ReisezoomGPSStudio"})
+    with urllib.request.urlopen(req, timeout=timeout, context=cnet.ssl_context()) as resp:
+        return (json.loads(resp.read().decode("utf-8", errors="replace")) or {}).get("features") or []
+
+
+def ort_am_punkt(lat: float, lon: float, radius_m: float = 350.0, nur_gipfel: bool = False,
+                 http: Optional[Callable[[float, float, float, List[str]], List[dict]]] = None, timeout: float = 6.0) -> Optional[dict]:
+    """Der markanteste benannte Ort im Umkreis: {name, art, symbol, abstand_m} oder None.
+    Über Photon (komoot, wie die Ortsnamen im Logbuch) — Overpass war am 02.10.2026 minutenlang überlastet.
+    Erst Gipfel/Pässe, dann Hütten, Aussichten, Burgen …; innerhalb einer Stufe der nächste. Ohne Netz: KeinNetz."""
+    r_km = max(0.03, min(2.0, radius_m / 1000.0))
+    abfrage = http or (lambda la, lo, rk, tags: _photon_reverse(la, lo, rk, tags, timeout))
+    stufen = PUNKT_STUFEN[:1] if nur_gipfel else PUNKT_STUFEN
+    for stufe in stufen:
+        art_von = {t: (a, sym) for t, a, sym in stufe}
+        try:
+            feats = abfrage(float(lat), float(lon), r_km, list(art_von))
+        except Exception as e:  # noqa: BLE001
+            raise KeinNetz(str(e)) from e
+        best = None
+        for f in feats:
+            pr = f.get("properties") or {}
+            name = str(pr.get("name") or "").strip()
+            co = (f.get("geometry") or {}).get("coordinates") or []
+            a = art_von.get(f"{pr.get('osm_key')}:{pr.get('osm_value')}")
+            if not name or len(co) < 2 or not a:
+                continue
+            d = _haversine_m(float(lat), float(lon), float(co[1]), float(co[0]))
+            if d > radius_m * 1.05:
+                continue
+            if best is None or d < best[0]:
+                best = (d, {"name": name, "art": a[0], "symbol": a[1], "abstand_m": round(d)})
+        if best:
+            return best[1]
+    return None
+
+
 def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
              http: Optional[Callable[[str], dict]] = None) -> List[dict]:
     """Highlights aus OSM: [{lat, lon, name, art, rang, symbol, ele, tags}]. `http`

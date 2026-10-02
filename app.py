@@ -124,6 +124,7 @@ from core import gpxedit as cgpxedit  # v0.9.233: GPX-Inspektor (Track heilen/f�
 from core import gpxmerge as cgpxmerge  # v0.9.456: mehrere Tracks zu einem verschmelzen
 from core import trackio as ctrackio  # v0.9.297: Track→GPX/CSV-String (geteilt mit Web)
 from core import zeitzone as czeit    # 11.09.2026: Zeitzone + Datum/Uhrzeit für die Einblendungen
+from core import clips as cclips      # 02.10.2026: Videoclips im Video (Standbild, Einzelbilder)
 
 
 # Pfade: in PyInstaller-Bundle liegt UI in sys._MEIPASS, sonst im Source-Tree.
@@ -173,7 +174,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.777"
+APP_VERSION = "0.9.778"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -512,6 +513,7 @@ except Exception:
 # danach aus Disk gezogen. Spart Sekunden pro Reload eines Projekts mit
 # vielen Fotos.
 cphotos.set_cache_dir(APP_SUPPORT / "photo_thumb_cache")
+cclips.CACHE_DIR = APP_SUPPORT / "clip_cache"   # 02.10.2026 — Standbilder + Einzelbilder der Videoclips
 
 
 _FP_SPERRE = threading.Lock()
@@ -1450,7 +1452,9 @@ def _sync_tile_cache_settings() -> None:
 # PNG der Tour-Map, das die Ergebnisansicht darum als kaputtes Bild zeigte.
 _MEDIA_TYPEN = {".mov": "video/quicktime", ".webm": "video/webm", ".mp4": "video/mp4", ".m4v": "video/mp4",
                 ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
-                ".gif": "image/gif", ".heic": "image/heic", ".svg": "image/svg+xml"}
+                ".gif": "image/gif", ".heic": "image/heic", ".svg": "image/svg+xml",
+                ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac", ".wav": "audio/wav", ".flac": "audio/flac",
+                ".ogg": "audio/ogg", ".opus": "audio/ogg"}
 
 
 def _media_typ(pfad: str) -> str:
@@ -1468,6 +1472,7 @@ import http.server as _httpserver
 import secrets as _secrets
 
 _media_registry: dict[str, str] = {}   # token -> absoluter Dateipfad
+_media_ordner: dict[str, str] = {}     # 02.10.2026 — token -> Ordner mit Clip-Einzelbildern (/clip/<token>/<n>.jpg)
 _media_httpd = None
 _media_port = 0
 _media_lock = threading.Lock()
@@ -1481,6 +1486,10 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
         parts = self.path.split("?", 1)[0].strip("/").split("/")
         if len(parts) == 2 and parts[0] == "media":
             return _media_registry.get(parts[1])
+        if len(parts) == 3 and parts[0] == "clip" and re.fullmatch(r"\d{1,7}\.jpg", parts[2]):
+            d = _media_ordner.get(parts[1])
+            if d:
+                return os.path.join(d, f"{int(parts[2][:-4]):06d}.jpg")
         return None
 
     def do_HEAD(self):
@@ -1547,6 +1556,9 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Accept-Ranges", "bytes")
+            # 02.10.2026 — die Vorschau liest Ton (Klick, Clip-Ton) per XHR in Web Audio; ohne CORS-Freigabe blockt
+            # WebKit den Zugriff von file:// auf 127.0.0.1. Nur registrierte, zufällige Tokens werden bedient.
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Length", str(length))
             if status == 206:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{fsize}")
@@ -6072,7 +6084,50 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def fotostopp_info(self, path: str) -> dict:
+    # 02.10.2026 (Marc, Teide-Demo: „Gipfel — da steht La Orotava … gucken, welcher Gipfel das ist, und direkt hinschreiben")
+    # Benannter Ort an einer Stelle (Photon, core/highlights.ort_am_punkt), dauerhaft gemerkt; „nichts" 30 Tage.
+    _ORT_CACHE_LOCK = threading.Lock()
+
+    def _ort_am_punkt(self, lat, lon, radius_m: float = 350.0, nur_gipfel: bool = False) -> Optional[dict]:
+        from core import highlights as chl
+        try:
+            lat, lon = float(lat), float(lon)
+        except (TypeError, ValueError):
+            return None
+        pfad = APP_SUPPORT / "ort_punkt_cache.json"
+        key = f"{lat:.4f},{lon:.4f},{int(radius_m)},{int(bool(nur_gipfel))}"
+        with self._ORT_CACHE_LOCK:
+            try:
+                cache = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
+            except Exception:   # noqa: BLE001
+                cache = {}
+            e = cache.get(key)
+            if e and (e.get("v") or time.time() - float(e.get("t", 0)) < 30 * 86400):
+                return e.get("v")
+        try:
+            v = chl.ort_am_punkt(lat, lon, radius_m, nur_gipfel)
+        except chl.KeinNetz as ex:
+            log.info("Ort am Punkt: kein Netz (%s)", ex)
+            return None                        # nicht merken — beim nächsten Mal neu fragen
+        with self._ORT_CACHE_LOCK:
+            try:
+                cache = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
+            except Exception:   # noqa: BLE001
+                cache = {}
+            cache[key] = {"t": time.time(), "v": v}
+            try:
+                tmp = pfad.with_suffix(".tmp")
+                tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+                _ds.ersetzen(tmp, pfad, "ort_cache", art=_ds.ART_CACHE)
+            except Exception as ex:   # noqa: BLE001
+                log.warning("Ort-Cache: %s", ex)
+        return v
+
+    def ort_am_punkt(self, lat: float, lon: float, radius_m: float = 350.0, nur_gipfel: bool = False) -> dict:
+        """Markantester benannter Ort im Umkreis (Gipfel vor Hütte …) — {ok, ort: {name, art, symbol, abstand_m} | None}."""
+        return {"ok": True, "ort": self._ort_am_punkt(lat, lon, radius_m, nur_gipfel)}
+
+    def fotostopp_info(self, path: str, lat: float = None, lon: float = None) -> dict:
         """01.10.2026 (Marc, Fotostopp wie bei Relive) — was unter dem großen Foto stehen kann:
         Ort, Uhrzeit (Ortszeit der Aufnahme) und eine EXIF-Zeile („X5 · 24 mm · f/8 · 1/500 s").
         Erst aus dem Foto-Bestand, sonst direkt aus der Datei."""
@@ -6094,7 +6149,17 @@ class Api:
                      "blende": w("FNumber", "ApertureValue"), "brennweite": w("FocalLength"),
                      "belichtung": w("ExposureTime", "ShutterSpeed"), "ort": w("City", "Sub-location"),
                      "_dt": m.get("datetime"), "lat": m.get("lat"), "lon": m.get("lon")}
-            return {"ok": True, **_fotostopp_texte(d)}
+            texte = _fotostopp_texte(d)
+            # Markanter Ort an der Aufnahmestelle (GPS des Fotos, sonst die Stelle des Schilds) statt der Gemeinde
+            la = d.get("lat") if d.get("lat") is not None else lat
+            lo = d.get("lon") if d.get("lon") is not None else lon
+            if la is not None and lo is not None:
+                poi = self._ort_am_punkt(la, lo, 350.0)
+                if poi:
+                    texte["gemeinde"] = texte.get("ort", "")
+                    texte["ort"] = f"{poi['symbol']} {poi['name']}"
+                    texte["poi"] = poi
+            return {"ok": True, **texte}
         except Exception as e:   # noqa: BLE001
             log.warning("fotostopp_info: %s", e)
             return {"ok": False, "error": str(e)}
@@ -11860,7 +11925,7 @@ class Api:
             log.error("schnellvideo_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def schnellvideo_fotos(self, path: str, n_max: int = 8, quellen: list = None) -> dict:
+    def schnellvideo_fotos(self, path: str, n_max: int = 8, quellen: list = None, art: str = "foto") -> dict:
         """01.10.2026 (Marc, Fotostopps „wie bei Relive"; Q1: automatisch vorschlagen, im Dialog abwählbar) —
         Fotos dieser Tour aus dem Foto-Bestand (Zeitfenster der Tour), der Strecke zugeordnet (GPS, sonst
         Aufnahmezeit) und verteilt ausgewählt: höchstens eins je Zehntel der Strecke, mindestens 7 % Abstand,
@@ -11869,8 +11934,12 @@ class Api:
         Liefert je Foto {path, lat, lon (Trackpunkt), bei (Punkt-Anteil wie core/tempo.py), zeit, thumb, wert}.
 
         02.10.2026 (Marc: „wenn keine Fotos zu finden sind, biete die Möglichkeit, welche bereitzustellen") —
-        `quellen` = selbst gewählte Dateien/Ordner statt des Foto-Bestands (EXIF-GPS, sonst Aufnahmezeit)."""
+        `quellen` = selbst gewählte Dateien/Ordner statt des Foto-Bestands (EXIF-GPS, sonst Aufnahmezeit).
+
+        02.10.2026 — `art="video"`: dieselbe Suche für Videoclips (schnellvideo_clips)."""
         from core import highlights as chl
+        clip = art == "video"
+        passt = (lambda p: cclips.taugt(p) and cexif.is_video(p)) if clip else cexif.is_photo
         try:
             pf = str(path or "")
             pts, _st = cgpx.parse_gpx(self._ensure_gpx(pf))
@@ -11881,7 +11950,7 @@ class Api:
             tz_tour = 0
             if quellen:
                 from core import photos as cphotos
-                dateien = [p for p in cphotos.expand_paths(list(quellen)) if cexif.is_photo(p)]
+                dateien = [p for p in cphotos.expand_paths(list(quellen)) if passt(p)]
                 meta = cexif.read_meta_viele(dateien) if dateien else {}
                 try:   # Fotos ohne Zeitzone: Ortszeit der Tour
                     e0 = next((datetime.fromisoformat(str(q.time).replace("Z", "+00:00")).timestamp() for q in pts if q.time), None)
@@ -11903,7 +11972,9 @@ class Api:
                     log.info("schnellvideo_fotos: kein Foto-Bestand (%s)", e)
                     rows = []
                 for r in rows:
-                    if (r.get("art") or "foto") != "foto" or not r.get("path") or not os.path.exists(r["path"]):
+                    if (r.get("art") or "foto") != art or not r.get("path") or not os.path.exists(r["path"]):
+                        continue
+                    if clip and not cclips.taugt(r["path"]):
                         continue
                     dt = None
                     if r.get("aufnahme_utc") is not None:
@@ -11949,14 +12020,111 @@ class Api:
             for f in wahl:
                 q = pts[f["idx"]]
                 info = _fotostopp_texte({"aufnahme_utc": f.get("epoch"), "tz_minuten": f.get("tz"), "lat": q.lat, "lon": q.lon})
-                raus.append({"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
-                             "zeit": info.get("zeit", ""), "wert": f["wert"],
-                             "thumb": self._photo_thumbnail_data_url(f["path"], 160)})
-            log.info("Schnell-Video-Fotos: %d von %d Fotos der Tour (%d der Strecke zugeordnet)", len(raus), len(fotos), len(zu))
+                e = {"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
+                     "zeit": info.get("zeit", ""), "wert": f["wert"]}
+                if clip:
+                    ci = cclips.info(f["path"])
+                    if not ci.get("ok"):
+                        continue
+                    sb = cclips.standbild(f["path"], min(0.5, ci["dauer"] / 3))
+                    if not sb:
+                        continue
+                    e.update(dauer=ci["dauer"], ton=ci["ton"], standbild=sb, thumb=self._photo_thumbnail_data_url(sb, 160))
+                else:
+                    e["thumb"] = self._photo_thumbnail_data_url(f["path"], 160)
+                raus.append(e)
+            log.info("Schnell-Video-%s: %d von %d der Tour (%d der Strecke zugeordnet)", "Clips" if clip else "Fotos",
+                     len(raus), len(fotos), len(zu))
             return {"ok": True, "fotos": raus, "n_gesamt": len(fotos)}
         except Exception as e:
             log.error("schnellvideo_fotos: %s", e)
             return {"ok": False, "error": str(e), "fotos": []}
+
+    def schnellvideo_clips(self, path: str, n_max: int = 4, quellen: list = None) -> dict:
+        """02.10.2026 (Marc: „Videos wäre auch noch was") — Videoclips der Tour (Foto-Bestand: art „video",
+        sonst selbst gewählte Dateien), verteilt wie die Fotos. Je Clip zusätzlich Länge, Ton, Standbild."""
+        r = self.schnellvideo_fotos(path, n_max, quellen, art="video")
+        if isinstance(r, dict) and "fotos" in r:
+            r["clips"] = r.pop("fotos")
+        return r
+
+    def schnellvideo_logbuch(self, path: str) -> dict:
+        """02.10.2026 — Zutat „Logbuch" des Schnell-Videos: längere Pausen (ab 5 min) und eigene Notizen als
+        kurze Texte mit Stelle auf der Strecke (`von`/`bis`/`bei` = Punkt-Anteil wie bei den Fotos).
+        Das Schnell-Video hängt sie an einen Fotostopp in der Pause oder macht ein Textschild daraus."""
+        T = _ui_t()
+        try:
+            lb = self.logbuch_lesen(path)
+            if not lb.get("ok"):
+                return {"ok": True, "eintraege": [], "grund": lb.get("grund") or "", "hinweis": lb.get("error") or ""}
+            pts = self._logbuch_punkte(path)
+            n = len(pts)
+            if n < 2:
+                return {"ok": True, "eintraege": []}
+            pois = {q.get("pause"): q for q in (lb.get("punkte") or []) if q.get("pause") and q.get("name")}
+            raus = []
+            for e in lb.get("eintraege") or []:
+                if e.get("anzeige") == "ueberspringen" or e.get("von_idx") is None:
+                    continue
+                notiz = str(e.get("notiz") or "").strip()
+                pause = e.get("art") == "pause" and float(e.get("dauer_s") or 0) >= 300
+                if not (notiz or pause):
+                    continue
+                vi = int(e["von_idx"]); bi = int(e.get("bis_idx") if e.get("bis_idx") is not None else vi)
+                nah = next((pois[b] for b in (e.get("bids") or [e.get("id")]) if b in pois), None)
+                ort = (nah or {}).get("name") or str(e.get("name") or "").strip()
+                if notiz:
+                    text, icon = notiz, "notiz"
+                elif e.get("anzeige_art") == "uebernachtung":
+                    text, icon = T("logbuch.art.uebernachtung", "Übernachtung") + (f" · {ort}" if ort else ""), "uebernachtung"
+                else:
+                    mnt = int(round(float(e.get("dauer_s") or 0) / 60))
+                    dauer = f"{mnt} min" if mnt < 90 else f"{mnt // 60} h {mnt % 60:02d}"
+                    text, icon = T("logbuch.art.pause", "Pause") + f" · {dauer}" + (f" · {ort}" if ort else ""), "pause"
+                q = pts[vi]
+                la, lo = (q.get("lat"), q.get("lon")) if isinstance(q, dict) else (getattr(q, "lat", None), getattr(q, "lon", None))
+                raus.append({"art": "notiz" if notiz else "pause", "text": text, "icon": icon,
+                             "von": round(vi / (n - 1), 6), "bis": round(bi / (n - 1), 6), "bei": round((vi + bi) / 2 / (n - 1), 6),
+                             "lat": la, "lon": lo, "dauer_s": float(e.get("dauer_s") or 0)})
+            return {"ok": True, "eintraege": raus}
+        except Exception as e:  # noqa: BLE001
+            log.warning("schnellvideo_logbuch: %s", e)
+            return {"ok": True, "eintraege": [], "hinweis": str(e)}
+
+    # ── Videoclips (02.10.2026, core/clips.py) ──
+    def clip_info(self, pfad: str) -> dict:
+        r = cclips.info(str(pfad or ""))
+        if r.get("ok"):
+            r["standbild"] = cclips.standbild(str(pfad), min(0.5, r["dauer"] / 3)) or ""
+        return r
+
+    def clip_bilder(self, pfad: str, ab: float, dauer: float, fps: float = 25, hoehe: int = 720) -> dict:
+        """Einzelbilder eines Clip-Ausschnitts, ausgeliefert über den Medien-Server: `muster` mit {i} (1 …)."""
+        try:
+            r = cclips.bilder(str(pfad or ""), ab, dauer, fps, hoehe)
+            if not r.get("ok"):
+                return r
+            port = _ensure_media_server()
+            token = hashlib.sha1(r["ordner"].encode("utf-8")).hexdigest()[:20]
+            _media_ordner[token] = r["ordner"]
+            return {"ok": True, "n": r["n"], "fps": r["fps"], "muster": f"http://127.0.0.1:{port}/clip/{token}/{{i}}.jpg"}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def ton_url(self, datei: str) -> dict:
+        """Tondatei (`builtin:klick`, `builtin:unterwegs` oder Pfad) über den Medien-Server — für Web Audio in der Vorschau."""
+        from core import tonspur as ctonspur
+        p = ctonspur.datei_aufloesen(str(datei or ""))
+        return self.serve_media(str(p)) if p else {"ok": False, "error": "nicht gefunden"}
+
+    def clip_ton(self, pfad: str, ab: float, dauer: float) -> dict:
+        """Ton des Clip-Ausschnitts für die Vorschau (WAV über den Medien-Server)."""
+        w = cclips.ton(str(pfad or ""), ab, dauer)
+        return self.serve_media(w) if w else {"ok": False, "error": "kein Ton"}
+
+    def clip_standbild(self, pfad: str, t: float = 0.5) -> dict:
+        p = cclips.standbild(str(pfad or ""), float(t or 0))
+        return {"ok": bool(p), "path": p or ""}
 
     @staticmethod
     def _schnell_schilder_einsetzen(p: dict, schilder) -> int:
@@ -11967,7 +12135,9 @@ class Api:
             return 0
         alt = [s for s in (p.get("signs") or []) if isinstance(s, dict) and s.get("quelle") != "schnellvideo"]
         da = {s.get("imageSrc") for s in alt if s.get("imageSrc")}
-        neu = [dict(s, quelle="schnellvideo") for s in (schilder or []) if isinstance(s, dict) and s.get("imageSrc") not in da]
+        # Textschilder (Logbuch) haben kein Bild — die zählen nie als doppelt
+        neu = [dict(s, quelle="schnellvideo") for s in (schilder or [])
+               if isinstance(s, dict) and (not s.get("imageSrc") or s.get("imageSrc") not in da)]
         p["signs"] = alt + neu
         return len(neu)
 

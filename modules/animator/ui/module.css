@@ -1405,10 +1405,14 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
   background: rgba(255, 255, 255, 0.05); border-color: var(--border, rgba(255, 255, 255, 0.12)); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .timeline-actions .anim-transport .tp-knopf { color: var(--text, #eee); }
 .timeline-actions .anim-transport .tp-knopf[data-tp="play"] { color: #fff; min-width: 40px; }
-.timeline-actions .anim-transport .tp-zeit { color: var(--text-dim, #b8b8b8); position: absolute; left: calc(100% + 4px); top: 50%;
-  transform: translateY(-50%); margin: 0; text-align: left; white-space: nowrap; pointer-events: none; }
+.timeline-actions .anim-transport .tp-zeit { color: var(--text-dim, #b8b8b8); margin: 0; text-align: left; white-space: nowrap; pointer-events: none; min-width: 0; }
+/* Zeit + 🔊 hängen außen rechts an der Gruppe — so bleibt ▶ genau in der Mitte der Zeile */
+.anim-transport .tp-aussen { display: inline-flex; align-items: center; gap: 2px; }
+.timeline-actions .anim-transport .tp-aussen { position: absolute; left: calc(100% + 4px); top: 50%; transform: translateY(-50%); }
+.anim-transport .tp-ton { min-width: 24px; font-size: 12px; }
+.anim-transport .tp-ton.ist-stumm { opacity: 0.6; }
 /* Platz für die außen angehängte Zeit, damit „Alle weg" nicht darunter rutscht */
-.timeline-actions.mit-transport .tl-akt-rechts { padding-left: 104px; }
+.timeline-actions.mit-transport .tl-akt-rechts { padding-left: 132px; }
 .anim-transport.schwebend { bottom: 14px; }
 .anim-ansicht { display: inline-flex; gap: 4px; margin-left: 8px; }
 .ansicht-knopf { width: 30px; height: 24px; padding: 3px; border-radius: 6px; border: 1px solid var(--border, rgba(255,255,255,0.15));

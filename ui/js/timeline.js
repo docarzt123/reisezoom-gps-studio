@@ -83,6 +83,7 @@ function mountTimelineBar(opts) {
   `).join("");
   host.innerHTML = `
     <div class="timeline-bar">
+      <div class="tl-hoehe-griff" title="${tlT("animator.timeline.hoehe_tip", "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard")}"></div>
       <div class="timeline-track" id="tl-track">
         <!-- v0.9.4: Cluster-Row über allen Lanes. Ein Marker pro unique-anchor
              der den GANZEN Cluster (alle 4 Properties zusammen) verschiebt.
@@ -92,6 +93,7 @@ function mountTimelineBar(opts) {
              für die Overlay-Spur; setOverlays() füllt ihn. -->
         <div class="timeline-ov" id="tl-ov"></div>
         <div class="timeline-ov timeline-sg" id="tl-sg"></div>   <!-- 28.09.2026 — Schilder-Spur, _sgGruppe -->
+        <div class="timeline-ov timeline-ton" id="tl-ton"></div>  <!-- 02.10.2026 — Ton: Musik, Foto-Klicks, Clip-Ton (_tonGruppe) -->
         <div class="timeline-cluster-row" data-kind="__cluster">
           <div class="lane-label cluster-label" title="${tlT('animator.lane.cluster_tip', 'Klick: alle Properties auswählen · Drag: alle zusammen verschieben · Rechtsklick: alles löschen')}">
             <span class="lane-klapp" role="button" title="${tlT("animator.lane.klapp_tip", "Spur klein- oder aufklappen")}">▾</span>
@@ -231,6 +233,39 @@ function mountTimelineBar(opts) {
       </div>
     </div>
   `;
+
+  // ── Spurhöhe ziehen (02.10.2026) ── Faktor --tl-s (0,6–2,2), je Gerät gemerkt
+  const _TL_S_KEY = "rz-tl-spurhoehe";
+  const _tlS = () => { try { const v = parseFloat(localStorage.getItem(_TL_S_KEY)); return isFinite(v) ? Math.max(0.6, Math.min(2.2, v)) : 1; } catch (_) { return 1; } };
+  function _tlSSetzen(v, merken) {
+    v = Math.max(0.6, Math.min(2.2, v));
+    host.style.setProperty("--tl-s", String(Math.round(v * 100) / 100));
+    if (merken) { try { localStorage.setItem(_TL_S_KEY, String(v)); } catch (_) {} }
+    try { window.dispatchEvent(new Event("rz-timeline-hoehe")); } catch (_) {}
+  }
+  _tlSSetzen(_tlS(), false);
+  (function hoeheGriff() {
+    const g = host.querySelector(".tl-hoehe-griff");
+    if (!g) return;
+    g.addEventListener("mousedown", (ev) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      if (ev.detail >= 2) { _tlSSetzen(1, true); _zeichnenPlanen(true); return; }   // Doppelklick: Standard
+      const y0 = ev.clientY, s0 = _tlS();
+      // gegen die Höhe der ganzen Zeitleiste: 100 px ziehen ≈ ein Drittel höher, nicht gleich das Doppelte
+      const h0 = Math.max(240, host.getBoundingClientRect().height);
+      g.classList.add("zieht");
+      const bewegen = (e2) => { _tlSSetzen(s0 * (h0 + (y0 - e2.clientY)) / h0, false); };
+      const hoch = (e2) => {
+        document.removeEventListener("mousemove", bewegen, true); document.removeEventListener("mouseup", hoch, true);
+        g.classList.remove("zieht");
+        _tlSSetzen(s0 * (h0 + (y0 - e2.clientY)) / h0, true);
+        _zeichnenPlanen(true);
+      };
+      document.addEventListener("mousemove", bewegen, true);
+      document.addEventListener("mouseup", hoch, true);
+    });
+  })();
 
   // ── DOM-Refs + State ──────────────────────────────────────────────────────
   const trackEl     = host.querySelector("#tl-track");
@@ -577,13 +612,23 @@ function mountTimelineBar(opts) {
           + (g.aus && g.aus !== "none" && !g.bisEnde ? `<span class="tl-gruppe-blende" data-blende="aus" style="left:${100 - aus}%"></span>` : "");
       }
       const zahlenGanz = g.ganz && wPx >= 96 ? `<span class="tl-gruppe-zahlen">◼ ${sTxt}</span>` : zahlen;
-      k.innerHTML = `${blend}<span class="tl-gruppe-rand" data-rand="l"></span>${name}${g.ganz ? zahlenGanz : zahlen}<span class="tl-gruppe-rand" data-rand="r"></span>`;
+      k.innerHTML = _gruppeHoeheSvg(g.hoehe) + `${blend}<span class="tl-gruppe-rand" data-rand="l"></span>${name}${g.ganz ? zahlenGanz : zahlen}<span class="tl-gruppe-rand" data-rand="r"></span>`;
       el.appendChild(k);
       pos = g.bis;
     });
     if (pos < tf - 0.0005) band(pos, tf, "halt", tlT("animator.gruppe.halt_nach", "Halt nach dem Inhalt (Auffüllen bis zum Ende)"));
   }
   function _esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  /** 02.10.2026 — kleines Höhenprofil der Tour als Hintergrund ihrer Kachel (Werte von links nach rechts). */
+  function _gruppeHoeheSvg(w) {
+    if (!Array.isArray(w) || w.length < 2) return "";
+    let lo = Infinity, hi = -Infinity;
+    for (const x of w) { if (x < lo) lo = x; if (x > hi) hi = x; }
+    const r = Math.max(10, hi - lo), n = w.length;
+    const p = w.map((x, i) => (i / (n - 1) * 100).toFixed(2) + "," + (100 - (8 + (x - lo) / r * 80)).toFixed(2)).join(" ");
+    return `<svg class="tl-hoehe tl-gruppe-hoehe" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,100 ${p} 100,100"></polygon>`
+      + `<polyline points="${p}" vector-effect="non-scaling-stroke"></polyline></svg>`;
+  }
   function _gruppenAlleZeichnen(breiteBekannt) {
     // Einmal messen, BEVOR eine Zeile geleert wird: nach dem Leeren wäre das
     // Layout schmutzig und jede Zeile erzwänge ihr eigenes (14.09.2026).
@@ -965,7 +1010,7 @@ function mountTimelineBar(opts) {
         o.segmente.forEach((sg, si) => {
           const b = document.createElement("div");
           const gewaehlt = auswahl && auswahl.id === o.id && auswahl.seg === si;
-          b.className = "tl-ovbar" + (o.enabled ? "" : " ist-aus") + (gewaehlt ? " ist-auswahl" : "");
+          b.className = "tl-ovbar" + (o.enabled ? "" : " ist-aus") + (gewaehlt ? " ist-auswahl" : "") + (sg.marke ? " ist-marke" : "");
           b.dataset.id = o.id;
           b.dataset.seg = String(si);
           const l = +pct(sg.an), r = +pct(sg.aus);
@@ -979,9 +1024,15 @@ function mountTimelineBar(opts) {
             ? tlT("animator.ov.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · Schrägen: Ein-/Ausblendung · Doppelklick: öffnen")
               + "\n" + tlT("animator.ov.bar_tip2", "Doppelklick auf eine freie Stelle der Zeile: weiterer Zeitraum · Rechtsklick: öffnen")
             : tlT("animator.sg.bar_tip", "Ziehen: verschieben · Ränder: Anfang/Ende · weiße Punkte: Ein-/Ausblendung · Doppelklick oder Rechtsklick: Schild öffnen")));
+          // 02.10.2026 (Marc: „wenn da ein Bild drin ist, soll das Bild klein angezeigt werden … dass man in der
+          // Timeline direkt sieht, worum es geht") — Foto (oder Symbol) vorn im Balken
+          const bild = o.bild ? `<span class="tl-ov-bild" style="background-image:url('${String(o.bild).replace(/'/g, "%27")}')"></span>`
+                     : o.iconSvg ? `<span class="tl-ov-icon">${o.iconSvg}</span>`      // eigenes SVG aus sign_draw.js
+                     : (o.symbol ? `<span class="tl-ov-symbol">${_esc(o.symbol)}</span>` : "");
           b.innerHTML =
             `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
             + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
+            + bild
             + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`
             + (g.blendenGriffe && !sg.ohneBlende ? `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
                                + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>` : "")
@@ -1025,6 +1076,7 @@ function mountTimelineBar(opts) {
       if (!o) return;
       ev.preventDefault();
       ev.stopPropagation();
+      if (o.marke) return;   // 02.10.2026 — Marken (Foto-Klicks) folgen ihrem Foto, nicht der Maus
       // Doppelklick selbst erkennen — nach jedem Loslassen wird neu gezeichnet,
       // ein natives dblclick kommt dann nie an (wie bei den Gruppen-Kacheln).
       const jetzt = Date.now();
@@ -1165,10 +1217,20 @@ function mountTimelineBar(opts) {
     rc: { neu: "onSchildNeu", offen: "onSchilderOffen", oeffnen: "onSchildOeffnen",
           text: "onSchildText", vorschau: "onSchildVorschau", auswahl: "onSchildAuswahl", ziehen: "onSchildZiehen" },
   });
+  // 02.10.2026 (Marc: „wir bräuchten also eine Audiospur") — Ton: Musik (Schrägen = Ein-/Ausblenden, ziehbar),
+  // Foto-Klicks, Ton der Videoclips. Gleicher Baustein; Zeilen ohne Ränder (Musik läuft über das ganze Video).
+  const _tonGruppe = _balkenGruppe({
+    box: "#tl-ton", miniId: "tl-ton-mini", farbe: "#5ccfa0", zeilenIcon: "♪", blendenGriffe: true, zeitraumNeu: false,
+    kopfTitel: tlT("animator.lane.ton", "Ton"),
+    kopfTip: tlT("animator.lane.ton_tip", "Musik, Klick bei jedem Foto und der Ton der Videoclips. Aufklappen: die Schrägen der Musik ziehen ändert Ein- und Ausblenden. Doppelklick öffnet die Einstellungen."),
+    rc: { neu: "onTonNeu", offen: "onTonOffen", oeffnen: "onTonOeffnen", text: "onTonText", vorschau: "onTonVorschau",
+          auswahl: "onTonAuswahl", ziehen: "onTonZiehen" },
+  });
   function setOverlays(liste, opts) { _ovGruppe.set(liste, opts); }
   function setSchilder(liste, opts) { _sgGruppe.set(liste, opts); }
-  function _ovGeometrieMelden() { _ovGruppe.geometrieMelden(); _sgGruppe.geometrieMelden(); }
-  function _ovZeichnen() { _ovGruppe.zeichnen(); _sgGruppe.zeichnen(); }
+  function setTon(liste, opts) { _tonGruppe.set(liste, opts); }
+  function _ovGeometrieMelden() { _ovGruppe.geometrieMelden(); _sgGruppe.geometrieMelden(); _tonGruppe.geometrieMelden(); }
+  function _ovZeichnen() { _ovGruppe.zeichnen(); _sgGruppe.zeichnen(); _tonGruppe.zeichnen(); }
 
   function setEtappen(liste) {
     _tempoEtappen = Array.isArray(liste) ? liste.slice() : [];
@@ -1416,6 +1478,43 @@ function mountTimelineBar(opts) {
       }
       el.appendChild(el2);
     }
+    _hoeheZeichnen(el);
+  }
+  // 02.10.2026 (Marc: „wenn man das Höhenprofil ganz klein drin anzeigt … ein bisschen was Optisches, welcher Track
+  // das sein könnte, und sich der Track von den anderen Sachen wie Schildern abhebt") — Höhenprofil als leiser
+  // Hintergrund der Track-Spur. Werte je Streckenanteil (setHoehe), über die Tempo-Kurve auf die Leiste gelegt —
+  // in einem Halt bleibt das Profil also stehen, genau wie der Punkt im Video.
+  let _hoehe = null, _hoeheSig = "";
+  function setHoehe(werte) {
+    const w = Array.isArray(werte) ? werte.map(Number).filter(isFinite) : [];
+    // Gleiche Werte (eine Reise legt die Reihe bei jeder Umplanung neu an) → nichts tun: kein zusätzlicher Durchlauf
+    const sig = w.length < 2 ? "" : w.length + ":" + w.reduce((a, x, i) => (a + x * (i + 1)) % 1e9, 0).toFixed(3);
+    if (sig === _hoeheSig) return;
+    _hoeheSig = sig;
+    if (w.length < 2) { _hoehe = null; _zeichnenPlanen(false); return; }
+    let lo = Infinity, hi = -Infinity;
+    for (const x of w) { if (x < lo) lo = x; if (x > hi) hi = x; }
+    const r = Math.max(10, hi - lo);   // flache Touren nicht zur Gebirgskette aufblasen
+    _hoehe = w.map(x => (x - lo) / r);
+    if (!_gruppenZeilen.length) _zeichnenPlanen(false);   // bei Gruppen trägt jede Kachel ihr eigenes Profil
+  }
+  function _hoeheZeichnen(el) {
+    if (!_hoehe) return;
+    const n = _hoehe.length, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = i / (n - 1);
+      const x = _anchorToPct(_trackToBar(_videoAusStrecke(a)));
+      pts.push([x, 100 - (8 + _hoehe[i] * 80)]);
+    }
+    const f = (v) => (Math.round(v * 100) / 100).toString();
+    const linie = pts.map(p => f(p[0]) + "," + f(p[1])).join(" ");
+    const flaeche = `${f(pts[0][0])},100 ${linie} ${f(pts[n - 1][0])},100`;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "tl-hoehe");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.innerHTML = `<polygon points="${flaeche}"></polygon><polyline points="${linie}" vector-effect="non-scaling-stroke"></polyline>`;
+    el.appendChild(svg);
   }
 
   /** Zeigerstelle → Streckenanteil. Die Leiste läuft in Videozeit, die
@@ -2570,6 +2669,12 @@ function mountTimelineBar(opts) {
     getOverlays: () => _ovGruppe.get(),
     setSchilder,
     getSchilder: () => _sgGruppe.get(),
+    setTon,
+    getTon: () => _tonGruppe.get(),
+    setHoehe,
+    getHoehe: () => (_hoehe ? _hoehe.slice() : null),
+    getSpurFaktor: () => _tlS(),
+    setSpurFaktor: (v) => { _tlSSetzen(+v || 1, true); _zeichnenPlanen(true); },
   };
 }
 

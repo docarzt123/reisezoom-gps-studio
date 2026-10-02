@@ -131,7 +131,21 @@
       ti.zeit = { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: INTRO_S } };
       liste.push(C.normalisieren(ti));
     }
-    if (w.felder.length) {
+    // 02.10.2026 — Zutat „Übersichtskarte" (IDEAS §78): quadratisch, ~28 % der kurzen Bildseite, oben rechts
+    if (w.uebersicht) {
+      const [bw, bh] = FORMATE[w.format] || FORMATE["9:16"];
+      const kante = 0.28 * Math.min(bw, bh);
+      const ue = C.neu("uebersicht", T);
+      // Hochkant/quadratisch ist die Zahlenreihe so breit, dass sie oben rechts unter der Karte läge
+      // (Teide-Demo 02.10.2026: „VERGANGEN" abgeschnitten) — dann unter die Zahlen rücken.
+      const unterZahlen = w.zahlen && (w.format === "9:16" || w.format === "1:1");
+      Object.assign(ue, { anker: "tr", x: 3, y: unterZahlen ? y2 + (w.format === "9:16" ? 5 : 7) : 3 });
+      ue.zeilen[0].b = Math.round(kante / bw * 1000) / 10;
+      ue.zeilen[0].h = Math.round(kante / bh * 1000) / 10;
+      ue.zeilen[0].linienfarbe = "#ff6b35";
+      liste.push(C.normalisieren(ue));
+    }
+    if (w.schlussAn && w.felder.length) {
       const sk = C.neu("schluss", T);
       sk.zeilen = w.felder.map(f => C.wert(f, "gesamt"));
       sk.zeit = { von: { art: "video_ende", wert: HOLD_S }, bis: null };
@@ -182,6 +196,9 @@
       highlights_enabled: !!w.highlights,   // werden beim Öffnen zu Schildern (Animator: _hlSchilderAbgleichen)
       highlights_arten: ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"],
       highlights_stil: "pille", highlights_farbmodus: "eine", highlights_farbe: "#ffc21a",
+      // 02.10.2026 — Zutat „Musik": eigenes Stück der App (oder eigene Datei), Klick bei jedem Foto
+      ton_musik_an: !!w.musikAn, ton_musik: w.musik || "builtin:unterwegs", ton_musik_laut: 70,
+      ton_musik_ein: 1, ton_musik_aus: Math.min(3, HOLD_S), ton_klick_an: !!w.klick, ton_klick_laut: 25, ton_klick_klang: "builtin:klick_a",   // Marc: A, „ganz subtil"
     };
   }
 
@@ -269,6 +286,56 @@
     }));
   }
 
+  /** 02.10.2026 (Marc: „Videos wäre auch noch was") — ein Clip ist ein Fotostopp mit Bewegtbild: der Halt dauert
+   *  so lange wie der Ausschnitt (höchstens 4 s, aus dem ersten Viertel des Clips), kein Ken-Burns. */
+  const CLIP_S = 4;
+  function clipSchild(c, mitTon) {
+    const lang = Math.max(0.5, +c.dauer || CLIP_S);
+    const dauer = Math.round(Math.min(CLIP_S, lang) * 10) / 10;
+    const ab = Math.round(Math.max(0, (lang - dauer) * 0.25) * 10) / 10;
+    return {
+      text: "", imageSrc: c.standbild, lat: c.lat, lon: c.lon, anchorMode: "track", style: "callout", imageSize: 44,
+      entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
+      stopp: true, stopp_s: dauer, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5, stopp_schwenk: 1.5, stopp_ken: 0,
+      stopp_ortzeit: true, stopp_exif: false,
+      clip: { pfad: c.path, ab, dauer, laenge: lang, ton: !!(mitTon && c.ton), laut: 1 },
+    };
+  }
+  /** Fotos und Clips teilen sich das Zeitbudget (die Hälfte der Animation): die besten zuerst (Clips +1),
+   *  nie zwei Stopps direkt hintereinander (4 % der Strecke Abstand). `__bei` = Stelle, nur für die Zuordnung. */
+  function stoppsWaehlen(fotos, clips, animS, mitTon) {
+    const budget = Math.max(0, animS * 0.5);
+    const kand = [].concat(
+      (fotos || []).map(f => ({ art: "foto", f, kosten: STOPP_KOSTEN, wert: +f.wert || 0, bei: +f.bei })),
+      (clips || []).map(c => ({ art: "clip", f: c, kosten: Math.min(CLIP_S, Math.max(0.5, +c.dauer || CLIP_S)), wert: (+c.wert || 0) + 1, bei: +c.bei })));
+    kand.sort((a, b) => b.wert - a.wert || a.bei - b.bei);
+    let summe = 0;
+    const wahl = [];
+    for (const k of kand) {
+      if (summe + k.kosten > budget + 1e-6) continue;
+      if (wahl.some(x => Math.abs(x.bei - k.bei) < 0.04)) continue;
+      wahl.push(k); summe += k.kosten;
+    }
+    wahl.sort((a, b) => a.bei - b.bei);
+    return wahl.map(k => Object.assign(k.art === "clip" ? clipSchild(k.f, mitTon) : fotostoppSchilder([k.f], 1e9)[0], { __bei: k.bei }));
+  }
+  const LB_SYMBOL = { pause: "☕", uebernachtung: "🌙", notiz: "✎" };
+  /** 02.10.2026 — Zutat „Logbuch": liegt ein Stopp in einer Pause, steht deren Text unter dem Foto; weitere
+   *  Notizen und lange Pausen (ab 10 min) werden kurze Schilder im Highlight-Look (höchstens 3). */
+  function logbuchAnwenden(stopps, eintraege) {
+    const benutzt = new Set();
+    for (const s of stopps) {
+      const i = (eintraege || []).findIndex((x, j) => !benutzt.has(j) && s.__bei >= x.von - 0.01 && s.__bei <= x.bis + 0.01);
+      if (i >= 0) { const x = eintraege[i]; s.text = ((LB_SYMBOL[x.icon] || "") + " " + x.text).trim(); benutzt.add(i); }
+    }
+    return (eintraege || []).filter((x, j) => !benutzt.has(j) && (x.art === "notiz" || +x.dauer_s >= 600)
+                                             && !stopps.some(s => Math.abs(s.__bei - x.bei) < 0.05) && isFinite(+x.lat))
+      .sort((a, b) => (b.art === "notiz") - (a.art === "notiz") || b.dauer_s - a.dauer_s).slice(0, 3)
+      .map(x => ({ text: x.text, lat: x.lat, lon: x.lon, anchorMode: "track", style: "pille", icon: x.icon,
+                   color: { pause: "#e0a96d", uebernachtung: "#8fa8ff", notiz: "#f2d36b" }[x.icon] || "#e0a96d", size: 36,
+                   before: 1.6, after: 2.2, entry: "both", entry_s: 0.35, exit: "fade", exit_s: 0.35, zoomScale: false, visible: true }));
+  }
+
   /** 01.10.2026 (Marc) — „Ablauf" des Schnell-Videos: was an der Tour hängt und bei „In dieses Projekt
    *  übernehmen" mit „Meinen Look behalten" übernommen wird. Alles andere (Format, Kartenstil, Beschriftungen,
    *  Einblendungen, Verläufe, Highlights, blasse Runde) ist Look und bleibt dann, wie es ist. */
@@ -276,6 +343,7 @@
   // doch als Schilder drin sein"); ihr Aussehen (Stil, Farben) bleibt Look.
   const ABLAUF = ["fps", "intro_s", "hold_s", "duration_s", "keyframes_enabled", "timeline_events", "camera_follow_track",
                   "highlights_enabled", "highlights_arten",
+                  "ton_musik_an", "ton_musik", "ton_musik_laut", "ton_musik_ein", "ton_musik_aus", "ton_klick_an", "ton_klick_laut", "ton_klick_klang",
                   "marker_dot_show", "marker_dot_style", "marker_dot_size", "marker_dot_smooth", "marker_dot_rueckblick_m",
                   "spur_glaetten_m", "camera_follow_glatt_m", "smooth_camera_3d"];
   function nurAblauf(patch) {
@@ -306,6 +374,11 @@
       highlights: L.highlights !== false,   // 30.09.2026 — Standard an
       felder: Array.isArray(L.felder) ? L.felder.filter(f => SCHLUSS_FELDER.includes(f)) : SCHLUSS_STANDARD.slice(),
       titel: v.name || "", unter: [datumText(v), v.ort].filter(Boolean).join(" · "),
+      // 02.10.2026 — Zutaten unter „Mehr" (Marc: „beim Schnell-Video bleiben und eine erweiterte Option machen")
+      mehrOffen: !!L.mehr_offen,
+      fotosAn: L.fotos_an !== false, clipsAn: L.clips_an !== false, clipTon: !!L.clip_ton,
+      logbuch: L.logbuch !== false, musikAn: L.musik_an !== false, musik: L.musik || "builtin:unterwegs", klick: L.klick !== false,
+      uebersicht: !!L.uebersicht, schlussAn: L.schluss_an !== false,
     };
     const feldLabel = (f) => T("animator.statsfield." + f, f);
     const m = openModal({
@@ -321,24 +394,66 @@
           <input type="number" id="sv-eigen" class="lib-input" min="${LAENGE_MIN}" max="${LAENGE_MAX}" step="1" value="${w.eigenS}" style="width:90px">
           <span class="muted">${esc(T("schnell.eigen_einheit", "Sekunden gesamt (mindestens {n})").replace("{n}", LAENGE_MIN))}</span>
         </div>
-        <label class="field-label">${esc(T("schnell.qualitaet", "Qualität"))}</label>
-        ${knopfReihe("qualitaet", [["1080", "1080"], ["4k", "4K"]], w.qualitaet)}
-        <label class="field-label" for="sv-stil">${esc(T("schnell.stil", "Kartenstil"))}</label>
-        <select id="sv-stil" class="lib-select" style="width:100%">${stilOptionen(w.stil)}</select>
-        <div class="sv-hinweis" id="sv-rechte" hidden></div>
         <label class="field-label" for="sv-titel">${esc(T("schnell.titel", "Titel"))}</label>
         <input type="text" id="sv-titel" class="lib-input" value="${esc(w.titel)}">
         <label class="field-label" for="sv-unter">${esc(T("schnell.unterzeile", "Unterzeile"))}</label>
         <input type="text" id="sv-unter" class="lib-input" value="${esc(w.unter)}">
-        <label class="field-label">${esc(T("schnell.unterwegs", "Unterwegs"))}</label>
-        <label class="chk"><input type="checkbox" id="sv-zahlen"${w.zahlen ? " checked" : ""}><span>${esc(T("schnell.zahlen", "Zahlen unterwegs (Strecke und Höhe)"))}</span></label>
-        <label class="chk"><input type="checkbox" id="sv-profil"${w.profil ? " checked" : ""}><span>${esc(T("schnell.profil", "Höhenprofil"))}</span></label>
-        <label class="chk"><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}><span>${esc(T("schnell.highlights", "Highlights (höchster Punkt, steilste Stelle, halbe Strecke …)"))}</span></label>
-        <label class="field-label">${esc(T("schnell.fotostopps", "📸 Fotostopps"))}</label>
-        <div class="sv-fotos" id="sv-fotos"><span class="muted">${esc(T("schnell.fotos_suchen", "Fotos dieser Tour werden gesucht …"))}</span></div>
-        <div class="muted sv-fotos-info" id="sv-fotos-info"></div>
-        <label class="field-label">${esc(T("schnell.schlusskarte", "Schlusskarte"))}</label>
-        <div class="sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
+        <details class="sv-mehr" id="sv-mehr"${w.mehrOffen ? " open" : ""}>
+          <summary><span class="sv-mehr-titel">${esc(T("schnell.mehr", "Mehr"))}</span><span class="sv-mehr-kurz" id="sv-mehr-kurz"></span></summary>
+          <div class="sv-mehr-inhalt">
+          <div class="sv-zutat" data-sv-zutat="fotos">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-fotos-an"${w.fotosAn ? " checked" : ""}><span>📸 ${esc(T("schnell.z.fotos", "Fotostopps"))}</span><span class="sv-zutat-stand muted" id="sv-fotos-an-stand"></span></label>
+            <div class="sv-zutat-teil">
+              <div class="sv-fotos" id="sv-fotos"><span class="muted">${esc(T("schnell.fotos_suchen", "Fotos dieser Tour werden gesucht …"))}</span></div>
+              <div class="muted sv-fotos-info" id="sv-fotos-info"></div>
+            </div>
+          </div>
+          <div class="sv-zutat" data-sv-zutat="clips">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-clips-an"${w.clipsAn ? " checked" : ""}><span>🎞 ${esc(T("schnell.z.clips", "Videoclips"))}</span><span class="sv-zutat-stand muted" id="sv-clips-an-stand"></span></label>
+            <div class="sv-zutat-teil">
+              <div class="sv-fotos" id="sv-clips"><span class="muted">${esc(T("schnell.clips_suchen", "Videoclips dieser Tour werden gesucht …"))}</span></div>
+              <label class="chk"><input type="checkbox" id="sv-clipton"${w.clipTon ? " checked" : ""}><span>${esc(T("schnell.clipton", "Originalton der Clips (Musik wird dabei leiser)"))}</span></label>
+            </div>
+          </div>
+          <div class="sv-zutat" data-sv-zutat="logbuch">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-logbuch"${w.logbuch ? " checked" : ""}><span>📖 ${esc(T("schnell.z.logbuch", "Logbuch"))}</span><span class="sv-zutat-stand muted" id="sv-logbuch-stand"></span></label>
+            <div class="sv-zutat-teil muted sv-klein">${esc(T("schnell.logbuch_hint", "Pausen und Notizen aus dem Logbuch: unter dem Foto, wenn es in der Pause entstand, sonst als kurzes Schild an der Stelle."))}</div>
+          </div>
+          <div class="sv-zutat" data-sv-zutat="musik">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-musik-an"${w.musikAn ? " checked" : ""}><span>🎵 ${esc(T("schnell.z.musik", "Musik"))}</span><span class="sv-zutat-stand muted" id="sv-musik-an-stand"></span></label>
+            <div class="sv-zutat-teil">
+              <div class="sv-musik-zeile">
+                <select id="sv-musik" class="lib-select">
+                  ${[["unterwegs", "Unterwegs (eingebaut)"], ["weite", "Weite — ruhig, filmisch"], ["gipfelsturm", "Gipfelsturm — treibend"],
+                     ["rast", "Rast — Lo-Fi, entspannt"], ["grat", "Grat — episch"], ["wanderlied", "Wanderlied — Folk, Gitarre"]]
+                    .map(([k, d]) => `<option value="builtin:${k}"${w.musik === "builtin:" + k ? " selected" : ""}>${esc(T("animator.ton." + k, d))}</option>`).join("")}
+                  ${w.musik && !w.musik.startsWith("builtin:") ? `<option value="${esc(w.musik)}" selected>🎵 ${esc(String(w.musik).split(/[\\/]/).pop())}</option>` : ""}
+                </select>
+                <button type="button" class="btn btn-small" id="sv-musik-datei" title="${esc(T("animator.ton.datei_tip", "Eigene Musik wählen (MP3, M4A, WAV, FLAC …)"))}">…</button>
+                <button type="button" class="btn btn-small" id="sv-musik-hoeren" title="${esc(T("schnell.musik_hoeren", "Probehören"))}">▶</button>
+              </div>
+              <label class="chk"><input type="checkbox" id="sv-klick"${w.klick ? " checked" : ""}><span>${esc(T("schnell.klick", "📷 Klick bei jedem Foto"))}</span></label>
+            </div>
+          </div>
+          <div class="sv-zutat" data-sv-zutat="uebersicht">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-uebersicht"${w.uebersicht ? " checked" : ""}><span>🗺 ${esc(T("schnell.z.uebersicht", "Übersichtskarte in der Ecke"))}</span><span class="sv-zutat-stand muted" id="sv-uebersicht-stand"></span></label>
+          </div>
+          <div class="sv-zutat" data-sv-zutat="schluss">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-schluss-an"${w.schlussAn ? " checked" : ""}><span>🏁 ${esc(T("schnell.z.schluss", "Schlusskarte"))}</span><span class="sv-zutat-stand muted" id="sv-schluss-an-stand"></span></label>
+            <div class="sv-zutat-teil sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
+          </div>
+            <label class="chk"><input type="checkbox" id="sv-zahlen"${w.zahlen ? " checked" : ""}><span>📊 ${esc(T("schnell.zahlen", "Zahlen unterwegs (Strecke und Höhe)"))}</span></label>
+            <label class="chk"><input type="checkbox" id="sv-profil"${w.profil ? " checked" : ""}><span>⛰ ${esc(T("schnell.profil", "Höhenprofil"))}</span></label>
+            <label class="chk"><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}><span>⭐ ${esc(T("schnell.highlights", "Highlights (höchster Punkt, steilste Stelle, halbe Strecke …)"))}</span></label>
+            <div class="sv-aussehen">
+              <label class="field-label">${esc(T("schnell.qualitaet", "Qualität"))}</label>
+              ${knopfReihe("qualitaet", [["1080", "1080"], ["4k", "4K"]], w.qualitaet)}
+              <label class="field-label" for="sv-stil">${esc(T("schnell.stil", "Kartenstil"))}</label>
+              <select id="sv-stil" class="lib-select" style="width:100%">${stilOptionen(w.stil)}</select>
+              <div class="sv-hinweis" id="sv-rechte" hidden></div>
+            </div>
+          </div>
+        </details>
         ${P ? `<div class="sv-projekt">
           <label class="field-label">${esc(T("schnell.in_projekt_titel", "In dieses Projekt übernehmen"))}</label>
           <label class="chk"><input type="checkbox" id="sv-look"${P.hatLook ? " checked" : ""}><span>${esc(T("schnell.look_behalten", "Meinen Look behalten — nur Kamerafahrt und Ablauf übernehmen"))}</span></label>
@@ -376,9 +491,10 @@
       const z = box.querySelector("#sv-fotos-info"); if (!z) return;
       const an = w.fotos.filter((_, i) => !w.fotosAus.has(i));
       if (!w.fotos.length) { z.textContent = ""; return; }
-      const n = fotostoppSchilder(an, animSJetzt()).length;
+      const st = stoppsJetzt(), n = st.filter(x => !x.clip).length;
       z.textContent = T("schnell.fotos_info", "{n} Fotostopps · je {s} s, von der Länge abgezogen").replace("{n}", n).replace("{s}", STOPP_KOSTEN)
         + (n < an.length ? " · " + T("schnell.fotos_zu_viele", "für diese Länge passen nicht alle — die besten kommen rein") : "");
+      mehrKurz();
     };
     const fotosZeigen = () => {
       const l = box.querySelector("#sv-fotos"); if (!l) return;
@@ -394,6 +510,7 @@
       l.innerHTML = w.fotos.map((f, i) => `<button type="button" class="sv-foto${w.fotosAus.has(i) ? "" : " is-on"}" data-sv-foto="${i}" title="${esc(String(f.path).split(/[\\/]/).pop())}">`
         + (f.thumb ? `<img src="${f.thumb}" alt="">` : `<span class="sv-foto-leer">📷</span>`) + `<span class="sv-foto-zeit">${esc(f.zeit || "")}</span></button>`).join("");
       fotosInfo();
+      try { zutatenStand(); } catch (_) {}
     };
     const fotosAusQuelle = async (art) => {
       let q = [];
@@ -416,7 +533,7 @@
       const i = +b.dataset.svFoto;
       if (w.fotosAus.has(i)) w.fotosAus.delete(i); else w.fotosAus.add(i);
       b.classList.toggle("is-on", !w.fotosAus.has(i));
-      fotosInfo();
+      fotosInfo(); zutatenStand();
     });
     box.querySelectorAll("[data-sv-gruppe='laenge']").forEach(r => r.addEventListener("click", () => setTimeout(fotosInfo, 0)));
     box.querySelector("#sv-eigen")?.addEventListener("input", () => { w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen").value || w.eigenS); fotosInfo(); });
@@ -424,9 +541,141 @@
       let r = null;
       try { r = await api().schnellvideo_fotos(pfad); } catch (_) {}   // warte-ok: Hintergrund, der Dialog ist schon bedienbar
       w.fotos = (r && r.ok && Array.isArray(r.fotos)) ? r.fotos : [];
+      if (!w.fotos.length && L.fotos_an == null) { const c = box.querySelector("#sv-fotos-an"); if (c) c.checked = false; }
       fotosZeigen();
     })();
-    const schilderJetzt = () => fotostoppSchilder(w.fotos.filter((_, i) => !w.fotosAus.has(i)), animSJetzt());
+    // ── 02.10.2026 — Videoclips (gleicher Streifen wie die Fotos) ──
+    w.clips = []; w.clipsAus = new Set(); w.clipsGeladen = false;
+    const clipsZeigen = () => {
+      const l = box.querySelector("#sv-clips"); if (!l) return;
+      if (!w.clips.length) {
+        l.innerHTML = `<span class="muted">${esc(w.clipsEigen ? T("schnell.clips_passen_nicht", "Keiner der gewählten Clips passt zur Tour (Ort oder Aufnahmezeit).")
+                                                         : T("schnell.clips_keine", "Keine Videoclips zu dieser Tour im Foto-Archiv."))}</span>
+          <span class="sv-fotos-knoepfe"><button type="button" class="btn btn-small" data-sv-clipquelle="ordner">📁 ${esc(T("schnell.fotos_ordner", "Ordner wählen …"))}</button>
+          <button type="button" class="btn btn-small" data-sv-clipquelle="dateien">🎞 ${esc(T("schnell.clips_dateien", "Clips wählen …"))}</button></span>`;
+      } else {
+        l.innerHTML = w.clips.map((c, i) => `<button type="button" class="sv-foto sv-clip${w.clipsAus.has(i) ? "" : " is-on"}" data-sv-clip="${i}" title="${esc(String(c.path).split(/[\\/]/).pop())}">`
+          + (c.thumb ? `<img src="${c.thumb}" alt="">` : `<span class="sv-foto-leer">🎞</span>`) + `<span class="sv-clip-play">▶</span>`
+          + `<span class="sv-foto-zeit">${esc((Math.round(Math.min(CLIP_S, +c.dauer || 0) * 10) / 10).toString().replace(".", ",") + " s")}</span></button>`).join("");
+      }
+      zutatenStand();
+    };
+    const clipsAusQuelle = async (art) => {
+      let q = [];
+      try {
+        q = art === "ordner" ? await api().pick_file("folder", [])   // warte-ok: Systemdialog
+                             : await api().pick_file("open", ["Video (*.mp4;*.mov;*.m4v;*.mts;*.m2ts;*.mkv;*.avi)"], true);   // warte-ok: Systemdialog
+      } catch (_) { q = []; }
+      if (!q || !q.length) return;
+      const l = box.querySelector("#sv-clips");
+      if (l) l.innerHTML = `<span class="muted">${esc(T("schnell.clips_lesen", "Clips werden gelesen und der Strecke zugeordnet …"))}</span>`;
+      let r = null;
+      try { r = await rzWarten("schnellvideo_clips", () => api().schnellvideo_clips(pfad, 4, q)); } catch (_) {}
+      w.clipsEigen = true; w.clipsAus = new Set();
+      w.clips = (r && r.ok && Array.isArray(r.clips)) ? r.clips : [];
+      clipsZeigen(); fotosInfo();
+    };
+    box.querySelector("#sv-clips")?.addEventListener("click", (e) => {
+      const q = e.target.closest("[data-sv-clipquelle]"); if (q) { clipsAusQuelle(q.dataset.svClipquelle); return; }
+      const b = e.target.closest("[data-sv-clip]"); if (!b) return;
+      const i = +b.dataset.svClip;
+      if (w.clipsAus.has(i)) w.clipsAus.delete(i); else w.clipsAus.add(i);
+      b.classList.toggle("is-on", !w.clipsAus.has(i));
+      fotosInfo(); zutatenStand();
+    });
+    (async () => {
+      let r = null;
+      try { r = await api().schnellvideo_clips(pfad); } catch (_) {}   // warte-ok: Hintergrund, der Dialog ist schon bedienbar
+      w.clips = (r && r.ok && Array.isArray(r.clips)) ? r.clips : [];
+      w.clipsGeladen = true;
+      // Q1-Prinzip: was gefunden wird, ist vorgewählt — nichts gefunden → Schalter aus (Wahl bleibt änderbar)
+      if (!w.clips.length && L.clips_an == null) { const c = box.querySelector("#sv-clips-an"); if (c) c.checked = false; }
+      clipsZeigen(); fotosInfo();
+    })();
+    // ── Logbuch ──
+    w.lb = []; w.lbGeladen = false;
+    (async () => {
+      let r = null;
+      try { r = await api().schnellvideo_logbuch(pfad); } catch (_) {}   // warte-ok: Hintergrund
+      w.lb = (r && r.ok && Array.isArray(r.eintraege)) ? r.eintraege : [];
+      w.lbHinweis = (r && r.hinweis) || "";
+      w.lbGeladen = true;
+      zutatenStand();
+    })();
+    // ── Musik: eigene Datei, Probehören ──
+    let hoeren = null;
+    const hoerenStopp = () => { try { if (hoeren) hoeren.pause(); } catch (_) {} hoeren = null; const b = box.querySelector("#sv-musik-hoeren"); if (b) b.textContent = "▶"; };
+    box.querySelector("#sv-musik-datei")?.addEventListener("click", async () => {
+      let r = null;
+      try { r = await api().pick_file("open", ["Audio (*.mp3;*.m4a;*.aac;*.wav;*.flac;*.ogg;*.opus;*.aif;*.aiff)"]); } catch (_) {}   // warte-ok: Systemdialog
+      const datei = Array.isArray(r) ? r[0] : r;
+      if (!datei) return;
+      const sel = box.querySelector("#sv-musik");
+      let o = [...sel.options].find(x => x.value === datei);
+      if (!o) { o = document.createElement("option"); o.value = datei; o.textContent = "🎵 " + String(datei).split(/[\\/]/).pop(); sel.appendChild(o); }
+      sel.value = datei; hoerenStopp();
+      const an = box.querySelector("#sv-musik-an"); if (an) an.checked = true;
+      zutatenStand();
+    });
+    box.querySelector("#sv-musik")?.addEventListener("change", hoerenStopp);
+    box.querySelector("#sv-musik-hoeren")?.addEventListener("click", async () => {
+      if (hoeren) { hoerenStopp(); return; }
+      const d = box.querySelector("#sv-musik").value;
+      let url = "";
+      try { const r = await api().ton_url(d); url = (r && r.ok && r.url) || ""; } catch (_) {}   // warte-ok: sofort
+      if (!url) return;
+      hoeren = new Audio(url); hoeren.volume = 0.7;
+      const p = hoeren.play(); if (p && p.catch) p.catch(() => {});
+      box.querySelector("#sv-musik-hoeren").textContent = "⏸";
+    });
+    const wache = setInterval(() => { if (!box.isConnected || !document.getElementById("sv-mehr")) { hoerenStopp(); clearInterval(wache); } }, 500);   // Dialog zu → Probehören aus
+    // ── Stand je Zutat + Kurzfassung an „Mehr" ──
+    // Schalter-Stand: aus dem Dialog, nach dem Schließen aus dem zuletzt gelesenen Stand (werteLesen) —
+    // „Übernehmen" und „Rendern" schließen den Dialog, bevor die Schilder gebaut werden.
+    const SCHALTER = ["sv-fotos-an", "sv-clips-an", "sv-clipton", "sv-logbuch", "sv-musik-an", "sv-klick", "sv-uebersicht", "sv-schluss-an"];
+    const stand = {};
+    const an = (id) => { const e = box.isConnected ? box.querySelector("#" + id) : null; return e ? !!e.checked : !!stand[id]; };
+    function stoppsJetzt() {
+      const fotos = an("sv-fotos-an") ? w.fotos.filter((_, i) => !w.fotosAus.has(i)) : [];
+      const clips = an("sv-clips-an") ? w.clips.filter((_, i) => !w.clipsAus.has(i)) : [];
+      return stoppsWaehlen(fotos, clips, animSJetzt(), an("sv-clipton"));
+    }
+    function zutatenStand() {
+      const st = stoppsJetzt();
+      const setz = (id, txt) => { const e = box.querySelector("#" + id + "-stand"); if (e) e.textContent = txt || ""; };
+      setz("sv-fotos-an", w.fotos.length ? `${st.filter(x => !x.clip).length} / ${w.fotos.length}` : "—");
+      setz("sv-clips-an", !w.clipsGeladen ? "…" : w.clips.length ? `${st.filter(x => x.clip).length} / ${w.clips.length}` : "—");
+      const lbN = w.lb.length;
+      setz("sv-logbuch", !w.lbGeladen ? "…" : lbN ? (lbN === 1 ? T("schnell.lb_stand_1", "1 Eintrag") : T("schnell.lb_stand", "{n} Einträge").replace("{n}", lbN)) : (w.lbHinweis ? "—" : T("schnell.lb_keine", "keine Pausen")));
+      const mu = box.querySelector("#sv-musik");
+      setz("sv-musik-an", !mu ? "" : mu.value && !mu.value.startsWith("builtin:") ? String(mu.value).split(/[\\/]/).pop()
+                                    : String(mu.options[mu.selectedIndex]?.textContent || "").split(" — ")[0].replace(/ \(.*\)$/, ""));
+      for (const [id, teil] of [["sv-fotos-an", "fotos"], ["sv-clips-an", "clips"], ["sv-musik-an", "musik"], ["sv-schluss-an", "schluss"], ["sv-logbuch", "logbuch"]]) {
+        const z = box.querySelector(`[data-sv-zutat="${teil}"]`); if (z) z.classList.toggle("ist-aus", !an(id));
+      }
+      mehrKurz();
+    }
+    function mehrKurz() {
+      const k = box.querySelector("#sv-mehr-kurz"); if (!k) return;
+      const st = (() => { try { return stoppsJetzt(); } catch (_) { return []; } })();
+      const nf = st.filter(x => !x.clip).length, nc = st.filter(x => x.clip).length;
+      const teile = [];
+      if (an("sv-fotos-an") && nf) teile.push("📸 " + nf);
+      if (an("sv-clips-an") && nc) teile.push("🎞 " + nc);
+      if (an("sv-logbuch") && w.lb.length) teile.push("📖");
+      if (an("sv-musik-an")) teile.push("🎵");
+      if (an("sv-uebersicht")) teile.push("🗺");
+      if (an("sv-schluss-an")) teile.push("🏁");
+      k.textContent = teile.join(" · ");
+    }
+    box.querySelectorAll("#sv-fotos-an, #sv-clips-an, #sv-clipton, #sv-logbuch, #sv-musik-an, #sv-uebersicht, #sv-schluss-an")
+      .forEach(e => e.addEventListener("change", () => { fotosInfo(); zutatenStand(); }));
+    zutatenStand();
+    const schilderJetzt = () => {
+      const st = stoppsJetzt();
+      const lbSchilder = (an("sv-logbuch") && w.lb.length) ? logbuchAnwenden(st, w.lb) : [];
+      return st.map(x => { const o = Object.assign({}, x); delete o.__bei; return o; }).concat(lbSchilder);
+    };
 
     let laeuft = false;
     const werteLesen = () => {
@@ -437,9 +686,18 @@
       w.profil = box.querySelector("#sv-profil").checked;
       w.highlights = box.querySelector("#sv-highlights").checked;
       w.felder = [...box.querySelectorAll("[data-sv-feld]:checked")].map(x => x.dataset.svFeld);
+      w.mehrOffen = !!box.querySelector("#sv-mehr")?.open;
+      for (const id of SCHALTER) stand[id] = !!box.querySelector("#" + id)?.checked;
+      w.fotosAn = an("sv-fotos-an"); w.clipsAn = an("sv-clips-an"); w.clipTon = an("sv-clipton");
+      w.logbuch = an("sv-logbuch"); w.musikAn = an("sv-musik-an"); w.klick = an("sv-klick");
+      w.musik = box.querySelector("#sv-musik")?.value || "builtin:unterwegs";
+      w.uebersicht = an("sv-uebersicht"); w.schlussAn = an("sv-schluss-an");
+      hoerenStopp();
       w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen")?.value || w.eigenS);
       // „Wie im Animator" gilt nur für dieses Projekt — gemerkt wird die vorige Wahl
-      return { format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder };
+      return { format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder,
+               mehr_offen: w.mehrOffen, fotos_an: w.fotosAn, clips_an: w.clipsAn, clip_ton: w.clipTon, logbuch: w.logbuch,
+               musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn };
     };
     /** In das offene Projekt schreiben: ein ⌘Z-Schritt („Schnell-Video übernommen"), vorher ein Arbeitsstand. */
     const uebernehmen = async () => {
@@ -602,4 +860,6 @@
   window.__rzSchnellPatch = animatorPatch;       // Prüfstand
   window.__rzSchnellAblauf = nurAblauf;          // Prüfstand
   window.__rzSchnellFotostopps = fotostoppSchilder;   // Prüfstand
+  window.__rzSchnellStopps = stoppsWaehlen;            // Prüfstand (02.10.2026: Fotos + Clips teilen sich die Zeit)
+  window.__rzSchnellLogbuch = logbuchAnwenden;         // Prüfstand
 })();

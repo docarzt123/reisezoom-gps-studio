@@ -3360,6 +3360,24 @@ body > #main { grid-row: 4; }
 .sv-fotos-info { font-size: 11.5px; margin-bottom: 4px; }
 .sv-fotos-knoepfe { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; margin-top: 4px; }
 .sv-dialog .chk { display: flex; align-items: center; gap: 6px; }
+/* 02.10.2026 — „Mehr": Zutaten als Schalter, darunter nur bei „an" ihre Einzelheiten */
+.sv-mehr { margin-top: 14px; border: 1px solid var(--border, rgba(255,255,255,.12)); border-radius: 10px; background: rgba(255,255,255,.02); }
+.sv-mehr > summary { cursor: pointer; padding: 9px 12px; display: flex; align-items: center; gap: 10px; list-style: none; user-select: none; font-weight: 600; }
+.sv-mehr > summary::-webkit-details-marker { display: none; }
+.sv-mehr > summary::before { content: "▸"; font-size: 11px; color: var(--text-muted); transition: transform .15s; }
+.sv-mehr[open] > summary::before { transform: rotate(90deg); }
+.sv-mehr-kurz { margin-left: auto; font-weight: 400; font-size: 12.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-mehr-inhalt { padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sv-zutat { padding: 6px 0 4px; border-bottom: 1px dashed var(--border, rgba(255,255,255,.1)); }
+.sv-zutat-kopf { font-weight: 600; }
+.sv-zutat-stand { margin-left: auto; font-weight: 400; font-size: 11.5px; }
+.sv-zutat-teil { margin: 4px 0 2px 24px; }
+.sv-zutat.ist-aus .sv-zutat-teil { display: none; }
+.sv-klein { font-size: 11.5px; line-height: 1.4; }
+.sv-musik-zeile { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.sv-musik-zeile select { flex: 1; min-width: 0; }
+.sv-clip-play { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: 13px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none; }
+.sv-aussehen { margin-top: 6px; padding-top: 4px; }
 /* 30.09.2026 — Schnell-Video-Bildschirm über der ganzen App (unter den Modalen, z-index 1000) */
 .sv-buehne { position: fixed; inset: 0; z-index: 900; background: var(--bg, #0e1014); display: flex; flex-direction: column;
   align-items: center; gap: 14px; padding: 22px 24px 20px; }

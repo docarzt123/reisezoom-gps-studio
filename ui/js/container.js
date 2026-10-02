@@ -97,7 +97,7 @@
       // Einblendung, Marc: „Titel und Untertitel liegen übereinander")
       out.gr = rund(clamp(num(z.gr, 1), 0.2, 3), 3);
     } else if (typ === "diagramm") {
-      out.art = z.art === "daten" ? "daten" : "hoehe";
+      out.art = z.art === "daten" ? "daten" : z.art === "karte" ? "karte" : "hoehe";   // 02.10.2026 „karte" = Übersichtskarte
       out.b = rund(clamp(num(z.b, 40), 3, 100), 2);
       out.h = rund(clamp(num(z.h, 12), 2, 100), 2);
       out.bereich = z.bereich === "etappe" ? "etappe" : "reise";
@@ -240,6 +240,10 @@
       zeilen: [zeile("massstab"), zeile("nord")] })),
     rahmen: (t) => normalisieren(Object.assign({}, STILE.ohne, { stil: "ohne", vorlage: "rahmen", name: t("container.v.rahmen", "Rahmen / Vollbild"),
       anker: "cc", x: 0, y: 0, groesse: "fest", b: 100, h: 100, hg_bild_modus: "fuellen", zeilen: [] })),
+    // 02.10.2026 (Marc: „so eine Karte im Video anzeigen" — IDEAS §78) — die ganze Strecke klein in der Ecke, der
+    // gefahrene Teil in Linienfarbe, Punkt = jetzt. Quadratisch: Höhe in % der Bildhöhe passt die Ansicht an (Editor).
+    uebersicht: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "kasten", vorlage: "uebersicht", name: t("container.v.uebersicht", "Übersichtskarte"),
+      anker: "tr", x: 3, y: 3, innen: 0.35, zeilen: [zeile("diagramm", { art: "karte", b: 18, h: 18 })] })),
     leer: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "kasten", vorlage: "leer", name: t("container.v.leer", "Einblendung"),
       anker: "cc", x: 0, y: 0, zeilen: [zeile("text", { text: t("container.v.leer_text", "Text") })] })),
   };

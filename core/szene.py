@@ -42,6 +42,7 @@ from typing import Callable, Optional
 
 from . import animator as A
 from . import tileproxy as _tileproxy
+from . import tonspur as _tonspur
 from .frame_driver import FrameMuxer, muxer_fuer, teildatei
 
 _log = logging.getLogger("animator.szene")
@@ -157,6 +158,7 @@ _WARTE_BILD_JS = """async () => {
     await new Promise((r) => { let done = false; const on = () => { if (done) return; done = true; try { m.off('idle', on); } catch (_) {} r(); };
       try { m.on('idle', on); } catch (_) { r(); } setTimeout(on, 5000); });
   }
+  if (window.__rzClipWarte) { try { await window.__rzClipWarte(); } catch (_) {} }   // 02.10.2026 — Clip-Einzelbild geladen?
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, __RZ_RUHE_MS__)));
   return performance.now() - t0;
 }""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "60") or 0)))   # 30.09.2026 Messung: feste Pause je Bild
@@ -724,8 +726,17 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             _log.info("Szene: längstes Warten auf die Karte %.0f ms · Bilder an der 5-s-Grenze: %d", _warte_max * 1000, _haenger)
             LETZTE_ZEITEN.clear()
             LETZTE_ZEITEN.update(bilder=_n, haenger=_haenger, warte_max_s=_warte_max, je_bild_ms={k: v * 1000 / _n for k, v in _z.items()})
+            # 02.10.2026 — Tonplan (Musik, Foto-Klicks, Clip-Ton) aus der Seite: dieselben Zeiten wie in der Vorschau
+            try: _tonplan = await page.evaluate("() => (window.__rzTonPlan ? window.__rzTonPlan() : null)")
+            except Exception as _e:  # noqa: BLE001
+                _tonplan = None; _log.warning("Szene: Tonplan nicht lesbar: %s", _e)
             emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
             mux.abschliessen(is_cancelled)
+            if not _tonspur.plan_leer(_tonplan):
+                emit(0.95, _i18n.t_aktiv("animator.progress.ton", "Tonspur wird angelegt …"))
+                _ton = _tonspur.anlegen(cfg.output_path, _tonplan, A.find_ffmpeg(), total_frames / cfg.fps)
+                if not _ton.get("ok"):
+                    _log.warning("Szene: Tonspur fehlgeschlagen — Video bleibt stumm: %s", _ton.get("error"))
             _log.info("Szene: Kacheln %s", _stats_json(getattr(page, "_rz_tile_stats", None)))
             _gl = _tileproxy.geladen()
             _log.info("Szene: über die Kachel-Weiche aus dem Netz geladen: %d Kacheln, %.1f MB", _gl["kacheln"], _gl["bytes"] / 1e6)
