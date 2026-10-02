@@ -4826,5 +4826,16 @@
   "animator.ueb.zu": "Ocultar vista general",
   "animator.ueb.auf": "Mostrar vista general",
   "animator.ueb.nur_ansicht": "solo vista",
-  "animator.ueb.fit": "Restablecer vista: descartar la vista ajustada a mano y volver a toda la ruta"
+  "animator.ueb.fit": "Restablecer vista: descartar la vista ajustada a mano y volver a toda la ruta",
+  "animator.tp.anfang": "Al principio",
+  "animator.tp.kante_zurueck": "Al borde anterior (keyframe, rótulo, cartel, pausa)",
+  "animator.tp.bild_zurueck": "Un fotograma atrás — con ⇧ un segundo",
+  "animator.tp.play": "Reproducir / pausar",
+  "animator.tp.leertaste": "Espacio",
+  "animator.tp.bild_vor": "Un fotograma adelante — con ⇧ un segundo",
+  "animator.tp.kante_vor": "Al borde siguiente (keyframe, rótulo, cartel, pausa)",
+  "animator.tp.ende": "Al final",
+  "animator.tp.taste_ende": "Fin",
+  "animator.ansicht.seite": "Mostrar/ocultar barra lateral",
+  "animator.ansicht.zeit": "Mostrar/ocultar línea de tiempo"
 }

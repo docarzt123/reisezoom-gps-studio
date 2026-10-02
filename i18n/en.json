@@ -4826,5 +4826,16 @@
   "animator.ueb.zu": "Hide overview",
   "animator.ueb.auf": "Show overview",
   "animator.ueb.nur_ansicht": "view only",
-  "animator.ueb.fit": "Reset view: drop the view you set by hand, back to the whole track"
+  "animator.ueb.fit": "Reset view: drop the view you set by hand, back to the whole track",
+  "animator.tp.anfang": "To the start",
+  "animator.tp.kante_zurueck": "To the previous edge (keyframe, overlay, sign, hold)",
+  "animator.tp.bild_zurueck": "One frame back — with ⇧ one second",
+  "animator.tp.play": "Play / pause",
+  "animator.tp.leertaste": "Space",
+  "animator.tp.bild_vor": "One frame forward — with ⇧ one second",
+  "animator.tp.kante_vor": "To the next edge (keyframe, overlay, sign, hold)",
+  "animator.tp.ende": "To the end",
+  "animator.tp.taste_ende": "End",
+  "animator.ansicht.seite": "Show/hide sidebar",
+  "animator.ansicht.zeit": "Show/hide timeline"
 }

@@ -1861,11 +1861,14 @@ With the timeline bar **below** the map preview you can shape the camera flow dy
 **Keyboard navigation** (like in an NLE):
 | Key | Action |
 |---|---|
-| <kbd>←</kbd> / <kbd>→</kbd> | one GPS point forward/back |
-| <kbd>⇧</kbd> + <kbd>←</kbd>/<kbd>→</kbd> | jump of 10 |
-| <kbd>Home</kbd> / <kbd>End</kbd> | track start / end |
+| <kbd>←</kbd> / <kbd>→</kbd> | one frame back/forward (since v0.9.775; before: one GPS point) |
+| <kbd>⇧</kbd> + <kbd>←</kbd>/<kbd>→</kbd> | one second back/forward |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | to the previous/next edge: start and end of intro, animation and hold, keyframes, holds and photo stops, overlays, signs |
+| <kbd>Home</kbd> / <kbd>End</kbd> | video start / video end (with intro and hold) |
 | <kbd>Space</kbd> | start/stop test run |
 | <kbd>Del</kbd> / <kbd>Backspace</kbd> | delete the selected keyframe |
+
+**Transport bar and full view (since v0.9.775, like a video editor):** below the preview there is a transport bar: ⏮ start · ⇤ previous edge · ◀︎ one frame back · ▶/⏸ play · ▶︎ one frame forward · ⇥ next edge · ⏭ end, next to it the time (“0:06.8 / 0:16.0”). With ⇧ the frame buttons jump one second. At the top right two switches, like in Final Cut, hide the **sidebar** and the **timeline** separately — the preview gets larger and the keys keep working. The state is remembered.
 
 Works only when no slider/input currently has focus. If you've just adjusted a slider and the arrow keys don't respond → click the map once.
 
