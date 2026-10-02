@@ -4427,6 +4427,15 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Übersichtskarte im Animator (02.10.2026, v0.9.774)
+
+`modules/animator/ui/module.js` Block „Übersichtskarte“: `_uebAufbauen()` (nicht bei `_isStaticFrame`/`__rzRenderMode`)
+legt `#anim-uebersicht` (SVG) + `#anim-uebersicht-auf` in `#anim-drop`; `_uebZeichnen()` alle 100 ms: Track in
+Mercator (`_uebMx` Bogenmaß, `_uebMy`), Rahmen = `map.unproject` der vier Ecken (oben bei Neigung > 55° nach unten
+versetzt), Punkt aus `__rzDotZuletzt`. Zustand `localStorage rz-uebersicht` (klein | gross | aus). ⤢ (`.anim-ueb-fit`)
+nur bei `_manualCamGet()` ohne Kamera-Keyframes → `_aufTrackEinpassen()` (früher der Handler von `#anim-refit`; der Knopf
+gibt es nur noch in der Tour-Map). Prüfstand `window.__rzUebersicht()`, Test `tests/test_uebersicht.py`.
+
 ## Einblendungen: Größe je Textzeile, Titel + Untertitel in einer Einblendung (02.10.2026, v0.9.773)
 
 `ui/js/container.js`: Textzeilen haben `gr` (0,2–3, Standard 1) = Schriftgröße relativ zum Container

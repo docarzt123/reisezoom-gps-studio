@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.774** (02.10.2026, built locally): overview map in the Animator instead of "Zoom to track".
+
+### Added
+- **Overview map in the Animator** (Marc: "a small window with the whole map that shows which section is being shown … click to make it big"). Bottom right of the preview: whole track (Mercator, undistorted), white frame of the section shown (turns with the camera, horizon guarded), position dot; click larger/smaller, "–" hide, 🗺 show (remembered per device). Dashed border + "view only" tag — a helper, never in the video (not built in render mode or Tour-Map). Light SVG, no second map. **⤢** in it only for a hand-set view without keyframes (resets to the overview). Idea §78: the same as an overlay in the video.
+
+### Removed
+- "⤢ Zoom to track" button in the Animator (Marc: "it zooms out briefly and jumps back to the current position … pointless while I'm setting keyframes"). Stays in the Tour-Map.
+
+Test: `tests/test_uebersicht.py` (button gone, track shape, frame, dot inside and moving, sizes, hide/show, ⤢ only for hand view without keyframes, none in render mode).
+
 > **0.9.773** (02.10.2026, built locally): quick-video title and subtitle no longer overlap; live progress while a frame takes long; logo without backing; "Open in Animator" goes to the timeline.
 
 ### Fixed

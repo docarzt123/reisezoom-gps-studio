@@ -1356,3 +1356,27 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .fs-buehne .fs-z1 { font-weight: 700; }
 .fs-buehne .fs-z2 { font-weight: 500; font-size: 0.82em; opacity: 0.75; }
 .fs-buehne .fs-z3 { font-weight: 500; font-size: 0.72em; opacity: 0.6; letter-spacing: 0.02em; }
+
+/* 02.10.2026 — Übersichtskarte (nur Animator, nie im Video): ganzer Track + Rahmen des gezeigten Ausschnitts */
+.anim-ueb { position: absolute; right: 16px; bottom: calc(var(--anim-tl-h, 230px) + 16px); width: 18%; min-width: 120px;
+  max-width: 260px; aspect-ratio: 1.3; background: rgba(12, 16, 22, 0.92); border: 1.5px dashed rgba(255, 255, 255, 0.45);
+  border-radius: 8px; z-index: 50; cursor: zoom-in; overflow: hidden; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: bottom 0.18s ease; }
+.anim-ueb[hidden], .anim-ueb-auf[hidden] { display: none; }
+.anim-ueb.gross { width: 40%; max-width: 560px; cursor: zoom-out; }
+.anim-ueb-svg { width: 100%; height: 100%; display: block; }
+.anim-ueb-track { fill: none; stroke: #ff6b35; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; opacity: 0.95; }
+.anim-ueb-rahmen { fill: rgba(255, 255, 255, 0.12); stroke: #ffffff; stroke-width: 1.3; stroke-linejoin: round; }
+.anim-ueb-punkt { fill: #ffffff; stroke: rgba(0, 0, 0, 0.6); stroke-width: 1; }
+.anim-ueb-zu { position: absolute; top: 2px; right: 3px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 13px; line-height: 16px; cursor: pointer; opacity: 0.7; }
+.anim-ueb-zu:hover { opacity: 1; }
+.anim-ueb-auf { position: absolute; right: 16px; bottom: calc(var(--anim-tl-h, 230px) + 16px); width: 32px; height: 32px;
+  border-radius: 8px; background: rgba(20, 24, 32, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff;
+  font-size: 16px; cursor: pointer; z-index: 50; }
+body.is-rendering .anim-ueb, body.is-rendering .anim-ueb-auf { pointer-events: none; opacity: 0.5; }
+.anim-ueb-schild { position: absolute; top: 3px; left: 5px; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75); background: rgba(0, 0, 0, 0.35); padding: 1px 4px; border-radius: 3px; pointer-events: none; }
+.anim-ueb-fit { position: absolute; top: 2px; right: 24px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 12px; line-height: 16px; cursor: pointer; }
+.anim-ueb-fit[hidden] { display: none; }

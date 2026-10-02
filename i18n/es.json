@@ -4821,5 +4821,10 @@
   "szene.m_karte": "esperando al mapa (teselas, relieve) … {s} s",
   "szene.m_gelaende": "cargando alturas del relieve … {s} s",
   "szene.m_greifen": "capturando el fotograma … {s} s",
-  "container.zeile_groesse": "Tamaño"
+  "container.zeile_groesse": "Tamaño",
+  "animator.ueb.tip": "Vista general: toda la ruta, marco blanco = zona mostrada. Clic: más grande/más pequeña.",
+  "animator.ueb.zu": "Ocultar vista general",
+  "animator.ueb.auf": "Mostrar vista general",
+  "animator.ueb.nur_ansicht": "solo vista",
+  "animator.ueb.fit": "Restablecer vista: descartar la vista ajustada a mano y volver a toda la ruta"
 }

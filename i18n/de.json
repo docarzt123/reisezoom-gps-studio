@@ -4821,5 +4821,10 @@
   "szene.m_karte": "wartet auf die Karte (Kacheln, Gelände) … {s} s",
   "szene.m_gelaende": "lädt die Geländehöhen nach … {s} s",
   "szene.m_greifen": "nimmt das Bild auf … {s} s",
-  "container.zeile_groesse": "Größe"
+  "container.zeile_groesse": "Größe",
+  "animator.ueb.tip": "Übersicht: ganzer Track, weißer Rahmen = gezeigter Ausschnitt. Klick: größer/kleiner.",
+  "animator.ueb.zu": "Übersicht ausblenden",
+  "animator.ueb.auf": "Übersicht einblenden",
+  "animator.ueb.nur_ansicht": "nur Ansicht",
+  "animator.ueb.fit": "Ansicht zurücksetzen: deine von Hand eingestellte Ansicht verwerfen, wieder der ganze Track"
 }

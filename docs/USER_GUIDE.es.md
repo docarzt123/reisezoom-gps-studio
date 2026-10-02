@@ -1749,7 +1749,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 **Más ajustes (mapa, fuentes, exportación):**
 
 - **Línea de fuentes** (desde 07.09.2026) — citar las fuentes del mapa es obligatorio y siempre queda visible, pero tú eliges la **esquina** (abajo derecha, abajo izquierda, arriba derecha, arriba izquierda) y el **ancho** (estrecha = bloque alto, media, ancha = línea plana, ancho completo = barra en el borde inferior) para que no tape el perfil de altitud ni la flecha del norte. La vista previa y el vídeo la muestran del mismo tamaño. Desde v0.9.741 es bastante más pequeña: el texto mide el 1,2 % del lado corto de la imagen (13 píxeles en un vídeo 1080), en la misma proporción con cualquier formato y tamaño de ventana.
-- **Ajustar el mapa a mano, sin keyframes** (desde 05.09.2026): si haces zoom, desplazas o inclinas la vista previa y no tienes keyframes, esa vista es la cámara: en la prueba, al arrastrar el tirador y en el vídeo. «⤢ Ajustar» devuelve la vista general; en cuanto pones un keyframe, manda el keyframe.
+- **Ajustar el mapa a mano, sin keyframes** (desde 05.09.2026): si haces zoom, desplazas o inclinas la vista previa y no tienes keyframes, esa vista es la cámara: en la prueba, al arrastrar el tirador y en el vídeo. Vuelves a la vista general con **⤢ en el mapa de vista general** (desde v0.9.774, solo aparece con una vista ajustada a mano y sin keyframes); en cuanto pones un keyframe, manda el keyframe.
 - **Satélite gratis en todas partes** (desde 05.09.2026; escalonado por zoom desde v0.9.656: en vistas amplias el estilo muestra solo Sentinel-2, las ortofotos oficiales aparecen a partir del zoom 12 y del todo a partir de 13,5; desde v0.9.658 un nivel más tarde que antes, porque Sentinel se ve nítido hasta ahí): donde no hay ortofotos oficiales (Hamburgo, Nueva Zelanda, EE. UU. …) el estilo muestra ahora imágenes Sentinel-2 (10 m, 2016, EOX) en vez de una zona vacía. Un aviso en el mapa te lo indica. A esa resolución no se ven casas ni senderos, pero sí paisaje, ríos y estructura urbana; para primeros planos elige otro estilo (MapTiler, OpenStreetMap). La atribución «Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016» aparece en la línea de fuentes; los vídeos se pueden publicar.
 - **ProRes 422 HQ** (desde 05.09.2026): en Ajustes → códec de vídeo, para editar en Final Cut o Resolve. El archivo es .mov y grande.
 - **Exportar enjambre/viaje** (desde 05.09.2026): «Exportar proyecto (.rzproj)» incluye ahora **todas** las rutas y el proyecto de enjambre/viaje de una composición. El destinatario lo importa como siempre y la composición se abre directamente en el Animador. Antes solo llegaba la primera ruta, sin proyecto.
@@ -1860,7 +1860,9 @@ parado, número de paradas y cuántos segundos quedan en el vídeo.
 **Posición manual del mapa (WYSIWYG):**
 Puedes **desplazar** el mapa de la vista previa con el ratón (clic+arrastrar) y hacer **zoom** con la rueda de scroll. El render adopta tu posición 1:1 — lo que ves en la vista previa es lo que sale en el vídeo.
 
-Cuando quieras volver a centrar el track: botón **⤢** abajo a la derecha.
+Cuando quieras volver a centrar el track: en el Tour-Map el botón **⤢** abajo a la derecha, en el Animador **⤢** en el mapa de vista general.
+
+**🗺 Mapa de vista general en el Animador (desde v0.9.774):** abajo a la derecha de la vista previa, una ventana pequeña con borde discontinuo y la etiqueta «solo vista» muestra toda la ruta, un marco blanco con la zona que enseña la vista previa y el punto de posición; útil cuando la cámara está cerca. Clic: más grande/más pequeña, «–»: ocultar, 🗺: mostrar de nuevo. Es solo una ayuda en el Animador y **nunca aparece en el vídeo**. El antiguo botón «⤢ Acercar a la ruta» ya no está en el Animador (con keyframes solo alejaba un momento y volvía).
 
 ### Camera-Keyframes (barra de línea de tiempo, desde v0.7) ⭐
 
