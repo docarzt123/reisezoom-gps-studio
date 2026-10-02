@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Build
+- **Signing with the new Developer ID certificate (G2)** — Apple's previous Developer ID authority expires on 01.02.2027; the new certificate (valid until 17.09.2031) is in the Mac mini keychain together with the G2 intermediate. While both certificates exist they have the same name, so `build.sh` now signs by SHA-1 and picks the valid identity with the latest expiry. CI (`release.yml`) still imports the old .p12 from the secrets — replace `MACOS_CERT_P12_BASE64`/`MACOS_CERT_PASSWORD` before 01.02.2027.
+
 > **0.9.771** (02.10.2026, built locally): quick video — provide photos yourself when the archive has none.
 
 ### Added

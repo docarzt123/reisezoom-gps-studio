@@ -71,7 +71,26 @@ cp -R "dist/$APPNAME" /Applications/
 # mit Ad-hoc fragte er darum nach JEDEM Build wieder nach dem Passwort.
 # Mit der Developer-ID bleibt die Identität über Builds stabil und die
 # Erlaubnis gilt weiter. Ohne Zertifikat: Ad-hoc wie bisher.
-SIGN_ID=$(security find-identity -v -p codesigning 2>/dev/null           | awk -F'"' '/Developer ID Application/{print $2; exit}')
+# 02.10.2026 — Developer-ID-Wechsel auf G2 (Apple: alte Zertifizierungsstelle läuft am 01.02.2027 aus): Während
+# des Wechsels liegen ZWEI gültige Identitäten mit GLEICHEM Namen im Schlüsselbund — per Name signiert, wäre das
+# mehrdeutig. Deshalb per SHA-1, und zwar die mit dem spätesten Ablaufdatum (= die neue).
+SIGN_ID=$(security find-certificate -a -Z -p -c "Developer ID Application" 2>/dev/null | /usr/bin/python3 -c '
+import re, subprocess, sys
+from datetime import datetime
+gueltig = subprocess.run(["security", "find-identity", "-v", "-p", "codesigning"], capture_output=True, text=True).stdout
+best = None
+for h, pem in re.findall(r"SHA-1 hash: ([0-9A-F]+)\n(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----)", sys.stdin.read(), re.S):
+    if h not in gueltig:
+        continue
+    ende = subprocess.run(["openssl", "x509", "-noout", "-enddate"], input=pem, capture_output=True, text=True).stdout.strip().split("=", 1)[-1]
+    try:
+        t = datetime.strptime(ende, "%b %d %H:%M:%S %Y %Z")
+    except ValueError:
+        continue
+    if best is None or t > best[0]:
+        best = (t, h)
+print(best[1] if best else "")
+')
 if [ -n "$SIGN_ID" ]; then
   echo "🔏  Signiere mit: $SIGN_ID"
   codesign --force --deep --sign "$SIGN_ID" "/Applications/$APPNAME" 2>/dev/null     || { echo "⚠️  Identitäts-Signatur fehlgeschlagen — Ad-hoc-Fallback";          codesign --force --deep --sign - "/Applications/$APPNAME" 2>/dev/null || true; }
