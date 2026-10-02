@@ -13531,7 +13531,31 @@ function mountAnimator(body, headerActions, opts) {
     if (z != null) _tpGeheZu(z);
   }
   const _tpText = (s) => { s = Math.max(0, s); const m = Math.floor(s / 60), r = s - m * 60; return `${m}:${r < 10 ? "0" : ""}${r.toFixed(1)}`; };
+  // Marc: „mach die Steuerleiste ganz nach unten, da wo ‚Hier KF', ‚Ganzer Track' … — dann verlieren wir oben keinen Platz.
+  // Der Play-Button muss in der Mitte sein." → in die Knopfzeile der Zeitleiste, dreispaltig (links | Abspielen | rechts),
+  // der alte „Probe-Lauf"-Knopf entfällt dort (gleiche Funktion). Zeitleiste ausgeblendet → schwebt unten über der Vorschau.
+  function _tpPlatzieren() {
+    const el = document.getElementById("anim-transport"); if (!el) return;
+    const zeile = document.querySelector("#anim-timeline-host .timeline-actions");
+    const unten = !!zeile && !body.classList.contains("ohne-zeit");
+    if (unten) {
+      if (!zeile.classList.contains("mit-transport")) {
+        const links = document.createElement("div"), rechts = document.createElement("div");
+        links.className = "tl-akt-links"; rechts.className = "tl-akt-rechts";
+        for (const c of [...zeile.children]) (c.classList.contains("timeline-btn-clear") ? rechts : links).appendChild(c);
+        zeile.append(links, rechts);
+        zeile.classList.add("mit-transport");
+      }
+      if (el.parentElement !== zeile) zeile.insertBefore(el, zeile.querySelector(".tl-akt-rechts"));
+      el.classList.remove("schwebend");
+    } else {
+      const host = document.getElementById("anim-drop");
+      if (host && el.parentElement !== host) host.appendChild(el);
+      el.classList.add("schwebend");
+    }
+  }
   function _tpAnzeigen() {
+    _tpPlatzieren();
     const el = document.getElementById("anim-transport"); if (!el || !el.offsetParent) return;
     const z = el.querySelector(".tp-zeit"); if (z) z.textContent = `${_tpText(_tpZeitJetzt())} / ${_tpText(_tpG())}`;
     const p = el.querySelector('[data-tp="play"]'); if (p) { const an = !!_previewRaf; p.textContent = an ? "⏸" : "▶"; p.classList.toggle("an", an); }
@@ -13554,6 +13578,7 @@ function mountAnimator(body, headerActions, opts) {
     ].map(([id, sym, tip]) => `<button type="button" class="tp-knopf" data-tp="${id}" title="${tip}">${sym}</button>`).join("")
       + `<span class="tp-zeit">0:00.0 / 0:00.0</span>`;
     host.appendChild(el);
+    _tpPlatzieren();
     el.addEventListener("click", (e) => {
       const b = e.target.closest("[data-tp]"); if (!b) return;
       const was = b.dataset.tp, gross = e.shiftKey;
@@ -13580,6 +13605,7 @@ function mountAnimator(body, headerActions, opts) {
     body.classList.toggle("ohne-zeit", !a.zeit && !_isStaticFrame);
     document.querySelectorAll("[data-ansicht]").forEach(b => { const k = b.dataset.ansicht; b.classList.toggle("an", !!a[k]); b.setAttribute("aria-pressed", a[k] ? "true" : "false"); });
     const cv = document.getElementById("anim-drop");
+    _tpPlatzieren();
     if (cv && !a.zeit && !_isStaticFrame) cv.style.setProperty("--anim-tl-h", "0px");
     else if (cv) { const h = document.getElementById("anim-timeline-host"); if (h) cv.style.setProperty("--anim-tl-h", (h.offsetHeight || 0) + "px"); }
     setTimeout(() => { try { window.dispatchEvent(new Event("resize")); if (map) map.resize(); } catch (_) {} }, 30);

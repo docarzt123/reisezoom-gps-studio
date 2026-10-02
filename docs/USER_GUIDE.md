@@ -1930,7 +1930,7 @@ Mit der Timeline-Bar **unter** der Karten-Vorschau kannst du den Kamera-Flow dyn
 
 Funktioniert nur wenn kein Slider/Input gerade Fokus hat. Wenn du gerade einen Slider verstellt hast und Pfeiltasten nicht reagieren → einmal auf die Karte klicken.
 
-**Abspielleiste und Vollbild (seit v0.9.775, wie in einem Videoeditor):** Unter der Vorschau sitzt eine Abspielleiste: ⏮ Anfang · ⇤ vorige Kante · ◀︎ ein Bild zurück · ▶/⏸ Abspielen · ▶︎ ein Bild vor · ⇥ nächste Kante · ⏭ Ende, daneben die Zeit („0:06.8 / 0:16.0“). Mit ⇧ springen die Bild-Knöpfe eine Sekunde. Oben rechts blenden zwei Schalter wie in Final Cut die **Seitenleiste** und die **Zeitleiste** einzeln aus — die Vorschau wird größer, die Tasten gehen weiter. Der Zustand wird gemerkt.
+**Abspielleiste und Vollbild (seit v0.9.775, wie in einem Videoeditor):** Ganz unten in der Knopfzeile der Zeitleiste (seit v0.9.777, der Abspielknopf genau in der Mitte; ist die Zeitleiste ausgeblendet, schwebt sie unten über der Vorschau) sitzt eine Abspielleiste: ⏮ Anfang · ⇤ vorige Kante · ◀︎ ein Bild zurück · ▶/⏸ Abspielen · ▶︎ ein Bild vor · ⇥ nächste Kante · ⏭ Ende, daneben die Zeit („0:06.8 / 0:16.0“). Mit ⇧ springen die Bild-Knöpfe eine Sekunde. Oben rechts blenden zwei Schalter wie in Final Cut die **Seitenleiste** und die **Zeitleiste** einzeln aus — die Vorschau wird größer, die Tasten gehen weiter. Der Zustand wird gemerkt.
 
 **Keyframe löschen** geht auf 4 Wegen:
 1. **Detail-Editor** → Button „🗑 Diesen Keyframe löschen" unten

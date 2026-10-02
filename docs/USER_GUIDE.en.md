@@ -1868,7 +1868,7 @@ With the timeline bar **below** the map preview you can shape the camera flow dy
 | <kbd>Space</kbd> | start/stop test run |
 | <kbd>Del</kbd> / <kbd>Backspace</kbd> | delete the selected keyframe |
 
-**Transport bar and full view (since v0.9.775, like a video editor):** below the preview there is a transport bar: ⏮ start · ⇤ previous edge · ◀︎ one frame back · ▶/⏸ play · ▶︎ one frame forward · ⇥ next edge · ⏭ end, next to it the time (“0:06.8 / 0:16.0”). With ⇧ the frame buttons jump one second. At the top right two switches, like in Final Cut, hide the **sidebar** and the **timeline** separately — the preview gets larger and the keys keep working. The state is remembered.
+**Transport bar and full view (since v0.9.775, like a video editor):** at the very bottom, in the timeline's button row (since v0.9.777, with the play button exactly in the middle; when the timeline is hidden it floats at the bottom of the preview), there is a transport bar: ⏮ start · ⇤ previous edge · ◀︎ one frame back · ▶/⏸ play · ▶︎ one frame forward · ⇥ next edge · ⏭ end, next to it the time (“0:06.8 / 0:16.0”). With ⇧ the frame buttons jump one second. At the top right two switches, like in Final Cut, hide the **sidebar** and the **timeline** separately — the preview gets larger and the keys keep working. The state is remembered.
 
 Works only when no slider/input currently has focus. If you've just adjusted a slider and the arrow keys don't respond → click the map once.
 

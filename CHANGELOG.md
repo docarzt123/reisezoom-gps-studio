@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.777** (02.10.2026, built locally): transport bar moved to the very bottom.
+
+### Changed
+- **Transport bar at the bottom, play button in the middle** (Marc: "move the control bar all the way down, where 'Hier KF', 'Ganzer Track' … are — then we don't lose space at the top. The play button must be in the middle"): the bar no longer floats over the preview but sits in the timeline's button row, which is now three columns (keyframe button and switches left · transport centred · "Alle weg" right). The play button is exactly in the middle of the row, the time hangs to its right. The old "Probe-Lauf" button is gone there (same function as ▶). With the timeline hidden, the bar floats at the bottom edge of the preview. Test `test_videoeditor.py` extended (position, centre, floating, back).
+
 > **0.9.776** (02.10.2026, built locally): help bubbles show reliably; test maintenance after the full click-through.
 
 ### Fixed
