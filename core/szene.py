@@ -196,6 +196,10 @@ _WARTE_BILD_JS = """async () => {
       try { m.on('idle', on); } catch (_) { r(); } setTimeout(on, 5000); });
   }
   if (window.__rzClipWarte) { try { await window.__rzClipWarte(); } catch (_) {} }   // 02.10.2026 — Clip-Einzelbild geladen?
+  if (window.__rzGebaeudeWarte) {   // 03.10.2026 — 3D-Häuser: Dachfarben der sichtbaren Häuser da? Dann neu zeichnen lassen
+    try { await window.__rzGebaeudeWarte();
+          if (!fertig()) await new Promise((r) => { let d = false; const on = () => { if (d) return; d = true; try { m.off('idle', on); } catch (_) {} r(); };
+                                                     try { m.on('idle', on); } catch (_) { r(); } setTimeout(on, 3000); }); } catch (_) {} }
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, __RZ_RUHE_MS__)));
   return performance.now() - t0;
 }""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "60") or 0)))   # 30.09.2026 Messung: feste Pause je Bild
