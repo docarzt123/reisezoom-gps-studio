@@ -198,6 +198,8 @@
       highlights_stil: "pille", highlights_farbmodus: "eine", highlights_farbe: "#ffc21a",
       // 02.10.2026 — Zutat „Musik": eigenes Stück der App (oder eigene Datei), Klick bei jedem Foto
       ton_musik_an: !!w.musikAn, ton_musik: w.musik || "builtin:unterwegs", ton_musik_laut: 70,
+      // 03.10.2026 — Zutat „3D-Häuser" (Gebäude aus OpenStreetMap in Dachfarbe)
+      gebaeude_3d: !!w.gebaeude, gebaeude_wachsen: false,
       ton_musik_ein: 1, ton_musik_aus: Math.min(3, HOLD_S), ton_klick_an: !!w.klick, ton_klick_laut: 25, ton_klick_klang: "builtin:klick_a",   // Marc: A, „ganz subtil"
     };
   }
@@ -379,6 +381,7 @@
       fotosAn: L.fotos_an !== false, clipsAn: L.clips_an !== false, clipTon: !!L.clip_ton,
       logbuch: L.logbuch !== false, musikAn: L.musik_an !== false, musik: L.musik || "builtin:unterwegs", klick: L.klick !== false,
       uebersicht: !!L.uebersicht, schlussAn: L.schluss_an !== false,
+      gebaeude: L.gebaeude,   // undefined = noch nie gewählt → vorwählen, wenn die Tour durch einen Ort führt
     };
     const feldLabel = (f) => T("animator.statsfield." + f, f);
     const m = openModal({
@@ -441,6 +444,9 @@
           <div class="sv-zutat" data-sv-zutat="schluss">
             <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-schluss-an"${w.schlussAn ? " checked" : ""}><span>🏁 ${esc(T("schnell.z.schluss", "Schlusskarte"))}</span><span class="sv-zutat-stand muted" id="sv-schluss-an-stand"></span></label>
             <div class="sv-zutat-teil sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
+          </div>
+          <div class="sv-zutat" data-sv-zutat="gebaeude">
+            <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-gebaeude"${w.gebaeude ? " checked" : ""}><span>🏠 ${esc(T("schnell.z.gebaeude", "3D-Häuser"))}</span><span class="sv-zutat-stand muted" id="sv-gebaeude-stand"></span></label>
           </div>
             <label class="chk"><input type="checkbox" id="sv-zahlen"${w.zahlen ? " checked" : ""}><span>📊 ${esc(T("schnell.zahlen", "Zahlen unterwegs (Strecke und Höhe)"))}</span></label>
             <label class="chk"><input type="checkbox" id="sv-profil"${w.profil ? " checked" : ""}><span>⛰ ${esc(T("schnell.profil", "Höhenprofil"))}</span></label>
@@ -632,7 +638,7 @@
     // ── Stand je Zutat + Kurzfassung an „Mehr" ──
     // Schalter-Stand: aus dem Dialog, nach dem Schließen aus dem zuletzt gelesenen Stand (werteLesen) —
     // „Übernehmen" und „Rendern" schließen den Dialog, bevor die Schilder gebaut werden.
-    const SCHALTER = ["sv-fotos-an", "sv-clips-an", "sv-clipton", "sv-logbuch", "sv-musik-an", "sv-klick", "sv-uebersicht", "sv-schluss-an"];
+    const SCHALTER = ["sv-fotos-an", "sv-clips-an", "sv-clipton", "sv-logbuch", "sv-musik-an", "sv-klick", "sv-uebersicht", "sv-schluss-an", "sv-gebaeude"];
     const stand = {};
     const an = (id) => { const e = box.isConnected ? box.querySelector("#" + id) : null; return e ? !!e.checked : !!stand[id]; };
     function stoppsJetzt() {
@@ -665,10 +671,20 @@
       if (an("sv-logbuch") && w.lb.length) teile.push("📖");
       if (an("sv-musik-an")) teile.push("🎵");
       if (an("sv-uebersicht")) teile.push("🗺");
+      if (an("sv-gebaeude")) teile.push("🏠");
       if (an("sv-schluss-an")) teile.push("🏁");
       k.textContent = teile.join(" · ");
     }
-    box.querySelectorAll("#sv-fotos-an, #sv-clips-an, #sv-clipton, #sv-logbuch, #sv-musik-an, #sv-uebersicht, #sv-schluss-an")
+    // Häuser: noch nie gewählt → vorwählen, wenn die Tour durch einen Ort führt (Photon, im Hintergrund)
+    if (w.gebaeude === undefined || w.gebaeude === null) {
+      (async () => {
+        let r = null;
+        try { r = await api().schnellvideo_bebaut(pfad); } catch (_) {}   // warte-ok: Hintergrund
+        const c = box.querySelector("#sv-gebaeude");
+        if (c && r && r.ok) { c.checked = !!r.bebaut; const st = box.querySelector("#sv-gebaeude-stand"); if (st) st.textContent = r.ort || ""; zutatenStand(); }
+      })();
+    }
+    box.querySelectorAll("#sv-fotos-an, #sv-clips-an, #sv-clipton, #sv-logbuch, #sv-musik-an, #sv-uebersicht, #sv-schluss-an, #sv-gebaeude")
       .forEach(e => e.addEventListener("change", () => { fotosInfo(); zutatenStand(); }));
     zutatenStand();
     const schilderJetzt = () => {
@@ -691,13 +707,13 @@
       w.fotosAn = an("sv-fotos-an"); w.clipsAn = an("sv-clips-an"); w.clipTon = an("sv-clipton");
       w.logbuch = an("sv-logbuch"); w.musikAn = an("sv-musik-an"); w.klick = an("sv-klick");
       w.musik = box.querySelector("#sv-musik")?.value || "builtin:unterwegs";
-      w.uebersicht = an("sv-uebersicht"); w.schlussAn = an("sv-schluss-an");
+      w.uebersicht = an("sv-uebersicht"); w.schlussAn = an("sv-schluss-an"); w.gebaeude = an("sv-gebaeude");
       hoerenStopp();
       w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen")?.value || w.eigenS);
       // „Wie im Animator" gilt nur für dieses Projekt — gemerkt wird die vorige Wahl
       return { format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder,
                mehr_offen: w.mehrOffen, fotos_an: w.fotosAn, clips_an: w.clipsAn, clip_ton: w.clipTon, logbuch: w.logbuch,
-               musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn };
+               musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn, gebaeude: w.gebaeude };
     };
     /** In das offene Projekt schreiben: ein ⌘Z-Schritt („Schnell-Video übernommen"), vorher ein Arbeitsstand. */
     const uebernehmen = async () => {
