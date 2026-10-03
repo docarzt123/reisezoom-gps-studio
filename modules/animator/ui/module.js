@@ -5155,7 +5155,7 @@ function mountAnimator(body, headerActions, opts) {
   function _gebaeudeAn() { return !!document.getElementById("anim-mc-gebaeude")?.checked; }
   function _gebaeudeFarbe() {
     const k = String(map && map.__rzStyleKey || "");
-    if (/sat|ortho|hybrid|free_satellite/.test(k)) return "#e9e3d8";   // hell-warm auf Luftbild
+    if (/sat|ortho|hybrid|free_satellite/.test(k)) return "#aaa49b";   // neutral, bis die Dachfarbe aus dem Luftbild da ist
     if (/positron|light/.test(k)) return "#d9d9de";
     if (/dark/.test(k)) return "#3a3f4a";
     return "#d6cfc4";
@@ -5170,6 +5170,7 @@ function mountAnimator(body, headerActions, opts) {
       if (l.type === "fill-extrusion" && l.id !== GEB_EBENE) { try { map.setLayoutProperty(l.id, "visibility", an ? "visible" : "none"); } catch (_) {} }
     }
     const eigeneDa = (st.layers || []).some(l => l.type === "fill-extrusion" && l.id !== GEB_EBENE);
+    if (an) { try { _gebHorchen(); } catch (_) {} }
     if (!an || eigeneDa) { if (map.getLayer(GEB_EBENE)) map.setLayoutProperty(GEB_EBENE, "visibility", "none"); return; }
     // Quelle: vorhandene OpenMapTiles-Quelle des Stils, sonst eigene
     let src = Object.keys(st.sources || {}).find(id => { const q = st.sources[id]; return q && q.type === "vector" && /openfreemap|openmaptiles/i.test(String(q.url || (q.tiles || [])[0] || "")); });
@@ -5182,7 +5183,9 @@ function mountAnimator(body, headerActions, opts) {
       map.addLayer({ id: GEB_EBENE, type: "fill-extrusion", source: src, "source-layer": "building", minzoom: 13,
         filter: ["!=", ["get", "hide_3d"], true],
         paint: {
-          "fill-extrusion-color": _gebaeudeFarbe(),
+          // 03.10.2026 (Marc: „ich dachte, die Häuser liegen unter der Karte, damit sie farbig sind") — je Haus die
+          // Dachfarbe aus dem Luftbild (feature-state „farbe", _gebaeudeFaerben), bis dahin die Stilfarbe
+          "fill-extrusion-color": ["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()],
           "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, ["coalesce", ["get", "render_height"], 6]],
           "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, ["coalesce", ["get", "render_min_height"], 0]],
           "fill-extrusion-opacity": 0.92,
@@ -5190,11 +5193,119 @@ function mountAnimator(body, headerActions, opts) {
         } }, vor);
     } else {
       map.setLayoutProperty(GEB_EBENE, "visibility", "visible");
-      map.setPaintProperty(GEB_EBENE, "fill-extrusion-color", _gebaeudeFarbe());
+      map.setPaintProperty(GEB_EBENE, "fill-extrusion-color", ["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()]);
       if (vor) { try { map.moveLayer(GEB_EBENE, vor); } catch (_) {} }
     }
   }
-  window.__rzGebaeude = { an: () => _gebaeudeAn(), anwenden: () => _gebaeudeAnwenden(),
+  // ── Dachfarbe aus dem Luftbild (03.10.2026) ──
+  // Für jedes Haus (OSM-Kennung = Feature-ID der Kachel) den Mittelpunkt nehmen, die Luftbild-Kachel darunter
+  // laden (Zoom 17 ≈ 1 m/px, über den eigenen Kachel-Weg mit CORS) und eine kleine Fläche mitteln. Oberste
+  // Luftbild-Ebene zuerst; ist sie dort leer (Region endet), die nächste. Ohne Luftbild (Vektorstile): nichts.
+  const _gebFarben = new Map();   // id → "#rrggbb" | "" (keine) | null (in Arbeit)
+  const _gebKacheln = new Map();  // url → Promise<{w,h,d}|null>
+  let _gebSchlange = [], _gebLaeuft = false, _gebHorcher = null;
+  function _gebLuftbildQuellen() {
+    let st; try { st = map.getStyle(); } catch (_) { return []; }
+    const raus = [];
+    for (const l of (st.layers || []).slice().reverse()) {
+      if (l.type !== "raster" || l.id === "rz-base") continue;
+      const q = st.sources[l.source];
+      const url = q && Array.isArray(q.tiles) && q.tiles[0];
+      if (!url || !/^http/.test(url)) continue;
+      if (/eox\.at/.test(url) && !raus.length) { raus.push({ url, max: Math.min(14, q.maxzoom || 14) }); continue; }
+      raus.push({ url, max: Math.min(17, q.maxzoom || 17) });
+    }
+    return raus;
+  }
+  function _gebKachel(url) {
+    if (_gebKacheln.has(url)) return _gebKacheln.get(url);
+    const p = fetch(url).then(r => r.ok ? r.blob() : null).then(b => b ? createImageBitmap(b) : null).then(bm => {
+      if (!bm) return null;
+      const c = document.createElement("canvas"); c.width = bm.width; c.height = bm.height;
+      const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bm, 0, 0);
+      return { w: bm.width, h: bm.height, d: g.getImageData(0, 0, bm.width, bm.height).data };
+    }).catch(() => null);
+    _gebKacheln.set(url, p);
+    if (_gebKacheln.size > 400) _gebKacheln.delete(_gebKacheln.keys().next().value);
+    return p;
+  }
+  async function _gebDachfarbe(lon, lat, quellen) {
+    for (const q of quellen) {
+      const z = q.max, n = Math.pow(2, z);
+      const fx = (lon + 180) / 360 * n, s = Math.sin(lat * Math.PI / 180);
+      const fy = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n;
+      const x = Math.floor(fx), y = Math.floor(fy);
+      const url = q.url.replace("{z}", z).replace("{x}", x).replace("{y}", y);
+      const k = await _gebKachel(url);
+      if (!k) continue;
+      const px = Math.floor((fx - x) * k.w), py = Math.floor((fy - y) * k.h), r = Math.max(1, Math.round(k.w / 128));
+      let R = 0, G = 0, B = 0, A = 0, cnt = 0;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const xx = Math.min(k.w - 1, Math.max(0, px + dx)), yy = Math.min(k.h - 1, Math.max(0, py + dy)), i = (yy * k.w + xx) * 4;
+        R += k.d[i]; G += k.d[i + 1]; B += k.d[i + 2]; A += k.d[i + 3]; cnt++;
+      }
+      if (A / cnt < 200) continue;   // Region endet hier (durchsichtig) → nächste Ebene
+      // etwas aufhellen: Dächer sind im Luftbild dunkler, als sie als Körper wirken (Seiten werden ohnehin schattiert)
+      // leicht entsättigen (gemittelte Ziegeldächer wirkten sonst einheitlich lachsfarben)
+      const r_ = R / cnt, g_ = G / cnt, b_ = B / cnt, l = 0.299 * r_ + 0.587 * g_ + 0.114 * b_;
+      const f = (v) => Math.max(0, Math.min(255, Math.round((l + (v - l) * 0.85) * 1.12 + 6))).toString(16).padStart(2, "0");
+      return "#" + f(r_) + f(g_) + f(b_);
+    }
+    return "";
+  }
+  function _gebMitte(geo) {
+    const ring = geo.type === "Polygon" ? geo.coordinates[0] : geo.type === "MultiPolygon" ? geo.coordinates[0][0] : null;
+    if (!ring || !ring.length) return null;
+    let x = 0, y = 0;
+    for (const c of ring) { x += c[0]; y += c[1]; }
+    return [x / ring.length, y / ring.length];
+  }
+  function _gebaeudeFaerben() {
+    if (!map || !_gebaeudeAn() || !map.getLayer(GEB_EBENE)) return;
+    const quellen = _gebLuftbildQuellen();
+    if (!quellen.length) return;
+    const src = map.getLayer(GEB_EBENE).source;
+    let feats = [];
+    try { feats = map.querySourceFeatures(src, { sourceLayer: "building" }); } catch (_) { return; }
+    for (const f of feats) {
+      if (f.id == null || _gebFarben.has(f.id)) continue;
+      const m = _gebMitte(f.geometry); if (!m) continue;
+      _gebFarben.set(f.id, null);
+      _gebSchlange.push({ id: f.id, m, src });
+    }
+    if (!_gebLaeuft && _gebSchlange.length) _gebAbarbeiten(quellen);
+  }
+  async function _gebAbarbeiten(quellen) {
+    _gebLaeuft = true;
+    try {
+      while (_gebSchlange.length) {
+        const teil = _gebSchlange.splice(0, 24);
+        await Promise.all(teil.map(async (e) => {
+          const farbe = await _gebDachfarbe(e.m[0], e.m[1], quellen);
+          _gebFarben.set(e.id, farbe);
+          if (farbe) { try { map.setFeatureState({ source: e.src, sourceLayer: "building", id: e.id }, { farbe }); } catch (_) {} }
+        }));
+      }
+    } finally { _gebLaeuft = false; }
+  }
+  function _gebHorchen() {
+    if (_gebHorcher || !map) return;
+    let t = 0;
+    _gebHorcher = () => { if (t) return; t = setTimeout(() => { t = 0; try { _gebaeudeFaerben(); } catch (_) {} }, 120); };
+    map.on("sourcedata", _gebHorcher);
+    map.on("moveend", _gebHorcher);
+  }
+  // core/szene.py: vor jedem Bild warten, bis die sichtbaren Häuser ihre Farbe haben (höchstens 6 s)
+  window.__rzGebaeudeWarte = async () => {
+    if (!_gebaeudeAn() || !map) return true;
+    _gebaeudeFaerben();
+    const bis = performance.now() + 6000;
+    while ((_gebLaeuft || _gebSchlange.length) && performance.now() < bis) await new Promise(r => setTimeout(r, 40));
+    return true;
+  };
+  window.__rzGebaeude = { faerben: () => _gebaeudeFaerben(), farben: () => [..._gebFarben.values()].filter(Boolean).length,
+                          offen: () => _gebSchlange.length + (_gebLaeuft ? 1 : 0),
+                          an: () => _gebaeudeAn(), anwenden: () => _gebaeudeAnwenden(),
                           ebene: () => !!(map && map.getLayer(GEB_EBENE)), sichtbar: () => { try { return map.getLayoutProperty(GEB_EBENE, "visibility") !== "none" && !!map.getLayer(GEB_EBENE); } catch (_) { return false; } },
                           // 3D-Klötze gibt MapLibre über queryRenderedFeatures nicht heraus → aus der Kachelquelle zählen
                           anzahl: () => { try { const l = map.getLayer(GEB_EBENE); return l ? map.querySourceFeatures(l.source, { sourceLayer: "building" }).length : 0; } catch (_) { return -1; } },

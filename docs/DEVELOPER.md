@@ -4437,7 +4437,7 @@ auf der OpenMapTiles-Ebene `building` — Quelle: die vorhandene OpenFreeMap-/Op
 `rz-gebaeude-src` (`https://tiles.openfreemap.org/planet`). Höhe `render_height` (Standard 6 m), Basis `render_min_height`,
 ab z13 (z13→14 hochgefahren), `hide_3d` gefiltert, vor `preview-ghost`/`preview-line` (also unter dem Track). Stil-eigene
 fill-extrusion-Ebenen (Liberty) folgen dem Schalter, dann keine eigene. Aufgerufen aus `rebuildPreviewLayers` (nach jedem
-Stilwechsel) und beim Umschalten. Prüfstand `window.__rzGebaeude` (Anzahl über `querySourceFeatures` — 3D-Klötze liefert
+Stilwechsel) und beim Umschalten. Dachfarbe: `_gebaeudeFaerben` (bei `sourcedata`/`moveend`) → je Feature-ID Mittelpunkt → `_gebDachfarbe` liest die oberste Luftbild-Kachel (z17, `fetch` über den Kachel-Weg, `createImageBitmap` → `getImageData`, Mittel einer kleinen Fläche, durchsichtig → nächste Ebene) → `setFeatureState({farbe})`; Paint `coalesce(feature-state farbe, Stilfarbe)`; Render wartet über `window.__rzGebaeudeWarte` (in `_WARTE_BILD_JS`). Prüfstand `window.__rzGebaeude` (Anzahl über `querySourceFeatures` — 3D-Klötze liefert
 `queryRenderedFeatures` nicht). Test `tests/test_gebaeude_3d.py`.
 
 ## HDR-Render (02.10.2026, v0.9.779)
