@@ -12066,6 +12066,27 @@ class Api:
             r["clips"] = r.pop("fotos")
         return r
 
+    def schnellvideo_bebaut(self, path: str) -> dict:
+        """03.10.2026 — Führt die Tour durch einen Ort? (Schnell-Video: Zutat „3D-Häuser" dann vorwählen.)
+        Acht Punkte entlang der Strecke, Photon fragt je Punkt nach Stadt/Ort/Dorf/Stadtteil im Umkreis von 600 m."""
+        from core import highlights as chl
+        try:
+            pts, _st = cgpx.parse_gpx(self._ensure_gpx(str(path or "")))
+            if len(pts) < 2:
+                return {"ok": True, "bebaut": False}
+            tags = ["place:city", "place:town", "place:village", "place:suburb", "place:quarter", "place:neighbourhood"]
+            for k in range(8):
+                q = pts[int(k / 7 * (len(pts) - 1))]
+                try:
+                    f = chl._photon_reverse(q.lat, q.lon, 0.6, tags, 5.0)
+                except Exception:   # noqa: BLE001 — ohne Netz: nicht vorwählen
+                    return {"ok": True, "bebaut": False, "offline": True}
+                if f:
+                    return {"ok": True, "bebaut": True, "ort": str((f[0].get("properties") or {}).get("name") or "")}
+            return {"ok": True, "bebaut": False}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
     def schnellvideo_logbuch(self, path: str) -> dict:
         """02.10.2026 — Zutat „Logbuch" des Schnell-Videos: längere Pausen (ab 5 min) und eigene Notizen als
         kurze Texte mit Stelle auf der Strecke (`von`/`bis`/`bei` = Punkt-Anteil wie bei den Fotos).

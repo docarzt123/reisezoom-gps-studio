@@ -4914,5 +4914,8 @@
   "animator.farbraum.pq": "HDR · PQ (HDR10)",
   "animator.farbraum.hilfe": "HDR passt das Video zu HDR-Aufnahmen in einer HDR-Timeline (Final Cut, DaVinci, YouTube) — ein normales Video wirkt dort grau. Die Karte wird dafür in den HDR-Farbraum (BT.2020) umgerechnet, Weiß auf 203 nits, 10 Bit. HLG läuft auch auf normalen Bildschirmen gut; PQ (HDR10) ist für reine HDR-Projekte. Das Video wird HEVC (oder ProRes, wenn ProRes eingestellt ist). Mit Alpha-Hintergrund gibt es kein HDR.",
   "map_config.chip.gebaeude": "🏠 3D-Häuser",
-  "map_config.gebaeude_tip": "Gebäude aus OpenStreetMap als 3D-Klötze in echter Grundfläche und Höhe (ab Stadtteil-Zoom). Höhe aus Stockwerken oder Metern, sonst Standardhöhe. Quelle: OpenFreeMap, © OpenStreetMap."
+  "map_config.gebaeude_tip": "Gebäude aus OpenStreetMap als 3D-Klötze in echter Grundfläche und Höhe (ab Stadtteil-Zoom). Höhe aus Stockwerken oder Metern, sonst Standardhöhe. Quelle: OpenFreeMap, © OpenStreetMap.",
+  "map_config.chip.gebaeude_wachsen": "↥ wachsen",
+  "map_config.gebaeude_wachsen_tip": "Die Häuser wachsen beim Heranfliegen aus dem Boden (zwischen Zoom 14 und 15,8), statt von Anfang an voll dazustehen.",
+  "schnell.z.gebaeude": "3D-Häuser"
 }

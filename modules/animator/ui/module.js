@@ -324,6 +324,7 @@ function mountAnimator(body, headerActions, opts) {
             <!-- 02.10.2026 (Marc: „bau jetzt die 3D-Häuser") — Gebäude aus OpenStreetMap als Klötze -->
             <div class="chip-row" style="margin-top:6px">
               <label class="chip-toggle" title="${t("map_config.gebaeude_tip", "Gebäude aus OpenStreetMap als 3D-Klötze in echter Grundfläche und Höhe (ab Stadtteil-Zoom). Höhe aus Stockwerken oder Metern, sonst Standardhöhe. Quelle: OpenFreeMap, © OpenStreetMap.")}"><input type="checkbox" id="anim-mc-gebaeude"><span>${t("map_config.chip.gebaeude", "🏠 3D-Häuser")}</span></label>
+              <label class="chip-toggle" title="${t("map_config.gebaeude_wachsen_tip", "Die Häuser wachsen beim Heranfliegen aus dem Boden (zwischen Zoom 14 und 15,8), statt von Anfang an voll dazustehen.")}"><input type="checkbox" id="anim-mc-gebaeude-wachsen"><span>${t("map_config.chip.gebaeude_wachsen", "↥ wachsen")}</span></label>
             </div>
             <div class="quick-toggle-row">
               <button type="button" class="btn btn-subtle" id="anim-mc-all-off">${t("map_config.all_off")}</button>
@@ -1537,7 +1538,9 @@ function mountAnimator(body, headerActions, opts) {
     { type: "bool", onChange: () => applyHideLabels() });
   bindSetting("anim-mc-admin", _MODKEY, "show_admin_boundaries",
     { type: "bool", onChange: () => applyHideLabels() });
-  bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onChange: () => { try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } } });
+  const _gebSchalter = () => { const w = document.getElementById("anim-mc-gebaeude-wachsen"); if (w) w.disabled = !document.getElementById("anim-mc-gebaeude")?.checked; };
+  bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onLoad: _gebSchalter, onChange: () => { _gebSchalter(); try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } } });
+  bindSetting("anim-mc-gebaeude-wachsen", _MODKEY, "gebaeude_wachsen", { type: "bool", onChange: () => { try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } } });
   // Quick "Alle aus" / "Alle an"
   (function setupMcQuickButtons() {
     const ids = ["anim-mc-places","anim-mc-roads","anim-mc-poi","anim-mc-transit","anim-mc-admin"];
@@ -5153,6 +5156,14 @@ function mountAnimator(body, headerActions, opts) {
   // 3D-Gebäude (Liberty) folgen demselben Schalter, damit es keine doppelten Klötze gibt.
   const GEB_SRC = "rz-gebaeude-src", GEB_EBENE = "rz-gebaeude-3d", GEB_TILES = "https://tiles.openfreemap.org/planet";
   function _gebaeudeAn() { return !!document.getElementById("anim-mc-gebaeude")?.checked; }
+  // 03.10.2026 (Marc: „Häuser wachsen aus dem Boden … optional") — Höhe über den Zoom: aus = ab z14 voll (kurzer
+  // Anstieg 13→14 gegen Aufploppen), an = von z14 (flach) bis z15,8 (volle Höhe) — beim Heranfliegen wachsen sie.
+  function _gebHoehe(feld, std) {
+    const voll = ["coalesce", ["get", feld], std];
+    return document.getElementById("anim-mc-gebaeude-wachsen")?.checked
+      ? ["interpolate", ["linear"], ["zoom"], 14, 0, 15.8, voll]
+      : ["interpolate", ["linear"], ["zoom"], 13, 0, 14, voll];
+  }
   function _gebaeudeFarbe() {
     const k = String(map && map.__rzStyleKey || "");
     if (/sat|ortho|hybrid|free_satellite/.test(k)) return "#aaa49b";   // neutral, bis die Dachfarbe aus dem Luftbild da ist
@@ -5186,14 +5197,16 @@ function mountAnimator(body, headerActions, opts) {
           // 03.10.2026 (Marc: „ich dachte, die Häuser liegen unter der Karte, damit sie farbig sind") — je Haus die
           // Dachfarbe aus dem Luftbild (feature-state „farbe", _gebaeudeFaerben), bis dahin die Stilfarbe
           "fill-extrusion-color": ["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()],
-          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, ["coalesce", ["get", "render_height"], 6]],
-          "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, ["coalesce", ["get", "render_min_height"], 0]],
+          "fill-extrusion-height": _gebHoehe("render_height", 6),
+          "fill-extrusion-base": _gebHoehe("render_min_height", 0),
           "fill-extrusion-opacity": 0.92,
           "fill-extrusion-vertical-gradient": true,
         } }, vor);
     } else {
       map.setLayoutProperty(GEB_EBENE, "visibility", "visible");
       map.setPaintProperty(GEB_EBENE, "fill-extrusion-color", ["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()]);
+      map.setPaintProperty(GEB_EBENE, "fill-extrusion-height", _gebHoehe("render_height", 6));
+      map.setPaintProperty(GEB_EBENE, "fill-extrusion-base", _gebHoehe("render_min_height", 0));
       if (vor) { try { map.moveLayer(GEB_EBENE, vor); } catch (_) {} }
     }
   }

@@ -4914,5 +4914,8 @@
   "animator.farbraum.pq": "HDR · PQ (HDR10)",
   "animator.farbraum.hilfe": "HDR adapta el vídeo a grabaciones HDR en una línea de tiempo HDR (Final Cut, DaVinci, YouTube): un vídeo normal se ve gris allí. El mapa se convierte al espacio HDR (BT.2020), blanco a 203 nits, 10 bits. HLG también se ve bien en pantallas normales; PQ (HDR10) es para proyectos solo HDR. El vídeo será HEVC (o ProRes si está ajustado). Con fondo alfa no hay HDR.",
   "map_config.chip.gebaeude": "🏠 Edificios 3D",
-  "map_config.gebaeude_tip": "Edificios de OpenStreetMap como bloques 3D con planta y altura reales (desde zoom de barrio). Altura por plantas o metros; si no, una estándar. Fuente: OpenFreeMap, © OpenStreetMap."
+  "map_config.gebaeude_tip": "Edificios de OpenStreetMap como bloques 3D con planta y altura reales (desde zoom de barrio). Altura por plantas o metros; si no, una estándar. Fuente: OpenFreeMap, © OpenStreetMap.",
+  "map_config.chip.gebaeude_wachsen": "↥ crecer",
+  "map_config.gebaeude_wachsen_tip": "Los edificios crecen desde el suelo al acercarse la cámara (entre zoom 14 y 15,8) en lugar de estar a altura completa desde el principio.",
+  "schnell.z.gebaeude": "Edificios 3D"
 }
