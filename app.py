@@ -15645,5 +15645,45 @@ def main() -> None:
         pass
 
 
+def _selbsttest(ziel: str) -> int:
+    """04.10.2026 — Prüft im FERTIGEN Paket, ob der Render-Kern lädt und die Tonspur mischt, ohne Fenster.
+
+    Anlass: 0.9.778 brach auf allen Systemen jeden Render ab („No module named 'numpy'", die .spec warf numpy
+    raus) — in der Entwicklungsumgebung unsichtbar. `--selbsttest=<datei.json>` schreibt das Ergebnis als JSON
+    (gebündelte Windows-Apps haben keine Konsole) und endet mit 0/1. Läuft in der Release-Pipeline je System.
+    """
+    import json as _json
+    import tempfile as _tf
+    erg = {"version": APP_VERSION, "ok": False}
+    try:
+        import numpy  # noqa: F401
+        erg["numpy"] = numpy.__version__
+        from core import szene as _sz  # noqa: F401 — lädt tonspur, clips, animator
+        from core import tonspur as _ts
+        from core import animator as _an
+        ff = _an.find_ffmpeg()
+        erg["ffmpeg"] = bool(ff)
+        with _tf.TemporaryDirectory() as d:
+            wav = Path(d) / "probe.wav"
+            info = _ts.mischen({"musik": {"datei": "builtin:unterwegs", "laut": 0.7, "ein_s": 0.2, "aus_s": 0.2},
+                                "klicks": [{"t": 0.5, "laut": 0.8}], "klick_datei": "builtin:klick_a"}, 1.0, wav, ff)
+            erg["ton"] = info
+            erg["wav_bytes"] = wav.stat().st_size if wav.exists() else 0
+        erg["ok"] = erg["wav_bytes"] > 1000
+    except Exception as e:  # noqa: BLE001
+        import traceback
+        erg["fehler"] = f"{type(e).__name__}: {e}"
+        erg["trace"] = traceback.format_exc()[-1500:]
+    try:
+        Path(ziel).write_text(_json.dumps(erg, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    print(_json.dumps(erg, ensure_ascii=False, default=str))
+    return 0 if erg["ok"] else 1
+
+
 if __name__ == "__main__":
+    _st = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--selbsttest=")), None)
+    if _st:
+        sys.exit(_selbsttest(_st))
     main()

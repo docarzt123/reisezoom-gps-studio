@@ -4571,6 +4571,7 @@
   "about.credits.own_key": "clave propia",
   "about.credits.etc": "entre otros",
   "about.credits.osrm": "servidor de demostración, coche",
+  "about.credits.numpy": "mezcla de la pista de sonido",
   "about.credits.valhalla": "a pie/bici/coche",
   "about.credits.chromium": "motor de renderizado, incluido en macOS + Windows",
   "about.credits.bundled_mac_win": "incluido en macOS + Windows",

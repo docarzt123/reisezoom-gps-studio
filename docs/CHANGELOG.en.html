@@ -118,7 +118,7 @@
 <article class="version latest">
   <div class="version-head">
     <span class="version-num">v0.9.779</span>
-    <span class="version-date">2 October 2026</span>
+    <span class="version-date">4 October 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
@@ -127,6 +127,8 @@
     <li><strong>3D buildings</strong> &mdash; switch on under Map: buildings from OpenStreetMap stand on the map as blocks at real size, also in the video.</li>
     <li><strong>Buildings in roof colour</strong> &mdash; on aerial maps the 3D buildings take their roof colour from the aerial image.</li>
     <li><strong>Let buildings grow</strong> &mdash; optionally the buildings rise out of the ground as you fly in; in the quick video the 3D buildings are an ingredient, preselected for tours through a town.</li>
+    <li><strong>Rendering works again</strong> &mdash; in 0.9.778 every render stopped at once (&ldquo;No module named numpy&rdquo;) on all systems. A component for the sound track was missing from the app package. It is included now, and the app tests itself before every release.</li>
+    <li><strong>Less flickering buildings</strong> &mdash; all parts of a building (podium, tower, storeys) get the same roof colour; before, their overlapping walls flickered in light and dark stripes. Edges are smoothed too, so distant buildings no longer shimmer.</li>
   </ul>
 </article>
 

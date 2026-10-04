@@ -1416,7 +1416,8 @@ async function openAboutModal() {
           <li>
             <a href="#" class="md-about-link" data-url="https://pywebview.flowrl.com/">pywebview</a> — BSD-3-Clause ·
             <a href="#" class="md-about-link" data-url="https://python-pillow.org/">Pillow</a> — HPND ·
-            <a href="#" class="md-about-link" data-url="https://github.com/tkrajina/gpxpy">gpxpy</a> — Apache-2.0
+            <a href="#" class="md-about-link" data-url="https://github.com/tkrajina/gpxpy">gpxpy</a> — Apache-2.0 ·
+            <a href="#" class="md-about-link" data-url="https://numpy.org/">NumPy</a> — BSD-3-Clause (${t("about.credits.numpy", "Tonspur mischen")})
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://playwright.dev/">Playwright</a> — Apache-2.0 ·

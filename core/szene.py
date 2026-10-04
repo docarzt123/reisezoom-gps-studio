@@ -641,6 +641,14 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                           total_ms / 1000.0, erwartet_ms / 1000.0)
                 total_frames = aus_vorschau
             _vl["ende"] = total_frames
+            # 03.10.2026 Prüfstand (Häuser-Flimmern): RZ_TEILSTUECK="ab,bis,schritte_je_s" rendert nur dieses
+            # Stück in feinen Zeitschritten; RZ_SEITE_JS wird vorher einmal in der Seite ausgeführt (Hypothese an/aus).
+            _teil = [float(x) for x in (os.environ.get("RZ_TEILSTUECK") or "").split(",") if x.strip()]
+            if len(_teil) == 3:
+                total_frames = max(1, int(round((_teil[1] - _teil[0]) * _teil[2])))
+                _vl["ende"] = total_frames
+            if os.environ.get("RZ_SEITE_JS"):
+                await page.evaluate(os.environ["RZ_SEITE_JS"])
             # 08.09.2026 - Kacheln vorwaermen (wie der klassische Pfad seit v0.9.19 ueber
             # window.prewarmTiles): N Haltepunkte ueber die Zeitachse, je einmal auf idle
             # warten. Die Karte holt die Kacheln je Halt gebuendelt und parallel; ohne das
@@ -713,7 +721,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     if is_cancelled and is_cancelled():
                         raise A.RenderCancelled()
                     _vl["bild"] = frame
-                    t = frame / cfg.fps
+                    t = frame / cfg.fps if len(_teil) != 3 else _teil[0] + frame / _teil[2]
                     _t = time.perf_counter()
                     _p = 0.05 + 0.87 * frame / total_frames
                     def _meldung(schluessel, vorgabe, _f=frame, _p=_p, _h=_hinweis_alt):

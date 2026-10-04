@@ -194,11 +194,10 @@ if not _IS_GEO:
 # Müll der die App aufbläht
 _excludes = [
     "tkinter", "PyQt5", "PyQt6", "PySide2", "PySide6",
-    # `numpy` ganz, nicht nur `numpy.tests`: Weder app.py noch core/ noch die
-    # Module importieren es, und `pip show numpy` nennt kein Paket, das es
-    # bräuchte. Es kam allein über `scripts/selftest_sign_zoom.py` mit — ein
-    # Testskript, das im Bundle nichts verloren hat. Spart 7 MB.
-    "matplotlib", "scipy", "numpy",
+    # 04.10.2026 — `numpy` NICHT mehr ausschließen: core/tonspur.py (seit 0.9.778) mischt damit die Tonspur,
+    # und core/szene.py lädt es beim Start → in 0.9.778 brach JEDER Render mit „No module named 'numpy'" ab.
+    # Wächter: tests/test_bundle_ausschluesse.py.
+    "matplotlib", "scipy",
     "test", "tests", "unittest",
 ]
 # v0.9.331 — Solo-Geotagger rendert nichts. animator.py/heightanim.py importieren

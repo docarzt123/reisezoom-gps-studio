@@ -4430,6 +4430,16 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Selbsttest im Paket (04.10.2026, v0.9.779)
+
+`app.py --selbsttest=<datei.json>` (vor `main()`, ohne Fenster): lädt `core.szene` (damit tonspur/clips/animator), mischt
+1 s „Unterwegs" + Klick über `tonspur.mischen` mit dem gebündelten ffmpeg, schreibt JSON (`ok`, `numpy`, `ffmpeg`, `ton`,
+`wav_bytes`, bei Fehler `fehler`/`trace`), Exit 0/1. Datei statt stdout, weil die Windows-.exe keine Konsole hat.
+`.github/workflows/release.yml` ruft ihn nach PyInstaller auf macOS und Windows auf und bricht sonst ab. Anlass: 0.9.778
+schloss in der `.spec` numpy aus, das `core/tonspur.py` braucht → jeder Render scheiterte, nur im Paket sichtbar. Wächter
+ohne Build: `tests/test_bundle_ausschluesse.py` (`_excludes` der .spec gegen alle Importe in app.py/core/modules;
+Fremdimporte müssen in requirements.txt stehen). `tonspur` importiert numpy mit `try` → fehlt es, bleibt das Video stumm.
+
 ## 3D-Häuser (02.10.2026, v0.9.779)
 
 `_gebaeudeAnwenden()` (Animator/Tour-Map, Schalter `#anim-mc-gebaeude` → `animator.gebaeude_3d`): fill-extrusion `rz-gebaeude-3d`

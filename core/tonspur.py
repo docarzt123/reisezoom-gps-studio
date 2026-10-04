@@ -24,7 +24,13 @@ import wave
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
+# 04.10.2026 (Tester-Meldung zu 0.9.778: „No module named 'numpy'" — jeder Render brach ab, weil szene.py dieses
+# Modul beim Start lädt und die .spec numpy ausschloss). numpy ist jetzt im Bundle; fehlt es trotzdem, wird das
+# Video stumm statt gar nicht gerendert.
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover — nur in einem kaputten Bundle
+    np = None
 
 from . import dateischutz as _ds
 
@@ -201,6 +207,8 @@ def anlegen(video: str, plan: Optional[dict], ffmpeg: str, dauer_s: Optional[flo
     ext = v.suffix.lower()
     if plan_leer(plan) or ext not in MIT_TON or not v.is_file():
         return {"ok": True, "ton": False}
+    if np is None:
+        return {"ok": False, "ton": False, "error": "numpy fehlt im Programmpaket — Video bleibt stumm"}
     dauer = dauer_s or video_dauer(ffmpeg, v)
     if not dauer:
         return {"ok": False, "ton": False, "error": "Videolänge unbekannt"}

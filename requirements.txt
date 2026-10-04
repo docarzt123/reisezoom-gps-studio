@@ -25,6 +25,8 @@ keyring>=25.0             # Schlüsselbund: macOS, Windows, Linux/SecretService
 # kein System-ffmpeg installiert hat. PyInstaller bundelt das Binary
 # automatisch (collect_data_files in der .spec).
 imageio-ffmpeg>=0.5
+# 02.10.2026 — Tonspur mischen (core/tonspur.py). BSD-Lizenz. Darf in der .spec NICHT ausgeschlossen werden.
+numpy>=1.26
 
 # macOS-only: PyObjC für NSOpenPanel + NSWindow-Manipulation
 pyobjc>=11.0; sys_platform == "darwin"

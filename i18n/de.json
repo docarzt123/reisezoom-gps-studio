@@ -4571,6 +4571,7 @@
   "about.credits.own_key": "eigener Schlüssel",
   "about.credits.etc": "u. a.",
   "about.credits.osrm": "Demo-Server, Auto",
+  "about.credits.numpy": "Tonspur mischen",
   "about.credits.valhalla": "Fuß/Rad/Auto",
   "about.credits.chromium": "Render-Engine, gebündelt auf macOS + Windows",
   "about.credits.bundled_mac_win": "gebündelt auf macOS + Windows",

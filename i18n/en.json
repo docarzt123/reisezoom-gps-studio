@@ -4571,6 +4571,7 @@
   "about.credits.own_key": "your own key",
   "about.credits.etc": "and others",
   "about.credits.osrm": "demo server, car",
+  "about.credits.numpy": "mixing the sound track",
   "about.credits.valhalla": "walking/bike/car",
   "about.credits.chromium": "render engine, bundled on macOS + Windows",
   "about.credits.bundled_mac_win": "bundled on macOS + Windows",

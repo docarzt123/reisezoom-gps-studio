@@ -118,7 +118,7 @@
 <article class="version latest">
   <div class="version-head">
     <span class="version-num">v0.9.779</span>
-    <span class="version-date">2 de octubre de 2026</span>
+    <span class="version-date">4 de octubre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
@@ -127,6 +127,8 @@
     <li><strong>Edificios 3D</strong> &mdash; actívalos en Mapa: los edificios de OpenStreetMap aparecen como bloques a tamaño real, también en el vídeo.</li>
     <li><strong>Edificios con el color del tejado</strong> &mdash; en mapas aéreos los edificios 3D toman el color de su tejado de la imagen aérea.</li>
     <li><strong>Edificios que crecen</strong> &mdash; opcionalmente los edificios salen del suelo al acercarse; en el vídeo rápido los edificios 3D son un ingrediente, preseleccionado en rutas que pasan por una localidad.</li>
+    <li><strong>El renderizado vuelve a funcionar</strong> &mdash; en 0.9.778 cada renderizado se detenía al instante (&laquo;No module named numpy&raquo;) en todos los sistemas. Faltaba un componente de la pista de sonido en el paquete. Ahora está incluido y la app se comprueba a sí misma antes de cada publicación.</li>
+    <li><strong>Los edificios parpadean menos</strong> &mdash; todas las partes de un edificio (base, torre, plantas) reciben el mismo color de tejado; antes sus paredes superpuestas parpadeaban en franjas claras y oscuras. Además los bordes se suavizan y los edificios lejanos ya no tiemblan.</li>
   </ul>
 </article>
 

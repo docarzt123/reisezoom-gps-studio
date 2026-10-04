@@ -5191,6 +5191,8 @@ function mountAnimator(body, headerActions, opts) {
     }
     const vor = ["preview-ghost", "preview-ghost-gpx", "preview-shadow", "preview-glow", "preview-line"].find(id => map.getLayer(id));
     if (!map.getLayer(GEB_EBENE)) {
+      // neue Ebene (Stilwechsel): Feature-States der alten Quelle sind weg → neu färben
+      _gebFarben.clear(); _gebFlaechen.clear(); _gebRaster.clear(); _gebWirtFarbe.clear(); _gebSchlange = [];
       map.addLayer({ id: GEB_EBENE, type: "fill-extrusion", source: src, "source-layer": "building", minzoom: 13,
         filter: ["!=", ["get", "hide_3d"], true],
         paint: {
@@ -5273,6 +5275,46 @@ function mountAnimator(body, headerActions, opts) {
     for (const c of ring) { x += c[0]; y += c[1]; }
     return [x / ring.length, y / ring.length];
   }
+  // 03.10.2026 (Marc: „die Häuser flimmern zum Teil") — Gebäudeteile (OSM building:part: Sockel, Turm, Geschosse)
+  // liegen übereinander, ihre Wände in derselben Ebene. Die Grafikkarte entscheidet je Pixel und Bild zufällig, welche
+  // vorn ist (Z-Fighting) — mit verschiedenen Dachfarben flimmerte die Fassade gestreift hell/dunkel. Deshalb bekommt
+  // jedes Teil die Farbe seines „Wirts": des größten Gebäudes (auch des ausgeblendeten Umrisses, hide_3d), in dem sein
+  // Mittelpunkt liegt. Gleiche Farbe = gleiches Pixel, egal welche Wand gewinnt.
+  const _gebFlaechen = new Map();  // id → { m, ring, bb, a, wirt }
+  const _gebRaster = new Map();    // Rasterzelle (≈ 100 m) → Set(id)
+  const _gebZelle = (x, y) => Math.floor(x * 1000) + ":" + Math.floor(y * 1000);
+  function _gebRing(geo) {
+    return geo.type === "Polygon" ? geo.coordinates[0] : geo.type === "MultiPolygon" ? geo.coordinates[0][0] : null;
+  }
+  function _gebInnen(p, ring) {
+    let drin = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) drin = !drin;
+    }
+    return drin;
+  }
+  function _gebZellen(bb, fn) {
+    for (let x = Math.floor(bb[0] * 1000); x <= Math.floor(bb[2] * 1000); x++)
+      for (let y = Math.floor(bb[1] * 1000); y <= Math.floor(bb[3] * 1000); y++) fn(x + ":" + y);
+  }
+  function _gebNachbarn(bb) {
+    const ids = new Set();
+    _gebZellen(bb, z => { const s = _gebRaster.get(z); if (s) for (const id of s) ids.add(id); });
+    return ids;
+  }
+  // größtes Gebäude, das den Punkt enthält (ohne Kette: der Wirt eines Wirts zählt nicht extra)
+  function _gebWirtVon(id) {
+    const f = _gebFlaechen.get(id);
+    let best = id, a = f.a;
+    for (const n of _gebNachbarn([f.m[0], f.m[1], f.m[0], f.m[1]])) {
+      const g = _gebFlaechen.get(n);
+      if (n === id || !g || g.a <= a) continue;
+      if (f.m[0] < g.bb[0] || f.m[0] > g.bb[2] || f.m[1] < g.bb[1] || f.m[1] > g.bb[3]) continue;
+      if (_gebInnen(f.m, g.ring)) { best = n; a = g.a; }
+    }
+    return best;
+  }
   function _gebaeudeFaerben() {
     if (!map || !_gebaeudeAn() || !map.getLayer(GEB_EBENE)) return;
     const quellen = _gebLuftbildQuellen();
@@ -5280,21 +5322,46 @@ function mountAnimator(body, headerActions, opts) {
     const src = map.getLayer(GEB_EBENE).source;
     let feats = [];
     try { feats = map.querySourceFeatures(src, { sourceLayer: "building" }); } catch (_) { return; }
+    const neu = [];
     for (const f of feats) {
-      if (f.id == null || _gebFarben.has(f.id)) continue;
+      if (f.id == null || _gebFlaechen.has(f.id)) continue;
+      const ring = _gebRing(f.geometry); if (!ring || ring.length < 4) continue;
       const m = _gebMitte(f.geometry); if (!m) continue;
-      _gebFarben.set(f.id, null);
-      _gebSchlange.push({ id: f.id, m, src });
+      let bb = [Infinity, Infinity, -Infinity, -Infinity], a2 = 0;
+      for (let i = 0; i < ring.length; i++) {
+        const c = ring[i], d = ring[(i + 1) % ring.length];
+        bb = [Math.min(bb[0], c[0]), Math.min(bb[1], c[1]), Math.max(bb[2], c[0]), Math.max(bb[3], c[1])];
+        a2 += c[0] * d[1] - d[0] * c[1];
+      }
+      _gebFlaechen.set(f.id, { m, ring, bb, a: Math.abs(a2) / 2, wirt: null, aus: f.properties && f.properties.hide_3d === true });
+      _gebZellen(bb, z => { if (!_gebRaster.has(z)) _gebRaster.set(z, new Set()); _gebRaster.get(z).add(f.id); });
+      neu.push(f.id);
     }
+    // neue Gebäude: eigenen Wirt bestimmen; außerdem die Nachbarn prüfen — ein später geladener großer Umriss
+    // kann Wirt schon gefärbter Teile werden
+    const pruefen = new Set(neu);
+    for (const id of neu) for (const n of _gebNachbarn(_gebFlaechen.get(id).bb)) pruefen.add(n);
+    for (const id of pruefen) {
+      const f = _gebFlaechen.get(id); if (!f) continue;
+      const w = _gebWirtVon(id);
+      if (w === f.wirt) continue;
+      f.wirt = w;
+      if (f.aus) continue;   // ausgeblendete Umrisse werden nicht gezeichnet, nur als Wirt gebraucht
+      _gebSchlange.push({ id, wirt: w, m: _gebFlaechen.get(w).m, src });
+    }
+    for (const e of _gebSchlange) if (!_gebFarben.has(e.id)) _gebFarben.set(e.id, null);
     if (!_gebLaeuft && _gebSchlange.length) _gebAbarbeiten(quellen);
   }
+  const _gebWirtFarbe = new Map();   // Wirt-id → Promise<"#rrggbb"|"">
   async function _gebAbarbeiten(quellen) {
     _gebLaeuft = true;
     try {
       while (_gebSchlange.length) {
         const teil = _gebSchlange.splice(0, 24);
         await Promise.all(teil.map(async (e) => {
-          const farbe = await _gebDachfarbe(e.m[0], e.m[1], quellen);
+          if (!_gebWirtFarbe.has(e.wirt)) _gebWirtFarbe.set(e.wirt, _gebDachfarbe(e.m[0], e.m[1], quellen));
+          const farbe = await _gebWirtFarbe.get(e.wirt);
+          if (_gebFlaechen.get(e.id)?.wirt !== e.wirt) return;   // inzwischen neuer Wirt → dessen Auftrag gilt
           _gebFarben.set(e.id, farbe);
           if (farbe) { try { map.setFeatureState({ source: e.src, sourceLayer: "building", id: e.id }, { farbe }); } catch (_) {} }
         }));
@@ -5316,7 +5383,7 @@ function mountAnimator(body, headerActions, opts) {
     while ((_gebLaeuft || _gebSchlange.length) && performance.now() < bis) await new Promise(r => setTimeout(r, 40));
     return true;
   };
-  window.__rzGebaeude = { faerben: () => _gebaeudeFaerben(), farben: () => [..._gebFarben.values()].filter(Boolean).length,
+  window.__rzGebaeude = { faerben: () => _gebaeudeFaerben(), quellen: () => _gebLuftbildQuellen(), kacheln: () => _gebKacheln.size, dach: (lon, lat) => _gebDachfarbe(lon, lat, _gebLuftbildQuellen()), farben: () => [..._gebFarben.values()].filter(Boolean).length,
                           offen: () => _gebSchlange.length + (_gebLaeuft ? 1 : 0),
                           an: () => _gebaeudeAn(), anwenden: () => _gebaeudeAnwenden(),
                           ebene: () => !!(map && map.getLayer(GEB_EBENE)), sichtbar: () => { try { return map.getLayoutProperty(GEB_EBENE, "visibility") !== "none" && !!map.getLayer(GEB_EBENE); } catch (_) { return false; } },
@@ -10394,7 +10461,9 @@ function mountAnimator(body, headerActions, opts) {
       bbox: currentBbox || null,
       labels: _labelsFromConfig(),   // 04.09.2026: Orte/Straßen/… auch über Rasterkarten
       ortho: _currentOrtho(),
-      common: { center: [10, 51], zoom: 4, pitch: currentPitch() },
+      // 03.10.2026 (Marc: „die Häuser flimmern zum Teil") — Kantenglättung (MSAA): ohne sie springen die Kanten
+      // ferner 3D-Häuser bei jeder Kamerabewegung zwischen Pixeln hin und her. Nur beim Anlegen setzbar.
+      common: { center: [10, 51], zoom: 4, pitch: currentPitch(), antialias: true, canvasContextAttributes: { antialias: true } },
     });
     map = made.map;
     try { map.on("moveend", _gelaendeNachFahrt); map.on("idle", _gelaendeNachFahrt); } catch (_) {}   // 09.09.2026 Gelände-Kacheln prüfen

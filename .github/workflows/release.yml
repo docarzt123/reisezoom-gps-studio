@@ -72,6 +72,14 @@ jobs:
           pyinstaller ReisezoomGPSStudio.spec --clean --noconfirm
           ls -la dist/
 
+      - name: Selbsttest im fertigen Paket (Render-Kern + Tonspur)
+        # 04.10.2026 — 0.9.778 brach auf allen Systemen jeden Render ab (numpy fehlte im Paket). Das fällt nur
+        # im gebauten Paket auf, deshalb hier: lädt core.szene und mischt 1 s Musik, sonst bricht der Build ab.
+        run: |
+          "dist/Reisezoom GPS Studio.app/Contents/MacOS/ReisezoomGPSStudio" --selbsttest="$RUNNER_TEMP/selbsttest.json" || true
+          cat "$RUNNER_TEMP/selbsttest.json"
+          python -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('ok') else 1)" "$RUNNER_TEMP/selbsttest.json"
+
       - name: Signing-Zertifikat importieren (falls Secrets vorhanden)
         env:
           MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
@@ -245,6 +253,16 @@ jobs:
       - name: Build .exe
         run: pyinstaller ReisezoomGPSStudio.spec --clean --noconfirm
         shell: bash
+
+      - name: Selbsttest im fertigen Paket (Render-Kern + Tonspur)
+        # 04.10.2026 — siehe macOS-Schritt; die .exe hat keine Konsole, Ergebnis kommt als JSON-Datei.
+        run: |
+          $ziel = Join-Path $env:RUNNER_TEMP "selbsttest.json"
+          Start-Process -FilePath "dist\ReisezoomGPSStudio\ReisezoomGPSStudio.exe" -ArgumentList "--selbsttest=$ziel" -Wait -NoNewWindow
+          Get-Content $ziel
+          python -c "import json,sys; d=json.load(open(sys.argv[1], encoding='utf-8')); sys.exit(0 if d.get('ok') else 1)" $ziel
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+        shell: pwsh
 
       - name: Read APP_VERSION for installer
         # Inno-Setup will die exakte App-Version in der Setup.exe-Properties
