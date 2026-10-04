@@ -5171,6 +5171,21 @@ function mountAnimator(body, headerActions, opts) {
     if (/dark/.test(k)) return "#3a3f4a";
     return "#d6cfc4";
   }
+  // 04.10.2026 (Marc: „flimmert immer noch zu viel … liegt die Ursache woanders?") — Z-Fighting zwischen VERSCHIEDENEN
+  // Gebäuden: in OSM liegen Wände benachbarter oder überlappender Gebäude oft exakt in derselben Ebene; die Grafikkarte
+  // entscheidet je Pixel und Bild zufällig, welche vorn ist → gestreifte, wandernde Muster (sichtbar gemacht mit einer
+  // Farbe je OSM-ID, tests/pruefstand_haeuser.py). Gleiche Farben (Wirt, s. u.) helfen nur innerhalb eines Gebäudes.
+  // Lösung: ein Rang je Gebäude (1–63 aus der OSM-ID) reist im Alphakanal der Farbe zur Grafikkarte; der gepatchte
+  // Shader (ui/vendor/maplibre-gl.js, `rz-patch extrusionrang`) nimmt ihn heraus, zeichnet voll deckend und schiebt die
+  // Tiefe um Rang × 1e-6 nach vorn — bei deckungsgleichen Wänden gewinnt so in jedem Bild dasselbe Haus.
+  // Achtung: Zoom-Ausdrücke dürfen nicht in `let` stecken → solche Farben bleiben ohne Rang.
+  const _GEB_RANG_ALPHA = ["-", 1, ["/", ["+", 1, ["%", ["to-number", ["id"], 0], 63]], 255]];
+  function _gebFarbeAusdruck(farbe) {
+    // nur Ausdrücke (Array) und feste Farben (String); alte Stil-Funktionen ({stops: …}) und Zoom-Ausdrücke unverändert
+    if (!(Array.isArray(farbe) || typeof farbe === "string") || JSON.stringify(farbe).includes('"zoom"')) return farbe;
+    const c = (i) => ["at", i, ["var", "rz_c"]];
+    return ["let", "rz_c", ["to-rgba", ["to-color", farbe]], ["rgba", c(0), c(1), c(2), _GEB_RANG_ALPHA]];
+  }
   function _gebaeudeAnwenden() {
     if (!map || !map.getStyle) return;
     let st; try { st = map.getStyle(); } catch (_) { return; }
@@ -5178,7 +5193,12 @@ function mountAnimator(body, headerActions, opts) {
     const an = _gebaeudeAn();
     // Stil-eigene Gebäude-Klötze (z. B. OFM Liberty „building-3d") an denselben Schalter hängen
     for (const l of (st.layers || [])) {
-      if (l.type === "fill-extrusion" && l.id !== GEB_EBENE) { try { map.setLayoutProperty(l.id, "visibility", an ? "visible" : "none"); } catch (_) {} }
+      if (l.type === "fill-extrusion" && l.id !== GEB_EBENE) {
+        try { map.setLayoutProperty(l.id, "visibility", an ? "visible" : "none"); } catch (_) {}
+        // gleicher Rang gegen Z-Fighting (einmal je Ebene; Zoom-Ausdrücke bleiben unverändert)
+        try { const alt = map.getPaintProperty(l.id, "fill-extrusion-color");
+              if (alt != null && !JSON.stringify(alt).includes("rz_c")) map.setPaintProperty(l.id, "fill-extrusion-color", _gebFarbeAusdruck(alt)); } catch (_) {}
+      }
     }
     const eigeneDa = (st.layers || []).some(l => l.type === "fill-extrusion" && l.id !== GEB_EBENE);
     if (an) { try { _gebHorchen(); } catch (_) {} }
@@ -5198,7 +5218,7 @@ function mountAnimator(body, headerActions, opts) {
         paint: {
           // 03.10.2026 (Marc: „ich dachte, die Häuser liegen unter der Karte, damit sie farbig sind") — je Haus die
           // Dachfarbe aus dem Luftbild (feature-state „farbe", _gebaeudeFaerben), bis dahin die Stilfarbe
-          "fill-extrusion-color": ["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()],
+          "fill-extrusion-color": _gebFarbeAusdruck(["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()]),
           "fill-extrusion-height": _gebHoehe("render_height", 6),
           "fill-extrusion-base": _gebHoehe("render_min_height", 0),
           "fill-extrusion-opacity": 0.92,
@@ -5206,7 +5226,7 @@ function mountAnimator(body, headerActions, opts) {
         } }, vor);
     } else {
       map.setLayoutProperty(GEB_EBENE, "visibility", "visible");
-      map.setPaintProperty(GEB_EBENE, "fill-extrusion-color", ["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()]);
+      map.setPaintProperty(GEB_EBENE, "fill-extrusion-color", _gebFarbeAusdruck(["coalesce", ["feature-state", "farbe"], _gebaeudeFarbe()]));
       map.setPaintProperty(GEB_EBENE, "fill-extrusion-height", _gebHoehe("render_height", 6));
       map.setPaintProperty(GEB_EBENE, "fill-extrusion-base", _gebHoehe("render_min_height", 0));
       if (vor) { try { map.moveLayer(GEB_EBENE, vor); } catch (_) {} }
