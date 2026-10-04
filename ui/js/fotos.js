@@ -259,19 +259,18 @@
       // (Marc, 12.09.2026: „überall visuelles Feedback").
       if (window.rzStatus) {
         // 18.09.2026 — derselbe Klartext wie in der Kopfzeile (auch im Kasten unten rechts)
-        const phase2 = (st.art === "ungelesen" ? T("fotos.kt_ungelesen", "Holt Ungelesenes nach")
-          : (st.phase === "dateien" ? T("fotos.kt_schritt1", "Schritt 1 von 2 — sieht in den Ordnern nach") : T("fotos.kt_schritt2", "Schritt 2 von 2 — liest die neuen Dateien")))
-          + (st.aktuell ? " · " + kurzPfad(st.aktuell) : "");
+        const phase2 = scanSchrittText(st) + " · " + scanStandText(st) + (st.aktuell ? " · " + kurzPfad(st.aktuell) : "");
+        const gesamtJetzt = st.phase === "dateien" ? (st.erwartet || 0) : (st.total || 0);
         if (st.running) {
           if (!window.rzStatus.laeuft("foto-scan")) {
             window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Fotos"),
-                                                 text: phase2, gesamt: st.total || 0,
+                                                 text: phase2, gesamt: gesamtJetzt,
                                                  abbrechen: true,
                                                  // Liest im Hintergrund weiter — niemand wartet darauf.
                                                  hintergrund: true });
           }
-          window.rzStatus.schritt("foto-scan", { text: phase2, n: st.done || 0,
-                                                 gesamt: st.total || 0 });
+          window.rzStatus.schritt("foto-scan", { text: phase2, n: Math.min(st.done || 0, gesamtJetzt || (st.done || 0)),
+                                                 gesamt: gesamtJetzt });
           if (window.rzStatus.abgebrochen("foto-scan")) api().fotos_scan_stop();
         } else if (window.rzStatus.laeuft("foto-scan")) {
           window.rzStatus.fertig("foto-scan",
@@ -280,12 +279,9 @@
       }
       if (box) {
         if (st.running) {
-          const phase = st.phase === "dateien"
-            ? T("fotos.scan_dateien", "Dateien suchen")
-            : T("fotos.scan_daten", "Aufnahmedaten lesen");
           // 13.09.2026 (Echt-App-Test): Abbrechen steht schon in der Kopfzeile und im
           // Kasten unten rechts — ein dritter Knopf hier machte es nur unübersichtlicher.
-          box.textContent = `${phase} — ${num(st.done)}${st.total ? " / " + num(st.total) : ""}`;
+          box.textContent = scanSchrittText(st) + " — " + scanStandText(st);
         } else {
           box.textContent = st.error ? String(st.error) : fernText(st);
         }
@@ -731,26 +727,74 @@
     return kopfOffenHtml();
   }
 
-  /** Was der Lauf gerade tut — zwei Zeilen: Schritt + Zweck, darunter Zahl, Fund und Ort. */
+  /* 04.10.2026 (Marc: „ein Schritt, der zwei verschiedene Dinge macht — dann weiß man ja gar nicht, was passiert …
+     da muss mehr Feedback sein, damit man sieht, dass es vorangeht") — EIN Klartext für Kopfzeile, Kasten unten rechts
+     und Seitenleiste: welcher Schritt in welcher Gangart (schnell: nur geänderte Ordner / gründlich: jede Datei),
+     wie weit (x von ≈ y, %), wie lange noch (aus dem gemessenen Tempo), und wo gerade (Ordner bzw. Datei). */
+  let tempoMess = null;   // { phase, t0, d0 } — Tempo seit Beginn der Phase, für die Restzeit
+  function scanZahlen(st) {
+    const erste = st.phase === "dateien";
+    const gesamt = erste ? (st.erwartet || 0) : (st.total || 0);
+    const n = st.done || 0;
+    const jetzt = Date.now() / 1000;
+    if (!tempoMess || tempoMess.phase !== st.phase || n < tempoMess.d0) tempoMess = { phase: st.phase, t0: jetzt, d0: n };
+    let rest = null;
+    const dt = jetzt - tempoMess.t0, dn = n - tempoMess.d0;
+    if (gesamt > n && dt >= 8 && dn > 0) rest = (gesamt - n) / (dn / dt);
+    const proz = gesamt ? Math.min(100, Math.floor(n / gesamt * 100)) : null;
+    return { erste, gesamt, n, proz, rest, ungefaehr: erste };
+  }
+  function restText(sek) {
+    if (sek == null || !isFinite(sek)) return "";
+    if (sek < 60) return T("fotos.kt_rest_kurz", "noch unter einer Minute");
+    const min = Math.round(sek / 60);
+    if (min < 60) return T("fotos.kt_rest_min", "noch ca. {m} Min.").replace("{m}", num(min));
+    return T("fotos.kt_rest_std", "noch ca. {h} Std. {m} Min.").replace("{h}", num(Math.floor(min / 60))).replace("{m}", num(min % 60));
+  }
+  function scanSchrittText(st) {
+    if (st.art === "ungelesen") return T("fotos.kt_ungelesen", "Holt Ungelesenes nach");
+    if (st.phase !== "dateien") return T("fotos.kt_schritt2", "Schritt 2 von 2 — liest die neuen Dateien");
+    return st.gruendlich
+      ? T("fotos.kt_schritt1_gr", "Schritt 1 von 2 — gründliche Nachschau: prüft jede Datei einzeln")
+      : T("fotos.kt_schritt1_sch", "Schritt 1 von 2 — schnelle Nachschau: prüft nur geänderte Ordner");
+  }
+  /** Eine Zeile Stand: „45.210 von ≈ 170.705 Dateien geprüft (26 %) · 3 neu · noch ca. 12 Min." */
+  function scanStandText(st) {
+    const z = scanZahlen(st), zw = st.zwischen || {};
+    const teile = [];
+    if (z.erste) {
+      teile.push((z.gesamt
+        ? T("fotos.kt_zahl1_von", "{n} von ≈ {g} Dateien geprüft").replace("{g}", num(z.gesamt))
+        : T("fotos.kt_zahl1_n", "{n} Dateien geprüft")).replace("{n}", num(z.n)) + (z.proz != null ? ` (${z.proz} %)` : ""));
+      if (zw.neu) teile.push(T("fotos.kt_neu", "{n} neu").replace("{n}", num(zw.neu)));
+      if (zw.geaendert) teile.push(T("fotos.kt_geaendert", "{n} geändert").replace("{n}", num(zw.geaendert)));
+    } else {
+      teile.push(T("fotos.kt_zahl2", "{n} von {g} gelesen").replace("{n}", num(z.n)).replace("{g}", num(z.gesamt))
+        + (z.proz != null ? ` (${z.proz} %)` : ""));
+    }
+    const r = restText(z.rest);
+    if (r) teile.push(r);
+    return teile.join(" · ");
+  }
   function scanKlartextHtml(st) {
-    const ersteStufe = st.phase === "dateien";
-    const schritt = st.art === "ungelesen"
-      ? T("fotos.kt_ungelesen", "Holt Ungelesenes nach")
-      : (ersteStufe ? T("fotos.kt_schritt1", "Schritt 1 von 2 — sieht in den Ordnern nach") : T("fotos.kt_schritt2", "Schritt 2 von 2 — liest die neuen Dateien"));
-    const zweck = ersteStufe
-      ? T("fotos.kt_zweck1", "Vergleicht jede Datei mit dem Bestand: neu, geändert oder verschwunden? Geöffnet wird dabei nichts.")
+    const z = scanZahlen(st), zw = st.zwischen || {};
+    const zweck = z.erste
+      ? (st.gruendlich
+          ? T("fotos.kt_zweck1_gr", "Fragt bei jeder Datei Größe und Änderungszeit ab — so fallen auch Änderungen IN Dateien auf (z. B. neu geschriebene EXIF-Daten). Läuft einmal pro Woche und bei „Jetzt einlesen“; auf einem Netzlaufwerk dauert das bei vielen Fotos eine Weile. Geöffnet wird dabei nichts.")
+          : T("fotos.kt_zweck1_sch", "Übernimmt Ordner, die sich seit dem letzten Mal nicht geändert haben, und vergleicht nur in den übrigen die Dateien mit dem Bestand. Geöffnet wird dabei nichts."))
       : T("fotos.kt_zweck2", "Liest Aufnahmezeit, Ort und Kamera aus jeder Datei und legt ein Vorschaubild in die Bibliothek. Die Originale bleiben unberührt.");
-    const zw = st.zwischen || {};
-    const zahl = ersteStufe
-      ? T("fotos.kt_zahl1", "{n} geprüft · {neu} neu · {g} geändert").replace("{n}", num(st.done || 0)).replace("{neu}", num(zw.neu || 0)).replace("{g}", num(zw.geaendert || 0))
-      : T("fotos.kt_zahl2", "{n} von {g} gelesen").replace("{n}", num(st.done || 0)).replace("{g}", num(st.total || 0));
-    const ort = st.aktuell ? " · " + T("fotos.kt_gerade", "gerade:") + " " + kurzPfad(st.aktuell) : "";
-    const ruhig = (ersteStufe && zw.uebernommen) ? " · " + T("fotos.kt_ruhig", "{n} aus unveränderten Ordnern übernommen").replace("{n}", num(zw.uebernommen)) : "";
+    const ort = st.aktuell
+      ? (z.erste ? T("fotos.kt_ordner", "Ordner: {p}") : T("fotos.kt_datei", "Datei: {p}")).replace("{p}", kurzPfad(st.aktuell)) : "";
+    const ruhig = (z.erste && zw.uebernommen) ? T("fotos.kt_ruhig", "{n} aus unveränderten Ordnern übernommen").replace("{n}", num(zw.uebernommen)) : "";
     // 18.09.2026 (Marc: „interessant, was Schritt 2 dann wäre, damit man weiß, auf was man warten muss")
     const warten = (stand.ungelesen || 0) + (zw.neu || 0) + (zw.geaendert || 0);
-    const danach = (ersteStufe && st.art !== "ungelesen")
+    const danach = (z.erste && st.art !== "ungelesen")
       ? `<div class="foto-kt-2 muted">${esc(T("fotos.kt_danach", "Danach Schritt 2: liest Aufnahmezeit, Ort und Kamera der neuen Dateien und legt Vorschaubilder an — derzeit warten {n} Dateien darauf. Das läuft im Hintergrund weiter und macht beim nächsten Mal dort weiter, wo es aufhörte.").replace("{n}", num(warten)))}</div>` : "";
-    return `<div class="foto-kt-1">⏳ ${esc(schritt)} <span class="muted">${esc(zahl + ruhig + ort)}</span></div>
+    const balken = z.proz != null
+      ? `<div class="foto-kt-balken" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${z.proz}"><span style="width:${z.proz}%"></span></div>` : "";
+    return `<div class="foto-kt-1">⏳ ${esc(scanSchrittText(st))}</div>
+      <div class="foto-kt-zahl">${esc(scanStandText(st))}</div>${balken}
+      ${(ort || ruhig) ? `<div class="foto-kt-2 muted">${esc([ort, ruhig].filter(Boolean).join(" · "))}</div>` : ""}
       <div class="foto-kt-2 muted">${esc(zweck)}</div>${danach}`;
   }
   function kurzPfad(p) {

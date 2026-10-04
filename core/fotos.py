@@ -357,6 +357,16 @@ def medien_finden(ordner: str, recursive: bool = True) -> Iterable[Path]:
 GRUENDLICH_TAGE = 7
 
 
+def erwartete_dateien(conn: sqlite3.Connection, ordner: Optional[list] = None) -> int:
+    """Wie viele Dateien Durchgang 1 voraussichtlich sieht: der bekannte Bestand der (erreichbaren) Ordner.
+    Für „x von ≈ y" und die Restzeit in der Oberfläche (04.10.2026) — eine Schätzung, neue Dateien kommen dazu."""
+    ziele = ordner if ordner is not None else [o["path"] for o in ordner_liste(conn, pruefen=False) if o["da"]]
+    n = 0
+    for o in ziele:
+        n += conn.execute("SELECT COUNT(*) FROM fotos WHERE ordner = ? AND fehlt_seit IS NULL", (o,)).fetchone()[0]
+    return int(n)
+
+
 def gruendlich_faellig(conn: sqlite3.Connection) -> bool:
     r = conn.execute("SELECT value FROM meta WHERE key = 'fotos_gruendlich'").fetchone()
     try:

@@ -4878,6 +4878,17 @@ class Api:
                     self._foto_scan_state["ferne_ordner"] = ferne
                     log.info("[fotos] %d Ordner gerade nicht erreichbar: %s",
                              len(ferne), ", ".join(ferne[:3]))
+                # 04.10.2026 (Marc: „ein Schritt, der zwei verschiedene Dinge macht — man weiß gar nicht, was
+                # passiert") — Gangart (schnell: unveränderte Ordner übernehmen / gründlich: jede Datei abfragen)
+                # und die erwartete Zahl aus dem Bestand mitliefern, damit die Oberfläche „x von ≈ y" und eine
+                # Restzeit zeigen kann.
+                gr = gruendlich if gruendlich is not None else cfotos.gruendlich_faellig(conn)
+                self._foto_scan_state["gruendlich"] = bool(gr)
+                try:
+                    self._foto_scan_state["erwartet"] = cfotos.erwartete_dateien(conn, nur)
+                except Exception:  # noqa: BLE001
+                    self._foto_scan_state["erwartet"] = 0
+                self._foto_scan_state["phase_seit"] = time.time()
                 if ohne_liste:
                     # Nur das Ungelesene nachholen: ein vollständiger Blick in
                     # die Ordner lohnt nicht bei jedem Öffnen.
@@ -4888,12 +4899,12 @@ class Api:
                         conn,
                         fortschritt=lambda n, g: self._foto_scan_state.update(
                             {"phase": "dateien", "done": n, "total": g}),
-                        stop=lambda: self._foto_scan_stop, ordner=nur, aktuell=_aktuell, gruendlich=gruendlich)
+                        stop=lambda: self._foto_scan_stop, ordner=nur, aktuell=_aktuell, gruendlich=gr)
                     if not r1.get("abbruch") and not nur:
                         cfotos.nachschau_merken(conn)
                 self._foto_scan_state.update({"dateien": r1, "neu": r1.get("neu", 0)})
                 if not nur_liste and not self._foto_scan_stop:
-                    self._foto_scan_state.update({"phase": "daten", "done": 0, "total": 0})
+                    self._foto_scan_state.update({"phase": "daten", "done": 0, "total": 0, "phase_seit": time.time()})
                     r2 = cfotos.durchgang2(
                         conn,
                         fortschritt=lambda n, g: self._foto_scan_state.update(

@@ -1573,7 +1573,7 @@ gruppiert. Es wird dabei **nur gelesen** — an deinen Dateien ändert sich nich
 Links **Ordner hinzufügen …** wählen; Unterordner kommen mit. Danach läuft das
 Einlesen in zwei Durchgängen:
 
-1. **Dateien suchen** — dauert Sekunden, danach steht die Liste schon.
+1. **Dateien suchen** — dauert Sekunden, danach steht die Liste schon. Bei späteren Nachschauen sagt die Kopfzeile, in welcher Gangart: **schnell** (nur Ordner, die sich geändert haben — Minuten) oder **gründlich** (jede Datei einzeln, einmal pro Woche und bei „Jetzt einlesen“ — auf einem NAS mit vielen Fotos eine Weile). Dazu steht da, wie weit sie ist („45.210 von ≈ 170.705 Dateien geprüft, 26 %“, mit Balken), wie lange es noch dauert und in welchem Ordner sie gerade ist (seit v0.9.781).
 2. **Aufnahmedaten lesen** — Zeit, Koordinate, Kamera, Objektiv und alle
    weiteren Angaben aus der Datei, dazu die Vorschaubilder. Das läuft im
    Hintergrund, zeigt seinen Fortschritt und lässt sich abbrechen. Beim

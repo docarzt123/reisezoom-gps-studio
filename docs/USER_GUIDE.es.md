@@ -1560,7 +1560,7 @@ Solo **lee**: ninguno de tus archivos se modifica.
 A la izquierda, **Añadir carpeta …**; las subcarpetas se incluyen. La lectura
 ocurre en dos pasadas:
 
-1. **Buscar archivos** — segundos, y la vista ya está.
+1. **Buscar archivos** — segundos, y la vista ya está. En las revisiones posteriores la cabecera dice en qué modo: **rápida** (solo las carpetas que cambiaron, minutos) o **completa** (cada archivo, una vez por semana y con «Escanear ahora»; en un NAS con muchas fotos tarda un rato). Además muestra cuánto lleva («45.210 de ≈ 170.705 archivos comprobados, 26 %», con barra), cuánto falta y en qué carpeta está (desde v0.9.781).
 2. **Leer datos de captura** — hora, coordenadas, cámara, objetivo y todo lo
    demás, además de las miniaturas. Ocurre en segundo plano, muestra su progreso
    y se puede cancelar. La próxima vez continúa donde lo dejó.

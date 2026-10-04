@@ -4491,6 +4491,14 @@ Zuordnung über die längste enthaltende Wurzel. `app.fotos_laufwerk_verbinden(o
 Oberfläche `ui/js/fotos.js`: `ordnerZeile`, `lwZustand`, `lwArt`, `ordnerTitel`, `laufwerkVerbinden` (danach 30 s lang
 alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/test_fotos_laufwerke.py`.
 
+## Einlese-Stand der Fotos (04.10.2026, v0.9.781)
+
+`app.fotos_scan_start` legt in `_foto_scan_state` zusätzlich `gruendlich` (aufgelöst: Parameter oder
+`cfotos.gruendlich_faellig`), `erwartet` (`cfotos.erwartete_dateien`: bekannter Bestand der erreichbaren Ordner) und
+`phase_seit` ab. `ui/js/fotos.js`: `scanZahlen` (x, ≈ Gesamt, %, Restzeit aus dem Tempo seit Phasenbeginn, `tempoMess`),
+`restText`, `scanSchrittText` (Gangart), `scanStandText` (eine Zeile) und `scanKlartextHtml` (Kopfzeile mit Balken
+`.foto-kt-balken`); Kasten unten rechts und Seitenleiste nehmen dieselben Texte. Test `tests/test_fotos_klartext.py`.
+
 ## Probelauf-Start (04.10.2026, v0.9.780)
 
 Vor dem ersten Bild baut `_faithBuild` die Stützstellen der ruhigen Kamera (`_previewRaf = -1` = „läuft, noch kein Bild");

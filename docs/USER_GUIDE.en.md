@@ -1520,7 +1520,7 @@ in them and shows them by day, on a map, or grouped by tour. It only ever
 Pick **Add folder …** on the left; subfolders come along. Reading then happens
 in two passes:
 
-1. **Finding files** — seconds, and the view already stands.
+1. **Finding files** — seconds, and the view already stands. On later checks the header says which mode is running: **quick** (only folders that changed — minutes) or **thorough** (every single file, once a week and on “Scan now” — on a NAS with many photos this takes a while). It also shows how far it is (“45,210 of ≈ 170,705 files checked, 26 %”, with a bar), how long it will still take and which folder it is in (since v0.9.781).
 2. **Reading capture data** — time, coordinates, camera, lens and everything
    else in the file, plus the thumbnails. This runs in the background, shows its
    progress and can be cancelled. Next time it carries on where it stopped.
