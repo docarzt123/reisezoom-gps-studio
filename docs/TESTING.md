@@ -30,6 +30,13 @@ Grün = alle Gates bestanden. Exit ≠ 0 = Release blockiert.
 | 7 | Track-Sichtbarkeit | `preview-track`-Quelle ≥ 2 Punkte — *best effort*, SKIPt wenn headless nicht befüllbar (`selftest_track_visible.py`) |
 | 8 | Echte Renders | nur mit `--full`: rendert echte Videos über `core/animator.py` (`selftest_renders.py`) |
 
+**Suite nicht doppelt (seit 04.10.2026):** `scripts/run_tests.py` schreibt nach einem vollen, grünen Lauf auf
+sauberem Arbeitsstand (Anfang und Ende, HEAD unverändert, kein Namensfilter) den Stempel `.rz_suite_gruen.json`
+(Commit, Anzahl, Zeit). `deploy_release.sh` prüft ihn mit `scripts/suite_stempel.py pruefen <tag>`: gilt er (≤ 72 h,
+zwischen Stempel-Commit und Tag nur Doku — `CHANGELOG.md`, `HANDOVER.md`, `docs/*.md|html|xml`), läuft
+`release_check.sh` mit `RZ_OHNE_SUITE=1` — alle Gates außer der Suite-Wiederholung (~80 min gespart). Sonst wie
+bisher komplett. Test `tests/test_suite_stempel.py`. Ablauf also: volle Suite → Changelog schließen → Tag → Deploy.
+
 Gate 7 ist **selbst-kalibrierend**: kann die Umgebung die Vorschau nicht befüllen, meldet es SKIP + Manuell-Hinweis (kein falsches Grün). Deshalb ersetzt es **nicht** Teil B.
 
 ---

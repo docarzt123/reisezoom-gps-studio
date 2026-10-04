@@ -76,7 +76,13 @@ else
   #     niemand, also fiel auch nicht auf, dass zwei davon längst rot waren.
   #     `run_tests.py` findet sie selbst und überspringt begründet, was gerade
   #     nicht laufen kann (kein Netz, kein Token, echte Renders).
-  run "Alle Tests (run_tests)" python3 scripts/run_tests.py
+  # 04.10.2026 — RZ_OHNE_SUITE=1 (setzt deploy_release.sh, wenn scripts/suite_stempel.py für diesen Stand eine
+  #     volle grüne Suite belegt): die Wiederholung entfällt, alle übrigen Gates laufen.
+  if [ "${RZ_OHNE_SUITE:-0}" = "1" ]; then
+    printf "\n\033[2m▶ Alle Tests (run_tests): übersprungen — volle Suite für diesen Stand schon grün\033[0m\n"
+  else
+    run "Alle Tests (run_tests)" python3 scripts/run_tests.py
+  fi
 
   # 7d) Dialoge übereinander + sichtbarer Tastatur-Fokus.
   run "Dialoge + Fokus (selftest_dialoge)" python3 scripts/selftest_dialoge.py

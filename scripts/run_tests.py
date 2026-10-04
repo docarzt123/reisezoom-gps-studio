@@ -115,6 +115,15 @@ def main() -> int:
     alles = "--alle" in argv
     muster = [a for a in argv if not a.startswith("--")]
 
+    # 04.10.2026 — Stempel „volle Suite grün für diesen Commit" (scripts/suite_stempel.py): nur bei sauberem
+    # Arbeitsstand am Anfang und Ende, ohne Namensfilter, HEAD unverändert. Das Upload-Skript spart sich dann die
+    # Wiederholung der Suite.
+    try:
+        import suite_stempel as _st
+        _st_kopf, _st_sauber = _st.git("rev-parse", "HEAD"), _st.sauber()
+    except Exception:  # noqa: BLE001 — ohne Git (Paket, Kopie) einfach kein Stempel
+        _st, _st_kopf, _st_sauber = None, "", False
+
     dateien = sorted(TESTS.glob("test_*.py"))
     if muster:
         dateien = [d for d in dateien if any(m in d.name for m in muster)]
@@ -202,6 +211,18 @@ def main() -> int:
         print(f"\n{FARBE_GRAU}Veraltet — offener Punkt, nicht vergessen:{FARBE_AUS}")
         for name in veraltet:
             print(f"  · {name}: {VERALTET[name]}")
+
+    if _st is not None and not rot and not muster and not nur_liste and _st_sauber:
+        try:
+            if _st.git("rev-parse", "HEAD") == _st_kopf and _st.sauber():
+                _st.schreiben(_st_kopf, len(ok))
+                print(f"{FARBE_GRAU}Stempel: volle Suite grün für {_st_kopf[:7]} (.rz_suite_gruen.json){FARBE_AUS}")
+            else:
+                print(f"{FARBE_GRAU}Kein Stempel: Arbeitsstand hat sich während des Laufs geändert{FARBE_AUS}")
+        except Exception:  # noqa: BLE001
+            pass
+    elif _st is not None and not rot and not muster and not nur_liste:
+        print(f"{FARBE_GRAU}Kein Stempel: Arbeitsstand war beim Start nicht sauber (git status){FARBE_AUS}")
 
     return 1 if rot else 0
 
