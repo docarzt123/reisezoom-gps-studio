@@ -4832,6 +4832,7 @@
   "animator.tp.kante_zurueck": "Zur vorigen Kante (Keyframe, Einblendung, Schild, Halt)",
   "animator.tp.bild_zurueck": "Ein Bild zurück — mit ⇧ eine Sekunde",
   "animator.tp.play": "Abspielen / Anhalten",
+  "animator.tp.bereitet": "Vorschau wird vorbereitet …",
   "animator.tp.leertaste": "Leertaste",
   "animator.tp.bild_vor": "Ein Bild vor — mit ⇧ eine Sekunde",
   "animator.tp.kante_vor": "Zur nächsten Kante (Keyframe, Einblendung, Schild, Halt)",

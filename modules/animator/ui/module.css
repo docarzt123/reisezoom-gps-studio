@@ -1430,3 +1430,7 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
    in die 360-px-Spalte und wurde SCHMALER */
 .module-body.ohne-seite { grid-template-columns: minmax(0, 1fr); }
 .ohne-zeit #anim-timeline-host { display: none !important; }
+
+/* 04.10.2026 — Play-Knopf, während die Vorschau startet (Stützstellen der ruhigen Kamera) */
+.anim-transport .tp-knopf.bereitet { animation: tp-bereitet 0.9s ease-in-out infinite; cursor: progress; }
+@keyframes tp-bereitet { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }

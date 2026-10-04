@@ -5335,7 +5335,12 @@ function mountAnimator(body, headerActions, opts) {
     }
     return best;
   }
+  const _gebZeit = { ms: 0, n: 0, max: 0 };   // Prüfstand: Hauptfaden-Zeit des Färbens (window.__rzGebaeude.zeit)
   function _gebaeudeFaerben() {
+    const t0 = performance.now();
+    try { _gebaeudeFaerbenKern(); } finally { const d = performance.now() - t0; _gebZeit.ms += d; _gebZeit.n++; if (d > _gebZeit.max) _gebZeit.max = d; }
+  }
+  function _gebaeudeFaerbenKern() {
     if (!map || !_gebaeudeAn() || !map.getLayer(GEB_EBENE)) return;
     const quellen = _gebLuftbildQuellen();
     if (!quellen.length) return;
@@ -5403,7 +5408,7 @@ function mountAnimator(body, headerActions, opts) {
     while ((_gebLaeuft || _gebSchlange.length) && performance.now() < bis) await new Promise(r => setTimeout(r, 40));
     return true;
   };
-  window.__rzGebaeude = { faerben: () => _gebaeudeFaerben(), quellen: () => _gebLuftbildQuellen(), kacheln: () => _gebKacheln.size, dach: (lon, lat) => _gebDachfarbe(lon, lat, _gebLuftbildQuellen()), farben: () => [..._gebFarben.values()].filter(Boolean).length,
+  window.__rzGebaeude = { zeit: () => Object.assign({}, _gebZeit), faerben: () => _gebaeudeFaerben(), quellen: () => _gebLuftbildQuellen(), kacheln: () => _gebKacheln.size, dach: (lon, lat) => _gebDachfarbe(lon, lat, _gebLuftbildQuellen()), farben: () => [..._gebFarben.values()].filter(Boolean).length,
                           offen: () => _gebSchlange.length + (_gebLaeuft ? 1 : 0),
                           an: () => _gebaeudeAn(), anwenden: () => _gebaeudeAnwenden(),
                           ebene: () => !!(map && map.getLayer(GEB_EBENE)), sichtbar: () => { try { return map.getLayoutProperty(GEB_EBENE, "visibility") !== "none" && !!map.getLayer(GEB_EBENE); } catch (_) { return false; } },
@@ -8880,6 +8885,12 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     _kartenGroessePruefen("Probe-Lauf");
+    if (_previewRaf === -1 && forceStart !== true && !window.__rzStepMode) {
+      // 04.10.2026 — Start läuft schon (Stützstellen der ruhigen Kamera), zweiter Klick bricht ihn nicht mehr ab
+      try { applog("info", "[runPreview] Klick während der Vorbereitung — ignoriert"); } catch (_) {}
+      try { _tpAnzeigen(); } catch (_) {}
+      return;
+    }
     if (_previewRaf && forceStart !== true) {
       // Aktuell läuft was → stoppen
       try { if (window.__rzProbelaufBilanz) window.__rzProbelaufBilanz("Stopp"); } catch (_) {}
@@ -10478,6 +10489,10 @@ function mountAnimator(body, headerActions, opts) {
     // 09.09.2026 — nach jeder Fahrt, sobald Ruhe ist: Gelände-Kacheln prüfen
     let _gelaendeTimer = null;
     const _gelaendeNachFahrt = () => { clearTimeout(_gelaendeTimer); _gelaendeTimer = setTimeout(() => { try { _gelaendePruefen("Ruhe nach Fahrt"); } catch (_) {} }, 1500); };
+    function _vorschauMsaa() {
+      if (window.__rzRenderMode || window.__rzStepMode) return true;
+      try { return localStorage.getItem("rz-vorschau-msaa") === "1"; } catch (_) { return false; }
+    }
     const made = createMap({
       container: "map-canvas",
       quellenleiste: false,   // Quellenzeile gehört hier zum Video (Render-Einstellungen), nicht zur App
@@ -10488,7 +10503,10 @@ function mountAnimator(body, headerActions, opts) {
       ortho: _currentOrtho(),
       // 03.10.2026 (Marc: „die Häuser flimmern zum Teil") — Kantenglättung (MSAA): ohne sie springen die Kanten
       // ferner 3D-Häuser bei jeder Kamerabewegung zwischen Pixeln hin und her. Nur beim Anlegen setzbar.
-      common: { center: [10, 51], zoom: 4, pitch: currentPitch(), antialias: true, canvasContextAttributes: { antialias: true } },
+      // 04.10.2026 (Marc: „die Vorschau ist ganz schön langsam") — MSAA nur im Render: auf einem Retina-Bildschirm
+      // rechnete die Vorschau damit 4 Abtastungen je Pixel bei doppelter Pixeldichte; die feinere Pixeldichte glättet dort
+      // ohnehin. localStorage „rz-vorschau-msaa" = "1" schaltet es für die Vorschau trotzdem ein (Prüfstand).
+      common: Object.assign({ center: [10, 51], zoom: 4, pitch: currentPitch() }, _vorschauMsaa() ? { antialias: true, canvasContextAttributes: { antialias: true } } : {}),
     });
     map = made.map;
     try { map.on("moveend", _gelaendeNachFahrt); map.on("idle", _gelaendeNachFahrt); } catch (_) {}   // 09.09.2026 Gelände-Kacheln prüfen
@@ -14384,7 +14402,15 @@ function mountAnimator(body, headerActions, opts) {
     _tpPlatzieren();
     const el = document.getElementById("anim-transport"); if (!el || !el.offsetParent) return;
     const z = el.querySelector(".tp-zeit"); if (z) z.textContent = `${_tpText(_tpZeitJetzt())} / ${_tpText(_tpG())}`;
-    const p = el.querySelector('[data-tp="play"]'); if (p) { const an = !!_previewRaf; p.textContent = an ? "⏸" : "▶"; p.classList.toggle("an", an); }
+    // 04.10.2026 (Marc: „man muss mehrmals auf Play drücken … mehrmals auf Pause") — während die ruhige Kamera ihre
+    // Stützstellen baut (_previewRaf === -1, nach dem App-Start in neuer Gegend einige Sekunden), stand hier schon ⏸,
+    // obwohl sich nichts bewegte; der nächste Klick brach den Start ab. Jetzt ⏳, und Klicks in dieser Phase zählen nicht.
+    const p = el.querySelector('[data-tp="play"]'); if (p) {
+      const bereitet = _previewRaf === -1 && !window.__rzStepMode, an = !!_previewRaf && !bereitet;
+      p.textContent = bereitet ? "⏳" : (an ? "⏸" : "▶"); p.classList.toggle("an", an); p.classList.toggle("bereitet", bereitet);
+      p.title = bereitet ? t("animator.tp.bereitet", "Vorschau wird vorbereitet …") : p.dataset.tipp || p.title;
+      if (!p.dataset.tipp && !bereitet) p.dataset.tipp = p.title;
+    }
     const tb = el.querySelector('[data-tp="ton"]'); if (tb) { const an = _tonVorschauAn(); tb.textContent = an ? "🔊" : "🔇"; tb.classList.toggle("ist-stumm", !an); }
   }
   function _tpAufbauen() {
@@ -17725,6 +17751,23 @@ function mountAnimator(body, headerActions, opts) {
     renderOverlayPreview();
     configurePointCountSlider(res.stats.n_points);
     try { paceAnzeigen(); } catch (_) {}
+    _demVorwaermen(res.coords);
+  }
+  // 04.10.2026 — Geländehöhen für die ruhige Kamera (api.dem_hoehen, Stufe 13) schon beim Laden des Tracks im
+  // Hintergrund holen: der erste Probelauf in einer neuen Gegend wartete sonst ~2,7 s auf das Netz, bevor sich etwas
+  // bewegte (Marc: „man muss mehrmals auf Play drücken"). Die Kacheln landen im Kachel-Cache, der Aufbau liest sie dort.
+  let _demVwTimer = 0;
+  function _demVorwaermen(coords) {
+    if (window.__rzRenderMode || !Array.isArray(coords) || coords.length < 2) return;
+    clearTimeout(_demVwTimer);
+    _demVwTimer = setTimeout(() => {
+      try {
+        const schritt = Math.max(1, Math.floor(coords.length / 150)), pts = [];
+        for (let i = 0; i < coords.length; i += schritt) pts.push([coords[i][0], coords[i][1]]);
+        api().dem_hoehen(pts, 13).then((r) => applog("info", `[dem-vorwaermen] ${pts.length} Punkte · ${r && r.n_ok}/${r && r.n} Höhen`))
+          .catch(() => {});
+      } catch (_) {}
+    }, 1200);
   }
 
   // 29.09.2026 — Spur glätten (Meter, 0 = aus). Wert aus dem Projekt, sonst aus dem Regler;

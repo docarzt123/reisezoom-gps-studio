@@ -4832,6 +4832,7 @@
   "animator.tp.kante_zurueck": "Al borde anterior (keyframe, rótulo, cartel, pausa)",
   "animator.tp.bild_zurueck": "Un fotograma atrás — con ⇧ un segundo",
   "animator.tp.play": "Reproducir / pausar",
+  "animator.tp.bereitet": "Preparando la vista previa …",
   "animator.tp.leertaste": "Espacio",
   "animator.tp.bild_vor": "Un fotograma adelante — con ⇧ un segundo",
   "animator.tp.kante_vor": "Al borde siguiente (keyframe, rótulo, cartel, pausa)",

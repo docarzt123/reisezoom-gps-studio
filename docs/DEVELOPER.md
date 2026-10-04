@@ -4450,6 +4450,41 @@ fill-extrusion-Ebenen (Liberty) folgen dem Schalter, dann keine eigene. Aufgeruf
 Stilwechsel) und beim Umschalten. Dachfarbe: `_gebaeudeFaerben` (bei `sourcedata`/`moveend`) → je Feature-ID Mittelpunkt → `_gebDachfarbe` liest die oberste Luftbild-Kachel (z17, `fetch` über den Kachel-Weg, `createImageBitmap` → `getImageData`, Mittel einer kleinen Fläche, durchsichtig → nächste Ebene) → `setFeatureState({farbe})`; Paint `coalesce(feature-state farbe, Stilfarbe)`; Render wartet über `window.__rzGebaeudeWarte` (in `_WARTE_BILD_JS`). Prüfstand `window.__rzGebaeude` (Anzahl über `querySourceFeatures` — 3D-Klötze liefert
 `queryRenderedFeatures` nicht). Test `tests/test_gebaeude_3d.py`.
 
+### Flimmern (03./04.10.2026, v0.9.779–0.9.780)
+
+Drei Ursachen, drei Maßnahmen — gefunden mit `tests/pruefstand_haeuser.py` (Berlin-Schnellvideo, nur ein Teilstück
+über `RZ_TEILSTUECK="ab,bis,schritte_je_s"` in `core/szene.py`, Varianten als JS-Schnipsel über `RZ_SEITE_JS` bzw.
+`PR_JS_<NAME>`, `PR_CRF`). ⚠️ Fein gerenderte Teilstücke taugen NICHT zum Zählen von Einzelbild-Ausreißern (A-B-A wird
+bei 240 Schritten/s zu A-A-B-B-A-A) — immer im 30-fps-Takt messen und Einzelbilder ansehen. Sichtbar machen: Farbe je
+OSM-ID (`hsl(id·47 mod 360)`), dann zeigen kämpfende Wände zweifarbige Streifen.
+1. **Gebäudeteile gleichfarbig** (`_gebaeudeFaerben`): je Feature `{m, ring, bb, a}` in `_gebFlaechen` + Raster
+   `_gebRaster` (0,001°), `_gebWirtVon(id)` = größtes Gebäude (auch `hide_3d`-Umriss) um den Mittelpunkt; Farbe des
+   Wirts (`_gebWirtFarbe`). Neue Features prüfen ihre Nachbarn (später geladener Umriss färbt Teile um). Neue Ebene
+   (Stilwechsel) leert alle Caches. Test A2 (Potsdamer Platz, unabhängig nachgerechnet).
+2. **Rang gegen Z-Fighting zwischen verschiedenen Gebäuden** (v0.9.780): `_gebFarbeAusdruck(farbe)` →
+   `["let","rz_c",["to-rgba",…],["rgba",r,g,b,1−(1+id%63)/255]]`, der Rang reist im Alphakanal (8 Bit, vormultipliziert).
+   Vendor-Patch `rz-patch extrusionrang` (fill-extrusion-Vertex-Shader): `rz_rang=1−color.a`, Farbe ent-multipliziert und
+   deckend, `gl_Position.z −= rz_rang·2.55e-4·w` (Schritt 1e-6 NDC ≈ 8 Tiefen-ULP, max. 6,3e-5 ≈ 1,6 m Vorrang bei 1 km).
+   Auch für stil-eigene fill-extrusion-Ebenen (Liberty), außer Zoom-Ausdrücken/alten Stil-Funktionen. Wächter:
+   `test_vendor_patches.py`, `test_gebaeude_3d.py`. Gemessen (ohne Luftbild, 52 s): 59 → 20 Flacker-Blöcke.
+3. **Kantenglättung (MSAA) nur im Render** (`_vorschauMsaa`: `__rzRenderMode`/`__rzStepMode`, sonst localStorage
+   `rz-vorschau-msaa`) — nur beim Anlegen der Karte setzbar (`common.canvasContextAttributes.antialias` / Mapbox
+   `antialias`). In der Retina-Vorschau kostete sie ~20 % (60 → 48 fps); dort glättet die Pixeldichte. `_render_ss`
+   (SSAA) greift erst ab 4K.
+
+Prüfstand-Haken: `window.__rzGebaeude.zeit()` (Hauptfaden-Zeit des Färbens, gemessen ~15 ms je 6 s Probelauf),
+`quellen()`, `kacheln()`, `dach(lon, lat)`. Kanten-Analyse deckungsgleicher Wände: `tests/pruefstand_haeuser_kanten.py`
+(zählt noch doppelt — Paare über mehrere Rasterzellen; nur als Größenordnung).
+
+## Probelauf-Start (04.10.2026, v0.9.780)
+
+Vor dem ersten Bild baut `_faithBuild` die Stützstellen der ruhigen Kamera (`_previewRaf = -1` = „läuft, noch kein Bild");
+einzige Wartestelle ist `api.dem_hoehen` (Stufe 13, Kachel-Cache, in neuer Gegend ~2,7 s Netz). `_tpAnzeigen` zeigt in dieser
+Phase ⏳ (`.tp-knopf.bereitet`), `runTimelinePreview` ignoriert weitere Klicks (vorher stand ⏸ ohne Bewegung, der nächste
+Klick brach den Start ab — Marc: „mehrmals auf Play/Pause drücken"). `_demVorwaermen(coords)` holt beim Laden des Tracks
+≤ 150 Punkte vor. Prüfstand `tests/pruefstand_vorschau_haeuser.py` (`PV_DPR`, `PV_MSAA`, `PV_DEM_LANGSAM`, `PV_FOTOS`,
+`PV_UMGEKEHRT`): Start-/Stopp-Zeit, fps, Doppelklick, Pfeil-Verzug, Linienende ↔ Pfeil.
+
 ## HDR-Render (02.10.2026, v0.9.779)
 
 `AnimatorConfig.farbraum` ("sdr"|"hlg"|"pq", Projekt `animator.farbraum`, Feld `#anim-farbraum`, Render-Param `farbraum`).

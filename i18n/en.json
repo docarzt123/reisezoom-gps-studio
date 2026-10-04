@@ -4832,6 +4832,7 @@
   "animator.tp.kante_zurueck": "To the previous edge (keyframe, overlay, sign, hold)",
   "animator.tp.bild_zurueck": "One frame back — with ⇧ one second",
   "animator.tp.play": "Play / pause",
+  "animator.tp.bereitet": "Preparing the preview …",
   "animator.tp.leertaste": "Space",
   "animator.tp.bild_vor": "One frame forward — with ⇧ one second",
   "animator.tp.kante_vor": "To the next edge (keyframe, overlay, sign, hold)",
