@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.780] – 2026-10-04
+
+> Release 04.10.2026 — scrubbing shows photos and signs, overlay number fields fit on Windows, 3D buildings without z-fighting (rank per building, vendor patch extrusionrang), play/pause respond at once (hourglass while preparing, terrain heights pre-fetched), preview without MSAA. Full suite 334/334 incl. render matrix and all map styles.
+
 > **0.9.780** (04.10.2026, built locally): two fixes from a beta tester report (Windows).
 
 ### Fixed
