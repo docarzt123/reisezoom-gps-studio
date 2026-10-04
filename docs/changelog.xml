@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 04 Oct 2026 04:35:58 +0000</lastBuildDate>
+<lastBuildDate>Sun, 04 Oct 2026 10:34:49 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.780</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-780</link>
+<guid isPermaLink="false">gps-studio-v0.9.780</guid>
+<pubDate>Sun, 04 Oct 2026 12:00:00 +0000</pubDate>
+<description>Play und Pause reagieren sofort — nach dem Öffnen musste man mehrmals drücken. Jetzt zeigt der Knopf ⏳, solange die Vorschau vorbereitet wird, und die Geländehöhen werden schon beim Laden geholt.
+
+Vorschau wieder flüssig — die Kantenglättung gegen flimmernde Häuser läuft nur noch beim Rendern, nicht in der Live-Vorschau.
+
+3D-Häuser ruhiger — Wände benachbarter Häuser, die genau übereinanderliegen, flackerten gestreift. Jetzt gewinnt in jedem Bild dasselbe Haus.
+
+Fotos beim Ziehen der Zeitleiste — Foto-Schilder und Foto-Pins erscheinen jetzt auch, während du den Abspielkopf von Hand ziehst, nicht erst beim Loslassen.</description>
+</item>
 <item>
 <title>v0.9.779</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-779</link>
@@ -165,13 +178,6 @@ Schnell-Video im Animator — „In dieses Projekt übernehmen“ ist jetzt der 
 <description>Pause im Probelauf: Linie und Pfeil bleiben zusammen — nach Space stand der Pfeil manchmal allein vor der Linie oder die Linie schon ein Stück weiter (bis zu 10 m). Jetzt endet sie genau am Pfeil.
 
 Cluster zuklappen blendet die Kamera-Spuren aus — Neigung, Drehung, Zoom, Position und Bildlage verschwinden, alles rutscht hoch; der Cluster zeigt weiter die Marker.</description>
-</item>
-<item>
-<title>v0.9.760</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-760</link>
-<guid isPermaLink="false">gps-studio-v0.9.760</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Schnell-Video mit eigener Länge — neben Kurz, Normal und Lang gibt es „Eigene“ (Sekunden) und aus dem Animator heraus „Wie im Animator“ mit der dort eingestellten Länge. Bei Reisen stimmt die Länge jetzt auch nach dem Übernehmen genau.</description>
 </item>
 </channel>
 </rss>
