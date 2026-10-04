@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.780** (04.10.2026, built locally): two fixes from a beta tester report (Windows).
+
+### Fixed
+- **Photos and signs while dragging the timeline** (beta tester: "when I play the video the photos show, when I move through it by hand they don't"): since 04.09.2026 `scrubPreview(…, {light: true})` drew only line, dot and camera while the scrubber was dragged — photo signs and photo pins only after letting go, so whoever dragged slowly or paused never saw them. Now they follow during the drag too, throttled to at most every 80 ms (the sign switching only rebuilds the filter when the visible set changes). Test `tests/test_scrub_schilder.py` (mouse held in the sign's window → visible; behind it → gone; released → visible).
+- **Number fields in the overlay row editor too narrow on Windows** (beta tester screenshot: size "215" cut off, "Height 10," too): 60 px minus 12 px padding per side and the Windows spin buttons left ~19 px for the digits. Now 78 px with 6 px padding (64 px inside). Test `tests/test_ct_zahlenfelder.py` (fails on the old CSS).
+
 ## [0.9.779] – 2026-10-04
 
 > Release 04.10.2026 — urgent fix: 0.9.778 could not render at all (numpy missing from the app package, tester report). Also contains HDR render, summit heights, 3D buildings (roof colour, grow, quick-video ingredient; flicker reduced, not gone), build self-test in the release pipeline. Full suite 332/332 incl. test_render_alle_karten and test_render_matrix; self-test of the built .app green.

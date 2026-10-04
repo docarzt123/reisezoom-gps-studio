@@ -1316,7 +1316,7 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .ct-ank.on { background: var(--accent, #ff6b35); border-color: var(--accent, #ff6b35); }
 .ct-ez-reihe { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ct-ez-zahl { display: inline-flex; align-items: center; gap: 3px; }
-.ct-ez-zahl input { width: 64px; }
+.ct-ez-zahl input { width: 78px; padding: 4px 6px; box-sizing: border-box; }   /* 04.10.2026 s. u. */
 .ct-ez-zahl small { color: var(--text-dim, #9aa); font-size: 10.5px; }
 .ct-mehr summary { cursor: pointer; font-size: 11px; color: var(--text-dim, #9aa); margin: 4px 0; }
 .ct-ez-liste { display: flex; flex-direction: column; gap: 5px; }
@@ -1324,7 +1324,10 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .ct-ez-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .ct-ez-kopf b { flex: 1; font-size: 11.5px; }
 .ct-ez-body { display: flex; flex-direction: column; gap: 4px; }
-.ct-ez-body input[type="number"] { width: 60px; }
+/* 04.10.2026 (Beta-Tester Windows: „al seleccionar para modificar el número no entra en la casilla") — 60 px abzüglich
+   12 px Innenabstand je Seite und der Windows-Pfeiltasten (~17 px) ließen für „215" nur ~19 px: dreistellige Werte
+   abgeschnitten (Größe der Textzeile, Breite/Höhe des Diagramms). Prüfung: tests/test_ct_zahlenfelder.py */
+.ct-ez-body input[type="number"] { width: 78px; padding: 4px 6px; box-sizing: border-box; }
 .ct-ez-datei { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text-dim, #9aa); }
 
 /* ── 30.09.2026 — Vorankündigung von Schildern (Feld vorschau_s, _vorankuendigung) ──

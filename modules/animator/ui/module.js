@@ -8054,7 +8054,7 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
 
-  let _scrubRaf = 0, _scrubZiel = null, _scrubLetzt = null;   // 04.09.2026 — Scrub-Zusammenfassung je Bild
+  let _scrubRaf = 0, _scrubZiel = null, _scrubLetzt = null, _scrubSchilderZeit = 0;   // 04.09.2026 — Scrub-Zusammenfassung je Bild
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
     try { _ovTimingAt(_sgZeitAusAnker(anchor), (currentCoords && currentCoords.length > 1) ? Math.max(0, Math.min(1, anchor)) : 0); } catch (_) {}   // 30.09.2026 — Container-Zeiten am Zeitregler
@@ -8229,7 +8229,12 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.79 — Foto-Pins: Filter auf aktuelle Marker-Position. Foto erscheint
     // erst wenn Track-Marker es passiert hat.
     // v0.9.81 — via window-Helper (Scope-Fix, sonst ReferenceError silent).
-    if (!light) try {
+    // 04.10.2026 (Beta-Tester Windows: „beim Abspielen sieht man die Fotos, beim Ziehen von Hand nicht") —
+    // auch während des Ziehens, nur gedrosselt (höchstens alle 80 ms): `light` ließ Fotos und Schilder bis zum
+    // Loslassen ganz aus. Die Schild-Schaltung setzt den Filter ohnehin nur, wenn sich die sichtbare Menge ändert.
+    const _jetzt = performance.now();
+    if (!light || _jetzt - _scrubSchilderZeit > 80) try {
+      _scrubSchilderZeit = _jetzt;
       const ph = window.__rzAnimPhotos;
       if (ph && ph.updateMarkerFilter) ph.updateMarkerFilter(anchor);
       const sg = window.__rzAnimSigns;   // v0.9.171 — Schilder live mitführen
