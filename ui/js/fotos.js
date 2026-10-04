@@ -125,17 +125,11 @@
     const box = nav.querySelector("#foto-ordner-liste");
     if (box) {
       box.innerHTML = ordner.length
-        ? ordner.map((o, i) => `
-          <div class="foto-ordner">
-            <div class="foto-ordner-txt" title="${esc(o.path)}">
-              ${esc(o.path.split("/").slice(-2).join("/"))}
-              <span class="muted foto-ordner-lw">${esc(laufwerkVon(o.path))}</span>
-              <span class="muted">${num(o.n)}</span>${o.da ? "" : ` <span class="foto-ordner-fern">📴 ${T("fotos.ordner_weg", "nicht da")}</span>`}
-            </div>
-            <button class="btn btn-sm" data-fordweg="${i}" type="button"
-                    title="${T("fotos.ordner_entfernen", "Ordner nicht mehr beobachten")}">✕</button>
-          </div>`).join("")
+        ? ordner.map((o, i) => ordnerZeile(o, i)).join("")
         : `<div class="lib-nav-hint">${T("fotos.ordner_leer", "Noch kein Ordner. „Ordner hinzufügen“ nimmt einen auf; Unterordner kommen mit.")}</div>`;
+      box.querySelectorAll("[data-fverb]").forEach(b => {
+        b.onclick = () => { const o = ordner[+b.dataset.fverb]; if (o) laufwerkVerbinden(o); };
+      });
       box.querySelectorAll("[data-fordweg]").forEach(b => {
         b.onclick = async () => {
           const o = ordner[+b.dataset.fordweg];
@@ -500,6 +494,83 @@
      auch, was trotzdem geht und wann es weitergeht. */
   /** Auf welchem Laufwerk liegt ein Ordner? Der Name, den man kennt — nicht
       der letzte Ordnerteil (bei /Volumes/NAS/Bilder/2024 hieß es sonst „2024"). */
+  /* 04.10.2026 (Marc: „es wird immer noch nicht richtig angezeigt, welche Ordner eingehängt sind … was ist
+     /Volumes/Fotos überhaupt? Im Finder sehe ich das so ja gar nicht") — jede Zeile sagt, was der Finder sagt:
+     Name des Laufwerks, Art (Netzlaufwerk auf <Server> / Zusatzlaufwerk / dieser Rechner) und den Zustand mit Punkt:
+     🟢 verbunden · 📴 nicht verbunden (+ „Verbinden", wenn die Adresse bekannt ist) · ⚠️ antwortet nicht /
+     unter anderem Namen eingehängt. Daten: core/laufwerke.py über api.fotos_ordner (o.laufwerk). */
+  function lwName(o) {
+    const lw = (o && o.laufwerk) || {};
+    return lw.name || laufwerkVon(o && o.path);
+  }
+  function lwArt(lw) {
+    if (lw.art === "netz") return lw.server
+      ? T("fotos.lw_netz_auf", "Netzlaufwerk auf {s}").replace("{s}", lw.server)
+      : T("fotos.lw_netz", "Netzlaufwerk");
+    if (lw.art === "extern") return T("fotos.lw_extern", "Zusatzlaufwerk");
+    return T("fotos.laufwerk_intern", "Dieser Rechner");
+  }
+  function lwZustand(o) {
+    const lw = o.laufwerk || {};
+    if (lw.alternativ) return { punkt: "⚠️", klasse: "anders", text: T("fotos.lw_anders_kurz", "unter anderem Namen eingehängt") };
+    if (o.da) return { punkt: "🟢", klasse: "da", text: T("fotos.lw_verbunden", "verbunden") };
+    if (lw.verbunden && lw.lesbar == null) return { punkt: "⚠️", klasse: "haengt", text: T("fotos.lw_haengt", "verbunden, antwortet aber nicht") };
+    if (lw.art === "intern") return { punkt: "📴", klasse: "weg", text: T("fotos.lw_ordner_fehlt", "Ordner nicht gefunden") };
+    return { punkt: "📴", klasse: "weg", text: T("fotos.lw_getrennt", "nicht verbunden") };
+  }
+  /** Anzeigename des Ordners: Laufwerk, darunter der Weg im Laufwerk („Fotos › 2024 › Teneriffa"). */
+  function ordnerTitel(o) {
+    const lw = o.laufwerk || {};
+    const w = lw.wurzel || "";
+    const rest = (w && o.path.startsWith(w)) ? o.path.slice(w.length) : "";
+    const teile = rest.split(/[\\/]/).filter(Boolean);
+    if (lw.art !== "intern" && lw.name) return [lw.name].concat(teile.slice(-2)).join(" › ");
+    return o.path.split(/[\\/]/).filter(Boolean).slice(-2).join(" › ");
+  }
+  function ordnerZeile(o, i) {
+    const lw = o.laufwerk || {};
+    const z = lwZustand(o);
+    const verbindbar = !o.da && !lw.verbunden && !lw.alternativ && lw.art === "netz" && lw.url;
+    const anders = lw.alternativ
+      ? `<div class="foto-lw-hinweis">${esc(T("fotos.lw_anders", "Als „{n}“ eingehängt — macOS hat einen anderen Namen vergeben, weil „{o}“ belegt war. Im Finder auswerfen und neu verbinden, dann heißt es wieder „{o}“.")
+          .replace("{n}", String(lw.alternativ).split("/")[2] || lw.alternativ).split("{o}").join(lw.name || ""))}</div>` : "";
+    return `
+          <div class="foto-ordner foto-lw-${z.klasse}">
+            <span class="foto-lw-punkt" aria-hidden="true">${z.punkt}</span>
+            <div class="foto-ordner-txt" title="${esc(o.path)}">
+              <div class="foto-ordner-name"><b>${esc(ordnerTitel(o))}</b> <span class="muted">${num(o.n)}</span></div>
+              <div class="foto-lw-zeile"><span class="foto-lw-zustand">${esc(z.text)}</span> <span class="muted">· ${esc(lwArt(lw))}</span></div>
+              ${anders}
+              ${verbindbar ? `<button class="btn btn-sm foto-lw-verbinden" data-fverb="${i}" type="button"
+                    title="${esc(T("fotos.lw_verbinden_tip", "Öffnet {u} wie ⌘K im Finder — ein Passwort fragt das System selbst ab.").replace("{u}", lw.url))}">🔌 ${T("fotos.lw_verbinden", "Verbinden")}</button>` : ""}
+            </div>
+            <button class="btn btn-sm" data-fordweg="${i}" type="button"
+                    title="${T("fotos.ordner_entfernen", "Ordner nicht mehr beobachten")}">✕</button>
+          </div>`;
+  }
+  /** „Verbinden": Adresse über das System öffnen, dann 30 s lang alle 2 s nachsehen. */
+  async function laufwerkVerbinden(o) {
+    const r = await rzWarten("fotos_laufwerk_verbinden", () => api().fotos_laufwerk_verbinden(o.path)).catch((e) => ({ ok: false, error: String(e) }));
+    if (!r || !r.ok) { toast((r && r.error) || T("fotos.lw_keine_adresse", "Die Adresse dieses Laufwerks ist nicht bekannt — bitte einmal im Finder verbinden."), "warn", 6000); return; }
+    toast(T("fotos.lw_verbindet", "Das System verbindet „{n}“ — ein Passwort fragt es selbst ab.").replace("{n}", lwName(o)), "info", 5000);
+    for (let k = 0; k < 15; k++) {
+      await new Promise((res) => setTimeout(res, 2000));
+      let rr = null; try { rr = await api().fotos_ordner(); } catch (_) {}
+      if (!rr || !rr.ok) continue;
+      const neu = (rr.ordner || []).find((x) => x.path === o.path);
+      if (neu && neu.da) {
+        const vorher = ordner.filter(x => !x.da).length;
+        ordner = rr.ordner || []; stand = rr.stand || stand; nachschau = rr.nachschau || nachschau;
+        navZeichnen(); kopfAuffrischen();
+        toast(T("fotos.lw_ist_verbunden", "„{n}“ ist verbunden.").replace("{n}", lwName(o)), "success", 4000);
+        if (ordner.filter(x => !x.da).length < vorher) { if (autoAn) aufholen(true); }
+        fernBeobachten();
+        return;
+      }
+    }
+    toast(T("fotos.lw_noch_nicht", "Noch nicht verbunden — im Finder nachsehen, ob eine Anmeldung wartet."), "info", 6000);
+  }
+
   function laufwerkVon(pfad) {
     const p = String(pfad || "");
     let m = p.match(/^\/Volumes\/([^/]+)/);                 // macOS
@@ -526,7 +597,7 @@
     const gruppieren = (liste) => {
       const g = new Map();
       liste.forEach(o => {
-        const l = laufwerkVon(o.path);
+        const l = lwName(o);
         if (!g.has(l)) g.set(l, []);
         g.get(l).push(o);
       });
@@ -537,7 +608,7 @@
     // Ein Laufwerk, das teils erreichbar ist, ist nicht „weg" — dann fehlen
     // nur einzelne Ordner darauf. Das sagt der Text genauso.
     const beschreiben = (g) => [...g.entries()].map(([l, os]) => {
-      const alleDrauf = ordner.filter(o => laufwerkVon(o.path) === l).length;
+      const alleDrauf = ordner.filter(o => lwName(o) === l).length;
       if (os.length === 1 && alleDrauf === 1) return l;
       return T("fotos.fern_ordner_auf", "{l} ({n} Ordner)").replace("{l}", l).replace("{n}", os.length);
     }).join(", ");
@@ -553,12 +624,16 @@
     ].filter(Boolean).join(" ");
     const liste = weg.length > 1
       ? `<div class="foto-fern-liste">${weg.map(o =>
-          `<div title="${esc(o.path)}">📴 ${esc(laufwerkVon(o.path))} — ${esc(o.path.split(/[\\/]/).filter(Boolean).slice(-2).join("/"))} <span class="muted">${num(o.n)}</span></div>`).join("")}</div>`
+          `<div title="${esc(o.path)}">📴 ${esc(ordnerTitel(o))} <span class="muted">${num(o.n)}</span></div>`).join("")}</div>`
       : "";
+    // 04.10.2026 — „Verbinden" auch hier (der erste fehlende Ordner auf einem Netzlaufwerk mit bekannter Adresse)
+    const verbIdx = ordner.findIndex(o => !o.da && o.laufwerk && !o.laufwerk.verbunden && !o.laufwerk.alternativ && o.laufwerk.art === "netz" && o.laufwerk.url);
+    const verbKnopf = verbIdx >= 0
+      ? `<button class="btn btn-sm btn-primary foto-lw-verbinden" id="foto-fern-verbinden" data-fverb="${verbIdx}" type="button">🔌 ${T("fotos.lw_verbinden", "Verbinden")}</button> ` : "";
     // 18.09.2026 (Marc: „da bräuchte es noch einen Knopf für Nochmal versuchen") — nicht 20 s auf die Wache warten
     return `<div class="foto-fern" id="foto-fern">
         <div class="foto-fern-titel">📴 ${esc(titel)}
-          <button class="btn btn-sm foto-fern-nochmal" id="foto-fern-nochmal" type="button">↻ ${T("fotos.fern_nochmal", "Nochmal versuchen")}</button></div>
+          ${verbKnopf}<button class="btn btn-sm foto-fern-nochmal" id="foto-fern-nochmal" type="button">↻ ${T("fotos.fern_nochmal", "Nochmal versuchen")}</button></div>
         <div class="foto-fern-text">${esc(satz)}</div>
         ${liste}
       </div>`;
@@ -590,6 +665,8 @@
   function fernKnopfBinden(wurzel) {
     const b = wurzel && wurzel.querySelector("#foto-fern-nochmal");
     if (b) b.onclick = () => fernJetztPruefen();
+    const v = wurzel && wurzel.querySelector("#foto-fern-verbinden");
+    if (v) v.onclick = () => { const o = ordner[+v.dataset.fverb]; if (o) laufwerkVerbinden(o); };
   }
 
   /** Solange ein Laufwerk fehlt: alle 20 s nachsehen, ob es zurück ist —

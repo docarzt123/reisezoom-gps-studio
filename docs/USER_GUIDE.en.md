@@ -1608,6 +1608,18 @@ in the file), camera, lens, aperture, exposure, ISO, size, place and
 coordinates. At the bottom **All capture data** unfolds every single entry the
 file holds.
 
+> **Which folder is there? (since v0.9.781)** Every photo folder shows its drive in the sidebar the way the Finder
+> names it — “**Fotos**” instead of `/Volumes/Fotos` — and below it the state: 🟢 *connected*, 📴 *not connected*,
+> ⚠️ *connected, but not responding* (hanging connection to the NAS) or ⚠️ *mounted under a different name*. Plus the
+> kind: *Network drive on NAS*, *External drive* (USB disk, SD card) or *This computer*. If a network drive is
+> disconnected, **“🔌 Connect”** connects it like ⌘K in the Finder — macOS asks for a password itself; the app
+> remembers the address while the drive is connected.
+>
+> *What is /Volumes anyway?* That is where macOS mounts every additional drive; in the Finder you only see the
+> name, on the left under **Locations**. *“Fotos-1”?* If macOS finds a name already taken when connecting, it mounts
+> the share as “Fotos-1”. The app notices and says so — eject it in the Finder and connect again, then it is
+> called “Fotos” again.
+>
 > **Several drives?** If your folders sit on different drives, the note names exactly
 > the missing one — by its name, such as “NAS” or “SD card” — and adds that the
 > folders on the other drives are read as usual.

@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+> **0.9.781** (04.10.2026, branch `fotos-laufwerke`): photo folders show their drive like the Finder does.
+
+### Changed
+- **Photo folders: which drive, and is it there?** (Marc: "it still isn't shown properly which folders are mounted and which are unavailable" — "but what is /Volumes/Fotos anyway? I don't see that in the Finder"). New `core/laufwerke.py`: reads the mount table (macOS `mount`, Linux `/proc/mounts`, Windows `GetDriveTypeW`/`WNetGetConnectionW`) and tells per folder the drive name, its kind (network drive on <server> / external drive / this computer), whether it is connected and whether it actually answers (a 2-s look inside — a hanging NAS connection used to count as "there" because the path existed; an empty leftover `/Volumes/Fotos` folder no longer counts either). Detects a share mounted as "Fotos-1" (same server, same subfolder) and explains it. Server and address are remembered in the library (`foto_laufwerk`) while the drive is connected, so the app can still name the NAS — and offer **"🔌 Connect"** (opens the smb:// address like ⌘K; macOS asks for a password itself, the app never sees it) — when it is gone. Sidebar rows: 🟢/📴/⚠️, drive name instead of the /Volumes path ("Fotos › 2024"), state first, then the kind; "Connect" also in the "Not reachable" note. Passwords in a mount source are never carried into the address. Test `tests/test_fotos_laufwerke.py` (mount lines SMB/guest/AFP/NFS/USB, connected/disconnected/hanging/"Fotos-1", memory in the library, sidebar in WebKit); `test_fotos_mehrere_laufwerke.py` and `test_fotos_fern_nochmal.py` follow the new row classes.
+
 > **0.9.780** (04.10.2026, built locally): two fixes from a beta tester report (Windows).
 
 ### Fixed

@@ -1649,6 +1649,17 @@ estaba en el archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño,
 lugar y coordenadas. Abajo, **Todos los datos de captura** despliega cada
 entrada que trae el archivo.
 
+> **¿Qué carpeta está disponible? (desde v0.9.781)** Cada carpeta de fotos muestra en la barra lateral su unidad
+> como la llama el Finder — «**Fotos**» en lugar de `/Volumes/Fotos` — y debajo su estado: 🟢 *conectada*,
+> 📴 *no conectada*, ⚠️ *conectada, pero no responde* (conexión colgada con el NAS) o ⚠️ *montada con otro nombre*.
+> Además el tipo: *Unidad de red en NAS*, *Unidad externa* (disco USB, tarjeta SD) o *Este ordenador*. Si una unidad
+> de red está desconectada, **«🔌 Conectar»** la conecta como ⌘K en el Finder: si hace falta contraseña, la pide
+> macOS; la app recuerda la dirección mientras la unidad está conectada.
+>
+> *¿Qué es /Volumes?* Ahí monta macOS cada unidad adicional; en el Finder solo ves el nombre, a la izquierda en
+> **Ubicaciones**. *¿«Fotos-1»?* Si al conectar macOS encuentra el nombre ocupado, monta la carpeta compartida como
+> «Fotos-1». La app lo detecta y lo dice: expúlsala en el Finder y vuelve a conectarla; así se llamará de nuevo «Fotos».
+>
 > **¿Varias unidades?** Si tus carpetas están en unidades distintas, el aviso nombra
 > exactamente la que falta, con su nombre, como «NAS» o «Tarjeta SD», y añade que las
 > carpetas de las demás unidades se leen con normalidad.
