@@ -5,16 +5,20 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 02 Oct 2026 20:34:58 +0000</lastBuildDate>
+<lastBuildDate>Sun, 04 Oct 2026 04:35:58 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
 <title>v0.9.779</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-779</link>
 <guid isPermaLink="false">gps-studio-v0.9.779</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<pubDate>Sun, 04 Oct 2026 12:00:00 +0000</pubDate>
 <description>HDR-Video — neu unter Video-Einstellungen: Farbraum HDR (HLG oder PQ). Damit passt die Karte in eine HDR-Timeline zu deinen HDR-Aufnahmen, statt dort grau zu wirken.
 
-Gipfelhöhe — unter Gipfelfotos steht jetzt auch die Höhe („🌋 Teide · 3715 m“).</description>
+Gipfelhöhe — unter Gipfelfotos steht jetzt auch die Höhe („🌋 Teide · 3715 m“).
+
+3D-Häuser — unter Karte einschalten: Gebäude aus OpenStreetMap stehen als Klötze in echter Größe auf der Karte, auch im Video.
+
+Häuser in Dachfarbe — auf Luftbild-Karten bekommen die 3D-Häuser die Farbe ihres Dachs aus dem Luftbild.</description>
 </item>
 <item>
 <title>v0.9.778</title>
