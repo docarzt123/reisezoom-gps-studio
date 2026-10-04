@@ -4476,6 +4476,21 @@ Prüfstand-Haken: `window.__rzGebaeude.zeit()` (Hauptfaden-Zeit des Färbens, ge
 `quellen()`, `kacheln()`, `dach(lon, lat)`. Kanten-Analyse deckungsgleicher Wände: `tests/pruefstand_haeuser_kanten.py`
 (zählt noch doppelt — Paare über mehrere Rasterzellen; nur als Größenordnung).
 
+## Laufwerke der Fotoordner (04.10.2026, v0.9.781)
+
+`core/laufwerke.py`: `mount_tabelle()` (macOS `/sbin/mount`, Linux `/proc/mounts`; Test-Haken `text`), `info(pfad,
+tabelle, gemerkt, volumes, pruefen)` → `{name, art: netz|extern|intern, server, url, freigabe, wurzel, verbunden,
+lesbar, da, alternativ}`. `da` = verbunden UND lesbar (`_lesbar`: `os.scandir` im Daemon-Faden, 2 s Frist — None =
+hängt). macOS: verbunden nur, wenn `/Volumes/<Name>` in der Mount-Tabelle steht (ein leerer Rest-Ordner zählt nicht).
+`alternativ`: `/Volumes/<Name>-1`/`<Name> 1` mit gleicher Adresse und gleichem Unterordner. `_server_und_url` baut
+smb/afp/nfs-Adressen OHNE Passwort (`user:pass@` → `user@`, GUEST weg). `verbinden(url)` öffnet nur smb/afp/nfs/http
+bzw. UNC (`open` / `os.startfile` / `xdg-open`). Windows: `_windows_info` (GetDriveTypeW, WNetGetConnectionW).
+`core/fotos.ordner_liste(conn, pruefen=True)` liefert je Ordner `laufwerk` und `da` daraus; Tabelle `foto_laufwerk`
+(wurzel → art/server/url/freigabe/gesehen_am) merkt sich das Laufwerk, solange es verbunden ist (`_laufwerk_merken`),
+Zuordnung über die längste enthaltende Wurzel. `app.fotos_laufwerk_verbinden(ordner)` → `laufwerk_url` → `verbinden`.
+Oberfläche `ui/js/fotos.js`: `ordnerZeile`, `lwZustand`, `lwArt`, `ordnerTitel`, `laufwerkVerbinden` (danach 30 s lang
+alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/test_fotos_laufwerke.py`.
+
 ## Probelauf-Start (04.10.2026, v0.9.780)
 
 Vor dem ersten Bild baut `_faithBuild` die Stützstellen der ruhigen Kamera (`_previewRaf = -1` = „läuft, noch kein Bild");

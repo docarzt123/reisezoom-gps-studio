@@ -174,7 +174,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.780"
+APP_VERSION = "0.9.781"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -4741,6 +4741,24 @@ class Api:
         except Exception as e:
             log.exception("fotos_ordner")
             return {"ok": False, "error": str(e), "ordner": []}
+
+    def fotos_laufwerk_verbinden(self, ordner: str) -> dict:
+        """04.10.2026 — Netzlaufwerk eines Fotoordners verbinden (Knopf „Verbinden" in der Foto-Seitenleiste).
+
+        Öffnet die gemerkte Adresse (smb://…) über das Betriebssystem, wie ⌘K im Finder — macOS fragt ein Passwort
+        selbst ab, die App sieht es nie. Die Seitenleiste schaut danach von selbst nach, ob das Laufwerk da ist."""
+        from core import laufwerke as clw
+        try:
+            url = cfotos.laufwerk_url(self._lib(), str(ordner or ""))
+            if not url:
+                return {"ok": False, "error": _ui_t()("fotos.lw_keine_adresse",
+                        "Die Adresse dieses Laufwerks ist nicht bekannt — bitte einmal im Finder verbinden.")}
+            ok = clw.verbinden(url)
+            log.info("[fotos] Laufwerk verbinden: %s → %s", url.split("@")[-1], "geöffnet" if ok else "fehlgeschlagen")
+            return {"ok": ok, "url": url}
+        except Exception as e:
+            log.exception("fotos_laufwerk_verbinden")
+            return {"ok": False, "error": str(e)}
 
     def fotos_ordner_hinzu(self, path: str = "", recursive: bool = True) -> dict:
         """Fotoordner aufnehmen. Ohne `path` fragt der Ordner-Dialog.

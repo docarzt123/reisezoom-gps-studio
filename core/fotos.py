@@ -97,6 +97,16 @@ CREATE TABLE IF NOT EXISTS foto_ordner (
     added_at   TEXT,
     recursive  INTEGER DEFAULT 1
 );
+-- 04.10.2026: was über ein Laufwerk bekannt war, als es zuletzt verbunden war (core/laufwerke.py) —
+-- damit die App auch bei fehlendem NAS „Netzlaufwerk auf <Server>" sagen und „Verbinden" anbieten kann
+CREATE TABLE IF NOT EXISTS foto_laufwerk (
+    wurzel     TEXT PRIMARY KEY,
+    art        TEXT,
+    server     TEXT,
+    url        TEXT,
+    freigabe   TEXT,
+    gesehen_am TEXT
+);
 -- 18.09.2026: Änderungszeit je Verzeichnis (schnelle Nachschau, s. durchgang1)
 CREATE TABLE IF NOT EXISTS foto_verz (
     path   TEXT PRIMARY KEY,
@@ -209,21 +219,71 @@ def schema_anlegen(conn: sqlite3.Connection) -> None:
 
 # ── Ordner ──────────────────────────────────────────────────────────────────
 
-def ordner_liste(conn: sqlite3.Connection) -> list:
-    """Die beobachteten Fotoordner, je mit Anzahl und Fehlbestand.
+def ordner_liste(conn: sqlite3.Connection, pruefen: bool = True) -> list:
+    """Die beobachteten Fotoordner, je mit Anzahl, Fehlbestand und Laufwerk.
 
     Eigene Liste, nicht die der Tracks (Marc: „eigener ordner, dass man auch
     weiß, dass es hier definitiv um fotos geht").
+
+    04.10.2026 (Marc: „es wird immer noch nicht richtig angezeigt, welche Ordner eingehängt sind") — `da` kommt aus
+    core/laufwerke.info: Laufwerk eingehängt UND lesbar (eine hängende NAS-Verbindung zählt nicht als da), statt nur
+    `is_dir`. `laufwerk` sagt, was der Finder sagt: Name, Netz/USB/dieser Rechner, Server, Adresse zum Verbinden,
+    und ob derselbe Ordner gerade unter anderem Namen eingehängt ist („Fotos-1").
     """
+    from . import laufwerke as _lw
+    tab = _lw.mount_tabelle()
+    gemerkt = {r["wurzel"]: dict(r) for r in conn.execute("SELECT * FROM foto_laufwerk")}
     raus = []
     for r in conn.execute("SELECT path, added_at, recursive FROM foto_ordner ORDER BY path"):
         p = r["path"]
         n = conn.execute("SELECT COUNT(*) FROM fotos WHERE ordner = ?", (p,)).fetchone()[0]
         fehlt = conn.execute("SELECT COUNT(*) FROM fotos WHERE ordner = ? AND fehlt_seit IS NOT NULL",
                              (p,)).fetchone()[0]
+        lw = _laufwerk_von(p, tab, gemerkt, pruefen)
+        if lw.get("verbunden") and lw.get("wurzel") and lw.get("art") in ("netz", "extern"):
+            _laufwerk_merken(conn, lw, gemerkt)
         raus.append({"path": p, "added_at": r["added_at"], "recursive": bool(r["recursive"]),
-                     "n": n, "fehlt": fehlt, "da": Path(p).is_dir()})
+                     "n": n, "fehlt": fehlt, "da": bool(lw["da"]), "laufwerk": lw})
     return raus
+
+
+def _laufwerk_von(p: str, tab: list, gemerkt: dict, pruefen: bool) -> dict:
+    from . import laufwerke as _lw
+    # das gemerkte Laufwerk, dessen Wurzel den Ordner enthält (längste zuerst) — gilt für /Volumes, /media, X:\ …
+    passend = {}
+    for w, g in gemerkt.items():
+        if w and (p == w or p.startswith(w.rstrip("/\\") + ("\\" if "\\" in w else "/"))):
+            if not passend or len(w) > len(passend.get("wurzel", "")):
+                passend = g
+    try:
+        return _lw.info(p, tabelle=tab, gemerkt=passend, pruefen=pruefen)
+    except Exception as e:  # noqa: BLE001 — eine kaputte Erkennung darf die Liste nie leeren
+        log.warning("fotos: Laufwerk von %s nicht bestimmbar: %s", p, e)
+        da = Path(p).is_dir()
+        return {"name": "", "art": "intern", "server": "", "url": "", "freigabe": "", "wurzel": "",
+                "verbunden": da, "lesbar": None, "da": da, "alternativ": ""}
+
+
+def _laufwerk_merken(conn: sqlite3.Connection, lw: dict, gemerkt: dict) -> None:
+    alt = gemerkt.get(lw["wurzel"]) or {}
+    neu = {"art": lw.get("art") or "", "server": lw.get("server") or "", "url": lw.get("url") or "",
+           "freigabe": lw.get("freigabe") or ""}
+    if all((alt.get(k) or "") == v for k, v in neu.items()):
+        return
+    conn.execute("INSERT INTO foto_laufwerk(wurzel, art, server, url, freigabe, gesehen_am) VALUES(?,?,?,?,?,?) "
+                 "ON CONFLICT(wurzel) DO UPDATE SET art=excluded.art, server=excluded.server, url=excluded.url, "
+                 "freigabe=excluded.freigabe, gesehen_am=excluded.gesehen_am",
+                 (lw["wurzel"], neu["art"], neu["server"], neu["url"], neu["freigabe"], _jetzt()))
+    conn.commit()
+    gemerkt[lw["wurzel"]] = dict(neu, wurzel=lw["wurzel"])
+
+
+def laufwerk_url(conn: sqlite3.Connection, ordner: str) -> str:
+    """Adresse zum Verbinden des Laufwerks eines Fotoordners (gemerkt, solange es verbunden war)."""
+    for o in ordner_liste(conn, pruefen=False):
+        if o["path"] == ordner:
+            return (o.get("laufwerk") or {}).get("url") or ""
+    return ""
 
 
 def ordner_hinzu(conn: sqlite3.Connection, path: str, recursive: bool = True) -> bool:

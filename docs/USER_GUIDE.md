@@ -1666,6 +1666,18 @@ in der Datei stand), Kamera, Objektiv, Blende, Belichtung, ISO, Größe, Ort und
 Koordinate. Ganz unten klappt **Alle Aufnahmedaten** jeden einzelnen Eintrag
 auf, den die Datei mitbringt.
 
+> **Welcher Ordner ist da? (seit v0.9.781)** Jeder Fotoordner zeigt in der Seitenleiste das Laufwerk so, wie es
+> der Finder nennt — „**Fotos**“ statt `/Volumes/Fotos` — und darunter seinen Zustand: 🟢 *verbunden*,
+> 📴 *nicht verbunden*, ⚠️ *verbunden, antwortet aber nicht* (hängende Verbindung zum NAS) oder ⚠️ *unter anderem
+> Namen eingehängt*. Dazu die Art: *Netzlaufwerk auf NAS*, *Zusatzlaufwerk* (USB-Platte, SD-Karte) oder *Dieser
+> Rechner*. Ist ein Netzlaufwerk getrennt, verbindet **„🔌 Verbinden“** es wie ⌘K im Finder — ein Passwort fragt
+> macOS selbst ab; die App merkt sich dafür die Adresse, solange das Laufwerk verbunden ist.
+>
+> *Was ist eigentlich /Volumes?* Dort hängt macOS jedes zusätzliche Laufwerk ein; im Finder siehst du nur den
+> Namen, links unter **Orte**. *„Fotos-1“?* Wenn macOS beim Verbinden einen Namen schon belegt findet, hängt es
+> die Freigabe unter „Fotos-1“ ein. Die App erkennt das und sagt es — im Finder auswerfen und neu verbinden,
+> dann heißt sie wieder „Fotos“.
+>
 > **Mehrere Laufwerke?** Liegen deine Ordner auf verschiedenen Laufwerken, nennt der
 > Hinweis genau das fehlende — mit seinem Namen, etwa „NAS“ oder „SD Karte“ — und
 > sagt dazu, dass die Ordner auf den übrigen Laufwerken normal gelesen werden.

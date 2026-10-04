@@ -147,3 +147,4 @@ _papierkorb/
 
 # 02.10.2026 — Videoclip-Cache (Standbilder, Einzelbilder)
 clip_cache/
+.venv
