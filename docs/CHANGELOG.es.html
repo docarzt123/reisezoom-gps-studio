@@ -118,12 +118,30 @@
 <article class="version latest">
   <div class="version-head">
     <span class="version-num">v0.9.781</span>
-    <span class="version-date">4 de octubre de 2026</span>
+    <span class="version-date">5 de octubre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
+    <li><strong>Buscar fotos por su contenido</strong> &mdash; «puesta de sol», «perro en la playa», «glaciar»: el buscador ahora también encuentra lo que muestran las fotos, en cualquier idioma, y además «Fotos parecidas» a una imagen. El modelo (SigLIP 2) solo se descarga al activar la búsqueda por contenido (unos 0,5&nbsp;GB) y después funciona por completo en tu ordenador, sin cuenta.</li>
+    <li><strong>Ver fotos en grande y reproducir vídeos</strong> &mdash; doble clic o espacio abre la foto en toda la ventana, ← → pasa de una a otra, los vídeos se reproducen con sonido. De un vídeo puedes guardar un fotograma como foto.</li>
+    <li><strong>Editar y ubicar fotos en el archivo</strong> &mdash; cambia los datos como en el Geotagger (título, palabras clave, hora, zona horaria, lugar …) y ubica una foto con un clic en el mapa. Antes se hace una copia de seguridad del original.</li>
     <li><strong>Las carpetas de fotos muestran su unidad como el Finder</strong> &mdash; «Fotos» en lugar de /Volumes/Fotos, con 🟢 conectada o 📴 no conectada, si es una unidad de red (en qué NAS), una unidad externa o este ordenador, y un botón «Conectar» para el NAS.</li>
-  </ul>
+    <li><strong>Fotos por fecha como en Lightroom</strong> &mdash; a la izquierda año → mes → día con el número de fotos; un clic muestra exactamente ese periodo.</li>
+    <li><strong>Miniaturas limpias</strong> &mdash; ya no aparecen la hora ni la «!» sobre las fotos (la hora parecía la duración de un vídeo); el nombre y los datos aparecen a la derecha al hacer clic en una foto.</li>
+    <li><strong>Se ve qué hace la lectura</strong> &mdash; revisión rápida o completa, «x de ≈ y archivos», barra y tiempo restante.</li>
+    <li><strong>Las fotos nuevas llegan solas</strong> &mdash; la app ahora también revisa en silencio aunque simplemente siga abierta.</li>
+      <li><strong>La lectura sigue tras reiniciar</strong> &mdash; si cierras la app durante la revisión ya no empieza de cero; las carpetas ya revisadas van rápido y el paso 2 muestra el progreso total.</li>
+    <li><strong>Rutas unidas sin zigzag</strong> &mdash; el mapa junto a una foto dibuja cada etapa por separado en vez de líneas cruzando el recorrido, y una foto solo pertenece a esa ruta si se tomó durante una de sus etapas.</li>
+    <li><strong>El tiempo restante baja en vez de subir</strong> &mdash; la lectura cuenta ahora con los megabytes que faltan y recuerda su ritmo; el tiempo es realista desde el principio.</li>
+    <li><strong>Buscar en Fotos</strong> &mdash; un solo buscador, Intro busca al momento y seguir escribiendo ya no se pierde. Al activar la búsqueda por contenido eliges ahí mismo Estándar o Grande.</li>
+    <li><strong>Navegar por carpetas y fechas</strong> &mdash; las fotos tienen ahora también «📁 Por carpeta» con todas las subcarpetas, y el archivo de rutas tiene «📅 Por fecha» y «📁 Por carpeta» igual. Un clic despliega y muestra justo eso.</li>
+    <li><strong>Lectura desde el NAS mucho más rápida</strong> &mdash; primero los datos de todas las fotos (después funcionan búsqueda, fecha, mapa y carpetas), luego las miniaturas como tercer paso; además las imágenes se decodifican ya reducidas en vez de a resolución completa.</li>
+    <li><strong>Cancelar un vídeo rápido</strong> &mdash; iniciado desde el Animator, tras cancelar vuelves a tu propio proyecto; arriba pone «Vídeo rápido · Ruta», y la línea de tiempo ya no puede tapar el mapa.</li>
+    <li><strong>Render cuando falla un servicio de mapas</strong> &mdash; el vídeo ya no espera teselas en cada imagen; al final indica cuántas faltaron.</li>
+    <li><strong>Lectura desde un NAS más robusta</strong> &mdash; si la unidad se desconecta a mitad, ya no desaparecen fotos del archivo; las miniaturas se crean más tarde; el tiempo restante ya no se queda en «menos de un minuto» y muestra días a partir de dos días.</li>
+    <li><strong>Detalles</strong> &mdash; Esc cierra el editor de rótulos, los chips de carpeta acortan rutas largas, el selector de año del archivo de rutas coincide con el árbol de fechas, y el diálogo Acerca de nombra todas las bibliotecas incluidas.</li>
+    <li><strong>Lectura desde un NAS con dos lectores</strong> &mdash; en una unidad de red dos procesos leen ahora los datos de captura a la vez (nunca más de dos, NAS con discos duros); los lotes lentos ya no cuentan como colgados antes de tiempo.</li>
+</ul>
 </article>
 
 <article class="version">

@@ -887,7 +887,7 @@ Zeitleiste und lässt sich ändern.
 dafür ist die Linie etwas stärker geglättet. In engen Kehren dreht der Pfeil deshalb sichtbar mit — so, wie die
 Linie wirklich verläuft.
 
-**Video rendern** öffnet seit v0.9.744 einen eigenen Schnell-Video-Bildschirm über der ganzen App: oben der Tourname, in der Mitte zuerst das Kartenbild deiner Tour mit dem aktuellen Schritt (Projekt anlegen, Karte laden, Kacheln vorwärmen …), dann live das entstehende Video, darunter der Fortschritt und „Abbrechen“. Der Animator arbeitet unsichtbar dahinter — du musst dort nichts tun. **Schließen** bringt dich zurück ins Archiv (hast du das Schnell-Video im Animator gestartet, bleibst du dort), **Abbrechen** stoppt das Video und lässt dich im Animator beim neuen Projekt, **Im Animator öffnen** zeigt das Projekt zum Weiterbearbeiten. Ist es fertig, **„💾 Speichern …"** legt es
+**Video rendern** öffnet seit v0.9.744 einen eigenen Schnell-Video-Bildschirm über der ganzen App: oben der Tourname, in der Mitte zuerst das Kartenbild deiner Tour mit dem aktuellen Schritt (Projekt anlegen, Karte laden, Kacheln vorwärmen …), dann live das entstehende Video, darunter der Fortschritt und „Abbrechen“. Der Animator arbeitet unsichtbar dahinter — du musst dort nichts tun. **Schließen** bringt dich zurück ins Archiv (hast du das Schnell-Video im Animator gestartet, bleibst du dort), **Abbrechen** stoppt das Video — hast du es im Animator gestartet, bist du danach wieder in deinem Projekt (das angefangene Schnell-Video-Projekt bleibt im Archiv), sonst im Animator beim neuen Projekt (seit 0.9.781; oben steht dann „Schnell-Video · Tourname“), **Im Animator öffnen** zeigt das Projekt zum Weiterbearbeiten. Ist es fertig, **„💾 Speichern …"** legt es
 dorthin, wo du willst, **„📤 Teilen"** öffnet auf dem Mac das Teilen-Menü (AirDrop, Nachrichten, Mail,
 Fotos …); unter Windows öffnet sich der Ordner mit dem Video.
 
@@ -1209,6 +1209,12 @@ und bei Touren aus der Cloud passiert das still. Ein **„Nein"** lässt sich pr
 
 Darunter stehen deine **Sammlungen**: ein Klick zeigt **nur diese eine**, ein zweiter Klick
 hebt es wieder auf. Die App merkt sich den zuletzt gewählten Bereich.
+
+**📅 Nach Datum und 📁 Nach Ordner (seit v0.9.781)** — darunter, genau wie bei den Fotos: Jahr → Monat → Tag
+mit der Zahl der Touren, und deine beobachteten Ordner mit allen Unterordnern (Unterordner zählen mit). Ein Klick auf
+ein Jahr, einen Monat oder einen Ordner klappt ihn auf und zeigt genau diese Touren; ein zweiter Klick klappt ihn zu
+und hebt die Auswahl auf. Das Datum landet im Zeitraum-Feld oben („eigener Zeitraum“), der Ordner als Chip
+**„📁 Touren › 2024 ✕“**; **Filter zurücksetzen** räumt beides.
 
 **Weiter filtern** — in der Leiste über den Touren:
 
@@ -1584,9 +1590,10 @@ Dateien bleiben liegen.
 
 ### Die drei Ansichten
 
-* **▦ Raster** — nach Tagen gegliedert, neueste zuerst. Ein kleines **!** auf
-  der Kachel heißt: hier fehlt etwas (Aufnahmezeit, Zeitzone oder Koordinate).
-  Videos tragen ihre Länge unten rechts.
+* **▦ Raster** — nach Tagen gegliedert, neueste zuerst. Videos tragen ihre Länge
+  unten rechts. Sonst steht auf der Kachel nichts, auch beim Darüberfahren
+  nicht — ein Klick zeigt rechts Name, Aufnahmezeit und alle Daten (seit v0.9.781). Was fehlt,
+  zeigen links die Filter (*Ohne Koordinate*, *Ohne Aufnahmezeit*) und rechts die Befunde.
 * **🌍 Karte** — eine Punktwolke aus allen Dateien mit Koordinate; je mehr an
   einer Stelle liegen, desto größer und kräftiger der Punkt. Ein Klick in die
   Wolke zeigt rechts, welche Dateien dort liegen und **welche deiner Touren
@@ -1595,6 +1602,21 @@ Dateien bleiben liegen.
 * **🥾 Nach Touren** — welche Fotos zu welcher Tour gehören. Die Zuordnung
   rechnet GPS Studio über das Zeitfenster der Tour; sie steht nirgends in den
   Dateien. Ein Klick auf eine Tour zeigt ihre Dateien im Raster.
+
+### Nach Datum (seit v0.9.781)
+
+Links unter **📅 Nach Datum** klappst du deinen Bestand auf wie in Lightroom: **Jahr** → **Monat** →
+**Tag** („Mittwoch, 4. März“), jeweils mit der Zahl der Fotos. Ein Klick auf ein Jahr oder einen Monat klappt ihn auf
+oder zu wie der kleine Pfeil und zeigt beim Aufklappen genau diesen Zeitraum; ein Klick auf einen Tag zeigt diesen Tag; oben steht dann ein Chip wie **„📅 März 2026 ✕“** — ✕, ein zweiter
+Klick auf dieselbe Zeile oder **Alle** heben die Auswahl wieder auf. Was auf- und zugeklappt ist, merkt
+sich die App.
+
+### Nach Ordner (seit v0.9.781)
+
+Darunter steht **📁 Nach Ordner**: jeder Fotoordner mit allen Unterordnern, die er mitliest — Zahl jeweils samt
+Unterordnern. Ein Klick klappt einen Ordner auf und zeigt seine Fotos samt Unterordnern, ein zweiter klappt ihn zu und
+hebt die Auswahl auf; oben steht dann ein Chip wie **„📁 Fotos › 2024 › Island ✕“**. Das lässt sich mit Datum, Kamera
+und Suche kombinieren. Papierkorb- und Vorschauordner des NAS (`#recycle`, `@eaDir` …) liest die App gar nicht erst ein.
 
 ### Suchen und filtern
 
@@ -1631,10 +1653,17 @@ Fotobereichs macht die App dort weiter, wo der letzte Lauf aufhörte:
 - **Vollständig nachsehen**, was sich in den Ordnern geändert hat — neue,
   geänderte und gelöschte Dateien — läuft höchstens alle sechs Stunden. Auf
   einem Netzlaufwerk dauert ein solcher Durchgang Minuten, deshalb nicht bei
-  jedem Öffnen. Sofort geht es über **Einlesen** in der Seitenleiste.
+  jedem Öffnen. Sofort geht es über **Einlesen** in der Seitenleiste. Seit v0.9.781 schaut die App auch
+  **still nach, wenn sie einfach offen bleibt** — etwa alle 20 Minuten prüft sie, ob etwas fällig ist, auch
+  während du im Animator arbeitest. So kommen neue Fotos vom NAS von selbst dazu.
 
 Beides läuft im Hintergrund, sagt unten rechts was es tut, und lässt sich
-abbrechen. Willst du das nicht — unterwegs am Hotspot, im fremden WLAN — nimm
+abbrechen. **Drei Schritte (seit v0.9.781):** 1. die Dateiliste, 2. Aufnahmezeit, Ort und Kamera — dafür liest die App nur den
+Kopf jeder Datei, das geht auch auf dem NAS zügig, und danach funktionieren Suche, Datum, Karte und Ordner für alles —,
+3. die Vorschaubilder. Für die muss jede Datei einmal ganz übers Netz; das ist der langsamste Teil und läuft deshalb
+zuletzt. Wo du gerade hinschaust, kommen die Bilder sofort. **Schließt du die App mittendrin, geht nichts verloren:** Ordner, die schon fertig geprüft sind, merkt
+sich die App sofort; beim nächsten Start geht es dort weiter („macht weiter, wo sie aufhörte“), und Schritt 2 zählt
+mit, was schon gelesen ist. Willst du das nicht — unterwegs am Hotspot, im fremden WLAN — nimm
 in der Seitenleiste das Häkchen **Von selbst aktuell halten** heraus.
 
 > **Warum das erste Einlesen wichtig ist:** Aufnahmedaten und Vorschaubilder
@@ -1643,6 +1672,28 @@ in der Seitenleiste das Häkchen **Von selbst aktuell halten** heraus.
 > eine Sekunde pro Stück. Solange etwas aussteht, sagt das die Kopfzeile über
 > dem Raster und bietet den Knopf gleich daneben an.
 
+
+### Nach Inhalt suchen (seit v0.9.781) ⭐
+
+Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonnenuntergang“, „Hund am Strand“,
+„Bergsee“, „Nachthimmel mit Sternen“ — in jeder Sprache, du musst nichts verschlagwortet haben.
+
+- **Einschalten:** Suchst du etwas und die Inhaltssuche ist noch aus, fragt die App über dem Raster nach:
+  **Standard einschalten** (ca. 500 MB) oder **Groß einschalten** (ca. 1,6 GB, versteht Deutsch und Spanisch besser,
+  erfasst aber etwa sechsmal langsamer). Sie lädt dann einmalig das Bildmodell (SigLIP 2 von Google) und schaut
+  sich im Hintergrund jedes Foto einmal an. Das passiert nur auf deinem Rechner, ohne Konto; kein Foto verlässt ihn.
+  Du kannst währenddessen alles andere weiter benutzen; während ein Video rendert oder eingelesen wird, wartet sie.
+  Links unter der Ordnerliste steht der Stand („Bildinhalt erfasst: 4.210 von 170.705 Fotos · noch ca. …“).
+- **Treffer:** zuerst, was in Name, Stichwort oder Ort passt, dann **nach Bildinhalt — die besten zuerst**. Über dem
+  Raster steht, wie viele es je Art sind; **Nach Datum** sortiert dieselben Treffer nach Aufnahmetag. Jahr, Kamera,
+  Datum und die übrigen Filter gelten weiter; Karte und Touren zeigen dieselben Treffer.
+- **Ähnliche Fotos:** In der Spalte rechts sucht **🖼 Ähnliche Fotos** nach Bildern, die so aussehen wie dieses —
+  oben steht dann „Ähnlich wie …“, ✕ hebt es auf.
+- **Sprachen:** Deutsch findet so gut wie Englisch; bei seltenen Wörtern auf Spanisch ist die Suche schwächer.
+- **Einstellungen → Bibliothek & Cloud → Inhaltssuche:** aus- und einschalten, zwischen **Standard** und **Groß**
+  wählen (versteht Deutsch und Spanisch besser, ca. 1,6 GB, erfasst langsamer) und **Modell und Index löschen**.
+- **Umziehen:** Der Index liegt in der Bibliothek und zieht mit ihr um. Auf einem anderen Rechner lädt die App nur
+  das Modell neu — die Fotos müssen nicht noch einmal erfasst werden.
 
 ### Was der Bestand über ein Foto weiß
 
@@ -1696,11 +1747,30 @@ auf, den die Datei mitbringt.
 > und nichts als fehlerhaft abgestempelt, noch ungelesene Dateien kommen beim
 > nächsten Mal dran.
 
+### Groß ansehen, Videos, bearbeiten und verorten (seit v0.9.781)
+
+**Groß ansehen:** Doppelklick auf eine Kachel, Klick auf das Bild rechts oder die **Leertaste** öffnet das Foto im
+ganzen Fenster. **← / →** blättert in der Reihenfolge des Rasters, **Esc** schließt. Videos laufen dort mit Ton und den
+üblichen Steuerelementen; **📸 Standbild speichern** legt das gerade gezeigte Bild als JPEG ab (du wählst den Ort, die
+Aufnahmezeit und der Ort des Videos kommen mit). Unten: **Im Finder zeigen** und **Mit Standard-App öffnen**.
+*Windows:* Spielt ein Video nicht, fehlt meist die kostenlose Erweiterung „HEVC-Videoerweiterungen“ — die App
+zeigt eine kurze Anleitung und öffnet die Seite im Microsoft Store.
+
+**Verorten:** Die kleine Karte rechts ist immer da. Hat das Foto keinen Ort, klickst du in die Karte; hat es einen,
+ziehst du den Punkt. Vor dem Schreiben kannst du Höhe und Blickrichtung angeben und die vorgeschlagene Adresse
+mitschreiben lassen.
+
+**Aufnahmedaten bearbeiten:** Unten in der Spalte — dieselben Felder wie im Geotagger (Titel, Beschreibung,
+Stichwörter, Bewertung, Urheber, Copyright, Ort/Stadt/Land, Kamera …), dazu **Aufnahmezeit** und **Zeitzone**, und
+aufklappbar **alle weiteren Felder** mit Suche. **Änderungen ins Foto schreiben** schreibt alles auf einmal.
+
+Vor jedem Schreiben sichert die App das Original (ZIP unter *Sicherungen*). Danach zeigt der Bestand die neuen Werte
+sofort — ohne auf die nächste Nachschau zu warten.
+
 ### Was (noch) nicht geht
 
-Diese erste Stufe liest nur. Fotos ohne Koordinate über ihre zeitlichen
-Nachbarn zu verorten, aus verorteten Fotos einen Track zu bauen und die
-Aufnahmedaten hier zu ändern sind eigene Ausbaustufen. Zum Verorten mit einem
+Fotos ohne Koordinate über ihre zeitlichen Nachbarn zu verorten und aus verorteten Fotos einen Track zu bauen
+sind eigene Ausbaustufen. (Einzelne Fotos bearbeiten und verorten geht seit v0.9.781 direkt hier, siehe oben.) Zum Verorten mit einem
 Track nimmst du weiterhin den **Geotagger** (Kapitel 6).
 
 ---
@@ -1771,7 +1841,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **🧱 Einblendungen (seit v0.9.752)** — Alles, was fest im Bild steht, ist eine **Einblendung**: Werte, Höhenprofil, Diagramme, Nordpfeil und Maßstab, Titel, Schlusskarte, Logo. Eine Einblendung ist ein Kasten mit **Zeilen**.
 
-- **Anlegen:** In der Seitenleiste unter „Einblendungen“ wählst du bei **„＋ Neue Einblendung“** eine Vorlage: *Live-Werte*, *Gesamt*, *Höhenprofil*, *Titel*, *Schlusskarte*, *Logo*, *Nordpfeil + Maßstab*, *Rahmen* oder *Leer*. Der Editor öffnet sich als schwebendes Fenster (an der Kopfzeile verschiebbar).
+- **Anlegen:** In der Seitenleiste unter „Einblendungen“ wählst du bei **„＋ Neue Einblendung“** eine Vorlage: *Live-Werte*, *Gesamt*, *Höhenprofil*, *Titel*, *Schlusskarte*, *Logo*, *Nordpfeil + Maßstab*, *Rahmen* oder *Leer*. Der Editor öffnet sich als schwebendes Fenster (an der Kopfzeile verschiebbar, **Esc** schließt es).
 - **Liste:** Häkchen = zeigen, **✎** öffnet den Editor, **⧉** dupliziert, **✕** löscht. Reihenfolge am **⠿** ziehen oder mit **▲▼**: weiter unten in der Liste liegt im Bild weiter vorn.
 - **Platzieren:** die Einblendung in der Vorschau **mit der Maus ziehen** (1-%-Raster, rastet an Rand und Mitte ein, ein ⌘Z-Schritt je Zug) oder im Editor unter **Lage und Größe**: **Anker** (neun Punkte) plus **Abstand** in Prozent des Bildes. Größe **automatisch** (so groß wie der Inhalt) oder **fest** (Breite und Höhe in %), dazu die Ausrichtung des Inhalts.
 - **Stil = Vorlage für das Aussehen:** **Kasten** (halbtransparente Box), **Frei** (große Zahlen ohne Kasten, Beschriftung klein darüber, Textschatten), **Plakette** (dunkle, runde Pille) und **ohne**. Ein Klick setzt die Werte des Stils, danach änderst du jeden Wert selbst: Anordnung (untereinander/nebeneinander), Beschriftung (über dem Wert, links daneben, aus), Schrift, Schriftgröße, Text- und Hintergrundfarbe mit Deckkraft, Hintergrundbild (füllen/einpassen, Deckkraft), Innen-, Zeilen- und Spaltenabstand. Unter **Mehr**: Akzentfarbe, Ecken, Rahmen, Schatten, Textschatten, Weichzeichner, Großbuchstaben, Größe von Beschriftung und Einheit, Deckkraft. In einer Einblendung sehen alle Zeilen gleich aus — soll eine Zeile anders aussehen, nimm eine zweite Einblendung.
@@ -1961,7 +2031,7 @@ Funktioniert nur wenn kein Slider/Input gerade Fokus hat. Wenn du gerade einen S
 
 **🎵 Musik und Ton (seit v0.9.778).** Im Abschnitt **„🎵 Musik und Ton“** legst du Musik unter das Video: **„Unterwegs“** ist ein eigenes Stück der App (40 s, läuft nahtlos endlos, frei für YouTube & Co.), dazu fünf weitere in anderen Stilen: **Weite** (ruhig, filmisch), **Gipfelsturm** (treibend), **Rast** (Lo-Fi, entspannt), **Grat** (episch), **Wanderlied** (Folk mit Gitarre), über **…** nimmst du eigene Musik (MP3, M4A, WAV, FLAC …; die Rechte daran brauchst du selbst). Dazu **Lautstärke**, **Einblenden** und **Ausblenden** (Sekunden) und **📷 Klick bei jedem Fotostopp** mit eigenem **Klang** (Spiegelreflex, spiegellos, analog mit Filmtransport, Messsucher, Handy, Sofortbild, Pop, Holz, Glöckchen, Wusch + Klick, einfach — oder über **…** ein eigener Klang aus einer Datei, **▶** hört ihn an) und eigener Lautstärke — der Klick kommt, wenn das Foto groß angekommen ist. In der Zeitleiste zeigt die Spur **„Ton“** die Musik (die Schrägen sind Ein- und Ausblenden — ziehen ändert sie), die Klicks und den Ton der Clips; Doppelklick öffnet die Einstellungen. Beim Abspielen hörst du alles schon in der Vorschau, **🔊** neben der Zeit schaltet den Vorschau-Ton aus. Im fertigen Video ist der Ton eine normale Tonspur (AAC).
 
-**Zeitleiste mit Bildern (seit v0.9.778).** In der Track-Spur liegt klein das **Höhenprofil** der Tour (in Halten bleibt es stehen, wie der Punkt im Video); bei einer Reise trägt jede Tour-Kachel ihr eigenes Profil. In der Schilder-Spur zeigen die Balken **Name und Zeit** und ihr **Foto** — oder ▶ beim Clip, das Zeichen der Pille bei Highlights und Logbuch. **⌘+ / ⌘−** zoomen die Zeitleiste, **⌘0** zeigt wieder alles (Windows: Strg). Den **Griff an der Oberkante** der Zeitleiste ziehst du nach oben oder unten — die Spuren werden höher oder niedriger (Doppelklick: Standard).
+**Zeitleiste mit Bildern (seit v0.9.778).** In der Track-Spur liegt klein das **Höhenprofil** der Tour (in Halten bleibt es stehen, wie der Punkt im Video); bei einer Reise trägt jede Tour-Kachel ihr eigenes Profil. In der Schilder-Spur zeigen die Balken **Name und Zeit** und ihr **Foto** — oder ▶ beim Clip, das Zeichen der Pille bei Highlights und Logbuch. **⌘+ / ⌘−** zoomen die Zeitleiste, **⌘0** zeigt wieder alles (Windows: Strg). Den **Griff an der Oberkante** der Zeitleiste ziehst du nach oben oder unten — die Spuren werden höher oder niedriger (Doppelklick: Standard). Mehr als 60 % der Vorschaufläche nimmt die Zeitleiste nie ein — in einem kleinen Fenster bleibt die Karte sichtbar.
 
 **🗺 Übersichtskarte im Video (seit v0.9.778).** Unter **Einblendungen → ＋ Neue Einblendung → Übersichtskarte** kommt die ganze Strecke klein ins Bild, der gefahrene Teil in Linienfarbe, ein Punkt zeigt, wo du gerade bist. Sie ist eine normale Einblendung: verschieben, Größe (Breite/Höhe in %), Stil, wann sie zu sehen ist. Anders als die Übersicht „nur Ansicht“ unten rechts in der Vorschau ist diese **im Video**.
 
@@ -2063,7 +2133,7 @@ Das fertige Video ist seit v0.9.658 wörtlich die Vorschau in hoher Auflösung: 
 
 Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp über dem Gelände (kein Flimmern an Graten mehr) — genau wie im Video.
 
-Sollte ein Render mit dem neuen Weg einmal nicht durchlaufen, gibt es einen Rückfall auf den bisherigen Generator: in `settings.json` `"render_engine": "klassisch"` eintragen (oder die App mit `RZ_RENDER_KLASSISCH=1` starten). Alpha-Export (transparenter Hintergrund) und das Tour-Map-Standbild nutzen ohnehin noch den bisherigen Weg.
+Seit v0.9.752 laufen alle Videos, Standbilder und der Alpha-Export (transparenter Hintergrund) über diese Vorschau-Szene — einen zweiten, älteren Render-Weg gibt es nicht mehr. Bricht ein Render ab, hilft **Hilfe → Fehler melden** mit dem Protokoll beim Eingrenzen.
 
 ### 📷 Fotos auf der Karte (seit v0.9.74) ⭐
 

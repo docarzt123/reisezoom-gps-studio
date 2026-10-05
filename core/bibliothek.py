@@ -1047,6 +1047,9 @@ def pruefen(ort: Path) -> dict:
 EIGENE_NAMEN = {
     KENNDATEI, SPERRDATEI, "library.db", "touren", "bilder", "projekt_staende", "sicherungen",
     "projekte.json", "touren.json", "vorlagen.json", "umzug-bericht.json",
+    # 05.10.2026 — Index der Inhaltssuche (core/inhalt.py). Fehlte hier: beim Umziehen der Bibliothek blieb er liegen,
+    # obwohl er genau dafür in der Bibliothek liegt (Audit 05.10.); der Dateischutz verweigerte das Löschen.
+    "inhaltsindex",
 }
 EIGENE_PRAEFIXE = ("library.db", "projekte.json", "touren.json", "vorlagen.json", "library-defekt-")
 

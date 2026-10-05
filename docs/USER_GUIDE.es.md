@@ -875,7 +875,7 @@ más sobre la traza, casi sin horizonte. La flecha apunta exactamente en la dire
 dibujada; para ello la línea se suaviza un poco más. En curvas cerradas la flecha gira visiblemente, tal como
 va la línea en realidad.
 
-**Renderizar vídeo** abre, desde v0.9.744, una pantalla propia del vídeo rápido sobre toda la app: arriba el nombre de la ruta, en el centro primero la imagen del mapa de tu ruta con el paso actual (creando el proyecto, cargando el mapa, precargando teselas …), después el vídeo mientras se crea, debajo el progreso y «Cancelar». El Animador trabaja de forma invisible detrás; no tienes que hacer nada allí. **Cerrar** te devuelve al archivo (si iniciaste el vídeo rápido en el Animador, te quedas allí), **Cancelar** detiene el vídeo y te deja en el Animador con el proyecto nuevo, **Abrir en el Animador** muestra el proyecto para seguir editándolo. Cuando termina, **«💾 Guardar …»** lo pone
+**Renderizar vídeo** abre, desde v0.9.744, una pantalla propia del vídeo rápido sobre toda la app: arriba el nombre de la ruta, en el centro primero la imagen del mapa de tu ruta con el paso actual (creando el proyecto, cargando el mapa, precargando teselas …), después el vídeo mientras se crea, debajo el progreso y «Cancelar». El Animador trabaja de forma invisible detrás; no tienes que hacer nada allí. **Cerrar** te devuelve al archivo (si iniciaste el vídeo rápido en el Animador, te quedas allí), **Cancelar** detiene el vídeo: si lo iniciaste en el Animador, vuelves a tu propio proyecto (el proyecto de vídeo rápido empezado queda en el archivo); si no, quedas en el Animador con el proyecto nuevo (desde 0.9.781; arriba pone «Vídeo rápido · nombre de la ruta»), **Abrir en el Animador** muestra el proyecto para seguir editándolo. Cuando termina, **«💾 Guardar …»** lo pone
 donde quieras y **«📤 Compartir»** abre en el Mac el menú de compartir (AirDrop, Mensajes, Mail, Fotos …);
 en Windows se abre la carpeta con el vídeo.
 
@@ -1209,6 +1209,12 @@ animador», duplicar y borrar.
 **Duplicar** crea una «(copia)» con las mismas rutas en el mismo orden — útil para montar una
 variante sin tocar el original (ni sus ajustes del animador). La app recuerda
 la última sección elegida.
+
+**📅 Por fecha y 📁 Por carpeta (desde v0.9.781)** — debajo, igual que en las fotos: año → mes → día con el número de
+rutas, y tus carpetas vigiladas con todas sus subcarpetas (las subcarpetas cuentan). Un clic en un año, un mes o una
+carpeta la despliega y muestra exactamente esas rutas; un segundo clic la pliega y quita la selección. La fecha va al
+campo de periodo de arriba («periodo propio»), la carpeta aparece como chip **«📁 Rutas › 2024 ✕»**; **Restablecer
+filtros** quita ambos.
 
 **¿Hecha o solo planificada?** La app lo detecta sola, venga el track de la app que venga:
 
@@ -1570,9 +1576,11 @@ estaban.
 
 ### Las tres vistas
 
-* **▦ Cuadrícula** — agrupada por días, la más reciente primero. Una pequeña
-  **!** en una miniatura significa que falta algo (hora de captura, zona horaria
-  o coordenadas). Los vídeos llevan su duración abajo a la derecha.
+* **▦ Cuadrícula** — agrupada por días, la más reciente primero. Los vídeos llevan
+  su duración abajo a la derecha. Por lo demás la miniatura no
+  muestra nada, ni al pasar el ratón: un clic muestra a la derecha nombre, hora y todos los datos
+  (desde v0.9.781). Lo que falta lo muestran los filtros de la izquierda (*Sin coordenadas*,
+  *Sin hora de captura*) y los hallazgos de la derecha.
 * **🌍 Mapa** — una nube de densidad con todos los archivos que tienen
   coordenadas: cuantos más hay en un punto, más grande e intenso. Al hacer clic
   en la nube verás a la derecha qué archivos hay allí y **por qué ruta tuya
@@ -1580,6 +1588,40 @@ estaban.
 * **🥾 Por ruta** — qué fotos pertenecen a qué ruta. GPS Studio lo calcula con la
   ventana temporal de la ruta; no se escribe en ningún archivo. Al hacer clic en
   una ruta verás sus archivos en la cuadrícula.
+
+### Ver en grande, vídeos, editar y ubicar (desde v0.9.781)
+
+**Ver en grande:** doble clic en una miniatura, clic en la imagen de la derecha o **espacio** abre la foto en toda la
+ventana. **← / →** pasa de una a otra en el orden de la cuadrícula, **Esc** cierra. Los vídeos se reproducen ahí con
+sonido y los controles habituales; **📸 Guardar fotograma** guarda la imagen mostrada como JPEG (eliges dónde; la hora
+y el lugar del vídeo se incluyen). Abajo: **Mostrar en el Finder** y **Abrir con la app predeterminada**. *Windows:* si
+un vídeo no se reproduce, suele faltar la extensión gratuita «Extensiones de vídeo HEVC»; la app muestra una guía breve
+y abre la página de Microsoft Store.
+
+**Ubicar:** el mapa pequeño de la derecha siempre está. Sin lugar, haces clic en el mapa; con lugar, arrastras el
+punto. Antes de escribir puedes indicar altitud y dirección y aceptar la dirección postal sugerida.
+
+**Editar datos de la foto:** abajo en la columna, los mismos campos que en el Geotagger (título, descripción, palabras
+clave, valoración, autor, copyright, lugar/ciudad/país, cámara …), además de **hora de captura** y **zona horaria**, y
+desplegables **todos los demás campos** con búsqueda. **Escribir cambios en la foto** lo escribe todo de una vez.
+
+Antes de cada escritura la app hace una copia de seguridad del original (ZIP en *Copias de seguridad*). Después el
+archivo muestra los valores nuevos al momento.
+
+### Por fecha (desde v0.9.781)
+
+A la izquierda, en **📅 Por fecha**, despliegas tu archivo como en Lightroom: **año** → **mes** →
+**día** («miércoles, 4 de marzo»), cada uno con su número de fotos. Un clic en un año o un mes lo despliega
+o lo pliega como la flechita y, al desplegar, muestra exactamente ese periodo; un clic en un día muestra ese día.
+Arriba aparece un chip como **«📅 marzo 2026 ✕»**: ✕, volver a plegar el año o el mes, un segundo clic en el
+mismo día o **Todo** lo quitan. La app recuerda qué está desplegado.
+
+### Por carpeta (desde v0.9.781)
+
+Debajo está **📁 Por carpeta**: cada carpeta de fotos con todas las subcarpetas que lee — cada número incluye las
+subcarpetas. Un clic despliega una carpeta y muestra sus fotos con subcarpetas, un segundo clic la pliega y quita la
+selección; arriba aparece un chip como **«📁 Fotos › 2024 › Islandia ✕»**. Se combina con fecha, cámara y búsqueda. La
+papelera y las carpetas de miniaturas del NAS (`#recycle`, `@eaDir` …) ni se leen.
 
 ### Buscar y filtrar
 
@@ -1614,11 +1656,19 @@ aplicación continúa donde se quedó la última pasada:
 - **La revisión completa** de lo que ha cambiado en las carpetas —archivos
   nuevos, cambiados y borrados— se hace como mucho cada seis horas. En una
   unidad de red esa pasada dura minutos, así que no en cada visita. Con
-  **Escanear** en la barra lateral se hace al momento.
+  **Escanear** en la barra lateral se hace al momento. Desde v0.9.781 la app también **revisa en silencio
+  aunque simplemente siga abierta**: cada unos 20 minutos mira si toca algo, incluso mientras trabajas en el
+  Animator. Así las fotos nuevas del NAS entran solas.
 
 Ambas cosas van en segundo plano, dicen abajo a la derecha qué hacen y se pueden
 cancelar. Si prefieres que no ocurra —en un punto de acceso, en una wifi
 ajena— desmarca **Mantener al día por sí solo** en la barra lateral.
+
+**Tres pasos (desde v0.9.781):** 1. la lista de archivos, 2. hora, lugar y cámara — solo se lee la cabecera de cada
+archivo, lo que va rápido incluso en un NAS, y después búsqueda, fecha, mapa y carpetas funcionan para todo —, 3. las
+miniaturas. Para ellas cada archivo tiene que pasar entero por la red una vez; es la parte más lenta y por eso va al
+final. Donde mires, las imágenes llegan al momento. **Si cierras la app a mitad, no se pierde nada:** las carpetas ya revisadas se recuerdan al momento; el siguiente
+inicio sigue ahí («sigue donde se quedó») y el paso 2 cuenta lo que ya se ha leído.
 
 > **Por qué importa el primer escaneo:** los datos de captura y las miniaturas
 > se crean ahí y luego viven en la biblioteca de tu ordenador. Antes de eso,
@@ -1626,6 +1676,27 @@ ajena— desmarca **Mantener al día por sí solo** en la barra lateral.
 > un segundo por vídeo. Mientras quede algo pendiente, la cabecera sobre la
 > cuadrícula lo dice y ofrece el botón al lado.
 
+
+### Buscar por contenido (desde v0.9.781) ⭐
+
+Si quieres, el buscador también encuentra **lo que muestran las fotos**: «puesta de sol», «perro en la playa»,
+«lago de montaña», «cielo nocturno con estrellas» — en cualquier idioma, sin que tengas que haber puesto palabras clave.
+
+- **Activarla:** si buscas algo y la búsqueda por contenido aún está desactivada, la app la ofrece encima de la
+  cuadrícula: **Activar Estándar** (unos 500 MB) o **Activar Grande** (unos 1,6 GB, entiende mejor alemán y español
+  pero capta unas seis veces más despacio). Descarga una vez el modelo de imagen (SigLIP 2 de Google) y mira cada foto una vez en segundo plano. Todo ocurre solo en tu ordenador, sin cuenta; ninguna foto sale de
+  él. Puedes seguir usando todo lo demás; mientras se renderiza un vídeo o se leen fotos, espera. El progreso aparece a
+  la izquierda bajo la lista de carpetas («Contenido captado: 4.210 de 170.705 fotos · faltan unos …»).
+- **Resultados:** primero lo que coincide en nombre, palabra clave o lugar, luego **por contenido — las mejores
+  primero**. Encima de la cuadrícula ves cuántas hay de cada tipo; **Por fecha** ordena los mismos resultados por día.
+  Año, cámara, fecha y los demás filtros siguen valiendo; el mapa y las rutas muestran los mismos resultados.
+- **Fotos parecidas:** en la columna derecha, **🖼 Fotos parecidas** busca imágenes que se parecen a esta — arriba
+  aparece «Parecidas a …», ✕ lo quita.
+- **Idiomas:** el alemán encuentra igual de bien que el inglés; con palabras raras en español la búsqueda es más débil.
+- **Ajustes → Biblioteca y nube → Búsqueda por contenido:** activarla o desactivarla, elegir **Estándar** o
+  **Grande** (entiende mejor alemán y español, unos 1,6 GB, capta más despacio) y **Borrar modelo e índice**.
+- **Mudarse:** el índice está en la biblioteca y se mueve con ella. En otro ordenador la app solo vuelve a descargar
+  el modelo — no hay que captar las fotos otra vez.
 
 ### Lo que el fondo sabe de una foto
 
@@ -1752,7 +1823,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 **🧱 Superposiciones (desde v0.9.752)** — Todo lo que queda fijo en la imagen es una **superposición**: valores, perfil de altitud, gráficos, flecha del norte y escala, título, tarjeta final, logo. Una superposición es una caja hecha de **filas**.
 
-- **Crear:** en la barra lateral, en «Superposiciones», elige una plantilla en **«＋ Nueva superposición»**: *Valores en directo*, *Totales*, *Perfil de altitud*, *Título*, *Tarjeta final*, *Logo*, *Flecha del norte + escala*, *Marco* o *Vacía*. El editor se abre como ventana flotante (se mueve por la cabecera).
+- **Crear:** en la barra lateral, en «Superposiciones», elige una plantilla en **«＋ Nueva superposición»**: *Valores en directo*, *Totales*, *Perfil de altitud*, *Título*, *Tarjeta final*, *Logo*, *Flecha del norte + escala*, *Marco* o *Vacía*. El editor se abre como ventana flotante (se mueve por la cabecera, **Esc** la cierra).
 - **Lista:** casilla = mostrar, **✎** abre el editor, **⧉** duplica, **✕** borra. El orden se cambia arrastrando **⠿** o con **▲▼**: más abajo en la lista significa más delante en la imagen.
 - **Colocar:** **arrastra la superposición en la vista previa** (cuadrícula del 1 %, se ajusta a bordes y centro, un paso de ⌘Z por arrastre) o, en el editor, en **Posición y tamaño**: **ancla** (nueve puntos) más **desplazamiento** en porcentaje de la imagen. Tamaño **automático** (tan grande como el contenido) o **fijo** (ancho y alto en %), además de la alineación del contenido.
 - **Estilo = plantilla del aspecto:** **Caja** (caja semitransparente), **Libre** (números grandes sin caja, rótulo pequeño encima, sombra de texto), **Placa** (píldora oscura redondeada) y **Ninguno**. Un clic pone los valores del estilo; después cambias cualquier valor tú mismo: disposición (una bajo otra/una junto a otra), rótulo (encima del valor, a la izquierda, sin rótulo), tipografía, tamaño, color de texto y de fondo con opacidad, imagen de fondo (rellenar/ajustar, opacidad), relleno, espaciado de filas y columnas. En **Más**: color de acento, esquinas, borde, sombra, sombra de texto, desenfoque, mayúsculas, tamaño de rótulo y unidad, opacidad. Todas las filas de una superposición tienen el mismo aspecto: si una fila debe verse distinta, usa una segunda superposición.
@@ -1931,7 +2002,7 @@ Con la barra de línea de tiempo **bajo** la vista previa del mapa puedes diseñ
 
 **🎵 Música y sonido (desde v0.9.778).** En la sección **«🎵 Música y sonido»** pones música bajo el vídeo: **«De camino»** es una pieza propia de la app (40 s, se repite sin cortes, libre para YouTube y similares), y cinco más en otros estilos: **Amplitud** (tranquila, cinematográfica), **Asalto a la cumbre** (enérgica), **Descanso** (lo-fi, relajada), **Cresta** (épica), **Canción de ruta** (folk con guitarra); con **…** usas tu propia música (MP3, M4A, WAV, FLAC …; los derechos los necesitas tú). Además **volumen**, **aparecer** y **desvanecer** (segundos) y **📷 Clic en cada parada de foto** con su propio **sonido** (réflex, sin espejo, analógica con arrastre, telémetro, móvil, instantánea, pop, madera, campanita, silbido + clic, sencillo; o un sonido propio desde un archivo con **…**, **▶** lo reproduce) y volumen; el clic suena cuando la foto ha llegado. En la línea de tiempo, la pista **«Sonido»** muestra la música (las rampas son la entrada y la salida; arrastrarlas las cambia), los clics y el sonido de los clips; doble clic abre los ajustes. Al reproducir ya lo oyes todo en la vista previa; **🔊** junto al tiempo silencia la vista previa. En el vídeo terminado el sonido es una pista de audio normal (AAC).
 
-**Línea de tiempo con imágenes (desde v0.9.778).** La pista del track muestra en pequeño el **perfil de altura** de la ruta (en las pausas se detiene, como el punto en el vídeo); en un viaje cada mosaico de ruta tiene su propio perfil. En la pista de carteles, las barras muestran **nombre y tiempo** y su **foto**, o ▶ en un clip y el icono de la píldora en destacados y cuaderno. **⌘+ / ⌘−** hacen zoom en la línea de tiempo, **⌘0** vuelve a mostrarlo todo (Windows: Ctrl). Arrastra el **asa del borde superior** de la línea de tiempo hacia arriba o abajo: las pistas se hacen más altas o más bajas (doble clic: estándar).
+**Línea de tiempo con imágenes (desde v0.9.778).** La pista del track muestra en pequeño el **perfil de altura** de la ruta (en las pausas se detiene, como el punto en el vídeo); en un viaje cada mosaico de ruta tiene su propio perfil. En la pista de carteles, las barras muestran **nombre y tiempo** y su **foto**, o ▶ en un clip y el icono de la píldora en destacados y cuaderno. **⌘+ / ⌘−** hacen zoom en la línea de tiempo, **⌘0** vuelve a mostrarlo todo (Windows: Ctrl). Arrastra el **asa del borde superior** de la línea de tiempo hacia arriba o abajo: las pistas se hacen más altas o más bajas (doble clic: estándar). La línea de tiempo nunca ocupa más del 60 % de la vista previa: en una ventana pequeña el mapa sigue visible.
 
 **🗺 Mapa general en el vídeo (desde v0.9.778).** **Overlays → ＋ Nuevo overlay → Mapa general** pone toda la ruta en pequeño en la imagen, la parte recorrida en el color de la línea y un punto que indica dónde estás. Es un overlay normal: muévelo, tamaño (ancho/alto en %), estilo, cuándo se ve. A diferencia del resumen «solo vista» abajo a la derecha de la vista previa, este está **en el vídeo**.
 
@@ -2045,7 +2116,7 @@ Desde v0.9.658 el vídeo terminado es literalmente la vista previa en alta resol
 
 En el enjambre con terreno 3D, las líneas van ahora también en la vista previa justo por encima del terreno (sin parpadeo en las crestas), igual que en el vídeo.
 
-Si alguna vez un render con el nuevo método no llega al final, hay una vuelta atrás al generador anterior: pon `"render_engine": "klassisch"` en `settings.json` (o arranca la app con `RZ_RENDER_KLASSISCH=1`). La exportación con alfa (fondo transparente) y la imagen fija de Tour-Map siguen usando de todos modos el método anterior.
+Desde v0.9.752 todos los vídeos, las imágenes fijas y la exportación con alfa (fondo transparente) pasan por esta escena de vista previa: ya no existe un segundo método de render más antiguo. Si un render se detiene, **Ayuda → Informar de un problema** con el registro ayuda a acotarlo.
 
 ### 📷 Fotos en el mapa (desde v0.9.74) ⭐
 

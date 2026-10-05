@@ -1794,7 +1794,7 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
                  tags=None, min_km=None, max_km=None, bbox=None, collection_id=None,
                  include_errors=False, include_hidden=False, hidden_only=False,
                  missing_only=False, merged_only=False, include_merged=False,
-                 von=None, bis=None, alle_dateien=False, **_ignored) -> tuple:
+                 von=None, bis=None, alle_dateien=False, verz=None, **_ignored) -> tuple:
     """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
     dieselbe Auswahl meinen, sonst zählt die Statistik etwas anderes als das,
     was der Nutzer gerade sieht.
@@ -1830,6 +1830,11 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
     # „2025-12-31z". Das `z` am Ende von `bis` schließt den letzten Tag MIT ein:
     # ohne das fiele „2025-12-31T09:00" aus dem Bereich, weil „2025-12-31T…"
     # größer ist als „2025-12-31".
+    # 04.10.2026 (Marc: „dort einfach genau gleich wie bei Fotos") — „Nach Ordner" im Touren-Archiv: ein Ordner samt
+    # Unterordnern, als Bereich über den Pfad (wie cfotos._where), kein LIKE.
+    if verz:
+        from .fotos import pfadbereich   # Audit B-9: eine Regel für Fotos und Touren (auch `C:\\`)
+        where.append("(path > ? AND path < ?)"); args.extend(pfadbereich(verz))
     if von:
         where.append("started_at >= ?"); args.append(str(von)[:10])
     if bis:
@@ -1925,6 +1930,7 @@ def query(
     von: Optional[str] = None,
     bis: Optional[str] = None,
     zuerst_geo: Optional[list] = None,
+    verz: Optional[str] = None,      # 04.10.2026 — „Nach Ordner": Ordner samt Unterordnern
 ) -> dict:
     """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
 
@@ -1942,7 +1948,7 @@ def query(
         tags=tags, min_km=min_km, max_km=max_km, bbox=bbox,
         collection_id=collection_id, include_errors=include_errors,
         include_hidden=include_hidden, hidden_only=hidden_only,
-        missing_only=missing_only, von=von, bis=bis)
+        missing_only=missing_only, von=von, bis=bis, verz=verz)
     order = _SORTS.get(sort, _SORTS["date_desc"])
     if collection_id and sort == "collection":
         # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
@@ -2323,6 +2329,38 @@ def _stats_stand(conn: sqlite3.Connection) -> tuple:
 
 
 @_locked
+def datumsbaum(conn: sqlite3.Connection, **filters) -> list:
+    """Touren je Tag (Starttag) für „Nach Datum" in der Seitenleiste (04.10.2026, wie bei den Fotos). Die Datumsteile
+    des Filters gelten hier nicht, sonst schrumpfte der Baum beim Klicken."""
+    f = {k: v for k, v in filters.items() if k not in ("von", "bis", "year", "limit", "offset", "sort")}
+    wo, args = _build_where(**f)
+    # 05.10.2026 — unter _DB_LOCK: beim Öffnen fragt die Oberfläche Statistik und beide Bäume gleichzeitig; parallel auf
+    # derselben Verbindung kam „sqlite3.InterfaceError: bad parameter or other API misuse" (Marcs Log)
+    with _DB_LOCK:
+        rows = conn.execute(f"SELECT substr(started_at, 1, 10) AS tag, COUNT(*) AS n FROM tracks WHERE {wo} "
+                            f"AND started_at IS NOT NULL AND started_at != '' GROUP BY tag ORDER BY tag", args).fetchall()
+    return [{"tag": r["tag"], "n": r["n"]} for r in rows if r["tag"] and len(r["tag"]) == 10]
+
+
+def ordnerbaum(conn: sqlite3.Connection, **filters) -> dict:
+    """Touren je Verzeichnis + die beobachteten Wurzeln für „Nach Ordner" (04.10.2026). Touren außerhalb der Ordner
+    (importiert, zusammengeführt) zählen in `ausserhalb`."""
+    f = {k: v for k, v in filters.items() if k not in ("verz", "search", "limit", "offset", "sort")}
+    wo, args = _build_where(**f)
+    with _DB_LOCK:
+        wurzeln = [r["path"] for r in conn.execute("SELECT path FROM folders ORDER BY path")]
+        pfade = [r[0] for r in conn.execute(f"SELECT path FROM tracks WHERE {wo}", args)]
+    zaehl: dict = {}
+    ausserhalb = 0
+    for p in pfade:
+        d = os.path.dirname(p)
+        if any(d == w or d.startswith(w.rstrip("/\\") + os.sep) for w in wurzeln):
+            zaehl[d] = zaehl.get(d, 0) + 1
+        else:
+            ausserhalb += 1
+    return {"wurzeln": wurzeln, "verz": sorted(zaehl.items()), "ausserhalb": ausserhalb}
+
+
 def stats(conn: sqlite3.Connection, **filters) -> dict:
     """Zahlen zur aktuellen Auswahl — dieselben Filter wie `query()`.
 
@@ -2341,7 +2379,8 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
         treffer = _STATS_CACHE.get(schluessel)
         if treffer and treffer[0] == stand and jetzt - treffer[1] < _STATS_CACHE_TTL_S:
             return copy.deepcopy(treffer[2])
-    ergebnis = _stats_rechnen(conn, **filters)
+    with _DB_LOCK:   # 05.10.2026 — s. datumsbaum: parallele Aufrufe beim Öffnen
+        ergebnis = _stats_rechnen(conn, **filters)
     if stand and schluessel is not None:
         if len(_STATS_CACHE) >= _STATS_CACHE_MAX:
             _STATS_CACHE.pop(next(iter(_STATS_CACHE)))

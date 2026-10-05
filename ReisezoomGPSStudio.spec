@@ -199,6 +199,9 @@ _excludes = [
     # Wächter: tests/test_bundle_ausschluesse.py.
     "matplotlib", "scipy",
     "test", "tests", "unittest",
+    # 05.10.2026 (Audit F-8) — onnxruntime-Werkzeuge, die die Inhaltssuche nicht braucht (nur InferenceSession):
+    # transformers 5,5 MB, quantization 1,9 MB, tools 1,5 MB. `onnxruntime/__init__` importiert keins davon.
+    "onnxruntime.transformers", "onnxruntime.quantization", "onnxruntime.tools",
 ]
 # v0.9.331 — Solo-Geotagger rendert nichts. animator.py/heightanim.py importieren
 # playwright + imageio_ffmpeg NUR lazy (innerhalb von Render-Funktionen, die der
@@ -208,6 +211,9 @@ if _IS_GEO:
     _excludes += ["imageio_ffmpeg", "playwright"]
 
 hidden += ["tzdata", "zoneinfo"]   # 11.09.2026 — Zeitzonen
+# 04.10.2026 — Inhaltssuche (core/inhalt.py importiert beides erst bei Bedarf). Native Bibliotheken über die
+# Hooks von pyinstaller-hooks-contrib; der Selbsttest (`--selbsttest`) prüft im fertigen Paket, dass sie laden.
+hidden += ["onnxruntime", "tokenizers"]
 a = Analysis(
     ["app.py"],
     pathex=[],

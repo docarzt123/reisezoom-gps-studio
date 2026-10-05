@@ -1,7 +1,7 @@
 """Zentrales Logging für Reisezoom GPS Studio.
 
 - Logdatei in `~/Library/Application Support/Reisezoom GPS Studio/logs/app.log`.
-- `RotatingFileHandler` mit 1 MB pro Datei, 5 Backups (`app.log.1` … `app.log.5`).
+- `RotatingFileHandler` mit 3 MB pro Datei (bis 05.10.2026: 1 MB), 5 Backups (`app.log.1` … `app.log.5`).
 - Zusätzlich auf stderr, damit man's auch beim Dev-Start sieht.
 - `setup_logging(app_support_dir)` wird in `app.py` einmal beim App-Start aufgerufen.
 - Ungehandelte Exceptions (sys.excepthook + threading.excepthook) werden ebenfalls
@@ -65,7 +65,7 @@ def setup_logging(app_support_dir: Path, level: int = logging.INFO,
     # File-Handler (Rotating, ~1 MB × 5)
     try:
         fh = logging.handlers.RotatingFileHandler(
-            log_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8"
+            log_path, maxBytes=3_000_000, backupCount=5, encoding="utf-8"   # Audit G-7: 3 MB (Nachtscan + Render-Tag bleiben erhalten)
         )
         fh.setFormatter(fmt)
         fh.setLevel(level)

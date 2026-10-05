@@ -863,7 +863,7 @@ more over the track, hardly any horizon. The arrow points exactly in the directi
 the line is smoothed a little more for this. In tight hairpins the arrow therefore turns visibly — just as the
 line really runs.
 
-**Render video** opens, since v0.9.744, a quick-video screen of its own over the whole app: the tour name at the top, in the middle first the map image of your tour with the current step (creating the project, loading the map, prewarming tiles …), then the video as it is being made, below it the progress and "Cancel". The Animator works invisibly behind it — you don't need to do anything there. **Close** takes you back to the archive (if you started the quick video in the Animator, you stay there), **Cancel** stops the video and leaves you in the Animator with the new project, **Open in the Animator** shows the project for further editing. When it is done, **"💾 Save …"** puts it wherever
+**Render video** opens, since v0.9.744, a quick-video screen of its own over the whole app: the tour name at the top, in the middle first the map image of your tour with the current step (creating the project, loading the map, prewarming tiles …), then the video as it is being made, below it the progress and "Cancel". The Animator works invisibly behind it — you don't need to do anything there. **Close** takes you back to the archive (if you started the quick video in the Animator, you stay there), **Cancel** stops the video — if you started it in the Animator you are back in your own project afterwards (the started Quick-video project stays in the archive), otherwise in the Animator with the new project (since 0.9.781; the top then reads “Quick video · tour name”), **Open in the Animator** shows the project for further editing. When it is done, **"💾 Save …"** puts it wherever
 you want, **"📤 Share"** opens the share menu on the Mac (AirDrop, Messages, Mail, Photos …); on Windows
 the folder with the video opens.
 
@@ -1182,6 +1182,12 @@ Animator”, duplicate and delete. **Duplicate**
 creates a “(copy)” with the same tours in the same order — handy for building a variant
 without touching the original (and its Animator settings). The app remembers the
 section you were last in.
+
+**📅 By date and 📁 By folder (since v0.9.781)** — below, just like for photos: year → month → day with the number
+of tours, and your watched folders with all subfolders (subfolders are counted in). Clicking a year, a month or a
+folder unfolds it and shows exactly those tours; a second click folds it and clears the selection. The date goes into
+the period field at the top (“custom period”), the folder appears as a chip **“📁 Tours › 2024 ✕”**; **Reset filters**
+clears both.
 
 **Done or only planned?** The app works this out by itself — no matter which app the track
 comes from:
@@ -1529,9 +1535,10 @@ A folder you remove only disappears from the stock; the files stay where they ar
 
 ### The three views
 
-* **▦ Grid** — grouped by day, newest first. A small **!** on a tile means
-  something is missing (capture time, time zone or coordinates). Videos carry
-  their length in the bottom right.
+* **▦ Grid** — grouped by day, newest first. Videos carry their length in the
+  bottom right. Otherwise a tile shows nothing, not even on hover — a click
+  shows name, capture time and all data on the right (since v0.9.781). What is missing is shown by the
+  filters on the left (*Without coordinates*, *Without capture time*) and the findings on the right.
 * **🌍 Map** — a density cloud of every file with coordinates; the more of them
   in one spot, the bigger and stronger the dot. Clicking the cloud shows on the
   right which files are there and **which of your tours passed by**. The tick
@@ -1539,6 +1546,39 @@ A folder you remove only disappears from the stock; the files stay where they ar
 * **🥾 By tour** — which photos belong to which tour. GPS Studio works that out
   from the tour's time window; it is written into no file. Clicking a tour shows
   its files in the grid.
+
+### View large, videos, edit and place (since v0.9.781)
+
+**View large:** double-click a tile, click the image on the right or press **space** to open the photo in the whole
+window. **← / →** browse in raster order, **Esc** closes. Videos play there with sound and the usual controls;
+**📸 Save still image** saves the frame shown as JPEG (you choose where; capture time and place of the video come
+along). At the bottom: **Show in Finder** and **Open with default app**. *Windows:* if a video does not play, the free
+“HEVC Video Extensions” are usually missing — the app shows a short guide and opens the Microsoft Store page.
+
+**Place:** the small map on the right is always there. Without a location you click the map; with one you drag the
+dot. Before writing you can add altitude and viewing direction and accept the suggested address.
+
+**Edit photo data:** at the bottom of the column — the same fields as in the Geotagger (title, description, keywords,
+rating, artist, copyright, place/city/country, camera …), plus **capture time** and **time zone**, and foldable
+**all other fields** with search. **Write changes to photo** writes everything at once.
+
+Before every write the app backs up the original (ZIP under *Backups*). Afterwards the library shows the new values
+right away.
+
+### By date (since v0.9.781)
+
+On the left under **📅 By date** you unfold your library like in Lightroom: **year** → **month** →
+**day** (“Wednesday, 4 March”), each with its number of photos. A click on a year or month unfolds or
+folds it like the small arrow and, when unfolding, shows exactly that period; a click on a day shows that day. At
+the top a chip like **“📅 March 2026 ✕”** appears — ✕, folding the year or month again, a second click on the
+same day or **All** clears it. The app remembers what is unfolded.
+
+### By folder (since v0.9.781)
+
+Below it is **📁 By folder**: every photo folder with all the subfolders it reads — each count includes subfolders.
+A click unfolds a folder and shows its photos including subfolders, a second click folds it and clears the selection;
+the bar then shows a chip like **“📁 Fotos › 2024 › Iceland ✕”**. It combines with date, camera and search. The NAS
+recycle bin and preview folders (`#recycle`, `@eaDir` …) are not read in at all.
 
 ### Searching and filtering
 
@@ -1573,11 +1613,19 @@ carries on where the last run stopped:
   due anyway.
 - **A full look** at what changed in the folders — new, changed and deleted
   files — runs at most every six hours. On a network drive such a pass takes
-  minutes, so not on every visit. **Scan** in the sidebar does it right away.
+  minutes, so not on every visit. **Scan** in the sidebar does it right away. Since v0.9.781 the app also
+  **checks quietly while it simply stays open** — about every 20 minutes it looks whether something is due,
+  even while you work in the Animator. New photos on the NAS come in by themselves.
 
 Both run in the background, say what they are doing in the bottom right, and can
 be cancelled. If you would rather they did not — on a hotspot, on someone else's
 Wi-Fi — untick **Keep up to date by itself** in the sidebar.
+
+**Three steps (since v0.9.781):** 1. the file list, 2. capture time, place and camera — only the header of each file is
+read, which is quick even on a NAS, and afterwards search, date, map and folders work for everything —, 3. the previews.
+For those every file has to come over the network in full once; that is the slowest part and therefore comes last.
+Wherever you look, the pictures come right away. **If you close the app halfway, nothing is lost:** folders already checked are remembered at once; the next start
+continues there (“continuing where it stopped”), and step 2 counts what has already been read.
 
 > **Why the first scan matters:** capture data and thumbnails are created during
 > it and then live in the library on your own machine. Before that, every tile
@@ -1585,6 +1633,27 @@ Wi-Fi — untick **Keep up to date by itself** in the sidebar.
 > videos. While anything is outstanding, the header above the grid says so and
 > offers the button right there.
 
+
+### Search by content (since v0.9.781) ⭐
+
+On request the search field also finds **what the photos show**: “sunset”, “dog on the beach”, “mountain lake”,
+“night sky with stars” — in any language, without any keywords on your part.
+
+- **Turning it on:** if you search and content search is still off, the app offers it above the grid: **Turn on Standard** (about 500 MB) or **Turn on Large** (about 1.6 GB, understands German and
+  Spanish better but captures about six times slower). It then downloads the image model once (Google's SigLIP 2) and looks at every photo
+  once in the background. This happens only on your computer, no account; no photo leaves it. You can keep using
+  everything else; while a video renders or photos are being read in, it waits. The progress is shown on the left
+  below the folder list (“Image content captured: 4,210 of 170,705 photos · about … left”).
+- **Hits:** first what matches name, keyword or place, then **by image content — best first**. Above the grid you
+  see how many of each; **By date** sorts the same hits by capture day. Year, camera, date and the other filters
+  still apply; map and tours show the same hits.
+- **Similar photos:** in the right column, **🖼 Similar photos** looks for pictures that look like this one — the bar
+  then shows “Similar to …”, ✕ clears it.
+- **Languages:** German finds as well as English; for rare Spanish words the search is weaker.
+- **Settings → Library & Cloud → Content search:** turn it on or off, choose **Standard** or **Large** (understands
+  German and Spanish better, about 1.6 GB, captures more slowly) and **Delete model and index**.
+- **Moving:** the index lives in the library and moves with it. On another computer the app only downloads the
+  model again — the photos don't have to be captured again.
 
 ### What the stock knows about a photo
 
@@ -1711,7 +1780,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **🧱 Overlays (since v0.9.752)** — Everything that stays fixed in the frame is an **overlay**: values, elevation profile, charts, north arrow and scale bar, title, end card, logo. An overlay is a box made of **rows**.
 
-- **Create:** in the sidebar under “Overlays”, pick a template from **“＋ New overlay”**: *Live values*, *Totals*, *Elevation profile*, *Title*, *End card*, *Logo*, *North arrow + scale bar*, *Frame* or *Empty*. The editor opens as a floating window (drag it by its header).
+- **Create:** in the sidebar under “Overlays”, pick a template from **“＋ New overlay”**: *Live values*, *Totals*, *Elevation profile*, *Title*, *End card*, *Logo*, *North arrow + scale bar*, *Frame* or *Empty*. The editor opens as a floating window (drag it by its header, **Esc** closes it).
 - **List:** checkbox = show, **✎** opens the editor, **⧉** duplicates, **✕** deletes. Change the order by dragging **⠿** or with **▲▼**: lower in the list means further in front in the picture.
 - **Place:** **drag the overlay in the preview** (1 % grid, snaps to edges and centre, one ⌘Z step per drag), or in the editor under **Position and size**: **anchor** (nine points) plus **offset** in percent of the frame. Size **automatic** (as big as the content) or **fixed** (width and height in %), plus the alignment of the content.
 - **Style = template for the look:** **Box** (semi-transparent box), **Free** (big numbers without a box, small label above, text shadow), **Badge** (dark rounded pill) and **None**. One click sets the style's values; after that you change any value yourself: layout (stacked/side by side), label (above the value, to the left, off), font, font size, text and background colour with opacity, background image (fill/fit, opacity), padding, row and column spacing. Under **More**: accent colour, corners, border, shadow, text shadow, blur, capitals, size of label and unit, opacity. All rows of one overlay look the same — if one row should look different, use a second overlay.
@@ -1899,7 +1968,7 @@ With the timeline bar **below** the map preview you can shape the camera flow dy
 
 **🎵 Music and sound (since v0.9.778).** In the section **“🎵 Music and sound”** you put music under the video: **“On the way”** is the app's own piece (40 s, loops seamlessly, free for YouTube and the like), plus five more in other styles: **Expanse** (calm, cinematic), **Summit push** (driving), **Break** (lo-fi, relaxed), **Ridge** (epic), **Hiking song** (folk with guitar); with **…** you use your own music (MP3, M4A, WAV, FLAC …; you need the rights yourself). Plus **volume**, **fade in** and **fade out** (seconds) and **📷 Click at every photo stop** with its own **sound** (DSLR, mirrorless, film camera with winder, rangefinder, phone, instant camera, pop, wood, little bell, whoosh + click, simple — or your own sound from a file via **…**, **▶** plays it) and volume — the click comes when the photo has arrived. In the timeline the **“Sound”** lane shows the music (the slopes are fade in and out — drag them to change), the clicks and the sound of the clips; double-click opens the settings. While playing you already hear everything in the preview; **🔊** next to the time mutes the preview. In the finished video the sound is a normal audio track (AAC).
 
-**Timeline with pictures (since v0.9.778).** The track lane shows the tour's **elevation profile** small (during holds it stands still, like the dot in the video); in a trip every tour tile has its own profile. In the signs lane the bars show **name and time** and their **photo** — or ▶ for a clip, the pill's icon for highlights and logbook. **⌘+ / ⌘−** zoom the timeline, **⌘0** shows everything again (Windows: Ctrl). Drag the **grip on the top edge** of the timeline up or down — the lanes get taller or lower (double-click: default).
+**Timeline with pictures (since v0.9.778).** The track lane shows the tour's **elevation profile** small (during holds it stands still, like the dot in the video); in a trip every tour tile has its own profile. In the signs lane the bars show **name and time** and their **photo** — or ▶ for a clip, the pill's icon for highlights and logbook. **⌘+ / ⌘−** zoom the timeline, **⌘0** shows everything again (Windows: Ctrl). Drag the **grip on the top edge** of the timeline up or down — the lanes get taller or lower (double-click: default). The timeline never takes more than 60 % of the preview area — in a small window the map stays visible.
 
 **🗺 Overview map in the video (since v0.9.778).** **Overlays → ＋ New overlay → Overview map** puts the whole route small into the picture, the travelled part in the line colour, a dot shows where you are. It is a normal overlay: move it, size (width/height in %), style, when it is visible. Unlike the “view only” overview at the bottom right of the preview, this one is **in the video**.
 
@@ -2001,7 +2070,7 @@ Since v0.9.658 the finished video is literally the preview in high resolution: t
 
 With the swarm on 3D terrain, the lines now run just above the terrain in the preview too (no more flickering on ridges) — just like in the video.
 
-Should a render with the new method ever fail to finish, there is a fallback to the previous generator: add `"render_engine": "klassisch"` to `settings.json` (or start the app with `RZ_RENDER_KLASSISCH=1`). Alpha export (transparent background) and the Tour-Map still image still use the previous method anyway.
+Since v0.9.752 every video, still image and the alpha export (transparent background) runs through this preview scene — there is no second, older render path any more. If a render stops, **Help → Report a problem** with the log helps to narrow it down.
 
 ### 📷 Photos on the map (since v0.9.74) ⭐
 

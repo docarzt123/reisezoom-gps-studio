@@ -48,6 +48,20 @@ _LEER_PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060
 _fehl_lock = _threading.Lock()
 _fehl: dict = {}          # (region, z, x, y, t) → {"t": zeitpunkt, "nachgeholt": bool}
 _stoerung: dict = {}      # region → {"name": str, "fehlend": set(), "nachgeholt": int}
+
+# 05.10.2026 (Audit K-2/G-6: Luftbild Spanien 502 → jedes Bild wartete 1–8 s auf NEUE Kacheln, 0,5 fps, ~20 min statt
+# ~2 min für 20 s Video) — Sicherung je Dienst: nach DIENST_TOT_NACH Fehlschlägen in Folge gilt der Dienst DIENST_TOT_S
+# lang als ausgefallen; in der Zeit kommt sofort die Ersatz-Kachel (kein Netz, kein Warten), danach EIN Probeversuch.
+# Klappt der, ist der Dienst wieder da. Je Render (stoerungen_zuruecksetzen) beginnt alles neu.
+DIENST_TOT_NACH = 6
+DIENST_TOT_S = 120.0
+_dienst_serie: dict = {}  # region → Fehlschläge in Folge
+_dienst_tot: dict = {}    # region → Zeitpunkt, bis zu dem er als ausgefallen gilt
+# Audit E-5: Ersatzbilder mit Obergrenze (vorher ungebremst) und EIN Nachhol-Faden statt eines Timers je Kachel
+ERSATZ_MAX = 500
+_nachhol: dict = {}       # key → (fällig_um, funktion)
+_nachhol_faden = None
+FEHL_VERGESSEN_S = 600.0  # in der Vorschau (ohne Render) gemerkte Fehler nach 10 min neu versuchen
 _geladen = {"bytes": 0, "kacheln": 0}   # 30.09.2026 — aus dem Netz geladen seit dem letzten Zurücksetzen (Log je Render)
 
 
@@ -122,7 +136,10 @@ def _ersatz_fuer(key: tuple, cache_dir) -> bytes:
         e = _eltern_ersatz(key[0], key[1], key[2], key[3], key[4], cache_dir)
         b = _Ersatz(e) if e else _LEER_ERSATZ
         if e:
-            _ersatz_bild[key] = b
+            with _fehl_lock:
+                while len(_ersatz_bild) >= ERSATZ_MAX:          # ältestes zuerst raus (dict hält die Reihenfolge)
+                    _ersatz_bild.pop(next(iter(_ersatz_bild)), None)
+                _ersatz_bild[key] = b
     return b
 
 
@@ -138,6 +155,9 @@ def stoerungen_zuruecksetzen() -> None:
         _stoerung.clear()
         _fehl.clear()
         _ersatz_bild.clear()
+        _dienst_serie.clear()
+        _dienst_tot.clear()
+        _nachhol.clear()
         _geladen["bytes"] = 0; _geladen["kacheln"] = 0
 
 
@@ -159,9 +179,59 @@ def _fehler_merken(key: tuple, nachholen) -> None:
         st = _stoerung.setdefault(key[0], {"name": _region_name(key[0]), "fehlend": set(), "nachgeholt": 0})
         st["fehlend"].add(key[1:])
     if neu:
-        tm = _threading.Timer(NACHHOLEN_S, nachholen)
-        tm.daemon = True
-        tm.start()
+        _nachholen_planen(key, nachholen)
+
+
+def _nachholen_planen(key: tuple, nachholen) -> None:
+    """Audit E-5 (05.10.2026): ein einziger Faden arbeitet die fälligen Nachholversuche ab — vorher lebte je
+    gescheiterter Kachel ein eigener Timer-Faden 20 s lang (bei einem flächigen Ausfall Tausende gleichzeitig)."""
+    global _nachhol_faden
+    with _fehl_lock:
+        _nachhol[key] = (time.time() + NACHHOLEN_S, nachholen)
+        if _nachhol_faden is None or not _nachhol_faden.is_alive():
+            _nachhol_faden = _threading.Thread(target=_nachhol_schleife, daemon=True, name="kachel-nachholen")
+            _nachhol_faden.start()
+
+
+def _nachhol_schleife() -> None:
+    while True:
+        time.sleep(1.0)
+        jetzt = time.time()
+        with _fehl_lock:
+            faellig = [(k, fn) for k, (t, fn) in _nachhol.items() if t <= jetzt]
+            for k, _fn in faellig:
+                _nachhol.pop(k, None)
+        for k, fn in faellig:
+            if dienst_ausgefallen(k[0]):
+                # Dienst gilt gerade als ausgefallen — kein Netz jetzt, aber auf das Ende der Sperre verschieben
+                # (nicht verwerfen: sonst bliebe die Kachel bis zum nächsten Render Ersatz)
+                with _fehl_lock:
+                    _nachhol[k] = (_dienst_tot.get(k[0], jetzt) + 0.5, fn)
+                continue
+            try:
+                fn()
+            except Exception as e:  # noqa: BLE001
+                _log.debug("Nachholen %s: %s", k, e)
+
+
+def dienst_ausgefallen(region_id: str) -> bool:
+    with _fehl_lock:
+        bis = _dienst_tot.get(region_id)
+    return bool(bis and time.time() < bis)
+
+
+def _dienst_ergebnis(region_id: str, ok: bool) -> None:
+    with _fehl_lock:
+        if ok:
+            if _dienst_tot.pop(region_id, None):
+                _log.info("Kartendienst %s antwortet wieder", region_id)
+            _dienst_serie[region_id] = 0
+            return
+        n = _dienst_serie[region_id] = _dienst_serie.get(region_id, 0) + 1
+        if n >= DIENST_TOT_NACH and not (_dienst_tot.get(region_id, 0) > time.time()):
+            _dienst_tot[region_id] = time.time() + DIENST_TOT_S
+            _log.warning("Kartendienst %s: %d Fehlschläge in Folge — %d s lang Ersatz-Kacheln ohne Warten",
+                         region_id, n, int(DIENST_TOT_S))
 _UA = {"User-Agent": "ReisezoomGPSStudio (+https://reisezoom.com/gps)"}
 
 
@@ -471,24 +541,60 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
     if not terrain_frage:
         with _fehl_lock:
             f = _fehl.get(key)
+            if f is not None and time.time() - f.get("t", 0) > FEHL_VERGESSEN_S:
+                _fehl.pop(key, None); f = None                         # alter Fehler: neue Chance
         if f is not None:
             return 200, "image/png", _ersatz_fuer(key, cache_dir)      # gemerkt: nicht erneut warten
+        if dienst_ausgefallen(region_id):
+            # Audit K-2: Dienst gilt als ausgefallen → Kachel aus dem Speicher, wenn sie dort liegt, sonst sofort Ersatz
+            st0, ct0, body0 = _aus_speicher(region_id, z, x, y, transparent, cache_dir)
+            if st0 == 200:
+                return st0, ct0, body0
+            _fehler_merken(key, _nachholer(key, cache_dir, timeout))
+            return 200, "image/png", _ersatz_fuer(key, cache_dir)
     st, ct, body = _fetch_tile_roh(region_id, z, x, y, transparent, cache_dir, timeout)
+    if not terrain_frage:
+        _dienst_ergebnis(region_id, st != 502)
     if st == 502 and not terrain_frage:
-        def nachholen():
-            s2, _c2, _b2 = _fetch_tile_roh(region_id, z, x, y, transparent, cache_dir, timeout)
-            with _fehl_lock:
-                if s2 == 200:
-                    _fehl.pop(key, None); _ersatz_bild.pop(key, None)
-                    sr = _stoerung.get(region_id)
-                    if sr is not None:
-                        sr["fehlend"].discard(key[1:]); sr["nachgeholt"] += 1
-                else:
-                    _fehl[key] = {"t": time.time()}
-            _log.info("Kachel %s z%d/%d/%d nachgeholt: %s", region_id, z, x, y, "ok" if s2 == 200 else f"weiter Fehler {s2}")
-        _fehler_merken(key, nachholen)
+        _fehler_merken(key, _nachholer(key, cache_dir, timeout))
         return 200, "image/png", _ersatz_fuer(key, cache_dir)
     return st, ct, body
+
+
+def _nachholer(key: tuple, cache_dir, timeout: float):
+    """Der eine Nachholversuch für eine gescheiterte Kachel (läuft im Nachhol-Faden)."""
+    region_id, z, x, y, transparent = key
+
+    def nachholen():
+        s2, _c2, _b2 = _fetch_tile_roh(region_id, z, x, y, transparent, cache_dir, timeout)
+        _dienst_ergebnis(region_id, s2 != 502)
+        with _fehl_lock:
+            if s2 == 200:
+                _fehl.pop(key, None); _ersatz_bild.pop(key, None)
+                sr = _stoerung.get(region_id)
+                if sr is not None:
+                    sr["fehlend"].discard(key[1:]); sr["nachgeholt"] += 1
+            else:
+                _fehl[key] = {"t": time.time()}
+        _log.info("Kachel %s z%d/%d/%d nachgeholt: %s", region_id, z, x, y, "ok" if s2 == 200 else f"weiter Fehler {s2}")
+    return nachholen
+
+
+def _aus_speicher(region_id: str, z: int, x: int, y: int, transparent: bool, cache_dir) -> tuple:
+    """Nur aus dem Zwischenspeicher (kein Netz) — (200, ct, body) oder (404, …)."""
+    if not cache_dir:
+        return 404, "text/plain", b""
+    region = next((r for r in ms.ORTHO_REGIONS if r["id"] == region_id), None)
+    if region is None:
+        return 404, "text/plain", b""
+    try:
+        cp = cache_path(Path(cache_dir), upstream_url(region, z, x, y, transparent) + _cache_suffix(region, z))
+        if cp.exists():
+            raw = cp.read_bytes(); nl = raw.index(b"\n")
+            return 200, raw[:nl].decode("ascii", "ignore") or "image/jpeg", raw[nl + 1:]
+    except Exception:  # noqa: BLE001
+        pass
+    return 404, "text/plain", b""
 
 
 def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,

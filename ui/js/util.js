@@ -4772,3 +4772,160 @@ function rzSchluesselFelder(wurzel) {
   });
 }
 window.rzSchluesselFelder = rzSchluesselFelder;
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Bäume „📅 Nach Datum" und „📁 Nach Ordner" für die Seitenleiste (04.10.2026)
+ *
+ * Gemeinsam für den Foto-Bestand (ui/js/fotos.js) und das Touren-Archiv (modules/library/ui/module.js) — Marc:
+ * „dort einfach genau gleich wie bei Fotos … also auch Ordner und Datum". Hier liegt nur das, was beide gleich
+ * machen: Baum bauen, Zeilen zeichnen, was ein Klick bedeutet. Laden, Filter setzen und Neuladen macht jeder selbst.
+ * Zeilen tragen data-dbauf/data-dbwahl (Datum) bzw. data-obauf/data-obwahl (Ordner); Klassen .foto-db-* (CSS im
+ * Archiv-Modul).
+ *
+ * Klick-Regel (Marc: „auf eine Jahreszahl oder einen Monat klicken soll das auf- oder zuklappen, wie bei den kleinen
+ * Pfeilen"): Knoten mit Kindern klappen um — aufklappen zeigt den Zeitraum/Ordner, zuklappen hebt eine Auswahl darin
+ * auf. Blätter (Tag, Ordner ohne Unterordner) werden gewählt bzw. wieder abgewählt.
+ * ────────────────────────────────────────────────────────────────────────── */
+window.rzBaum = (function () {
+  const T = (k, f) => (typeof t === "function" ? t(k, f) : f);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const num = (n) => { try { return Number(n || 0).toLocaleString(sprache()); } catch (_) { return String(n || 0); } };
+  function sprache() { try { return (typeof i18nMeta === "function" && i18nMeta().active) || undefined; } catch (_) { return undefined; } }
+  function monatName(jahr, monat) {
+    try { return new Intl.DateTimeFormat(sprache(), { month: "long" }).format(new Date(jahr, monat - 1, 1)); }
+    catch (_) { return String(monat); }
+  }
+  function tagName(tag) {
+    const [y, m, d] = tag.split("-").map(Number);
+    try { return new Intl.DateTimeFormat(sprache(), { weekday: "long", day: "numeric", month: "long" }).format(new Date(y, m - 1, d)); }
+    catch (_) { return tag; }
+  }
+  /** „2026" → ganzes Jahr, „2026-03" → ganzer März, „2026-03-04" → der Tag. */
+  function zeitraum(k) {
+    if (k.length === 4) return [k + "-01-01", k + "-12-31"];
+    if (k.length === 7) { const [y, m] = k.split("-").map(Number); const letzter = new Date(y, m, 0).getDate(); return [k + "-01", k + "-" + String(letzter).padStart(2, "0")]; }
+    return [k, k];
+  }
+  /** Text eines Zeitraums für den Chip: „März 2026", „Mittwoch, 4. März 2026", „2026". */
+  function datumText(v, b) {
+    if (!v || !b) return "";
+    if (v === b) return tagName(v) + " " + v.slice(0, 4);
+    if (v.slice(5) === "01-01" && b.slice(5) === "12-31" && v.slice(0, 4) === b.slice(0, 4)) return v.slice(0, 4);
+    if (v.slice(0, 7) === b.slice(0, 7) && v.endsWith("-01")) { const [y, m] = v.split("-").map(Number); return monatName(y, m) + " " + y; }
+    return v + " – " + b;
+  }
+  function kopfHtml(id, offen, icon, text) {
+    return `<button class="lib-nav-title foto-db-kopf" type="button" id="${id}" aria-expanded="${offen}">
+        <span class="foto-db-pfeil">${offen ? "▾" : "▸"}</span> ${icon} ${esc(text)}</button>`;
+  }
+  function zeileHtml(attrAuf, attrWahl, key, klasse, einzug, text, n, hatKinder, auf, an, titel) {
+    return `<div class="foto-db-zeile ${klasse}${an ? " is-on" : ""}"${einzug ? ` style="padding-left:${einzug}px"` : ""} data-db="${esc(key)}">
+        ${hatKinder ? `<button class="foto-db-auf" type="button" ${attrAuf}="${esc(key)}" aria-expanded="${auf}" aria-label="${esc(auf ? T("fotos.db_zu", "Zuklappen") : T("fotos.db_auf", "Aufklappen"))}">${auf ? "▾" : "▸"}</button>` : `<span class="foto-db-auf-leer"></span>`}
+        <button class="foto-db-wahl" type="button" ${attrWahl}="${esc(key)}" title="${esc(titel)}">
+          <span class="foto-db-txt">${esc(text)}</span><span class="lib-nav-count">${num(n)}</span></button>
+      </div>`;
+  }
+
+  /** Datum: Zeilen Jahr → Monat → Tag. `tage` = [{tag, n}], `offen` = Set der aufgeklappten Schlüssel,
+      `von`/`bis` = aktiver Filter. */
+  function datumHtml(tage, offen, von, bis) {
+    const baum = new Map();
+    for (const t of tage || []) {
+      const y = t.tag.slice(0, 4), m = t.tag.slice(0, 7);
+      if (!baum.has(y)) baum.set(y, { n: 0, monate: new Map() });
+      const J = baum.get(y); J.n += t.n;
+      if (!J.monate.has(m)) J.monate.set(m, { n: 0, tage: [] });
+      const M = J.monate.get(m); M.n += t.n; M.tage.push(t);
+    }
+    const an = (k) => { const [v, b] = zeitraum(k); return von === v && bis === b; };
+    const tip = (stufe) => stufe < 3 ? T("fotos.db_zeigen_klappen", "Auf- oder zuklappen und diesen Zeitraum zeigen") : T("fotos.db_zeigen", "Nur diesen Zeitraum zeigen");
+    const z = [];
+    for (const y of [...baum.keys()].sort().reverse()) {
+      const J = baum.get(y);
+      z.push(zeileHtml("data-dbauf", "data-dbwahl", y, "foto-db-s1", 0, y, J.n, true, offen.has(y), an(y), tip(1)));
+      if (!offen.has(y)) continue;
+      for (const m of [...J.monate.keys()].sort()) {
+        const M = J.monate.get(m), [yy, mm] = m.split("-").map(Number);
+        z.push(zeileHtml("data-dbauf", "data-dbwahl", m, "foto-db-s2", 0, monatName(yy, mm), M.n, true, offen.has(m), an(m), tip(2)));
+        if (!offen.has(m)) continue;
+        for (const t of M.tage) z.push(zeileHtml("data-dbauf", "data-dbwahl", t.tag, "foto-db-s3", 0, tagName(t.tag), t.n, false, false, an(t.tag), tip(3)));
+      }
+    }
+    return z.join("");
+  }
+  /** Klick auf eine Datumszeile → neuer Filter {von, bis} (null = keiner); `offen` wird angepasst. */
+  function datumKlick(k, offen, von, bis) {
+    const [v, b] = zeitraum(k);
+    if (k.length < 10 && offen.has(k)) {
+      offen.delete(k);
+      [...offen].forEach(o => { if (o.startsWith(k + "-")) offen.delete(o); });
+      return (von && String(von).startsWith(k)) ? { von: null, bis: null } : { von, bis };
+    }
+    if (von === v && bis === b) return { von: null, bis: null };
+    if (k.length < 10) { offen.add(k); if (k.length === 7) offen.add(k.slice(0, 4)); }
+    return { von: v, bis: b };
+  }
+
+  function sep(p) { return (p.includes("\\") && !p.includes("/")) ? "\\" : "/"; }
+  // Audit C-5: Wurzel mit Trennzeichen am Ende (Windows-Laufwerk `D:\`, `/Volumes/Fotos/`) — sonst war der Baum leer
+  function unter(p, oben) { return p === oben || (/[\\/]$/.test(oben) ? p.startsWith(oben) : p.startsWith(oben + sep(oben))); }
+  function verbinden(a, s, teil) { return /[\\/]$/.test(a) ? a + teil : a + s + teil; }
+  /** Ordner: `daten` = {wurzeln: [Pfad], verz: [[Verzeichnis, n], …]} → Knoten mit Summe inkl. Unterordnern. */
+  function ordnerKnoten(daten) {
+    const raus = [];
+    for (const w of (daten && daten.wurzeln) || []) {
+      const s = sep(w);
+      const knoten = { pfad: w, name: "", n: 0, kinder: new Map() };
+      for (const [d, n] of (daten.verz || [])) {
+        if (!unter(d, w)) continue;
+        knoten.n += n;
+        let k = knoten;
+        for (const teil of d.slice(w.length).split(s).filter(Boolean)) {
+          if (!k.kinder.has(teil)) k.kinder.set(teil, { pfad: verbinden(k.pfad, s, teil), name: teil, n: 0, kinder: new Map() });
+          k = k.kinder.get(teil);
+          k.n += n;
+        }
+      }
+      raus.push(knoten);
+    }
+    return raus;
+  }
+  /** Zeilen des Ordnerbaums; `wurzelText(pfad)` liefert den Namen einer Wurzel. Leere Wurzeln bleiben weg. */
+  function ordnerHtml(daten, offen, aktiv, wurzelText) {
+    const z = [];
+    const sortiert = (m) => [...m.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+    const zeile = (k, tiefe, text) => {
+      const hatKinder = k.kinder.size > 0, auf = offen.has(k.pfad);
+      z.push(zeileHtml("data-obauf", "data-obwahl", k.pfad, tiefe ? "" : "foto-db-s1", Math.min(tiefe, 8) * 12, text, k.n, hatKinder, auf, aktiv === k.pfad, k.pfad));
+      if (hatKinder && auf) for (const c of sortiert(k.kinder)) zeile(c, tiefe + 1, c.name);
+    };
+    for (const w of ordnerKnoten(daten)) if (w.n) zeile(w, 0, wurzelText(w.pfad));
+    return z.join("");
+  }
+  /** Klick auf eine Ordnerzeile → neuer aktiver Ordner (null = keiner); `offen` wird angepasst. */
+  function ordnerKlick(k, hatKinder, offen, aktiv) {
+    if (hatKinder && offen.has(k)) {
+      offen.delete(k);
+      [...offen].forEach(o => { if (o !== k && unter(o, k)) offen.delete(o); });
+      return (aktiv && unter(aktiv, k)) ? null : aktiv;
+    }
+    if (!hatKinder && aktiv === k) return null;
+    if (hatKinder) offen.add(k);
+    return k;
+  }
+  /** „Fotos › 2024 › Island": Wurzelname plus Unterordner — für den Chip in der Leiste. */
+  function ordnerText(pfad, wurzeln, wurzelText) {
+    const w = (wurzeln || []).filter(x => unter(pfad, x)).sort((a, b) => b.length - a.length)[0];
+    if (!w) return pfad.split(/[\\/]/).filter(Boolean).slice(-3).join(" › ");
+    return [wurzelText(w)].concat(pfad.slice(w.length).split(/[\\/]/).filter(Boolean)).join(" › ");
+  }
+  /** Gemerkte Auf/Zu-Zustände (localStorage, je Gerät). */
+  function offenLaden(schluessel) {
+    try { return new Set(JSON.parse(localStorage.getItem(schluessel) || "[\"wurzel\"]")); } catch (_) { return new Set(["wurzel"]); }
+  }
+  function offenMerken(schluessel, offen) { try { localStorage.setItem(schluessel, JSON.stringify([...offen])); } catch (_) {} }
+
+  return { kopfHtml, datumHtml, datumKlick, datumText, zeitraum, monatName, tagName,
+           ordnerHtml, ordnerKlick, ordnerKnoten, ordnerText, unter, offenLaden, offenMerken };
+})();

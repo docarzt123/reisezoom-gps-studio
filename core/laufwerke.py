@@ -20,6 +20,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -33,8 +34,30 @@ def _ohne_fenster() -> dict:
     return {}
 
 
+# Audit E-3 (05.10.2026): die Seitenleiste fragt bis alle 2 s — je Anfrage ein `mount` und je Ordner ein Prüffaden.
+# Bei hängendem NAS sammelten sich so Dutzende blockierte Fäden. Kurz merken, und nie zwei Prüfungen desselben Pfads.
+_MOUNT_MERK: dict = {"t": 0.0, "tab": None}
+MOUNT_MERK_S = 3.0
+_LESBAR_MERK: dict = {}          # pfad → (zeit, wert)
+_LESBAR_LAEUFT: set = set()
+LESBAR_MERK_S = 5.0
+LESBAR_HAENGT_S = 30.0
+_merk_sperre = threading.Lock()
+
+
 def mount_tabelle(text: Optional[str] = None) -> list[dict]:
     """Eingehängte Laufwerke: [{quelle, ziel, fs, netz}] — `text` für Tests (Ausgabe von `mount`)."""
+    if text is None:
+        jetzt = time.monotonic()
+        if _MOUNT_MERK["tab"] is not None and jetzt - _MOUNT_MERK["t"] < MOUNT_MERK_S:
+            return list(_MOUNT_MERK["tab"])
+        tab = _mount_tabelle_lesen()
+        _MOUNT_MERK.update({"t": jetzt, "tab": tab})
+        return list(tab)
+    return _mount_tabelle_lesen(text)
+
+
+def _mount_tabelle_lesen(text: Optional[str] = None) -> list[dict]:
     raus = []
     if text is None:
         if sys.platform == "darwin":
@@ -96,7 +119,18 @@ def _server_name(host: str) -> str:
 
 
 def _lesbar(pfad: str, frist: float = 2.0) -> Optional[bool]:
-    """Kann man hineinsehen? True/False, None = keine Antwort in `frist` Sekunden (hängende Netzverbindung)."""
+    """Kann man hineinsehen? True/False, None = keine Antwort in `frist` Sekunden (hängende Netzverbindung).
+
+    Gemerkt: eine Antwort LESBAR_MERK_S, „hängt" LESBAR_HAENGT_S; läuft für den Pfad noch eine Prüfung, gilt er
+    als hängend, statt einen weiteren Faden zu starten (Audit E-3)."""
+    jetzt = time.monotonic()
+    with _merk_sperre:
+        m = _LESBAR_MERK.get(pfad)
+        if m and jetzt - m[0] < (LESBAR_HAENGT_S if m[1] is None else LESBAR_MERK_S):
+            return m[1]
+        if pfad in _LESBAR_LAEUFT:
+            return None
+        _LESBAR_LAEUFT.add(pfad)
     erg: list = []
 
     def lauf():
@@ -106,11 +140,20 @@ def _lesbar(pfad: str, frist: float = 2.0) -> Optional[bool]:
             erg.append(True)
         except Exception:  # noqa: BLE001
             erg.append(False)
+        finally:
+            with _merk_sperre:
+                _LESBAR_LAEUFT.discard(pfad)
+                if erg:
+                    _LESBAR_MERK[pfad] = (time.monotonic(), erg[0])
 
-    t = threading.Thread(target=lauf, daemon=True)
+    t = threading.Thread(target=lauf, daemon=True, name="laufwerk-pruefen")
     t.start()
     t.join(frist)
-    return erg[0] if erg else None
+    wert = erg[0] if erg else None
+    if wert is None:
+        with _merk_sperre:
+            _LESBAR_MERK[pfad] = (time.monotonic(), None)
+    return wert
 
 
 def _mount_von(pfad: str, tabelle: list[dict]) -> Optional[dict]:

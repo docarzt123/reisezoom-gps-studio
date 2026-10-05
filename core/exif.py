@@ -105,9 +105,16 @@ _STAPEL_TIMEOUT_GRUND = 15.0     # Sockel je Aufruf (Daemon-Umlauf, Perl-Start)
 _STAPEL_TIMEOUT_JE_DATEI = 2.0   # je Datei obendrauf (WLAN-NAS: ~1 s je RAW)
 
 
-def stapel_timeout(n: int) -> float:
-    """Zeitbudget für einen exiftool-Aufruf über `n` Dateien."""
-    return _STAPEL_TIMEOUT_GRUND + _STAPEL_TIMEOUT_JE_DATEI * max(1, int(n))
+# 05.10.2026 (Marcs Log: 7 „Hänger" an einem Vormittag, jeder ein 20er-Stapel über 55 s, beide Hälften danach gelesen —
+# kein kaputtes File, nur ein langsames NAS; jeder falsche Hänger kostete 3–6 Minuten): Netzlaufwerk 4 s je Datei, dazu
+# 1 s je 100 MB (Videos), höchstens 2 Minuten Zuschlag.
+_STAPEL_TIMEOUT_JE_DATEI_FERN = 4.0
+
+
+def stapel_timeout(n: int, fern: bool = False, mb: float = 0.0) -> float:
+    """Zeitbudget für einen exiftool-Aufruf über `n` Dateien (`fern` = Netzlaufwerk, `mb` = Größe des Stapels)."""
+    je = _STAPEL_TIMEOUT_JE_DATEI_FERN if fern else _STAPEL_TIMEOUT_JE_DATEI
+    return _STAPEL_TIMEOUT_GRUND + je * max(1, int(n)) + (min(120.0, float(mb or 0) / 100.0) if fern else 0.0)
 
 
 def is_raw(path: str) -> bool:
@@ -305,11 +312,16 @@ class _ExifToolDaemon:
     _instances: "dict[str, _ExifToolDaemon]" = {}
     _instance_lock = _threading.Lock()
     _reaped = False  # v0.9.190: Orphan-Reap nur einmal pro Prozess
+    # 05.10.2026 (Audit G-3): nach `beenden()` (Fenster zu) keine neuen Prozesse mehr — vorher startete der noch
+    # laufende Einlese-Faden direkt vor os._exit zwei frische Daemons, die als verwaiste `exiftool -stay_open` blieben.
+    _beendet = False
 
     @classmethod
     def get(cls, role: str = "read") -> "Optional[_ExifToolDaemon]":
         """Daemon für eine Rolle holen ('read' | 'write'). None wenn exiftool fehlt."""
         with cls._instance_lock:
+            if cls._beendet:
+                return None
             # v0.9.190: Beim allerersten Daemon-Zugriff verwaiste Daemons aus
             # einer vorherigen (abgestürzten/force-gequitteten) Session reapen.
             # _instances ist hier garantiert leer → es gibt keine eigenen
@@ -332,6 +344,12 @@ class _ExifToolDaemon:
                 _log.info("ExifToolDaemon[%s]: Prozess gestartet (%s, pid=%s)",
                           role, et, getattr(inst._proc, "pid", "?"))
             return inst
+
+    @classmethod
+    def beenden(cls) -> None:
+        """App schließt: alle Daemons beenden und keine neuen mehr starten (Audit G-3)."""
+        cls._beendet = True
+        cls.shutdown()
 
     @classmethod
     def shutdown(cls) -> None:
@@ -433,9 +451,12 @@ class _ExifToolDaemon:
         desynchron wäre — ein Weiterbenutzen desselben Prozesses würde alle
         folgenden Calls verwürfeln. Frischer Prozess = sauberer Zustand."""
         try:
-            _log.error(
-                "ExifToolDaemon[%s]: HÄNGER (>%.0fs) — Prozess wird gekillt (pid=%s)",
-                self._role, timeout, getattr(self._proc, "pid", "?"))
+            if _ExifToolDaemon._beendet:   # gewolltes Ende beim Schließen, kein Hänger (Audit G-3)
+                _log.info("ExifToolDaemon[%s]: beendet (App schließt, pid=%s)", self._role, getattr(self._proc, "pid", "?"))
+            else:
+                _log.error(
+                    "ExifToolDaemon[%s]: HÄNGER (>%.0fs) — Prozess wird gekillt (pid=%s)",
+                    self._role, timeout, getattr(self._proc, "pid", "?"))
         except Exception:
             pass
         try:
@@ -559,7 +580,7 @@ class _ExifToolDaemon:
             return None
 
     def read_tags_json_viele(self, paths: list[str], tags: list[str],
-                             numeric: bool = True) -> list[dict]:
+                             numeric: bool = True, fast: bool = False) -> list[dict]:
         """Wie `read_tags_json`, aber für VIELE Dateien in EINEM Aufruf.
 
         12.09.2026, für den Foto-Bestand (§64): der Scan liest tausende
@@ -572,6 +593,11 @@ class _ExifToolDaemon:
         args = [f"-{t}" for t in tags] + ["-j"]
         if numeric:
             args.append("-n")
+        # 05.10.2026 (Marcs Log: Aufnahmedaten 52–63 s je 200 Dateien vom NAS) — `-fast`: nicht ans Dateiende springen,
+        # um nach angehängten Zusatzdaten (JPEG-Trailer, AFCP) zu suchen. exiftool-Doku: kaum Gewinn von der Platte,
+        # „substantial" über eine Netzwerkverbindung. Die gespeicherten Tags stehen alle vorn.
+        if fast:
+            args.append("-fast")
         args += [str(x) for x in paths]
         # 14.09.2026 — Ein Hänger (ExifToolTimeout) fliegt DURCH: der Aufrufer
         # muss unterscheiden können zwischen „Datei hat keine Daten" und „der
@@ -673,9 +699,10 @@ class _ExifToolDaemon:
 atexit.register(_ExifToolDaemon.shutdown)
 
 
-def _ensure_daemon():
-    """Holt den ExifTool-READ-Daemon (Thumbnails/Meta) oder wirft ExifToolMissingError."""
-    d = _ExifToolDaemon.get("read")
+def _ensure_daemon(rolle: str = "read"):
+    """Holt den ExifTool-READ-Daemon (Thumbnails/Meta) oder wirft ExifToolMissingError.
+    `rolle` „read2": zweiter Lese-Prozess für das parallele Einlesen von Netzlaufwerken (05.10.2026)."""
+    d = _ExifToolDaemon.get(rolle)
     if d is None:
         raise ExifToolMissingError(
             _i18n.t_aktiv("exif.err_fehlt", "exiftool nicht gefunden. Installation: 'brew install exiftool'")
@@ -1049,7 +1076,10 @@ def _meta_aus_info(info: dict) -> dict:
     }
 
 
-def read_meta_viele(paths: list[str]) -> dict:
+_STAPEL_FEHLER = (OSError, RuntimeError, subprocess.SubprocessError, ValueError)
+
+
+def read_meta_viele(paths: list[str], fast: bool = False) -> dict:
     """Kernwerte für viele Dateien: {Pfad: dict wie `_exiftool_read_meta`}."""
     raus: dict = {}
     if not paths:
@@ -1057,10 +1087,11 @@ def read_meta_viele(paths: list[str]) -> dict:
     # Hänger des Daemons (ExifToolTimeout) fliegen durch — der Foto-Scan vertagt
     # den Stapel dann, statt ihn als fehlerhaft abzustempeln (14.09.2026).
     try:
-        saetze = _ensure_daemon().read_tags_json_viele(list(paths), _META_TAGS_VIELE, numeric=True)
+        saetze = _ensure_daemon().read_tags_json_viele(list(paths), _META_TAGS_VIELE, numeric=True, fast=fast)
     except ExifToolTimeout:
         raise
-    except Exception as e:      # noqa: BLE001 — sichtbar machen, nicht schlucken
+    except _STAPEL_FEHLER as e:   # 05.10.2026 (Audit K-14): nur exiftool-/Prozess-/E/A-Fehler — ein Programmierfehler
+        # (TypeError …) fliegt durch und bricht das Einlesen sichtbar ab, statt 77 Fotos als „fehlerhaft" zu stempeln
         _log.warning("read_meta_viele: exiftool-Stapel (%d Dateien) fehlgeschlagen: %s: %s", len(paths), type(e).__name__, e)
         return raus
     for info in saetze:
@@ -1070,7 +1101,62 @@ def read_meta_viele(paths: list[str]) -> dict:
     return raus
 
 
-def read_alle_tags_viele(paths: list[str]) -> dict:
+def read_beides_viele(paths: list[str], fast: bool = False, rolle: str = "read", fern: bool = False,
+                      mb: float = 0.0) -> tuple:
+    """Kernwerte UND alle Tags in EINEM exiftool-Aufruf: ({Pfad: Kernwerte}, {Pfad: {Tag: Text}}).
+
+    05.10.2026 (Marcs Log: nach allen anderen Verbesserungen ist exiftool ~90 % der Zeit von Schritt 2) — vorher zwei
+    Aufrufe je Stapel (Kernwerte mit -n, alle Tags als Text), jeder öffnete jede Datei auf dem NAS neu. `-l` liefert je
+    Tag {"val": Text, "num": Zahl} (num nur, wenn es abweicht): die Kernwerte nehmen num, die Tag-Liste val — dieselben
+    Werte wie die beiden Einzelaufrufe (`tests/test_exif_beides.py` vergleicht das)."""
+    meta: dict = {}
+    tags_alle: dict = {}
+    if not paths:
+        return meta, tags_alle
+    args = ["-All", "-j", "-l"] + (["-fast"] if fast else []) + [str(x) for x in paths]
+    try:
+        out = _ensure_daemon(rolle)._send_and_read_text(args, timeout=stapel_timeout(len(paths), fern, mb))
+    except ExifToolTimeout:
+        raise           # der Foto-Scan zerlegt den Stapel dann (s. cfotos._tags_lesen_geteilt)
+    except _STAPEL_FEHLER as e:   # 05.10.2026 (Audit K-14): nur exiftool-/Prozess-/E/A-Fehler — ein Programmierfehler
+        # (TypeError …) fliegt durch und bricht das Einlesen sichtbar ab, statt 77 Fotos als „fehlerhaft" zu stempeln
+        _log.warning("read_beides_viele: exiftool-Stapel (%d Dateien) fehlgeschlagen: %s: %s", len(paths), type(e).__name__, e)
+        return meta, tags_alle
+    try:
+        saetze = json.loads(out or "[]")
+        if not isinstance(saetze, list):
+            saetze = []
+    except (TypeError, ValueError):
+        _log.warning("read_beides_viele: exiftool-Antwort nicht lesbar (%d Dateien)", len(paths))
+        saetze = []
+    wanted = set(_META_TAGS_VIELE)
+    for info in saetze:
+        quelle = str(info.get("SourceFile") or "").strip()
+        if not quelle:
+            continue
+        zahlen, texte = {}, {}
+        for k, v in info.items():
+            if k == "SourceFile":
+                continue
+            if isinstance(v, dict):
+                val, num = v.get("val"), v.get("num", v.get("val"))
+            else:
+                val = num = v
+            if k in wanted:
+                zahlen[k] = num
+            if k in _PHOTO_BINARY_TAGS:
+                continue
+            sv = str(val)
+            low = sv.lower()
+            if len(sv) > 220 or "use -b" in low or "binary data" in low:
+                continue
+            texte[k] = sv
+        meta[quelle] = _meta_aus_info(zahlen)
+        tags_alle[quelle] = texte
+    return meta, tags_alle
+
+
+def read_alle_tags_viele(paths: list[str], fast: bool = False) -> dict:
     """Alle menschenlesbaren Tags für viele Dateien: {Pfad: {Tag: Wert}}.
 
     Gefiltert wie `read_photo_details`: keine Binärblöcke, keine Romane.
@@ -1080,10 +1166,11 @@ def read_alle_tags_viele(paths: list[str]) -> dict:
     if not paths:
         return raus
     try:
-        saetze = _ensure_daemon().read_tags_json_viele(list(paths), ["All"], numeric=False)
+        saetze = _ensure_daemon().read_tags_json_viele(list(paths), ["All"], numeric=False, fast=fast)
     except ExifToolTimeout:
         raise
-    except Exception as e:      # noqa: BLE001 — sichtbar machen, nicht schlucken
+    except _STAPEL_FEHLER as e:   # 05.10.2026 (Audit K-14): nur exiftool-/Prozess-/E/A-Fehler — ein Programmierfehler
+        # (TypeError …) fliegt durch und bricht das Einlesen sichtbar ab, statt 77 Fotos als „fehlerhaft" zu stempeln
         _log.warning("read_alle_tags_viele: exiftool-Stapel (%d Dateien) fehlgeschlagen: %s: %s", len(paths), type(e).__name__, e)
         return raus
     for info in saetze:

@@ -115,6 +115,8 @@ from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
 from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
 from core import fotos as cfotos  # 12.09.2026: Foto-Bestand (IDEAS §64), gleiche Datenbank
+from core import inhalt as cinhalt  # 04.10.2026: Inhaltssuche mit SigLIP 2 (IDEAS §81)
+from core import wachhalten as cwach  # 05.10.2026: App Nap aus, solange eingelesen/erfasst wird
 from core import bibliothek as cbib  # 02.09.2026: die Tour-Bibliothek (Wahrheit statt Datei-Index)
 from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from core import umzug as cumzug    # 02.09.2026: Altbestand → Bibliothek
@@ -390,6 +392,26 @@ def _teilreste_wegraeumen(ordner: Path, alter_s: int = 24 * 3600) -> int:
     return weg
 
 
+def _renders_aufraeumen(ordner: Path, alter_tage: int = 7) -> int:
+    """05.10.2026 (Audit E-2): Schnell-Videos landen erst in `_renders`; nur „Speichern …" verschiebt sie. Wer die
+    Bühne schließt oder einen zweiten Versuch startet, ließ die fertige MP4 dort liegen — für immer, unsichtbar. Fertige
+    Videos älter als `alter_tage` wandern in den Papierkorb des Dateischutzes (dort noch 14 Tage zurückholbar)."""
+    weg = 0
+    try:
+        grenze = time.time() - alter_tage * 86400
+        for f in list(ordner.glob("*.mp4")) + list(ordner.glob("*.mov")):
+            try:
+                if f.stat().st_mtime < grenze:
+                    _ds.loeschen(f, "renders_aufraeumen", art=_ds.ART_NUTZERDATEN); weg += 1
+            except OSError:
+                pass
+    except Exception:  # noqa: BLE001
+        return weg
+    if weg:
+        log.info("Alte Schnell-Videos aus _renders in den Papierkorb: %d", weg)
+    return weg
+
+
 def _nutzerdatei_schreiben(ziel, aktion: str, daten: bytes = None, quelle=None) -> str:
     """14.09.2026 (Dateischutz) — eine Datei an einen vom Nutzer GEWÄHLTEN Ort schreiben
     (Speichern-Dialog, Export-Ordner). Erst in eine Temp-Datei daneben, dann über das
@@ -568,6 +590,10 @@ DEFAULT_SETTINGS = {
     # sechs Stunden. Abschaltbar, weil das auf einem Netzlaufwerk oder am
     # Hotspot nicht ungefragt laufen soll.
     "fotos_auto": True,
+    # 04.10.2026 (IDEAS §81) — Inhaltssuche („Sonnenuntergang"): aus, bis man sie einschaltet (lädt ein Modell);
+    # Variante base (≈ 0,5 GB) oder gross (≈ 1,6 GB, besser auf Deutsch)
+    "inhalt_an": False,
+    "inhalt_variante": "base",
     "language": "auto",            # 'auto' | 'de' | 'en' | 'es'
     "mapbox_token": "",            # leer → Mapbox-Stile weichen auf „Satellit (kostenlos)" aus
     # 03.09.2026 — Kartenanbieter zur Auswahl (core/mapstyles.py)
@@ -846,6 +872,12 @@ def _ladeflagge_schreiben(info: dict) -> None:
 # Stand vom letzten Lauf — einmal beim Start gelesen, bevor der erste neue
 # Ladevorgang die Datei überschreibt.
 _LADEFLAGGE_VORHER = {"info": _ladeflagge_lesen(), "gemeldet": False}
+
+
+def _mit_wach(fn, grund: str) -> None:
+    """Lange Hintergrundarbeit ohne App Nap ausführen (core/wachhalten.py)."""
+    with cwach.waehrend(grund):
+        fn()
 
 
 def _load_settings() -> dict:
@@ -4735,9 +4767,10 @@ class Api:
             # `nachschau`: wann zuletzt vollständig in die Ordner geschaut wurde.
             # Unterwegs ohne Laufwerk ist das der Stand, den man gerade sieht —
             # die Oberfläche sagt es dazu (Marc, 13.09.2026).
-            return {"ok": True, "ordner": cfotos.ordner_liste(conn),
-                    "stand": cfotos.stand(conn),
-                    "nachschau": cfotos.letzte_nachschau(conn)}
+            liste = cfotos.ordner_liste(conn)          # sperrt selbst nur um die Datenbank-Teile (Audit B-3)
+            with clib._DB_LOCK:
+                return {"ok": True, "ordner": liste, "stand": cfotos.stand(conn),
+                        "nachschau": cfotos.letzte_nachschau(conn)}
         except Exception as e:
             log.exception("fotos_ordner")
             return {"ok": False, "error": str(e), "ordner": []}
@@ -4811,7 +4844,7 @@ class Api:
             if not tun["ordner_da"]:
                 return {"ok": True, "gestartet": False, "grund": "kein Ordner erreichbar",
                         "tun": tun}
-            if not tun["ungelesen"] and not tun["nachschau_faellig"]:
+            if not tun["ungelesen"] and not tun["nachschau_faellig"] and not tun.get("ohne_bild"):
                 return {"ok": True, "gestartet": False, "grund": "nichts zu tun", "tun": tun}
             log.info("[fotos] Aufholen: %s", tun)
             # 18.09.2026 — von selbst: SCHNELLE Nachschau (unveränderte Ordner übernehmen; cfotos entscheidet, ob die
@@ -4823,6 +4856,36 @@ class Api:
         except Exception as e:
             log.exception("fotos_aufholen")
             return {"ok": False, "error": str(e), "gestartet": False}
+
+    # 04.10.2026 (Marc: „ja, stille Nachschau, auch wenn offen") — bisher schaute die App nur beim Öffnen des
+    # Foto-Bereichs (oder wenn ein Laufwerk zurückkam) nach; blieb sie tagelang offen, kam nichts Neues dazu. Die
+    # Wache ruft alle FOTO_WACHE_MIN Minuten `fotos_aufholen` — das entscheidet wie gehabt selbst: nur mit „Von selbst
+    # aktuell halten", nur mit erreichbarem Laufwerk, nur wenn etwas zu tun ist (Ungelesenes oder Nachschau fällig,
+    # also höchstens alle NACHSCHAU_STUNDEN), nie neben einem laufenden Einlesen. Läuft im Python-Teil, also auch
+    # während man im Animator arbeitet; der Kasten unten rechts zeigt den Lauf, sobald der Foto-Bereich offen ist.
+    FOTO_WACHE_MIN = 20
+    FOTO_WACHE_START_S = 10 * 60   # nicht in den Start hinein — das Öffnen des Foto-Bereichs holt ohnehin auf
+
+    def fotos_wache_starten(self) -> None:
+        if getattr(self, "_foto_wache", None) is not None:
+            return
+
+        def wache():
+            time.sleep(self.FOTO_WACHE_START_S)
+            while True:
+                try:
+                    if BIB_BEREIT and not getattr(self, "_foto_scan_running", False):
+                        r = self.fotos_aufholen()
+                        if r.get("gestartet"):
+                            log.info("[fotos] stille Nachschau gestartet (%s)", (r.get("tun") or {}))
+                        else:
+                            self.inhalt_aufholen(auto=True)   # §81: Index nachziehen, falls noch etwas offen ist
+                except Exception:  # noqa: BLE001 — die Wache darf nie die App kippen
+                    log.exception("[fotos] stille Nachschau")
+                time.sleep(self.FOTO_WACHE_MIN * 60)
+
+        self._foto_wache = threading.Thread(target=wache, name="foto-wache", daemon=True)
+        self._foto_wache.start()
 
     def fotos_scan_start(self, ordner: str = "", nur_liste: bool = False,
                          ohne_liste: bool = False, gruendlich=True) -> dict:
@@ -4884,6 +4947,8 @@ class Api:
                 # Restzeit zeigen kann.
                 gr = gruendlich if gruendlich is not None else cfotos.gruendlich_faellig(conn)
                 self._foto_scan_state["gruendlich"] = bool(gr)
+                # 04.10.2026 — eine angefangene gründliche Runde läuft weiter (Ordner, die schon durch sind, übernommen)
+                self._foto_scan_state["fortsetzung"] = bool(gr and not nur and cfotos.gruendliche_runde(conn) is not None)
                 try:
                     self._foto_scan_state["erwartet"] = cfotos.erwartete_dateien(conn, nur)
                 except Exception:  # noqa: BLE001
@@ -4905,12 +4970,37 @@ class Api:
                 self._foto_scan_state.update({"dateien": r1, "neu": r1.get("neu", 0)})
                 if not nur_liste and not self._foto_scan_stop:
                     self._foto_scan_state.update({"phase": "daten", "done": 0, "total": 0, "phase_seit": time.time()})
+                    # Was frühere Läufe schon gelesen haben — die Anzeige zählt es mit (Gesamtstand statt Rest = 100 %)
+                    try:
+                        self._foto_scan_state["schon"] = cfotos.gelesene(conn)
+                    except Exception:  # noqa: BLE001
+                        self._foto_scan_state["schon"] = 0
                     r2 = cfotos.durchgang2(
                         conn,
                         fortschritt=lambda n, g: self._foto_scan_state.update(
                             {"phase": "daten", "done": n, "total": g}),
-                        stop=lambda: self._foto_scan_stop, aktuell=_aktuell)
+                        stop=lambda: self._foto_scan_stop, aktuell=_aktuell,
+                        mit_thumbs=False,   # 04.10.2026 — „Daten zuerst, Bilder danach" (Schritt 3)
+                        # 04.10.2026 — Restzeit aus Dateien + MB (cfotos.RestZeit), statt in der Oberfläche hochzurechnen
+                        schaetzung=lambda r: self._foto_scan_state.update({"rest_s": r, "rest_am": time.time()}))
                     self._foto_scan_state.update({"daten": r2})
+                    # 04.10.2026 (Marc: „225 h … fast 2 Wochen" → „Daten zuerst, Bilder danach") — Schritt 3: Vorschaubilder
+                    if not self._foto_scan_stop:
+                        self._foto_scan_state.update({"phase": "bilder", "done": 0, "total": 0, "schon": 0,
+                                                      "rest_s": None, "rest_am": None, "phase_seit": time.time()})
+                        try:
+                            ges = conn.execute("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL AND art = ? "
+                                               "AND indexed_at IS NOT NULL", (cfotos.ART_FOTO,)).fetchone()[0]
+                            self._foto_scan_state["schon"] = max(0, int(ges) - cfotos.ohne_bild(conn))
+                        except Exception:  # noqa: BLE001
+                            pass
+                        r3 = cfotos.durchgang3(
+                            conn,
+                            fortschritt=lambda n, g: self._foto_scan_state.update(
+                                {"phase": "bilder", "done": n, "total": g}),
+                            stop=lambda: self._foto_scan_stop, aktuell=_aktuell,
+                            schaetzung=lambda r: self._foto_scan_state.update({"rest_s": r, "rest_am": time.time()}))
+                        self._foto_scan_state.update({"bilder": r3})
                 self._foto_scan_state["stand"] = cfotos.stand(conn)
                 self._foto_scan_state["aktuell"] = ""
                 self._foto_scan_state["fertig_um"] = time.time()
@@ -4927,8 +5017,14 @@ class Api:
                         pass
                 self._foto_scan_state["running"] = False
                 self._foto_scan_running = False
+                # 04.10.2026 (IDEAS §81) — neue Fotos gleich in die Inhaltssuche (nur wenn eingeschaltet)
+                try:
+                    self.inhalt_aufholen(auto=True)
+                except Exception:  # noqa: BLE001
+                    log.exception("[inhalt] nach dem Einlesen")
 
-        threading.Thread(target=worker, daemon=True, name="foto-scan").start()
+        # 05.10.2026 (Marc-Log, Nacht-Lauf: 165 s je 200 Dateien, nach dem Aufwecken 95 s) — ohne App Nap
+        threading.Thread(target=lambda: _mit_wach(worker, "Fotos einlesen"), daemon=True, name="foto-scan").start()
         return {"ok": True}
 
     def fotos_scan_status(self) -> dict:
@@ -4944,10 +5040,40 @@ class Api:
         p = dict(params or {})
         mit_thumbs = p.pop("mit_thumbs", True)
         try:
-            res = cfotos.abfrage(self._lib(), p.pop("filter", None) or {},
-                                 limit=int(p.pop("limit", 300)),
-                                 offset=int(p.pop("offset", 0)),
-                                 sortierung=p.pop("sortierung", "zeit_neu"))
+            filt = p.pop("filter", None) or {}
+            limit, offset = int(p.pop("limit", 300)), int(p.pop("offset", 0))
+            sortierung = p.pop("sortierung", "zeit_neu")
+            # 04.10.2026 (IDEAS §81) — mit eingeschalteter Inhaltssuche: Text-Treffer zuerst, dann nach Bildinhalt
+            # (Marc, Q2/Q3); `sortierung` „relevanz" (Vorgabe) oder nach Zeit.
+            try:
+                tr = self._inhalt_treffer(filt, sortierung)
+            except Exception:
+                log.exception("Inhaltssuche")
+                tr = None
+            if tr is not None:
+                conn = self._lib()
+                seite = tr["pfade"][offset:offset + limit]
+                z = cfotos.zeilen(conn, seite)
+                fotos = []
+                for pfad in seite:
+                    if pfad in z:
+                        d = z[pfad]
+                        d["treffer"] = "text" if pfad in tr["text"] else "inhalt"
+                        d["punkte"] = tr["punkte"].get(pfad)
+                        fotos.append(d)
+                ohne = None
+                if not offset:
+                    wo, werte = cfotos._where({k: v for k, v in filt.items() if k not in ("suche", "aehnlich")}
+                                              | {"pfade": tr["pfade"]})
+                    ohne = conn.execute(f"SELECT COUNT(*) FROM fotos WHERE {wo} AND indexed_at IS NOT NULL "
+                                        f"AND (lat IS NULL OR lon IS NULL)", werte).fetchone()[0]
+                res = {"n": len(tr["pfade"]), "ohne_koordinate": ohne, "fotos": fotos,
+                       "inhalt": {"n_text": tr["n_text"], "n_inhalt": tr["n_inhalt"], "art": tr["art"],
+                                  "indiziert": tr["indiziert"], "quelle_fehlt": tr["quelle_fehlt"]}}
+            else:
+                filt = {k: v for k, v in filt.items() if k != "aehnlich"}
+                res = cfotos.abfrage(self._lib(), filt, limit=limit, offset=offset,
+                                     sortierung=sortierung if sortierung != "relevanz" else "zeit_neu")
             if mit_thumbs:
                 # NUR aus dem Cache: die Seite muss sofort stehen. Was fehlt,
                 # holt die Oberfläche danach in Häppchen über `fotos_thumbs`
@@ -4965,9 +5091,198 @@ class Api:
             log.exception("fotos_abfrage")
             return {"ok": False, "error": str(e), "fotos": [], "n": 0}
 
+    # ── Foto-Archiv: Großansicht, Videos, Standbild, Bearbeiten (04.10.2026) ──────────────────────────────
+    # Marc: „Ein Bild richtig groß angucken oder ein Video abspielen kann ich gar nicht" — „bei Videos direkt die
+    # Möglichkeit, einen Frame rauszuschneiden und als Foto zu speichern" — „einen kompletten EXIF-Editor … wie im
+    # Geotagger … einzelne Bilder einfach verorten … ohne die ganze Linie hin- und herspringen".
+    _GROSS_NATIV = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    _GROSS_PX = 2560
+
+    def fotos_gross(self, path: str) -> dict:
+        """Großansicht eines Fotos/Videos. Fotos in Browser-Formaten und Videos kommen im Original über den Medien-
+        Server; RAW/HEIC/TIFF als große Vorschau (eingebettet bzw. einmal gerechnet, im Cache). Fehlt das Laufwerk:
+        die gemerkte Vorschau aus der Bibliothek."""
+        try:
+            p = Path(str(path or ""))
+            da = p.is_file()
+            video = cexif.is_video(str(p))
+            if da and (video or p.suffix.lower() in self._GROSS_NATIV):
+                r = self.serve_media(str(p))
+                if r.get("ok"):
+                    return {"ok": True, "art": "video" if video else "bild", "url": r["url"], "quelle": "original",
+                            "original_da": True, "mime": _media_typ(str(p))}
+            conn = self._lib()
+            fp = cfotos.fps_lesen(conn, [str(p)]).get(str(p))
+            if da:
+                b = cphotos.thumb_gecacht(str(p), self._GROSS_PX, fp)
+                if b:
+                    return {"ok": True, "art": "video" if video else "bild", "url": cphotos._to_data_url(b),
+                            "quelle": "vorschau", "original_da": True}
+            for px in (cphotos.THUMB_GROSS_PX, cphotos.THUMB_RASTER_PX):
+                b = cphotos.thumb_gecacht(str(p), px, fp, nur_cache=True)
+                if b:
+                    return {"ok": True, "art": "video" if video else "bild", "url": cphotos._to_data_url(b),
+                            "quelle": "bibliothek", "original_da": da}
+            return {"ok": False, "error": _ui_t()("fotos.gross_keins", "Keine Ansicht verfügbar — das Original ist nicht erreichbar."),
+                    "original_da": da}
+        except Exception as e:
+            log.exception("fotos_gross")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_video_standbild(self, path: str, t: float) -> dict:
+        """Ein Bild aus einem Video als JPEG speichern (Ort wählt der Nutzer, Vorschlag: neben dem Video).
+        Volle Auflösung über ffmpeg; Aufnahmezeit = Videostart + t, Ort = der des Videos (aus dem Bestand)."""
+        try:
+            quelle = Path(str(path or ""))
+            if not quelle.is_file():
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden") + f": {path}"}
+            t = max(0.0, float(t or 0))
+            import subprocess
+            name = f"{quelle.stem}_bild_{int(t // 60):02d}m{int(t % 60):02d}s{int(round((t % 1) * 100)) % 100:02d}.jpg"
+            ziel = self.pick_save_path(name, str(quelle.parent), ("JPEG (*.jpg)",))
+            if not ziel:
+                return {"ok": False, "abbruch": True}
+            ziel = Path(ziel if str(ziel).lower().endswith((".jpg", ".jpeg")) else str(ziel) + ".jpg")
+            tmp = ziel.with_name(f".rz-standbild-{os.getpid()}-{int(time.time())}.jpg")
+            _ds.nutzer_ziel(ziel); _ds.nutzer_ziel(tmp)
+            ff = canim.find_ffmpeg()
+            r = subprocess.run([ff, "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(quelle), "-frames:v", "1",
+                                "-q:v", "2", str(tmp)], capture_output=True, text=True, timeout=120,
+                               **({"creationflags": 0x08000000} if sys.platform == "win32" else {}))
+            if r.returncode != 0 or not tmp.is_file():
+                try:
+                    if tmp.exists():
+                        _ds.loeschen(tmp, "standbild", art=_ds.ART_TEMP)
+                except Exception:  # noqa: BLE001
+                    pass
+                return {"ok": False, "error": (r.stderr or "ffmpeg")[-300:]}
+            _ds.ersetzen(tmp, ziel, "standbild")
+            # Aufnahmezeit und Ort vom Video übernehmen
+            z = cfotos.zeile(self._lib(), str(quelle)) or {}
+            felder = {}
+            if z.get("aufnahme_utc"):
+                tzm = int(z.get("tz_minuten") or 0)
+                lokal = datetime.fromtimestamp(float(z["aufnahme_utc"]) + t + tzm * 60, tz=timezone.utc).replace(tzinfo=None)
+                felder["DateTimeOriginal"] = lokal.strftime("%Y:%m:%d %H:%M:%S")
+                felder["CreateDate"] = felder["DateTimeOriginal"]
+                if z.get("tz_bekannt"):
+                    felder["OffsetTimeOriginal"] = f"{'+' if tzm >= 0 else '-'}{abs(tzm) // 60:02d}:{abs(tzm) % 60:02d}"
+            if z.get("kamera"):
+                felder["Model"] = str(z["kamera"])
+            if felder:
+                try:
+                    cexif.write_exif_tags(str(ziel), felder, gesichert=True)
+                except Exception as e:  # noqa: BLE001 — das Bild ist gespeichert, nur die Daten fehlen
+                    log.warning("Standbild: EXIF nicht geschrieben (%s): %s", ziel, e)
+            if z.get("lat") is not None and z.get("lon") is not None:
+                try:
+                    cexif.write_gps(str(ziel), float(z["lat"]), float(z["lon"]), z.get("ele"), gesichert=True)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("Standbild: GPS nicht geschrieben (%s): %s", ziel, e)
+            # Liegt es in einem beobachteten Ordner, gleich einlesen
+            wurzel = next((o["path"] for o in cfotos.ordner_liste(self._lib(), pruefen=False)
+                           if str(ziel).startswith(o["path"].rstrip("/") + "/")), None)
+            if wurzel and not getattr(self, "_foto_scan_running", False):
+                self.fotos_scan_start(ordner=wurzel, gruendlich=False)
+            log.info("[fotos] Standbild bei %.2f s aus %s → %s", t, quelle.name, ziel)
+            return {"ok": True, "ziel": str(ziel), "im_bestand": bool(wurzel)}
+        except Exception as e:
+            log.exception("fotos_video_standbild")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_exif_lesen(self, path: str) -> dict:
+        """Alle EXIF-Daten eines Fotos mit Liste der nicht schreibbaren Tags — derselbe Weg wie im Geotagger."""
+        return self.geotagger_photo_exif(path)
+
+    def _foto_vor_schreiben(self, path: str) -> bool:
+        """Wie im Geotagger: bewusst gewählt (nutzer_ziel), vorher als ZIP gesichert — scheitert die Sicherung,
+        bleibt das Foto unverändert."""
+        _ds.nutzer_ziel(path)
+        if _unter(path, DROPS_DIR):
+            return True
+        zp = cbak.make_photo_backup([path], str(BACKUPS_DIR / "archiv_einzeln"), label="archiv")
+        log.info("[fotos] Sicherung vor dem Schreiben → %s", zp)
+        return True
+
+    def _foto_nach_schreiben(self, path: str) -> dict:
+        try:
+            cfotos.neu_lesen(self._lib(), [path])
+        except Exception:  # noqa: BLE001 — die nächste Nachschau holt es sonst nach
+            log.exception("[fotos] neu lesen nach dem Schreiben")
+        return self.fotos_details(path)
+
+    def fotos_exif_schreiben(self, path: str, felder: dict) -> dict:
+        """Mehrere EXIF-Felder eines Fotos auf einmal schreiben (ein exiftool-Aufruf), danach sofort neu einlesen."""
+        try:
+            felder = {str(k): ("" if v is None else str(v)) for k, v in (felder or {}).items() if str(k).strip()}
+            if not felder:
+                return {"ok": False, "error": "nichts zu schreiben"}
+            gesichert = self._foto_vor_schreiben(path)
+            cexif.write_exif_tags(path, felder, gesichert=gesichert)
+            log.info("[fotos] EXIF geschrieben: %s · %s", Path(path).name, ", ".join(felder))
+            d = self._foto_nach_schreiben(path)
+            e = self.geotagger_photo_exif(path)
+            return {"ok": True, "details": d, "exif": e}
+        except Exception as e:
+            log.exception("fotos_exif_schreiben")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_verorten(self, path: str, lat: float, lon: float, alt=None, richtung=None, adresse: dict = None) -> dict:
+        """Ein Foto auf der Karte verorten: Koordinate (+ Höhe, Blickrichtung, Adresse) ins Foto schreiben."""
+        try:
+            lat, lon = float(lat), float(lon)
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                return {"ok": False, "error": _ui_t()("error.koordinate_ungueltig", "Koordinate außerhalb des gültigen Bereichs")}
+            gesichert = self._foto_vor_schreiben(path)
+            cexif.write_gps(path, lat, lon, float(alt) if alt not in (None, "") else None,
+                            img_direction=float(richtung) if richtung not in (None, "") else None, gesichert=gesichert)
+            if adresse:
+                try:
+                    cexif.write_location(path, dict(adresse), gesichert=gesichert)
+                except Exception as e:  # noqa: BLE001 — Ort steht drin, nur die Adresse nicht
+                    log.warning("[fotos] Adresse nicht geschrieben: %s", e)
+            log.info("[fotos] verortet: %s → %.6f, %.6f", Path(path).name, lat, lon)
+            return {"ok": True, "details": self._foto_nach_schreiben(path)}
+        except Exception as e:
+            log.exception("fotos_verorten")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_adresse(self, lat: float, lon: float, lang: str = "de") -> dict:
+        """Adresse zu einer Koordinate (derselbe Anbieter wie beim Geotagger) — Vorschlag beim Verorten."""
+        try:
+            s = _load_settings()
+            if not s.get("geocode_enabled", True):
+                return {"ok": False, "disabled": True}
+            raw_token = (s.get("mapbox_token") or "").strip()
+            provider = cgeocode.resolve_provider(s.get("geocode_provider", "auto"), raw_token)
+            if not provider:
+                return {"ok": False, "disabled": True}
+            a = cgeocode.reverse(float(lat), float(lon), provider=provider, mapbox_token=raw_token, lang=lang or "de", zoom=18)
+            return {"ok": bool(a), "adresse": a or {}}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def fotos_datumsbaum(self, filter: dict = None) -> dict:
+        """04.10.2026 — Tage mit Anzahl für den Baum „Nach Datum" in der Foto-Seitenleiste (Lightroom-Vorbild)."""
+        try:
+            return {"ok": True, "tage": cfotos.datumsbaum(self._lib(), filter or {})}
+        except Exception as e:
+            log.exception("fotos_datumsbaum")
+            return {"ok": False, "error": str(e), "tage": []}
+
+    def fotos_ordnerbaum(self, filter: dict = None) -> dict:
+        """04.10.2026 — Verzeichnisse mit Anzahl für den Baum „Nach Ordner" in der Foto-Seitenleiste."""
+        try:
+            res = cfotos.ordnerbaum(self._lib(), filter or {})
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("fotos_ordnerbaum")
+            return {"ok": False, "error": str(e), "wurzeln": [], "verz": []}
+
     def fotos_tage(self, filter: dict = None) -> dict:
         try:
-            return {"ok": True, "tage": cfotos.tage(self._lib(), filter or {})}
+            return {"ok": True, "tage": cfotos.tage(self._lib(), self._filter_mit_inhalt(filter))}
         except Exception as e:
             log.exception("fotos_tage")
             return {"ok": False, "error": str(e), "tage": []}
@@ -4975,7 +5290,7 @@ class Api:
     def fotos_punkte(self, filter: dict = None, raster: int = 3) -> dict:
         """Punktwolke für die Karte — zusammengefasst, damit Dichte sichtbar wird."""
         try:
-            return {"ok": True, "punkte": cfotos.punkte(self._lib(), filter or {}, raster)}
+            return {"ok": True, "punkte": cfotos.punkte(self._lib(), self._filter_mit_inhalt(filter), raster)}
         except Exception as e:
             log.exception("fotos_punkte")
             return {"ok": False, "error": str(e), "punkte": []}
@@ -5032,7 +5347,8 @@ class Api:
         px = cphotos.THUMB_GROSS_PX if gross else cphotos.THUMB_RASTER_PX
         pfade = list(paths or [])[:200]
         try:
-            fps = cfotos.fps_lesen(self._lib(), pfade)
+            with clib._DB_LOCK:     # Audit B-3
+                fps = cfotos.fps_lesen(self._lib(), pfade)
         except Exception:
             fps = {}
         raus = {}
@@ -5060,7 +5376,8 @@ class Api:
             raus[pfad] = url
         if gelernt:
             try:
-                cfotos.fp_setzen(self._lib(), gelernt)
+                with clib._DB_LOCK:     # Audit B-3 — schreibt!
+                    cfotos.fp_setzen(self._lib(), gelernt)
             except Exception:
                 log.debug("fp_setzen fehlgeschlagen", exc_info=True)
         return {"ok": True, "thumbs": raus}
@@ -5069,7 +5386,7 @@ class Api:
         """Der Bestand nach Touren gruppiert — der Punkt, den kein anderes
         Fototool haben kann: die Touren liegen hier schon."""
         try:
-            return {"ok": True, "touren": cfotos.touren_zu_fotos(self._lib(), filter or {})}
+            return {"ok": True, "touren": cfotos.touren_zu_fotos(self._lib(), self._filter_mit_inhalt(filter))}
         except Exception as e:
             log.exception("fotos_touren")
             return {"ok": False, "error": str(e), "touren": []}
@@ -5082,6 +5399,316 @@ class Api:
         except Exception as e:
             log.exception("fotos_einer_tour")
             return {"ok": False, "error": str(e), "fotos": []}
+
+    # ── Inhaltssuche (04.10.2026, IDEAS §81) ───────────────────────────────────────────────────────────────
+    # Marc: „Sonnenuntergang" finden, ohne Lightroom, ohne Konto, auf dem eigenen Rechner. Das Modell (SigLIP 2) kommt
+    # erst, wenn man es einschaltet; danach rechnet ein Hintergrundfaden jedes Foto in einen Vektor (core/inhalt.py).
+    # Der Faden ist gedrosselt und hält an, solange ein Video rendert oder das Einlesen läuft (beides braucht Rechner
+    # bzw. Laufwerk). Suchen geht schon währenddessen — über das, was fertig ist.
+
+    # Sperren (05.10.2026, Audit A-1/B-3): die Brücke ruft jede Funktion in einem eigenen Faden — gleichzeitige
+    # Abfragen auf DERSELBEN sqlite-Verbindung enden in „InterfaceError: bad parameter or other API misuse".
+    # `clib._DB_LOCK` schützt die Bibliotheks-Verbindung, `_inhalt_lock` die Index-Verbindung, die Matrix und den
+    # Treffer-Merker. Reihenfolge, wenn beide nötig sind: IMMER erst _DB_LOCK, dann _inhalt_lock (sonst Verklemmung).
+    _inhalt_lock = threading.RLock()
+
+    def _inhalt_var(self) -> str:
+        v = _load_settings().get("inhalt_variante") or cinhalt.STANDARD
+        return v if v in cinhalt.VARIANTEN else cinhalt.STANDARD
+
+    def _inhalt_bereit(self) -> bool:
+        return (bool(_load_settings().get("inhalt_an")) and cinhalt.verfuegbar()
+                and cinhalt.modell_da(APP_SUPPORT, self._inhalt_var()))
+
+    def _inhalt_modell(self, v: str = ""):
+        v = v or self._inhalt_var()
+        with self._inhalt_lock:
+            m = getattr(self, "_inhalt_m", None)
+            if m is None or m.variante != v:
+                m = self._inhalt_m = cinhalt.Modell(APP_SUPPORT, v)
+            return m
+
+    def _inhalt_idx(self):
+        """Lese-Verbindung zum Index der aktiven Bibliothek (der Faden hat seine eigene). Nur unter _inhalt_lock."""
+        pfad = cinhalt.index_pfad(BIB, self._inhalt_var())
+        c = getattr(self, "_inhalt_idx_conn", None)
+        if c is None or getattr(self, "_inhalt_idx_pfad", None) != pfad:
+            c = self._inhalt_idx_conn = cinhalt.index_oeffnen(pfad)
+            self._inhalt_idx_pfad = pfad
+            self._inhalt_mx = cinhalt.Matrix()
+            self._inhalt_merk = {}
+        return c
+
+    # Alle Render-Zustände, die den Rechner auslasten. Ausdrücklich gelistet (Audit A-3: die Namensregel „*render*_state"
+    # übersah die Tour-Map, `_tourmap_state`); die Regel bleibt als Rückfall für künftige.
+    _RENDER_ZUSTAENDE = ("_render_state", "_height_render_state", "_tourmap_state")
+
+    def _render_laeuft(self) -> bool:
+        for name, st in list(vars(self).items()):
+            if (name in self._RENDER_ZUSTAENDE or ("render" in name and name.endswith("_state"))) \
+                    and isinstance(st, dict) and st.get("running"):
+                return True
+        return False
+
+    def inhalt_status(self) -> dict:
+        """Alles, was Foto-Bereich und Einstellungen zeigen: an/aus, Modell da, Index-Stand, laufender Lauf."""
+        try:
+            v = self._inhalt_var()
+            st = {"ok": True, "verfuegbar": cinhalt.verfuegbar(), "an": bool(_load_settings().get("inhalt_an")),
+                  "variante": v, "varianten": {k: {"name": d["name"], "bytes": cinhalt.download_groesse(k),
+                                                   "da": cinhalt.modell_da(APP_SUPPORT, k)}
+                                               for k, d in cinhalt.VARIANTEN.items()},
+                  "modell_da": cinhalt.modell_da(APP_SUPPORT, v),
+                  "angehalten": bool(getattr(self, "_inhalt_angehalten", False)),
+                  "lauf": dict(getattr(self, "_inhalt_state", {"running": False}))}
+            if not st["verfuegbar"]:
+                st["grund"] = "laufzeit"
+            if BIB_BEREIT:
+                with clib._DB_LOCK:     # erst die Bibliothek …
+                    st["bestand"] = int(self._lib().execute(
+                        "SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL").fetchone()[0])
+                with self._inhalt_lock:  # … dann (getrennt) der Index — nie verschachtelt andersherum
+                    # nur lesen: ein Status darf keinen (leeren) Index anlegen — sonst steht er nach „Löschen" gleich da
+                    st["index"] = (cinhalt.index_stand(self._inhalt_idx()) if cinhalt.index_pfad(BIB, v).is_file()
+                                   else {"n": 0, "klein": 0, "bytes": 0})
+                st["groesse"] = cinhalt.ordner_groesse(APP_SUPPORT, BIB, v)
+            return st
+        except Exception as e:
+            log.exception("inhalt_status")
+            return {"ok": False, "error": str(e)}
+
+    def _inhalt_lauf_beenden(self, warten_s: float = 30.0) -> bool:
+        """Laufenden Index-Lauf anhalten und auf sein Ende warten. True = er ist beendet."""
+        self._inhalt_stop = True
+        ende = time.time() + warten_s
+        while getattr(self, "_inhalt_laeuft", False) and time.time() < ende:
+            time.sleep(0.2)
+        return not getattr(self, "_inhalt_laeuft", False)
+
+    def inhalt_einschalten(self, variante: str = "") -> dict:
+        """Einschalten (und ggf. Variante wechseln): Modell laden, falls es fehlt, dann indizieren."""
+        # Audit A-11: erst prüfen, ob die Laufzeit da ist — sonst stünde der Haken auf „an" für etwas, das nie läuft
+        if not cinhalt.verfuegbar():
+            return {"ok": False, "error": _ui_t()("inhalt.fehlt_laufzeit", "In dieser Ausgabe nicht verfügbar.")}
+        alt = self._inhalt_var()
+        patch = {"inhalt_an": True}
+        if variante in cinhalt.VARIANTEN:
+            patch["inhalt_variante"] = variante
+        # Audit A-2: läuft noch ein Lauf der ALTEN Variante, erst ihn beenden — er hält Index und Modell der alten fest
+        if variante in cinhalt.VARIANTEN and variante != alt and getattr(self, "_inhalt_laeuft", False):
+            if not self._inhalt_lauf_beenden():
+                return {"ok": False, "error": _ui_t()("inhalt.laeuft_noch", "Der laufende Lauf hält gerade an — bitte gleich noch einmal.")}
+        self.settings_set(patch)
+        self._inhalt_angehalten = False
+        return self.inhalt_aufholen()
+
+    def inhalt_ausschalten(self) -> dict:
+        self.settings_set({"inhalt_an": False})
+        self._inhalt_stop = True
+        return {"ok": True}
+
+    def inhalt_loeschen(self, variante: str = "") -> dict:
+        """Modell und Index löschen (alle Varianten ohne Angabe) und ausschalten."""
+        self.settings_set({"inhalt_an": False})
+        # Audit A-5: nicht nach Ablauf trotzdem löschen — auf Windows scheitert das an der offenen Datei, auf dem Mac
+        # liefe der Faden auf gelöschten Dateien weiter
+        if not self._inhalt_lauf_beenden():
+            return {"ok": False, "error": _ui_t()("inhalt.laeuft_noch", "Der laufende Lauf hält gerade an — bitte gleich noch einmal.")}
+        try:
+            with self._inhalt_lock:
+                c = getattr(self, "_inhalt_idx_conn", None)
+                if c is not None:
+                    c.close()
+                self._inhalt_idx_conn = None
+                self._inhalt_idx_pfad = None
+                self._inhalt_m = None
+                self._inhalt_merk = {}
+                r = cinhalt.loeschen(APP_SUPPORT, BIB, variante if variante in cinhalt.VARIANTEN else None)
+            self._inhalt_state = {"running": False}
+            log.info("[inhalt] gelöscht (%s): %.0f MB frei", variante or "alle Varianten", (r.get("frei") or 0) / 1e6)
+            return r
+        except Exception as e:
+            log.exception("inhalt_loeschen")
+            return {"ok": False, "error": str(e)}
+
+    def inhalt_stop(self) -> dict:
+        """„Anhalten": bis „Weiter" (oder Neustart der App) startet die Inhaltssuche nicht mehr von selbst (Audit A-10)."""
+        self._inhalt_stop = True
+        self._inhalt_angehalten = True
+        return {"ok": True}
+
+    def inhalt_weiter(self) -> dict:
+        self._inhalt_angehalten = False
+        return self.inhalt_aufholen()
+
+    def inhalt_aufholen(self, auto: bool = False) -> dict:
+        """Laden/Indizieren starten, wenn eingeschaltet und etwas zu tun ist. `auto`: von selbst (Wache, nach dem
+        Einlesen) — dann nicht, solange der Nutzer angehalten hat."""
+        if not _load_settings().get("inhalt_an") or not cinhalt.verfuegbar() or not BIB_BEREIT:
+            return {"ok": True, "gestartet": False}
+        if auto and getattr(self, "_inhalt_angehalten", False):
+            return {"ok": True, "gestartet": False, "grund": "angehalten"}
+        with self._start_lock:
+            if getattr(self, "_inhalt_laeuft", False):
+                return {"ok": True, "gestartet": False, "grund": "läuft bereits"}
+            self._inhalt_laeuft = True
+        self._inhalt_stop = False
+        v = self._inhalt_var()
+        self._inhalt_state = {"running": True, "phase": "laden" if not cinhalt.modell_da(APP_SUPPORT, v) else "index",
+                              "done": 0, "total": 0, "schon": 0, "variante": v, "seit": time.time()}
+
+        def worker():
+            idx = conn = None
+            try:
+                if not cinhalt.modell_da(APP_SUPPORT, v):
+                    r = cinhalt.modell_laden(
+                        APP_SUPPORT, v,
+                        fortschritt=lambda b, g, n: self._inhalt_state.update(
+                            {"phase": "laden", "bytes": b, "gesamt": g, "datei": n}),
+                        stop=lambda: self._inhalt_stop)
+                    if not r.get("ok"):
+                        self._inhalt_state["error"] = r.get("error") or ""
+                        self._inhalt_state["abbruch"] = bool(r.get("abbruch"))
+                        return
+                self._inhalt_state.update({"phase": "index", "done": 0, "total": 0, "seit": time.time()})
+                conn = clib.open_db(LIBRARY_DB)
+                idx = cinhalt.index_oeffnen(cinhalt.index_pfad(BIB, v))
+                if cinhalt.index_pruefen(idx, v):          # Audit A-7: anderes Modell/Schema → neu rechnen
+                    self._inhalt_state["neu_gerechnet"] = True
+                cinhalt.bereinigen(conn, idx, stop=lambda: self._inhalt_stop)
+
+                def pause():
+                    grund = ("render" if self._render_laeuft()
+                             else "einlesen" if getattr(self, "_foto_scan_running", False) else "")
+                    self._inhalt_state["pausiert"] = grund
+                    return bool(grund)
+
+                # Audit A-2: das Modell der Variante DIESES Laufs, nicht die (inzwischen evtl. geänderte) Einstellung
+                r = cinhalt.indizieren(
+                    conn, idx, self._inhalt_modell(v),
+                    fortschritt=lambda n, g, schon: self._inhalt_state.update(
+                        {"done": n, "total": g, "schon": schon}),
+                    stop=lambda: self._inhalt_stop, pause=pause)
+                self._inhalt_state.update({"ergebnis": r, "fertig_um": time.time()})
+                if r.get("abbruch"):
+                    self._inhalt_state["abbruch"] = True
+                log.info("[inhalt] Index %s: %s · Stand %s", "angehalten" if r.get("abbruch") else "fertig", r,
+                         cinhalt.index_stand(idx))
+            except Exception as e:
+                log.exception("[inhalt] Lauf")
+                self._inhalt_state["error"] = str(e)
+            finally:
+                for c in (idx, conn):
+                    try:
+                        if c is not None:
+                            c.close()
+                    except Exception:
+                        pass
+                self._inhalt_state["running"] = False
+                self._inhalt_state["pausiert"] = ""
+                self._inhalt_laeuft = False
+
+        threading.Thread(target=lambda: _mit_wach(worker, "Bildinhalte erfassen"), daemon=True, name="inhalt-index").start()
+        return {"ok": True, "gestartet": True}
+
+    # Trefferlisten werden gemerkt (Audit A-6: Raster, Tage, Karte und Touren fragen je Suche gleichzeitig — vorher
+    # ein Platz mit der Sortierung im Schlüssel, also zwei volle Rechnungen je Suche). Jetzt: Schlüssel ohne Sortierung,
+    # vier Plätze; die Sortierung wird auf die gemerkte Rangliste angewandt.
+    _INHALT_MERK_S = 120
+    _INHALT_MERK_N = 4
+
+    def _inhalt_treffer(self, f: dict, sortierung: str = "") -> Optional[dict]:
+        """Für eine Suche (`suche`) oder „Ähnliche Fotos" (`aehnlich`): die geordnete Trefferliste
+        {pfade, n_text, n_inhalt, art} — oder None, wenn die Inhaltssuche nicht greift."""
+        f = dict(f or {})
+        suche = " ".join(str(f.get("suche") or "").split())
+        aehnlich = str(f.get("aehnlich") or "")
+        if not (suche or aehnlich) or not self._inhalt_bereit():
+            return None
+        v = self._inhalt_var()
+        schluessel = json.dumps([f, v], sort_keys=True, default=str)
+        with clib._DB_LOCK, self._inhalt_lock:
+            idx = self._inhalt_idx()
+            merk = getattr(self, "_inhalt_merk", None)
+            if not isinstance(merk, dict):
+                merk = self._inhalt_merk = {}
+            treffer = merk.get(schluessel)
+            if treffer and time.time() - treffer[0] < self._INHALT_MERK_S:
+                basis = treffer[1]
+            else:
+                basis = self._inhalt_rechnen(f, suche, aehnlich, idx, v)
+                merk[schluessel] = (time.time(), basis)
+                for k in sorted(merk, key=lambda k: merk[k][0])[:-self._INHALT_MERK_N]:
+                    merk.pop(k, None)
+            pfade = self._inhalt_sortieren(basis, sortierung)
+        return dict(basis, pfade=pfade)
+
+    def _inhalt_rechnen(self, f: dict, suche: str, aehnlich: str, idx, v: str) -> dict:
+        """Rangliste rechnen — hält _DB_LOCK und _inhalt_lock (aus `_inhalt_treffer`)."""
+        conn = self._lib()
+        stand = self._inhalt_mx.aktuell(idx, cinhalt.VARIANTEN[v]["dim"])
+        rest = {k: w for k, w in f.items() if k not in ("suche", "aehnlich", "pfade")}
+        if aehnlich:
+            rang = cinhalt.rangliste_aehnlich(stand, aehnlich)
+            text_pfade = []
+        else:
+            rang = cinhalt.rangliste_text(self._inhalt_modell(v), stand, suche)
+            wo, werte = cfotos._where(dict(rest, suche=suche))
+            text_pfade = [r[0] for r in conn.execute(
+                f"SELECT path FROM fotos WHERE {wo} ORDER BY aufnahme_utc DESC NULLS LAST LIMIT 5000", werte)]
+        # Nur Treffer, die auch zu den übrigen Filtern passen (Jahr, Kamera, Ordner, Datum …)
+        erlaubt = set()
+        kandidaten = [p for p, _ in rang]
+        for i in range(0, len(kandidaten), 500):
+            t = kandidaten[i:i + 500]
+            wo, werte = cfotos._where(dict(rest, pfade=t))
+            erlaubt.update(r[0] for r in conn.execute(f"SELECT path FROM fotos WHERE {wo}", werte))
+        schon = set(text_pfade)
+        inhalt_pfade = [p for p, _ in rang if p in erlaubt and p not in schon]
+        return {"pfade": text_pfade + inhalt_pfade, "text": schon, "punkte": {p: round(w, 4) for p, w in rang if p in erlaubt},
+                "n_text": len(text_pfade), "n_inhalt": len(inhalt_pfade), "art": "aehnlich" if aehnlich else "text",
+                "indiziert": len(stand.pfade), "quelle_fehlt": bool(aehnlich) and aehnlich not in stand.pos,
+                "_sortiert": {}}
+
+    def _inhalt_sortieren(self, basis: dict, sortierung: str) -> list:
+        """Die gemerkte Rangliste in der gewünschten Reihenfolge (Audit A-12: auch Name/Ordner wie ohne Inhaltssuche)."""
+        pfade = basis["pfade"]
+        if sortierung not in ("zeit_neu", "zeit_alt", "name", "ordner") or not pfade:
+            return pfade
+        fertig = basis["_sortiert"].get(sortierung)
+        if fertig is not None:
+            return fertig
+        if sortierung == "name":
+            raus = sorted(pfade, key=lambda p: os.path.basename(p).lower())
+        elif sortierung == "ordner":
+            raus = sorted(pfade, key=lambda p: (os.path.dirname(p).lower(), os.path.basename(p).lower()))
+        else:
+            zeiten = {}
+            conn = self._lib()
+            for i in range(0, len(pfade), 500):
+                t = pfade[i:i + 500]
+                zeiten.update(conn.execute("SELECT path, aufnahme_utc FROM fotos WHERE path IN (%s)"
+                                           % ",".join("?" * len(t)), t).fetchall())
+            neu = sortierung == "zeit_neu"
+            raus = sorted(pfade, key=lambda p: (zeiten.get(p) is None, -(zeiten.get(p) or 0) if neu else (zeiten.get(p) or 0)))
+        basis["_sortiert"][sortierung] = raus
+        return raus
+
+    def _filter_mit_inhalt(self, f: dict) -> dict:
+        """Filter für Karte/Tage/Touren: mit aktiver Inhaltssuche die Trefferliste statt `suche`."""
+        f = dict(f or {})
+        try:
+            tr = self._inhalt_treffer(f)
+        except Exception:
+            log.exception("_filter_mit_inhalt")
+            tr = None
+        if tr is None:
+            f.pop("aehnlich", None)
+            return f
+        f.pop("suche", None)
+        f.pop("aehnlich", None)
+        f["pfade"] = tr["pfade"]
+        return f
 
     def library_query(self, params: dict = None) -> dict:
         """Gefilterte Trefferliste. `with_thumbs` hängt die Vorschaubilder als
@@ -5483,6 +6110,24 @@ class Api:
                     "thumb_url": self._lib_thumb_url(track.get("image") if track else "")}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def library_datumsbaum(self, params: dict = None) -> dict:
+        """04.10.2026 — Touren je Tag für „Nach Datum" in der Archiv-Seitenleiste (wie bei den Fotos)."""
+        try:
+            return {"ok": True, "tage": clib.datumsbaum(self._lib(), **dict(params or {}))}
+        except Exception as e:
+            log.exception("library_datumsbaum")
+            return {"ok": False, "error": str(e), "tage": []}
+
+    def library_ordnerbaum(self, params: dict = None) -> dict:
+        """04.10.2026 — Touren je Verzeichnis für „Nach Ordner" in der Archiv-Seitenleiste (wie bei den Fotos)."""
+        try:
+            res = clib.ordnerbaum(self._lib(), **dict(params or {}))
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("library_ordnerbaum")
+            return {"ok": False, "error": str(e), "wurzeln": [], "verz": []}
 
     def library_stats(self, params: dict = None) -> dict:
         """Zahlen zur aktuellen Auswahl — dieselben Filter wie `library_query`,
@@ -7280,7 +7925,9 @@ class Api:
             # Heuristik: log wenn p sich um ≥1% geändert hat oder status-Text sich ändert.
             last_p = getattr(on_progress, "_last_logged_p", -1.0)
             last_msg = getattr(on_progress, "_last_logged_msg", "")
-            if msg != last_msg or abs(p - last_p) >= 0.10:
+            # 05.10.2026 (Audit G-7): „Frame 254 / 1200" ändert sich bei jedem Bild — verglichen wird der Text ohne
+            # Zahlen, sonst stand jeder Frame im Log (51 % aller Zeilen, Rotation nach 17 min Render voll).
+            if re.sub(r"\d+", "#", msg) != re.sub(r"\d+", "#", last_msg) or abs(p - last_p) >= 0.10:
                 rlog.info("  [%5.1f%%] %s", p * 100, msg)
                 on_progress._last_logged_p = p   # type: ignore[attr-defined]
                 on_progress._last_logged_msg = msg  # type: ignore[attr-defined]
@@ -7330,8 +7977,19 @@ class Api:
                     loop.close()
                 self._render_state["running"] = False
                 self._render_state["progress"] = 1.0
-                self._render_state["status"] = _ui_t()("animator.progress.done", "Fertig.")
-                rlog.info("Render OK in %.1fs → %s", time.time() - t0, out_path)
+                # 05.10.2026 (Audit K-2/G-6): fehlten Kartenkacheln, sagt die Schlussmeldung das — vorher stand „Fertig."
+                # und im Log „Render OK", obwohl 140 Kacheln fehlten
+                _fehlend = 0
+                try:
+                    _fehlend = sum(int(v.get("fehlend") or 0) for v in ctileproxy.stoerungen().values())
+                except Exception:  # noqa: BLE001
+                    pass
+                self._render_state["status"] = _ui_t()("animator.progress.done", "Fertig.") + (
+                    " " + _ui_t()("render.kacheln_fehlten", "{n} Kartenkacheln fehlten — dort ist das Bild weicher oder ohne Luftbild.")
+                    .replace("{n}", str(_fehlend)) if _fehlend else "")
+                self._render_state["kacheln_fehlten"] = _fehlend
+                rlog.info("Render OK in %.1fs → %s%s", time.time() - t0, out_path,
+                          f" · {_fehlend} Kartenkacheln fehlten" if _fehlend else "")
             except canim.RenderCancelled:
                 # Sauberer User-Abbruch — KEIN Fehler.
                 self._render_state["running"] = False
@@ -7523,7 +8181,9 @@ class Api:
             self._height_render_state["status"] = msg
             last_p = getattr(on_progress, "_last_logged_p", -1.0)
             last_msg = getattr(on_progress, "_last_logged_msg", "")
-            if msg != last_msg or abs(p - last_p) >= 0.10:
+            # 05.10.2026 (Audit G-7): „Frame 254 / 1200" ändert sich bei jedem Bild — verglichen wird der Text ohne
+            # Zahlen, sonst stand jeder Frame im Log (51 % aller Zeilen, Rotation nach 17 min Render voll).
+            if re.sub(r"\d+", "#", msg) != re.sub(r"\d+", "#", last_msg) or abs(p - last_p) >= 0.10:
                 rlog.info("  [%5.1f%%] %s", p * 100, msg)
                 on_progress._last_logged_p = p   # type: ignore[attr-defined]
                 on_progress._last_logged_msg = msg  # type: ignore[attr-defined]
@@ -15248,6 +15908,16 @@ def main() -> None:
     if _reste:
         log.info("Render-Teildateien aufgeraeumt: %d", _reste)
 
+    # 05.10.2026 (Audit E-1/E-2) — im Hintergrund: Clip-Speicher begrenzen, alte Schnell-Videos aus `_renders`
+    def _speicher_aufraeumen_spaeter():
+        try:
+            time.sleep(45)
+            cclips.aufraeumen()
+            _renders_aufraeumen(RENDERS_DIR)
+        except Exception:  # noqa: BLE001
+            log.exception("Speicher aufräumen")
+    threading.Thread(target=_speicher_aufraeumen_spaeter, daemon=True, name="speicher-aufraeumen").start()
+
     # 14.09.2026 — Papierkorb des Dateischutzes: alte Sicherungen (14 Tage / Größengrenze)
     # einmal je Start im Hintergrund entfernen, verzögert, damit der Start nicht wartet.
     def _papierkorb_spaeter():
@@ -15258,6 +15928,7 @@ def main() -> None:
         except Exception:  # noqa: BLE001 — Aufräumen darf nie etwas kippen
             log.exception("Dateischutz-Papierkorb aufräumen")
     threading.Thread(target=_papierkorb_spaeter, name="papierkorb-aufraeumen", daemon=True).start()
+    api.fotos_wache_starten()
     html_path = _prepare_html_with_cache_busting()
 
     # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER aus Settings
@@ -15471,11 +16142,23 @@ def main() -> None:
                     setattr(api, _stopper, True)
                 except Exception:
                     pass
+            # 05.10.2026 (Audit G-2/G-3): Foto-Einlesen und Inhaltsindex anhalten — vorher lief der Foto-Faden weiter,
+            # hielt den gewollten exiftool-Abbau für einen Hänger und startete neue Prozesse. Und im Log stand nicht,
+            # dass und wo der Lauf aufhörte.
+            try:
+                fst = getattr(api, "_foto_scan_state", None) or {}
+                if fst.get("running"):
+                    log.info(f"[fotos] Scan abgebrochen (Fenster zu) in Schritt „{fst.get('phase')}“ bei "
+                             f"{fst.get('done', 0)} von {fst.get('total') or fst.get('erwartet') or '?'}")
+                api._foto_scan_stop = True
+                api._inhalt_stop = True
+            except Exception:
+                pass
             # exiftool-Daemon herunterfahren — sonst kann ein laufender
             # _send_and_read_text()-Call im Thumb-Worker im read1() hängen
-            # während pywebview den Prozess abbaut.
+            # während pywebview den Prozess abbaut. `beenden` sperrt auch Neustarts.
             try:
-                cexif._ExifToolDaemon.shutdown()
+                cexif._ExifToolDaemon.beenden()
             except Exception:
                 pass
             log.info("Background-Worker gestoppt — Force-Exit via os._exit(0)")
@@ -15674,6 +16357,27 @@ def main() -> None:
         pass
 
 
+# 05.10.2026 (Audit B-3) — Foto-Brücken auf der gemeinsamen Bibliotheks-Verbindung unter `clib._DB_LOCK`, wie die
+# Touren-Brücken: pywebview ruft jede Brücke in einem eigenen Faden, und beim Öffnen des Foto-Bereichs fragen Raster,
+# Tage, Karte, Bäume, Touren und Status gleichzeitig. `_DB_LOCK` ist ein RLock — verschachtelt unschädlich.
+# Nicht hier: fotos_ordner/fotos_aufholen (Laufwerksprüfung darf die Sperre nicht halten — sperren selbst innen),
+# fotos_thumbs (erzeugt Bilder; sperrt nur die Datenbank-Teile), Dialoge (fotos_ordner_hinzu).
+def _db_gesperrt(fn):
+    import functools
+
+    @functools.wraps(fn)
+    def huelle(self, *args, **kwargs):
+        with clib._DB_LOCK:
+            return fn(self, *args, **kwargs)
+    return huelle
+
+
+for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage", "fotos_punkte", "fotos_ordnerbaum",
+              "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum", "schnellvideo_fotos",
+              "geotagger_tracks_fuer_fotos", "fotostopp_info"):
+    setattr(Api, _name, _db_gesperrt(getattr(Api, _name)))
+
+
 def _selbsttest(ziel: str) -> int:
     """04.10.2026 — Prüft im FERTIGEN Paket, ob der Render-Kern lädt und die Tonspur mischt, ohne Fenster.
 
@@ -15698,7 +16402,19 @@ def _selbsttest(ziel: str) -> int:
                                 "klicks": [{"t": 0.5, "laut": 0.8}], "klick_datei": "builtin:klick_a"}, 1.0, wav, ff)
             erg["ton"] = info
             erg["wav_bytes"] = wav.stat().st_size if wav.exists() else 0
-        erg["ok"] = erg["wav_bytes"] > 1000
+        # 04.10.2026 — Inhaltssuche (IDEAS §81): Laufzeit und Tokenizer müssen im Paket laden (das Modell nicht —
+        # das kommt erst beim Einschalten). Ein Mini-Tokenizer aus JSON prüft die native tokenizers-Bibliothek.
+        import onnxruntime as _ort
+        from tokenizers import Tokenizer as _Tok
+        erg["onnxruntime"] = _ort.__version__
+        erg["onnx_cpu"] = "CPUExecutionProvider" in _ort.get_available_providers()
+        _t = _Tok.from_str(_json.dumps({"version": "1.0", "model": {"type": "WordLevel", "vocab": {"[UNK]": 0, "sonne": 1},
+                                                                       "unk_token": "[UNK]"},
+                                        "pre_tokenizer": {"type": "Whitespace"}}))
+        erg["tokenizer"] = _t.encode("sonne").ids == [1]
+        # Audit E-4: fehlt die Musik- oder Klickdatei im Paket, schrieb `mischen` trotzdem Stille voller Länge → „ok"
+        erg["ton_echt"] = bool(info.get("musik")) and int(info.get("klicks") or 0) >= 1
+        erg["ok"] = erg["wav_bytes"] > 1000 and erg["ton_echt"] and erg["ffmpeg"] and erg["onnx_cpu"] and erg["tokenizer"]
     except Exception as e:  # noqa: BLE001
         import traceback
         erg["fehler"] = f"{type(e).__name__}: {e}"

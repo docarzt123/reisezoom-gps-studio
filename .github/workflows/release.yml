@@ -47,7 +47,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8   # Audit F-7: wie lokal
 
       - name: Install Playwright Chromium ins Bundle (pw-browsers/)
         run: |
@@ -189,7 +189,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8   # Audit F-7: wie lokal
         shell: bash
 
       - name: Install Playwright Chromium ins Bundle (pw-browsers/)

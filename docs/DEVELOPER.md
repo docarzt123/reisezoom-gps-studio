@@ -302,6 +302,8 @@ weg davon, alles am track festzumachen." E1 löst die Sessions auf:
 
 > ⚠️ **Abgelöst seit v0.9.752** durch die Einblendungs-Container (Kapitel „Einblendungen als Container“) — historisch.
 
+> ⚠️ **Historisch (Audit E-13/F-18, 05.10.2026):** seit 0.9.752 gibt es nur noch den Szene-Render. `core/overlayboxen.py`, `core/animator.render/render_frame`, der klassische Render-Weg, `render_engine: klassisch` / `RZ_RENDER_KLASSISCH` und die `tourmap_render/status/cancel`-Brücken sind entfernt — siehe „Einblendungen als Container“ und den Abschnitt zur Entfernung des klassischen Wegs weiter unten. Der folgende Text beschreibt den Stand davor.
+
 **Overlay-Boxen einzeln (v0.9.723, Plan und Entscheidungen `docs/OVERLAY-BOXEN.md`):** Drei Ebenen global → Box → Zeile; gespeichert werden nur Abweichungen in `overlay_boxen` (Liste `{id, typ?, enabled?, position?, fields?, titel?, stil?, blende?, zeit?, bezug?, zeilen?}`, Standardboxen `totals|live|ele` lesen enabled/position/fields weiter aus den alten Feldern, Zusatzboxen `box_<zufall>` tragen sie selbst). Neue globale Schlüssel `overlay_exit`, `overlay_blende_s`, `overlay_radius`, `overlay_border_w`, `overlay_border_color`, `overlay_shadow`. **Auflösung in zwei Sprachen, Zeitsteuerung nur in JS:** `core/overlayboxen.py` ↔ `ui/js/overlay_boxen.js` teilen `aufloesen`, `chart_boxen`, `zeit_normal`, `hat_zeitsteuerung` (Python baut damit das Render-HTML, JS die Vorschau; `tests/test_overlay_boxen.py` vergleicht beide unter node). `zustand`/`etappenGrenzen`/`anwenden` gibt es nur in JS — Vorschau, Szene-Render und klassischer Render betten dieselbe Datei ein; der Python-Zwilling lief nur in Tests und ist seit 24.09.2026 weg (Prüfung über `tests/_node.py`). **Zeitmodell:** Zeit-Auslöser (`s`, `start` = Intro-Ende, `ende` = Intro + Animation) kennen ihre Sekunde; Strecken-Auslöser (`pct`, `etappe_start|ende N`) werden über den Streckenanteil des Laufpunkts ausgewertet und merken sich in `mem` die Sekunde, in der sie erreicht wurden (Tempo-Kurven/Übergänge stimmen so ohne Umrechnung). Einblende beginnt am „von“, Ausblende am „bis“ (oder von + `dauer_s`); Rücksprung oder Sprung > 1 s setzt `mem` zurück, ein Standbild hinter dem Auslöser zeigt die Box voll. **DOM:** Box = `[data-ovbox="<id>"]`, Zeile = `[data-f="<fid>"]`, Bezug-Werte je Etappe als `data-stage-values` (`{"<nr>": text, "gesamt": text}`, Klartext, die Zeitsteuerung setzt `textContent`). `rzOverlayBoxen.anwenden(root, boxen, t, frac, stageNr, ctx, speicher)` setzt `visibility`, `opacity`, `--rz-ov-pop` (Box) bzw. `transform: scale()` (Zeile). **Render (klassisch/Alpha):** `_overlay_boxen_html` baut das Box-HTML für beide Wege (vorher zweimal), `_overlay_live_update_js_alle` die Live-Werte aller Live-Boxen (Präfix `<id>-` für Zusatzboxen), `_overlay_boxen_css` Stil je Box/Zeile (Selektor `#<dom-id>[data-ovbox]`, schlägt die Grundregeln), `_overlay_timing_js` bettet `overlay_boxen.js` ein und liest Streckenanteil/Etappe über `window.__rzOvIdx` (setzt `updateOverlays`). `_overlay_font_link` lädt alle Schriften in Gebrauch. Kennzahlen je Etappe: `gpx.etappen_stats(pts)` auf den vollen Punkten (Zählweise wie `etappen_reihen`), im Render als `total_stats["stage_stats"]`, in der Vorschau als `series.stage_stats`. **Vorschau/Szene:** `_ovCfg()` liefert dieselben Schlüssel wie die Render-Parameter (`_ovRenderParams()` hängt die neuen an), `_overlayBoxenRendern` baut aus `rzOverlayBoxen.aufloesen`, Inline-Stil `_ovBoxStil` (WYSIWYG-Spiegel von `_overlay_boxen_css`), `_ovTimingAt(tSec, frac)` im Probelauf (auch Schrittmodus = Szene-Render). Vorher kannte die Vorschau nur harte Zeitfenster — Fade/Pop kam deshalb nie in Szene-Videos an. **Modal** `_ovBoxModal(id, zeile)`: Inhalt in `#ovbox-root`, delegierte Handler (`data-k` = Pfad, `data-erbt` = „wie oben“, `data-z` = Auslöser, `data-feld` = Felder), Änderungen über `_ovAendern` → `_ovSchreiben` (Undo-Schritt, bei Reglern gebündelt je Element über `__rzLastUndoEl`). ⚠️ `rzConfirm` überschreibt den Modal-Inhalt und schließt das Overlay — nach einer Rückfrage öffnet `_ovBoxModal` sich deshalb neu. Liste „Weitere Boxen“: `_ovExtraListe()` (hängt an `_ovRebuildEditors`), dort auch das Ausgrauen der ⏱-Felder, wenn eine Standardbox einen eigenen Zeitpunkt hat. Wächter: `tests/test_overlay_boxen.py` (Modell, Parität, Render-HTML, Alpha-Video gemessen), `tests/test_overlay_boxen_ui.py` (WebKit, echte Brücke, Modal/Undo/Probelauf im Schrittmodus), `tests/test_overlay_boxen_szene.py` (Szene-Render 4K + 1080p gemessen, nur Release).
 
 > ⚠️ **Abgelöst seit v0.9.752** durch die Einblendungs-Container (Kapitel „Einblendungen als Container“) — historisch.
@@ -1773,7 +1775,7 @@ Die zweite bekannte Ursache fürs Tanzen liegt in der **DOM-Vorschau** (v0.9.473
 
 - **`render_frame(cfg)`** baut das HTML mit `_make_html(cfg, …)` (identisch zum Video), wartet `isReady`, ruft **einmal** `advanceFrame(lastIdx, bearing, fitCenter, fitZoom, pitch)` (volle Strecke + alle Fotos/Schilder/Overlays via markerAnchor=1), blendet die bewegte `dot-*`-Ebene aus, greift **ein** PNG (`_grab_still_png`, immer PNG + SSAA-Downscale), Schwarz-Frame-Schutz wie Frame 0 im Video. **Kein** ffmpeg, **kein** Loop.
 - **`AnimatorConfig`-Felder dafür:** `still_frame` (aktiviert den Pfad), `bearing` (fester Kamera-Bearing), `padding_pct` (Fit-Rand %), `show_pins` (Start/End-Pins). In `_make_html`: `SHOW_PINS`-JS-Konstante + Pin-Ebene (`pin-glow`/`pin-core`, 1:1 aus alter tourmap.py); Bounds-Fit nutzt bei `still_frame` `padding_pct`+`bearing`, sonst weiter `8 %`/`-10` → **Video-Pfad byte-gleich**.
-- **Bridge:** Der Render läuft über `app.py::animator_start_render` mit `still_frame=True` (Worker-Branch ruft `canim.render_frame` statt `canim.render`). `overlay_live_enabled=False` (Standbild hat keine Live-Box).
+- **Bridge (historisch, vor 0.9.752 — heute Szene-Render):** Der Render lief über `app.py::animator_start_render` mit `still_frame=True` (Worker-Branch rief `canim.render_frame` statt `canim.render`). `overlay_live_enabled=False` (Standbild hat keine Live-Box).
 - **v0.9.412 — Snapshot (Animator-Frame als PNG) + Kamera-Übernahme (Tour-Map):** `render_frame` bekam einen **Kamera-Override + Marker-Anker**: `AnimatorConfig.snapshot_center([lon,lat])/snapshot_zoom/snapshot_bearing/snapshot_pitch` ersetzen den Bounds-Fit; `snapshot_anchor` (0..1) setzt den Marker-Index (`round(a·(N-1))`) → **Teil-Track + laufender Punkt sichtbar** (Animator-Frame); ist er `None`, bleibt es der Voll-Strecke-Standbild-Modus (Punkt aus). `snapshot_time_s` treibt `__overlayTiming` (Live-Box-Zeitfenster). **Bridge:** `animator_start_render` erkennt `params.snapshot` → `_still=True` (PNG-Ausgabe) + setzt die `snapshot_*`-Felder auf `cfg`; Worker-Routing zu `render_frame` wenn `still_frame` ODER `snapshot_center` gesetzt. **Frontend (`modules/animator/ui/module.js`):** Buttons `#anim-snapshot` + `#anim-open-tourmap` (nur `!_isStaticFrame`). Snapshot: `_animCameraCorrected(w,h)` (center + `correctedZoom` + bearing + pitch) + `_snapshotAnchorAndTime()` (Scrubber-Timeline-Progress → Track-Anker + Video-Sekunde) → `_snapshotRequest` → normaler Render-Klick (Save-Dialog liefert `.png`, Params spreaden `_snapshotRequest`, Done-Handler zeigt Bild statt Video via `_lastRenderWasSnapshot`). „Als Tour-Map öffnen": RAW-Kamera → `window.__pendingCameraForTourMap` → `switchMod('tourmap')`. **Tour-Map-Übernahme:** `fitTrackPreview` wendet die pending Kamera EINMAL per `jumpTo` an, setzt `_tmCamActive=true` und **überspringt den Auto-Fit** solange aktiv (Re-Layout springt nicht zurück); `#anim-refit` (⤢) löscht `_tmCamActive`. Bei aktiver Freikamera spreaden die Render-Params `snapshot_center/zoom(correctedZoom)/bearing/pitch` aus der AKTUELLEN Tour-Map-Preview (WYSIWYG für die eigene Auflösung), und `collectTourmapExportParams` schickt `view_center([lat,lon])/view_zoom` → `tourmap_html` `map.setView(...)` statt `fitBounds`. Headless verifiziert (render_frame OSM + Kamera-Override + Anker → 668 KB PNG, 0 % schwarz; Generator setView-Pfad).
 - **UI (P4, v0.9.308):** Es gibt **kein eigenes Tour-Map-Modul-JS mehr**. `modules/animator/ui/module.js` registriert `RZGPS_MODULES.tourmap` und mountet sich selbst per `mountAnimator(body, headerActions, { mode: "staticFrame", moduleSlug: "tourmap" })`. `_isStaticFrame` blendet alles Animations-Spezifische aus (Timeline, KF-Editor, Live-Stats, Trim, Flug, Rotation, FPS/Dauer …) und schaltet die Standbild-Kamera-Regler frei. Settings persistieren unter dem Projekt-Namespace `tourmap`.
 - **Standbild-Kamera-Regler (P4-Ergänzung, v0.9.310):** `#anim-static-camera` (nur im `staticFrame`-Modus sichtbar) mit `anim-static-bearing` (Ausrichtung), `anim-static-padding` (Randabstand %) und `anim-static-pins` (Start/Ziel-Markierung). Persistiert als `static_bearing`/`static_padding`/`static_pins`. `fitTrackPreview` liest im `staticFrame` Bearing+Padding aus den Slidern (sonst `8 %`/`-10` wie der Video-Pfad → byte-gleich). `updateStaticPinsPreview()` zeichnet Start/Ziel-Pins (`preview-pin-glow`/`preview-pin-core`) live in die Vorschau, identisch zum Render-`SHOW_PINS`-Block. Die Params-Builder schicken die Slider-Werte als `bearing`/`padding_pct`/`show_pins`.
@@ -2729,6 +2731,9 @@ Globale Excepthooks (`sys.excepthook`, `threading.excepthook`) sind installiert
   Log gespiegelt → Mapbox-Token-Fehler, WebGL-Errors etc. werden sichtbar.
 
 ### Tour-Map (statische PNG)
+
+> ⚠️ **Historisch (Audit E-13/F-18, 05.10.2026):** seit 0.9.752 gibt es nur noch den Szene-Render. `core/overlayboxen.py`, `core/animator.render/render_frame`, der klassische Render-Weg, `render_engine: klassisch` / `RZ_RENDER_KLASSISCH` und die `tourmap_render/status/cancel`-Brücken sind entfernt — siehe „Einblendungen als Container“ und den Abschnitt zur Entfernung des klassischen Wegs weiter unten. Der folgende Text beschreibt den Stand davor.
+
 
 | Methode | Returns | Zweck |
 |---------|---------|-------|
@@ -4491,6 +4496,41 @@ Zuordnung über die längste enthaltende Wurzel. `app.fotos_laufwerk_verbinden(o
 Oberfläche `ui/js/fotos.js`: `ordnerZeile`, `lwZustand`, `lwArt`, `ordnerTitel`, `laufwerkVerbinden` (danach 30 s lang
 alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/test_fotos_laufwerke.py`.
 
+## Stille Foto-Nachschau (04.10.2026, v0.9.781)
+
+`Api.fotos_wache_starten()` (aus `main()`, einmalig; Faden „foto-wache") ruft nach `FOTO_WACHE_START_S` (600 s) und dann
+alle `FOTO_WACHE_MIN` (20) Minuten `fotos_aufholen` — die Entscheidung bleibt dort (Einstellung `fotos_auto`, erreichbarer
+Ordner, `cfotos.was_zu_tun`: Ungelesenes oder Nachschau nach `NACHSCHAU_STUNDEN`), nie neben `_foto_scan_running`.
+Nicht im Api-Konstruktor, damit Tests/Render-Umgebungen keine Wache bekommen. Test `tests/test_fotos_wache.py`.
+
+## Foto-Archiv: Großansicht, Standbild, Bearbeiten, Verorten (04.10.2026, v0.9.781)
+
+app.py: `fotos_gross(path)` (Original über `serve_media` für `_GROSS_NATIV` + Videos, sonst `cphotos.thumb_gecacht(…,
+_GROSS_PX=2560)` als data-URL, offline Cache 600/220 px), `fotos_video_standbild(path, t)` (pick_save_path → ffmpeg
+`-ss t -frames:v 1 -q:v 2` in eine Zwischendatei IM Zielordner, `_ds.ersetzen`; EXIF DateTimeOriginal/CreateDate/
+OffsetTimeOriginal/Model + `write_gps` aus `cfotos.zeile`; im beobachteten Ordner `fotos_scan_start(ordner=…)`),
+`fotos_exif_lesen` (= `geotagger_photo_exif`), `fotos_exif_schreiben(path, felder)` (`write_exif_tags`),
+`fotos_verorten(path, lat, lon, alt, richtung, adresse)` (`write_gps` + `write_location`), `fotos_adresse(lat, lon)`
+(`cgeocode.reverse`, Anbieter wie Geotagger). Schreiben: `_foto_vor_schreiben` (nutzer_ziel + ZIP
+`BACKUPS_DIR/archiv_einzeln`, wie `geotagger_write_exif_tag`), `_foto_nach_schreiben` → `cfotos.neu_lesen(conn, pfade)`
+(indexed_at=NULL, mtime/size neu, `durchgang2(nur=pfade)`) → `fotos_details`. ui/js/fotos.js: `grossOeffnen/grossZeigen/
+grossTasten/grossZu` (Overlay `.foto-gross`, Doppelklick/Leertaste/Bildklick, Video-`error` → `videoGehtNicht`: Windows-
+HEVC-Anleitung + Store-Link `apps.microsoft.com/detail/9n4wgh0z6vhq`), Detailkarte immer sichtbar mit ziehbarem
+`lib.Marker` (`ortMarker`), Klick setzt → `ortGeaendert` (Höhe/Richtung/Adresse) → `fotos_verorten`; Editor `editorLaden`
+(`EDIT_FELDER` = Geotagger-`_GT_FILL_FIELDS` + DateTimeOriginal/OffsetTimeOriginal, übrige schreibbare Tags mit Suche) →
+`fotos_exif_schreiben`; `nachBearbeiten` frischt Raster-Eintrag und Detailspalte auf. Prüfstand `window.__rzFotoGross`.
+Test `tests/test_fotos_bearbeiten.py`.
+
+## Fotos nach Datum (04.10.2026, v0.9.781)
+
+`cfotos.datumsbaum(conn, filter)` → alle Tage `[{tag, n}]` ohne Begrenzung, Datumsteile des Filters (von/bis/jahr)
+ignoriert; `api.fotos_datumsbaum`. `ui/js/fotos.js`: `datumsBaumRahmen` (Kopf „📅 Nach Datum", in `navZeichnen`),
+`datumsBaumFuellen` (lädt bei geändertem Basis-Filter oder Bestand, sonst Cache), `datumsBaumZeichnen` (Jahr ↓, Monat/Tag ↑,
+Namen über `Intl.DateTimeFormat` in der UI-Sprache), `datumWaehlen` (setzt `filter.von/bis`, löscht `jahr`; zweiter Klick hebt
+auf), `datumsFilterText` (Chip `#foto-db-chip` in `leisteHtml`). Auf-/Zugeklappt: localStorage `rz-fotos-datumsbaum`.
+„Alle" und die Jahres-Auswahl heben den Datumsfilter auf. Kacheln (`kachelHtml`) ohne Uhrzeit, ohne „!" und ohne `title`, nur
+`aria-label` (Befunde). Test `tests/test_fotos_datumsbaum.py`.
+
 ## Einlese-Stand der Fotos (04.10.2026, v0.9.781)
 
 `app.fotos_scan_start` legt in `_foto_scan_state` zusätzlich `gruendlich` (aufgelöst: Parameter oder
@@ -5468,6 +5508,143 @@ lässt einen echten Scan laufen, während ein zweiter Faden ununterbrochen in
 dieselbe Datenbank schreibt.
 
 
+### Inhaltssuche — `core/inhalt.py` (04.10.2026, IDEAS §81, v0.9.781)
+
+**Was.** „Sonnenuntergang", „Hund am Strand", „ähnliche Fotos" — über Bildinhalt, in jeder Sprache, lokal. SigLIP 2
+(Google, Apache-2.0) als ONNX-Export von onnx-community, Laufzeit `onnxruntime` (MIT), Tokenizer `tokenizers`
+(Apache-2.0). Beide Bibliotheken sind im Paket (`requirements.txt`, `.spec` hiddenimports, `--selbsttest` lädt sie);
+das **Modell** kommt erst beim Einschalten.
+
+**Modelle** (`VARIANTEN`): `base` = siglip2-base-patch16-224 (Bildteil fp16 186 MB, Textteil int8 283 MB, Tokenizer
+34 MB, Vektor 768), `gross` = siglip2-so400m-patch16-256 (≈ 1,6 GB, Vektor 1152). Feste Revision + SHA-256 je Datei;
+`modell_laden` holt fortsetzbar (`.part` + Range) zuerst von `SPIEGEL` (reisezoom.com/downloads/gps-studio/modelle/
+<repo>/<rev[:12]>/<pfad> — `base` dort seit 04.10.2026 samt LICENSE.txt/NOTICE.txt, per Haupt-FTP von reisezoom.com
+hochgeladen; `gross` ebenso seit 04.10.2026 abends), sonst von Hugging Face. `gross` gemessen: 4 Bilder/s (Base 24). Geprüft: Download nur vom Spiegel 48 s, SHA-256 ok, Range 206. Liegt in
+`<App-Daten>/inhaltssuche/<variante>/` samt `LICENSE.txt`. `logit_scale`/`logit_bias` stehen als Konstanten in
+`VARIANTEN` (aus model.safetensors per Range-Request gelesen) — daraus die SigLIP-Wahrscheinlichkeit für die Schwelle.
+
+**Gemessen** (Mac mini M6): Bildteil fp16 ≈ 25–30 Bilder/s auf der CPU, fp32 ≈ 31 (doppelter Download — nicht
+genommen); CoreML-Provider ohne Gewinn (Teilgraphen fallen auf die CPU zurück, MLProgram scheitert an Batch > 1);
+int8-Bildteil verworfen (Kosinus zu fp16 bis 0,84); int8-Textteil ≥ 0,99 → genommen. Text ≈ 10 ms je Anfrage.
+
+**Vorverarbeitung** (Idee angelehnt an Immich, `machine-learning/immich_ml/models/clip` — kein Code übernommen, die Werte stammen aus Googles `preprocessor_config.json`): Text
+`text_saeubern` = Leerraum zusammen, Satzzeichen weg, klein; aufgefüllt auf 64 Wortteile (Tokenizer-Padding).
+Bild: aufs Quadrat **gestaucht** (bikubisch, so ist SigLIP 2 trainiert, Immich `resize_mode: squash`), Werte
+(x/127,5 − 1). Panoramen > 2:1 → überlappende Quadrate über die ganze Länge, Vektoren gemittelt (`_zuschnitte`).
+Quelle (`_bild_holen`): 600-px-Vorschau aus dem Cache → sonst aus der Datei **nur im Speicher** (600er für 170.000
+Fotos wären ~12 GB Cache) → sonst 220er Rasterbild (Laufwerk weg; `px=220` im Index, `nachbessern` rechnet neu, sobald
+die Datei erreichbar ist).
+
+**Index** liegt **in der Bibliothek**: `<BIB>/inhaltsindex/<variante>.sqlite` (`vek(path, inhalt_id, fp, px, vec
+float16, am)`, `meta.version` zählt jede Änderung) — zieht beim Umzug mit (Marc: „könnte man diese Bibliothek auch
+auf den Mac mini übertragen?"). `offene()` vergleicht mit `fotos`: fehlend oder `fp` geändert → rechnen; gleiche
+`inhalt_id` schon im Index (umbenannt, verschoben, Kopie) → Vektor kopieren. `bereinigen()` wirft Einträge weg, deren
+Datei nicht mehr im Bestand ist.
+
+**Suchen** (`Matrix`): alle Vektoren im Speicher (fp16, ≈ 260 MB bei 170.000), neu geladen wenn `meta.version`
+sich änderte, beim Indizieren höchstens alle 20 s; Skalarprodukt blockweise. `rangliste_text`: Schwelle
+`MIN_WAHRSCH` 0,01 (SigLIP-Wahrscheinlichkeit) und höchstens `ABSTAND` 0,05 unter dem besten Kosinus, max. 1500 —
+**geeicht** am 04.10.2026 auf Marcs Archiv (`tests/pruefstand_inhaltssuche.py`: „Sonnenuntergang" bis Rang ~150 echt,
+p ≈ 0,004 nur Zufall; vorher 0,001 → 782 Treffer). `rangliste_aehnlich`: Kosinus ≥ 0,70.
+
+**In `app.py`:** Einstellungen `inhalt_an`, `inhalt_variante`. Brücke `inhalt_status` (liest nur — legt keinen Index
+an), `inhalt_einschalten(variante)`, `inhalt_ausschalten`, `inhalt_loeschen(variante)`, `inhalt_stop`,
+`inhalt_aufholen` (Faden `inhalt-index`: Laden → Indizieren; `pause()` = Render läuft (`*render*_state.running`)
+oder Foto-Scan läuft). Aufgerufen nach jedem Foto-Scan, von der stillen Wache und beim Öffnen des Foto-Bereichs.
+`_inhalt_treffer(filter, sortierung)` baut die geordnete Liste: Text-Treffer (`_where` mit `suche`) zuerst, dann
+Inhalts-Treffer, die auch die übrigen Filter erfüllen; gemerkt 120 s fürs Weiterblättern. `fotos_abfrage` liefert
+damit Seiten in dieser Reihenfolge (`treffer: text|inhalt`, `punkte`, `inhalt: {n_text, n_inhalt, art}`);
+`_filter_mit_inhalt` ersetzt `suche` durch `pfade` (neu in `cfotos._where`) für Tage, Punkte, Touren.
+
+**Oberfläche** (`ui/js/fotos.js`, Abschnitt „Inhaltssuche"): Angebot über dem Raster beim Suchen (Nicht jetzt →
+localStorage `rz-fotos-inhalt-nicht-jetzt`), Stand in der Seitenleiste (`#foto-inhalt-stand`, ?-Tooltip), Zählung +
+„Beste zuerst / Nach Datum" über den Treffern, Gruppen „Treffer in Name…" / „Nach Bildinhalt", Knopf „🖼 Ähnliche
+Fotos" in der Detailspalte (`filter.aehnlich`, Chip). Einstellungen → Bibliothek & Cloud: `#md-inh` (`ui/js/app.js`).
+
+**Tests:** `test_inhaltssuche.py` (Backend mit echtem Modell: Index in der Bibliothek, Text vor Inhalt, DE/EN/ES,
+ähnlich, Filter, Duplikat, Render-Pause, Löschen), `test_inhaltssuche_ui.py` (ganzer Weg in Chromium). Beide brauchen
+das Modell (`RZ_INHALT_MODELL=<Ordner>`), sonst SKIP. Prüfstand: `pruefstand_inhaltssuche.py index|suchen` — liest
+die Bibliothek nur (mode=ro), rechnet aus dem Vorschau-Cache, Index nach `--aus`, Kontaktbögen + `bericht.md`.
+
+### Bäume „Nach Datum" / „Nach Ordner" — `rzBaum` (04.10.2026, v0.9.781)
+
+Gemeinsame Bausteine in `ui/js/util.js` (`window.rzBaum`) für Foto-Bestand (`ui/js/fotos.js`) und Touren-Archiv
+(`modules/library/ui/module.js`, Container `#lib-baeume`, Chip `#lib-ob-chip`): `datumHtml/datumKlick/datumText`,
+`ordnerHtml/ordnerKlick/ordnerText`, `kopfHtml`, `offenLaden/offenMerken` (localStorage je Gerät:
+`rz-fotos-datumsbaum`, `rz-fotos-ordnerbaum`, `rz-touren-datumsbaum`, `rz-touren-ordnerbaum`). Klick-Regel: Knoten mit
+Kindern klappen um (auf = zeigen, zu = Auswahl darin aufheben), Blätter wählen ab/an. Laden und Filtern macht jede
+Seite selbst. Filter **`verz`** = Ordner samt Unterordnern als Pfadbereich `path > v+sep AND path < v+chr(sep+1)`
+(Primärschlüssel, kein LIKE; „2024-alt" gehört nicht zu „2024") in `cfotos._where` und `clib._build_where`/`query`.
+Daten: `cfotos.ordnerbaum` (Anzahl je Verzeichnis + Wurzeln), `clib.datumsbaum` (Starttag `substr(started_at,1,10)`),
+`clib.ordnerbaum` (+ `ausserhalb`). Touren-Datumsbaum setzt den vorhandenen Zeitraum (von/bis, `lib-range=eigen`).
+NAS-Ordner `#recycle`, `#snapshot`, `@eaDir`, `@Recycle`, `@Recently-Snapshot`, `@SynoResource` stehen in `SKIP_DIRS`.
+
+### `-fast` und Kennung in Schritt 3 (05.10.2026, v0.9.781)
+
+`cexif.read_meta_viele/read_alle_tags_viele(…, fast=True)` → `read_tags_json_viele(fast)` hängt `-fast` an (nur der
+Foto-Scan `_tags_stapel`; Geotagger unverändert). Verglichen an MOV/JPEG/HEIC/MP4: dieselben Tags. `durchgang2`
+berechnet `inhalt_id` ohne Bilder (Massenlauf) nur noch für Videos; Fotos bekommen sie in `durchgang3`
+(`_bild_versuch` → `UPDATE … inhalt_id = COALESCE(?, inhalt_id)`). Mit Bildern (`neu_lesen`) wie bisher.
+
+### Volltext-Trigger ohne Tabellen-Scan (05.10.2026, v0.9.781)
+
+`fotos_fts.path` ist UNINDEXED — jedes `DELETE FROM fotos_fts WHERE path = ?` liest die ganze Tabelle (Marcs Log:
+18 s je 200 Dateien bei 434.000 Fotos). Trigger jetzt: `fotos_fts_ai2` nur bei nicht-leerem `hay` (Schritt 1 legt
+nichts an), `fotos_fts_neu` (leer → Text: nur INSERT), `fotos_fts_au2` (Text → anderer Text: DELETE + INSERT, selten),
+`fotos_fts_ad` unverändert. `schema_anlegen` wirft `fotos_fts_ai`/`fotos_fts_au` weg. Alte leere Einträge aus der
+Zeit davor bleiben liegen (finden nichts). Gemessen 4,53 → 0,03 s je 200 (Kopie mit 170.000 Fotos). Dazu:
+`clib.stats`/`datumsbaum`/`ordnerbaum` unter `_DB_LOCK` (parallele Aufrufe beim Öffnen → InterfaceError).
+
+### App Nap aus — `core/wachhalten.py` (05.10.2026, v0.9.781)
+
+Marcs Nacht-Log: 200 Dateien in 165 s, davon 33 s Lesen vom NAS (exiftool = eigener Prozess, nicht gedrosselt);
+nach dem Aufwecken 95 s. `cwach.waehrend(grund)` (Kontextmanager, zählt verschachtelt) ruft
+`NSProcessInfo.beginActivityWithOptions_reason_(NSActivityUserInitiatedAllowingIdleSystemSleep, …)` — kein App Nap,
+Ruhezustand bleibt erlaubt. `app._mit_wach(worker, grund)` umhüllt die Fäden `foto-scan` und `inhalt-index`. Auf
+Windows/Linux nichts. Die Messzeile von Schritt 2 hat jetzt „Schreiben" (UPDATE-Schleife inkl. FTS-Trigger) und
+„(App Nap möglich)", wenn kein Schutz aktiv war.
+
+### Drei Schritte: Daten zuerst, Bilder danach (04.10.2026, v0.9.781)
+
+Marc: „225 h … fast 2 Wochen." `fotos_scan_start` ruft `durchgang2(mit_thumbs=False)` (nur exiftool-Kopf + Kennung)
+und danach `durchgang3` (Phase `bilder`): alle gelesenen Fotos mit `thumb = 0`, Stapel 24, Fäden 4 lokal / 2 auf dem
+NAS, Ergebnis `thumb` 1 bzw. −1 (nicht machbar — erst nach Dateiänderung wieder, weil `durchgang2` `thumb` auf 0
+setzt), eigene `RestZeit` (`meta fotos_tempo3`). `cfotos.ohne_bild` → `stand.ohne_bild`, `was_zu_tun.ohne_bild`
+(Aufholen startet auch nur dafür). Messung: beide Schritte loggen je 10 Stapel und am Ende „Schritt N gemessen: …"
+(Daten / Kennung / Bilder in s). `cphotos._pil_thumb_from_file`/`_bytes`: `img.draft` vor `thumbnail`, `exif_transpose`
+danach (51 → 7 ms je 24-MP-JPEG). `durchgang2` mit Bildern (Standard) bleibt für Einzeldateien (`neu_lesen`).
+
+### Restzeit in Schritt 2 — `cfotos.RestZeit` (04.10.2026, v0.9.781)
+
+Marc: „die Zeit tickert die ganze Zeit hoch … sollte auf einen Schlag hoch sein und runtertickern." Die Oberfläche
+teilte den Rest durch das Tempo seit dem Start; neuere Jahre = größere Dateien → Schätzung wuchs. Jetzt schätzt
+`durchgang2` selbst: Modell t = a·Dateien + b·MB, je Stapel per kleinster Quadratsumme mit Vergessen 0,98; solange
+nicht trennbar, alles je MB (startet eher hoch). Vorwissen aus `meta fotos_tempo2` zählt wie 5 Stapel. Meldung über
+`schaetzung(rest_s)` → `_foto_scan_state.rest_s/rest_am`; `fotos.js scanZahlen` zeigt ein Ende (`restAnz`), das ruhig
+herunterzählt und nur bei > 10 % (mind. 2 min) Abweichung neu gesetzt wird. Schritt 1 rechnet wie bisher.
+
+### Schritt 1 setzt fort (04.10.2026, v0.9.781)
+
+Marc: „Ich war immer noch bei Schritt 1 … und das hat er wieder von vorne angefangen." `durchgang1` merkte sich die
+Verzeichniszeiten und die gründliche Nachschau erst **am Ende** — App zu → alles verloren, die Wochen-Nachschau wieder
+fällig, jede Datei neu gefragt. Jetzt: `medien_pruefen` meldet nach den Dateien eines Verzeichnisses
+`(None, (verz, übernommen?, geprueft_alt))`; `durchgang1` schreibt dann sofort `foto_verz(mtime, geprueft)` (sicher,
+weil alle Dateien darin schon eingetragen sind; `geprueft` nur neu, wenn wirklich gefragt wurde). Eine gründliche
+Runde hat einen Beginn (`meta fotos_gruendlich_runde`); gründlich übernimmt sie Verzeichnisse mit `geprueft ≥
+Rundenbeginn` und gleicher mtime. Ende der Runde → `_gruendlich_merken` löscht den Beginn. Status `fortsetzung` →
+Text „macht weiter, wo sie aufhörte". Schritt 2 zählt `schon` (`cfotos.gelesene`) mit, damit ein Neustart nicht wie
+0 % aussieht.
+
+### Zusammengeführte Touren: Etappen statt Gesamtfenster (04.10.2026, v0.9.781)
+
+Marc, Screenshot: „Striche kreuz und quer durch den Rundweg … von den einzelnen Etappen." `tracks.geom` ist **eine**
+Linie aus 80 Punkten — bei 29 Etappen über 2 Jahre Zickzack zwischen den Etappen-Enden; und `tour_zu_zeit` nahm das
+ganze Fenster (erste bis letzte Etappe), also bekam ein Foto vom 26.02.2026 die Tour, obwohl an dem Tag nichts lief.
+Jetzt `cfotos.etappen(path)`: liest die Datei einmal (gemerkt nach mtime/Größe), liefert Zeitfenster und
+ausgedünnte Linie **je Etappe** (`TrackPoint.seg`). `tour_zu_zeit` prüft bei `n_seg > 1` und Fenster > 36 h, ob die
+Zeit in einer Etappe liegt (Datei nicht lesbar → wie bisher). `tour_fuer_foto` gibt `teile` mit, die Detailkarte
+zeichnet einen MultiLineString. Wächter `tests/test_fotos_etappen.py`.
+
 ## Bewegungsart und Halte erkennen — `core/bewegung.py` (13.09.2026, v0.9.700)
 
 Schritt 2 aus docs/IDEAS.md §67. Teilt einen Track in **Bereiche** (`gehen`, `laufen`, `rad`,
@@ -5956,9 +6133,8 @@ zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
 - **Export-Name:** `Api._export_namensvorschlag` (Tour-Name → Bibliothek → Dateiname).
 - **Zusatzspuren:** ▲▼ in `_ghostListeZeichnen`; `ghosts_laden(aus_dialog=True)` sortiert natürlich.
 - Wächter: `tests/test_tester_meldungen_0920.py`.
-- **Achtung, zwei Render-Wege:** Videos laufen über die Szene (`core/szene.py` = Vorschau kopflos, Pixeldichte dsf·ss),
-  nur Einzelbilder/Transparenz/`render_engine=klassisch` über `core/animator.py`. Jede Render-Änderung an Schildern
-  in BEIDEN prüfen. Szene: `_animSignDprFuer` (Pixelmaß je Schild nach `devicePixelRatio`), `nachschaerfen(im, fertig)`
+- **Ein Render-Weg (seit 0.9.752):** Videos, Einzelbilder und Transparenz laufen über die Szene (`core/szene.py` =
+  Vorschau kopflos, Pixeldichte dsf·ss); der klassische Weg über `core/animator.py` ist entfernt (Audit E-13). Szene: `_animSignDprFuer` (Pixelmaß je Schild nach `devicePixelRatio`), `nachschaerfen(im, fertig)`
   wartet im Render-Modus auf das große Bild, `__rzSchilderLaden` → `schilderLaden` in `__rzAnimBereit`.
 - **Glätten:** `rzApplyMapSmooth(map, sigmaGerätePx, vorEbene)` in `ui/js/rz-mapadjust.js` — Ebene `rz-glaetten` direkt unter
   `anim-signs-lyr`. Klassisch: `__glSigma` im Schild-Block, CSS-Filter nur ohne Schilder. Szene: CSS-Style `#rz-render-blur`
@@ -6005,3 +6181,85 @@ Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update", IDEAS §4.9 bzw. Up
 - **Layout-Fix dazu:** `body` hat vier Grid-Zeilen (`56px auto auto 1fr`), Top-Bar/Update-Banner/Quelldatei-
   Banner/`#main` sitzen fest darin. Vorher (`56px 1fr`) fiel ein sichtbares Banner in die 1fr-Zeile und wurde
   halb so hoch wie das Fenster.
+
+## Korrekturen aus dem 7-Tage-Audit (05.10.2026, 0.9.781)
+
+Bericht: `GPS Studio Final/Demos/20261005-0821-Audit-7-Tage/AUDIT.md` (+ `einzelberichte/`). Kennungen (A-…, B-…)
+stehen als Kommentar an den Code-Stellen.
+
+**Sperren (B-3/A-1).** Die gemeinsame Bibliotheks-Verbindung gehört `clib._DB_LOCK` (RLock). Alle `fotos_*`-Brücken,
+die sie benutzen, bekommen nach der Klassendefinition `_db_gesperrt` übergestülpt (pywebview reicht `arguments`
+durch, das Umhüllen ist sicher). Die Index-Verbindung, die Matrix und der Treffer-Cache der Inhaltssuche gehören
+`Api._inhalt_lock`. **Reihenfolge immer DB → inhalt**, nie umgekehrt. `cfotos.db_sperre()` gibt die Sperre für Code
+in `core/fotos.py`; `ordner_liste` hält sie nur für die Datenbank, nicht für die Laufwerksprüfung.
+
+**Volltext (B-1/B-2).** `fotos_fts2` (FTS5, trigram) ist über die rowid an `fotos` gekoppelt, Trigger
+`fotos_fts2_ai/ad/au`; die alte Tabelle wird in `schema_anlegen` einmal ersetzt und neu befüllt. Kein VACUUM, kein
+`INSERT OR REPLACE` und keine Pfadänderung per UPDATE auf `fotos` — sonst wandert die rowid weg.
+
+**Inhaltssuche (A-2…A-11, K-13).** Index-Meta trägt `index_kennung` (Schema, Repo, Revision, Dimension,
+Vorverarbeitung); `index_pruefen` leert bei Abweichung. `Matrix.aktuell(idx, dim) -> Stand` (Pfade, Positionen,
+Matrix gemeinsam, vorbelegt, falsch lange Zeilen übersprungen). `_render_laeuft` kennt Animator **und** Tour-Map.
+Löschen/Ersetzen nur über `_ds` (Bereich `ART_CACHE`). Download mit `context=net.ssl_context()`.
+Wächter `tests/test_inhalt_kern.py` läuft ohne Modell (eigener HTTP-Server, Spiegel 404 → Rückfall, SHA, Range).
+
+**Kachel-Sicherung (K-2/G-6/E-5).** `core/tileproxy.py`: `DIENST_TOT_NACH = 6` Fehlschläge in Folge → Dienst
+`DIENST_TOT_S = 120` s „tot": neue Kacheln sofort als Ersatz aus `_aus_speicher`/Ersatzbild, ohne Netz; danach ein
+Probeversuch. Ein Faden `kachel-nachholen` statt eines Timers je Kachel; `ERSATZ_MAX = 500`, `FEHL_VERGESSEN_S`.
+`stoerungen_zuruecksetzen()` beim Render-Start; das Render-Ende hängt `render.kacheln_fehlten` an den Status.
+Wächter `tests/test_kachel_sicherung.py`.
+
+**Speicher (E-1/E-2).** `core/clips.py`: `CACHE_MAX_BYTES` 2 GB, `CACHE_MAX_TAGE` 30, `utime` bei Treffer,
+`aufraeumen`/`aufraeumen_gedrosselt`; Start-Faden `speicher-aufraeumen` (+ `_renders_aufraeumen`).
+Wächter `tests/test_speicher_aufraeumen.py`.
+
+**Foto-Einlesen (B-4…B-10, E-3, G-2, G-3).**
+- `medien_pruefen(..., unlesbar=set)` sammelt Verzeichnisse, deren `scandir` scheiterte; `durchgang1` markiert nur in
+  Ordnern, die zum Schluss noch `is_dir` sind, und nie unter einem unlesbaren Verzeichnis „fehlt". Jede Minute eine
+  Logzeile „Schritt 1 (…): n Dateien in m Ordnern …".
+- `_bild_versuch` → `ok = None`, wenn die Datei nach dem Fehlschlag nicht (mehr) da ist: `thumb` bleibt 0.
+- `erreichbare_ordner(conn)`, `_nur_ordner(liste)`: `ohne_bild(conn, ordner)` und `durchgang3(..., ordner=None →
+  erreichbare)`; `was_zu_tun` zählt „ohne Bild" nur dort.
+- `etappen(path)`: Datei höchstens alle `ETAPPEN_PRUEFEN_S = 30` s neu ansehen; nicht lesbar → das Gemerkte.
+- `pfadbereich(v)` (Fotos und Touren): `(lo, hi)` für `lo < path < hi`, Backslash auch bei `C:`; `_SKIP_KLEIN`.
+- `core/laufwerke.py`: `mount_tabelle()` 3 s gemerkt; `_lesbar` merkt 5 s (hängt: 30 s) und startet nie zwei Prüffäden
+  für denselben Pfad.
+- `_ExifToolDaemon.beenden()` (aus `_on_closing`): sperrt Neustarts, `_on_hang` meldet dann INFO statt „HÄNGER".
+  `_on_closing` setzt vorher `_foto_scan_stop`/`_inhalt_stop` und loggt „Scan abgebrochen (Fenster zu)".
+
+**Oberfläche.** `ui/js/timeline.js` `_tlSKappen`: Zeitleiste ≤ `_TL_ANTEIL_MAX = 0.6` der `.anim-canvas` (gemerkt
+wird der Wunsch, angewandt was passt; neu bei `resize`). `ui/js/projects.js` `renderLabel`: wiederholt der Projektname
+den Sessionnamen, kommt der Rest nach vorn. `ui/js/schnellvideo.js`: `los()` merkt `herkunft` (aktives Projekt beim
+Start aus dem Animator), `abgebrochen()` öffnet es über `rz-projekt-oeffnen`. `fotos.js kopfAuffrischen` tauscht nur
+geänderte Kindknoten (Klicks gehen im 900-ms-Takt nicht mehr verloren). `rzBaum.unter/verbinden` vertragen Wurzeln mit
+Trennzeichen am Ende. Archiv: `jahrSpiegeln()`. Animator: `_attribIds()` hängt `openfreemap` an, wenn 3D-Häuser an sind.
+
+**Logs (G-7).** `on_progress` (Animator- und Höhen-Render) vergleicht den Status ohne Ziffern → keine Zeile je Frame.
+`core/logger.py` rotiert bei 3 MB (×5).
+
+**Build/Release (E-4, F-7, F-8, F-10, F-14, F-15).** `--selbsttest`: `ton_echt` (Musik und Klick wirklich gemischt) und
+`ffmpeg` gehören zu `ok`. `onnxruntime==1.30.0`, `tokenizers==0.23.2`; CI installiert `pyinstaller==6.22.3`,
+`pyinstaller-hooks-contrib==2026.8`. Spec schließt `onnxruntime.transformers/quantization/tools` aus.
+`scripts/suite_stempel.py`: `sauber()` zählt untracked Code (`CODE_NEU`), `pruefen` verlangt
+`merge-base --is-ancestor`. `build.sh` sucht `vendor/exiftool/windows/exiftool-*_64`. `release_check.sh` kompiliert
+`core/*/*.py` mit.
+
+**Wächter:** `tests/test_audit_0510_klein.py` (B-4/5/6/7/9/10, E-3, G-3, C-5), `test_inhalt_kern.py`,
+`test_kachel_sicherung.py`, `test_speicher_aufraeumen.py`, `test_suite_stempel.py` (Vorfahre, untracked).
+
+**Bewusst nicht geändert:** B-8 (Mehrtages-Tour in einer Datei: was nicht im Track liegt, gehört nicht dazu — Marc),
+F-24 (Tests bleiben unversioniert — Marc), K-5 (Screenshot zeigte die Reiseroute, nicht die Tour-Map).
+
+**Zwei Leser auf Netzlaufwerken (05.10.2026, nach Marcs Log).** `durchgang2` führt einen Vorrat (`deque`) gelesener
+Stapel: `_nachfuellen()` (nur oben in der Schleife) gibt auf einem Netzlaufwerk bis `LESER_FERN = 2` Stapel an einen
+`ThreadPoolExecutor` (`foto-leser`), Rolle abwechselnd `read`/`read2` (`_LESER_ROLLEN`) — zwei aufeinanderfolgende
+Stapel liegen so nie auf demselben exiftool-Prozess. `_tags_lesen_im_faden` setzt `_lese_ort` (threading.local: rolle,
+fern, mb_je), `_tags_stapel(pfade)` liest es — die Signatur bleibt, weil Tests sie ersetzen. Kennung, Schreiben,
+Fortschritt laufen weiter der Reihe nach im Hauptfaden. `cexif._ensure_daemon(rolle)`,
+`read_beides_viele(..., rolle, fern, mb)`, `stapel_timeout(n, fern, mb)` = 15 + (4 fern | 2 lokal)·n + min(120, mb/100).
+Höchstens 2 (Marc: NAS mit Festplatten, mehr Parallelität ließ es abstürzen); `RZ_FOTO_LESER=1` = ein Leser.
+Abbruch/Hänger-Ende: `_vorrat_weg()` storniert Ausstehendes. Wächter `tests/test_fotos_zwei_leser.py`.
+Die **Kennung** (`inhalt_id`, 128 KB je Datei) rechnet seit dem Abend des 05.10. der Lese-Faden mit
+(`_tags_lesen_im_faden(..., kenn=[(pfad, größe)])` → Rückgabe `(meta, tags, haenger, kennungen, sekunden)`): Videos immer,
+Fotos nur mit `mit_thumbs` (sonst Schritt 3). Abbruch und Laufende warten auf den laufenden Stapel
+(`leser.shutdown(wait=True)`) — ein noch lesender Faden riss beim Prozessende die Laufzeit mit.

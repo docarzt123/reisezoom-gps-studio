@@ -153,8 +153,12 @@ def _pil_thumb_from_bytes(data: bytes, max_px: int = _THUMB_MAX_PX) -> Optional[
     try:
         from PIL import Image, ImageOps
         img = Image.open(io.BytesIO(data))
-        img = ImageOps.exif_transpose(img)
+        try:
+            img.draft("RGB", (max_px, max_px))      # s. _pil_thumb_from_file (04.10.2026)
+        except Exception:  # noqa: BLE001
+            pass
         img.thumbnail((max_px, max_px), Image.LANCZOS)
+        img = ImageOps.exif_transpose(img)
         if img.mode != "RGB":
             img = img.convert("RGB")
         buf = io.BytesIO()
@@ -169,8 +173,15 @@ def _pil_thumb_from_file(path: str, max_px: int = _THUMB_MAX_PX) -> Optional[byt
     try:
         from PIL import Image, ImageOps
         img = Image.open(path)
-        img = ImageOps.exif_transpose(img)
+        # 04.10.2026 (Marc: „225 h … das lässt sich nicht beschleunigen?") — JPEG gleich verkleinert dekodieren
+        # (draft: 1/2…1/8 der Auflösung, mindestens max_px) statt alle 24 Megapixel, und erst NACH dem Verkleinern
+        # drehen: vorher drehte exif_transpose das volle Bild. Beides zusammen spart den Großteil der Rechenzeit.
+        try:
+            img.draft("RGB", (max_px, max_px))
+        except Exception:  # noqa: BLE001 — nicht jedes Format kann das
+            pass
         img.thumbnail((max_px, max_px), Image.LANCZOS)
+        img = ImageOps.exif_transpose(img)
         if img.mode != "RGB":
             img = img.convert("RGB")
         buf = io.BytesIO()

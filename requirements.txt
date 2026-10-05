@@ -27,6 +27,13 @@ keyring>=25.0             # Schlüsselbund: macOS, Windows, Linux/SecretService
 imageio-ffmpeg>=0.5
 # 02.10.2026 — Tonspur mischen (core/tonspur.py). BSD-Lizenz. Darf in der .spec NICHT ausgeschlossen werden.
 numpy>=1.26
+# 04.10.2026 — Inhaltssuche im Foto-Archiv (core/inhalt.py, IDEAS §81): SigLIP 2 als ONNX. Das Modell selbst wird
+# erst beim Einschalten geladen; im Paket liegt nur die Laufzeit. onnxruntime MIT, tokenizers Apache-2.0.
+# 05.10.2026 (Audit F-7) — FEST gepinnt wie Playwright: native Bibliotheken (libonnxruntime 32 MB, pybind11),
+# die CI soll genau das bauen, was lokal getestet ist; eine andere ORT-Version rechnet zudem leicht andere Vektoren.
+# onnxruntime 1.30 gibt es für macOS arm64 erst ab macOS 14. Anheben nur mit ./build.sh + --selbsttest + Inhaltssuche-Test.
+onnxruntime==1.30.0
+tokenizers==0.23.2
 
 # macOS-only: PyObjC für NSOpenPanel + NSWindow-Manipulation
 pyobjc>=11.0; sys_platform == "darwin"

@@ -1,11 +1,10 @@
 /* Overlay-Boxen einzeln einstellen (23.09.2026, docs/OVERLAY-BOXEN.md).
  *
- * ⚠️ WORTGLEICH zu core/overlayboxen.py (Auflösung + Zeitsteuerung). Der Wächter
- * tests/test_overlay_boxen.py vergleicht beide an denselben Beispielen.
+ * Einzige Fassung: der Python-Zwilling core/overlayboxen.py und der klassische Render sind seit 0.9.752
+ * entfernt (Audit E-13). Der Wächter tests/test_overlay_boxen.py prüft diese Datei unter node.
  *
- * Diese Datei läuft an drei Stellen:
+ * Diese Datei läuft an zwei Stellen:
  *   - in der App (ui/index.html) für Vorschau, Probelauf und Szene-Render,
- *   - eingebettet im klassischen Render-HTML (core/animator.py),
  *   - unter node im Wächter (vorher globalThis.window = globalThis setzen).
  *
  * window.rzOverlayBoxen = { aufloesen, chartBoxen, zustand, anwenden, etappenGrenzen,

@@ -237,13 +237,32 @@ function mountTimelineBar(opts) {
   // ── Spurhöhe ziehen (02.10.2026) ── Faktor --tl-s (0,6–2,2), je Gerät gemerkt
   const _TL_S_KEY = "rz-tl-spurhoehe";
   const _tlS = () => { try { const v = parseFloat(localStorage.getItem(_TL_S_KEY)); return isFinite(v) ? Math.max(0.6, Math.min(2.2, v)) : 1; } catch (_) { return 1; } };
+  // 05.10.2026 (Audit K-1, Marcs Screenshot: Zeitleiste über die ganze Höhe, Karte weg) — die Zeitleiste darf
+  // höchstens 60 % der Vorschaufläche belegen. Gemerkt wird der Wunsch, angewendet das, was ins Fenster passt.
+  const _TL_ANTEIL_MAX = 0.6;
+  function _tlSKappen(v) {
+    const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
+    if (!flaeche) return v;
+    let n = 0;
+    while (v > 0.6 && host.getBoundingClientRect().height > flaeche * _TL_ANTEIL_MAX && n++ < 20) {
+      v = Math.max(0.6, v - 0.1);
+      host.style.setProperty("--tl-s", String(Math.round(v * 100) / 100));
+    }
+    return v;
+  }
   function _tlSSetzen(v, merken) {
     v = Math.max(0.6, Math.min(2.2, v));
     host.style.setProperty("--tl-s", String(Math.round(v * 100) / 100));
+    v = _tlSKappen(v);
     if (merken) { try { localStorage.setItem(_TL_S_KEY, String(v)); } catch (_) {} }
     try { window.dispatchEvent(new Event("rz-timeline-hoehe")); } catch (_) {}
   }
   _tlSSetzen(_tlS(), false);
+  let _tlSResize = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(_tlSResize);
+    _tlSResize = setTimeout(() => { if (host.isConnected) _tlSSetzen(_tlS(), false); }, 150);
+  });
   (function hoeheGriff() {
     const g = host.querySelector(".tl-hoehe-griff");
     if (!g) return;

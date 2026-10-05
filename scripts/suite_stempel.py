@@ -33,8 +33,16 @@ def git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=True).stdout.strip()
 
 
+# 05.10.2026 (Audit F-10): eine neue, noch nicht eingecheckte Code-Datei (z. B. core/inhalt.py) machte den Stand nicht
+# „unsauber" — die Suite lief grün, weil die Datei auf der Platte lag, der Commit ohne sie wäre aber kaputt.
+CODE_NEU = re.compile(r"^(app\.py|core/.+\.py|modules/.+\.(js|css|html)|ui/.+\.(js|css|html)|i18n/.+\.json|requirements\.txt|.+\.spec)$")
+
+
 def sauber() -> bool:
-    return git("status", "--porcelain", "--untracked-files=no") == ""
+    if git("status", "--porcelain", "--untracked-files=no") != "":
+        return False
+    neu = [z[3:] for z in git("status", "--porcelain", "--untracked-files=all").splitlines() if z.startswith("?? ")]
+    return not any(CODE_NEU.match(f) for f in neu)
 
 
 def schreiben(commit: str, bestanden: int) -> None:
@@ -54,6 +62,9 @@ def pruefen(ref: str) -> tuple[bool, str]:
         return False, f"Stempel {alter_h:.0f} h alt (höchstens {STEMPEL_STUNDEN} h)"
     try:
         ziel = git("rev-list", "-n", "1", ref)
+        # Audit F-10: ein Stempel von einem Seitenzweig gilt nicht, auch wenn der Netto-Unterschied zufällig nur Doku ist
+        if subprocess.run(["git", "merge-base", "--is-ancestor", s["commit"], ziel], cwd=REPO).returncode != 0:
+            return False, f"grüner Lauf ({s['commit'][:7]}) ist kein Vorfahre von {ref}"
         geaendert = [f for f in git("diff", "--name-only", s["commit"], ziel).splitlines() if f]
     except subprocess.CalledProcessError as e:
         return False, f"Git-Vergleich fehlgeschlagen ({(e.stderr or '').strip()[:120]})"

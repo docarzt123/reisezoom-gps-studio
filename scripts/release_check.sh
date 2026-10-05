@@ -45,7 +45,7 @@ run "Sprache nicht hartkodiert" python3 scripts/check_hartkodierte_sprache.py --
 
 # 2) Python-Syntax (Backend + Skripte)
 run "Python-Syntax (py_compile)" bash -c '
-  python3 -m py_compile app.py core/*.py scripts/*.py 2>&1'
+  python3 -m py_compile app.py core/*.py core/*/*.py scripts/*.py 2>&1   # Audit F-15: auch core/cloud/'
 
 # 3) i18n-Konsistenz (DE/EN/ES deckungsgleich, keine fehlenden Keys)
 run "i18n-Konsistenz" python3 scripts/check_i18n.py

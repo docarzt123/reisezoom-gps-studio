@@ -130,6 +130,7 @@ function mountLibrary(body, headerActions) {
     activity: store.get("activity", ""),
     von: store.get("von", "") || null,
     bis: store.get("bis", "") || null,
+    verz: store.get("verz", "") || null,     // 04.10.2026 — „Nach Ordner": Ordner samt Unterordnern
     min_km: parseFloat(store.get("min_km", "")) || null,
     max_km: parseFloat(store.get("max_km", "")) || null,
     sort: SORTS_OK.includes(gespeicherterSort) ? gespeicherterSort : "date_desc",
@@ -260,6 +261,9 @@ function mountLibrary(body, headerActions) {
       <nav class="lib-cols" id="lib-cols"></nav>
       <button class="lib-nav-add" id="lib-col-new" type="button">+ ${T("library.col_new", "Neue Sammlung")}</button>
 
+      <!-- 04.10.2026 (Marc: „dort einfach genau gleich wie bei Fotos … also auch Ordner und Datum") -->
+      <div id="lib-baeume"></div>
+
       <div class="lib-nav-foot">
         <button class="btn btn-primary btn-sm" id="lib-folders-btn" type="button">📂 ${T("library.folders_btn", "Ordner & Einlesen")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
@@ -335,6 +339,8 @@ function mountLibrary(body, headerActions) {
           <option value="tags_asc">${T("library.sort.tags_asc", "Schlagwort A–Z")}</option>
           <option value="act_asc">${T("library.sort.act_asc", "Nach Fortbewegung")}</option>
         </select>
+        <button class="lib-chip is-on foto-db-chip" id="lib-ob-chip" type="button" hidden
+                title="${T("fotos.ob_chip_weg", "Ordnerfilter aufheben")}"></button>
         <button class="lib-chip lib-chip-ghost" id="lib-reset" type="button">${T("library.reset", "Zurücksetzen")}</button>
         <span class="lib-bar-spacer"></span>
         <div class="lib-views" role="group">
@@ -425,6 +431,7 @@ function mountLibrary(body, headerActions) {
     if (!p.activity) delete p.activity;
     if (!p.von) delete p.von;
     if (!p.bis) delete p.bis;
+    if (!p.verz) delete p.verz;
     if (p.min_km == null) delete p.min_km;
     if (p.max_km == null) delete p.max_km;
     if (!p.collection_id) delete p.collection_id;
@@ -442,6 +449,7 @@ function mountLibrary(body, headerActions) {
     if (!p.activity) delete p.activity;
     if (!p.von) delete p.von;
     if (!p.bis) delete p.bis;
+    if (!p.verz) delete p.verz;
     if (p.min_km == null) delete p.min_km;
     if (p.max_km == null) delete p.max_km;
     if (!p.search) delete p.search;
@@ -580,6 +588,87 @@ function mountLibrary(body, headerActions) {
     fillYearOptions();
     fillActivityOptions();
     renderScopes();
+    baeumeLaden();
+  }
+
+  // ── „Nach Datum" und „Nach Ordner" (04.10.2026) ──────────────────────────
+  // Marc: „wäre das für die Touren nicht auch sinnvoll? … dort einfach genau gleich wie bei Fotos … also auch Ordner
+  // und Datum". Bausteine aus ui/js/util.js (rzBaum) — synchron zu ui/js/fotos.js, dieselbe Klick-Regel: Jahr/Monat
+  // bzw. Ordner mit Unterordnern klappen um (auf = zeigen, zu = Auswahl darin aufheben), Tag/Blatt wählen ab/an.
+  // Datum = der vorhandene Zeitraum-Filter (von/bis, Feld zeigt dann „eigener Zeitraum"); Ordner = `verz`.
+  const TB_DB_KEY = "rz-touren-datumsbaum", TB_OB_KEY = "rz-touren-ordnerbaum";
+  const tbDbOffen = rzBaum.offenLaden(TB_DB_KEY), tbObOffen = rzBaum.offenLaden(TB_OB_KEY);
+  let tbTage = null, tbOrdner = null, tbSeq = 0;
+  /** Lesbare Namen für die App-eigenen Ordner (Importe, Zusammengeführtes); sonst der letzte Ordnername. */
+  function tbWurzelText(p) {
+    const n = String(p).split(/[\\/]/).filter(Boolean).pop() || p;
+    const intern = { import: T("library.ob_import", "Importiert"),
+                     projekt_importe: T("library.ob_projekt_importe", "Aus Projekten importiert"),
+                     zusammengefuehrt: T("library.ob_zusammen", "Zusammengeführt") };
+    return (/Reisezoom GPS Studio/.test(p) && intern[n]) ? intern[n] : n;
+  }
+  function tbOrdnerText(pfad) { return rzBaum.ordnerText(pfad, (tbOrdner && tbOrdner.wurzeln) || [], tbWurzelText); }
+  async function baeumeLaden() {
+    const seq = ++tbSeq;
+    const p = queryParams();
+    const [d, o] = await Promise.all([
+      api().library_datumsbaum(p).catch(() => null),
+      api().library_ordnerbaum(p).catch(() => null),
+    ]);
+    if (seq !== tbSeq || _unmounted) return;
+    tbTage = (d && d.ok) ? d.tage || [] : [];
+    tbOrdner = (o && o.ok) ? o : null;
+    baeumeZeichnen();
+  }
+  function baeumeZeichnen() {
+    const box = $("lib-baeume");
+    if (!box) return;
+    const dAuf = tbDbOffen.has("wurzel"), oAuf = tbObOffen.has("wurzel");
+    const ordnerZeilen = tbOrdner ? rzBaum.ordnerHtml(tbOrdner, tbObOffen, state.verz, tbWurzelText) : "";
+    box.innerHTML =
+      rzBaum.kopfHtml("lib-db-kopf", dAuf, "📅", T("fotos.nach_datum", "Nach Datum"))
+      + `<div class="foto-datumsbaum" id="lib-datumsbaum"${dAuf ? "" : " hidden"}>${(tbTage || []).length
+          ? rzBaum.datumHtml(tbTage, tbDbOffen, state.von, state.bis)
+          : `<div class="lib-nav-hint">${esc(T("library.nach_datum_leer", "Keine Touren mit Datum."))}</div>`}</div>`
+      + rzBaum.kopfHtml("lib-ob-kopf", oAuf, "📁", T("fotos.nach_ordner", "Nach Ordner"))
+      + `<div class="foto-datumsbaum" id="lib-ordnerbaum"${oAuf ? "" : " hidden"}>${ordnerZeilen
+          || `<div class="lib-nav-hint">${esc(T("library.nach_ordner_leer", "Keine Touren in beobachteten Ordnern."))}</div>`}</div>`;
+    $("lib-db-kopf").onclick = () => { if (tbDbOffen.has("wurzel")) tbDbOffen.delete("wurzel"); else tbDbOffen.add("wurzel"); rzBaum.offenMerken(TB_DB_KEY, tbDbOffen); baeumeZeichnen(); };
+    $("lib-ob-kopf").onclick = () => { if (tbObOffen.has("wurzel")) tbObOffen.delete("wurzel"); else tbObOffen.add("wurzel"); rzBaum.offenMerken(TB_OB_KEY, tbObOffen); baeumeZeichnen(); };
+    box.querySelectorAll("[data-dbauf]").forEach(b => {
+      b.onclick = (e) => { e.stopPropagation(); const k = b.dataset.dbauf; if (tbDbOffen.has(k)) tbDbOffen.delete(k); else tbDbOffen.add(k); rzBaum.offenMerken(TB_DB_KEY, tbDbOffen); baeumeZeichnen(); };
+    });
+    box.querySelectorAll("[data-obauf]").forEach(b => {
+      b.onclick = (e) => { e.stopPropagation(); const k = b.dataset.obauf; if (tbObOffen.has(k)) tbObOffen.delete(k); else tbObOffen.add(k); rzBaum.offenMerken(TB_OB_KEY, tbObOffen); baeumeZeichnen(); };
+    });
+    box.querySelectorAll("[data-dbwahl]").forEach(b => {
+      b.onclick = () => {
+        const neu = rzBaum.datumKlick(b.dataset.dbwahl, tbDbOffen, state.von, state.bis);
+        rzBaum.offenMerken(TB_DB_KEY, tbDbOffen);
+        if ($("lib-range")) $("lib-range").value = neu.von ? "eigen" : "";
+        zeitraumSetzen(neu.von, neu.bis);
+        baeumeZeichnen();   // Audit C-7: Klappen/Markierung sofort, die Zahlen kommen mit dem Neuladen
+      };
+    });
+    box.querySelectorAll("[data-obwahl]").forEach(b => {
+      b.onclick = () => {
+        const k = b.dataset.obwahl;
+        const hatKinder = !!box.querySelector(`[data-obauf="${CSS.escape(k)}"]`);
+        const neu = rzBaum.ordnerKlick(k, hatKinder, tbObOffen, state.verz);
+        rzBaum.offenMerken(TB_OB_KEY, tbObOffen);
+        setFilter("verz", neu);
+        zuerstGeoWeg();
+        reload();
+        baeumeZeichnen();   // Audit C-7: sofort, nicht erst nach der Antwort
+      };
+    });
+    const chip = $("lib-ob-chip");
+    if (chip) {
+      chip.hidden = !state.verz;
+      chip.textContent = state.verz ? "📁 " + tbOrdnerText(state.verz) + " ✕" : "";
+      if (state.verz) chip.title = tbOrdnerText(state.verz) + " — " + T("fotos.ob_chip_weg", "Ordnerfilter aufheben");   // Audit C-13: voller Pfad, der Chip selbst kürzt
+      chip.onclick = () => { setFilter("verz", null); zuerstGeoWeg(); reload(); };
+    }
   }
 
   async function reloadCollections() {
@@ -746,6 +835,18 @@ function mountLibrary(body, headerActions) {
     sel.innerHTML = `<option value="0">${T("library.all_years", "Alle Jahre")}</option>` +
       years.slice().reverse().map(y =>
         `<option value="${y.year}"${state.year === y.year ? " selected" : ""}>${y.year} (${y.n})</option>`).join("");
+    jahrSpiegeln();
+  }
+  // Audit K-7 (05.10.2026): Klick auf „2026" im Datumsbaum setzt den Zeitraum 01.01.–31.12.2026, das (gesperrte)
+  // Jahres-Feld stand aber auf „Alle Jahre" — zwei Anzeigen, die sich widersprachen. Ist der Zeitraum genau ein
+  // Kalenderjahr, zeigt das Feld dieses Jahr.
+  function jahrSpiegeln() {
+    const sel = $("lib-year");
+    if (!sel) return;
+    const m = /^(\d{4})-01-01$/.exec(state.von || "");
+    const ganzesJahr = m && (state.bis || "").startsWith(m[1] + "-12-31");
+    if (ganzesJahr && [...sel.options].some(o => o.value === m[1])) sel.value = m[1];
+    else if (state.von || state.bis) sel.value = "0";
   }
   function fillActivityOptions() {
     const sel = $("lib-act");
@@ -795,6 +896,7 @@ function mountLibrary(body, headerActions) {
     if (_fotoView) store.setJson("projview", false);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView || _fotoView);
+    if (bar) bar.classList.toggle("foto-mode", _fotoView);   // 04.10.2026 — oberes Suchfeld aus, Fotos suchen in ihrer Leiste
     [["lib-seg-fotos", _fotoView], ["lib-seg-vorlagen", _vorlView],
      ["lib-seg-projekte", _projView],
      ["lib-seg-touren", !_projView && !_vorlView && !_fotoView]].forEach(([id, an2]) => {
@@ -831,6 +933,7 @@ function mountLibrary(body, headerActions) {
     if (_vorlView) store.setJson("fotoview", false);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView);
+    if (bar) bar.classList.remove("foto-mode");
     const sv = document.getElementById("lib-seg-vorlagen");
     const sp = document.getElementById("lib-seg-projekte");
     const st = document.getElementById("lib-seg-touren");
@@ -859,6 +962,7 @@ function mountLibrary(body, headerActions) {
     store.setJson("projview", _projView);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView);
+    if (bar) bar.classList.remove("foto-mode");
     const sp = document.getElementById("lib-seg-projekte");
     const st = document.getElementById("lib-seg-touren");
     if (sp) sp.classList.toggle("is-on", _projView);
@@ -4372,6 +4476,7 @@ function mountLibrary(body, headerActions) {
     if (state.year) teile.push(T("library.filter_jahr", "Jahr {j}").replace("{j}", String(state.year)));
     if (state.activity) teile.push(ACT_LABELS[state.activity] || state.activity);
     if (state.von || state.bis) teile.push(`${state.von || "…"} – ${state.bis || "…"}`);
+    if (state.verz) teile.push("📁 " + tbOrdnerText(state.verz));
     if (state.min_km != null || state.max_km != null)
       teile.push(`${state.min_km != null ? state.min_km : 0}–${state.max_km != null ? state.max_km : "∞"} km`);
     if ((state.search || "").trim()) teile.push(`„${state.search.trim()}“`);
@@ -5538,6 +5643,7 @@ function mountLibrary(body, headerActions) {
         ? T("library.range_year_off", "Ein Zeitraum ist eingestellt — das Jahr richtet sich danach.")
         : "";
     }
+    jahrSpiegeln();
   }
 
   function zeitraumSetzen(von, bis) {
@@ -5570,6 +5676,7 @@ function mountLibrary(body, headerActions) {
     setFilter("search", "");
     setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
     setFilter("von", null); setFilter("bis", null);
+    setFilter("verz", null);
     // ⚠️ Nicht nur den Wert zurücksetzen, sondern auch die Anzeige: sonst
     // bleiben die beiden Datumsfelder mit den alten Daten stehen, obwohl sie
     // nichts mehr filtern — und das Jahres-Feld bliebe gesperrt.

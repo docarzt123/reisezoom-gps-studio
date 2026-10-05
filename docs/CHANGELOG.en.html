@@ -118,12 +118,30 @@
 <article class="version latest">
   <div class="version-head">
     <span class="version-num">v0.9.781</span>
-    <span class="version-date">4 October 2026</span>
+    <span class="version-date">5 October 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
+    <li><strong>Search photos by content</strong> &mdash; “sunset”, “dog on the beach”, “glacier”: the search field now also finds what is on the photos, in any language, plus “Similar photos” for a picture. The image model (SigLIP 2) is only downloaded when you turn content search on (about 0.5&nbsp;GB) and then runs entirely on your computer, no account.</li>
+    <li><strong>View photos large and play videos</strong> &mdash; double-click or space opens the photo in the whole window, ← → browses, videos play with sound. From a video you save a still as a photo.</li>
+    <li><strong>Edit and place photos in the archive</strong> &mdash; change photo data like in the Geotagger (title, keywords, time, time zone, place …) and place a single photo with a click on the map. The original is backed up first.</li>
     <li><strong>Photo folders show their drive like the Finder</strong> &mdash; “Fotos” instead of /Volumes/Fotos, with 🟢 connected or 📴 not connected, whether it is a network drive (on which NAS), an external drive or this computer, and a “Connect” button for the NAS.</li>
-  </ul>
+    <li><strong>Photos by date like Lightroom</strong> &mdash; year → month → day with counts on the left; a click shows exactly that period.</li>
+    <li><strong>Clean tiles</strong> &mdash; no time and no “!” on the photos any more (the time looked like a video length); name and capture data appear on the right when you click a photo.</li>
+    <li><strong>You can see what reading in does</strong> &mdash; quick or thorough check, “x of ≈ y files”, a bar and the time left.</li>
+    <li><strong>New photos arrive by themselves</strong> &mdash; the app now also checks quietly while it simply stays open.</li>
+      <li><strong>Reading in continues after a restart</strong> &mdash; closing the app during the check no longer starts it over; folders already checked go quickly, and step 2 shows the overall progress.</li>
+    <li><strong>Merged tours without zigzag</strong> &mdash; the map next to a photo draws every stage separately instead of lines across the loop, and a photo only belongs to such a tour if it was taken during one of its stages.</li>
+    <li><strong>Time left counts down instead of up</strong> &mdash; reading in now reckons with the megabytes still to come and remembers its pace; the time is realistic right away.</li>
+    <li><strong>Searching in Photos</strong> &mdash; just one search field, Enter searches at once, and typing on no longer goes nowhere. When turning on content search you pick Standard or Large right there.</li>
+    <li><strong>Click through folders and dates</strong> &mdash; photos now also have “📁 By folder” with all subfolders, and the tour archive has “📅 By date” and “📁 By folder” just the same. One click unfolds and shows exactly that.</li>
+    <li><strong>Reading from a NAS much faster</strong> &mdash; capture data first for everything (then search, date, map and folders work), previews as a third step; pictures are also decoded already scaled down instead of at full resolution.</li>
+    <li><strong>Cancelling a Quick video</strong> &mdash; started from the Animator, you are back in your own project after cancelling; the top shows “Quick video · Tour”, and the timeline can no longer push the map away.</li>
+    <li><strong>Rendering when a map service fails</strong> &mdash; the video no longer waits for tiles at every frame; at the end it says how many were missing.</li>
+    <li><strong>Reading in over a NAS is sturdier</strong> &mdash; if the drive drops out mid-run, no photos vanish from the library; previews are made later; the time left no longer sticks at “under a minute” and shows days from two days on.</li>
+    <li><strong>Small things</strong> &mdash; Esc closes the overlay editor, folder chips shorten long paths, the year box in the tour archive matches the date tree, and the About dialog lists every bundled library.</li>
+    <li><strong>Reading in over a NAS with two readers</strong> &mdash; on a network drive two processes now read the capture data at once (never more than two, hard-disk NAS); slow batches no longer count as hung too early.</li>
+</ul>
 </article>
 
 <article class="version">

@@ -1080,7 +1080,7 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
   align-items: center; display: flex; font-size: 26px; height: 100%;
   justify-content: center; opacity: .5;
 }
-.foto-kachel-zeit, .foto-kachel-art, .foto-kachel-warn {
+.foto-kachel-art {
   background: rgba(0, 0, 0, .6);
   border-radius: 4px;
   color: #fff;
@@ -1088,9 +1088,7 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
   padding: 1px 4px;
   position: absolute;
 }
-.foto-kachel-zeit { bottom: 3px; left: 3px; }
 .foto-kachel-art { bottom: 3px; right: 3px; }
-.foto-kachel-warn { background: rgba(230, 120, 20, .9); font-weight: 700; right: 3px; top: 3px; }
 
 .foto-ordner { align-items: flex-start; display: flex; gap: 6px; padding: 5px 0; }
 /* 04.10.2026 — Laufwerk und Zustand je Ordner (fotos.js ordnerZeile) */
@@ -1226,3 +1224,82 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .foto-kt-zahl { font-size: 12px; margin-top: 2px; }
 .foto-kt-balken { height: 4px; border-radius: 2px; background: var(--border, rgba(255,255,255,.14)); margin: 5px 0 3px; overflow: hidden; max-width: 520px; }
 .foto-kt-balken > span { display: block; height: 100%; background: var(--accent, #ff6b35); transition: width .6s ease; }
+
+/* 04.10.2026 — „Nach Datum" (Jahr → Monat → Tag) in der Foto-Seitenleiste, Lightroom-Vorbild (fotos.js datumsBaum…) */
+.foto-db-kopf { all: unset; cursor: pointer; display: flex; align-items: center; gap: 4px; margin-top: 14px;
+  /* Audit C-14: `all: unset` nahm den Stil von .lib-nav-title mit — wie „FOTOS"/„FOTOORDNER" darüber */
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); padding: 0 6px 5px; }
+/* Audit C-13: tiefe Ordner sprengten die Leiste — der Chip kürzt, der Titel zeigt den ganzen Pfad */
+.foto-db-chip { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foto-db-kopf:focus-visible { outline: 2px solid var(--accent, #ff6b35); outline-offset: 2px; border-radius: 4px; }
+.foto-db-pfeil { width: 14px; display: inline-block; font-size: 14px; }
+.foto-datumsbaum { display: flex; flex-direction: column; margin: 4px 0 2px; }
+.foto-db-zeile { display: flex; align-items: center; border-radius: 6px; }
+.foto-db-zeile.is-on { background: var(--accent-soft, rgba(255,107,53,.18)); }
+.foto-db-zeile:hover { background: var(--bg-2, rgba(255,255,255,.05)); }
+.foto-db-zeile.is-on:hover { background: var(--accent-soft, rgba(255,107,53,.24)); }
+.foto-db-s2 { padding-left: 14px; }
+.foto-db-s3 { padding-left: 32px; }
+.foto-db-auf, .foto-db-auf-leer { flex: none; width: 18px; height: 22px; }
+.foto-db-auf { all: unset; cursor: pointer; width: 18px; text-align: center; color: var(--text-dim, #9aa); font-size: 14px; line-height: 22px; }
+.foto-db-wahl { all: unset; cursor: pointer; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 3px 6px 3px 2px; font-size: 12.5px; }
+.foto-db-s1 .foto-db-wahl { font-weight: 600; }
+.foto-db-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foto-db-auf:focus-visible, .foto-db-wahl:focus-visible { outline: 2px solid var(--accent, #ff6b35); outline-offset: -2px; border-radius: 4px; }
+
+/* 04.10.2026 — Großansicht, Verorten, Bearbeiten (fotos.js grossOeffnen / ortGeaendert / editorLaden) */
+.foto-detail-bild-knopf { all: unset; cursor: zoom-in; display: block; }
+.foto-detail-bild-knopf:focus-visible { outline: 2px solid var(--accent, #ff6b35); outline-offset: 2px; border-radius: 6px; }
+.foto-d-gross-knopf { margin-left: 8px; vertical-align: middle; }
+.foto-d-ort-hinweis { font-size: 11px; margin: 3px 0 6px; }
+.foto-d-pin { width: 16px; height: 16px; border-radius: 50%; background: #ff922b; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); cursor: grab; }
+.foto-d-ort-neu { border: 1px solid var(--border, rgba(255,255,255,.14)); border-radius: 8px; padding: 8px; margin: 6px 0 10px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+.foto-ort-felder { display: flex; gap: 10px; flex-wrap: wrap; }
+.foto-ort-felder label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+.foto-ort-felder input { width: 110px; padding: 4px 6px; box-sizing: border-box; }
+.foto-ort-adresse { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; }
+.foto-ort-knoepfe { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.foto-ort-sicher { font-size: 10.5px; }
+.foto-detail-edit { margin-top: 12px; border-top: 1px solid var(--border, rgba(255,255,255,.1)); padding-top: 8px; }
+.foto-detail-edit > summary { cursor: pointer; font-weight: 600; font-size: 12.5px; }
+.foto-edit-body { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.foto-ef { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+.foto-ef input { width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 12.5px; }
+.foto-ef-mehr > summary { cursor: pointer; font-size: 12px; margin: 4px 0; }
+.foto-ef-suche { width: 100%; box-sizing: border-box; margin: 4px 0 6px; padding: 5px 8px; }
+#foto-ef-rest { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; }
+.foto-gross { position: fixed; inset: 0; z-index: 4000; background: rgba(8, 9, 11, .96); display: flex; align-items: center; justify-content: center; }
+.foto-gross-buehne { position: absolute; inset: 44px 64px 64px; display: flex; align-items: center; justify-content: center; }
+.foto-gross-bild, .foto-gross-video { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 6px 30px rgba(0,0,0,.6); }
+.foto-gross-bild.is-vorschau { filter: blur(1px); opacity: .85; }
+.foto-gross-zu { position: absolute; top: 10px; right: 14px; z-index: 2; font-size: 20px; background: none; border: 0; color: #ddd; cursor: pointer; }
+.foto-gross-pfeil { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; font-size: 42px; line-height: 1; padding: 10px 14px; background: rgba(255,255,255,.06); border: 0; border-radius: 10px; color: #eee; cursor: pointer; }
+.foto-gross-pfeil:disabled { opacity: .2; cursor: default; }
+.foto-gross-links { left: 10px; } .foto-gross-rechts { right: 10px; }
+.foto-gross-leiste { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px; color: #ccc; font-size: 12.5px; }
+.foto-gross-knoepfe { display: flex; gap: 8px; }
+.foto-gross-hinweis { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 3; max-width: 560px; background: #1d2027; border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 12px 14px; color: #ddd; font-size: 12.5px; line-height: 1.45; }
+.foto-gross-hinweis ol { margin: 6px 0 8px 18px; padding: 0; }
+.foto-gross-hinweis .btn { margin-right: 6px; }
+
+/* 04.10.2026 (IDEAS §81) — Inhaltssuche: Zählung + Sortierung über den Treffern, Angebot zum Einschalten */
+.foto-inh-kopf {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 6px; font-size: 12.5px;
+}
+.foto-inh-sort { margin-left: auto; }
+.foto-inh-sort .lib-view { width: auto; padding: 0 10px; font-size: 12px; }
+.foto-inh-angebot {
+  margin-top: 8px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--accent, #3b82f6);
+  background: color-mix(in srgb, var(--accent, #3b82f6) 8%, transparent);
+  font-size: 12.5px; line-height: 1.45;
+}
+.foto-inh-angebot .muted { margin-top: 2px; }
+.foto-inh-nav:empty { display: none; }
+.foto-inh-nav .btn { margin-top: 4px; }
+
+/* 04.10.2026 — das Foto-Suchfeld ist das einzige im Foto-Bereich: breit genug für „Sonnenuntergang am Meer" */
+.foto-bar #foto-suche { flex: 2 1 280px; max-width: 460px; }
+.foto-inh-wahl { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.foto-inh-wahl-hilfe { margin-top: 6px; font-size: 11.5px; }

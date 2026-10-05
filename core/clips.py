@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import time
 import re
 import subprocess
 from pathlib import Path
@@ -123,6 +124,10 @@ def bilder(pfad: str, ab: float, dauer: float, fps: float, hoehe: int) -> dict:
     fertig = d / "fertig"
     if fertig.is_file():
         n = len(list(d.glob("*.jpg")))
+        try:
+            os.utime(fertig, None)            # zuletzt benutzt (für `aufraeumen`: das Älteste geht zuerst)
+        except OSError:
+            pass
         return {"ok": True, "ordner": str(d), "n": n, "fps": fps}
     d.mkdir(parents=True, exist_ok=True)
     for f in d.glob("*.jpg"):   # halbfertiger Lauf von vorher (ohne „fertig") — Cache, neu erzeugbar
@@ -140,4 +145,71 @@ def bilder(pfad: str, ab: float, dauer: float, fps: float, hoehe: int) -> dict:
         return {"ok": False, "error": (r.stderr or "ffmpeg")[-300:]}
     fertig.write_text(str(n))
     log.info("Clip-Bilder: %s · %.1f–%.1f s · %d Bilder (%d erwartet) · %d px", Path(pfad).name, ab, ab + dauer, n, soll, hoehe)
+    aufraeumen_gedrosselt()
     return {"ok": True, "ordner": str(d), "n": n, "fps": fps}
+
+
+# 05.10.2026 (Audit E-1: „clip_cache wächst ohne Grenze" — je Startsekunde/Länge/fps/Höhe ein neuer Ordner, 4K ≈ 30 MB je
+# Clip, nichts räumte auf; am 01.10. lief die Platte voll). Grenzen wie beim Kachelspeicher: Bildfolgen älter als
+# CACHE_MAX_TAGE (zuletzt benutzt) weg, halbfertige nach einem Tag, und über CACHE_MAX_BYTES das zuletzt am längsten
+# Unbenutzte zuerst. Standbilder und Ton-Schnipsel sind klein und bleiben.
+CACHE_MAX_BYTES = 2 * 2**30
+CACHE_MAX_TAGE = 30
+_letztes_aufraeumen = [0.0]
+
+
+def _groesse(d: Path) -> int:
+    try:
+        return sum(f.stat().st_size for f in d.iterdir() if f.is_file())
+    except OSError:
+        return 0
+
+
+def aufraeumen(max_bytes: int = CACHE_MAX_BYTES, max_tage: float = CACHE_MAX_TAGE) -> dict:
+    """Bildfolgen im Clip-Speicher begrenzen. {"weg": n, "frei": bytes, "bleibt": bytes}."""
+    base = CACHE_DIR or (Path.home() / ".rz_clip_cache")
+    if not base.is_dir():
+        return {"weg": 0, "frei": 0, "bleibt": 0}
+    jetzt = time.time()
+    folgen = []      # (zuletzt benutzt, größe, ordner, fertig?)
+    for clip in base.iterdir():
+        if not clip.is_dir():
+            continue
+        for d in clip.glob("f_*"):
+            if not d.is_dir():
+                continue
+            fertig = d / "fertig"
+            try:
+                t = fertig.stat().st_mtime if fertig.is_file() else d.stat().st_mtime
+            except OSError:
+                continue
+            folgen.append((t, _groesse(d), d, fertig.is_file()))
+    weg = frei = 0
+    rest = []
+    for t, g, d, ok in folgen:
+        alt = jetzt - t
+        if alt > max_tage * 86400 or (not ok and alt > 86400):
+            if _ds.ordner_loeschen(d, "clip_cache", art=_ds.ART_CACHE, ignore_errors=True):
+                weg += 1; frei += g
+        else:
+            rest.append((t, g, d))
+    summe = sum(g for _, g, _ in rest)
+    for _t, g, d in sorted(rest):                 # das am längsten Unbenutzte zuerst
+        if summe <= max_bytes:
+            break
+        if _ds.ordner_loeschen(d, "clip_cache", art=_ds.ART_CACHE, ignore_errors=True):
+            weg += 1; frei += g; summe -= g
+    if weg:
+        log.info("Clip-Speicher aufgeräumt: %d Bildfolgen, %.0f MB frei, %.0f MB bleiben", weg, frei / 1e6, summe / 1e6)
+    return {"weg": weg, "frei": frei, "bleibt": summe}
+
+
+def aufraeumen_gedrosselt(abstand_s: float = 600.0) -> None:
+    """Nach dem Anlegen einer Bildfolge — höchstens alle 10 min ein Durchgang."""
+    if time.time() - _letztes_aufraeumen[0] < abstand_s:
+        return
+    _letztes_aufraeumen[0] = time.time()
+    try:
+        aufraeumen()
+    except Exception as e:  # noqa: BLE001 — Aufräumen darf nie einen Clip scheitern lassen
+        log.warning("Clip-Speicher aufräumen: %s", e)

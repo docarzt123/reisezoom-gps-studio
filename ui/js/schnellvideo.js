@@ -766,6 +766,9 @@
     const los = async (rendern) => {
       if (laeuft) return; laeuft = true;
       const letzte = werteLesen();
+      // 05.10.2026 (Audit K-1) — aus dem Animator gestartet: Ausgangsprojekt merken, ein Abbruch führt dorthin zurück
+      let herkunft = null;
+      try { herkunft = ausAnimator && typeof getActiveProject === "function" ? (getActiveProject() || {}).id || null : null; } catch (_) {}
       const name = (v.name || "Tour") + " · " + T("schnell.titel_dialog", "Schnell-Video");
       // Beim Rendern sofort den eigenen Bildschirm zeigen — der Animator arbeitet unsichtbar dahinter.
       let B = null;
@@ -807,7 +810,7 @@
       B.schritt(T("schnell.b.start", "Video wird gestartet …")); B.fortschritt(0.03);
       const dateiName = (v.name || "Tour") + " – " + T("schnell.titel_dialog", "Schnell-Video");
       if (typeof window.__rzSchnellRender === "function") window.__rzSchnellRender({ ziel: ziel.path, name: dateiName, buehne: true });
-      buehneVerfolgen(B, dateiName, ausAnimator);
+      buehneVerfolgen(B, dateiName, ausAnimator, herkunft);
     };
     document.getElementById("sv-animator").onclick = () => los(false);
     if (P) document.getElementById("sv-uebernehmen").onclick = () => uebernehmen();
@@ -815,14 +818,25 @@
   }
 
   /** Fortschritt des Renders im eigenen Bildschirm zeigen (derselbe Status wie im Animator). */
-  function buehneVerfolgen(B, dateiName, ausAnimator) {
+  function buehneVerfolgen(B, dateiName, ausAnimator, herkunft) {
     let aktuell = null, begonnen = false, zu = false;
     // „Schließen": aus dem Archiv gestartet → zurück ins Archiv; aus dem Animator → dort bleiben
     const zurueck = () => { zu = true; B.zu(); if (!ausAnimator && typeof switchMod === "function") switchMod("library"); };
     // 01.10.2026 (Marc: „vom Abbruch aus ist er im Archiv gelandet, was ja schon falsch war … dann war der
     // Animator ausgegraut") — nach dem Abbruch im Animator bleiben (das Projekt ist dort offen) und die
     // Render-Sperre selbst lösen; der Animator kann es nicht, wenn er inzwischen nicht mehr offen ist.
-    const abgebrochen = () => { zu = true; B.zu(); try { if (typeof setRenderingState === "function") setRenderingState(false); } catch (_) {} };
+    // 05.10.2026 (Audit K-1, Marc: „nach dem Abbruch stand ich im Schnell-Video-Projekt und dachte, mein Projekt
+    // sei kaputt") — war der Aufruf aus einem anderen Projekt, wird das wieder geöffnet; das Schnell-Video bleibt im Archiv.
+    const abgebrochen = () => {
+      zu = true; B.zu(); try { if (typeof setRenderingState === "function") setRenderingState(false); } catch (_) {}
+      const jetzt = (typeof getActiveProject === "function" && getActiveProject()) || {};
+      if (ausAnimator && herkunft && jetzt.id !== herkunft) {
+        try { applog("info", `[schnell] Abbruch → zurück ins Projekt ${herkunft}`); } catch (_) {}
+        window.__rzProjektOeffnenId = herkunft;
+        if (typeof switchMod === "function") switchMod("library");
+        window.dispatchEvent(new CustomEvent("rz-projekt-oeffnen", { detail: { id: herkunft, modul: "animator" } }));
+      }
+    };
     B.knopf("abbrechen").onclick = async () => {
       B.knopf("abbrechen").disabled = true; B.schritt(T("animator.cancel.requesting", "Wird abgebrochen …"));
       try { await api().animator_cancel(); } catch (_) {}   // warte-ok: setzt nur das Flag
@@ -862,7 +876,7 @@
           B.schritt(T("schnell.b.fertig", "✓ Dein Video ist fertig")); B.fortschritt(1);
           let url = null;
           try { const m = await api().serve_media(s.output); if (m && m.ok && m.url) url = m.url; } catch (_) {}   // warte-ok: sofort
-          B.fertig(url || encodeURI("file://" + s.output));
+          B.fertig(url || encodeURI("file://" + (/^[A-Za-z]:/.test(s.output) ? "/" : "") + String(s.output).replace(/\\/g, "/")));   // Audit D-9: file:///C:/…
           return;
         }
       }

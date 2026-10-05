@@ -47,7 +47,10 @@
       // Format: "Session-Name · Projekt-Name"
       const sname = session.name || "?";
       const pname = window.rzProjektName ? window.rzProjektName(project.name) : (project.name || tT("topbar.project.default_name", "Standard"));
-      label.textContent = `${sname} · ${pname}`;
+      // 05.10.2026 (Audit K-1) — „<Tour> · Schnell-Video" hinter dem Tournamen wurde abgeschnitten: man sah nicht,
+      // dass man im Schnell-Video-Projekt steht. Wiederholt das Projekt den Sessionnamen, kommt der Unterschied nach vorn.
+      const _vorn = pname.startsWith(sname + " · ") ? pname.slice(sname.length + 3) : "";
+      label.textContent = _vorn ? `${_vorn} · ${sname}` : `${sname} · ${pname}`;
       label.title = tT("topbar.project.label_title", "Session: {session}\nAktives Projekt: {projekt}")
         .replace("{session}", sname).replace("{projekt}", pname);
     }

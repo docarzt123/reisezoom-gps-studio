@@ -35,7 +35,8 @@ echo "📖  Baue USER_GUIDE.html …"
 python3 scripts/build_user_guide_html.py
 
 # v0.9.61 — exiftool-Binary für macOS + Windows nachladen falls noch nicht da
-if [ ! -f "vendor/exiftool/macos/exiftool" ] || [ ! -f "vendor/exiftool/windows/exiftool-13.58_64/exiftool.exe" ]; then
+# 05.10.2026 (Audit F-14): Windows-Ordner trägt die Version im Namen — nicht hart 13.58 prüfen (lief jedes Mal ins Setup)
+if [ ! -f "vendor/exiftool/macos/exiftool" ] || ! ls vendor/exiftool/windows/exiftool-*_64/exiftool.exe >/dev/null 2>&1; then
   echo "🔧  vendor/exiftool/ fehlt — Setup-Script läuft …"
   bash scripts/setup_vendor_exiftool.sh
 fi

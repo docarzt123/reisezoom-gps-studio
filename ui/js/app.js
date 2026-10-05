@@ -695,6 +695,21 @@ async function openSettingsModal(reiter) {
           <button class="btn" id="md-bib-zip" style="margin-top:8px;">${t("bib.zip_start", "Sicherung erstellen …")}</button>
           <p class="set-help" style="margin-top:4px;" id="md-bib-zip-hinweis">${t("bib.zip_help", "Ohne Häkchen bleiben Vorschaubilder und die rollierenden Datenbank-Kopien draußen; beides entsteht beim nächsten Öffnen neu. Der Dateiname bekommt einen Zeitstempel, eine vorhandene Sicherung wird nie überschrieben.")}</p>
         </div>
+
+        <!-- 04.10.2026 (IDEAS §81) — Inhaltssuche im Foto-Archiv: an/aus, Modellgröße, Modell und Index löschen.
+             Eingeschaltet wird sie meist im Foto-Bereich beim Suchen; hier ist der Ort zum Abschalten (Marc, Q4). -->
+        <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:12px;" id="md-inh">
+          <p class="muted" style="margin:0 0 6px; font-weight:600; color:var(--text);">🔍 ${t("inhalt.titel", "Inhaltssuche in den Fotos")}</p>
+          <p class="set-help" style="margin:0 0 8px;">${t("inhalt.help", "Findet Fotos nach dem, was darauf zu sehen ist — „Sonnenuntergang“, „Hund am Strand“ — in jeder Sprache. Ein Bildmodell (SigLIP 2) schaut dafür einmal jedes Foto an, nur auf diesem Rechner. Der Index liegt in der Bibliothek und zieht mit ihr um; das Modell wird je Rechner einmal geladen.")}</p>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" id="md-inh-an"><span>${t("inhalt.an", "Inhaltssuche eingeschaltet")}</span>
+          </label>
+          <label class="field-label" for="md-inh-variante" style="font-size:12px; margin-top:8px;">${t("inhalt.variante", "Modell")}</label>
+          <select id="md-inh-variante" class="lib-select" style="max-width:100%"></select>
+          <p class="set-help" style="margin-top:4px;">${t("inhalt.variante_help", "„Standard“ reicht für die meisten Suchen. „Groß“ versteht vor allem Deutsch und Spanisch besser, ist aber dreimal so groß und erfasst die Fotos etwa sechsmal langsamer. Beim Wechsel wird neu erfasst; der alte Index bleibt, bis du ihn löschst.")}</p>
+          <p class="set-help" id="md-inh-stand" style="margin-top:6px;"></p>
+          <button class="btn" id="md-inh-loeschen" style="margin-top:4px;">${t("inhalt.loeschen", "Modell und Index löschen")}</button>
+        </div>
       </div>
 
       ${window.rzCloudStillgelegt ? `
@@ -912,6 +927,66 @@ function _bindSettingsModalHandlers() {
       } catch (e) { toast(String(e), "warn"); }
       speichern.disabled = false;
     };
+
+    // 04.10.2026 (IDEAS §81) — Inhaltssuche: Stand, an/aus, Modellgröße, Löschen
+    const inhRahmen = document.getElementById("md-inh");
+    if (inhRahmen) {
+      const an = document.getElementById("md-inh-an");
+      const wahl = document.getElementById("md-inh-variante");
+      const standEl = document.getElementById("md-inh-stand");
+      const loesch = document.getElementById("md-inh-loeschen");
+      // Audit C-10/K-6: Zahlen in der App-Sprache (nicht hart deutsch), kleine Indizes nicht als „0 MB"
+      let _loc; try { _loc = (typeof i18nMeta === "function" && i18nMeta().active) || undefined; } catch (_) { _loc = undefined; }
+      const zahl = (n) => Math.round(n || 0).toLocaleString(_loc);
+      const mbText = (b) => (b >= 1e9 ? (b / 1e9).toFixed(1).replace(".", t("fotos.dezimal", ",")) + " GB"
+        : b >= 1e6 ? zahl(b / 1e6) + " MB" : b > 0 ? "< 1 MB" : "0 MB");
+      const zeigen = async () => {
+        const st = await api().inhalt_status().catch(() => null);
+        if (!st || !st.ok) { inhRahmen.hidden = true; return; }
+        if (!st.verfuegbar) { standEl.textContent = t("inhalt.fehlt_laufzeit", "In dieser Ausgabe nicht verfügbar."); an.disabled = wahl.disabled = loesch.disabled = true; return; }
+        an.checked = !!st.an;
+        wahl.innerHTML = Object.entries(st.varianten || {}).map(([k, v]) =>
+          `<option value="${k}"${k === st.variante ? " selected" : ""}>${k === "base" ? t("inhalt.v_base", "Standard") : t("inhalt.v_gross", "Groß")} — ${v.name} · ${mbText(v.bytes)}${v.da ? " ✓" : ""}</option>`).join("");
+        const ix = st.index || {}, gr = st.groesse || {}, l = st.lauf || {};
+        let txt = st.an
+          ? t("inhalt.stand", "{n} von {g} Fotos erfasst.").replace("{n}", zahl(ix.n)).replace("{g}", zahl(st.bestand))
+          : t("inhalt.stand_aus", "Ausgeschaltet.");
+        if (gr.modell || gr.index) txt += " " + t("inhalt.platz", "Belegt: Modell {m}, Index {i}.").replace("{m}", mbText(gr.modell || 0)).replace("{i}", mbText(gr.index || 0));
+        if (l.running) txt += " " + (l.phase === "laden" ? t("inhalt.laeuft_laden", "Lädt gerade das Modell …") : t("inhalt.laeuft_index", "Erfasst gerade im Hintergrund …"));
+        standEl.textContent = txt;
+        loesch.disabled = !(gr.modell || gr.index);
+      };
+      const melden = () => { try { window.dispatchEvent(new Event("rz-inhalt-geaendert")); } catch (_) { /* ui-falle-ok: nur Benachrichtigung */ } };
+      an.onchange = async () => {
+        if (an.checked) {
+          const r = await api().inhalt_einschalten(wahl.value || "").catch((e) => ({ ok: false, error: String(e) }));
+          if (r && r.ok === false) toast(r.error || "?", "warn");
+          else toast(t("inhalt.eingeschaltet", "Inhaltssuche eingeschaltet — Modell und Fotos werden im Hintergrund vorbereitet."), "success", 6000);
+        } else {
+          await api().inhalt_ausschalten().catch(() => null);
+        }
+        zeigen();
+        melden();
+      };
+      wahl.onchange = async () => {
+        await api().settings_set({ inhalt_variante: wahl.value }).catch(() => null);
+        if (an.checked) await api().inhalt_einschalten(wahl.value).catch(() => null);
+        zeigen();
+      };
+      loesch.onclick = async () => {
+        const ok = await window.rzConfirm(t("inhalt.loeschen", "Modell und Index löschen"),
+          t("inhalt.loeschen_frage", "Die Inhaltssuche wird ausgeschaltet; Modell und Index werden gelöscht. Deine Fotos bleiben unberührt. Wer sie wieder einschaltet, lädt das Modell neu und erfasst alle Fotos noch einmal."),
+          t("inhalt.loeschen_ok", "Löschen"), true);
+        if (!ok) return;
+        loesch.disabled = true;
+        const r = await rzWarten("inhalt_loeschen", () => api().inhalt_loeschen("")).catch((e) => ({ ok: false, error: String(e) }));
+        if (r && r.ok) toast(t("inhalt.geloescht", "Gelöscht — {mb} frei.").replace("{mb}", mbText(r.frei || 0)), "success");
+        else toast((r && r.error) || "?", "warn");
+        zeigen();
+        melden();
+      };
+      zeigen();
+    }
 
     const zipBtn = document.getElementById("md-bib-zip");
     if (zipBtn) zipBtn.onclick = async () => {
@@ -1389,7 +1464,7 @@ async function openAboutModal() {
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://maplibre.org/">MapLibre GL JS</a>
-            — BSD-3-Clause (${t("about.credits.maplibre", "Karten ohne Mapbox-Token, gebündelt")})
+            — BSD-3-Clause (${t("about.credits.maplibre", "Karten ohne Mapbox-Token, gebündelt")}, ${t("about.credits.angepasst", "angepasst")})
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
@@ -1420,6 +1495,13 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://numpy.org/">NumPy</a> — BSD-3-Clause (${t("about.credits.numpy", "Tonspur mischen")})
           </li>
           <li>
+            <a href="#" class="md-about-link" data-url="https://huggingface.co/google/siglip2-base-patch16-224">SigLIP 2</a> (Google) — Apache-2.0 ·
+            <a href="#" class="md-about-link" data-url="https://onnxruntime.ai/">ONNX Runtime</a> (Microsoft) — MIT ·
+            <a href="#" class="md-about-link" data-url="https://github.com/huggingface/tokenizers">Tokenizers</a> (Hugging Face) — Apache-2.0
+            (${t("about.credits.inhalt", "Inhaltssuche im Foto-Archiv; das Modell wird erst beim Einschalten geladen")})<br>
+            ${t("about.credits.immich", "Foto-Inhaltssuche angelehnt an")} <a href="#" class="md-about-link" data-url="https://github.com/immich-app/immich">Immich</a> (${t("about.credits.immich_kein_code", "Idee und Vorverarbeitung, kein Code übernommen")})
+          </li>
+          <li>
             <a href="#" class="md-about-link" data-url="https://playwright.dev/">Playwright</a> — Apache-2.0 ·
             <a href="#" class="md-about-link" data-url="https://www.chromium.org/">Chromium</a> — BSD-3-Clause (${t("about.credits.chromium", "Render-Engine, gebündelt auf macOS + Windows")})
           </li>
@@ -1432,6 +1514,20 @@ async function openAboutModal() {
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://github.com/polyvertex/fitdecode">fitdecode</a> — MIT (${t("about.credits.fitdecode", "FIT-Import: Garmin/Wahoo")})
+          </li>
+          <!-- 05.10.2026 (Audit F-5) — Herkunft der mitgelieferten Musik und Klicks -->
+          <li>${t("about.credits.musik", "Musik und Foto-Klicks: eigene Erzeugung von Reisezoom (aus Zahlen komponiert, keine Samples) — frei für deine Videos")}</li>
+          <!-- 05.10.2026 (Audit F-3) — die übrigen gebündelten Python-Pakete aus requirements.txt -->
+          <li>
+            <a href="#" class="md-about-link" data-url="https://github.com/hMatoba/Piexif">piexif</a> — MIT ·
+            <a href="#" class="md-about-link" data-url="https://github.com/arsenetar/send2trash">Send2Trash</a> — BSD-3-Clause ·
+            <a href="#" class="md-about-link" data-url="https://requests.readthedocs.io/">Requests</a> — Apache-2.0 ·
+            <a href="#" class="md-about-link" data-url="https://cryptography.io/">cryptography</a> — Apache-2.0 / BSD-3-Clause ·
+            <a href="#" class="md-about-link" data-url="https://github.com/jaraco/keyring">keyring</a> — MIT ·
+            <a href="#" class="md-about-link" data-url="https://github.com/imageio/imageio-ffmpeg">imageio-ffmpeg</a> — BSD-2-Clause ·
+            <a href="#" class="md-about-link" data-url="https://github.com/python/tzdata">tzdata</a> — Apache-2.0 ·
+            <a href="#" class="md-about-link" data-url="https://github.com/ronaldoussoren/pyobjc">PyObjC</a> — MIT (macOS) ·
+            <a href="#" class="md-about-link" data-url="https://github.com/pythonnet/pythonnet">pythonnet</a> — MIT (Windows)
           </li>
         </ul>
       </div>

@@ -1539,7 +1539,7 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-mc-admin", _MODKEY, "show_admin_boundaries",
     { type: "bool", onChange: () => applyHideLabels() });
   const _gebSchalter = () => { const w = document.getElementById("anim-mc-gebaeude-wachsen"); if (w) w.disabled = !document.getElementById("anim-mc-gebaeude")?.checked; };
-  bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onLoad: _gebSchalter, onChange: () => { _gebSchalter(); try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } } });
+  bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onLoad: _gebSchalter, onChange: () => { _gebSchalter(); try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } try { _applyAttribText(); } catch (_) {} } });
   bindSetting("anim-mc-gebaeude-wachsen", _MODKEY, "gebaeude_wachsen", { type: "bool", onChange: () => { try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } } });
   // Quick "Alle aus" / "Alle an"
   (function setupMcQuickButtons() {
@@ -2664,7 +2664,12 @@ function mountAnimator(body, headerActions, opts) {
   // 07.09.2026 — Nennungs-Modus «kurz»: MapLibre baut den Text aus den Quellen; wir ersetzen ihn (Beobachter, weil
   // MapLibre bei jedem Quellenwechsel neu schreibt). Kurznamen aus dem Register (rzKurzNennung), Änderungshinweis, Link.
   function _attribIds() {
-    try { const r = map && map.__rzSpec && map.__rzSpec.rights; return r ? Object.keys(r.quellen || {}) : []; } catch (_) { return []; }
+    let ids = [];
+    try { const r = map && map.__rzSpec && map.__rzSpec.rights; ids = r ? Object.keys(r.quellen || {}) : []; } catch (_) { ids = []; }
+    // Audit F-4 (05.10.2026): 3D-Häuser kommen aus OpenFreeMap/OpenStreetMap (ODbL) — im Kurzmodus stand das nicht im
+    // Bild, wenn die Basiskarte etwas anderes war (Luftbild, Mapbox). Gilt für Vorschau und Szene-Render (dieselbe Seite).
+    try { if (document.getElementById("anim-mc-gebaeude")?.checked && !ids.includes("openfreemap")) ids.push("openfreemap"); } catch (_) {}
+    return ids;
   }
   function _attribKurzText() {
     const link = (document.getElementById("anim-ov-attrib-link")?.value || "").trim();
@@ -13431,6 +13436,8 @@ function mountAnimator(body, headerActions, opts) {
       window.__rzAnimSignsEsc = () => {
         if (_animSignPlaceMode) _animSignsSetPlaceMode(false);
         _animSignsCloseEditor();
+        // Audit D-5: auch der Einblendungs-Editor schließt mit Esc — wie der Schild-Editor
+        if (document.getElementById("ct-editor")) _ctEditorZu();
       };
       if (!window.__animSignsEscWired) {
         window.__animSignsEscWired = true;
@@ -16661,7 +16668,10 @@ function mountAnimator(body, headerActions, opts) {
       const a = _ctEleAusschnitt(idx, el.getAttribute("data-bereich"));
       const key = a.von + ":" + a.bis;
       const teil = _gpxElevations.slice(a.von, a.bis + 1);
-      const eMin = Math.min(...teil), eMax = Math.max(...teil), eRng = (eMax - eMin) || 1;
+      // Audit D-3: kein Spread — ab ~65 000 Punkten wirft Math.min(...arr) „Maximum call stack size exceeded"
+      let eMin = Infinity, eMax = -Infinity;
+      for (const e of teil) { if (e < eMin) eMin = e; if (e > eMax) eMax = e; }
+      const eRng = (eMax - eMin) || 1;
       const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
       const xOf = (i) => ((i - a.von) / Math.max(1, a.bis - a.von)) * W;
       if (neu || el.__ctKey !== key) {
@@ -16889,7 +16899,7 @@ function mountAnimator(body, headerActions, opts) {
         b += `<label><input type="checkbox" data-zk="show_axes"${z.chart.show_axes ? " checked" : ""}> ${_ctEsc(t("animator.charts.axes", "Achsen"))}</label>`;
       }
     } else if (z.typ === "bild") {
-      const name = z.pfad === "@lockup-white" ? t("container.logo_gpsstudio", "GPS-Studio-Logo") : String(z.pfad || "").split("/").pop();
+      const name = z.pfad === "@lockup-white" ? t("container.logo_gpsstudio", "GPS-Studio-Logo") : String(z.pfad || "").split(/[\\/]/).pop();   // Audit D-9: auch Windows-Pfade
       b += `<div class="ct-ez-reihe"><span class="ct-ez-datei">${_ctEsc(name || "—")}</span><button type="button" class="ct-knopf" data-za="bild">🖼</button>`
         + `<button type="button" class="ct-knopf" data-za="logo" title="${_ctEsc(t("container.logo_gpsstudio", "GPS-Studio-Logo"))}">↺</button></div>`
         + `<label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="1" max="100" step="0.5" value="${z.b}"> %</label>`;

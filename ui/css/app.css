@@ -2885,6 +2885,9 @@ body.is-rendering .modal-overlay * {
 }
 
 .lib-bar.proj-mode > :not(.pmgr-seg):not(#lib-search) { display: none; }
+/* 04.10.2026 (Marc: „es passiert gar nichts, wenn ich was ins Suchfeld tippe und Enter drücke") — im Foto-Bereich
+   gehört das obere Suchfeld den Touren und wirkt dort nicht; gesucht wird in der Fotoleiste darunter. */
+.lib-bar.foto-mode > #lib-search { display: none; }
 
 
 /* ── Bibliotheks-Tor (02.09.2026, docs/UMBAU-BIBLIOTHEK.md) ────────────────
