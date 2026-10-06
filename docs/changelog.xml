@@ -5,8 +5,34 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 04 Oct 2026 10:34:49 +0000</lastBuildDate>
+<lastBuildDate>Tue, 06 Oct 2026 20:23:19 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.782</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-782</link>
+<guid isPermaLink="false">gps-studio-v0.9.782</guid>
+<pubDate>Tue, 06 Oct 2026 12:00:00 +0000</pubDate>
+<description>Medien der Tour — die Fotos und Videos, die während der Tour entstanden sind, stehen als Striche in der Zeitleiste und rechts als Raster — ein Klick macht ein Schild daraus.
+
+Info-Karte — neue Einblendung im Stil der App: Tourname, Strecke, Bergauf, Bewegungszeit.
+
+Kommender Weg gestrichelt — neue Projekte zeigen die ganze Strecke blass und gestrichelt; die Linie zeichnet sich darüber.
+
+Video exportieren mit eigenem Fenster — „⤓ Video exportieren“ öffnet ein Fenster mit Vorlagen (YouTube 4K, YouTube 1080p, Instagram Reel, Instagram 4:5, Schnell ansehen 720p — und deine eigenen), Auflösung, Bildrate, HDR und Qualität. Der Name bekommt Datum und Uhrzeit, nichts wird überschrieben; „Exportieren“ legt sofort los.</description>
+</item>
+<item>
+<title>v0.9.781</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-781</link>
+<guid isPermaLink="false">gps-studio-v0.9.781</guid>
+<pubDate>Mon, 05 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotos nach Inhalt suchen — „Sonnenuntergang“, „Hund am Strand“, „Gletscher“: das Suchfeld findet jetzt auch, was auf den Fotos zu sehen ist, in jeder Sprache, dazu „Ähnliche Fotos“ zu einem Bild. Das Bildmodell (SigLIP 2) wird nur geladen, wenn du die Inhaltssuche einschaltest (ca. 0,5 GB), und läuft danach ganz auf deinem Rechner, ohne Konto.
+
+Fotos groß ansehen und Videos abspielen — Doppelklick oder Leertaste öffnet das Foto im ganzen Fenster, ← → blättert, Videos laufen mit Ton. Aus einem Video speicherst du ein Standbild als Foto.
+
+Fotos im Archiv bearbeiten und verorten — Aufnahmedaten wie im Geotagger ändern (Titel, Stichwörter, Zeit, Zeitzone, Ort …) und ein einzelnes Foto per Klick in die Karte verorten. Vorher wird das Original gesichert.
+
+Fotoordner zeigen ihr Laufwerk wie der Finder — „Fotos“ statt /Volumes/Fotos, dazu 🟢 verbunden oder 📴 nicht verbunden, ob es ein Netzlaufwerk (auf welchem NAS), ein Zusatzlaufwerk oder dieser Rechner ist, und ein Knopf „Verbinden“ für das NAS.</description>
+</item>
 <item>
 <title>v0.9.780</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-780</link>
@@ -162,22 +188,6 @@ Schnell-Video mit Fotos — der Dialog schlägt Fotos deiner Tour aus dem Foto-A
 <description>Schnell-Video abbrechen — nach dem Abbrechen bleibst du im Animator, und er ist nicht mehr ausgegraut. Vorher landete man im Archiv, und beim Wiederöffnen ließ sich der Animator nicht mehr bedienen.
 
 Schnell-Video im Animator — „In dieses Projekt übernehmen“ ist jetzt der Hauptknopf, „Video rendern“ steht daneben.</description>
-</item>
-<item>
-<title>v0.9.762</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-762</link>
-<guid isPermaLink="false">gps-studio-v0.9.762</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Highlights beim Übernehmen ins Projekt — „In dieses Projekt übernehmen“ legt jetzt auch die Highlights als Schilder an, auch mit „Meinen Look behalten“.</description>
-</item>
-<item>
-<title>v0.9.761</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-761</link>
-<guid isPermaLink="false">gps-studio-v0.9.761</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Pause im Probelauf: Linie und Pfeil bleiben zusammen — nach Space stand der Pfeil manchmal allein vor der Linie oder die Linie schon ein Stück weiter (bis zu 10 m). Jetzt endet sie genau am Pfeil.
-
-Cluster zuklappen blendet die Kamera-Spuren aus — Neigung, Drehung, Zoom, Position und Bildlage verschwinden, alles rutscht hoch; der Cluster zeigt weiter die Marker.</description>
 </item>
 </channel>
 </rss>
