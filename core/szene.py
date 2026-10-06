@@ -200,9 +200,15 @@ _WARTE_BILD_JS = """async () => {
     try { await window.__rzGebaeudeWarte();
           if (!fertig()) await new Promise((r) => { let d = false; const on = () => { if (d) return; d = true; try { m.off('idle', on); } catch (_) {} r(); };
                                                      try { m.on('idle', on); } catch (_) { r(); } setTimeout(on, 3000); }); } catch (_) {} }
-  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, __RZ_RUHE_MS__)));
+  // 05.10.2026 (Messung Weite 9:16, 20 s) — 20 ms statt 60 ms Pause: 197 → 167 ms je Bild (−15 %), Bilder gleich
+  // (PSNR 44 dB im Mittel) bis auf den Anfang: in den ersten Bildern war die blasse Gesamtrunde mit 20 ms noch nicht
+  // ganz gezeichnet → die ersten RUHE_ANLAUF Bilder behalten die alte Pause.
+  window.__rzBildNr = (window.__rzBildNr || 0) + 1;
+  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, window.__rzBildNr <= __RZ_ANLAUF__ ? __RZ_RUHE_ANLAUF_MS__ : __RZ_RUHE_MS__)));
   return performance.now() - t0;
-}""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "60") or 0)))   # 30.09.2026 Messung: feste Pause je Bild
+}""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "20") or 0))) \
+   .replace("__RZ_RUHE_ANLAUF_MS__", str(int(os.environ.get("RZ_BILD_RUHE_ANLAUF_MS", "60") or 0))) \
+   .replace("__RZ_ANLAUF__", "8")   # 30.09.2026 Messung: feste Pause je Bild; 05.10.2026: 20 ms, Anlauf 60 ms
 # 29.09.2026 — Vorwärmen: kürzere Wartegrenze je Halt (sonst bis 5 s × 200 Halte bei kaltem Speicher/langsamer Leitung)
 # Prüfstand: Zeiten des letzten Video-Renders (Hänger an der Warte-Grenze, längstes Warten, ms je Schritt)
 LETZTE_ZEITEN: dict = {}
@@ -513,7 +519,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")
@@ -716,6 +722,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             _haenger, _warte_max = 0, 0.0
             _hinweis_alt = ""
             _t_bilder = time.time()
+            await page.evaluate("() => { window.__rzBildNr = 0; }")   # 05.10.2026 — Anlauf-Pause zählt ab dem ersten Bild
             try:
                 for frame in range(total_frames):
                     if is_cancelled and is_cancelled():

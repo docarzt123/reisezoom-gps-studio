@@ -124,6 +124,11 @@ async def main():
         # prüft den Animator, also erst dorthin wechseln.
         await pg.evaluate("switchMod('animator')")
         await pg.wait_for_timeout(800)
+        # 06.10.2026 — Verteilung und Pausen stehen in „Format & Ablauf“ unter „Mehr“: aufklappen wie ein Mensch
+        await pg.evaluate("""() => { const h = document.querySelector('[data-accordion-section="format"] .section-collapse-header');
+            if (h && h.getAttribute('aria-expanded') !== 'true') h.click();
+            const m = document.getElementById('anim-format-mehr'); if (m) m.open = true; }""")
+        await pg.wait_for_timeout(300)
 
         print("\n━━━ 1. Die Auswahl selbst ━━━")
         opts = await pg.eval_on_selector_all("#anim-pace option", "e=>e.map(x=>x.value)")
@@ -302,6 +307,8 @@ async def main():
             // Der Knopf fragt zuerst nach dem Speicherort — ohne diesen Mock
             // kommt der Render nie bis zur Übergabe.
             pick_save_path: async () => "/tmp/rz_test_render.mp4",
+            export_ziel_vorschlag: async () => ({ ordner: "/tmp", name: "rz_test_render.mp4", pfad: "/tmp/rz_test_render.mp4" }),
+            export_ziel_freigeben: async () => ({ ok: true, pfad: "/tmp/rz_test_render.mp4" }),
             animator_start_render: async (p) => { window.__renderParams = p; return {ok: true}; },
           }, { get: (z, n) => (n in z) ? z[n] : echt[n] });
         })()""")
@@ -315,7 +322,12 @@ async def main():
         # 03.09.2026 — der Prüfstand fährt den Mapbox-Stil; der Rechtelage-Hinweis
         # vor dem Video-Render (Kartenanbieter-Umbau) ist hier nicht Gegenstand.
         await pg.evaluate("window.__rzRightsAck = true")
-        await pg.click("#anim-render")
+        # 05.10.2026 — „Video exportieren“ sitzt als Hauptknopf oben rechts (#anim-hauptaktion); #anim-render ist versteckt
+        await pg.click("#anim-hauptaktion")
+        # 06.10.2026 — die Hauptaktion öffnet den Export-Dialog; „Exportieren“ startet den Render
+        await pg.wait_for_selector('.rz-exp-overlay [data-tat="los"]', timeout=10000)
+        await pg.wait_for_timeout(300)
+        await pg.click('.rz-exp-overlay [data-tat="los"]')
         await pg.wait_for_timeout(1500)
         prm = await pg.evaluate("window.__renderParams")
         check("der Render wurde überhaupt angestoßen", bool(prm), str(prm)[:60])

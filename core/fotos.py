@@ -266,12 +266,18 @@ def ordner_liste(conn: sqlite3.Connection, pruefen: bool = True) -> list:
     with db_sperre():
         gemerkt = {r["wurzel"]: dict(r) for r in conn.execute("SELECT * FROM foto_laufwerk")}
         zeilen = []
-        for r in conn.execute("SELECT path, added_at, recursive FROM foto_ordner ORDER BY path").fetchall():
-            p = r["path"]
-            n = conn.execute("SELECT COUNT(*) FROM fotos WHERE ordner = ?", (p,)).fetchone()[0]
-            fehlt = conn.execute("SELECT COUNT(*) FROM fotos WHERE ordner = ? AND fehlt_seit IS NOT NULL",
-                                 (p,)).fetchone()[0]
-            zeilen.append((p, r["added_at"], r["recursive"], n, fehlt))
+        # 06.10.2026 — je Ordner zwei Zählungen waren je zwei Durchgänge über dessen Fotos; jetzt eine gruppierte
+        # Abfrage über den Ordner-Index für alle Ordner zusammen (gleiche Zahlen: exakt `ordner = Wurzel`).
+        wurzeln = conn.execute("SELECT path, added_at, recursive FROM foto_ordner ORDER BY path").fetchall()
+        zahlen = {}
+        if wurzeln:
+            ph = ",".join("?" * len(wurzeln))
+            for o, n, fehlt in conn.execute(f"SELECT ordner, COUNT(*), SUM(fehlt_seit IS NOT NULL) FROM fotos "
+                                            f"WHERE ordner IN ({ph}) GROUP BY ordner", [r["path"] for r in wurzeln]):
+                zahlen[o] = (int(n or 0), int(fehlt or 0))
+        for r in wurzeln:
+            n, fehlt = zahlen.get(r["path"], (0, 0))
+            zeilen.append((r["path"], r["added_at"], r["recursive"], n, fehlt))
     tab = _lw.mount_tabelle()
     raus, merken = [], []
     for p, added, rek, n, fehlt in zeilen:
@@ -527,16 +533,31 @@ def inhalt_id(path: Path, size: int) -> str:
     Ganze Dateien zu hashen wäre bei RAWs und Videos zu teuer; Anfang und Ende
     genügen, um eine umbenannte oder verschobene Datei wiederzufinden.
     """
-    h = hashlib.sha1()
-    h.update(str(size).encode())
     try:
-        with open(path, "rb") as f:
-            h.update(f.read(65536))
-            if size > 131072:
-                f.seek(-65536, os.SEEK_END)
-                h.update(f.read(65536))
+        kopf, ende = kopf_und_ende(path, size)
     except OSError:
         return ""
+    return kennung_aus(kopf, ende, size)
+
+
+def kopf_und_ende(path, size: int) -> tuple:
+    """Die ersten und (bei Dateien über 128 KB) die letzten 64 KB — in EINEM Öffnen (06.10.2026: Schritt 3 nimmt
+    daraus Kennung UND Schnellbild, statt die Datei zweimal übers NAS zu öffnen). OSError, wenn nicht lesbar."""
+    with open(path, "rb") as f:
+        kopf = f.read(65536)
+        ende = b""
+        if size > 131072:
+            f.seek(-65536, os.SEEK_END)
+            ende = f.read(65536)
+    return kopf, ende
+
+
+def kennung_aus(kopf: bytes, ende: bytes, size: int) -> str:
+    h = hashlib.sha1()
+    h.update(str(size).encode())
+    h.update(kopf)
+    if size > 131072:
+        h.update(ende)
     return f"{size}-{h.hexdigest()[:12]}"
 
 
@@ -939,6 +960,40 @@ class RestZeit:
         return {"a": self.a, "b": self.b, "mb_je_datei": self.mb_je_datei}
 
 
+class RestZeitDateien:
+    """Restzeit von Schritt 2 aus der Dateizahl: Sekunden je Datei, Median der letzten Stapel.
+
+    05.10.2026 (Marc: „die Dauer beim Einlesen springt viel zu wild hin und her") — seit `-fast` liest exiftool nur den
+    Dateikopf, die Dateigröße zählt kaum noch. Das alte Modell (je Datei + je MB, `RestZeit`) kippte in Video-Ordnern
+    (Stapel mit 20–40 GB neben 2 GB) ständig um und rechnete mit den Terabyte des Rests riesige Sprünge. Dazu messen
+    zwei Leser die Zeit je Stapel nicht mehr sauber. Jetzt: Wanduhr-Zeit zwischen zwei fertigen Stapeln, je Datei, Median
+    über die letzten FENSTER Stapel (Hänger und Ausreißer verschieben ihn kaum). Gleiche Schnittstelle wie `RestZeit`."""
+    FENSTER = 40
+
+    def __init__(self, alt: Optional[dict] = None):
+        from collections import deque
+        self.werte = deque(maxlen=self.FENSTER)
+        s = (alt or {}).get("s_je_datei")
+        self.a = float(s) if s else None
+        self.b = 0.0
+        if self.a:
+            for _ in range(5):          # gemerktes Tempo als Vorwissen, echte Stapel lösen es ab
+                self.werte.append(self.a)
+
+    def stapel(self, n: int, mb: float, sek: float) -> None:
+        if n <= 0 or sek <= 0:
+            return
+        self.werte.append(sek / n)
+        w = sorted(self.werte)
+        self.a = w[len(w) // 2]
+
+    def rest(self, n: int, mb: float = 0.0) -> Optional[float]:
+        return None if self.a is None else max(0.0, self.a * n)
+
+    def merken(self) -> dict:
+        return {"s_je_datei": self.a, "a": self.a, "b": 0.0}
+
+
 def tempo_lesen(conn: sqlite3.Connection, schluessel: str = "fotos_tempo2") -> Optional[dict]:
     r = conn.execute("SELECT value FROM meta WHERE key = ?", (schluessel,)).fetchone()
     try:
@@ -947,7 +1002,7 @@ def tempo_lesen(conn: sqlite3.Connection, schluessel: str = "fotos_tempo2") -> O
         return None
 
 
-def tempo_merken(conn: sqlite3.Connection, rz: "RestZeit", schluessel: str = "fotos_tempo2") -> None:
+def tempo_merken(conn: sqlite3.Connection, rz, schluessel: str = "fotos_tempo2") -> None:
     if rz.a is None:
         return
     geduldig(conn.execute, "INSERT INTO meta(key, value) VALUES(?, ?) "
@@ -964,7 +1019,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     offen = _offene(conn, grenze, nur)
     gesamt = len(offen)
     fertig = fehler = fern = haenger_n = 0
-    rz = RestZeit(tempo_lesen(conn))
+    rz = RestZeitDateien(tempo_lesen(conn))
     rest_mb = sum(float(r["size"] or 0) for r in offen) / 1e6
     if schaetzung:
         try: schaetzung(rz.rest(gesamt, rest_mb))
@@ -1026,6 +1081,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         # beendet `_on_closing` exiftool zuvor, dann kehrt der Faden sofort zurück.
         leser.shutdown(wait=True, cancel_futures=True)
 
+    t_fertig_vorher = time.monotonic()
     while i < gesamt or vorrat:
         if stop and stop():
             _vorrat_weg()
@@ -1175,8 +1231,12 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                      "" if _wach_aktiv() else " (App Nap möglich)")
             mess = dict.fromkeys(mess, 0) | {"mb": 0.0}
         # nur volle Stapel lesen das Tempo — übersprungene (Laufwerk weg) wären „unendlich schnell"
+        # Wanduhr-Zeit seit dem vorigen fertigen Stapel (mit zwei Lesern überlappen sich die Stapel)
+        t_jetzt = time.monotonic()
+        wand = t_jetzt - t_fertig_vorher
+        t_fertig_vorher = t_jetzt
         if teil and not weg:
-            rz.stapel(len(teil), mb_stapel, time.monotonic() - t_stapel)
+            rz.stapel(len(teil), mb_stapel, wand)
             stapel_n += 1
             if stapel_n % 20 == 0:
                 tempo_merken(conn, rz)
@@ -1247,12 +1307,68 @@ def ohne_bild(conn: sqlite3.Connection, ordner: Optional[list] = None) -> int:
                             "AND art = ? AND COALESCE(thumb, 0) = 0" + zus, (ART_FOTO, *w)).fetchone()[0])
 
 
+SCHNELL_ENDUNGEN = {".jpg", ".jpeg"}
+_rollen_sperre = threading.Lock()
+
+
+def _leser_setzen(rollen) -> None:
+    """Pool-Initialisierer: jeder Bild-Faden bekommt seinen exiftool-Leser („read"/„read2", höchstens zwei — NAS mit
+    Festplatten, s. LESER_FERN). Vorher gingen alle RAW-Vorschauen durch EINEN Prozess (06.10.2026)."""
+    with _rollen_sperre:
+        cexif.LESE_ROLLE.wert = next(rollen, "read")
+
+
+def _jpg_geschwister(conn: sqlite3.Connection, r) -> Optional[tuple]:
+    """Für eine RAW-Datei: das gleichnamige JPG im selben Ordner mit fertigem Vorschaubild → (pfad, fp, thumb)."""
+    p = Path(r["path"])
+    if p.suffix.lower() in SCHNELL_ENDUNGEN or not cexif.is_raw(str(p)):
+        return None
+    stamm = str(p.with_suffix(""))
+    z = conn.execute("SELECT path, fp, thumb FROM fotos WHERE ordner = ? AND thumb IN (1, 2) AND path IN (?, ?, ?, ?)",
+                     (r["ordner"], stamm + ".jpg", stamm + ".JPG", stamm + ".jpeg", stamm + ".JPEG")).fetchone()
+    return (z["path"], z["fp"], z["thumb"]) if z else None
+
+
 def _bild_versuch(arg: tuple) -> tuple:
     """(Pfad, Bild ok?, Kennung) — die Kennung hier, weil die Datei fürs Bild gerade gelesen wurde (Schritt 2 lässt
-    sie bei Fotos aus, 05.10.2026)."""
-    path, fp, size, kennung = arg
+    sie bei Fotos aus, 05.10.2026). `ok`: True (volles Bild), "schnell" (eingebettetes EXIF-Vorschaubild, 06.10.2026),
+    False (kein Bild möglich), None (gerade nicht lesbar)."""
+    path, fp, size, kennung = arg[:4]
+    schnell = len(arg) > 4 and arg[4]
+    geschwister = arg[5] if len(arg) > 5 else None
+    vorrat = len(arg) > 6 and arg[6]
+    if geschwister:
+        # 06.10.2026 — RAW+JPG-Paar: die RAW übernimmt das Vorschaubild des JPG (kein exiftool übers NAS)
+        gp, gfp, gthumb = geschwister
+        daten = cphotos.thumb_gecacht(gp, cphotos.THUMB_RASTER_PX, gfp, nur_cache=True)
+        if daten and cphotos.thumb_ablegen(path, cphotos.THUMB_RASTER_PX, fp, daten):
+            if not kennung:
+                try:
+                    kopf, ende = kopf_und_ende(path, int(size or 0))
+                    kennung = kennung_aus(kopf, ende, int(size or 0))
+                except OSError:
+                    return path, None, kennung
+            return path, ("schnell" if gthumb == 2 else True), kennung
+    if schnell and Path(path).suffix.lower() in SCHNELL_ENDUNGEN:
+        # 06.10.2026 (Marc: „B ja") — EIN Öffnen, 64 KB vorn (+ 64 KB hinten für die Kennung) statt der ganzen Datei
+        try:
+            kopf, ende = kopf_und_ende(path, int(size or 0))
+        except OSError:
+            return path, None, kennung
+        if not kennung:
+            kennung = kennung_aus(kopf, ende, int(size or 0)) if size else None
+        daten = cphotos.schnellbild_aus_kopf(kopf, cphotos.THUMB_RASTER_PX)
+        if daten and cphotos.thumb_ablegen(path, cphotos.THUMB_RASTER_PX, fp, daten):
+            return path, "schnell", kennung
     try:
-        ok = bool(cphotos.thumb_gecacht(path, cphotos.THUMB_RASTER_PX, fp))
+        if vorrat:
+            # 06.10.2026 (Marc: „A") — Inhaltssuche an: EIN Dekodieren für Rasterbild UND 600er (→ Vorrat der Suche)
+            klein, gross = cphotos.thumb_und_quelle(path, fp)
+            ok = bool(klein)
+            if gross:
+                cphotos.vorrat_ablegen(path, gross)
+        else:
+            ok = bool(cphotos.thumb_gecacht(path, cphotos.THUMB_RASTER_PX, fp))
     except Exception:  # noqa: BLE001
         ok = False
     # Audit B-5 (05.10.2026): fiel das NAS mitten im Stapel weg, bekam die Datei dauerhaft thumb = -1 und kam nie
@@ -1269,7 +1385,8 @@ def _bild_versuch(arg: tuple) -> tuple:
 
 def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                stop: Optional[Callable] = None, aktuell: Optional[Callable] = None,
-               schaetzung: Optional[Callable] = None, ordner: Optional[list] = None) -> dict:
+               schaetzung: Optional[Callable] = None, ordner: Optional[list] = None,
+               schnell: bool = False, vorrat: bool = False) -> dict:
     """Vorschaubilder für alles Gelesene ohne Bild. Abbrechbar; macht beim nächsten Lauf weiter.
 
     Audit B-6 (05.10.2026): nur in erreichbaren Ordnern — unterwegs ohne NAS lief sonst alle 20 Minuten ein Durchgang
@@ -1277,8 +1394,11 @@ def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     if ordner is None:
         ordner = erreichbare_ordner(conn)
     zus, w = _nur_ordner(ordner)
-    offen = conn.execute("SELECT path, fp, size, inhalt_id FROM fotos WHERE fehlt_seit IS NULL AND indexed_at IS NOT NULL "
-                         "AND art = ? AND COALESCE(thumb, 0) = 0" + zus + " ORDER BY path", (ART_FOTO, *w)).fetchall()
+    # 06.10.2026 — je Ordner erst die JPEGs: eine RAW-Datei daneben übernimmt dann deren Vorschaubild (RAW+JPG-Paar)
+    offen = conn.execute("SELECT path, ordner, fp, size, inhalt_id FROM fotos WHERE fehlt_seit IS NULL AND indexed_at IS NOT NULL "
+                         "AND art = ? AND COALESCE(thumb, 0) = 0" + zus +
+                         " ORDER BY ordner, CASE WHEN lower(path) LIKE '%.jpg' OR lower(path) LIKE '%.jpeg' THEN 0 ELSE 1 END, path",
+                         (ART_FOTO, *w)).fetchall()
     gesamt = len(offen)
     fertig = ok_n = fehl = fern = 0
     rz = RestZeit(tempo_lesen(conn, "fotos_tempo3"))
@@ -1289,6 +1409,7 @@ def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         try: schaetzung(rz.rest(gesamt, rest_mb))
         except Exception: pass
     stapel_n = 0
+    schnell_n = 0
     mess = {"n": 0, "mb": 0.0, "s": 0.0}
     i = 0
     while i < gesamt:
@@ -1298,16 +1419,20 @@ def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         i += len(teil)
         t0 = time.monotonic()
         fern_hier = ist_fern(teil[0]["path"])
-        da = [r for r in teil if Path(r["path"]).is_file()]
-        fern += len(teil) - len(da)
+        # 06.10.2026 — kein `is_file` je Datei mehr vorweg (auf dem NAS 14–35 ms je Aufruf): der Leseversuch merkt selbst,
+        # wenn eine Datei fehlt (→ None = „gerade nicht lesbar", zählt unten als fern)
+        da = list(teil)
         if aktuell and da:
             try: aktuell(da[0]["path"], {})
             except Exception: pass
         faeden = BILDER_FAEDEN_FERN if fern_hier else BILDER_FAEDEN
         ergebnis = []
         if da:
-            with ThreadPoolExecutor(max_workers=faeden) as pool:
-                ergebnis = list(pool.map(_bild_versuch, [(r["path"], r["fp"], r["size"], r["inhalt_id"]) for r in da]))
+            rollen = iter(_LESER_ROLLEN * faeden)
+            vorrat_hier = bool(vorrat) and cphotos.vorrat_anzahl() < cphotos.VORRAT_MAX
+            with ThreadPoolExecutor(max_workers=faeden, initializer=_leser_setzen, initargs=(rollen,)) as pool:
+                ergebnis = list(pool.map(_bild_versuch, [(r["path"], r["fp"], r["size"], r["inhalt_id"], schnell,
+                                                          _jpg_geschwister(conn, r), vorrat_hier) for r in da]))
         for pfad_ok, gut, kennung in ergebnis:
             if gut is None:     # gerade nicht lesbar → thumb bleibt 0, der nächste Lauf versucht es wieder
                 fern += 1
@@ -1315,8 +1440,10 @@ def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                     geduldig(conn.execute, "UPDATE fotos SET inhalt_id = COALESCE(?, inhalt_id) WHERE path = ?",
                              (kennung, pfad_ok))
                 continue
+            # thumb: 1 = volles Bild, 2 = Schnellbild (wird beim Ansehen scharf), -1 = keins möglich
             geduldig(conn.execute, "UPDATE fotos SET thumb = ?, inhalt_id = COALESCE(?, inhalt_id) WHERE path = ?",
-                     (1 if gut else -1, kennung, pfad_ok))
+                     (2 if gut == "schnell" else 1 if gut else -1, kennung, pfad_ok))
+            schnell_n += 1 if gut == "schnell" else 0
             ok_n += 1 if gut else 0
             fehl += 0 if gut else 1
         geduldig(conn.commit)
@@ -1331,10 +1458,10 @@ def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             if stapel_n % 10 == 0:
                 tempo_merken(conn, rz, "fotos_tempo3")
                 geduldig(conn.commit)
-                log.info("[fotos] Schritt 3 gemessen: %d Bilder, %.0f MB in %.0f s (%.2f s/Bild, %d Fäden)%s",
-                         mess["n"], mess["mb"], mess["s"], mess["s"] / mess["n"], faeden,
+                log.info("[fotos] Schritt 3 gemessen: %d Bilder, %.0f MB in %.0f s (%.2f s/Bild, %d Fäden, %d Schnellbilder)%s",
+                         mess["n"], mess["mb"], mess["s"], mess["s"] / mess["n"], faeden, schnell_n - mess.get("s0", 0),
                          " (Netzlaufwerk)" if fern_hier else "")
-                mess = {"n": 0, "mb": 0.0, "s": 0.0}
+                mess = {"n": 0, "mb": 0.0, "s": 0.0, "s0": schnell_n}
         if schaetzung:
             try: schaetzung(rz.rest(gesamt - i, rest_mb))
             except Exception: pass
@@ -1346,7 +1473,7 @@ def durchgang3(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     if stapel_n:
         tempo_merken(conn, rz, "fotos_tempo3")
         geduldig(conn.commit)
-    return {"fertig": fertig, "gesamt": gesamt, "bilder": ok_n, "ohne": fehl, "fern": fern,
+    return {"fertig": fertig, "gesamt": gesamt, "bilder": ok_n, "ohne": fehl, "fern": fern, "schnell": schnell_n,
             "abbruch": bool(stop and stop())}
 
 
@@ -1371,6 +1498,8 @@ def fps_lesen(conn: sqlite3.Connection, pfade: list) -> dict:
 # des Bereichs erneut läuft. Auf einem NAS im WLAN kostet ein solcher Durchlauf
 # Minuten (gemessen am 12.09.2026), deshalb nicht bei jedem Öffnen.
 NACHSCHAU_STUNDEN = 6
+# 06.10.2026 — solange noch gelesen wird (Ungelesenes/Vorschaubilder offen), wartet die Nachschau bis zu so lange
+NACHSCHAU_OFFEN_MAX_H = 24
 
 
 def geduldig(fn, *args, versuche: int = 10, pause: float = 0.4):
@@ -1668,21 +1797,26 @@ def jahre(conn: sqlite3.Connection) -> list:
 def stand(conn: sqlite3.Connection) -> dict:
     """Was der Bestand hält — und was ihm fehlt. Die fehlenden Angaben stehen
     sichtbar im Archiv, statt still zu fehlen (Marc, Q16)."""
-    eine = lambda sql, w=(): conn.execute(sql, w).fetchone()[0]  # noqa: E731
+    # 06.10.2026 (Marc: „im Archiv, wenn man auf Fotos geht, muss er immer erst lesen") — neun Zählungen waren neun
+    # Durchgänge über den ganzen Bestand (370.000 Zeilen: ~240 ms, neben einem laufenden Einlesen ein Vielfaches).
+    # Jetzt EIN Durchgang mit Summen je Bedingung; die Zahlen sind dieselben (tests/test_fotos_oeffnen_schnell.py).
+    r = conn.execute(
+        "SELECT"
+        " SUM(fehlt_seit IS NULL),"
+        " SUM(fehlt_seit IS NULL AND art = ?),"
+        " SUM(fehlt_seit IS NULL AND art = ?),"
+        " SUM(fehlt_seit IS NULL AND indexed_at IS NULL),"
+        " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND art = ? AND COALESCE(thumb, 0) = 0),"
+        " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND (lat IS NULL OR lon IS NULL)),"
+        " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND aufnahme_utc IS NULL),"
+        " SUM(fehlt_seit IS NULL AND aufnahme_utc IS NOT NULL AND tz_bekannt = 0),"
+        " SUM(fehlt_seit IS NOT NULL)"
+        " FROM fotos", (ART_FOTO, ART_VIDEO, ART_FOTO)).fetchone()
+    z = [int(x or 0) for x in r]
     return {
-        "gesamt": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL"),
-        "fotos": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL AND art = ?", (ART_FOTO,)),
-        "videos": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL AND art = ?", (ART_VIDEO,)),
-        "ungelesen": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL AND indexed_at IS NULL"),
-        "ohne_bild": ohne_bild(conn),
-        "ohne_koordinate": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL "
-                                "AND indexed_at IS NOT NULL AND (lat IS NULL OR lon IS NULL)"),
-        "ohne_zeit": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL "
-                          "AND indexed_at IS NOT NULL AND aufnahme_utc IS NULL"),
-        "zeit_geraten": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NULL "
-                             "AND aufnahme_utc IS NOT NULL AND tz_bekannt = 0"),
-        "fehlt": eine("SELECT COUNT(*) FROM fotos WHERE fehlt_seit IS NOT NULL"),
-        "ordner": eine("SELECT COUNT(*) FROM foto_ordner"),
+        "gesamt": z[0], "fotos": z[1], "videos": z[2], "ungelesen": z[3], "ohne_bild": z[4],
+        "ohne_koordinate": z[5], "ohne_zeit": z[6], "zeit_geraten": z[7], "fehlt": z[8],
+        "ordner": conn.execute("SELECT COUNT(*) FROM foto_ordner").fetchone()[0],
     }
 
 

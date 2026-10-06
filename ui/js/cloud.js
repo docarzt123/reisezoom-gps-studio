@@ -60,7 +60,12 @@
       el.classList.add("warnung");
     } else if (auto.status === "wartet") {
       el.textContent = "☁…";
-      el.title = T("cloud.wartet", "Änderungen erkannt — Hochladen startet gleich.");
+      // 05.10.2026 (Audit K-12) — wartet es schon lange, ändert sich die Bibliothek laufend (z. B. Fotos einlesen)
+      const lange = auto.seit && (Date.now() / 1000 - auto.seit) > 300;
+      el.title = lange
+        ? T("cloud.wartet_lange", "Änderungen erkannt — hochgeladen wird, sobald die Bibliothek 90 Sekunden ruht. Seit {zeit} ändert sie sich laufend (z. B. weil Fotos eingelesen werden).")
+            .replace("{zeit}", new Date(auto.seit * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))
+        : T("cloud.wartet", "Änderungen erkannt — Hochladen startet gleich.");
     } else {
       el.textContent = "☁";
       el.title = T("cloud.aktuell", "Archiv ist abgeglichen") +

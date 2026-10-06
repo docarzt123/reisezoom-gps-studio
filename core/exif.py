@@ -610,25 +610,7 @@ class _ExifToolDaemon:
                 return []
         except (TypeError, ValueError):
             return []
-        # 22.09.2026 (Windows-Tester, v0.9.721: ALLE 1433 Fotos „keine Aufnahmedaten",
-        # obwohl Lightroom GPS und Zeit sieht): exiftool schreibt `SourceFile` auf
-        # Windows mit Schrägstrichen (C:/Users/…), die App fragt mit Backslashes —
-        # kein Satz fand seine Datei. Hier steht `SourceFile` deshalb wieder genau
-        # so, wie der Aufrufer den Pfad übergeben hat.
-        def _schl(x: str) -> str:
-            # Trennzeichen und Groß/Klein egal (Windows: C:/a/b == C:\a\B)
-            return str(x).replace("\\", "/").lower()
-        gegeben = {_schl(x): str(x) for x in paths}
-        for info in data:
-            if not isinstance(info, dict):
-                continue
-            q = str(info.get("SourceFile") or "")
-            treffer = gegeben.get(_schl(q))
-            if treffer is None and len(paths) == 1:
-                treffer = str(paths[0])
-            if treffer is not None:
-                info["SourceFile"] = treffer
-        return data
+        return _quellen_zuordnen(data, paths)
 
     def read_binary_tag(self, path: str, tag: str) -> Optional[bytes]:
         """Liest einen Binary-Tag (z.B. PreviewImage) als bytes."""
@@ -1101,6 +1083,27 @@ def read_meta_viele(paths: list[str], fast: bool = False) -> dict:
     return raus
 
 
+def _quellen_zuordnen(data: list, paths: list) -> list:
+    """`SourceFile` jeder exiftool-Antwort wieder genau so schreiben, wie der Aufrufer den Pfad übergeben hat.
+
+    22.09.2026 (Windows-Tester, v0.9.721: ALLE 1433 Fotos „keine Aufnahmedaten", obwohl Lightroom GPS und Zeit sieht):
+    exiftool schreibt `SourceFile` auf Windows mit Schrägstrichen (C:/Users/…), die App fragt mit Backslashes — kein
+    Satz fand seine Datei. Trennzeichen und Groß/Klein zählen deshalb nicht. 05.10.2026: auch für `read_beides_viele`
+    (der gemeinsame Aufruf ging an dieser Zuordnung vorbei — Wächter `tests/test_fotos_windows_pfade.py`)."""
+    def _schl(x: str) -> str:
+        return str(x).replace("\\", "/").lower()
+    gegeben = {_schl(x): str(x) for x in paths}
+    for info in data:
+        if not isinstance(info, dict):
+            continue
+        treffer = gegeben.get(_schl(str(info.get("SourceFile") or "")))
+        if treffer is None and len(paths) == 1:
+            treffer = str(paths[0])
+        if treffer is not None:
+            info["SourceFile"] = treffer
+    return data
+
+
 def read_beides_viele(paths: list[str], fast: bool = False, rolle: str = "read", fern: bool = False,
                       mb: float = 0.0) -> tuple:
     """Kernwerte UND alle Tags in EINEM exiftool-Aufruf: ({Pfad: Kernwerte}, {Pfad: {Tag: Text}}).
@@ -1126,6 +1129,7 @@ def read_beides_viele(paths: list[str], fast: bool = False, rolle: str = "read",
         saetze = json.loads(out or "[]")
         if not isinstance(saetze, list):
             saetze = []
+        saetze = _quellen_zuordnen(saetze, paths)
     except (TypeError, ValueError):
         _log.warning("read_beides_viele: exiftool-Antwort nicht lesbar (%d Dateien)", len(paths))
         saetze = []
@@ -1685,16 +1689,22 @@ def extract_video_thumbnail(path: str) -> Optional[bytes]:
     return None
 
 
-def extract_raw_preview(path: str) -> Optional[bytes]:
+# 06.10.2026 (Log-Analyse Einlesen) — Schritt 3 liest Vorschaubilder in 2–4 Fäden, RAW-Vorschauen gingen aber alle
+# durch EINEN exiftool-Prozess (strikt nacheinander). Ein Faden kann sich hier seinen Leser setzen („read"/„read2").
+LESE_ROLLE = _threading.local()
+
+
+def extract_raw_preview(path: str, rolle: Optional[str] = None) -> Optional[bytes]:
     """Extrahiert das eingebettete Preview-JPEG aus einer RAW-Datei.
     Versucht in dieser Reihenfolge: PreviewImage, JpgFromRaw, ThumbnailImage."""
+    rolle = rolle or getattr(LESE_ROLLE, "wert", None) or "read"
     for tag in ("PreviewImage", "JpgFromRaw", "ThumbnailImage"):
         # 14.09.2026 — Daemon je Aufruf holen, nicht einmal vor der Schleife:
         # nach einem Hänger beim ersten Tag ist der Prozess gekillt, und die
         # nächsten Tags liefen sonst in die tote Pipe (BrokenPipe, dazu ein
         # irreführendes zweites „HÄNGER (>0s)" im Log).
         try:
-            daemon = _ensure_daemon()
+            daemon = _ensure_daemon(rolle)
         except ExifToolMissingError:
             return None
         data = daemon.read_binary_tag(path, tag)
@@ -1816,8 +1826,10 @@ def extract_heif_thumbnail(path: str, size: int = 220) -> Optional[bytes]:
         from PIL import Image, ImageOps
         import io as _io
         img = Image.open(path)
-        img = ImageOps.exif_transpose(img)
+        # 06.10.2026 (Log-Analyse Einlesen) — erst verkleinern, dann drehen: vorher drehte exif_transpose das volle
+        # 12-Megapixel-Bild (wie bei JPEG schon seit 04.10.2026 umgestellt).
         img.thumbnail((size, size), Image.LANCZOS)
+        img = ImageOps.exif_transpose(img)
         if img.mode != "RGB":
             img = img.convert("RGB")
         buf = _io.BytesIO()

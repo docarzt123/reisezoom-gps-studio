@@ -9,6 +9,7 @@ eine `.fit`/`.nmea`/`.kml`/… einfach wie eine GPX.
 Unterstützte Eingabe-Formate:
   Stufe 1: FIT (.fit) · NMEA (.nmea/.log/.txt) · KML/KMZ (.kml/.kmz)
   Stufe 2: TCX (.tcx) · GeoJSON (.geojson/.json)
+  Block 5 (05.10.2026): IGC (.igc) · DJI-Drohnen-Untertitel (.srt, nur mit Positionen)
 
 Öffentliche API:
   IMPORT_EXTS            – Menge der konvertierbaren Endungen (ohne .gpx)
@@ -32,7 +33,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
 
@@ -81,6 +82,8 @@ _DISPATCH = {
     ".tcx": "tcx",
     ".geojson": "geojson",
     ".json": "sniff_json",  # GeoJSON wenn es so aussieht
+    ".igc": "igc",          # 05.10.2026 (Block 5, I-089) — Gleitschirm/Segelflug-Logger
+    ".srt": "sniff_srt",    # 05.10.2026 (Block 5, I-089/I-020) — DJI-Drohnen-Telemetrie neben dem Video
 }
 
 IMPORT_EXTS = set(_DISPATCH.keys())
@@ -412,6 +415,139 @@ def _parse_geojson(path: str) -> List[Point]:
     return pts
 
 
+def _parse_igc(path: str) -> List[tuple]:
+    """IGC (FAI-Flugschreiber-Format, 05.10.2026, Block 5 / I-089): Gleitschirm, Drachen, Segelflug.
+
+    H-Zeile `HFDTE` = Datum (TTMMJJ, auch `HFDTEDATE:TTMMJJ,nn`), B-Zeilen = ein Punkt:
+    `B HHMMSS DDMMmmmN DDDMMmmmE A PPPPP GGGGG` (Zeit UTC, Breite/Länge in Grad+Minuten·1000, Gültigkeit A/V,
+    Druckhöhe, GPS-Höhe in m). Höhe: GPS-Höhe, wenn vorhanden (≠ 0), sonst Druckhöhe; die Druckhöhe geht
+    zusätzlich als Sensorwert mit. Mitternacht: läuft die Uhr rückwärts, beginnt ein neuer Tag."""
+    datum = None
+    rows: List[tuple] = []
+    letzte_s = None
+    tag_plus = 0
+    with open(path, "r", encoding="ascii", errors="replace") as fh:
+        for raw in fh:
+            z = raw.strip()
+            if z.startswith("HFDTE"):
+                m = re.search(r"(\d{6})", z[5:])
+                if m:
+                    try:
+                        datum = datetime.strptime(m.group(1), "%d%m%y").replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        datum = None
+                continue
+            if not z.startswith("B") or len(z) < 35:
+                continue
+            try:
+                hh, mi, ss = int(z[1:3]), int(z[3:5]), int(z[5:7])
+                lat = int(z[7:9]) + int(z[9:14]) / 60000.0
+                if z[14] == "S":
+                    lat = -lat
+                lon = int(z[15:18]) + int(z[18:23]) / 60000.0
+                if z[23] == "W":
+                    lon = -lon
+                druck = int(z[25:30]) if z[25:30].strip("-").isdigit() else None
+                gnss = int(z[30:35]) if z[30:35].strip("-").isdigit() else None
+            except (ValueError, IndexError):
+                continue
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180) or (lat == 0 and lon == 0):
+                continue
+            sek = hh * 3600 + mi * 60 + ss
+            if letzte_s is not None and sek < letzte_s - 3600:
+                tag_plus += 1
+            letzte_s = sek
+            tiso = None
+            if datum is not None:
+                tiso = (datum + timedelta(days=tag_plus, seconds=sek)).isoformat()
+            ele = float(gnss) if gnss not in (None, 0) else (float(druck) if druck is not None else None)
+            extra = {"baro_alt": float(druck)} if druck not in (None, 0) else {}
+            rows.append((lat, lon, ele, tiso, extra))
+    return rows
+
+
+# DJI schreibt zu jedem Video eine .srt mit einem Untertitel je Bild. Drei Generationen:
+#   neu (Mini 3/4, Air 3, Mavic 3): „2023-06-16 14:23:45.123 … [latitude: 47.1] [longitude: 11.2] [rel_alt: 50.3 abs_alt: 650.1]"
+#   Mavic Air/Air 2:                „[latitude : 47.1] [longtitude : 11.2] [altitude: 650.1]" (ja, „longtitude")
+#   alt (Phantom 4, Mavic Pro):     „2017.08.05 14:11:51 … GPS(11.2,47.1,16) BAROMETER:1.9" (Länge zuerst!)
+#   Mini 2/Avata:                   „GPS (11.2, 47.1, 19), D 12.34m, H 5.60m" (H = Höhe über Start)
+_SRT_ZEIT = re.compile(r"(\d{4})[-.](\d{2})[-.](\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:[.,](\d{1,6}))?")
+_SRT_LAT = re.compile(r"\[\s*latitude\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
+_SRT_LON = re.compile(r"\[\s*long(?:t)?itude\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
+_SRT_ABS = re.compile(r"abs_alt\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
+_SRT_REL = re.compile(r"rel_alt\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
+_SRT_ALT = re.compile(r"\[\s*altitude\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
+_SRT_GPS = re.compile(r"GPS\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(?:\s*,\s*(-?\d+(?:\.\d+)?))?\s*\)")
+_SRT_BARO = re.compile(r"BAROMETER\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
+_SRT_H = re.compile(r"(?:^|[ ,])H\s+(-?\d+(?:\.\d+)?)\s*m", re.M)
+
+
+def _looks_like_dji_srt(path: str) -> bool:
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            head = fh.read(4096)
+    except OSError:
+        return False
+    return bool(_SRT_LAT.search(head) or _SRT_GPS.search(head))
+
+
+def _parse_dji_srt(path: str) -> List[tuple]:
+    """DJI-Drohnen-Untertitel (05.10.2026, Block 5, I-089/I-020) → ein Punkt je Sekunde.
+
+    Ein Block je Videobild (25–60 je Sekunde) — wir nehmen den ersten Block jeder neuen Sekunde, sonst bekäme ein
+    10-min-Flug 36.000 Punkte. Zeit: DJI schreibt die Ortszeit der Fernsteuerung OHNE Zone → wird ohne Zone
+    weitergegeben, der Inspektor zeigt dann „Zeit ohne Zone" (wie bei Kameras). Höhe: absolute Höhe (abs_alt/altitude),
+    sonst die Höhe über dem Startpunkt — dann als Sensorwert `rel_alt`, damit niemand sie für Meereshöhe hält."""
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        text = fh.read()
+    bloecke = re.split(r"\n\s*\n", text.replace("\r\n", "\n"))
+    rows: List[tuple] = []
+    letzte_sek = None
+    ohne_zeit = 0
+    for b in bloecke:
+        lat = lon = None
+        m1, m2 = _SRT_LAT.search(b), _SRT_LON.search(b)
+        if m1 and m2:
+            lat, lon = float(m1.group(1)), float(m2.group(1))
+        else:
+            g = _SRT_GPS.search(b)
+            if g:
+                lon, lat = float(g.group(1)), float(g.group(2))     # alte Modelle: Länge zuerst
+        if lat is None or lon is None or (lat == 0 and lon == 0) or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+        tiso = None
+        mz = _SRT_ZEIT.search(b)
+        if mz:
+            try:
+                y, mo, d, hh, mi, ss = (int(mz.group(i)) for i in range(1, 7))
+                frac = (mz.group(7) or "0")[:6].ljust(6, "0")
+                tiso = datetime(y, mo, d, hh, mi, ss, int(frac)).isoformat()
+            except ValueError:
+                tiso = None
+        sek = tiso[:19] if tiso else None
+        if sek is not None and sek == letzte_sek:
+            continue
+        if sek is None:
+            ohne_zeit += 1                       # ohne Zeit: jedes 30. Bild (≈ 1/s bei 30 fps)
+            if (ohne_zeit - 1) % 30:
+                continue
+        letzte_sek = sek
+        ele, extra = None, {}
+        ma, mr, mal = _SRT_ABS.search(b), _SRT_REL.search(b), _SRT_ALT.search(b)
+        if ma and float(ma.group(1)) != 0:
+            ele = float(ma.group(1))
+        elif mal and float(mal.group(1)) != 0:
+            ele = float(mal.group(1))
+        rel = mr.group(1) if mr else None
+        if rel is None:
+            mb, mh = _SRT_BARO.search(b), _SRT_H.search(b)
+            rel = (mb or mh).group(1) if (mb or mh) else None
+        if rel is not None:
+            extra["rel_alt"] = float(rel)
+        rows.append((lat, lon, ele, tiso, extra))
+    return rows
+
+
 def _looks_like_geojson(path: str) -> bool:
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
@@ -459,6 +595,13 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
             # ⚠️ library.fehler_grund erkennt diesen Satz wieder (alle Sprachen)
             raise TrackImportError(_i18n.t_aktiv(
                 "import.err_kein_nmea", "{ext}-Datei sieht nicht nach NMEA aus — kein Track erkannt.").replace("{ext}", str(ext)))
+    elif key == "sniff_srt":
+        if _looks_like_dji_srt(path):
+            key = "dji_srt"
+        else:
+            # ⚠️ library.fehler_grund erkennt diesen Satz wieder (alle Sprachen) — normale Film-Untertitel
+            raise TrackImportError(_i18n.t_aktiv(
+                "import.err_kein_dji", ".srt sieht nicht nach DJI-Drohnendaten aus — kein Track erkannt."))
     elif key == "sniff_json":
         key = "geojson" if _looks_like_geojson(path) else None
         if key is None:
@@ -466,7 +609,8 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
                 "import.err_kein_geojson", ".json sieht nicht nach GeoJSON-Track aus."))
     parser = {
         "fit": _parse_fit, "nmea": _parse_nmea, "kml": _parse_kml,
-        "kmz": _parse_kmz, "tcx": _parse_tcx, "geojson": _parse_geojson,
+        "kmz": _parse_kmz, "tcx": _parse_tcx, "geojson": _parse_geojson, "igc": _parse_igc,
+        "dji_srt": _parse_dji_srt,
     }[key]
     rows = parser(path, meta_out) if key == "fit" else parser(path)
     if not rows:

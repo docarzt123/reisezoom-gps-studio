@@ -404,7 +404,8 @@ def _bild_holen(path: str, fp: Optional[str], art: str = "foto") -> tuple:
         daten = cphotos.thumb_gecacht(path, cphotos.THUMB_RASTER_PX, fp, nur_cache=not os.path.isfile(path))
         px = cphotos.THUMB_RASTER_PX
     else:
-        daten = cphotos.thumb_gecacht(path, QUELLE_PX, fp, nur_cache=True)
+        # 06.10.2026 (Marc: „A") — zuerst der Vorrat aus dem Einlesen (dasselbe Dekodieren wie fürs Rasterbild)
+        daten = cphotos.vorrat_holen(path) or cphotos.thumb_gecacht(path, QUELLE_PX, fp, nur_cache=True)
         px = QUELLE_PX
         if not daten and os.path.isfile(path):
             daten = cphotos._thumb_bytes_fuer(path, QUELLE_PX)
@@ -441,6 +442,7 @@ def indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell: Modell
     if fortschritt:
         fortschritt(0, gesamt, schon + len(kopieren))
     STUECK = 32
+    t_start = time.time()
     for i in range(0, gesamt, STUECK):
         while pause and pause():
             if stop and stop():
@@ -449,6 +451,13 @@ def indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell: Modell
         if stop and stop():
             return {"abbruch": True, "fertig": fertig, "gesamt": gesamt, "fehler": fehler, "ohne_bild": ohne}
         teil = rechnen[i:i + STUECK]
+        # 06.10.2026 — was während einer Pause schon aus dem Vorrat erfasst wurde, nicht noch einmal übers NAS lesen
+        if teil:
+            ph = ",".join("?" * len(teil))
+            frisch = {p for (p,) in idx.execute(f"SELECT path FROM vek WHERE am >= ? AND px >= ? AND path IN ({ph})",
+                                                (t_start, QUELLE_PX, *[r["path"] for r in teil]))}
+            if frisch:
+                teil = [r for r in teil if r["path"] not in frisch]
         bilder, zeilen = [], []
         for r in teil:
             try:
@@ -484,10 +493,73 @@ def indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell: Modell
                              np.asarray(v, dtype=np.float16).tobytes(), jetzt))
             _version_hoch(idx)
             idx.commit()
-        fertig += len(teil)
+            for r, _px in zeilen:
+                cphotos_weg(r["path"])
+        fertig += len(rechnen[i:i + STUECK])
         if fortschritt:
             fortschritt(fertig, gesamt, schon + len(kopieren))
     return {"fertig": fertig, "gesamt": gesamt, "fehler": fehler, "ohne_bild": ohne}
+
+
+def cphotos_weg(path: str) -> None:
+    try:
+        from core import photos as cphotos
+        cphotos.vorrat_weg(path)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def vorrat_indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell, stop: Optional[Callable] = None,
+                      max_n: int = 256) -> int:
+    """Während des Einlesens (06.10.2026, Marc: „A"): nur die Bilder aus dem Vorrat erfassen — kein Zugriff aufs
+    Laufwerk, das gerade das Einlesen braucht. Danach ist der Vorrat für diese Fotos leer. Rückgabe: erfasst."""
+    import numpy as np
+    from core import photos as cphotos
+    from PIL import Image
+    pfade = cphotos.vorrat_pfade(limit=max_n)
+    if not pfade:
+        return 0
+    dim = int(modell.v["dim"])
+    n = 0
+    for i in range(0, len(pfade), 32):
+        if stop and stop():
+            break
+        teil = pfade[i:i + 32]
+        ph = ",".join("?" * len(teil))
+        zeilen = {r["path"]: dict(r) for r in conn.execute(
+            f"SELECT path, fp, inhalt_id FROM fotos WHERE path IN ({ph})", teil)}
+        bilder, dazu = [], []
+        for p in teil:
+            daten = cphotos.vorrat_holen(p)
+            if p not in zeilen or not daten:
+                cphotos.vorrat_weg(p)          # Foto nicht mehr im Bestand → Vorrat nicht stehen lassen
+                continue
+            try:
+                im = Image.open(io.BytesIO(daten)); im.load()
+            except Exception:  # noqa: BLE001
+                cphotos.vorrat_weg(p)
+                continue
+            bilder.append(im); dazu.append(zeilen[p])
+        if not bilder:
+            continue
+        try:
+            vek = modell.bild_vektoren(bilder)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[inhalt] Vorrat-Stapel fehlgeschlagen: %s", e)
+            continue
+        jetzt = time.time()
+        for r, v in zip(dazu, vek):
+            if v is None or len(v) != dim:
+                continue
+            idx.execute("INSERT OR REPLACE INTO vek(path, inhalt_id, fp, px, vec, am) VALUES(?,?,?,?,?,?)",
+                        (r["path"], r.get("inhalt_id"), r.get("fp"), QUELLE_PX,
+                         np.asarray(v, dtype=np.float16).tobytes(), jetzt))
+            n += 1
+        _version_hoch(idx)
+        idx.commit()
+        for r in dazu:
+            cphotos.vorrat_weg(r["path"])
+    return n
 
 
 def index_stand(idx: sqlite3.Connection) -> dict:
@@ -632,6 +704,14 @@ def loeschen(app_support: Path, bib: Path, variante: Optional[str] = None) -> di
             if p.is_file():
                 frei += p.stat().st_size
                 _ds.loeschen(p, "inhalt_loeschen", art=_ds.ART_CACHE)
+    # 05.10.2026 (Audit K-10) — leere Elternordner nicht stehen lassen, und eine Zeile ins Log
+    for eltern in (Path(app_support) / "inhaltssuche", Path(bib) / "inhaltsindex"):
+        try:
+            if eltern.is_dir() and not any(eltern.iterdir()):
+                _ds.ordner_loeschen(eltern, "inhalt_loeschen", art=_ds.ART_CACHE, ignore_errors=True)
+        except OSError:
+            pass
+    log.info("[inhalt] gelöscht: %s · %.0f MB frei", ", ".join(namen), frei / 1e6)
     return {"ok": True, "frei": frei}
 
 

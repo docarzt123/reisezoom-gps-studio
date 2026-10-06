@@ -1023,9 +1023,9 @@ function mountGeotagger(body, headerActions) {
       applog("info", "[Geotagger onMapReady cb] running");
       map.addSource("gt-track", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: [] } } });
       map.addLayer({ id: "gt-track-glow", type: "line", source: "gt-track",
-        paint: { "line-color": "#ff6b35", "line-width": 7, "line-opacity": 0.4, "line-blur": 3 } });
+        paint: { "line-color": rzFarbe("--route-default", "#d3e76b"), "line-width": 7, "line-opacity": 0.4, "line-blur": 3 } });
       map.addLayer({ id: "gt-track-line", type: "line", source: "gt-track",
-        paint: { "line-color": "#ff6b35", "line-width": 2.5, "line-opacity": 0.95 } });
+        paint: { "line-color": rzFarbe("--route-default", "#d3e76b"), "line-width": 2.5, "line-opacity": 0.95 } });
       // Initial-Apply wenn schon ein globales GPX geladen ist
       if (typeof getGlobalGpxPath === "function") {
         const curPath = getGlobalGpxPath();
@@ -1461,7 +1461,8 @@ function mountGeotagger(body, headerActions) {
     if (_gtTracks.length > 1) { try { map.fitBounds([lo, hi], { padding: 80, duration: 600 }); } catch (_) {} }
     // Haupt-Linie in ihrer Farbe (bei mehreren Tracks), sonst das gewohnte Orange
     try {
-      const f = _gtTracks.length > 1 ? (haupt.farbe || "#ff6b35") : "#ff6b35";
+      const _rd = rzFarbe("--route-default", "#d3e76b");   // 05.10.2026 — Werkzeug-Track in der neuen Routenfarbe
+      const f = _gtTracks.length > 1 ? (haupt.farbe || _rd) : _rd;
       if (map.getLayer("gt-track-line")) map.setPaintProperty("gt-track-line", "line-color", f);
       if (map.getLayer("gt-track-glow")) map.setPaintProperty("gt-track-glow", "line-color", f);
     } catch (_) {}
@@ -1484,11 +1485,11 @@ function mountGeotagger(body, headerActions) {
         map.addSource("gt-track", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: [] } } });
         if (!map.getLayer("gt-track-glow")) {
           map.addLayer({ id: "gt-track-glow", type: "line", source: "gt-track",
-            paint: { "line-color": "#ff6b35", "line-width": 7, "line-opacity": 0.4, "line-blur": 3 } });
+            paint: { "line-color": rzFarbe("--route-default", "#d3e76b"), "line-width": 7, "line-opacity": 0.4, "line-blur": 3 } });
         }
         if (!map.getLayer("gt-track-line")) {
           map.addLayer({ id: "gt-track-line", type: "line", source: "gt-track",
-            paint: { "line-color": "#ff6b35", "line-width": 2.5, "line-opacity": 0.95 } });
+            paint: { "line-color": rzFarbe("--route-default", "#d3e76b"), "line-width": 2.5, "line-opacity": 0.95 } });
         }
       } catch (err) {
         applog && applog("error", "[Geotagger showTrack] addSource fail: " + err);
@@ -4365,7 +4366,7 @@ function mountGeotagger(body, headerActions) {
   setupDropZone({
     target: "#gt-mapdrop",
     // v0.9.282 — auch FIT/NMEA/KML/… annehmen (Backend konvertiert nach GPX)
-    accept: ["gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson"],
+    accept: ["gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson", "igc", "srt"],
     async onDrop(files) {
       if (!files.length) return;
       if (files.length > 1) toast(t("geotagger.nur_erste_gpx", "Nur die erste GPX wird geladen"), "warn");
@@ -4393,7 +4394,7 @@ function mountGeotagger(body, headerActions) {
              "mts", "m2ts", "lrv", "3gp", "avi", "mkv",
              // Track-Dateien werden hier mit erkannt — separat behandelt im onDrop.
              // v0.9.282: nicht nur GPX, sondern alle konvertierbaren Formate.
-             "gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson"],
+             "gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson", "igc", "srt"],
     async onDrop(files) {
       // Aufteilen: Track-Files vs. Foto/Video-Files
       const gpxFiles = files.filter(f => window.TRACK_DROP_RE.test(f.relPath));

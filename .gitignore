@@ -149,3 +149,44 @@ _papierkorb/
 clip_cache/
 .venv
 .rz_suite_gruen.json
+
+# ── 05.10.2026 (Marc): Repo ist ÖFFENTLICH (kostenlose Builds) — nur eigener Code + Doku gehören hinein. ──
+# Recherche, Planung, Strategie, Briefings, Mockups, Audits, Testanweisungen bleiben lokal.
+docs/recherche/
+docs/mockups/
+docs/briefings/
+docs/CONTENT-PLAN-*.md
+docs/STRATEGIE-*.md
+docs/PLANUNG-*.md
+docs/ROADMAP.md
+docs/STAND-*.md
+docs/AUDIT-*.md
+docs/KARTEN-ZUKUNFT.md
+docs/LOGBUCH-TEST.md
+docs/TESTPROTOKOLL.md
+docs/IDEE*.md
+docs/IDEEN.md
+docs/IDEAS.md
+docs/PLAN.md
+docs/FRAGEN.md
+HANDOVER*.md
+# Spezifikationen mit Entscheidungsrunden — nur lokal (DEVELOPER.md verweist darauf)
+docs/OVERLAY-BOXEN.md
+docs/OVERLAY-CONTAINER.md
+docs/TOUR-ASSISTENT.md
+docs/TRACK-CHECK.md
+docs/LOGBUCH.md
+docs/UMBAU-BIBLIOTHEK.md
+docs/KARTEN-OPTIK.md
+docs/KARTENQUELLEN-LIZENZKONZEPT.md
+docs/*-KONZEPT.md
+# App-Laufzeitdaten, die beim Entwickeln im Projektordner entstehen
+_papierkorb/
+projekt_fotos/
+zusammengefuehrt/
+routes/
+cloud-zugang.json
+logo-konzept/
+
+# 06.10.2026 — Laufzeitdaten (Ortsnamen-Cache), entsteht bei Tests im Projektordner
+ort_punkt_cache.json

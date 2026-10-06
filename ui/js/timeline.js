@@ -93,6 +93,8 @@ function mountTimelineBar(opts) {
              für die Overlay-Spur; setOverlays() füllt ihn. -->
         <div class="timeline-ov" id="tl-ov"></div>
         <div class="timeline-ov timeline-sg" id="tl-sg"></div>   <!-- 28.09.2026 — Schilder-Spur, _sgGruppe -->
+        <!-- 06.10.2026 (Grilling Animator A3) — Medien der Tour: ein Strich je Foto/Video aus dem Medien-Bestand -->
+        <div class="timeline-ov timeline-medien" id="tl-medien" hidden></div>
         <div class="timeline-ov timeline-ton" id="tl-ton"></div>  <!-- 02.10.2026 — Ton: Musik, Foto-Klicks, Clip-Ton (_tonGruppe) -->
         <div class="timeline-cluster-row" data-kind="__cluster">
           <div class="lane-label cluster-label" title="${tlT('animator.lane.cluster_tip', 'Klick: alle Properties auswählen · Drag: alle zusammen verschieben · Rechtsklick: alles löschen')}">
@@ -259,7 +261,7 @@ function mountTimelineBar(opts) {
   }
   _tlSSetzen(_tlS(), false);
   let _tlSResize = 0;
-  window.addEventListener("resize", () => {
+  _win("resize", () => {   // über den Registrar: wird beim Abbau der Zeitleiste wieder entfernt
     clearTimeout(_tlSResize);
     _tlSResize = setTimeout(() => { if (host.isConnected) _tlSSetzen(_tlS(), false); }, 150);
   });
@@ -949,6 +951,22 @@ function mountTimelineBar(opts) {
       zeilenSicherstellen();
       zeichnen();
     }
+    /** 06.10.2026 (Marc: „brauchen die Schilder jeweils eine eigene Spur? … nimmt wahnsinnig viel Platz weg“) — mit
+     *  `g.stapeln` teilen sich Einträge, die sich zeitlich nicht überschneiden, eine Zeile (der erste freie Platz von
+     *  oben); wer sich überschneidet, kommt in die nächste. Ohne `stapeln`: wie bisher eine Zeile je Eintrag. */
+    function reihen() {
+      if (!g.stapeln) return liste.map(o => ({ id: o.id, items: [o] }));
+      const LUFT = 0.004;   // kleiner Abstand, damit sich Balken nicht berühren
+      const sortiert = liste.slice().sort((a, b) => (a.segmente[0]?.an ?? 0) - (b.segmente[0]?.an ?? 0));
+      const r = [];
+      for (const o of sortiert) {
+        const an = Math.min(...o.segmente.map(s => s.an)), aus = Math.max(...o.segmente.map(s => s.aus));
+        let z = r.find(x => x.ende + LUFT <= an);
+        if (!z) { z = { id: "reihe" + r.length, items: [], ende: -1 }; r.push(z); }
+        z.items.push(o); z.ende = Math.max(z.ende, aus);
+      }
+      return r;
+    }
     function zeilenSicherstellen() {
       const lanes = boxEl();
       if (!lanes) return;
@@ -979,7 +997,7 @@ function mountTimelineBar(opts) {
       kopf.classList.toggle("ist-offen", offen);
       const pf = kopf.querySelector(".ov-kopf-pfeil"); if (pf) pf.textContent = offen ? "▾" : "▸";
       const da = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="ovbox"]'));
-      const soll = offen ? liste.map(o => o.id) : [];
+      const soll = offen ? reihen().map(r => r.id) : [];
       _ovHoeheMelden();
       da.forEach(z => { if (soll.indexOf(z.dataset.id) < 0) z.remove(); });
       let vorher = kopf;
@@ -1017,16 +1035,17 @@ function mountTimelineBar(opts) {
         });
       }
       if (!offen) return;
-      for (const o of liste) {
-        const z = lanes.querySelector(`.timeline-lane[data-kind="ovbox"][data-id="${CSS.escape(o.id)}"]`);
+      for (const reihe of reihen()) {
+        const z = lanes.querySelector(`.timeline-lane[data-kind="ovbox"][data-id="${CSS.escape(reihe.id)}"]`);
         if (!z) continue;
-        const nm = z.querySelector(".lane-name"); if (nm) nm.textContent = o.name || o.id;
-        const lab = z.querySelector(".lane-label"); if (lab) lab.title = o.name || o.id;
-        z.classList.toggle("ist-aus", !o.enabled);
-        z.classList.toggle("ist-auswahl", !!auswahl && auswahl.id === o.id);
+        const namen = reihe.items.map(o => o.name || o.id);
+        const nm = z.querySelector(".lane-name"); if (nm) nm.textContent = namen.length > 1 ? namen[0] + " +" + (namen.length - 1) : namen[0];
+        const lab = z.querySelector(".lane-label"); if (lab) lab.title = namen.join("\n");
+        z.classList.toggle("ist-aus", reihe.items.every(o => !o.enabled));
+        z.classList.toggle("ist-auswahl", !!auswahl && reihe.items.some(o => o.id === auswahl.id));
         const mk = z.querySelector(".lane-markers");
         mk.innerHTML = "";
-        o.segmente.forEach((sg, si) => {
+        for (const o of reihe.items) o.segmente.forEach((sg, si) => {
           const b = document.createElement("div");
           const gewaehlt = auswahl && auswahl.id === o.id && auswahl.seg === si;
           b.className = "tl-ovbar" + (o.enabled ? "" : " ist-aus") + (gewaehlt ? " ist-auswahl" : "") + (sg.marke ? " ist-marke" : "");
@@ -1048,6 +1067,23 @@ function mountTimelineBar(opts) {
           const bild = o.bild ? `<span class="tl-ov-bild" style="background-image:url('${String(o.bild).replace(/'/g, "%27")}')"></span>`
                      : o.iconSvg ? `<span class="tl-ov-icon">${o.iconSvg}</span>`      // eigenes SVG aus sign_draw.js
                      : (o.symbol ? `<span class="tl-ov-symbol">${_esc(o.symbol)}</span>` : "");
+          // 06.10.2026 (I-281, Marc: „wann wie was passiert, sieht man in der Timeline nicht … Anflug, Abflug und Foto
+          // groß im Balken ziehen“) — Fotostopp: Phasen Pin · Anflug · FOTO GROSS · Abflug · Pin, Griffe an den Grenzen
+          if (sg.fs) {
+            const f = sg.fs, p = (x) => Math.max(0, Math.min(100, (x - sg.an) / len * 100));
+            const teil = (von, bis, kl, inhalt) => `<span class="tl-fs-teil ${kl}" style="left:${p(von)}%;width:${Math.max(0, p(bis) - p(von))}%">${inhalt || ""}</span>`;
+            const griffFs = (k, x, tip) => sg.fsGrenzen && sg.fsGrenzen[k] ? `<span class="tl-fs-griff" data-griff="fs-${k}" style="left:${p(x)}%" title="${_esc(tip)}"></span>` : "";
+            b.classList.add("ist-fotostopp");
+            b.innerHTML = teil(sg.an, f.anflug, "tl-fs-pin") + teil(f.anflug, f.halt, "tl-fs-flug")
+              + teil(f.halt, f.grossBis, "tl-fs-gross", bild + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`)
+              + teil(f.grossBis, f.abflugBis, "tl-fs-flug") + teil(f.abflugBis, sg.aus, "tl-fs-pin")
+              + griffFs("anflug", f.anflug, tlT("animator.fs.griff_anflug", "Anflug: früher = Kamera fährt länger heran"))
+              + griffFs("grossBis", f.grossBis, tlT("animator.fs.griff_gross", "Foto groß: so lange steht das Foto"))
+              + griffFs("abflugBis", f.abflugBis, tlT("animator.fs.griff_abflug", "Abflug: so lange fährt die Kamera wieder weg"))
+              + (sg.festL ? "" : `<span class="tl-ov-rand" data-griff="l"></span>`);
+            mk.appendChild(b);
+            return;
+          }
           b.innerHTML =
             `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
             + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
@@ -1083,7 +1119,10 @@ function mountTimelineBar(opts) {
         });
       }
       const lab = zeile.querySelector(".lane-label");
-      lab.addEventListener("dblclick", () => oeffnen(zeile.dataset.id));
+      lab.addEventListener("dblclick", () => {   // gestapelte Zeile: nur öffnen, wenn sie genau ein Schild trägt
+        const r = reihen().find(x => x.id === zeile.dataset.id);
+        if (r && r.items.length === 1) oeffnen(r.items[0].id);
+      });
     }
     function mausDruck(ev, zeile) {
       const b = ev.target.closest(".tl-ovbar");
@@ -1109,13 +1148,18 @@ function mountTimelineBar(opts) {
       const griff = griffEl ? griffEl.dataset.griff : "schieben";
       const mk = zeile.querySelector(".lane-markers") || zeile;
       const spurPx = (mk.getBoundingClientRect().width || 1) * _viewZoom;
-      const a0 = { an: o.an, aus: o.aus, einBis: o.einBis ?? o.an, ausAb: o.ausAb ?? o.aus };
+      const a0 = { an: o.an, aus: o.aus, einBis: o.einBis ?? o.an, ausAb: o.ausAb ?? o.aus, fs: o.fs ? Object.assign({}, o.fs) : null };
       let bewegt = false, neu = Object.assign({}, a0);
       const minL = minAnteil;
       const rechnen = (dx) => {
         const d = dx / spurPx;
         const n = Object.assign({}, a0);
         const einB = a0.einBis - a0.an, ausB = a0.aus - a0.ausAb;
+        if (griff.startsWith("fs-") && a0.fs && o.fsGrenzen) {   // Fotostopp-Phase: nur diese Grenze, in ihren Schranken
+          const k = griff.slice(3), gr = o.fsGrenzen[k];
+          if (gr) { n.fs = Object.assign({}, a0.fs); n.fs[k] = Math.max(gr[0], Math.min(gr[1], a0.fs[k] + d)); }
+          return n;
+        }
         if (griff === "schieben") {
           const dd = Math.max(-a0.an, Math.min(1 - a0.aus, d));
           n.an += dd; n.aus += dd; n.einBis += dd; n.ausAb += dd;
@@ -1230,7 +1274,7 @@ function mountTimelineBar(opts) {
           text: "onOverlayText", vorschau: "onOverlayVorschau", auswahl: "onOverlayAuswahl", ziehen: "onOverlayZiehen" },
   });
   const _sgGruppe = _balkenGruppe({
-    box: "#tl-sg", miniId: "tl-sg-mini", farbe: "#ff8a5c", zeilenIcon: "🚩", blendenGriffe: true, zeitraumNeu: false,   // 29.09.2026 — Blenden wie bei den Overlays
+    box: "#tl-sg", miniId: "tl-sg-mini", farbe: "#ff8a5c", zeilenIcon: "🚩", blendenGriffe: true, zeitraumNeu: false, stapeln: true,   // 29.09.2026 — Blenden wie bei den Overlays
     kopfTitel: tlT("animator.lane.schilder", "Schilder"),
     kopfTip: tlT("animator.lane.schilder_tip", "Wann die Schilder zu sehen sind. Aufklappen, dann Balken ziehen: verschieben ändert den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“. Doppelklick oder Rechtsklick öffnet das Schild."),
     rc: { neu: "onSchildNeu", offen: "onSchilderOffen", oeffnen: "onSchildOeffnen",
@@ -1249,7 +1293,68 @@ function mountTimelineBar(opts) {
   function setSchilder(liste, opts) { _sgGruppe.set(liste, opts); }
   function setTon(liste, opts) { _tonGruppe.set(liste, opts); }
   function _ovGeometrieMelden() { _ovGruppe.geometrieMelden(); _sgGruppe.geometrieMelden(); _tonGruppe.geometrieMelden(); }
-  function _ovZeichnen() { _ovGruppe.zeichnen(); _sgGruppe.zeichnen(); _tonGruppe.zeichnen(); }
+  function _ovZeichnen() { _ovGruppe.zeichnen(); _sgGruppe.zeichnen(); _tonGruppe.zeichnen(); _medienZeichnen(); }
+
+  // ── Medien der Tour (06.10.2026, Grilling A3) ───────────────────────────────────────────────────────────────────
+  // Fotos/Videos im Zeitraum der Tour als feine Striche an ihrer Stelle (Leisten-Position wie die Schilder; das Modul
+  // rechnet sie aus). Darüberfahren zeigt das Bild groß (cb.onMedienBild → Promise<url>), Klick macht ein Schild
+  // daraus (cb.onMedienKlick). Was schon Schild ist, steht in der Schilder-Spur und hier nur als Punkt.
+  let _medien = [];
+  function setMedien(liste) {
+    _medien = Array.isArray(liste) ? liste.filter(m => m && isFinite(+m.pos)) : [];
+    _medienVerbergen();
+    const box = host.querySelector("#tl-medien"); if (!box) return;
+    box.hidden = !_medien.length;
+    if (_medien.length && !box.firstChild) {
+      box.innerHTML = `<div class="timeline-lane" data-kind="medien"><div class="lane-label" title="${_esc(tlT("animator.lane.medien_tip", "Fotos und Videos aus deinen Medien, aufgenommen während der Tour. Darüberfahren zeigt das Bild, ein Klick macht ein Schild daraus."))}"><span class="lane-icon">📷</span><span class="lane-name">${_esc(tlT("animator.lane.medien", "Medien"))}</span></div>
+        <div class="lane-track"><div class="lane-markers tl-medien-striche"></div></div></div>`;
+      const st = box.querySelector(".tl-medien-striche");
+      st.addEventListener("click", (e) => {
+        const m = e.target.closest("[data-mi]"); if (!m) return;
+        e.stopPropagation();
+        _medienVerbergen();   // 06.10.2026 — nach dem Klick (wird Schild) nicht über der Vorschau stehen lassen
+        const it = _medien[+m.dataset.mi]; if (it && cb.onMedienKlick) { try { cb.onMedienKlick(it); } catch (err) { console.warn("onMedienKlick:", err); } }
+      });
+      st.addEventListener("pointerover", (e) => { const m = e.target.closest("[data-mi]"); if (m) _medienZeigen(m); });
+      st.addEventListener("pointerout", (e) => { const m = e.target.closest("[data-mi]"); if (m && !m.contains(e.relatedTarget)) _medienVerbergen(); });
+    }
+    _medienZeichnen();
+    _ovHoeheMelden();
+  }
+  function _medienZeichnen() {
+    const st = host.querySelector("#tl-medien .tl-medien-striche"); if (!st) return;
+    // vorhandene Striche weiterverwenden (nur Lage/Klasse ändern): sonst wechselt das Element unter der Maus bei jedem
+    // Neuzeichnen, und Darüberfahren/Klicken flackert
+    while (st.children.length > _medien.length) st.lastElementChild.remove();
+    while (st.children.length < _medien.length) { const e = document.createElement("span"); st.appendChild(e); }
+    _medien.forEach((m, i) => {
+      const e = st.children[i], x = +_anchorToPct(m.pos);
+      const kl = "tl-medium" + (m.schild ? " ist-schild" : "") + (m.art === "video" ? " ist-video" : "");
+      if (e.className !== kl) e.className = kl;
+      if (e.dataset.mi !== String(i)) e.dataset.mi = String(i);
+      const sicht = x >= -1 && x <= 101;
+      if (e.hidden === sicht) e.hidden = !sicht;
+      const l = x + "%"; if (e.style.left !== l) e.style.left = l;
+    });
+  }
+  let _medienPop = null, _medienPopFuer = -1;
+  function _medienZeigen(el) {
+    const i = +el.dataset.mi, it = _medien[i]; if (!it) return;
+    if (!_medienPop) { _medienPop = document.createElement("div"); _medienPop.className = "tl-medien-pop"; document.body.appendChild(_medienPop); }
+    _medienPopFuer = i;
+    const r = el.getBoundingClientRect();
+    _medienPop.style.left = Math.round(Math.min(window.innerWidth - 230, Math.max(8, r.left - 110))) + "px";
+    _medienPop.style.top = Math.round(Math.max(8, r.top - 178)) + "px";
+    _medienPop.innerHTML = `<div class="tl-medien-pop-bild">${it.thumb ? `<img src="${_esc(it.thumb)}" alt="">` : "⌛"}</div><div class="tl-medien-pop-text">${_esc(it.text || "")}${it.schild ? "" : `<br><span>${_esc(tlT("animator.lane.medien_klick", "Klick: als Schild"))}</span>`}</div>`;
+    _medienPop.hidden = false;
+    if (!it.thumb && cb.onMedienBild) {
+      Promise.resolve(cb.onMedienBild(it)).then(url => {
+        if (!url) return; it.thumb = url;
+        if (_medienPopFuer === i && _medienPop && !_medienPop.hidden) { const b = _medienPop.querySelector(".tl-medien-pop-bild"); if (b) b.innerHTML = `<img src="${_esc(url)}" alt="">`; }
+      }).catch(() => {});
+    }
+  }
+  function _medienVerbergen() { _medienPopFuer = -1; if (_medienPop) _medienPop.hidden = true; }
 
   function setEtappen(liste) {
     _tempoEtappen = Array.isArray(liste) ? liste.slice() : [];
@@ -2173,6 +2278,10 @@ function mountTimelineBar(opts) {
     if (!kind) return;
     // Reserve-Lanes (marker/photo) noch nicht implementiert → ignorieren
     if (kind === "marker" || kind === "photo") return;
+    // 06.10.2026 (Marc-Log: Doppelklick auf ein Schild öffnete den Editor UND legte „Property-Keyframe gesetzt“ auf den
+    // Undo-Stapel) — nur Kamera-Spuren und die Cluster-Zeile legen Keyframes an; Schilder, Overlays, Ton, Medien haben
+    // ihre eigene Bedienung.
+    if (kind !== "__cluster" && !["pitch", "bearing", "zoom", "center", "position"].includes(kind)) return;
     e.preventDefault();
     e.stopPropagation();
     // v0.9.511 — die Maus zeigt auf eine Stelle der LEISTE, gespeichert wird
@@ -2648,7 +2757,8 @@ function mountTimelineBar(opts) {
   function setScrubberTrack(a) { setScrubberVisual(_trackToBar(a)); }
 
   return {
-    destroy: () => { for (const [ev, fn] of _winListeners.splice(0)) { try { window.removeEventListener(ev, fn); } catch (_) {} }
+    destroy: () => { try { if (_medienPop) { _medienPop.remove(); _medienPop = null; } } catch (_) {}
+      for (const [ev, fn] of _winListeners.splice(0)) { try { window.removeEventListener(ev, fn); } catch (_) {} }
       // 01.10.2026 — Menü und Kurven-Dialog hängen am body: beim Modulwechsel mit abräumen
       try { _menueSchliessen(); } catch (_) {} try { _closeEasingModal(); } catch (_) {} },
     setEtappen,
@@ -2688,6 +2798,7 @@ function mountTimelineBar(opts) {
     getOverlays: () => _ovGruppe.get(),
     setSchilder,
     getSchilder: () => _sgGruppe.get(),
+    setMedien, getMedien: () => _medien.slice(),
     setTon,
     getTon: () => _tonGruppe.get(),
     setHoehe,

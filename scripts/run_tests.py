@@ -83,6 +83,8 @@ FARBE_ROT = "\033[31m"
 FARBE_GRAU = "\033[2m"
 FARBE_AUS = "\033[0m"
 
+ZEITLIMIT_S = int(os.environ.get("RZ_TEST_ZEITLIMIT_S", "1800"))   # je Testdatei
+
 
 def netz_da() -> bool:
     import socket
@@ -175,8 +177,16 @@ def main() -> int:
             continue
 
         t0 = time.time()
-        r = subprocess.run([sys.executable, str(d)], cwd=str(REPO),
-                           capture_output=True, text=True)
+        # 06.10.2026: ein Test hing in der Nacht-Suite fast 3 Stunden und kostete den Rest der Nacht. Zeitlimit je
+        # Test (der längste braucht ~6 min); wer es reißt, ist rot und die Suite läuft weiter.
+        try:
+            r = subprocess.run([sys.executable, str(d)], cwd=str(REPO),
+                               capture_output=True, text=True, timeout=ZEITLIMIT_S)
+        except subprocess.TimeoutExpired as e:
+            def _txt(v):
+                return v.decode("utf-8", "replace") if isinstance(v, bytes) else (v or "")
+            r = subprocess.CompletedProcess(e.cmd, 124, _txt(e.stdout) + f"\n⏱ Zeitlimit {ZEITLIMIT_S // 60} min überschritten — abgebrochen\n",
+                                            _txt(e.stderr))
         dauer = time.time() - t0
         if r.returncode == 0:
             ok.append(d.name)

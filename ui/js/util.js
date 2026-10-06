@@ -189,7 +189,7 @@ function mapStyleBadgeText(key) {
 /** 07.09.2026 — Spiegel von core/kartenquellen.stil_status: Rechtelage aus dem Quellen-Register.
  *  Rang false > license_required > unknown > true; Server-Regeln „nein" zählen wie false, „absprache" wie unknown. */
 const RZ_STIL_ZU_QUELLE = { osm: "osm", topo: "opentopomap", cyclosm: "cyclosm", humanitarian: "hot",
-  ofm_liberty: "openfreemap", ofm_bright: "openfreemap", ofm_positron: "openfreemap",
+  ofm_liberty: "openfreemap", ofm_bright: "openfreemap", ofm_positron: "openfreemap", ofm_nacht: "openfreemap", ofm_atlas: "openfreemap",
   maptiler_satellite: "maptiler", maptiler_outdoor: "maptiler", maptiler_streets: "maptiler", maptiler_topo: "maptiler", maptiler_dataviz: "maptiler", maptiler_hybrid: "maptiler",
   satellite: "mapbox", satellite_streets: "mapbox", outdoors: "mapbox", standard: "mapbox", streets: "mapbox", dark: "mapbox", light: "mapbox" };
 const RZ_REGION_ZU_QUELLE = { "us-ak": "us", "us-hi": "us" };
@@ -798,6 +798,7 @@ function rzSeatMapLibreCenter(map) {
       // 120 Bilder, Mittelpunkt-Hoehe exakt gleich der Gelaendehoehe, Schwankung bis 300 m je Bild.
       // In der Vorschau feuert er nie (0 Sitze gemessen), weil die Uhr jedes Bild neu bewegt.
       if (window.__rzStepMode && window.__rzPreviewStep && window.__rzPreviewStep.ready) return;
+      if (map.__rzFlugMitte) return;   // 05.10.2026 — Flug in der Luft: die Mitte liegt bewusst in Flughöhe
       if (!map.getTerrain || !map.getTerrain()) return;
       const e = map.queryTerrainElevation(map.getCenter());
       const have = map.getCenterElevation ? map.getCenterElevation() : 0;
@@ -3359,7 +3360,7 @@ document.addEventListener("click", (e) => {
   if (slider.step) input.step = slider.step;
   input.className = "label-val-edit";
   input.style.cssText = "width: 4.5em; font-size: inherit; font-family: inherit; "
-                     + "background: rgba(255,255,255,0.08); border: 1px solid #ff6b35; "
+                     + "background: rgba(255,255,255,0.08); border: 1px solid var(--accent); "
                      + "border-radius: 3px; padding: 1px 4px; color: inherit; "
                      + "text-align: right; -moz-appearance: textfield;";
   lbl.textContent = "";
@@ -4302,6 +4303,16 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
   const _vorgaenge = new Map();   // id → {el, gesamt, abbruch, t0, modal, zeigTimer}
   const _ZEIG_NACH_MS = 300;
 
+  const _KLEIN_KEY = "rz-status-klein";
+  function _kleinGemerkt() { try { return localStorage.getItem(_KLEIN_KEY) === "1"; } catch (_) { return false; } }
+  function _klein(an) {
+    const box = document.getElementById("rz-status-box");
+    if (box) {
+      box.classList.toggle("ist-klein", !!an);
+      box.title = an ? t("status.aufklappen", "Aufklappen") : "";
+    }
+    try { localStorage.setItem(_KLEIN_KEY, an ? "1" : "0"); } catch (_) { /* ui-falle-ok: Speicher gesperrt — Zustand gilt nur jetzt */ }
+  }
   function _behaelter(modal) {
     const id = modal ? "rz-warte-modal" : "rz-status-box";
     let box = document.getElementById(id);
@@ -4379,6 +4390,7 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
           <span class="rz-status-punkt"></span>
           <span class="rz-status-titel"></span>
           <button type="button" class="rz-status-ab" hidden>${t("common.cancel", "Abbrechen")}</button>
+          ${modal ? "" : `<button type="button" class="rz-status-klein" title="${t("status.einklappen", "Einklappen — läuft weiter")}" aria-label="${t("status.einklappen", "Einklappen — läuft weiter")}">–</button>`}
         </div>
         <div class="rz-status-text"></div>
         <div class="rz-status-balken"><i></i></div>`;
@@ -4391,6 +4403,15 @@ function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == 
         // geklickten Knopf schluckt die Eingabesperre, und danach geht es dort weiter, wo man war.
         _modalSichtbarkeit();
       }
+      // 06.10.2026 (Marc: „das kleine Fenster … muss man minimieren können. Nicht schließen, aber einklappen") —
+      // eingeklappt bleibt je Vorgang eine schmale Zeile (Punkt, Titel, Balken); ein Klick darauf klappt wieder auf.
+      // Gilt für alle Hintergrund-Kästen zusammen und wird gemerkt.
+      const klein = el.querySelector(".rz-status-klein");
+      if (klein) klein.onclick = (e) => { e.stopPropagation(); _klein(true); };
+      if (!modal) el.addEventListener("click", (e) => {
+        if (document.getElementById("rz-status-box")?.classList.contains("ist-klein") && !e.target.closest(".rz-status-ab")) _klein(false);
+      });
+      if (!modal) _klein(_kleinGemerkt());
       const ab = el.querySelector(".rz-status-ab");
       if (ab) ab.onclick = () => {
         v.abbruch = true;
@@ -4929,3 +4950,11 @@ window.rzBaum = (function () {
   return { kopfHtml, datumHtml, datumKlick, datumText, zeitraum, monatName, tagName,
            ordnerHtml, ordnerKlick, ordnerKnoten, ordnerText, unter, offenLaden, offenMerken };
 })();
+
+/** 05.10.2026 (Farbkonzept „Nachtkarte“) — eine Farbe aus dem Farbschema (CSS-Variable) als festen Wert, für
+ *  Kartenebenen (MapLibre/Mapbox verstehen kein var(--…)). Nur für OBERFLÄCHEN-Farben (Auswahl, Werkzeug-Track) —
+ *  Video- und Exportfarben bleiben im Projekt. */
+function rzFarbe(name, ersatz) {
+  try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || ersatz; } catch (_) { return ersatz; }
+}
+window.rzFarbe = rzFarbe;

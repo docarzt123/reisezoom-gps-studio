@@ -39,13 +39,13 @@
     configurable: true,
     get() {
       return [
-        t("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json)",
+        t("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.igc;*.srt)",
         "GPX (*.gpx)",
       ];
     },
   });
   // Drag&Drop: generische .json/.txt bewusst NICHT mitnehmen (zu mehrdeutig).
-  window.TRACK_DROP_RE = /\.(gpx|fit|nmea|log|kml|kmz|tcx|geojson)$/i;
+  window.TRACK_DROP_RE = /\.(gpx|fit|nmea|log|kml|kmz|tcx|geojson|igc|srt)$/i;
 
   // ── Globaler State ────────────────────────────────────────────────────
   let _gpxPath = "";

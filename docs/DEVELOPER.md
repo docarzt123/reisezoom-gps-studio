@@ -3,6 +3,12 @@
 **Zielgruppe:** Mit-Entwickler, KI-Coding-Agents in zukünftigen Sessions.
 **Pflicht:** Bei Architektur-Änderungen diese Datei aktualisieren.
 
+> **Lokale Spezifikationen (seit 05.10.2026):** Das Repo ist öffentlich. Die Spezifikationen mit den
+> Entscheidungsrunden — `docs/OVERLAY-BOXEN.md`, `OVERLAY-CONTAINER.md`, `TOUR-ASSISTENT.md`, `TRACK-CHECK.md`,
+> `LOGBUCH.md`, `UMBAU-BIBLIOTHEK.md`, `KARTEN-OPTIK.md`, `KARTENQUELLEN-LIZENZKONZEPT.md` — liegen nur in der
+> Arbeitskopie des Maintainers (`.gitignore`), ebenso Planung, Recherche und Mockups. Verweise darauf unten gelten
+> dort; wer nur den GitHub-Stand hat, findet das Verhalten im Code und in dieser Datei beschrieben.
+
 ---
 
 ## 1 · Architektur-Überblick
@@ -3707,6 +3713,8 @@ er weiterhin den echten Weg prüft (siehe `test_app_start.py`: der arbeitet jetz
 frischen Kopien, damit der Vorschaubild-Worker wirklich arbeiten muss, statt aus dem
 Zwischenspeicher bedient zu werden).
 
+**Zeitlimit und Nachtlauf (06.10.2026):** `run_tests.py` bricht jede Testdatei nach 30 min ab (`RZ_TEST_ZEITLIMIT_S`) und zählt sie als rot — ein hängender Test hatte die Nacht-Suite fast 3 Stunden blockiert. `scripts/nachtlauf.py` startet die Suite mit eigener Umgebung (`_umgebung()`): launchd liefert nur `/usr/bin:/bin:/usr/sbin:/sbin`, ohne `/opt/homebrew/bin` fehlten node/ffmpeg/ffprobe und 38 Tests wurden rot, ohne dass am Code etwas war. Dazu `RZ_NACHTLAUF=1`: Tests schauen dann nicht in Schreibtisch/Downloads — macOS fragt einen Hintergrundprozess dort nach der Erlaubnis, und der Test wartet, bis jemand klickt.
+
 ### Test-Fixtures regenerieren
 ```bash
 python tests/make_test_photos.py
@@ -4431,9 +4439,150 @@ Farbe in Zoom- und Haltephase gegen den Referenz-Render) und
 `scratchpad/check_html_js.py` (alle Skriptblöcke der Render-Seite mit
 `node --check`; `RZ_DUMP_HTML=<pfad>` schreibt die Seite).
 
+**Geländehöhen nachladen (06.10.2026):** Die Ebene fragt die Bodenhöhe (`queryTerrainElevation`) beim Aufbau ab. Früher nur beim ersten Laden und je ganzer Zoomstufe — fuhr die Kamera (Anflug, Folgen) in Gegenden, deren Geländekacheln beim Aufbau fehlten, kam dort 0 m und die Linie lag unter dem Berg (4K-Export „Flug in der Luft“ ohne Linie). Jetzt markiert jedes `sourcedata` der Geländequelle mit `tile` die Höhen als veraltet; der nächste Zeichenlauf baut neu (höchstens alle 200 ms). Spuren mit `agl` liegen mindestens ~3 Bildpunkte (in Metern der aktuellen Zoomstufe) über Grund, damit bodennahe Stücke nicht in der Geländefläche verschwinden. `_bodenProbe` hält ~20 abgefragte Höhen der ersten Spur für den Prüfstand (`tests/test_line3d_hoehen_nachladen.py`).
+
 Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
+
+## Seitenleisten + rechte Detail-Spalte — `ui/js/seitenleisten.js` (06.10.2026)
+
+**Gotcha (06.10.2026):** `anwenden()` vergleicht den zuletzt GESETZTEN Spaltenwert (`b.__rzSpalten`), nie `b.style.gridTemplateColumns` — der Browser liest `minmax(0, 1fr)` als `minmax(0px, 1fr)` zurück. Mit dem alten Vergleich lief eine Dauerschleife (`karteNachziehen` → `resize` → `anwenden` → …, ~40/s): Karte vermaß sich dauernd, Tooltips (`resize` → weg) schlossen sofort, WebKit fror unter Last ein. `test_seitenleisten` prüft „keine resize-Schleife im Leerlauf“.
+
+Trailframe-Regel (Grilling F-7): links die Seitenleiste des Moduls, rechts nur der Detail-Editor des Angeklickten.
+Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Detail]`) und setzt dort
+`grid-template-columns` inline; das Archiv (`.lib-mode`, drei feste Spalten) bleibt außen vor.
+
+- **Linke Breite:** Griff `.rz-griff[data-seite=l]` am Rand der ersten `.panel`-Spalte, 240–640 px, gemerkt in
+  `localStorage["rz-panel-l:<modul>"]`, Doppelklick = Standard 360. Nach jeder Änderung ein `resize`-Ereignis, damit
+  MapLibre/Mapbox ihre Fläche neu messen.
+- **Detail-Spalte:** `rzDetailSpalte.aufnehmen(el)` hängt ein Editor-Fenster in `<aside id="rz-detail">` (3. Spalte),
+  Klasse `.im-detail` macht es statisch (CSS in app.css). Ein anderer offener Editor wird über seinen `.sign-editor-x`
+  geschlossen (sein Modul räumt auf). Entfernt der Editor sich selbst, geht die Spalte zu (MutationObserver).
+  Breite 280–640, `localStorage["rz-detail-breite"]`, Start 340. Esc schließt (nicht beim Tippen/IME, nicht bei
+  offenem Modal). Nutzer: Schild-Editor (`_animSignsOpenEditor`), Einblendungs-Editor (`_ctEditorOeffnen`).
+- **Doppelklick-Schutz:** Öffnet/schließt die Spalte innerhalb von 450 ms nach einem Mausdruck, wartet der Umbau —
+  sonst rückte die Zeitleiste unter dem zweiten Klick eines Doppelklicks weg.
+- ⚠️ `classList.toggle/remove` schreibt das class-Attribut auch ohne Änderung neu. Der Baustein beobachtet `class`
+  an `#module-body` — Klassen also nur bei echtem Unterschied ändern, sonst Endlosschleife (Seite friert ein).
+- ⚠️ `renderMod()` (app.js) ersetzt `#main.innerHTML` bei jedem Modulwechsel — damit auch `#module-body`. Der Baustein
+  beobachtet deshalb `#main` und hängt seine Beobachter an jedes neue `#module-body` neu (`anhaengen`), sonst waren
+  nach dem ersten Wechsel Griffe und Breiten weg (Review 06.10.2026).
+- Tests: `tests/test_seitenleisten.py` (echte Mausbewegungen), `test_modulwechsel_aufraeumen.py`, `test_overlay_spur_ui.py`.
+
+## Export-Dialog und Karte „Format & Ablauf“ (06.10.2026, Grilling Export E1–E16)
+
+- **`ui/js/exportdialog.js`** — `rzExportDialog.oeffnen({ bild, stamm, ordnerHinweis, starten(pfad), abbrechen })`.
+  Eigenes Overlay (`.rz-exp-overlay`, nicht `openModal`: so stapeln Umbenennen/Löschen nicht über den gemeinsamen
+  Modal-Stapel). Das Fenster hat **keine eigenen Werte**: es schreibt in die verborgenen Felder `anim-w/-h/-fps/
+  -farbraum/-map-smoothing` (Section `#anim-ausgabe-felder`, `hidden`) — die speichern wie bisher je Projekt über
+  `bindSetting`; der Codec ist global (`settings.render.codec`). Vorlage/Auflösung = ein ⌘Z-Schritt (`uc.push` +
+  `__rzUndoSammeln` wie bei Looks). Eingebaute Vorlagen im Code, eigene in `settings.export_vorlagen`, ★ in
+  `settings.export_vorlage_standard`; die ★-Vorlage greift beim Öffnen eines Projekts, das ≤ 10 min alt ist und noch
+  keine eigene `width` hat (`standardAufNeuesProjekt`).
+- **Ziel ohne Systemdialog (E15):** `export_ziel_vorschlag(name, file_types, ordner_hinweis)` → Ordner (gemerkter
+  Dialog-Ordner je Dateiart, sonst `last_save_dir` des Moduls, sonst ~/Movies bzw. ~/Pictures) + freier Name;
+  `export_ziel_freigeben(pfad, file_types)` prüft Ordner/Schreibrecht, macht den Namen frei (`_freier_dateiname`,
+  nie überschreiben), merkt den Ordner und meldet den Pfad beim Dateischutz an (`nutzer_ziel`, 12 h).
+- **Render-Start:** Die Hauptaktion ruft `_exportDialogOeffnen()`; „Exportieren“ setzt `_exportZiel = {pfad, t}` und
+  klickt `#anim-render`. Dort ersetzt `_exportZiel` (≤ 10 min alt, nicht für Schnappschuss/Schnell-Video) den
+  `pick_save_path`-Aufruf. Der Rechte-Hinweis (Mapbox) kommt davor und klickt erneut — das Ziel bleibt dabei stehen.
+- **Pfeilmenü (E16):** `#anim-hauptaktion-mehr` → `.anim-haupt-menue` mit „Aktuelles Bild exportieren“
+  (`#anim-snapshot`) und „Als Tour-Map öffnen“ (`#anim-open-tourmap`); beide Knöpfe bleiben verborgen im DOM.
+- **„Format & Ablauf“** (`[data-accordion-section="format"]`, erste Karte nach Vorlagen-Leiste und Schnell-Video):
+  Pillen `#anim-format-art` (kurze Seite bleibt, `rzExportDialog.groesse`), `#anim-dauer-feld`; unter
+  `details#anim-format-mehr` Intro/Halten, Dauer-Modus, Verteilung (`anim-pace`) und Pausen — dieselben IDs wie
+  vorher, nur umgehängt. `updateResButtons()` zieht die Pillen nach.
+- **Schnell-Video (F-14):** „Video erstellen …“ legt das Projekt an, wartet auf den Animator und öffnet denselben
+  Dialog; `starten(pfad)` → `__rzSchnellRender({ ziel: pfad, amZiel: true })` (keine Zwischendatei, „Speichern …“
+  wird „Im Finder zeigen“). `abbrechen` schließt die Bühne, das Projekt bleibt im Animator.
+- Tests: `test_export_dialog`, `test_schnellvideo_mehr` (eingedampfter Dialog), `scripts/selftest_pace.py`
+  (klickt „Exportieren“ im Dialog).
+
+## WYSIWYG-Prüfung Editor ↔ Export (06.10.2026)
+
+- **Werkzeuge:** `tests/demo_wysiwyg.py` (eine Tour, drei Formate) und `tests/demo_wysiwyg_matrix.py` (9 Fassungen
+  weltweit: Karten, Kamera Fest/Folgen/Fahrt, Häuser, Gelände, Schilder, Fotos, Clip, Ton). Je Zeitpunkt
+  `#anim-viewport` fotografieren, Export über den echten Dialog, ffmpeg-Bild zur selben Sekunde, „Editor | Video |
+  Unterschied“ + Ø (unter ~12 = gleich). Ziel: `GPS Studio Final/Demos/<Stempel>-WYSIWYG-Matrix`. Aufruf mit Filter:
+  `demo_wysiwyg_matrix.py "" "Tokio,Rio"`.
+- **Prinzip:** Die Szene rendert in der Vorschaugröße (CSS) und rechnet per device_scale_factor hoch — dann ist alles
+  in CSS-px gleich. Ausnahme `SZENE_MIN_BREITE` (640): schmalere Vorschau → die Vorschau-Karte zeichnet selbst in 640 px
+  und wird per `transform: scale` verkleinert (`updateAnimatorViewport`, Klasse `rz-karte-skaliert`); der Export meldet
+  `szene_vorschau_w/h` = Kartengröße (`#map-canvas.offsetWidth`). Leinwand-Prüfung und Fit-Rand rechnen mit der Karte.
+- **Zoom folgt der Kartengröße:** jede Größenänderung (auch ohne ResizeObserver der Fläche, z. B. Detail-Spalte zu)
+  stößt den entprellten Refit an (`window.__rzAnimRefitBald`, beim Abbau entfernt).
+- **Nach `setStyle`** (Look/Kartenstil): Schilder und Foto-Pins neu anhängen (`style.load` in `applyStyle`).
+- **Sprung im Intro/Halten:** `_sgNachZeit(t)` → `applyMarkerAnchor(_sgAnkerAusZeit(t))` wie im Probelauf/Render.
+- Test `test_wysiwyg_vorschau` (ohne Rendern).
+
+## Info-Karte und Medien der Tour (06.10.2026, Grilling A1/A3)
+
+- **Info-Karte** = Einblendungs-Vorlage `info` in `ui/js/container.js` (`VORLAGEN.info`, Stil `eigen`, Plex, Schiefer
+  `#151b22`, Akzent `#48d6c4`): Textzeile + drei Wert-Zeilen, `anordnung: neben`. Die Karte bekommt die Klasse
+  `ct-vl-info`; `module.css` stellt die erste Textzeile auf `flex-basis: 100%` (Titel über den Werten).
+- **Medien der Tour:** Brücke `tour_medien(path)` → `{medien: [{path, bei, lat, lon, art, utc, tz}], n_ordner}`
+  (`cfotos.fotos_einer_tour` + `highlights.fotos_zuordnen`, ohne Dateizugriff/Vorschaubilder). Modul: `_tm`-Zustand,
+  einmal je Track geladen (`_tmLaden` aus `_medienSpurJetzt`), Leisten-Position =
+  `_ovLeisteAusZeit(_sgZeitAusAnker(bei))`. Zeitleiste: `setMedien(liste)` zeichnet Zeile `#tl-medien`
+  (`data-kind="medien"`, auch bei abgeschalteten Keyframes sichtbar — Ausnahme in der `kf-off`-Regel); die Striche
+  werden an Ort und Stelle umgezeichnet (sonst flackert das Darüberfahren). Rückrufe `onMedienBild` (→ `fotos_thumbs`)
+  und `onMedienKlick` (→ `window.__rzSchildAusFotos`, derselbe Weg wie „📷 Fotos hinzufügen“). Leiste rechts:
+  `_tmPanelOeffnen()` (Knopf `#anim-medien-der-tour`) hängt `.tm-panel` per `rzDetailSpalte.aufnehmen` ein.
+- ⚠️ Viele Schild-Funktionen (`_animSignsList`, `_animSignsAddPhotosFromBridge` …) liegen in einem inneren Bereich —
+  von Modul-Ebene aus über `_sgS()` bzw. `window.__rzSchildAusFotos` gehen.
+
+## Ghost-Spur gestrichelt (06.10.2026, Grilling A2)
+
+Neuer Projektschlüssel `ghost_track_dashed` (Feld `#anim-ghost-dashed`, verborgen; bedient im Aussehen-Panel der
+Haupt-Tour „Gestrichelt“). Neue Projekte: `core/sessions.py` setzt ihn auf `True`; fehlt er (Altprojekte), ist er aus.
+Muster: `currentGhostDash()` = Strichmuster der Linie, sonst `[3, 2]`, wenn gestrichelt. Mapbox backt `line-dasharray`
+nur beim Anlegen — `applyGhost()` vergleicht `map.__rzGhostDash` und legt die Ebene bei Änderung neu an
+(`rebuildPreviewLayers`). Alter Render-Weg: `AnimConfig.ghost_track_dashed` → `track-ghost` mit `[3,2]`. ⚠️ Kein
+`onLoad` an dieser Bindung: beim Aufbau existiert `map` noch nicht (TDZ). Test `test_ghost_gestrichelt`.
+
+## Kamera-Karte im Animator (06.10.2026, Grilling A4)
+
+Oben `#anim-kamera-kurz`: Pillen `#anim-kamera-art` (fest/folgen/fahrt → `rzEinfach.kameraSetzen`; bei vorhandenen
+Keyframes schaltet „fahrt“ nur `anim-kf-enabled` an), `#anim-zoom` als „Höhe über Gelände“ (Anzeige
+`#anim-kamera-hoehe-v` = `transform.cameraToCenterDistance × m/px × cos(pitch)` aus der Live-Vorschau), `#anim-pitch`
+als „Blickwinkel“. Alles andere in `details#anim-kamera-mehr`; `renderKeyframeEditor` öffnet es bei Auswahl.
+`_kameraKurzSync()` (aus `applyKeyframesEnabled`) stellt Pillen und Sichtbarkeit nach dem echten Zustand.
+Standbild (Tour-Map): Pillen aus, „Mehr“ immer offen (`.anim-mehr--immer`). IDs unverändert. Test `test_kamera_karte.py`.
+
+## Fotos einlesen — schneller (06.10.2026, Marcs Log, Liste Punkt 7)
+
+- **Schnellbild** (`core/photos.schnellbild_aus_kopf`): JPEG-EXIF-Vorschaubild aus den ersten 64 KB (`_exif_app1` sucht
+  APP1 „Exif"), Ausrichtung aus 0th/Orientation, schwarze Balken abgeschnitten, < `SCHNELL_MIN_PX` → None. Schritt 3
+  (`fotos.durchgang3(schnell=True)`, wenn die Inhaltssuche aus ist) öffnet die Datei einmal (`kopf_und_ende`) und bildet
+  daraus Kennung (`kennung_aus`, identisch zu `inhalt_id`) und Bild → `thumb = 2`. `fotos_schaerfen(paths)` baut
+  sichtbare Schnellbilder voll (`thumb_neu`) → `thumb = 1`; `fotos.js schaerfen()` nach `thumbsNachholen`.
+- **RAW**: `exif.LESE_ROLLE` (thread-local) wählt den exiftool-Leser; der Pool in `durchgang3` setzt je Faden
+  `read`/`read2` (`_leser_setzen`). RAW+JPG: `_jpg_geschwister` → RAW übernimmt das gecachte Bild; Reihenfolge je Ordner
+  JPEGs zuerst.
+- **Inhaltssuche im selben Lesevorgang** (`durchgang3(vorrat=True)`, wenn an): `photos.thumb_und_quelle` dekodiert
+  einmal (draft 600) → Rasterbild in den Cache, 600er in den Vorrat (`<cache>/inhalt_vorrat/<sha1>.jpg|.txt`, Deckel
+  `VORRAT_MAX`). Der Indexer startet mit dem Einlesen; in seiner Pause „einlesen" ruft er `inhalt.vorrat_indizieren`
+  (nur Vorrat, kein Laufwerk) und leert ihn. `_bild_holen` nimmt zuerst den Vorrat; `indizieren` überspringt, was seit
+  Laufbeginn schon (600 px) erfasst ist. Aus/Löschen leert den Vorrat (`vorrat_leeren`).
+- **Nachschau**: `fotos_aufholen` schiebt die fällige Nachschau auf, solange Ungelesenes/Vorschaubilder offen sind
+  (höchstens `NACHSCHAU_OFFEN_MAX_H` = 24 h).
+- Tests: `test_fotos_schnellbild.py`, `test_inhalt_vorrat.py`, `test_fotos_nachschau_aufschieben.py`.
+
+## Kacheln im Leerlauf vorwärmen (06.10.2026, Liste Punkt 11)
+
+`modules/animator/ui/module.js`: `_kameraSkizze(anker)` rechnet die Kamera wie `scrubPreview` (interpolateCameraJs,
+Zoom-Basis, Mitte aus Keyframe/Gesamtsicht/Folgepunkt, Handkamera) ohne die Karte zu bewegen. `_vwWache` prüft alle 2 s;
+nach `VORWAERM_RUHE_MS` ohne Eingabe (pointerdown/keydown/wheel, global erfasst) und ohne Probelauf baut `_vwLauf` eine
+unsichtbare zweite Karte (`.rz-vorwaermen`, außerhalb des Bildschirms, gleicher Stil/Größe/Pixeldichte, Gelände) und
+springt `VORWAERM_MAX`-gedeckelt die Stellen ab (je `idle` oder 2,5 s). Eingabe → anhalten, später weiter; je
+Projektstand (`_vwSchluessel`) einmal. Abbau beim Verlassen des Moduls. Prüfstand `window.__rzVorwaermen`.
+
+## Langsame Brückenaufrufe im Log (06.10.2026)
+
+Am Ende von `app.py` werden alle öffentlichen `Api`-Methoden mit `_bruecke_mit_zeit` umhüllt: über `BRUECKE_LANGSAM_S`
+→ `[brücke] name … ms`. Ausgenommen (`_BRUECKE_NICHT`): Dialoge und bewusst lange Vorgänge. Die Hülle behält
+`__wrapped__` (Kennung der Doppelstart-Sperre) und die Signatur.
 
 ## Selbsttest im Paket (04.10.2026, v0.9.779)
 
@@ -4495,6 +4644,59 @@ bzw. UNC (`open` / `os.startfile` / `xdg-open`). Windows: `_windows_info` (GetDr
 Zuordnung über die längste enthaltende Wurzel. `app.fotos_laufwerk_verbinden(ordner)` → `laufwerk_url` → `verbinden`.
 Oberfläche `ui/js/fotos.js`: `ordnerZeile`, `lwZustand`, `lwArt`, `ordnerTitel`, `laufwerkVerbinden` (danach 30 s lang
 alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/test_fotos_laufwerke.py`.
+
+## Flug in der Luft (05.10.2026, v0.9.782, IDEEN I-020, IDEAS §77)
+
+- **Zeichnen:** `ui/js/rz-line3d.js` kann je Spur `agl: [m…]` (Höhe über Grund × Überhöhung statt festem Versatz) und
+  `lot: true` (je Punkt ein Segment Fuß → Spitze; intern Folge [Fuß, Spitze, …], nur gerade Segmente gezeichnet).
+  Animator: Ebene `flug-3d` mit drei Spuren [Schatten (agl 0, schwarz 32 %), Lote (~120), Linie], Ebene
+  `flug-3d-punkt` (Lot + weißer/farbiger Punkt, ohne Tiefentest). Punkt = Strecke von ≥ 3 m / ~1 px — kürzer löst
+  float32-Merkator nicht auf (Richtung 0 → unsichtbar).
+- **Nachführen:** `_flugQuellenHaken()` wickelt `setData` der Quellen `preview-track` und `anim-dot` ein — Bereich
+  (`setRanges`) aus Punktzahl + `lineStartCoordIdx()`, Punkt per Nachbarsuche ab dem letzten Index. Kein Eingriff in die
+  acht Stellen, die die Linie nachführen. Bodenebenen (`FLUG_BODEN_EBENEN`, auch `anim-dot-*`) per `setFilter` aus;
+  `dotEbenenAufbauen` filtert erneut.
+- **Höhe über Grund:** `_flugHoehen()` — `rel_alt` (DJI) + DEM(Start) − DEM(i), sonst `ele` − DEM(i); DEM über
+  `dem_hoehen` (Stufe 13, gecacht), Schlüssel = Punktzahl + Enden + Reihenlänge.
+- **Kamera:** `_flugKameraPlus(frac)` = agl × Überhöhung. Scrubben: `jumpTo` mit `elevation` (easeTo übernimmt sie
+  nicht, `setCenterElevation` danach bricht die Fahrt ab). Probelauf/Render: `_previewEleAt` + Plus bei `_didFollow`;
+  ruhige Kamera: Stützstellen `eM += plus` bei `_fFollow && !ip.center`. `map.__rzFlugMitte` hält
+  `rzSeatMapLibreCenter` (util.js) davon ab, die Mitte zurück auf den Boden zu setzen.
+- **Render:** `__rzAnimBereit().flug` (core/szene.py wartet darauf). Der klassische Rückfall-Render
+  (core/animator.py) kennt den Flug nicht.
+- **Grenzen:** nur MapLibre + Gelände + eine Tour (`_flugMoeglich()` → Grund `mapbox|gelaende|reise|keine_tour`).
+- Test `tests/test_flug_in_der_luft.py` (IGC aus echtem Gelände + gewollter Höhe, Scrub, Bild mit/ohne, Video mit/ohne).
+
+## Ausreißer: Grund und Schwellen je Sportart (05.10.2026, v0.9.782, IDEEN I-087)
+
+- **Eine Tabelle, zwei Orte:** `SPORT_GRENZEN` in `modules/gpxinspect/ui/module.js` und `SPORTARTEN` in
+  `core/trackcheck.py` (`boden` = Tempo-Schwelle nie darunter, `decke` = feste Obergrenze in m/s; `DECKE_BIS_M` =
+  10 km, längere Segmente sind Fähre/Flug und fallen nie unter die Decke). `test_ausreisser_sportart` hält beide gleich.
+- Inspektor: `_spikeGrenzen()` liefert die Schwellen (von `detectSpikes` UND der Zeile `#gpxi-grenzen` benutzt),
+  `_spikeGrund()` hängt an jede Gruppe `grund` ({art: sprung|tempo|decke, …}), `_spikeGrundText()` → Vorschau
+  (`.gpxi-healprev-sub`, höchstens 5) und Navigations-Hinweis. `_grenzenZeigen()` läuft in `analyseTrack()` erst NACH
+  dem await — vorher hat `loadTrack` `_hasTime` noch nicht gesetzt.
+- Backend: `sprung_gruppen(..., sportart)` → `sprung_gefiltert` → `pruefen(sportart=…)`; Brücke
+  `gpxinspect_track_check(points, path, local_time_n, sportart)`. Archiv-Prüfung bleibt „auto".
+
+## Foto-Pfade umbiegen, wenn das Laufwerk anders heißt (05.10.2026, v0.9.782, IDEAS §82 Schritt 1)
+
+`core/pfade_umziehen.py`, rein über sqlite3 + austauschbare Dateisystem-Abfragen:
+- `kandidaten(conn, existiert, volumes, zufall)` — je fehlender Laufwerkswurzel eines Foto-Ordners (`/Volumes/X`,
+  `Z:\`) eine Stichprobe von 12 Fotos; der erste andere Einhängepunkt (ähnliche Namen `X-1`/`X 2` zuerst), unter dem
+  ≥ 80 % liegen, wird vorgeschlagen. Ist die Wurzel selbst da und nur der Ordner weg → kein Vorschlag.
+- `umbiegen(conn, alt, neu, idx)` — Präfix-Ersatz in `fotos.path/ordner`, `foto_ordner`, `foto_verz`,
+  `foto_laufwerk.wurzel` und optional `vek.path` im Inhaltsindex; eine Transaktion je DB, `UPDATE OR IGNORE`
+  (Pfade, die am Ziel schon existieren, bleiben stehen und werden als `uebrig` gezählt). `_unter()` prüft auf ganze
+  Pfadteile — `/Volumes/Fotos` trifft nicht `/Volumes/Fotos-Archiv`.
+- Brücken `fotos_pfade_kandidaten()` / `fotos_pfade_umbiegen(alt, neu)`: lehnt ab, solange eingelesen wird oder das
+  Ziel fehlt; vorher `_bib_sichern_still()`; den Inhaltsindex nur anfassen, wenn die Datei schon existiert; unter
+  `clib._DB_LOCK`. UI: `pfadeUmziehenAnbieten()` in `ui/js/fotos.js` nach `fernBeobachten()`, einmal pro Sitzung.
+- Test: `tests/test_pfade_umziehen.py` (Kern + Brücke mit Wegwerf-Bibliothek).
+- **Schritt 2 (Vorschaubilder):** `bibliothek_zip(..., vorschau=True)` → `cbib.vorschau_fuer_zip(fps, photo_thumb_cache)`
+  als `extra` in `zip_sichern` (Ordner `VORSCHAU_ORDNER = "_vorschau_fotos"`, nie Teil einer weiteren Sicherung).
+  `_bib_oeffnen` startet `vorschau_uebernehmen` im Hintergrund (Stempel = Anzahl:jüngste mtime). Schlüssel bleibt gültig,
+  weil `fotos.fp` beim Umbiegen nicht neu berechnet wird. Test `test_bibliothek_anderer_rechner`.
 
 ## Stille Foto-Nachschau (04.10.2026, v0.9.781)
 
@@ -4602,6 +4804,7 @@ Schild-Stelle für Fotos ohne GPS. Highlights: `_hlGipfelName` (Gipfel ≤ 300 m
 **Zeitleiste.** Reise: `_gruppenAnLeiste` gibt je Kachel `hoehe` (Ausschnitt aus `_gpxElevations` über `_reiseBahn.teile`), `_gruppeHoeheSvg` zeichnet es in die Kachel. Schild-Zeilen tragen `iconSvg` (`window.__rzHlIconSvg(art, farbe)`). ⌘+/⌘−/⌘0 in `_keyNav` → Zoom-Knöpfe. Spurhöhe: Griff `.tl-hoehe-griff`, Faktor `--tl-s` auf dem Host (alle Spurhöhen `calc(Npx * var(--tl-s))`), `getSpurFaktor/setSpurFaktor`. Übersichtskarten: `_spurTeile(cs, max)` trennt an Tourgrenzen und Sprüngen, beide zeichnen `path` mit M/L. `setHoehe(werte)` (Werte je Streckenanteil, aus `_hoeheSpurSync` ~300 Stück) → `_hoeheZeichnen` am Ende
 von `_tempoZeichnen`: SVG `.tl-hoehe`, x = `_anchorToPct(_trackToBar(_videoAusStrecke(a)))`. Schild-Balken: Zeile trägt
 `bild` (thumb, `_imgEl` oder `_sgMiniBild` = `sign_image_thumb(…, 96)`) bzw. `symbol`; `_balkenGruppe` rendert `.tl-ov-bild`.
+**Stapeln (06.10.2026):** Option `stapeln` von `_balkenGruppe` (nur Schilder): `reihen()` legt Einträge ohne zeitliche Überschneidung in dieselbe Zeile (erste freie von oben, Luft 0,004), Zeilen-ID `reiheN`, Balken tragen weiter die Schild-ID (`data-id`); Label „Name +n“, Doppelklick aufs Label öffnet nur bei genau einem Schild. **Fotostopps** zeichnet `_sgSpurJetzt` über `_fsSpurFenster` (Pin = Halt − Anflug − 2,5 s bis Videoende), passend zu `_fotostoppZeigen`; Verschieben (`_sgWerteAusBalken`) verschiebt die Stelle um dieselbe Zeit. Doppelklick in Nicht-Kamera-Spuren (`trackEl` dblclick) legt keinen Keyframe mehr an.
 
 **Schnell-Video „Mehr“.** `<details id="sv-mehr">`, Zutaten `[data-sv-zutat]` mit Schaltern `#sv-fotos-an|sv-clips-an|sv-clipton|
 sv-logbuch|sv-musik-an|sv-klick|sv-uebersicht|sv-schluss-an`. `stoppsWaehlen(fotos, clips, animS, mitTon)`: Budget animS/2,
@@ -5934,7 +6137,7 @@ halt eine animation"). Das ersetzt die frühere Entscheidung „kein Modal". Reg
 - **Sofort-Sperre (14.09.2026):** Ein modaler Vorgang sperrt ab `start()` — die ersten 300 ms unsichtbar (`.ist-sperre-leise`, Warte-Mauszeiger), danach sichtbar. Ein Capture-Listener auf `document` schluckt Klicks, Doppelklicks, Rad, Kontextmenü, Drag/Drop und alle Tasten außerhalb des Wartefensters; nur „Abbrechen“ im Fenster bleibt bedienbar. `window.rzWartet()` sagt, ob gerade gewartet wird; Menübefehle aus der nativen Menüleiste (`_trigger_js`) laufen dann nicht. Wächter `tests/test_warte_sperre_sofort.py`.
 - **Doppelstart-Sperre im Backend:** `@_nur_einmal("gruppe")` (app.py) lehnt einen Aufruf ab, solange einer derselben Gruppe läuft (`{"ok": false, "grund": "laeuft_bereits"}`), statt ihn einzureihen. Gruppen: `bibliothek`, `archiv_ordner`, `archiv_import`, `archiv_papierkorb`, `projekte`, `cloud_papierkorb`, `installation`, `kachel_cache`, `fotos_ordner`. Jeder neue Vorgang, der Dateien bewegt oder löscht oder lange läuft, bekommt eine Gruppe. Wächter `tests/test_doppelstart_sperre.py`.
 - **Jeder Brückenaufruf braucht eine Entscheidung (14.09.2026):** Die Durchsicht aller ungeschützten Aufrufe hat jeden in eine Klasse gelegt. `warten` → `rzWarten` + Eintrag in `_WARTE_DE` + i18n `warte.<name>.*` (u. a. Bibliothek umziehen/festlegen/sichern/erneut, Tour in den Papierkorb, Projekte anlegen/öffnen/löschen/importieren/exportieren, Versionen, Cloud-Papierkorb, Kachel-Cache, Selbst-Installation, Höhenprofil laden — 98 Vorgänge). `schnell`, `hintergrund`, `dialog` → Eintrag mit Grund in `OHNE_WARTEFENSTER` in `tests/test_ladefeedback.py`. Einzelstellen, die vom Namen abweichen, tragen `// warte-ok: <Grund>` (Systemdialog, eigener Fortschritt per rzStatus, Suche beim Tippen). Ein neuer Aufruf in keiner der drei Listen lässt den Wächter mit „neuer Brückenaufruf ohne Wartefenster-Entscheidung“ scheitern.
-- **Dialog, dann lange Arbeit:** Der Systemdialog (`bibliothek_ordner_waehlen`, `pick_file` …) bleibt ungewickelt; der lange Folgeaufruf (`bibliothek_umziehen`, `bibliothek_festlegen`) läuft durch rzWarten. Steckt Dialog und Arbeit in EINEM Aufruf (`bibliothek_zip`, `projekt_exportieren`, `projekt_importieren`, `export_current`), wird der ganze Aufruf gewickelt — das Fenster liegt dann hinter dem Systemdialog.
+- **Dialog, dann lange Arbeit:** Der Systemdialog (`bibliothek_ordner_waehlen`, `pick_file` …) bleibt ungewickelt; der lange Folgeaufruf (`bibliothek_umziehen`, `bibliothek_festlegen`) läuft durch rzWarten. Steckt Dialog und Arbeit in EINEM Aufruf (`bibliothek_zip`, `projekt_exportieren`, `projekt_importieren`, `export_current`), wird der ganze Aufruf gewickelt — das Fenster liegt dann hinter dem Systemdialog. Seit 06.10.2026 trennt die ZIP-Sicherung beides: `bibliothek_zip_ziel()` zeigt nur den Dialog (ungewickelt), danach läuft `bibliothek_zip(alles, ziel, vorschau)` durch rzWarten — die Meldung „wird gesichert“ erscheint erst nach der Wahl des Orts.
 - **Schleifen:** Nie ein Fenster je Element. Die ganze Schleife bekommt EIN `rzStatus.start(id, { gesamt })` mit `schritt()` je Element und `ende()` im `finally` (Beispiel `trashViele` und Doppelte wegräumen in `modules/library/ui/module.js`). Braucht die Schleife zwischendurch eine Rückfrage (`rzConfirm`), vorher das Fenster schließen — es sperrt sonst auch die Rückfrage.
 - **`laeuft_bereits`:** Lehnt das Backend einen Doppelstart ab, zeigt die Oberfläche `r.error` als Hinweis — Aufrufer dürfen die Antwort nicht verschlucken.
 - Wächter: `tests/test_ladefeedback.py` (Mitte, Sperre, Prozent, Ring, Fehler, Hintergrund, rzWarten samt Abdeckung aller Tabellen-Vorgänge und Entscheidung für jeden Brückenaufruf),
@@ -6263,3 +6466,169 @@ Die **Kennung** (`inhalt_id`, 128 KB je Datei) rechnet seit dem Abend des 05.10.
 (`_tags_lesen_im_faden(..., kenn=[(pfad, größe)])` → Rückgabe `(meta, tags, haenger, kennungen, sekunden)`): Videos immer,
 Fotos nur mit `mit_thumbs` (sonst Schritt 3). Abbruch und Laufende warten auf den laufenden Stapel
 (`leser.shutdown(wait=True)`) — ein noch lesender Faden riss beim Prozessende die Laufzeit mit.
+
+**Restzeit Schritt 2 = `RestZeitDateien` (05.10.2026 abends).** Sekunden je Datei als Median der letzten 40 Stapel, gemessen
+als Wanduhr-Zeit zwischen zwei fertigen Stapeln (`t_fertig_vorher` in `durchgang2`). Gemerkt als `s_je_datei` in
+`meta fotos_tempo2`. Schritt 3 behält `RestZeit` (Dateien + MB — dort zählt die Größe wirklich, Bilder werden dekodiert).
+**`_quellen_zuordnen(data, paths)`** in `core/exif.py`: `SourceFile` → angefragter Pfad, Trennzeichen/Groß-klein egal;
+benutzt von `read_tags_json_viele` und `read_beides_viele`.
+
+## Farbwelt „Nachtkarte“, Schriften, Sofortbild (05.10.2026, nach 0.9.781)
+
+**Farben.** Alle Oberflächenfarben hängen an den Variablen in `ui/css/app.css` `:root` (`--bg-0…4`, `--border*`, `--text*`,
+`--accent` Mint, `--accent-rgb` für `rgb(var(--accent-rgb) / a)`, `--accent-ink` = Schrift auf Mint, `--route-default`).
+Feste Farben in Modul-CSS sind tabu; Kartenebenen (MapLibre kennt kein `var()`) holen Oberflächenfarben über
+`rzFarbe("--accent", ersatz)` (`ui/js/util.js`). **Videofarben (Route, Einblendungen, Schilder, Diagramme) hängen nie an
+diesen Variablen** — sonst änderte ein Farbwechsel der App bestehende Videos.
+**Schriften** in `ui/fonts/` (TTF, OFL-Texte daneben), `@font-face` am Kopf von `app.css`, `--font-ui`/`--font-mono`.
+**Modulleiste:** `MOD_SYMBOLE`/`modSymbol()` in `ui/js/app.js` (SVG, `currentColor`).
+**Route + Kontur:** neue Projekte bekommen in `sessions._project_from_defaults` `line_color` Gelbgrün (nur wenn global noch
+das alte Orange steht) und `kontur_breite`/`kontur_farbe` (Animator und Tour-Map). Ebene `preview-kontur` zwischen
+`preview-glow` und `preview-line` (gleiche Quelle → wächst mit; Etappen-Lücken über `segMaskExpr` wie der Schatten),
+`applyKonturToLayers()`. HTML-Standard des Reglers = 0 → Projekte ohne Schlüssel bleiben ohne Kontur.
+**Sofortbild:** Stil `sofortbild` in BEIDEN Engines — `ui/js/sign_dom.js` (Editor, DOM, `rotate`-Eigenschaft verträgt
+sich mit `transform: scale`) und `ui/js/sign_draw.js` `rzDrawSofortbild` (Probelauf/Video, Canvas). Neigung
+`rzSofortbildDreh(o)` = gleiche Formel wie im DOM. **Ausgang `mini`:** `rzSignMeta` liefert `mini`/`miniSpan`
+(a_hide = 2, bleibt stehen); DOM: `_animSignsApplyDOM` rechnet Größe/Drehung/Rundung je Bild; GPU:
+`_animSignsAttachGPU` registriert zusätzlich `sign-mini-<i>` (`rzDrawSofortbildMini`, 64 px rund) und setzt
+`fullId`/`miniId`/`miniW` in die Meta, `rzSignApplyFrame` schrumpft das große Bild über `popScale` und schaltet bei
+halbem Weg `imgId` aufs Mini (gleiche Breite im Wechsel). `__rzSchilderLaden` zählt eine noch nicht geladene Caveat mit
+(`_sofortbildSchriftOffen`), nach dem Laden wird neu gerastert.
+**Bild greifen:** `core/animator.py` `_jpeg_direkt` (CDP `Page.captureScreenshot`, `clip.scale = devicePixelRatio`,
+Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen und verworfen (DOM-Overlays fehlen im Bild).
+
+### Gesamt-Looks und eigene Kartenstile (nach v0.9.781, 05.10.2026)
+
+- **`ui/js/looks.js`** (`window.rzLooks`): vier Looks als reine Daten (`natuerlich`, `reiseatlas`, `nachtkarte`,
+  `minimal`) und die reine Funktion `anwenden(name, einstellungen)` → neuer Einstellungs-Block (Kartenstil +
+  `ortho_*`/`map_*`, `line_color`/`line_width`/`kontur_*`/`glow_strength`, `ghost_track_color`, `verlauf` an/aus,
+  Container: `schrift` (Titel eigene), `textfarbe`, `akzent`, mit Hintergrund `hg_farbe`/`hg_deckkraft`, ohne
+  Hintergrund `textschatten`; Diagramm-Zeilen: Profil in Textfarbe, Übersichtskarte in Linienfarbe; der Stilname bleibt — nachbaubar von Hand).
+  `erkennen(s)` = Look an Kartenstil + Linienfarbe + Kontur. Läuft auch unter node (Test `tests/test_looks.py`).
+  Videofarben stehen fest in looks.js — nie aus den UI-Variablen (`app.css`).
+- **Anwenden im Animator** (Karte → „Look", `#anim-gesamtlook`): `_animUndoCtrl.applyState(rzLooks.anwenden(…))` —
+  EIN Undo-Schritt, `apply` schreibt den Block und zieht alle Wirkungen nach (Stil, Linie, Container, Verläufe).
+  `window.__rzGesamtLookSync` markiert die passende Kachel (nach Undo, Projektwechsel, Stil/Farbe/Kontur-Änderung).
+  Tour-Map = dasselbe Modul im `staticFrame`-Modus → gespiegelt ohne Extra-Code.
+- **`core/kartenlook.py`**: `umfaerben(stil, "nacht"|"atlas")` — OpenFreeMap Positron (fast einfarbig) als Vorlage,
+  jede Farbe (auch in Ausdrücken, Deckkraft bleibt) nach Helligkeit auf eine Zweitonskala; Rollen: Wasser, Grün,
+  Schrift, Schriftrand mit eigenen Tönen. Nacht nimmt den **Abstand** zur Grundhelligkeit (Straßen und Grenzen treten
+  hell hervor), Atlas die Helligkeit direkt. Vorlage 7 Tage im Kachel-Speicher (`<TILE_CACHE_DIR>/stile/positron.json`),
+  ohne Netz der letzte Stand.
+- **Auslieferung:** lokale Kachel-Weiche `/stil/<name>.json` (`app.py` `_MediaRequestHandler._serve_stil`, CORS) —
+  Vorschau (WKWebView) und Render (Chromium) laden denselben Stil. In `core/mapstyles.py` stehen die Stile
+  `ofm_nacht`/`ofm_atlas` mit `style_url: "{proxy}/stil/…"` + `basis_url`; `mapstyles.style_url(st, proxy_base)`
+  setzt die Weiche ein (Katalog für die UI und `resolve()` für den Render), ohne Weiche → Positron ungefärbt.
+  Quellen-Register: `openfreemap` (`core/kartenquellen.py`, `util.js`).
+- **Ruhe-Regel im Scrubber-Weg** (`module.js`, Kamera an der Scrubber-Stelle): steht der Scrubber am Start, zeigt die
+  Vorschau den ganzen Track — wie `refreshPreviewTrackData` (v0.9.469). Vorher blieben 2 gleiche Punkte übrig, und
+  nach jedem ⌘Z/Vorlage/Look war die Linie weg.
+- **Höhenprofil-Zeile:** Hintergrundkurve und Etappenmarken in `c.textfarbe` (`data-farbe`), nicht mehr fest weiß.
+- **Töne:** `ui/audio/musik_{panorama,tagebuch,puls}.flac`, `foto_klick_{k,l}.wav` (`core/tonspur.EINGEBAUT`/`STUECKE`,
+  Klick-Liste `a…l`); Erzeuger `scripts/musik_vorlagen.py`.
+
+### Schnell-Video-Vorlagen (v0.9.782, 05.10.2026)
+
+- `ui/js/schnellvideo.js` `VORLAGEN` (weite/tagebuch/puls): Look (`ui/js/looks.js`), Musik, Fotoart, Zutaten
+  (`zahlen`/`profil`/`uebersicht`/`felder`). `w.vorlage`, `w.fotoArt`, `w.angepasst` stehen in `schnellvideo_letzte`
+  (`vorlage`, `foto_art`, `angepasst`). Erster Aufruf ohne gemerkte Vorlage → Weite (eigene Musikdatei bleibt).
+- `animatorPatch` = `rzLooks.anwenden(look, animatorPatchRoh(w, v))`, danach `map_style = w.stil` (der Dialog-Stil
+  gewinnt). Klick: Weite `klick_a`, sonst `klick_k`.
+- `einblendungen(w)` je Vorlage: Weite wie bisher (frei, oben) + Schluss frei/groß; Tagebuch Live-Kärtchen `tl` +
+  Schluss mit Titelzeile; Puls Live-Leiste `bc` über dem Profil (9:16 drei Werte) + Schluss kompakt. Bild im Bild:
+  je Foto ein Container (`vorlage: "foto"`, Bildzeile, Anker `tr`, Zeit `strecke` von/bis).
+- Fotos: `gross` → bisherige Fotostopps (`stoppsWaehlen`); `sofortbild`/`pip` → `fotosOhneHalt(fotos, animS, belegt)`
+  (≤ 1 je 4 s, 6 % Abstand auch zu Clip-Stopps, beste zuerst, Dauer `OHNE_HALT_S` = 3,2 s); Sofortbild als Schild
+  (`sofortbildSchild`, Ausgang „mini"), Bild im Bild über `w.pip` (in `werteLesen` gesetzt). Clips bleiben Stopps.
+- Container-Bildzeilen laden Fotos über `sign_image_thumb(pfad, 1440)` (`_ctBildLaden`), Logos/PNG weiter über
+  `watermark_data`.
+- Prüfstand: `window.__rzSchnellVorlagen`.
+
+### Laufpunkt-Fahrzeuge, Schild „Karte", dunkles Logo (v0.9.782)
+
+- **Fahrzeuge:** `FAHRZEUGE`/`FAHRZEUG_NAMEN` oben in `module.js`, Bild `_fahrzeugBild(art, farbe)` (Canvas 46 px × 2,
+  Plakette in Linienfarbe, Piktogramm dunkel ab Helligkeit 0,62), Ebene `anim-dot-fz` in `dotEbenenAufbauen`
+  (Flugzeug: `icon-rotate` = `brg`, map-aligned; sonst viewport-aligned, aufrecht). Werte in `marker_dot_style` bzw.
+  `stil.dot_style` je Tour. Schwarm-Punkte und die Web-Karten-HTML kennen nur Kugel/Pfeil (dort → Kugel).
+- **Schild „karte":** in beiden Engines am Anfang auf `callout` abgebildet, Füllung `#fbf9f4`, Schatten erzwungen
+  (Weichheit 14, Stärke 0,3, falls nicht gesetzt); überall, wo `callout` die Spitzenrichtung bestimmt, zählt `karte`
+  mit (`anchorFor`, `_animTailStyles`, Editor `se-cdir`).
+- **Logo:** `@lockup-dark` → `ui/assets/wm-lockup-dark.png` (`core/animator.wasserzeichen_pfad`); `rzLooks` tauscht
+  in Bildzeilen `@lockup-white` ↔ `@lockup-dark` nach `hell`.
+
+### Video-Assistent Stufe 1 (v0.9.782, Block 2)
+
+- **`core/videoassistent.py`** (rein, ohne App-Zustand): `waehlen(kandidaten, n_max, vek, inhalt, fahrten, abstand)`
+  → Doppelte weg (`doppelte_weg`: ≤ 45 s + Kosinus ≥ 0,90, ohne Vektoren ≤ 4 s), Wert (Pause +2, Serie +1, Inhalt
+  `2·gut − 3·schlecht`, Fahrt −1,5), Wahl wie MMR (Ähnlichkeit × 2,5, gleiches Thema −1 je Wiederholung, Lücken-Bonus
+  ≤ 0,6, Mindestabstand). `inhalt_bewerten(modell, vektoren)`: SigLIP-Wahrscheinlichkeiten für `THEMEN`/`AUSSCHUSS`
+  (englische Prompts), je Tour auf 0…1 normiert. Jedes Ergebnis trägt `grund` (z. B. `pause`, `aussicht`,
+  `bestes_von:3`, `fahrt`).
+- **`app.py`**: `schnellvideo_fotos` liefert Merkmale `pause`/`serie` und ruft `cva.waehlen` (nicht bei „alle" und
+  Clips). `_va_inhalt(pfade)` holt Vektoren aus dem Inhaltsindex (nur wenn `_inhalt_bereit()`), `_va_fahrten(path)`
+  `_va_logbuch(path)`: (Fahrten `art == "fahrt"`, Tage zwischen `anzeige_art == "uebernachtung"`)
+  als Streckenanteil (bezogen auf `_logbuch_punkte`); `waehlen(..., tage=)` gibt jedem Tag zuerst sein bestes Foto.
+- Test: `tests/test_videoassistent.py` (Test-Modell statt Download).
+- **Container-Werte:** `.ct-v { font-size: 1em }` im CONTAINER-CSS — vorher überschrieb `.ov-v` (alte Overlay-Boxen,
+  22 px × `--overlay-scale`) die Größe; Web-Karte (nur CONTAINER-CSS) und Video wichen voneinander ab.
+- **`__rzSchnellBereit`**: gilt nach 8 s als bereit, wenn nur noch `rz-dem` (Relief) lädt.
+- **`_schnell_logo_bild`**: eingebautes Logo behält die Fassung des Looks (`@lockup-dark` bei hellen Looks).
+
+### Render-Tempo (v0.9.782)
+
+- `core/szene.py` `_WARTE_BILD_JS`: nach `idle` feste Pause `RZ_BILD_RUHE_MS` (Standard jetzt **20 ms**, vorher 60),
+  die ersten 8 Bilder `RZ_BILD_RUHE_ANLAUF_MS` (60 ms) — Zähler `window.__rzBildNr`, vor der Bildschleife auf 0.
+  Messung 05.10.2026 (Weite 9:16, 20 s, Brandenburg): 197 → 167 ms je Bild, PSNR 44 dB im Mittel, nur Bild 2 < 35 dB
+  (blasse Gesamtrunde noch nicht gezeichnet) → Anlauf. Bild greifen über CDP (`_jpeg_direkt`) im echten Video
+  bestätigt: 41–54 ms je Bild, Bilder korrekt.
+
+### Tempo-Regie im Schnell-Video (v0.9.782)
+
+- `schnellvideo_vorschlag` liefert `regie: [{art: hoechster|steilster, bei}]` (`core/highlights.track_highlights`).
+- `schnellvideo.js` `tempoRegie(punkte)`: Bereiche ±`REGIE_BREITE` (0,025) um Höhepunkte, Bild-im-Bild- und
+  Sofortbild-Fotos (`w.pip`, `w.regieFotos`), zusammengelegt, `faktor` `REGIE_FAKTOR` (0,55), `quelle: "regie"` →
+  `tempo_eintraege` im Patch (gehört zu `ABLAUF`). Schalter `w.tempoRegie` / `letzte.tempo_regie` (Standard an).
+- **Gipfel-Shot** (`gipfelShot(regie, zNah, neigung, animS)`): 4 Kamerapunkte um `regie.hoechster` (±2·d, d = min(0,04; 2,5 s/animS)), Zoom zNah−1,1, Neigung 62°; nur mit Tempo-Regie und nicht am Rand (≤ 2 %/≥ 98 %).
+- **Ortszeile:** `schnellvideo_fotos` gibt `ort` (Foto-Bestand, Spalte `ort`) je Foto mit; Sofortbild-Schild `text` = Ortsname (erster Teil), Bild-im-Bild-Container bekommt eine Textzeile darunter. Logbuch-Texte (`logbuchAnwenden`) überschreiben den Text.
+
+### Einfache Ansicht (v0.9.782, Block 3)
+
+**Seit 06.10.2026 abgeschaltet** (Marc: Video-Assistent als eigener Knopf statt Umschalter in der Seitenleiste): `einbauen()`/`ansicht()` greifen nur bei `window.__rzEinfachAn === true` (Tests); sonst immer „feinarbeit“. `startseite.js` wählt die einfache Ansicht nicht mehr vor. Im Animator steht `#anim-videoassistent` (hidden) neben `#anim-schnellvideo` — dort hängt später das Assistenten-Quiz (F-14). Schnell-Video-Vorschau: `svVorschau().einblendungen()` zeichnet Zahlen (`v.zahlen`) und Profil (`v.profil`) je Vorlage; Fotostopp: `_fsBildHolen` lädt Bild und `fotostopp_info` getrennt (Vorschau zeigt das Bild sofort, Render wartet auf beides); `_ort_am_punkt` pausiert nach `KeinNetz` 5 min (`Api._ORT_OFFLINE_BIS`).
+
+- **`ui/js/einfach.js`** (`window.rzEinfach`): hängt sich per MutationObserver in `#anim-panel` (Umschalter `#rz-ansicht`,
+  Box `#rz-einfach`); Modus-Klasse `rz-einfach-an` blendet alle `> .section` und die Vorlagen-Leiste aus (CSS in app.css).
+  Keine eigenen Einstellungen: Schritte schreiben über `feld(id, wert)` in die vorhandenen Felder (`anim-dur`, `anim-w/h`,
+  `anim-kf-enabled`, `anim-camera-follow`, `anim-hl-on`) bzw. klicken vorhandene Knöpfe (`#anim-gesamtlook [data-look]`,
+  `#anim-render`, `#anim-schnellvideo`, `#anim-signs-add-photos`). Kamerafahrt = `__rzSchnellKamerafahrt` als ein
+  Undo-Schritt (`applyState`) + `__rzSchnellKamera` für die Blickrichtung.
+- Animator stellt `window.__rzEinfachBbox` (Tour-Ausdehnung) und `__rzEinfachErlaubt` (nicht Tour-Map/Reiseroute) bereit.
+- Ansicht global in `settings.animator_ansicht` (`saveSettings`). Test: `tests/test_einfache_ansicht.py`.
+- **Startseite** (`ui/js/startseite.js`, `window.rzStartseite`, `rzStartseiteNachEinrichtung`): nur nach „Los geht's" im Einrichtungsdialog (app.js `md-fr-go`), setzt `animator_ansicht = "einfach"` falls noch nicht gewählt, zeigt nach 1,2 s ein Modal mit drei Aufgaben (library · gpxinspect · geotagger).
+
+### Reiseroute: Verkehrsart je Etappe (v0.9.782, Block 4 Schritt 1)
+
+- `core/route.gemischte_route(waypoints, arten, token, coarseness)`: je Etappe `ARTEN_STRASSE` (auto/rad/wanderer →
+  `road_route` driving/cycling/walking) oder `ARTEN_GERADE` (flugzeug/boot/zug → `arc_route`, 60 Punkte), verkettet ohne
+  doppelte Stationen; liefert `abschnitte: [{art, von, bis}]` (Koordinaten der Stationen).
+- `route_compute(params.abschnitte)`: leere Einträge = allgemeine Wahl (Stil/Fortbewegung); GPX-Name mit `_mix_`.
+- Oberfläche: `_routeWps[i].art` (Select `.route-wp-art-sel`, gespeichert in `route_wps`), nach dem Berechnen
+  `route_abschnitte` im Projekt. `_routeArtAn(frac)` sucht je Grenze den nächsten Punkt in `currentCoords` (Cache je
+  Spur) — robust gegen Glätten/Ausdünnen; `_dotStilAktuell` nimmt das Fahrzeug als Stil (Schlüssel `route-<art>`, der
+  Wechsel baut die Laufpunkt-Ebenen neu). Test: `tests/test_route_abschnitte.py`.
+
+### Höhendrift (v0.9.782, Block 5)
+
+- `ui/js/hoehendrift.js` (`window.rzHoehenDrift.korrigieren(gps, dem, cum, fensterM=1000, schrittM=200)`): Median der
+  Abweichung GPS − Gelände im Fenster je Stützstelle, linear interpoliert, abgezogen → `{hoehen, drift, info}` oder
+  `null` (< 10 Vergleichspunkte). Inspektor: Knopf `gpxi-ele-drift` → `applyEleDrift()` (gleiche Basis wie das Mischen,
+  `_eleGpsReihe()` = GPS-Original, `_eleBasis` danach, Undo). Test: `tests/test_hoehendrift.py`.
+- **IGC** (`core/imports._parse_igc`, Dispatch `.igc`): HFDTE-Datum, B-Zeilen fester Spalten, Mitternachtsrollover, Höhe = GNSS (≠ 0) sonst Druck, Sensorfeld `baro_alt` (core/sensors FIELD_META). `INDEX_EXTS` (Archiv) übernimmt die Endung automatisch.
+- **DJI-Drohnen-Untertitel** (`core/imports._parse_dji_srt`, Dispatch `.srt` → `sniff_srt`): nur wenn
+  `[latitude …]` oder `GPS(` im Kopf steht, sonst `import.err_kein_dji` (→ `library.fehler_grund` = „kein_track", wie
+  .txt ohne NMEA). Drei Generationen (neu `[latitude][longitude][rel_alt abs_alt]`, Mavic Air `longtitude`/`altitude`,
+  alt `GPS(Länge,Breite,…)` + `BAROMETER`, Mini 2 `H …m`). Erster Block je Sekunde (ohne Zeit jedes 30. Bild). Zeit =
+  Ortszeit OHNE Zone (→ `zeit_ohne_zone`, Inspektor-Hinweis „local_time"). Höhe nur absolut, Höhe über Start als
+  Sensorfeld `rel_alt`. Auswahl-/Drop-Listen (`app.py` pick_file, `gpx-bar.js` TRACK_DROP_RE, Geotagger, Archiv) kennen
+  jetzt auch `.igc` und `.srt`. Test `test_import_dji_srt`.
+- **3D-Häuser, Wirt-Ketten** (`_gebaeudeFaerbenKern`): `f.wirt` = größtes umschließendes Gebäude, `f.wurzel` = oberster Wirt der Kette (≤ 8 Schritte); gefärbt wird nach der Wurzel. Ändert sich ein Wirt, werden alle Teile mit diesem Wirt neu geprüft.
+- **Titel-Vorschläge** (`app.py schnellvideo_titel_vorschlaege`): höchster Punkt → `_ort_am_punkt(…, nur_gipfel)` (mit OSM-Höhe), Start/Ziel → Photon `place:*` im Umkreis 3 km (Rundtour < 1,5 km Abstand → „Rund um“); Vorlagen `schnell.titel_gipfel/_strecke/_runde`. Dialog: Chips `#sv-titel-vorschl`.

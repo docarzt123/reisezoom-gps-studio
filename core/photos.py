@@ -298,6 +298,242 @@ def thumb_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
     return data
 
 
+# ── Schnellbild (06.10.2026, Marc: „B ja auch so") ─────────────────────────────────────────────────────────────────
+# Beim Einlesen (Schritt 3) wurde jedes Foto komplett übers NAS gelesen, um ein 220-px-Bild zu bauen — 2–6 MB je
+# Foto, bei ~25 MB/s Netz etwa 5 Bilder/s, für 350.000 Fotos ~17 h. Jedes JPEG trägt aber im EXIF-Block (immer in den
+# ersten 64 KB) ein kleines Vorschaubild (meist 160×120). Das reicht fürs Raster; scharf wird es beim Ansehen
+# (fotos_schaerfen). Spart rund 98 % der Daten.
+SCHNELL_MIN_PX = 120      # kleinere eingebettete Bilder sind zu grob → wie bisher die ganze Datei lesen
+_DREHUNG = {2: ("FLIP_LEFT_RIGHT",), 3: ("ROTATE_180",), 4: ("FLIP_TOP_BOTTOM",), 5: ("TRANSPOSE",),
+            6: ("ROTATE_270",), 7: ("TRANSVERSE",), 8: ("ROTATE_90",)}
+
+
+def _exif_app1(kopf: bytes) -> Optional[bytes]:
+    """Den EXIF-Block (APP1 „Exif\0\0…") aus dem Anfang einer JPEG-Datei — ohne den Rest zu brauchen."""
+    if not kopf.startswith(b"\xff\xd8"):
+        return None
+    i, n = 2, len(kopf)
+    while i + 4 <= n and kopf[i] == 0xFF:
+        marke = kopf[i + 1]
+        if marke in (0xD9, 0xDA):          # Bildende / Bilddaten: kein EXIF mehr davor
+            return None
+        laenge = int.from_bytes(kopf[i + 2:i + 4], "big")
+        if marke == 0xE1 and kopf[i + 4:i + 10] == b"Exif\x00\x00":
+            return kopf[i + 4:i + 2 + laenge] if i + 2 + laenge <= n else None
+        i += 2 + laenge
+    return None
+
+
+def _schwarze_balken_weg(img):
+    """Manche Kameras setzen das 3:2-Bild mit schwarzen Balken in ein 4:3-Vorschaubild — die Balken abschneiden."""
+    try:
+        g = img.convert("L")
+        w, h = g.size
+        px = g.load()
+        dunkel = lambda y: sum(px[x, y] for x in range(0, w, max(1, w // 16))) / len(range(0, w, max(1, w // 16))) < 10  # noqa: E731
+        o, u = 0, h - 1
+        while o < h // 4 and dunkel(o):
+            o += 1
+        while u > h - h // 4 and dunkel(u):
+            u -= 1
+        if o >= 2 and (h - 1 - u) >= 2:
+            return img.crop((0, o, w, u + 1))
+    except Exception:  # noqa: BLE001
+        pass
+    return img
+
+
+def schnellbild_aus_kopf(kopf: bytes, max_px: int = THUMB_RASTER_PX) -> Optional[bytes]:
+    """Eingebettetes EXIF-Vorschaubild aus den ersten 64 KB einer JPEG-Datei, richtig gedreht, als JPEG — oder None
+    (kein/zu kleines Vorschaubild, kein JPEG)."""
+    try:
+        app1 = _exif_app1(kopf or b"")
+        if not app1:
+            return None
+        import piexif
+        from PIL import Image
+        d = piexif.load(app1)
+        roh = d.get("thumbnail")
+        if not roh:
+            return None
+        img = Image.open(io.BytesIO(roh))
+        img.load()
+        if max(img.size) < SCHNELL_MIN_PX:
+            return None
+        img = _schwarze_balken_weg(img)
+        dreh = (d.get("0th") or {}).get(piexif.ImageIFD.Orientation, 1)
+        for op in _DREHUNG.get(int(dreh or 1), ()):
+            img = img.transpose(getattr(Image.Transpose, op))
+        if max(img.size) > max_px:
+            img.thumbnail((max_px, max_px), Image.LANCZOS)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=_THUMB_JPEG_Q)
+        return buf.getvalue()
+    except Exception as e:  # noqa: BLE001
+        _log.debug("Schnellbild fehlgeschlagen: %s", e)
+        return None
+
+
+def thumb_ablegen(path: str, max_px: int, fp: Optional[str], data: bytes) -> bool:
+    """Ein fertiges Vorschaubild unter dem Schlüssel ablegen, unter dem `thumb_gecacht` es sucht (überschreibt)."""
+    schluessel = _fingerprint(path, fp)
+    if not schluessel or not data:
+        return False
+    _cache_put(f"{schluessel}@{int(max_px)}", data)
+    return True
+
+
+def thumb_neu(path: str, max_px: int = THUMB_RASTER_PX, fp: Optional[str] = None) -> Optional[bytes]:
+    """Vorschaubild aus der ganzen Datei neu bauen und das alte (z. B. ein Schnellbild) ersetzen."""
+    if not os.path.isfile(path):
+        return None
+    data = _thumb_bytes_fuer(path, int(max_px))
+    if data:
+        thumb_ablegen(path, max_px, fp, data)
+    return data
+
+
+# ── Vorrat für die Inhaltssuche (06.10.2026, Marc: „A einverstanden") ───────────────────────────────────────────────
+# Mit eingeschalteter Inhaltssuche las das Einlesen jedes Foto ganz (Rasterbild), danach las die Inhaltssuche es ein
+# ZWEITES Mal übers NAS (600er-Bild) — bei 370.000 Fotos noch einmal ~15 h. Jetzt baut Schritt 3 aus EINEM Dekodieren
+# beide Größen; die 600er wandern in einen kleinen Vorrat, den die Inhaltssuche abarbeitet und leert. Gedeckelt
+# (VORRAT_MAX), damit kein 12-GB-Speicher entsteht (Q9: die 600er werden nicht dauerhaft aufgehoben).
+VORRAT_MAX = 6000
+QUELLE_PX = 600
+
+
+def _vorrat_dir() -> Optional[Path]:
+    if _cache_dir is None:
+        return None
+    d = _cache_dir / "inhalt_vorrat"
+    try:
+        d.mkdir(exist_ok=True)
+    except OSError:
+        return None
+    return d
+
+
+def _vorrat_name(path: str) -> str:
+    return hashlib.sha1(str(path).encode("utf-8", "surrogatepass")).hexdigest()[:24]
+
+
+def vorrat_anzahl() -> int:
+    d = _vorrat_dir()
+    try:
+        return sum(1 for e in os.scandir(d) if e.name.endswith(".jpg")) if d else 0
+    except OSError:
+        return 0
+
+
+def vorrat_ablegen(path: str, data: bytes) -> bool:
+    d = _vorrat_dir()
+    if not d or not data:
+        return False
+    n = _vorrat_name(path)
+    try:
+        (d / f"{n}.txt").write_text(str(path), encoding="utf-8")
+        (d / f"{n}.jpg").write_bytes(data)
+        return True
+    except OSError:
+        return False
+
+
+def vorrat_holen(path: str) -> Optional[bytes]:
+    d = _vorrat_dir()
+    if not d:
+        return None
+    try:
+        p = d / f"{_vorrat_name(path)}.jpg"
+        return p.read_bytes() if p.is_file() else None
+    except OSError:
+        return None
+
+
+def vorrat_weg(path: str) -> None:
+    d = _vorrat_dir()
+    if not d:
+        return
+    n = _vorrat_name(path)
+    from . import dateischutz as _ds
+    for endung in (".jpg", ".txt"):
+        try:
+            _ds.loeschen(d / f"{n}{endung}", "inhalt_vorrat", art=_ds.ART_CACHE)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def vorrat_leeren() -> int:
+    """Den ganzen Vorrat wegräumen (Inhaltssuche aus/gelöscht). Rückgabe: freigegebene Bytes."""
+    d = _vorrat_dir()
+    frei = 0
+    if not d:
+        return 0
+    try:
+        from . import dateischutz as _ds
+        for e in os.scandir(d):
+            try:
+                g = e.stat().st_size
+                _ds.loeschen(e.path, "inhalt_vorrat_leeren", art=_ds.ART_CACHE)
+                frei += g
+            except Exception:  # noqa: BLE001
+                pass
+    except OSError:
+        pass
+    return frei
+
+
+def vorrat_pfade(limit: int = 0) -> list:
+    """Die Pfade, deren 600er im Vorrat liegen (für die Inhaltssuche während des Einlesens)."""
+    d = _vorrat_dir()
+    raus = []
+    if not d:
+        return raus
+    try:
+        for e in os.scandir(d):
+            if e.name.endswith(".txt") and os.path.exists(e.path[:-4] + ".jpg"):
+                try:
+                    raus.append(Path(e.path).read_text(encoding="utf-8"))
+                except OSError:
+                    continue
+                if limit and len(raus) >= limit:
+                    break
+    except OSError:
+        pass
+    return raus
+
+
+def thumb_und_quelle(path: str, fp: Optional[str], raster_px: int = THUMB_RASTER_PX,
+                     quelle_px: int = QUELLE_PX) -> tuple:
+    """EIN Dekodieren → (Rasterbild-Bytes, 600er-Bytes). Das Rasterbild liegt danach im Vorschau-Speicher. Für JPEG
+    (draft) und PNG/TIFF über Pillow; HEIC/RAW/Videos liefern nur das Rasterbild (600er holt die Suche später)."""
+    if cexif.is_video(path) or cexif.is_heif(path) or cexif.is_raw(path):
+        return thumb_gecacht(path, raster_px, fp), None
+    try:
+        from PIL import Image, ImageOps
+        img = Image.open(path)
+        try:
+            img.draft("RGB", (quelle_px, quelle_px))
+        except Exception:  # noqa: BLE001
+            pass
+        img.thumbnail((quelle_px, quelle_px), Image.LANCZOS)
+        img = ImageOps.exif_transpose(img)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        b6 = io.BytesIO()
+        img.save(b6, "JPEG", quality=85)
+        klein = img.copy()
+        klein.thumbnail((raster_px, raster_px), Image.LANCZOS)
+        b2 = io.BytesIO()
+        klein.save(b2, "JPEG", quality=_THUMB_JPEG_Q)
+        thumb_ablegen(path, raster_px, fp, b2.getvalue())
+        return b2.getvalue(), b6.getvalue()
+    except Exception as e:  # noqa: BLE001
+        _log.debug("thumb_und_quelle (%s): %s", path, e)
+        return thumb_gecacht(path, raster_px, fp), None
+
+
 def thumb_data_url_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
                            fp: Optional[str] = None,
                            nur_cache: bool = False) -> Optional[str]:

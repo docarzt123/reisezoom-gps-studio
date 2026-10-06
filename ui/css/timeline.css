@@ -228,7 +228,7 @@
   margin-top: -2px;
   background: linear-gradient(to right,
     rgba(255, 255, 255, 0.08),
-    rgba(255, 107, 53, 0.18) 50%,
+    rgb(var(--accent-rgb) / 0.18) 50%,
     rgba(255, 255, 255, 0.08));
   border-radius: 2px;
   display: none;
@@ -246,17 +246,17 @@
   background:
     repeating-linear-gradient(
       -45deg,
-      rgba(255, 107, 53, 0.10) 0,
-      rgba(255, 107, 53, 0.10) 5px,
+      rgb(var(--accent-rgb) / 0.10) 0,
+      rgb(var(--accent-rgb) / 0.10) 5px,
       transparent 5px,
       transparent 11px),
     linear-gradient(to right,
-      rgba(255, 107, 53, 0.14),
-      rgba(255, 107, 53, 0.08));
+      rgb(var(--accent-rgb) / 0.14),
+      rgb(var(--accent-rgb) / 0.08));
   border-radius: 0 6px 6px 0;
   pointer-events: none;
   /* dünne Innenkante linke Seite damit der Trenner sich klar abhebt */
-  box-shadow: inset 1px 0 0 rgba(255, 107, 53, 0.45);
+  box-shadow: inset 1px 0 0 rgb(var(--accent-rgb) / 0.45);
 }
 .timeline-hold-region::before {
   content: "HOLD";
@@ -267,7 +267,7 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1.5px;
-  color: rgba(255, 107, 53, 0.85);
+  color: rgb(var(--accent-rgb) / 0.85);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
   white-space: nowrap;
   pointer-events: none;
@@ -285,10 +285,10 @@
   margin-left: -1px;
   background: linear-gradient(90deg,
               transparent 0%,
-              rgba(255, 107, 53, 0.95) 40%,
-              rgba(255, 107, 53, 0.95) 60%,
+              rgb(var(--accent-rgb) / 0.95) 40%,
+              rgb(var(--accent-rgb) / 0.95) 60%,
               transparent 100%);
-  box-shadow: 0 0 6px rgba(255, 107, 53, 0.75);
+  box-shadow: 0 0 6px rgb(var(--accent-rgb) / 0.75);
   pointer-events: none;
   z-index: 4;
 }
@@ -308,7 +308,7 @@
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 5px solid rgba(255, 107, 53, 0.95);
+  border-top: 5px solid rgb(var(--accent-rgb) / 0.95);
 }
 
 /* v0.9.59 — Intro-Region links auf der Timeline (Spiegel der Hold-Region).
@@ -416,8 +416,8 @@
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 2px solid var(--lane-color, #ff6b35);
-  background: color-mix(in srgb, var(--lane-color, #ff6b35) 80%, #000 20%);
+  border: 2px solid var(--lane-color, var(--accent));
+  background: color-mix(in srgb, var(--lane-color, var(--accent)) 80%, #000 20%);
   border-radius: 50%;
   cursor: grab;
   pointer-events: auto;
@@ -524,7 +524,7 @@
 
 .timeline-keynav-hint kbd {
   display: inline-block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -535,9 +535,9 @@
 
 /* Probe-Lauf "Playing"-Zustand: orange Hervorhebung */
 .timeline-btn-play.is-playing {
-  background: rgba(255, 107, 53, 0.85);
+  background: rgb(var(--accent-rgb) / 0.85);
   color: #fff;
-  border-color: rgba(255, 107, 53, 0.95);
+  border-color: rgb(var(--accent-rgb) / 0.95);
 }
 
 /* ── Actions (3 Buttons unter dem Track) ───────────────────────────────── */
@@ -611,7 +611,7 @@
 
 .timeline-hint kbd {
   display: inline-block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -654,7 +654,7 @@
    Eigenschaften der Tour, nicht der Kamera. Ohne diese Ausnahme wäre die neue
    Spur genau für die Nutzer unerreichbar, die nie Keyframes anfassen. */
 .anim-timeline-host--kf-off .timeline-lanes { display: block !important; }
-.anim-timeline-host--kf-off .timeline-lane:not([data-kind="tempo"]):not([data-kind="gruppe"]):not([data-kind="ovkopf"]):not([data-kind="ovbox"]) { display: none !important; }
+.anim-timeline-host--kf-off .timeline-lane:not([data-kind="tempo"]):not([data-kind="gruppe"]):not([data-kind="ovkopf"]):not([data-kind="ovbox"]):not([data-kind="medien"]) { display: none !important; }   /* 06.10.2026: Medien der Tour bleiben auch ohne Keyframes */
 
 /* v0.9.9 — Mini-Track-Streifen wenn Lanes versteckt sind */
 .anim-timeline-host--kf-off #tl-track {
@@ -680,7 +680,7 @@
   margin-top: -1.5px;
   background: linear-gradient(to right,
     rgba(255, 255, 255, 0.08),
-    rgba(255, 107, 53, 0.22) 50%,
+    rgb(var(--accent-rgb) / 0.22) 50%,
     rgba(255, 255, 255, 0.08));
   border-radius: 2px;
   pointer-events: none;
@@ -831,7 +831,7 @@ body.wert-zieht .timeline-marker.is-selected {
 
 /* 22.08.2026 — Ruhige Kamera je Abschnitt (Häkchen im Übergangs-Modal + Badge am Symbol) */
 .easing-modal-smooth { display: flex; align-items: center; gap: 8px; margin: 10px 4px 2px; font-size: 12px; color: var(--text, #ddd); cursor: pointer; }
-.easing-modal-smooth input { accent-color: var(--accent, #ff6b35); }
+.easing-modal-smooth input { accent-color: var(--accent); }
 .timeline-easing-symbol { position: relative; }
 /* 27.08.2026 — die Reiter sitzen ÜBER der Keyframe-Reihe (siehe
    .timeline-cluster-row). Kleiner als die Keyframe-Knöpfe, damit klar ist:
@@ -847,7 +847,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .timeline-cluster-row .cluster-markers .timeline-easing-symbol:hover {
   transform: translate(-50%, -50%) scale(1.2);
 }
-.timeline-easing-symbol.is-smooth { box-shadow: 0 0 0 1.5px var(--accent, #ff6b35) inset; }
+.timeline-easing-symbol.is-smooth { box-shadow: 0 0 0 1.5px var(--accent) inset; }
 .timeline-easing-smooth-badge { position: absolute; right: -6px; top: -7px; font-size: 9px; line-height: 1; pointer-events: none; }
 
 /* ── Tempo-Spur (08.09.2026, Marc) ─────────────────────────────────────────
@@ -1052,6 +1052,9 @@ body.wert-zieht .timeline-marker.is-selected {
    Box eine Zeile mit einem Balken: Schrägen = Ein-/Ausblendung, Ränder und
    Schrägen-Griffe ziehbar. Abgeschaltete Box grau gestrichelt, ohne Klicks. */
 .timeline-lane[data-kind="ovkopf"] { height: calc(15px * var(--tl-s, 1)); }
+/* 06.10.2026 (Marc: „eingeklappt muss immer dünn bleiben") — zugeklappte Gruppenköpfe (Overlays, Schilder, Ton)
+   wachsen nicht mit, wenn die Zeitleiste höher gezogen wird; nur offene Zeilen bekommen den Platz. */
+.timeline-lane[data-kind="ovkopf"]:not(.ist-offen) { height: 15px; }
 .timeline-lane[data-kind="ovkopf"] .lane-label { cursor: pointer; color: #e8c6ff; }
 .timeline-lane[data-kind="ovkopf"] .lane-label:hover { background: rgba(232,160,255,.12); }
 .timeline-lane[data-kind="ovkopf"] .lane-track { cursor: pointer; }
@@ -1173,3 +1176,37 @@ body.wert-zieht .timeline-marker.is-selected {
   border-radius: 2px; background: rgba(255,255,255,.18); transition: background .15s; }
 .tl-hoehe-griff:hover::after, .tl-hoehe-griff.zieht::after { background: rgba(255,255,255,.55); }
 .timeline-bar { position: relative; }
+
+/* 06.10.2026 (A3) — Medien der Tour: feine Striche, Punkt = schon Schild, Video in Koralle; Vorschau beim Darüberfahren */
+.timeline-medien .timeline-lane[data-kind="medien"] { height: 15px; }
+.timeline-medien .lane-label { color: #9fe3d8; font-size: 9.5px; }
+.timeline-lane .lane-markers.tl-medien-striche { pointer-events: none; }   /* Lage wie alle Markerebenen; nur die Striche fangen die Maus */
+.tl-medium { position: absolute; top: 2px; bottom: 2px; width: 2px; margin-left: -1px; border-radius: 1px; background: rgba(72, 214, 196, 0.75); cursor: pointer; pointer-events: auto; }
+.tl-medium::before { content: ""; position: absolute; inset: -2px -3px; }   /* größere Trefferfläche */
+.tl-medium[hidden] { display: none; }
+.tl-medium:hover { background: #48d6c4; box-shadow: 0 0 0 2px rgba(72, 214, 196, 0.35); }
+.tl-medium.ist-video { background: rgba(255, 137, 107, 0.85); }
+.tl-medium.ist-schild { width: 6px; height: 6px; top: 50%; bottom: auto; margin: -3px 0 0 -3px; border-radius: 50%; background: #ff8a5c; }
+.tl-medien-pop { position: fixed; z-index: 3000; width: 220px; padding: 6px; border-radius: 10px; background: var(--bg-2, #1c252e);
+  border: 1px solid var(--border, #2c3a45); box-shadow: 0 6px 24px rgba(0,0,0,.45); pointer-events: none; }
+.tl-medien-pop[hidden] { display: none; }
+.tl-medien-pop-bild { width: 100%; height: 132px; display: flex; align-items: center; justify-content: center; border-radius: 6px; overflow: hidden; background: #0e1318; color: var(--text-dim, #9aa5ae); }
+.tl-medien-pop-bild img { width: 100%; height: 100%; object-fit: cover; }
+.tl-medien-pop-text { font-size: 11px; color: var(--text, #f4f1e9); margin-top: 5px; line-height: 1.35; }
+.tl-medien-pop-text span { color: var(--text-dim, #9aa5ae); }
+
+/* 06.10.2026 (I-281) — Fotostopp-Balken mit Phasen: Pin (blass) · Anflug/Abflug (mittel) · FOTO GROSS (kräftig, Bild +
+   Name), Griffe an den Phasengrenzen (senkrechte Striche, ziehbar). Der Balken selbst bleibt durchsichtig. */
+.tl-ovbar.ist-fotostopp { background: transparent; justify-content: flex-start; overflow: visible; }
+.tl-ovbar.ist-fotostopp:hover { background: transparent; }
+.tl-fs-teil { position: absolute; top: 0; bottom: 0; box-sizing: border-box; pointer-events: none;
+  display: flex; align-items: center; overflow: hidden; }
+.tl-fs-pin { top: 35%; bottom: 35%; background: color-mix(in srgb, var(--ov-farbe) 30%, transparent); border-radius: 2px; }
+.tl-fs-flug { background: color-mix(in srgb, var(--ov-farbe) 45%, transparent); }
+.tl-fs-gross { background: color-mix(in srgb, var(--ov-farbe) 85%, transparent); border-radius: 2px; }
+.tl-fs-gross .tl-ov-bild { flex: 0 0 auto; margin-left: 2px; }
+.tl-fs-gross .tl-ov-name { padding: 0 4px; }
+.tl-fs-griff { position: absolute; top: -2px; bottom: -2px; width: 7px; margin-left: -3.5px; z-index: 4; cursor: ew-resize; }
+.tl-fs-griff::after { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: #fff; opacity: .7; }
+.tl-fs-griff:hover::after { width: 2px; left: 2.5px; opacity: 1; }
+.tl-ovbar.ist-aus .tl-fs-griff { display: none; }

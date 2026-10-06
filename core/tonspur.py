@@ -39,8 +39,11 @@ log = logging.getLogger(__name__)
 SR = 48000
 EINGEBAUT = {"unterwegs": "musik_unterwegs.flac", "weite": "musik_weite.flac", "gipfelsturm": "musik_gipfelsturm.flac",
              "rast": "musik_rast.flac", "grat": "musik_grat.flac", "wanderlied": "musik_wanderlied.flac",
-             "klick": "foto_klick.wav", **{f"klick_{k}": f"foto_klick_{k}.wav" for k in "abcdefghij"}}
-STUECKE = ("unterwegs", "weite", "gipfelsturm", "rast", "grat", "wanderlied")   # scripts/musik_komponieren.py, musik_stile.py
+             # 05.10.2026 — drei Stücke zu den Schnell-Video-Vorlagen (Weite/Tagebuch/Puls, scripts/musik_vorlagen.py)
+             "panorama": "musik_panorama.flac", "tagebuch": "musik_tagebuch.flac", "puls": "musik_puls.flac",
+             "klick": "foto_klick.wav", **{f"klick_{k}": f"foto_klick_{k}.wav" for k in "abcdefghijkl"}}
+STUECKE = ("unterwegs", "weite", "gipfelsturm", "rast", "grat", "wanderlied",
+           "panorama", "tagebuch", "puls")   # scripts/musik_komponieren.py, musik_stile.py, musik_vorlagen.py
 # Formate, die eine Tonspur tragen (GIF/Bildfolgen nicht)
 MIT_TON = {".mp4": ("aac", ["-b:a", "192k"]), ".m4v": ("aac", ["-b:a", "192k"]), ".mov": ("aac", ["-b:a", "256k"]),
            ".mkv": ("aac", ["-b:a", "192k"]), ".webm": ("libopus", ["-b:a", "160k"])}

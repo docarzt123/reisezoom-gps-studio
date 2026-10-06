@@ -31,7 +31,7 @@ Math JSON Promise Map Set WeakMap WeakSet Date Number String Array Object Boolea
 parseInt parseFloat isFinite isNaN Infinity NaN undefined globalThis self Error TypeError RangeError RegExp
 encodeURIComponent decodeURIComponent encodeURI decodeURI escape unescape atob btoa structuredClone
 Image Blob File FileReader URL URLSearchParams FormData Event CustomEvent KeyboardEvent MouseEvent PointerEvent
-DragEvent HTMLElement HTMLCanvasElement Element Node NodeList DOMParser XMLSerializer DOMRect CSS Intl crypto
+DragEvent HTMLElement HTMLInputElement HTMLCanvasElement Element Node NodeList DOMParser XMLSerializer DOMRect CSS Intl crypto
 AbortController ResizeObserver MutationObserver IntersectionObserver getComputedStyle alert confirm prompt fetch
 Audio AudioContext OffscreenCanvas createImageBitmap ImageData Path2D TextEncoder TextDecoder Uint8Array
 Float32Array Float64Array Int32Array Uint32Array ArrayBuffer DataView devicePixelRatio innerWidth innerHeight

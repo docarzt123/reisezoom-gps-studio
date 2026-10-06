@@ -88,8 +88,8 @@
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: #ff6b35;
-  color: white;
+  background: var(--accent);
+  color: var(--accent-ink);
   font-size: 14px;
   cursor: pointer;
   display: flex;
@@ -133,7 +133,7 @@
   height: 14px;
   border-radius: 50%;
   background: #fff;
-  border: 2px solid #ff6b35;
+  border: 2px solid var(--accent);
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
@@ -142,7 +142,7 @@
   height: 14px;
   border-radius: 50%;
   background: #fff;
-  border: 2px solid #ff6b35;
+  border: 2px solid var(--accent);
   cursor: pointer;
 }
 
@@ -209,7 +209,7 @@
 
 .height-time {
   flex: 0 0 auto;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums;

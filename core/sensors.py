@@ -52,6 +52,8 @@ FIELD_META: dict[str, tuple[str, str]] = {
     "humidity":     ("Luftfeuchte",    "%"),
     "hacc":         ("GPS-Genauigkeit", "m"),
     "vacc":         ("Höhen-Genauigkeit", "m"),
+    "baro_alt":     ("Druckhöhe",      "m"),   # 05.10.2026 — IGC-Flugschreiber (Druckhöhe neben der GPS-Höhe)
+    "rel_alt":      ("Höhe über Start", "m"),  # 05.10.2026 — DJI-Drohnen (.srt): Höhe über dem Startpunkt
 }
 
 # ── FIT-record-Feldname → kanonischer Key ────────────────────────────────────

@@ -39,6 +39,8 @@
   position: absolute;
   inset: 0;
 }
+/* 06.10.2026 — schmale Vorschau: Karte in Szenengröße, per transform verkleinert (module.js updateAnimatorViewport) */
+.animator-viewport.rz-karte-skaliert { overflow: hidden; }
 
 /* Refit-Button unten rechts (analog Tour-Map .tourmap-refit-btn).
    v0.7.0: bottom-Offset um Timeline-Höhe + Margin nach oben gerutscht.
@@ -68,7 +70,7 @@
   line-height: 1;
 }
 .anim-refit-btn:hover {
-  background: rgba(255, 107, 53, 0.85);
+  background: rgb(var(--accent-rgb) / 0.85);
   color: #fff;
 }
 .anim-refit-btn:active { transform: scale(0.95); }
@@ -93,7 +95,7 @@
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: var(--text-dim);
   font-size: 11px;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
   z-index: 50;
@@ -124,7 +126,7 @@
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: var(--text);
   font-size: 12px;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
   z-index: 50;
@@ -150,12 +152,12 @@
   transform: translateX(-50%);
   padding: 8px 16px;
   border-radius: 999px;
-  background: rgba(255, 107, 53, 0.92);
+  background: rgb(var(--accent-rgb) / 0.92);
   color: #fff;
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.2px;
-  box-shadow: 0 4px 14px rgba(255, 107, 53, 0.35);
+  box-shadow: 0 4px 14px rgb(var(--accent-rgb) / 0.35);
   z-index: 60;
   pointer-events: none;
   max-width: 80%;
@@ -229,7 +231,7 @@
 }
 .res-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 .res-custom {
@@ -536,7 +538,7 @@
 }
 .osm-disabled-notice .osm-disabled-cta:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 /* ── Timeline-Host (v0.7.0) ─────────────────────────────────────────────
@@ -578,7 +580,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 3px;
   cursor: pointer;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-ui);
   transition: background 0.12s, color 0.12s;
 }
 #anim-kf-section .kf-reset-btn:hover {
@@ -681,7 +683,7 @@
   border-radius: 7px; background: var(--bg-3, rgba(255,255,255,0.04)); margin-bottom: 5px; }
 .sign-row-text { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text, #e6eaf2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
-.sign-row-text:hover { color: var(--accent, #ff6b35); }
+.sign-row-text:hover { color: var(--accent); }
 .sign-row-del { flex-shrink: 0; width: 22px; height: 22px; border: none; border-radius: 6px;
   background: transparent; color: var(--text-dim, #888); cursor: pointer; font-size: 12px; }
 .sign-row-del:hover { background: rgba(229,72,77,0.18); color: #ff7a7d; }
@@ -698,10 +700,10 @@
   justify-content: center; font-size: 15px; }
 .sign-row-edit { flex-shrink: 0; width: 22px; height: 22px; border: none; border-radius: 6px;
   background: transparent; color: var(--text-dim, #888); cursor: pointer; font-size: 12px; }
-.sign-row-edit:hover { background: rgba(255,107,53,0.16); color: var(--accent, #ff6b35); }
+.sign-row-edit:hover { background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
 .sign-row.sign-row-off { opacity: 0.5; }
 .sign-row.dragging { opacity: 0.4; }
-.sign-row.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: -2px; }
+.sign-row.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
 
 /* ── v0.9.175 — Schwebendes Schild-Editor-Panel (kein Modal/Backdrop) ─────── */
 .sign-editor {
@@ -757,7 +759,7 @@
 .se-grid input[type="color"] { width: 40px; height: 26px; padding: 0;
   border: 1px solid var(--border, rgba(255,255,255,0.3)); border-radius: 6px;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); background: none; cursor: pointer; }
-.se-grid input[type="color"]:hover { border-color: var(--accent, #ff6b35); }
+.se-grid input[type="color"]:hover { border-color: var(--accent); }
 .se-inline { display: flex; align-items: center; gap: 7px; }
 .se-inline input[type="range"] { flex: 1; }
 .se-inline input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
@@ -770,7 +772,7 @@
 }
 .se-auto-btn:hover { background: var(--surface-3, #333a44); color: var(--text, #e6e9ec); }
 /* v0.9.269 — aktiver „Keine"-Button (Hintergrund transparent) */
-.se-auto-btn.on { background: var(--accent, #ff6b35); color: #fff; border-color: var(--accent, #ff6b35); }
+.se-auto-btn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 /* v0.9.193 — Bild-Schild mit fehlender Originaldatei in der Liste rot markieren */
 .sign-row-text.sign-row-error { color: #ff6b6b; font-weight: 600; }
 
@@ -783,13 +785,13 @@
 }
 .seg-toggle .seg-opt input { margin: 0; }
 .seg-toggle .seg-opt:has(input:checked) {
-  border-color: var(--accent, #ff6b35); background: rgba(255,107,53,0.12);
-  color: var(--accent, #ff6b35); font-weight: 600;
+  border-color: var(--accent); background: rgb(var(--accent-rgb) / 0.12);
+  color: var(--accent); font-weight: 600;
 }
 .route-pt-row { display: flex; gap: 6px; align-items: center; }
 .route-pt-row input[type="text"] { flex: 1; min-width: 0; }
 .route-pt-row .btn { flex: 0 0 auto; padding: 6px 9px; }
-.route-pt-resolved { font-size: 11px; margin-top: 3px; min-height: 14px; color: var(--accent, #ff6b35); }
+.route-pt-resolved { font-size: 11px; margin-top: 3px; min-height: 14px; color: var(--accent); }
 
 /* v0.9.386 — Wegpunkt-Liste (Start · Zwischenziele · Ziel) */
 .route-wp { margin-bottom: 9px; }
@@ -873,7 +875,7 @@ label.chip-toggle:hover span { border-color: var(--border-strong); color: var(--
 label.chip-toggle input:checked + span {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 /* ── v0.9.452 (Hebel 2) — Overlay-Gruppen als Karten ──────────────────────
@@ -927,7 +929,7 @@ label.chip-toggle input:checked + span {
   cursor: grab; user-select: none; font-size: 13px; line-height: 1; }
 .route-wp-handle:active { cursor: grabbing; }
 .route-wp.dragging { opacity: 0.45; }
-.route-wp.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: 2px; border-radius: 6px; }
+.route-wp.drag-over { outline: 2px dashed var(--accent); outline-offset: 2px; border-radius: 6px; }
 /* 25.09.2026 — ▲▼ je Zeile (rzSortPfeile, ui/js/util.js) neben dem ⠿-Griff */
 .route-wp-sort { margin-left: auto; display: inline-flex; gap: 1px; }
 .sign-row-sort { flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
@@ -948,7 +950,7 @@ label.chip-toggle input:checked + span {
                 cursor: grab; user-select: none; font-size: 13px; }
 .ghost-handle:active { cursor: grabbing; }
 .ghost-row.dragging { opacity: 0.45; }
-.ghost-row.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: 2px; }
+.ghost-row.drag-over { outline: 2px dashed var(--accent); outline-offset: 2px; }
 .ghost-name { flex: 1 1 auto; font-size: 12.5px; font-weight: 600;
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ghost-del { flex: 0 0 auto; background: none; border: 0; cursor: pointer;
@@ -1134,7 +1136,7 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-tour-name-edit {
   flex: 1 1 0; min-width: 0; font-size: 12.5px;
   padding: 2px 5px; border-radius: 4px;
-  border: 1px solid var(--accent, #ff6b35);
+  border: 1px solid var(--accent);
   background: var(--bg-2, rgba(0, 0, 0, 0.35)); color: var(--text, #e6eaf2);
 }
 
@@ -1163,7 +1165,7 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-stil-toggle { font-size: 11px; }
 /* §72 — „Ganz zeigen" je Tour in der Tracks-Liste */
 .anim-ganz-toggle { font-size: 10px; opacity: .55; }
-.anim-ganz-toggle.ist-an { opacity: 1; color: var(--accent, #ff6b35); }
+.anim-ganz-toggle.ist-an { opacity: 1; color: var(--accent); }
 .anim-stil-alle .anim-stil-check { display: block; color: var(--text, #eee); font-size: 12.5px; padding: 3px 0; cursor: pointer; }
 .anim-stil-alle .anim-stil-check input { margin-right: 6px; }
 .anim-stil-zeile.ist-check label { display: flex; align-items: center; gap: 6px; color: var(--text, #eee); cursor: pointer; }
@@ -1265,9 +1267,14 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .overlay-preview-layer .ct-unter.ct-bes-links .ct-wert { justify-content: space-between; align-self: stretch; }
 .overlay-preview-layer .ct-bes-oben .ct-wert { flex-direction: column; align-items: var(--ct-jh, flex-start); gap: 0; }
 .overlay-preview-layer .ct-neben.ct-bes-oben .ct-wert { align-items: center; }
+/* 06.10.2026 (A1) — Info-Karte: Titel als eigene Zeile über den Werten, Werte linksbündig darunter */
+.overlay-preview-layer .ct-vl-info .ct-inhalt > .ct-text:first-child { flex-basis: 100%; }
+.overlay-preview-layer .ct-vl-info.ct-neben.ct-bes-oben .ct-wert { align-items: flex-start; }
 .overlay-preview-layer .ct-l { font-size: var(--ct-bes, 0.5em); font-weight: 500; opacity: 0.85; letter-spacing: 0.06em; white-space: nowrap; }
 .overlay-preview-layer .ct-gross .ct-l { text-transform: uppercase; }
-.overlay-preview-layer .ct-v { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.05; }
+/* 05.10.2026 — font-size 1em: Werte folgen der Schriftgröße der Einblendung (vorher griff die alte .ov-v-Regel mit
+   fester 22-px-Größe — der Regler „Schriftgröße" änderte nur die Beschriftung, und die Web-Karte sah anders aus) */
+.overlay-preview-layer .ct-v { font-size: 1em; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.05; }
 .overlay-preview-layer .ct-v .ov-u { font-size: var(--ct-einh, 1em); font-weight: 600; }
 .overlay-preview-layer .ct-text { font-weight: 700; white-space: pre-wrap; overflow-wrap: anywhere; }
 .overlay-preview-layer .ct-dia { position: relative; flex: none; }
@@ -1294,7 +1301,7 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .ct-zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--border, rgba(255,255,255,.14));
   border-radius: 7px; font-size: 12px; background: rgba(255,255,255,0.02); }
 .ct-zeile.ct-aus { opacity: 0.5; }
-.ct-zeile.ct-offen { border-color: var(--accent, #ff6b35); }
+.ct-zeile.ct-offen { border-color: var(--accent); }
 .ct-zeile.rz-sort-zieht, .ct-ez.rz-sort-zieht { opacity: 0.85; position: relative; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
 .ct-griff { cursor: grab; color: var(--text-dim, #9aa); user-select: none; touch-action: none; }
 .ct-sort { flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
@@ -1303,17 +1310,17 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .ct-lage { color: var(--text-dim, #9aa); font-size: 10.5px; white-space: nowrap; }
 .ct-knopf { background: none; border: 1px solid var(--border, rgba(255,255,255,.14)); border-radius: 5px; color: var(--text-dim, #aab);
   cursor: pointer; font-size: 11.5px; line-height: 1; padding: 3px 5px; }
-.ct-knopf:hover { color: var(--accent, #ff6b35); border-color: var(--accent, #ff6b35); }
+.ct-knopf:hover { color: var(--accent); border-color: var(--accent); }
 /* Editor-Fenster */
 .ct-editor { width: 300px; }
 .ct-editor .sign-editor-body { max-height: min(78vh, 720px); }
 .ct-stile { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .ct-stil { padding: 5px 2px; font-size: 11.5px; border-radius: 6px; cursor: pointer; background: var(--bg-3, #141821);
   color: var(--text, #e6eaf2); border: 1px solid var(--border, rgba(255,255,255,.14)); }
-.ct-stil.on { border-color: var(--accent, #ff6b35); color: var(--accent, #ff6b35); }
+.ct-stil.on { border-color: var(--accent); color: var(--accent); }
 .ct-anker { display: grid; grid-template-columns: repeat(3, 22px); grid-template-rows: repeat(3, 16px); gap: 3px; margin: 2px 0 4px; }
 .ct-ank { border: 1px solid var(--border, rgba(255,255,255,.25)); border-radius: 3px; background: var(--bg-3, #141821); cursor: pointer; padding: 0; }
-.ct-ank.on { background: var(--accent, #ff6b35); border-color: var(--accent, #ff6b35); }
+.ct-ank.on { background: var(--accent); border-color: var(--accent); }
 .ct-ez-reihe { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ct-ez-zahl { display: inline-flex; align-items: center; gap: 3px; }
 .ct-ez-zahl input { width: 78px; padding: 4px 6px; box-sizing: border-box; }   /* 04.10.2026 s. u. */
@@ -1368,7 +1375,7 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .anim-ueb[hidden], .anim-ueb-auf[hidden] { display: none; }
 .anim-ueb.gross { width: 40%; max-width: 560px; cursor: zoom-out; }
 .anim-ueb-svg { width: 100%; height: 100%; display: block; }
-.anim-ueb-track { fill: none; stroke: #ff6b35; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; opacity: 0.95; }
+.anim-ueb-track { fill: none; stroke: var(--route-default); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; opacity: 0.95; }
 .anim-ueb-rahmen { fill: rgba(255, 255, 255, 0.12); stroke: #ffffff; stroke-width: 1.3; stroke-linejoin: round; }
 .anim-ueb-punkt { fill: #ffffff; stroke: rgba(0, 0, 0, 0.6); stroke-width: 1; }
 .anim-ueb-zu { position: absolute; top: 2px; right: 3px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
@@ -1393,7 +1400,7 @@ body.is-rendering .anim-ueb, body.is-rendering .anim-ueb-auf { pointer-events: n
 .anim-transport .tp-knopf { min-width: 28px; height: 26px; padding: 0 5px; border: 0; border-radius: 6px; background: transparent;
   color: #fff; font-size: 14px; line-height: 26px; cursor: pointer; }
 .anim-transport .tp-knopf:hover { background: rgba(255, 255, 255, 0.12); }
-.anim-transport .tp-knopf[data-tp="play"] { min-width: 34px; font-size: 15px; background: var(--accent, #ff6b35); }
+.anim-transport .tp-knopf[data-tp="play"] { min-width: 34px; font-size: 15px; background: var(--accent); }
 .anim-transport .tp-knopf[data-tp="play"].an { background: rgba(255, 255, 255, 0.22); }
 .anim-transport .tp-zeit { margin-left: 6px; font: 600 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
@@ -1422,7 +1429,7 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
   background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .ansicht-knopf.an { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.35); }
 .ansicht-knopf span { position: relative; width: 20px; height: 14px; border: 1.5px solid currentColor; border-radius: 2px; color: var(--text-dim, #9aa4b0); }
-.ansicht-knopf.an span { color: var(--accent, #ff6b35); }
+.ansicht-knopf.an span { color: var(--accent); }
 .ansicht-knopf .ak-seite::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: currentColor; opacity: 0.85; }
 .ansicht-knopf .ak-zeit::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: currentColor; opacity: 0.85; }
 .ohne-seite #anim-panel { display: none !important; }
@@ -1434,3 +1441,46 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 /* 04.10.2026 — Play-Knopf, während die Vorschau startet (Stützstellen der ruhigen Kamera) */
 .anim-transport .tp-knopf.bereitet { animation: tp-bereitet 0.9s ease-in-out infinite; cursor: progress; }
 @keyframes tp-bereitet { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* 05.10.2026 — Gesamt-Looks (ui/js/looks.js): vier Kacheln mit Mini-Vorschau (Karte + Linie) */
+.rz-look-reihe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.rz-look-knopf { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-2); color: var(--text-dim); font: inherit; font-size: 11px; cursor: pointer; }
+.rz-look-knopf:hover { border-color: var(--border-strong); color: var(--text); }
+.rz-look-knopf.is-on { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 1px var(--accent) inset; }
+.rz-look-bild { display: block; height: 34px; border-radius: 5px; position: relative; overflow: hidden; }
+.rz-look-bild::after { content: ""; position: absolute; left: -10%; right: -10%; top: 46%; height: 4px; border-radius: 3px;
+  transform: rotate(-16deg); background: var(--look-linie); box-shadow: 0 0 0 1.5px var(--look-kontur, transparent), 0 0 var(--look-glow, 0) var(--look-linie); }
+/* Videofarben fest (nicht die Oberflächen-Variablen) — synchron zu looks.js */
+.rz-look-natuerlich { background: linear-gradient(135deg, #46573a 0%, #6b7a4c 38%, #8d8467 62%, #4c5d48 100%);
+  --look-linie: #48d6c4; --look-kontur: #0f1a20; }   /* 05.10.2026 abends: Natürlich = Türkis (Trailframe) */
+.rz-look-reiseatlas { background: linear-gradient(160deg, #f3ecdd 0%, #f3ecdd 58%, #b9cdc6 58%, #b9cdc6 100%);
+  --look-linie: #b4432e; --look-kontur: #fbf5e6; }
+.rz-look-nachtkarte { background: linear-gradient(160deg, #0c1519 0%, #0c1519 60%, #122c35 60%, #122c35 100%);
+  --look-linie: #d3e76b; --look-glow: 7px; }
+.rz-look-minimal { background: linear-gradient(160deg, #f2f3f0 0%, #f2f3f0 62%, #c2c8ca 62%, #c2c8ca 100%);
+  --look-linie: #1f2d31; --look-kontur: #ffffff; }
+
+/* 05.10.2026 (Block 4) — Verkehrsart je Etappe der Reiseroute */
+.route-wp-art { display: flex; align-items: center; gap: 6px; margin: 4px 0 2px 22px; font-size: 11px; color: var(--text-muted); }
+.route-wp-art select { flex: 1; min-width: 0; font-size: 11.5px; }
+
+/* 05.10.2026 abends (F-7 Q3) — Hauptaktion in der Kopfzeile, rechts vor den Ansicht-Knöpfen */
+.anim-hauptaktion { margin-right: 10px; padding: 6px 14px; font-size: 12.5px; border-radius: 8px; white-space: nowrap; }
+.anim-hauptaktion:disabled { opacity: 0.45; cursor: default; }
+
+/* 06.10.2026 (Grilling A3) — „Medien der Tour“ rechts in der Detail-Spalte */
+.tm-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-height: 0; height: 100%; box-sizing: border-box; }
+.tm-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tm-kopf b { font-size: 13px; }
+.tm-kopf .sign-editor-x { background: transparent; border: 0; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; }
+.tm-kopf .sign-editor-x:hover { color: var(--text); background: var(--bg-3); }
+.tm-info { font-size: 11.5px; line-height: 1.45; }
+.tm-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; overflow: auto; min-height: 0; flex: 1 1 auto; align-content: start; }
+.tm-bild { position: relative; aspect-ratio: 1; padding: 0; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; background: var(--bg-3); cursor: pointer; }
+.tm-bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tm-bild:hover { border-color: var(--accent); }
+.tm-bild.ist-schild { border-color: #ff8a5c; box-shadow: 0 0 0 1px #ff8a5c inset; }
+.tm-bild.ist-schild::after { content: "🚩"; position: absolute; top: 3px; right: 4px; font-size: 11px; }
+.tm-bild.ist-video::before { content: "▶"; position: absolute; top: 3px; left: 5px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; z-index: 1; }
+.tm-zeit { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px; font-size: 10px; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.65)); text-align: left; }

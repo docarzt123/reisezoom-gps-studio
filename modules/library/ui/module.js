@@ -39,7 +39,7 @@ function mountLibrary(body, headerActions) {
   try {
     setupDropZone({
       target: body,
-      accept: ["gpx", "fit", "tcx", "kml", "kmz", "geojson", "nmea"],
+      accept: ["gpx", "fit", "tcx", "kml", "kmz", "geojson", "nmea", "igc", "srt"],
       onDrop: async (files) => {
         const paths = await persistDroppedFiles(files, "binary");
         if (paths && paths.length && typeof importSingleFiles === "function") {
@@ -54,11 +54,13 @@ function mountLibrary(body, headerActions) {
   // orange Straßen und beige Flächen hat — darauf verschwand der Track.
   const TRACK_COLOR = "#e5007d";
   const FAV_COLOR = "#ffb300";
-  const SEL_COLOR = "#ff6b35";
+  const SEL_COLOR = rzFarbe("--accent", "#99d8c0");   // 05.10.2026 — Auswahl in Oberflächenfarbe (Mint)
 
   const PAGE = 200;
 
   let _items = [], _total = 0, _sel = null, _stats = null, _base = null, _folders = [], _collections = [];
+  let _tourenGeladen = false;
+  let _fotoNachFortsetzen = false;   // 06.10.2026 — Foto-Ansicht erst nach der Fortsetzen-Frage öffnen   // 06.10.2026 — bis zur ersten Antwort „wird geladen“ statt „keine Touren“
   // Hintergrundlauf „Kartenbilder holen": läuft ohne Zutun, die Kacheln sollen
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
@@ -282,7 +284,7 @@ function mountLibrary(body, headerActions) {
           <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">🗂 ${T("pm.title", "Projekte")}</button>
           <button type="button" class="pmgr-seg-btn" id="lib-seg-vorlagen">🧩 ${T("vorlagen.titel", "Vorlagen")}</button>
           <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
-          <button type="button" class="pmgr-seg-btn" id="lib-seg-fotos">📷 ${T("fotos.titel", "Fotos")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-fotos">📷 ${T("fotos.titel", "Medien")}</button>
         </div>
         <!-- 12.09.2026 (Marc): im Archiv steht nur der NAME der Bibliothek, ein
              Klick öffnet die Verwaltung in den Einstellungen — „dann bleibt das
@@ -492,6 +494,7 @@ function mountLibrary(body, headerActions) {
     _items = res.items || [];
     _total = res.total || 0;
     _ortAktiv = null;
+    _tourenGeladen = true;
 
     // Die Suche andersherum: Der Begriff wird zusätzlich als ORT nachgeschlagen,
     // und was in der Gegend liegt, wird **direkt gezeigt**.
@@ -887,6 +890,7 @@ function mountLibrary(body, headerActions) {
   // 12.09.2026 (IDEAS §64) — vierter Zustand: der Foto-Bestand. Wie Vorlagen
   // nicht gemerkt; man kommt der Touren wegen ins Archiv.
   let _fotoView = false;
+  window.__rzLibAnsicht = () => ({ foto: _fotoView, proj: _projView, vorl: _vorlView, touren: _tourenGeladen, nachFort: _fotoNachFortsetzen });   // Prüfstand
   function fotoViewSetzen(an) {
     _fotoView = !!an;
     if (_fotoView) { _projView = false; _vorlView = false; }
@@ -1764,6 +1768,10 @@ function mountLibrary(body, headerActions) {
   }
 
   function emptyHtml() {
+    // 06.10.2026 (Marc: „auf Touren geklickt, da stand erst keine Touren … ich dachte: wo sind meine ganzen Touren?")
+    if (!_tourenGeladen) {
+      return `<div class="lib-empty"><div class="lib-empty-title">${T("library.laedt", "Touren werden geladen …")}</div></div>`;
+    }
     if (!_folders.length) {
       return `
         <div class="lib-empty">
@@ -5582,7 +5590,10 @@ function mountLibrary(body, headerActions) {
     window.__rzStartProjekte = false;
     projViewSetzen(true);
   } else if (!window.__rzKeinPmBoot && store.getJson("fotoview", false)) {
-    fotoViewSetzen(true);
+    // 06.10.2026 — beim Programmstart erst klären, ob es woanders weitergeht (fortsetzen); sonst lud die Foto-Ansicht
+    // schon, und dann sprang die App doch in den Animator
+    if (!window.__rzFortsetzenGeprueft && !window.__rzRenderMode && !window.__rzArchivZeigen) _fotoNachFortsetzen = true;
+    else fotoViewSetzen(true);
   } else {
     const zuletzt = window.__rzKeinPmBoot ? false : store.getJson("projview", true);
     if (zuletzt !== _projView) projViewSetzen(zuletzt);
@@ -5754,6 +5765,16 @@ function mountLibrary(body, headerActions) {
   if (state.max_km) $("lib-kmmax").value = state.max_km;
 
   (async () => {
+    // 06.10.2026 (Marc: „wenn ich die App neu starte, startet er im Archiv bei Fotos und macht erst mal Fotoladen …
+    // dann springt er erst zum Animator") — die Frage „wo war ich zuletzt?" kam erst NACH Ordnern, Sammlungen und der
+    // ganzen Touren-Liste (bei großem Archiv Sekunden). Jetzt zuerst: geht es woanders weiter, sofort dorthin.
+    if (!window.__rzFortsetzenGeprueft && !window.__rzRenderMode && !window.__rzArchivZeigen) {
+      window.__rzFortsetzenGeprueft = true;
+      // Review 06.10.: nur abbrechen, wenn wirklich gewechselt wurde — projektOeffnen() bricht still ab, wenn das
+      // Projekt fehlt; dann bliebe das Archiv sonst ewig bei „Touren werden geladen …".
+      if (await fortsetzen() && (_unmounted || activeMod !== "library")) return;
+    }
+    if (_fotoNachFortsetzen && !_unmounted) { _fotoNachFortsetzen = false; fotoViewSetzen(true); }
     await reloadFolders();
     await reloadCollections();
     await reload();
@@ -5775,25 +5796,33 @@ function mountLibrary(body, headerActions) {
     // Projekt im Animator, bevor die Szene ihr Projekt fand → „Warten auf Projektkarte abgebrochen".
     if (!window.__rzFortsetzenGeprueft && !window.__rzRenderMode) {
       window.__rzFortsetzenGeprueft = true;
-      try {
-        const r = await api().letzte_sitzung();
-        // War zuletzt das Archiv offen, bleibt es das auch: dort arbeitet man
-        // nicht an einem Projekt, und ins Modul zu springen würde genau den
-        // Ort verlassen, an dem man aufgehört hat.
-        if (r && r.ok && r.weiter && r.projekt_id && r.zuletzt_modul !== "library") {
-          await projektOeffnen(r.projekt_id, r.modul || undefined, { stumm: true });   // 26.09.2026 (ER-08)
-        } else if (r && r.ok && r.weiter && r.tour_pfad && r.zuletzt_modul && r.zuletzt_modul !== "library") {
-          // 25.09.2026 (Klicktest S-12): noch kein gespeichertes Projekt — die Tour im letzten Modul öffnen
-          const ok = await window.loadGlobalGpx(r.tour_pfad, { stumm: true });
-          const mod = (window.RZGPS_MODULES || {})[r.zuletzt_modul] ? r.zuletzt_modul : "animator";
-          if (ok !== false && typeof switchMod === "function") switchMod(mod);
-          try { applog("info", "[bib] Fortsetzen ohne Projekt: " + r.zuletzt_modul); } catch (_) {}
-        }
-      } catch (e) {
-        try { applog("warn", "[bib] Fortsetzen: " + e); } catch (_) {}
-      }
+      await fortsetzen();
     }
   })();
+
+  /** Beim ERSTEN Betreten nach dem Programmstart dort weitermachen, wo zuletzt gearbeitet wurde. true = gesprungen. */
+  async function fortsetzen() {
+    try {
+      const r = await api().letzte_sitzung();
+      // War zuletzt das Archiv offen, bleibt es das auch: dort arbeitet man
+      // nicht an einem Projekt, und ins Modul zu springen würde genau den
+      // Ort verlassen, an dem man aufgehört hat.
+      if (r && r.ok && r.weiter && r.projekt_id && r.zuletzt_modul !== "library") {
+        await projektOeffnen(r.projekt_id, r.modul || undefined, { stumm: true });   // 26.09.2026 (ER-08)
+        return true;
+      } else if (r && r.ok && r.weiter && r.tour_pfad && r.zuletzt_modul && r.zuletzt_modul !== "library") {
+        // 25.09.2026 (Klicktest S-12): noch kein gespeichertes Projekt — die Tour im letzten Modul öffnen
+        const ok = await window.loadGlobalGpx(r.tour_pfad, { stumm: true });
+        const mod = (window.RZGPS_MODULES || {})[r.zuletzt_modul] ? r.zuletzt_modul : "animator";
+        if (ok !== false && typeof switchMod === "function") switchMod(mod);
+        try { applog("info", "[bib] Fortsetzen ohne Projekt: " + r.zuletzt_modul); } catch (_) {}
+        return ok !== false;
+      }
+    } catch (e) {
+      try { applog("warn", "[bib] Fortsetzen: " + e); } catch (_) {}
+    }
+    return false;
+  }
 
   /** Beobachtet den Hintergrundlauf und zieht die Ansicht nach, während die
    *  Bilder eintröpfeln — sonst müsste man das Modul neu öffnen, um etwas zu

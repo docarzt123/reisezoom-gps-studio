@@ -39,6 +39,25 @@ function getModules() {
     );
 }
 
+// 05.10.2026 (Farbkonzept „Nachtkarte“, Marc: „weg vom typischen Claude-Code-Look“) — ruhige Linien-Symbole statt
+// bunter Emojis in der Modulleiste. Einfarbig (currentColor): grau, aktiv in Mint. Unbekannte Module behalten ihr Zeichen.
+const MOD_SYMBOLE = {
+  library:    '<path d="M4 5.5h4v13H4zM10 5.5h4v13h-4z"/><path d="M15.6 6.2l3.7-1 3.2 12.4-3.7 1z"/>',
+  gpxinspect: '<path d="M3 17c3-1 4-6 7-6s3 3 6 2"/><circle cx="17.5" cy="7.5" r="3.2"/><path d="M19.8 9.8 22 12"/>',
+  animator:   '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10 9.2v5.6l4.8-2.8z"/>',
+  reiseroute: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M7.6 16.6C12 14 8 10 12.5 8.5s3-1.5 3.8-1.6"/>',
+  heightanim: '<path d="M3 19h18"/><path d="M4 16l4.5-6 3.5 4 3-5 5 7"/>',
+  tourmap:    '<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  webkarte:   '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 2.6 14.6 0 17M12 3.5c-2.6 2.4-2.6 14.6 0 17"/>',
+  geotagger:  '<path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/>',
+};
+function modSymbol(m) {
+  const pfad = MOD_SYMBOLE[m.slug];
+  return pfad
+    ? `<svg class="mod-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${pfad}</svg>`
+    : (m.icon || "•");
+}
+
 function renderTabs() {
   const wrap = document.getElementById("module-tabs");
   wrap.innerHTML = "";
@@ -51,7 +70,7 @@ function renderTabs() {
     // dann ist er der einzige Weg zum vollen Namen.
     btn.title = m.description ? `${m.name} — ${m.description}` : m.name;
     btn.innerHTML = `
-      <span class="mod-ico">${m.icon || "•"}</span>
+      <span class="mod-ico">${modSymbol(m)}</span>
       <span class="mod-label">
         <span class="mod-name">${m.name}</span>
         ${m.description ? `<span class="mod-desc">${m.description}</span>` : ""}
@@ -692,6 +711,10 @@ async function openSettingsModal(reiter) {
             <input type="checkbox" id="md-bib-zip-alles">
             <span>${t("bib.zip_alles", "Alles mitnehmen (auch Vorschaubilder und alte Datenbank-Kopien)")}</span>
           </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; margin-top:4px;" title="${t("bib.zip_vorschau_tip", "Für einen anderen Rechner: Die Vorschaubilder deiner Fotos kommen mit. Dort ZIP entpacken und unter „Andere Bibliothek öffnen“ wählen — die Bilder werden übernommen, nichts muss neu erzeugt werden. Liegt dein Foto-Laufwerk dort unter anderem Namen, fragt die App beim Öffnen der Fotos nach.")}">
+            <input type="checkbox" id="md-bib-zip-vorschau">
+            <span>${t("bib.zip_vorschau", "Für einen anderen Rechner: Vorschaubilder der Fotos mitnehmen")}</span>
+          </label>
           <button class="btn" id="md-bib-zip" style="margin-top:8px;">${t("bib.zip_start", "Sicherung erstellen …")}</button>
           <p class="set-help" style="margin-top:4px;" id="md-bib-zip-hinweis">${t("bib.zip_help", "Ohne Häkchen bleiben Vorschaubilder und die rollierenden Datenbank-Kopien draußen; beides entsteht beim nächsten Öffnen neu. Der Dateiname bekommt einen Zeitstempel, eine vorhandene Sicherung wird nie überschrieben.")}</p>
         </div>
@@ -709,6 +732,18 @@ async function openSettingsModal(reiter) {
           <p class="set-help" style="margin-top:4px;">${t("inhalt.variante_help", "„Standard“ reicht für die meisten Suchen. „Groß“ versteht vor allem Deutsch und Spanisch besser, ist aber dreimal so groß und erfasst die Fotos etwa sechsmal langsamer. Beim Wechsel wird neu erfasst; der alte Index bleibt, bis du ihn löschst.")}</p>
           <p class="set-help" id="md-inh-stand" style="margin-top:6px;"></p>
           <button class="btn" id="md-inh-loeschen" style="margin-top:4px;">${t("inhalt.loeschen", "Modell und Index löschen")}</button>
+          <!-- 06.10.2026 (Marc: „mehr Infos, die man öffnen kann, oder auf eine FAQ im Handbuch leiten … vor allem, was
+               passiert, wenn ich eine neue Version der App draufkopiere") -->
+          <details class="anim-mehr" id="md-inh-mehr" style="margin-top:10px;">
+            <summary>${t("inhalt.mehr_titel", "Wie funktioniert das? Was passiert bei einem Update?")}</summary>
+            <ul class="set-help md-inh-liste">
+              <li>${t("inhalt.mehr_modell", "Das Modell (SigLIP 2 von Google, offen, Apache-Lizenz) wird einmal heruntergeladen und läuft nur auf diesem Rechner — kein Foto verlässt ihn.")}</li>
+              <li>${t("inhalt.mehr_wo", "Das Modell liegt im App-Ordner (Mac: ~/Library/Application Support/Reisezoom GPS Studio/inhaltssuche), der Index in deiner Bibliothek (Ordner inhaltsindex).")}</li>
+              <li><b>${t("inhalt.mehr_update_titel", "Neue App-Version draufkopiert?")}</b> ${t("inhalt.mehr_update", "Nichts geht verloren: Modell und Index liegen nicht in der App, die neue Version findet beide. Nur wenn eine Version ein anderes Modell mitbringt, lädt sie es einmal und erfasst die Fotos neu.")}</li>
+              <li>${t("inhalt.mehr_wann", "Erfasst wird im Hintergrund, schon während des Einlesens; während ein Video rendert, pausiert es. Den Stand siehst du hier und im Archiv unter Fotos (Zeile mit 🔍).")}</li>
+            </ul>
+            <button class="btn btn-ghost btn-sm" id="md-inh-faq" type="button">📖 ${t("inhalt.faq_link", "Mehr dazu im Handbuch")}</button>
+          </details>
         </div>
       </div>
 
@@ -952,10 +987,21 @@ function _bindSettingsModalHandlers() {
           ? t("inhalt.stand", "{n} von {g} Fotos erfasst.").replace("{n}", zahl(ix.n)).replace("{g}", zahl(st.bestand))
           : t("inhalt.stand_aus", "Ausgeschaltet.");
         if (gr.modell || gr.index) txt += " " + t("inhalt.platz", "Belegt: Modell {m}, Index {i}.").replace("{m}", mbText(gr.modell || 0)).replace("{i}", mbText(gr.index || 0));
-        if (l.running) txt += " " + (l.phase === "laden" ? t("inhalt.laeuft_laden", "Lädt gerade das Modell …") : t("inhalt.laeuft_index", "Erfasst gerade im Hintergrund …"));
+        if (l.running) {
+          // 06.10.2026 — sagen, WORAUF gewartet wird (Marc: „sehe ich irgendwo, wie das KI-Einlesen läuft?")
+          txt += " " + (l.phase === "laden" ? t("inhalt.laeuft_laden", "Lädt gerade das Modell …")
+            : l.pausiert === "render" ? t("inhalt.laeuft_render", "Pausiert, solange ein Video rendert.")
+            : l.pausiert === "einlesen" ? t("inhalt.laeuft_einlesen", "Erfasst während des Einlesens, was gerade gelesen wurde ({n} so erfasst).").replace("{n}", zahl(l.vorrat_erfasst || 0))
+            : t("inhalt.laeuft_index", "Erfasst gerade im Hintergrund …"));
+        }
         standEl.textContent = txt;
         loesch.disabled = !(gr.modell || gr.index);
+        // läuft etwas, alle 5 s nachsehen, solange die Einstellungen offen sind
+        clearTimeout(window.__rzInhStandTimer);
+        if (l.running) window.__rzInhStandTimer = setTimeout(() => { if (document.getElementById("md-inh-stand")) zeigen(); }, 5000);
       };
+      const faq = document.getElementById("md-inh-faq");
+      if (faq) faq.onclick = () => { api().open_user_guide(t("inhalt.faq_anker", "inhaltssuche-siglip-2-was-passiert-da-genau")).catch(() => null); };
       const melden = () => { try { window.dispatchEvent(new Event("rz-inhalt-geaendert")); } catch (_) { /* ui-falle-ok: nur Benachrichtigung */ } };
       an.onchange = async () => {
         if (an.checked) {
@@ -991,12 +1037,17 @@ function _bindSettingsModalHandlers() {
     const zipBtn = document.getElementById("md-bib-zip");
     if (zipBtn) zipBtn.onclick = async () => {
       const alles = !!(document.getElementById("md-bib-zip-alles") || {}).checked;
+      const vorschau = !!(document.getElementById("md-bib-zip-vorschau") || {}).checked;
       const hinweis = document.getElementById("md-bib-zip-hinweis");
+      // 06.10.2026 — erst den Ort wählen, dann die Fortschrittsmeldung (sie stand sonst schon hinter dem Dialog)
+      let wahl = null;
+      try { wahl = await api().bibliothek_zip_ziel(); } catch (e) { toast(String(e), "warn"); return; }   // warte-ok: Systemdialog
+      if (!wahl || !wahl.ok) { if (wahl && wahl.error) toast(wahl.error, "warn"); return; }
       zipBtn.disabled = true;
       const vorher = zipBtn.textContent;
       zipBtn.textContent = t("bib.zip_laeuft", "Wird gesichert …");
       try {
-        const r = await rzWarten("bibliothek_zip", () => api().bibliothek_zip(alles));
+        const r = await rzWarten("bibliothek_zip", () => api().bibliothek_zip(alles, wahl.ziel, vorschau));
         if (r && r.ok) {
           const mb = (r.bytes / 1048576).toFixed(0);
           toast(t("bib.zip_fertig", "Sicherung fertig: {mb} MB").replace("{mb}", mb), "success", 6000);
@@ -1386,7 +1437,7 @@ async function openAboutModal() {
           ${escapeHtml(info.name || "Reisezoom GPS Studio")}
         </div>
         <div class="muted" style="font-size:12px; margin-top:4px;">
-          ${t("about.version")}&nbsp;${escapeHtml(info.version || "?")}&nbsp;·&nbsp;Python&nbsp;${escapeHtml(info.python || "?")}
+          ${t("about.version")}&nbsp;${escapeHtml(info.version || "?")}${info.bauzeit ? "&nbsp;·&nbsp;" + escapeHtml(t("about.bau", "Bau") + " " + info.bauzeit) : ""}&nbsp;·&nbsp;Python&nbsp;${escapeHtml(info.python || "?")}
         </div>
         <!-- v0.9.280 (Nutzer-Wunsch) — manueller Update-Check -->
         <div style="margin-top:10px;">
@@ -1515,6 +1566,12 @@ async function openAboutModal() {
           <li>
             <a href="#" class="md-about-link" data-url="https://github.com/polyvertex/fitdecode">fitdecode</a> — MIT (${t("about.credits.fitdecode", "FIT-Import: Garmin/Wahoo")})
           </li>
+          <!-- 05.10.2026 — Schriften im Paket (Farbkonzept „Nachtkarte“) -->
+          <li>
+            <a href="#" class="md-about-link" data-url="https://github.com/IBM/plex">IBM Plex Sans / Mono</a> — SIL OFL 1.1 ·
+            <a href="#" class="md-about-link" data-url="https://github.com/googlefonts/caveat">Caveat</a> — SIL OFL 1.1
+            (${t("about.credits.schriften", "Schriften der Oberfläche und der Sofortbild-Unterschriften, mitgeliefert")})
+          </li>
           <!-- 05.10.2026 (Audit F-5) — Herkunft der mitgelieferten Musik und Klicks -->
           <li>${t("about.credits.musik", "Musik und Foto-Klicks: eigene Erzeugung von Reisezoom (aus Zahlen komponiert, keine Samples) — frei für deine Videos")}</li>
           <!-- 05.10.2026 (Audit F-3) — die übrigen gebündelten Python-Pakete aus requirements.txt -->
@@ -1609,7 +1666,11 @@ async function openFirstRunMapboxModal() {
       openModal({}).close();
       resolve();
     };
-    document.getElementById("md-fr-go").onclick = fertig;
+    // 05.10.2026 (Block 3, I-121) — „Los geht's" = neuer Nutzer: danach einmal die Startseite nach Aufgaben
+    document.getElementById("md-fr-go").onclick = async () => {
+      await fertig();
+      try { if (typeof window.rzStartseiteNachEinrichtung === "function") window.rzStartseiteNachEinrichtung(); } catch (_) {}
+    };
     // Direkt zur Rechte-Tabelle + Quiz (Einstellungen → Karten → Überblick)
     document.getElementById("md-fr-quiz").onclick = async () => {
       await fertig();
@@ -2062,10 +2123,23 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (!lage || !lage.ok || !lage.mac || !lage.frozen) return;
       const kopienFremd = (lage.fremde_kopien || []).length, images = (lage.images || []).length;
       if (!lage.in_programme) {
+        // 05.10.2026 (Audit K-9: „In Programme installieren?" bei JEDEM Start aus dem Final-Ordner) — wer an diesem Ort
+        // einmal „nein" sagt, wird dort nicht mehr gefragt; eine neue Kopie an anderer Stelle fragt wieder.
+        const nie = (typeof _settingsCache !== "undefined" && _settingsCache && Array.isArray(_settingsCache.install_nicht_fragen))
+          ? _settingsCache.install_nicht_fragen : [];
+        const ort = String(lage.bundle || "").replace(/\/[^/]+$/, "");
+        if (ort && nie.includes(ort)) return;
         const ok = await rzConfirm(t("install.titel", "In „Programme“ installieren?"),
           t("install.frage", "Die App läuft gerade aus {ort}. Soll sie sich in den Programme-Ordner kopieren und von dort neu starten? Das Download-Image wird dabei ausgeworfen.").replace("{ort}", lage.bundle ? lage.bundle.replace(/\/[^/]+$/, "") : "?"),
           t("install.knopf", "Installieren und neu starten"), false);
-        if (!ok) return;
+        if (!ok) {
+          if (ort && !lage.translocated) {   // App-Translocation (direkt aus dem Download) wechselt den Pfad je Start → nicht merken
+            try { if (typeof saveSettings === "function") saveSettings({ install_nicht_fragen: nie.concat([ort]).slice(-10) }); } catch (_) {}
+            try { if (_settingsCache) _settingsCache.install_nicht_fragen = nie.concat([ort]).slice(-10); } catch (_) {}
+            try { applog("info", "[install] nicht mehr fragen für " + ort); } catch (_) {}
+          }
+          return;
+        }
         const r = await rzWarten("selbst_installieren", () => api().selbst_installieren());
         if (!r || !r.ok) toast(t("install.fehler", "Installation fehlgeschlagen: {e}").replace("{e}", (r && r.error) || "?"), "error", 8000);
         else toast(t("install.neustart", "Installiert — die App startet gleich neu."), "success", 4000);

@@ -768,6 +768,12 @@ def version_weg(ort: Path, version_id: str) -> bool:
 # rollierenden Kopien von library.db (bei Marc 77 von 150 MB).
 ZIP_SPARSAM_AUS = ("bilder", "sicherungen")
 
+# 05.10.2026 (IDEAS §82 Schritt 2) — „Für einen anderen Rechner": Die Vorschaubilder der Fotos liegen je Rechner im
+# App-Ordner (photo_thumb_cache, Schlüssel = Fingerabdruck aus der Bibliothek). Eine ZIP kann sie in diesem Ordner
+# mitnehmen; der andere Rechner übernimmt sie beim Öffnen (`vorschau_uebernehmen`) und muss nichts neu erzeugen.
+# Der Ordner selbst wandert nie in eine weitere Sicherung.
+VORSCHAU_ORDNER = "_vorschau_fotos"
+
 
 def name_lesen(ort: Path) -> str:
     """Der Anzeigename dieser Bibliothek — Rückfall: der Ordnername."""
@@ -850,7 +856,7 @@ def zip_name_vorschlag(ort: Path) -> str:
 
 
 def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
-                fortschritt=None) -> dict:
+                fortschritt=None, extra=None) -> dict:
     """Die Bibliothek als ZIP sichern.
 
     `alles=False` (Vorgabe) lässt `bilder/` und `sicherungen/` weg — beides
@@ -872,7 +878,7 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
             return False
         if teile[0] == SPERRDATEI or teile[-1] == ".DS_Store":
             return False
-        if teile[0].endswith(".zip"):
+        if teile[0].endswith(".zip") or teile[0] == VORSCHAU_ORDNER:
             return False
         return teile[0] not in aus
 
@@ -891,6 +897,8 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
             continue
         if mitnehmen(rel):
             dateien.append((f, rel))
+    for f, rel in (extra or []):          # z. B. Vorschaubilder der Fotos (VORSCHAU_ORDNER/…)
+        dateien.append((Path(f), Path(rel)))
     schnapp = None
     if db.is_file():
         schnapp = ziel.with_name(ziel.name + f".db{os.getpid()}")
@@ -936,7 +944,46 @@ def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
             except OSError:
                 pass
     return {"ok": True, "pfad": str(ziel), "dateien": len(dateien),
-            "bytes": ziel.stat().st_size, "roh_bytes": roh, "alles": bool(alles)}
+            "bytes": ziel.stat().st_size, "roh_bytes": roh, "alles": bool(alles), "extra": len(extra or [])}
+
+
+def vorschau_fuer_zip(fps, cache_dir: Path) -> list:
+    """(Datei, Pfad in der ZIP) für jeden Fingerabdruck, zu dem es ein Vorschaubild gibt."""
+    raus, cache_dir = [], Path(cache_dir)
+    for fp in sorted({str(x) for x in (fps or []) if x}):
+        if "/" in fp or "\\" in fp or fp.startswith("."):
+            continue
+        f = cache_dir / f"{fp}.jpg"
+        if f.is_file():
+            raus.append((f, Path(VORSCHAU_ORDNER) / f.name))
+    return raus
+
+
+def vorschau_uebernehmen(ort: Path, cache_dir: Path) -> dict:
+    """Mitgebrachte Vorschaubilder in den Cache dieses Rechners kopieren (vorhandene bleiben).
+    Einmal je mitgebrachtem Ordner (Stempel = Zahl der Dateien + jüngste Änderung)."""
+    q = Path(ort) / VORSCHAU_ORDNER
+    if not q.is_dir():
+        return {"ok": True, "kopiert": 0, "da": 0, "neu": False}
+    dateien = [f for f in q.iterdir() if f.is_file() and f.suffix.lower() == ".jpg"]
+    kennung = f"{len(dateien)}:{max((int(f.stat().st_mtime) for f in dateien), default=0)}"
+    if stempel_lesen(ort, "vorschau_uebernommen") == kennung:
+        return {"ok": True, "kopiert": 0, "da": len(dateien), "neu": False}
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    kopiert = da = 0
+    for f in dateien:
+        z = cache_dir / f.name
+        if z.exists():
+            da += 1
+            continue
+        try:
+            shutil.copy2(f, z)
+            kopiert += 1
+        except OSError:
+            continue
+    stempel_setzen(ort, "vorschau_uebernommen", kennung)
+    return {"ok": True, "kopiert": kopiert, "da": da, "neu": True}
 
 
 def platz_bericht(ort: Path) -> dict:

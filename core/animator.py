@@ -433,6 +433,7 @@ class AnimatorConfig:
     ghost_track_enabled: bool = False
     ghost_track_opacity: float = 0.30
     ghost_track_color: str = "#ff6b35"   # v0.9.170 — eigene Farbe (Default = Track-Farbe)
+    ghost_track_dashed: bool = False     # 06.10.2026 (A2) — kommender Weg gestrichelt (neue Projekte: an)
     # v0.9.435 — Mehrfarbiger Track (Marc-Idee): der Track kann die Farbe wechseln.
     # `track_colors_source` bestimmt WONACH eingefärbt wird:
     #   "distance"  → nach Distanz (Stop-Wert = km; aus km-Eingabe, Marker-Position
@@ -1532,6 +1533,7 @@ window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metric
 # sonst rendert jeder Aufrufer, der die Config selbst baut (Tests, Tour-Map,
 # Snapshot), ohne Logo. Genau das ist beim ersten Testrender passiert.
 WASSERZEICHEN_STANDARD = "wm-lockup-white.png"
+WASSERZEICHEN_DUNKEL = "wm-lockup-dark.png"   # 05.10.2026 — für helle Looks
 
 
 # ── Schild-Bilder für den Render (14.09.2026, Tester-Projekt mit 2830 Foto-
@@ -1703,9 +1705,11 @@ def wasserzeichen_pfad(pfad: str) -> str:
     roh = str(pfad or "")
     if not roh.startswith("@"):
         return roh
+    # 05.10.2026 — „@lockup-dark" = dieselbe Form dunkel (helle Looks: Reiseatlas, Minimal)
+    datei = WASSERZEICHEN_DUNKEL if roh == "@lockup-dark" else WASSERZEICHEN_STANDARD
     for basis in (Path(getattr(sys, "_MEIPASS", "") or "."),
                   Path(__file__).resolve().parent.parent):
-        k = basis / "ui" / "assets" / WASSERZEICHEN_STANDARD
+        k = basis / "ui" / "assets" / datei
         if k.is_file():
             return str(k)
     return ""
@@ -3212,7 +3216,8 @@ map.on('style.load', () => {{
     "map.addLayer({id:'track-ghost',type:'line',source:'track-ghost',"
     "layout:{'line-cap':'round','line-join':'round'},"
     f"paint:{{'line-color':'{cfg.ghost_track_color}','line-width':{cfg.line_width:.2f},'line-opacity':{max(0.0, min(1.0, cfg.ghost_track_opacity)):.2f}"
-    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
+    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)
+       else (",'line-dasharray':[3,2]" if cfg.ghost_track_dashed else ""))   # synchron zu currentGhostDash() (module.js)
     + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.ghost_track_enabled and cfg.ghost_track_opacity > 0 else "// ghost track disabled"}
   // v0.9.210 (Reiseroute) — geladenes Wander-GPX als zusätzlicher Ghost.
@@ -4043,6 +4048,46 @@ def _downscale_frame(raw: bytes, target_w: int, target_h: int,
     return out.getvalue()
 
 
+async def _jpeg_direkt(page, q: int) -> bytes:
+    """05.10.2026 — JPEG-Bild direkt über CDP `Page.captureScreenshot` statt `page.screenshot`.
+
+    Marc: „wo bleibt die Zeit je Bild?" — gemessen im Szenen-Render (Prüfstand, warm, 120 Bilder):
+    1080p Bild greifen 50 → 37 ms (Zeit je Bild 163 → 146 ms), 4K 150 → 121 ms (316 → 268 ms).
+    Gleiches Bild: 1080p bytegleich, 4K PSNR 95 dB gegeneinander (nur das Sterne-Funkeln).
+    Playwright macht je Aufnahme zusätzlich Layout-Abfrage, Schrift-/Caret-Vorbereitung in allen
+    Frames — für eine stehende Szene unnötig. `optimizeForSpeed` bringt bei JPEG nichts (gemessen).
+
+    ⚠️ Eigene CDP-Sitzung kennt die DSF-Emulation von Playwright nicht: ohne `clip.scale =
+    devicePixelRatio` kommt nur ein Bild in CSS-Pixeln (960×540 statt 1920×1080). Deshalb wird
+    die Größe beim ersten Bild geprüft; jede Abweichung oder jeder Fehler → zurück auf
+    `page.screenshot` für diese Seite (nie ein unscharfes Video)."""
+    z = getattr(page, "_rz_jpeg_direkt", None)
+    if z is False:
+        return await page.screenshot(type="jpeg", quality=q)
+    try:
+        if z is None:
+            vs = page.viewport_size or {}
+            dpr = float(await page.evaluate("() => window.devicePixelRatio"))
+            z = {"cdp": await page.context.new_cdp_session(page), "w": int(vs["width"]), "h": int(vs["height"]), "dpr": dpr}
+        r = await z["cdp"].send("Page.captureScreenshot", {
+            "format": "jpeg", "quality": q, "captureBeyondViewport": False, "fromSurface": True,
+            "clip": {"x": 0, "y": 0, "width": z["w"], "height": z["h"], "scale": z["dpr"]}})
+        raw = base64.b64decode(r["data"])
+        if getattr(page, "_rz_jpeg_direkt", None) is None:
+            groesse = Image.open(io.BytesIO(raw)).size
+            soll = (round(z["w"] * z["dpr"]), round(z["h"] * z["dpr"]))
+            if abs(groesse[0] - soll[0]) > 1 or abs(groesse[1] - soll[1]) > 1:
+                _log.warning("Bild greifen direkt: %dx%d statt %dx%d — zurück auf page.screenshot", *groesse, *soll)
+                page._rz_jpeg_direkt = False
+                return await page.screenshot(type="jpeg", quality=q)
+            page._rz_jpeg_direkt = z
+        return raw
+    except Exception as e:   # noqa: BLE001
+        _log.warning("Bild greifen direkt fehlgeschlagen (%s) — zurück auf page.screenshot", str(e)[:200])
+        page._rz_jpeg_direkt = False
+        return await page.screenshot(type="jpeg", quality=q)
+
+
 async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     if os.environ.get("RZ_L3D_DEBUG") and not getattr(page, "_rz_l3d_dumped", False):
         page._rz_l3d_dumped = True
@@ -4090,7 +4135,7 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     if cfg.transparent_background:
         raw = await page.screenshot(type="png", omit_background=True)
     elif is_jpeg:
-        raw = await page.screenshot(type="jpeg", quality=q)
+        raw = await _jpeg_direkt(page, q)
     else:
         raw = await page.screenshot(type="png")
 

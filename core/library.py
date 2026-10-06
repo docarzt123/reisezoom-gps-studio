@@ -2321,8 +2321,11 @@ _STATS_CACHE_TTL_S = 60.0
 
 
 def _stats_stand(conn: sqlite3.Connection) -> tuple:
+    # 06.10.2026 (Nutzer-Log: „sqlite3.InterfaceError: bad parameter or other API misuse" in library_stats beim Start)
+    # — das PRAGMA lief OHNE Sperre auf der gemeinsamen Verbindung, während ein anderer Faden sie benutzte.
     try:
-        dv = conn.execute("PRAGMA data_version").fetchone()[0]
+        with _DB_LOCK:
+            dv = conn.execute("PRAGMA data_version").fetchone()[0]
     except sqlite3.Error:
         return ()
     return (id(conn), conn.total_changes, dv)
@@ -3289,7 +3292,7 @@ def fehler_grund(fehler: str, art: str = "") -> str:
 # vorliegen; `fehler_grund` erkennt sie deshalb an den Übersetzungen ALLER
 # Sprachen wieder (die festen deutschen Bruchstücke oben bleiben für Altbestand).
 _GRUND_KEINE_PUNKTE = ("import.err_keine_punkte", "gpx.err_keine_punkte")
-_GRUND_KEIN_TRACK = ("import.err_kein_nmea", "import.err_kein_geojson")
+_GRUND_KEIN_TRACK = ("import.err_kein_nmea", "import.err_kein_geojson", "import.err_kein_dji")
 _FRAGMENT_CACHE: dict = {}
 
 

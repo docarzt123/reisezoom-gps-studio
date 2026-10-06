@@ -91,6 +91,14 @@ STYLES = [
     {"key": "ofm_positron", "provider": "ofm", "kind": "vector", "group": "free",
      "label": "Karte Positron hell (OpenFreeMap)", "terrain": "aws",
      "style_url": "https://tiles.openfreemap.org/styles/positron"},
+    # 05.10.2026 (Block 1 „Looks") — Positron umgefärbt (core/kartenlook.py), geliefert von der lokalen Weiche
+    # `/stil/<name>.json`; ohne Weiche das ungefärbte Positron. Rechtelage wie OpenFreeMap.
+    {"key": "ofm_nacht", "provider": "ofm", "kind": "vector", "group": "free",
+     "label": "Nachtkarte (OpenFreeMap)", "terrain": "aws",
+     "style_url": "{proxy}/stil/nacht.json", "basis_url": "https://tiles.openfreemap.org/styles/positron"},
+    {"key": "ofm_atlas", "provider": "ofm", "kind": "vector", "group": "free",
+     "label": "Reiseatlas (OpenFreeMap)", "terrain": "aws",
+     "style_url": "{proxy}/stil/atlas.json", "basis_url": "https://tiles.openfreemap.org/styles/positron"},
     {"key": "osm", "provider": "osm", "kind": "raster", "group": "free",
      "label": "OpenStreetMap Standard", "terrain": "aws",
      "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "tileSize": 256, "maxzoom": 19,
@@ -864,6 +872,14 @@ def video_ok(key: str) -> bool:
     return style_badge(key) not in ("video_rights", "video_no")
 
 
+def style_url(st: dict, proxy_base: str = "") -> str:
+    """Stil-Adresse; `{proxy}` = lokale Kachel-Weiche (eigene Stile, core/kartenlook.py). Ohne Weiche → `basis_url`."""
+    u = st.get("style_url") or ""
+    if "{proxy}" in u:
+        return u.replace("{proxy}", proxy_base.rstrip("/")) if proxy_base else (st.get("basis_url") or "")
+    return u
+
+
 def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             bbox=None, want_terrain: bool = True, proxy_base: str = "",
             labels: Optional[dict] = None, ortho: Optional[dict] = None,
@@ -924,7 +940,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
         style = raster_style(st["tiles"], tile_size=st.get("tileSize", 256),
                              maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""), dpr=dpr)
     else:
-        style = st["style_url"].replace("{maptiler_key}", maptiler_key)
+        style = style_url(st, proxy_base).replace("{maptiler_key}", maptiler_key)
     if st["kind"] == "gov":                       # nur Orthofotos: OSM-Raster tragen ihre Beschriftung schon im Bild
         style = add_label_overlay(style, labels)
 
@@ -958,7 +974,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "styles": [
             {"key": s["key"], "provider": s["provider"], "kind": s["kind"], "group": s["group"],
              "label": s["label"], "terrain": s["terrain"], "badge": style_badge(s["key"]),   # 07.09.2026: aus dem Quellen-Register
-             "style_url": s.get("style_url"),
+             "style_url": style_url(s, proxy_base) if s.get("style_url") else None,
              # 14.09.2026 — freie OSM-Rasterdienste über die lokale Weiche (User-Agent, Cache; sonst gesperrt)
              "tiles": ([proxy_base.rstrip("/") + "/tile/" + s["key"] + "/{z}/{x}/{y}"]
                        if (proxy_base and s.get("kind") == "raster" and s["key"] in _RASTER_UEBER_WEICHE) else s.get("tiles")),

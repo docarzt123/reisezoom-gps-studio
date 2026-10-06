@@ -260,8 +260,8 @@ La barra de track está arriba. Dos caminos:
 1. Pulsa **«📁 Elegir archivo de track …»** y selecciona tu archivo, **o**
 2. arrastra el archivo a la ventana.
 
-No tienen que ser archivos GPX — también se leen FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON y
-NMEA, y se convierten en segundo plano.
+No tienen que ser archivos GPX — también se leen FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON, IGC (registradores de vuelo), NMEA
+y los archivos `.srt` de drones DJI, y se convierten en segundo plano.
 
 Después aparece arriba el nombre de la ruta con distancia, duración y desnivel. **El track
 cargado vale para todos los módulos** — lo cargas una vez y cambias de herramienta libremente.
@@ -530,6 +530,11 @@ ahora a **cada ruta**. En el panel **▸** de una ruta: **Mostrar la ruta comple
 **opacidad** (5–80 %, por defecto 30 %) y **color** (por defecto, el de la ruta). En la ruta
 principal son los mismos ajustes de antes.
 
+**Discontinua (desde v0.9.782):** en la ruta principal hay además **Discontinua**: el camino que aún falta queda como
+línea discontinua bajo la línea dibujada. Los **proyectos nuevos** empiezan con la ruta atenuada y discontinua; los
+proyectos anteriores se quedan como estaban. Si la propia línea tiene un patrón (discontinua, punteada …), la ruta
+atenuada toma ese patrón.
+
 ### Paso 7 — Unir archivos diarios en una sola ruta
 
 El caso más frecuente en un viaje: una grabación por día, pero quieres el recorrido completo.
@@ -684,6 +689,54 @@ Mapbox permite **publicar vídeos** con su cartografía **solo con derechos de v
 ### Cambiar de idioma 🌍
 La app arranca automáticamente en el **idioma del sistema** (alemán, inglés o español — con inglés como reserva). Se cambia en el **modal de preferencias ⚙** → menú desplegable de idioma. Activo al instante, sin necesidad de reiniciar.
 
+### ⤓ Exportar vídeo — el diálogo de exportación (desde v0.9.782) ⭐
+
+Arriba a la derecha del animador está el botón coral **⤓ Exportar vídeo** (en Tour-Map **⤓ Exportar imagen**). Un
+clic abre una ventana en el centro con todo lo que solo afecta al archivo de salida:
+
+- **Plantillas** como tarjetas: *YouTube 4K*, *YouTube 1080p*, *Instagram Reel 9:16*, *Instagram 4:5*, *Vista
+  rápida 720p* — y las tuyas. Un clic ajusta resolución, fotogramas por segundo, espacio de color, calidad **y la
+  relación de aspecto** (un paso de ⌘Z). La tarjeta que coincide con tus ajustes aparece marcada.
+- **Resolución** según la relación de aspecto (4K, 1440p, 1080p, 720p), **fotogramas por segundo**, **espacio de
+  color** (SDR, HDR HLG/PQ) y **calidad** (H.264, H.265, ProRes). En **Más**: ancho × alto libres y «Suavizar mapa».
+- **Guardar como plantilla …** guarda el ajuste actual con un nombre. Tus plantillas se renombran con ✎ y se
+  eliminan con ✕ (dos clics). La **★** convierte una plantilla en la predeterminada para proyectos nuevos.
+- **Guardar en** muestra la última carpeta usada y un nombre con fecha y hora (`Proyecto_20261006-1130.mp4`).
+  **Exportar** empieza enseguida, **Cambiar …** abre el diálogo del sistema. Nunca se sobrescribe un archivo
+  existente: el nuevo se llama entonces `…-2.mp4`.
+
+La pequeña flecha **▾** junto al botón ofrece **Exportar fotograma actual** (la imagen que se ve en la vista previa,
+como PNG) y **Abrir como Tour-Map**. Los ajustes de exportación se guardan por proyecto; Esc cierra la ventana.
+
+### 🖼 Medios de la ruta (desde v0.9.782)
+
+Si has añadido carpetas en el Archivo, en **Medios**, el animador conoce las fotos y vídeos tomados **durante la ruta**
+(ubicados por GPS o, si no, por la hora de captura):
+
+- **En la línea de tiempo** una fila **📷 Medios** muestra una raya fina por foto (vídeos en coral) donde se tomó.
+  **Pasa el ratón** para verla en grande; **un clic** la convierte en letrero de foto. Las que ya son letrero
+  aparecen como un punto.
+- **Letreros → 🖼 Medios de la ruta** las abre a la derecha como cuadrícula: **clic** = como letrero, **doble clic** =
+  saltar a ese punto. Las ya colocadas aparecen marcadas. Sin carpetas añadidas, te indica dónde añadirlas.
+
+Los vídeos se convierten en paradas de clip con **🎞 Añadir clips**.
+
+### Tarjeta de información (desde v0.9.782)
+
+En **Superposiciones → + Tarjeta de información** hay una tarjeta lista con el estilo de la app: el nombre de la
+ruta como título y debajo distancia, desnivel positivo y tiempo en movimiento — fondo oscuro, borde turquesa. Es una
+superposición normal: valores, posición, colores y momento se cambian en el editor.
+
+### Formato y desarrollo — la primera tarjeta de la barra lateral (desde v0.9.782)
+
+Arriba del todo en la barra lateral (debajo de «Aplicar plantilla» y **🎬 Vídeo rápido**) está **Formato y
+desarrollo**: la **relación de aspecto** como botones (16:9 y 9:16; el lado corto se mantiene, 4K sigue siendo 4K) y la **duración**.
+**Más …** muestra todos los formatos (1:1 cuadrado, 4:5 Instagram, 4:3, 21:9 cine) con una breve descripción y campos
+para una **relación propia** (p. ej. 3 : 2); **Menos** vuelve atrás. Si hay otro distinto de 16:9/9:16, aparece como
+tercer botón. En **Más**: intro y pausa final, duración como «tiempo real ÷
+factor», la **distribución a lo largo del track** y las **pausas**. La antigua tarjeta «Ajustes de vídeo» ya no
+existe: resolución, fotogramas y espacio de color se ajustan en el diálogo de exportación.
+
 ### Ajustar la calidad de render y la exportación (desde v0.9.245) ⭐
 En el **modal de preferencias ⚙** está el bloque **«Calidad y exportación»** — se aplica globalmente a la exportación de vídeo del Animator:
 - **Captura de fotogramas:** **Rápido (JPEG)** es el valor por defecto y hace el render **~10× más rápido** (la captura de los fotogramas individuales era el verdadero cuello de botella). Como el vídeo se codifica de todas formas con pérdidas, la calidad es visualmente idéntica. **Máximo (PNG, sin pérdidas)** solo hace falta si realmente necesitas fotogramas individuales sin pérdidas — bastante más lento.
@@ -821,7 +874,22 @@ longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la a
 
 ¿Solo quieres un vídeo bonito de tu ruta, sin keyframes ni ajustes? Usa el **vídeo rápido**: en el
 **archivo**, en la ruta, **🎬 Vídeo rápido …** (columna de detalles a la derecha o clic derecho), o en el
-**animador**, debajo de «Renderizar vídeo», para la ruta abierta.
+**animador**, arriba del todo en la barra lateral, para la ruta abierta.
+
+**Vista previa (desde v0.9.782):** arriba en el diálogo ves el mapa entero con el estilo de la plantilla, la ruta completa y el título, en el formato elegido. De las fotos que entran en el vídeo una se ve grande y las demás como pequeñas imágenes redondas; igual con los highlights (uno con su nombre, los demás como puntos). La vista previa sigue cada cambio.
+
+**Desde v0.9.782 reducido a una sola pantalla.** El vídeo rápido debe ser rápido de verdad: plantilla, formato,
+duración (Corto · Normal · Largo), título, fotos (elegidas automáticamente, se pueden quitar, **+ Fotos …** /
+**+ Carpeta …** para las tuyas), música (piezas incluidas o un archivo propio), cifras, perfil de altura, highlights
+y la tarjeta final — nada más. El estilo de mapa, el tipo de foto y el mapa de conjunto los trae la plantilla.
+Arriba, una **vista previa** muestra todo el mapa en el estilo de la plantilla con toda la ruta y el título, en el
+formato elegido; de las fotos que entran en el vídeo una se ve abierta, las demás como pequeños puntos redondos — igual
+con los highlights. Las cifras y el perfil de altura aparecen donde la plantilla los muestra en el vídeo.
+**Crear vídeo …** crea el proyecto y abre el mismo **diálogo de exportación** que en el animador (calidad 1080p/4K,
+plantillas, guardar en …); el vídeo se escribe directamente en el lugar elegido y después **Mostrar en el Finder** o
+**Compartir**. Clips de vídeo, cuaderno de bitácora, duración propia y estilos de mapa sueltos están en el animador
+(Sonido y clips, Mapa, Formato y desarrollo). Lo que sigue sobre «duración propia», «calidad», «estilo de mapa» y
+«Más» vale para versiones anteriores.
 
 El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxima vez:
 
@@ -845,7 +913,20 @@ El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxim
   dice cuántas serán. Las paradas son carteles de foto normales con la casilla «Parada de foto» marcada (ver
   Carteles); en el Animador las cambias como cualquier cartel. **Si el archivo no tiene fotos** (desde v0.9.771), el diálogo ofrece **📁 Elegir carpeta …** y **🖼 Elegir fotos …**: la app asigna las fotos al recorrido por su posición GPS o, si no la tienen, por la hora de la toma, y propone las paradas.
 
-**«Más»: los ingredientes (desde v0.9.778).** Para que el vídeo rápido siga siendo rápido, arriba solo están **formato, duración, título y subtítulo**. Todo lo demás está en **«Más»** (despliégalo; la app recuerda si estaba abierto). Junto a «Más» un resumen muestra lo que contiene, p. ej. «📸 4 · 🎞 1 · 📖 · 🎵 · 🏁». Cada ingrediente es un interruptor; lo que la app encuentra viene preseleccionado:
+**Ritmo (desde v0.9.782):** En «Más» está marcado **«Más lento en los puntos destacados y fotos»**: en el punto más alto, en la subida más empinada y en las fotos sin parada el vídeo va más despacio, y los tramos uniformes más deprisa — la duración sigue siendo la elegida. En el punto más alto la cámara se aleja un momento y mira hacia el horizonte (vista de cumbre). En el Animator estos lugares son entradas normales de la pista de tempo.
+
+**Selección de fotos más lista (desde v0.9.782).** El vídeo rápido elige ahora las fotos con más criterio: las casi idénticas (el mismo motivo poco después) entran solo una vez, las tomadas en coche (según el cuaderno de bitácora) solo si se hicieron en una parada, y la selección mezcla temas en lugar de mostrar cinco veces la misma vista. En rutas de varios días, cada día recibe primero su mejor foto. Con la **búsqueda por contenido** activada (Ajustes → Biblioteca) la app reconoce además qué hay en las fotos — vistas, cumbres, agua, cielo, personas, animales, comida, pueblos — y descarta fotos borrosas, capturas de pantalla y fotos del suelo. Como siempre, puedes marcar o desmarcar cada foto en el diálogo.
+
+**Sugerencias de título (desde v0.9.782):** Tras uno o dos segundos aparecen bajo el campo del título hasta tres sugerencias para pulsar — la cumbre en el punto más alto con su altura (p. ej. «Teide · 3715 m»), «Inicio → Destino» con los lugares más cercanos o «Alrededor de <lugar>» en rutas circulares. Sin internet no hay sugerencias.
+
+**Tres plantillas (desde v0.9.782).** Arriba del todo eliges cómo debe verse el vídeo — la plantilla ajusta los ingredientes de «Más» y después puedes cambiarlo todo (aparece «Plantilla ajustada»; un clic en la plantilla la restablece):
+- **Amplitud** (por defecto) — el paisaje primero: imagen aérea, estilo «Natural», fotos como **parada de foto** grande, sin cifras durante el recorrido, pocas cifras grandes al final; música «Panorama».
+- **Diario** — lugares y recuerdos: estilo «Atlas de viaje» (mapa de papel, títulos manuscritos), fotos como **instantánea en el lugar** con el nombre del lugar como pie (el recorrido no se detiene, después la foto se encoge a una pequeña imagen redonda en la ruta), una pequeña tarjeta con distancia y desnivel, resumen con el título; música «Diario».
+- **Pulso** — ruta y rendimiento: estilo «Mapa nocturno», abajo una barra de datos (distancia, desnivel, velocidad) con perfil de altitud, fotos como pequeña **imagen en imagen** arriba a la derecha sin parada, resumen compacto al final; música «Pulso».
+
+En **📸 Paradas de foto → «Fotos como»** también eliges el tipo de foto por separado. Las fotos sin parada no cuestan duración; para que no se amontonen, se añade como mucho una foto cada 4 segundos de recorrido (las mejores primero).
+
+**«Más»: los ingredientes (de v0.9.778 a v0.9.781; desde v0.9.782 todo está en una pantalla, ver arriba).** Para que el vídeo rápido siga siendo rápido, arriba solo están **formato, duración, título y subtítulo**. Todo lo demás está en **«Más»** (despliégalo; la app recuerda si estaba abierto). Junto a «Más» un resumen muestra lo que contiene, p. ej. «📸 4 · 🎞 1 · 📖 · 🎵 · 🏁». Cada ingrediente es un interruptor; lo que la app encuentra viene preseleccionado:
 
 - **📸 Paradas de foto**: como se describe arriba.
 - **🎞 Clips de vídeo**: clips de tu cámara en el archivo de fotos (MP4, MOV …; no archivos 360° en bruto); si no, **📁 Elegir carpeta …** / **🎞 Elegir clips …**. Un clip es una parada de foto con imagen en movimiento: crece desde el pin y se reproduce allí (máximo 4 s, del primer cuarto del clip). **Sonido original de los clips** es un interruptor propio; la música baja mientras tanto. Fotos y clips se reparten el tiempo (como mucho la mitad de la animación), primero los clips; el estado de la derecha dice «4 / 6», «1 / 1».
@@ -1024,6 +1105,8 @@ No necesitas tener un **GPX**. Abre (a través de la barra GPX o mediante arrast
 | **KML / KMZ** | `.kml` / `.kmz` | Google Earth, Google My Maps |
 | **TCX** | `.tcx` | Garmin Training Center, exportación de Strava |
 | **GeoJSON** | `.geojson` | herramientas web/OSM |
+| **IGC** (desde v0.9.782) | `.igc` | registradores de vuelo de parapente, ala delta, vuelo a vela — altitud GPS, altitud barométrica como sensor |
+| **Dron DJI** (desde v0.9.782) | `.srt` | archivo de subtítulos junto a cada vídeo DJI (Mini, Air, Mavic, Phantom, Avata) — un punto por segundo, altura sobre el despegue como sensor. La hora es local sin zona (aviso en el Inspector). Los subtítulos de películas normales se omiten como «sin track». |
 
 Las altitudes y las marcas de tiempo se conservan — siempre que estén presentes en el formato — (importante para el geotagging y la indicación de velocidad).
 
@@ -1557,7 +1640,7 @@ mismo encuadre, mismo zoom, mismos colores.
 ### Qué hace
 
 Junto a *Proyectos*, *Plantillas* y *Archivo de rutas*, el archivo tiene un
-cuarto área: **Fotos**. Indicas carpetas, GPS Studio indexa las fotos **y los
+cuarto área: **Medios** (hasta v0.9.781 «Fotos»). Indicas carpetas, GPS Studio indexa las fotos **y los
 vídeos** que contienen y los muestra por días, en un mapa o agrupados por ruta.
 Solo **lee**: ninguno de tus archivos se modifica.
 
@@ -1664,10 +1747,18 @@ Ambas cosas van en segundo plano, dicen abajo a la derecha qué hacen y se puede
 cancelar. Si prefieres que no ocurra —en un punto de acceso, en una wifi
 ajena— desmarca **Mantener al día por sí solo** en la barra lateral.
 
+**Desde v0.9.782 ya no hace falta abrir Medios:** si al iniciar queda algo pendiente (archivos sin leer, miniaturas que
+faltan), la app sigue leyendo en segundo plano al cabo de un minuto, también mientras trabajas en el animador. La caja de
+abajo a la derecha muestra el progreso en todas partes.
+
 **Tres pasos (desde v0.9.781):** 1. la lista de archivos, 2. hora, lugar y cámara — solo se lee la cabecera de cada
 archivo, lo que va rápido incluso en un NAS, y después búsqueda, fecha, mapa y carpetas funcionan para todo —, 3. las
-miniaturas. Para ellas cada archivo tiene que pasar entero por la red una vez; es la parte más lenta y por eso va al
-final. Donde mires, las imágenes llegan al momento. **Si cierras la app a mitad, no se pierde nada:** las carpetas ya revisadas se recuerdan al momento; el siguiente
+miniaturas. **Desde el 06.10.2026 la app usa la pequeña vista previa que la cámara ya guardó en cada JPEG**: lee solo
+un 2 % del archivo en lugar de todo por la red, lo que hace el paso 3 muchas veces más rápido. En la cuadrícula, las
+imágenes que estás viendo se sustituyen en silencio por otras nítidas. Los RAW junto a un JPG del mismo nombre toman su
+imagen. **Con la búsqueda por contenido activada**, el paso 3 lee cada archivo entero una vez y guarda a la vez la
+imagen para la búsqueda: la búsqueda ya no lee el NAS por segunda vez y empieza a reconocer durante la lectura. Tras un
+reinicio, la app termina primero la lectura y solo después (como mucho a las 24 horas) busca archivos nuevos. Donde mires, las imágenes llegan al momento. **Si cierras la app a mitad, no se pierde nada:** las carpetas ya revisadas se recuerdan al momento; el siguiente
 inicio sigue ahí («sigue donde se quedó») y el paso 2 cuenta lo que ya se ha leído.
 
 > **Por qué importa el primer escaneo:** los datos de captura y las miniaturas
@@ -1697,6 +1788,16 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
   **Grande** (entiende mejor alemán y español, unos 1,6 GB, capta más despacio) y **Borrar modelo e índice**.
 - **Mudarse:** el índice está en la biblioteca y se mueve con ella. En otro ordenador la app solo vuelve a descargar
   el modelo — no hay que captar las fotos otra vez.
+- **La unidad tiene otro nombre (desde v0.9.782):** si tu NAS o disco externo se monta con otro nombre en otro
+  ordenador (p. ej. `/Volumes/Fotos-1` en vez de `/Volumes/Fotos`, en Windows `Y:\` en vez de `Z:\`), la app lo detecta
+  al abrir Fotos: comprueba una muestra y pregunta una vez «¿… está ahora en …? Actualizar el inventario». Antes hace
+  una copia de seguridad de la biblioteca; el árbol de carpetas, las paradas de fotos y la búsqueda por contenido
+  vuelven a apuntar a tus fotos, sin volver a leerlas.
+- **Llevar la biblioteca a otro ordenador (desde v0.9.782):** Ajustes → Biblioteca → *Copia como ZIP* con la casilla
+  **«Para otro ordenador: incluir las vistas previas de las fotos»**. En el otro ordenador descomprime el ZIP y elígelo
+  en **Abrir otra biblioteca**: las vistas previas se adoptan una vez (la cuadrícula no tiene que generar nada), la
+  búsqueda por contenido viaja igualmente y, si allí la unidad de fotos tiene otro nombre, la app pregunta al abrir
+  Fotos (ver arriba).
 
 ### Lo que el fondo sabe de una foto
 
@@ -1759,6 +1860,12 @@ captura son etapas propias. Para ubicar fotos con un track sigue usando el
 
 ## 3 · Módulo: Animator — renderizar el GPX como vídeo
 
+*(Desde v0.9.782 ya no está en la barra lateral: el selector desaparece, los pasos volverán más adelante como asistente de vídeo — un botón propio junto a «Vídeo rápido». El párrafo siguiente describe la versión intermedia.)* **Sencillo o ajuste fino (desde v0.9.782).** Arriba del todo en la barra lateral cambias entre **Sencillo** y **Ajuste fino**. *Sencillo* muestra solo cinco pasos — **Ruta** (ruta, duración, formato — 16:9, 9:16, 1:1, 4:5, 4:3 o 21:9), **Estilo** (los cuatro estilos listos), **Lugares y fotos** (puntos destacados, fotos, vídeo rápido), **Cámara** (Fija · Seguir · Vuelo de cámara) y **Exportar** — con la vista previa grande al lado. *Ajuste fino* es el Animator completo con todas las secciones. Ambas vistas editan **el mismo proyecto**: lo que eliges en la vista sencilla aparece igual en el ajuste fino (y al revés), ⌘Z vale para las dos. La app recuerda qué vista usaste por última vez. **En el primer arranque** la app pregunta una vez tras la configuración: *¿Qué te gustaría hacer?* — **Crear un vídeo**, **Mejorar un track** o **Geolocalizar fotos** — y te lleva directamente a la herramienta adecuada. Los usuarios nuevos empiezan el Animator en la vista sencilla.
+
+**Barras laterales y columna de detalle (desde 06.10.2026).** A la izquierda está siempre la barra lateral del módulo; a la derecha se abre cuando hace falta el **editor de lo que acabas de pulsar** (cartel, superposición) — el mapa se desplaza a un lado y nunca queda tapado. **Esc** o **✕** lo cierra; a la derecha solo hay un editor a la vez. Arrastra el borde de cualquiera de las barras para hacerla **más ancha o más estrecha**: en todos los módulos, en el Archivo en ambos bordes; la app recuerda el ancho por módulo. Doble clic en el borde lo restablece. Las **cajas de progreso** abajo a la derecha («Leyendo fotos · paso 3 de 3 …») se pliegan con **–** a una línea fina; siguen en marcha y un clic las despliega de nuevo.
+
+**Tarjeta de cámara (desde 06.10.2026).** Arriba en la sección *Cámara* solo hay tres cosas: la **Cámara** (*Fija* · *Seguir* · *Vuelo de cámara*), la **Altura sobre el terreno** (en metros o kilómetros, igual que en el vídeo) y el **Ángulo de visión**. No hay control de velocidad: el ritmo se deriva de la duración del vídeo. Giro, inercia, suavizado, cámara suave y el editor de fotogramas clave están en **Más**; al pulsar un fotograma clave en la línea de tiempo, *Más* se abre solo. Si ya tienes fotogramas clave propios, *Vuelo de cámara* solo los vuelve a activar en lugar de sustituirlos.
+
 ### Qué hace
 Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja animada sobre un mapa 3D de Mapbox. Usos: intro para vídeos de YouTube, loops para páginas web, animación de recuerdos.
 
@@ -1794,9 +1901,10 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 - **Dirección de la sombra (global, desde v0.9.478)** — justo debajo de la intensidad de la sombra, con el control **«Dirección de la sombra»** (0–360°) decides de dónde viene la luz: **0° = derecha, 90° = abajo, 180° = izquierda, 270° = arriba**. Es **una fuente de luz común**: vale a la vez para la **sombra del track** y para la **sombra proyectada de todos los carteles** (carteles de waypoint), para que todo parezca iluminado por el mismo sol.
 - **Carteles de waypoint (desde v0.9.171, totalmente personalizables desde v0.9.179)** — coloca carteles de texto sobre la ruta (p. ej. «¡Cima alcanzada!»). Zona **«🚩 Carteles»** en la barra lateral:
   - **Colocar:** **«📍 Sobre el track»** → clic en el track (se ancla), o **«📌 Colocación libre»** → clic en **cualquier punto** del mapa (p. ej. un lugar de interés apartado de la ruta). En la colocación libre, el **momento de aparición** sigue rigiéndose por el punto del track más cercano (anclaje en el track + offset de coordenadas libre).
-  - **Editar:** al hacer clic en un cartel (lista o mapa) se abre un **panel de editor flotante** — arrastrable libremente por su cabecera (⠿), también fuera del mapa. El cartel que estás editando siempre es visible (sin importar dónde esté el punto de reproducción).
+  - **Editar:** al hacer clic en un cartel (lista o mapa) se abre el **editor de carteles a la derecha, en la columna de detalle** (desde 06.10.2026; antes una ventana flotante) — el mapa se desplaza a un lado, **Esc**/✕ lo cierra. El cartel que estás editando siempre es visible (sin importar dónde esté el punto de reproducción).
   - **Mover (arrastrar y soltar):** en el editor pulsa **«↔ Mover»**; después **arrastras el cartel directamente en el mapa** hasta donde quieras y lo sueltas. Adopta la nueva posición como **colocación libre** (el momento en que aparece se ajusta de nuevo al punto del track más cercano). La ventana del editor se queda donde la dejaste.
   - **Aspecto (todo en directo):** forma (bocadillo · banderín de meta · chincheta · señal indicadora · sencillo), **color del cartel** + color de texto (el selector **«Color del cartel»**, hasta el 25.09.2026 «Fondo» es el **único** color de la caja/bocadillo del cartel — desde v0.9.271 ya no hay un «color de acento» separado ni un «Auto»), tipografía (Sistema · Redondeada · Estrecha · Serif · Monospace · Impactante), tamaño/grosor/cursiva/**alineación** (izquierda/centro/derecha — se nota en cuanto pones en **«Ancho»** un ancho mínimo fijo > 0; con «Auto» la caja se ajusta al texto y la alineación no tiene margen, desde v0.9.479), texto multilínea, radio de esquinas, **opacidad del fondo** (desde v0.9.478 el control atenúa **solo el color del cartel**; el texto sigue perfectamente legible), **borde exterior** (grosor+color; hasta el 25.09.2026 «Borde»), **longitud del poste** (solo en banderín de meta + señal indicadora — la longitud de los postes/mástil bajo el cartel) y **sombra proyectada** (suavidad hasta **0** = borde duro desde v0.9.478; la **dirección** viene del control global «Dirección de la sombra» en la sección del track). **Añadir imagen** convierte el cartel en una **tarjeta de foto** (el texto pasa entonces a ser el pie de imagen); el tamaño de la imagen se ajusta por separado.
+  - **📷 Foto instantánea (nuevo tras v0.9.781):** las fotos aparecen como una foto instantánea apoyada en el mapa: marco blanco cálido, algo más ancho abajo, ligeramente inclinada y con pie de foto manuscrito (el texto del cartel). Las fotos nuevas la reciben automáticamente; en las demás elige la forma **«Foto instantánea»** en el editor. Combina con la salida **«Se encoge a una mini foto redonda (se queda)»**: tras el tiempo de visualización la foto se endereza, se vuelve redonda y se queda como un pequeño círculo en su sitio, en el vídeo igual que en la vista previa.
   - **📸 Parada de foto (desde v0.9.764, solo con imagen):** marca **«Parar aquí»**: en el mapa el cartel se convierte en un **pin de foto** redondo (desde v0.9.766) que aparece 2,5 segundos antes de la parada; la tarjeta de foto solo se ve al editar. Poco antes de la foto la cámara se acerca (**Acercar**, 0–4 niveles de zoom), la foto crece desde el pin y al llegar ya está en grande: unos dos tercios de la altura de la imagen, con marco blanco. La ruta se detiene **Mostrar foto** segundos; mientras tanto la cámara se balancea un poco y la foto se acerca despacio. Después la ruta sigue enseguida mientras la foto encoge y la cámara se aleja (desde v0.9.768; después el pin se queda en su sitio). **Aproximación** y **Salida** (segundos) regulan el acercamiento y el alejamiento; ambos ocurren durante el recorrido. **Balanceo del mapa (°)** (0–10, 2 por defecto) y **Zoom de la foto (%)** (0–30, 8 por defecto) ajustan cuánto movimiento hay mientras se ve la foto; 0 lo desactiva (desde v0.9.770). Bajo la foto aparece tu pie de foto, debajo el **lugar y la hora** de la toma (desde v0.9.778, en lugar del municipio, el lugar más destacado a menos de 350 m: cumbre, collado, refugio, mirador, castillo …; p. ej. «🌋 Teide · 3715 m · 16:16»: cumbres y collados con su altura de OpenStreetMap; el destacado «Punto más alto» lleva el nombre de la cumbre si hay una cerca) (hora local del lugar, aunque la cámara tuviera la hora de casa; casilla, activada por defecto) y, si quieres, los **datos de cámara (EXIF)**: cámara, focal, diafragma, exposición, ISO. La parada aparece como una pausa bloqueada «Parada de foto» en la pista de tempo y alarga el vídeo lo que dure la foto. Vista previa, desplazamiento y vídeo muestran lo mismo. Un viaje con varias etapas aún no tiene paradas de foto.
   - **🎞 Clip de vídeo (desde v0.9.778):** un clip es una parada de foto con imagen en movimiento; con **«🎞 Añadir clips de vídeo»** (bajo «Añadir fotos»: elige clips y la app los coloca donde se grabaron, por GPS o, si no, por la hora) o desde el vídeo rápido (ingrediente «Clips de vídeo») y aparece como una foto: pin con ▶, acercamiento, en grande sobre el mapa; durante la pausa se reproduce el clip. En el cartel ajustas **Desde el segundo** (inicio en el clip), **Duración** (= lo que se detiene la ruta), **Sonido original** y **Volumen** (hasta 150 %). La música baja mientras el clip tiene sonido. Vista previa y vídeo muestran lo mismo, fotograma a fotograma.
     - **Dirección de la punta del bocadillo (desde v0.9.408):** con el estilo **Bocadillo** eliges en el editor, bajo **«Dirección de la punta»**, hacia dónde apunta — **abajo, arriba, izquierda o derecha**. El bocadillo se desplaza automáticamente al lado opuesto para que la punta siempre señale el lugar. (Análogo a la elección de dirección en la señal indicadora; se aplica al Animator y al Tour-Map.)
@@ -1811,7 +1919,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
     3. **«Auto»** vuelve a activar el reconocimiento automático de posición.
     Esto funciona igual en la vista previa y en el vídeo final. (En las **tarjetas de foto** ocurre automáticamente a partir de la hora de captura de la foto.)
   - **Ayuda de vista previa:** casilla **«Mostrar TODOS los carteles en la vista previa»** — muestra todos los carteles a la vez al colocarlos (solo vista previa; en el vídeo sigue rigiendo el timing).
-- **Mostrar la ruta completa atenuada (antes «Ghost-Track», desde v0.9.169; desde v0.9.734 en el panel ▸ de cada ruta)** — muestra la **ruta completa** ya semitransparente en el fondo, mientras que solo la parte animada se dibuja encima con opacidad total. Así se ve desde el principio hacia dónde va el recorrido. Ajustable: **color propio del ghost-track** (selector de color propio, independiente del color del track — p. ej. un gris discreto, desde v0.9.170) y **opacidad** (slider 5–80 %, por defecto 30 %). Funciona en la vista previa y en el render, incluido el modo alfa/transparente. Desactivado por defecto.
+- **Mostrar la ruta completa atenuada (antes «Ghost-Track», desde v0.9.169; desde v0.9.734 en el panel ▸ de cada ruta)** — muestra la **ruta completa** ya semitransparente en el fondo, mientras que solo la parte animada se dibuja encima con opacidad total. Así se ve desde el principio hacia dónde va el recorrido. Ajustable: **color propio del ghost-track** (selector de color propio, independiente del color del track — p. ej. un gris discreto, desde v0.9.170) y **opacidad** (slider 5–80 %, por defecto 30 %). Funciona en la vista previa y en el render, incluido el modo alfa/transparente. Activado en proyectos nuevos (desde 05.10.2026); los existentes conservan su ajuste.
 - **Varios colores de track (desde v0.9.435, ampliado en v0.9.448)** — la línea del track puede **cambiar de color**. El selector **«Colorear según»** decide en función de qué:
   - **Distancia (km)** — paradas de color **en km** (número), **en la posición actual del marcador** (adopta la posición del scrubber) o **en todos los waypoints del GPX** (automático). El primer color se aplica desde el km 0 (= color del track).
   - **Cualquier serie de datos de la pista** — desde la v0.9.448 aquí está **todo lo que el Animador de datos puede representar**: altitud, velocidad, pendiente y cualquier valor de sensor de archivos FIT/TCX (**pulso, potencia, cadencia, temperatura**…). La lista solo muestra **lo que la pista cargada contiene realmente**; la unidad aparece entre paréntesis.
@@ -1823,7 +1931,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 **🧱 Superposiciones (desde v0.9.752)** — Todo lo que queda fijo en la imagen es una **superposición**: valores, perfil de altitud, gráficos, flecha del norte y escala, título, tarjeta final, logo. Una superposición es una caja hecha de **filas**.
 
-- **Crear:** en la barra lateral, en «Superposiciones», elige una plantilla en **«＋ Nueva superposición»**: *Valores en directo*, *Totales*, *Perfil de altitud*, *Título*, *Tarjeta final*, *Logo*, *Flecha del norte + escala*, *Marco* o *Vacía*. El editor se abre como ventana flotante (se mueve por la cabecera, **Esc** la cierra).
+- **Crear:** en la barra lateral, en «Superposiciones», elige una plantilla en **«＋ Nueva superposición»**: *Valores en directo*, *Totales*, *Perfil de altitud*, *Título*, *Tarjeta final*, *Logo*, *Flecha del norte + escala*, *Marco* o *Vacía*. El editor se abre a la derecha, en la columna de detalle (desde 06.10.2026, **Esc** lo cierra).
 - **Lista:** casilla = mostrar, **✎** abre el editor, **⧉** duplica, **✕** borra. El orden se cambia arrastrando **⠿** o con **▲▼**: más abajo en la lista significa más delante en la imagen.
 - **Colocar:** **arrastra la superposición en la vista previa** (cuadrícula del 1 %, se ajusta a bordes y centro, un paso de ⌘Z por arrastre) o, en el editor, en **Posición y tamaño**: **ancla** (nueve puntos) más **desplazamiento** en porcentaje de la imagen. Tamaño **automático** (tan grande como el contenido) o **fijo** (ancho y alto en %), además de la alineación del contenido.
 - **Estilo = plantilla del aspecto:** **Caja** (caja semitransparente), **Libre** (números grandes sin caja, rótulo pequeño encima, sombra de texto), **Placa** (píldora oscura redondeada) y **Ninguno**. Un clic pone los valores del estilo; después cambias cualquier valor tú mismo: disposición (una bajo otra/una junto a otra), rótulo (encima del valor, a la izquierda, sin rótulo), tipografía, tamaño, color de texto y de fondo con opacidad, imagen de fondo (rellenar/ajustar, opacidad), relleno, espaciado de filas y columnas. En **Más**: color de acento, esquinas, borde, sombra, sombra de texto, desenfoque, mayúsculas, tamaño de rótulo y unidad, opacidad. Todas las filas de una superposición tienen el mismo aspecto: si una fila debe verse distinta, usa una segunda superposición.
@@ -1998,11 +2106,19 @@ Con la barra de línea de tiempo **bajo** la vista previa del mapa puedes diseñ
 
 **🏠 Edificios 3D (desde v0.9.779).** En **Mapa → 🏠 Edificios 3D** los edificios aparecen como bloques con planta y altura reales: desde zoom de barrio, bajo el track, sobre el relieve 3D. Los datos vienen de OpenStreetMap: las plantas están casi completas en Alemania, la altura sale de las plantas o los metros y, si no, se usa una estándar (en el campo a menudo bloques iguales). La primera vez que reproduces en una zona nueva, el botón muestra ⏳ un momento mientras se prepara la vista previa: basta con pulsar una vez. Con **↥ crecer** al lado, los edificios salen del suelo al acercarse la cámara (entre zoom 14 y 15,8), bonito al volar hacia una ciudad; desactivado, aparecen a altura completa. En el **vídeo rápido** los edificios son el ingrediente **🏠 Edificios 3D** en «Más», preseleccionado si la ruta pasa por una localidad. En mapas de fotografía aérea cada edificio toma **el color de su tejado de la imagen aérea** (teja roja, cubiertas planas grises …); las paredes se ven algo más oscuras por la luz. Si un edificio tiene varias partes (base, torre), todas reciben el mismo color. Sin fachadas ni formas de tejado, pero de uso libre, también en vídeo.
 
+**✈ Vuelo en el aire (desde v0.9.782).** Para vuelos de dron, parapente y vuelo a vela: en **Mapa → ✈ Vuelo en el
+aire** la línea va a su **altura real sobre el suelo**. Líneas verticales (como una cortina) y una sombra oscura en el
+suelo muestran la distancia; el punto en movimiento flota con una línea vertical debajo. Si la cámara sigue el track,
+apunta al punto en el aire; si no, el vuelo se saldría por arriba de la imagen. La altura sobre el suelo sale de la
+«altura sobre el despegue» en drones DJI y, si no, de la altitud de vuelo menos el terreno (IGC, GPX con altitud).
+Requisitos: **relieve (3D) activado** y uno de los **mapas gratuitos** (no Mapbox), una sola ruta (no un viaje con
+varias). Si falta algo, la app lo dice al activarlo. Vale también para el vídeo renderizado.
+
 **🌈 HDR (desde v0.9.779).** En **Ajustes de vídeo → Espacio de color** eliges **SDR** (estándar), **HDR · HLG** (recomendado) o **HDR · PQ (HDR10)**. HDR lo necesitas cuando el vídeo va a una línea de tiempo HDR (Final Cut, DaVinci, YouTube con grabaciones HDR de tu cámara): un vídeo normal se ve gris y apagado allí. El mapa se convierte limpiamente al espacio HDR (BT.2020, blanco a 203 nits según la norma, 10 bits). HLG también se ve bien en pantallas normales; PQ es para proyectos solo HDR. El vídeo será HEVC (o ProRes si elegiste ProRes en «Calidad y exportación»). Con fondo alfa no hay HDR.
 
 **🎵 Música y sonido (desde v0.9.778).** En la sección **«🎵 Música y sonido»** pones música bajo el vídeo: **«De camino»** es una pieza propia de la app (40 s, se repite sin cortes, libre para YouTube y similares), y cinco más en otros estilos: **Amplitud** (tranquila, cinematográfica), **Asalto a la cumbre** (enérgica), **Descanso** (lo-fi, relajada), **Cresta** (épica), **Canción de ruta** (folk con guitarra); con **…** usas tu propia música (MP3, M4A, WAV, FLAC …; los derechos los necesitas tú). Además **volumen**, **aparecer** y **desvanecer** (segundos) y **📷 Clic en cada parada de foto** con su propio **sonido** (réflex, sin espejo, analógica con arrastre, telémetro, móvil, instantánea, pop, madera, campanita, silbido + clic, sencillo; o un sonido propio desde un archivo con **…**, **▶** lo reproduce) y volumen; el clic suena cuando la foto ha llegado. En la línea de tiempo, la pista **«Sonido»** muestra la música (las rampas son la entrada y la salida; arrastrarlas las cambia), los clics y el sonido de los clips; doble clic abre los ajustes. Al reproducir ya lo oyes todo en la vista previa; **🔊** junto al tiempo silencia la vista previa. En el vídeo terminado el sonido es una pista de audio normal (AAC).
 
-**Línea de tiempo con imágenes (desde v0.9.778).** La pista del track muestra en pequeño el **perfil de altura** de la ruta (en las pausas se detiene, como el punto en el vídeo); en un viaje cada mosaico de ruta tiene su propio perfil. En la pista de carteles, las barras muestran **nombre y tiempo** y su **foto**, o ▶ en un clip y el icono de la píldora en destacados y cuaderno. **⌘+ / ⌘−** hacen zoom en la línea de tiempo, **⌘0** vuelve a mostrarlo todo (Windows: Ctrl). Arrastra el **asa del borde superior** de la línea de tiempo hacia arriba o abajo: las pistas se hacen más altas o más bajas (doble clic: estándar). La línea de tiempo nunca ocupa más del 60 % de la vista previa: en una ventana pequeña el mapa sigue visible.
+**Línea de tiempo con imágenes (desde v0.9.778).** La pista del track muestra en pequeño el **perfil de altura** de la ruta (en las pausas se detiene, como el punto en el vídeo); en un viaje cada mosaico de ruta tiene su propio perfil. En la pista de carteles, las barras muestran **nombre y tiempo** y su **foto**, o ▶ en un clip y el icono de la píldora en destacados y cuaderno. Al abrirla, las señales que no se solapan en el tiempo comparten una fila, así la pista queda corta; si se solapan, la siguiente pasa a la fila siguiente. La barra de una **parada de foto** empieza cuando su pin aparece en el mapa (poco antes de la parada) y llega hasta el final del vídeo — es lo que el pin permanece en la vista previa. La barra muestra las fases: pálido = solo el pin, medio = aproximación y salida, intenso con miniatura = **foto grande**. Arrastra los límites para alargar o acortar la aproximación, el tiempo de la foto y la salida (la línea de abajo muestra el valor). Arrastrando el **borde izquierdo**, el pin aparece antes o después (en la señal: «Pin antes (s)», por defecto 2,5 s antes de la aproximación). **⌘+ / ⌘−** hacen zoom en la línea de tiempo, **⌘0** vuelve a mostrarlo todo (Windows: Ctrl). Arrastra el **asa del borde superior** de la línea de tiempo hacia arriba o abajo: las pistas se hacen más altas o más bajas (doble clic: estándar). La línea de tiempo nunca ocupa más del 60 % de la vista previa: en una ventana pequeña el mapa sigue visible.
 
 **🗺 Mapa general en el vídeo (desde v0.9.778).** **Overlays → ＋ Nuevo overlay → Mapa general** pone toda la ruta en pequeño en la imagen, la parte recorrida en el color de la línea y un punto que indica dónde estás. Es un overlay normal: muévelo, tamaño (ancho/alto en %), estilo, cuándo se ve. A diferencia del resumen «solo vista» abajo a la derecha de la vista previa, este está **en el vídeo**.
 
@@ -2170,6 +2286,15 @@ valores distintos en el mismo punto no podrían reproducirse.
 > y a la posición dentro de él; en otra ruta con distinta longitud y trazado esa
 > posición sencillamente no existe.
 
+
+**Nuevos colores y contorno (tras v0.9.781):** la app usa ahora el concepto de color **«Trailframe»**: gris pizarra oscuro, **turquesa** para todo lo que se maneja (pestaña activa, sliders, interruptores, foco), **coral** solo para la acción principal de cada módulo (en el Animator «⤓ Exportar vídeo» arriba a la derecha) y la tipografía IBM Plex. Los sliders muestran su parte rellena, las casillas de las barras laterales son interruptores, las secciones son tarjetas plegables y la barra de módulos muestra símbolo y nombre corto. Los proyectos nuevos empiezan con una **ruta turquesa con contorno oscuro** y con **«Mostrar la ruta completa atenuada»** activado (30 %); el contorno se ajusta bajo el grosor de línea (**Contorno**: ancho 0–6 px, 0 = desactivado, y color propio). Los proyectos existentes conservan sus colores.
+
+**🚲 Vehículo en lugar de punto (v0.9.782):** Además de bola y flecha, el punto en movimiento puede ser ahora **senderista, bicicleta, coche, moto, barco, tren o avión** — un símbolo blanco sobre una placa redonda en el color de tu línea (con colores claros el símbolo se vuelve oscuro). El avión es una silueta y gira con la dirección de la marcha. Con varias rutas eliges el símbolo por ruta. **Nuevo cartel «Tarjeta»:** tarjeta blanco cálido con sombra suave y una pequeña punta — más tranquila que el bocadillo oscuro. En estilos claros (Atlas de viaje, Minimalista) la app usa el **logo de GPS Studio en oscuro** para que siga visible.
+
+**🎨 Estilos (después de v0.9.781):** Arriba en la sección **Mapa** hay cuatro estilos listos — **Natural** (imagen aérea, línea amarillo verdosa con contorno oscuro), **Atlas de viaje** (mapa de papel en tonos cálidos, línea roja, títulos manuscritos), **Mapa nocturno** (mapa oscuro, línea luminosa, cifras en Plex Mono) y **Minimalista** (mapa claro y tranquilo, línea oscura). Un clic cambia a la vez mapa, línea, contorno, brillo, los degradados oscuros y la tipografía y colores de todos los rótulos. Después puedes seguir ajustando cada control; **⌘Z** deshace el estilo completo de un paso. „Mapa nocturno“ y „Atlas de viaje“ también están sueltos en la lista de estilos de mapa — gratuitos y permitidos para vídeo. En **🎵 Música y sonido** hay tres piezas nuevas (**Panorama**, **Diario**, **Pulso**, 40 s cada una, en bucle en vídeos más largos) y dos sonidos para paradas de foto (**Suave con tono**, **Obturador de cámara**).
+
+**Carteles en el estilo (desde v0.9.782):** Si el proyecto tiene carteles sencillos de texto o foto, la app pregunta tras pulsar un estilo si debe adaptarlos — *Atlas de viaje*: texto como «tarjeta», fotos como instantánea; *Mapa nocturno*: píldora; *Minimal*: sencillo; *Natural*: bocadillo. Solo cambia el estilo básico; los carteles destacados, banners y señales se quedan, cada cartel sigue siendo editable por separado, ⌘Z lo deshace.
+
 ## 3c · Combinar varias rutas en un vídeo 🧭 (desde v0.9.539)
 
 **Varios días se convierten en un relato.** Selecciona varias rutas en el
@@ -2192,7 +2317,7 @@ En la ventana:
 El resultado es **un archivo GPX totalmente normal** — cada ruta se convierte en
 una *etapa* — que entra en el archivo y se abre en el animador. Al ser un
 trazado normal, todo funciona como siempre: keyframes, carteles, línea de
-tiempo, recorte, fotos, animador de altura.
+tiempo, recorte, fotos, Animador de datos.
 
 **¿Dónde están?** En la barra lateral del archivo, en **🧭 Combinadas**. No
 aparecen entre tus rutas normales y **no** cuentan en las estadísticas — de lo
@@ -2236,6 +2361,8 @@ Ruta de viaje es un **clon de pleno derecho del Animator**: todo lo que se puede
 > **Sin Mapbox (desde el 07.09.2026):** «Seguir carretera» calcula con servicios libres de OpenStreetMap: coche con OSRM (cualquier longitud), a pie y en bici con Valhalla (hasta 100 km o 150 km por ruta; por encima, la app pasa a la red de carreteras de OSRM). Un token de Mapbox ya solo es un recurso de reserva por si los servicios libres no responden. Lo mismo vale en el Inspector para «ajustar a caminos» y «Ruta A→B (seguir calles)».
 
 > **Comprobar nombres de lugar (desde el 07.09.2026):** la búsqueda de lugares pregunta primero a Photon (OpenStreetMap, sin token) y entiende nombres en otros idiomas como «Teneriffa» o «Kapstadt»; antes, Mapbox devolvía para eso un Teneriffe en Australia y el vuelo desde Berlín daba la vuelta al mundo. Una errata sigue encontrando algún lugar («berin» → Berin en Hungría): la **línea ✓ bajo el campo** muestra siempre lo que se ha encontrado. Si no es correcto, completa el nombre («Berlín, Alemania») o ponlo con 📍 en el mapa. Un punto de paso ya resuelto orienta la búsqueda de las siguientes paradas hacia resultados cercanos.
+
+**Modo de transporte por tramo (desde v0.9.782).** Bajo cada parada aparece «↓ luego en …» — **coche, bicicleta, a pie, tren, barco o avión**. Así un viaje como *en coche al puerto → ferry por el lago → a pie a la cumbre* se convierte en una sola ruta: coche, bici y a pie siguen la carretera; tren, barco y avión van por el camino más corto (círculo máximo). Al reproducir y en el vídeo el punto en movimiento cambia de símbolo — el coche conduce, el barco cruza el lago, el avión gira en la dirección de vuelo. «como arriba» usa el estilo y el modo de arriba.
 
 ### Reordenar y comprobar las paradas (desde v0.9.538)
 
@@ -2730,6 +2857,14 @@ En lugar de buscar a mano: **🩹 Auto-sanar** escanea todo el track y muestra c
 
 Con **‹ / Siguiente ›** saltas por los valores atípicos, **🩹 Sanar todo** aplica ambos de una vez. El **regulador de sensibilidad** (1–10) ajusta lo estricta que es la búsqueda (bajo = solo saltos brutos/huecos grandes, alto = también los pequeños), la **distancia de relleno** determina lo densamente que se rellenan los huecos — ambos actualizan la vista previa en directo. Todo se puede deshacer con **⌘Z**.
 
+**¿Por qué es un valor atípico? (desde v0.9.782)** Debajo del regulador ves qué se mide en este momento — p. ej.
+«Se mide: salto desde 73 m · velocidad desde 38 km/h». La vista previa da el motivo de cada valor atípico («42 km/h
+entre dos puntos (límite 30 km/h)» o «Salto de 480 m con una distancia habitual entre puntos de 12 m»). Con
+**Desplazamiento** eliges cómo te moviste: **Automático** mide según el ritmo habitual de la ruta; **A pie** (30 km/h),
+**Correr** (40), **Bicicleta** (90) y **Coche/moto** (250) añaden un límite fijo, **Volar/parapente** permite velocidades
+altas. Los ferris y vuelos de más de 10 km nunca cuentan. La elección vale también para los hallazgos de arriba y se
+recuerda.
+
 **Rellenar huecos como** (perfil): **Línea recta** = conexión directa (segura, solo toca el hueco). **Senderismo/Bicicleta/Coche** = busca la ruta real en la red de caminos (Mapbox). ⚠️ **Protección desde v0.9.315:** si la ruta por carretera da un gran **rodeo/bucle** (Mapbox enruta a veces en los cruces por una salida + rotonda de vuelta), se **descarta automáticamente y el hueco se rellena recto** — así una traza limpia ya no se retuerce. En el toast pone entonces «… rodeos descartados».
 
 **Recortar un bucle/desvío:** si tienes en el track un punto que va y vuelve (p. ej. un viejo desvío de sanado o una vuelta real que no quieres en el vídeo): bajo **«Editar manualmente (A→B)»** fija el **ancla A** antes y el **ancla B** después del punto, luego **✂️ Recortar los puntos entre A→B**. A y B quedan, y la línea los conecta directamente. (⌘Z lo deshace.)
@@ -2761,6 +2896,8 @@ Los valores de altitud del GPS suelen ser ruidosos — sobre todo con poca cober
 3. Con el regulador **GPS ⟷ mapa** mezclas en directo: a la derecha del todo (100 %) = altitud pura del mapa (muy lisa), a la izquierda del todo (0 %) = GPS sin cambios, por defecto **70 %**. La línea verde y la indicación de metros de desnivel (GPS / mapa / resultado) se desplazan de inmediato con ello.
 4. ¿Cuadra? **⛰ Adoptar esta altitud** escribe la línea verde en el track. Después **💾 guardar** — la altitud corregida aterriza en el GPX y actúa en todas partes (Animator, Tour-Map, Animador de datos).
 
+**🧭 Quitar la deriva (desde v0.9.782)** — para grabaciones con **altímetro** (reloj, ciclocomputador): en lugar de sustituir la altura por la del mapa, este botón solo resta la **desviación lenta** respecto al mapa (presión, tiempo, calibración — a menudo 20–80 m en horas). Los cambios finos de tu dispositivo se mantienen; tramos cortos donde el mapa no conoce la altura recorrida (**puentes, túneles**) no molestan. Bajo el botón ves la deriva al inicio y al final y cómo cambia el desnivel; ⌘Z lo deshace.
+
 > Necesita un **token de Mapbox** (ajustes) e internet — sin token, el botón «Cargar» está atenuado. La adopción se puede deshacer con **⌘Z**. Si después cambias puntos (eliminas/insertas), el perfil se descarta automáticamente — simplemente vuelve a cargar.
 
 **Sincronización de zoom + puntos clicables (desde v0.9.293):** el mapa y el perfil de altitud están conectados — **si haces zoom/desplazas el mapa**, el perfil muestra automáticamente solo el tramo visible; la **rueda del ratón sobre el perfil** hace zoom, **arrastrar** desplaza, y el mapa acompaña en cada caso. **Cursor del ratón vinculado (desde v0.9.294):** si pasas el ratón por el **mapa**, una **barra vertical en el perfil de altitud** muestra dónde estás justo ahora; si pasas por el **perfil**, aparece un **anillo blanco sobre el track**. Así encuentras puntos a la velocidad del rayo, sin hacer clic.
@@ -2775,7 +2912,7 @@ nueva** (las rutas se reconocen por sus coordenadas, no por el nombre del
 archivo; por eso la app encuentra tus proyectos aunque cambies el nombre). Por eso el inspector pregunta **una vez al guardar** si tu trabajo
 debe acompañarte. Di que sí y **todos los proyectos** de la ruta se trasladan:
 animador (cámara, fotogramas clave, aspecto), mapa de la ruta,
-geoetiquetador, animador de altitud, junto con fotos y carteles. El proyecto activo en
+geoetiquetador, Animador de datos, junto con fotos y carteles. El proyecto activo en
 último lugar vuelve a quedar delante.
 
 > **Advertencia honesta:** según **cuánto** se haya reparado, el traslado
@@ -2957,6 +3094,18 @@ Ante errores de render se abre automáticamente un modal de error con un extract
 ---
 
 ## 10 · FAQ
+
+### Búsqueda por contenido (SigLIP 2): ¿qué pasa exactamente?
+La búsqueda por contenido encuentra fotos por lo que se ve en ellas — «atardecer», «perro en la playa», «glaciar» —, en cualquier idioma. Para ello un modelo de imagen mira cada foto una vez.
+
+- **¿Qué modelo?** **SigLIP 2** de Google, un modelo abierto (licencia Apache). Funciona **solo en tu ordenador**: ninguna foto sale de él, sin cuenta, sin nube.
+- **¿Qué pasa al activarla?** La app descarga el modelo **una vez** (*Estándar* ≈ 500 MB, *Grande* ≈ 1,6 GB; desde reisezoom.com o, si no, desde Hugging Face) y comprueba la suma de control. Después mira cada foto una vez (a 600 px) y guarda una breve descripción en números: el «vector». Al buscar solo se consultan estos vectores; tarda una fracción de segundo.
+- **¿Dónde está cada cosa?** El **modelo** está fuera de la app, en la carpeta de la app: Mac `~/Library/Application Support/Reisezoom GPS Studio/inhaltssuche/`, Windows `%APPDATA%\Reisezoom GPS Studio\inhaltssuche\`. El **índice** (los vectores, unos 1,5 KB por foto) está en tu **biblioteca**, en la carpeta `inhaltsindex/`.
+- **¿Qué pasa si copio encima una versión nueva de la app?** **No se pierde nada.** Modelo e índice no están dentro de la app; la versión nueva los encuentra y no descarga nada otra vez. Solo si una versión posterior trae un modelo **distinto**, lo descarga una vez y vuelve a reconocer las fotos: el índice recuerda con qué modelo se creó. El antiguo se queda hasta que lo borres.
+- **¿Y en otro ordenador?** El índice se mueve con la biblioteca. Cada ordenador descarga el modelo una vez.
+- **¿Cuándo se reconocen las fotos?** En segundo plano mientras sigues trabajando. Desde el 06.10.2026 ya durante la lectura: el paso 3 guarda la imagen para la búsqueda en la misma lectura, así que la búsqueda no lee la unidad por segunda vez. Se pausa mientras se renderiza un vídeo.
+- **¿Dónde veo el progreso?** En el Archivo, en **Medios**, en la barra lateral (línea con 🔍: «Contenido captado: … de … fotos») y en **Ajustes → Biblioteca y nube → Búsqueda por contenido en las fotos**.
+- **¿Desactivar o borrar?** En **Ajustes → Biblioteca y nube → Búsqueda por contenido en las fotos**. «Borrar modelo e índice» libera el espacio; tus fotos no se tocan.
 
 ### ¿Cómo obtengo las versiones nuevas? (desde v0.9.280, sin reinstalar desde v0.9.732)
 Al iniciarse, la app comprueba en segundo plano si hay una versión más nueva (como mucho cada 12 horas). Si la hay, aparece arriba una barra fina **«La nueva versión vX.Y.Z está disponible»** con **Actualizar ahora** y **¿Qué hay de nuevo?**; con la **✕** ocultas el aviso para esa versión. Para comprobarlo al momento: **Ayuda → Buscar actualizaciones …** (o en el diálogo Acerca de) — se abre la ventana de actualización con el resultado.

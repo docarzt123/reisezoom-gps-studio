@@ -35,13 +35,13 @@ werden. `git show <commit> -- ui/vendor/maplibre-gl.js` zeigt jeweils die Stelle
 
 | Commit | Datum | Was |
 |---|---|---|
-| `9460cb9`, `2f82908` | 04.09.2026 | `children()`-Abfragen unter Terrain absichern (TypeError `e[1].key`), `clearFadeHold` ohne Kachel |
-| `1ab22b7` | 05.09.2026 | Terrain-Kachelstufe begrenzen |
-| `569d5a0`, `19b1116`, `f5cc296`, `86e16ff` | 06.09.2026 | Terrain-Nähte: Shader-Stitching an Zoomgrenzen, Randhöhen der Nachbarkachel |
-| `bd345b9`, `de001e7` | 07.09.2026 | Szene-Render (gemeinsame Szene), Render-Modus-Übergang |
-| `31dc0f3`, `2d1d4cd`, `349aa95`, `2426576`, `40ad08f` | 08.09.2026 | Terrain-Vorschau: pixelRatio, LOD-Hysterese, abgedeckte Kacheln, Culling-Box |
-| `35f8851` | 09.09.2026 | LOD-Hysterese hält nur eine Nachbarstufe |
-| `b6c7125` | 04.10.2026 | 3D-Häuser: Tiefenversatz je Gebäude gegen Z-Fighting |
+| `2b0527e`, `b910702` | 04.09.2026 | `children()`-Abfragen unter Terrain absichern (TypeError `e[1].key`), `clearFadeHold` ohne Kachel |
+| `fc1b30a` | 05.09.2026 | Terrain-Kachelstufe begrenzen |
+| `22df27f`, `cf22d62`, `afafd22`, `8cb4230` | 06.09.2026 | Terrain-Nähte: Shader-Stitching an Zoomgrenzen, Randhöhen der Nachbarkachel |
+| `03f84f1`, `67c3b24` | 07.09.2026 | Szene-Render (gemeinsame Szene), Render-Modus-Übergang |
+| `45c3f3d`, `18be6b7`, `8a47733`, `4e1e9ed`, `10371d3` | 08.09.2026 | Terrain-Vorschau: pixelRatio, LOD-Hysterese, abgedeckte Kacheln, Culling-Box |
+| `f960176` | 09.09.2026 | LOD-Hysterese hält nur eine Nachbarstufe |
+| `1a2f658` | 04.10.2026 | 3D-Häuser: Tiefenversatz je Gebäude gegen Z-Fighting |
 
 ## Aktualisieren
 

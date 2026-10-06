@@ -117,9 +117,53 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.782</span>
+    <span class="version-date">6 de octubre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Medios de la ruta</strong> &mdash; las fotos y vídeos tomados durante la ruta aparecen como rayas en la línea de tiempo y como cuadrícula a la derecha — un clic los convierte en letrero.</li>
+    <li><strong>Tarjeta de información</strong> &mdash; nueva superposición con el estilo de la app: nombre de la ruta, distancia, desnivel, tiempo en movimiento.</li>
+    <li><strong>El camino que falta, discontinuo</strong> &mdash; los proyectos nuevos muestran la ruta entera atenuada y discontinua; la línea se dibuja encima.</li>
+    <li><strong>Exportar vídeo en su propia ventana</strong> &mdash; «⤓ Exportar vídeo» abre una ventana con plantillas (YouTube 4K, YouTube 1080p, Instagram Reel, Instagram 4:5, Vista rápida 720p — y las tuyas), resolución, fotogramas, HDR y calidad. El nombre lleva fecha y hora, nunca se sobrescribe nada; «Exportar» empieza enseguida.</li>
+    <li><strong>Formato y desarrollo arriba</strong> &mdash; la relación de aspecto (16:9, 9:16, 1:1, 4:5, 4:3, 21:9) y la duración son ahora la primera tarjeta de la barra lateral; intro, pausa final, distribución a lo largo del track y pausas, debajo en «Más».</li>
+    <li><strong>El vídeo rápido vuelve a ser rápido</strong> &mdash; una sola pantalla en lugar de muchos interruptores: plantilla, formato, duración, título, fotos (también las tuyas), música, cifras y tarjeta final. Lo demás se hace en el animador; se guarda con la misma ventana de exportación.</li>
+    <li><strong>Vídeo rápido con vista previa</strong> &mdash; todo el mapa con toda la ruta y el título en el formato elegido; una foto y un highlight abiertos, el resto como puntos; además cifras y perfil de altura donde los muestra la plantilla. Ves lo que entra en el vídeo antes de crearlo.</li>
+    <li><strong>La barra de la parada de foto muestra sus fases</strong> &mdash; pin, aproximación, foto grande, salida; alarga o acorta la aproximación, el tiempo de la foto y la salida directamente en la barra.</li>
+    <li><strong>Parada de foto: el borde izquierdo decide cuándo aparece el pin</strong> &mdash; arrástralo en la pista de señales o usa «Pin antes (s)» en la señal. Corregido además: al editar, la foto aparecía dos veces (marco blanco y negro).</li>
+    <li><strong>La pista de señales ocupa menos</strong> &mdash; las señales que no se solapan comparten fila; las que se solapan van debajo. Corregido además: un bucle infinito al medir las barras laterales que volvía a medir el mapa sin parar y podía congelar la app con carga.</li>
+    <li><strong>Las paradas de foto en la pista de señales empiezan cuando aparece la foto</strong> &mdash; la barra va desde el pin de la foto (poco antes de la parada) hasta el final del vídeo, tal como lo muestra la vista previa; antes la foto aparecía hasta 5 s antes que su barra.</li>
+    <li><strong>Las señales con foto muestran la imagen al instante</strong> &mdash; la imagen ya no espera a la búsqueda del lugar en internet; sin red, la app no vuelve a preguntar durante 5 minutos.</li>
+    <li><strong>Vuelo en el aire</strong> &mdash; el Animator muestra ahora los vuelos de dron, parapente y vuelo a vela a su altura real sobre el suelo: con líneas verticales como una cortina, sombra en el suelo y punto flotante; la cámara vuela con él. En Mapa → «✈ Vuelo en el aire» (mapas gratuitos con relieve).</li>
+    <li><strong>Sencillo o ajuste fino</strong> &mdash; el Animator tiene ahora una vista sencilla con cinco pasos — ruta, estilo, lugares y fotos, cámara, exportar. Un clic vuelve al Animator completo; ambas editan el mismo proyecto.</li>
+    <li><strong>Vídeo rápido con tres plantillas</strong> &mdash; «Amplitud» (paisaje, fotos grandes), «Diario» (mapa de papel, fotos como instantánea en el lugar) y «Pulso» (mapa nocturno, barra de datos con perfil, fotos como imagen en imagen) — con música a juego. Todo sigue ajustable en «Más».</li>
+    <li><strong>Nuevo aspecto de la app</strong> &mdash; verde mineral oscuro con menta, tipografía IBM Plex (incluida, sin internet), iconos tranquilos en la barra de módulos.</li>
+    <li><strong>Cuatro estilos listos para tu vídeo</strong> &mdash; Natural, Atlas de viaje, Mapa nocturno y Minimalista: un clic ajusta mapa, línea, degradados y la tipografía de los rótulos. ⌘Z deshace el estilo completo.</li>
+    <li><strong>Dos mapas gratuitos nuevos</strong> &mdash; „Mapa nocturno“ (oscuro) y „Atlas de viaje“ (papel en tonos cálidos), permitidos para vídeo.</li>
+    <li><strong>Ruta con contorno</strong> &mdash; los proyectos nuevos empiezan en amarillo verdoso con borde oscuro; ancho y color del contorno los eliges tú.</li>
+    <li><strong>Fotos como instantánea</strong> &mdash; marco blanco cálido, algo inclinado, pie de foto manuscrito — y al final la foto se encoge a una pequeña imagen redonda en la ruta.</li>
+    <li><strong>Música y sonidos nuevos</strong> &mdash; „Panorama“, „Diario“ y „Pulso“, además de „Suave con tono“ y „Obturador de cámara“ — piezas propias, libres para tus vídeos.</li>
+    <li><strong>Corregido</strong> &mdash; tras ⌘Z la línea desaparecía de la vista previa; el perfil de altitud era invisible en rótulos claros.</li>
+      <li><strong>Vehículo en lugar de punto</strong> &mdash; senderista, bicicleta, coche, moto, barco, tren o avión muestran dónde estás.</li>
+    <li><strong>Nuevo cartel «Tarjeta»</strong> &mdash; blanco cálido con sombra suave, más tranquilo que el bocadillo oscuro.</li>
+    <li><strong>Selección de fotos más lista en el vídeo rápido</strong> &mdash; fotos casi idénticas solo una vez, nada desde el coche, temas mezclados — con la búsqueda por contenido la app reconoce además qué hay en las fotos.</li>
+    <li><strong>Corregido</strong> &mdash; las cifras de los rótulos siguen ahora el tamaño de letra elegido.</li>
+    <li><strong>Ritmo</strong> &mdash; en el punto más alto, la subida más empinada y las fotos el vídeo rápido va más despacio, la duración se mantiene.</li>
+    <li><strong>Página de inicio para nuevos usuarios</strong> &mdash; en el primer arranque la app pregunta una vez qué quieres hacer — vídeo, track o fotos.</li>
+    <li><strong>Ruta de viaje: transporte por tramo</strong> &mdash; en coche al puerto, ferry por el lago, a pie a la cumbre — y el punto muestra el vehículo correspondiente.</li>
+    <li><strong>Quitar la deriva de altura</strong> &mdash; en el Inspector un botón resta solo la desviación lenta de tu altímetro — los cambios finos se mantienen, puentes y túneles no molestan.</li>
+    <li><strong>Vuelos IGC</strong> &mdash; los vuelos de parapente, ala delta y vuelo a vela del registrador se abren y animan ahora como una ruta GPX — igual que los vuelos de dron de los archivos <code>.srt</code> de DJI.</li>
+    <li><strong>Sugerencias de título</strong> &mdash; el vídeo rápido sugiere títulos — la cumbre con su altura, inicio → destino o «Alrededor de …».</li>
+    <li><strong>Biblioteca en otro ordenador</strong> &mdash; si allí tu unidad de fotos tiene otro nombre (p. ej. «Fotos-1»), la app lo detecta y actualiza el inventario tras preguntar — con copia de seguridad antes, sin volver a leer. La copia ZIP puede incluir las vistas previas de las fotos para que el otro ordenador no tenga que generarlas.</li>
+      <li><strong>¿Por qué un valor atípico?</strong> &mdash; el Inspector muestra qué mide y da el motivo de cada valor atípico (p.&nbsp;ej. «42&nbsp;km/h entre dos puntos, límite 30&nbsp;km/h»). Nuevo: «Desplazamiento» — a pie, correr, bici, coche, volar — con el límite adecuado.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.781</span>
     <span class="version-date">5 de octubre de 2026</span>
-    <span class="version-badge">Actual</span>
+    
   </div>
   <ul>
     <li><strong>Buscar fotos por su contenido</strong> &mdash; «puesta de sol», «perro en la playa», «glaciar»: el buscador ahora también encuentra lo que muestran las fotos, en cualquier idioma, y además «Fotos parecidas» a una imagen. El modelo (SigLIP 2) solo se descarga al activar la búsqueda por contenido (unos 0,5&nbsp;GB) y después funciona por completo en tu ordenador, sin cuenta.</li>
@@ -141,6 +185,7 @@
     <li><strong>Lectura desde un NAS más robusta</strong> &mdash; si la unidad se desconecta a mitad, ya no desaparecen fotos del archivo; las miniaturas se crean más tarde; el tiempo restante ya no se queda en «menos de un minuto» y muestra días a partir de dos días.</li>
     <li><strong>Detalles</strong> &mdash; Esc cierra el editor de rótulos, los chips de carpeta acortan rutas largas, el selector de año del archivo de rutas coincide con el árbol de fechas, y el diálogo Acerca de nombra todas las bibliotecas incluidas.</li>
     <li><strong>Lectura desde un NAS con dos lectores</strong> &mdash; en una unidad de red dos procesos leen ahora los datos de captura a la vez (nunca más de dos, NAS con discos duros); los lotes lentos ya no cuentan como colgados antes de tiempo.</li>
+    <li><strong>Tiempo restante estable al leer</strong> &mdash; la duración ya no salta de un lado a otro, sobre todo en carpetas de vídeo.</li>
 </ul>
 </article>
 

@@ -21,7 +21,7 @@
                      "video_start", "strecke", "video_ende"];
   const BLENDEN = ["none", "fade", "pop", "both"];
   const POSITIONEN = ["tl", "tr", "bl", "br", "tc", "bc", "cc", "ml", "mr", "tcw", "bcw"];
-  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas"];
+  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas", "plex", "plexmono", "caveat"];   // 05.10.2026: + mitgelieferte Schriften (ui/fonts)
   const DEFAULT_LIVE_FIELDS = ["dist_done", "time_elapsed", "ele_now"];
   const DEFAULT_TOTAL_FIELDS = ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"];
   const STIL_KEYS = ["bg_color", "bg_opacity", "text_color", "font", "radius", "border_w", "border_color", "shadow"];

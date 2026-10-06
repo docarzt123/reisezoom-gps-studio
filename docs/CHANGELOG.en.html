@@ -117,9 +117,53 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.782</span>
+    <span class="version-date">6 October 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Media of the tour</strong> &mdash; photos and videos taken during the tour show as ticks in the timeline and as a grid on the right — one click makes a sign.</li>
+    <li><strong>Info card</strong> &mdash; a new overlay in the app's look: tour name, distance, ascent, moving time.</li>
+    <li><strong>The way ahead, dashed</strong> &mdash; new projects show the whole route faint and dashed; the line draws on top.</li>
+    <li><strong>Export video in its own window</strong> &mdash; “⤓ Export video” opens a window with presets (YouTube 4K, YouTube 1080p, Instagram Reel, Instagram 4:5, Quick look 720p — plus your own), resolution, frame rate, HDR and quality. The file name gets date and time, nothing is overwritten; “Export” starts right away.</li>
+    <li><strong>Format &amp; timing at the top</strong> &mdash; aspect ratio (16:9, 9:16, 1:1, 4:5, 4:3, 21:9) and duration are now the first card in the sidebar; intro, hold, distribution along the track and pauses sit below under “More”.</li>
+    <li><strong>Quick video is quick again</strong> &mdash; one screen instead of many switches: preset, format, length, title, photos (your own too), music, numbers and end card. Everything else is done in the Animator; saving goes through the same export window.</li>
+    <li><strong>Quick video with a preview</strong> &mdash; the whole map with the whole route and the title in the chosen format; one photo and one highlight open, the rest as dots; plus numbers and elevation profile where the preset shows them. You see what goes into the video before creating it.</li>
+    <li><strong>Photo stop bar shows its phases</strong> &mdash; pin, approach, photo large, departure; drag approach, photo time and departure longer or shorter right in the bar.</li>
+    <li><strong>Photo stop: set when the pin appears with the left edge</strong> &mdash; drag it in the sign lane or use “Pin before (s)” in the sign. Also fixed: while editing, the photo showed twice (white and black frame).</li>
+    <li><strong>Sign lane takes less room</strong> &mdash; signs that do not overlap share a row; overlapping ones go below. Also fixed: an endless loop measuring the sidebars that kept re-measuring the map and could freeze the app under load.</li>
+    <li><strong>Photo stops in the sign lane start when the photo appears</strong> &mdash; the bar runs from the photo pin (shortly before the halt) to the end of the video, exactly as the preview shows it; before, the photo appeared up to 5 s before its bar.</li>
+    <li><strong>Photo signs show their picture at once</strong> &mdash; the picture no longer waits for the online place lookup; without network the app does not ask again for 5 minutes.</li>
+    <li><strong>Flight in the air</strong> &mdash; the Animator now shows drone, paragliding and gliding flights at their real height above the ground: with drop lines like a curtain, a shadow on the ground and a floating dot; the camera flies along. Under Map → „✈ Flight in the air“ (free maps with terrain).</li>
+    <li><strong>Simple or fine-tuning</strong> &mdash; the Animator now has a simple view with five steps — route, look, places &amp; photos, camera, export. One click takes you back to the full Animator; both edit the same project.</li>
+    <li><strong>Quick video with three templates</strong> &mdash; „Wide“ (landscape, big photos), „Diary“ (paper map, photos as instant prints at the spot) and „Pulse“ (night map, data bar with elevation profile, photos as picture in picture) — with matching music. Everything stays adjustable under „More“.</li>
+    <li><strong>New app look</strong> &mdash; dark mineral green with mint, IBM Plex font (bundled, no internet), calm icons in the module bar.</li>
+    <li><strong>Four ready-made looks for your video</strong> &mdash; Natural, Travel atlas, Night map and Minimal: one click sets map, line, gradients and the font of the overlays. ⌘Z undoes the whole look.</li>
+    <li><strong>Two new free maps</strong> &mdash; „Night map“ (dark) and „Travel atlas“ (paper in warm tones), cleared for video.</li>
+    <li><strong>Route with outline</strong> &mdash; new projects start yellow-green with a dark edge; you set width and colour of the outline yourself.</li>
+    <li><strong>Photos as instant prints</strong> &mdash; warm-white frame, slightly tilted, handwritten caption — and at the end the photo shrinks to a small round picture on the route.</li>
+    <li><strong>New music and photo sounds</strong> &mdash; „Panorama“, „Diary“ and „Pulse“, plus „Soft with tone“ and „Camera shutter“ — all our own pieces, free for your videos.</li>
+    <li><strong>Fixed</strong> &mdash; after ⌘Z the line vanished from the preview; the elevation profile was invisible on light overlays.</li>
+      <li><strong>Vehicle instead of a dot</strong> &mdash; hiker, bicycle, car, motorbike, boat, train or plane shows where you are.</li>
+    <li><strong>New sign „Card“</strong> &mdash; warm white with a soft shadow, calmer than the dark speech bubble.</li>
+    <li><strong>Smarter photo choice in the quick video</strong> &mdash; near-identical pictures only once, no photos from the car, themes mixed — with content search the app also recognises what is in the photos.</li>
+    <li><strong>Fixed</strong> &mdash; numbers in overlays now follow the chosen font size.</li>
+    <li><strong>Pace direction</strong> &mdash; at the highest point, the steepest climb and at photos the quick video slows down, the length stays.</li>
+    <li><strong>Start page for new users</strong> &mdash; on the first start the app asks once what you'd like to do — video, track or photos.</li>
+    <li><strong>Travel route: mode per leg</strong> &mdash; car to the harbour, ferry across the lake, on foot to the summit — and the moving dot shows the matching vehicle.</li>
+    <li><strong>Remove elevation drift</strong> &mdash; in the Inspector a button removes only the slow offset of your altimeter — the fine elevation changes stay, bridges and tunnels don't get in the way.</li>
+    <li><strong>IGC flights</strong> &mdash; paragliding, hang gliding and gliding flights from the flight recorder now open and animate like a GPX tour — and so do drone flights from DJI <code>.srt</code> files.</li>
+    <li><strong>Title suggestions</strong> &mdash; the quick video suggests titles — the summit with its height, start → end or „Around …“.</li>
+    <li><strong>Library on another computer</strong> &mdash; if your photo drive has a different name there (e.g. „Fotos-1“), the app notices and updates the stock after asking — with a backup first, without re-reading. The ZIP backup can include the photo previews, so the other computer does not have to generate them again.</li>
+      <li><strong>Why an outlier?</strong> &mdash; the Inspector shows what it measures and gives the reason for every outlier (e.g. „42&nbsp;km/h between two points, limit 30&nbsp;km/h“). New: „Getting around“ — on foot, running, bike, car, flying — with a matching upper limit.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.781</span>
     <span class="version-date">5 October 2026</span>
-    <span class="version-badge">Latest</span>
+    
   </div>
   <ul>
     <li><strong>Search photos by content</strong> &mdash; “sunset”, “dog on the beach”, “glacier”: the search field now also finds what is on the photos, in any language, plus “Similar photos” for a picture. The image model (SigLIP 2) is only downloaded when you turn content search on (about 0.5&nbsp;GB) and then runs entirely on your computer, no account.</li>
@@ -141,6 +185,7 @@
     <li><strong>Reading in over a NAS is sturdier</strong> &mdash; if the drive drops out mid-run, no photos vanish from the library; previews are made later; the time left no longer sticks at “under a minute” and shows days from two days on.</li>
     <li><strong>Small things</strong> &mdash; Esc closes the overlay editor, folder chips shorten long paths, the year box in the tour archive matches the date tree, and the About dialog lists every bundled library.</li>
     <li><strong>Reading in over a NAS with two readers</strong> &mdash; on a network drive two processes now read the capture data at once (never more than two, hard-disk NAS); slow batches no longer count as hung too early.</li>
+    <li><strong>Calm time left while reading in</strong> &mdash; the duration no longer jumps around wildly, especially in video folders.</li>
 </ul>
 </article>
 

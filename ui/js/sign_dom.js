@@ -153,6 +153,13 @@
     var px = function (v) { return (Number(v) * unit) + "px"; };
 
     var styleName = o.style || "callout";
+    // 05.10.2026 — „karte" = warmweiße Sprechblase mit weichem Schatten (synchron zu sign_draw.js)
+    var istKarte = (styleName === "karte");
+    if (istKarte) {
+      styleName = "callout";
+      o = Object.assign({}, o, { shadow: true,
+        shadowBlur: o.shadowBlur != null ? o.shadowBlur : 14, shadowStrength: o.shadowStrength != null ? o.shadowStrength : 0.3 });
+    }
     // 30.09.2026 — Highlight-Stile (pille, hl_*) zeichnet NUR die Canvas-Engine
     // (sign_draw.js); der Editor zeigt deren Bild. So sind Editor, Probelauf und Video
     // pixelgleich, ohne einen zweiten DOM-Nachbau je Stil.
@@ -178,6 +185,7 @@
     var accent = o.color || "#ff6b35";
     var boxFill;
     if (styleName === "banner" || styleName === "signpost" || styleName === "plain") boxFill = accent;
+    else if (istKarte) boxFill = "#fbf9f4";
     else boxFill = "#15171c"; // callout / pin
     // v0.9.269 (Nutzer) — bg === "none": Box transparent (kein farbiger „Akzent-Rahmen"
     // ums Bild, kein Box-Schatten). Nur der optionale Rahmen bleibt → kein doppelter Rahmen.
@@ -310,6 +318,43 @@
     if (text.trim()) { cap.style.display = "block"; if (cap.textContent !== text) cap.textContent = text; }
     else { cap.style.display = "none"; cap.textContent = ""; }
 
+    // ── Sofortbild (05.10.2026, I-001; Marc nach MapAnimator: „Fotos ein bisschen schräg mit Schreibschrift, macht alles
+    // gleich viel schöner und weniger steril") — warmweißer Rahmen, unten breiter, quadratischer Bildausschnitt, leicht
+    // schräg (je Schild fest, aus seiner Kennung; `o.dreh` überschreibt), weicher Schatten, Unterschrift in Caveat.
+    // `rotate` ist eine eigene CSS-Eigenschaft und verträgt sich mit dem `transform: scale()` des Zoom-/Pop-Laufs.
+    if (styleName === "sofortbild") {
+      var rand = Math.max(6, pad + 3);
+      card.style.background = "#fbfaf5";
+      card.style.color = (o.textColor && o.textColor !== "auto") ? o.textColor : "#25302c";
+      card.style.borderRadius = px(2);
+      card.style.border = "none";
+      card.style.padding = px(rand) + " " + px(rand) + " " + px(Math.round(rand * ((o.text || "").trim() ? 1.4 : 3.2))) + " " + px(rand);
+      card.style.boxShadow = px(0) + " " + px(5) + " " + px(16) + " rgba(0,0,0,0.38), " + px(0) + " " + px(1) + " " + px(2) + " rgba(0,0,0,0.25)";
+      card.style.fontFamily = "'Caveat', 'Bradley Hand', 'Segoe Print', cursive";
+      card.style.fontWeight = "600";
+      card.style.fontStyle = "normal";
+      card.style.fontSize = px(Math.max(10, (Number(o.size) || 40) * 1.05));
+      card.style.textAlign = "center"; card.style.alignItems = "center";
+      cap.style.textShadow = "none"; img.style.filter = "";
+      cap.style.lineHeight = "1.05"; cap.style.marginTop = px(Math.round(rand * 0.35));
+      if (img.style.display !== "none") {
+        img.style.aspectRatio = "1 / 1"; img.style.objectFit = "cover"; img.style.borderRadius = px(1);
+        img.style.marginBottom = "0";
+      }
+      var dreh = Number(o.dreh);
+      if (!isFinite(dreh)) {
+        var key = String(o.id || o.text || o.imageSrc || ""), h = 0;
+        for (var ki = 0; ki < key.length; ki++) h = (h * 31 + key.charCodeAt(ki)) | 0;
+        dreh = ((Math.abs(h) % 9) - 4) * 0.9;        // −3,6° … +3,6°
+        if (Math.abs(dreh) < 1) dreh = (h & 1) ? 1.8 : -1.8;
+      }
+      card.style.rotate = dreh.toFixed(2) + "deg";
+      try { if (document.fonts && document.fonts.load) document.fonts.load("600 32px Caveat"); } catch (_) {}
+    } else {
+      card.style.rotate = "";
+      img.style.aspectRatio = ""; img.style.objectFit = ""; cap.style.lineHeight = ""; cap.style.marginTop = "";
+    }
+
     // ── Dekorationen + Anker ─────────────────────────────────────────────
     // Box-Höhe messen, sobald das Element im DOM hängt (für proportionale Stangen
     // wie im Canvas: Banner-Pfosten = 0.8×Box, Wegweiser-Pfosten = 1.1×Box). Solange
@@ -414,7 +459,7 @@
   // folgt er der Sprechblasen-Richtung, sonst immer "bottom".
   function anchorFor(o) {
     o = o || {};
-    if ((o.style || "callout") !== "callout") return "bottom";
+    if (["callout", "karte"].indexOf(o.style || "callout") < 0) return "bottom";
     var d = o.calloutDir;
     return (d === "top" || d === "left" || d === "right") ? d : "bottom";
   }

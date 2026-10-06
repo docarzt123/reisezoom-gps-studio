@@ -178,6 +178,18 @@ function mountGpxInspect(body, headerActions) {
             <span id="gpxi-sens-val" class="gpxi-sensval">5</span>
           </div>
           <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.sport", "Unterwegs")}<span class="gpxi-q" data-tip="${t("gpxinspect.sport_help", "Wie schnell du höchstens warst. Automatisch misst am üblichen Tempo der Tour. Mit einer Sportart gilt zusätzlich eine feste Obergrenze: Was schneller ist (z. B. über 30 km/h zu Fuß), ist ein Ausreißer — Fähren und Flüge über 10 km zählen nie.")}">?</span></label>
+            <select id="gpxi-sport">
+              <option value="auto" selected>${t("gpxinspect.sport_auto", "Automatisch")}</option>
+              <option value="fuss">${t("gpxinspect.sport_fuss", "Zu Fuß / Wandern")}</option>
+              <option value="laufen">${t("gpxinspect.sport_laufen", "Laufen")}</option>
+              <option value="rad">${t("gpxinspect.sport_rad", "Fahrrad")}</option>
+              <option value="fahrzeug">${t("gpxinspect.sport_fahrzeug", "Auto / Motorrad")}</option>
+              <option value="flug">${t("gpxinspect.sport_flug", "Fliegen / Gleitschirm")}</option>
+            </select>
+          </div>
+          <div class="gpxi-hint-sm" id="gpxi-grenzen"></div>
+          <div class="gpxi-fillrow">
             <label>${t("gpxinspect.spacing", "Abstand beim Füllen")}</label>
             <input type="number" id="gpxi-spacing" min="2" max="500" step="1" value="20"> m
           </div>
@@ -340,6 +352,8 @@ function mountGpxInspect(body, headerActions) {
             <span id="gpxi-ele-weight-val" class="gpxi-sensval">70 %</span>
           </div>
           <button class="btn btn-primary gpxi-act" id="gpxi-ele-apply" disabled>⛰ ${t("gpxinspect.ele_apply", "Diese Höhe übernehmen")}</button>
+          <!-- 05.10.2026 (Block 5, I-085/I-086) — nur die langsame Abweichung des Höhenmessers abziehen, Details bleiben -->
+          <button class="btn gpxi-act" id="gpxi-ele-drift" disabled title="${t("gpxinspect.ele_drift_tip", "Für Höhenmesser (Uhr, Radcomputer): zieht nur die langsame Abweichung zur Karte ab — die feinen Höhenänderungen deines Geräts bleiben. Kurze Brücken und Tunnel stören dabei nicht.")}">🧭 ${t("gpxinspect.ele_drift", "Drift herausrechnen (Höhenmesser behalten)")}</button>
           <div class="gpxi-note muted" id="gpxi-ele-result"></div>
             </div>
           </details>
@@ -472,10 +486,10 @@ function mountGpxInspect(body, headerActions) {
         map.addSource("gpxi-redprev", { type: "geojson", data: emptyLine });
         map.addLayer({ id: "gpxi-redprev-lyr", type: "line", source: "gpxi-redprev",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#ff6b35", "line-width": 3.4, "line-opacity": 1 } });
+          paint: { "line-color": rzFarbe("--route-default", "#d3e76b"), "line-width": 3.4, "line-opacity": 1 } });
         map.addSource("gpxi-redprev-pts", { type: "geojson", data: emptyFC });
         map.addLayer({ id: "gpxi-redprev-pts-lyr", type: "circle", source: "gpxi-redprev-pts",
-          paint: { "circle-radius": 3.4, "circle-color": "#ff6b35",
+          paint: { "circle-radius": 3.4, "circle-color": rzFarbe("--route-default", "#d3e76b"),
                    "circle-stroke-width": 1, "circle-stroke-color": "#ffffff" } });
         map.addSource("gpxi-pts", { type: "geojson", data: emptyFC });
         map.addLayer({ id: "gpxi-pts-lyr", type: "circle", source: "gpxi-pts", paint: {
@@ -660,12 +674,14 @@ function mountGpxInspect(body, headerActions) {
     _geladenN = _points.length; _abweichungGemeldet = false;
     try { applog("info", `[inspektor] geladen: ${_geladenN} Punkte aus ${path}`); } catch (_) {}
     { const n = document.getElementById("gpxi-wz-note"); if (n) n.textContent = ""; }   // 10.09.2026 — alter Hinweis weg
-    try { analyseTrack(); } catch (_) {}
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
     _sources = [_srcPath];        // v0.9.456 — Quelle 0; „Track anhängen" hängt weitere an
     _origPath = path;             // v0.9.335 — Original-Datei (für Default-Speicherort beim „Speichern unter…")
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
     _localTimeN = res.local_time_n || 0;   // 10.09.2026 — Zeiten ohne Zeitzone (Track-Check, grau)
+    // 05.10.2026 (Klickrunde: DJI-Datei ohne Hinweis „Zeit ohne Zone“) — der Track-Check erst NACH den Zuweisungen:
+    // vorher lief er mit _localTimeN = 0, leerem _origPath (keine Archiv-Abwahlen, keine Aktivität) und altem _hasTime.
+    try { analyseTrack(); } catch (_) {}
     _selA = _selB = null; _dirty = false;
     _drawMode = false; _drawPts = [];
     clearSpikes();
@@ -891,7 +907,7 @@ function mountGpxInspect(body, headerActions) {
     const capKmh = parseFloat((document.getElementById("gpxi-tempo-cap") || {}).value);
     const thr = (isFinite(capKmh) && capKmh >= 1)
       ? capKmh / 3.6
-      : Math.max(4.2, med * lerp(12, 3));
+      : Math.max(SPORT_GRENZEN[_sportart()].boden, med * lerp(12, 3));
     let shiftMs = 0, fixed = 0;
     for (let i = 1; i < n; i++) {
       if (orig[i] == null) continue;
@@ -1783,18 +1799,35 @@ function mountGpxInspect(body, headerActions) {
   // wenn Zeit da ist, zusätzlich Geschwindigkeits-Gate gegen Falsch-Positive bei
   // echten scharfen Kurven. Echte Lücken (langer gerader Sprung ohne Rückkehr)
   // werden NICHT markiert — der Umweg ist dort ~0.
-  function detectSpikes() {
+  // 05.10.2026 (Block 5, IDEEN I-087, IDEAS §43.3): Schwellen je Sportart — synchron zu SPORTARTEN in
+  // core/trackcheck.py, bei Änderung beide pflegen. boden = Tempo-Schwelle nie darunter (m/s), decke = feste
+  // Obergrenze: schneller ist immer ein Ausreißer (nur Segmente unter DECKE_BIS_M, Fähren/Flüge bleiben außen vor).
+  const SPORT_GRENZEN = {
+    auto: { boden: 4.2, decke: null },
+    fuss: { boden: 4.2, decke: 30 / 3.6 },
+    laufen: { boden: 6.0, decke: 40 / 3.6 },
+    rad: { boden: 8.3, decke: 90 / 3.6 },
+    fahrzeug: { boden: 20, decke: 250 / 3.6 },
+    flug: { boden: 40, decke: null },
+  };
+  const DECKE_BIS_M = 10000;
+  function _sportart() {
+    const v = (document.getElementById("gpxi-sport") || {}).value;
+    return SPORT_GRENZEN[v] ? v : "auto";
+  }
+  /** Woran gemessen wird — für detectSpikes UND die sichtbare Zeile „Gemessen wird …". */
+  function _spikeGrenzen() {
     const P = _points, n = P.length;
-    if (n < 3) return [];
-    const seg = new Array(n - 1);
+    const seg = new Array(Math.max(0, n - 1));
     for (let i = 0; i < n - 1; i++) seg[i] = _haversine(P[i], P[i + 1]);
     const sorted = [...seg].sort((a, b) => a - b);
     const medSeg = sorted[Math.floor(sorted.length / 2)] || 0;
-    const haveTime = _hasTime && P.every(p => p.time);
+    const haveTime = _hasTime && n > 0 && P.every(p => p.time);
     // Empfindlichkeit 1..10 (Slider) → Schwellen. 1 = nur krasse Sprünge,
     // 10 = auch kleine Zacken. lerp über den Slider-Bereich.
     const sens = Math.max(1, Math.min(10, parseFloat((document.getElementById("gpxi-sens") || {}).value) || 5));
     const lerp = (a, b) => a + (b - a) * (sens - 1) / 9;
+    const sport = SPORT_GRENZEN[_sportart()];
     const SPIKE_FACTOR = lerp(12, 2);              // Vielfaches des mittleren Punktabstands
     const FLOOR = lerp(120, 15);                    // Mindest-Sprungweite in m
     const ABS_JUMP = Math.max(FLOOR, medSeg * SPIKE_FACTOR);
@@ -1819,8 +1852,51 @@ function mountGpxInspect(body, headerActions) {
     // (≈ 9–12× Median). lerp(12, 3): Standard (5) fängt ab ~8× Median, die
     // niedrigste Stufe bleibt bei 12× konservativ.
     const REL_SPEED = lerp(12, 3);                 // Vielfaches des Median-Tempos
-    const SPEED_THR = medSpeed > 0 ? Math.max(4.2, medSpeed * REL_SPEED) : Infinity;
+    const SPEED_THR = medSpeed > 0 ? Math.max(sport.boden, medSpeed * REL_SPEED) : Infinity;
+    return { seg, medSeg, haveTime, ABS_JUMP, SPEED_CAP, SPEED_THR, DECKE: sport.decke, medSpeed };
+  }
+  function _grenzenZeigen() {
+    const el = document.getElementById("gpxi-grenzen");
+    if (!el) return;
+    if (!_points.length) { el.textContent = ""; return; }
+    const g = _spikeGrenzen();
+    const kmh = (v) => Math.round(v * 3.6);
+    let txt = t("gpxinspect.grenzen_sprung", "Gemessen wird: Sprung ab %m m").replace("%m", Math.round(g.ABS_JUMP));
+    if (g.haveTime && isFinite(g.SPEED_THR)) txt += " · " + t("gpxinspect.grenzen_tempo", "Tempo ab %v km/h").replace("%v", kmh(g.SPEED_THR));
+    if (g.DECKE) txt += " · " + t("gpxinspect.grenzen_decke", "nie über %v km/h").replace("%v", kmh(g.DECKE));
+    el.textContent = txt;
+  }
+  /** Begründung je Ausreißer-Gruppe (I-087): Sprungweite oder Tempo, mit der Grenze, die gegriffen hat. */
+  function _spikeGrund(gr, G) {
+    const P = _points;
+    let maxD = 0, maxV = 0;
+    for (let k = gr.a; k < gr.b; k++) {
+      const d = G.seg[k] || 0;
+      if (d > maxD) maxD = d;
+      if (G.haveTime) {
+        const dt = (Date.parse(P[k + 1].time) - Date.parse(P[k].time)) / 1000;
+        const v = dt > 0 ? d / dt : Infinity;
+        if (v > maxV) maxV = v;
+      }
+    }
+    if (gr.art === "sprung") return { art: "sprung", m: Math.round(maxD), median: Math.round(G.medSeg) };
+    const decke = G.DECKE && maxV > G.DECKE;
+    return { art: decke ? "decke" : "tempo", kmh: isFinite(maxV) ? Math.round(maxV * 3.6) : null,
+             grenze: Math.round((decke ? G.DECKE : G.SPEED_THR) * 3.6) };
+  }
+  function _spikeGrundText(g) {
+    if (!g) return "";
+    if (g.art === "sprung") return t("gpxinspect.grund_sprung", "Sprung %m m bei %d m üblichem Punktabstand").replace("%m", g.m).replace("%d", g.median);
+    if (g.kmh == null) return t("gpxinspect.grund_zeit", "zwei Punkte mit derselben Zeit");
+    return t("gpxinspect.grund_tempo", "%v km/h zwischen zwei Punkten (Grenze %g km/h)").replace("%v", g.kmh).replace("%g", g.grenze);
+  }
+  function detectSpikes() {
+    const P = _points, n = P.length;
+    if (n < 3) return [];
+    const G = _spikeGrenzen();
+    const { seg, haveTime, ABS_JUMP, SPEED_CAP, SPEED_THR, DECKE } = G;
     const flags = new Array(n).fill(false);
+    const art = new Array(n).fill("");
     for (let i = 1; i < n - 1; i++) {
       const inD = seg[i - 1], outD = seg[i];
       const chord = _haversine(P[i - 1], P[i + 1]);
@@ -1836,8 +1912,11 @@ function mountGpxInspect(body, headerActions) {
         vOut = dtOut > 0 ? outD / dtOut : Infinity;
         speedBad = (vIn > SPEED_CAP || vOut > SPEED_CAP);
       }
-      if (bigJump && returns && speedBad) flags[i] = true;
-      else if (haveTime && (vIn > SPEED_THR || vOut > SPEED_THR)) flags[i] = true;
+      if (bigJump && returns && speedBad) { flags[i] = true; art[i] = "sprung"; }
+      else if (haveTime && (vIn > SPEED_THR || vOut > SPEED_THR)) { flags[i] = true; art[i] = "tempo"; }
+      else if (haveTime && DECKE && ((vIn > DECKE && inD < DECKE_BIS_M) || (vOut > DECKE && outD < DECKE_BIS_M))) {
+        flags[i] = true; art[i] = "tempo";
+      }
     }
     // Aufeinanderfolgende markierte Punkte zu einer Ausreißer-Gruppe zusammenfassen.
     const groups = [];
@@ -1846,7 +1925,11 @@ function mountGpxInspect(body, headerActions) {
       if (flags[i]) {
         let j = i; while (j + 1 < n && flags[j + 1]) j++;
         const a = i - 1, b = j + 1;
-        if (a >= 0 && b < n) groups.push({ a, b, from: i, to: j });
+        if (a >= 0 && b < n) {
+          const gr = { a, b, from: i, to: j, art: art.slice(i, j + 1).includes("sprung") ? "sprung" : "tempo" };
+          gr.grund = _spikeGrund(gr, G);
+          groups.push(gr);
+        }
         i = j + 1;
       } else i++;
     }
@@ -2003,6 +2086,11 @@ function mountGpxInspect(body, headerActions) {
     const zeilen = [];
     if (_spikes.length) {
       zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot is-spike"></i>${esc(t("gpxinspect.heal_prev_spikes", "%n Ausreißer (orange) werden auf die Linie zwischen ihren Nachbarn gerückt").replace("%n", _spikes.length))}</div>`);
+      // 05.10.2026 (I-087, IDEAS §43.3): je Ausreißer der Grund — „warum entfernt?" statt stiller Automatik.
+      const gruende = _spikes.filter((g) => g.grund).slice(0, 5)
+        .map((g) => `<div class="gpxi-healprev-sub">${esc(_spikeGrundText(g.grund))}</div>`);
+      if (_spikes.length > 5) gruende.push(`<div class="gpxi-healprev-sub">${esc(t("gpxinspect.grund_weitere", "… und %n weitere").replace("%n", _spikes.length - 5))}</div>`);
+      zeilen.push(...gruende);
     }
     if (_gaps.length) {
       const fillMode = (document.getElementById("gpxi-profile") || {}).value || "linear";
@@ -2175,8 +2263,9 @@ function mountGpxInspect(body, headerActions) {
     if (!box) return;
     if (!_points || _points.length < 3) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     let r = null;
-    try { r = await rzWarten("gpxinspect_track_check", () => api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0)); } catch (e) { r = null; }
+    try { r = await rzWarten("gpxinspect_track_check", () => api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0, _sportart())); } catch (e) { r = null; }
     if (isUnmounted) return;
+    try { _grenzenZeigen(); } catch (e) { applog("warn", `[gpxinspect] Grenzen: ${e}`); }
     if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     _tc = r;
     try { if (_lb) _lbStrahlRender(); } catch (_) {}   // Logbuch Stufe 4: Befunde-Spur
@@ -2591,6 +2680,7 @@ function mountGpxInspect(body, headerActions) {
     if (prof && !prof.hidden) { prof.hidden = true; try { if (map) map.resize(); } catch (_) {} }
     setDisabled("gpxi-ele-weight", true);
     setDisabled("gpxi-ele-apply", true);
+    setDisabled("gpxi-ele-drift", true);
   }
   function _profileVisible() {
     const prof = document.getElementById("gpxi-ele-profile");
@@ -3014,6 +3104,7 @@ function mountGpxInspect(body, headerActions) {
       if (prof) prof.hidden = false;
       setDisabled("gpxi-ele-weight", false);
       setDisabled("gpxi-ele-apply", false);
+      setDisabled("gpxi-ele-drift", false);
       try { map.resize(); } catch (_) {}   // Karte schrumpft um den Profil-Streifen
       // Fenster initial auf den aktuell sichtbaren Karten-Ausschnitt (Zoom-Sync)
       _profI0 = 0; _profI1 = _points.length - 1;
@@ -3049,6 +3140,28 @@ function mountGpxInspect(body, headerActions) {
     const resEl = document.getElementById("gpxi-ele-result");
     if (resEl) resEl.textContent = t("gpxinspect.ele_done", "Übernommen: %old → %new Höhenmeter (%pct % Karte). Jetzt speichern.")
       .replace("%old", Math.round(oldGain)).replace("%new", Math.round(newGain)).replace("%pct", Math.round(w * 100));
+    toast(t("gpxinspect.ele_applied_toast", "Höhe übernommen — zum Sichern unten speichern."), "success");
+  }
+
+  // 05.10.2026 (Block 5, I-085) — Drift des Höhenmessers herausrechnen (ui/js/hoehendrift.js), mit Undo.
+  function applyEleDrift() {
+    if (!_demEles || _demEles.length !== _points.length || !window.rzHoehenDrift) return;
+    const gpsOrig = _eleGpsReihe();
+    const r = window.rzHoehenDrift.korrigieren(gpsOrig, _demEles, _cumDist());
+    const resEl = document.getElementById("gpxi-ele-result");
+    if (!r) { const m = t("gpxinspect.ele_drift_wenig", "Zu wenige Punkte mit GPS- und Kartenhöhe — hier hilft nur „Diese Höhe übernehmen“."); if (resEl) resEl.textContent = m; toast(m, "warn"); return; }
+    const oldGain = _eleGain(gpsOrig);
+    _pushUndo(t("gpxinspect.ele_drift_undo", "Höhendrift herausgerechnet"));
+    for (let i = 0; i < _points.length; i++) if (r.hoehen[i] != null) _points[i].ele = r.hoehen[i];
+    _eleBasis = { gps: gpsOrig, res: _points.map(p => (p.ele == null || !isFinite(p.ele)) ? null : p.ele) };
+    _hasEle = true; _dirty = true;
+    const newGain = _eleGain(_points.map(p => p.ele));
+    renderAll(); updateUI(); drawEleProfile();
+    const f = (x) => (x >= 0 ? "+" : "−") + Math.abs(Math.round(x)) + " m";
+    if (resEl) resEl.textContent = t("gpxinspect.ele_drift_done", "Drift herausgerechnet: am Anfang %a, am Ende %e (größte %m). Höhenmeter %old → %new. Jetzt speichern.")
+      .replace("%a", f(r.info.anfang)).replace("%e", f(r.info.ende)).replace("%m", f(r.info.max))
+      .replace("%old", Math.round(oldGain)).replace("%new", Math.round(newGain));
+    try { applog("info", `[gpxinspect] Drift: Anfang ${r.info.anfang.toFixed(1)} m, Ende ${r.info.ende.toFixed(1)} m, max ${r.info.max.toFixed(1)} m, ${r.info.n} Vergleichspunkte`); } catch (_) {}
     toast(t("gpxinspect.ele_applied_toast", "Höhe übernommen — zum Sichern unten speichern."), "success");
   }
 
@@ -3334,7 +3447,11 @@ function mountGpxInspect(body, headerActions) {
       const sh = document.getElementById("gpxi-spikehint");
       if (sh) {
         let txt = "";
-        if (nSpk > 0) txt += t("gpxinspect.spike_nav", "Ausreißer ") + (_spikeIdx + 1) + "/" + nSpk;
+        if (nSpk > 0) {
+          txt += t("gpxinspect.spike_nav", "Ausreißer ") + (_spikeIdx + 1) + "/" + nSpk;
+          const g = _spikes[_spikeIdx];
+          if (g && g.grund) txt += " — " + _spikeGrundText(g.grund);
+        }
         if (nGap > 0) txt += (txt ? " · " : "") + t("gpxinspect.gap_count", "Lücken: ") + nGap;
         sh.textContent = txt;
       }
@@ -3633,7 +3750,18 @@ function mountGpxInspect(body, headerActions) {
   initHelpTips(document.getElementById("gpxi-panel") || body);
   // Empfindlichkeits-Slider: nur Label live.
   { const sl = document.getElementById("gpxi-sens"), lbl = document.getElementById("gpxi-sens-val");
-    if (sl) sl.addEventListener("input", () => { if (lbl) lbl.textContent = sl.value; }); }
+    if (sl) sl.addEventListener("input", () => { if (lbl) lbl.textContent = sl.value; _grenzenZeigen(); }); }
+  { const so = document.getElementById("gpxi-sport");
+    if (so) {
+      try {
+        const merk = (typeof _settingsCache === "object" && _settingsCache) ? _settingsCache.gpxi_sportart : null;
+        if (merk && SPORT_GRENZEN[merk]) so.value = merk;
+      } catch (_) {}
+      so.addEventListener("change", () => {
+        analyseTrack();
+        try { saveSettings({ gpxi_sportart: so.value }); } catch (_) {}
+      });
+    } }
   // v0.9.294 — Füll-Abstand ändert die Lücken-Vorschau (Geister-Punkte) live nach.
   { const sp = document.getElementById("gpxi-spacing");
     if (sp) sp.addEventListener("input", () => { if (_gaps.length) renderGaps(); }); }
@@ -3717,6 +3845,7 @@ function mountGpxInspect(body, headerActions) {
 
   _on("gpxi-ele-load", loadEleProfile);
   _on("gpxi-ele-apply", applyEleBlend);
+  _on("gpxi-ele-drift", applyEleDrift);
   { const ew = document.getElementById("gpxi-ele-weight"), ewl = document.getElementById("gpxi-ele-weight-val");
     if (ew) ew.addEventListener("input", () => { if (ewl) ewl.textContent = ew.value + " %"; drawEleProfile(); }); }
   // v0.9.293 — Profil-Interaktion: Klick=Modal, Doppelklick=Anker, Rad=Zoom, Drag=Pan
@@ -4366,14 +4495,22 @@ function mountGpxInspect(body, headerActions) {
   }
   /** ⌘Z/⌘⇧Z: Stand der Einteilung und Einstellungen zurückschreiben, dann neu lesen. */
   async function _lbUndoAnwenden(snap) {
-    if (!snap || !_lb || !snap.lbPfad || snap.lbPfad !== _lbPfad) return;
+    if (!snap || !_lb || !snap.lbPfad || snap.lbPfad !== _lbPfad) {
+      // 06.10.2026 — Diagnose: warum ein ⌘Z das Logbuch nicht anfasst
+      if (snap && snap.lbPfad) applog && applog("info", `[logbuch] undo übersprungen: ${!_lb ? "kein Logbuch geladen" : "anderer Track"}`);
+      return;
+    }
     let neu = false;
     try {
       if (snap.lb && !_lbIstVorschau() && JSON.stringify(snap.lb) !== JSON.stringify(_lbStand)) {
         await api().einteilung_stand_setzen(_lb.eid, snap.lb, _lb.tour);   // warte-ok: Teil des Undo-Schritts
         neu = true;
       }
-      if (snap.lbEinst && JSON.stringify(snap.lbEinst) !== JSON.stringify(_lbEinst)) {
+      // 06.10.2026 — immer zurückschreiben, nicht gegen _lbEinst vergleichen: das wird erst nach dem Neuladen
+      // aufgefrischt; ein schnelles ⌘Z (oder ein langsamer Rechner) traf den alten Stand, hielt beide für gleich und
+      // ließ die neue Einstellung stehen (test_logbuch unter Last). Das Schreiben ist billig und ändert sonst nichts.
+      if (snap.lbEinst) {
+        applog && applog("info", `[logbuch] undo: Einstellungen zurück (Tour: ${Object.keys(snap.lbEinst.tour || {}).length} Werte)`);
         await api().logbuch_einstellungen_stand(_lbPfad, snap.lbEinst);   // warte-ok: Teil des Undo-Schritts
         neu = true;
       }
@@ -4727,6 +4864,9 @@ function mountGpxInspect(body, headerActions) {
       catch (e) { r = { ok: false, error: String(e) }; }
       if (!r || !r.ok) { toast((r && r.error) || t("logbuch.fehler_aktion", "Das ging nicht"), "error"); return; }
       _pushUndoMit(t("logbuch.undo.einst", "Logbuch: Einstellungen"), vorher);
+      // 06.10.2026 — den neuen Stand SOFORT merken, nicht erst nach dem Neuladen: ein ⌘Z davor verglich den Vorher-Stand
+      // mit dem noch alten _lbEinst, fand „nichts zu tun“ und ließ die Einstellung stehen (test_logbuch)
+      if (r.global || r.tour) _lbEinst = { global: r.global || {}, tour: r.tour || {} };
       try { updateUI(); } catch (_) {}
       await logbuchLaden(false, { auswahl: _lbSel, ohneNetz: true });
       try { _lbNetzNachladen(); } catch (_) {}
@@ -4804,8 +4944,17 @@ function mountGpxInspect(body, headerActions) {
     const id = "logbuch-netz";
     const will = { orte: (einst.orte_holen == null || einst.orte_holen > 0), pois: (einst.pois_holen == null || einst.pois_holen > 0) };
     if (!will.orte && !will.pois) { _lbPoisRender(); return; }
+    // 06.10.2026 (Marc: „bei mir kommt immer wieder: Logbuch-Ortsnamen werden nachgeschlagen — wann kommt es?“) —
+    // das lief bei JEDEM Öffnen des Logbuchs, auch wenn alle Namen schon im Speicher lagen; der Kasten blitzte dann
+    // jedes Mal auf. Jetzt erscheint er nur, wenn das Nachschlagen wirklich dauert (> 1,2 s, also übers Netz).
+    let kastenDa = false;
+    const kasten = (text) => {
+      if (!kastenDa) { kastenDa = true; rzStatus.start(id, { titel: t("logbuch.netz.titel", "Logbuch: Namen und Orte"), text: text || t("logbuch.netz.orte", "Ortsnamen werden nachgeschlagen …"), hintergrund: true, abbrechen: true }); }
+      else if (text) rzStatus.schritt(id, { text });
+    };
+    const kastenUhr = setTimeout(() => { if (lauf === _lbNetzLauf && !isUnmounted) kasten(); }, 1200);
+    const abgebrochen = () => kastenDa && rzStatus.abgebrochen(id);
     try {
-      rzStatus.start(id, { titel: t("logbuch.netz.titel", "Logbuch: Namen und Orte"), text: t("logbuch.netz.orte", "Ortsnamen werden nachgeschlagen …"), hintergrund: true, abbrechen: true });
       if (will.orte) {
         // Liste und Fenster höchstens einmal je Sekunde neu zeichnen, am Ende auf jeden Fall (14.09.2026)
         let zuletzt = 0, offen = false;
@@ -4815,14 +4964,14 @@ function mountGpxInspect(body, headerActions) {
           if (isUnmounted || lauf !== _lbNetzLauf || _lbPfad !== pfad) return;
           if (!r || !r.ok) break;
           Object.assign(_lbOrte, r.orte || {}); offen = true;
-          if (!r.offen || !r.netz || rzStatus.abgebrochen(id)) break;
+          if (!r.offen || !r.netz || abgebrochen()) break;
           if (performance.now() - zuletzt > 1000) zeichnen();
-          rzStatus.schritt(id, { text: t("logbuch.netz.orte_offen", "Ortsnamen: noch {n} offen", { n: r.offen }) });
+          if (kastenDa) rzStatus.schritt(id, { text: t("logbuch.netz.orte_offen", "Ortsnamen: noch {n} offen", { n: r.offen }) });
         }
         if (offen) zeichnen();
       }
-      if (will.pois && !rzStatus.abgebrochen(id)) {
-        rzStatus.schritt(id, { text: t("logbuch.netz.pois", "Sehenswürdigkeiten am Weg werden gesucht …") });
+      if (will.pois && !abgebrochen()) {
+        if (kastenDa) rzStatus.schritt(id, { text: t("logbuch.netz.pois", "Sehenswürdigkeiten am Weg werden gesucht …") });
         let r; try { r = await api().logbuch_pois(pfad, false); } catch (e) { r = null; }   // warte-ok: Hintergrundkasten logbuch-netz
         if (isUnmounted || lauf !== _lbNetzLauf || _lbPfad !== pfad) return;
         if (r && r.ok) {
@@ -4832,10 +4981,13 @@ function mountGpxInspect(body, headerActions) {
           if (!r.netz) toast(t("logbuch.netz.kein_netz", "Ohne Internet: Sehenswürdigkeiten werden später nachgetragen."), "info", 4000);
         }
       }
-      rzStatus.fertig(id, t("logbuch.netz.fertig", "Namen und Orte sind da"));
+      if (kastenDa) { rzStatus.fertig(id, t("logbuch.netz.fertig", "Namen und Orte sind da")); kastenDa = false; }
     } catch (e) {
-      try { rzStatus.ende(id); } catch (_) {}
       applog && applog("warn", "[logbuch] Netz: " + e);
+    } finally {
+      // auch bei vorzeitigem Ende (anderer Track, Modul verlassen): Uhr aus, offener Kasten zu
+      clearTimeout(kastenUhr);
+      if (kastenDa) { try { rzStatus.ende(id); } catch (_) {} }
     }
   }
   /** POI-Flaggen (im_logbuch, abgelehnt) aus dem aktuellen Logbuch ableiten — nach ⌘Z/⌘⇧Z stimmen sie sonst nicht mehr.
@@ -5640,7 +5792,8 @@ function mountGpxInspect(body, headerActions) {
   // Für Wächter: Zustand des Logbuchs von außen lesbar
   window.__rzGpxiLogbuch = { daten: () => _lb, auswahl: () => _lbSel, waehlen: lbWaehlen, laden: logbuchLaden,
                             fenster: () => _lbFenster, hover: () => _lbHover,
-                            zuIdx: _lbWaehleZuIdx, hoverIdx: (i) => setHover(i) };
+                            zuIdx: _lbWaehleZuIdx, hoverIdx: (i) => setHover(i),
+                            einst: () => _lbEinst, istVorschau: () => _lbIstVorschau(), pfad: () => _lbPfad };   // Prüfstand
 
   updateUI();
 

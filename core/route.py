@@ -761,6 +761,40 @@ def map_match(
 
 
 # ── GPX schreiben ────────────────────────────────────────────────────────────
+# 05.10.2026 (Block 4 „Route erstellen", Marc: „Verkehrsart je Abschnitt, Fahrzeugsymbole") — jede Etappe zwischen zwei
+# Stationen mit ihrer eigenen Art: Straße (Auto/Rad/zu Fuß) über den Routendienst, Flug/Boot/Zug als Großkreis.
+ARTEN_STRASSE = {"auto": "driving", "rad": "cycling", "wanderer": "walking"}
+ARTEN_GERADE = ("flugzeug", "boot", "zug")
+ARTEN = tuple(ARTEN_STRASSE) + ARTEN_GERADE
+
+
+def gemischte_route(waypoints: List[Tuple[float, float]], arten: List[str], token: str = "", *,
+                    coarseness: Optional[float] = None) -> dict:
+    """Etappen mit eigener Verkehrsart verketten. `arten[i]` gilt von Station i bis i+1.
+    Returns {coords, distance_m, duration_s, abschnitte: [{art, von: [lon, lat], bis: [lon, lat]}]}."""
+    pts = [(float(lon), float(lat)) for lon, lat in waypoints]
+    if len(pts) < 2:
+        raise RouteError(_i18n.t_aktiv("route.err_start_ziel", "Mindestens Start und Ziel nötig"))
+    coords: List[List[float]] = []
+    abschnitte = []
+    dist = dauer = 0.0
+    for i in range(len(pts) - 1):
+        art = arten[i] if i < len(arten) and arten[i] in ARTEN else "auto"
+        paar = [pts[i], pts[i + 1]]
+        if art in ARTEN_STRASSE:
+            r = road_route(paar, token, profile=ARTEN_STRASSE[art], coarseness=coarseness)
+        else:
+            r = arc_route(paar, n_points=60)
+        seg = r["coords"]
+        if coords and seg:
+            seg = seg[1:]   # Station nicht doppelt
+        coords.extend(seg)
+        dist += float(r.get("distance_m") or 0)
+        dauer += float(r.get("duration_s") or 0)
+        abschnitte.append({"art": art, "von": [pts[i][0], pts[i][1]], "bis": [pts[i + 1][0], pts[i + 1][1]]})
+    return {"coords": coords, "distance_m": dist, "duration_s": dauer, "abschnitte": abschnitte}
+
+
 def write_gpx(
     coords: List[List[float]],
     out_path: str,

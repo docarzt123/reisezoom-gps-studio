@@ -53,6 +53,7 @@
   let inhaltTimer = 0;
   let inhaltTempo = null;     // { t0, d0 } — Tempo des Indizierens, für die Restzeit
   let sortierung = "relevanz";   // relevanz | zeit_neu — nur bei einer Suche
+  let letzteWerte = null;        // 06.10.2026 — Kameras/Jahre des letzten Öffnens: beim nächsten Mal sofort da
 
   function num(n) {
     let loc = null;
@@ -105,7 +106,7 @@
       </button>`;
 
     nav.innerHTML = `
-      <div class="lib-nav-title">${T("fotos.titel", "Fotos")}</div>
+      <div class="lib-nav-title">${T("fotos.titel", "Medien")}</div>
       <div class="lib-nav-hint">${T("fotos.nav_hint2", "Ordner mit Fotos und Videos. Die App liest nur — Dateien ändert sie nur, wenn du ein Foto selbst bearbeitest, und sichert es vorher.")}</div>
       ${zeile("🖼", T("fotos.alle", "Alle"), s.gesamt || 0, "alle", !filter.gps && !filter.art && !filter.ohne_zeit && !filter.mit_fehlenden && !filter.von)}
       ${zeile("📷", T("fotos.nur_fotos", "Nur Fotos"), s.fotos || 0, "fotos", filter.art === "foto")}
@@ -391,7 +392,7 @@
         const gesamtJetzt = st.phase === "dateien" ? (st.erwartet || 0) : (st.total || 0);
         if (st.running) {
           if (!window.rzStatus.laeuft("foto-scan")) {
-            window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Fotos"),
+            window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Medien"),
                                                  text: phase2, gesamt: gesamtJetzt,
                                                  abbrechen: true,
                                                  // Liest im Hintergrund weiter — niemand wartet darauf.
@@ -457,14 +458,17 @@
   let ladeLauf = 0;
 
   async function neuLaden(leise) {
+    // 06.10.2026 (Marc: „zurück auf Fotos gewechselt, da musste er sie wieder einlesen") — die bisherige Seite bleibt
+    // stehen, bis die neue da ist (vorher hier geleert: lief das Einlesen, frischte es auch bei unsichtbarer Ansicht auf,
+    // und beim Zurückkommen war die „letzte Ansicht“ weg). Unsichtbar wird gar nicht aufgefrischt.
+    if (!angemeldet) return;
     ladeLauf++;
-    geladen = [];
-    await mehrLaden(leise);
+    await mehrLaden(leise, true);
   }
 
-  async function mehrLaden(leise) {
+  async function mehrLaden(leise, neu) {
     const lauf = ladeLauf;
-    const ab = geladen.length;
+    const ab = neu ? 0 : geladen.length;
     nachladend = true;
     try {
       const r = await api().fotos_abfrage({   // warte-ok: Endlos-Blättern lädt still nach
@@ -476,7 +480,7 @@
       gesamt = r.n || 0;
       if (!ab) inhaltTreffer = r.inhalt || null;
       if (r.ohne_koordinate != null) gesamtOhneGps = r.ohne_koordinate;   // nur mit der ersten Seite
-      geladen = geladen.concat(r.fotos || []);
+      geladen = neu ? (r.fotos || []) : geladen.concat(r.fotos || []);
       // Beim Weiterblättern nur anhängen: ein vollständiges Neuzeichnen würde
       // die Ansicht nach oben reißen und bei tausenden Kacheln hängen.
       if (ab && ansicht === "raster") rasterAnhaengen(ab);
@@ -498,13 +502,13 @@
   async function thumbsNachholen() {
     const lauf = ++thumbLauf;
     const offen = geladen.filter(f => !f.thumb_url).map(f => f.path);
-    if (!offen.length) return;
+    if (!offen.length) { schaerfen(lauf); return; }
     // Laufwerk weg: Was nicht im Speicher liegt, lässt sich jetzt nicht bauen.
     // Kein Fortschrittsbalken über Bilder, die gar nicht kommen können.
     if (ordner.length && ordner.every(o => !o.da)) return;
     if (window.rzStatus) {
       window.rzStatus.start("foto-thumbs", {
-        titel: T("fotos.titel", "Fotos"),
+        titel: T("fotos.titel", "Medien"),
         text: T("fotos.thumbs_holen", "Vorschaubilder erzeugen"),
         gesamt: offen.length, abbrechen: true,
         hintergrund: true,   // man blättert weiter, während die Kacheln kommen
@@ -536,6 +540,42 @@
       if (window.rzStatus.laeuft("foto-scan")) window.rzStatus.ende("foto-thumbs");
       else window.rzStatus.fertig("foto-thumbs", "");
     }
+    if (lauf === thumbLauf) schaerfen(lauf);
+  }
+
+  /* 06.10.2026 (Marc: „B ja") — Schritt 3 legt fürs Raster das kleine eingebettete EXIF-Vorschaubild ab (thumb = 2,
+     ~2 % der Daten). Was gerade zu sehen ist, wird still durch ein scharfes ersetzt — ohne Fortschrittskasten. */
+  const _schaerfenFehl = new Set();
+  let _schaerfenLaeuft = false, _schaerfenZeit = 0;
+  async function schaerfen(lauf) {
+    if (ordner.length && ordner.every(o => !o.da)) return;      // Laufwerk weg: dann bleibt das Schnellbild
+    // Review 06.10.2026: nur was zu sehen ist (plus ein Bildschirm darunter) — nach langem Blättern las das sonst
+    // tausende Fotos übers NAS. Was sich nicht schärfen lässt, wird in dieser Sitzung nicht wieder versucht.
+    if (_schaerfenLaeuft) return;
+    const sichtEl = (rasterBox && rasterBox.isConnected) ? rasterBox : haupt;
+    const sicht = sichtEl ? sichtEl.getBoundingClientRect() : null;
+    const imBild = (idx) => {
+      if (!sicht) return true;
+      const k = haupt.querySelector(`.foto-kachel[data-foto="${idx}"]`); if (!k) return false;
+      const r = k.getBoundingClientRect();
+      return r.bottom >= sicht.top - 50 && r.top <= sicht.bottom + sicht.height;
+    };
+    const offen = geladen.map((f, idx) => (f.thumb === 2 && !_schaerfenFehl.has(f.path) && imBild(idx)) ? f.path : null).filter(Boolean);
+    _schaerfenLaeuft = true;
+    try { for (let i = 0; i < offen.length; i += THUMB_HAPPEN) {
+      if (lauf !== thumbLauf || !angemeldet) return;
+      const teil = offen.slice(i, i + THUMB_HAPPEN);
+      const r = await api().fotos_schaerfen(teil).catch(() => null);   // warte-ok: still im Hintergrund
+      if (lauf !== thumbLauf || !angemeldet) return;
+      const bilder = (r && r.thumbs) || {};
+      if (r) teil.forEach(p => { if (!bilder[p]) _schaerfenFehl.add(p); });
+      geladen.forEach((f, idx) => {
+        if (!bilder[f.path]) return;
+        f.thumb_url = bilder[f.path]; f.thumb = 1;
+        const img = haupt && haupt.querySelector(`.foto-kachel[data-foto="${idx}"] img`);
+        if (img) img.src = bilder[f.path];
+      });
+    } } finally { _schaerfenLaeuft = false; }
   }
 
   /** Die neuen Bilder in die schon gezeichneten Kacheln hängen — ohne das
@@ -564,6 +604,7 @@
       stand = r.stand || {};
       haupt._kameras = r.kameras || [];
       haupt._jahre = r.jahre || [];
+      letzteWerte = { kameras: haupt._kameras, jahre: haupt._jahre };   // fürs nächste Öffnen (sofort da)
       // 25.09.2026 — eine gewählte Kamera/ein Jahr, das es nicht mehr gibt (Ordner entfernt),
       // fiele sonst unsichtbar weiter ins Gewicht: das Menü zeigt „Alle", gefiltert wird trotzdem.
       if (filter.kamera && !haupt._kameras.some(k => k.kamera === filter.kamera)) delete filter.kamera;
@@ -660,7 +701,8 @@
     const t = inhaltStandText();
     if (!t) return "";
     const tip = T("fotos.inh_tip", "Die Inhaltssuche erkennt, was auf einem Foto zu sehen ist — „Sonnenuntergang“, „Hund am Strand“, „Gletscher“ — in jeder Sprache. Dafür schaut ein Bildmodell (SigLIP 2 von Google) einmal jedes Foto an. Das passiert nur auf diesem Rechner; kein Foto verlässt ihn. Der Index liegt in der Bibliothek und zieht mit ihr um.");
-    return `🔍 ${esc(t)} ${typeof helpTip === "function" ? helpTip(tip) : ""}` + inhaltKnopfHtml();
+    return `🔍 ${esc(t)} ${typeof helpTip === "function" ? helpTip(tip) : ""}` + inhaltKnopfHtml()
+      + ` <button type="button" class="foto-inh-faq" data-inh="faq">${esc(T("fotos.inh_faq", "Was passiert da?"))}</button>`;   // 06.10.2026 → FAQ im Handbuch
   }
   /** Kopfzeile: was die Suche fand (Zählung je Art + Sortierung) — oder das Angebot, die Inhaltssuche einzuschalten. */
   function inhaltKopfHtml() {
@@ -716,6 +758,7 @@
         const w = b.dataset.inh;
         if (w === "nicht") { try { localStorage.setItem(INH_NICHT_KEY, "1"); } catch (_) { /* ui-falle-ok: Speicher gesperrt — Angebot kommt beim nächsten Mal wieder */ } inhaltZeichnen(); return; }
         if (w === "stop") { await api().inhalt_stop().catch(() => null); await inhaltLaden(); return; }
+        if (w === "faq") { api().open_user_guide(T("inhalt.faq_anker", "inhaltssuche-siglip-2-was-passiert-da-genau")).catch(() => null); return; }
         if (w === "weiter") {
           b.disabled = true;
           const r = await api().inhalt_weiter().catch(() => null);
@@ -1004,6 +1047,30 @@
 
   /** Solange ein Laufwerk fehlt: alle 20 s nachsehen, ob es zurück ist —
       dann Hinweis weg, Seitenleiste auffrischen, von selbst weiterlesen. */
+  /** 05.10.2026 (IDEAS §82 Schritt 1) — liegen die Fotos eines fehlenden Laufwerks unter einem anderen Namen
+   *  (/Volumes/Fotos-1, Windows Y:\), einmal je Sitzung anbieten, die Pfade umzubiegen (Bestand + Inhaltsindex,
+   *  vorher Sicherung der Bibliothek). Abgelehnt → in dieser Sitzung nicht mehr fragen. */
+  let _umzugGefragt = false;
+  async function pfadeUmziehenAnbieten() {
+    if (_umzugGefragt) return;
+    _umzugGefragt = true;
+    let r = null;
+    try { r = await api().fotos_pfade_kandidaten(); } catch (_) {}   // warte-ok: Hintergrund, Stichprobe von 12 Dateien
+    for (const k of (r && r.kandidaten) || []) {
+      const ja = await window.rzConfirm(T("fotos.umziehen_titel", "Fotos an neuem Ort gefunden"),
+        T("fotos.umziehen_frage", "Die {n} Fotos von „{alt}“ liegen auf diesem Rechner unter „{neu}“. Sollen die Pfade angepasst werden? Vorher wird die Bibliothek gesichert.")
+          .replace("{n}", num(k.n_fotos)).replace("{alt}", k.alt).replace("{neu}", k.neu),
+        T("fotos.umziehen_ja", "Pfade anpassen"), false);
+      if (!ja) continue;
+      const u = await rzWarten("fotos_pfade_umbiegen", () => api().fotos_pfade_umbiegen(k.alt, k.neu)).catch(() => null);
+      if (u && u.ok) {
+        toast(T("fotos.umziehen_ok", "{n} Fotos zeigen jetzt auf „{neu}“.").replace("{n}", num((u.bestand || {}).geaendert || 0)).replace("{neu}", k.neu), "success", 6000);
+        try { applog("info", `[fotos] Pfade umgebogen ${k.alt} → ${k.neu}: ${JSON.stringify(u)}`); } catch (_) {}
+        try { await neuLaden(true); } catch (e) { applog("warn", `[fotos] Neu laden nach Umbiegen: ${e}`); }
+      } else toast((u && u.error) || T("common.error", "Fehler"), "error", 7000);
+    }
+  }
+
   function fernBeobachten() {
     clearTimeout(fernWache);
     if (!angemeldet || !ordner.some(o => !o.da)) return;
@@ -1108,6 +1175,31 @@
   }
   // 04.10.2026 (Marc: „225 h … fast 2 Wochen" → „Daten zuerst, Bilder danach") — drei Schritte statt zwei:
   // 1 Dateiliste, 2 Aufnahmedaten (schnell, für alle), 3 Vorschaubilder.
+  // 06.10.2026 — Fortschritt des Einlesens auch dann unten rechts, wenn der Medien-Bereich (noch) nicht offen war: nach
+  // einem Neustart liest die App von selbst weiter (app.py fotos_wache_starten). Ist der Bereich offen, macht das seine
+  // eigene Abfrage (tick) — dann hier nichts.
+  let _globalLaeuft = false;
+  setInterval(async () => {
+    if (angemeldet || !window.rzStatus || !window.pywebview || !window.pywebview.api || _globalLaeuft) return;
+    _globalLaeuft = true;
+    try {
+      const st = await window.pywebview.api.fotos_scan_status();
+      if (!st) return;
+      const gesamt = st.phase === "dateien" ? (st.erwartet || 0) : (st.total || 0);
+      const text = scanSchrittText(st) + " · " + scanStandText(st) + (st.aktuell ? " · " + kurzPfad(st.aktuell) : "");
+      if (st.running) {
+        if (!window.rzStatus.laeuft("foto-scan")) {
+          window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Medien"), text, gesamt, abbrechen: true, hintergrund: true });
+        }
+        window.rzStatus.schritt("foto-scan", { text, n: Math.min(st.done || 0, gesamt || (st.done || 0)), gesamt });
+        if (window.rzStatus.abgebrochen("foto-scan")) window.pywebview.api.fotos_scan_stop();
+      } else if (window.rzStatus.laeuft("foto-scan")) {
+        window.rzStatus.fertig("foto-scan", st.error ? String(st.error) : "");
+      }
+    } catch (_) { /* Brücke noch nicht da / App schließt — beim nächsten Mal */ }
+    finally { _globalLaeuft = false; }
+  }, 4000);
+
   function scanSchrittText(st) {
     if (st.phase === "bilder") return T("fotos.kt_schritt3", "Schritt 3 von 3 — legt die Vorschaubilder an");
     if (st.art === "ungelesen") return T("fotos.kt_ungelesen", "Holt Ungelesenes nach");
@@ -1323,6 +1415,8 @@
       // Fenster: mit `root: null` würde die Wache nie auslösen.
     }, { root: box, rootMargin: "600px" });
     fussWache.observe(fuss);
+    // Schärfen folgt dem Blick: nach dem Scrollen kurz warten, dann das jetzt Sichtbare nachschärfen
+    box.onscroll = () => { clearTimeout(_schaerfenZeit); _schaerfenZeit = setTimeout(() => { if (angemeldet) schaerfen(thumbLauf); }, 400); };
   }
 
   /** Nach dem Nachladen nur das Neue anhängen. */
@@ -2102,7 +2196,10 @@
       }
       if (window.rzStatus) {
         if (!window.rzStatus.laeuft("foto-oeffnen")) {
-          window.rzStatus.start("foto-oeffnen", { titel: T("fotos.titel", "Fotos"), text: text });
+          // 06.10.2026 (Marc: „Fotos erste Seite holen … richtig lang", „auf Touren geklickt …") — ohne `hintergrund`
+          // war das ein SPERRENDES Fenster: bis die erste Seite da war, gingen alle Klicks ins Leere. Der Bereich zeigt
+          // ohnehin, was passiert; man darf währenddessen woandershin.
+          window.rzStatus.start("foto-oeffnen", { titel: T("fotos.titel", "Medien"), text: text, hintergrund: true });
         } else {
           window.rzStatus.schritt("foto-oeffnen", { text: text });
         }
@@ -2112,23 +2209,38 @@
       const st = await api().settings_get();
       autoAn = (st && st.fotos_auto) !== false;
     } catch (_) { autoAn = true; }
-    schritt(T("fotos.laden_ordner", "Ordner lesen …"));
-    const r = await api().fotos_ordner().catch(() => null);
+    // 06.10.2026 (Marc: „im Archiv, wenn man auf Fotos geht, muss er immer erst lesen. das dauert immer eine weile") —
+    // vorher nacheinander: Ordner (mit Zählungen je Ordner), Kameras/Jahre/Bestand, erst dann die erste Seite; neben
+    // einem laufenden Einlesen mehrere Sekunden leerer Kasten. Jetzt: war man schon hier, steht die letzte Ansicht
+    // SOFORT da; die erste Seite (die schnellste Abfrage) kommt zuerst, Ordner und Filterwerte gleichzeitig dazu.
+    const schonDa = geladen.length > 0;
+    if (schonDa) {
+      if (letzteWerte) { haupt._kameras = letzteWerte.kameras; haupt._jahre = letzteWerte.jahre; }
+      navZeichnen();
+      zeichnen();
+      thumbsNachholen();
+    } else {
+      schritt(T("fotos.laden_seite_kurz", "Erste Seite holen …"));
+    }
+    const ordnerHolen = api().fotos_ordner().catch(() => null).then((r) => {
+      if (r && r.ok && angemeldet) { ordner = r.ordner || []; stand = r.stand || {}; nachschau = r.nachschau || null; }
+    });
+    const werteHolen = filterwerteLaden();
+    const vorher = JSON.stringify([letzteWerte, stand.gesamt]);
+    await neuLaden(true);
     if (!angemeldet) return;
-    if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || {}; nachschau = r.nachschau || null; }
-    schritt(T("fotos.laden_werte", "Kameras und Jahre zählen …"));
-    await filterwerteLaden();
+    await Promise.all([ordnerHolen, werteHolen]);
     if (!angemeldet) return;
     navZeichnen();
-    schritt(T("fotos.laden_seite", "{n} Dateien im Bestand — erste Seite holen …")
-      .replace("{n}", num(stand.gesamt || gesamt || 0)));
-    await neuLaden(true);
+    // Kopf mit Kamera-/Jahr-Auswahl und Zahlen nur neu, wenn sich etwas geändert hat (sonst flackert das Raster)
+    if (JSON.stringify([letzteWerte, stand.gesamt]) !== vorher && !nachladend) zeichnen();
     if (window.rzStatus) {   // Audit K-4: wie oben — neben einem laufenden Einlesen kein „Fertig"-Kasten
       if (window.rzStatus.laeuft("foto-scan")) window.rzStatus.ende("foto-oeffnen");
       else window.rzStatus.fertig("foto-oeffnen", "");
     }
     if (!angemeldet) return;
     fernBeobachten();
+    pfadeUmziehenAnbieten();   // 05.10.2026 (IDEAS §82) — Laufwerk unter anderem Namen? einmal je Sitzung fragen
     if (autoAn) aufholen();
     inhaltLaden(true);
     // Läuft gerade ein Scan (etwa aus einer früheren Sitzung im Hintergrund),
@@ -2141,6 +2253,7 @@
 
   function unmount() {
     angemeldet = false;
+    try { if (window.rzStatus && window.rzStatus.laeuft("foto-oeffnen")) window.rzStatus.ende("foto-oeffnen"); } catch (_) {}
     thumbLauf++;                // ein laufendes Nachholen von Bildern beenden
     clearTimeout(fernWache);
     if (fussWache) { try { fussWache.disconnect(); } catch (_) {} fussWache = null; }

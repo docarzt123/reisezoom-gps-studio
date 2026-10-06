@@ -259,8 +259,8 @@ The track bar sits at the top. Two ways:
 1. Click **“📁 Choose track file …”** and pick your file, **or**
 2. simply drag the file onto the window.
 
-They do not have to be GPX files — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON and NMEA are read
-as well and converted in the background.
+They do not have to be GPX files — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON, NMEA, IGC (flight recorders) and the
+`.srt` files of DJI drones are read as well and converted in the background.
 
 After that the tour name appears at the top with distance, duration and ascent. **The loaded
 track applies to every module** — load it once, then switch between the tools freely.
@@ -522,6 +522,10 @@ belongs to **every tour**. In a tour's **▸** panel: **Show the whole route fai
 **opacity** (5–80 %, default 30 %) and **colour** (default: the tour's colour). For the main
 tour these are the same settings as before.
 
+**Dashed (since v0.9.782):** for the main tour there is also **Dashed** — the way still to come then lies as a dashed
+line under the drawn line. **New projects** start with the faint route, dashed; older projects stay as they were. If
+the line itself has a pattern (dashed, dotted …), the faint route takes that pattern.
+
 ### Step 7 — Joining daily files into one tour
 
 The most common case on a trip: one recording per day, but you want the whole journey.
@@ -675,6 +679,54 @@ Mapbox permits **publishing videos** containing its map content **only with purc
 ### Change the language 🌍
 The app starts automatically in the **system language** (German, English or Spanish — fallback English). Switch it in the **⚙ Settings modal** → language dropdown. Active immediately, no restart needed.
 
+### ⤓ Export video — the export dialog (since v0.9.782) ⭐
+
+At the top right of the Animator sits the coral button **⤓ Export video** (in Tour-Map **⤓ Export image**). A click
+opens a window in the middle with everything that only concerns the output file:
+
+- **Presets** as tiles: *YouTube 4K*, *YouTube 1080p*, *Instagram Reel 9:16*, *Instagram 4:5*, *Quick look 720p* —
+  plus your own. A click sets resolution, frame rate, colour space, quality **and the aspect ratio** (one ⌘Z step).
+  The tile that matches your settings is highlighted.
+- **Resolution** matching the aspect ratio (4K, 1440p, 1080p, 720p), **frame rate**, **colour space** (SDR, HDR
+  HLG/PQ) and **quality** (H.264, H.265, ProRes). Under **More**: free width × height and “Map smoothing”.
+- **Save as preset …** stores the current setting under a name. Rename your own presets with ✎, delete them with ✕
+  (click twice). The **★** makes a preset the default for new projects.
+- **Save to** shows the folder you used last and a name with a time stamp (`Project_20261006-1130.mp4`).
+  **Export** starts right away, **Change …** opens the system dialog. An existing file is never overwritten — the
+  new one is then called `…-2.mp4`.
+
+The small arrow **▾** next to the button offers **Export current frame** (the picture currently in the preview, as
+PNG) and **Open as Tour-Map**. Export settings are stored per project; Esc closes the window.
+
+### 🖼 Media of the tour (since v0.9.782)
+
+If you have read in folders in the Archive under **Media**, the Animator knows the photos and videos taken **during
+the tour** (placed by GPS, otherwise by capture time):
+
+- **In the timeline** a row **📷 Media** shows a fine tick per photo (videos in coral) where it was taken.
+  **Hover** to see the picture large, **click** to make it a photo sign. Photos that already are signs show as a
+  small dot.
+- **Signs → 🖼 Media of the tour** opens them as a grid on the right: **click** = as a sign, **double-click** = jump
+  to that spot. Those already placed are marked. Without folders read in, it tells you where to add them.
+
+Videos become clip stops via **🎞 Add clips**.
+
+### Info card (since v0.9.782)
+
+Under **Overlays → + Info card** there is a ready-made card in the app's look: the tour name as title, below it
+distance, ascent and moving time — dark background, teal edge. It is a normal overlay: change values, position,
+colours and timing in the editor.
+
+### Format & timing — the first card of the sidebar (since v0.9.782)
+
+At the very top of the sidebar (below “Apply preset” and **🎬 Quick video**) sits **Format & timing**: the **aspect
+ratio** as buttons (16:9 and 9:16; the short side stays, 4K stays 4K) and the **duration**. **More …** shows all formats
+(1:1 square, 4:5 Instagram, 4:3, 21:9 cinema) with a short description and fields for a **custom ratio** (e.g. 3 : 2);
+**Less** goes back. If another one than 16:9/9:16 is selected, it shows as a third button.
+Under **More**: intro and hold at the end, duration as “real time ÷ factor”, the **distribution along the track**
+and the **pauses**. The former “Video settings” card is gone — resolution, frame rate and colour space are set in
+the export dialog.
+
 ### Set render quality & export (since v0.9.245) ⭐
 In the **⚙ Settings modal** there's a **"Quality & Export"** block — it applies globally to the Animator video export:
 - **Frame capture:** **Fast (JPEG)** is the default and makes the render **~10× faster** (grabbing the individual frames was the real bottleneck). Since the video is lossily encoded anyway, the quality is visually identical. **Maximum (PNG, lossless)** is only needed if you genuinely require lossless individual frames — significantly slower.
@@ -811,7 +863,21 @@ longitude), otherwise from the tour's location. The format follows the app langu
 
 You just want a nice video of your tour, without keyframes and settings? Use the **quick video**: in the
 **archive**, on the tour, **🎬 Quick video …** (detail column on the right or right-click), or in the
-**Animator** below "Render video" for the open tour.
+**Animator** at the very top of the sidebar for the open tour.
+
+**Preview (since v0.9.782):** at the top of the dialog you see the whole map in the preset's style with the whole route and the title, in the chosen format. Of the photos that go into the video one is shown large, the others as small round pictures; the same for highlights (one with its name, the others as dots). The preview follows every change.
+
+**Since v0.9.782 boiled down to one screen.** The quick video is meant to be quick: preset, format, length (Short ·
+Normal · Long), title, photos (picked automatically, can be deselected, **+ Photos …** / **+ Folder …** for your own),
+music (built-in pieces or your own file), numbers, elevation profile, highlights and the end card — nothing more.
+Map style, photo style and overview map come with the preset. At the top a **preview** shows the whole map in the
+preset's style with the whole route and the title, in the chosen format; of the photos that go into the video one is
+shown open, the others as small round dots — the same for highlights. Numbers and elevation profile sit where the
+preset shows them in the video. **Create video …** creates the project and opens the
+same **export dialog** as in the Animator (quality 1080p/4K, presets, save to …); the video is written straight to
+the chosen place, then **Show in Finder** or **Share**. Video clips, log book, custom length and individual map
+styles are in the Animator (Sound & clips, Map, Format & timing). What follows about “custom length”, “quality”,
+“map style” and “More” applies to older versions.
 
 The dialog asks only a few things — the app remembers your choice for next time:
 
@@ -834,7 +900,20 @@ The dialog asks only a few things — the app remembers your choice for next tim
   as leave half of the animation time; the line under the pictures says how many it will be. The stops are
   ordinary photo signs with the “Photo stop” box ticked (see Signs) — in the Animator you change them like any sign. **If the archive has no photos** (since v0.9.771), the dialog offers **📁 Choose folder …** and **🖼 Choose photos …**: the app matches the photos to the route by their GPS position, otherwise by the time they were taken, and suggests the stops from them.
 
-**“More” — the ingredients (since v0.9.778).** To keep the quick video quick, the top only has **format, length, title and subtitle**. Everything else is under **“More”** (expand it; the app remembers whether it was open). Next to “More” a short summary shows what is in, e.g. “📸 4 · 🎞 1 · 📖 · 🎵 · 🏁”. Each ingredient is a switch; what the app finds is preselected:
+**Pace direction (since v0.9.782):** Under „More“ **„Slower at highlights and photos“** is ticked: at the highest point, the steepest climb and at photos without a stop the video slows down, the uniform stretches speed up instead — the length stays as you chose it. At the highest point the camera briefly pulls back and looks towards the horizon (summit view). In the Animator these places are normal entries in the tempo track.
+
+**Smarter photo choice (since v0.9.782).** The quick video now picks photos more cleverly: near-identical pictures (the same motif shortly after each other) come in only once, photos taken while driving (according to the logbook) only if they were taken during a stop, and the choice mixes themes instead of showing the same view five times. On multi-day tours every day first gets its best photo. With **content search** switched on (Settings → Library) the app also recognises what is in the photos — view, summit, water, sky, people, animals, food, towns — and leaves out blurry pictures, screenshots and photos of the ground. As always you can tick or untick every photo in the dialog.
+
+**Title suggestions (since v0.9.782):** After a second or two, up to three clickable suggestions appear under the title field — the summit at the highest point with its height (e.g. „Teide · 3715 m“), „Start → End“ with the nearest places, or „Around <place>“ for loops. Without internet there are none.
+
+**Three templates (since v0.9.782).** At the very top of the dialog you choose how the video should look — the template sets the ingredients under “More” to match, and you can change everything afterwards (then it says “Template adjusted”; one click on the template restores it):
+- **Wide** (default) — the landscape first: aerial imagery, look “Natural”, photos as a large **photo stop**, no numbers along the way, a few big values at the end; music “Panorama”.
+- **Diary** — places and memories: look “Travel atlas” (paper map, handwritten titles), photos as an **instant print at the spot** with the place name as caption (the ride does not stop, afterwards the photo shrinks to a small round picture on the route), a small card with distance and climb, a summary with the title; music “Diary”.
+- **Pulse** — route and performance: look “Night map”, a data bar at the bottom (distance, climb, speed) with elevation profile, photos as a small **picture in picture** top right without stopping, a compact summary at the end; music “Pulse”.
+
+Under **📸 Photo stops → “Photos as”** you can also pick the photo style on its own. Photos without a stop cost no length; so it does not get crowded, at most about one photo per 4 seconds of ride is added (best first).
+
+**“More” — the ingredients (v0.9.778 to v0.9.781; since v0.9.782 everything is on one screen, see above).** To keep the quick video quick, the top only has **format, length, title and subtitle**. Everything else is under **“More”** (expand it; the app remembers whether it was open). Next to “More” a short summary shows what is in, e.g. “📸 4 · 🎞 1 · 📖 · 🎵 · 🏁”. Each ingredient is a switch; what the app finds is preselected:
 
 - **📸 Photo stops** — as described above.
 - **🎞 Video clips** — clips from your camera in the photo archive (MP4, MOV …; not 360° raw files), otherwise **📁 Choose folder …** / **🎞 Choose clips …**. A clip is a photo stop with moving picture: it grows out of the pin and plays there (at most 4 s, from the first quarter of the clip). **Original sound of the clips** is a switch of its own; the music gets quieter meanwhile. Photos and clips share the time (at most half of the animation), clips first — the status on the right says “4 / 6”, “1 / 1”.
@@ -1006,6 +1085,8 @@ You don't need to have a **GPX**. Just open (via the GPX bar or by drag & drop) 
 | **KML / KMZ** | `.kml` / `.kmz` | Google Earth, Google My Maps |
 | **TCX** | `.tcx` | Garmin Training Center, Strava export |
 | **GeoJSON** | `.geojson` | web / OSM tools |
+| **IGC** (since v0.9.782) | `.igc` | flight recorders for paragliding, hang gliding, gliding — GPS altitude, pressure altitude as a sensor value |
+| **DJI drone** (since v0.9.782) | `.srt` | subtitle file next to every DJI video (Mini, Air, Mavic, Phantom, Avata) — one point per second, height above take-off as a sensor value. The time is local time without a zone (note in the Inspector). Ordinary film subtitles are skipped as „no track“. |
 
 Elevations and timestamps are carried over — as far as the format contains them — which matters for geotagging and the speed readout.
 
@@ -1517,7 +1598,7 @@ section, same zoom, same colours.
 ### What it does
 
 Next to *Projects*, *Templates* and *Tour archive* the archive has a fourth
-area: **Photos**. You name folders, GPS Studio indexes the photos **and videos**
+area: **Media** (“Photos” up to v0.9.781). You name folders, GPS Studio indexes the photos **and videos**
 in them and shows them by day, on a map, or grouped by tour. It only ever
 **reads** — none of your files is changed.
 
@@ -1621,10 +1702,18 @@ Both run in the background, say what they are doing in the bottom right, and can
 be cancelled. If you would rather they did not — on a hotspot, on someone else's
 Wi-Fi — untick **Keep up to date by itself** in the sidebar.
 
+**Since v0.9.782 you don't have to open Media for this:** if something is still open at start (unread files, missing
+previews), the app continues reading in the background after one minute — also while you work in the Animator. The box
+at the bottom right shows the progress everywhere.
+
 **Three steps (since v0.9.781):** 1. the file list, 2. capture time, place and camera — only the header of each file is
 read, which is quick even on a NAS, and afterwards search, date, map and folders work for everything —, 3. the previews.
-For those every file has to come over the network in full once; that is the slowest part and therefore comes last.
-Wherever you look, the pictures come right away. **If you close the app halfway, nothing is lost:** folders already checked are remembered at once; the next start
+**Since 06.10.2026 the app uses the small preview the camera already wrote into each JPEG** — it reads only about 2 % of
+the file instead of all of it over the network, which makes step 3 many times faster. In the grid, the pictures you are
+looking at are quietly replaced by sharp ones. RAW files next to a JPG of the same name take its picture. **With the
+content search on**, step 3 reads each file in full once and keeps the picture for the search at the same time — the
+search no longer reads the NAS a second time and starts recognising while reading. After a restart the app first
+finishes reading and only then (at the latest after 24 hours) checks for new files. Wherever you look, the pictures come right away. **If you close the app halfway, nothing is lost:** folders already checked are remembered at once; the next start
 continues there (“continuing where it stopped”), and step 2 counts what has already been read.
 
 > **Why the first scan matters:** capture data and thumbnails are created during
@@ -1654,6 +1743,15 @@ On request the search field also finds **what the photos show**: “sunset”, �
   German and Spanish better, about 1.6 GB, captures more slowly) and **Delete model and index**.
 - **Moving:** the index lives in the library and moves with it. On another computer the app only downloads the
   model again — the photos don't have to be captured again.
+- **Drive has a different name (since v0.9.782):** if your NAS or external drive is mounted under another name on
+  another computer (e.g. `/Volumes/Fotos-1` instead of `/Volumes/Fotos`, on Windows `Y:\` instead of `Z:\`), the app
+  notices when you open Photos: it checks a sample and asks once „… is now at …? Update the stock“. It backs up the
+  library first; the folder tree, photo stops and content search then point at your photos again, without re-reading.
+- **Take the library to another computer (since v0.9.782):** Settings → Library → *Backup as ZIP* with the box
+  **„For another computer: include the photo previews“**. On the other computer unzip it and choose it under **Open
+  another library**: the previews are taken over once (the grid does not have to generate anything), the content
+  search travels along anyway, and if the photo drive has a different name there, the app asks when you open Photos
+  (see above).
 
 ### What the stock knows about a photo
 
@@ -1716,6 +1814,12 @@ here are stages of their own. To locate photos with a track, keep using the
 
 ## 3 · Module: Animator — render a GPX as a video
 
+*(Since v0.9.782 no longer in the sidebar: the switch is gone, the steps will come back later as the video assistant — its own button next to “Quick video”. The following paragraph describes the interim version.)* **Simple or fine-tuning (since v0.9.782).** At the very top of the sidebar you switch between **Simple** and **Fine-tuning**. *Simple* shows just five steps — **Route** (tour, length, format — 16:9, 9:16, 1:1, 4:5, 4:3 or 21:9), **Look** (the four ready-made looks), **Places & photos** (highlights, photos, quick video), **Camera** (Fixed · Follow · Camera flight) and **Export** — with the big preview next to it. *Fine-tuning* is the full Animator with all sections. Both views edit **the same project**: what you choose in the simple view is there in fine-tuning too (and vice versa), ⌘Z works for both. The app remembers which view you used last. **On the very first start** the app asks once after setup: *What would you like to do?* — **Create a video**, **Improve a track** or **Geotag photos** — and takes you straight to the right tool. New users start the Animator in the simple view.
+
+**Sidebars and detail column (since 06.10.2026).** The module's sidebar is always on the left; on the right the **editor of whatever you clicked** (sign, overlay) opens when needed — the map moves aside and is never covered. **Esc** or **✕** closes it; there is only ever one editor on the right. Drag the edge of either sidebar to make it **wider or narrower** — in every module, in the Archive on both edges; the app remembers the width per module. Double-click the edge to reset it. **Progress boxes** at the bottom right („Reading photos · step 3 of 3 …“) collapse to a slim line with **–**; they keep running, a click expands them again.
+
+**Camera card (since 06.10.2026).** The top of the *Camera* section shows just three things: **Camera** (*Fixed* · *Follow* · *Camera flight*), **Height above ground** (in metres or kilometres, exactly as in the video) and the **Viewing angle**. There is no speed slider — the pace follows from the video length. Rotation, inertia, smoothing, smooth camera and the keyframe editor are under **More**; clicking a keyframe in the timeline opens *More* by itself. If you already have keyframes, *Camera flight* just switches them back on instead of replacing them.
+
 ### What it does
 Loads a GPX file and renders an MP4 in which the track line is animated, drawn over a 3D Mapbox map. Use it for: YouTube video intros, website loops, memory animations.
 
@@ -1751,9 +1855,10 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Shadow direction (global, since v0.9.478)** — right below the shadow strength, the **"Shadow direction"** slider (0–360°) sets where the light comes from: **0° = right, 90° = bottom, 180° = left, 270° = top**. It is **one shared light source** — it applies to the **track shadow** and to the **drop shadow of all signs** (waypoint signs) at the same time, so everything looks lit by the same sun.
 - **Waypoint signs (since v0.9.171, fully customizable since v0.9.179)** — place text signs along the route (e.g. "Summit reached!"). The **"🚩 Signs"** area in the sidebar:
   - **Placing:** **"📍 On track"** → click on the track (snaps into place), or **"📌 Place freely"** → click **anywhere** on the map (e.g. a landmark off the route). With free placement, the **display timing** still follows the nearest track point (anchored to the track + a free coordinate offset).
-  - **Editing:** Clicking a sign (in the list or on the map) opens a **floating editor panel** — freely draggable by its header bar (⠿), even out of the map. The sign currently being edited is always visible (no matter where the playback point sits).
+  - **Editing:** Clicking a sign (in the list or on the map) opens the **sign editor on the right in the detail column** (since 06.10.2026; previously a floating window) — the map moves aside, **Esc**/✕ closes it. The sign currently being edited is always visible (no matter where the playback point sits).
   - **Moving (drag & drop):** in the editor click **"↔ Move"** — then you **drag the sign straight on the map** to where you want it and let go. It takes the new position as a **free placement** (the display time then follows the nearest track point anew). The editor window stays where you put it.
   - **Look (all live):** shape (speech bubble · destination banner · pin · signpost · plain), **sign colour** + text color (the **"Sign colour" picker** — called "Background" until 25.09.2026 is the **one** box/bubble color of the sign — since v0.9.271 there is no separate "accent color" and no "Auto" anymore), font (System · Rounded · Narrow · Serif · Monospace · Bold display), size/weight/italic/**alignment** (left/centre/right — visible as soon as you set a fixed minimum width > 0 under **"Width"**; with "Auto" the box hugs the text and alignment has no room to act, since v0.9.479), multi-line text, corner radius, **background opacity** (since v0.9.478 the slider dims **only the sign colour** — the text stays fully readable), **outer border** (width + color; called "Border" until 25.09.2026), **post length** (only for destination banner + signpost — how long the posts/pole under the sign are) and **drop shadow** (softness down to **0** = hard edge since v0.9.478; the **direction** comes from the global "Shadow direction" slider in the track section). **Add image** turns the sign into a **photo card** (the text then becomes the caption); the image size is adjustable separately.
+  - **📷 Instant photo (new after v0.9.781):** photos appear like an instant print laid on the map — warm-white frame, slightly wider at the bottom, slightly tilted, with a handwritten caption (the sign text). New photos get it automatically; for others pick the shape **“Instant photo”** in the editor. It goes well with the exit **“Shrinks to a round mini photo (stays)”**: after the display time the photo straightens, turns round and stays as a small circle at its spot — in the video exactly as in the preview.
   - **📸 Photo stop (since v0.9.764, only with an image):** tick **“Stop here”** — on the map the sign then becomes a round **photo pin** (since v0.9.766) that appears 2.5 seconds before the stop; you only see the photo card while editing. Shortly before the photo the camera moves in (**Move in**, 0–4 zoom levels), the photo grows out of the pin and is already large on arrival: about two thirds of the frame height, with a white frame. The track holds for **Show photo** seconds; meanwhile the camera sways gently and the photo slowly zooms in. Then the track carries on straight away while the photo shrinks and the camera moves back (since v0.9.768; afterwards the pin stays in place). **Approach** and **Departure** (seconds) set how long moving in and out takes — both happen while the track moves. **Map sway (°)** (0–10, default 2) and **Photo zoom (%)** (0–30, default 8) set how much motion there is while the photo is shown; 0 turns it off (since v0.9.770). Under the photo is your caption, below it the **place and time** the photo was taken (since v0.9.778 the most striking place within 350 m instead of the municipality: summit, pass, hut, viewpoint, castle … — e.g. “🌋 Teide · 3715 m · 16:16” — summits and passes with their height from OpenStreetMap; the “Highest point” highlight carries the summit name when one is close by) (local time where it was taken, even if the camera was on home time; box, on by default) and, if you like, the **camera data (EXIF)** — camera, focal length, aperture, shutter speed, ISO. The stop shows up as a locked “Photo stop” hold in the tempo track and makes the video longer by the photo time. Preview, scrubbing and video show the same. A trip with several stages has no photo stops yet.
   - **🎞 Video clip (since v0.9.778):** a clip is a photo stop with moving picture — via **“🎞 Add video clips”** (below “Add photos”: choose clips, the app puts them where they were recorded — GPS, otherwise recording time) or from the quick video (ingredient “Video clips”) and appears like a photo: pin with ▶, moving in, large over the map; during the halt the clip plays. In the sign you set **From second** (start point in the clip), **Length** (= how long the track holds), **Original sound** and **Volume** (up to 150 %). The music gets quieter while the clip has sound. Preview and video show the same, frame by frame.
     - **Speech-bubble arrow direction (since v0.9.408):** With the **speech bubble** style you choose in the editor under **"Arrow direction"** where the tip points — **down, up, left or right**. The bubble automatically shifts to the opposite side so the tip always points at the location. (Analogous to choosing the direction on the signpost; applies to Animator and Tour-Map.)
@@ -1768,7 +1873,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
     3. **"Auto"** switches back to automatic position detection.
     This works identically in the preview and the finished video. (For **photo cards** this happens automatically via the photo's capture time.)
   - **Preview help:** the **"Show ALL signs in the preview"** checkbox — shows all signs at once while placing (preview only; in the video the timing still applies).
-- **Show the whole route faintly (formerly "ghost track", since v0.9.169; since v0.9.734 in every tour's ▸ panel)** — shows the **entire route** semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: **its own ghost-track color** (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and **opacity** (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.
+- **Show the whole route faintly (formerly "ghost track", since v0.9.169; since v0.9.734 in every tour's ▸ panel)** — shows the **entire route** semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: **its own ghost-track color** (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and **opacity** (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. On for new projects (since 05.10.2026), existing projects keep their setting.
 - **Multiple track colours (since v0.9.435, extended v0.9.448)** — the track line can **change colour**. The **"Colour by"** picker decides what drives it:
   - **Distance (km)** — colour stops **at km** (number), **at the current marker position** (adopts the scrubber position) or **at all GPX waypoints** (automatic). The first colour applies from km 0 (= track colour).
   - **Any data series of the track** — since v0.9.448 this offers **everything the Data Animator can plot**: elevation, speed, gradient and every sensor value from FIT/TCX files (**heart rate, power, cadence, temperature** …). The list only shows **what the loaded track actually contains**; the unit is in brackets.
@@ -1780,7 +1885,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **🧱 Overlays (since v0.9.752)** — Everything that stays fixed in the frame is an **overlay**: values, elevation profile, charts, north arrow and scale bar, title, end card, logo. An overlay is a box made of **rows**.
 
-- **Create:** in the sidebar under “Overlays”, pick a template from **“＋ New overlay”**: *Live values*, *Totals*, *Elevation profile*, *Title*, *End card*, *Logo*, *North arrow + scale bar*, *Frame* or *Empty*. The editor opens as a floating window (drag it by its header, **Esc** closes it).
+- **Create:** in the sidebar under “Overlays”, pick a template from **“＋ New overlay”**: *Live values*, *Totals*, *Elevation profile*, *Title*, *End card*, *Logo*, *North arrow + scale bar*, *Frame* or *Empty*. The editor opens on the right in the detail column (since 06.10.2026, **Esc** closes it).
 - **List:** checkbox = show, **✎** opens the editor, **⧉** duplicates, **✕** deletes. Change the order by dragging **⠿** or with **▲▼**: lower in the list means further in front in the picture.
 - **Place:** **drag the overlay in the preview** (1 % grid, snaps to edges and centre, one ⌘Z step per drag), or in the editor under **Position and size**: **anchor** (nine points) plus **offset** in percent of the frame. Size **automatic** (as big as the content) or **fixed** (width and height in %), plus the alignment of the content.
 - **Style = template for the look:** **Box** (semi-transparent box), **Free** (big numbers without a box, small label above, text shadow), **Badge** (dark rounded pill) and **None**. One click sets the style's values; after that you change any value yourself: layout (stacked/side by side), label (above the value, to the left, off), font, font size, text and background colour with opacity, background image (fill/fit, opacity), padding, row and column spacing. Under **More**: accent colour, corners, border, shadow, text shadow, blur, capitals, size of label and unit, opacity. All rows of one overlay look the same — if one row should look different, use a second overlay.
@@ -1964,11 +2069,19 @@ With the timeline bar **below** the map preview you can shape the camera flow dy
 
 **🏠 3D buildings (since v0.9.779).** Under **Map → 🏠 3D buildings** buildings stand on the map as blocks with real footprint and height — from district zoom, below the track, on the 3D terrain. The data comes from OpenStreetMap: footprints are almost complete in Germany, height comes from floors or metres, otherwise a default (often equal blocks in the countryside). The very first time you play in a new area, the play button briefly shows ⏳ while the preview is prepared — one click is enough. With **↥ grow** next to it the buildings rise out of the ground as the camera approaches (between zoom 14 and 15.8) — nice when flying into a town; off, they stand at full height right away. In the **quick video** the buildings are the ingredient **🏠 3D buildings** under “More” — preselected when the tour passes through a settlement. On aerial maps every building gets **its roof colour from the aerial image** (red tiles, grey flat roofs …); the walls look a little darker through the lighting. If a building consists of several parts (podium, tower), they all get the same colour. No facades or roof shapes — but free to use, also in videos.
 
+**✈ Flight in the air (since v0.9.782).** For drone, paragliding and gliding flights: under **Map → ✈ Flight in the
+air** the line sits at its **real height above the ground**. Vertical drop lines (like a curtain) and a dark shadow on
+the ground show the distance; the moving dot floats with a drop line below it. If the camera follows the track, it
+aims at the point in the air — otherwise the flight would drift out at the top of the frame. Height above ground comes
+from „height above take-off“ for DJI drones, otherwise from flight altitude minus terrain (IGC, GPX with elevation).
+Requirements: **terrain (3D) on** and one of the **free maps** (not Mapbox), a single tour (not a journey with several
+tours). If something is missing, the app tells you when you switch it on. Also applies to the rendered video.
+
 **🌈 HDR (since v0.9.779).** Under **Video settings → Colour space** choose **SDR** (default), **HDR · HLG** (recommended) or **HDR · PQ (HDR10)**. You need HDR when the video goes into an HDR timeline (Final Cut, DaVinci, YouTube with HDR footage from your camera) — a normal video looks grey and flat there. The map is converted cleanly to the HDR colour space (BT.2020, white at 203 nits as the standard says, 10 bit). HLG also looks good on normal screens; PQ is for pure HDR projects. The video becomes HEVC (or ProRes if you chose ProRes in “Quality & export”). With an alpha background there is no HDR.
 
 **🎵 Music and sound (since v0.9.778).** In the section **“🎵 Music and sound”** you put music under the video: **“On the way”** is the app's own piece (40 s, loops seamlessly, free for YouTube and the like), plus five more in other styles: **Expanse** (calm, cinematic), **Summit push** (driving), **Break** (lo-fi, relaxed), **Ridge** (epic), **Hiking song** (folk with guitar); with **…** you use your own music (MP3, M4A, WAV, FLAC …; you need the rights yourself). Plus **volume**, **fade in** and **fade out** (seconds) and **📷 Click at every photo stop** with its own **sound** (DSLR, mirrorless, film camera with winder, rangefinder, phone, instant camera, pop, wood, little bell, whoosh + click, simple — or your own sound from a file via **…**, **▶** plays it) and volume — the click comes when the photo has arrived. In the timeline the **“Sound”** lane shows the music (the slopes are fade in and out — drag them to change), the clicks and the sound of the clips; double-click opens the settings. While playing you already hear everything in the preview; **🔊** next to the time mutes the preview. In the finished video the sound is a normal audio track (AAC).
 
-**Timeline with pictures (since v0.9.778).** The track lane shows the tour's **elevation profile** small (during holds it stands still, like the dot in the video); in a trip every tour tile has its own profile. In the signs lane the bars show **name and time** and their **photo** — or ▶ for a clip, the pill's icon for highlights and logbook. **⌘+ / ⌘−** zoom the timeline, **⌘0** shows everything again (Windows: Ctrl). Drag the **grip on the top edge** of the timeline up or down — the lanes get taller or lower (double-click: default). The timeline never takes more than 60 % of the preview area — in a small window the map stays visible.
+**Timeline with pictures (since v0.9.778).** The track lane shows the tour's **elevation profile** small (during holds it stands still, like the dot in the video); in a trip every tour tile has its own profile. In the signs lane the bars show **name and time** and their **photo** — or ▶ for a clip, the pill's icon for highlights and logbook. Opened, signs that do not overlap in time share a row, so the lane stays short; if they overlap, the next one goes to the next row. The bar of a **photo stop** starts when its photo pin appears on the map (shortly before the halt) and runs to the end of the video — that is how long the pin stands in the preview. The bar shows the phases: pale = pin only, medium = approach and departure, strong with thumbnail = **photo large**. Drag the borders to make approach, photo time and departure longer or shorter (the line below shows the value). Drag the **left edge** to make the pin appear earlier or later (in the sign: “Pin before (s)”, default 2.5 s before the approach). **⌘+ / ⌘−** zoom the timeline, **⌘0** shows everything again (Windows: Ctrl). Drag the **grip on the top edge** of the timeline up or down — the lanes get taller or lower (double-click: default). The timeline never takes more than 60 % of the preview area — in a small window the map stays visible.
 
 **🗺 Overview map in the video (since v0.9.778).** **Overlays → ＋ New overlay → Overview map** puts the whole route small into the picture, the travelled part in the line colour, a dot shows where you are. It is a normal overlay: move it, size (width/height in %), style, when it is visible. Unlike the “view only” overview at the bottom right of the preview, this one is **in the video**.
 
@@ -2123,6 +2236,15 @@ back.
 > are tied to the track and to the position within it — on another route with a
 > different length and shape that position simply does not exist.
 
+
+**New colours and outline (after v0.9.781):** the app now uses the **„Trailframe“** colour concept: dark slate, **teal** for everything you operate (active tab, sliders, switches, focus), **coral** only for the one main action per module (in the Animator „⤓ Export video“ at the top right), font IBM Plex. Sliders show their filled part, checkboxes in the sidebars are switches, sections are collapsible cards, the module bar shows symbol and short name. New projects start with a **teal route with a dark outline** and with **„Show the whole route faintly“** switched on (30 %) — set the outline below the line width (**Outline**: width 0–6 px, 0 = off, and its own colour). Existing projects keep their colours.
+
+**🚲 Vehicle instead of a dot (v0.9.782):** Besides ball and arrow the moving dot can now be a **hiker, bicycle, car, motorbike, boat, train or plane** — a white symbol on a round badge in your line colour (on light line colours the symbol turns dark). The plane is a silhouette and turns with the direction of travel. With several tours you pick the symbol per tour. **New sign „Card“:** a warm-white card with a soft shadow and a small tip — calmer than the dark speech bubble. On light looks (Travel atlas, Minimal) the app uses the **GPS Studio logo in dark** so it stays visible.
+
+**🎨 Looks (after v0.9.781):** At the top of the **Map** section there are four ready-made looks — **Natural** (aerial imagery, yellow-green line with dark outline), **Travel atlas** (paper map in warm tones, red line, handwritten titles), **Night map** (dark map, glowing line, numbers in Plex Mono) and **Minimal** (light, calm map, dark line). One click changes map, line, outline, glow, the dark gradients and font and colours of all overlays at once. Afterwards you can still change every control freely; **⌘Z** undoes the whole look in one step. „Night map“ and „Travel atlas“ are also in the map style list on their own — both free and cleared for video. Under **🎵 Music and sound** there are three new pieces (**Panorama**, **Diary**, **Pulse**, 40 s each, looped for longer videos) and two photo-stop sounds (**Soft with tone**, **Camera shutter**).
+
+**Signs in the look (since v0.9.782):** If the project has simple text or photo signs, the app asks after you click a look whether it should adapt them — *Travel atlas*: text as „card“, photos as instant photo; *Night map*: pill; *Minimal*: plain; *Natural*: speech bubble. Only the basic style changes; highlight signs, banners and signposts stay, every sign stays editable on its own, ⌘Z undoes it.
+
 ## 3c · Merging several tours into one video 🧭 (since v0.9.539)
 
 **Several days become one story.** Select several tours in the **archive**
@@ -2144,7 +2266,7 @@ In the dialog:
 The result is **a perfectly normal GPX file** — each tour becomes a *stage* —
 which is added to the archive and opened in the animator right away. Because it
 is a normal track, everything works as usual: keyframes, signs, timeline, trim,
-photos, elevation animator.
+photos, Data Animator.
 
 **Colour per stage (since v0.9.720):** in the Animator, the “Tracks” section lists one line per
 stage below the merged track, each with a colour field. The colour applies in preview and video
@@ -2190,6 +2312,8 @@ Travel Route is a **full-fledged clone of the Animator**: everything that works 
 > **Without Mapbox (since 07.09.2026):** "Follow the road" calculates via free OpenStreetMap services: car via OSRM (any length), foot and bike via Valhalla (up to 100 km or 150 km per route; beyond that the app switches to the OSRM road network). A Mapbox token is now only a fallback if the free services do not answer. The same applies in the Inspector to "snap to paths" and "Route A→B (follow roads)".
 
 > **Check place names (since 07.09.2026):** the place search asks Photon first (OpenStreetMap, no token) and understands local-language names such as "Teneriffa" or "Kapstadt"; before, Mapbox returned a Teneriffe in Australia for that, and the flight from Berlin went once around the world. A typo still finds some place ("berin" → Berin in Hungary) — the **✓ line below the field** always shows what was found. If it is wrong: add to the name ("Berlin, Germany") or set it with 📍 on the map. A waypoint that is already resolved pulls the search for the next stations towards nearby matches.
+
+**Mode of travel per leg (since v0.9.782).** Under each station there is „↓ then by …“ — **car, bicycle, on foot, train, boat or plane**. A trip like *car to the harbour → ferry across the lake → on foot to the summit* becomes one route: car, bike and on foot follow the road, train, boat and plane take the shortest way (great circle). In playback and in the video the moving dot changes its symbol accordingly — the car drives, the boat crosses the lake, the plane turns in flight direction. „as set above“ uses the style and mode from above.
 
 ### Reordering and checking stops (since v0.9.538)
 
@@ -2674,6 +2798,13 @@ Instead of searching by hand: **🩹 Auto-heal** scans the whole track and shows
 
 With **‹ / Next ›** you jump through the outliers, **🩹 Heal all** applies both at once. The **sensitivity slider** (1–10) sets how strictly it searches (low = only glaring jumps/large gaps, high = also small ones), the **fill spacing** determines how densely gaps are filled — both update the preview live. Everything can be undone with **⌘Z**.
 
+**Why is this an outlier? (since v0.9.782)** Below the slider you see what is being measured right now — e.g.
+„Measured: jump from 73 m · speed from 38 km/h“. The preview gives the reason for every outlier („42 km/h between two
+points (limit 30 km/h)“ or „Jump of 480 m at a usual point spacing of 12 m“). With **Getting around** you choose how you
+travelled: **Automatic** measures against the usual pace of the tour; **On foot** (30 km/h), **Running** (40),
+**Bicycle** (90) and **Car/motorbike** (250) add a fixed upper limit, **Flying/paragliding** allows high speeds. Ferries
+and flights over 10 km never count as outliers. The choice also applies to the findings above and is remembered.
+
 **Fill gaps as** (profile): **Straight line** = a straight connection (safe, touches only the gap). **Hiking/Bicycle/Car** = finds the real route on the path network (Mapbox). ⚠️ **Protection since v0.9.315:** If the road route results in a big **detour/loop** (at junctions Mapbox sometimes routes via an exit + roundabout back), it's **automatically discarded and the gap filled straight** — so a clean trace is no longer bent. The toast then says "… detours discarded".
 
 **Cut out a loop/detour:** if you have a spot in the track that runs out and back (e.g. an old healing detour or a real turnaround you don't want in the video): under **"Edit manually (A→B)"** set **anchor A** before and **anchor B** after the spot, then **✂️ Cut out the points between A→B**. A and B remain, the line connects them directly. (⌘Z undoes it.)
@@ -2705,6 +2836,8 @@ GPS elevation values are often noisy — especially with poor reception the elev
 3. With the **GPS ⟷ Map** slider you blend live: far right (100 %) = pure map elevation (very smooth), far left (0 %) = unchanged GPS, default **70 %**. The green line and the elevation-meter readout (GPS / Map / Result) move along immediately.
 4. Does it fit? **⛰ Apply this elevation** writes the green line into the track. Then **💾 save** — the corrected elevation lands in the GPX and takes effect everywhere (Animator, Tour-Map, Data Animator).
 
+**🧭 Remove drift (since v0.9.782)** — for recordings with an **altimeter** (watch, bike computer): instead of replacing the elevation with the map, this button only removes the **slow offset** to the map (air pressure, weather, wrong calibration — often 20–80 m over hours). The fine elevation changes of your device stay; short stretches where the map doesn't know the height you walked at (**bridges, tunnels**) don't get in the way. Below the button you see how large the drift was at the start and at the end and how the climb changes; ⌘Z undoes it.
+
 > Needs a **Mapbox token** (settings) and internet — without a token the "Load" button is grayed out. Applying can be undone with **⌘Z**. If you change points afterwards (delete/insert), the profile discards itself automatically — just reload it.
 
 **Zoom sync & clickable points (since v0.9.293):** the map and the elevation profile are linked — **zoom/pan the map** and the profile automatically shows only the visible section; the **mouse wheel over the profile** zooms, **dragging** pans, and the map moves along each time. **Cursor linked (since v0.9.294):** if you move the mouse over the **map**, a **vertical bar in the elevation profile** shows where you currently are; if you move over the **profile**, a **white ring appears on the track**. That way you find spots in a flash, without clicking.
@@ -2719,7 +2852,7 @@ recognised by their coordinates, not their file name — which is why the app fi
 projects even after renaming). The inspector therefore
 asks **once after saving** whether your work should come along. Say yes and
 **all projects** of the tour move over — animator (camera, keyframes, look),
-tour map, geotagger, elevation animator, plus photos and signs. The project that was last
+tour map, geotagger, Data Animator, plus photos and signs. The project that was last
 active is at the front again afterwards.
 
 > **Honest caveat:** depending on **how much** was healed, the transfer may
@@ -2907,6 +3040,18 @@ On render errors an error modal opens automatically with an expandable log excer
 ---
 
 ## 10 · FAQ
+
+### Content search (SigLIP 2): what exactly happens?
+Content search finds photos by what is in them — “sunset”, “dog on the beach”, “glacier” — in any language. An image model looks at every photo once for this.
+
+- **Which model?** **SigLIP 2** by Google, an open model (Apache licence). It runs **only on your computer** — no photo leaves it, no account, no cloud.
+- **What happens when I switch it on?** The app downloads the model **once** (*Standard* ≈ 500 MB, *Large* ≈ 1.6 GB; from reisezoom.com, otherwise from Hugging Face) and checks the checksum. Then it looks at each photo once (at 600 px) and stores a short description in numbers — the “vector”. Searching later only looks at these vectors; that takes a fraction of a second.
+- **Where is what stored?** The **model** lives outside the app, in the app folder: Mac `~/Library/Application Support/Reisezoom GPS Studio/inhaltssuche/`, Windows `%APPDATA%\Reisezoom GPS Studio\inhaltssuche\`. The **index** (the vectors, about 1.5 KB per photo) lives in your **library** in the folder `inhaltsindex/`.
+- **What happens if I copy a new version of the app over it?** **Nothing is lost.** Model and index are not inside the app; the new version finds both and downloads nothing again. Only if a later version brings a **different** model does it download that once and recognise the photos again — the index remembers which model built it. The old one stays until you delete it.
+- **And on another computer?** The index moves with the library. Each computer downloads the model once itself.
+- **When are photos recognised?** In the background while you keep working. Since 06.10.2026 already while reading: step 3 keeps the picture for the search from the same read, so the search does not read the drive a second time. It pauses while a video renders.
+- **Where do I see the progress?** In the Archive under **Media** in the sidebar (line with 🔍: “Image content captured: … of … photos”) and under **Settings → Library & cloud → Content search in photos**.
+- **Switch off or delete?** Under **Settings → Library & cloud → Content search in photos**. “Delete model and index” frees the space; your photos stay untouched.
 
 ### How do I get new versions? (since v0.9.280, without reinstalling since v0.9.732)
 On startup the app checks in the background whether a newer version is available (at most every 12 hours). If so, a slim bar appears at the top, **"New version vX.Y.Z is available"**, with **Update now** and **What's new?**; the **✕** dismisses the notice for this version. To check right away, use **Help → Check for Updates …** (or the About dialog) — the update window opens with the result.

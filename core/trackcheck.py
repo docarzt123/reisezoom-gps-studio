@@ -101,6 +101,19 @@ STAND_RADIUS_M = 30.0
 STAND_DAUER_S = 180.0
 STAND_WEG_M = 100.0
 
+# 05.10.2026 (Block 5, IDEEN I-087): Schwellen je Sportart — synchron zu SPORT_GRENZEN im Inspektor
+# (modules/gpxinspect/ui/module.js), bei Änderung beide pflegen. boden = Tempo-Schwelle nie darunter (m/s),
+# decke = feste Obergrenze: schneller ist immer ein Ausreißer, aber nur auf Segmenten unter DECKE_BIS_M.
+SPORTARTEN: Dict[str, dict] = {
+    "auto": {"boden": 4.2, "decke": None},
+    "fuss": {"boden": 4.2, "decke": 30 / 3.6},
+    "laufen": {"boden": 6.0, "decke": 40 / 3.6},
+    "rad": {"boden": 8.3, "decke": 90 / 3.6},
+    "fahrzeug": {"boden": 20.0, "decke": 250 / 3.6},
+    "flug": {"boden": 40.0, "decke": None},
+}
+DECKE_BIS_M = 10000.0
+
 
 # ── Hilfen ───────────────────────────────────────────────────────────────────
 
@@ -390,7 +403,7 @@ def _median_je_punkt(sp: _Spur) -> List[float]:
 
 
 def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
-                   med_je_punkt: Optional[List[float]] = None) -> dict:
+                   med_je_punkt: Optional[List[float]] = None, sportart: str = "auto") -> dict:
     """Portierung von detectSpikes (Inspektor). Gruppen aufeinanderfolgender Ausreißer-
     Punkte {a, b, von, bis}: a/b sind die gesunden Nachbarn. Zusätzlich wird jede Gruppe
     eingeteilt: `spikes` springt raus UND zurück (Positionen auf die Linie legen),
@@ -407,7 +420,9 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
     SPEED_CAP = _lerp(120, 25, stufe)
     med_speed = median_tempo(sp) if have_time else 0.0
     REL_SPEED = _lerp(12, 3, stufe)
-    SPEED_THR = max(4.2, med_speed * REL_SPEED) if med_speed > 0 else math.inf
+    sport = SPORTARTEN.get(sportart or "auto", SPORTARTEN["auto"])
+    BODEN, DECKE = sport["boden"], sport["decke"]
+    SPEED_THR = max(BODEN, med_speed * REL_SPEED) if med_speed > 0 else math.inf
     # 12.09.2026 (IDEAS §63) — die Tempo-Schwelle je ABSCHNITT statt über den ganzen
     # Track. In einer Womo-Reise mit Spaziergängen lag die globale Schwelle bei
     # 539 km/h; im Fußabschnitt konnte damit nie etwas auffallen.
@@ -418,7 +433,7 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
         if not med_je_punkt:
             return SPEED_THR
         m = med_je_punkt[min(i, len(med_je_punkt) - 1)]
-        return max(4.2, m * REL_SPEED) if m and m > 0 else SPEED_THR
+        return max(BODEN, m * REL_SPEED) if m and m > 0 else SPEED_THR
 
     # Übersetzen ist kein Ausreißer: die Segmente einer Fähr-/Flugstrecke nehmen an
     # der Sprung-Erkennung gar nicht erst teil.
@@ -445,6 +460,8 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
             flags[i] = True
         elif have_time and (v_in > _schwelle(i) or v_out > _schwelle(i)):
             flags[i] = True
+        elif have_time and DECKE and ((v_in > DECKE and inD < DECKE_BIS_M) or (v_out > DECKE and outD < DECKE_BIS_M)):
+            flags[i] = True
     spikes, tempo = [], []
     fl = set()
     i = 0
@@ -465,7 +482,8 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
             i += 1
     return {"spikes": spikes, "tempo": tempo, "flags": fl, "speed_thr": SPEED_THR,
             # Für Oberfläche und Tests: woran wurde tatsächlich gemessen?
-            "schwellen_je_abschnitt": sorted({round(max(4.2, m * REL_SPEED), 2)
+            "decke": DECKE,
+            "schwellen_je_abschnitt": sorted({round(max(BODEN, m * REL_SPEED), 2)
                                               for m in set(med_je_punkt)}) if have_time else []}
 
 
@@ -771,7 +789,7 @@ def standdrift_ausser_halt(sp: _Spur, aktivitaet: Optional[str] = None) -> dict:
 
 
 def sprung_gefiltert(sp: _Spur, stufe: float = STUFE_STANDARD,
-                     aktivitaet: Optional[str] = None) -> dict:
+                     aktivitaet: Optional[str] = None, sportart: str = "auto") -> dict:
     """Ausreißer und Tempo-Sprünge, die man SIEHT (Q13) — je Bewegungsart.
 
     Wie `sprung_gruppen`, aber:
@@ -785,7 +803,7 @@ def sprung_gefiltert(sp: _Spur, stufe: float = STUFE_STANDARD,
     """
     bew = bewegung_von(sp, aktivitaet)
     if not bew:
-        sg = sprung_gruppen(sp, stufe)
+        sg = sprung_gruppen(sp, stufe, sportart=sportart)
         sg["verworfen"] = {"spikes": 0, "tempo": 0}
         return sg
     bereich_seg = _bereich_je_segment(sp, bew)
@@ -793,7 +811,7 @@ def sprung_gefiltert(sp: _Spur, stufe: float = STUFE_STANDARD,
         if b is not None and b["art"] == "halt":
             sp.ausgeschlossen.add(i)
     med = _mediane_aus_bewegung(sp, bereich_seg)      # einmal rechnen, unten wiederverwenden
-    sg = sprung_gruppen(sp, stufe, med_je_punkt=med)
+    sg = sprung_gruppen(sp, stufe, med_je_punkt=med, sportart=sportart)
     cache: dict = {}
     spikes, tempo, flags = [], [], set()
     weg_spikes = weg_tempo = 0
@@ -923,7 +941,7 @@ def luecken_je_art(sp: _Spur, stufe: float = STUFE_STANDARD, spacing: float = LU
 
 def pruefen(points, *, stufe: float = STUFE_STANDARD, local_time_n: int = 0,
             spacing: float = LUECKE_ABSTAND_M, geplant: bool = False,
-            aktivitaet: Optional[str] = None) -> dict:
+            aktivitaet: Optional[str] = None, sportart: str = "auto") -> dict:
     """Alle Befunde eines Tracks zählen (keine Änderung an den Punkten).
     `geplant` = Route aus der Planung: nur Höhen- und Zeit-Hinweise (NUR_AUFZEICHNUNG entfällt)."""
     t0 = _time.perf_counter()
@@ -966,7 +984,7 @@ def pruefen(points, *, stufe: float = STUFE_STANDARD, local_time_n: int = 0,
         add("uebersetzen", len(ub), stellen=[u["a"] for u in ub],
             max_km=round(max(u["dist"] for u in ub) / 1000),
             km_gesamt=round(sum(u["dist"] for u in ub) / 1000))
-    sg = sprung_gefiltert(sp, stufe, aktivitaet)
+    sg = sprung_gefiltert(sp, stufe, aktivitaet, sportart)
     add("spikes", len(sg["spikes"]), stellen=[g["von"] for g in sg["spikes"]])
     add("tempo", len(sg["tempo"]), stellen=[g["von"] for g in sg["tempo"]])
     lk = luecken_je_art(sp, stufe, spacing, sg["flags"] | {u["a"] for u in ub}, aktivitaet)

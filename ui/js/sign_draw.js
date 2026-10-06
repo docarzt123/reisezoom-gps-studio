@@ -265,10 +265,94 @@
     return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
   }
 
+  // ── Sofortbild (05.10.2026, I-001) — Canvas-Zwilling von sign_dom.js „sofortbild": warmweißer Rahmen (unten breiter),
+  // quadratischer Bildausschnitt, leicht schräg (gleiche Neigung wie im DOM: aus der Kennung, `o.dreh` überschreibt),
+  // weicher Schatten, Unterschrift in Caveat. Diese Engine zeichnet Probelauf und Video — bei Änderung beide pflegen.
+  function rzSofortbildDreh(o) {
+    var dreh = Number(o.dreh);
+    if (isFinite(dreh)) return dreh;
+    var key = String(o.id || o.text || o.imageSrc || ""), h = 0;
+    for (var ki = 0; ki < key.length; ki++) h = (h * 31 + key.charCodeAt(ki)) | 0;
+    dreh = ((Math.abs(h) % 9) - 4) * 0.9;
+    if (Math.abs(dreh) < 1) dreh = (h & 1) ? 1.8 : -1.8;
+    return dreh;
+  }
+  function rzDrawSofortbild(o, dpr) {
+    var pad = (o.padding != null ? Number(o.padding) : 7);
+    var rand = Math.max(6, pad + 3) * dpr;
+    var text = String(o.text == null ? "" : o.text).trim();
+    var fs = Math.max(10, (Number(o.size) || 40) * 1.05) * dpr;
+    var FONT = "600 " + fs + "px 'Caveat', 'Bradley Hand', 'Segoe Print', cursive";
+    var image = o.image || null;
+    var imgW = Math.max(80, (Number(o.imageSize) || 60) * 5) * dpr;
+    var meas = document.createElement("canvas").getContext("2d"); meas.font = FONT;
+    var lines = text ? text.split("\n") : [];
+    var capW = 0; for (var i = 0; i < lines.length; i++) capW = Math.max(capW, meas.measureText(lines[i]).width);
+    var lineH = Math.ceil(fs * 1.05);
+    var capH = lines.length ? lines.length * lineH + Math.round(rand * 0.35) : 0;
+    var innerW = Math.max(imgW, Math.ceil(capW));
+    var cw = innerW + rand * 2;
+    var ch = (image ? imgW : 0) + capH + rand + Math.round(rand * (text ? 1.4 : 3.2));
+    var rad = rzSofortbildDreh(o) * Math.PI / 180;
+    var sch = 18 * dpr;                                      // Platz für den Schatten
+    var bw = Math.abs(cw * Math.cos(rad)) + Math.abs(ch * Math.sin(rad));
+    var bh = Math.abs(cw * Math.sin(rad)) + Math.abs(ch * Math.cos(rad));
+    var c = document.createElement("canvas");
+    c.width = Math.ceil(bw + sch * 2); c.height = Math.ceil(bh + sch * 2);
+    var ctx = c.getContext("2d");
+    ctx.globalAlpha = (o.opacity != null ? Math.max(0, Math.min(1, Number(o.opacity))) : 1);
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(rad);
+    ctx.translate(-cw / 2, -ch / 2);
+    // Karte mit zwei Schatten (weit + eng), wie box-shadow im DOM
+    ctx.shadowColor = "rgba(0,0,0,0.38)"; ctx.shadowBlur = 16 * dpr; ctx.shadowOffsetY = 5 * dpr;
+    ctx.fillStyle = "#fbfaf5";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.shadowColor = "rgba(0,0,0,0.25)"; ctx.shadowBlur = 2 * dpr; ctx.shadowOffsetY = 1 * dpr;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.shadowColor = "rgba(0,0,0,0)"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    var ix = (cw - imgW) / 2, iy = rand;
+    if (image) {
+      var nw = image.naturalWidth || image.width || 1, nh = image.naturalHeight || image.height || 1;
+      var seite = Math.min(nw, nh);                         // quadratischer Ausschnitt (object-fit: cover)
+      try { ctx.drawImage(image, (nw - seite) / 2, (nh - seite) / 2, seite, seite, ix, iy, imgW, imgW); } catch (_) {}
+    }
+    if (lines.length) {
+      ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = (o.textColor && o.textColor !== "auto") ? o.textColor : "#25302c";
+      var y0 = iy + (image ? imgW : 0) + Math.round(rand * 0.35) + lineH / 2;
+      for (var j = 0; j < lines.length; j++) ctx.fillText(lines[j], cw / 2, y0 + j * lineH);
+    }
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
+  }
+
+  // Mini-Bild für den Ausgang „mini": rundes Foto mit weißem Ring, RZ_MINI_PX Durchmesser (CSS-px), Anker unten.
+  var RZ_MINI_PX = 64;
+  function rzDrawSofortbildMini(o, dpr) {
+    dpr = (Number(dpr) > 0) ? Number(dpr) : 2;
+    var D = RZ_MINI_PX * dpr, ring = 4 * dpr, sch = 8 * dpr;
+    var c = document.createElement("canvas");
+    c.width = Math.ceil(D + sch * 2); c.height = Math.ceil(D + sch * 2);
+    var ctx = c.getContext("2d");
+    var cx = c.width / 2, cy = c.height / 2 - 2 * dpr, r = D / 2;
+    ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 7 * dpr; ctx.shadowOffsetY = 2 * dpr;
+    ctx.fillStyle = "#fbfaf5"; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = "rgba(0,0,0,0)"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    var image = o.image || null;
+    if (image) {
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r - ring, 0, Math.PI * 2); ctx.clip();
+      var nw = image.naturalWidth || image.width || 1, nh = image.naturalHeight || image.height || 1, seite = Math.min(nw, nh);
+      try { ctx.drawImage(image, (nw - seite) / 2, (nh - seite) / 2, seite, seite, cx - r + ring, cy - r + ring, D - 2 * ring, D - 2 * ring); } catch (_) {}
+      ctx.restore();
+    }
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
+  }
+
   function rzDrawSign(o) {
     o = o || {};
     var dpr = (Number(o.__dpr) > 0) ? Number(o.__dpr) : 2;
     if (RZ_HL_STILE[o.style]) return rzDrawHighlight(o, dpr);
+    if (o.style === "sofortbild") return rzDrawSofortbild(o, dpr);
     var fontPx = Math.max(8, Number(o.size) || 40);
     var fs = fontPx * dpr;
     var weight = Number(o.weight) || 700;
@@ -299,6 +383,14 @@
     var image = o.image || null;
     var hasImg = !!image;
     var style = o.style || "callout";
+    // 05.10.2026 (PLAN §2 „Schilder wärmer: schlichte weiße Kärtchen mit Schatten") — „karte" = Sprechblase in
+    // Warmweiß mit weichem Schatten; synchron zu sign_dom.js (beide Engines pflegen).
+    var istKarte = (style === "karte");
+    if (istKarte) {
+      style = "callout";
+      o = Object.assign({}, o, { shadow: true,
+        shadowBlur: o.shadowBlur != null ? o.shadowBlur : 14, shadowStrength: o.shadowStrength != null ? o.shadowStrength : 0.3 });
+    }
     var accent = o.color || "#ff6b35";
     var align = o.align || "center";
     var radius = (o.radius != null ? Number(o.radius) : 9) * dpr;
@@ -333,6 +425,7 @@
     else if (style === "signpost") { boxFill = accent; textSurface = accent; decoration = "post"; }
     else if (style === "pin") { boxFill = "#15171c"; textSurface = "#15171c"; decoration = "pin"; }
     else if (style === "plain") { boxFill = accent; textSurface = accent; decoration = "none"; }
+    else if (istKarte) { boxFill = "#fbf9f4"; textSurface = "#fbf9f4"; decoration = "tail"; }
     else { boxFill = "#15171c"; textSurface = "#15171c"; decoration = "tail"; } // callout
     // v0.9.269 (Nutzer) — bg === "none": Box komplett TRANSPARENT (kein Füll, kein
     // Box-Schatten). So liegt z.B. ein Bild ohne farbigen „Akzent-Rahmen" auf der Karte;
@@ -742,17 +835,34 @@
     // v0.9.479b — nur anfassen, wenn wirklich ein Schild Aufpoppen nutzt. Sonst KEIN
     // setData/popScale (die icon-size ist dann der reine Zoom-Ausdruck → scharf, kein Zittern).
     var anyPop = false;
-    for (var j = 0; j < metas.length; j++) { if (metas[j] && (metas[j].pop > 0 || metas[j].popOut > 0)) { anyPop = true; break; } }
+    for (var j = 0; j < metas.length; j++) { if (metas[j] && (metas[j].pop > 0 || metas[j].popOut > 0 || metas[j].miniId)) { anyPop = true; break; } }
     var popRunning = false;   // poppt in DIESEM Frame gerade etwas auf?
     if (anyPop && fc && fc.features) {
       if (!map.__rzSignPopLast) map.__rzSignPopLast = [];
       for (var k = 0; k < metas.length; k++) {
         var mk = metas[k] || {};
         var ps = 1;
+        // 05.10.2026 (I-001) — Ausgang „mini": großes Bild schrumpft weich, auf halbem Weg Wechsel aufs runde Mini-Bild
+        // (gleiche Breite im Wechsel-Moment), danach bleibt das Mini stehen. Aus dem Anker berechnet → Video = Vorschau.
+        var bild = null;
+        if (mk.miniId && mk.mini != null) {
+          var mW = mk.miniW || 200, t = RZ_MINI_PX / mW;
+          var mp = M > mk.mini ? Math.max(0, Math.min(1, (M - mk.mini) / (mk.miniSpan || 1e-6))) : 0;
+          mp = mp * mp * (3 - 2 * mp);
+          var sF = 1 + (t - 1) * mp;
+          if (mp <= 0) bild = mk.fullId;
+          else if (mp < 0.5) { bild = mk.fullId; ps = sF; popRunning = true; }
+          else { bild = mk.miniId; ps = sF / t; if (mp < 1) popRunning = true; }
+          if (bild && fc.features[k] && fc.features[k].properties && fc.features[k].properties.imgId !== bild) {
+            fc.features[k].properties.imgId = bild; popDirty = true;
+          }
+        }
         // Nur INNERHALB des Aufpopp-Fensters skalieren. Davor (Schild noch
         // ausgefiltert) und danach bleibt der Wert 1 — sonst stünde der
         // datengetriebene Ausdruck die halbe Animation lang unnötig an.
-        if (mk.popOut > 0 && M > mk.a_hide - mk.popOut && M <= mk.a_hide) {
+        if (bild) {
+          // Mini-Ausgang hat den Faktor oben schon gesetzt
+        } else if (mk.popOut > 0 && M > mk.a_hide - mk.popOut && M <= mk.a_hide) {
           ps = rzPopScale((mk.a_hide - M) / mk.popOut);   // Wegpoppen = Aufpoppen rückwärts
           popRunning = true;
         } else if (mk.pop > 0 && M >= mk.a_show && M < mk.a_show + mk.pop) {
@@ -861,11 +971,19 @@
     if (!bisEnde && rein + raus > fenster && rein + raus > 0) {
       var f = fenster / (rein + raus); fadeSpan *= f; popSpan *= f; fadeOut *= f; popOut *= f;
     }
+    // 05.10.2026 (I-001, Sofortbild) — Ausgang „mini": statt zu verschwinden schrumpft das Schild nach „Bleibt sichtbar"
+    // zum runden Mini-Bild und bleibt bis zum Ende stehen. `mini` = Anker, ab dem es schrumpft; `miniSpan` = Dauer.
+    if (exit === "mini") {
+      var aMini = A + rzSignSecToAnchor(after > 0 ? after : 3, durationSec);
+      return { a_show: aShow, a_hide: 2.0, fade: fadeSpan, pop: popSpan, fadeIn: fadeSpan, fadeOut: 0, popOut: 0,
+               mini: aMini, miniSpan: Math.max(1e-6, rzSignSecToAnchor(outS, durationSec)) };
+    }
     return { a_show: aShow, a_hide: aHide, fade: fadeSpan, pop: popSpan, fadeIn: fadeSpan, fadeOut: fadeOut, popOut: popOut };
   }
 
   if (typeof window !== "undefined") {
     window.__rzDrawSign = rzDrawSign;
+    window.__rzDrawSofortbildMini = rzDrawSofortbildMini;
     window.__rzSignFrame = rzSignApplyFrame;
     window.__rzSignMeta = rzSignMeta;
     window.__rzSignDeckkraft = rzSignDeckkraft;

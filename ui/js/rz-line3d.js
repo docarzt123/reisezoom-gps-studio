@@ -17,6 +17,10 @@
  *   lyr.setCounts([k0, k1, …]);          // je Spur: bis zu welchem Punkt gezeichnet wird (Wachstum)
  *   lyr.refreshElevation();              // nach dem Laden der Geländekacheln (idle)
  *
+ * Flüge (05.10.2026, I-020): `agl: [m…]` je Punkt = Höhe über Grund (statt des festen Versatzes), mit der
+ * Gelände-Überhöhung multipliziert. `lot: true` = jeder Punkt wird eine senkrechte Linie vom Boden bis `agl`
+ * (Vorhang zum Boden) statt einer verbundenen Spur.
+ *
  * Der Vertex-Shader rechnet in Bildkoordinaten (Breite bleibt beim Zoomen
  * konstant), das Abstandsfeld im Fragment-Shader liefert Kappen und Kanten mit
  * Antialiasing. Varyings werden mit w multipliziert, damit sie bildlinear
@@ -69,7 +73,11 @@ void main() {
   vec2 sp2 = sp + n * a_side * u_halfw - d * u_halfw + vec2(u_translate.x, -u_translate.y);
   gl_Position = vec4(sp2 / (u_res * 0.5) * p.w, p.z, p.w);
   float along = (a_end < 0.5) ? -u_halfw : (L + u_halfw);
-  v_lw = vec3(along, a_side * u_halfw, L) * p.w;
+  // 05.10.2026 (Klicktest „Flug in der Luft“: Punkt mit eingedellter Oberkante) — am Segmentende ist d gespiegelt,
+  // damit auch die Normale: dort liegt Seite +1 geometrisch auf der −1-Seite des Anfangs. Der Querwert muss der
+  // GEOMETRIE folgen (sonst passt er nicht zum Anfang), und die Dreiecke laufen v0 → v1 → v3 → v2 (siehe idx).
+  float quer = (a_end < 0.5) ? a_side : -a_side;
+  v_lw = vec3(along, quer * u_halfw, L) * p.w;
   v_w = p.w;
   v_dist = a_dist * p.w;   // Merkator-Strecke bis zum Segmentanfang (× w)
   v_color = a_color;
@@ -139,6 +147,17 @@ void main() {
       _depth: opts.depth !== false,
       onAdd(map, gl) {
         this._map = map; this._gl = gl;
+        // 06.10.2026 (Klicktest, 4K-Export „Flug in der Luft“ ohne Linie): Höhen wurden nur je ganzer Zoomstufe
+        // abgefragt. Fährt die Kamera (Anflug) auf eine neue Stufe, bevor deren Geländekacheln da sind, kam 0 m
+        // zurück — die Linie lag unter dem Berg und blieb dort. Jetzt: jede neu geladene Geländekachel macht die
+        // Höhen ungültig, der nächste Zeichenlauf fragt neu (höchstens alle 200 ms).
+        this._demNeu = (e) => {
+          try {
+            const tr = map.getTerrain && map.getTerrain();
+            if (tr && e && e.sourceId === tr.source && e.tile) { this._elevDirty = true; map.triggerRepaint(); }
+          } catch (_) {}
+        };
+        try { map.on("sourcedata", this._demNeu); } catch (_) {}
         if (this._tracks.length) this._rebuild();
       },
       _compile(gl, sd) {
@@ -162,6 +181,7 @@ void main() {
                       feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), pxPerMercRef: U("u_pxPerMercRef"), translate: U("u_translate") };
       },
       onRemove(map, gl) {
+        try { if (this._demNeu) map.off("sourcedata", this._demNeu); } catch (_) {}
         for (const b of this._bufs) { try { gl.deleteBuffer(b.vbo); gl.deleteBuffer(b.ibo); } catch (_) {} }
         this._bufs = [];
       },
@@ -175,6 +195,8 @@ void main() {
           feather: (t.feather != null) ? +t.feather : 0.8,
           translate: (t.translate && t.translate.length >= 2) ? [+t.translate[0], +t.translate[1]] : [0, 0],
           offsetM: (t.offsetM != null) ? +t.offsetM : null,
+          agl: Array.isArray(t.agl) || ArrayBuffer.isView(t.agl) ? t.agl : null, lot: !!t.lot,
+          smooth: t.smooth,
         }));
         this._counts = null;
         if (this._gl) this._rebuild();
@@ -202,23 +224,52 @@ void main() {
         } catch (_) {}
         return 0;
       },
+      _ueberhoehung() {
+        try { const tr = this._map && this._map.getTerrain && this._map.getTerrain(); return (tr && +tr.exaggeration) || 1; } catch (_) { return 1; }
+      },
       _rebuild() {
         const gl = this._gl, MC = (window.maplibregl && window.maplibregl.MercatorCoordinate);
         if (!MC) return;
+        const ex = this._ueberhoehung();
+        // 06.10.2026 (Klicktest: Wanderung mit „Flug in der Luft“ — nach ⌘Z Lücken in der Linie): bodennahe Stücke
+        // (Höhe über Grund ≈ 0) lagen genau in der Geländefläche und verschwanden je nach Kachelauflösung darin.
+        // Mindesthöhe ≈ 3 Bildpunkte in Metern bei der aktuellen Zoomstufe (MapLibre: 512er Kacheln).
+        let aglMin = 0;
+        try {
+          const mp = this._map, br = mp.getCenter().lat;
+          aglMin = 3 * 78271.517 * Math.cos(br * Math.PI / 180) / Math.pow(2, mp.getZoom());
+        } catch (_) {}
         for (const b of this._bufs) { try { gl.deleteBuffer(b.vbo); gl.deleteBuffer(b.ibo); } catch (_) {} }
         this._bufs = [];
+        this._bodenProbe = [];   // Prüfstand: ~20 abgefragte Bodenhöhen der ersten Spur [lng, lat, m]
         for (const t of this._tracks) {
-          const c = t.coords, n = c.length;
-          const merc = new Array(n);
+          const c = t.coords;
+          let n = c.length;
+          let merc = new Array(n);
+          const probeAll = (t === this._tracks[0]) ? Math.max(1, Math.floor(n / 20)) : 0;
           for (let i = 0; i < n; i++) {
-            const h = this._elev(c[i][0], c[i][1]) + ((t.offsetM != null) ? +t.offsetM : offsetM);
+            const boden = this._elev(c[i][0], c[i][1]);
+            if (probeAll && i % probeAll === 0) this._bodenProbe.push([c[i][0], c[i][1], boden]);
+            const h = t.agl ? boden + Math.max(t.lot ? 0 : aglMin, Math.max(0, +t.agl[i] || 0) * ex)
+                            : boden + ((t.offsetM != null) ? +t.offsetM : offsetM);
             const mc = MC.fromLngLat([c[i][0], c[i][1]], h);
             merc[i] = [mc.x, mc.y, mc.z, h];
+            if (t.lot) {   // Lot: zusätzlich der Fußpunkt am Boden (leicht angehoben gegen Z-Fighting)
+              const fb = MC.fromLngLat([c[i][0], c[i][1]], boden + 1);
+              merc[i].fuss = [fb.x, fb.y, fb.z, boden + 1];
+            }
+          }
+          if (t.lot) {
+            // Je Punkt ein Segment Fuß → Spitze: als Folge [Fuß0, Spitze0, Fuß1, Spitze1, …], gezeichnet werden
+            // nur die geraden Segmente (Fuß_i → Spitze_i), siehe `nurGerade` unten.
+            const paar = [];
+            for (let i = 0; i < n; i++) { paar.push(merc[i].fuss, merc[i]); }
+            merc = paar; n = paar.length;
           }
           // Glättung wie die Kachel-Vereinfachung der drapierten Linie: gleitendes Mittel
           // über so viele Punkte, wie in ~1,5 Bildpunkte passen (Indizes bleiben 1:1,
           // der Laufpunkt trifft weiter seinen Index). Erster/letzter Punkt bleiben.
-          if (n > 4 && t.smooth !== false) {
+          if (n > 4 && t.smooth !== false && !t.lot) {
             let ppm = 512 * Math.pow(2, this._map.getZoom());
             try { const tr = this._map.transform; if (tr && tr.worldSize) ppm = tr.worldSize; } catch (_) {}
             let segPx = 0; for (let i = 1; i < n; i++) segPx += Math.hypot(merc[i][0] - merc[i - 1][0], merc[i][1] - merc[i - 1][1]);
@@ -235,7 +286,9 @@ void main() {
               for (let i = 0; i < n; i++) merc[i] = sm[i];
             }
           }
-          const segs = Math.max(0, n - 1);
+          const segsAlle = Math.max(0, n - 1);
+          const nurGerade = t.lot;                     // Lot: nur Fuß_i → Spitze_i, nie Spitze_i → Fuß_i+1
+          const segs = nurGerade ? Math.floor(n / 2) : segsAlle;
           const cum = new Float64Array(n);   // Merkator-Strecke (xy) bis Punkt i
           for (let i = 1; i < n; i++) cum[i] = cum[i - 1] + Math.hypot(merc[i][0] - merc[i - 1][0], merc[i][1] - merc[i - 1][1]);
           const colAt = (i) => (t.colors && t.colors[i]) ? t.colors[i] : [1, 1, 1, 1];
@@ -243,15 +296,18 @@ void main() {
           const verts = new Float32Array(segs * 4 * 16);
           const idx = new Uint32Array(segs * 6);
           for (let s = 0; s < segs; s++) {
-            const a = merc[s], b = merc[s + 1];
-            const base = s * 64, d0 = cum[s], ca = colAt(s), cb = colAt(s + 1);
+            const q = nurGerade ? 2 * s : s;
+            const a = merc[q], b = merc[q + 1];
+            const base = s * 64, d0 = cum[q], ca = colAt(q), cb = colAt(q + 1);
             const put = (o, P, Q, side, end, col) => { verts.set([P[0], P[1], P[2], Q[0], Q[1], Q[2], P[3], Q[3], side, end, d0, col[0], col[1], col[2], col[3]], base + o); };
             put(0, a, b, -1, 0, ca); put(16, a, b, 1, 0, ca); put(32, b, a, 1, 1, cb); put(48, b, a, -1, 1, cb);
             // Am Ende ist d gespiegelt, deshalb dort die Seite getauscht (siehe put oben) →
             // Vertex 2 liegt geometrisch auf derselben Seite wie Vertex 0.
             const v = s * 4, o = s * 6;
-            idx[o] = v; idx[o + 1] = v + 1; idx[o + 2] = v + 2;
-            idx[o + 3] = v; idx[o + 4] = v + 2; idx[o + 5] = v + 3;
+            // Umlauf v0 (Anfang −n) → v1 (Anfang +n) → v3 (Ende +n) → v2 (Ende −n). Vorher (v0,v1,v2)+(v0,v2,v3):
+            // das Dreieck v1–v3–Mitte fehlte, jede Linie war auf einer Seite eingedellt (05.10.2026).
+            idx[o] = v; idx[o + 1] = v + 1; idx[o + 2] = v + 3;
+            idx[o + 3] = v; idx[o + 4] = v + 3; idx[o + 5] = v + 2;
           }
           const vbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
           const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
@@ -267,7 +323,13 @@ void main() {
           const tr = mp.getTerrain && mp.getTerrain();
           let ok = true;
           if (tr && tr.source && mp.isSourceLoaded) { try { ok = !!mp.isSourceLoaded(tr.source); } catch (_) { ok = true; } }
-          if (z !== this._lastZ || (ok && !this._elevOk) || !this._bufs.length) { this._lastZ = z; this._elevOk = ok; this._ppmRef = null; this._rebuild(); }
+          const jetzt = (typeof performance !== "undefined") ? performance.now() : Date.now();
+          const demFrisch = this._elevDirty && ok && !(jetzt - (this._elevZeit || 0) < 200);
+          if (z !== this._lastZ || (ok && !this._elevOk) || !this._bufs.length || demFrisch) {
+            this._lastZ = z; this._elevOk = ok; this._ppmRef = null; this._elevZeit = jetzt;
+            if (ok) this._elevDirty = false;
+            this._rebuild();
+          } else if (this._elevDirty && ok) { try { mp.triggerRepaint(); } catch (_) {} }   // nur die 200 ms abwarten; lädt noch etwas, meldet sich sourcedata
         } catch (_) {}
         if (!this._bufs.length) return;
         const m = (args && args.defaultProjectionData && args.defaultProjectionData.mainMatrix)

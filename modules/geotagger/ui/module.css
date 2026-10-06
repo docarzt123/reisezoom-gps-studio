@@ -59,7 +59,7 @@
 .offset-slider-reset:hover,
 .offset-slider-edit:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 .offset-slider-box input[type="range"] {
@@ -139,7 +139,7 @@
 }
 .offset-range-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 
@@ -208,7 +208,7 @@
 .photo-grid.drop-active .photo-tile-placeholder {
   border-color: var(--accent) !important;
   opacity: 1;
-  background: rgba(255, 107, 53, 0.05) !important;
+  background: rgb(var(--accent-rgb) / 0.05) !important;
 }
 
 /* Video-Badge (Play-Icon im Thumb-Bereich, unten links) */
@@ -241,7 +241,7 @@
   width: 32px;
   height: 32px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -279,11 +279,11 @@
   vertical-align: baseline;
   transition: background .12s, color .12s, border-color .12s;
 }
-.gt-filter-btn:hover { color: var(--text, #fff); border-color: var(--accent, #ff6b35); }
+.gt-filter-btn:hover { color: var(--text, #fff); border-color: var(--accent); }
 .gt-filter-btn.active {
-  background: var(--accent, #ff6b35);
-  border-color: var(--accent, #ff6b35);
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 .gt-filter-reset-wrap { margin-top: 8px; }
@@ -317,7 +317,7 @@
 .gt-tag-check {
   position: absolute; top: 5px; left: 5px; z-index: 4;
   width: 17px; height: 17px; margin: 0; cursor: pointer;
-  accent-color: var(--accent, #ff6b35);
+  accent-color: var(--accent);
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
 }
 .gt-remove-btn {
@@ -422,7 +422,7 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
   opacity: 0; transition: opacity 0.12s;
 }
 .gt-place-hint.show { opacity: 1; }
-.gt-place-hint.snap { border-color: #ff6b35; }
+.gt-place-hint.snap { border-color: var(--accent); }
 .gt-place-hint.snap::before { content: "↪ "; }
 
 /* ── v0.9.333 — Lichtstempel + Blickrichtung (Gimmick) ───────────────────── */
@@ -548,9 +548,9 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
   padding: 3px 11px; font-size: 12px; line-height: 1.4; cursor: pointer;
   white-space: nowrap; user-select: none;
 }
-.gt-fchip:hover { color: var(--text, #fff); border-color: var(--accent, #ff6b35); }
+.gt-fchip:hover { color: var(--text, #fff); border-color: var(--accent); }
 .gt-fchip.active {
-  background: var(--accent, #ff6b35); color: #fff; border-color: var(--accent, #ff6b35);
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
 }
 .gt-fchip .n {
   font-size: 11px; opacity: .75; background: rgba(255,255,255,.12);
@@ -561,7 +561,7 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
 /* v0.9.354 — Pro-Kamera-Zeit-Offset-Badge im Kamera-Filter-Chip */
 .gt-fchip .gt-camoff {
   font-size: 10.5px; font-weight: 600; margin-left: 5px;
-  color: var(--accent, #ff6b35); background: rgba(255,107,53,.14);
+  color: var(--accent); background: rgb(var(--accent-rgb) / .14);
   border-radius: 5px; padding: 0 5px; letter-spacing: .2px;
 }
 .gt-fchip.active .gt-camoff { color: #fff; background: rgba(0,0,0,.22); }
@@ -571,8 +571,8 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
    (Nutzer-Bug-Report zu v0.9.495). */
 .gt-geo-fehler {
   color: #ff9a76;
-  background: rgba(255, 107, 53, .10);
-  border: 1px solid rgba(255, 107, 53, .45);
+  background: rgb(var(--accent-rgb) / .10);
+  border: 1px solid rgb(var(--accent-rgb) / .45);
   border-radius: 8px;
   padding: 8px 11px;
   line-height: 1.5;

@@ -95,9 +95,9 @@
   box-shadow: 0 2px 9px rgba(0,0,0,.65);
   pointer-events: none;
 }
-.gpxi-ende-start { background: #0f766e; }          /* Petrol — klar neben dem A-Grün */
-.gpxi-ende-ziel  { background: #7c2d12; }          /* Dunkelbraun — klar neben dem B-Rot */
-.gpxi-ende-rund  { background: #4c1d95; }          /* Rundtour: Anfang = Ende */
+/* 05.10.2026 abends (F-7, Farbkonzept „Trailframe“): Start und Ziel in Koralle — wie im Konzept; die Beschriftung
+   (▶ START / ZIEL ⚑) und die Pillenform unterscheiden sie von den runden A/B-Ankern. Vorher Petrol/Braun/Violett. */
+.gpxi-ende-start, .gpxi-ende-ziel, .gpxi-ende-rund { background: var(--cta, #ff896b); color: var(--cta-ink, #2b120b); }
 
 /* v0.9.303 — feste Live-Daten-Box (Punkt unter dem Mauszeiger), oben links über der Karte */
 .gpxi-hoverbox {
@@ -279,6 +279,7 @@
 .gpxi-healprev { border-color: rgba(245, 158, 11, .55); }
 .gpxi-healprev[hidden] { display: none; }
 .gpxi-healprev-row { font-size: 12px; display: flex; gap: 6px; align-items: baseline; margin: 2px 0; }
+.gpxi-healprev-sub { font-size: 11px; opacity: .8; margin: 0 0 1px 16px; }   /* Grund je Ausreißer (I-087) */
 .gpxi-healprev-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
   background: var(--text-muted); display: inline-block; }
 .gpxi-healprev-dot.is-spike { background: #f59e0b; }
@@ -401,7 +402,7 @@
 .gpxi-lb-profil { fill: rgba(0,0,0,.22); stroke: rgba(255,255,255,.75); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .gpxi-lb-tagblock rect { fill: rgba(255,255,255,.07); stroke: rgba(255,255,255,.14); stroke-width: 1; cursor: zoom-in; }
 .gpxi-lb-tagblock.ist-zweiter rect { fill: rgba(255,255,255,.12); }
-.gpxi-lb-tagblock:hover rect { fill: rgba(255,107,53,.28); stroke: var(--accent); }
+.gpxi-lb-tagblock:hover rect { fill: rgb(var(--accent-rgb) / .28); stroke: var(--accent); }
 .gpxi-lb-tagblock text { font-size: 10px; fill: var(--text-dim); pointer-events: none; }
 .gpxi-lb-block { cursor: pointer; }
 .gpxi-lb-block rect { opacity: .92; stroke: rgba(0,0,0,.25); stroke-width: 1; transition: opacity .12s; }
@@ -483,7 +484,7 @@
 .gpxi-lb-mehr:hover { background: rgba(0,0,0,.08); border-color: var(--border); color: var(--text); }
 .gpxi-lb-notiz { font-size: 11px; color: var(--text-dim); font-style: italic; white-space: pre-wrap; margin-top: 2px; line-height: 1.35; }
 .gpxi-lb-zeile.ist-eigen .gpxi-lb-name { color: var(--text); font-weight: 600; }
-.gpxi-lb-knopf.ist-an { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gpxi-lb-knopf.ist-an { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .gpxi-lb-knopf:disabled { opacity: .45; cursor: default; }
 .gpxi-lb-menue {
   position: fixed; z-index: 1200; min-width: 230px; padding: 5px;
@@ -492,7 +493,7 @@
 }
 .gpxi-lb-menue-eintrag { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none;
   color: var(--text); font-size: 12.5px; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
-.gpxi-lb-menue-eintrag:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.gpxi-lb-menue-eintrag:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); }
 .gpxi-lb-menue-eintrag.ist-aus { color: var(--text-muted); cursor: default; font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; padding-top: 4px; padding-bottom: 2px; }
 .gpxi-lb-menue-eintrag.ist-unter { padding-left: 22px; }
 .gpxi-lb-menue-symbol { width: 18px; text-align: center; flex: 0 0 auto; }
@@ -579,7 +580,7 @@
 .gpxi-lb-info-meta { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
 .gpxi-lb-info-rep { margin-top: 6px; padding: 5px 7px; border-radius: 6px; background: var(--bg-3); color: var(--text-dim); font-size: 11.5px; }
 .gpxi-lb-info-knoepfe { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.gpxi-lb-knopf.ist-haupt { background: var(--accent, #ff6b35); color: #fff; border-color: transparent; }
+.gpxi-lb-knopf.ist-haupt { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .gpxi-lb-knopf.ist-gefahr:hover { background: #7f1d1d; color: #fff; }
 
 /* 14.09.2026 — „vermutet" ist ein Knopf: bestätigen oder andere Art */

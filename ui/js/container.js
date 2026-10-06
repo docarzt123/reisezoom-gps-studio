@@ -19,7 +19,7 @@
   "use strict";
   const ANKER = ["tl", "tc", "tr", "ml", "cc", "mr", "bl", "bc", "br"];
   const ZEILEN_TYPEN = ["wert", "text", "diagramm", "bild", "nord", "massstab"];
-  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas"];
+  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas", "plex", "plexmono", "caveat"];   // 05.10.2026: + mitgelieferte Schriften (ui/fonts)
   const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
   const istNix = (v) => v === null || v === undefined;
   const istDict = (x) => !!x && typeof x === "object" && !Array.isArray(x);
@@ -185,8 +185,11 @@
     const raus = cs.slice();
     for (let i = 0; i < raus.length; i++) {
       const a = raus[i];
-      if (!a || a.vorlage !== "titel" || a.anker !== "tc" || a.zeilen.length !== 1 || a.zeilen[0].typ !== "text") continue;
-      const j = raus.findIndex((b, k) => k !== i && b && b.vorlage === "titel" && b.anker === "tc" && b.zeilen.length === 1
+      // 05.10.2026 (Audit D-2: „verschmilzt auch handgebaute Titel-Paare — dauerhaft, ohne Undo") — nur noch das ALTE
+      // Schnell-Video-Paar: beide mit dem alten Rand-Abstand x = 3. Die Vorlage „Titel" setzt seit 02.10.2026 x = 0,
+      // und das Schnell-Video legt seitdem gleich EINE Einblendung an — ein selbst gebautes Paar bleibt, wie es ist.
+      if (!a || a.vorlage !== "titel" || a.anker !== "tc" || a.x !== 3 || a.zeilen.length !== 1 || a.zeilen[0].typ !== "text") continue;
+      const j = raus.findIndex((b, k) => k !== i && b && b.vorlage === "titel" && b.anker === "tc" && b.x === 3 && b.zeilen.length === 1
         && b.zeilen[0].typ === "text" && b.schriftgroesse < a.schriftgroesse && b.y > a.y
         && JSON.stringify(b.zeit || null) === JSON.stringify(a.zeit || null));
       if (j < 0) continue;
@@ -244,6 +247,15 @@
     // gefahrene Teil in Linienfarbe, Punkt = jetzt. Quadratisch: Höhe in % der Bildhöhe passt die Ansicht an (Editor).
     uebersicht: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "kasten", vorlage: "uebersicht", name: t("container.v.uebersicht", "Übersichtskarte"),
       anker: "tr", x: 3, y: 3, innen: 0.35, zeilen: [zeile("diagramm", { art: "karte", b: 18, h: 18 })] })),
+    // 06.10.2026 (Grilling Animator A1, Mockup 03) — Info-Karte im Trailframe-Stil: Titel und drei Werte nebeneinander,
+    // dunkler Schiefer mit türkisem Akzent, Plex. Eine ganz normale Einblendung (alles im Editor änderbar).
+    info: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "eigen", vorlage: "info", name: t("container.v.info", "Info-Karte"),
+      anker: "bl", x: 3, y: 4, schrift: "plex", schriftgroesse: 2.6, textfarbe: "#f4f1e9", akzent: "#48d6c4",
+      hg_farbe: "#151b22", hg_deckkraft: 0.86, unschaerfe: true, innen: 0.8, zeilenabstand: 0.35, spaltenabstand: 1.4,
+      ecken: 0.7, rahmen_b: 0.06, rahmen_farbe: "#48d6c4", schatten: true, beschriftung: "oben", anordnung: "neben",
+      beschr_faktor: 0.42, einheit_faktor: 0.6,
+      zeilen: [zeile("text", { text: t("container.v.titel_text", "Meine Tour"), gr: 1.15 }),
+               wert("dist_total", "gesamt"), wert("elev_gain", "gesamt"), wert("moving_time", "gesamt")] })),
     leer: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "kasten", vorlage: "leer", name: t("container.v.leer", "Einblendung"),
       anker: "cc", x: 0, y: 0, zeilen: [zeile("text", { text: t("container.v.leer_text", "Text") })] })),
   };

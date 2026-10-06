@@ -31,10 +31,10 @@
         ".leaflet-tooltip.wk-tip{background:none;border:0;padding:0;box-shadow:none;white-space:nowrap;}" +
         ".leaflet-tooltip.wk-tip:before{display:none;}" +
         ".wk-lbl-row{border:1px solid var(--border,#3a3f4a);border-radius:7px;padding:7px;margin-bottom:7px;}" +
-        ".wk-lbl-row.sel{border-color:#ff6b35;box-shadow:0 0 0 1px #ff6b35;}" +
+        ".wk-lbl-row.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}" +
         ".wk-trk-row{border:1px solid var(--border,#3a3f4a);border-radius:7px;padding:7px;margin-bottom:7px;}" +
         ".wk-trk-row .wk-trk-file{color:var(--muted,#8a90a0);}" +
-        ".wk-working{color:#ff6b35;font-weight:600;animation:wkpulse 1.1s ease-in-out infinite;}" +
+        ".wk-working{color:var(--accent);font-weight:600;animation:wkpulse 1.1s ease-in-out infinite;}" +
         "@keyframes wkpulse{0%,100%{opacity:.45}50%{opacity:1}}";
       document.head.appendChild(st);
     }

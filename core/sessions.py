@@ -257,6 +257,12 @@ def _new_project_id() -> str:
     return "proj_" + uuid.uuid4().hex[:8]
 
 
+ROUTE_ALT = "#ff6b35"          # bisherige Standard-Routenfarbe
+ROUTE_NEU = "#48d6c4"          # neue Standardroute (Türkis mit dunkler Kontur, Farbkonzept „Trailframe“, Marc F-7, 05.10.2026 abends; vorher Gelbgrün #d3e76b)
+KONTUR_BREITE_NEU = 1.5        # px je Seite — Gelbgrün braucht auf hellen Karten eine dunkle Kante
+KONTUR_FARBE_NEU = "#14231f"
+
+
 def _project_from_defaults(name: str, defaults: dict) -> dict:
     """Erstellt ein Projekt-Dict mit den passenden Modul-Default-Werten
     aus den globalen settings.json. Marc verliert nichts beim ersten
@@ -289,13 +295,27 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
     # Rechner auf und überlebt den Projekt-Export.
     anim.setdefault("watermark", {"path": "@lockup-white", "x": 84.5, "y": 91.3,
                                   "w": 15, "op": 0.65})
+    # 05.10.2026 (Farbkonzept „Nachtkarte“, Marc: „Gelbgrün, und wenn wir zum Track generell auch noch eine eigene
+    # Konturfarbe bekommen, ist das auch cool“) — NEUE Projekte starten mit gelbgrüner Route und dunkler Kontur.
+    # Wie beim Wasserzeichen nur hier: bestehende Projekte haben ihre Farbe gespeichert bzw. keinen Kontur-Schlüssel
+    # und sehen unverändert aus. Hat jemand global eine eigene Farbe gewählt, bleibt die.
+    tm = dict(defaults.get("tourmap", {}))
+    for sek in (anim, tm):
+        if str(sek.get("line_color") or ROUTE_ALT).lower() == ROUTE_ALT:
+            sek["line_color"] = ROUTE_NEU
+        sek.setdefault("kontur_breite", KONTUR_BREITE_NEU)
+        sek.setdefault("kontur_farbe", KONTUR_FARBE_NEU)
+    # 05.10.2026 abends (Grilling Animator A2, Marc „b“): neue Projekte zeigen die ganze Strecke blass (kommender Weg)
+    anim.setdefault("ghost_track_enabled", True)
+    anim.setdefault("ghost_track_opacity_pct", 30)
+    anim.setdefault("ghost_track_dashed", True)   # 06.10.2026 (A2) — „standardmäßig an, gestrichelt"
     return {
         "id": _new_project_id(),
         "name": name,
         "created_at": now,
         "modified_at": now,
         "animator": anim,
-        "tourmap": dict(defaults.get("tourmap", {})),
+        "tourmap": tm,
         "geotagger": {
             k: v for k, v in (defaults.get("geotagger", {}) or {}).items()
             # Foto-Refs werden NICHT persistiert (Marc-Regel) — geotagger-

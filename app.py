@@ -102,6 +102,7 @@ from core import drops as cdrops
 from core import animator as canim
 from core import mapstyles as cmapstyles  # 03.09.2026 — Kartenanbieter zur Auswahl
 from core import tileproxy as ctileproxy  # 03.09.2026 — Kachel-Weiche (CORS + Zwischenspeicher)
+from core import kartenlook as ckartenlook  # 05.10.2026 — eigene Kartenstile (Nacht, Atlas) über die Kachel-Weiche
 from core import merge as cmerge   # 23.08.2026 — mehrere Touren zu einem Track
 from core import sessions as _sessions
 from core import projekte as _projekte  # v0.8.0: Sessions + Projekte
@@ -176,7 +177,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.781"
+APP_VERSION = "0.9.782"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -465,7 +466,19 @@ _drop_state_lock = threading.Lock()
 
 # Logging früh aufsetzen, damit auch Import-/Init-Fehler nach dem Bridge-
 # Import hier noch landen würden.
-LOG_PATH = clog.setup_logging(APP_SUPPORT, app_version=APP_VERSION)
+def _bauzeit() -> str:
+    """06.10.2026 — Bauzeit der gepackten App (Änderungszeit des Programms): alle Builds eines Tages heißen 0.9.782;
+    damit sieht man in Log und Über-Dialog, welcher Stand wirklich läuft. Im Quellcode-Betrieb leer."""
+    if not getattr(sys, "frozen", False):
+        return ""
+    try:
+        return datetime.fromtimestamp(os.path.getmtime(sys.executable)).strftime("%d.%m.%Y %H:%M")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+BAUZEIT = _bauzeit()
+LOG_PATH = clog.setup_logging(APP_SUPPORT, app_version=APP_VERSION + (f" (Bau {BAUZEIT})" if BAUZEIT else ""))
 log = clog.get_logger("app")
 
 # v0.9.496 — sichtbar machen, welchen Zertifikatsspeicher die App gefunden hat.
@@ -1560,8 +1573,32 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             except Exception: pass
         return True
 
+    def _serve_stil(self, head_only: bool) -> bool:
+        """05.10.2026 — eigene Kartenstile `/stil/<name>.json` (core/kartenlook.py: umgefärbtes Positron)."""
+        name = ckartenlook.parse_pfad(self.path)
+        if name is None:
+            return False
+        try:
+            body = ckartenlook.stil_json(name, canim.TILE_CACHE_DIR)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            if not head_only:
+                try: self.wfile.write(body)
+                except (BrokenPipeError, ConnectionResetError): pass
+        except Exception as e:
+            log.warning("Kartenstil %s: %s", name, e)
+            try: self.send_error(502)
+            except Exception: pass
+        return True
+
     def _serve(self, head_only: bool):
         if self._serve_tile(head_only):
+            return
+        if self._serve_stil(head_only):
             return
         fp = self._resolve()
         if not fp or not os.path.isfile(fp):
@@ -3449,6 +3486,43 @@ class Api:
             _ds.nutzer_ziel(pfad, gueltig_s=12 * 3600)
         return pfad or ""
 
+    # 06.10.2026 (Grilling Export E15) — der Export-Dialog zeigt „Speichern in …“ mit dem zuletzt benutzten
+    # Ordner und einem Namen mit Zeitstempel; „Exportieren“ legt ohne Systemdialog los. Nie überschreiben:
+    # ist der Name schon vergeben, wird „-2“, „-3“ … angehängt.
+    def export_ziel_vorschlag(self, name: str = "", file_types: tuple[str, ...] = (),
+                              ordner_hinweis: str = "") -> dict:
+        """Vorschlag für den Export: zuletzt für diese Dateiart gewählter Ordner (sonst der Hinweis des Moduls,
+        sonst Filme/Bilder im Benutzerordner). Gibt {ordner, name, pfad} zurück; nichts wird angelegt."""
+        ordner = _dialog_ordner_lesen(_dialog_schluessel("save", file_types))
+        if not ordner and ordner_hinweis and os.path.isdir(ordner_hinweis):
+            ordner = ordner_hinweis
+        if not ordner:
+            png = any(e in ("png", "jpg", "jpeg") for e in _parse_extensions(tuple(file_types or ())))
+            for kand in (Path.home() / ("Pictures" if png else "Movies"), Path.home()):
+                if kand.is_dir():
+                    ordner = str(kand)
+                    break
+        name = os.path.basename(str(name or "").strip()) or "Export"
+        frei = _freier_dateiname(ordner, name) if ordner else name
+        return {"ordner": ordner, "name": frei, "pfad": os.path.join(ordner, frei) if ordner else ""}
+
+    def export_ziel_freigeben(self, pfad: str, file_types: tuple[str, ...] = ()) -> dict:
+        """Den Pfad aus dem Export-Dialog übernehmen: Ordner muss da sein, Name wird bei Bedarf frei gemacht
+        (nie überschreiben), dann als Nutzerziel beim Dateischutz angemeldet. {ok, pfad} oder {ok: False, fehler}."""
+        pfad = str(pfad or "").strip()
+        ordner, name = os.path.dirname(pfad), os.path.basename(pfad)
+        if not ordner or not name:
+            return {"ok": False, "fehler": "kein_pfad"}
+        if not os.path.isdir(ordner):
+            return {"ok": False, "fehler": "ordner_fehlt", "ordner": ordner}
+        if not os.access(ordner, os.W_OK):
+            return {"ok": False, "fehler": "nicht_schreibbar", "ordner": ordner}
+        name = _doppelte_endung_weg(_freier_dateiname(ordner, name), file_types)
+        ziel = os.path.join(ordner, name)
+        _dialog_ordner_merken(_dialog_schluessel("save", file_types), ziel)
+        _ds.nutzer_ziel(ziel, gueltig_s=12 * 3600)
+        return {"ok": True, "pfad": ziel}
+
     def pick_file(self, dialog_type: str = "open", file_types: tuple[str, ...] = (), multiple: bool = False) -> list[str]:
         """Native Datei-Dialog. Auf macOS direkt über PyObjC (`NSOpenPanel`) —
         spürbar schneller als pywebview's `create_file_dialog`, weil kein
@@ -3778,6 +3852,15 @@ class Api:
         # Sicherung NACH dem Öffnen, damit sie den Start nicht verzögert.
         threading.Thread(target=self._bib_sichern_still, daemon=True,
                          name="bib-sicherung").start()
+        # 05.10.2026 (§82 Schritt 2) — mitgebrachte Vorschaubilder (ZIP „für einen anderen Rechner") übernehmen
+        def _vorschau_hinten(ort=ort):
+            try:
+                r = cbib.vorschau_uebernehmen(ort, APP_SUPPORT / "photo_thumb_cache")
+                if r.get("neu"):
+                    log.info("Bibliothek: %s mitgebrachte Vorschaubilder übernommen (%s schon da)", r["kopiert"], r["da"])
+            except Exception:
+                log.exception("Bibliothek: Vorschaubilder übernehmen")
+        threading.Thread(target=_vorschau_hinten, daemon=True, name="bib-vorschau").start()
 
     def bibliothek_umzug_starten(self) -> dict:
         """Den Umzug des Altbestands anstoßen — sichtbar, mit Fortschritt.
@@ -4049,8 +4132,16 @@ class Api:
             log.exception("bibliothek_vergessen")
             return {"ok": False, "error": str(e)}
 
+    def bibliothek_zip_ziel(self) -> dict:
+        """Nur den Speichern-Dialog für die ZIP-Sicherung zeigen (06.10.2026, Klicktest: die Fortschrittsmeldung
+        „Bibliothek wird gesichert …“ stand schon hinter dem Dialog, bevor ein Ort gewählt war)."""
+        if not BIB_BEREIT:
+            return {"ok": False, "error": _ui_t()("bib.err_keine_offen", "Keine Bibliothek geöffnet")}
+        ziel = self.pick_save_path(cbib.zip_name_vorschlag(BIB), str(Path.home() / "Desktop"), ("ZIP (*.zip)",))
+        return {"ok": True, "ziel": ziel} if ziel else {"ok": False, "abbruch": True}
+
     @_nur_einmal("bibliothek")
-    def bibliothek_zip(self, alles: bool = False, ziel: str = "") -> dict:
+    def bibliothek_zip(self, alles: bool = False, ziel: str = "", vorschau: bool = False) -> dict:
         """Die aktive Bibliothek als ZIP sichern.
 
         `alles=False` lässt Vorschaubilder und die rollierenden
@@ -4069,7 +4160,15 @@ class Api:
             if not str(ziel).lower().endswith(".zip"):
                 ziel = str(ziel) + ".zip"
             _ds.nutzer_ziel(ziel, gueltig_s=12 * 3600)   # vom Nutzer gewählt; ein vorhandenes ZIP wird gesichert
-            res = cbib.zip_sichern(BIB, Path(ziel), alles=bool(alles),
+            extra = []
+            if vorschau:      # 05.10.2026 (§82 Schritt 2) — Vorschaubilder der Fotos für einen anderen Rechner
+                try:
+                    with clib._DB_LOCK:
+                        fps = [r[0] for r in self._lib().execute("SELECT DISTINCT fp FROM fotos WHERE fp IS NOT NULL AND fp != ''")]
+                except Exception:
+                    fps = []
+                extra = cbib.vorschau_fuer_zip(fps, APP_SUPPORT / "photo_thumb_cache")
+            res = cbib.zip_sichern(BIB, Path(ziel), alles=bool(alles), extra=extra,
                                    fortschritt=lambda n, g: _vm("zip", "Packt die Bibliothek in die ZIP-Datei: Datei {i} von {g}", n, g, i=n, g=g))   # 18.09.2026
             if res.get("ok"):
                 log.info("[bibliothek] ZIP %s · %s Dateien · %.1f MB%s",
@@ -4769,11 +4868,50 @@ class Api:
             # die Oberfläche sagt es dazu (Marc, 13.09.2026).
             liste = cfotos.ordner_liste(conn)          # sperrt selbst nur um die Datenbank-Teile (Audit B-3)
             with clib._DB_LOCK:
-                return {"ok": True, "ordner": liste, "stand": cfotos.stand(conn),
+                return {"ok": True, "ordner": liste, "stand": self._fotos_stand_kurz(conn),
                         "nachschau": cfotos.letzte_nachschau(conn)}
         except Exception as e:
             log.exception("fotos_ordner")
             return {"ok": False, "error": str(e), "ordner": []}
+
+    # 05.10.2026 (IDEAS §82 „Bibliothek auf einen anderen Rechner mitnehmen", Schritt 1) — hängt das Foto-Laufwerk hier
+    # unter anderem Namen (/Volumes/Fotos-1, Windows Y:\ statt Z:\), Pfade in einem Rutsch umbiegen (core/pfade_umziehen).
+    def fotos_pfade_kandidaten(self) -> dict:
+        from core import pfade_umziehen as cpu
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                return {"ok": True, "kandidaten": cpu.kandidaten(conn)}
+        except Exception as e:  # noqa: BLE001
+            log.warning("fotos_pfade_kandidaten: %s", e)
+            return {"ok": False, "error": str(e), "kandidaten": []}
+
+    def fotos_pfade_umbiegen(self, alt: str, neu: str) -> dict:
+        from core import pfade_umziehen as cpu
+        try:
+            if (getattr(self, "_foto_scan_state", None) or {}).get("running"):
+                return {"ok": False, "error": _ui_t()("fotos.umziehen_laeuft", "Fotos werden gerade eingelesen — bitte danach noch einmal.")}
+            if not os.path.exists(str(neu or "")):
+                return {"ok": False, "error": _ui_t()("fotos.umziehen_fehlt", "Der neue Ort ist nicht erreichbar.")}
+            # Review 06.10.2026: ein laufender Inhalts-Indexlauf schriebe mit eigener Verbindung alte Pfade zurück
+            if getattr(self, "_inhalt_laeuft", False) and not self._inhalt_lauf_beenden(30.0):
+                return {"ok": False, "error": _ui_t()("fotos.umziehen_laeuft", "Fotos werden gerade eingelesen — bitte danach noch einmal.")}
+            self._bib_sichern_still()                     # vorher sichern (Bibliothek: Sicherung angelegt …)
+            conn = self._lib()
+            idx = None
+            try:
+                if cinhalt.index_pfad(BIB, self._inhalt_var()).is_file():   # nur einen vorhandenen Index anfassen
+                    with self._inhalt_lock:
+                        idx = self._inhalt_idx()
+            except Exception:  # noqa: BLE001 — ohne Inhaltssuche gibt es keinen Index
+                idx = None
+            with clib._DB_LOCK:
+                r = cpu.umbiegen(conn, str(alt), str(neu), idx)
+            log.info("Foto-Pfade umgebogen: %s → %s · %s", alt, neu, r)
+            return {"ok": True, **r}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_pfade_umbiegen")
+            return {"ok": False, "error": str(e)}
 
     def fotos_laufwerk_verbinden(self, ordner: str) -> dict:
         """04.10.2026 — Netzlaufwerk eines Fotoordners verbinden (Knopf „Verbinden" in der Foto-Seitenleiste).
@@ -4846,10 +4984,19 @@ class Api:
                         "tun": tun}
             if not tun["ungelesen"] and not tun["nachschau_faellig"] and not tun.get("ohne_bild"):
                 return {"ok": True, "gestartet": False, "grund": "nichts zu tun", "tun": tun}
+            # 06.10.2026 (Marcs Log: nach jedem Neustart lief die Nachschau 32–43 min über 424.000 Dateien, „0 neu",
+            # während 348.000 Vorschaubilder warteten) — ist noch etwas offen, erst fertig lesen; nachgeschaut wird
+            # erst danach, spätestens aber nach NACHSCHAU_OFFEN_MAX_H (neue Kopien aufs NAS sollen nicht tagelang fehlen).
+            nachschau = bool(tun["nachschau_faellig"])
+            if nachschau and (tun["ungelesen"] or tun.get("ohne_bild")) and tun.get("letzte_nachschau"):
+                alt_h = (time.time() - float(tun["letzte_nachschau"])) / 3600
+                if alt_h < cfotos.NACHSCHAU_OFFEN_MAX_H:
+                    nachschau = False
+                    tun["nachschau_aufgeschoben"] = round(alt_h, 1)
             log.info("[fotos] Aufholen: %s", tun)
             # 18.09.2026 — von selbst: SCHNELLE Nachschau (unveränderte Ordner übernehmen; cfotos entscheidet, ob die
             # wöchentliche gründliche fällig ist). Der Knopf von Hand fragt dagegen immer jede Datei.
-            res = self.fotos_scan_start(ohne_liste=not tun["nachschau_faellig"], gruendlich=None)
+            res = self.fotos_scan_start(ohne_liste=not nachschau, gruendlich=None)
             res["gestartet"] = bool(res.get("ok"))
             res["tun"] = tun
             return res
@@ -4865,13 +5012,28 @@ class Api:
     # während man im Animator arbeitet; der Kasten unten rechts zeigt den Lauf, sobald der Foto-Bereich offen ist.
     FOTO_WACHE_MIN = 20
     FOTO_WACHE_START_S = 10 * 60   # nicht in den Start hinein — das Öffnen des Foto-Bereichs holt ohnehin auf
+    # 06.10.2026 (Marc: „Fotos lädt er nur nach, wenn man in den Fotos-Tab klickt … vor allem bei nicht abgeschlossenen
+    # Aufgaben? Ich hätte erwartet, dass er direkt nach einem Neustart weitermacht") — ist beim Start noch etwas offen
+    # (ungelesene Dateien, fehlende Vorschaubilder), geht es nach FOTO_WEITER_S weiter; die große Nachschau bleibt
+    # aufgeschoben (fotos_aufholen entscheidet das wie bisher).
+    FOTO_WEITER_S = 60
 
     def fotos_wache_starten(self) -> None:
         if getattr(self, "_foto_wache", None) is not None:
             return
 
         def wache():
-            time.sleep(self.FOTO_WACHE_START_S)
+            time.sleep(self.FOTO_WEITER_S)
+            try:
+                if BIB_BEREIT and not getattr(self, "_foto_scan_running", False):
+                    with clib._DB_LOCK:
+                        tun = cfotos.was_zu_tun(self._lib())
+                    if tun.get("ordner_da") and (tun.get("ungelesen") or tun.get("ohne_bild")):
+                        r = self.fotos_aufholen()
+                        log.info("[fotos] nach dem Start weiter: %s", "gestartet" if r.get("gestartet") else r.get("grund"))
+            except Exception:  # noqa: BLE001 — die Wache darf nie die App kippen
+                log.exception("[fotos] weiter nach dem Start")
+            time.sleep(max(0, self.FOTO_WACHE_START_S - self.FOTO_WEITER_S))
             while True:
                 try:
                     if BIB_BEREIT and not getattr(self, "_foto_scan_running", False):
@@ -4994,12 +5156,21 @@ class Api:
                             self._foto_scan_state["schon"] = max(0, int(ges) - cfotos.ohne_bild(conn))
                         except Exception:  # noqa: BLE001
                             pass
+                        if _load_settings().get("inhalt_an"):
+                            try:
+                                self.inhalt_aufholen(auto=True)   # 06.10.2026 — Inhaltssuche läuft mit und leert den Vorrat
+                            except Exception:  # noqa: BLE001
+                                log.exception("[inhalt] mitstarten")
                         r3 = cfotos.durchgang3(
                             conn,
                             fortschritt=lambda n, g: self._foto_scan_state.update(
                                 {"phase": "bilder", "done": n, "total": g}),
                             stop=lambda: self._foto_scan_stop, aktuell=_aktuell,
-                            schaetzung=lambda r: self._foto_scan_state.update({"rest_s": r, "rest_am": time.time()}))
+                            schaetzung=lambda r: self._foto_scan_state.update({"rest_s": r, "rest_am": time.time()}),
+                            # 06.10.2026 (Marc: B) — Schnellbild aus dem EXIF-Vorschaubild, außer die Inhaltssuche ist an:
+                            # dann wird die Datei ohnehin ganz gelesen (A: ein Lesevorgang für Raster UND Suche)
+                            schnell=not bool(_load_settings().get("inhalt_an")),
+                            vorrat=bool(_load_settings().get("inhalt_an")) and cinhalt.verfuegbar())
                         self._foto_scan_state.update({"bilder": r3})
                 self._foto_scan_state["stand"] = cfotos.stand(conn)
                 self._foto_scan_state["aktuell"] = ""
@@ -5072,19 +5243,32 @@ class Api:
                                   "indiziert": tr["indiziert"], "quelle_fehlt": tr["quelle_fehlt"]}}
             else:
                 filt = {k: v for k, v in filt.items() if k != "aehnlich"}
+                # 06.10.2026 (Marc: „Fotos erste Seite holen … richtig lang") — unter der Bibliotheks-Sperre (gemeinsame
+                # Verbindung) und mit Zeiten: wie lange auf die Sperre gewartet, wie lange gezählt/sortiert
+                # (Die Wartezeit auf die Sperre misst _db_gesperrt — hier hält der Faden sie schon.)
+                t_l = time.perf_counter()
                 res = cfotos.abfrage(self._lib(), filt, limit=limit, offset=offset,
                                      sortierung=sortierung if sortierung != "relevanz" else "zeit_neu")
+                t_a = time.perf_counter()
+                if t_a - t_l > 0.5:
+                    log.info("[fotos] Abfrage langsam: %.0f ms (offset %d, %s)",
+                             (t_a - t_l) * 1000, offset, ",".join(sorted(filt)) or "ohne Filter")
             if mit_thumbs:
+                t_b = time.perf_counter()
                 # NUR aus dem Cache: die Seite muss sofort stehen. Was fehlt,
                 # holt die Oberfläche danach in Häppchen über `fotos_thumbs`
                 # — mit sichtbarem Fortschritt. Vorher baute diese Schleife bis
                 # zu 240 Vorschaubilder am Stück; bei Videos sind das Minuten
                 # ohne ein Zeichen auf dem Schirm (Marc, 12.09.2026).
-                fps = cfotos.fps_lesen(self._lib(), [f["path"] for f in res["fotos"]])
+                with clib._DB_LOCK:
+                    fps = cfotos.fps_lesen(self._lib(), [f["path"] for f in res["fotos"]])
                 for f in res["fotos"]:
                     f["thumb_url"] = cphotos.thumb_data_url_gecacht(
                         f["path"], cphotos.THUMB_RASTER_PX, fps.get(f["path"]),
                         nur_cache=True)
+                if time.perf_counter() - t_b > 0.5:
+                    log.info("[fotos] Vorschaubilder der Seite aus dem Speicher: %.0f ms (%d)",
+                             (time.perf_counter() - t_b) * 1000, len(res["fotos"]))
             res["ok"] = True
             return res
         except Exception as e:
@@ -5295,14 +5479,62 @@ class Api:
             log.exception("fotos_punkte")
             return {"ok": False, "error": str(e), "punkte": []}
 
+    def _fotos_stand_kurz(self, conn) -> dict:
+        """Bestandszahlen, gemerkt solange sich die Datenbank nicht geändert hat (06.10.2026): beim Öffnen der
+        Foto-Ansicht fragen Ordnerliste und Filterwerte gleichzeitig danach — ein Durchgang über den ganzen Bestand
+        reicht. `data_version` ändert sich mit jedem Schreiben ANDERER Verbindungen (Einlesen), `total_changes` mit
+        den eigenen. Aufrufer hält _DB_LOCK."""
+        try:
+            schl = (str(BIB), conn.execute("PRAGMA data_version").fetchone()[0], conn.total_changes)
+        except Exception:  # noqa: BLE001
+            schl = None
+        alt = getattr(self, "_stand_merk", None)
+        if schl and alt and alt[0] == schl:
+            return dict(alt[1])
+        st = cfotos.stand(conn)
+        if schl:
+            self._stand_merk = (schl, dict(st))
+        return st
+
     def fotos_filterwerte(self) -> dict:
         try:
             conn = self._lib()
-            return {"ok": True, "kameras": cfotos.kameras(conn),
-                    "jahre": cfotos.jahre(conn), "stand": cfotos.stand(conn)}
+            # 06.10.2026 — unter der Bibliotheks-Sperre: läuft jetzt gleichzeitig mit fotos_ordner auf derselben
+            # Verbindung (zwei Fäden, eine Verbindung = „sqlite3.InterfaceError: bad parameter or other API misuse").
+            with clib._DB_LOCK:
+                return {"ok": True, "kameras": cfotos.kameras(conn),
+                        "jahre": cfotos.jahre(conn), "stand": self._fotos_stand_kurz(conn)}
         except Exception as e:
             log.exception("fotos_filterwerte")
             return {"ok": False, "error": str(e)}
+
+    def fotos_schaerfen(self, paths: list = None) -> dict:
+        """Schnellbilder (thumb = 2, eingebettetes EXIF-Vorschaubild aus Schritt 3) durch scharfe ersetzen — für die
+        Fotos, die gerade im Raster zu sehen sind (06.10.2026, Marc: „B ja"). Nacheinander wie fotos_thumbs (NAS)."""
+        pfade = [p for p in list(paths or [])[:60] if p]
+        try:
+            with clib._DB_LOCK:
+                fps = cfotos.fps_lesen(self._lib(), pfade)
+        except Exception:  # noqa: BLE001
+            fps = {}
+        raus, scharf = {}, []
+        for pfad in pfade:
+            try:
+                daten = cphotos.thumb_neu(pfad, cphotos.THUMB_RASTER_PX, fps.get(pfad))
+            except Exception:  # noqa: BLE001
+                daten = None
+            if daten:
+                raus[pfad] = cphotos._to_data_url(daten)
+                scharf.append(pfad)
+        if scharf:
+            try:
+                with clib._DB_LOCK:
+                    conn = self._lib()
+                    conn.executemany("UPDATE fotos SET thumb = 1 WHERE path = ? AND thumb = 2", [(p,) for p in scharf])
+                    conn.commit()
+            except Exception as e:  # noqa: BLE001
+                log.warning("fotos_schaerfen: %s", e)
+        return {"ok": True, "thumbs": raus}
 
     def fotos_details(self, path: str) -> dict:
         """Eine Datei mit allen gelesenen Tags — für die Detailansicht."""
@@ -5505,6 +5737,7 @@ class Api:
     def inhalt_ausschalten(self) -> dict:
         self.settings_set({"inhalt_an": False})
         self._inhalt_stop = True
+        cphotos.vorrat_leeren()   # 06.10.2026 — 600er aus dem Einlesen (Vorrat der Suche) nicht liegen lassen
         return {"ok": True}
 
     def inhalt_loeschen(self, variante: str = "") -> dict:
@@ -5524,6 +5757,7 @@ class Api:
                 self._inhalt_m = None
                 self._inhalt_merk = {}
                 r = cinhalt.loeschen(APP_SUPPORT, BIB, variante if variante in cinhalt.VARIANTEN else None)
+                r["frei"] = (r.get("frei") or 0) + cphotos.vorrat_leeren()
             self._inhalt_state = {"running": False}
             log.info("[inhalt] gelöscht (%s): %.0f MB frei", variante or "alle Varianten", (r.get("frei") or 0) / 1e6)
             return r
@@ -5581,6 +5815,15 @@ class Api:
                     grund = ("render" if self._render_laeuft()
                              else "einlesen" if getattr(self, "_foto_scan_running", False) else "")
                     self._inhalt_state["pausiert"] = grund
+                    if grund == "einlesen":
+                        # 06.10.2026 (Marc: „A") — während des Einlesens nicht nur warten: die Bilder, die Schritt 3
+                        # gerade mit dekodiert hat (Vorrat), erfassen — ohne Laufwerkszugriff
+                        try:
+                            n = cinhalt.vorrat_indizieren(conn, idx, self._inhalt_modell(v), stop=lambda: self._inhalt_stop)
+                            if n:
+                                self._inhalt_state["vorrat_erfasst"] = int(self._inhalt_state.get("vorrat_erfasst") or 0) + n
+                        except Exception as e:  # noqa: BLE001
+                            log.warning("[inhalt] Vorrat: %s", e)
                     return bool(grund)
 
                 # Audit A-2: das Modell der Variante DIESES Laufs, nicht die (inzwischen evtl. geänderte) Einstellung
@@ -6761,6 +7004,9 @@ class Api:
     # 02.10.2026 (Marc, Teide-Demo: „Gipfel — da steht La Orotava … gucken, welcher Gipfel das ist, und direkt hinschreiben")
     # Benannter Ort an einer Stelle (Photon, core/highlights.ort_am_punkt), dauerhaft gemerkt; „nichts" 30 Tage.
     _ORT_CACHE_LOCK = threading.Lock()
+    # 06.10.2026 (Marc-Log: Fotostopp-Info 6 s, „Ort am Punkt: kein Netz") — nach einem Netzfehler 5 min nicht
+    # erneut fragen; sonst wartet jedes Foto-Schild wieder bis zum Zeitlimit.
+    _ORT_OFFLINE_BIS = 0.0
 
     def _ort_am_punkt(self, lat, lon, radius_m: float = 350.0, nur_gipfel: bool = False) -> Optional[dict]:
         from core import highlights as chl
@@ -6778,11 +7024,14 @@ class Api:
             e = cache.get(key)
             if e and (e.get("v") or time.time() - float(e.get("t", 0)) < 30 * 86400):
                 return e.get("v")
+        if time.time() < Api._ORT_OFFLINE_BIS:
+            return None
         try:
             v = chl.ort_am_punkt(lat, lon, radius_m, nur_gipfel)
         except chl.KeinNetz as ex:
-            log.info("Ort am Punkt: kein Netz (%s)", ex)
-            return None                        # nicht merken — beim nächsten Mal neu fragen
+            log.info("Ort am Punkt: kein Netz (%s) — 5 min Pause", ex)
+            Api._ORT_OFFLINE_BIS = time.time() + 300
+            return None                        # nicht dauerhaft merken — nach der Pause neu fragen
         with self._ORT_CACHE_LOCK:
             try:
                 cache = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
@@ -7031,7 +7280,7 @@ class Api:
         """
         try:
             if aus_dialog:
-                pfade = self.pick_file("open", (_ui_t()("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea)",), True)
+                pfade = self.pick_file("open", (_ui_t()("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea;*.igc;*.srt)",), True)
             pfade = [str(x) for x in (pfade or []) if x]
             if not pfade:
                 return {"ok": True, "ghosts": [], "cancelled": True}
@@ -7396,7 +7645,17 @@ class Api:
                 return {"ok": False, "error": "need_two_points"}
             mode = (params.get("mode") or "road").lower()
             name = (params.get("name") or "Route").strip() or "Route"
-            if mode == "arc":
+            arten = [str(x or "") for x in (params.get("abschnitte") or [])]
+            if any(arten):
+                # 05.10.2026 (Block 4) — Verkehrsart je Etappe; leere Etappen folgen der allgemeinen Wahl
+                standard = "flugzeug" if mode == "arc" else {"driving": "auto", "cycling": "rad", "walking": "wanderer"}.get(
+                    params.get("profile") or "driving", "auto")
+                _coarse = params.get("coarseness")
+                res = croute.gemischte_route(waypoints, [a or standard for a in arten] + [standard] * len(waypoints),
+                                             _active_mapbox_token() or "",
+                                             coarseness=(float(_coarse) if _coarse is not None else None))
+                mode = "mix"
+            elif mode == "arc":
                 res = croute.arc_route(waypoints)
             else:
                 token = _active_mapbox_token() or ""    # 07.09.2026: OSRM/Valhalla zuerst, Mapbox nur mit Token als Rückfall
@@ -7426,6 +7685,7 @@ class Api:
                 "distance_m": res.get("distance_m", 0.0),
                 "duration_s": res.get("duration_s", 0.0),
                 "name": name,
+                "abschnitte": res.get("abschnitte") or [],   # 05.10.2026 — Verkehrsart je Etappe (Laufpunkt-Symbol)
             }
         except croute.RouteError as e:
             return {"ok": False, "error": str(e)}
@@ -7788,6 +8048,7 @@ class Api:
             ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
             ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
             ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
+            ghost_track_dashed=bool(params.get("ghost_track_dashed", False)),
             # v0.9.435 — Mehrfarbiger Track (Farbwechsel ab km/Marker/Wegpunkt)
             track_colors_enabled=bool(params.get("track_colors_enabled", False)),
             track_colors_mode=str(params.get("track_colors_mode", "hard")),
@@ -9123,13 +9384,31 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def open_user_guide(self) -> dict:
+    def open_user_guide(self, anker: str = "") -> dict:
         """Öffnet die HTML-User-Guide im Default-Browser. Liefert schick
-        formatierte Doku mit Anchor-Navigation."""
-        p = self._resolve_bundled_doc("USER_GUIDE.html")
+        formatierte Doku mit Anchor-Navigation.
+
+        06.10.2026 — in der Sprache der App (vorher immer Deutsch) und auf Wunsch gleich an einer Stelle (`anker` =
+        id einer Überschrift). macOS verwirft beim Öffnen einer Datei die „#…"-Marke; deshalb geht der Sprung über
+        eine kleine Weiterleitungsseite im Temp-Ordner."""
+        sprache = ci18n.sprache_aktiv("de")
+        p = None
+        if sprache in ("en", "es"):
+            p = self._resolve_bundled_doc(f"USER_GUIDE.{sprache}.html")
+        p = p or self._resolve_bundled_doc("USER_GUIDE.html")
         if not p:
             return {"ok": False, "error": _ui_t()("error.user_guide_html_nicht_gefunden", "USER_GUIDE.html nicht gefunden — `python3 scripts/build_user_guide_html.py` ausführen.")}
-        log.info("open_user_guide: %s", p)
+        anker = re.sub(r"[^a-z0-9-]", "", str(anker or "").lower())
+        log.info("open_user_guide: %s%s", p, ("#" + anker) if anker else "")
+        if anker:
+            try:
+                url = Path(p).resolve().as_uri() + "#" + anker
+                weiter = _ds.temp_ordner("rz-hilfe-") / "handbuch.html"
+                weiter.write_text(f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={url}">'
+                                  f'<script>location.replace({json.dumps(url)})</script>', encoding="utf-8")
+                return self._open_path_native(weiter)
+            except Exception as e:  # noqa: BLE001
+                log.warning("open_user_guide: Sprung nicht möglich (%s) — ohne Anker", e)
         return self._open_path_native(p)
 
 
@@ -10508,8 +10787,13 @@ class Api:
                     letzter = fp
                     dreckig = True
                     letzte_aenderung = jetzt
-                    if self._cloud_auto_zustand.get("status") not in ("laeuft",):
-                        self._cloud_auto_zustand = {"status": "wartet"}
+                    # 05.10.2026 (Audit K-12: „☁…" stundenlang) — `seit` bleibt beim ersten Warten stehen: ändert sich die
+                    # Bibliothek laufend (Fotos einlesen), kommen die 90 s Ruhe nie; das soll der Knopf ehrlich sagen
+                    alt = self._cloud_auto_zustand
+                    if alt.get("status") == "wartet":
+                        alt["letzte"] = int(jetzt)
+                    elif alt.get("status") not in ("laeuft",):
+                        self._cloud_auto_zustand = {"status": "wartet", "seit": int(jetzt), "letzte": int(jetzt)}
                     continue                   # Ruhefenster neu starten
                 if not dreckig or jetzt - letzte_aenderung < RUHE:
                     continue
@@ -10697,6 +10981,7 @@ class Api:
             "name": APP_NAME,
             "edition": APP_EDITION,   # v0.9.331 — "full" | "geotagger" (Frontend-Gating)
             "version": APP_VERSION,
+            "bauzeit": BAUZEIT,
             "python": sys.version.split()[0],
             "app_support": str(APP_SUPPORT),
             "log_path": str(LOG_PATH),
@@ -11693,7 +11978,8 @@ class Api:
         return {"ok": True, "befunde": f["befunde"], "marke": f["marke"], "hoechste": f["hoechste"],
                 "quelle": "datei", "ms": r["ms"]}
 
-    def gpxinspect_track_check(self, points: list, path: str = "", local_time_n: int = 0) -> dict:
+    def gpxinspect_track_check(self, points: list, path: str = "", local_time_n: int = 0,
+                               sportart: str = "auto") -> dict:
         """10.09.2026 — Track-Check auf den Punkten im Inspektor (core/trackcheck), dazu
         die abgewählten Arten dieser Tour aus dem Archiv (leer bei Dateien außerhalb)."""
         from core import trackcheck
@@ -11710,7 +11996,8 @@ class Api:
                 pass
         try:
             r = trackcheck.pruefen(list(points or []), local_time_n=int(local_time_n or 0), geplant=geplant,
-                                   aktivitaet=activity or None)
+                                   aktivitaet=activity or None,
+                                   sportart=sportart if sportart in trackcheck.SPORTARTEN else "auto")
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
         f = trackcheck.filtern(r["befunde"], ok_liste)
@@ -12614,7 +12901,34 @@ class Api:
             ende = _ep(zeiten[-1]) if zeiten else None
             if not name:
                 name = st.name or Path(pf).stem
-            return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende,
+            # 05.10.2026 — Video-Assistent/Auto-Regie: Höhepunkte der Strecke für die Tempo-Regie (Anteil wie bei den Fotos)
+            regie = []
+            pois = []
+            try:
+                from core import highlights as chl
+                pd = [{"lat": q.lat, "lon": q.lon, "ele": q.ele, "time": q.time} for q in pts]
+                hls = chl.track_highlights(pd)
+                regie = [{"art": h["art"], "bei": round(h["idx"] / (len(pts) - 1), 6)}
+                         for h in hls if h.get("art") in ("hoechster", "steilster")]
+                # 06.10.2026 (Marc: „das Schnell-Video braucht eine Vorschau … gleiches gilt für POIs") — alle Highlights mit Lage
+                pois = [{"art": h.get("art"), "lat": h.get("lat"), "lon": h.get("lon"), "ele": h.get("ele"),
+                         "wert": h.get("wert"), "bei": round(h["idx"] / (len(pts) - 1), 6)} for h in hls if h.get("lat") is not None]
+            except Exception as e:  # noqa: BLE001
+                log.info("schnellvideo_vorschlag: keine Höhepunkte (%s)", e)
+            # Linie für die Vorschau im Dialog (höchstens ~600 Punkte)
+            schritt = max(1, len(pts) // 600)
+            linie = [[round(q.lon, 6), round(q.lat, 6)] for q in pts[::schritt]]
+            if linie and (linie[-1][0] != round(pts[-1].lon, 6) or linie[-1][1] != round(pts[-1].lat, 6)):
+                linie.append([round(pts[-1].lon, 6), round(pts[-1].lat, 6)])
+            # 06.10.2026 (Marc: „Stats und Höhenprofil fehlen noch in der Vorschau") — Zahlen + Profil (≤ 120 Höhen)
+            eles = [q.ele for q in pts if q.ele is not None]
+            ps = max(1, len(eles) // 120)
+            profil = [round(e, 1) for e in eles[::ps]] if len(eles) >= 2 else []
+            zahlen = {"aufstieg_m": round(st.ascent_m or 0), "dauer_s": round((st.moving_time_s or st.duration_s or 0)),
+                      "ele_min": round(st.ele_min) if st.ele_min is not None else None,
+                      "ele_max": round(st.ele_max) if st.ele_max is not None else None}
+            return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende, "regie": regie,
+                    "linie": linie, "pois": pois, "profil": profil, "zahlen": zahlen,
                     "bbox": [min(lons), min(lats), max(lons), max(lats)],
                     "distance_km": round((st.distance_m or 0) / 1000, 2),
                     "letzte": (_load_settings().get("schnellvideo_letzte") or {})}
@@ -12673,7 +12987,10 @@ class Api:
             else:
                 gh = self._track_geo_hash(pf) or ""
                 try:
-                    rows = (cfotos.fotos_einer_tour(self._lib(), gh, "" if gh else pf) or {}).get("fotos") or []
+                    # Review 06.10.2026: nur die Abfrage unter der Bibliotheks-Sperre — Auswahl, Inhalt und Logbuch
+                    # dauern und hielten sonst Archiv und Fotos an
+                    with clib._DB_LOCK:
+                        rows = (cfotos.fotos_einer_tour(self._lib(), gh, "" if gh else pf) or {}).get("fotos") or []
                 except Exception as e:   # noqa: BLE001 — kein Foto-Bestand
                     log.info("schnellvideo_fotos: kein Foto-Bestand (%s)", e)
                     rows = []
@@ -12686,7 +13003,7 @@ class Api:
                     if r.get("aufnahme_utc") is not None:
                         dt = datetime.fromtimestamp(float(r["aufnahme_utc"]), timezone.utc).isoformat()
                     fotos.append({"path": r["path"], "lat": r.get("lat"), "lon": r.get("lon"), "datetime": dt,
-                                  "tz": r.get("tz_minuten")})
+                                  "tz": r.get("tz_minuten"), "ort": r.get("ort") or ""})   # 05.10.2026 Ortszeile
             punkte = [{"lat": q.lat, "lon": q.lon, "time": q.time} for q in pts]
             zu = [f for f in chl.fotos_zuordnen(punkte, fotos, tz_tour) if f.get("idx") is not None]
             if not zu:
@@ -12694,40 +13011,32 @@ class Api:
             halte = chl.halte_punkte(punkte)
             ep = sorted(f["epoch"] for f in zu if f.get("epoch") is not None)
 
-            def wert(f):
-                w = 0.0
-                if any(h["idx_a"] - 5 <= f["idx"] <= h["idx_b"] + 5 for h in halte):
-                    w += 2                                      # in einer Pause aufgenommen
+            def merkmale(f):
+                pause = any(h["idx_a"] - 5 <= f["idx"] <= h["idx_b"] + 5 for h in halte)   # in einer Pause aufgenommen
                 e = f.get("epoch")
-                if e is not None and sum(1 for x in ep if abs(x - e) <= 120) >= 3:
-                    w += 1                                      # Teil einer Fotoserie
-                return w
+                serie = e is not None and sum(1 for x in ep if abs(x - e) <= 120) >= 3     # Teil einer Fotoserie
+                return {"pause": pause, "serie": serie, "wert": 2.0 * pause + 1.0 * serie}
             kandidaten = []
             for f in zu:
                 bei = f["idx"] / (n - 1)
                 if alle or 0.03 < bei < 0.97:
-                    kandidaten.append(dict(f, bei=bei, wert=wert(f)))
-            # je Zehntel das beste (bei Gleichstand das zur Fach-Mitte nächste), dann die besten n_max
-            faecher = {}
-            for f in kandidaten:
-                k = min(9, int(f["bei"] * 10))
-                mitte = (k + 0.5) / 10
-                schl = (f["wert"], -abs(f["bei"] - mitte))
-                if k not in faecher or schl > faecher[k][0]:
-                    faecher[k] = (schl, f)
+                    kandidaten.append(dict(f, bei=bei, **merkmale(f)))
             wahl = sorted(kandidaten, key=lambda f: f["bei"])[: max(1, int(n_max))] if alle else []   # „alle": selbst gewählt
-            for f in ([] if alle else sorted((v[1] for v in faecher.values()), key=lambda f: (-f["wert"], f["bei"]))):
-                if len(wahl) >= max(0, int(n_max)):
-                    break
-                if all(abs(f["bei"] - g["bei"]) >= 0.07 for g in wahl):   # Stopps nicht direkt hintereinander
-                    wahl.append(f)
+            if not alle:
+                # 05.10.2026 — Video-Assistent Stufe 1 (core/videoassistent.py, Block 2): Doppelte weg, Inhalt (wenn die
+                # Inhaltssuche an ist), keine Fotos aus der Autofahrt, Abwechslung, über die Tour verteilt.
+                from core import videoassistent as cva
+                vek, inh = self._va_inhalt([f["path"] for f in kandidaten]) if not clip else ({}, {})
+                fahrten, tage = self._va_logbuch(pf)
+                wahl = cva.waehlen(kandidaten, n_max, vek=vek, inhalt=inh, fahrten=fahrten, tage=tage)
             wahl.sort(key=lambda f: f["bei"])
             raus = []
             for f in wahl:
                 q = pts[f["idx"]]
-                info = _fotostopp_texte({"aufnahme_utc": f.get("epoch"), "tz_minuten": f.get("tz"), "lat": q.lat, "lon": q.lon})
+                info = _fotostopp_texte({"aufnahme_utc": f.get("epoch"), "tz_minuten": f.get("tz"), "lat": q.lat, "lon": q.lon,
+                                         "ort": f.get("ort") or ""})
                 e = {"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
-                     "zeit": info.get("zeit", ""), "wert": f["wert"]}
+                     "zeit": info.get("zeit", ""), "ort": info.get("ort", ""), "wert": f["wert"], "grund": f.get("grund") or []}
                 if clip:
                     ci = cclips.info(f["path"])
                     if not ci.get("ok"):
@@ -12746,6 +13055,100 @@ class Api:
             log.error("schnellvideo_fotos: %s", e)
             return {"ok": False, "error": str(e), "fotos": []}
 
+    def tour_medien(self, path: str) -> dict:
+        """06.10.2026 (Grilling Animator A3) — alle Fotos und Videos im Zeitraum der Tour aus dem Medien-Bestand, der
+        Strecke zugeordnet (GPS, sonst Aufnahmezeit): für die Striche in der Schilder-Spur und die Leiste „Medien der
+        Tour“ rechts. Ohne Vorschaubilder (die holt die Oberfläche häppchenweise über `fotos_thumbs`), ohne Dateizugriff
+        (Laufwerk darf fehlen). `n_ordner` = eingelesene Medienordner (0 → Hinweis statt leerer Leiste)."""
+        from core import highlights as chl
+        try:
+            pf = str(path or "")
+            n_ordner = 0
+            try:
+                with clib._DB_LOCK:
+                    n_ordner = len(cfotos.ordner_liste(self._lib(), pruefen=False) or [])
+            except Exception:  # noqa: BLE001 — ohne Bestand: keine Ordner
+                n_ordner = 0
+            pts, _st = cgpx.parse_gpx(self._ensure_gpx(pf))
+            n = len(pts)
+            if n < 2 or not n_ordner:
+                return {"ok": True, "medien": [], "n_ordner": n_ordner}
+            gh = self._track_geo_hash(pf) or ""
+            t_w = time.perf_counter()
+            with clib._DB_LOCK:
+                w = time.perf_counter() - t_w
+                rows = (cfotos.fotos_einer_tour(self._lib(), gh, "" if gh else pf, limit=1500) or {}).get("fotos") or []
+            if w > 0.3:   # 06.10.2026 (Marc-Log: tour_medien 6,5 s) — Wartezeit auf die Sperre sichtbar machen
+                log.info("[sperre] tour_medien wartete %.0f ms auf die Bibliothek", w * 1000)
+            fotos = []
+            for r in rows:
+                if not r.get("path"):
+                    continue
+                dt = None
+                if r.get("aufnahme_utc") is not None:
+                    dt = datetime.fromtimestamp(float(r["aufnahme_utc"]), timezone.utc).isoformat()
+                fotos.append({"path": r["path"], "lat": r.get("lat"), "lon": r.get("lon"), "datetime": dt,
+                              "tz": r.get("tz_minuten"), "art": r.get("art") or "foto", "utc": r.get("aufnahme_utc")})
+            punkte = [{"lat": q.lat, "lon": q.lon, "time": q.time} for q in pts]
+            medien = []
+            for f in chl.fotos_zuordnen(punkte, fotos, 0):
+                if f.get("idx") is None:
+                    continue
+                q = pts[f["idx"]]
+                medien.append({"path": f["path"], "bei": round(f["idx"] / (n - 1), 6), "lat": q.lat, "lon": q.lon,
+                               "art": f.get("art") or "foto", "utc": f.get("utc"), "tz": f.get("tz")})
+            medien.sort(key=lambda m: m["bei"])
+            return {"ok": True, "medien": medien, "n_ordner": n_ordner, "n_zeitraum": len(fotos)}
+        except Exception as e:  # noqa: BLE001
+            log.error("tour_medien: %s", e)
+            return {"ok": False, "error": str(e), "medien": []}
+
+    def _va_inhalt(self, pfade: list) -> tuple:
+        """Video-Assistent: (Vektoren, Inhaltswerte) der Fotos aus der Inhaltssuche — leer, wenn sie aus ist, das Modell
+        fehlt oder ein Foto noch nicht im Index steht. Nie ein Fehler nach außen (die Wahl geht dann ohne Inhalt)."""
+        try:
+            if not pfade or not self._inhalt_bereit():
+                return {}, {}
+            from core import videoassistent as cva
+            v = self._inhalt_var()
+            with self._inhalt_lock:
+                idx = self._inhalt_idx()
+                stand = self._inhalt_mx.aktuell(idx, cinhalt.VARIANTEN[v]["dim"])
+            vek = {}
+            for p in pfade:
+                x = stand.vektor(p)
+                if x is not None:
+                    vek[p] = x
+            if not vek:
+                return {}, {}
+            inh = cva.inhalt_bewerten(self._inhalt_modell(v), vek)
+            log.info("Video-Assistent: Inhalt für %d von %d Fotos (%s)", len(vek), len(pfade),
+                     ", ".join(f"{k}:{sum(1 for i in inh.values() if i['thema'] == k)}" for k in cva.THEMEN))
+            return vek, inh
+        except Exception as e:  # noqa: BLE001
+            log.warning("Video-Assistent: Inhalt nicht verfügbar (%s)", e)
+            return {}, {}
+
+    def _va_logbuch(self, path: str) -> tuple:
+        """Video-Assistent: (Fahrten, Tage) aus dem Logbuch als [(von, bis)] Streckenanteil — Fahrten = Abschnitte im
+        Fahrzeug (Art „fahrt"), Tage = Stücke zwischen Übernachtungen (nur bei mehrtägigen Touren)."""
+        try:
+            lb = self.logbuch_lesen(path)
+            n = len(self._logbuch_punkte(path))   # die Indizes des Logbuchs beziehen sich auf seine Punktliste
+            if not lb.get("ok") or n < 2:
+                return [], []
+            def anteil(e, k):
+                i = e.get(k) if e.get(k) is not None else e.get("von_idx")
+                return int(i) / (n - 1)
+            ee = [e for e in lb.get("eintraege") or [] if e.get("von_idx") is not None]
+            fahrten = [(anteil(e, "von_idx"), anteil(e, "bis_idx")) for e in ee if e.get("art") == "fahrt"]
+            naechte = sorted(anteil(e, "von_idx") for e in ee if e.get("anzeige_art") == "uebernachtung")
+            grenzen = [0.0] + naechte + [1.0]
+            tage = [(grenzen[i], grenzen[i + 1]) for i in range(len(grenzen) - 1)] if naechte else []
+            return fahrten, tage
+        except Exception:  # noqa: BLE001
+            return [], []
+
     def schnellvideo_clips(self, path: str, n_max: int = 4, quellen: list = None, alle: bool = False) -> dict:
         """02.10.2026 (Marc: „Videos wäre auch noch was") — Videoclips der Tour (Foto-Bestand: art „video",
         sonst selbst gewählte Dateien), verteilt wie die Fotos. Je Clip zusätzlich Länge, Ton, Standbild.
@@ -12754,6 +13157,47 @@ class Api:
         if isinstance(r, dict) and "fotos" in r:
             r["clips"] = r.pop("fotos")
         return r
+
+    def schnellvideo_titel_vorschlaege(self, path: str) -> dict:
+        """05.10.2026 (Block 2, Video-Assistent „Titel vorschlagen") — bis zu drei Titel aus der Strecke, im Hintergrund
+        (Photon, gecacht über _ort_am_punkt): benannter Gipfel am höchsten Punkt („Teide · 3715 m"), Start → Ziel bzw.
+        „Rund um <Ort>" bei Rundtouren. Grammatisch neutral (der Artikel eines Gipfels ist unbekannt). Ohne Netz: leer."""
+        from core import highlights as chl
+        T = _ui_t()
+        try:
+            pts, st = cgpx.parse_gpx(self._ensure_gpx(str(path or "")))
+            if len(pts) < 2:
+                return {"ok": True, "titel": []}
+            raus = []
+            try:
+                pd = [{"lat": q.lat, "lon": q.lon, "ele": q.ele, "time": q.time} for q in pts]
+                hp = chl.hoechster_punkt(pd)
+                if hp:
+                    g = self._ort_am_punkt(hp["lat"], hp["lon"], 600, True)
+                    if g and g.get("name"):
+                        raus.append((T("schnell.titel_gipfel", "{name} · {ele} m") if g.get("ele") else "{name}")
+                                    .replace("{name}", g["name"]).replace("{ele}", str(int(round(float(g.get("ele") or 0))))))
+                def ortsname(la, lo):   # nächster benannter Ort (Stadt/Dorf/Ortsteil) im Umkreis von 3 km
+                    tags = ["place:city", "place:town", "place:village", "place:suburb", "place:hamlet"]
+                    try:
+                        fs = chl._photon_reverse(la, lo, 3.0, tags, 5.0)
+                    except Exception:  # noqa: BLE001
+                        return ""
+                    return str(((fs or [{}])[0].get("properties") or {}).get("name") or "").strip()
+                a, b = pts[0], pts[-1]
+                rund = chl._haversine_m(a.lat, a.lon, b.lat, b.lon) < 1500
+                na = ortsname(a.lat, a.lon)
+                nb = na if rund else ortsname(b.lat, b.lon)
+                if na and (rund or na == nb):
+                    raus.append(T("schnell.titel_runde", "Rund um {ort}").replace("{ort}", na))
+                elif na and nb:
+                    raus.append(T("schnell.titel_strecke", "{a} → {b}").replace("{a}", na).replace("{b}", nb))
+            except chl.KeinNetz:
+                pass
+            return {"ok": True, "titel": list(dict.fromkeys(t for t in raus if t))[:3]}
+        except Exception as e:  # noqa: BLE001
+            log.info("schnellvideo_titel_vorschlaege: %s", e)
+            return {"ok": True, "titel": []}
 
     def schnellvideo_bebaut(self, path: str) -> dict:
         """03.10.2026 — Führt die Tour durch einen Ort? (Schnell-Video: Zutat „3D-Häuser" dann vorwählen.)
@@ -12914,6 +13358,10 @@ class Api:
         if isinstance(wm, dict) and wm.get("path"):
             for z in logo.get("zeilen") or []:
                 if isinstance(z, dict) and z.get("typ") == "bild":
+                    # 05.10.2026 — eingebautes Logo: die Fassung des Looks bleibt (hell → „@lockup-dark");
+                    # nur ein eigenes Logo aus den Vorgaben ersetzt es
+                    if str(wm["path"]).startswith("@lockup-") and str(z.get("pfad") or "").startswith("@lockup-"):
+                        continue
                     z["pfad"] = str(wm["path"])
         else:
             cont.remove(logo)
@@ -15872,7 +16320,7 @@ def _app_neu_starten() -> None:
 
 def _startdatei_aus_argv() -> Optional[str]:
     """Erste geöffnete Datei aus den Startargumenten (.rzproj oder Track)."""
-    endungen = (".rzproj", ".gpx", ".fit", ".kml", ".kmz", ".tcx", ".geojson", ".nmea")
+    endungen = (".rzproj", ".gpx", ".fit", ".kml", ".kmz", ".tcx", ".geojson", ".nmea", ".igc")
     for arg in sys.argv[1:]:
         if arg.startswith("-"):
             continue
@@ -15882,6 +16330,43 @@ def _startdatei_aus_argv() -> Optional[str]:
         if arg.lower().endswith(endungen) and os.path.exists(arg):
             return arg
     return None
+
+
+# 06.10.2026 (Marc: „Fotos erste Seite holen … dauert einfach zu lang", Log ohne Zeiten) — jeder Aufruf aus der
+# Oberfläche, der länger als BRUECKE_LANGSAM_S dauert, steht mit Namen und Dauer im Log. Dialoge (warten auf den
+# Menschen) und bewusst lange Vorgänge zählen nicht. `__wrapped__` (Kennung der Doppelstart-Sperre) und die Signatur
+# bleiben erhalten (pywebview und test_doppelstart_sperre lesen sie).
+BRUECKE_LANGSAM_S = 0.7
+_BRUECKE_NICHT = re.compile(r"pick|waehlen|wählen|dialog|confirm|render|export|import|scan_start|install|update|"
+                            r"umziehen|zip|loeschen|herunterladen|download|laden$|_start$|open_|oeffnen", re.I)
+
+
+def _bruecke_mit_zeit(name, fn):
+    import functools
+    import inspect
+
+    def huelle(self, *a, **k):
+        t0 = time.perf_counter()
+        try:
+            return fn(self, *a, **k)
+        finally:
+            dt = time.perf_counter() - t0
+            if dt > BRUECKE_LANGSAM_S:
+                log.info("[brücke] %s %.0f ms", name, dt * 1000)
+    functools.update_wrapper(huelle, fn, assigned=("__module__", "__name__", "__qualname__", "__doc__"), updated=())
+    if hasattr(fn, "__wrapped__"):
+        huelle.__wrapped__ = fn.__wrapped__
+    try:
+        huelle.__signature__ = inspect.signature(fn)
+    except (TypeError, ValueError):
+        pass
+    return huelle
+
+
+for _n, _f in list(vars(Api).items()):
+    if callable(_f) and not _n.startswith("_") and not isinstance(_f, (staticmethod, classmethod, type)) \
+            and not _BRUECKE_NICHT.search(_n):
+        setattr(Api, _n, _bruecke_mit_zeit(_n, _f))
 
 
 def main() -> None:
@@ -16367,13 +16852,17 @@ def _db_gesperrt(fn):
 
     @functools.wraps(fn)
     def huelle(self, *args, **kwargs):
+        t_w = time.perf_counter()
         with clib._DB_LOCK:
+            w = time.perf_counter() - t_w
+            if w > 0.3:   # Review 06.10.2026: die echte Wartezeit auf die Sperre — innen hält der Faden sie schon
+                log.info("[sperre] %s wartete %.0f ms auf die Bibliothek", fn.__name__, w * 1000)
             return fn(self, *args, **kwargs)
     return huelle
 
 
 for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage", "fotos_punkte", "fotos_ordnerbaum",
-              "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum", "schnellvideo_fotos",
+              "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum",
               "geotagger_tracks_fuer_fotos", "fotostopp_info"):
     setattr(Api, _name, _db_gesperrt(getattr(Api, _name)))
 
