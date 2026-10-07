@@ -829,8 +829,9 @@ def kontext_oeffnen_menge(daten: dict, pfade: list, hashes: list, ablauf: str,
             et = anim.get("extra_tours") if isinstance(anim, dict) else None
             if not isinstance(et, list):
                 continue
+            # 07.10.2026 — geplante Etappen (`etappe`, Block 4) liegen nicht im Archiv, gehören aber zum Projekt
             behalten = [t for t in et if isinstance(t, dict)
-                        and nfc(t.get("gpx_path")) in mitglieder]
+                        and (nfc(t.get("gpx_path")) in mitglieder or isinstance(t.get("etappe"), dict))]
             if len(behalten) != len(et):
                 log.info("Komposition %s: %d fremde Etappe(n) aus Projekt %r entfernt",
                          key, len(et) - len(behalten), p.get("name"))

@@ -3715,6 +3715,10 @@ Zwischenspeicher bedient zu werden).
 
 **Zeitlimit und Nachtlauf (06.10.2026):** `run_tests.py` bricht jede Testdatei nach 30 min ab (`RZ_TEST_ZEITLIMIT_S`) und zählt sie als rot — ein hängender Test hatte die Nacht-Suite fast 3 Stunden blockiert. `scripts/nachtlauf.py` startet die Suite mit eigener Umgebung (`_umgebung()`): launchd liefert nur `/usr/bin:/bin:/usr/sbin:/sbin`, ohne `/opt/homebrew/bin` fehlten node/ffmpeg/ffprobe und 38 Tests wurden rot, ohne dass am Code etwas war. Dazu `RZ_NACHTLAUF=1`: Tests schauen dann nicht in Schreibtisch/Downloads — macOS fragt einen Hintergrundprozess dort nach der Erlaubnis, und der Test wartet, bis jemand klickt.
 
+**Bibliothek der Kopie (07.10.2026):** `spiegeln()` biegt `bibliothek.json` in der Kopie auf deren eigene `Bibliothek/` um. Der Zeiger kam mit festem Pfad auf die Bibliothek des Arbeitsordners mit — Tests, die ihr Prüfprojekt in `ROOT/Bibliothek/projekte.json` anlegen (`test_gruppen_projekt`, `test_reise_dauer_vorschau`), fanden die Projektkarte nicht, weil die App aus dem Arbeitsordner las; und die Suite schrieb nachts dorthin.
+
+**Zoom in Keyframes, die aus der laufenden Karte gerechnet werden (07.10.2026):** `value_absolute` ist immer der Vorschau-Zoom; `_zoomEffectiveOffset` legt im Render `_rzZoomShift()` drauf. Wer einen Zoom aus der Karte selbst holt (`cameraForBounds`, `effectiveFitZoomBase() + zoom_offset`) und als `value_absolute` speichert, muss den Zuschlag vorher abziehen — sonst ist das Video um ihn zu nah (`_haltKeyframes` → `bei()`, `_standardKeyframes` → `zV()`).
+
 ### Test-Fixtures regenerieren
 ```bash
 python tests/make_test_photos.py
@@ -6632,3 +6636,116 @@ Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen 
   jetzt auch `.igc` und `.srt`. Test `test_import_dji_srt`.
 - **3D-Häuser, Wirt-Ketten** (`_gebaeudeFaerbenKern`): `f.wirt` = größtes umschließendes Gebäude, `f.wurzel` = oberster Wirt der Kette (≤ 8 Schritte); gefärbt wird nach der Wurzel. Ändert sich ein Wirt, werden alle Teile mit diesem Wirt neu geprüft.
 - **Titel-Vorschläge** (`app.py schnellvideo_titel_vorschlaege`): höchster Punkt → `_ort_am_punkt(…, nur_gipfel)` (mit OSM-Höhe), Start/Ziel → Photon `place:*` im Umkreis 3 km (Rundtour < 1,5 km Abstand → „Rund um“); Vorlagen `schnell.titel_gipfel/_strecke/_runde`. Dialog: Chips `#sv-titel-vorschl`.
+
+## Geplante Etappen im Animator (07.10.2026, Block 4 „Reiseroute in den Animator“)
+
+Eine **Etappe** ist eine Zusatz-Tour (`_extraTours[i]`) mit `etappe: {id, wps:[{text, lon, lat, label, auto?}], arten:[art je
+Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise wie jede Tour (Gruppen, `_reiseBauen`).
+
+- **Rechnen:** `Api.etappe_berechnen(params)` = `route_compute`-Parameter + `projekt_id`, `etappe_id`, `alter_pfad`. Gemeinsamer
+  Kern mit `route_compute`: `Api._route_rechnen` (Straße/Bogen/gemischt, `core/route.gemischte_route`). Die GPX liegt in
+  `<DATEN_ORT>/etappen/<projekt>/<etappe>_<hash>.gpx`, **ohne Zeitstempel** (`write_gpx(duration_s=0)`); die alte Fassung geht
+  über den Dateischutz (`etappe_ersetzt`) in den Papierkorb. Vor dem Rechnen schreibt der Animator ein schwebendes Projekt fest
+  (`projektFuerRenderSichern`), damit es eine Kennung hat.
+- **Editor** (Panel `#anim-etappe-editor` rechts über `rzDetailSpalte.aufnehmen`, Kopf mit `.sign-editor-x` — Esc/anderes Panel schließen es; Rückfall unter der Tourenliste): `_etappeNeu/_etappeBearbeiten/_etEdZeichnen/_etSuchen/_etBerechnen/_etappeErsetzen` (modules/animator/ui/module.js,
+  vor `_animAddTourPath`-Nachbarn). Stationen per `route_geocode` (Bias = Nachbarstation) oder Kartenklick
+  (`window.__rzEtappeKlick`, im `map.on("click")` nach `_routeOnMapClick`). **Platz** (`_etKette`, `_etPlatzFuellen`): Index in
+  `_gruppen`; Start/Ziel vorbelegt mit Ende davor/Anfang danach (`auto: true`, wird beim Eintippen/Klicken überschrieben).
+- **Vor Tour 1:** Etappen-Gruppen dürfen vor der Haupt-Gruppe stehen (`_etGruppeAn`, `_etVerschieben`, `_etVorHaupt`); die Liste
+  hängt solche Zeilen über `.anim-etappe-erste`; `_extraTours` folgt der Gruppenreihenfolge (`_etListeNachGruppen`).
+  `_gruppenSync` stellt Tour 1 nur nach vorn, wenn sie noch in keiner Gruppe steckt.
+- **Laufpunkt:** `_dotStilAktuell` → `_etappeArtAn(tour, ll, etappe)` (Abschnittsgrenzen = nächster Etappenpunkt zu `abschnitte[].bis`,
+  je Tour gecacht). Die Reise rechnet mit verdünnten Kopien — die Etappe hängt am Original `tour.tr.etappe`.
+- **Speichern/Laden:** `etappe` in `_animPersistTours` und `_animLoadToursInner`. Selbstreparatur `kontext_oeffnen_menge`
+  (core/projekte.py) lässt Einträge mit `etappe` stehen.
+- **Paket:** `projektpaket._etappen_einpacken` (Export: `etappen/NNN_<datei>`, Eintrag `etappe_zip`), `Api._etappen_auspacken`
+  (Import einzeln/Menge: nach `<DATEN_ORT>/etappen/<pid>/`, Pfade in `extra_tours`, `gruppen[].mitglieder`, `leit_gpx`, `tours_fokus`).
+- **Zeichnen (07.10.2026, wie MapAnimator):** Zustand `_etNeuerZustand()` = `{wps, arten, kurve[], weich, grob, sel, teile: Map, verlauf}`.
+  `kurve[i]=false` heißt „Straße folgen“: der Abschnitt kommt aus `Api.etappe_abschnitt({von, nach, art, grob})` (eins nach dem
+  anderen in `_etTeileHolen`, Speicher `_ETAPPE_ABSCHNITT_CACHE`; „grob“ wirkt relativ zur Luftlinie, voll ab ~300 km, mind. 3 %).
+  `kurve[i]=true` ist eine kubische Bézier in normiertem Web-Mercator (`_etM/_etLL/_etBezier`): Hebel je Punkt aus
+  `w.hebel {ang, ln, lv}` (gezogen, `_etHebelGezogen` setzt beide Nachbar-Abschnitte auf Kurve) oder automatisch Catmull-Rom ×
+  `weich`; `w.scharf` = Hebel 0. Karte: Quelle `et-edit` (Ebenen `et-edit-kontur/-linie/-linie-fehlt/-hebel`, alle 0,5 s per
+  `moveLayer` nach oben), Marker `.et-pt` (ziehbar), `.et-griff` (nur am ausgewählten Punkt), Menü `.et-menue` (Versatz über den
+  höchsten Hebel). Tasten `_etTaste` (capture): ⌘Z gehört bei offenem Editor immer ihm (`stopImmediatePropagation`, sonst nahm
+  das globale Undo die vorige Etappe zurück), Esc, Entf. Ortsnamen: `Api.etappe_ortsname(lat, lon)` (Photon, place:*, 5 km),
+  `_etOrtHolen`. Speichern: `_etUebernehmen` setzt die Linie zusammen → `Api.etappe_speichern({coords, …})`; schließt die Etappe
+  an eine Tour an (`wps[0].auto` / letzter `auto`), bekommt der Übergang `luftlinie` 1,5 s statt Kinoflug.
+- **Fahrzeugleiste/Punkt-Leiste/Stilwechsel (07.10.2026):** `.et-fahrzeuge` (`_ET_SYMBOL` nur für die Oberfläche) setzt `arten`
+  ab `sel` (sonst alle), `_etFzLeiste` hält sie bei Auswahlwechsel aktuell. Die Punkt-Leiste `.et-menue` ist ein absolut
+  positioniertes Element in `map.getContainer()` (kein Marker): `_etMenueLage` rechnet aus `map.project` über den höchsten
+  Hebel, klemmt in den Kartenrand, folgt `map.on("move")`; Griff `.et-menue-griff` verschiebt per Pointer (`_etMenueVersatz`,
+  gilt bis zur nächsten Auswahl). `rebuildPreviewLayers` ruft `window.__rzEtappeNeuZeichnen` (setStyle wirft `et-edit` weg);
+  `_etKarteZeichnen` legt Marker neu an, wenn `map` ein neues Objekt ist (`_etMarkerKarte`).
+- **Archiv-Start (07.10.2026):** Teilindizes `idx_fotos_kamera_da`/`idx_fotos_jahr_da` (core/fotos.py SCHEMA) für
+  `kameras()`/`jahre()` — vorher Durchgang über alle Fotos unter `clib._DB_LOCK`, alle anderen Archiv-Brücken warteten.
+  Start-Sicherung `_bib_sichern_still(nur_wenn_alt=True)`: nur wenn die neueste Sicherung älter als
+  `BIB_SICHERUNG_ABSTAND_S` (20 h); sie und die Hintergrund-Prüfung warten `BIB_SICHERUNG_WARTEN_S` (60 s).
+  Dazu `idx_fotos_da` (Zählen in `abfrage()`), `idx_fotos_ohne_gps` („ohne Koordinate“), `idx_fotos_tag_da` (Datumsbaum).
+  Neue Abfragen mit `fehlt_seit IS NULL` brauchen einen passenden Teilindex — sonst lesen sie alle Zeilen unter der Sperre.
+  Archiv-Wächter `watchAutoThumbs` (modules/library) startet keine neue Runde, solange die vorige läuft.
+  **Letzter Stand der Medien:** `Api._fotos_merken(teil, daten)` (Hintergrund-Faden, `_ds.ersetzen` ART_CACHE) schreibt
+  `APP_SUPPORT/fotos_letzter_stand.json` je Bibliothek: `seite` (fotos_abfrage offset 0 ohne Filter/Suche, mit `fps`),
+  `ordner`, `werte`, `datumsbaum`/`ordnerbaum` (ohne Filter). `Api.fotos_letzter_stand()` liest nur die Datei + Vorschaubild-
+  Speicher. ui/js/fotos.js `mount`: beim ersten Öffnen erst das, dann wie bisher frisch; Hinweis `.foto-alt-stand`
+  (`altStandZeigen`). Ladeanzeigen `ordnerLaedt`/`ladeHtml` (Medien), `_ladePlatz` (Touren-Archiv). `ordnerbaum()` zählt in SQL.
+- **Fahrzeug-Aussehen (07.10.2026, I-287):** `FZ_STILE` (`plakette` = `_fahrzeugBild` wie bisher, sonst Bild
+  `ui/img/fahrzeuge/<fz>_<stil>.png`, 192 px, Draufsicht, Front oben; geschnitten mit `scripts/fahrzeug_icons_schneiden.py`).
+  `_fzBild(art, stil)` lädt über `new Image()` als data:-URL aus `Api.fahrzeug_bild(key)` (ein file://-Bild darf MapLibre nicht
+  auslesen → SecurityError in WebKit-Prüfstand und Chromium-Render; die Kacheln der Auswahl zeigen das Bild direkt über
+  `window.__rzAssetBase`, weil die App aus einer Temp-Kopie lädt) und baut
+  nach dem Laden die Laufpunkt-Ebene neu; fehlt ein Bild, bleibt die Plakette. Ebene `anim-dot-fz` dann mit `icon-rotate: brg`,
+  Ausrichtung `map`, `pixelRatio: 4`. Einstellung `marker_dot_fz_stil` (global, verstecktes `#anim-dot-fz-stil`); die Kacheln
+  (`_dotKacheln`) stehen im Aussehen-Editor je Tour und setzen die versteckten Listen. `__rzAnimBereit().fzBilder`, core/szene.py
+  wartet darauf.
+- **Standard-Keyframes (07.10.2026, Kamera-Basis Schritt 1):** `getEffectiveEvents()` = eigene Keyframes (Editor an und
+  vorhanden), sonst `_standardKeyframes()`: `buildDefaultEvents()` + in der Reise Mitte/Zoom je Tour (Anfang der Tour,
+  `sprung` nach Schnitt/Pause) und je Übergang Abtastungen von `_reiseKamera` (2–12 Stellen, `_ankerAusBahn` = Umkehrung von
+  `fracAusFortschritt`); bei „Kamera folgt Track“ Mitte `null` in den Touren. Markierung `standard: true`, gemerkt je Bahn/
+  Tempo-Karte. Der Überschreib-Block `_rKam` im Bildaufbau ist weg; `_manualCamGet` gibt in der Reise `null`. Easing
+  `sprung` (`_applyEasing`, kein van-Wijk in einen Sprung). Editor EIN → Modal `md-kf-mit/md-kf-ohne`; Übergangs-Art bei
+  eigenen Keyframes → `_uebergangKfEinsetzen(g)` (ersetzt Mitte/Zoom zwischen Ende der Tour davor und Anfang von g).
+  Prüfstand: `__rzStandardKeyframes`, `__rzKamLetzt`, `__rzGruppeUebergang`. Kinoflug = 5 Stellen (q 0/.25/.5/.75/1),
+  Luftlinie = 2.
+- **Halte als Keyframes (07.10.2026, Kamera-Basis Schritt 2):** `_haltKeyframes(basis)` legt Foto-Stopps und Orbit als
+  Keyframes auf die Basis (Standard oder eigene; Markierung `stopp: "fs:i"` / `"orbit:x"`). Anker aus der Animationszeit
+  (`tA + s/animSekunden()·(tB−tA)`), Grundwerte über `interpolateCameraJs(basis, …)`. Foto-Stopp: Mitte/Zoom bei p0, pa
+  (ease_in_out), pb, p1 (ease_in_out), Drehungs-Schwenk bei ¼ und ¾. Orbit: Drehung pa → pb (+12°/s), danach in 1,5 s zurück.
+  Ohne Keyframe-Editor kommen Fest/Folgen aus `_basisKeyframes()` (konstanter Satz). Die Zusätze im Bildaufbau, beim Ziehen
+  und im Faith-Pfad (`_fsKamera`, Orbit, `_mcRun`) sind weg; `_haltSchluessel()` gehört zum Merk-Schlüssel.
+- **Touren-Spur oben (07.10.2026, Kamera-Basis Schritt 3):** timeline.js baut die Tempo-Spur in einen eigenen Behälter
+  `#tl-touren` (Klasse `timeline-lanes timeline-touren`) über `#tl-ov`; die Gruppen-Zeilen hängen darunter
+  (`_gruppenZeilenSicherstellen` nimmt `tempoLane.parentElement`). Ohne Keyframe-Editor wird der Keyframe-Behälter
+  (`.timeline-lanes:not(.timeline-touren)`) ganz ausgeblendet. Übergangs-Bänder ab 110 px tragen Art + Dauer.
+- **Etappen Punkte 5–10 (07.10.2026):** `etappe_speichern` bekommt `teile` [{von, bis, art}] (aus `_etLinieTeile`) und
+  schreibt über `_etappe_hoehen` Geländehöhen (core/demsample, z12, ≤2500 Stützstellen) und je Punkt die Extension `rz_flach`
+  für Flug/Schiff/Bahn (`core/route.write_gpx(eles, flach)`). core/gpx liest `rz_flach` als `extra`, rechnet Bergauf/Bergab
+  nur über Läufe ohne flache Punkte; `animator_load_gpx` liefert `flach` (oben und in `series`). Pool-Einträge tragen
+  `etappe`/`flach`; `_reiseSerieBauen` hält die Zeit in Etappen an (statt `has_time=false`) und gibt `flach` weiter,
+  `_ovCumHm` überspringt flache Schritte, `_ovFieldValue` rechnet Tempo nur mit `kmZeit`. Dauer: `_gruppenRohS` gibt einer
+  Etappe `Ø-Tourmaß × _etZeitAnteil(etappe)` (Grundwert je Verkehrsmittel × √(km/40), 0,2–1,5). Stations-Schilder in
+  `_hlSchilderAbgleichen` (`auto: "station:<id>:<i>"`, Stil `pin`). `etappe_ins_archiv` kopiert nach `APP_SUPPORT/import`
+  und liest ein. Punkt 10: `_hauptEtappe` (`animator.haupt_etappe`), Übernehmen ohne Haupt-Track → `loadGpxByPath`;
+  `drawPreview` öffnet bei frei-Sitzung + `_hauptEt()` KEINE Track-Sitzung (`_freiEtappe`); `_animLoadToursInner` lädt sie
+  und entlädt sie bei Projektwechsel (`_hauptEtappeEntladen`); `__rzAnimBereit().route` wartet darauf.
+  Einstieg `rzKartenanimationOhneGps(name)` (util.js; schließt vorher einen offenen Track über `clearGlobalGpx`).
+  `projekt_frei_anlegen`/`session_open_for_frei` rufen `_letztes_projekt_nachziehen` (Neustart öffnet das leere Projekt).
+  `_etappe_hoehen`: Kachelstufe nach Länge (z12 < 40 km, z11 < 120 km, sonst z10), Kacheln vorab parallel (8 Fäden).
+  Tests `test_etappe_animator` (L), `test_etappe_ohne_gps` (eigene settings.json: sonst merkt der Prüfstand nichts).
+- **Kamera „Start → Ziel“ (07.10.2026):** `rzEinfach.kameraSetzen("startziel")` → `startZielKeyframes` (je Anker 0/1
+  Neigung 40°, Norden, Zoom-Versatz aus der Diagonale, Mitte = `__rzStartZiel()`), merkt `kamera_vorgabe`; Pille in der
+  Kamera-Karte, Rückfrage vor dem Ersetzen eigener Keyframes. Test `test_kamera_karte` G.
+- **Einblendungen stapeln (07.10.2026):** `_ctStapeln(layer, liste)` nach `_ctRendern`, nach 350 ms und per
+  ResizeObserver: je Rand (t/b) Boxen mit waagerechter und zeitlicher Überschneidung (`_ctZeiten`) rücken vom Rand weg
+  (Inline-`top`/`bottom` in %, `data-gestapelt`). Test `test_einblendungen_format`.
+- **Track-Editor (07.10.2026):** `_trackEdOeffnen(ziel)` („haupt“ oder gpx_path) baut `#anim-track-editor` in
+  `rzDetailSpalte` (Rückfall unter der Liste): Farbe (`.tred-farbe` → Listen-Farbfeld bzw. `#anim-color`), `_stilPanelBauen`
+  wie bisher, bei Etappen `.tred-route` → `_etappeBearbeiten`. `_trackEdNachListe` schließt ihn, wenn der Track weg ist. Die
+  Liste klappt nichts mehr auf (`_stilOffen` ungenutzt).
+- **Ebenen-Reihenfolge der Vorschau (07.10.2026):** `_rzRaiseOverlayLayers` hebt in festen Schichten (`rang`): Linien (`preview-`,
+  `gpx-ghost`, `mtrack`, `mtour-`, `swarm-prev-` außer Punkten, `ganz-prev-`) → `photo-pins` → `anim-signs` → Laufpunkte (`anim-dot`,
+  `swarm-prev-dots`) → `et-edit-`; läuft nach `rebuildPreviewLayers` und am Ende von `_animDrawExtraToursPreview`. Der Render
+  (core/animator.py) legt die Foto-Pins ohnehin nach allen Track-Ebenen an.
+- Prüfstand: `window.__rzEtappe` (`neu, bearbeiten, editor, touren, bahnN, dotStil, linie, hebel, klick, waehlen, scharf, verschiebe, linieAufKarte, karte, neuZeichnen`). Tests `test_etappe_animator` (A–I), `test_etappe_paket`.
+- Offen (PLAN §3): Stationsschilder, Dauer nach Strecke/Verkehrsmittel, Höhen/Einblendungen, Projekte ohne GPS + Übernahme alter
+  Reiseroute-Projekte (Modul entfällt), „Ins Archiv übernehmen“.

@@ -244,6 +244,10 @@ def _ext_key(tag):
         return _sensors.RZ_READ[ln]
     if ln in ("power", "powerinwatts"):
         return "power"
+    if ln == "rz_flach":
+        # 07.10.2026 (Etappen, Grilling Punkt 8) — Punkt einer geplanten Etappe im Flug, auf dem Wasser oder in der
+        # Bahn: Höhe nur zur Anzeige (flach), zählt nicht zu Bergauf/Bergab
+        return "rz_flach"
     return None
 
 
@@ -827,7 +831,7 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     # Messwerte. `rz_uebergang` stand dadurch als wählbares Datenfeld zwischen
     # Puls und Trittfrequenz — ein Wahrheitswert, den niemand einblenden will.
     # Interne Marker heißen alle `rz_uebergang…` und fliegen hier raus.
-    _seen_fields -= {k for k in _seen_fields if str(k).startswith("rz_uebergang")}
+    _seen_fields -= {k for k in _seen_fields if str(k).startswith("rz_uebergang") or k == "rz_flach"}
     sensor_fields = _sensors.describe_fields(_seen_fields)
 
     # Kumulierte Distanz/Zeit + Auf-/Abstieg
@@ -870,17 +874,22 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     # Marc-Spec 2026-05-24: „Bergauf/bergab in den gesamtstats stimmt nicht".
     # v0.9.483 — je Etappe getrennt: der Höhenunterschied zwischen dem Ende einer Etappe
     # und dem Start der nächsten (anderer Ort, oft anderes Tal) ist kein Anstieg.
+    # 07.10.2026 — Punkte mit `rz_flach` (Flug/Schiff/Bahn einer geplanten Etappe) zählen gar nicht: Läufe aus
+    # „normalen“ Punkten werden einzeln gerechnet, ein flacher Abschnitt dazwischen trennt sie wie eine Etappengrenze.
     ascent = descent = 0.0
     _seg_start = 0
     for _i in range(1, len(pts) + 1):
         if _i == len(pts) or pts[_i].seg != pts[_seg_start].seg:
-            _a, _d = _compute_ascent_descent(
-                [p.ele for p in pts[_seg_start:_i]],
-                smooth_window=5,
-                threshold_m=3.0,
-            )
-            ascent += _a
-            descent += _d
+            _lauf: list = []
+            for p in pts[_seg_start:_i] + [None]:
+                if p is None or p.extra.get("rz_flach"):
+                    if len(_lauf) > 1:
+                        _a, _d = _compute_ascent_descent(_lauf, smooth_window=5, threshold_m=3.0)
+                        ascent += _a
+                        descent += _d
+                    _lauf = []
+                else:
+                    _lauf.append(p.ele)
             _seg_start = _i
 
     # Bewegungszeit + Spitzentempo auf voller Auflösung (siehe Helper-Docstring).

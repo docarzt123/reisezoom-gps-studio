@@ -1303,3 +1303,8 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .foto-bar #foto-suche { flex: 2 1 280px; max-width: 460px; }
 .foto-inh-wahl { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 .foto-inh-wahl-hilfe { margin-top: 6px; font-size: 11.5px; }
+
+/* 07.10.2026 — Medien: gemerkter Stand steht sofort, die frische Seite kommt gleich (Marc) */
+.foto-alt-stand { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
+  padding: 7px 12px; border-radius: 8px; font-size: 12px; color: var(--text);
+  background: color-mix(in srgb, var(--accent, #48d6c4) 16%, var(--bg-2, #1b2229)); border: 1px solid color-mix(in srgb, var(--accent, #48d6c4) 40%, transparent); }

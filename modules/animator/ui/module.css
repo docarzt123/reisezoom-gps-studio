@@ -1484,3 +1484,91 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .tm-bild.ist-schild::after { content: "🚩"; position: absolute; top: 3px; right: 4px; font-size: 11px; }
 .tm-bild.ist-video::before { content: "▶"; position: absolute; top: 3px; left: 5px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; z-index: 1; }
 .tm-zeit { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px; font-size: 10px; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.65)); text-align: left; }
+
+/* 07.10.2026 (Block 4) — „＋ Etappe erstellen“: zwei Knöpfe nebeneinander, Editor unter der Tourenliste */
+.anim-tours-knoepfe { display: flex; gap: 6px; margin-top: 4px; }
+.anim-tours-knoepfe .btn { flex: 1; }
+/* Rechts in der Detail-Spalte (wie Medien der Tour); als Rückfall unter der Tourenliste */
+.anim-etappe-editor { padding: 12px; box-sizing: border-box; overflow-y: auto; }
+.anim-etappe-editor.im-detail { height: 100%; }
+.anim-etappe-editor:not(.im-detail) { margin-top: 8px; border: 1px solid var(--accent, #48d6c4); border-radius: 8px; background: var(--bg-2); }
+.anim-etappe-editor .et-kopf { margin-bottom: 6px; }
+.anim-etappe-editor .et-platz { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; }
+.anim-etappe-editor .et-hint { font-size: 11px; line-height: 1.4; margin-bottom: 8px; }
+.anim-etappe-editor .et-wp { display: flex; align-items: center; gap: 5px; }
+.anim-etappe-editor .et-wp.ist-pick { outline: 1px dashed var(--accent, #48d6c4); outline-offset: 2px; border-radius: 4px; }
+.anim-etappe-editor .et-nr { width: 16px; text-align: center; font-weight: 700; font-size: 11px; color: var(--accent, #48d6c4); }
+.anim-etappe-editor .et-wp-input { flex: 1; min-width: 0; }
+.anim-etappe-editor .et-status { font-size: 10.5px; margin: 1px 0 1px 21px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anim-etappe-editor .et-status:empty { display: none; }
+/* Abschnitt zwischen zwei Stationen: eingerückt an einer Verbindungslinie, Fahrzeug + Straße/Bogen in einer Zeile */
+.anim-etappe-editor .et-art { display: flex; align-items: center; gap: 6px; margin: 2px 0 2px 7px; padding: 3px 0 3px 12px; border-left: 2px solid color-mix(in srgb, var(--accent, #48d6c4) 45%, transparent); font-size: 11px; color: var(--text-muted); }
+.anim-etappe-editor .et-art select { flex: 1; min-width: 0; font-size: 11.5px; }
+.anim-etappe-editor .et-fuss { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+.anim-tour-row.ist-geplant .anim-tour-name::before { content: "🗺 "; }
+
+/* 07.10.2026 — Etappe zeichnen (Vorbild MapAnimator, in unseren Farben): Punkte als Kreise, ausgewählt türkis, Hebel mit
+   zwei Anfassern, kleine Leiste über dem ausgewählten Punkt */
+.et-pt { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid #0f1a20; box-shadow: 0 1px 3px rgba(0,0,0,.45); cursor: grab; box-sizing: border-box; }
+.et-pt.ist-ende { width: 15px; height: 15px; }
+.et-pt.ist-sel { background: var(--accent, #48d6c4); border-color: #fff; }
+.et-pt.ist-scharf { border-radius: 2px; }
+.et-pt:active { cursor: grabbing; }
+.et-griff { z-index: 3; width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2px solid var(--accent, #48d6c4); box-sizing: border-box; cursor: grab; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.et-menue { position: absolute; z-index: 6; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 8px; background: rgba(16,22,28,.94); box-shadow: 0 4px 14px rgba(0,0,0,.45); font-size: 11.5px; white-space: nowrap; }
+.et-menue button { background: transparent; border: 0; color: var(--text, #e8eef2); padding: 4px 8px; border-radius: 6px; cursor: pointer; font: inherit; }
+.et-menue button:hover { background: rgba(255,255,255,.08); }
+.et-menue button.ist-weg { color: #ff8a7a; }
+.et-menue label { display: flex; align-items: center; gap: 4px; padding: 0 6px; color: var(--text-muted, #9aa7b2); border-left: 1px solid rgba(255,255,255,.1); border-right: 1px solid rgba(255,255,255,.1); }
+.et-menue select { font-size: 11.5px; }
+.anim-etappe-editor .et-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 2px 0 8px; }
+.anim-etappe-editor .et-zahlen > div { background: var(--bg-3, rgba(255,255,255,.04)); border-radius: 6px; padding: 6px 8px; }
+.anim-etappe-editor .et-zahlen i { display: block; font-style: normal; font-size: 10.5px; color: var(--text-muted); }
+.anim-etappe-editor .et-zahlen b { font-size: 14px; }
+.anim-etappe-editor .et-knoepfe { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.anim-etappe-editor .et-wp.ist-sel { background: color-mix(in srgb, var(--accent, #48d6c4) 14%, transparent); border-radius: 5px; }
+.anim-etappe-editor .et-art .et-folgen { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+.anim-etappe-editor .et-regler { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 6px; font-size: 11.5px; color: var(--text-muted); }
+.anim-etappe-editor .et-regler label { display: flex; flex-direction: column; gap: 2px; }
+.anim-etappe-editor .et-station-plus { width: 100%; margin: 2px 0 6px; }
+.anim-etappe-editor .et-anleitung { font-size: 11px; color: var(--text-muted); margin: 6px 0; }
+.anim-etappe-editor .et-anleitung summary { cursor: pointer; font-weight: 600; color: var(--text); }
+.anim-etappe-editor .et-anleitung ol { margin: 6px 0 0; padding-left: 18px; line-height: 1.45; }
+.anim-etappe-editor .et-zustand { font-size: 11px; min-height: 14px; }
+.anim-etappe-editor .et-zustand.ist-fehler { color: #ff8a7a; }
+
+/* 07.10.2026 (Marc: „Verkehrsmittel kann ich noch gar nicht wählen … unübersichtlich“) — Fahrzeugleiste oben im Editor,
+   Griff an der schwebenden Punkt-Leiste */
+.anim-etappe-editor .et-fahrzeuge { margin: 0 0 10px; }
+.anim-etappe-editor .et-fz-titel { font-size: 11.5px; font-weight: 600; margin-bottom: 5px; }
+.anim-etappe-editor .et-fz-titel .muted { font-weight: 400; }
+.anim-etappe-editor .et-fz-knoepfe { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.anim-etappe-editor .et-fz { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 4px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--border, rgba(255,255,255,.12)); background: var(--bg-3, rgba(255,255,255,.04)); color: var(--text); font: inherit; }
+.anim-etappe-editor .et-fz span { font-size: 17px; line-height: 1.2; }
+.anim-etappe-editor .et-fz i { font-style: normal; font-size: 9px; color: var(--text-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.anim-etappe-editor .et-fz:hover { border-color: var(--accent, #48d6c4); }
+.anim-etappe-editor .et-fz.ist-an { border-color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 18%, transparent); }
+.anim-etappe-editor .et-fz.ist-an i { color: var(--text); }
+.anim-etappe-editor .et-kurve-hinweis { font-size: 10px; color: var(--accent, #48d6c4); white-space: nowrap; }
+.et-menue-griff { cursor: grab; padding: 3px 4px 3px 5px; color: var(--text-muted, #9aa7b2); user-select: none; touch-action: none; }
+.et-menue-griff:active { cursor: grabbing; }
+
+/* 07.10.2026 — Laufpunkt: Form und Fahrzeug-Aussehen als Bildkacheln */
+.dot-wahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; margin-top: 4px; }
+.dot-kachel { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; padding: 3px; cursor: pointer; border-radius: 7px;
+  border: 1px solid var(--border, rgba(255,255,255,.12)); background: var(--bg-3, rgba(255,255,255,.04)); color: var(--text); font: inherit; font-size: 17px; }
+.dot-kachel:hover { border-color: var(--accent, #48d6c4); }
+.dot-kachel.ist-an { border-color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 18%, transparent); }
+.dot-kachel-bild { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.dot-kachel-bild img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.dot-fzs-wahl .dot-kachel { background: #5d6e5f; }   /* mittleres Kartengrün — helle und dunkle Stile sind beide zu erkennen */
+
+/* 07.10.2026 — Track-Editor rechts in der Detail-Spalte (✎ an jedem Track) */
+.anim-track-editor { padding: 12px; box-sizing: border-box; overflow-y: auto; }
+.anim-track-editor.im-detail { height: 100%; }
+.anim-track-editor:not(.im-detail) { margin-top: 8px; border: 1px solid var(--accent, #48d6c4); border-radius: 8px; background: var(--bg-2); }
+.anim-track-editor .tm-kopf { margin-bottom: 8px; }
+.anim-track-editor .tred-farbe-zeile { margin-bottom: 8px; }
+.anim-track-editor .tred-route { width: 100%; margin-bottom: 10px; }
+.anim-track-editor .anim-stil-panel { margin: 0; padding: 0; border: 0; background: none; }

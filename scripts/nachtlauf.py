@@ -139,6 +139,18 @@ def spiegeln() -> None:
     gpx = SPIEGEL.parent / "GPX"
     if not gpx.exists() and (REPO.parent / "GPX").is_dir():
         gpx.symlink_to(REPO.parent / "GPX")
+    # 07.10.2026 — der Bibliotheks-Zeiger (bibliothek.json) kam mit festem Pfad auf die Bibliothek des
+    # ARBEITSORDNERS mit: Die Tests legten ihr Prüfprojekt in der Kopie an, die App las aus dem Arbeitsordner
+    # (test_gruppen_projekt, test_reise_dauer_vorschau seit dem 06.10. rot) — und die Suite schrieb dorthin.
+    # In der Kopie zeigt er deshalb auf ihre eigene Bibliothek.
+    zeiger = SPIEGEL / "bibliothek.json"
+    if zeiger.exists():
+        try:
+            d = json.loads(zeiger.read_text(encoding="utf-8"))
+            d["pfad"] = str(SPIEGEL / "Bibliothek")
+            zeiger.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        except (OSError, ValueError) as e:
+            _log(f"Bibliotheks-Zeiger der Kopie nicht umgebogen: {e}")
 
 
 def mitteilen(titel: str, text: str) -> None:

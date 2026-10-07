@@ -519,7 +519,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && b.fzBilder !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")

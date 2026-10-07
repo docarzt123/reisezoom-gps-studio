@@ -72,6 +72,36 @@ function mountAnimator(body, headerActions, opts) {
   // 05.10.2026 — Laufpunkt als Fahrzeug-Symbol (_fahrzeugBild)
   const FAHRZEUGE = ["wanderer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug"];
   const FAHRZEUG_NAMEN = { wanderer: "Wanderer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug" };
+  // 07.10.2026 (Marc: „von jedem Verkehrsmittel 10 Stück … mehr Comic, realistischer, handgezeichnet, passend zu den
+  // Kartenstilen“, IDEEN I-287) — Fahrzeug-Aussehen: „plakette“ = das gezeichnete Symbol wie bisher, sonst ein Bild aus
+  // ui/img/fahrzeuge/<fahrzeug>_<stil>.png (Draufsicht, Front nach oben; geschnitten mit scripts/fahrzeug_icons_schneiden.py).
+  // Fehlt ein Bild (Boot/Flugzeug noch nicht geliefert), bleibt es bei der Plakette.
+  const FZ_STILE = ["plakette", "foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"];
+  const FZ_STIL_NAMEN = { plakette: "Plakette (wie bisher)", foto: "Fotorealistisch", aquarell: "Bleistift & Aquarell", comic: "Comic",
+    piktogramm: "Piktogramm", kupferstich: "Kupferstich", neon: "Neon", pixel: "Pixel-Art", blaupause: "Blaupause", papier: "Papier", knete: "Knete" };
+  const _fzBilder = new Map();   // "auto_comic" → { img, ok, fehl }
+  // Die App lädt ihre Oberfläche aus einer Temp-Kopie (app.py) — per Skript gebaute Bild-Pfade brauchen die Asset-Basis;
+  // im Video-Render (ui/index.html direkt) ist sie leer, dort gilt der relative Pfad
+  const _fzPfad = (key) => (window.__rzAssetBase || "") + "img/fahrzeuge/" + key + ".png";
+  let _fzLaedt = 0, _fzNeuT = 0;
+  function _fzBild(art, stil) {
+    if (!art || !stil || stil === "plakette") return null;
+    const key = art + "_" + stil;
+    let e = _fzBilder.get(key);
+    if (!e) {
+      e = { img: new Image(), ok: false, fehl: false };
+      _fzBilder.set(key, e); _fzLaedt++;
+      const fertig = () => { _fzLaedt = Math.max(0, _fzLaedt - 1);
+        clearTimeout(_fzNeuT); _fzNeuT = setTimeout(() => { try { dotEbenenAufbauen(); dotSetzen(_dotFracZuletzt); } catch (err) { applog("warn", "[dot] Fahrzeugbild: " + err); } }, 30); };
+      e.img.onload = () => { e.ok = true; fertig(); };
+      e.img.onerror = () => { e.fehl = true; fertig(); };
+      // als data:-URL über die Brücke: ein file://-Bild darf die Karte nicht auslesen (SecurityError; Prüfstand, Video)
+      Promise.resolve(api() && api().fahrzeug_bild ? api().fahrzeug_bild(key) : null)   // warte-ok: Bild kommt im Hintergrund
+        .then((r) => { if (r && r.ok && r.data) e.img.src = r.data; else { e.fehl = true; fertig(); } })
+        .catch(() => { e.fehl = true; fertig(); });
+    }
+    return e.ok ? e.img : null;
+  }
   // Vorgabe für NEUE Projekte (01.09.2026, Marc: „größe, opacity und position
   // per default so, wie im aktuell offenen projekt").
   const WM_STANDARD = { path: "@lockup-white", x: 84.5, y: 91.3, w: 15, op: 0.65 };
@@ -648,10 +678,16 @@ function mountAnimator(body, headerActions, opts) {
             </label>
             <div id="anim-dot-opts" style="margin-top:8px;">
               <label class="field-label">${t("animator.dot.style", "Form")}</label>
-              <select id="anim-dot-style" class="select">
+              <div class="dot-wahl" id="anim-dot-wahl"></div>
+              <select id="anim-dot-style" class="select" hidden>
                 <option value="dot">${t("animator.dot.style_dot", "Kugel")}</option>
                 <option value="arrow">${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>
                 ${FAHRZEUGE.map(f => `<option value="${f}">${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}
+              </select>
+              <label class="field-label dot-fzs-titel" style="margin-top:8px;" title="${t("animator.dot.fz_stil_tip", "Wie Fahrzeuge aussehen — auch auf geplanten Etappen")}">${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="label-val" id="anim-dot-fzs-v"></span></label>
+              <div class="dot-wahl dot-fzs-wahl" id="anim-dot-fzs-wahl"></div>
+              <select id="anim-dot-fz-stil" class="select" hidden>
+                ${FZ_STILE.map(s => `<option value="${s}">${t("animator.dot.fzs_" + s, FZ_STIL_NAMEN[s])}</option>`).join("")}
               </select>
               <label class="field-label" style="margin-top:8px;">${t("animator.dot.size", "Größe")}
                 <span class="label-val" id="anim-dot-size-v">1.0×</span>
@@ -717,9 +753,14 @@ function mountAnimator(body, headerActions, opts) {
           </div>
           <div id="anim-tours-list" class="anim-tours-list"></div>
           <div id="anim-reise-bilanz" class="anim-reise-bilanz" hidden></div>
-          <button type="button" class="btn btn-small" id="anim-tours-add" style="width:100%; margin-top:4px;">
-            ＋ ${t("animator.tours.add", "Tour hinzufügen")}
-          </button>
+          <!-- 07.10.2026 (Block 4, Grilling 05.10. Punkt 2) — „＋ Etappe erstellen“ neben „＋ Tour hinzufügen“: geplante
+               Strecke (Flug, Fähre, Auto …) zwischen oder vor den echten Touren, Stationen eintippen oder auf die Karte klicken -->
+          <div class="anim-tours-knoepfe">
+            <button type="button" class="btn btn-small" id="anim-tours-add">＋ ${t("animator.tours.add", "Tour hinzufügen")}</button>
+            <button type="button" class="btn btn-small" id="anim-etappe-neu" title="${t("animator.etappe.neu_tip", "Eine geplante Strecke ohne GPS-Aufzeichnung: Anreise, Flug, Fähre, Autofahrt — Stationen eintippen oder auf die Karte klicken.")}">＋ ${t("animator.etappe.neu", "Etappe erstellen")}</button>
+          </div>
+          <!-- Der Etappen-Editor öffnet rechts in der Detail-Spalte (Marc 07.10.2026: „alle Einstellungen für die Reiseroute
+               rechts in der Sidebar“), siehe _etEdZeichnen -->
           <!-- 09.09.2026 — das Aussehen EINES Tracks auf alle kopieren, Feld für Feld wählbar. -->
           <button type="button" class="btn btn-small" id="anim-stil-alle" style="width:100%; margin-top:4px;" hidden>
             ⇉ ${t("animator.stil.alle", "Aussehen auf alle übernehmen …")}
@@ -857,6 +898,7 @@ function mountAnimator(body, headerActions, opts) {
               <div class="anim-pillen" role="radiogroup" id="anim-kamera-art">
                 <button type="button" class="anim-pille" role="radio" data-kamera-art="fest" title="${t("einfach.k_fest_t", "ganze Tour im Blick")}">${t("einfach.k_fest", "Fest")}</button>
                 <button type="button" class="anim-pille" role="radio" data-kamera-art="folgen" title="${t("einfach.k_folgen_t", "Kamera fliegt mit")}">${t("einfach.k_folgen", "Folgen")}</button>
+                <button type="button" class="anim-pille" role="radio" data-kamera-art="startziel" title="${t("einfach.k_startziel_t", "über dem Start, dann in einer ruhigen Fahrt zum Ziel")}">${t("einfach.k_startziel", "Start → Ziel")}</button>
                 <button type="button" class="anim-pille" role="radio" data-kamera-art="fahrt" title="${t("einfach.k_fahrt_t", "Überblick → Flug → Schlussblick")}">${t("einfach.k_fahrt", "Kamerafahrt")}</button>
               </div>
             </div>
@@ -1549,6 +1591,15 @@ function mountAnimator(body, headerActions, opts) {
     if (art === "fahrt" && hatKf) {
       const c = document.getElementById("anim-kf-enabled");
       if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event("change", { bubbles: true })); }
+    } else if (art === "startziel" && hatKf && keyframesEnabled() && typeof window.rzConfirm === "function") {
+      // 07.10.2026 — eigene Keyframes nie still ersetzen (⌘Z holt sie zurück, aber erst fragen)
+      window.rzConfirm(t("einfach.k_startziel", "Start → Ziel"),
+        t("animator.kamera.startziel_frage", "Deine Keyframes werden durch die Fahrt vom Start zum Ziel ersetzt. ⌘Z holt sie zurück."),
+        t("animator.kamera.ersetzen", "Ersetzen")).then(ok => {
+        if (ok && window.rzEinfach) window.rzEinfach.kameraSetzen("startziel");
+        setTimeout(_kameraKurzSync, 60);
+      });
+      return;
     } else if (window.rzEinfach && window.rzEinfach.kameraSetzen) {
       window.rzEinfach.kameraSetzen(art);
     }
@@ -1624,12 +1675,34 @@ function mountAnimator(body, headerActions, opts) {
     if (!cbKf) return;
     cbKf.addEventListener("click", (e) => {
       // checked reflektiert HIER schon den geplanten neuen Zustand.
-      // Interessant ist nur: gerade an, soll ausgeschaltet werden → checked=false.
-      if (cbKf.checked) return;  // Aktivierung ist immer OK
+      if (cbKf.checked) {
+        // 07.10.2026 (Marc: „beim Umschalten eine Frage: Standard-Keyframes übernehmen?“) — die Kamera lief bis hier über
+        // die Standard-Keyframes; übernommen werden sie zu eigenen, voll wirksam und frei veränderbar.
+        if (getRawTimelineEvents().some(ev => ev && KF_LANES.includes(ev.kind))) return;
+        e.preventDefault();
+        const ein = (mitStandard) => {
+          openModal({}).close();
+          if (mitStandard) {
+            const std = _standardKeyframes().map(ev => { const c = Object.assign({}, ev); delete c.standard; return c; });
+            setTimelineEvents(getRawTimelineEvents().filter(ev => ev && !KF_LANES.includes(ev.kind)).concat(std));
+          }
+          cbKf.checked = true;
+          cbKf.dispatchEvent(new Event("change"));
+        };
+        openModal({
+          title: t("animator.kf.uebernehmen_titel", "Standard-Keyframes übernehmen?"),
+          body: `<p style="margin:0 0 4px; font-size:13.5px; line-height:1.5;">${t("animator.kf.uebernehmen_text", "Die Kamera läuft gerade über die Standard-Keyframes: Einstellungen der Kamera, Sicht je Tour und die Übergänge. Übernimmst du sie, werden sie zu deinen Keyframes — sichtbar in der Zeitleiste und frei veränderbar.")}</p>`,
+          footer: `<button type="button" class="btn" id="md-kf-ohne">${t("animator.kf.uebernehmen_nein", "Ohne beginnen")}</button>
+                   <button type="button" class="btn btn-primary" id="md-kf-mit">${t("animator.kf.uebernehmen_ja", "Übernehmen")}</button>`,
+        });
+        document.getElementById("md-kf-ohne").onclick = () => ein(false);
+        document.getElementById("md-kf-mit").onclick = () => ein(true);
+        return;
+      }
       const hasKfs = getRawTimelineEvents().some(ev => ev && KF_LANES.includes(ev.kind));
       if (!hasKfs) return;       // nichts zu verlieren → durchlassen
       e.preventDefault();        // Toggle-Kippen abbrechen
-      const titleStr  = (typeof t === "function" ? t("animator.kf.deactivate_warn_title") : null) || "Keyframes gehen verloren!";
+      const titleStr  = (typeof t === "function" ? t("animator.kf.deactivate_warn_title") : null) || "Zurück zu den Standard-Keyframes?";
       const bodyStr   = (typeof t === "function" ? t("animator.kf.deactivate_warn_body")  : null)
                      || "Du hast bestehende Keyframes gesetzt. Wenn du den Keyframe-Editor jetzt deaktivierst, werden <strong>alle Keyframes gelöscht</strong>. Möchtest du fortfahren?";
       const cancelStr = (typeof t === "function" ? t("common.cancel") : null) || "Abbrechen";
@@ -3191,6 +3264,9 @@ function mountAnimator(body, headerActions, opts) {
   function _manualCamGet() {
     try {
       if ((getRawTimelineEvents() || []).length) return null;      // Keyframes gewinnen
+      // 07.10.2026 — in der Reise führen die Standard-Keyframes (Sicht je Tour, Übergänge); vorher überschrieb die
+      // Reise-Kamera die Handkamera im Bildaufbau, jetzt gilt das hier
+      if (!_isStaticFrame && typeof _reiseAktiv === "function" && _reiseAktiv()) return null;
       if (_manualCam) return _manualCam;
       const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const mc = p && p[_MODKEY] && p[_MODKEY].manual_cam;
@@ -3234,6 +3310,9 @@ function mountAnimator(body, headerActions, opts) {
   let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
   let _animEtappe1S = 0;     // 08.09.2026 — eigene Dauer der ERSTEN Etappe (0 = aus dem Gesamtbudget)
   let _animEtappe1Name = "";  // 09.09.2026 (Marc) — eigener Name der ERSTEN Etappe ("" = Dateiname)
+  var _hauptEtappe = null;    // 07.10.2026 Punkt 10 — {gpx_path, etappe}: Etappe als Haupt-Track (Projekt ohne Tour); var: Totzone
+  var _hauptFlach = null;     // flache Punkte (Flug/Schiff/Bahn) des Haupt-Tracks, index-gleich zu currentCoords
+  var _hauptEtappeProj = null; // zu welchem Projekt _hauptEtappe gehört
   let _animSwarmForm = false; // 31.08.2026 (Beta-Tester) — Zusatz-Touren mit Haupt-Form (Pfeil)
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
@@ -5992,6 +6071,9 @@ function mountAnimator(body, headerActions, opts) {
   function rebuildPreviewLayers() {
     if (!map) return;
     if (!_whenStyleReady("rebuildPreview", rebuildPreviewLayers)) return;
+    // 07.10.2026 (Marc: „wenn ich die Karte ändere, dann sind meine Linien weg“) — setStyle wirft auch die Linie des
+    // Etappen-Editors weg; nach dem Neuaufbau der Vorschau-Ebenen wieder zeichnen (Hook, der Editor steht weiter unten)
+    if (typeof window.__rzEtappeNeuZeichnen === "function") setTimeout(() => { try { window.__rzEtappeNeuZeichnen(); } catch (e) { applog("warn", "[etappe] nach Stilwechsel: " + e); } }, 0);
     const color = currentLineColor();
     const lw = currentLineWidth();
     if (!map.getSource("preview-track")) {
@@ -6178,12 +6260,21 @@ function mountAnimator(body, headerActions, opts) {
     try { st = map.getStyle(); } catch (_) { return; }
     if (!st || !st.layers) return;
     // v0.9.528 — "anim-dot" gehört mit über die Labels (Render hebt 'dot-' auch).
-    const pre = ["preview-", "gpx-ghost", "anim-signs", "photo-pins", "mtrack", "anim-dot"];
-    st.layers.forEach((l) => {
-      if (pre.some((p) => l.id.indexOf(p) === 0)) {
-        try { if (map.getLayer(l.id)) map.moveLayer(l.id); } catch (_) {}
-      }
-    });
+    // 07.10.2026 (Marc: „bei mir erscheint ein Foto hinter dem Track … es soll vorm Track erscheinen“) — vorher wurden die
+    // Ebenen in ihrer ALTEN Reihenfolge gehoben, und die Linien weiterer Touren/Etappen (mtour-, swarm-, ganz-prev-) fehlten
+    // ganz: sie kamen nach den Foto-Pins dazu und lagen darüber. Jetzt feste Schichten, von unten nach oben:
+    // Linien → Foto-Pins → Schilder → Laufpunkte → Etappen-Editor.
+    const rang = (id) => {
+      if (id.indexOf("et-edit-") === 0) return 4;
+      if (id.indexOf("anim-dot") === 0 || id.indexOf("swarm-prev-dots") === 0) return 3;
+      if (id.indexOf("anim-signs") === 0) return 2;
+      if (id.indexOf("photo-pins") === 0) return 1;
+      if (["preview-", "gpx-ghost", "mtrack", "mtour-", "swarm-prev-", "ganz-prev-"].some((p) => id.indexOf(p) === 0)) return 0;
+      return -1;
+    };
+    st.layers.map((l, i) => ({ id: l.id, r: rang(l.id), i })).filter((x) => x.r >= 0)
+      .sort((a, b) => (a.r - b.r) || (a.i - b.i))
+      .forEach((x) => { try { if (map.getLayer(x.id)) map.moveLayer(x.id); } catch (_) {} });
   }
 
   // v0.9.310 — Start/Ziel-Pins in der Live-Vorschau (nur Standbild/Tour-Map).
@@ -6872,6 +6963,7 @@ function mountAnimator(body, headerActions, opts) {
     return _istSchwarm() && _extraTours.length > 0 && _animDezent;
   }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
+  function dotFzStil()  { const v = document.getElementById("anim-dot-fz-stil")?.value; return FZ_STILE.includes(v) ? v : "plakette"; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
   /** Rückblick in Metern (0 = aus): Pfeilrichtung aus der gezeichneten Linie (util.js kursRueckblickAn). */
   function dotRueckblick() {
@@ -7035,6 +7127,15 @@ function mountAnimator(body, headerActions, opts) {
           paint: { "circle-radius": Math.max(3, currentLineWidth() * 1.5), "circle-color": farbe,
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2,
                    "circle-pitch-alignment": "map" } });
+      } else if (FAHRZEUGE.includes(dst.style) && _fzBild(dst.style, dotFzStil())) {
+        // 07.10.2026 — Fahrzeug als Bild (Draufsicht, Front nach oben): liegt flach auf der Karte und dreht sich mit dem Weg
+        try {
+          if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
+          map.addImage("anim-fz", _fzBild(dst.style, dotFzStil()), { pixelRatio: 4 });
+        } catch (e) { applog("warn", "[dot] Fahrzeugbild auf die Karte: " + e); }
+        map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
+          layout: { "icon-image": "anim-fz", "icon-size": gr, "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+                    "icon-pitch-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true } });
       } else if (FAHRZEUGE.includes(dst.style)) {
         // 05.10.2026 — Fahrzeug-Symbol (s. _fahrzeugBild); nur das Flugzeug dreht sich mit dem Weg
         const flug = dst.style === "flugzeug";
@@ -7082,17 +7183,62 @@ function mountAnimator(body, headerActions, opts) {
       if (_reiseAktiv() && _reiseBahn && _reiseBahn.etappen) {
         const ab = _bahnAbschnitt(f);
         const e = ab ? _reiseBahn.etappen[ab.teil] : null;
+        if (e && e.tour && e.tour.haupt && e.tour.etappe) {   // 07.10.2026 Punkt 10: Etappe als Haupt-Track
+          const fzH = _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], e.tour.etappe);
+          if (fzH) return { key: "h-" + fzH, show: dotZeigen(), style: fzH, size: dotGroesse(), farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
+        }
         if (e && e.tour && !e.tour.haupt) {
           const st = _stilVon(e.tour);
+          // 07.10.2026 (Block 4) — geplante Etappe: Fahrzeug des gerade laufenden Abschnitts (Flug → Auto …)
+          // die Reise rechnet mit einer verdünnten Kopie der Tour — die Etappen-Angaben hängen am Original (`tr`)
+          const etQ = e.tour.etappe || (e.tour.tr && e.tour.tr.etappe) || null;
+          const fzE = etQ ? _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], etQ) : "";
+          if (fzE) return { key: "e" + ab.teil + "-" + fzE, show: st.dot_show !== false, style: fzE,
+                            size: Math.max(0.1, +st.dot_size || 1), farbe: e.tour.line_color || "#35a7ff" };
           return { key: "e" + ab.teil, show: st.dot_show !== false, style: (st.dot_style === "arrow" || FAHRZEUGE.includes(st.dot_style)) ? st.dot_style : "dot",
                    size: Math.max(0.1, +st.dot_size || 1), farbe: e.tour.line_color || "#35a7ff" };
         }
+      }
+    } catch (_) {}
+    // 07.10.2026 Punkt 10 — Etappe als Haupt-Track (ohne Reise): Fahrzeug des laufenden Abschnitts
+    try {
+      const he = _hauptEt();
+      if (he && currentCoords && currentCoords.length) {
+        _hauptEtHalter.coords = currentCoords;
+        const fzH = _etappeArtAn(_hauptEtHalter, currentCoords[Math.max(0, Math.min(currentCoords.length - 1, Math.round(+f || 0)))], he.etappe);
+        if (fzH) return { key: "h-" + fzH, show: dotZeigen(), style: fzH, size: dotGroesse(), farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
       }
     } catch (_) {}
     // 05.10.2026 (Block 4) — Reiseroute mit Verkehrsart je Etappe: der Laufpunkt zeigt das Fahrzeug der Etappe
     const fz = _routeArtAn(f);
     return { key: fz ? "route-" + fz : "haupt", show: dotZeigen(), style: fz || dotStil(), size: dotGroesse(),
              farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
+  }
+  /** 07.10.2026 (Block 4) — Verkehrsart einer geplanten Etappe am Punkt `ll` ([lon, lat]) oder "": Grenzen der
+   *  Abschnitte = nächster Punkt der Etappe zu jeder Station (`etappe.abschnitte[].bis`), je Etappe einmal gerechnet;
+   *  der Punkt selbst wird auf den nächsten Etappenpunkt gelegt (die Reise-Bahn ist eine dünnere Kopie). */
+  const _etappeArtCache = new WeakMap();
+  var _hauptEtHalter = { coords: null };   // 07.10.2026 Punkt 10 — fester Schlüssel für den Cache (Etappe als Haupt-Track)
+  function _etappeArtAn(tour, ll, etappe) {
+    try {
+      const et = etappe || (tour && tour.etappe), co = tour && tour.coords;
+      if (!et || !Array.isArray(et.abschnitte) || !et.abschnitte.length || !Array.isArray(co) || co.length < 2 || !ll) return "";
+      const naechster = (p) => { let bi = 0, bd = Infinity;
+        for (let i = 0; i < co.length; i++) { const c = co[i]; const d = (c[0] - p[0]) ** 2 + (c[1] - p[1]) ** 2; if (d < bd) { bd = d; bi = i; } }
+        return bi; };
+      let c = _etappeArtCache.get(tour);
+      if (!c || c.co !== co || c.ab !== et.abschnitte) {
+        c = { co, ab: et.abschnitte, grenzen: et.abschnitte.map(a => ({ art: a.art, bis: Array.isArray(a.bis) ? naechster(a.bis) : co.length - 1 })), letzt: null };
+        _etappeArtCache.set(tour, c);
+      }
+      const key = ll[0] + "," + ll[1];
+      if (c.letzt && c.letzt.key === key) return c.letzt.art;
+      const i = naechster(ll);
+      const g = c.grenzen.find(x => i <= x.bis) || c.grenzen[c.grenzen.length - 1];
+      const art = g && FAHRZEUGE.includes(g.art) ? g.art : "";
+      c.letzt = { key, art };
+      return art;
+    } catch (_) { return ""; }
   }
   /** Verkehrsart der Etappe an der Stelle `frac` (Index in currentCoords) oder "" — Grenzen = nächster Spurpunkt zu
    *  den Stationen aus `route_abschnitte` (gespeichert beim Berechnen), je Spur einmal gerechnet. */
@@ -7260,7 +7406,8 @@ function mountAnimator(body, headerActions, opts) {
   /** 06.10.2026 (Trailframe A4) — Pillen „Kameraführung“ und die Kurz-Felder nach dem echten Zustand stellen. */
   function _kameraKurzSync() {
     const kf = keyframesEnabled();
-    const art = kf ? "fahrt" : (document.getElementById("anim-camera-follow")?.checked ? "folgen" : "fest");
+    const vorgabe = ((window.rzReadModuleSettings && window.rzReadModuleSettings(_MODKEY)) || {}).kamera_vorgabe;   // 07.10.2026 Start → Ziel
+    const art = kf ? (vorgabe === "startziel" ? "startziel" : "fahrt") : (document.getElementById("anim-camera-follow")?.checked ? "folgen" : "fest");
     document.querySelectorAll("#anim-kamera-art [data-kamera-art]").forEach(b => {
       const an = b.dataset.kameraArt === art;
       b.classList.toggle("is-on", an);
@@ -7451,14 +7598,179 @@ function mountAnimator(body, headerActions, opts) {
     return evs;
   }
 
+  // 07.10.2026 (Marc: „die ganzen automatischen Sachen auch mit Keyframes. Wenn der Keyframe-Editor nicht aktiviert ist,
+  // sieht man die nicht, aber intern läuft alles mit Keyframes, sodass alles die gleiche Basis hat") — STANDARD-KEYFRAMES.
+  // Die Reise-Kamera (Sicht je Tour, Übergänge Kinoflug/Luftlinie/Pause/Schnitt) war ein Sonderweg im Bildaufbau, der die
+  // Keyframes überschrieb — beim Scrubben fehlte er ganz. Jetzt wird sie hier in Keyframes übersetzt (die Übergänge durch
+  // Abtasten von _reiseKamera, damit die Bewegung gleich bleibt); Vorschau, Scrubben und Video rechnen nur noch daraus.
+  /** Kleinster Fortschritt (Keyframe-Anker), an dem die Bahn den Index `idx` erreicht — Umkehrung von fracAusFortschritt. */
+  function _ankerAusBahn(idx) {
+    const n = (currentCoords && currentCoords.length) || 2;
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (fracAusFortschritt(m, n) < idx - 1e-6) lo = m; else hi = m; }
+    return hi;
+  }
+  let _stdKfMerk = null, _stdKfZaehl = 0, _stdKfAlt = null;
+  /** Grundwerte der Standard-Keyframes: die Regler — oder die von Hand eingestellte Karte (manual_cam, ohne Keyframes). */
+  function _basisKeyframes() {
+    const evs = buildDefaultEvents();
+    const mc = _manualCamGet();
+    if (!mc) return evs;
+    const folgen = !!document.getElementById("anim-camera-follow")?.checked;
+    return [
+      { kind: "pitch", anchor: 0, value: mc.pitch }, { kind: "pitch", anchor: 1, value: mc.pitch },
+      { kind: "bearing", anchor: 0, value: mc.bearing }, { kind: "bearing", anchor: 1, value: mc.bearing },
+      { kind: "zoom", anchor: 0, value_absolute: mc.zoom, value_offset: 0 }, { kind: "zoom", anchor: 1, value_absolute: mc.zoom, value_offset: 0 },
+      { kind: "center", anchor: 0, value: folgen ? null : mc.center.slice() }, { kind: "center", anchor: 1, value: folgen ? null : mc.center.slice() },
+    ];
+  }
+  /** 07.10.2026 (Kamera-Basis Schritt 2) — Foto-Stopps und Orbit-Halte als Keyframes über eine Basis legen (Standard-
+   *  Keyframes ODER eigene). Werte an den Rändern kommen aus der Basis selbst; innen: Foto-Stopp = Mitte zum Foto, Zoom
+   *  + stopp_zoom, leichter Schwenk (wie _fsKamera bisher); Orbit = Drehung 12°/s im Halt, danach in 1,5 s sanft zurück
+   *  (vorher harter Rücksprung). Stehen die Keyframes eines Stopps schon in den eigenen (Markierung `stopp`), gelten die. */
+  function _haltKeyframes(basis) {
+    const halte = (_tempoInfo && _tempoInfo.halte) || [];
+    if (!halte.length || !currentCoords || currentCoords.length < 2 || _isStaticFrame) return basis;
+    const trim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const tA = Math.max(0, Math.min(1, trim.start ?? 0)), tB = Math.max(tA, Math.min(1, trim.end ?? 1));
+    const dur = Math.max(0.5, animSekunden());
+    const anker = (s) => tA + (s / dur) * (tB - tA);
+    const fit = effectiveFitZoomBase();
+    const bei = (p) => {
+      const r = interpolateCameraJs(basis, p, currentPitch(), 0, undefined, fit, { cinematic: false });
+      // fit + Versatz ist der Zoom DIESER Karte (im Render der des Videos); `value_absolute` meint den Vorschau-Zoom —
+      // ohne Abzug käme der Render-Zuschlag beim Anwenden ein zweites Mal dazu (07.10.2026, test_projektion_gelaende)
+      return { c: r.center ? r.center.slice() : null, z: (fit != null && r.zoom_offset != null) ? fit + r.zoom_offset - _rzZoomShift() : null, b: +r.bearing || 0 };
+    };
+    const hat = (ref) => basis.some(e => e && e.stopp === ref);
+    let ev = basis.slice();
+    const ersetze = (lo, hi, arten, neu) => {
+      ev = ev.filter(e => !(e && arten.includes(e.kind) && (e.anchor || 0) >= lo - 1e-9 && (e.anchor || 0) <= hi + 1e-9)).concat(neu);
+    };
+    for (const h of halte) {
+      if (h.kamera === "fotostopp") {
+        const i = parseInt(String(h.ref || "").slice(3), 10), s = _fsSchilderAlle()[i], ref = "fs:" + i;
+        if (!_fsAktiv(s) || hat(ref)) continue;
+        const w = _fsWerte(s), mk = (kind, anchor, werte, easing) => Object.assign({ kind, anchor, easing, standard: true, stopp: ref }, werte);
+        const p0 = anker(h.ab_s - w.anflug), pa = anker(h.ab_s), pb = anker(h.bis_s), p1 = anker(h.bis_s + w.abflug);
+        const B0 = bei(p0), Ba = bei(pa), Bb = bei(pb), B1 = bei(p1);
+        const ll = [+s.lon, +s.lat], bez = B0.c || Ba.c || ll;
+        const foto = [ll[0] + 360 * Math.round((bez[0] - ll[0]) / 360), ll[1]];   // abgewickelte Länge (Welt-Drehung)
+        const neu = [mk("center", p0, { value: B0.c }, "linear"), mk("center", pa, { value: foto }, "ease_in_out"),
+                     mk("center", pb, { value: foto }, "linear"), mk("center", p1, { value: B1.c }, "ease_in_out")];
+        if (B0.z != null && Ba.z != null && Bb.z != null && B1.z != null) neu.push(
+          mk("zoom", p0, { value_absolute: B0.z, value_offset: 0 }, "linear"), mk("zoom", pa, { value_absolute: Ba.z + w.zoom, value_offset: 0 }, "ease_in_out"),
+          mk("zoom", pb, { value_absolute: Bb.z + w.zoom, value_offset: 0 }, "linear"), mk("zoom", p1, { value_absolute: B1.z, value_offset: 0 }, "ease_in_out"));
+        ersetze(p0, p1, ["center", "zoom"], neu);
+        if (w.schwenk > 0 && pb > pa) {
+          const q = (u) => pa + (pb - pa) * u;
+          ersetze(pa, pb, ["bearing"], [mk("bearing", pa, { value: Ba.b }, "linear"), mk("bearing", q(0.25), { value: bei(q(0.25)).b + w.schwenk }, "ease_in_out"),
+            mk("bearing", q(0.75), { value: bei(q(0.75)).b - w.schwenk }, "ease_in_out"), mk("bearing", pb, { value: Bb.b }, "ease_in_out")]);
+        }
+      } else if (h.kamera === "orbit") {
+        const ref = "orbit:" + (+h.ab_s).toFixed(2);
+        if (hat(ref) || !(h.bis_s > h.ab_s)) continue;
+        const mk = (anchor, value, easing) => ({ kind: "bearing", anchor, value, easing, standard: true, stopp: ref });
+        const pa = anker(h.ab_s), pb = anker(h.bis_s), pr = anker(h.bis_s + 1.5);
+        ersetze(pa, pr, ["bearing"], [mk(pa, bei(pa).b, "linear"), mk(pb, bei(pb).b + (h.bis_s - h.ab_s) * _ORBIT_GRAD_JE_S, "linear"), mk(pr, bei(pr).b, "ease_in_out")]);
+      }
+    }
+    return ev;
+  }
+  function _haltSchluessel() {
+    try {
+      const trim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : {};
+      return JSON.stringify([((_tempoInfo && _tempoInfo.halte) || []).map(h => [h.kamera, h.ab_s, h.bis_s, h.ref]),
+        _fsSchilderAlle().map((s, i) => _fsAktiv(s) ? [i, s.lon, s.lat, _fsWerte(s)] : 0), trim.start, trim.end, animSekunden(), effectiveFitZoomBase()]);
+    } catch (_) { return ""; }
+  }
+  function _standardKeyframes() {
+    const evs = _basisKeyframes();
+    const folgen = !!document.getElementById("anim-camera-follow")?.checked;
+    const schl = [_reiseBahn, _paceMap, folgen, JSON.stringify(evs), _haltSchluessel(), _isStaticFrame];
+    if (_stdKfMerk && _stdKfMerk.schl.every((x, i) => x === schl[i])) return _stdKfMerk.ev;
+    const _t0 = performance.now();
+    _stdKfZaehl = (_stdKfZaehl || 0) + 1;
+    // Tour-Map (Standbild) hat keine Reise-Kamera — dort gilt der übergebene/eingestellte Ausschnitt
+    if (_isStaticFrame || !(typeof _reiseAktiv === "function" && _reiseAktiv() && _reiseBahn && _reiseBahn.abschnitte && map
+          && currentCoords && currentCoords.length >= 2)) {
+      const ev0 = _haltKeyframes(evs);
+      _stdKfMerk = { schl, ev: ev0 }; _stdKfAlt = schl;
+      return ev0;
+    }
+    const zDef = (evs.find(e => e.kind === "zoom") || {}).value_absolute;
+    let raus = evs.filter(e => e.kind !== "zoom" && e.kind !== "center");
+    const kf = (anker, center, zoom, easing) => {
+      raus.push({ kind: "center", anchor: anker, value: center, easing, standard: true });
+      if (zoom != null && isFinite(zoom)) raus.push({ kind: "zoom", anchor: anker, value_absolute: zoom, value_offset: 0, easing, standard: true });
+    };
+    // Sichten/Flugkamera rechnen mit DIESER Karte (cameraForBounds) — im Render ist das schon der Video-Zoom;
+    // `value_absolute` meint den Vorschau-Zoom, also den Render-Zuschlag abziehen (sonst doppelt, 07.10.2026)
+    const zV = (z) => (z != null && isFinite(z)) ? z - _rzZoomShift() : z;
+    const ansichten = _reiseAnsichten(), n = currentCoords.length;
+    let vorher = null;   // null | "etappe" | "pause" | "flug"
+    for (const ab of _reiseBahn.abschnitte) {
+      const a0 = _ankerAusBahn(ab.von), a1 = _ankerAusBahn(ab.bis);
+      if (ab.art !== "ueber") {
+        const A = ansichten[ab.teil];
+        if (!A) continue;
+        // Sicht der Tour ab ihrem Anfang; nach Schnitt/Pause hart springen, nach einem Flug ist man schon da
+        kf(a0, folgen ? null : A.c.slice(), folgen ? zDef : zV(A.z), (vorher === "etappe" || vorher === "pause") ? "sprung" : "linear");
+        vorher = "etappe";
+        continue;
+      }
+      const stil = (_reiseBahn.etappen[ab.teil + 1] || {}).ueber_stil || "kino";
+      if (stil === "pause") { vorher = "pause"; continue; }   // Sicht bleibt stehen, die nächste Tour springt
+      if (folgen) raus.push({ kind: "center", anchor: Math.max(0, a0 - 3e-4), value: null, easing: "linear", standard: true });   // bis hier folgen
+      // Marc 07.10.: „vier oder fünf Keyframes statt 12“ — Luftlinie = 2 (Sanft in & aus ist genau die bisherige Kurve),
+      // Kinoflug = 5 (Start, Viertel, höchster Punkt, Dreiviertel, Ziel; erstes Stück sanft an, letztes sanft aus)
+      const stellen = stil === "luftlinie" ? [[0, "linear"], [1, "ease_in_out"]]
+        : [[0, "linear"], [0.25, "ease_in"], [0.5, "linear"], [0.75, "linear"], [1, "ease_out"]];
+      for (const [q, easing] of stellen) {
+        const p = a0 + (a1 - a0) * q;
+        const cam = _reiseKamera(fracAusFortschritt(p, n));
+        if (cam && cam.center) kf(p, cam.center.slice(), zV(cam.zoom), easing);
+      }
+      vorher = "flug";
+    }
+    raus = _haltKeyframes(raus);
+    _stdKfMerk = { schl, ev: raus };
+    const _dt = performance.now() - _t0;
+    if (_dt > 30) applog("info", `[kamera] Standard-Keyframes neu: ${raus.length} in ${_dt.toFixed(0)} ms (Neubau Nr. ${_stdKfZaehl})`);
+    _stdKfAlt = schl;
+    return raus;
+  }
+  window.__rzStandardKeyframes = () => _standardKeyframes();   // Prüfstand
+
+  /** 07.10.2026 (Marc F4: „wenn der Editor offen ist … dann erscheinen halt die Keyframes, die dann generiert werden“) —
+   *  neue Übergangs-Art bei eigenen Keyframes: die dafür erzeugten Keyframes (Mitte, Zoom) ersetzen die eigenen zwischen
+   *  dem Ende der Tour davor und dem Anfang der Tour `g`; Neigung/Drehung und alles außerhalb bleiben. */
+  function _uebergangKfEinsetzen(g) {
+    if (!keyframesEnabled() || !g) return;
+    const roh = getRawTimelineEvents() || [];
+    if (!roh.some(e => e && KF_LANES.includes(e.kind))) return;   // ohne eigene gelten ohnehin die Standard-Keyframes
+    if (!_reiseBahn || !_reiseBahn.abschnitte) return;
+    const k = _reiseBahn.etappen.findIndex(e => e.gruppe === g || (e.gruppe && e.gruppe.id === g.id));
+    if (k <= 0) return;
+    const abs = _reiseBahn.abschnitte;
+    const vor = abs.filter(a => a.art !== "ueber" && a.teil === k - 1).pop(), nach = abs.find(a => a.art !== "ueber" && a.teil === k);
+    if (!vor || !nach) return;
+    const lo = _ankerAusBahn(vor.bis) - 5e-4, hi = _ankerAusBahn(nach.von) + 1e-6;
+    const drin = (e) => e && (e.kind === "center" || e.kind === "zoom") && (e.anchor || 0) > lo && (e.anchor || 0) <= hi;
+    const neu = _standardKeyframes().filter(drin).map(ev => { const c = Object.assign({}, ev); delete c.standard; return c; });
+    setTimelineEvents(roh.filter(e => !drin(e)).concat(neu));
+    applog("info", `[kamera] Übergang zu „${g.name || g.id}“: ${neu.length} Keyframes eingesetzt (${(g.ueber_stil || "kino")})`);
+  }
+  const _uebergangKfSpaeter = (g) => setTimeout(() => { try { _uebergangKfEinsetzen(g); } catch (e) { applog("warn", "[kamera] Übergang einsetzen: " + e); } }, 80);
+
   // Render/Preview-Helper: liefert User-KFs falls vorhanden + Editor an,
-  // sonst die impliziten Default-KFs. Genau EIN Code-Pfad für Interpolation.
+  // sonst die Standard-Keyframes. Genau EIN Code-Pfad für Interpolation.
   function getEffectiveEvents() {
     if (keyframesEnabled()) {
       const ev = getRawTimelineEvents();
-      if (ev && ev.length > 0) return ev;
+      if (ev && ev.length > 0) return _haltKeyframes(ev);   // Foto-Stopps/Orbit auch über eigenen Keyframes (Schritt 2)
     }
-    return buildDefaultEvents();
+    return _standardKeyframes();
   }
 
   /* ── Keyframe-Paar (IDEAS §60 Punkt 6, 09.09.2026) ────────────────────────
@@ -8874,8 +9186,7 @@ function mountAnimator(body, headerActions, opts) {
       const tp = _folgePunkt(cf) || currentCoords[Math.max(0, Math.min(currentCoords.length - 1, Math.round(cf)))];
       cam.center = tp.slice ? tp.slice(0, 2) : tp;
     }
-    const mc = (!interp.center) ? _manualCamGet() : null;
-    if (mc) { cam.zoom = mc.zoom; cam.center = mc.center.slice(); cam.pitch = mc.pitch; cam.bearing = mc.bearing; }
+    // 07.10.2026 — die Handkamera steckt in den Standard-Keyframes (_basisKeyframes)
     if (!cam.center) { const g = map.getCenter(); cam.center = [g.lng, g.lat]; }
     return cam;
   }
@@ -9095,9 +9406,8 @@ function mountAnimator(body, headerActions, opts) {
       }
     }
     // 05.09.2026 — Handkamera ohne Keyframes: exakt die eingestellte Ansicht halten
-    { const _mcS = (!interp.center) ? _manualCamGet() : null;
-      if (_mcS) { easeArgs.zoom = _mcS.zoom; easeArgs.center = _mcS.center.slice(); easeArgs.pitch = _mcS.pitch; easeArgs.bearing = _mcS.bearing; } }
-    try { _fsKamera(easeArgs, _fotostoppBei(_fsT), (() => { const g = map.getCenter(); return [g.lng, g.lat]; })()); } catch (_) {}   // 01.10.2026 — Fotostopp
+    // 07.10.2026 — die Handkamera steckt in den Standard-Keyframes (_basisKeyframes)
+    // 07.10.2026 — Fotostopp: steckt als Keyframes in den Events (_haltKeyframes)
     // v0.9.136 — Welt-Drehung steckt jetzt in der *abgewickelten* center.lng
     // (Insta360-Modell). interpolateCameraJs liefert die bereits korrekt
     // abgewickelte center.lng (siehe _maybeFlyToInterp + _interpScalar).
@@ -9228,6 +9538,7 @@ function mountAnimator(body, headerActions, opts) {
   // Easing-Wert kommt vom Ziel-Event (b) — also „wie wird der Übergang ZUM
   // b-KF gefahren". Default "linear" für alle bestehenden Projekte.
   function _applyEasing(t, kind) {
+    if (kind === "sprung")      return t >= 1 ? 1 : 0;   // 07.10.2026 — stehen bleiben, am Ziel springen (Pause/Schnitt)
     if (kind === "ease_in")     return t * t;
     if (kind === "ease_out")    return 1.0 - (1.0 - t) * (1.0 - t);
     if (kind === "ease_in_out") return t * t * (3.0 - 2.0 * t);
@@ -9449,6 +9760,9 @@ function mountAnimator(body, headerActions, opts) {
   // sonst kommt eine schiefe Kurve raus. fitBase wird vom Caller durchgereicht.
   function _maybeFlyToInterp(zoomEvs, centerEvs, progress, fitBase) {
     if (fitBase == null || isNaN(fitBase)) return null;  // ohne fitBase keine Konvertierung möglich
+    // 07.10.2026 — kein Bogenflug in einen harten Schnitt hinein (Ziel-Keyframe „sprung“)
+    for (const l of [zoomEvs, centerEvs]) for (let i = 0; i < l.length - 1; i++)
+      if (progress >= _xv(l[i]) && progress <= _xv(l[i + 1]) && l[i + 1].easing === "sprung") return null;
     // Finde zoom-Segment
     let zA = null, zB = null;
     for (let i = 0; i < zoomEvs.length - 1; i++) {
@@ -9925,7 +10239,7 @@ function mountAnimator(body, headerActions, opts) {
     // die ruhige Kamera minutenlang herausglitt). Jetzt: deterministische
     // Fit-Kamera pro Lauf, wie im Video.
     let _runFitCam = fitKameraGesamt();
-    const _mcRun = _manualCamGet();
+    const _mcRun = null;   // 07.10.2026 — die Handkamera steckt in den Standard-Keyframes (_basisKeyframes)
     if (_mcRun) _runFitCam = { center: { lng: _mcRun.center[0], lat: _mcRun.center[1] }, zoom: _mcRun.zoom + _rzZoomShift(), manual: true };
     try { applog("info", "[runFitCam] " + (_mcRun ? "manuelle Kamera · " : "") + (_runFitCam
       ? ("zoom=" + (+_runFitCam.zoom).toFixed(2) + " center=" + JSON.stringify(_runFitCam.center))
@@ -10121,11 +10435,7 @@ function mountAnimator(body, headerActions, opts) {
             } else ll = _runFitCam
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
-            let _fsDreh = 0;
-            { // 01.10.2026 — Fotostopp: dieselbe Ranfahrt wie im Probelauf (_fsKamera)
-              const _fs = _fotostoppBei((tz * totalMs - introMs) / 1000);
-              if (_fs && _fs.k > 0) { const o = { center: ll, zoom: zm, bearing: 0 }; _fsKamera(o, _fs); ll = o.center; zm = o.zoom; _fsDreh = o.bearing; }
-            }
+            const _fsDreh = 0;   // 07.10.2026 — Fotostopp steckt als Keyframes in den Events (_haltKeyframes)
             zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
             _plan.push({ tz, a, ip, zm, ll, db: _fsDreh });
           }
@@ -10479,27 +10789,12 @@ function mountAnimator(body, headerActions, opts) {
       // 08.09.2026 — Halt mit „dreht sich": während der Standzeit dreht die
       // Kamera langsam um die Stelle. Die Lage der Halte in Videosekunden kommt
       // aus der Kurve (core/tempo.py), damit Vorschau und Video dasselbe tun.
-      {
-        const _tSek = (timelineProgress * totalMs - introMs) / 1000;
-        const _h = _tempoHaltBei(_tSek);
-        if (_h && _h.kamera === "orbit") {
-          jumpArgs.bearing = (jumpArgs.bearing || 0) + (_tSek - _h.ab_s) * _ORBIT_GRAD_JE_S;
-        }
-        // 01.10.2026 — Fotostopp: an das Foto heranfahren (gleiche Rechnung in den Stützstellen der ruhigen Kamera)
-        { const _fs = _fotostoppBei(_tSek); if (_fs) _fsKamera(jumpArgs, _fs, (() => { const g = map.getCenter(); return [g.lng, g.lat]; })()); }
-      }
-      const _rKamRoh = _reiseKamera(coordFrac);
-      let _rKam = _rKamRoh;
-      if (_rKamRoh && _rKamRoh.etappe) {
-        // Nur ECHTE Keyframes zählen. Der Editor ist in vielen Projekten an,
-        // ohne dass einer gesetzt wurde — dann kommt die Kamera aus den
-        // Schiebereglern und stünde bei der Sicht der ersten Tour fest, während
-        // der Punkt schon in der nächsten Etappe läuft.
-        const _kfEcht = keyframesEnabled() && (getRawTimelineEvents() || []).length > 0;
-        if (_kfEcht) _rKam = null;
-        else if (cameraFollow2) _rKam = { center: coordBeiFrac(currentCoords, coordFrac), zoom: _curZoom };
-      }
-      if (_rKam) { jumpArgs.center = _rKam.center; jumpArgs.zoom = _rKam.zoom; }
+      // 07.10.2026 (Kamera-Basis Schritt 2) — Orbit-Halte und Foto-Stopps stecken jetzt als Keyframes in den Events
+      // (_haltKeyframes); kein Nachbiegen der Kamera mehr hier, in der Scrub-Vorschau und in der ruhigen Kamera.
+      // 07.10.2026 — die Reise-Kamera (Sicht je Tour, Übergänge) steckt jetzt in den Standard-Keyframes
+      // (_standardKeyframes); kein Überschreiben mehr hier. Mit eigenen Keyframes gelten nur die.
+      const _rKam = null;
+      window.__rzKamLetzt = { frac: coordFrac, anker: kamAnker };   // Prüfstand: welche Bahn-Stelle dieses Bild zeigt
       // position-padding mit smooth Fade-Out zwischen Zoom 4 und 8
       // (zoom <= 4: 100 %, 4..8: linear, >= 8: 0 %). Siehe scrubPreview.
       const _zfStep = Math.max(0, Math.min(1, (8 - (_rKam ? _rKam.zoom : _curZoom)) / 4));
@@ -10687,7 +10982,8 @@ function mountAnimator(body, headerActions, opts) {
     try { tilesOk = !!(map && map.areTilesLoaded && map.areTilesLoaded()); } catch (_) {}
     return { map: !!map, style: styleOk, tiles: tilesOk, terrain: terrainOk, coords: (currentCoords || []).length,
              // 07.09.2026 — Reiseroute: bereit, sobald das Routen-GPX geladen ist (oder keins hinterlegt ist)
-             route: (() => { if (!_isReiseroute || _rrGpxRestored) return true;
+             route: (() => { if (!_isReiseroute) return !_hauptEtappe || _pfadNFC(currentGpx || "") === _pfadNFC(_hauptEtappe.gpx_path);   // 07.10.2026 Punkt 10
+                             if (_rrGpxRestored) return true;
                              let rp = null; try { rp = (getActiveProject() || {})[_MODKEY]?.route_gpx_path || null; } catch (_) {}
                              return !rp || _pfadNFC(currentGpx || "") === _pfadNFC(rp); })(),
              gpx: currentGpx || null,
@@ -10695,7 +10991,9 @@ function mountAnimator(body, headerActions, opts) {
              modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase,
              schilderLaden: (typeof window.__rzSchilderLaden === "function") ? window.__rzSchilderLaden() : 0,
              // 05.10.2026 — Flug in der Luft: erst rendern, wenn die Flughöhen da sind (oder feststeht, dass es nicht geht)
-             flug: !_flugGewuenscht() || _flug.an || (!!_flug.grund && !_flug.laedt) };
+             flug: !_flugGewuenscht() || _flug.an || (!!_flug.grund && !_flug.laedt),
+             // 07.10.2026 — Fahrzeugbilder geladen (sonst fehlte das Fahrzeug in den ersten Bildern des Videos)
+             fzBilder: _fzLaedt === 0 };
   };
   // 25.09.2026 (Klicktest AN-12/13) — Anstoß für core/szene.py: steht alles bereit außer
   // fitBase, den Ausschnitt einmal ausdrücklich berechnen (Wiederholungszähler zurück).
@@ -11509,6 +11807,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.205 — Route-Punkt-Pick hat Vorrang: konsumiert den Klick (kein Schild).
     map.on("click", (e) => {
       try { if (_routeOnMapClick(e)) return; } catch (_) {}
+      try { if (window.__rzEtappeKlick && window.__rzEtappeKlick(e)) return; } catch (_) {}   // 07.10.2026 Etappen-Editor
       try { _animSignsOnMapClick(e); } catch (_) {}
     });
 
@@ -11837,7 +12136,8 @@ function mountAnimator(body, headerActions, opts) {
         onGruppeUebergang: (id, patch) => { const g = _gruppeMitId(id); if (!g) return;
           if (patch && patch.stil) g.ueber_stil = patch.stil;
           if (patch && patch.ueber_s != null) g.ueber_s = Math.max(0, +patch.ueber_s || 0);
-          g.fest = false; _gruppenNeu(); try { _animRenderToursList(); } catch (_) {} },
+          g.fest = false; _gruppenNeu(); try { _animRenderToursList(); } catch (_) {}
+          if (patch && patch.stil) _uebergangKfSpaeter(g); },
         onGruppeVorlauf: (id, sek) => { const g = _gruppeMitId(id); if (!g) return; g.vorlauf_s = Math.max(0, +sek || 0); _gruppenNeu(); },
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
@@ -15676,7 +15976,36 @@ function mountAnimator(body, headerActions, opts) {
     if (v) v.textContent = dotGroesse().toFixed(1) + "×";
   }
 
+  // 07.10.2026 (Marc: „eigentlich auch direkt als Laufpunkt auswählen lassen im normalen Track“) — Form und Aussehen als
+  // Bildkacheln statt Textlisten; die (versteckten) Auswahllisten bleiben die Quelle für Speichern/Laden.
+  const _DOT_SYMBOL = { dot: "●", arrow: "➤", auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", zug: "🚆", boot: "⛴", flugzeug: "✈️" };
+  /** Kacheln füllen: `formBox` (Kugel, Pfeil, Fahrzeuge — `setForm(f)`), `fzsBox` (Aussehen, gilt für alle Fahrzeuge). */
+  function _dotKacheln(formBox, fzsBox, form, setForm) {
+    const fzs = dotFzStil(), esc = _animEscapeHtml;
+    const bild = (fz, s) => s && s !== "plakette" ? `<img src="${_fzPfad(fz + "_" + s)}" alt="" onerror="this.replaceWith(document.createTextNode('${_DOT_SYMBOL[fz]}'))">` : _DOT_SYMBOL[fz];
+    if (formBox) {
+      formBox.innerHTML = ["dot", "arrow", ...FAHRZEUGE].map(f => {
+        const name = f === "dot" ? t("animator.dot.style_dot", "Kugel") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung") : t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f]));
+        return `<button type="button" class="dot-kachel${form === f ? " ist-an" : ""}" data-form="${f}" title="${esc(name)}"><span class="dot-kachel-bild">${FAHRZEUGE.includes(f) ? bild(f, fzs) : _DOT_SYMBOL[f]}</span></button>`;
+      }).join("");
+      formBox.querySelectorAll("[data-form]").forEach(k => k.onclick = () => setForm(k.dataset.form));
+    }
+    if (fzsBox) {
+      const fz = FAHRZEUGE.includes(form) ? form : "auto";
+      fzsBox.innerHTML = FZ_STILE.map(st => `<button type="button" class="dot-kachel${fzs === st ? " ist-an" : ""}" data-fzs="${st}" title="${esc(t("animator.dot.fzs_" + st, FZ_STIL_NAMEN[st]))}"><span class="dot-kachel-bild">${bild(fz, st)}</span></button>`).join("");
+      fzsBox.querySelectorAll("[data-fzs]").forEach(k => k.onclick = () => {
+        const sel = document.getElementById("anim-dot-fz-stil"); sel.value = k.dataset.fzs; sel.dispatchEvent(new Event("change"));
+        _dotKacheln(formBox, fzsBox, form, setForm);   // ausgewählte Kachel + Fahrzeugbilder der Form-Reihe nachziehen
+      });
+    }
+  }
+  function _dotWahlZeichnen() {
+    _dotKacheln(document.getElementById("anim-dot-wahl"), document.getElementById("anim-dot-fzs-wahl"), dotStil(),
+      (f) => { const sel = document.getElementById("anim-dot-style"); sel.value = f; sel.dispatchEvent(new Event("change")); });
+    const v = document.getElementById("anim-dot-fzs-v"); if (v) v.textContent = t("animator.dot.fzs_" + dotFzStil(), FZ_STIL_NAMEN[dotFzStil()]);
+  }
   function dotGeaendert(speichern) {
+    try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
     dotAnzeigen();
     dotEbenenAufbauen();
     // 02.09.2026: Größe und Form gelten auch für die Punkte der übrigen
@@ -15707,7 +16036,7 @@ function mountAnimator(body, headerActions, opts) {
     if (smEl) smEl.disabled = rbAn;
     if (!speichern) return;
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.laufpunkt_geaendert", "Laufpunkt geändert")); } catch (_) {}   // 10.09.2026
-    const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(),
+    const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(), marker_dot_fz_stil: dotFzStil(),
                     marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(),
                     marker_dot_rueckblick_m: dotRueckblick() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
@@ -15720,6 +16049,8 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-dot-rb-m")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-show")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-style")?.addEventListener("change", () => dotGeaendert(true));
+  document.getElementById("anim-dot-fz-stil")?.addEventListener("change", () => dotGeaendert(true));
+  try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
   document.getElementById("anim-dot-size")?.addEventListener("input", () => dotGeaendert(false));
   document.getElementById("anim-dot-size")?.addEventListener("change", () => dotGeaendert(true));
   // ⚠️ Die Track-Farbe färbt auch den Laufpunkt — beim Wechsel neu bauen,
@@ -15768,6 +16099,8 @@ function mountAnimator(body, headerActions, opts) {
       if (zeig) zeig.checked = (a.marker_dot_show !== false);
       const stil = document.getElementById("anim-dot-style");
       if (stil) stil.value = a.marker_dot_style || "dot";
+      const fzs = document.getElementById("anim-dot-fz-stil");
+      if (fzs) fzs.value = FZ_STILE.includes(a.marker_dot_fz_stil) ? a.marker_dot_fz_stil : "plakette";
       const gr = document.getElementById("anim-dot-size");
       if (gr && a.marker_dot_size) gr.value = a.marker_dot_size;
       const sm = document.getElementById("anim-dot-smooth");
@@ -16083,6 +16416,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     const s = _gpxStats; if (!s) return "—";
     let km = s.distance_km || 0, dur = s.duration_s || 0;
+    let kmZeit = _hauptEt() ? 0 : km;   // 07.10.2026 (Etappen, Punkt 9): Strecke MIT Uhrzeit — nur sie geht ins Tempo
     // v0.9.324 — echte Werte aus den Track-Stats (kein Schätz-Faktor mehr).
     // moving_time_s/max_speed_kmh kommen voll-aufgelöst vom Backend.
     let movS = (s.moving_time_s != null && s.moving_time_s > 0) ? s.moving_time_s : dur;
@@ -16100,6 +16434,7 @@ function mountAnimator(body, headerActions, opts) {
         const st = tr.stats;
         if (!st) continue;
         km += st.distance_km || 0;
+        if (!tr.etappe) kmZeit += st.distance_km || 0;   // geplante Etappe: zählt zur Strecke, nicht zum Tempo
         dur += st.duration_s || 0;
         movS += (st.moving_time_s != null && st.moving_time_s > 0) ? st.moving_time_s : (st.duration_s || 0);
         ascM += st.ascent_m || 0;
@@ -16109,8 +16444,8 @@ function mountAnimator(body, headerActions, opts) {
         if (st.ele_min != null && (eleL == null || st.ele_min < eleL)) eleL = st.ele_min;
       }
     }
-    const avgTotal = dur > 0 ? (km / (dur / 3600)) : 0;
-    const avgMov = movS > 0 ? (km / (movS / 3600)) : 0;
+    const avgTotal = dur > 0 ? (kmZeit / (dur / 3600)) : 0;
+    const avgMov = movS > 0 ? (kmZeit / (movS / 3600)) : 0;
     const lastEle = (_gpxElevations && _gpxElevations.length) ? Math.round(_gpxElevations[_gpxElevations.length - 1]) : (s.ele_max != null ? Math.round(s.ele_max) : null);
     // 11.09.2026 — Datum/Uhrzeit aus den Zeitreihen (Zeitzone der Tour, s. core/zeitzone).
     const _sr = _ovSeries || {};
@@ -16164,8 +16499,9 @@ function mountAnimator(body, headerActions, opts) {
     if (sr.__rzCumHm && sr.__rzCumHmRef === sr.ele) return sr.__rzCumHm;
     const asc = [0], desc = [0];
     const e = sr.ele || [];
+    const fl = Array.isArray(sr.flach) ? sr.flach : null;   // 07.10.2026 Etappe: Flug/Schiff/Bahn zählt nicht
     for (let i = 1; i < e.length; i++) {
-      const dE = e[i] - e[i - 1];
+      const dE = (fl && (fl[i] || fl[i - 1])) ? 0 : e[i] - e[i - 1];
       asc.push(asc[i - 1] + Math.max(0, dE));
       desc.push(desc[i - 1] + Math.max(0, -dE));
     }
@@ -17408,6 +17744,26 @@ function mountAnimator(body, headerActions, opts) {
         neu.push(s);
       }
     }
+    // 07.10.2026 (Etappen, Grilling Punkt 6) — jede Station einer geplanten Etappe bekommt ein normales Schild mit
+    // ihrem Ortsnamen (Haken „Stationen beschriften“ im Etappen-Editor, Standard an). Wie die Highlights: automatisch
+    // angelegt, wer ein Schild ändert, behält seine Fassung; Anschlusspunkte an eine Tour (auto) bekommen keins.
+    try {
+      const he = _hauptEt();
+      const mitHaupt = he ? [{ etappe: he.etappe, gpx_path: he.gpx_path, line_color: document.getElementById("anim-color")?.value }] : [];
+      for (const tr of mitHaupt.concat(_extraTours)) {
+        const et = tr && tr.etappe;
+        if (!et || et.beschriften === false) continue;
+        (et.wps || []).forEach((w, i) => {
+          if (!w || w.lon == null || w.lat == null || w.auto) return;
+          const key = "station:" + (et.id || tr.gpx_path) + ":" + i;
+          if (belegt.has(key)) return;
+          const st = sg.normalize({ ...HL_SCHILD, style: "pin", color: tr.line_color || "#ffd166", size: 30, icon: "",
+                                    text: _etName(w), lat: +w.lat, lon: +w.lon, auto: key });
+          st.auto_sig = _hlSig(st);
+          neu.push(st);
+        });
+      }
+    } catch (e) { applog("warn", "[etappe] Stations-Schilder: " + e); }
     const gleich = (a, b) => a.length === b.length && a.every((x, i) => x.auto === b[i].auto && _hlSig(x) === _hlSig(b[i]));
     const altAuto = alt.filter(s => s && s.auto && s.auto_sig === _hlSig(s));
     if (gleich(altAuto, neu)) return 0;
@@ -17804,6 +18160,58 @@ function mountAnimator(body, headerActions, opts) {
     try { _ctKarteAt(_ctLetztFrac, true); } catch (e) { applog("warn", "[container] Übersichtskarte: " + e); }
     try { _ovUpdateNorthScale(true); } catch (_) {}
     if (_ctEditId) layer.querySelector(`.ct[data-ctid="${CSS.escape(_ctEditId)}"]`)?.classList.add("ct-aktiv");
+    _ctStapelListe = liste;
+    try { _ctStapeln(layer, liste); } catch (e) { applog("warn", "[container] stapeln: " + e); }
+    // Formatwechsel (16:9 → 9:16) ändert nur die Fläche, nicht die Liste → bei jeder Größenänderung neu stapeln
+    if (!layer.__rzStapelRO && typeof ResizeObserver === "function") {
+      layer.__rzStapelRO = new ResizeObserver(() => { try { if (_ctStapelListe) _ctStapeln(layer, _ctStapelListe); } catch (_) {} });
+      layer.__rzStapelRO.observe(layer);
+    }
+    // Bilder/Diagramme können die Höhe noch ändern → einmal nachmessen
+    clearTimeout(_ctStapelTimer);
+    _ctStapelTimer = setTimeout(() => { try { _ctStapeln(layer, liste); } catch (_) {} }, 350);
+  }
+  /** 07.10.2026 (PLAN §3 „Videoformate mit passenden Einblendungen“) — im Hochformat lagen unten Info-Karte,
+   *  Höhenprofil und Nordpfeil übereinander (9:16-Matrix vom 06.10.). Einblendungen am selben Rand (oben bzw. unten),
+   *  die sich waagerecht UND zeitlich überschneiden, werden gestapelt: die spätere in der Liste rückt vom Rand weg,
+   *  bis sie frei steht. Wo nichts kollidiert (16:9 meist), bleibt alles, wie es eingestellt ist. Mitte-Anker bleiben. */
+  var _ctStapelTimer = 0, _ctStapelListe = null;
+  function _ctStapeln(layer, liste) {
+    const W = layer.clientWidth || 0, H = layer.clientHeight || 0;
+    if (!W || !H) return;
+    const luft = 0.012 * Math.min(W, H);
+    const nachId = new Map(liste.map(c => [c.id, c]));
+    const kanten = { t: [], b: [] };
+    let n = 0;
+    for (const el of layer.querySelectorAll(":scope > .ct[data-ctid]")) {
+      const c = nachId.get(el.dataset.ctid);
+      if (!c || !Array.isArray(c.anker) && typeof c.anker !== "string") continue;
+      const v = c.anker[0], hz = c.anker[1];
+      if (v !== "t" && v !== "b") continue;
+      el.style[v === "t" ? "top" : "bottom"] = (+c.y || 0) + "%";   // eingestellte Lage zuerst
+      delete el.dataset.gestapelt;
+      const w = el.offsetWidth, h = el.offsetHeight;
+      if (!w || !h) continue;
+      const x = (+c.x || 0) / 100 * W;
+      const links = hz === "l" ? x : hz === "r" ? W - x - w : W / 2 + x - w / 2;
+      let zeiten = [];
+      try { zeiten = _ctZeiten(c); } catch (_) {}
+      if (!zeiten.length) zeiten = [{ an: 0, aus: Infinity }];
+      const box = { links, rechts: links + w, h, y: (+c.y || 0) / 100 * H, zeiten };
+      const zeitGleich = (p) => p.zeiten.some(a => box.zeiten.some(b => a.an < b.aus && b.an < a.aus));
+      const waagerecht = (p) => p.links < box.rechts - 1 && box.links < p.rechts - 1;
+      for (let runde = 0; runde < 12; runde++) {
+        const im = kanten[v].find(p => waagerecht(p) && zeitGleich(p) && p.y < box.y + box.h - 1 && box.y < p.y + p.h - 1);
+        if (!im) break;
+        box.y = im.y + im.h + luft;
+      }
+      if (Math.abs(box.y - (+c.y || 0) / 100 * H) > 0.5) {
+        el.style[v === "t" ? "top" : "bottom"] = (box.y / H * 100).toFixed(3) + "%";
+        el.dataset.gestapelt = "1"; n++;
+      }
+      kanten[v].push(box);
+    }
+    if (n) applog("info", `[container] ${n} Einblendung(en) gestapelt (${W}×${H}, Überschneidung am Rand)`);
   }
   function _ctBildLaden(pfad) {
     if (_ctBilder.has(pfad)) return _ctBilder.get(pfad);
@@ -18552,6 +18960,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!res.ok) { toast(res.error || t("animator.toast.gpx_error", "GPX-Fehler"), "error"); return; }
     currentGpx = path;
     _gpxStats = res.stats;
+    _hauptFlach = Array.isArray(res.flach) ? res.flach : null;   // 07.10.2026 Etappe als Haupt-Track
     // v0.9.530 — Echtzeit-÷-Faktor-Modus kennt jetzt die echte Dauer (oder
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
@@ -19243,7 +19652,13 @@ function mountAnimator(body, headerActions, opts) {
     const _sessSchonDa = (typeof getActiveSession === "function" && getActiveSession()
       && typeof getGlobalGpxPath === "function"
       && _pfadNFC(getGlobalGpxPath() || "") === _pfadNFC(currentGpx || ""));
-    if (!_isReiseroute && _sessSchonDa) {
+    // 07.10.2026 Punkt 10 — Projekt ohne Tour, Etappe als Haupt-Track: wie die Reiseroute KEINE Sitzung für die Datei
+    // öffnen (sonst kapert sie das leere Projekt und dessen Etappe ist weg)
+    const _freiEtappe = !_isReiseroute && !!_hauptEt() && typeof getActiveSession === "function"
+      && String((getActiveSession() || {}).track_hash || "").startsWith("frei:");
+    if (_freiEtappe) {
+      try { _applySessionState(); } catch (err) { console.warn("applySessionState (Etappe):", err); }
+    } else if (!_isReiseroute && _sessSchonDa) {
       try { _applySessionState(); } catch (err) { console.warn("applySessionState:", err); }
     } else if (!_isReiseroute && typeof sessionActivate === "function"
         && !(Array.isArray(window.__rzPendingTours) && window.__rzPendingTours.length)) {
@@ -19568,11 +19983,19 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
-        <select data-stil="dot_style"><option value="dot"${st.dot_style !== "arrow" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}</select></div>
+        <div class="dot-wahl" data-dot-wahl></div>
+        <select data-stil="dot_style" hidden><option value="dot"${st.dot_style !== "arrow" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}</select></div>
+      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="muted">(${t("animator.dot.fz_stil_alle", "alle Fahrzeuge")})</span></label>
+        <div class="dot-wahl dot-fzs-wahl" data-fzs-wahl></div></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
         <input type="range" data-stil="dot_size" min="0.5" max="3" step="0.1" value="${st.dot_size}"></div>
       <div class="anim-stil-zeile" data-nur-pfeil ${st.dot_show && !ganz && st.dot_style === "arrow" ? "" : "hidden"}><label>${t("animator.dot.smooth", "Ruhe des Pfeils")} <b data-v="dot_smooth">${dotGlaettung()}</b> <span class="muted">(${t("animator.stil.alle_pfeile", "alle Pfeile")})</span></label>
         <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
+    {   // 07.10.2026 — Laufpunkt-Kacheln: Klick setzt die (versteckte) Liste, deren Änderung wie bisher verarbeitet wird
+      const sel = el.querySelector('[data-stil="dot_style"]'), fb = el.querySelector("[data-dot-wahl]"), zb = el.querySelector("[data-fzs-wahl]");
+      const fuellen = () => _dotKacheln(fb, zb, sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); });
+      if (sel && fb) fuellen();
+    }
     el.querySelectorAll("[data-blass]").forEach(inp => inp.addEventListener(inp.type === "range" ? "input" : "change", () => {
       const art = inp.dataset.blass;
       if (art === "show") el.querySelectorAll("[data-nur-blass]").forEach(z => { z.hidden = !inp.checked; });
@@ -19618,13 +20041,55 @@ function mountAnimator(body, headerActions, opts) {
   function _stilToggleBauen(schluessel, ziel, tr, row) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "anim-tour-btn anim-stil-toggle";
-    b.title = t("animator.stil.toggle", "Aussehen dieses Tracks");
-    b.textContent = _stilOffen.has(schluessel) ? "▾" : "▸";
-    b.addEventListener("click", () => {
-      if (_stilOffen.has(schluessel)) _stilOffen.delete(schluessel); else _stilOffen.add(schluessel);
-      _animRenderToursList();
-    });
+    b.title = t("animator.stil.track_bearbeiten", "Track bearbeiten — Farbe, Aussehen, Laufpunkt");
+    b.textContent = "✎";
+    b.addEventListener("click", () => _trackEdOeffnen(schluessel));
     return b;
+  }
+
+  // 07.10.2026 (Marc: „jeder Track muss so einen Stift haben, wo dann rechts ein Editor aufgeht, genauso wie bei den
+  // anderen Detailansichten … wie er aussehen soll, Farbe und so weiter, und eben auch der Trackpunkt“) — der Editor eines
+  // Tracks steht rechts in der Detail-Spalte (statt aufgeklappt in der Liste). Inhalt: Farbe + das Aussehen-Panel
+  // (_stilPanelBauen: Linie, Schatten, Glow, Punkte, Laufpunkt mit Fahrzeug-Aussehen); geplante Etappen: „Route bearbeiten“.
+  let _trackEd = null, _trackEdZiel = null;
+  function _trackEdOeffnen(ziel) {
+    const tr = ziel === "haupt" ? null : _extraTours.find(x => x.gpx_path === ziel);
+    if (ziel !== "haupt" && !tr) return;
+    const idx = tr ? _extraTours.indexOf(tr) : -1, esc = _animEscapeHtml;
+    const name = tr ? (tr.name || _dateiName(tr.gpx_path)) : (_animEtappe1Name || _dateiName(currentGpx || "") || t("library.tour", "Tour"));
+    const farbe = tr ? (tr.line_color || "#35a7ff") : (document.getElementById("anim-color")?.value || currentLineColor());
+    let p = (_trackEd && _trackEd.isConnected) ? _trackEd : null;
+    const neu = !p;
+    if (neu) { p = document.createElement("div"); p.id = "anim-track-editor"; p.className = "anim-track-editor sign-editor"; }
+    _trackEdZiel = ziel;
+    p.innerHTML = `<div class="tm-kopf"><b>✎ ${esc(name)}</b><button type="button" class="sign-editor-x" title="${esc(t("common.close", "Schließen"))}">✕</button></div>
+      <div class="anim-stil-zeile tred-farbe-zeile"><label>${esc(t("animator.tours.color", "Farbe dieser Tour"))}</label>
+        <input type="color" class="tred-farbe" value="${esc(farbe)}"></div>
+      ${tr && tr.etappe ? `<button type="button" class="btn btn-small tred-route" data-act="etappe">🗺 ${esc(t("animator.etappe.route_bearbeiten", "Route bearbeiten (Stationen, Verkehrsmittel)"))}</button>` : ""}
+      <div class="tred-stil"></div>`;
+    p.querySelector(".tred-stil").appendChild(_stilPanelBauen(tr ? idx : "haupt", tr));
+    p.querySelector(".sign-editor-x").onclick = () => { p.remove(); _trackEd = null; _trackEdZiel = null; };
+    p.querySelector(".tred-route")?.addEventListener("click", () => _etappeBearbeiten(tr.gpx_path));
+    p.querySelector(".tred-farbe").addEventListener("input", (e) => {
+      const v = e.target.value;
+      if (!tr) { const f = document.getElementById("anim-color"); if (f) { f.value = v; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); } return; }
+      const zeile = [...document.querySelectorAll("#anim-tours-list .anim-tour-row")].find(r => r.__rzPfad === tr.gpx_path);
+      const fi = zeile && zeile.querySelector(".anim-tour-color");
+      if (fi) { fi.value = v; fi.dispatchEvent(new Event("input", { bubbles: true })); }   // dieselbe Wirkung wie das Farbfeld der Liste
+      else { tr.line_color = v; _animPersistTours(); try { _animDrawExtraToursPreview(); } catch (err) { applog("warn", "[track] Farbe: " + err); } }
+    });
+    if (neu) {
+      _trackEd = p;
+      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p))) {   // Rückfall: unter der Tourenliste
+        const liste = document.getElementById("anim-tours-list");
+        if (liste && liste.parentElement) liste.parentElement.insertBefore(p, liste.nextSibling); else document.body.appendChild(p);
+      }
+    }
+  }
+  /** Liste neu gezeichnet: Editor eines entfernten Tracks schließen, sonst Kopf/Farbe stimmen lassen. */
+  function _trackEdNachListe() {
+    if (!_trackEd || !_trackEd.isConnected || !_trackEdZiel) return;
+    if (_trackEdZiel !== "haupt" && !_extraTours.some(x => x.gpx_path === _trackEdZiel)) { _trackEd.remove(); _trackEd = null; _trackEdZiel = null; }
   }
   // Der Dialog „Aussehen auf alle übernehmen": Quelle wählen, Felder ankreuzen.
   function _stilAlleDialog(quelleSchluessel) {
@@ -19957,7 +20422,7 @@ function mountAnimator(body, headerActions, opts) {
       // ein Track drin, ist da eben auch nur ein Track zu sehen"): Eintrag 1 steht
       // immer, mit seiner Farbe; Etappendauer nur, wenn es mehrere gibt.
       const kopf = document.createElement("div");
-      kopf.className = "anim-tour-row anim-etappe-erste" + (_reise ? " ist-etappe" : "");
+      kopf.className = "anim-tour-row anim-etappe-erste" + (_reise ? " ist-etappe" : "") + (_hauptEt() ? " ist-geplant" : "");
       // 09.09.2026 (Marc: „umbenennen in der Sidebar möglich machen") — ein
       // eigener Name gewinnt über den Dateinamen.
       const nm = _animEtappe1Name
@@ -19997,8 +20462,14 @@ function mountAnimator(body, headerActions, opts) {
         _animPersistTours();
       });
       (kopf.querySelector(".anim-etappe-zeile") || kopf).appendChild(_stilToggleBauen("haupt", "haupt", null, kopf));
+      if (_hauptEt()) {   // 07.10.2026 Punkt 10 — Etappe als Haupt-Track: 🗺 öffnet ihren Editor
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "anim-tour-btn anim-etappe-edit"; b.dataset.act = "etappe"; b.textContent = "🗺";
+        b.title = t("animator.etappe.bearbeiten_tip", "Stationen und Verkehrsmittel dieser Etappe ändern");
+        b.addEventListener("click", () => _etappeBearbeiten(currentGpx));
+        (kopf.querySelector(".anim-etappe-zeile") || kopf).appendChild(b);
+      }
       host.appendChild(kopf);
-      if (_stilOffen.has("haupt")) host.appendChild(_stilPanelBauen("haupt", null));
     }
     _extraTours.forEach((tr, i) => {
       // 09.09.2026 (§60): die Felder gehören der GRUPPE der Tour. Etappendauer
@@ -20027,6 +20498,7 @@ function mountAnimator(body, headerActions, opts) {
           gr.ueber_stil = e.target.value; gr.fest = false;
           try { _reiseAnwenden(); } catch (_) {}
           _animPersistTours(); _animRenderToursList();
+          _uebergangKfSpaeter(gr);
         });
         ur.querySelector(".anim-ueber-s").addEventListener("change", (e) => {
           const v = e.target.value.trim();
@@ -20050,7 +20522,8 @@ function mountAnimator(body, headerActions, opts) {
             : _dauerFeld(_gruppeFeldWert(tr.gpx_path), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))) : ""}
         ${(gv && !takt && gr.mitglieder.length > 1) ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+gr.mitglieder[gv.j].vorlauf_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
-          <button type="button" class="anim-tour-btn anim-stil-toggle" data-act="stil" title="${t("animator.stil.toggle", "Aussehen dieses Tracks")}">${_stilOffen.has(tr.gpx_path) ? "▾" : "▸"}</button>
+          ${tr.etappe ? `<button type="button" class="anim-tour-btn anim-etappe-edit" data-act="etappe" title="${t("animator.etappe.bearbeiten_tip", "Stationen und Verkehrsmittel dieser Etappe ändern")}">🗺</button>` : ""}
+          <button type="button" class="anim-tour-btn anim-stil-toggle" data-act="stil" title="${t("animator.stil.track_bearbeiten", "Track bearbeiten — Farbe, Aussehen, Laufpunkt")}">✎</button>
           ${(gr && _gruppeHatHaupt(gr) && !(gr.mitglieder.length > 1)) ? "" : `<button type="button" class="anim-tour-btn anim-ganz-toggle${gr && _gruppeIstGanz(gr) ? " ist-an" : ""}" data-act="ganz" aria-pressed="${gr && _gruppeIstGanz(gr) ? "true" : "false"}" title="${_animEscapeHtml(gr && _gruppeIstGanz(gr) ? t("animator.tours.ganz_an", "Ganz zeigen — die ganze Runde ist auf einmal da. Klick: wieder animiert") : t("animator.tours.ganz_aus", "Animiert — Klick: ganz zeigen (ganze Runde auf einmal, so lange wie ihr Balken)"))}">◼</button>`}
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
           <button type="button" class="anim-tour-btn" data-act="down" ${i === _extraTours.length - 1 ? "disabled" : ""} title="${t("animator.tours.down", "nach unten")}">↓</button>
@@ -20084,10 +20557,18 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) {}
       });
       row.querySelector('[data-act="ganz"]')?.addEventListener("click", () => _tourGanzUmschalten(tr.gpx_path));
-      row.querySelector('[data-act="stil"]').addEventListener("click", () => {
-        if (_stilOffen.has(tr.gpx_path)) _stilOffen.delete(tr.gpx_path); else _stilOffen.add(tr.gpx_path);
-        _animRenderToursList();
-      });
+      row.querySelector('[data-act="etappe"]')?.addEventListener("click", () => _etappeBearbeiten(tr.gpx_path));   // 07.10.2026
+      if (tr.etappe) row.classList.add("ist-geplant");
+      row.__rzPfad = tr.gpx_path;
+      row.querySelector('[data-act="stil"]').addEventListener("click", () => _trackEdOeffnen(tr.gpx_path));
+      // 07.10.2026 (Block 4) — Etappen dürfen auch VOR Tour 1 stehen (Anreise): ↑/↓ tauscht ihre Gruppe mit der Nachbargruppe
+      if (tr.etappe) {
+        const gi = _etGruppenIndex(tr.gpx_path);
+        const up = row.querySelector('[data-act="up"]'), dn = row.querySelector('[data-act="down"]');
+        if (up) { up.disabled = gi <= 0; up.addEventListener("click", (ev) => { ev.stopImmediatePropagation(); _etVerschieben(tr.gpx_path, -1); }, true); }
+        if (dn) { dn.disabled = gi < 0 || gi >= _gruppen.length - 1; dn.addEventListener("click", (ev) => { ev.stopImmediatePropagation(); _etVerschieben(tr.gpx_path, +1); }, true); }
+        row.__rzVorHaupt = _etVorHaupt(tr.gpx_path);
+      }
       row.querySelector('[data-act="up"]').addEventListener("click", () => {
         if (i > 0) { _gruppenTauschen(_extraTours[i].gpx_path, _extraTours[i - 1].gpx_path); const tmp = _extraTours[i - 1]; _extraTours[i - 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
       });
@@ -20098,9 +20579,15 @@ function mountAnimator(body, headerActions, opts) {
         _extraTours.splice(i, 1); _gruppenSync(); _gruppenAbleiten(); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
       });
       host.appendChild(row);
-      if (_stilOffen.has(tr.gpx_path)) host.appendChild(_stilPanelBauen(i, tr));
+      // Anreise-Etappe: über der Zeile von Tour 1 zeigen (so läuft sie auch)
+      if (row.__rzVorHaupt) {
+        const kopfEl = host.querySelector(".anim-etappe-erste");
+        if (kopfEl) { const stilEl = row.nextElementSibling && row.nextElementSibling.classList.contains("anim-stil-panel") ? row.nextElementSibling : null;
+                      host.insertBefore(row, kopfEl); if (stilEl) host.insertBefore(stilEl, kopfEl); }
+      }
     });
     { const b = document.getElementById("anim-stil-alle"); if (b) { b.hidden = _extraTours.length === 0; if (!b.__rzGebunden) { b.__rzGebunden = true; b.addEventListener("click", () => _stilAlleDialog("haupt")); } } }
+    _trackEdNachListe();
     if (flyField) flyField.hidden = _gruppen.length < 2;
     { const an = document.getElementById("anim-anordnung"); if (an) an.hidden = _extraTours.length === 0; }
   }
@@ -20664,6 +21151,9 @@ function mountAnimator(body, headerActions, opts) {
   let _reiseBasis = null;    // Koordinaten der ERSTEN Etappe, wie geladen
   let _reiseBasisSerie = null, _reiseBasisEle = null;   // ihre Datenreihen
   let _reiseBahn = null;     // { coords, teilVon, istUeber, teile, ansichten }
+  // 07.10.2026 Kamera-Vorgabe „Start → Ziel“: erster und letzter Punkt der Strecke (bei einer Reise die ganze Bahn)
+  window.__rzStartZiel = () => { const co = (_reiseAktiv() && _reiseBahn && _reiseBahn.coords) || currentCoords;
+    return co && co.length >= 2 ? [co[0].slice(0, 2), co[co.length - 1].slice(0, 2)] : null; };
 
   // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
   try { window.__rzAnimCoords = () => currentCoords || []; } catch (_) {}
@@ -20734,14 +21224,17 @@ function mountAnimator(body, headerActions, opts) {
                   // 26.09.2026 — Uhrzeit je Punkt + Zeitzone (Reise: „Datum & Uhrzeit" je Etappe)
                   epochs: (_reiseBasisSerie && _reiseBasisSerie.epochS) || null,
                   tz: (_reiseBasisSerie && _reiseBasisSerie.tz_offset_min) || 0,
-                  ele: _reiseBasisEle || null, stats: _gpxStats || null, haupt: true, tr: null });
+                  ele: _reiseBasisEle || null, stats: _gpxStats || null, haupt: true, tr: null,
+                  etappe: (_hauptEt() || {}).etappe || null, flach: _hauptEt() ? _hauptFlach : null });   // 07.10.2026 Punkt 10
     }
     _extraTours.forEach((t, i) => { const d = _tourGeduennt(t); raus.push({
       gpx_path: t.gpx_path, coords: d.coords || null, name: t.name || _dateiName(t.gpx_path),
       line_color: t.line_color || "#35a7ff", zeit: Array.isArray(d.zeit) ? d.zeit : null,
       epochs: Array.isArray(d.epochs) ? d.epochs : null, tz: +t.tz || 0,   // 26.09.2026
       ele: _hoehenAnPunkte(d.ele, d.coords ? d.coords.length : 0),   // 09.09.2026 — 200 Höhen zu 800 Punkten: abbilden statt verwerfen
-      stats: t.stats || null, haupt: false, tr: t, extraIdx: i }); });
+      stats: t.stats || null, haupt: false, tr: t, extraIdx: i,
+      // 07.10.2026 — geplante Etappe (Dauer nach Verkehrsmittel, flache Punkte, Zeit hält an)
+      etappe: t.etappe || null, flach: Array.isArray(d.flach) ? d.flach : null }); });
     return raus;
   }
   // ── Aussehen je Track (09.09.2026, Marc: „jeder Track komplett alle Einstellungen") ──
@@ -20832,12 +21325,13 @@ function mountAnimator(body, headerActions, opts) {
   function _tourGeduennt(tr) {
     const st = _stilVon(tr);
     const pct = Math.max(10, Math.min(100, +st.reduce_pct || 100));
-    if (pct >= 100 || !tr.coords || tr.coords.length < 20) return { coords: tr.coords, ele: tr.ele, zeit: tr.zeit, epochs: tr.epochs };
+    if (pct >= 100 || !tr.coords || tr.coords.length < 20) return { coords: tr.coords, ele: tr.ele, zeit: tr.zeit, epochs: tr.epochs, flach: tr.flach };
     if (tr.__duenn && tr.__duenn.pct === pct && tr.__duenn.n === tr.coords.length) return tr.__duenn;
     const n = tr.coords.length, ziel = Math.max(10, Math.round(n * pct / 100));
     const idx = []; for (let i = 0; i < ziel; i++) idx.push(Math.round(i * (n - 1) / (ziel - 1)));
     const pick = (arr) => (Array.isArray(arr) && arr.length === n) ? idx.map(i => arr[i]) : null;
-    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(_hoehenAnPunkte(tr.ele, n)), zeit: pick(tr.zeit), epochs: pick(tr.epochs) };
+    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(_hoehenAnPunkte(tr.ele, n)), zeit: pick(tr.zeit), epochs: pick(tr.epochs),
+                   flach: pick(tr.flach) };
     return tr.__duenn;
   }
   function _tourVon(gpx) {
@@ -20863,10 +21357,39 @@ function mountAnimator(body, headerActions, opts) {
   /** Inhaltslänge je Gruppe bei Faktor 1: der Wunsch, nach Umfang der
    *  Taktgeber verteilt — bei EINER Gruppe der ganze Wunsch. Budget nach
    *  Punktzahl, wie früher im Render (`_reise_segmente`). */
+  /** 07.10.2026 (Etappen, Grilling Punkt 7: „Dauer automatisch nach Strecke und Verkehrsmittel“) — wie viel Zeit
+   *  eine geplante Etappe bekommt, gemessen an einer durchschnittlichen Tour (1 = so lang wie eine Tour). Nach der
+   *  Punktzahl wäre eine berechnete Autoroute mit 4000 Punkten länger als jede Wanderung; ein Flug braucht im Video
+   *  nur einen Moment. Je Abschnitt: Grundwert des Verkehrsmittels × Wurzel der Strecke (lange Strecken etwas
+   *  länger, nicht proportional); die Abschnitte addieren sich, höchstens 1,5. Tempo je Etappe bleibt über den Faktor. */
+  const _ET_ZEIT = { flugzeug: 0.3, zug: 0.4, boot: 0.4, auto: 0.45, motorrad: 0.45, rad: 0.6, wanderer: 0.7 };
+  function _etZeitAnteil(et) {
+    const ab = Array.isArray(et && et.abschnitte) ? et.abschnitte : [];
+    const kmAb = (a) => {
+      if (!a || !a.von || !a.bis) return 0;
+      const r = Math.PI / 180, [x1, y1] = a.von, [x2, y2] = a.bis;
+      const d = Math.sin((y2 - y1) * r / 2) ** 2 + Math.cos(y1 * r) * Math.cos(y2 * r) * Math.sin((x2 - x1) * r / 2) ** 2;
+      return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(d)));
+    };
+    if (!ab.length) return 0.5;
+    // Luftlinie je Abschnitt, auf die gerechnete Gesamtlänge hochgerechnet (Straßen sind länger als die Luftlinie)
+    const luft = ab.map(kmAb), summe = luft.reduce((x, y) => x + y, 0) || 1;
+    const ges = +et.km > 0 ? +et.km : summe;
+    let anteil = 0;
+    ab.forEach((a, i) => {
+      const km = ges * luft[i] / summe;
+      anteil += (_ET_ZEIT[a.art] || 0.45) * Math.max(0.6, Math.min(1.6, Math.sqrt(km / 40)));
+    });
+    return Math.max(0.2, Math.min(1.5, anteil));
+  }
   function _gruppenRohS() {
     const wunsch = _gruppenWunsch();
     // §72: „Ganz zeigen"-Gruppen bekommen kein Zeitbudget (sie zeichnen nicht, ihre Länge ist ganz_s).
-    const mass = _gruppen.map(g => _gruppeIstGanz(g) ? 0 : _gruppenMass(_tourVon((g.mitglieder[0] || {}).gpx_path)));
+    const touren = _gruppen.map(g => _tourVon((g.mitglieder[0] || {}).gpx_path));
+    const echt = touren.filter((tr, i) => tr && !tr.etappe && !_gruppeIstGanz(_gruppen[i])).map(_gruppenMass);
+    const schnitt = echt.length ? echt.reduce((a, b) => a + b, 0) / echt.length : 1000;
+    const mass = _gruppen.map((g, i) => _gruppeIstGanz(g) ? 0
+      : (touren[i] && touren[i].etappe ? schnitt * _etZeitAnteil(touren[i].etappe) : _gruppenMass(touren[i])));
     const summe = mass.reduce((a, b) => a + b, 0) || 1;
     const nAnim = mass.filter(m => m > 0).length;
     const raus = {};
@@ -21386,7 +21909,8 @@ function mountAnimator(body, headerActions, opts) {
       g.name = (document.getElementById("gr-name")?.value || "").trim();
       const f = parseFloat(fEl?.value);
       if (f > 0) g.faktor = f;
-      const ue = document.getElementById("gr-ueber"); if (ue) g.ueber_stil = ue.value || "kino";
+      const ue = document.getElementById("gr-ueber"); const stilVorher = g.ueber_stil; if (ue) g.ueber_stil = ue.value || "kino";
+      if (ue && g.ueber_stil !== stilVorher) _uebergangKfSpaeter(g);
       const us = document.getElementById("gr-ueber-s"); if (us) { const v = us.value.trim(); g.ueber_s = v === "" ? null : Math.max(0, parseFloat(v) || 0); }
       const ke = document.getElementById("gr-kette"); if (ke) g.fest = !ke.checked;
       const le = document.getElementById("gr-leit"); if (le) { g.leit_gpx = le.value || ""; if (g === _gruppen[0]) _animFokusPfad = g.leit_gpx; }
@@ -21423,6 +21947,11 @@ function mountAnimator(body, headerActions, opts) {
     window.__rzGruppeLaenge = (id, sek) => { const g = _gruppeMitId(id); if (!g) return null; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenAnordnen = (art) => { _gruppenAnordnen(art); return window.__rzGruppen(); };
     window.__rzGruppenStapeln = (id, delta) => { _gruppenStapeln(id, delta); _gruppenNeu(); return window.__rzGruppen(); };
+    // 07.10.2026 — wie das Übergangs-Band der Zeitleiste (Prüfstand)
+    window.__rzGruppeUebergang = (id, patch) => { const g = _gruppeMitId(id); if (!g) return null;
+      if (patch && patch.stil) g.ueber_stil = patch.stil;
+      if (patch && patch.ueber_s != null) g.ueber_s = Math.max(0, +patch.ueber_s || 0);
+      g.fest = false; _gruppenNeu(); if (patch && patch.stil) _uebergangKfSpaeter(g); return window.__rzGruppen(); };
     window.__rzGruppenZeile = (id, ziel) => { _gruppenZeileWechseln(id, ziel); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzDrawPreview = () => {   // Prüfstand: die Vorschau mit dem geladenen Track neu zeichnen (wie ein Reload)
       const _p = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : null;
@@ -21664,7 +22193,8 @@ function mountAnimator(body, headerActions, opts) {
     return raus;
   }
   function _reiseSerieBauen(etappen, teilVon, istUeber, teile, gesamtN) {
-    const cumDistM = [], cumTimeS = [], ele = [], etappeDist = [], etappeZeit = [];
+    const cumDistM = [], cumTimeS = [], ele = [], etappeDist = [], etappeZeit = [], flach = [];
+    let hatFlach = false;
     // 26.09.2026 — Uhrzeit (Epoche) und Zeitzone je Bahnpunkt aus der jeweiligen Tour;
     // im Übergang und in den Halten die letzte Zeit halten (vorn: die erste der Reise).
     const epochS = [], tzOff = [];
@@ -21681,13 +22211,17 @@ function mountAnimator(body, headerActions, opts) {
       const cum = _cumDistBerechnen(e.coords);
       // Zeitreihe der Etappe: eigene, sonst gleichmäßig über die Distanz.
       const zeit = (Array.isArray(e.zeit) && e.zeit.length === e.coords.length) ? e.zeit : null;
-      if (!zeit) hatZeit = false;
+      // 07.10.2026 (Etappen, Grilling Punkt 9: „Zeit und Tempo nur aus echten Tracks") — eine geplante Etappe hat
+      // keine Uhrzeit; sie hält die Zeit an, statt Zeit und Tempo für die ganze Reise abzuschalten
+      const istEtappe = !!(e.tour && e.tour.etappe);
+      if (!zeit && !istEtappe) hatZeit = false;
+      const fl = istEtappe && Array.isArray(e.tour.flach) && e.tour.flach.length === e.coords.length ? e.tour.flach : null;
       // 09.09.2026 (Marc: „das Höhenprofil ist immer platt"): die Brücke liefert 800
       // Punkte, aber nur 200 Höhen (fürs Overlay gedünnt) — der Gleichheits-Test
       // warf sie weg und das Profil blieb eine Gerade. Jetzt auf die Punktzahl
       // gebracht (Index-Abbildung).
       const hoehen = _hoehenAnPunkte(e.ele, e.coords.length);
-      if (!hoehen) hatHoehe = false;
+      if (!hoehen && !istEtappe) hatHoehe = false;
       // Übergang VOR dieser Etappe: alles steht still
       const nU = teile[i].von - (i === 0 ? 0 : teile[i - 1].bis + 1);
       for (let k = 0; k < nU; k++) {
@@ -21695,6 +22229,7 @@ function mountAnimator(body, headerActions, opts) {
         ele.push(ele.length ? ele[ele.length - 1] : 0);
         etappeDist.push(0); etappeZeit.push(0);
         epochS.push(epLetzt); tzOff.push(tzLetzt);
+        flach.push(1);   // Übergang: kein Höhenmeter (Sprung zwischen zwei Orten)
       }
       for (const k of idx) {
         const epk = e.__ep ? e.__ep[k] : null;
@@ -21705,6 +22240,8 @@ function mountAnimator(body, headerActions, opts) {
         ele.push(hoehen ? hoehen[k] : (ele.length ? ele[ele.length - 1] : 0));
         etappeDist.push(cum[k]);
         etappeZeit.push(zeit ? (zeit[k] - zeit[0]) : 0);
+        const f = fl && fl[k] ? 1 : 0; if (f) hatFlach = true;
+        flach.push(f);
       }
       dAcc = cumDistM[cumDistM.length - 1];
       tAcc = cumTimeS[cumTimeS.length - 1];
@@ -21716,8 +22253,9 @@ function mountAnimator(body, headerActions, opts) {
       etappeDist.push(etappeDist.length ? etappeDist[etappeDist.length - 1] : 0);
       etappeZeit.push(etappeZeit.length ? etappeZeit[etappeZeit.length - 1] : 0);
       epochS.push(epLetzt); tzOff.push(tzLetzt);
+      flach.push(1);
     }
-    return { cumDistM, cumTimeS, ele, etappeDist, etappeZeit,
+    return { cumDistM, cumTimeS, ele, etappeDist, etappeZeit, flach: hatFlach ? flach : null,
              epochS: hatEpoch ? epochS : null, tzOff: hatEpoch ? tzOff : null,
              has_time: hatZeit, has_ele: hatHoehe };
   }
@@ -21900,7 +22438,7 @@ function mountAnimator(body, headerActions, opts) {
       // in der Etappe" blieben ausgegraut, obwohl die Bahn ihre Etappen kennt.
       const et = _reiseEtappenReihen(_reiseBahn);
       _ovSeries = Object.assign({}, _reiseBasisSerie || {}, {
-        cumDistM: sr.cumDistM, cumTimeS: sr.cumTimeS, ele: sr.ele,
+        cumDistM: sr.cumDistM, cumTimeS: sr.cumTimeS, ele: sr.ele, flach: sr.flach || null,
         has_time: sr.has_time, has_ele: sr.has_ele,
         total_dist_m: sr.cumDistM[sr.cumDistM.length - 1],
         total_time_s: sr.cumTimeS[sr.cumTimeS.length - 1],
@@ -22153,6 +22691,7 @@ function mountAnimator(body, headerActions, opts) {
       try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
       try { for (const id of ["swarm-prev-dots", "swarm-prev-dots-arrow"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); } catch (_) {}
     }
+    try { _rzRaiseOverlayLayers(); } catch (_) {}   // 07.10.2026 — neue Tour-Linien unter Foto-Pins, Schilder und Laufpunkt
     _vorschauDiagnose();
   }
 
@@ -22278,6 +22817,7 @@ function mountAnimator(body, headerActions, opts) {
                        // 09.09.2026 (Marc: „Höhenprofil ist glatt") — die Höhen der Etappe, sonst
                        // zeichnet die Bahn für sie 0 m und das Profil wird eine Gerade.
                        ele: (_ladeRes && Array.isArray(_ladeRes.elevations)) ? _ladeRes.elevations : null,
+                       flach: (_ladeRes && Array.isArray(_ladeRes.flach)) ? _ladeRes.flach : null,   // 07.10.2026 Etappe: Flug/Schiff/Bahn
                        zeit: (_ladeRes && _ladeRes.series && _ladeRes.series.cumTimeS
                               && _ladeRes.series.cumTimeS.length === (coords || []).length)
                              ? _ladeRes.series.cumTimeS : null,
@@ -22296,6 +22836,745 @@ function mountAnimator(body, headerActions, opts) {
     _animDrawExtraToursPreview();
     _animFitAllTours();
   }
+
+  // ── Geplante Etappen (07.10.2026, Block 4 „Reiseroute in den Animator“, docs/PLAN.md §3) ──────────────────────
+  // Eine Etappe ist eine Zusatz-Tour mit `etappe: {id, wps, arten, kurve, weich, grob, abschnitte, km}`.
+  // Editor rechts in der Detail-Spalte; Stationen eintippen, 📍 klicken oder direkt auf die Karte ZEICHNEN.
+  // Jeder Abschnitt folgt zunächst der Straße (Flug/Boot/Zug: Bogen) — Grobheit über „Straße: fein ↔ grob“. Dreht man
+  // am ausgewählten Punkt den HEBEL, werden die Abschnitte daneben zu freien Bézierkurven (Marc 07.10.2026: „so Kurven
+  // zusammenklicken, wo man am Punkt drehen kann, damit sich die Kurve ändert“). „Weichheit“ rundet alle Kurven, die
+  // man nicht selbst eingestellt hat; Doppelklick auf einen Punkt = scharfe Ecke. Die Linie setzt der Animator selbst
+  // zusammen (Vorschau = Ergebnis) und lässt sie von `etappe_speichern` als GPX ins Projekt schreiben.
+  const _ET_ARTEN = ["auto", "motorrad", "rad", "wanderer", "zug", "boot", "flugzeug"];
+  const _ET_SYMBOL = { auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", zug: "🚆", boot: "⛴", flugzeug: "✈️" };   // nur Oberfläche (Knöpfe), nicht im Video
+  let _etEd = null;   // offener Editor (siehe _etappeNeu)
+  const _etLeer = () => ({ text: "", lon: null, lat: null, label: "" });
+  const _etName = (w) => {
+    const s = String(w && (w.text || w.label) || "").trim();
+    if (!s || /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(s)) return t("animator.etappe.kartenpunkt", "Kartenpunkt");
+    let r = s;
+    for (const k of [["animator.etappe.ende_von", "Ende: {n}"], ["animator.etappe.anfang_von", "Anfang: {n}"]]) {
+      const vor = t(k[0], k[1]).split("{n}")[0]; if (vor && r.startsWith(vor)) r = r.slice(vor.length);
+    }
+    return r.split(",")[0].trim();
+  };
+  /** Die Kette als Plätze: [{name, anfang:[lon,lat], ende:[lon,lat]}] in Gruppen-Reihenfolge. */
+  /** 07.10.2026 (Etappen, Grilling Punkt 10: „Kartenanimation ohne GPS“) — in einem Projekt ohne Tour wird die erste
+   *  Etappe der Haupt-Track (wie bei der Reiseroute lokal geladen, nicht als Archiv-Tour). Gespeichert im Projekt
+   *  (animator.haupt_etappe = {gpx_path, etappe}); gilt nur, solange genau diese Datei der Haupt-Track ist. */
+  function _hauptEt() {
+    return (_hauptEtappe && currentGpx && _pfadNFC(_hauptEtappe.gpx_path) === _pfadNFC(currentGpx)) ? _hauptEtappe : null;
+  }
+  /** Punkt 10 — die Etappe als Haupt-Track wieder abräumen (Projektwechsel), wie „GPX geschlossen“. */
+  function _hauptEtappeEntladen() {
+    currentGpx = null; currentCoords = null; currentBbox = null;
+    _gpxStats = null; _ovSeries = null; _ovSensorFields = []; _gpxElevations = []; _hauptFlach = null;
+    try {
+      document.getElementById("anim-stats-empty").hidden = false;
+      document.getElementById("anim-stats-cards").hidden = true;
+      document.getElementById("anim-render").disabled = true;
+    } catch (_) {}
+    try { if (window.__rzAnimSigns && window.__rzAnimSigns.clearAll) window.__rzAnimSigns.clearAll(); } catch (_) {}
+    try { _animLeerAnzeigen(); } catch (e) { applog("warn", "[etappe] entladen: " + e); }
+  }
+  function _etKette() {
+    const pool = _tourPool();
+    return _gruppen.map(g => {
+      const t0 = pool.find(x => _pfadNFC(x.gpx_path) === _pfadNFC((g.mitglieder[0] || {}).gpx_path));
+      const co = t0 && (t0.coords || (t0.haupt ? currentCoords : null));
+      return t0 && co && co.length ? { name: t0.name || t("library.tour", "Tour"), anfang: co[0], ende: co[co.length - 1] } : null;
+    }).filter(Boolean);
+  }
+  /** Start/Ziel für den Platz `k` (0 = vor der ersten Tour, n = nach der letzten): Ende davor, Anfang danach. */
+  function _etPlatzFuellen(E, k) {
+    const kette = _etKette(), vor = kette[k - 1], nach = kette[k];
+    E.platz = k;
+    const leer = (w) => !w || (w.lon == null && !w.text) || w.auto;
+    if (vor && leer(E.wps[0])) E.wps[0] = { text: "", lon: vor.ende[0], lat: vor.ende[1], label: t("animator.etappe.ende_von", "Ende: {n}").replace("{n}", vor.name), auto: true };
+    if (!vor && E.wps[0] && E.wps[0].auto) E.wps[0] = _etLeer();
+    const z = E.wps.length - 1;
+    if (nach && leer(E.wps[z])) E.wps[z] = { text: "", lon: nach.anfang[0], lat: nach.anfang[1], label: t("animator.etappe.anfang_von", "Anfang: {n}").replace("{n}", nach.name), auto: true };
+    if (!nach && E.wps[z] && E.wps[z].auto) E.wps[z] = _etLeer();
+  }
+  function _etNeuerZustand() {
+    return { pfad: null, wps: [_etLeer(), _etLeer()], arten: ["auto"], kurve: [false], weich: 0.5, grob: 0.55, beschriften: true,
+             pick: -1, sel: -1, busy: false, teile: new Map(), laeuft: 0, verlauf: [] };
+  }
+  /** Rückgängig im Editor (⌘Z / Knopf): Stand VOR einer Änderung merken. */
+  function _etMerken() {
+    const E = _etEd; if (!E) return;
+    E.verlauf.push(JSON.stringify({ wps: E.wps, arten: E.arten, kurve: E.kurve, weich: E.weich, grob: E.grob }));
+    if (E.verlauf.length > 80) E.verlauf.shift();
+  }
+  function _etZurueck() {
+    const E = _etEd; if (!E || !E.verlauf.length) return;
+    Object.assign(E, JSON.parse(E.verlauf.pop())); E.sel = -1;
+    _etEdZeichnen(); _etTeileHolen();
+  }
+  function _etKm(E) {
+    const co = _etLinie(E); let m = 0;
+    for (let i = 0; i < co.length - 1; i++) {
+      const [a, b] = [co[i], co[i + 1]], R = 6371000, r = Math.PI / 180;
+      const d = Math.sin((b[1] - a[1]) * r / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin((b[0] - a[0]) * r / 2) ** 2;
+      m += 2 * R * Math.asin(Math.min(1, Math.sqrt(d)));
+    }
+    return m / 1000;
+  }
+  function _etappeNeu() {
+    if (_etEd && _etEd.busy) return;
+    _etAufraeumen();
+    _etEd = _etNeuerZustand();
+    _etPlatzFuellen(_etEd, _etKette().length);   // Standard: nach der letzten Tour (Grilling Punkt 4)
+    _etEdZeichnen();
+    setTimeout(() => { try { document.querySelector('#anim-etappe-editor .et-wp-input[data-i="1"]')?.focus(); } catch (_) {} }, 50);
+  }
+  function _etappeBearbeiten(pfad) {
+    const he = _hauptEt();
+    const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(pfad))
+      || (he && _pfadNFC(he.gpx_path) === _pfadNFC(pfad) ? { gpx_path: he.gpx_path, etappe: he.etappe } : null);
+    if (!tr || !tr.etappe) return;
+    _etAufraeumen();
+    const et = tr.etappe, E = _etNeuerZustand();
+    Object.assign(E, { pfad: tr.gpx_path, wps: JSON.parse(JSON.stringify(et.wps || [])), arten: (et.arten || []).slice(),
+                       kurve: (et.kurve || []).slice(), weich: et.weich != null ? +et.weich : 0.5, grob: et.grob != null ? +et.grob : 0.55,
+                       beschriften: et.beschriften !== false });
+    while (E.arten.length < E.wps.length - 1) E.arten.push(E.arten[E.arten.length - 1] || "auto");
+    while (E.kurve.length < E.wps.length - 1) E.kurve.push(false);
+    _etEd = E;
+    _etEdZeichnen();
+    _etTeileHolen();   // 07.10.2026 (Marc-Screenshot: schwarzer Strich) — Straßen-Abschnitte auch beim Bearbeiten holen
+    E.wps.forEach(w => { if (_etName(w) === t("animator.etappe.kartenpunkt", "Kartenpunkt")) _etOrtHolen(w); });   // ältere Etappen: Namen nachholen
+  }
+  function _etEdZu() {
+    if (!_etEd) return;
+    _etEd = null; window.__rzEtappeKlick = null;
+    _etAufraeumen();
+    _etEdZeichnen();
+  }
+
+  // ── Geometrie: Mercator (0..1), Hebel, Bézier ──
+  const _etM = (ll) => { const s = Math.sin(Math.max(-85, Math.min(85, ll[1])) * Math.PI / 180);
+    return [(ll[0] + 180) / 360, 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)]; };
+  const _etLL = (m) => [m[0] * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * m[1]))) * 180 / Math.PI];
+  /** Hebel am Punkt j als Kontrollpunkt-Versatz (Mercator): {aus, ein} — `aus` zeigt in Fahrtrichtung, `ein` dagegen. */
+  function _etHebel(E, j) {
+    const w = E.wps[j], P = E.wps.map(x => _etM([x.lon, x.lat]));
+    if (w.scharf) return { aus: [0, 0], ein: [0, 0] };
+    if (w.hebel) { const c = Math.cos(w.hebel.ang), s = Math.sin(w.hebel.ang);
+      return { aus: [c * w.hebel.ln, s * w.hebel.ln], ein: [c * w.hebel.lv, s * w.hebel.lv] }; }
+    const vor = P[j - 1] || P[j], nach = P[j + 1] || P[j], k = (+E.weich || 0) * 1.5 / 6;   // Catmull-Rom: (nach − vor)/2 · 1/3
+    const v = [(nach[0] - vor[0]) * k, (nach[1] - vor[1]) * k];
+    return { aus: v, ein: v };
+  }
+  function _etBezier(a, c1, c2, b, n) {
+    const raus = [];
+    for (let i = 0; i <= n; i++) {
+      const t0 = i / n, u = 1 - t0;
+      raus.push([u * u * u * a[0] + 3 * u * u * t0 * c1[0] + 3 * u * t0 * t0 * c2[0] + t0 * t0 * t0 * b[0],
+                 u * u * u * a[1] + 3 * u * u * t0 * c1[1] + 3 * u * t0 * t0 * c2[1] + t0 * t0 * t0 * b[1]]);
+    }
+    return raus.map(_etLL);
+  }
+  const _etTeilKey = (E, i) => { const a = E.wps[i], b = E.wps[i + 1];
+    return `${a.lon.toFixed(6)},${a.lat.toFixed(6)}|${b.lon.toFixed(6)},${b.lat.toFixed(6)}|${E.arten[i] || "auto"}|${(+E.grob).toFixed(2)}`; };
+  /** Linie eines Abschnitts: Kurve sofort, Straße aus dem Speicher (sonst vorerst gerade, `fehlt`). */
+  function _etAbschnitt(E, i) {
+    const a = E.wps[i], b = E.wps[i + 1];
+    if (!a || !b || a.lon == null || b.lon == null) return { coords: [], fehlt: false };
+    if (E.kurve[i]) {
+      const A = _etM([a.lon, a.lat]), B = _etM([b.lon, b.lat]), ha = _etHebel(E, i), hb = _etHebel(E, i + 1);
+      return { coords: _etBezier(A, [A[0] + ha.aus[0], A[1] + ha.aus[1]], [B[0] - hb.ein[0], B[1] - hb.ein[1]], B, 48), fehlt: false };
+    }
+    const hit = E.teile.get(_etTeilKey(E, i));
+    return hit ? { coords: hit, fehlt: false } : { coords: [[a.lon, a.lat], [b.lon, b.lat]], fehlt: true };
+  }
+  function _etLinie(E) { return _etLinieTeile(E).coords; }
+  /** Linie plus, welcher Punktbereich zu welchem Abschnitt (Verkehrsmittel) gehört — fürs Backend (Höhen, Punkt 8). */
+  function _etLinieTeile(E) {
+    const co = [], teile = [];
+    for (let i = 0; i < E.wps.length - 1; i++) {
+      const s = _etAbschnitt(E, i).coords;
+      const von = Math.max(0, co.length - (co.length && s.length ? 1 : 0));
+      co.push(...(co.length && s.length ? s.slice(1) : s));
+      if (s.length) teile.push({ von, bis: co.length - 1, art: E.arten[i] || "auto" });
+    }
+    return { coords: co, teile };
+  }
+  /** Fehlende Straßen-Abschnitte holen (einer nach dem anderen), danach neu zeichnen. */
+  async function _etTeileHolen() {
+    const E = _etEd; if (!E || E.laeuft) return;
+    E.laeuft = 1;
+    try {
+      for (let i = 0; i < E.wps.length - 1; i++) {
+        if (_etEd !== E) return;
+        const a = E.wps[i], b = E.wps[i + 1];
+        if (E.kurve[i] || !a || !b || a.lon == null || b.lon == null) continue;
+        const key = _etTeilKey(E, i);
+        if (E.teile.has(key)) continue;
+        _etStatus(t("animator.etappe.strasse_laedt", "Strecke wird berechnet …"));
+        let r = null; const t0 = performance.now();
+        try { r = await api().etappe_abschnitt({ von: [a.lon, a.lat], nach: [b.lon, b.lat], art: E.arten[i] || "auto", grob: E.grob }); }   // warte-ok: Hintergrund, Linie zeigt vorerst gerade
+        catch (e) { r = { ok: false, error: String(e) }; }
+        applog("info", `[etappe] Abschnitt ${i + 1}/${E.wps.length - 1} ${E.arten[i] || "auto"} grob ${(+E.grob).toFixed(2)}: ` +
+          (r && r.ok ? `${(r.coords || []).length} Punkte, ${Math.round((r.distance_m || 0) / 100) / 10} km` : `Fehler ${r && r.error}`) + ` · ${Math.round(performance.now() - t0)} ms`);
+        if (_etEd !== E) return;
+        if (r && r.ok && Array.isArray(r.coords) && r.coords.length > 1) E.teile.set(key, r.coords);
+        else { E.teile.set(key, [[a.lon, a.lat], [b.lon, b.lat]]); _etStatus("✗ " + t("animator.etappe.strasse_fehler", "Keine Straße gefunden — Abschnitt als gerade Linie") + (r && r.error ? " (" + r.error + ")" : ""), true); }
+        _etKarteZeichnen();
+      }
+      _etStatus("");
+    } finally { if (E) E.laeuft = 0; }
+    if (_etEd === E && E.wps.some((w, i) => i < E.wps.length - 1 && !E.kurve[i] && w.lon != null && E.wps[i + 1].lon != null && !E.teile.has(_etTeilKey(E, i)))) _etTeileHolen();
+  }
+  function _etStatus(txt, fehler) {
+    const el = document.querySelector("#anim-etappe-editor .et-zustand");
+    if (el) { el.textContent = txt || ""; el.classList.toggle("ist-fehler", !!fehler); }
+  }
+
+  // ── Karte: Linie, Punkte (ziehbar), Hebel am ausgewählten Punkt ──
+  let _etMarker = [], _etGriffe = [], _etTaste = null, _etObenZeit = 0, _etMarkerKarte = null;
+  window.__rzEtappeNeuZeichnen = () => { if (_etEd) { _etObenZeit = 0; _etKarteZeichnen(); } };
+  function _etAufraeumen() {
+    _etMarker.forEach(m => { try { m.remove(); } catch (_) {} }); _etMarker = [];
+    _etGriffe.forEach(m => { try { m.remove(); } catch (_) {} }); _etGriffe = [];
+    _etMenueWeg();
+    if (_etTaste) { window.removeEventListener("keydown", _etTaste, true); _etTaste = null; }
+    if (map) {
+      for (const l of ["et-edit-hebel", "et-edit-linie-fehlt", "et-edit-linie", "et-edit-kontur"]) { try { if (map.getLayer(l)) map.removeLayer(l); } catch (_) {} }
+      try { if (map.getSource("et-edit")) map.removeSource("et-edit"); } catch (_) {}
+      try { map.getCanvas().style.cursor = ""; } catch (_) {}
+    }
+  }
+  function _etKarteZeichnen() {
+    const E = _etEd; if (!E || !map) return;
+    // Karte neu gebaut (Engine-Wechsel)? Dann hängen Punkte, Hebel und Menü noch an der alten — neu anlegen
+    if (_etMarkerKarte && _etMarkerKarte !== map) {
+      _etMarker.forEach(m => { try { m.remove(); } catch (_) {} }); _etMarker = [];
+      _etGriffe.forEach(m => { try { m.remove(); } catch (_) {} }); _etGriffe = [];
+      _etMenueWeg();
+    }
+    _etMarkerKarte = map;
+    const feats = [];
+    for (let i = 0; i < E.wps.length - 1; i++) {
+      const s = _etAbschnitt(E, i);
+      if (s.coords.length > 1) feats.push({ type: "Feature", properties: { fehlt: s.fehlt ? 1 : 0 }, geometry: { type: "LineString", coordinates: s.coords } });
+    }
+    if (E.sel >= 0 && E.wps[E.sel] && E.wps[E.sel].lon != null) {
+      const w = E.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(E, E.sel);
+      feats.push({ type: "Feature", properties: { hebel: 1 }, geometry: { type: "LineString",
+        coordinates: [_etLL([P[0] - h.ein[0], P[1] - h.ein[1]]), [w.lon, w.lat], _etLL([P[0] + h.aus[0], P[1] + h.aus[1]])] } });
+    }
+    const fc = { type: "FeatureCollection", features: feats };
+    try {
+      if (map.getSource("et-edit")) map.getSource("et-edit").setData(fc);
+      else {
+        map.addSource("et-edit", { type: "geojson", data: fc });
+        // 07.10.2026 (Marc-Screenshot) — Kontur nur unter fertigen Abschnitten, kein dunkler Balken unter „Straße kommt noch“
+        map.addLayer({ id: "et-edit-kontur", type: "line", source: "et-edit", filter: ["all", ["!", ["has", "hebel"]], ["==", ["get", "fehlt"], 0]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#0f1a20", "line-width": 7.5 } });
+        map.addLayer({ id: "et-edit-linie", type: "line", source: "et-edit", filter: ["all", ["!", ["has", "hebel"]], ["==", ["get", "fehlt"], 0]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": 4.5 } });
+        map.addLayer({ id: "et-edit-linie-fehlt", type: "line", source: "et-edit", filter: ["all", ["!", ["has", "hebel"]], ["==", ["get", "fehlt"], 1]], paint: { "line-color": "#ffd166", "line-width": 2.5, "line-dasharray": [2, 2], "line-opacity": 0.7 } });
+        map.addLayer({ id: "et-edit-hebel", type: "line", source: "et-edit", filter: ["has", "hebel"], paint: { "line-color": "#ffffff", "line-width": 1.2, "line-opacity": 0.85 } });
+      }
+      // Klicktest 07.10.: Straßennamen, die später dazukommen, lagen über der Linie — höchstens alle 0,5 s nach oben holen
+      const jetzt = performance.now();
+      if (jetzt - _etObenZeit > 500) {
+        _etObenZeit = jetzt;
+        for (const l of ["et-edit-kontur", "et-edit-linie", "et-edit-linie-fehlt", "et-edit-hebel"]) if (map.getLayer(l)) map.moveLayer(l);
+      }
+    } catch (e) { applog("warn", "[etappe] Karte: " + e); }
+    _etPunkteSetzen();
+  }
+  function _etPunkteSetzen() {
+    const E = _etEd; if (!E || !map) return;
+    const MK = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
+    const da = E.wps.map((w, i) => ({ w, i })).filter(x => x.w.lon != null);
+    while (_etMarker.length > da.length) { try { _etMarker.pop().remove(); } catch (_) {} }
+    da.forEach(({ w, i }, k) => {
+      let m = _etMarker[k];
+      if (!m) {
+        const el = document.createElement("div"); el.className = "et-pt";
+        m = new MK({ element: el, draggable: true }).setLngLat([w.lon, w.lat]).addTo(map);
+        el.addEventListener("click", (ev) => { ev.stopPropagation(); const j = +el.dataset.i; if (_etEd) { _etEd.sel = (_etEd.sel === j) ? -1 : j; _etKarteZeichnen(); _etListeMarkieren(); } });
+        el.addEventListener("dblclick", (ev) => { ev.stopPropagation(); ev.preventDefault(); _etScharf(+el.dataset.i); });
+        m.on("dragstart", () => _etMerken());
+        m.on("drag", () => { const E2 = _etEd, j = +el.dataset.i; if (!E2 || !E2.wps[j]) return; const ll = m.getLngLat();
+          Object.assign(E2.wps[j], { lon: ll.lng, lat: ll.lat, text: "", label: "", auto: false }); _etKarteZeichnen(); });
+        m.on("dragend", () => { _etEdZeichnen(); _etTeileHolen(); if (_etEd) _etOrtHolen(_etEd.wps[+el.dataset.i]); });
+        _etMarker[k] = m;
+      }
+      const el = m.getElement();
+      el.dataset.i = String(i);
+      el.title = (i === 0 ? t("animator.etappe.start", "Start") : (i === E.wps.length - 1 ? t("animator.etappe.ziel", "Ziel") : t("animator.etappe.station", "Station") + " " + i)) + " · " + _etName(w);
+      el.classList.toggle("ist-ende", i === 0 || i === E.wps.length - 1);
+      el.classList.toggle("ist-sel", E.sel === i);
+      el.classList.toggle("ist-scharf", !!w.scharf);
+      m.setLngLat([w.lon, w.lat]);
+    });
+    _etGriffeSetzen();
+  }
+  let _etMenue = null;
+  /** Kleine Leiste über dem ausgewählten Punkt (wie MapAnimator): scharfe Ecke · Verkehrsmittel ab hier · löschen. */
+  // 07.10.2026 (Marc, Screenshot: „das kleine Modal … ist über den Kartenrand gerutscht, ich komme nicht mehr ran“) — die
+  // Leiste ist kein Karten-Marker mehr, sondern schwebt über der Karte: bleibt immer im Kartenrand, rückt beim Verschieben
+  // der Karte mit und lässt sich am Griff ⠿ wegziehen (gilt, bis ein anderer Punkt gewählt wird).
+  let _etMenueVersatz = null, _etMenueFuer = -1, _etMenueHook = null;
+  function _etMenueWeg() {
+    if (_etMenue) { try { _etMenue.remove(); } catch (_) {} _etMenue = null; }
+    if (_etMenueHook && map) { try { map.off("move", _etMenueHook); } catch (_) {} }
+    _etMenueHook = null;
+  }
+  function _etMenueLage() {
+    const E = _etEd, el = _etMenue;
+    if (!E || !el || !map || E.sel < 0 || !E.wps[E.sel] || E.wps[E.sel].lon == null) return;
+    const w = E.wps[E.sel], box = map.getContainer(), W = box.clientWidth, H = box.clientHeight;
+    const p0 = map.project([w.lon, w.lat]);
+    let oben = p0.y;
+    try {   // über den höchsten der drei (Punkt, Hebel ein/aus) — die Leiste verdeckte sonst einen Hebel
+      const P = _etM([w.lon, w.lat]), h = _etHebel(E, E.sel);
+      for (const ll of [_etLL([P[0] + h.aus[0], P[1] + h.aus[1]]), _etLL([P[0] - h.ein[0], P[1] - h.ein[1]])]) oben = Math.min(oben, map.project(ll).y);
+    } catch (_) {}
+    const bw = el.offsetWidth || 260, bh = el.offsetHeight || 30;
+    let x = p0.x - bw / 2, y = oben - 16 - bh;
+    if (y < 6) y = p0.y + 18;   // oben kein Platz → unter den Punkt
+    if (_etMenueVersatz) { x += _etMenueVersatz[0]; y += _etMenueVersatz[1]; }
+    x = Math.max(6, Math.min(W - bw - 6, x)); y = Math.max(6, Math.min(H - bh - 6, y));
+    el.style.left = Math.round(x) + "px"; el.style.top = Math.round(y) + "px";
+  }
+  function _etMenueSetzen() {
+    const E = _etEd;
+    if (!E || E.sel < 0 || !E.wps[E.sel] || E.wps[E.sel].lon == null || !map) { _etMenueWeg(); return; }
+    const j = E.sel, w = E.wps[j], esc = _animEscapeHtml;
+    if (_etMenueFuer !== j) { _etMenueVersatz = null; _etMenueFuer = j; }
+    if (!_etMenue || !_etMenue.isConnected || _etMenue.parentElement !== map.getContainer()) {
+      _etMenueWeg();
+      const el = document.createElement("div"); el.className = "et-menue";
+      for (const typ of ["click", "mousedown", "dblclick", "wheel"]) el.addEventListener(typ, (ev) => ev.stopPropagation());
+      map.getContainer().appendChild(el);
+      _etMenue = el;
+      _etMenueHook = () => _etMenueLage();
+      map.on("move", _etMenueHook);
+    }
+    const el = _etMenue;
+    const artAb = j < E.wps.length - 1 ? (E.arten[j] || "auto") : "";
+    el.innerHTML = `<span class="et-menue-griff" title="${esc(t("animator.etappe.m_ziehen", "Leiste verschieben"))}">⠿</span>
+      <button type="button" data-m="scharf">${esc(w.scharf ? t("animator.etappe.m_rund", "Rund machen") : t("animator.etappe.m_scharf", "Scharfe Ecke"))}</button>
+      ${j < E.wps.length - 1 ? `<label>${esc(t("animator.etappe.m_ab_hier", "ab hier mit"))} <select data-m="art">${_ET_ARTEN.map(a => `<option value="${a}"${artAb === a ? " selected" : ""}>${_ET_SYMBOL[a]} ${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select></label>` : ""}
+      ${E.wps.length > 2 ? `<button type="button" data-m="weg" class="ist-weg">🗑 ${esc(t("animator.etappe.m_weg", "Punkt löschen"))}</button>` : ""}`;
+    el.querySelector('[data-m="scharf"]').onclick = () => _etScharf(j);
+    const sel = el.querySelector('[data-m="art"]');
+    if (sel) sel.onchange = () => { _etMerken(); for (let k = j; k < E.wps.length - 1; k++) E.arten[k] = sel.value; _etEdZeichnen(); _etTeileHolen(); };   // „ab hier“: der Rest der Etappe
+    const weg = el.querySelector('[data-m="weg"]'); if (weg) weg.onclick = () => _etPunktWeg(j);
+    const griff = el.querySelector(".et-menue-griff");
+    griff.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const v0 = (_etMenueVersatz || [0, 0]).slice(), x0 = ev.clientX, y0 = ev.clientY;
+      try { griff.setPointerCapture(ev.pointerId); } catch (_) {}
+      const zieh = (e2) => { _etMenueVersatz = [v0[0] + e2.clientX - x0, v0[1] + e2.clientY - y0]; _etMenueLage(); };
+      const los = () => { griff.removeEventListener("pointermove", zieh); griff.removeEventListener("pointerup", los); griff.removeEventListener("pointercancel", los); };
+      griff.addEventListener("pointermove", zieh); griff.addEventListener("pointerup", los); griff.addEventListener("pointercancel", los);
+    });
+    _etMenueLage();
+  }
+  function _etGriffeSetzen() {
+    _etMenueSetzen();
+    const E = _etEd;
+    const MK = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
+    if (!E || E.sel < 0 || !E.wps[E.sel] || E.wps[E.sel].lon == null) { _etGriffe.forEach(m => { try { m.remove(); } catch (_) {} }); _etGriffe = []; return; }
+    const w = E.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(E, E.sel);
+    const lage = { aus: _etLL([P[0] + h.aus[0], P[1] + h.aus[1]]), ein: _etLL([P[0] - h.ein[0], P[1] - h.ein[1]]) };
+    ["aus", "ein"].forEach((seite, k) => {
+      let g = _etGriffe[k];
+      if (!g) {
+        const el = document.createElement("div"); el.className = "et-griff"; el.title = t("animator.etappe.hebel_tip", "Drehen: Richtung der Kurve · Ziehen: wie weit der Bogen ausholt");
+        g = new MK({ element: el, draggable: true }).setLngLat(lage[seite]).addTo(map);
+        g.on("dragstart", () => _etMerken());
+        g.on("drag", () => _etHebelGezogen(seite, g.getLngLat()));
+        g.on("dragend", () => { _etEdZeichnen(); });
+        _etGriffe[k] = g;
+      }
+      if (!g.__rzZieht) g.setLngLat(lage[seite]);
+    });
+  }
+  /** Griff gezogen: Richtung für beide Seiten, Länge nur für diese Seite; die Abschnitte am Punkt werden Kurven. */
+  function _etHebelGezogen(seite, ll) {
+    const E = _etEd; if (!E || E.sel < 0) return;
+    const j = E.sel, w = E.wps[j], P = _etM([w.lon, w.lat]), G = _etM([ll.lng, ll.lat]);
+    let v = [G[0] - P[0], G[1] - P[1]];
+    if (seite === "ein") v = [-v[0], -v[1]];
+    const L = Math.hypot(v[0], v[1]), alt = _etHebel(E, j);
+    const ang = Math.atan2(v[1], v[0]);
+    w.hebel = { ang, ln: seite === "aus" ? L : Math.hypot(alt.aus[0], alt.aus[1]), lv: seite === "ein" ? L : Math.hypot(alt.ein[0], alt.ein[1]) };
+    w.scharf = false;
+    if (j > 0) E.kurve[j - 1] = true;
+    if (j < E.wps.length - 1) E.kurve[j] = true;
+    _etGriffe.forEach(g => { g.__rzZieht = true; });
+    _etKarteZeichnen();
+    _etGriffe.forEach(g => { g.__rzZieht = false; });
+  }
+  function _etScharf(j) {
+    const E = _etEd; if (!E || !E.wps[j]) return;
+    _etMerken();
+    E.wps[j].scharf = !E.wps[j].scharf;
+    if (E.wps[j].scharf) E.wps[j].hebel = null;
+    if (j > 0) E.kurve[j - 1] = true;
+    if (j < E.wps.length - 1) E.kurve[j] = true;
+    _etEdZeichnen();
+  }
+  function _etPunktWeg(j) {
+    const E = _etEd; if (!E || E.wps.length <= 2 || !E.wps[j]) return;
+    _etMerken();
+    E.wps.splice(j, 1);
+    const s = Math.min(j, E.arten.length - 1);
+    E.arten.splice(s, 1); E.kurve.splice(s, 1);
+    E.sel = -1;
+    _etEdZeichnen(); _etTeileHolen();
+  }
+  /** Fahrzeugleiste an die Auswahl anpassen (ohne das Panel neu zu bauen — ein Eingabefeld behält den Fokus). */
+  function _etFzLeiste() {
+    const E = _etEd, box = document.querySelector("#anim-etappe-editor .et-fahrzeuge"); if (!E || !box) return;
+    const n = E.wps.length, ab = (E.sel >= 0 && E.sel < n - 1) ? E.sel : 0, teil = E.arten.slice(ab, n - 1);
+    const gleich = teil.length && teil.every(a => a === teil[0]) ? teil[0] : "";
+    box.querySelectorAll(".et-fz").forEach(b => b.classList.toggle("ist-an", b.dataset.fz === gleich));
+    const s = box.querySelector(".et-fz-titel .muted");
+    if (s) s.textContent = ab > 0 ? t("animator.etappe.ab_punkt", "ab Punkt {n}").replace("{n}", String(ab)) : t("animator.etappe.alle_abschnitte", "alle Abschnitte");
+  }
+  /** Klicktest 07.10.: geklickte Punkte hießen nur „Kartenpunkt“ — den nächsten Ort nachladen (Photon; ohne Netz bleibt es so). */
+  async function _etOrtHolen(w) {
+    if (!w || w.lon == null || w.text || w.auto) return;
+    const lon = w.lon, lat = w.lat;
+    let r = null;
+    try { r = await api().etappe_ortsname(lat, lon); } catch (_) { return; }   // warte-ok: Hintergrund, der Name kommt nach
+    if (!r || !r.name || w.lon !== lon || w.lat !== lat || w.text) return;
+    w.label = r.name;
+    if (_etEd && _etEd.wps.includes(w)) _etEdZeichnen();
+  }
+  /** Kartenklick bei offenem Editor: 📍-Ziel setzen, nahe der Linie einen Punkt einfügen, sonst hinten anhängen. */
+  function _etKartenKlick(e) {
+    const E = _etEd; if (!E || !e || !e.lngLat) return false;
+    _etMerken();
+    const ll = { lon: e.lngLat.lng, lat: e.lngLat.lat };
+    const neu = () => ({ text: "", lon: ll.lon, lat: ll.lat, label: "", auto: false });
+    if (E.pick >= 0) {
+      const w = E.wps[E.pick];
+      if (w) Object.assign(w, neu());
+      const nx = E.wps.findIndex((x, j) => j > E.pick && x.lon == null);
+      E.pick = nx;
+      _etEdZeichnen(); _etTeileHolen(); _etOrtHolen(w);
+      return true;
+    }
+    // nahe an einem Abschnitt? → dort einfügen
+    try {
+      const p = e.point; let best = { d: 12, i: -1 };
+      for (let i = 0; i < E.wps.length - 1; i++) {
+        const co = _etAbschnitt(E, i).coords;
+        for (let k = 0; k < co.length - 1; k++) {
+          const a = map.project(co[k]), b = map.project(co[k + 1]);
+          const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1;
+          const u = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
+          const d = Math.hypot(a.x + u * dx - p.x, a.y + u * dy - p.y);
+          if (d < best.d) best = { d, i };
+        }
+      }
+      if (best.i >= 0) {
+        E.wps.splice(best.i + 1, 0, neu());
+        E.arten.splice(best.i + 1, 0, E.arten[best.i] || "auto");
+        E.kurve.splice(best.i + 1, 0, !!E.kurve[best.i]);
+        E.sel = best.i + 1;
+        _etEdZeichnen(); _etTeileHolen(); _etOrtHolen(E.wps[best.i + 1]);
+        return true;
+      }
+    } catch (err) { applog("warn", "[etappe] einfügen: " + err); }
+    // leere Station zuerst füllen, sonst hinten anhängen (Zeichnen)
+    const leer = E.wps.findIndex(x => x.lon == null && !x.text);
+    if (leer >= 0) Object.assign(E.wps[leer], neu());
+    else { E.wps.push(neu()); E.arten.push(E.arten[E.arten.length - 1] || "auto"); E.kurve.push(!!E.kurve[E.kurve.length - 1]); }
+    _etEdZeichnen(); _etTeileHolen(); _etOrtHolen(E.wps[leer >= 0 ? leer : E.wps.length - 1]);
+    return true;
+  }
+  function _etListeMarkieren() {
+    document.querySelectorAll("#anim-etappe-editor .et-wp").forEach(r => r.classList.toggle("ist-sel", _etEd && +r.dataset.i === _etEd.sel));
+    _etFzLeiste();
+  }
+
+  // ── Panel rechts ──
+  function _etEdZeichnen() {
+    // 07.10.2026 (Marc: „die ganzen Einstellungen für die Reiseroute sollen auf der rechten Sidebar erscheinen“) —
+    // eigenes Panel in der Detail-Spalte (wie Schild-Editor, Medien der Tour); ✕ / Esc / anderes Panel schließen es
+    let box = document.getElementById("anim-etappe-editor");
+    if (!_etEd) { if (box) box.remove(); return; }
+    if (!box || !box.isConnected) {
+      box = document.createElement("div");
+      box.id = "anim-etappe-editor";
+      box.className = "anim-etappe-editor et-panel sign-editor";
+      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(box))) {   // Rückfall: unter der Tourenliste
+        const liste = document.getElementById("anim-tours-list");
+        if (liste && liste.parentElement) liste.parentElement.insertBefore(box, liste.nextSibling); else document.body.appendChild(box);
+      }
+      if (!_etEd) { box.remove(); return; }   // das Aufnehmen hat ein anderes Panel geschlossen, das uns zurücksetzte
+    }
+    const E = _etEd, n = E.wps.length, esc = _animEscapeHtml;
+    box.innerHTML = `<div class="tm-kopf et-kopf"><b>🗺 ${esc(E.pfad ? t("animator.etappe.bearbeiten", "Etappe bearbeiten") : t("animator.etappe.neu_titel", "Neue Etappe"))}</b>
+        <button type="button" class="sign-editor-x" title="${esc(t("common.close", "Schließen"))}">✕</button></div>
+      <div class="et-zahlen"><div><i>${esc(t("animator.etappe.punkte", "Punkte"))}</i><b>${E.wps.filter(w => w.lon != null).length}</b></div>
+        <div><i>${esc(t("animator.etappe.distanz", "Distanz"))}</i><b>${_etKm(E).toLocaleString(undefined, { maximumFractionDigits: 1 })} km</b></div></div>
+      ${(() => {   // 07.10.2026 (Marc: „Verkehrsmittel kann ich noch gar nicht wählen, oder?“) — groß und oben: gilt für alle
+        // Abschnitte, mit ausgewähltem Punkt ab diesem Punkt (wie MapAnimator „Change transport from here“)
+        const ab = (E.sel >= 0 && E.sel < n - 1) ? E.sel : 0, teil = E.arten.slice(ab, n - 1);
+        const gleich = teil.length && teil.every(a => a === teil[0]) ? teil[0] : "";
+        return `<div class="et-fahrzeuge"><div class="et-fz-titel">${esc(t("animator.etappe.unterwegs", "Unterwegs mit"))} <span class="muted">${esc(ab > 0 ? t("animator.etappe.ab_punkt", "ab Punkt {n}").replace("{n}", String(ab)) : t("animator.etappe.alle_abschnitte", "alle Abschnitte"))}</span></div>
+          <div class="et-fz-knoepfe">${_ET_ARTEN.map(a => `<button type="button" class="et-fz${gleich === a ? " ist-an" : ""}" data-fz="${a}" title="${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}"><span>${_ET_SYMBOL[a]}</span><i>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</i></button>`).join("")}</div></div>`;
+      })()}
+      <div class="et-knoepfe">
+        <button type="button" class="btn btn-small" data-et="glaetten" title="${esc(t("animator.etappe.glaetten_tip", "Eigene Hebel und scharfe Ecken zurücksetzen — alle Kurven folgen der Weichheit"))}">〰 ${esc(t("animator.etappe.glaetten", "Alles glätten"))}</button>
+        <button type="button" class="btn btn-small" data-et="umkehren" title="${esc(t("animator.etappe.umkehren_tip", "Start und Ziel tauschen"))}">⇄ ${esc(t("animator.etappe.umkehren", "Umkehren"))}</button>
+        <button type="button" class="btn btn-small" data-et="zurueck"${E.verlauf.length ? "" : " disabled"} title="⌘Z">↩︎ ${esc(t("animator.etappe.zurueck", "Rückgängig"))}</button>
+        <button type="button" class="btn btn-small" data-et="leeren">${esc(t("animator.etappe.leeren", "Route löschen"))}</button>
+      </div>
+      ${!E.pfad ? (() => { const k = _etKette(); return k.length ? `<label class="et-platz">${esc(t("animator.etappe.platz", "Platz"))}
+        <select class="et-platz-sel">${k.map((x, i) => i === 0 ? `<option value="0"${E.platz === 0 ? " selected" : ""}>${esc(t("animator.etappe.platz_vor", "vor „{n}“").replace("{n}", x.name))}</option>` : `<option value="${i}"${E.platz === i ? " selected" : ""}>${esc(t("animator.etappe.platz_zwischen", "zwischen „{a}“ und „{b}“").replace("{a}", k[i - 1].name).replace("{b}", x.name))}</option>`).join("")}
+          <option value="${k.length}"${E.platz === k.length ? " selected" : ""}>${esc(t("animator.etappe.platz_nach", "nach „{n}“").replace("{n}", k[k.length - 1].name))}</option></select></label>` : ""; })() : ""}
+      ${E.wps.map((w, i) => `<div class="et-wp${E.pick === i ? " ist-pick" : ""}${E.sel === i ? " ist-sel" : ""}" data-i="${i}">
+          <span class="et-nr">${i === 0 ? "A" : (i === n - 1 ? "B" : i)}</span>
+          <input type="text" class="et-wp-input" data-i="${i}" value="${esc(w.text || "")}" placeholder="${esc(w.label || (w.lon != null ? _etName(w) : (i === 0 ? t("animator.etappe.start", "Start") : t("animator.etappe.ziel", "Ziel"))))}">
+          <button type="button" class="btn btn-small et-pick" data-i="${i}" title="${esc(t("animator.etappe.pick", "Auf die Karte klicken"))}">📍</button>
+          ${n > 2 ? `<button type="button" class="btn btn-small et-weg" data-i="${i}" title="${esc(t("common.delete", "Löschen"))}">✕</button>` : ""}
+        </div>
+        <div class="et-status muted" data-i="${i}"></div>
+        ${i < n - 1 ? `<div class="et-art" title="${esc(t("animator.etappe.abschnitt_tip", "Abschnitt {a} → {b}").replace("{a}", i === 0 ? "A" : String(i)).replace("{b}", i + 1 === n - 1 ? "B" : String(i + 1)))}">
+          <select class="et-art-sel" data-i="${i}">${_ET_ARTEN.map(a => `<option value="${a}"${(E.arten[i] || "auto") === a ? " selected" : ""}>${_ET_SYMBOL[a]} ${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
+          <label class="et-folgen" title="${esc(t("animator.etappe.folgen_tip", "An: der Straße folgen (Flug, Boot, Zug: Bogen). Aus: freie Kurve, am Punkt mit dem Hebel drehbar."))}"><input type="checkbox" class="et-folgen-cb" data-i="${i}"${E.kurve[i] ? "" : " checked"}> ${esc(["zug", "boot", "flugzeug"].includes(E.arten[i]) ? t("animator.etappe.folgen_bogen", "Bogen") : t("animator.etappe.folgen_kurz", "Straße"))}</label>${E.kurve[i] ? `<span class="et-kurve-hinweis">${esc(t("animator.etappe.freie_kurve", "freie Kurve"))}</span>` : ""}</div>` : ""}`).join("")}
+      <div class="et-regler">
+        <label>${esc(t("animator.etappe.weich", "Weichheit der Kurven"))} <input type="range" class="et-weich" min="0" max="100" step="1" value="${Math.round((+E.weich || 0) * 100)}"></label>
+        <label>${esc(t("animator.etappe.grob", "Straße: fein ↔ grob"))} <input type="range" class="et-grob" min="0" max="100" step="1" value="${Math.round((+E.grob || 0) * 100)}"></label>
+      </div>
+      <button type="button" class="btn btn-small et-station-plus" data-et="station">＋ ${esc(t("animator.etappe.station", "Station"))}</button>
+      <details class="et-anleitung"${E.wps.filter(w => w.lon != null).length < 2 ? " open" : ""}><summary>${esc(t("animator.etappe.so_gehts", "So zeichnest du"))}</summary><ol>
+        <li>${esc(t("animator.etappe.a1", "Auf die Karte klicken setzt Punkte — die Linie läuft weich hindurch."))}</li>
+        <li>${esc(t("animator.etappe.a2", "Auf die Linie klicken fügt einen Punkt dazwischen ein."))}</li>
+        <li>${esc(t("animator.etappe.a3", "Punkt ziehen verschiebt ihn. Punkt anklicken zeigt den Hebel: drehen und ziehen formt die Kurve."))}</li>
+        <li>${esc(t("animator.etappe.a4", "Doppelklick auf einen Punkt = scharfe Ecke. Entf löscht den ausgewählten Punkt, ⌘Z nimmt zurück."))}</li>
+        <li>${esc(t("animator.etappe.a5", "Orte kannst du auch oben eintippen (Enter)."))}</li></ol></details>
+      <label class="et-beschriften" title="${esc(t("animator.etappe.beschriften_tip", "Jede Station bekommt ein Schild mit ihrem Ortsnamen. Ein geändertes Schild bleibt, wie du es eingestellt hast."))}"><input type="checkbox" class="et-beschriften-cb"${E.beschriften !== false ? " checked" : ""}> ${esc(t("animator.etappe.beschriften", "Stationen beschriften"))}</label>
+      <div class="et-zustand muted"></div>
+      <div class="et-fuss">
+        ${E.pfad ? `<button type="button" class="btn btn-small" data-et="archiv" title="${esc(t("animator.etappe.archiv_tip", "Die Etappe als Tour ins Archiv legen — dort steht sie als „geplant“."))}">📚 ${esc(t("animator.etappe.archiv", "Ins Archiv"))}</button>` : ""}
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-small" data-et="abbrechen">${esc(t("common.cancel", "Abbrechen"))}</button>
+        <button type="button" class="btn btn-small btn-primary" data-et="los"${E.busy ? " disabled" : ""}>${esc(E.busy ? t("animator.etappe.rechnet", "Wird berechnet …") : t("animator.etappe.uebernehmen", "Etappe übernehmen"))}</button>
+      </div>`;
+    box.querySelectorAll(".et-wp-input").forEach(inp => {
+      inp.addEventListener("input", () => { const w = E.wps[+inp.dataset.i]; if (w) { w.text = inp.value; w.lon = null; w.lat = null; w.label = ""; w.auto = false; } });
+      inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); _etSuchen(+inp.dataset.i); } });
+      inp.addEventListener("blur", () => { const w = E.wps[+inp.dataset.i]; if (w && w.text && w.lon == null) _etSuchen(+inp.dataset.i); });
+      inp.addEventListener("focus", () => { E.sel = +inp.dataset.i; _etKarteZeichnen(); _etListeMarkieren(); });
+    });
+    box.querySelectorAll(".et-fz").forEach(b => b.addEventListener("click", () => {
+      _etMerken();
+      const ab = (E.sel >= 0 && E.sel < E.wps.length - 1) ? E.sel : 0;
+      for (let k = ab; k < E.wps.length - 1; k++) E.arten[k] = b.dataset.fz;
+      _etEdZeichnen(); _etTeileHolen();
+    }));
+    box.querySelectorAll(".et-art-sel").forEach(sel => sel.addEventListener("change", () => { _etMerken(); E.arten[+sel.dataset.i] = sel.value; _etKarteZeichnen(); _etTeileHolen(); }));
+    box.querySelectorAll(".et-folgen-cb").forEach(cb => cb.addEventListener("change", () => {
+      const i = +cb.dataset.i; E.kurve[i] = !cb.checked;
+      if (cb.checked) { for (const j of [i, i + 1]) if (E.wps[j] && !(E.kurve[j - 1] || E.kurve[j])) { E.wps[j].hebel = null; E.wps[j].scharf = false; } }
+      _etKarteZeichnen(); _etTeileHolen();
+    }));
+    box.querySelector(".et-weich").addEventListener("input", (ev) => { E.weich = (+ev.target.value) / 100; _etKarteZeichnen(); });
+    box.querySelector(".et-grob").addEventListener("change", (ev) => { E.grob = (+ev.target.value) / 100; _etKarteZeichnen(); _etTeileHolen(); });
+    box.querySelector(".et-platz-sel")?.addEventListener("change", (ev) => { _etPlatzFuellen(E, +ev.target.value); _etEdZeichnen(); _etTeileHolen(); });
+    box.querySelectorAll(".et-pick").forEach(b => b.addEventListener("click", () => {
+      E.pick = (E.pick === +b.dataset.i) ? -1 : +b.dataset.i;
+      try { if (map) map.getCanvas().style.cursor = "crosshair"; } catch (_) {}
+      _etEdZeichnen();
+    }));
+    box.querySelectorAll(".et-weg").forEach(b => b.addEventListener("click", () => _etPunktWeg(+b.dataset.i)));
+    box.querySelector('[data-et="station"]').addEventListener("click", () => {
+      E.wps.push(_etLeer()); E.arten.push(E.arten[E.arten.length - 1] || "auto"); E.kurve.push(false); _etEdZeichnen();
+      setTimeout(() => { try { box.querySelector(`.et-wp-input[data-i="${E.wps.length - 1}"]`)?.focus(); } catch (_) {} }, 30);
+    });
+    box.querySelector('[data-et="umkehren"]').addEventListener("click", () => {
+      _etMerken(); E.wps.reverse(); E.arten.reverse(); E.kurve.reverse();
+      E.wps.forEach(w => { if (w.hebel) w.hebel = { ang: w.hebel.ang + Math.PI, ln: w.hebel.lv, lv: w.hebel.ln }; });
+      E.sel = -1; _etEdZeichnen(); _etTeileHolen();
+    });
+    box.querySelector('[data-et="glaetten"]').addEventListener("click", () => {
+      _etMerken(); E.wps.forEach(w => { w.hebel = null; w.scharf = false; }); _etEdZeichnen();
+    });
+    box.querySelector('[data-et="zurueck"]').addEventListener("click", _etZurueck);
+    box.querySelector('[data-et="leeren"]').addEventListener("click", () => {
+      _etMerken(); E.wps = [_etLeer(), _etLeer()]; E.arten = [E.arten[0] || "auto"]; E.kurve = [false]; E.sel = -1; _etEdZeichnen();
+    });
+    box.querySelector(".et-beschriften-cb").addEventListener("change", (ev) => { E.beschriften = !!ev.target.checked; });
+    box.querySelector('[data-et="archiv"]')?.addEventListener("click", () => _etInsArchiv(E.pfad));
+    box.querySelector('[data-et="abbrechen"]').addEventListener("click", _etEdZu);
+    box.querySelector(".et-kopf .sign-editor-x").addEventListener("click", _etEdZu);
+    box.querySelector('[data-et="los"]').addEventListener("click", _etUebernehmen);
+    window.__rzEtappeKlick = (e) => _etKartenKlick(e);
+    try { if (map) map.getCanvas().style.cursor = "crosshair"; } catch (_) {}
+    if (!_etTaste) {
+      _etTaste = (ev) => {
+        if (!_etEd) return;
+        const z = ev.target; if (z && (z.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(z.tagName))) return;
+        // ⌘Z gehört bei offenem Editor IMMER ihm — auch mit leerem Verlauf, sonst nahm das globale Rückgängig still die
+        // zuletzt erstellte Etappe zurück (Prüfstand 07.10.)
+        if ((ev.metaKey || ev.ctrlKey) && !ev.shiftKey && (ev.key === "z" || ev.key === "Z")) { ev.preventDefault(); ev.stopImmediatePropagation(); _etZurueck(); return; }
+        if (ev.key === "Escape" && _etEd.sel >= 0) { ev.preventDefault(); ev.stopPropagation(); _etEd.sel = -1; _etKarteZeichnen(); _etListeMarkieren(); return; }
+        if (_etEd.sel < 0) return;
+        if (ev.key === "Delete" || ev.key === "Backspace") { ev.preventDefault(); ev.stopPropagation(); _etPunktWeg(_etEd.sel); }
+      };
+      window.addEventListener("keydown", _etTaste, true);
+    }
+    _etKarteZeichnen();
+  }
+  async function _etSuchen(i) {
+    const E = _etEd; const w = E && E.wps[i]; if (!w) return false;
+    const txt = String(w.text || "").trim(); if (!txt) return w.lon != null;
+    const m = txt.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);   // „lat, lon“ direkt
+    if (m) { w.lat = +m[1]; w.lon = +m[2]; w.label = txt; _etEdZeichnen(); _etTeileHolen(); return true; }
+    const st = document.querySelector(`#anim-etappe-editor .et-status[data-i="${i}"]`); if (st) st.textContent = "… " + t("route.wp_searching", "Suche …");
+    const nb = [E.wps[i - 1], E.wps[i + 1]].find(x => x && x.lon != null);
+    let r = null;
+    try { r = await rzWarten("route_geocode", () => api().route_geocode(txt, 1, nb ? [nb.lon, nb.lat] : null)); } catch (_) {}
+    if (_etEd !== E || String(w.text || "").trim() !== txt) return false;   // inzwischen weitergetippt / zu
+    if (r && r.ok && r.results && r.results.length) { const h = r.results[0]; w.lon = h.lon; w.lat = h.lat; w.label = h.name; _etEdZeichnen(); _etTeileHolen(); return true; }
+    const st2 = document.querySelector(`#anim-etappe-editor .et-status[data-i="${i}"]`);
+    if (st2) st2.textContent = "✗ " + ((r && r.ok) ? t("route.wp_not_found", "nicht gefunden") : t("route.wp_failed", "Suche fehlgeschlagen"));
+    return false;
+  }
+  /** Etappe übernehmen: fehlende Orte suchen, Straßen-Abschnitte holen, Linie zusammensetzen, als GPX ins Projekt. */
+  async function _etUebernehmen() {
+    const E = _etEd; if (!E || E.busy) return;
+    for (let i = 0; i < E.wps.length; i++) if (E.wps[i].lon == null && E.wps[i].text) await _etSuchen(i);
+    // leere Stationen ohne Ort fallen weg
+    for (let i = E.wps.length - 1; i >= 0; i--) if (E.wps[i].lon == null) { E.wps.splice(i, 1); const s = Math.min(i, E.arten.length - 1); if (s >= 0) { E.arten.splice(s, 1); E.kurve.splice(s, 1); } }
+    if (E.wps.length < 2) { toast(t("animator.etappe.zwei", "Mindestens Start und Ziel angeben."), "info", 3000); _etEdZeichnen(); return; }
+    E.busy = true; _etEdZeichnen();
+    // ein frisch geöffnetes Projekt „schwebt“ noch ohne Kennung — festschreiben, damit die Etappe in SEINEN Ordner kommt
+    try { if (typeof projektFuerRenderSichern === "function") await projektFuerRenderSichern("animator"); }
+    catch (e) { applog("warn", "[etappe] Projekt festschreiben: " + e); }
+    while (E.laeuft) await new Promise(r => setTimeout(r, 100));
+    await _etTeileHolen();
+    const { coords, teile } = _etLinieTeile(E);
+    const abschnitte = E.wps.slice(0, -1).map((w, i) => ({ art: E.arten[i] || "auto", von: [w.lon, w.lat], bis: [E.wps[i + 1].lon, E.wps[i + 1].lat], kurve: !!E.kurve[i] }));
+    // Klicktest 07.10.: „Langer Tourname → Kartenpunkt“ war in der Liste abgeschnitten — setzt die Etappe an eine Tour an,
+    // steht nur das andere Ende im Namen (die Tour steht ja direkt daneben in der Kette)
+    const wA = E.wps[0], wB = E.wps[E.wps.length - 1];
+    const name = wA.auto && !wB.auto ? t("animator.etappe.name_nach", "→ {b}").replace("{b}", _etName(wB))
+      : (!wA.auto && wB.auto ? t("animator.etappe.name_von", "{a} →").replace("{a}", _etName(wA)) : _etName(wA) + " → " + _etName(wB));
+    const alt = E.pfad && _extraTours.find(x => x.gpx_path === E.pfad);
+    let r = null;
+    try {
+      r = await rzWarten("etappe_speichern", () => api().etappe_speichern({ coords, teile, name, projekt_id: (_activeProject && _activeProject.id) || "",
+        etappe_id: (alt && alt.etappe && alt.etappe.id) || ("et" + Date.now().toString(36)), alter_pfad: E.pfad || "" }));
+    } catch (e) { r = { ok: false, error: String(e) }; }
+    E.busy = false;
+    if (!r || !r.ok) { _etEdZeichnen(); toast(t("animator.etappe.fehler", "Etappe konnte nicht berechnet werden: ") + ((r && r.error) || ""), "error", 6000); return; }
+    const etappe = { id: String(r.gpx_path).split("/").pop().split("_")[0], wps: E.wps.map(w => Object.assign({}, w)),
+                     arten: E.arten.slice(0, E.wps.length - 1), kurve: E.kurve.slice(0, E.wps.length - 1), weich: E.weich, grob: E.grob,
+                     abschnitte, km: Math.round((r.distance_m || 0) / 100) / 10, beschriften: E.beschriften !== false };
+    _animPushUndo(E.pfad ? t("animator.etappe.undo_bearbeiten", "Etappe geändert") : t("animator.etappe.undo_neu", "Etappe erstellt"), { force: true });
+    const hauptAlt = _hauptEt();
+    applog("info", `[etappe] übernehmen: pfad=${E.pfad || "-"} haupt=${currentGpx || "-"} hauptEt=${hauptAlt ? "ja" : "nein"}`);
+    if ((E.pfad && hauptAlt && _pfadNFC(E.pfad) === _pfadNFC(hauptAlt.gpx_path)) || (!E.pfad && !currentGpx)) {
+      // Punkt 10: Projekt ohne Tour — die Etappe IST der Haupt-Track (neu oder geändert)
+      const altPfad = hauptAlt ? hauptAlt.gpx_path : null;
+      // VOR dem Laden setzen: drawPreview darf für diese Datei keine eigene Sitzung öffnen (s. _freiEtappe)
+      _hauptEtappe = { gpx_path: r.gpx_path, etappe };
+      _hauptEtappeProj = (_activeProject && _activeProject.id) || null;
+      await loadGpxByPath(r.gpx_path);
+      if (altPfad) for (const g of _gruppen) {
+        for (const m of g.mitglieder) if (_pfadNFC(m.gpx_path) === _pfadNFC(altPfad)) m.gpx_path = r.gpx_path;
+        if (g.leit_gpx && _pfadNFC(g.leit_gpx) === _pfadNFC(altPfad)) g.leit_gpx = r.gpx_path;
+      }
+      if (!_animEtappe1Name || !hauptAlt) _animEtappe1Name = name;
+      _gruppenSync(); _gruppenAbleiten();
+      _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview();
+      try { fitTrackPreview(true); } catch (_) {}
+    } else if (E.pfad) await _etappeErsetzen(E.pfad, r.gpx_path, etappe, name);
+    else {
+      await _animAddTourPath(r.gpx_path);
+      const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(r.gpx_path));
+      if (tr) { tr.etappe = etappe; tr.name = name; tr.line_color = "#ffd166"; }
+      if (tr && E.platz != null) {
+        _gruppenSync(); _etGruppeAn(tr.gpx_path, E.platz);
+        // Klicktest 07.10.: setzt die Etappe nahtlos an (Start = Tourende bzw. Ziel = Touranfang), braucht es keinen
+        // 3-s-Kinoflug hinaus und wieder heran — die Kamera gleitet in 1,5 s zur nächsten Sicht (Luftlinie)
+        const gi = _etGruppenIndex(tr.gpx_path), nahtlos = (g) => { if (g) { g.ueber_stil = "luftlinie"; g.ueber_s = 1.5; } };
+        if (gi > 0 && E.wps[0].auto) nahtlos(_gruppen[gi]);
+        if (gi >= 0 && E.wps[E.wps.length - 1].auto) nahtlos(_gruppen[gi + 1]);
+        _gruppenAbleiten();
+      }
+      _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview();
+    }
+    applog("info", `[etappe] ${name}: ${etappe.km} km, ${etappe.arten.join("/")}, Kurven ${etappe.kurve.filter(Boolean).length}`);
+    try { _hlSchilderAbgleichen(true); } catch (e) { applog("warn", "[etappe] Schilder: " + e); }   // Punkt 6: Stationen
+    _etEdZu();
+  }
+  /** 07.10.2026 (Etappen, Grilling Punkt 5) — „Ins Archiv“: die Etappe als Tour ins Archiv (ohne Uhrzeit = geplant).
+   *  Das Projekt behält seine eigene Fassung; die Archiv-Kopie ist ab dann eine ganz normale geplante Tour. */
+  async function _etInsArchiv(pfad) {
+    const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(pfad));
+    if (!tr) return;
+    let r = null;
+    try { r = await rzWarten("etappe_ins_archiv", () => api().etappe_ins_archiv(tr.gpx_path, tr.name || "")); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    if (r && r.ok) {
+      toast(t("animator.etappe.archiv_ok", "„{n}“ liegt jetzt im Archiv (als geplant).").replace("{n}", tr.name || ""), "success", 4000);
+    } else toast(t("animator.etappe.archiv_fehler", "Konnte nicht ins Archiv: ") + ((r && r.error) || ""), "error", 6000);
+  }
+  /** Neu gerechnete Etappe an IHREN Platz: Pfad in Liste und Gruppen tauschen, Koordinaten neu laden. */
+  async function _etappeErsetzen(altPfad, neuPfad, etappe, name) {
+    const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(altPfad));
+    if (!tr) return;
+    let res = null;
+    try { res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(neuPfad)); } catch (_) {}
+    if (!res || !res.ok) { toast(t("animator.tours.load_fail", "Tour konnte nicht geladen werden."), "error"); return; }
+    for (const g of _gruppen) {
+      for (const m of g.mitglieder) if (_pfadNFC(m.gpx_path) === _pfadNFC(altPfad)) m.gpx_path = neuPfad;
+      if (g.leit_gpx && _pfadNFC(g.leit_gpx) === _pfadNFC(altPfad)) g.leit_gpx = neuPfad;
+    }
+    Object.assign(tr, { gpx_path: res.gpx_path || neuPfad, coords: res.coords, ele: Array.isArray(res.elevations) ? res.elevations : null,
+                        flach: Array.isArray(res.flach) ? res.flach : null,
+                        zeit: null, epochs: null, stats: res.stats || null, etappe, name });
+    _gruppenSync(); _gruppenAbleiten();
+    _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
+  }
+  function _etGruppenIndex(pfad) { return _gruppen.findIndex(g => g.mitglieder.some(m => _pfadNFC(m.gpx_path) === _pfadNFC(pfad))); }
+  function _etVorHaupt(pfad) {
+    const gi = _etGruppenIndex(pfad), hi = currentGpx ? _etGruppenIndex(currentGpx) : -1;
+    return gi >= 0 && hi >= 0 && gi < hi;
+  }
+  /** Zusatz-Touren in der Reihenfolge ihrer Gruppen (Liste, Pool und Kette sagen dasselbe). */
+  function _etListeNachGruppen() {
+    const rang = (x) => { const i = _etGruppenIndex(x.gpx_path); return i < 0 ? 1e9 : i; };
+    _extraTours.sort((a, b) => rang(a) - rang(b));
+  }
+  function _etGruppeAn(pfad, ziel) {
+    const gi = _etGruppenIndex(pfad); if (gi < 0) return;
+    const [g] = _gruppen.splice(gi, 1);
+    _gruppen.splice(Math.max(0, Math.min(_gruppen.length, ziel)), 0, g);
+    _etListeNachGruppen();
+  }
+  function _etVerschieben(pfad, dir) {
+    const gi = _etGruppenIndex(pfad); if (gi < 0) return;
+    const zi = gi + dir; if (zi < 0 || zi >= _gruppen.length) return;
+    _etGruppeAn(pfad, zi);
+    _gruppenAbleiten(); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
+  }
+  window.__rzEtappe = { neu: _etappeNeu, bearbeiten: _etappeBearbeiten, berechnen: _etUebernehmen, editor: () => _etEd,   // Prüfstand
+                        touren: () => _extraTours.map(x => ({ gpx_path: x.gpx_path, name: x.name, etappe: x.etappe || null, n: (x.coords || []).length })),
+                        bahnN: () => (_reiseAktiv() && _reiseBahn ? _reiseBahn.coords.length : 0), dotStil: (f) => _dotStilAktuell(f).style,
+                        linie: () => (_etEd ? _etLinie(_etEd) : null), hebel: (seite, lng, lat) => _etHebelGezogen(seite, { lng, lat }),
+                        klick: (lng, lat) => { const p = map.project([lng, lat]); return _etKartenKlick({ lngLat: { lng, lat }, point: p }); },
+                        waehlen: (i) => { if (_etEd) { _etEd.sel = i; _etKarteZeichnen(); _etListeMarkieren(); } }, scharf: (i) => _etScharf(i),
+                        verschiebe: (i, x, y) => { const ll = map.unproject([x, y]); Object.assign(_etEd.wps[i], { lon: ll.lng, lat: ll.lat }); _etKarteZeichnen(); },
+                        linieAufKarte: () => !!(map && map.getLayer("et-edit-linie") && map.getSource("et-edit")),
+                        karte: () => map, neuZeichnen: () => _animDrawExtraToursPreview(), fzBild: (a, s) => !!_fzBild(a, s),
+                        // 07.10.2026 Punkte 5–9
+                        zeitAnteil: (et) => _etZeitAnteil(et), feld: (id) => _ovFieldValue(id), hauptEt: () => _hauptEtappe,
+                        serie: () => (_ovSeries ? { has_time: !!_ovSeries.has_time, has_ele: !!_ovSeries.has_ele,
+                                                    flach: Array.isArray(_ovSeries.flach) ? _ovSeries.flach.filter(Boolean).length : 0 } : null) };
 
   /** 28.09.2026 §72 — Touren als „Ganz zeigen" dazulegen (Archiv-Knopf, Umstellung alter Ghost-Spuren).
    *  Jede wird eine eigene Gruppe: ab `von_s`, bis zum Ende (ganz_s null), unter den animierten Touren.
@@ -22448,9 +23727,13 @@ function mountAnimator(body, headerActions, opts) {
           // 09.09.2026 — Aussehen je Track. Beim ersten Anlauf stand das nur in
           // _gruppenLegacy (Speicher-Umrechnung), nicht HIER — die Einstellungen
           // von Track 2 waren nach dem Neustart weg (Marc, 09.09.2026 abends).
-          stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null })),
+          stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
+          // 07.10.2026 (Block 4) — geplante Etappe: Stationen, Verkehrsart je Abschnitt (siehe _etappe*)
+          ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) })),
         etappe1_dauer_s: +_animEtappe1S || 0,
         etappe1_name: _animEtappe1Name || "",
+        // 07.10.2026 Punkt 10 — Projekt ohne Tour: die Etappe, die der Haupt-Track ist
+        haupt_etappe: _hauptEtappe ? JSON.parse(JSON.stringify(_hauptEtappe)) : null,
         tours_ablauf: _animAblauf,
         tours_fokus: _animFokusPfad,
         tours_dezent: _animDezent,
@@ -22617,6 +23900,17 @@ function mountAnimator(body, headerActions, opts) {
       _animHauptStartS = Math.max(0, +a.tours_haupt_start_s || 0);
       _animEtappe1S = Math.max(0, +a.etappe1_dauer_s || 0);
       _animEtappe1Name = typeof a.etappe1_name === "string" ? a.etappe1_name : "";
+      // Gespeichert wird verzögert — ein Nachladen direkt nach dem Übernehmen sähe sonst noch „keine“ und vergäße die
+      // frische Etappe. Darum: ein leerer Wert gilt nur bei einem anderen Projekt.
+      const he = (a.haupt_etappe && typeof a.haupt_etappe === "object" && a.haupt_etappe.gpx_path && a.haupt_etappe.etappe)
+        ? JSON.parse(JSON.stringify(a.haupt_etappe)) : null;
+      if (he || projId !== _hauptEtappeProj) {
+        // anderes Projekt: war bisher eine Etappe der Haupt-Track (kein Archiv-Track), wieder entladen
+        const alt = _hauptEt();
+        _hauptEtappe = he;
+        if (alt && (!he || _pfadNFC(he.gpx_path) !== _pfadNFC(alt.gpx_path))) _hauptEtappeEntladen();
+      }
+      _hauptEtappeProj = projId;
       _animSwarmForm = a.tours_dot_haupt === true;
       { const cb = document.getElementById("anim-swarm-form");
         if (cb) cb.checked = _animSwarmForm; }
@@ -22625,6 +23919,12 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
+    // 07.10.2026 Punkt 10 — Projekt ohne Tour mit Etappe als Haupt-Track: die Etappe laden (wie die Reiseroute ihre Route)
+    if (_hauptEtappe && !currentGpx && !_isReiseroute && !_isStaticFrame) {
+      try { await loadGpxByPath(_hauptEtappe.gpx_path); fitTrackPreview(true); }
+      catch (e) { applog("warn", "[etappe] Haupt-Etappe laden: " + e); }
+      if (!currentGpx) { applog("warn", "[etappe] Haupt-Etappe fehlt: " + _hauptEtappe.gpx_path); _hauptEtappe = null; }   // Render wartet nicht ewig
+    }
 
     // Kurzschluss (28.08.2026): Session-Benachrichtigungen kommen mehrfach —
     // entspricht der geladene Stand schon EXAKT der gespeicherten Liste
@@ -22690,6 +23990,7 @@ function mountAnimator(body, headerActions, opts) {
                              line_color: t.line_color || "#35a7ff",
                              name: _tourAnzeigeName(pfad, res.name, t.name) || (typeof window.t === "function" ? window.t("library.tour", "Tour") : "Tour"), coords: res.coords,
                              ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
+                             flach: Array.isArray(res.flach) ? res.flach : null,   // 07.10.2026 Etappe: Flug/Schiff/Bahn
                              stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
                              start_s: +t.start_s || 0,
                              // 08.09.2026 — Etappendauer und Übergang mitnehmen,
@@ -22707,7 +24008,9 @@ function mountAnimator(body, headerActions, opts) {
                                       && res.series.epochS.length === (res.coords || []).length)
                                      ? res.series.epochS : null,
                              tz: (res.series && +res.series.tz_offset_min) || 0,
-                             stats: res.stats || null });
+                             stats: res.stats || null,
+                             // 07.10.2026 (Block 4) — geplante Etappe mitnehmen (Stationen, Verkehrsart je Abschnitt)
+                             ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) });
         } else {
           fehlend++;
           applog("warn", `[Animator] gespeicherte Etappe nicht ladbar: ${t.gpx_path} (${(res && res.error) || "?"})`);
@@ -22738,6 +24041,7 @@ function mountAnimator(body, headerActions, opts) {
   window.__animLoadTours = _animLoadTours;
 
   document.getElementById("anim-tours-add")?.addEventListener("click", _animAddTour);
+  document.getElementById("anim-etappe-neu")?.addEventListener("click", _etappeNeu);   // 07.10.2026 Block 4
   document.querySelectorAll("#anim-anordnung [data-anordnung]").forEach(b => b.addEventListener("click", () => {
     try { _gruppenAnordnen(b.dataset.anordnung); } catch (e) { applog("warn", "[anordnung] " + e); }
   }));

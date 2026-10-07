@@ -54,7 +54,24 @@
 
   function kameraJetzt() {
     const kf = !!($("anim-kf-enabled") || {}).checked, folgt = !!($("anim-camera-follow") || {}).checked;
-    return kf ? "fahrt" : folgt ? "folgen" : "fest";
+    const vorgabe = ((window.rzReadModuleSettings && window.rzReadModuleSettings("animator")) || {}).kamera_vorgabe;
+    return kf ? (vorgabe === "startziel" ? "startziel" : "fahrt") : folgt ? "folgen" : "fest";
+  }
+  /** 07.10.2026 (PLAN §3, MapAnimator „Start → Ziel“) — die Kamera steht über dem Start und gleitet in einer ruhigen
+   *  Bewegung zum Ziel; Höhe eine Stufe näher als der Überblick, Norden oben. Zwei Keyframes, frei änderbar. */
+  function startZielKeyframes(start, ziel, bbox) {
+    const r = Math.PI / 180, d = (a, b) => 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(Math.sin((b[1] - a[1]) * r / 2) ** 2
+      + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin((b[0] - a[0]) * r / 2) ** 2)));
+    const diag = bbox ? d([bbox[0], bbox[1]], [bbox[2], bbox[3]]) : d(start, ziel);
+    const z = Math.max(0.6, Math.min(3.5, Math.log2(Math.max(0.5, diag) / 2) - 0.3));
+    const ev = [];
+    for (const [a, c] of [[0, start], [1, ziel]]) {
+      ev.push({ kind: "pitch", anchor: a, value: 40, easing: "ease_in_out" });
+      ev.push({ kind: "bearing", anchor: a, value: 0, easing: "ease_in_out" });
+      ev.push({ kind: "zoom", anchor: a, value_offset: Math.round(z * 100) / 100, easing: "ease_in_out" });
+      ev.push({ kind: "center", anchor: a, value: c.slice(), easing: "ease_in_out" });
+    }
+    return ev;
   }
   /** Kamera-Vorgaben (I-004): Fest · Folgen · Kamerafahrt (wie im Schnell-Video, als bearbeitbare Keyframes). */
   function kameraSetzen(art) {
@@ -65,9 +82,16 @@
       const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
       const a = (window.rzReadModuleSettings && window.rzReadModuleSettings("animator")) || {};
       const bbox = window.__rzEinfachBbox ? window.__rzEinfachBbox() : null;
+      if (art === "startziel") {
+        const sz = window.__rzStartZiel ? window.__rzStartZiel() : null;
+        if (!ctrl || !sz) return;
+        ctrl.applyState(Object.assign({}, a, { keyframes_enabled: true, camera_follow_track: false, kamera_vorgabe: "startziel",
+          timeline_events: startZielKeyframes(sz[0], sz[1], bbox) }), T("einfach.k_startziel", "Start → Ziel"));
+        return;
+      }
       if (!ctrl || !window.__rzSchnellKamerafahrt || !bbox) { feld("anim-camera-follow", true); return; }
       const animS = +a.duration_s || 20;
-      const neu = Object.assign({}, a, { keyframes_enabled: true, camera_follow_track: true,
+      const neu = Object.assign({}, a, { keyframes_enabled: true, camera_follow_track: true, kamera_vorgabe: "fahrt",
         timeline_events: window.__rzSchnellKamerafahrt(bbox, animS, null) });
       ctrl.applyState(neu, T("einfach.kamera_undo", "Kamerafahrt"));
       setTimeout(() => { try { if (window.__rzSchnellKamera) window.__rzSchnellKamera(); } catch (_) {} }, 600);

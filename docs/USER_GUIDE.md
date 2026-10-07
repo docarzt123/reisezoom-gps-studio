@@ -398,10 +398,16 @@ und darunter ihre Bedienung:
   Festplatte bleibt unangetastet, der Name gehört zum Projekt.
 - **↑ ↓ ✕** — Reihenfolge ändern oder Etappe entfernen. Bei vielen Etappen schneller:
   die Knöpfe **„nach Datum"**, **„nach Name"** und **„⇅"** über der Liste.
-- **▸ Aussehen** — klappt unter dem Eintrag das Aussehen **dieses** Tracks auf: Dicke,
+- **✎ Track bearbeiten** (seit v0.9.783 rechts in der Seitenspalte, vorher „▸ Aussehen“ in der Liste) — öffnet den
+  Editor **dieses** Tracks: Farbe, Dicke,
   Linien-Stil (durchgezogen, gestrichelt, gepunktet, Strich-Punkt, Röhre) mit Abstand,
   Schatten, Glow, die Punktreduzierung in Prozent und den **Laufpunkt** (zeigen, Kugel
-  oder Pfeil in Fahrtrichtung, Größe; „Ruhe des Pfeils" gilt für alle Pfeile). Eine eigene
+  oder Pfeil in Fahrtrichtung oder ein Fahrzeug, Größe; „Ruhe des Pfeils" gilt für alle Pfeile).
+  Die Form wählst du als Bildkachel; darunter steht **„Fahrzeug-Aussehen (alle Fahrzeuge)“** mit elf
+  Kacheln: Plakette (das gezeichnete Symbol) oder fotorealistisch, Bleistift & Aquarell, Comic,
+  Piktogramm, Kupferstich, Neon, Pixel-Art, Blaupause, Papier, Knete. Diese Bilder sind von oben
+  gezeichnet, liegen flach auf der Karte und drehen sich mit der Fahrtrichtung — auch auf geplanten
+  Etappen. Eine eigene
   Sektion „Linie" gibt es seit v0.9.683 nicht mehr, ein globales „Laufpunkt" und das
   Häkchen „Form der Haupt-Tour für alle" auch nicht; ein neuer Track übernimmt beim
   Hinzufügen das Aussehen von Track 1. Das gilt auf jeder Spur: auch eine Tour, die
@@ -1172,6 +1178,49 @@ Dateien ändert sich dabei nichts.
 heile Fassung als Tour ins Archiv. Deine Datei bleibt, wie sie ist.
 
 ### 🧭 Die Reise — Touren nacheinander, mit eigenen Etappenzeiten (seit v0.9.671)
+**Etappe erstellen (seit v0.9.783).** Unter *Tracks* steht neben „＋ Tour hinzufügen“ der Knopf **„＋ Etappe erstellen“**.
+Der Editor öffnet rechts in der Seitenspalte (✕ oder Esc schließt ihn).
+Eine Etappe ist eine Strecke ohne GPS-Aufzeichnung — Anreise, Flug, Fähre, Autofahrt —, die zwischen oder vor deinen
+echten Touren läuft. Stationen tippst du ein (Enter) oder du drückst 📍 und klickst auf die Karte; zwischen zwei
+Stationen wählst du **„dann mit …“** (Auto, Motorrad, Fahrrad, zu Fuß, Zug, Boot, Flugzeug) — innerhalb einer Etappe
+gemischt, z. B. Berlin –Flug→ Teneriffa –Auto→ Hotel. Unter **„Platz“** legst du fest, wo sie läuft: vor der ersten
+Tour (Anreise), zwischen zwei Touren oder nach der letzten; Start und Ziel sind dann schon mit dem Ende der Tour davor
+und dem Anfang der Tour danach belegt. Die Etappe bekommt eine eigene Zeile (🗺, mit ✎ bearbeitest du sie wieder) und
+läuft wie jede Tour; der Laufpunkt zeigt das Fahrzeug des gerade laufenden Abschnitts. Die Etappe gehört zum Projekt
+(sie reist auch im `.rzproj` mit) und hat keine Uhrzeit.
+
+**Verkehrsmittel.** Ganz oben im Editor steht die Leiste **„Unterwegs mit“** (Auto, Motorrad, Fahrrad, zu Fuß, Zug,
+Boot, Flugzeug). Ein Klick gilt für alle Abschnitte — oder, wenn ein Punkt ausgewählt ist, ab diesem Punkt. Einzelne
+Abschnitte stellst du in der Liste zwischen zwei Stationen um; dort schaltest du auch „Straße“ (bei Zug, Boot, Flugzeug
+„Bogen“) aus, dann wird der Abschnitt eine freie Kurve. Die kleine Leiste am ausgewählten Punkt bleibt immer in der
+Karte; am Griff ⠿ kannst du sie zur Seite ziehen.
+
+**Etappe zeichnen.** Am schnellsten klickst du die Strecke einfach auf die Karte: jeder Klick setzt einen Punkt, ein
+Klick auf die Linie fügt einen dazwischen ein, einen Punkt ziehst du mit der Maus woandershin. Jeder Abschnitt **folgt
+der Straße** (Haken „Straße folgen“ in der Liste). Klickst du einen Punkt an, bekommt er zwei **Hebel** und ein kleines
+Menü (*Scharfe Ecke* · *ab hier mit …* · *Punkt löschen*): Ziehst oder drehst du einen Hebel, werden die beiden
+Abschnitte an diesem Punkt zu einer **freien Kurve** — so legst du einen Bogen übers Meer oder schneidest eine Ecke ab.
+**Doppelklick** auf einen Punkt macht eine scharfe Ecke, **Entf** löscht den ausgewählten Punkt, **Esc** hebt die Auswahl
+auf, **⌘Z** nimmt den letzten Schritt zurück. Rechts darunter stellst du ein, wie **weich die Kurven** laufen und wie
+**fein oder grob die Straße** gezeichnet wird (grob wirkt erst bei langen Abschnitten richtig, eine Stadtstraße behält ihre
+Form). Oben siehst du Punkte und Distanz; *Alles glätten* setzt eigene Hebel und scharfe Ecken zurück, *Umkehren* dreht
+die Richtung, *Route löschen* fängt neu an. Geklickte Punkte heißen nach dem nächsten Ort; schließt die Etappe an eine Tour
+an, heißt sie kurz „→ Ziel“, und statt des Kinoflugs gleitet die Kamera in 1,5 Sekunden weiter.
+
+**Was die App bei einer Etappe selbst macht.** Jede Station, die du selbst gesetzt hast, bekommt ein **Schild mit ihrem
+Ortsnamen** (Haken *Stationen beschriften* im Editor, Standard an; ein geändertes Schild bleibt so, wie du es eingestellt
+hast). Die **Dauer im Video** richtet sich nach Strecke und Verkehrsmittel: ein Flug ist nach einem Moment vorbei, eine
+lange Autofahrt dauert etwas länger, eine Wanderung fast so lang wie eine Tour — schneller oder langsamer stellst du sie
+wie jede Etappe über ihr Tempo. Straße und Weg bekommen ihre **Höhen aus dem Gelände**; Flug, Schiff und Bahn bleiben im
+Höhenprofil flach und zählen **nicht zu Bergauf/Bergab**. In den Einblendungen zählen die **Kilometer** der Etappe mit,
+**Zeit und Tempo** kommen nur aus den echten Touren. Mit **📚 Ins Archiv** (im Editor einer gespeicherten Etappe) legst
+du sie als Tour ins Archiv — dort steht sie als *geplant*.
+
+**Kartenanimation ohne GPS.** Du hast gar keine Aufzeichnung, willst aber eine Strecke zeigen — die Reise ans Ziel, eine
+geplante Route? Im Archiv unter *Projekte* → **„Neues Projekt“** → **„🗺 Kartenanimation ohne GPS“** (oder auf der
+Startseite) legt die App ein leeres Projekt an, öffnet den Animator und gleich den Etappen-Editor. Die erste Etappe wird
+der Track des Projekts (Zeile 1 mit 🗺); weitere Etappen und echte Touren hängst du wie gewohnt an.
+
 Mehrere Touren im Animator, Ablauf **Reise**: sie laufen nacheinander, dazwischen fliegt die
 Kamera zur nächsten Etappe. In der **Tracks-Liste** steht jetzt auch die erste Tour
 als **Etappe 1**, und jede Etappe hat ein eigenes Feld für ihre **Dauer im Video**:
@@ -1882,7 +1931,24 @@ Track nimmst du weiterhin den **Geotagger** (Kapitel 6).
 
 **Seitenleisten und Detail-Spalte (seit 06.10.2026).** Links steht immer die Seitenleiste des Moduls, rechts öffnet sich bei Bedarf der **Editor des gerade Angeklickten** (Schild, Einblendung) — die Karte rückt dafür zur Seite und wird nie verdeckt. **Esc** oder **✕** schließt ihn; es steht immer nur ein Editor rechts. Beide Seitenleisten ziehst du am Rand mit der Maus **breiter oder schmaler** — in jedem Modul, im Archiv an beiden Rändern; die App merkt sich die Breite je Modul. Doppelklick auf den Rand setzt sie zurück. **Fortschrittskästen** unten rechts („Fotos einlesen · Schritt 3 von 3 …“) klappst du mit **–** auf eine schmale Zeile ein; sie laufen weiter, ein Klick klappt sie wieder auf.
 
-**Kamera-Karte (seit 06.10.2026).** Oben im Abschnitt *Kamera* stehen nur drei Dinge: die **Kameraführung** (*Fest* · *Folgen* · *Kamerafahrt*), die **Höhe über Gelände** (in Metern bzw. Kilometern, genau wie im Video) und der **Blickwinkel**. Einen Tempo-Regler gibt es nicht — das Tempo ergibt sich aus der Videolänge. Drehung, Trägheit, Glättung, ruhige Kamera und der Keyframe-Editor liegen unter **Mehr**; klickst du einen Keyframe in der Zeitleiste an, klappt *Mehr* von selbst auf. Hast du schon eigene Keyframes, schaltet *Kamerafahrt* sie nur wieder ein, statt sie zu ersetzen.
+**Kamera-Karte (seit 06.10.2026).** Oben im Abschnitt *Kamera* stehen nur drei Dinge: die **Kameraführung** (*Fest* · *Folgen* · *Start → Ziel* · *Kamerafahrt*), die **Höhe über Gelände** (in Metern bzw. Kilometern, genau wie im Video) und der **Blickwinkel**. Einen Tempo-Regler gibt es nicht — das Tempo ergibt sich aus der Videolänge. Drehung, Trägheit, Glättung, ruhige Kamera und der Keyframe-Editor liegen unter **Mehr**; klickst du einen Keyframe in der Zeitleiste an, klappt *Mehr* von selbst auf. Hast du schon eigene Keyframes, schaltet *Kamerafahrt* sie nur wieder ein, statt sie zu ersetzen. **Start → Ziel** stellt die Kamera über den Start und lässt sie in einer ruhigen Fahrt zum Ziel gleiten (zwei Keyframes, frei änderbar); hast du eigene Keyframes, fragt die App vorher.
+
+**Standard-Keyframes (seit v0.9.783).** Auch ohne Keyframe-Editor läuft die Kamera über Keyframes — nur siehst du sie
+nicht: Die App erzeugt sie aus den Kamera-Einstellungen und, bei mehreren Touren, aus der Sicht je Tour und den
+Übergängen (Kinoflug, Luftlinie, Pause, Schnitt). Vorschau, Ziehen in der Zeitleiste und Video zeigen damit immer
+dasselbe. **Schaltest du den Keyframe-Editor ein**, fragt die App *„Standard-Keyframes übernehmen?“* — mit *Übernehmen*
+werden sie zu deinen Keyframes, stehen in der Zeitleiste und lassen sich ändern. **Schaltest du ihn aus**, werden deine
+Keyframes verworfen und es gelten wieder die Standard-Keyframes. Wählst du bei offenem Editor eine andere Übergangs-Art,
+setzt die App die passenden Keyframes in diesen Übergang ein.
+Auch **Foto-Stopps** (hinfliegen, kurz schwenken, zurück) und der **Orbit** am Ende sind Keyframes: Ziehst du den
+Abspielkopf durch die Zeitleiste, siehst du den Foto-Stopp und den Orbit genau so wie im Video. Nach dem Orbit dreht die
+Kamera in anderthalb Sekunden sanft zurück.
+
+**Touren & Übergänge (seit v0.9.783).** Ganz oben in der Zeitleiste, über Einblendungen, Schildern, Medien und Ton, steht
+die Spur mit dem Timing des ganzen Videos. Bei einer Tour heißt sie *Tempo* (Halte und langsame Abschnitte), bei mehreren
+*Touren & Übergänge*: jede Tour als Kachel, dazwischen die Übergänge als Bänder — breite Bänder sagen, was sie sind
+(*✈ Kinoflug 3,0 s*, *↗ Luftlinie*, *✂ Schnitt*, *⏸ Pause*). Ein Band ziehst du länger oder kürzer, ein Klick wählt die
+Art. Die Spur ist immer da, auch ohne Keyframe-Editor.
 
 ### Was es macht
 Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über eine 3D-Mapbox-Karte gezeichnet wird. Einsatz: Intro für YouTube-Videos, Loops für Webseiten, Erinnerungs-Animation.
@@ -1951,7 +2017,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 - **Anlegen:** In der Seitenleiste unter „Einblendungen“ wählst du bei **„＋ Neue Einblendung“** eine Vorlage: *Live-Werte*, *Gesamt*, *Höhenprofil*, *Titel*, *Schlusskarte*, *Logo*, *Nordpfeil + Maßstab*, *Rahmen* oder *Leer*. Der Editor öffnet sich rechts in der Detail-Spalte (seit 06.10.2026, **Esc** schließt ihn).
 - **Liste:** Häkchen = zeigen, **✎** öffnet den Editor, **⧉** dupliziert, **✕** löscht. Reihenfolge am **⠿** ziehen oder mit **▲▼**: weiter unten in der Liste liegt im Bild weiter vorn.
-- **Platzieren:** die Einblendung in der Vorschau **mit der Maus ziehen** (1-%-Raster, rastet an Rand und Mitte ein, ein ⌘Z-Schritt je Zug) oder im Editor unter **Lage und Größe**: **Anker** (neun Punkte) plus **Abstand** in Prozent des Bildes. Größe **automatisch** (so groß wie der Inhalt) oder **fest** (Breite und Höhe in %), dazu die Ausrichtung des Inhalts.
+- **Platzieren:** die Einblendung in der Vorschau **mit der Maus ziehen** (1-%-Raster, rastet an Rand und Mitte ein, ein ⌘Z-Schritt je Zug) oder im Editor unter **Lage und Größe**: **Anker** (neun Punkte) plus **Abstand** in Prozent des Bildes. Größe **automatisch** (so groß wie der Inhalt) oder **fest** (Breite und Höhe in %), dazu die Ausrichtung des Inhalts. Überschneiden sich zwei Einblendungen am selben Rand (oben oder unten) und sind sie zur selben Zeit zu sehen — typisch im Hochformat 9:16 —, **stapelt die App sie**: die spätere in der Liste rückt vom Rand weg, bis sie frei steht. Im Querformat bleibt alles, wie du es eingestellt hast, solange nichts kollidiert.
 - **Stil = Vorlage für das Aussehen:** **Kasten** (halbtransparente Box), **Frei** (große Zahlen ohne Kasten, Beschriftung klein darüber, Textschatten), **Plakette** (dunkle, runde Pille) und **ohne**. Ein Klick setzt die Werte des Stils, danach änderst du jeden Wert selbst: Anordnung (untereinander/nebeneinander), Beschriftung (über dem Wert, links daneben, aus), Schrift, Schriftgröße, Text- und Hintergrundfarbe mit Deckkraft, Hintergrundbild (füllen/einpassen, Deckkraft), Innen-, Zeilen- und Spaltenabstand. Unter **Mehr**: Akzentfarbe, Ecken, Rahmen, Schatten, Textschatten, Weichzeichner, Großbuchstaben, Größe von Beschriftung und Einheit, Deckkraft. In einer Einblendung sehen alle Zeilen gleich aus — soll eine Zeile anders aussehen, nimm eine zweite Einblendung.
 - **Zeilen** (**＋ Zeile hinzufügen**, sortieren mit ⠿ oder ▲▼):
   - **Wert** — ein Feld (Liste unten) mit Bezug **läuft mit**, **Gesamt**, bei Reisen **laufende Etappe** oder eine bestimmte Etappe, bei Touren mit Logbuch **nur Fahrt**, **nur Gehen** usw. Die Beschriftung lässt sich umbenennen oder ausblenden.
@@ -3039,6 +3105,11 @@ stehen, bis du **OK** klickst.
 Du siehst es überall, wo du wartest: beim Laden von Tracks und Fotos, beim Prüfen, Reparieren und Speichern im Inspektor, beim Zusammenführen und Importieren im Archiv, beim Wechsel der Bibliothek, beim Cloud-Abgleich, bei Routen- und Adresssuche und bei Exporten (seit v0.9.705). **Was im Hintergrund läuft**, ohne dass du warten musst, etwa das
 Einlesen des Foto-Bestands, bleibt **ein kleiner Kasten unten rechts**, der nichts sperrt. Kennst du die App von früher: Genau das fehlte vorher, und
 längere Vorgänge sahen aus, als hinge sie.
+
+**Medien: der letzte Stand sofort** (seit v0.9.783). Öffnest du im Archiv die Medien, steht sofort da, was du zuletzt
+gesehen hast — erste Seite, Ordner, Zahlen und die Bäume „Nach Datum“ und „Nach Ordner“ —, oben mit dem Hinweis
+„Letzter Stand — neue Seite wird geholt …“. Die frische Seite ersetzt ihn, sobald sie da ist. Wo noch nichts gemerkt ist,
+dreht in der Seitenleiste ein Kreis („Fotoordner werden geprüft …“, „wird geladen …“) statt einer 0.
 
 **Fotos kommen jetzt häppchenweise.** Hat ein Projekt viele Fotos, steht die
 Liste sofort da und die Bilder tröpfeln herein, statt dass du auf alles

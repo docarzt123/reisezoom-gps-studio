@@ -257,20 +257,22 @@ function mountLibrary(body, headerActions) {
       <div id="lib-nav-fotos" hidden></div>
       <div id="lib-nav-touren">
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
-      <nav class="lib-scopes" id="lib-scopes"></nav>
+      <!-- 07.10.2026 (Marc: „überall, wo man warten muss, sollte etwas kommen, dass man wartet“) — Platzhalter mit
+           drehendem Kreis; der echte Inhalt ersetzt ihn (innerHTML), sobald die Bibliothek antwortet -->
+      <nav class="lib-scopes" id="lib-scopes">${_ladePlatz()}</nav>
 
       <div class="lib-nav-title" style="margin-top:14px;">${T("library.collections", "Sammlungen")}</div>
-      <nav class="lib-cols" id="lib-cols"></nav>
+      <nav class="lib-cols" id="lib-cols">${_ladePlatz()}</nav>
       <button class="lib-nav-add" id="lib-col-new" type="button">+ ${T("library.col_new", "Neue Sammlung")}</button>
 
       <!-- 04.10.2026 (Marc: „dort einfach genau gleich wie bei Fotos … also auch Ordner und Datum") -->
-      <div id="lib-baeume"></div>
+      <div id="lib-baeume">${_ladePlatz()}</div>
 
       <div class="lib-nav-foot">
         <button class="btn btn-primary btn-sm" id="lib-folders-btn" type="button">📂 ${T("library.folders_btn", "Ordner & Einlesen")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-check-all" type="button" title="${esc(T("trackcheck.all_tip", "Prüft jede Tour im Archiv auf Sprünge, Lücken und andere Aufzeichnungsfehler. Etwa eine Minute je 1000 Touren, abbrechbar. Es wird nur gezählt, nichts verändert."))}">${T("trackcheck.all_btn", "🩺 Alle Touren prüfen")}</button>
-        <div class="lib-nav-hint" id="lib-nav-hint"></div>
+        <div class="lib-nav-hint" id="lib-nav-hint">${_ladePlatz()}</div>
       </div>
       </div>
     </aside>
@@ -674,6 +676,9 @@ function mountLibrary(body, headerActions) {
     }
   }
 
+  function _ladePlatz() {
+    return `<div class="lib-nav-hint lib-laedt"><span class="ass-spinner"></span> ${esc(T("library.nav_laden", "wird geladen …"))}</div>`;
+  }
   async function reloadCollections() {
     const res = await api().library_collections();
     if (_unmounted) return;
@@ -5490,8 +5495,16 @@ function mountLibrary(body, headerActions) {
         body: `<p class="lib-hint">${T("library.proj_new_hint", "Startet leer — Touren kannst du später mit ➕ hinzufügen oder es gleich ohne Tour öffnen (Reiseroute, Kartenflug).")}</p>
                <input type="text" id="lib-proj-newname" class="lib-input" value="${esc(T("topbar.project.new_empty_default", "Neues Projekt"))}">`,
         footer: `<button class="btn" id="lib-pn-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn" id="lib-pn-ohne-gps" title="${esc(T("etappe.ohne_gps_tip", "Eine Route ohne Aufzeichnung animieren — Anreise, Flug, Fähre: Stationen eintippen oder auf die Karte klicken."))}">🗺 ${T("etappe.ohne_gps", "Kartenanimation ohne GPS")}</button>
                  <button class="btn btn-primary" id="lib-pn-ok">OK</button>`,
       });
+      // 07.10.2026 (Etappen, Grilling Punkt 10) — gleich mit einer Etappe im Animator weiter
+      const og = document.getElementById("lib-pn-ohne-gps");
+      if (og) og.onclick = async () => {
+        const v = (document.getElementById("lib-proj-newname") || {}).value || "";
+        m.close();
+        if (typeof window.rzKartenanimationOhneGps === "function") await window.rzKartenanimationOhneGps(v);
+      };
       const ok = document.getElementById("lib-pn-ok");
       if (ok) ok.onclick = async () => {
         const v = (document.getElementById("lib-proj-newname") || {}).value || "";
@@ -5827,7 +5840,15 @@ function mountLibrary(body, headerActions) {
   /** Beobachtet den Hintergrundlauf und zieht die Ansicht nach, während die
    *  Bilder eintröpfeln — sonst müsste man das Modul neu öffnen, um etwas zu
    *  sehen. Bewusst selten (alle 5 s Status, alle 20 s die Liste). */
+  let _watchLaeuft = false;
   async function watchAutoThumbs() {
+    // 07.10.2026 (Marc-Log: bis zu 11 gleichzeitige Status-Abfragen, je bis 95 s) — hängt die vorige Runde noch (Bibliothek
+    // beschäftigt), keine neue dazustapeln; jede belegte einen Faden der Brücke.
+    if (_watchLaeuft) return;
+    _watchLaeuft = true;
+    try { await _watchAutoThumbsRunde(); } finally { _watchLaeuft = false; }
+  }
+  async function _watchAutoThumbsRunde() {
     let st = null, ort = null;
     try { st = await api().library_map_thumbs_status(); } catch (_) { return; }
     try { ort = await api().library_places_status(); } catch (_) {}

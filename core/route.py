@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import gpxpy
+import xml.etree.ElementTree as _ET
 import gpxpy.gpx
 
 _MAPBOX_BASE = "https://api.mapbox.com"
@@ -801,10 +802,14 @@ def write_gpx(
     *,
     name: str = "Route",
     duration_s: float = 0.0,
+    eles: Optional[List[Optional[float]]] = None,
+    flach: Optional[List[bool]] = None,
 ) -> str:
     """Schreibt eine GPX-Datei aus [[lon,lat],…]. Wenn `duration_s > 0`, werden
     gleichmäßig verteilte Zeitstempel gesetzt (damit die Stats eine Fahrtzeit
-    zeigen). Gibt den Pfad zurück."""
+    zeigen). Gibt den Pfad zurück.
+    07.10.2026 — `eles` (Höhe je Punkt, None = keine) und `flach` (Punkt im Flug/auf dem Wasser/in der Bahn:
+    Extension `rz_flach`, zählt nicht zu Bergauf/Bergab, s. core/gpx.py) für geplante Etappen."""
     gpx = gpxpy.gpx.GPX()
     trk = gpxpy.gpx.GPXTrack(name=name)
     seg = gpxpy.gpx.GPXTrackSegment()
@@ -815,7 +820,15 @@ def write_gpx(
         tstamp: Optional[datetime] = None
         if duration_s and n > 1:
             tstamp = t0 + timedelta(seconds=duration_s * (i / (n - 1)))
-        seg.points.append(gpxpy.gpx.GPXTrackPoint(lat, lon, time=tstamp))
+        ele = None
+        if eles is not None and i < len(eles) and eles[i] is not None:
+            ele = round(float(eles[i]), 1)
+        pt = gpxpy.gpx.GPXTrackPoint(lat, lon, elevation=ele, time=tstamp)
+        if flach is not None and i < len(flach) and flach[i]:
+            ext = _ET.Element("rz_flach")
+            ext.text = "1"
+            pt.extensions.append(ext)
+        seg.points.append(pt)
     trk.segments.append(seg)
     gpx.tracks.append(trk)
     p = Path(out_path)

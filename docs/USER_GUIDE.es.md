@@ -417,11 +417,15 @@ grupo al final de la cadena; arrástralo en la línea de tiempo para colocarlo.
 
 ### El aspecto de cada track (desde v0.9.683)
 
-Cada entrada bajo **«Tracks»** tiene un **▸** que abre el aspecto de **este** track: grosor,
+Cada entrada bajo **«Tracks»** tiene un **✎** (desde v0.9.783 se abre a la derecha; antes era un **▸** desplegable en la
+lista) que abre el editor de **este** track: color, grosor,
 estilo de línea (continua, discontinua, punteada, raya-punto, tubo) con separación,
 sombra, brillo, la reducción de puntos en porcentaje y el **punto en movimiento** (mostrar,
-bola o flecha en el sentido de la marcha, tamaño; la «calma de la flecha» vale para todas
-las flechas). La sección aparte «Línea» ya no existe, tampoco el bloque global «Punto en
+bola, flecha en el sentido de la marcha o un vehículo, tamaño; la «calma de la flecha» vale para todas
+las flechas). La forma se elige como mosaico de imagen; debajo, **«Aspecto del vehículo (todos los
+vehículos)»** ofrece once mosaicos: insignia (el símbolo dibujado) o fotorrealista, lápiz y acuarela, cómic,
+pictograma, grabado, neón, pixel art, plano, papel, plastilina. Estas imágenes están dibujadas desde arriba,
+quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. La sección aparte «Línea» ya no existe, tampoco el bloque global «Punto en
 movimiento» ni la casilla «forma de la ruta principal para todas»; un track nuevo copia el
 aspecto del track 1 al añadirse. Vale en cada pista: una ruta que corre en paralelo en su
 propia pista lleva también su sombra, brillo, patrón y su propio punto. **«Aplicar aspecto a
@@ -1163,6 +1167,44 @@ plano.** Revisar solo cuenta; tus archivos no cambian.
 copia sana como ruta en el archivo. Tu archivo queda como está.
 
 ### 🧭 El viaje — rutas una tras otra, con sus propios tiempos de etapa (desde v0.9.671)
+**Crear etapa (desde v0.9.783).** En *Tracks*, junto a «＋ Añadir ruta», está **«＋ Crear etapa»**. El editor se abre en la columna derecha (✕ o Esc lo cierra). Una etapa es un
+recorrido sin grabación GPS — viaje de ida, vuelo, ferry, coche — que va entre tus rutas reales o antes de ellas.
+Escribe las paradas (Enter) o pulsa 📍 y haz clic en el mapa; entre dos paradas eliges **«luego en …»** (coche, moto,
+bici, a pie, tren, barco, avión) — mezclado dentro de una etapa, p. ej. Berlín –avión→ Tenerife –coche→ hotel. En
+**«Posición»** decides dónde va: antes de la primera ruta (viaje de ida), entre dos rutas o después de la última; la
+salida y el destino ya vienen con el final de la ruta anterior y el inicio de la siguiente. La etapa tiene su propia
+fila (🗺, con ✎ la vuelves a editar) y va como cualquier ruta; el punto muestra el vehículo del tramo actual. La etapa
+pertenece al proyecto (también viaja en el `.rzproj`) y no tiene hora.
+
+**Medio de transporte.** Arriba del todo en el editor está la fila **«Viajando en»** (coche, moto, bici, a pie, tren,
+barco, avión). Un clic vale para todos los tramos — o, con un punto seleccionado, desde ese punto. Cada tramo se cambia
+en la lista entre dos paradas; ahí también desactivas «Carretera» (en tren, barco y avión «Arco») y el tramo pasa a ser
+una curva libre. La pequeña barra del punto seleccionado siempre queda dentro del mapa; arrástrala por el asa ⠿.
+
+**Dibujar una etapa.** Lo más rápido es hacer clic en el mapa: cada clic pone un punto, un clic sobre la línea inserta
+uno entre medias y un punto se arrastra para moverlo. Cada tramo **sigue la carretera** (casilla «Seguir la carretera» en la
+lista). Al hacer clic en un punto aparecen dos **tiradores** y un pequeño menú (*Esquina* · *desde aquí en …* ·
+*Borrar punto*): si arrastras o giras un tirador, los dos tramos de ese punto se convierten en una **curva libre** — así
+dibujas un arco sobre el mar o recortas una esquina. **Doble clic** en un punto = esquina viva, **Supr** borra el punto
+seleccionado, **Esc** quita la selección, **⌘Z** deshace el último paso. Debajo ajustas lo **suaves que son las curvas** y
+lo **fina o gruesa que se dibuja la carretera** (lo grueso se nota de verdad en tramos largos; una calle de ciudad conserva
+su forma). Arriba ves puntos y distancia; *Suavizar todo* quita tiradores propios y esquinas vivas, *Invertir* cambia el
+sentido, *Borrar ruta* empieza de nuevo. Los puntos pulsados toman el nombre del lugar más cercano; una etapa que se une a
+una ruta recibe un nombre corto «→ destino», y en lugar del vuelo de cine la cámara se desliza en 1,5 segundos.
+
+**Lo que la app hace sola con una etapa.** Cada parada que pones tú recibe un **cartel con el nombre del lugar** (casilla
+*Rotular paradas* en el editor, activada por defecto; un cartel que hayas cambiado se queda como lo dejaste). La
+**duración en el vídeo** depende de la distancia y del transporte: un vuelo pasa en un momento, un viaje largo en coche dura
+algo más, una caminata casi tanto como una ruta — más rápida o más lenta con su ritmo, como cualquier etapa. Carretera y
+camino toman sus **altitudes del terreno**; vuelo, barco y tren quedan planos en el perfil y **no cuentan para el desnivel**.
+En las superposiciones cuentan los **kilómetros** de la etapa; **tiempo y velocidad** salen solo de las rutas reales.
+**📚 Al archivo** (en el editor de una etapa guardada) la guarda como ruta en el archivo — allí aparece como *planificada*.
+
+**Animación de mapa sin GPS.** ¿No tienes ninguna grabación pero quieres mostrar un trayecto — el viaje al destino, una ruta
+planificada? En el archivo, en *Proyectos* → **«Nuevo proyecto»** → **«🗺 Animación de mapa sin GPS»** (o en la página de
+inicio), la app crea un proyecto vacío, abre el Animator y directamente el editor de etapas. La primera etapa se convierte
+en el track del proyecto (fila 1 con 🗺); añade más etapas y rutas reales como siempre.
+
 Varias rutas en el Animador, modo **viaje**: van una tras otra y entre medias la cámara vuela
 a la siguiente etapa. En la lista de **Tracks** aparece ahora también la primera ruta como
 **etapa 1**, y cada etapa tiene su propio campo para su **duración en el vídeo**:
@@ -1864,7 +1906,24 @@ captura son etapas propias. Para ubicar fotos con un track sigue usando el
 
 **Barras laterales y columna de detalle (desde 06.10.2026).** A la izquierda está siempre la barra lateral del módulo; a la derecha se abre cuando hace falta el **editor de lo que acabas de pulsar** (cartel, superposición) — el mapa se desplaza a un lado y nunca queda tapado. **Esc** o **✕** lo cierra; a la derecha solo hay un editor a la vez. Arrastra el borde de cualquiera de las barras para hacerla **más ancha o más estrecha**: en todos los módulos, en el Archivo en ambos bordes; la app recuerda el ancho por módulo. Doble clic en el borde lo restablece. Las **cajas de progreso** abajo a la derecha («Leyendo fotos · paso 3 de 3 …») se pliegan con **–** a una línea fina; siguen en marcha y un clic las despliega de nuevo.
 
-**Tarjeta de cámara (desde 06.10.2026).** Arriba en la sección *Cámara* solo hay tres cosas: la **Cámara** (*Fija* · *Seguir* · *Vuelo de cámara*), la **Altura sobre el terreno** (en metros o kilómetros, igual que en el vídeo) y el **Ángulo de visión**. No hay control de velocidad: el ritmo se deriva de la duración del vídeo. Giro, inercia, suavizado, cámara suave y el editor de fotogramas clave están en **Más**; al pulsar un fotograma clave en la línea de tiempo, *Más* se abre solo. Si ya tienes fotogramas clave propios, *Vuelo de cámara* solo los vuelve a activar en lugar de sustituirlos.
+**Tarjeta de cámara (desde 06.10.2026).** Arriba en la sección *Cámara* solo hay tres cosas: la **Cámara** (*Fija* · *Seguir* · *Inicio → meta* · *Vuelo de cámara*), la **Altura sobre el terreno** (en metros o kilómetros, igual que en el vídeo) y el **Ángulo de visión**. No hay control de velocidad: el ritmo se deriva de la duración del vídeo. Giro, inercia, suavizado, cámara suave y el editor de fotogramas clave están en **Más**; al pulsar un fotograma clave en la línea de tiempo, *Más* se abre solo. Si ya tienes fotogramas clave propios, *Vuelo de cámara* solo los vuelve a activar en lugar de sustituirlos. **Inicio → meta** coloca la cámara sobre el inicio y la deja deslizarse hasta la meta en un movimiento tranquilo (dos fotogramas clave, editables); si tienes fotogramas clave propios, la app pregunta antes.
+
+**Keyframes estándar (desde v0.9.783).** Aunque el editor de keyframes esté apagado, la cámara funciona con keyframes —
+solo que no los ves: la app los crea a partir de los ajustes de cámara y, con varias rutas, de la vista por ruta y de las
+transiciones (vuelo de cine, línea recta, pausa, corte). Vista previa, arrastrar en la línea de tiempo y vídeo muestran
+siempre lo mismo. **Al activar el editor de keyframes**, la app pregunta *«¿Adoptar los keyframes estándar?»* — con
+*Adoptar* pasan a ser tus keyframes, aparecen en la línea de tiempo y se pueden cambiar. **Al desactivarlo**, tus keyframes
+se descartan y vuelven a valer los estándar. Si eliges otro tipo de transición con el editor abierto, la app inserta los
+keyframes correspondientes en esa transición.
+También las **paradas de foto** (volar hasta la foto, un breve vaivén, volver) y la **órbita** final son keyframes: si
+arrastras el cabezal por la línea de tiempo, ves la parada de foto y la órbita exactamente como en el vídeo. Tras la
+órbita la cámara vuelve suavemente en segundo y medio.
+
+**Rutas y transiciones (desde v0.9.783).** Arriba del todo en la línea de tiempo, por encima de superposiciones, carteles,
+medios y sonido, está la pista con el ritmo de todo el vídeo. Con una ruta se llama *Tempo* (paradas y tramos lentos), con
+varias *Rutas y transiciones*: cada ruta como mosaico y entre ellas las transiciones como bandas — las bandas anchas dicen
+lo que son (*✈ Vuelo de cine 3,0 s*, *↗ Línea recta*, *✂ Corte*, *⏸ Pausa*). Arrastra una banda para alargarla o
+acortarla; un clic elige el tipo. La pista siempre está ahí, también sin el editor de keyframes.
 
 ### Qué hace
 Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja animada sobre un mapa 3D de Mapbox. Usos: intro para vídeos de YouTube, loops para páginas web, animación de recuerdos.
@@ -1933,7 +1992,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 - **Crear:** en la barra lateral, en «Superposiciones», elige una plantilla en **«＋ Nueva superposición»**: *Valores en directo*, *Totales*, *Perfil de altitud*, *Título*, *Tarjeta final*, *Logo*, *Flecha del norte + escala*, *Marco* o *Vacía*. El editor se abre a la derecha, en la columna de detalle (desde 06.10.2026, **Esc** lo cierra).
 - **Lista:** casilla = mostrar, **✎** abre el editor, **⧉** duplica, **✕** borra. El orden se cambia arrastrando **⠿** o con **▲▼**: más abajo en la lista significa más delante en la imagen.
-- **Colocar:** **arrastra la superposición en la vista previa** (cuadrícula del 1 %, se ajusta a bordes y centro, un paso de ⌘Z por arrastre) o, en el editor, en **Posición y tamaño**: **ancla** (nueve puntos) más **desplazamiento** en porcentaje de la imagen. Tamaño **automático** (tan grande como el contenido) o **fijo** (ancho y alto en %), además de la alineación del contenido.
+- **Colocar:** **arrastra la superposición en la vista previa** (cuadrícula del 1 %, se ajusta a bordes y centro, un paso de ⌘Z por arrastre) o, en el editor, en **Posición y tamaño**: **ancla** (nueve puntos) más **desplazamiento** en porcentaje de la imagen. Tamaño **automático** (tan grande como el contenido) o **fijo** (ancho y alto en %), además de la alineación del contenido. Si dos superposiciones se solapan en el mismo borde (arriba o abajo) y se ven a la vez — típico en vertical 9:16 —, **la app las apila**: la posterior en la lista se aparta del borde hasta quedar libre. En horizontal todo se queda donde lo pusiste mientras nada choque.
 - **Estilo = plantilla del aspecto:** **Caja** (caja semitransparente), **Libre** (números grandes sin caja, rótulo pequeño encima, sombra de texto), **Placa** (píldora oscura redondeada) y **Ninguno**. Un clic pone los valores del estilo; después cambias cualquier valor tú mismo: disposición (una bajo otra/una junto a otra), rótulo (encima del valor, a la izquierda, sin rótulo), tipografía, tamaño, color de texto y de fondo con opacidad, imagen de fondo (rellenar/ajustar, opacidad), relleno, espaciado de filas y columnas. En **Más**: color de acento, esquinas, borde, sombra, sombra de texto, desenfoque, mayúsculas, tamaño de rótulo y unidad, opacidad. Todas las filas de una superposición tienen el mismo aspecto: si una fila debe verse distinta, usa una segunda superposición.
 - **Filas** (**＋ Añadir fila**, ordenar con ⠿ o ▲▼):
   - **Valor** — un campo (lista abajo) **en directo**, **total**, en viajes la **etapa en curso** o una etapa concreta, en rutas con cuaderno **solo conducción**, **solo a pie**, etc. El rótulo se puede renombrar u ocultar.
@@ -3027,6 +3086,11 @@ ventana está abierta, la app espera a esa tarea; un error se queda hasta que pu
 La verás siempre que esperes: al cargar tracks y fotos, al comprobar, reparar y guardar en el inspector, al unir e importar en el archivo, al cambiar de biblioteca, al sincronizar con la nube, al buscar rutas y direcciones y al exportar (desde v0.9.705). **Lo que corre
 en segundo plano** sin hacerte esperar, como indexar el fondo de fotos, sigue siendo
 **un pequeño recuadro abajo a la derecha** que no bloquea nada.
+
+**Medios: la última vista al instante** (desde v0.9.783). Al abrir Medios en el archivo aparece enseguida lo que viste la
+última vez — primera página, carpetas, números y los árboles «Por fecha» y «Por carpeta» — con el aviso «Última vista —
+cargando la página nueva …» arriba. La página fresca la sustituye en cuanto llega. Donde aún no hay nada guardado, gira
+un indicador en la barra lateral («Comprobando carpetas de fotos …», «cargando …») en lugar de un 0.
 
 **Las fotos llegan ahora por tandas.** Si un proyecto tiene muchas, la lista
 aparece enseguida y las imágenes van llegando. La primera vez tarda (cada imagen

@@ -1210,3 +1210,22 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-fs-griff::after { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: #fff; opacity: .7; }
 .tl-fs-griff:hover::after { width: 2px; left: 2.5px; opacity: 1; }
 .tl-ovbar.ist-aus .tl-fs-griff { display: none; }
+
+/* 07.10.2026 (Kamera-Grundlage Schritt 3) — die Touren-Spur steht ganz oben, eigener Behälter #tl-touren.
+   Etwas Abstand zu den Overlays darunter; der lange Name „Touren & Übergänge“ darf zweizeilig stehen. */
+.timeline-touren { margin-bottom: 3px; }
+.timeline-lane[data-kind="tempo"].ist-gruppen .lane-name {
+  white-space: normal; line-height: 1.05; font-size: 9px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.anim-timeline-host--kf-off .timeline-lanes:not(.timeline-touren) { display: none !important; }   /* Keyframe-Spuren: ohne Editor ganz weg */
+/* Klicktest 07.10.: auf dem gestreiften Band war „✈ Kinoflug 3,0 s“ kaum lesbar, und neben dem 🎥 blieb für den Namen nur
+   „Touren &…“ — Beschriftung als dunkles Schildchen, das Symbol entfällt in der Touren-Spur (der Name sagt es). */
+.tl-gruppe-ueber .tl-gruppe-sek, .tl-gruppe-ueber .tl-gruppe-glyph {
+  background: rgba(18, 20, 26, .82); color: #ffe6c9; border-radius: 3px; padding: 0 4px; line-height: 12px; text-shadow: none;
+}
+/* das Band war nur ~10 px hoch → die Schrift oben abgeschnitten; in der Touren-Spur höher */
+.timeline-lane[data-kind="tempo"] .tl-gruppe-band.tl-gruppe-ueber { top: 3px; bottom: 3px; }
+.tl-gruppe-ueber .tl-gruppe-glyph + .tl-gruppe-sek { margin-left: -3px; padding-left: 0; border-radius: 0 3px 3px 0; }
+.tl-gruppe-ueber .tl-gruppe-glyph:has(+ .tl-gruppe-sek) { border-radius: 3px 0 0 3px; padding-right: 3px; }
+.timeline-lane[data-kind="tempo"].ist-gruppen .lane-icon { display: none; }

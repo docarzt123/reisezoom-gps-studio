@@ -3496,7 +3496,7 @@ body > #main { grid-row: 4; }
 .rz-ef-fuss { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
 
 /* 05.10.2026 — Startseite nach Aufgaben (ui/js/startseite.js) */
-.rz-start { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.rz-start { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }   /* 07.10.2026: vier Aufgaben → 2 × 2 */
 .rz-start-karte { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 14px;
   border-radius: 11px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text-dim); font: inherit;
   font-size: 12px; line-height: 1.45; cursor: pointer; min-height: 130px; }

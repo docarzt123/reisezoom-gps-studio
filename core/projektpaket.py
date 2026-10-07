@@ -114,9 +114,31 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
 
         if projekte:
             kopie = _bilder_einpacken(schreiben, projekte)
+            _etappen_einpacken(schreiben, kopie)
             schreiben("projekte.json", json.dumps(kopie, ensure_ascii=False,
                                                   sort_keys=True).encode("utf-8"))
     return puffer.getvalue()
+
+
+def _etappen_einpacken(schreiben, kopie: dict) -> None:
+    """07.10.2026 (Block 4) — geplante Etappen (`animator.extra_tours[i].etappe`) liegen nicht im Archiv, sondern unter
+    `<Bibliothek>/etappen/<projekt>/` — sie reisen als `etappen/<datei>` im Paket mit; der Eintrag merkt sich den
+    Paketnamen in `etappe_zip` (Import: `Api._etappen_auspacken`). Ändert `kopie` (die Export-Kopie) direkt."""
+    schon: dict = {}
+    for proj in ((kopie or {}).get("projects") or {}).values():
+        anim = proj.get("animator") if isinstance(proj, dict) else None
+        for t in ((anim or {}).get("extra_tours") or []):
+            if not (isinstance(t, dict) and isinstance(t.get("etappe"), dict)):
+                continue
+            q = Path(str(t.get("gpx_path") or ""))
+            if not q.is_file():
+                continue
+            name = schon.get(str(q))
+            if not name:
+                name = f"etappen/{len(schon) + 1:03d}_{q.name}"
+                schreiben(name, q.read_bytes())
+                schon[str(q)] = name
+            t["etappe_zip"] = name
 
 
 def _bilder_einpacken(schreiben, projekte: dict) -> dict:
@@ -189,6 +211,7 @@ def menge_umschlag_bauen(pfade: list, hashes: list, projekte: dict | None,
         schreiben("menge.json", json.dumps(m, ensure_ascii=False, sort_keys=True).encode("utf-8"))
         if projekte:
             kopie = _bilder_einpacken(schreiben, projekte)
+            _etappen_einpacken(schreiben, kopie)
             schreiben("projekte.json", json.dumps(kopie, ensure_ascii=False,
                                                   sort_keys=True).encode("utf-8"))
     return puffer.getvalue()

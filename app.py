@@ -177,7 +177,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.782"
+APP_VERSION = "0.9.783"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -988,6 +988,8 @@ def _drops_verweis_dateien() -> list:
 
 
 DB_PRUEFUNG_TAGE = 7   # blockierende Datenbank-Prüfung beim Öffnen höchstens so selten (sonst Hintergrund)
+BIB_SICHERUNG_ABSTAND_S = 20 * 3600   # 07.10.2026 — Start-Sicherung der Bibliothek höchstens einmal am Tag
+BIB_SICHERUNG_WARTEN_S = 60           # … und wie die Hintergrund-Prüfung erst eine Minute nach dem Start
 
 _SESSION_HASHES: Optional[set] = None
 _SESSION_HASHES_STAMP: tuple = ()
@@ -3805,6 +3807,7 @@ class Api:
             log.info("Bibliothek: Datenbank geprüft (%.0f ms)", (time.time() - _t0) * 1000)
         else:
             def _db_pruefen_hinten(ort=ort, db=_db):
+                time.sleep(BIB_SICHERUNG_WARTEN_S)   # 07.10.2026 — liest die ganze Datei; nicht gleichzeitig mit dem Start
                 t0 = time.time()
                 if cbib.db_heil(db):
                     log.info("Bibliothek: Datenbank im Hintergrund geprüft (%.0f ms)", (time.time() - t0) * 1000)
@@ -3849,8 +3852,10 @@ class Api:
                     c.commit()
         except Exception:
             log.exception("Bibliothek: Transaktion nach dem Öffnen abschließen")
-        # Sicherung NACH dem Öffnen, damit sie den Start nicht verzögert.
-        threading.Thread(target=self._bib_sichern_still, daemon=True,
+        # Sicherung NACH dem Öffnen, damit sie den Start nicht verzögert. 07.10.2026 (Marc: Archiv nach dem Start zu
+        # langsam) — höchstens einmal am Tag: eine 630-MB-Bibliothek bei JEDEM Start zu kopieren dauerte 23 s und lief
+        # genau dann, wenn die Oberfläche ihre Listen holt.
+        threading.Thread(target=self._bib_sichern_still, kwargs={"nur_wenn_alt": True}, daemon=True,
                          name="bib-sicherung").start()
         # 05.10.2026 (§82 Schritt 2) — mitgebrachte Vorschaubilder (ZIP „für einen anderen Rechner") übernehmen
         def _vorschau_hinten(ort=ort):
@@ -4045,8 +4050,18 @@ class Api:
         log.info("Bibliothek: Versionen auf GPX geprüft (%.1f s, %d kaputt)",
                  time.time() - t0, len(r["kaputt"]))
 
-    def _bib_sichern_still(self) -> None:
+    def _bib_sichern_still(self, nur_wenn_alt: bool = False) -> None:
         try:
+            if nur_wenn_alt:
+                time.sleep(BIB_SICHERUNG_WARTEN_S)   # erst nach dem ersten Laden der Oberfläche
+                neueste = 0.0
+                for s in cbib.sicherungen(BIB):
+                    try:
+                        neueste = max(neueste, Path(s["pfad"]).stat().st_mtime)
+                    except (OSError, KeyError):
+                        pass
+                if time.time() - neueste < BIB_SICHERUNG_ABSTAND_S:
+                    return
             z = cbib.db_sichern(BIB)
             if z:
                 log.info("Bibliothek: Sicherung angelegt (%s)", z.name)
@@ -4860,6 +4875,67 @@ class Api:
     # zeigt die bilder auf einer karte an oder nach datum." Stufe 1 liest nur;
     # der Bestand liegt in derselben Datenbank wie die Touren.
 
+    # 07.10.2026 (Marc: „kann man nicht erst mal das Letzte, was da war, cachen und direkt anzeigen und gleichzeitig sagen:
+    # neue Seite wird geholt?“) — der letzte Stand der Medien-Ansicht (erste Seite ohne Filter, Ordner, Zahlen, Filterwerte,
+    # beide Bäume) liegt als Datei neben den Einstellungen. `fotos_letzter_stand` liest NUR diese Datei und den
+    # Vorschaubild-Speicher — keine Datenbank, keine Sperre: steht sofort, auch wenn die Bibliothek gerade beschäftigt ist.
+    _FOTOS_MERK_LOCK = threading.Lock()
+
+    def _fotos_merken(self, teil: str, daten) -> None:
+        def schreiben(teil=teil, daten=daten):
+            pfad = APP_SUPPORT / "fotos_letzter_stand.json"
+            with Api._FOTOS_MERK_LOCK:
+                try:
+                    alt = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
+                except Exception:  # noqa: BLE001
+                    alt = {}
+                if alt.get("bib") != str(BIB):
+                    alt = {"bib": str(BIB)}
+                alt[teil] = daten
+                alt["zeit"] = time.time()
+                try:
+                    tmp = pfad.with_suffix(".tmp")
+                    tmp.write_text(json.dumps(alt, ensure_ascii=False, default=str), encoding="utf-8")
+                    _ds.ersetzen(tmp, pfad, "fotos_letzter_stand", art=_ds.ART_CACHE)
+                except Exception as e:  # noqa: BLE001
+                    log.info("[fotos] letzten Stand merken: %s", e)
+        threading.Thread(target=schreiben, name="fotos-merken", daemon=True).start()
+
+    _FZ_BILD_CACHE: dict = {}
+
+    def fahrzeug_bild(self, key: str) -> dict:
+        """07.10.2026 — ein Fahrzeugbild (ui/img/fahrzeuge/<fahrzeug>_<stil>.png) als data:-URL für die Karte. Ein über
+        file:// geladenes Bild darf MapLibre nicht auslesen („SecurityError: The operation is insecure“ — im Prüfstand und
+        im Video-Render/Chromium), eine data:-URL schon. Returns {ok, data}."""
+        import base64
+        k = "".join(c for c in str(key or "") if c.isalnum() or c == "_")[:40]
+        if k in Api._FZ_BILD_CACHE:
+            return {"ok": True, "data": Api._FZ_BILD_CACHE[k]}
+        p = UI_DIR / "img" / "fahrzeuge" / f"{k}.png"
+        if not k or not p.is_file():
+            return {"ok": False, "error": "not found"}
+        data = "data:image/png;base64," + base64.b64encode(p.read_bytes()).decode("ascii")
+        Api._FZ_BILD_CACHE[k] = data
+        return {"ok": True, "data": data}
+
+    def fotos_letzter_stand(self) -> dict:
+        try:
+            pfad = APP_SUPPORT / "fotos_letzter_stand.json"
+            d = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
+            if d.get("bib") != str(BIB):
+                return {"ok": True, "leer": True}
+            seite = d.get("seite") or None
+            if seite:
+                fps = seite.pop("fps", None) or {}
+                for f in seite.get("fotos") or []:
+                    f["thumb_url"] = cphotos.thumb_data_url_gecacht(f["path"], cphotos.THUMB_RASTER_PX, fps.get(f["path"]),
+                                                                     nur_cache=True)
+            return {"ok": True, "zeit": d.get("zeit"), "seite": seite, "ordner": d.get("ordner"), "werte": d.get("werte"),
+                    "datumsbaum": d.get("datumsbaum"), "ordnerbaum": d.get("ordnerbaum")}
+        except Exception as e:  # noqa: BLE001
+            log.info("[fotos] letzter Stand: %s", e)
+            return {"ok": True, "leer": True}
+
     def fotos_ordner(self) -> dict:
         try:
             conn = self._lib()
@@ -4868,8 +4944,10 @@ class Api:
             # die Oberfläche sagt es dazu (Marc, 13.09.2026).
             liste = cfotos.ordner_liste(conn)          # sperrt selbst nur um die Datenbank-Teile (Audit B-3)
             with clib._DB_LOCK:
-                return {"ok": True, "ordner": liste, "stand": self._fotos_stand_kurz(conn),
-                        "nachschau": cfotos.letzte_nachschau(conn)}
+                res = {"ok": True, "ordner": liste, "stand": self._fotos_stand_kurz(conn),
+                       "nachschau": cfotos.letzte_nachschau(conn)}
+            self._fotos_merken("ordner", {k: res[k] for k in ("ordner", "stand", "nachschau")})
+            return res
         except Exception as e:
             log.exception("fotos_ordner")
             return {"ok": False, "error": str(e), "ordner": []}
@@ -5262,6 +5340,10 @@ class Api:
                 # ohne ein Zeichen auf dem Schirm (Marc, 12.09.2026).
                 with clib._DB_LOCK:
                     fps = cfotos.fps_lesen(self._lib(), [f["path"] for f in res["fotos"]])
+                # erste Seite ohne Filter/Suche merken (ohne Bilder — die kommen beim Zeigen aus dem Speicher)
+                if not offset and not filt and tr is None:
+                    self._fotos_merken("seite", {"n": res.get("n"), "ohne_koordinate": res.get("ohne_koordinate"),
+                                                 "fotos": [dict(f) for f in res["fotos"]], "fps": dict(fps)})
                 for f in res["fotos"]:
                     f["thumb_url"] = cphotos.thumb_data_url_gecacht(
                         f["path"], cphotos.THUMB_RASTER_PX, fps.get(f["path"]),
@@ -5449,7 +5531,10 @@ class Api:
     def fotos_datumsbaum(self, filter: dict = None) -> dict:
         """04.10.2026 — Tage mit Anzahl für den Baum „Nach Datum" in der Foto-Seitenleiste (Lightroom-Vorbild)."""
         try:
-            return {"ok": True, "tage": cfotos.datumsbaum(self._lib(), filter or {})}
+            tage = cfotos.datumsbaum(self._lib(), filter or {})
+            if not filter:
+                self._fotos_merken("datumsbaum", tage)
+            return {"ok": True, "tage": tage}
         except Exception as e:
             log.exception("fotos_datumsbaum")
             return {"ok": False, "error": str(e), "tage": []}
@@ -5459,6 +5544,8 @@ class Api:
         try:
             res = cfotos.ordnerbaum(self._lib(), filter or {})
             res["ok"] = True
+            if not filter:
+                self._fotos_merken("ordnerbaum", {"wurzeln": res.get("wurzeln"), "verz": res.get("verz")})
             return res
         except Exception as e:
             log.exception("fotos_ordnerbaum")
@@ -5502,8 +5589,10 @@ class Api:
             # 06.10.2026 — unter der Bibliotheks-Sperre: läuft jetzt gleichzeitig mit fotos_ordner auf derselben
             # Verbindung (zwei Fäden, eine Verbindung = „sqlite3.InterfaceError: bad parameter or other API misuse").
             with clib._DB_LOCK:
-                return {"ok": True, "kameras": cfotos.kameras(conn),
-                        "jahre": cfotos.jahre(conn), "stand": self._fotos_stand_kurz(conn)}
+                res = {"ok": True, "kameras": cfotos.kameras(conn),
+                       "jahre": cfotos.jahre(conn), "stand": self._fotos_stand_kurz(conn)}
+            self._fotos_merken("werte", {k: res[k] for k in ("kameras", "jahre", "stand")})
+            return res
         except Exception as e:
             log.exception("fotos_filterwerte")
             return {"ok": False, "error": str(e)}
@@ -7471,6 +7560,9 @@ class Api:
                 "speedKmh": [round(x, 2) for x in _spd],
                 "gradePct": [round(x, 2) for x in _grd],
                 "ele": [round(e, 1) for e in eles_full],
+                # 07.10.2026 — geplante Etappe: Flug/Schiff/Bahn zählt nicht zu den Live-Höhenmetern
+                "flach": ([1 if p.extra.get("rz_flach") else 0 for p in ds]
+                          if any(p.extra.get("rz_flach") for p in ds) else None),
                 "sensors": sensor_series,
                 "total_dist_m": stats.distance_m,
                 "total_time_s": stats.duration_s,
@@ -7499,6 +7591,9 @@ class Api:
                 "seg_starts": cgpx.unsichtbare_bereiche(ds),
                 "dot_hidden": cgpx.laufpunkt_aus_bereiche(ds),
                 "elevations": elevations,
+                # 07.10.2026 — geplante Etappe: welche Punkte flach sind (Flug/Schiff/Bahn, zählen nicht zu Hm)
+                "flach": ([1 if p.extra.get("rz_flach") else 0 for p in ds]
+                          if any(p.extra.get("rz_flach") for p in ds) else None),
                 "bbox": stats.bbox,
                 "stats": {
                     "n_points": stats.n_points,
@@ -7620,6 +7715,41 @@ class Api:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 
+    def _route_rechnen(self, params: dict):
+        """Gemeinsamer Kern von route_compute und etappe_berechnen (07.10.2026): Wegpunkte, Modus, Verkehrsart je
+        Abschnitt → (res, mode, name); res None bei weniger als zwei Punkten. RouteError geht an den Aufrufer."""
+        wps_in = params.get("waypoints") or []
+        waypoints = []
+        for w in wps_in:
+            if isinstance(w, (list, tuple)) and len(w) >= 2:
+                waypoints.append((float(w[0]), float(w[1])))
+        if len(waypoints) < 2:
+            return None, "", ""
+        mode = (params.get("mode") or "road").lower()
+        name = (params.get("name") or "Route").strip() or "Route"
+        arten = [str(x or "") for x in (params.get("abschnitte") or [])]
+        if any(arten):
+            # 05.10.2026 (Block 4) — Verkehrsart je Etappe; leere Etappen folgen der allgemeinen Wahl
+            standard = "flugzeug" if mode == "arc" else {"driving": "auto", "cycling": "rad", "walking": "wanderer"}.get(
+                params.get("profile") or "driving", "auto")
+            _coarse = params.get("coarseness")
+            res = croute.gemischte_route(waypoints, [a or standard for a in arten] + [standard] * len(waypoints),
+                                         _active_mapbox_token() or "",
+                                         coarseness=(float(_coarse) if _coarse is not None else None))
+            mode = "mix"
+        elif mode == "arc":
+            res = croute.arc_route(waypoints)
+        else:
+            token = _active_mapbox_token() or ""    # 07.09.2026: OSRM/Valhalla zuerst, Mapbox nur mit Token als Rückfall
+            _coarse = params.get("coarseness")
+            res = croute.road_route(
+                waypoints, token,
+                profile=(params.get("profile") or "driving"),
+                grob=bool(params.get("grob", True)),
+                coarseness=(float(_coarse) if _coarse is not None else None),
+            )
+        return res, mode, name
+
     def route_compute(self, params: dict) -> dict:
         """Berechnet eine Route aus Start/Ziel (+ optionale Zwischenstopps),
         schreibt sie als GPX und gibt den Pfad zurück. Das Frontend lädt diesen
@@ -7636,36 +7766,9 @@ class Api:
         Returns {ok, gpx_path, coords, distance_m, duration_s, name} oder {ok:False,error}.
         """
         try:
-            wps_in = params.get("waypoints") or []
-            waypoints = []
-            for w in wps_in:
-                if isinstance(w, (list, tuple)) and len(w) >= 2:
-                    waypoints.append((float(w[0]), float(w[1])))
-            if len(waypoints) < 2:
+            res, mode, name = self._route_rechnen(params)
+            if res is None:
                 return {"ok": False, "error": "need_two_points"}
-            mode = (params.get("mode") or "road").lower()
-            name = (params.get("name") or "Route").strip() or "Route"
-            arten = [str(x or "") for x in (params.get("abschnitte") or [])]
-            if any(arten):
-                # 05.10.2026 (Block 4) — Verkehrsart je Etappe; leere Etappen folgen der allgemeinen Wahl
-                standard = "flugzeug" if mode == "arc" else {"driving": "auto", "cycling": "rad", "walking": "wanderer"}.get(
-                    params.get("profile") or "driving", "auto")
-                _coarse = params.get("coarseness")
-                res = croute.gemischte_route(waypoints, [a or standard for a in arten] + [standard] * len(waypoints),
-                                             _active_mapbox_token() or "",
-                                             coarseness=(float(_coarse) if _coarse is not None else None))
-                mode = "mix"
-            elif mode == "arc":
-                res = croute.arc_route(waypoints)
-            else:
-                token = _active_mapbox_token() or ""    # 07.09.2026: OSRM/Valhalla zuerst, Mapbox nur mit Token als Rückfall
-                _coarse = params.get("coarseness")
-                res = croute.road_route(
-                    waypoints, token,
-                    profile=(params.get("profile") or "driving"),
-                    grob=bool(params.get("grob", True)),
-                    coarseness=(float(_coarse) if _coarse is not None else None),
-                )
             # GPX in den App-Support-Ordner schreiben (persistent, eindeutig).
             routes_dir = APP_SUPPORT / "routes"
             stem = "".join(c if (c.isalnum() or c in "-_") else "_" for c in name)[:40] or "route"
@@ -7691,6 +7794,280 @@ class Api:
             return {"ok": False, "error": str(e)}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
+
+
+    _ETAPPE_ABSCHNITT_CACHE: dict = {}
+
+    def etappe_abschnitt(self, params: dict) -> dict:
+        """07.10.2026 (Etappen-Editor mit Kurven) — EIN Abschnitt „Straße folgen“ von `von` nach `nach` ([lon, lat]):
+        Auto/Rad/zu Fuß über das Routing (Grobheit `grob` 0..1), Flug/Boot/Zug als Bogen. Die freien Kurven rechnet
+        der Animator selbst (Bézier) — hier nur, was ein Dienst braucht. Im Speicher gemerkt (gleiche Anfrage = sofort).
+        Returns {ok, coords, distance_m}."""
+        try:
+            von = [float(params["von"][0]), float(params["von"][1])]
+            nach = [float(params["nach"][0]), float(params["nach"][1])]
+            art = str(params.get("art") or "auto")
+            grob = max(0.0, min(1.0, float(params.get("grob", 0.55))))
+            key = (round(von[0], 6), round(von[1], 6), round(nach[0], 6), round(nach[1], 6), art, round(grob, 2))
+            hit = Api._ETAPPE_ABSCHNITT_CACHE.get(key)
+            if hit:
+                return {"ok": True, **hit}
+            # 07.10.2026 (Klicktest Madeira Beach) — „grob“ relativ zur Abschnittslänge: die feste Toleranz der Reiseroute
+            # (0,55 ≈ 3,6 km) machte aus 10 km Stadtstraße mit Umweg über die Brücke eine gerade Linie. Erst ab ~300 km
+            # Luftlinie wirkt der Regler voll, darunter anteilig (mind. 3 %), so behält ein kurzer Abschnitt seine Form.
+            import math
+            luft_km = math.hypot((nach[0] - von[0]) * math.cos(math.radians((von[1] + nach[1]) / 2)), nach[1] - von[1]) * 111.32
+            grob_eff = grob * max(0.03, min(1.0, luft_km / 300.0))
+            if art in croute.ARTEN_STRASSE:
+                r = croute.road_route([tuple(von), tuple(nach)], _active_mapbox_token() or "",
+                                      profile=croute.ARTEN_STRASSE[art], coarseness=grob_eff)
+            elif art == "motorrad":
+                r = croute.road_route([tuple(von), tuple(nach)], _active_mapbox_token() or "", profile="driving", coarseness=grob_eff)
+            else:
+                r = croute.arc_route([tuple(von), tuple(nach)], n_points=60)
+            out = {"coords": r["coords"], "distance_m": float(r.get("distance_m") or 0)}
+            if len(Api._ETAPPE_ABSCHNITT_CACHE) > 500:
+                Api._ETAPPE_ABSCHNITT_CACHE.clear()
+            Api._ETAPPE_ABSCHNITT_CACHE[key] = out
+            return {"ok": True, **out}
+        except croute.RouteError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            log.warning("etappe_abschnitt: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    _ETAPPE_ORT_CACHE: dict = {}
+
+    def etappe_ortsname(self, lat: float, lon: float) -> dict:
+        """07.10.2026 (Klicktest: geklickte Punkte hießen nur „Kartenpunkt“) — nächster benannter Ort (Stadt, Ort, Dorf,
+        Stadtteil, Weiler) im Umkreis von 5 km. Photon wie beim Titelvorschlag des Schnell-Videos; ohne Netz leer.
+        Returns {ok, name}."""
+        from core import highlights as chl
+        try:
+            la, lo = float(lat), float(lon)
+        except (TypeError, ValueError):
+            return {"ok": False, "name": ""}
+        key = (round(la, 3), round(lo, 3))
+        if key in Api._ETAPPE_ORT_CACHE:
+            return {"ok": True, "name": Api._ETAPPE_ORT_CACHE[key]}
+        try:
+            fs = chl._photon_reverse(la, lo, 5.0, ["place:city", "place:town", "place:village", "place:suburb", "place:hamlet"], 5.0)
+        except Exception as e:  # noqa: BLE001 — kein Netz: der Punkt bleibt „Kartenpunkt“
+            log.info("etappe_ortsname: %s", e)
+            return {"ok": True, "name": ""}
+        name = str(((fs or [{}])[0].get("properties") or {}).get("name") or "").strip()
+        if len(Api._ETAPPE_ORT_CACHE) > 500:
+            Api._ETAPPE_ORT_CACHE.clear()
+        Api._ETAPPE_ORT_CACHE[key] = name
+        return {"ok": True, "name": name}
+
+    def etappe_speichern(self, params: dict) -> dict:
+        """07.10.2026 — die fertige Linie einer Etappe (vom Animator zusammengesetzt: Straßen-Abschnitte + Kurven) als
+        GPX ins Projekt schreiben, wie etappe_berechnen (Ordner, ohne Zeitstempel, alte Fassung in den Papierkorb).
+        params = {coords:[[lon,lat],…], name, projekt_id, etappe_id, alter_pfad}. Returns {ok, gpx_path, distance_m}."""
+        try:
+            co = [[float(c[0]), float(c[1])] for c in (params.get("coords") or []) if isinstance(c, (list, tuple)) and len(c) >= 2]
+            if len(co) < 2:
+                return {"ok": False, "error": "need_two_points"}
+            pid = "".join(c for c in str(params.get("projekt_id") or "ohne_projekt") if c.isalnum() or c in "-_")[:60] or "ohne_projekt"
+            eid = "".join(c for c in str(params.get("etappe_id") or "etappe") if c.isalnum() or c in "-_")[:40] or "etappe"
+            name = str(params.get("name") or "Etappe").strip() or "Etappe"
+            ordner = Path(DATEN_ORT) / "etappen" / pid
+            digest = hashlib.sha1(json.dumps(co, separators=(",", ":")).encode("utf-8")).hexdigest()[:10]
+            out_path = ordner / f"{eid}_{digest}.gpx"
+            eles, flach = self._etappe_hoehen(co, params.get("teile") or [])
+            croute.write_gpx(co, str(out_path), name=name, duration_s=0.0, eles=eles, flach=flach)
+            alt = str(params.get("alter_pfad") or "")
+            try:
+                if alt and Path(alt).resolve() != out_path.resolve() and Path(alt).resolve().parent == ordner.resolve():
+                    _ds.loeschen(alt, "etappe_ersetzt")
+            except Exception as e:  # noqa: BLE001
+                log.info("etappe_speichern: alte Fassung nicht entfernt (%s)", e)
+            dist = sum(croute._haversine_m(co[i][1], co[i][0], co[i + 1][1], co[i + 1][0]) for i in range(len(co) - 1))
+            log.info("[etappe] %s/%s gespeichert: %d Punkte, %.1f km", pid, eid, len(co), dist / 1000)
+            return {"ok": True, "gpx_path": str(out_path), "distance_m": dist}
+        except Exception as e:  # noqa: BLE001
+            log.exception("etappe_speichern")
+            return {"ok": False, "error": str(e)}
+
+    def _etappen_auspacken(self, z, namen, proj: dict, pid: str) -> int:
+        """07.10.2026 (Block 4) — Gegenstück zu projektpaket._etappen_einpacken: Etappen-GPX aus dem Paket nach
+        `<Bibliothek>/etappen/<pid>/` legen und die alten Pfade im Projekt umbiegen (Tourenliste, Gruppen, Leit-Tour,
+        Fokus). Gibt die Zahl der ausgepackten Etappen zurück."""
+        anim = proj.get("animator") if isinstance(proj, dict) else None
+        if not isinstance(anim, dict):
+            return 0
+        sicher = "".join(c for c in str(pid or "import") if c.isalnum() or c in "-_")[:60] or "import"
+        ordner = Path(DATEN_ORT) / "etappen" / sicher
+        umbiegen: dict = {}
+        for t in (anim.get("extra_tours") or []):
+            zname = t.get("etappe_zip") if isinstance(t, dict) else None
+            if not zname:
+                continue
+            t.pop("etappe_zip", None)
+            if zname not in namen:
+                continue
+            roh = z.read(zname)
+            ziel = ordner / Path(zname).name.split("_", 1)[-1]
+            if ziel.exists() and ziel.read_bytes() != roh:
+                k = 2
+                while (ordner / f"{ziel.stem}_{k}{ziel.suffix}").exists():
+                    k += 1
+                ziel = ordner / f"{ziel.stem}_{k}{ziel.suffix}"
+            if not ziel.exists():
+                ordner.mkdir(parents=True, exist_ok=True)
+                ziel.write_bytes(roh)
+            umbiegen[str(t.get("gpx_path") or "")] = str(ziel)
+            t["gpx_path"] = str(ziel)
+        if not umbiegen:
+            return 0
+        for g in (anim.get("gruppen") or []):
+            if not isinstance(g, dict):
+                continue
+            for m in (g.get("mitglieder") or []):
+                if isinstance(m, dict) and m.get("gpx_path") in umbiegen:
+                    m["gpx_path"] = umbiegen[m["gpx_path"]]
+            if g.get("leit_gpx") in umbiegen:
+                g["leit_gpx"] = umbiegen[g["leit_gpx"]]
+        if anim.get("tours_fokus") in umbiegen:
+            anim["tours_fokus"] = umbiegen[anim["tours_fokus"]]
+        log.info("[etappe] %d Etappe(n) aus dem Paket nach %s", len(umbiegen), ordner)
+        return len(umbiegen)
+
+    _ETAPPE_LAND = ("auto", "motorrad", "rad", "wanderer")
+
+    def _etappe_hoehen(self, co: list, teile: list) -> tuple:
+        """07.10.2026 (Etappen, Grilling Punkt 8) — Höhen einer geplanten Etappe: Straße und Weg (Auto, Motorrad,
+        Rad, zu Fuß) aus dem Gelände (AWS-Terrarium, core/demsample), Flug/Schiff/Bahn flach — linear zwischen den
+        Geländehöhen an den Enden des Abschnitts und mit `rz_flach` markiert, damit sie nicht zu Bergauf/Bergab
+        zählen. `teile` = [{von, bis, art}] (Indizes in `co`). Ohne Netz/Kacheln: keine Höhen (None)."""
+        from core import demsample
+        n = len(co)
+        art = ["auto"] * n
+        for t in teile or []:
+            try:
+                a, b = max(0, int(t.get("von", 0))), min(n - 1, int(t.get("bis", n - 1)))
+            except (TypeError, ValueError, AttributeError):
+                continue
+            for i in range(a, b + 1):
+                art[i] = str(t.get("art") or "auto")
+        flach = [art[i] not in self._ETAPPE_LAND for i in range(n)]
+        # Stützstellen: alle Land-Punkte plus die Ränder der flachen Abschnitte; bei langen Strecken ausgedünnt
+        raender = {i for i in range(n) if flach[i] and (i == 0 or i == n - 1 or not flach[i - 1] or not flach[i + 1])}
+        stellen = sorted({i for i in range(n) if not flach[i]} | raender | {0, n - 1})
+        if len(stellen) > 2500:
+            schritt = len(stellen) / 2500.0
+            stellen = sorted({stellen[int(k * schritt)] for k in range(2500)} | raender | {0, n - 1})
+        # Klicktest 07.10.: Berlin → Hamburg (283 km) brauchte bei z12 mit Kachel für Kachel 42 s. Für ein Höhenprofil
+        # reicht bei langen Strecken eine gröbere Stufe (z10 ≈ 100 m/px), und die Kacheln kommen parallel.
+        km = sum(croute._haversine_m(co[i][1], co[i][0], co[i + 1][1], co[i + 1][0]) for i in range(n - 1)) / 1000.0
+        z = 12 if km < 40 else (11 if km < 120 else 10)
+        try:
+            from concurrent.futures import ThreadPoolExecutor
+            from core import tileproxy as _tp
+            kacheln = set()
+            for i in stellen:
+                fx, fy = demsample._tile_xy(co[i][0], co[i][1], z)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):   # bilinear kann über den Rand greifen
+                        if 0 <= int(fy) + dy < 2 ** z:
+                            kacheln.add(((int(fx) + dx) % (2 ** z), int(fy) + dy))
+            if len(kacheln) <= 400:
+                with ThreadPoolExecutor(max_workers=8) as ex:
+                    list(ex.map(lambda k: _tp._terrarium_raw(z, k[0], k[1], canim.TILE_CACHE_DIR), kacheln))
+        except Exception as e:  # noqa: BLE001 — Vorladen ist nur Beschleunigung
+            log.info("[etappe] Höhenkacheln vorladen: %s", e)
+        try:
+            h = demsample.hoehen([co[i] for i in stellen], z=z, cache_dir=canim.TILE_CACHE_DIR)
+        except Exception as e:  # noqa: BLE001 — offline: Etappe ohne Höhen
+            log.info("[etappe] Höhen nicht geholt: %s", e)
+            return None, flach
+        bekannt = [(i, v) for i, v in zip(stellen, h) if v is not None]
+        if not bekannt:
+            return None, flach
+        eles: list = [None] * n
+        for i, v in bekannt:
+            eles[i] = float(v)
+        # Lücken (ausgedünnt oder flach) linear zwischen den bekannten Nachbarn
+        k = 0
+        for i in range(n):
+            if eles[i] is not None:
+                continue
+            while k + 1 < len(bekannt) and bekannt[k + 1][0] < i:
+                k += 1
+            ia, va = bekannt[k]
+            if k + 1 < len(bekannt) and ia < i:
+                ib, vb = bekannt[k + 1]
+                eles[i] = va + (vb - va) * (i - ia) / max(1, ib - ia)
+            else:
+                eles[i] = va if ia <= i else bekannt[0][1]
+        return eles, flach
+
+    def etappe_ins_archiv(self, gpx_path: str = "", name: str = "") -> dict:
+        """07.10.2026 (Etappen, Grilling Punkt 5) — eine geplante Etappe als Tour ins Archiv: Kopie in den
+        app-verwalteten Import-Ordner (wie „Einzelne Track-Datei …“), dann einlesen. Ohne Zeitstempel erkennt das
+        Archiv sie selbst als *geplant*. Returns {ok, gpx_path} (Pfad der Archiv-Kopie)."""
+        try:
+            quelle = Path(str(gpx_path or ""))
+            if not quelle.is_file():
+                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
+            roh = "".join(c if (c.isalnum() or c in " -_") else " " for c in str(name or quelle.stem)).strip()
+            stamm = " ".join(roh.split())[:80] or quelle.stem
+            ziel_ordner = APP_SUPPORT / "import"
+            ziel_ordner.mkdir(parents=True, exist_ok=True)
+            ziel = ziel_ordner / f"{stamm}.gpx"
+            n = 1
+            while ziel.exists():
+                if ziel.read_bytes() == quelle.read_bytes():
+                    break
+                n += 1
+                ziel = ziel_ordner / f"{stamm}-{n}.gpx"
+            if not ziel.exists():
+                shutil.copy2(quelle, ziel)
+            conn = self._lib()
+            clib.add_folder(conn, str(ziel_ordner), recursive=True)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ziel_ordner)],
+                      map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
+            log.info("[etappe] ins Archiv: %s → %s", quelle.name, ziel)
+            return {"ok": True, "gpx_path": str(ziel)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("etappe_ins_archiv")
+            return {"ok": False, "error": str(e)}
+
+    def etappe_berechnen(self, params: dict) -> dict:
+        """07.10.2026 (Block 4, Reiseroute → Animator, docs/PLAN.md §3 „Etappen im Animator“) — eine geplante Etappe
+        eines Projekts: dieselbe Routenrechnung wie route_compute, aber die GPX liegt IM PROJEKT
+        (`<Bibliothek>/etappen/<projekt>/<etappe>_<hash>.gpx`, reist im .rzproj mit, verschwindet nicht beim Öffnen) und
+        hat KEINE Zeitstempel (eine geplante Strecke hat keine Uhrzeit — erfundene Zeiten störten Sortierung und
+        Uhrzeit-Einblendungen). Eine ersetzte Fassung derselben Etappe wandert über den Dateischutz in den Papierkorb.
+
+        params = route_compute-Parameter + {projekt_id, etappe_id, alter_pfad?}
+        Returns {ok, gpx_path, coords, distance_m, duration_s, abschnitte} oder {ok: False, error}."""
+        try:
+            pid = "".join(c for c in str(params.get("projekt_id") or "ohne_projekt") if c.isalnum() or c in "-_")[:60] or "ohne_projekt"
+            eid = "".join(c for c in str(params.get("etappe_id") or "etappe") if c.isalnum() or c in "-_")[:40] or "etappe"
+            res, mode, name = self._route_rechnen(params)
+            if res is None:
+                return {"ok": False, "error": "need_two_points"}
+            ordner = Path(DATEN_ORT) / "etappen" / pid
+            digest = hashlib.sha1(json.dumps([res["coords"], mode], separators=(",", ":")).encode("utf-8")).hexdigest()[:10]
+            out_path = ordner / f"{eid}_{digest}.gpx"
+            croute.write_gpx(res["coords"], str(out_path), name=name, duration_s=0.0)   # ohne Zeitstempel
+            alt = str(params.get("alter_pfad") or "")
+            try:
+                if alt and Path(alt).resolve() != out_path.resolve() and Path(alt).resolve().parent == ordner.resolve():
+                    _ds.loeschen(alt, "etappe_ersetzt")
+            except Exception as e:  # noqa: BLE001 — alte Fassung bleibt dann eben liegen
+                log.info("etappe_berechnen: alte Fassung nicht entfernt (%s)", e)
+            log.info("[etappe] %s/%s: %d Punkte, %.1f km, %s", pid, eid, len(res["coords"]), (res.get("distance_m") or 0) / 1000, mode)
+            return {"ok": True, "gpx_path": str(out_path), "coords": res["coords"], "name": name,
+                    "distance_m": res.get("distance_m", 0.0), "duration_s": res.get("duration_s", 0.0),
+                    "abschnitte": res.get("abschnitte") or [], "mode": mode}
+        except croute.RouteError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("etappe_berechnen")
+            return {"ok": False, "error": str(e)}
 
     def animator_pause_info(self, payload: dict) -> dict:
         """Was die gewählte Verteilung für DIESE Tour bedeutet.
@@ -10146,6 +10523,8 @@ class Api:
                 vorhanden = {pid: p for pid, p in (daten.get("projects") or {}).items()
                              if p.get("kontext") == geo_hash}
                 if not vorhanden:
+                    for _pid, _pr in (projekte.get("projects") or {}).items():   # 07.10.2026 Etappen auspacken
+                        self._etappen_auspacken(z, namen, _pr, _pid)
                     n_proj = _projekte.import_session_objekt(
                         daten, geo_hash, projekte, self._session_get_global_defaults())
                 else:
@@ -10220,6 +10599,7 @@ class Api:
                                 _k2 += 1
                             neu["name"] = _kand
                             namen_da.add(_kand.strip().lower())
+                        self._etappen_auspacken(z, namen, neu, pid)   # 07.10.2026 Etappen auspacken
                         _projekte.import_session_objekt(
                             daten, geo_hash,
                             {"projects": {pid: neu}},
@@ -10453,6 +10833,7 @@ class Api:
                            "kontext": key, "ablauf": ablauf, "schwarm_modus": modus,
                            "schwarm_pausen": pausen, "geo_hashes": sorted(set(hashes)),
                            "gpx_paths": list(pfade)}
+                self._etappen_auspacken(z, namen, proj, pid)   # 07.10.2026 Etappen auspacken
                 eintrag.update(_projekte._payload_von(proj))
                 daten.setdefault("projects", {})[pid] = eintrag
                 mitgebracht[urspruenglich] = pid
@@ -12822,6 +13203,7 @@ class Api:
                 daten, (name or "").strip(), self._session_get_global_defaults())
             _projekte.speichern(DATEN_ORT, daten)
             k = p["kontext"]
+            self._letztes_projekt_nachziehen(daten, k)   # 07.10.2026 — auch ein leeres Projekt geht beim Neustart wieder auf
             return {"ok": True, "track_hash": k,
                     "session": _projekte.session_sicht(daten, k) | {"track_hash": k},
                     "active_project": p,
@@ -12841,6 +13223,7 @@ class Api:
                 if not _projekte._aktives_projekt(daten, kontext):
                     return {"ok": False, "error": _ui_t()(
                         "error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            self._letztes_projekt_nachziehen(daten, kontext)   # 07.10.2026 — Kartenanimation ohne GPS: Neustart öffnet sie wieder
             return {"ok": True, "track_hash": kontext,
                     "session": _projekte.session_sicht(daten, kontext) | {"track_hash": kontext},
                     "active_project": _projekte._aktives_projekt(daten, kontext),

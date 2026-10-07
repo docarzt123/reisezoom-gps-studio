@@ -182,6 +182,16 @@ CREATE INDEX IF NOT EXISTS idx_fotos_jahr   ON fotos(jahr);
 CREATE INDEX IF NOT EXISTS idx_fotos_kamera ON fotos(kamera);
 CREATE INDEX IF NOT EXISTS idx_fotos_inhalt ON fotos(inhalt_id);
 CREATE INDEX IF NOT EXISTS idx_fotos_offen  ON fotos(indexed_at);
+-- 07.10.2026 (Marc: „es dauert zu lang, bis im Archiv was passiert“) — die Foto-Filter zählten Kameras und Jahre über
+-- alle Zeilen (434 000: 2 s auf der SSD, neben einem Einlesen 22–66 s) und hielten dabei die Bibliotheks-Sperre; Projekte,
+-- Tracks und Sammlungen warteten dahinter. Teilindizes nur über vorhandene Fotos: 2 ms.
+CREATE INDEX IF NOT EXISTS idx_fotos_kamera_da ON fotos(kamera) WHERE fehlt_seit IS NULL AND kamera <> '';
+CREATE INDEX IF NOT EXISTS idx_fotos_jahr_da   ON fotos(jahr)   WHERE fehlt_seit IS NULL AND jahr IS NOT NULL;
+-- 07.10.2026 (Marc: „erste Seite holen dauert wieder ewig bei den Medien“, Log: Abfrage 13–53 s neben dem Einlesen) — das
+-- Zählen der Treffer, „ohne Koordinate“ und der Datumsbaum gingen durch alle Zeilen: 2286 → 5 ms, 51 → 1 ms, 618 → 3 ms.
+CREATE INDEX IF NOT EXISTS idx_fotos_da        ON fotos(aufnahme_utc) WHERE fehlt_seit IS NULL;
+CREATE INDEX IF NOT EXISTS idx_fotos_ohne_gps  ON fotos(indexed_at)   WHERE fehlt_seit IS NULL AND (lat IS NULL OR lon IS NULL);
+CREATE INDEX IF NOT EXISTS idx_fotos_tag_da    ON fotos(tag_lokal)    WHERE fehlt_seit IS NULL;
 """
 
 # Der Volltext-Index ist dieselbe Bauart wie bei den Touren (FTS5, Trigramm):
@@ -1755,10 +1765,12 @@ def ordnerbaum(conn: sqlite3.Connection, filter: Optional[dict] = None) -> dict:
     selbst (`verz`) und die Suche gelten hier nicht, sonst schrumpfte der Baum beim Klicken."""
     g = {k: v for k, v in (filter or {}).items() if k not in ("verz", "suche", "aehnlich", "pfade")}
     wo, werte = _where(g)
+    # 07.10.2026 (Marc-Log: 11 s unter der Sperre bei 434 000 Fotos) — gezählt in SQL statt Pfad für Pfad in Python
+    # (2415 → 262 ms). `dateiname` ist immer das Ende von `path` (beim Einlesen so gesetzt).
     zaehl: dict = {}
-    for (p,) in conn.execute(f"SELECT path FROM fotos WHERE {wo}", werte):
-        d = os.path.dirname(p)
-        zaehl[d] = zaehl.get(d, 0) + 1
+    for d, n in conn.execute(f"SELECT substr(path, 1, length(path) - length(dateiname) - 1) AS d, COUNT(*) FROM fotos "
+                             f"WHERE {wo} GROUP BY d", werte):
+        zaehl[d] = zaehl.get(d, 0) + n
     wurzeln = [r["path"] for r in conn.execute("SELECT path FROM foto_ordner ORDER BY path")]
     return {"wurzeln": wurzeln, "verz": sorted(zaehl.items())}
 

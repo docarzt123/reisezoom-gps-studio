@@ -411,10 +411,14 @@ group at the end of the chain; drag it in the timeline to place it elsewhere.
 
 ### The look of each track (since v0.9.683)
 
-Every entry under **"Tracks"** has a **▸** that opens the look of **this** track: width,
+Every entry under **"Tracks"** has a **✎** (since v0.9.783 it opens on the right, before it was a **▸** unfolding in the
+list) that opens the editor of **this** track: colour, width,
 line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow, the point
-reduction in percent and the **running dot** (show, ball or arrow in travel direction,
-size; "arrow smoothing" applies to all arrows). The separate "Line" section is gone, so
+reduction in percent and the **running dot** (show, ball, arrow in travel direction or a
+vehicle, size; "arrow smoothing" applies to all arrows). You pick the shape as a picture tile; below it,
+**"Vehicle look (all vehicles)"** offers eleven tiles: badge (the drawn symbol) or photorealistic, pencil &
+watercolour, comic, pictogram, engraving, neon, pixel art, blueprint, paper, clay. These pictures are drawn
+from above, lie flat on the map and turn with the direction of travel — on planned stages too. The separate "Line" section is gone, so
 are the global "Running dot" block and the "main tour's dot shape for all" checkbox; a
 new track copies track 1's look when added. This holds on every row: a tour running in
 parallel on its own row carries its shadow, glow, pattern and its own dot too. **"Apply
@@ -1141,6 +1145,45 @@ transfer, an "&" in the name, missing header), **"🩹 Repair"** puts a healthy 
 archive as a tour. Your file stays as it is.
 
 ### 🧭 The journey — tours in sequence, with their own stage times (since v0.9.671)
+**Create stage (since v0.9.783).** Under *Tracks*, next to “＋ Add tour”, there is **“＋ Create stage”**. The editor opens in the right-hand column (✕ or Esc closes it). A stage is a
+route without a GPS recording — journey there, flight, ferry, drive — that runs between or before your real tours.
+Type the stops (Enter) or press 📍 and click on the map; between two stops choose **“then by …”** (car, motorbike,
+bike, walking, train, boat, plane) — mixed within one stage, e.g. Berlin –plane→ Tenerife –car→ hotel. Under
+**“Position”** you choose where it runs: before the first tour (journey there), between two tours or after the last;
+start and destination are then prefilled with the end of the tour before and the start of the tour after. The stage
+gets its own row (🗺, ✎ edits it again) and runs like any tour; the running dot shows the vehicle of the current
+section. The stage belongs to the project (it also travels in the `.rzproj`) and has no clock time.
+
+**Means of transport.** At the very top of the editor is the **“Travelling by”** row (car, motorbike, bike, walking,
+train, boat, plane). A click applies to all sections — or, with a point selected, from that point on. Single sections
+are changed in the list between two stops; there you can also switch off “Road” (for train, boat and plane “Arc”), and
+the section becomes a free curve. The small bar at the selected point always stays inside the map; drag it aside by its
+grip ⠿.
+
+**Drawing a stage.** The quickest way is to click the route onto the map: every click sets a point, a click on the line
+inserts one in between, and you drag a point to move it. Every section **follows the road** (tick “Follow the road” in the
+list). Click a point and it gets two **handles** and a small menu (*Sharp corner* · *from here by …* · *Delete
+point*): drag or turn a handle and the two sections at that point become a **free curve** — that is how you draw an arc
+over the sea or cut a corner. **Double-click** a point for a sharp corner, **Delete** removes the selected point, **Esc**
+clears the selection, **⌘Z** undoes the last step. Below you set how **soft the curves** are and how **fine or coarse the
+road** is drawn (coarse only really shows on long sections; a city street keeps its shape). At the top you see points and
+distance; *Smooth all* resets your own handles and sharp corners, *Reverse* flips the direction, *Clear route* starts
+over. Clicked points are named after the nearest place; a stage that attaches to a tour gets a short name “→ destination”,
+and instead of the cinema flight the camera glides on in 1.5 seconds.
+
+**What the app does with a stage by itself.** Every stop you set yourself gets a **sign with its place name** (tick *Label
+stops* in the editor, on by default; a sign you changed stays the way you set it). The **duration in the video** follows
+the distance and the transport: a flight is over in a moment, a long drive takes a bit longer, a walk almost as long as a
+tour — make it faster or slower via its pace like any stage. Road and path get their **elevations from the terrain**;
+flight, ship and train stay flat in the elevation profile and do **not count towards ascent/descent**. In the overlays the
+**kilometres** of the stage count, **time and speed** come only from the real tours. **📚 To archive** (in the editor of a
+saved stage) puts it into the archive as a tour — listed there as *planned*.
+
+**Map animation without GPS.** No recording at all, but you want to show a route — the journey to your destination, a
+planned route? In the archive under *Projects* → **“New project”** → **“🗺 Map animation without GPS”** (or on the start
+page) the app creates an empty project, opens the Animator and right away the stage editor. The first stage becomes the
+project's track (row 1 with 🗺); add more stages and real tours as usual.
+
 Several tours in the Animator, sequence **journey**: they run one after another, and in between
 the camera flies to the next stage. The **Tracks** list now also shows the first tour as
 **stage 1**, and every stage has its own field for its **length in the video**:
@@ -1818,7 +1861,24 @@ here are stages of their own. To locate photos with a track, keep using the
 
 **Sidebars and detail column (since 06.10.2026).** The module's sidebar is always on the left; on the right the **editor of whatever you clicked** (sign, overlay) opens when needed — the map moves aside and is never covered. **Esc** or **✕** closes it; there is only ever one editor on the right. Drag the edge of either sidebar to make it **wider or narrower** — in every module, in the Archive on both edges; the app remembers the width per module. Double-click the edge to reset it. **Progress boxes** at the bottom right („Reading photos · step 3 of 3 …“) collapse to a slim line with **–**; they keep running, a click expands them again.
 
-**Camera card (since 06.10.2026).** The top of the *Camera* section shows just three things: **Camera** (*Fixed* · *Follow* · *Camera flight*), **Height above ground** (in metres or kilometres, exactly as in the video) and the **Viewing angle**. There is no speed slider — the pace follows from the video length. Rotation, inertia, smoothing, smooth camera and the keyframe editor are under **More**; clicking a keyframe in the timeline opens *More* by itself. If you already have keyframes, *Camera flight* just switches them back on instead of replacing them.
+**Camera card (since 06.10.2026).** The top of the *Camera* section shows just three things: **Camera** (*Fixed* · *Follow* · *Start → finish* · *Camera flight*), **Height above ground** (in metres or kilometres, exactly as in the video) and the **Viewing angle**. There is no speed slider — the pace follows from the video length. Rotation, inertia, smoothing, smooth camera and the keyframe editor are under **More**; clicking a keyframe in the timeline opens *More* by itself. If you already have keyframes, *Camera flight* just switches them back on instead of replacing them. **Start → finish** places the camera above the start and lets it glide to the finish in one calm move (two keyframes, freely editable); if you have your own keyframes, the app asks first.
+
+**Standard keyframes (since v0.9.783).** Even without the keyframe editor the camera runs on keyframes — you just don't
+see them: the app creates them from the camera settings and, with several tours, from the view per tour and the
+transitions (cinema flight, straight line, pause, cut). Preview, dragging in the timeline and video therefore always show
+the same. **When you switch the keyframe editor on**, the app asks *"Take over the standard keyframes?"* — with *Take
+over* they become your keyframes, appear in the timeline and can be changed. **When you switch it off**, your keyframes
+are discarded and the standard keyframes apply again. Choosing another transition type while the editor is open inserts
+the matching keyframes into that transition.
+**Photo stops** (fly to the photo, a short sway, back) and the **orbit** at the end are keyframes too: when you drag the
+playhead through the timeline you see the photo stop and the orbit exactly as in the video. After the orbit the camera
+turns back smoothly in one and a half seconds.
+
+**Tours & transitions (since v0.9.783).** At the very top of the timeline, above overlays, signs, media and sound, sits
+the lane with the timing of the whole video. With one tour it is called *Tempo* (holds and slow sections), with several
+*Tours & transitions*: each tour as a tile, the transitions between them as bands — wide bands say what they are
+(*✈ Cinema flight 3.0 s*, *↗ Straight line*, *✂ Cut*, *⏸ Pause*). Drag a band to make it longer or shorter, a click picks
+the type. The lane is always there, also without the keyframe editor.
 
 ### What it does
 Loads a GPX file and renders an MP4 in which the track line is animated, drawn over a 3D Mapbox map. Use it for: YouTube video intros, website loops, memory animations.
@@ -1887,7 +1947,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 - **Create:** in the sidebar under “Overlays”, pick a template from **“＋ New overlay”**: *Live values*, *Totals*, *Elevation profile*, *Title*, *End card*, *Logo*, *North arrow + scale bar*, *Frame* or *Empty*. The editor opens on the right in the detail column (since 06.10.2026, **Esc** closes it).
 - **List:** checkbox = show, **✎** opens the editor, **⧉** duplicates, **✕** deletes. Change the order by dragging **⠿** or with **▲▼**: lower in the list means further in front in the picture.
-- **Place:** **drag the overlay in the preview** (1 % grid, snaps to edges and centre, one ⌘Z step per drag), or in the editor under **Position and size**: **anchor** (nine points) plus **offset** in percent of the frame. Size **automatic** (as big as the content) or **fixed** (width and height in %), plus the alignment of the content.
+- **Place:** **drag the overlay in the preview** (1 % grid, snaps to edges and centre, one ⌘Z step per drag), or in the editor under **Position and size**: **anchor** (nine points) plus **offset** in percent of the frame. Size **automatic** (as big as the content) or **fixed** (width and height in %), plus the alignment of the content. If two overlays overlap on the same edge (top or bottom) and are visible at the same time — typical in 9:16 portrait —, **the app stacks them**: the later one in the list moves away from the edge until it stands free. In landscape everything stays where you put it as long as nothing collides.
 - **Style = template for the look:** **Box** (semi-transparent box), **Free** (big numbers without a box, small label above, text shadow), **Badge** (dark rounded pill) and **None**. One click sets the style's values; after that you change any value yourself: layout (stacked/side by side), label (above the value, to the left, off), font, font size, text and background colour with opacity, background image (fill/fit, opacity), padding, row and column spacing. Under **More**: accent colour, corners, border, shadow, text shadow, blur, capitals, size of label and unit, opacity. All rows of one overlay look the same — if one row should look different, use a second overlay.
 - **Rows** (**＋ Add row**, reorder with ⠿ or ▲▼):
   - **Value** — a field (list below) that is **live**, **total**, for journeys the **running stage** or a specific stage, for tours with a logbook **driving only**, **walking only** etc. The label can be renamed or hidden.
@@ -2967,6 +3027,11 @@ is open the app waits for that task; an error stays until you click **OK**.
 You see it wherever you wait: loading tracks and photos, checking, repairing and saving in the Inspector, merging and importing in the archive, switching libraries, cloud sync, route and address search and exports (since v0.9.705). **Work that
 runs in the background** without making you wait, such as indexing the photo stock,
 stays **a small box at the bottom right** that locks nothing.
+
+**Media: the last view right away** (since v0.9.783). When you open Media in the archive, what you saw last is there at
+once — first page, folders, counts and the "By date" and "By folder" trees — with the note "Last view — fetching the new
+page …" on top. The fresh page replaces it as soon as it arrives. Where nothing is remembered yet, a spinner in the
+sidebar ("Checking photo folders …", "loading …") shows instead of a 0.
 
 **Photos now arrive in chunks.** If a project holds many photos, the list is
 there immediately and the pictures trickle in. The first time takes a while

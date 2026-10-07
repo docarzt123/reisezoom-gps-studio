@@ -95,14 +95,19 @@
 
   // ── Seitenleiste ────────────────────────────────────────────────────────
 
+  // 07.10.2026 (Marc: „die Mitte war schnell da, die Sidebar nicht … überall, wo man warten muss, sollte etwas kommen,
+  // dass man wartet“) — solange Ordner und Zahlen unterwegs sind, ein drehender Kreis statt „0“ / „Noch kein Ordner“.
+  let ordnerLaedt = false;
+  const ladeHtml = (text) => `<div class="lib-nav-hint foto-laedt"><span class="ass-spinner"></span> ${esc(text)}</div>`;
   function navZeichnen() {
     if (!nav) return;
     const s = stand || {};
+    const zahlOffen = ordnerLaedt && s.gesamt == null;
     const zeile = (icon, text, n, klick, an) => `
       <button class="lib-nav-item${an ? " is-on" : ""}" type="button" data-fnav="${klick}">
         <span class="lib-nav-ico">${icon}</span>
         <span class="lib-nav-txt">${esc(text)}</span>
-        <span class="lib-nav-count">${num(n)}</span>
+        <span class="lib-nav-count">${zahlOffen ? `<span class="ass-spinner" title="${esc(T("fotos.zahlen_laden", "Zahlen werden geholt …"))}"></span>` : num(n)}</span>
       </button>`;
 
     nav.innerHTML = `
@@ -136,6 +141,7 @@
     if (box) {
       box.innerHTML = ordner.length
         ? ordner.map((o, i) => ordnerZeile(o, i)).join("")
+        : ordnerLaedt ? ladeHtml(T("fotos.ordner_laden", "Fotoordner werden geprüft …"))
         : `<div class="lib-nav-hint">${T("fotos.ordner_leer", "Noch kein Ordner. „Ordner hinzufügen“ nimmt einen auf; Unterordner kommen mit.")}</div>`;
       box.querySelectorAll("[data-fverb]").forEach(b => {
         b.onclick = () => { const o = ordner[+b.dataset.fverb]; if (o) laufwerkVerbinden(o); };
@@ -280,6 +286,7 @@
     if (dbTage) datumsBaumZeichnen(box);
     if (dbLaedt) return;
     dbLaedt = true;
+    if (!dbTage) box.innerHTML = ladeHtml(T("fotos.baum_laden", "wird geladen …"));
     try {
       const r = await api().fotos_datumsbaum(basis);
       if (r && r.ok) { dbTage = r.tage || []; dbSchluessel = schluessel; }
@@ -335,6 +342,7 @@
     if (obDaten) ordnerBaumZeichnen(box);
     if (obLaedt) return;
     obLaedt = true;
+    if (!obDaten) box.innerHTML = ladeHtml(T("fotos.baum_laden", "wird geladen …"));
     try {
       const r = await api().fotos_ordnerbaum(basis);
       if (r && r.ok) { obDaten = r; obSchluessel = schluessel; }
@@ -2213,21 +2221,43 @@
     // vorher nacheinander: Ordner (mit Zählungen je Ordner), Kameras/Jahre/Bestand, erst dann die erste Seite; neben
     // einem laufenden Einlesen mehrere Sekunden leerer Kasten. Jetzt: war man schon hier, steht die letzte Ansicht
     // SOFORT da; die erste Seite (die schnellste Abfrage) kommt zuerst, Ordner und Filterwerte gleichzeitig dazu.
-    const schonDa = geladen.length > 0;
+    let schonDa = geladen.length > 0;
+    // 07.10.2026 (Marc: „das Letzte, was da war, cachen und direkt anzeigen und gleichzeitig sagen: neue Seite wird
+    // geholt“) — erstes Öffnen in dieser Sitzung: den gemerkten Stand (Datei, ohne Datenbank) sofort zeigen.
+    let ausSpeicher = false;
+    if (!schonDa) {
+      const m = await api().fotos_letzter_stand().catch(() => null);   // warte-ok: liest nur eine Datei, Millisekunden
+      if (!angemeldet) return;
+      if (m && m.ok && !m.leer) {
+        if (m.ordner) { ordner = m.ordner.ordner || []; stand = m.ordner.stand || {}; nachschau = m.ordner.nachschau || null; }
+        if (m.werte) { letzteWerte = { kameras: m.werte.kameras || [], jahre: m.werte.jahre || [] }; if (!m.ordner) stand = m.werte.stand || {}; }
+        if (m.datumsbaum && !dbTage) dbTage = m.datumsbaum;          // Schlüssel bleibt leer → wird gleich frisch geholt
+        if (m.ordnerbaum && !obDaten) obDaten = m.ordnerbaum;
+        const ohneFilter = !Object.keys(filter).some(k => filter[k] != null && filter[k] !== "");
+        if (ohneFilter && m.seite && (m.seite.fotos || []).length) {
+          geladen = m.seite.fotos; gesamt = m.seite.n || geladen.length; gesamtOhneGps = m.seite.ohne_koordinate ?? null;
+          ausSpeicher = schonDa = true;
+        }
+      }
+    }
     if (schonDa) {
       if (letzteWerte) { haupt._kameras = letzteWerte.kameras; haupt._jahre = letzteWerte.jahre; }
       navZeichnen();
       zeichnen();
+      if (ausSpeicher) altStandZeigen(true);
       thumbsNachholen();
     } else {
       schritt(T("fotos.laden_seite_kurz", "Erste Seite holen …"));
     }
+    ordnerLaedt = true;
+    if (!schonDa) navZeichnen();   // Seitenleiste sofort mit Ladeanzeige, nicht leer
     const ordnerHolen = api().fotos_ordner().catch(() => null).then((r) => {
       if (r && r.ok && angemeldet) { ordner = r.ordner || []; stand = r.stand || {}; nachschau = r.nachschau || null; }
-    });
+    }).finally(() => { ordnerLaedt = false; });
     const werteHolen = filterwerteLaden();
     const vorher = JSON.stringify([letzteWerte, stand.gesamt]);
     await neuLaden(true);
+    altStandZeigen(false);   // neue Seite da (oder fehlgeschlagen) — Hinweis weg
     if (!angemeldet) return;
     await Promise.all([ordnerHolen, werteHolen]);
     if (!angemeldet) return;
@@ -2249,6 +2279,19 @@
       const st = await api().fotos_scan_status();
       if (st && st.running) scanBeobachten();
     } catch (_) {}
+  }
+
+  /** Hinweis über dem Raster, solange der gemerkte Stand zu sehen ist und die frische Seite geholt wird. */
+  function altStandZeigen(an) {
+    if (!haupt) return;
+    let el = haupt.querySelector(".foto-alt-stand");
+    if (!an) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "foto-alt-stand";
+      el.innerHTML = `<span class="ass-spinner"></span> ${esc(T("fotos.neue_seite", "Letzter Stand — neue Seite wird geholt …"))}`;
+      haupt.prepend(el);
+    }
   }
 
   function unmount() {

@@ -72,7 +72,7 @@ function mountTimelineBar(opts) {
     // werden längst über ihr eigenes „Schilder und Fotos"-System gesetzt,
     // nicht mehr über Keyframe-Events. Die Reserve-Spuren kosteten nur Platz.
   ];
-  const lanesHtml = LANES.map(L => `
+  const _laneHtml = L => `
     <div class="timeline-lane" data-kind="${L.kind}" style="--lane-color: ${L.color};">
       <div class="lane-label" title="${L.tip || L.label}"><span class="lane-klapp" role="button" title="${tlT("animator.lane.klapp_tip", "Spur klein- oder aufklappen")}">▾</span><span class="lane-icon">${L.icon}</span><span class="lane-name">${L.label}</span></div>
       <div class="lane-track">
@@ -80,7 +80,12 @@ function mountTimelineBar(opts) {
         <div class="lane-markers" id="tl-lane-${L.kind}"></div>
       </div>
     </div>
-  `).join("");
+  `;
+  // 07.10.2026 (Kamera-Grundlage Schritt 3, Marc: „wir müssen eben alles in der Timeline haben. Das ganze Timing") —
+  // die Tempo-/Touren-Spur steht in einem eigenen Behälter ganz oben, über Overlays und Schildern: dort liegen
+  // Touren, Pausen und Übergänge, also das Timing des ganzen Videos. Die Keyframe-Spuren bleiben unter dem Cluster.
+  const tourenHtml = LANES.filter(L => L.kind === "tempo").map(_laneHtml).join("");
+  const lanesHtml = LANES.filter(L => L.kind !== "tempo").map(_laneHtml).join("");
   host.innerHTML = `
     <div class="timeline-bar">
       <div class="tl-hoehe-griff" title="${tlT("animator.timeline.hoehe_tip", "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard")}"></div>
@@ -91,6 +96,7 @@ function mountTimelineBar(opts) {
              cluster zu bewegen, das ist am intuitivsten". -->
         <!-- 24.09.2026 (Marc: „die Overlays ganz nach oben, über Cluster") — eigener Behälter
              für die Overlay-Spur; setOverlays() füllt ihn. -->
+        <div class="timeline-lanes timeline-touren" id="tl-touren">${tourenHtml}</div>
         <div class="timeline-ov" id="tl-ov"></div>
         <div class="timeline-ov timeline-sg" id="tl-sg"></div>   <!-- 28.09.2026 — Schilder-Spur, _sgGruppe -->
         <!-- 06.10.2026 (Grilling Animator A3) — Medien der Tour: ein Strich je Foto/Video aus dem Medien-Bestand -->
@@ -308,6 +314,7 @@ function mountTimelineBar(opts) {
     if (kind === "ease_in")     return tlT("animator.timeline.easing.ease_in",     "Sanft starten");
     if (kind === "ease_out")    return tlT("animator.timeline.easing.ease_out",    "Sanft enden");
     if (kind === "ease_in_out") return tlT("animator.timeline.easing.ease_in_out", "Sanft in & aus");
+    if (kind === "sprung")      return tlT("animator.timeline.easing.sprung", "Sprung (harter Schnitt)");
     return tlT("animator.timeline.easing.linear", "Linear");
   }
   function _easingGlyph(kind, size) {
@@ -332,6 +339,9 @@ function mountTimelineBar(opts) {
     } else if (kind === "ease_in_out") {
       // S-Kurve: beide Endpunkte mit horizontaler Tangente
       path = `<path d="M3,17 C8,17 12,3 17,3" fill="none" stroke="currentColor" stroke-width="${stroke}"/>`;
+    } else if (kind === "sprung") {
+      // 07.10.2026 — Treppe: bleibt stehen, springt am Ziel (Pause/Schnitt zwischen Touren)
+      path = `<path d="M3,17 L17,17 L17,3" fill="none" stroke="currentColor" stroke-width="${stroke}"/>`;
     } else {
       // linear: gerade Verbindung
       path = `<line x1="3" y1="17" x2="17" y2="3" stroke="currentColor" stroke-width="${stroke}"/>`;
@@ -368,7 +378,7 @@ function mountTimelineBar(opts) {
       if (cb.onSmoothChange) cb.onSmoothChange(targetAnchor, !!smoothCb.checked);
     });
     const grid = modal.querySelector(".easing-modal-grid");
-    const opts = ["linear", "ease_in", "ease_out", "ease_in_out"];
+    const opts = ["linear", "ease_in", "ease_out", "ease_in_out", "sprung"];
     for (const o of opts) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -535,8 +545,8 @@ function mountTimelineBar(opts) {
   }
   /** So viele Zusatz-Zeilen anlegen, wie der Plan braucht (Zeile 0 ist die Tempo-Spur). */
   function _gruppenZeilenSicherstellen() {
-    const lanes = host.querySelector(".timeline-lanes");
     const tempoLane = host.querySelector('.timeline-lane[data-kind="tempo"]');
+    const lanes = tempoLane && tempoLane.parentElement;   // #tl-touren: Gruppen-Zeilen stehen direkt darunter
     if (!lanes || !tempoLane) return;
     const soll = Math.max(0, _gruppenZeilen.length - 1);
     const da = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]'));
@@ -559,7 +569,7 @@ function mountTimelineBar(opts) {
     for (let i = soll; i < jetzt.length; i++) jetzt[i].remove();
     tempoLane.classList.toggle("ist-gruppen", _gruppenZeilen.length > 0);
     const name = tempoLane.querySelector(".lane-name"), icon = tempoLane.querySelector(".lane-icon");
-    if (name) name.textContent = _gruppenZeilen.length ? tlT("animator.lane.gruppen", "Touren") : tlT("animator.lane.tempo", "Tempo");
+    if (name) name.textContent = _gruppenZeilen.length ? tlT("animator.lane.gruppen", "Touren & Übergänge") : tlT("animator.lane.tempo", "Tempo");
     if (icon) icon.textContent = _gruppenZeilen.length ? "🎥" : "⏱";
     const label = tempoLane.querySelector(".lane-label");
     if (label) label.title = _gruppenZeilen.length
@@ -592,7 +602,13 @@ function mountTimelineBar(opts) {
       b.title = titel + (sek > 0 ? ` · ${zahl(sek)} s` : "");
       const wPx = (bis - von) * _viewZoom * breitePx;
       const glyph = art === "ueber" ? (stil === "luftlinie" ? "↗" : stil === "schnitt" ? "✂" : stil === "pause" ? "⏸" : "✈") : "⏸";
-      b.innerHTML = wPx >= 14 ? `<span class="tl-gruppe-glyph">${glyph}</span>` + (wPx >= 48 && sek > 0 ? `<span class="tl-gruppe-sek">${zahl(sek)} s</span>` : "") : "";
+      // 07.10.2026 (Kamera-Grundlage Schritt 3) — breite Übergänge sagen, was sie sind: „✈ Kinoflug 3,0 s“
+      const artName = art !== "ueber" ? "" : stil === "luftlinie" ? tlT("animator.tours.ueber_luft", "Luftlinie")
+        : stil === "schnitt" ? tlT("animator.tours.ueber_schnitt", "Schnitt") : stil === "pause" ? tlT("animator.tours.ueber_pause", "Pause")
+        : tlT("animator.tours.ueber_kino", "Kinoflug");
+      const sekTxt = sek > 0 ? `${zahl(sek)} s` : "";
+      const text = wPx >= 110 && artName ? artName + (sekTxt ? " " + sekTxt : "") : (wPx >= 48 ? sekTxt : "");
+      b.innerHTML = wPx >= 14 ? `<span class="tl-gruppe-glyph">${glyph}</span>` + (text ? `<span class="tl-gruppe-sek">${_esc(text)}</span>` : "") : "";
       el.appendChild(b);
     };
     let pos = ti;
@@ -834,7 +850,9 @@ function mountTimelineBar(opts) {
     // Doppelklick selbst erkennen — die Zeile wird nach jedem Loslassen neu
     // gezeichnet, ein natives dblclick kommt nie an (dieselbe Falle wie in der
     // Tempo-Spur, 08.09.2026 gemessen).
-    const jetzt = Date.now();
+    // 07.10.2026 — Zeitpunkt des KLICKS (ev.timeStamp), nicht der Verarbeitung: stellt der erste Klick die Kamera um
+    // (Reise: Sicht der Tour), ist die Seite kurz beschäftigt, und Date.now() maß 450 ms statt der echten 150 ms.
+    const jetzt = (ev && ev.timeStamp) || performance.now();
     if (_gruppenLetzterDruck && _gruppenLetzterDruck.id === id && jetzt - _gruppenLetzterDruck.t < 350) {
       _gruppenLetzterDruck = null;
       try { (cb.onGruppeOeffnen || (() => {}))(id); } catch (e) { console.warn("onGruppeOeffnen:", e); }
@@ -1137,7 +1155,7 @@ function mountTimelineBar(opts) {
       if (o.marke) return;   // 02.10.2026 — Marken (Foto-Klicks) folgen ihrem Foto, nicht der Maus
       // Doppelklick selbst erkennen — nach jedem Loslassen wird neu gezeichnet,
       // ein natives dblclick kommt dann nie an (wie bei den Gruppen-Kacheln).
-      const jetzt = Date.now();
+      const jetzt = (ev && ev.timeStamp) || performance.now();   // 07.10.2026 — Zeit des Klicks, nicht der Verarbeitung
       if (letzterDruck && letzterDruck.id === id && letzterDruck.seg === seg && jetzt - letzterDruck.t < 350) {
         letzterDruck = null;
         oeffnen(id);
@@ -1750,7 +1768,7 @@ function mountTimelineBar(opts) {
       // der Editor ging nie auf). Zwei Drücker auf denselben Eintrag innerhalb
       // von 350 ms sind ein Doppelklick.
       const zielIdx = (halt || block) ? +(halt || block).dataset.idx : -1;
-      const jetzt = Date.now();
+      const jetzt = (ev && ev.timeStamp) || performance.now();   // 07.10.2026 — Zeit des Klicks, nicht der Verarbeitung
       if (zielIdx >= 0 && _tempoLetzterDruck && _tempoLetzterDruck.i === zielIdx
           && jetzt - _tempoLetzterDruck.t < 350) {
         _tempoLetzterDruck = null;
