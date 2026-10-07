@@ -791,6 +791,7 @@
   "common.clear_workspace.note": "Solo se vacía la vista. No se borra nada del proyecto.",
   "common.clear_workspace.success": "Espacio de trabajo vaciado.",
   "common.clear_workspace.title": "Eliminar datos cargados (GPX/fotos) — los ajustes se mantienen",
+  "common.delete": "Eliminar",
   "common.close": "Cerrar",
   "common.error": "Error",
   "common.hide": "Ocultar",

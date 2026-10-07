@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.784] – 2026-10-07
+
+### Fixed
+- Stage editor: the ✕ button of a station had no text in English and Spanish (missing key `common.delete`; the release check caught it before upload).
+
 ## [0.9.783] – 2026-10-07
 
 ### Added

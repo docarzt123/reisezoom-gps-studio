@@ -791,6 +791,7 @@
   "common.clear_workspace.note": "Leert nur die Ansicht. Nichts wird aus dem Projekt gelöscht.",
   "common.clear_workspace.success": "Workspace geleert.",
   "common.clear_workspace.title": "Geladene Daten (GPX/Fotos) entfernen — Einstellungen bleiben",
+  "common.delete": "Löschen",
   "common.close": "Schließen",
   "common.error": "Fehler",
   "common.hide": "Ausblenden",
