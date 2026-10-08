@@ -1,4 +1,4 @@
-/* Kartenlooks: ein Look → ein MapLibre-Stil (07.10.2026, PLAN „10 Kartenlooks + Karten-Editor“, IDEEN I-286).
+/* Kartenlooks: ein Look → ein MapLibre-Stil (07.10.2026).
  *
  * Marc: „Im Web kann man halt 10 verschiedene Stile, und auf dem Desktop kann man sich die Karten komplett selber
  * bauen.“ Ein Look ist eine Farbtabelle JE ROLLE (Land, Wasser, Fluss, Küste, Wald, Park, Gebäude, Neben-/Haupt-
@@ -16,7 +16,7 @@
   const VERSION = 1;
 
   // ── Die zehn Start-Looks ──────────────────────────────────────────────────────────────────────────────────
-  // Eigene Farbwerte (Anregung: Recherche MapAnimator 07.10.2026 — deren Code hat keine offene Lizenz, nur die Idee).
+  // Eigene Farbwerte, für diese App abgestimmt.
   // `natuerlich` ist das Luftbild (kein Vektor-Look): die Felder hier gelten für die Beschriftung darüber.
   const L = (o) => Object.assign({
     v: VERSION, basis: "positron", font: "regular", caps: false, labels: true, coast: null, shade: null, glow: null,

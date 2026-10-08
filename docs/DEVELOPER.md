@@ -3719,7 +3719,7 @@ Zwischenspeicher bedient zu werden).
 
 **Zoom in Keyframes, die aus der laufenden Karte gerechnet werden (07.10.2026):** `value_absolute` ist immer der Vorschau-Zoom; `_zoomEffectiveOffset` legt im Render `_rzZoomShift()` drauf. Wer einen Zoom aus der Karte selbst holt (`cameraForBounds`, `effectiveFitZoomBase() + zoom_offset`) und als `value_absolute` speichert, muss den Zuschlag vorher abziehen — sonst ist das Video um ihn zu nah (`_haltKeyframes` → `bei()`, `_standardKeyframes` → `zV()`).
 
-**Funde aus dem Web (07.10.2026, `../gps-studio-web/docs/FUNDE-DESKTOP.md`) — Schnittstellen, die das Web nutzt:**
+**Rückmeldungen aus GPS Studio Web (07.10.2026) — Schnittstellen, die das Web nutzt:**
 - `Api.schnellvideo_fotos(path, n_max, quellen, art, alle)`: ein Eintrag in `quellen` darf ein Objekt `{path, bei?, text?}`
   sein. `bei` (0…1, Punktanteil wie überall) legt das Foto fest an diese Stelle (Ausgabe `manuell: true`, bleibt auch
   ohne `alle` in der Auswahl); `text` kommt als `text` zurück und ist die Bildunterschrift — `sofortbildSchild`,
