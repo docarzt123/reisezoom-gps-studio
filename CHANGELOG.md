@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.786] – 2026-10-08
+
+### Fixed
+- **The map editor stays open when switching aerial images** (beta tester: „Look Natural, click the different aerial images on the right → the right side says goodbye … a different one triggers it each time“). Mapbox Satellite runs on Mapbox GL, every other map on MapLibre; switching between them rebuilds the module (`remountActiveModule`) and took the open editor with it. `applyStyle` now remembers the open editor (`__rzKeNachRemount`, incl. „More maps“ mode) and the rebuilt module reopens it.
+- **Play in the Animator works with the mouse again** (beta tester: „the green-backed button in the Animator doesn't work with the mouse, only with the space bar“; Marc: „didn't work for me on the first try either“). The transport bar rewrote the Play symbol and tooltip every 150 ms, even when nothing changed. WebKit drops a click when the button's content is replaced between press and release — a click held longer than ~60 ms was often lost, from 200 ms always. Chromium (Windows) was not affected, the space bar never was. `_tpAnzeigen` now only writes symbol and tooltip when they change (same for the sound button). Guard: slowly pressed clicks (0–500 ms) in WebKit and Chromium all arrive.
+- **macOS: the first click into an inactive window now reaches the button** (beta tester: „the green-backed button in the Animator doesn't work with the mouse, only with the space bar“ — it's the Play button). A WKWebView only activates the window on the first click and drops it (WebKit rejects `acceptsFirstMouse:`); coming back from Finder or the NAS and clicking Play did nothing, while the space bar arrives only once the window is in front. `app._erster_klick_durchreichen()` sets `acceptsFirstMouse:` on pywebview's `WebKitHost` before the window starts.
+
+### Changed
+- **Travel route module hidden** (Marc 08.10.: „you can hide the Travel route module, we'll remove it completely later“): stages in the Animator replace it. Only the module bar hides it (`manifest.versteckt`, `getModules`); the code stays and old Travel route projects still open from the archive.
+
+### Added
+- **Photos „By tour“ with date, place and search** (beta tester: „no date, no place … I know the place or the year“): every tour shows date (app language), place/region, way of travel and km, the list is grouped by year, a search field filters by place, year or name, tours named only by an export number („…_ACTIVITY“, an address in the name) are shown by their place, and „🎬 Open in Animator“ opens a tour directly. `core/fotos.tour_fenster`/`touren_zu_fotos` now also return activity, place, region, country, km.
+- **Round trip for planned stages** (Marc: „the web version can create a round trip when drawing a route — we need that for the stages too“): from three points „🔄 Round trip — back to the start“ closes the stage at its start; the way back has its own row with means of transport and „Follow roads“, a click on it adds a new last stop, the name reads „Start 🔄 middle“. Stored as `rund`, `rund_art`, `rund_kurve` in the stage (same idea as the web's `rundtour`).
+
 ## [0.9.785] – 2026-10-08
 
 ### Added

@@ -1205,7 +1205,10 @@ auf, **⌘Z** nimmt den letzten Schritt zurück. Rechts darunter stellst du ein,
 **fein oder grob die Straße** gezeichnet wird (grob wirkt erst bei langen Abschnitten richtig, eine Stadtstraße behält ihre
 Form). Oben siehst du Punkte und Distanz; *Alles glätten* setzt eigene Hebel und scharfe Ecken zurück, *Umkehren* dreht
 die Richtung, *Route löschen* fängt neu an. Geklickte Punkte heißen nach dem nächsten Ort; schließt die Etappe an eine Tour
-an, heißt sie kurz „→ Ziel“, und statt des Kinoflugs gleitet die Kamera in 1,5 Sekunden weiter.
+an, heißt sie kurz „→ Ziel“, und statt des Kinoflugs gleitet die Kamera in 1,5 Sekunden weiter. **🔄 Rundtour — zurück zum
+Start** (ab drei Punkten, seit 08.10.2026): Die Etappe führt am Ende wieder zum Start; der Weg zurück steht als eigene Zeile
+„↩ A“ mit eigenem Verkehrsmittel und „Straße folgen“. Ein Klick auf diesen Weg setzt dort eine neue letzte Station; der
+Name lautet dann „Start 🔄 Mitte“.
 
 **Was die App bei einer Etappe selbst macht.** Jede Station, die du selbst gesetzt hast, bekommt ein **Schild mit ihrem
 Ortsnamen** (Haken *Stationen beschriften* im Editor, Standard an; ein geändertes Schild bleibt so, wie du es eingestellt
@@ -1732,7 +1735,10 @@ Dateien bleiben liegen.
   Strecken blass darunter.
 * **🥾 Nach Touren** — welche Fotos zu welcher Tour gehören. Die Zuordnung
   rechnet GPS Studio über das Zeitfenster der Tour; sie steht nirgends in den
-  Dateien. Ein Klick auf eine Tour zeigt ihre Dateien im Raster.
+  Dateien. Ein Klick auf eine Tour zeigt ihre Dateien im Raster. Seit 08.10.2026 steht bei jeder Tour **Datum, Ort,
+  Fortbewegung und Distanz**, die Liste ist nach Jahren gegliedert, und das Feld **„Tour suchen“** findet sie über Ort,
+  Jahr oder Namen. Touren, deren Datei nur eine Nummer als Namen trägt (etwa Garmin-Exporte „…_ACTIVITY“), heißen hier
+  nach ihrem Ort. **🎬 Im Animator öffnen** an jeder Tour öffnet sie direkt.
 
 ### Nach Datum (seit v0.9.781)
 
@@ -2437,6 +2443,10 @@ Das gilt seit 26.09.2026 auch für **mehrere Touren nacheinander** (Reise, „Al
 > die Karte.
 
 ## 4 · Modul: Reiseroute — Anreise als Video 🛣️ (seit v0.9.205)
+
+> **Seit 08.10.2026 ausgeblendet:** Die Reiseroute steht nicht mehr in der Modulleiste. Geplante Strecken (Flug, Fähre, Auto,
+> Rundtour) legst du jetzt als **Etappe im Animator** an (Tracks → „＋ Etappe erstellen“). Alte Reiseroute-Projekte öffnen
+> aus dem Archiv weiter wie gewohnt.
 
 ### Was es macht
 Animiert die **Anreise** zu einer Tour: du gibst Start und Ziel an, daraus wird eine Strecke berechnet und wie ein Track animiert — z.B. als Intro vor dem eigentlichen Wander-Video. Das geladene GPX (die Wanderung) wird dabei als **Ghost** im Hintergrund gezeigt.

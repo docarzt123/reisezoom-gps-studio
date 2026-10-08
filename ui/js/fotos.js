@@ -1454,6 +1454,7 @@
     rasterVerdrahten(box, ab);
   }
 
+  let _tourenSuche = "";   // 08.10.2026 — Suche in „Nach Touren“ bleibt beim Neuzeichnen stehen
   async function tourenZeichnen(box) {
     box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${T("common.loading", "Lädt …")}</div>`;
     const r = await rzWarten("fotos_touren", () => api().fotos_touren(filter)).catch(() => null);
@@ -1464,31 +1465,76 @@
         T("fotos.touren_leer", "Keine Tour passt zeitlich zu diesen Fotos. Das Archiv braucht Touren mit Uhrzeit.")}</div>`;
       return;
     }
+    // 08.10.2026 (Beta-Tester: „kein Datum, kein Ort, muss ich das anders filtern, um ein bestimmtes Projekt zu
+    // öffnen? Mir ist ja Ort oder Jahr bekannt“) — je Tour Datum, Ort, Fortbewegung, km; Zwischenüberschrift je Jahr;
+    // Suchfeld; „Im Animator öffnen“. Namen aus Export-Nummern („24613993220_ACTIVITY“, Adresse im Namen) → Ort.
+    const _spr = (typeof i18nMeta === "function" && i18nMeta() && i18nMeta().active) || undefined;   // Sprache der App, nicht des Systems
+    const datum = (s) => { try { return new Date(s * 1000).toLocaleDateString(_spr, { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }); } catch (_) { return ""; } };
+    const jahr = (s) => { try { return String(new Date(s * 1000).getFullYear()); } catch (_) { return ""; } };
+    const ortVon = (g) => [g.place, g.region && g.region !== g.place ? g.region : "", !g.place && !g.region ? g.country : ""].filter(Boolean).join(", ");
+    const nurNummer = (n) => !n || /@/.test(n) || /^\d{6,}/.test(n) || /_ACTIVITY\b/i.test(n) || /^activity[_\s-]*\d+/i.test(n);
+    const anzeigeName = (g) => (nurNummer(g.name) ? (g.place || g.region || ortVon(g) || T("library.tour", "Tour")) : g.name);
+    const zeile = (g, i) => {
+      if (g.ohne_tour) return `<div class="foto-tour ist-ohne" data-ftour="${i}" role="button" tabindex="0">
+          <div class="foto-tour-name">${T("fotos.ohne_tour", "Zu keiner Tour")}</div>
+          <div class="foto-tour-zahl">${num(g.n)} ${T("fotos.stueck", "Dateien")}</div></div>`;
+      const meta = [datum(g.von), ortVon(g), g.activity ? T("library.act." + g.activity, g.activity) : "", g.km ? `${num(g.km)} km` : ""].filter(Boolean).join(" · ");
+      return `<div class="foto-tour" data-ftour="${i}" role="button" tabindex="0" title="${esc(g.name || "")}">
+          <div class="foto-tour-kopf"><div class="foto-tour-name">${esc(anzeigeName(g))}</div>
+            <button type="button" class="btn btn-ghost btn-sm foto-tour-anim" data-fanim="${i}" title="${T("fotos.tour_animator_tip", "Diese Tour im Animator öffnen")}">🎬 ${T("fotos.tour_animator", "Im Animator öffnen")}</button></div>
+          <div class="foto-tour-meta">${esc(meta)}</div>
+          <div class="foto-tour-zahl">${num(g.n)} ${T("fotos.stueck", "Dateien")}${
+            g.ohne_koordinate ? ` · ${num(g.ohne_koordinate)} ${T("fotos.ohne_koordinate_kurz", "ohne Koordinate")}` : ""}</div>
+        </div>`;
+    };
+    const suchText = (g) => [g.name, anzeigeName(g), ortVon(g), g.country, datum(g.von), jahr(g.von), g.activity ? T("library.act." + g.activity, g.activity) : ""].join(" ").toLowerCase();
+    const listeHtml = (q) => {
+      const w = String(q || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+      let html = "", jahrDavor = null, n = 0;
+      liste.forEach((g, i) => {
+        if (w.length && (g.ohne_tour || !w.every(x => suchText(g).includes(x)))) return;
+        const j = g.ohne_tour ? "" : jahr(g.von);
+        if (j && j !== jahrDavor) { html += `<div class="foto-touren-jahr">${esc(j)}</div>`; jahrDavor = j; }
+        html += zeile(g, i); n++;
+      });
+      return n ? html : `<div class="lib-detail-empty" style="padding:14px">${T("fotos.touren_keine_treffer", "Keine Tour passt zur Suche.")}</div>`;
+    };
     box.innerHTML = `
       <div class="lib-nav-hint" style="padding:10px 12px 0">${T("fotos.touren_hint",
         "Zugeordnet über das Zeitfenster der Tour — nichts davon steht in den Dateien. Genau das kann kein reines Fototool: die Touren liegen hier schon.")}</div>
-      <div class="foto-touren">
-        ${liste.map((g, i) => `
-          <button class="foto-tour${g.ohne_tour ? " ist-ohne" : ""}" type="button" data-ftour="${i}">
-            <div class="foto-tour-name">${g.ohne_tour
-              ? T("fotos.ohne_tour", "Zu keiner Tour")
-              : esc(g.name || "—")}</div>
-            <div class="foto-tour-zahl">${num(g.n)} ${T("fotos.stueck", "Dateien")}${
-              g.ohne_koordinate ? ` · ${num(g.ohne_koordinate)} ${T("fotos.ohne_koordinate_kurz", "ohne Koordinate")}` : ""}</div>
-          </button>`).join("")}
-      </div>`;
-    box.querySelectorAll("[data-ftour]").forEach(b => {
-      b.onclick = async () => {
-        const g = liste[+b.dataset.ftour];
-        if (!g || g.ohne_tour) return;
-        const r2 = await rzWarten("fotos_einer_tour", () => api().fotos_einer_tour(g.geo_hash || "", g.path || "")).catch(() => null);
-        if (!r2 || !r2.ok) return;
-        filter = Object.assign({}, filter, { von_utc: r2.von - 1800, bis_utc: r2.bis + 1800 });
-        ansicht = "raster";
-        neuLaden();
-        toast(T("fotos.tour_gefiltert", "Zeigt die Dateien im Zeitfenster von „{n}“").replace("{n}", g.name || ""), "info");
-      };
-    });
+      <div class="foto-touren-suche"><input type="search" class="input" id="foto-touren-q" placeholder="${T("fotos.touren_suche", "Tour suchen — Ort, Jahr, Name …")}" value="${esc(_tourenSuche)}"></div>
+      <div class="foto-touren">${listeHtml(_tourenSuche)}</div>`;
+    const listeEl = box.querySelector(".foto-touren");
+    const binden = () => {
+      listeEl.querySelectorAll("[data-ftour]").forEach(b => {
+        const los = async (ev) => {
+          if (ev && ev.target.closest("[data-fanim]")) return;
+          const g = liste[+b.dataset.ftour];
+          if (!g || g.ohne_tour) return;
+          const r2 = await rzWarten("fotos_einer_tour", () => api().fotos_einer_tour(g.geo_hash || "", g.path || "")).catch(() => null);
+          if (!r2 || !r2.ok) return;
+          filter = Object.assign({}, filter, { von_utc: r2.von - 1800, bis_utc: r2.bis + 1800 });
+          ansicht = "raster";
+          neuLaden();
+          toast(T("fotos.tour_gefiltert", "Zeigt die Dateien im Zeitfenster von „{n}“").replace("{n}", anzeigeName(g)), "info");
+        };
+        b.onclick = los;
+        b.onkeydown = (ev) => { if (ev.key === "Enter") los(ev); };
+      });
+      listeEl.querySelectorAll("[data-fanim]").forEach(k => {
+        k.onclick = async (ev) => {
+          ev.stopPropagation();
+          const g = liste[+k.dataset.fanim]; if (!g || !g.path) return;
+          try {
+            const ok = await window.loadGlobalGpx(g.path, { stumm: true });
+            if (ok !== false && typeof switchMod === "function") switchMod("animator");
+          } catch (e) { applog("warn", "[fotos] Tour öffnen: " + e); }
+        };
+      });
+    };
+    binden();
+    const q = box.querySelector("#foto-touren-q");
+    if (q) q.oninput = () => { _tourenSuche = q.value; listeEl.innerHTML = listeHtml(q.value); binden(); };
   }
 
   // ── Karte ───────────────────────────────────────────────────────────────

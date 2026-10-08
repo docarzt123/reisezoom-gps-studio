@@ -5529,5 +5529,12 @@
   "animator.colors.ab": "ab",
   "animator.colors.stufe": "Farbstufe",
   "animator.colors.undo_tour": "Track-Farben geändert",
-  "animator.colors.src_ele": "Höhe (m)"
+  "animator.colors.src_ele": "Höhe (m)",
+  "animator.etappe.rund": "🔄 Rundtour — zurück zum Start",
+  "animator.etappe.rund_tip": "Ab drei Punkten: die Etappe führt am Ende zurück zum Start.",
+  "animator.etappe.rund_abschnitt": "Weg zurück zum Start",
+  "fotos.tour_animator": "Im Animator öffnen",
+  "fotos.tour_animator_tip": "Diese Tour im Animator öffnen",
+  "fotos.touren_suche": "Tour suchen — Ort, Jahr, Name …",
+  "fotos.touren_keine_treffer": "Keine Tour passt zur Suche."
 }

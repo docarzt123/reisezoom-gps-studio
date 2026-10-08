@@ -1085,7 +1085,7 @@ function mountTimelineBar(opts) {
           const bild = o.bild ? `<span class="tl-ov-bild" style="background-image:url('${String(o.bild).replace(/'/g, "%27")}')"></span>`
                      : o.iconSvg ? `<span class="tl-ov-icon">${o.iconSvg}</span>`      // eigenes SVG aus sign_draw.js
                      : (o.symbol ? `<span class="tl-ov-symbol">${_esc(o.symbol)}</span>` : "");
-          // 06.10.2026 (I-281, Marc: „wann wie was passiert, sieht man in der Timeline nicht … Anflug, Abflug und Foto
+          // 06.10.2026 (Marc: „wann wie was passiert, sieht man in der Timeline nicht … Anflug, Abflug und Foto
           // groß im Balken ziehen“) — Fotostopp: Phasen Pin · Anflug · FOTO GROSS · Abflug · Pin, Griffe an den Grenzen
           if (sg.fs) {
             const f = sg.fs, p = (x) => Math.max(0, Math.min(100, (x - sg.an) / len * 100));

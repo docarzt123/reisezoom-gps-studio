@@ -22,6 +22,7 @@
     description: "Anreise-Route animieren (GPX als Ghost)",
     icon: "🛣",
     sort_order: 20,
+    versteckt: true,   // 08.10.2026 — aus der Modulleiste genommen (ui/js/app.js getModules), Etappen im Animator ersetzen es
   },
   mount: function (body, headerActions) { return mountAnimator(body, headerActions, { mode: "reiseroute", moduleSlug: "reiseroute" }); },
 };
@@ -2616,6 +2617,9 @@ function mountAnimator(body, headerActions, opts) {
   }
   window.__rzKartenEditor = { oeffnen: () => _keOeffnen(), aktuell: () => _keAktuell(), anwenden: (l) => _keAnwenden(l), schliessen: () => _keSchliessen(),
     extras: () => _keExtrasLesen(), eigeneLaden: () => _keEigeneLaden() };   // Prüfstand
+  // Nach einem Engine-Wechsel (Modul neu gebaut) den Editor wieder öffnen, wie er war
+  { const w = window.__rzKeNachRemount; window.__rzKeNachRemount = null;
+    if (w) setTimeout(() => { try { _keModusWeitere = !!w.weitere; _keOeffnen(); } catch (e) { applog("warn", "[kartened] wieder öffnen: " + e); } }, 0); }
   /** Eigene Looks als kleine Kacheln unter den zehn (Klick = übernehmen, ✕ = löschen). */
   async function _keEigeneLaden() {
     try { const r = await api().kartenlooks_liste(); _keEigene = (r && r.ok && r.looks) || []; } catch (_) { _keEigene = []; }   // warte-ok: Liste im Hintergrund
@@ -12012,6 +12016,10 @@ function mountAnimator(body, headerActions, opts) {
     if (r.needsRemount) {
       // Engine-Wechsel (Mapbox GL ↔ MapLibre GL): Karte neu bauen. Der Stil ist
       // über bindSetting schon gespeichert, der Neuaufbau liest ihn.
+      // 08.10.2026 (Beta-Tester: „rechts auf die Luftbilder klicken → die rechte Seite verabschiedet sich“) — der
+      // Neuaufbau nahm den offenen Karten-Editor mit (Mapbox Satellit ↔ alle anderen = Engine-Wechsel). Merken, danach
+      // wieder öffnen.
+      try { if (_keIstOffen()) window.__rzKeNachRemount = { weitere: _keModusWeitere }; } catch (_) {}
       if (window.remountActiveModule) window.remountActiveModule();
       return;
     }
@@ -16174,11 +16182,15 @@ function mountAnimator(body, headerActions, opts) {
     // obwohl sich nichts bewegte; der nächste Klick brach den Start ab. Jetzt ⏳, und Klicks in dieser Phase zählen nicht.
     const p = el.querySelector('[data-tp="play"]'); if (p) {
       const bereitet = _previewRaf === -1 && !window.__rzStepMode, an = !!_previewRaf && !bereitet;
-      p.textContent = bereitet ? "⏳" : (an ? "⏸" : "▶"); p.classList.toggle("an", an); p.classList.toggle("bereitet", bereitet);
-      p.title = bereitet ? t("animator.tp.bereitet", "Vorschau wird vorbereitet …") : p.dataset.tipp || p.title;
+      // 08.10.2026 (Beta-Tester: „der grüne Knopf geht nicht mit der Maus, aber mit der Leertaste") — Text und Titel nur
+      // bei Änderung schreiben: WebKit verwirft einen Klick, wenn der Knopfinhalt zwischen Drücken und Loslassen ersetzt
+      // wird, und das geschah hier alle 150 ms (Mausdruck > 60 ms → Klick oft weg, > 200 ms → immer).
+      const sym = bereitet ? "⏳" : (an ? "⏸" : "▶"); if (p.textContent !== sym) p.textContent = sym;
+      p.classList.toggle("an", an); p.classList.toggle("bereitet", bereitet);
+      const tip = bereitet ? t("animator.tp.bereitet", "Vorschau wird vorbereitet …") : p.dataset.tipp || p.title; if (p.title !== tip) p.title = tip;
       if (!p.dataset.tipp && !bereitet) p.dataset.tipp = p.title;
     }
-    const tb = el.querySelector('[data-tp="ton"]'); if (tb) { const an = _tonVorschauAn(); tb.textContent = an ? "🔊" : "🔇"; tb.classList.toggle("ist-stumm", !an); }
+    const tb = el.querySelector('[data-tp="ton"]'); if (tb) { const an = _tonVorschauAn(), sy = an ? "🔊" : "🔇"; if (tb.textContent !== sy) tb.textContent = sy; tb.classList.toggle("ist-stumm", !an); }
   }
   function _tpAufbauen() {
     if (_isStaticFrame || window.__rzRenderMode) return;
@@ -23493,12 +23505,13 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _etNeuerZustand() {
     return { pfad: null, wps: [_etLeer(), _etLeer()], arten: ["auto"], kurve: [false], weich: 0.5, grob: 0.55, beschriften: true,
+             rund: false, rund_art: null, rund_kurve: false,
              pick: -1, sel: -1, busy: false, teile: new Map(), laeuft: 0, verlauf: [] };
   }
   /** Rückgängig im Editor (⌘Z / Knopf): Stand VOR einer Änderung merken. */
   function _etMerken() {
     const E = _etEd; if (!E) return;
-    E.verlauf.push(JSON.stringify({ wps: E.wps, arten: E.arten, kurve: E.kurve, weich: E.weich, grob: E.grob }));
+    E.verlauf.push(JSON.stringify({ wps: E.wps, arten: E.arten, kurve: E.kurve, weich: E.weich, grob: E.grob, rund: !!E.rund, rund_art: E.rund_art || null, rund_kurve: !!E.rund_kurve }));
     if (E.verlauf.length > 80) E.verlauf.shift();
   }
   function _etZurueck() {
@@ -23532,7 +23545,7 @@ function mountAnimator(body, headerActions, opts) {
     const et = tr.etappe, E = _etNeuerZustand();
     Object.assign(E, { pfad: tr.gpx_path, wps: JSON.parse(JSON.stringify(et.wps || [])), arten: (et.arten || []).slice(),
                        kurve: (et.kurve || []).slice(), weich: et.weich != null ? +et.weich : 0.5, grob: et.grob != null ? +et.grob : 0.55,
-                       beschriften: et.beschriften !== false });
+                       beschriften: et.beschriften !== false, rund: !!et.rund, rund_art: et.rund_art || null, rund_kurve: !!et.rund_kurve });
     while (E.arten.length < E.wps.length - 1) E.arten.push(E.arten[E.arten.length - 1] || "auto");
     while (E.kurve.length < E.wps.length - 1) E.kurve.push(false);
     _etEd = E;
@@ -23547,6 +23560,18 @@ function mountAnimator(body, headerActions, opts) {
     _etEdZeichnen();
   }
 
+  // 08.10.2026 (Marc: „Die Web-Version hat die Möglichkeit, dass man eine Rundtour erstellt beim Route-Zeichnen. Das brauchen
+  // wir auch bei den Etappen“) — wie im Web (assets/video/studio.js `etappeAusStationen`): ab drei Punkten hängt die Rundtour
+  // eine Kopie des Starts hinten an; der Schlussabschnitt hat eigenes Verkehrsmittel/Linie (`rund_art`, `rund_kurve`), die
+  // Stationsliste bleibt ohne Doppel. Alle Geometrie rechnet über `_etGeo(E)`.
+  const _etRundGeht = (E) => E.wps.filter(w => w.lon != null).length >= 3;
+  function _etGeo(E) {
+    if (!E || !E.rund || !_etRundGeht(E) || E.wps[0].lon == null || E.wps[E.wps.length - 1].lon == null) return E;
+    const n = E.wps.length;
+    return { wps: E.wps.concat([Object.assign({}, E.wps[0], { auto: false, text: "" })]),
+             arten: E.arten.slice(0, n - 1).concat([E.rund_art || E.arten[n - 2] || "auto"]),
+             kurve: E.kurve.slice(0, n - 1).concat([!!E.rund_kurve]), weich: E.weich, grob: E.grob, teile: E.teile, rund: true };
+  }
   // ── Geometrie: Mercator (0..1), Hebel, Bézier ──
   const _etM = (ll) => { const s = Math.sin(Math.max(-85, Math.min(85, ll[1])) * Math.PI / 180);
     return [(ll[0] + 180) / 360, 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)]; };
@@ -23557,7 +23582,8 @@ function mountAnimator(body, headerActions, opts) {
     if (w.scharf) return { aus: [0, 0], ein: [0, 0] };
     if (w.hebel) { const c = Math.cos(w.hebel.ang), s = Math.sin(w.hebel.ang);
       return { aus: [c * w.hebel.ln, s * w.hebel.ln], ein: [c * w.hebel.lv, s * w.hebel.lv] }; }
-    const vor = P[j - 1] || P[j], nach = P[j + 1] || P[j], k = (+E.weich || 0) * 1.5 / 6;   // Catmull-Rom: (nach − vor)/2 · 1/3
+    let vor = P[j - 1] || P[j], nach = P[j + 1] || P[j]; const k = (+E.weich || 0) * 1.5 / 6;   // Catmull-Rom: (nach − vor)/2 · 1/3
+    if (E.rund && P.length > 3) { if (j === 0) vor = P[P.length - 2]; if (j === P.length - 1) nach = P[1]; }   // Rundtour: Ring ohne Knick am Start
     const v = [(nach[0] - vor[0]) * k, (nach[1] - vor[1]) * k];
     return { aus: v, ein: v };
   }
@@ -23585,8 +23611,8 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _etLinie(E) { return _etLinieTeile(E).coords; }
   /** Linie plus, welcher Punktbereich zu welchem Abschnitt (Verkehrsmittel) gehört — fürs Backend (Höhen, Punkt 8). */
-  function _etLinieTeile(E) {
-    const co = [], teile = [];
+  function _etLinieTeile(E0) {
+    const E = _etGeo(E0), co = [], teile = [];
     for (let i = 0; i < E.wps.length - 1; i++) {
       const s = _etAbschnitt(E, i).coords;
       const von = Math.max(0, co.length - (co.length && s.length ? 1 : 0));
@@ -23600,17 +23626,17 @@ function mountAnimator(body, headerActions, opts) {
     const E = _etEd; if (!E || E.laeuft) return;
     E.laeuft = 1;
     try {
-      for (let i = 0; i < E.wps.length - 1; i++) {
+      for (let i = 0; i < _etGeo(E).wps.length - 1; i++) {
         if (_etEd !== E) return;
-        const a = E.wps[i], b = E.wps[i + 1];
-        if (E.kurve[i] || !a || !b || a.lon == null || b.lon == null) continue;
-        const key = _etTeilKey(E, i);
+        const G = _etGeo(E), a = G.wps[i], b = G.wps[i + 1];
+        if (G.kurve[i] || !a || !b || a.lon == null || b.lon == null) continue;
+        const key = _etTeilKey(G, i);
         if (E.teile.has(key)) continue;
         _etStatus(t("animator.etappe.strasse_laedt", "Strecke wird berechnet …"));
         let r = null; const t0 = performance.now();
-        try { r = await api().etappe_abschnitt({ von: [a.lon, a.lat], nach: [b.lon, b.lat], art: E.arten[i] || "auto", grob: E.grob }); }   // warte-ok: Hintergrund, Linie zeigt vorerst gerade
+        try { r = await api().etappe_abschnitt({ von: [a.lon, a.lat], nach: [b.lon, b.lat], art: G.arten[i] || "auto", grob: E.grob }); }   // warte-ok: Hintergrund, Linie zeigt vorerst gerade
         catch (e) { r = { ok: false, error: String(e) }; }
-        applog("info", `[etappe] Abschnitt ${i + 1}/${E.wps.length - 1} ${E.arten[i] || "auto"} grob ${(+E.grob).toFixed(2)}: ` +
+        applog("info", `[etappe] Abschnitt ${i + 1}/${G.wps.length - 1} ${G.arten[i] || "auto"} grob ${(+E.grob).toFixed(2)}: ` +
           (r && r.ok ? `${(r.coords || []).length} Punkte, ${Math.round((r.distance_m || 0) / 100) / 10} km` : `Fehler ${r && r.error}`) + ` · ${Math.round(performance.now() - t0)} ms`);
         if (_etEd !== E) return;
         if (r && r.ok && Array.isArray(r.coords) && r.coords.length > 1) E.teile.set(key, r.coords);
@@ -23619,7 +23645,8 @@ function mountAnimator(body, headerActions, opts) {
       }
       _etStatus("");
     } finally { if (E) E.laeuft = 0; }
-    if (_etEd === E && E.wps.some((w, i) => i < E.wps.length - 1 && !E.kurve[i] && w.lon != null && E.wps[i + 1].lon != null && !E.teile.has(_etTeilKey(E, i)))) _etTeileHolen();
+    const G = _etEd === E ? _etGeo(E) : null;
+    if (G && G.wps.some((w, i) => i < G.wps.length - 1 && !G.kurve[i] && w.lon != null && G.wps[i + 1].lon != null && !E.teile.has(_etTeilKey(G, i)))) _etTeileHolen();
   }
   function _etStatus(txt, fehler) {
     const el = document.querySelector("#anim-etappe-editor .et-zustand");
@@ -23652,13 +23679,13 @@ function mountAnimator(body, headerActions, opts) {
       _etMenueWeg();
     }
     _etMarkerKarte = map;
-    const feats = [];
-    for (let i = 0; i < E.wps.length - 1; i++) {
-      const s = _etAbschnitt(E, i);
+    const feats = [], G = _etGeo(E);
+    for (let i = 0; i < G.wps.length - 1; i++) {
+      const s = _etAbschnitt(G, i);
       if (s.coords.length > 1) feats.push({ type: "Feature", properties: { fehlt: s.fehlt ? 1 : 0 }, geometry: { type: "LineString", coordinates: s.coords } });
     }
     if (E.sel >= 0 && E.wps[E.sel] && E.wps[E.sel].lon != null) {
-      const w = E.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(E, E.sel);
+      const w = E.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(G, E.sel);
       feats.push({ type: "Feature", properties: { hebel: 1 }, geometry: { type: "LineString",
         coordinates: [_etLL([P[0] - h.ein[0], P[1] - h.ein[1]]), [w.lon, w.lat], _etLL([P[0] + h.aus[0], P[1] + h.aus[1]])] } });
     }
@@ -23862,9 +23889,9 @@ function mountAnimator(body, headerActions, opts) {
     }
     // nahe an einem Abschnitt? → dort einfügen
     try {
-      const p = e.point; let best = { d: 12, i: -1 };
-      for (let i = 0; i < E.wps.length - 1; i++) {
-        const co = _etAbschnitt(E, i).coords;
+      const p = e.point; let best = { d: 12, i: -1 }; const G = _etGeo(E);
+      for (let i = 0; i < G.wps.length - 1; i++) {
+        const co = _etAbschnitt(G, i).coords;
         for (let k = 0; k < co.length - 1; k++) {
           const a = map.project(co[k]), b = map.project(co[k + 1]);
           const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1;
@@ -23872,6 +23899,13 @@ function mountAnimator(body, headerActions, opts) {
           const d = Math.hypot(a.x + u * dx - p.x, a.y + u * dy - p.y);
           if (d < best.d) best = { d, i };
         }
+      }
+      if (best.i >= 0 && best.i === E.wps.length - 1) {   // Rundtour: Klick auf den Weg zurück zum Start → neue letzte Station
+        _etMerken();
+        E.wps.push(neu()); E.arten.push(E.rund_art || E.arten[E.arten.length - 1] || "auto"); E.kurve.push(!!E.rund_kurve);
+        E.sel = E.wps.length - 1;
+        _etEdZeichnen(); _etTeileHolen(); _etOrtHolen(E.wps[E.sel]);
+        return true;
       }
       if (best.i >= 0) {
         E.wps.splice(best.i + 1, 0, neu());
@@ -23945,6 +23979,11 @@ function mountAnimator(body, headerActions, opts) {
         <label>${esc(t("animator.etappe.weich", "Weichheit der Kurven"))} <input type="range" class="et-weich" min="0" max="100" step="1" value="${Math.round((+E.weich || 0) * 100)}"></label>
         <label>${esc(t("animator.etappe.grob", "Straße: fein ↔ grob"))} <input type="range" class="et-grob" min="0" max="100" step="1" value="${Math.round((+E.grob || 0) * 100)}"></label>
       </div>
+      ${(() => { const geht = _etRundGeht(E), an = !!E.rund && geht, ra = E.rund_art || E.arten[n - 2] || "auto";
+        return `<label class="et-rund${geht ? "" : " aus"}" title="${esc(t("animator.etappe.rund_tip", "Ab drei Punkten: die Etappe führt am Ende zurück zum Start."))}"><input type="checkbox" class="et-rund-cb"${an ? " checked" : ""}${geht ? "" : " disabled"}> ${esc(t("animator.etappe.rund", "🔄 Rundtour — zurück zum Start"))}</label>
+        ${an ? `<div class="et-art et-art-rund" title="${esc(t("animator.etappe.rund_abschnitt", "Weg zurück zum Start"))}"><span class="muted">↩ A</span>
+          <select class="et-rund-art">${_ET_ARTEN.map(a => `<option value="${a}"${ra === a ? " selected" : ""}>${_ET_SYMBOL[a]} ${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
+          <label class="et-folgen"><input type="checkbox" class="et-rund-folgen"${E.rund_kurve ? "" : " checked"}> ${esc(t("animator.etappe.folgen", "Straße folgen"))}</label></div>` : ""}`; })()}
       <button type="button" class="btn btn-small et-station-plus" data-et="station">＋ ${esc(t("animator.etappe.station", "Station"))}</button>
       <details class="et-anleitung"${E.wps.filter(w => w.lon != null).length < 2 ? " open" : ""}><summary>${esc(t("animator.etappe.so_gehts", "So zeichnest du"))}</summary><ol>
         <li>${esc(t("animator.etappe.a1", "Auf die Karte klicken setzt Punkte — die Linie läuft weich hindurch."))}</li>
@@ -23966,10 +24005,18 @@ function mountAnimator(body, headerActions, opts) {
       inp.addEventListener("blur", () => { const w = E.wps[+inp.dataset.i]; if (w && w.text && w.lon == null) _etSuchen(+inp.dataset.i); });
       inp.addEventListener("focus", () => { E.sel = +inp.dataset.i; _etKarteZeichnen(); _etListeMarkieren(); });
     });
+    box.querySelector(".et-rund-cb")?.addEventListener("change", (ev) => {
+      _etMerken(); E.rund = ev.target.checked;
+      if (E.rund && !E.rund_art) E.rund_art = E.arten[E.wps.length - 2] || "auto";
+      _etEdZeichnen(); _etKarteZeichnen(); _etTeileHolen();
+    });
+    box.querySelector(".et-rund-art")?.addEventListener("change", (ev) => { _etMerken(); E.rund_art = ev.target.value; _etKarteZeichnen(); _etTeileHolen(); });
+    box.querySelector(".et-rund-folgen")?.addEventListener("change", (ev) => { _etMerken(); E.rund_kurve = !ev.target.checked; _etKarteZeichnen(); _etTeileHolen(); });
     box.querySelectorAll(".et-fz").forEach(b => b.addEventListener("click", () => {
       _etMerken();
       const ab = (E.sel >= 0 && E.sel < E.wps.length - 1) ? E.sel : 0;
       for (let k = ab; k < E.wps.length - 1; k++) E.arten[k] = b.dataset.fz;
+      if (E.rund) E.rund_art = b.dataset.fz;   // „ab hier“ schließt den Weg zurück zum Start ein
       _etEdZeichnen(); _etTeileHolen();
     }));
     box.querySelectorAll(".et-art-sel").forEach(sel => sel.addEventListener("change", () => { _etMerken(); E.arten[+sel.dataset.i] = sel.value; _etKarteZeichnen(); _etTeileHolen(); }));
@@ -24054,11 +24101,13 @@ function mountAnimator(body, headerActions, opts) {
     while (E.laeuft) await new Promise(r => setTimeout(r, 100));
     await _etTeileHolen();
     const { coords, teile } = _etLinieTeile(E);
-    const abschnitte = E.wps.slice(0, -1).map((w, i) => ({ art: E.arten[i] || "auto", von: [w.lon, w.lat], bis: [E.wps[i + 1].lon, E.wps[i + 1].lat], kurve: !!E.kurve[i] }));
+    const G = _etGeo(E);
+    const abschnitte = G.wps.slice(0, -1).map((w, i) => ({ art: G.arten[i] || "auto", von: [w.lon, w.lat], bis: [G.wps[i + 1].lon, G.wps[i + 1].lat], kurve: !!G.kurve[i] }));
     // Klicktest 07.10.: „Langer Tourname → Kartenpunkt“ war in der Liste abgeschnitten — setzt die Etappe an eine Tour an,
     // steht nur das andere Ende im Namen (die Tour steht ja direkt daneben in der Kette)
     const wA = E.wps[0], wB = E.wps[E.wps.length - 1];
-    const name = wA.auto && !wB.auto ? t("animator.etappe.name_nach", "→ {b}").replace("{b}", _etName(wB))
+    const name = G.rund ? `${_etName(wA)} 🔄 ${_etName(E.wps[Math.floor(E.wps.length / 2)])}`.slice(0, 60)   // wie im Web
+      : wA.auto && !wB.auto ? t("animator.etappe.name_nach", "→ {b}").replace("{b}", _etName(wB))
       : (!wA.auto && wB.auto ? t("animator.etappe.name_von", "{a} →").replace("{a}", _etName(wA)) : _etName(wA) + " → " + _etName(wB));
     const alt = E.pfad && _extraTours.find(x => x.gpx_path === E.pfad);
     let r = null;
@@ -24070,7 +24119,8 @@ function mountAnimator(body, headerActions, opts) {
     if (!r || !r.ok) { _etEdZeichnen(); toast(t("animator.etappe.fehler", "Etappe konnte nicht berechnet werden: ") + ((r && r.error) || ""), "error", 6000); return; }
     const etappe = { id: String(r.gpx_path).split("/").pop().split("_")[0], wps: E.wps.map(w => Object.assign({}, w)),
                      arten: E.arten.slice(0, E.wps.length - 1), kurve: E.kurve.slice(0, E.wps.length - 1), weich: E.weich, grob: E.grob,
-                     abschnitte, km: Math.round((r.distance_m || 0) / 100) / 10, beschriften: E.beschriften !== false };
+                     abschnitte, km: Math.round((r.distance_m || 0) / 100) / 10, beschriften: E.beschriften !== false,
+                     ...(G.rund ? { rund: true, rund_art: G.arten[G.arten.length - 1], rund_kurve: !!G.kurve[G.kurve.length - 1] } : {}) };
     _animPushUndo(E.pfad ? t("animator.etappe.undo_bearbeiten", "Etappe geändert") : t("animator.etappe.undo_neu", "Etappe erstellt"), { force: true });
     const hauptAlt = _hauptEt();
     applog("info", `[etappe] übernehmen: pfad=${E.pfad || "-"} haupt=${currentGpx || "-"} hauptEt=${hauptAlt ? "ja" : "nein"}`);

@@ -6726,6 +6726,23 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   `#tl-touren` (Klasse `timeline-lanes timeline-touren`) über `#tl-ov`; die Gruppen-Zeilen hängen darunter
   (`_gruppenZeilenSicherstellen` nimmt `tempoLane.parentElement`). Ohne Keyframe-Editor wird der Keyframe-Behälter
   (`.timeline-lanes:not(.timeline-touren)`) ganz ausgeblendet. Übergangs-Bänder ab 110 px tragen Art + Dauer.
+- **Knöpfe nicht im Takt neu beschriften (08.10.2026):** WebKit verwirft einen Klick, wenn der Inhalt des Knopfs
+  zwischen Drücken und Loslassen ersetzt wird (`textContent =` erzeugt einen neuen Textknoten, auch bei gleichem Wert).
+  Die Transportleiste schrieb das Play-Symbol alle 150 ms neu → Klicks mit > 60 ms Mausdruck gingen verloren, die
+  Leertaste nie. Regel: in Zeitgebern Text/Titel nur bei Änderung setzen. Wächter `tests/test_play_langsamklick.py`
+  (Playwright-Klicks haben 0 ms Druck und fanden das nie — dort `mouse.down` → warten → `mouse.up`).
+- **Erster Klick (08.10.2026):** `app._erster_klick_durchreichen()` setzt vor `webview.start` auf macOS
+  `acceptsFirstMouse:` → YES an `webview.platforms.cocoa.BrowserView.WebKitHost` (PyObjC-Selector). Ohne das schluckt
+  WKWebView den ersten Klick in ein inaktives Fenster. Log: „[fenster] erster Klick wird durchgereicht“. Nebenwirkung für
+  Klicktests: computer-use klickt danach nicht mehr ins Hintergrundfenster (nur noch mit Bildschirmübernahme).
+- **Fotos „Nach Touren“ (08.10.2026):** `tour_fenster` liest zusätzlich activity/place/region/country/distance_m,
+  `touren_zu_fotos` gibt sie je Gruppe weiter (+ `km`); `ui/js/fotos.js tourenZeichnen` zeigt Datum (App-Sprache), Ort,
+  Fortbewegung, km, Jahres-Zwischenzeilen, Suchfeld (`_tourenSuche`), „Im Animator öffnen“ (`loadGlobalGpx` + `switchMod`).
+- **Reiseroute ausgeblendet (08.10.2026):** `manifest.versteckt: true` (modules/animator/ui/module.js), `getModules()` in
+  ui/js/app.js filtert es aus der Modulleiste; `switchMod('reiseroute')` geht weiter (alte Projekte, Selbsttest).
+- **Rundtour (08.10.2026):** Etappe trägt `rund`, `rund_art`, `rund_kurve` (wie das Web: `S.rundtour`, Kopie des Starts
+  hinten). Alle Geometrie über `_etGeo(E)` (Sicht mit Schlussabschnitt; `arten`/`kurve` bleiben n−1 lang), `_etHebel` schließt
+  den Ring (Nachbarn über das Ende). Gespeicherte `abschnitte` enthalten den Rückweg. Test `test_etappe_rundtour`.
 - **Etappen Punkte 5–10 (07.10.2026):** `etappe_speichern` bekommt `teile` [{von, bis, art}] (aus `_etLinieTeile`) und
   schreibt über `_etappe_hoehen` Geländehöhen (core/demsample, z12, ≤2500 Stützstellen) und je Punkt die Extension `rz_flach`
   für Flug/Schiff/Bahn (`core/route.write_gpx(eles, flach)`). core/gpx liest `rz_flach` als `extra`, rechnet Bergauf/Bergab

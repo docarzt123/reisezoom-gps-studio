@@ -1190,7 +1190,10 @@ seleccionado, **Esc** quita la selección, **⌘Z** deshace el último paso. Deb
 lo **fina o gruesa que se dibuja la carretera** (lo grueso se nota de verdad en tramos largos; una calle de ciudad conserva
 su forma). Arriba ves puntos y distancia; *Suavizar todo* quita tiradores propios y esquinas vivas, *Invertir* cambia el
 sentido, *Borrar ruta* empieza de nuevo. Los puntos pulsados toman el nombre del lugar más cercano; una etapa que se une a
-una ruta recibe un nombre corto «→ destino», y en lugar del vuelo de cine la cámara se desliza en 1,5 segundos.
+una ruta recibe un nombre corto «→ destino», y en lugar del vuelo de cine la cámara se desliza en 1,5 segundos. **🔄 Ruta circular — volver al inicio** (desde tres
+puntos, desde el 08.10.2026): la etapa vuelve al inicio al final; el camino de vuelta tiene su propia fila «↩ A» con su
+propio medio de transporte y «Seguir carreteras». Un clic en ese camino añade allí una nueva última parada; el nombre
+queda «Inicio 🔄 mitad».
 
 **Lo que la app hace sola con una etapa.** Cada parada que pones tú recibe un **cartel con el nombre del lugar** (casilla
 *Rotular paradas* en el editor, activada por defecto; un cartel que hayas cambiado se queda como lo dejaste). La
@@ -1712,7 +1715,10 @@ estaban.
   pasaste**. La casilla *Mostrar rutas como líneas* dibuja tus trayectos debajo.
 * **🥾 Por ruta** — qué fotos pertenecen a qué ruta. GPS Studio lo calcula con la
   ventana temporal de la ruta; no se escribe en ningún archivo. Al hacer clic en
-  una ruta verás sus archivos en la cuadrícula.
+  una ruta verás sus archivos en la cuadrícula. Desde el 08.10.2026 cada ruta muestra **fecha, lugar, medio de
+  transporte y distancia**, la lista se agrupa por años y el campo **«Buscar ruta»** la encuentra por lugar, año o nombre.
+  Las rutas cuyo archivo solo lleva un número como nombre (p. ej. exportaciones de Garmin «…_ACTIVITY») se llaman aquí
+  según su lugar. **🎬 Abrir en el Animador** en cada ruta la abre directamente.
 
 ### Ver en grande, vídeos, editar y ubicar (desde v0.9.781)
 
@@ -2408,6 +2414,10 @@ el vídeo desde el primer segundo; cada elección es un paso de ⌘Z / Ctrl+Z. E
 track se usa para las etapas a las que no hayas dado un color propio.
 
 ## 4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️ (desde v0.9.205)
+
+> **Oculto desde el 08.10.2026:** la Ruta de viaje ya no aparece en la barra de módulos. Los trayectos planificados (vuelo,
+> ferry, coche, ruta circular) se crean ahora como **etapa en el Animador** (Tracks → «＋ Crear etapa»). Los proyectos
+> antiguos de Ruta de viaje se siguen abriendo desde el archivo como siempre.
 
 ### Qué hace
 Anima la **llegada** a una ruta: indicas origen y destino, a partir de ahí se calcula un trayecto y se anima como un track — p. ej. como intro antes del vídeo de senderismo propiamente dicho. El GPX cargado (la caminata) se muestra mientras tanto como **ghost** en el fondo.

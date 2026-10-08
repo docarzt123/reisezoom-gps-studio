@@ -1169,7 +1169,10 @@ clears the selection, **⌘Z** undoes the last step. Below you set how **soft th
 road** is drawn (coarse only really shows on long sections; a city street keeps its shape). At the top you see points and
 distance; *Smooth all* resets your own handles and sharp corners, *Reverse* flips the direction, *Clear route* starts
 over. Clicked points are named after the nearest place; a stage that attaches to a tour gets a short name “→ destination”,
-and instead of the cinema flight the camera glides on in 1.5 seconds.
+and instead of the cinema flight the camera glides on in 1.5 seconds. **🔄 Round trip — back to the start** (from three
+points, since 2026-10-08): the stage leads back to the start at the end; the way back has its own row “↩ A” with its own
+means of transport and “Follow roads”. A click on that way adds a new last stop there; the name then reads
+“Start 🔄 middle”.
 
 **What the app does with a stage by itself.** Every stop you set yourself gets a **sign with its place name** (tick *Label
 stops* in the editor, on by default; a sign you changed stays the way you set it). The **duration in the video** follows
@@ -1669,7 +1672,10 @@ A folder you remove only disappears from the stock; the files stay where they ar
   *Show tours as lines* lays your routes faintly underneath.
 * **🥾 By tour** — which photos belong to which tour. GPS Studio works that out
   from the tour's time window; it is written into no file. Clicking a tour shows
-  its files in the grid.
+  its files in the grid. Since 2026-10-08 every tour shows its **date, place, way of travel and distance**, the list is
+  grouped by year, and **“Search tours”** finds a tour by place, year or name. Tours whose file only has a number as its
+  name (e.g. Garmin exports “…_ACTIVITY”) are named after their place here. **🎬 Open in Animator** on every tour opens it
+  directly.
 
 ### View large, videos, edit and place (since v0.9.781)
 
@@ -2360,6 +2366,10 @@ Since 26.09.2026 this also works for **several tours in a row** (trip, "All in t
 > no more line running across the map between stages.
 
 ## 4 · Module: Travel Route — the journey there as a video 🛣️ (since v0.9.205)
+
+> **Hidden since 2026-10-08:** the Travel route no longer appears in the module bar. Planned legs (flight, ferry, car,
+> round trip) are now created as a **stage in the Animator** (Tracks → “＋ Create stage”). Old Travel route projects still
+> open from the archive as before.
 
 ### What it does
 Animates the **journey** to a tour: you enter a start and destination, from which a route is calculated and animated like a track — e.g. as an intro before the actual hiking video. The loaded GPX (the hike) is shown as a **ghost** in the background.

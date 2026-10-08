@@ -34,6 +34,9 @@ function getModules() {
   const reg = window.RZGPS_MODULES || {};
   return Object.values(reg)
     .filter(m => editionModuleAllowed(m.manifest.slug))
+    // 08.10.2026 (Marc: „das Modul Reiseroute kannst du ausblenden, komplett raus nehmen wir es später“) — Etappen im
+    // Animator ersetzen es. Nur aus der Modulleiste: der Code bleibt, alte Reiseroute-Projekte öffnen aus dem Archiv weiter.
+    .filter(m => !m.manifest.versteckt)
     .sort((a, b) =>
       (a.manifest.sort_order || 999) - (b.manifest.sort_order || 999)
     );

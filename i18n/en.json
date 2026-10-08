@@ -5529,5 +5529,12 @@
   "animator.colors.ab": "from",
   "animator.colors.stufe": "Colour stop",
   "animator.colors.undo_tour": "Track colours changed",
-  "animator.colors.src_ele": "Elevation (m)"
+  "animator.colors.src_ele": "Elevation (m)",
+  "animator.etappe.rund": "🔄 Round trip — back to the start",
+  "animator.etappe.rund_tip": "From three points: the stage leads back to the start at the end.",
+  "animator.etappe.rund_abschnitt": "Way back to the start",
+  "fotos.tour_animator": "Open in Animator",
+  "fotos.tour_animator_tip": "Open this tour in the Animator",
+  "fotos.touren_suche": "Search tours — place, year, name …",
+  "fotos.touren_keine_treffer": "No tour matches the search."
 }

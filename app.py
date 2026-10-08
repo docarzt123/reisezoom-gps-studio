@@ -178,7 +178,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.785"
+APP_VERSION = "0.9.786"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -16965,6 +16965,29 @@ for _n, _f in list(vars(Api).items()):
         setattr(Api, _n, _bruecke_mit_zeit(_n, _f))
 
 
+
+def _erster_klick_durchreichen() -> None:
+    """08.10.2026 (Beta-Tester: „Im Animator geht der grünhinterlegte Knopf nicht mit der Maus, aber mit der Leertaste“) —
+    macOS: Klickt man in das Fenster, während eine andere App vorn ist, aktiviert ein WKWebView mit dem ersten Klick nur
+    das Fenster; der Knopf darunter bekommt ihn nicht (WebKit lehnt `acceptsFirstMouse:` für normale Elemente ab). Wer
+    aus Finder/NAS zurückkommt und direkt auf Play klickt, sieht nichts passieren — die Leertaste kommt erst an, wenn das
+    Fenster schon vorn ist. pywebview überschreibt das nicht; hier wird der erste Klick durchgereicht (wie in den meisten
+    Mac-Programmen mit Arbeitsfläche)."""
+    if sys.platform != "darwin":
+        return
+    try:
+        import objc
+        from webview.platforms import cocoa as _wv_cocoa
+        host = _wv_cocoa.BrowserView.WebKitHost
+
+        def acceptsFirstMouse_(self, event):  # noqa: N802 — Name der Cocoa-Methode
+            return True
+        host.acceptsFirstMouse_ = objc.selector(acceptsFirstMouse_, selector=b"acceptsFirstMouse:", signature=b"Z@:@")
+        log.info("[fenster] erster Klick wird durchgereicht (acceptsFirstMouse)")
+    except Exception as e:  # noqa: BLE001 — ohne Patch läuft die App wie bisher
+        log.warning("[fenster] acceptsFirstMouse nicht gesetzt: %s", e)
+
+
 def main() -> None:
     # 10.09.2026 — Reset-Start (⌘⌥ / Strg+Alt gedrückt halten, oder --reset), wie bei FCPX.
     # Die Rückfrage kommt als nativer Dialog, sobald das Fenster steht (ein NSAlert VOR dem
@@ -17423,6 +17446,7 @@ def main() -> None:
                         ("cut", "Ausschneiden"), ("copy", "Kopieren"), ("paste", "Einsetzen"),
                         ("selectAll", "Alles auswählen")):
             _lok["cocoa.menu." + _k] = _strings.get("menu.cocoa." + _k, _fb)
+    _erster_klick_durchreichen()
     if menu:
         webview.start(func=_reset_start_hook, debug=debug, private_mode=False, menu=menu, localization=_lok)
     else:

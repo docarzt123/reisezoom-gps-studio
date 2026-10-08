@@ -1857,14 +1857,19 @@ def tour_fenster(conn: sqlite3.Connection) -> list:
     # ein reines COALESCE liefert dann den leeren Text und die Tour heißt „—".
     for r in conn.execute("SELECT path, geo_hash, COALESCE(NULLIF(display_name, ''), "
                           "NULLIF(name, ''), NULLIF(filename, ''), path) AS name, "
-                          "started_at, ended_at, COALESCE(n_segments, 1) AS n_seg FROM tracks "
+                          "started_at, ended_at, COALESCE(n_segments, 1) AS n_seg, "
+                          # 08.10.2026 (Beta-Tester: „kein Datum, kein Ort … mir ist ja Ort oder Jahr bekannt“)
+                          "COALESCE(activity, '') AS activity, COALESCE(place, '') AS place, COALESCE(region, '') AS region, "
+                          "COALESCE(country, '') AS country, COALESCE(distance_m, 0) AS distance_m FROM tracks "
                           "WHERE started_at IS NOT NULL AND ended_at IS NOT NULL "
                           "AND COALESCE(hidden, 0) = 0").fetchall():
         von, bis = _epoche(r["started_at"]), _epoche(r["ended_at"])
         if von is None or bis is None:
             continue
         raus.append({"path": r["path"], "geo_hash": r["geo_hash"], "name": r["name"],
-                     "von": von, "bis": bis, "n_seg": int(r["n_seg"] or 1)})
+                     "von": von, "bis": bis, "n_seg": int(r["n_seg"] or 1),
+                     "activity": r["activity"], "place": r["place"], "region": r["region"], "country": r["country"],
+                     "km": round(float(r["distance_m"] or 0) / 1000, 1)})
     raus.sort(key=lambda x: x["von"], reverse=True)
     return raus
 
@@ -2037,6 +2042,8 @@ def touren_zu_fotos(conn: sqlite3.Connection, filter: Optional[dict] = None) -> 
         e = eimer.setdefault(t["geo_hash"] or t["path"],
                              {"geo_hash": t["geo_hash"], "path": t["path"],
                               "name": t["name"], "von": t["von"], "bis": t["bis"],
+                              "activity": t.get("activity", ""), "place": t.get("place", ""),
+                              "region": t.get("region", ""), "country": t.get("country", ""), "km": t.get("km", 0),
                               "n": 0, "ohne_koordinate": 0})
         e["n"] += 1
         if r["lat"] is None:

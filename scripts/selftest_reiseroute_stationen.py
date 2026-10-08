@@ -96,12 +96,9 @@ async def main() -> int:
         await page.goto(f"file://{UI_INDEX.resolve()}", wait_until="domcontentloaded")
         await page.wait_for_timeout(1800)
 
-        tab = await page.query_selector('[data-mod="reiseroute"]')
-        if not tab:
-            sagen(False, "Reiseroute-Reiter gefunden")
-            await browser.close()
-            return 1
-        await tab.click()
+        # 08.10.2026: der Reiter ist ausgeblendet (Etappen im Animator ersetzen das Modul) — der Code bleibt, also direkt öffnen
+        sagen(not await page.query_selector('[data-mod="reiseroute"]'), "Reiseroute steht nicht mehr in der Modulleiste")
+        await page.evaluate("() => window.switchMod('reiseroute')")
         await page.wait_for_timeout(1500)
 
         n = await page.eval_on_selector_all(".route-wp", "e => e.length")
