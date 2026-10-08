@@ -99,6 +99,11 @@ STYLES = [
     {"key": "ofm_atlas", "provider": "ofm", "kind": "vector", "group": "free",
      "label": "Reiseatlas (OpenFreeMap)", "terrain": "aws",
      "style_url": "{proxy}/stil/atlas.json", "basis_url": "https://tiles.openfreemap.org/styles/positron"},
+    # 07.10.2026 (Kartenlooks) — Look je Rolle (ui/js/kartenlook.js) über der mitgelieferten Positron-Vorlage
+    # (ui/vendor/ofm-positron.js); die Farben stehen im Projekt (`kartenlook`). Ohne Übersetzer (Python) das reine Positron.
+    {"key": "kartenlook", "provider": "ofm", "kind": "look", "group": "free",
+     "label": "Kartenlook (OpenFreeMap, frei gestaltbar)", "terrain": "aws",
+     "style_url": "https://tiles.openfreemap.org/styles/positron"},
     {"key": "osm", "provider": "osm", "kind": "raster", "group": "free",
      "label": "OpenStreetMap Standard", "terrain": "aws",
      "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "tileSize": 256, "maxzoom": 19,
@@ -710,6 +715,8 @@ def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
 
 
 TERRAIN_AWS_PROXY_ID = "terrain-aws"     # Weiche: /tile/terrain-aws/{z}/{x}/{y}
+# 07.10.2026 (Kartenlooks) — dieselben Kacheln OHNE Klemme: die Meerestiefen-Stufen der Seekarte brauchen den Meeresboden
+TERRAIN_AWS_ROH_PROXY_ID = "terrain-aws-roh"     # Weiche: /tile/terrain-aws-roh/{z}/{x}/{y}
 
 # ── Beschriftungs-Overlay für Raster-Stile (04.09.2026) ──────────────────────
 # Marc: „Auf der Karte anzeigen — Orte, Straßen usw. — funktioniert bei Satellit

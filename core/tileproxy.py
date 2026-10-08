@@ -537,7 +537,7 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
     `terrain-aws` = AWS-Terrarium mit Klemme (Meerestiefen → 0 m).
     Bild-Kacheln, die gescheitert sind: durchsichtige Ersatz-Kachel (`ist_ersatz`), einmal nachholen."""
     key = (region_id, z, x, y, bool(transparent))
-    terrain_frage = region_id == ms.TERRAIN_AWS_PROXY_ID
+    terrain_frage = region_id in (ms.TERRAIN_AWS_PROXY_ID, ms.TERRAIN_AWS_ROH_PROXY_ID)
     if not terrain_frage:
         with _fehl_lock:
             f = _fehl.get(key)
@@ -601,7 +601,8 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
                     cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
     if z < 0 or z > 22:
         return 404, "text/plain", b"bad zoom"
-    terrain = region_id == ms.TERRAIN_AWS_PROXY_ID
+    terrain = region_id in (ms.TERRAIN_AWS_PROXY_ID, ms.TERRAIN_AWS_ROH_PROXY_ID)
+    klemmen = region_id == ms.TERRAIN_AWS_PROXY_ID   # roh (Kartenlook-Tiefen): Meeresboden bleibt
     region = None
     if region_id in RASTER_DIENSTE:
         url = raster_dienst_url(region_id, z, x, y)
@@ -612,7 +613,10 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
         if region is None:
             return 404, "text/plain", b"unknown region"
         url = upstream_url(region, z, x, y, transparent)
-    _suffix = CLAMP_KEY_SUFFIX if terrain else (SEA_MASK_VERSION if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else "")
+    if terrain:
+        _suffix = CLAMP_KEY_SUFFIX if klemmen else ""   # geklemmt und roh liegen unter verschiedenen Schlüsseln
+    else:
+        _suffix = SEA_MASK_VERSION if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else ""
     cp = cache_path(Path(cache_dir), url + _suffix) if cache_dir else None   # eigener Schlüssel je Nachbearbeitung
     if cp is not None and cache_fresh(cp):
         try:
@@ -654,7 +658,8 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
         # WMS-Fehler kommen als XML mit Status 200 — nicht als Bild ausliefern
         return 502, "text/plain", body[:400]
     if terrain:
-        body = clamp_terrarium(body)
+        if klemmen:
+            body = clamp_terrarium(body)
     elif region is not None:
         if oversample_factor(region, z) > 1:
             body, ct = downscale_tile(body, ct)

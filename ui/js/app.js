@@ -1525,7 +1525,8 @@ async function openAboutModal() {
           <li>
             ${t("about.credits.mapdata", "Kartendaten")}:
             <a href="#" class="md-about-link" data-url="https://openfreemap.org/">OpenFreeMap</a> — MIT ·
-            <a href="#" class="md-about-link" data-url="https://openmaptiles.org/">OpenMapTiles</a> — BSD-3 / CC BY 4.0 ·
+            <a href="#" class="md-about-link" data-url="https://openmaptiles.org/">OpenMapTiles</a> — BSD-3 / CC BY 4.0
+              (${t("about.credits.positron", "Kartenstil „Positron“ von CARTO/OpenMapTiles als Vorlage der Kartenlooks, mitgeliefert")}) ·
             <a href="#" class="md-about-link" data-url="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — ODbL ·
             <a href="#" class="md-about-link" data-url="https://www.maptiler.com/copyright/">MapTiler</a> — MapTiler Cloud Terms (${t("about.credits.own_key", "eigener Schlüssel")}) ·
             <a href="#" class="md-about-link" data-url="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> — Mapzen/Tilezen (SRTM, EU-DEM, 3DEP ${t("about.credits.etc", "u. a.")}) ·
@@ -1875,8 +1876,9 @@ window.importProject = async function (pfad) {
   toast(t("projekt.import_ok", "Projekt importiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
   // 05.09.2026 (Audit): Mehr-Touren-Paket → das Projekt wie aus dem Archiv öffnen
   // (lädt alle Touren als Schwarm/Reise), nicht nur die erste Tour.
-  if (res.menge && res.project_id && typeof window.rzProjektOeffnen === "function") {
-    try { await window.rzProjektOeffnen(res.project_id); applog && applog("info", `[importProject] Menge geöffnet: ${res.project_id}`); }
+  // 07.10.2026 (Web-Fund F-4): Projekt ohne GPS → ebenso über das Archiv öffnen (lädt die Etappe als Haupt-Track)
+  if ((res.menge || res.frei) && res.project_id && typeof window.rzProjektOeffnen === "function") {
+    try { await window.rzProjektOeffnen(res.project_id); applog && applog("info", `[importProject] ${res.frei ? "Projekt ohne GPS" : "Menge"} geöffnet: ${res.project_id}`); }
     catch (e) { applog && applog("error", `[importProject] Menge öffnen wirft: ${e}`); }
     return;
   }

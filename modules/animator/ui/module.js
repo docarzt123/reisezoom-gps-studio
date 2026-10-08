@@ -382,15 +382,27 @@ function mountAnimator(body, headerActions, opts) {
           <div class="field" id="anim-gesamtlook-field">
             <label class="field-label">${t("look.titel", "Look")} <button type="button" class="field-help" data-help="gesamtlook">?</button></label>
             <div class="rz-look-reihe" id="anim-gesamtlook">
-              ${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n => `<button type="button" class="rz-look-knopf" data-look="${n}" title="${t("look." + n + ".tip", "")}"><span class="rz-look-bild rz-look-${n}"></span><span>${t("look." + n, n)}</span></button>`).join("")}
+              ${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n => { const st = window.rzLooks.kachelStil ? window.rzLooks.kachelStil(n) : ""; return `<button type="button" class="rz-look-knopf" data-look="${n}" title="${t("look." + n + ".tip", "")}"><span class="rz-look-bild rz-look-${n}${st ? " rz-look-svg" : ""}"${st}><span class="rz-look-ed" title="${t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …")}">✎</span></span><span>${t("look." + n, n)}</span></button>`; }).join("")}
+              <!-- 08.10.2026 (Marc: „andere Karten, keine, Look oben ist total verwirrend“) — Karten, die kein Look sind, als
+                   9. Kachel; die Liste steht rechts im Editor, die gewählte Karte steht dann auf der Kachel -->
+              <button type="button" class="rz-look-knopf rz-look-weitere" data-weitere="1" title="${t("kartenwahl.weitere_tip", "OpenStreetMap, OpenTopoMap, CyclOSM, MapTiler, Mapbox … — Liste rechts")}"><span class="rz-look-bild rz-look-weitere-bild" id="anim-weitere-bild"><span class="rz-look-ed" title="${t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …")}">✎</span></span><span id="anim-weitere-name">${t("kartenwahl.weitere", "Weitere Karten")} ▸</span></button>
             </div>
+            <div class="rz-look-eigene" id="anim-eigene-looks" hidden></div>
+            <!-- 08.10.2026 — Rückfall: Kartenlook, zu dem keine Kachel passt (z. B. aus dem Web oder ein gelöschter eigener Look) -->
+            <button type="button" class="btn btn-subtle btn-sm" id="anim-karte-ed-rueckfall" hidden>✎ ${t("kartened.titel", "Karte bearbeiten")}</button>
             <div class="muted field-help-content" data-help-content="gesamtlook" hidden style="font-size:11px; margin-top:4px; line-height:1.45;">${t("look.hilfe", "Ein Look stellt Karte, Linie, Verläufe und die Schrift der Einblendungen auf einmal um. Danach kannst du jeden Regler weiter frei ändern — ⌘Z nimmt den ganzen Look zurück.")}</div>
           </div>
           <div class="field" id="anim-style-field">
+            <!-- 08.10.2026 (Marc: „die Basiskarte zu ändern … das ist gerade noch ein bisschen wild“) — statt einer Liste mit
+                 22 Stilen nur Kacheln: acht Looks + „Weitere Karten“; die Luftbild-Quelle und die weiteren Karten wählt man
+                 rechts im Editor. Die Doppel zu den Looks (Liberty, Bright, Positron, Nachtkarte, Reiseatlas) bietet keine
+                 Liste mehr an. #anim-style bleibt (unsichtbar) die eine Wahrheit: bindSetting, Render, Export, Tests. -->
+            <div id="anim-style-roh" hidden>
             <label class="field-label" for="anim-style">${t("animator.field.style")}</label>
             <select id="anim-style">
               ${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(null, { extraBottom: `<option value="alpha">${t("animator.style.alpha")}</option>` }) : `<option value="alpha">${t("animator.style.alpha")}</option>`}
             </select>
+            </div>
             <!-- 03.09.2026 — Anbieterauswahl: Vermerk (welches Land greift, Ausweichen) + Rechtelage -->
             <div class="muted" id="anim-style-note" hidden style="font-size:11px; margin-top:6px; line-height:1.45;"></div>
             <!-- Rechtelage: kurze Zeile in der Seitenleiste, die Erklärung hinterm ?-Knopf
@@ -407,13 +419,21 @@ function mountAnimator(body, headerActions, opts) {
               ${t("animator.style.alpha_hint")}
             </div>
           </div>
-          <label class="checkbox-row">
-            <input type="checkbox" id="anim-terrain" checked>
-            <span>${t("animator.toggle.terrain")}</span>
-          </label>
-          <div class="field">
-            <label class="field-label">${t("animator.field.exaggeration")} <span class="label-val" id="anim-ex-v">1.5×</span></label>
-            <input type="range" id="anim-ex" min="0" max="4" step="0.1" value="1.5">
+          <!-- 08.10.2026 (Marc: „Luftbild-Optik kann auch nach rechts rüber, sind ja auch spezielle Einstellungen — ziehe die Sterne
+               auch mit nach rechts“) — Luftbild-Optik, Karten-Optik und Sternenhimmel wohnen im Karten-Editor (rechte Spalte).
+               Solange er zu ist, parken sie unsichtbar hier: IDs, bindSetting und das Lesen beim Rendern bleiben unverändert. -->
+          <div id="anim-optik-park" hidden>
+          <!-- 08.10.2026 (Marc: „ziehe 3D-Terrain, Häuser, Orte, Straßen … auch nach rechts rüber, so dass man auch alles
+               im Look speichern kann“) — Gelände, 3D und „Auf der Karte anzeigen“ parken mit, Reihenfolge im Editor: _KE_FEST -->
+          <div class="field" id="anim-gelaende-row">
+            <label class="checkbox-row">
+              <input type="checkbox" id="anim-terrain" checked>
+              <span>${t("animator.toggle.terrain")}</span>
+            </label>
+            <div class="field">
+              <label class="field-label">${t("animator.field.exaggeration")} <span class="label-val" id="anim-ex-v">1.5×</span></label>
+              <input type="range" id="anim-ex" min="0" max="4" step="0.1" value="1.5">
+            </div>
           </div>
           <!-- 06.10.2026 (Marc: „Auf der Karte anzeigen gehört doch irgendwie in die Stelle, wo man 3D-Terrain einstellt") —
                3D-Häuser, „wachsen“ und „Flug in der Luft“ direkt unter Terrain/Überhöhung, darunter die Kartenelemente. -->
@@ -433,7 +453,7 @@ function mountAnimator(body, headerActions, opts) {
               <label class="chip-toggle" title="${t("map_config.flug3d_tip", "Für Drohnen-, Gleitschirm- und Segelflüge: Die Linie liegt in ihrer echten Höhe über dem Boden, senkrechte Lotlinien und ein Schatten am Boden zeigen den Abstand. Braucht Gelände (3D) und eine der freien Karten.")}"><input type="checkbox" id="anim-mc-flug3d"><span>${t("map_config.chip.flug3d", "✈ Flug in der Luft")}</span></label>
             </div></div>
           </div>
-          <div class="field">
+          <div class="field" id="anim-mc-row">
             <div class="sub-group-label">${t("map_config.elements")}</div>
             <!-- v0.9.451 — Chip-Zeile statt fünf Checkbox-Reihen: dieselben
                  Checkbox-IDs (bindSetting/Undo unverändert), nur kompakter.
@@ -449,6 +469,7 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" class="btn btn-subtle" id="anim-mc-all-off">${t("map_config.all_off")}</button>
               <button type="button" class="btn btn-subtle" id="anim-mc-all-on">${t("map_config.all_on")}</button>
             </div>
+          </div>
           <!-- 04.09.2026 (Marc: „Brandenburg sieht halb tot aus" / „go") — Luftbild-Optik, nur bei „Satellit (kostenlos)" -->
           <div class="field" id="anim-ortho-row" title="${t("animator.field.ortho_tip", "Wirkt auf die Luftbilder und die Sentinel-Ebene (nicht auf den Blue-Marble-Untergrund) — in Vorschau, Video und Web-Karte gleich. Standard = Sentinel unverändert.")}">
             <label class="field-label">${t("animator.field.ortho_title", "Luftbild-Optik")}
@@ -527,7 +548,7 @@ function mountAnimator(body, headerActions, opts) {
               <option value="night">🌙 ${t("map_config.light.night")}</option>
             </select>
           </div>
-          </div>
+          </div><!-- /anim-optik-park -->
         </div>
       </section>
 
@@ -769,6 +790,10 @@ function mountAnimator(body, headerActions, opts) {
                unsichtbaren Linie-Sektion hierher, sonst wäre er unerreichbar (test_farbstufen_felder). -->
           <!-- 20.09.2026 — Farbe je Etappe eines zusammengeführten Tracks (tour_colors).
                Bisher nur beim Zusammenführen vergeben und nirgends änderbar. -->
+          <!-- 08.10.2026 (Marc: „mehrere Track-Farben gilt doch je Track … also sollte es auch rechts in die Trackdetails“) —
+               Farbe je Etappe und „Mehrere Track-Farben“ (beide gelten für Track 1) stehen im Track-Editor von Track 1 rechts;
+               solange er zu ist, parken sie hier unsichtbar (IDs, bindSetting, Render unverändert). -->
+          <div id="anim-farben-park" hidden>
           <div id="anim-etappenfarben" class="anim-etappenfarben" hidden></div>
           <div id="anim-colors-block" style="margin-top:10px;">
           <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
@@ -817,6 +842,7 @@ function mountAnimator(body, headerActions, opts) {
                  id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
           </div>
           </div>
+          </div><!-- /anim-farben-park -->
           <div class="field" id="anim-fly-field" hidden style="margin-top:10px;">
             <label class="field-label">${t("animator.field.fly_duration", "Kinoflug-Dauer")} <span class="label-val" id="anim-fly-v">3.0 s</span></label>
             <input type="range" id="anim-fly" min="1" max="8" step="0.5" value="3">
@@ -1653,7 +1679,8 @@ function mountAnimator(body, headerActions, opts) {
       // Wechsel, App-Neustart) ist `map` da → Stil wird angewandt.
       try {
         if (!map) return;
-        if (v && v !== _currentStyleKey) applyStyle(v);
+        // 07.10.2026 — Kartenlook: gleicher Stilname, andere Farben (Look-Wechsel, Editor, ⌘Z) → neu anwenden
+        if (v && (v !== _currentStyleKey || (v === "kartenlook" && JSON.stringify(_currentKartenlook()) !== _currentLookSig))) applyStyle(v);
       } catch (_) {}
     },
   });
@@ -2016,6 +2043,9 @@ function mountAnimator(body, headerActions, opts) {
     // Tempo-Spur: Liste verwerfen, aus dem Projekt neu lesen, Kurve holen
     _tempoListe = null; _tempoListeVon = null;
     try { paceMapLaden(); } catch (e) { applog("warn", "[undo] tempo: " + e); }
+    // 07.10.2026 (Klicktest) — Hinweis „Wird durch Timeline-Keyframes gesteuert“ am Neigungs-/Drehregler: die Kamera-
+    // Pillen schalten den Keyframe-Editor über diesen Weg (ohne change-Ereignis) — sonst blieb er nach „Folgen“ stehen
+    try { syncTimelineOverrideUi(); } catch (_) {}
     // Ghost-Spuren
     try { _ghostSpurenLaden(); _ghostListeZeichnen(); _ghostSpurenAufbauen(); } catch (e) { applog("warn", "[undo] ghosts: " + e); }
     // Laufpunkt (Felder sind nicht gebunden)
@@ -2243,8 +2273,9 @@ function mountAnimator(body, headerActions, opts) {
   // Luftbild-Optik: vier Regler → Projekt (ortho_*), live auf die Orthofoto-Ebenen
   for (const [id, key, unit] of [["anim-osat", "ortho_sat", " %"], ["anim-ocon", "ortho_con", " %"], ["anim-obri", "ortho_bri", " %"], ["anim-ohue", "ortho_hue", "°"]]) {
     bindLabel(id, id + "-v", unit);
-    bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); _applyMapAdjust(); } });
-    document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
+    bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); _applyMapAdjust(); _lookSync(); } });
+    // 08.10.2026 — Auswahl springt beim Ziehen auf „Eigene“ (vorher erst nach dem nächsten Laden; Relief/Schärfe/Dunst taten es schon)
+    document.getElementById(id)?.addEventListener("input", () => { _applyMapAdjust(); _lookSync(); });
   }
   // 17.09.2026 — Relief (ortho_relief, Werk 0 seit 18.09. — Marc) live auf die Hillshade-Ebene (über _applyMapAdjust, adj.relief)
   bindLabel("anim-orelief", "anim-orelief-v", " %");
@@ -2261,15 +2292,64 @@ function mountAnimator(body, headerActions, opts) {
     const p = _LOOKS_()[ev.target.value]; if (p) _lookSetzen(p);
   });
   // 05.10.2026 — Gesamt-Looks (ui/js/looks.js): ein Undo-Schritt über den Undo-Controller (apply schreibt + zieht nach)
+  // 08.10.2026 — Kacheln markieren nach der KARTE (nicht mehr nach Karte + Linienfarbe): sie sind jetzt die Kartenwahl,
+  // und ihr ✎ ist der Weg in den Editor — eine geänderte Linienfarbe darf ihn nicht verstecken.
+  const _LUFTBILD_STILE = ["free_satellite", "maptiler_satellite", "maptiler_hybrid", "satellite", "satellite_streets"];
+  const _LOOK_DOPPEL = ["ofm_liberty", "ofm_bright", "ofm_positron", "ofm_nacht", "ofm_atlas", "kartenlook"];
+  const _ALT_ZU_LOOK = () => { const m = {}; if (window.rzLooks) for (const [n, L] of Object.entries(window.rzLooks.LOOKS)) if (L.alt) m[L.alt] = n; return m; };
+  /** Weitere Karte = keine Look-Karte, kein Luftbild (alte Liberty/Bright-Projekte zählen dazu). */
+  const _istWeitere = (v) => !!v && !_LUFTBILD_STILE.includes(v) && v !== "kartenlook" && !_ALT_ZU_LOOK()[v];
+  function _aktiveKachel(a) {
+    const v = a.map_style || "";
+    if (v === "kartenlook") { const id = a.kartenlook && a.kartenlook.id; const L = window.rzLooks && window.rzLooks.LOOKS[id]; return (L && L.karte.kartenlook === id) ? id : ""; }
+    const alt = _ALT_ZU_LOOK()[v]; if (alt) return alt;
+    if (_LUFTBILD_STILE.includes(v)) return "natuerlich";
+    return _istWeitere(v) ? "weitere" : "";
+  }
+  const _stilName = (v) => { const o = [...(document.getElementById("anim-style") || { options: [] }).options].find(x => x.value === v); return o ? o.textContent.split(" · ")[0] : v; };
+  /** Kleines Vorschaubild einer Rasterkarte: eine feste Kachel (Innsbruck, z12) über die Kachel-Weiche; Vektorkarten → leer. */
+  function _stilBild(v) {
+    const base = ((typeof mapCatalog === "function" && mapCatalog().proxy_base) || "").replace(/\/$/, "");
+    const st = (typeof mapCatalog === "function" ? (mapCatalog().styles || []) : []).find(x => x.key === v);
+    return (base && st && st.kind === "raster") ? `${base}/tile/${v}/12/2177/1435` : "";
+  }
   function _gesamtLookSync() {
     const reihe = document.getElementById("anim-gesamtlook"); if (!reihe || !window.rzLooks) return;
-    let akt = "";
-    try { akt = window.rzLooks.erkennen(window.rzReadModuleSettings(_MODKEY) || {}); } catch (_) {}
+    let a = {}; try { a = window.rzReadModuleSettings(_MODKEY) || {}; } catch (_) {}
+    let akt = ""; try { akt = _aktiveKachel(a); } catch (_) {}
     reihe.querySelectorAll("[data-look]").forEach(b => b.classList.toggle("is-on", b.dataset.look === akt));
+    const w = reihe.querySelector("[data-weitere]");
+    if (w) {
+      w.classList.toggle("is-on", akt === "weitere");
+      const name = document.getElementById("anim-weitere-name");
+      if (name) name.textContent = akt === "weitere" ? _stilName(a.map_style) : t("kartenwahl.weitere", "Weitere Karten") + " ▸";
+      const bild = document.getElementById("anim-weitere-bild"), url = akt === "weitere" ? _stilBild(a.map_style) : "";
+      if (bild) { bild.style.backgroundImage = url ? `url("${url}")` : ""; bild.classList.toggle("hat-bild", !!url); }
+    }
+    const rf = document.getElementById("anim-karte-ed-rueckfall");
+    if (rf) { let eigen = false; try { eigen = _keEigene.some(e => e.id === (a.kartenlook && a.kartenlook.id)); } catch (_) {} rf.hidden = !(a.map_style === "kartenlook" && !akt && !eigen); }
+    // 08.10.2026 (Marc: „wenn die rechte Detailsidebar offen ist und ich links die Stile durchwechsle, ändert sich die
+    // rechte Seite nicht“) — der offene Karten-Editor folgt jedem Look-Wechsel (Kachel, ⌘Z, Projektwechsel, Kartenstil)
+    try { _keNachziehen(); } catch (e) { applog("warn", "[kartened] nachziehen: " + e); }
+    try { _keKnopfStand(); } catch (_) {}
   }
   window.__rzGesamtLookSync = _gesamtLookSync;
+  document.getElementById("anim-karte-ed-rueckfall")?.addEventListener("click", () => _keUmschalten());
+  /** Karte wählen (Luftbild-Quelle, weitere Karte): #anim-style setzen und input/change auslösen (Projekt, Undo, Karte). */
+  function _basisSetzen(v) {
+    const sel = document.getElementById("anim-style"); if (!sel || !v || sel.value === v) return;
+    sel.value = v;
+    sel.dispatchEvent(new Event("input", { bubbles: true }));
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    setTimeout(_gesamtLookSync, 0);
+  }
   document.getElementById("anim-gesamtlook")?.addEventListener("click", ev => {
+    // 07.10.2026 — ✎ an der aktiven Kachel: Karten-Editor (rechte Seitenleiste) statt Look neu anwenden
+    // 08.10.2026 (Marc: „der Stift, wenn das Fenster schon offen ist — da denkt man, es passiert nichts“) — ✎ schaltet um
+    if (ev.target.closest(".rz-look-ed") && ev.target.closest(".rz-look-knopf.is-on")) { ev.stopPropagation(); _keUmschalten(); return; }
+    if (ev.target.closest("[data-weitere]")) { _keModusWeitere = true; _keOeffnen(); return; }
     const b = ev.target.closest("[data-look]"); if (!b || !window.rzLooks) return;
+    _keModusWeitere = false;
     const name = b.dataset.look;
     let vorher = null;
     try { vorher = window.rzReadModuleSettings(_MODKEY) || {}; } catch (_) { return; }
@@ -2297,6 +2377,278 @@ function mountAnimator(body, headerActions, opts) {
       }
     } catch (e) { applog("warn", "[look] Schilder: " + e); }
   });
+  /* ── Karten-Editor (07.10.2026, Marc: „auf dem Desktop kann man sich die Karten komplett selber bauen“) ────────────
+   * Rechte Seitenleiste (rzDetailSpalte, wie der Track-Editor). Ändert die Kopie des Looks im Projekt
+   * (`animator.kartenlook`, Stil `kartenlook`) — Vorschau und Video zeichnen sie über ui/js/kartenlook.js. Änderungen
+   * werden gebündelt (250 ms) neu gezeichnet; eine Bearbeitungsrunde ist ein ⌘Z-Schritt. Eigene Looks app-weit über
+   * core/kartenlooks.py (kartenlooks_liste / kartenlook_speichern / …), dazu Datei-Export/-Import (.rzlook). */
+  let _keFeld = null, _keTimer = 0, _keUndoZeit = 0, _keEigene = [], _keGezeigt = "", _keModusWeitere = false;
+  const _keSchluessel = (L) => { let stil = ""; try { stil = (window.rzReadModuleSettings(_MODKEY) || {}).map_style || ""; } catch (_) {} return JSON.stringify(L) + "|" + stil + "|" + _keModusWeitere; };
+  const _keIstOffen = () => !!(_keFeld && _keFeld.isConnected);
+  /** ✎ zeigt, ob der Editor offen ist (gedrückt), und schließt ihn beim zweiten Klick. */
+  function _keKnopfStand() {
+    const offen = _keIstOffen();
+    document.querySelectorAll(".rz-look-ed").forEach(e => {
+      e.classList.toggle("is-offen", offen);
+      e.title = offen ? t("kartened.schliessen_tip", "Rechts schließen") : t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …");
+    });
+  }
+  function _keUmschalten() { if (_keIstOffen()) _keSchliessen(); else _keOeffnen(); }
+  /** Offenen Editor neu zeichnen, wenn der Look im Projekt nicht mehr der gezeigte ist (eigene Änderungen im
+   *  Editor zählen nicht — sonst schlösse jedes Nachzeichnen den offenen Farbwähler). */
+  function _keNachziehen() {
+    if (!(_keFeld && _keFeld.isConnected)) return;
+    const L = _keAktuell(); if (!L) return;
+    if (_keSchluessel(L) !== _keGezeigt) _keZeichnen();
+  }
+  const _keKopie = (x) => JSON.parse(JSON.stringify(x));
+  function _keAktuell() {
+    const KL = window.rzKartenlook; if (!KL) return null;
+    let a = {}; try { a = window.rzReadModuleSettings(_MODKEY) || {}; } catch (_) {}
+    if (a.map_style === "kartenlook" && a.kartenlook && typeof a.kartenlook === "object" && a.kartenlook.land) return KL.normalisieren(a.kartenlook);
+    const n = window.rzLooks ? window.rzLooks.erkennen(a) : "";
+    const L = n && window.rzLooks.LOOKS[n];
+    const id = (L && L.karte.map_style === "kartenlook") ? L.karte.kartenlook : "reiseatlas";   // auch alte ofm_atlas/ofm_nacht-Projekte
+    return KL.normalisieren(_keKopie(KL.LOOKS[id] || KL.LOOKS.reiseatlas));
+  }
+  function _keAnwenden(look) {
+    const jetzt = Date.now();
+    if (jetzt - _keUndoZeit > 1500) { try { _animPushUndo(t("kartened.undo", "Karte bearbeitet"), { force: true }); } catch (_) {} }
+    _keUndoZeit = jetzt;
+    saveProjectSettings(_MODKEY, { map_style: "kartenlook", kartenlook: look });
+    try { const KL = window.rzKartenlook; _keGezeigt = _keSchluessel(KL ? KL.normalisieren(_keKopie(look)) : look); } catch (_) {}
+    const sel = document.getElementById("anim-style"); if (sel && sel.value !== "kartenlook") sel.value = "kartenlook";
+    clearTimeout(_keTimer);
+    _keTimer = setTimeout(() => {
+      try { applyStyle("kartenlook"); } catch (e) { applog("warn", "[kartened] " + e); }
+      try { _gesamtLookSync(); _keEigeneZeichnen(); } catch (e) { applog("warn", "[kartened] Kacheln: " + e); }
+    }, 250);
+  }
+  function _keFarbe(k, v) { return `<label class="ke-farbe"><input type="color" data-ke="${k}" value="${v || "#000000"}"><span>${_animEscapeHtml(t("kartened." + k, k))}</span></label>`; }
+  // 08.10.2026 — fester Teil des Editors: Luftbild-Optik, Karten-Optik, Sternenhimmel (die Felder aus der linken Spalte;
+  // geparkt in #anim-optik-park, solange der Editor zu ist — ihr eigenes hidden regelt weiter, welche Optik passt)
+  const _KE_FEST = ["anim-gelaende-row", "anim-3d-zeile", "anim-mc-row", "anim-mc-light-row", "anim-ortho-row", "anim-mapadj-row", "anim-stars-row"];
+  function _keFestEinziehen(p) {
+    let f = p.querySelector(":scope > .ke-fest");
+    if (!f) { f = document.createElement("div"); f.className = "ke-fest"; p.appendChild(f); }
+    for (const id of _KE_FEST) { const r = document.getElementById(id); if (r && r.parentElement !== f) f.appendChild(r); }
+  }
+  function _keSchliessen() {
+    const park = document.getElementById("anim-optik-park");
+    if (park) for (const id of _KE_FEST) { const r = document.getElementById(id); if (r && r.parentElement !== park) park.appendChild(r); }
+    if (_keFeld) _keFeld.remove();
+    _keFeld = null;
+    _keModusWeitere = false;
+    _keKnopfStand();
+  }
+  function _keZeichnen() {
+    const p0 = _keFeld; if (!p0) return;
+    const L = _keAktuell(); if (!L) return;
+    _keGezeigt = _keSchluessel(L);
+    let p = p0.querySelector(":scope > .ke-dyn");
+    if (!p) { p = document.createElement("div"); p.className = "ke-dyn"; p0.insertBefore(p, p0.firstChild); }
+    _keFestEinziehen(p0);
+    const esc = _animEscapeHtml;
+    // Farben je Rolle nur bei Kartenlooks (auch alten ofm_atlas/ofm_nacht/ofm_positron); sonst ein Hinweis + die Optik darunter
+    const _stil = (() => { try { return (window.rzReadModuleSettings(_MODKEY) || {}).map_style || ""; } catch (_) { return ""; } })();
+    const _alt = window.rzLooks ? Object.values(window.rzLooks.LOOKS).map(x => x.alt).filter(Boolean) : [];
+    const sat = !(_stil === "kartenlook" || _alt.includes(_stil)) || _keModusWeitere;
+    const _weitere = _keModusWeitere || _istWeitere(_stil);
+    // Auswahl-Liste (Luftbild-Quelle bzw. weitere Karten) aus den Optionen von #anim-style, mit kleinem Bild bei Rasterkarten
+    const _liste = (werte) => `<div class="ke-karten">${werte.map(v => {
+      const o = [...document.getElementById("anim-style").options].find(x => x.value === v); if (!o) return "";
+      const teile = o.textContent.split(" · "), bild = _stilBild(v);
+      return `<label class="ke-karte${v === _stil ? " is-on" : ""}"><input type="radio" name="ke-karte" value="${esc(v)}"${v === _stil ? " checked" : ""}>`
+        + `<span class="ke-karte-bild${bild ? "" : " ohne"}"${bild ? ` style="background-image:url('${bild}')"` : ""}></span>`
+        + `<span class="ke-karte-text"><b>${esc(teile[0])}</b><small>${esc(teile.slice(1).join(" · "))}</small></span></label>`; }).join("")}</div>`;
+    const _weitereWerte = () => [...document.getElementById("anim-style").options].map(o => o.value)
+      .filter(v => _istWeitere(v) && (!_LOOK_DOPPEL.includes(v) || v === _stil));
+    const gruppe = (titel, inhalt) => `<div class="se-group-title">${esc(titel)}</div><div class="ke-gruppe">${inhalt}</div>`;
+    const an = (k, wert, text) => `<label class="ke-an"><input type="checkbox" data-ke-an="${k}"${wert ? " checked" : ""}> ${esc(text)}</label>`;
+    const regler = (k, wert, min, max, schritt, text) => `<label class="ke-regler"><span>${esc(text)}</span><input type="range" data-ke-zahl="${k}" min="${min}" max="${max}" step="${schritt}" value="${wert}"></label>`;
+    const _titel = _weitere ? "🗺 " + t("kartenwahl.weitere", "Weitere Karten") : (_LUFTBILD_STILE.includes(_stil) && sat ? "🛰 " + t("kartenwahl.luftbild", "Luftbild") : "🗺 " + t("kartened.titel", "Karte bearbeiten"));
+    p.innerHTML = `<div class="tm-kopf"><b>${esc(_titel)}</b><button type="button" class="sign-editor-x" title="${esc(t("common.close", "Schließen"))}">✕</button></div>
+      ${sat ? (_weitere ? _liste(_weitereWerte())
+                        : (_LUFTBILD_STILE.includes(_stil) ? `<div class="se-group-title">${esc(t("kartenwahl.luftbild_von", "Luftbild von"))}</div>` + _liste(_LUFTBILD_STILE) : "")) : `
+      <p class="muted ke-hinweis">${esc(t("kartened.hinweis", "Jede Änderung siehst du sofort in der Vorschau und im Video. ⌘Z nimmt sie zurück."))}</p>
+      ${gruppe(t("kartened.g_flaechen", "Flächen"), ["land", "water", "waterway", "wood", "park", "building"].map(k => _keFarbe(k, L[k])).join(""))}
+      ${gruppe(t("kartened.g_strassen", "Straßen und Bahn"), ["minor", "major", "motorway", "rail"].map(k => _keFarbe(k, L[k])).join("")
+        + an("casing", L.casing !== null, t("kartened.casing_an", "Straßenrand")) + (L.casing !== null ? _keFarbe("casing", L.casing) : ""))}
+      ${gruppe(t("kartened.g_grenzen", "Grenzen"), _keFarbe("border", L.border.color) + an("dash", L.border.dash, t("kartened.gestrichelt", "gestrichelt")))}
+      ${gruppe(t("kartened.g_schrift", "Schrift"), ["text", "halo", "waterText"].map(k => _keFarbe(k, L[k])).join("")
+        + `<label class="ke-wahl"><span>${esc(t("kartened.schnitt", "Schnitt"))}</span><select data-ke-font>${["regular", "bold", "italic"].map(f => `<option value="${f}"${L.font === f ? " selected" : ""}>${esc(t("kartened.font_" + f, f))}</option>`).join("")}</select></label>`
+        + an("caps", L.caps, t("kartened.caps", "Großbuchstaben (Orte)")) + an("labels", L.labels !== false, t("kartened.labels", "Beschriftung zeigen")))}
+      ${gruppe(t("kartened.g_kueste", "Küstenlinie"), an("coast", !!L.coast, t("kartened.coast_an", "Küste nachzeichnen"))
+        + (L.coast ? _keFarbe("coast", L.coast.color) + regler("coast_w", L.coast.width || 1, 0.3, 3, 0.1, t("kartened.breite", "Breite")) : ""))}
+      ${gruppe(t("kartened.g_relief", "Relief (Schummerung)"), an("shade", !!L.shade, t("kartened.shade_an", "Berge plastisch zeigen"))
+        + (L.shade ? _keFarbe("shadow", L.shade.shadow) + _keFarbe("highlight", L.shade.highlight) + _keFarbe("accent", L.shade.accent || L.shade.shadow)
+          + regler("shade_x", L.shade.exaggeration == null ? 0.5 : L.shade.exaggeration, 0, 1, 0.05, t("kartened.staerke", "Stärke")) : ""))}
+      ${gruppe(t("kartened.g_extras", "Extras"), an("glow", !!L.glow, t("kartened.glow_an", "Leuchtsaum an den Straßen"))
+        + (L.glow ? regler("glow_s", L.glow.strength || 1, 0.2, 2, 0.1, t("kartened.staerke", "Stärke")) : "")
+        + an("depths", !!L.depths, t("kartened.depths_an", "Meerestiefen in Stufen")))}
+      <div class="ke-knoepfe">
+        <button type="button" class="btn btn-small btn-primary" data-ke-akt="speichern">💾 ${esc(t("kartened.speichern", "Als eigenen Look speichern …"))}</button>
+        <button type="button" class="btn btn-small" data-ke-akt="zurueck">↺ ${esc(t("kartened.zurueck", "Look zurücksetzen"))}</button>
+        <button type="button" class="btn btn-small" data-ke-akt="export">⤓ ${esc(t("kartened.export", "Als Datei …"))}</button>
+        <button type="button" class="btn btn-small" data-ke-akt="import">⤒ ${esc(t("kartened.import", "Look importieren …"))}</button>
+      </div>`}`;
+    p.querySelector(".sign-editor-x").onclick = () => _keSchliessen();
+    p.querySelectorAll('input[name="ke-karte"]').forEach(r => r.addEventListener("change", () => { if (r.checked) _basisSetzen(r.value); }));
+    if (sat) return;
+    const lesen = () => {
+      const o = _keAktuell();
+      p.querySelectorAll("[data-ke]").forEach(i => {
+        const k = i.dataset.ke, v = i.value;
+        if (k === "border") o.border.color = v;
+        else if (k === "coast") { if (o.coast) o.coast.color = v; }
+        else if (k === "shadow" || k === "highlight" || k === "accent") { if (o.shade) o.shade[k] = v; }
+        else o[k] = v;
+      });
+      p.querySelectorAll("[data-ke-zahl]").forEach(i => {
+        const v = parseFloat(i.value), k = i.dataset.keZahl;
+        if (k === "coast_w" && o.coast) o.coast.width = v;
+        if (k === "shade_x" && o.shade) o.shade.exaggeration = v;
+        if (k === "glow_s" && o.glow) o.glow.strength = v;
+      });
+      const f = p.querySelector("[data-ke-font]"); if (f) o.font = f.value;
+      return o;
+    };
+    p.querySelectorAll("[data-ke], [data-ke-zahl], [data-ke-font]").forEach(i => i.addEventListener("input", () => _keAnwenden(lesen())));
+    p.querySelector("[data-ke-font]")?.addEventListener("change", () => _keAnwenden(lesen()));
+    p.querySelectorAll("[data-ke-an]").forEach(i => i.addEventListener("change", () => {
+      const o = lesen(), k = i.dataset.keAn, ja = i.checked, KL = window.rzKartenlook, vorlage = KL.LOOKS[o.id] || KL.LOOKS.reiseatlas;
+      if (k === "casing") o.casing = ja ? (vorlage.casing || "#c9c9c9") : null;
+      if (k === "dash") o.border.dash = ja;
+      if (k === "caps") o.caps = ja;
+      if (k === "labels") o.labels = ja;
+      if (k === "coast") o.coast = ja ? (vorlage.coast || { color: KL.mix(o.water, "#000000", 0.35), width: 1, opacity: 0.85 }) : null;
+      if (k === "shade") o.shade = ja ? (vorlage.shade || { shadow: KL.mix(o.land, "#000000", 0.55), highlight: "#ffffff", accent: KL.mix(o.land, "#000000", 0.35), exaggeration: 0.5 }) : null;
+      if (k === "glow") o.glow = ja ? (vorlage.glow || { strength: 1 }) : null;
+      if (k === "depths") o.depths = ja ? (vorlage.depths || KL.LOOKS.seekarte.depths) : null;
+      _keAnwenden(o); _keZeichnen();
+    }));
+    p.querySelectorAll("[data-ke-akt]").forEach(b => b.addEventListener("click", () => _keAktion(b.dataset.keAkt, lesen())));
+  }
+  function _keName(titel, vorschlag) {
+    return new Promise((fertig) => {
+      const m = openModal({ title: titel,
+        body: `<input type="text" id="ke-name" class="input" style="width:100%" maxlength="60" value="${_animEscapeHtml(vorschlag || "")}">`,
+        footer: `<button type="button" class="btn" id="ke-name-nein">${_animEscapeHtml(t("common.cancel", "Abbrechen"))}</button>
+                 <button type="button" class="btn btn-primary" id="ke-name-ja">${_animEscapeHtml(t("common.save", "Speichern"))}</button>` });
+      const ein = document.getElementById("ke-name"), zu = (v) => { try { m.close(); } catch (_) {} fertig(v); };
+      document.getElementById("ke-name-nein").onclick = () => zu(null);
+      document.getElementById("ke-name-ja").onclick = () => zu((ein.value || "").trim());
+      ein.addEventListener("keydown", (e) => { if (e.key === "Enter") zu((ein.value || "").trim()); });
+      setTimeout(() => { try { ein.focus(); ein.select(); } catch (_) {} }, 30);
+    });
+  }
+  // 08.10.2026 (Marc: „… so dass man auch alles im Look speichern kann“) — ein eigener Look trägt Gelände, 3D-Häuser und
+  // „Auf der Karte anzeigen“ mit (`look.extras`); die fertigen Looks haben keine und lassen diese Werte stehen.
+  const _KE_EXTRAS = { enable_terrain: ["anim-terrain", "bool"], exaggeration: ["anim-ex", "zahl"],
+    gebaeude_3d: ["anim-mc-gebaeude", "bool"], gebaeude_wachsen: ["anim-mc-gebaeude-wachsen", "bool"],
+    show_place_labels: ["anim-mc-places", "bool"], show_road_labels: ["anim-mc-roads", "bool"], show_poi_labels: ["anim-mc-poi", "bool"],
+    show_transit_labels: ["anim-mc-transit", "bool"], show_admin_boundaries: ["anim-mc-admin", "bool"] };
+  function _keExtrasLesen() {
+    const o = {};
+    for (const [k, [id, art]] of Object.entries(_KE_EXTRAS)) {
+      const el = document.getElementById(id); if (!el) continue;
+      o[k] = art === "bool" ? !!el.checked : (parseFloat(el.value) || 0);
+    }
+    return o;
+  }
+  function _keExtrasAnwenden(ex) {
+    if (!ex || typeof ex !== "object") return;
+    window.__rzUndoSammeln = true;   // ein ⌘Z-Schritt mit dem Look
+    try {
+      for (const [k, [id, art]] of Object.entries(_KE_EXTRAS)) {
+        if (!(k in ex)) continue;
+        const el = document.getElementById(id); if (!el) continue;
+        if (art === "bool") { if (el.checked === !!ex[k]) continue; el.checked = !!ex[k]; }
+        else { const v = String(+ex[k] || 0); if (el.value === v) continue; el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); }
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    } finally { window.__rzUndoSammeln = false; }
+  }
+  async function _keAktion(art, look) {
+    const KL = window.rzKartenlook;
+    if (art === "speichern" || art === "export") look = Object.assign({}, look, { extras: _keExtrasLesen() });
+    if (art === "zurueck") {
+      const id = (look && KL.LOOKS[look.id]) ? look.id : null;
+      const eigen = !id && _keEigene.find(e => e.id === (look && look.id));
+      const basis = id ? KL.LOOKS[id] : (eigen ? eigen.look : KL.LOOKS.reiseatlas);
+      _keAnwenden(KL.normalisieren(_keKopie(basis))); setTimeout(_keZeichnen, 300); return;
+    }
+    if (art === "speichern") {
+      const eigenJetzt = _keEigene.find(e => e.id === look.id);
+      const name = await _keName(t("kartened.speichern_titel", "Eigenen Look speichern"), eigenJetzt ? eigenJetzt.name : (look.name || t("kartened.mein_look", "Mein Look")));
+      if (!name) return;
+      const r = await rzWarten("kartenlook_speichern", () => api().kartenlook_speichern(name, look, eigenJetzt ? eigenJetzt.id : ""));
+      if (!r || !r.ok) { toast((r && r.error) || t("common.error", "Fehler"), "error"); return; }
+      _keAnwenden(KL.normalisieren(r.eintrag.look));
+      toast(t("kartened.gespeichert", "„{n}“ liegt jetzt bei deinen Looks — in jedem Projekt.").replace("{n}", r.eintrag.name), "success", 4000);
+      await _keEigeneLaden(); return;
+    }
+    if (art === "export") {
+      const r = await rzWarten("kartenlook_exportieren", () => api().kartenlook_exportieren(look.name || t("look." + look.id, look.id || "Kartenlook"), look, ""));
+      if (r && r.ok) toast(t("kartened.exportiert", "Look gespeichert: {p}").replace("{p}", r.path), "success", 4000);
+      else if (r && !r.cancelled) toast(r.error || t("common.error", "Fehler"), "error");
+      return;
+    }
+    if (art === "import") {
+      const r = await rzWarten("kartenlook_importieren", () => api().kartenlook_importieren(""));
+      if (r && r.ok) { _keAnwenden(KL.normalisieren(r.eintrag.look)); _keExtrasAnwenden(r.eintrag.look.extras); await _keEigeneLaden(); setTimeout(_keZeichnen, 300);
+        toast(t("kartened.importiert", "Look „{n}“ übernommen.").replace("{n}", r.eintrag.name), "success", 4000); }
+      else if (r && !r.cancelled) toast(r.error || t("common.error", "Fehler"), "error");
+    }
+  }
+  function _keOeffnen() {
+    if (!window.rzKartenlook) return;
+    let p = (_keFeld && _keFeld.isConnected) ? _keFeld : null;
+    if (!p) {
+      p = document.createElement("div"); p.id = "anim-karten-editor"; p.className = "anim-track-editor sign-editor anim-karten-editor";
+      _keFeld = p;
+      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p))) {
+        const f = document.getElementById("anim-gesamtlook-field"); if (f) f.appendChild(p); else document.body.appendChild(p);
+      }
+    }
+    _keZeichnen();
+    _keKnopfStand();
+  }
+  window.__rzKartenEditor = { oeffnen: () => _keOeffnen(), aktuell: () => _keAktuell(), anwenden: (l) => _keAnwenden(l), schliessen: () => _keSchliessen(),
+    extras: () => _keExtrasLesen(), eigeneLaden: () => _keEigeneLaden() };   // Prüfstand
+  /** Eigene Looks als kleine Kacheln unter den zehn (Klick = übernehmen, ✕ = löschen). */
+  async function _keEigeneLaden() {
+    try { const r = await api().kartenlooks_liste(); _keEigene = (r && r.ok && r.looks) || []; } catch (_) { _keEigene = []; }   // warte-ok: Liste im Hintergrund
+    _keEigeneZeichnen();
+    try { _gesamtLookSync(); } catch (_) {}
+  }
+  function _keEigeneZeichnen() {
+    const box = document.getElementById("anim-eigene-looks"); if (!box || !window.rzLooks) return;
+    box.hidden = !_keEigene.length;
+    let aktId = ""; try { const a = window.rzReadModuleSettings(_MODKEY) || {}; aktId = a.map_style === "kartenlook" && a.kartenlook ? a.kartenlook.id : ""; } catch (_) {}
+    const esc = _animEscapeHtml;
+    box.innerHTML = _keEigene.length ? `<div class="rz-look-eigene-titel">${esc(t("kartened.eigene", "Deine Looks"))}</div><div class="rz-look-reihe">${_keEigene.map(e => {
+      const st = window.rzLooks.kachelStil("", e.look, (window.rzReadModuleSettings(_MODKEY) || {}).line_color);
+      return `<button type="button" class="rz-look-knopf${e.id === aktId ? " is-on" : ""}" data-eigen="${esc(e.id)}" title="${esc(e.name)}"><span class="rz-look-bild rz-look-svg"${st}><span class="rz-look-ed" title="${esc(t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …"))}">✎</span><span class="rz-look-weg" data-eigen-weg="${esc(e.id)}" title="${esc(t("kartened.loeschen", "Diesen Look löschen"))}">✕</span></span><span>${esc(e.name)}</span></button>`; }).join("")}</div>` : "";
+  }
+  document.getElementById("anim-eigene-looks")?.addEventListener("click", async (ev) => {
+    const weg = ev.target.closest("[data-eigen-weg]");
+    if (weg) {
+      ev.stopPropagation();
+      const e = _keEigene.find(x => x.id === weg.dataset.eigenWeg); if (!e) return;
+      const ja = await window.rzConfirm(t("kartened.loeschen_titel", "Look löschen?"),
+        t("kartened.loeschen_frage", "„{n}“ aus deinen Looks löschen? Projekte, die ihn benutzen, behalten ihre Kopie.").replace("{n}", e.name), t("common.delete", "Löschen"), true);
+      if (!ja) return;
+      await rzWarten("kartenlook_loeschen", () => api().kartenlook_loeschen(e.id)); await _keEigeneLaden(); return;
+    }
+    const b = ev.target.closest("[data-eigen]"); if (!b) return;
+    const e = _keEigene.find(x => x.id === b.dataset.eigen); if (!e) return;
+    if (ev.target.closest(".rz-look-ed") && b.classList.contains("is-on")) { _keUmschalten(); return; }
+    _keAnwenden(window.rzKartenlook.normalisieren(_keKopie(e.look)));
+    _keExtrasAnwenden(e.look && e.look.extras);
+    if (_keFeld && _keFeld.isConnected) setTimeout(_keZeichnen, 300);
+  });
+  setTimeout(() => { _keEigeneLaden(); }, 800);
   for (const id of ["anim-style", "anim-color", "anim-kontur-breite"]) {
     const el = document.getElementById(id);
     if (el) { el.addEventListener("change", () => setTimeout(_gesamtLookSync, 0)); el.addEventListener("input", () => setTimeout(_gesamtLookSync, 0)); }
@@ -4547,7 +4899,9 @@ function mountAnimator(body, headerActions, opts) {
              abflug: _fsZahl(s.stopp_abflug_s, FS_STD.abflug, 0, 5),
              pin: _fsZahl(s.stopp_pin_s, FS_PIN_VORLAUF, 0, 30),   // 06.10.2026 — wie früh der Foto-Pin vor dem Anflug erscheint (linker Rand in der Spur)
              zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4),
-             schwenk: _fsZahl(s.stopp_schwenk, FS_STD.schwenk, 0, 10), ken: c ? 0 : _fsZahl(s.stopp_ken, FS_STD.ken, 0, 30) };
+             schwenk: _fsZahl(s.stopp_schwenk, FS_STD.schwenk, 0, 10), ken: c ? 0 : _fsZahl(s.stopp_ken, FS_STD.ken, 0, 30),
+             // 07.10.2026 (Web-Fund F-5) — „Pause ohne Heranfahren“ (wie MapAnimator): Kamera bleibt, wo sie ist
+             kamera: !(s && s.stopp_kamera === false) };
   }
   function _fsSchilderAlle() {
     try { return (_activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) ? _activeProject[_SIGNS_KEY] : []; }
@@ -7444,6 +7798,7 @@ function mountAnimator(body, headerActions, opts) {
   function applyKeyframesEnabled() {
     const enabled = keyframesEnabled();
     try { _kameraKurzSync(); } catch (e) { rzSwallow(e, "kamera-kurz"); }
+    try { syncTimelineOverrideUi(); } catch (_) {}   // 07.10.2026 (Klicktest) — Regler-Hinweis folgt dem Editor-Schalter
 
     // Sidebar Camera-Section: Sub-Body umschalten
     const classic = document.getElementById("anim-camera-body-classic");
@@ -7652,6 +8007,7 @@ function mountAnimator(body, headerActions, opts) {
         const i = parseInt(String(h.ref || "").slice(3), 10), s = _fsSchilderAlle()[i], ref = "fs:" + i;
         if (!_fsAktiv(s) || hat(ref)) continue;
         const w = _fsWerte(s), mk = (kind, anchor, werte, easing) => Object.assign({ kind, anchor, easing, standard: true, stopp: ref }, werte);
+        if (!w.kamera) continue;   // Pause ohne Heranfahren: der Halt bleibt (Tempo-Kurve), die Kamera folgt der Basis
         const p0 = anker(h.ab_s - w.anflug), pa = anker(h.ab_s), pb = anker(h.bis_s), p1 = anker(h.bis_s + w.abflug);
         const B0 = bei(p0), Ba = bei(pa), Bb = bei(pb), B1 = bei(p1);
         const ll = [+s.lon, +s.lat], bez = B0.c || Ba.c || ll;
@@ -10939,6 +11295,8 @@ function mountAnimator(body, headerActions, opts) {
           // 07.09.2026 — Video-Uhr für MapLibres Globus-Fehlerkorrektur (Vendor-Patch globeerr):
           // der 500-ms-Angleich läuft auf dieser Uhr, also gleichmäßig über 15 Bilder wie live.
           const _ms = Math.max(0, +tSek || 0) * 1000;
+          // F-3: eine noch laufende Kamerafahrt (Fit, flyTo) vor dem Bild beenden
+          try { if (map && map.isEasing && map.isEasing()) map.stop(); } catch (_) {}
           window.__rzRenderClock = () => _ms;
           try { if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), +tSek || 0); } catch (_) {}
           step(_ms);
@@ -11246,6 +11604,16 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   // 04.09.2026 — die fünf Schalter als Overlay-Gruppen (mapstyles.LABEL_GROUPS).
+  /** 07.10.2026 (Kartenlooks) — Look des Projekts für den Kartenstil `kartenlook` (Rollen-Farben, ui/js/kartenlook.js). */
+  var _currentLookSig = "";   // 07.10.2026 — welcher Look gerade auf der Karte liegt (onLoad: neu anwenden?)
+  function _currentKartenlook() {
+    try {
+      const a = (window.rzReadModuleSettings && window.rzReadModuleSettings(_MODKEY)) || {};
+      if (a.kartenlook && typeof a.kartenlook === "object") return a.kartenlook;
+    } catch (_) {}
+    return null;
+  }
+  window.__rzKartenlookJetzt = () => _currentKartenlook();   // Prüfstand
   function _currentOrtho() {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
     return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 0) };
@@ -11640,7 +12008,7 @@ function mountAnimator(body, headerActions, opts) {
     _updateStyleHints(styleKey);
     // Alpha ist kein Kartenstil: Karte bleibt, wie sie ist (die Vorschau deckt sie ab).
     const key = (styleKey === "alpha") ? (map.__rzStyleKey || mapDefaultStyle()) : styleKey;
-    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false, labels: _labelsFromConfig(), ortho: _currentOrtho() });
+    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false, labels: _labelsFromConfig(), ortho: _currentOrtho(), look: _currentKartenlook() });
     if (r.needsRemount) {
       // Engine-Wechsel (Mapbox GL ↔ MapLibre GL): Karte neu bauen. Der Stil ist
       // über bindSetting schon gespeichert, der Neuaufbau liest ihn.
@@ -11648,6 +12016,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     _currentStyleKey = styleKey;   // v0.9.329 — gegen redundante setStyle-Reloads (onLoad)
+    _currentLookSig = JSON.stringify(_currentKartenlook());
     map.once("style.load", () => {
       rebuildPreviewLayers();
       _ghostSpurenAufbauen();     // 27.08.2026 — sonst sind sie nach dem Stilwechsel weg
@@ -11719,6 +12088,7 @@ function mountAnimator(body, headerActions, opts) {
     const initialStyleKey = (_styleProj?.[_MODKEY]?.map_style)
                             || ((typeof mapDefaultStyle === "function") ? mapDefaultStyle() : "free_satellite");
     _currentStyleKey = initialStyleKey;   // v0.9.329 — Init-Stil merken (onLoad-Guard)
+    _currentLookSig = JSON.stringify(_currentKartenlook());
     // Viewport vor Map-Init dimensionieren — sonst hat Mapbox die falsche Größe.
     updateAnimatorViewport();
     // 09.09.2026 — nach jeder Fahrt, sobald Ruhe ist: Gelände-Kacheln prüfen
@@ -11736,6 +12106,7 @@ function mountAnimator(body, headerActions, opts) {
       bbox: currentBbox || null,
       labels: _labelsFromConfig(),   // 04.09.2026: Orte/Straßen/… auch über Rasterkarten
       ortho: _currentOrtho(),
+      look: _currentKartenlook(),
       // 03.10.2026 (Marc: „die Häuser flimmern zum Teil") — Kantenglättung (MSAA): ohne sie springen die Kanten
       // ferner 3D-Häuser bei jeder Kamerabewegung zwischen Pixeln hin und her. Nur beim Anlegen setzbar.
       // 04.10.2026 (Marc: „die Vorschau ist ganz schön langsam") — MSAA nur im Render: auf einem Retina-Bildschirm
@@ -12697,7 +13068,7 @@ function mountAnimator(body, headerActions, opts) {
       imageSize: 60,         // v0.9.190 — Bildbreite separat vom Schrift-Größe-Slider (20..160 → ×5 px)
       visible: true,         // v0.9.198 — pro Schild/Foto an/aus (Checkbox in der Liste)
       // 01.10.2026 — Fotostopp (nur mit Bild): anhalten, ranfahren, Foto groß. Siehe _fotostoppHalte.
-      stopp: false, stopp_s: 3, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 8,
+      stopp: false, stopp_s: 3, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 8, stopp_kamera: true,
       stopp_ortzeit: true, stopp_exif: false,
     };
     // Merkt sich die zuletzt benutzten Stil-/Verhaltens-Eigenschaften fürs nächste Schild.
@@ -12891,7 +13262,7 @@ function mountAnimator(body, headerActions, opts) {
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
                                "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
-                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_ortzeit", "stopp_exif", "stopp_bei", "stopp_pin_s", "clip"]);
+                               "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_kamera", "stopp_ortzeit", "stopp_exif", "stopp_bei", "stopp_pin_s", "clip"]);
     // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
     // zwischen zwei Aufbauten dasselbe (jede Änderung erzeugt über `_animSignsSave` neue
     // Objekte), nur Bild und Pixelmaß können sich noch ändern — die stehen im Merker mit.
@@ -13953,6 +14324,8 @@ function mountAnimator(body, headerActions, opts) {
               <input type="number" id="se-stopp-an" min="0" max="5" step="0.1" value="${_fsZahlE(c.stopp_anflug_s, 1)}">
               <label for="se-stopp-ab">${t("signs.stopp_abflug", "Abflug (Sek.)")}</label>
               <input type="number" id="se-stopp-ab" min="0" max="5" step="0.1" value="${_fsZahlE(c.stopp_abflug_s, 1)}">
+              <label for="se-stopp-kamera" title="${t("signs.stopp_kamera_tip", "Aus: Der Track hält an und das Foto erscheint, aber die Kamera bleibt, wo sie ist — kein Heranfahren, kein Schwenk.")}">${t("signs.stopp_kamera", "Kamera fährt heran")}</label>
+              <span class="se-inline"><input type="checkbox" id="se-stopp-kamera"${chk(c.stopp_kamera !== false)}></span>
               <label for="se-stopp-zoom">${t("signs.stopp_zoom", "Heranfahren")}</label>
               <input type="range" id="se-stopp-zoom" min="0" max="4" step="0.25" value="${_fsZahlE(c.stopp_zoom, 1.5)}">
               <label for="se-stopp-schwenk">${t("signs.stopp_schwenk", "Karte schwenken (°)")}</label>
@@ -14228,6 +14601,7 @@ function mountAnimator(body, headerActions, opts) {
           stopp_zoom: (() => { const v = parseFloat($("#se-stopp-zoom")?.value); return isFinite(v) ? v : 1.5; })(),
           stopp_schwenk: (() => { const v = parseFloat($("#se-stopp-schwenk")?.value); return isFinite(v) ? Math.max(0, Math.min(10, v)) : 2; })(),
           stopp_ken: (() => { const v = parseFloat($("#se-stopp-ken")?.value); return isFinite(v) ? Math.max(0, Math.min(30, v)) : 8; })(),
+          stopp_kamera: $("#se-stopp-kamera") ? $("#se-stopp-kamera").checked : true,
           stopp_ortzeit: $("#se-stopp-ortzeit") ? $("#se-stopp-ortzeit").checked : true,
           stopp_exif: !!($("#se-stopp-exif") && $("#se-stopp-exif").checked),
           // 02.10.2026 — Videoclip: Ausschnitt (ab/Länge, innerhalb der Clip-Länge) und Ton
@@ -14507,6 +14881,7 @@ function mountAnimator(body, headerActions, opts) {
       try {
         const res = await loader();
         let photos = (res && res.photos) || [];
+        const ohneGps = (res && Array.isArray(res.ohne_gps)) ? res.ohne_gps : [];
         // 12.09.2026 — im Animator wird aus JEDEM Foto ein Schild. Ohne Auswahl
         // entstanden aus einem Klick 2830 Schilder (Beta-Tester). Also fragen.
         if (photos.length > 1 && window.PhotoPins && PhotoPins.waehlen) {
@@ -14515,6 +14890,7 @@ function mountAnimator(body, headerActions, opts) {
           });
           if (!photos.length) return;
         }
+        if (!photos.length && ohneGps.length) { await _animSignsFotosOhneOrt(ohneGps); return; }
         if (!photos.length) {
           // v0.9.199 — ohne GPS ≠ Lesefehler. Klare Meldung statt pauschal „kein GPS".
           if ((res && res.failed_count) > 0 && !(res.skipped_count > 0)) {
@@ -14566,16 +14942,65 @@ function mountAnimator(body, headerActions, opts) {
             ...(typeof ta === "number" ? { timeAnchor: ta } : {}) });
           added++;
         });
-        if (!added) { toast(t("signs.photos_dupes", "Alle Fotos sind schon drin."), "info", 2500); return; }
-        _animSignsSave(list);
-        _animSignsAttachToMap();
-        _animSignsRenderList();
-        toast(t("photos.toast_loaded", "%n Fotos geladen.").replace("%n", added), "ok", 2500);
+        if (!added && !ohneGps.length) { toast(t("signs.photos_dupes", "Alle Fotos sind schon drin."), "info", 2500); return; }
+        if (added) {
+          _animSignsSave(list);
+          _animSignsAttachToMap();
+          _animSignsRenderList();
+          toast(t("photos.toast_loaded", "%n Fotos geladen.").replace("%n", added), "ok", 2500);
+        }
+        if (ohneGps.length) await _animSignsFotosOhneOrt(ohneGps);
       } catch (e) {
         applog("error", `[anim-signs] Foto-Import fehlgeschlagen: ${e}`);
         toast(t("photos.toast_load_error", "Fotos konnten nicht geladen werden."), "err", 3500);
       }
     }
+    /** 07.10.2026 (Web-Fund F-5) — Fotos ohne GPS nicht still überspringen: fragen und auf die Strecke legen.
+     *  Mit Aufnahmezeit innerhalb der Tour → an diese Stelle (photos_time_anchors); die übrigen gleichmäßig in die
+     *  Lücken, in Reihenfolge der Dateinamen. Als Sofortbild an der Strecke; jedes lässt sich danach in der
+     *  Schilder-Spur oder mit „↔ Verschieben“ an seinen Platz ziehen. */
+    async function _animSignsFotosOhneOrt(pfade) {
+      const n = currentCoords ? currentCoords.length : 0;
+      if (n < 2) { toast(t("signs.need_track", "Erst eine GPX-Route laden."), "warn"); return 0; }
+      const _baseName = (p) => String(p || "").split(/[\\/]/).pop();
+      const da = new Set(_animSignsList().map(s => _baseName(s.imageSrc)).filter(Boolean));
+      const neu = (pfade || []).filter(p => p && !da.has(_baseName(p)));
+      if (!neu.length) return 0;
+      const ja = await window.rzConfirm(t("photos.ohne_ort_titel", "Fotos ohne Ort platzieren?"),
+        t("photos.ohne_ort_text", "{n} Fotos haben keine GPS-Position. Soll ich sie auf die Strecke legen? Mit Aufnahmezeit an die passende Stelle, sonst gleichmäßig verteilt — danach kannst du jedes Foto in der Schilder-Spur verschieben.")
+          .replace("{n}", neu.length),
+        t("photos.ohne_ort_ja", "Auf die Strecke legen"));
+      if (!ja) return 0;
+      let anker = {};
+      try {
+        if (currentGpx && window.pywebview?.api?.photos_time_anchors) {
+          const r = await rzWarten("photos_time_anchors", () => window.pywebview.api.photos_time_anchors(neu, currentGpx));
+          if (r && r.ok) anker = r.anchors || {};
+        }
+      } catch (_) {}
+      const sortiert = neu.slice().sort((a, b) => _baseName(a).localeCompare(_baseName(b), undefined, { numeric: true }));
+      const frei = sortiert.filter(p => typeof anker[p] !== "number");
+      const fest = sortiert.filter(p => typeof anker[p] === "number").map(p => anker[p]);
+      // Ohne Zeit: gleichmäßig verteilen, Abstand zu den schon platzierten halten (einfach: zwischen 5 % und 95 %)
+      const stellen = {};
+      frei.forEach((p, i) => { stellen[p] = 0.05 + 0.9 * (i + 1) / (frei.length + 1); });
+      sortiert.forEach(p => { if (typeof anker[p] === "number") stellen[p] = anker[p]; });
+      const list = _animSignsList().slice();
+      for (const p of sortiert) {
+        const f = Math.max(0, Math.min(1, stellen[p]));
+        const c = currentCoords[Math.round(f * (n - 1))] || currentCoords[0];
+        list.push({ ...(_SIGN_DEFAULTS), lat: Number(c[1]), lon: Number(c[0]), text: "", imageSrc: p,
+          style: "sofortbild", entry: "pop", entry_s: 0.5, before: 0.4, after: 2.5, exit: "mini", exit_s: 0.8,
+          anchorMode: "track", visible: true, timeAnchor: f, ohne_gps: true });
+      }
+      _animSignsSave(list);
+      _animSignsAttachToMap();
+      _animSignsRenderList();
+      toast(t("photos.ohne_ort_ok", "{n} Fotos auf die Strecke gelegt ({z} nach Aufnahmezeit).")
+        .replace("{n}", sortiert.length).replace("{z}", fest.length), "ok", 4500);
+      return sortiert.length;
+    }
+    window.__rzFotosOhneOrt = (pfade) => _animSignsFotosOhneOrt(pfade);   // Prüfstand
     function _animSignsImportPhotos(pathsOrFolder) {
       if (!window.pywebview?.api?.photos_load) return;
       return _animSignsAddPhotosFromBridge(() => rzWarten("photos_load", () => window.pywebview.api.photos_load(pathsOrFolder)));
@@ -19750,6 +20175,10 @@ function mountAnimator(body, headerActions, opts) {
 
   function fitTrackPreview(animated = true) {
     if (!map || !currentBbox) return;
+    // 07.10.2026 (Web-Fund F-3) — im Schritt-/Render-Modus nie animiert: eine 500-ms-Fahrt, die ein seek() mittendrin
+    // abbricht, ließ MapLibres Bildschleife hängen (~120× „_onEaseFrame is not a function“ / „already running“), und
+    // der Grund-Zoom wurde mitten in der Fahrt abgelesen (Reiseroute aus Orten: Wiederherstellen fittet animiert).
+    if (window.__rzStepMode || window.__rzRenderMode) animated = false;
     // v0.9.412 — Tour-Map: Kamera aus dem Animator übernommen? Einmalig per jumpTo
     // anwenden (statt Auto-Fit) und als „freie Kamera" merken.
     if (_isStaticFrame && window.__pendingCameraForTourMap) {
@@ -20051,7 +20480,76 @@ function mountAnimator(body, headerActions, opts) {
   // anderen Detailansichten … wie er aussehen soll, Farbe und so weiter, und eben auch der Trackpunkt“) — der Editor eines
   // Tracks steht rechts in der Detail-Spalte (statt aufgeklappt in der Liste). Inhalt: Farbe + das Aussehen-Panel
   // (_stilPanelBauen: Linie, Schatten, Glow, Punkte, Laufpunkt mit Fahrzeug-Aussehen); geplante Etappen: „Route bearbeiten“.
+  /** 08.10.2026 — „Mehrere Track-Farben“ für eine weitere Tour (Track-Editor rechts). Gleiche Bedienung wie bei Track 1:
+   *  Einfärben nach Distanz/Höhe/Tempo/Steigung, hart oder Verlauf, Stufen mit Wert + Farbe; „Auto“ spannt min → max. */
+  function _tredFwZeichnen(box, tr) {
+    if (!box) return;
+    const esc = _animEscapeHtml;
+    const f = tr.farbwechsel || { an: false, quelle: "distance", modus: "hard", stops: [] };
+    const quellen = _fwQuellenVon(tr);
+    const einheit = { distance: "km", ele: "m", speed: "km/h", grade: "%" }[f.quelle] || "";
+    const qName = { distance: t("animator.colors.src_distance", "Distanz (km)"), ele: t("animator.colors.src_ele", "Höhe (m)"),
+                    speed: t("animator.colors.src_speed", "Tempo (km/h)"), grade: t("animator.colors.src_grade", "Steigung (%)") };
+    box.innerHTML = `<label class="checkbox-row"><input type="checkbox" class="tred-fw-an"${f.an ? " checked" : ""}><span>${esc(t("animator.toggle.track_colors", "Mehrere Track-Farben"))}</span></label>
+      <div class="tred-fw-felder"${f.an ? "" : " hidden"}>
+        <div class="anim-stil-zeile"><label>${esc(t("animator.field.colors_source", "Einfärben nach"))}</label>
+          <select class="tred-fw-quelle">${quellen.map(q => `<option value="${q}"${q === f.quelle ? " selected" : ""}>${esc(qName[q])}</option>`).join("")}</select></div>
+        <div class="anim-stil-zeile"><label>${esc(t("animator.field.colors_mode", "Übergang"))}</label>
+          <select class="tred-fw-modus"><option value="hard"${f.modus !== "gradient" ? " selected" : ""}>${esc(t("animator.colors.mode_hard", "hart (auf einen Schlag)"))}</option>
+            <option value="gradient"${f.modus === "gradient" ? " selected" : ""}>${esc(t("animator.colors.mode_gradient", "Verlauf"))}</option></select></div>
+        <div class="tred-fw-stops">${(f.stops || []).map((x, i) => `<div class="tred-fw-stop" data-i="${i}">
+          <span>${esc(t("animator.colors.ab", "ab"))}</span><input type="number" class="tred-fw-v" step="any" value="${esc(String(+x.v || 0))}"><span class="muted">${esc(einheit)}</span>
+          <input type="color" class="tred-fw-c" value="${esc(x.color || "#ff0000")}"><button type="button" class="btn btn-ghost btn-sm tred-fw-weg" title="${esc(t("common.delete", "Löschen"))}">✕</button></div>`).join("")}</div>
+        <div class="tred-fw-knoepfe"><button type="button" class="btn btn-small tred-fw-neu">＋ ${esc(t("animator.colors.stufe", "Farbstufe"))}</button>
+          <button type="button" class="btn btn-small tred-fw-auto">${esc(t("animator.colors.auto", "Auto (min → max)"))}</button></div>
+      </div>`;
+    let timer = 0;
+    const speichern = (neu, sofort) => {
+      tr.farbwechsel = neu;
+      clearTimeout(timer);
+      const los = () => { _animPersistTours(t("animator.colors.undo_tour", "Track-Farben geändert")); try { _animDrawExtraToursPreview(); } catch (e) { applog("warn", "[farbwechsel] " + e); } };
+      if (sofort) los(); else timer = setTimeout(los, 250);
+    };
+    const kopie = () => JSON.parse(JSON.stringify(tr.farbwechsel || f));
+    const spanne = (q) => { const r = (_fwReihe(tr, q) || []).filter(v => isFinite(v)); if (!r.length) return [0, 1];
+      let lo = Infinity, hi = -Infinity; for (const v of r) { if (v < lo) lo = v; if (v > hi) hi = v; } return [lo, hi]; };
+    const rund = (v) => Math.round(v * 10) / 10;
+    box.querySelector(".tred-fw-an").addEventListener("change", (e) => {
+      const n = kopie(); n.an = e.target.checked;
+      if (n.an && !(n.stops || []).length) { const [lo, hi] = spanne(n.quelle || "distance"); n.stops = [{ v: rund(lo + (hi - lo) / 2), color: "#e74c3c" }]; }
+      speichern(n, true); _tredFwZeichnen(box, tr);
+    });
+    box.querySelector(".tred-fw-quelle")?.addEventListener("change", (e) => { const n = kopie(); n.quelle = e.target.value; n.stops = [];
+      const [lo, hi] = spanne(n.quelle); n.stops = n.quelle === "distance" ? [{ v: rund(lo + (hi - lo) / 2), color: "#e74c3c" }]
+        : [{ v: rund(lo), color: tr.line_color || "#35a7ff" }, { v: rund(hi), color: "#e74c3c" }];
+      speichern(n, true); _tredFwZeichnen(box, tr); });
+    box.querySelector(".tred-fw-modus")?.addEventListener("change", (e) => { const n = kopie(); n.modus = e.target.value; speichern(n, true); });
+    box.querySelectorAll(".tred-fw-stop").forEach(z => {
+      const i = +z.dataset.i;
+      z.querySelector(".tred-fw-v").addEventListener("input", (e) => { const n = kopie(); if (n.stops[i]) n.stops[i].v = parseFloat(e.target.value) || 0; speichern(n); });
+      z.querySelector(".tred-fw-c").addEventListener("input", (e) => { const n = kopie(); if (n.stops[i]) n.stops[i].color = e.target.value; speichern(n); });
+      z.querySelector(".tred-fw-weg").addEventListener("click", () => { const n = kopie(); n.stops.splice(i, 1); if (!n.stops.length) n.an = false; speichern(n, true); _tredFwZeichnen(box, tr); });
+    });
+    box.querySelector(".tred-fw-neu")?.addEventListener("click", () => {
+      const n = kopie(); const [lo, hi] = spanne(n.quelle || "distance");
+      const letzte = (n.stops || []).length ? Math.max(...n.stops.map(x => +x.v || 0)) : lo;
+      const v = letzte < hi ? rund(letzte + (hi - letzte) / 2) : rund(hi);
+      const pal = ["#e74c3c", "#f1c40f", "#2ecc71", "#9b59b6", "#3498db"];
+      n.stops = (n.stops || []).concat([{ v, color: pal[(n.stops || []).length % pal.length] }]);
+      speichern(n, true); _tredFwZeichnen(box, tr);
+    });
+    box.querySelector(".tred-fw-auto")?.addEventListener("click", () => {
+      const n = kopie(); const [lo, hi] = spanne(n.quelle || "distance");
+      n.stops = [{ v: rund(lo), color: "#2ecc71" }, { v: rund(lo + (hi - lo) / 2), color: "#f1c40f" }, { v: rund(hi), color: "#e74c3c" }];
+      n.modus = "gradient"; speichern(n, true); _tredFwZeichnen(box, tr);
+    });
+  }
   let _trackEd = null, _trackEdZiel = null;
+  const _TRED_FARBEN = ["anim-etappenfarben", "anim-colors-block"];
+  function _tredFarbenParken() {
+    const park = document.getElementById("anim-farben-park"); if (!park) return;
+    for (const id of _TRED_FARBEN) { const e = document.getElementById(id); if (e && e.parentElement !== park) park.appendChild(e); }
+  }
   function _trackEdOeffnen(ziel) {
     const tr = ziel === "haupt" ? null : _extraTours.find(x => x.gpx_path === ziel);
     if (ziel !== "haupt" && !tr) return;
@@ -20062,13 +20560,17 @@ function mountAnimator(body, headerActions, opts) {
     const neu = !p;
     if (neu) { p = document.createElement("div"); p.id = "anim-track-editor"; p.className = "anim-track-editor sign-editor"; }
     _trackEdZiel = ziel;
+    _tredFarbenParken();   // vor dem Neuzeichnen retten, sonst nimmt innerHTML sie mit
     p.innerHTML = `<div class="tm-kopf"><b>✎ ${esc(name)}</b><button type="button" class="sign-editor-x" title="${esc(t("common.close", "Schließen"))}">✕</button></div>
       <div class="anim-stil-zeile tred-farbe-zeile"><label>${esc(t("animator.tours.color", "Farbe dieser Tour"))}</label>
         <input type="color" class="tred-farbe" value="${esc(farbe)}"></div>
       ${tr && tr.etappe ? `<button type="button" class="btn btn-small tred-route" data-act="etappe">🗺 ${esc(t("animator.etappe.route_bearbeiten", "Route bearbeiten (Stationen, Verkehrsmittel)"))}</button>` : ""}
+      ${tr ? `<div class="tred-mehrfarbig tred-fw"></div>` : `<div class="tred-mehrfarbig"></div>`}
       <div class="tred-stil"></div>`;
+    if (!tr) { const box = p.querySelector(".tred-mehrfarbig"); for (const id of _TRED_FARBEN) { const e = document.getElementById(id); if (e) box.appendChild(e); } }
+    if (tr) _tredFwZeichnen(p.querySelector(".tred-fw"), tr);
     p.querySelector(".tred-stil").appendChild(_stilPanelBauen(tr ? idx : "haupt", tr));
-    p.querySelector(".sign-editor-x").onclick = () => { p.remove(); _trackEd = null; _trackEdZiel = null; };
+    p.querySelector(".sign-editor-x").onclick = () => { _tredFarbenParken(); p.remove(); _trackEd = null; _trackEdZiel = null; };
     p.querySelector(".tred-route")?.addEventListener("click", () => _etappeBearbeiten(tr.gpx_path));
     p.querySelector(".tred-farbe").addEventListener("input", (e) => {
       const v = e.target.value;
@@ -20089,7 +20591,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Liste neu gezeichnet: Editor eines entfernten Tracks schließen, sonst Kopf/Farbe stimmen lassen. */
   function _trackEdNachListe() {
     if (!_trackEd || !_trackEd.isConnected || !_trackEdZiel) return;
-    if (_trackEdZiel !== "haupt" && !_extraTours.some(x => x.gpx_path === _trackEdZiel)) { _trackEd.remove(); _trackEd = null; _trackEdZiel = null; }
+    if (_trackEdZiel !== "haupt" && !_extraTours.some(x => x.gpx_path === _trackEdZiel)) { _tredFarbenParken(); _trackEd.remove(); _trackEd = null; _trackEdZiel = null; }
   }
   // Der Dialog „Aussehen auf alle übernehmen": Quelle wählen, Felder ankreuzen.
   function _stilAlleDialog(quelleSchluessel) {
@@ -20844,7 +21346,7 @@ function mountAnimator(body, headerActions, opts) {
         const st = _stilVon(tour);   // 09.09.2026 — Aussehen je Tour (Linie UND Laufpunkt)
         liste.push({ coords, cum: _cumDistBerechnen(coords), zeit,
                      dauer: zeit ? zeit[zeit.length - 1] : 0,
-                     color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path,
+                     color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path, quelle: tour.tr || tour,
                      width: Math.max(0.5, +st.width || lw), stil: st,
                      dot: { show: st.dot_show !== false, style: st.dot_style === "arrow" ? "arrow" : "dot", size: Math.max(0.1, +st.dot_size || 1) },
                      gruppe: g, gi, j, rolle: (j === 0 && !_hauptHier) ? "takt" : "mitglied",
@@ -21017,8 +21519,13 @@ function mountAnimator(body, headerActions, opts) {
         const id = "ganz-prev-" + (n++);
         const dash = (ww) => { const d = _dashFuerStil(st, ww); return d ? { "line-dasharray": d } : {}; };
         const ebenen = [];
+        const Q = tour.tr || tour, _fc = ["coalesce", ["get", "farbe"], farbe];
+        const daten = _fwAktiv(Q)   // 08.10.2026 Farbwechsel je Tour
+          ? { type: "FeatureCollection", features: _fwLaeufe(tour.coords, _fwFarben(Q, tour.coords), tour.coords.length - 1)
+                .map(l => ({ type: "Feature", properties: { farbe: l.color }, geometry: { type: "LineString", coordinates: l.coords } })) }
+          : { type: "Feature", geometry: { type: "LineString", coordinates: tour.coords } };
         try {
-          map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: tour.coords } } });
+          map.addSource(id, { type: "geojson", data: daten });
           if (+st.shadow > 0) {
             const sr = currentShadowDir() * Math.PI / 180;
             map.addLayer({ id: id + "-shadow", type: "line", source: id, layout: lay,
@@ -21029,11 +21536,11 @@ function mountAnimator(body, headerActions, opts) {
           if (+st.glow > 0) {
             const gw = w * (2.0 + 0.21 * st.glow);
             map.addLayer({ id: id + "-glow", type: "line", source: id, layout: lay,
-              paint: { "line-color": farbe, "line-width": gw, "line-blur": +st.glow, "line-opacity": 0.8 * op, ...dash(gw) } }, unter);
+              paint: { "line-color": _fc, "line-width": gw, "line-blur": +st.glow, "line-opacity": 0.8 * op, ...dash(gw) } }, unter);
             ebenen.push({ id: id + "-glow", op: 0.8 * op, w: gw });
           }
           map.addLayer({ id: id + "-line", type: "line", source: id, layout: lay,
-            paint: { "line-color": farbe, "line-width": w, "line-opacity": 0.9 * op, ...dash(w) } }, unter);
+            paint: { "line-color": _fc, "line-width": w, "line-opacity": 0.9 * op, ...dash(w) } }, unter);
           ebenen.push({ id: id + "-line", op: 0.9 * op, w });
           if (st.line_style === "tube") {
             map.addLayer({ id: id + "-hl", type: "line", source: id, layout: lay,
@@ -21114,8 +21621,15 @@ function mountAnimator(body, headerActions, opts) {
       const kL = vollesBild ? _swIndexFuer(t, coordFrac, tA, true) : kP;
       t.__k = kP;
       const st = t.stil || {}, dot = t.dot || { show: true, style: "dot", size: 1 };
-      linien.push({ type: "Feature", properties: { color: t.color, width: t.width, shadow: +st.shadow || 0, glow: +st.glow || 0,
-                                                   dk: t.dk || "solid", tube: st.line_style === "tube" ? 1 : 0, op: _deckkraft(st) },
+      const props = { color: t.color, width: t.width, shadow: +st.shadow || 0, glow: +st.glow || 0,
+                      dk: t.dk || "solid", tube: st.line_style === "tube" ? 1 : 0, op: _deckkraft(st) };
+      if (!_sw3d && kL >= 1 && _fwAktiv(t.quelle)) {   // 08.10.2026 Farbwechsel je Tour: Abschnitte je Farbe
+        const sk = _fwSchluessel(t.quelle);
+        if (!t.__fw || t.__fw.sk !== sk) t.__fw = { sk, farben: _fwFarben(t.quelle, t.coords) };
+        for (const l of _fwLaeufe(t.coords, t.__fw.farben, kL))
+          linien.push({ type: "Feature", properties: Object.assign({}, props, { color: l.color }), geometry: { type: "LineString", coordinates: l.coords } });
+      } else
+      linien.push({ type: "Feature", properties: props,
         geometry: { type: "LineString",
           coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
       punkte.push({ type: "Feature",
@@ -22500,6 +23014,16 @@ function mountAnimator(body, headerActions, opts) {
         bahn.__quellStand[i] = { q, ende };
         window.__rzPerfZaehler.etappenSetData++;
         const stueck = ende >= 0 ? bahn.coords.slice(t.von, ende + 1) : [];
+        const Q = bahn.etappen[i].tour && (bahn.etappen[i].tour.tr || bahn.etappen[i].tour);
+        if (_fwAktiv(Q) && stueck.length >= 2) {
+          // Farben einmal für die ganze Etappe der Bahn, dann nur das gezeichnete Stück in Abschnitte
+          if (!bahn.__fw) bahn.__fw = [];
+          const sk = _fwSchluessel(Q);
+          if (!bahn.__fw[i] || bahn.__fw[i].sk !== sk) { const teil = bahn.coords.slice(t.von, t.bis + 1); bahn.__fw[i] = { sk, teil, farben: _fwFarben(Q, teil) }; }
+          const fw = bahn.__fw[i];
+          rzSetDataLatest(map, q, { type: "FeatureCollection", features: _fwLaeufe(fw.teil, fw.farben, ende - t.von)
+            .map(l => ({ type: "Feature", properties: { farbe: l.color }, geometry: { type: "LineString", coordinates: l.coords } })) });
+        } else
         rzSetDataLatest(map, q, { type: "Feature",
           geometry: { type: "LineString", coordinates: stueck.length >= 2 ? stueck : [] } });
       } catch (_) {}
@@ -22616,6 +23140,76 @@ function mountAnimator(body, headerActions, opts) {
     return _reiseBahn.ansichten;
   }
 
+  /* ── Farbwechsel je Tour (08.10.2026, Marc: „mehrere Track-Farben gilt doch je Track … mach das mit den Farbwechseln
+   * für weitere Touren direkt“) ────────────────────────────────────────────────────────────────────────────────────
+   * Track 1 färbt über einen line-gradient (applyPreviewColorGradient). Die weiteren Touren liegen in Quellen, die viele
+   * Touren teilen (Schwarm) oder Bild für Bild wachsen (Kette) — dort zerlegt _fwLaeufe die gezeichnete Linie in Abschnitte
+   * gleicher Farbe (Feature-Eigenschaft `color`/`farbe`). Vorschau und Video sind dieselbe Seite, also dasselbe Bild.
+   * Daten je Tour: `farbwechsel = { an, quelle: distance|ele|speed|grade, modus: hard|gradient, stops: [{v, color}] }`. */
+  const _FW_QUELLEN = ["distance", "ele", "speed", "grade"];
+  function _fwAktiv(Q) { const f = Q && Q.farbwechsel; return !!(f && f.an && Array.isArray(f.stops) && f.stops.length); }
+  function _fwSchluessel(Q) { return JSON.stringify((Q && Q.farbwechsel) || null) + "|" + ((Q && Q.line_color) || ""); }
+  /** Werte je Punkt der GANZEN Tour (km, Höhe, Tempo, Steigung) — einmal je Koordinaten-Satz. */
+  function _fwVoll(Q) {
+    const co = Q.coords || [];
+    if (Q.__fwVoll && Q.__fwVoll.co === co) return Q.__fwVoll;
+    const n = co.length, m = _cumDistBerechnen(co), km = m.map(x => x / 1000);
+    const eleA = (Array.isArray(Q.ele) && Q.ele.length) ? _hoehenAnPunkte(Q.ele, n) : null;   // 200 Höhen zu 800 Punkten: abbilden
+    const ele = (eleA && eleA.length === n) ? eleA.map(v => +v || 0) : (n && co[0].length > 2 ? co.map(c => +c[2] || 0) : null);
+    const zeit = (Array.isArray(Q.zeit) && Q.zeit.length === n) ? Q.zeit : null;
+    const speed = zeit ? new Array(n) : null, grade = ele ? new Array(n) : null;
+    for (let i = 0; i < n; i++) {
+      if (speed) { const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3), dt = (zeit[b] - zeit[a]) / 3600;
+        speed[i] = dt > 0 ? Math.max(0, (km[b] - km[a]) / dt) : (i ? speed[i - 1] : 0); }
+      if (grade) { const a = Math.max(0, i - 5), b = Math.min(n - 1, i + 5), d = m[b] - m[a];
+        grade[i] = d > 1 ? (ele[b] - ele[a]) / d * 100 : (i ? grade[i - 1] : 0); }
+    }
+    Q.__fwVoll = { co, km, ele, speed, grade };
+    return Q.__fwVoll;
+  }
+  /** Welche Quellen hat die Tour? (Höhe nur mit Höhen, Tempo nur mit Zeiten) */
+  function _fwQuellenVon(Q) { const v = _fwVoll(Q); return _FW_QUELLEN.filter(k => k === "distance" || (k === "ele" && v.ele) || (k === "speed" && v.speed) || (k === "grade" && v.grade)); }
+  function _fwReihe(Q, quelle) { const v = _fwVoll(Q); return quelle === "ele" ? v.ele : quelle === "speed" ? v.speed : quelle === "grade" ? v.grade : v.km; }
+  /** Farbe je Punkt für die gezeichneten Koordinaten `C` (ganze Tour, ausgedünnt oder neu abgetastet): Lage über den
+   *  Distanzanteil auf die volle Tour abgebildet. Hart = Band des Stops, Verlauf = gemischt (gerastert, damit die Linie
+   *  nicht in tausend Abschnitte zerfällt). */
+  function _fwFarben(Q, C) {
+    const f = Q.farbwechsel, quelle = _FW_QUELLEN.includes(f.quelle) ? f.quelle : "distance";
+    const reihe = _fwReihe(Q, quelle) || _fwReihe(Q, "distance");
+    const voll = _fwVoll(Q), kmV = voll.km, nV = kmV.length;
+    let stops = f.stops.filter(x => x && isFinite(+x.v) && x.color).map(x => ({ v: quelle === "distance" ? Math.max(0, +x.v) : +x.v, color: x.color }));
+    stops.sort((a, b) => a.v - b.v);
+    if (quelle === "distance" && (!stops.length || stops[0].v > 1e-4)) stops.unshift({ v: 0, color: Q.line_color || "#35a7ff" });
+    const sv = stops.map(x => x.v), sc = stops.map(x => x.color), ns = sv.length, verlauf = f.modus === "gradient";
+    const farbeBei = (v) => {
+      if (v <= sv[0]) return sc[0]; if (v >= sv[ns - 1]) return sc[ns - 1];
+      let i = 0; while (i < ns - 1 && sv[i + 1] <= v) i++;
+      if (!verlauf) return sc[i];
+      const sp = sv[i + 1] - sv[i]; const h = __rzLerpHex(sc[i], sc[i + 1], sp > 0 ? (v - sv[i]) / sp : 0);
+      const q = __rzHex2rgb(h).map(x => Math.round(x / 8) * 8); return __rzRgb2hex(q[0], q[1], q[2]);
+    };
+    const mC = _cumDistBerechnen(C), ges = mC[mC.length - 1] || 0, gesV = kmV[nV - 1] || 0;
+    return C.map((_, i) => {
+      const ziel = ges > 0 ? mC[i] / ges * gesV : 0;
+      let lo = 0, hi = nV - 1; while (lo < hi) { const mi = (lo + hi) >> 1; if (kmV[mi] < ziel) lo = mi + 1; else hi = mi; }
+      return farbeBei(quelle === "distance" ? ziel : (+reihe[lo] || 0));
+    });
+  }
+  /** Gezeichnetes Stück C[0..ende] als Abschnitte gleicher Farbe; jeder Abschnitt beginnt am letzten Punkt des vorigen. */
+  function _fwLaeufe(C, farben, ende) {
+    const raus = []; let lauf = null;
+    for (let i = 0; i <= ende && i < C.length; i++) {
+      if (!lauf || farben[i] !== lauf.color) {
+        if (lauf && lauf.coords.length < 2) lauf.coords.push(C[i]);
+        lauf = { color: farben[i], coords: i > 0 ? [C[i - 1], C[i]] : [C[i]] };
+        raus.push(lauf);
+      } else lauf.coords.push(C[i]);
+    }
+    return raus.filter(l => l.coords.length >= 2);
+  }
+  window.__rzFarbwechsel = { aktiv: (pfad) => { const Q = _extraTours.find(x => x.gpx_path === pfad); return _fwAktiv(Q); },
+                             farben: (pfad) => { const Q = _extraTours.find(x => x.gpx_path === pfad); return Q && _fwAktiv(Q) ? _fwFarben(Q, Q.coords) : null; } };   // Prüfstand
+
   function _animDrawExtraToursPreview() {
     if (!map) return;
     // v0.9.492 — Früher hieß es hier nur „Style noch nicht fertig → raus".
@@ -22667,14 +23261,15 @@ function mountAnimator(body, headerActions, opts) {
               paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": st.width * 2.2, "line-blur": st.shadow, "line-opacity": op,
                        "line-translate": [st.shadow * Math.cos(sr), st.shadow * Math.sin(sr)], ...dash(st.width * 2.2) } });
           }
+          const _fc = ["coalesce", ["get", "farbe"], farbe];   // 08.10.2026 Farbwechsel je Tour: Abschnitte tragen ihre Farbe
           if (st.glow > 0) {
             map.addLayer({ id: "mtour-prev-glow-" + k, type: "line", source: id, layout: lay,
-              paint: { "line-color": farbe, "line-width": st.width * (2.0 + 0.21 * st.glow), "line-blur": st.glow,
+              paint: { "line-color": _fc, "line-width": st.width * (2.0 + 0.21 * st.glow), "line-blur": st.glow,
                        "line-opacity": 0.8 * op, ...dash(st.width * (2.0 + 0.21 * st.glow)) } });
           }
           map.addLayer({
             id: "mtour-prev-line-" + k, type: "line", source: id, layout: lay,
-            paint: { "line-color": farbe, "line-width": st.width, "line-opacity": 0.9 * op, ...dash(st.width) },
+            paint: { "line-color": _fc, "line-width": st.width, "line-opacity": 0.9 * op, ...dash(st.width) },
           });
           if (st.line_style === "tube") {
             map.addLayer({ id: "mtour-prev-hl-" + k, type: "line", source: id, layout: lay,
@@ -22760,7 +23355,7 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) {}
       });
       map.fitBounds([[a, b], [c, d]], {
-        padding: 60, duration: 600,
+        padding: 60, duration: (window.__rzStepMode || window.__rzRenderMode) ? 0 : 600,   // F-3
         pitch: _pitch,
       });
     } catch (_) {}
@@ -23047,6 +23642,9 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _etKarteZeichnen() {
     const E = _etEd; if (!E || !map) return;
+    // 07.10.2026 (Klicktest) — Distanz im Kopf mitführen: die Straßen-Abschnitte kommen erst nach dem Aufbau des Panels
+    // (vorher stand dort die Luftlinie, Berlin → Hamburg 254 statt 290 km)
+    try { const k = document.querySelector("#anim-etappe-editor .et-km"); if (k) k.textContent = _etKm(E).toLocaleString(undefined, { maximumFractionDigits: 1 }) + " km"; } catch (_) {}
     // Karte neu gebaut (Engine-Wechsel)? Dann hängen Punkte, Hebel und Menü noch an der alten — neu anlegen
     if (_etMarkerKarte && _etMarkerKarte !== map) {
       _etMarker.forEach(m => { try { m.remove(); } catch (_) {} }); _etMarker = [];
@@ -23316,7 +23914,7 @@ function mountAnimator(body, headerActions, opts) {
     box.innerHTML = `<div class="tm-kopf et-kopf"><b>🗺 ${esc(E.pfad ? t("animator.etappe.bearbeiten", "Etappe bearbeiten") : t("animator.etappe.neu_titel", "Neue Etappe"))}</b>
         <button type="button" class="sign-editor-x" title="${esc(t("common.close", "Schließen"))}">✕</button></div>
       <div class="et-zahlen"><div><i>${esc(t("animator.etappe.punkte", "Punkte"))}</i><b>${E.wps.filter(w => w.lon != null).length}</b></div>
-        <div><i>${esc(t("animator.etappe.distanz", "Distanz"))}</i><b>${_etKm(E).toLocaleString(undefined, { maximumFractionDigits: 1 })} km</b></div></div>
+        <div><i>${esc(t("animator.etappe.distanz", "Distanz"))}</i><b class="et-km">${_etKm(E).toLocaleString(undefined, { maximumFractionDigits: 1 })} km</b></div></div>
       ${(() => {   // 07.10.2026 (Marc: „Verkehrsmittel kann ich noch gar nicht wählen, oder?“) — groß und oben: gilt für alle
         // Abschnitte, mit ausgewähltem Punkt ab diesem Punkt (wie MapAnimator „Change transport from here“)
         const ab = (E.sel >= 0 && E.sel < n - 1) ? E.sel : 0, teil = E.arten.slice(ab, n - 1);
@@ -23728,6 +24326,7 @@ function mountAnimator(body, headerActions, opts) {
           // _gruppenLegacy (Speicher-Umrechnung), nicht HIER — die Einstellungen
           // von Track 2 waren nach dem Neustart weg (Marc, 09.09.2026 abends).
           stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
+          ...(t.farbwechsel && typeof t.farbwechsel === "object" ? { farbwechsel: JSON.parse(JSON.stringify(t.farbwechsel)) } : {}),   // 08.10.2026
           // 07.10.2026 (Block 4) — geplante Etappe: Stationen, Verkehrsart je Abschnitt (siehe _etappe*)
           ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) })),
         etappe1_dauer_s: +_animEtappe1S || 0,
@@ -23992,6 +24591,7 @@ function mountAnimator(body, headerActions, opts) {
                              ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
                              flach: Array.isArray(res.flach) ? res.flach : null,   // 07.10.2026 Etappe: Flug/Schiff/Bahn
                              stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
+                             farbwechsel: (t.farbwechsel && typeof t.farbwechsel === "object") ? JSON.parse(JSON.stringify(t.farbwechsel)) : null,   // 08.10.2026
                              start_s: +t.start_s || 0,
                              // 08.09.2026 — Etappendauer und Übergang mitnehmen,
                              // sonst stehen sie beim nächsten Öffnen wieder leer.

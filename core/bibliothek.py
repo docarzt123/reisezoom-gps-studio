@@ -1097,8 +1097,12 @@ EIGENE_NAMEN = {
     # 05.10.2026 — Index der Inhaltssuche (core/inhalt.py). Fehlte hier: beim Umziehen der Bibliothek blieb er liegen,
     # obwohl er genau dafür in der Bibliothek liegt (Audit 05.10.); der Dateischutz verweigerte das Löschen.
     "inhaltsindex",
+    # 07.10.2026 — geplante Etappen (<Bibliothek>/etappen/<projekt>/, Block 4) und eigene Kartenlooks (Karten-Editor).
+    # Fehlten hier: beim Umziehen der Bibliothek blieben die Etappen liegen, und der Dateischutz verweigerte das
+    # Speichern der Kartenlooks (test_kartenlooks C).
+    "etappen", "kartenlooks.json",
 }
-EIGENE_PRAEFIXE = ("library.db", "projekte.json", "touren.json", "vorlagen.json", "library-defekt-")
+EIGENE_PRAEFIXE = ("library.db", "projekte.json", "touren.json", "vorlagen.json", "kartenlooks.json", "library-defekt-")
 
 
 def ist_eigener_eintrag(name: str) -> bool:

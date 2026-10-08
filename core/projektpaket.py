@@ -65,7 +65,8 @@ def _foto_vorschau(pfad: str, kante: int = FOTO_KANTE) -> bytes | None:
 
 def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
                    projekte: dict | None = None,
-                   zeile_ersatz: dict | None = None) -> bytes:
+                   zeile_ersatz: dict | None = None,
+                   extra: dict | None = None) -> bytes:
     """Alles, was zu einer Tour gehört, als ZIP im Speicher.
 
     `zeile_ersatz` (22.08.2026, Projekt-Export): Tour-Daten für eine Datei,
@@ -117,6 +118,8 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
             _etappen_einpacken(schreiben, kopie)
             schreiben("projekte.json", json.dumps(kopie, ensure_ascii=False,
                                                   sort_keys=True).encode("utf-8"))
+        for name, daten in sorted((extra or {}).items()):   # 07.10.2026 — z. B. frei.json (Projekt ohne GPS)
+            schreiben(name, daten)
     return puffer.getvalue()
 
 
@@ -127,7 +130,9 @@ def _etappen_einpacken(schreiben, kopie: dict) -> None:
     schon: dict = {}
     for proj in ((kopie or {}).get("projects") or {}).values():
         anim = proj.get("animator") if isinstance(proj, dict) else None
-        for t in ((anim or {}).get("extra_tours") or []):
+        # 07.10.2026 (Web-Fund F-4) — auch die Etappe als Haupt-Track (Kartenanimation ohne GPS)
+        haupt = (anim or {}).get("haupt_etappe")
+        for t in ((anim or {}).get("extra_tours") or []) + ([haupt] if isinstance(haupt, dict) else []):
             if not (isinstance(t, dict) and isinstance(t.get("etappe"), dict)):
                 continue
             q = Path(str(t.get("gpx_path") or ""))

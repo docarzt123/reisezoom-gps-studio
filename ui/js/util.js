@@ -189,7 +189,7 @@ function mapStyleBadgeText(key) {
 /** 07.09.2026 — Spiegel von core/kartenquellen.stil_status: Rechtelage aus dem Quellen-Register.
  *  Rang false > license_required > unknown > true; Server-Regeln „nein" zählen wie false, „absprache" wie unknown. */
 const RZ_STIL_ZU_QUELLE = { osm: "osm", topo: "opentopomap", cyclosm: "cyclosm", humanitarian: "hot",
-  ofm_liberty: "openfreemap", ofm_bright: "openfreemap", ofm_positron: "openfreemap", ofm_nacht: "openfreemap", ofm_atlas: "openfreemap",
+  ofm_liberty: "openfreemap", ofm_bright: "openfreemap", ofm_positron: "openfreemap", ofm_nacht: "openfreemap", ofm_atlas: "openfreemap", kartenlook: "openfreemap",
   maptiler_satellite: "maptiler", maptiler_outdoor: "maptiler", maptiler_streets: "maptiler", maptiler_topo: "maptiler", maptiler_dataviz: "maptiler", maptiler_hybrid: "maptiler",
   satellite: "mapbox", satellite_streets: "mapbox", outdoors: "mapbox", standard: "mapbox", streets: "mapbox", dark: "mapbox", light: "mapbox" };
 const RZ_REGION_ZU_QUELLE = { "us-ak": "us", "us-hi": "us" };
@@ -433,7 +433,7 @@ function _terrainSource(name, maptilerKey) {
  * Liefert { key, requested, engine, style, terrain, attribution, region, notes[], badge, videoOk }.
  * `notes` sind Codes: no_mapbox_token | no_maptiler_key | no_coverage | unknown_style
  */
-function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
+function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho, look) {
   const cat = mapCatalog();
   const keys = cat.key_values || { mapbox: window._RZGPS_MAPBOX_TOKEN || "", maptiler: "" };
   const notes = [];
@@ -455,6 +455,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
   let style;
   if (d.kind === "gov") style = _stackStyle(stack, ortho);
   else if (d.kind === "raster") style = _rasterStyle(d.tiles, d.tileSize, d.maxzoom, d.attribution);
+  else if (d.kind === "look") style = _lookStyle(d, look, cat);
   else style = String(d.style_url || "").replace("{maptiler_key}", mt);
   if (d.kind === "gov") style = _addLabelOverlay(style, labels || null);   // 04.09.2026: Orte/Straßen/… über den Orthofotos
   const engine = d.provider === "mapbox" ? "mapbox" : "maplibre";
@@ -465,6 +466,21 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
            badge: d.badge, videoOk: d.badge !== "video_rights" && d.badge !== "video_no", provider: d.provider, kind: d.kind,
            rights: rzStilStatus(key, stack.map(r => r.id)),   // 07.09.2026 Quellen-Register
            gaps: gaps.map(g => ({ id: g.id, name: g.name, reason: g.reason })) };
+}
+
+/** 07.10.2026 — Kartenlook (ui/js/kartenlook.js): Look des Projekts über der mitgelieferten Positron-Vorlage.
+ *  Schummerung aus den Geländekacheln der Weiche (geklemmt — Meer flach), Meerestiefen aus den ungeklemmten
+ *  (`/terrain-aws-roh/`) über das Kachelprotokoll `rztiefe://`. Ohne Übersetzer: das reine Positron. */
+function _lookStyle(d, look, cat) {
+  const K = window.rzKartenlook, basis = window.RZ_OFM_POSITRON;
+  if (!K || !basis) return String(d.style_url || "");
+  const L = (look && typeof look === "object") ? look : K.LOOKS.reiseatlas;
+  const tdef = (cat && cat.terrain && cat.terrain.aws) || {};
+  const dem = (tdef.tiles || [])[0] || "";
+  const roh = dem.includes("/terrain-aws/") ? dem.replace("/terrain-aws/", "/terrain-aws-roh/") : dem;
+  try { if (L.depths && roh && typeof maplibregl !== "undefined") K.tiefenProtokoll(maplibregl, roh); } catch (_) {}
+  return K.stilAusLook(L, basis, { dem: dem || null, tiefen: (L.depths && roh) ? "rztiefe://{z}/{x}/{y}" : null,
+                                   demAttribution: tdef.attribution || "" });
 }
 
 /** Lesbarer Vermerk zu einer Auflösung (leer, wenn nichts zu sagen ist). */
@@ -489,6 +505,12 @@ function rzMapBanner(map, key, html) {
   if (!html) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement("div"); el.className = "rz-map-banner"; el.dataset.banner = key; wrap.appendChild(el); }
   el.innerHTML = `<span class="rz-map-banner-ico">⚠️</span><span>${html}</span>`;
+  // 07.10.2026 (Klicktest) — in kleinen Karten (Schnell-Video-Vorschau 9:16) füllte der Text die ganze Vorschau:
+  // dort nur das Zeichen, der Text als Tooltip
+  const schmal = (c.clientWidth || 0) > 0 && c.clientWidth < 380;
+  el.classList.toggle("rz-map-banner-kompakt", schmal);
+  wrap.classList.toggle("rz-map-banners-kompakt", schmal);   // in die Ecke, nicht über den Titel
+  if (schmal) { const tmp = document.createElement("div"); tmp.innerHTML = html; el.title = tmp.textContent || ""; } else el.removeAttribute("title");
 }
 window.rzMapBanner = rzMapBanner;
 
@@ -677,7 +699,7 @@ function createMap(opts) {
   let key = opts.styleKey || (opts.mapboxStyle && _mapKeyFromMapboxUrl(opts.mapboxStyle)) || mapDefaultStyle();
   // Gelände IMMER mit auflösen (spec.terrain) — `opts.terrain` sagt nur, ob es
   // hier gleich angehängt wird; der Animator hängt es selbst an (applyTerrain).
-  const spec = resolveMapStyle(key, opts.bbox || null, true, opts.labels || null, opts.ortho);
+  const spec = resolveMapStyle(key, opts.bbox || null, true, opts.labels || null, opts.ortho, opts.look);
   let map, lib;
   if (spec.engine === "mapbox") {
     _mapMode = "mapbox";
@@ -852,7 +874,7 @@ window.rzStyleReady = rzStyleReady;
  */
 function applyMapStyle(map, styleKey, bbox, opts) {
   opts = opts || {};
-  const spec = resolveMapStyle(styleKey, bbox || null, true, opts.labels || null, opts.ortho);
+  const spec = resolveMapStyle(styleKey, bbox || null, true, opts.labels || null, opts.ortho, opts.look);
   if (!map) return { needsRemount: true, spec };
   if (map.__rzEngine && spec.engine !== map.__rzEngine) return { needsRemount: true, spec };
   map.__rzSpec = spec; map.__rzStyleKey = spec.key;

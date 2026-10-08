@@ -122,7 +122,7 @@
       const L = window.rzLooks; if (!L) return "";
       const akt = L.erkennen((window.rzReadModuleSettings && window.rzReadModuleSettings("animator")) || {});
       return `<p class="muted rz-ef-hinweis">${esc(T("einfach.look_hint", "Karte, Linie und Schrift in einem Zug — alles bleibt in der Feinarbeit einzeln änderbar."))}</p>
-        <div class="rz-look-reihe rz-ef-looks">${L.NAMEN.map(n => `<button type="button" class="rz-look-knopf${n === akt ? " is-on" : ""}" data-ef-look="${n}"><span class="rz-look-bild rz-look-${n}"></span><span>${esc(T("look." + n, n))}</span></button>`).join("")}</div>`;
+        <div class="rz-look-reihe rz-ef-looks">${L.NAMEN.map(n => { const st = L.kachelStil ? L.kachelStil(n) : ""; return `<button type="button" class="rz-look-knopf${n === akt ? " is-on" : ""}" data-ef-look="${n}"><span class="rz-look-bild rz-look-${n}${st ? " rz-look-svg" : ""}"${st}></span><span>${esc(T("look." + n, n))}</span></button>`; }).join("")}</div>`;
     }
     if (s === "fotos") {
       const hl = !!($("anim-hl-on") || {}).checked;

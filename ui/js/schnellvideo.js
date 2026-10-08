@@ -40,6 +40,12 @@
     const L = window.rzLooks && window.rzLooks.LOOKS[(VORLAGEN[n] || VORLAGEN.weite).look];
     return (L && L.karte.map_style) || "free_satellite";
   }
+  /** 07.10.2026 — Kartenlook der Vorlage (Rollen-Farben) für die Vorschau; null bei Luftbild. */
+  function vorlageKartenlook(n) {
+    const L = window.rzLooks && window.rzLooks.LOOKS[(VORLAGEN[n] || VORLAGEN.weite).look];
+    const id = L && L.karte.map_style === "kartenlook" ? L.karte.kartenlook : null;
+    return (id && window.rzKartenlook && window.rzKartenlook.LOOKS[id]) || null;
+  }
   // 01.10.2026 (Marc) — eigene Länge: mindestens Intro + Halten + 8 s Fahrt, höchstens 10 Minuten
   const LAENGE_MIN = INTRO_S + HOLD_S + 8, LAENGE_MAX = 600;
   const laengeKlemmen = (x) => Math.max(LAENGE_MIN, Math.min(LAENGE_MAX, Math.round(+x || 0)));
@@ -244,6 +250,7 @@
       map_style: w.stil,
       intro_s: INTRO_S, hold_s: HOLD_S, duration_s: animS,
       keyframes_enabled: true,
+      kamera_vorgabe: "fahrt",   // 07.10.2026 (Klicktest) — Kamera-Pille zeigt „Kamerafahrt“, nicht ein altes „Start → Ziel“
       timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null),
       camera_follow_track: true,
       // 29.09.2026 (Marc: „mach als Trackpunkt den Pfeil und flieg die Kamera immer dem Pfeil hinterher,
@@ -359,12 +366,13 @@
     const wahl = (fotos || []).slice().sort((a, b) => (b.wert || 0) - (a.wert || 0) || a.bei - b.bei).slice(0, max)
       .sort((a, b) => a.bei - b.bei);
     return wahl.map(f => ({
-      text: "", imageSrc: f.path, lat: f.lat, lon: f.lon, anchorMode: "track", style: "callout", imageSize: 44,
+      text: String(f.text || "").trim(), imageSrc: f.path, lat: f.lat, lon: f.lon, anchorMode: "track", style: "callout", imageSize: 44,
       // kleines Foto-Schild: kurz vorher auf, nach dem Stopp wieder weg — sonst stehen am Ende alle Karten
       // auf der Gesamtsicht und verdecken die Schlusskarte (01.10.2026, Teide-Demo)
       entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
       stopp: true, stopp_s: STOPP.sek, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 8,
       stopp_ortzeit: true, stopp_exif: false,
+      ...(String(f.text || "").trim() ? { __eigenText: true } : {}),   // F-5: eigene Unterschrift bleibt (Logbuch überschreibt nicht)
     }));
   }
 
@@ -419,11 +427,18 @@
     return wahl.sort((a, b) => a.bei - b.bei).map(k => ({ f: k.f, bei: k.bei, von: Math.max(0, k.bei - 0.004), bis: Math.min(1, k.bei + spanne) }));
   }
   /** Sofortbild-Schild an der Strecke (wie ein neues Foto-Schild im Animator: aufpoppen, kurz groß, zum Mini schrumpfen). */
-  function sofortbildSchild(k) {
-    // 05.10.2026 — Ortszeile als Unterschrift (nur der Ortsname, ohne Region); ein Logbuch-Text ersetzt sie
+  // 07.10.2026 (Web-Fund F-5) — Größe des Sofortbilds wählbar (Standard 24: die Route bleibt sichtbar, Demo 05.10.)
+  const SOFORT_GROESSE = { std: 24, min: 16, max: 80 };
+  const sofortGroesse = (x) => { const n = +x; return isFinite(n) && n > 0 ? Math.max(SOFORT_GROESSE.min, Math.min(SOFORT_GROESSE.max, Math.round(n))) : SOFORT_GROESSE.std; };
+  function sofortbildSchild(k, groesse) {
+    // 05.10.2026 — Ortszeile als Unterschrift (nur der Ortsname, ohne Region); ein Logbuch-Text ersetzt sie.
+    // 07.10.2026 (F-5) — eigene Unterschrift je Foto (`text`) gilt so, wie sie ist (kein Kürzen am Komma), und bleibt
+    const eigen = String(k.f.text || "").trim();
     const ort = String(k.f.ort || "").split(",")[0].trim();
-    return { text: ort, imageSrc: k.f.path, lat: k.f.lat, lon: k.f.lon, anchorMode: "track", style: "sofortbild", imageSize: 24,   // klein: die Route bleibt sichtbar (Demo 05.10.: 44 verdeckte alles)
-             entry: "pop", entry_s: 0.5, before: 0.4, after: 2.5, exit: "mini", exit_s: 0.8, visible: true, __bei: k.bei };
+    return { text: eigen || ort, imageSrc: k.f.path, lat: k.f.lat, lon: k.f.lon, anchorMode: "track", style: "sofortbild",
+             imageSize: sofortGroesse(groesse),
+             entry: "pop", entry_s: 0.5, before: 0.4, after: 2.5, exit: "mini", exit_s: 0.8, visible: true, __bei: k.bei,
+             ...(eigen ? { __eigenText: true } : {}) };
   }
   /** 05.10.2026 — Gründe des Video-Assistenten (core/videoassistent.py) lesbar, für den Tooltip im Dialog. */
   function grundText(gr) {
@@ -458,7 +473,7 @@
     const benutzt = new Set();
     for (const s of stopps) {
       const i = (eintraege || []).findIndex((x, j) => !benutzt.has(j) && s.__bei >= x.von - 0.01 && s.__bei <= x.bis + 0.01);
-      if (i >= 0) { const x = eintraege[i]; s.text = ((LB_SYMBOL[x.icon] || "") + " " + x.text).trim(); benutzt.add(i); }
+      if (i >= 0 && !s.__eigenText) { const x = eintraege[i]; s.text = ((LB_SYMBOL[x.icon] || "") + " " + x.text).trim(); benutzt.add(i); }
     }
     return (eintraege || []).filter((x, j) => !benutzt.has(j) && (x.art === "notiz" || +x.dauer_s >= 600)
                                              && !stopps.some(s => Math.abs(s.__bei - x.bei) < 0.05) && isFinite(+x.lat)
@@ -475,7 +490,7 @@
    *  Einblendungen, Verläufe, Highlights, blasse Runde) ist Look und bleibt dann, wie es ist. */
   // Highlights (an/aus + welche) sind Inhalt an der Strecke → Ablauf (Marc 01.10.2026: „die Highlights müssen
   // doch als Schilder drin sein"); ihr Aussehen (Stil, Farben) bleibt Look.
-  const ABLAUF = ["fps", "intro_s", "hold_s", "duration_s", "keyframes_enabled", "timeline_events", "camera_follow_track", "tempo_eintraege",
+  const ABLAUF = ["fps", "intro_s", "hold_s", "duration_s", "keyframes_enabled", "timeline_events", "camera_follow_track", "kamera_vorgabe", "tempo_eintraege", "tempo_rate", "tempo_basis",
                   "highlights_enabled", "highlights_arten",
                   "ton_musik_an", "ton_musik", "ton_musik_laut", "ton_musik_ein", "ton_musik_aus", "ton_klick_an", "ton_klick_laut", "ton_klick_klang",
                   "marker_dot_show", "marker_dot_style", "marker_dot_size", "marker_dot_smooth", "marker_dot_rueckblick_m",
@@ -521,19 +536,20 @@
       } catch (_) {}
     }
     function stil() {
-      const key = vorlageStil(w.vorlage);
-      if (map && key === stilJetzt) { linieZeichnen(); inhalt(); return; }
-      stilJetzt = key;
+      const key = vorlageStil(w.vorlage), look = vorlageKartenlook(w.vorlage);
+      const merk = key + "|" + (look ? look.id : "");   // gleicher Stilname, anderer Look → neu zeichnen
+      if (map && merk === stilJetzt) { linieZeichnen(); inhalt(); return; }
+      stilJetzt = merk;
       if (map) {
         try {
-          applyMapStyle(map, key, v.bbox || null, { terrain: false });
+          applyMapStyle(map, key, v.bbox || null, { terrain: false, look });
           map.once("style.load", () => { linieZeichnen(); passen(); });
         } catch (e) { if (typeof applog === "function") applog("warn", "[schnell] Vorschau-Stil: " + e); }
         inhalt(); return;
       }
       if (typeof createMap !== "function") return;
       try {
-        const r = createMap({ container: kc, styleKey: key, bbox: v.bbox || null, quellenleiste: false,
+        const r = createMap({ container: kc, styleKey: key, look, bbox: v.bbox || null, quellenleiste: false,
                               common: { interactive: false, attributionControl: false } });
         map = r && r.map ? r.map : r;
         map.on("load", () => { linieZeichnen(); passen(); inhalt(); });
@@ -647,6 +663,8 @@
       // 05.10.2026 — Vorlage (Weite/Tagebuch/Puls) und Fotoart; „angepasst" = eine Zutat weicht von der Vorlage ab
       vorlage: VORLAGEN[L.vorlage] ? L.vorlage : "weite",
       fotoArt: FOTO_ARTEN.includes(L.foto_art) ? L.foto_art : null,
+      sofortGroesse: sofortGroesse(L.sofort_groesse),               // 07.10.2026 (F-5)
+      fotoPause: L.foto_pause === "stehen" ? "stehen" : "heran",    // 07.10.2026 (F-5) — Fotostopp mit/ohne Heranfahren
       angepasst: !!L.angepasst,
       tempoRegie: true,   // 06.10.2026 (F-14) — immer an, kein Haken mehr
     };
@@ -657,6 +675,11 @@
       if (!L.musik || String(L.musik).startsWith("builtin:")) w.musik = V.musik;
     }
     if (!w.fotoArt) w.fotoArt = VORLAGEN[w.vorlage].fotoArt;
+    // 07.10.2026 (Web-Fund F-5) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
+    // Fotopause ohne Heranfahren. Der Dialog bleibt schlank (F-14: die Fotoart kommt sonst aus der Vorlage).
+    if (opts && FOTO_ARTEN.includes(opts.fotoArt)) w.fotoArt = opts.fotoArt;
+    if (opts && opts.sofortGroesse != null) w.sofortGroesse = sofortGroesse(opts.sofortGroesse);
+    if (opts && (opts.fotoPause === "stehen" || opts.fotoPause === "heran")) w.fotoPause = opts.fotoPause;
     const feldLabel = (f) => T("animator.statsfield." + f, f);
     const m = openModal({
       title: "🎬 " + T("schnell.titel_dialog", "Schnell-Video"),
@@ -983,10 +1006,11 @@
     box.querySelector("#sv-titel")?.addEventListener("input", () => vorschau.titel());
     zutatenStand();
     const schilderJetzt = () => {
-      const st = stoppsJetzt().concat(fotoArtJetzt() === "sofortbild" ? ohneHaltJetzt().map(sofortbildSchild) : [])
+      const st = stoppsJetzt().concat(fotoArtJetzt() === "sofortbild" ? ohneHaltJetzt().map(k => sofortbildSchild(k, w.sofortGroesse)) : [])
         .sort((a, b) => a.__bei - b.__bei);
+      if (w.fotoPause === "stehen") st.forEach(x => { if (x.stopp && !x.clip) x.stopp_kamera = false; });   // F-5: Pause ohne Heranfahren
       const lbSchilder = (an("sv-logbuch") && w.lb.length) ? logbuchAnwenden(st, w.lb, (v.regie || []).map(r => r.bei)) : [];
-      return st.map(x => { const o = Object.assign({}, x); delete o.__bei; return o; }).concat(lbSchilder);
+      return st.map(x => { const o = Object.assign({}, x); delete o.__bei; delete o.__eigenText; return o; }).concat(lbSchilder);
     };
     // ── 05.10.2026 — Vorlagen (Weite/Tagebuch/Puls): belegen Zutaten, Kartenstil, Fotoart und Musik vor ──
     const vlStand = () => {
@@ -1038,7 +1062,7 @@
       w.musik = box.querySelector("#sv-musik")?.value || "builtin:unterwegs";
       w.uebersicht = an("sv-uebersicht"); w.schlussAn = an("sv-schluss-an"); w.gebaeude = an("sv-gebaeude");
       w.fotoArt = fotoArtJetzt();
-      w.pip = w.fotoArt === "pip" ? ohneHaltJetzt().map(k => ({ path: k.f.path, von: k.von, bis: k.bis, ort: String(k.f.ort || "").split(",")[0].trim() })) : [];
+      w.pip = w.fotoArt === "pip" ? ohneHaltJetzt().map(k => ({ path: k.f.path, von: k.von, bis: k.bis, ort: String(k.f.text || "").trim() || String(k.f.ort || "").split(",")[0].trim() })) : [];
       w.regieFotos = w.fotoArt === "sofortbild" ? ohneHaltJetzt().map(k => k.bei) : [];
       hoerenStopp();
       w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen")?.value || w.eigenS);
@@ -1046,7 +1070,7 @@
       return { format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder,
                mehr_offen: w.mehrOffen, fotos_an: w.fotosAn, clips_an: w.clipsAn, clip_ton: w.clipTon, logbuch: w.logbuch,
                musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn, gebaeude: w.gebaeude,
-               vorlage: w.vorlage, foto_art: w.fotoArt, angepasst: !!w.angepasst, tempo_regie: !!w.tempoRegie };
+               vorlage: w.vorlage, foto_art: w.fotoArt, sofort_groesse: w.sofortGroesse, foto_pause: w.fotoPause, angepasst: !!w.angepasst, tempo_regie: !!w.tempoRegie };
     };
     /** In das offene Projekt schreiben: ein ⌘Z-Schritt („Schnell-Video übernommen"), vorher ein Arbeitsstand. */
     const uebernehmen = async () => {
@@ -1056,6 +1080,9 @@
       const voll = animatorPatch(w, v);
       // Reise: Übergänge kommen zur Dauer dazu → abziehen, damit die gewählte Gesamtlänge stimmt
       if (P.uebergangS > 0) voll.duration_s = Math.max(8, Math.round((voll.duration_s - P.uebergangS) * 100) / 100);
+      // 07.10.2026 (Web-Fund F-1) — neue Länge → die gespeicherte Raffung des vorigen Schnell-Videos verwerfen; sonst
+      // rechnete die Tempo-Kurve mit ihr weiter und schrieb die alte Dauer zurück ins Feld (12,8 statt 33 s)
+      voll.tempo_rate = null; voll.tempo_basis = null;
       const patch = look ? nurAblauf(voll) : voll;
       m.close();
       if (P.keyframes > 0) {

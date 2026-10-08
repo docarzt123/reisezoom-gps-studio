@@ -13,6 +13,10 @@
  */
 (function (root) {
   "use strict";
+  // 07.10.2026 (Kartenlooks) — Vektor-Looks zeichnen über `map_style: "kartenlook"` mit den Rollen-Farben aus
+  // ui/js/kartenlook.js (Schummerung, Küste, Leuchtsaum, Tiefen); der Look kommt als Kopie ins Projekt (`kartenlook`),
+  // damit Video, .rzproj und Web ihn kennen und der Karten-Editor ihn frei ändern kann.
+  const KARTE = (id) => ({ map_style: "kartenlook", kartenlook: id, map_sat: 0, map_con: 0, map_bri: 0, map_hue: 0, map_sharp: 0, map_haze: 0 });
   const LOOKS = {
     natuerlich: {
       symbol: "🏔", karte: { map_style: "free_satellite", ortho_sat: 25, ortho_con: 8, ortho_bri: 0, ortho_hue: 0,
@@ -21,19 +25,39 @@
       hell: false, text: "#ffffff", hg: "#151b22", hg_deckkraft: 0.55, akzent: "#48d6c4", schrift: "plex", titel: "plex",
     },
     reiseatlas: {
-      symbol: "🧭", karte: { map_style: "ofm_atlas", map_sat: 0, map_con: 0, map_bri: 0, map_hue: 0, map_sharp: 0, map_haze: 0 },
+      symbol: "🧭", karte: KARTE("reiseatlas"), alt: "ofm_atlas",
       linie: { line_color: "#b4432e", line_width: 4, kontur_breite: 2, kontur_farbe: "#fbf5e6", glow_strength: 0 },
       hell: true, text: "#4e3c2b", hg: "#fbf5e6", hg_deckkraft: 0.86, akzent: "#b4432e", schrift: "plex", titel: "caveat",
     },
     nachtkarte: {
-      symbol: "🌙", karte: { map_style: "ofm_nacht", map_sat: 0, map_con: 0, map_bri: 0, map_hue: 0, map_sharp: 0, map_haze: 0 },
+      symbol: "🌙", karte: KARTE("nachtkarte"), alt: "ofm_nacht",
       linie: { line_color: "#d3e76b", line_width: 3, kontur_breite: 0, kontur_farbe: "#14231f", glow_strength: 4 },
       hell: false, text: "#f0f2eb", hg: "#0c1519", hg_deckkraft: 0.6, akzent: "#99d8c0", schrift: "plexmono", titel: "plex",
     },
     minimal: {
-      symbol: "◻️", karte: { map_style: "ofm_positron", map_sat: 0, map_con: 0, map_bri: 0, map_hue: 0, map_sharp: 0, map_haze: 0 },
+      symbol: "◻️", karte: KARTE("minimal"), alt: "ofm_positron",
       linie: { line_color: "#1f2d31", line_width: 3, kontur_breite: 2, kontur_farbe: "#ffffff", glow_strength: 0 },
       hell: true, text: "#1f2d31", hg: "#ffffff", hg_deckkraft: 0.82, akzent: "#c8553d", schrift: "plex", titel: "plex",
+    },
+    schatzkarte: {
+      symbol: "🗝", karte: KARTE("schatzkarte"),
+      linie: { line_color: "#8a2b0f", line_width: 4, kontur_breite: 2, kontur_farbe: "#efdfb8", glow_strength: 0 },
+      hell: true, text: "#4a2f16", hg: "#efdfb8", hg_deckkraft: 0.9, akzent: "#8a2b0f", schrift: "plex", titel: "caveat",
+    },
+    topo: {
+      symbol: "⛰", karte: KARTE("topo"),
+      linie: { line_color: "#d81e5b", line_width: 4, kontur_breite: 2, kontur_farbe: "#ffffff", glow_strength: 0 },
+      hell: true, text: "#222222", hg: "#ffffff", hg_deckkraft: 0.86, akzent: "#d81e5b", schrift: "plex", titel: "plex",
+    },
+    seekarte: {
+      symbol: "⚓", karte: KARTE("seekarte"),
+      linie: { line_color: "#c0392b", line_width: 4, kontur_breite: 2, kontur_farbe: "#f6eed0", glow_strength: 0 },
+      hell: true, text: "#1c3d5a", hg: "#f6eed0", hg_deckkraft: 0.9, akzent: "#c0392b", schrift: "plex", titel: "plex",
+    },
+    pastell: {
+      symbol: "🌸", karte: KARTE("pastell"),
+      linie: { line_color: "#e0607e", line_width: 4, kontur_breite: 2, kontur_farbe: "#fff8fa", glow_strength: 0 },
+      hell: true, text: "#5e4a6c", hg: "#fff8fa", hg_deckkraft: 0.9, akzent: "#e0607e", schrift: "plex", titel: "caveat",
     },
   };
   const NAMEN = Object.keys(LOOKS);
@@ -68,6 +92,10 @@
     if (!L) return s;
     const o = kopie(s || {});
     Object.assign(o, L.karte, L.linie);
+    // Kartenlook als Kopie ins Projekt (der Karten-Editor ändert sie); ohne Übersetzer bleibt der Name stehen
+    const KL = root.rzKartenlook;
+    if (L.karte.map_style === "kartenlook") o.kartenlook = (KL && KL.LOOKS[L.karte.kartenlook]) ? kopie(KL.LOOKS[L.karte.kartenlook]) : { id: L.karte.kartenlook };
+    else delete o.kartenlook;
     o.ghost_track_color = L.linie.line_color;
     if (Array.isArray(o.container)) o.container = o.container.map((c) => containerImLook(c, L));
     const v = o.verlauf && typeof o.verlauf === "object" ? o.verlauf : { oben: { an: true, staerke: 0.62 }, unten: { an: true, staerke: 0.72 } };
@@ -80,7 +108,10 @@
     if (!s) return "";
     for (const n of NAMEN) {
       const L = LOOKS[n];
-      if (s.map_style === L.karte.map_style && String(s.line_color || "").toLowerCase() === L.linie.line_color
+      const karteGleich = L.karte.map_style === "kartenlook"
+        ? ((s.map_style === "kartenlook" && s.kartenlook && s.kartenlook.id === L.karte.kartenlook) || (L.alt && s.map_style === L.alt))
+        : s.map_style === L.karte.map_style;
+      if (karteGleich && String(s.line_color || "").toLowerCase() === L.linie.line_color
           && +s.kontur_breite === L.linie.kontur_breite) return n;
     }
     return "";
@@ -89,8 +120,9 @@
   // 05.10.2026 (FRAGEN F-2, Marc: „da tendiere ich zu ja, aber es muss immer alles wählbar bleiben") — ein Look darf
   // den GRUNDSTIL der Schilder umstellen: nur einfache Text-/Foto-Schilder; Highlight-, Banner-, Wegweiser- und
   // Stecknadel-Schilder bleiben. Nichts wird gesperrt, jedes Schild bleibt einzeln änderbar; der Animator fragt vorher.
-  const SCHILD_TEXT = { natuerlich: "callout", reiseatlas: "karte", nachtkarte: "pille", minimal: "plain" };
-  const SCHILD_FOTO = { reiseatlas: "sofortbild" };
+  const SCHILD_TEXT = { natuerlich: "callout", reiseatlas: "karte", nachtkarte: "pille", minimal: "plain",
+                       schatzkarte: "karte", topo: "plain", seekarte: "karte", pastell: "karte" };
+  const SCHILD_FOTO = { reiseatlas: "sofortbild", schatzkarte: "sofortbild", pastell: "sofortbild" };
   const SCHILD_EINFACH = ["callout", "plain", "pille", "karte", "sofortbild"];
   /** → { liste, n }: neue Schilder-Liste (Kopien) und Zahl der umgestellten. */
   function schilderFuerLook(name, schilder) {
@@ -107,5 +139,16 @@
     return { liste, n };
   }
 
-  root.rzLooks = { LOOKS, NAMEN, anwenden, erkennen, containerImLook, schilderFuerLook };
+  /** 07.10.2026 — Kachelbild eines Looks: Vektor-Looks als kleines SVG aus den Rollen-Farben (ui/js/kartenlook.js),
+   *  „Natürlich“ behält seinen Verlauf aus dem CSS. Liefert ein style-Attribut ("" = CSS). `eigen` = ein Look-Objekt. */
+  function kachelStil(n, eigen, linie) {
+    const KL = root.rzKartenlook; if (!KL) return "";
+    const L = LOOKS[n];
+    const look = eigen || (L && L.karte.map_style === "kartenlook" ? KL.LOOKS[L.karte.kartenlook] : null);
+    if (!look) return "";
+    const svg = KL.kachelSvg(look, linie || (L && L.linie.line_color));
+    return ` style="background-image:url('data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg).replace(/'/g, "%27")}');background-size:cover"`;
+  }
+
+  root.rzLooks = { LOOKS, NAMEN, anwenden, erkennen, containerImLook, schilderFuerLook, kachelStil };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -61,3 +61,11 @@ https://unpkg.com/leaflet@1.9.4/dist/images/*.png
 
 Bei einem Versions-Update: Dateien ersetzen, die Tabelle oben nachziehen und den
 Credits-Block in `ui/js/app.js` (`openAboutModal()`) aktualisieren.
+
+## `ofm-positron.js` — Vorlage der Kartenlooks (07.10.2026)
+
+OpenFreeMap-Stil „Positron“ (Gestaltung CARTO / OpenMapTiles), als Skript mitgeliefert
+(`window.RZ_OFM_POSITRON`, erzeugt von `scripts/update_ofm_positron.py`). `ui/js/kartenlook.js` färbt
+ihn je Rolle um. Lizenz des Stils: Code BSD-3-Clause, Gestaltung CC BY 4.0; Kartendaten © OpenStreetMap-
+Mitwirkende (ODbL), Kacheln von OpenFreeMap. Nennung in der Quellenzeile der Karte und im Über-Dialog.
+

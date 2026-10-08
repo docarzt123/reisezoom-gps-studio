@@ -5,8 +5,28 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 06 Oct 2026 20:23:19 +0000</lastBuildDate>
+<lastBuildDate>Wed, 07 Oct 2026 20:54:01 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.784</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-784</link>
+<guid isPermaLink="false">gps-studio-v0.9.784</guid>
+<pubDate>Wed, 07 Oct 2026 12:00:00 +0000</pubDate>
+<description>Etappen-Editor — Der ✕-Knopf einer Station hatte auf Englisch und Spanisch keinen eigenen Text.</description>
+</item>
+<item>
+<title>v0.9.783</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-783</link>
+<guid isPermaLink="false">gps-studio-v0.9.783</guid>
+<pubDate>Wed, 07 Oct 2026 12:00:00 +0000</pubDate>
+<description>Etappe erstellen im Animator — Unter „Tracks“ legst du eine Strecke ohne GPS an — Anreise, Flug, Fähre, Autofahrt — vor, zwischen oder nach deinen Touren. Stationen eintippen oder auf die Karte klicken, je Abschnitt das Verkehrsmittel wählen; der Laufpunkt wechselt das Fahrzeug mit.
+
+Etappe zeichnen mit Kurven — Punkte auf die Karte klicken, die Linie folgt der Straße. Ein Punkt angeklickt zeigt zwei Hebel: drehen macht aus den Abschnitten eine freie Kurve. Doppelklick = scharfe Ecke, Entf löscht, ⌘Z nimmt zurück; Weichheit und Grobheit stellst du rechts ein. Punkte heißen nach dem nächsten Ort.
+
+Verkehrsmittel auf einen Klick — Oben im Etappen-Editor „Unterwegs mit“: 🚗 🏍 🚲 🚶 🚆 ⛴ ✈ für alle Abschnitte oder ab dem ausgewählten Punkt. Die Stationsliste ist aufgeräumt, die Punkt-Leiste bleibt immer in der Karte und lässt sich verschieben, und nach einem Kartenwechsel ist die Linie wieder da.
+
+Eine Kamera für alles — Auch die automatische Kamera (Sicht je Tour, Kinoflug zwischen den Touren) läuft jetzt über Keyframes. Vorschau, Ziehen in der Zeitleiste und Video zeigen immer dasselbe. Beim Einschalten des Keyframe-Editors kannst du die Standard-Keyframes übernehmen und dann frei ändern.</description>
+</item>
 <item>
 <title>v0.9.782</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-782</link>
@@ -170,24 +190,6 @@ Punkte im Gelände an der richtigen Stelle — die Vorankündigungspunkte der Hi
 <description>Fotostopp: Uhrzeit vor Ort — die Uhrzeit unter dem Foto ist jetzt die Ortszeit am Aufnahmeort, auch wenn die Kamera noch auf deutscher Zeit stand.
 
 Schnell-Video: aufgeräumter Schluss — die kleinen Fotokarten verschwinden nach ihrem Stopp wieder und verdecken die Schlusskarte nicht mehr.</description>
-</item>
-<item>
-<title>v0.9.764</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-764</link>
-<guid isPermaLink="false">gps-studio-v0.9.764</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotostopps wie bei Relive — ein Foto-Schild bekommt das Häkchen „Hier anhalten“: Der Track hält am Foto, die Kamera fährt heran, das Foto erscheint groß mit Ort und Uhrzeit (auf Wunsch mit Kameradaten), dann geht es weiter.
-
-Schnell-Video mit Fotos — der Dialog schlägt Fotos deiner Tour aus dem Foto-Archiv vor; per Klick abwählbar. Die Stopps gehen von der gewählten Länge ab.</description>
-</item>
-<item>
-<title>v0.9.763</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-763</link>
-<guid isPermaLink="false">gps-studio-v0.9.763</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Schnell-Video abbrechen — nach dem Abbrechen bleibst du im Animator, und er ist nicht mehr ausgegraut. Vorher landete man im Archiv, und beim Wiederöffnen ließ sich der Animator nicht mehr bedienen.
-
-Schnell-Video im Animator — „In dieses Projekt übernehmen“ ist jetzt der Hauptknopf, „Video rendern“ steht daneben.</description>
 </item>
 </channel>
 </rss>

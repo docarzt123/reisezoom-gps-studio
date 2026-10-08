@@ -3719,6 +3719,27 @@ Zwischenspeicher bedient zu werden).
 
 **Zoom in Keyframes, die aus der laufenden Karte gerechnet werden (07.10.2026):** `value_absolute` ist immer der Vorschau-Zoom; `_zoomEffectiveOffset` legt im Render `_rzZoomShift()` drauf. Wer einen Zoom aus der Karte selbst holt (`cameraForBounds`, `effectiveFitZoomBase() + zoom_offset`) und als `value_absolute` speichert, muss den Zuschlag vorher abziehen — sonst ist das Video um ihn zu nah (`_haltKeyframes` → `bei()`, `_standardKeyframes` → `zV()`).
 
+**Funde aus dem Web (07.10.2026, `../gps-studio-web/docs/FUNDE-DESKTOP.md`) — Schnittstellen, die das Web nutzt:**
+- `Api.schnellvideo_fotos(path, n_max, quellen, art, alle)`: ein Eintrag in `quellen` darf ein Objekt `{path, bei?, text?}`
+  sein. `bei` (0…1, Punktanteil wie überall) legt das Foto fest an diese Stelle (Ausgabe `manuell: true`, bleibt auch
+  ohne `alle` in der Auswahl); `text` kommt als `text` zurück und ist die Bildunterschrift — `sofortbildSchild`,
+  `fotostoppSchilder` und das Bild im Bild nehmen sie unverändert (kein Kürzen am Komma), das Logbuch überschreibt sie
+  nicht (`__eigenText`, wird vor dem Speichern entfernt).
+- `rzSchnellVideo(pfad, opts)`: `opts.fotoArt` (`gross|sofortbild|pip`), `opts.sofortGroesse` (16–80, Standard 24),
+  `opts.fotoPause` (`heran|stehen`); gemerkt in `schnellvideo_letzte` als `foto_art`, `sofort_groesse`, `foto_pause`.
+  Kein Dialogfeld (F-14: die Fotoart bringt die Vorlage).
+- Schild-Feld `stopp_kamera` (Standard `true`): `false` = Fotostopp ohne Heranfahren — `_fsWerte().kamera`, in
+  `_haltKeyframes` wird für diesen Halt nichts gelegt (der Halt in der Tempo-Kurve bleibt). Editor: „Kamera fährt heran“.
+- `photos_load` → `cphotos.load_photos_with_gps` liefert zusätzlich `ohne_gps` (Pfade, höchstens 2000);
+  `_animSignsFotosOhneOrt` fragt und legt sie als Sofortbild an die Strecke (`photos_time_anchors`, sonst gleichmäßig).
+- `projekt_exportieren(…, kontext="frei:…")` → `_frei_exportieren`: Projekte des Kontexts + Haupt-Etappe
+  (`animator.haupt_etappe`, auch in `projektpaket._etappen_einpacken`) + `frei.json`; `_umschlag_einspielen` erkennt
+  `frei.json` → `_frei_einspielen` (neuer Kontext, kollidierende IDs bekommen einen Zusatz, `_etappen_auspacken` biegt
+  auch `haupt_etappe.gpx_path` um). `umschlag_bauen(extra={name: bytes})` für zusätzliche Paketdateien.
+- Schritt-/Render-Modus: `fitTrackPreview` und `_animFitAllTours` nie animiert; `__rzPreviewStep.seek` stoppt eine
+  laufende Kamerafahrt (`map.stop()`). Wächter `tests/test_schrittmodus_fahrt.py` (der Fehler selbst ließ sich lokal
+  nicht nachstellen).
+
 ### Test-Fixtures regenerieren
 ```bash
 python tests/make_test_photos.py
@@ -6749,3 +6770,54 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
 - Prüfstand: `window.__rzEtappe` (`neu, bearbeiten, editor, touren, bahnN, dotStil, linie, hebel, klick, waehlen, scharf, verschiebe, linieAufKarte, karte, neuZeichnen`). Tests `test_etappe_animator` (A–I), `test_etappe_paket`.
 - Offen (PLAN §3): Stationsschilder, Dauer nach Strecke/Verkehrsmittel, Höhen/Einblendungen, Projekte ohne GPS + Übernahme alter
   Reiseroute-Projekte (Modul entfällt), „Ins Archiv übernehmen“.
+
+## Kartenlooks und Karten-Editor (07.10.2026)
+
+- **Ein Übersetzer für App und Web:** `ui/js/kartenlook.js` → `window.rzKartenlook` (läuft auch unter node). `stilAusLook(look, basis,
+  {dem, tiefen, demAttribution})` baut aus einem Look-Objekt und der Vorlage `window.RZ_OFM_POSITRON`
+  (`ui/vendor/ofm-positron.js`, erzeugt von `scripts/update_ofm_positron.py`) einen fertigen MapLibre-Stil. Rollen je Positron-Ebene:
+  `rolle(id)`. Zutaten: Schummerung (`raster-dem` + `hillshade`, Quelle `rz-look-dem`, nach `landcover_wood`), Küstenlinie
+  (`rz-look-kueste`), Leuchtsaum (`<ebene>-rz-saum`, Breiten über `breiteMal`, Zoom-Ausdrücke bleiben außen), Meerestiefen
+  (`rz-look-tiefen`, Raster über das Protokoll `rztiefe://` — `tiefenProtokoll(maplibregl, demVorlage)` färbt Terrarium-Kacheln
+  in OffscreenCanvas; MapLibre 5.4 kennt noch kein `color-relief`). `LOOKS` = die acht Start-Looks (Fjord/Neon am 08.10. wieder raus), `normalisieren`, `kachelSvg`.
+- **Look-Format v1:** `land, water, waterway, wood, park, building, minor, major, motorway, casing|null, rail, border{color,dash},
+  text, halo, waterText, font(regular|bold|italic), caps, labels, coast{color,width,opacity}|null,
+  shade{shadow,highlight,accent,exaggeration}|null, glow{color?,strength}|null, depths{bands:[[m,farbe]…]}|null`, dazu `id`, `name`.
+- **Einbindung:** Kartenstil `kartenlook` (`core/mapstyles.py`, kind `look`); `resolveMapStyle(…, look)` → `_lookStyle` (util.js);
+  `applyMapStyle`/`createMap` nehmen `opts.look`. Der Animator reicht `animator.kartenlook` durch (`_currentKartenlook`), wendet
+  bei gleichem Stilnamen neu an, wenn sich der Look ändert (`_currentLookSig`). Video = dieselbe Seite (Szene) → dieselben Farben.
+- **Geländekacheln:** `/tile/terrain-aws/…` geklemmt (Meer = 0 m, für Schummerung/3D), neu `/tile/terrain-aws-roh/…` ungeklemmt
+  (Tiefen) — `core/tileproxy.py`, eigener Cache-Schlüssel.
+- **Looks im Projekt:** `ui/js/looks.js` — Vektor-Looks setzen `map_style: "kartenlook"` und eine Kopie des Looks
+  (`kartenlook`); `erkennen` kennt auch alte `ofm_atlas`/`ofm_nacht`/`ofm_positron`-Projekte; `kachelStil` = SVG-Kachel.
+- **Editor:** `module.js` `_keOeffnen`/`_keZeichnen`/`_keAnwenden` (rechte Spalte über `rzDetailSpalte`), Prüfstand
+  `window.__rzKartenEditor`. Der offene Editor folgt jedem Look-Wechsel: `_gesamtLookSync` (Kachel, ⌘Z, Projektwechsel,
+  Kartenstil) ruft `_keNachziehen`, das nur neu zeichnet, wenn der Look im Projekt nicht der gezeigte ist (`_keGezeigt`;
+  `_keAnwenden` setzt ihn mit — sonst schlösse jede eigene Änderung den offenen Farbwähler). Fester Teil `.ke-fest`: die
+  Felder `#anim-ortho-row`, `#anim-mapadj-row`, `#anim-stars-row` (IDs/bindSetting unverändert) zieht `_keFestEinziehen` beim
+  Öffnen hinein, `_keSchliessen` (✕, auch wenn `rzDetailSpalte.aufnehmen` einen anderen Editor holt) parkt sie zurück in
+  `#anim-optik-park` (links, hidden) — so findet `getElementById` sie immer, auch beim Rendern. Dynamischer Teil `.ke-dyn`.
+- **Kartenwahl (08.10.2026):** `#anim-style` ist verborgen (`#anim-style-roh`) und bleibt die eine Wahrheit (bindSetting,
+  Render, Export, Tests setzen ihn direkt). Sichtbar: acht Look-Kacheln + 9. Kachel `[data-weitere]`. `_aktiveKachel(a)`
+  markiert nach der Karte (kartenlook-id, `alt`-Stile, `_LUFTBILD_STILE` → natuerlich, `_istWeitere` → weitere). Im Editor
+  (`_keZeichnen`) zeigt `_liste(werte)` Radios aus den Optionen von `#anim-style` (Rasterkarten mit Kachel z12 Innsbruck
+  über die Weiche, `_stilBild`); Wahl → `_basisSetzen`. `_keModusWeitere` = Liste der weiteren Karten, solange eine
+  Look-Karte aktiv ist. ✎ = `_keUmschalten`, Stand `_keKnopfStand` (`.is-offen`). `_KE_FEST` zieht zusätzlich Gelände
+  (`#anim-gelaende-row`), `#anim-3d-zeile`, `#anim-mc-row`, `#anim-mc-light-row` in den Editor. `look.extras` (eigene Looks):
+  `_keExtrasLesen`/`_keExtrasAnwenden` (`_KE_EXTRAS`, ein Undo über `__rzUndoSammeln`), Python `bereinigen` behält sie.
+  Rückfall-Knopf `#anim-karte-ed-rueckfall`, wenn ein Kartenlook zu keiner Kachel passt.
+- **Track-Farben (08.10.2026):** `#anim-etappenfarben` + `#anim-colors-block` parken in `#anim-farben-park` und stehen im
+  Track-Editor von Track 1 (`_trackEdOeffnen("haupt")`, `.tred-mehrfarbig`); `_tredFarbenParken` vor jedem Neuzeichnen/Schließen.
+- **Farbwechsel je Tour (08.10.2026):** `extra_tours[i].farbwechsel = {an, quelle: distance|ele|speed|grade, modus: hard|gradient,
+  stops:[{v,color}]}`, Editor `_tredFwZeichnen` (Track-Editor der Tour). Zeichnen ohne line-gradient (Quellen sind geteilt
+  oder wachsen je Bild): `_fwVoll` (km/Höhe/Tempo/Steigung der ganzen Tour), `_fwFarben(Q, C)` bildet gezeichnete Punkte über
+  den Distanzanteil ab (Verlauf auf 8er-Stufen gerastert), `_fwLaeufe` → Abschnitte gleicher Farbe. Kette: `_reiseGeometrie`
+  (Cache `bahn.__fw[i]`, Ebenen `line-color: coalesce(get farbe)`), Schwarm: `_animSchwarmPreviewAdvance` (nicht im 3D-Modus
+  `_sw3d`), „Ganz zeigen“: `_ganzPrevBauen`. Prüfstand `window.__rzFarbwechsel`. Eigene Looks: `core/kartenlooks.py` (`<Bibliothek>/kartenlooks.json`, `bereinigen` prüft jedes Feld),
+  Brücke `kartenlooks_liste`, `kartenlook_speichern(name, look, id)`, `kartenlook_loeschen`, `kartenlook_exportieren` /
+  `kartenlook_importieren` (`.rzlook` = `{"art": "gps-studio-kartenlook", "schema": 1, "look": …}`).
+- **Bibliothek:** `etappen` und `kartenlooks.json` stehen jetzt in `core/bibliothek.EIGENE_NAMEN` (Dateischutz, Umzug).
+- **Für GPS Studio Web:** `ui/vendor/ofm-positron.js` + `ui/js/kartenlook.js` aus dem Release-Tag laden; `rzKartenlook.LOOKS`
+  sind die acht Looks; Stil mit `stilAusLook(look, RZ_OFM_POSITRON, {dem: "<terrarium {z}/{x}/{y}>", tiefen: "rztiefe://{z}/{x}/{y}"})`,
+  vorher `tiefenProtokoll(maplibregl, "<terrarium ungeklemmt>")`. Ein Projekt trägt seinen Look in `animator.kartenlook`.
+

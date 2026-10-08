@@ -1443,7 +1443,48 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 @keyframes tp-bereitet { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* 05.10.2026 — Gesamt-Looks (ui/js/looks.js): vier Kacheln mit Mini-Vorschau (Karte + Linie) */
-.rz-look-reihe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.rz-look-reihe { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }   /* 08.10.2026: 8 Looks + „Weitere Karten“, 3 × 3 */
+.rz-look-knopf > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; }
+.rz-look-bild.rz-look-svg::after { display: none; }   /* das SVG trägt seine eigene Linie */
+/* 07.10.2026 — Karten-Editor: ✎ an der aktiven Kachel, eigene Looks darunter, Felder in der rechten Spalte */
+.rz-look-ed, .rz-look-weg { position: absolute; top: 2px; display: none; width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(10, 14, 18, .82); color: #fff; font-size: 12px; line-height: 20px; text-align: center; cursor: pointer; z-index: 2;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .35); }   /* Klicktest 08.10.: 16 px waren kaum zu treffen */
+.rz-look-ed:hover, .rz-look-weg:hover { background: var(--accent); color: #0b1418; }
+.rz-look-ed { right: 2px; }
+.rz-look-weg { left: 2px; }
+.rz-look-knopf.is-on .rz-look-ed { display: block; }
+.rz-look-ed.is-offen { background: var(--accent); color: #0b1418; box-shadow: 0 0 0 2px rgba(255, 255, 255, .6); }   /* Editor rechts offen */
+/* 08.10.2026 — 9. Kachel „Weitere Karten“: neutrales Bild, bei gewählter Rasterkarte eine echte Kachel */
+.rz-look-weitere-bild:not(.hat-bild) { background: repeating-linear-gradient(135deg, var(--bg-elev, #1d252c) 0 8px, var(--bg, #141a1f) 8px 16px) !important; }
+.rz-look-weitere-bild.hat-bild { background-color: transparent; background-size: cover; background-position: center; }   /* Klicktest 08.10.: !important überdeckte das Kachelbild */
+.rz-look-weitere-bild:not(.hat-bild)::before { content: "🗺"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; opacity: .8; }
+.rz-look-knopf:hover .rz-look-weg { display: block; }
+.rz-look-eigene { margin-top: 6px; }
+.rz-look-eigene-titel { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin: 2px 0 4px; }
+.anim-karten-editor .ke-hinweis { font-size: 11px; margin: 4px 0 8px; line-height: 1.4; }
+.anim-karten-editor .ke-gruppe { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; margin-bottom: 8px; }
+.anim-karten-editor .ke-farbe { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-dim); min-width: 0; }
+.anim-karten-editor .ke-farbe input[type="color"] { width: 26px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; flex: none; }
+.anim-karten-editor .ke-farbe span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anim-karten-editor .ke-an { grid-column: 1 / -1; font-size: 11.5px; display: flex; align-items: center; gap: 6px; }
+.anim-karten-editor .ke-regler, .anim-karten-editor .ke-wahl { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-dim); }
+.anim-karten-editor .ke-regler input { flex: 1; }
+.anim-karten-editor .ke-wahl select { flex: 1; }
+.anim-karten-editor .ke-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* 08.10.2026 — Luftbild-/Karten-Optik und Sternenhimmel im Editor (aus der linken Spalte, siehe #anim-optik-park) */
+.anim-karten-editor .ke-fest > .field:not([hidden]) { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border); }
+.anim-karten-editor .ke-fest input[type="range"] { width: 100%; }
+/* 08.10.2026 — Kartenliste im Editor (Luftbild-Quelle, weitere Karten) */
+.anim-karten-editor .ke-karten { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.anim-karten-editor .ke-karte { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.anim-karten-editor .ke-karte.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.anim-karten-editor .ke-karte input { display: none; }
+.anim-karten-editor .ke-karte-bild { flex: none; width: 44px; height: 30px; border-radius: 4px; background-size: cover; background-position: center; }
+.anim-karten-editor .ke-karte-bild.ohne { background: repeating-linear-gradient(135deg, #2a333b 0 6px, #222a31 6px 12px); }
+.anim-karten-editor .ke-karte-text { display: flex; flex-direction: column; min-width: 0; font-size: 12px; }
+.anim-karten-editor .ke-karte-text b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anim-karten-editor .ke-karte-text small { color: var(--text-dim); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rz-look-knopf { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--bg-2); color: var(--text-dim); font: inherit; font-size: 11px; cursor: pointer; }
 .rz-look-knopf:hover { border-color: var(--border-strong); color: var(--text); }
@@ -1572,3 +1613,11 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .anim-track-editor .tred-farbe-zeile { margin-bottom: 8px; }
 .anim-track-editor .tred-route { width: 100%; margin-bottom: 10px; }
 .anim-track-editor .anim-stil-panel { margin: 0; padding: 0; border: 0; background: none; }
+
+/* 08.10.2026 — Farbwechsel je Tour im Track-Editor */
+.tred-fw { margin: 6px 0 8px; }
+.tred-fw-felder { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.tred-fw-stop { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.tred-fw-stop .tred-fw-v { width: 76px; }
+.tred-fw-stop input[type="color"] { width: 28px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; }
+.tred-fw-knoepfe { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }

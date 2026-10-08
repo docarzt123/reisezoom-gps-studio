@@ -94,6 +94,7 @@ from core import geotag as cgeo
 from core import installation as cinstall  # 10.09.2026 — Selbst-Installation nach Programme (Mac)
 from core import selbstupdate as cupdate  # 27.09.2026 — Update ohne Neuinstallation
 from core import sun as csun
+from core import kartenlooks as ckartenlooks   # 07.10.2026 — eigene Kartenlooks (Karten-Editor)
 from core import sensors as csens  # v0.9.507 — übersetzte Sensor-Labels  # v0.9.333 — Sonnenstand + Blickrichtung (Lichtstempel)
 from core import geocode as cgeocode  # v0.9.337 — Reverse-Geocoding (Adresse) via OSM
 from core import autotag as cautotag  # v0.9.349 — Bilderkennung (Apple Vision, nur macOS)
@@ -177,7 +178,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.784"
+APP_VERSION = "0.9.785"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -2410,6 +2411,72 @@ class Api:
                     "vorlage": v.get("name", ""), "vorlage_id": v.get("id", "")}
         except Exception as e:
             return {"ok": False, "error": str(e), "has_custom": False}
+
+    # ── Eigene Kartenlooks (07.10.2026, Karten-Editor) ────────────────────────
+    # App-weit in der Bibliothek (core/kartenlooks.py); das Projekt trägt zusätzlich eine Kopie (animator.kartenlook).
+
+    def kartenlooks_liste(self) -> dict:
+        try:
+            return {"ok": True, "looks": ckartenlooks.liste(DATEN_ORT)}
+        except Exception as e:  # noqa: BLE001
+            log.error("kartenlooks_liste: %s", e)
+            return {"ok": False, "error": str(e), "looks": []}
+
+    def kartenlook_speichern(self, name: str, look: dict, lid: str = "") -> dict:
+        try:
+            e = ckartenlooks.anlegen(DATEN_ORT, name, look, lid or "")
+            log.info("Kartenlook gespeichert: %s (%s)", e["name"], e["id"])
+            return {"ok": True, "eintrag": e}
+        except Exception as e:  # noqa: BLE001
+            log.error("kartenlook_speichern: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def kartenlook_loeschen(self, lid: str) -> dict:
+        try:
+            return {"ok": ckartenlooks.loeschen(DATEN_ORT, str(lid or ""))}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def kartenlook_exportieren(self, name: str, look: dict, ziel: str = "") -> dict:
+        """Look als Datei (`.rzlook`, JSON) — zum Weitergeben; der Empfänger importiert ihn im Karten-Editor."""
+        try:
+            sauber = ckartenlooks.bereinigen(look)
+            if sauber is None:
+                return {"ok": False, "error": _ui_t()("kartenlook.ungueltig", "Kein gültiger Kartenlook.")}
+            sauber["name"] = str(name or sauber.get("name") or "Kartenlook")[:60]
+            if not ziel:
+                vorschlag = re.sub(r"[^\w\-. ]+", "_", sauber["name"]).strip() or "Kartenlook"
+                ziel = self.pick_save_path(vorschlag + ".rzlook", str(Path.home()),
+                                           [_ui_t()("filter.rzlook", "Kartenlook") + " (*.rzlook)"])
+                if not ziel:
+                    return {"ok": False, "cancelled": True}
+            if not str(ziel).lower().endswith(".rzlook"):
+                ziel = str(ziel) + ".rzlook"
+            Path(ziel).write_text(json.dumps({"art": "gps-studio-kartenlook", "schema": 1, "look": sauber},
+                                             ensure_ascii=False, indent=1), encoding="utf-8")
+            return {"ok": True, "path": str(ziel)}
+        except Exception as e:  # noqa: BLE001
+            log.error("kartenlook_exportieren: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def kartenlook_importieren(self, pfad: str = "") -> dict:
+        """`.rzlook` lesen und als eigenen Look ablegen."""
+        try:
+            if not pfad:
+                res = self.pick_file("open", (_ui_t()("filter.rzlook", "Kartenlook") + " (*.rzlook;*.json)",), False)
+                if not res:
+                    return {"ok": False, "cancelled": True}
+                pfad = res[0]
+            d = json.loads(Path(pfad).read_text(encoding="utf-8"))
+            look = d.get("look") if isinstance(d, dict) and d.get("art") == "gps-studio-kartenlook" else d
+            sauber = ckartenlooks.bereinigen(look)
+            if sauber is None:
+                return {"ok": False, "error": _ui_t()("kartenlook.ungueltig", "Kein gültiger Kartenlook.")}
+            e = ckartenlooks.anlegen(DATEN_ORT, sauber.get("name") or Path(pfad).stem, sauber)
+            return {"ok": True, "eintrag": e}
+        except Exception as e:  # noqa: BLE001
+            log.error("kartenlook_importieren: %s", e)
+            return {"ok": False, "error": str(e)}
 
     # ── Vorlagen (11.09.2026, docs/TOUR-ASSISTENT.md §2) ─────────────────────
 
@@ -7188,7 +7255,8 @@ class Api:
     def photos_load(self, paths_or_folder) -> dict:
         """Lädt eine Liste von Fotos oder einen Ordner. Liefert für jedes
         Foto mit EXIF-GPS einen Eintrag mit lon/lat + 128-px-Thumbnail als
-        data-URL. Fotos ohne GPS werden still übersprungen.
+        data-URL. Fotos ohne GPS kommen als Pfadliste `ohne_gps` zurück (07.10.2026) —
+        der Animator fragt, ob er sie auf die Strecke legt.
 
         Returns:
             {photos: [...], skipped_count: N, failed_count: N, total: N}
@@ -7900,7 +7968,8 @@ class Api:
         sicher = "".join(c for c in str(pid or "import") if c.isalnum() or c in "-_")[:60] or "import"
         ordner = Path(DATEN_ORT) / "etappen" / sicher
         umbiegen: dict = {}
-        for t in (anim.get("extra_tours") or []):
+        haupt = anim.get("haupt_etappe")   # 07.10.2026 (Web-Fund F-4): Etappe als Haupt-Track
+        for t in (anim.get("extra_tours") or []) + ([haupt] if isinstance(haupt, dict) else []):
             zname = t.get("etappe_zip") if isinstance(t, dict) else None
             if not zname:
                 continue
@@ -10435,6 +10504,8 @@ class Api:
         namen = set(z.namelist())
         if "menge.json" in namen:            # 05.09.2026 — Mehr-Touren-Paket (Schwarm/Reise)
             return self._menge_einspielen(z, namen, quelle)
+        if "frei.json" in namen:             # 07.10.2026 (Web-Fund F-4) — Projekt ohne GPS
+            return self._frei_einspielen(z, namen, quelle)
         if "track.gpx" not in namen:
             return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
         tour = json.loads(z.read("tour.json").decode("utf-8")) if "tour.json" in namen else {}
@@ -10653,6 +10724,8 @@ class Api:
         Touren und dem Schwarm-/Reise-Projekt (vorher ging das Projekt verloren)."""
         if str(kontext or "").startswith("menge:"):
             return self._menge_exportieren(str(kontext), ziel)
+        if str(kontext or "").startswith("frei:"):
+            return self._frei_exportieren(str(kontext), ziel)
         try:
             from core import projektpaket as archiv_m     # reiner ZIP-Helfer
             src = str(gpx_path or _load_settings().get("last_gpx_path", "") or "")
@@ -10698,6 +10771,104 @@ class Api:
         except Exception as e:
             log.exception("projekt_exportieren")
             return {"ok": False, "error": str(e)}
+
+    def _frei_exportieren(self, kontext: str, ziel: str = "") -> dict:
+        """07.10.2026 (Web-Fund F-4) — Projekt ohne GPS (Kontext `frei:…`, „Kartenanimation ohne GPS“) als .rzproj.
+        Vorher suchte der Export die Projekte über den Geo-Hash des Tracks und fand keine — es ging nur die Etappe als
+        Track mit, Punkte/Kurven/Verkehrsmittel waren weg. Jetzt: alle Projekte des Kontexts, die Haupt-Etappe als
+        `track.gpx` (ältere Stände öffnen das Paket so wenigstens als Tour) und als `etappen/…`, dazu `frei.json`
+        als Kennzeichen für den Import (legt wieder ein freies Projekt an)."""
+        try:
+            from core import projektpaket as archiv_m
+            with _projekte.LOCK:
+                pdaten = _projekte.laden(DATEN_ORT)
+            sess = (_projekte.export_sessions_sicht(pdaten).get("sessions") or {}).get(kontext)
+            aktiv = _projekte._aktives_projekt(pdaten, kontext) or {}
+            he = (aktiv.get("animator") or {}).get("haupt_etappe") or {}
+            if not he:
+                for p in ((sess or {}).get("projects") or {}).values():
+                    he = ((p or {}).get("animator") or {}).get("haupt_etappe") or {}
+                    if he:
+                        break
+            gpx = str(he.get("gpx_path") or "")
+            if not sess or not gpx or not os.path.isfile(gpx):
+                return {"ok": False, "error": _ui_t()("projekt.frei_ohne_track",
+                        "Dieses Projekt hat noch keine Strecke — erst eine Etappe anlegen, dann exportieren.")}
+            geo_hash = self._track_geo_hash(gpx) or kontext
+            name = str(aktiv.get("name") or Path(gpx).stem)
+            ersatz = {"geo_hash": geo_hash, "name": name, "filename": Path(gpx).name}
+            roh = archiv_m.umschlag_bauen(None, geo_hash, gpx_pfad=gpx, projekte=sess, zeile_ersatz=ersatz,
+                                          extra={"frei.json": json.dumps({"kontext": kontext, "name": name},
+                                                                         ensure_ascii=False).encode("utf-8")})
+            if not ziel:
+                sicher = re.sub(r"[^\w\-. ]+", "_", name).strip() or "Projekt"
+                ziel = self.pick_save_path(sicher + ".rzproj", str(Path.home()),
+                                           [_ui_t()("filter.rzproj", "Reisezoom Projekt") + " (*.rzproj)"])
+                if not ziel:
+                    return {"ok": False, "cancelled": True}
+            if not ziel.lower().endswith(".rzproj"):
+                ziel += ".rzproj"
+            Path(ziel).write_bytes(roh)
+            n_proj = len(sess.get("projects") or {})
+            log.info("projekt_exportieren (frei): %s → %s (%d Projekte, %.1f KB)", kontext, ziel, n_proj, len(roh) / 1024)
+            return {"ok": True, "path": ziel, "projekte": n_proj, "bytes": len(roh)}
+        except Exception as e:
+            log.exception("_frei_exportieren")
+            return {"ok": False, "error": str(e)}
+
+    def _frei_einspielen(self, z, namen: set, quelle: str = "datei") -> dict:
+        """Gegenstück zu `_frei_exportieren`: neues freies Projekt (eigener Kontext, damit ein zweiter Import nichts
+        überschreibt), Etappen nach `<Bibliothek>/etappen/<pid>/`, Foto-Vorschauen daneben. Die Etappe kommt NICHT
+        ins Archiv — sie ist eine geplante Strecke, keine Tour."""
+        import uuid as _uuid
+        from core.projektpaket import BILD_FELDER
+        projekte = json.loads(z.read("projekte.json").decode("utf-8")) if "projekte.json" in namen else None
+        if not projekte or not projekte.get("projects"):
+            return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
+        kontext = "frei:" + _uuid.uuid4().hex[:12]
+        foto_dir = APP_SUPPORT / ("cloud_fotos" if quelle == "cloud" else "projekt_fotos") / kontext.replace(":", "_")
+        bilder = sorted(n for n in namen if n.startswith("fotos/") or n.startswith("bilder/"))
+        for name in bilder:
+            (foto_dir / Path(name).parent.name).mkdir(parents=True, exist_ok=True)
+            (foto_dir / Path(name).parent.name / Path(name).name).write_bytes(z.read(name))
+        text = json.dumps(projekte)
+        for name in bilder:
+            text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).parent.name / Path(name).name)))
+        projekte = json.loads(text)
+        for proj in (projekte.get("projects") or {}).values():
+            if not isinstance(proj, dict):
+                continue
+            for liste, feld, _ordner, _kante in BILD_FELDER:
+                for eintrag in (proj.get(liste) or []):
+                    if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
+                        eintrag["original_" + feld] = eintrag.get(feld)
+                        eintrag[feld] = eintrag["vorschau"]
+        with _projekte.LOCK:
+            daten = _projekte.laden(DATEN_ORT)
+            # gleiche ID schon da (Export und Import auf demselben Rechner) → neue ID, nichts überschreiben
+            neu_proj, umbenannt = {}, {}
+            for pid, proj in (projekte.get("projects") or {}).items():
+                npid = pid if pid not in (daten.get("projects") or {}) else f"{pid}_{_uuid.uuid4().hex[:6]}"
+                umbenannt[pid] = npid
+                if isinstance(proj, dict):
+                    proj["id"] = npid
+                    self._etappen_auspacken(z, namen, proj, npid)
+                neu_proj[npid] = proj
+            projekte["projects"] = neu_proj
+            if projekte.get("active_project_id") in umbenannt:
+                projekte["active_project_id"] = umbenannt[projekte["active_project_id"]]
+            n_proj = _projekte.import_session_objekt(daten, kontext, projekte, self._session_get_global_defaults())
+            for npid in neu_proj:
+                p = (daten.get("projects") or {}).get(npid)
+                if p:
+                    p["geo_hashes"] = []        # wie projekt_frei_anlegen: kein Track-Kontext
+                    p["gpx_paths"] = []
+            (daten.get("touren") or {}).pop(kontext, None)
+            aktiv = projekte.get("active_project_id") if projekte.get("active_project_id") in neu_proj else next(iter(neu_proj))
+            daten.setdefault("aktiv", {})[kontext] = aktiv
+            _projekte.speichern(DATEN_ORT, daten)
+        log.info("projekt_importieren (frei): %d Projekt(e) → %s", n_proj, kontext)
+        return {"ok": True, "frei": True, "project_id": aktiv, "kontext": kontext, "projekte": n_proj}
 
     def _menge_exportieren(self, kontext: str, ziel: str = "") -> dict:
         """Schwarm/Reise als .rzproj: alle Touren + Projekte des Mengen-Kontexts."""
@@ -12733,6 +12904,15 @@ class Api:
                     k["exists"] = True
                     k["frei"] = True
                     k["n_touren"] = 0
+                    # 07.10.2026 (Klicktest) — Kartenanimation ohne GPS: die Etappe nennen statt „Noch keine Touren“
+                    try:
+                        an = ((daten.get("projects") or {}).get(k.get("id")) or {}).get("animator") or {}
+                        he = an.get("haupt_etappe") or {}
+                        if he.get("gpx_path"):
+                            k["etappe"] = {"name": str(an.get("etappe1_name") or Path(str(he["gpx_path"])).stem),
+                                           "arten": list((he.get("etappe") or {}).get("arten") or [])}
+                    except Exception:  # noqa: BLE001
+                        pass
                     continue
                 # E2 (Q16a): hängt an der gepinnten Fassung eine neuere Kette?
                 hinweis = None
@@ -13342,6 +13522,24 @@ class Api:
                 return {"ok": True, "fotos": [], "n_gesamt": 0}
             fotos = []
             tz_tour = 0
+            # 07.10.2026 (Web-Fund F-5) — ein Eintrag in `quellen` darf ein Objekt sein: {path, bei?, text?}.
+            # `bei` (0…1, Streckenanteil wie unten) legt das Foto FEST an diese Stelle — für Fotos ohne GPS/Zeit, die
+            # jemand von Hand platziert hat (Web: „Fotos platzieren“); `text` ist die eigene Bildunterschrift.
+            fest: dict = {}
+            if quellen:
+                roh_q = list(quellen)
+                quellen = []
+                for q in roh_q:
+                    if isinstance(q, dict):
+                        qp = os.path.abspath(str(q.get("path") or ""))
+                        if not q.get("path"):
+                            continue
+                        quellen.append(qp)
+                        b = q.get("bei")
+                        fest[qp] = {"bei": (max(0.0, min(1.0, float(b))) if isinstance(b, (int, float)) else None),
+                                    "text": str(q.get("text") or "").strip()}
+                    else:
+                        quellen.append(q)
             if quellen:
                 from core import photos as cphotos
                 if clip:   # expand_paths kennt nur Fotos — Clips selbst auflisten (Dateien und Ordner, nicht rekursiv)
@@ -13389,6 +13587,12 @@ class Api:
                                   "tz": r.get("tz_minuten"), "ort": r.get("ort") or ""})   # 05.10.2026 Ortszeile
             punkte = [{"lat": q.lat, "lon": q.lon, "time": q.time} for q in pts]
             zu = [f for f in chl.fotos_zuordnen(punkte, fotos, tz_tour) if f.get("idx") is not None]
+            if fest:   # von Hand platzierte Fotos: ihre Stelle gilt, auch wenn GPS oder Zeit etwas anderes sagen
+                hand = {os.path.abspath(f["path"]): f for f in fotos}
+                zu = [f for f in zu if (fest.get(os.path.abspath(f["path"])) or {}).get("bei") is None]
+                for qp, fe in fest.items():
+                    if fe.get("bei") is not None and qp in hand:
+                        zu.append(dict(hand[qp], idx=int(round(fe["bei"] * (n - 1))), manuell=True))
             if not zu:
                 return {"ok": True, "fotos": [], "n_gesamt": len(fotos)}
             halte = chl.halte_punkte(punkte)
@@ -13402,7 +13606,7 @@ class Api:
             kandidaten = []
             for f in zu:
                 bei = f["idx"] / (n - 1)
-                if alle or 0.03 < bei < 0.97:
+                if alle or f.get("manuell") or 0.03 < bei < 0.97:
                     kandidaten.append(dict(f, bei=bei, **merkmale(f)))
             wahl = sorted(kandidaten, key=lambda f: f["bei"])[: max(1, int(n_max))] if alle else []   # „alle": selbst gewählt
             if not alle:
@@ -13412,6 +13616,8 @@ class Api:
                 vek, inh = self._va_inhalt([f["path"] for f in kandidaten]) if not clip else ({}, {})
                 fahrten, tage = self._va_logbuch(pf)
                 wahl = cva.waehlen(kandidaten, n_max, vek=vek, inhalt=inh, fahrten=fahrten, tage=tage)
+                drin = {f["path"] for f in wahl}
+                wahl += [f for f in kandidaten if f.get("manuell") and f["path"] not in drin]   # von Hand platziert = gewollt
             wahl.sort(key=lambda f: f["bei"])
             raus = []
             for f in wahl:
@@ -13420,6 +13626,11 @@ class Api:
                                          "ort": f.get("ort") or ""})
                 e = {"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
                      "zeit": info.get("zeit", ""), "ort": info.get("ort", ""), "wert": f["wert"], "grund": f.get("grund") or []}
+                fe = fest.get(os.path.abspath(f["path"])) or {}
+                if fe.get("text"):
+                    e["text"] = fe["text"]
+                if f.get("manuell"):
+                    e["manuell"] = True
                 if clip:
                     ci = cclips.info(f["path"])
                     if not ci.get("ok"):
@@ -13767,6 +13978,9 @@ class Api:
             vorher = json.loads(json.dumps(ziel))
             patch = json.loads(json.dumps(animator or {}))
             ziel.update(patch)
+            if "duration_s" in patch:   # 07.10.2026 (Web-Fund F-1): neue Länge → Raffung neu aus ihr ableiten
+                ziel["tempo_rate"] = None
+                ziel["tempo_basis"] = None
             if "container" in patch:
                 self._schnell_logo_bild(ziel, (self._session_get_global_defaults("").get("animator") or {}).get("watermark"))
             signs_vorher = json.loads(json.dumps(p.get("signs") or []))

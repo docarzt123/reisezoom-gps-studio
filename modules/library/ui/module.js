@@ -1036,7 +1036,9 @@ function mountLibrary(body, headerActions) {
     const MODUL_CHIP = { animator: ["🎬", T("modules.animator.name", "Animator")], tourmap: ["🗺", T("modules.tourmap.name", "Tour-Map")],
                          geotagger: ["📷", T("modules.geotagger.name", "Geotagger")], heightanim: ["📈", T("library.proj_daten", "Daten")] };
     const karte = (p) => {
-      const ablauf = p.frei
+      const ablauf = (p.frei && p.etappe)   // 07.10.2026 — Kartenanimation ohne GPS: die Etappe statt „Noch keine Touren“
+        ? `🗺 ${T("library.proj_etappe", "Etappe")} · ${esc(p.etappe.name || "")}`
+        : p.frei
         ? `🆕 ${T("library.proj_frei", "Noch keine Touren — mit ➕ hinzufügen oder leer öffnen (Reiseroute, Kartenflug)")}`
         : p.ablauf === "schwarm"
         ? `🌊 ${T("schwarm.name", "Schwarm")} · ${p.n_touren} ${T("library.tours", "Touren")}`
@@ -1122,7 +1124,7 @@ function mountLibrary(body, headerActions) {
         }
         const p = _projekte.find(x => x.id === pid) || {};
         const imAuto = !!el.closest(".lib-proj-autos");
-        if (p.frei || (imAuto && !offen)) return;
+        if ((p.frei && !p.etappe) || (imAuto && !offen)) return;   // mit Etappe: gespeichertes Vorschaubild holen
         pids.push(pid);
       });
       if (!pids.length) return;

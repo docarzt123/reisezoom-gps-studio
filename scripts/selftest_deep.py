@@ -70,13 +70,29 @@ async def run() -> int:
                 await pg.wait_for_timeout(350 if cycle else 1100)
         print(f"3 Wechsel-Zyklen über {len(MODULES)} Module — pageerrors: {len(pageerrors)}")
 
+        # 07.10.2026 — Rückfragen schließen: seit der Kamera-Basis fragt der Keyframe-Editor beim Einschalten
+        # „Standard-Keyframes übernehmen?“; das offene Fenster fing danach jeden Klick ab (Deploy-Gate 0.9.784).
+        modal_zu = """() => { const ov = document.getElementById('modal-overlay');
+          if (!ov || ov.hidden) return false;
+          const b = ov.querySelector('#md-kf-ohne, [id$="-cancel"], .modal-footer .btn:not(.btn-primary), .modal-close');
+          if (b) b.click(); else if (typeof window.closeModal === 'function') window.closeModal();
+          return true; }"""
+
+        async def _zu():
+            for _ in range(4):
+                if not await pg.evaluate(modal_zu):
+                    break
+                await pg.wait_for_timeout(150)
+
         # 2) Animator: alle Checkboxen 2×, Slider min/max/Mitte, Selects komplett.
-        await pg.click('[data-mod="animator"]'); await pg.wait_for_timeout(1200)
+        await _zu(); await pg.click('[data-mod="animator"]'); await pg.wait_for_timeout(1200)
         n_cb = await pg.evaluate("""async () => {
           const bs = [...document.querySelectorAll('#anim-panel input[type="checkbox"]')];
-          for (const b of bs) { b.click(); await new Promise(r=>setTimeout(r,12)); b.click(); await new Promise(r=>setTimeout(r,12)); }
+          const zu = """ + modal_zu + """;
+          for (const b of bs) { b.click(); await new Promise(r=>setTimeout(r,12)); zu(); b.click(); await new Promise(r=>setTimeout(r,12)); zu(); }
           return bs.length;
         }""")
+        await _zu()
         n_sl = await pg.evaluate("""async () => {
           const ss = [...document.querySelectorAll('#anim-panel input[type="range"]')];
           for (const s of ss) for (const v of [s.min, s.max, String((+s.min+ +s.max)/2)]) {
@@ -96,7 +112,7 @@ async def run() -> int:
 
         # 3) Akkordeons aller Module auf/zu.
         for mod in MODULES:
-            await pg.click(f'[data-mod="{mod}"]'); await pg.wait_for_timeout(600)
+            await _zu(); await pg.click(f'[data-mod="{mod}"]'); await pg.wait_for_timeout(600)
             await pg.evaluate("""async () => {
               const hs = [...document.querySelectorAll('aside.panel [data-accordion-section] .section-collapse-header')]
                 .filter(h => h.getBoundingClientRect().width > 0);
@@ -105,17 +121,18 @@ async def run() -> int:
         print(f"Akkordeons aller Module — pageerrors: {len(pageerrors)}")
 
         # 4) Keyframe-Editor toggeln + Modulwechsel dazwischen.
-        await pg.click('[data-mod="animator"]'); await pg.wait_for_timeout(700)
+        await _zu(); await pg.click('[data-mod="animator"]'); await pg.wait_for_timeout(700)
         await pg.evaluate("""async () => {
           const kf = document.getElementById('anim-kf-enabled');
-          if (kf) for (let i=0;i<4;i++){ kf.click(); await new Promise(r=>setTimeout(r,120)); }
+          const zu = """ + modal_zu + """;
+          if (kf) for (let i=0;i<4;i++){ kf.click(); await new Promise(r=>setTimeout(r,120)); zu(); await new Promise(r=>setTimeout(r,60)); }
         }""")
-        await pg.click('[data-mod="tourmap"]'); await pg.wait_for_timeout(400)
-        await pg.click('[data-mod="animator"]'); await pg.wait_for_timeout(700)
+        await _zu(); await pg.click('[data-mod="tourmap"]'); await pg.wait_for_timeout(400)
+        await _zu(); await pg.click('[data-mod="animator"]'); await pg.wait_for_timeout(700)
 
         # 5) Undo/Redo-Salven.
         for mod in ("animator", "gpxinspect", "geotagger"):
-            await pg.click(f'[data-mod="{mod}"]'); await pg.wait_for_timeout(350)
+            await _zu(); await pg.click(f'[data-mod="{mod}"]'); await pg.wait_for_timeout(350)
             for _ in range(10):
                 await pg.keyboard.press("Meta+z"); await pg.wait_for_timeout(15)
             for _ in range(5):
@@ -124,7 +141,7 @@ async def run() -> int:
 
         # 6) In jedem Modul: kein sichtbares [hidden]-Element (Layout-CSS-Regel).
         for mod in MODULES:
-            await pg.click(f'[data-mod="{mod}"]'); await pg.wait_for_timeout(600)
+            await _zu(); await pg.click(f'[data-mod="{mod}"]'); await pg.wait_for_timeout(600)
             bad = await _visible_hidden_elements(pg)
             for b in bad:
                 findings.append(f"sichtbares [hidden]-Element in {mod}: {b}")

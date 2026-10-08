@@ -597,12 +597,14 @@ def load_photos_with_gps(paths_or_folder,
         {
           "photos": [{"path", "lon", "lat", "elevation", "datetime", "thumb"}, ...],
           "skipped_count": int,           # ohne GPS
+          "ohne_gps": [path, ...],        # 07.10.2026 — dieselben als Pfade (höchstens 2000)
           "failed_count": int,            # Thumb-Erzeugung fehlgeschlagen
           "total": int,                   # alle versuchten
         }
     """
     paths = expand_paths(paths_or_folder)
     photos = []
+    ohne_gps: list = []
     skipped = 0
     failed = 0
 
@@ -619,6 +621,8 @@ def load_photos_with_gps(paths_or_folder,
 
         if gps is None:
             skipped += 1
+            if len(ohne_gps) < 2000:   # 07.10.2026 (Web-Fund F-5): der Animator fragt, ob er sie auf die Strecke legt
+                ohne_gps.append(path)
             continue
 
         lat, lon, ele = gps
@@ -650,6 +654,7 @@ def load_photos_with_gps(paths_or_folder,
     return {
         "photos": photos,
         "skipped_count": skipped,
+        "ohne_gps": ohne_gps,             # Pfade der übersprungenen (ohne GPS)
         "failed_count": failed,
         "total": len(paths),
     }

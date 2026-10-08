@@ -33,7 +33,7 @@ STATUS = ("true", "license_required", "unknown", "false")
 # Stil-Schlüssel / Regions-IDs → Register-ID
 STIL_ZU_QUELLE = {
     "osm": "osm", "topo": "opentopomap", "cyclosm": "cyclosm", "humanitarian": "hot",
-    "ofm_liberty": "openfreemap", "ofm_bright": "openfreemap", "ofm_positron": "openfreemap", "ofm_nacht": "openfreemap", "ofm_atlas": "openfreemap",
+    "ofm_liberty": "openfreemap", "ofm_bright": "openfreemap", "ofm_positron": "openfreemap", "ofm_nacht": "openfreemap", "ofm_atlas": "openfreemap", "kartenlook": "openfreemap",
     "maptiler_satellite": "maptiler", "maptiler_outdoor": "maptiler", "maptiler_streets": "maptiler",
     "maptiler_topo": "maptiler", "maptiler_dataviz": "maptiler", "maptiler_hybrid": "maptiler",
     "satellite": "mapbox", "satellite_streets": "mapbox", "outdoors": "mapbox", "standard": "mapbox", "streets": "mapbox", "dark": "mapbox", "light": "mapbox",
