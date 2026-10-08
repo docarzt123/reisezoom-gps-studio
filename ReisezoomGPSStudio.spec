@@ -35,7 +35,7 @@ for top in ("ui", "modules", "i18n"):
 # (siehe scripts/build_user_guide_html.py — wird von build.sh aufgerufen)
 # damit ein nativer Browser sie schick rendert. Die .md bleibt absichtlich
 # außen vor — Endnutzer sollen die schöne Version sehen.
-# DEVELOPER.md + IDEAS.md + CHANGELOG.md sind Entwickler-Material und
+# DEVELOPER.md + CHANGELOG.md sind Entwickler-Material und
 # kommen NICHT mit ins Bundle.
 # Alle drei Sprachfassungen müssen dabei sein, sonst laufen die DE/EN/ES-
 # Pillen im Handbuch ins Leere (der Sprachwechsel öffnet die Nachbardatei).

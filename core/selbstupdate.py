@@ -1,7 +1,7 @@
 """Update ohne Neuinstallation (27.09.2026).
 
 Marc: „können wir vielleicht auch ohne Neuinstallation updaten? falls ja, bau das so."
-Das ersetzt die Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update", IDEAS §4.9).
+Das ersetzt die Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update").
 
 Ablauf
   1. Manifest von reisezoom.com lesen (Version, Datei, Größe, SHA-256 je Plattform).

@@ -1,6 +1,6 @@
 # Herkunft von ui/audio/musik_{panorama,tagebuch,puls}.flac und foto_klick_{k,l}.wav (05.10.2026).
 #
-# Ursprünglich für die Schnell-Video-Mockups geschrieben (lokal, docs/mockups/…/audio); hier zur
+# Ursprünglich für die Schnell-Video-Entwürfe geschrieben; hier zur
 # Nachvollziehbarkeit abgelegt. Die Stücke sind 40-s-Skizzen aus Oszillatoren und Hüllkurven, ohne Samples.
 # In die App kamen sie per ffmpeg nach FLAC (44,1 kHz). Ausgabeordner unten (HERE/VIDEO_DIR) beim Neu-
 # Erzeugen anpassen.

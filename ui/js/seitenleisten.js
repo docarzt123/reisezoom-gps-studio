@@ -1,7 +1,7 @@
-/* seitenleisten.js — Seitenleisten ziehen + rechte Detail-Spalte (06.10.2026, Trailframe-Gerüst, docs/PLAN.md §2b/§1a)
+/* seitenleisten.js — Seitenleisten ziehen + rechte Detail-Spalte (06.10.2026, Trailframe-Gerüst)
  *
  * Marc: „die sidebars müssen breiter und schmaler gezogen werden können" und „die rechte Sidebar für Schilder usw.
- * gibt es noch nicht". Feste Regel aus dem Grilling: links immer die Seitenleiste des Moduls, rechts nur der
+ * gibt es noch nicht". Feste Regel: links immer die Seitenleiste des Moduls, rechts nur der
  * Detail-Editor des gerade Angeklickten — öffnet bei Bedarf, die Karte rückt zur Seite (wird nicht verdeckt),
  * Esc/✕ schließt, Breite mit der Maus verstellbar und gemerkt (Start 340 px).
  *
@@ -172,7 +172,10 @@
 
   /** Editor-Fenster rechts in die Detail-Spalte hängen. Ein anderer offener Editor wird über seinen ✕ geschlossen,
    *  damit sein Modul aufräumt (Auswahl, Markierungen). */
-  function aufnehmen(panel) {
+  // 08.10.2026 (Marc: „auf der rechten Seite weiß man gar nicht, zu was das Detailfenster gehört — dort sollte auch
+  // ‚Karte‘, ‚Tracks‘ … drüberstehen“) — `bereich` = Titel des Abschnitts links; steht oben in der Spalte (data-bereich,
+  // per CSS ::before, damit das Leeren der Spalte ihn nicht mitnimmt).
+  function aufnehmen(panel, bereich) {
     const b = leiste();
     const tl = teile(b);
     if (!b || !panel || !tl || tl.lib) return false;
@@ -192,6 +195,8 @@
       if (alt.isConnected && alt.parentElement === d) alt.remove();
     }
     panel.classList.add("im-detail");
+    if (bereich) panel.dataset.bereich = String(bereich);
+    d.dataset.bereich = panel.dataset.bereich || "";
     d.appendChild(panel);
     anwenden();
     return true;

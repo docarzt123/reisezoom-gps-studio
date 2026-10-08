@@ -270,7 +270,7 @@
       } catch (e) { if (window.applog) window.applog("warn", `[ladeflagge] Projektangaben: ${e}`); }
       // v0.9.27 (Nutzer-Feedback): letzten GPX-Pfad persistieren damit
       // er beim App-Restart automatisch wiederhergestellt werden kann.
-      // IDEAS §38: Gehört der Load zu einer TOURENMENGE (Reise/Schwarm), bleibt
+      // Gehört der Load zu einer TOURENMENGE (Reise/Schwarm), bleibt
       // `last_menge` stehen — sonst löscht ein normaler Einzel-Load sie, damit
       // der nächste App-Start nicht fälschlich die Menge wiederherstellt.
       try {
@@ -288,7 +288,7 @@
       _renderCurrent();
       notifyGpxLoaded();
       _ladeflaggeFertigWennRuhig();
-      // 10.09.2026 — Track-Check-Hinweis (docs/TRACK-CHECK.md): einmal je Tour und
+      // 10.09.2026 — Track-Check-Hinweis: einmal je Tour und
       // Sitzung, auch bei stummen Ladewegen (Archiv, Sitzung, App-Start).
       if (!(opts && opts.menge)) { try { window.rzTrackCheckHinweis && window.rzTrackCheckHinweis(path); } catch (_) {} }
       // Kennt das Archiv diese Tour? (27.08.2026, Marc) — nicht bei Ladevorgängen,

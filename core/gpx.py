@@ -245,7 +245,7 @@ def _ext_key(tag):
     if ln in ("power", "powerinwatts"):
         return "power"
     if ln == "rz_flach":
-        # 07.10.2026 (Etappen, Grilling Punkt 8) — Punkt einer geplanten Etappe im Flug, auf dem Wasser oder in der
+        # 07.10.2026 (Etappen) — Punkt einer geplanten Etappe im Flug, auf dem Wasser oder in der
         # Bahn: Höhe nur zur Anzeige (flach), zählt nicht zu Bergauf/Bergab
         return "rz_flach"
     return None
@@ -420,7 +420,7 @@ def etappen_stats(pts) -> dict:
     return out
 
 
-# 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart. Welche Arten zählen:
+# 24.09.2026 — Kennzahlen je Bewegungsart. Welche Arten zählen:
 # alles, was Bewegung ist; Pausen, Übernachtungen und Unsicheres nicht.
 ARTEN_MIT_ZAHLEN = ("wanderung", "spaziergang", "gehen", "laufen", "rad", "fahrt",
                     "uebersetzen", "wassersport")
@@ -733,7 +733,7 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
         gpx = _gpx_lesen(text)
     elif str(path).lower().endswith(".gz"):
         # 02.09.2026 — Der Versionsspeicher der Bibliothek legt Touren
-        # gzip-komprimiert ab (docs/UMBAU-BIBLIOTHEK.md, Schnitt 1). Das ist
+        # gzip-komprimiert ab (Schnitt 1). Das ist
         # kein Sonderfall der App: `.gpx.gz` liefern auch Strava-Exporte und
         # etliche Logger, es hat vorher nur niemand lesen können.
         import gzip as _gzip

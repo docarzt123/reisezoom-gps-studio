@@ -1,6 +1,6 @@
 /* Die Tour-Bibliothek — Erststart und die vier Fehlerfälle.
  *
- * Beschlossen mit Marc am 02.09.2026, siehe docs/UMBAU-BIBLIOTHEK.md.
+ * Beschlossen mit Marc am 02.09.2026.
  * Diese Datei bringt genau das auf den Schirm, was `bibliothek_status()`
  * meldet, und zwar VOR allem anderen: Ohne Bibliothek gibt es kein Archiv,
  * keine Projekte, nichts. Ein halb bedienbares Fenster wäre schlimmer als

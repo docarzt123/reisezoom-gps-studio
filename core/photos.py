@@ -242,7 +242,7 @@ def thumbnail_data_url(path: str, max_px: int = 600) -> Optional[str]:
         return None
 
 
-# ── Vorschaubilder für den Foto-Bestand (12.09.2026, IDEAS §64) ─────────────
+# ── Vorschaubilder für den Foto-Bestand (12.09.2026) ─────────────
 #
 # Der Bestand braucht dieselben Bilder wie die Foto-Pins, nur größer und auch
 # für Videos. Deshalb EIN Platten-Cache für alle, die Größe steckt im Schlüssel.

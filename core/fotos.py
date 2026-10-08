@@ -1,6 +1,6 @@
 """Der Foto-Bestand — Fotos und Videos als gemeinsame Quelle aller Werkzeuge.
 
-Beschlossen mit Marc am 12.09.2026 (Grilling, `docs/IDEAS.md` §64). Marc:
+Beschlossen mit Marc am 12.09.2026. Marc:
 „man gibt wie beim archiv einen oder mehrere ordner und das tool zeigt die
 bilder auf einer karte an oder nach datum oder wie auch immer. darauf kann man
 direkt in den einzelnen tools zugreifen."
@@ -10,7 +10,7 @@ Ordner, die Tour-Map hielt ihre Pins im Projekt, das Highlights-Fenster seine
 Ordner nur im Speicher. Dreimal dieselben Dateien, dreimal EXIF neu gelesen,
 kein gemeinsamer Bestand. Hier steht er.
 
-**Was entschieden ist (Runde 1–3 des Grillings):**
+**Was entschieden ist:**
 
 - Der Bestand liegt in der **Archiv-Datenbank** (`library.db`), nicht in einer
   zweiten Datenbank. Sie hat Ordnerverwaltung, Umzug und Sicherungen schon.
@@ -1670,7 +1670,7 @@ def _where(f: dict) -> tuple:
         teile.append("aufnahme_utc <= ?")
         werte.append(float(f["bis_utc"]))
 
-    # 04.10.2026 (IDEAS §81) — die Inhaltssuche liefert eine fertige Trefferliste; sie ersetzt dann `suche`
+    # 04.10.2026 — die Inhaltssuche liefert eine fertige Trefferliste; sie ersetzt dann `suche`
     # (app.py `_filter_mit_inhalt`), damit Raster, Karte, Tage und Touren dieselben Treffer zeigen.
     if f.get("pfade") is not None:
         pf = [str(p) for p in f["pfade"]]

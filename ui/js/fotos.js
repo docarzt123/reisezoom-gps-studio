@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────────────────────
- * Der Foto-Bestand im Archiv (12.09.2026, docs/IDEAS.md §64)
+ * Der Foto-Bestand im Archiv (12.09.2026)
  *
  * Marc wollte keinen eigenen Reiter: „so wie man auch zwischen projekten und
  * touren wechselt, da einfach noch ein foto-tab dazu." Also ist das hier der
@@ -47,7 +47,7 @@
   let abgebrochen = false;    // der Mensch hat gestoppt — dann NICHT wieder von selbst
   let nachschau = null;       // Zeitpunkt des letzten vollständigen Blicks (Sekunden)
   let fernWache = 0;          // prüft, ob ein abwesendes Laufwerk zurück ist
-  // 04.10.2026 (IDEAS §81) — Inhaltssuche: Stand vom Backend, Zählung der letzten Suche, Sortierung der Treffer
+  // 04.10.2026 — Inhaltssuche: Stand vom Backend, Zählung der letzten Suche, Sortierung der Treffer
   let inhalt = null;          // api.inhalt_status(): an, modell_da, index {n, klein}, bestand, lauf {…}
   let inhaltTreffer = null;   // r.inhalt der letzten Abfrage: {n_text, n_inhalt, art, indiziert}
   let inhaltTimer = 0;
@@ -620,7 +620,7 @@
     }
   }
 
-  // ── Inhaltssuche (04.10.2026, IDEAS §81) ───────────────────────────────
+  // ── Inhaltssuche (04.10.2026) ───────────────────────────────
   /* Marc: „wenn jemand seine Bilder irgendwo liegen hat … indiziert … schnell die passenden Bilder findet …
      Sonnenuntergang." Dasselbe Suchfeld (Q2): Treffer in Name/Stichwort/Ort zuerst, dann nach Bildinhalt (Q3, nach
      Relevanz, umschaltbar nach Datum). Eingeschaltet wird dort, wo man es braucht (Q4): sucht man und die
@@ -1055,7 +1055,7 @@
 
   /** Solange ein Laufwerk fehlt: alle 20 s nachsehen, ob es zurück ist —
       dann Hinweis weg, Seitenleiste auffrischen, von selbst weiterlesen. */
-  /** 05.10.2026 (IDEAS §82 Schritt 1) — liegen die Fotos eines fehlenden Laufwerks unter einem anderen Namen
+  /** 05.10.2026 — liegen die Fotos eines fehlenden Laufwerks unter einem anderen Namen
    *  (/Volumes/Fotos-1, Windows Y:\), einmal je Sitzung anbieten, die Pfade umzubiegen (Bestand + Inhaltsindex,
    *  vorher Sicherung der Bibliothek). Abgelehnt → in dieser Sitzung nicht mehr fragen. */
   let _umzugGefragt = false;
@@ -2270,7 +2270,7 @@
     }
     if (!angemeldet) return;
     fernBeobachten();
-    pfadeUmziehenAnbieten();   // 05.10.2026 (IDEAS §82) — Laufwerk unter anderem Namen? einmal je Sitzung fragen
+    pfadeUmziehenAnbieten();   // 05.10.2026 — Laufwerk unter anderem Namen? einmal je Sitzung fragen
     if (autoAn) aufholen();
     inhaltLaden(true);
     // Läuft gerade ein Scan (etwa aus einer früheren Sitzung im Hintergrund),

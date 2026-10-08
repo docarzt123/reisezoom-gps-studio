@@ -1,6 +1,6 @@
 """Verschlüsselung für das Cloud-Archiv (seit 15.08.2026).
 
-Entworfen mit Marc am 15.08.2026, festgehalten in `docs/IDEAS.md` §26.
+Entworfen mit Marc am 15.08.2026.
 
 ## Das Modell in drei Sätzen
 

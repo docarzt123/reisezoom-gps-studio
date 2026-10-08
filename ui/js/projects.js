@@ -114,7 +114,7 @@
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="duplicate">⎘ ${tT("topbar.project.action_duplicate", "Aktuelles duplizieren")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="rename">✎ ${tT("topbar.project.action_rename", "Umbenennen …")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action menu-action-danger" data-action="delete">🗑 ${tT("topbar.project.action_delete", "Aktuelles löschen")}</button>`;
-      // 11.09.2026 — Vorlagen (docs/TOUR-ASSISTENT.md §2.3, Stelle 3)
+      // 11.09.2026 — Vorlagen (Stelle 3)
       html += `<div class="topbar-project-menu-sep"></div>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="vorlage_anwenden">🧩 ${tT("vorlagen.menu_anwenden", "Vorlage anwenden …")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="vorlage_speichern">🧩 ${tT("vorlagen.menu_speichern", "Als Vorlage speichern …")}</button>`;

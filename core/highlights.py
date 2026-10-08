@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Highlights entlang eines Tracks → Schilder (Tour-Assistent Stufe 3,
-docs/TOUR-ASSISTENT.md §4; Marc 11.09.2026: „lass erst mal nur POIs mit
+"""Highlights entlang eines Tracks → Schilder (Tour-Assistent Stufe 3;
+Marc 11.09.2026: „lass erst mal nur POIs mit
 Schildern markieren, mal sehen, wie gut das funktioniert").
 
 Quellen

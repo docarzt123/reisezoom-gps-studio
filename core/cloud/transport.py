@@ -1,6 +1,6 @@
 """Reden mit der Gegenstelle auf dem eigenen Webserver (seit 15.08.2026).
 
-Gegenstück zu `server/rz-cloud.php`. Entwurf: `docs/IDEAS.md` §26.
+Gegenstück zu `server/rz-cloud.php`.
 
 ## ⚠️ Was dieses Modul NICHT tut
 

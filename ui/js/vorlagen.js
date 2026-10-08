@@ -1,4 +1,4 @@
-/* Reisezoom GPS Studio — Vorlagen (11.09.2026, docs/TOUR-ASSISTENT.md §2)
+/* Reisezoom GPS Studio — Vorlagen (11.09.2026)
  *
  * Eine Vorlage ist ein leeres Projekt: alles Gestalterische, nichts, was am
  * Track hängt. Hier liegen die Bausteine, die Kopfzeile (projects.js) und

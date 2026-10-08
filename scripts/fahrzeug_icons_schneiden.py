@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fahrzeug-Icons aus den Sammelbildern schneiden (07.10.2026, IDEEN I-287).
+"""Fahrzeug-Icons aus den Sammelbildern schneiden (07.10.2026).
 
 Je Fahrzeug ein Bild mit 5 × 2 Icons in zehn Zeichenstilen (immer dieselbe Reihenfolge, s. STILE), Draufsicht, Front nach
 oben, transparenter Hintergrund. Das Skript schneidet jede Zelle auf ihren sichtbaren Inhalt zu, setzt ihn mittig auf ein

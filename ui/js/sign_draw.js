@@ -265,7 +265,7 @@
     return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
   }
 
-  // ── Sofortbild (05.10.2026, I-001) — Canvas-Zwilling von sign_dom.js „sofortbild": warmweißer Rahmen (unten breiter),
+  // ── Sofortbild (05.10.2026) — Canvas-Zwilling von sign_dom.js „sofortbild": warmweißer Rahmen (unten breiter),
   // quadratischer Bildausschnitt, leicht schräg (gleiche Neigung wie im DOM: aus der Kennung, `o.dreh` überschreibt),
   // weicher Schatten, Unterschrift in Caveat. Diese Engine zeichnet Probelauf und Video — bei Änderung beide pflegen.
   function rzSofortbildDreh(o) {
@@ -842,7 +842,7 @@
       for (var k = 0; k < metas.length; k++) {
         var mk = metas[k] || {};
         var ps = 1;
-        // 05.10.2026 (I-001) — Ausgang „mini": großes Bild schrumpft weich, auf halbem Weg Wechsel aufs runde Mini-Bild
+        // 05.10.2026 — Ausgang „mini": großes Bild schrumpft weich, auf halbem Weg Wechsel aufs runde Mini-Bild
         // (gleiche Breite im Wechsel-Moment), danach bleibt das Mini stehen. Aus dem Anker berechnet → Video = Vorschau.
         var bild = null;
         if (mk.miniId && mk.mini != null) {
@@ -971,7 +971,7 @@
     if (!bisEnde && rein + raus > fenster && rein + raus > 0) {
       var f = fenster / (rein + raus); fadeSpan *= f; popSpan *= f; fadeOut *= f; popOut *= f;
     }
-    // 05.10.2026 (I-001, Sofortbild) — Ausgang „mini": statt zu verschwinden schrumpft das Schild nach „Bleibt sichtbar"
+    // 05.10.2026 (Sofortbild) — Ausgang „mini": statt zu verschwinden schrumpft das Schild nach „Bleibt sichtbar"
     // zum runden Mini-Bild und bleibt bis zum Ende stehen. `mini` = Anker, ab dem es schrumpft; `miniSpan` = Dauer.
     if (exit === "mini") {
       var aMini = A + rzSignSecToAnchor(after > 0 ? after : 3, durationSec);

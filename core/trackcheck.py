@@ -1,5 +1,5 @@
 """Track-Check — sagt, was an einem Track nicht stimmt, BEVOR man es im Video sieht
-(10.09.2026, Spezifikation: docs/TRACK-CHECK.md — das Dokument ist die Wahrheit).
+(10.09.2026).
 
 Reine Zählung, kein Heil-Lauf: die Bibliothek prüft damit beim Import jede Datei, das
 Archiv auf Knopfdruck den ganzen Bestand (Marc: „nichts läuft ungefragt im Hintergrund").
@@ -101,7 +101,7 @@ STAND_RADIUS_M = 30.0
 STAND_DAUER_S = 180.0
 STAND_WEG_M = 100.0
 
-# 05.10.2026 (Block 5, IDEEN I-087): Schwellen je Sportart — synchron zu SPORT_GRENZEN im Inspektor
+# 05.10.2026: Schwellen je Sportart — synchron zu SPORT_GRENZEN im Inspektor
 # (modules/gpxinspect/ui/module.js), bei Änderung beide pflegen. boden = Tempo-Schwelle nie darunter (m/s),
 # decke = feste Obergrenze: schneller ist immer ein Ausreißer, aber nur auf Segmenten unter DECKE_BIS_M.
 SPORTARTEN: Dict[str, dict] = {
@@ -346,7 +346,7 @@ def uebersetzen(sp: _Spur) -> List[dict]:
 def abschnitte(sp: _Spur, grenzen: Optional[Sequence[int]] = None) -> List[dict]:
     """Den Track in Abschnitte zerlegen und je Abschnitt das typische Tempo messen.
 
-    12.09.2026 (IDEAS §63). Anlass: In einer Womo-Reise mit Spaziergängen ergab der
+    12.09.2026. Anlass: In einer Womo-Reise mit Spaziergängen ergab der
     Median über den GANZEN Track eine Ausreißer-Schwelle von 539 km/h — in den
     Fußabschnitten konnte damit nie etwas auffallen. Geschnitten wird an
     Etappengrenzen, an Übersetzen und an langen Pausen; jeder Abschnitt bekommt
@@ -423,7 +423,7 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD,
     sport = SPORTARTEN.get(sportart or "auto", SPORTARTEN["auto"])
     BODEN, DECKE = sport["boden"], sport["decke"]
     SPEED_THR = max(BODEN, med_speed * REL_SPEED) if med_speed > 0 else math.inf
-    # 12.09.2026 (IDEAS §63) — die Tempo-Schwelle je ABSCHNITT statt über den ganzen
+    # 12.09.2026 — die Tempo-Schwelle je ABSCHNITT statt über den ganzen
     # Track. In einer Womo-Reise mit Spaziergängen lag die globale Schwelle bei
     # 539 km/h; im Fußabschnitt konnte damit nie etwas auffallen.
     if med_je_punkt is None:
@@ -652,7 +652,7 @@ def zeit_befunde(sp: _Spur) -> dict:
 
 # ── Zählung ──────────────────────────────────────────────────────────────────
 
-# ── Schwellen je Bewegungsart (13.09.2026, docs/IDEAS.md §67 Schritt 3) ─────
+# ── Schwellen je Bewegungsart (13.09.2026) ─────
 #
 # Marc: „Es sollte keine Fehlalarme geben, egal wie ein Track aussieht" — und in
 # Runde 2: jede Schwelle richtet sich nach der Bewegungsart des Abschnitts. Diese

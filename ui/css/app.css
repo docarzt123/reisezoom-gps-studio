@@ -22,7 +22,7 @@
 
 
 :root {
-  /* 05.10.2026 abends — Farbwelt „Trailframe“ (Marc, FRAGEN F-7: „Farbkonzept auf der Acasis-Platte … so in der Art,
+  /* 05.10.2026 abends — Farbwelt „Trailframe“ (Marc: „Farbkonzept auf der Acasis-Platte … so in der Art,
      die Regler sehen schick aus. Das soll frisch wirken und Spaß machen.“; Quelle /Volumes/MacMini 2TB Acasis/Farbkonzept):
      Anthrazit #151B22 als Grund, Schiefer #25313B für Felder, Türkis #48D6C4 für Auswahl, Regler und Route, Koralle
      #FF896B sparsam für die Hauptaktion (Rendern) und Start/Ziel, warmes Off-White #F4F1E9 für Text. Vorher: „Nachtkarte“
@@ -2933,7 +2933,7 @@ body.is-rendering .modal-overlay * {
 .lib-bar.foto-mode > #lib-search { display: none; }
 
 
-/* ── Bibliotheks-Tor (02.09.2026, docs/UMBAU-BIBLIOTHEK.md) ────────────────
+/* ── Bibliotheks-Tor (02.09.2026) ────────────────
    Deckt das Fenster ab, solange die Bibliothek nicht offen ist. Bewusst
    blockierend: Ohne sie gibt es kein Archiv und keine Projekte — ein halb
    bedienbares Fenster wäre schlimmer als eine klare Ansage. */
@@ -3451,7 +3451,7 @@ body > #main { grid-row: 4; }
 .sv-hinweis { margin-top: 6px; font-size: 12px; line-height: 1.4; color: #f5c16c; }
 
 /* 05.10.2026 — Schnell-Video: drei Vorlagen (Weite/Tagebuch/Puls) als Kacheln, Fotoart-Zeile.
-   Nur bestehende Farb-Variablen — die Farbrichtung der App ist noch offen (FRAGEN F-7). */
+   Nur bestehende Farb-Variablen — die Farbrichtung der App ist noch offen. */
 .sv-vorlagen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 4px; }
 .sv-vorlage { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; padding: 6px;
   border-radius: 9px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text-dim); font: inherit; cursor: pointer; }
@@ -3465,7 +3465,7 @@ body > #main { grid-row: 4; }
 .sv-fotoart-zeile { display: flex; align-items: center; gap: 8px; margin: 4px 0 6px; font-size: 12px; }
 .sv-fotoart-zeile select { flex: 1; min-width: 0; }
 
-/* 05.10.2026 — Einfache Ansicht des Animators (ui/js/einfach.js, Block 3). Nur vorhandene Farb-Variablen (F-7 offen).
+/* 05.10.2026 — Einfache Ansicht des Animators (ui/js/einfach.js). Nur vorhandene Farb-Variablen (F-7 offen).
    Im Modus „Einfach" sind alle Abschnitte der Seitenleiste ausgeblendet; die fünf Schritte bedienen dieselben Felder. */
 .rz-ansicht { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 0 10px; border: 1px solid var(--border);
   border-radius: 8px; overflow: hidden; }
@@ -3515,7 +3515,7 @@ body > #main { grid-row: 4; }
   background: var(--bg-2); color: var(--text); cursor: pointer; }
 .sv-titel-chip:hover { border-color: var(--accent); }
 
-/* ══ Trailframe-Gerüst (05.10.2026 abends, Grilling F-7, docs/PLAN.md §2b) ════════════════════════════════════════
+/* ══ Trailframe-Gerüst (05.10.2026 abends) ════════════════════════════════════════
    Q10: Modul-Leiste oben = Symbol + kurzer Text, aktive Seite türkis unterstrichen (kein Kasten, keine Unterzeile).
    Q9:  Abschnitte als aufklappbare Karten (normale Schreibweise), Schalter statt Häkchen in den Seitenleisten.
    Reine Gestaltung — keine Funktion ändert sich, IDs und Ereignisse bleiben. */
@@ -3610,7 +3610,7 @@ section.section[data-accordion-section] > .section-collapse-header[aria-expanded
 :is(aside.panel:not(.lib-nav):not(.lib-detail), #gpxi-panel) label:not(.chip-toggle) > input[type="checkbox"]:disabled { opacity: 0.45; cursor: default; }
 :is(aside.panel:not(.lib-nav):not(.lib-detail), #gpxi-panel) label:not(.chip-toggle) > input[type="checkbox"]:indeterminate::before { transform: translateX(6.5px); }
 
-/* ══ Trailframe: Kurz-Karte + „Mehr“ (06.10.2026, Grilling A4/A5) ═════════════════════════════════════════════════
+/* ══ Trailframe: Kurz-Karte + „Mehr“ (06.10.2026) ═════════════════════════════════════════════════
    Oben in einer Seitenleisten-Karte nur das Wesentliche (.anim-kurz), Auswahl als Pillen (.anim-pillen), der Rest
    aufklappbar unter „Mehr“ (details.anim-mehr). Für Animator und Tour-Map (gleiches Modul), wiederverwendbar. */
 .anim-kurz { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
@@ -3648,6 +3648,10 @@ section.section[data-accordion-section]:not(:has(> .section-collapse-header[aria
 body.rz-zieht-breite, body.rz-zieht-breite * { cursor: col-resize !important; user-select: none !important; }
 body.rz-zieht-breite iframe, body.rz-zieht-breite canvas { pointer-events: none; }
 .rz-detail { background: var(--bg-2); border-left: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; min-width: 0; min-height: 0; }
+/* 08.10.2026 — oben in der rechten Spalte: zu welchem Abschnitt links das Fenster gehört („🗺️ Karte“, „🧭 Tracks“ …) */
+.rz-detail[data-bereich]:not([data-bereich=""])::before { content: attr(data-bereich); display: block; padding: 9px 14px 7px;
+  font-size: 11px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; color: var(--text-dim);
+  border-bottom: 1px solid var(--border); background: var(--bg-2); }
 .rz-detail > .im-detail {
   position: static !important; left: auto !important; top: auto !important; width: auto !important; max-width: none !important;
   z-index: auto; box-shadow: none; border: 0; border-radius: 0; background: transparent; overflow: visible;
@@ -3683,7 +3687,7 @@ input[type="range"] { height: 22px; margin: 2px 0; }
 :is(aside.panel, .panel, .rz-detail) .checkbox-row { min-height: 26px; }
 .row-2, .row-3 { row-gap: 14px; }
 
-/* ══ Export-Dialog + Pfeilmenü der Hauptaktion (06.10.2026, ui/js/exportdialog.js, Grilling Export E1–E16) ═══════════ */
+/* ══ Export-Dialog + Pfeilmenü der Hauptaktion (06.10.2026, ui/js/exportdialog.js) ═══════════ */
 details.anim-mehr > .field, details.anim-mehr > .row-2 { margin-bottom: 10px; }
 .anim-haupt-gruppe { display: inline-flex; align-items: stretch; margin-right: 10px; }
 .anim-haupt-gruppe .anim-hauptaktion { margin-right: 0; }

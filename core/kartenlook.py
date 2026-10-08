@@ -1,4 +1,4 @@
-"""Eigene Kartenstile durch Umfärben einer freien Vektorkarte (05.10.2026, Block 1 „Looks", IDEEN I-052).
+"""Eigene Kartenstile durch Umfärben einer freien Vektorkarte (05.10.2026).
 
 Es gibt keinen freien dunklen oder papierfarbenen Vektorstil. OpenFreeMap „Positron" ist dagegen fast
 einfarbig grau — ideal als Vorlage: jede Farbe wird nach ihrer Helligkeit auf eine eigene Zweitonskala

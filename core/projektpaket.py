@@ -124,7 +124,7 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
 
 
 def _etappen_einpacken(schreiben, kopie: dict) -> None:
-    """07.10.2026 (Block 4) — geplante Etappen (`animator.extra_tours[i].etappe`) liegen nicht im Archiv, sondern unter
+    """07.10.2026 — geplante Etappen (`animator.extra_tours[i].etappe`) liegen nicht im Archiv, sondern unter
     `<Bibliothek>/etappen/<projekt>/` — sie reisen als `etappen/<datei>` im Paket mit; der Eintrag merkt sich den
     Paketnamen in `etappe_zip` (Import: `Api._etappen_auspacken`). Ändert `kopie` (die Export-Kopie) direkt."""
     schon: dict = {}

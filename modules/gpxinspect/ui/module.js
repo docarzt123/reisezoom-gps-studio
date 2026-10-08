@@ -15,7 +15,7 @@
   // da gehört er hin") — 7 statt 60, also zwischen Archiv (5) und
   // Animator (10). Passt auch zur Aufteilung aus dem Bibliotheks-Umbau:
   // Archiv und Inspektor arbeiten an den DATEN, alles danach an einem
-  // Projekt (docs/UMBAU-BIBLIOTHEK.md, Abschnitt 2).
+  // Projekt (Abschnitt 2).
   sort_order: 7,
   },
   mount: function (body, headerActions) { return mountGpxInspect(body, headerActions); },
@@ -125,7 +125,7 @@ function mountGpxInspect(body, headerActions) {
             <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
             <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
           </div>
-          <!-- 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): Befund-Kasten ganz oben.
+          <!-- 10.09.2026 — Track-Check: Befund-Kasten ganz oben.
                Häkchen je Befund (rot/gelb vorbelegt, grau nicht), „Reparieren" führt nur
                die angehakten Schritte aus (core/gpxheal), Vorher/Nachher wie beim Heilen. -->
           <div id="gpxi-heal-analysis" class="gpxi-analysis gpxi-tc" hidden></div>
@@ -352,7 +352,7 @@ function mountGpxInspect(body, headerActions) {
             <span id="gpxi-ele-weight-val" class="gpxi-sensval">70 %</span>
           </div>
           <button class="btn btn-primary gpxi-act" id="gpxi-ele-apply" disabled>⛰ ${t("gpxinspect.ele_apply", "Diese Höhe übernehmen")}</button>
-          <!-- 05.10.2026 (Block 5, I-085/I-086) — nur die langsame Abweichung des Höhenmessers abziehen, Details bleiben -->
+          <!-- 05.10.2026 — nur die langsame Abweichung des Höhenmessers abziehen, Details bleiben -->
           <button class="btn gpxi-act" id="gpxi-ele-drift" disabled title="${t("gpxinspect.ele_drift_tip", "Für Höhenmesser (Uhr, Radcomputer): zieht nur die langsame Abweichung zur Karte ab — die feinen Höhenänderungen deines Geräts bleiben. Kurze Brücken und Tunnel stören dabei nicht.")}">🧭 ${t("gpxinspect.ele_drift", "Drift herausrechnen (Höhenmesser behalten)")}</button>
           <div class="gpxi-note muted" id="gpxi-ele-result"></div>
             </div>
@@ -377,7 +377,7 @@ function mountGpxInspect(body, headerActions) {
         </div>
         <svg class="gpxi-eleprof-svg" id="gpxi-eleprof-svg" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-hidden="true"></svg>
       </div>
-      <!-- 13.09.2026 — Logbuch der Tour (docs/LOGBUCH.md §68): Zeitstrahl unten über die
+      <!-- 13.09.2026 — Logbuch der Tour: Zeitstrahl unten über die
            ganze Breite, rechts das mitlaufende Logbuch (Q6). Entsteht beim Öffnen (Q4). -->
       <div id="gpxi-logbuch" class="gpxi-lb" hidden>
         <div class="gpxi-lb-kopf">
@@ -570,7 +570,7 @@ function mountGpxInspect(body, headerActions) {
           "circle-radius": 7, "circle-color": "rgba(255,255,255,0.0)",
           "circle-stroke-width": 3, "circle-stroke-color": "#ffffff",
         } });
-        // 13.09.2026 — Logbuch (§68 Q16): der gewählte Eintrag leuchtet auf dem Track —
+        // 13.09.2026 — Logbuch: der gewählte Eintrag leuchtet auf dem Track —
         // heller Saum plus Linie in der Farbe der Art; ein Punkt-Eintrag als Ring.
         map.addSource("gpxi-lb-hl", { type: "geojson", data: emptyFC });
         map.addLayer({ id: "gpxi-lb-hl-saum", type: "line", source: "gpxi-lb-hl", filter: ["==", ["get", "pt"], false],
@@ -709,7 +709,7 @@ function mountGpxInspect(body, headerActions) {
     // Neuer Track → neue Schätzung; eine frühere Handauswahl gilt nicht weiter.
     _profilManuell = false;
     try { profilVorschlagen(); } catch (_) {}
-    // 13.09.2026 — Logbuch (§68 Q4): entsteht automatisch beim Öffnen.
+    // 13.09.2026 — Logbuch: entsteht automatisch beim Öffnen.
     _lbZeiten = null; _lbZeitSort = null;
     _lbSigDatei = _lbSignatur();   // 25.09.2026 — so sieht die Datei aus (Vorschau erst, wenn es abweicht)
     try { logbuchLaden(); } catch (e) { applog && applog("warn", "[logbuch] " + e); }
@@ -1327,7 +1327,7 @@ function mountGpxInspect(body, headerActions) {
     const i = _nearestIdxToPoint(e.point.x, e.point.y, Infinity);
     if (i < 0) return;
     if (_lbPunktModus) { try { _lbPunktSetzen(i); } catch (_) {} return; }   // Logbuch Stufe 2: eigener Punkt
-    try { _lbWaehleZuIdx(i); } catch (_) {}   // Logbuch (§68 Q16): Klick auf den Track wählt den Eintrag
+    try { _lbWaehleZuIdx(i); } catch (_) {}   // Logbuch: Klick auf den Track wählt den Eintrag
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
     // v0.9.303 — Einzelklick setzt direkt Anker A/B (Daten gibt's live in der Hover-Box).
     _clickTimer = setTimeout(() => { _clickTimer = null; selectAnchor(i); }, 240);
@@ -1799,7 +1799,7 @@ function mountGpxInspect(body, headerActions) {
   // wenn Zeit da ist, zusätzlich Geschwindigkeits-Gate gegen Falsch-Positive bei
   // echten scharfen Kurven. Echte Lücken (langer gerader Sprung ohne Rückkehr)
   // werden NICHT markiert — der Umweg ist dort ~0.
-  // 05.10.2026 (Block 5, IDEEN I-087, IDEAS §43.3): Schwellen je Sportart — synchron zu SPORTARTEN in
+  // 05.10.2026: Schwellen je Sportart — synchron zu SPORTARTEN in
   // core/trackcheck.py, bei Änderung beide pflegen. boden = Tempo-Schwelle nie darunter (m/s), decke = feste
   // Obergrenze: schneller ist immer ein Ausreißer (nur Segmente unter DECKE_BIS_M, Fähren/Flüge bleiben außen vor).
   const SPORT_GRENZEN = {
@@ -1866,7 +1866,7 @@ function mountGpxInspect(body, headerActions) {
     if (g.DECKE) txt += " · " + t("gpxinspect.grenzen_decke", "nie über %v km/h").replace("%v", kmh(g.DECKE));
     el.textContent = txt;
   }
-  /** Begründung je Ausreißer-Gruppe (I-087): Sprungweite oder Tempo, mit der Grenze, die gegriffen hat. */
+  /** Begründung je Ausreißer-Gruppe: Sprungweite oder Tempo, mit der Grenze, die gegriffen hat. */
   function _spikeGrund(gr, G) {
     const P = _points;
     let maxD = 0, maxV = 0;
@@ -2086,7 +2086,7 @@ function mountGpxInspect(body, headerActions) {
     const zeilen = [];
     if (_spikes.length) {
       zeilen.push(`<div class="gpxi-healprev-row"><i class="gpxi-healprev-dot is-spike"></i>${esc(t("gpxinspect.heal_prev_spikes", "%n Ausreißer (orange) werden auf die Linie zwischen ihren Nachbarn gerückt").replace("%n", _spikes.length))}</div>`);
-      // 05.10.2026 (I-087, IDEAS §43.3): je Ausreißer der Grund — „warum entfernt?" statt stiller Automatik.
+      // 05.10.2026: je Ausreißer der Grund — „warum entfernt?" statt stiller Automatik.
       const gruende = _spikes.filter((g) => g.grund).slice(0, 5)
         .map((g) => `<div class="gpxi-healprev-sub">${esc(_spikeGrundText(g.grund))}</div>`);
       if (_spikes.length > 5) gruende.push(`<div class="gpxi-healprev-sub">${esc(t("gpxinspect.grund_weitere", "… und %n weitere").replace("%n", _spikes.length - 5))}</div>`);
@@ -2204,7 +2204,7 @@ function mountGpxInspect(body, headerActions) {
   // 08.09.2026 (Marc: „ein Analysieren-Knopf schlägt vor, was man glattziehen könnte, und man hakt
   // an, was gemacht wird"): nach dem Laden einmal prüfen, Funde als Häkchen zeigen.
   let _healFunde = [];
-  // 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): beim Öffnen prüfen (core/trackcheck,
+  // 10.09.2026 — Track-Check: beim Öffnen prüfen (core/trackcheck,
   // dieselben Schwellen wie Archiv und Heilen), Befund-Kasten oben. Ohne Archiv-Zeile
   // gibt es kein „Ist so in Ordnung" — die Abwahl hängt an der Version im Archiv.
   // 12.09.2026 — „uebersetzen" (Fähre, Flug, Autozug) bekommt bewusst KEIN Häkchen:
@@ -2493,7 +2493,7 @@ function mountGpxInspect(body, headerActions) {
    *  und unerreichbare Lücken werden gerade gefüllt. Ändert _points von hinten nach vorne.
    *  Gemeinsam für „Heilen (automatisch)" und „Reparieren" im Befund-Kasten (10.09.2026). */
   /** Typisches Tempo um einen Punkt herum (m/s) — für das Lücken-Profil je Abschnitt.
-   *  12.09.2026 (IDEAS §63): In einer Womo-Reise mit Spaziergängen ist EIN Profil für
+   *  12.09.2026: In einer Womo-Reise mit Spaziergängen ist EIN Profil für
    *  den ganzen Track falsch. Gemessen wird lokal, nicht global. */
   function _tempoUm(idx, fenster) {
     const vs = [];
@@ -2872,7 +2872,7 @@ function mountGpxInspect(body, headerActions) {
   // Maus über der Karte → vertikaler Balken im Profil; Maus über dem Profil → Ring
   // auf dem Track. Beides läuft über setHover(idx).
   function setHover(idx) {
-    try { _lbCursor(idx); } catch (_) {}   // Logbuch (§68 Q16): Marke im Zeitstrahl, kein Sprung
+    try { _lbCursor(idx); } catch (_) {}   // Logbuch: Marke im Zeitstrahl, kein Sprung
     // 0) Live-Daten-Box in der Ecke: zeigt immer den Punkt unter dem Mauszeiger.
     const hbox = document.getElementById("gpxi-hoverbox");
     if (hbox) {
@@ -3143,7 +3143,7 @@ function mountGpxInspect(body, headerActions) {
     toast(t("gpxinspect.ele_applied_toast", "Höhe übernommen — zum Sichern unten speichern."), "success");
   }
 
-  // 05.10.2026 (Block 5, I-085) — Drift des Höhenmessers herausrechnen (ui/js/hoehendrift.js), mit Undo.
+  // 05.10.2026 — Drift des Höhenmessers herausrechnen (ui/js/hoehendrift.js), mit Undo.
   function applyEleDrift() {
     if (!_demEles || _demEles.length !== _points.length || !window.rzHoehenDrift) return;
     const gpsOrig = _eleGpsReihe();
@@ -3638,7 +3638,7 @@ function mountGpxInspect(body, headerActions) {
   // Entf/Backspace: einzelnen Punkt (nur A) oder Bereich (A+B) löschen.
   // Nicht feuern wenn man in einem Eingabefeld tippt oder im Zeichnen-Modus ist.
   function onKeyDown(e) {
-    // Logbuch (§68 Q16): Esc hebt die Auswahl auf — nur, wenn das Modul sichtbar ist.
+    // Logbuch: Esc hebt die Auswahl auf — nur, wenn das Modul sichtbar ist.
     if (e.key === "Escape") {
       if (_lbMenueEl) { _lbMenueZu(); return; }
       if (_lbPunktModus) { _lbPunktUmschalten(); return; }
@@ -3867,7 +3867,7 @@ function mountGpxInspect(body, headerActions) {
   // Logbuch und Speicherort zeigten ins Leere. Wieder die Datei des Nutzers laden.
   _on("gpxi-reset", () => { const p = _origPath || _srcPath; if (p) loadTrack(p); });
 
-  // ── Logbuch der Tour (13.09.2026, docs/LOGBUCH.md §68, Stufe 1) ─────────────
+  // ── Logbuch der Tour (13.09.2026, Stufe 1) ─────────────
   // Marc: „wie wäre es, wenn der inspector eine art logbuch generiert, was wo war
   // … wenn man einen eintrag anklickt, wird der bereich des tracks hervorgehoben
   // … als zeitstrahl darstellen ist fast noch besser oder wir machen beides."
@@ -4143,7 +4143,7 @@ function mountGpxInspect(body, headerActions) {
     const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : artName;
     const geraten = e.geraten ? ` <button type="button" class="gpxi-lb-badge ist-vermutet" data-vermutet="${e.id}" title="${t("logbuch.geraten_tip2", "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen.")}">${t("logbuch.geraten", "vermutet")}</button>` : "";
     const roh = e.roh ? ` <span class="gpxi-lb-badge">${t("logbuch.roh", "roh")}</span>` : "";
-    // 24.09.2026 — Anzeige im Video (IDEAS §67 Q11), wenn nicht „zeigen"
+    // 24.09.2026 — Anzeige im Video, wenn nicht „zeigen"
     const imVideo = { blass: ["◌", t("animator.lb.blass", "blass")], raffen: ["⏩", t("animator.lb.raffen", "raffen (×8)")],
                       ueberspringen: ["⤼", t("animator.lb.ueberspringen", "überspringen")] }[e.anzeige || ""];
     const video = imVideo ? ` <span class="gpxi-lb-badge" data-im-video="${e.anzeige}" title="${_lbEsc(t("logbuch.menue.im_video", "Im Video") + ": " + imVideo[1])}">${imVideo[0]} ${_lbEsc(imVideo[1])}</span>` : "";
@@ -4469,7 +4469,7 @@ function mountGpxInspect(body, headerActions) {
     }
   }
   _lbVerdrahten();
-  // ── Logbuch Stufe 2 — Bearbeiten + Einstellungen (docs/LOGBUCH.md §4, Q12/Q13) ──
+  // ── Logbuch Stufe 2 — Bearbeiten + Einstellungen (Q12/Q13) ──
   // Marc: „man muss natürlich alles ändern können" und „Undo für alles". Jede
   // Änderung geht über `einteilung_aktion` (Handarbeit überlebt jede Neuberechnung);
   // der Stand der Einteilung steckt im Undo-Schnappschuss des Inspektors, ⌘Z
@@ -4663,7 +4663,7 @@ function mountGpxInspect(body, headerActions) {
         M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: () =>
           _lbAktion(t("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids: e.bids, art }) });
       }
-      // 24.09.2026 (IDEAS §67 Q11) — was dieser Abschnitt im Video tut; dieselbe
+      // 24.09.2026 — was dieser Abschnitt im Video tut; dieselbe
       // Einstellung wie „📖 Logbuch im Video" im Animator.
       M.push("-");
       M.push({ text: t("logbuch.menue.im_video", "Im Video"), aus: true });
@@ -4909,7 +4909,7 @@ function mountGpxInspect(body, headerActions) {
   window.__rzGpxiLogbuchBearbeiten = { aktion: _lbAktion, bestaetigen: _lbBestaetigen, menue: _lbEintragMenue, bereichAB: _lbBereichAB,
                                        punktModus: () => _lbPunktModus, punktSetzen: _lbPunktSetzen, einstellungen: _lbEinstellungen,
                                        stand: () => _lbStand, schnappschuss: _lbSchnappschuss };
-  // ── Logbuch Stufe 3 — Ortsnamen, POIs, großes Fenster (docs/LOGBUCH.md §4, Q10/Q11/Q17) ──
+  // ── Logbuch Stufe 3 — Ortsnamen, POIs, großes Fenster (Q10/Q11/Q17) ──
   // Netz nur hier, nur im Hintergrund (Kasten unten rechts), abschaltbar in ⚙.
   let _lbOrte = {};          // eintrag_id → {von, nach, hier}
   let _lbPois = [];          // POI-Spur: [{id, name, symbol, rang, t, idx, wichtig, im_logbuch}]

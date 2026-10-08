@@ -123,7 +123,7 @@ def _bridge_factory(api):
     return bridge
 
 
-# 02.10.2026 — HDR (IDEAS §73): Farbangaben je Kurve. SDR-Weiß → 203 nits (BT.2408): HLG-Signal 0,75, PQ 0,58.
+# 02.10.2026 — HDR: Farbangaben je Kurve. SDR-Weiß → 203 nits (BT.2408): HLG-Signal 0,75, PQ 0,58.
 _HDR_TRC = {"hlg": "arib-std-b67", "pq": "smpte2084"}
 
 
@@ -492,7 +492,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             # 07.09.2026 — Paint-Übergangsdauer im Render-Modus. 0 ms wäre 2× schneller, ließ aber auf
             # Gelände-Stilen (Fuji OSM, Teide Satellit) die Rasterkacheln beim Zoomen in ganzen
             # Abschnitten ungezeichnet (WYS mean_diff 22/17 statt 3/5; 60 ms genauso); 300 ms = MapLibre-
-            # Standard ist korrekt. Ursache offen (IDEAS §53a), RZ_TRANS_MS zum Messen.
+            # Standard ist korrekt. Ursache offen, RZ_TRANS_MS zum Messen.
             "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0),
             "transparent": bool(getattr(cfg, "transparent_background", False))}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}

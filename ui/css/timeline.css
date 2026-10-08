@@ -974,7 +974,7 @@ body.wert-zieht .timeline-marker.is-selected {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 
-/* ── Gruppen-Zeilen (IDEAS §60, 09.09.2026) ────────────────────────────────
+/* ── Gruppen-Zeilen (09.09.2026) ────────────────────────────────
    Ab zwei Gruppen ist die Tempo-Spur die erste Zeile: jede Kachel eine Gruppe
    (Name, Faktor, Sekunden), die Lücke zwischen zwei Inhalten der Übergang,
    davor und dahinter der Halt. Überlappende Gruppen bekommen eigene Zeilen. */
@@ -1047,7 +1047,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-gruppe-band.ist-anfassbar { cursor: ew-resize; pointer-events: auto; }
 .tl-gruppe-band.ist-anfassbar:hover { filter: brightness(1.35); }
 
-/* ── Overlay-Spur (24.09.2026, docs/OVERLAY-BOXEN.md §6) ────────────────────
+/* ── Overlay-Spur (24.09.2026) ────────────────────
    Kopfzeile „Overlays" (aufklappbar, zugeklappt dünne Striche je Box) und je
    Box eine Zeile mit einem Balken: Schrägen = Ein-/Ausblendung, Ränder und
    Schrägen-Griffe ziehbar. Abgeschaltete Box grau gestrichelt, ohne Klicks. */
@@ -1195,7 +1195,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-medien-pop-text { font-size: 11px; color: var(--text, #f4f1e9); margin-top: 5px; line-height: 1.35; }
 .tl-medien-pop-text span { color: var(--text-dim, #9aa5ae); }
 
-/* 06.10.2026 (I-281) — Fotostopp-Balken mit Phasen: Pin (blass) · Anflug/Abflug (mittel) · FOTO GROSS (kräftig, Bild +
+/* 06.10.2026 — Fotostopp-Balken mit Phasen: Pin (blass) · Anflug/Abflug (mittel) · FOTO GROSS (kräftig, Bild +
    Name), Griffe an den Phasengrenzen (senkrechte Striche, ziehbar). Der Balken selbst bleibt durchsichtig. */
 .tl-ovbar.ist-fotostopp { background: transparent; justify-content: flex-start; overflow: visible; }
 .tl-ovbar.ist-fotostopp:hover { background: transparent; }

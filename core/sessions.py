@@ -139,9 +139,9 @@ def compute_track_hashes(coords: Iterable, name: str = "") -> tuple:
 
 
 def mengen_hash(geo_hashes) -> str:
-    """Ein Schlüssel für eine MENGE von Touren (Schwarm/Reise, IDEAS §38).
+    """Ein Schlüssel für eine MENGE von Touren (Schwarm/Reise).
 
-    Grilling-Entscheid Q14c+Q18a (28.08.2026): Projekte über mehrere Touren
+    Entscheid (28.08.2026): Projekte über mehrere Touren
     hängen nicht mehr am Projekt der ersten Tour, sondern an der Menge selbst —
     dieselben Touren wieder wählen heißt: die Arbeit ist wieder da, egal in
     welcher Reihenfolge markiert wurde. Deshalb wird SORTIERT und dedupliziert
@@ -305,7 +305,7 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
             sek["line_color"] = ROUTE_NEU
         sek.setdefault("kontur_breite", KONTUR_BREITE_NEU)
         sek.setdefault("kontur_farbe", KONTUR_FARBE_NEU)
-    # 05.10.2026 abends (Grilling Animator A2, Marc „b“): neue Projekte zeigen die ganze Strecke blass (kommender Weg)
+    # 05.10.2026 abends (Marc „b“): neue Projekte zeigen die ganze Strecke blass (kommender Weg)
     anim.setdefault("ghost_track_enabled", True)
     anim.setdefault("ghost_track_opacity_pct", 30)
     anim.setdefault("ghost_track_dashed", True)   # 06.10.2026 (A2) — „standardmäßig an, gestrichelt"
@@ -446,7 +446,7 @@ def _compute_stats(coords: list) -> dict:
 def _save_snapshot(gpx_path: str, track_hash: str, snapshot_dir: Path) -> str:
     """Legt die Trackdatei als Version in der Bibliothek ab.
 
-    02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Schnitt 1): Bis hierher war das eine
+    02.09.2026 (Schnitt 1): Bis hierher war das eine
     schlichte Kopie nach `sessions/<hash>.gpx` im App-Ordner — ein Nebenkanal
     neben dem Archiv. Jetzt IST diese Kopie die Wahrheit: `snapshot_dir` zeigt
     auf den Versionsspeicher der Bibliothek, geschrieben wird komprimiert.

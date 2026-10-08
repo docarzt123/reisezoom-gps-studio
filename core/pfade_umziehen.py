@@ -1,4 +1,4 @@
-"""Foto-Pfade umbiegen, wenn das Laufwerk anders eingehängt ist (05.10.2026, IDEAS §82 Schritt 1).
+"""Foto-Pfade umbiegen, wenn das Laufwerk anders eingehängt ist (05.10.2026).
 
 Marc (04.10.2026): „Wenn ich die Bilder auf dem MacBook indiziere — könnte man die Bibliothek dann auf den Mac mini
 übertragen?" Der Bestand speichert volle Pfade. Hängt dasselbe NAS auf dem anderen Rechner unter anderem Namen

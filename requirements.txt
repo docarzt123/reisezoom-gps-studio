@@ -17,7 +17,7 @@ pillow-heif>=0.16
 # Stand. Anheben nur zusammen mit einem lokalen ./build.sh + Render-Test.
 playwright==1.61.0
 requests>=2.32
-# Cloud-Archiv (seit v0.9.515, docs/IDEAS.md §26) — nur nötig, wenn jemand die
+# Cloud-Archiv (seit v0.9.515) — nur nötig, wenn jemand die
 # Cloud einrichtet; der lokale Weg kommt ohne beide aus.
 cryptography>=44.0        # AES-GCM für die Umschläge
 keyring>=25.0             # Schlüsselbund: macOS, Windows, Linux/SecretService
@@ -27,7 +27,7 @@ keyring>=25.0             # Schlüsselbund: macOS, Windows, Linux/SecretService
 imageio-ffmpeg>=0.5
 # 02.10.2026 — Tonspur mischen (core/tonspur.py). BSD-Lizenz. Darf in der .spec NICHT ausgeschlossen werden.
 numpy>=1.26
-# 04.10.2026 — Inhaltssuche im Foto-Archiv (core/inhalt.py, IDEAS §81): SigLIP 2 als ONNX. Das Modell selbst wird
+# 04.10.2026 — Inhaltssuche im Foto-Archiv (core/inhalt.py): SigLIP 2 als ONNX. Das Modell selbst wird
 # erst beim Einschalten geladen; im Paket liegt nur die Laufzeit. onnxruntime MIT, tokenizers Apache-2.0.
 # 05.10.2026 (Audit F-7) — FEST gepinnt wie Playwright: native Bibliotheken (libonnxruntime 32 MB, pybind11),
 # die CI soll genau das bauen, was lokal getestet ist; eine andere ORT-Version rechnet zudem leicht andere Vektoren.

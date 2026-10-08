@@ -276,7 +276,7 @@ function _settingsStand() {
     mapStyleDefault: c.map_style_default || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
     tileCacheMb: (c.tile_cache_mb != null) ? c.tile_cache_mb : 2048,
     previewQuality: c.preview_quality || "voll",   // 07.09.2026 — Vorschau-Qualität
-    // v0.9.530 (IDEAS §23): Update-Prüfung beim Start abschaltbar — danach
+    // v0.9.530: Update-Prüfung beim Start abschaltbar — danach
     // telefoniert die App von sich aus mit niemandem mehr.
     updateCheck: c.update_check_enabled !== false,
   };
@@ -473,7 +473,7 @@ async function openSettingsModal(reiter) {
       <p class="muted" style="margin-bottom:4px">${t("settings.language")}</p>
       <select id="md-lang" style="width:100%;">${langOptions}</select>
       <p class="muted" style="margin-top:6px; font-size:11px;">${t("settings.language.help")}</p>
-        <!-- v0.9.530 (IDEAS §23) — Update-Prüfung abschaltbar: aus heißt, die
+        <!-- v0.9.530 — Update-Prüfung abschaltbar: aus heißt, die
              App baut von sich aus KEINE Verbindung mehr auf (kein stiller
              Fallback). Der manuelle Knopf im Über-Dialog nutzt force=true. -->
         <label style="display:flex; align-items:center; gap:8px; margin-top:16px; font-size:12.5px; cursor:pointer;">
@@ -677,7 +677,7 @@ async function openSettingsModal(reiter) {
            ⚠️ Standardmäßig gar nicht da: window.rzCloudSichtbar kommt aus
            cloud_status() und ist aus, solange das Archiv nicht fertig ist
            (Marc, 16.08.2026). Kein halbfertiger Knopf in den Einstellungen. -->
-      <!-- Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md): Ort zeigen und
+      <!-- Bibliothek (02.09.2026): Ort zeigen und
            wechseln können. Der Umzug verschiebt wirklich — er fängt nicht neu
            an; deshalb steht der Platzbedarf daneben. -->
       <div class="set-panel" data-panel="bibliothek" hidden>
@@ -719,7 +719,7 @@ async function openSettingsModal(reiter) {
           <p class="set-help" style="margin-top:4px;" id="md-bib-zip-hinweis">${t("bib.zip_help", "Ohne Häkchen bleiben Vorschaubilder und die rollierenden Datenbank-Kopien draußen; beides entsteht beim nächsten Öffnen neu. Der Dateiname bekommt einen Zeitstempel, eine vorhandene Sicherung wird nie überschrieben.")}</p>
         </div>
 
-        <!-- 04.10.2026 (IDEAS §81) — Inhaltssuche im Foto-Archiv: an/aus, Modellgröße, Modell und Index löschen.
+        <!-- 04.10.2026 — Inhaltssuche im Foto-Archiv: an/aus, Modellgröße, Modell und Index löschen.
              Eingeschaltet wird sie meist im Foto-Bereich beim Suchen; hier ist der Ort zum Abschalten (Marc, Q4). -->
         <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:12px;" id="md-inh">
           <p class="muted" style="margin:0 0 6px; font-weight:600; color:var(--text);">🔍 ${t("inhalt.titel", "Inhaltssuche in den Fotos")}</p>
@@ -963,7 +963,7 @@ function _bindSettingsModalHandlers() {
       speichern.disabled = false;
     };
 
-    // 04.10.2026 (IDEAS §81) — Inhaltssuche: Stand, an/aus, Modellgröße, Löschen
+    // 04.10.2026 — Inhaltssuche: Stand, an/aus, Modellgröße, Löschen
     const inhRahmen = document.getElementById("md-inh");
     if (inhRahmen) {
       const an = document.getElementById("md-inh-an");
@@ -1667,7 +1667,7 @@ async function openFirstRunMapboxModal() {
       openModal({}).close();
       resolve();
     };
-    // 05.10.2026 (Block 3, I-121) — „Los geht's" = neuer Nutzer: danach einmal die Startseite nach Aufgaben
+    // 05.10.2026 — „Los geht's" = neuer Nutzer: danach einmal die Startseite nach Aufgaben
     document.getElementById("md-fr-go").onclick = async () => {
       await fertig();
       try { if (typeof window.rzStartseiteNachEinrichtung === "function") window.rzStartseiteNachEinrichtung(); } catch (_) {}
@@ -2033,7 +2033,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Aktiven Map-Token für die Factory laden (auch wenn kein Token → OSM-Mode)
   await initMapToken();
 
-  // E1 (Grilling Q19/Q21, 29.08.2026): Die App startet im Projektmanager —
+  // E1 (29.08.2026): Die App startet im Projektmanager —
   // der erste Blick beantwortet „woran war ich dran?", ein Klick öffnet das
   // Projekt von gestern. Das frühere Auto-Restore des letzten Tracks (samt
   // Boot-Lade-Modal) entfällt damit ersatzlos. v0.9.601 (Marc: „komplett

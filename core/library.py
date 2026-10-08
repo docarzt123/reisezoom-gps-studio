@@ -306,7 +306,7 @@ _TECH_COLS = [
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
 # eine bestehende Sammlung soll nicht neu aufgebaut werden müssen.
 _ADD_COLS = [
-    # ── 02.09.2026, docs/UMBAU-BIBLIOTHEK.md, Schnitt 2 ────────────────────
+    # ── 02.09.2026, Bibliotheks-Umbau Schnitt 2 ────────────────────
     # Die Identität einer Tour ist nicht mehr ihr Dateipfad. `tour_id` sagt,
     # zu welcher Tour diese Datei gehört; `haupt` markiert die eine Zeile je
     # Tour, die das Archiv zeigt. Alle anderen Zeilen derselben Tour sind
@@ -347,7 +347,7 @@ _ADD_COLS = [
     # Eigene Spalte statt in `tags`: `tags` gehört dem Nutzer, und ein Neu-Scan
     # darf dessen Eingaben nicht überschreiben.
     ("fit_profile", "TEXT DEFAULT ''"),
-    # 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): die gezählten Befunde je
+    # 10.09.2026 — Track-Check: die gezählten Befunde je
     # Datei (JSON-Liste), die höchste Stufe (rot/gelb/grau/leer) und wann
     # geprüft wurde (leer = noch nie). Nichts davon läuft ungefragt: Import,
     # „Prüfen", „Alle prüfen" und die einmalige Frage nach dem Update.
@@ -456,7 +456,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         if n:
             log.info("library: %d Speicher-Zeile(n) markiert", n)
     _fts_einrichten(conn)
-    # 12.09.2026 (IDEAS §64) — der Foto-Bestand liegt in derselben Datenbank
+    # 12.09.2026 — der Foto-Bestand liegt in derselben Datenbank
     # (Marc: „in die bestehende"). Eigenes Modul, eigene Tabellen, damit das
     # Track-Archiv davon nichts wissen muss.
     try:
@@ -464,7 +464,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         _fotos.schema_anlegen(conn)
     except Exception:
         log.exception("library: Foto-Tabellen konnten nicht angelegt werden")
-    # 13.09.2026 (IDEAS §67, Schritt 4) — Einteilungen einer Tour (Tage, Bewegung,
+    # 13.09.2026 (Schritt 4) — Einteilungen einer Tour (Tage, Bewegung,
     # eigene) als Markierung über dem unveränderten Track.
     try:
         from . import einteilung as _einteilung
@@ -1641,7 +1641,7 @@ def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path
                       tour_id: str = "") -> dict:
     """Eine in der App ENTSTANDENE Version als Archivzeile aufnehmen.
 
-    02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Schnitt 3): Bis hierher entstand
+    02.09.2026 (Schnitt 3): Bis hierher entstand
     eine geheilte Tour dadurch, dass die App die Datei des Nutzers
     ÜBERSCHRIEB — mitsamt Sicherungsordner, der unbegrenzt wuchs, und einer
     Zuordnung über Dateinamen, die raten musste. Ab jetzt schreibt GPS Studio
@@ -2070,7 +2070,7 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     return d
 
 
-# ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ─────────────────────────────
+# ── Track-Check (10.09.2026) ─────────────────────────────
 
 def _check_werte(pts, stats, name: str = "", geplant: bool = False,
                  aktivitaet: Optional[str] = None) -> dict:

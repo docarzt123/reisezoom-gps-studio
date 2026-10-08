@@ -56,7 +56,7 @@ function mountTimelineBar(opts) {
     { kind: "pitch",    label: tlT("animator.lane.pitch",    "Pitch"),     icon: "📐", color: "#5aa9ff" },
     { kind: "bearing",  label: tlT("animator.lane.bearing",  "Drehung"),   icon: "🧭", color: "#6cdd9b" },
     { kind: "zoom",     label: tlT("animator.lane.zoom",     "Zoom"),      icon: "🔍", color: "#c397ff" },
-    // v0.9.530 (Nutzerfrage aus Spanien, IDEAS §31): „Karte" und „Welt-Pos"
+    // v0.9.530 (Nutzerfrage aus Spanien): „Karte" und „Welt-Pos"
     // waren nicht auseinanderzuhalten. Jetzt benannt nach dem, was sie TUN
     // (Erdpunkt = Erde drehen, Bildlage = Bild im Ausschnitt schieben) + je
     // ein erklärender Tooltip an der Spur-Beschriftung.
@@ -99,7 +99,7 @@ function mountTimelineBar(opts) {
         <div class="timeline-lanes timeline-touren" id="tl-touren">${tourenHtml}</div>
         <div class="timeline-ov" id="tl-ov"></div>
         <div class="timeline-ov timeline-sg" id="tl-sg"></div>   <!-- 28.09.2026 — Schilder-Spur, _sgGruppe -->
-        <!-- 06.10.2026 (Grilling Animator A3) — Medien der Tour: ein Strich je Foto/Video aus dem Medien-Bestand -->
+        <!-- 06.10.2026 — Medien der Tour: ein Strich je Foto/Video aus dem Medien-Bestand -->
         <div class="timeline-ov timeline-medien" id="tl-medien" hidden></div>
         <div class="timeline-ov timeline-ton" id="tl-ton"></div>  <!-- 02.10.2026 — Ton: Musik, Foto-Klicks, Clip-Ton (_tonGruppe) -->
         <div class="timeline-cluster-row" data-kind="__cluster">
@@ -484,7 +484,7 @@ function mountTimelineBar(opts) {
   // auf der Leiste. Die Grund-Kacheln der Tempo-Spur SIND die Etappen — sie
   // tragen deshalb deren Namen statt „1,0×".
   let _tempoEtappen = [];       // [{ name, farbe, von, bis }] in Leisten-Anteilen
-  // ── Gruppen-Zeilen (IDEAS §60, Phase 3 — 09.09.2026) ─────────────────────
+  // ── Gruppen-Zeilen (Phase 3 — 09.09.2026) ─────────────────────
   // Ab zwei Gruppen IST die Tempo-Spur die erste Zeile der Gruppen: jede Kachel
   // eine Gruppe (Name, Faktor, Sekunden), die Lücke zwischen zwei Inhalten der
   // Übergang, davor und dahinter die Halte. Gruppen, deren Inhalte sich
@@ -937,7 +937,7 @@ function mountTimelineBar(opts) {
 
   // ── Balken-Spuren: Overlays (24.09.2026) und Schilder (28.09.2026) ─────────────────────────────
   // 24.09.2026 (Marc: „die Stats-Boxen grafisch in der Timeline … einfach hinziehen, wo sie erscheinen
-  // sollen"; docs/OVERLAY-BOXEN.md §6). 28.09.2026 (Marc: „Schilder muss man sich wie die Overlays auch
+  // sollen"). 28.09.2026 (Marc: „Schilder muss man sich wie die Overlays auch
   // in der Timeline anzeigen lassen können und ziehen können, wie lange und wo sie zu sehen sind") —
   // derselbe Baustein, zweimal: eine aufklappbare Gruppe mit einer Zeile je Box/Schild. Ein Balken ist
   // die Zeit des Elements; die Schrägen innen sind Ein- und Ausblendung (Overlays: je eigener Griff).
@@ -1313,7 +1313,7 @@ function mountTimelineBar(opts) {
   function _ovGeometrieMelden() { _ovGruppe.geometrieMelden(); _sgGruppe.geometrieMelden(); _tonGruppe.geometrieMelden(); }
   function _ovZeichnen() { _ovGruppe.zeichnen(); _sgGruppe.zeichnen(); _tonGruppe.zeichnen(); _medienZeichnen(); }
 
-  // ── Medien der Tour (06.10.2026, Grilling A3) ───────────────────────────────────────────────────────────────────
+  // ── Medien der Tour (06.10.2026) ───────────────────────────────────────────────────────────────────
   // Fotos/Videos im Zeitraum der Tour als feine Striche an ihrer Stelle (Leisten-Position wie die Schilder; das Modul
   // rechnet sie aus). Darüberfahren zeigt das Bild groß (cb.onMedienBild → Promise<url>), Klick macht ein Schild
   // daraus (cb.onMedienKlick). Was schon Schild ist, steht in der Schilder-Spur und hier nur als Punkt.

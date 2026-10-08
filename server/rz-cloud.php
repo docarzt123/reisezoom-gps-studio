@@ -3,7 +3,7 @@
  * Reisezoom GPS Studio — Cloud-Archiv, Gegenstelle für den eigenen Webserver.
  *
  * EINE Datei. Hochladen, im GPS Studio Adresse und Schlüssel eintragen, fertig.
- * Entwurf und Begründungen: docs/IDEAS.md §26 (durchgesprochen am 15.08.2026).
+ * Durchgesprochen mit Marc am 15.08.2026.
  *
  * ─────────────────────────────────────────────────────────────────────────
  *  WAS DIESER SERVER WEISS — UND WAS NICHT

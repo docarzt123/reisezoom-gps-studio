@@ -60,7 +60,7 @@ function mountGeotagger(body, headerActions) {
           <span>${t("geotagger.toggle.folder_recursive")}</span>
         </label>
         <div class="file-label small-info" id="gt-photos-info" hidden></div>
-        <!-- 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Liste der geladenen
+        <!-- 10.09.2026 (Issue #7) — mehrere Tracks: Liste der geladenen
              Tracks in ihrer Farbe, dazu der Weg ins Archiv. -->
         <div id="gt-tracks-box" hidden style="margin-top:8px;">
           <div class="small-info" id="gt-tracks-info"></div>
@@ -270,7 +270,7 @@ function mountGeotagger(body, headerActions) {
   // v0.9.163 — Track-Klick-Info-Popup + Übersicht-Filter
   let _gtTrackPopup = null;   // mapLib().Popup für Track-Punkt-Klick
   let _gtFilter = null;       // null | "tagged" | "unsicher" | "oor" | "notime" | "hasgps"
-  // 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks auf einmal. [{path,name,coords,bbox,
+  // 10.09.2026 (Issue #7) — mehrere Tracks auf einmal. [{path,name,coords,bbox,
   // farbe,vorgegeben,n_points}], der erste ist der Haupt-Track (Sitzung, GPX-Leiste).
   let _gtTracks = [];
   // v0.9.164 — Kamera-Filter + Tag-Auswahl (Checkbox je Foto, default an)
@@ -1228,7 +1228,7 @@ function mountGeotagger(body, headerActions) {
     toast(t("geotagger.gpx_geladen", "GPX geladen: ") + res.name, "success", 2500);
   }
 
-  // ── 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Archiv findet sie ────────
+  // ── 10.09.2026 (Issue #7) — mehrere Tracks: Archiv findet sie ────────
   /** Sidebar-Liste der geladenen Tracks (Farbe, Name, Foto-Zahl, „vorgegeben"). */
   function _gtTracksListe() {
     const box = document.getElementById("gt-tracks-box");
@@ -1671,7 +1671,7 @@ function mountGeotagger(body, headerActions) {
   }
 
   // 10.09.2026 — der frühere Nähe-Dialog (offerNearbyGpx, Radio-Buttons) ist durch
-  // die Archiv-Bestätigungsliste ersetzt (_gtTracksVorschlagen, IDEAS §61).
+  // die Archiv-Bestätigungsliste ersetzt (_gtTracksVorschlagen).
 
   let thumbPollTimer = null;
   function stopThumbPolling() {

@@ -1,4 +1,4 @@
-"""Video-Assistent, Stufe 1: die besten und abwechslungsreichsten Fotos einer Tour wählen (05.10.2026, Block 2).
+"""Video-Assistent, Stufe 1: die besten und abwechslungsreichsten Fotos einer Tour wählen (05.10.2026).
 
 Marc (Roadmap 05.10.2026): „Aus 400 Fotos einer Tour die besten und abwechslungsreichsten — Doppelte und
 Fast-Gleiche weg, Gipfel, Aussicht, Menschen, Essen, Tiere gemischt; sinnvoll über das Logbuch verteilt (keins

@@ -11,7 +11,7 @@ Gültig nur, wenn
   · der Lauf voll war (kein Namensfilter) und nichts scheiterte,
   · der Arbeitsstand am Anfang UND am Ende sauber war und HEAD sich nicht bewegt hat (prüft run_tests.py),
   · der Stempel höchstens STEMPEL_STUNDEN alt ist,
-  · zwischen Stempel-Commit und Tag nur Doku geändert wurde (Changelog, Handbuch, HANDOVER, docs/*.md|html|xml).
+  · zwischen Stempel-Commit und Tag nur Doku geändert wurde (Changelog, Handbuch, docs/*.md|html|xml).
 Die eigenen Oberflächen-Selbsttests von release_check.sh laufen trotzdem (RZ_OHNE_SUITE=1 überspringt nur die Suite).
 """
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 STEMPEL = REPO / ".rz_suite_gruen.json"
 STEMPEL_STUNDEN = 72
-DOKU = re.compile(r"^(CHANGELOG\.md|HANDOVER\.md|docs/.+\.(md|html|xml))$")
+DOKU = re.compile(r"^(CHANGELOG\.md|docs/.+\.(md|html|xml))$")
 
 
 def git(*args: str) -> str:

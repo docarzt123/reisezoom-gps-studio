@@ -1,4 +1,4 @@
-"""Bewegungsart und Halte erkennen (docs/IDEAS.md §67, Schritt 2 — 13.09.2026).
+"""Bewegungsart und Halte erkennen (Schritt 2 — 13.09.2026).
 
 Marc: „Wir müssen eben erkennen, was gemacht wird, und das irgendwie sinnvoll
 machen. Das wird noch der schwerste überhaupt sein." Und: „die Regeln müssen

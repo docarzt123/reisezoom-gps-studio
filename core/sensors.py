@@ -1,12 +1,12 @@
 """
 Sensor-Feld-Registry — Single Source of Truth für Zusatzdaten pro Trackpunkt
-(FIT-Sensoren, GPX-Extensions). Phase 1 der FIT-Daten-Power (IDEAS §15.2).
+(FIT-Sensoren, GPX-Extensions). Phase 1 der FIT-Daten-Power.
 
 Begriffe:
   - **kanonischer Key** (z. B. "hr", "power"): interner Name eines Sensorfeldes.
     Liegt pro Trackpunkt in `TrackPoint.extra[key]`.
   - **Sidecar**: `<cache>.sensors.json` neben der (Cache-)GPX, hält ALLE
-    Sensorreihen index-gleich zu den GPX-Punkten (Variante B — siehe IDEAS §15).
+    Sensorreihen index-gleich zu den GPX-Punkten (Variante B).
   - **Standard-Extensions**: gpxtpx/gpxpx — die einzigen Felder, die ein GPX
     nativ tragen kann. Werden beim Import gelesen + beim Export geschrieben.
 

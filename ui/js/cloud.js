@@ -1,4 +1,4 @@
-/* Cloud-Archiv in der Oberfläche (v0.9.515, docs/IDEAS.md §26).
+/* Cloud-Archiv in der Oberfläche (v0.9.515).
  *
  * ⚠️ ALLES HIER IST ZUSÄTZLICH. Ohne eingerichtete Cloud tut diese Datei
  * nichts: Die Zustandsanzeige bleibt versteckt, es läuft kein Zeitgeber, und

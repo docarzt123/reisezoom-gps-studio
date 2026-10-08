@@ -73,7 +73,7 @@ function mountAnimator(body, headerActions, opts) {
   const FAHRZEUGE = ["wanderer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug"];
   const FAHRZEUG_NAMEN = { wanderer: "Wanderer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug" };
   // 07.10.2026 (Marc: „von jedem Verkehrsmittel 10 Stück … mehr Comic, realistischer, handgezeichnet, passend zu den
-  // Kartenstilen“, IDEEN I-287) — Fahrzeug-Aussehen: „plakette“ = das gezeichnete Symbol wie bisher, sonst ein Bild aus
+  // Kartenstilen“) — Fahrzeug-Aussehen: „plakette“ = das gezeichnete Symbol wie bisher, sonst ein Bild aus
   // ui/img/fahrzeuge/<fahrzeug>_<stil>.png (Draufsicht, Front nach oben; geschnitten mit scripts/fahrzeug_icons_schneiden.py).
   // Fehlt ein Bild (Boot/Flugzeug noch nicht geliefert), bleibt es bei der Plakette.
   const FZ_STILE = ["plakette", "foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"];
@@ -151,7 +151,7 @@ function mountAnimator(body, headerActions, opts) {
         <!-- 06.10.2026 (Marc) — Video-Assistent als Quiz kommt nach dem Release (F-14); Knopf bis dahin versteckt -->
         <button class="btn btn-secondary btn-block" id="anim-videoassistent" hidden>🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
 
-      <!-- 06.10.2026 (Grilling Export E3/E4, Marc: „absolut grundlegende Einstellungen“ → ganz nach oben) —
+      <!-- 06.10.2026 (Marc: „absolut grundlegende Einstellungen“ → ganz nach oben) —
            „Format & Ablauf“: Seitenverhältnis und Dauer sofort, unter „Mehr“ Intro, Halten, Dauer als Faktor,
            Verteilung über den Track und Pausen. Ersetzt die alte Video-Karte (Ausgabe → Export-Dialog). -->
       <section class="section" data-accordion-section="format" id="anim-format-section">
@@ -204,7 +204,7 @@ function mountAnimator(body, headerActions, opts) {
               <input type="number" id="anim-hold" min="0" max="20" value="5">
             </div>
           </div>
-          <!-- v0.9.530 (Nutzer-Idee, IDEAS §22) — Animationsdauer wahlweise als
+          <!-- v0.9.530 (Nutzer-Idee) — Animationsdauer wahlweise als
                Echtzeit ÷ Faktor: ein 6-h-Track ÷ 100 läuft 3:39 min. Der Faktor
                rechnet nur die Sekunden aus (duration_s bleibt die Wahrheit für
                Render + Backend); ohne Zeitstempel ist der Modus gesperrt. -->
@@ -377,7 +377,7 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <!-- 05.10.2026 (Block 1 „Looks", IDEEN I-052) — ganze Bildsprache mit einem Klick: Karte, Linie, Verläufe,
+          <!-- 05.10.2026 — ganze Bildsprache mit einem Klick: Karte, Linie, Verläufe,
                Schrift und Farben der Einblendungen (ui/js/looks.js). Ein Undo-Schritt; danach bleibt alles frei. -->
           <div class="field" id="anim-gesamtlook-field">
             <label class="field-label">${t("look.titel", "Look")} <button type="button" class="field-help" data-help="gesamtlook">?</button></label>
@@ -447,7 +447,7 @@ function mountAnimator(body, headerActions, opts) {
             <!-- 06.10.2026 (Marc: „das mit dem Flug hab ich nicht kapiert — da geht es nicht um die Häuser?") — eigene Zeile:
                  betrifft die Strecke (Linie in echter Flughöhe), nicht die Häuser -->
             <!-- 06.10.2026 (Marc: „verstecke den Button bis dahin, das verwirrt, das müssen wir anders machen") — verborgen,
-                 bis „Flug in der Luft“ von selbst erkannt wird (IDEEN I-277); das Feld bleibt im DOM, damit Projekte, in
+                 bis „Flug in der Luft“ von selbst erkannt wird; das Feld bleibt im DOM, damit Projekte, in
                  denen es an ist, weiter so rendern. -->
             <div class="anim-3d-reihe" id="anim-3d-strecke" hidden><span class="anim-3d-was">${t("map_config.dreid_strecke", "Strecke")}</span><div class="chip-row">
               <label class="chip-toggle" title="${t("map_config.flug3d_tip", "Für Drohnen-, Gleitschirm- und Segelflüge: Die Linie liegt in ihrer echten Höhe über dem Boden, senkrechte Lotlinien und ein Schatten am Boden zeigen den Abstand. Braucht Gelände (3D) und eine der freien Karten.")}"><input type="checkbox" id="anim-mc-flug3d"><span>${t("map_config.chip.flug3d", "✈ Flug in der Luft")}</span></label>
@@ -474,7 +474,7 @@ function mountAnimator(body, headerActions, opts) {
           <div class="field" id="anim-ortho-row" title="${t("animator.field.ortho_tip", "Wirkt auf die Luftbilder und die Sentinel-Ebene (nicht auf den Blue-Marble-Untergrund) — in Vorschau, Video und Web-Karte gleich. Standard = Sentinel unverändert.")}">
             <label class="field-label">${t("animator.field.ortho_title", "Luftbild-Optik")}
               <button type="button" class="btn btn-ghost btn-sm" id="anim-ortho-reset" style="margin-left:auto;">↺ ${t("animator.field.ortho_reset", "Standard")}</button></label>
-            <!-- 17.09.2026 (docs/KARTEN-OPTIK.md §3.3) — fertige Looks statt sechs Regler; „Eigene" = Regler weichen ab -->
+            <!-- 17.09.2026 — fertige Looks statt sechs Regler; „Eigene" = Regler weichen ab -->
             <label class="field-label" for="anim-look" title="${t("animator.field.look_tip", "Stellt alle Regler darunter auf einen abgestimmten Satz. Wer danach einen Regler bewegt, hat wieder einen eigenen Look.")}">${t("animator.field.look_title", "Luftbild-Voreinstellung")}</label>
             <select id="anim-look">
               <option value="eigene">${t("animator.field.look_custom", "Eigene Einstellung")}</option>
@@ -603,7 +603,7 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.line_width")} <span class="label-val" id="anim-lw-v">3.5 px</span></label>
             <input type="range" id="anim-lw" min="1" max="10" step="0.5" value="3.5">
           </div>
-          <!-- 05.10.2026 (I-270, Marc: „eine eigene Konturfarbe zum Track“) — Rand um die Linie. Standard im HTML: aus
+          <!-- 05.10.2026 (Marc: „eine eigene Konturfarbe zum Track“) — Rand um die Linie. Standard im HTML: aus
                (bestehende Projekte ohne Schlüssel bleiben unverändert); neue Projekte starten mit 1,5 px (core/sessions.py). -->
           <div class="field" title="${t("animator.kontur.tip", "Rand um die Linie in eigener Farbe — hebt helle Linien auf hellen Karten ab. 0 = aus.")}">
             <label class="field-label">${t("animator.kontur.label", "Kontur")} <span class="label-val" id="anim-kontur-v">0 px</span></label>
@@ -656,7 +656,7 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.ghost_color", "Ghost-Track-Farbe")} <span class="label-val" id="anim-ghost-color-v">#ff6b35</span></label>
             <input type="color" id="anim-ghost-color" value="#ff6b35">
           </div>
-          <!-- 06.10.2026 (Grilling Animator A2) — kommender Weg gestrichelt; neue Projekte: an (core/sessions.py) -->
+          <!-- 06.10.2026 — kommender Weg gestrichelt; neue Projekte: an (core/sessions.py) -->
           <label class="checkbox-row"><input type="checkbox" id="anim-ghost-dashed"><span>${t("animator.blass.dashed", "Gestrichelt")}</span></label>
           <div class="field" id="anim-ghost-opacity-field" hidden>
             <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
@@ -774,7 +774,7 @@ function mountAnimator(body, headerActions, opts) {
           </div>
           <div id="anim-tours-list" class="anim-tours-list"></div>
           <div id="anim-reise-bilanz" class="anim-reise-bilanz" hidden></div>
-          <!-- 07.10.2026 (Block 4, Grilling 05.10. Punkt 2) — „＋ Etappe erstellen“ neben „＋ Tour hinzufügen“: geplante
+          <!-- 07.10.2026 — „＋ Etappe erstellen“ neben „＋ Tour hinzufügen“: geplante
                Strecke (Flug, Fähre, Auto …) zwischen oder vor den echten Touren, Stationen eintippen oder auf die Karte klicken -->
           <div class="anim-tours-knoepfe">
             <button type="button" class="btn btn-small" id="anim-tours-add">＋ ${t("animator.tours.add", "Tour hinzufügen")}</button>
@@ -889,7 +889,7 @@ function mountAnimator(body, headerActions, opts) {
            Umgeschaltet über die „🎥 Keyframe-Editor"-Checkbox ganz oben in
            der Section. So sieht der User nur die Regler die zum gewählten
            Modus passen. -->
-      <!-- 24.09.2026 (IDEAS §67 Q11 / §68 Q19) — Logbuch im Video: je Eintrag zeigen,
+      <!-- 24.09.2026 — Logbuch im Video: je Eintrag zeigen,
            blass, raffen oder überspringen. Gespeichert beim Logbuch der Tour (Bibliothek),
            dieselbe Einstellung wie im Inspektor. -->
       <section class="section" data-accordion-section="logbuch" id="anim-lb-section">
@@ -915,7 +915,7 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <!-- 06.10.2026 (Trailframe, Grilling A4) — oben nur das Wesentliche: Kameraführung, Höhe über Gelände,
+          <!-- 06.10.2026 (Trailframe) — oben nur das Wesentliche: Kameraführung, Höhe über Gelände,
                Blickwinkel. Kein Tempo-Regler (ergibt sich aus der Videolänge). Alles Weitere unter „Mehr“.
                Die Felder behalten ihre IDs — Speichern, Undo und Tests laufen unverändert. -->
           <div class="anim-kurz" id="anim-kamera-kurz">
@@ -1214,7 +1214,7 @@ function mountAnimator(body, headerActions, opts) {
               <input type="text" id="anim-ov-attrib-link" class="pos-select" style="flex:1 1 100%;" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
               </div>
             </div>
-            <!-- 30.09.2026 — Einblendungen als Container (docs/OVERLAY-CONTAINER.md): ein Baustein
+            <!-- 30.09.2026 — Einblendungen als Container: ein Baustein
                  für Werte, Summen, Freitext, Diagramme, Bilder/Logo, Nordpfeil und Maßstab. -->
             <div class="overlay-group ct-bereich" id="ct-bereich">
               <div class="ct-kopf">
@@ -1322,7 +1322,7 @@ function mountAnimator(body, headerActions, opts) {
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-add-photos">${t("signs.add_photos", "📷 Fotos hinzufügen")}</button>
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-add-gtg">${t("photos.from_geotagger", "Aus Geotagger")}</button>
           </div>
-          ${_isStaticFrame ? "" : `<!-- 06.10.2026 (Grilling A3) — Fotos/Videos aus dem Zeitraum der Tour, rechts in der Detail-Spalte -->
+          ${_isStaticFrame ? "" : `<!-- 06.10.2026 — Fotos/Videos aus dem Zeitraum der Tour, rechts in der Detail-Spalte -->
           <button type="button" class="btn btn-subtle" style="width:100%; margin-top:6px;" id="anim-medien-der-tour">🖼 ${t("medien.titel", "Medien der Tour")}</button>`}
           ${_isStaticFrame ? "" : `<button type="button" class="btn btn-subtle" style="width:100%; margin-top:6px;" id="anim-signs-add-clips"
                   title="${t("signs.add_clips_tip", "Videoclips (MP4, MOV …) wählen — sie kommen an die Stelle, an der sie aufgenommen wurden (GPS, sonst Aufnahmezeit), und laufen dort als Stopp ab.")}">${t("signs.add_clips", "🎞 Videoclips hinzufügen")}</button>`}
@@ -1419,7 +1419,7 @@ function mountAnimator(body, headerActions, opts) {
           </div>
         </div>
       </section>`}
-      <!-- 06.10.2026 (Grilling Export E3) — Auflösung, Bildrate, Farbraum, Glätten stellt der Export-Dialog ein
+      <!-- 06.10.2026 — Auflösung, Bildrate, Farbraum, Glätten stellt der Export-Dialog ein
            (ui/js/exportdialog.js). Die Felder bleiben hier verborgen bestehen: an ihnen hängen Speichern je Projekt,
            ⌘Z und der Render. -->
       <section class="section" data-accordion-section="video" id="anim-ausgabe-felder" hidden>
@@ -1462,7 +1462,7 @@ function mountAnimator(body, headerActions, opts) {
             </div>
           </div>
           ${_isStaticFrame ? "" : `
-          <!-- 02.10.2026 (Marc: „bau den HDR-Render", IDEAS §73) -->
+          <!-- 02.10.2026 (Marc: „bau den HDR-Render") -->
           <div class="field">
             <label class="field-label" for="anim-farbraum">${t("animator.farbraum", "Farbraum")}
               <button type="button" class="field-help" data-help="farbraum">?</button>
@@ -2286,7 +2286,7 @@ function mountAnimator(body, headerActions, opts) {
     const rd = (typeof mapCatalog === "function" && typeof mapCatalog().ortho_relief_default === "number") ? mapCatalog().ortho_relief_default : 0;
     _lookSetzen({ sat: d.sat, con: d.con, bri: d.bri, hue: d.hue, sharp: 0, relief: rd, haze: 0 });
   });
-  // 17.09.2026 — fertige Looks (docs/KARTEN-OPTIK.md §3.3): ein Satz Regler je Look; Werte sind
+  // 17.09.2026 — fertige Looks: ein Satz Regler je Look; Werte sind
   // abgestimmt auf Sentinel-2 + Landesluftbilder (Vergleichsrender 17.09.). „Eigene" = keine Vorgabe.
   document.getElementById("anim-look")?.addEventListener("change", ev => {
     const p = _LOOKS_()[ev.target.value]; if (p) _lookSetzen(p);
@@ -2607,7 +2607,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!p) {
       p = document.createElement("div"); p.id = "anim-karten-editor"; p.className = "anim-track-editor sign-editor anim-karten-editor";
       _keFeld = p;
-      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p))) {
+      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p, t("animator.section.map")))) {
         const f = document.getElementById("anim-gesamtlook-field"); if (f) f.appendChild(p); else document.body.appendChild(p);
       }
     }
@@ -2723,7 +2723,7 @@ function mountAnimator(body, headerActions, opts) {
   const _paceMapLadenBald = _aufschub(() => { try { paceMapLaden(); } catch (e) { applog("warn", "[tempo] Kurve laden: " + e); } });
   const _gruppenAnLeisteBald = _aufschub(() => { try { _gruppenAnLeiste(); } catch (_) {} });
   const _pauseInfoLadenBald = _aufschub(() => { try { pauseInfoLaden(); } catch (e) { applog("warn", "[pausen] Info laden: " + e); } });
-  // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
+  // v0.9.530 — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
   // immer gespeichert) — Render, Backend und alle Rechnungen dahinter bleiben
   // unangetastet. Ohne Zeitstempel wird der Modus gesperrt.
@@ -2832,7 +2832,7 @@ function mountAnimator(body, headerActions, opts) {
       // leben in einem anderen Scope; der Aufruf flog vorher still (ReferenceError im catch).
       try { if (window.__rzAnimSigns && window.__rzAnimSigns.refreshIfEditing) window.__rzAnimSigns.refreshIfEditing(); } catch (_) {}
       try { renderOverlayPreview(); } catch (_) {} } });   // v0.9.479 — Stats-Schatten folgt der Richtung
-  // 05.10.2026 (I-270) — Kontur
+  // 05.10.2026 — Kontur
   bindSetting("anim-kontur-breite", _MODKEY, "kontur_breite", { type: "number",
     onLoad: v => { updateLabel("anim-kontur-v", parseFloat(v || 0).toFixed(1), " px"); try { applyKonturToLayers(); } catch (_) {} },
     onChange: v => { updateLabel("anim-kontur-v", parseFloat(v || 0).toFixed(1), " px"); applyKonturToLayers(); } });
@@ -3496,7 +3496,7 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-h").addEventListener("input", onAnimResolutionChange);
   // Initial-Status setzen
   updateResButtons();
-  // 06.10.2026 (Grilling Export E3) — „Format & Ablauf“: Seitenverhältnis als Pillen. Die kurze Seite bleibt (4K bleibt 4K),
+  // 06.10.2026 — „Format & Ablauf“: Seitenverhältnis als Pillen. Die kurze Seite bleibt (4K bleibt 4K),
   // die lange folgt dem Verhältnis; ein Klick = EIN ⌘Z-Schritt. Freie Größen (Export-Dialog → Mehr) zeigen keine Pille.
   // E13 — ★-Export-Vorlage für NEUE Projekte: nur wenn das Projekt frisch ist (≤ 10 min) und noch keine eigene Größe hat.
   try {
@@ -3639,7 +3639,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _manualCamLoeschen() { if (_manualCam || (_manualCamGet())) _manualCamSpeichern(null); }
   let _extraTours = [];
-  // IDEAS §60 (09.09.2026) — die EINE Wahrheit über die Zeit sind die GRUPPEN
+  // 09.09.2026 — die EINE Wahrheit über die Zeit sind die GRUPPEN
   // (ui/js/spuren.js): jede Tour ist Halt + Inhalt + Halt, alle gleich lang.
   // `_animAblauf` ist seitdem ABGELEITET (eine Gruppe mit mehreren Touren =
   // „schwarm", sonst „reise") und dient nur noch den alten Weichen;
@@ -3651,11 +3651,11 @@ function mountAnimator(body, headerActions, opts) {
   let _gruppen = [];            // [{id, name, faktor, vorlauf_s, ueber_s, ueber_stil, leit_gpx, zu, fest, mitglieder:[{gpx_path, vorlauf_s, sichtbar_vor_inhalt}]}]
   let _gruppenPlan = null;      // zuletzt gerechneter Zeitplan (Animationszeit, 0 = Ende des Anlaufs)
   let _gruppenProjektId = null; // für welches Projekt die Gruppen aufgebaut wurden
-  // IDEAS §38 M3 — Geschwindigkeitsmodus des Schwarms (Archiv-Wahl, Sitzung
+  // Geschwindigkeitsmodus des Schwarms (Archiv-Wahl, Sitzung
   // trägt die Wahrheit): "gleich" | "ziel" (Fotofinish) | "uhrzeit".
   let _animModus = "gleich";
   let _animPausen = true;
-  // IDEAS §38 M2 — Fokus-Tour: GPX-Pfad der Zusatz-Tour, der die Kamera folgt
+  // Fokus-Tour: GPX-Pfad der Zusatz-Tour, der die Kamera folgt
   // („" = Haupt-Track). Nur im Schwarm-Ablauf von Bedeutung.
   let _animFokusPfad = "";
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
@@ -3671,7 +3671,7 @@ function mountAnimator(body, headerActions, opts) {
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
   // Maske brauchen wir die Geometrie. SYNCHRON zu core/animator.py (__rzSegMask).
   let _segStarts = [];
-  // ── Logbuch im Video (24.09.2026, IDEAS §67 Q11 / §68 Q19) ──────────────────
+  // ── Logbuch im Video (24.09.2026) ──────────────────
   // Je Logbuch-Eintrag der Tour: zeigen · blass · raffen · überspringen. Die Wahl
   // lebt beim Logbuch in der Bibliothek (Feld `anzeige` der Einteilung „Bewegung"),
   // Inspektor und Animator teilen sie. Wirkung: raffen/überspringen = Tempo-
@@ -6221,7 +6221,7 @@ function mountAnimator(body, headerActions, opts) {
                           // 3D-Klötze gibt MapLibre über queryRenderedFeatures nicht heraus → aus der Kachelquelle zählen
                           anzahl: () => { try { const l = map.getLayer(GEB_EBENE); return l ? map.querySourceFeatures(l.source, { sourceLayer: "building" }).length : 0; } catch (_) { return -1; } },
                           reihenfolge: () => { try { const ids = map.getStyle().layers.map(l => l.id); return { geb: ids.indexOf(GEB_EBENE), track: ids.indexOf("preview-line") }; } catch (_) { return null; } } };   // Prüfstand
-  // ── Flug in der Luft (05.10.2026, Block 5, IDEEN I-020, IDEAS §77) ─────────────────────────────────────────
+  // ── Flug in der Luft (05.10.2026) ─────────────────────────────────────────
   // Drohnen-, Gleitschirm- und Segelflüge: die Linie in ihrer echten Höhe über Grund (rz-line3d mit `agl`),
   // senkrechte Lotlinien (Vorhang) und ein Schatten am Boden; der Laufpunkt schwebt mit. Höhe über Grund: bei DJI
   // aus „Höhe über Start" (rel_alt, verlässlicher als die absolute Baro-Höhe) + Gelände am Start − Gelände hier,
@@ -6535,7 +6535,7 @@ function mountAnimator(body, headerActions, opts) {
         layout: trackLayout,
         paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35 * _hauptDeckkraft(), "line-blur": gs, ...(dash ? { "line-dasharray": dasharrayFor(lw * (2.0 + 0.21 * gs)) } : {}), ...zOffPaint } });
     }
-    // 05.10.2026 (I-270) — Kontur: eine breitere Linie in Konturfarbe direkt unter der Linie, gleiche Quelle (wächst
+    // 05.10.2026 — Kontur: eine breitere Linie in Konturfarbe direkt unter der Linie, gleiche Quelle (wächst
     // mit), gleicher Strich-Stil. Vorschau und Szene-Render benutzen diese Seite — Video = Vorschau.
     if (!map.getLayer("preview-kontur") && !hauptDezent()) {
       const kb = currentKonturBreite();
@@ -6600,7 +6600,7 @@ function mountAnimator(body, headerActions, opts) {
       dotSetzen(trackFracAusAnker(_da));
     } catch (e) { rzSwallow(e, "dot@rebuild"); }
     try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); }   // 02.10.2026 — 3D-Häuser nach jedem Stilwechsel
-    _flugAnwenden(false).catch((e) => applog("warn", "[flug3d] " + e));   // 05.10.2026 — Flug in der Luft (I-020)
+    _flugAnwenden(false).catch((e) => applog("warn", "[flug3d] " + e));   // 05.10.2026 — Flug in der Luft
   }
 
   // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
@@ -6996,7 +6996,7 @@ function mountAnimator(body, headerActions, opts) {
       // 24.08.2026 — auch der Schatten (synchron zu core/animator.py): ohne
       // eigene Maske blieb die unsichtbare Verbindung als schwarzer Strich
       // stehen. Schattenfarbe, keine Etappenfarben.
-      if (map.getLayer("preview-kontur")) {   // 05.10.2026 (I-270) — Kontur bekommt dieselben Lücken wie der Schatten
+      if (map.getLayer("preview-kontur")) {   // 05.10.2026 — Kontur bekommt dieselben Lücken wie der Schatten
         const mk = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentKonturFarbe(), null, null);
         try {
           map.setPaintProperty("preview-kontur", "line-gradient", mk || null);
@@ -7154,7 +7154,7 @@ function mountAnimator(body, headerActions, opts) {
   function currentKonturFarbe() {
     return document.getElementById("anim-kontur-farbe")?.value || "#14231f";
   }
-  // 05.10.2026 (I-270) — Kontur ein/aus, Breite (Linie + 2 × Kontur) und Farbe nachführen
+  // 05.10.2026 — Kontur ein/aus, Breite (Linie + 2 × Kontur) und Farbe nachführen
   function applyKonturToLayers() {
     if (!map || !map.getLayer("preview-kontur")) return;
     const kb = currentKonturBreite();
@@ -7348,7 +7348,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   /** Pfeil-Bild — identisch zum Render, nur ohne f-string-Klammern. */
-  // 05.10.2026 (Block 1 „Optik", PLAN §2: „Fahrzeug-Symbole statt Kugel/Pfeil") — Laufpunkt als Symbol: weißes
+  // 05.10.2026 (PLAN §2: „Fahrzeug-Symbole statt Kugel/Pfeil") — Laufpunkt als Symbol: weißes
   // Piktogramm auf runder Plakette in Linienfarbe (steht aufrecht zur Kamera); das Flugzeug ist eine Silhouette,
   // die sich mit der Fahrtrichtung dreht. Gezeichnet auf Canvas → Vorschau = Video (Szene), kein Emoji (Windows).
   function _fahrzeugBild(art, farbe) {
@@ -7543,7 +7543,7 @@ function mountAnimator(body, headerActions, opts) {
         }
         if (e && e.tour && !e.tour.haupt) {
           const st = _stilVon(e.tour);
-          // 07.10.2026 (Block 4) — geplante Etappe: Fahrzeug des gerade laufenden Abschnitts (Flug → Auto …)
+          // 07.10.2026 — geplante Etappe: Fahrzeug des gerade laufenden Abschnitts (Flug → Auto …)
           // die Reise rechnet mit einer verdünnten Kopie der Tour — die Etappen-Angaben hängen am Original (`tr`)
           const etQ = e.tour.etappe || (e.tour.tr && e.tour.tr.etappe) || null;
           const fzE = etQ ? _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], etQ) : "";
@@ -7563,12 +7563,12 @@ function mountAnimator(body, headerActions, opts) {
         if (fzH) return { key: "h-" + fzH, show: dotZeigen(), style: fzH, size: dotGroesse(), farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
       }
     } catch (_) {}
-    // 05.10.2026 (Block 4) — Reiseroute mit Verkehrsart je Etappe: der Laufpunkt zeigt das Fahrzeug der Etappe
+    // 05.10.2026 — Reiseroute mit Verkehrsart je Etappe: der Laufpunkt zeigt das Fahrzeug der Etappe
     const fz = _routeArtAn(f);
     return { key: fz ? "route-" + fz : "haupt", show: dotZeigen(), style: fz || dotStil(), size: dotGroesse(),
              farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
   }
-  /** 07.10.2026 (Block 4) — Verkehrsart einer geplanten Etappe am Punkt `ll` ([lon, lat]) oder "": Grenzen der
+  /** 07.10.2026 — Verkehrsart einer geplanten Etappe am Punkt `ll` ([lon, lat]) oder "": Grenzen der
    *  Abschnitte = nächster Punkt der Etappe zu jeder Station (`etappe.abschnitte[].bis`), je Etappe einmal gerechnet;
    *  der Punkt selbst wird auf den nächsten Etappenpunkt gelegt (die Reise-Bahn ist eine dünnere Kopie). */
   const _etappeArtCache = new WeakMap();
@@ -8129,7 +8129,7 @@ function mountAnimator(body, headerActions, opts) {
     return _standardKeyframes();
   }
 
-  /* ── Keyframe-Paar (IDEAS §60 Punkt 6, 09.09.2026) ────────────────────────
+  /* ── Keyframe-Paar (09.09.2026) ────────────────────────
    * Der ANKER eines Keyframes ist Fortschritt — Zeit in der Anim-Phase: so
    * zeichnet ihn die Leiste, so interpoliert die Kamera (`ankerZuZeit`), und
    * so unterscheiden sich zwei Keyframes in einem Halt (der Fortschritt läuft
@@ -11794,7 +11794,7 @@ function mountAnimator(body, headerActions, opts) {
     });
   }
 
-  /** 30.09.2026 (eine Pipeline, docs/OVERLAY-CONTAINER.md Q10) — transparenter Export über die
+  /** 30.09.2026 (eine Pipeline) — transparenter Export über die
    *  Szene: im Render-Fenster mit __rzRenderMode.transparent alle Ebenen der Grundkarte aus
    *  (Hintergrund, Raster/Luftbild, Schummerung, Vektor-Kacheln inkl. Beschriftung). Spur,
    *  Laufpunkt, Schilder und Foto-Pins (GeoJSON) bleiben, der Hintergrund der Seite ist
@@ -11890,7 +11890,7 @@ function mountAnimator(body, headerActions, opts) {
         // Wechselpixel je Bild bei winziger Kamerabewegung, 0 bei exakt gleicher Kamera — reines
         // Bewegungs-Artefakt von MapLibres Gelände, im alten Generator genauso (638). meshSize
         // bleibt 128: 256 reißt (16-Bit-Index-Überlauf im Netz → schwarzer Strich), 252/64/32
-        // helfen nicht; qualityFactor, RTT-Pool und Überhöhung ohne Einfluss. Siehe IDEAS §53a.
+        // helfen nicht; qualityFactor, RTT-Pool und Überhöhung ohne Einfluss.
         const RZ_MESH = window.__rzPreviewMesh || 128;   // 07.09.2026 — Vorschau-Qualität «schnell»: 64
         if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6 || (cur.meshSize || 128) !== RZ_MESH) {
           // 06.09.2026 abends (Marc: „flimmernder Strich an den Kachelgrenzen") — Vendor-Patches
@@ -12262,7 +12262,7 @@ function mountAnimator(body, headerActions, opts) {
         // Sitzung, Modal offen. Jetzt bleibt die Übergabe liegen, bis ein LEBENDER
         // Mount sie wirklich abholt.
         const pendingAblauf = window.__rzPendingAblauf === "schwarm" ? "schwarm" : "reise";
-        // IDEAS §38 M3 — Geschwindigkeitsmodus, im Archiv gewählt.
+        // Geschwindigkeitsmodus, im Archiv gewählt.
         const pendingModus = ["gleich", "ziel", "uhrzeit"].includes(window.__rzPendingModus)
           ? window.__rzPendingModus : "gleich";
         const pendingPausen = window.__rzPendingPausen !== false;
@@ -12280,7 +12280,7 @@ function mountAnimator(body, headerActions, opts) {
           for (let w = 0; window.__rzMengeAktivierung && w < 100; w++) await new Promise(r => setTimeout(r, 150));
           if (_animUnmounted) { applog("info", "[übergabe] Mount abgebaut während Mengen-Aktivierung"); return; }
           if (window.__rzPendingTours !== pending) { applog("info", "[übergabe] nach Warten schon abgeholt"); return; }
-          // IDEAS §38 — ERST die Mengen-Sitzung aktivieren, DANN Etappen
+          // ERST die Mengen-Sitzung aktivieren, DANN Etappen
           // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
           // und die Arbeit gehört an die Menge, nicht an die erste Tour.
           _animAblauf = pendingAblauf;
@@ -12475,7 +12475,7 @@ function mountAnimator(body, headerActions, opts) {
         onGruppeBlende: (id, art, sek) => { const g = _gruppeMitId(id); if (!g || !_gruppeIstGanz(g)) return;
           g.blende = Object.assign({}, g.blende || {}, { [art === "ein" ? "ein_s" : "aus_s"]: Math.max(0, +sek || 0) }); _gruppenNeu(); },
         onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
-        // 24.09.2026 — Overlay-Spur (docs/OVERLAY-BOXEN.md §6)
+        // 24.09.2026 — Overlay-Spur
         onOverlayNeu:      () => _ovSpurAktualisieren(),
         // 28.09.2026 — Schilder-Spur (Marc: „Schilder wie die Overlays in der Timeline, ziehen, wie lange und wo")
         onSchildNeu:       () => _sgSpurAktualisieren(),
@@ -13450,7 +13450,7 @@ function mountAnimator(body, headerActions, opts) {
     const _SIGN_BILD_RENDER_MAX_PX = 1440;
     /** Für core/szene.py: wie viele sichtbare Bild-Schilder warten noch auf ihr Bild? Der Render
      *  beginnt erst bei 0 (vorher pauschal 2,5 s — zu knapp, wenn große Bilder nachgerechnet werden). */
-    // 05.10.2026 (I-001) — Sofortbild-Unterschriften in Caveat: die Schrift muss geladen sein, BEVOR die Canvas-Engine
+    // 05.10.2026 — Sofortbild-Unterschriften in Caveat: die Schrift muss geladen sein, BEVOR die Canvas-Engine
     // rastert (sonst stehen die ersten Videobilder in einer Ersatzschrift). Offen → 1 (der Render wartet), Laden anstoßen,
     // danach die Schilder einmal neu rastern.
     let _caveatLaedt = false;
@@ -13580,7 +13580,7 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) { return; }
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
         const meta = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
-        // 05.10.2026 (I-001) — Sofortbild mit Ausgang „mini": rundes Mini-Bild dazu registrieren (sign_draw.js rzSignApplyFrame)
+        // 05.10.2026 — Sofortbild mit Ausgang „mini": rundes Mini-Bild dazu registrieren (sign_draw.js rzSignApplyFrame)
         if (meta.mini != null && sn.style === "sofortbild" && window.__rzDrawSofortbildMini && _animSignHasImg(s)) {
           try {
             const mid = "sign-mini-" + fi;
@@ -13774,7 +13774,7 @@ function mountAnimator(body, headerActions, opts) {
         if (!visible) return;
         const opR = Math.round(op * 100) / 100;
         if (mk._lastOp !== opR) { wrap.style.opacity = String(opR); mk._lastOp = opR; }
-        // 05.10.2026 (I-001) — Ausgang „mini": aus dem Anker berechnet (kein CSS-Übergang), damit Video = Vorschau.
+        // 05.10.2026 — Ausgang „mini": aus dem Anker berechnet (kein CSS-Übergang), damit Video = Vorschau.
         let miniP = 0;
         if (meta.mini != null && !(_animSignsPreviewAll || _isStaticFrame) && M > meta.mini) {
           miniP = Math.max(0, Math.min(1, (M - meta.mini) / (meta.miniSpan || 1e-6)));
@@ -14527,7 +14527,7 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) {}
       // 06.10.2026 (Trailframe: rechts der Detail-Editor) — in die rechte Spalte, Karte rückt zur Seite. Klappt das nicht
       // (Archiv o. Ä.), bleibt es das schwebende Fenster von früher.
-      const _imDetail = !!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(panel));
+      const _imDetail = !!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(panel, t("animator.section.signs_photos", "🚩 Schilder und Fotos")));
       if (_imDetail) panel._userMoved = true;   // nicht ans Schild kleben
       _animSignEditorEl = panel;
       _animSignEditorIdx = idx;   // v0.9.194 — offenes Schild merken (Re-Klick ohne Sprung)
@@ -14935,7 +14935,7 @@ function mountAnimator(body, headerActions, opts) {
             // Import, Marc 2026-07-01). Mit Thumb lädt das Bild sofort (data-URL,
             // keine Bridge) — identisch zum zuverlässigen Reload-Pfad.
             text: "", imageSrc: src, thumb: (p.thumb || undefined),
-            style: "sofortbild",   // 05.10.2026 (I-001) — neue Foto-Schilder als Sofortbild; bestehende bleiben, wie sie sind
+            style: "sofortbild",   // 05.10.2026 — neue Foto-Schilder als Sofortbild; bestehende bleiben, wie sie sind
             // … und wie bei MapAnimator: aufpoppen, kurz groß, dann zum runden Mini-Bild an der Route schrumpfen
             entry: "pop", entry_s: 0.5, before: 0.4, after: 2.5, exit: "mini", exit_s: 0.8,
             anchorMode: "free", visible: true,
@@ -15248,7 +15248,7 @@ function mountAnimator(body, headerActions, opts) {
               </select></div>` : ""}
           </div>`;
       }).join("");
-      // 05.10.2026 (Block 4) — Verkehrsart je Etappe
+      // 05.10.2026 — Verkehrsart je Etappe
       cont.querySelectorAll(".route-wp-art-sel").forEach((sel) => {
         sel.addEventListener("change", () => { const w = _routeWps[+sel.dataset.i]; if (w) { w.art = sel.value; _routePersist(); } });
       });
@@ -16239,7 +16239,7 @@ function mountAnimator(body, headerActions, opts) {
     box.innerHTML = `<button type="button" class="ansicht-knopf" data-ansicht="seite" title="${t("animator.ansicht.seite", "Seitenleiste ein-/ausblenden")}"><span class="ak-seite"></span></button>`
       + (_isStaticFrame ? "" : `<button type="button" class="ansicht-knopf" data-ansicht="zeit" title="${t("animator.ansicht.zeit", "Zeitleiste ein-/ausblenden")}"><span class="ak-zeit"></span></button>`);
     headerActions.appendChild(box);
-    // 05.10.2026 abends (Grilling F-7 Q3) — die EINE Hauptaktion oben rechts in Koralle, immer am selben Platz. Sie
+    // 05.10.2026 abends — die EINE Hauptaktion oben rechts in Koralle, immer am selben Platz. Sie
     // löst den bisherigen Render-Knopf aus (der bleibt im DOM für Fortschritt/Logik, ist aber ausgeblendet) und folgt
     // dessen „disabled“.
     if (!headerActions.querySelector("#anim-hauptaktion")) {
@@ -16248,7 +16248,7 @@ function mountAnimator(body, headerActions, opts) {
       ha.textContent = _isStaticFrame ? t("tourmap.hauptaktion", "⤓ Bild exportieren") : t("animator.hauptaktion", "⤓ Video exportieren");
       const quelle = document.getElementById("anim-render");
       ha.disabled = !quelle || quelle.disabled;
-      // 06.10.2026 (Grilling Export E1) — öffnet den Export-Dialog (ui/js/exportdialog.js); dessen „Exportieren“ setzt das
+      // 06.10.2026 — öffnet den Export-Dialog (ui/js/exportdialog.js); dessen „Exportieren“ setzt das
       // Ziel und löst den bisherigen Render-Knopf aus.
       ha.addEventListener("click", () => _exportDialogOeffnen());
       // E16 — Pfeilmenü: „Aktuelles Bild exportieren“ und „Als Tour-Map öffnen“ (vorher Knöpfe unten in der Seitenleiste)
@@ -16740,7 +16740,7 @@ function mountAnimator(body, headerActions, opts) {
       // zu OVERLAY_LIVE_FIELDS in core/animator.py.
       { id: "stage_name", req: "stages" }, { id: "stage_no", req: "stages" },
       { id: "stage_dist", req: "stages" }, { id: "stage_time", req: "stages" },
-      // 28.08.2026 (IDEAS §38 M2) — Schwarm-Zähler, nur im Schwarm-Ablauf.
+      // 28.08.2026 — Schwarm-Zähler, nur im Schwarm-Ablauf.
       { id: "swarm_underway", req: "schwarm" },
     ],
     totals: [
@@ -17191,7 +17191,7 @@ function mountAnimator(body, headerActions, opts) {
   // Kennzahlen je Etappe → Text je Feld (gleiche Formeln wie _ovFieldValue, nur
   // mit den Werten der Etappe). {"<nr>": text, gesamt: text} oder null.
   function _ovEtappenWerte(id) {
-    // 24.09.2026 (IDEAS §67 Q16) — Etappen (ab zwei) und Bewegungsarten aus dem
+    // 24.09.2026 — Etappen (ab zwei) und Bewegungsarten aus dem
     // Logbuch ("art:wanderung" …) teilen sich den Mechanismus. SYNCHRON zu
     // _overlay_stage_values in core/animator.py.
     const ss = _ovSeries && _ovSeries.stage_stats;
@@ -17233,7 +17233,7 @@ function mountAnimator(body, headerActions, opts) {
     const k = ss ? Object.keys(ss).map(Number).filter(n => n > 0) : [];
     return k.length ? Math.max(...k) : 0;
   }
-  // ── Schnell-Video: Titel- und Schlusskarte (IDEAS §71, 29.09.2026) ──────────
+  // ── Schnell-Video: Titel- und Schlusskarte (29.09.2026) ──────────
   // Gespeichert im Projekt unter animator.schnellkarte = { titel_an, titel, unter, titel_s,
   // schluss_an, felder[] }. Gezeichnet als DOM-Ebene über der Karte → die Szene nimmt sie mit
   // ins Video (Vorschau = Video). Titel: von 0 s, blendet über 0,6 s aus bis titel_s.
@@ -17383,7 +17383,7 @@ function mountAnimator(body, headerActions, opts) {
   // umgerechnet (wie __overlayTiming im Render). tSec < 0 = Ruhezustand.
   let _ovTimingSpeicher = {}, _ovTimingBoxen = null, _ovGrenzenRef = null, _ovGrenzen = {};
 
-  // ── Overlay-Spur in der Timeline (24.09.2026, docs/OVERLAY-BOXEN.md §6) ──────
+  // ── Overlay-Spur in der Timeline (24.09.2026) ──────
   // Die Leiste zeigt je Box einen Balken (Leisten-Positionen 0..1). Hier wird
   // umgerechnet: Leiste ↔ Videosekunde (dieselben drei Abschnitte wie der
   // Scrubber im Probelauf), Sekunde → Anker. Ein Rand hängt je nach Bereich
@@ -17593,7 +17593,7 @@ function mountAnimator(body, headerActions, opts) {
         // Highlight-Pille, Logbuch-Schild: ihr Zeichen (Gipfel, Tasse …) in ihrer Farbe
         iconSvg: (!s.imageSrc && s.icon && window.__rzHlIconSvg) ? window.__rzHlIconSvg(s.icon, sn.color && sn.color !== "auto" ? sn.color : null) : "",
         segmente: [{ an: _ovLeisteAusZeit(tAn), aus: _ovLeisteAusZeit(tAus),
-                     // 06.10.2026 (I-281) — Fotostopp: Phasen und ziehbare Grenzen (Leisten-Positionen)
+                     // 06.10.2026 — Fotostopp: Phasen und ziehbare Grenzen (Leisten-Positionen)
                      fs: fsF ? { anflug: _ovLeisteAusZeit(fsF.anflugAb), halt: _ovLeisteAusZeit(fsF.halt[0]),
                                  grossBis: _ovLeisteAusZeit(fsF.halt[1]), abflugBis: _ovLeisteAusZeit(Math.min(ph.G, fsF.abflugBis)) } : null,
                      fsGrenzen: fsF ? { anflug: [_ovLeisteAusZeit(Math.max(0, fsF.halt[0] - 5)), _ovLeisteAusZeit(fsF.halt[0])],
@@ -17614,7 +17614,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _hoeheSpurSync(); } catch (_) {}
     _kantenSg = zeilen.filter(x => x.enabled && !x.segmente[0].immer).flatMap(x => [x.segmente[0].an * ph.G, x.segmente[0].aus * ph.G]);   // 02.10.2026
   }
-  // ── Medien der Tour (06.10.2026, Grilling Animator A3) ─────────────────────────────────────────────────────────
+  // ── Medien der Tour (06.10.2026) ─────────────────────────────────────────────────────────
   // Fotos/Videos im Zeitraum der Tour aus dem Medien-Bestand (Brücke tour_medien): als Striche in der Zeitleiste und
   // als Leiste rechts in der Detail-Spalte („Medien der Tour“). Ein Klick macht ein Foto-Schild daraus (derselbe Weg wie
   // „📷 Fotos hinzufügen“). Geladen einmal je Track, im Hintergrund.
@@ -17692,7 +17692,7 @@ function mountAnimator(body, headerActions, opts) {
       _tmAlsSchild(m);
     });
     _tmPanel = p;
-    if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p))) document.body.appendChild(p);
+    if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p, t("animator.section.signs_photos", "🚩 Schilder und Fotos")))) document.body.appendChild(p);
     _tmPanelZeichnen();
   }
   function _tmPanelZeichnen() {
@@ -17744,7 +17744,7 @@ function mountAnimator(body, headerActions, opts) {
       // 06.10.2026 (Marc: „ich kann es links nicht so hinschieben, dass es später anfängt“) — linker Rand = wann der
       // Foto-Pin erscheint (Sekunden vor dem Anflug, 0 … 30)
       if (griff === "l") out.stopp_pin_s = Math.round(Math.max(0, Math.min(30, fsF.anflugAb - tAn)) * 10) / 10;
-      // 06.10.2026 (I-281) — Phasengrenzen: Anflug-Beginn, Ende „Foto groß“ (Fotodauer), Ende Abflug
+      // 06.10.2026 — Phasengrenzen: Anflug-Beginn, Ende „Foto groß“ (Fotodauer), Ende Abflug
       const zt = (k) => (neu.fs && neu.fs[k] != null) ? _ovZeitAusLeiste(neu.fs[k]) : null, r1 = (x) => Math.round(x * 10) / 10;
       if (griff === "fs-anflug" && zt("anflug") != null) out.stopp_anflug_s = r1(Math.max(0, Math.min(5, fsF.halt[0] - zt("anflug"))));
       if (griff === "fs-grossBis" && zt("grossBis") != null && !fsF.clip) out.stopp_s = r1(Math.max(0.5, Math.min(30, zt("grossBis") - fsF.halt[0])));
@@ -17795,7 +17795,7 @@ function mountAnimator(body, headerActions, opts) {
   function _sgSpurText(id, griff, neu) {
     if (!_sgS()) return "";
     const i = _sgIndexVonId(id); const s = _sgS().list()[i]; if (!s) return "";
-    if (String(griff).startsWith("fs-") || (griff === "l" && _fsSpurFenster(s, _sgPhasen().intro))) {   // 06.10.2026 (I-281)
+    if (String(griff).startsWith("fs-") || (griff === "l" && _fsSpurFenster(s, _sgPhasen().intro))) {   // 06.10.2026
       const { out } = _sgWerteAusBalken(s, griff, neu), z1 = (v) => (Math.round(v * 10) / 10).toLocaleString(window.rzSprachCode ? window.rzSprachCode() : undefined);
       if (out.stopp_anflug_s != null) return "📷 " + t("signs.stopp_anflug", "Anflug (Sek.)") + ": " + z1(out.stopp_anflug_s);
       if (out.stopp_s != null) return "📷 " + t("signs.stopp_s", "Foto zeigen (Sek.)") + ": " + z1(out.stopp_s);
@@ -17972,7 +17972,7 @@ function mountAnimator(body, headerActions, opts) {
     if (griff === "r") return aus;
     return an + " · " + aus;
   }
-  /** Beim Ziehen springt die Vorschau an den gezogenen Rand (Marc, Grilling Q17). */
+  /** Beim Ziehen springt die Vorschau an den gezogenen Rand (Marc). */
   function _ovSpurVorschau(id, griff, neu) {
     const x = griff === "r" ? neu.aus : griff === "ein" ? neu.einBis : griff === "aus" ? neu.ausAb : neu.an;
     try {
@@ -18169,7 +18169,7 @@ function mountAnimator(body, headerActions, opts) {
         neu.push(s);
       }
     }
-    // 07.10.2026 (Etappen, Grilling Punkt 6) — jede Station einer geplanten Etappe bekommt ein normales Schild mit
+    // 07.10.2026 (Etappen) — jede Station einer geplanten Etappe bekommt ein normales Schild mit
     // ihrem Ortsnamen (Haken „Stationen beschriften“ im Etappen-Editor, Standard an). Wie die Highlights: automatisch
     // angelegt, wer ein Schild ändert, behält seine Fassung; Anschlusspunkte an eine Tour (auto) bekommen keins.
     try {
@@ -18342,7 +18342,7 @@ function mountAnimator(body, headerActions, opts) {
 
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── Einblendungen als Container (30.09.2026, docs/OVERLAY-CONTAINER.md) ────
+  // ── Einblendungen als Container (30.09.2026) ────
   // Ein Baustein für alles am Bildschirm: Anker + Abstand, Zeilen (Wert, Freitext,
   // Diagramm, Bild, Nordpfeil, Maßstab), Stil = Template. Modell: ui/js/container.js.
   // Gespeichert unter <modul>.container (+ container_v = 1, verlauf). Alte Projekte
@@ -18964,7 +18964,7 @@ function mountAnimator(body, headerActions, opts) {
       p.style.left = Math.max(2, Math.min(window.innerWidth - 300, x)) + "px";
       p.style.top = Math.max(2, Math.min(window.innerHeight - 200, y)) + "px";
       p.style.position = "fixed";
-      if (window.rzDetailSpalte) window.rzDetailSpalte.aufnehmen(p);   // 06.10.2026 — rechts in der Detail-Spalte
+      if (window.rzDetailSpalte) window.rzDetailSpalte.aufnehmen(p, t("animator.section.overlays"));   // 06.10.2026 — rechts in der Detail-Spalte
       _ctEditorBinden(p);
     }
     _ctEditorZeichnen();
@@ -20582,7 +20582,7 @@ function mountAnimator(body, headerActions, opts) {
     });
     if (neu) {
       _trackEd = p;
-      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p))) {   // Rückfall: unter der Tourenliste
+      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p, t("animator.section.tours", "🧭 Mehrere Touren")))) {   // Rückfall: unter der Tourenliste
         const liste = document.getElementById("anim-tours-list");
         if (liste && liste.parentElement) liste.parentElement.insertBefore(p, liste.nextSibling); else document.body.appendChild(p);
       }
@@ -20660,7 +20660,7 @@ function mountAnimator(body, headerActions, opts) {
     // Liste sichtbar sein: sonst sieht man eine Tour und weiß nicht, wo die
     // anderen geblieben sind. Ohne weitere Touren bleibt sie versteckt.
     const toursSec = document.querySelector('[data-accordion-section="tours"]');
-    // IDEAS §38 — Ablauf-Anzeige: gewählt wird er im ARCHIV (Grilling Q9),
+    // Ablauf-Anzeige: gewählt wird er im ARCHIV,
     // hier steht nur, was gerade gilt. Beim Schwarm ist der Kinoflug sinnlos
     // (es gibt keine Übergänge), also verschwindet sein Regler.
     // 09.09.2026 — der Ablauf steht als eine Zeile über der Liste („🧭
@@ -20686,7 +20686,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     // Der alte Kasten kann aus einem früheren Aufbau noch dastehen.
     document.getElementById("anim-ablauf-badge")?.remove();
-    // IDEAS §38 M2 — Fokus-Tour (Marc: „kamera bleibt stehen", wenn sie fertig
+    // Fokus-Tour (Marc: „kamera bleibt stehen", wenn sie fertig
     // ist). Das Dropdown steuert AUCH das „Kamera folgt Track"-Häkchen — die
     // gesamte Folge-Logik (Vorschau + Render) hängt an diesem einen Schalter,
     // ein zweiter paralleler Zustand wäre die nächste Race-Falle.
@@ -21063,7 +21063,7 @@ function mountAnimator(body, headerActions, opts) {
       if (tr.etappe) row.classList.add("ist-geplant");
       row.__rzPfad = tr.gpx_path;
       row.querySelector('[data-act="stil"]').addEventListener("click", () => _trackEdOeffnen(tr.gpx_path));
-      // 07.10.2026 (Block 4) — Etappen dürfen auch VOR Tour 1 stehen (Anreise): ↑/↓ tauscht ihre Gruppe mit der Nachbargruppe
+      // 07.10.2026 — Etappen dürfen auch VOR Tour 1 stehen (Anreise): ↑/↓ tauscht ihre Gruppe mit der Nachbargruppe
       if (tr.etappe) {
         const gi = _etGruppenIndex(tr.gpx_path);
         const up = row.querySelector('[data-act="up"]'), dn = row.querySelector('[data-act="down"]');
@@ -21466,7 +21466,7 @@ function mountAnimator(body, headerActions, opts) {
     return tour.coords[Math.max(0, Math.min(tour.coords.length - 1, k))];
   }
 
-  // ── Touren „Ganz zeigen" (28.09.2026, IDEAS §72) ────────────────────────────────────────────
+  // ── Touren „Ganz zeigen" (28.09.2026) ────────────────────────────────────────────
   // Marc: „eine Tour, die komplett eingeblendet ist und so lange angezeigt wird, wie ihr Balken ist."
   // Je Mitglied einer „Ganz zeigen"-Gruppe eine eigene Quelle mit der GANZEN Runde, im Aussehen der
   // Tour (Farbe, Breite, Linienart, Schatten, Glow, Deckkraft), ohne Laufpunkt, UNTER allen
@@ -21698,7 +21698,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _reiseAktiv() { return !!(_reiseBahn && _reiseGilt()); }
 
-  /* ── Gruppen: die eine Wahrheit über die Zeit (IDEAS §60, 09.09.2026) ──────
+  /* ── Gruppen: die eine Wahrheit über die Zeit (09.09.2026) ──────
    *
    * Jede Tour ist Halt + Inhalt + Halt, alle Tracks eines Projekts sind gleich
    * lang. Die Rechnung liegt in ui/js/spuren.js;
@@ -21871,7 +21871,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Inhaltslänge je Gruppe bei Faktor 1: der Wunsch, nach Umfang der
    *  Taktgeber verteilt — bei EINER Gruppe der ganze Wunsch. Budget nach
    *  Punktzahl, wie früher im Render (`_reise_segmente`). */
-  /** 07.10.2026 (Etappen, Grilling Punkt 7: „Dauer automatisch nach Strecke und Verkehrsmittel“) — wie viel Zeit
+  /** 07.10.2026 (Etappen) — wie viel Zeit
    *  eine geplante Etappe bekommt, gemessen an einer durchschnittlichen Tour (1 = so lang wie eine Tour). Nach der
    *  Punktzahl wäre eine berechnete Autoroute mit 4000 Punkten länger als jede Wanderung; ein Flug braucht im Video
    *  nur einen Moment. Je Abschnitt: Grundwert des Verkehrsmittels × Wurzel der Strecke (lange Strecken etwas
@@ -21910,7 +21910,7 @@ function mountAnimator(body, headerActions, opts) {
     _gruppen.forEach((g, i) => { raus[g.id] = nAnim <= 1 ? (mass[i] > 0 || !nAnim ? wunsch : 0) : wunsch * mass[i] / summe; });
     return raus;
   }
-  /** 28.09.2026 (IDEAS §72) — Darstellung einer Gruppe: „animiert" (zeichnet, Standard) oder „ganz"
+  /** 28.09.2026 — Darstellung einer Gruppe: „animiert" (zeichnet, Standard) oder „ganz"
    *  (die ganze Runde ist `ganz_s` Sekunden lang da, leer = bis zum Videoende; Ein-/Ausblendung wie
    *  bei den Overlays: none | fade | pop | both, je eigene Dauer). Normalisiert, auch zum Speichern. */
   const _GANZ_BLENDEN = ["none", "fade", "pop", "both"];
@@ -22725,7 +22725,7 @@ function mountAnimator(body, headerActions, opts) {
       const cum = _cumDistBerechnen(e.coords);
       // Zeitreihe der Etappe: eigene, sonst gleichmäßig über die Distanz.
       const zeit = (Array.isArray(e.zeit) && e.zeit.length === e.coords.length) ? e.zeit : null;
-      // 07.10.2026 (Etappen, Grilling Punkt 9: „Zeit und Tempo nur aus echten Tracks") — eine geplante Etappe hat
+      // 07.10.2026 (Etappen) — eine geplante Etappe hat
       // keine Uhrzeit; sie hält die Zeit an, statt Zeit und Tempo für die ganze Reise abzuschalten
       const istEtappe = !!(e.tour && e.tour.etappe);
       if (!zeit && !istEtappe) hatZeit = false;
@@ -23432,7 +23432,7 @@ function mountAnimator(body, headerActions, opts) {
     _animFitAllTours();
   }
 
-  // ── Geplante Etappen (07.10.2026, Block 4 „Reiseroute in den Animator“, docs/PLAN.md §3) ──────────────────────
+  // ── Geplante Etappen (07.10.2026) ──────────────────────
   // Eine Etappe ist eine Zusatz-Tour mit `etappe: {id, wps, arten, kurve, weich, grob, abschnitte, km}`.
   // Editor rechts in der Detail-Spalte; Stationen eintippen, 📍 klicken oder direkt auf die Karte ZEICHNEN.
   // Jeder Abschnitt folgt zunächst der Straße (Flug/Boot/Zug: Bogen) — Grobheit über „Straße: fein ↔ grob“. Dreht man
@@ -23454,7 +23454,7 @@ function mountAnimator(body, headerActions, opts) {
     return r.split(",")[0].trim();
   };
   /** Die Kette als Plätze: [{name, anfang:[lon,lat], ende:[lon,lat]}] in Gruppen-Reihenfolge. */
-  /** 07.10.2026 (Etappen, Grilling Punkt 10: „Kartenanimation ohne GPS“) — in einem Projekt ohne Tour wird die erste
+  /** 07.10.2026 (Etappen) — in einem Projekt ohne Tour wird die erste
    *  Etappe der Haupt-Track (wie bei der Reiseroute lokal geladen, nicht als Archiv-Tour). Gespeichert im Projekt
    *  (animator.haupt_etappe = {gpx_path, etappe}); gilt nur, solange genau diese Datei der Haupt-Track ist. */
   function _hauptEt() {
@@ -23519,7 +23519,7 @@ function mountAnimator(body, headerActions, opts) {
     if (_etEd && _etEd.busy) return;
     _etAufraeumen();
     _etEd = _etNeuerZustand();
-    _etPlatzFuellen(_etEd, _etKette().length);   // Standard: nach der letzten Tour (Grilling Punkt 4)
+    _etPlatzFuellen(_etEd, _etKette().length);   // Standard: nach der letzten Tour
     _etEdZeichnen();
     setTimeout(() => { try { document.querySelector('#anim-etappe-editor .et-wp-input[data-i="1"]')?.focus(); } catch (_) {} }, 50);
   }
@@ -23904,7 +23904,7 @@ function mountAnimator(body, headerActions, opts) {
       box = document.createElement("div");
       box.id = "anim-etappe-editor";
       box.className = "anim-etappe-editor et-panel sign-editor";
-      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(box))) {   // Rückfall: unter der Tourenliste
+      if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(box, t("animator.section.tours", "🧭 Mehrere Touren")))) {   // Rückfall: unter der Tourenliste
         const liste = document.getElementById("anim-tours-list");
         if (liste && liste.parentElement) liste.parentElement.insertBefore(box, liste.nextSibling); else document.body.appendChild(box);
       }
@@ -24109,7 +24109,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _hlSchilderAbgleichen(true); } catch (e) { applog("warn", "[etappe] Schilder: " + e); }   // Punkt 6: Stationen
     _etEdZu();
   }
-  /** 07.10.2026 (Etappen, Grilling Punkt 5) — „Ins Archiv“: die Etappe als Tour ins Archiv (ohne Uhrzeit = geplant).
+  /** 07.10.2026 (Etappen) — „Ins Archiv“: die Etappe als Tour ins Archiv (ohne Uhrzeit = geplant).
    *  Das Projekt behält seine eigene Fassung; die Archiv-Kopie ist ab dann eine ganz normale geplante Tour. */
   async function _etInsArchiv(pfad) {
     const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(pfad));
@@ -24327,7 +24327,7 @@ function mountAnimator(body, headerActions, opts) {
           // von Track 2 waren nach dem Neustart weg (Marc, 09.09.2026 abends).
           stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
           ...(t.farbwechsel && typeof t.farbwechsel === "object" ? { farbwechsel: JSON.parse(JSON.stringify(t.farbwechsel)) } : {}),   // 08.10.2026
-          // 07.10.2026 (Block 4) — geplante Etappe: Stationen, Verkehrsart je Abschnitt (siehe _etappe*)
+          // 07.10.2026 — geplante Etappe: Stationen, Verkehrsart je Abschnitt (siehe _etappe*)
           ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) })),
         etappe1_dauer_s: +_animEtappe1S || 0,
         etappe1_name: _animEtappe1Name || "",
@@ -24609,7 +24609,7 @@ function mountAnimator(body, headerActions, opts) {
                                      ? res.series.epochS : null,
                              tz: (res.series && +res.series.tz_offset_min) || 0,
                              stats: res.stats || null,
-                             // 07.10.2026 (Block 4) — geplante Etappe mitnehmen (Stationen, Verkehrsart je Abschnitt)
+                             // 07.10.2026 — geplante Etappe mitnehmen (Stationen, Verkehrsart je Abschnitt)
                              ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) });
         } else {
           fehlend++;

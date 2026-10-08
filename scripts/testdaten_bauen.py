@@ -3,7 +3,7 @@
 
 Marc: „ich hätte gern ein testprotokoll für die ganze app, so dass ein unabhängiger
 chat mit computer use sich durchklicken kann." Dieses Skript legt unter
-<Testwurzel>/Quellen alles an, was das Protokoll (docs/TESTPROTOKOLL.md) braucht,
+<Testwurzel>/Quellen alles an, was das Protokoll braucht,
 und schreibt je Datei die Soll-Werte dazu (Quellen/SOLL-WERTE.md + soll-werte.json).
 
 Quellen ist die unveränderliche Vorlage. Getestet wird auf Kopien in <Testwurzel>/Arbeit,

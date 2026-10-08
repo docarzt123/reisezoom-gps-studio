@@ -1,6 +1,6 @@
-/* Barometrische Drift herausrechnen (05.10.2026, Block 5 „Track-Qualität", IDEEN I-085/I-086).
+/* Barometrische Drift herausrechnen (05.10.2026).
  *
- * Recherche (IDEAS §43.1): Höhenmesser in Uhren und Radcomputern messen feine Höhenänderungen sehr genau, ihr
+ * Recherche: Höhenmesser in Uhren und Radcomputern messen feine Höhenänderungen sehr genau, ihr
  * absoluter Wert wandert aber mit dem Luftdruck (Wetter, Kalibrierung) — über Stunden oft 20–80 m. Bisher konnte man
  * die Höhe nur durch die Karte ERSETZEN (oder mischen) und verlor damit die Details des Barometers. Hier wird nur die
  * langsame Abweichung abgezogen:
@@ -10,7 +10,7 @@
  *   Ergebnis_i   = Höhe_i − Drift_i
  *
  * Der Median macht das robust gegen kurze Stücke, an denen das Gelände-Modell nicht die gelaufene Höhe zeigt
- * (Brücken, Tunnel, Brückenrampen — I-086): sie sind kürzer als das halbe Fenster und gehen im Median unter.
+ * (Brücken, Tunnel, Brückenrampen): sie sind kürzer als das halbe Fenster und gehen im Median unter.
  * Rein und ohne DOM — läuft in der App (Inspektor) und unter node (Test).
  */
 (function (root) {

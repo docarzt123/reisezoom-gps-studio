@@ -1,4 +1,4 @@
-"""GPX-Datei reparieren, die sich nicht mehr lesen lässt (10.09.2026, docs/TRACK-CHECK.md,
+"""GPX-Datei reparieren, die sich nicht mehr lesen lässt (10.09.2026,
 Befund `xml_broken`: „Datei beschädigt, reparierbar").
 
 Was draußen wirklich vorkommt und hier gerichtet wird:

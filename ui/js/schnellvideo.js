@@ -1,6 +1,6 @@
-/* Schnell-Video — fertiges Tourvideo mit wenigen Entscheidungen (IDEAS §71, 29.09.2026).
+/* Schnell-Video — fertiges Tourvideo mit wenigen Entscheidungen (29.09.2026).
  *
- * Marc (Grilling 29.09.2026): Einstieg im Archiv und im Animator; Format 9:16 vorgewählt,
+ * Marc: Einstieg im Archiv und im Animator; Format 9:16 vorgewählt,
  * Länge Kurz/Normal/Lang, Qualität 1080/4K, Kartenstil wählbar (Hinweis bei fehlender
  * Video-Freigabe, rendern geht trotzdem), Titel + Unterzeile änderbar, zwei Häkchen für
  * Zahlen unterwegs / Höhenprofil, Schlusskarte mit ankreuzbaren Werten. Zwei Knöpfe:
@@ -22,7 +22,7 @@
   const SCHLUSS_FELDER = ["dist_total", "elev_gain", "elev_loss", "moving_time", "duration", "avg_speed", "date"];
   const SCHLUSS_STANDARD = ["dist_total", "elev_gain", "moving_time"];
   const INTRO_S = 3, HOLD_S = 4, FPS = 30;
-  // 05.10.2026 (Marc: „drei Vorlagen fürs Schnell-Video … richtig schön", Mockup docs/mockups/…drei-varianten) —
+  // 05.10.2026 (Marc: „drei Vorlagen fürs Schnell-Video … richtig schön") —
   // eine Vorlage belegt die Zutaten vor (Q1 a, „Mehr" bleibt zum Anpassen), setzt den Look samt Kartenstil (Q2 a,
   // ui/js/looks.js), die Fotoart (Q3) und die Schrift der Zahlen (Q4 über den Look). Standard: Weite (Q5).
   const VORLAGEN = {
@@ -184,7 +184,7 @@
       ti.zeit = { von: { art: "video_start", wert: 0 }, bis: { art: "video_start", wert: INTRO_S } };
       liste.push(C.normalisieren(ti));
     }
-    // 02.10.2026 — Zutat „Übersichtskarte" (IDEAS §78): quadratisch, ~28 % der kurzen Bildseite, oben rechts
+    // 02.10.2026 — Zutat „Übersichtskarte": quadratisch, ~28 % der kurzen Bildseite, oben rechts
     if (w.uebersicht) {
       const [bw, bh] = FORMATE[w.format] || FORMATE["9:16"];
       const kante = 0.28 * Math.min(bw, bh);
@@ -287,7 +287,7 @@
       gebaeude_3d: !!w.gebaeude, gebaeude_wachsen: false,
       // 05.10.2026 — Tempo-Regie (Höhepunkte + Fotos ohne Halt langsamer), nur wenn angehakt
       tempo_eintraege: w.tempoRegie ? tempoRegie(((v && v.regie) || []).map(r => r.bei).concat((w.pip || []).map(p => (p.von + p.bis) / 2)).concat(w.regieFotos || [])) : [],
-      ton_musik_ein: 1, ton_musik_aus: Math.min(3, HOLD_S), ton_klick_an: !!w.klick, ton_klick_laut: 25, ton_klick_klang: w.vorlage && w.vorlage !== "weite" ? "builtin:klick_k" : "builtin:klick_a",   // Marc: A, „ganz subtil"; Tagebuch/Puls: weicher Einblendton (Mockup-Audio)
+      ton_musik_ein: 1, ton_musik_aus: Math.min(3, HOLD_S), ton_klick_an: !!w.klick, ton_klick_laut: 25, ton_klick_klang: w.vorlage && w.vorlage !== "weite" ? "builtin:klick_k" : "builtin:klick_a",   // Marc: A, „ganz subtil"; Tagebuch/Puls: weicher Einblendton
     };
   }
 
@@ -449,7 +449,7 @@
       return T("schnell.grund." + g, g);
     }).filter(Boolean);
   }
-  /** 05.10.2026 (Block 2, Auto-Regie §10 „interessante Stellen langsamer") — Tempo-Spur: um Höhepunkte (höchster
+  /** 05.10.2026 (Auto-Regie §10 „interessante Stellen langsamer") — Tempo-Spur: um Höhepunkte (höchster
    *  Punkt, steilste Stelle) und Fotos ohne Halt läuft die Fahrt langsamer (Faktor 0,55); bei fester Länge holt die
    *  übrige Strecke das auf. Bereiche ±2,5 % der Strecke, überlappende zusammengelegt. Normale Tempo-Einträge des
    *  Animators (art „tempo", von/bis, faktor) — dort von Hand änderbar. */
@@ -701,7 +701,7 @@
         <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
         <label class="field-label" for="sv-unter">${esc(T("schnell.unterzeile", "Unterzeile"))}</label>
         <input type="text" id="sv-unter" class="lib-input" value="${esc(w.unter)}">
-        <!-- 06.10.2026 (Grilling F-14, Marc: „Schnelle Videos müssen schon deutlich eingedampft werden … alles andere
+        <!-- 06.10.2026 (Marc: „Schnelle Videos müssen schon deutlich eingedampft werden … alles andere
              muss in den Assistenten“) — ein Bildschirm, kein „Mehr“: Fotos (+ eigene), Musik, Einblendungen, Schlusskarte.
              Kartenstil, Fotoart, Übersichtskarte und 3D-Häuser bringt die Vorlage mit; Qualität und Speicherort fragt
              der Export-Dialog (derselbe Weg wie im Animator). Clips, Logbuch, eigene Länge → Animator/Assistent. -->
@@ -1165,7 +1165,7 @@
       if (!rendern) return;
       await new Promise(res => setTimeout(res, 800));   // gespeicherte Keyframes ankommen lassen
       const dateiName = (v.name || "Tour") + " – " + T("schnell.titel_dialog", "Schnell-Video");
-      // 06.10.2026 (Grilling F-14 Q8, Marc: „immer den selben Export-Weg“) — Qualität, ★-Vorlage und Speicherort fragt
+      // 06.10.2026 (Marc: „immer den selben Export-Weg“) — Qualität, ★-Vorlage und Speicherort fragt
       // derselbe Export-Dialog wie im Animator; das Video entsteht direkt am gewählten Ort (keine Zwischendatei).
       const starten = (pfad) => {
         B.schritt(T("schnell.b.start", "Video wird gestartet …")); B.fortschritt(0.03);

@@ -399,7 +399,7 @@ def derive_offset_from_reference(
     return offset
 
 
-# ── Mehrere Tracks auf einmal (IDEAS §61, GitHub-Issue #7, 10.09.2026) ────────
+# ── Mehrere Tracks auf einmal (GitHub-Issue #7, 10.09.2026) ────────
 #
 # Der Geotagger hielt bisher genau einen Track. Wer 2200 Fotos auf 10–15 Touren
 # hat, musste ihn je Track laufen lassen. Jetzt: je Track die gewohnte Zuordnung

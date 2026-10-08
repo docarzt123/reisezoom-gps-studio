@@ -82,8 +82,8 @@ _DISPATCH = {
     ".tcx": "tcx",
     ".geojson": "geojson",
     ".json": "sniff_json",  # GeoJSON wenn es so aussieht
-    ".igc": "igc",          # 05.10.2026 (Block 5, I-089) — Gleitschirm/Segelflug-Logger
-    ".srt": "sniff_srt",    # 05.10.2026 (Block 5, I-089/I-020) — DJI-Drohnen-Telemetrie neben dem Video
+    ".igc": "igc",          # 05.10.2026 — Gleitschirm/Segelflug-Logger
+    ".srt": "sniff_srt",    # 05.10.2026 — DJI-Drohnen-Telemetrie neben dem Video
 }
 
 IMPORT_EXTS = set(_DISPATCH.keys())
@@ -492,7 +492,7 @@ def _looks_like_dji_srt(path: str) -> bool:
 
 
 def _parse_dji_srt(path: str) -> List[tuple]:
-    """DJI-Drohnen-Untertitel (05.10.2026, Block 5, I-089/I-020) → ein Punkt je Sekunde.
+    """DJI-Drohnen-Untertitel (05.10.2026) → ein Punkt je Sekunde.
 
     Ein Block je Videobild (25–60 je Sekunde) — wir nehmen den ersten Block jeder neuen Sekunde, sonst bekäme ein
     10-min-Flug 36.000 Punkte. Zeit: DJI schreibt die Ortszeit der Fernsteuerung OHNE Zone → wird ohne Zone

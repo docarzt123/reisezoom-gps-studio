@@ -2,7 +2,7 @@
 
 Eine Wahrheit je Dienst: Datenlizenz, Dienstbedingungen, vorgeschriebene Nennung,
 Freigabe für kommerzielle Videos (`commercial_video`), Prüfdatum. Grundlage:
-docs/KARTENQUELLEN-LIZENZKONZEPT.md (Marcs Auswertung) + Recherche je Dienst am
+Marcs Auswertung + Prüfung je Dienst am
 07.09.2026 (Quellen je Eintrag in `sources`). Alles ist UNSERE Lesart der
 Bedingungen, keine Rechtsberatung — die Links sind die Quelle.
 

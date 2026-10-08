@@ -29,7 +29,7 @@ Schritte (jeder meldet, was er geändert hat):
  11. Fehlende Höhen zwischen bekannten interpolieren.
 `<bounds>` schreibt der verlustfreie Writer (core/gpxpatch) immer aus den Punkten neu.
 
-10.09.2026 (Track-Check, docs/TRACK-CHECK.md): Erkennung und Schwellen kommen aus
+10.09.2026 (Track-Check): Erkennung und Schwellen kommen aus
 `core/trackcheck` (Stufe 5) — derselbe Kern zählt im Archiv die Befunde. Deshalb
 verschwindet ein Befund nach dem passenden Schritt; `tests/test_trackcheck.py` prüft das.
 
@@ -92,7 +92,7 @@ def heilen(points: List[dict], *, max_speed_kmh: float = 250.0,
            schritte: Optional[List[str]] = None, aktivitaet: Optional[str] = None) -> dict:
     """`schritte` = Auswahl der Berichts-Schlüssel (SCHRITTE), die angewendet werden; None = alle.
 
-    13.09.2026 (IDEAS §67 Schritt 3): Knäuel, Sprünge und Lücken kommen aus denselben
+    13.09.2026: Knäuel, Sprünge und Lücken kommen aus denselben
     Funktionen wie im Track-Check (`standdrift_ausser_halt`, `sprung_gefiltert`,
     `luecken_je_art`) — repariert wird nur, was auch gemeldet wurde. `aktivitaet`
     ist der Hinweis der Tour für die Bewegungserkennung."""

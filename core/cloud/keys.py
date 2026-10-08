@@ -1,6 +1,6 @@
 """Wo die Geheimnisse des Cloud-Archivs liegen (seit 15.08.2026).
 
-Entwurf: `docs/IDEAS.md` §26. Marc am 15.08.2026 zur Ablage: Schlüsselbund,
+Marc am 15.08.2026 zur Ablage: Schlüsselbund,
 nicht `settings.json` — „geht das auch für windows und linux? sonst brauchen wir
 ein fallback."
 

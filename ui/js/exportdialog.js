@@ -1,6 +1,6 @@
 /* exportdialog.js — „⤓ Video exportieren“ / „⤓ Bild exportieren“ als Fenster in der Mitte (06.10.2026)
  *
- * Grilling Export (docs/PLAN.md §2b „Export“, E1–E16): Ein Klick auf die koralle Hauptaktion öffnet dieses Fenster.
+ * Export (06.10.2026): Ein Klick auf die koralle Hauptaktion öffnet dieses Fenster.
  * Oben Vorlagen als Kacheln (eingebaut + eigene, ★ = Standard für neue Projekte), darunter Auflösung passend zum
  * Seitenverhältnis, Bildrate, Farbraum, Qualität; unter „Mehr“ freie Breite × Höhe und „Karte glätten“.
  * „Speichern in …“ zeigt den zuletzt benutzten Ordner und einen Namen mit Zeitstempel; „Exportieren“ legt sofort los,

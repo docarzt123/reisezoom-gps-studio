@@ -3,12 +3,6 @@
 **Zielgruppe:** Mit-Entwickler, KI-Coding-Agents in zukünftigen Sessions.
 **Pflicht:** Bei Architektur-Änderungen diese Datei aktualisieren.
 
-> **Lokale Spezifikationen (seit 05.10.2026):** Das Repo ist öffentlich. Die Spezifikationen mit den
-> Entscheidungsrunden — `docs/OVERLAY-BOXEN.md`, `OVERLAY-CONTAINER.md`, `TOUR-ASSISTENT.md`, `TRACK-CHECK.md`,
-> `LOGBUCH.md`, `UMBAU-BIBLIOTHEK.md`, `KARTEN-OPTIK.md`, `KARTENQUELLEN-LIZENZKONZEPT.md` — liegen nur in der
-> Arbeitskopie des Maintainers (`.gitignore`), ebenso Planung, Recherche und Mockups. Verweise darauf unten gelten
-> dort; wer nur den GitHub-Stand hat, findet das Verhalten im Code und in dieser Datei beschrieben.
-
 ---
 
 ## 1 · Architektur-Überblick
@@ -194,7 +188,7 @@ weil der Browser kein ExifTool/Python hat).
 ### 3.0a · Tour-Register, Fassungen, Historie, Cloud v2 (E2+E3, seit v0.9.610) ⚠️ PFLICHTLEKTÜRE
 
 Marc, 29.08.2026: „bau komplett fertig, achte halt auf abwärtskompatibilität."
-E2+E3 setzen den Rest von IDEAS §39 um — **ohne einen einzigen Brücken-Vertrag
+E2+E3 setzen den Rest des Projekte-Umbaus um — **ohne einen einzigen Brücken-Vertrag
 zu ändern**:
 
 - **Tour-UUID + Fassungs-Kette:** `touren` bleibt nach geo_hash verschlüsselt;
@@ -242,7 +236,7 @@ zu ändern**:
 
 ### 3.0 · core/projekte.py — der Projekt-Store (E1, seit v0.9.600) ⚠️ PFLICHTLEKTÜRE
 
-**Beschlossen im Grilling (Marc, 29.08.2026, docs/IDEAS.md §39):** „wir müssen
+**Beschlossen mit Marc (29.08.2026):** „wir müssen
 weg davon, alles am track festzumachen." E1 löst die Sessions auf:
 
 - **Store:** `projekte.json` (`{schema, projects: {pid: PROJEKT}, aktiv:
@@ -310,7 +304,7 @@ weg davon, alles am track festzumachen." E1 löst die Sessions auf:
 
 > ⚠️ **Historisch (Audit E-13/F-18, 05.10.2026):** seit 0.9.752 gibt es nur noch den Szene-Render. `core/overlayboxen.py`, `core/animator.render/render_frame`, der klassische Render-Weg, `render_engine: klassisch` / `RZ_RENDER_KLASSISCH` und die `tourmap_render/status/cancel`-Brücken sind entfernt — siehe „Einblendungen als Container“ und den Abschnitt zur Entfernung des klassischen Wegs weiter unten. Der folgende Text beschreibt den Stand davor.
 
-**Overlay-Boxen einzeln (v0.9.723, Plan und Entscheidungen `docs/OVERLAY-BOXEN.md`):** Drei Ebenen global → Box → Zeile; gespeichert werden nur Abweichungen in `overlay_boxen` (Liste `{id, typ?, enabled?, position?, fields?, titel?, stil?, blende?, zeit?, bezug?, zeilen?}`, Standardboxen `totals|live|ele` lesen enabled/position/fields weiter aus den alten Feldern, Zusatzboxen `box_<zufall>` tragen sie selbst). Neue globale Schlüssel `overlay_exit`, `overlay_blende_s`, `overlay_radius`, `overlay_border_w`, `overlay_border_color`, `overlay_shadow`. **Auflösung in zwei Sprachen, Zeitsteuerung nur in JS:** `core/overlayboxen.py` ↔ `ui/js/overlay_boxen.js` teilen `aufloesen`, `chart_boxen`, `zeit_normal`, `hat_zeitsteuerung` (Python baut damit das Render-HTML, JS die Vorschau; `tests/test_overlay_boxen.py` vergleicht beide unter node). `zustand`/`etappenGrenzen`/`anwenden` gibt es nur in JS — Vorschau, Szene-Render und klassischer Render betten dieselbe Datei ein; der Python-Zwilling lief nur in Tests und ist seit 24.09.2026 weg (Prüfung über `tests/_node.py`). **Zeitmodell:** Zeit-Auslöser (`s`, `start` = Intro-Ende, `ende` = Intro + Animation) kennen ihre Sekunde; Strecken-Auslöser (`pct`, `etappe_start|ende N`) werden über den Streckenanteil des Laufpunkts ausgewertet und merken sich in `mem` die Sekunde, in der sie erreicht wurden (Tempo-Kurven/Übergänge stimmen so ohne Umrechnung). Einblende beginnt am „von“, Ausblende am „bis“ (oder von + `dauer_s`); Rücksprung oder Sprung > 1 s setzt `mem` zurück, ein Standbild hinter dem Auslöser zeigt die Box voll. **DOM:** Box = `[data-ovbox="<id>"]`, Zeile = `[data-f="<fid>"]`, Bezug-Werte je Etappe als `data-stage-values` (`{"<nr>": text, "gesamt": text}`, Klartext, die Zeitsteuerung setzt `textContent`). `rzOverlayBoxen.anwenden(root, boxen, t, frac, stageNr, ctx, speicher)` setzt `visibility`, `opacity`, `--rz-ov-pop` (Box) bzw. `transform: scale()` (Zeile). **Render (klassisch/Alpha):** `_overlay_boxen_html` baut das Box-HTML für beide Wege (vorher zweimal), `_overlay_live_update_js_alle` die Live-Werte aller Live-Boxen (Präfix `<id>-` für Zusatzboxen), `_overlay_boxen_css` Stil je Box/Zeile (Selektor `#<dom-id>[data-ovbox]`, schlägt die Grundregeln), `_overlay_timing_js` bettet `overlay_boxen.js` ein und liest Streckenanteil/Etappe über `window.__rzOvIdx` (setzt `updateOverlays`). `_overlay_font_link` lädt alle Schriften in Gebrauch. Kennzahlen je Etappe: `gpx.etappen_stats(pts)` auf den vollen Punkten (Zählweise wie `etappen_reihen`), im Render als `total_stats["stage_stats"]`, in der Vorschau als `series.stage_stats`. **Vorschau/Szene:** `_ovCfg()` liefert dieselben Schlüssel wie die Render-Parameter (`_ovRenderParams()` hängt die neuen an), `_overlayBoxenRendern` baut aus `rzOverlayBoxen.aufloesen`, Inline-Stil `_ovBoxStil` (WYSIWYG-Spiegel von `_overlay_boxen_css`), `_ovTimingAt(tSec, frac)` im Probelauf (auch Schrittmodus = Szene-Render). Vorher kannte die Vorschau nur harte Zeitfenster — Fade/Pop kam deshalb nie in Szene-Videos an. **Modal** `_ovBoxModal(id, zeile)`: Inhalt in `#ovbox-root`, delegierte Handler (`data-k` = Pfad, `data-erbt` = „wie oben“, `data-z` = Auslöser, `data-feld` = Felder), Änderungen über `_ovAendern` → `_ovSchreiben` (Undo-Schritt, bei Reglern gebündelt je Element über `__rzLastUndoEl`). ⚠️ `rzConfirm` überschreibt den Modal-Inhalt und schließt das Overlay — nach einer Rückfrage öffnet `_ovBoxModal` sich deshalb neu. Liste „Weitere Boxen“: `_ovExtraListe()` (hängt an `_ovRebuildEditors`), dort auch das Ausgrauen der ⏱-Felder, wenn eine Standardbox einen eigenen Zeitpunkt hat. Wächter: `tests/test_overlay_boxen.py` (Modell, Parität, Render-HTML, Alpha-Video gemessen), `tests/test_overlay_boxen_ui.py` (WebKit, echte Brücke, Modal/Undo/Probelauf im Schrittmodus), `tests/test_overlay_boxen_szene.py` (Szene-Render 4K + 1080p gemessen, nur Release).
+**Overlay-Boxen einzeln (v0.9.723):** Drei Ebenen global → Box → Zeile; gespeichert werden nur Abweichungen in `overlay_boxen` (Liste `{id, typ?, enabled?, position?, fields?, titel?, stil?, blende?, zeit?, bezug?, zeilen?}`, Standardboxen `totals|live|ele` lesen enabled/position/fields weiter aus den alten Feldern, Zusatzboxen `box_<zufall>` tragen sie selbst). Neue globale Schlüssel `overlay_exit`, `overlay_blende_s`, `overlay_radius`, `overlay_border_w`, `overlay_border_color`, `overlay_shadow`. **Auflösung in zwei Sprachen, Zeitsteuerung nur in JS:** `core/overlayboxen.py` ↔ `ui/js/overlay_boxen.js` teilen `aufloesen`, `chart_boxen`, `zeit_normal`, `hat_zeitsteuerung` (Python baut damit das Render-HTML, JS die Vorschau; `tests/test_overlay_boxen.py` vergleicht beide unter node). `zustand`/`etappenGrenzen`/`anwenden` gibt es nur in JS — Vorschau, Szene-Render und klassischer Render betten dieselbe Datei ein; der Python-Zwilling lief nur in Tests und ist seit 24.09.2026 weg (Prüfung über `tests/_node.py`). **Zeitmodell:** Zeit-Auslöser (`s`, `start` = Intro-Ende, `ende` = Intro + Animation) kennen ihre Sekunde; Strecken-Auslöser (`pct`, `etappe_start|ende N`) werden über den Streckenanteil des Laufpunkts ausgewertet und merken sich in `mem` die Sekunde, in der sie erreicht wurden (Tempo-Kurven/Übergänge stimmen so ohne Umrechnung). Einblende beginnt am „von“, Ausblende am „bis“ (oder von + `dauer_s`); Rücksprung oder Sprung > 1 s setzt `mem` zurück, ein Standbild hinter dem Auslöser zeigt die Box voll. **DOM:** Box = `[data-ovbox="<id>"]`, Zeile = `[data-f="<fid>"]`, Bezug-Werte je Etappe als `data-stage-values` (`{"<nr>": text, "gesamt": text}`, Klartext, die Zeitsteuerung setzt `textContent`). `rzOverlayBoxen.anwenden(root, boxen, t, frac, stageNr, ctx, speicher)` setzt `visibility`, `opacity`, `--rz-ov-pop` (Box) bzw. `transform: scale()` (Zeile). **Render (klassisch/Alpha):** `_overlay_boxen_html` baut das Box-HTML für beide Wege (vorher zweimal), `_overlay_live_update_js_alle` die Live-Werte aller Live-Boxen (Präfix `<id>-` für Zusatzboxen), `_overlay_boxen_css` Stil je Box/Zeile (Selektor `#<dom-id>[data-ovbox]`, schlägt die Grundregeln), `_overlay_timing_js` bettet `overlay_boxen.js` ein und liest Streckenanteil/Etappe über `window.__rzOvIdx` (setzt `updateOverlays`). `_overlay_font_link` lädt alle Schriften in Gebrauch. Kennzahlen je Etappe: `gpx.etappen_stats(pts)` auf den vollen Punkten (Zählweise wie `etappen_reihen`), im Render als `total_stats["stage_stats"]`, in der Vorschau als `series.stage_stats`. **Vorschau/Szene:** `_ovCfg()` liefert dieselben Schlüssel wie die Render-Parameter (`_ovRenderParams()` hängt die neuen an), `_overlayBoxenRendern` baut aus `rzOverlayBoxen.aufloesen`, Inline-Stil `_ovBoxStil` (WYSIWYG-Spiegel von `_overlay_boxen_css`), `_ovTimingAt(tSec, frac)` im Probelauf (auch Schrittmodus = Szene-Render). Vorher kannte die Vorschau nur harte Zeitfenster — Fade/Pop kam deshalb nie in Szene-Videos an. **Modal** `_ovBoxModal(id, zeile)`: Inhalt in `#ovbox-root`, delegierte Handler (`data-k` = Pfad, `data-erbt` = „wie oben“, `data-z` = Auslöser, `data-feld` = Felder), Änderungen über `_ovAendern` → `_ovSchreiben` (Undo-Schritt, bei Reglern gebündelt je Element über `__rzLastUndoEl`). ⚠️ `rzConfirm` überschreibt den Modal-Inhalt und schließt das Overlay — nach einer Rückfrage öffnet `_ovBoxModal` sich deshalb neu. Liste „Weitere Boxen“: `_ovExtraListe()` (hängt an `_ovRebuildEditors`), dort auch das Ausgrauen der ⏱-Felder, wenn eine Standardbox einen eigenen Zeitpunkt hat. Wächter: `tests/test_overlay_boxen.py` (Modell, Parität, Render-HTML, Alpha-Video gemessen), `tests/test_overlay_boxen_ui.py` (WebKit, echte Brücke, Modal/Undo/Probelauf im Schrittmodus), `tests/test_overlay_boxen_szene.py` (Szene-Render 4K + 1080p gemessen, nur Release).
 
 > ⚠️ **Abgelöst seit v0.9.752** durch die Einblendungs-Container (Kapitel „Einblendungen als Container“) — historisch.
 
@@ -320,7 +314,7 @@ weg davon, alles am track festzumachen." E1 löst die Sessions auf:
 
 > ⚠️ **Abgelöst seit v0.9.752** durch die Einblendungs-Container (Kapitel „Einblendungen als Container“) — historisch.
 
-**Overlay-Spur in der Timeline (v0.9.724, 24.09.2026, `docs/OVERLAY-BOXEN.md` §6):** Anker der Zeit sind jetzt `video_start` (s ab Start), `strecke` (Streckenanteil 0..1, wie `_ovTimingAt` ihn aus dem Laufpunkt bildet) und `video_ende` (s vor Ende); die älteren (`s`, `pct`, `start`, `ende`, `etappe_*`) bleiben lesbar. Blenden haben `ein_s`/`aus_s` (fehlt einer → `dauer_s`). **Semantik:** `ui/js/overlay_boxen.js` löst mit `kanten(zeit, ctx)` beide Kanten vorab in Videosekunden auf; die Box ist von `an` bis `aus` da, Ein-/Ausblendung liegen INNEN (zu lange Blenden anteilig gekürzt), am Ende ganz weg. Streckenanker brauchen dafür `ctx.strecke_zeit` = `[[anteil, sekunde], …]`: Vorschau/Szene `_ovStreckeZeit()` (module.js, dieselbe Formel wie der Probelauf: Fortschritt linear in der Anim-Zeit, Trim, Start-Verzögerung, `_paceMap`), klassischer Render `_ov_strecke_zeit()` (animator.py, dieselbe idx-Formel wie die Bildschleife) → `window.__rzOvStreckeZeit`. Ohne Tabelle (Standbild) greift der alte `mem`-Weg. **Leiste:** `ui/js/timeline.js` `setOverlays(liste, {offen, minAnteil})` zeichnet Kopfzeile `ovkopf` + Zeilen `ovbox` (Balken `.tl-ovbar`, Griffe `data-griff=l|r|ein|aus`, Verschieben = Körper), rechnet NUR in Leisten-Positionen und meldet `onOverlayZiehen(id, griff, neu)`, `onOverlayText`, `onOverlayVorschau`, `onOverlayOeffnen`, `onOverlaysOffen`; Geometrie-Änderungen (setTrackFraction/setTrim/setGruppen) melden `onOverlayNeu`. **Modul:** `_ovLeisteAusZeit`/`_ovZeitAusLeiste` (drei Abschnitte wie der Scrubber), `_ovAnkerAusZeit` (Intro → video_start, Animation → strecke, Halten → video_ende; ≥ Ende−0,05 s → `bis: null`), `_ovSpurJetzt` (aus `renderOverlayPreview`), `_ovSpurGezogen` (ein Undo-Schritt je Geste; Anker aus UNGERUNDETER Zeit — ein Trackpunkt sprang sonst bei schnellem Laufpunkt um km). Seitenleisten-⏱ laufen mit (`_ovZeitFelderSync`): bei eigener Zeit fängt ein Capture-Listener die Eingabe vor `bindSetting` ab und schreibt Anker; „bis ≤ von" → `.ist-ungueltig`. **Logbuch im Video + Zahlen je Bewegungsart (24.09.2026, IDEAS §67 Q11/Q16, §68 Q19):** Die Anzeige je Logbuch-Bereich ist das Feld `anzeige` der Einteilung „Bewegung" (`core/einteilung.ANZEIGEN` = "" · zeigen · blass · raffen · ueberspringen; gesetzt über `einteilung_aktion("aendern", {bids, anzeige})`; der Bereich bleibt „auto“ — Handarbeit nähme ihn aus dem Zusammenfassen im Logbuch —, `zusammenfuehren` → `_anzeige_uebertragen` gibt die Wahl beim Neuberechnen nach der Mitte des neuen Bereichs weiter; Achtung: automatische Bereiche bekommen dabei neue Ids). Brücke `animator_logbuch_bereiche(path)` → Einträge mit art/t0/t1/anzeige und `von`/`bis` als Anteil der Punkte der ganzen Datei (dieselbe Achse wie Tempo-Abschnitte). Animator (`_lbLaden`, `_lbTempo`, `_segStartsSetzen`): raffen/überspringen → `{art:"tempo", faktor: 8 | 200, quelle:"logbuch"}` wird in `paceMapLaden` an die Tempo-Einträge gehängt (nicht gespeichert, nicht in der Tempo-Spur) → Vorschau-Tabelle und `pace_map` des klassischen Renders; blass/überspringen → Masken `[a, b, 0.25]` bzw. `[a, b]` hinter `_segStartsBasis`. Masken mit drittem Wert = Deckkraft: `segMaskExpr`/`gradLueckenStanzen` (Vorschau) ↔ `__rzSegMask`/`__rzGradLuecken`/`__rzPointColors` (Render), Farbe über `mitAlpha`/`window.__rzMitAlpha`. Klassischer Render bekommt `logbuch_masken` (Anteile) → `_seg_masken(cfg, ds_points)`. Liste: Zeile „Alle auf einmal“ (Art → alle `bids` dieser Art in einem Aufruf), Tagesköpfe `.anim-lb-tag` bei mehrtägigen Touren (Ortszeit über `versatz_min`). Bei Reise (mehrere Touren) aus: dort führt der Etappen-Zeitplan. Inspektor: Kontextmenü „Im Video" + Kennzeichnung in der Liste. **Zahlen je Art:** `gpx.arten_stats(pts, bereiche)` (Form wie `etappen_stats`, Schlüssel `art:<art>`, ohne Pause/Übernachtung/unsicher; Spitzentempo aus `_tempo_gefiltert` über den GANZEN Track, sonst rutschen GPS-Sprünge am Abschnittsrand durch den gekappten Median); Vorschau über `series.art_stats` (Brücke `_art_stats_fuer`), Render über `bewegung_bereiche` → `total_stats.art_stats`; `_overlay_stage_values` und `_ovEtappenWerte` mischen Etappen (ab 2) und Arten; Bezug `art:<art>` in `overlayboxen._bezug` ↔ `overlay_boxen.js bezug`; `hat_zeitsteuerung` jetzt bei jedem Bezug ≠ gesamt (vorher nur „laufend" — feste Etappe wurde im klassischen Render nicht gesetzt). Wächter: `tests/test_logbuch_im_video.py`, `test_logbuch.py` (Menü), `test_overlay_boxen.py` (Parität), `test_etappen_linie.py`. **Lage und Klappen (24.09.2026):** Die Overlay-Spur lebt im eigenen Behälter `#tl-ov` VOR `.timeline-cluster-row` (ganz oben). Jede Spur/Cluster-Zeile hat `.lane-klapp` (▾) → Klasse `ist-klein`, gemerkt in localStorage `rz-tl-klein` (Menge der Spur-Arten). Umschalten beim MOUSEDOWN (Capture am Host) — ein Mausklick kam in WebKit nicht als click an. Trim-Griffe: `top: var(--tl-trim-top)` = Unterkante der Cluster-Zeile, gesetzt von `_ovHoeheMelden()` (ResizeObserver auf `#tl-track`). Blend-Punkte sitzen auf der Balken-Oberkante (`top:-5px`), sonst schnappten sie bei schmalen Balken dem Rand den Klick weg. **Leertaste:** Zahlenfelder zählen nicht mehr als Texteingabe; `e.repeat` wird geschluckt. **Mehrere Zeiträume je Box:** `zeit` darf eine Liste sein; aufgelöst stehen alle in `zeiten` (≥ 1, `zeit` = erster; Python `zeit_liste` ↔ JS `zeitListe`, Parität geprüft). `anwenden` nimmt `zustandListe` (sichtbar, sobald einer greift; stärkste Deckkraft gewinnt, je Zeitraum eigener `mem`-Schlüssel `id#i`). Leiste: `segmente` je Box, Balken mit `data-seg`, Doppelklick auf freie Fläche → `onOverlayZeitraumNeu(id, x)`, Rechtsklick öffnet das Fenster (dort ✕ je Zeitraum → `_ovZeitraumWeg`). `_ovZeitenSetzen` sortiert nach Beginn, legt Überlappende (≤ 0,05 s Abstand) zusammen, speichert einen Zeitraum als Objekt, mehrere als Liste. Tour-Map: keine Spur (`_isStaticFrame`). Wächter: `tests/test_overlay_boxen.py` (Kanten, Blenden, klassischer Alpha-Render mit Trackpunkt-Ende gemessen), `tests/test_overlay_spur_ui.py` (WebKit, echte Maus), `tests/test_overlay_boxen_ui.py`.
+**Overlay-Spur in der Timeline (v0.9.724, 24.09.2026):** Anker der Zeit sind jetzt `video_start` (s ab Start), `strecke` (Streckenanteil 0..1, wie `_ovTimingAt` ihn aus dem Laufpunkt bildet) und `video_ende` (s vor Ende); die älteren (`s`, `pct`, `start`, `ende`, `etappe_*`) bleiben lesbar. Blenden haben `ein_s`/`aus_s` (fehlt einer → `dauer_s`). **Semantik:** `ui/js/overlay_boxen.js` löst mit `kanten(zeit, ctx)` beide Kanten vorab in Videosekunden auf; die Box ist von `an` bis `aus` da, Ein-/Ausblendung liegen INNEN (zu lange Blenden anteilig gekürzt), am Ende ganz weg. Streckenanker brauchen dafür `ctx.strecke_zeit` = `[[anteil, sekunde], …]`: Vorschau/Szene `_ovStreckeZeit()` (module.js, dieselbe Formel wie der Probelauf: Fortschritt linear in der Anim-Zeit, Trim, Start-Verzögerung, `_paceMap`), klassischer Render `_ov_strecke_zeit()` (animator.py, dieselbe idx-Formel wie die Bildschleife) → `window.__rzOvStreckeZeit`. Ohne Tabelle (Standbild) greift der alte `mem`-Weg. **Leiste:** `ui/js/timeline.js` `setOverlays(liste, {offen, minAnteil})` zeichnet Kopfzeile `ovkopf` + Zeilen `ovbox` (Balken `.tl-ovbar`, Griffe `data-griff=l|r|ein|aus`, Verschieben = Körper), rechnet NUR in Leisten-Positionen und meldet `onOverlayZiehen(id, griff, neu)`, `onOverlayText`, `onOverlayVorschau`, `onOverlayOeffnen`, `onOverlaysOffen`; Geometrie-Änderungen (setTrackFraction/setTrim/setGruppen) melden `onOverlayNeu`. **Modul:** `_ovLeisteAusZeit`/`_ovZeitAusLeiste` (drei Abschnitte wie der Scrubber), `_ovAnkerAusZeit` (Intro → video_start, Animation → strecke, Halten → video_ende; ≥ Ende−0,05 s → `bis: null`), `_ovSpurJetzt` (aus `renderOverlayPreview`), `_ovSpurGezogen` (ein Undo-Schritt je Geste; Anker aus UNGERUNDETER Zeit — ein Trackpunkt sprang sonst bei schnellem Laufpunkt um km). Seitenleisten-⏱ laufen mit (`_ovZeitFelderSync`): bei eigener Zeit fängt ein Capture-Listener die Eingabe vor `bindSetting` ab und schreibt Anker; „bis ≤ von" → `.ist-ungueltig`. **Logbuch im Video + Zahlen je Bewegungsart (24.09.2026):** Die Anzeige je Logbuch-Bereich ist das Feld `anzeige` der Einteilung „Bewegung" (`core/einteilung.ANZEIGEN` = "" · zeigen · blass · raffen · ueberspringen; gesetzt über `einteilung_aktion("aendern", {bids, anzeige})`; der Bereich bleibt „auto“ — Handarbeit nähme ihn aus dem Zusammenfassen im Logbuch —, `zusammenfuehren` → `_anzeige_uebertragen` gibt die Wahl beim Neuberechnen nach der Mitte des neuen Bereichs weiter; Achtung: automatische Bereiche bekommen dabei neue Ids). Brücke `animator_logbuch_bereiche(path)` → Einträge mit art/t0/t1/anzeige und `von`/`bis` als Anteil der Punkte der ganzen Datei (dieselbe Achse wie Tempo-Abschnitte). Animator (`_lbLaden`, `_lbTempo`, `_segStartsSetzen`): raffen/überspringen → `{art:"tempo", faktor: 8 | 200, quelle:"logbuch"}` wird in `paceMapLaden` an die Tempo-Einträge gehängt (nicht gespeichert, nicht in der Tempo-Spur) → Vorschau-Tabelle und `pace_map` des klassischen Renders; blass/überspringen → Masken `[a, b, 0.25]` bzw. `[a, b]` hinter `_segStartsBasis`. Masken mit drittem Wert = Deckkraft: `segMaskExpr`/`gradLueckenStanzen` (Vorschau) ↔ `__rzSegMask`/`__rzGradLuecken`/`__rzPointColors` (Render), Farbe über `mitAlpha`/`window.__rzMitAlpha`. Klassischer Render bekommt `logbuch_masken` (Anteile) → `_seg_masken(cfg, ds_points)`. Liste: Zeile „Alle auf einmal“ (Art → alle `bids` dieser Art in einem Aufruf), Tagesköpfe `.anim-lb-tag` bei mehrtägigen Touren (Ortszeit über `versatz_min`). Bei Reise (mehrere Touren) aus: dort führt der Etappen-Zeitplan. Inspektor: Kontextmenü „Im Video" + Kennzeichnung in der Liste. **Zahlen je Art:** `gpx.arten_stats(pts, bereiche)` (Form wie `etappen_stats`, Schlüssel `art:<art>`, ohne Pause/Übernachtung/unsicher; Spitzentempo aus `_tempo_gefiltert` über den GANZEN Track, sonst rutschen GPS-Sprünge am Abschnittsrand durch den gekappten Median); Vorschau über `series.art_stats` (Brücke `_art_stats_fuer`), Render über `bewegung_bereiche` → `total_stats.art_stats`; `_overlay_stage_values` und `_ovEtappenWerte` mischen Etappen (ab 2) und Arten; Bezug `art:<art>` in `overlayboxen._bezug` ↔ `overlay_boxen.js bezug`; `hat_zeitsteuerung` jetzt bei jedem Bezug ≠ gesamt (vorher nur „laufend" — feste Etappe wurde im klassischen Render nicht gesetzt). Wächter: `tests/test_logbuch_im_video.py`, `test_logbuch.py` (Menü), `test_overlay_boxen.py` (Parität), `test_etappen_linie.py`. **Lage und Klappen (24.09.2026):** Die Overlay-Spur lebt im eigenen Behälter `#tl-ov` VOR `.timeline-cluster-row` (ganz oben). Jede Spur/Cluster-Zeile hat `.lane-klapp` (▾) → Klasse `ist-klein`, gemerkt in localStorage `rz-tl-klein` (Menge der Spur-Arten). Umschalten beim MOUSEDOWN (Capture am Host) — ein Mausklick kam in WebKit nicht als click an. Trim-Griffe: `top: var(--tl-trim-top)` = Unterkante der Cluster-Zeile, gesetzt von `_ovHoeheMelden()` (ResizeObserver auf `#tl-track`). Blend-Punkte sitzen auf der Balken-Oberkante (`top:-5px`), sonst schnappten sie bei schmalen Balken dem Rand den Klick weg. **Leertaste:** Zahlenfelder zählen nicht mehr als Texteingabe; `e.repeat` wird geschluckt. **Mehrere Zeiträume je Box:** `zeit` darf eine Liste sein; aufgelöst stehen alle in `zeiten` (≥ 1, `zeit` = erster; Python `zeit_liste` ↔ JS `zeitListe`, Parität geprüft). `anwenden` nimmt `zustandListe` (sichtbar, sobald einer greift; stärkste Deckkraft gewinnt, je Zeitraum eigener `mem`-Schlüssel `id#i`). Leiste: `segmente` je Box, Balken mit `data-seg`, Doppelklick auf freie Fläche → `onOverlayZeitraumNeu(id, x)`, Rechtsklick öffnet das Fenster (dort ✕ je Zeitraum → `_ovZeitraumWeg`). `_ovZeitenSetzen` sortiert nach Beginn, legt Überlappende (≤ 0,05 s Abstand) zusammen, speichert einen Zeitraum als Objekt, mehrere als Liste. Tour-Map: keine Spur (`_isStaticFrame`). Wächter: `tests/test_overlay_boxen.py` (Kanten, Blenden, klassischer Alpha-Render mit Trackpunkt-Ende gemessen), `tests/test_overlay_spur_ui.py` (WebKit, echte Maus), `tests/test_overlay_boxen_ui.py`.
 
 **Overlay-Gruppen als Karten (v0.9.452, „Hebel 2"):** Die drei Stats-Gruppen (Totals, Live, Höhenprofil) zeigten Position, Zeitfenster und Feldeditor **immer** — auch bei ausgeschalteter Box. Die Detail-Regler jeder Gruppe stecken jetzt in einem `.ov-group-details`-Wrapper, den `_ovSyncGroups()` an der Gruppen-Checkbox führt; die Gruppe bekommt zusätzlich `.ov-group--on` für den Karten-Look. Verdrahtet über `onLoad`/`onChange` der drei `bindSetting`-Aufrufe plus ein `change`-Listener am Master (`#anim-overlays`), Initial-Aufruf beim Mount und erneut bei `onSessionChanged`.
 
@@ -352,7 +346,7 @@ Ränder folgen jetzt der Schrift statt `SCALE`: `_labelRoom(unit)` schätzt die 
 
 **Frontend:** `window.TRACK_PICK_FILTER` (Datei-Dialog) + `window.TRACK_DROP_RE` (Drag&Drop-Regex) in `ui/js/gpx-bar.js`; Geotagger-/Animator-Drops nutzen dieselben. Drop-Persist auf `"binary"` (FIT/KMZ sind binär).
 
-### `core/sensors.py` + Sensor-Datenschicht (seit v0.9.330 — IDEAS §15.2 Phase 1)
+### `core/sensors.py` + Sensor-Datenschicht (seit v0.9.330)
 
 Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Variante B**: kein GPX-Dialekt, sondern angereichertes internes Modell + Sidecar.
 - **Modell:** `gpx.TrackPoint.extra: dict[str,float]` (Sensorwerte je Punkt), `gpx.TrackStats.sensor_fields` (`[{key,label,unit}]`). Geometrie/abgeleitet (Distanz/Tempo/Steigung) gehört NICHT in `extra`.
@@ -421,7 +415,7 @@ Minute ohne Feedback, und wiederholtes Klicken erzeugte Doppel-Flows.
 
 ### Cloud-Archiv (v0.9.515) — `core/cloud/` + `server/rz-cloud.php`
 
-Entwurf und Begründungen: `docs/IDEAS.md` §26. Hier nur, was beim Anfassen
+Hier nur, was beim Anfassen
 wichtig ist.
 
 > 🔒 **Seit v0.9.516 versteckt.** `Api._cloud_sichtbar()` ist der einzige
@@ -506,14 +500,14 @@ entsteht früher oder später eine Stelle, an der Klartext über die Leitung geh
 > Wache: `scripts/check_hartkodierte_sprache.py` (im Release-Gate) und
 > `tests/test_sprache_vollstaendig.py`.
 
-> 🧺 **Mengen-Sitzungen (`menge:<hash>`, IDEAS §38, v0.9.559):** Reisen und
+> 🧺 **Mengen-Sitzungen (`menge:<hash>`, v0.9.559):** Reisen und
 > Schwärme speichern am Hash über die SORTIERTEN geo_hashes aller Touren
 > (`sessions.mengen_hash`), im selben `sessions`-Speicher — das Präfix
 > kollidiert nie mit einem geo_hash, alle Projekt-Brücken funktionieren
 > unverändert (sie schlagen nur den Schlüssel nach), und Cloud-Sync/Migration
 > übergehen die Einträge (kein Snapshot, kein Umschlag; Cloud = M5).
 > Anlegen/Öffnen über `session_open_for_menge(gpx_paths, ablauf)`; der Ablauf
-> („reise"|"schwarm") wird im ARCHIV gewählt (Grilling Q9) und reist über
+> („reise"|"schwarm") wird im ARCHIV gewählt und reist über
 > `window.__rzPendingAblauf` mit. ⚠️ Im Animator gilt die Reihenfolge: ERST
 > `sessionActivateMenge`, DANN `_animAddTourPath` — sonst landet die Arbeit in
 > der Einzel-Sitzung der ersten Tour. Neustart-Gedächtnis: `last_menge` in den
@@ -678,8 +672,7 @@ technische Fehlercodes wie `no_token` (die wertet das Frontend aus), Einheiten
 > Fassung. Geprüft unter node über `tests/_node.py`. Die Funktionsnamen unten
 > heißen in JS `zeitplan`, `ausProjekt`, `zeilen`, `kameraGruppe`, `ueberlappt`.
 
-Modell und Begründung: **`docs/IDEAS.md` §60** — der Vertrag, aus sieben
-Grilling-Runden mit Marc. Die Kurzfassung, die man beim Anfassen im Kopf haben
+Das Modell ist mit Marc in mehreren Runden festgelegt worden. Die Kurzfassung, die man beim Anfassen im Kopf haben
 muss:
 
 * **Alle Tracks eines Projekts sind gleich lang** — so lang wie das Video. Ein
@@ -805,7 +798,7 @@ Reglern kommen und nur gezeigt werden.
 
 ### Gruppen: EIN Zeitplan für Etappenfolge, Schwarm und Mischformen (seit 09.09.2026) ⚠️ PFLICHTLEKTÜRE
 
-Vertrag: `docs/IDEAS.md` §60. Umsetzungs-Briefing: `docs/HANDOVER_SPUREN_UMBAU.md`.
+
 Jede Tour ist *Halt + Inhalt + Halt*, alle Tracks eines Projekts sind so lang wie das
 Video; die Anordnung steckt darin, wo die Halte sitzen. Alles ist eine **Gruppe**
 (auch eine einzelne Tour); Faktor auf drei Stufen (Projekt → Gruppe → Abschnitt).
@@ -911,7 +904,7 @@ Min/Max und Titel neu, sobald sich der Ausschnitt ändert (`_ovEleAusschnittZule
 Etappe). Der Render läuft über die Szene (= diese UI); der klassische Pfad ignoriert das
 Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 
-### Schnell-Video (IDEAS §71, seit 29.09.2026)
+### Schnell-Video (seit 29.09.2026)
 
 - **Dialog + Ablauf:** `ui/js/schnellvideo.js` (`window.rzSchnellVideo(pfad)`), Einstieg Archiv (`[data-schnellvideo]`, Rechtsklick) und Animator (`#anim-schnellvideo`). Holt `schnellvideo_vorschlag`, baut `animatorPatch()` (Backend-Schlüssel wie app.py: width/height/fps/intro_s/duration_s/hold_s/map_style/keyframes_enabled/timeline_events/camera_follow_track/overlay_*/ghost_track_*/schnellkarte), legt per `schnellvideo_anlegen` ein freies Projekt an (Tour gesetzt, `herkunft: "schnellvideo"`), öffnet es wie der Tour-Assistent (Event `rz-projekt-oeffnen`) und startet auf Wunsch den Render, sobald `window.__rzSchnellBereit(pid)` stimmt.
 - **Kamerafahrt:** `kamerafahrt(bbox, animS)` erzeugt 7 Punkte × 4 Spuren (pitch/bearing/zoom/center). Anker: Intro < 0, Halten > 1 (1/animS je Sekunde). Zoom nur als `value_offset` zur Einpass-Kamera (formatunabhängig); `center` fest im Überblick, `null` im Flug (Track-Punkt mit `camera_follow_track`); gemischte Abschnitte löst `_interpCenter` auf, `_maybeFlyToInterp` macht den Bogen.
@@ -930,7 +923,7 @@ Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 - **Quellen-Register:** die Anmerkungen (`notes`) stehen übersetzt als `kq.<id>.notes` (app.js `rzQuellenRegisterHtml`). Anbieter, Datensatz, Lizenz und Nennformel bleiben im Original (amtliche Bezeichnung bzw. vorgeschriebene Nennung). `tests/test_kartenquellen.py` schlägt fehl, wenn `notes` geändert wird, ohne de/en/es nachzuziehen.
 - **Offen:** macOS-Dateityp-Name im Info.plist, Installer-Anzeigename.
 
-### „Ganz zeigen": Touren als Kulisse statt Ghost-Spuren (seit 28.09.2026, IDEAS §72) ⚠️ PFLICHTLEKTÜRE
+### „Ganz zeigen": Touren als Kulisse statt Ghost-Spuren (seit 28.09.2026) ⚠️ PFLICHTLEKTÜRE
 
 Eine Gruppe hat eine **Darstellung**: `modus: "animiert" | "ganz"`. Felder (Projekt,
 `animator.gruppen[]`, gelesen über `_gruppeGanzFelder(g)`, also in `_gruppeNeu`,
@@ -3014,7 +3007,7 @@ ofm_liberty aus — der Stapel bleibt (Vermerk `no_coverage`, Banner-Text
 „gezeigt wird Sentinel-2"). Leaflet: `stack_leaflet` liefert
 `[base, sentinel, …]`, leerer Stapel = `[base, sentinel]`; die Luftbild-Optik
 wirkt auch auf Sentinel (`rz-raster*`-Präfix / kein `base`-Flag). Wächter:
-`tests/test_sentinel_stack.py`. Recherche zu freien Quellen: IDEAS §51/§52.
+`tests/test_sentinel_stack.py`.
 
 **ProRes 422 HQ (05.09.2026):** Codec `prores422` (Einstellungen → Video-Codec):
 `prores_ks -profile:v 3 -pix_fmt yuv422p10le`, .mov, in beiden Render-Pfaden;
@@ -3108,9 +3101,8 @@ Befunde der Recherche (Abweichungen zum Stand davor): Berlin dl-de/zero (nicht
 by), M-V seit 06/2024 CC BY 4.0, ST heißt „LVermGeo ST", Sachsen „Quelle: GeoSN",
 EOX 2016 ist CC BY 4.0 (nicht BY-SA), Italien (MASE-Ortofoto) ausdrücklich NICHT
 unter CC BY → unknown, OSM-France-Server (CyclOSM/HOT) nur non-profit → false,
-OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN-
-LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
-eigener Link / reisezoom-Shortlink), IDEAS §56.
+OSMF-Standardserver: Prefetch = Bulk → absprache. Nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
+eigener Link / reisezoom-Shortlink).
 
 **Ruhige Kamera, Zielhöhe glätten (08.09.2026 Mittag):** `_faithBuild` (module.js) und KORREKTUR (später
 am 08.09., Marc: „andere Zoomstufe je nach Startpunkt"): keine eigene geglättete eM-Reihe, sondern eM
@@ -3168,7 +3160,7 @@ schreibt `<bounds>` immer aus den Punkten neu und behält Millisekunden (`_time_
 `tests/test_gpxheal.py` mit `tests/fixtures/insta360_10hz.gpx` (41 Punkte, 5 Sekunden, bounds ohne
 Vorzeichen). Anlass: Forumsfall X4-GPX ↔ X6-Video, Marcs Teneriffa-Ordner bestätigte die Form.
 
-**Vorlagen (11.09.2026, `core/vorlagen.py`, Spezifikation `docs/TOUR-ASSISTENT.md` §2 = die Wahrheit):**
+**Vorlagen (11.09.2026, `core/vorlagen.py`):**
 Eine Vorlage = `{id, name, created_at, modified_at, quelle, module:{animator, tourmap, geotagger, heightanim,
 webkarte}}` in `<Bibliothek>/vorlagen.json` (`{"schema", "vorlagen", "standard"}`). `TRACKGEBUNDEN` ist die EINE
 Sperrliste je Modul (Keyframes, Schnitt, Gruppen, Etappen, Zusatz-Touren, Ghosts, Tour-Farben, Tempo-Einträge,
@@ -3186,7 +3178,7 @@ Oberfläche: `ui/js/vorlagen.js` (Fenster, `rzVorlageAufAktivesProjekt` = Anwend
 Tests: `tests/test_vorlagen.py` (Kern), `tests/test_vorlagen_bridge.py` (echte `Api` gegen Wegwerf-Ordner),
 `scripts/selftest_vorlagen.py` (Browser, 38 Prüfungen) via `tests/test_vorlagen_ui.py`.
 
-**Tour-Assistent Stufe 1 (11.09.2026, `Api.assistent_lauf`, `ui/js/assistent.js`, Spec `docs/TOUR-ASSISTENT.md` §3):**
+**Tour-Assistent Stufe 1 (11.09.2026, `Api.assistent_lauf`, `ui/js/assistent.js`):**
 Eine Brücke für den ganzen Lauf, damit die Oberfläche nur Zeilen zeigt. Reihenfolge: `clib.get_track` (sonst
 `library_import_files`) → Check aus der Archivzeile oder `clib.track_check_datei` → Befunde rot/gelb minus
 `check_ok` minus alles ohne Heil-Schritt (`gpxheal.SCHRITTE`) → `gpxinspect_load` → `gpxheal.heilen(schritte ohne gaps)`
@@ -3241,7 +3233,7 @@ Leaflet-Kacheln (bei „tainted" Canvas nur die Vektor-Ebene) — verkleinert au
 schwarze Bilder (Helligkeits-Stichprobe). Ausgelöst von `saveProjectSettings` (4 s Verzögerung, `rzProjektVorschauPlanen`)
 und in `switchMod` vor `activeCleanup`. Das Archiv leert bei `rz-projekt-vorschau` seinen Kachel-Cache.
 
-**Track-Check (10.09.2026, `core/trackcheck.py`, Spezifikation `docs/TRACK-CHECK.md` = die Wahrheit):**
+**Track-Check (10.09.2026, `core/trackcheck.py`):**
 `pruefen(points, stufe=5, local_time_n=0)` → `{befunde:[{key, stufe, n, detail}], hoechste, n_points, ms}` —
 reine Zählung, kein Heil-Lauf (≈ 30 ms je Tagestour, 726 Touren in 21 s). Erkennungen liefern Indizes und
 werden von `gpxheal.heilen` für die Reparatur wiederverwendet: `kaltstart`, `standdrift` (vor den
@@ -3381,7 +3373,7 @@ JS `mapRegionsForBbox` filtert damit, `mapKeyedRegionsMissing` liefert den Hinwe
 `app.js` Subpanel `laender` (`md-dk-key`, `md-fi-key`, `md-linz-key`), `RESET_BEHALTEN`.
 Wächter `tests/test_laender_schluessel.py`. Schweden: kein Kacheldienst (nur STAC).
 
-**Relief + Dunst + Looks (17.09.2026, `docs/KARTEN-OPTIK.md` §3):**
+**Relief + Dunst + Looks (17.09.2026):**
 *Relief* = MapLibre-`hillshade`-Ebene `rz-hillshade` aus der raster-dem-Quelle
 `rz-dem` (AWS Terrarium über die lokale Weiche `/tile/terrain-aws/…`, Meerestiefen
 geklemmt — dieselben Kacheln wie das 3D-Gelände, zweite Quelle im Stil, weil das
@@ -3794,7 +3786,6 @@ Manuelle Test-Runs (oben) vor jedem Commit / Build weiterhin empfohlen.
   - **Erststart** (`app.py`, `core/umzug.noetig`): ohne `sessions.json` keine Migration; leere Stores zählen nicht als Altdaten. `ui/js/app.js versionAnzeigen()` ist die einzige Stelle, die die Versionsanzeige schreibt (vor `rzBibPruefen`, im Über-Dialog, bei Sprachwechsel).
   - **Sonstiges:** `HeightConfig` ohne `tz_name` (AST-Test prüft alle Config-Aufrufe in `app.py`); `_write_worker_run` zählt `write_coords or has_gps` als verortet; `_freier_dateiname()` in `pick_save_path` (`-2`, `-3`) + `_doppelte_endung_weg()`/`_export_stamm()`; `Api._cloud_korb_namen()` löst Papierkorb-Namen (auch altes Modell) auf; `window.rzCloudZustand` für die Einstellungen; Fotos: alte Karte wird in den neu gebauten `#foto-karte` umgehängt (`karteWeg()` als Rückfall), `abfrage()` liefert `ohne_koordinate` der gefilterten Menge; Geotagger `zeitzone_raten` liefert bei breitem Band `von/bis`, `geotagger_zeitzone_vorschlag` → `naheliegend` (`_gt_zonen_naheliegend`); Projekte `session_create_project` akzeptiert schwebende Kontexte und `"@aktiv"`; Animator `_animLeerAnzeigen()` beim Schließen; Daten-Animator `_haFahnenLegen` / `_wpFahnenLegen` (Kollisionsvermeidung); Dateischutz lässt eigene Temp-Ordner auch als `nutzer_ziel` durch.
 
-- **Protokoll:** `docs/TESTPROTOKOLL.md` (Regeln für den Test-Chat, Kurztest, Blöcke je Bereich mit IDs, Berichtsvorlage).
 - **Daten:** `scripts/testdaten_bauen.py [--wurzel ~/GPS-Studio-Test] [--neu]` baut `Quellen/` aus `tests/fixtures`, `tests/pruefsammlung/dateien` und fünf Komoot-Touren (per ID gesucht, die Namen tragen Emojis) plus erzeugten Fehlerdateien, Tagesdateien, Dubletten und Fotos (piexif, pillow-heif, ffmpeg); `SOLL-WERTE.md`/`soll-werte.json` aus `library.punkte_lesen` + `trackcheck.pruefen` + Logbuch.
 - **Steuerung:** `scripts/testumgebung.sh einrichten | zuruecksetzen vorbefuellt|leer | starten | vorne | oeffnen <datei> | status | aufraeumen | cloud-einrichten`. `_alt/` behält nur die letzten 2 Stände (`ALT_BEHALTEN`, Marc 25.09.2026). `vorbefuellt` ruft `scripts/testumgebung_befuellen.py` (Dev-App mit `RZ_APP_ORDNER`, liest `Arbeit/archiv` ein, zwei Sammlungen, `SOLL-ARCHIV.md` aus der Datenbank = die Marken, die das Archiv wirklich zeigt).
 - **`RZ_APP_ORDNER`** (`app.py`, `APP_ORDNER_UEBERSCHRIEBEN`): ersetzt `APP_SUPPORT` (auch im Dev-Modus), legt `TOURMAPS_DIR` hinein und setzt `Api.ARCHIV_KENNUNG = "ordner-<sha256[:12]>"` — die Schlüsselbund-Einträge (`core/cloud/keys.py`, Dienst + `feld:archiv`) gelten sonst rechnerweit. Start der installierten App: `open -n -a … --env RZ_APP_ORDNER=…`.
@@ -4200,7 +4191,6 @@ Beim ersten Doppelklick auf eine ad-hoc-signierte App fragt Gatekeeper. `xattr -
 
 ## Die Bibliothek (seit 02.09.2026, v0.9.640)
 
-**Entscheidungsdokument: `docs/UMBAU-BIBLIOTHEK.md` — das ist die Wahrheit.**
 Hier steht nur, wie es gebaut ist.
 
 ### Wo was liegt
@@ -4231,7 +4221,7 @@ einer existiert) und „Kamera folgt Track" aus ist. Die Zeitregel ist die der f
 Szene** — die Weiche `_reise → _klassisch` in `app.py` ist weg, weil ihre Begründung
 („bis die Vorschau eine Reise abspielen kann") seit dem 08.09. nicht mehr gilt. Wächter:
 `tests/test_reise_szene_render.py`. **Offen:** die Einblendungen zeigen noch die Werte der
-Haupt-Tour statt Etappen- und Gesamtzähler (IDEAS §58).
+Haupt-Tour statt Etappen- und Gesamtzähler.
 
 **Die Vorschau bestimmt die Länge (09.09.2026) ⚠️.** `core/szene.py` rechnete die
 Bildzahl aus `intro_s + duration_s + hold_s` und schrieb bei Abweichung nur eine
@@ -4457,7 +4447,7 @@ ganzer Zoomstufe) — sie atmet beim Zoomen, wandert aber nicht. Glättung:
 gleitendes Mittel über die Punkte innerhalb ~3 Bildpunkten (Indizes bleiben
 1:1, der Laufpunkt trifft seinen Index). Diese Angleiche entfallen, sobald die
 Vorschau ebenfalls rz-line3d nutzt. Noch drapiert: Mehrspur-Pfad (mtrack),
-Vorschau im Animator, Tour-Map — siehe IDEAS §53.
+Vorschau im Animator, Tour-Map.
 
 Prüfstand dafür: `scratchpad/messen_schorf.py` (Strichdicke je Farbe, Toggle je
 Farbe in Zoom- und Haltephase gegen den Referenz-Render) und
@@ -4474,7 +4464,7 @@ Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 
 **Gotcha (06.10.2026):** `anwenden()` vergleicht den zuletzt GESETZTEN Spaltenwert (`b.__rzSpalten`), nie `b.style.gridTemplateColumns` — der Browser liest `minmax(0, 1fr)` als `minmax(0px, 1fr)` zurück. Mit dem alten Vergleich lief eine Dauerschleife (`karteNachziehen` → `resize` → `anwenden` → …, ~40/s): Karte vermaß sich dauernd, Tooltips (`resize` → weg) schlossen sofort, WebKit fror unter Last ein. `test_seitenleisten` prüft „keine resize-Schleife im Leerlauf“.
 
-Trailframe-Regel (Grilling F-7): links die Seitenleiste des Moduls, rechts nur der Detail-Editor des Angeklickten.
+Trailframe-Regel: links die Seitenleiste des Moduls, rechts nur der Detail-Editor des Angeklickten.
 Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Detail]`) und setzt dort
 `grid-template-columns` inline; das Archiv (`.lib-mode`, drei feste Spalten) bleibt außen vor.
 
@@ -4495,7 +4485,7 @@ Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Deta
   nach dem ersten Wechsel Griffe und Breiten weg (Review 06.10.2026).
 - Tests: `tests/test_seitenleisten.py` (echte Mausbewegungen), `test_modulwechsel_aufraeumen.py`, `test_overlay_spur_ui.py`.
 
-## Export-Dialog und Karte „Format & Ablauf“ (06.10.2026, Grilling Export E1–E16)
+## Export-Dialog und Karte „Format & Ablauf“ (06.10.2026)
 
 - **`ui/js/exportdialog.js`** — `rzExportDialog.oeffnen({ bild, stamm, ordnerHinweis, starten(pfad), abbrechen })`.
   Eigenes Overlay (`.rz-exp-overlay`, nicht `openModal`: so stapeln Umbenennen/Löschen nicht über den gemeinsamen
@@ -4541,7 +4531,7 @@ Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Deta
 - **Sprung im Intro/Halten:** `_sgNachZeit(t)` → `applyMarkerAnchor(_sgAnkerAusZeit(t))` wie im Probelauf/Render.
 - Test `test_wysiwyg_vorschau` (ohne Rendern).
 
-## Info-Karte und Medien der Tour (06.10.2026, Grilling A1/A3)
+## Info-Karte und Medien der Tour (06.10.2026)
 
 - **Info-Karte** = Einblendungs-Vorlage `info` in `ui/js/container.js` (`VORLAGEN.info`, Stil `eigen`, Plex, Schiefer
   `#151b22`, Akzent `#48d6c4`): Textzeile + drei Wert-Zeilen, `anordnung: neben`. Die Karte bekommt die Klasse
@@ -4557,7 +4547,7 @@ Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Deta
 - ⚠️ Viele Schild-Funktionen (`_animSignsList`, `_animSignsAddPhotosFromBridge` …) liegen in einem inneren Bereich —
   von Modul-Ebene aus über `_sgS()` bzw. `window.__rzSchildAusFotos` gehen.
 
-## Ghost-Spur gestrichelt (06.10.2026, Grilling A2)
+## Ghost-Spur gestrichelt (06.10.2026)
 
 Neuer Projektschlüssel `ghost_track_dashed` (Feld `#anim-ghost-dashed`, verborgen; bedient im Aussehen-Panel der
 Haupt-Tour „Gestrichelt“). Neue Projekte: `core/sessions.py` setzt ihn auf `True`; fehlt er (Altprojekte), ist er aus.
@@ -4566,7 +4556,7 @@ nur beim Anlegen — `applyGhost()` vergleicht `map.__rzGhostDash` und legt die 
 (`rebuildPreviewLayers`). Alter Render-Weg: `AnimConfig.ghost_track_dashed` → `track-ghost` mit `[3,2]`. ⚠️ Kein
 `onLoad` an dieser Bindung: beim Aufbau existiert `map` noch nicht (TDZ). Test `test_ghost_gestrichelt`.
 
-## Kamera-Karte im Animator (06.10.2026, Grilling A4)
+## Kamera-Karte im Animator (06.10.2026)
 
 Oben `#anim-kamera-kurz`: Pillen `#anim-kamera-art` (fest/folgen/fahrt → `rzEinfach.kameraSetzen`; bei vorhandenen
 Keyframes schaltet „fahrt“ nur `anim-kf-enabled` an), `#anim-zoom` als „Höhe über Gelände“ (Anzeige
@@ -4670,7 +4660,7 @@ Zuordnung über die längste enthaltende Wurzel. `app.fotos_laufwerk_verbinden(o
 Oberfläche `ui/js/fotos.js`: `ordnerZeile`, `lwZustand`, `lwArt`, `ordnerTitel`, `laufwerkVerbinden` (danach 30 s lang
 alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/test_fotos_laufwerke.py`.
 
-## Flug in der Luft (05.10.2026, v0.9.782, IDEEN I-020, IDEAS §77)
+## Flug in der Luft (05.10.2026, v0.9.782)
 
 - **Zeichnen:** `ui/js/rz-line3d.js` kann je Spur `agl: [m…]` (Höhe über Grund × Überhöhung statt festem Versatz) und
   `lot: true` (je Punkt ein Segment Fuß → Spitze; intern Folge [Fuß, Spitze, …], nur gerade Segmente gezeichnet).
@@ -4692,7 +4682,7 @@ alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/t
 - **Grenzen:** nur MapLibre + Gelände + eine Tour (`_flugMoeglich()` → Grund `mapbox|gelaende|reise|keine_tour`).
 - Test `tests/test_flug_in_der_luft.py` (IGC aus echtem Gelände + gewollter Höhe, Scrub, Bild mit/ohne, Video mit/ohne).
 
-## Ausreißer: Grund und Schwellen je Sportart (05.10.2026, v0.9.782, IDEEN I-087)
+## Ausreißer: Grund und Schwellen je Sportart (05.10.2026, v0.9.782)
 
 - **Eine Tabelle, zwei Orte:** `SPORT_GRENZEN` in `modules/gpxinspect/ui/module.js` und `SPORTARTEN` in
   `core/trackcheck.py` (`boden` = Tempo-Schwelle nie darunter, `decke` = feste Obergrenze in m/s; `DECKE_BIS_M` =
@@ -4704,7 +4694,7 @@ alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/t
 - Backend: `sprung_gruppen(..., sportart)` → `sprung_gefiltert` → `pruefen(sportart=…)`; Brücke
   `gpxinspect_track_check(points, path, local_time_n, sportart)`. Archiv-Prüfung bleibt „auto".
 
-## Foto-Pfade umbiegen, wenn das Laufwerk anders heißt (05.10.2026, v0.9.782, IDEAS §82 Schritt 1)
+## Foto-Pfade umbiegen, wenn das Laufwerk anders heißt (05.10.2026, v0.9.782)
 
 `core/pfade_umziehen.py`, rein über sqlite3 + austauschbare Dateisystem-Abfragen:
 - `kandidaten(conn, existiert, volumes, zufall)` — je fehlender Laufwerkswurzel eines Foto-Ordners (`/Volumes/X`,
@@ -4978,8 +4968,7 @@ Hilfe-Sprechblase (schließt bei mouseout/focusout). Wächter: `tests/test_modul
 
 ## Einblendungen als Container — eine Render-Pipeline (30.09.2026, v0.9.752)
 
-Spezifikation und alle Entscheidungen: `docs/OVERLAY-CONTAINER.md` (Grilling Q1–Q29).
-Löst die Overlay-Boxen (`docs/OVERLAY-BOXEN.md`), den Skin „Frei“, Wasserzeichen,
+Löst die Overlay-Boxen, den Skin „Frei“, Wasserzeichen,
 Diagramm-Karten, Nordpfeil/Maßstab-Boxen und die Schnell-Video-Titelkarte ab.
 
 **Modell — `ui/js/container.js` (`window.rzContainer`).** Ein Container:
@@ -5186,7 +5175,7 @@ das in der vorschau, wie im fertigen video".
    alten Render genauso (render_scale = 1920/Vorschaubreite, dazu noch ein
    Faktor (1920/Breite)^0,19 obendrauf, weshalb alte 4K-Videos die Schilder etwa
    20 % größer zeigten als die Vorschau — Marc wollte ausdrücklich die Vorschau).
-   Normierung auf eine Referenzbreite: IDEAS §53a.
+   Normierung auf eine Referenzbreite (offen).
 2. `ui/index.html` laden — die ganze App mit allen Modulen. Brücke
    `window.pywebview.api` → `rzBridge` → laufende `app.Api`. Schreibende
    Aufrufe (`_SCHREIBEND`, z. B. settings_set, projekt_*, library_set_*, cloud_*)
@@ -5265,7 +5254,7 @@ brachte 0 ms), die Kachel-Abfangung (ohne Route gleich schnell), Kachelzahl
 beim Zoomen Rasterkacheln ungezeichnet (Fuji, Teide: WYS mean_diff 22/17). Deshalb bleibt
 die Paint-Transition im Render-Modus bei 300 ms (`transMs` in `__rzRenderMode`,
 Env `RZ_TRANS_MS` zum Messen); Symbol-Überblendung, Raster-Fade und Globus-Uhr bleiben.
-Offen in IDEAS §53a.
+Noch offen.
 Die restlichen Aussetzer (~750 ms, jedes dritte Bild, ohne Kachel-Anfrage) waren
 die Globus-Projektion: `style.projection.hasTransition()` ist 0,7 s nach jeder
 Fehlermessung wahr, die Korrektur gleicht sich über 0,5 s an (Vendor-Patch
@@ -5447,7 +5436,7 @@ in Render-Pixeln + transform-scale); `previewShowKfPins()` liefert im Render-
 Modus false; `runTimelinePreview` legt im Schrittmodus `window.__rzPreviewStep`
 an statt rAF; `window.__rzAnimBereit`, `window.__rzPreviewRun`.
 
-**Konsequenz für die Spiegelregel (CLAUDE.md).** Animator ↔ Render muss nicht
+**Konsequenz für die Spiegelregel.** Animator ↔ Render muss nicht
 mehr gespiegelt werden — es gibt nur noch die Vorschau. `core/animator.py` bleibt
 für Alpha/Tour-Map/Rückfall; Änderungen an der Optik gehören NUR noch in
 `module.js` (und die geteilten `ui/js/*`).
@@ -5479,7 +5468,7 @@ nächsten Änderung dort auf die gemeinsame umstellen. Wächter:
 `tests/test_touren_sektion_sichtbar.py`.
 
 
-## Geotagger: mehrere Tracks auf einmal (IDEAS §61, GitHub-Issue #7, 10.09.2026)
+## Geotagger: mehrere Tracks auf einmal (GitHub-Issue #7, 10.09.2026)
 
 Der Geotagger hält eine **Track-Liste** (`Api._gtg_tracks`, je Eintrag Pfad, Name,
 Punkte, gezeichnete Linie, Stats, `vorgegeben`, `farbe`); `_gtg_track`/`_gtg_display`
@@ -5535,7 +5524,7 @@ pusht vorher; die Sitzung wird nur gewechselt, wenn der Haupt-Track ein anderer 
 (ein Sitzungswechsel leert die Stapel — `rebindAllSettings`). Wächter:
 `tests/test_undo_neuerungen.py`, Geotagger-Teil in `tests/test_geotagger_mehrere_tracks.py`.
 
-## Der Foto-Bestand (12.09.2026, IDEAS §64, v0.9.690)
+## Der Foto-Bestand (12.09.2026, v0.9.690)
 
 **Warum.** Fotos lagen dreifach herum: der Geotagger scannte Ordner
 (`settings.geotagger.last_photos_*`), die Tour-Map hielt ihre Pins im Projekt
@@ -5736,7 +5725,7 @@ lässt einen echten Scan laufen, während ein zweiter Faden ununterbrochen in
 dieselbe Datenbank schreibt.
 
 
-### Inhaltssuche — `core/inhalt.py` (04.10.2026, IDEAS §81, v0.9.781)
+### Inhaltssuche — `core/inhalt.py` (04.10.2026, v0.9.781)
 
 **Was.** „Sonnenuntergang", „Hund am Strand", „ähnliche Fotos" — über Bildinhalt, in jeder Sprache, lokal. SigLIP 2
 (Google, Apache-2.0) als ONNX-Export von onnx-community, Laufzeit `onnxruntime` (MIT), Tokenizer `tokenizers`
@@ -5875,7 +5864,7 @@ zeichnet einen MultiLineString. Wächter `tests/test_fotos_etappen.py`.
 
 ## Bewegungsart und Halte erkennen — `core/bewegung.py` (13.09.2026, v0.9.700)
 
-Schritt 2 aus docs/IDEAS.md §67. Teilt einen Track in **Bereiche** (`gehen`, `laufen`, `rad`,
+Schritt 2. Teilt einen Track in **Bereiche** (`gehen`, `laufen`, `rad`,
 `fahrt`, `uebersetzen`, `halt`, `pause`, `unsicher`), ändert keinen Punkt. Einstieg:
 `bewegung.erkennen(points, aktivitaet=None, wegpunkte=None)` → `{"bereiche", "zusammenfassung", "prior"}`.
 Ein Bereich: `art, von, bis` (Punkt-Indizes, `bis` exklusiv als Segmentgrenze), `t0, t1`,
@@ -5916,7 +5905,7 @@ die Gemacht-Schätzung) und `tests/test_pruefsammlung.py` (Bewegungs-Soll an ech
 
 ## Track-Check: Schwellen je Bewegungsart (13.09.2026, v0.9.701)
 
-Schritt 3 aus docs/IDEAS.md §67. **Eine** Stelle entscheidet, was ein Befund ist — Check
+Schritt 3. **Eine** Stelle entscheidet, was ein Befund ist — Check
 (`trackcheck.pruefen`), Reparatur (`gpxheal.heilen`/`analysieren`), Inspektor-Routing
 (`Api.gpxinspect_luecken`) und Tour-Assistent rufen dieselben Funktionen:
 
@@ -5970,7 +5959,7 @@ neueste Zeile nur in der WAL-Datei steht; ZIP, Sicherung, Wiederherstellen, Umzu
 
 ## Einteilungen einer Tour — `core/einteilung.py` (13.09.2026, v0.9.702)
 
-Schritt 4 aus docs/IDEAS.md §67 (Q5, Q6, Q9, Q11). Tabelle `einteilungen` in `library.db`
+Schritt 4. Tabelle `einteilungen` in `library.db`
 (Schema aus `open_db`, wie die Foto-Tabellen):
 
 | Spalte | Inhalt |
@@ -6014,7 +6003,7 @@ macOS: `_macos_pick` bekommt `default_dir` (NSOpenPanel `setDirectoryURL_`). Wä
 
 ## Logbuch der Tour — `core/logbuch.py` + Inspektor (13.09.2026, v0.9.706, Stufe 1)
 
-Plan und Entscheidungen: **`docs/LOGBUCH.md`** (Wahrheit, Q1–Q21). Kurz:
+Kurz:
 
 - **Eine Wahrheit (Q2):** Das Logbuch IST die Einteilung `bewegung` (oben). Die Punkt-Einträge
   (`start`, `ziel`, `hoechster_punkt` je Tag) liegen **in derselben Einteilung** als Bereich mit
@@ -6247,7 +6236,7 @@ und einmal beinahe zum Ausreißer (18 min). Gleiches Ereignis, zwei Urteile.
 - **Ein Punkt zwischen zwei weiten Sprüngen ist kein Hafen.** Ohne diese Regel
   wurde genau jener falsche Punkt selbst zum „Übersetzen".
 
-**2. Schwellen je Abschnitt** (`abschnitte`, `_median_je_punkt`, IDEAS §63).
+**2. Schwellen je Abschnitt** (`abschnitte`, `_median_je_punkt`).
 Geschnitten wird an Etappengrenzen, langen Pausen und Übersetzen; jeder
 Abschnitt ab `ABSCHNITT_MIN_PUNKTE` (20) bekommt seinen eigenen Median, kürzere
 erben den Gesamt-Median. `sprung_gruppen` nimmt die Tempo-Schwelle daraus.
@@ -6372,7 +6361,7 @@ zieht die Bindung mit. Wächter `tests/test_cloud_eine_bibliothek.py`.
 ## Update ohne Neuinstallation — `core/selbstupdate.py` (27.09.2026, v0.9.732)
 
 Marc: „können wir vielleicht auch ohne Neuinstallation updaten? falls ja, bau das so." — ersetzt die
-Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update", IDEAS §4.9 bzw. Update-Check-Abschnitt).
+Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update").
 
 - **Suche:** `Api.check_for_update(force)` wie bisher (Manifest auf reisezoom.com, 12-h-Bremse, GitHub als
   stiller Rückfall), liefert zusätzlich `selbst` = `Updater.moeglich()` → `{ok, art: bundle|installer}` oder
@@ -6412,8 +6401,7 @@ Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update", IDEAS §4.9 bzw. Up
 
 ## Korrekturen aus dem 7-Tage-Audit (05.10.2026, 0.9.781)
 
-Bericht: `GPS Studio Final/Demos/20261005-0821-Audit-7-Tage/AUDIT.md` (+ `einzelberichte/`). Kennungen (A-…, B-…)
-stehen als Kommentar an den Code-Stellen.
+Kennungen (A-…, B-…) stehen als Kommentar an den Code-Stellen.
 
 **Sperren (B-3/A-1).** Die gemeinsame Bibliotheks-Verbindung gehört `clib._DB_LOCK` (RLock). Alle `fotos_*`-Brücken,
 die sie benutzen, bekommen nach der Klassendefinition `_db_gesperrt` übergestülpt (pywebview reicht `arguments`
@@ -6581,7 +6569,7 @@ Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen 
 - **Logo:** `@lockup-dark` → `ui/assets/wm-lockup-dark.png` (`core/animator.wasserzeichen_pfad`); `rzLooks` tauscht
   in Bildzeilen `@lockup-white` ↔ `@lockup-dark` nach `hell`.
 
-### Video-Assistent Stufe 1 (v0.9.782, Block 2)
+### Video-Assistent Stufe 1 (v0.9.782)
 
 - **`core/videoassistent.py`** (rein, ohne App-Zustand): `waehlen(kandidaten, n_max, vek, inhalt, fahrten, abstand)`
   → Doppelte weg (`doppelte_weg`: ≤ 45 s + Kosinus ≥ 0,90, ohne Vektoren ≤ 4 s), Wert (Pause +2, Serie +1, Inhalt
@@ -6616,7 +6604,7 @@ Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen 
 - **Gipfel-Shot** (`gipfelShot(regie, zNah, neigung, animS)`): 4 Kamerapunkte um `regie.hoechster` (±2·d, d = min(0,04; 2,5 s/animS)), Zoom zNah−1,1, Neigung 62°; nur mit Tempo-Regie und nicht am Rand (≤ 2 %/≥ 98 %).
 - **Ortszeile:** `schnellvideo_fotos` gibt `ort` (Foto-Bestand, Spalte `ort`) je Foto mit; Sofortbild-Schild `text` = Ortsname (erster Teil), Bild-im-Bild-Container bekommt eine Textzeile darunter. Logbuch-Texte (`logbuchAnwenden`) überschreiben den Text.
 
-### Einfache Ansicht (v0.9.782, Block 3)
+### Einfache Ansicht (v0.9.782)
 
 **Seit 06.10.2026 abgeschaltet** (Marc: Video-Assistent als eigener Knopf statt Umschalter in der Seitenleiste): `einbauen()`/`ansicht()` greifen nur bei `window.__rzEinfachAn === true` (Tests); sonst immer „feinarbeit“. `startseite.js` wählt die einfache Ansicht nicht mehr vor. Im Animator steht `#anim-videoassistent` (hidden) neben `#anim-schnellvideo` — dort hängt später das Assistenten-Quiz (F-14). Schnell-Video-Vorschau: `svVorschau().einblendungen()` zeichnet Zahlen (`v.zahlen`) und Profil (`v.profil`) je Vorlage; Fotostopp: `_fsBildHolen` lädt Bild und `fotostopp_info` getrennt (Vorschau zeigt das Bild sofort, Render wartet auf beides); `_ort_am_punkt` pausiert nach `KeinNetz` 5 min (`Api._ORT_OFFLINE_BIS`).
 
@@ -6641,7 +6629,7 @@ Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen 
   Spur) — robust gegen Glätten/Ausdünnen; `_dotStilAktuell` nimmt das Fahrzeug als Stil (Schlüssel `route-<art>`, der
   Wechsel baut die Laufpunkt-Ebenen neu). Test: `tests/test_route_abschnitte.py`.
 
-### Höhendrift (v0.9.782, Block 5)
+### Höhendrift (v0.9.782)
 
 - `ui/js/hoehendrift.js` (`window.rzHoehenDrift.korrigieren(gps, dem, cum, fensterM=1000, schrittM=200)`): Median der
   Abweichung GPS − Gelände im Fenster je Stützstelle, linear interpoliert, abgezogen → `{hoehen, drift, info}` oder
@@ -6658,7 +6646,7 @@ Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen 
 - **3D-Häuser, Wirt-Ketten** (`_gebaeudeFaerbenKern`): `f.wirt` = größtes umschließendes Gebäude, `f.wurzel` = oberster Wirt der Kette (≤ 8 Schritte); gefärbt wird nach der Wurzel. Ändert sich ein Wirt, werden alle Teile mit diesem Wirt neu geprüft.
 - **Titel-Vorschläge** (`app.py schnellvideo_titel_vorschlaege`): höchster Punkt → `_ort_am_punkt(…, nur_gipfel)` (mit OSM-Höhe), Start/Ziel → Photon `place:*` im Umkreis 3 km (Rundtour < 1,5 km Abstand → „Rund um“); Vorlagen `schnell.titel_gipfel/_strecke/_runde`. Dialog: Chips `#sv-titel-vorschl`.
 
-## Geplante Etappen im Animator (07.10.2026, Block 4 „Reiseroute in den Animator“)
+## Geplante Etappen im Animator (07.10.2026)
 
 Eine **Etappe** ist eine Zusatz-Tour (`_extraTours[i]`) mit `etappe: {id, wps:[{text, lon, lat, label, auto?}], arten:[art je
 Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise wie jede Tour (Gruppen, `_reiseBauen`).
@@ -6710,7 +6698,7 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   `ordner`, `werte`, `datumsbaum`/`ordnerbaum` (ohne Filter). `Api.fotos_letzter_stand()` liest nur die Datei + Vorschaubild-
   Speicher. ui/js/fotos.js `mount`: beim ersten Öffnen erst das, dann wie bisher frisch; Hinweis `.foto-alt-stand`
   (`altStandZeigen`). Ladeanzeigen `ordnerLaedt`/`ladeHtml` (Medien), `_ladePlatz` (Touren-Archiv). `ordnerbaum()` zählt in SQL.
-- **Fahrzeug-Aussehen (07.10.2026, I-287):** `FZ_STILE` (`plakette` = `_fahrzeugBild` wie bisher, sonst Bild
+- **Fahrzeug-Aussehen (07.10.2026):** `FZ_STILE` (`plakette` = `_fahrzeugBild` wie bisher, sonst Bild
   `ui/img/fahrzeuge/<fz>_<stil>.png`, 192 px, Draufsicht, Front oben; geschnitten mit `scripts/fahrzeug_icons_schneiden.py`).
   `_fzBild(art, stil)` lädt über `new Image()` als data:-URL aus `Api.fahrzeug_bild(key)` (ein file://-Bild darf MapLibre nicht
   auslesen → SecurityError in WebKit-Prüfstand und Chromium-Render; die Kacheln der Auswahl zeigen das Bild direkt über
@@ -6806,6 +6794,8 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   (`#anim-gelaende-row`), `#anim-3d-zeile`, `#anim-mc-row`, `#anim-mc-light-row` in den Editor. `look.extras` (eigene Looks):
   `_keExtrasLesen`/`_keExtrasAnwenden` (`_KE_EXTRAS`, ein Undo über `__rzUndoSammeln`), Python `bereinigen` behält sie.
   Rückfall-Knopf `#anim-karte-ed-rueckfall`, wenn ein Kartenlook zu keiner Kachel passt.
+- **Rechte Spalte (08.10.2026):** `rzDetailSpalte.aufnehmen(panel, bereich)` — `bereich` = Titel des Abschnitts links
+  (`t("animator.section.…")`), landet als `data-bereich` an Fenster und Spalte, angezeigt per `.rz-detail::before`.
 - **Track-Farben (08.10.2026):** `#anim-etappenfarben` + `#anim-colors-block` parken in `#anim-farben-park` und stehen im
   Track-Editor von Track 1 (`_trackEdOeffnen("haupt")`, `.tred-mehrfarbig`); `_tredFarbenParken` vor jedem Neuzeichnen/Schließen.
 - **Farbwechsel je Tour (08.10.2026):** `extra_tours[i].farbwechsel = {an, quelle: distance|ele|speed|grade, modus: hard|gradient,

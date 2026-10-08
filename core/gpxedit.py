@@ -23,7 +23,7 @@ from . import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + 
 
 
 
-# ── E2 (IDEAS §39): eingebettete Tour-Kennung `rz:id` ────────────────────────
+# ── E2: eingebettete Tour-Kennung `rz:id` ────────────────────────
 # Hybrid-Beschluss Q2: das Register führt, aber sobald UNSERE Werkzeuge eine
 # Datei ohnehin schreiben, wandert die Kennung mit hinein — so erkennt jeder
 # Rechner die Tour wieder, auch wenn die Geometrie (Heilen!) längst eine

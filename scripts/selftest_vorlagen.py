@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vorlagen im Archiv + Kopfzeile (11.09.2026, docs/TOUR-ASSISTENT.md §2.3/2.4) —
+"""Vorlagen im Archiv + Kopfzeile (11.09.2026) —
 headless im echten Browser, alle Brücken gemockt.
 
 Geprüft wird die BEDIENUNG: Reiter „Vorlagen“, Kacheln mit ★/✎/🗑, Stern

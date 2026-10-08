@@ -1796,7 +1796,7 @@ async function sessionActivate(coords, gpxPath) {
   }
 }
 
-/** Aktiviert die Sitzung einer TOURENMENGE (Reise/Schwarm, IDEAS §38).
+/** Aktiviert die Sitzung einer TOURENMENGE (Reise/Schwarm).
  *
  *  Wird nach der Archiv-Übergabe gerufen, wenn alle Pfade bekannt sind. Die
  *  Menge ist die Identität (`menge:<hash>`), nicht die erste Tour — dieselben
@@ -1838,7 +1838,7 @@ async function sessionActivateFrei(kontext) {
   }
 }
 
-/** 07.10.2026 (Etappen, Grilling Punkt 10) — „Kartenanimation ohne GPS“: leeres Projekt anlegen, öffnen, in den
+/** 07.10.2026 (Etappen) — „Kartenanimation ohne GPS“: leeres Projekt anlegen, öffnen, in den
  *  Animator und gleich den Etappen-Editor auf — die erste Etappe wird dort der Haupt-Track. Einstiege: Archiv
  *  („Neues Projekt“) und Startseite. */
 async function rzKartenanimationOhneGps(name) {
@@ -3139,7 +3139,7 @@ window.createUndoController = function(opts) {
     redoStack = [];
     lastSnapAt = 0;
   }
-  /** 11.09.2026 (Vorlagen, docs/TOUR-ASSISTENT.md §2.4) — einen neuen Zustand
+  /** 11.09.2026 (Vorlagen) — einen neuen Zustand
    *  als EINEN Undo-Schritt anwenden: der Stand davor (`before`, sonst der
    *  jetzige Snapshot) kommt auf den Stapel, dann läuft dasselbe `apply` wie
    *  bei Undo/Redo — so zieht das Modul alle sichtbaren Wirkungen nach. */
@@ -4200,7 +4200,7 @@ async function rzArchivTourenWaehlen(opts) {
 }
 window.rzArchivTourenWaehlen = rzArchivTourenWaehlen;
 
-// ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) — Wortlaut der Befunde ──────
+// ── Track-Check (10.09.2026) — Wortlaut der Befunde ──────
 // Ein Text je Befund-Art, geteilt zwischen Archiv (Kachel, Detailspalte),
 // Inspektor (Befund-Kasten) und Animator (Toast). Die Sprachdatei trägt
 // Einzahl|Mehrzahl mit „|" getrennt; Platzhalter {n} {m} {min} {jahr}.
@@ -4257,7 +4257,7 @@ window.rzToastMitKnopf = function(msg, knopf, onClick, type, durationMs) {
   clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(() => { el.hidden = true; }, durationMs || 9000);
 };
-// Lade-Hinweis (docs/TRACK-CHECK.md, Animator-Zeile): einmal je Tour und Sitzung, auch bei
+// Lade-Hinweis (Animator-Zeile): einmal je Tour und Sitzung, auch bei
 // stummen Ladewegen, nie im Inspektor (dort steht der Kasten). Knopf springt in den Inspektor.
 window.__rzTrackCheckGezeigt = new Set();
 window.rzTrackCheckHinweis = async function(path) {

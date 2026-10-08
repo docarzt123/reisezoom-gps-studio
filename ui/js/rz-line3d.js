@@ -17,7 +17,7 @@
  *   lyr.setCounts([k0, k1, …]);          // je Spur: bis zu welchem Punkt gezeichnet wird (Wachstum)
  *   lyr.refreshElevation();              // nach dem Laden der Geländekacheln (idle)
  *
- * Flüge (05.10.2026, I-020): `agl: [m…]` je Punkt = Höhe über Grund (statt des festen Versatzes), mit der
+ * Flüge (05.10.2026): `agl: [m…]` je Punkt = Höhe über Grund (statt des festen Versatzes), mit der
  * Gelände-Überhöhung multipliziert. `lot: true` = jeder Punkt wird eine senkrechte Linie vom Boden bis `agl`
  * (Vorhang zum Boden) statt einer verbundenen Spur.
  *

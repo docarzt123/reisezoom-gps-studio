@@ -1,4 +1,4 @@
-"""Einteilungen einer Tour — Tage, Bewegungsart, eigene Bereiche (IDEAS §67, Schritt 4).
+"""Einteilungen einer Tour — Tage, Bewegungsart, eigene Bereiche (Schritt 4).
 
 Marc, 13.09.2026: „nach Tagen zerlegen können, aber auch nach Bewegungsart oder
 so. Aber wie wird das dann intern gespeichert? Da speichern wir dann ja jeden

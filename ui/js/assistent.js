@@ -1,4 +1,4 @@
-/* Reisezoom GPS Studio — Tour-Assistent, Stufe 1 (11.09.2026, docs/TOUR-ASSISTENT.md §3)
+/* Reisezoom GPS Studio — Tour-Assistent, Stufe 1 (11.09.2026)
  *
  * Menüpunkt „Tour-Assistent…" (⌘⇧N). Ein Fenster, drei Angaben, ein Knopf:
  * Track (Archiv oder Datei), Vorlage (vorbelegt ★), Projektname. Der Lauf ist

@@ -246,13 +246,13 @@ function mountLibrary(body, headerActions) {
         <nav class="lib-scopes" id="lib-proj-scopes"></nav>
         <button class="lib-nav-add" id="lib-proj-new" type="button">+ ${T("library.proj_new", "Neues Projekt")}</button>
       </div>
-      <!-- 11.09.2026 — Vorlagen = leere Projekte (docs/TOUR-ASSISTENT.md §2.3, Stelle 1) -->
+      <!-- 11.09.2026 — Vorlagen = leere Projekte (Stelle 1) -->
       <div id="lib-nav-vorlagen" hidden>
         <div class="lib-nav-title">${T("vorlagen.titel", "Vorlagen")}</div>
         <div class="lib-nav-hint" style="margin:0 0 10px">${T("vorlagen.nav_hint", "Eine Vorlage ist ein leeres Projekt: Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render. ★ = Mein Standard für neue Projekte.")}</div>
         <button class="lib-nav-add" id="lib-vorl-new" type="button">+ ${T("vorlagen.neu_aus_projekt", "Neue Vorlage aus Projekt …")}</button>
       </div>
-      <!-- 12.09.2026 (IDEAS §64) — dritter Bereich: der Foto-Bestand. Inhalt
+      <!-- 12.09.2026 — dritter Bereich: der Foto-Bestand. Inhalt
            kommt aus ui/js/fotos.js, damit dieses Modul nicht weiter wächst. -->
       <div id="lib-nav-fotos" hidden></div>
       <div id="lib-nav-touren">
@@ -892,7 +892,7 @@ function mountLibrary(body, headerActions) {
   // 11.09.2026 — dritte Ansicht „Vorlagen" (nicht gemerkt: man startet in
   // Projekten oder Touren, Vorlagen sind ein bewusster Abstecher).
   let _vorlView = false;
-  // 12.09.2026 (IDEAS §64) — vierter Zustand: der Foto-Bestand. Wie Vorlagen
+  // 12.09.2026 — vierter Zustand: der Foto-Bestand. Wie Vorlagen
   // nicht gemerkt; man kommt der Touren wegen ins Archiv.
   let _fotoView = false;
   window.__rzLibAnsicht = () => ({ foto: _fotoView, proj: _projView, vorl: _vorlView, touren: _tourenGeladen, nachFort: _fotoNachFortsetzen });   // Prüfstand
@@ -1818,7 +1818,7 @@ function mountLibrary(body, headerActions) {
       (it.n_dateien || 1) > 1 ? `<span class="lib-badge-in lib-badge-orte" title="${esc(
           T("library.orte_titel", "Diese Tour stammt aus {n} Dateien. Sie liegt vollständig in deiner Bibliothek.")
             .replace("{n}", it.n_dateien))}">${it.n_dateien}×</span>` : "",
-      // 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): Warnschild, rot vor gelb,
+      // 10.09.2026 — Track-Check: Warnschild, rot vor gelb,
       // grau nie. Abgewählte Arten („Ist so in Ordnung") zählen nicht mehr.
       (it.check && it.check.marke) ? `<span class="lib-badge-in lib-badge-check is-${it.check.marke}" title="${esc(
           T("trackcheck.badge_tip", "Track-Check: {liste} — {stufe}. Klick zeigt die Details.")
@@ -3553,7 +3553,7 @@ function mountLibrary(body, headerActions) {
       <div class="lib-detail-rows" id="lib-d-rows">
         ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
       </div>
-      <!-- 13.09.2026 — Logbuch-Kurzfassung (docs/LOGBUCH.md Q20): kommt nach dem Rendern
+      <!-- 13.09.2026 — Logbuch-Kurzfassung: kommt nach dem Rendern
            aus der gespeicherten Einteilung, ohne die Punkte zu lesen. -->
       <div class="lib-logbuch" id="lib-d-logbuch" hidden></div>
       <!-- 02.09.2026 (Marc): Die Versionen gehören DIREKT unter die Kennzahlen —
@@ -3726,7 +3726,7 @@ function mountLibrary(body, headerActions) {
       } catch (_) { el.textContent = ""; }
     })();
 
-    // E3 (IDEAS §39): Versions-Kette der Tour — jede Heilung/Ersetzung/extern
+    // E3: Versions-Kette der Tour — jede Heilung/Ersetzung/extern
     // erkannte Änderung ist eine Version; Rollback holt sie byte-genau zurück.
     (async () => {
       const el = document.getElementById("lib-d-fassungen");
@@ -4384,7 +4384,7 @@ function mountLibrary(body, headerActions) {
     };
   }
 
-  /* 🌊 Schwarm (28.08.2026, IDEAS §33 → Marc: „die längste bestimmt die
+  /* 🌊 Schwarm (28.08.2026 → Marc: „die längste bestimmt die
    * videodauer. bau das so"): Alle markierten Touren starten GLEICHZEITIG,
    * gleiche Geschwindigkeit, Kamera steht still über allen. Ein eigener
    * schlanker Modus — bewusst KEIN Umweg über den Animator, dessen Overlays,
@@ -4394,13 +4394,13 @@ function mountLibrary(body, headerActions) {
    * `schwarm: true`) — damit gelten „Render läuft bereits", animator_status()
    * und animator_cancel() unverändert.
    */
-  /* 🌊 Schwarm-Übergabe (M4, 28.08.2026 — Marcs Beschluss aus dem Grilling:
+  /* 🌊 Schwarm-Übergabe (M4, 28.08.2026 — Marcs Beschluss:
    * „weg sobald der animator steht"): Der frühere Schnell-Render-Dialog mit
    * eigenem Renderer ist abgebaut. Das Archiv komponiert nur noch — die Menge
    * geht direkt in den Animator (längste Tour als Haupt-Track = Zeitachse),
    * wo alle Werkzeuge und der EINE Renderpfad leben.
    */
-  /** IDEAS §38 M3 — Geschwindigkeitsmodus VOR der Übergabe wählen (das Archiv
+  /** Geschwindigkeitsmodus VOR der Übergabe wählen (das Archiv
    *  komponiert). Letzte Wahl wird gemerkt; „Los" reicht Modus + Pausen-Wahl
    *  als Pending an den Animator, der Rest läuft wie bisher. */
   function alsSchwarmInDenAnimator(items) {
@@ -4527,7 +4527,7 @@ function mountLibrary(body, headerActions) {
     // lädt beim Mounten seinen Projekt-State und würde sie sofort wieder
     // überschreiben. Er holt sie sich selbst ab, sobald er fertig ist.
     window.__rzPendingTours = items.slice(1).map(i => i.path);
-    window.__rzPendingAblauf = "reise";   // IDEAS §38: Ablauf wird HIER gewählt
+    window.__rzPendingAblauf = "reise";   // Ablauf wird HIER gewählt
     if (items.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
     const ok = await window.loadGlobalGpx(items[0].path, { stumm: true, menge: true });
     if (ok === false) {
@@ -4588,7 +4588,7 @@ function mountLibrary(body, headerActions) {
     if (ok !== false && typeof switchMod === "function") switchMod(slug);
   }
 
-  // ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ─────────────────────
+  // ── Track-Check (10.09.2026) ─────────────────────
   // Detailspalte: „Track-Check: 3 Sprünge, 1 Lücke" + Knöpfe. Je Befund
   // „Ist so in Ordnung" (dauerhaft, je Version und Art), Abgewähltes grau mit
   // „wieder anzeigen". Nichts läuft ungefragt: „Prüfen" rechnet EINE Tour neu.
@@ -4832,7 +4832,7 @@ function mountLibrary(body, headerActions) {
   /** 30.08.2026 (Marc-OK, der Komoot-Fall eines Beta-Testers): einzelne Track-Dateien ins
    *  Archiv — kopiert in den app-verwalteten Import-Ordner (automatisch
    *  beobachtet), danach liest der normale Ein-Ordner-Scan sie ein. */
-  /* 02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Abschnitt 6) — der Import erkennt
+  /* 02.09.2026 (Abschnitt 6) — der Import erkennt
    * die Tour, BEVOR er kopiert. Vorher rutschte eine längst bekannte Strecke
    * stillschweigend durch und tauchte als weitere Version auf, ohne dass
    * jemand davon wusste.
@@ -5500,7 +5500,7 @@ function mountLibrary(body, headerActions) {
                  <button class="btn" id="lib-pn-ohne-gps" title="${esc(T("etappe.ohne_gps_tip", "Eine Route ohne Aufzeichnung animieren — Anreise, Flug, Fähre: Stationen eintippen oder auf die Karte klicken."))}">🗺 ${T("etappe.ohne_gps", "Kartenanimation ohne GPS")}</button>
                  <button class="btn btn-primary" id="lib-pn-ok">OK</button>`,
       });
-      // 07.10.2026 (Etappen, Grilling Punkt 10) — gleich mit einer Etappe im Animator weiter
+      // 07.10.2026 (Etappen) — gleich mit einer Etappe im Animator weiter
       const og = document.getElementById("lib-pn-ohne-gps");
       if (og) og.onclick = async () => {
         const v = (document.getElementById("lib-proj-newname") || {}).value || "";

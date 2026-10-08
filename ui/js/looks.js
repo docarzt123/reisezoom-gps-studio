@@ -1,4 +1,4 @@
-/* Gesamt-Looks (05.10.2026, Block 1 „Optik", IDEEN I-052).
+/* Gesamt-Looks (05.10.2026).
  *
  * Ein Look ist eine ganze Bildsprache: Kartenstil + Kartenoptik, Linie (Farbe, Breite, Kontur, Leuchten),
  * dunkle Verläufe und Schrift/Farben der Einblendungen. Er setzt beim Wählen ALLE diese Werte (wie ein
@@ -117,7 +117,7 @@
     return "";
   }
 
-  // 05.10.2026 (FRAGEN F-2, Marc: „da tendiere ich zu ja, aber es muss immer alles wählbar bleiben") — ein Look darf
+  // 05.10.2026 (Marc: „da tendiere ich zu ja, aber es muss immer alles wählbar bleiben") — ein Look darf
   // den GRUNDSTIL der Schilder umstellen: nur einfache Text-/Foto-Schilder; Highlight-, Banner-, Wegweiser- und
   // Stecknadel-Schilder bleiben. Nichts wird gesperrt, jedes Schild bleibt einzeln änderbar; der Animator fragt vorher.
   const SCHILD_TEXT = { natuerlich: "callout", reiseatlas: "karte", nachtkarte: "pille", minimal: "plain",

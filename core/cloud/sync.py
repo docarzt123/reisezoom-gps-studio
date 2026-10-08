@@ -1,6 +1,6 @@
 """Der Abgleich: was muss hoch, was muss runter (seit 15.08.2026).
 
-Entwurf: `docs/IDEAS.md` §26.
+
 
 ## Wie erkannt wird, was zu tun ist
 

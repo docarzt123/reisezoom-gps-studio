@@ -107,7 +107,7 @@ from core import kartenlook as ckartenlook  # 05.10.2026 — eigene Kartenstile 
 from core import merge as cmerge   # 23.08.2026 — mehrere Touren zu einem Track
 from core import sessions as _sessions
 from core import projekte as _projekte  # v0.8.0: Sessions + Projekte
-from core import vorlagen as _vorlagen   # 11.09.2026: Vorlagen = leere Projekte (docs/TOUR-ASSISTENT.md)
+from core import vorlagen as _vorlagen   # 11.09.2026: Vorlagen = leere Projekte
 # v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
 # die Szene (core/szene.py, render_szene_still). Kein ctmap mehr.
 from core import i18n as ci18n
@@ -116,8 +116,8 @@ from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Ma
 from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc)
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
 from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
-from core import fotos as cfotos  # 12.09.2026: Foto-Bestand (IDEAS §64), gleiche Datenbank
-from core import inhalt as cinhalt  # 04.10.2026: Inhaltssuche mit SigLIP 2 (IDEAS §81)
+from core import fotos as cfotos  # 12.09.2026: Foto-Bestand, gleiche Datenbank
+from core import inhalt as cinhalt  # 04.10.2026: Inhaltssuche mit SigLIP 2
 from core import wachhalten as cwach  # 05.10.2026: App Nap aus, solange eingelesen/erfasst wird
 from core import bibliothek as cbib  # 02.09.2026: die Tour-Bibliothek (Wahrheit statt Datei-Index)
 from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
@@ -308,7 +308,7 @@ LADEFLAGGE_FILE = APP_SUPPORT / "ladevorgang.json"   # 13.09.2026 — siehe Api.
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
 SESSIONS_FILE = APP_SUPPORT / "sessions.json"
 
-# ── Die Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md, Schnitt 1) ────────
+# ── Die Bibliothek (02.09.2026, Schnitt 1) ────────
 #
 # Bis hierher lagen Daten und Arbeitskram gemeinsam im App-Ordner. Ab jetzt
 # gilt die Trennung:
@@ -604,7 +604,7 @@ DEFAULT_SETTINGS = {
     # sechs Stunden. Abschaltbar, weil das auf einem Netzlaufwerk oder am
     # Hotspot nicht ungefragt laufen soll.
     "fotos_auto": True,
-    # 04.10.2026 (IDEAS §81) — Inhaltssuche („Sonnenuntergang"): aus, bis man sie einschaltet (lädt ein Modell);
+    # 04.10.2026 — Inhaltssuche („Sonnenuntergang"): aus, bis man sie einschaltet (lädt ein Modell);
     # Variante base (≈ 0,5 GB) oder gross (≈ 1,6 GB, besser auf Deutsch)
     "inhalt_an": False,
     "inhalt_variante": "base",
@@ -1787,7 +1787,7 @@ class Api:
         # umschlüsseln — BEVOR irgendein Thread (Cloud-Auto-Sync liest
         # sessions.json roh!) die Datei anfasst.
         self._sessions_migrieren()
-        # E1 (IDEAS §39, 29.08.2026): einmalige Überführung Sessions → Projekte.
+        # E1 (29.08.2026): einmalige Überführung Sessions → Projekte.
         # Läuft NACH der alten Schema-2-Migration (geo_hash-Schlüssel), damit
         # auch uralte Bestände sauber ankommen. sessions.json wird danach zu
         # sessions.json.aufgeloest-<stamp> umbenannt — nichts wird gelöscht.
@@ -1837,7 +1837,7 @@ class Api:
         # Das Archiv holt sich die Tour-Zuordnung von hier (Schnitt 2).
         clib.REGISTER_HOOK = self._register_fuer_archiv
         clib.AUFNAHME_HOOK = self._archiv_aufnehmen
-        # E2 (IDEAS §39): Tour-Register — Alt-Einträge bekommen UUID + Fassung 1.
+        # E2: Tour-Register — Alt-Einträge bekommen UUID + Fassung 1.
         if BIB_BEREIT:
             try:
                 _projekte.register_lauf(DATEN_ORT)
@@ -1866,7 +1866,7 @@ class Api:
         self._gtg_track: list[cgpx.TrackPoint] = []
         self._gtg_display: list[cgpx.TrackPoint] = []  # v0.9.167 — gezeichnete (downsampled) Linie für Snap
         self._gtg_stats: Optional[cgpx.TrackStats] = None
-        # 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks auf einmal. Jeder Eintrag:
+        # 10.09.2026 (Issue #7) — mehrere Tracks auf einmal. Jeder Eintrag:
         # {path, orig_path, name, points, display, stats, coords, bbox, time_start,
         #  time_end, n_points, vorgegeben, farbe}. `_gtg_track`/`_gtg_display` sind
         # dann die nach Zeit zusammengelegten Punkte ALLER Tracks (Zeitzonen-Rat,
@@ -2362,7 +2362,7 @@ class Api:
     def save_user_defaults(self, track_hash: str = "", project_id: str = "") -> dict:
         """Speichert den aktuellen Look als „Mein Standard" für NEUE Tracks
         (Marc-Wunsch v0.9.287). Seit 11.09.2026 ist das eine VORLAGE mit Stern
-        (docs/TOUR-ASSISTENT.md §2.2): liegt der Stern auf Reisezoom-Standard,
+       : liegt der Stern auf Reisezoom-Standard,
         entsteht „Mein Standard"; sonst wird die Stern-Vorlage überschrieben.
         Die Sperrliste `core/vorlagen.TRACKGEBUNDEN` hält Trackgebundenes
         (Keyframes, Schnitt, Etappen, Fotos, Schilder, Kamera-Festwerte) draußen.
@@ -2478,7 +2478,7 @@ class Api:
             log.error("kartenlook_importieren: %s", e)
             return {"ok": False, "error": str(e)}
 
-    # ── Vorlagen (11.09.2026, docs/TOUR-ASSISTENT.md §2) ─────────────────────
+    # ── Vorlagen (11.09.2026) ─────────────────────
 
     def vorlagen_liste(self) -> dict:
         """Alle Vorlagen als Kachel-Daten (Reisezoom-Standard zuerst) plus die
@@ -2643,7 +2643,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    # ── Tour-Assistent, Stufe 1 (11.09.2026, docs/TOUR-ASSISTENT.md §3) ──────────
+    # ── Tour-Assistent, Stufe 1 (11.09.2026) ──────────
 
     @staticmethod
     def _assistent_profil(activity: str) -> str:
@@ -3250,9 +3250,9 @@ class Api:
 
     def session_open_for_menge(self, gpx_paths: list, ablauf: str = "reise",
                                modus: str = "gleich", pausen: bool = True) -> dict:
-        """Sitzung für eine MENGE von Touren (Reise oder Schwarm, IDEAS §38).
+        """Sitzung für eine MENGE von Touren (Reise oder Schwarm).
 
-        Grilling-Entscheid (28.08.2026): „Das Archiv komponiert, der Animator
+        Entscheid (28.08.2026): „Das Archiv komponiert, der Animator
         animiert." Die Menge ist die Identität — Schlüssel ist
         `sessions.mengen_hash` über die geo_hashes aller Touren, gespeichert im
         selben Sitzungs-Speicher unter dem Präfix `menge:`. Damit funktionieren
@@ -3446,7 +3446,7 @@ class Api:
                 project_id = (p_neu or {}).get("id", "")
                 # Eben erst entstanden — ab jetzt ist es das zuletzt offene.
                 self._letztes_projekt_nachziehen(daten, track_hash)
-            # E3 (IDEAS §39): Arbeitsstand-Historie — gedrosselt (10 min),
+            # E3: Arbeitsstand-Historie — gedrosselt (10 min),
             # damit nicht jeder Regler-Zug einen Stand anlegt.
             try:
                 pr = (daten.get("projects") or {}).get(project_id)
@@ -3555,7 +3555,7 @@ class Api:
             _ds.nutzer_ziel(pfad, gueltig_s=12 * 3600)
         return pfad or ""
 
-    # 06.10.2026 (Grilling Export E15) — der Export-Dialog zeigt „Speichern in …“ mit dem zuletzt benutzten
+    # 06.10.2026 — der Export-Dialog zeigt „Speichern in …“ mit dem zuletzt benutzten
     # Ordner und einem Namen mit Zeitstempel; „Exportieren“ legt ohne Systemdialog los. Nie überschreiben:
     # ist der Name schon vergeben, wird „-2“, „-3“ … angehängt.
     def export_ziel_vorschlag(self, name: str = "", file_types: tuple[str, ...] = (),
@@ -3638,7 +3638,7 @@ class Api:
     # Einlesen in einem eigenen Thread läuft). Geschrieben wird immer nur aus
     # einem Thread gleichzeitig — dafür sorgt `_lib_scan_running`.
 
-    # ── Die Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md) ──────────────
+    # ── Die Bibliothek (02.09.2026) ──────────────
 
     def _projekt_defaults(self) -> dict:
         """Die Vorgaben, mit denen ein neues Projekt startet — dieselben, die
@@ -3651,7 +3651,7 @@ class Api:
     def _archiv_aufnehmen(self, conn) -> dict:
         """Jede Tour im Archiv gehört vollständig in die Bibliothek.
 
-        02.09.2026 (docs/UMBAU-BIBLIOTHEK.md) — läuft nach jedem Einlesen und
+        02.09.2026 — läuft nach jedem Einlesen und
         holt zwei Dinge nach, ohne die die Bibliothek nur ein Index wäre:
 
         1. **Die Kopie.** Fehlt sie, wird die Trackdatei komprimiert abgelegt.
@@ -4936,7 +4936,7 @@ class Api:
         self._lib_scan_stop = True
         return {"ok": True}
 
-    # ── Foto-Bestand (12.09.2026, IDEAS §64) ───────────────────────────────
+    # ── Foto-Bestand (12.09.2026) ───────────────────────────────
     #
     # Marc: „man gibt wie beim archiv einen oder mehrere ordner und das tool
     # zeigt die bilder auf einer karte an oder nach datum." Stufe 1 liest nur;
@@ -5019,7 +5019,7 @@ class Api:
             log.exception("fotos_ordner")
             return {"ok": False, "error": str(e), "ordner": []}
 
-    # 05.10.2026 (IDEAS §82 „Bibliothek auf einen anderen Rechner mitnehmen", Schritt 1) — hängt das Foto-Laufwerk hier
+    # 05.10.2026 („Bibliothek auf einen anderen Rechner mitnehmen", Schritt 1) — hängt das Foto-Laufwerk hier
     # unter anderem Namen (/Volumes/Fotos-1, Windows Y:\ statt Z:\), Pfade in einem Rutsch umbiegen (core/pfade_umziehen).
     def fotos_pfade_kandidaten(self) -> dict:
         from core import pfade_umziehen as cpu
@@ -5333,7 +5333,7 @@ class Api:
                         pass
                 self._foto_scan_state["running"] = False
                 self._foto_scan_running = False
-                # 04.10.2026 (IDEAS §81) — neue Fotos gleich in die Inhaltssuche (nur wenn eingeschaltet)
+                # 04.10.2026 — neue Fotos gleich in die Inhaltssuche (nur wenn eingeschaltet)
                 try:
                     self.inhalt_aufholen(auto=True)
                 except Exception:  # noqa: BLE001
@@ -5359,7 +5359,7 @@ class Api:
             filt = p.pop("filter", None) or {}
             limit, offset = int(p.pop("limit", 300)), int(p.pop("offset", 0))
             sortierung = p.pop("sortierung", "zeit_neu")
-            # 04.10.2026 (IDEAS §81) — mit eingeschalteter Inhaltssuche: Text-Treffer zuerst, dann nach Bildinhalt
+            # 04.10.2026 — mit eingeschalteter Inhaltssuche: Text-Treffer zuerst, dann nach Bildinhalt
             # (Marc, Q2/Q3); `sortierung` „relevanz" (Vorgabe) oder nach Zeit.
             try:
                 tr = self._inhalt_treffer(filt, sortierung)
@@ -5788,7 +5788,7 @@ class Api:
             log.exception("fotos_einer_tour")
             return {"ok": False, "error": str(e), "fotos": []}
 
-    # ── Inhaltssuche (04.10.2026, IDEAS §81) ───────────────────────────────────────────────────────────────
+    # ── Inhaltssuche (04.10.2026) ───────────────────────────────────────────────────────────────
     # Marc: „Sonnenuntergang" finden, ohne Lightroom, ohne Konto, auf dem eigenen Rechner. Das Modell (SigLIP 2) kommt
     # erst, wenn man es einschaltet; danach rechnet ein Hintergrundfaden jedes Foto in einen Vektor (core/inhalt.py).
     # Der Faden ist gedrosselt und hält an, solange ein Video rendert oder das Einlesen läuft (beides braucht Rechner
@@ -6582,7 +6582,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    # ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ──────────────────────────
+    # ── Track-Check (10.09.2026) ──────────────────────────
     def library_track_check(self, path: str) -> dict:
         """Eine Tour (neu) prüfen — auf Knopfdruck in der Detailspalte."""
         try:
@@ -6767,7 +6767,7 @@ class Api:
         """Eine Tour wegwerfen. Papierkorb statt endgültig — ein Fehlgriff
         bleibt rückholbar.
 
-        02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q35): Steckt die Tour in
+        02.09.2026 (Q35): Steckt die Tour in
         Projekten, wird das VERWEIGERT und gesagt, in welchen. Es gibt einen
         zweiten, ausdrücklichen Weg (`mit_projekten=True`), der Tour und
         Projekte zusammen entfernt. Damit gilt durchgehend: Ein Projekt hat
@@ -7643,7 +7643,7 @@ class Api:
                 "stage": cgpx.etappen_reihen(ds, stats.seg_names),
                 # 23.09.2026 — Kennzahlen je Etappe (Overlay-Box-Bezug), volle Punkte
                 "stage_stats": cgpx.etappen_stats(pts),
-                # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart aus dem Logbuch
+                # 24.09.2026 — Kennzahlen je Bewegungsart aus dem Logbuch
                 "art_stats": self._art_stats_fuer(path, pts),
             }
             _t_ui = _ui_t()   # v0.9.507 — Katalog-Labels in der App-Sprache
@@ -7797,7 +7797,7 @@ class Api:
         name = (params.get("name") or "Route").strip() or "Route"
         arten = [str(x or "") for x in (params.get("abschnitte") or [])]
         if any(arten):
-            # 05.10.2026 (Block 4) — Verkehrsart je Etappe; leere Etappen folgen der allgemeinen Wahl
+            # 05.10.2026 — Verkehrsart je Etappe; leere Etappen folgen der allgemeinen Wahl
             standard = "flugzeug" if mode == "arc" else {"driving": "auto", "cycling": "rad", "walking": "wanderer"}.get(
                 params.get("profile") or "driving", "auto")
             _coarse = params.get("coarseness")
@@ -7959,7 +7959,7 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def _etappen_auspacken(self, z, namen, proj: dict, pid: str) -> int:
-        """07.10.2026 (Block 4) — Gegenstück zu projektpaket._etappen_einpacken: Etappen-GPX aus dem Paket nach
+        """07.10.2026 — Gegenstück zu projektpaket._etappen_einpacken: Etappen-GPX aus dem Paket nach
         `<Bibliothek>/etappen/<pid>/` legen und die alten Pfade im Projekt umbiegen (Tourenliste, Gruppen, Leit-Tour,
         Fokus). Gibt die Zahl der ausgepackten Etappen zurück."""
         anim = proj.get("animator") if isinstance(proj, dict) else None
@@ -8006,7 +8006,7 @@ class Api:
     _ETAPPE_LAND = ("auto", "motorrad", "rad", "wanderer")
 
     def _etappe_hoehen(self, co: list, teile: list) -> tuple:
-        """07.10.2026 (Etappen, Grilling Punkt 8) — Höhen einer geplanten Etappe: Straße und Weg (Auto, Motorrad,
+        """07.10.2026 (Etappen) — Höhen einer geplanten Etappe: Straße und Weg (Auto, Motorrad,
         Rad, zu Fuß) aus dem Gelände (AWS-Terrarium, core/demsample), Flug/Schiff/Bahn flach — linear zwischen den
         Geländehöhen an den Enden des Abschnitts und mit `rz_flach` markiert, damit sie nicht zu Bergauf/Bergab
         zählen. `teile` = [{von, bis, art}] (Indizes in `co`). Ohne Netz/Kacheln: keine Höhen (None)."""
@@ -8073,7 +8073,7 @@ class Api:
         return eles, flach
 
     def etappe_ins_archiv(self, gpx_path: str = "", name: str = "") -> dict:
-        """07.10.2026 (Etappen, Grilling Punkt 5) — eine geplante Etappe als Tour ins Archiv: Kopie in den
+        """07.10.2026 (Etappen) — eine geplante Etappe als Tour ins Archiv: Kopie in den
         app-verwalteten Import-Ordner (wie „Einzelne Track-Datei …“), dann einlesen. Ohne Zeitstempel erkennt das
         Archiv sie selbst als *geplant*. Returns {ok, gpx_path} (Pfad der Archiv-Kopie)."""
         try:
@@ -8104,7 +8104,7 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def etappe_berechnen(self, params: dict) -> dict:
-        """07.10.2026 (Block 4, Reiseroute → Animator, docs/PLAN.md §3 „Etappen im Animator“) — eine geplante Etappe
+        """07.10.2026 (Reiseroute → Animator, „Etappen im Animator“) — eine geplante Etappe
         eines Projekts: dieselbe Routenrechnung wie route_compute, aber die GPX liegt IM PROJEKT
         (`<Bibliothek>/etappen/<projekt>/<etappe>_<hash>.gpx`, reist im .rzproj mit, verschwindet nicht beim Öffnen) und
         hat KEINE Zeitstempel (eine geplante Strecke hat keine Uhrzeit — erfundene Zeiten störten Sortierung und
@@ -8536,17 +8536,17 @@ class Api:
             render_scale=float(params.get("render_scale", 1.0) or 1.0),  # v0.9.224 WYSIWYG Schild/Pin-Größe
             # v0.9.156 — Multi-Track
             tracks=tracks,
-            # IDEAS §38 — "reise" (nacheinander) | "schwarm" (gleichzeitig).
+            # "reise" (nacheinander) | "schwarm" (gleichzeitig).
             # Der Ablauf wird im ARCHIV gewählt und reist mit der Übergabe mit.
             tracks_ablauf=("schwarm" if str(params.get("tracks_ablauf") or "reise") == "schwarm"
                            else "reise"),
-            # IDEAS §38 M2 — Fokus-Tour (leer = Haupt-Track).
+            # Fokus-Tour (leer = Haupt-Track).
             schwarm_fokus_gpx=str(params.get("schwarm_fokus_gpx") or ""),
             schwarm_haupt_dezent=bool(params.get("schwarm_haupt_dezent")),
             # 29.08.2026 (Marc, Schorfheide): Haupt-Tour startet verzögert
             schwarm_haupt_start_s=max(0.0, float(params.get("schwarm_haupt_start_s", 0) or 0)),
             schwarm_dot_haupt_form=bool(params.get("schwarm_dot_haupt_form")),
-            # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
+            # Geschwindigkeitsmodus (Wahl im Archiv, via Session)
             schwarm_modus=(str(params.get("schwarm_modus") or "gleich")
                            if str(params.get("schwarm_modus") or "gleich") in ("gleich", "ziel", "uhrzeit")
                            else "gleich"),
@@ -9859,14 +9859,14 @@ class Api:
 
 
     # ══════════════════════════════════════════════════════════════════════
-    #  Cloud-Archiv (v0.9.515, docs/IDEAS.md §26)
+    #  Cloud-Archiv (v0.9.515)
     #
     #  ⚠️ ZUSÄTZLICH. Wer nichts einrichtet, merkt davon nichts: Der Import
     #  steckt in den Methoden, nicht oben — ohne `cryptography`/`keyring`
     #  startet die App weiterhin, und der lokale Weg fasst nichts davon an.
     # ══════════════════════════════════════════════════════════════════════
 
-    ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner (docs/IDEAS §26)
+    ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner
     # 25.09.2026 — Die Schlüsselbund-Einträge gelten für den ganzen Rechner. Ein eigener
     # App-Ordner (RZ_APP_ORDNER, Testumgebung) bekommt deshalb eigene Einträge: Eine
     # Test-Cloud überschreibt sonst den Zugang zur echten.
@@ -9878,7 +9878,7 @@ class Api:
         """Das Cloud-Archiv war seit v0.9.524 regulär sichtbar.
 
         ⚠️ **Seit 02.09.2026 stillgelegt** (Marc: „lege die cloud still, bis
-        alles fertig ist"). Grund steht in `docs/UMBAU-BIBLIOTHEK.md`: Der
+        alles fertig ist"). Grund: Der
         Bibliotheks-Umbau tauscht die Datenbasis aus; eine mitlaufende Cloud
         würde in halb umgestellte Daten schreiben. Dazu kommt, dass der
         Abgleich ohnehin defekt ist — er liest `sessions.json`, die es seit
@@ -9904,8 +9904,7 @@ class Api:
         blendet bei `sichtbar: False` alles Cloud-bezogene aus."""
         if CLOUD_STILLGELEGT:
             return {"ok": False, "sichtbar": False, "stillgelegt": True,
-                    "error": "cloud archive paused for the library rebuild "
-                             "(see docs/UMBAU-BIBLIOTHEK.md)"}
+                    "error": "cloud archive paused for the library rebuild"}
         return {"ok": False, "sichtbar": False,
                 "error": "cloud archive disabled via RZ_CLOUD (see _cloud_sichtbar)"}
 
@@ -11819,7 +11818,7 @@ class Api:
         sie linear. Pro Lücke ein Directions-Request; bei ~30 Lücken kurze Wartezeit."""
         try:
             token = _active_mapbox_token() or ""
-            # 12.09.2026 (IDEAS §63) — `profile` darf jetzt auch eine LISTE sein, eine
+            # 12.09.2026 — `profile` darf jetzt auch eine LISTE sein, eine
             # je Lücke. Anlass: eine Womo-Reise mit Spaziergängen; ein Profil für den
             # ganzen Track routet den Fußweg über die Landstraße und umgekehrt.
             prof_liste = list(profile) if isinstance(profile, (list, tuple)) else None
@@ -11933,7 +11932,7 @@ class Api:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
-    # ── Einteilungen einer Tour (13.09.2026, docs/IDEAS.md §67 Schritt 4) ──────
+    # ── Einteilungen einer Tour (13.09.2026) ──────
     # Tage, Bewegungsart, eigene Bereiche — gespeichert in der Bibliothek über
     # dem unveränderten Track (core/einteilung). Jede ändernde Brücke gibt den
     # Stand VORHER mit zurück: damit legt die Oberfläche ihren ⌘Z-Schritt an.
@@ -12093,7 +12092,7 @@ class Api:
             log.exception("einteilung_stand_setzen")
             return {"ok": False, "error": str(e)}
 
-    # ── Logbuch der Tour (13.09.2026, docs/LOGBUCH.md §68, Stufe 1) ─────────────
+    # ── Logbuch der Tour (13.09.2026, Stufe 1) ─────────────
     # Marc: „was wo war — zeit von bis: fähre, pause, fahrt, wanderung … höchster
     # punkt". Entsteht automatisch beim Öffnen im Inspektor (Q4), lokal, ohne Netz.
 
@@ -12307,7 +12306,7 @@ class Api:
             return {"ok": False, "error": str(e), "vorhanden": False}
 
     def _art_stats_fuer(self, path: str, pts) -> dict:
-        """Kennzahlen je Bewegungsart für die Vorschau (IDEAS §67 Q16). Leer, wenn
+        """Kennzahlen je Bewegungsart für die Vorschau. Leer, wenn
         die Tour nicht im Archiv ist oder keine Zeitstempel hat."""
         try:
             r = self.animator_logbuch_bereiche(path)
@@ -12319,7 +12318,7 @@ class Api:
             return {}
 
     def animator_logbuch_bereiche(self, path: str) -> dict:
-        """Logbuch-Einträge einer Tour für den Animator (IDEAS §67 Q11 / §68 Q19,
+        """Logbuch-Einträge einer Tour für den Animator (
         24.09.2026): je Eintrag Art, Name, Uhrzeit, gewählte Anzeige im Video
         (zeigen · blass · raffen · überspringen) und die Lage als Anteil der Punkte
         (0..1 über die ganze Datei — dieselbe Achse wie die Tempo-Abschnitte).
@@ -12715,7 +12714,7 @@ class Api:
                                orig_path: str, sources: list = None) -> dict:
         """Den geheilten Stand als NEUE VERSION der Tour übernehmen.
 
-        02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Schnitt 3) — vorher hieß das
+        02.09.2026 (Schnitt 3) — vorher hieß das
         „Im Archiv ersetzen" und tat genau das: Es **überschrieb die Datei des
         Nutzers**. Daran hingen drei Dinge, die alle weg sind:
 
@@ -12861,7 +12860,7 @@ class Api:
             return False
         return True
 
-    # ── Projekte-Bereich im Archiv (E1, IDEAS §39) ────────────────────────────
+    # ── Projekte-Bereich im Archiv (E1) ────────────────────────────
 
     @staticmethod
     def _tour_pfad_aufloesen(touren: dict, geo_hashes: list, conn=None) -> str:
@@ -13430,7 +13429,7 @@ class Api:
             log.error("projekt_touren_setzen: %s", e)
             return {"ok": False, "error": str(e)}
 
-    # ── Schnell-Video (IDEAS §71, 29.09.2026) ────────────────────────────────
+    # ── Schnell-Video (29.09.2026) ────────────────────────────────
     # Tour → Dialog → fertiges Video. Der Dialog (ui/js/schnellvideo.js) holt hier die
     # Vorschlagswerte, lässt ein Projekt mit fertiger Animator-Konfiguration anlegen und
     # rendert dann über den normalen Animator (Szene) in eine Zwischendatei; „Speichern …"
@@ -13610,7 +13609,7 @@ class Api:
                     kandidaten.append(dict(f, bei=bei, **merkmale(f)))
             wahl = sorted(kandidaten, key=lambda f: f["bei"])[: max(1, int(n_max))] if alle else []   # „alle": selbst gewählt
             if not alle:
-                # 05.10.2026 — Video-Assistent Stufe 1 (core/videoassistent.py, Block 2): Doppelte weg, Inhalt (wenn die
+                # 05.10.2026 — Video-Assistent Stufe 1 (core/videoassistent.py): Doppelte weg, Inhalt (wenn die
                 # Inhaltssuche an ist), keine Fotos aus der Autofahrt, Abwechslung, über die Tour verteilt.
                 from core import videoassistent as cva
                 vek, inh = self._va_inhalt([f["path"] for f in kandidaten]) if not clip else ({}, {})
@@ -13650,7 +13649,7 @@ class Api:
             return {"ok": False, "error": str(e), "fotos": []}
 
     def tour_medien(self, path: str) -> dict:
-        """06.10.2026 (Grilling Animator A3) — alle Fotos und Videos im Zeitraum der Tour aus dem Medien-Bestand, der
+        """06.10.2026 — alle Fotos und Videos im Zeitraum der Tour aus dem Medien-Bestand, der
         Strecke zugeordnet (GPS, sonst Aufnahmezeit): für die Striche in der Schilder-Spur und die Leiste „Medien der
         Tour“ rechts. Ohne Vorschaubilder (die holt die Oberfläche häppchenweise über `fotos_thumbs`), ohne Dateizugriff
         (Laufwerk darf fehlen). `n_ordner` = eingelesene Medienordner (0 → Hinweis statt leerer Leiste)."""
@@ -13753,7 +13752,7 @@ class Api:
         return r
 
     def schnellvideo_titel_vorschlaege(self, path: str) -> dict:
-        """05.10.2026 (Block 2, Video-Assistent „Titel vorschlagen") — bis zu drei Titel aus der Strecke, im Hintergrund
+        """05.10.2026 (Video-Assistent „Titel vorschlagen") — bis zu drei Titel aus der Strecke, im Hintergrund
         (Photon, gecacht über _ort_am_punkt): benannter Gipfel am höchsten Punkt („Teide · 3715 m"), Start → Ziel bzw.
         „Rund um <Ort>" bei Rundtouren. Grammatisch neutral (der Artikel eines Gipfels ist unbekannt). Ohne Netz: leer."""
         from core import highlights as chl
@@ -14503,7 +14502,7 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def geotagger_load_gpx_viele(self, paths: list, vorgegeben: list | None = None) -> dict:
-        """10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks auf einmal. Der erste ist
+        """10.09.2026 (Issue #7) — mehrere Tracks auf einmal. Der erste ist
         der Haupt-Track (Sitzung, GPX-Leiste); `vorgegeben` = Pfade, die der Nutzer
         selbst mitgebracht oder eingelesen hat — sie gewinnen bei Doppel-Treffern."""
         try:
@@ -14613,7 +14612,7 @@ class Api:
 
     def geotagger_tracks_fuer_fotos(self, vorgegeben: list | None = None,
                                      max_gap_seconds: float = 1800.0) -> dict:
-        """10.09.2026 (IDEAS §61) — Welche Tracks passen zu den geladenen Fotos?
+        """10.09.2026 — Welche Tracks passen zu den geladenen Fotos?
         Kandidaten: die vorgegebenen Pfade (immer dabei) plus alle Touren des
         Archivs, deren Zeitfenster die Aufnahmezeiten berührt (±15 h, weil die
         Kamera-Zeitzone hier noch unbekannt sein kann). Dann die Zeitzone aus
@@ -15554,7 +15553,7 @@ class Api:
             kw = dict(offset_seconds=offset_seconds, max_gap_seconds=max_gap_seconds,
                       tz_offset_seconds=float(tz_offset_minutes) * 60.0,
                       tz_known_paths=tz_known_paths, offset_by_path=offset_by_path)
-            # 10.09.2026 (IDEAS §61) — je Track die gewohnte Zuordnung, dann je Foto
+            # 10.09.2026 — je Track die gewohnte Zuordnung, dann je Foto
             # den Treffer wählen (core/geotag.py: zuordnen_mehrere).
             tracks = self._gtg_tracks or [{"points": self._gtg_track, "vorgegeben": False,
                                            "gewicht": 0.0, "name": "", "path": "", "farbe": None}]
@@ -17488,7 +17487,7 @@ def _selbsttest(ziel: str) -> int:
                                 "klicks": [{"t": 0.5, "laut": 0.8}], "klick_datei": "builtin:klick_a"}, 1.0, wav, ff)
             erg["ton"] = info
             erg["wav_bytes"] = wav.stat().st_size if wav.exists() else 0
-        # 04.10.2026 — Inhaltssuche (IDEAS §81): Laufzeit und Tokenizer müssen im Paket laden (das Modell nicht —
+        # 04.10.2026 — Inhaltssuche: Laufzeit und Tokenizer müssen im Paket laden (das Modell nicht —
         # das kommt erst beim Einschalten). Ein Mini-Tokenizer aus JSON prüft die native tokenizers-Bibliothek.
         import onnxruntime as _ort
         from tokenizers import Tokenizer as _Tok

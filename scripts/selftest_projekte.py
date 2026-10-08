@@ -3,7 +3,7 @@
 
 Der Anlass
 ----------
-Grilling 29.08.2026 (IDEAS §39) + v0.9.606 (Marc: „lass den [Umschalter]
+29.08.2026 + v0.9.606 (Marc: „lass den [Umschalter]
 immer da unten … wechsel nur die ansicht da unten … touren und projekte
 werden ähnlich organisiert"): Projekte sind eine gleichwertige Ansicht IM
 Archiv — Umschalter in der Filterzeile, Status-Bereiche links, Suche wirkt,

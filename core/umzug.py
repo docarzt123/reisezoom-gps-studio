@@ -1,4 +1,4 @@
-"""Umzug des Bestands in die Bibliothek (Schnitt 1, docs/UMBAU-BIBLIOTHEK.md).
+"""Umzug des Bestands in die Bibliothek (Schnitt 1).
 
 Bis v0.9.635 lagen Daten und Arbeitskram gemeinsam im App-Ordner. Dieses
 Modul holt die Daten dort heraus und legt sie in die Bibliothek.

@@ -1,10 +1,10 @@
-/* Startseite nach Aufgaben (05.10.2026, Block 3, IDEEN I-121).
+/* Startseite nach Aufgaben (05.10.2026).
  *
  * Marc (Roadmap 05.10.2026): „Startseite nur für neue Nutzer / beim ersten Start, sonst der letzte Ort." Darum
  * erscheint sie genau einmal: direkt nach dem Einrichtungsdialog (app.js, „Los geht's"). Wer die App schon kennt,
- * landet wie bisher im zuletzt geöffneten Modul. Drei Aufgaben statt Modulsymbolen (Mockup „vereinfachte
+ * landet wie bisher im zuletzt geöffneten Modul. Drei Aufgaben statt Modulsymbolen (Entwurf „vereinfachte
  * Oberfläche", Ansicht Start): Video erstellen · Track verbessern · Fotos verorten.
- * Neue Nutzer starten den Animator in der einfachen Ansicht (FRAGEN F-10, vorläufig).
+ * Neue Nutzer starten den Animator in der einfachen Ansicht (vorläufig).
  */
 (function () {
   "use strict";
@@ -17,7 +17,7 @@
       text: ["startseite.track_text", "Ausreißer, Lücken und Pausen finden und den Track sauber machen."] },
     { id: "fotos", symbol: "📍", modul: "geotagger", titel: ["startseite.fotos", "Fotos verorten"],
       text: ["startseite.fotos_text", "Deinen Fotos den Ort aus dem Track geben — für Karte, Archiv und Video."] },
-    // 07.10.2026 (Etappen, Grilling Punkt 10)
+    // 07.10.2026 (Etappen)
     { id: "ohne_gps", symbol: "🗺", modul: null, titel: ["etappe.ohne_gps", "Kartenanimation ohne GPS"],
       text: ["startseite.ohne_gps_text", "Eine Route ohne Aufzeichnung — Anreise, Flug, Fähre: Stationen eintippen, Verkehrsmittel wählen."] },
   ];

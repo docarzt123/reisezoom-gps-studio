@@ -1,4 +1,4 @@
-/* Einblendungen als Container (30.09.2026, docs/OVERLAY-CONTAINER.md).
+/* Einblendungen als Container (30.09.2026).
  *
  * Ein Baustein für alles, was am Bildschirm klebt: frei platzierbar (Anker + Abstand),
  * mit Zeilen (Wert, Freitext, Diagramm, Bild, Nordpfeil, Maßstab). Diese Datei ist das
@@ -9,7 +9,7 @@
  * Läuft in der App (Vorschau = Szene-Render) und unter node im Wächter
  * (vorher globalThis.window = globalThis setzen).
  *
- * Einheiten (Grilling Q26): Schriftgröße in % der kurzen Bildseite (cqmin), Abstände in
+ * Einheiten: Schriftgröße in % der kurzen Bildseite (cqmin), Abstände in
  * em (relativ zur Schrift des Containers), Lage und feste Größe in % der Bildfläche.
  *
  * window.rzContainer = { STILE, VORLAGEN, ANKER, normalisieren, liste, stilAnwenden,
@@ -243,11 +243,11 @@
       zeilen: [zeile("massstab"), zeile("nord")] })),
     rahmen: (t) => normalisieren(Object.assign({}, STILE.ohne, { stil: "ohne", vorlage: "rahmen", name: t("container.v.rahmen", "Rahmen / Vollbild"),
       anker: "cc", x: 0, y: 0, groesse: "fest", b: 100, h: 100, hg_bild_modus: "fuellen", zeilen: [] })),
-    // 02.10.2026 (Marc: „so eine Karte im Video anzeigen" — IDEAS §78) — die ganze Strecke klein in der Ecke, der
+    // 02.10.2026 (Marc: „so eine Karte im Video anzeigen") — die ganze Strecke klein in der Ecke, der
     // gefahrene Teil in Linienfarbe, Punkt = jetzt. Quadratisch: Höhe in % der Bildhöhe passt die Ansicht an (Editor).
     uebersicht: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "kasten", vorlage: "uebersicht", name: t("container.v.uebersicht", "Übersichtskarte"),
       anker: "tr", x: 3, y: 3, innen: 0.35, zeilen: [zeile("diagramm", { art: "karte", b: 18, h: 18 })] })),
-    // 06.10.2026 (Grilling Animator A1, Mockup 03) — Info-Karte im Trailframe-Stil: Titel und drei Werte nebeneinander,
+    // 06.10.2026 — Info-Karte im Trailframe-Stil: Titel und drei Werte nebeneinander,
     // dunkler Schiefer mit türkisem Akzent, Plex. Eine ganz normale Einblendung (alles im Editor änderbar).
     info: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "eigen", vorlage: "info", name: t("container.v.info", "Info-Karte"),
       anker: "bl", x: 3, y: 4, schrift: "plex", schriftgroesse: 2.6, textfarbe: "#f4f1e9", akzent: "#48d6c4",

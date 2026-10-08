@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Vorlagen — leere Projekte (docs/TOUR-ASSISTENT.md §2, Marc 11.09.2026).
+"""Vorlagen — leere Projekte (Marc 11.09.2026).
 
 Eine Vorlage trägt je Modul den Einstellungs-Block eines Projekts OHNE alles,
 was am Track hängt (Keyframes, Schilder, Fotos, Gruppen, Schnitt …). Marcs

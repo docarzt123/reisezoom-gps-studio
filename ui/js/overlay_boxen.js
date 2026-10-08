@@ -1,4 +1,4 @@
-/* Overlay-Boxen einzeln einstellen (23.09.2026, docs/OVERLAY-BOXEN.md).
+/* Overlay-Boxen einzeln einstellen (23.09.2026).
  *
  * Einzige Fassung: der Python-Zwilling core/overlayboxen.py und der klassische Render sind seit 0.9.752
  * entfernt (Audit E-13). Der Wächter tests/test_overlay_boxen.py prüft diese Datei unter node.
@@ -15,7 +15,7 @@
   "use strict";
   const STANDARD_IDS = ["totals", "live", "ele"];
   const BOX_TYPEN = ["totals", "live"];
-  // 24.09.2026 (Overlay-Spur, docs/OVERLAY-BOXEN.md §6): Balkenränder der Timeline sind
+  // 24.09.2026 (Overlay-Spur): Balkenränder der Timeline sind
   // video_start (s ab Start), strecke (Streckenanteil 0..1), video_ende (s vor Ende).
   const AUSLOESER = ["s", "pct", "etappe_start", "etappe_ende", "start", "ende",
                      "video_start", "strecke", "video_ende"];
@@ -144,7 +144,7 @@
     if (def === undefined) def = "gesamt";
     if (istNix(v) || v === "") return def;
     if (v === "gesamt" || v === "laufend") return v;
-    // 24.09.2026 (IDEAS §67 Q16) — Zahlen nur einer Bewegungsart, z. B. "art:wanderung"
+    // 24.09.2026 — Zahlen nur einer Bewegungsart, z. B. "art:wanderung"
     if (typeof v === "string" && /^art:[a-z_]{2,20}$/.test(v)) return v;
     if (typeof v === "boolean") return def;
     let n;

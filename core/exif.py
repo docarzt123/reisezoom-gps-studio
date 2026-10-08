@@ -1006,7 +1006,7 @@ def _exiftool_read_meta(path: str) -> dict:
     }
 
 
-# ── Stapel-Lesen für den Foto-Bestand (12.09.2026, IDEAS §64) ───────────────
+# ── Stapel-Lesen für den Foto-Bestand (12.09.2026) ───────────────
 #
 # Zwei Läufe je Stapel, weil beides gebraucht wird: numerisch für Zeit und
 # Koordinate (Rechnen), lesbar für die Suche („1/200" statt 0.005). Gemessen am

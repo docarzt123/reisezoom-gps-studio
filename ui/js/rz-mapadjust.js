@@ -85,7 +85,7 @@
   const SHARP_ID = "rz-sharpen", SHARP_MAX_A = 2.0;
   function sharpNorm(v) { const n = parseFloat(v); return isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
   const SHARP_VS = "attribute vec2 a_pos; varying vec2 v_uv; void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }";
-  /* 17.09.2026 (docs/KARTEN-OPTIK.md §3.4, „Dunst raus") — im selben Durchgang: Sentinel-2 und viele
+  /* 17.09.2026 („Dunst raus") — im selben Durchgang: Sentinel-2 und viele
    * Landesluftbilder tragen einen blauen Schleier (angehobene Schwarzwerte, blaustichig). Je Kanal wird
    * ein Schwarzpunkt abgezogen und der Rest wieder auf 0…1 gestreckt — Blau am stärksten, deshalb
    * verschwindet der Stich mit dem Schleier. u_haze 0…1 (Regler map_haze 0…100 %). Wirkt wie die

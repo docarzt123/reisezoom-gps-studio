@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Projekt-Store — E1 des Umbaus „Projekte, Tour-Identität & Historie".
 
-BESCHLOSSEN im Grilling (Marc, 29.08.2026, docs/IDEAS.md §39). Marcs Kernsatz:
+BESCHLOSSEN mit Marc (29.08.2026). Marcs Kernsatz:
 „wir müssen weg davon, alles am track festzumachen."
 
 Das Modell
@@ -173,7 +173,7 @@ def migrieren_falls_noetig(app_support: Path, sessions_file: Path,
 
     Läuft nur, wenn projekte.json noch nicht existiert. Die alte Datei wird
     danach zu `sessions.json.aufgeloest-<stamp>` umbenannt (Sicherung, kein
-    Löschen). Gibt eine Zusammenfassung zurück (fürs Log/HANDOVER) oder None,
+    Löschen). Gibt eine Zusammenfassung zurück (fürs Log) oder None,
     wenn nichts zu tun war.
     """
     with LOCK:
@@ -369,7 +369,7 @@ def kontext_oeffnen_einzel(daten: dict, geo_hash: str, coords: list,
             tour["id"] = alt_t["id"]
             tour["fassung"] = {"nr": nmax + 1, "erstellt": now,
                                "quelle": "extern"}
-            # 02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q22): MELDEN statt handeln.
+            # 02.09.2026 (Q22): MELDEN statt handeln.
             # Bis hierher entstand eine neue Version stillschweigend, sobald
             # jemand die Datei draußen verändert hatte. Genau solche
             # unsichtbaren Vorgänge waren der Grund für den ganzen Umbau —
@@ -406,7 +406,7 @@ def kontext_oeffnen_einzel(daten: dict, geo_hash: str, coords: list,
 
     aktiv = _aktives_projekt(daten, geo_hash)
     if aktiv is None:
-        # 02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q15) — bis hierher bekam JEDER
+        # 02.09.2026 (Q15) — bis hierher bekam JEDER
         # geöffnete Track sofort ein Projekt. Ergebnis bei einem Beta-Tester:
         # 111 Karten namens „Standard", von denen keine je Arbeit trug.
         #
@@ -829,7 +829,7 @@ def kontext_oeffnen_menge(daten: dict, pfade: list, hashes: list, ablauf: str,
             et = anim.get("extra_tours") if isinstance(anim, dict) else None
             if not isinstance(et, list):
                 continue
-            # 07.10.2026 — geplante Etappen (`etappe`, Block 4) liegen nicht im Archiv, gehören aber zum Projekt
+            # 07.10.2026 — geplante Etappen (`etappe`) liegen nicht im Archiv, gehören aber zum Projekt
             behalten = [t for t in et if isinstance(t, dict)
                         and (nfc(t.get("gpx_path")) in mitglieder or isinstance(t.get("etappe"), dict))]
             if len(behalten) != len(et):
@@ -934,7 +934,7 @@ def alle_projekte(daten: dict) -> list:
     return out
 
 
-# ── E2: Tour-Register — UUID + Fassungen (IDEAS §39, 29.08.2026) ─────────────
+# ── E2: Tour-Register — UUID + Fassungen (29.08.2026) ─────────────
 #
 # Abwärtskompatibel gebaut: `touren` bleibt nach geo_hash verschlüsselt (jede
 # FASSUNG = ein Eintrag, wie bisher jede Tour), die Kette entsteht über ein
@@ -1052,7 +1052,7 @@ def projekt_version_setzen(daten: dict, project_id: str, alt_gh: str,
                            neu_gh: str) -> dict:
     """Ein Projekt auf eine BESTIMMTE Version einer seiner Touren stellen.
 
-    02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q7). Marc: „man muss generell die
+    02.09.2026 (Q7). Marc: „man muss generell die
     Version wählen können, default ist immer die neueste." Bis hierher gab es
     nur den Sprung auf die neueste — zurück ging nichts.
 
@@ -1120,7 +1120,7 @@ def projekt_auf_neueste(daten: dict, project_id: str) -> dict:
     return {"ok": True, "geaendert": len(umzu), "kontext": p["kontext"]}
 
 
-# ── E3: Projekt-Stände — Arbeitsstand-Historie je Projekt (IDEAS §39) ───────
+# ── E3: Projekt-Stände — Arbeitsstand-Historie je Projekt ───────
 #
 # Jede Werkzeug-Speicherung erzeugt höchstens alle STAND_MIN_ABSTAND_S einen
 # Stand (sonst würde jeder Regler-Zug einen anlegen). Ablage als JSONL neben

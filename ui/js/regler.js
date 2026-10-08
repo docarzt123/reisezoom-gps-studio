@@ -1,4 +1,4 @@
-/* Regler-Füllung (05.10.2026 abends, FRAGEN F-7 Farbkonzept „Trailframe“): Jeder Schieberegler zeigt links vom Griff
+/* Regler-Füllung (05.10.2026 abends, Farbkonzept „Trailframe“): Jeder Schieberegler zeigt links vom Griff
  * die Akzentfarbe. WebKit hat dafür kein Pseudo-Element, deshalb setzt dieses Skript die CSS-Variable --rz-fill
  * (0–100 %) — bei jeder Eingabe UND wenn Code den Wert setzt (Einstellungen laden, ⌘Z, Looks): dazu wird der
  * `value`-Setter von <input> umwickelt. Kein Einfluss auf Werte oder Ereignisse.

@@ -91,7 +91,7 @@ STYLES = [
     {"key": "ofm_positron", "provider": "ofm", "kind": "vector", "group": "free",
      "label": "Karte Positron hell (OpenFreeMap)", "terrain": "aws",
      "style_url": "https://tiles.openfreemap.org/styles/positron"},
-    # 05.10.2026 (Block 1 „Looks") — Positron umgefärbt (core/kartenlook.py), geliefert von der lokalen Weiche
+    # 05.10.2026 — Positron umgefärbt (core/kartenlook.py), geliefert von der lokalen Weiche
     # `/stil/<name>.json`; ohne Weiche das ungefärbte Positron. Rechtelage wie OpenFreeMap.
     {"key": "ofm_nacht", "provider": "ofm", "kind": "vector", "group": "free",
      "label": "Nachtkarte (OpenFreeMap)", "terrain": "aws",
@@ -248,7 +248,7 @@ ORTHO_REGIONS = [
     {"id": "at", "name": "Österreich", "country": "AT", "bbox": (9.50, 46.37, 17.17, 49.02), "maxzoom": 19,
      "tiles": ["https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg"],
      "attribution": "Aerial imagery: basemap.at (CC BY 4.0)"},
-    # 17.09.2026 (docs/KARTEN-OPTIK.md §3.1 „mehr Länder") — Belgien (zwei Regionen, transparente WMS-PNGs
+    # 17.09.2026 („mehr Länder") — Belgien (zwei Regionen, transparente WMS-PNGs
     # stapeln sich über der Sprachgrenze), Slowakei (GKÚ, CC BY 4.0). Alle drei am 17.09. per GetMap geprüft.
     {"id": "be-vl", "name": "Flandern", "country": "BE", "bbox": (2.54, 50.67, 5.92, 51.51), "maxzoom": 20,
      "wms": _wms("https://geo.api.vlaanderen.be/OMWRGBMRVL/wms", "Ortho"),
@@ -762,7 +762,7 @@ def raster_adjust_paint(adj) -> dict:
     return paint
 
 
-# ── Relief unter den Luftbildern (17.09.2026, docs/KARTEN-OPTIK.md §3.2) ────
+# ── Relief unter den Luftbildern (17.09.2026) ────
 # Sentinel-2 (10 m) wirkt flach: keine Schatten, kein Licht. Ein Hillshade aus den
 # ohnehin geladenen AWS-Geländedaten (dieselbe Quelle wie das 3D-Gelände, über die
 # lokale Weiche) liegt als eigene Ebene über den Orthofoto-Ebenen und unter der
@@ -1009,7 +1009,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
         "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,
-        # 17.09.2026 — Relief + Dunst (docs/KARTEN-OPTIK.md); JS-Spiegel in util.js/_stackStyle
+        # 17.09.2026 — Relief + Dunst; JS-Spiegel in util.js/_stackStyle
         "ortho_relief_default": ORTHO_RELIEF_DEFAULT, "relief_max": RELIEF_MAX, "relief_minzoom": RELIEF_MINZOOM,
         "relief_paint": relief_paint(ORTHO_RELIEF_DEFAULT),
         "terms_links": TERMS_LINKS,

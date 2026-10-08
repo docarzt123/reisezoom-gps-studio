@@ -297,15 +297,15 @@ class AnimatorConfig:
     # 23.08.2026 — Farbe je Etappe eines zusammengeführten Tracks: {"1": "#rrggbb", …}
     tour_colors: dict = field(default_factory=dict)
     show_overlays: bool = True          # Master-Schalter (Backwards-Compat)
-    # 30.09.2026 — Einblendungen als Container (docs/OVERLAY-CONTAINER.md): Der Web-Karten-Export
+    # 30.09.2026 — Einblendungen als Container: Der Web-Karten-Export
     # bekommt sie als fertiges HTML aus der Vorschau (module.js _ctExportHtml), dazu die Verläufe.
     container_html: str = ""
     container_verlauf: dict = field(default_factory=dict)
-    # 24.09.2026 (IDEAS §67 Q11) — Logbuch-Bereiche mit Anzeige im Video:
+    # 24.09.2026 — Logbuch-Bereiche mit Anzeige im Video:
     # [{von, bis (Anteil 0..1 der Punkte), deckkraft}] — 0 = Linie unsichtbar
     # (überspringen), 0,25 = blass. Raffen/Überspringen-Tempo steckt in pace_map.
     logbuch_masken: list = field(default_factory=list)
-    # 24.09.2026 (IDEAS §67 Q16) — Logbuch-Bereiche [{art, t0, t1}] für Zahlen je Bewegungsart
+    # 24.09.2026 — Logbuch-Bereiche [{art, t0, t1}] für Zahlen je Bewegungsart
     bewegung_bereiche: list = field(default_factory=list)
     codec: str = "h264"                 # "h264" oder "h265" (HEVC, kleinere Files)
     crf: int = 20                       # Qualität: niedriger = besser, 18-22 typisch
@@ -397,7 +397,7 @@ class AnimatorConfig:
     # über echtes Video gelegt werden kann. Pitch/Bearing/Terrain werden
     # in diesem Modus ignoriert (2D top-down macht für Composit am meisten Sinn).
     transparent_background: bool = False
-    # 02.10.2026 (Marc: „könnte man auch in HDR rendern", IDEAS §73) — "sdr" | "hlg" | "pq". HDR = SDR-Bild sauber
+    # 02.10.2026 (Marc: „könnte man auch in HDR rendern") — "sdr" | "hlg" | "pq". HDR = SDR-Bild sauber
     # in BT.2020 mit HLG- bzw. PQ-Kurve, SDR-Weiß auf 203 nits (ITU-R BT.2408), 10 Bit HEVC oder ProRes.
     farbraum: str = "sdr"
     # Schlagschatten unter der Track-Linie. Macht den Track plastischer —
@@ -547,13 +547,13 @@ class AnimatorConfig:
     # Kamera = Per-Tour-Bounds-Fit + Flug dazwischen. Overlays kumulieren
     # über alle Touren (Gesamt-Distanz/-Zeit wachsen durchgehend).
     tracks: list = field(default_factory=list)
-    # IDEAS §38 (28.08.2026): Ablauf der Mehr-Touren-Übergabe. "reise" =
+    # 28.08.2026 — Ablauf der Mehr-Touren-Übergabe. "reise" =
     # nacheinander mit Kinoflügen (seit §60 nur noch über die Szene). "schwarm" =
     # alle gleichzeitig, gleiche Geschwindigkeit — läuft über den NORMALEN
     # Single-Track-Pfad (Haupt-Track = Zeitachse), die übrigen Touren wachsen
     # als Zusatz-Linien im selben Takt mit (schwarm_tours in _make_html).
     tracks_ablauf: str = "reise"
-    # IDEAS §38 M3 — Geschwindigkeitsmodus des Schwarms (Wahl im Archiv):
+    # Geschwindigkeitsmodus des Schwarms (Wahl im Archiv):
     #   "gleich"  = alle gleich schnell (Standard, längste bestimmt die Dauer)
     #   "ziel"    = gleichzeitig im Ziel (Fotofinish: jede Tour skaliert)
     #   "uhrzeit" = echte Uhrzeit (aufgezeichnete Zeitstempel; gemeinsamer
@@ -565,7 +565,7 @@ class AnimatorConfig:
     # 29.08.2026 (Marc: „ich will nicht, dass eine tour raussticht"): Haupt-
     # Tour im Schwarm dezent — Laufpunkt/Linie wie die Zusatz-Touren.
     schwarm_haupt_dezent: bool = False
-    # IDEAS §38 M2 — Fokus-Tour im Schwarm (Marc, 28.08.2026: „kamera bleibt
+    # Fokus-Tour im Schwarm (Marc, 28.08.2026: „kamera bleibt
     # stehen" wenn sie fertig ist). GPX-Pfad einer Zusatz-Tour; leer = die
     # Kamera folgt (falls eingeschaltet) wie bisher dem Haupt-Track.
     schwarm_fokus_gpx: str = ""
@@ -640,7 +640,7 @@ def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
 
 
 
-# ── Overlay-Boxen einzeln (23.09.2026, docs/OVERLAY-BOXEN.md) ────────────────
+# ── Overlay-Boxen einzeln (23.09.2026) ────────────────
 # EIN Baustein für beide Render-HTMLs (Karte + Alpha). Vorher stand der Box-Block
 # zweimal da. Box = [data-ovbox="<id>"], Zeile = [data-f="<fid>"] — dieselben
 # Selektoren wie die Vorschau, damit ui/js/overlay_boxen.js beide bedient.
@@ -798,7 +798,7 @@ def ghost_liste(cfg) -> list:
     return raus
 
 
-# Punkte-Deckel für gleichzeitig laufende Touren (Schwarm, IDEAS §38).
+# Punkte-Deckel für gleichzeitig laufende Touren (Schwarm).
 MAX_PUNKTE_GESAMT = 40_000     # Summe über alle Touren
 MAX_PUNKTE_LAENGSTE = 800      # feiner braucht die längste Tour nie zu sein
 MIN_ABSTAND_M = 2.0            # unter 2 m Punktabstand sieht niemand einen Unterschied
@@ -846,7 +846,7 @@ def resample_aequidistant(points, s_m: float) -> list:
     return raus
 
 
-# IDEAS §38 M3 — „nur Bewegungszeit": Segment-Zeiten über diesem Deckel gelten
+# „nur Bewegungszeit": Segment-Zeiten über diesem Deckel gelten
 # als Pause und werden auf ihn gestutzt (übliche GPX-Aufzeichnung tickt ≤ 5 s;
 # 20 s trennt „langsam" sauber von „steht"). Bewusst dieselbe einfache Regel
 # wie bei Moving-Time-Schätzungen — es geht um die Video-Choreografie,
@@ -2057,7 +2057,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     tour_colors_json = json.dumps(getattr(cfg, "tour_colors", None) or {})
     colors_on_js = "true" if _colors_on else "false"
     color_source_json = json.dumps(_csrc)
-    # 🌊 Schwarm (IDEAS §38): Zusatz-Touren, die gleichzeitig mitlaufen.
+    # 🌊 Schwarm: Zusatz-Touren, die gleichzeitig mitlaufen.
     _sw = schwarm_tours or []
     schwarm_coords_json = json.dumps([t["coords"] for t in _sw])
     schwarm_colors_json = json.dumps([t.get("color") or cfg.line_color for t in _sw])
@@ -2172,7 +2172,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # Master `show_overlays` bleibt führend. Einzelne `*_enabled` schalten Boxen aus.
     # v0.9.448 — die Reihe, nach der eingefärbt wird, MUSS in `sensorSeries` landen,
     # auch wenn sie in keinem Overlay-Feld vorkommt (siehe _csrc oben).
-    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Felder nur im Mapbox-HTML.
+    # 28.08.2026 — Schwarm-Felder nur im Mapbox-HTML.
     (speed_json, grade_json, sensor_series_json, has_time, has_ele) = _reihen_json(
         cfg, total_stats, ds_points, cum_dist, cum_time, eles,
         extra_keys=[_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else [])
@@ -2825,7 +2825,7 @@ const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
 // „Cannot access 'SCHWARM_N' before initialization" — das Overlay-Feld
 // „Noch unterwegs" griff beim Initial-Aufruf auf sie zu, deklariert waren sie
 // erst weiter unten beim advanceFrame).
-// 🌊 Schwarm (IDEAS §38): weitere Touren, die GLEICHZEITIG mitlaufen. Jede ist
+// 🌊 Schwarm: weitere Touren, die GLEICHZEITIG mitlaufen. Jede ist
 // äquidistant abgetastet (step_m); der Fortschritt wird aus der bereits
 // zurückgelegten DISTANZ des Haupt-Tracks abgeleitet (cumDistM[safe] / step) —
 // damit gilt „gleiche Geschwindigkeit" in JEDEM Verteilungs-Modus des
@@ -2837,12 +2837,12 @@ const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
 const SCHWARM_3D = {sw3d_js};   // 06.09.2026 — Linien über dem Gelände (rz-line3d) statt drapiert
 // 06.09.2026 (Marc, WYSIWYG): Haupt-Track/Ghosts bleiben DRAPIERT wie in der Vorschau — die
-// 3D-Ebene sah dicker/kantiger aus als die Vorschau. Code bleibt für IDEAS §53 (Vorschau + Render
+// 3D-Ebene sah dicker/kantiger aus als die Vorschau. Code bleibt für später (Vorschau + Render
 // gemeinsam umstellen), bis dahin aus.
 const LINES_3D = false;
 const TRACK_DASH = {_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) or 'null'};
 if (typeof window !== 'undefined') window.__rzLine3dDebug = {'true' if os.environ.get('RZ_L3D_DEBUG') else 'false'};   // Node-Prüfstand (test_schwarm_m3) hat kein window
-// IDEAS §38 M3 — Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
+// Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
 // 'ziel' = Fotofinish (jede Tour skaliert, alle enden mit dem Video),
 // 'uhrzeit' = aufgezeichnete Zeitstempel (gemeinsamer Start; SCHWARM_T je
 // Tour: Sekunden am jeweiligen Streckenpunkt, Achse = längste Dauer inkl.
@@ -3565,7 +3565,7 @@ window.__camFaithful = (t) => {{
   const px = A.pos[0] + (B.pos[0]-A.pos[0])*u, py = A.pos[1] + (B.pos[1]-A.pos[1])*u, pz = A.pos[2] + (B.pos[2]-A.pos[2])*u;
   const eM = (A.eM != null && B.eM != null) ? A.eM + (B.eM - A.eM) * u : (A.eM != null ? A.eM : B.eM);
   window.__rzCamApply([px, py, pz], A.ori ? window.__nlerpQuat(A.ori, B.ori, u) : null, A.bp ? window.__rzLerpBP(A.bp, B.bp, u) : null, eM);
-  // 25.08.2026 — Prüfstelle für die Zoom-Meldung (siehe docs/IDEAS.md §36):
+  // 25.08.2026 — Prüfstelle für die Zoom-Meldung:
   // Übernimmt Mapbox die gesetzte Kamerahöhe, oder hebt es sie über das Gelände?
   // Gemessen: `hub` ist durchgehend 0 — Mapbox übernimmt sie exakt. Der
   // weggelaufene Zoom entsteht also NICHT beim Setzen, sondern steckt schon in
@@ -3880,7 +3880,7 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
         # 23.09.2026 — Kennzahlen je Etappe (Overlay-Bezug), auf den vollen Punkten
         "stage_stats": core_gpx_etappen_stats(raw_points),
-        # 24.09.2026 (IDEAS §67 Q16) — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
+        # 24.09.2026 — Kennzahlen je Bewegungsart (Logbuch-Bereiche vom Animator)
         "art_stats": core_gpx_arten_stats(raw_points, getattr(cfg, "bewegung_bereiche", None) or []),
     }
     return _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
@@ -3999,7 +3999,7 @@ def _punkte_verteilen_roh(cfg, raw_points):
     )
 
 
-# 09.09.2026 (IDEAS §60, Phase 6) — `_render_multi` ist weg. Mehrere Touren
+# 09.09.2026 (Phase 6) — `_render_multi` ist weg. Mehrere Touren
 # rendern ausschließlich über die Szene (core/szene.py), die die Vorschau Bild
 # für Bild abspielt: Kette, Übergänge, Füll-Halte, parallele Gruppen und
 # Keyframes kommen dort aus EINER Rechnung (ui/js/spuren.js). Die frühere
@@ -4262,7 +4262,7 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
 
 def fokus_koordinate(fokus: dict, cum_dist: list, idx: int) -> tuple:
     """Kamera-Ziel der Fokus-Tour bei der Distanz, die der Haupt-Track bei
-    `idx` zurückgelegt hat (IDEAS §38 M2).
+    `idx` zurückgelegt hat.
 
     Geklemmt ans Tour-Ende — Marcs Entscheidung wörtlich: „kamera bleibt
     stehen", wenn die Fokus-Tour fertig ist, während der Rest weiterläuft.

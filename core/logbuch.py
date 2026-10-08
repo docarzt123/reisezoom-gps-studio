@@ -1,4 +1,4 @@
-"""Logbuch der Tour — was wann war (docs/LOGBUCH.md, IDEAS §68, Stufe 1).
+"""Logbuch der Tour — was wann war (Stufe 1).
 
 Marc, 13.09.2026: „wie wäre es, wenn der inspector eine art logbuch generiert,
 was wo war — zeit von bis: fähre von bis, pause, fahrt von nach, spaziergang/

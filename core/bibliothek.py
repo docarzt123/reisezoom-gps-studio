@@ -1,6 +1,6 @@
 """Die Tour-Bibliothek — der Ort, an dem GPS Studio seine Daten hält.
 
-Beschlossen mit Marc am 02.09.2026, Begründung in `docs/UMBAU-BIBLIOTHEK.md`.
+Beschlossen mit Marc am 02.09.2026.
 
 **Die Bibliothek ist die Wahrheit, beobachtete Ordner sind nur Quellen.**
 Jede aufgenommene Tour liegt als Kopie hier, eine Datei je Version,
@@ -768,7 +768,7 @@ def version_weg(ort: Path, version_id: str) -> bool:
 # rollierenden Kopien von library.db (bei Marc 77 von 150 MB).
 ZIP_SPARSAM_AUS = ("bilder", "sicherungen")
 
-# 05.10.2026 (IDEAS §82 Schritt 2) — „Für einen anderen Rechner": Die Vorschaubilder der Fotos liegen je Rechner im
+# 05.10.2026 — „Für einen anderen Rechner": Die Vorschaubilder der Fotos liegen je Rechner im
 # App-Ordner (photo_thumb_cache, Schlüssel = Fingerabdruck aus der Bibliothek). Eine ZIP kann sie in diesem Ordner
 # mitnehmen; der andere Rechner übernimmt sie beim Öffnen (`vorschau_uebernehmen`) und muss nichts neu erzeugen.
 # Der Ordner selbst wandert nie in eine weitere Sicherung.
@@ -849,7 +849,7 @@ def ort_vergessen(app_support: Path, pfad: str) -> bool:
 
 def zip_name_vorschlag(ort: Path) -> str:
     """Dateiname mit Zeitstempel — Regel: nie eine vorhandene Sicherung
-    überschreiben (CLAUDE.md, Marc 28.06.2026)."""
+    überschreiben (Marc 28.06.2026)."""
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     roh = re.sub(r"[^\w\-]+", "-", name_lesen(ort), flags=re.UNICODE).strip("-")
     return f"{stamp}-Bibliothek-{roh or 'GPS-Studio'}.zip"
@@ -1097,7 +1097,7 @@ EIGENE_NAMEN = {
     # 05.10.2026 — Index der Inhaltssuche (core/inhalt.py). Fehlte hier: beim Umziehen der Bibliothek blieb er liegen,
     # obwohl er genau dafür in der Bibliothek liegt (Audit 05.10.); der Dateischutz verweigerte das Löschen.
     "inhaltsindex",
-    # 07.10.2026 — geplante Etappen (<Bibliothek>/etappen/<projekt>/, Block 4) und eigene Kartenlooks (Karten-Editor).
+    # 07.10.2026 — geplante Etappen (<Bibliothek>/etappen/<projekt>/) und eigene Kartenlooks (Karten-Editor).
     # Fehlten hier: beim Umziehen der Bibliothek blieben die Etappen liegen, und der Dateischutz verweigerte das
     # Speichern der Kartenlooks (test_kartenlooks C).
     "etappen", "kartenlooks.json",

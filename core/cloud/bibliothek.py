@@ -1,6 +1,6 @@
 """Die Cloud ist eine Kopie der Bibliothek (02.09.2026).
 
-Beschlossen mit Marc am 02.09.2026 (`docs/UMBAU-BIBLIOTHEK.md`, Q29):
+Beschlossen mit Marc am 02.09.2026 (Q29):
 *„Die Cloud wäre eine Kopie der Bibliothek."* Vorher lud die App je Tour
 einen eigenen Umschlag hoch, der Verzeichnis, Sammlungen, Projekte, Fotos
 und Versionsketten in sich trug — ein zweites Datenmodell neben dem echten,

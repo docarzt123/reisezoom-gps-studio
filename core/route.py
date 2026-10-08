@@ -762,7 +762,7 @@ def map_match(
 
 
 # ── GPX schreiben ────────────────────────────────────────────────────────────
-# 05.10.2026 (Block 4 „Route erstellen", Marc: „Verkehrsart je Abschnitt, Fahrzeugsymbole") — jede Etappe zwischen zwei
+# 05.10.2026 (Marc: „Verkehrsart je Abschnitt, Fahrzeugsymbole") — jede Etappe zwischen zwei
 # Stationen mit ihrer eigenen Art: Straße (Auto/Rad/zu Fuß) über den Routendienst, Flug/Boot/Zug als Großkreis.
 ARTEN_STRASSE = {"auto": "driving", "rad": "cycling", "wanderer": "walking"}
 ARTEN_GERADE = ("flugzeug", "boot", "zug")

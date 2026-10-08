@@ -1140,7 +1140,7 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
   background: var(--bg-2, rgba(0, 0, 0, 0.35)); color: var(--text, #e6eaf2);
 }
 
-/* ── Gruppen (IDEAS §60, 09.09.2026) ────────────────────────────────────── */
+/* ── Gruppen (09.09.2026) ────────────────────────────────────── */
 .anim-anordnung { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 2px 0 6px; }
 .anim-anordnung-label { font-size: 11px; opacity: .75; margin-right: 2px; }
 .anim-anordnung .btn { font-size: 10.5px; padding: 2px 6px; }
@@ -1180,7 +1180,7 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .ghost-hoch, .ghost-runter { padding: 0 4px; font-size: 10px; line-height: 1; }
 .ghost-hoch:disabled, .ghost-runter:disabled { opacity: .25; cursor: default; }
 
-/* 23.09.2026 — Overlay-Boxen einzeln (docs/OVERLAY-BOXEN.md) */
+/* 23.09.2026 — Overlay-Boxen einzeln */
 .overlay-preview-layer .ov-titel {
   font-size: calc(13px * var(--overlay-scale)); font-weight: 700; letter-spacing: 1.2px;
   text-transform: uppercase; margin-bottom: calc(6px * var(--overlay-scale)); opacity: 0.92;
@@ -1218,7 +1218,7 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .ov-time-in.ist-ungueltig { border-color: #ff6b6b !important; box-shadow: 0 0 0 1px rgba(255,107,107,.45); color: #ffb3b3 !important; }
 .ovbox-seg-weg { margin-left: 6px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-dim, #aaa); cursor: pointer; font-size: 11px; }
 .ovbox-seg-weg:hover { background: rgba(255, 90, 90, .25); color: #fff; }
-/* 24.09.2026 — Logbuch im Video (IDEAS §67 Q11): je Eintrag eine Zeile mit Auswahl. */
+/* 24.09.2026 — Logbuch im Video: je Eintrag eine Zeile mit Auswahl. */
 .anim-lb-liste { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
 .anim-lb-zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px;
   background: var(--bg-2, rgba(255,255,255,.04)); border: 1px solid var(--border, rgba(255,255,255,.08)); }
@@ -1247,7 +1247,7 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 
 
 /* ── CONTAINER-CSS (Anfang) ── 30.09.2026 — Einblendungen als Container ─────────────
-   docs/OVERLAY-CONTAINER.md. Der Layer ist im Videopixel-Raum dimensioniert; als
+   Der Layer ist im Videopixel-Raum dimensioniert; als
    size-Container liefert er cqmin/cqw/cqh → Schrift in % der kurzen Bildseite, Lage und
    feste Größe in % der Bildfläche, alle Abstände in em. Diesen Abschnitt liest auch der
    Web-Karten-Export (core/animator.py, container_css) — bitte die Marken stehen lassen. */
@@ -1502,7 +1502,7 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .rz-look-minimal { background: linear-gradient(160deg, #f2f3f0 0%, #f2f3f0 62%, #c2c8ca 62%, #c2c8ca 100%);
   --look-linie: #1f2d31; --look-kontur: #ffffff; }
 
-/* 05.10.2026 (Block 4) — Verkehrsart je Etappe der Reiseroute */
+/* 05.10.2026 — Verkehrsart je Etappe der Reiseroute */
 .route-wp-art { display: flex; align-items: center; gap: 6px; margin: 4px 0 2px 22px; font-size: 11px; color: var(--text-muted); }
 .route-wp-art select { flex: 1; min-width: 0; font-size: 11.5px; }
 
@@ -1510,7 +1510,7 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .anim-hauptaktion { margin-right: 10px; padding: 6px 14px; font-size: 12.5px; border-radius: 8px; white-space: nowrap; }
 .anim-hauptaktion:disabled { opacity: 0.45; cursor: default; }
 
-/* 06.10.2026 (Grilling A3) — „Medien der Tour“ rechts in der Detail-Spalte */
+/* 06.10.2026 — „Medien der Tour“ rechts in der Detail-Spalte */
 .tm-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-height: 0; height: 100%; box-sizing: border-box; }
 .tm-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tm-kopf b { font-size: 13px; }
@@ -1526,7 +1526,7 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .tm-bild.ist-video::before { content: "▶"; position: absolute; top: 3px; left: 5px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; z-index: 1; }
 .tm-zeit { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px; font-size: 10px; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.65)); text-align: left; }
 
-/* 07.10.2026 (Block 4) — „＋ Etappe erstellen“: zwei Knöpfe nebeneinander, Editor unter der Tourenliste */
+/* 07.10.2026 — „＋ Etappe erstellen“: zwei Knöpfe nebeneinander, Editor unter der Tourenliste */
 .anim-tours-knoepfe { display: flex; gap: 6px; margin-top: 4px; }
 .anim-tours-knoepfe .btn { flex: 1; }
 /* Rechts in der Detail-Spalte (wie Medien der Tour); als Rückfall unter der Tourenliste */

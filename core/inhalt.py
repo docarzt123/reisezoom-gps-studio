@@ -1,4 +1,4 @@
-"""Inhaltssuche im Foto-Archiv: „Sonnenuntergang", „Hund am Strand", „ähnliche Fotos" (04.10.2026, IDEAS §81).
+"""Inhaltssuche im Foto-Archiv: „Sonnenuntergang", „Hund am Strand", „ähnliche Fotos" (04.10.2026).
 
 Marc: „wenn jemand seine Bilder irgendwo liegen hat … indiziert … schnell die passenden Bilder findet". Bedingungen
 aus dem Gespräch: Modell nur auf Wunsch laden, offen, ohne Konto, läuft auf dem Rechner, sucht in jeder Sprache.

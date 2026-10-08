@@ -114,7 +114,6 @@ jobs:
           # WICHTIG: fixer Dateiname ohne Version/arch — Shortlinks auf
           # s.reisezoom.com zeigen exakt auf diesen Filename. Wenn sich der
           # Name ändert, brechen die Download-Buttons im Blog-Post.
-          # Siehe docs/HANDOVER_DEPLOYMENT.md
           DMG="dist/dmg/ReisezoomGPSStudio-macos.dmg"
           # 26.08.2026 (Marc: „ich kriege immer wieder mails, wo sich leute
           # wundern, dass es nicht geht"): Auf Intel-Macs startet die App nicht,

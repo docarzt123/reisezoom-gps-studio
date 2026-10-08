@@ -1,6 +1,6 @@
 /* Der Zeitplan eines Projekts: Gruppen, Halte, Inhalte — die EINE Wahrheit.
  *
- * IDEAS §60, Marc 09.09.2026. Lebt in der Oberfläche, weil die Vorschau den
+ * Marc 09.09.2026. Lebt in der Oberfläche, weil die Vorschau den
  * Plan SYNCHRON braucht — `_reiseBauen` wird aus acht Stellen heraus gerufen,
  * und der Szene-Render spielt genau diese Vorschau ab. Einzige Fassung: der
  * Python-Zwilling core/spuren.py lief nur in Tests und ist seit 24.09.2026 weg.
@@ -36,7 +36,7 @@
 
   /** Den Zeitplan rechnen: wo jede Gruppe liegt und wie lang das Video wird.
    *  `mindestS` (der Wunsch aus „Animation (s)") verlängert, verkürzt nie. */
-  /** 28.09.2026 (IDEAS §72) — Darstellung „Ganz zeigen": die Gruppe zeichnet nicht, ihre ganze Runde
+  /** 28.09.2026 — Darstellung „Ganz zeigen": die Gruppe zeichnet nicht, ihre ganze Runde
    *  ist von `vorlauf_s` an da, `ganz_s` Sekunden lang (leer = bis zum Videoende). Sie bestimmt die
    *  Videolänge NICHT (Q8) und liegt nie in der Kette (Zeile 0), sondern darunter. */
   function istGanz(g) { return !!g && g.modus === "ganz"; }

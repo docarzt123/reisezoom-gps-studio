@@ -1,8 +1,8 @@
-/* Einfache Ansicht des Animators (05.10.2026, Block 3 „Einfache Ebene", IDEEN I-122/I-004/I-005).
+/* Einfache Ansicht des Animators (05.10.2026).
  *
  * Marc (Roadmap 05.10.2026): „Erst muss der Unterbau stehen; einfache Ebenen sind ein Layer obendrauf" — fünf Schritte
  * Route → Look → Orte & Fotos → Kamera → Export, „Feinarbeit" = der volle Animator, DIESELBEN Daten
- * (Mockup docs/mockups/gps-studio-vereinfachte-oberflaeche.html: „integriert statt parallel neu gebaut").
+ * („integriert statt parallel neu gebaut").
  *
  * Deshalb hat diese Datei keine eigenen Einstellungen: jeder Schritt bedient die vorhandenen Felder/Knöpfe des
  * Animators (gleiche Speicherung, gleiches Undo, gleiche Vorschau). Umschalter „Einfach / Feinarbeit" oben in der
@@ -73,7 +73,7 @@
     }
     return ev;
   }
-  /** Kamera-Vorgaben (I-004): Fest · Folgen · Kamerafahrt (wie im Schnell-Video, als bearbeitbare Keyframes). */
+  /** Kamera-Vorgaben: Fest · Folgen · Kamerafahrt (wie im Schnell-Video, als bearbeitbare Keyframes). */
   function kameraSetzen(art) {
     if (art === "fest") { feld("anim-kf-enabled", false); feld("anim-camera-follow", false); return; }
     if (art === "folgen") { feld("anim-kf-enabled", false); feld("anim-camera-follow", true); return; }
