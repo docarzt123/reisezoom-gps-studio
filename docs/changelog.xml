@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 07 Oct 2026 20:54:01 +0000</lastBuildDate>
+<lastBuildDate>Thu, 08 Oct 2026 11:01:20 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.785</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-785</link>
+<guid isPermaLink="false">gps-studio-v0.9.785</guid>
+<pubDate>Thu, 08 Oct 2026 12:00:00 +0000</pubDate>
+<description>Acht Kartenlooks und der Karten-Editor — Unter „Look“ stehen jetzt acht Kacheln — neu sind Schatzkarte, Topo, Seekarte und Pastell, mit Relief, Küstenlinie oder Meerestiefen. Das ✎ an der gewählten Kachel öffnet rechts den Karten-Editor: jede Farbe der Karte, Schrift, Relief, Grenzen — sofort in Vorschau und Video. Eigene Looks speicherst du für alle Projekte oder gibst sie als Datei weiter. Luftbild-Optik, Karten-Optik und Sternenhimmel stehen jetzt ebenfalls rechts im Editor (Knopf „Karten-Optik und Sterne …“). Die lange Stil-Liste ist weg: Links stehen nur noch Kacheln — acht Looks und „Weitere Karten“ (OpenTopoMap, CyclOSM &amp; Co., Liste rechts). Rechts im Editor stehen auch 3D-Terrain, 3D-Häuser und „Auf der Karte anzeigen“; ein eigener Look speichert sie mit. Das ✎ schaltet den Editor auf und zu. „Mehrere Track-Farben“ gibt es jetzt für jede Tour einzeln, im Track-Editor rechts — auch im Video. Oben in der rechten Spalte steht, zu welchem Abschnitt das Fenster gehört.
+
+Fotos ohne Ort — „📷 Fotos hinzufügen“ überspringt Fotos ohne GPS nicht mehr still: Die App fragt „Fotos ohne Ort platzieren?“ und legt sie als Sofortbild auf die Strecke — mit Aufnahmezeit an die passende Stelle, sonst gleichmäßig verteilt. Danach ziehst du jedes an seinen Platz.
+
+Fotostopp ohne Heranfahren — Neuer Haken „Kamera fährt heran“ im Fotostopp: aus = der Track hält, das Foto erscheint, die Kamera bleibt stehen.
+
+Kartenanimation ohne GPS weitergeben — Das .rzproj nimmt jetzt die Etappe mit — beim Empfänger bleiben Punkte, Kurven und Verkehrsmittel bearbeitbar.</description>
+</item>
 <item>
 <title>v0.9.784</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-784</link>
@@ -181,15 +194,6 @@ Punkte im Gelände an der richtigen Stelle — die Vorankündigungspunkte der Hi
 <guid isPermaLink="false">gps-studio-v0.9.766</guid>
 <pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
 <description>Foto-Pin — ein Fotostopp hat jetzt einen runden Pin mit dem Foto. Er taucht 2,5 Sekunden vorher auf, das große Foto wächst aus ihm heraus, danach bleibt er an seiner Stelle. Die doppelte Karte hinter dem Foto ist weg.</description>
-</item>
-<item>
-<title>v0.9.765</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-765</link>
-<guid isPermaLink="false">gps-studio-v0.9.765</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotostopp: Uhrzeit vor Ort — die Uhrzeit unter dem Foto ist jetzt die Ortszeit am Aufnahmeort, auch wenn die Kamera noch auf deutscher Zeit stand.
-
-Schnell-Video: aufgeräumter Schluss — die kleinen Fotokarten verschwinden nach ihrem Stopp wieder und verdecken die Schlusskarte nicht mehr.</description>
 </item>
 </channel>
 </rss>
