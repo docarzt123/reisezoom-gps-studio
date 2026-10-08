@@ -140,8 +140,9 @@ async def main():
         check("die Modulnamen sind da", len(masse["texte"]) >= 6, str(masse["texte"]))
         check("kein Name ragt aus der Kopfleiste", not masse["ueber"], str(masse["ueber"]))
         check("kein Name bricht auf zwei Zeilen um", not masse["mehrzeilig"], str(masse["mehrzeilig"]))
-        check("„Ruta de viaje“ steht vollständig da",
-              any("Ruta de viaje" in x for x in masse["texte"]), str(masse["texte"]))
+        # 08.10.2026 — die Reiseroute ist ausgeblendet; der längste spanische Name ist jetzt „Animador de datos“
+        check("„Animador de datos“ steht vollständig da",
+              any("Animador de datos" in x for x in masse["texte"]), str(masse["texte"]))
 
         # ⚠️ Die Knöpfe rechts (Einstellungen!) dürfen nie aus dem Fenster
         # geschoben werden — sie sind der einzige Weg zu Sprache und Token.
