@@ -422,12 +422,24 @@
       const pfade = [...weg];
       const frei = spart(pfade);
       const k = okK(); k.disabled = true; k.innerHTML = `<span class="ass-spinner"></span> ${esc(T("dop.raeumt", "Räumt weg …"))}`;
+      // 09.10.2026 (Marc: Klick daneben schloss das Fenster mitten im Wegräumen) — solange es läuft, bleibt der Dialog offen:
+      // kein ✕, kein Klick daneben, „Schließen“ und die Wahl gesperrt. Das Wegräumen selbst lief auch vorher zu Ende.
+      const sperren = (an) => {
+        try { m.update({ closable: !an }); } catch (_) {}
+        const ab = document.getElementById("dp-ab"); if (ab) ab.disabled = an;
+        document.querySelectorAll('input[name="dp-wohin"]').forEach(x => { x.disabled = an; });
+      };
+      sperren(true);
       let r = null; try { r = await api().fotos_doppelte_wegraeumen(pfade, wohin); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Knopf zeigt „Räumt weg …“
+      sperren(false);
       if (typeof toast === "function") {
         const satz = wohin === "ordner" ? T("dop.ok_ordner", "{n} in den Ordner „Doppelte (GPS Studio)“ verschoben.", { n: num((r && r.n_ok) || 0) })
                                         : T("dop.ok_papierkorb", "{n} in den Papierkorb gelegt — von dort lassen sie sich zurückholen.", { n: num((r && r.n_ok) || 0) })
                                           + (frei && r && r.ok && !r.n_fehler ? " " + T("dop.ok_mb", "{mb} werden frei, sobald du ihn leerst.", { mb: mb(frei) }) : "");
-        toast(satz + (r && r.n_fehler ? " " + T("dop.fehler", "{n} gingen nicht (schreibgeschützt oder nicht erreichbar).", { n: num(r.n_fehler) }) : ""), r && r.ok && !r.n_fehler ? "success" : "warn", 7000);
+        // 09.10.2026 — Laufwerk ohne Papierkorb (NAS): die Dateien bleiben, wo sie sind; der Ordner geht dort immer
+        const ohne = (r && r.n_kein_papierkorb) || 0, sonst = ((r && r.n_fehler) || 0) - ohne;
+        toast(satz + (ohne ? " " + T("dop.kein_papierkorb", "{n} liegen auf einem Laufwerk ohne Papierkorb (z. B. dem NAS) und bleiben, wo sie sind — dafür „in Ordner ‚Doppelte (GPS Studio)‘“ wählen.", { n: num(ohne) }) : "")
+              + (sonst > 0 ? " " + T("dop.fehler", "{n} gingen nicht (schreibgeschützt oder nicht erreichbar).", { n: num(sonst) }) : ""), r && r.ok && !r.n_fehler ? "success" : "warn", ohne ? 12000 : 7000);
       }
       if (typeof fertig === "function") fertig(r);
       if (box()) laden();

@@ -5975,5 +5975,7 @@
   "bearb.rechts": "Rotate 90° right",
   "bearb.zs_reset": "Reset",
   "bearb.zs_fertig": "Done",
-  "bearb.zs_hinweis": "Drag the frame to move it, corners and edges change its size. Enter = done, Esc = cancel."
+  "bearb.zs_hinweis": "Drag the frame to move it, corners and edges change its size. Enter = done, Esc = cancel.",
+  "dop.kein_papierkorb": "{n} are on a drive without a Trash (e.g. the NAS) and stay where they are — choose “to folder ‘Duplicates (GPS Studio)’” for those.",
+  "library.kein_papierkorb": "This drive has no Trash (e.g. a NAS) — the file stays where it is. Delete it in the Finder if you want."
 }

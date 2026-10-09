@@ -1950,7 +1950,11 @@ In Media on the left: **„⧉ Find duplicates …“**. The dialog has two tabs
 
 At the bottom you choose where they go: **to the Trash** (restorable from there) or **to a folder „Duplicates (GPS
 Studio)“** next to the original. Scanning skips that folder, so the files don't come back into the stock. Nothing is
-ever deleted for good.
+ever deleted for good. While it tidies up, the window stays open.
+
+**A NAS and other network drives usually have no Trash.** There the app leaves the files in place when you choose „to
+the Trash“ and tells you so — choose „to folder ‚Duplicates (GPS Studio)‘“ for them. (Until 9 Oct 2026 the Finder
+deleted them there at once; only a recycle bin of the NAS itself, e.g. the `#recycle` folder, caught them.)
 
 ### ↗ Open with … — edit in your photo app (since v0.9.787)
 

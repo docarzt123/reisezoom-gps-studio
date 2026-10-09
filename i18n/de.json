@@ -5975,5 +5975,7 @@
   "bearb.rechts": "90° nach rechts drehen",
   "bearb.zs_reset": "Zurücksetzen",
   "bearb.zs_fertig": "Fertig",
-  "bearb.zs_hinweis": "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen."
+  "bearb.zs_hinweis": "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen.",
+  "dop.kein_papierkorb": "{n} liegen auf einem Laufwerk ohne Papierkorb (z. B. dem NAS) und bleiben, wo sie sind — dafür „in Ordner ‚Doppelte (GPS Studio)‘“ wählen.",
+  "library.kein_papierkorb": "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder."
 }

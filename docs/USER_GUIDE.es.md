@@ -1997,7 +1997,11 @@ En Medios, a la izquierda: **«⧉ Buscar duplicados …»**. El diálogo tiene 
 
 Abajo eliges el destino: **la Papelera** (se pueden recuperar desde allí) o **una carpeta «Duplicados (GPS Studio)»**
 junto al original. La lectura omite esa carpeta, así que los archivos no vuelven al fondo. Nunca se borra nada
-definitivamente.
+definitivamente. Mientras se retiran, la ventana permanece abierta.
+
+**Un NAS y otras unidades de red no suelen tener papelera.** Allí, con «a la Papelera», la app deja los archivos donde
+están y te lo dice; para ellos elige «a la carpeta ‹Duplicados (GPS Studio)›». (Hasta el 9-10-2026 el Finder los borraba
+allí al instante; solo los recogía una papelera del propio NAS, p. ej. la carpeta `#recycle`.)
 
 ### ↗ Abrir con … — retocar en tu programa de fotos (desde v0.9.787)
 

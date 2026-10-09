@@ -2688,7 +2688,12 @@ def set_hidden(conn: sqlite3.Connection, path: str, hidden: bool) -> None:
     _set_meta(conn, path, hidden=1 if hidden else 0)
 
 
-@_locked
+class KeinPapierkorb(OSError):
+    """Das Laufwerk hat keinen Papierkorb (z. B. ein NAS über SMB) — die Datei bleibt, wo sie ist."""
+
+
+# 09.10.2026 — ohne @_locked: fasst die Datenbank nicht an; mit der Sperre stand beim Wegräumen von 518 Doppelten
+# übers NAS die ganze Bibliothek 6,5 Minuten still
 def _in_den_papierkorb(p: Path) -> str:
     """Datei in den **echten** Papierkorb des Systems legen.
 
@@ -2723,7 +2728,11 @@ def _in_den_papierkorb(p: Path) -> str:
     except ImportError:
         pass
     except Exception as e:
-        log.warning("library: send2trash fehlgeschlagen (%s) — Rückfall", e)
+        # 09.10.2026 (Marc, Doppelte übers NAS: „Das Volume hat keinen Papierkorb“) — KEIN Rückfall mehr über den
+        # Finder: „delete“ löscht auf einem Laufwerk ohne Papierkorb sofort und endgültig (gerettet hat damals nur der
+        # Papierkorb des NAS selbst). Lieber nichts tun und es sagen.
+        log.warning("library: kein Papierkorb für %s (%s) — Datei bleibt", p, e)
+        raise KeinPapierkorb(str(e)) from e
 
     if _sys.platform == "darwin":
         script = ('tell application "Finder" to delete POSIX file "%s"'

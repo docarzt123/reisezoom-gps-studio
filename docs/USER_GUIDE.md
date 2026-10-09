@@ -2020,7 +2020,11 @@ Links in Medien: **„⧉ Doppelte suchen …“**. Der Dialog hat zwei Reiter:
 
 Unten wählst du, wohin: **in den Papierkorb** (von dort zurückholbar) oder **in einen Ordner „Doppelte (GPS
 Studio)“** neben dem Original. Diesen Ordner lässt das Einlesen aus, die Dateien kommen also nicht zurück in den
-Bestand. Endgültig gelöscht wird nie etwas.
+Bestand. Endgültig gelöscht wird nie etwas. Solange weggeräumt wird, bleibt das Fenster offen.
+
+**NAS und andere Netzlaufwerke haben meist keinen Papierkorb.** Dort lässt die App die Dateien beim Weg „in den
+Papierkorb“ liegen und sagt es dir — wähle für sie „in Ordner ‚Doppelte (GPS Studio)‘“. (Bis 09.10.2026 wurden sie dort
+über den Finder sofort gelöscht; aufgefangen hat sie nur ein Papierkorb des NAS selbst, z. B. der Ordner `#recycle`.)
 
 ### ↗ Öffnen mit … — im Bildprogramm nacharbeiten (seit v0.9.787)
 

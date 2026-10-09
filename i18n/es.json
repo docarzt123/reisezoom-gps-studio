@@ -5975,5 +5975,7 @@
   "bearb.rechts": "Girar 90° a la derecha",
   "bearb.zs_reset": "Restablecer",
   "bearb.zs_fertig": "Listo",
-  "bearb.zs_hinweis": "Arrastra el marco para moverlo; las esquinas y los bordes cambian su tamaño. Intro = listo, Esc = cancelar."
+  "bearb.zs_hinweis": "Arrastra el marco para moverlo; las esquinas y los bordes cambian su tamaño. Intro = listo, Esc = cancelar.",
+  "dop.kein_papierkorb": "{n} están en una unidad sin papelera (p. ej. el NAS) y se quedan donde están — para ellos elige «a la carpeta ‹Duplicados (GPS Studio)›».",
+  "library.kein_papierkorb": "Esta unidad no tiene papelera (p. ej. un NAS): el archivo se queda donde está. Bórralo en el Finder si quieres."
 }

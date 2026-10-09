@@ -6532,6 +6532,8 @@ class Api:
                     _ds.nutzer_ziel(q)
                     clib._in_den_papierkorb(q)
                 ok.append(p)
+            except clib.KeinPapierkorb:
+                fehler.append({"pfad": p, "grund": "kein_papierkorb"})
             except Exception as e:  # noqa: BLE001
                 fehler.append({"pfad": p, "grund": str(e)[:160]})
         if ok:
@@ -6549,7 +6551,8 @@ class Api:
             except Exception as e:  # noqa: BLE001
                 log.warning("[doppelte] Bestand nicht nachgezogen: %s", e)
         log.info("[doppelte] %d weggeräumt (%s), %d nicht", len(ok), wohin, len(fehler))
-        return {"ok": bool(ok) or not pfade, "n_ok": len(ok), "n_fehler": len(fehler), "fehler": fehler[:30], "wohin": wohin}
+        return {"ok": bool(ok) or not pfade, "n_ok": len(ok), "n_fehler": len(fehler), "fehler": fehler[:30], "wohin": wohin,
+                "n_kein_papierkorb": sum(1 for f in fehler if f["grund"] == "kein_papierkorb")}
 
     def medium_touren(self, path: str) -> dict:
         """Alle Touren eines Mediums (für die rechte Spalte: ✕ / ＋) und die Touren seines Tages zum Hinzufügen."""
@@ -7642,6 +7645,12 @@ class Api:
                         "error": _ui_t()("library.tour_benutzt",
                         "Diese Tour wird von {n} Projekt(en) benutzt.").replace(
                             "{n}", str(len(halter)))}
+            # Dateischutz: Der Nutzer wirft GENAU diese Datei bewusst weg.
+            _ds.nutzer_ziel(path)
+            # 09.10.2026 — erst die Datei (ein Laufwerk ohne Papierkorb lehnt ab), dann die Projekte: sonst wären die
+            # Projekte weg und die Tour noch da
+            res = clib.trash_file(self._lib(), path)
+            log.info("library_trash: %s → %s", path, res.get("moved_to", "?"))
             if halter and mit_projekten:
                 with _projekte.LOCK:
                     daten = _projekte.laden(DATEN_ORT)
@@ -7649,11 +7658,10 @@ class Api:
                         _projekte.loeschen(daten, h["id"])
                     _projekte.speichern(DATEN_ORT, daten)
                 log.info("library_trash: %d Projekt(e) mit entfernt", len(halter))
-            # Dateischutz: Der Nutzer wirft GENAU diese Datei bewusst weg.
-            _ds.nutzer_ziel(path)
-            res = clib.trash_file(self._lib(), path)
-            log.info("library_trash: %s → %s", path, res.get("moved_to", "?"))
             return res
+        except clib.KeinPapierkorb:
+            return {"ok": False, "kein_papierkorb": True, "error": _ui_t()(
+                "library.kein_papierkorb", "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder.")}
         except Exception as e:
             log.exception("library_trash")
             return {"ok": False, "error": str(e)}

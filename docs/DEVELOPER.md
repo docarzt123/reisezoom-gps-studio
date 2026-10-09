@@ -1252,6 +1252,13 @@ Ordner verschieben als letzter Rückfall. Der Rückgabewert trägt
 `echter_papierkorb: bool`, damit die Oberfläche nichts verspricht, was nicht
 stimmt.
 
+⚠️ **Seit 09.10.2026:** Der Finder-Rückfall greift nur noch, wenn `send2trash` FEHLT (ImportError). Lehnt
+`send2trash` ab — typisch „Das Volume hat keinen Papierkorb“ auf einem NAS über SMB —, wirft die Funktion
+`library.KeinPapierkorb` und lässt die Datei liegen: Finder-`delete` löscht auf solchen Laufwerken sofort (518 Doppelte
+landeten so nur dank `#recycle` des NAS nicht im Nichts). Aufrufer: `fotos_doppelte_wegraeumen` zählt sie als
+`n_kein_papierkorb`, `library_trash` meldet `kein_papierkorb` und entfernt die Projekte erst nach dem Papierkorb.
+Die Funktion trägt kein `@_locked` mehr (sie fasst die Datenbank nicht an). Test `test_doppelte` E.
+
 ⚠️ `send2trash` steht in `requirements.txt` **und** als `hiddenimport` in der
 Spec. Ohne den Spec-Eintrag fehlt es im Bundle, der Import scheitert still und
 Windows fällt auf genau den Weg zurück, der repariert werden sollte.
