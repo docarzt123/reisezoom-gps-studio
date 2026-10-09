@@ -5016,8 +5016,11 @@ class Api:
             log.info("[fotos] letzter Stand: %s", e)
             return {"ok": True, "leer": True}
 
-    def fotos_ordner(self) -> dict:
+    def fotos_ordner(self, frisch: bool = False) -> dict:
         try:
+            if frisch:   # „Nochmal versuchen“: nicht die gemerkte Antwort der letzten Sekunden
+                from core import laufwerke as _lw
+                _lw.vergessen()
             conn = self._lib()
             # `nachschau`: wann zuletzt vollständig in die Ordner geschaut wurde.
             # Unterwegs ohne Laufwerk ist das der Stand, den man gerade sieht —

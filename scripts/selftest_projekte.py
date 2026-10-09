@@ -386,7 +386,8 @@ async def main():
               "e => e.classList.contains('is-sel')"),
               "… Karte ist als gewählt markiert")
         zeilen = await pg.eval_on_selector_all("#lib-detail .lib-projd-tour",
-              "e => e.map(x => x.textContent)")
+              # 09.10.2026 — Bildzeichen sind Strich-Symbole; das Zeichen steht in data-zeichen
+              "e => e.map(x => x.textContent + [...x.querySelectorAll('[data-zeichen]')].map(z => z.dataset.zeichen).join(''))")
         sagen(len(zeilen) == 2 and "⭐" in zeilen[0] and "⬆" in zeilen[1],
               "Touren-Liste mit Haupt-Stern und ⬆-Hinweis", str(zeilen))
         sagen(bool(await pg.query_selector("#lib-detail [data-pd-strb]")),

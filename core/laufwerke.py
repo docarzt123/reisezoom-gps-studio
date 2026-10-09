@@ -45,6 +45,16 @@ LESBAR_HAENGT_S = 30.0
 _merk_sperre = threading.Lock()
 
 
+def vergessen() -> None:
+    """Gemerkte Antworten verwerfen — „Nochmal versuchen“ soll wirklich nachsehen, nicht die Antwort von vor 3 s
+    zurückgeben (10.10.2026: Laufwerk war wieder da, der Knopf sagte trotzdem „immer noch nicht erreichbar“).
+    Laufende Prüfungen einer hängenden Verbindung bleiben (Audit E-3: keine zweiten Fäden)."""
+    with _merk_sperre:
+        for k in [k for k, v in _LESBAR_MERK.items() if v[1] is not None]:
+            _LESBAR_MERK.pop(k, None)
+    _MOUNT_MERK.update({"t": 0.0, "tab": None})
+
+
 def mount_tabelle(text: Optional[str] = None) -> list[dict]:
     """Eingehängte Laufwerke: [{quelle, ziel, fs, netz}] — `text` für Tests (Ausgabe von `mount`)."""
     if text is None:

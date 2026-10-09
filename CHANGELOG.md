@@ -14,7 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.787] – 2026-10-09
+
 ### Fixed
+- **„Try again“ for a missing drive really looks again.** The answer whether a drive is reachable is kept for a few seconds; a click right after the last check got the old answer („still not reachable“) although the drive was back. The button now always checks afresh and also says „back again“ when the background check had already noticed.
 - **Nothing is deleted on drives without a Trash.** When the system Trash refused a file (a NAS over SMB: „the volume has no Trash“), the app fell back to the Finder — and the Finder deletes immediately on such drives. Found when tidying up 518 duplicates on a NAS; its own recycle bin caught them. Now the file stays where it is and the duplicates message says so („choose the folder for those“); deleting a tour from the archive reports it as well and no longer removes its projects first. Moving files to the Trash no longer holds the library lock (the library stood still for 6.5 minutes).
 - **The duplicates window stays open while it tidies up.** A click next to it closed the window in the middle of the job — the files were still moved, but without the window you could not see when it was done. Now ✕, „Close“, the choice of destination and clicks outside are locked until it is finished.
 - **„Before“ in the loupe showed the edited photo** when the photo had been edited earlier (the large view already comes edited); it now always shows the original.

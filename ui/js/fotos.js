@@ -1116,13 +1116,14 @@
       Dasselbe wie die Wache, aber mit Wartefenster und einer Antwort in JEDEM Fall (auch „immer noch weg"). */
   async function fernJetztPruefen() {
     const vorher = ordner.filter(o => !o.da).length;
-    const r = await rzWarten("fotos_fern_nochmal", () => api().fotos_ordner()).catch(() => null);
+    const r = await rzWarten("fotos_fern_nochmal", () => api().fotos_ordner(true)).catch(() => null);
     if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || stand; nachschau = r.nachschau || nachschau; }
     const jetzt = ordner.filter(o => !o.da).length;
     navZeichnen();
     kopfAuffrischen();
     if (!r || !r.ok) toast(T("fotos.fern_nochmal_fehler", "Konnte nicht nachsehen — bitte gleich noch einmal."), "error", 4000);
-    else if (jetzt < vorher) { if (autoAn) aufholen(true); else toast(aufholText({ grund: "abgeschaltet" }), "success", 7000); }
+    // 10.10.2026 — auch „wieder da“, wenn die 20-s-Wache es schon gemerkt hatte (dann ist vorher schon 0)
+    else if (jetzt < vorher || jetzt === 0) { if (autoAn) aufholen(true); else toast(aufholText({ grund: "abgeschaltet" }), "success", 7000); }
     else toast(T("fotos.fern_nochmal_weg", "Immer noch nicht erreichbar. Ist das Laufwerk verbunden und im Finder sichtbar?"), "info", 5000);
     fernBeobachten();
   }

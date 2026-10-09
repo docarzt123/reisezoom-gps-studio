@@ -5189,7 +5189,10 @@ function _rzSpruchTick() {
     _rzSprueche.add(el);
   });
 }
-setInterval(() => { try { _rzSpruchTick(); } catch (_) {} }, 1000);
+// nur im Browser — util.js läuft in Tests auch unter Node (Rechen-Vergleiche), dort hielte der Takt den Prozess ewig am Leben
+if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+  setInterval(() => { try { _rzSpruchTick(); } catch (_) {} }, 1000);
+}
 window.rzWarteSpruch = rzWarteSpruch;
 
 /* 09.10.2026 — Kartenbild einer Tour im Archiv-Stil (Marc: Touren als Zeilen mit Kartenbild, „Nachtkarte als Archiv-

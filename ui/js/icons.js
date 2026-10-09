@@ -289,7 +289,7 @@ function rzZeichenUmwandeln(wurzel) {
   if (wurzel.title && RZ_ZEICHEN_RE.test(wurzel.title)) wurzel.title = wurzel.title.replace(RZ_ZEICHEN_RE_G, "").replace(/^\s+/, "");
   wurzel.querySelectorAll && wurzel.querySelectorAll("[title]").forEach(el => { if (RZ_ZEICHEN_RE.test(el.title) && !el.closest(RZ_ZEICHEN_AUS)) el.title = el.title.replace(RZ_ZEICHEN_RE_G, "").replace(/^\s+/, ""); });
   if (!RZ_ZEICHEN_RE.test(wurzel.textContent || "")) return;
-  const w = document.createTreeWalker(wurzel, NodeFilter.SHOW_TEXT), liste = [];
+  const w = document.createTreeWalker(wurzel, 4 /* NodeFilter.SHOW_TEXT */), liste = [];
   let n; while ((n = w.nextNode())) if (RZ_ZEICHEN_RE.test(n.nodeValue)) liste.push(n);
   liste.forEach(_rzTextknoten);
 }

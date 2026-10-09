@@ -123,7 +123,7 @@ async def main():
               and not await pg.eval_on_selector("#lib-seg-projekte", "e => e.classList.contains('is-on')"), "… Umschalter markiert „Vorlagen“")
         k = await karten()
         sagen(k == ["reisezoom-standard", "v1"], "Kacheln: Reisezoom-Standard zuerst, dann eigene", str(k))
-        sagen(await pg.eval_on_selector('.lib-vorl-karte[data-vid="reisezoom-standard"] .lib-proj-name', "e => e.textContent.startsWith('★')"),
+        sagen(await pg.eval_on_selector('.lib-vorl-karte[data-vid="reisezoom-standard"] .lib-proj-name', "e => e.textContent.trim().startsWith('★') || !!(e.firstElementChild && e.firstElementChild.dataset.zeichen === '★')"),
               "★ steht beim Standard")
         sagen(not await pg.query_selector('.lib-vorl-karte[data-vid="reisezoom-standard"] [data-vdel]')
               and not await pg.query_selector('.lib-vorl-karte[data-vid="reisezoom-standard"] [data-vren]'),
@@ -138,7 +138,7 @@ async def main():
         await pg.wait_for_timeout(400)
         r = await rufe("vorlage_standard_setzen")
         sagen(r and r[-1]["args"] == ["v1"], "☆ ruft vorlage_standard_setzen(v1)")
-        sagen(await pg.eval_on_selector('.lib-vorl-karte[data-vid="v1"] .lib-proj-name', "e => e.textContent.startsWith('★')"), "… ★ wandert auf die Vorlage")
+        sagen(await pg.eval_on_selector('.lib-vorl-karte[data-vid="v1"] .lib-proj-name', "e => e.textContent.trim().startsWith('★') || !!(e.firstElementChild && e.firstElementChild.dataset.zeichen === '★')"), "… ★ wandert auf die Vorlage")
         await pg.evaluate("window.__rzUndoControllers.library.undo()")
         await pg.wait_for_timeout(400)
         r = await rufe("vorlage_standard_setzen")

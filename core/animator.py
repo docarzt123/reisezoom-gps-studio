@@ -1653,9 +1653,9 @@ def _sign_thumb_fuer(s: dict, bedarf_px: int) -> Optional[str]:
     # 09.10.2026 — bearbeitetes Foto: das gespeicherte Bild kann veraltet sein → frisch und mit Bearbeitung
     if src and _cphotos.hat_rezept(src):
         eigenes = None
-        kante = _data_url_kante_px(eigenes)
-        if kante and kante >= bedarf_px:
-            return eigenes
+    kante = _data_url_kante_px(eigenes)
+    if kante and kante >= bedarf_px:
+        return eigenes
     if src:
         try:
             if os.path.exists(src):
