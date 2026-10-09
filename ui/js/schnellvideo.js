@@ -14,7 +14,7 @@
  */
 (function () {
   "use strict";
-  const T = (k, f) => (typeof t === "function" ? t(k, f) : f);
+  const T = (k, f, v) => (typeof t === "function" ? t(k, f, v) : f);   // 08.10.2026 — auch mit Platzhaltern ({n})
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   const FORMATE = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080] };
@@ -43,6 +43,16 @@
   /** 07.10.2026 — Kartenlook der Vorlage (Rollen-Farben) für die Vorschau; null bei Luftbild. */
   function vorlageKartenlook(n) {
     const L = window.rzLooks && window.rzLooks.LOOKS[(VORLAGEN[n] || VORLAGEN.weite).look];
+    const id = L && L.karte.map_style === "kartenlook" ? L.karte.kartenlook : null;
+    return (id && window.rzKartenlook && window.rzKartenlook.LOOKS[id]) || null;
+  }
+  /** 08.10.2026 (Video-Assistent, Seite „Karte“) — Kartenstil und Kartenlook eines frei gewählten Looks. */
+  function lookStil(look) {
+    const L = window.rzLooks && window.rzLooks.LOOKS[look];
+    return (L && L.karte.map_style) || "free_satellite";
+  }
+  function lookKartenlook(look) {
+    const L = window.rzLooks && window.rzLooks.LOOKS[look];
     const id = L && L.karte.map_style === "kartenlook" ? L.karte.kartenlook : null;
     return (id && window.rzKartenlook && window.rzKartenlook.LOOKS[id]) || null;
   }
@@ -234,7 +244,7 @@
     const roh = animatorPatchRoh(w, v);
     // 05.10.2026 — der Look der Vorlage (Karte, Linie, Verläufe, Schrift/Farben der Einblendungen); der Kartenstil
     // bleibt, was im Dialog steht (die Vorlage hat ihn vorgewählt, Q2 a — wer ihn ändert, behält seine Wahl)
-    const look = (VORLAGEN[w.vorlage] || VORLAGEN.weite).look;
+    const look = w.look || (VORLAGEN[w.vorlage] || VORLAGEN.weite).look;   // 08.10.2026 — Assistent: frei gewählter Look
     if (!window.rzLooks) return roh;
     const o = window.rzLooks.anwenden(look, roh);
     o.map_style = w.stil;
@@ -253,6 +263,9 @@
       kamera_vorgabe: "fahrt",   // 07.10.2026 (Klicktest) — Kamera-Pille zeigt „Kamerafahrt“, nicht ein altes „Start → Ziel“
       timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null),
       camera_follow_track: true,
+      // 08.10.2026 (Video-Assistent, Seite „Kamera“) — Folgen / Fest statt der Kamerafahrt
+      ...(w.kamera === "folgen" ? { keyframes_enabled: false, kamera_vorgabe: "folgen", timeline_events: [], camera_follow_track: true } : {}),
+      ...(w.kamera === "fest" ? { keyframes_enabled: false, kamera_vorgabe: "fest", timeline_events: [], camera_follow_track: false } : {}),
       // 29.09.2026 (Marc: „mach als Trackpunkt den Pfeil und flieg die Kamera immer dem Pfeil hinterher,
       // reduziere den Track, dass der Pfeil ruhig bleibt") — Pfeil mit größter Ruhe, geglättete Spur,
       // ruhige Kamera (dichte Stützstellen + Gelände-Tiefpass). Die Blickrichtung setzt der Animator
@@ -510,7 +523,7 @@
     const hulle = box.querySelector("#sv-vk"), kc = box.querySelector("#sv-vk-karte"), titelEl = box.querySelector("#sv-vk-titel");
     let map = null, marker = [], stilJetzt = "";
     const an = (id, d) => { const e = box.querySelector("#" + id); return e ? !!e.checked : d; };
-    const lookVon = () => { const L = window.rzLooks && window.rzLooks.LOOKS[(VORLAGEN[w.vorlage] || VORLAGEN.weite).look]; return L || null; };
+    const lookVon = () => { const L = window.rzLooks && window.rzLooks.LOOKS[w.look || (VORLAGEN[w.vorlage] || VORLAGEN.weite).look]; return L || null; };
     function format() {
       const [fw, fh] = FORMATE[w.format] || [16, 9];
       const H = 230, maxB = Math.max(160, (box.clientWidth || 520) - 4);
@@ -536,7 +549,7 @@
       } catch (_) {}
     }
     function stil() {
-      const key = vorlageStil(w.vorlage), look = vorlageKartenlook(w.vorlage);
+      const key = w.look ? lookStil(w.look) : vorlageStil(w.vorlage), look = w.look ? lookKartenlook(w.look) : vorlageKartenlook(w.vorlage);
       const merk = key + "|" + (look ? look.id : "");   // gleicher Stilname, anderer Look → neu zeichnen
       if (map && merk === stilJetzt) { linieZeichnen(); inhalt(); return; }
       stilJetzt = merk;
@@ -634,11 +647,27 @@
     return { format, stil, inhalt, titel, weg, einblendungen };
   }
 
+  /** 08.10.2026 — nach dem Assistenten rechts: was er ins Projekt geschrieben hat (Marc: „Liste: Das hat der Assistent
+   *  gemacht“). Alles bleibt bearbeitbar; ⌘Z nimmt den ganzen Schritt zurück. */
+  function vaBericht(liste) {
+    const p = document.createElement("div");
+    p.className = "anim-track-editor sign-editor va-bericht";
+    p.id = "va-bericht";
+    p.innerHTML = `<div class="tm-kopf"><b>🧭 ${esc(T("va.bericht_titel", "Das hat der Assistent gemacht"))}</b><button type="button" class="sign-editor-x" title="${esc(T("common.close", "Schließen"))}">✕</button></div>
+      <ul class="va-liste">${(liste || []).map(([ic, k, v2]) => `<li><span class="va-ic">${ic}</span><b>${esc(k)}</b><span>${esc(v2)}</span></li>`).join("")}</ul>
+      <p class="muted" style="font-size:11.5px">${esc(T("va.bericht_hinweis", "Alles ist jetzt normal bearbeitbar: Schilder in der Zeitleiste, Kamera unter „Kamera“, Einblendungen unter „Overlays“. ⌘Z nimmt den ganzen Assistenten zurück."))}</p>`;
+    p.querySelector(".sign-editor-x").onclick = () => p.remove();
+    document.getElementById("va-bericht")?.remove();
+    if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p, T("va.titel", "Video-Assistent")))) document.body.appendChild(p);
+  }
+
   async function rzSchnellVideo(pfad, opts) {
     if (!pfad) return;
     const P = (opts && opts.projekt && opts.projekt.id) ? opts.projekt : null;
     const ausAnimator = !!opts;   // aus dem Animator aufgerufen (das Archiv übergibt keine opts)
     const animS = (opts && +opts.animatorS > 0) ? Math.round(+opts.animatorS * 10) / 10 : 0;   // Länge im Animator (Intro + Animation + Halten)
+    // 08.10.2026 — Video-Assistent: derselbe Dialog als Quiz in neun Seiten, schreibt ins offene Projekt
+    const ASS = !!(opts && opts.assistent) && !!P;
     let v;
     try { v = await rzWarten("schnellvideo_vorschlag", () => api().schnellvideo_vorschlag(pfad)); }
     catch (e) { v = { ok: false, error: String(e) }; }
@@ -646,7 +675,7 @@
     const L = v.letzte || {};
     const w = {
       format: FORMATE[L.format] ? L.format : "9:16",
-      laenge: LAENGEN[L.laenge] ? L.laenge : "normal",   // 06.10.2026 (F-14) — nur noch Kurz/Normal/Lang
+      laenge: LAENGEN[L.laenge] ? L.laenge : "normal",   // 06.10.2026 — nur noch Kurz/Normal/Lang
       eigenS: laengeKlemmen(L.eigen_s || 30), animatorS: animS,
       qualitaet: L.qualitaet === "4k" ? "4k" : "1080",
       stil: L.stil || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
@@ -666,7 +695,7 @@
       sofortGroesse: sofortGroesse(L.sofort_groesse),               // 07.10.2026 (F-5)
       fotoPause: L.foto_pause === "stehen" ? "stehen" : "heran",    // 07.10.2026 (F-5) — Fotostopp mit/ohne Heranfahren
       angepasst: !!L.angepasst,
-      tempoRegie: true,   // 06.10.2026 (F-14) — immer an, kein Haken mehr
+      tempoRegie: true,   // 06.10.2026 — immer an, kein Haken mehr
     };
     if (!VORLAGEN[L.vorlage]) {
       // Erster Aufruf mit Vorlagen: Weite vorbelegen (Q5) — eigene Musikdatei und Felder bleiben
@@ -675,6 +704,8 @@
       if (!L.musik || String(L.musik).startsWith("builtin:")) w.musik = V.musik;
     }
     if (!w.fotoArt) w.fotoArt = VORLAGEN[w.vorlage].fotoArt;
+    // Der Assistent schlägt vor — Fotos, Highlights, Schlusskarte und Musik an, auch wenn das Schnell-Video zuletzt ohne lief
+    if (ASS) { w.look = VORLAGEN[w.vorlage].look; w.kamera = "fahrt"; w.fotosAn = true; w.highlights = true; w.schlussAn = true; w.musikAn = true; w.logbuch = true; }
     // 07.10.2026 (Web-Fund F-5) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
     // Fotopause ohne Heranfahren. Der Dialog bleibt schlank (F-14: die Fotoart kommt sonst aus der Vorlage).
     if (opts && FOTO_ARTEN.includes(opts.fotoArt)) w.fotoArt = opts.fotoArt;
@@ -682,12 +713,20 @@
     if (opts && (opts.fotoPause === "stehen" || opts.fotoPause === "heran")) w.fotoPause = opts.fotoPause;
     const feldLabel = (f) => T("animator.statsfield." + f, f);
     const m = openModal({
-      title: "🎬 " + T("schnell.titel_dialog", "Schnell-Video"),
+      title: ASS ? "🧭 " + T("va.titel", "Video-Assistent") : "🎬 " + T("schnell.titel_dialog", "Schnell-Video"),
       body: `<div class="sv-dialog">
-        <p class="muted" style="margin:0 0 10px">${esc(T("schnell.intro", "Ein fertiges Video deiner Tour: Überblick, Flug entlang der Strecke, Schlussblick mit deinen Zahlen."))}</p>
+        ${ASS ? "" : `<p class="muted" style="margin:0 0 10px">${esc(T("schnell.intro", "Ein fertiges Video deiner Tour: Überblick, Flug entlang der Strecke, Schlussblick mit deinen Zahlen."))}</p>`}
         <!-- 06.10.2026 (Marc: „das Schnell-Video braucht eine Vorschau, dass man weiß, was man da einstellt: komplette Karte
              mit komplettem Track; wenn Fotos da sind, eins offen, die anderen zu; gleiches gilt für POIs") -->
         <div class="sv-vorschau" id="sv-vorschau"><div class="sv-vk" id="sv-vk"><div class="sv-vk-karte" id="sv-vk-karte"></div><div class="sv-vk-titel" id="sv-vk-titel"></div><div class="sv-vk-zahlen" id="sv-vk-zahlen" hidden></div><div class="sv-vk-profil" id="sv-vk-profil" hidden></div></div></div>
+        ${ASS ? `<div class="va-kopf" id="va-kopf"></div>` : ""}
+        <div data-va="2">
+        ${ASS ? `<p class="va-frage">${esc(T("va.s2_frage", "Was für ein Video soll es werden?"))}</p>
+          <div class="va-karten" id="va-zweck">${[["erinnerung", "🏡", T("va.z_erinnerung", "Erinnerung"), T("va.z_erinnerung_t", "für dich und die Familie — Orte und Fotos, 16:9, eine Minute")],
+              ["social", "📱", T("va.z_social", "Social"), T("va.z_social_t", "Reel oder Short — hochkant, kurz, mit Zahlen")],
+              ["landschaft", "🏔", T("va.z_landschaft", "Landschaft"), T("va.z_landschaft_t", "Luftbild, große Fotos, ruhig — 16:9, 40 Sekunden")]]
+            .map(([k, ic, ti, tx]) => `<button type="button" class="va-karte" data-va-zweck="${k}"><span class="va-ic">${ic}</span><b>${esc(ti)}</b><span>${esc(tx)}</span></button>`).join("")}</div>
+          <p class="muted va-oder">${esc(T("va.s2_fein", "Oder genauer: Vorlage, Format und Länge"))}</p>` : ""}
         <div class="sv-vorlagen" id="sv-vorlagen">${VORLAGE_NAMEN.map(n => `<button type="button" class="sv-vorlage${n === w.vorlage ? " is-on" : ""}" data-sv-vorlage="${n}">
           <span class="rz-look-bild rz-look-${VORLAGEN[n].look}"></span><span class="sv-vl-name">${esc(T("schnell.vl." + n, { weite: "Weite", tagebuch: "Tagebuch", puls: "Puls" }[n]))}</span>
           <span class="sv-vl-text">${esc(T("schnell.vl." + n + "_text", { weite: "Landschaft, Fotos groß, Zahlen am Schluss", tagebuch: "Orte und Erinnerungen, Fotos als Sofortbild", puls: "Strecke und Leistung, Datenleiste mit Profil" }[n]))}</span></button>`).join("")}</div>
@@ -696,16 +735,19 @@
         ${knopfReihe("format", [["9:16", "9:16 " + T("schnell.format_hoch", "hochkant")], ["16:9", "16:9"], ["1:1", "1:1"]], w.format)}
         <label class="field-label">${esc(T("schnell.laenge", "Länge"))}</label>
         ${knopfReihe("laenge", [["kurz", T("schnell.kurz", "Kurz") + " · 20 s"], ["normal", T("schnell.normal", "Normal") + " · 40 s"], ["lang", T("schnell.lang", "Lang") + " · 60 s"]], w.laenge)}
+        </div>
+        <div data-va="1">${ASS ? `<p class="va-frage">${esc(T("va.s1_frage", "Wie soll dein Video heißen?"))}</p>` : ""}
         <label class="field-label" for="sv-titel">${esc(T("schnell.titel", "Titel"))}</label>
         <input type="text" id="sv-titel" class="lib-input" value="${esc(w.titel)}">
         <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
         <label class="field-label" for="sv-unter">${esc(T("schnell.unterzeile", "Unterzeile"))}</label>
         <input type="text" id="sv-unter" class="lib-input" value="${esc(w.unter)}">
+        </div>
         <!-- 06.10.2026 (Marc: „Schnelle Videos müssen schon deutlich eingedampft werden … alles andere
              muss in den Assistenten“) — ein Bildschirm, kein „Mehr“: Fotos (+ eigene), Musik, Einblendungen, Schlusskarte.
              Kartenstil, Fotoart, Übersichtskarte und 3D-Häuser bringt die Vorlage mit; Qualität und Speicherort fragt
              der Export-Dialog (derselbe Weg wie im Animator). Clips, Logbuch, eigene Länge → Animator/Assistent. -->
-        <div class="sv-zutat" data-sv-zutat="fotos">
+        <div class="sv-zutat" data-sv-zutat="fotos" data-va="5">${ASS ? `<p class="va-frage">${esc(T("va.s5_frage", "Welche Fotos sollen ins Video? Ausgewählt nach Schärfe, Abwechslung und Verteilung über die Strecke — abwählen oder eigene dazunehmen."))}</p>` : ""}
           <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-fotos-an"${w.fotosAn ? " checked" : ""}><span>📸 ${esc(T("schnell.z.fotos", "Fotostopps"))}</span><span class="sv-zutat-stand muted" id="sv-fotos-an-stand"></span></label>
           <div class="sv-zutat-teil">
             <div class="sv-fotos" id="sv-fotos"><span class="muted">${esc(T("schnell.fotos_suchen", "Fotos dieser Tour werden gesucht …"))}</span></div>
@@ -715,7 +757,7 @@
               <button type="button" class="btn btn-small" data-sv-plus="dateien" title="${esc(T("schnell.fotos_plus_tip", "Eigene Fotos dazunehmen — sie werden der Strecke zugeordnet (GPS, sonst Aufnahmezeit)"))}">+ ${esc(T("schnell.fotos_plus", "Fotos …"))}</button>
               <button type="button" class="btn btn-small" data-sv-plus="ordner" title="${esc(T("schnell.fotos_plus_tip", "Eigene Fotos dazunehmen — sie werden der Strecke zugeordnet (GPS, sonst Aufnahmezeit)"))}">+ ${esc(T("schnell.fotos_plus_ordner", "Ordner …"))}</button></div>
         </div>
-        <div class="sv-zutat" data-sv-zutat="musik">
+        <div class="sv-zutat" data-sv-zutat="musik" data-va="8">${ASS ? `<p class="va-frage">${esc(T("va.s8_frage", "Wie endet dein Video — und mit welcher Musik?"))}</p>` : ""}
           <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-musik-an"${w.musikAn ? " checked" : ""}><span>🎵 ${esc(T("schnell.z.musik", "Musik"))}</span><span class="sv-zutat-stand muted" id="sv-musik-an-stand"></span></label>
           <div class="sv-zutat-teil">
             <div class="sv-musik-zeile">
@@ -730,23 +772,43 @@
             </div>
           </div>
         </div>
-        <div class="sv-zutat" data-sv-zutat="einblendungen">
+        <div class="sv-zutat" data-sv-zutat="einblendungen" data-va="4">${ASS ? `<p class="va-frage">${esc(T("va.s4_frage", "Was soll unterwegs eingeblendet werden?"))}</p>` : ""}
           <label class="chk"><input type="checkbox" id="sv-zahlen"${w.zahlen ? " checked" : ""}><span>📊 ${esc(T("schnell.zahlen", "Zahlen unterwegs (Strecke und Höhe)"))}</span></label>
           <label class="chk"><input type="checkbox" id="sv-profil"${w.profil ? " checked" : ""}><span>⛰ ${esc(T("schnell.profil", "Höhenprofil"))}</span></label>
           <label class="chk"><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}><span>⭐ ${esc(T("schnell.highlights", "Highlights (höchster Punkt, steilste Stelle, halbe Strecke …)"))}</span></label>
         </div>
-        <div class="sv-zutat" data-sv-zutat="schluss">
+        <div class="sv-zutat" data-sv-zutat="schluss" data-va="8">
           <label class="chk sv-zutat-kopf"><input type="checkbox" id="sv-schluss-an"${w.schlussAn ? " checked" : ""}><span>🏁 ${esc(T("schnell.z.schluss", "Schlusskarte"))}</span><span class="sv-zutat-stand muted" id="sv-schluss-an-stand"></span></label>
           <div class="sv-zutat-teil sv-felder">${SCHLUSS_FELDER.map(f => `<label class="chk"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${esc(feldLabel(f))}</span></label>`).join("")}</div>
         </div>
-        ${P ? `<div class="sv-projekt">
+        ${ASS ? `
+        <div data-va="3"><p class="va-frage">${esc(T("va.s3_frage", "Welche Karte passt zu deiner Tour?"))}</p>
+          <div class="rz-look-reihe va-looks" id="va-looks">${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n => { const st = window.rzLooks.kachelStil ? window.rzLooks.kachelStil(n) : "";
+            return `<button type="button" class="rz-look-knopf${n === w.look ? " is-on" : ""}" data-va-look="${n}" title="${esc(T("look." + n + ".tip", ""))}"><span class="rz-look-bild rz-look-${n}${st ? " rz-look-svg" : ""}"${st}></span><span>${esc(T("look." + n, n))}</span></button>`; }).join("")}</div>
+          <label class="chk" style="margin-top:8px"><input type="checkbox" id="sv-gebaeude"${w.gebaeude ? " checked" : ""}><span>🏘 ${esc(T("va.gebaeude", "3D-Häuser in Orten"))}</span></label></div>
+        <div data-va="6"><p class="va-frage">${esc(T("va.s6_frage", "Welche Orte und Momente sollen als Schild erscheinen?"))}</p>
+          <label class="chk"><input type="checkbox" id="sv-highlights-6" disabled checked><span>⭐ ${esc(T("va.hl_hinweis", "Highlights — stellst du auf der Seite „Einblendungen“ ein"))}</span></label>
+          <label class="chk"><input type="checkbox" id="sv-logbuch"${w.logbuch ? " checked" : ""}><span>📖 ${esc(T("va.logbuch", "Pausen und Übernachtungen aus dem Logbuch"))}</span></label>
+          <p class="muted" style="font-size:11.5px;margin:4px 0 0">${esc(T("va.s6_hinweis", "Fotostopps bekommen ihren Ort automatisch. Jedes Schild lässt sich danach im Animator ändern oder löschen."))}</p></div>
+        <div data-va="7"><p class="va-frage">${esc(T("va.s7_frage", "Wie soll sich die Kamera bewegen?"))}</p>
+          <div class="va-karten" id="va-kamera">${[["fahrt", "🎥", T("einfach.k_fahrt", "Kamerafahrt"), T("va.k_fahrt_t", "Überblick, Flug entlang der Strecke, Blick auf die Höhepunkte, Schlussblick")],
+              ["folgen", "🛩", T("einfach.k_folgen", "Folgen"), T("va.k_folgen_t", "die Kamera fliegt die ganze Zeit hinter dem Punkt her")],
+              ["fest", "🗺", T("einfach.k_fest", "Fest"), T("va.k_fest_t", "die ganze Tour bleibt im Bild, nur die Linie wächst")]]
+            .map(([k, ic, ti, tx]) => `<button type="button" class="va-karte${k === w.kamera ? " is-on" : ""}" data-va-kamera="${k}"><span class="va-ic">${ic}</span><b>${esc(ti)}</b><span>${esc(tx)}</span></button>`).join("")}</div></div>
+        <div data-va="9"><p class="va-frage">${esc(T("va.s9_frage", "Fertig — das kommt in dein Projekt:"))}</p><ul class="va-liste" id="va-liste"></ul>
+          <p class="muted" style="font-size:11.5px">${esc(T("va.s9_hinweis", "Alles landet bearbeitbar im Animator — ein ⌘Z nimmt den ganzen Assistenten zurück."))}${P.keyframes > 0 ? " " + esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes)) : ""}</p></div>` : ""}
+        ${P && !ASS ? `<div class="sv-projekt">
           <label class="field-label">${esc(T("schnell.in_projekt_titel", "In dieses Projekt übernehmen"))}</label>
           <label class="chk"><input type="checkbox" id="sv-look"${P.hatLook ? " checked" : ""}><span>${esc(T("schnell.look_behalten", "Meinen Look behalten — nur Kamerafahrt und Ablauf übernehmen"))}</span></label>
           <p class="muted" style="margin:2px 0 0;font-size:11.5px">${esc(T("schnell.look_hinweis", "Ohne Haken kommen auch Format, Kartenstil, Einblendungen, Titel und Schlusskarte des Schnell-Videos ins Projekt."))}</p>
           ${P.keyframes > 0 ? `<p class="sv-hinweis" style="margin-top:6px">⚠️ ${esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes))}</p>` : ""}
         </div>` : ""}
       </div>`,
-      footer: (P ? `<button type="button" class="btn btn-primary" id="sv-uebernehmen">${esc(T("schnell.in_projekt", "In dieses Projekt übernehmen"))}</button>` : "")
+      footer: ASS ? `<button type="button" class="btn" id="va-zurueck">← ${esc(T("va.zurueck", "Zurück"))}</button>
+          <button type="button" class="btn btn-ghost" id="va-skip">${esc(T("va.ueberspringen", "Überspringen"))}</button>
+          <button type="button" class="btn btn-primary" id="va-weiter">${esc(T("va.weiter", "Weiter"))} →</button>
+          <button type="button" class="btn btn-primary" id="sv-uebernehmen" hidden>✓ ${esc(T("va.uebernehmen", "Ins Projekt übernehmen"))}</button>`
+      : (P ? `<button type="button" class="btn btn-primary" id="sv-uebernehmen">${esc(T("schnell.in_projekt", "In dieses Projekt übernehmen"))}</button>` : "")
         + `<button type="button" class="btn" id="sv-animator">${esc(P ? T("schnell.neues_projekt", "Neues Projekt") : T("schnell.im_animator", "Im Animator öffnen"))}</button>
                <button type="button" class="btn${P ? "" : " btn-primary"}" id="sv-rendern">🎬 ${esc(T("schnell.erstellen", "Video erstellen …"))}</button>`,
     });
@@ -762,7 +824,7 @@
         if (w.laenge === "eigen") box.querySelector("#sv-eigen")?.focus();
       }
     }));
-    const rechte = () => {};   // 06.10.2026 (F-14) — Kartenstil kommt aus der Vorlage, keine eigene Auswahl mehr
+    const rechte = () => {};   // 06.10.2026 — Kartenstil kommt aus der Vorlage, keine eigene Auswahl mehr
 
     // Fotostopps: Vorschlag aus dem Foto-Bestand, im Dialog abwählbar (Marc, Q1 „beides")
     w.fotos = []; w.fotosAus = new Set();
@@ -878,13 +940,14 @@
       fotosInfo(); zutatenStand();
     });
     (async () => {
-      // 06.10.2026 (F-14) — Clips gehören nicht mehr ins Schnell-Video (Animator → Ton & Clips)
+      // 06.10.2026 — Clips gehören nicht mehr ins Schnell-Video (Animator → Ton & Clips)
       w.clips = [];
       w.clipsGeladen = true;
       // Q1-Prinzip: was gefunden wird, ist vorgewählt — nichts gefunden → Schalter aus (Wahl bleibt änderbar)
       if (!w.clips.length && L.clips_an == null) { const c = box.querySelector("#sv-clips-an"); if (c) c.checked = false; }
       clipsZeigen(); fotosInfo();
     })();
+    box.querySelector("#sv-titel")?.addEventListener("keydown", (e) => { e.currentTarget.dataset.getippt = "1"; });
     // ── 05.10.2026 — Titel-Vorschläge (Video-Assistent): Gipfel, Start → Ziel, „Rund um …" — ein Klick übernimmt ──
     (async () => {
       let r = null;
@@ -892,6 +955,13 @@
       const box_ = box.querySelector("#sv-titel-vorschl"); const ein = box.querySelector("#sv-titel");
       const liste = ((r && r.titel) || []).filter(x => x && x !== (ein && ein.value));
       if (!box_ || !liste.length) return;
+      // 08.10.2026 (Klicktest) — Assistent: steht noch der Dateiname im Feld („2023-05-05_Barranco … -1106845751“,
+      // „24613993220_ACTIVITY“), gleich den ersten Vorschlag nehmen; der Dateiname bleibt als Chip wählbar
+      const dateiname = (x) => /^\d{4}-\d{2}-\d{2}[_ ]|\d{7,}|_ACTIVITY|\.(gpx|fit|kml)$/i.test(String(x || ""));
+      if (ASS && ein && !ein.dataset.getippt && dateiname(ein.value)) {
+        const alt = ein.value; ein.value = liste[0]; ein.dispatchEvent(new Event("input"));
+        liste.splice(0, 1, alt);
+      }
       box_.innerHTML = `<span class="muted">${esc(T("schnell.titel_vorschlag", "Vorschläge:"))}</span>` + liste.map(x => `<button type="button" class="sv-titel-chip" data-sv-titel="${esc(x)}">${esc(x)}</button>`).join("");
       box_.addEventListener("click", (e) => { const c = e.target.closest("[data-sv-titel]"); if (c && ein) { ein.value = c.dataset.svTitel; ein.dispatchEvent(new Event("input")); } });
     })();
@@ -936,7 +1006,7 @@
     // Schalter-Stand: aus dem Dialog, nach dem Schließen aus dem zuletzt gelesenen Stand (werteLesen) —
     // „Übernehmen" und „Rendern" schließen den Dialog, bevor die Schilder gebaut werden.
     const SCHALTER = ["sv-fotos-an", "sv-clips-an", "sv-clipton", "sv-logbuch", "sv-musik-an", "sv-klick", "sv-uebersicht", "sv-schluss-an", "sv-gebaeude"];
-    // 06.10.2026 (F-14) — Schalter, die nicht mehr im Dialog stehen: Übersichtskarte aus der Vorlage, 3D-Häuser automatisch
+    // 06.10.2026 — Schalter, die nicht mehr im Dialog stehen: Übersichtskarte aus der Vorlage, 3D-Häuser automatisch
     // (Tour führt durch einen Ort), Klick wie zuletzt; Clips und Logbuch aus (→ Animator/Assistent).
     const stand = { "sv-uebersicht": !!VORLAGEN[w.vorlage].uebersicht, "sv-gebaeude": !!w.gebaeude, "sv-klick": w.klick,
                     "sv-clips-an": false, "sv-clipton": false, "sv-logbuch": false };
@@ -1024,6 +1094,7 @@
       vlSetzt = true;
       try {
         w.vorlage = n; w.angepasst = false; w.fotoArt = V.fotoArt;
+        if (ASS) { w.look = V.look; box.querySelectorAll("[data-va-look]").forEach(b => b.classList.toggle("is-on", b.dataset.vaLook === w.look)); }
         const setz = (id, an_) => { const e = box.querySelector("#" + id); if (e) e.checked = !!an_; };
         setz("sv-zahlen", V.zahlen); setz("sv-profil", V.profil); stand["sv-uebersicht"] = !!V.uebersicht;
         box.querySelectorAll("[data-sv-feld]").forEach(c => { c.checked = V.felder.includes(c.dataset.svFeld); });
@@ -1046,8 +1117,9 @@
     vlStand();
 
     let laeuft = false;
+    let vaListe = [];   // 08.10.2026 — „Das hat der Assistent gemacht“
     const werteLesen = () => {
-      w.stil = vorlageStil(w.vorlage);   // 06.10.2026 (F-14) — Kartenstil aus der Vorlage
+      w.stil = w.look ? lookStil(w.look) : vorlageStil(w.vorlage);   // 06.10.2026 — Kartenstil aus der Vorlage (Assistent: aus dem Look)
       w.titel = box.querySelector("#sv-titel").value.trim();
       w.unter = box.querySelector("#sv-unter").value.trim();
       w.zahlen = box.querySelector("#sv-zahlen").checked;
@@ -1094,7 +1166,7 @@
       laeuft = true;
       let r;
       const schilder = schilderJetzt();
-      try { r = await rzWarten("schnellvideo_uebernehmen", () => api().schnellvideo_uebernehmen(P.id, patch, letzte, schilder)); }
+      try { r = await rzWarten("schnellvideo_uebernehmen", () => api().schnellvideo_uebernehmen(P.id, patch, ASS ? null : letzte, schilder)); }   // 08.10.2026 — der Assistent merkt sich nichts für das Schnell-Video (sonst startete es danach mit „Social/Puls“)
       catch (e) { r = { ok: false, error: String(e) }; }
       laeuft = false;
       if (!r || !r.ok) { toast((r && r.error) || T("common.error", "Fehler"), "error", 6000); return; }
@@ -1103,7 +1175,7 @@
       // Fotostopps sind Schilder (Projekt-Wurzel): im selben ⌘Z-Schritt (Undo-Stand mit __signs)
       if (Array.isArray((r.nachher || {}).signs)) { nachher.__signs = r.nachher.signs; if (vorher) vorher.__signs = (r.vorher || {}).signs || []; }
       const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
-      const label = T("schnell.undo_label", "Schnell-Video übernommen");
+      const label = ASS ? T("va.undo_label", "Video-Assistent") : T("schnell.undo_label", "Schnell-Video übernommen");
       if (ctrl && typeof ctrl.applyState === "function") ctrl.applyState(nachher, label, vorher);
       // Blickrichtung aus der geglätteten Spur — gehört zum selben ⌘Z-Schritt (kein eigener)
       await new Promise(res => setTimeout(res, 1200));
@@ -1121,7 +1193,8 @@
           await new Promise(res => setTimeout(res, 500));
         }
       }
-      toast(T("schnell.uebernommen", "Schnell-Video übernommen — die Keyframes kannst du jetzt anpassen."), "success", 5000);
+      if (ASS) { vaBericht(vaListe); toast(T("va.uebernommen", "Der Assistent hat dein Projekt eingerichtet — alles ist bearbeitbar, ⌘Z nimmt es zurück."), "success", 6000); }
+      else toast(T("schnell.uebernommen", "Schnell-Video übernommen — die Keyframes kannst du jetzt anpassen."), "success", 5000);
     };
     const los = async (rendern) => {
       if (laeuft) return; laeuft = true;
@@ -1185,9 +1258,78 @@
         // Abbrechen im Export-Dialog: das Projekt ist angelegt und steht im Animator — dort weitermachen
         abbrechen: () => { B.zu(); toast(T("schnell.im_animator_offen", "Das Schnell-Video-Projekt ist im Animator offen."), "info", 3500); } });
     };
-    document.getElementById("sv-animator").onclick = () => los(false);
+    const svA = document.getElementById("sv-animator"); if (svA) svA.onclick = () => los(false);
     if (P) document.getElementById("sv-uebernehmen").onclick = () => uebernehmen();
-    document.getElementById("sv-rendern").onclick = () => los(true);
+    const svR = document.getElementById("sv-rendern"); if (svR) svR.onclick = () => los(true);
+
+    // ── 08.10.2026 — Video-Assistent: Seite für Seite, jede überspringbar, am Ende ein ⌘Z-Schritt ──
+    if (ASS) {
+      const NAMEN = [null, T("va.n1", "Titel"), T("va.n2", "Was für ein Video"), T("va.n3", "Karte"), T("va.n4", "Einblendungen"),
+                     T("va.n5", "Fotos"), T("va.n6", "Orte & Schilder"), T("va.n7", "Kamera"), T("va.n8", "Schluss & Musik"), T("va.n9", "Fertig")];
+      let seite = 1;
+      const zusammenfassung = () => {
+        try { werteLesen(); } catch (_) {}
+        const stopps = (() => { try { return stoppsJetzt().length; } catch (_) { return 0; } })();
+        const ohneHalt = (() => { try { return fotoArtJetzt() !== "gross" ? ohneHaltJetzt().length : 0; } catch (_) { return 0; } })();
+        const artText = { gross: T("va.fa_gross", "groß mit Halt"), sofortbild: T("va.fa_sofort", "als Sofortbild"), pip: T("va.fa_pip", "als Bild im Bild") }[(() => { try { return fotoArtJetzt(); } catch (_) { return "gross"; } })()] || "";
+        const schilder = (() => { try { return schilderJetzt().length; } catch (_) { return stopps; } })();
+        const einbl = [w.zahlen && T("va.e_zahlen", "Zahlen unterwegs"), w.profil && T("va.e_profil", "Höhenprofil"), w.highlights && T("va.e_highlights", "Highlights")].filter(Boolean);
+        const mu = box.querySelector("#sv-musik"), muText = mu && mu.selectedOptions && mu.selectedOptions[0] ? mu.selectedOptions[0].textContent.trim() : "";
+        const kam = { fahrt: T("einfach.k_fahrt", "Kamerafahrt"), folgen: T("einfach.k_folgen", "Folgen"), fest: T("einfach.k_fest", "Fest") }[w.kamera] || "";
+        vaListe = [
+          ["🏷", T("va.l_titel", "Titel"), [w.titel, w.unter].filter(Boolean).join(" · ") || "—"],
+          ["🎬", T("va.l_format", "Format und Länge"), `${w.format} · ${laengeS(w)} s`],
+          ["🗺", T("va.l_karte", "Karte"), T("look." + w.look, w.look) + (w.gebaeude ? " · " + T("va.gebaeude_kurz", "3D-Häuser") : "")],
+          ["📊", T("va.l_einbl", "Einblendungen"), einbl.join(", ") || T("va.keine", "keine")],
+          ["📸", T("va.l_fotos", "Fotos"), w.fotosAn ? T("va.l_fotos_n2", "{n} Fotos {art}", { n: stopps + ohneHalt, art: artText }) : T("va.aus", "aus")],
+          ["🚩", T("va.l_schilder", "Schilder"), T("va.l_schilder_n", "{n} Schilder an der Strecke", { n: schilder }) + (an("sv-logbuch") ? " · " + T("va.l_logbuch", "mit Logbuch") : "")],
+          ["🎥", T("va.l_kamera", "Kamera"), kam],
+          ["🎵", T("va.l_musik", "Musik"), w.musikAn ? (muText || "✓") : T("va.aus", "aus")],
+          ["🏁", T("va.l_schluss", "Schlusskarte"), w.schlussAn ? (w.felder.length + " " + T("va.l_werte", "Werte")) : T("va.aus", "aus")],
+        ];
+        const ul = box.querySelector("#va-liste");
+        if (ul) ul.innerHTML = vaListe.map(([ic, k, v2]) => `<li><span class="va-ic">${ic}</span><b>${esc(k)}</b><span>${esc(v2)}</span></li>`).join("");
+      };
+      const zeigen = () => {
+        box.querySelectorAll("[data-va]").forEach(e => e.classList.toggle("va-weg", +e.dataset.va !== seite));
+        const k = box.querySelector("#va-kopf");
+        if (k) k.innerHTML = `<div class="va-schritt">${esc(T("va.schritt", "Schritt {n} von 9", { n: seite }))} · <b>${esc(NAMEN[seite])}</b></div>
+          <div class="va-punkte">${NAMEN.slice(1).map((n, i) => `<button type="button" class="va-punkt${i + 1 === seite ? " is-on" : ""}${i + 1 < seite ? " ist-fertig" : ""}" data-va-geh="${i + 1}" title="${esc(n)}"></button>`).join("")}</div>`;
+        k && k.querySelectorAll("[data-va-geh]").forEach(b => { b.onclick = () => { seite = +b.dataset.vaGeh; zeigen(); }; });
+        const z = document.getElementById("va-zurueck"), wt = document.getElementById("va-weiter"), sk = document.getElementById("va-skip"), ue = document.getElementById("sv-uebernehmen");
+        if (z) z.disabled = seite <= 1;
+        if (wt) wt.hidden = seite >= 9;
+        if (sk) sk.hidden = seite >= 9;
+        if (ue) ue.hidden = seite < 9;
+        if (seite === 9) zusammenfassung();
+        try { applog("info", `[assistent] Seite ${seite} · ${NAMEN[seite]}`); } catch (_) {}
+      };
+      document.getElementById("va-zurueck").onclick = () => { if (seite > 1) { seite--; zeigen(); } };
+      document.getElementById("va-weiter").onclick = () => { if (seite < 9) { seite++; zeigen(); } };
+      document.getElementById("va-skip").onclick = () => { if (seite < 9) { seite++; zeigen(); } };   // Vorschlag lassen, wie er ist
+      box.querySelector("#va-zweck")?.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-va-zweck]"); if (!b) return;
+        const Z = { erinnerung: ["tagebuch", "16:9", "lang"], social: ["puls", "9:16", "kurz"], landschaft: ["weite", "16:9", "normal"] }[b.dataset.vaZweck];
+        if (!Z) return;
+        vorlageSetzen(Z[0]);
+        for (const [g, wert] of [["format", Z[1]], ["laenge", Z[2]]]) box.querySelector(`[data-sv-gruppe="${g}"] [data-sv-wert="${wert}"]`)?.click();
+        box.querySelectorAll("[data-va-zweck]").forEach(x => x.classList.toggle("is-on", x === b));
+        try { applog("info", `[assistent] Zweck ${b.dataset.vaZweck}`); } catch (_) {}
+      });
+      box.querySelector("#va-looks")?.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-va-look]"); if (!b) return;
+        w.look = b.dataset.vaLook;
+        box.querySelectorAll("[data-va-look]").forEach(x => x.classList.toggle("is-on", x === b));
+        vorschau.stil();
+      });
+      box.querySelector("#va-kamera")?.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-va-kamera]"); if (!b) return;
+        w.kamera = b.dataset.vaKamera;
+        box.querySelectorAll("[data-va-kamera]").forEach(x => x.classList.toggle("is-on", x === b));
+      });
+      zeigen();
+      window.__rzVaSeite = (n) => { seite = n; zeigen(); };   // Prüfstand
+    }
   }
 
   /** Fortschritt des Renders im eigenen Bildschirm zeigen (derselbe Status wie im Animator). */

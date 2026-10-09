@@ -190,7 +190,7 @@ def lauf(jetzt: bool = False) -> int:
     log_pfad = ZIEL / f"{stempel}-suite.log"
     t0 = time.time()
     with open(log_pfad, "w", encoding="utf-8") as fh:
-        r = subprocess.run([str(PYTHON), "-u", "scripts/run_tests.py"], cwd=SPIEGEL, stdout=fh, stderr=subprocess.STDOUT,
+        r = subprocess.run([str(PYTHON), "-u", "scripts/run_tests.py", "--langsam"], cwd=SPIEGEL, stdout=fh, stderr=subprocess.STDOUT,
                            env=_umgebung())
     dauer = time.time() - t0
     text = log_pfad.read_text(encoding="utf-8", errors="replace")

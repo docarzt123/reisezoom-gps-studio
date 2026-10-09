@@ -888,6 +888,22 @@ in der **Live-Box** „Datum & Uhrzeit“ und „Uhrzeit“ am aktuellen Punkt. 
 Länder mit mehreren Zonen nach Längengrad), sonst aus der Lage der Tour. Das Format folgt der
 App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
 
+### 🧭 Video-Assistent — Schritt für Schritt zum eigenen Video (seit v0.9.787) ⭐
+
+Oben im Animator, neben **„Schnell-Video …“**, steht **„🧭 Video-Assistent …“** (auch auf der Tour-Seite im Archiv unter
+**🎬 Video ▾**). Er fragt dich in **neun kurzen Seiten** — mit Vorschau oben —, wie dein Video werden soll:
+**1 Titel** · **2 Was für ein Video** (🏡 Erinnerung, 📱 Social, 🏔 Landschaft — stellt Vorlage, Format und Länge ein, die
+du darunter noch genauer wählen kannst) · **3 Karte** (die acht Looks, dazu 3D-Häuser) · **4 Einblendungen** (Zahlen,
+Höhenprofil, Highlights) · **5 Fotos** (ausgewählt nach Schärfe, Abwechslung und Verteilung — abwählen oder eigene
+dazunehmen) · **6 Orte & Schilder** (Pausen und Übernachtungen aus dem Logbuch) · **7 Kamera** (Kamerafahrt, Folgen
+oder Fest) · **8 Schluss & Musik** · **9 Fertig** — eine Liste, was ins Projekt kommt. Jede Seite kannst du
+**überspringen**, dann bleibt der Vorschlag; über die Punkte oben springst du direkt auf eine Seite.
+
+**„✓ Ins Projekt übernehmen“** schreibt alles **bearbeitbar** in dein offenes Projekt — Schilder in der Zeitleiste,
+Kamera unter „Kamera“, Einblendungen unter „Overlays“ — und zeigt rechts **„Das hat der Assistent gemacht“**.
+**Ein ⌘Z** nimmt den ganzen Assistenten zurück. Der Unterschied zum Schnell-Video: das Schnell-Video macht mit wenigen
+Entscheidungen eine fertige Datei, der Assistent richtet dein Projekt ein, damit du danach weiterarbeitest.
+
 ### 🎬 Schnell-Video — fertiges Tourvideo mit wenigen Entscheidungen (seit v0.9.739) ⭐
 
 Du willst einfach ein schönes Video deiner Tour, ohne Keyframes und Einstellungen? Dann nimm das
@@ -1146,6 +1162,51 @@ ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitge
 kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
+### 🗺📷 Touren und Medien gehören zusammen — die Tour-Seite (seit v0.9.787) ⭐
+
+**Doppelklick auf eine Tour** öffnet ihre **Tour-Seite**: in der Mitte die Karte mit dem Track und einem Punkt für jedes
+Foto und jeden Clip, unten der Medienstreifen in Aufnahmereihenfolge, links die Tour (Datum, Ort, Werte, Höhenprofil,
+Logbuch) mit den Aktionen **🎬 Video ▾** (Schnell-Video, Animator, Daten-Animator), **🗺 Karte als Bild**,
+**⬇ Exportieren …** und **＋ Medien vom selben Tag …**. Ein Klick auf ein Bild zeigt rechts seine Aufnahmedaten, ein
+Doppelklick öffnet es groß. **„← Touren“ oder Esc** bringt dich zurück an dieselbe Stelle der Liste. Auch die
+Tour-Details rechts zeigen jetzt **„📷 34 Fotos · 🎬 5 Clips“** mit einem Bildstreifen und **„Tour öffnen ▸“**.
+
+**Was gehört zur Tour?** Alles, was **während der Tour** aufgenommen wurde (eine halbe Stunde davor und danach zählt
+mit) und — wenn es eine Koordinate hat — **höchstens 2 km vom Track** entfernt liegt. Ohne Koordinate entscheidet die
+Zeit. Ein Foto darf zu mehreren Touren gehören, etwa wenn zwei Geräte dieselbe Tour aufgezeichnet haben.
+**Du hast das letzte Wort:** Rechtsklick auf ein Bild → **„Aus dieser Tour nehmen“**; **„＋ Medien vom selben Tag“**
+zeigt alles andere vom Tag der Tour mit dem Grund, warum es nicht dabei ist (außerhalb der Tourzeit, über 2 km
+entfernt, von dir herausgenommen) — anhaken, fertig. In den Details eines Fotos stehen alle seine Touren mit **✕** und
+**„＋ Zu einer Tour hinzufügen …“**. Diese Korrekturen gelten **überall in GPS Studio** — im Archiv, im Animator
+(„Medien der Tour“) und im Schnell-Video.
+
+**Großansicht wie ein Leuchttisch:** unten der Filmstreifen (die Fotos, durch die du blätterst), rechts die Karte mit
+der Tour und dem Punkt des Fotos, darunter Aufnahmedaten und Touren — ein Klick auf eine Tour öffnet ihre Tour-Seite.
+
+**Eine Suche für beides:** Suchst du im Touren-Archiv nach einem Ort oder Namen, steht über der Liste
+**„📷 N Fotos und Clips zu …“** — die direkten Treffer und die Fotos der gefundenen Touren, auch wenn im Foto selbst
+kein Ort steht. Eine vierstellige Zahl wirkt als Jahr („Masca 2023“). In den Medien zeigt die Suche oben die passenden
+Touren.
+
+**Aus Fotos eine Tour machen:** Kein GPX dabei, aber Fotos mit Ort? Markiere sie in den Medien (⌘-Klick) und wähle per
+Rechtsklick **„🧭 Tour aus diesen Fotos machen …“** — oder klicke im Tageskopf auf **„🧭 Tour aus diesen Fotos“**. Die
+Fotos werden in der Reihenfolge ihrer Aufnahme verbunden, als gerade Linien oder **entlang von Wegen** (zu Fuß, Rad,
+Auto). Die neue Tour landet im Archiv und öffnet gleich ihre Tour-Seite.
+
+**Tage und Reisen:** Im Medien-Raster stehen im Kopf jedes Tages die **Touren dieses Tages** — ein Klick öffnet die
+Tour-Seite. Eine **Sammlung** (z. B. „Teneriffa 2026“) hat oben den Knopf **„🗺 Reise-Seite ▸“**, mehrere markierte
+Touren **„Als Reise ansehen“**: alle Touren in eigenen Farben auf einer Karte, alle Fotos und Clips der Reise unten,
+links die Summen und die Touren (Klick → ihre Tour-Seite), dazu **„Reise-Video …“** und Export.
+
+**Exportieren per Rechtsklick:** Rechtsklick auf eine Tour (oder mehrere markierte) → **„Exportieren …“** → Format
+wählen: GPX, KML, KMZ, TCX, GeoJSON, CSV — oder bei einer Tour als **Projekt** mit allen Einstellungen. Eine Tour
+speicherst du dorthin, wo du willst (vorgeschlagen ist ihr Name), mehrere landen als einzelne Dateien in einem Ordner.
+**Fotos und Clips** markierst du in den Medien mit **⌘-Klick** (Windows: Strg) oder **Umschalt-Klick** und wählst per
+Rechtsklick **„Exportieren …“** — oder **„Alle gefilterten exportieren …“**. Als **Original-Kopie** oder **verkleinert
+als JPEG** (1080, 2048, 3840 Pixel oder volle Größe — auch aus RAW und HEIC), auf Wunsch **ohne Ort und Kameradaten**
+(zum Teilen — auch die Ortsangaben in XMP/IPTC, die Lightroom oder „Ort setzen“ schreiben; das Farbprofil bleibt), mit dem Originalnamen oder als **Datum_Uhrzeit_Ort**. Deine Originale bleiben unverändert, nichts wird
+überschrieben; den Fortschritt zeigt die Statusbox unten rechts.
+
 ### 🩺 Track-Check — das Archiv sagt dir, was am Track nicht stimmt (seit v0.9.688)
 Ein GPS-Sprung, eine Lücke oder eine Kamera mit zehn Punkten je Sekunde fällt sonst erst im
 fertigen Video auf. Deshalb prüft das Archiv jede Tour beim Einlesen und zeigt auf der Kachel
@@ -1399,10 +1460,30 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 - Eine Tour darf in beliebig vielen Sammlungen liegen; Löschen einer Sammlung löscht **keine**
   Touren.
 
-**Vier Ansichten**, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):
+**Fünf Ansichten**, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl). **Standard sind die Zeilen**
+(seit 09.10.2026): je Tour ein Kartenbild im Archiv-Stil (Standard: die Nachtkarte; Kartenbilder entstehen beim ersten
+Ansehen und werden gemerkt), Name, Datum · Fortbewegung, Distanz/Aufstieg/Dauer, Schlagwörter mit **＋** zum Ergänzen,
+die Zahl der Fotos und Clips und **⋯** für alle Aktionen. Das **Kästchen** links markiert wie ⌘-Klick; oben steht dann
+„2 von 36 ausgewählt“ mit Schlagwörter, Zu Sammlung, Exportieren und ⋯. In der Filterzeile darunter: Suche,
+Fortbewegung, Jahr, Zeitraum, **Schlagwort**, Länge und Sortierung.
+
+**Rechts die Tour** (ein Klick auf eine Zeile): Titel (zum Umbenennen anklicken), ★ Favorit, ⋯, großes Kartenbild
+(⤢ öffnet die Tour-Seite), sechs Werte (Distanz, Aufstieg, Dauer, höchster Punkt, Abstieg, Rundweg oder Punkt zu Punkt),
+Beschreibung, Schlagwörter als Chips (× entfernt, ＋ ergänzt), Datum, Fortbewegung, Gerät/App und Ordner, Fotos und Clips
+der Tour und Knöpfe für **alle Module** (Tour-Seite, Animator, Schnell-Video, Daten-Animator, Tour-Map, Inspektor,
+Web-Karte, Geotagger, Als ganze Tour) und **Exportieren**. Alles Weitere — Kennzahlen, Logbuch, Versionen, gemacht/geplant,
+Fortbewegung ändern, Track-Farbe, Sammlungen, eigenes Bild, Finder, Ausblenden, Papierkorb — liegt unter
+**„Weitere Angaben und Einstellungen“** (die App merkt sich, ob es offen ist).
+
+**Kartenstil fürs Archiv:** oben links auf der Medien-, Touren- und Tour-Seiten-Karte. Zur Wahl stehen die **Looks**
+(Reiseatlas, Nachtkarte, Minimal, Schatzkarte, Topo, Seekarte, Pastell) und alle Karten; die Wahl gilt für alle Karten und
+Kartenbilder im Archiv.
+
+Die übrigen Ansichten:
 
 | Symbol | Ansicht | Wofür |
 |---|---|---|
+| ▤ | **Zeilen** | Standard — Kartenbild, Werte, Schlagwörter, Fotos auf einen Blick |
 | ▦ | **Kacheln** | Stöbern — Bild groß, Form der Tour sofort erkennbar |
 | ☰ | **Liste** | Vergleichen — viele Touren mit Zahlen auf einen Blick |
 | 🌍 | **Karte** | „Wo war ich überall?" — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus |
@@ -1410,10 +1491,13 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 
 **Die Statistik** rechnet immer genau das zusammen, was gerade gewählt ist — also auch „nur
 diese Sammlung", „nur die gemachten Touren" oder „nur 2024". Sie zeigt Touren, Kilometer,
-Höhenmeter, Stunden, Ø je Tour und die längste Tour, darunter die Aufteilung **gemacht gegen
-geplant**, **Kilometer je Jahr**, **Touren je Monat** (deine Saison über alle Jahre), die
-Verteilung **nach Fortbewegung** und die **fünf längsten Touren** — ein Klick darauf springt
-zur Tour.
+Höhenmeter und Stunden in Bewegung als vier große Kennzahlen (bei den Touren ein Ring: gemacht gegen
+geplant). Darunter **Strecke pro Jahr** — Balken für die Kilometer, eine Linie für die Anzahl Touren, das
+aktuelle Jahr hervorgehoben; umschaltbar auf **Monate** (die letzten 24) und **Gesamt** (aufsummiert) —, die
+**Bewegungsarten** mit ihren Kilometern, **Aktivität nach Monat** (je Jahr eine Zeile, je Monat ein Feld: je
+heller, desto mehr Touren), die **häufigsten Startpunkte** mit kleiner Karte („Alle anzeigen“ zeigt bis zu 25)
+und die **längsten Touren** — ein Klick öffnet die Tour-Seite, „Alle anzeigen“ die Liste nach Strecke
+sortiert. Die Statistik nutzt die ganze Breite, die Detailspalte ist dort ausgeblendet.
 
 Auf der Karte werden weit entfernte Touren als **Punkte** gezeichnet und erst beim
 Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Gezeichnet wird in
@@ -1850,6 +1934,101 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
   die ZIP entpacken und unter **Andere Bibliothek öffnen** wählen: Die Vorschaubilder werden einmal übernommen (das
   Raster muss nichts neu erzeugen), die Inhaltssuche reist ohnehin mit, und heißt das Foto-Laufwerk dort anders, fragt
   die App beim Öffnen der Fotos nach (siehe oben).
+
+### 🖼 Medien wie in Lightroom — Raster, Lupe, Karte (seit v0.9.787)
+
+- **Kacheln:** das Bild, darunter Datum · Uhrzeit und Ort. Beim Drüberfahren erscheint links oben ein Kästchen zum
+  **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten. Sobald etwas markiert ist, zeigt eine Leiste
+  **„N ausgewählt“** mit Exportieren, Ort setzen, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit. Esc hebt die
+  Markierung auf, ⌘A markiert alle.
+- **Links:** oben die Zahl, dann **Sammlungen** (Alle, Favoriten, Bearbeitet, Ohne Koordinate …), **Alben** (＋ legt eins an,
+  Rechtsklick benennt um oder löscht — die Fotos bleiben), Datum, Ordner und aufklappbare **Filter** (Jahr, Kamera, Ort).
+- **Ein Klick** zeigt rechts das Bild mit allen Angaben (Kamera, Blende, Belichtung, ISO, Bildgröße), dem Standort mit Karte,
+  den Touren, Stichwörtern und Alben.
+- **Doppelklick, E oder Leertaste** öffnet die **Lupe**: das Bild groß neben der Seitenleiste, darunter der Filmstreifen,
+  rechts die Karte mit dem Track und darunter gleich **✎ Bearbeiten** mit den Reglern (daneben
+  der Reiter **Info**; Videos zeigen Info). ←/→ blättert, **F** = Vollbild, **G** oder Esc
+  zurück zum Raster.
+- **Doppelte suchen …** zeigt, wie viel Platz das Wegräumen frei macht: im Knopf (z. B. „12 wegräumen (3,4 GB)“), je Gruppe
+  „spart …“ und unten, wann der Platz wirklich frei ist — beim Papierkorb nach dem Leeren, beim Ordner erst nach dessen Löschen.
+- **Schlichte Symbole:** Die ganze App zeigt einfarbige Strich-Symbole statt bunter Emojis. Die Vorschau und das Video
+  bleiben davon unberührt.
+- **Wenn es dauert:** Nach etwa 3 Sekunden Warten steht unter dem Ladekringel ein kleiner Spruch — nur zur Unterhaltung (nicht im kleinen
+  Kasten unten rechts; ein neuer kommt frühestens nach einer Minute).
+- **⬇ Exportieren** (oben rechts, auch in der Lupe): exportiert die markierten Medien, das gezeigte Foto oder alle
+  gefilterten — das Menü bietet an, was gerade da ist.
+- **Karte:** oben links wählst du den Kartenstil — er gilt für alle Karten im Archiv (Standard: die Nachtkarte). Alle Archivkarten
+  zeigen unten links einen **Maßstab** (0 · 1 · 2 · 5 km), den Track türkis und **Start und Ziel als Nadeln** (Rundweg: eine). Ein Klick auf einen Punkt zeigt rechts
+  das Foto und eine Bildleiste mit allen Fotos dieser Stelle.
+
+### ✎ Fotos bearbeiten (seit v0.9.787)
+
+**Seit 09.10.2026:** Das Raster und die Fotos in Animator, Video und Schildern zeigen die **bearbeitete Fassung**. **RAW**
+(ARW, ORF, NEF, CR2/CR3, DNG …) wird beim ersten Bearbeiten richtig entwickelt (LibRaw, Bruchteile einer Sekunde) und gemerkt;
+„Als neue Datei …“ und Export entwickeln in voller Größe. Kann LibRaw eine Datei nicht lesen (z. B. DNG mit JPEG-XL-Kompression
+aus Lightroom 7.2), nimmt die App auf dem Mac ein großes Vorschaubild des Systems.
+
+In der Lupe der Reiter **„✎ Bearbeiten“**: oben das Histogramm, **✨ Auto** (Ton und Weißabgleich passend zum Foto), die
+Voreinstellungen **Natürlich · Kräftig · Matt · SW** und Regler für Belichtung, Kontrast, Lichter, Tiefen, Temperatur,
+Tönung, Dynamik, Sättigung, Klarheit und Dunst entfernen. **Taste „.“ halten** (oder „◐ Vorher“ gedrückt halten) zeigt das
+Original, Doppelklick auf einen Regler setzt ihn zurück, ↺ setzt alles zurück. Die Vorschau rechnet die Grafikkarte: Das Bild
+folgt dem Regler ohne Verzögerung, und es sieht genauso aus wie später im Export und im Video.
+
+**Zuschneiden und Geraderichten:** **„Zuschneiden“** oder **Taste R**. Die Lupe zeigt dann das ganze Foto mit einem Rahmen
+und Drittel-Linien. Den Rahmen ziehst du zum Verschieben, an Ecken und Kanten änderst du die Größe. **Geraderichten** dreht
+das Bild um bis zu ±45°; der Rahmen wird dabei so verkleinert, dass keine leeren Ecken entstehen. Das **Seitenverhältnis**
+wählst du darunter (Original, Frei, 1:1, 4:5, 3:2, 2:3, 16:9, 9:16), die zwei Pfeile drehen um 90°. **Enter** oder „Fertig“
+übernimmt, **Esc** bricht ab, „Zurücksetzen“ nimmt nur den Zuschnitt weg. Auch der Zuschnitt ist Teil des Rezepts: Raster,
+Export, Animator und Video zeigen das zugeschnittene Foto, das Original bleibt ganz. „Kopieren/Einfügen“ und „✨ Auto“ für
+mehrere Fotos übertragen nur die Farb- und Lichtwerte, jedes Foto behält seinen eigenen Zuschnitt.
+
+- **Das Original bleibt unverändert.** Gespeichert wird nur, was du eingestellt hast („Rezept“, in der Bibliothek). Export
+  nimmt die bearbeitete Fassung; **„💾 Als neue Datei …“** speichert ein entwickeltes JPEG daneben (nie über das Original).
+- **Mehrere auf einmal:** „⧉ Kopieren“ merkt die Einstellungen, „Einfügen“ überträgt sie (auch in der Leiste für markierte
+  Fotos). **„✨ Auto“** in der Leiste und **„✨ Auto für alle Fotos“** auf der Tour-Seite hübschen jedes Foto einzeln auf.
+- Bearbeitete Fotos tragen auf der Kachel ein ✎ und stehen links unter „Bearbeitet“. Wo das Foto sonst auftaucht — Lupe,
+  Details, Animator-Schilder, Tour-Seite, Video —, ist die neue Fassung sofort zu sehen, auch bei HEIC und RAW.
+
+### 📍 Ort für mehrere Fotos und Clips setzen (seit v0.9.787)
+
+Fotos und Clips ohne Koordinate findest du über die Zahl im Kopf: **„📍 21 ohne Koordinate“** ist ein Knopf und
+filtert auf genau diese Dateien (dasselbe wie links „Ohne Koordinate“). Dann mehrere markieren (⌘- oder
+Shift-Klick), Rechtsklick → **„📍 Ort für N setzen …“** — oder bei einem Foto rechts in den Details **„Ort
+eingeben …“**. Im Dialog kannst du
+
+- einen **Ort suchen** („Masca“ → Treffer anklicken),
+- eine **Koordinate einfügen** — `28.2905, -16.8452`, mit deutschem Komma `28,2905 -16,8452`, in Grad/Minuten/Sekunden
+  `28°17'25.8"N 16°50'42.7"W` (auch mit O für Ost) oder einen Google-Maps-Link mit `@28.3059,-16.8417`,
+- oder **in die Karte klicken**.
+
+Die Adresse wird auf Wunsch mitgeschrieben. Geschrieben wird in die Dateien selbst — vorher legt die App von jedem
+Original eine Sicherung an. Schreibgeschützte Dateien zählt die Meldung danach als „gingen nicht“.
+
+### ⧉ Doppelte finden und wegräumen (seit v0.9.787)
+
+Links in Medien: **„⧉ Doppelte suchen …“**. Der Dialog hat zwei Reiter:
+
+- **Gleich** — dieselbe Datei liegt an mehreren Stellen (etwa Original und eine Kopie im Export-Ordner). Vorgemerkt
+  ist alles bis auf **eine** Fassung: die größte, dann die mit Koordinate, dann das Original statt einer „Kopie“
+  oder eines Exports (Name oder Ordner), dann die ältere Datei. Ein Klick auf ein anderes
+  Bild behält stattdessen dieses. Oben steht, wie viel Platz das freimacht.
+- **Fast gleich** — dieselbe Aufnahme, aber nicht dieselbe Datei: ein verkleinerter Export, ein anders gespeichertes
+  JPEG. Erkannt an der Aufnahmezeit (±2 Sekunden) und am Bildinhalt. **Hier ist nichts vorgemerkt** — erst ansehen,
+  dann auf das Bild klicken, das bleiben soll. Ist die Inhaltssuche aus, beruht die Gruppe nur auf Zeit, Kamera und
+  Seitenverhältnis und trägt das Schild **„unsicher“**. Lange Serien im Sekundentakt (Zeitraffer, Intervallaufnahmen)
+  zählen nicht als Doppelte — der Dialog nennt, wie viele er übersprungen hat.
+
+Unten wählst du, wohin: **in den Papierkorb** (von dort zurückholbar) oder **in einen Ordner „Doppelte (GPS
+Studio)“** neben dem Original. Diesen Ordner lässt das Einlesen aus, die Dateien kommen also nicht zurück in den
+Bestand. Endgültig gelöscht wird nie etwas.
+
+### ↗ Öffnen mit … — im Bildprogramm nacharbeiten (seit v0.9.787)
+
+Rechtsklick auf ein Foto oder einen Clip (oder mehrere markierte) → **„Öffnen mit …“** — auch in der Großansicht und
+im Medienstreifen der Tour-Seite. Auf dem Mac zeigt die Liste die Programme, die die Datei öffnen können, das zuletzt
+benutzte steht oben, der Standard ist markiert — ein Klick öffnet das Original dort (etwa in Lightroom, Affinity Photo,
+Pixelmator oder Vorschau). Unter Windows erscheint gleich der System-Dialog „Öffnen mit“. Speichert das Programm
+Änderungen, liest GPS Studio sie beim nächsten Einlesen.
 
 ### Was der Bestand über ein Foto weiß
 
@@ -2388,7 +2567,7 @@ verschiedene Werte an derselben Stelle könnte das Programm nicht abspielen.
 
 **🗺 Acht Looks und der Karten-Editor (neu nach v0.9.784):** Unter **Look** stehen jetzt acht Kacheln in zwei Reihen — zu Natürlich, Reiseatlas, Nachtkarte und Minimal kommen **Schatzkarte** (Pergament, braune Tinte, gestrichelte Grenzen, kräftiges Relief), **Topo** (wie eine Wanderkarte: blaues Wasser, grüner Wald, Straßen mit Rand, Relief), **Seekarte** (Sandland, Meer in Tiefenstufen, dunkle Küste) und **Pastell** (hell und freundlich). Jede Kachel zeigt ein kleines Bild in den Farben des Looks. Die Karten-Looks färben jede Kartenrolle einzeln (Land, Wasser, Flüsse, Wald, Parks, Gebäude, Neben-/Hauptstraßen, Autobahn, Bahn, Grenzen, Schrift) und können Berge plastisch zeigen (Schummerung aus freien Geländedaten), die Küste nachzeichnen oder Meerestiefen in Stufen zeigen; einen Leuchtsaum an den Straßen schaltest du im Editor dazu. **Selbst gestalten:** Ein Klick auf das **✎** an der gewählten Kachel öffnet rechts den **Karten-Editor** — Farbfelder für jede Rolle, Grenzen gestrichelt oder durchgezogen, Schriftschnitt (normal, fett, kursiv wie im Atlas), Großbuchstaben, Beschriftung an/aus, Küstenlinie, Relief mit Schatten-, Licht- und Akzentfarbe und Stärke, Leuchtsaum und Meerestiefen. Bleibt der Editor offen, während du links einen anderen Look wählst, zeigt er gleich dessen Farben. **Luftbild-Optik, Karten-Optik und Sternenhimmel** stehen ebenfalls hier im Editor — links im Abschnitt Karte öffnet ihn der Knopf **„Karten-Optik und Sterne …“** (auch bei Karten ohne Look, dann nur mit der Optik). Jede Änderung siehst du sofort in der Vorschau, das Video zeigt genau dasselbe; ⌘Z nimmt eine Bearbeitungsrunde zurück. **„Als eigenen Look speichern …“** legt deinen Look unter **„Deine Looks“** ab — in allen Projekten; ein ✕ beim Darüberfahren löscht ihn (Projekte, die ihn benutzen, behalten ihre Kopie). **„Als Datei …“** speichert ihn als `.rzlook` zum Weitergeben, **„Look importieren …“** liest eine solche Datei ein. Das Projekt trägt seinen Look immer mit — auch im `.rzproj`. Beim Luftbild (Natürlich) gibt es keine Farben je Rolle; dort stellst du Helligkeit, Sättigung und Kontrast unter „Luftbild-Optik“ ein. Ältere Projekte mit Reiseatlas oder Nachtkarte behalten ihre bisherige Karte, bis du den Look neu wählst.
 
-**🗺 Karte wählen und einstellen (seit 08.10.2026):** Links stehen nur noch Kacheln: die acht Looks und als neunte **„Weitere Karten“** (OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian, die MapTiler- und Mapbox-Karten, „Ohne Karte“). Ein Klick darauf öffnet rechts die Liste mit kleinem Vorschaubild; die gewählte Karte steht danach auf der Kachel. Alles Weitere stellst du **rechts im Editor** ein, den das **✎** an der markierten Kachel öffnet — und mit einem zweiten Klick wieder schließt (solange er offen ist, leuchtet das ✎). Rechts stehen je nach Karte: bei einem Look seine Farben, bei Natürlich **„Luftbild von …“** (kostenlos, MapTiler, Mapbox) und die Luftbild-Optik, bei einer weiteren Karte ihre Karten-Optik — und immer **3D-Terrain mit Überhöhung, 3D-Häuser, „Auf der Karte anzeigen“** (Orte, Straßen, POIs, ÖPNV, Grenzen) und der **Sternenhimmel**. **„Als eigenen Look speichern …“** nimmt Terrain, Überhöhung, 3D-Häuser und die Kartenelemente mit; wählst du den eigenen Look später, stellt er sie wieder so ein (die fertigen Looks lassen diese Werte stehen). Liberty, Bright, Positron, Nachtkarte und Reiseatlas stehen nicht mehr in der Liste — dafür gibt es die Looks; Projekte, die sie benutzen, zeichnen weiter wie bisher. Oben in der rechten Spalte steht immer, zu welchem Abschnitt links das Fenster gehört (🗺️ Karte, 🧭 Tracks, 🚩 Schilder und Fotos, 📊 Overlays). **Mehrere Track-Farben** gibt es jetzt **für jede Tour einzeln**, im Track-Editor rechts (✎ am Eintrag in der Tourenliste): Einfärben nach Distanz, Höhe, Tempo oder Steigung, hart oder als Verlauf, Stufen mit Wert und Farbe, „Auto (min → max)“ spannt Grün → Gelb → Rot über die ganze Tour. Das gilt in der Kette (nacheinander), im Schwarm (gleichzeitig), bei „Ganz zeigen“ und im Video. Bei Track 1 stehen dort wie bisher auch alle Datenreihen des Tracks (Puls, Leistung …) und die **Farbe je Etappe**.
+**🗺 Karte wählen und einstellen (seit 08.10.2026):** Links stehen nur noch Kacheln: die acht Looks und als neunte **„Alle Karten“**. Ein Klick darauf öffnet rechts die Liste aller Karten mit kleinem Vorschaubild, in drei Gruppen: **🛰 Luftbild** (kostenlos, MapTiler Satellit, MapTiler Satellit + Beschriftung, Mapbox Satellit, Mapbox Satellit + Straßen) · **🗺 Karten** (OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian, „Ohne Karte“) · **🔑 Mit eigenem Schlüssel** (MapTiler- und Mapbox-Karten; ohne Schlüssel steht „Schlüssel fehlt“ dabei). Eine gewählte Karte steht danach auf der Kachel; ein Luftbild markiert die Kachel **Natürlich**, und die zeigt unten im Bild, welche Luftbild-Quelle gerade läuft. Alles Weitere stellst du **rechts im Editor** ein, den das **✎** an der markierten Kachel öffnet — und mit einem zweiten Klick wieder schließt (solange er offen ist, leuchtet das ✎). Rechts stehen je nach Karte: bei einem Look seine Farben, bei Natürlich **„Luftbild von …“** (kostenlos, MapTiler, Mapbox) und die Luftbild-Optik, bei einer weiteren Karte ihre Karten-Optik — und immer **3D-Terrain mit Überhöhung, 3D-Häuser, „Auf der Karte anzeigen“** (Orte, Straßen, POIs, ÖPNV, Grenzen) und der **Sternenhimmel**. **„Als eigenen Look speichern …“** nimmt Terrain, Überhöhung, 3D-Häuser und die Kartenelemente mit; wählst du den eigenen Look später, stellt er sie wieder so ein (die fertigen Looks lassen diese Werte stehen). Liberty, Bright, Positron, Nachtkarte und Reiseatlas stehen nicht mehr in der Liste — dafür gibt es die Looks; Projekte, die sie benutzen, zeichnen weiter wie bisher. Oben in der rechten Spalte steht immer, zu welchem Abschnitt links das Fenster gehört (🗺️ Karte, 🧭 Tracks, 🚩 Schilder und Fotos, 📊 Overlays). **Mehrere Track-Farben** gibt es jetzt **für jede Tour einzeln**, im Track-Editor rechts (✎ am Eintrag in der Tourenliste): Einfärben nach Distanz, Höhe, Tempo oder Steigung, hart oder als Verlauf, Stufen mit Wert und Farbe, „Auto (min → max)“ spannt Grün → Gelb → Rot über die ganze Tour. Das gilt in der Kette (nacheinander), im Schwarm (gleichzeitig), bei „Ganz zeigen“ und im Video. Bei Track 1 stehen dort wie bisher auch alle Datenreihen des Tracks (Puls, Leistung …) und die **Farbe je Etappe**.
 
 **Schilder im Look (seit v0.9.782):** Gibt es im Projekt einfache Text- oder Foto-Schilder, fragt die App nach dem Klick auf einen Look, ob sie die Schilder anpassen soll — *Reiseatlas*: Text als „Karte“, Fotos als Sofortbild; *Nachtkarte*: Pille; *Minimal*: schlicht; *Natürlich*: Sprechblase. Nur der Grundstil ändert sich; Highlight-Schilder, Banner und Wegweiser bleiben, jedes Schild bleibt einzeln änderbar, ⌘Z nimmt es zurück.
 

@@ -1524,6 +1524,15 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
             — BSD-2-Clause (${t("about.credits.leaflet", "Web-Karten-Export, gebündelt")})
           </li>
+          <li>
+            <a href="#" class="md-about-link" data-url="https://www.libraw.org/">LibRaw</a> — LGPL-2.1 / CDDL-1.0 ·
+            <a href="#" class="md-about-link" data-url="https://github.com/letmaik/rawpy">rawpy</a> — MIT
+            (${t("about.credits.libraw", "RAW-Fotos entwickeln, gebündelt")})
+          </li>
+          <li>
+            <a href="#" class="md-about-link" data-url="https://lucide.dev/">Lucide</a>
+            — ISC (${t("about.credits.lucide", "Strich-Symbole der Oberfläche, Teile aus Feather (MIT), gebündelt")})
+          </li>
           <!-- 03.09.2026 — Kartenanbieter zur Auswahl: Datenquellen mit Lizenz -->
           <li>
             ${t("about.credits.mapdata", "Kartendaten")}:

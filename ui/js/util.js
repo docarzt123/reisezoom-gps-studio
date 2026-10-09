@@ -552,6 +552,112 @@ function mapStyleNoteText(spec) {
 }
 
 /** <option>/<optgroup>-HTML der gemeinsamen Stilliste. opts.extraTop = HTML vor allem anderen. */
+/* 09.10.2026 — EIN Kartenstil für alle Karten im Archiv (Medien-Karte, Tour-Seite, Lupe,
+   Detailspalte, Ort-Dialog), einmal gewählt und gemerkt; der Animator behält seinen Stil je Projekt. Wählen über
+   `rzArchivStilWahlHtml` + `rzArchivStilWahlBinden`; wer eine Karte zeigt, hört auf das Ereignis „rz-archiv-stil“. */
+function rzArchivStil() {
+  let k = null;
+  try { k = localStorage.getItem("rz-archiv-stil"); } catch (_) {}
+  const c = mapCatalog();
+  const da = (key) => (c.styles || []).some(s => s.key === key && s.available !== false);
+  if (k && da(k)) return k;
+  if (k && k.startsWith("look:") && window.rzKartenlook && window.rzKartenlook.LOOKS[k.slice(5)]) return k;
+  // 09.10.2026 (Marc: „nimm fürs Archiv als Standard die Nachtkarte“) — passt zur dunklen Oberfläche
+  return da(RZ_ARCHIV_STANDARD) ? RZ_ARCHIV_STANDARD : mapDefaultStyle();
+}
+const RZ_ARCHIV_STANDARD = "ofm_nacht";
+function rzArchivStilSetzen(key) {
+  try { localStorage.setItem("rz-archiv-stil", key); } catch (_) {}
+  window.dispatchEvent(new CustomEvent("rz-archiv-stil", { detail: { key } }));
+}
+function rzArchivStilWahlHtml(id) {
+  // 09.10.2026 — die Karten-Looks (wie im Animator) zuerst, darunter alle Karten
+  const jetzt = rzArchivStil(), K = window.rzKartenlook;
+  const looks = K ? Object.keys(K.LOOKS).filter(x => x !== "natuerlich").map(x =>
+    `<option value="look:${x}"${jetzt === "look:" + x ? " selected" : ""}>${t("look." + x, x)}</option>`).join("") : "";
+  return `<label class="rz-stilwahl" title="${t("archiv.stil_tip", "Kartenstil für alle Karten im Archiv")}"><span aria-hidden="true">🗺</span>`
+    + `<select id="${id}" class="lib-select">${looks ? `<optgroup label="${t("look.titel", "Look")}">${looks}</optgroup>` : ""}${mapStyleOptionsHtml(jetzt)}</select></label>`;
+}
+function rzArchivStilWahlBinden(root, id) {
+  const sel = root && root.querySelector("#" + id);
+  if (sel) sel.onchange = () => rzArchivStilSetzen(sel.value);
+}
+
+/* 09.10.2026 — Maßstab als Lineal (0 · 1 · 2 · 5 km) unten links, für die Karten im Archiv. Läuft mit MapLibre und
+   Mapbox (eigene Steuerung, misst über `distanceTo` zwischen zwei Bildschirmpunkten, also auch bei Neigung richtig). */
+function rzMassstab(map, ecke) {
+  // Zugleich die Kennung „Archivkarte“: dunkle Zoom-Knöpfe wie im Farbkonzept (app.css)
+  try { map.getContainer().classList.add("rz-archivkarte"); } catch (_) {}
+  const ctrl = {
+    onAdd(m) {
+      this._m = m;
+      const el = this._el = document.createElement("div");
+      el.className = "rz-massstab maplibregl-ctrl mapboxgl-ctrl";
+      this._neu = () => rzMassstabZeichnen(m, el);
+      m.on("move", this._neu); m.on("resize", this._neu); m.on("load", this._neu);
+      requestAnimationFrame(this._neu);
+      return el;
+    },
+    onRemove() {
+      const m = this._m;
+      if (m) { m.off("move", this._neu); m.off("resize", this._neu); m.off("load", this._neu); }
+      if (this._el) this._el.remove();
+    },
+  };
+  try { map.addControl(ctrl, ecke || "bottom-left"); } catch (_) {}
+  return ctrl;
+}
+/* 09.10.2026 — Start und Ziel einer Tour als Koralle-Stecknadeln (wie im Farbkonzept: Türkis = Route und Fotos,
+   Koralle = Start/Ziel). `teile` = Liste von Linien; ein Rundweg (Start ≈ Ziel, < 60 m) bekommt nur eine Nadel.
+   Gibt die Marker zurück, damit der Aufrufer sie beim Neuzeichnen entfernen kann. */
+/** Rand für fitBounds auf Archivkarten: unten Platz für den Maßstab, rechts für die Zoom-Knöpfe. */
+const RZ_ARCHIV_RAND = { top: 30, bottom: 52, left: 30, right: 52 };
+function rzStartZiel(map, lib, teile) {
+  const raus = [];
+  const linien = (teile || []).filter(t => Array.isArray(t) && t.length > 1);
+  if (!linien.length || !lib || !lib.Marker) return raus;
+  const a = linien[0][0], z = linien[linien.length - 1][linien[linien.length - 1].length - 1];
+  const nadel = (ll, art) => {
+    const el = document.createElement("div");
+    el.className = "rz-nadel ist-" + art;
+    el.title = art === "start" ? t("archiv.karte_start", "Start") : t("archiv.karte_ziel", "Ziel");
+    try { raus.push(new lib.Marker({ element: el, anchor: "bottom" }).setLngLat(ll).addTo(map)); } catch (_) {}
+  };
+  let rund = false;
+  try { rund = new lib.LngLat(a[0], a[1]).distanceTo(new lib.LngLat(z[0], z[1])) < 60; } catch (_) {}
+  nadel(a, "start");
+  if (!rund) nadel(z, "ziel");
+  return raus;
+}
+function rzMassstabZeichnen(m, el) {
+  const LANG = 120;                           // höchstens so viele Pixel breit
+  let mpp;
+  try {
+    const h = m.getContainer().clientHeight, y = Math.max(0, h - 24);
+    const a = m.unproject([20, y]), b = m.unproject([20 + LANG, y]);
+    mpp = a.distanceTo(b) / LANG;
+  } catch (_) { return; }
+  if (!isFinite(mpp) || mpp <= 0) { el.innerHTML = ""; return; }
+  const max = mpp * LANG;
+  const p10 = Math.pow(10, Math.floor(Math.log10(max)));
+  const stufe = [5, 2, 1].find(s => s * p10 <= max) || 1;
+  const gesamt = stufe * p10;
+  // Teilstriche wie im Lineal: 0 1 2 5 · 0 0,5 1 2 · 0 0,5 1
+  const alle = stufe === 5 ? [0, 0.2, 0.4, 1] : stufe === 2 ? [0, 0.25, 0.5, 1] : [0, 0.5, 1];
+  const km = gesamt >= 1000, einheit = km ? "km" : "m", f = km ? 1000 : 1;
+  const sprache = (document.documentElement.lang || undefined);
+  const zahl = (v) => (Math.round(v / f * 100) / 100).toLocaleString(sprache);
+  const breite = Math.round(gesamt / mpp);
+  // Zwischenstriche nur, wo die Zahlen Platz haben (schmale Karte: nur 0 und Ende)
+  const teile = [0];
+  for (const t of alle.slice(1, -1)) if ((t - teile[teile.length - 1]) * breite >= 24 && (1 - t) * breite >= 30) teile.push(t);
+  teile.push(1);
+  el.style.width = breite + "px";
+  el.innerHTML = `<div class="rz-massstab-linie"></div>` + teile.map((t, i) =>
+    `<span class="rz-massstab-strich" style="left:${(t * 100).toFixed(2)}%"></span>`
+    + `<span class="rz-massstab-zahl${i === 0 ? " ist-erste" : i === teile.length - 1 ? " ist-letzte" : ""}" style="left:${(t * 100).toFixed(2)}%">${zahl(gesamt * t)}${i === teile.length - 1 ? " " + einheit : ""}</span>`).join("");
+}
+
 function mapStyleOptionsHtml(currentKey, opts) {
   opts = opts || {};
   const cat = mapCatalog();
@@ -695,6 +801,12 @@ function rzApplyPreviewQuality() {
 window.rzPreviewQuality = rzPreviewQuality; window.rzApplyPreviewQuality = rzApplyPreviewQuality;
 
 function createMap(opts) {
+  // 09.10.2026 — „look:<name>“ (Archiv-Stilwahl): einer der Karten-Looks über der Positron-Vorlage; „natuerlich“ = Luftbild
+  if (opts && typeof opts.styleKey === "string" && opts.styleKey.startsWith("look:")) {
+    const id = opts.styleKey.slice(5), K = window.rzKartenlook;
+    opts = Object.assign({}, opts, id === "natuerlich" || !K || !K.LOOKS[id]
+      ? { styleKey: "free_satellite" } : { styleKey: "kartenlook", look: K.LOOKS[id] });
+  }
   rzApplyPreviewQuality();   // vor dem Stil-Aufbau: rzTileSize liest __rzTileDensityMax
   let key = opts.styleKey || (opts.mapboxStyle && _mapKeyFromMapboxUrl(opts.mapboxStyle)) || mapDefaultStyle();
   // Gelände IMMER mit auflösen (spec.terrain) — `opts.terrain` sagt nur, ob es
@@ -5003,3 +5115,161 @@ function rzFarbe(name, ersatz) {
   try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || ersatz; } catch (_) { return ersatz; }
 }
 window.rzFarbe = rzFarbe;
+
+/* 09.10.2026 (Marc: „20 oder 30 lustige Sätze …, die kommen, wenn ihr irgendwo wartet … random ein lustiger Satz
+   drunter“) — Wartesprüche. Ein Wächter schaut jede Sekunde nach sichtbaren Ladekringeln (`.ass-spinner`, `.spinner`)
+   und Warte-Fenstern (`.rz-status`). Läuft einer länger als RZ_SPRUCH_NACH_MS, kommt darunter ein zufälliger Spruch;
+   bei langen Wartezeiten wechselt er alle RZ_SPRUCH_WECHSEL_MS. Verschwindet der Kringel, geht der Spruch mit.
+   Nicht in Knöpfen, Menüs, der schmalen Seitenleiste oder mit `data-kein-spruch`; nie im Render.
+   09.10.2026 nachmittags (Marc: „bei den Medien rechts unten brauchen wir die nicht … und generell sollten sie gar nicht
+   so schnell ändern“): nicht im Hintergrund-Kasten unten rechts (#rz-status-box), Wechsel erst nach einer Minute, und
+   baut sich eine Anzeige neu auf, bleibt ihr Spruch (gemerkt je Platz, 2 min). */
+const RZ_SPRUCH_N = 30, RZ_SPRUCH_NACH_MS = 3000, RZ_SPRUCH_WECHSEL_MS = 60000, RZ_SPRUCH_MERKEN_MS = 120000;
+const _rzSpruchJePlatz = new Map();       // Platz-Schlüssel → { text, seit, zuletzt }
+let _rzSpruchLetzter = -1;
+function rzWarteSpruch() {
+  let i = Math.floor(Math.random() * RZ_SPRUCH_N);
+  if (i === _rzSpruchLetzter) i = (i + 1) % RZ_SPRUCH_N;
+  _rzSpruchLetzter = i;
+  return t("wartespruch." + String(i + 1).padStart(2, "0"), "Gut Ding will Weile haben.");
+}
+const _rzSpruchSeit = new WeakMap();      // Kringel/Fenster → seit wann sichtbar
+const _rzSprueche = new Set();            // gesetzte Spruch-Elemente (mit ._quelle)
+function _rzSpruchPlatz(q) {
+  // Wohin der Spruch kommt: beim Warte-Fenster unter den Text, sonst unter die Zeile mit dem Kringel
+  if (q.closest("#rz-status-box")) return null;           // Hintergrund-Kasten unten rechts: dort nicht
+  if (q.classList.contains("rz-status")) return q.querySelector(".rz-status-text");
+  if (q.closest("button, .lib-ctxmenu, .ts-menue, .lib-nav-count, .lib-nav, .foto-nav, [data-kein-spruch]")) return null;
+  const zeile = q.parentElement;
+  if (!zeile || zeile === document.body) return null;
+  const breite = (zeile.parentElement || zeile).getBoundingClientRect().width;
+  return breite >= 240 ? zeile : null;
+}
+function _rzSpruchTick() {
+  const jetzt = Date.now();
+  // erst aufräumen: Quelle weg oder unsichtbar → Spruch weg
+  for (const s of [..._rzSprueche]) {
+    const q = s._quelle;
+    if (!q || !q.isConnected || !q.getClientRects().length || !s.isConnected) { s.remove(); _rzSprueche.delete(s); if (q) q._rzSpruch = null; }
+  }
+  if (document.body.classList.contains("rz-render-mode")) return;
+  document.querySelectorAll(".ass-spinner, .spinner, .rz-status").forEach(q => {
+    if (!q.getClientRects().length) { _rzSpruchSeit.delete(q); return; }
+    if (!_rzSpruchSeit.has(q)) { _rzSpruchSeit.set(q, jetzt); return; }
+    const s = q._rzSpruch;
+    if (s) {
+      const m = _rzSpruchJePlatz.get(s._platz);
+      if (jetzt - s._seit > RZ_SPRUCH_WECHSEL_MS) { s.textContent = rzWarteSpruch(); s._seit = jetzt; if (m) { m.text = s.textContent; m.seit = jetzt; } }
+      if (m) m.zuletzt = jetzt;
+      return;
+    }
+    if (jetzt - _rzSpruchSeit.get(q) < RZ_SPRUCH_NACH_MS) return;
+    // ein Fenster/Abschnitt mit mehreren Kringeln bekommt nur einen Spruch
+    if (q.closest(".rz-status") && !q.classList.contains("rz-status")) return;
+    const platz = _rzSpruchPlatz(q);
+    if (!platz || (platz.nextElementSibling && platz.nextElementSibling.classList.contains("rz-wartespruch"))) return;
+    const el = document.createElement("div");
+    el.className = "rz-wartespruch";
+    // derselbe Platz (Dialog/Fenster mit id) behält seinen Spruch, auch wenn sich die Anzeige neu aufbaut
+    const halter = q.closest("[id]"), platzKey = (halter ? halter.id : "") + "|" + (platz.className || platz.tagName);
+    const alt = _rzSpruchJePlatz.get(platzKey);
+    const weiter = alt && jetzt - alt.zuletzt < RZ_SPRUCH_MERKEN_MS;
+    el.textContent = weiter ? alt.text : rzWarteSpruch();
+    el._quelle = q; el._seit = weiter ? alt.seit : jetzt; el._platz = platzKey;
+    _rzSpruchJePlatz.set(platzKey, { text: el.textContent, seit: el._seit, zuletzt: jetzt });
+    // Ausrichtung der Zeile übernehmen (zentrierte Ladezeilen) und deren großen Innenabstand unten überbrücken
+    try {
+      const cs = getComputedStyle(platz);
+      if (cs.textAlign === "center" || cs.justifyContent === "center") el.style.textAlign = "center";
+      const pb = parseFloat(cs.paddingBottom) || 0;
+      if (pb > 12) el.style.marginTop = -(pb - 8) + "px";
+    } catch (_) {}
+    platz.insertAdjacentElement("afterend", el);
+    q._rzSpruch = el;
+    _rzSprueche.add(el);
+  });
+}
+setInterval(() => { try { _rzSpruchTick(); } catch (_) {} }, 1000);
+window.rzWarteSpruch = rzWarteSpruch;
+
+/* 09.10.2026 — Kartenbild einer Tour im Archiv-Stil (Marc: Touren als Zeilen mit Kartenbild, „Nachtkarte als Archiv-
+   Standard“). Die alten Kartenbilder entstehen in Python aus Satellitenkacheln; die Archiv-Karte (OpenFreeMap-Nacht …)
+   gibt es nur als Vektorkarte im Browser — darum zeichnet EINE versteckte Karte die Bilder nacheinander (Linie türkis mit
+   Kontur, Start Koralle, Ziel türkis) und gibt ein JPEG zurück. Aufrufer legen es ab (library_kartenbild_speichern). */
+const _rzKb = { map: null, lib: null, stil: "", w: 0, h: 0, kette: Promise.resolve(), box: null };
+function rzKartenbild(geom, opt) {
+  const job = _rzKb.kette.then(() => _rzKartenbildZeichnen(geom, opt || {})).catch(() => null);
+  _rzKb.kette = job.then(() => {}, () => {});
+  return job;
+}
+function rzKartenbildWeg() {
+  if (_rzKb.map) { try { _rzKb.map.remove(); } catch (_) {} }
+  if (_rzKb.box) _rzKb.box.remove();
+  Object.assign(_rzKb, { map: null, lib: null, stil: "", box: null });
+}
+function _rzKbWarten(map, ereignis, ms) {
+  return new Promise((ok) => { let fertig = false; const t = setTimeout(() => { if (!fertig) { fertig = true; ok(false); } }, ms);
+    map.once(ereignis, () => { if (!fertig) { fertig = true; clearTimeout(t); ok(true); } }); });
+}
+async function _rzKartenbildZeichnen(geom, opt) {
+  const linie = (geom || []).filter(c => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1]));
+  if (linie.length < 2 || typeof createMap !== "function") return null;
+  const stil = opt.stil || ((typeof rzArchivStil === "function") ? rzArchivStil() : mapDefaultStyle());
+  const w = opt.w || 340, h = opt.h || 200;
+  if (!_rzKb.map || _rzKb.stil !== stil || _rzKb.w !== w || _rzKb.h !== h) {
+    rzKartenbildWeg();
+    const box = document.createElement("div");
+    box.style.cssText = `position:fixed;left:-${w + 500}px;top:0;width:${w}px;height:${h}px;pointer-events:none;`;
+    box.setAttribute("aria-hidden", "true");
+    document.body.appendChild(box);
+    const c = createMap({ container: box, styleKey: stil, common: { center: linie[0], zoom: 10, interactive: false,
+      attributionControl: false, fadeDuration: 0, pixelRatio: 2, preserveDrawingBuffer: true,
+      canvasContextAttributes: { preserveDrawingBuffer: true } } });
+    Object.assign(_rzKb, { map: c.map, lib: c.lib, stil, w, h, box });
+    if (!(c.map.isStyleLoaded && c.map.isStyleLoaded())) await _rzKbWarten(c.map, "load", 15000);
+    const m = c.map, leer = { type: "FeatureCollection", features: [] };
+    m.addSource("kb-linie", { type: "geojson", data: leer });
+    m.addSource("kb-punkte", { type: "geojson", data: leer });
+    m.addLayer({ id: "kb-rand", type: "line", source: "kb-linie", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#0f1a20", "line-width": 5, "line-opacity": 0.6 } });
+    m.addLayer({ id: "kb-strich", type: "line", source: "kb-linie", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#48d6c4", "line-width": 2.6 } });
+    m.addLayer({ id: "kb-punkt", type: "circle", source: "kb-punkte", paint: { "circle-radius": 4.2, "circle-color": ["get", "farbe"], "circle-stroke-color": "#151b22", "circle-stroke-width": 1.6 } });
+  }
+  const m = _rzKb.map, lib = _rzKb.lib;
+  m.getSource("kb-linie").setData({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: linie } });
+  const a = linie[0], z = linie[linie.length - 1];
+  m.getSource("kb-punkte").setData({ type: "FeatureCollection", features: [
+    { type: "Feature", properties: { farbe: "#48d6c4" }, geometry: { type: "Point", coordinates: z } },
+    { type: "Feature", properties: { farbe: "#ff896b" }, geometry: { type: "Point", coordinates: a } }] });
+  const b = new lib.LngLatBounds(); linie.forEach(c => b.extend(c));
+  m.fitBounds(b, { padding: Math.round(Math.min(w, h) * 0.12), maxZoom: 14, duration: 0 });
+  await _rzKbWarten(m, "idle", 9000);
+  try { return m.getCanvas().toDataURL("image/jpeg", 0.86); } catch (_) { return null; }
+}
+window.rzKartenbild = rzKartenbild;
+window.rzKartenbildWeg = rzKartenbildWeg;
+
+/* 09.10.2026 (Marc: „Wären jetzt auch die bearbeiteten Bilder im Animator und wo man eben Bilder überall benutzt?“) —
+   Stempel der bearbeiteten Fotos (Pfad → Fingerabdruck des Rezepts). Der Animator merkt sich am Foto-Schild, unter
+   welchem Stempel sein Bild entstand (`thumb_rz`), und holt es neu, wenn er nicht mehr passt — auch in älteren Projekten.
+   Nach jedem Bearbeiten: Ereignis „rz-rezept-geaendert“ → neu laden → „rz-rezept-stempel“. */
+window.__rzRezeptStempel = window.__rzRezeptStempel || {};
+let _rzStempelErst = null;
+function rzRezeptStempelLaden() {
+  const p = (async () => {
+    try {
+      const r = await api().fotos_rezept_stempel();   // warte-ok: Hintergrund, eine Abfrage
+      if (r && r.ok) window.__rzRezeptStempel = r.stempel || {};
+    } catch (_) {}
+    window.dispatchEvent(new CustomEvent("rz-rezept-stempel"));
+  })();
+  if (!_rzStempelErst) _rzStempelErst = p;
+  return p;
+}
+/** Promise: die Stempel sind (einmal) geladen — Schild-Bilder warten darauf, damit kein veraltetes Bild ins Video kommt. */
+function rzRezeptStempelBereit() {
+  if (!_rzStempelErst) rzRezeptStempelLaden();
+  return Promise.race([_rzStempelErst, new Promise(r => setTimeout(r, 4000))]);
+}
+window.rzRezeptStempelLaden = rzRezeptStempelLaden;
+window.rzRezeptStempelBereit = rzRezeptStempelBereit;
+window.addEventListener("rz-rezept-geaendert", () => { rzRezeptStempelLaden(); });

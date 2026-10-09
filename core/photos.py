@@ -237,7 +237,7 @@ def thumbnail_data_url(path: str, max_px: int = 600) -> Optional[str]:
             data = _pil_thumb_from_bytes(prev, max_px) if prev else None
         else:
             data = _pil_thumb_from_file(path, max_px)
-        return _to_data_url(data)
+        return mit_rezept(path, _to_data_url(data))
     except Exception:
         return None
 
@@ -541,7 +541,34 @@ def thumb_data_url_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
     return _to_data_url(thumb_gecacht(path, max_px, fp, nur_cache))
 
 
+# 09.10.2026 — Bearbeitung (Rezept aus der Bibliothek) auch auf den Nebenwegen; setzt app.py (sonst unverändert)
+BEARBEITET_URL = None    # Callable[[pfad, data_url], data_url]
+HAT_REZEPT = None        # Callable[[pfad], bool]
+
+
+def mit_rezept(path: str, url: Optional[str]) -> Optional[str]:
+    """data-URL mit der Bearbeitung des Fotos (falls es eine gibt)."""
+    if not url or not BEARBEITET_URL:
+        return url
+    try:
+        return BEARBEITET_URL(path, url)
+    except Exception:  # noqa: BLE001
+        return url
+
+
+def hat_rezept(path: str) -> bool:
+    try:
+        return bool(HAT_REZEPT and HAT_REZEPT(path))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _get_thumbnail_data_url(path: str) -> Optional[str]:
+    """Cache-aware Wrapper. Liefert data-URL oder None (mit Bearbeitung, falls vorhanden)."""
+    return mit_rezept(path, _get_thumbnail_data_url_roh(path))
+
+
+def _get_thumbnail_data_url_roh(path: str) -> Optional[str]:
     """Cache-aware Wrapper. Liefert data-URL oder None."""
     fp = _fingerprint(path)
     if fp:

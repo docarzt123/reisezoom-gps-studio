@@ -1970,6 +1970,10 @@ def query(
     # obwohl ihn dort nichts anfasst. Nur `get_track` (eine Tour) liest ihn.
     spalten = (_spalten_ohne_geom(conn) + ", geom") if with_geom \
         else _spalten_ohne_geom(conn)
+    # 09.10.2026 (Detailspalte „Strecke: Rundweg / Punkt zu Punkt“) — nur Start und Ziel aus dem Verlauf, nicht der ganze Verlauf
+    if not with_geom:
+        spalten += (", json_extract(CASE WHEN json_valid(geom) THEN geom END, '$[0]') AS geom_a"
+                    ", json_extract(CASE WHEN json_valid(geom) THEN geom END, '$[#-1]') AS geom_z")
     # 02.09.2026, Schnitt 2 — was die Kachel über die TOUR sagen muss:
     # an wie vielen Orten sie liegt und wie viele Versionen es gibt. Beides
     # als Unterabfrage; ein JOIN würde die WHERE-Klausel verkomplizieren, die
@@ -2003,8 +2007,41 @@ def query(
     return {"total": total, "items": [_to_dict(r, with_geom=with_geom) for r in rows]}
 
 
+def _rundweg(geom_text) -> "bool | None":
+    """09.10.2026 — Rundweg (Start und Ziel < 300 m auseinander) oder Punkt zu Punkt; None ohne Verlauf."""
+    try:
+        g = json.loads(geom_text) if isinstance(geom_text, str) else geom_text
+        if not g or len(g) < 2:
+            return None
+        (lo1, la1), (lo2, la2) = g[0][:2], g[-1][:2]
+        dx = (lo2 - lo1) * 111320.0 * math.cos(math.radians((la1 + la2) / 2))
+        dy = (la2 - la1) * 110540.0
+        return (dx * dx + dy * dy) ** 0.5 < 300.0
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def geoms(conn: sqlite3.Connection, pfade: list) -> dict:
+    """Vereinfachte Streckenverläufe [[lon,lat],…] für einzelne Touren (Kartenbilder im Archiv)."""
+    raus = {}
+    pf = [str(p) for p in (pfade or []) if p][:200]
+    for i in range(0, len(pf), 100):
+        teil = pf[i:i + 100]
+        for r in conn.execute(f"SELECT path, geom FROM tracks WHERE path IN ({','.join('?' * len(teil))})", teil):
+            try:
+                raus[r["path"]] = json.loads(r["geom"] or "[]")
+            except (TypeError, ValueError):
+                raus[r["path"]] = []
+    return raus
+
+
 def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     d = dict(r)
+    if "geom" in d:
+        d["rundweg"] = _rundweg(d.get("geom"))
+    elif "geom_a" in d:
+        a_, z_ = d.pop("geom_a", None), d.pop("geom_z", None)
+        d["rundweg"] = _rundweg(f"[{a_},{z_}]") if a_ and z_ else None
     # Der Streckenverlauf ist nur für die Kartenansicht nötig. Bei 700 Touren
     # sind das sonst 700 × 80 Koordinaten, die durch die Brücke müssen, ohne
     # dass sie jemand anschaut.
@@ -2475,10 +2512,13 @@ def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
     # Häufigste Startpunkte (Wunsch Beta-Tester: „Auswerten von genutzten
     # Startpunkten"). Der Ortslauf füllt `place`; ohne ihn bleibt die Liste leer,
     # und die Oberfläche sagt das dann auch.
+    # 09.10.2026 — mit Lage (Mittel der Tour-Mitten) für die kleine Karte der Statistik
     startorte = [{"ort": x["place"], "n": x["n"],
-                  "km": round((x["d"] or 0) / 1000.0, 1)}
+                  "km": round((x["d"] or 0) / 1000.0, 1),
+                  "lat": round(x["la"], 5) if x["la"] is not None else None,
+                  "lon": round(x["lo"], 5) if x["lo"] is not None else None}
                  for x in rows(
-                     f"SELECT place, COUNT(*) n, SUM(distance_m) d FROM tracks "
+                     f"SELECT place, COUNT(*) n, SUM(distance_m) d, AVG(center_lat) la, AVG(center_lon) lo FROM tracks "
                      f"WHERE {sql_where} AND COALESCE(place,'') != '' "
                      f"GROUP BY place ORDER BY n DESC, place LIMIT 25")]
 

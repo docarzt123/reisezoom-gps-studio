@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 08 Oct 2026 11:01:20 +0000</lastBuildDate>
+<lastBuildDate>Thu, 08 Oct 2026 18:28:14 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.786</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-786</link>
+<guid isPermaLink="false">gps-studio-v0.9.786</guid>
+<pubDate>Thu, 08 Oct 2026 12:00:00 +0000</pubDate>
+<description>Play mit der Maus — Der Play-Knopf im Animator reagiert wieder auf jeden Mausklick — vorher ging ein Klick auf dem Mac oft verloren, wenn man die Maustaste etwas länger gedrückt hielt (die Leertaste ging immer). Auch der erste Klick in ein Fenster im Hintergrund kommt jetzt an.
+
+Karten-Editor bleibt offen — Beim Durchklicken der Luftbilder (z. B. Mapbox Satellit) schloss sich die rechte Seite — jetzt bleibt sie offen.
+
+Rundtour für Etappen — Ab drei Punkten schließt „🔄 Rundtour — zurück zum Start“ die Etappe am Startpunkt; der Rückweg hat ein eigenes Verkehrsmittel und „Straßen folgen“.
+
+Fotos „Nach Touren“ — Jede Tour zeigt Datum, Ort, Fortbewegung und Kilometer, die Liste ist nach Jahren gegliedert, ein Suchfeld filtert nach Ort, Jahr oder Name, und „🎬 Im Animator öffnen“ springt direkt hinein.</description>
+</item>
 <item>
 <title>v0.9.785</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-785</link>
@@ -187,13 +200,6 @@ Punkte im Gelände an der richtigen Stelle — die Vorankündigungspunkte der Hi
 <guid isPermaLink="false">gps-studio-v0.9.767</guid>
 <pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
 <description>Foto-Pins an der richtigen Stelle — im fertigen Video lagen die Pins nach dem Stopp neben der Strecke. Jetzt zeichnet die Karte sie selbst, genau auf der Linie.</description>
-</item>
-<item>
-<title>v0.9.766</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-766</link>
-<guid isPermaLink="false">gps-studio-v0.9.766</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Foto-Pin — ein Fotostopp hat jetzt einen runden Pin mit dem Foto. Er taucht 2,5 Sekunden vorher auf, das große Foto wächst aus ihm heraus, danach bleibt er an seiner Stelle. Die doppelte Karte hinter dem Foto ist weg.</description>
 </item>
 </channel>
 </rss>

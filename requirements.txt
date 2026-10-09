@@ -27,6 +27,7 @@ keyring>=25.0             # Schlüsselbund: macOS, Windows, Linux/SecretService
 imageio-ffmpeg>=0.5
 # 02.10.2026 — Tonspur mischen (core/tonspur.py). BSD-Lizenz. Darf in der .spec NICHT ausgeschlossen werden.
 numpy>=1.26
+rawpy>=0.26          # 09.10.2026 — RAW entwickeln (LibRaw, LGPL-2.1/CDDL; Credits im Über-Fenster)
 # 04.10.2026 — Inhaltssuche im Foto-Archiv (core/inhalt.py): SigLIP 2 als ONNX. Das Modell selbst wird
 # erst beim Einschalten geladen; im Paket liegt nur die Laufzeit. onnxruntime MIT, tokenizers Apache-2.0.
 # 05.10.2026 (Audit F-7) — FEST gepinnt wie Playwright: native Bibliotheken (libonnxruntime 32 MB, pybind11),

@@ -95,7 +95,9 @@ function mountLibrary(body, headerActions) {
 
   // „Bereich" ist die grobe Trennung links; die Filterleiste verfeinert nur noch.
   let scope = store.get("scope", "all");
-  let view = store.get("view", "cards");
+  let view = store.get("view", "rows");
+  // 09.10.2026 — Touren als Zeilen sind Standard: einmalig von Kacheln/Liste auf Zeilen umstellen; danach gilt die Wahl
+  if (!store.get("zeilen_standard")) { store.set("zeilen_standard", "1"); if (view === "cards" || view === "list") { view = "rows"; store.set("view", "rows"); } }
 
   /* Die Filterleiste überlebt den Modulwechsel (Beta-Tester: „Wenn man nach
    * Längste zuerst filtert, eine Datei im Animator anschaut und dann zurück
@@ -130,6 +132,7 @@ function mountLibrary(body, headerActions) {
     search: store.get("search", ""),
     year: parseInt(store.get("year", "0"), 10) || 0,
     activity: store.get("activity", ""),
+    tags: store.get("tags", "") || null,      // 09.10.2026 — ein Schlagwort (Backend: _build_where tags)
     von: store.get("von", "") || null,
     bis: store.get("bis", "") || null,
     verz: store.get("verz", "") || null,     // 04.10.2026 — „Nach Ordner": Ordner samt Unterordnern
@@ -160,6 +163,10 @@ function mountLibrary(body, headerActions) {
     if (sel && SORTS_OK.includes(state.sort)) sel.value = state.sort;
   }
 
+  // 09.10.2026 — Strich-Symbol (ui/js/icons.js)
+  const SI = (n, g) => (typeof rzIcon === "function" ? rzIcon(n, { size: g || 16 }) : "");
+  const ACT_SYMBOL = { wandern: "footprints", spaziergang: "person-standing", laufen: "activity", rad: "bike", mtb: "bike",
+    rennrad: "bike", ebike: "bike", gravel: "bike", motorrad: "rz-motorrad", auto: "car", boot: "sailboat", ski: "mountain-snow" };
   const ACT_LABELS = {
     wandern: T("library.act.wandern", "Wandern"),
     spaziergang: T("library.act.spaziergang", "Spaziergang"),
@@ -256,6 +263,9 @@ function mountLibrary(body, headerActions) {
            kommt aus ui/js/fotos.js, damit dieses Modul nicht weiter wächst. -->
       <div id="lib-nav-fotos" hidden></div>
       <div id="lib-nav-touren">
+      <!-- 09.10.2026 — Kopf wie bei den Medien: Titel und Anzahl -->
+      <div class="foto-nav-kopf"><div class="foto-nav-titel">${T("pm.seg_archive", "Touren-Archiv")}</div>
+        <div class="foto-nav-zahl muted" id="lib-nav-zahl">…</div></div>
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
       <!-- 07.10.2026 (Marc: „überall, wo man warten muss, sollte etwas kommen, dass man wartet“) — Platzhalter mit
            drehendem Kreis; der echte Inhalt ersetzt ihn (innerHTML), sobald die Bibliothek antwortet -->
@@ -269,9 +279,9 @@ function mountLibrary(body, headerActions) {
       <div id="lib-baeume">${_ladePlatz()}</div>
 
       <div class="lib-nav-foot">
-        <button class="btn btn-primary btn-sm" id="lib-folders-btn" type="button">📂 ${T("library.folders_btn", "Ordner & Einlesen")}</button>
+        <button class="btn btn-primary btn-sm" id="lib-folders-btn" type="button">${SI("folder-plus", 15)} ${T("library.folders_btn", "Ordner & Einlesen")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
-        <button class="btn btn-ghost btn-sm" id="lib-check-all" type="button" title="${esc(T("trackcheck.all_tip", "Prüft jede Tour im Archiv auf Sprünge, Lücken und andere Aufzeichnungsfehler. Etwa eine Minute je 1000 Touren, abbrechbar. Es wird nur gezählt, nichts verändert."))}">${T("trackcheck.all_btn", "🩺 Alle Touren prüfen")}</button>
+        <button class="btn btn-ghost btn-sm" id="lib-check-all" type="button" title="${esc(T("trackcheck.all_tip", "Prüft jede Tour im Archiv auf Sprünge, Lücken und andere Aufzeichnungsfehler. Etwa eine Minute je 1000 Touren, abbrechbar. Es wird nur gezählt, nichts verändert."))}">${SI("stethoscope", 15)} ${esc(T("trackcheck.all_btn", "🩺 Alle Touren prüfen").replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, ""))}</button>
         <div class="lib-nav-hint" id="lib-nav-hint">${_ladePlatz()}</div>
       </div>
       </div>
@@ -283,10 +293,10 @@ function mountLibrary(body, headerActions) {
              Touren-Archiv. Hier ist das Archiv aktiv; „Projekte" öffnet den
              Vollbild-Manager (ui/js/projekte.js). -->
         <div class="pmgr-seg" role="group">
-          <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">🗂 ${T("pm.title", "Projekte")}</button>
-          <button type="button" class="pmgr-seg-btn" id="lib-seg-vorlagen">🧩 ${T("vorlagen.titel", "Vorlagen")}</button>
-          <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
-          <button type="button" class="pmgr-seg-btn" id="lib-seg-fotos">📷 ${T("fotos.titel", "Medien")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">${(typeof rzIcon === "function" ? rzIcon("briefcase", { size: 15 }) : "")} ${T("pm.title", "Projekte")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-vorlagen">${(typeof rzIcon === "function" ? rzIcon("puzzle", { size: 15 }) : "")} ${T("vorlagen.titel", "Vorlagen")}</button>
+          <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">${(typeof rzIcon === "function" ? rzIcon("library", { size: 15 }) : "")} ${T("pm.seg_archive", "Touren-Archiv")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-fotos">${(typeof rzIcon === "function" ? rzIcon("images", { size: 15 }) : "")} ${T("fotos.titel", "Medien")}</button>
         </div>
         <!-- 12.09.2026 (Marc): im Archiv steht nur der NAME der Bibliothek, ein
              Klick öffnet die Verwaltung in den Einstellungen — „dann bleibt das
@@ -294,11 +304,21 @@ function mountLibrary(body, headerActions) {
              arbeitet, ohne es zu merken. -->
         <button type="button" class="lib-bibname" id="lib-bibname" hidden
                 title="${T("library.bibname_tip", "Geöffnete Bibliothek — klicken für Name, Wechseln und Sicherung")}"></button>
+        <span class="lib-bar-spacer"></span>
+        <div class="lib-views" role="group">
+          <button class="lib-view" data-view="rows" type="button" title="${T("library.view_rows", "Zeilen mit Kartenbild")}">${SI("layout-list")}</button>
+          <button class="lib-view" data-view="cards" type="button" title="${T("library.view_cards", "Kacheln")}">${SI("layout-grid")}</button>
+          <button class="lib-view" data-view="list" type="button" title="${T("library.view_list", "Liste")}">${SI("table")}</button>
+          <button class="lib-view" data-view="map" type="button" title="${T("library.view_map", "Karte")}">${SI("map")}</button>
+          <button class="lib-view" data-view="stats" type="button" title="${T("library.view_stats", "Statistik")}">${SI("chart-column")}</button>
+        </div>
+        <!-- 09.10.2026 — zweite Zeile: Filter (Suche · Fortbewegung · Zeitraum · Schlagwörter · Sortieren) -->
+        <span class="lib-bar-umbruch" aria-hidden="true"></span>
         <input type="search" id="lib-search" class="lib-search"
                value="${esc(state.search || "")}"
                placeholder="${T("library.search_ph", "Suchen — Name, Ort, Schlagwort …")}">
-        <select id="lib-year" class="lib-select"></select>
         <select id="lib-act" class="lib-select"></select>
+        <select id="lib-year" class="lib-select"></select>
         <!-- Längen-Filter (Wunsch Beta-Tester: „Zeige mir alle Wanderungen über
              20 km in 2025"). Das Backend konnte das längst — es gab nur kein
              Feld dafür. Zusammen mit Art und Jahr ist die Frage jetzt in drei
@@ -318,6 +338,7 @@ function mountLibrary(body, headerActions) {
           <input type="date" id="lib-bis" class="lib-datefield"
                  title="${T("library.range_to", "bis")}">
         </span>
+        <select id="lib-tags" class="lib-select" title="${T("library.tags_filter_tip", "Nur Touren mit diesem Schlagwort")}"></select>
         <span class="lib-km" title="${T("library.km_range_tip", "Nur Touren in diesem Längenbereich")}">
           <input type="number" id="lib-kmmin" class="lib-kmfield" min="0" step="1"
                  placeholder="${T("library.km_from", "ab km")}">
@@ -325,6 +346,7 @@ function mountLibrary(body, headerActions) {
           <input type="number" id="lib-kmmax" class="lib-kmfield" min="0" step="1"
                  placeholder="${T("library.km_to", "bis km")}">
         </span>
+        <span class="lib-sort-label muted">${T("library.sort_label", "Sortieren nach")}</span>
         <select id="lib-sort" class="lib-select">
           <option value="date_desc">${T("library.sort.date_desc", "Neueste zuerst")}</option>
           <option value="date_asc">${T("library.sort.date_asc", "Älteste zuerst")}</option>
@@ -346,18 +368,14 @@ function mountLibrary(body, headerActions) {
         <button class="lib-chip is-on foto-db-chip" id="lib-ob-chip" type="button" hidden
                 title="${T("fotos.ob_chip_weg", "Ordnerfilter aufheben")}"></button>
         <button class="lib-chip lib-chip-ghost" id="lib-reset" type="button">${T("library.reset", "Zurücksetzen")}</button>
-        <span class="lib-bar-spacer"></span>
-        <div class="lib-views" role="group">
-          <button class="lib-view" data-view="cards" type="button" title="${T("library.view_cards", "Kacheln")}">▦</button>
-          <button class="lib-view" data-view="list" type="button" title="${T("library.view_list", "Liste")}">☰</button>
-          <button class="lib-view" data-view="map" type="button" title="${T("library.view_map", "Karte")}">🌍</button>
-          <button class="lib-view" data-view="stats" type="button" title="${T("library.view_stats", "Statistik")}">📊</button>
-        </div>
+
       </div>
 
       <div class="lib-head" id="lib-head"></div>
+      <div class="lib-such-medien" id="lib-such-medien" hidden></div>
 
       <div class="lib-body">
+        <div class="lib-rows" id="lib-rows" hidden></div>
         <div class="lib-grid" id="lib-grid"></div>
         <div class="lib-list" id="lib-list" hidden></div>
         <div class="lib-mapwrap" id="lib-mapwrap" hidden>
@@ -440,6 +458,7 @@ function mountLibrary(body, headerActions) {
     if (p.max_km == null) delete p.max_km;
     if (!p.collection_id) delete p.collection_id;
     if (!p.search) delete p.search;
+    if (p.tags) p.tags = [p.tags]; else delete p.tags;   // Backend erwartet eine Liste (sonst Buchstabe für Buchstabe)
     return p;
   }
 
@@ -449,6 +468,7 @@ function mountLibrary(body, headerActions) {
   function baseParams() {
     const p = Object.assign({}, state);
     delete p.collection_id;
+    delete p.tags;          // Bestand ohne Schlagwort-Filter — sonst zeigte die Auswahl nur noch das gewählte Schlagwort
     if (!p.year) delete p.year;
     if (!p.activity) delete p.activity;
     if (!p.von) delete p.von;
@@ -546,6 +566,41 @@ function mountLibrary(body, headerActions) {
     renderHead();
     renderView();
     renderDetail();
+    _suchMedien(seq);
+  }
+
+  /* 08.10.2026 (Beta-Tester: „mir ist ja Ort oder Jahr bekannt“) — wer im
+     Touren-Archiv sucht, sieht über der Liste auch die Medien dazu: direkte Treffer (Dateiname, Ort-Tags …) und die
+     Fotos/Clips der gefundenen Touren (auch der über die Gegend gefundenen). Getrennt von den Touren, ein Klick führt hin. */
+  async function _suchMedien(seq) {
+    const box = $("lib-such-medien"); if (!box) return;
+    const text = (state.search || "").trim();
+    if (text.length < 2 || _fotoView || _projView || _vorlView || view === "stats") { box.hidden = true; box.innerHTML = ""; return; }
+    let r = null;
+    try { r = await api().suche_gemeinsam(text, 0, 14, _items.slice(0, 30).map(i => i.path)); } catch (_) {}   // warte-ok: Streifen erscheint, sobald da
+    if (_unmounted || seq !== _reloadSeq || !r || !r.ok) return;
+    const m = r.medien || [];
+    if (!m.length) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    box.innerHTML = `<span class="lib-such-medien-titel">📷 ${esc(T("suche.medien_zu", "{n} Fotos und Clips zu „{q}“", { n: (r.n_medien || m.length).toLocaleString(rzSprachCode()), q: text }))}</span>
+      <span class="lib-such-medien-bilder">${m.map((x, i) => `<button type="button" class="lib-such-bild${x.art === "video" ? " ist-video" : ""}" data-i="${i}" title="${esc((x.dateiname || "") + (x.tour ? " · " + x.tour : ""))}"><span></span></button>`).join("")}</span>
+      <button type="button" class="btn btn-sm" id="lib-such-medien-alle">${esc(T("suche.alle_ansehen", "Alle ansehen"))} ▸</button>`;
+    const touren = r.touren || [];
+    const zuTour = (pfad) => {
+      const x = m.find(y => y.path === pfad);
+      const t = x && x.tour ? touren.find(y => y.name === x.tour) : (touren.length === 1 ? touren[0] : null);
+      if (t && window.rzTourSeite) window.rzTourSeite.oeffnen({ geo_hash: t.geo_hash, path: t.path, name: t.name }, pfad);
+      else if (window.rzFotos && window.rzFotos.gross) window.rzFotos.gross(pfad, m.map(y => ({ path: y.path, art: y.art, dateiname: y.dateiname, tag_lokal: y.tag_lokal })));
+    };
+    box.querySelectorAll(".lib-such-bild").forEach(b => { b.onclick = () => zuTour(m[+b.dataset.i].path); });
+    $("lib-such-medien-alle").onclick = () => {
+      if (touren.length === 1 && window.rzTourSeite) { window.rzTourSeite.oeffnen({ geo_hash: touren[0].geo_hash, path: touren[0].path, name: touren[0].name }); return; }
+      fotoViewSetzen(true);
+      setTimeout(() => { if (window.rzFotos && window.rzFotos.zeigeTouren) window.rzFotos.zeigeTouren(text); }, 300);
+    };
+    let t2 = null; try { t2 = await api().fotos_thumbs(m.map(x => x.path), false); } catch (_) {}   // warte-ok: Flächen stehen schon
+    if (!t2 || !t2.ok || !box.isConnected) return;
+    m.forEach((x, i) => { const u = t2.thumbs && t2.thumbs[x.path]; const el = box.querySelector(`.lib-such-bild[data-i="${i}"] span`); if (u && el) el.style.backgroundImage = `url("${u}")`; });
   }
 
   /** Die nächste Seite holen und ANHÄNGEN — mit denselben Filtern wie die
@@ -592,6 +647,7 @@ function mountLibrary(body, headerActions) {
     _base = base || s;
     fillYearOptions();
     fillActivityOptions();
+    fillTagOptions();
     renderScopes();
     baeumeLaden();
   }
@@ -631,11 +687,11 @@ function mountLibrary(body, headerActions) {
     const dAuf = tbDbOffen.has("wurzel"), oAuf = tbObOffen.has("wurzel");
     const ordnerZeilen = tbOrdner ? rzBaum.ordnerHtml(tbOrdner, tbObOffen, state.verz, tbWurzelText) : "";
     box.innerHTML =
-      rzBaum.kopfHtml("lib-db-kopf", dAuf, "📅", T("fotos.nach_datum", "Nach Datum"))
+      rzBaum.kopfHtml("lib-db-kopf", dAuf, SI("calendar", 14), T("fotos.nach_datum", "Nach Datum"))
       + `<div class="foto-datumsbaum" id="lib-datumsbaum"${dAuf ? "" : " hidden"}>${(tbTage || []).length
           ? rzBaum.datumHtml(tbTage, tbDbOffen, state.von, state.bis)
           : `<div class="lib-nav-hint">${esc(T("library.nach_datum_leer", "Keine Touren mit Datum."))}</div>`}</div>`
-      + rzBaum.kopfHtml("lib-ob-kopf", oAuf, "📁", T("fotos.nach_ordner", "Nach Ordner"))
+      + rzBaum.kopfHtml("lib-ob-kopf", oAuf, SI("folder", 14), T("fotos.nach_ordner", "Nach Ordner"))
       + `<div class="foto-datumsbaum" id="lib-ordnerbaum"${oAuf ? "" : " hidden"}>${ordnerZeilen
           || `<div class="lib-nav-hint">${esc(T("library.nach_ordner_leer", "Keine Touren in beobachteten Ordnern."))}</div>`}</div>`;
     $("lib-db-kopf").onclick = () => { if (tbDbOffen.has("wurzel")) tbDbOffen.delete("wurzel"); else tbDbOffen.add("wurzel"); rzBaum.offenMerken(TB_DB_KEY, tbDbOffen); baeumeZeichnen(); };
@@ -709,19 +765,20 @@ function mountLibrary(body, headerActions) {
   // ── Seitenleiste ──────────────────────────────────────────────────────
   function renderScopes() {
     const b = _base || _stats || {};
+    { const z = $("lib-nav-zahl"); if (z && b.n_tracks != null) z.textContent = T("library.nav_zahl", "{n} Touren · {km} km").replace("{n}", num(b.n_tracks)).replace("{km}", num(b.total_km)); }
     const items = [
-      ["all", "📚", T("library.scope_all", "Alle Touren")],
-      ["done", "✅", T("library.scope_done", "Gemachte")],
-      ["planned", "📝", T("library.scope_planned", "Geplante")],
-      ["fav", "★", T("library.scope_fav", "Favoriten")],
+      ["all", "library", T("library.scope_all", "Alle Touren")],
+      ["done", "circle-check", T("library.scope_done", "Gemachte")],
+      ["planned", "flag", T("library.scope_planned", "Geplante")],
+      ["fav", "star", T("library.scope_fav", "Favoriten")],
     ];
     // 23.08.2026 — Zusammengeführte Mehr-Touren-Tracks: eigener Bereich, damit
     // ihre Kilometer nicht ein zweites Mal in Liste und Statistik landen.
-    if ((b.n_merged || 0) > 0) items.push(["merged", "🧭", T("library.scope_merged", "Zusammengefügt")]);
-    if ((b.n_hidden || 0) > 0) items.push(["hidden", "🚫", T("library.scope_hidden", "Ausgeblendete")]);
+    if ((b.n_merged || 0) > 0) items.push(["merged", "merge", T("library.scope_merged", "Zusammengefügt")]);
+    if ((b.n_hidden || 0) > 0) items.push(["hidden", "eye-off", T("library.scope_hidden", "Ausgeblendete")]);
     // Nur zeigen, wenn es tatsächlich unerreichbare Touren gibt — sonst wäre es
     // ein Bereich, den niemand versteht, weil er immer leer ist.
-    if ((b.n_missing || 0) > 0) items.push(["missing", "🔌", T("library.scope_missing", "Nicht erreichbar")]);
+    if ((b.n_missing || 0) > 0) items.push(["missing", "link", T("library.scope_missing", "Nicht erreichbar")]);
     // Die Zahlen sind Bestände, keine Trefferzahlen: sie kommen aus der
     // Statistik OHNE Bereichs-Filter und ändern sich deshalb nur, wenn oben
     // ein Jahr, eine Art oder eine Suche eingegrenzt wird.
@@ -737,7 +794,7 @@ function mountLibrary(body, headerActions) {
     };
     $("lib-scopes").innerHTML = items.map(([k, ico, label]) => `
       <button class="lib-nav-item${scope === k ? " is-on" : ""}" data-scope="${k}" type="button">
-        <span class="lib-nav-ico">${ico}</span><span class="lib-nav-lbl">${esc(label)}</span>
+        <span class="lib-nav-ico">${SI(ico, 15)}</span><span class="lib-nav-lbl">${esc(label)}</span>
         <span class="lib-nav-n">${count(k)}</span>
       </button>`).join("");
     $("lib-scopes").querySelectorAll("[data-scope]").forEach(b => {
@@ -757,7 +814,7 @@ function mountLibrary(body, headerActions) {
       ? _collections.map(c => `
           <button class="lib-nav-item${state.collection_id === c.id ? " is-on" : ""}" data-col="${c.id}" type="button"
                   title="${esc(T("library.col_menu_hint", "Klick zeigt nur diese Sammlung · Rechtsklick öffnet die Verwaltung"))}">
-            <span class="lib-nav-ico">📁</span>
+            <span class="lib-nav-ico">${SI("folder", 15)}</span>
             <span class="lib-nav-lbl">${esc(c.name)}</span>
             <span class="lib-nav-n">${c.n}</span>
             <span class="lib-nav-menu" data-colmenu="${c.id}" title="${esc(T("library.col_manage", "Sammlung verwalten"))}">⋯</span>
@@ -811,6 +868,7 @@ function mountLibrary(body, headerActions) {
     $("lib-head").innerHTML = `
       <span class="lib-head-count">${_total} ${T("library.tours", "Touren")}</span>
       <span class="lib-head-title">${esc(scopeTitle())}</span>
+      ${(state.collection_id && window.rzTourSeite && _items.length > 1) ? `<button type="button" class="btn btn-sm lib-head-reise" id="lib-reise-seite" title="${esc(T("reise.seite_tip", "Alle Touren dieser Sammlung auf einer Karte, mit allen Fotos und Clips"))}">🗺 ${T("reise.seite", "Reise-Seite")} ▸</button>` : ""}
       ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours_moving_kurz", "Std. in Bewegung")}</span>` : ""}
       ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned_n", "geplant")}</span>` : ""}
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
@@ -827,6 +885,8 @@ function mountLibrary(body, headerActions) {
           ? T("library.no_track_n", "Datei(en) ohne Strecke")
           : T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
     `;
+    const rs = $("lib-reise-seite");
+    if (rs) rs.onclick = () => { const col = _collections.find(c => c.id === state.collection_id); window.rzTourSeite.oeffnenReise(_items.map(i => i.path), col ? col.name : ""); };
     const eb = $("lib-show-errors");
     // Nicht `= showErrors`: dann käme das Klick-Ereignis als erstes Argument an
     // und wäre als „auch weggeräumte zeigen" wahr.
@@ -837,6 +897,15 @@ function mountLibrary(body, headerActions) {
     if (cs) cs.onclick = () => { api().library_track_check_stop().catch(() => {}); };
   }
 
+  /** 09.10.2026 — Schlagwörter aus der Statistik (häufigste zuerst); das gewählte bleibt immer in der Liste. */
+  function fillTagOptions() {
+    const sel = $("lib-tags"); if (!sel) return;
+    const liste = ((_base && _base.tags) || (_stats && _stats.tags) || []).slice(0, 80);
+    if (state.tags && !liste.some(([t]) => t === state.tags)) liste.unshift([state.tags, 0]);
+    sel.innerHTML = `<option value="">${T("library.all_tags", "Alle Schlagwörter")}</option>` +
+      liste.map(([t, n]) => `<option value="${esc(t)}"${state.tags === t ? " selected" : ""}>${esc(t)}${n ? ` (${n})` : ""}</option>`).join("");
+    sel.disabled = !liste.length;
+  }
   function fillYearOptions() {
     const sel = $("lib-year");
     const years = (_stats && _stats.years) || [];
@@ -999,16 +1068,16 @@ function mountLibrary(body, headerActions) {
     const eigene = _projekte.filter(p => !p.auto && _projTrifftSuche(p, suche));
     const n = (st) => eigene.filter(p => p.status === st).length;
     const eintraege = [
-      ["alle", "🗂", T("library.projects_all", "Alle Projekte"), eigene.length],
-      ["aktiv", "🟢", T("library.proj_st_aktiv", "aktiv"), n("aktiv")],
-      ["idee", "💡", T("library.proj_st_idee", "Idee"), n("idee")],
-      ["fertig", "✅", T("library.proj_st_fertig", "fertig"), n("fertig")],
-      ["auto", "⚙️", T("library.proj_autos", "Automatisch angelegt"),
+      ["alle", "briefcase", T("library.projects_all", "Alle Projekte"), eigene.length],
+      ["aktiv", "circle-dot", T("library.proj_st_aktiv", "aktiv"), n("aktiv")],
+      ["idee", "lightbulb", T("library.proj_st_idee", "Idee"), n("idee")],
+      ["fertig", "circle-check", T("library.proj_st_fertig", "fertig"), n("fertig")],
+      ["auto", "settings", T("library.proj_autos", "Automatisch angelegt"),
        _projekte.filter(p => p.auto && _projTrifftSuche(p, suche)).length],
     ];
     box.innerHTML = eintraege.map(([k, ico, lbl, anz]) => `
       <button class="lib-nav-item${_projScope === k ? " is-on" : ""}" data-pscope="${k}" type="button">
-        <span class="lib-nav-ico">${ico}</span><span class="lib-nav-lbl">${esc(lbl)}</span>
+        <span class="lib-nav-ico">${SI(ico, 15)}</span><span class="lib-nav-lbl">${esc(lbl)}</span>
         <span class="lib-nav-n">${anz || ""}</span>
       </button>`).join("");
     box.querySelectorAll("[data-pscope]").forEach(b => {
@@ -1719,7 +1788,7 @@ function mountLibrary(body, headerActions) {
     if (_fotoView) {
       // Der Foto-Bestand bringt eigene Leiste und eigene Ansichten mit; das
       // Archiv tritt komplett zurück, nur die Detailspalte wird geteilt.
-      ["lib-projwrap", "lib-vorlwrap", "lib-head", "lib-grid", "lib-list",
+      ["lib-projwrap", "lib-vorlwrap", "lib-head", "lib-grid", "lib-rows", "lib-list",
        "lib-mapwrap", "lib-stats"].forEach(id => { const e = $(id); if (e) e.hidden = true; });
       { const d = $("lib-detail");
         if (d && !d.querySelector(".foto-detail")) {
@@ -1732,7 +1801,7 @@ function mountLibrary(body, headerActions) {
     { const vw = $("lib-vorlwrap"); if (vw) vw.hidden = !_vorlView; }
     if (_vorlView) {
       $("lib-projwrap").hidden = true; $("lib-head").hidden = true;
-      $("lib-grid").hidden = true; $("lib-list").hidden = true; $("lib-mapwrap").hidden = true; $("lib-stats").hidden = true;
+      $("lib-grid").hidden = true; $("lib-rows").hidden = true; $("lib-list").hidden = true; $("lib-mapwrap").hidden = true; $("lib-stats").hidden = true;
       { const d = $("lib-detail"); if (d) { d.hidden = false;
           d.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${T("vorlagen.detail_hint", "Vorlagen sind leere Projekte. „Neues Projekt daraus“ legt ein Projekt mit diesem Look an; im Projekt-Menü der Kopfzeile und auf jeder Projekt-Kachel (🧩) wendest du eine Vorlage auf bestehende Projekte an.")}</div>`; } }
       renderVorlagen();
@@ -1758,11 +1827,14 @@ function mountLibrary(body, headerActions) {
         }
       } }
     $("lib-grid").hidden = pv || view !== "cards";
+    $("lib-rows").hidden = pv || view !== "rows";
     $("lib-list").hidden = pv || view !== "list";
     $("lib-mapwrap").hidden = pv || view !== "map";
     $("lib-stats").hidden = pv || view !== "stats";
+    { const mb = $("lib-stats") && $("lib-stats").closest(".module-body"); if (mb) mb.classList.toggle("lib-statistik", !pv && view === "stats"); }
     if (pv) { renderProjekte(); return; }
     if (view === "cards") renderGrid();
+    else if (view === "rows") renderRows();
     else if (view === "list") renderList();
     else if (view === "stats") renderStats();
     else {
@@ -1906,19 +1978,201 @@ function mountLibrary(body, headerActions) {
         </button>`;
   }
 
+  /* ── 09.10.2026 — Touren als Zeilen Kartenbild im Archiv-Stil, Name, Datum ·
+     Fortbewegung, Distanz/Aufstieg/Dauer, Schlagwörter mit ＋, Zahl der Fotos/Clips, ⋯. Kästchen markiert wie ⌘-Klick;
+     oben die Leiste „N von M ausgewählt“. Kartenbilder zeichnet rzKartenbild (util.js) nur für sichtbare Zeilen. */
+  function zeileHtml(it, i) {
+    const multi = _multi.has(it.path), sel = !multi && _sel && _sel.path === it.path;
+    const kb = it.kartenbild || it.thumb_url;
+    const bild = kb ? `<img src="${kb}" alt="" loading="lazy">` : (it.image && it.thumb_url !== "" ? `<img data-lazy="1" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">` : `<span class="lz-leer">${SI("route", 22)}</span>`);
+    const act = it.activity ? `<span class="lz-act">${SI(ACT_SYMBOL[it.activity] || "route", 13)} ${esc(ACT_LABELS[it.activity] || it.activity)}</span>` : "";
+    const tags = (it.tag_list || []).slice(0, 4).map(x => `<span class="lz-tag">${esc(x)}</span>`).join("");
+    const medien = it.n_medien == null ? "" : it.n_medien ? `${SI("camera", 13)} ${num(it.n_medien)}` : "";
+    return `
+        <div class="lib-zeile${multi ? " is-multi" : ""}${sel ? " is-sel" : ""}${it.recorded_eff ? "" : " ist-geplant"}" data-i="${i}" role="button" tabindex="0">
+          <button type="button" class="lz-check${multi ? " an" : ""}" data-zcheck="${i}" aria-label="${esc(T("library.zeile_markieren", "Markieren"))}">${SI("check", 12)}</button>
+          <div class="lz-bild">${bild}</div>
+          <div class="lz-text">
+            <div class="lz-name">${it.fav ? `<span class="lz-fav">${SI("star", 13)}</span>` : ""}${esc(it.name || it.filename || "")}${it.recorded_eff ? "" : ` <i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}${it.has_session ? ` <i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</div>
+            <div class="lz-sub">${fmtDate(it.started_at)}${act ? ` <span class="lz-trenner"></span> ${act}` : ""}</div>
+            <div class="lz-werte">
+              <span><b>${fmtKmVal(it.distance_m || 0)}</b><i>${esc(T("library.zeile_distanz", "Distanz"))}</i></span>
+              <span><b>+${num(it.ascent_m)} m</b><i>${esc(T("library.zeile_aufstieg", "Aufstieg"))}</i></span>
+              <span><b>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</b><i>${esc(T("library.zeile_dauer", "Dauer"))}</i></span>
+            </div>
+          </div>
+          <div class="lz-tags">${tags}<button type="button" class="lz-tag-plus" data-ztag="${i}" title="${esc(T("library.zeile_tag_tip", "Schlagwort hinzufügen"))}">${SI("plus", 13)}</button></div>
+          <div class="lz-medien" data-zmedien="${i}" title="${esc(T("library.zeile_medien_tip", "Fotos und Clips dieser Tour"))}">${medien}</div>
+          <button type="button" class="lz-mehr" data-zmehr="${i}" title="${esc(T("library.zeile_mehr_tip", "Weitere Aktionen"))}">${SI("ellipsis", 18)}</button>
+        </div>`;
+  }
+
+  function zeilenLeisteHtml() {
+    const n = _multi.size;
+    if (!n) return "";
+    return `<div class="lz-leiste" id="lz-leiste">
+        <button type="button" class="lz-check an" id="lz-alle-weg" title="${esc(T("library.clear_sel", "Auswahl aufheben"))}">${SI("check", 12)}</button>
+        <span class="lz-leiste-zahl">${esc(T("library.zeilen_auswahl", "{n} von {m} ausgewählt").replace("{n}", num(n)).replace("{m}", num(_total || _items.length)))}</span>
+        <span class="lib-bar-spacer"></span>
+        <button type="button" class="btn btn-sm" id="lz-tags">${SI("tag", 14)} ${esc(T("library.zeilen_tags", "Schlagwörter …"))}</button>
+        <button type="button" class="btn btn-sm" id="lz-sammlung">${SI("folder-plus", 14)} ${esc(T("library.zeilen_sammlung", "Zu Sammlung …"))}</button>
+        <button type="button" class="btn btn-sm" id="lz-export">${SI("share", 14)} ${esc(T("export.medien_eins", "Exportieren …"))}</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="lz-mehr" title="${esc(T("library.zeile_mehr_tip", "Weitere Aktionen"))}">${SI("ellipsis", 16)}</button>
+      </div>`;
+  }
+
+  function renderRows() {
+    const box = $("lib-rows");
+    if (!_items.length) { box.innerHTML = emptyHtml(); bindEmpty(); return; }
+    const leiste = zeilenLeisteHtml();
+    box.innerHTML = leiste + fensterHtml(box, "rows", (it, i) => zeileHtml(it, i))
+      + `<div class="lz-quelle muted">${esc(T("library.zeilen_quelle", "Kartenbilder: © OpenStreetMap-Mitwirkende · OpenFreeMap"))}</div>`;
+    const l = box.querySelector("#lz-leiste");
+    box._kopfH = l ? l.getBoundingClientRect().height + 8 : 0;
+    bindItemClicks(box);
+    zeilenBinden(box);
+    fensterNachMessung(box, "rows");
+    fensterThumbs(box);
+    zeilenNachladen(box);
+  }
+
+  function zeilenBinden(box) {
+    const halt = (e) => { e.stopPropagation(); e.preventDefault(); };
+    box.querySelectorAll("[data-zcheck]").forEach(b => {
+      b.onmousedown = (e) => e.stopPropagation();
+      b.onclick = (e) => {
+        halt(e);
+        const it = _items[+b.dataset.zcheck]; if (!it) return;
+        if (!_multi.size && _sel && _sel.path !== it.path) _multi.add(_sel.path);
+        if (_multi.has(it.path)) _multi.delete(it.path); else _multi.add(it.path);
+        _sel = _multi.size ? (_multi.has(it.path) ? it : (multiItems()[0] || null)) : null;
+        _ankerIdx = +b.dataset.zcheck;
+        renderView(); renderDetail();
+      };
+    });
+    box.querySelectorAll("[data-zmehr]").forEach(b => {
+      b.onmousedown = (e) => e.stopPropagation();
+      b.onclick = (e) => {
+        halt(e);
+        const it = _items[+b.dataset.zmehr]; if (!it) return;
+        if (!(_multi.size && _multi.has(it.path))) { _multi.clear(); select(it); }
+        const r = b.getBoundingClientRect();
+        itemKontextmenu(it, r.left, r.bottom + 4);
+      };
+    });
+    box.querySelectorAll("[data-ztag]").forEach(b => {
+      b.onmousedown = (e) => e.stopPropagation();
+      b.onclick = (e) => {
+        halt(e);
+        const it = _items[+b.dataset.ztag]; if (!it) return;
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.className = "lz-tag-eingabe"; inp.placeholder = T("library.zeile_tag_ph", "Schlagwort");
+        b.replaceWith(inp); inp.focus();
+        inp.onclick = (ev) => ev.stopPropagation();
+        inp.onmousedown = (ev) => ev.stopPropagation();
+        let fertig = false;
+        const zu = async (speichern) => {
+          if (fertig) return; fertig = true;
+          const neu = speichern ? inp.value.split(",").map(x => x.trim()).filter(Boolean) : [];
+          if (neu.length) {
+            const alt = (it.tags || "").split(",").map(x => x.trim()).filter(Boolean);
+            const alle = Array.from(new Set(alt.concat(neu)));
+            const r = await api().library_set_fields(it.path, null, alle, null).catch(() => null);   // warte-ok: eine Zeile, schreibt ein Feld
+            if (r && r.ok && r.track) { it.tags = r.track.tags; it.tag_list = r.track.tag_list || alle; }
+          }
+          renderRows();
+        };
+        inp.onkeydown = (ev) => { ev.stopPropagation(); if (ev.key === "Enter") zu(true); else if (ev.key === "Escape") zu(false); };
+        inp.onblur = () => zu(true);
+      };
+    });
+    const l = box.querySelector("#lz-leiste");
+    if (l) {
+      const pfade = () => multiItems().map(x => x.path);
+      l.querySelector("#lz-alle-weg").onclick = () => { _multi.clear(); _sel = null; renderView(); renderDetail(); };
+      l.querySelector("#lz-tags").onclick = () => { const f = $("lib-m-tags"); if (f) { f.focus(); f.scrollIntoView({ block: "center" }); } };
+      l.querySelector("#lz-sammlung").onclick = () => addToCollectionDialog(pfade());
+      l.querySelector("#lz-export").onclick = () => { if (window.rzArchivExport) window.rzArchivExport.touren(pfade(), ""); };
+      l.querySelector("#lz-mehr").onclick = (e) => { const it = multiItems()[0]; if (!it) return; const r = e.currentTarget.getBoundingClientRect(); itemKontextmenu(it, r.left, r.bottom + 4); };
+    }
+  }
+
+  // Medienzahl und Kartenbild im Archiv-Stil für die sichtbaren Zeilen — gebündelt, nie für alle 10.000 Touren
+  let _zeilenLauf = 0;
+  async function zeilenNachladen(box) {
+    const b = box._fensterBereich; if (!b) return;
+    const lauf = ++_zeilenLauf;
+    const sichtbar = [];
+    for (let i = b.start; i < b.end; i++) if (_items[i]) sichtbar.push([i, _items[i]]);
+    const stil = (typeof rzArchivStil === "function") ? rzArchivStil() : "";
+    const stilDatei = stil.replace(/[^a-z0-9_]/g, "_");     // „look:topo“ → „look_topo“ (Dateiname)
+    // 1) Medien zählen
+    const ohneZahl = sichtbar.filter(([, it]) => it.n_medien == null).map(([, it]) => ({ geo_hash: it.geo_hash || "", path: it.path }));
+    if (ohneZahl.length) {
+      const r = await api().tour_medien_zahlen(ohneZahl.slice(0, 40)).catch(() => null);   // warte-ok: Zahl erscheint nachträglich
+      if (lauf !== _zeilenLauf || view !== "rows") return;
+      const z = (r && r.zahlen) || {};
+      sichtbar.forEach(([i, it]) => {
+        if (z[it.path] === undefined) return;
+        it.n_medien = z[it.path];
+        const el = box.querySelector(`[data-zmedien="${i}"]`);
+        if (el) el.innerHTML = it.n_medien ? `${SI("camera", 13)} ${num(it.n_medien)}` : "";
+      });
+    }
+    // 2) Kartenbilder: vorhandene lesen, fehlende zeichnen (nacheinander, nur solange die Zeile zu sehen ist)
+    if (!stil || !window.rzKartenbild) return;
+    const ohneBild = sichtbar.filter(([, it]) => it.kartenbild_stil !== stil && it.geo_hash);
+    if (!ohneBild.length) return;
+    const r2 = await api().library_kartenbilder(stilDatei, ohneBild.map(([, it]) => it.geo_hash)).catch(() => null);   // warte-ok: Bild erscheint nachträglich
+    if (lauf !== _zeilenLauf || view !== "rows") return;
+    const da = (r2 && r2.bilder) || {};
+    const zeichnen = [];
+    ohneBild.forEach(([i, it]) => {
+      if (da[it.geo_hash]) { it.kartenbild = da[it.geo_hash]; it.kartenbild_stil = stil; zeilenBildSetzen(box, i, it.kartenbild); }
+      else zeichnen.push([i, it]);
+    });
+    if (!zeichnen.length) return;
+    const g = await api().library_geoms(zeichnen.map(([, it]) => it.path)).catch(() => null);   // warte-ok: Bilder entstehen im Hintergrund
+    const geoms = (g && g.geoms) || {};
+    for (const [i, it] of zeichnen) {
+      if (lauf !== _zeilenLauf || view !== "rows" || _unmounted) return;
+      const url = await window.rzKartenbild(geoms[it.path], { stil, w: 340, h: 200 });
+      if (!url) { it.kartenbild_stil = stil; continue; }
+      it.kartenbild = url; it.kartenbild_stil = stil;
+      zeilenBildSetzen(box, i, url);
+      api().library_kartenbild_speichern(it.geo_hash, stilDatei, url).catch(() => null);   // warte-ok: Ablage im Hintergrund
+    }
+  }
+  function zeilenBildSetzen(box, i, url) {
+    const el = box.querySelector(`.lib-zeile[data-i="${i}"] .lz-bild`);
+    if (el) el.innerHTML = `<img src="${url}" alt="">`;
+    // dieselbe Tour rechts in der Detailspalte → dort auch das neue Bild (sonst bliebe ein Bild im alten Stil stehen)
+    if (_sel && _items[i] === _sel) { const im = document.querySelector("#ld-bild img"); if (im) im.src = url; }
+  }
+  // anderer Archiv-Stil → die Touren-Karte neu aufbauen (Stil wechselt die Engine womöglich)
+  window.addEventListener("rz-archiv-stil", () => {
+    if (_unmounted || !_map) return;
+    try { _map.remove(); } catch (_) {}
+    _map = null; _mapReady = false; window.__libMap = null;
+    if (view === "map") renderMap();
+  });
+  // anderer Archiv-Stil → Kartenbilder neu
+  window.addEventListener("rz-archiv-stil", () => { if (_unmounted) return; _items.forEach(it => { delete it.kartenbild; delete it.kartenbild_stil; }); if (view === "rows") renderRows(); });
+
   // ── 22.08.2026 — Fenster-Rendering („virtualisierte Liste") ──────────────
   // Es stehen nur die sichtbaren Kacheln/Zeilen (± Puffer) im DOM; davor und
   // dahinter halten zwei Platzhalter die Scrollhöhe. Vorher wuchs das DOM mit
   // jedem Nachladen (10.000 Touren = 10.000 Kacheln mit Bild), und jede
   // Auswahl baute alles neu auf. Vorschaubilder kommen jetzt gezielt für das
   // Fenster (library_thumbs), nicht mehr als Teil jeder Abfrage.
-  const _fenster = { cards: { h: 0, cols: 1 }, list: { h: 0 } };
+  const _fenster = { cards: { h: 0, cols: 1 }, list: { h: 0 }, rows: { h: 0 } };
+  const _fensterMaler = (art) => art === "cards" ? renderGrid : art === "rows" ? renderRows : renderList;
   const PUFFER_ZEILEN = 6;
   let _fensterRaf = 0;
 
   function fensterMessen(el, art) {
     const f = _fenster[art];
-    const probe = el.querySelector(art === "cards" ? ".lib-card" : ".lib-row:not(.lib-row-head)");
+    const probe = el.querySelector(art === "cards" ? ".lib-card" : art === "rows" ? ".lib-zeile" : ".lib-row:not(.lib-row-head)");
     if (probe) f.h = Math.max(1, probe.getBoundingClientRect().height + (art === "cards" ? 12 : 0));
     if (art === "cards") {
       try { f.cols = Math.max(1, getComputedStyle(el).gridTemplateColumns.split(" ").length); } catch (_) {}
@@ -1929,8 +2183,8 @@ function mountLibrary(body, headerActions) {
   function fensterBereich(el, art) {
     const f = _fenster[art];
     const cols = art === "cards" ? f.cols : 1;
-    const h = f.h || (art === "cards" ? 200 : 34);
-    const kopf = art === "list" ? 26 : 0;
+    const h = f.h || (art === "cards" ? 200 : art === "rows" ? 112 : 34);
+    const kopf = art === "list" ? 26 : (art === "rows" ? (el._kopfH || 0) : 0);
     const top = Math.max(0, el.scrollTop - kopf);
     const zeilen = Math.ceil(el.clientHeight / h) + PUFFER_ZEILEN * 2;
     const ersteZeile = Math.max(0, Math.floor(top / h) - PUFFER_ZEILEN);
@@ -1962,7 +2216,7 @@ function mountLibrary(body, headerActions) {
     // ohne Schwelle baute sich das Fenster endlos neu (99 % CPU, 4 GB).
     if (Math.abs(vorher - f.h) > 1 || (art === "cards" && colsVorher !== f.cols)) {
       _messungLaeuft = true;
-      try { if (art === "cards") renderGrid(); else renderList(); }
+      try { _fensterMaler(art)(); }
       finally { _messungLaeuft = false; }
     }
   }
@@ -1975,7 +2229,7 @@ function mountLibrary(body, headerActions) {
       if (_unmounted || !el.isConnected || !_items.length) return;
       const b = fensterBereich(el, art), alt = el._fensterBereich;
       if (alt && alt.start === b.start && alt.end === b.end) return;
-      if (art === "cards") renderGrid(); else renderList();
+      _fensterMaler(art)();
     });
   }
 
@@ -2257,6 +2511,16 @@ function mountLibrary(body, headerActions) {
       ["geotagger", "📷 " + T("library.open_geotagger", "Fotos verorten")],
       ["gpxinspect", "🔍 " + T("library.open_inspect", "Inspektor")],
     ];
+    if (!viele && window.rzTourSeite) {
+      // 08.10.2026 — die Tour mit allen Fotos und Clips
+      eintraege.push({ text: "🗺 " + T("tourseite.oeffnen_ctx", "Tour-Seite öffnen (Karte, Fotos, Clips)"), tun: () => { select(it); tourSeiteOeffnen(it); } });
+    }
+    if (window.rzArchivExport) {
+      // 08.10.2026 (Marc: „das sollte auf jeden Fall auch mit Rechtsklick gehen: ‚Exportieren …‘“)
+      eintraege.push({ text: "⬇ " + (viele ? T("export.touren_ctx_n", "{n} Touren exportieren …", { n: pfade.length }) : T("export.tour_ctx", "Exportieren …")),
+                       tun: () => window.rzArchivExport.touren(pfade, viele ? "" : (it.name || "")) });
+    }
+    if (eintraege.length) eintraege.push("-");
     if (!viele) {
       for (const [slug, text] of werkzeuge) {
         eintraege.push({ text, tun: () => { select(it); openIn(slug); } });
@@ -2396,31 +2660,27 @@ function mountLibrary(body, headerActions) {
         // Haupt-Track ersetzen würde (Marc, 27.08.2026).
         const dbl = _items[parseInt(btn.dataset.i, 10)];
         if (_ghostModus()) { if (dbl) alsGhost([dbl.path]); return; }
+        // 08.10.2026 — Doppelklick öffnet die Tour-Seite: Karte, alle Fotos
+        // und Clips, von dort Video, Karte, Export. Im Animator öffnen bleibt im Kontextmenü und in den Details.
+        if (dbl && window.rzTourSeite) { tourSeiteOeffnen(dbl); return; }
         openIn("animator");
       };
     });
   }
+
+  function tourSeiteOeffnen(it, beiFoto) {
+    if (!it || !window.rzTourSeite) return;
+    window.rzTourSeite.oeffnen({ geo_hash: it.geo_hash || "", path: it.path, name: it.name || "" }, beiFoto || "");
+  }
+  window.__rzLibDetailNeu = () => { try { renderDetail(); } catch (_) {} };
+  // Reise-Seite: „Als Reise-Video“ = derselbe Dialog wie „Zu einem Video zusammenführen“ (Touren aus der Liste)
+  window.__rzLibZusammenfuehren = (pfade) => { const its = _items.filter(i => (pfade || []).includes(i.path)); if (its.length > 1) openMergeDialog(its); };
 
   function multiItems() {
     return _items.filter(i => _multi.has(i.path));
   }
 
   // ── Statistik ─────────────────────────────────────────────────────────
-  /** Balken ohne Fremdbibliothek — bei zwölf Monaten und ein paar Jahren wäre
-   *  eine Chart-Bibliothek im Bundle reine Verschwendung. */
-  function bars(rows, labelOf, valueOf, unit, sub) {
-    const max = Math.max(1, ...rows.map(valueOf));
-    return `<div class="lib-bars">${rows.map(r => {
-      const v = valueOf(r);
-      return `<div class="lib-cbar" title="${esc(labelOf(r))}: ${num(v)} ${unit}">
-        <div class="lib-cbar-track"><i style="height:${Math.max(2, (v / max) * 100)}%"></i></div>
-        <div class="lib-cbar-val">${v >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v)}</div>
-        <div class="lib-cbar-lbl">${esc(String(labelOf(r)))}</div>
-        ${sub ? `<div class="lib-cbar-sub">${esc(sub(r))}</div>` : ""}
-      </div>`;
-    }).join("")}</div>`;
-  }
-
   /* Vergleich der Fortbewegungsarten über Jahre oder Monate (Wunsch
    * Beta-Tester: „Vergleichen von Fortbewegungsarten Monat mit Monat und Jahr
    * mit Jahr — wie viel km und/oder Zeit ich gewandert, gelaufen und Fahrrad
@@ -2586,112 +2846,165 @@ function mountLibrary(body, headerActions) {
       </div>`;
   }
 
-  /** Die häufigsten Startpunkte (Wunsch Beta-Tester). Braucht den Ortslauf —
-   *  ohne ihn steht in `place` nichts, und die Tabelle bliebe leer. */
-  function startorteHtml(s) {
-    const liste = s.startorte || [];
-    if (!liste.length) return "";
-    const max = liste[0].n || 1;
-    return `
-      <div class="lib-chart">
-        <div class="lib-chart-title">${T("library.stat_startpoints", "Häufigste Startpunkte")}</div>
-        <div class="lib-acts">
-          ${liste.slice(0, 12).map(o => `
-            <div class="lib-act-row">
-              <span>${esc(o.ort)}</span>
-              <div class="lib-act-bar"><i style="width:${(o.n / max) * 100}%"></i></div>
-              <b>${o.n}</b><span class="lib-act-km">${num(o.km)} km</span>
-            </div>`).join("")}
-        </div>
-      </div>`;
+  /* 09.10.2026 — Statistik als Übersichtsseite: vier
+     Kennzahlen, Strecke pro Jahr (Balken km + Linie Anzahl, Jahre | Monate | Gesamt), Bewegungsarten, Aktivität nach Monat
+     (Jahre × Monate), häufigste Startpunkte mit kleiner Karte, längste Touren; die Vergleichstabelle bleibt darunter.
+     Strich-Symbole aus ui/js/icons.js. */
+  let _stKurve = store.get("st_kurve", "jahre");      // "jahre" | "monate" | "gesamt"
+  let _stOrteAlle = false;
+  let _stKarte = null;
+
+  /** Strecke (Balken, km) und Anzahl Touren (Linie, rechte Achse) — SVG ohne Fremdbibliothek. */
+  function stKurveHtml(s) {
+    let reihe;
+    if (_stKurve === "monate") {
+      const m = new Map();
+      for (const r of s.act_by_month || []) { const e = m.get(r.month) || { km: 0, n: 0 }; e.km += r.km || 0; e.n += r.n || 0; m.set(r.month, e); }
+      reihe = [...m.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).slice(-24)
+        .map(([k, v]) => ({ lbl: MONTHS[parseInt(k.slice(5, 7), 10) - 1] + (k.slice(5, 7) === "01" || m.size <= 12 ? " '" + k.slice(2, 4) : ""), km: v.km, n: v.n }));
+    } else {
+      const j = (s.years || []).slice().sort((a, b) => a.year - b.year);
+      let summe = 0, nSumme = 0;
+      reihe = j.map(r => _stKurve === "gesamt"
+        ? { lbl: String(r.year), km: (summe += r.km || 0), n: (nSumme += r.n || 0) }
+        : { lbl: String(r.year), km: r.km || 0, n: r.n || 0 });
+    }
+    if (!reihe.length) return `<div class="muted st-leer">${esc(T("library.stat_keine_daten", "Keine Touren mit Datum."))}</div>`;
+    const W = 640, H = 230, L = 46, R = 40, O = 22, U = 28;
+    const rund = (v) => { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, v)))); return Math.ceil(v / p / (v / p > 5 ? 2 : 1)) * p * (v / p > 5 ? 2 : 1); };
+    const maxKm = rund(Math.max(1, ...reihe.map(r => r.km))), maxN = rund(Math.max(1, ...reihe.map(r => r.n)));
+    const bw = (W - L - R) / reihe.length, x = (i) => L + bw * i + bw / 2;
+    const yKm = (v) => H - U - (v / maxKm) * (H - U - O), yN = (v) => H - U - (v / maxN) * (H - U - O);
+    const raster = [0, 0.25, 0.5, 0.75, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${yKm(maxKm * f)}" y2="${yKm(maxKm * f)}" class="st-gitter"/>
+      <text x="${L - 6}" y="${yKm(maxKm * f) + 4}" class="st-achse" text-anchor="end">${num(Math.round(maxKm * f))}</text>
+      <text x="${W - R + 6}" y="${yN(maxN * f) + 4}" class="st-achse">${num(Math.round(maxN * f))}</text>`).join("");
+    const letzte = reihe.length - 1;
+    const balken = reihe.map((r, i) => {
+      const h = Math.max(1, (H - U) - yKm(r.km)), bb = Math.min(46, bw * 0.62);
+      return `<g><title>${esc(r.lbl)}: ${num(Math.round(r.km))} km · ${num(r.n)} ${esc(T("library.tours", "Touren"))}</title>
+        <rect x="${x(i) - bb / 2}" y="${yKm(r.km)}" width="${bb}" height="${h}" rx="3" class="st-balken${i === letzte && _stKurve !== "gesamt" ? " ist-jetzt" : ""}"/>
+        ${reihe.length <= 14 ? `<text x="${x(i)}" y="${yKm(r.km) - 6}" class="st-wert" text-anchor="middle">${num(Math.round(r.km))}</text>` : ""}
+        ${reihe.length <= 14 || i % Math.ceil(reihe.length / 12) === 0 ? `<text x="${x(i)}" y="${H - 8}" class="st-achse" text-anchor="middle">${esc(r.lbl)}</text>` : ""}</g>`;
+    }).join("");
+    const linie = reihe.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${yN(r.n).toFixed(1)}`).join(" ");
+    const punkte = reihe.map((r, i) => `<circle cx="${x(i)}" cy="${yN(r.n)}" r="3.2" class="st-punkt"/>`).join("");
+    return `<svg class="st-kurve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(T("library.stat_strecke_jahr", "Strecke pro Jahr"))}">
+        <text x="${L}" y="12" class="st-achse">${esc(T("library.stat_km", "Kilometer"))}</text>
+        ${raster}${balken}<path d="${linie}" class="st-linie"/>${punkte}</svg>
+      <div class="st-legende"><span><i class="st-l-balken"></i>${esc(T("library.stat_strecke_km", "Strecke (km)"))}</span>
+        <span><i class="st-l-linie"></i>${esc(T("library.stat_anzahl", "Anzahl Touren"))}</span></div>`;
+  }
+
+  /** Jahre × Monate: wie viele Touren — dunkel wenig, Türkis viel. */
+  function stMonateHtml(s) {
+    const m = new Map();
+    for (const r of s.act_by_month || []) m.set(r.month, (m.get(r.month) || { n: 0, km: 0 })), m.get(r.month).n += r.n || 0, m.get(r.month).km += r.km || 0;
+    if (!m.size) return "";
+    const jahre = [...new Set([...m.keys()].map(k => k.slice(0, 4)))].sort().reverse();
+    const max = Math.max(1, ...[...m.values()].map(v => v.n));
+    const stufe = (n) => !n ? 0 : Math.min(5, 1 + Math.floor((n / max) * 4.999));
+    return `<div class="st-heat" style="grid-template-columns: 40px repeat(12, 1fr)">
+        <span></span>${MONTHS.map(x => `<span class="st-heat-m">${esc(x)}</span>`).join("")}
+        ${jahre.map(j => `<span class="st-heat-j">${j}</span>${MONTHS.map((mn, i) => {
+          const v = m.get(`${j}-${String(i + 1).padStart(2, "0")}`) || { n: 0, km: 0 };
+          return `<span class="st-heat-z st-s${stufe(v.n)}" title="${esc(mn + " " + j)}: ${num(v.n)} ${esc(T("library.tours", "Touren"))}${v.km ? " · " + num(Math.round(v.km)) + " km" : ""}"></span>`;
+        }).join("")}`).join("")}
+      </div>
+      <div class="st-heat-leg"><span class="muted">${esc(T("library.stat_weniger", "Weniger Touren"))}</span>${[1, 2, 3, 4, 5].map(i => `<span class="st-heat-z st-s${i}"></span>`).join("")}<span class="muted">${esc(T("library.stat_mehr", "Mehr Touren"))}</span></div>`;
   }
 
   function renderStats() {
     const s = _stats || {};
     const box = $("lib-stats");
+    if (_stKarte) { try { _stKarte.remove(); } catch (_) {} _stKarte = null; }
     if (!s.n_tracks) { box.innerHTML = emptyHtml(); bindEmpty(); return; }
-    const tiles = [
-      [T("library.tours", "Touren"), num(s.n_tracks), ""],
-      [T("library.distance", "Strecke"), num(s.total_km), "km"],
-      [T("library.ascent", "Höhenmeter"), num(s.total_ascent_m), "m"],
-      // 25.09.2026 (AR-12): Es ist die Bewegungszeit (moving_time) — so beschriften,
-      // sonst wirkt sie neben der Gesamtdauer einzelner Touren zu klein.
-      [T("library.hours_moving", "Stunden in Bewegung"), num(s.total_hours), "h"],
-      [T("library.stat_avg", "Ø je Tour"), num(s.avg_km), "km"],
-      [T("library.stat_longest", "Längste"), num(s.longest_km), "km"],
-    ];
-    // Der Balken beantwortet „wie viel davon bin ich wirklich gefahren?" —
-    // im Bereich „Gemachte" oder „Geplante" ist die Antwort schon bekannt und
-    // ein einfarbiger Balken mit „0 geplant" nur Lärm.
-    const mixed = s.done && s.planned && s.done.n > 0 && s.planned.n > 0;
-    const total = mixed ? s.done.n + s.planned.n : 0;
+    const done = (s.done && s.done.n) || 0, plan = (s.planned && s.planned.n) || 0;
+    const anteil = done + plan ? done / (done + plan) : 1;
+    // Ring: gemacht (Türkis) / geplant (Koralle)
+    const ring = (() => { const r = 15, u = 2 * Math.PI * r; return `<svg class="st-ring" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="${r}" class="st-ring-plan"/><circle cx="20" cy="20" r="${r}" class="st-ring-done"
+          stroke-dasharray="${(anteil * u).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 20 20)"/></svg>`; })();
+    const kpi = (sym, wert, einheit, label, unter, extra) => `<div class="st-kpi">
+        <span class="st-kpi-sym">${SI(sym, 34)}</span>
+        <div class="st-kpi-txt"><b>${wert}<i>${einheit ? " " + einheit : ""}</i></b><span>${esc(label)}</span>${unter ? `<small class="muted">${unter}</small>` : ""}</div>
+        ${extra || ""}</div>`;
+    const acts = (s.activities || []).slice().sort((a, b) => ((!a.activity) - (!b.activity)) || ((b.km || 0) - (a.km || 0)));
+    const maxAkm = Math.max(1, ...acts.map(a => a.km || 0));
+    const orte = (s.startorte || []).slice(0, _stOrteAlle ? 25 : 5);
+    const maxOkm = Math.max(1, ...orte.map(o => o.km || 0));
+    const mitLage = (s.startorte || []).filter(o => o.lat != null && o.lon != null);
+    const tab = (k, txt) => `<button type="button" class="lib-vgl-btn${_stKurve === k ? " is-on" : ""}" data-st-kurve="${k}">${esc(txt)}</button>`;
     box.innerHTML = `
-      <div class="lib-stats-inner">
-        <div class="lib-stats-head">
-          <b>${esc(scopeTitle())}</b>
-          ${s.year_min ? `<span>${s.year_min}–${s.year_max}</span>` : ""}
-          ${state.search ? `<span>„${esc(state.search)}"</span>` : ""}
+      <div class="lib-stats-inner st-seite">
+        <div class="st-kopf">
+          <div><h2 class="st-titel">${esc(T("library.stat_titel", "Statistiken"))}</h2>
+            <div class="muted st-unter">${esc(T("library.stat_unter", "Deine Touren im Überblick"))} · <b>${esc(scopeTitle())}</b>${s.year_min ? ` · ${s.year_min}–${s.year_max}` : ""}${state.search ? ` · „${esc(state.search)}“` : ""}</div></div>
         </div>
 
-        <div class="lib-tiles">
-          ${tiles.map(([k, v, u]) => `<div class="lib-tile"><b>${v}<i>${u}</i></b><span>${esc(k)}</span></div>`).join("")}
+        <div class="st-kpis">
+          ${kpi("map-pinned", num(s.n_tracks), "", T("library.tours", "Touren"),
+               done + plan ? `${num(done)} ${esc(T("library.done_short", "gemacht"))} · ${num(plan)} ${esc(T("library.planned_n", "geplant"))}` : "", done && plan ? ring : "")}
+          ${kpi("route", num(s.total_km), "km", T("library.distance", "Strecke"),
+               `Ø ${num(s.avg_km)} km · ${esc(T("library.stat_longest", "Längste"))} ${num(s.longest_km)} km`)}
+          ${kpi("mountain", num(s.total_ascent_m), "m", T("library.stat_aufstieg", "Aufstieg"),
+               s.max_ascent_m ? `${esc(T("library.stat_max_tour", "max. je Tour"))} ${num(s.max_ascent_m)} m` : "")}
+          ${kpi("clock", num(s.total_hours), "h", T("library.stat_in_bewegung", "in Bewegung"), "")}
         </div>
 
-        ${total ? `
-          <div class="lib-split">
-            <div class="lib-split-bar">
-              <i class="is-done" style="width:${(s.done.n / total) * 100}%"></i>
-              <i class="is-plan" style="width:${(s.planned.n / total) * 100}%"></i>
-            </div>
-            <div class="lib-split-lbl">
-              <span><b>${s.done.n}</b> ${T("library.done_short", "gemacht")} · ${num(s.done.km)} km</span>
-              <span><b>${s.planned.n}</b> ${T("library.planned_n", "geplant")} · ${num(s.planned.km)} km</span>
-            </div>
-          </div>` : ""}
+        <div class="st-reihe st-reihe-2">
+          <div class="st-karte">
+            <div class="st-k-kopf"><div><h3>${esc(_stKurve === "gesamt" ? T("library.stat_strecke_gesamt", "Strecke insgesamt") : _stKurve === "monate" ? T("library.stat_strecke_monat", "Strecke pro Monat") : T("library.stat_strecke_jahr", "Strecke pro Jahr"))}</h3>
+              <div class="muted st-k-unter">${esc(T("library.stat_strecke_unter", "Kilometer und Anzahl Touren"))}</div></div>
+              <span class="lib-vgl-schalter">${tab("jahre", T("library.stat_by_year", "Jahre"))}${tab("monate", T("library.stat_by_month", "Monate"))}${tab("gesamt", T("library.total", "Gesamt"))}</span></div>
+            ${stKurveHtml(s)}
+          </div>
+          <div class="st-karte">
+            <div class="st-k-kopf"><h3>${esc(T("library.stat_bewegungsarten", "Bewegungsarten"))}</h3></div>
+            <div class="st-arten">${acts.map(a => `<div class="st-art" title="${num(a.n)} ${esc(T("library.tours", "Touren"))}">
+                <span class="st-art-sym">${SI(a.activity ? (ACT_SYMBOL[a.activity] || "route") : "ellipsis", 18)}</span>
+                <span class="st-art-name">${esc(a.activity ? (ACT_LABELS[a.activity] || a.activity) : T("library.act_ohne_art", "ohne Art"))}</span>
+                <span class="st-bar"><i style="width:${Math.max(1.5, ((a.km || 0) / maxAkm) * 100)}%"></i></span>
+                <b>${num(Math.round(a.km || 0))} km</b></div>`).join("")}</div>
+          </div>
+        </div>
 
-        ${s.years && s.years.length ? `
-          <div class="lib-chart">
-            <div class="lib-chart-title">${T("library.stat_per_year", "Kilometer je Jahr")}</div>
-            ${bars(s.years, r => r.year, r => r.km, "km", r => r.n + " ×")}
-          </div>` : ""}
-
-        ${s.months && s.months.length ? `
-          <div class="lib-chart">
-            <div class="lib-chart-title">${T("library.stat_per_month", "Touren je Monat (über alle Jahre)")}</div>
-            ${bars(s.months, r => MONTHS[(r.month || 1) - 1], r => r.n, "×", r => num(r.km) + " km")}
-          </div>` : ""}
-
-        ${s.activities && s.activities.filter(a => a.activity).length ? `
-          <div class="lib-chart">
-            <div class="lib-chart-title">${T("library.stat_per_activity", "Nach Fortbewegung")}</div>
-            <div class="lib-acts">
-              ${s.activities.slice().sort((a, b) => (!a.activity) - (!b.activity)).map(a => `
-                <div class="lib-act-row">
-                  <span>${esc(a.activity ? (ACT_LABELS[a.activity] || a.activity) : T("library.act_ohne_art", "ohne Art"))}</span>
-                  <div class="lib-act-bar"><i style="width:${(a.n / s.n_tracks) * 100}%"></i></div>
-                  <b>${a.n}</b><span class="lib-act-km">${num(a.km)} km</span>
-                </div>`).join("")}
-            </div>
-          </div>` : ""}
+        <div class="st-reihe st-reihe-3">
+          <div class="st-karte">
+            <div class="st-k-kopf"><h3>${esc(T("library.stat_aktiv_monat", "Aktivität nach Monat"))}</h3></div>
+            ${stMonateHtml(s) || `<div class="muted st-leer">${esc(T("library.stat_keine_daten", "Keine Touren mit Datum."))}</div>`}
+          </div>
+          <div class="st-karte st-orte-karte">
+            <div class="st-k-kopf"><h3>${esc(T("library.stat_startpoints", "Häufigste Startpunkte"))}</h3>
+              ${(s.startorte || []).length > 5 ? `<button type="button" class="st-alle" id="st-orte-alle">${esc(_stOrteAlle ? T("library.stat_weniger_zeigen", "Weniger zeigen") : T("library.stat_alle", "Alle anzeigen"))} ${SI(_stOrteAlle ? "chevron-down" : "arrow-right", 13)}</button>` : ""}</div>
+            ${orte.length ? `<div class="st-orte${mitLage.length ? " mit-karte" : ""}">
+              <div class="st-orte-liste">${orte.map((o, i) => `<div class="st-ort" title="${num(o.n)} ${esc(T("library.tours", "Touren"))}">
+                  <span class="st-rang">${i + 1}</span><span class="st-ort-name">${esc(o.ort)}</span>
+                  <span class="st-bar"><i style="width:${Math.max(2, ((o.km || 0) / maxOkm) * 100)}%"></i></span><b>${num(Math.round(o.km || 0))} km</b></div>`).join("")}</div>
+              ${mitLage.length ? `<div class="st-orte-map" id="st-orte-map"></div>` : ""}
+            </div>` : `<div class="muted st-leer">${esc(T("library.stat_keine_orte", "Noch keine Orte — sie kommen, sobald die Touren benannt sind."))}</div>`}
+          </div>
+          <div class="st-karte">
+            <div class="st-k-kopf"><h3>${esc(T("library.stat_top", "Die längsten Touren"))}</h3>
+              <button type="button" class="st-alle" id="st-laengste-alle">${esc(T("library.stat_alle", "Alle anzeigen"))} ${SI("arrow-right", 13)}</button></div>
+            <div class="lib-top st-top">${(s.longest || []).map((it, i) => `
+                <button class="lib-top-row" data-top="${i}" type="button" title="${esc(fmtDate(it.started_at))}">
+                  <span class="lib-top-n st-rang">${i + 1}</span>
+                  <span class="lib-top-name">${esc(it.display_name || it.name)}</span>
+                  <span class="lib-top-km">${fmtKmVal(it.distance_m || (it.distance_km || 0) * 1000)}</span>
+                </button>`).join("")}</div>
+          </div>
+        </div>
 
         ${vergleichHtml(s)}
-
-        ${startorteHtml(s)}
-
-        ${s.longest && s.longest.length ? `
-          <div class="lib-chart">
-            <div class="lib-chart-title">${T("library.stat_top", "Die längsten Touren")}</div>
-            <div class="lib-top">
-              ${s.longest.map((it, i) => `
-                <button class="lib-top-row" data-top="${i}" type="button">
-                  <span class="lib-top-n">${i + 1}</span>
-                  <span class="lib-top-name">${esc(it.name)}</span>
-                  <span class="lib-top-km">${fmtKmVal(it.distance_m || (it.distance_km || 0) * 1000)}</span>
-                  <span class="lib-top-date">${fmtDate(it.started_at)}</span>
-                </button>`).join("")}
-            </div>
-          </div>` : ""}
       </div>`;
+    box.querySelectorAll("[data-st-kurve]").forEach(b => { b.onclick = () => { _stKurve = b.dataset.stKurve; store.set("st_kurve", _stKurve); renderStats(); }; });
+    const oa = document.getElementById("st-orte-alle"); if (oa) oa.onclick = () => { _stOrteAlle = !_stOrteAlle; renderStats(); };
+    const la = document.getElementById("st-laengste-alle");
+    if (la) la.onclick = () => {
+      setFilter("sort", "dist_desc"); sortAnzeigen();
+      const v = document.querySelector('.lib-view[data-view="list"]'); if (v) v.click();
+    };
+    stOrteKarte(mitLage);
     // Umschalter der Vergleichs-Tabelle. Die Wahl wird gemerkt — wer nach
     // Stunden vergleicht, will das beim nächsten Öffnen meist wieder.
     box.querySelectorAll("[data-vgl-ebene]").forEach(b => {
@@ -2747,11 +3060,37 @@ function mountLibrary(body, headerActions) {
         // wird OHNE Vorschaubilder geladen — es hat dort kein `thumb_url`. Die
         // Statistik liefert eins mit; ohne diese Übergabe stünde im Detail der
         // Platzhalter 🗺️, den ein Nutzer zu Recht für ein kaputtes Bild hielt.
+        // 09.10.2026 — in der Statistik (ohne Detailspalte) gleich die Tour-Seite
+        if (window.rzTourSeite) { window.rzTourSeite.oeffnen({ geo_hash: it.geo_hash, path: it.path, name: it.display_name || it.name }); return; }
         const treffer = _items.find(x => x.path === it.path);
         if (treffer && !treffer.thumb_url && it.thumb_url) treffer.thumb_url = it.thumb_url;
         select(treffer || it);
       };
     });
+  }
+
+  /** Kleine Nachtkarte mit den Startpunkten (Koralle, Größe nach Anzahl), nicht bedienbar. */
+  function stOrteKarte(orte) {
+    const el = document.getElementById("st-orte-map");
+    if (!el || !orte.length || typeof createMap !== "function") return;
+    try {
+      const c = createMap({ container: el, styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : undefined,
+        common: { center: [orte[0].lon, orte[0].lat], zoom: 5, interactive: false, attributionControl: true } });
+      _stKarte = c.map; window.__rzStatKarte = c.map;   // Prüfstand
+      const maxN = Math.max(1, ...orte.map(o => o.n));
+      c.map.on("load", () => {
+        if (_stKarte !== c.map) return;
+        c.map.addSource("st-orte", { type: "geojson", data: { type: "FeatureCollection", features: orte.map((o, i) => ({
+          type: "Feature", properties: { n: o.n, name: i < 3 ? o.ort : "" }, geometry: { type: "Point", coordinates: [o.lon, o.lat] } })) } });
+        c.map.addLayer({ id: "st-orte-punkt", type: "circle", source: "st-orte", paint: {
+          "circle-radius": ["interpolate", ["linear"], ["get", "n"], 1, 4, maxN, 9], "circle-color": "#ff896b",
+          "circle-stroke-color": "#151b22", "circle-stroke-width": 1.5, "circle-opacity": 0.95 } });
+        try { c.map.addLayer({ id: "st-orte-name", type: "symbol", source: "st-orte", layout: { "text-field": ["get", "name"], "text-size": 11,
+          "text-offset": [0.9, 0], "text-anchor": "left", "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#f4f1e9", "text-halo-color": "#151b22", "text-halo-width": 1.2 } }); } catch (_) {}
+        const b = new c.lib.LngLatBounds(); orte.forEach(o => b.extend([o.lon, o.lat]));
+        try { c.map.fitBounds(b, { padding: 28, maxZoom: 9, duration: 0 }); } catch (_) {}
+      });
+    } catch (_) {}
   }
 
   // ── Karte ─────────────────────────────────────────────────────────────
@@ -2882,8 +3221,8 @@ function mountLibrary(body, headerActions) {
 
     const created = createMap({
       container: "lib-map",
-      // 03.09.2026 — gemeinsame Stilliste (Einstellung je Modul).
-      styleKey: (_settingsCache && _settingsCache.library && _settingsCache.library.map_style) || mapDefaultStyle(),
+      // 09.10.2026 (ein Kartenstil für alle Archiv-Karten) — die Archiv-Stilwahl, Standard Nachtkarte
+      styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : mapDefaultStyle(),
       // `preserveDrawingBuffer`: ohne das liefert `toDataURL()` eine schwarze
       // Fläche — WebGL verwirft den Puffer nach jedem Bild. Kostet etwas
       // Zeichenleistung, aber ohne wäre der PNG-Export nicht möglich.
@@ -2896,13 +3235,12 @@ function mountLibrary(body, headerActions) {
     _map.addControl(new created.lib.NavigationControl({ showCompass: false }), "top-right");
     try {
       const cv = document.getElementById("lib-map");
-      if (cv && cv.parentElement && typeof attachMapStyleControl === "function") {
-        attachMapStyleControl(cv.parentElement, {
-          section: "library", getMap: () => _map,
-          getBbox: () => { try { const b = _map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; } catch (_) { return null; } },
-        });
+      if (cv && cv.parentElement && typeof rzArchivStilWahlHtml === "function" && !cv.parentElement.querySelector(".lib-map-stil")) {
+        const w = document.createElement("div"); w.className = "lib-map-stil"; w.innerHTML = rzArchivStilWahlHtml("lib-map-stil");
+        cv.parentElement.appendChild(w); rzArchivStilWahlBinden(w, "lib-map-stil");
       }
     } catch (_) {}
+    if (typeof rzMassstab === "function") rzMassstab(_map);
     _map.on("load", () => {
       _mapReady = true;
       _map.addSource("lib-tracks", { type: "geojson", data });
@@ -3137,6 +3475,7 @@ function mountLibrary(body, headerActions) {
     // nächsten Betreten wird die Tour daran wiedergefunden.
     store.set("sel", (it && it.path) || "");
     if (view === "cards") renderGrid();
+    else if (view === "rows") renderRows();
     else if (view === "list") renderList();
     else if (view === "map") applyMapSelection(opts && opts.fly);
     renderDetail();
@@ -3291,6 +3630,7 @@ function mountLibrary(body, headerActions) {
 
       <div class="lib-actions" style="margin-top:16px;">
         ${_ghostModus() ? "" : `<button class="btn btn-primary btn-sm" id="lib-m-merge" style="width:100%;">${T("library.merge.action", "🧭 Zu einem Video zusammenführen …")}</button>`}
+        ${(_ghostModus() || !window.rzTourSeite) ? "" : `<button class="btn btn-sm" id="lib-m-reise" style="width:100%;margin-top:6px;" title="${esc(T("reise.seite_tip", "Alle Touren dieser Sammlung auf einer Karte, mit allen Fotos und Clips"))}">🗺 ${T("reise.als_reise", "Als Reise ansehen")}</button>`}
         ${_ghostModus() ? "" : `<button class="btn btn-sm" id="lib-m-schwarm" style="width:100%;margin-top:6px;" title="${
           esc(T("schwarm.hint", "Alle markierten Touren starten gleichzeitig und laufen nebeneinander — die längste bestimmt die Videodauer."))
         }">🌊 ${T("schwarm.action", "Als Schwarm animieren …")}</button>`}
@@ -3335,6 +3675,8 @@ function mountLibrary(body, headerActions) {
     $("lib-m-clear").onclick = () => { _multi.clear(); renderView(); renderDetail(); };
     const mMerge = $("lib-m-merge");
     if (mMerge) mMerge.onclick = () => openMergeDialog(multiItems());
+    const mReise = $("lib-m-reise");
+    if (mReise) mReise.onclick = () => window.rzTourSeite.oeffnenReise(multiItems().map(i => i.path), "");
     const mSchwarm = $("lib-m-schwarm");
     if (mSchwarm) mSchwarm.onclick = () => alsSchwarmInDenAnimator(multiItems());
     const ghostBtn = $("lib-m-ghosts");
@@ -3469,21 +3811,70 @@ function mountLibrary(body, headerActions) {
         <div class="lib-hint">${T("logbuch.archiv.noch_keins", "Noch kein Logbuch — es entsteht beim Öffnen der Tour im Inspektor.")}</div>`;
       return;
     }
+    box.hidden = false;
+    box.innerHTML = _logbuchKurzHtml(r);
+  }
+  /** 08.10.2026 — „📷 34 Fotos · 🎬 5 Clips“, Bildstreifen, „Tour öffnen“.
+   *  Ein Klick auf ein Bild öffnet die Tour-Seite genau dort. */
+  async function _medienKurz(it) {
+    const box = document.getElementById("lib-d-medien"); if (!box || !it) return;
+    let r = null; try { r = await api().tour_medien_kurz(it.geo_hash || "", it.path || ""); } catch (_) {}   // warte-ok: Ladeanzeige im Kasten
+    if (_unmounted || _sel !== it || !box.isConnected) return;
+    const n = (r && r.ok && r.n) || 0;
+    const zahl = n ? [r.n_foto ? `📷 ${r.n_foto} ${r.n_foto === 1 ? T("tourseite.foto", "Foto") : T("tourseite.fotos", "Fotos")}` : "",
+                      r.n_video ? `🎬 ${r.n_video} ${r.n_video === 1 ? T("tourseite.clip", "Clip") : T("tourseite.clips", "Clips")}` : ""].filter(Boolean).join(" · ")
+                   : T("tourseite.keine_kurz", "Keine Fotos oder Clips zu dieser Tour");
+    const streifen = (r && r.streifen) || [];
+    box.innerHTML = `<div class="lib-d-medien-kopf"><span>${esc(zahl)}</span>
+        <button type="button" class="btn btn-sm" id="lib-d-tourseite" title="${esc(T("tourseite.oeffnen_tip", "Tour-Seite: Karte mit allen Fotos und Clips, von dort Video, Karte, Export (auch per Doppelklick auf die Tour)"))}">${T("tourseite.oeffnen", "Tour öffnen")} ▸</button></div>
+      ${streifen.length ? `<div class="lib-d-medien-streifen">${streifen.slice(0, 8).map((x, i) => `<button type="button" class="lib-d-medien-bild${x.art === "video" ? " ist-video" : ""}" data-i="${i}"><span></span></button>`).join("")}${n > 8 ? `<span class="lib-d-medien-mehr">+${n - 8}</span>` : ""}</div>` : ""}`;
+    box.querySelector("#lib-d-tourseite").onclick = () => tourSeiteOeffnen(it);
+    box.querySelectorAll(".lib-d-medien-bild").forEach(b => { b.onclick = () => tourSeiteOeffnen(it, streifen[+b.dataset.i].path); });
+    if (streifen.length) {
+      let t2 = null; try { t2 = await api().fotos_thumbs(streifen.slice(0, 8).map(x => x.path), false); } catch (_) {}   // warte-ok: Bildflächen stehen schon
+      if (!t2 || !t2.ok || !box.isConnected) return;
+      streifen.slice(0, 8).forEach((x, i) => { const u = t2.thumbs && t2.thumbs[x.path]; const el = box.querySelector(`.lib-d-medien-bild[data-i="${i}"] span`); if (u && el) el.style.backgroundImage = `url("${u}")`; });
+    }
+  }
+  function _logbuchKurzHtml(r) {
     const z = r.zusammenfassung || {}, teile = [];
     for (const art of ["fahrt", "rad", "laufen"]) if (z[art]) teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${_lbDauerKurz(z[art].dauer_s)} ${T("logbuch.art." + art, _LB_KURZ_DE[art])}</span>`);
     for (const art of ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung"]) if (z[art]) {
       const n = z[art].anzahl; teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${n} ${n === 1 ? T("logbuch.art." + art, _LB_KURZ_DE[art]) : T("logbuch.mehrzahl." + art, _LB_KURZ_DE[art])}</span>`);
     }
     if (r.hoechster && r.hoechster.ele != null) teile.push(`<span class="lib-logbuch-chip">⛰ ${T("logbuch.hoechster", "höchster Punkt {m} m", { m: Math.round(r.hoechster.ele).toLocaleString(rzSprachCode()) })}</span>`);
-    box.hidden = false;
-    box.innerHTML = `<div class="lib-logbuch-titel">📖 ${T("logbuch.titel", "Logbuch")}${r.tage > 1 ? ` <small>· ${T("logbuch.archiv.tage", "{n} Tage", { n: r.tage })}</small>` : ""}</div>
+    return `<div class="lib-logbuch-titel">📖 ${T("logbuch.titel", "Logbuch")}${r.tage > 1 ? ` <small>· ${T("logbuch.archiv.tage", "{n} Tage", { n: r.tage })}</small>` : ""}</div>
       <div class="lib-logbuch-chips">${teile.join("")}</div>`;
   }
+  window.__rzLogbuchKurzHtml = (r) => _logbuchKurzHtml(r);   // 08.10.2026 — auch für die Tour-Seite
 
+  /** 09.10.2026 — Kartenbild der gewählten Tour im Archiv-Stil (abgelegt oder neu gezeichnet). */
+  async function detailKartenbild(it) {
+    const stil = (typeof rzArchivStil === "function") ? rzArchivStil() : "";
+    if (!stil) return;
+    const stilDatei = stil.replace(/[^a-z0-9_]/g, "_");
+    it._kbLaeuft = true;
+    try {
+      const r = await api().library_kartenbilder(stilDatei, [it.geo_hash]).catch(() => null);   // warte-ok: Bild kommt nachträglich
+      let url = r && r.bilder && r.bilder[it.geo_hash];
+      if (!url) {
+        const g = await api().library_geoms([it.path]).catch(() => null);   // warte-ok
+        url = await window.rzKartenbild(g && g.geoms && g.geoms[it.path], { stil, w: 340, h: 200 });
+        if (url) api().library_kartenbild_speichern(it.geo_hash, stilDatei, url).catch(() => null);   // warte-ok: Ablage im Hintergrund
+      }
+      if (url) { it.kartenbild = url; it.kartenbild_stil = stil; }
+    } finally { it._kbLaeuft = false; }
+    if (it.kartenbild && _sel === it) {
+      const el = document.getElementById("ld-bild"); const img = el && el.querySelector("img");
+      if (img) img.src = it.kartenbild; else if (el) renderDetail();
+    }
+  }
   function renderDetail() {
     // 13.09.2026 (Echt-App-Test): Im Foto-Bereich gehört die rechte Spalte den Fotos.
     // Der Start lud die Tourenliste nach und schrieb danach das Tour-Detail hinein.
     if (_fotoView) return;
+    // 08.10.2026 — auf der Tour-Seite gehört sie dem angeklickten Medium (ui/js/tourseite.js)
+    if (window.rzTourSeite && window.rzTourSeite.offen()) return;
     const box = $("lib-detail");
     // 30.09.2026 (Marc, Fehlermeldung „Fehler beim Initialisieren … box.innerHTML"):
     // Schnell-Video ohne Rendern öffnet das Projekt über das Archiv und springt gleich
@@ -3514,42 +3905,66 @@ function mountLibrary(body, headerActions) {
       }).catch(() => { it._thumbLaeuft = false; it.thumb_url = ""; });
     }
     const rows = kennzahlen(it);
+    // 09.10.2026 — Detailspalte: Kopf, großes Kartenbild, sechs Werte, Beschreibung, Schlagwörter,
+    // Angaben, Medien, Knöpfe für ALLE Module + Exportieren; alles Weitere unter „Weitere Angaben und Einstellungen“.
+    const wert = (sym, w, label) => `<div class="ld-wert">${SI(sym, 20)}<div><b>${w}</b><span>${esc(label)}</span></div></div>`;
+    const strecke = it.rundweg === true ? T("library.d_rundweg", "Rundweg") : it.rundweg === false ? T("library.d_a_nach_b", "Punkt zu Punkt") : "—";
+    const ordnerName = String(it.folder || "").split(/[\\/]/).filter(Boolean).pop() || "";
+    const kb = it.kartenbild || it.thumb_url;
+    const mehrOffen = store.get("detail_mehr", "0") === "1";
     box.innerHTML = _ghostBannerHtml() + `
-      <div class="lib-detail-thumb">${it.thumb_url
-        ? `<img src="${it.thumb_url}" alt="">`
-        // In der Kartenansicht werden die Vorschaubilder nicht mitgeladen (700
-        // data-URLs neben einer Karte wären Unsinn). Ohne Platzhalter stünde
-        // hier ein leerer heller Kasten.
-        : `<div class="lib-card-nothumb">🗺️</div>`}</div>
-      <div class="lib-cover-row">
-        <button class="btn btn-ghost btn-sm" id="lib-d-cover">${T("library.set_cover", "Eigenes Bild wählen")}</button>
-        ${it.cover ? `<button class="btn btn-ghost btn-sm" id="lib-d-uncover">${T("library.clear_cover", "Bild entfernen")}</button>` : ""}
+      <div class="ld-kopf">
+        <textarea id="lib-d-name" class="lib-input lib-title-input ld-titel" rows="1" spellcheck="false"
+               title="${esc(T("library.rename_hint", "Eigener Name — leer lassen setzt den Namen aus der Datei zurück."))}">${esc(it.name)}</textarea>
+        <button type="button" class="ld-icon${it.fav ? " an" : ""}" id="ld-fav" title="${esc(T("library.favorite", "Favorit"))}">${SI("star", 18)}</button>
+        <button type="button" class="ld-icon" id="ld-mehr" title="${esc(T("library.zeile_mehr_tip", "Weitere Aktionen"))}">${SI("ellipsis", 18)}</button>
       </div>
-
-      <input type="text" id="lib-d-name" class="lib-input lib-title-input" value="${esc(it.name)}"
-             title="${esc(T("library.rename_hint", "Eigener Name — leer lassen setzt den Namen aus der Datei zurück."))}">
       ${it.renamed ? `<div class="lib-hint">${T("library.renamed_from", "Datei-Name")}: ${esc(it.file_name)}</div>` : ""}
       ${it.error ? `<div class="lib-warn">${T("library.file_error", "Diese Datei konnte nicht gelesen werden")}: ${esc(it.error)}</div>` : ""}
       ${!it.exists ? `<div class="lib-warn">${it.missing_since
           ? T("library.missing_long", "Diese Datei ist gerade nicht auffindbar — vermutlich liegt sie auf einer Platte, die nicht angeschlossen ist. Die Tour bleibt im Archiv; sobald die Datei wieder da ist, geht alles weiter. Nach 90 Tagen ohne Wiedersehen verschwindet der Eintrag (deine Angaben dazu bleiben trotzdem erhalten).")
           : T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}</div>` : ""}
-      ${checkBoxHtml(it)}
-
-      <div class="lib-actions">
-        ${_ghostModus()
-          ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1" style="width:100%">◼ ${
-              T("library.ghost.take", "Als ganze Tour übernehmen")}</button>`
-          : `<button class="btn btn-primary btn-sm" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
-        <button class="btn btn-sm" data-schnellvideo="1" title="${esc(T("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte."))}">🎬 ${T("schnell.knopf", "Schnell-Video …")}</button>
-        <button class="btn btn-sm" data-open="tourmap">${T("library.open_tourmap", "Tour-Karte")}</button>
-        <button class="btn btn-sm" data-open="heightanim">${T("library.open_height", "Daten-Animator")}</button>
-        <button class="btn btn-sm" data-open="geotagger">${T("library.open_geotagger", "Fotos verorten")}</button>
-        <button class="btn btn-sm" data-open="gpxinspect">${T("library.open_inspect", "Inspektor")}</button>
-        <button class="btn btn-sm" data-ghost="1" title="${esc(T("library.ghost.hint",
-            "Legt die Tour als unbewegte Hintergrundlinie in den Animator — der Haupt-Track bleibt, wie er ist."))
-          }">◼ ${T("library.ghost.take_short", "Als ganze Tour")}</button>`}
+      <div class="lib-detail-thumb ld-bild" id="ld-bild">${kb ? `<img src="${kb}" alt="">` : `<div class="lib-card-nothumb">${SI("map", 28)}</div>`}
+        <button type="button" class="ld-gross" id="ld-gross" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${SI("maximize-2", 15)}</button>
+        ${it.kartenbild ? `<span class="ld-quelle">© OpenStreetMap · OpenFreeMap</span>` : ""}</div>
+      <div class="ld-werte">
+        ${wert("route", fmtKmVal(it.distance_m || 0), T("library.zeile_distanz", "Distanz"))}
+        ${wert("trending-up", "+" + num(it.ascent_m) + " m", T("library.zeile_aufstieg", "Aufstieg"))}
+        ${wert("clock", it.duration_s ? fmtDurVal(it.duration_s) : "—", T("library.zeile_dauer", "Dauer"))}
+        ${wert("mountain", it.ele_max != null ? num(it.ele_max) + " m" : "—", T("library.d_hoechster", "Höchster Punkt"))}
+        ${wert("trending-down", it.descent_m != null ? num(it.descent_m) + " m" : "—", T("library.d_abstieg", "Abstieg"))}
+        ${wert("repeat", esc(strecke), T("library.d_strecke", "Strecke"))}
       </div>
-
+      ${checkBoxHtml(it)}
+      <div class="ld-abschnitt">${T("library.d_beschreibung", "Beschreibung")}</div>
+      <textarea id="lib-d-note" class="lib-input ld-notiz" rows="3" placeholder="${esc(T("library.d_beschreibung_ph", "Was war besonders an dieser Tour?"))}">${esc(it.note || "")}</textarea>
+      <div class="ld-abschnitt">${T("library.tags", "Schlagwörter")}</div>
+      <div class="ld-tags" id="ld-tags">${(it.tag_list || []).map((x, k) => `<span class="lz-tag ld-tag">${esc(x)}<button type="button" data-ldtagweg="${k}" title="${esc(T("library.d_tag_weg", "Schlagwort entfernen"))}">×</button></span>`).join("")}<button type="button" class="lz-tag-plus" id="ld-tag-plus" title="${esc(T("library.zeile_tag_tip", "Schlagwort hinzufügen"))}">${SI("plus", 13)}</button></div>
+      <input type="hidden" id="lib-d-tags" value="${esc((it.tag_list || []).join(", "))}">
+      <div class="ld-meta">
+        <span>${SI("calendar", 15)} ${fmtDate(it.started_at)}</span>
+        <span>${SI(ACT_SYMBOL[it.activity] || "route", 15)} ${esc(ACT_LABELS[it.activity] || it.activity || T("library.act_none", "keine"))}</span>
+        ${it.source ? `<span title="${esc(T("library.d_geraet_tip", "Gerät oder App, die die Datei geschrieben hat"))}">${SI("smartphone", 15)} ${esc(it.source)}</span>` : ""}
+        ${ordnerName ? `<span title="${esc(it.folder || "")}">${SI("folder", 15)} ${esc(ordnerName)}</span>` : ""}
+      </div>
+      <!-- 08.10.2026 — Fotos und Clips der Tour, Bildstreifen, Tour-Seite -->
+      <div class="lib-d-medien" id="lib-d-medien"><span class="muted"><span class="spinner"></span> ${T("tourseite.medien_suchen", "Fotos und Clips der Tour …")}</span></div>
+      ${_ghostModus()
+        ? `<div class="lib-actions"><button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1" style="width:100%">◼ ${T("library.ghost.take", "Als ganze Tour übernehmen")}</button></div>`
+        : `<div class="ld-module">
+        <button class="btn btn-sm" id="ld-tourseite">${SI("map-pinned", 15)} ${T("library.d_tourseite", "Tour-Seite")}</button>
+        <button class="btn btn-sm" data-open="animator">${SI("clapperboard", 15)} ${T("library.d_animator", "Animator")}</button>
+        <button class="btn btn-sm" data-schnellvideo="1" title="${esc(T("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte."))}">${SI("zap", 15)} ${T("library.d_schnellvideo", "Schnell-Video")}</button>
+        <button class="btn btn-sm" data-open="heightanim">${SI("chart-spline", 15)} ${T("library.open_height", "Daten-Animator")}</button>
+        <button class="btn btn-sm" data-open="tourmap">${SI("map", 15)} ${T("library.d_tourmap", "Tour-Map")}</button>
+        <button class="btn btn-sm" data-open="gpxinspect">${SI("search", 15)} ${T("library.open_inspect", "Inspektor")}</button>
+        <button class="btn btn-sm" data-open="webkarte">${SI("globe", 15)} ${T("library.d_webkarte", "Web-Karte")}</button>
+        <button class="btn btn-sm" data-open="geotagger">${SI("map-pin", 15)} ${T("library.d_geotagger", "Geotagger")}</button>
+        <button class="btn btn-sm" data-ghost="1" title="${esc(T("library.ghost.hint", "Legt die Tour als unbewegte Hintergrundlinie in den Animator — der Haupt-Track bleibt, wie er ist."))}">◼ ${T("library.ghost.take_short", "Als ganze Tour")}</button>
+        <button class="btn btn-sm btn-cta ld-export" id="lib-d-export" title="${esc(T("export.tour_tip", "GPX, KML, KMZ, TCX, GeoJSON, CSV oder als Projekt speichern"))}">${SI("share", 15)} ${T("export.tour_ctx", "Exportieren …")}</button>
+      </div>`}
+      <details class="ld-mehr" id="ld-mehr-details"${mehrOffen ? " open" : ""}>
+        <summary>${T("library.d_mehr", "Weitere Angaben und Einstellungen")}</summary>
       <div class="lib-detail-rows" id="lib-d-rows">
         ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
       </div>
@@ -3562,10 +3977,7 @@ function mountLibrary(body, headerActions) {
       <div id="lib-d-fassungen" style="margin-top:8px;"></div>
       ${fitBlockHtml(it)}
 
-      <label class="check-row" style="margin-top:12px;">
-        <input type="checkbox" id="lib-d-fav"${it.fav ? " checked" : ""}>
-        <span>${T("library.favorite", "Favorit")}</span>
-      </label>
+      <input type="checkbox" id="lib-d-fav" hidden${it.fav ? " checked" : ""}>
 
       <div class="field-label" style="margin-top:10px;">${T("library.recorded_label", "Gemacht oder geplant?")}</div>
       <div class="lib-seg" id="lib-d-rec">
@@ -3598,13 +4010,10 @@ function mountLibrary(body, headerActions) {
       <div id="lib-d-cols" class="lib-colchips"></div>
       <div id="lib-d-projekte" class="lib-hint" style="margin-top:6px;"></div>
 
-      <label class="field-label" for="lib-d-tags" style="margin-top:10px;">${T("library.tags", "Schlagwörter")}</label>
-      <input type="text" id="lib-d-tags" class="lib-input" value="${esc((it.tag_list || []).join(", "))}"
-             placeholder="${T("library.tags_ph", "z. B. Mallorca, Testfahrt")}">
-
-      <label class="field-label" for="lib-d-note" style="margin-top:8px;">${T("library.note", "Notiz")}</label>
-      <textarea id="lib-d-note" class="lib-input" rows="3">${esc(it.note || "")}</textarea>
-
+      <div class="lib-cover-row">
+        <button class="btn btn-ghost btn-sm" id="lib-d-cover">${T("library.set_cover", "Eigenes Bild wählen")}</button>
+        ${it.cover ? `<button class="btn btn-ghost btn-sm" id="lib-d-uncover">${T("library.clear_cover", "Bild entfernen")}</button>` : ""}
+      </div>
       <div class="lib-actions" style="margin-top:12px;">
         <button class="btn btn-ghost btn-sm" id="lib-d-reveal">${T("library.reveal", "Im Finder zeigen")}</button>
         ${it.source_url ? `<button class="btn btn-ghost btn-sm" id="lib-d-src">${T("library.open_source", "Bei Komoot ansehen")}</button>` : ""}
@@ -3622,11 +4031,34 @@ function mountLibrary(body, headerActions) {
           <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-d-trash">${T("library.trash", "In den Papierkorb")}</button>
           ${helpTip(T("library.trash_help", "Verschiebt die Datei wirklich — in den Papierkorb deines Systems, genau wie beim Löschen im Finder oder Explorer. Endgültig weg ist sie erst, wenn du den Papierkorb leerst; bis dahin kannst du sie dort zurückholen. GPS Studio löscht nie selbst etwas endgültig."))}
         </span>
-      </div>`;
-
+      </details>`;
+    // T4 — Kopf, Kartenbild, Schlagwörter, Tour-Seite
+    { const f = $("ld-fav"), cb = $("lib-d-fav"); if (f && cb) f.onclick = () => { cb.checked = !cb.checked; f.classList.toggle("an", cb.checked); cb.onchange({ target: cb }); }; }
+    { const m = $("ld-mehr"); if (m) m.onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); itemKontextmenu(it, r.left, r.bottom + 4); }; }
+    { const g = $("ld-gross"); if (g) g.onclick = () => tourSeiteOeffnen(it); }
+    { const t = $("ld-tourseite"); if (t) t.onclick = () => tourSeiteOeffnen(it); }
+    { const d = $("ld-mehr-details"); if (d) d.ontoggle = () => store.set("detail_mehr", d.open ? "1" : "0"); }
+    const tagsSchreiben = async (liste) => {
+      const r = await api().library_set_fields(it.path, null, liste, null).catch(() => null);   // warte-ok: ein Feld
+      if (r && r.ok && r.track) { it.tags = r.track.tags; it.tag_list = r.track.tag_list || liste; } else it.tag_list = liste;
+      renderDetail(); if (view === "rows") renderRows(); reloadStats();
+    };
+    box.querySelectorAll("[data-ldtagweg]").forEach(b => { b.onclick = () => tagsSchreiben((it.tag_list || []).filter((_, k) => k !== +b.dataset.ldtagweg)); });
+    { const plus = $("ld-tag-plus"); if (plus) plus.onclick = () => {
+      const inp = document.createElement("input"); inp.type = "text"; inp.className = "lz-tag-eingabe"; inp.placeholder = T("library.zeile_tag_ph", "Schlagwort");
+      plus.replaceWith(inp); inp.focus();
+      let fertig = false;
+      const zu = (sp) => { if (fertig) return; fertig = true; const neu = sp ? inp.value.split(",").map(x => x.trim()).filter(Boolean) : [];
+        if (neu.length) tagsSchreiben(Array.from(new Set((it.tag_list || []).concat(neu)))); else renderDetail(); };
+      inp.onkeydown = (ev) => { if (ev.key === "Enter") zu(true); else if (ev.key === "Escape") zu(false); };
+      inp.onblur = () => zu(true);
+    }; }
+    if (!it.kartenbild && it.geo_hash && !it._kbLaeuft && window.rzKartenbild) detailKartenbild(it);
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
     box.querySelectorAll("[data-schnellvideo]").forEach(b => { b.onclick = () => { if (_sel && window.rzSchnellVideo) window.rzSchnellVideo(_sel.path); }; });   // §71
     try { _logbuchKurz(it); } catch (_) {}
+    try { _medienKurz(it); } catch (_) {}
+    { const ex = $("lib-d-export"); if (ex) ex.onclick = () => { if (window.rzArchivExport) window.rzArchivExport.touren([it.path], it.name || ""); }; }
     box.querySelectorAll("[data-ghost]").forEach(b => { b.onclick = () => alsGhost(_sel ? [_sel.path] : []); });
     bindCheckBox(it);
     _ghostBannerBinden();
@@ -3639,7 +4071,11 @@ function mountLibrary(body, headerActions) {
       const res = await api().library_set_name(it.path, v === it.file_name ? "" : v);
       if (res && res.ok && res.track) { Object.assign(it, res.track); renderView(); }
     }, 600);
-    nameInput.oninput = saveName;
+    nameInput.oninput = () => { hoeheAnpassen(); saveName(); };
+    // 09.10.2026 — der Titel bricht um (Textfeld statt Zeile); Enter schreibt keinen Zeilenumbruch
+    const hoeheAnpassen = () => { nameInput.style.height = "auto"; nameInput.style.height = nameInput.scrollHeight + "px"; };
+    nameInput.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); nameInput.blur(); } };
+    requestAnimationFrame(hoeheAnpassen);
 
     // Die Listendaten kennen weder `activity_user` (steht in track_meta) noch
     // die FIT-Werte (`fitmeta` ist aus der Listen-Abfrage bewusst ausgeschlossen,
@@ -5638,6 +6074,7 @@ function mountLibrary(body, headerActions) {
   }, 400);
   $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); zuerstGeoWeg(); reload(); };
   $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); zuerstGeoWeg(); reload(); };
+  $("lib-tags").onchange = () => { setFilter("tags", $("lib-tags").value || null); zuerstGeoWeg(); reload(); };
   $("lib-sort").onchange = () => { setFilter("sort", $("lib-sort").value); zuerstGeoWeg(); reload(); };
   const kmLesen = (id) => {
     const v = parseFloat($(id).value);
@@ -5700,7 +6137,7 @@ function mountLibrary(body, headerActions) {
   function filterZuruecksetzen() {
     zuerstGeoWeg();
     setFilter("search", "");
-    setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
+    setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc"); setFilter("tags", null);
     setFilter("von", null); setFilter("bis", null);
     setFilter("verz", null);
     // ⚠️ Nicht nur den Wert zurücksetzen, sondern auch die Anzeige: sonst
@@ -5718,6 +6155,7 @@ function mountLibrary(body, headerActions) {
   // hängen am Modul-DOM und verschwinden mit ihm beim Unmount von selbst.
   grid.addEventListener("scroll", () => { fensterAktualisieren(grid, "cards"); scrollNachladen(grid); }, { passive: true });
   $("lib-list").addEventListener("scroll", () => { fensterAktualisieren($("lib-list"), "list"); scrollNachladen($("lib-list")); }, { passive: true });
+  $("lib-rows").addEventListener("scroll", () => { fensterAktualisieren($("lib-rows"), "rows"); scrollNachladen($("lib-rows")); }, { passive: true });
   // Fenstergröße ändert Spaltenzahl/Zeilenhöhe → Fenster neu messen
   try {
     let _roRaf = 0;
@@ -5894,6 +6332,7 @@ function mountLibrary(body, headerActions) {
     clearInterval(_autoWatch);
     closeMapPopup();
     if (_map) { try { _map.remove(); } catch (_) {} _map = null; _mapReady = false; }
+    if (_stKarte) { try { _stKarte.remove(); } catch (_) {} _stKarte = null; }   // 09.10.2026 Startpunkte-Karte der Statistik
     try { delete window.__libMap; } catch (_) { window.__libMap = null; }
     // 12.09.2026 — der Foto-Bestand hat seine eigene Karte und einen Wecker
     // für den Scan; beides muss beim Modulwechsel mit weg.

@@ -13,6 +13,7 @@ weißes Fenster. Lokal gebündelt startet sie offline.
 | `mapbox-gl.js`, `mapbox-gl.css` | [Mapbox GL JS](https://github.com/mapbox/mapbox-gl-js) | 3.12.0 | **Mapbox Terms of Service** (proprietär) — © Mapbox |
 | `maplibre-gl.js`, `maplibre-gl.css` | [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) | 5.4.0 **mit eigenen Patches** (nur `.js`) | BSD 3-Clause |
 | `leaflet/leaflet.js`, `leaflet/leaflet.css`, `leaflet/images/*` | [Leaflet](https://github.com/Leaflet/Leaflet) | 1.9.4 | BSD 2-Clause |
+| `ui/js/icons.js` (Pfaddaten der Symbole) | [Lucide](https://github.com/lucide-icons/lucide) (`lucide-static`) | 0.460.0 | ISC; Teile aus [Feather](https://github.com/feathericons/feather), MIT |
 
 ## Hinweis zu Mapbox GL JS
 
@@ -69,3 +70,16 @@ OpenFreeMap-Stil „Positron“ (Gestaltung CARTO / OpenMapTiles), als Skript mi
 ihn je Rolle um. Lizenz des Stils: Code BSD-3-Clause, Gestaltung CC BY 4.0; Kartendaten © OpenStreetMap-
 Mitwirkende (ODbL), Kacheln von OpenFreeMap. Nennung in der Quellenzeile der Karte und im Über-Dialog.
 
+
+
+## Lucide (ISC)
+
+```
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```

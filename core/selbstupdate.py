@@ -40,6 +40,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -189,9 +190,27 @@ def staging_pfad(bundle: Path) -> Path:
     return Path(bundle).parent / f".{APP_NAME}.app.update"
 
 
+class _Uhr:
+    """Dauer je Schritt fürs Log (08.10.2026, Beta-Tester: „Aktualisieren hat länger gedauert als sonst“).
+    `schritte` hält die Sekunden je Schritt, `zeile()` fasst sie für die Gesamtzeile zusammen."""
+
+    def __init__(self, say: Callable[[str], None]):
+        self.say, self.schritte, self._t = say, {}, time.perf_counter()
+
+    def __call__(self, name: str, extra: str = "") -> None:
+        jetzt = time.perf_counter()
+        self.schritte[name] = jetzt - self._t
+        self._t = jetzt
+        self.say(f"[dauer] {name}: {self.schritte[name]:.1f} s" + (f" ({extra})" if extra else ""))
+
+    def zeile(self) -> str:
+        return " · ".join(f"{k} {v:.1f} s" for k, v in self.schritte.items()) + f" · gesamt {sum(self.schritte.values()):.1f} s"
+
+
 def mac_bereitstellen(dmg: Path, bundle: Path, erwartete_version: str, erwartetes_team: str,
-                      say: Callable[[str], None] = lambda _m: None) -> Path:
+                      say: Callable[[str], None] = lambda _m: None, uhr: Optional[_Uhr] = None) -> Path:
     """DMG einhängen, .app daneben kopieren, prüfen. Liefert den Staging-Pfad."""
+    uhr = uhr or _Uhr(say)
     bundle = Path(bundle)
     stage = staging_pfad(bundle)
     _ds.nutzer_ziel(stage)   # unsere Zwischenstufe neben dem Bundle (kein GPS-Studio-Bereich)
@@ -205,6 +224,7 @@ def mac_bereitstellen(dmg: Path, bundle: Path, erwartete_version: str, erwartete
         if r.returncode != 0:
             raise UpdateFehler("dmg", "DMG ließ sich nicht öffnen: " + (r.stderr or "").strip()[:200])
         eingehaengt = True
+        uhr("DMG einhängen")
         apps = sorted(p for p in mnt.iterdir() if p.suffix == ".app")
         if not apps:
             raise UpdateFehler("keine_app", "Im DMG liegt keine App")
@@ -212,6 +232,7 @@ def mac_bereitstellen(dmg: Path, bundle: Path, erwartete_version: str, erwartete
         r = _run(["ditto", str(apps[0]), str(stage)], timeout=900)
         if r.returncode != 0 or not stage.exists():
             raise UpdateFehler("kopieren", "Kopieren fehlgeschlagen: " + (r.stderr or "").strip()[:200])
+        uhr("kopieren")
     finally:
         if eingehaengt:
             r = _run(["hdiutil", "detach", str(mnt)], timeout=60)
@@ -222,8 +243,11 @@ def mac_bereitstellen(dmg: Path, bundle: Path, erwartete_version: str, erwartete
             mnt.rmdir()
         except OSError:
             pass
+        if eingehaengt:
+            uhr("DMG aushängen")
     try:
         ok, msg = signatur_gueltig(stage)
+        uhr("Signatur prüfen")
         if not ok:
             raise UpdateFehler("signatur", "Signatur der neuen Version ist ungültig: " + msg)
         t = team_id(stage)
@@ -236,7 +260,9 @@ def mac_bereitstellen(dmg: Path, bundle: Path, erwartete_version: str, erwartete
         _ds.ordner_loeschen(stage, "selbstupdate", art=_ds.ART_TEMP, ignore_errors=True)
         raise
     # Quarantäne wegnehmen, falls vorhanden (per urllib geladen hat keine — sicher ist sicher)
+    uhr("Team und Version")
     _run(["xattr", "-dr", "com.apple.quarantine", str(stage)], timeout=120)
+    uhr("Quarantäne")
     return stage
 
 
@@ -269,6 +295,7 @@ while kill -0 {int(pid)} 2>/dev/null; do
   sleep 0.5; i=$((i+1))
   if [ $i -gt 240 ]; then log "App nach 120 s nicht beendet — Abbruch, nichts geändert"; exit 1; fi
 done
+log "App beendet nach $((i / 2)) s"
 sleep 1
 [ -d "$NEU" ] || {{ log "neue Version fehlt — nichts geändert"; exit 1; }}
 mkdir -p "$KORB"
@@ -343,15 +370,18 @@ class Updater:
         self._abbruch = False
 
         def _lauf():
+            uhr = _Uhr(self.log)
             try:
                 ziel = self.ordner / paket["datei"]
                 herunterladen(paket["url"], ziel, paket["size"], paket["sha256"],
                               fortschritt=lambda n, g: self._setzen(bytes=n, total=g),
                               abbruch=lambda: self._abbruch, ssl_ctx=ssl_ctx, user_agent=user_agent)
+                mb = paket["size"] / 1e6
+                uhr("laden + Prüfsumme", f"{mb:.0f} MB, {mb / max(0.1, time.perf_counter() - uhr._t):.1f} MB/s")
                 self.log(f"Update {paket['version']}: geladen und geprüft ({paket['size']} Bytes)")
                 self._setzen(phase="pruefen")
                 if self.plattform == "darwin":
-                    stage = mac_bereitstellen(ziel, self.bundle, paket["version"], erwartetes_team, say=self.log)
+                    stage = mac_bereitstellen(ziel, self.bundle, paket["version"], erwartetes_team, say=self.log, uhr=uhr)
                     try:
                         _ds.loeschen(ziel, "selbstupdate", art=_ds.ART_TEMP)
                     except Exception:  # noqa: BLE001
@@ -359,7 +389,8 @@ class Updater:
                     self._setzen(phase="bereit", stage=str(stage), art="bundle")
                 else:
                     self._setzen(phase="bereit", installer=str(ziel), art="installer")
-                self.log(f"Update {paket['version']}: bereit")
+                self.log(f"Update {paket['version']}: bereit — {uhr.zeile()}")
+                self._setzen(dauer=dict(uhr.schritte))
             except Abgebrochen:
                 self._setzen(phase="abgebrochen")
                 self.log("Update abgebrochen")

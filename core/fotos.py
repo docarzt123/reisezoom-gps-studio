@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import logging
 import os
 import re
@@ -65,7 +66,10 @@ SKIP_DIRS = {
     # „@Recently-Snapshot") und Synologys eigene Vorschaubilder („@eaDir"). Im Ordnerbaum tauchte „#recycle" mit
     # gelöschten Fotos auf.
     "#recycle", "#snapshot", "@eaDir", "@Recycle", "@Recently-Snapshot", "@SynoResource",
+    # 08.10.2026 — dahin räumt „Doppelte“ die überzähligen Fassungen; sonst holte das nächste Einlesen sie zurück
+    "Doppelte (GPS Studio)", "Duplicates (GPS Studio)", "Duplicados (GPS Studio)",
 }
+DOPPELTE_ORDNER = {"de": "Doppelte (GPS Studio)", "en": "Duplicates (GPS Studio)", "es": "Duplicados (GPS Studio)"}
 SKIP_SUFFIXE = (".photoslibrary", ".photoslibrary/", ".aplibrary", ".migratedphotolibrary")
 
 # Wie tief ein nicht-rekursiver Ordner gelesen wird: gar nicht tief.
@@ -192,6 +196,27 @@ CREATE INDEX IF NOT EXISTS idx_fotos_jahr_da   ON fotos(jahr)   WHERE fehlt_seit
 CREATE INDEX IF NOT EXISTS idx_fotos_da        ON fotos(aufnahme_utc) WHERE fehlt_seit IS NULL;
 CREATE INDEX IF NOT EXISTS idx_fotos_ohne_gps  ON fotos(indexed_at)   WHERE fehlt_seit IS NULL AND (lat IS NULL OR lon IS NULL);
 CREATE INDEX IF NOT EXISTS idx_fotos_tag_da    ON fotos(tag_lokal)    WHERE fehlt_seit IS NULL;
+-- 08.10.2026 — Korrekturen von Hand: ein Medium gehört zusätzlich zu einer Tour
+-- ('plus') oder trotz Zeit und Ort nicht ('minus'). Nur die Abweichungen von der automatischen Regel stehen hier; sie
+-- gelten überall (Archiv, Animator, Schnell-Video …). `inhalt_id` hilft, ein verschobenes Medium wiederzufinden.
+CREATE TABLE IF NOT EXISTS tour_medien_korr (
+    geo_hash   TEXT NOT NULL,
+    pfad       TEXT NOT NULL,
+    aktion     TEXT NOT NULL,         -- 'plus' | 'minus'
+    inhalt_id  TEXT,
+    am         TEXT,
+    PRIMARY KEY (geo_hash, pfad)
+);
+CREATE INDEX IF NOT EXISTS idx_tmk_pfad ON tour_medien_korr(pfad);
+-- 09.10.2026 — Favoriten und Alben für Medien: nur in der Bibliothek, die Dateien bleiben unberührt.
+-- `inhalt_id` reist mit, damit beides ein Umbenennen/Verschieben überlebt (wie tour_medien_korr).
+CREATE TABLE IF NOT EXISTS foto_fav (pfad TEXT PRIMARY KEY, inhalt_id TEXT, am TEXT);
+CREATE TABLE IF NOT EXISTS foto_alben (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, am TEXT);
+CREATE TABLE IF NOT EXISTS foto_album_inhalt (album_id INTEGER NOT NULL, pfad TEXT NOT NULL, inhalt_id TEXT, am TEXT,
+    PRIMARY KEY (album_id, pfad));
+CREATE INDEX IF NOT EXISTS idx_fai_pfad ON foto_album_inhalt(pfad);
+-- 09.10.2026 — Bearbeitung als Rezept (JSON, core/entwickeln.py); das Original bleibt unberührt
+CREATE TABLE IF NOT EXISTS foto_rezept (pfad TEXT PRIMARY KEY, inhalt_id TEXT, rezept TEXT NOT NULL, am TEXT);
 """
 
 # Der Volltext-Index ist dieselbe Bauart wie bei den Touren (FTS5, Trigramm):
@@ -1657,6 +1682,13 @@ def _where(f: dict) -> tuple:
         teile.append("(lat IS NULL OR lon IS NULL)")
     if f.get("ohne_zeit"):
         teile.append("aufnahme_utc IS NULL")
+    if f.get("fav"):
+        teile.append("path IN (SELECT pfad FROM foto_fav)")
+    if f.get("bearbeitet"):
+        teile.append("path IN (SELECT pfad FROM foto_rezept)")
+    if f.get("album"):
+        teile.append("path IN (SELECT pfad FROM foto_album_inhalt WHERE album_id = ?)")
+        werte.append(int(f["album"]))
     if f.get("von"):
         teile.append("tag_lokal >= ?")
         werte.append(str(f["von"])[:10])
@@ -1718,7 +1750,125 @@ def abfrage(conn: sqlite3.Connection, filter: Optional[dict] = None,
     rows = conn.execute(
         f"SELECT {_SPALTEN} FROM fotos WHERE {wo} ORDER BY {ordnung} LIMIT ? OFFSET ?",
         werte + [int(limit), int(offset)]).fetchall()
-    return {"n": n, "ohne_koordinate": ohne, "fotos": [dict(r) for r in rows]}
+    fotos = [dict(r) for r in rows]
+    favs_markieren(conn, fotos)
+    return {"n": n, "ohne_koordinate": ohne, "fotos": fotos}
+
+
+# ── Favoriten und Alben (09.10.2026) ───────────────────────────────
+
+def favs_markieren(conn: sqlite3.Connection, fotos: list) -> None:
+    """Setzt `fav` = 1 an den Zeilen, die Favoriten sind (eine Abfrage für die ganze Seite)."""
+    pf = [d["path"] for d in fotos if d.get("path")]
+    fav = set()
+    for i in range(0, len(pf), 500):
+        t = pf[i:i + 500]
+        fav.update(r[0] for r in conn.execute("SELECT pfad FROM foto_fav WHERE pfad IN (%s)" % ",".join("?" * len(t)), t))
+    bearb = set()
+    for i in range(0, len(pf), 500):
+        t = pf[i:i + 500]
+        bearb.update(r[0] for r in conn.execute("SELECT pfad FROM foto_rezept WHERE pfad IN (%s)" % ",".join("?" * len(t)), t))
+    for d in fotos:
+        d["fav"] = 1 if d.get("path") in fav else 0
+        d["bearbeitet"] = 1 if d.get("path") in bearb else 0
+
+
+def rezept_lesen(conn: sqlite3.Connection, pfad: str) -> dict:
+    r = conn.execute("SELECT rezept FROM foto_rezept WHERE pfad = ?", (str(pfad),)).fetchone()
+    if not r:
+        return {}
+    try:
+        d = json.loads(r[0])
+        return d if isinstance(d, dict) else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def rezepte(conn: sqlite3.Connection, pfade: list) -> dict:
+    raus = {}
+    for i in range(0, len(pfade), 500):
+        t = [str(x) for x in pfade[i:i + 500]]
+        for p, rz in conn.execute("SELECT pfad, rezept FROM foto_rezept WHERE pfad IN (%s)" % ",".join("?" * len(t)), t):
+            try:
+                raus[p] = json.loads(rz)
+            except (TypeError, ValueError):
+                pass
+    return raus
+
+
+def rezept_setzen(conn: sqlite3.Connection, pfad: str, rezept: Optional[dict]) -> None:
+    """Leeres Rezept (alles neutral, kein Auto) = Bearbeitung entfernen."""
+    from core import entwickeln as cent
+    rz = dict(cent.sauber(rezept))
+    if (rezept or {}).get("auto"):
+        rz["auto"] = True
+    if not rz:
+        conn.execute("DELETE FROM foto_rezept WHERE pfad = ?", (str(pfad),))
+    else:
+        conn.execute("INSERT OR REPLACE INTO foto_rezept(pfad, inhalt_id, rezept, am) VALUES (?,?,?,?)",
+                     (str(pfad), _iid(conn, pfad), json.dumps(rz, sort_keys=True),
+                      datetime.now(timezone.utc).isoformat(timespec="seconds")))
+    conn.commit()
+
+
+def _iid(conn, pfad):
+    r = conn.execute("SELECT inhalt_id FROM fotos WHERE path = ?", (pfad,)).fetchone()
+    return r[0] if r else None
+
+
+def fav_setzen(conn: sqlite3.Connection, pfade: list, an: bool) -> int:
+    jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    n = 0
+    for p in [str(x) for x in pfade or [] if x][:20000]:
+        if an:
+            conn.execute("INSERT OR REPLACE INTO foto_fav(pfad, inhalt_id, am) VALUES (?,?,?)", (p, _iid(conn, p), jetzt))
+        else:
+            conn.execute("DELETE FROM foto_fav WHERE pfad = ?", (p,))
+        n += 1
+    conn.commit()
+    return n
+
+
+def alben(conn: sqlite3.Connection) -> list:
+    """[{id, name, n}] — n zählt nur, was noch im Bestand ist."""
+    return [dict(r) for r in conn.execute(
+        "SELECT a.id, a.name, (SELECT COUNT(*) FROM foto_album_inhalt i JOIN fotos f ON f.path = i.pfad "
+        "AND f.fehlt_seit IS NULL WHERE i.album_id = a.id) AS n FROM foto_alben a ORDER BY a.name COLLATE NOCASE")]
+
+
+def album_neu(conn: sqlite3.Connection, name: str) -> int:
+    name = " ".join(str(name or "").split())[:120] or "Album"
+    cur = conn.execute("INSERT INTO foto_alben(name, am) VALUES (?, ?)", (name, datetime.now(timezone.utc).isoformat(timespec="seconds")))
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def album_umbenennen(conn: sqlite3.Connection, album_id: int, name: str) -> None:
+    name = " ".join(str(name or "").split())[:120]
+    if name:
+        conn.execute("UPDATE foto_alben SET name = ? WHERE id = ?", (name, int(album_id)))
+        conn.commit()
+
+
+def album_weg(conn: sqlite3.Connection, album_id: int) -> None:
+    """Nur das Album — die Fotos bleiben, wo sie sind."""
+    conn.execute("DELETE FROM foto_album_inhalt WHERE album_id = ?", (int(album_id),))
+    conn.execute("DELETE FROM foto_alben WHERE id = ?", (int(album_id),))
+    conn.commit()
+
+
+def album_inhalt(conn: sqlite3.Connection, album_id: int, pfade: list, dazu: bool) -> int:
+    jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    n = 0
+    for p in [str(x) for x in pfade or [] if x][:20000]:
+        if dazu:
+            conn.execute("INSERT OR IGNORE INTO foto_album_inhalt(album_id, pfad, inhalt_id, am) VALUES (?,?,?,?)",
+                         (int(album_id), p, _iid(conn, p), jetzt))
+        else:
+            conn.execute("DELETE FROM foto_album_inhalt WHERE album_id = ? AND pfad = ?", (int(album_id), p))
+        n += 1
+    conn.commit()
+    return n
 
 
 def zeile(conn: sqlite3.Connection, path: str) -> Optional[dict]:
@@ -1829,6 +1979,8 @@ def stand(conn: sqlite3.Connection) -> dict:
         "gesamt": z[0], "fotos": z[1], "videos": z[2], "ungelesen": z[3], "ohne_bild": z[4],
         "ohne_koordinate": z[5], "ohne_zeit": z[6], "zeit_geraten": z[7], "fehlt": z[8],
         "ordner": conn.execute("SELECT COUNT(*) FROM foto_ordner").fetchone()[0],
+        "fav": conn.execute("SELECT COUNT(*) FROM foto_fav JOIN fotos ON fotos.path = foto_fav.pfad AND fotos.fehlt_seit IS NULL").fetchone()[0],
+        "bearbeitet": conn.execute("SELECT COUNT(*) FROM foto_rezept JOIN fotos ON fotos.path = foto_rezept.pfad AND fotos.fehlt_seit IS NULL").fetchone()[0],
     }
 
 
@@ -1940,6 +2092,98 @@ def _in_etappe(t: dict, utc: float, spielraum: int) -> bool:
     return any((v - spielraum) <= utc <= (b + spielraum) for v, b in e["fenster"])
 
 
+# 08.10.2026 — Zeit UND Ort: ein Medium MIT Koordinate, das weiter als ORT_MAX_M von der Tour entfernt
+# entstand, gehört nicht automatisch dazu (z. B. das Foto der Begleitung im Tal) — es steht dann unter „Medien vom selben
+# Tag“ und lässt sich mit einem Klick dazunehmen. Ohne Koordinate entscheidet die Zeit.
+ORT_MAX_M = 2000
+
+
+class _Linie(list):
+    """Linie [[lon, lat], …] plus `rand_m`: so viel Spielraum kommt zu ORT_MAX_M dazu, weil die Linie ausgedünnt ist —
+    die halbe längste Teilstrecke. Ein Foto direkt an der echten Strecke liegt damit nie „zu weit weg“."""
+    rand_m = 0.0
+
+
+def _linie(punkte: list) -> "_Linie":
+    li = _Linie(punkte)
+    if len(li) > 1:
+        k = math.cos(math.radians(li[0][1])) * 111_320.0
+        li.rand_m = max(math.hypot((b[0] - a[0]) * k, (b[1] - a[1]) * 111_320.0) for a, b in zip(li, li[1:])) / 2
+    return li
+
+
+def _geom_von(conn: sqlite3.Connection, path: str) -> list:
+    """Linie der Tour für die Ortsprüfung. 08.10.2026 (Durchsicht): `tracks.geom` hat nur 80 Punkte — auf einer
+    1500-km-Reise liegen sie ~19 km auseinander, und Fotos an der Küstenstraße galten als „zu weit weg“. Liegt die feine
+    Etappen-Linie (bis 1500 Punkte) schon im Speicher, gilt sie; sonst die grobe, beide mit Spielraum (`_Linie.rand_m`).
+    Die GPX-Datei wird dafür nicht eigens gelesen (bei Hunderten Touren zu langsam)."""
+    m = _ETAPPEN_MERK.get(path)
+    if m and m[1] and m[1].get("teile"):
+        return _linie([p for teil in m[1]["teile"] for p in teil])
+    r = conn.execute("SELECT geom FROM tracks WHERE path = ? LIMIT 1", (path,)).fetchone()
+    if not r or not r["geom"]:
+        return []
+    try:
+        g = json.loads(r["geom"])
+        return _linie(g) if isinstance(g, list) else []
+    except (TypeError, ValueError):
+        return []
+
+
+def _kasten(geom: list, rand_m: float) -> Optional[tuple]:
+    """Umgebender Kasten der Linie, um `rand_m` (+ Spielraum der ausgedünnten Linie) vergrößert — schneller Vorfilter."""
+    if not geom:
+        return None
+    rand_m += getattr(geom, "rand_m", 0.0)
+    lons = [p[0] for p in geom]
+    lats = [p[1] for p in geom]
+    dlat = rand_m / 111_320.0
+    mlat = math.radians(sum(lats) / len(lats))
+    dlon = rand_m / (111_320.0 * max(0.05, math.cos(mlat)))
+    return (min(lons) - dlon, min(lats) - dlat, max(lons) + dlon, max(lats) + dlat)
+
+
+def abstand_zur_linie_m(lat: float, lon: float, geom: list) -> float:
+    """Kürzester Abstand eines Punkts zur Linie (Liste [lon, lat]) in Metern, flach gerechnet (genügt für ~km)."""
+    if not geom:
+        return float("inf")
+    k = math.cos(math.radians(lat)) * 111_320.0
+    px, py = lon * k, lat * 111_320.0
+    best = float("inf")
+    if len(geom) == 1:
+        x, y = geom[0][0] * k, geom[0][1] * 111_320.0
+        return math.hypot(px - x, py - y)
+    for a, b in zip(geom, geom[1:]):
+        ax, ay, bx, by = a[0] * k, a[1] * 111_320.0, b[0] * k, b[1] * 111_320.0
+        dx, dy = bx - ax, by - ay
+        ll = dx * dx + dy * dy
+        t = 0.0 if ll == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ll))
+        d = math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+        if d < best:
+            best = d
+    return best
+
+
+def _nah_genug(lat, lon, geom: list, kasten: Optional[tuple] = None) -> bool:
+    """Ohne Koordinate oder ohne Linie: ja (dann entscheidet die Zeit). Sonst Abstand ≤ ORT_MAX_M."""
+    if lat is None or lon is None or not geom:
+        return True
+    if kasten and not (kasten[0] <= lon <= kasten[2] and kasten[1] <= lat <= kasten[3]):
+        return False
+    return abstand_zur_linie_m(float(lat), float(lon), geom) <= ORT_MAX_M + getattr(geom, "rand_m", 0.0)
+
+
+def korrekturen(conn: sqlite3.Connection, geo_hash: str = "", pfad: str = "") -> dict:
+    """{(geo_hash, pfad): 'plus'|'minus'} — für eine Tour, ein Medium oder alle."""
+    if geo_hash:
+        rows = conn.execute("SELECT geo_hash, pfad, aktion FROM tour_medien_korr WHERE geo_hash = ?", (geo_hash,))
+    elif pfad:
+        rows = conn.execute("SELECT geo_hash, pfad, aktion FROM tour_medien_korr WHERE pfad = ?", (pfad,))
+    else:
+        rows = conn.execute("SELECT geo_hash, pfad, aktion FROM tour_medien_korr")
+    return {(r[0], r[1]): r[2] for r in rows.fetchall()}
+
+
 def tour_zu_zeit(fenster: list, utc: Optional[float],
                  spielraum: int = SPIELRAUM_S) -> Optional[dict]:
     """Welche Tour lief zu diesem Zeitpunkt? Bei Überschneidung die kürzere,
@@ -1954,15 +2198,56 @@ def tour_zu_zeit(fenster: list, utc: Optional[float],
     return min(treffer, key=lambda t: t["bis"] - t["von"])
 
 
+def touren_eines_mediums(conn: sqlite3.Connection, d: dict, fenster: Optional[list] = None) -> list:
+    """Alle Touren, zu denen dieses Medium gehört — automatisch (Zeit ±SPIELRAUM_S, Etappen, Ort ≤ ORT_MAX_M) plus/minus
+    Korrekturen von Hand. Kürzeste zuerst (der genaueste Treffer, z. B. Spaziergang in einer Womo-Etappe).
+
+    08.10.2026: ein Medium darf zu mehreren Touren gehören (zwei Aufzeichnungen derselben Tour, Rad und
+    Wanderung am selben Tag) — vorher gewann immer die kürzere."""
+    fenster = fenster if fenster is not None else tour_fenster(conn)
+    utc = d.get("aufnahme_utc")
+    pfad = d.get("path") or ""
+    korr = korrekturen(conn, pfad=pfad) if pfad else {}
+    raus, gesehen = [], set()
+    if utc is not None:
+        for t in fenster:
+            if not ((t["von"] - SPIELRAUM_S) <= utc <= (t["bis"] + SPIELRAUM_S) and _in_etappe(t, utc, SPIELRAUM_S)):
+                continue
+            if korr.get((t["geo_hash"], pfad)) == "minus":
+                continue
+            if not _nah_genug(d.get("lat"), d.get("lon"), _geom_von(conn, t["path"])):
+                if korr.get((t["geo_hash"], pfad)) != "plus":
+                    continue
+            raus.append(dict(t, quelle="hand" if korr.get((t["geo_hash"], pfad)) == "plus" else "auto"))
+            gesehen.add(t["geo_hash"])
+    plus = [gh for (gh, _p), a in korr.items() if a == "plus" and gh not in gesehen]
+    if plus:
+        nach_gh = {t["geo_hash"]: t for t in fenster}
+        for gh in plus:
+            t = nach_gh.get(gh)
+            if t is None:   # Tour ohne Zeit (oder ausgeblendet): aus der Tabelle holen
+                r = conn.execute("SELECT path, geo_hash, COALESCE(NULLIF(display_name, ''), NULLIF(name, ''), "
+                                 "NULLIF(filename, ''), path) AS name, started_at, ended_at FROM tracks "
+                                 "WHERE geo_hash = ? LIMIT 1", (gh,)).fetchone()
+                if not r:
+                    continue
+                t = {"path": r["path"], "geo_hash": r["geo_hash"], "name": r["name"],
+                     "von": _epoche(r["started_at"]) or 0, "bis": _epoche(r["ended_at"]) or 0, "n_seg": 1}
+            raus.append(dict(t, quelle="hand"))
+    raus.sort(key=lambda t: (t["bis"] - t["von"]) if t.get("bis") and t.get("von") else 1e18)
+    return raus
+
+
 def tour_fuer_foto(conn: sqlite3.Connection, d: dict) -> Optional[dict]:
-    """Welche Tour deckt die Aufnahmezeit dieses Fotos ab — mit Streckenverlauf.
+    """Die (genaueste) Tour dieses Fotos — mit Streckenverlauf, dazu `touren`: alle, zu denen es gehört.
 
     Der Verlauf (`geom`) liegt im Archiv schon vereinfacht vor, er kostet also
     nichts extra. Damit kann die Detailspalte das Bild AUF seiner Tour zeigen.
     """
-    t = tour_zu_zeit(tour_fenster(conn), d.get("aufnahme_utc"))
-    if not t:
+    alle = touren_eines_mediums(conn, d)
+    if not alle:
         return None
+    t = alle[0]
     r = conn.execute("SELECT geom, COALESCE(missing_since,'') AS weg FROM tracks "
                      "WHERE path = ? LIMIT 1", (t["path"],)).fetchone()
     geom = []
@@ -1977,7 +2262,9 @@ def tour_fuer_foto(conn: sqlite3.Connection, d: dict) -> Optional[dict]:
         teile = e["teile"] if e and e["teile"] else None
     return {"name": t["name"], "geo_hash": t["geo_hash"], "path": t["path"],
             "von": t["von"], "bis": t["bis"], "geom": geom, "teile": teile,
-            "datei_da": bool(r and not r["weg"])}
+            "datei_da": bool(r and not r["weg"]),
+            "touren": [{"name": x["name"], "geo_hash": x["geo_hash"], "path": x["path"], "von": x["von"],
+                        "bis": x["bis"], "place": x.get("place", ""), "quelle": x.get("quelle", "auto")} for x in alle]}
 
 
 # Was an einem Foto fehlt, als Schlüssel. Der Text steht in der Oberfläche —
@@ -2027,18 +2314,31 @@ def touren_zu_fotos(conn: sqlite3.Connection, filter: Optional[dict] = None) -> 
 
     Das ist die Stelle, die kein anderes Fototool haben kann: die Touren liegen
     schon hier, also weiß der Bestand, wo ein Foto ohne Koordinate entstand.
+    08.10.2026: Zeit UND Ort, Korrekturen von Hand, ein Foto kann in mehreren Touren zählen.
     """
     fenster = tour_fenster(conn)
+    nach_gh = {t["geo_hash"]: t for t in fenster}
+    korr = korrekturen(conn)
+    plus_je_pfad: dict = {}
+    for (gh, pf), a in korr.items():
+        if a == "plus":
+            plus_je_pfad.setdefault(pf, []).append(gh)
+    geo_merk: dict = {}
+
+    def geo(t):
+        g = geo_merk.get(t["path"])
+        if g is None:
+            gl = _geom_von(conn, t["path"])
+            g = geo_merk[t["path"]] = (gl, _kasten(gl, ORT_MAX_M))
+        return g
+
     wo, werte = _where(filter or {})
-    rows = conn.execute(f"SELECT aufnahme_utc, lat FROM fotos WHERE {wo} "
+    rows = conn.execute(f"SELECT path, aufnahme_utc, lat, lon FROM fotos WHERE {wo} "
                         "AND aufnahme_utc IS NOT NULL", werte).fetchall()
     eimer: dict = {}
     ohne = 0
-    for r in rows:
-        t = tour_zu_zeit(fenster, r["aufnahme_utc"])
-        if not t:
-            ohne += 1
-            continue
+
+    def zaehlen(t, r):
         e = eimer.setdefault(t["geo_hash"] or t["path"],
                              {"geo_hash": t["geo_hash"], "path": t["path"],
                               "name": t["name"], "von": t["von"], "bis": t["bis"],
@@ -2048,6 +2348,28 @@ def touren_zu_fotos(conn: sqlite3.Connection, filter: Optional[dict] = None) -> 
         e["n"] += 1
         if r["lat"] is None:
             e["ohne_koordinate"] += 1
+
+    for r in rows:
+        utc, pf = r["aufnahme_utc"], r["path"]
+        drin = set()
+        for t in fenster:
+            if not ((t["von"] - SPIELRAUM_S) <= utc <= (t["bis"] + SPIELRAUM_S)):
+                continue
+            k = korr.get((t["geo_hash"], pf))
+            if k == "minus" or not _in_etappe(t, utc, SPIELRAUM_S):
+                continue
+            if k != "plus" and r["lat"] is not None:
+                gl, ka = geo(t)
+                if not _nah_genug(r["lat"], r["lon"], gl, ka):
+                    continue
+            drin.add(t["geo_hash"])
+            zaehlen(t, r)
+        for gh in plus_je_pfad.get(pf, ()):
+            if gh not in drin and gh in nach_gh:
+                drin.add(gh)
+                zaehlen(nach_gh[gh], r)
+        if not drin:
+            ohne += 1
     liste = sorted(eimer.values(), key=lambda x: x["von"], reverse=True)
     if ohne:
         # Fotos, die in keine Tour fallen, gehen nicht verloren: sie stehen als
@@ -2057,25 +2379,296 @@ def touren_zu_fotos(conn: sqlite3.Connection, filter: Optional[dict] = None) -> 
     return liste
 
 
-def fotos_einer_tour(conn: sqlite3.Connection, geo_hash: str = "", path: str = "",
-                     spielraum: int = SPIELRAUM_S, limit: int = 2000) -> dict:
-    """Alle Fotos im Zeitfenster dieser Tour — für die Werkzeuge und die Karte."""
+def _tour_zeile(conn: sqlite3.Connection, geo_hash: str = "", path: str = ""):
     if geo_hash:
-        r = conn.execute("SELECT path, started_at, ended_at FROM tracks WHERE geo_hash = ? "
-                         "AND started_at IS NOT NULL LIMIT 1", (geo_hash,)).fetchone()
-    else:
-        r = conn.execute("SELECT path, started_at, ended_at FROM tracks WHERE path = ?",
-                         (path,)).fetchone()
-    if not r:
-        return {"n": 0, "fotos": []}
+        return conn.execute("SELECT path, geo_hash, started_at, ended_at, geom, COALESCE(n_segments, 1) AS n_seg "
+                            "FROM tracks WHERE geo_hash = ? ORDER BY (started_at IS NULL) LIMIT 1", (geo_hash,)).fetchone()
+    return conn.execute("SELECT path, geo_hash, started_at, ended_at, geom, COALESCE(n_segments, 1) AS n_seg "
+                        "FROM tracks WHERE path = ? LIMIT 1", (path,)).fetchone()
+
+
+def _tour_fenster_liste(r, spielraum: int) -> list:
+    """Zeitfenster einer Tour (±spielraum): eins für die ganze Tour — bei zusammengeführten Touren über mehr als
+    ETAPPEN_AB_S eins je Etappe (sonst lägen Tausende Fotos der Zwischenzeit im Fenster). Überlappende verschmolzen."""
     von, bis = _epoche(r["started_at"]), _epoche(r["ended_at"])
     if von is None or bis is None:
+        return []
+    roh = [(von, bis)]
+    if int(r["n_seg"] or 1) > 1 and (bis - von) > ETAPPEN_AB_S:
+        e = etappen(r["path"])
+        if e and e["fenster"]:
+            roh = list(e["fenster"])
+    raus = []
+    for v, b in sorted((v - spielraum, b + spielraum) for v, b in roh):
+        if raus and v <= raus[-1][1]:
+            raus[-1] = (raus[-1][0], max(raus[-1][1], b))
+        else:
+            raus.append((v, b))
+    return raus
+
+
+def fotos_einer_tour(conn: sqlite3.Connection, geo_hash: str = "", path: str = "",
+                     spielraum: int = SPIELRAUM_S, limit: int = 2000, mit_fern: bool = False,
+                     nur_pfade: Optional[list] = None) -> dict:
+    """Alle Medien dieser Tour — für die Werkzeuge, die Karte und die Tour-Seite.
+
+    08.10.2026: Zeitfenster ±spielraum (bei zusammengeführten Touren nur die
+    Etappen), Medien MIT Koordinate nur bis ORT_MAX_M von der Linie, dazu die Korrekturen von Hand ('plus' kommt dazu,
+    'minus' fällt raus). Jeder Eintrag trägt `quelle` ('auto' | 'hand'). `mit_fern`: zusätzlich die zeitlich passenden,
+    aber zu weit entfernten (für „Medien vom selben Tag“)."""
+    r = _tour_zeile(conn, geo_hash, path)
+    if not r:
         return {"n": 0, "fotos": []}
-    rows = conn.execute(
-        f"SELECT {_SPALTEN} FROM fotos WHERE fehlt_seit IS NULL AND aufnahme_utc "
-        "BETWEEN ? AND ? ORDER BY aufnahme_utc LIMIT ?",
-        (von - spielraum, bis + spielraum, int(limit))).fetchall()
-    return {"n": len(rows), "von": von, "bis": bis, "fotos": [dict(x) for x in rows]}
+    gh = r["geo_hash"] or ""
+    von, bis = _epoche(r["started_at"]), _epoche(r["ended_at"])
+    korr = korrekturen(conn, geo_hash=gh) if gh else {}
+    etappen(r["path"])                     # eine Tour: die feine Linie einmal aus der Datei (danach im Speicher)
+    geom = _geom_von(conn, r["path"])
+    kasten = _kasten(geom, ORT_MAX_M)
+    t = {"path": r["path"], "von": von or 0, "bis": bis or 0, "n_seg": int(r["n_seg"] or 1)}
+    fotos, fern = [], []
+    # 08.10.2026 (Durchsicht): erst die Etappenfenster, dann zählen — vorher schnitt `LIMIT` über die ganze Spanne einer
+    # zusammengeführten Zwei-Jahres-Tour ab, bevor der Etappenfilter griff (Tour-Seite zeigte nur die ersten Etappen)
+    nur = None if nur_pfade is None else [str(x) for x in nur_pfade][:5000]
+    if nur is not None and not nur:
+        return {"n": 0, "von": von, "bis": bis, "fotos": [], "n_foto": 0, "n_video": 0, **({"fern": []} if mit_fern else {})}
+    gesehen = set()
+    for v, b in _tour_fenster_liste(r, spielraum):
+        sql = f"SELECT {_SPALTEN} FROM fotos WHERE fehlt_seit IS NULL AND aufnahme_utc BETWEEN ? AND ?"
+        arg: list = [v, b]
+        if nur is not None:
+            sql += f" AND path IN ({','.join('?' * len(nur))})"
+            arg += nur
+        for x in conn.execute(sql + " ORDER BY aufnahme_utc", arg):
+            d = dict(x)
+            if d["path"] in gesehen:
+                continue
+            gesehen.add(d["path"])
+            k = korr.get((gh, d["path"]))
+            if k == "minus" or not _in_etappe(t, d["aufnahme_utc"], spielraum):
+                continue
+            if k != "plus" and not _nah_genug(d.get("lat"), d.get("lon"), geom, kasten):
+                if mit_fern:
+                    fern.append(dict(d, grund="fern"))
+                continue
+            d["quelle"] = "hand" if k == "plus" else "auto"
+            fotos.append(d)
+    schon = {d["path"] for d in fotos}
+    plus = [pf for (_g, pf), a in korr.items() if a == "plus" and pf not in schon and (nur is None or pf in nur)]
+    for i in range(0, len(plus), 400):
+        teil = plus[i:i + 400]
+        for x in conn.execute(f"SELECT {_SPALTEN} FROM fotos WHERE fehlt_seit IS NULL AND path IN "
+                              f"({','.join('?' * len(teil))})", teil).fetchall():
+            fotos.append(dict(dict(x), quelle="hand"))
+    fotos.sort(key=lambda d: d.get("aufnahme_utc") or 0)
+    raus = {"n": len(fotos), "von": von, "bis": bis, "fotos": fotos[:int(limit)],
+            "n_foto": sum(1 for d in fotos if d.get("art") != ART_VIDEO),
+            "n_video": sum(1 for d in fotos if d.get("art") == ART_VIDEO)}
+    if mit_fern:
+        raus["fern"] = fern
+    return raus
+
+
+def kandidaten_tag(conn: sqlite3.Connection, geo_hash: str, limit: int = 600) -> dict:
+    """„＋ Medien vom selben Tag“: alles vom Tag (den Tagen) der Tour, das nicht dazugehört — mit Grund
+    ('zeit' außerhalb der Tourzeit, 'fern' zu weit weg, 'raus' von Hand herausgenommen)."""
+    r = _tour_zeile(conn, geo_hash)
+    if not r:
+        return {"n": 0, "medien": [], "tage": []}
+    drin = {d["path"] for d in fotos_einer_tour(conn, geo_hash, limit=5000)["fotos"]}
+    von, bis = _epoche(r["started_at"]), _epoche(r["ended_at"])
+    tage = []
+    if von is not None and bis is not None:
+        # die Tage nur aus den Etappen — bei einer zusammengeführten Zwei-Jahres-Tour sonst Hunderte Tage
+        tage = sorted({x[0] for v, b in _tour_fenster_liste(r, SPIELRAUM_S) for x in conn.execute(
+            "SELECT DISTINCT tag_lokal FROM fotos WHERE fehlt_seit IS NULL AND tag_lokal IS NOT NULL "
+            "AND aufnahme_utc BETWEEN ? AND ?", (v, b)).fetchall()})
+        if not tage:
+            tage = sorted({datetime.fromtimestamp(von, timezone.utc).strftime("%Y-%m-%d"),
+                           datetime.fromtimestamp(bis, timezone.utc).strftime("%Y-%m-%d")})
+    if not tage:
+        return {"n": 0, "medien": [], "tage": []}
+    korr = korrekturen(conn, geo_hash=geo_hash)
+    etappen(r["path"])                     # eine Tour: die feine Linie einmal aus der Datei (danach im Speicher)
+    geom = _geom_von(conn, r["path"])
+    raus = []
+    for x in conn.execute(f"SELECT {_SPALTEN} FROM fotos WHERE fehlt_seit IS NULL AND tag_lokal IN "
+                          f"({','.join('?' * len(tage))}) ORDER BY aufnahme_utc LIMIT ?", (*tage, int(limit))).fetchall():
+        d = dict(x)
+        if d["path"] in drin:
+            continue
+        utc = d.get("aufnahme_utc")
+        if korr.get((geo_hash, d["path"])) == "minus":
+            d["grund"] = "raus"
+        elif utc is not None and von is not None and (von - SPIELRAUM_S) <= utc <= (bis + SPIELRAUM_S) \
+                and not _nah_genug(d.get("lat"), d.get("lon"), geom):
+            d["grund"] = "fern"
+        else:
+            d["grund"] = "zeit"
+        raus.append(d)
+    return {"n": len(raus), "medien": raus, "tage": tage}
+
+
+def touren_an_tagen(conn: sqlite3.Connection, tage: list) -> dict:
+    """{'YYYY-MM-DD': [Tour, …]} — die Touren, die an diesem Tag (Ortszeit der Fotos des Tages) liefen. Für die
+    Tagesköpfe im Medien-Raster (Stufe 2: „ein Tag = Tour + Fotos + Clips“)."""
+    tage = [str(t) for t in (tage or []) if t and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(t))][:200]
+    if not tage:
+        return {}
+    tz = {r[0]: int(r[1] or 0) for r in conn.execute(
+        f"SELECT tag_lokal, tz_minuten FROM fotos WHERE tag_lokal IN ({','.join('?' * len(tage))}) "
+        "AND tz_minuten IS NOT NULL GROUP BY tag_lokal, tz_minuten ORDER BY COUNT(*) DESC", tage).fetchall()[::-1]}
+    fenster = tour_fenster(conn)
+    raus: dict = {}
+    for tag in tage:
+        try:
+            start = datetime.strptime(tag, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() - tz.get(tag, 0) * 60
+        except ValueError:
+            continue
+        ende = start + 86400
+        treffer = [t for t in fenster if t["von"] < ende and t["bis"] > start]
+        raus[tag] = [{"geo_hash": t["geo_hash"], "path": t["path"], "name": t["name"], "von": t["von"], "bis": t["bis"],
+                      "km": t.get("km", 0), "activity": t.get("activity", "")} for t in sorted(treffer, key=lambda t: t["von"])][:6]
+    return raus
+
+
+# 08.10.2026 (Beta-Tester: „eine Menge Doppelte“; Marc: „mit SigLIP 2 doch einfach machen, da haben wir ja schon fast
+# alles“) — zwei Stufen: GLEICH = dieselbe Inhaltskennung (`inhalt_id`, Größe + Hash über Anfang/Ende), reine
+# Datenbankabfrage, auch Clips; FAST GLEICH = dieselbe Aufnahmezeit (± DOPPELT_DT_S, typisch bei neu exportierten,
+# verkleinerten Kopien und Serienbildern) UND — wenn die Inhaltssuche Vektoren hat — Kosinus ≥ DOPPELT_KOS_MIN; ohne
+# Vektoren nur mit gleicher Kamera und gleichem Seitenverhältnis (dann „unsicher“, nur nach Ansehen).
+DOPPELT_DT_S = 2.0
+DOPPELT_KOS_MIN = 0.95
+_D_SPALTEN = "path, ordner, dateiname, art, size, breite, hoehe, aufnahme_utc, kamera, inhalt_id, indexed_at, mtime, lat"
+# Kopien erkennt man oft am Namen: „Kopie von …“, „… copy“, „…-2“, „… (1)“, Ordner „export“
+_KOPIE_RE = re.compile(r"(kopie|copy|copia|export|duplicate|dupli|[-_ ]\(?\d\)?$)", re.I)
+
+
+def _kopie_punkte(pfad: str) -> int:
+    p = Path(pfad)
+    return int(bool(_KOPIE_RE.search(p.stem))) + int(any(_KOPIE_RE.search(t) for t in p.parent.parts[-2:]))
+
+
+def _behalten(gruppe: list) -> str:
+    """Welche Fassung bleibt (08.10.2026, im Klicktest nachgeschärft — vorher gewann bei gleicher Größe der kürzere Pfad,
+    und die Kopie in „export/“ schlug das Original): höchste Auflösung, dann mit Koordinate (für Touren entscheidend),
+    dann die größere Datei, dann kein Kopie-Name/-Ordner, dann die ältere Datei (das Original), zuletzt der kürzere Pfad."""
+    return max(gruppe, key=lambda d: ((d.get("breite") or 0) * (d.get("hoehe") or 0), d.get("lat") is not None,
+                                      d.get("size") or 0, -_kopie_punkte(d.get("path") or ""),
+                                      -(d.get("mtime") or 0), -len(d.get("path") or "")))["path"]
+
+
+DOPPELT_SERIE_MAX = 30   # mehr Bilder im 2-s-Takt hintereinander = Zeitraffer/Intervall, keine Doppelten
+
+
+def doppelte_zeilen(conn: sqlite3.Connection) -> tuple:
+    """Die Zeilen für die Doppelten-Suche — nur Lesen, schnell (unter der Bibliothekssperre aufrufen)."""
+    gleich = [dict(r) for r in conn.execute(
+        f"SELECT {_D_SPALTEN} FROM fotos WHERE fehlt_seit IS NULL AND inhalt_id IS NOT NULL AND inhalt_id <> '' "
+        "AND inhalt_id IN (SELECT inhalt_id FROM fotos WHERE fehlt_seit IS NULL AND inhalt_id IS NOT NULL "
+        "GROUP BY inhalt_id HAVING COUNT(*) > 1) ORDER BY inhalt_id, path").fetchall()]
+    zeit = [dict(r) for r in conn.execute(
+        f"SELECT {_D_SPALTEN} FROM fotos WHERE fehlt_seit IS NULL AND aufnahme_utc IS NOT NULL "
+        "AND art = 'foto' ORDER BY aufnahme_utc").fetchall()]
+    return gleich, zeit
+
+
+def _aehnlich(da: dict, db: dict, va, vb) -> Optional[bool]:
+    """None = nicht ähnlich; False = ähnlich (Bildinhalt); True = nur nach Kamera/Seitenverhältnis („unsicher“)."""
+    if va is not None and vb is not None:
+        try:
+            import numpy as np
+            k = float(np.dot(va, vb) / ((np.linalg.norm(va) * np.linalg.norm(vb)) or 1.0))
+        except Exception:  # noqa: BLE001
+            k = 0.0
+        return False if k >= DOPPELT_KOS_MIN else None
+    ra = (da.get("breite") or 0) / max(1, (da.get("hoehe") or 1))
+    rb = (db.get("breite") or 0) / max(1, (db.get("hoehe") or 1))
+    if da.get("kamera") and da.get("kamera") == db.get("kamera") and abs(ra - rb) < 0.02:
+        return True
+    return None
+
+
+def doppelte_gruppieren(gleich_zeilen: list, zeit: list, vektor=None, max_gruppen: int = 400) -> dict:
+    """{gleich: [Gruppe], fast: [Gruppe], serien: n} — Gruppe = {pfade: [Zeilen], behalten: path, unsicher: bool}.
+    `vektor(path)` liefert den Inhaltsvektor (numpy) oder None. Läuft ohne Datenbank (außerhalb der Sperre).
+
+    08.10.2026 (Durchsicht): „fast gleich“ hängt an einem ANKER — dazu kommt nur, wer höchstens DOPPELT_DT_S nach dem
+    ersten Bild der Gruppe liegt und ihm ähnelt. Vorher verkettete Union-Find Nachbarn über Nachbarn: ein Zeitraffer
+    (1 Bild/s, eine Stunde) wurde EINE Gruppe mit 3600 Bildern, ein Klick merkte 3599 zum Wegräumen vor; dazu eine
+    quadratische Schleife unter der Bibliothekssperre. Läufe über DOPPELT_SERIE_MAX Bilder sind Serien und bleiben weg."""
+    je: dict = {}
+    for d in gleich_zeilen:
+        je.setdefault(d["inhalt_id"], []).append(d)
+    gleich, in_gleich = [], set()
+    for g in je.values():
+        gleich.append({"pfade": g, "behalten": _behalten(g), "unsicher": False})
+        in_gleich.update(d["path"] for d in g)
+    fast, serien = [], 0
+    i = 0
+    while i < len(zeit) and len(fast) < max_gruppen:
+        j = i + 1
+        while j < len(zeit) and zeit[j]["aufnahme_utc"] - zeit[j - 1]["aufnahme_utc"] <= DOPPELT_DT_S:
+            j += 1
+        lauf = zeit[i:j]
+        i = j
+        if len(lauf) > DOPPELT_SERIE_MAX:
+            serien += 1
+            continue
+        block = [d for d in lauf if d["path"] not in in_gleich]
+        if len(block) < 2:
+            continue
+        vek = {d["path"]: (vektor(d["path"]) if vektor else None) for d in block}
+        offen: list = []   # Gruppen dieses Laufs: {anker, glieder, unsicher}
+        for d in block:
+            dazu = None
+            for g in offen:
+                a = g["anker"]
+                if d["aufnahme_utc"] - a["aufnahme_utc"] > DOPPELT_DT_S:
+                    continue
+                u = _aehnlich(a, d, vek[a["path"]], vek[d["path"]])
+                if u is not None:
+                    dazu = g; g["glieder"].append(d); g["unsicher"] = g["unsicher"] or u
+                    break
+            if dazu is None:
+                offen.append({"anker": d, "glieder": [d], "unsicher": False})
+        for g in offen:
+            if len(g["glieder"]) > 1:
+                fast.append({"pfade": g["glieder"], "behalten": _behalten(g["glieder"]), "unsicher": g["unsicher"]})
+    gleich.sort(key=lambda g: -sum((d.get("size") or 0) for d in g["pfade"][1:]))
+    return {"gleich": gleich[:max_gruppen], "fast": fast[:max_gruppen], "serien": serien,
+            "n_gleich": sum(len(g["pfade"]) - 1 for g in gleich), "n_fast": sum(len(g["pfade"]) - 1 for g in fast),
+            "bytes_gleich": sum(sum((d.get("size") or 0) for d in g["pfade"]) - max((d.get("size") or 0) for d in g["pfade"]) for g in gleich)}
+
+
+def doppelte_finden(conn: sqlite3.Connection, vektor=None, max_gruppen: int = 400) -> dict:
+    """Lesen + Gruppieren in einem (für Tests und kleine Bestände)."""
+    return doppelte_gruppieren(*doppelte_zeilen(conn), vektor=vektor, max_gruppen=max_gruppen)
+
+
+def korrektur_setzen(conn: sqlite3.Connection, geo_hash: str, pfade: list, dazu: bool) -> dict:
+    """Medien von Hand zur Tour nehmen (`dazu`) oder herausnehmen. Gespeichert wird nur, was von der automatischen
+    Regel abweicht — wer etwas zurückdreht, löscht die Korrektur."""
+    if not geo_hash or not pfade:
+        return {"ok": False, "error": "leer"}
+    auto = set()
+    r = _tour_zeile(conn, geo_hash)
+    if r:
+        # die automatische Zugehörigkeit OHNE Korrekturen dieser Pfade
+        conn.execute(f"DELETE FROM tour_medien_korr WHERE geo_hash = ? AND pfad IN ({','.join('?' * len(pfade))})",
+                     (geo_hash, *pfade))
+        auto = {d["path"] for d in fotos_einer_tour(conn, geo_hash, limit=len(pfade) + 1, nur_pfade=pfade)["fotos"]}
+    jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    n = 0
+    for pf in pfade:
+        if (pf in auto) == bool(dazu):
+            continue    # entspricht der Regel → keine Korrektur nötig
+        iid = conn.execute("SELECT inhalt_id FROM fotos WHERE path = ?", (pf,)).fetchone()
+        conn.execute("INSERT OR REPLACE INTO tour_medien_korr(geo_hash, pfad, aktion, inhalt_id, am) VALUES (?,?,?,?,?)",
+                     (geo_hash, pf, "plus" if dazu else "minus", iid[0] if iid else None, jetzt))
+        n += 1
+    conn.commit()
+    return {"ok": True, "gespeichert": n}
 
 
 def _wach_aktiv() -> bool:

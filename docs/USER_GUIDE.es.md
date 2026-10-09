@@ -874,6 +874,22 @@ vivo** «Fecha y hora» y «Hora» en el punto actual. Se muestra la **hora loca
 horaria sale del país de la ruta en el archivo (Canarias, Azores y países con varias zonas según la
 longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la app.
 
+### 🧭 Asistente de vídeo — paso a paso hacia tu propio vídeo (desde v0.9.787) ⭐
+
+Arriba en el Animator, junto a **«Vídeo rápido …»**, está **«🧭 Asistente de vídeo …»** (también en la página de la ruta
+del archivo, en **🎬 Vídeo ▾**). En **nueve páginas cortas** — con vista previa arriba — te pregunta cómo quieres tu
+vídeo: **1 Título** · **2 Tipo de vídeo** (🏡 Recuerdo, 📱 Social, 🏔 Paisaje — ajusta plantilla, formato y duración, que
+puedes afinar debajo) · **3 Mapa** (los ocho looks, más edificios 3D) · **4 Superposiciones** (cifras, perfil de altitud,
+lo más destacado) · **5 Fotos** (elegidas por nitidez, variedad y reparto — desmarca o añade las tuyas) · **6 Lugares y
+carteles** (pausas y pernoctaciones del cuaderno de bitácora) · **7 Cámara** (recorrido de cámara, seguir o fija) ·
+**8 Final y música** · **9 Listo** — una lista de lo que va al proyecto. Puedes **saltar** cada página y se queda la
+propuesta; los puntos de arriba saltan directamente a una página.
+
+**«✓ Aplicar al proyecto»** escribe todo **editable** en tu proyecto abierto — carteles en la línea de tiempo, cámara en
+«Cámara», superposiciones en «Superposiciones» — y muestra a la derecha **«Lo que hizo el asistente»**. **Un ⌘Z** deshace
+todo el asistente. La diferencia con el vídeo rápido: el vídeo rápido hace un archivo terminado con pocas decisiones; el
+asistente prepara tu proyecto para que sigas trabajando en él.
+
 ### 🎬 Vídeo rápido — un vídeo de la ruta listo con pocas decisiones (desde v0.9.739) ⭐
 
 ¿Solo quieres un vídeo bonito de tu ruta, sin keyframes ni ajustes? Usa el **vídeo rápido**: en el
@@ -1134,6 +1150,50 @@ tracks. La app la lee de inmediato; **700 archivos tardan unos 20 segundos.** La
 se incluyen. Puedes vigilar tantas carpetas como quieras. (Mientras no haya ninguna carpeta,
 el área vacía muestra un gran botón **«+ Añadir carpeta»**.)
 
+### 🗺📷 Rutas y medios van juntos — la página de la ruta (desde v0.9.787) ⭐
+
+**Doble clic en una ruta** abre su **página de la ruta**: en el centro el mapa con el track y un punto por cada foto y
+clip, abajo la tira de medios en orden de captura, a la izquierda la ruta (fecha, lugar, valores, perfil de altitud,
+cuaderno de bitácora) con las acciones **🎬 Vídeo ▾** (vídeo rápido, Animator, animador de datos), **🗺 Mapa como
+imagen**, **⬇ Exportar …** y **＋ Medios del mismo día …**. Un clic en una imagen muestra a la derecha sus datos de
+captura, un doble clic la abre en grande. **«← Rutas» o Esc** te devuelve al mismo sitio de la lista. Los detalles de la
+ruta a la derecha muestran ahora también **«📷 34 fotos · 🎬 5 clips»** con una tira de imágenes y **«Abrir ruta ▸»**.
+
+**¿Qué pertenece a una ruta?** Todo lo grabado **durante la ruta** (media hora antes y después también cuenta) que —
+si tiene coordenadas — está **como mucho a 2 km del track**. Sin coordenadas decide la hora. Una foto puede pertenecer a
+varias rutas, p. ej. si dos aparatos grabaron la misma ruta. **Tú tienes la última palabra:** clic derecho en una imagen
+→ **«Quitar de esta ruta»**; **«＋ Medios del mismo día»** muestra todo lo demás del día de la ruta con el motivo por el
+que no está (fuera del horario, a más de 2 km, quitado por ti) — marcar y listo. Los detalles de una foto muestran todas
+sus rutas con **✕** y **«＋ Añadir a una ruta …»**. Estas correcciones valen **en todo GPS Studio** — en el archivo, en
+el Animator («Medios de la ruta») y en el vídeo rápido.
+
+**Vista grande como una mesa de luz:** abajo la tira (las fotos por las que pasas), a la derecha el mapa con la ruta y
+el punto de la foto, debajo los datos de captura y las rutas — un clic en una ruta abre su página.
+
+**Una búsqueda para ambos:** si buscas un lugar o nombre en el archivo de rutas, encima de la lista aparece
+**«📷 N fotos y clips para …»** — los resultados directos y las fotos de las rutas encontradas, aunque la foto no tenga
+lugar. Un número de cuatro cifras cuenta como año («Masca 2023»). En Medios, la búsqueda muestra arriba las rutas
+correspondientes.
+
+**Crear una ruta con fotos:** ¿sin GPX pero con fotos con lugar? Márcalas en Medios (⌘-clic) y elige con clic
+derecho **«🧭 Crear una ruta con estas fotos …»** — o haz clic en **«🧭 Ruta con estas fotos»** en la cabecera del día.
+Las fotos se unen en el orden de captura, con líneas rectas o **por caminos** (a pie, bici, coche). La ruta nueva llega
+al archivo y abre enseguida su página.
+
+**Días y viajes:** en la cuadrícula de Medios, la cabecera de cada día muestra **las rutas de ese día** — un clic abre
+la página de la ruta. Una **colección** (p. ej. «Tenerife 2026») tiene arriba el botón **«🗺 Página del viaje ▸»**, varias
+rutas marcadas **«Ver como viaje»**: todas las rutas en su color en un mapa, todas las fotos y clips del viaje abajo, a
+la izquierda las sumas y las rutas (clic → su página), además **«Vídeo del viaje …»** y exportar.
+
+**Exportar con clic derecho:** clic derecho en una ruta (o varias marcadas) → **«Exportar …»** → elegir formato: GPX,
+KML, KMZ, TCX, GeoJSON, CSV — o, para una ruta, como **proyecto** con todos los ajustes. Una ruta se guarda donde
+quieras (se propone su nombre), varias quedan como archivos sueltos en una carpeta. Marca **fotos y clips** en Medios
+con **⌘-clic** (Windows: Ctrl) o **Mayús-clic** y elige con clic derecho **«Exportar …»** — o **«Exportar los
+filtrados …»**. Como **copia del original** o **reducido como JPEG** (1080, 2048, 3840 píxeles o tamaño completo —
+también desde RAW y HEIC), opcionalmente **sin lugar ni datos de cámara** (para compartir, también la ubicación en XMP/IPTC que escriben Lightroom o «Poner ubicación»; el perfil de color se mantiene), con el nombre original o como
+**Fecha_Hora_Lugar**. Tus originales no cambian, no se sobrescribe nada; el progreso aparece en el recuadro de estado
+abajo a la derecha.
+
 ### 🩺 Revisión del track — el archivo te dice qué falla en un track (desde v0.9.688)
 Un salto GPS, un hueco o una cámara que escribe diez puntos por segundo suelen verse solo en el
 vídeo final. Por eso el archivo revisa cada ruta al importarla y muestra en la tarjeta, arriba a
@@ -1379,10 +1439,22 @@ un viaje veinte. Como colección van juntos:
 - Una ruta puede estar en tantas colecciones como quieras; borrar una colección **no** borra
   ninguna ruta.
 
-**Cuatro vistas**, conmutables a la derecha de la barra (la app recuerda tu elección):
-**▦ Tarjetas** para explorar, **☰ Lista** para comparar muchas rutas de un vistazo,
+**Cinco vistas**, conmutables a la derecha de la barra (la app recuerda tu elección). **Por defecto, filas**
+(desde 09.10.2026): una imagen de mapa por ruta en el estilo del archivo (por defecto el mapa nocturno), nombre, fecha ·
+actividad, distancia/ascenso/duración, etiquetas con **＋**, el número de fotos y clips y **⋯**. La **casilla** marca
+como ⌘-clic; arriba aparece «2 de 36 seleccionadas» con Etiquetas, A colección, Exportar y ⋯. En la fila de filtros:
+búsqueda, actividad, año, periodo, **etiqueta**, longitud y orden. **A la derecha**: título, ★, ⋯, imagen de mapa grande
+(⤢ abre la página de la ruta), seis cifras (distancia, ascenso, duración, punto más alto, descenso, circular o de punto a
+punto), descripción, etiquetas, fecha, actividad, dispositivo y carpeta, fotos y clips y botones para **todos los
+módulos** y **Exportar**; el resto, en **«Más datos y ajustes»**. **Estilo de mapa del archivo:** arriba a la izquierda en
+los mapas; incluye los **looks** (Atlas de viaje, Mapa nocturno, Minimal, Mapa del tesoro, Topo, Carta náutica, Pastel).
+**▤ Filas**, **▦ Tarjetas** para explorar, **☰ Lista** para comparar muchas rutas de un vistazo,
 **🌍 Mapa** —todas las rutas filtradas en un mapamundi; al hacer clic en una línea se
-selecciona— y **📊 Estadísticas**. Las rutas lejanas se dibujan como puntos y solo se
+selecciona— y **📊 Estadísticas**: cuatro cifras grandes (rutas con un anillo hechas/planificadas,
+distancia, desnivel, horas en movimiento), **distancia por año** (barras de km y una línea con el número
+de rutas; también **meses** y **total** acumulado), **tipos de actividad**, **actividad por mes** (una fila
+por año, un campo por mes), los **puntos de salida más frecuentes** con un mapa pequeño y las **rutas más
+largas** (un clic abre la página de la ruta). Las rutas lejanas se dibujan como puntos y solo se
 convierten en líneas al acercar; de lo contrario serían invisibles. Se dibujan en **magenta
 con contorno oscuro**: el mapa tiene carreteras naranjas y zonas beige, y un track naranja
 desaparecía sobre él. Las favoritas son de color ámbar.
@@ -1846,6 +1918,94 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
   en **Abrir otra biblioteca**: las vistas previas se adoptan una vez (la cuadrícula no tiene que generar nada), la
   búsqueda por contenido viaja igualmente y, si allí la unidad de fotos tiene otro nombre, la app pregunta al abrir
   Fotos (ver arriba).
+
+### 🖼 Medios como en Lightroom: cuadrícula, lupa, mapa (desde v0.9.787)
+
+- **Miniaturas:** la imagen con fecha · hora y lugar debajo. Al pasar el ratón, una casilla arriba a la izquierda **marca**
+  la foto (o clic con ⌘/Mayús) y el **corazón** arriba a la derecha la hace favorita. En cuanto hay algo marcado, una barra
+  **«N seleccionados»** ofrece Exportar, Poner ubicación, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con. Esc
+  quita la selección, ⌘A marca todo.
+- **Izquierda:** el número, luego **colecciones** (Todo, Favoritos, Editadas, Sin coordenada …), **álbumes** (＋ crea uno,
+  clic derecho renombra o elimina; las fotos se quedan), fecha, carpetas y **filtros** desplegables (año, cámara, ubicación).
+- **Un clic** muestra la imagen a la derecha con todos los datos (cámara, diafragma, exposición, ISO, tamaño), la ubicación
+  con mapa, las rutas, palabras clave y álbumes.
+- **Doble clic, E o espacio** abre la **lupa**: la imagen grande junto a la barra lateral, debajo la tira de imágenes, a la
+  derecha el mapa con la ruta y justo debajo **✎ Editar** con los reguladores (al lado la
+  pestaña **Info**; los vídeos muestran Info). ←/→ pasa fotos, **F** = pantalla completa, **G** o Esc vuelve.
+- **Buscar duplicados …** muestra cuánto espacio libera retirarlos: en el botón (p. ej. „Retirar 12 (3,4 GB)“), „ahorra …“
+  por grupo y abajo, cuándo queda libre de verdad: al vaciar la papelera, o solo cuando borres la carpeta.
+- **Iconos sencillos:** toda la app muestra iconos de línea de un solo color en lugar de emojis de colores. La vista
+  previa y el vídeo no cambian.
+- **Cuando tarda:** tras unos 3 segundos de espera aparece bajo la ruedecita una frase divertida, solo para entretener (no en el pequeño
+  recuadro de abajo a la derecha; una nueva llega como pronto al cabo de un minuto).
+- **⬇ Exportar** (arriba a la derecha, también en la lupa): exporta los medios marcados, la foto mostrada o todos los
+  filtrados; el menú ofrece lo que hay.
+- **Mapa:** arriba a la izquierda eliges el estilo; vale para todos los mapas del archivo (por defecto: el mapa nocturno). Todos
+  los mapas del archivo muestran abajo a la izquierda una **escala** (0 · 1 · 2 · 5 km), el track en turquesa y **salida y llegada
+  como chinchetas** (ruta circular: una). Un clic en un punto muestra la foto
+  y una tira con todas las fotos de ese sitio.
+
+### ✎ Editar fotos (desde v0.9.787)
+
+En la lupa, pestaña **«✎ Editar»**: el histograma, **✨ Auto** (tono y balance de blancos según la foto), los ajustes
+**Natural · Intenso · Mate · B/N** y controles de exposición, contraste, iluminaciones, sombras, temperatura, matiz,
+intensidad, saturación, claridad y quitar neblina. **Mantén pulsada «.»** (o «◐ Antes») para ver el original; doble clic en
+un control lo restablece, ↺ restablece todo. La vista previa la calcula la tarjeta gráfica: la imagen sigue al control sin
+retraso y se ve exactamente igual que después en la exportación y el vídeo.
+
+**Recortar y enderezar:** **«Recortar»** o la **tecla R**. La lupa muestra entonces la foto entera con un marco y líneas de
+tercios. Arrastra el marco para moverlo; las esquinas y los bordes cambian su tamaño. **Enderezar** gira la imagen hasta ±45°;
+el marco se reduce para que no queden esquinas vacías. Debajo eliges la **proporción** (Original, Libre, 1:1, 4:5, 3:2, 2:3,
+16:9, 9:16); las dos flechas giran 90°. **Intro** o «Listo» aplica, **Esc** cancela, «Restablecer» quita solo el recorte. El
+recorte forma parte de la receta: la cuadrícula, la exportación, el Animator y el vídeo muestran la foto recortada; el original
+queda entero. «Copiar/Pegar» y «✨ Auto» para varias fotos transfieren solo color y luz, cada foto conserva su propio recorte.
+
+- **El original no se toca.** Solo se guardan tus ajustes (una «receta» en la biblioteca). La exportación usa la versión
+  editada; **«💾 Guardar como archivo nuevo …»** escribe un JPEG revelado al lado (nunca sobre el original).
+- **Varias a la vez:** «⧉ Copiar» recuerda los ajustes, «Pegar» los aplica (también en la barra para las fotos marcadas).
+  **«✨ Auto»** en la barra y **«✨ Auto para todas las fotos»** en la página de la ruta mejoran cada foto por separado.
+- Las fotos editadas llevan ✎ en la miniatura y aparecen a la izquierda en «Editadas». Allí donde aparezca la foto — lupa,
+  detalles, carteles del Animator, página de la ruta, vídeo —, la nueva versión se ve al instante, también en HEIC y RAW.
+
+### 📍 Poner la ubicación a varias fotos y clips (desde v0.9.787)
+
+Las fotos y clips sin coordenada están a un clic: **«📍 21 sin coordenada»** en la cabecera es un botón y filtra
+justo esos archivos (lo mismo que «Sin coordenada» a la izquierda). Marca varios (clic con ⌘ o Mayús), clic derecho →
+**«📍 Poner ubicación a N …»**, o para una foto **«Introducir ubicación …»** en sus detalles. En el diálogo puedes
+
+- **buscar un lugar** («Masca» → clic en un resultado),
+- **pegar una coordenada**: `28.2905, -16.8452`, con coma decimal `28,2905 -16,8452`, en grados/minutos/segundos
+  `28°17'25.8"N 16°50'42.7"W` o un enlace de Google Maps con `@28.3059,-16.8417`,
+- o **hacer clic en el mapa**.
+
+Si quieres, también se escribe la dirección. La ubicación se guarda en los propios archivos; antes la app hace una
+copia de seguridad de cada original. Los archivos de solo lectura se cuentan después como «no se pudieron escribir».
+
+### ⧉ Encontrar y retirar duplicados (desde v0.9.787)
+
+En Medios, a la izquierda: **«⧉ Buscar duplicados …»**. El diálogo tiene dos pestañas:
+
+- **Iguales**: el mismo archivo en varios sitios (por ejemplo el original y una copia en una carpeta de exportación).
+  Está marcado todo salvo **una** copia: la más grande, luego la que tiene ubicación, luego el original en lugar de una
+  «copia» o una exportación (por nombre o carpeta), luego el archivo más antiguo. Un clic en otra imagen
+  conserva esa en su lugar. Arriba se indica cuánto espacio se libera.
+- **Casi iguales**: la misma toma, pero no el mismo archivo: una exportación reducida, un JPEG guardado de otra forma.
+  Se reconoce por la hora de captura (±2 segundos) y el contenido de la imagen. **Aquí no hay nada marcado**: primero
+  mira, luego haz clic en la imagen que debe quedarse. Con la búsqueda por contenido desactivada, el grupo se basa solo
+  en hora, cámara y proporción y lleva la etiqueta **«dudoso»**. Las series largas tomadas cada segundo (timelapse,
+  fotos por intervalos) no cuentan como duplicados; el diálogo indica cuántas ha omitido.
+
+Abajo eliges el destino: **la Papelera** (se pueden recuperar desde allí) o **una carpeta «Duplicados (GPS Studio)»**
+junto al original. La lectura omite esa carpeta, así que los archivos no vuelven al fondo. Nunca se borra nada
+definitivamente.
+
+### ↗ Abrir con … — retocar en tu programa de fotos (desde v0.9.787)
+
+Clic derecho en una foto o un clip (o en varios marcados) → **«Abrir con …»**, también en la vista grande y en la tira
+de medios de la página de la ruta. En el Mac la lista muestra los programas que pueden abrir el archivo, el último usado
+arriba y el predeterminado marcado; un clic abre allí el original (por ejemplo Lightroom, Affinity Photo, Pixelmator o
+Vista Previa). En Windows aparece directamente el diálogo «Abrir con» del sistema. Si el programa guarda cambios,
+GPS Studio los lee en la próxima lectura.
 
 ### Lo que el fondo sabe de una foto
 
@@ -2363,7 +2523,7 @@ valores distintos en el mismo punto no podrían reproducirse.
 
 **🗺 Ocho looks y el editor de mapas (nuevo tras v0.9.784):** En **Look** hay ahora ocho mosaicos en dos filas: a Natural, Atlas de viaje, Mapa nocturno y Minimalista se suman **Mapa del tesoro** (pergamino, tinta marrón, fronteras discontinuas, relieve marcado), **Topo** (como un mapa de senderismo: agua azul, bosque verde, carreteras con borde, relieve), **Carta náutica** (tierra color arena, mar por profundidades, costa oscura) y **Pastel** (claro y amable). Cada mosaico muestra una pequeña imagen con los colores del look. Los looks de mapa colorean cada función por separado (tierra, agua, ríos, bosque, parques, edificios, calles/carreteras, autopista, tren, fronteras, rótulos) y pueden mostrar el relieve (sombreado a partir de datos de terreno libres), dibujar la costa o mostrar las profundidades del mar por niveles; el brillo a lo largo de las carreteras se activa en el editor. **Diseña el tuyo:** un clic en el **✎** del mosaico elegido abre a la derecha el **editor de mapas**: campos de color para cada función, fronteras discontinuas o continuas, estilo de rótulo (normal, negrita, cursiva como en un atlas), mayúsculas, rótulos sí/no, línea de costa, relieve con color de sombra, luz y acento e intensidad, brillo y profundidades. Si el editor sigue abierto mientras eliges otro look a la izquierda, muestra enseguida sus colores. **El aspecto de la ortofoto, el aspecto del mapa y el cielo estrellado** también están aquí en el editor: en la sección Mapa, a la izquierda, lo abre el botón **«Aspecto del mapa y estrellas …»** (también en mapas sin look, entonces solo con el aspecto). Ves cada cambio al instante en la vista previa y el vídeo muestra exactamente lo mismo; ⌘Z deshace una ronda de edición. **«Guardar como look propio …»** guarda tu look en **«Tus looks»**, en todos los proyectos; una ✕ al pasar el ratón lo elimina (los proyectos que lo usan conservan su copia). **«Como archivo …»** lo guarda como `.rzlook` para compartirlo, **«Importar look …»** lee un archivo así. El proyecto siempre lleva su look, también en el `.rzproj`. La imagen aérea (Natural) no tiene colores por función; allí ajustas brillo, saturación y contraste en «Aspecto aéreo». Los proyectos antiguos con Atlas de viaje o Mapa nocturno conservan su mapa anterior hasta que vuelvas a elegir el look.
 
-**🗺 Elegir y ajustar el mapa (desde 08.10.2026):** a la izquierda ya solo hay mosaicos: los ocho looks y, como noveno, **«Más mapas»** (OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian, los mapas de MapTiler y Mapbox, «Sin mapa»). Un clic abre a la derecha la lista con pequeñas vistas previas; el mapa elegido aparece luego en el mosaico. Todo lo demás se ajusta **a la derecha en el editor**, que abre el **✎** del mosaico marcado y que un segundo clic vuelve a cerrar (se ilumina mientras está abierto). Según el mapa, a la derecha aparecen: en un look sus colores, en Natural **«Imagen aérea de …»** (gratis, MapTiler, Mapbox) y el aspecto de la ortofoto, en otro mapa su aspecto del mapa, y siempre **terreno 3D con exageración, edificios 3D, «Mostrar en el mapa»** (lugares, calles, POI, transporte, fronteras) y el **cielo estrellado**. **«Guardar como look propio …»** guarda también el terreno, la exageración, los edificios 3D y los elementos del mapa; al elegir tu look más tarde los vuelve a poner (los looks de serie no tocan estos valores). Liberty, Bright, Positron, Mapa nocturno y Atlas de viaje ya no están en la lista: para eso están los looks; los proyectos que los usan siguen dibujándose como antes. Arriba en la columna derecha siempre pone a qué sección de la izquierda pertenece la ventana (🗺️ Mapa, 🧭 Tracks, 🚩 Señales y fotos, 📊 Overlays). **Varios colores de track** existen ahora **para cada ruta por separado**, en el editor de track a la derecha (✎ en su entrada de la lista de rutas): colorear por distancia, altitud, velocidad o pendiente, de golpe o en degradado, paradas con valor y color; «Auto (mín → máx)» extiende verde → amarillo → rojo por toda la ruta. Funciona en la cadena (una tras otra), en el enjambre (a la vez), con «Mostrar entera» y en el vídeo. En el track 1 están además todas las series de datos del track (pulso, potencia …) y el **color por etapa**.
+**🗺 Elegir y ajustar el mapa (desde 08.10.2026):** a la izquierda ya solo hay mosaicos: los ocho looks y, como noveno, **«Todos los mapas»**. Un clic abre a la derecha la lista de todos los mapas con pequeñas vistas previas, en tres grupos: **🛰 Aéreo** (gratis, MapTiler Satélite, MapTiler Satélite + etiquetas, Mapbox Satélite, Mapbox Satélite + calles) · **🗺 Mapas** (OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian, «Sin mapa») · **🔑 Con clave propia** (mapas de MapTiler y Mapbox; sin clave indican «falta la clave»). El mapa elegido aparece luego en el mosaico; una imagen aérea marca el mosaico **Natural**, que muestra abajo en la imagen qué fuente aérea está activa. Todo lo demás se ajusta **a la derecha en el editor**, que abre el **✎** del mosaico marcado y que un segundo clic vuelve a cerrar (se ilumina mientras está abierto). Según el mapa, a la derecha aparecen: en un look sus colores, en Natural **«Imagen aérea de …»** (gratis, MapTiler, Mapbox) y el aspecto de la ortofoto, en otro mapa su aspecto del mapa, y siempre **terreno 3D con exageración, edificios 3D, «Mostrar en el mapa»** (lugares, calles, POI, transporte, fronteras) y el **cielo estrellado**. **«Guardar como look propio …»** guarda también el terreno, la exageración, los edificios 3D y los elementos del mapa; al elegir tu look más tarde los vuelve a poner (los looks de serie no tocan estos valores). Liberty, Bright, Positron, Mapa nocturno y Atlas de viaje ya no están en la lista: para eso están los looks; los proyectos que los usan siguen dibujándose como antes. Arriba en la columna derecha siempre pone a qué sección de la izquierda pertenece la ventana (🗺️ Mapa, 🧭 Tracks, 🚩 Señales y fotos, 📊 Overlays). **Varios colores de track** existen ahora **para cada ruta por separado**, en el editor de track a la derecha (✎ en su entrada de la lista de rutas): colorear por distancia, altitud, velocidad o pendiente, de golpe o en degradado, paradas con valor y color; «Auto (mín → máx)» extiende verde → amarillo → rojo por toda la ruta. Funciona en la cadena (una tras otra), en el enjambre (a la vez), con «Mostrar entera» y en el vídeo. En el track 1 están además todas las series de datos del track (pulso, potencia …) y el **color por etapa**.
 
 **Carteles en el estilo (desde v0.9.782):** Si el proyecto tiene carteles sencillos de texto o foto, la app pregunta tras pulsar un estilo si debe adaptarlos — *Atlas de viaje*: texto como «tarjeta», fotos como instantánea; *Mapa nocturno*: píldora; *Minimal*: sencillo; *Natural*: bocadillo. Solo cambia el estilo básico; los carteles destacados, banners y señales se quedan, cada cartel sigue siendo editable por separado, ⌘Z lo deshace.
 

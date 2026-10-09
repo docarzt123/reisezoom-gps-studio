@@ -186,6 +186,13 @@ else:
 
 # Auto-collect pywebview-Submodule (fallback)
 hidden += collect_submodules("webview")
+# 09.10.2026 — RAW entwickeln (core/entwickeln.raw_entwickelt importiert rawpy erst bei Bedarf; die LibRaw-Bibliothek liegt
+# im rawpy-Paket und kommt über dessen Erweiterungsmodul mit)
+try:
+    import rawpy as _rawpy  # noqa: F401
+    hidden += ["rawpy", "rawpy._rawpy"]
+except ImportError:
+    pass
 # Auto-collect playwright (große Library) — nur Vollversion (v0.9.331)
 if not _IS_GEO:
     hidden += collect_submodules("playwright")

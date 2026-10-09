@@ -51,7 +51,6 @@ BEDINGT = {
     #   · der MP4-Test braucht Karte und Token (~17 s)
     #   · der Alpha-Test rendert ohne Karte, braucht also gar nichts (~4 s)
     # Das kostet die Reihe etwa 20 Sekunden. Der Fehler kostete vier Releases.
-    "test_schwarm_m1_render.py": ("token", "netz"),   # 28.08.2026: Schwarm über den ANIMATOR-Pfad
     "test_render_alle_karten.py": ("netz",),          # 05.09.2026: JEDER Kartenstil rendert (Mapbox/MapTiler nur mit Schlüssel, sonst übersprungen)
     "test_reise_szene_render.py": ("netz", "langsam"),   # 09.09.2026: Etappenfolge über die Szene, Video == Vorschau
     "test_quellenzeile_szene.py": ("netz",),           # 29.09.2026: Quellenzeile Video == Vorschau auch bei Mindestbreite (9:16)
@@ -115,6 +114,9 @@ def main() -> int:
     argv = [a for a in sys.argv[1:]]
     nur_liste = "--list" in argv
     alles = "--alle" in argv
+    # 09.10.2026 (Marc: „entweder du behebst alles, was rot ist oder übersprungen werden muss, oder du nimmst die Tests
+    # raus“) — die echten Renders („langsam“) laufen in der Nacht-Suite mit; Netz/Schlüssel werden weiter geprüft
+    mit_langsam = "--langsam" in argv
     muster = [a for a in argv if not a.startswith("--")]
 
     # 04.10.2026 — Stempel „volle Suite grün für diesen Commit" (scripts/suite_stempel.py): nur bei sauberem
@@ -144,7 +146,7 @@ def main() -> int:
         if "fixtures" in noetig:
             hat["fixtures"] = fixtures_da()
         # „langsam" läuft nur auf ausdrücklichen Wunsch mit.
-        hat["langsam"] = False
+        hat["langsam"] = mit_langsam
 
     if nur_liste:
         print(f"\n{len(dateien)} Testdateien in {TESTS}:\n")

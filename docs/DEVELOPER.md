@@ -521,7 +521,7 @@ entsteht früher oder später eine Stelle, an der Klartext über die Leitung geh
 > UNTER dem Haupt-Track an, und `advanceFrame` leitet den Fortschritt aus
 > `cumDistM[safe]` ab — dadurch stimmt „gleiche Geschwindigkeit" in jedem
 > Verteilungs-Modus, und Trim/fullTrack verhalten sich von selbst richtig.
-> Beweis am Bild: `tests/test_schwarm_m1_render.py`.
+> Beweis am Bild war `tests/test_schwarm_m1_render.py` (klassischer Render-Weg; mit ihm am 09.10.2026 entfernt — den Schwarm über die Szene prüfen `test_gruppen_*` und `test_menge_*`).
 
 **Fünf Fallen, jede mit einem Test dahinter:**
 
@@ -3672,7 +3672,8 @@ holen, was sie nicht anzeigt.
 ```bash
 .venv/bin/python scripts/run_tests.py            # alles, was laufen kann (~15 s)
 .venv/bin/python scripts/run_tests.py --list     # nur auflisten
-.venv/bin/python scripts/run_tests.py --alle     # auch die bedingten (echte Renders)
+.venv/bin/python scripts/run_tests.py --alle     # auch die bedingten (echte Renders), ohne Netz-/Schlüssel-Prüfung
+.venv/bin/python scripts/run_tests.py --langsam  # mit den echten Renders („langsam“), Netz/Schlüssel weiter geprüft — so läuft die Nacht-Suite (seit 09.10.2026)
 .venv/bin/python scripts/run_tests.py test_core  # gezielt, Teilname genügt
 ```
 
@@ -4640,6 +4641,13 @@ OSM-ID (`hsl(id·47 mod 360)`), dann zeigen kämpfende Wände zweifarbige Streif
    `rz-vorschau-msaa`) — nur beim Anlegen der Karte setzbar (`common.canvasContextAttributes.antialias` / Mapbox
    `antialias`). In der Retina-Vorschau kostete sie ~20 % (60 → 48 fps); dort glättet die Pixeldichte. `_render_ss`
    (SSAA) greift erst ab 4K.
+
+4. **(09.10.2026) Färben robust gegen Ladereihenfolge und langsame Luftbilder:** ein Gebäude über mehreren Kacheln
+   kommt in Stücken mit derselben Kennung — es gilt immer das GRÖSSTE Stück (kommt ein größeres nach, wird neu
+   zugeordnet); wechselt der oberste Wirt eines Teils, wird seine alte Farbe sofort entfernt (`removeFeatureState`), bis
+   die neue da ist — vorher trugen deckungsgleiche Wände zeitweise zwei Farben. Testhaken
+   `window.__rzGebaeudeDachTest(lon, lat)` liefert die Dachfarbe berechnet statt aus dem Luftbild (test_gebaeude_3d A2
+   prüft so die Wirt-Logik am fertigen Ergebnis), `__rzGebaeude.info(id)` zeigt Fläche/Wirt/Wurzel/Farbe.
 
 Prüfstand-Haken: `window.__rzGebaeude.zeit()` (Hauptfaden-Zeit des Färbens, gemessen ~15 ms je 6 s Probelauf),
 `quellen()`, `kacheln()`, `dach(lon, lat)`. Kanten-Analyse deckungsgleicher Wände: `tests/pruefstand_haeuser_kanten.py`
@@ -6123,7 +6131,93 @@ blöd."
 - **Sicherer Modus:** `window.__rzSicherTour` → `sessionActivate` (`ui/js/util.js`) leert `signs`, `tourmap_signs`, `photos` nur im Speicher, setzt `window.__rzSicherVerdeckt` und zeigt `rzSicherBanner`. `saveActiveProjectPatch` streicht diese Schlüssel, solange verdeckt (`_SICHER_SCHLUESSEL`). „Dazuholen" setzt beides zurück und lädt den Track erneut.
 - **Wächter:** `tests/test_ladeflagge.py` (WebKit, echte Brücke).
 
+## Touren-Archiv nach Entwurf (09.10.2026, T1–T5)
+
+`modules/library/ui/module.js`: Ansicht `rows` (Standard; einmalige Umstellung über `zeilen_standard`) — `zeileHtml`,
+`renderRows`, `zeilenBinden`, Markier-Leiste `zeilenLeisteHtml`, Fenster-Technik wie Kacheln/Liste (`_fenster.rows`,
+`_fensterMaler`). `zeilenNachladen` holt für sichtbare Zeilen `tour_medien_zahlen` (path → n) und Kartenbilder:
+`library_kartenbilder(stilDatei, hashes)` liest `bilder/karten/<geo_hash>_<stil>.jpg`, fehlende zeichnet
+`rzKartenbild(geom, {stil})` (util.js: EINE versteckte Karte, nacheinander, JPEG) nach `library_geoms(paths)`, abgelegt über
+`library_kartenbild_speichern`. Stil = `rzArchivStil()` (auch `look:<id>` → `createMap` übersetzt in `kartenlook` + Look).
+Detailspalte `renderDetail`: Kopf (Titel-Textfeld, `#ld-fav` schaltet das versteckte `#lib-d-fav`), Kartenbild
+(`detailKartenbild`), `.ld-werte` (Backend: `rundweg` aus Start/Ziel per `json_extract`, `_rundweg`), Chips, `.ld-meta`
+(`source` = Gerät/App), `.ld-module` (alle Module + `#lib-d-export`), alles Bisherige in `details.ld-mehr`. Filter `#lib-tags`
+(`state.tags`, als Liste an `_build_where`). Touren-Karte nutzt `rzArchivStil` + Stilwahl + Maßstab.
+Tests `test_touren_zeilen`; Kachel-Tests setzen `rz.library.view=cards` vorab.
+
+**Bearbeitete Fassung überall / RAW:** `Api._rezepte_fuer` (Memo, `_rezept_stand` zählt jedes Speichern), `_bearbeitet_url`
+entwickelt kleine Vorschaubilder (Raster: `fotos_abfrage`, `fotos_thumbs`, `fotos_schaerfen`), `_photo_thumbnail_data_url`
+(Animator/Video/Schilder/Geotagger) entwickelt mit dem Rezept. `core/entwickeln.raw_entwickelt` (rawpy, halb + gemerkt in
+`photo_thumb_cache/raw`, voll für `foto_entwickelt_speichern` und `medienexport._oeffnen`), Rückfall eingebettete Vorschau
+bzw. QuickLook (≥ 1200 px, gemerkt). `rawpy` in requirements + Spec (hiddenimports).
+**Rezept-Stempel:** `fotos_rezept_stempel()` → `{pfad: sha1(json)[:10]}`; `util.js` hält sie in `window.__rzRezeptStempel`
+(`rzRezeptStempelLaden`/`rzRezeptStempelBereit`, Ereignis `rz-rezept-stempel`; jedes Speichern schickt `rz-rezept-geaendert`).
+`sign_image_thumb` liefert `rz` mit, das Schild merkt es als `thumb_rz`; der Animator vergleicht beim Laden und beim Ereignis
+(`_animSignThumbAktuell`, Handler je Modul) und leert veraltete Schildbilder samt Zwischenspeichern. Nebenwege ohne Api
+(`core/photos`, `core/animator._sign_thumb_fuer`) gehen über die Haken `cphotos.BEARBEITET_URL`/`HAT_REZEPT`, die `main()`
+nach `api = Api()` setzt. `fotos_gross`/`fotos_details` liefern die bearbeitete Fassung (`quelle: "bearbeitet"`), HEIC kehrt in
+`_photo_thumbnail_data_url` nicht mehr vorzeitig zurück. Test `test_schild_bild_bearbeitet` (echte Brücke). Tests `test_bearbeitet_ueberall`,
+`test_raw_entwickeln` (Proben in `~/GPS-Studio-Test/Rohmaterial/raw-proben`).
+
+**Live-Vorschau in der Grafikkarte + Zuschneiden (09.10.2026):** `ui/js/entwickeln_gl.js` (`window.rzEntwickler`) rechnet
+`core/entwickeln._ton` + `geometrie` als WebGL-2-Shader nach: V1 (Weißabgleich, Belichtung) → [Dunst: Minimum-Kanal ÷F,
+Gauß, `luft` = Perzentil 99,5 aus einer Punkt-Stichprobe] → Basis (Helligkeit ÷F, Gauß g/90) → [Klarheit: Helligkeit nach
+Lichter/Tiefen, Gauß g/120] → Endpass (Ton + Geometrie, Ausgabe-Pixel → Rahmen → gerade → 90° → Quelle). Zwischenstufen
+RGBA16F (`EXT_color_buffer_float`), sonst RGBA8; nur neu, was sich geändert hat (`merk`). `wirksam`, `geoSauber`, `passend`,
+`drinnen`, `einpassen` spiegeln die Python-Funktionen — **bei Änderung beide pflegen**; `test_entwickeln_gl` vergleicht je
+Rezept Pixel (Chromium + WebKit, Ø < 2,5, p99 < 14). `foto_bearbeiten_laden` liefert dafür `quelle_url` (2560 px, JPEG 95),
+`breite`/`hoehe`, `voreinstellungen`. Die Lupe (`fotos.js`: `bearbGLZeichnen`, ein Canvas `.fb-gl` je Sitzung, rAF statt
+70-ms-Takt) fällt bei fehlendem WebGL 2 oder einem Fehler dauerhaft auf `foto_entwickeln_vorschau` zurück.
+Geometrie im Rezept: `drehen90` (0–3 × 90° im Uhrzeigersinn), `gerade` (±45°, positiv im Uhrzeigersinn), `zuschnitt`
+[x, y, b, h] normiert im Rahmen nach den 90°-Drehungen; ohne `zuschnitt` gilt `passend` (größtes Rechteck im
+Bild-Seitenverhältnis). Angewandt **nach** dem Ton (`anwenden` → `_ton` → `geometrie`, PIL `transform(AFFINE)`), damit
+die Weichzeichner auf dem ganzen Bild rechnen. `foto_entwickeln_vorschau(…, rahmen=True)` = ganzer gedrehter Rahmen fürs
+Werkzeug. `foto_rezept_speichern` mit Liste überträgt nur den Ton (Geometrie je Foto bleibt). Werkzeug: `zuschnittAn/Aus`,
+`zuschnittPanel`, `zuschnittRahmen` (Overlay `.fb-zs-ov` über Canvas/Bild), `zuschnittZiehen` (Verschieben/Ecken/Kanten,
+Seitenverhältnis, Einpassen per Halbierung). Tests `test_zuschneiden_ui`, `test_bearbeiten` E.
+
+## Statistik als Übersichtsseite (09.10.2026)
+
+`modules/library/ui/module.js` `renderStats()`: Kennzahlen (`.st-kpi`, Ring `.st-ring` gemacht/geplant), `stKurveHtml(s)`
+(SVG, Balken km + Linie Anzahl, zweite Achse; `_stKurve` = jahre | monate (aus `act_by_month`, letzte 24) | gesamt
+(aufsummiert), gemerkt als `st_kurve`), Bewegungsarten (`ACT_SYMBOL`), `stMonateHtml(s)` (Jahre × 12, fünf Stufen),
+Startpunkte + `stOrteKarte()` (Nachtkarte, nicht bedienbar, Koralle-Punkte nach Anzahl; `_stKarte` wird bei
+Neuaufbau und Modulabbau entfernt), längste Touren → `rzTourSeite.oeffnen`, darunter weiter `vergleichHtml`.
+Backend: `core/library.stats` liefert bei `startorte` jetzt `lat`/`lon` (Mittel von `center_lat/lon` je Ort).
+In der Statistik bekommt `.module-body` die Klasse `lib-statistik` (zwei Spalten, keine Detailspalte).
+Test `test_statistik_uebersicht`.
+
+## Strich-Symbole statt Emojis (09.10.2026)
+
+`ui/js/icons.js` (vor util.js geladen): `RZ_ICONS` = Pfaddaten aus **Lucide 0.460.0** (ISC, Credits im Über-Fenster,
+Lizenztext in `ui/vendor/NOTICE.md`), `rzIcon(name, {size, cls, fill, strich})` → SVG-Text (currentColor, Strich 1.75,
+Klasse `.rz-i`). `[data-rz-icon]` in `index.html` wird beim Start gefüllt. `RZ_ZEICHEN_SYMBOL` + `rzTextMitSymbol(text)`
+machen aus „📍 Ort setzen …“ in Menüs Symbol + Text (Aufrufer bleiben lesbar). Dialog-Titel sind Text (`textContent`) und
+bleiben ohne Zeichen. Neues Symbol: SVG aus `lucide-static@0.460.0/icons/<name>.svg` in den Datenblock übernehmen.
+Umgestellt: Archiv ausdrücklich (Reiter, Medien, Tour-Seite, Dialoge, Seitenleiste, Statistik); **alle übrigen Stellen über
+den Wächter** in `icons.js`: `RZ_ZEICHEN_SYMBOL` (Zeichen → Symbolname, „punkt:#farbe“ = farbiger Punkt) und ein
+MutationObserver auf `document.body` (childList + characterData), der Textknoten mit Bildzeichen vor dem Zeichnen in
+`<span class="rz-zs" data-zeichen="…">` + SVG zerlegt — auch Übersetzungstexte und alles, was später per textContent kommt.
+Ausgenommen (`RZ_ZEICHEN_AUS`): `.animator-viewport`, `.height-viewport`, `.overlay-preview-layer`, Karten-Marker, SVG,
+Canvas, Eingaben, `[contenteditable]`, `[data-rz-emoji-ok]`; Render-Modus gar nicht. `<option>`: Zeichen fällt weg
+(fehlt `value`, wird der alte Text als `value` gesetzt); `title`: Zeichen fällt weg. **Regel:** Code vergleicht nie Text mit
+Emojis (`textContent === "⏸"`), sondern ein Merk-Attribut (`dataset.sym`, s. Play-/Ton-Knopf im Animator) — sonst schriebe er
+bei jedem Takt neu (dann verwirft WebKit Klicks). Neue Bildzeichen in der Oberfläche: in `RZ_ZEICHEN_SYMBOL` eintragen (statischer Abgleich im
+Test). Wächter `test_icons_archiv`, `test_icons_ueberall` (jedes Modul, Vorschau unberührt, Play ohne Neuschreiben).
+
 ## Ladeanzeige — Pflicht bei allem, was dauern kann (Marc-Regel 12.09.2026)
+
+**Vorschaubilder im Raster (09.10.2026):** `fotos_thumbs` (Rastergröße) nimmt bei JPEGs ohne Cache zuerst das eingebettete
+EXIF-Vorschaubild aus den ersten 64 KB (`cphotos.schnellbild_aus_kopf`, wie Schritt 3), legt es ab, setzt `thumb = 2` und
+meldet die Pfade in `schnell` — die Oberfläche setzt `f.thumb = 2`, `schaerfen()` holt sichtbare scharf nach. Vorher las
+jeder Aufruf ganze Dateien übers NAS (19 s für 12 Bilder neben dem Einlesen). Test `test_fotos_schnellbild` D.
+
+**Wartesprüche (09.10.2026):** `ui/js/util.js` `_rzSpruchTick` (jede Sekunde) setzt unter jeden sichtbaren
+`.ass-spinner`/`.spinner` und in jedes `.rz-status`-Fenster nach `RZ_SPRUCH_NACH_MS` (3 s) einen `.rz-wartespruch`
+(`rzWarteSpruch()` würfelt `wartespruch.01–30`, kein Spruch zweimal hintereinander, Wechsel erst nach 60 s; je Platz
+— id des umgebenden Elements + Zeile — 2 min gemerkt, damit ein Neuaufbau nicht neu würfelt) und räumt ihn weg,
+sobald der Kringel verschwindet. Ausgenommen: der Hintergrund-Kasten `#rz-status-box`, Knöpfe, Menüs, `.lib-nav`/`.foto-nav`, Zeilen unter 240 px, `[data-kein-spruch]`,
+Render-Modus. Neue Sprüche: Schlüssel in de/en/es anhängen und `RZ_SPRUCH_N` erhöhen (Test `test_wartesprueche`).
 
 **Marc, nach dem Tester-Hänger:** „überall wo etwas geladen wird brauchen wir ab
 jetzt visuelles feedback, am besten sogar mit einer ausgabe wo genau steht, was
@@ -6388,6 +6482,11 @@ Entscheidung vom 19.06.2026 („bewusst kein Selbst-Update").
 - **Nicht möglich** (→ „Herunterladen"): kein Bundle (Entwicklermodus), App-Translocation oder Start aus
   /Volumes, Bundle-Ordner nicht beschreibbar, laufendes Bundle ohne Developer-ID (ad-hoc). In einer **Test-App**
   (RZ_APP_ORDNER) nur, wenn das Bundle selbst unter einer Testrechner-Wurzel liegt — nie /Applications.
+- **Dauer je Schritt (08.10.2026):** `_Uhr` schreibt `[dauer] laden + Prüfsumme: … s (… MB, … MB/s)`,
+  `DMG einhängen`, `kopieren`, `DMG aushängen`, `Signatur prüfen`, `Team und Version`, `Quarantäne` ins app.log und
+  am Ende `Update X: bereit — … · gesamt … s` (auch als `dauer` im Status). Der Helfer schreibt „App beendet nach N s“.
+  Lokal gemessen (Mac mini, 602-MB-Bundle): ditto 0,2 s (APFS-Klon), `codesign --verify --deep` 0,6 s — beim Nutzer
+  zählen Download und das Auspacken aus dem DMG.
 - **Prüfstand:** `RZ_UPDATE_MANIFEST_URL` (nur mit RZ_APP_ORDNER) + `http://127.0.0.1` erlaubt.
   `tests/test_selbstupdate.py` (Manifest, Download mit Prüfsumme/Größe/Abbruch, echte DMG mit Developer-ID- und
   ad-hoc-signierter Mini-App, Helfer wirklich ausgeführt mit eigenem HOME), `tests/test_update_dialog.py`
@@ -6726,6 +6825,102 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   `#tl-touren` (Klasse `timeline-lanes timeline-touren`) über `#tl-ov`; die Gruppen-Zeilen hängen darunter
   (`_gruppenZeilenSicherstellen` nimmt `tempoLane.parentElement`). Ohne Keyframe-Editor wird der Keyframe-Behälter
   (`.timeline-lanes:not(.timeline-touren)`) ganz ausgeblendet. Übergangs-Bänder ab 110 px tragen Art + Dauer.
+- **Touren und Medien verzahnen (08.10.2026):**
+  - **Zuordnung** (`core/fotos.py`): `fotos_einer_tour` = Zeitfenster ±`SPIELRAUM_S` (Etappen-Regel `_in_etappe`) UND bei
+    Koordinate Abstand zur Linie (`tracks.geom`) ≤ `ORT_MAX_M` (2 km; Vorfilter `_kasten`, dann `abstand_zur_linie_m`),
+    plus/minus Korrekturen aus `tour_medien_korr(geo_hash, pfad, aktion 'plus'|'minus', inhalt_id, am)`. Jeder Eintrag
+    trägt `quelle` ('auto'|'hand'); `mit_fern=True` liefert die zu weit entfernten dazu. **Alle Werkzeuge** (Animator
+    `tour_medien`, Schnell-Video, Archiv-Karte) laufen über diese Funktion — eine Korrektur gilt überall.
+    `touren_eines_mediums` (mehrere Touren je Medium, kürzeste zuerst), `touren_zu_fotos` (Nach Touren, zählt ein
+    Medium in jeder seiner Touren), `kandidaten_tag` (Tag der Tour, Grund 'zeit'|'fern'|'raus'), `korrektur_setzen`
+    (speichert nur Abweichungen von der Regel; Zurückdrehen löscht die Zeile).
+  - **Brücken:** `tour_medien_kurz`, `tour_medien_kandidaten`, `tour_medien_korrigieren`, `medium_touren` (alle unter
+    `_db_gesperrt`), `tour_seite_daten` (Sperre nur für die DB-Teile, GPX-Lesen ohne Sperre; Medien ohne Koordinate über
+    die Aufnahmezeit auf den Track gesetzt, `geschaetzt`), `suche_gemeinsam(text, n_touren, n_medien, touren_pfade)`
+    (Jahr aus einer vierstelligen Zahl; Medien = Text-Treffer + Medien der Touren; `touren_pfade` = was das Archiv
+    gerade zeigt, auch über die Gegend gefunden), `touren_exportieren(pfade, fmt)`, `medien_exportieren(pfade|filter,
+    optionen)` + `medien_export_status`/`_stopp` (Hintergrundfaden, `core/medienexport.py`; schreibt nur über
+    `_nutzerdatei_schreiben` in den gewählten Ordner).
+  - **Oberfläche:** `ui/js/tourseite.js` (`window.rzTourSeite`: liegt als `.ts-seite` über `.lib-main` und als
+    `.ts-links` über `#lib-panel`; `renderDetail` im Archiv hält sich zurück, solange sie offen ist), `ui/js/exportarchiv.js`
+    (`window.rzArchivExport.touren/medien` — **nicht** `rzExportDialog`, so heißt der Video-Export-Dialog), `rzFotos.detailFuer/gross/zeigeTouren` (fotos.js), Großansicht mit
+    `.foto-gross-streifen` und `.foto-gross-seite` (Karte über `createMap`), Raster-Mehrfachauswahl (`markiert`).
+  - **Stufe 2:** `tour_aus_fotos(pfade, profil, name)` (Fotos mit Ort nach Zeit; `croute.route_geometry` für
+    walking/cycling/driving, Zeit linear über die Weglänge; GPX in `APP_SUPPORT/import`, Ordner beobachtet, nie
+    überschreiben), `touren_an_tagen(tage)` (Tag in Ortszeit der Fotos, Touren mit Überlappung) für die Tagesköpfe,
+    `reise_seite_daten(pfade, name)` (je Tour `tour_seite_daten`, Medien einmal mit `tour`/`tour_path`) für
+    `rzTourSeite.oeffnenReise` (Farben `FARBEN`, Linien als FeatureCollection mit `farbe`/`i`).
+    Wächter: `test_tour_medien_zuordnung`, `test_tourseite`, `test_gemeinsame_suche`, `test_medienexport`,
+    `test_export_archiv_ui`, `test_tour_aus_fotos`.
+  - **Ort setzen:** `fotos_verorten_mehrere(pfade, lat, lon, adresse)` (je Datei wie `fotos_verorten`, Sicherung vorher);
+    `rzArchivExport.ortSetzen(pfade, fertig)` + `koordinateLesen(text)` (Dezimal, Dezimalkomma, GMS mit N/S/E/W/O,
+    `@lat,lon` aus Karten-Links; Bereichsprüfung). Wächter: `test_ort_setzen`.
+  - **Doppelte:** `cfotos.doppelte_zeilen(conn)` (nur Lesen, unter `_DB_LOCK`) + `doppelte_gruppieren(gleich, zeit,
+    vektor)` (ohne Datenbank, außerhalb der Sperre) → `{gleich, fast, serien, n_gleich, n_fast, bytes_gleich}`;
+    `doppelte_finden(conn, vektor)` = beides. *gleich* = gleiche `inhalt_id`; *fast* = Läufe mit Abständen ≤
+    `DOPPELT_DT_S` (2 s), darin Gruppen mit einem ANKER (erstes Bild): dazu kommt nur, wer ≤ 2 s nach dem Anker liegt
+    und ihm ähnelt (`_aehnlich`: Kosinus ≥ `DOPPELT_KOS_MIN` 0,95 aus den Inhaltsvektoren `_inhalt_mx.aktuell(...).vektor`,
+    ohne Vektoren gleiche Kamera + Seitenverhältnis → `unsicher`) — keine Verkettung, linear. Läufe über
+    `DOPPELT_SERIE_MAX` (30) Bilder = Zeitraffer/Intervall → `serien` (vorher: eine Gruppe mit 3600 Bildern).
+    Behalten (`_behalten`): Pixel, dann mit Koordinate, Bytes, kein Kopie-Name/-Ordner (`_KOPIE_RE`: kopie/copy/export/
+    „-2“/„(1)“), älteres `mtime`, kürzerer Pfad. `fotos_doppelte_wegraeumen(pfade, wohin)`
+    → Papierkorb (`clib._in_den_papierkorb`) oder `cfotos.DOPPELTE_ORDNER[sprache]` neben dem Original
+    (`_ds.umbenennen`, nie überschreiben: `-2`); die drei Ordnernamen stehen in `SKIP_DIRS`, sonst holte das Einlesen
+    sie zurück. Danach fliegen ihre Zeilen (und `tour_medien_korr`) aus dem Bestand — als `fehlt_seit` standen sie unter „Nicht erreichbar“. UI: `rzArchivExport.doppelte(fertig)` (Overlay-Klasse `dp-gross`), Eintrag
+    `#foto-nav-doppelte`. Wächter: `test_doppelte`, `test_doppelte_ui`.
+  - **Durchsicht 08.10.2026 nachgezogen:** Export „ohne Metadaten“ schneidet APP1 (EXIF+XMP), APP13 (IPTC), APP12 und COM
+    verlustfrei heraus (`medienexport.jpeg_ohne_metadaten`, APP2-Farbprofil und APP14 bleiben); Orientation ≠ 1 → einmal
+    gedreht neu gespeichert; `verkleinert_jpeg` nimmt das Farbprofil mit und setzt `comment=b""` (Pillow übernimmt den
+    Kommentar sonst). „Alle gefilterten“ über `_export_pfade_zum_filter` (mit `_filter_mit_inhalt`). Ortsprüfung:
+    `_geom_von` liefert eine `_Linie` mit `rand_m` (halbe längste Teilstrecke), feine Etappen-Linie, wenn sie im
+    Speicher liegt (`tracks.geom` hat nur 80 Punkte). `fotos_einer_tour` fragt je Etappenfenster (`_tour_fenster_liste`)
+    und zählt alles (das Limit kürzt nur die Liste), `nur_pfade` für `korrektur_setzen`; `kandidaten_tag` nimmt die Tage
+    nur aus den Etappen. Tour-Seite/Ort-Dialog bauen ihre Karte ab; Markierung im Raster gilt nur für Sichtbares.
+  - **Medien wie in Lightroom (09.10.2026):** Medien-Kachel `kachelZeile` + `.foto-kachel-check`/`-herz`/`-bearb`;
+    Markier-Leiste `markLeisteZeigen` (`#foto-markleiste`, Aktionen = Rechtsklick + `zuTourMenue`/`zuAlbumMenue`);
+    linke Spalte `navZeichnen` (Kopf mit Zahl, Sammlungen, Alben `data-falbum`, Filter-`<details>` mit `#foto-jahr/-kamera/-gps`
+    — oben in `leisteHtml` nur noch Suche/Chips/Ansichten); Detailspalte `detailZeigen(f, {streifen, kopf})` (Symbol-Tabelle
+    `.fd-zeile`, Standort, Touren, Stichwort-/Album-Chips, Bildleiste `#fd-streifen` für Kartenpunkte). Lupe: `grossOeffnen`
+    mit `.im-layout` (Lage aus der Spalte der Seitenleiste im `.module-body`-Raster, `grossLage`), F/`grossVollbild`, G/Esc,
+    Reiter `grossReiter` Bearbeiten|Info (Start: Bearbeiten, `grossReiterZeigen` zeigt bei Videos Info, die Wahl bleibt; `foto_bearbeiten_laden` liefert `hist` des Originals mit); die Lupe hängt am `<body>` und wird in `unmount` mit `grossZu` geschlossen (sonst blieb sie beim Modulwechsel stehen). Export oben: `exportKnopfHtml(id)` (`.btn-cta`) in `leisteHtml` und in der Lupe, `exportMenue(anker, f)` → Markierte / gezeigtes Medium / alle gefilterten; Kontextmenüs über `menueZeigen(menue, eintraege, x, y)`. Kartenstil fürs Archiv `rzArchivStil/…Setzen/…WahlHtml/…WahlBinden` (util.js,
+    localStorage `rz-archiv-stil`, Standard `RZ_ARCHIV_STANDARD` = `ofm_nacht`, Ereignis `rz-archiv-stil` → Karten neu); jede Archivkarte ruft `rzMassstab(map)` (eigene Steuerung, Lineal 0·1·2·5 über `unproject`+`distanceTo`, setzt die Klasse `.rz-archivkarte` für dunkle Zoom-Knöpfe in app.css), `rzStartZiel(map, lib, teile)` (Koralle-Nadeln, gibt die Marker zurück) und rahmt mit `RZ_ARCHIV_RAND` (unten Platz für den Maßstab)). Favoriten/Alben: Tabellen `foto_fav`,
+    `foto_alben`, `foto_album_inhalt` (core/fotos.py), Filter `fav`/`album`/`bearbeitet` in `_where`, `favs_markieren`
+    setzt `fav`/`bearbeitet` an den Zeilen, Brücken `fotos_favorit/_alben/_album_neu/_album_aendern/_album_inhalt`.
+    Bearbeiten: `core/entwickeln.py` (`REGLER`, `VOREINSTELLUNGEN`, `sauber`, `auto_werte`, `wirksam`, `anwenden` —
+    Weißabgleich/Belichtung linear, Ton/Lichter/Tiefen/Klarheit über weichgezeichnete Helligkeit, in tiefen Schatten
+    additiv statt Faktor, Dunst über den Dunkelkanal; `quelle_oeffnen` JPEG/PNG/HEIC, RAW über eingebettete Vorschau),
+    Tabelle `foto_rezept` (`rezept_lesen/-setzen/rezepte`), Brücken `foto_bearbeiten_laden`, `foto_entwickeln_vorschau`
+    (≤ 1600 px aus `_ENTW_QUELLE`, ~0,1 s, + Histogramm), `foto_rezept_speichern` (eins oder viele), `foto_entwickelt_speichern`
+    (Speichern-Dialog, nie das Original); `medienexport.exportieren(rezepte=…)`. UI `bearbLaden/bearbZeichnen/bearbVorschau/
+    bearbVorher/bearbSpeichernJetzt`, Taste „.“ (keydown/keyup). Wächter: `test_medien_optik`, `test_fav_alben`,
+    `test_bearbeiten`. Offen: WebGL-Vorschau, RAW über LibRaw (`rawpy`), Video/Animator mit der bearbeiteten Fassung,
+    die acht Animator-Looks in der Archiv-Stilwahl, Touren-Archiv (Schritt 4).
+  - **Öffnen mit:** `core/oeffnen_mit.py` — macOS `NSWorkspace.URLsForApplicationsToOpenURL_` (nur Programme unter
+    /Applications, /System/Applications, ~/Applications, keine versteckten Ordner), Öffnen per `open -a`; Windows
+    `os.startfile(p, "openas")`; Linux `xdg-open`. Brücken `medien_apps(path)` (Setting `oeffnen_mit_zuletzt`, max. 5)
+    und `medien_oeffnen_mit(pfade, app)`. UI `rzArchivExport.oeffnenMit(pfade)`, Einträge im Medien-Raster, in der
+    Großansicht (`data-gk="mit"`) und im Tour-Seiten-Menü. Wächter: `test_oeffnen_mit`.
+- **Video-Assistent (08.10.2026):** Modus des Schnell-Video-Dialogs, `rzSchnellVideo(pfad, { projekt, animatorS,
+  assistent: true })` (nur mit Projekt). Die Bausteine des Dialogs tragen `data-va="1…9"`; `.va-weg` blendet die anderen
+  Seiten aus (nicht `hidden` — `.sv-zutat` setzt `display`). Zusätze nur im Assistenten: Zweck-Karten (`data-va-zweck` →
+  Vorlage/Format/Länge über die vorhandenen Knöpfe), Look-Kacheln (`w.look` → `animatorPatch`, `lookStil`/`lookKartenlook`,
+  Vorschau), Kamera-Karten (`w.kamera` 'fahrt'|'folgen'|'fest' → `animatorPatchRoh`), `#sv-logbuch`, `#sv-gebaeude`,
+  Zusammenfassung (`vaListe`). Übernehmen = derselbe Weg wie „In dieses Projekt übernehmen“ (ein Undo-Schritt, Label
+  „Video-Assistent“), danach `vaBericht` in die rechte Spalte. Knopf `#anim-videoassistent`, `window.__rzVideoAssistent`.
+  Wächter `tests/test_videoassistent_ui.py`.
+- **Hänger-Melder (08.10.2026):** `_bruecke_mit_zeit` meldet jeden Aufruf aus der Oberfläche in `_LAUFEND` an (auch die
+  bewusst langen wie Export/Import; Dialoge `pick*`/`waehlen` bleiben draußen). Der Faden `haenger-melder` schreibt für jeden,
+  der länger als `HAENGER_S` (8 s) läuft, **einmal** `[hänger] <name> läuft seit …` mit Stapel ins Log und — ist
+  `clib._DB_LOCK` belegt — den Stapel des Halters (Kennung aus `repr(RLock)` „owner=…“). `_db_gesperrt` liegt außen um die
+  Foto-Brücken und meldet sein Warten selbst an („<name> (wartet auf die Bibliothek)“). Wächter `tests/test_haenger_melder.py`.
+- **Kein unbegrenztes Warten auf die Bibliothek für Nebensachen (08.10.2026):** `_export_namensvorschlag` nimmt die Sperre
+  mit `acquire(timeout=0.5)`, sonst Dateiname — ein Export hing sonst minutenlang hinter dem Foto-Einlesen.
+- **Fenster zu = Prozess weg (08.10.2026):** `_on_closing` startet zuerst einen 5-s-Notaus (`os._exit`), dann das Aufräumen.
+  Vorher kam der Force-Exit erst nach dem Aufräumen; hing das, blieb ein Prozess ohne Fenster, hielt die Bibliothek, und der
+  Doppelstart-Schutz blockte jeden Neustart.
+- **Highlights im Render-Modus (08.10.2026):** `window.__rzHighlightsAbgleichen(leise, { auchImRender: true })` legt die
+  Highlight-Schilder auch bei `__rzRenderMode` an (Web-Studio, kein Editor-Schritt) und zeichnet sie in die Kartenebene.
+  Ohne Option rechnet der Render nicht neu — das Desktop-Video bekommt die Schilder aus dem Projekt.
 - **Knöpfe nicht im Takt neu beschriften (08.10.2026):** WebKit verwirft einen Klick, wenn der Inhalt des Knopfs
   zwischen Drücken und Loslassen ersetzt wird (`textContent =` erzeugt einen neuen Textknoten, auch bei gleichem Wert).
   Die Transportleiste schrieb das Play-Symbol alle 150 ms neu → Klicks mit > 60 ms Mausdruck gingen verloren, die

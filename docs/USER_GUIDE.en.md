@@ -863,6 +863,22 @@ The stats editor of the Animator (and the Tour Map) has four new fields: in the 
 comes from the tour's country in the archive (Canary Islands, Azores and multi-zone countries by
 longitude), otherwise from the tour's location. The format follows the app language.
 
+### 🧭 Video assistant — step by step to your own video (since v0.9.787) ⭐
+
+At the top of the Animator, next to **„Quick video …“**, there is **„🧭 Video assistant …“** (also on the tour page in
+the archive under **🎬 Video ▾**). In **nine short pages** — with a preview at the top — it asks how your video should
+be: **1 Title** · **2 Kind of video** (🏡 Memory, 📱 Social, 🏔 Landscape — sets template, format and length, which you
+can fine-tune below) · **3 Map** (the eight looks, plus 3D buildings) · **4 Overlays** (numbers, elevation profile,
+highlights) · **5 Photos** (chosen for sharpness, variety and spread — deselect or add your own) · **6 Places and signs**
+(breaks and overnight stays from the logbook) · **7 Camera** (camera flight, follow or fixed) · **8 Ending and music** ·
+**9 Done** — a list of what goes into the project. You can **skip** every page, then the suggestion stays; the dots at
+the top jump straight to a page.
+
+**„✓ Apply to project“** writes everything **editable** into your open project — signs in the timeline, camera under
+„Camera“, overlays under „Overlays“ — and shows **„What the assistant did“** on the right. **One ⌘Z** takes the whole
+assistant back. The difference to the quick video: the quick video makes a finished file with a few choices, the
+assistant sets up your project so you can keep working on it.
+
 ### 🎬 Quick video — a finished tour video with just a few choices (since v0.9.739) ⭐
 
 You just want a nice video of your tour, without keyframes and settings? Use the **quick video**: in the
@@ -1114,6 +1130,48 @@ away; **700 files take a good 20 seconds.** Sub-folders are included. You can wa
 folders as you like. (While there is no folder, the empty area shows a big **“+ Add folder”**
 button.)
 
+### 🗺📷 Tours and media belong together — the tour page (since v0.9.787) ⭐
+
+**Double-click a tour** to open its **tour page**: the map with the track and a point for every photo and clip in the
+middle, the media strip in recording order below, the tour on the left (date, place, values, elevation profile, logbook)
+with the actions **🎬 Video ▾** (quick video, Animator, data animator), **🗺 Map as image**, **⬇ Export …** and
+**＋ Media from the same day …**. Click a picture to see its capture data on the right, double-click to open it large.
+**„← Tours“ or Esc** takes you back to the same place in the list. The tour details on the right now also show
+**„📷 34 photos · 🎬 5 clips“** with a picture strip and **„Open tour ▸“**.
+
+**What belongs to a tour?** Everything recorded **during the tour** (half an hour before and after counts too) that —
+if it has coordinates — lies **at most 2 km from the track**. Without coordinates the time decides. A photo may belong to
+several tours, e.g. when two devices recorded the same tour. **You have the last word:** right-click a picture →
+**„Remove from this tour“**; **„＋ Media from the same day“** shows everything else from the tour's day with the reason
+why it isn't included (outside the tour time, more than 2 km away, removed by you) — tick it, done. A photo's details
+list all its tours with **✕** and **„＋ Add to a tour …“**. These corrections apply **everywhere in GPS Studio** — in the
+archive, in the Animator („Media of the tour“) and in the quick video.
+
+**Large view like a light table:** the filmstrip (the photos you browse) below, the map with the tour and the photo's
+point on the right, capture data and tours underneath — click a tour to open its tour page.
+
+**One search for both:** search the tour archive for a place or name and **„📷 N photos and clips for …“** appears above
+the list — direct hits and the photos of the tours found, even if the photo itself has no place in it. A four-digit
+number works as the year („Masca 2023“). In Media, the search shows the matching tours at the top.
+
+**Make a tour from photos:** no GPX, but photos with a location? Mark them in Media (⌘-click) and right-click
+**„🧭 Make a tour from these photos …“** — or click **„🧭 Tour from these photos“** in the day header. The photos are
+connected in recording order, as straight lines or **along paths** (on foot, bike, car). The new tour lands in the
+archive and opens its tour page right away.
+
+**Days and trips:** in the Media grid, every day header shows **that day's tours** — a click opens the tour page. A
+**collection** (e.g. „Tenerife 2026“) has the button **„🗺 Trip page ▸“** at the top, several marked tours have **„View
+as a trip“**: all tours in their own colours on one map, all photos and clips of the trip below, sums and the tours on
+the left (click → their tour page), plus **„Trip video …“** and export.
+
+**Export with right-click:** right-click a tour (or several marked ones) → **„Export …“** → choose the format: GPX, KML,
+KMZ, TCX, GeoJSON, CSV — or for one tour a **project** with all settings. One tour goes wherever you like (its name is
+suggested), several become single files in a folder. Mark **photos and clips** in Media with **⌘-click** (Windows: Ctrl)
+or **Shift-click** and right-click **„Export …“** — or **„Export all filtered …“**. As an **original copy** or **smaller
+as JPEG** (1080, 2048, 3840 pixels or full size — also from RAW and HEIC), optionally **without location and camera
+data** (for sharing — including the location in XMP/IPTC written by Lightroom or „Set location“; the colour profile stays), with the original name or as **Date_Time_Place**. Your originals stay unchanged, nothing is
+overwritten; the status box at the bottom right shows the progress.
+
 ### 🩺 Track check — the archive tells you what is wrong with a track (since v0.9.688)
 A GPS spike, a gap or a camera writing ten points per second usually shows up only in the
 finished video. So the archive checks every tour on import and shows a **warning sign ⚠︎** top
@@ -1350,8 +1408,17 @@ trip of twenty. As a collection they belong together:
   stage as the main track, all others as additional tours. Six stages become one video.
 - A tour may sit in any number of collections; deleting a collection deletes **no** tours.
 
-**Four views**, switchable on the right of the bar (the app remembers your choice):
-**▦ Cards** for browsing, **☰ List** for comparing many tours at a glance, **🌍 Map** —
+**Five views**, switchable on the right of the bar (the app remembers your choice). **Rows are the default**
+(since 09.10.2026): a map image per tour in the archive style (default: the night map; images are drawn the first time
+you see them and kept), name, date · activity, distance/ascent/duration, tags with **＋** to add one, the number of
+photos and clips and **⋯** for all actions. The **checkbox** selects like ⌘-click; a bar „2 of 36 selected“ then offers
+Tags, Add to collection, Export and ⋯. The filter row: search, activity, year, period, **tag**, length and sort order.
+**On the right** (click a row): title (click to rename), ★ favourite, ⋯, a large map image (⤢ opens the tour page), six
+figures (distance, ascent, duration, highest point, descent, loop or point to point), description, tags as chips, date,
+activity, device/app and folder, the tour's photos and clips and buttons for **all modules** plus **Export**; everything
+else is under **„More details and settings“**. **Map style for the archive:** top left on the media, tour and tour-page
+maps — the **looks** (Travel atlas, Night map, Minimal, Treasure map, Topo, Nautical, Pastel) and all maps.
+**▤ Rows**, **▦ Cards** for browsing, **☰ List** for comparing many tours at a glance, **🌍 Map** —
 every filtered tour on one world map, clicking a line selects it — and **📊 Statistics**.
 Far-away tours are drawn as dots on the map and only turn into lines as you zoom in;
 otherwise they would be invisible. They are drawn in **magenta with a dark outline**: the map
@@ -1365,9 +1432,13 @@ closes it again.
 
 **The statistics** always add up exactly what is selected right now — so “this collection
 only”, “done tours only” or “2024 only” work as well. They show tours, kilometres, ascent,
-hours, average per tour and the longest tour, then the split **done against planned**,
-**kilometres per year**, **tours per month** (your season across all years), the breakdown
-**by activity** and the **five longest tours** — a click jumps to the tour.
+and hours moving as four large figures (with a ring for done against planned tours). Below:
+**distance per year** — bars for kilometres, a line for the number of tours, the current year highlighted;
+switchable to **months** (the last 24) and **total** (cumulative) —, the **activity types** with their
+kilometres, **activity by month** (one row per year, one field per month: the brighter, the more tours),
+the **most frequent starting points** with a small map („Show all“ lists up to 25) and the **longest
+tours** — a click opens the tour page, „Show all“ the list sorted by distance. The statistics use the
+full width; the details column is hidden there.
 
 **The app fetches map pictures on its own.** After a scan and on every start a leisurely
 background run fetches a real map picture per tour from Mapbox — roughly one every one and a
@@ -1801,6 +1872,92 @@ On request the search field also finds **what the photos show**: “sunset”, �
   another library**: the previews are taken over once (the grid does not have to generate anything), the content
   search travels along anyway, and if the photo drive has a different name there, the app asks when you open Photos
   (see above).
+
+### 🖼 Media like in Lightroom — grid, loupe, map (since v0.9.787)
+
+- **Tiles:** the picture with date · time and place below. On hover a box at the top left **marks** it (or ⌘/Shift-click),
+  the **heart** at the top right makes it a favourite. As soon as something is marked, a bar **„N selected“** offers Export,
+  Set location, Favourite, Add to album, Add to tour, ✨ Auto and Open with. Esc clears, ⌘A marks all.
+- **Left:** the number, then **collections** (All, Favourites, Edited, Without coordinate …), **albums** (＋ creates one,
+  right-click renames or deletes — the photos stay), date, folders and collapsible **filters** (year, camera, location).
+- **One click** shows the picture on the right with all data (camera, aperture, shutter, ISO, size), the location with a
+  map, the tours, keywords and albums.
+- **Double-click, E or space** opens the **loupe**: the picture large next to the sidebar, the filmstrip below, the map with
+  the track on the right and right below it **✎ Edit** with the sliders (next to it the
+  **Info** tab; videos show Info). ←/→ browse, **F** = full screen, **G** or Esc back to the grid.
+- **Find duplicates …** shows how much space tidying up frees: in the button (e.g. „Tidy up 12 (3.4 GB)“), „saves …“ per
+  group and, at the bottom, when the space is really free — after emptying the Trash, or only once you delete the folder.
+- **Plain icons:** the whole app shows single-colour line icons instead of colourful emojis. Preview and video are
+  not affected.
+- **When it takes a while:** after about 3 seconds of waiting a little phrase appears under the spinner — just for fun (not in the small box at the
+  bottom right; a new one comes after a minute at the earliest).
+- **⬇ Export** (top right, also in the loupe): exports the marked media, the photo shown or all filtered ones — the
+  menu offers what is there.
+- **Map:** pick the map style at the top left — it applies to all maps in the archive (default: the night map). All archive
+  maps show a **scale bar** at the bottom left (0 · 1 · 2 · 5 km), the track in turquoise and **start and finish as pins** (round trip: one). Clicking a spot shows the photo and a
+  strip of all photos taken there.
+
+### ✎ Edit photos (since v0.9.787)
+
+In the loupe, tab **„✎ Edit“**: the histogram, **✨ Auto** (tone and white balance to suit the photo), the presets **Natural ·
+Vivid · Matte · B&W** and sliders for exposure, contrast, highlights, shadows, temperature, tint, vibrance, saturation,
+clarity and dehaze. **Hold „.“** (or hold „◐ Before“) to see the original; double-click a slider resets it, ↺ resets all.
+The graphics card computes the preview: the picture follows the slider without delay and looks exactly as it will in the
+export and the video.
+
+**Crop and straighten:** **„Crop“** or the **R key**. The loupe then shows the whole photo with a frame and thirds lines. Drag
+the frame to move it, drag corners and edges to resize it. **Straighten** rotates the picture by up to ±45°; the frame shrinks
+so that no empty corners appear. Pick the **aspect ratio** below (Original, Free, 1:1, 4:5, 3:2, 2:3, 16:9, 9:16); the two
+arrows rotate by 90°. **Enter** or „Done“ applies, **Esc** cancels, „Reset“ removes only the crop. The crop is part of the
+recipe: grid, export, animator and video show the cropped photo, the original stays whole. „Copy/Paste“ and „✨ Auto“ for
+several photos transfer only colour and light, every photo keeps its own crop.
+
+- **The original stays untouched.** Only your settings are saved (a „recipe“ in the library). Export uses the edited
+  version; **„💾 Save as new file …“** writes a developed JPEG next to it (never over the original).
+- **Several at once:** „⧉ Copy“ remembers the settings, „Paste“ applies them (also in the bar for marked photos). **„✨ Auto“**
+  in the bar and **„✨ Auto for all photos“** on the tour page enhance each photo on its own.
+- Edited photos carry a ✎ on the tile and are listed under „Edited“ on the left. Wherever the photo shows up — loupe,
+  details, animator signs, tour page, video — the new version appears at once, HEIC and RAW included.
+
+### 📍 Set the location for several photos and clips (since v0.9.787)
+
+Photos and clips without a coordinate are one click away: **„📍 21 without coordinate“** in the header is a button
+and filters exactly those files (the same as „Without coordinate“ on the left). Mark several (⌘ or Shift click),
+right-click → **„📍 Set location for N …“** — or for one photo **„Enter location …“** in its details. In the dialog
+you can
+
+- **search for a place** („Masca“ → click a hit),
+- **paste a coordinate** — `28.2905, -16.8452`, with decimal commas `28,2905 -16,8452`, in degrees/minutes/seconds
+  `28°17'25.8"N 16°50'42.7"W`, or a Google Maps link containing `@28.3059,-16.8417`,
+- or **click into the map**.
+
+The address is written too if you want. The location goes into the files themselves — the app backs up every
+original first. Read-only files are counted as „could not be written“ afterwards.
+
+### ⧉ Find and tidy up duplicates (since v0.9.787)
+
+In Media on the left: **„⧉ Find duplicates …“**. The dialog has two tabs:
+
+- **Identical** — the same file in several places (say the original and a copy in an export folder). Everything is
+  marked except **one** copy: the largest, then the one with a location, then the original rather than a „copy“ or
+  an export (by name or folder), then the older file. Click another picture to keep that
+  one instead. The top line says how much space this frees.
+- **Almost the same** — the same shot but not the same file: a downsized export, a JPEG saved differently. Recognised
+  by capture time (±2 seconds) and picture content. **Nothing is marked here** — look first, then click the picture
+  that should stay. With content search switched off, the group relies only on time, camera and aspect ratio and
+  carries the label **„uncertain“**. Long series shot every second (time-lapse, interval shots) don't count as
+  duplicates — the dialog says how many it skipped.
+
+At the bottom you choose where they go: **to the Trash** (restorable from there) or **to a folder „Duplicates (GPS
+Studio)“** next to the original. Scanning skips that folder, so the files don't come back into the stock. Nothing is
+ever deleted for good.
+
+### ↗ Open with … — edit in your photo app (since v0.9.787)
+
+Right-click a photo or clip (or several marked ones) → **„Open with …“** — also in the large view and in the media strip
+of the tour page. On the Mac the list shows the apps that can open the file, the one you used last on top and the
+default marked — one click opens the original there (say Lightroom, Affinity Photo, Pixelmator or Preview). On Windows
+the system's „Open with“ dialog appears right away. If the app saves changes, GPS Studio picks them up at the next scan.
 
 ### What the stock knows about a photo
 
@@ -2314,7 +2471,7 @@ back.
 
 **🗺 Eight looks and the map editor (new after v0.9.784):** Under **Look** there are now eight tiles in two rows — Natural, Travel atlas, Night map and Minimal are joined by **Treasure map** (parchment, brown ink, dashed borders, strong relief), **Topo** (like a hiking map: blue water, green forest, roads with casing, relief), **Sea chart** (sandy land, sea in depth bands, dark coast) and **Pastel** (light and friendly). Each tile shows a small picture in the look's colours. The map looks colour every map role on its own (land, water, rivers, forest, parks, buildings, minor/main roads, motorway, rail, borders, labels) and can show mountains in relief (hillshade from free terrain data), draw the coastline or show sea depths in bands; a glow along the roads can be switched on in the editor. **Design your own:** a click on the **✎** on the chosen tile opens the **map editor** on the right — colour fields for every role, dashed or solid borders, label style (regular, bold, italic like an atlas), capitals, labels on/off, coastline, relief with shadow, light and accent colour and strength, glow and sea depths. If the editor stays open while you pick another look on the left, it shows that look's colours straight away. **Aerial look, map look and starry sky** live here in the editor too — in the Map section on the left the button **“Map look and stars …”** opens it (also for maps without a look, then with the look settings only). You see every change in the preview right away, the video shows exactly the same; ⌘Z undoes one editing round. **“Save as my own look …”** puts your look under **“Your looks”** — in every project; an ✕ on hover deletes it (projects using it keep their copy). **“As a file …”** saves it as `.rzlook` to pass on, **“Import a look …”** reads such a file. The project always carries its look — in the `.rzproj` too. The aerial image (Natural) has no colours per role; there you set brightness, saturation and contrast under “Aerial look”. Older projects with Travel atlas or Night map keep their previous map until you pick the look again.
 
-**🗺 Choosing and setting up the map (since 2026-10-08):** on the left there are only tiles now: the eight looks and, as the ninth, **“More maps”** (OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian, the MapTiler and Mapbox maps, “No map”). A click opens the list with small previews on the right; the chosen map then shows on the tile. Everything else you set **on the right in the editor**, which the **✎** on the marked tile opens — and closes again with a second click (it lights up while open). Depending on the map the right side shows: for a look its colours, for Natural **“Aerial imagery from …”** (free, MapTiler, Mapbox) and the aerial look, for another map its map look — and always **3D terrain with exaggeration, 3D buildings, “Show on the map”** (places, roads, POIs, transit, borders) and the **starry sky**. **“Save as my own look …”** stores terrain, exaggeration, 3D buildings and the map elements too; picking your look later sets them again (the built-in looks leave these values alone). Liberty, Bright, Positron, Night map and Travel atlas are no longer in the list — the looks cover them; projects using them keep drawing as before. The top of the right column always says which section on the left the window belongs to (🗺️ Map, 🧭 Tracks, 🚩 Signs and photos, 📊 Overlays). **Multiple track colours** now exist **for every tour on its own**, in the track editor on the right (✎ on its entry in the tour list): colour by distance, elevation, speed or gradient, hard or as a gradient, stops with value and colour; “Auto (min → max)” spans green → yellow → red over the whole tour. It works in the chain (one after another), in the swarm (at the same time), with “Show whole” and in the video. For track 1 you also get all of the track's data series there (heart rate, power …) and the **colour per stage**.
+**🗺 Choosing and setting up the map (since 2026-10-08):** on the left there are only tiles now: the eight looks and, as the ninth, **“All maps”**. A click opens the list of all maps with small previews on the right, in three groups: **🛰 Aerial** (free, MapTiler Satellite, MapTiler Satellite + labels, Mapbox Satellite, Mapbox Satellite + streets) · **🗺 Maps** (OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian, “No map”) · **🔑 With your own key** (MapTiler and Mapbox maps; without a key they say “key missing”). A chosen map then shows on the tile; an aerial image marks the **Natural** tile, which shows at the bottom of its picture which aerial source is running. Everything else you set **on the right in the editor**, which the **✎** on the marked tile opens — and closes again with a second click (it lights up while open). Depending on the map the right side shows: for a look its colours, for Natural **“Aerial imagery from …”** (free, MapTiler, Mapbox) and the aerial look, for another map its map look — and always **3D terrain with exaggeration, 3D buildings, “Show on the map”** (places, roads, POIs, transit, borders) and the **starry sky**. **“Save as my own look …”** stores terrain, exaggeration, 3D buildings and the map elements too; picking your look later sets them again (the built-in looks leave these values alone). Liberty, Bright, Positron, Night map and Travel atlas are no longer in the list — the looks cover them; projects using them keep drawing as before. The top of the right column always says which section on the left the window belongs to (🗺️ Map, 🧭 Tracks, 🚩 Signs and photos, 📊 Overlays). **Multiple track colours** now exist **for every tour on its own**, in the track editor on the right (✎ on its entry in the tour list): colour by distance, elevation, speed or gradient, hard or as a gradient, stops with value and colour; “Auto (min → max)” spans green → yellow → red over the whole tour. It works in the chain (one after another), in the swarm (at the same time), with “Show whole” and in the video. For track 1 you also get all of the track's data series there (heart rate, power …) and the **colour per stage**.
 
 **Signs in the look (since v0.9.782):** If the project has simple text or photo signs, the app asks after you click a look whether it should adapt them — *Travel atlas*: text as „card“, photos as instant photo; *Night map*: pill; *Minimal*: plain; *Natural*: speech bubble. Only the basic style changes; highlight signs, banners and signposts stay, every sign stays editable on its own, ⌘Z undoes it.
 

@@ -98,6 +98,9 @@
   // 07.10.2026 (Marc: „die Mitte war schnell da, die Sidebar nicht … überall, wo man warten muss, sollte etwas kommen,
   // dass man wartet“) — solange Ordner und Zahlen unterwegs sind, ein drehender Kreis statt „0“ / „Noch kein Ordner“.
   let ordnerLaedt = false;
+  // 09.10.2026 — Strich-Symbole statt Emojis (ui/js/icons.js)
+  const I = (name, g, voll) => (typeof rzIcon === "function" ? rzIcon(name, { size: g || 15, fill: !!voll }) : "");
+  const herz = (an, g) => I("heart", g || 15, an);   // Favorit: gefüllt, sonst nur Umriss
   const ladeHtml = (text) => `<div class="lib-nav-hint foto-laedt"><span class="ass-spinner"></span> ${esc(text)}</div>`;
   function navZeichnen() {
     if (!nav) return;
@@ -110,22 +113,48 @@
         <span class="lib-nav-count">${zahlOffen ? `<span class="ass-spinner" title="${esc(T("fotos.zahlen_laden", "Zahlen werden geholt …"))}"></span>` : num(n)}</span>
       </button>`;
 
+    // 08./09.10.2026 — oben Titel und Zahl, dann Sammlungen,
+    // Datum, Ordner, aufklappbare Filter; Ordner verwalten und Einlesen ganz unten
+    const hw = haupt || {};
+    const opt = (wert, text, aktiv) => `<option value="${esc(wert)}"${String(aktiv || "") === String(wert) ? " selected" : ""}>${esc(text)}</option>`;
+    const filterAn = !!(filter.jahr || filter.kamera || filter.gps);
     nav.innerHTML = `
-      <div class="lib-nav-title">${T("fotos.titel", "Medien")}</div>
-      <div class="lib-nav-hint">${T("fotos.nav_hint2", "Ordner mit Fotos und Videos. Die App liest nur — Dateien ändert sie nur, wenn du ein Foto selbst bearbeitest, und sichert es vorher.")}</div>
-      ${zeile("🖼", T("fotos.alle", "Alle"), s.gesamt || 0, "alle", !filter.gps && !filter.art && !filter.ohne_zeit && !filter.mit_fehlenden && !filter.von)}
-      ${zeile("📷", T("fotos.nur_fotos", "Nur Fotos"), s.fotos || 0, "fotos", filter.art === "foto")}
-      ${zeile("🎬", T("fotos.nur_videos", "Nur Videos"), s.videos || 0, "videos", filter.art === "video")}
-      ${zeile("📍", T("fotos.ohne_koordinate", "Ohne Koordinate"), s.ohne_koordinate || 0, "ohne_gps", filter.gps === "ohne")}
-      ${zeile("🕐", T("fotos.ohne_zeit", "Ohne Aufnahmezeit"), s.ohne_zeit || 0, "ohne_zeit", !!filter.ohne_zeit)}
-      ${(s.fehlt || 0) ? zeile("❓", T("fotos.fehlende", "Nicht erreichbar"), s.fehlt, "fehlend", !!filter.mit_fehlenden) : ""}
+      <div class="foto-nav-kopf" title="${esc(T("fotos.nav_hint2", "Ordner mit Fotos und Videos. Die App liest nur — Dateien ändert sie nur, wenn du ein Foto selbst bearbeitest, und sichert es vorher."))}">
+        <div class="foto-nav-titel">${T("fotos.titel", "Medien")}</div>
+        <div class="foto-nav-zahl muted">${zahlOffen ? "…" : esc(T("fotos.nav_zahl", "{n} Fotos und Clips").replace("{n}", num(s.gesamt || 0)))}</div>
+      </div>
+      <div class="lib-nav-title">${T("fotos.sammlungen", "Sammlungen")}</div>
+      ${zeile(I("images"), T("fotos.alle", "Alle"), s.gesamt || 0, "alle", !filter.gps && !filter.art && !filter.ohne_zeit && !filter.mit_fehlenden && !filter.von)}
+      ${zeile(I("camera"), T("fotos.nur_fotos", "Nur Fotos"), s.fotos || 0, "fotos", filter.art === "foto")}
+      ${zeile(I("clapperboard"), T("fotos.nur_videos", "Nur Videos"), s.videos || 0, "videos", filter.art === "video")}
+      ${zeile(I("heart"), T("fotos.favoriten", "Favoriten"), s.fav || 0, "fav", !!filter.fav)}
+      ${zeile(I("pencil"), T("fotos.bearbeitet", "Bearbeitet"), s.bearbeitet || 0, "bearbeitet", !!filter.bearbeitet)}
+      ${zeile(I("map-pin"), T("fotos.ohne_koordinate", "Ohne Koordinate"), s.ohne_koordinate || 0, "ohne_gps", filter.gps === "ohne")}
+      ${zeile(I("clock"), T("fotos.ohne_zeit", "Ohne Aufnahmezeit"), s.ohne_zeit || 0, "ohne_zeit", !!filter.ohne_zeit)}
+      ${(s.fehlt || 0) ? zeile(I("circle-help"), T("fotos.fehlende", "Nicht erreichbar"), s.fehlt, "fehlend", !!filter.mit_fehlenden) : ""}
+      <button class="lib-nav-item" type="button" id="foto-nav-doppelte" title="${esc(T("dop.nav_tip", "Gleiche und fast gleiche Fotos und Clips finden und wegräumen — nie endgültig gelöscht"))}">
+        <span class="lib-nav-ico">${I("copy")}</span><span class="lib-nav-txt">${esc(T("dop.nav", "Doppelte suchen …"))}</span></button>
 
+      <div class="lib-nav-title foto-nav-alben-kopf" style="margin-top:12px">${T("fotos.alben", "Alben")}
+        <button type="button" class="foto-nav-plus" id="foto-album-neu" title="${esc(T("fotos.album_neu", "Neues Album …"))}">＋</button></div>
+      ${alben.length ? alben.map((a, i) => `<button class="lib-nav-item${+filter.album === a.id ? " is-on" : ""}" type="button" data-falbum="${i}">
+          <span class="lib-nav-ico">${I("book-image")}</span><span class="lib-nav-txt">${esc(a.name)}</span><span class="lib-nav-count">${num(a.n)}</span></button>`).join("")
+        : `<div class="lib-nav-hint">${esc(T("fotos.alben_leer", "Noch kein Album — Fotos markieren und „Zu Album …“."))}</div>`}
       ${datumsBaumRahmen()}
       ${ordnerBaumRahmen()}
+      <details class="foto-nav-filter"${filterAn ? " open" : ""}>
+        <summary class="lib-nav-title">${T("fotos.filter_titel", "Filter")}${filterAn ? ` <span class="foto-nav-filter-an">●</span>` : ""}</summary>
+        <label class="foto-nav-feld"><span class="muted">${esc(T("fotos.filter_jahr", "Jahr"))}</span>
+          <select id="foto-jahr" class="lib-select">${opt("", T("fotos.jahr_alle", "Alle Jahre"), filter.jahr)}${(hw._jahre || []).map(j => opt(j.jahr, `${j.jahr} (${num(j.n)})`, filter.jahr)).join("")}</select></label>
+        <label class="foto-nav-feld"><span class="muted">${esc(T("fotos.filter_kamera", "Kamera"))}</span>
+          <select id="foto-kamera" class="lib-select">${opt("", T("fotos.kamera_alle", "Alle Kameras"), filter.kamera)}${(hw._kameras || []).map(k => opt(k.kamera, `${k.kamera} (${num(k.n)})`, filter.kamera)).join("")}</select></label>
+        <label class="foto-nav-feld"><span class="muted">${esc(T("fotos.filter_ort", "Ort"))}</span>
+          <select id="foto-gps" class="lib-select">${opt("", T("fotos.gps_egal", "Mit und ohne Koordinate"), filter.gps)}${opt("mit", T("fotos.gps_mit", "Nur mit Koordinate"), filter.gps)}${opt("ohne", T("fotos.gps_ohne", "Nur ohne Koordinate"), filter.gps)}</select></label>
+      </details>
       <div class="lib-nav-title" style="margin-top:14px">${T("fotos.ordner_titel", "Fotoordner")}</div>
       <div id="foto-ordner-liste"></div>
       <button class="btn btn-primary btn-sm" id="foto-ordner-add" type="button" style="margin-top:6px;white-space:nowrap">
-        📂 ${T("fotos.ordner_add", "Ordner hinzufügen …")}</button>
+        ${I("folder-plus")} ${T("fotos.ordner_add", "Ordner hinzufügen …")}</button>
       <button class="btn btn-ghost btn-sm" id="foto-scan" type="button">
         ${T("fotos.scan", "Einlesen")}</button>
       <div id="foto-scan-stand" class="lib-nav-hint"></div>
@@ -166,19 +195,79 @@
       b.onclick = () => {
         const w = b.dataset.fnav;
         filter = Object.assign({}, filter);
-        delete filter.art; delete filter.gps; delete filter.ohne_zeit; delete filter.mit_fehlenden;
+        delete filter.art; delete filter.gps; delete filter.ohne_zeit; delete filter.mit_fehlenden; delete filter.fav; delete filter.album; delete filter.bearbeitet;
         if (w === "alle") { delete filter.von; delete filter.bis; delete filter.verz; }   // 04.10.2026 — wie „Alle Fotos" in Lightroom
         if (w === "fotos") filter.art = "foto";
         else if (w === "videos") filter.art = "video";
         else if (w === "ohne_gps") filter.gps = "ohne";
         else if (w === "ohne_zeit") filter.ohne_zeit = true;
         else if (w === "fehlend") filter.mit_fehlenden = true;
+        else if (w === "fav") filter.fav = 1;
+        else if (w === "bearbeitet") filter.bearbeitet = 1;
         navZeichnen();
         if (w === "alle") zeichnen();
         neuLaden();
       };
     });
 
+    nav.querySelectorAll("#foto-jahr, #foto-kamera, #foto-gps").forEach(el => {
+      const feld = { "foto-jahr": "jahr", "foto-kamera": "kamera", "foto-gps": "gps" }[el.id];
+      el.onchange = () => {
+        const v = el.value;
+        filter = Object.assign({}, filter);
+        if (v) filter[feld] = (feld === "jahr") ? +v : v; else delete filter[feld];
+        if (feld === "jahr") { delete filter.von; delete filter.bis; }   // 04.10.2026 — nur eine Datumsauswahl gleichzeitig
+        navZeichnen();
+        neuLaden();
+      };
+    });
+    nav.querySelectorAll("[data-falbum]").forEach(b => {
+      const a = alben[+b.dataset.falbum];
+      b.onclick = () => {
+        filter = Object.assign({}, filter);
+        delete filter.art; delete filter.gps; delete filter.ohne_zeit; delete filter.mit_fehlenden; delete filter.fav;
+        filter.album = a.id;
+        navZeichnen(); neuLaden();
+      };
+      b.oncontextmenu = (e) => {   // Umbenennen / Album löschen (die Fotos bleiben)
+        e.preventDefault();
+        document.querySelectorAll(".ts-menue").forEach(x => x.remove());
+        const menue = document.createElement("div");
+        menue.className = "lib-ctxmenu ts-menue";
+        menue.style.left = e.clientX + "px"; menue.style.top = e.clientY + "px";
+        menue.innerHTML = `<button type="button" class="lib-ctx-item" data-x="um">${I("pencil")} ${esc(T("fotos.album_umbenennen", "Umbenennen …"))}</button>
+          <button type="button" class="lib-ctx-item is-danger" data-x="weg">✕ ${esc(T("fotos.album_weg", "Album löschen (Fotos bleiben)"))}</button>`;
+        document.body.appendChild(menue);
+        const zu = (ev) => { if (!menue.contains(ev.target)) { menue.remove(); document.removeEventListener("mousedown", zu, true); } };
+        setTimeout(() => document.addEventListener("mousedown", zu, true), 0);
+        menue.querySelector('[data-x="um"]').onclick = async () => {
+          menue.remove();
+          const name = await nameFragen(T("fotos.album_umbenennen", "Umbenennen …"), a.name); if (!name) return;
+          const w = await api().fotos_album_aendern(a.id, name, false).catch(() => null);   // warte-ok: schreibt eine Zeile
+          if (w && w.ok) { alben = w.alben; navZeichnen(); }
+        };
+        menue.querySelector('[data-x="weg"]').onclick = async () => {
+          menue.remove();
+          const ja = await window.rzConfirm(T("fotos.album_weg", "Album löschen (Fotos bleiben)"),
+            T("fotos.album_weg_frage", "Das Album „{a}“ wird gelöscht. Die Fotos selbst bleiben unberührt.").replace("{a}", a.name), T("common.delete", "Löschen"), true);
+          if (!ja) return;
+          const w = await api().fotos_album_aendern(a.id, "", true).catch(() => null);   // warte-ok: löscht nur Zeilen
+          if (w && w.ok) { alben = w.alben; if (+filter.album === a.id) { filter = Object.assign({}, filter); delete filter.album; neuLaden(); } navZeichnen(); }
+        };
+      };
+    });
+    const albNeu = nav.querySelector("#foto-album-neu");
+    if (albNeu) albNeu.onclick = async () => {
+      const name = await nameFragen(T("fotos.album_neu", "Neues Album …"), ""); if (!name) return;
+      const w = await api().fotos_album_neu(name, [...markiert]).catch(() => null);   // warte-ok: schreibt nur Zeilen
+      if (w && w.ok) { alben = w.alben; navZeichnen(); }
+    };
+    const dop = nav.querySelector("#foto-nav-doppelte");
+    if (dop) dop.onclick = () => window.rzArchivExport && window.rzArchivExport.doppelte(async () => {
+      const r = await api().fotos_ordner().catch(() => null);   // warte-ok: Zahlen links frischen still auf
+      if (r && r.ok && angemeldet) { ordner = r.ordner || []; stand = r.stand || stand; navZeichnen(); }
+      neuLaden(true);
+    });
     datumsBaumFuellen();
     ordnerBaumFuellen();
     inhaltBinden(nav.querySelector("#foto-inhalt-stand"));   // Audit C-6: Knopf sofort bedienbar, nicht erst beim nächsten Tick
@@ -267,7 +356,7 @@
   function datumsFilterText() { return rzBaum.datumText(filter.von, filter.bis); }
   function datumsBaumRahmen() {
     const auf = dbOffen.has("wurzel");
-    return rzBaum.kopfHtml("foto-db-kopf", auf, "📅", T("fotos.nach_datum", "Nach Datum"))
+    return rzBaum.kopfHtml("foto-db-kopf", auf, I("calendar"), T("fotos.nach_datum", "Nach Datum"))
       + `<div id="foto-datumsbaum" class="foto-datumsbaum"${auf ? "" : " hidden"}></div>`;
   }
   async function datumsBaumFuellen() {
@@ -325,7 +414,7 @@
   function obTitel(pfad) { return rzBaum.ordnerText(pfad, ordner.map(o => o.path), obWurzelText); }
   function ordnerBaumRahmen() {
     const auf = obOffen.has("wurzel");
-    return rzBaum.kopfHtml("foto-ob-kopf", auf, "📁", T("fotos.nach_ordner", "Nach Ordner"))
+    return rzBaum.kopfHtml("foto-ob-kopf", auf, I("folder"), T("fotos.nach_ordner", "Nach Ordner"))
       + `<div id="foto-ordnerbaum" class="foto-datumsbaum"${auf ? "" : " hidden"}></div>`;
   }
   async function ordnerBaumFuellen() {
@@ -471,6 +560,7 @@
     // und beim Zurückkommen war die „letzte Ansicht“ weg). Unsichtbar wird gar nicht aufgefrischt.
     if (!angemeldet) return;
     ladeLauf++;
+    if (!leise) { markiert.clear(); _letzterKlick = -1; }   // neuer Filter = neue Auswahl (das stille Auffrischen behält sie)
     await mehrLaden(leise, true);
   }
 
@@ -530,9 +620,11 @@
       const r = await api().fotos_thumbs(teil).catch(() => null);
       if (lauf !== thumbLauf || !angemeldet) break;
       const bilder = (r && r.thumbs) || {};
+      const schnell = new Set((r && r.schnell) || []);   // 09.10.2026: eingebettetes Vorschaubild — schaerfen() holt das scharfe
       let neu = 0;
       geladen.forEach((f) => {
         if (!f.thumb_url && bilder[f.path]) { f.thumb_url = bilder[f.path]; neu++; }
+        if (schnell.has(f.path)) f.thumb = 2;
       });
       fertig += teil.length;
       if (neu) bilderEinsetzen(bilder);
@@ -684,7 +776,7 @@
       return T("fotos.inh_erfasst", "Bildinhalt erfasst: {n} von {g} Fotos ({p} %)").replace("{n}", num(z.n)).replace("{g}", num(z.g))
         .replace("{p}", z.proz) + (z.rest != null ? " · " + restText(z.rest) : "");
     }
-    if (l.error && !l.abbruch) return "⚠ " + T("fotos.inh_fehler", "Inhaltssuche: {f}").replace("{f}", String(l.error).slice(0, 120));
+    if (l.error && !l.abbruch) return "⚠︎ " + T("fotos.inh_fehler", "Inhaltssuche: {f}").replace("{f}", String(l.error).slice(0, 120));
     // 05.10.2026 (Audit C-3): nach „Nicht jetzt" bleibt eine stille Zeile mit Weg zurück
     if (!inhalt.an) return inhaltNichtJetzt() ? T("fotos.inh_aus", "Inhaltssuche aus") : "";
     const ix = inhalt.index || {};
@@ -709,7 +801,7 @@
     const t = inhaltStandText();
     if (!t) return "";
     const tip = T("fotos.inh_tip", "Die Inhaltssuche erkennt, was auf einem Foto zu sehen ist — „Sonnenuntergang“, „Hund am Strand“, „Gletscher“ — in jeder Sprache. Dafür schaut ein Bildmodell (SigLIP 2 von Google) einmal jedes Foto an. Das passiert nur auf diesem Rechner; kein Foto verlässt ihn. Der Index liegt in der Bibliothek und zieht mit ihr um.");
-    return `🔍 ${esc(t)} ${typeof helpTip === "function" ? helpTip(tip) : ""}` + inhaltKnopfHtml()
+    return `${I("search")} ${esc(t)} ${typeof helpTip === "function" ? helpTip(tip) : ""}` + inhaltKnopfHtml()
       + ` <button type="button" class="foto-inh-faq" data-inh="faq">${esc(T("fotos.inh_faq", "Was passiert da?"))}</button>`;   // 06.10.2026 → FAQ im Handbuch
   }
   /** Kopfzeile: was die Suche fand (Zählung je Art + Sortierung) — oder das Angebot, die Inhaltssuche einzuschalten. */
@@ -726,21 +818,21 @@
       const ix = inhalt.index || {};
       const unvoll = (inhalt.bestand || 0) > (ix.n || 0)
         ? ` <span class="muted">(${esc(T("fotos.inh_unvollstaendig", "Bildinhalt erst von {n} von {g} Fotos erfasst").replace("{n}", num(ix.n || 0)).replace("{g}", num(inhalt.bestand || 0)))})</span>` : "";
-      return `<div class="foto-inh-kopf">🔍 ${esc(teile.join(" · "))}${unvoll}
+      return `<div class="foto-inh-kopf">${I("search")} ${esc(teile.join(" · "))}${unvoll}
         <span class="lib-views foto-inh-sort" role="group">
           <button class="lib-view${sortierung === "relevanz" ? " is-on" : ""}" type="button" data-inh-sort="relevanz">${esc(T("fotos.inh_sort_relevanz", "Beste zuerst"))}</button>
           <button class="lib-view${sortierung !== "relevanz" ? " is-on" : ""}" type="button" data-inh-sort="zeit_neu">${esc(T("fotos.inh_sort_datum", "Nach Datum"))}</button>
         </span></div>`;
     }
     const l = inhalt.lauf || {};
-    if (inhalt.an && l.running) return `<div class="foto-inh-kopf muted">🔍 ${esc(inhaltStandText())}</div>`;
+    if (inhalt.an && l.running) return `<div class="foto-inh-kopf muted">${I("search")} ${esc(inhaltStandText())}</div>`;
     if (inhalt.an || inhaltNichtJetzt() || !filter.suche) return "";
     // 04.10.2026 (Marc: „kann ich beim 1. Aktivieren schon auswählen, ob ich das große oder das kleine Modell haben
     // will?") — zwei Knöpfe statt einem; die Wahl bleibt in den Einstellungen änderbar.
     const vs = inhalt.varianten || {};
     const vb = vs.base || {}, vg = vs.gross || {};
     return `<div class="foto-inh-angebot">
-      <div><b>🔍 ${esc(T("fotos.inh_angebot_titel", "Auch nach dem suchen, was auf den Fotos zu sehen ist?"))}</b></div>
+      <div><b>${I("search")} ${esc(T("fotos.inh_angebot_titel", "Auch nach dem suchen, was auf den Fotos zu sehen ist?"))}</b></div>
       <div class="muted">${esc(T("fotos.inh_angebot_text2", "„Sonnenuntergang“, „Hund am Strand“, „Gletscher“ — in jeder Sprache. Lädt einmalig ein Bildmodell, danach läuft alles auf diesem Rechner, ohne Konto. Die Fotos werden im Hintergrund erfasst; du kannst dabei alles andere weiter benutzen."))}</div>
       <div class="foto-inh-wahl">
         <button class="btn btn-primary btn-sm" type="button" data-inh="an" data-inh-var="base">${esc(T("fotos.inh_an_standard", "Standard einschalten (ca. {mb} MB)").replace("{mb}", mb(vb.bytes)))}</button>
@@ -822,41 +914,26 @@
   // ── Zeichnen ────────────────────────────────────────────────────────────
 
   function leisteHtml() {
-    const kameras = haupt._kameras || [];
-    const jahre = haupt._jahre || [];
-    const opt = (wert, text, aktiv) =>
-      `<option value="${esc(wert)}"${String(aktiv || "") === String(wert) ? " selected" : ""}>${esc(text)}</option>`;
+    // 09.10.2026 — Jahr/Kamera/Ort stehen jetzt links unter „Filter“; oben Suche, Chips, Ansichten
     return `
       <div class="lib-bar foto-bar">
         <input type="search" id="foto-suche" class="lib-search" value="${esc(filter.suche || "")}"
                placeholder="${inhalt && inhalt.an ? T("fotos.suche_ph_inhalt", "Suchen — auch nach Bildinhalt: „Sonnenuntergang“, „Hund am Strand“ …")
                                                     : T("fotos.suche_ph", "Suchen — Dateiname, Kamera, Objektiv, Stichwort, Ort …")}">
-        <select id="foto-jahr" class="lib-select">
-          ${opt("", T("fotos.jahr_alle", "Alle Jahre"), filter.jahr)}
-          ${jahre.map(j => opt(j.jahr, `${j.jahr} (${num(j.n)})`, filter.jahr)).join("")}
-        </select>
-        <select id="foto-kamera" class="lib-select">
-          ${opt("", T("fotos.kamera_alle", "Alle Kameras"), filter.kamera)}
-          ${kameras.map(k => opt(k.kamera, `${k.kamera} (${num(k.n)})`, filter.kamera)).join("")}
-        </select>
-        <select id="foto-gps" class="lib-select">
-          ${opt("", T("fotos.gps_egal", "Mit und ohne Koordinate"), filter.gps)}
-          ${opt("mit", T("fotos.gps_mit", "Nur mit Koordinate"), filter.gps)}
-          ${opt("ohne", T("fotos.gps_ohne", "Nur ohne Koordinate"), filter.gps)}
-        </select>
-        ${filter.aehnlich ? `<button class="lib-chip is-on foto-db-chip" id="foto-aehnlich-chip" type="button" title="${esc(T("fotos.inh_aehnlich_weg", "Ähnlich-Suche aufheben"))}">🔍 ${esc(T("fotos.inh_aehnlich_chip", "Ähnlich wie {n}").replace("{n}", String(filter.aehnlich).split(/[\\/]/).pop()))} ✕</button>` : ""}
-        ${filter.verz ? `<button class="lib-chip is-on foto-db-chip" id="foto-ob-chip" type="button" title="${esc(obTitel(filter.verz) + " — " + T("fotos.ob_chip_weg", "Ordnerfilter aufheben"))}">📁 ${esc(obTitel(filter.verz))} ✕</button>` : ""}
-        ${datumsFilterText() ? `<button class="lib-chip is-on foto-db-chip" id="foto-db-chip" type="button" title="${esc(T("fotos.db_chip_weg", "Datumsfilter aufheben"))}">📅 ${esc(datumsFilterText())} ✕</button>` : ""}
+        ${filter.aehnlich ? `<button class="lib-chip is-on foto-db-chip" id="foto-aehnlich-chip" type="button" title="${esc(T("fotos.inh_aehnlich_weg", "Ähnlich-Suche aufheben"))}">${I("search", 13)} ${esc(T("fotos.inh_aehnlich_chip", "Ähnlich wie {n}").replace("{n}", String(filter.aehnlich).split(/[\\/]/).pop()))} ✕</button>` : ""}
+        ${filter.verz ? `<button class="lib-chip is-on foto-db-chip" id="foto-ob-chip" type="button" title="${esc(obTitel(filter.verz) + " — " + T("fotos.ob_chip_weg", "Ordnerfilter aufheben"))}">${I("folder", 13)} ${esc(obTitel(filter.verz))} ✕</button>` : ""}
+        ${datumsFilterText() ? `<button class="lib-chip is-on foto-db-chip" id="foto-db-chip" type="button" title="${esc(T("fotos.db_chip_weg", "Datumsfilter aufheben"))}">${I("calendar", 13)} ${esc(datumsFilterText())} ✕</button>` : ""}
         <button class="lib-chip lib-chip-ghost" id="foto-reset" type="button">${T("library.reset", "Zurücksetzen")}</button>
         <span class="lib-bar-spacer"></span>
         <div class="lib-views" role="group">
           <button class="lib-view${ansicht === "raster" ? " is-on" : ""}" data-fview="raster" type="button"
-                  title="${T("fotos.view_raster", "Raster nach Tagen")}">▦</button>
+                  title="${T("fotos.view_raster", "Raster nach Tagen")}">${I("layout-grid", 16)}</button>
           <button class="lib-view${ansicht === "karte" ? " is-on" : ""}" data-fview="karte" type="button"
-                  title="${T("fotos.view_karte", "Karte")}">🌍</button>
+                  title="${T("fotos.view_karte", "Karte")}">${I("map", 16)}</button>
           <button class="lib-view${ansicht === "touren" ? " is-on" : ""}" data-fview="touren" type="button"
-                  title="${T("fotos.view_touren", "Nach Touren")}">🥾</button>
+                  title="${T("fotos.view_touren", "Nach Touren")}">${I("route", 16)}</button>
         </div>
+        ${exportKnopfHtml("foto-export-oben")}
       </div>`;
   }
 
@@ -868,8 +945,11 @@
     if (stand.ungelesen) teile.push(T("fotos.kopf_offen", "{n} noch ohne Aufnahmedaten").replace("{n}", num(stand.ungelesen)));
     if (stand.ohne_bild) teile.push(T("fotos.kopf_ohne_bild", "{n} noch ohne Vorschaubild").replace("{n}", num(stand.ohne_bild)));
     const ohneGps = gesamtOhneGps != null ? gesamtOhneGps : (stand.ohne_koordinate || 0);
-    if (ohneGps) teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(ohneGps)));
-    return `<div class="lib-head" id="foto-kopf">${fernHtml()}${esc(teile.join(" · "))}${kopfArbeitHtml()}${inhaltKopfHtml()}</div>`;
+    // 08.10.2026 (Beta-Tester: „70 Dateien, davon 21 ohne Koordinaten — wo finde ich die?“) — die Zahl ist ein Filter
+    const ohneKnopf = ohneGps && filter.gps !== "ohne"
+      ? ` · <button type="button" class="foto-kopf-ohne" id="foto-kopf-ohne" title="${esc(T("fotos.kopf_ohne_tip", "Nur die Dateien ohne Koordinate zeigen — markieren und per Rechtsklick „Ort setzen …“"))}">${I("map-pin", 13)} ${esc(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(ohneGps)))}</button>` : "";
+    if (ohneGps && filter.gps === "ohne") teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(ohneGps)));
+    return `<div class="lib-head" id="foto-kopf">${fernHtml()}${esc(teile.join(" · "))}${ohneKnopf}${kopfArbeitHtml()}${inhaltKopfHtml()}</div>`;
   }
 
   /* Unterwegs ist das Laufwerk weg — und das muss man sehen, nicht erraten
@@ -896,11 +976,11 @@
   }
   function lwZustand(o) {
     const lw = o.laufwerk || {};
-    if (lw.alternativ) return { punkt: "⚠️", klasse: "anders", text: T("fotos.lw_anders_kurz", "unter anderem Namen eingehängt") };
-    if (o.da) return { punkt: "🟢", klasse: "da", text: T("fotos.lw_verbunden", "verbunden") };
-    if (lw.verbunden && lw.lesbar == null) return { punkt: "⚠️", klasse: "haengt", text: T("fotos.lw_haengt", "verbunden, antwortet aber nicht") };
-    if (lw.art === "intern") return { punkt: "📴", klasse: "weg", text: T("fotos.lw_ordner_fehlt", "Ordner nicht gefunden") };
-    return { punkt: "📴", klasse: "weg", text: T("fotos.lw_getrennt", "nicht verbunden") };
+    if (lw.alternativ) return { punkt: "", klasse: "anders", text: T("fotos.lw_anders_kurz", "unter anderem Namen eingehängt") };
+    if (o.da) return { punkt: "", klasse: "da", text: T("fotos.lw_verbunden", "verbunden") };
+    if (lw.verbunden && lw.lesbar == null) return { punkt: "", klasse: "haengt", text: T("fotos.lw_haengt", "verbunden, antwortet aber nicht") };
+    if (lw.art === "intern") return { punkt: "", klasse: "weg", text: T("fotos.lw_ordner_fehlt", "Ordner nicht gefunden") };
+    return { punkt: "", klasse: "weg", text: T("fotos.lw_getrennt", "nicht verbunden") };
   }
   /** Anzeigename des Ordners: Laufwerk, darunter der Weg im Laufwerk („Fotos › 2024 › Teneriffa"). */
   function ordnerTitel(o) {
@@ -926,7 +1006,7 @@
               <div class="foto-lw-zeile"><span class="foto-lw-zustand">${esc(z.text)}</span> <span class="muted">· ${esc(lwArt(lw))}</span></div>
               ${anders}
               ${verbindbar ? `<button class="btn btn-sm foto-lw-verbinden" data-fverb="${i}" type="button"
-                    title="${esc(T("fotos.lw_verbinden_tip", "Öffnet {u} wie ⌘K im Finder — ein Passwort fragt das System selbst ab.").replace("{u}", lw.url))}">🔌 ${T("fotos.lw_verbinden", "Verbinden")}</button>` : ""}
+                    title="${esc(T("fotos.lw_verbinden_tip", "Öffnet {u} wie ⌘K im Finder — ein Passwort fragt das System selbst ab.").replace("{u}", lw.url))}">${I("link", 13)} ${T("fotos.lw_verbinden", "Verbinden")}</button>` : ""}
             </div>
             <button class="btn btn-sm" data-fordweg="${i}" type="button"
                     title="${T("fotos.ordner_entfernen", "Ordner nicht mehr beobachten")}">✕</button>
@@ -1008,15 +1088,15 @@
     ].filter(Boolean).join(" ");
     const liste = weg.length > 1
       ? `<div class="foto-fern-liste">${weg.map(o =>
-          `<div title="${esc(o.path)}">📴 ${esc(ordnerTitel(o))} <span class="muted">${num(o.n)}</span></div>`).join("")}</div>`
+          `<div title="${esc(o.path)}">${I("wifi-off", 13)} ${esc(ordnerTitel(o))} <span class="muted">${num(o.n)}</span></div>`).join("")}</div>`
       : "";
     // 04.10.2026 — „Verbinden" auch hier (der erste fehlende Ordner auf einem Netzlaufwerk mit bekannter Adresse)
     const verbIdx = ordner.findIndex(o => !o.da && o.laufwerk && !o.laufwerk.verbunden && !o.laufwerk.alternativ && o.laufwerk.art === "netz" && o.laufwerk.url);
     const verbKnopf = verbIdx >= 0
-      ? `<button class="btn btn-sm btn-primary foto-lw-verbinden" id="foto-fern-verbinden" data-fverb="${verbIdx}" type="button">🔌 ${T("fotos.lw_verbinden", "Verbinden")}</button> ` : "";
+      ? `<button class="btn btn-sm btn-primary foto-lw-verbinden" id="foto-fern-verbinden" data-fverb="${verbIdx}" type="button">${I("link", 13)} ${T("fotos.lw_verbinden", "Verbinden")}</button> ` : "";
     // 18.09.2026 (Marc: „da bräuchte es noch einen Knopf für Nochmal versuchen") — nicht 20 s auf die Wache warten
     return `<div class="foto-fern" id="foto-fern">
-        <div class="foto-fern-titel">📴 ${esc(titel)}
+        <div class="foto-fern-titel">${I("wifi-off")} ${esc(titel)}
           ${verbKnopf}<button class="btn btn-sm foto-fern-nochmal" id="foto-fern-nochmal" type="button">↻ ${T("fotos.fern_nochmal", "Nochmal versuchen")}</button></div>
         <div class="foto-fern-text">${esc(satz)}</div>
         ${liste}
@@ -1111,7 +1191,7 @@
     // stand danach einfach wieder der Knopf da (Marc, 12.09.2026: „es läuft
     // kurz los und dann kommt der Knopf").
     if (scanStand && scanStand.error && !scanStand.running) {
-      return ` <span class="foto-kopf-fehler">⚠ ${esc(T("fotos.kopf_fehler", "Einlesen abgebrochen: {f}")
+      return ` <span class="foto-kopf-fehler">${I("triangle-alert", 13)} ${esc(T("fotos.kopf_fehler", "Einlesen abgebrochen: {f}")
         .replace("{f}", String(scanStand.error).slice(0, 120)))}</span>
         <button class="btn btn-sm" id="foto-kopf-scan" type="button">${T("fotos.kopf_nochmal", "Noch einmal versuchen")}</button>`;
     }
@@ -1296,6 +1376,12 @@
       <div class="muted" style="margin-top:4px">${satz}</div>`;
   }
 
+  /** „📍 N ohne Koordinate“ im Kopf → Filter (08.10.2026). Auch nach dem Auffrischen des Kopfs neu binden. */
+  function kopfOhneBinden(root) {
+    const b = root && root.querySelector("#foto-kopf-ohne");
+    if (b) b.onclick = () => { filter = Object.assign({}, filter, { gps: "ohne" }); navZeichnen(); neuLaden(); };
+  }
+
   /** Nur die Kopfzeile auffrischen — das Raster bleibt, wo es ist. */
   function kopfAuffrischen() {
     if (!haupt) return;
@@ -1324,6 +1410,7 @@
     const stop = neu.querySelector("#foto-kopf-stop");
     if (stop) stop.onclick = () => { abgebrochen = true; api().fotos_scan_stop(); };
     fernKnopfBinden(neu);
+    kopfOhneBinden(neu);
     inhaltBinden(neu);
   }
 
@@ -1333,16 +1420,35 @@
      Auch das „!" für fehlende Daten ist weg (Marc: „ja weg mit !") — Fehlendes zeigen die Filter links
      („Ohne Koordinate", „Ohne Aufnahmezeit") und rechts die Befunde. Name und Aufnahmedaten stehen in der Detailspalte. Für Screenreader trägt die Kachel
      Dateinamen und Befund als aria-label. */
+  /* 08.10.2026 — das Bild bleibt sauber, darunter EINE Zeile
+     Datum · Uhrzeit · Ort (kein Dateiname). Das Kästchen zum Markieren erscheint beim Drüberfahren und, sobald etwas
+     markiert ist, auf allen Kacheln. */
+  function kachelZeile(f) {
+    const teile = [];
+    if (f.tag_lokal) {
+      try {
+        const loc = (typeof i18nMeta === "function" && i18nMeta().active) || "de";
+        teile.push(new Date(f.tag_lokal + "T12:00:00Z").toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }));
+      } catch (_) { teile.push(f.tag_lokal); }
+    }
+    const u = uhrzeit(f); if (u) teile.push(u);
+    const ort = String(f.ort || "").split(",")[0].trim() || String(f.region || "").trim();
+    return `<span class="foto-kachel-zeile"><span class="fkz-zeit">${esc(teile.join(" · "))}</span>${ort ? `<span class="fkz-ort">${esc(ort)}</span>` : ""}</span>`;
+  }
   function kachelHtml(f, i) {
     const m = maengel(f);
     const bild = f.thumb_url
       ? `<img loading="lazy" src="${f.thumb_url}" alt="">`
-      : `<div class="foto-kachel-leer">${f.art === "video" ? "🎬" : "🖼"}</div>`;
+      : `<div class="foto-kachel-leer">${I(f.art === "video" ? "clapperboard" : "image", 28)}</div>`;
     return `
-      <button class="foto-kachel${auswahl === f.path ? " is-on" : ""}" type="button" data-foto="${i}"
+      <button class="foto-kachel${auswahl === f.path ? " is-on" : ""}${markiert.has(f.path) ? " is-markiert" : ""}${f.bearbeitet ? " ist-bearbeitet" : ""}" type="button" data-foto="${i}"
               aria-label="${esc(f.dateiname)}${m.length ? " — " + esc(m.join(", ")) : ""}">
-        ${bild}
-        ${f.art === "video" ? `<span class="foto-kachel-art">▶ ${esc(dauerText(f.dauer_s))}</span>` : ""}
+        <span class="foto-kachel-bild">${bild}
+          <span class="foto-kachel-check" title="${esc(T("fotos.markieren_tip", "Markieren (oder ⌘-Klick)"))}" aria-hidden="true"></span>
+          <span class="foto-kachel-herz${f.fav ? " ist-fav" : ""}" title="${esc(T("fotos.fav_tip", "Favorit (P)"))}" aria-hidden="true">${herz(f.fav, 16)}</span>
+          ${f.art === "video" ? `<span class="foto-kachel-art">▶ ${esc(dauerText(f.dauer_s))}</span>` : ""}
+          <span class="foto-kachel-bearb" title="${esc(T("bearb.kachel_tip", "Bearbeitet — das Original bleibt unverändert"))}" aria-hidden="true">${I("pencil", 13)}</span></span>
+        ${kachelZeile(f)}
       </button>`;
   }
 
@@ -1379,7 +1485,7 @@
     return gruppen.map(g => `
       <div class="foto-tag" data-tag="${esc(g.tag)}">
         <div class="foto-tag-kopf">${esc(kopfText(g.tag))}
-          <span class="muted">${num(g.fotos.length)}</span></div>
+          <span class="muted">${num(g.fotos.length)}</span>${g.tag && g.tag[0] !== "#" ? `<span class="foto-tag-touren" data-tag-touren="${esc(g.tag)}"></span>` : ""}</div>
         <div class="foto-raster">${g.fotos.map(([f, i]) => kachelHtml(f, i)).join("")}</div>
       </div>`).join("");
   }
@@ -1400,12 +1506,284 @@
     </div>`;
   }
 
+  /* 08.10.2026 — mehrere markieren (⌘/Strg-Klick einzeln, Umschalt-Klick einen Bereich) und per Rechtsklick
+     exportieren. Ein normaler Klick hebt die Markierung auf und zeigt das Foto rechts, wie bisher. */
+  let markiert = new Set(), _letzterKlick = -1;
+  function markierungZeigen() {
+    if (!haupt) return;
+    haupt.querySelectorAll(".foto-kachel").forEach(k => { const f = geladen[+k.dataset.foto]; k.classList.toggle("is-markiert", !!f && markiert.has(f.path)); });
+    haupt.classList.toggle("hat-markierung", markiert.size > 0);
+    markLeisteZeigen();
+  }
+  /* 09.10.2026 — Favoriten: nur in der Bibliothek. Sind alle schon Favorit, wird es weggenommen. */
+  async function favUmschalten(pfade, jetztFav) {
+    pfade = (pfade || []).filter(Boolean); if (!pfade.length) return;
+    const an = jetztFav !== undefined ? !jetztFav : !pfade.every(p => (geladen.find(x => x.path === p) || {}).fav);
+    const r = await api().fotos_favorit(pfade, an).catch(() => null);   // warte-ok: schreibt nur Zeilen in die Bibliothek
+    if (!r || !r.ok) { toast((r && r.error) || "?", "warn"); return; }
+    geladen.forEach(x => { if (pfade.includes(x.path)) x.fav = an ? 1 : 0; });
+    if (haupt) haupt.querySelectorAll(".foto-kachel").forEach(k => {
+      const x = geladen[+k.dataset.foto]; if (!x || !pfade.includes(x.path)) return;
+      const h = k.querySelector(".foto-kachel-herz"); if (h) { h.innerHTML = herz(an, 16); h.classList.toggle("ist-fav", an); }
+    });
+    if (stand) stand.fav = r.stand_fav;
+    navZeichnen();
+    if (filter.fav && !an) neuLaden(true);
+    if (auswahl && pfade.includes(auswahl)) { const h = document.getElementById("fd-fav"); if (h) { h.innerHTML = herz(an, 18); h.classList.toggle("ist-fav", an); } }
+  }
+
+  /* 09.10.2026 — Alben: selbst zusammengestellt, nur in der Bibliothek. */
+  let alben = [];
+  async function albenLaden() {
+    const r = await api().fotos_alben().catch(() => null);   // warte-ok: Liste links füllt sich nach
+    const neu = (r && r.ok && r.alben) || [];
+    // nur neu zeichnen, wenn sich etwas geändert hat — ein zweites Zeichnen gleich nach dem Öffnen nahm den Bäumen
+    // ihre Ladeanzeige (die Anfrage lief schon, der neue Baum blieb leer)
+    if (JSON.stringify(neu) === JSON.stringify(alben)) return;
+    alben = neu;
+    navZeichnen();
+  }
+  function nameFragen(titel, vorgabe) {
+    return new Promise((fertig) => {
+      if (typeof openModal !== "function") { fertig(null); return; }
+      const m = openModal({
+        title: titel,
+        body: `<input type="text" id="fn-name" class="lib-input" value="${esc(vorgabe || "")}" maxlength="120" style="width:100%">`,
+        footer: `<button type="button" class="btn" id="fn-ab">${esc(T("common.cancel", "Abbrechen"))}</button>
+                 <button type="button" class="btn btn-primary" id="fn-ok">${esc(T("common.ok", "OK"))}</button>`,
+        onClose: () => fertig(null),
+      });
+      const ein = document.getElementById("fn-name");
+      const ok = () => { const v = ein.value.trim(); if (!v) return; fertig(v); m.close(); };
+      document.getElementById("fn-ab").onclick = () => m.close();
+      document.getElementById("fn-ok").onclick = ok;
+      ein.onkeydown = (e) => { if (e.key === "Enter") ok(); };
+      setTimeout(() => { ein.focus(); ein.select(); }, 30);
+    });
+  }
+  async function zuAlbumMenue(knopf, pfade) {
+    document.querySelectorAll(".ts-menue").forEach(x => x.remove());
+    const menue = document.createElement("div");
+    menue.className = "lib-ctxmenu ts-menue"; menue.setAttribute("role", "menu");
+    const r0 = knopf.getBoundingClientRect();
+    menue.style.left = r0.left + "px"; menue.style.top = (r0.bottom + 4) + "px";
+    menue.innerHTML = alben.map((a, i) => `<button type="button" class="lib-ctx-item" data-a="${i}">${I("book-image")} ${esc(a.name)} <span class="muted">${num(a.n)}</span></button>`).join("")
+      + `<button type="button" class="lib-ctx-item" data-neu="1">${I("plus")} ${esc(T("fotos.album_neu", "Neues Album …"))}</button>`;
+    document.body.appendChild(menue);
+    const zu = (e) => { if (!menue.contains(e.target)) { menue.remove(); document.removeEventListener("mousedown", zu, true); } };
+    setTimeout(() => document.addEventListener("mousedown", zu, true), 0);
+    menue.querySelectorAll("[data-a]").forEach(b => {
+      b.onclick = async () => {
+        const a = alben[+b.dataset.a]; menue.remove();
+        const w = await api().fotos_album_inhalt(a.id, pfade, true).catch(() => null);   // warte-ok: schreibt nur Zeilen
+        if (w && w.ok) { alben = w.alben || alben; navZeichnen(); toast(T("fotos.album_ok", "{n} ins Album „{a}“ gelegt.").replace("{n}", num(pfade.length)).replace("{a}", a.name), "success", 3500); }
+      };
+    });
+    const neuK = menue.querySelector("[data-neu]");
+    if (neuK) neuK.onclick = async () => {
+      menue.remove();
+      const name = await nameFragen(T("fotos.album_neu", "Neues Album …"), "");
+      if (!name) return;
+      const w = await api().fotos_album_neu(name, pfade).catch(() => null);   // warte-ok: schreibt nur Zeilen
+      if (w && w.ok) { alben = w.alben || alben; navZeichnen(); toast(T("fotos.album_ok", "{n} ins Album „{a}“ gelegt.").replace("{n}", num(pfade.length)).replace("{a}", name), "success", 3500); }
+    };
+  }
+
+  /* 08.10.2026 — „N ausgewählt“ mit den Aktionen des Rechtsklicks; kein Löschen. */
+  function markLeisteZeigen() {
+    if (!haupt) return;
+    let l = haupt.querySelector("#foto-markleiste");
+    const sichtbar = new Set(geladen.map(x => x.path));
+    const pfade = [...markiert].filter(p => sichtbar.has(p));
+    if (!pfade.length) { if (l) l.remove(); return; }
+    if (!l) {
+      l = document.createElement("div");
+      l.id = "foto-markleiste"; l.className = "foto-markleiste";
+      const kopf = haupt.querySelector("#foto-kopf");
+      if (kopf && kopf.nextSibling) kopf.parentNode.insertBefore(l, kopf.nextSibling); else haupt.prepend(l);
+    }
+    const n = pfade.length;
+    l.innerHTML = `<span class="fml-zahl">${esc(T("fotos.markiert_n", "{n} ausgewählt").replace("{n}", num(n)))}</span>
+      <button type="button" class="btn btn-sm" data-ml="export">${I("share", 14)} ${esc(T("export.medien_eins", "Exportieren …"))}</button>
+      <button type="button" class="btn btn-sm" data-ml="ort">${I("map-pin", 14)} ${esc(T("ort.ctx_1", "Ort setzen …"))}</button>
+      <button type="button" class="btn btn-sm" data-ml="fav" title="${esc(T("fotos.fav_tip", "Favorit (P)"))}">${I("heart", 14)} ${esc(T("fotos.fav", "Favorit"))}</button>
+      <button type="button" class="btn btn-sm" data-ml="album">${I("book-image", 14)} ${esc(T("fotos.zu_album", "Zu Album …"))}</button>
+      <button type="button" class="btn btn-sm" data-ml="auto" title="${esc(T("bearb.auto_alle_tip", "Ton und Weißabgleich je Foto automatisch — danach einzeln nacharbeiten"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
+      ${bearbAblage ? `<button type="button" class="btn btn-sm" data-ml="einfuegen">${esc(T("bearb.einfuegen", "Einfügen"))}</button>` : ""}
+      <button type="button" class="btn btn-sm" data-ml="tour">${I("route", 14)} ${esc(T("fotos.zu_tour", "Zu Tour …"))}</button>
+      ${n > 1 ? `<button type="button" class="btn btn-sm" data-ml="neu">${I("compass", 14)} ${esc(T("tour_aus_fotos.kurz", "Tour daraus …"))}</button>` : ""}
+      <button type="button" class="btn btn-sm" data-ml="mit">${I("external-link", 14)} ${esc(T("oeffnen.ctx_1", "Öffnen mit …"))}</button>
+      <span class="fml-luft"></span>
+      <button type="button" class="btn btn-sm btn-ghost" data-ml="alle" title="${esc(T("fotos.alle_markieren_tip", "Alle geladenen markieren (⌘A)"))}">${esc(T("fotos.alle_markieren", "Alle"))}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-ml="weg" title="${esc(T("fotos.markierung_weg", "Markierung aufheben (Esc)"))}">✕</button>`;
+    const A = window.rzArchivExport;
+    l.querySelectorAll("[data-ml]").forEach(b => {
+      b.onclick = (e) => {
+        const w = b.dataset.ml, p = [...markiert].filter(x => sichtbar.has(x));
+        if (w === "weg") { markiert.clear(); _letzterKlick = -1; markierungZeigen(); }
+        else if (w === "alle") { geladen.forEach(x => markiert.add(x.path)); markierungZeigen(); }
+        else if (w === "export" && A) A.medien(p);
+        else if (w === "ort" && A) A.ortSetzen(p, () => { markiert.clear(); neuLaden(true); });
+        else if (w === "neu" && A) A.tourAusFotos(p);
+        else if (w === "mit" && A) A.oeffnenMit(p);
+        else if (w === "tour") zuTourMenue(b, p);
+        else if (w === "fav") favUmschalten(p);
+        else if (w === "auto") bearbFuerMarkierte({ auto: true }, p);
+        else if (w === "einfuegen" && bearbAblage) bearbFuerMarkierte(bearbAblage, p);
+        else if (w === "album") zuAlbumMenue(b, p);
+      };
+    });
+  }
+  /** „Zu Tour …“ für mehrere: die Touren der Tage der markierten Medien zur Auswahl. */
+  async function zuTourMenue(knopf, pfade) {
+    document.querySelectorAll(".ts-menue").forEach(x => x.remove());
+    const tage = [...new Set(geladen.filter(x => pfade.includes(x.path)).map(x => x.tag_lokal).filter(Boolean))].slice(0, 60);
+    const menue = document.createElement("div");
+    menue.className = "lib-ctxmenu ts-menue"; menue.setAttribute("role", "menu");
+    const r0 = knopf.getBoundingClientRect();
+    menue.style.left = r0.left + "px"; menue.style.top = (r0.bottom + 4) + "px";
+    menue.innerHTML = `<div class="lib-ctx-item is-aus"><span class="ass-spinner"></span> ${esc(T("fotos.zu_tour_laedt", "Touren dieser Tage …"))}</div>`;
+    document.body.appendChild(menue);
+    const zu = (e) => { if (!menue.contains(e.target)) { menue.remove(); document.removeEventListener("mousedown", zu, true); } };
+    setTimeout(() => document.addEventListener("mousedown", zu, true), 0);
+    const r = await api().touren_an_tagen(tage).catch(() => null);   // warte-ok: Menü zeigt „Touren dieser Tage …“
+    if (!menue.isConnected) return;
+    const touren = []; const seen = new Set();
+    Object.values((r && r.tage) || {}).forEach(l => (l || []).forEach(t => { if (!seen.has(t.geo_hash)) { seen.add(t.geo_hash); touren.push(t); } }));
+    menue.innerHTML = touren.length ? touren.map((t, i) => `<button type="button" class="lib-ctx-item" data-t="${i}">${I("route", 14)} ${esc(t.name || "")}</button>`).join("")
+      : `<div class="lib-ctx-item is-aus">${esc(T("fotos.zu_tour_keine", "An diesen Tagen gibt es keine Tour."))}</div>`;
+    menue.querySelectorAll("[data-t]").forEach(b => {
+      b.onclick = async () => {
+        const t = touren[+b.dataset.t]; menue.remove();
+        const w = await rzWarten("tour_medien_korrigieren", () => api().tour_medien_korrigieren(t.geo_hash, pfade, true)).catch(() => null);
+        if (w && w.ok) toast(T("fotos.zu_tour_ok", "{n} zur Tour „{t}“ genommen.").replace("{n}", num(pfade.length)).replace("{t}", t.name || ""), "success", 4000);
+        else toast((w && w.error) || "?", "warn");
+      };
+    });
+  }
+  function kachelKlick(e, i) {
+    const f = geladen[i]; if (!f) return;
+    if (e.target && e.target.closest && e.target.closest(".foto-kachel-herz")) { favUmschalten(markiert.has(f.path) ? [...markiert] : [f.path]); return; }
+    if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest(".foto-kachel-check"))) {
+      if (!markiert.size && auswahl && geladen.some(x => x.path === auswahl)) markiert.add(auswahl);
+      if (markiert.has(f.path)) markiert.delete(f.path); else markiert.add(f.path);
+      _letzterKlick = i; markierungZeigen(); return;
+    }
+    if (e.shiftKey && _letzterKlick >= 0) {
+      const [a, b] = [Math.min(_letzterKlick, i), Math.max(_letzterKlick, i)];
+      for (let j = a; j <= b; j++) if (geladen[j]) markiert.add(geladen[j].path);
+      markierungZeigen(); return;
+    }
+    if (markiert.size) { markiert.clear(); markierungZeigen(); }
+    _letzterKlick = i;
+    detailZeigen(f);
+  }
+  function kachelMenue(e, i) {
+    e.preventDefault();
+    const f = geladen[i]; if (!f) return;
+    // 08.10.2026 (Durchsicht) — nur Markierte, die gerade zu sehen sind: nach einem Filterwechsel hätte „Ort für 7 setzen“
+    // sonst auch in 5 Originale geschrieben, die nicht mehr auf dem Schirm stehen
+    const sichtbar = new Set(geladen.map(x => x.path));
+    const pfade = markiert.size && markiert.has(f.path) ? [...markiert].filter(p => sichtbar.has(p)) : [f.path];
+    document.querySelectorAll(".ts-menue").forEach(x => x.remove());
+    const menue = document.createElement("div");
+    menue.className = "lib-ctxmenu ts-menue"; menue.setAttribute("role", "menu");
+    const eintraege = [
+      ["🔍 " + T("fotos.gross", "Groß ansehen"), () => grossOeffnen(f)],
+      ["⬇ " + (pfade.length > 1 ? T("export.medien_n", "{n} exportieren …").replace("{n}", num(pfade.length)) : T("export.medien_eins", "Exportieren …")),
+        () => { if (window.rzArchivExport) window.rzArchivExport.medien(pfade); }],
+      ["📍 " + (pfade.length > 1 ? T("ort.ctx_n", "Ort für {n} setzen …").replace("{n}", num(pfade.length)) : T("ort.ctx_1", "Ort setzen …")),
+        () => { if (window.rzArchivExport) window.rzArchivExport.ortSetzen(pfade, () => { markiert.clear(); neuLaden(true); }); }],
+      ...(pfade.length > 1 ? [["🧭 " + T("tour_aus_fotos.ctx", "Tour aus diesen {n} Fotos machen …").replace("{n}", num(pfade.length)),
+        () => { if (window.rzArchivExport) window.rzArchivExport.tourAusFotos(pfade); }]] : []),
+      ["⬇ " + T("export.medien_alle", "Alle {n} gefilterten exportieren …").replace("{n}", num(gesamt)),
+        () => { if (window.rzArchivExport) window.rzArchivExport.medien([], Object.assign({}, filter), gesamt); }],
+      ["↗ " + (pfade.length > 1 ? T("oeffnen.ctx_n", "{n} öffnen mit …").replace("{n}", num(pfade.length)) : T("oeffnen.ctx_1", "Öffnen mit …")),
+        () => { if (window.rzArchivExport) window.rzArchivExport.oeffnenMit(pfade); }],
+      ["📁 " + T("fotos.im_finder", "Im Finder zeigen"), () => api().reveal_in_finder(f.path)],
+    ];
+    menueZeigen(menue, eintraege, e.clientX, e.clientY);
+  }
+  /** Kontextmenü `menue` mit [Text, Aktion]-Einträgen bei (x, y) zeigen; Klick daneben oder Esc schließt. */
+  function menueZeigen(menue, eintraege, x, y) {
+    eintraege.forEach(([text, tun]) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "lib-ctx-item";
+      // 09.10.2026 — das Zeichen vorn im Menütext wird zum Strich-Symbol (ui/js/icons.js)
+      if (typeof rzTextMitSymbol === "function") b.innerHTML = rzTextMitSymbol(text); else b.textContent = text;
+      b.onclick = () => { zu(); tun(); }; menue.appendChild(b);
+    });
+    document.body.appendChild(menue);
+    menue.style.left = Math.max(4, Math.min(x, window.innerWidth - menue.offsetWidth - 6)) + "px";
+    menue.style.top = Math.max(4, Math.min(y, window.innerHeight - menue.offsetHeight - 6)) + "px";
+    const aussen = (ev) => { if (!menue.contains(ev.target)) zu(); };
+    const taste = (ev) => { if (ev.key === "Escape") { ev.stopPropagation(); zu(); } };
+    function zu() { document.removeEventListener("mousedown", aussen, true); document.removeEventListener("keydown", taste, true); menue.remove(); }
+    setTimeout(() => { document.addEventListener("mousedown", aussen, true); document.addEventListener("keydown", taste, true); }, 0);
+  }
+
+  /* 09.10.2026 (Marc: „der Export-Knopf muss nach oben“) — Exportieren als Hauptaktion oben rechts (Koralle), in der
+     Medien-Leiste und in der Lupe. Das Menü bietet, was gerade da ist: die Markierten, das gezeigte Medium, alle gefilterten. */
+  function exportKnopfHtml(id) {
+    return `<button type="button" class="btn btn-sm btn-cta foto-export-knopf" id="${id}" title="${esc(T("export.knopf_tip", "Markierte, dieses oder alle gefilterten Medien exportieren"))}">${I("share", 14)} ${esc(T("export.knopf", "Exportieren"))}</button>`;
+  }
+  function exportMenue(anker, f) {
+    const ex = window.rzArchivExport; if (!ex || !anker) return;
+    document.querySelectorAll(".ts-menue").forEach(x => x.remove());
+    const sichtbar = new Set(geladen.map(x => x.path));
+    const mark = [...markiert].filter(p => sichtbar.has(p));
+    const eintraege = [];
+    if (mark.length) eintraege.push(["⬇ " + (mark.length > 1 ? T("export.medien_n", "{n} exportieren …").replace("{n}", num(mark.length)) : T("export.medien_markiert_1", "Das markierte exportieren …")), () => ex.medien(mark)]);
+    if (f && f.path && !(mark.length && mark.includes(f.path) && mark.length === 1)) {
+      eintraege.push(["⬇ " + T("export.medien_datei", "„{name}“ exportieren …").replace("{name}", f.dateiname || String(f.path).split(/[\\/]/).pop()), () => ex.medien([f.path])]);
+    }
+    if (gesamt) eintraege.push(["⬇ " + T("export.medien_alle", "Alle {n} gefilterten exportieren …").replace("{n}", num(gesamt)), () => ex.medien([], Object.assign({}, filter), gesamt)]);
+    if (!eintraege.length) { toast(T("export.nichts", "Nichts zum Exportieren — erst Medien einlesen oder den Filter lockern."), "info", 4000); return; }
+    const menue = document.createElement("div");
+    menue.className = "lib-ctxmenu ts-menue foto-export-menue"; menue.setAttribute("role", "menu");
+    const r = anker.getBoundingClientRect();
+    menueZeigen(menue, eintraege, r.right, r.bottom + 4);
+    // rechtsbündig unter dem Knopf
+    menue.style.left = Math.max(4, r.right - menue.offsetWidth) + "px";
+  }
+
+  /* 08.10.2026 (Stufe 2: „ein Tag = Tour + Fotos + Clips“) — im Kopf jedes Tages die Touren dieses Tages
+     (Klick → Tour-Seite); ohne Tour, aber mit Fotos mit Ort: „🧭 Tour aus diesen Fotos“. Je Tag einmal gefragt. */
+  const _tagTouren = new Map();
+  async function tagTourenFuellen(box) {
+    if (!box) return;
+    const plaetze = [...box.querySelectorAll("[data-tag-touren]")].filter(e => !e.dataset.gefuellt);
+    const offen = [...new Set(plaetze.map(e => e.dataset.tagTouren).filter(t => !_tagTouren.has(t)))];
+    if (offen.length) {
+      const r = await api().touren_an_tagen(offen).catch(() => null);   // warte-ok: Köpfe füllen sich nach
+      for (const t of offen) _tagTouren.set(t, (r && r.ok && r.tage && r.tage[t]) || []);
+    }
+    for (const el of plaetze) {
+      if (!el.isConnected) continue;
+      const tag = el.dataset.tagTouren, touren = _tagTouren.get(tag) || [];
+      el.dataset.gefuellt = "1";
+      if (touren.length) {
+        el.innerHTML = touren.map((x, i) => `<button type="button" class="foto-such-tour" data-i="${i}" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${I("route", 13)} ${esc(x.name || "")}</button>`).join("");
+        el.querySelectorAll("[data-i]").forEach(b => { b.onclick = (e) => { e.stopPropagation(); const x = touren[+b.dataset.i]; if (window.rzTourSeite) window.rzTourSeite.oeffnen({ geo_hash: x.geo_hash, path: x.path, name: x.name }); }; });
+      } else {
+        const mitOrt = geladen.filter(f => f.tag_lokal === tag && f.lat != null && f.lon != null).map(f => f.path);
+        if (mitOrt.length >= 2 && window.rzArchivExport) {
+          el.innerHTML = `<button type="button" class="foto-such-tour foto-tag-neu" title="${esc(T("tour_aus_fotos.tag_tip", "Aus den Fotos dieses Tages eine Tour machen — mit Karte, Tour-Seite und Video"))}">${I("compass", 13)} ${esc(T("tour_aus_fotos.tag", "Tour aus diesen Fotos"))}</button>`;
+          el.querySelector("button").onclick = (e) => { e.stopPropagation(); window.rzArchivExport.tourAusFotos(mitOrt); };
+        }
+      }
+    }
+  }
+
   function rasterVerdrahten(box, ab) {
+    tagTourenFuellen(box).catch(() => {});
     box.querySelectorAll("[data-foto]").forEach(b => {
       if (+b.dataset.foto < ab) return;
-      b.onclick = () => detailZeigen(geladen[+b.dataset.foto]);
-      b.ondblclick = () => grossOeffnen(geladen[+b.dataset.foto]);   // 04.10.2026 — Großansicht
+      b.onclick = (e) => kachelKlick(e, +b.dataset.foto);
+      // 04.10.2026 — Großansicht. 08.10.2026 (Klicktest): nicht beim schnellen ⌘/Shift-Dazumarkieren
+      b.ondblclick = (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || (e.target.closest && e.target.closest(".foto-kachel-check, .foto-kachel-herz"))) return; grossOeffnen(geladen[+b.dataset.foto]); };
+      b.oncontextmenu = (e) => kachelMenue(e, +b.dataset.foto);
     });
+    if (markiert.size) markierungZeigen();
     const mehr = box.querySelector("#foto-mehr");
     if (mehr) mehr.onclick = () => { mehr.disabled = true; mehrLaden(); };
     fussBeobachten(box);
@@ -1481,7 +1859,7 @@
       const meta = [datum(g.von), ortVon(g), g.activity ? T("library.act." + g.activity, g.activity) : "", g.km ? `${num(g.km)} km` : ""].filter(Boolean).join(" · ");
       return `<div class="foto-tour" data-ftour="${i}" role="button" tabindex="0" title="${esc(g.name || "")}">
           <div class="foto-tour-kopf"><div class="foto-tour-name">${esc(anzeigeName(g))}</div>
-            <button type="button" class="btn btn-ghost btn-sm foto-tour-anim" data-fanim="${i}" title="${T("fotos.tour_animator_tip", "Diese Tour im Animator öffnen")}">🎬 ${T("fotos.tour_animator", "Im Animator öffnen")}</button></div>
+            <button type="button" class="btn btn-ghost btn-sm foto-tour-anim" data-fanim="${i}" title="${T("fotos.tour_animator_tip", "Diese Tour im Animator öffnen")}">${I("clapperboard", 14)} ${T("fotos.tour_animator", "Im Animator öffnen")}</button></div>
           <div class="foto-tour-meta">${esc(meta)}</div>
           <div class="foto-tour-zahl">${num(g.n)} ${T("fotos.stueck", "Dateien")}${
             g.ohne_koordinate ? ` · ${num(g.ohne_koordinate)} ${T("fotos.ohne_koordinate_kurz", "ohne Koordinate")}` : ""}</div>
@@ -1544,6 +1922,7 @@
       <div class="foto-kartewrap">
         <div class="foto-karte" id="foto-karte"></div>
         <div class="lib-map-hint" id="foto-karte-hint"></div>
+        ${typeof rzArchivStilWahlHtml === "function" ? `<div class="foto-karte-stil">${rzArchivStilWahlHtml("foto-karte-stil")}</div>` : ""}
         <label class="foto-karte-spuren">
           <input type="checkbox" id="foto-spuren"${spurenAn ? " checked" : ""}>
           <span>${T("fotos.karte_spuren", "Touren als Linien zeigen")}</span>
@@ -1551,6 +1930,7 @@
       </div>`;
     const sp = box.querySelector("#foto-spuren");
     if (sp) sp.onchange = () => { spurenAn = sp.checked; spurenLaden(); };
+    if (typeof rzArchivStilWahlBinden === "function") rzArchivStilWahlBinden(box, "foto-karte-stil");
     karteAufbauen();
   }
 
@@ -1578,12 +1958,13 @@
     if (typeof createMap !== "function") return;
     const created = createMap({
       container: "foto-karte",
-      styleKey: (typeof mapDefaultStyle === "function") ? mapDefaultStyle() : undefined,
+      styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : undefined,
       common: { center: [10, 51], zoom: 3, attributionControl: true },
     });
     karte = created.map; karteLib = created.lib;
     window.__fotoMap = karte;
     try { karte.addControl(new karteLib.NavigationControl({ showCompass: false }), "top-right"); } catch (_) {}
+    if (typeof rzMassstab === "function") rzMassstab(karte);
     karte.on("load", () => {
       karteBereit = true;
       // Die Spuren liegen UNTER der Wolke: sie sind Zusammenhang, nicht Inhalt.
@@ -1617,6 +1998,13 @@
   }
 
   /** Die große Karte ganz abbauen (25.09.2026 — Rückfallweg, wenn das Umhängen scheitert). */
+  // 09.10.2026 — anderer Kartenstil: Karten neu aufbauen (eigene Ebenen gingen bei setStyle verloren)
+  window.addEventListener("rz-archiv-stil", () => {
+    if (!angemeldet) return;
+    if (karte && ansicht === "karte") { karteWeg(); const box = haupt && haupt.querySelector("#foto-body"); if (box) karteZeichnen(box); }
+    else karteWeg();
+    if (auswahl && !gross) { const f = geladen.find(x => x.path === auswahl); if (f) detailZeigen(f); }
+  });
   function karteWeg() {
     if (karte) { try { karte.remove(); } catch (_) {} }
     karte = null; karteLib = null; karteBereit = false;
@@ -1671,6 +2059,7 @@
   }
 
   /** Klick in die Wolke: welche Dateien liegen hier, und aus welcher Tour? */
+  window.__rzFotoStelle = (lon, lat, n) => wolkeGeklickt([lon, lat], n);   // Prüfstand
   async function wolkeGeklickt(coords, n) {
     const [lon, lat] = coords;
     const box = document.getElementById("lib-detail");
@@ -1705,11 +2094,10 @@
         ? T("fotos.stelle_touren", "Hier war: {t}").replace("{t}", echte.map(g => g.name).join(", "))
         : T("fotos.stelle_keine_tour", "Zu dieser Zeit ist keine Tour aufgezeichnet.");
     }
-    liste.innerHTML = `${tourText ? `<div class="foto-detail-zeile">${esc(tourText)}</div>` : ""}
-      <div class="foto-raster">${nahe.slice(0, 24).map((f, i) => kachelHtml(f, i)).join("")}</div>`;
-    liste.querySelectorAll("[data-foto]").forEach(b => {
-      b.onclick = () => detailZeigen(nahe[+b.dataset.foto]);
-    });
+    // 09.10.2026 — gleich das erste Foto groß, darüber die
+    // Bildleiste dieser Stelle; „Hier war: …“ als Zeile darunter
+    nahe.sort((a, b) => (a.aufnahme_utc || 0) - (b.aufnahme_utc || 0));
+    detailZeigen(nahe[0], { streifen: nahe, kopf: `${num(n)} ${T("fotos.stueck", "Dateien")}${tourText ? " · " + tourText : ""}` });
   }
 
   // ── Detailspalte ────────────────────────────────────────────────────────
@@ -1783,21 +2171,27 @@
     try {
       const created = createMap({
         container: "foto-d-karte",
-        styleKey: (typeof mapDefaultStyle === "function") ? mapDefaultStyle() : undefined,
+        styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : undefined,
         common: { center: hatOrt ? [+d.lon, +d.lat] : (linie ? linie[0] : (ortVorschlag() || [10.4, 51.2])), zoom: hatOrt ? 12 : (linie ? 8 : (ortVorschlag() ? 11 : 4.5)),
                   attributionControl: true, interactive: true },   // 15.09.2026: Quellenleiste auf allen Karten
       });
       dKarte = created.map; lib = created.lib;
       window.__fotoDKarte = dKarte;          // Prüfstand
+      if (typeof rzMassstab === "function") rzMassstab(dKarte);
     } catch (_) { return; }
     const m = dKarte;
     m.on("load", () => {
       if (linie) {
         m.addSource("d-spur", { type: "geojson",
           data: { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: teile } } });
+        // 09.10.2026 — Türkis mit dunkler Kontur wie auf der Tour-Seite (bleibt über Wald, Fels und Schnee lesbar)
+        m.addLayer({ id: "d-spur-rand", type: "line", source: "d-spur",
+                     layout: { "line-cap": "round", "line-join": "round" },
+                     paint: { "line-color": "#0f1a20", "line-width": 6, "line-opacity": 0.55 } });
         m.addLayer({ id: "d-spur-linie", type: "line", source: "d-spur",
                      layout: { "line-cap": "round", "line-join": "round" },
-                     paint: { "line-color": "#2f7fd1", "line-width": 3, "line-opacity": 0.9 } });
+                     paint: { "line-color": "#48d6c4", "line-width": 3 } });
+        if (typeof rzStartZiel === "function") rzStartZiel(m, lib, teile);
       }
       // Ziehbarer Punkt (statt Kreis-Ebene); ohne Ort setzt ein Klick ihn
       const setzen = (lngLat) => {
@@ -1814,7 +2208,7 @@
         const b = new lib.LngLatBounds();
         if (teile) teile.forEach((t) => t.forEach((c) => b.extend(c)));
         if (hatOrt) b.extend([+d.lon, +d.lat]);
-        if (hatOrt || linie) m.fitBounds(b, { padding: 28, maxZoom: hatOrt && !linie ? 13 : 12, duration: 0 });
+        if (hatOrt || linie) m.fitBounds(b, { padding: (typeof RZ_ARCHIV_RAND === "object") ? RZ_ARCHIV_RAND : 28, maxZoom: hatOrt && !linie ? 13 : 12, duration: 0 });
       } catch (_) {}
     });
   }
@@ -1947,34 +2341,576 @@
 
   // Großansicht (Overlay über der App): Foto groß oder Video abspielen, ← → blättern, Esc schließt
   let gross = null;   // { el, idx, liste }
-  function grossOeffnen(f) {
+  function grossOeffnen(f, eigeneListe) {
     if (!f) return;
-    const liste = geladen.length ? geladen : [f];
+    // 08.10.2026 — die Tour-Seite blättert durch die Medien IHRER Tour (nicht durch das Raster)
+    const liste = (eigeneListe && eigeneListe.length) ? eigeneListe.slice() : (geladen.length ? geladen : [f]);
     let idx = liste.findIndex(x => x.path === f.path);
     if (idx < 0) { liste.unshift(f); idx = 0; }
     if (!gross) {
       const el = document.createElement("div");
       el.className = "foto-gross"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true");
       el.innerHTML = `<button type="button" class="foto-gross-zu" title="${esc(T("fotos.gross_zu", "Schließen (Esc)"))}">✕</button>
+        <button type="button" class="foto-gross-voll" title="${esc(T("fotos.gross_voll", "Vollbild (F)"))}">⤢</button>
+        ${exportKnopfHtml("foto-gross-export")}
         <button type="button" class="foto-gross-pfeil foto-gross-links" title="←">‹</button>
         <button type="button" class="foto-gross-pfeil foto-gross-rechts" title="→">›</button>
         <div class="foto-gross-buehne"></div>
         <div class="foto-gross-hinweis" hidden></div>
+        <div class="foto-gross-streifen"></div>
+        <aside class="foto-gross-seite"><div class="foto-gross-karte" id="foto-gross-karte"></div>
+          <div class="fg-reiter" role="tablist"><button type="button" class="fg-r is-on" data-fg="bearb">${I("sliders-horizontal", 14)} ${esc(T("bearb.reiter", "Bearbeiten"))}</button><button type="button" class="fg-r" data-fg="info">${esc(T("bearb.reiter_info", "Info"))}</button></div>
+          <div class="foto-gross-info" hidden></div><div class="foto-gross-bearb"></div></aside>
         <div class="foto-gross-leiste"><span class="foto-gross-name"></span><span class="foto-gross-knoepfe"></span></div>`;
       document.body.appendChild(el);
+      el.classList.add("mit-seite");
+      // 08.10.2026 („Lupe wie Lightroom“) — liegt im Layout: links bleiben Seitenleiste und Reiter
+      // sichtbar; ⤢ oder F = nur das Foto, bildschirmfüllend
+      el.classList.add("im-layout");
+      el.querySelector(".foto-gross-voll").onclick = () => grossVollbild();
+      window.addEventListener("resize", grossLage);
       el.querySelector(".foto-gross-zu").onclick = grossZu;
+      el.querySelector("#foto-gross-export").onclick = (e) => { e.stopPropagation(); if (gross) exportMenue(e.currentTarget, gross.liste[gross.idx]); };
       el.querySelector(".foto-gross-links").onclick = () => grossBlaettern(-1);
       el.querySelector(".foto-gross-rechts").onclick = () => grossBlaettern(1);
-      el.addEventListener("click", (e) => { if (e.target === el || e.target.classList.contains("foto-gross-buehne")) grossZu(); });
+      el.addEventListener("click", (e) => { if ((e.target === el || e.target.classList.contains("foto-gross-buehne")) && !(bearbZ && bearbZ.zuschneiden)) grossZu(); });
       document.addEventListener("keydown", grossTasten, true);
-      gross = { el, liste, idx };
+      document.addEventListener("keyup", grossTastenHoch, true);
+      el.querySelectorAll("[data-fg]").forEach(b => { b.onclick = () => grossReiter(b.dataset.fg); });
+      // 09.10.2026 (Marc: „öffne Bearbeiten direkt, nicht Info“) — Karte oben, darunter gleich die Regler
+      gross = { el, liste, idx, reiter: "bearb" };
+      grossLage();
     } else { gross.liste = liste; gross.idx = idx; }
     grossZeigen();
+  }
+  /** Lupe im Layout: rechts neben der linken Seitenleiste, unter den Reitern. */
+  function grossLage() {
+    const g = gross; if (!g) return;
+    const el = g.el;
+    if (!el.classList.contains("im-layout")) { el.style.left = el.style.top = ""; return; }
+    // die Seitenleiste der Medien — oder (Tour-Seite) die linke Spalte der Tour
+    let links = [document.querySelector(".ts-links"), nav].find(x => x && x.offsetParent && x.getBoundingClientRect().width > 40);
+    // die ganze Spalte im Modul-Raster (die Seitenleiste hat innen Rand) — nicht nur ihr Inhalt
+    while (links && links.parentElement && !links.parentElement.classList.contains("module-body")) links = links.parentElement;
+    const oben = document.querySelector(".lib-main") || haupt;
+    const r = links ? links.getBoundingClientRect() : null, o = oben ? oben.getBoundingClientRect() : null;
+    el.style.left = Math.max(0, r ? r.right : 0) + "px";
+    el.style.top = Math.max(0, o ? o.top : 0) + "px";
+    requestAnimationFrame(zuschnittRahmen);
+  }
+  function grossVollbild(an) {
+    const g = gross; if (!g) return;
+    const voll = an === undefined ? g.el.classList.contains("im-layout") : !!an;
+    g.el.classList.toggle("im-layout", !voll);
+    grossLage();
+    try { if (g.karte) g.karte.resize(); } catch (_) {}
   }
   function grossZu() {
     if (!gross) return;
     const v = gross.el.querySelector("video"); if (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (_) {} }
-    gross.el.remove(); document.removeEventListener("keydown", grossTasten, true); gross = null;
+    try { if (gross.karte) gross.karte.remove(); } catch (_) {}
+    bearbSpeichernJetzt();
+    gross.el.remove(); document.removeEventListener("keydown", grossTasten, true); document.removeEventListener("keyup", grossTastenHoch, true);
+    window.removeEventListener("resize", grossLage); gross = null;
+  }
+
+  /* 08.10.2026 — die Großansicht
+     zeigt unten den Filmstreifen (die Liste, durch die man blättert: Raster-Filter, Tag, Tour) und rechts die Karte mit
+     dem Track der Tour und dem Punkt des Fotos, darunter Aufnahmedaten und Touren. Später kommen dort die Regler zum
+     Aufhübschen dazu. */
+  function grossStreifen() {
+    const g = gross; if (!g) return;
+    const box = g.el.querySelector(".foto-gross-streifen"); if (!box) return;
+    const von = Math.max(0, g.idx - 25), bis = Math.min(g.liste.length, g.idx + 26);
+    if (g.streifenVon !== von || g.streifenBis !== bis || g.streifenListe !== g.liste) {
+      g.streifenVon = von; g.streifenBis = bis; g.streifenListe = g.liste;
+      box.innerHTML = g.liste.slice(von, bis).map((x, k) => `<button type="button" class="foto-gross-sbild${x.art === "video" ? " ist-video" : ""}" data-j="${von + k}"
+          style="${x.thumb_url ? `background-image:url('${x.thumb_url}')` : ""}" title="${esc(x.dateiname || "")}"></button>`).join("");
+      box.querySelectorAll("[data-j]").forEach(b => { b.onclick = () => { const j = +b.dataset.j; if (!gross) return; gross.idx = j; grossZeigen(); const f = gross.liste[j]; if (f) detailZeigen(f); }; });
+      const ohne = g.liste.slice(von, bis).filter(x => !x.thumb_url).map(x => x.path);
+      if (ohne.length) api().fotos_thumbs(ohne.slice(0, 60), false).then(r => {   // warte-ok: Kacheln zeigen bis dahin ihre Fläche
+        if (!r || !r.ok || gross !== g) return;
+        for (const [p, u] of Object.entries(r.thumbs || {})) {
+          if (!u) continue;
+          const x = g.liste.find(y => y.path === p); if (x) x.thumb_url = x.thumb_url || u;
+          const el = [...box.querySelectorAll("[data-j]")].find(b => g.liste[+b.dataset.j] && g.liste[+b.dataset.j].path === p);
+          if (el) el.style.backgroundImage = `url('${u}')`;
+        }
+      }).catch(() => {});
+    }
+    box.querySelectorAll(".is-on").forEach(b => b.classList.remove("is-on"));
+    const an = box.querySelector(`[data-j="${g.idx}"]`);
+    if (an) { an.classList.add("is-on"); try { an.scrollIntoView({ block: "nearest", inline: "center" }); } catch (_) {} }
+  }
+  /* 09.10.2026 — Bearbeiten in der Lupe: Histogramm,
+     Auto, Voreinstellungen, Regler; „.“ halten = Vorher. Gespeichert wird ein Rezept in der Bibliothek, das Original
+     bleibt. Vorschau rechnet die App (≤ 1600 px, ~0,1 s); beim Ziehen gedrosselt. */
+  const BEARB_REGLER = [
+    ["belichtung", "bearb.r_belichtung", "Belichtung", 0.05], ["kontrast", "bearb.r_kontrast", "Kontrast", 1],
+    ["lichter", "bearb.r_lichter", "Lichter", 1], ["tiefen", "bearb.r_tiefen", "Tiefen", 1],
+    ["temperatur", "bearb.r_temperatur", "Temperatur", 1], ["toenung", "bearb.r_toenung", "Tönung", 1],
+    ["dynamik", "bearb.r_dynamik", "Dynamik", 1], ["saettigung", "bearb.r_saettigung", "Sättigung", 1],
+    ["klarheit", "bearb.r_klarheit", "Klarheit", 1], ["dunst", "bearb.r_dunst", "Dunst entfernen", 1],
+  ];
+  const BEARB_STILE = [["natuerlich", "bearb.s_natuerlich", "Natürlich"], ["kraeftig", "bearb.s_kraeftig", "Kräftig"],
+                       ["matt", "bearb.s_matt", "Matt"], ["sw", "bearb.s_sw", "SW"]];
+  let bearbAblage = null;      // „Einstellungen kopieren“
+  let bearbZ = null;           // { pfad, rezept, auto, lauf, tmrV, tmrS, zuschneiden, seite }
+  // 09.10.2026 — Live-Vorschau in der Grafikkarte (ui/js/entwickeln_gl.js); ein Canvas für die ganze Sitzung, ohne WebGL 2
+  // (oder nach einem Fehler) entwickelt wie bisher Python
+  let bearbGL = null, bearbGLAus = false;
+  const BEARB_SEITEN = [["orig", "bearb.seite_orig", "Original"], ["frei", "bearb.seite_frei", "Frei"], ["1:1"], ["4:5"], ["3:2"], ["2:3"], ["16:9"], ["9:16"]];
+  function grossReiter(w) {
+    const g = gross; if (!g) return;
+    g.reiter = w;
+    if (grossReiterZeigen() === "bearb") bearbLaden(g.liste[g.idx]).catch(() => {});
+  }
+  /** Zeigt den gewählten Reiter; ein Video lässt sich nicht bearbeiten, dort steht Info (die Wahl bleibt gemerkt). */
+  function grossReiterZeigen() {
+    const g = gross; if (!g) return "";
+    const f = g.liste[g.idx];
+    const w = (f && f.art === "video") ? "info" : g.reiter;
+    g.el.querySelectorAll("[data-fg]").forEach(b => b.classList.toggle("is-on", b.dataset.fg === w));
+    g.el.querySelector(".foto-gross-info").hidden = w !== "info";
+    g.el.querySelector(".foto-gross-bearb").hidden = w !== "bearb";
+    return w;
+  }
+  async function bearbLaden(f) {
+    const g = gross; if (!g || !f) return;
+    const box = g.el.querySelector(".foto-gross-bearb");
+    if (f.art === "video") { box.innerHTML = `<div class="muted">${esc(T("bearb.video", "Videos lassen sich hier nicht bearbeiten."))}</div>`; return; }
+    if (!bearbZ || bearbZ.pfad !== f.path) {
+      bearbSpeichernJetzt();
+      box.innerHTML = `<div class="muted"><span class="ass-spinner"></span> ${esc(T("bearb.laedt", "Bild wird vorbereitet …"))}</div>`;
+      const r = await api().foto_bearbeiten_laden(f.path).catch(() => null);   // warte-ok: Feld zeigt „Bild wird vorbereitet …“
+      if (gross !== g || g.liste[g.idx] !== f) return;
+      if (!r || !r.ok) { box.innerHTML = `<div class="muted">${esc((r && r.error) || "?")}</div>`; return; }
+      bearbZ = { pfad: f.path, f, rezept: r.rezept || {}, auto: r.auto || {}, aus_vorschau: r.aus_vorschau, lauf: 0, tmrV: 0, tmrS: 0, offen: false, hist: r.hist || null,
+                 quelleUrl: r.quelle_url || null, voreinst: r.voreinstellungen || {}, W: r.breite || 0, H: r.hoehe || 0, seite: "orig" };
+      if (r.quelle_url) {
+        const z = bearbZ, bild = new Image();
+        z.quelleBild = bild;
+        z.quelleBereit = new Promise(ok => { bild.onload = bild.onerror = () => ok(); });
+        bild.src = r.quelle_url;
+        // gleich vorbereiten (Shader übersetzen, Quelle hochladen) — sonst wartet der erste Regelzug darauf
+        z.quelleBereit.then(() => { if (bearbZ === z) bearbGLVorbereiten(z); });
+      }
+    }
+    bearbZeichnen();
+    if (!ist_leer(bearbZ.rezept)) bearbVorschau();
+    else if (bearbZ.hist) bearbHist(bearbZ.hist);
+  }
+  const ist_leer = (rz) => !rz || !(rz.auto || rz.stil || BEARB_REGLER.some(([k]) => +rz[k]) || +rz.drehen90 || +rz.gerade || rz.zuschnitt);
+  const BEARB_GEO = ["drehen90", "gerade", "zuschnitt"];
+  const nurTon = (rz) => { const o = JSON.parse(JSON.stringify(rz || {})); BEARB_GEO.forEach(k => delete o[k]); return o; };
+  const nurGeo = (rz) => { const o = {}; BEARB_GEO.forEach(k => { if (rz && rz[k] != null) o[k] = JSON.parse(JSON.stringify(rz[k])); }); return o; };
+  /** Ein Regler hat sich geändert: Vorschau neu (Grafikkarte sofort im nächsten Bild, Python nach 70 ms), speichern nach 600 ms. */
+  function bearbGeaendert(sofortSpeichern) {
+    const z = bearbZ; if (!z) return;
+    bearbZeichnenWerte();
+    bearbPlanen();
+    clearTimeout(z.tmrS); z.tmrS = setTimeout(bearbSpeichernJetzt, sofortSpeichern ? 0 : 600);
+    z.offen = true;
+  }
+  function bearbPlanen() {
+    const z = bearbZ; if (!z) return;
+    if (z.gl) { if (!z.raf) z.raf = requestAnimationFrame(() => { z.raf = 0; bearbVorschau(); }); }
+    else { clearTimeout(z.tmrV); z.tmrV = setTimeout(bearbVorschau, 70); }
+  }
+  function bearbZeichnen() {
+    const g = gross, z = bearbZ; if (!g || !z) return;
+    const box = g.el.querySelector(".foto-gross-bearb");
+    const rz = z.rezept;
+    if (z.zuschneiden) { zuschnittPanel(box); return; }
+    box.innerHTML = `
+      <canvas class="fb-hist" id="fb-hist" width="300" height="70"></canvas>
+      ${z.aus_vorschau ? `<div class="muted fb-hinweis">${esc(T("bearb.aus_vorschau", "RAW: Diese Datei kann LibRaw nicht lesen — bearbeitet wird ein großes Vorschaubild."))}</div>` : ""}
+      <div class="fb-zeile">
+        <button type="button" class="btn btn-sm${(rz.zuschnitt || rz.gerade || rz.drehen90) ? " is-on" : ""}" id="fb-zs" title="${esc(T("bearb.zuschneiden_tip", "Zuschneiden und Geraderichten (R)"))}">${I("crop", 14)} ${esc(T("bearb.zuschneiden", "Zuschneiden"))}</button>
+      </div>
+      <div class="fb-zeile">
+        <button type="button" class="btn btn-sm${rz.auto ? " is-on" : ""}" id="fb-auto" title="${esc(T("bearb.auto_tip", "Ton und Weißabgleich automatisch — die Regler kommen obendrauf"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
+        <span class="fml-luft"></span>
+        <button type="button" class="btn btn-sm btn-ghost" id="fb-vorher" title="${esc(T("bearb.vorher_tip", "Gedrückt halten (oder Taste „.“): Original zeigen"))}">${I("columns-2", 14)} ${esc(T("bearb.vorher", "Vorher"))}</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="fb-reset" title="${esc(T("bearb.reset", "Zurücksetzen"))}">${I("rotate-ccw", 14)}</button>
+      </div>
+      <div class="fb-stile">${BEARB_STILE.map(([k, ik, fb]) => `<button type="button" class="fb-stil${rz.stil === k ? " is-on" : ""}" data-stil="${k}">${esc(T(ik, fb))}</button>`).join("")}</div>
+      <div class="fb-regler">${BEARB_REGLER.map(([k, ik, fb, schritt]) => {
+        const [lo, hi] = k === "belichtung" ? [-3, 3] : [-100, 100];
+        const v = +(rz[k] || 0);
+        return `<label class="fb-r"><span class="fb-r-name">${esc(T(ik, fb))}</span><span class="fb-r-wert" id="fbw-${k}">${k === "belichtung" ? (v > 0 ? "+" : "") + v.toFixed(2) : (v > 0 ? "+" : "") + Math.round(v)}</span>
+          <input type="range" min="${lo}" max="${hi}" step="${schritt}" value="${v}" data-r="${k}"></label>`;
+      }).join("")}</div>
+      <div class="fb-zeile fb-unten">
+        <button type="button" class="btn btn-sm" id="fb-kopieren" title="${esc(T("bearb.kopieren_tip", "Diese Einstellungen merken, um sie auf andere Fotos zu übertragen"))}">${I("copy", 14)} ${esc(T("bearb.kopieren", "Kopieren"))}</button>
+        <button type="button" class="btn btn-sm" id="fb-einfuegen"${bearbAblage ? "" : " disabled"}>${esc(T("bearb.einfuegen", "Einfügen"))}</button>
+        <span class="fml-luft"></span>
+        <button type="button" class="btn btn-sm" id="fb-datei">${I("save", 14)} ${esc(T("bearb.datei", "Als neue Datei …"))}</button>
+      </div>
+      <div class="muted fb-hinweis">${esc(T("bearb.hinweis", "Das Original bleibt unverändert. Export und Videos nehmen die bearbeitete Fassung."))}</div>`;
+    const geaendert = bearbGeaendert;
+    box.querySelector("#fb-zs").onclick = () => zuschnittAn(true);
+    box.querySelectorAll("[data-r]").forEach(inp => {
+      inp.oninput = () => { const v = +inp.value; if (v) rz[inp.dataset.r] = v; else delete rz[inp.dataset.r]; geaendert(false); };
+      inp.ondblclick = () => { delete rz[inp.dataset.r]; inp.value = 0; geaendert(false); };   // wie Lightroom: Doppelklick = 0
+    });
+    box.querySelector("#fb-auto").onclick = () => { if (rz.auto) delete rz.auto; else rz.auto = true; bearbZeichnen(); geaendert(true); };
+    box.querySelectorAll("[data-stil]").forEach(b => { b.onclick = () => { if (rz.stil === b.dataset.stil) delete rz.stil; else rz.stil = b.dataset.stil; bearbZeichnen(); geaendert(true); }; });
+    box.querySelector("#fb-reset").onclick = () => { z.rezept = nurGeo(z.rezept); bearbZeichnen(); geaendert(true); };   // der Zuschnitt hat sein eigenes Zurücksetzen
+    const vk = box.querySelector("#fb-vorher");
+    vk.onmousedown = () => bearbVorher(true); vk.onmouseup = vk.onmouseleave = () => bearbVorher(false);
+    box.querySelector("#fb-kopieren").onclick = () => { bearbAblage = nurTon(rz); bearbZeichnen(); toast(T("bearb.kopiert", "Einstellungen gemerkt — „Einfügen“ bei anderen Fotos oder in der Leiste für markierte."), "success", 3500); };
+    box.querySelector("#fb-einfuegen").onclick = () => { if (!bearbAblage) return; z.rezept = Object.assign(nurTon(bearbAblage), nurGeo(z.rezept)); bearbZeichnen(); geaendert(true); };
+    box.querySelector("#fb-datei").onclick = async () => {
+      bearbSpeichernJetzt();
+      const r = await api().foto_entwickelt_speichern(z.pfad).catch((e) => ({ ok: false, error: String(e) }));   // warte-ok: Systemdialog
+      if (r && r.ok) toast(T("bearb.datei_ok", "Gespeichert: {n}").replace("{n}", String(r.pfad).split(/[\\/]/).pop()), "success", 4000);
+      else if (r && !r.abbruch) toast(r.error || "?", "error", 6000);
+    };
+  }
+  function bearbZeichnenWerte() {
+    const g = gross, z = bearbZ; if (!g || !z) return;
+    BEARB_REGLER.forEach(([k]) => {
+      const el = g.el.querySelector("#fbw-" + k); if (!el) return;
+      const v = +(z.rezept[k] || 0);
+      el.textContent = k === "belichtung" ? (v > 0 ? "+" : "") + v.toFixed(2) : (v > 0 ? "+" : "") + Math.round(v);
+    });
+  }
+  async function bearbVorschau() {
+    const g = gross, z = bearbZ; if (!g || !z) return;
+    const lauf = ++z.lauf;
+    if (await bearbGLZeichnen()) return;
+    if (gross !== g || bearbZ !== z || lauf !== z.lauf) return;
+    const r = await api().foto_entwickeln_vorschau(z.pfad, z.rezept, false, !!z.zuschneiden).catch(() => null);   // warte-ok: das Bild wechselt, sobald fertig (~0,1 s)
+    if (gross !== g || bearbZ !== z || lauf !== z.lauf || !r || !r.ok) return;
+    z.url = r.url;
+    if (g.liste[g.idx] && g.liste[g.idx].path === z.pfad && !z.vorher) {
+      const img = g.el.querySelector(".foto-gross-buehne img"); if (img) { img.onload = () => zuschnittRahmen(); img.src = r.url; }
+    }
+    bearbHist(r.hist);
+  }
+  /** Grafikkarte bereit machen und die Quelle dieses Fotos hochladen. false = geht nicht (dann Python). */
+  function bearbGLVorbereiten(z) {
+    if (bearbGLAus || !window.rzEntwickler || !z || !z.quelleBild || !z.quelleBild.naturalWidth) return false;
+    try {
+      if (!bearbGL) {
+        if (!rzEntwickler.EntwicklerGL.geht()) { bearbGLAus = true; return false; }
+        const c = document.createElement("canvas"); c.className = "foto-gross-bild fb-gl";
+        bearbGL = new rzEntwickler.EntwicklerGL(c);
+      }
+      if (bearbGL.verloren) { bearbGL = null; bearbGLAus = true; return false; }
+      if (bearbGL.pfad !== z.pfad) { bearbGL.quelle(z.quelleBild); bearbGL.pfad = z.pfad; }
+      z.gl = true;
+      return true;
+    } catch (e) {
+      console.warn("[bearbeiten] WebGL — weiter mit Python:", e);
+      bearbGLAus = true; z.gl = false;
+      return false;
+    }
+  }
+  /** Entwickelt in der Grafikkarte ins Canvas der Bühne. false = geht nicht (dann Python). */
+  async function bearbGLZeichnen() {
+    const g = gross, z = bearbZ;
+    if (!g || !z || bearbGLAus || !window.rzEntwickler || !z.quelleBild) return false;
+    if (!z.quelleBild.naturalWidth) {
+      await z.quelleBereit;
+      if (gross !== g || bearbZ !== z) return true;
+    }
+    if (!bearbGLVorbereiten(z)) return false;
+    try {
+      const w = z.vorher ? {} : rzEntwickler.wirksam(z.rezept, z.auto, z.voreinst);
+      const rahmen = !!z.zuschneiden && !z.vorher;
+      bearbGL.zeichnen(w, { rahmen });
+      const buehne = g.el.querySelector(".foto-gross-buehne");
+      if (buehne && g.liste[g.idx] && g.liste[g.idx].path === z.pfad && bearbGL.canvas.parentNode !== buehne) {
+        buehne.querySelectorAll("img.foto-gross-bild").forEach(i => { i.hidden = true; });
+        buehne.appendChild(bearbGL.canvas);
+      }
+      if (!z.vorher) bearbHist(bearbGL.histogramm(w, { rahmen }));
+      zuschnittRahmen();
+      return true;
+    } catch (e) {
+      console.warn("[bearbeiten] WebGL — weiter mit Python:", e);
+      bearbGLAus = true; z.gl = false;
+      return false;
+    }
+  }
+  function bearbHist(h) {
+    const c = gross && gross.el.querySelector("#fb-hist"); if (!c || !h) return;
+    const ctx = c.getContext("2d"), W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    const max = Math.max(1, ...["r", "g", "b"].flatMap(k => h[k].slice(1, -1)));
+    [["r", "rgba(255,110,90,.55)"], ["g", "rgba(80,220,170,.55)"], ["b", "rgba(80,140,255,.55)"]].forEach(([k, farbe]) => {
+      ctx.fillStyle = farbe; ctx.beginPath(); ctx.moveTo(0, H);
+      h[k].forEach((v, i) => ctx.lineTo(i / (h[k].length - 1) * W, H - Math.min(1, v / max) * H));
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    });
+  }
+  function bearbVorher(an) {
+    const g = gross, z = bearbZ; if (!g) return;
+    if (z) z.vorher = !!an;
+    if (z && z.gl && bearbGL && bearbGL.canvas.isConnected) bearbGLZeichnen();
+    else {
+      const img = g.el.querySelector(".foto-gross-buehne img"); if (!img) return;
+      const orig = (z && z.quelleUrl) || g.originalUrl;
+      if (an && orig) img.src = orig;
+      else if (!an && z && z.url && g.liste[g.idx] && g.liste[g.idx].path === z.pfad) img.src = z.url;
+    }
+    zuschnittRahmen();
+    const b = g.el.querySelector(".foto-gross-buehne"); if (b) b.dataset.vorher = T("bearb.vorher", "Vorher");
+    g.el.classList.toggle("zeigt-vorher", !!an);
+  }
+  /* ── Zuschneiden und Geraderichten (09.10.2026) ──────────────────────────────────────────
+     Die Bühne zeigt den ganzen gedrehten Rahmen, darüber das Zuschnitt-Rechteck (normiert im Rahmen nach den 90°-Drehungen).
+     Rechnungen wie core/entwickeln.py (passend, einpassen) — über rzEntwickler. */
+  function zsRahmen(z) { return rzEntwickler.rahmenMasse(z.W || 3, z.H || 2, z.rezept.drehen90 || 0); }
+  function zsSeite(z) {
+    const [Wr, Hr] = zsRahmen(z);
+    if (z.seite === "frei") return null;
+    if (z.seite === "orig" || !z.seite) return Wr / Hr;
+    const [a, b] = z.seite.split(":").map(Number);
+    return a / b;
+  }
+  function zsAktuell(z) {
+    const [Wr, Hr] = zsRahmen(z), gr = +z.rezept.gerade || 0;
+    return z.rezept.zuschnitt ? rzEntwickler.einpassen(z.rezept.zuschnitt, Wr, Hr, gr) : rzEntwickler.passend(Wr, Hr, gr);
+  }
+  async function zuschnittAn() {
+    const z = bearbZ, g = gross; if (!z || !g || !window.rzEntwickler) return;
+    const f = g.liste[g.idx]; if (!f || f.art === "video" || f.path !== z.pfad) return;
+    if (g.reiter !== "bearb") { g.reiter = "bearb"; grossReiterZeigen(); }
+    z.zuschneiden = true; z.zsVorher = nurGeo(z.rezept);
+    bearbZeichnen(); bearbVorschau();
+  }
+  function zuschnittAus(behalten) {
+    const z = bearbZ; if (!z || !z.zuschneiden) return;
+    if (!behalten) { BEARB_GEO.forEach(k => delete z.rezept[k]); Object.assign(z.rezept, z.zsVorher || {}); }
+    z.zuschneiden = false; z.zsVorher = null;
+    bearbZeichnen(); bearbGeaendert(true);
+  }
+  function zuschnittPanel(box) {
+    const z = bearbZ, rz = z.rezept, gr = +rz.gerade || 0;
+    box.innerHTML = `
+      <canvas class="fb-hist" id="fb-hist" width="300" height="70"></canvas>
+      <div class="fb-zs-kopf">${I("crop", 14)} ${esc(T("bearb.zuschneiden", "Zuschneiden"))}</div>
+      <label class="fb-r"><span class="fb-r-name">${esc(T("bearb.gerade", "Geraderichten"))}</span><span class="fb-r-wert" id="fbw-gerade">${(gr > 0 ? "+" : "") + gr.toFixed(1)}°</span>
+        <input type="range" min="-45" max="45" step="0.1" value="${gr}" id="fb-gerade"></label>
+      <div class="fb-zs-titel muted">${esc(T("bearb.seite", "Seitenverhältnis"))}</div>
+      <div class="fb-stile fb-zs-seiten">${BEARB_SEITEN.map(([k, ik, fb]) => `<button type="button" class="fb-stil${z.seite === k ? " is-on" : ""}" data-seite="${k}">${esc(ik ? T(ik, fb) : k)}</button>`).join("")}</div>
+      <div class="fb-zeile">
+        <button type="button" class="btn btn-sm btn-ghost" id="fb-links" title="${esc(T("bearb.links", "90° nach links"))}">${I("rotate-ccw", 14)}</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="fb-rechts" title="${esc(T("bearb.rechts", "90° nach rechts"))}">${I("rotate-cw", 14)}</button>
+        <span class="fml-luft"></span>
+        <button type="button" class="btn btn-sm" id="fb-zs-reset">${esc(T("bearb.zs_reset", "Zurücksetzen"))}</button>
+        <button type="button" class="btn btn-sm btn-primary" id="fb-zs-fertig">${I("check", 14)} ${esc(T("bearb.zs_fertig", "Fertig"))}</button>
+      </div>
+      <div class="muted fb-hinweis">${esc(T("bearb.zs_hinweis", "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen."))}</div>`;
+    const [Wr, Hr] = zsRahmen(z);
+    const ger = box.querySelector("#fb-gerade");
+    ger.oninput = () => {
+      const v = +ger.value;
+      if (v) rz.gerade = v; else delete rz.gerade;
+      if (rz.zuschnitt) rz.zuschnitt = rzEntwickler.einpassen(rz.zuschnitt, Wr, Hr, v);
+      box.querySelector("#fbw-gerade").textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "°";
+      zuschnittRahmen(); bearbGeaendert(false);
+    };
+    ger.ondblclick = () => { ger.value = 0; ger.oninput(); };
+    box.querySelectorAll("[data-seite]").forEach(b => {
+      b.onclick = () => {
+        z.seite = b.dataset.seite;
+        const A = zsSeite(z);
+        if (A) rz.zuschnitt = rzEntwickler.passend(Wr, Hr, +rz.gerade || 0, A);
+        box.querySelectorAll("[data-seite]").forEach(x => x.classList.toggle("is-on", x === b));
+        zuschnittRahmen(); bearbGeaendert(false);
+      };
+    });
+    const drehen = (rechts) => {
+      rz.drehen90 = (((+rz.drehen90 || 0) + (rechts ? 1 : 3)) % 4) || undefined;
+      if (!rz.drehen90) delete rz.drehen90;
+      const c = rz.zuschnitt;
+      if (c) rz.zuschnitt = rechts ? [1 - (c[1] + c[3]), c[0], c[3], c[2]] : [c[1], 1 - (c[0] + c[2]), c[3], c[2]];
+      if (z.seite !== "orig" && z.seite !== "frei") { const [a, b2] = z.seite.split(":"); const x = `${b2}:${a}`; if (BEARB_SEITEN.some(s => s[0] === x)) z.seite = x; }
+      bearbZeichnen(); bearbGeaendert(true);
+    };
+    box.querySelector("#fb-links").onclick = () => drehen(false);
+    box.querySelector("#fb-rechts").onclick = () => drehen(true);
+    box.querySelector("#fb-zs-reset").onclick = () => { BEARB_GEO.forEach(k => delete rz[k]); z.seite = "orig"; bearbZeichnen(); bearbGeaendert(true); };
+    box.querySelector("#fb-zs-fertig").onclick = () => zuschnittAus(true);
+  }
+  /** Das Zuschnitt-Rechteck über dem Bild (nur im Werkzeug). */
+  function zuschnittRahmen() {
+    const g = gross, z = bearbZ; if (!g) return;
+    const buehne = g.el.querySelector(".foto-gross-buehne"); if (!buehne) return;
+    let ov = buehne.querySelector(".fb-zs-ov");
+    const bild = [...buehne.querySelectorAll(".foto-gross-bild")].find(e => !e.hidden && e.offsetWidth);
+    if (!z || !z.zuschneiden || z.vorher || !bild || !window.rzEntwickler) { if (ov) ov.remove(); return; }
+    if (!ov) {
+      ov = document.createElement("div"); ov.className = "fb-zs-ov";
+      ov.innerHTML = `<div class="fb-zs-r"><i class="fb-zs-drittel"></i>${["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(h => `<b data-h="${h}"></b>`).join("")}</div>`;
+      buehne.appendChild(ov); zuschnittZiehen(ov);
+    }
+    const bb = buehne.getBoundingClientRect(), r = bild.getBoundingClientRect();
+    Object.assign(ov.style, { left: (r.left - bb.left) + "px", top: (r.top - bb.top) + "px", width: r.width + "px", height: r.height + "px" });
+    const zs = zsAktuell(z);
+    Object.assign(ov.firstElementChild.style, { left: zs[0] * 100 + "%", top: zs[1] * 100 + "%", width: zs[2] * 100 + "%", height: zs[3] * 100 + "%" });
+  }
+  function zuschnittZiehen(ov) {
+    ov.addEventListener("pointerdown", (e) => {
+      const z = bearbZ; if (!z || !z.zuschneiden) return;
+      const rEl = ov.firstElementChild;
+      const h = e.target.dataset.h || (e.target === rEl ? "mitte" : null);
+      if (!h) return;
+      e.preventDefault(); e.stopPropagation();
+      try { ov.setPointerCapture(e.pointerId); } catch (_) {}
+      const box = ov.getBoundingClientRect(), [Wr, Hr] = zsRahmen(z), gr = +z.rezept.gerade || 0;
+      const drin = (r) => rzEntwickler.drinnen(r, Wr, Hr, gr);
+      const st = zsAktuell(z), A = zsSeite(z), MIN = 0.03;
+      const x0 = e.clientX, y0 = e.clientY;
+      const zug = (ev) => {
+        const dx = (ev.clientX - x0) / box.width, dy = (ev.clientY - y0) / box.height;
+        let r;
+        if (h === "mitte") {   // verschieben — so weit es im Bild geht
+          const um = (t) => [st[0] + dx * t, st[1] + dy * t, st[2], st[3]];
+          let lo = 0, hi = 1;
+          if (drin(um(1))) lo = 1; else for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (drin(um(m))) lo = m; else hi = m; }
+          r = um(lo);
+        } else {
+          let x1 = st[0], y1 = st[1], x2 = st[0] + st[2], y2 = st[1] + st[3];
+          if (h.includes("w")) x1 = Math.min(x2 - MIN, x1 + dx);
+          if (h.includes("e")) x2 = Math.max(x1 + MIN, x2 + dx);
+          if (h.includes("n")) y1 = Math.min(y2 - MIN, y1 + dy);
+          if (h.includes("s")) y2 = Math.max(y1 + MIN, y2 + dy);
+          // Anker: die gegenüberliegende Ecke bzw. die Mitte der gegenüberliegenden Kante
+          const ax = h.includes("w") ? x2 : (h.includes("e") ? x1 : (x1 + x2) / 2);
+          const ay = h.includes("n") ? y2 : (h.includes("s") ? y1 : (y1 + y2) / 2);
+          if (A) {   // Seitenverhältnis halten (in Pixeln)
+            let bw = (x2 - x1) * Wr, bh = (y2 - y1) * Hr;
+            // Ecke: die stärkere Bewegung (relativ zur Ausgangsgröße) bestimmt die Größe
+            if (h.length === 2) { if (Math.abs(bw / (st[2] * Wr) - 1) >= Math.abs(bh / (st[3] * Hr) - 1)) bh = bw / A; else bw = bh * A; }
+            else if (h === "e" || h === "w") bh = bw / A; else bw = bh * A;
+            const nb = bw / Wr, nh = bh / Hr;
+            x1 = h.includes("w") ? ax - nb : (h.includes("e") ? ax : ax - nb / 2);
+            y1 = h.includes("n") ? ay - nh : (h.includes("s") ? ay : ay - nh / 2);
+            x2 = x1 + nb; y2 = y1 + nh;
+          }
+          r = [x1, y1, x2 - x1, y2 - y1];
+          if (!drin(r)) {   // in den Rahmen: zum Anker hin verkleinern
+            const sk = (t) => [ax + (r[0] - ax) * t, ay + (r[1] - ay) * t, r[2] * t, r[3] * t];
+            let lo = 0, hi = 1;
+            for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (drin(sk(m))) lo = m; else hi = m; }
+            r = sk(lo);
+            if (r[2] < MIN || r[3] < MIN) return;
+          }
+        }
+        z.rezept.zuschnitt = r;
+        zuschnittRahmen();
+      };
+      const los = () => {
+        ov.removeEventListener("pointermove", zug); ov.removeEventListener("pointerup", los); ov.removeEventListener("pointercancel", los);
+        bearbGeaendert(false);
+      };
+      ov.addEventListener("pointermove", zug); ov.addEventListener("pointerup", los); ov.addEventListener("pointercancel", los);
+    });
+  }
+  function grossTastenHoch(e) { if (e.key === ".") { e.preventDefault(); bearbVorher(false); } }
+  async function bearbSpeichernJetzt() {
+    const z = bearbZ; if (!z || !z.offen) return;
+    clearTimeout(z.tmrS); z.offen = false;
+    const r = await api().foto_rezept_speichern(z.pfad, z.rezept).catch(() => null);   // warte-ok: schreibt eine Zeile
+    if (!r || !r.ok) return;
+    const an = !ist_leer(z.rezept) ? 1 : 0;
+    geladen.forEach(x => { if (x.path === z.pfad) x.bearbeitet = an; });
+    if (gross) gross.liste.forEach(x => { if (x.path === z.pfad) x.bearbeitet = an; });
+    if (stand) stand.bearbeitet = r.stand_bearbeitet;
+    if (haupt) haupt.querySelectorAll(".foto-kachel").forEach(k => { const x = geladen[+k.dataset.foto]; if (x && x.path === z.pfad) k.classList.toggle("ist-bearbeitet", !!an); });
+    navZeichnen();
+    kachelBilderNeu([z.pfad]);
+    window.dispatchEvent(new CustomEvent("rz-rezept-geaendert", { detail: { pfade: [z.pfad] } }));
+  }
+  /** 09.10.2026 — nach dem Bearbeiten zeigt die Kachel die neue Fassung (fotos_thumbs entwickelt das kleine Bild). */
+  async function kachelBilderNeu(pfade) {
+    const sichtbar = pfade.filter(p => geladen.some(x => x.path === p)).slice(0, 120);
+    if (!sichtbar.length) return;
+    const r = await api().fotos_thumbs(sichtbar).catch(() => null);   // warte-ok: Kacheln behalten bis dahin ihr Bild
+    const bilder = (r && r.thumbs) || {};
+    if (!haupt) return;
+    geladen.forEach((f, i) => {
+      if (!bilder[f.path]) return;
+      f.thumb_url = bilder[f.path];
+      const img = haupt.querySelector(`.foto-kachel[data-foto="${i}"] img`);
+      if (img) img.src = bilder[f.path];
+    });
+  }
+  async function bearbFuerMarkierte(rezept, pfade) {
+    const r = await rzWarten("foto_rezept_speichern", () => api().foto_rezept_speichern(pfade, rezept)).catch(() => null);
+    if (!r || !r.ok) { toast((r && r.error) || "?", "warn"); return; }
+    const an = !ist_leer(rezept) ? 1 : 0;
+    geladen.forEach(x => { if (pfade.includes(x.path)) x.bearbeitet = an; });
+    if (stand) stand.bearbeitet = r.stand_bearbeitet;
+    if (haupt) haupt.querySelectorAll(".foto-kachel").forEach(k => { const x = geladen[+k.dataset.foto]; if (x && pfade.includes(x.path)) k.classList.toggle("ist-bearbeitet", !!an); });
+    navZeichnen();
+    kachelBilderNeu(pfade);
+    window.dispatchEvent(new CustomEvent("rz-rezept-geaendert", { detail: { pfade } }));
+    toast(T("bearb.n_ok", "{n} Fotos bearbeitet — die Originale bleiben unverändert.").replace("{n}", num(pfade.length)), "success", 4000);
+  }
+
+  async function grossSeite(f) {
+    const g = gross; if (!g) return;
+    const info = g.el.querySelector(".foto-gross-info"), host = g.el.querySelector("#foto-gross-karte");
+    if (!info || !host) return;
+    const r = await api().fotos_details(f.path).catch(() => null);   // warte-ok: Seite füllt sich nach, das Bild steht schon
+    if (gross !== g || g.liste[g.idx] !== f) return;
+    const d = (r && r.ok && r.foto) || f;
+    const tour = d.tour || null;
+    const touren = (tour && tour.touren) || (tour ? [tour] : []);
+    info.innerHTML = `
+      <div class="foto-gross-i-zeile">${I("calendar", 14)} ${esc(d.tag_lokal ? `${tagText(d.tag_lokal)} ${uhrzeit(d)}` : "—")}</div>
+      ${d.kamera ? `<div class="foto-gross-i-zeile">${I("camera", 14)} ${esc(d.kamera)}${d.objektiv ? " · " + esc(d.objektiv) : ""}</div>` : ""}
+      ${[d.brennweite, d.blende, d.belichtung, d.iso && "ISO " + d.iso].filter(Boolean).length ? `<div class="foto-gross-i-zeile muted">${esc([d.brennweite, d.blende, d.belichtung, d.iso && "ISO " + d.iso].filter(Boolean).join(" · "))}</div>` : ""}
+      ${[d.ort, d.region, d.land].filter(Boolean).length ? `<div class="foto-gross-i-zeile">${I("map-pin", 14)} ${esc([d.ort, d.region, d.land].filter(Boolean).join(", "))}</div>` : ""}
+      ${d.lat == null ? `<div class="foto-gross-i-zeile muted">${esc(T("fotos.gross_ohne_ort", "Ohne Koordinate — auf der Karte die Tour zur Aufnahmezeit"))}</div>` : ""}
+      ${touren.length ? `<div class="foto-gross-i-touren">${touren.map(x => `<button type="button" class="foto-gross-i-tour" data-gh="${esc(x.geo_hash || "")}" data-p="${esc(x.path || "")}" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${I("route", 13)} <span class="fg-tourname">${esc(x.name || "")}</span></button>`).join("")}</div>` : ""}`;
+    info.querySelectorAll(".foto-gross-i-tour").forEach(b => {
+      b.onclick = () => { const p = f.path; grossZu(); if (window.rzTourSeite) window.rzTourSeite.oeffnen({ geo_hash: b.dataset.gh, path: b.dataset.p, name: b.textContent.trim() }, p); };
+    });
+    const linie = tour && Array.isArray(tour.geom) && tour.geom.length > 1 ? tour.geom : null;
+    const teile = (tour && Array.isArray(tour.teile) && tour.teile.length) ? tour.teile : (linie ? [linie] : null);
+    const hatOrt = d.lat != null && d.lon != null;
+    host.classList.toggle("ist-leer", !teile && !hatOrt);
+    if (!teile && !hatOrt) { if (g.karte) { try { g.karte.remove(); } catch (_) {} g.karte = null; } host.innerHTML = `<div class="muted foto-gross-karte-leer">${esc(T("fotos.gross_keine_karte", "Kein Ort und keine Tour — nichts auf der Karte"))}</div>`; return; }
+    const zeichnen = () => {
+      const m = g.karte; if (!m || gross !== g) return;
+      const daten = { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: teile || [] } };
+      if (m.getSource("g-spur")) m.getSource("g-spur").setData(daten);
+      else {
+        m.addSource("g-spur", { type: "geojson", data: daten });
+        m.addLayer({ id: "g-spur-rand", type: "line", source: "g-spur", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#0f1a20", "line-width": 6, "line-opacity": 0.55 } });
+        m.addLayer({ id: "g-spur-linie", type: "line", source: "g-spur", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#48d6c4", "line-width": 3 } });
+      }
+      (g.nadeln || []).forEach(n => { try { n.remove(); } catch (_) {} });
+      g.nadeln = (typeof rzStartZiel === "function") ? rzStartZiel(m, g.lib, teile) : [];
+      if (g.pin) { try { g.pin.remove(); } catch (_) {} g.pin = null; }
+      if (hatOrt) { const el = document.createElement("div"); el.className = "foto-d-pin"; g.pin = new g.lib.Marker({ element: el }).setLngLat([+d.lon, +d.lat]).addTo(m); }
+      try {
+        const b = new g.lib.LngLatBounds();
+        if (teile) teile.forEach(t2 => t2.forEach(c => b.extend(c)));
+        if (hatOrt) b.extend([+d.lon, +d.lat]);
+        m.fitBounds(b, { padding: (typeof RZ_ARCHIV_RAND === "object") ? RZ_ARCHIV_RAND : 26, maxZoom: hatOrt && !teile ? 14 : 13, duration: 0 });
+      } catch (_) {}
+    };
+    if (!g.karte) {
+      host.innerHTML = "";
+      try {
+        const c = createMap({ container: host, styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : undefined,
+          common: { center: hatOrt ? [+d.lon, +d.lat] : teile[0][0], zoom: 11, attributionControl: true } });
+        g.karte = c.map; g.lib = c.lib;
+        window.__fotoGrossKarte = g.karte;   // Prüfstand
+        try { g.karte.addControl(new g.lib.NavigationControl({ showCompass: false }), "top-right"); } catch (_) {}
+        if (typeof rzMassstab === "function") rzMassstab(g.karte);
+        g.karte.on("load", zeichnen);
+      } catch (_) {}
+    } else if (g.karte.isStyleLoaded && g.karte.isStyleLoaded()) zeichnen();
+    else g.karte.once("load", zeichnen);
   }
   function grossBlaettern(r) {
     if (!gross) return;
@@ -1986,7 +2922,20 @@
   function grossTasten(e) {
     if (!gross) return;
     const v = gross.el.querySelector("video");
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); grossZu(); }
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.target.type !== "range") return;
+    if (e.target && e.target.type === "range" && /^Arrow/.test(e.key)) return;   // Pfeile bewegen den Regler
+    if (e.key === "." && !e.metaKey && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) bearbVorher(true); return; }
+    if (bearbZ && bearbZ.zuschneiden && (e.key === "Enter" || e.key === "Escape")) {
+      e.preventDefault(); e.stopPropagation(); zuschnittAus(e.key === "Enter"); return;
+    }
+    if ((e.key === "r" || e.key === "R") && !e.metaKey && !e.ctrlKey && !e.altKey && !v) {
+      e.preventDefault(); e.stopPropagation();
+      if (bearbZ && bearbZ.zuschneiden) zuschnittAus(true); else zuschnittAn(true);
+      return;
+    }
+    if (e.key === "Escape" && !gross.el.classList.contains("im-layout")) { e.preventDefault(); e.stopPropagation(); grossVollbild(false); }
+    else if (e.key === "Escape" || ((e.key === "g" || e.key === "G") && !e.metaKey && !e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); grossZu(); }
+    else if ((e.key === "f" || e.key === "F") && !e.metaKey && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); grossVollbild(); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); grossBlaettern(-1); }
     else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); grossBlaettern(1); }
     else if (e.key === " " && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) {
@@ -2000,10 +2949,13 @@
     const f = g.liste[g.idx];
     const buehne = g.el.querySelector(".foto-gross-buehne"), hinweis = g.el.querySelector(".foto-gross-hinweis");
     hinweis.hidden = true; hinweis.innerHTML = "";
+    grossReiterZeigen();   // geladen wird die Bearbeitung unten, sobald das Bild da ist
     buehne.innerHTML = f.thumb_url ? `<img class="foto-gross-bild is-vorschau" src="${f.thumb_url}" alt="">` : `<div class="muted">${esc(T("common.loading", "Lädt …"))}</div>`;
     g.el.querySelector(".foto-gross-links").disabled = g.idx <= 0;
     g.el.querySelector(".foto-gross-rechts").disabled = g.idx >= g.liste.length - 1;
     g.el.querySelector(".foto-gross-name").textContent = [f.dateiname, f.tag_lokal ? `${tagText(f.tag_lokal)} ${uhrzeit(f)}` : ""].filter(Boolean).join(" · ");
+    try { grossStreifen(); } catch (_) {}
+    grossSeite(f).catch(() => {});
     const r = await api().fotos_gross(f.path).catch(() => null);
     if (gross !== g || g.liste[g.idx] !== f) return;   // inzwischen weitergeblättert
     const knoepfe = [];
@@ -2011,14 +2963,17 @@
       buehne.innerHTML = `<video class="foto-gross-video" controls autoplay playsinline src="${r.url}"></video>`;
       const v = buehne.querySelector("video");
       v.addEventListener("error", () => videoGehtNicht(f, hinweis), { once: true });
-      knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="standbild">📸 ${esc(T("fotos.standbild", "Standbild speichern"))}</button>`);
+      knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="standbild">${I("camera", 14)} ${esc(T("fotos.standbild", "Standbild speichern"))}</button>`);
     } else if (r && r.ok) {
       buehne.innerHTML = `<img class="foto-gross-bild" src="${r.url}" alt="">`;
+      g.originalUrl = r.quelle === "bearbeitet" ? null : r.url;   // „Vorher“ darf nie die bearbeitete Fassung sein
+      if (f.bearbeitet || g.reiter === "bearb") bearbLaden(f).catch(() => {});
       if (r.quelle === "bibliothek") { hinweis.hidden = false; hinweis.textContent = T("fotos.gross_fern", "Original gerade nicht erreichbar — gezeigt wird die Vorschau aus der Bibliothek."); }
     } else if (r && r.error) { hinweis.hidden = false; hinweis.textContent = r.error; }
     if (r && r.original_da !== false) {
       knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="finder">${esc(T("fotos.im_finder", "Im Finder zeigen"))}</button>`);
       knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="app">${esc(T("fotos.mit_app", "Mit Standard-App öffnen"))}</button>`);
+      knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="mit">↗ ${esc(T("oeffnen.ctx_1", "Öffnen mit …"))}</button>`);
     }
     const kb = g.el.querySelector(".foto-gross-knoepfe"); kb.innerHTML = knoepfe.join("");
     kb.querySelectorAll("[data-gk]").forEach(b => {
@@ -2026,6 +2981,7 @@
         const w = b.dataset.gk;
         if (w === "finder") api().reveal_in_finder(f.path);
         else if (w === "app") api().open_path(f.path);
+        else if (w === "mit") { if (window.rzArchivExport) window.rzArchivExport.oeffnenMit([f.path]); }
         else if (w === "standbild") {
           const v = buehne.querySelector("video"); if (!v) return;
           v.pause();
@@ -2055,18 +3011,31 @@
     hinweis.querySelector("#foto-hevc-app").onclick = () => api().open_path(f.path);
   }
   // Leertaste öffnet das gewählte Foto groß (wie in Lightroom/Apple Fotos), nur im sichtbaren Foto-Bereich
+  // 08.10.2026 (Lightroom-Tasten) — auch E öffnet die Lupe; Esc hebt die Markierung auf, ⌘A markiert alle
   document.addEventListener("keydown", (e) => {
-    if (gross || e.key !== " " || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (gross) return;
     const t = e.target; if (t && (/INPUT|TEXTAREA|SELECT/.test(t.tagName) || t.isContentEditable)) return;
-    if (!angemeldet || !auswahl || !haupt || !haupt.offsetParent) return;
-    if (document.querySelector(".modal-overlay:not([hidden]), #modal-overlay:not([hidden])")) return;
+    if (!angemeldet || !haupt || !haupt.offsetParent) return;
+    if (document.querySelector(".modal-overlay:not([hidden]), #modal-overlay:not([hidden]), .ts-menue, .ts-seite")) return;
+    if (e.key === "Escape" && markiert.size) { e.preventDefault(); markiert.clear(); _letzterKlick = -1; markierungZeigen(); return; }
+    if ((e.key === "p" || e.key === "P") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      const p = markiert.size ? [...markiert] : (auswahl ? [auswahl] : []);
+      if (p.length) { e.preventDefault(); favUmschalten(p); }
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === "a" || e.key === "A")) {
+      e.preventDefault(); geladen.forEach(x => markiert.add(x.path)); markierungZeigen(); return;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey || !(e.key === " " || e.key === "e" || e.key === "E")) return;
+    if (!auswahl) return;
     const f = geladen.find(x => x.path === auswahl); if (!f) return;
     e.preventDefault(); grossOeffnen(f);
   });
   window.__rzFotoGross = { oeffnen: (p) => grossOeffnen(geladen.find(x => x.path === p) || { path: p }), zu: () => grossZu(), offen: () => !!gross };   // Prüfstand
 
-  async function detailZeigen(f) {
+  async function detailZeigen(f, opt) {
     if (!f) return;
+    opt = opt || {};
     auswahl = f.path;
     const box = document.getElementById("lib-detail");
     if (!box) return;
@@ -2076,37 +3045,55 @@
     const r = await api().fotos_details(f.path).catch(() => null);
     const d = (r && r.ok && r.foto) || f;
     const m = maengel(d);
-    const zeile = (label, wert) => wert
-      ? `<div class="foto-detail-zeile"><span class="muted">${esc(label)}</span> ${esc(wert)}</div>` : "";
     const tags = (d.tags && Object.keys(d.tags)) || [];
     const tour = d.tour || null;
     const befunde = d.befunde || null;
+    // 09.10.2026 — Bild, Titel, Tabelle mit Symbolen, „Standort“ mit Karte,
+    // Touren, Stichwörter als Chips. Alles von vorher bleibt (Ort eingeben, Ähnliche, Bearbeiten, alle Aufnahmedaten).
+    const tz = (sym, label, wert) => wert
+      ? `<div class="fd-zeile"><span class="fd-sym" aria-hidden="true">${sym}</span><span class="fd-label muted">${esc(label)}</span><span class="fd-wert">${wert}</span></div>` : "";
+    const titel = String(d.ort || "").split(",")[0].trim() || d.dateiname || "";
+    const ortText = [d.ort, d.region, d.land].filter(Boolean).join(", ");
+    const stw = String(d.stichworte || "").split(/[;,]/).map(x => x.trim()).filter(Boolean);
     box.innerHTML = `
       <div class="foto-detail">
         ${d.thumb_url ? `<button type="button" class="foto-detail-bild-knopf" id="foto-d-gross" title="${esc(T("fotos.gross_oeffnen", "Groß ansehen (Leertaste)"))}"><img class="foto-detail-bild" src="${d.thumb_url}" alt=""></button>` : ""}
-        <div class="foto-detail-kopf">${esc(d.dateiname || "")}
-          <button type="button" class="btn btn-sm foto-d-gross-knopf" id="foto-d-gross2">${d.art === "video" ? "▶ " + esc(T("fotos.video_abspielen", "Abspielen")) : "🔍 " + esc(T("fotos.gross", "Groß ansehen"))}</button>
-          ${inhalt && inhalt.an && inhalt.modell_da ? `<button type="button" class="btn btn-sm" id="foto-d-aehnlich">🖼 ${esc(T("fotos.inh_aehnliche", "Ähnliche Fotos"))}</button>` : ""}</div>
-        ${d.datei_da === false ? `<div class="foto-fern foto-fern-klein">📴 ${T("fotos.d_fern", "Original gerade nicht erreichbar — Vorschau und Aufnahmedaten kommen aus der Bibliothek.")}</div>` : ""}
+        ${opt.streifen && opt.streifen.length > 1 ? `<div class="fd-streifen" id="fd-streifen">${opt.streifen.slice(0, 60).map((x, k) => `<button type="button" class="fd-sbild${x.path === d.path ? " is-on" : ""}" data-k="${k}" title="${esc(x.dateiname || "")}"></button>`).join("")}</div>` : ""}
+        ${opt.kopf ? `<div class="fd-stelle muted">${esc(opt.kopf)}</div>` : ""}
+        <div class="fd-titel"><span class="fd-titel-text">${esc(titel)}</span>
+          <button type="button" class="fd-fav${d.fav ? " ist-fav" : ""}" id="fd-fav" title="${esc(T("fotos.fav_tip", "Favorit (P)"))}">${herz(d.fav, 18)}</button></div>
+        ${titel !== d.dateiname ? `<div class="fd-datei muted">${esc(d.dateiname || "")}</div>` : ""}
+        <div class="foto-detail-kopf">
+          <button type="button" class="btn btn-sm foto-d-gross-knopf" id="foto-d-gross2">${d.art === "video" ? I("play", 14) + " " + esc(T("fotos.video_abspielen", "Abspielen")) : I("maximize-2", 14) + " " + esc(T("fotos.gross", "Groß ansehen"))}</button>
+          ${inhalt && inhalt.an && inhalt.modell_da ? `<button type="button" class="btn btn-sm" id="foto-d-aehnlich">${I("images", 14)} ${esc(T("fotos.inh_aehnliche", "Ähnliche Fotos"))}</button>` : ""}</div>
+        ${d.datei_da === false ? `<div class="foto-fern foto-fern-klein">${I("wifi-off", 14)} ${T("fotos.d_fern", "Original gerade nicht erreichbar — Vorschau und Aufnahmedaten kommen aus der Bibliothek.")}</div>` : ""}
         ${befunde ? befundeHtml(befunde)
-                  : (m.length ? `<div class="foto-detail-warn">⚠ ${esc(m.join(" · "))}</div>` : "")}
+                  : (m.length ? `<div class="foto-detail-warn">${I("triangle-alert", 14)} ${esc(m.join(" · "))}</div>` : "")}
+        <div class="fd-tabelle">
+          ${tz(I("calendar"), T("fotos.d_zeit", "Aufnahme"), d.tag_lokal ? esc(`${d.tag_lokal} ${uhrzeit(d)}`) + (d.tz_bekannt ? "" : ` <span class="muted">(${esc(T("fotos.geraten", "geraten"))})</span>`) : "")}
+          ${tz(I("camera"), T("fotos.d_kamera", "Kamera"), [d.kamera, d.objektiv].filter(Boolean).map(esc).join("<br><span class=\"muted\">") + (d.kamera && d.objektiv ? "</span>" : ""))}
+          ${tz(I("aperture"), T("fotos.d_blende", "Blende"), esc(d.blende || ""))}
+          ${tz(I("timer"), T("fotos.d_belichtung", "Belichtungszeit"), esc(d.belichtung || ""))}
+          ${tz("ISO", "ISO", esc(d.iso ? String(d.iso) : ""))}
+          ${tz(I("ruler"), T("fotos.d_brennweite", "Brennweite"), esc(d.brennweite || ""))}
+          ${tz(I("crop"), T("fotos.d_groesse", "Bildgröße"), d.breite && d.hoehe ? esc(`${d.breite} × ${d.hoehe}`) + ` <span class="muted">(${(d.breite * d.hoehe / 1e6).toFixed(1).replace(".", ",")} MP)</span>` : "")}
+          ${tz(I("clock"), T("fotos.d_dauer", "Dauer"), esc(dauerText(d.dauer_s)))}
+        </div>
+        <div class="fd-abschnitt">${esc(T("fotos.d_standort", "Standort"))}</div>
+        ${ortText || d.lat != null ? `<div class="fd-ort">${I("map-pin", 14)} ${esc(ortText || "")}${d.lat != null && d.lon != null ? `<div class="muted fd-koord">${(+d.lat).toFixed(5)}, ${(+d.lon).toFixed(5)}${d.ele != null ? ` · ${Math.round(d.ele)} m` : ""}</div>` : ""}</div>` : ""}
         <div class="foto-d-karte" id="foto-d-karte" hidden></div>
         <div class="foto-d-ort-hinweis muted" id="foto-d-ort-hinweis"></div>
+        ${d.datei_da !== false ? `<button type="button" class="btn btn-ghost btn-sm foto-d-ort-tippen" id="foto-d-ort-tippen" title="${esc(T("ort.tippen_tip", "Ort suchen oder Koordinate einfügen statt in die Karte zu klicken"))}">${I("map-pin", 14)} ${esc(T("ort.tippen", "Ort eingeben …"))}</button>` : ""}
         <div class="foto-d-ort-neu" id="foto-d-ort-neu" hidden></div>
-        ${tour ? `<div class="foto-detail-zeile"><span class="muted">${T("fotos.d_tour", "Tour")}</span>
-            <button type="button" class="foto-d-tour" data-tour="${esc(tour.path || "")}">${esc(tour.name || "")}</button></div>` : ""}
-        ${zeile(T("fotos.d_zeit", "Aufnahme"), d.tag_lokal ? `${d.tag_lokal} ${uhrzeit(d)}${d.tz_bekannt ? "" : " (" + T("fotos.geraten", "geraten") + ")"}` : "")}
-        ${zeile(T("fotos.d_kamera", "Kamera"), d.kamera)}
-        ${zeile(T("fotos.d_objektiv", "Objektiv"), d.objektiv)}
-        ${zeile(T("fotos.d_werte", "Werte"), [d.brennweite, d.blende, d.belichtung, d.iso && "ISO " + d.iso].filter(Boolean).join(" · "))}
-        ${zeile(T("fotos.d_groesse", "Größe"), d.breite && d.hoehe ? `${d.breite} × ${d.hoehe}` : "")}
-        ${zeile(T("fotos.d_dauer", "Dauer"), dauerText(d.dauer_s))}
-        ${zeile(T("fotos.d_ort", "Ort"), [d.ort, d.region, d.land].filter(Boolean).join(", "))}
-        ${zeile(T("fotos.d_koordinate", "Koordinate"), (d.lat != null && d.lon != null) ? `${(+d.lat).toFixed(5)}, ${(+d.lon).toFixed(5)}` : "")}
-        ${zeile(T("fotos.d_stichworte", "Stichwörter"), d.stichworte)}
-        ${zeile(T("fotos.d_pfad", "Liegt in"), d.ordner)}
+        <div class="fd-abschnitt">${esc(T("fotos.d_touren", "Touren"))}</div>
+        <div class="foto-d-touren" id="foto-d-touren">${tourenHtml(tour)}</div>
+        ${stw.length ? `<div class="fd-abschnitt">${esc(T("fotos.d_stichworte", "Stichwörter"))}</div>
+          <div class="fd-chips">${stw.map(x => `<span class="fd-chip">${esc(x)}</span>`).join("")}</div>` : ""}
+        ${(d.alben || []).length ? `<div class="fd-abschnitt">${esc(T("fotos.alben", "Alben"))}</div>
+          <div class="fd-chips">${d.alben.map(a => `<span class="fd-chip">${I("book-image", 12)} ${esc(a.name)} <button type="button" class="fd-chip-x" data-album-raus="${a.id}" title="${esc(T("fotos.album_raus", "Aus dem Album nehmen"))}">✕</button></span>`).join("")}</div>` : ""}
+        <div class="fd-pfad muted" title="${esc(d.ordner || "")}">${I("folder", 13)} ${esc(d.ordner || "")}</div>
         <details class="foto-detail-edit" id="foto-d-edit">
-          <summary>✎ ${T("fotos.edit_titel", "Aufnahmedaten bearbeiten")}</summary>
+          <summary>${I("pencil", 13)} ${T("fotos.edit_titel", "Aufnahmedaten bearbeiten")}</summary>
           <div class="foto-edit-body" id="foto-edit-body"><div class="muted">${T("common.loading", "Lädt …")}</div></div>
         </details>
         ${tags.length ? `
@@ -2120,14 +3107,130 @@
     detailKarte(d, tour);
     const aeK = box.querySelector("#foto-d-aehnlich");
     if (aeK) aeK.onclick = () => aehnlicheZeigen(d);
+    // 09.10.2026 — bearbeitete Fotos zeigen rechts die bearbeitete Fassung (das Raster-Vorschaubild bleibt das Original, ✎)
+    if (d.bearbeitet && d.art !== "video") {
+      api().foto_entwickeln_vorschau(d.path, null, false).then(r => {   // warte-ok: bis dahin steht das Vorschaubild
+        const im = box.querySelector(".foto-detail-bild");
+        if (r && r.ok && im && auswahl === d.path) im.src = r.url;
+      }).catch(() => {});
+    }
+    const favK = box.querySelector("#fd-fav");
+    if (favK) favK.onclick = () => { favUmschalten([d.path], favK.classList.contains("ist-fav")); };
+    box.querySelectorAll("[data-album-raus]").forEach(b => {
+      b.onclick = async () => {
+        const w = await api().fotos_album_inhalt(+b.dataset.albumRaus, [d.path], false).catch(() => null);   // warte-ok: löscht eine Zeile
+        if (w && w.ok) { alben = w.alben; navZeichnen(); detailZeigen(d, opt); if (+filter.album === +b.dataset.albumRaus) neuLaden(true); }
+      };
+    });
+    const str = box.querySelector("#fd-streifen");
+    if (str) {   // 09.10.2026 — Bildleiste der Stelle: Klick wechselt, Doppelklick = Lupe
+      str.querySelectorAll("[data-k]").forEach(b => {
+        b.onclick = () => detailZeigen(opt.streifen[+b.dataset.k], opt);
+        b.ondblclick = () => grossOeffnen(opt.streifen[+b.dataset.k], opt.streifen);
+      });
+      const fehlt = opt.streifen.slice(0, 60).filter(x => !x.thumb_url).map(x => x.path);
+      const setzen = () => str.querySelectorAll("[data-k]").forEach(b => { const x = opt.streifen[+b.dataset.k]; if (x && x.thumb_url) b.style.backgroundImage = `url("${x.thumb_url}")`; });
+      setzen();
+      if (fehlt.length) api().fotos_thumbs(fehlt, false).then(r => {   // warte-ok: Leiste zeigt bis dahin ihre Flächen
+        const t = (r && r.thumbs) || {};
+        opt.streifen.forEach(x => { if (t[x.path]) x.thumb_url = t[x.path]; });
+        if (str.isConnected) setzen();
+      }).catch(() => {});
+      const an = str.querySelector(".is-on"); if (an) an.scrollIntoView({ block: "nearest", inline: "center" });
+    }
     const grossK = box.querySelectorAll("#foto-d-gross, #foto-d-gross2");
     grossK.forEach(k => { k.onclick = () => grossOeffnen(d); });
     const edit = box.querySelector("#foto-d-edit");
     if (edit) edit.addEventListener("toggle", () => { if (edit.open) editorLaden(d); });
     const tunKnopf = box.querySelector('[data-tun="geotagger"]');
     if (tunKnopf) tunKnopf.onclick = () => verortenStarten(d, tunKnopf.dataset.tour || "");
-    const tourKnopf = box.querySelector(".foto-d-tour");
-    if (tourKnopf) tourKnopf.onclick = () => tourOeffnen(tourKnopf.dataset.tour || "");
+    tourenBinden(box, d);
+    const ortT = box.querySelector("#foto-d-ort-tippen");
+    if (ortT) ortT.onclick = () => { if (window.rzArchivExport) window.rzArchivExport.ortSetzen([d.path], () => { neuLaden(true); detailZeigen(d); }); };
+  }
+
+  /* 08.10.2026 — wer in den Medien sucht, sieht oben auch die Touren dazu
+     (Name, Ort, Jahr); ein Klick öffnet die Tour-Seite. Das Ergebnis bleibt je Suchtext gemerkt (zeichnen() läuft oft). */
+  let _suchT = { text: null, touren: [] };
+  async function suchTouren() {
+    const el = haupt && haupt.querySelector("#foto-such-touren"); if (!el) return;
+    const text = String(filter.suche || "").trim();
+    if (text.length < 2) { el.hidden = true; return; }
+    if (_suchT.text !== text) {
+      const r = await api().suche_gemeinsam(text, 8, 0).catch(() => null);   // warte-ok: Leiste erscheint, sobald da
+      _suchT = { text, touren: (r && r.ok && r.touren) || [], n: (r && r.n_touren) || 0 };
+    }
+    const el2 = haupt && haupt.querySelector("#foto-such-touren"); if (!el2 || String(filter.suche || "").trim() !== text) return;
+    if (!_suchT.touren.length) { el2.hidden = true; return; }
+    el2.hidden = false;
+    el2.innerHTML = `<span class="muted">${I("route", 13)} ${esc(T("suche.touren_zu", "Touren zu „{q}“:").replace("{q}", text))}</span>`
+      + _suchT.touren.map((x, i) => `<button type="button" class="foto-such-tour" data-i="${i}" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${esc(x.name || "")}${x.started_at ? ` <small>${esc(String(x.started_at).slice(0, 4))}</small>` : ""}</button>`).join("")
+      + (_suchT.n > _suchT.touren.length ? `<span class="muted">+${_suchT.n - _suchT.touren.length}</span>` : "");
+    el2.querySelectorAll(".foto-such-tour").forEach(b => {
+      b.onclick = () => { const x = _suchT.touren[+b.dataset.i]; if (x && window.rzTourSeite) window.rzTourSeite.oeffnen({ geo_hash: x.geo_hash, path: x.path, name: x.name }); };
+    });
+  }
+
+  /* 08.10.2026 — alle Touren des Mediums: Klick öffnet die Tour-Seite bei
+     diesem Foto, ✕ nimmt es aus der Tour, „＋ zu Tour …“ bietet die Touren seines Tages an. Gilt überall in GPS Studio. */
+  function tourenHtml(tour) {
+    const liste = (tour && tour.touren) || (tour ? [tour] : []);
+    return `<div class="foto-detail-zeile foto-d-touren-kopf"><span class="muted">${esc(liste.length > 1 ? T("fotos.d_touren", "Touren") : T("fotos.d_tour", "Tour"))}</span></div>
+      ${liste.map(x => `<div class="foto-d-tourzeile">
+          <button type="button" class="foto-d-tour" data-gh="${esc(x.geo_hash || "")}" data-tour="${esc(x.path || "")}" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${esc(x.name || "")}</button>
+          ${x.quelle === "hand" ? `<span class="foto-d-tour-hand" title="${esc(T("tourseite.von_hand", "von dir hinzugefügt"))}">＋</span>` : ""}
+          <button type="button" class="foto-d-tour-raus" data-raus="${esc(x.geo_hash || "")}" title="${esc(T("fotos.d_tour_raus", "Gehört nicht zu dieser Tour — herausnehmen"))}">✕</button></div>`).join("")}
+      <button type="button" class="btn btn-ghost btn-sm foto-d-tour-plus" id="foto-d-tour-plus">＋ ${esc(T("fotos.d_tour_plus", "Zu einer Tour hinzufügen …"))}</button>`;
+  }
+  function tourenBinden(box, d) {
+    box.querySelectorAll(".foto-d-tour").forEach(b => {
+      b.onclick = () => {
+        if (window.rzTourSeite) window.rzTourSeite.oeffnen({ geo_hash: b.dataset.gh, path: b.dataset.tour, name: b.textContent }, d.path);
+        else tourOeffnen(b.dataset.tour || "");
+      };
+    });
+    box.querySelectorAll("[data-raus]").forEach(b => {
+      b.onclick = async () => {
+        const r = await api().tour_medien_korrigieren(b.dataset.raus, [d.path], false).catch(() => null);   // warte-ok: schreibt eine Zeile
+        if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+        toast(T("tourseite.raus_ok", "Aus der Tour genommen."), "info");
+        tourenNeu(box, d);
+      };
+    });
+    const plus = box.querySelector("#foto-d-tour-plus");
+    if (plus) plus.onclick = async () => {
+      const r = await api().medium_touren(d.path).catch(() => null);   // warte-ok: nur Datenbank
+      const am = (r && r.ok && r.am_tag) || [];
+      if (!am.length) { toast(T("fotos.d_tour_keine", "Keine weitere Tour an diesem Tag."), "info"); return; }
+      const rr = plus.getBoundingClientRect();
+      const menue = document.createElement("div");
+      menue.className = "lib-ctxmenu ts-menue"; menue.setAttribute("role", "menu");
+      menue.innerHTML = am.map((x, i) => `<button type="button" class="lib-ctx-item" data-i="${i}">${esc(x.name)}</button>`).join("");
+      document.body.appendChild(menue);
+      menue.style.left = Math.max(4, Math.min(rr.left, window.innerWidth - menue.offsetWidth - 6)) + "px";
+      menue.style.top = Math.max(4, Math.min(rr.bottom + 2, window.innerHeight - menue.offsetHeight - 6)) + "px";
+      const zu = () => { document.removeEventListener("mousedown", aussen, true); menue.remove(); };
+      const aussen = (ev) => { if (!menue.contains(ev.target)) zu(); };
+      setTimeout(() => document.addEventListener("mousedown", aussen, true), 0);
+      menue.querySelectorAll("[data-i]").forEach(k => {
+        k.onclick = async () => {
+          zu();
+          const x = am[+k.dataset.i];
+          const w = await api().tour_medien_korrigieren(x.geo_hash, [d.path], true).catch(() => null);   // warte-ok: schreibt eine Zeile
+          if (!w || !w.ok) { toast((w && w.error) || "?", "error"); return; }
+          toast(T("fotos.d_tour_dazu", "Zur Tour „{n}“ genommen.").replace("{n}", x.name), "info");
+          tourenNeu(box, d);
+        };
+      });
+    };
+  }
+  async function tourenNeu(box, d) {
+    const r = await api().fotos_details(d.path).catch(() => null);   // warte-ok: nur Datenbank
+    const ziel = box.querySelector("#foto-d-touren");
+    if (!r || !r.ok || !ziel) return;
+    ziel.innerHTML = tourenHtml(r.foto.tour || null);
+    tourenBinden(box, r.foto);
+    if (window.rzTourSeite && window.rzTourSeite.offen()) window.rzTourSeite.neuLaden && window.rzTourSeite.neuLaden();
   }
 
   /** „Im Geotagger verorten": Track laden, Modul wechseln, Ordner übergeben. */
@@ -2174,8 +3277,9 @@
     const altFeld = haupt.querySelector("#foto-suche");
     const tippt = !!(altFeld && document.activeElement === altFeld);
     const getippt = altFeld ? altFeld.value : null, marke = tippt ? [altFeld.selectionStart, altFeld.selectionEnd] : null;
-    haupt.innerHTML = leisteHtml() + kopfHtml() + `<div class="foto-body" id="foto-body"></div>`;
+    haupt.innerHTML = leisteHtml() + kopfHtml() + `<div class="foto-such-touren" id="foto-such-touren" hidden></div><div class="foto-body" id="foto-body"></div>`;
     const box = haupt.querySelector("#foto-body");
+    suchTouren();
 
     const suche = haupt.querySelector("#foto-suche");
     if (suche && tippt) {
@@ -2196,23 +3300,12 @@
         filter.suche = suche.value.trim(); delete filter.aehnlich; neuLaden();
       };
     }
-    const bind = (id, feld) => {
-      const el = haupt.querySelector(id);
-      if (el) el.onchange = () => {
-        const v = el.value;
-        if (v) filter[feld] = (feld === "jahr") ? +v : v; else delete filter[feld];
-        if (feld === "jahr") { delete filter.von; delete filter.bis; }   // 04.10.2026 — nur eine Datumsauswahl gleichzeitig
-        navZeichnen();
-        neuLaden();
-      };
-    };
-    bind("#foto-jahr", "jahr");
-    bind("#foto-kamera", "kamera");
-    bind("#foto-gps", "gps");
     const dbChip = haupt.querySelector("#foto-db-chip");
     if (dbChip) dbChip.onclick = () => { filter = Object.assign({}, filter); delete filter.von; delete filter.bis; navZeichnen(); zeichnen(); neuLaden(); };
     const reset = haupt.querySelector("#foto-reset");
     if (reset) reset.onclick = () => { filter = {}; navZeichnen(); neuLaden(); };
+    const exOben = haupt.querySelector("#foto-export-oben");
+    if (exOben) exOben.onclick = () => exportMenue(exOben, auswahl ? geladen.find(x => x.path === auswahl) : null);
     const obChip = haupt.querySelector("#foto-ob-chip");
     if (obChip) obChip.onclick = () => { filter = Object.assign({}, filter); delete filter.verz; navZeichnen(); zeichnen(); neuLaden(); };
     const aeChip = haupt.querySelector("#foto-aehnlich-chip");
@@ -2227,6 +3320,7 @@
     });
 
     fernKnopfBinden(haupt);   // 18.09.2026 — „Nochmal versuchen" im Laufwerk-Hinweis
+    kopfOhneBinden(haupt);
     const kopfScan = haupt.querySelector("#foto-kopf-scan");
     if (kopfScan) kopfScan.onclick = () => scanStarten();
     const kopfStop = haupt.querySelector("#foto-kopf-stop");
@@ -2239,6 +3333,7 @@
 
   async function mount(hauptEl, navEl) {
     haupt = hauptEl; nav = navEl; angemeldet = true;
+    albenLaden();   // 09.10.2026 — Alben links (still nachgeladen)
     // Jeder Schritt sagt, was er tut: bei zehntausenden Dateien dauert das
     // sonst lange genug, dass man die App für tot hält.
     const schritt = (text) => {
@@ -2341,6 +3436,9 @@
   }
 
   function unmount() {
+    // 09.10.2026 (Marc: „wenn ein Bild groß angezeigt wird und ich das Modul wechsle, bleibt das Bild groß stehen“) —
+    // die Lupe hängt am <body>, nicht im Archiv; sie geht mit dem Archiv (Rezept wird dabei gespeichert)
+    try { grossZu(); } catch (_) {}
     angemeldet = false;
     try { if (window.rzStatus && window.rzStatus.laeuft("foto-oeffnen")) window.rzStatus.ende("foto-oeffnen"); } catch (_) {}
     thumbLauf++;                // ein laufendes Nachholen von Bildern beenden
@@ -2354,5 +3452,13 @@
     haupt = null; nav = null;
   }
 
-  window.rzFotos = { mount, unmount, neuLaden, scanStarten };
+  window.rzFotos = { mount, unmount, neuLaden, scanStarten,
+    // 08.10.2026 — für die Tour-Seite (ui/js/tourseite.js): Detailspalte und Großansicht eines Mediums
+    detailFuer: (pfad) => detailZeigen({ path: pfad }),
+    // 08.10.2026 — „Alle ansehen“ aus der gemeinsamen Suche: Nach Touren, gefiltert
+    zeigeTouren: (text) => { _tourenSuche = String(text || ""); ansicht = "touren"; zeichnen(); },
+    gross: (pfad, liste) => {
+      const l = (liste || []).map(x => (typeof x === "string" ? { path: x } : x));
+      grossOeffnen(l.find(x => x.path === pfad) || { path: pfad }, l);
+    } };
 })();

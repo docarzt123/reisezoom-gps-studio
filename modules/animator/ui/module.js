@@ -149,8 +149,8 @@ function mountAnimator(body, headerActions, opts) {
       <!-- 06.10.2026 (Marc: „Schnellvideo sollte auch ganz nach oben, also Vorlage anwenden, Schnellvideo, und dann …
            ein Videoassistent") — die Abkürzungen stehen oben beisammen, vor allen Einstellungen. -->
       ${!_isStaticFrame && !_isReiseroute ? `<div class="anim-schnellstart"><button class="btn btn-secondary btn-block" id="anim-schnellvideo" title="${t("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte.")}">🎬 ${t("schnell.knopf", "Schnell-Video …")}</button>
-        <!-- 06.10.2026 (Marc) — Video-Assistent als Quiz kommt nach dem Release (F-14); Knopf bis dahin versteckt -->
-        <button class="btn btn-secondary btn-block" id="anim-videoassistent" hidden>🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
+        <!-- 08.10.2026 — Video-Assistent: derselbe Dialog als Quiz, schreibt bearbeitbar ins Projekt -->
+        <button class="btn btn-secondary btn-block" id="anim-videoassistent" title="${t("va.knopf_tip", "Schritt für Schritt zum eigenen Video: Titel, Art, Karte, Einblendungen, Fotos, Schilder, Kamera, Schluss — alles landet bearbeitbar im Projekt.")}">🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
 
       <!-- 06.10.2026 (Marc: „absolut grundlegende Einstellungen“ → ganz nach oben) —
            „Format & Ablauf“: Seitenverhältnis und Dauer sofort, unter „Mehr“ Intro, Halten, Dauer als Faktor,
@@ -386,7 +386,7 @@ function mountAnimator(body, headerActions, opts) {
               ${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n => { const st = window.rzLooks.kachelStil ? window.rzLooks.kachelStil(n) : ""; return `<button type="button" class="rz-look-knopf" data-look="${n}" title="${t("look." + n + ".tip", "")}"><span class="rz-look-bild rz-look-${n}${st ? " rz-look-svg" : ""}"${st}><span class="rz-look-ed" title="${t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …")}">✎</span></span><span>${t("look." + n, n)}</span></button>`; }).join("")}
               <!-- 08.10.2026 (Marc: „andere Karten, keine, Look oben ist total verwirrend“) — Karten, die kein Look sind, als
                    9. Kachel; die Liste steht rechts im Editor, die gewählte Karte steht dann auf der Kachel -->
-              <button type="button" class="rz-look-knopf rz-look-weitere" data-weitere="1" title="${t("kartenwahl.weitere_tip", "OpenStreetMap, OpenTopoMap, CyclOSM, MapTiler, Mapbox … — Liste rechts")}"><span class="rz-look-bild rz-look-weitere-bild" id="anim-weitere-bild"><span class="rz-look-ed" title="${t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …")}">✎</span></span><span id="anim-weitere-name">${t("kartenwahl.weitere", "Weitere Karten")} ▸</span></button>
+              <button type="button" class="rz-look-knopf rz-look-weitere" data-weitere="1" title="${t("kartenwahl.weitere_tip", "Alle Karten: Luftbilder (auch MapTiler und Mapbox Satellit), OpenStreetMap, OpenTopoMap, CyclOSM … — Liste rechts")}"><span class="rz-look-bild rz-look-weitere-bild" id="anim-weitere-bild"><span class="rz-look-ed" title="${t("kartened.oeffnen_tip", "Karte bearbeiten: Farben, Schrift, Relief …")}">✎</span></span><span id="anim-weitere-name">${t("kartenwahl.weitere", "Alle Karten")} ▸</span></button>
             </div>
             <div class="rz-look-eigene" id="anim-eigene-looks" hidden></div>
             <!-- 08.10.2026 — Rückfall: Kartenlook, zu dem keine Kachel passt (z. B. aus dem Web oder ein gelöschter eigener Look) -->
@@ -1918,8 +1918,8 @@ function mountAnimator(body, headerActions, opts) {
       _ctZiehenBinden();
       // 01.10.2026 (Marc: „im Animator Schnell-Video drücken, passiert gar nichts") — die Bindung lag im
       // alten Titelkarten-Editor (_skEditorBinden) und ist mit ihm beim Container-Umbau (0.9.752) verschwunden.
-      document.getElementById("anim-schnellvideo")?.addEventListener("click", async () => {
-        if (!currentGpx || typeof window.rzSchnellVideo !== "function") { toast(t("schnell.kein_track", "Erst eine Tour laden."), "info", 4000); return; }
+      const _schnellStart = async (assistent, leise) => {
+        if (!currentGpx || typeof window.rzSchnellVideo !== "function") { if (!leise) toast(t("schnell.kein_track", "Erst eine Tour laden."), "info", 4000); return false; }
         // 01.10.2026 (Marc) — aus dem Animator mit offenem Projekt: zusätzlich „In dieses Projekt übernehmen";
         // „Meinen Look behalten" ist vorbelegt, sobald das Projekt Einblendungen hat (Vorlage/eigener Look).
         // frische Tour = schwebendes Projekt: festschreiben, damit „In dieses Projekt übernehmen" geht
@@ -1941,8 +1941,14 @@ function mountAnimator(body, headerActions, opts) {
           applog("info", `[schnell] Länge im Animator: ${_i} + ${_a} + ${_h} = ${animatorS} s (Übergänge ${uebergangS} s)`);
         } catch (e) { applog("warn", "[schnell] Länge im Animator: " + e); }
         if (projekt) projekt.uebergangS = uebergangS;
-        window.rzSchnellVideo(currentGpx, { projekt, animatorS });
-      });
+        if (assistent && !projekt) { toast(t("va.kein_projekt", "Der Assistent braucht ein Projekt — bitte erst speichern."), "info", 5000); return false; }
+        window.rzSchnellVideo(currentGpx, { projekt, animatorS, assistent: !!assistent });
+        return true;
+      };
+      document.getElementById("anim-schnellvideo")?.addEventListener("click", () => _schnellStart(false));
+      document.getElementById("anim-videoassistent")?.addEventListener("click", () => _schnellStart(true));
+      // Tour-Seite, Prüfstand: `leise` = ohne Hinweis, falls die Tour noch lädt (die Tour-Seite versucht es dann erneut)
+      window.__rzVideoAssistent = (leise) => _schnellStart(true, leise);
       // Videolänge geändert → Sekunden im offenen Editor neu (Anker bleiben, ihre Zeit wandert)
       ["anim-intro", "anim-dur", "anim-hold"].forEach(k => document.getElementById(k)?.addEventListener("change", () => {
         try { if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog && applog("warn", "[container] Editor nach Längenänderung: " + e); }
@@ -2323,9 +2329,19 @@ function mountAnimator(body, headerActions, opts) {
     if (w) {
       w.classList.toggle("is-on", akt === "weitere");
       const name = document.getElementById("anim-weitere-name");
-      if (name) name.textContent = akt === "weitere" ? _stilName(a.map_style) : t("kartenwahl.weitere", "Weitere Karten") + " ▸";
+      if (name) name.textContent = akt === "weitere" ? _stilName(a.map_style) : t("kartenwahl.weitere", "Alle Karten") + " ▸";
       const bild = document.getElementById("anim-weitere-bild"), url = akt === "weitere" ? _stilBild(a.map_style) : "";
       if (bild) { bild.style.backgroundImage = url ? `url("${url}")` : ""; bild.classList.toggle("hat-bild", !!url); }
+    }
+    // 08.10.2026 — „Natürlich“ zeigt, welche Luftbild-Quelle läuft („Luftbild“ = die kostenlose, sonst ihr Name)
+    const nb = reihe.querySelector('[data-look="natuerlich"] .rz-look-bild');
+    if (nb) {
+      let q = nb.querySelector(".rz-look-quelle");
+      if (!q) { q = document.createElement("span"); q.className = "rz-look-quelle"; nb.appendChild(q); }
+      const fremd = akt === "natuerlich" && a.map_style && a.map_style !== "free_satellite";
+      const txt = fremd ? "🛰 " + _stilName(a.map_style) : "🛰 " + t("kartenwahl.luftbild", "Luftbild");
+      if (q.textContent !== txt) q.textContent = txt;
+      q.classList.toggle("ist-fremd", !!fremd);
     }
     const rf = document.getElementById("anim-karte-ed-rueckfall");
     if (rf) { let eigen = false; try { eigen = _keEigene.some(e => e.id === (a.kartenlook && a.kartenlook.id)); } catch (_) {} rf.hidden = !(a.map_style === "kartenlook" && !akt && !eigen); }
@@ -2464,12 +2480,26 @@ function mountAnimator(body, headerActions, opts) {
         + `<span class="ke-karte-text"><b>${esc(teile[0])}</b><small>${esc(teile.slice(1).join(" · "))}</small></span></label>`; }).join("")}</div>`;
     const _weitereWerte = () => [...document.getElementById("anim-style").options].map(o => o.value)
       .filter(v => _istWeitere(v) && (!_LOOK_DOPPEL.includes(v) || v === _stil));
+    // 08.10.2026 (Beta-Tester: „MapTiler und Mapbox Satellit finde ich nicht mehr“) — „Alle Karten“ zeigt wirklich alle,
+    // in Gruppen: Luftbild (auch über ✎ bei „Natürlich“) · Karten ohne Schlüssel · mit eigenem Schlüssel. Karten ohne
+    // Schlüssel bleiben sichtbar, ihr Untertitel sagt „Schlüssel fehlt“.
+    const _alleGruppen = () => {
+      const cat = (typeof mapCatalog === "function" ? (mapCatalog().styles || []) : []);
+      const gruppe = (v) => (cat.find(x => x.key === v) || {}).group || "free";
+      const da = new Set([...document.getElementById("anim-style").options].map(o => o.value));
+      const rest = _weitereWerte();
+      return [["🛰 " + t("kartenwahl.g_luftbild", "Luftbild"), _LUFTBILD_STILE.filter(v => da.has(v))],
+              ["🗺 " + t("kartenwahl.g_karten", "Karten"), rest.filter(v => gruppe(v) === "free")],
+              ["🔑 " + t("kartenwahl.g_schluessel", "Mit eigenem Schlüssel"), rest.filter(v => gruppe(v) !== "free")]]
+        .filter(([, w]) => w.length)
+        .map(([titel, w]) => `<div class="se-group-title">${esc(titel)}</div>` + _liste(w)).join("");
+    };
     const gruppe = (titel, inhalt) => `<div class="se-group-title">${esc(titel)}</div><div class="ke-gruppe">${inhalt}</div>`;
     const an = (k, wert, text) => `<label class="ke-an"><input type="checkbox" data-ke-an="${k}"${wert ? " checked" : ""}> ${esc(text)}</label>`;
     const regler = (k, wert, min, max, schritt, text) => `<label class="ke-regler"><span>${esc(text)}</span><input type="range" data-ke-zahl="${k}" min="${min}" max="${max}" step="${schritt}" value="${wert}"></label>`;
-    const _titel = _weitere ? "🗺 " + t("kartenwahl.weitere", "Weitere Karten") : (_LUFTBILD_STILE.includes(_stil) && sat ? "🛰 " + t("kartenwahl.luftbild", "Luftbild") : "🗺 " + t("kartened.titel", "Karte bearbeiten"));
+    const _titel = _weitere ? "🗺 " + t("kartenwahl.weitere", "Alle Karten") : (_LUFTBILD_STILE.includes(_stil) && sat ? "🛰 " + t("kartenwahl.luftbild", "Luftbild") : "🗺 " + t("kartened.titel", "Karte bearbeiten"));
     p.innerHTML = `<div class="tm-kopf"><b>${esc(_titel)}</b><button type="button" class="sign-editor-x" title="${esc(t("common.close", "Schließen"))}">✕</button></div>
-      ${sat ? (_weitere ? _liste(_weitereWerte())
+      ${sat ? (_weitere ? _alleGruppen()
                         : (_LUFTBILD_STILE.includes(_stil) ? `<div class="se-group-title">${esc(t("kartenwahl.luftbild_von", "Luftbild von"))}</div>` + _liste(_LUFTBILD_STILE) : "")) : `
       <p class="muted ke-hinweis">${esc(t("kartened.hinweis", "Jede Änderung siehst du sofort in der Vorschau und im Video. ⌘Z nimmt sie zurück."))}</p>
       ${gruppe(t("kartened.g_flaechen", "Flächen"), ["land", "water", "waterway", "wood", "park", "building"].map(k => _keFarbe(k, L[k])).join(""))}
@@ -6055,6 +6085,9 @@ function mountAnimator(body, headerActions, opts) {
     return p;
   }
   async function _gebDachfarbe(lon, lat, quellen) {
+    // Prüfstand (test_gebaeude_3d A2): Dachfarbe sofort und berechenbar statt aus dem Luftbild — so prüft der Test die
+    // Wirt-Logik am fertigen Ergebnis, nicht einen Zwischenstand, der von der Geschwindigkeit des Kartendienstes abhängt
+    if (typeof window.__rzGebaeudeDachTest === "function") return window.__rzGebaeudeDachTest(lon, lat);
     for (const q of quellen) {
       const z = q.max, n = Math.pow(2, z);
       const fx = (lon + 180) / 360 * n, s = Math.sin(lat * Math.PI / 180);
@@ -6139,16 +6172,24 @@ function mountAnimator(body, headerActions, opts) {
     try { feats = map.querySourceFeatures(src, { sourceLayer: "building" }); } catch (_) { return; }
     const neu = [];
     for (const f of feats) {
-      if (f.id == null || _gebFlaechen.has(f.id)) continue;
+      if (f.id == null) continue;
       const ring = _gebRing(f.geometry); if (!ring || ring.length < 4) continue;
-      const m = _gebMitte(f.geometry); if (!m) continue;
       let bb = [Infinity, Infinity, -Infinity, -Infinity], a2 = 0;
       for (let i = 0; i < ring.length; i++) {
         const c = ring[i], d = ring[(i + 1) % ring.length];
         bb = [Math.min(bb[0], c[0]), Math.min(bb[1], c[1]), Math.max(bb[2], c[0]), Math.max(bb[3], c[1])];
         a2 += c[0] * d[1] - d[0] * c[1];
       }
-      _gebFlaechen.set(f.id, { m, ring, bb, a: Math.abs(a2) / 2, wirt: null, aus: f.properties && f.properties.hide_3d === true });
+      const flaeche = Math.abs(a2) / 2;
+      // 09.10.2026 (test_gebaeude_3d: 2 von 239 Paaren ungleich, je nach Ladereihenfolge) — ein großes Gebäude kommt über
+      // mehrere Kacheln in STÜCKEN mit derselben Kennung. Bisher galt das zuerst geladene Stück (anderer Mittelpunkt,
+      // andere Fläche → anderer Wirt, je nachdem, welche Kachel zuerst da war). Jetzt gilt immer das größte Stück;
+      // kommt ein größeres nach, wird neu zugeordnet.
+      const alt = _gebFlaechen.get(f.id);
+      if (alt && alt.a >= flaeche) continue;
+      const m = _gebMitte(f.geometry); if (!m) continue;
+      _gebFlaechen.set(f.id, { m, ring, bb, a: flaeche, wirt: alt ? alt.wirt : null, wurzel: alt ? alt.wurzel : undefined,
+                               aus: f.properties && f.properties.hide_3d === true });
       _gebZellen(bb, z => { if (!_gebRaster.has(z)) _gebRaster.set(z, new Set()); _gebRaster.get(z).add(f.id); });
       neu.push(f.id);
     }
@@ -6173,6 +6214,13 @@ function mountAnimator(body, headerActions, opts) {
       if (w === f.wurzel) continue;
       f.wurzel = w;
       if (f.aus) continue;   // ausgeblendete Umrisse werden nicht gezeichnet, nur als Wirt gebraucht
+      // 09.10.2026 — neuer oberster Wirt: die alte Farbe SOFORT weg (bis die neue da ist, die Stilfarbe wie alle noch
+      // ungefärbten Häuser). Vorher blieb sie stehen, bis der Auftrag dran war — bei langsamem Luftbild-Dienst lange —,
+      // während der Wirt schon die neue trug: zwei Farben auf deckungsgleichen Wände = Flimmern (test_gebaeude_3d).
+      if (_gebFarben.get(id)) {
+        _gebFarben.set(id, null);
+        try { map.removeFeatureState({ source: src, sourceLayer: "building", id }, "farbe"); } catch (_) {}
+      }
       _gebSchlange.push({ id, wirt: w, m: _gebFlaechen.get(w).m, src });
     }
     for (const e of _gebSchlange) if (!_gebFarben.has(e.id)) _gebFarben.set(e.id, null);
@@ -6188,8 +6236,13 @@ function mountAnimator(body, headerActions, opts) {
           if (!_gebWirtFarbe.has(e.wirt)) _gebWirtFarbe.set(e.wirt, _gebDachfarbe(e.m[0], e.m[1], quellen));
           const farbe = await _gebWirtFarbe.get(e.wirt);
           if (_gebFlaechen.get(e.id)?.wurzel !== e.wirt) return;   // inzwischen neuer (oberster) Wirt → dessen Auftrag gilt
+          const alt = _gebFarben.get(e.id);
           _gebFarben.set(e.id, farbe);
           if (farbe) { try { map.setFeatureState({ source: e.src, sourceLayer: "building", id: e.id }, { farbe }); } catch (_) {} }
+          // 09.10.2026 (test_gebaeude_3d rot, wenn der Luftbild-Dienst schwächelt) — neuer oberster Wirt OHNE Farbe: die
+          // Farbe des alten Wirts muss weg, sonst behält das Teil sie, während sein Wirt die Stilfarbe zeigt → zwei
+          // Farben auf deckungsgleichen Wänden = Flimmern. Ohne Farbe fallen beide auf dieselbe Stilfarbe zurück.
+          else if (alt) { try { map.removeFeatureState({ source: e.src, sourceLayer: "building", id: e.id }, "farbe"); } catch (_) {} }
         }));
       }
     } finally { _gebLaeuft = false; }
@@ -6218,7 +6271,8 @@ function mountAnimator(body, headerActions, opts) {
     return true;
   };
   let _gebWarteN = 0;
-  window.__rzGebaeude = { zeit: () => Object.assign({}, _gebZeit), faerben: () => _gebaeudeFaerben(), quellen: () => _gebLuftbildQuellen(), kacheln: () => _gebKacheln.size, dach: (lon, lat) => _gebDachfarbe(lon, lat, _gebLuftbildQuellen()), farben: () => [..._gebFarben.values()].filter(Boolean).length,
+  window.__rzGebaeude = { info: (id) => { const f = _gebFlaechen.get(id); return f ? { a: f.a, m: f.m, wirt: f.wirt, wurzel: f.wurzel, aus: f.aus, farbe: _gebFarben.get(id) } : null; },
+                          zeit: () => Object.assign({}, _gebZeit), faerben: () => _gebaeudeFaerben(), quellen: () => _gebLuftbildQuellen(), kacheln: () => _gebKacheln.size, dach: (lon, lat) => _gebDachfarbe(lon, lat, _gebLuftbildQuellen()), farben: () => [..._gebFarben.values()].filter(Boolean).length,
                           offen: () => _gebSchlange.length + (_gebLaeuft ? 1 : 0),
                           an: () => _gebaeudeAn(), anwenden: () => _gebaeudeAnwenden(),
                           ebene: () => !!(map && map.getLayer(GEB_EBENE)), sichtbar: () => { try { return map.getLayoutProperty(GEB_EBENE, "visibility") !== "none" && !!map.getLayer(GEB_EBENE); } catch (_) { return false; } },
@@ -13180,6 +13234,34 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) { s._imgEl = im; }
     }
     // Echtes, geladenes Bild? (kein leeres/0px-Image, kein serialisierter {src}-Rest)
+    /** 09.10.2026 — passt das gespeicherte Schild-Bild noch zur Bearbeitung des Fotos? */
+    function _animSignThumbAktuell(s) {
+      const st = (window.__rzRezeptStempel || {})[s.imageSrc] || "";
+      return st === (s.thumb_rz || "");
+    }
+    // Fotos bearbeitet (Archiv, Lupe, Tour-Seite): veraltete Schild-Bilder und die Bild-Zwischenspeicher dieser Sitzung weg
+    const _rzHk = "__rzRezeptHandler_" + _MODKEY;     // Animator und Tour-Map je ein Haken
+    if (window[_rzHk]) window.removeEventListener("rz-rezept-stempel", window[_rzHk]);
+    window[_rzHk] = () => {
+      try {
+        const liste = (typeof _activeProject !== "undefined" && _activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) ? _activeProject[_SIGNS_KEY] : [];
+        let neu = 0;
+        for (const s of liste) {
+          if (!s || !s.imageSrc || _animSignThumbAktuell(s)) continue;
+          if (s.thumb || s._imgEl) {
+            s.thumb = null; _animSetImgEl(s, null);
+            try { Object.defineProperty(s, "_scharfVersucht", { value: false, enumerable: false, writable: true, configurable: true }); } catch (_) {}
+            neu++;
+          }
+        }
+        try { _fsBilder.clear(); } catch (_) {}
+        try { _sgMini.clear(); } catch (_) {}
+        try { if (_ctBilder) _ctBilder.clear(); } catch (_) {}
+        try { if (_tm && _tm.thumbs) _tm.thumbs.clear(); } catch (_) {}
+        if (neu) _animSignsKarteBald();
+      } catch (_) {}
+    };
+    window.addEventListener("rz-rezept-stempel", window[_rzHk]);
     function _animSignHasImg(s) {
       return !!(s && s._imgEl && s._imgEl.naturalWidth > 0);
     }
@@ -13241,7 +13323,7 @@ function mountAnimator(body, headerActions, opts) {
               gross.onload = () => {
                 if (gross.naturalWidth > kante) {
                   // Im Render-Modus das große Bild NICHT ins Projekt schreiben (nur für diesen Lauf).
-                  if (!window.__rzRenderMode) s.thumb = r.thumb;
+                  if (!window.__rzRenderMode) { s.thumb = r.thumb; s.thumb_rz = r.rz || ""; }
                   _animSetImgEl(s, gross);
                   try { _animSignsKarteBald(); } catch (_) {}
                 }
@@ -13255,14 +13337,15 @@ function mountAnimator(body, headerActions, opts) {
         const regen = () => {
           try {
             api().sign_image_thumb(s.imageSrc).then((r) => {
-              if (r && r.ok && r.thumb) { s.thumb = r.thumb; tryLoad(r.thumb, false); }
+              if (r && r.ok && r.thumb) { s.thumb = r.thumb; s.thumb_rz = r.rz || ""; tryLoad(r.thumb, false); }
               else { fail(); }
             }).catch(() => { fail(); });
           } catch (_) { fail(); }
         };
         // Gespeicherten Thumb zuerst probieren (schnell), bei Defekt frisch erzeugen.
-        if (s.thumb) { tryLoad(s.thumb, true); }
-        else { regen(); }
+        // 09.10.2026 — und nur, wenn er zur aktuellen Bearbeitung des Fotos passt (Stempel `thumb_rz`, util.js)
+        const los = () => { if (s.thumb && _animSignThumbAktuell(s)) { tryLoad(s.thumb, true); } else { regen(); } };
+        if (window.rzRezeptStempelBereit) window.rzRezeptStempelBereit().then(los, los); else los();
       });
     }
     // Was das gerasterte Schild-Bild bestimmt — ohne Ort, Zeitanker und Sichtbarkeit.
@@ -16185,12 +16268,12 @@ function mountAnimator(body, headerActions, opts) {
       // 08.10.2026 (Beta-Tester: „der grüne Knopf geht nicht mit der Maus, aber mit der Leertaste") — Text und Titel nur
       // bei Änderung schreiben: WebKit verwirft einen Klick, wenn der Knopfinhalt zwischen Drücken und Loslassen ersetzt
       // wird, und das geschah hier alle 150 ms (Mausdruck > 60 ms → Klick oft weg, > 200 ms → immer).
-      const sym = bereitet ? "⏳" : (an ? "⏸" : "▶"); if (p.textContent !== sym) p.textContent = sym;
+      const sym = bereitet ? "⏳" : (an ? "⏸" : "▶"); if (p.dataset.sym !== sym) { p.dataset.sym = sym; p.textContent = sym; }   // 09.10.2026: Merk-Attribut — der Text wird zum Strich-Symbol (icons.js), ein Textvergleich schriebe sonst jedes Mal neu (dann verwirft WebKit Klicks)
       p.classList.toggle("an", an); p.classList.toggle("bereitet", bereitet);
       const tip = bereitet ? t("animator.tp.bereitet", "Vorschau wird vorbereitet …") : p.dataset.tipp || p.title; if (p.title !== tip) p.title = tip;
       if (!p.dataset.tipp && !bereitet) p.dataset.tipp = p.title;
     }
-    const tb = el.querySelector('[data-tp="ton"]'); if (tb) { const an = _tonVorschauAn(), sy = an ? "🔊" : "🔇"; if (tb.textContent !== sy) tb.textContent = sy; tb.classList.toggle("ist-stumm", !an); }
+    const tb = el.querySelector('[data-tp="ton"]'); if (tb) { const an = _tonVorschauAn(), sy = an ? "🔊" : "🔇"; if (tb.dataset.sym !== sy) { tb.dataset.sym = sy; tb.textContent = sy; } tb.classList.toggle("ist-stumm", !an); }
   }
   function _tpAufbauen() {
     if (_isStaticFrame || window.__rzRenderMode) return;
@@ -18153,9 +18236,12 @@ function mountAnimator(body, headerActions, opts) {
     }).catch(() => _hlGipfel.delete(k));
     return "";
   }
-  function _hlSchilderAbgleichen(leise) {
+  function _hlSchilderAbgleichen(leise, opt) {
     const sg = window.__rzAnimSigns && window.__rzAnimSigns.spur;
-    if (!sg || _isStaticFrame || _isReiseroute || window.__rzRenderMode || !_activeProject) return 0;
+    // 08.10.2026 — `opt.auchImRender`: das Web-Studio läuft im Render-Modus ohne Editor-Schritt; dort legt erst dieser
+    // Aufruf die Highlight-Schilder an. Der Desktop-Render bekommt sie fertig aus dem Projekt und rechnet nicht neu.
+    const imRender = !!window.__rzRenderMode && !(opt && opt.auchImRender);
+    if (!sg || _isStaticFrame || _isReiseroute || imRender || !_activeProject) return 0;
     const sr = _ovSeries, co = currentCoords;
     if (_hlEin() && (!sr || !co)) return 0;   // Track noch nicht geladen → später
     const alt = (sg.list() || []).slice();
@@ -18276,7 +18362,7 @@ function mountAnimator(body, headerActions, opts) {
     const sr = _ovSeries, co = currentCoords;
     return (sr && co) ? _hlBerechnen(sr, co, _hlArtenGewaehlt()).map(h => ({ art: h.art, i: h.i, f: h.f, wert: h.wert })) : [];
   };
-  window.__rzHighlightsAbgleichen = (leise) => _hlSchilderAbgleichen(leise);
+  window.__rzHighlightsAbgleichen = (leise, opt) => _hlSchilderAbgleichen(leise, opt);
   function _ovTimingAt(tSec, frac) {
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;

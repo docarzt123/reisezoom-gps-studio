@@ -1650,7 +1650,9 @@ def _sign_thumb_fuer(s: dict, bedarf_px: int) -> Optional[str]:
     from . import photos as _cphotos
     src = (s.get("imageSrc") or "").strip()
     eigenes = s.get("thumb") if isinstance(s.get("thumb"), str) else None
-    if eigenes:
+    # 09.10.2026 — bearbeitetes Foto: das gespeicherte Bild kann veraltet sein → frisch und mit Bearbeitung
+    if src and _cphotos.hat_rezept(src):
+        eigenes = None
         kante = _data_url_kante_px(eigenes)
         if kante and kante >= bedarf_px:
             return eigenes
@@ -1661,7 +1663,7 @@ def _sign_thumb_fuer(s: dict, bedarf_px: int) -> Optional[str]:
                 # wie viele Schilder gerade da sind (der Schlüssel enthält die Größe).
                 aus_cache = _cphotos.thumb_data_url_gecacht(src, _sign_cache_px(bedarf_px))
                 if aus_cache:
-                    return aus_cache
+                    return _cphotos.mit_rezept(src, aus_cache)
         except Exception:
             pass
     # Datei weg / nicht lesbar: lieber das kleine gespeicherte Bild als gar keins.

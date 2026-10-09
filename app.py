@@ -87,6 +87,9 @@ import webview
 from PIL import Image, ImageOps
 
 from core import gpx as cgpx
+from core import medienexport as cmedex
+from core import oeffnen_mit as coeffnen
+from core import entwickeln as cent   # 08.10.2026 — Fotos/Clips exportieren (oben importiert, damit es ins Paket kommt)
 from core import tempo as ctempo   # 08.09.2026 — Tempo-Kurve (Raffung, Halte, Abschnitte)
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
@@ -178,7 +181,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.786"
+APP_VERSION = "0.9.787"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -549,6 +552,7 @@ except Exception:
 # danach aus Disk gezogen. Spart Sekunden pro Reload eines Projekts mit
 # vielen Fotos.
 cphotos.set_cache_dir(APP_SUPPORT / "photo_thumb_cache")
+cent.RAW_SPEICHER = APP_SUPPORT / "photo_thumb_cache" / "raw"     # 09.10.2026 — entwickelte RAWs fürs Bearbeiten
 cclips.CACHE_DIR = APP_SUPPORT / "clip_cache"   # 02.10.2026 — Standbilder + Einzelbilder der Videoclips
 
 
@@ -1898,6 +1902,10 @@ class Api:
         # das volle JPEG neu dekodiert. Key enthält mtime → nach GPS-Write
         # (mtime ändert sich) automatisch Cache-Miss = korrektes Neu-Decode.
         self._thumb_cache: dict = {}
+        # 09.10.2026 — bearbeitete Fassung überall (Raster, Animator, Video): Rezepte je Pfad, Stand zählt jedes Speichern
+        self._rezept_stand = 0
+        self._rezept_memo: dict = {}
+        self._bearb_thumbs: dict = {}
         # Async-Write-State
         self._write_worker: Optional[threading.Thread] = None
         self._write_state: dict = {
@@ -4997,6 +5005,11 @@ class Api:
                 for f in seite.get("fotos") or []:
                     f["thumb_url"] = cphotos.thumb_data_url_gecacht(f["path"], cphotos.THUMB_RASTER_PX, fps.get(f["path"]),
                                                                      nur_cache=True)
+                # 09.10.2026 — bearbeitete Fotos auch auf der gemerkten ersten Seite bearbeitet zeigen
+                rz = self._rezepte_fuer([f["path"] for f in seite.get("fotos") or [] if f.get("thumb_url")])
+                for f in seite.get("fotos") or []:
+                    if f["path"] in rz:
+                        f["thumb_url"] = self._bearbeitet_url(f["path"], f["thumb_url"], rz[f["path"]])
             return {"ok": True, "zeit": d.get("zeit"), "seite": seite, "ordner": d.get("ordner"), "werte": d.get("werte"),
                     "datumsbaum": d.get("datumsbaum"), "ordnerbaum": d.get("ordnerbaum")}
         except Exception as e:  # noqa: BLE001
@@ -5398,6 +5411,8 @@ class Api:
                 if t_a - t_l > 0.5:
                     log.info("[fotos] Abfrage langsam: %.0f ms (offset %d, %s)",
                              (t_a - t_l) * 1000, offset, ",".join(sorted(filt)) or "ohne Filter")
+            with clib._DB_LOCK:   # 09.10.2026 — Herz auf der Kachel (auch für Treffer der Inhaltssuche)
+                cfotos.favs_markieren(self._lib(), res.get("fotos") or [])
             if mit_thumbs:
                 t_b = time.perf_counter()
                 # NUR aus dem Cache: die Seite muss sofort stehen. Was fehlt,
@@ -5415,6 +5430,13 @@ class Api:
                     f["thumb_url"] = cphotos.thumb_data_url_gecacht(
                         f["path"], cphotos.THUMB_RASTER_PX, fps.get(f["path"]),
                         nur_cache=True)
+                # 09.10.2026 — bearbeitete Fotos zeigen im Raster die bearbeitete Fassung (aus dem kleinen Bild entwickelt)
+                bearb = [f["path"] for f in res["fotos"] if f.get("bearbeitet") and f.get("thumb_url")]
+                if bearb:
+                    rz = self._rezepte_fuer(bearb)
+                    for f in res["fotos"]:
+                        if f["path"] in rz:
+                            f["thumb_url"] = self._bearbeitet_url(f["path"], f["thumb_url"], rz[f["path"]])
                 if time.perf_counter() - t_b > 0.5:
                     log.info("[fotos] Vorschaubilder der Seite aus dem Speicher: %.0f ms (%d)",
                              (time.perf_counter() - t_b) * 1000, len(res["fotos"]))
@@ -5439,6 +5461,16 @@ class Api:
             p = Path(str(path or ""))
             da = p.is_file()
             video = cexif.is_video(str(p))
+            # 09.10.2026 — bearbeitetes Foto: groß gleich die bearbeitete Fassung (nicht erst das Original)
+            rz = None if video or not da else self._rezepte_fuer([str(p)]).get(str(p))
+            if rz:
+                try:
+                    img, _ = self._entw_quelle(str(p), self._GROSS_PX)
+                    aus = cent.anwenden(img, cent.wirksam(rz, img))
+                    return {"ok": True, "art": "bild", "url": "data:image/jpeg;base64," + base64.b64encode(cent.jpeg(aus, 90)).decode("ascii"),
+                            "quelle": "bearbeitet", "original_da": True}
+                except Exception as e:  # noqa: BLE001 — dann wie bisher das Original
+                    log.info("[fotos_gross] bearbeitet: %s", e)
             if da and (video or p.suffix.lower() in self._GROSS_NATIV):
                 r = self.serve_media(str(p))
                 if r.get("ok"):
@@ -5580,6 +5612,21 @@ class Api:
             log.exception("fotos_verorten")
             return {"ok": False, "error": str(e)}
 
+    def fotos_verorten_mehrere(self, pfade: list, lat: float, lon: float, adresse: dict = None) -> dict:
+        """08.10.2026 (Beta-Tester: „mehreren Clips gleichzeitig Koordinaten zuweisen … Ort per Tastatur oder
+        Kopiereingaben“) — denselben Ort in mehrere Fotos/Clips schreiben, jedes mit Sicherung wie beim Einzelnen.
+        Höchstens 500 auf einmal. Liefert je Datei den Grund, falls es nicht ging."""
+        pfade = [str(p) for p in (pfade or []) if p][:500]
+        ok, fehler = 0, []
+        for p in pfade:
+            r = self.fotos_verorten(p, lat, lon, None, None, adresse)
+            if r.get("ok"):
+                ok += 1
+            else:
+                fehler.append({"pfad": p, "grund": str(r.get("error") or "?")[:160]})
+        log.info("[fotos] %d von %d verortet (%.5f, %.5f)", ok, len(pfade), float(lat), float(lon))
+        return {"ok": ok > 0 or not pfade, "n_ok": ok, "n_fehler": len(fehler), "fehler": fehler[:30]}
+
     def fotos_adresse(self, lat: float, lon: float, lang: str = "de") -> dict:
         """Adresse zu einer Koordinate (derselbe Anbieter wie beim Geotagger) — Vorschlag beim Verorten."""
         try:
@@ -5690,6 +5737,8 @@ class Api:
                     conn.commit()
             except Exception as e:  # noqa: BLE001
                 log.warning("fotos_schaerfen: %s", e)
+        for p, r in self._rezepte_fuer(list(raus)).items():
+            raus[p] = self._bearbeitet_url(p, raus[p], r)
         return {"ok": True, "thumbs": raus}
 
     def fotos_details(self, path: str) -> dict:
@@ -5700,6 +5749,10 @@ class Api:
             if not d:
                 return {"ok": False, "error": _ui_t()("fotos.err_nicht_im_bestand", "Dieses Foto ist nicht im Bestand")}
             d["tags"] = cfotos.tags_lesen(conn, path)
+            cfotos.favs_markieren(conn, [d])
+            d["alben"] = [dict(r) for r in conn.execute(
+                "SELECT a.id, a.name FROM foto_album_inhalt i JOIN foto_alben a ON a.id = i.album_id WHERE i.pfad = ? "
+                "ORDER BY a.name COLLATE NOCASE", (path,))]
             # Liegt das Original gerade erreichbar? Ein einziger Blick, und bei
             # einem abgehängten Laufwerk scheitert er sofort.
             try:
@@ -5715,6 +5768,9 @@ class Api:
                 d["thumb_url"] = cphotos.thumb_data_url_gecacht(
                     path, cphotos.THUMB_RASTER_PX, fp, nur_cache=True)
                 d["thumb_klein"] = bool(d["thumb_url"])
+            rz_d = self._rezepte_fuer([path]).get(path) if d.get("thumb_url") else None   # 09.10.2026 — bearbeitete Fassung
+            if rz_d:
+                d["thumb_url"] = self._bearbeitet_url(path, d["thumb_url"], rz_d)
             # Die Tour zur Aufnahmezeit (mit Verlauf für die kleine Karte) und
             # die Befunde samt Lösungsweg — beides braucht die Detailspalte.
             tour = cfotos.tour_fuer_foto(conn, d)
@@ -5724,6 +5780,64 @@ class Api:
         except Exception as e:
             log.exception("fotos_details")
             return {"ok": False, "error": str(e)}
+
+    def _rezepte_fuer(self, pfade) -> dict:
+        """Rezepte (bearbeitete Fotos) für diese Pfade — gemerkt bis zum nächsten Speichern."""
+        memo = self.__dict__.setdefault("_rezept_memo", {})
+        fehlen = [p for p in pfade if p not in memo]
+        if fehlen:
+            try:
+                with clib._DB_LOCK:
+                    gefunden = cfotos.rezepte(self._lib(), fehlen)
+            except Exception:  # noqa: BLE001
+                gefunden = {}
+            for p in fehlen:
+                memo[p] = gefunden.get(p) or None
+            if len(memo) > 20000:
+                memo.clear()
+        return {p: memo.get(p) for p in pfade if memo.get(p)}
+
+    @staticmethod
+    def _rezept_stempel(rezept) -> str:
+        """Kurzer Fingerabdruck eines Rezepts — ändert sich mit jeder Bearbeitung; "" = unbearbeitet."""
+        if not rezept:
+            return ""
+        return hashlib.sha1(json.dumps(rezept, sort_keys=True).encode()).hexdigest()[:10]
+
+    def fotos_rezept_stempel(self) -> dict:
+        """09.10.2026 — alle bearbeiteten Fotos mit Stempel. Der Animator vergleicht ihn mit dem Stempel, unter dem ein
+        Schild-Bild entstand, und holt veraltete Bilder neu (auch in älteren Projekten)."""
+        try:
+            with clib._DB_LOCK:
+                zeilen = self._lib().execute("SELECT pfad, rezept FROM foto_rezept").fetchall()
+            raus = {}
+            for p, rz in zeilen:
+                try:
+                    raus[p] = self._rezept_stempel(json.loads(rz))
+                except (TypeError, ValueError):
+                    pass
+            return {"ok": True, "stempel": raus}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e), "stempel": {}}
+
+    def _bearbeitet_url(self, pfad: str, url: str, rezept: dict) -> str:
+        """Kleines Vorschaubild (data-URL) mit dem Rezept entwickeln — ohne die Datei erneut zu lesen."""
+        if not url or not rezept or not url.startswith("data:image/"):
+            return url
+        cache = self.__dict__.setdefault("_bearb_thumbs", {})
+        key = (pfad, getattr(self, "_rezept_stand", 0), len(url))
+        if key in cache:
+            return cache[key]
+        try:
+            img = Image.open(io.BytesIO(base64.b64decode(url.split(",", 1)[1]))).convert("RGB")
+            aus = cent.anwenden(img, cent.wirksam(rezept, img))
+            neu = "data:image/jpeg;base64," + base64.b64encode(cent.jpeg(aus, 86)).decode("ascii")
+        except Exception:  # noqa: BLE001
+            neu = url
+        if len(cache) > 600:
+            cache.clear()
+        cache[key] = neu
+        return neu
 
     def fotos_thumbs(self, paths: list = None, gross: bool = False) -> dict:
         """Vorschaubilder nachliefern (die große Fassung erst auf Abruf).
@@ -5741,6 +5855,7 @@ class Api:
             fps = {}
         raus = {}
         gelernt = {}
+        schnell = []      # bekamen ein Schnellbild (thumb = 2): die Oberfläche schärft sie, wenn sie zu sehen sind
 
         def eins(pfad):
             try:
@@ -5751,6 +5866,23 @@ class Api:
                     fp = cphotos.fingerprint_datei(pfad)
                     if fp:
                         gelernt[pfad] = fp
+                # 09.10.2026 (Marc: „seit einer ganzen Weile steht, dass Vorschaubilder erstellt werden, und es passiert
+                # nichts“ — 19 s für 12 Bilder übers NAS, weil jede Datei ganz gelesen wurde): im Raster zuerst das im
+                # JPEG eingebettete Vorschaubild aus den ersten 64 KB (wie Schritt 3), scharf wird es danach still
+                # beim Ansehen (fotos_schaerfen). Die große Fassung und andere Formate wie bisher aus der ganzen Datei.
+                url = cphotos.thumb_data_url_gecacht(pfad, px, fp, nur_cache=True)
+                if url:
+                    return pfad, url
+                if not gross and Path(pfad).suffix.lower() in cfotos.SCHNELL_ENDUNGEN:
+                    try:
+                        with open(pfad, "rb") as fh:
+                            kopf = fh.read(65536)
+                        daten = cphotos.schnellbild_aus_kopf(kopf, px)
+                    except OSError:
+                        daten = None
+                    if daten and cphotos.thumb_ablegen(pfad, px, fp, daten):
+                        schnell.append(pfad)
+                        return pfad, cphotos._to_data_url(daten)
                 return pfad, cphotos.thumb_data_url_gecacht(pfad, px, fp)
             except Exception:
                 return pfad, None
@@ -5768,7 +5900,18 @@ class Api:
                     cfotos.fp_setzen(self._lib(), gelernt)
             except Exception:
                 log.debug("fp_setzen fehlgeschlagen", exc_info=True)
-        return {"ok": True, "thumbs": raus}
+        if schnell:
+            try:
+                with clib._DB_LOCK:     # wie Schritt 3: 2 = Schnellbild — Schritt 3 lässt sie dann aus
+                    c = self._lib()
+                    c.executemany("UPDATE fotos SET thumb = 2 WHERE path = ? AND COALESCE(thumb, 0) = 0", [(p,) for p in schnell])
+                    c.commit()
+            except Exception:
+                log.debug("thumb=2 setzen fehlgeschlagen", exc_info=True)
+        rz = self._rezepte_fuer([p for p, u in raus.items() if u])
+        for p, r in rz.items():
+            raus[p] = self._bearbeitet_url(p, raus[p], r)
+        return {"ok": True, "thumbs": raus, "schnell": schnell}
 
     def fotos_touren(self, filter: dict = None) -> dict:
         """Der Bestand nach Touren gruppiert — der Punkt, den kein anderes
@@ -5787,6 +5930,653 @@ class Api:
         except Exception as e:
             log.exception("fotos_einer_tour")
             return {"ok": False, "error": str(e), "fotos": []}
+
+    # ── Touren und Medien verzahnen ─────────────────────────────────────
+    def tour_medien_kurz(self, geo_hash: str = "", path: str = "") -> dict:
+        """Für die Tour-Details im Archiv: Anzahl Fotos/Clips und die ersten Medien für den Bildstreifen
+        (Pfade; die Vorschaubilder holt die Oberfläche über `fotos_thumbs`)."""
+        try:
+            res = cfotos.fotos_einer_tour(self._lib(), geo_hash, path, limit=5000)
+            fs = res.get("fotos") or []
+            return {"ok": True, "n": res.get("n", 0), "n_foto": res.get("n_foto", 0), "n_video": res.get("n_video", 0),
+                    "streifen": [{"path": d["path"], "art": d.get("art"), "aufnahme_utc": d.get("aufnahme_utc")}
+                                 for d in fs[:12]]}
+        except Exception as e:
+            log.exception("tour_medien_kurz")
+            return {"ok": False, "error": str(e), "n": 0, "streifen": []}
+
+    def tour_medien_kandidaten(self, geo_hash: str) -> dict:
+        """„＋ Medien vom selben Tag“: was am Tag der Tour entstand, aber (noch) nicht dazugehört — mit Grund."""
+        try:
+            res = cfotos.kandidaten_tag(self._lib(), geo_hash)
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("tour_medien_kandidaten")
+            return {"ok": False, "error": str(e), "medien": []}
+
+    def tour_medien_korrigieren(self, geo_hash: str, pfade: list, dazu: bool) -> dict:
+        """Medien von Hand zur Tour nehmen oder herausnehmen — gilt überall (Archiv, Animator, Schnell-Video …)."""
+        try:
+            pf = [str(x) for x in (pfade or []) if x][:5000]
+            res = cfotos.korrektur_setzen(self._lib(), str(geo_hash or ""), pf, bool(dazu))
+            log.info("[tour-medien] %s: %d %s (%d gespeichert)", geo_hash, len(pf), "dazu" if dazu else "raus",
+                     res.get("gespeichert", 0))
+            return res
+        except Exception as e:
+            log.exception("tour_medien_korrigieren")
+            return {"ok": False, "error": str(e)}
+
+    def tour_seite_daten(self, geo_hash: str = "", path: str = "") -> dict:
+        """Alles für die Tour-Seite im Archiv (08.10.2026): die Tour (Felder aus dem Archiv), ihre Linie je
+        Etappe (≤ 2000 Punkte), das Höhenprofil (≤ 400 Werte) und ihre Medien mit Lage — Medien ohne Koordinate werden
+        über die Aufnahmezeit auf den Track gesetzt (`geschaetzt`). Die Bibliothek wird nur kurz gesperrt; das Lesen der
+        GPX läuft ohne Sperre (sonst warten alle anderen Aufrufe, vgl. Export-Hänger)."""
+        import bisect
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                if not path and geo_hash:
+                    r = conn.execute("SELECT path FROM tracks WHERE geo_hash = ? ORDER BY (started_at IS NULL) LIMIT 1",
+                                     (geo_hash,)).fetchone()
+                    path = r[0] if r else ""
+                tr = clib.get_track(conn, path) if path else None
+                if not tr:
+                    return {"ok": False, "error": _ui_t()("tourseite.nicht_gefunden", "Diese Tour ist nicht (mehr) im Archiv.")}
+                gh = tr.get("geo_hash") or geo_hash
+                med = cfotos.fotos_einer_tour(conn, gh, path, limit=3000)
+            teile, profil, zeiten, punkte = [], [], [], []
+            try:
+                pts, _st = cgpx.parse_gpx(self._ensure_gpx(path))
+            except Exception as e:  # noqa: BLE001
+                log.info("[tourseite] GPX nicht lesbar (%s) — Linie aus dem Archiv", e)
+                pts = []
+            if pts:
+                schritt = max(1, len(pts) // 2000)
+                je: dict = {}
+                for i, p in enumerate(pts):
+                    if i % schritt == 0 or i == len(pts) - 1:
+                        je.setdefault(p.seg, []).append([round(p.lon, 6), round(p.lat, 6)])
+                teile = [v for _k, v in sorted(je.items()) if len(v) > 1]
+                ps = max(1, len(pts) // 400)
+                profil = [[round(p.dist_m / 1000, 3), round(p.ele, 1) if p.ele is not None else None]
+                          for p in pts[::ps]]
+                for p in pts:
+                    if p.time:
+                        try:
+                            zeiten.append(datetime.fromisoformat(str(p.time).replace("Z", "+00:00")).timestamp())
+                            punkte.append(p)
+                        except ValueError:
+                            pass
+            elif tr.get("geom"):
+                try:
+                    g = json.loads(tr["geom"]) if isinstance(tr["geom"], str) else tr["geom"]
+                    teile = [g] if g else []
+                except (TypeError, ValueError):
+                    teile = []
+            medien = []
+            for d in med.get("fotos") or []:
+                m = {"path": d["path"], "art": d.get("art"), "utc": d.get("aufnahme_utc"), "dateiname": d.get("dateiname"),
+                     "lat": d.get("lat"), "lon": d.get("lon"), "quelle": d.get("quelle", "auto"), "geschaetzt": False,
+                     "tag": d.get("tag_lokal"), "tz": d.get("tz_minuten")}
+                if (m["lat"] is None or m["lon"] is None) and m["utc"] is not None and zeiten:
+                    i = bisect.bisect_left(zeiten, m["utc"])
+                    i = min(max(i, 0), len(zeiten) - 1)
+                    m["lat"], m["lon"], m["geschaetzt"] = punkte[i].lat, punkte[i].lon, True
+                medien.append(m)
+            for k in ("geom",):
+                tr.pop(k, None)
+            return {"ok": True, "tour": tr, "teile": teile, "profil": profil, "medien": medien,
+                    "n_foto": med.get("n_foto", 0), "n_video": med.get("n_video", 0)}
+        except Exception as e:
+            log.exception("tour_seite_daten")
+            return {"ok": False, "error": str(e)}
+
+    def suche_gemeinsam(self, text: str = "", n_touren: int = 12, n_medien: int = 24, touren_pfade: list = None) -> dict:
+        """Eine Suche über Touren UND Medien (08.10.2026 — Beta-Tester: „mir ist ja Ort oder Jahr bekannt“).
+
+        Eine vierstellige Jahreszahl wirkt als Jahr, der Rest als Text. Touren: Name, Ort, Land, Schlagwörter (Archiv-
+        Volltext). Medien: direkte Text-Treffer (Dateiname, Ordner, Kamera, Ort-Tags) UND die Medien der gefundenen
+        Touren — so findet „Teneriffa 2023“ auch Fotos, in denen kein Ort steht. Ergebnisse getrennt."""
+        try:
+            woerter = str(text or "").split()
+            jahr = next((int(w) for w in woerter if re.fullmatch(r"(19|20)\d\d", w)), None)
+            rest = " ".join(w for w in woerter if not (jahr is not None and w == str(jahr)))
+            if not rest and jahr is None:
+                return {"ok": True, "touren": [], "n_touren": 0, "medien": [], "n_medien": 0}
+            conn = self._lib()
+            with clib._DB_LOCK:
+                if touren_pfade:
+                    # das Archiv zeigt schon Touren (auch über die Gegend gefunden) — deren Medien zählen
+                    tq = {"items": [clib.get_track(conn, str(p)) for p in list(touren_pfade)[:30]]}
+                    tq["items"] = [t for t in tq["items"] if t]
+                    tq["total"] = len(tq["items"])
+                else:
+                    tq = clib.query(conn, search=rest, year=jahr, limit=max(1, int(n_touren)), sort="date_desc")
+                touren = [{"path": t["path"], "geo_hash": t.get("geo_hash"), "name": t.get("display_name") or t.get("name") or t.get("filename"),
+                           "started_at": t.get("started_at"), "place": t.get("place", ""), "country": t.get("country", ""),
+                           "distance_m": t.get("distance_m")} for t in tq.get("items", [])]
+                filt = {"suche": rest} if rest else {}
+                if jahr is not None:
+                    filt["jahr"] = jahr
+                direkt = cfotos.abfrage(conn, filt, limit=int(n_medien), offset=0, sortierung="zeit_neu") if rest else {"fotos": [], "n": 0}
+                medien, gesehen = [], set()
+                for d in direkt.get("fotos") or []:
+                    if d["path"] not in gesehen:
+                        gesehen.add(d["path"]); medien.append({"path": d["path"], "art": d.get("art"), "dateiname": d.get("dateiname"),
+                                                                "tag_lokal": d.get("tag_lokal"), "ueber": "text"})
+                for t in touren[:30 if touren_pfade else 6]:
+                    tm = cfotos.fotos_einer_tour(conn, t.get("geo_hash") or "", t["path"], limit=400)
+                    for d in tm.get("fotos") or []:
+                        if d["path"] in gesehen:
+                            continue
+                        gesehen.add(d["path"])
+                        if len(medien) < int(n_medien):
+                            medien.append({"path": d["path"], "art": d.get("art"), "dateiname": d.get("dateiname"),
+                                           "tag_lokal": d.get("tag_lokal"), "ueber": "tour", "tour": t["name"]})
+            return {"ok": True, "jahr": jahr, "text": rest, "touren": touren, "n_touren": tq.get("total", len(touren)),
+                    # ohne Doppelte: alle gesehenen + direkte Treffer jenseits der ersten Seite
+                    "medien": medien, "n_medien": len(gesehen) + max(0, int(direkt.get("n") or 0) - len(direkt.get("fotos") or []))}
+        except Exception as e:
+            log.exception("suche_gemeinsam")
+            return {"ok": False, "error": str(e), "touren": [], "medien": []}
+
+    # ── Exportieren aus dem Archiv (08.10.2026) ────────────────────
+    def _track_export_daten(self, src: str, fmt: str):
+        gpx_path = self._ensure_gpx(src)
+        pts, st = cgpx.parse_gpx(gpx_path)
+        name = (getattr(st, "name", None) or os.path.splitext(os.path.basename(src))[0])
+        orig = None
+        if fmt == "gpx" and str(gpx_path).lower().endswith(".gpx"):
+            try:
+                with open(gpx_path, "rb") as f:
+                    orig = f.read()
+            except OSError:
+                orig = None
+        data, _mime = ctrackio.export_payload(pts, fmt, name, original=orig)
+        return data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8")
+
+    def touren_exportieren(self, pfade: list, fmt: str = "gpx") -> dict:
+        """Touren exportieren — eine per Speichern-Dialog (Vorschlag: Tourname), mehrere in einen Ordner (je Tour eine
+        Datei, nie überschreiben). Formate wie im Menü Datei; `rzproj` = Projekt mit allen Einstellungen (eine Tour)."""
+        try:
+            pfade = [str(p) for p in (pfade or []) if p]
+            fmt = str(fmt or "gpx").lower()
+            if not pfade:
+                return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
+            if fmt == "rzproj":
+                return self.projekt_exportieren(gpx_path=pfade[0])
+            if fmt not in ctrackio.SUPPORTED_EXPORT:
+                fmt = "gpx"
+            label = fmt.upper()
+            if len(pfade) == 1:
+                src = pfade[0]
+                if not os.path.exists(src):
+                    return {"ok": False, "error": _ui_t()("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}
+                dest = self.pick_save_path(self._track_exportname(src) + "." + fmt, str(Path.home()), [f"{label} (*.{fmt})"])
+                if not dest:
+                    return {"ok": False, "cancelled": True}
+                if not dest.lower().endswith("." + fmt):
+                    dest += "." + fmt
+                _nutzerdatei_schreiben(dest, f"export_{fmt}", daten=self._track_export_daten(src, fmt))
+                log.info("[export] Tour %s → %s", fmt, dest)
+                return {"ok": True, "n": 1, "pfad": dest}
+            wahl = self.pick_file("folder")
+            if not wahl:
+                return {"ok": False, "cancelled": True}
+            ordner = Path(wahl[0])
+            n, fehler = 0, []
+            for src in pfade:
+                try:
+                    name = _freier_dateiname(ordner, self._track_exportname(src) + "." + fmt)
+                    ziel = ordner / name
+                    _ds.nutzer_ziel(ziel)
+                    _nutzerdatei_schreiben(str(ziel), f"export_{fmt}", daten=self._track_export_daten(src, fmt))
+                    n += 1
+                except Exception as e:  # noqa: BLE001
+                    fehler.append({"pfad": src, "grund": str(e)[:160]})
+            log.info("[export] %d Touren %s → %s (%d Fehler)", n, fmt, ordner, len(fehler))
+            return {"ok": True, "n": n, "ordner": str(ordner), "fehler": fehler}
+        except Exception as e:
+            log.exception("touren_exportieren")
+            return {"ok": False, "error": str(e)}
+
+    def _export_pfade_zum_filter(self, filter: dict) -> list:
+        """„Alle gefilterten exportieren“: die Pfade zum Filter der Medien-Ansicht (höchstens 20 000). 08.10.2026
+        (Durchsicht) — mit Inhaltssuche/„Ähnliche Fotos“ dieselbe Trefferliste wie in der Ansicht; vorher fiel `aehnlich`
+        einfach weg, und „Alle 40 gefilterten“ exportierte bis zu 20 000 Fotos aus dem ganzen Bestand."""
+        filt = self._filter_mit_inhalt(filter)
+        with clib._DB_LOCK:
+            return [d["path"] for d in cfotos.abfrage(self._lib(), filt, limit=20000, offset=0,
+                                                      sortierung="zeit_alt").get("fotos", [])]
+
+    def medien_exportieren(self, pfade: list, optionen: dict = None) -> dict:
+        """Fotos/Clips in einen Ordner exportieren — läuft im Hintergrund (Fortschritt über `medien_export_status`).
+        optionen: art 'original'|'jpeg', kante (px, 0 = volle Größe), qualitaet, ohne_meta, namen 'original'|'datum_ort'.
+        Die Originale werden nur gelesen."""
+        o = dict(optionen or {})
+        pfade = [str(p) for p in (pfade or []) if p]
+        if not pfade and isinstance(o.get("filter"), dict):
+            # „Alle gefilterten exportieren“: die Pfade zum Filter der Medien-Ansicht (höchstens 20 000)
+            try:
+                pfade = self._export_pfade_zum_filter(o["filter"])
+            except Exception as e:  # noqa: BLE001
+                return {"ok": False, "error": str(e)}
+        if not pfade:
+            return {"ok": False, "error": "leer"}
+        if getattr(self, "_medex", {}).get("laeuft"):
+            return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
+        wahl = self.pick_file("folder")
+        if not wahl:
+            return {"ok": False, "cancelled": True}
+        ordner = Path(wahl[0])
+        try:
+            with clib._DB_LOCK:
+                zeilen = cfotos.zeilen(self._lib(), pfade)
+        except Exception:  # noqa: BLE001
+            zeilen = {}
+        if o.get("namen") == "datum_ort":
+            # ohne Ort im Foto: der Name der (ersten) Tour
+            try:
+                with clib._DB_LOCK:
+                    fenster = cfotos.tour_fenster(self._lib())
+                    for z in zeilen.values():
+                        if not z.get("ort"):
+                            tt = cfotos.touren_eines_mediums(self._lib(), z, fenster)
+                            if tt:
+                                z["tour"] = tt[0].get("place") or tt[0].get("name")
+            except Exception:  # noqa: BLE001
+                pass
+        try:   # 09.10.2026 — bearbeitete Fotos kommen bearbeitet heraus
+            with clib._DB_LOCK:
+                rezepte = cfotos.rezepte(self._lib(), pfade)
+        except Exception:  # noqa: BLE001
+            rezepte = {}
+        self._medex = {"laeuft": True, "n": 0, "gesamt": len(pfade), "datei": "", "stopp": False, "ergebnis": None}
+
+        def schreiben(p: Path, b: bytes) -> None:
+            _ds.nutzer_ziel(p)
+            _nutzerdatei_schreiben(str(p), "export_medien", daten=b)
+
+        def kopieren(q: str, p: Path) -> None:
+            _ds.nutzer_ziel(p)
+            _nutzerdatei_schreiben(str(p), "export_medien", quelle=q)
+
+        def lauf():
+            try:
+                erg = cmedex.exportieren(
+                    pfade, str(ordner), art=o.get("art", "original"), kante=int(o.get("kante") or 0),
+                    qualitaet=int(o.get("qualitaet") or 90), ohne_meta=bool(o.get("ohne_meta")),
+                    namen=o.get("namen", "original"), zeilen=zeilen, schreiben=schreiben, kopieren=kopieren, rezepte=rezepte,
+                    fortschritt=lambda i, g, d: self._medex.update({"n": i, "gesamt": g, "datei": d}),
+                    stopp=lambda: self._medex.get("stopp"))
+                self._medex["ergebnis"] = erg
+                log.info("[export] Medien: %d ok, %d Fehler → %s", erg["n_ok"], erg["n_fehler"], ordner)
+            except Exception as e:  # noqa: BLE001
+                log.exception("medien_exportieren")
+                self._medex["ergebnis"] = {"ok": False, "error": str(e)}
+            finally:
+                self._medex["laeuft"] = False
+
+        threading.Thread(target=lauf, name="medien-export", daemon=True).start()
+        return {"ok": True, "gestartet": True, "ordner": str(ordner), "gesamt": len(pfade)}
+
+    def medien_export_status(self) -> dict:
+        m = dict(getattr(self, "_medex", {}) or {})
+        m.pop("stopp", None)
+        return m
+
+    def medien_export_stopp(self) -> dict:
+        if getattr(self, "_medex", None):
+            self._medex["stopp"] = True
+        return {"ok": True}
+
+    def tour_aus_fotos(self, pfade: list, profil: str = "gerade", name: str = "") -> dict:
+        """„Aus diesen Fotos eine Tour machen“ (08.10.2026, Stufe 2): die Fotos/Clips MIT
+        Koordinate in Aufnahmereihenfolge zu einem Track verbinden — gerade Linien oder, auf Wunsch, entlang von Wegen
+        (`walking` | `cycling` | `driving`, dieselben freien Dienste wie die Etappen). Die GPX-Datei kommt in den
+        Import-Ordner des Archivs (wie „Dateien importieren“), das Archiv liest sie danach ein."""
+        try:
+            pfade = [str(p) for p in (pfade or []) if p][:5000]
+            with clib._DB_LOCK:
+                z = cfotos.zeilen(self._lib(), pfade)
+            punkte = sorted([d for d in z.values() if d.get("lat") is not None and d.get("lon") is not None
+                             and d.get("aufnahme_utc") is not None], key=lambda d: d["aufnahme_utc"])
+            if len(punkte) < 2:
+                return {"ok": False, "error": _ui_t()("tour_aus_fotos.zu_wenig", "Dafür braucht es mindestens zwei Fotos mit Ort und Aufnahmezeit.")}
+            def iso(t):
+                return datetime.fromtimestamp(float(t), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            spur = []
+            weg_ok = False
+            if profil in ("walking", "cycling", "driving"):
+                try:
+                    n = len(punkte)
+                    idx = sorted({0, n - 1} | {round(i * (n - 1) / 23) for i in range(24)}) if n > 25 else list(range(n))
+                    wp = [(float(punkte[i]["lon"]), float(punkte[i]["lat"])) for i in idx]
+                    r = croute.route_geometry(wp, profil, token="")
+                    coords = r.get("coords") or []
+                    if len(coords) >= 2:
+                        # Zeit linear über die Weglänge vom ersten bis zum letzten Foto
+                        import math as _m
+                        dist = [0.0]
+                        for a, b in zip(coords, coords[1:]):
+                            k = _m.cos(_m.radians(a[1])) * 111320.0
+                            dist.append(dist[-1] + _m.hypot((b[0] - a[0]) * k, (b[1] - a[1]) * 111320.0))
+                        t0, t1 = float(punkte[0]["aufnahme_utc"]), float(punkte[-1]["aufnahme_utc"])
+                        gesamt = dist[-1] or 1.0
+                        spur = [{"lat": c[1], "lon": c[0], "time": iso(t0 + (t1 - t0) * d / gesamt)} for c, d in zip(coords, dist)]
+                        weg_ok = True
+                except Exception as e:  # noqa: BLE001 — kein Weg gefunden: gerade Linien
+                    log.info("[tour-aus-fotos] Wegeführung (%s) nicht möglich: %s — gerade Linien", profil, e)
+            if not spur:
+                spur = [{"lat": d["lat"], "lon": d["lon"], "ele": d.get("ele"), "time": iso(d["aufnahme_utc"])} for d in punkte]
+            tag = datetime.fromtimestamp(float(punkte[0]["aufnahme_utc"]), timezone.utc).strftime("%Y-%m-%d")
+            ort = next((d.get("ort") for d in punkte if d.get("ort")), "") or ""
+            titel = (str(name or "").strip() or (f"{ort} {tag}" if ort else
+                     _ui_t()("tour_aus_fotos.name", "Tour aus Fotos {tag}").replace("{tag}", tag)))
+            ziel = APP_SUPPORT / "import"
+            ziel.mkdir(parents=True, exist_ok=True)
+            stamm = re.sub(r"[^\w\-. ]+", "_", f"{tag} {titel}").strip(" ._")[:80] or "tour-aus-fotos"
+            datei = ziel / f"{stamm}.gpx"
+            n = 2
+            while datei.exists():
+                datei = ziel / f"{stamm}-{n}.gpx"; n += 1
+            datei.write_text(ctrackio.to_gpx_string(spur, titel), encoding="utf-8")
+            with clib._DB_LOCK:
+                clib.add_folder(self._lib(), str(ziel), recursive=False)
+            log.info("[tour-aus-fotos] %d Fotos → %s (%s, %d Punkte)", len(punkte), datei.name, "Wege" if weg_ok else "gerade", len(spur))
+            return {"ok": True, "pfad": str(datei), "folder": str(ziel), "n_fotos": len(punkte), "n_punkte": len(spur),
+                    "wege": weg_ok, "name": titel, "ohne_ort": len(pfade) - len(punkte)}
+        except Exception as e:
+            log.exception("tour_aus_fotos")
+            return {"ok": False, "error": str(e)}
+
+    def touren_an_tagen(self, tage: list) -> dict:
+        """Touren je Tag für die Tagesköpfe im Medien-Raster."""
+        try:
+            return {"ok": True, "tage": cfotos.touren_an_tagen(self._lib(), tage)}
+        except Exception as e:
+            log.exception("touren_an_tagen")
+            return {"ok": False, "error": str(e), "tage": {}}
+
+    def reise_seite_daten(self, pfade: list, name: str = "") -> dict:
+        """Die Reise als Behälter (08.10.2026, Stufe 2): mehrere Touren (eine Sammlung oder eine Auswahl) auf
+        einer Seite — je Tour ihre Linie und Werte, dazu alle Medien der Reise in Aufnahmereihenfolge (jedes Medium
+        einmal, mit seiner Tour). Baut auf `tour_seite_daten` auf (Sperre nur für die DB-Teile)."""
+        try:
+            touren, medien, gesehen = [], [], set()
+            for p in [str(x) for x in (pfade or []) if x][:40]:
+                d = self.tour_seite_daten(path=p)
+                if not d.get("ok"):
+                    continue
+                tr = d["tour"]
+                tname = tr.get("display_name") or tr.get("name") or tr.get("filename") or ""
+                touren.append({"tour": tr, "teile": d.get("teile") or [], "n_foto": d.get("n_foto", 0), "n_video": d.get("n_video", 0)})
+                for m in d.get("medien") or []:
+                    if m["path"] in gesehen:
+                        continue
+                    gesehen.add(m["path"])
+                    medien.append(dict(m, tour=tname, tour_path=tr.get("path")))
+            touren.sort(key=lambda x: x["tour"].get("started_at") or "")
+            medien.sort(key=lambda m: m.get("utc") or 0)
+            summe = lambda k: sum(float(x["tour"].get(k) or 0) for x in touren)  # noqa: E731
+            return {"ok": True, "name": name, "touren": touren, "medien": medien,
+                    "von": touren[0]["tour"].get("started_at") if touren else None,
+                    "bis": touren[-1]["tour"].get("ended_at") if touren else None,
+                    "distance_m": summe("distance_m"), "ascent_m": summe("ascent_m"), "duration_s": summe("duration_s"),
+                    "n_foto": sum(1 for m in medien if m.get("art") != "video"), "n_video": sum(1 for m in medien if m.get("art") == "video")}
+        except Exception as e:
+            log.exception("reise_seite_daten")
+            return {"ok": False, "error": str(e)}
+
+    # ── Favoriten und Alben (09.10.2026) — nur in der Bibliothek ─────────────
+    def fotos_favorit(self, pfade: list, an: bool = True) -> dict:
+        try:
+            n = cfotos.fav_setzen(self._lib(), list(pfade or []), bool(an))
+            return {"ok": True, "n": n, "stand_fav": cfotos.stand(self._lib()).get("fav", 0)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_favorit")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_alben(self) -> dict:
+        try:
+            return {"ok": True, "alben": cfotos.alben(self._lib())}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_alben")
+            return {"ok": False, "error": str(e), "alben": []}
+
+    def fotos_album_neu(self, name: str, pfade: list = None) -> dict:
+        try:
+            conn = self._lib()
+            aid = cfotos.album_neu(conn, name)
+            if pfade:
+                cfotos.album_inhalt(conn, aid, list(pfade), True)
+            return {"ok": True, "id": aid, "alben": cfotos.alben(conn)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_album_neu")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_album_aendern(self, album_id: int, name: str = "", weg: bool = False) -> dict:
+        try:
+            conn = self._lib()
+            if weg:
+                cfotos.album_weg(conn, int(album_id))
+            else:
+                cfotos.album_umbenennen(conn, int(album_id), name)
+            return {"ok": True, "alben": cfotos.alben(conn)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_album_aendern")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_album_inhalt(self, album_id: int, pfade: list, dazu: bool = True) -> dict:
+        try:
+            conn = self._lib()
+            n = cfotos.album_inhalt(conn, int(album_id), list(pfade or []), bool(dazu))
+            return {"ok": True, "n": n, "alben": cfotos.alben(conn)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_album_inhalt")
+            return {"ok": False, "error": str(e)}
+
+    # ── Bearbeiten (09.10.2026) — Rezept je Foto, das Original bleibt ─────────────
+    _ENTW_QUELLE: dict = {}   # pfad → (verkleinerte Quelle für die Vorschau, aus_vorschau) — höchstens 4
+
+    def _entw_quelle(self, path: str, px: int = 1600):
+        k = (str(path), int(px))
+        q = Api._ENTW_QUELLE.get(k)
+        if q is None:
+            img, aus_vorschau = cent.quelle_oeffnen(str(path))
+            img.thumbnail((px, px))
+            q = (img, aus_vorschau)
+            Api._ENTW_QUELLE[k] = q
+            while len(Api._ENTW_QUELLE) > 4:
+                Api._ENTW_QUELLE.pop(next(iter(Api._ENTW_QUELLE)))
+        return q
+
+    def foto_bearbeiten_laden(self, path: str) -> dict:
+        try:
+            with clib._DB_LOCK:
+                rz = cfotos.rezept_lesen(self._lib(), path)
+            img, aus_vorschau = self._entw_quelle(path)
+            gross, _ = self._entw_quelle(path, self._GROSS_PX)
+            # 09.10.2026 — Histogramm des Originals gleich mit: die Lupe öffnet mit „Bearbeiten“, da soll es nicht leer stehen
+            # 09.10.2026 — die Quelle selbst geht mit: die Lupe entwickelt beim Ziehen in der Grafikkarte
+            # (ui/js/entwickeln_gl.js), Python nur noch, wenn WebGL fehlt
+            return {"ok": True, "rezept": rz, "auto": cent.auto_werte(img), "aus_vorschau": aus_vorschau,
+                    "regler": {k: list(v) for k, v in cent.REGLER.items()}, "stile": list(cent.VOREINSTELLUNGEN),
+                    "voreinstellungen": cent.VOREINSTELLUNGEN, "hist": cent.histogramm(img),
+                    "quelle_url": "data:image/jpeg;base64," + base64.b64encode(cent.jpeg(gross, 95)).decode("ascii"),
+                    "breite": gross.size[0], "hoehe": gross.size[1]}
+        except Exception as e:  # noqa: BLE001
+            log.info("[bearbeiten] %s: %s", path, e)
+            return {"ok": False, "error": str(e)}
+
+    def foto_entwickeln_vorschau(self, path: str, rezept: dict = None, vorher: bool = False, rahmen: bool = False,
+                                 px: int = 1600) -> dict:
+        """Vorschau (≤ 1600 px) mit Histogramm — beim Ziehen der Regler, ~0,1 s. `rezept` None = das gespeicherte.
+        `rahmen` = ganzer gedrehter Rahmen ohne Zuschnitt (Zuschneiden-Werkzeug ohne WebGL)."""
+        try:
+            t0 = time.perf_counter()
+            if rezept is None:
+                with clib._DB_LOCK:
+                    rezept = cfotos.rezept_lesen(self._lib(), path)
+            img, _ = self._entw_quelle(path, max(200, min(int(px or 1600), self._GROSS_PX)))
+            aus = img if vorher else cent.anwenden(img, cent.wirksam(rezept or {}, img), rahmen=rahmen)
+            daten = cent.jpeg(aus, 88)
+            return {"ok": True, "url": "data:image/jpeg;base64," + base64.b64encode(daten).decode("ascii"),
+                    "hist": cent.histogramm(aus), "ms": round((time.perf_counter() - t0) * 1000)}
+        except Exception as e:  # noqa: BLE001
+            log.info("[bearbeiten] Vorschau %s: %s", path, e)
+            return {"ok": False, "error": str(e)}
+
+    def foto_rezept_speichern(self, pfade, rezept: dict = None) -> dict:
+        """Ein Rezept für eins oder mehrere Fotos (Einfügen / Auto für alle). Leer = Bearbeitung entfernen.
+        Für mehrere (Liste) bleibt der Zuschnitt jedes Fotos stehen — Einfügen und Auto übertragen nur den Ton."""
+        try:
+            mehrere = not isinstance(pfade, str)
+            liste = [pfade] if not mehrere else list(pfade or [])
+            ton = {k: v for k, v in (rezept or {}).items() if k not in cent.GEOMETRIE}
+            with clib._DB_LOCK:
+                c = self._lib()
+                for p in liste[:5000]:
+                    if mehrere:
+                        alt = cfotos.rezept_lesen(c, p)
+                        rz = dict(ton, **{k: alt[k] for k in cent.GEOMETRIE if k in alt})
+                    else:
+                        rz = rezept or {}
+                    cfotos.rezept_setzen(c, p, rz)
+                n = cfotos.stand(c).get("bearbeitet", 0)
+            self._rezept_stand = getattr(self, "_rezept_stand", 0) + 1
+            self.__dict__.setdefault("_rezept_memo", {}).clear()
+            return {"ok": True, "n": len(liste), "stand_bearbeitet": n}
+        except Exception as e:  # noqa: BLE001
+            log.exception("foto_rezept_speichern")
+            return {"ok": False, "error": str(e)}
+
+    def foto_entwickelt_speichern(self, path: str) -> dict:
+        """„Als neue Datei speichern …“: volle Größe entwickelt als JPEG, Ort per Speichern-Dialog (vorgeschlagen:
+        neben dem Original, „…-bearbeitet.jpg“). Nie das Original, nie überschreiben ohne Sicherung."""
+        try:
+            with clib._DB_LOCK:
+                rz = cfotos.rezept_lesen(self._lib(), path)
+            p = Path(path)
+            dest = self.pick_save_path(p.stem + "-bearbeitet.jpg", str(p.parent), ("JPEG (*.jpg)",))
+            if not dest:
+                return {"ok": False, "abbruch": True}
+            if Path(dest).resolve() == p.resolve():
+                return {"ok": False, "error": _ui_t()("bearb.err_original", "Das Original wird nie überschrieben — bitte einen anderen Namen wählen.")}
+            img, _ = cent.quelle_oeffnen(str(p), voll=True)
+            aus = cent.anwenden(img, cent.wirksam(rz, img))
+            icc = None
+            try:
+                from PIL import Image as _I
+                with _I.open(str(p)) as o:
+                    icc = o.info.get("icc_profile")
+            except Exception:  # noqa: BLE001
+                pass
+            _nutzerdatei_schreiben(dest, "foto_entwickelt", daten=cent.jpeg(aus, 94, icc))
+            log.info("[bearbeiten] gespeichert: %s → %s", p.name, dest)
+            return {"ok": True, "pfad": dest}
+        except Exception as e:  # noqa: BLE001
+            log.exception("foto_entwickelt_speichern")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_doppelte(self) -> dict:
+        """Doppelte Fotos/Clips: gleich (Inhaltskennung) und fast gleich (Aufnahmezeit + Bildinhalt).
+        Die Vektoren kommen aus der Inhaltssuche, wenn sie an ist — sonst gilt „fast gleich“ nur als unsicher."""
+        try:
+            stand = None
+            if self._inhalt_bereit():
+                try:
+                    v = self._inhalt_var()
+                    with self._inhalt_lock:
+                        idx = self._inhalt_idx()
+                        stand = self._inhalt_mx.aktuell(idx, cinhalt.VARIANTEN[v]["dim"])
+                except Exception as e:  # noqa: BLE001
+                    log.info("[doppelte] ohne Inhaltsvektoren: %s", e)
+            t0 = time.perf_counter()
+            with clib._DB_LOCK:                 # nur das Lesen unter der Sperre — das Gruppieren läuft danach
+                zeilen = cfotos.doppelte_zeilen(self._lib())
+            res = cfotos.doppelte_gruppieren(*zeilen, vektor=stand.vektor if stand else None)
+            res["mit_inhalt"] = stand is not None
+            log.info("[doppelte] %d gleich, %d fast gleich (%d Gruppen) in %.0f ms%s", res["n_gleich"], res["n_fast"],
+                     len(res["gleich"]) + len(res["fast"]), (time.perf_counter() - t0) * 1000, "" if stand else " (ohne Inhalt)")
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("fotos_doppelte")
+            return {"ok": False, "error": str(e), "gleich": [], "fast": []}
+
+    def fotos_doppelte_wegraeumen(self, pfade: list, wohin: str = "papierkorb") -> dict:
+        """Doppelte wegräumen — NIE endgültig löschen: in den Papierkorb des Systems oder in einen Ordner
+        „Doppelte (GPS Studio)“ neben dem Original (das Einlesen lässt ihn aus). Danach fliegen ihre Einträge aus dem
+        Bestand (08.10.2026, Klicktest: als „fehlend“ markiert standen sie links unter „Nicht erreichbar“ — sie sind aber
+        bewusst weg, nicht vermisst)."""
+        pfade = [str(p) for p in (pfade or []) if p][:5000]
+        ok, fehler = [], []
+        for p in pfade:
+            try:
+                q = Path(p)
+                if not q.is_file():
+                    fehler.append({"pfad": p, "grund": "nicht_da"}); continue
+                if wohin == "ordner":
+                    ziel_o = q.parent / cfotos.DOPPELTE_ORDNER.get(_ui_sprache(), cfotos.DOPPELTE_ORDNER["de"])
+                    _ds.nutzer_ziel(ziel_o)
+                    ziel_o.mkdir(exist_ok=True)
+                    z = ziel_o / q.name
+                    n = 2
+                    while z.exists():
+                        z = ziel_o / f"{q.stem}-{n}{q.suffix}"; n += 1
+                    _ds.nutzer_ziel(q); _ds.nutzer_ziel(z)
+                    _ds.umbenennen(q, z, "doppelte_ordner")
+                else:
+                    _ds.nutzer_ziel(q)
+                    clib._in_den_papierkorb(q)
+                ok.append(p)
+            except Exception as e:  # noqa: BLE001
+                fehler.append({"pfad": p, "grund": str(e)[:160]})
+        if ok:
+            try:
+                with clib._DB_LOCK:
+                    c = self._lib()
+                    for i in range(0, len(ok), 400):
+                        teil = ok[i:i + 400]
+                        frage = ",".join("?" * len(teil))
+                        c.execute(f"DELETE FROM fotos WHERE path IN ({frage})", teil)
+                        c.execute(f"DELETE FROM tour_medien_korr WHERE pfad IN ({frage})", teil)
+                        c.execute(f"DELETE FROM foto_fav WHERE pfad IN ({frage})", teil)
+                        c.execute(f"DELETE FROM foto_album_inhalt WHERE pfad IN ({frage})", teil)
+                    c.commit()
+            except Exception as e:  # noqa: BLE001
+                log.warning("[doppelte] Bestand nicht nachgezogen: %s", e)
+        log.info("[doppelte] %d weggeräumt (%s), %d nicht", len(ok), wohin, len(fehler))
+        return {"ok": bool(ok) or not pfade, "n_ok": len(ok), "n_fehler": len(fehler), "fehler": fehler[:30], "wohin": wohin}
+
+    def medium_touren(self, path: str) -> dict:
+        """Alle Touren eines Mediums (für die rechte Spalte: ✕ / ＋) und die Touren seines Tages zum Hinzufügen."""
+        try:
+            conn = self._lib()
+            d = cfotos.zeile(conn, path)
+            if not d:
+                return {"ok": False, "error": "nicht im Bestand", "touren": []}
+            fenster = cfotos.tour_fenster(conn)
+            drin = cfotos.touren_eines_mediums(conn, d, fenster)
+            gh_drin = {t["geo_hash"] for t in drin}
+            tag = d.get("tag_lokal") or ""
+            utc = d.get("aufnahme_utc")
+            am_tag = []
+            if utc is not None:
+                for t in fenster:
+                    if t["geo_hash"] in gh_drin:
+                        continue
+                    if abs(((t["von"] + t["bis"]) / 2) - utc) <= 36 * 3600:
+                        am_tag.append(t)
+            schlank = lambda t: {"geo_hash": t["geo_hash"], "name": t["name"], "path": t["path"], "von": t["von"],
+                                 "bis": t["bis"], "place": t.get("place", ""), "quelle": t.get("quelle", "auto")}  # noqa: E731
+            return {"ok": True, "tag": tag, "touren": [schlank(t) for t in drin],
+                    "am_tag": [schlank(t) for t in sorted(am_tag, key=lambda t: abs(t["von"] - (utc or 0)))[:12]]}
+        except Exception as e:
+            log.exception("medium_touren")
+            return {"ok": False, "error": str(e), "touren": []}
 
     # ── Inhaltssuche (04.10.2026) ───────────────────────────────────────────────────────────────
     # Marc: „Sonnenuntergang" finden, ohne Lightroom, ohne Konto, auf dem eigenen Rechner. Das Modell (SigLIP 2) kommt
@@ -6238,6 +7028,62 @@ class Api:
         except Exception as e:      # noqa: BLE001
             log.exception("library_merge")
             return {"ok": False, "error": str(e)}
+
+    # ── 09.10.2026: Touren-Archiv als Zeilen (Kartenbild in der Archiv-Karte, Medienzahl) ─────────────────────
+    def library_geoms(self, paths: list = None) -> dict:
+        """Vereinfachte Streckenverläufe für die Kartenbilder, die die Oberfläche in der Archiv-Karte zeichnet."""
+        try:
+            with clib._DB_LOCK:
+                return {"ok": True, "geoms": clib.geoms(self._lib(), list(paths or []))}
+        except Exception as e:  # noqa: BLE001
+            log.exception("library_geoms")
+            return {"ok": False, "error": str(e), "geoms": {}}
+
+    @staticmethod
+    def _kartenbild_pfad(geo_hash: str, stil: str):
+        if not re.fullmatch(r"[0-9a-fA-F]{6,64}", str(geo_hash or "")) or not re.fullmatch(r"[a-z0-9_]{2,30}", str(stil or "")):
+            return None
+        return LIBRARY_MAP_THUMBS / f"{geo_hash}_{stil}.jpg"
+
+    def library_kartenbilder(self, stil: str = "", hashes: list = None) -> dict:
+        """Kartenbilder im Archiv-Stil (z. B. ofm_nacht), die schon gezeichnet sind: geo_hash → data-URL ("" = fehlt)."""
+        raus = {}
+        for h in list(hashes or [])[:400]:
+            p = self._kartenbild_pfad(h, stil)
+            try:
+                raus[h] = ("data:image/jpeg;base64," + base64.b64encode(p.read_bytes()).decode("ascii")) if p and p.is_file() else ""
+            except OSError:
+                raus[h] = ""
+        return {"ok": True, "bilder": raus}
+
+    def library_kartenbild_speichern(self, geo_hash: str, stil: str, data_url: str) -> dict:
+        """Ein in der Oberfläche gezeichnetes Kartenbild (JPEG als data-URL) ablegen — `bilder/karten/<hash>_<stil>.jpg`."""
+        p = self._kartenbild_pfad(geo_hash, stil)
+        if not p or not str(data_url or "").startswith("data:image/jpeg;base64,"):
+            return {"ok": False, "error": "ungueltig"}
+        try:
+            daten = base64.b64decode(str(data_url).split(",", 1)[1])
+            if not daten.startswith(b"\xff\xd8") or len(daten) > 3_000_000:
+                return {"ok": False, "error": "kein_jpeg"}
+            p.parent.mkdir(parents=True, exist_ok=True)
+            tmp = p.with_suffix(".tmp")
+            tmp.write_bytes(daten)
+            _ds.ersetzen(tmp, p, "kartenbild_speichern", art=_ds.ART_CACHE)
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            log.info("[kartenbild] %s: %s", geo_hash, e)
+            return {"ok": False, "error": str(e)}
+
+    def tour_medien_zahlen(self, touren: list = None) -> dict:
+        """Wie viele Fotos/Clips zu jeder Tour gehören (Zeilen im Archiv, nur die sichtbaren): path → n."""
+        raus = {}
+        for t in list(touren or [])[:60]:
+            try:
+                res = cfotos.fotos_einer_tour(self._lib(), str(t.get("geo_hash") or ""), str(t.get("path") or ""), limit=5000)
+                raus[str(t.get("path") or "")] = int(res.get("n") or 0)
+            except Exception:  # noqa: BLE001
+                raus[str(t.get("path") or "")] = 0
+        return {"ok": True, "zahlen": raus}
 
     def library_thumbs(self, images: list[str] | None = None) -> dict:
         """22.08.2026 — Vorschaubilder nur für das sichtbare Fenster der Liste
@@ -7153,7 +7999,9 @@ class Api:
             if not path or not os.path.exists(path):
                 return {"ok": False, "error": "not found"}
             thumb = self._photo_thumbnail_data_url(path, max(64, min(1440, int(max_px or 600))))
-            return {"ok": bool(thumb), "thumb": thumb}
+            # 09.10.2026 — Stempel der Bearbeitung, unter dem das Bild entstand (Animator merkt ihn am Schild)
+            rz = self._rezept_stempel(self._rezepte_fuer([path]).get(path))
+            return {"ok": bool(thumb), "thumb": thumb, "rz": rz}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -9809,6 +10657,31 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def medien_apps(self, path: str) -> dict:
+        """„Öffnen mit …“ (08.10.2026): Programme, die die Datei öffnen können — zuletzt benutzte zuerst."""
+        try:
+            zuletzt = (_load_settings().get("oeffnen_mit_zuletzt") or [])[:5]
+            r = coeffnen.apps_fuer(str(path), zuletzt)
+            r["ok"] = True
+            return r
+        except Exception as e:  # noqa: BLE001
+            log.exception("medien_apps")
+            return {"ok": False, "error": str(e), "apps": []}
+
+    def medien_oeffnen_mit(self, pfade: list, app: str = "") -> dict:
+        """Öffnet Fotos/Clips im gewählten Programm (macOS) oder im System-Dialog „Öffnen mit“ (Windows). Merkt sich das
+        Programm für die Liste."""
+        try:
+            r = coeffnen.oeffnen(list(pfade or [])[:50], str(app or ""))
+            if r.get("ok") and app:
+                zl = [a for a in (_load_settings().get("oeffnen_mit_zuletzt") or []) if a != app]
+                self.settings_set({"oeffnen_mit_zuletzt": [str(app)] + zl[:4]})
+            log.info("[öffnen mit] %d Datei(en) → %s: %s", len(pfade or []), Path(app).stem if app else "System", "ok" if r.get("ok") else r.get("error"))
+            return r
+        except Exception as e:  # noqa: BLE001
+            log.exception("medien_oeffnen_mit")
+            return {"ok": False, "error": str(e)}
+
     def serve_media(self, path: str) -> dict:
         """v0.9.160 — Registriert eine Datei beim lokalen Media-HTTP-Server und
         liefert eine `http://127.0.0.1:<port>/media/<token>`-URL zurück. Das
@@ -10701,12 +11574,18 @@ class Api:
         except Exception:
             name = ""
         if not name and conn is not None and geo_hash:
-            try:
-                with clib._DB_LOCK:
+            # 08.10.2026 (Marc: „der Export läuft seit über 200 Sekunden“) — nur ein Namensvorschlag: höchstens eine
+            # halbe Sekunde auf die Bibliothek warten (Foto-Einlesen vom Netzlaufwerk hält sie lange), sonst Dateiname.
+            if clib._DB_LOCK.acquire(timeout=0.5):
+                try:
                     z = conn.execute("SELECT name FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
-                name = str((z[0] if z else "") or "").strip()
-            except Exception:
-                name = ""
+                    name = str((z[0] if z else "") or "").strip()
+                except Exception:
+                    name = ""
+                finally:
+                    clib._DB_LOCK.release()
+            else:
+                log.info("[export] Bibliothek belegt — Namensvorschlag aus dem Dateinamen")
         if not name:
             name = Path(src).name
             for endung in (".gz", ".gpx", ".fit", ".kml", ".tcx"):
@@ -14820,7 +15699,7 @@ class Api:
         cache_key = None
         try:
             st = os.stat(path)
-            cache_key = f"{path}|{int(st.st_mtime)}|{st.st_size}|{size}"
+            cache_key = f"{path}|{int(st.st_mtime)}|{st.st_size}|{size}|r{getattr(self, '_rezept_stand', 0)}"
             cached = self._thumb_cache.get(cache_key)
             if cached is not None:
                 return cached
@@ -14837,14 +15716,11 @@ class Api:
                 # exiftool nötig. Fallback auf RAW-Preview wenn pillow-heif
                 # nicht installiert (z.B. alte Bundle-Version).
                 preview = cexif.extract_heif_thumbnail(path, size=size)
-                if preview is not None:
-                    out = "data:image/jpeg;base64," + base64.b64encode(preview).decode("ascii")
-                    if cache_key:
-                        self._thumb_cache[cache_key] = out
-                    return out
-                preview = cexif.extract_raw_preview(path)
+                if preview is None:
+                    preview = cexif.extract_raw_preview(path)
                 if preview is None:
                     return None
+                # 09.10.2026 — nicht mehr direkt zurück: auch HEIC geht unten durch die Bearbeitung (Rezept)
                 img = Image.open(io.BytesIO(preview))
             elif cexif.is_raw(path):
                 preview = cexif.extract_raw_preview(path)
@@ -14866,6 +15742,13 @@ class Api:
             img.thumbnail((size, size), Image.LANCZOS)
             if img.mode != "RGB":
                 img = img.convert("RGB")
+            # 09.10.2026 — Export, Video und Animator nehmen die bearbeitete Fassung
+            try:
+                rz = self._rezepte_fuer([path]).get(path)
+                if rz:
+                    img = cent.anwenden(img, cent.wirksam(rz, img))
+            except Exception:  # noqa: BLE001
+                pass
             buf = io.BytesIO()
             img.save(buf, "JPEG", quality=78)
             out = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
@@ -16937,17 +17820,77 @@ _BRUECKE_NICHT = re.compile(r"pick|waehlen|wählen|dialog|confirm|render|export|
                             r"umziehen|zip|loeschen|herunterladen|download|laden$|_start$|open_|oeffnen", re.I)
 
 
-def _bruecke_mit_zeit(name, fn):
+# 08.10.2026 (Marc: „der Export läuft seit über 200 Sekunden … die Touren öffnen gar nicht mehr“, Log ohne Spur) — ein
+# hängender Aufruf schrieb NICHTS: die Zeile oben entsteht erst am Ende. Hänger-Melder: jeder Aufruf aus der Oberfläche
+# meldet sich an; ein Wächter-Faden schreibt für jeden, der länger als HAENGER_S läuft, einmal Name, Dauer, Stapel seines
+# Fadens und — falls die Bibliothekssperre belegt ist — Stapel ihres Halters ins Log.
+HAENGER_S = 8.0
+_LAUFEND: dict = {}
+_LAUFEND_LOCK = threading.Lock()
+
+
+def _stapel(ident) -> str:
+    import traceback as _tb
+    fr = sys._current_frames().get(ident)
+    if fr is None:
+        return "  (Faden beendet)"
+    return "".join(_tb.format_stack(fr)[-12:]).rstrip()
+
+
+def _sperre_halter():
+    """Faden-Kennung des Halters von clib._DB_LOCK (aus der RLock-Darstellung), sonst None."""
+    try:
+        m = re.search(r"owner=(\d+)", repr(clib._DB_LOCK))
+        k = int(m.group(1)) if m else 0
+        return k or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _haenger_waechter() -> None:
+    while True:
+        time.sleep(2.0)
+        try:
+            jetzt = time.perf_counter()
+            with _LAUFEND_LOCK:
+                faellig = [(k, v) for k, v in _LAUFEND.items() if not v[3] and jetzt - v[1] > HAENGER_S]
+                for _k, v in faellig:
+                    v[3] = True
+            for _k, (name, t0, ident, _m) in faellig:
+                namen = {t.ident: t.name for t in threading.enumerate()}
+                halter = _sperre_halter()
+                zeilen = [f"[hänger] {name} läuft seit {jetzt - t0:.0f} s (Faden {namen.get(ident, ident)})",
+                          _stapel(ident)]
+                if halter and halter != ident:
+                    zeilen += [f"[hänger] Bibliothekssperre hält Faden {namen.get(halter, halter)}:", _stapel(halter)]
+                elif halter == ident:
+                    zeilen.append("[hänger] dieser Faden hält die Bibliothekssperre selbst")
+                else:
+                    zeilen.append("[hänger] Bibliothekssperre frei")
+                log.warning("\n".join(zeilen))
+        except Exception as e:  # noqa: BLE001
+            log.debug("Hänger-Melder: %s", e)
+
+
+threading.Thread(target=_haenger_waechter, name="haenger-melder", daemon=True).start()
+
+
+def _bruecke_mit_zeit(name, fn, mit_zeit=True):
     import functools
     import inspect
 
     def huelle(self, *a, **k):
         t0 = time.perf_counter()
+        schl = object()
+        with _LAUFEND_LOCK:
+            _LAUFEND[schl] = [name, t0, threading.get_ident(), False]
         try:
             return fn(self, *a, **k)
         finally:
+            with _LAUFEND_LOCK:
+                _LAUFEND.pop(schl, None)
             dt = time.perf_counter() - t0
-            if dt > BRUECKE_LANGSAM_S:
+            if mit_zeit and dt > BRUECKE_LANGSAM_S:
                 log.info("[brücke] %s %.0f ms", name, dt * 1000)
     functools.update_wrapper(huelle, fn, assigned=("__module__", "__name__", "__qualname__", "__doc__"), updated=())
     if hasattr(fn, "__wrapped__"):
@@ -16959,10 +17902,13 @@ def _bruecke_mit_zeit(name, fn):
     return huelle
 
 
+# Alle Aufrufe melden sich beim Hänger-Melder an; die Zeitzeile nur für die, die nicht bewusst lange dauern.
+# Dialoge (pick/waehlen) bleiben ganz draußen: dort wartet der Mensch, nicht die App.
+_HAENGER_NICHT = re.compile(r"^pick|waehlen|wählen|confirm|^render", re.I)
 for _n, _f in list(vars(Api).items()):
     if callable(_f) and not _n.startswith("_") and not isinstance(_f, (staticmethod, classmethod, type)) \
-            and not _BRUECKE_NICHT.search(_n):
-        setattr(Api, _n, _bruecke_mit_zeit(_n, _f))
+            and not (_BRUECKE_NICHT.search(_n) and _HAENGER_NICHT.search(_n)):
+        setattr(Api, _n, _bruecke_mit_zeit(_n, _f, mit_zeit=not _BRUECKE_NICHT.search(_n)))
 
 
 
@@ -16996,6 +17942,9 @@ def main() -> None:
     if _rg:
         log.warning("RESET angefordert (%s) — Rückfrage folgt nach dem Fensteraufbau", _rg)
     api = Api()
+    # 09.10.2026 — Nebenwege der Vorschaubilder („Fotos hinzufügen“, Highlights, Tour-Map-HTML) nehmen die Bearbeitung mit
+    cphotos.BEARBEITET_URL = lambda p, u: api._bearbeitet_url(p, u, api._rezepte_fuer([p]).get(p)) if u else u
+    cphotos.HAT_REZEPT = lambda p: bool(api._rezepte_fuer([p]))
     _START_DATEI.clear()
     _sd = _startdatei_aus_argv()
     if _sd:
@@ -17181,6 +18130,23 @@ def main() -> None:
     # `cexif._ExifToolDaemon.shutdown()` weiter unten EXPLIZIT und SYNCHRON vor
     # dem os._exit aufgerufen; shutdown() killt die ganze Process-Group hart.
     def _on_closing():
+        # 08.10.2026 (Marc: „jetzt startet GPS Studio gar nicht mehr“ — nach einem Hänger blieb der Prozess ohne Fenster
+        # stehen, hielt die Bibliothek, und der Doppelstart-Schutz blockte jeden Neustart). Der Force-Exit unten kam erst
+        # NACH dem Aufräumen — hing das Aufräumen (Einstellungs-Sperre, exiftool), kam er nie. Jetzt zuerst ein
+        # Sicherheitsnetz: spätestens nach 5 s ist der Prozess weg, egal was hängt.
+        def _notaus():
+            try:
+                log.warning("[beenden] Aufräumen hing länger als 5 s — Notaus")
+                import logging as _lg
+                for h in _lg.getLogger().handlers + log.handlers:
+                    try: h.flush()
+                    except Exception: pass
+            except Exception:
+                pass
+            os._exit(0)
+        _t_notaus = threading.Timer(5.0, _notaus)
+        _t_notaus.daemon = True
+        _t_notaus.start()
         try:
             log.info("Window closing → stoppe Background-Worker")
             # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER gespeichert.
@@ -17473,17 +18439,31 @@ def _db_gesperrt(fn):
     @functools.wraps(fn)
     def huelle(self, *args, **kwargs):
         t_w = time.perf_counter()
-        with clib._DB_LOCK:
+        schl = object()   # 08.10.2026 — auch das Warten auf die Sperre sieht der Hänger-Melder (diese Hülle liegt außen)
+        with _LAUFEND_LOCK:
+            _LAUFEND[schl] = [fn.__name__ + " (wartet auf die Bibliothek)", t_w, threading.get_ident(), False]
+        try:
+            clib._DB_LOCK.acquire()
+        finally:
+            with _LAUFEND_LOCK:
+                _LAUFEND.pop(schl, None)
+        try:
             w = time.perf_counter() - t_w
             if w > 0.3:   # Review 06.10.2026: die echte Wartezeit auf die Sperre — innen hält der Faden sie schon
                 log.info("[sperre] %s wartete %.0f ms auf die Bibliothek", fn.__name__, w * 1000)
             return fn(self, *args, **kwargs)
+        finally:
+            clib._DB_LOCK.release()
     return huelle
 
 
 for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage", "fotos_punkte", "fotos_ordnerbaum",
               "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum",
-              "geotagger_tracks_fuer_fotos", "fotostopp_info"):
+              "geotagger_tracks_fuer_fotos", "fotostopp_info",
+              # 08.10.2026 — Touren und Medien verzahnen
+              "tour_medien_kurz", "tour_medien_kandidaten", "tour_medien_korrigieren", "medium_touren", "touren_an_tagen",
+              # 09.10.2026 — Favoriten und Alben
+              "fotos_favorit", "fotos_alben", "fotos_album_neu", "fotos_album_aendern", "fotos_album_inhalt"):
     setattr(Api, _name, _db_gesperrt(getattr(Api, _name)))
 
 
