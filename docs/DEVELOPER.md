@@ -7044,3 +7044,21 @@ Regel: jede Etappe nimmt den kürzeren Weg von der vorigen Station; Linien laufe
 - Animator (`module.js`): `_etFortlaufend` in `_etGeo` (Rechen-Kopie, auch Rundtour), Punkte/Griffe auf der fortlaufenden
   Linie, `_lonAnschluss` schiebt eine angehängte Tour um volle 360° an das Ende der vorigen.
 - Test `test_datumsgrenze`.
+
+
+## Tote Netzlaufwerke und verwaiste Prozesse (10.10.2026)
+
+- `core/laufwerke._mount_ausgabe`: `/sbin/mount` in einem eigenen Faden mit `MOUNT_FRIST_S` (3 s); antwortet es nicht,
+  gilt die letzte bekannte Tabelle, und solange es hängt, startet kein zweiter. Grund: `subprocess.run(timeout=…)` wartet
+  nach dem Zeitlimit auf das Ende des getöteten Prozesses — ein Prozess, der im Kern an einer toten SMB-Verbindung hängt,
+  stirbt aber nicht.
+- `Api.tour_medien` zählt die Foto-Ordner per `COUNT(*)` (keine Laufwerksabfrage unter `_DB_LOCK`); `_tz_fuer_track`
+  wartet höchstens 1,5 s auf die Bibliothek; `_animator_start_render_inner` prüft `cancel_requested`, bevor es den
+  Render-Zustand neu setzt.
+- Bibliothekssperre mit Lebenszeichen: `sperre_nehmen` schreibt `puls: true`, `sperre_puls` (Faden `sperre-puls`,
+  alle `PULS_S` = 30 s) erneuert `zeit`. `_verwaist_beenden`: gleiche Rechnerkennung, PID lebt, Befehlszeile ist
+  GPS Studio, `puls` gesetzt und seit `PULS_TOT_S` (150 s) still → SIGTERM, dann SIGKILL (Zombies zählen als weg),
+  Sperre übernehmen; PID gehört einem fremden Programm → Sperre verwaist. Sperren ohne `puls` (ältere Versionen) wie bisher.
+- `_verwaiste_helfer_beenden()` beim Start (nur gebautes Paket, nicht Windows): Prozesse mit Elternprozess 1, deren
+  Befehl im eigenen `…app/Contents` liegt (außer dem Hauptprogramm) → SIGKILL.
+- Tests `test_mount_haengt`, `test_bibliothek_sperre` (neue Fälle), `test_verwaiste_helfer` (nur Waisen aus dem eigenen Paket; beide Pfad-Schreibweisen).

@@ -225,6 +225,100 @@ def _sperre_lebt(d: dict) -> bool:
         return True                      # fremder Nutzer, aber am Leben
 
 
+# 10.10.2026 (Marc: „mit ‚Sofort beenden‘ gekillt, jetzt startet es nicht mehr … beim Neustart alte verwaiste Prozesse
+# killen, aber nur, wenn es nicht eh schon läuft“) — Lebenszeichen: die laufende App erneuert `zeit` alle PULS_S
+# (`sperre_puls`). Steht in der Sperre `puls`, aber seit PULS_TOT_S kein Lebenszeichen, und gehört die PID zu einem
+# GPS-Studio-Prozess, ist es eine hängende/verwaiste Instanz → beenden und übernehmen. Gehört die PID einem fremden
+# Programm (Nummer neu vergeben), ist die Sperre ohnehin verwaist. Sperren älterer Versionen (ohne `puls`) bleiben wie bisher.
+PULS_S = 30.0
+PULS_TOT_S = 150.0
+
+
+def _prozess_befehl(pid: int) -> Optional[str]:
+    """Befehlszeile eines Prozesses auf diesem Rechner — None, wenn nicht feststellbar."""
+    if sys.platform.startswith("win"):
+        return None
+    try:
+        return subprocess.run(["ps", "-p", str(int(pid)), "-o", "command="], capture_output=True, text=True,
+                              timeout=3).stdout.strip()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _ist_gps_studio(befehl: str) -> bool:
+    b = befehl or ""
+    return "ReisezoomGPSStudio" in b or "Reisezoom GPS Studio" in b or ("python" in b.lower() and "app.py" in b)
+
+
+def _verwaist_beenden(alt: dict) -> bool:
+    """True = die Sperre gehört keiner lebendigen, gesunden GPS-Studio-Instanz (mehr) und darf übernommen werden."""
+    if not _gleicher_rechner(alt):
+        return False
+    pid = int(alt.get("pid") or 0)
+    if pid <= 0 or pid == os.getpid():
+        return False
+    befehl = _prozess_befehl(pid)
+    if befehl is None:
+        return False                      # nicht prüfbar (Windows) → wie bisher
+    if befehl == "":
+        return True                       # Prozess weg
+    if not _ist_gps_studio(befehl):
+        _log_info("Bibliothek: Sperre gehörte PID %s, die jetzt ein anderes Programm ist (%s) — übernommen", pid, befehl[:80])
+        return True
+    try:
+        still = time.time() - float(alt.get("zeit") or 0)
+    except (TypeError, ValueError):
+        still = 0.0
+    if not alt.get("puls") or still < PULS_TOT_S:
+        return False                      # läuft wirklich (oder ältere Version ohne Lebenszeichen)
+    import signal
+    _log_info("Bibliothek: GPS Studio (PID %s) gibt seit %.0f s kein Lebenszeichen — hängt oder ist verwaist, wird beendet", pid, still)
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+        for _ in range(20):
+            time.sleep(0.1)
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return True
+            try:   # beendet, aber noch nicht abgeholt (Zombie) — zählt als weg
+                st = subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True, timeout=3).stdout.strip()
+                if not st or st.startswith("Z"):
+                    return True
+            except Exception:  # noqa: BLE001
+                pass
+    _log_info("Bibliothek: PID %s lässt sich nicht beenden (hängt im System, z. B. an einem toten Netzlaufwerk)", pid)
+    return False
+
+
+def _log_info(*a) -> None:
+    try:
+        import logging
+        logging.getLogger("core.bibliothek").info(*a)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def sperre_puls(ort: Path) -> bool:
+    """Lebenszeichen: `zeit` der EIGENEN Sperre erneuern. False = Sperre nicht (mehr) unsere."""
+    s = Path(ort) / SPERRDATEI
+    try:
+        d = json.loads(s.read_text(encoding="utf-8"))
+        if int(d.get("pid") or 0) != os.getpid() or not _gleicher_rechner(d):
+            return False
+        d["zeit"] = time.time()
+        d["puls"] = True
+        s.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _rechnername() -> str:
     try:
         import socket
@@ -308,13 +402,13 @@ def sperre_nehmen(ort: Path) -> dict:
         # Sperre ist keine fremde.
         eigen = (int(alt.get("pid") or 0) == os.getpid()
                  and _gleicher_rechner(alt))
-        if not eigen and _sperre_lebt(alt):
+        if not eigen and _sperre_lebt(alt) and not _verwaist_beenden(alt):
             return {"ok": False, "belegt_von": alt}
     except Exception:
         pass                             # keine, kaputte oder verfallene Sperre
     s.write_text(json.dumps({"pid": os.getpid(), "rechner": _rechnername(),
                              "rechner_id": _rechner_id(),
-                             "zeit": time.time(),
+                             "zeit": time.time(), "puls": True,
                              "seit": datetime.now().astimezone().isoformat(timespec="seconds")},
                             ensure_ascii=False), encoding="utf-8")
     return {"ok": True}

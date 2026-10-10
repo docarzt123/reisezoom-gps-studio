@@ -3859,6 +3859,7 @@ class Api:
                            "belegt_von": sp.get("belegt_von") or {}}
             log.warning("Bibliothek ist von einer anderen Instanz belegt: %s", ort)
             return
+        _sperre_puls_starten()
 
         # 15.09.2026 (Code-Review): `PRAGMA quick_check` kostet bei 20 000 Touren 150–700 ms, auf dem
         # NAS mehr — bei JEDEM Start. Jetzt blockierend nur, wenn die letzte bestandene Prüfung älter
@@ -8415,13 +8416,21 @@ class Api:
     def _tz_fuer_track(self, path: str, ds=None) -> str:
         """Zeitzone der Tour: Land aus der Archiv-Zeile (Ortslauf), Lage aus dem Track."""
         land, lat, lon = "", None, None
+        # 10.10.2026 (Marc-Log: Render-Start wartete Minuten auf die Bibliothek) — das Land ist nur ein Hinweis; ist die
+        # Bibliothek belegt, reicht die Lage aus dem Track
+        hat = clib._DB_LOCK.acquire(timeout=1.5)
         try:
-            t = clib.get_track(self._lib(), str(path or ""))
+            t = clib.get_track(self._lib(), str(path or "")) if hat else None
+            if not hat:
+                log.info("[zeitzone] Bibliothek belegt — Zeitzone aus der Lage")
             if t:
                 land = str(t.get("country") or "")
                 lat, lon = t.get("center_lat"), t.get("center_lon")
         except Exception:  # noqa: BLE001
             pass
+        finally:
+            if hat:
+                clib._DB_LOCK.release()
         if (lat is None or lon is None) and ds:
             m = ds[len(ds) // 2]
             lat, lon = getattr(m, "lat", None), getattr(m, "lon", None)
@@ -9435,6 +9444,13 @@ class Api:
             # v0.9.417 — „ganze Route zeigen" (Vorschau-Toggle) → Snapshot voller Track.
             cfg.snapshot_full_track = bool(params.get("snapshot_full_track", False))
 
+        # 10.10.2026 (Marc: „dann habe ich Abbrechen gedrückt, und da passiert nix“) — ein Abbruch während der
+        # Vorbereitung ging hier verloren (der Zustand wurde neu gesetzt) und der Render lief danach trotzdem los
+        if self._render_state.get("cancel_requested"):
+            self._render_state.update({"running": False, "cancelled": True,
+                                       "status": _ui_t()("result_modal.title_cancelled", "Abgebrochen"), "error": ""})
+            log.info("animator_start_render: vor dem Start abgebrochen")
+            return {"ok": False, "cancelled": True, "error": _ui_t()("result_modal.title_cancelled", "Abgebrochen")}
         self._render_state = {"running": True, "progress": 0.0, "status": _ui_t()("animator.status.start", "Starte …"),
                               "output": out_path, "error": "", "log_path": str(LOG_PATH),
                               "preview_b64": "", "cancel_requested": False,
@@ -14551,8 +14567,10 @@ class Api:
             pf = str(path or "")
             n_ordner = 0
             try:
+                # 10.10.2026 (Marc-Log) — nur die Zahl: vorher die ganze Ordnerliste unter der Sperre, die auch die Laufwerke
+                # abfragte; hing `mount` an der toten NAS-Verbindung, stand die ganze Bibliothek (und der Render-Start)
                 with clib._DB_LOCK:
-                    n_ordner = len(cfotos.ordner_liste(self._lib(), pruefen=False) or [])
+                    n_ordner = int(self._lib().execute("SELECT COUNT(*) FROM foto_ordner").fetchone()[0] or 0)
             except Exception:  # noqa: BLE001 — ohne Bestand: keine Ordner
                 n_ordner = 0
             pts, _st = cgpx.parse_gpx(self._ensure_gpx(pf))
@@ -17948,6 +17966,68 @@ def _erster_klick_durchreichen() -> None:
         log.warning("[fenster] acceptsFirstMouse nicht gesetzt: %s", e)
 
 
+_PULS_LAEUFT = False
+
+
+def _sperre_puls_starten() -> None:
+    """10.10.2026 — Lebenszeichen der Bibliothekssperre (core/bibliothek.sperre_puls): ein neu gestartetes GPS Studio
+    erkennt daran, ob eine alte Instanz noch lebt oder hängt/verwaist ist. Ein Faden für die ganze Laufzeit."""
+    global _PULS_LAEUFT
+    if _PULS_LAEUFT:
+        return
+    _PULS_LAEUFT = True
+
+    def lauf():
+        while True:
+            time.sleep(cbib.PULS_S)
+            try:
+                if BIB:
+                    cbib.sperre_puls(BIB)
+            except Exception:  # noqa: BLE001
+                pass
+    threading.Thread(target=lauf, daemon=True, name="sperre-puls").start()
+
+
+def _verwaiste_helfer_beenden() -> int:
+    """10.10.2026 (Marc: „mit ‚Sofort beenden‘ gekillt, jetzt startet es nicht mehr … alte verwaiste Prozesse killen“) —
+    Hilfsprogramme aus DIESEM App-Paket (ExifTool, ffmpeg, Playwright-Treiber), deren GPS Studio nicht mehr lebt
+    (Elternprozess launchd = 1), beim Start beenden. Nur im gebauten Paket, nie die eigene oder eine andere laufende App."""
+    if not getattr(sys, "frozen", False) or sys.platform.startswith("win"):
+        return 0
+    import subprocess   # app.py importiert es nicht oben — ohne diese Zeile tat die Funktion still nichts (Test fand es)
+    try:
+        # …/Reisezoom GPS Studio.app/Contents — in beiden Schreibweisen (mit und ohne aufgelöste Verweise, z. B.
+        # /var ↔ /private/var), mit „/“ am Ende: kein Nachbarordner mit ähnlichem Namen passt
+        exe = Path(sys.executable)
+        innen = {str(exe.parents[1]) + "/", str(exe.resolve().parents[1]) + "/"}
+        haupt = {str(exe), str(exe.resolve())}
+        aus = subprocess.run(["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True, timeout=5).stdout
+    except Exception as e:  # noqa: BLE001
+        log.warning("[aufräumen] Prozessliste: %s", e)
+        return 0
+    import signal
+    n = 0
+    for z in aus.splitlines():
+        t = z.strip().split(None, 2)
+        if len(t) < 3:
+            continue
+        try:
+            pid, ppid = int(t[0]), int(t[1])
+        except ValueError:
+            continue
+        befehl = t[2]
+        if ppid != 1 or pid == os.getpid() or not any(befehl.startswith(x) for x in innen) \
+                or any(befehl == h or befehl.startswith(h + " ") for h in haupt):
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+            n += 1
+            log.info("[aufräumen] verwaisten Hilfsprozess beendet: %s %s", pid, befehl[:120])
+        except Exception:  # noqa: BLE001
+            pass
+    return n
+
+
 def main() -> None:
     # 10.09.2026 — Reset-Start (⌘⌥ / Strg+Alt gedrückt halten, oder --reset), wie bei FCPX.
     # Die Rückfrage kommt als nativer Dialog, sobald das Fenster steht (ein NSAlert VOR dem
@@ -17974,6 +18054,10 @@ def main() -> None:
     _reste = _teilreste_wegraeumen(RENDERS_DIR)
     if _reste:
         log.info("Render-Teildateien aufgeraeumt: %d", _reste)
+    try:
+        _verwaiste_helfer_beenden()
+    except Exception as e:  # noqa: BLE001
+        log.info("[aufräumen] verwaiste Hilfsprozesse: %s", e)
 
     # 05.10.2026 (Audit E-1/E-2) — im Hintergrund: Clip-Speicher begrenzen, alte Schnell-Videos aus `_renders`
     def _speicher_aufraeumen_spaeter():

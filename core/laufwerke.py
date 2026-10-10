@@ -67,14 +67,45 @@ def mount_tabelle(text: Optional[str] = None) -> list[dict]:
     return _mount_tabelle_lesen(text)
 
 
+_MOUNT_LAEUFT = {"seit": 0.0}
+MOUNT_FRIST_S = 3.0
+
+
+def _mount_ausgabe() -> Optional[str]:
+    """Ausgabe von /sbin/mount — oder None, wenn es nicht in MOUNT_FRIST_S antwortet.
+
+    10.10.2026 (Marc-Log: Render startete nicht, „Abbrechen“ tat nichts) — unterwegs mit einer toten NAS-Verbindung
+    hing `mount` minutenlang im Kern. `subprocess.run(timeout=…)` hilft dann nicht: nach dem Zeitlimit wartet es auf
+    das Ende des getöteten Prozesses, und der stirbt nicht. Deshalb ein eigener Faden, auf den niemand wartet; solange
+    er noch hängt, wird kein zweiter gestartet (wie `_lesbar`, Audit E-3)."""
+    with _merk_sperre:
+        if _MOUNT_LAEUFT["seit"]:
+            return None
+        _MOUNT_LAEUFT["seit"] = time.monotonic()
+    erg: list = []
+
+    def lauf():
+        try:
+            erg.append(subprocess.run(["/sbin/mount"], capture_output=True, text=True).stdout)
+        except Exception:  # noqa: BLE001
+            erg.append("")
+        finally:
+            with _merk_sperre:
+                _MOUNT_LAEUFT["seit"] = 0.0
+
+    t = threading.Thread(target=lauf, daemon=True, name="mount-lesen")
+    t.start()
+    t.join(MOUNT_FRIST_S)
+    return erg[0] if erg else None
+
+
 def _mount_tabelle_lesen(text: Optional[str] = None) -> list[dict]:
     raus = []
     if text is None:
         if sys.platform == "darwin":
-            try:
-                text = subprocess.run(["/sbin/mount"], capture_output=True, text=True, timeout=5).stdout
-            except Exception:  # noqa: BLE001
-                text = ""
+            text = _mount_ausgabe()
+            if text is None:   # hängt (tote Netzverbindung): die letzte bekannte Tabelle statt warten
+                return list(_MOUNT_MERK["tab"] or [])
         elif sys.platform.startswith("linux"):
             try:
                 zeilen = Path("/proc/mounts").read_text(encoding="utf-8", errors="replace").splitlines()
