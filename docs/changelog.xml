@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 08 Oct 2026 18:28:14 +0000</lastBuildDate>
+<lastBuildDate>Sat, 10 Oct 2026 08:05:58 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.787</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-787</link>
+<guid isPermaLink="false">gps-studio-v0.9.787</guid>
+<pubDate>Fri, 09 Oct 2026 12:00:00 +0000</pubDate>
+<description>Archiv im neuen Look — Medien bedienst du jetzt wie in Lightroom: Kacheln mit Datum, Uhrzeit und Ort, Kästchen zum Markieren mit einer Leiste für Export, Ort, Tour und Album, links Sammlungen, Alben, Ordner und Filter, rechts die Details. Doppelklick, E oder Leertaste öffnet die Lupe mit Karte und Bildleiste. Touren stehen als Zeilen mit Kartenbild, die Detailspalte führt in alle Module, die Statistik ist eine Übersichtsseite. Alle Archivkarten sind Nachtkarten mit Maßstab und Start/Ziel-Nadeln; den Kartenstil wählst du für alle auf einmal.
+
+Touren und Medien gehören zusammen — Fotos und Clips gehören zu einer Tour, wenn sie währenddessen und höchstens 2 km vom Track entfernt aufgenommen wurden — Korrekturen von Hand gelten überall. Doppelklick auf eine Tour öffnet ihre Seite: Karte mit Punkt je Foto, Bildstreifen, Werte, Logbuch, Video, Karte als Bild und Export. Eine Suche findet Touren und Medien zugleich; Exportieren geht per Rechtsklick.
+
+Fotos bearbeiten — In der Lupe: Auto, die Voreinstellungen Natürlich, Kräftig, Matt und SW und Regler für Belichtung, Kontrast, Lichter, Tiefen, Weißabgleich, Dynamik, Sättigung, Klarheit und Dunst; „.“ zeigt das Original. Neu ist auch Zuschneiden und Geraderichten (Taste R). Die Vorschau rechnet die Grafikkarte, ohne Verzögerung. RAW-Dateien werden richtig entwickelt. Das Original bleibt unverändert — Raster, Export, Animator und Video nehmen die bearbeitete Fassung.
+
+Video-Assistent — Neben „Schnell-Video“ führt der Assistent in neun Seiten zum fertigen Projekt: Titel, Art des Videos, Karte, Einblendungen, Fotos, Orte, Kamera, Abspann und Musik. Alles bleibt im Animator bearbeitbar, ein ⌘Z nimmt es zurück.</description>
+</item>
 <item>
 <title>v0.9.786</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-786</link>
@@ -193,13 +206,6 @@ Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem R
 <description>Fotostopp mit Bewegung — das Foto ist schon groß, wenn der Track ankommt, und beim Ausblenden läuft er sofort weiter. Während das Foto zu sehen ist, schwenkt die Kamera leicht, und das Foto zoomt langsam heran.
 
 Punkte im Gelände an der richtigen Stelle — die Vorankündigungspunkte der Highlights und die Foto-Pins sprangen im Video im Gebirge neben die Strecke. Behoben.</description>
-</item>
-<item>
-<title>v0.9.767</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-767</link>
-<guid isPermaLink="false">gps-studio-v0.9.767</guid>
-<pubDate>Thu, 01 Oct 2026 12:00:00 +0000</pubDate>
-<description>Foto-Pins an der richtigen Stelle — im fertigen Video lagen die Pins nach dem Stopp neben der Strecke. Jetzt zeichnet die Karte sie selbst, genau auf der Linie.</description>
 </item>
 </channel>
 </rss>
