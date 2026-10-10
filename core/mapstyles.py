@@ -391,7 +391,9 @@ ORTHO_FADE_TO = 13.5
 SENTINEL_LAYER = {
     "id": "sentinel",
     "tiles": ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"],
-    "tileSize": 256, "maxzoom": 14,
+    # 10.10.2026 (Marc-Log, 4K-Render: 83 Kacheln „403 Forbidden“ auf z14) — EOX liefert z14 nicht (mehr) frei aus;
+    # echtes Detail hat Sentinel-2 ohnehin nur bis z13. Darüber vergrößert MapLibre z13 selbst.
+    "tileSize": 256, "maxzoom": 13,
     # Formel laut EOX-Capabilities (Quellen-Register „sentinel"): EOxCloudless … by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016)
     "attribution": ('<a href="https://cloudless.eox.at">EOxCloudless</a> by '
                     '<a href="https://eox.at">EOX IT Services GmbH</a> '

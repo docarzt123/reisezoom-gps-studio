@@ -7062,3 +7062,17 @@ Regel: jede Etappe nimmt den kürzeren Weg von der vorigen Station; Linien laufe
 - `_verwaiste_helfer_beenden()` beim Start (nur gebautes Paket, nicht Windows): Prozesse mit Elternprozess 1, deren
   Befehl im eigenen `…app/Contents` liegt (außer dem Hauptprogramm) → SIGKILL.
 - Tests `test_mount_haengt`, `test_bibliothek_sperre` (neue Fälle), `test_verwaiste_helfer` (nur Waisen aus dem eigenen Paket; beide Pfad-Schreibweisen).
+
+
+## 4K-Render mit „Karte glätten“ (10.10.2026)
+
+Seit 0.9.782 griff `_grab_frame` jedes Bild über `_jpeg_direkt` (CDP `Page.captureScreenshot`, `fromSurface`,
+`clip.scale = dpr`). Zusammen mit der Weichzeichner-Ebene (`rz-mapadjust.applySmooth`, nur bei SSAA > 1) kam eine
+vielfach zu weiche Karte heraus (Prüfmaß Laplace-Varianz eines Kartenausschnitts: 4,6 statt ~7 wie bis 0.9.781; ohne
+Glätten 14), obwohl dieselben Kacheln geladen waren und die Ebene selbst korrekt arbeitet (allein getestet; im Render
+ein Aufruf je Bild, volle Leinwand, richtige Lese-Framebuffer). Gefunden per Versions-Halbierung (0.9.778/0.9.781 gut,
+0.9.782 schlecht) und Datei-Rücksetzen (nur `core/animator.py` stellt es wieder her). Jetzt: jedes Bild wieder über
+`page.screenshot` (wie bis 0.9.781 und wie PNG/ProRes/Transparenz ohnehin); `_jpeg_direkt` ist entfernt (kostet ~15–20 %
+Renderzeit je Bild). Die Ebene liegt unter der ersten eigenen Ebene
+(Track/Geister-Spur/Punkt bleiben scharf). Ursache im Zusammenspiel CDP-Aufnahme ↔ Ebene noch offen.
+Prüfstand: Kurzrender eines Projekts in 4K/1080p, Ausschnitt bei 1,5 s, Laplace-Varianz; Test `test_glaetten_aufnahme`.

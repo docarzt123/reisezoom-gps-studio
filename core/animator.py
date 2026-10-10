@@ -4054,46 +4054,6 @@ def _downscale_frame(raw: bytes, target_w: int, target_h: int,
     return out.getvalue()
 
 
-async def _jpeg_direkt(page, q: int) -> bytes:
-    """05.10.2026 — JPEG-Bild direkt über CDP `Page.captureScreenshot` statt `page.screenshot`.
-
-    Marc: „wo bleibt die Zeit je Bild?" — gemessen im Szenen-Render (Prüfstand, warm, 120 Bilder):
-    1080p Bild greifen 50 → 37 ms (Zeit je Bild 163 → 146 ms), 4K 150 → 121 ms (316 → 268 ms).
-    Gleiches Bild: 1080p bytegleich, 4K PSNR 95 dB gegeneinander (nur das Sterne-Funkeln).
-    Playwright macht je Aufnahme zusätzlich Layout-Abfrage, Schrift-/Caret-Vorbereitung in allen
-    Frames — für eine stehende Szene unnötig. `optimizeForSpeed` bringt bei JPEG nichts (gemessen).
-
-    ⚠️ Eigene CDP-Sitzung kennt die DSF-Emulation von Playwright nicht: ohne `clip.scale =
-    devicePixelRatio` kommt nur ein Bild in CSS-Pixeln (960×540 statt 1920×1080). Deshalb wird
-    die Größe beim ersten Bild geprüft; jede Abweichung oder jeder Fehler → zurück auf
-    `page.screenshot` für diese Seite (nie ein unscharfes Video)."""
-    z = getattr(page, "_rz_jpeg_direkt", None)
-    if z is False:
-        return await page.screenshot(type="jpeg", quality=q)
-    try:
-        if z is None:
-            vs = page.viewport_size or {}
-            dpr = float(await page.evaluate("() => window.devicePixelRatio"))
-            z = {"cdp": await page.context.new_cdp_session(page), "w": int(vs["width"]), "h": int(vs["height"]), "dpr": dpr}
-        r = await z["cdp"].send("Page.captureScreenshot", {
-            "format": "jpeg", "quality": q, "captureBeyondViewport": False, "fromSurface": True,
-            "clip": {"x": 0, "y": 0, "width": z["w"], "height": z["h"], "scale": z["dpr"]}})
-        raw = base64.b64decode(r["data"])
-        if getattr(page, "_rz_jpeg_direkt", None) is None:
-            groesse = Image.open(io.BytesIO(raw)).size
-            soll = (round(z["w"] * z["dpr"]), round(z["h"] * z["dpr"]))
-            if abs(groesse[0] - soll[0]) > 1 or abs(groesse[1] - soll[1]) > 1:
-                _log.warning("Bild greifen direkt: %dx%d statt %dx%d — zurück auf page.screenshot", *groesse, *soll)
-                page._rz_jpeg_direkt = False
-                return await page.screenshot(type="jpeg", quality=q)
-            page._rz_jpeg_direkt = z
-        return raw
-    except Exception as e:   # noqa: BLE001
-        _log.warning("Bild greifen direkt fehlgeschlagen (%s) — zurück auf page.screenshot", str(e)[:200])
-        page._rz_jpeg_direkt = False
-        return await page.screenshot(type="jpeg", quality=q)
-
-
 async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     if os.environ.get("RZ_L3D_DEBUG") and not getattr(page, "_rz_l3d_dumped", False):
         page._rz_l3d_dumped = True
@@ -4141,7 +4101,10 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     if cfg.transparent_background:
         raw = await page.screenshot(type="png", omit_background=True)
     elif is_jpeg:
-        raw = await _jpeg_direkt(page, q)
+        # 10.10.2026 (Marc: 4K „total unscharf“; „lass alles wieder mit der alten Methode machen“) — wieder immer
+        # page.screenshot. Die direkte CDP-Aufnahme (0.9.782–0.9.787, ~20 % schneller) lieferte mit „Karte glätten“
+        # (Weichzeichner-Ebene, 4K) eine vielfach zu weiche Karte; Ursache im Zusammenspiel offen.
+        raw = await page.screenshot(type="jpeg", quality=q)
     else:
         raw = await page.screenshot(type="png")
 

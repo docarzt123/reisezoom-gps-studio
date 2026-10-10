@@ -13748,9 +13748,14 @@ function mountAnimator(body, headerActions, opts) {
           const rm = window.__rzRenderMode;
           if (rm && rm.blur > 0 && window.rzApplyMapSmooth) {
             const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
-            if (window.rzApplyMapSmooth(map, rm.blur * dpr, _ANIM_SIGNS_LYR)) {
+            // 10.10.2026 (Marc: „auch der Track wird verschwommen, wie wenn ein Filter darüberliegt“) — Glätten nur für die
+            // Grundkarte: unter die ERSTE eigene Ebene (Geister-Spur, Glow, Track, Punkt …), nicht erst unter die Schilder
+            const eigene = /^(preview-|mtour-|swarm-|anim-|fs-pins|et-edit|photo-pins)/;
+            let unter = _ANIM_SIGNS_LYR;
+            try { const l = (map.getStyle().layers || []).find(x => eigene.test(x.id) && x.id !== "rz-glaetten"); if (l) unter = l.id; } catch (_) {}
+            if (window.rzApplyMapSmooth(map, rm.blur * dpr, unter)) {
               const st = document.getElementById("rz-render-blur"); if (st) st.remove();
-              applog("info", `[schilder] Render: Glätten als Ebene unter den Schildern (sigma ${(rm.blur * dpr).toFixed(2)} px)`);
+              applog("info", `[schilder] Render: Glätten als Ebene unter „${unter}“ (sigma ${(rm.blur * dpr).toFixed(2)} px)`);
             }
           }
         } catch (_) {}
