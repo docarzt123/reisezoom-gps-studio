@@ -117,9 +117,24 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.788</span>
+    <span class="version-date">10 October 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>4K sharp again</strong> &mdash; With “Smooth map”, 4K videos had been far too soft since 0.9.782 — map and track looked as if behind a filter, although the preview was fine. Frames are now captured the proven way again (as ProRes always was). Smoothing only affects the map now: track, ghost track and dot stay crisp. A render takes a little longer for it.</li>
+    <li><strong>Once around the world</strong> &mdash; Routes and stages across the date line: every stage takes the shorter way from the previous stop — east or west follows from the order of your points. Line and camera no longer jump across the world map, and “Follow roads” works beyond 180°. GPX tracks crossing the date line (Fiji, Pacific flights) are drawn correctly too.</li>
+    <li><strong>Delete in the timeline</strong> &mdash; Click a bar — sign, photo, photo stop or overlay — and press Delete: gone. For an overlay with several time ranges only the clicked one; ⌘Z brings everything back.</li>
+    <li><strong>No more ghost pin</strong> &mdash; When the last photo stop of a project was deleted, its small round photo pin stayed on the map. Now it disappears with it.</li>
+    <li><strong>On the road without the NAS</strong> &mdash; A disconnected network drive could freeze the app for minutes: the render did not start and “Cancel” did nothing. The drive check now gives up after three seconds, the render no longer waits for it, and Cancel works during the preparation too.</li>
+    <li><strong>Restart after “Force Quit”</strong> &mdash; On start the app recognises a hung or orphaned old instance and ends it instead of locking itself out. A GPS Studio that is really running is never touched. Leftover helper programs of the app are cleaned up.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.787</span>
     <span class="version-date">9 October 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <ul>
     <li><strong>Archive in a new look</strong> &mdash; Media work like Lightroom now: tiles with date, time and place, checkboxes with a bar for export, location, tour and album, collections, albums, folders and filters on the left, details on the right. Double-click, E or the space bar opens the loupe with map and filmstrip. Tours are rows with a map image, the details column leads to every module, statistics are an overview page. All archive maps are night maps with a scale bar and start/finish pins; pick the map style once for all of them.</li>

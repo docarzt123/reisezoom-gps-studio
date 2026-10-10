@@ -117,9 +117,24 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.788</span>
+    <span class="version-date">10 de octubre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>4K nítido otra vez</strong> &mdash; Con «Suavizar mapa», los vídeos 4K salían demasiado blandos desde la 0.9.782: mapa y track parecían detrás de un filtro, aunque la vista previa estaba bien. Los fotogramas vuelven a capturarse por el camino de siempre (como ProRes desde siempre). El suavizado solo afecta ya al mapa: track, track fantasma y punto quedan nítidos. A cambio, un render tarda un poco más.</li>
+    <li><strong>Una vuelta al mundo</strong> &mdash; Rutas y etapas sobre la línea de cambio de fecha: cada etapa toma el camino más corto desde la parada anterior; si va al este o al oeste depende del orden de tus puntos. La línea y la cámara ya no saltan de un lado a otro del mapa, y «Seguir carreteras» funciona más allá de 180°. Los tracks GPX que cruzan la línea (Fiyi, vuelos sobre el Pacífico) también se dibujan bien.</li>
+    <li><strong>Eliminar en la línea de tiempo</strong> &mdash; Haz clic en una barra — cartel, foto, parada de foto o rótulo — y pulsa Supr: desaparece. En un rótulo con varios intervalos solo el pulsado; ⌘Z lo recupera todo.</li>
+    <li><strong>Adiós al pin fantasma</strong> &mdash; Al borrar la última parada de foto de un proyecto, su pequeño pin redondo se quedaba en el mapa. Ahora desaparece con ella.</li>
+    <li><strong>De viaje sin el NAS</strong> &mdash; Una unidad de red desconectada podía bloquear la app durante minutos: el render no empezaba y «Cancelar» no hacía nada. La comprobación de unidades se rinde ahora a los tres segundos, el render ya no la espera y Cancelar funciona también durante la preparación.</li>
+    <li><strong>Reinicio tras «Forzar salida»</strong> &mdash; Al arrancar, la app reconoce una instancia antigua colgada o huérfana y la cierra en lugar de bloquearse a sí misma. Un GPS Studio que de verdad está en marcha nunca se toca. Se limpian los programas auxiliares que quedaron.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.787</span>
     <span class="version-date">9 de octubre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <ul>
     <li><strong>El archivo con nuevo aspecto</strong> &mdash; Los medios se manejan ahora como en Lightroom: miniaturas con fecha, hora y lugar, casillas para marcar con una barra para exportar, lugar, ruta y álbum, a la izquierda colecciones, álbumes, carpetas y filtros, a la derecha los detalles. Doble clic, E o la barra espaciadora abren la lupa con mapa y tira de fotos. Las rutas aparecen como filas con imagen de mapa, la columna de detalles lleva a todos los módulos y la estadística es una página de resumen. Todos los mapas del archivo son nocturnos, con escala y chinchetas de inicio y fin; el estilo se elige una vez para todos.</li>

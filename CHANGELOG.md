@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.788] – 2026-10-10
+
 ### Fixed
 - **4K videos are sharp again with „Smooth map“** (Marc: „totally blurred … as if a filter were on top“, „smoothing always worked well“). Since 0.9.782 the render grabbed each frame directly via the browser's capture interface (about 20 % faster); together with the smoothing layer of 4K renders this produced a map many times too soft — like heavily enlarged coarse tiles — while the same tiles were loaded. Found by rendering one project in old versions and narrowing it down file by file. All frames are now grabbed the previous way again (as ProRes/transparent renders always were); the direct capture is gone, renders take a little longer per frame. The smoothing now leaves the track, ghost track and dot sharp (it lies below them). Sentinel-2 is requested only up to zoom 13 (zoom 14 was refused with 403).
 - **A dead network drive no longer freezes the app** (Marc's log: render did not start, „Cancel“ did nothing). On the road with the NAS gone, the system tool `mount` hung for minutes; the tour-media lookup held the library lock while asking it, and the render start waited for that lock. Now the drive check gives up after 3 s (the last known table is used, no second check while one hangs), the tour media only count the folders, the render start waits at most 1.5 s for the time zone, and a „Cancel“ during the preparation is no longer lost.
