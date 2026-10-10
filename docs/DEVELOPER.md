@@ -7030,3 +7030,17 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   sind die acht Looks; Stil mit `stilAusLook(look, RZ_OFM_POSITRON, {dem: "<terrarium {z}/{x}/{y}>", tiefen: "rztiefe://{z}/{x}/{y}"})`,
   vorher `tiefenProtokoll(maplibregl, "<terrarium ungeklemmt>")`. Ein Projekt trägt seinen Look in `animator.kartenlook`.
 
+
+
+## Datumsgrenze (10.10.2026)
+
+Regel: jede Etappe nimmt den kürzeren Weg von der vorigen Station; Linien laufen mit fortlaufenden Längengraden weiter
+(Tokio 139,7 → San Francisco 237,6). Mapbox/MapLibre zeichnen und fahren so ohne Sprung über ±180°.
+- `core/route.py`: `lon_wrap`, `lon_fortlaufend(coords, start_lon)`, `stationen_fortlaufend(pts)`; `road_route` fragt den
+  Dienst gewrappt und legt die Antwort fortlaufend an die erste Station; `arc_route`/`gemischte_route` verketten fortlaufend.
+- `Api.etappe_abschnitt`: Luftlinie aus gewrapptem Δlon; `etappe_ortsname` wrappt; `core/demsample._tile_xy` wrappt (Höhen).
+- `Api._animator_load_gpx_roh`: `coords` fürs Zeichnen/die Kamera fortlaufend (Datei unverändert); ebenso
+  `animator.build_interactive_html`.
+- Animator (`module.js`): `_etFortlaufend` in `_etGeo` (Rechen-Kopie, auch Rundtour), Punkte/Griffe auf der fortlaufenden
+  Linie, `_lonAnschluss` schiebt eine angehängte Tour um volle 360° an das Ende der vorigen.
+- Test `test_datumsgrenze`.

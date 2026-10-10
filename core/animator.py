@@ -3866,6 +3866,10 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
         points = downsample(raw_points, max(2, cfg.point_count))
     if len(points) < 2:
         raise ValueError(_i18n.uebersetzer(getattr(cfg, "ui_lang", ""))("animator.err_zu_wenige_tourkarte", "GPX hat zu wenige Punkte für die Tour-Karte."))
+    # 10.10.2026 — Datumsgrenze: fortlaufende Längengrade fürs Zeichnen (wie animator_load_gpx), Punkte sind hier frisch geparst
+    from .route import lon_fortlaufend as _lon_fl
+    for _p, _c in zip(points, _lon_fl([[q.lon, q.lat] for q in points])):
+        _p.lon = _c[0]
     cum_dist = [0.0] + [points[i].dist_m for i in range(1, len(points))]
     cum_time = [0.0] + [points[i].elapsed_s for i in range(1, len(points))]
     if total_stats.duration_s == 0:

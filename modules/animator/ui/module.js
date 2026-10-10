@@ -5170,7 +5170,9 @@ function mountAnimator(body, headerActions, opts) {
               "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport" },
             paint: { "icon-opacity": ["coalesce", ["get", "op"], 0] } });
         } else map.setLayoutProperty(FS_PIN_EBENE, "icon-offset", [0, unten]);
-        _fsPinBau = sig; _fsPinGroesse = dR; _fsPinPop = "";
+        // 10.10.2026 (Marc, Screenshot: Foto-Pin auf der Karte, „wird nicht groß, in der Timeline nicht zu sehen“) — null statt
+        // "": war der letzte Fotostopp weg, ergab die leere Punktliste wieder "" → setData blieb aus, der alte Pin stand weiter da
+        _fsPinBau = sig; _fsPinGroesse = dR; _fsPinPop = null;
       } catch (e) { applog("warn", "[fotostopp] Pin-Ebene: " + e); return; }
     }
     // Deckkraft und Aufpoppen als Eigenschaften der Punkte (02.10.2026: vorher feature-state — direkt nach setData
@@ -12552,6 +12554,12 @@ function mountAnimator(body, headerActions, opts) {
                                                       : griff === "aus" ? t("animator.ton.aus", "Ausblenden (s)") + ": " + z(G - _ovZeitAusLeiste(neu.ausAb)) + " s" : null; },
         onTonZiehen:       (id, griff, neu) => { try { _tonSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[ton] " + err); } },
         onSchilderOffen:   (v) => { _sgSpurOffen = !!v; try { localStorage.setItem("rz-sg-spur-offen", v ? "1" : "0"); } catch (_) {} },
+        // 10.10.2026 — Entfernen-Taste auf einem Balken: Schild (auch Bild/Fotostopp) löschen; Overlay: den gewählten
+        // Zeitraum, beim letzten die ganze Box. Ein ⌘Z-Schritt. Auswahl eines Balkens hebt die Keyframe-Auswahl auf.
+        onSchildAuswahl:   () => { _selectedKfIdx = null; },
+        onOverlayAuswahl:  () => { _selectedKfIdx = null; },
+        onSchildLoeschen:  (id) => { try { const i = _sgIndexVonId(id); const S = window.__rzAnimSigns && window.__rzAnimSigns.spur; if (i >= 0 && S && S.loeschen) S.loeschen(i); } catch (err) { applog("warn", "[sg-spur] löschen " + err); } },
+        onOverlayLoeschen: (id, seg) => { try { _ovSpurLoeschen(id, seg); } catch (err) { applog("warn", "[ov-spur] löschen " + err); } },
         onSchildOeffnen:   (id) => { try { const i = _sgIndexVonId(id); const S = window.__rzAnimSigns && window.__rzAnimSigns.spur; if (i >= 0 && S) S.oeffnen(i); } catch (err) { applog("warn", "[sg-spur] " + err); } },
         onSchildText:      (id, griff, neu) => _sgSpurText(id, griff, neu),
         onSchildZiehen:    (id, griff, neu) => { try { _sgSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[sg-spur] " + err); } },
@@ -15886,6 +15894,7 @@ function mountAnimator(body, headerActions, opts) {
         speichern: (l, label) => _animSignsSave(l, label), bildUebernehmen: (ziel, el) => _animSetImgEl(ziel, el),
         neuZeichnen: () => { if (!_animSignsUpdateInPlace()) _animSignsAttachToMap(); _animSignsRenderList(); },
         oeffnen: (i) => _animSignsOpenEditor(i),
+        loeschen: (i) => { try { _animSignsCloseEditor(); } catch (_) {} _animSignsDelete(i); },   // 10.10.2026 Entfernen-Taste in der Zeitleiste
       },
       updateAtAnchor: _animSignsUpdateAtAnchor,
       applyMarkerAnchor: _animSignsApplyMarkerAnchor,
@@ -18043,6 +18052,12 @@ function mountAnimator(body, headerActions, opts) {
       liste.push({ von: _ovAnkerAusZeit(tA, "von") || { art: "video_start", wert: 0 }, bis: _ovAnkerAusZeit(tB, "bis") });
       _ovZeitenSetzen(e, liste);
     }, t("animator.ov.seg_neu", "Weiterer Zeitraum"));
+  }
+  function _ovSpurLoeschen(id, seg) {
+    const b = _ctSpurBoxen().find(q => q.id === id);
+    if (!b) return;
+    if (b.zeiten && b.zeiten.length > 1) { _ovZeitraumWeg(id, seg); return; }
+    _ctSpeichern(_ctListe().filter(c => c.id !== id), t("container.loeschen", "Löschen"));
   }
   function _ovZeitraumWeg(id, seg) {
     const R = window.rzOverlayBoxen;
@@ -23505,7 +23520,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
     const name = _tourAnzeigeName(path, _ladeRes && _ladeRes.name, "") || t("library.tour", "Tour");
-    _extraTours.push({ gpx_path: path, line_color: color, name, coords,
+    _extraTours.push({ gpx_path: path, line_color: color, name, coords: _lonAnschluss(coords, _tourVorgaenger()),
                        stil: _stilVonHaupt(),   // 09.09.2026 — neue Tracks übernehmen das Aussehen von Track 1
                        // 09.09.2026 (Marc: „Höhenprofil ist glatt") — die Höhen der Etappe, sonst
                        // zeichnet die Bahn für sie 0 m und das Profil wird eine Gerade.
@@ -23570,6 +23585,16 @@ function mountAnimator(body, headerActions, opts) {
     try { if (window.__rzAnimSigns && window.__rzAnimSigns.clearAll) window.__rzAnimSigns.clearAll(); } catch (_) {}
     try { _animLeerAnzeigen(); } catch (e) { applog("warn", "[etappe] entladen: " + e); }
   }
+  /** 10.10.2026 — Datumsgrenze zwischen Touren/Etappen: jede Tour ist für sich fortlaufend (animator_load_gpx), beginnt aber
+   *  beim eigenen Wert. Hängt sie an eine Vorgängerin, die jenseits von ±180 endet (Tokio → San Francisco = 237,6), wird
+   *  sie um volle 360° dorthin geschoben — sonst Strich quer über die Welt und Kamerasprung beim Übergang. */
+  function _lonAnschluss(coords, vorher) {
+    const ende = Array.isArray(vorher) && vorher.length ? vorher[vorher.length - 1] : null;
+    if (!Array.isArray(coords) || !coords.length || !ende) return coords;
+    const d = 360 * Math.round((+ende[0] - +coords[0][0]) / 360);
+    return d ? coords.map(c => [c[0] + d].concat(c.slice(1))) : coords;
+  }
+  const _tourVorgaenger = () => (_extraTours.length ? _extraTours[_extraTours.length - 1].coords : currentCoords);
   function _etKette() {
     const pool = _tourPool();
     return _gruppen.map(g => {
@@ -23651,10 +23676,28 @@ function mountAnimator(body, headerActions, opts) {
   // eine Kopie des Starts hinten an; der Schlussabschnitt hat eigenes Verkehrsmittel/Linie (`rund_art`, `rund_kurve`), die
   // Stationsliste bleibt ohne Doppel. Alle Geometrie rechnet über `_etGeo(E)`.
   const _etRundGeht = (E) => E.wps.filter(w => w.lon != null).length >= 3;
+  // 10.10.2026 (Marc: „einmal um die Erde planen geht nicht … springt immer hin und her“) — Datumsgrenze: jede Etappe nimmt
+  // den kürzeren Weg von der vorigen Station; dafür laufen die Längengrade der Stationen (nur in dieser Rechen-Kopie)
+  // fortlaufend weiter (San Francisco nach Tokio = 237,6). Ost- und westwärts ergibt sich aus der Reihenfolge der Punkte.
+  // Wie core/route.stationen_fortlaufend und das Web (studio.js etappeAusStationen).
+  function _etFortlaufend(wps) {
+    let vor = null;
+    return wps.map(w => {
+      if (!w || w.lon == null) return w;
+      let lon = +w.lon;
+      if (vor != null) lon += 360 * Math.round((vor - lon) / 360);
+      vor = lon;
+      return lon === +w.lon ? w : Object.assign({}, w, { lon });
+    });
+  }
   function _etGeo(E) {
-    if (!E || !E.rund || !_etRundGeht(E) || E.wps[0].lon == null || E.wps[E.wps.length - 1].lon == null) return E;
+    if (!E) return E;
+    if (!E.rund || !_etRundGeht(E) || E.wps[0].lon == null || E.wps[E.wps.length - 1].lon == null) {
+      const wps = _etFortlaufend(E.wps);
+      return wps.every((w, i) => w === E.wps[i]) ? E : Object.assign({}, E, { wps });
+    }
     const n = E.wps.length;
-    return { wps: E.wps.concat([Object.assign({}, E.wps[0], { auto: false, text: "" })]),
+    return { wps: _etFortlaufend(E.wps.concat([Object.assign({}, E.wps[0], { auto: false, text: "" })])),
              arten: E.arten.slice(0, n - 1).concat([E.rund_art || E.arten[n - 2] || "auto"]),
              kurve: E.kurve.slice(0, n - 1).concat([!!E.rund_kurve]), weich: E.weich, grob: E.grob, teile: E.teile, rund: true };
   }
@@ -23771,7 +23814,7 @@ function mountAnimator(body, headerActions, opts) {
       if (s.coords.length > 1) feats.push({ type: "Feature", properties: { fehlt: s.fehlt ? 1 : 0 }, geometry: { type: "LineString", coordinates: s.coords } });
     }
     if (E.sel >= 0 && E.wps[E.sel] && E.wps[E.sel].lon != null) {
-      const w = E.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(G, E.sel);
+      const w = G.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(G, E.sel);   // fortlaufende Länge wie die Linie
       feats.push({ type: "Feature", properties: { hebel: 1 }, geometry: { type: "LineString",
         coordinates: [_etLL([P[0] - h.ein[0], P[1] - h.ein[1]]), [w.lon, w.lat], _etLL([P[0] + h.aus[0], P[1] + h.aus[1]])] } });
     }
@@ -23819,7 +23862,8 @@ function mountAnimator(body, headerActions, opts) {
       el.classList.toggle("ist-ende", i === 0 || i === E.wps.length - 1);
       el.classList.toggle("ist-sel", E.sel === i);
       el.classList.toggle("ist-scharf", !!w.scharf);
-      m.setLngLat([w.lon, w.lat]);
+      const gw = (_etGeo(E).wps[i] || w);   // Datumsgrenze: auf der fortlaufenden Linie
+      m.setLngLat([gw.lon, gw.lat]);
     });
     _etGriffeSetzen();
   }
@@ -23891,7 +23935,7 @@ function mountAnimator(body, headerActions, opts) {
     const E = _etEd;
     const MK = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
     if (!E || E.sel < 0 || !E.wps[E.sel] || E.wps[E.sel].lon == null) { _etGriffe.forEach(m => { try { m.remove(); } catch (_) {} }); _etGriffe = []; return; }
-    const w = E.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(E, E.sel);
+    const G = _etGeo(E), w = G.wps[E.sel], P = _etM([w.lon, w.lat]), h = _etHebel(G, E.sel);   // fortlaufend (Datumsgrenze)
     const lage = { aus: _etLL([P[0] + h.aus[0], P[1] + h.aus[1]]), ein: _etLL([P[0] - h.ein[0], P[1] - h.ein[1]]) };
     ["aus", "ein"].forEach((seite, k) => {
       let g = _etGriffe[k];
@@ -23909,10 +23953,12 @@ function mountAnimator(body, headerActions, opts) {
   /** Griff gezogen: Richtung für beide Seiten, Länge nur für diese Seite; die Abschnitte am Punkt werden Kurven. */
   function _etHebelGezogen(seite, ll) {
     const E = _etEd; if (!E || E.sel < 0) return;
-    const j = E.sel, w = E.wps[j], P = _etM([w.lon, w.lat]), G = _etM([ll.lng, ll.lat]);
+    const j = E.sel, w = E.wps[j], GE = _etGeo(E), gw = GE.wps[j], P = _etM([gw.lon, gw.lat]);
+    // der Griff kann in einer anderen Weltkopie liegen — an die fortlaufende Länge des Punkts holen
+    const G = _etM([ll.lng + 360 * Math.round((gw.lon - ll.lng) / 360), ll.lat]);
     let v = [G[0] - P[0], G[1] - P[1]];
     if (seite === "ein") v = [-v[0], -v[1]];
-    const L = Math.hypot(v[0], v[1]), alt = _etHebel(E, j);
+    const L = Math.hypot(v[0], v[1]), alt = _etHebel(GE, j);
     const ang = Math.atan2(v[1], v[0]);
     w.hebel = { ang, ln: seite === "aus" ? L : Math.hypot(alt.aus[0], alt.aus[1]), lv: seite === "ein" ? L : Math.hypot(alt.ein[0], alt.ein[1]) };
     w.scharf = false;
@@ -24268,7 +24314,8 @@ function mountAnimator(body, headerActions, opts) {
       for (const m of g.mitglieder) if (_pfadNFC(m.gpx_path) === _pfadNFC(altPfad)) m.gpx_path = neuPfad;
       if (g.leit_gpx && _pfadNFC(g.leit_gpx) === _pfadNFC(altPfad)) g.leit_gpx = neuPfad;
     }
-    Object.assign(tr, { gpx_path: res.gpx_path || neuPfad, coords: res.coords, ele: Array.isArray(res.elevations) ? res.elevations : null,
+    const _ix = _extraTours.indexOf(tr), _vor = _ix > 0 ? _extraTours[_ix - 1].coords : currentCoords;
+    Object.assign(tr, { gpx_path: res.gpx_path || neuPfad, coords: _lonAnschluss(res.coords, _vor), ele: Array.isArray(res.elevations) ? res.elevations : null,
                         flach: Array.isArray(res.flach) ? res.flach : null,
                         zeit: null, epochs: null, stats: res.stats || null, etappe, name });
     _gruppenSync(); _gruppenAbleiten();
@@ -24723,7 +24770,7 @@ function mountAnimator(body, headerActions, opts) {
           gesehen.add(_pfadNFC(pfad));
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
-                             name: _tourAnzeigeName(pfad, res.name, t.name) || (typeof window.t === "function" ? window.t("library.tour", "Tour") : "Tour"), coords: res.coords,
+                             name: _tourAnzeigeName(pfad, res.name, t.name) || (typeof window.t === "function" ? window.t("library.tour", "Tour") : "Tour"), coords: _lonAnschluss(res.coords, _tourVorgaenger()),
                              ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
                              flach: Array.isArray(res.flach) ? res.flach : null,   // 07.10.2026 Etappe: Flug/Schiff/Bahn
                              stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,

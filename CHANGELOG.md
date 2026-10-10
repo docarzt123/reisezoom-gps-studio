@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- **A removed photo stop no longer leaves its round photo pin on the map.** When the last photo stop of a project disappeared (unticked, deleted, replaced by a new quick video), the pin layer was rebuilt but its points were not cleared — a small photo pin stayed on the map that never grew and had no bar in the timeline (Marc's screenshot).
+- **Delete key in the timeline** (Marc: „when I click something in the timeline and press Delete, it should disappear — with pictures it doesn't“). Only camera keyframes reacted. Now a clicked bar — sign, photo, photo stop, overlay — is removed with Delete/⌫ (an overlay with several time ranges loses only the clicked one), as one ⌘Z step; a click outside the timeline clears the selection.
+- **Routes across the date line** (Marc: „planning once around the world doesn't work … it keeps jumping back and forth“). Longitudes lie in −180…180, so Tokyo → San Francisco was drawn back west across Asia and Europe, and the camera jumped from China to the Atlantic; between two flight sections the line jumped by 360°. Now every stage takes the shorter way from the previous stop (east- or westwards follows from the order of the points) and the line runs on continuously (San Francisco after Tokyo = 237.6°) — in the stage editor, the route core (`lon_fortlaufend`, `stationen_fortlaufend`), between consecutive tours and for GPX tracks that cross ±180°. Routing, elevations and place names get wrapped values; files stay unchanged.
+
 ## [0.9.787] – 2026-10-09
 
 ### Fixed

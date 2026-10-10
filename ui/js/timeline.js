@@ -943,6 +943,20 @@ function mountTimelineBar(opts) {
   // die Zeit des Elements; die Schrägen innen sind Ein- und Ausblendung (Overlays: je eigener Griff).
   // Die Leiste rechnet NUR in Leisten-Positionen (0..1 über das ganze Video) — was daraus an Sekunden
   // und Ankern wird, entscheidet das Modul (Rückrufe). Kein Einrasten (Marc). Doppel-/Rechtsklick öffnet.
+  // 10.10.2026 (Marc: „Wenn ich irgendwas in der Timeline anklicke und ‚Entfernen‘ drücke, sollte das verschwinden — bei
+  // Bildern geht das nicht“) — die zuletzt angeklickte Balken-Auswahl (Overlay, Schild, Ton) kennt die Entfernen-Taste;
+  // ein Klick außerhalb der Zeitleiste hebt sie auf. Kamera-Keyframes löscht das Modul selbst (_keyNav).
+  let _balkenAktiv = null;
+  _win("keydown", (e) => {
+    if (!_balkenAktiv || (e.key !== "Delete" && e.key !== "Backspace") || e.metaKey || e.ctrlKey || e.altKey) return;
+    const z = e.target;
+    if (z && (z.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(z.tagName || ""))) return;
+    if (e.defaultPrevented) return;
+    if (_balkenAktiv.loeschen()) { e.preventDefault(); e.stopPropagation(); }
+  });
+  _win("mousedown", (e) => {
+    if (_balkenAktiv && !(e.target && host.contains(e.target))) { const b = _balkenAktiv; _balkenAktiv = null; b.abwaehlen(); }
+  });
   function _balkenGruppe(g) {
     // g: { box, kopfTitel, kopfTip, farbe, zeilenIcon, blendenGriffe, zeitraumNeu, rc: {neu, offen, oeffnen,
     //      zeitraumNeu, text, vorschau, auswahl, ziehen} }  (rc = Namen der Rückrufe in cb)
@@ -1214,6 +1228,8 @@ function mountTimelineBar(opts) {
         setStatusHint(null);
         if (!bewegt) {
           auswahl = { id, seg };
+          if (_balkenAktiv && _balkenAktiv !== selbst) _balkenAktiv.abwaehlen();
+          _balkenAktiv = selbst;
           zeichnen();
           ruf("auswahl", id, seg);
           return;
@@ -1223,6 +1239,16 @@ function mountTimelineBar(opts) {
       document.addEventListener("mousemove", bewegen, true);
       document.addEventListener("mouseup", hoch, true);
     }
+    const selbst = {
+      abwaehlen() { if (auswahl) { auswahl = null; zeichnen(); } },
+      loeschen() {
+        if (!auswahl || !rc("loeschen")) return false;
+        const a = auswahl; auswahl = null; _balkenAktiv = null;
+        ruf("loeschen", a.id, a.seg);
+        zeichnen();
+        return true;
+      },
+    };
     return { set, zeichnen, geometrieMelden, get: () => ({ liste: liste.map(o => Object.assign({}, o)), offen }) };
   }
 
@@ -1289,14 +1315,16 @@ function mountTimelineBar(opts) {
     kopfTitel: tlT("animator.lane.overlays", "Overlays"),
     kopfTip: tlT("animator.lane.overlays_tip", "Wann die Stats-Boxen zu sehen sind. Aufklappen, dann Balken ziehen: verschieben, Ränder ändern Anfang und Ende, die Schrägen innen sind Ein- und Ausblendung. Doppelklick oder Rechtsklick öffnet die Box."),
     rc: { neu: "onOverlayNeu", offen: "onOverlaysOffen", oeffnen: "onOverlayOeffnen", zeitraumNeu: "onOverlayZeitraumNeu",
-          text: "onOverlayText", vorschau: "onOverlayVorschau", auswahl: "onOverlayAuswahl", ziehen: "onOverlayZiehen" },
+          text: "onOverlayText", vorschau: "onOverlayVorschau", auswahl: "onOverlayAuswahl", ziehen: "onOverlayZiehen",
+          loeschen: "onOverlayLoeschen" },
   });
   const _sgGruppe = _balkenGruppe({
     box: "#tl-sg", miniId: "tl-sg-mini", farbe: "#ff8a5c", zeilenIcon: "🚩", blendenGriffe: true, zeitraumNeu: false, stapeln: true,   // 29.09.2026 — Blenden wie bei den Overlays
     kopfTitel: tlT("animator.lane.schilder", "Schilder"),
     kopfTip: tlT("animator.lane.schilder_tip", "Wann die Schilder zu sehen sind. Aufklappen, dann Balken ziehen: verschieben ändert den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“. Doppelklick oder Rechtsklick öffnet das Schild."),
     rc: { neu: "onSchildNeu", offen: "onSchilderOffen", oeffnen: "onSchildOeffnen",
-          text: "onSchildText", vorschau: "onSchildVorschau", auswahl: "onSchildAuswahl", ziehen: "onSchildZiehen" },
+          text: "onSchildText", vorschau: "onSchildVorschau", auswahl: "onSchildAuswahl", ziehen: "onSchildZiehen",
+          loeschen: "onSchildLoeschen" },
   });
   // 02.10.2026 (Marc: „wir bräuchten also eine Audiospur") — Ton: Musik (Schrägen = Ein-/Ausblenden, ziehbar),
   // Foto-Klicks, Ton der Videoclips. Gleicher Baustein; Zeilen ohne Ränder (Musik läuft über das ganze Video).

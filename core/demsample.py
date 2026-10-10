@@ -23,7 +23,8 @@ DEM_ZOOM = 13      # ≈ 19 m/px am Äquator; Schlucht-Relief sichtbar, Track mi
 def _tile_xy(lng: float, lat: float, z: int) -> tuple[float, float]:
     n = 2 ** z
     lat = max(-85.05112878, min(85.05112878, float(lat)))
-    x = (float(lng) + 180.0) / 360.0 * n
+    # 10.10.2026 — Datumsgrenze: Linien laufen fortlaufend (237,6 statt −122,4); die Kachel liegt im gewrappten Wert
+    x = (((float(lng) + 180.0) % 360.0) / 360.0) * n
     y = (1.0 - math.log(math.tan(math.radians(lat)) + 1.0 / math.cos(math.radians(lat))) / math.pi) / 2.0 * n
     return x, y
 

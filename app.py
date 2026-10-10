@@ -8437,7 +8437,9 @@ class Api:
             # demselben Original-Pfad) spart sich so den zweiten Datei-Parse.
             self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
             ds = cgpx.downsample(pts, 800)
-            coords = [[p.lon, p.lat] for p in ds]
+            # 10.10.2026 — Datumsgrenze: fürs Zeichnen und die Kamera fortlaufende Längengrade (179,9 → 180,1 statt
+            # → −179,9), sonst Strich quer über die Welt und Kamerasprung. Die Datei selbst bleibt unverändert.
+            coords = croute.lon_fortlaufend([[p.lon, p.lat] for p in ds])
             # Höhenarray für das Overlay-Preview-Höhenprofil — etwas weiter
             # downsampled (200 Punkte) damit das SVG-Update flüssig bleibt.
             ele_ds = cgpx.downsample(pts, 200)
@@ -8743,7 +8745,8 @@ class Api:
             # (0,55 ≈ 3,6 km) machte aus 10 km Stadtstraße mit Umweg über die Brücke eine gerade Linie. Erst ab ~300 km
             # Luftlinie wirkt der Regler voll, darunter anteilig (mind. 3 %), so behält ein kurzer Abschnitt seine Form.
             import math
-            luft_km = math.hypot((nach[0] - von[0]) * math.cos(math.radians((von[1] + nach[1]) / 2)), nach[1] - von[1]) * 111.32
+            # Datumsgrenze: Δlon gewrappt (road_route/arc_route wrappen selbst und legen die Linie an `von`)
+            luft_km = math.hypot(croute.lon_wrap(nach[0] - von[0]) * math.cos(math.radians((von[1] + nach[1]) / 2)), nach[1] - von[1]) * 111.32
             grob_eff = grob * max(0.03, min(1.0, luft_km / 300.0))
             if art in croute.ARTEN_STRASSE:
                 r = croute.road_route([tuple(von), tuple(nach)], _active_mapbox_token() or "",
@@ -8771,7 +8774,7 @@ class Api:
         Returns {ok, name}."""
         from core import highlights as chl
         try:
-            la, lo = float(lat), float(lon)
+            la, lo = float(lat), croute.lon_wrap(float(lon))   # Datumsgrenze: Klick auf eine Weltkopie (237,6) → −122,4
         except (TypeError, ValueError):
             return {"ok": False, "name": ""}
         key = (round(la, 3), round(lo, 3))

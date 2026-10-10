@@ -376,6 +376,46 @@ _MAX_SIMPLIFY_DEG = 0.06
 _SMOOTH_POINTS = 500
 
 
+# ── Datumsgrenze (10.10.2026, Marc: „einmal um die Erde planen geht nicht … springt immer hin und her“) ─────────────
+# Regel: jede Etappe nimmt den kürzeren Weg von der vorigen Station; die Längengrade der LINIE laufen fortlaufend weiter
+# (San Francisco nach Tokio = 237,6 statt −122,4). Mapbox/MapLibre zeichnen und fahren so ohne Sprung über ±180°.
+# Dienste (Routing, Höhen, Ortsnamen) bekommen gewrappte Werte −180…180.
+def lon_wrap(lon: float) -> float:
+    """Längengrad nach −180…180 (180 bleibt 180)."""
+    w = ((float(lon) + 180.0) % 360.0) - 180.0
+    return 180.0 if w == -180.0 and float(lon) > 0 else w
+
+
+def lon_fortlaufend(coords, start_lon: Optional[float] = None) -> List[List[float]]:
+    """Koordinaten ohne 360°-Sprünge: jeder Punkt so nah wie möglich am vorigen; mit `start_lon` als Ganzes um volle
+    360° an diesen Wert geschoben (die Linie beginnt dort, wo die Station steht). Weitere Werte (Höhe …) bleiben."""
+    out: List[List[float]] = []
+    prev = None
+    for c in coords or []:
+        lon, lat = float(c[0]), float(c[1])
+        if prev is not None:
+            lon += 360.0 * round((prev - lon) / 360.0)
+        out.append([lon, lat] + list(c[2:]))
+        prev = lon
+    if out and start_lon is not None:
+        d = 360.0 * round((float(start_lon) - out[0][0]) / 360.0)
+        if d:
+            for c in out:
+                c[0] += d
+    return out
+
+
+def stationen_fortlaufend(pts) -> List[Tuple[float, float]]:
+    """Stationen so verschieben, dass jede Etappe den kürzeren Weg von der vorigen nimmt (ost- wie westwärts)."""
+    out: List[Tuple[float, float]] = []
+    for lon, lat in pts:
+        lon = float(lon)
+        if out:
+            lon += 360.0 * round((out[-1][0] - lon) / 360.0)
+        out.append((lon, float(lat)))
+    return out
+
+
 def road_route(
     waypoints: List[Tuple[float, float]],
     token: str = "",
@@ -407,8 +447,9 @@ def road_route(
     # Grobheit via Slider). 07.09.2026: freie Router zuerst (OSRM/Valhalla), Mapbox nur
     # mit Token als Rückfall; „no_route" bleibt der stabile Code fürs Frontend
     # (v0.9.392: Rad-/Fußprofile haben Streckengrenzen — Valhalla 100/150 km, dann OSRM).
-    r0 = route_geometry(pts, profile, token, provider=provider)
-    coords = r0["coords"]
+    # Datumsgrenze: der Dienst kennt nur −180…180 — gewrappt fragen, die Antwort fortlaufend an die erste Station legen
+    r0 = route_geometry([(lon_wrap(lo), la) for lo, la in pts], profile, token, provider=provider)
+    coords = lon_fortlaufend(r0["coords"], pts[0][0])
     # 1) optisch vereinfachen (Douglas-Peucker, Toleranz aus coarseness) — legt
     #    fest, WIE grob die Stützpunkte werden.
     if coarseness > 0:
@@ -577,7 +618,7 @@ def arc_route(
 
     Returns {"coords": …, "distance_m": …, "duration_s": 0.0}.
     """
-    pts = [(float(lon), float(lat)) for lon, lat in waypoints]
+    pts = stationen_fortlaufend(waypoints)   # kürzerer Weg je Etappe (Datumsgrenze)
     if len(pts) < 2:
         raise RouteError(_i18n.t_aktiv("route.err_start_ziel", "Mindestens Start und Ziel nötig"))
     seg_count = len(pts) - 1
@@ -591,6 +632,7 @@ def arc_route(
             if coords and k == 0:
                 continue  # doppelte Vertices an Segmentgrenzen vermeiden
             coords.append(c)
+    coords = lon_fortlaufend(coords, pts[0][0])   # Abschnitte beginnen sonst beim gewrappten Wert → 360°-Sprung
     # Distanz aus der erzeugten Linie (für Stats).
     dist = 0.0
     for a, b in zip(coords, coords[1:]):
@@ -773,7 +815,7 @@ def gemischte_route(waypoints: List[Tuple[float, float]], arten: List[str], toke
                     coarseness: Optional[float] = None) -> dict:
     """Etappen mit eigener Verkehrsart verketten. `arten[i]` gilt von Station i bis i+1.
     Returns {coords, distance_m, duration_s, abschnitte: [{art, von: [lon, lat], bis: [lon, lat]}]}."""
-    pts = [(float(lon), float(lat)) for lon, lat in waypoints]
+    pts = stationen_fortlaufend(waypoints)   # kürzerer Weg je Etappe (Datumsgrenze)
     if len(pts) < 2:
         raise RouteError(_i18n.t_aktiv("route.err_start_ziel", "Mindestens Start und Ziel nötig"))
     coords: List[List[float]] = []
@@ -793,7 +835,7 @@ def gemischte_route(waypoints: List[Tuple[float, float]], arten: List[str], toke
         dist += float(r.get("distance_m") or 0)
         dauer += float(r.get("duration_s") or 0)
         abschnitte.append({"art": art, "von": [pts[i][0], pts[i][1]], "bis": [pts[i + 1][0], pts[i + 1][1]]})
-    return {"coords": coords, "distance_m": dist, "duration_s": dauer, "abschnitte": abschnitte}
+    return {"coords": lon_fortlaufend(coords, pts[0][0]), "distance_m": dist, "duration_s": dauer, "abschnitte": abschnitte}
 
 
 def write_gpx(
