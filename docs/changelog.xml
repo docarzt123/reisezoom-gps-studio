@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 10 Oct 2026 08:05:58 +0000</lastBuildDate>
+<lastBuildDate>Sat, 10 Oct 2026 17:34:18 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.788</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-788</link>
+<guid isPermaLink="false">gps-studio-v0.9.788</guid>
+<pubDate>Sat, 10 Oct 2026 12:00:00 +0000</pubDate>
+<description>4K wieder scharf — Mit „Karte glätten“ wurden 4K-Videos seit 0.9.782 viel zu weich — Karte und Track sahen aus wie hinter einem Filter, obwohl die Vorschau stimmte. Die Bilder werden jetzt wieder auf dem bewährten Weg aufgenommen (wie bei ProRes schon immer). Das Glätten wirkt nur noch auf die Karte: Track, Geister-Spur und Punkt bleiben gestochen scharf. Ein Render dauert dafür etwas länger.
+
+Einmal um die Welt — Routen und Etappen über die Datumsgrenze: Jede Etappe nimmt den kürzeren Weg von der vorigen Station, ob ost- oder westwärts ergibt sich aus der Reihenfolge deiner Punkte. Linie und Kamera springen nicht mehr quer über die Weltkarte, „Straße folgen“ klappt auch jenseits von 180°. GPX-Tracks über die Datumsgrenze (Fidschi, Pazifikflüge) werden ebenfalls richtig gezeichnet.
+
+Entfernen in der Zeitleiste — Einen Balken anklicken — Schild, Foto, Fotostopp oder Overlay — und Entf drücken: weg. Bei einem Overlay mit mehreren Zeiträumen nur der angeklickte; ⌘Z holt alles zurück.
+
+Kein Geister-Pin mehr — Wurde der letzte Fotostopp eines Projekts gelöscht, blieb sein kleiner runder Foto-Pin auf der Karte stehen. Jetzt verschwindet er mit.</description>
+</item>
 <item>
 <title>v0.9.787</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-787</link>
@@ -197,15 +210,6 @@ Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem R
 <guid isPermaLink="false">gps-studio-v0.9.769</guid>
 <pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
 <description>Fotostopp ruhiger — die Karte schwenkt während des Fotos nur noch halb so weit.</description>
-</item>
-<item>
-<title>v0.9.768</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-768</link>
-<guid isPermaLink="false">gps-studio-v0.9.768</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotostopp mit Bewegung — das Foto ist schon groß, wenn der Track ankommt, und beim Ausblenden läuft er sofort weiter. Während das Foto zu sehen ist, schwenkt die Kamera leicht, und das Foto zoomt langsam heran.
-
-Punkte im Gelände an der richtigen Stelle — die Vorankündigungspunkte der Highlights und die Foto-Pins sprangen im Video im Gebirge neben die Strecke. Behoben.</description>
 </item>
 </channel>
 </rss>
