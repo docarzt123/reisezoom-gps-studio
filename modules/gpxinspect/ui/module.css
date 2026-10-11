@@ -608,3 +608,8 @@
    das Ziel kurz aufleuchten lassen, damit man sieht, wohin es ging. */
 @keyframes gpxi-ziel-blink { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 3px var(--accent); } }
 .gpxi-ziel-blink { animation: gpxi-ziel-blink .6s ease-in-out 3; border-radius: 6px; }
+
+/* 11.10.2026 — Strich-Symbole aus dem Logbuch-Baustein */
+.gpxi-lb-blsym { color: #fff; pointer-events: none; }
+.gpxi-lb-icon svg, .gpxi-lb-chip svg, .gpxi-lb-marke svg, .gpxi-lbt-art svg, .gpxi-lb-menue-symbol svg, .gpxi-lb-info-sym svg { vertical-align: -2px; }
+.gpxi-lb-marke { display: flex; align-items: center; justify-content: center; }

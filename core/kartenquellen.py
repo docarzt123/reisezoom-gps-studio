@@ -1356,28 +1356,28 @@ QUELLEN: list[dict] = [{'id': 'de-be',
                      'Creative Commons Zero (CC0) lizenziert; Earth Observatory-Bilder frei auch kommerziell '
                      'nutzbar'},
  {'id': 'terrain',
-  'provider': 'Mapzen/Tilezen (Linux Foundation) auf AWS Open Data (Registry of Open Data on AWS)',
-  'dataset': 'Terrain Tiles (terrarium PNG, Bucket elevation-tiles-prod)',
-  'dataset_url': 'https://registry.opendata.aws/terrain-tiles/',
-  'license': 'Mix gemeinfrei / CC BY / OGL (Mapzen Terrain Tiles)',
-  'license_url': 'https://github.com/tilezen/joerd/blob/master/docs/attribution.md',
+  'provider': 'Mapterhorn (Oliver Wipfli u. a., NLnet/EU-gefördert, gehostet bei Cloudflare); Notlauf und '
+              'Meerestiefen: Mapzen/Tilezen auf AWS Open Data',
+  'dataset': 'Mapterhorn Terrain Tiles (terrarium WebP 512 px) + AWS Terrain Tiles (terrarium PNG)',
+  'dataset_url': 'https://mapterhorn.com/',
+  'license': 'Mix offener Lizenzen mit Namensnennung (CC BY 4.0, dl-de/by-2-0, Licence Ouverte, OGL, gemeinfrei)',
+  'license_url': 'https://mapterhorn.com/attribution/',
   'commercial_video': 'true',
   'modification_notice_required': False,
-  'onscreen_credit': 'Terrain: Mapzen/AWS Terrain Tiles',
-  'service_terms_url': 'https://registry.opendata.aws/terrain-tiles/',
+  'onscreen_credit': 'Terrain: © Mapterhorn, Mapzen/AWS Terrain Tiles',
+  'service_terms_url': 'https://mapterhorn.com/data-access/',
   'service_limits': 'Offener S3-Bucket ohne AWS-Konto (--no-sign-request), EU-Replikat '
                     'elevation-tiles-prod-eu; keine Rate-Limits, Cache- oder Prefetch-Regeln veröffentlicht, '
                     'Bulk-Zugriff ist Zweck des Open-Data-Angebots. Frame-by-frame-Headless-Rendering und '
                     'lokaler Cache: akzeptabel. Fragen via GitHub Issues (tilezen/joerd).',
   'confidence': 'hoch',
-  'notes': "Vollständiger Attribution-Text ist lang — kann in Video-Beschreibung, im Bild kurz 'Terrain: "
-           "Mapzen/Tilezen Terrain Tiles (USGS, NOAA, Copernicus u. a.)'. Der alte tile.mapzen.com-Dienst "
-           'mit API-Key existiert nicht mehr (Doku veraltet).',
-  'sources': ['https://registry.opendata.aws/terrain-tiles/',
+  'notes': "Seit 11.10.2026 kommen die Höhen an Land von Mapterhorn (amtliche Geländemodelle, Deutschland 1 m, sonst 0,5–30 m; tiles.mapterhorn.com, keine Grenzen veröffentlicht, Cache 7 Tage). AWS Terrain Tiles bleiben Notlauf und Quelle der Meerestiefen. Im Bild kurz '© Mapterhorn, Mapzen/AWS Terrain'; die Einzelquellen stehen auf mapterhorn.com/attribution.",
+  'sources': ['https://mapterhorn.com/data-access/', 'https://mapterhorn.com/attribution/',
+              'https://registry.opendata.aws/terrain-tiles/',
               'https://github.com/tilezen/joerd/blob/master/docs/attribution.md',
               'https://github.com/tilezen/joerd/blob/master/docs/use-service.md',
               'https://github.com/tilezen/joerd/blob/master/docs/data-sources.md'],
-  'checked_at': '2026-09-07',
+  'checked_at': '2026-10-11',
   'render_server': 'ok',
   'credit_hinweis': 'ArcticDEM terrain data DEM(s) were created from DigitalGlobe, Inc., imagery and funded '
                     'under National Science Foundation awards 1043681, 1559691, and 1542736; Australia '
@@ -1393,7 +1393,7 @@ QUELLEN: list[dict] = [{'id': 'de-be',
                     'right 2015. All rights reserved; United States 3DEP (formerly NED) and global GMTED2010 '
                     "and SRTM terrain data courtesy of the U.S. Geological Survey. (Registry-Zitat: 'Terrain "
                     "Tiles was accessed on DATE from https://registry.opendata.aws/terrain-tiles.')",
-  'credit_kurz': 'Mapzen/AWS Terrain',
+  'credit_kurz': '© Mapterhorn, Mapzen/AWS Terrain',
   'license_hinweis': 'Kein Gesamt-Lizenzname; Mischung aus Public Domain (USGS 3DEP/SRTM/GMTED2010, NOAA '
                      'ETOPO1), CC BY 3.0 NZ (LINZ), CC BY 3.0 AT (Österreich), CC BY 4.0 (Kartverket, '
                      'Geoscience Australia), OGL v3 (UK), OGL Canada, Copernicus EU-DEM, INEGI, ArcticDEM '

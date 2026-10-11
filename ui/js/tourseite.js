@@ -90,6 +90,9 @@
     seite.innerHTML = `<div class="ts-kopf">
         <button type="button" class="btn btn-sm ts-zurueck" title="${esc(T("tourseite.zurueck_tip", "Zurück zur Tourenliste (Esc)"))}">← ${esc(T("tourseite.zurueck", "Touren"))}</button>
         <b class="ts-titel">${esc(tour.name || "")}</b><span class="ts-unter muted"></span><span class="ts-zahlen"></span></div>
+      ${tour.reise ? "" : `<div class="ts-reiter" role="tablist">
+        <button type="button" class="ts-reiter-knopf an" data-ts-reiter="uebersicht">${I("layout-grid", 14)} ${esc(T("tourseite.reiter_uebersicht", "Übersicht"))}</button>
+        <button type="button" class="ts-reiter-knopf" data-ts-reiter="logbuch">${I("book-open", 14)} ${esc(T("tourseite.reiter_logbuch", "Logbuch"))}</button></div>`}
       <div class="ts-karte" id="ts-karte"><div class="ts-laden"><span class="spinner"></span> ${esc(T("tourseite.laedt", "Tour und Medien werden geladen …"))}</div></div>
       <div class="ts-streifen" id="ts-streifen"></div>`;
     main.appendChild(seite);
@@ -100,8 +103,13 @@
     nav.appendChild(links);
     nav.classList.add("ts-aktiv");
     const det = document.getElementById("lib-detail");
-    Z = { tour, seite, links, map: null, lib: null, daten: null, auswahl: beiFoto || "", marker: {}, detAlt: det ? det.innerHTML : "" };
-    if (det) det.innerHTML = `<div class="lib-detail-empty">${esc(T("tourseite.detail_leer", "Foto oder Clip anklicken — dann stehen hier seine Aufnahmedaten und seine Touren."))}</div>`;
+    Z = { tour, seite, links, map: null, lib: null, daten: null, auswahl: beiFoto || "", marker: {}, detAlt: det ? det.innerHTML : "",
+          reiter: "uebersicht", lb: null, lbBox: null, lbPins: {} };
+    seite.querySelectorAll("[data-ts-reiter]").forEach(b => { b.onclick = () => _reiterSetzen(b.dataset.tsReiter); });
+    // 11.10.2026 (Marc: „rechts ist bei Übersicht alles frei — warum nicht direkt das Logbuch?“) — rechts steht bei
+    // einer Tour immer das Logbuch; ein angeklicktes Foto zeigt dort seine Daten mit „← Logbuch“ zurück.
+    if (tour.reise) { if (det) det.innerHTML = `<div class="lib-detail-empty">${esc(T("tourseite.detail_leer", "Foto oder Clip anklicken — dann stehen hier seine Aufnahmedaten und seine Touren."))}</div>`; }
+    else _logbuchSpalte();
     // aus einer Reise geöffnet: „← Reise“ führt dorthin zurück (statt zur Liste)
     if (tour.vonReise) {
       const z = seite.querySelector(".ts-zurueck");
@@ -482,6 +490,7 @@
       }
       try { if (!b.isEmpty()) map.fitBounds(b, { padding: 50, maxZoom: 15, duration: 0 }); } catch (_) {}
       _thumbsLaden((d.medien || []).map(x => x.path));
+      if (Z.reiter === "logbuch") _lbPinsSetzen();   // 11.10.2026 — nach Neuladen die Logbuch-Pins wieder setzen
     });
   }
 
@@ -498,6 +507,81 @@
     const b = Z.seite.querySelector(`.ts-bild[data-pfad="${CSS.escape(pfad)}"]`); if (b) b.classList.toggle("hervor", !!an);
   }
 
+  // ── Reiter „Logbuch“ (11.10.2026) ──
+  // Das Logbuch der Tour (ui/js/logbuch_ansicht.js) steht rechts, die Karte zeigt die Einträge des Tages als Pins; ein Klick
+  // auf einen Eintrag zeigt die Stelle, ein Klick auf einen Pin wählt den Eintrag. Medien-Pins und Bildstreifen ruhen solange.
+  function _reiterSetzen(r) {
+    if (!Z || Z.tour.reise) return;
+    Z.reiter = r === "logbuch" ? "logbuch" : "uebersicht";
+    Z.seite.querySelectorAll("[data-ts-reiter]").forEach(b => b.classList.toggle("an", b.dataset.tsReiter === Z.reiter));
+    Z.seite.classList.toggle("ts-mit-logbuch", Z.reiter === "logbuch");
+    _lbPinsWeg();
+    if (Z.reiter === "logbuch") {
+      Z.auswahl = "";
+      Z.seite.querySelectorAll(".ts-bild.is-on").forEach(x => x.classList.remove("is-on"));
+      Object.values(Z.marker).forEach(mk => mk._el && mk._el.classList.remove("is-on"));
+      _logbuchSpalte(); _lbPinsSetzen(true);
+    } else if (Z.auswahl) waehlen(Z.auswahl);
+    else _logbuchSpalte();
+  }
+  /** Rechte Spalte = Logbuch. Die Ansicht wird einmal gebaut und beim Umschalten nur wieder eingehängt (Tag, Auswahl
+   *  und Rückgängig bleiben stehen). */
+  function _logbuchSpalte() {
+    const det = document.getElementById("lib-detail");
+    if (!Z || !det || Z.tour.reise || !window.rzLogbuchAnsicht) return;
+    if (!Z.lbBox) {
+      Z.lbBox = document.createElement("div");
+      Z.lbBox.className = "ts-logbuch-spalte";
+      const zust = Z;
+      Z.lb = window.rzLogbuchAnsicht.zeichnen(Z.lbBox, {
+        path: Z.tour.path,
+        onDaten: () => { if (Z === zust) _lbPinsSetzen(); },
+        onTag: () => { if (Z === zust) _lbPinsSetzen(Z.reiter === "logbuch"); },
+        onWahl: (x) => { if (Z === zust) _lbZeigen(x); },
+      });
+    }
+    if (Z.lbBox.parentNode !== det) { det.hidden = false; det.innerHTML = ""; det.appendChild(Z.lbBox); }
+  }
+  function _lbPinsWeg() {
+    if (!Z) return;
+    Object.values(Z.lbPins || {}).forEach(mk => { try { mk.remove(); } catch (_) {} });
+    Z.lbPins = {};
+  }
+  function _lbPinsSetzen(einpassen) {
+    if (!Z || !Z.map || !Z.lb || Z.reiter !== "logbuch") return;
+    _lbPinsWeg();
+    const lib = Z.lib, map = Z.map, b = new lib.LngLatBounds();
+    for (const x of Z.lb.tagEintraege()) {
+      if (!Array.isArray(x.pos)) continue;
+      _lbPinMachen(x); b.extend(x.pos);
+    }
+    if (einpassen && !b.isEmpty()) { try { map.fitBounds(b, { padding: 60, maxZoom: 14, duration: 500 }); } catch (_) {} }
+  }
+  function _lbPinMachen(x) {
+    const art = x.t0 == null ? x.art : (x.anzeige_art || x.art);
+    const el = document.createElement("button");
+    el.type = "button"; el.className = "ts-lb-pin"; el.style.setProperty("--c", window.rzLogbuchAnsicht.farbe(art));
+    el.innerHTML = I(window.rzLogbuchAnsicht.symbolName(art), 14);
+    el.title = Z.lb.titel(x);
+    el.onclick = (e) => { e.stopPropagation(); Z.lb.waehlen(x.id); };
+    const mk = new Z.lib.Marker({ element: el, anchor: "center" }).setLngLat(x.pos).addTo(Z.map);
+    mk._el = el; Z.lbPins[x.id] = mk;
+    return mk;
+  }
+  function _lbZeigen(x) {
+    if (!Z || !Z.map) return;
+    if (Z.reiter === "logbuch" && !Z.lbPins[x.id]) _lbPinsSetzen(false);
+    // 11.10.2026 — in der Übersicht steht nur der gewählte Eintrag als Pin auf der Karte (sonst sähe man nicht, wo er war)
+    if (Z.reiter !== "logbuch") { _lbPinsWeg(); if (Array.isArray(x.pos)) _lbPinMachen(x); }
+    Object.entries(Z.lbPins || {}).forEach(([id, mk]) => mk._el && mk._el.classList.toggle("is-on", id === x.id));
+    try {
+      if (Array.isArray(x.pos_von) && Array.isArray(x.pos_bis) && (x.pos_von[0] !== x.pos_bis[0] || x.pos_von[1] !== x.pos_bis[1])) {
+        const b = new Z.lib.LngLatBounds(); b.extend(x.pos_von); b.extend(x.pos_bis); if (Array.isArray(x.pos)) b.extend(x.pos);
+        Z.map.fitBounds(b, { padding: 80, maxZoom: 15, duration: 600 });
+      } else if (Array.isArray(x.pos)) Z.map.flyTo({ center: x.pos, zoom: Math.max(Z.map.getZoom(), 14), duration: 600 });
+    } catch (_) {}
+  }
+
   function waehlen(pfad, zentrieren) {
     if (!Z) return;
     Z.auswahl = pfad;
@@ -510,7 +594,24 @@
       mk._el.classList.add("is-on");
       if (zentrieren && Z.map) try { Z.map.easeTo({ center: mk.getLngLat(), duration: 400 }); } catch (_) {}
     }
-    if (window.rzFotos && window.rzFotos.detailFuer) window.rzFotos.detailFuer(pfad);
+    if (window.rzFotos && window.rzFotos.detailFuer) {
+      const zust = Z;
+      Promise.resolve(window.rzFotos.detailFuer(pfad)).then(() => {
+        const det = document.getElementById("lib-detail");
+        if (Z !== zust || Z.auswahl !== pfad || Z.tour.reise || !det || det.querySelector(".ts-zum-logbuch")) return;
+        const k = document.createElement("button");
+        k.type = "button"; k.className = "btn btn-sm ts-zum-logbuch";
+        k.innerHTML = `${I("arrow-left", 14)} ${esc(T("tourseite.zum_logbuch", "Logbuch"))}`;
+        k.onclick = () => {
+          if (!Z) return;
+          Z.auswahl = "";
+          Z.seite.querySelectorAll(".ts-bild.is-on").forEach(x => x.classList.remove("is-on"));
+          Object.values(Z.marker).forEach(mk => mk._el && mk._el.classList.remove("is-on"));
+          _logbuchSpalte();
+        };
+        det.prepend(k);
+      }).catch(() => {});
+    }
   }
 
   function _gross(pfad) {

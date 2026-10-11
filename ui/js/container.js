@@ -256,6 +256,12 @@
       beschr_faktor: 0.42, einheit_faktor: 0.6,
       zeilen: [zeile("text", { text: t("container.v.titel_text", "Meine Tour"), gr: 1.15 }),
                wert("dist_total", "gesamt"), wert("elev_gain", "gesamt"), wert("moving_time", "gesamt")] })),
+    // 11.10.2026 (Marc: MapDirector „sieht sau gut aus“) — Werte schlicht links oben: kleine Überschrift in
+    // Großbuchstaben über der Zahl, ohne Kasten, untereinander. Tag nur bei Mehrtagestouren sinnvoll (sonst „1“).
+    editorial: (t) => normalisieren(Object.assign({}, STILE.frei, { stil: "frei", vorlage: "editorial", name: t("container.v.editorial", "Werte schlicht (Editorial)"),
+      anker: "tl", x: 3, y: 4, schrift: "plex", schriftgroesse: 3.6, zeilenabstand: 0.8, beschriftung: "oben", anordnung: "unter",
+      beschr_faktor: 0.34, einheit_faktor: 0.5, textschatten: true,
+      zeilen: [wert("dist_done", "live"), wert("ele_now", "live"), wert("day_no", "live")] })),
     leer: (t) => normalisieren(Object.assign({}, STILE.kasten, { stil: "kasten", vorlage: "leer", name: t("container.v.leer", "Einblendung"),
       anker: "cc", x: 0, y: 0, zeilen: [zeile("text", { text: t("container.v.leer_text", "Text") })] })),
   };

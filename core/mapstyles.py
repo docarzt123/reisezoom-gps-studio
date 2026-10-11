@@ -67,7 +67,8 @@ TERRAIN = {
         "tiles": ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
         "tileSize": 256, "maxzoom": 15, "encoding": "terrarium",
         # Nennung laut Mapzen/Tilezen-Attribution (SRTM, EU-DEM, 3DEP, …)
-        "attribution": "Terrain: Mapzen/AWS Terrain Tiles",
+        # 11.10.2026: der Proxy liefert die Höhen an Land von Mapterhorn (AWS als Notlauf und für Meerestiefen)
+        "attribution": "Terrain: © Mapterhorn, Mapzen/AWS Terrain Tiles",
     },
 }
 

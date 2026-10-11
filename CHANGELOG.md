@@ -15,11 +15,55 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Video assistant and quick video, photos: ⤢ on every photo opens it large (browse with the arrows); „All media of the tour (N) …“ shows every photo and video of the tour — click to put it into the video or take it out; your own picks get priority („chosen by you“). Videos picked there come in as clip stops.
+- Video assistant, music: a list of all tracks, each with ▶ to listen before choosing; a click on the row chooses it. The quick video has its ▶ button next to the menu again.
+- Video assistant: own templates. On the last step „★ Save as template“ keeps the style (format, length, look, overlays, camera, stops, texts, music, ending — no title, no tour); it then appears as „★ Name“ in the template row of the assistant and the quick video. Same name replaces, right-click deletes.
+- Signs lane: ⏸ button „Stop at every photo sign“ (click again: at none), one ⌘Z step.
+- Overlay template „Plain values (editorial)“ (top left, no box, small heading over a large number) and a new live field „Day“ for multi-day tours. Switching the line look also recolours the faded upcoming route, the overview map and the elevation profile.
+- Colour per day for multi-day tours: each day of the line gets its own colour (day 1 = track colour, then the palette of the line look); the day changes at local midnight of the tour.
+- Colour look for the whole map picture (Cinematic, Golden hour, Noir, Vivid, Matte, Sunbaked, Ember, Terracotta, Dreamy, Silhouette) with a strength slider, plus a vignette. Overlays stay untouched; preview and video match.
+- Line look „Classic / Ember / Neon“ and a trail for the main track (track appearance panel). Ember and Neon make the line glow by itself — soft halo, bright core; the trail lights up the last stretch behind the head and fades out. Same in preview, test run and video.
+- Terrain from Mapterhorn: official elevation models (Germany 1 m, Alps/Scandinavia/UK 0.5–2 m, Spain 2 m, elsewhere 30 m) instead of the coarse AWS tiles — sharper 3D relief and correct summit heights (Teide 3713 m instead of 3681 m). AWS stays as fallback and for sea depths. Credits in About.
+- Stages: an eye next to each stop turns its place sign off and on.
+- Tour page: tabs „Overview | Logbook“. The logbook shows the tour day by day next to the map — summary chips, day chips, entries with place, duration and distance; clicking an entry shows its spot on the map, clicking a map point selects the entry. Rename, note and merge via „⋯“, with „Undo“; changes apply everywhere in GPS Studio.
+- Runner as moving dot and stage type (ten drawing styles like the other vehicles); on planned stages it follows footpaths.
+- Pace for runners: new values Pace (live), Avg. pace, Avg. pace (total) and Best pace in min/km. Tours with the activity „Running“ show their speed values as pace automatically; „Show speed as“ (automatic / km/h / pace) in a speed value row switches it for the whole project. The archive shows the average pace for running tours.
+- Photo stop: „Show when stopped“ — **Large photo** (as before), **Sign as on the way** (the designed sign stays, the route stops, the camera moves in) or **Own design** with the tabs „On the way | At the stop“ in the sign editor; the sign fades smoothly between both looks. Self-designed signs default to „Sign as on the way“. Before, a sign with „Stop here“ was never drawn as a sign.
+- Geotagger: clicking the empty photo area opens the photo picker. On Windows, where dragging from Explorer is switched off, the hints no longer ask you to drag.
 - Media: files without a capture date (typically scans) that sit in a folder with a date in its name — `1980.01.10`, `1980-01-10`, `10.01.1980`, `19800110`, `1980/01/10`, also with text after it — get that date: sorted onto that day, marked „Date from folder name“ in the details, no longer counted as „no capture time“. The file is not changed, and such files are never matched to a tour by time.
 - Media → By tour: after clicking a tour, a chip „Tour: … ✕“ shows the selection and „← All tours“ goes straight back to the list — same scroll position and search, no reloading. Switching to „By tour“ also clears the tour selection; before, only that one tour was left in the list and only „Reset“ (which reloads everything) brought the others back.
 - Duplicates: the copy in a date folder is kept (right after the highest resolution), so what was sorted by hand stays. Every copy shows its full folder path.
 
+### Changed
+- Video assistant, step 1 is now one choice of template: Memory, Social, Landscape and your own ★ templates side by side (the second row of styles is gone here — the map look comes in step 7); below it format and length.
+- Video assistant: length „Custom …“ with a seconds field (the quick video keeps Short · Normal · Long).
+- Video assistant: every click and change on a step now shows up in the animator right away (look, overlays, ending …), not only after „Next“.
+- Logbook signs no longer cover the title or the end card: a sign shortly before the finish now fades out before the end card appears, moments right at the start or the finish are left out (in the video assistant greyed out with the reason).
+- Quick video and video assistant: the subtitle of a trip over several days shows the date range („5 July – 9 August 2026“) and a short region instead of a long list of places.
+- Video assistant: plain line symbols instead of emojis on the cards and in the summary; a long tour name with emojis (e.g. from Komoot) is replaced by the first title suggestion, a cleaned short form of the name is offered as a chip; „1 sign“ instead of „1 signs“.
+- GPX inspector logbook: same plain line symbols and readable titles („Drive to Hamburg“) as the logbook on the tour page — in the list, summary, menus, table, timeline and map markers; no more emojis.
+- Video assistant step „Photos“: „How many photos?“ fewer ↔ more; the photos that go into the video are outlined with their reason; on trips the best photo of each travel day is taken first.
+- Video assistant step „Texts“ (title moved here, after the camera): „How much text?“ little/normal/a lot; on trips a chapter title per day („Day 3 · 7 July“) where the day begins. Order now: kind of video · story · photos · stops · camera · texts · map · overlays · ending · done.
+- Video assistant step „Camera“: a calm ↔ lively slider and, for each moment of the story, the camera movement in words („pull back and look to the horizon“, „move in closer“, „fly on calmly“) with an „other movement“ button; takes effect live. Quick video unchanged.
+- Video assistant step „Stops“ (now ten steps): stop at every photo sign (default from the photo style), length short/normal/long, camera moves in or not; instant prints can stop too and keep their look; picture-in-picture always drives on.
+- Video assistant step 3 „The story“ (right after „Kind of video“): the logbook moments of the tour to tick (breaks, overnight stays, notes, highest point), preselected to fit the video length, chapters per travel day; the chosen moments become signs. Moments right at a highlight are shown greyed out with the reason instead of being dropped silently. Photos now come before map and overlays.
+- Video assistant is now a floating, movable window over the Animator (collapsible, remembers its place): every step takes effect right away, the matching sidebar area lights up, „Done“ on every step, „Cancel“ restores the project, the whole run is still one ⌘Z.
+
 ### Fixed
+- Tour page: the „← Logbook“ button showed no arrow (the symbol was missing).
+- Signs: „Apply style + behavior to all“ on a photo sign now also carries the photo stop („Stop here“, duration, look while stopped, camera) to all other photo signs; text signs and clips are left alone.
+- macOS: the app started from another drive than the system (external disk, or straight from the DMG) showed „Program file missing … app.css“ instead of its window; the start page now lies on the app's own drive (or is loaded from the bundle on a read-only drive), so the offer to move the app into Applications appears as intended.
+- Archive: the photo counts of the tour rows could read the shared library connection at the same time as the tour details — „bad parameter or other API misuse“ in the log and „0 photos“ shown; these calls now wait for the library lock.
+- Video assistant: a click on „Next“/„Skip“ could get lost while a step was being written into the project in the background (the wait lock caught it). Live writing no longer locks the app; the window header shows „applying …“.
+- Tour page logbook: in „Overview“ a clicked entry now gets a pin on the map; entry titles show just the place („Running in Astorga“), region and country stay in the line below.
+- Archive: „⋯“ on a row opened its menu in the top-left corner instead of at the button.
+- Tour page: the right column is no longer empty in „Overview“ — it shows the logbook; a clicked photo shows its details with „← Logbook“.
+- Photo stops with camera „Fixed“: the camera no longer sits on the first photo from the start and then jumps to the overview — every stop moves in from the whole-tour view and back.
+- Planned stages: the sign at the start no longer covers the title, the one at the finish no longer covers the end card.
+- Photo stop: the picture element only appears once it has an image (an empty one broke frame captures in the web version).
+- README: maps and aerial images need no key; MapTiler/Mapbox are optional.
+- The track line stays on the path at junctions. „Smooth track“ (set automatically by Quick video) rounded every corner into an arc across the field; it now only calms the arrow direction and the camera („Calm arrow and camera“, visible again in the track’s fold-out panel — it had been left behind when the line settings moved). Reducing to the preview points keeps corners instead of taking every n-th point.
+- Archive: with a tour ticked (checkbox), the right-click / „⋯“ menu did nothing — „Open in Animator“ and the other entries closed the menu without acting. The menu treated any field losing focus as „window left“; the ticked-tours column has such a field. Now only leaving the window closes it.
 - Duplicates window: pressing „Tidy up“ could miss — the footer wrapped to two lines at that moment and the button slid away under the mouse.
 - 3D buildings: stacked building parts get their colour from the tiles currently loaded. A simplified piece from a coarser tile seen briefly while flying in could give a part a different host building — and a different roof colour than its neighbour, so the shared walls flickered.
 - About window: the FOSSGIS donation link points to the new address (`fossgis.de/verein/spenden/`); the old page returned 404.

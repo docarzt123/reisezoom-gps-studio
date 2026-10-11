@@ -1848,13 +1848,21 @@ function mountGeotagger(body, headerActions) {
     // Wenn noch keine Fotos: Empty State mit Dummy-Tiles + Hint
     if (!photos.length) {
       const empty = el("div", { class: "photo-grid-empty" });
+      // 11.10.2026 (Beta-Tester unter Windows: Fotos aus dem Explorer hineingezogen, nichts passierte) — unter Windows ist
+      // Ziehen abgeschaltet (WebView2 fragte sonst „Wählen Sie eine App …“, app.py AllowExternalDrop). Dort lädt der Text
+      // nicht mehr zum Ziehen ein; überall öffnet ein Klick auf die Fläche die Foto-Auswahl.
+      const _win = /Windows/i.test(navigator.userAgent || "");
       empty.innerHTML = `
-        <div class="photo-grid-empty-hint">
+        <div class="photo-grid-empty-hint" role="button" tabindex="0" style="cursor:pointer" title="${t("geotagger.empty.klick_tip", "Fotos wählen …")}">
           <div class="photo-grid-empty-icon">📷</div>
           <div class="photo-grid-empty-title">${t("geotagger.empty.title")}</div>
-          <div class="photo-grid-empty-text">${t("geotagger.empty.text")}</div>
+          <div class="photo-grid-empty-text">${_win ? t("geotagger.empty.text_win", "Klick hier, um Fotos zu wählen, oder nutze die Buttons links.<br>Unter Windows geht Hineinziehen aus dem Explorer leider nicht.") : t("geotagger.empty.text")}</div>
         </div>
       `;
+      { const hint = empty.querySelector(".photo-grid-empty-hint");
+        const waehlen = () => { const b = document.getElementById("gt-pick-photos"); if (b && !b.disabled) b.click(); };
+        hint.addEventListener("click", waehlen);
+        hint.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); waehlen(); } }); }
       grid.appendChild(empty);
       // 8 graue Dummy-Tiles als Vorschau-Platzhalter
       for (let i = 0; i < 8; i++) {

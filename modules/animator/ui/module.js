@@ -71,8 +71,8 @@ function mountAnimator(body, headerActions, opts) {
   // Rechnern (ein fester Pfad zeigte dort ins Leere).
   const WM_EINGEBAUT = ["@lockup-white", "@lockup-dark"];   // 05.10.2026: dunkle Fassung für helle Looks
   // 05.10.2026 — Laufpunkt als Fahrzeug-Symbol (_fahrzeugBild)
-  const FAHRZEUGE = ["wanderer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug"];
-  const FAHRZEUG_NAMEN = { wanderer: "Wanderer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug" };
+  const FAHRZEUGE = ["wanderer", "laeufer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug"];   // 11.10.2026 + Läufer
+  const FAHRZEUG_NAMEN = { wanderer: "Wanderer", laeufer: "Läufer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug" };
   // 07.10.2026 (Marc: „von jedem Verkehrsmittel 10 Stück … mehr Comic, realistischer, handgezeichnet, passend zu den
   // Kartenstilen“) — Fahrzeug-Aussehen: „plakette“ = das gezeichnete Symbol wie bisher, sonst ein Bild aus
   // ui/img/fahrzeuge/<fahrzeug>_<stil>.png (Draufsicht, Front nach oben; geschnitten mit scripts/fahrzeug_icons_schneiden.py).
@@ -393,6 +393,19 @@ function mountAnimator(body, headerActions, opts) {
             <button type="button" class="btn btn-subtle btn-sm" id="anim-karte-ed-rueckfall" hidden>✎ ${t("kartened.titel", "Karte bearbeiten")}</button>
             <div class="muted field-help-content" data-help-content="gesamtlook" hidden style="font-size:11px; margin-top:4px; line-height:1.45;">${t("look.hilfe", "Ein Look stellt Karte, Linie, Verläufe und die Schrift der Einblendungen auf einmal um. Danach kannst du jeden Regler weiter frei ändern — ⌘Z nimmt den ganzen Look zurück.")}</div>
           </div>
+          <!-- 11.10.2026 (Marc: MapDirector „sieht sau gut aus“) — Farblook fürs ganze Kartenbild (Einblendungen bleiben unberührt) -->
+          <div class="field" id="anim-farblook-field">
+            <label class="field-label" for="anim-farblook">${t("animator.farblook", "Farblook")} <button type="button" class="field-help" data-help="farblook">?</button></label>
+            <select id="anim-farblook">
+              ${["aus", "kino", "goldene_stunde", "noir", "lebendig", "matt", "sonnig", "glut", "terrakotta", "vertraeumt", "silhouette"].map(k => `<option value="${k}"${k === "aus" ? " selected" : ""}>${t("animator.farblook." + k, k)}</option>`).join("")}
+            </select>
+            <div class="muted field-help-content" data-help-content="farblook" hidden style="font-size:11px; margin-top:4px; line-height:1.45;">${t("animator.farblook.hilfe", "")}</div>
+            <div id="anim-farblook-mehr" hidden>
+              <label class="field-label" style="margin-top:6px">${t("animator.farblook.staerke", "Stärke")} <span class="label-val" id="anim-farblook-staerke-v">100 %</span></label>
+              <input type="range" id="anim-farblook-staerke" min="0" max="1.5" step="0.05" value="1">
+            </div>
+            <label class="checkbox-row" style="margin-top:6px"><input type="checkbox" id="anim-vignette"> <span>${t("animator.vignette", "Vignette (dunklere Ränder)")}</span></label>
+          </div>
           <div class="field" id="anim-style-field">
             <!-- 08.10.2026 (Marc: „die Basiskarte zu ändern … das ist gerade noch ein bisschen wild“) — statt einer Liste mit
                  22 Stilen nur Kacheln: acht Looks + „Weitere Karten“; die Luftbild-Quelle und die weiteren Karten wählt man
@@ -640,6 +653,13 @@ function mountAnimator(body, headerActions, opts) {
           <div class="field" id="anim-shadow-dir-field" title="${t("animator.shadow.dir_tooltip", "In welche Richtung alle Schlagschatten fallen (Track + Schilder). 45° = unten-rechts.")}">
             <label class="field-label">${t("animator.shadow.dir", "Schatten-Richtung")} <span class="label-val" id="anim-shadow-dir-v">45°</span></label>
             <input type="range" id="anim-shadow-dir" min="0" max="360" step="15" value="45">
+          </div>
+          <!-- 11.10.2026 (Marc: „wie der Track aussieht … das will ich alles haben“, Vorbild Leuchtlinien mit hellem Kern) —
+               Linien-Look und Schweif der Haupt-Tour; bedient im Aussehen-Panel des Tracks -->
+          <div class="field" hidden>
+            <select id="anim-linien-look"><option value="klassisch" selected>klassisch</option><option value="glut">glut</option><option value="neon">neon</option></select>
+            <input type="range" id="anim-schweif" min="0" max="15" step="0.5" value="0">
+            <input type="checkbox" id="anim-farbe-je-tag">
           </div>
           <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
             <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
@@ -1223,6 +1243,7 @@ function mountAnimator(body, headerActions, opts) {
                 <select id="ct-neu" class="pos-select" title="${t("container.neu_tip", "Neue Einblendung aus einer Vorlage")}">
                   <option value="">＋ ${t("container.neu", "Neue Einblendung")}</option>
                   ${_isStaticFrame ? "" : `<option value="live">${t("container.v.live", "Live-Werte")}</option>`}
+                  ${_isStaticFrame ? "" : `<option value="editorial">${t("container.v.editorial", "Werte schlicht (Editorial)")}</option>`}
                   <option value="gesamt">${t("container.v.gesamt", "Gesamtsumme")}</option>
                   <option value="hoehe">${t("container.v.hoehe", "Höhenprofil")}</option>
                   ${_isStaticFrame ? "" : `<option value="uebersicht">${t("container.v.uebersicht", "Übersichtskarte")}</option>`}
@@ -2872,6 +2893,21 @@ function mountAnimator(body, headerActions, opts) {
     onChange: v => { updateLabel("anim-kontur-v", parseFloat(v || 0).toFixed(1), " px"); applyKonturToLayers(); } });
   bindSetting("anim-kontur-farbe", _MODKEY, "kontur_farbe", { type: "string",
     onLoad: () => { try { applyKonturToLayers(); } catch (_) {} }, onChange: () => { applyKonturToLayers(); _gradStand = null; } });
+  // 11.10.2026 — onLoad läuft schon beim Binden, also bevor die Konstanten weiter unten (FARBLOOKS, LINIEN_LOOKS) stehen
+  // (Szene-Render brach mit „Cannot access … before initialization“ ab) → erst im nächsten Takt anwenden.
+  const _spaeter = (fn) => () => setTimeout(() => { try { fn(); } catch (e) { rzSwallow(e, "look@onLoad"); } }, 0);
+  bindSetting("anim-farblook", _MODKEY, "farblook", { type: "string", onLoad: _spaeter(() => _farblookAnwenden()), onChange: () => _farblookAnwenden() });
+  bindSetting("anim-farblook-staerke", _MODKEY, "farblook_staerke", { type: "number", onLoad: _spaeter(() => _farblookAnwenden()), onChange: () => _farblookAnwenden() });
+  bindSetting("anim-vignette", _MODKEY, "vignette", { type: "bool", onLoad: _spaeter(() => _farblookAnwenden()), onChange: () => _farblookAnwenden() });
+  bindSetting("anim-linien-look", _MODKEY, "linien_look", { type: "string",
+    onLoad: _spaeter(() => { applyGlowToLayers(); applyKonturToLayers(); applyLinienLook(); }),
+    onChange: () => { applyGlowToLayers(); applyKonturToLayers(); applyLinienLook(); _gradStand = null; try { refreshPreviewTrackData(); } catch (_) {} } });
+  bindSetting("anim-farbe-je-tag", _MODKEY, "farbe_je_tag", { type: "bool",
+    onLoad: _spaeter(() => { _gradStand = null; refreshPreviewTrackData(); }),
+    onChange: () => { _gradStand = null; try { refreshPreviewTrackData(); } catch (_) {} } });
+  bindSetting("anim-schweif", _MODKEY, "schweif_pct", { type: "number",
+    onLoad: _spaeter(() => applyLinienLook()),
+    onChange: () => { applyLinienLook(); try { refreshPreviewTrackData(); } catch (_) {} } });
   bindSetting("anim-glow-strength", _MODKEY, "glow_strength", { type: "number",
     onLoad: v => updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => {
@@ -4942,6 +4978,24 @@ function mountAnimator(body, headerActions, opts) {
     catch (_) { return []; }
   }
   const _fsAktiv = (s) => !!(s && s.stopp && s.imageSrc && s.visible !== false);
+  // 11.10.2026 (Beta-Tester: gestaltete Sprechblase mit „Hier anhalten“ → beim Halt nur noch das große Foto; Marc: „eine
+  // Auswahl, wie das Bild aussieht, wenn es einfach auf dem Track ist, und wie es aussehen soll, wenn man am Fotostopp
+  // angekommen ist“) — `stopp_look`: „foto“ = Foto groß (wie bisher) · „schild“ = das Schild bleibt, wie es gestaltet ist ·
+  // „eigen“ = eigene Gestaltung für den Halt (`stopp_stil`, Felder wie FS_STIL_FELDER), weich übergeblendet.
+  // Ohne Angabe: Sofortbild und schlichtes Foto-Schild → „foto“, jede eigene Form/Farbe → „schild“.
+  const FS_STIL_FELDER = ["style", "icon", "color", "bg", "accent", "tailPos", "radius", "opacity", "borderWidth", "borderColor",
+    "decoScale", "direction", "calloutDir", "font", "size", "weight", "align", "minWidth", "textColor", "italic", "shadow",
+    "shadowColor", "shadowBlur", "shadowStrength", "imageSize", "padding"];
+  function _fsLook(s) {
+    const v = s && s.stopp_look;
+    if (v === "foto" || v === "schild" || v === "eigen") return v;
+    if (!s || s.style === "sofortbild") return "foto";
+    const gestaltet = (s.style && s.style !== "callout") || (s.bg && s.bg !== "auto") || Number(s.borderWidth) > 0 || !!s.shadow
+      || (s.radius != null && Number(s.radius) !== 9);
+    return gestaltet ? "schild" : "foto";
+  }
+  window.__rzFsLook = _fsLook;
+  let _fsUeberAkt = null;   // { i, p } — „eigen“: Überblendung Unterwegs → Halt des gerade haltenden Schilds
   /** Stelle des Stopps auf der Strecke (Punkt-Anteil wie `bei` in core/tempo.py): Zeitanker des Fotos,
    *  sonst der nächste Trackpunkt. null, solange der Track fehlt. */
   function _fsAnkerFrisch(s) {
@@ -5149,7 +5203,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!style) return;
     // Bilder + Ebene (neu) aufbauen, wenn sich Fotos, Größe oder die Karte geändert haben
     const alle = [];
-    _fsSchilderAlle().forEach((s, i) => { if (_fsAktiv(s)) { const e = _fsBildHolen(s); if (e.el) alle.push({ i, s, e }); } });
+    _fsSchilderAlle().forEach((s, i) => { if (_fsAktiv(s) && _fsLook(s) === "foto") { const e = _fsBildHolen(s); if (e.el) alle.push({ i, s, e }); } });
     const dR = Math.round(d * 2) / 2;
     const sig = dR + "|" + alle.map(x => x.i + ":" + x.s.imageSrc + (x.s.clip ? "▶" : "") + ":" + (+x.s.lon).toFixed(6) + "," + (+x.s.lat).toFixed(6)).join(";");
     const fehlt = !map.getSource(FS_PIN_SRC) || !map.getLayer(FS_PIN_EBENE);
@@ -5221,7 +5275,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!el && fs && vp) {
       el = document.createElement("div");
       el.id = "anim-fotostopp"; el.className = "fs-buehne"; el.setAttribute("aria-hidden", "true"); el.style.display = "none";
-      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><div class="fs-bild"><img alt=""></div><div class="fs-text"></div></div>`;
+      el.innerHTML = `<div class="fs-dunkel"></div><div class="fs-karte"><div class="fs-bild"></div><div class="fs-text"></div></div>`;
       vp.insertBefore(el, document.getElementById("anim-overlay-preview"));
     }
     const W = (vp && vp.offsetWidth) || 1, H = (vp && vp.offsetHeight) || 1;
@@ -5232,7 +5286,7 @@ function mountAnimator(body, headerActions, opts) {
     for (const h of hs) {
       const i = parseInt(String(h.ref || "").slice(3), 10);
       const s = _fsSchilderAlle()[i];
-      if (!_fsAktiv(s)) continue;
+      if (!_fsAktiv(s) || _fsLook(s) !== "foto") continue;   // Schild bleibt sichtbar → kein Pin (11.10.2026)
       const fw = _fsWerte(s), pinAb = h.ab_s - fw.anflug - fw.pin;   // Standard 2,5 s vor dem Anflug (stopp_pin_s)
       if (tSek < pinAb) continue;
       const auf = Math.max(0, Math.min(1, (tSek - pinAb) / FS_PIN_AUF));
@@ -5240,27 +5294,37 @@ function mountAnimator(body, headerActions, opts) {
       pins.push({ i, s, op: auf * (1 - Math.min(1, imStopp * 3)), sc: 0.3 + 0.7 * (1 - Math.pow(1 - auf, 3)) });
     }
     _fsPinsSetzen(pins, d);
-    // ── großes Foto ──
+    // ── „eigen“: Unterwegs-Fassung aus-, Halt-Fassung einblenden (Schilder-Ebene, siehe _animHaltUeberAnwenden) ──
+    { const war = _fsUeberAkt;
+      _fsUeberAkt = (fs && _fsLook(fs.s) === "eigen") ? { i: fs.i, p: fs.p } : null;
+      if (war || _fsUeberAkt) { try { window.__rzSignsHaltUeber && window.__rzSignsHaltUeber(war); } catch (_) {} } }
+    // ── großes Foto ── (nur „Foto groß“)
     if (!el) return;
     const karte = el.querySelector(".fs-karte"), dunkel = el.querySelector(".fs-dunkel");
-    const e = fs ? _fsBildHolen(fs.s) : null;
-    if (!fs || !(fs.p > 0) || !e || !e.el) {
+    const fsFoto = !!(fs && _fsLook(fs.s) === "foto");
+    const e = fsFoto ? _fsBildHolen(fs.s) : null;
+    if (!fsFoto || !(fs.p > 0) || !e || !e.el) {
       if (_fsSichtbar) { el.style.display = "none"; _fsSichtbar = false; }
       return;
     } else {
-      const img = karte.querySelector("img"), txt = karte.querySelector(".fs-text");
-      let quelle = e.el.src;
-      img.__clip = false;
+      // <img> erst einhängen, wenn es eine Quelle hat — ein leeres src zeigt auf die Seite selbst und bricht
+      // Bild-Erfassungen ab, die alle Ebenen einzeln lesen (Web-Export mit html-to-image).
+      const bild = karte.querySelector(".fs-bild"), txt = karte.querySelector(".fs-text");
+      let quelle = e.el.src, clip = false;
       if (fs.s.clip && fs.s.clip.pfad) {
         const c = _fsClipHolen(fs.s);
         if (c.muster && c.n > 0) {
           const u = Math.max(0, tSek - fs.h.ab_s);
           const n = Math.max(1, Math.min(c.n, 1 + Math.floor(u * c.fps + 1e-6)));
           quelle = c.muster.replace("{i}", String(n));
-          img.__clip = true;
+          clip = true;
         }
       }
-      if (img.src !== quelle) img.src = quelle;
+      let img = bild.querySelector("img");
+      if (!img && quelle) { img = document.createElement("img"); img.alt = ""; img.src = quelle; bild.appendChild(img); }
+      else if (img && img.src !== quelle) { if (quelle) img.src = quelle; else img.remove(); }
+      if (img && !img.isConnected) img = null;
+      if (img) img.__clip = clip;
       const asp = (e.el.naturalWidth || 4) / Math.max(1, e.el.naturalHeight || 3);
       const zeilen = _fsZeilen(fs.s, e.info);
       const fz = H * 0.034, pad = H * 0.014;
@@ -5275,9 +5339,9 @@ function mountAnimator(body, headerActions, opts) {
       Object.assign(karte.style, { display: "", width: kw + "px", height: kh + "px", padding: pad + "px", borderRadius: (pad * 0.5) + "px",
         transform: `translate(${cx - kw / 2}px, ${cy - kh / 2}px) scale(${sc})`, opacity: String(Math.min(1, p * 2.5)),
         boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
-      Object.assign(img.parentNode.style, { width: bw + "px", height: bh + "px" });
+      Object.assign(bild.style, { width: bw + "px", height: bh + "px" });
       // 02.10.2026 (Marc: „das Foto selber soll durchgehend leicht gezoomt werden") — Ken Burns
-      Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + fs.w.ken / 100 * fs.ken).toFixed(4)})` });
+      if (img) Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + fs.w.ken / 100 * fs.ken).toFixed(4)})` });
       const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
       if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
       Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
@@ -5929,8 +5993,189 @@ function mountAnimator(body, headerActions, opts) {
   }
   function currentGlowStrength() {
     const b = _bahnStil();
-    return b ? (+b.glow || 0) : (parseFloat(document.getElementById("anim-glow-strength")?.value) || 0);
+    const gs = b ? (+b.glow || 0) : (parseFloat(document.getElementById("anim-glow-strength")?.value) || 0);
+    const L = _lookDaten();
+    return L ? Math.max(gs, L.glowMin) : gs;
   }
+  // ── 11.10.2026 — Farblook (Farbkorrektur des Kartenbilds) und Vignette ────────────────────────────────────────────
+  // Ein SVG-Filter auf der Karten-Leinwand: je Kanal Lift (Versatz), Gain (Verstärkung, mit Temperatur/Tönung je Kanal),
+  // Gamma (Exponent), danach Kontrast und Sättigung. Die Szene fotografiert die Seite — Video = Vorschau. Einblendungen
+  // liegen außerhalb der Leinwand und bleiben unverändert. Stärke 0 … 150 % mischt zwischen neutral und Vorlage.
+  var FARBLOOKS = {
+    kino:           { con: 1.08, sat: 0.90, temp: -0.04, tint: 0,     lift: -0.01, gamma: 1.00, gain: 1.02 },
+    goldene_stunde: { con: 1.04, sat: 1.08, temp: 0.12,  tint: 0.01,  lift: 0.01,  gamma: 0.99, gain: 1.03 },
+    noir:           { con: 1.16, sat: 0,    temp: -0.04, tint: 0,     lift: 0,     gamma: 0.95, gain: 1.00 },
+    lebendig:       { con: 1.10, sat: 1.22, temp: 0,     tint: 0.05,  lift: 0,     gamma: 1.00, gain: 1.08 },
+    matt:           { con: 0.92, sat: 0.94, temp: -0.01, tint: 0,     lift: 0.045, gamma: 1.00, gain: 0.98 },
+    sonnig:         { con: 1.06, sat: 0.88, temp: 0.22,  tint: 0.01,  lift: 0.03,  gamma: 1.02, gain: 1.05 },
+    glut:           { con: 1.12, sat: 1.03, temp: 0.30,  tint: -0.08, lift: -0.02, gamma: 0.95, gain: 0.96 },
+    terrakotta:     { con: 0.97, sat: 0.95, temp: 0.20,  tint: -0.14, lift: 0.02,  gamma: 1.02, gain: 1.01 },
+    vertraeumt:     { con: 0.88, sat: 0.92, temp: 0.03,  tint: 0,     lift: 0.06,  gamma: 1.08, gain: 1.06 },
+    silhouette:     { con: 1.22, sat: 0.92, temp: 0.05,  tint: 0,     lift: -0.05, gamma: 0.90, gain: 0.98 },
+  };
+  var _FL_NEUTRAL = { con: 1, sat: 1, temp: 0, tint: 0, lift: 0, gamma: 1, gain: 1 };
+  function currentFarblook() { const v = document.getElementById("anim-farblook")?.value; return (FARBLOOKS || {})[v] ? v : "aus"; }
+  function _farblookWerte() {
+    const f = (FARBLOOKS || {})[currentFarblook()]; if (!f || !_FL_NEUTRAL) return null;
+    const k = Math.max(0, Math.min(1.5, parseFloat(document.getElementById("anim-farblook-staerke")?.value) || 0));
+    const w = {}; for (const key of Object.keys(_FL_NEUTRAL)) w[key] = _FL_NEUTRAL[key] + (f[key] - _FL_NEUTRAL[key]) * k;
+    return w;
+  }
+  function _farblookFilter(w) {
+    const ns = "http://www.w3.org/2000/svg";
+    let svg = document.getElementById("rz-farblook-svg");
+    if (!svg) {
+      svg = document.createElementNS(ns, "svg"); svg.id = "rz-farblook-svg";
+      svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.setAttribute("aria-hidden", "true");
+      svg.style.position = "absolute"; svg.style.width = "0"; svg.style.height = "0"; svg.style.overflow = "hidden";
+      svg.innerHTML = `<filter id="rz-farblook" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+        <feComponentTransfer><feFuncR type="gamma"/><feFuncG type="gamma"/><feFuncB type="gamma"/></feComponentTransfer>
+        <feComponentTransfer><feFuncR type="linear"/><feFuncG type="linear"/><feFuncB type="linear"/></feComponentTransfer>
+        <feColorMatrix type="saturate" values="1"/></filter>`;
+      document.body.appendChild(svg);
+    }
+    const [gam, lin] = svg.querySelectorAll("feComponentTransfer");
+    const kanal = { R: 1 + 0.28 * w.temp - 0.10 * w.tint, G: 1 + 0.20 * w.tint, B: 1 - 0.28 * w.temp - 0.10 * w.tint };
+    for (const c of ["R", "G", "B"]) {
+      const fg = gam.querySelector("feFunc" + c);
+      fg.setAttribute("amplitude", (w.gain * kanal[c] * (1 - w.lift)).toFixed(4));
+      fg.setAttribute("exponent", (1 / Math.max(0.2, w.gamma)).toFixed(4));
+      fg.setAttribute("offset", w.lift.toFixed(4));
+      const fl = lin.querySelector("feFunc" + c);
+      fl.setAttribute("slope", w.con.toFixed(4)); fl.setAttribute("intercept", (0.5 - 0.5 * w.con).toFixed(4));
+    }
+    svg.querySelector("feColorMatrix").setAttribute("values", Math.max(0, w.sat).toFixed(4));
+  }
+  function _farblookAnwenden() {
+    const mehr = document.getElementById("anim-farblook-mehr");
+    if (mehr) mehr.hidden = currentFarblook() === "aus";
+    const k = parseFloat(document.getElementById("anim-farblook-staerke")?.value);
+    updateLabel("anim-farblook-staerke-v", Math.round((isFinite(k) ? k : 1) * 100), " %");
+    if (!map) return;
+    const w = _farblookWerte();
+    try {
+      const cv = map.getCanvas();
+      if (w) { _farblookFilter(w); cv.style.filter = "url(#rz-farblook)"; } else cv.style.filter = "";
+      const box = map.getContainer();
+      let v = box.querySelector(":scope > .rz-vignette");
+      const an = !!document.getElementById("anim-vignette")?.checked;
+      if (an && !v) { v = document.createElement("div"); v.className = "rz-vignette"; box.appendChild(v); }
+      if (v) v.hidden = !an;
+    } catch (e) { rzSwallow(e, "farblook"); }
+  }
+  window.__rzFarblook = () => ({ look: currentFarblook(), werte: _farblookWerte(), filter: map ? map.getCanvas().style.filter : "",
+    vignette: !!(map && map.getContainer().querySelector(":scope > .rz-vignette:not([hidden])")) });   // Prüfstand
+
+  // ── 11.10.2026 — Linien-Look und Schweif (Haupt-Tour) ────────────────────────────────────────────────────────────
+  // Glut/Neon: unter der Linie ein breiter weicher Lichthof (preview-halo), auf der Linie ein heller Kern (preview-kern) —
+  // die Linie wirkt selbst leuchtend statt nur umrandet. Schweif: das letzte Stück hinter dem Kopf heller und breiter,
+  // nach hinten ausgeblendet (eigene Quelle preview-schweif, nachgeführt bei jedem setData von preview-track — so gilt
+  // er beim Ziehen, im Probelauf und im Video gleich). Die Farbe wählt die Vorlage beim Umschalten einmal vor.
+  // var statt const: beim Start fragen Kontur/Glow schon nach dem Look, bevor diese Zeile gelaufen ist (Totzone)
+  var LINIEN_LOOKS = {
+    glut: { farbe: "#ff8a3d", glowMin: 4, halo: 0.26, haloBreite: 6, kern: 0.85 },
+    neon: { farbe: "#2ef0ff", glowMin: 5, halo: 0.34, haloBreite: 7, kern: 0.95 },
+  };
+  function currentLinienLook() { const v = document.getElementById("anim-linien-look")?.value; return (LINIEN_LOOKS || {})[v] ? v : "klassisch"; }
+  function _lookDaten() { return (LINIEN_LOOKS || {})[currentLinienLook()] || null; }
+  function currentSchweifPct() { const v = parseFloat(document.getElementById("anim-schweif")?.value); return isFinite(v) ? Math.max(0, Math.min(15, v)) : 0; }
+  function _hexRgb(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim()); const n = m ? parseInt(m[1], 16) : 0xff6b35;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function _rgba(hex, a, weiss) {
+    const [r0, g0, b0] = _hexRgb(hex), w = Math.max(0, Math.min(1, weiss || 0));
+    const m = (c) => Math.round(c + (255 - c) * w);
+    return `rgba(${m(r0)},${m(g0)},${m(b0)},${Math.max(0, Math.min(1, a))})`;
+  }
+  function applyLinienLook() {
+    if (!map) return;
+    const L = _lookDaten(), lw = currentLineWidth(), o = _hauptDeckkraft(), farbe = currentLineColor();
+    const an = !!L && !hauptDezent();
+    try {
+      if (map.getLayer("preview-halo")) {
+        map.setLayoutProperty("preview-halo", "visibility", an ? "visible" : "none");
+        if (an) {
+          map.setPaintProperty("preview-halo", "line-width", lw * L.haloBreite);
+          map.setPaintProperty("preview-halo", "line-blur", lw * L.haloBreite * 0.45);
+          map.setPaintProperty("preview-halo", "line-opacity", L.halo * o);
+          map.setPaintProperty("preview-halo", "line-color", farbe);
+        }
+      }
+      if (map.getLayer("preview-kern")) {
+        map.setLayoutProperty("preview-kern", "visibility", an ? "visible" : "none");
+        if (an) {
+          map.setPaintProperty("preview-kern", "line-width", Math.max(0.6, lw * 0.4));
+          map.setPaintProperty("preview-kern", "line-opacity", L.kern * o);
+          map.setPaintProperty("preview-kern", "line-color", _rgba(farbe, 1, 0.75));
+        }
+      }
+      const sp = currentSchweifPct() > 0 && !hauptDezent();
+      for (const [id, breite, blur] of [["preview-schweif-glow", 3.6, 1.6], ["preview-schweif", 1.5, 0.25]]) {
+        if (!map.getLayer(id)) continue;
+        map.setLayoutProperty(id, "visibility", sp ? "visible" : "none");
+        if (!sp) continue;
+        map.setPaintProperty(id, "line-width", lw * breite);
+        map.setPaintProperty(id, "line-blur", lw * blur);
+        map.setPaintProperty(id, "line-gradient", id === "preview-schweif-glow"
+          ? ["interpolate", ["linear"], ["line-progress"], 0, _rgba(farbe, 0), 1, _rgba(farbe, 0.6 * o, 0.2)]
+          : ["interpolate", ["linear"], ["line-progress"], 0, _rgba(farbe, 0), 0.55, _rgba(farbe, 0.75 * o, 0.35), 1, _rgba(farbe, 0.98 * o, 0.8)]);
+      }
+    } catch (e) { rzSwallow(e, "linienLook"); }
+    _schweifAusDaten(null);
+  }
+  let _schweifLetzt = null, _laengeFuer = null, _laengeM = 0;
+  function _meterZwischen(a, b) {
+    const k = Math.cos((a[1] + b[1]) * Math.PI / 360);
+    return Math.hypot((b[0] - a[0]) * k, b[1] - a[1]) * 111320;
+  }
+  function _trackLaengeM() {
+    if (_laengeFuer === currentCoords) return _laengeM;
+    let m = 0; const c = currentCoords || [];
+    for (let i = 1; i < c.length; i++) m += _meterZwischen(c[i - 1], c[i]);
+    _laengeFuer = currentCoords; _laengeM = m; return m;
+  }
+  /** Schweif aus den gerade gesetzten Linien-Daten (oder den zuletzt gesetzten, d = null). */
+  function _schweifAusDaten(d) {
+    if (d) _schweifLetzt = d;
+    const src = map && map.getSource("preview-schweif");
+    if (!src) return;
+    const leer = { type: "FeatureCollection", features: [] };
+    const pct = currentSchweifPct();
+    const g = _schweifLetzt && (_schweifLetzt.geometry || _schweifLetzt);
+    let c = g && g.type === "LineString" ? g.coordinates : (g && g.type === "MultiLineString" ? g.coordinates[g.coordinates.length - 1] : null);
+    // Ruhe mit „ganzen Track zeigen“: es gibt keinen Kopf — kein Schweif
+    if (!pct || hauptDezent() || !c || c.length < 2 || !currentCoords || (c.length >= currentCoords.length && previewFullTrack())) { src.setData(leer); return; }
+    const ziel = _trackLaengeM() * pct / 100;
+    const aus = [c[c.length - 1]]; let m = 0;
+    for (let i = c.length - 1; i > 0; i--) {
+      const s = _meterZwischen(c[i - 1], c[i]);
+      if (m + s >= ziel) { const u = s > 0 ? (ziel - m) / s : 0; aus.push([c[i][0] + (c[i - 1][0] - c[i][0]) * u, c[i][1] + (c[i - 1][1] - c[i][1]) * u]); m = ziel; break; }
+      m += s; aus.push(c[i - 1]);
+    }
+    if (aus.length < 2 || m <= 0) { src.setData(leer); return; }
+    aus.reverse();
+    src.setData({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: aus } });
+  }
+  function _schweifVerdrahten() {
+    const tr = map && map.getSource("preview-track");
+    if (!tr || tr.__rzSchweifHaken) return;
+    tr.__rzSchweifHaken = true;
+    const orig = tr.setData.bind(tr);
+    tr.setData = (d) => { const ret = orig(d); try { _schweifAusDaten(d); } catch (e) { rzSwallow(e, "schweif@track"); } return ret; };
+  }
+  /** alle Foto-Schilder (ohne Clips) halten an bzw. keines; liefert den neuen Zustand. */
+  window.__rzFotoHalteAlle = (soll) => {
+    const sg = window.__rzAnimSigns && window.__rzAnimSigns.spur; if (!sg) return undefined;
+    const l = sg.list() || [], istFoto = (x) => x && x.imageSrc && !x.clip;
+    const fotos = l.filter(istFoto); if (!fotos.length) { toast(t("animator.halt_alle.keine", "Es gibt noch keine Foto-Schilder."), "info", 2500); return false; }
+    const an = typeof soll === "boolean" ? soll : !fotos.every(x => x.stopp);
+    sg.speichern(l.map(x => istFoto(x) ? { ...x, stopp: an } : x), an ? t("animator.halt_alle.an", "An allen Foto-Schildern anhalten") : t("animator.halt_alle.aus", "An keinem Foto-Schild anhalten"));
+    try { sg.neuZeichnen(); } catch (e) { rzSwallow(e, "haltAlle@neuZeichnen"); }
+    toast(an ? t("animator.halt_alle.an_n", "Das Video hält jetzt an allen {n} Foto-Schildern.", { n: fotos.length }) : t("animator.halt_alle.aus_n", "Das Video fährt an den Foto-Schildern jetzt durch."), "info", 3000);
+    return an;
+  };
+  window.__rzSchweif = () => { const s = map && map.getSource("preview-schweif"); const d = s && (s._data || (s.serialize && s.serialize().data)); return d; };   // Prüfstand
   function currentAlphaEnabled() {
     // v0.6.0: Alpha-Modus = Stil "alpha". Vorher eigene Checkbox.
     return document.getElementById("anim-style")?.value === "alpha";
@@ -6296,7 +6541,8 @@ function mountAnimator(body, headerActions, opts) {
   // nur eine Tour (keine Reise). Die Bodenlinien bleiben stehen, sind aber ausgefiltert; nachgeführt wird über die
   // Quellen selbst (setData von preview-track und anim-dot), damit Scrubben, Probelauf und Render gleich laufen.
   const FLUG_EBENE = "flug-3d", FLUG_PUNKT = "flug-3d-punkt";
-  const FLUG_BODEN_EBENEN = ["preview-glow", "preview-kontur", "preview-line", "preview-highlight", "preview-shadow",
+  const FLUG_BODEN_EBENEN = ["preview-glow", "preview-halo", "preview-kontur", "preview-line", "preview-highlight", "preview-kern", "preview-shadow",
+                             "preview-schweif-glow", "preview-schweif",
                              "anim-dot-glow", "anim-dot-core", "anim-dot-fz", "anim-dot-arrow"];
   let _flug = { agl: null, key: "", lade: null, lot: [], idx: 0, ebene: null, punkt: null, an: false, grund: "" };
   function _flugGewuenscht() { return !!document.getElementById("anim-mc-flug3d")?.checked; }
@@ -6602,6 +6848,12 @@ function mountAnimator(body, headerActions, opts) {
         layout: trackLayout,
         paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35 * _hauptDeckkraft(), "line-blur": gs, ...(dash ? { "line-dasharray": dasharrayFor(lw * (2.0 + 0.21 * gs)) } : {}), ...zOffPaint } });
     }
+    // 11.10.2026 — Lichthof des Linien-Looks (unter Kontur und Linie); Sichtbarkeit/Werte: applyLinienLook()
+    if (!map.getLayer("preview-halo") && !hauptDezent()) {
+      map.addLayer({ id: "preview-halo", type: "line", source: "preview-track",
+        layout: { ...trackLayout, "visibility": "none" },
+        paint: { "line-color": color, "line-width": lw * 6, "line-blur": lw * 2.7, "line-opacity": 0, ...zOffPaint } });
+    }
     // 05.10.2026 — Kontur: eine breitere Linie in Konturfarbe direkt unter der Linie, gleiche Quelle (wächst
     // mit), gleicher Strich-Stil. Vorschau und Szene-Render benutzen diese Seite — Video = Vorschau.
     if (!map.getLayer("preview-kontur") && !hauptDezent()) {
@@ -6625,12 +6877,29 @@ function mountAnimator(body, headerActions, opts) {
         layout: { ...trackLayout, "visibility": "none" },
         paint: { "line-color": "#ffffff", "line-width": lw * 0.35, "line-opacity": 0.55 * _hauptDeckkraft(), "line-blur": 0.6, ...zOffPaint } });
     }
+    // 11.10.2026 — heller Kern des Linien-Looks und Schweif hinter dem Kopf
+    if (!map.getLayer("preview-kern") && !hauptDezent()) {
+      map.addLayer({ id: "preview-kern", type: "line", source: "preview-track",
+        layout: { ...trackLayout, "visibility": "none" },
+        paint: { "line-color": "#ffffff", "line-width": Math.max(0.6, lw * 0.4), "line-opacity": 0, "line-blur": 0.4, ...zOffPaint } });
+    }
+    if (!map.getSource("preview-schweif")) {
+      map.addSource("preview-schweif", { type: "geojson", lineMetrics: true, data: { type: "FeatureCollection", features: [] } });
+    }
+    for (const [id, breite] of [["preview-schweif-glow", 3.6], ["preview-schweif", 1.5]]) {
+      if (map.getLayer(id) || hauptDezent()) continue;
+      map.addLayer({ id, type: "line", source: "preview-schweif", layout: { ...trackLayout, "visibility": "none" },
+        paint: { "line-width": lw * breite, "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "rgba(255,255,255,0)", 1, "rgba(255,255,255,0)"], ...zOffPaint } });
+    }
+    _schweifVerdrahten();
     // Schatten-Sichtbarkeit + Glow-Sichtbarkeit + Alpha-Background + Hide-Labels
     // nach jedem Rebuild neu setzen (Style-Wechsel resettet sonst alle Layer).
     // v0.8.14 — applyLineStyle() rufen wir hier NICHT mehr; dasharray ist
     // direkt in den Layer-Paint-Props eingebaut. Sonst gäb's eine Rekursion.
     applyShadowToLayers();
     applyGlowToLayers();
+    applyLinienLook();
+    try { _farblookAnwenden(); } catch (_) {}
     applyGhost();
     applyAlphaPreview();
     applyHideLabels();
@@ -7025,6 +7294,7 @@ function mountAnimator(body, headerActions, opts) {
       try { loadColorStops(); stopsSig = JSON.stringify(_trackColorStops || []); } catch (_) {}
       const key = [i0, i1, currentColorsEnabled() ? 1 : 0, currentColorsSource(), currentColorsMode(), stopsSig,
                    currentLineColor(), JSON.stringify(_tourFarben() || null), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : "",
+                   currentFarbeJeTag() ? "tag:" + currentLinienLook() : "",
                    metric ? metric.length : -1].join("|");
       if (_gradStand && _gradStand.key === key && _gradStand.coords === currentCoords && _gradStand.serie === _ovSeries
           && _gradStand.metric === metric && _gradStand.lyr === lyr && lyr) {
@@ -7047,19 +7317,22 @@ function mountAnimator(body, headerActions, opts) {
       // zusammen — wo die Maske greift, entfällt der Strich-Stil).
       // Neuer Track → neu rechnen (Selbst-Invalidierung über die Array-Identität).
       if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
-      const m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor(),
+      let m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor(),
                             _tourFarben(), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : null);
+      // 11.10.2026 — Farbe je Tag: nur auf durchgehenden Touren (Etappen/Logbuch-Masken haben Vorrang)
+      if (!m && !(_segStarts && _segStarts.length)) m = _tagesFarbenExpr(i0, i1);
       // Ohne Maske (eine Tour, kein Verlauf) steht der Wert bild für bild auf null —
       // einmal je Ebenen-Satz schreiben reicht.
       if (!m && _gradStand && _gradStand.leer === _gradStand.lyr && _gradStand.lyr) { window.__rzPerfZaehler.gradUebersprungen++; window.__rzPerfZaehler.setPaint--; _colorsPrevOn = false; return; }
       if (_gradStand) _gradStand.leer = m ? null : _gradStand.lyr;
-      for (const id of ["preview-line", "preview-glow"]) {
+      for (const id of ["preview-line", "preview-glow", "preview-halo"]) {
         if (!map.getLayer(id)) continue;
         try {
           map.setPaintProperty(id, "line-gradient", m || null);
           map.setPaintProperty(id, "line-dasharray", m ? null : (dasharrayForLayer(id) || null));
         } catch (_) {}
       }
+      _kernMaske(i0, i1, !!m);
       // 24.08.2026 — auch der Schatten (synchron zu core/animator.py): ohne
       // eigene Maske blieb die unsichtbare Verbindung als schwarzer Strich
       // stehen. Schattenfarbe, keine Etappenfarben.
@@ -7098,14 +7371,77 @@ function mountAnimator(body, headerActions, opts) {
       const msG = segMaskExpr(_cumGeoM, i0, i1, _segStarts, "rgba(0,0,0,0.7)", null, null);
       try { map.setPaintProperty("preview-shadow", "line-gradient", msG || null); if (msG) map.setPaintProperty("preview-shadow", "line-dasharray", null); } catch (_) {}
     }
-    for (const id of ["preview-line", "preview-glow"]) {
+    for (const id of ["preview-line", "preview-glow", "preview-halo"]) {
       if (!map.getLayer(id)) continue;
       try {
         map.setPaintProperty(id, "line-gradient", g || null);
         if (g) map.setPaintProperty(id, "line-dasharray", null);   // Dash + Gradient exkl.
       } catch (_) {}
     }
+    _kernMaske(i0, i1, !!(_segStarts && _segStarts.length));
     _colorsPrevOn = !!g;
+  }
+
+  // ── 11.10.2026 — Farbe je Tag (Mehrtagestouren): neue Farbe, sobald der Kalendertag (Ortszeit der Tour) wechselt ──
+  var TAGES_PALETTEN = {
+    klassisch: ["#35a7ff", "#7bd35b", "#ffd23f", "#c77dff", "#ff5d8f", "#34d8c9"],
+    glut: ["#3fa7ff", "#5ad16e", "#b07cff", "#ffd23f", "#ff5d8f"],
+    neon: ["#ff3ea5", "#b6ff3b", "#ffe93b", "#a46bff", "#ff8a3d"],
+  };
+  function currentFarbeJeTag() { return !!document.getElementById("anim-farbe-je-tag")?.checked; }
+  let _tageFuer = null, _tageStarts = [];
+  /** Startindizes der Tage 2, 3, … (leer bei einem Tag oder ohne Zeiten). */
+  function _tagesStarts() {
+    const sr = _ovSeries;
+    if (_tageFuer === sr && sr) return _tageStarts;
+    _tageFuer = sr; _tageStarts = [];
+    const ep = sr && sr.epochS, n = currentCoords ? currentCoords.length : 0;
+    if (!Array.isArray(ep) || ep.length !== n || n < 2) return _tageStarts;
+    const tz = (+sr.tz_offset_min || 0) * 60;
+    let tag = null;
+    for (let i = 0; i < n; i++) {
+      const e = +ep[i]; if (!isFinite(e) || e <= 0) continue;
+      const t = Math.floor((e + tz) / 86400);
+      if (tag != null && t !== tag) _tageStarts.push(i);
+      tag = t;
+    }
+    return _tageStarts;
+  }
+  function _tagesFarbe(nr) {
+    if (nr === 0) return currentLineColor();
+    const pal = TAGES_PALETTEN[currentLinienLook()] || TAGES_PALETTEN.klassisch;
+    return pal[(nr - 1) % pal.length];
+  }
+  /** line-gradient mit harten Farbwechseln an den Tagesgrenzen für die gezeichnete Spanne i0..i1 (oder null). */
+  function _tagesFarbenExpr(i0, i1) {
+    if (!currentFarbeJeTag() || i1 <= i0) return null;
+    const starts = _tagesStarts(); if (!starts.length) return null;
+    if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+    if (!_cumGeoM) return null;
+    const g0 = _cumGeoM[i0], gT = _cumGeoM[i1] - g0; if (!(gT > 0)) return null;
+    let nr = starts.filter(x => x <= i0).length;
+    const e = ["interpolate", ["linear"], ["line-progress"], 0, _tagesFarbe(nr)];
+    let letzte = 0;
+    for (const st of starts) {
+      if (st <= i0 || st >= i1) continue;
+      const p = (_cumGeoM[st] - g0) / gT;
+      if (p <= letzte + 2e-6 || p >= 1) { nr++; continue; }
+      e.push(p - 1e-6, _tagesFarbe(nr)); nr++; e.push(p, _tagesFarbe(nr)); letzte = p;
+    }
+    e.push(1, _tagesFarbe(nr));
+    return e.length > 6 ? e : (nr > 0 ? ["interpolate", ["linear"], ["line-progress"], 0, _tagesFarbe(nr), 1, _tagesFarbe(nr)] : null);
+  }
+  window.__rzTagesFarben = () => ({ an: currentFarbeJeTag(), starts: _tagesStarts().slice(), farben: [0, 1, 2, 3].map(_tagesFarbe) });   // Prüfstand
+
+  /** Der helle Kern bekommt nur die Lücken der Etappen (in Weiß), nie den Farbverlauf. */
+  function _kernMaske(i0, i1, mitLuecken) {
+    if (!map || !map.getLayer("preview-kern")) return;
+    let mk = null;
+    if (mitLuecken && _segStarts && _segStarts.length) {
+      if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+      mk = segMaskExpr(_cumGeoM, i0, i1, _segStarts, "#ffffff", null, null);
+    }
+    try { map.setPaintProperty("preview-kern", "line-gradient", mk || null); } catch (_) {}
   }
 
   function applyLineStyle() {
@@ -7116,7 +7452,7 @@ function mountAnimator(body, headerActions, opts) {
     // gesetzt, aber das Render-SDF bleibt. Robuster Fix: Layer komplett
     // wegwerfen — rebuildPreviewLayers() legt sie mit aktuellem dasharray
     // (über currentDasharray()) frisch neu an.
-    const layers = ["preview-line", "preview-kontur", "preview-glow", "preview-shadow", "preview-highlight"];
+    const layers = ["preview-line", "preview-kontur", "preview-glow", "preview-halo", "preview-shadow", "preview-highlight", "preview-kern"];
     try {
       for (const id of layers) {
         if (map.getLayer(id)) map.removeLayer(id);
@@ -7215,6 +7551,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function currentKonturBreite() {
+    if (_lookDaten()) return 0;   // 11.10.2026 — Leuchtlooks ohne dunklen Rand: er schluckt den Lichthof
     const v = parseFloat(document.getElementById("anim-kontur-breite")?.value);
     return isFinite(v) && v > 0 ? v : 0;
   }
@@ -7410,7 +7747,8 @@ function mountAnimator(body, headerActions, opts) {
     if (_rb > 0 && window.kursRueckblickAn) return kursRueckblickAn(coords, i, _rb);
     // 29.09.2026 — glatt entlang der Strecke, am gebrochenen Index (util.js kursGlattAn)
     const g = kursGlaettung(dotGlaettung());
-    const sigM = Math.max(g.basisM, +(_activeProject?.[_MODKEY]?.marker_dot_glatt_m) || 0);   // Schnell-Video: je nach Tempo
+    const sigM = Math.max(g.basisM, +(_activeProject?.[_MODKEY]?.marker_dot_glatt_m) || 0,   // Schnell-Video: je nach Tempo
+                          _spurGlattM() / 2);   // 11.10.2026 — „Spur glätten“ beruhigt den Pfeil (σ wie früher bei der Linie)
     return kursGlattAn(coords, i, g.basisM, g.minPunkte, sigM);
   }
 
@@ -7451,6 +7789,13 @@ function mountAnimator(body, headerActions, opts) {
       linie(-0.5, 2, 3.5, 6.5, 4, 11);    // Bein vorn
       linie(-0.5, 2, -3.5, 6.5, -5.5, 11);// Bein hinten
       g.lineWidth = 1.6; linie(5.5, -2, 7.5, 11);   // Stock
+    } else if (art === "laeufer") {         // 11.10.2026 — Läufer: vorgebeugt, große Schritte, Arme angewinkelt
+      kreis(3, -10, 2.6, true);
+      linie(2.2, -6.5, -0.8, 1.5);           // Rumpf vorgebeugt
+      linie(1.5, -4.5, 5.5, -2, 4, 1.5);     // Arm vorn angewinkelt
+      linie(1.2, -4.5, -3, -5.5, -5.5, -2.5);// Arm hinten
+      linie(-0.8, 1.5, 4.5, 4.5, 3.5, 10.5); // Bein vorn
+      linie(-0.8, 1.5, -4.5, 6, -9, 6.5);    // Bein hinten weit zurück
     } else if (art === "rad") {
       g.lineWidth = 2; kreis(-7, 5, 5, false); kreis(7, 5, 5, false);
       linie(-7, 5, -2, -3, 5, -3, 7, 5); linie(-2, -3, 1, 5, 5, -3); linie(1, 5, -7, 5);
@@ -8064,6 +8409,16 @@ function mountAnimator(body, headerActions, opts) {
       // ohne Abzug käme der Render-Zuschlag beim Anwenden ein zweites Mal dazu (07.10.2026, test_projektion_gelaende)
       return { c: r.center ? r.center.slice() : null, z: (fit != null && r.zoom_offset != null) ? fit + r.zoom_offset - _rzZoomShift() : null, b: +r.bearing || 0 };
     };
+    // Kamera „Fest“ (keine Mitte in der Basis, „folgt Track“ aus): die Karte zeigt die Gesamtsicht — die Heranfahrt beginnt
+    // und endet dort. Ohne das hing die Kamera bis zum ersten Stopp am Foto und sprang danach (Web, 09.10.2026).
+    // Bei „folgt Track“ bleibt die leere Mitte: sie heißt dort „dem Laufpunkt folgen“.
+    const folgt = !!document.getElementById("anim-camera-follow")?.checked;
+    let gesamt;
+    const mitteOhneBasis = () => {
+      if (folgt) return null;
+      if (gesamt === undefined) { const g = fitKameraGesamt(); gesamt = g && g.center ? [+(g.center.lng ?? g.center[0]), +(g.center.lat ?? g.center[1])] : null; }
+      return gesamt ? gesamt.slice() : null;
+    };
     const hat = (ref) => basis.some(e => e && e.stopp === ref);
     let ev = basis.slice();
     const ersetze = (lo, hi, arten, neu) => {
@@ -8077,6 +8432,8 @@ function mountAnimator(body, headerActions, opts) {
         if (!w.kamera) continue;   // Pause ohne Heranfahren: der Halt bleibt (Tempo-Kurve), die Kamera folgt der Basis
         const p0 = anker(h.ab_s - w.anflug), pa = anker(h.ab_s), pb = anker(h.bis_s), p1 = anker(h.bis_s + w.abflug);
         const B0 = bei(p0), Ba = bei(pa), Bb = bei(pb), B1 = bei(p1);
+        if (!B0.c) B0.c = mitteOhneBasis();
+        if (!B1.c) B1.c = mitteOhneBasis();
         const ll = [+s.lon, +s.lat], bez = B0.c || Ba.c || ll;
         const foto = [ll[0] + 360 * Math.round((bez[0] - ll[0]) / 360), ll[1]];   // abgewickelte Länge (Welt-Drehung)
         const neu = [mk("center", p0, { value: B0.c }, "linear"), mk("center", pa, { value: foto }, "ease_in_out"),
@@ -8097,6 +8454,12 @@ function mountAnimator(body, headerActions, opts) {
         const pa = anker(h.ab_s), pb = anker(h.bis_s), pr = anker(h.bis_s + 1.5);
         ersetze(pa, pr, ["bearing"], [mk(pa, bei(pa).b, "linear"), mk(pb, bei(pb).b + (h.bis_s - h.ab_s) * _ORBIT_GRAD_JE_S, "linear"), mk(pr, bei(pr).b, "ease_in_out")]);
       }
+    }
+    // „Fest“: hat ein Stopp Mitte-Keyframes bekommen, tragen auch die leeren Ränder der Basis die Gesamtsicht — sonst
+    // läge zwischen „keine Mitte“ und der Heranfahrt eine dritte Ansicht (gemessen: Kamera am Trackanfang statt Tour).
+    if (!folgt && ev.some(e => e && e.kind === "center" && e.stopp && Array.isArray(e.value))) {
+      const g = mitteOhneBasis();
+      if (g) ev = ev.map(e => (e && e.kind === "center" && !e.stopp && !Array.isArray(e.value)) ? Object.assign({}, e, { value: g.slice() }) : e);
     }
     return ev;
   }
@@ -11930,6 +12293,7 @@ function mountAnimator(body, headerActions, opts) {
       applyKonturToLayers();
       // v0.8.10 — Highlight-Layer (Tube-Modus) folgt der Linien-Dicke
       if (map.getLayer("preview-highlight")) map.setPaintProperty("preview-highlight", "line-width", lw * 0.35);
+      applyLinienLook();
     } catch (_) {}
   }
 
@@ -11982,7 +12346,7 @@ function mountAnimator(body, headerActions, opts) {
       // die Eigenschaft; MapLibre drapiert die Linie selbst aufs Gelände.
       if (mapboxEngine) {
         const zOff = want ? 150 : 0;
-        for (const lid of ["preview-glow", "preview-kontur", "preview-line", "preview-highlight"]) {
+        for (const lid of ["preview-glow", "preview-halo", "preview-kontur", "preview-line", "preview-highlight", "preview-kern", "preview-schweif-glow", "preview-schweif"]) {
           if (map.getLayer(lid)) {
             try { map.setPaintProperty(lid, "line-z-offset", zOff); } catch (_) {}
           }
@@ -12561,6 +12925,8 @@ function mountAnimator(body, headerActions, opts) {
                                                       : griff === "aus" ? t("animator.ton.aus", "Ausblenden (s)") + ": " + z(G - _ovZeitAusLeiste(neu.ausAb)) + " s" : null; },
         onTonZiehen:       (id, griff, neu) => { try { _tonSpurGezogen(id, griff, neu); } catch (err) { applog("warn", "[ton] " + err); } },
         onSchilderOffen:   (v) => { _sgSpurOffen = !!v; try { localStorage.setItem("rz-sg-spur-offen", v ? "1" : "0"); } catch (_) {} },
+        // 11.10.2026 — ⏸ an der Schilder-Spur: an allen Foto-Schildern anhalten (stehen schon alle: an keinem). Ein ⌘Z-Schritt.
+        onSchilderHaltAlle: () => window.__rzFotoHalteAlle ? window.__rzFotoHalteAlle() : undefined,
         // 10.10.2026 — Entfernen-Taste auf einem Balken: Schild (auch Bild/Fotostopp) löschen; Overlay: den gewählten
         // Zeitraum, beim letzten die ganze Box. Ein ⌘Z-Schritt. Auswahl eines Balkens hebt die Keyframe-Auswahl auf.
         onSchildAuswahl:   () => { _selectedKfIdx = null; },
@@ -13474,20 +13840,55 @@ function mountAnimator(body, headerActions, opts) {
       // 06.10.2026 (Marc, Screenshot: „doppelt — eins mit schwarzem Rahmen, eins mit weißem“; schon am 01.10. beim
       // Teide-Demo) — Fotostopps zeigt auch beim Bearbeiten nur die Fotostopp-Ebene (Pin + großes Foto), nicht
       // zusätzlich die Fotokarte des Schilds. Vorher galt der Ausschluss nur im GPU-Weg.
-      if (_animSignEditMode) _animSignsAttachDOM(allSigns, list.filter(s => !(s.stopp && s.imageSrc)));
+      // 11.10.2026 — nur „Foto groß“ ersetzt das Schild; „wie unterwegs“/„eigen“ zeigen es (window.__rzFsLook)
+      const _fsErsetzt = (s) => !!(s.stopp && s.imageSrc) && (!window.__rzFsLook || window.__rzFsLook(s) === "foto");
+      if (_animSignEditMode) _animSignsAttachDOM(allSigns, list.filter(s => !_fsErsetzt(s)).map(_animSignHaltVorschau));
       // 01.10.2026 — Fotostopps zeigt die Fotostopp-Ebene als Foto-Pin (_fotostoppZeigen); die Fotokarte
       // des Schilds nur beim Bearbeiten (sonst zwei Karten hintereinander, Marc: Teide-Demo)
-      else _animSignsAttachGPU(allSigns, list.filter(s => !(s.stopp && s.imageSrc)));
+      else _animSignsAttachGPU(allSigns, list.filter(s => !_fsErsetzt(s)));
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       _animSignsUpdateAtAnchor(a);
     }
+    // ── Fotostopp „eigene Gestaltung“ (11.10.2026) ──
+    const ANIM_HALT_ID = 1000000;            // Feature-id der Halt-Fassung = ANIM_HALT_ID + Schild-Index
+    const _animHaltKopie = new Map();        // Schild-Index → Feature-id der Halt-Fassung
+    /** Das Schild im Halt-Look: eigene Gestaltung (`stopp_stil`) über die Unterwegs-Gestaltung gelegt. */
+    function _animSignHaltSchild(s) {
+      const h = Object.assign({}, s, (s && s.stopp_stil && typeof s.stopp_stil === "object") ? s.stopp_stil : {});
+      if (s && s._imgEl) _animSetImgEl(h, s._imgEl);
+      return h;
+    }
+    /** Im Editor auf dem Reiter „Beim Halt“: das bearbeitete Schild in seiner Halt-Fassung zeigen. */
+    function _animSignHaltVorschau(s) {
+      const L = _animSignsList();
+      if (!_seHaltTab || _animSignEditorIdx < 0 || L[_animSignEditorIdx] !== s || _fsLook(s) !== "eigen") return s;
+      const h = _animSignHaltSchild(s);
+      h.__haltVon = s;   // Index-Zuordnung im DOM-Weg (s. _animSignsAttachDOM)
+      return h;
+    }
+    /** Deckkraft während der Überblendung: Unterwegs-Fassung (1−p), Halt-Fassung p. Läuft nach __rzSignFrame. */
+    function _animHaltUeberAnwenden(war) {
+      if (!map || !map.getSource || !map.getSource(_ANIM_SIGNS_SRC)) return;
+      const st = (id, op) => { try { map.setFeatureState({ source: _ANIM_SIGNS_SRC, id }, { op }); } catch (_) {} };
+      const u = _fsUeberAkt;
+      if (war && (!u || war.i !== u.i)) {
+        const kid = _animHaltKopie.get(war.i);
+        if (kid != null) st(kid, 0);
+        map.__rzSignOpLast = null;   // die Unterwegs-Fassung bekommt beim nächsten Bild wieder ihre Fenster-Deckkraft
+      }
+      if (u) {
+        const kid = _animHaltKopie.get(u.i);
+        if (kid != null) { st(kid, u.p); st(u.i, 1 - u.p); if (map.__rzSignOpLast) map.__rzSignOpLast[u.i] = undefined; }
+      }
+    }
+    window.__rzSignsHaltUeber = (war) => _animHaltUeberAnwenden(war);
     // ── DOM-Marker (Editier-Modus): flackerfreies Live-Update am stehenden Element ──
     function _animSignsAttachDOM(allSigns, list) {
       const dur = _animSignsDuration();
       const MarkerCls = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
       const _idxVon = new Map(); allSigns.forEach((s, i) => { if (!_idxVon.has(s)) _idxVon.set(s, i); });
       list.forEach((s) => {
-        const fi = _idxVon.has(s) ? _idxVon.get(s) : allSigns.indexOf(s);
+        const fi = _idxVon.has(s) ? _idxVon.get(s) : (s.__haltVon && _idxVon.has(s.__haltVon)) ? _idxVon.get(s.__haltVon) : allSigns.indexOf(s);
         const sn = _animSignNormalize(s);
         let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
         if (s.imageSrc && !imageUrl) {
@@ -13574,7 +13975,8 @@ function mountAnimator(body, headerActions, opts) {
     }
     window.__rzSchilderLaden = () => {
       try { if (!map || !_animSignsShow()) return 0;   // aus = es wird nichts geladen, also auch nicht warten
-        return _animSignsList().filter(x => x && x.imageSrc && !x.stopp && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length
+        // 11.10.2026 — Fotostopps „wie unterwegs“/„eigen“ zeichnen ihr Schild: auf deren Bild auch warten
+        return _animSignsList().filter(x => x && x.imageSrc && !(x.stopp && _fsLook(x) === "foto") && x.visible !== false && !_animSignHasImg(x) && !x._imgFailed && !x._imgMissing).length
           + (window.__rzFotostoppLaden ? window.__rzFotostoppLaden() : 0)    // 01.10.2026 — + große Fotostopp-Bilder
           + _sofortbildSchriftOffen(); }
       catch (_) { return 0; }
@@ -13658,6 +14060,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       const dur = _animSignsDuration();
       const features = [];
+      _animHaltKopie.clear();
       // 14.09.2026 — Pixelmaß nach Zahl der Bild-Schilder (ui/js/sign_draw.js rzSignDpr),
       // synchron zu core/animator.py (Render) — bei Änderung beide pflegen.
       const _dprBild = _animSignsDprBild(list);
@@ -13703,6 +14106,27 @@ function mountAnimator(body, headerActions, opts) {
         }
         _animSignMetas[fi] = meta;
         features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn), popScale: 1 }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
+        // 11.10.2026 — Fotostopp „eigene Gestaltung“: die Halt-Fassung als zweites Objekt. Gleiche signIdx → gleiches
+        // Sichtbarkeitsfenster; Deckkraft-Vorgabe 0 (op0), eingeblendet nur über _animHaltUeberAnwenden.
+        if (s.stopp && _fsLook(s) === "eigen" && _animSignHasImg(s)) {
+          try {
+            const hs = _animSignNormalize(_animSignHaltSchild(s));
+            if (sn.__dpr) hs.__dpr = sn.__dpr;
+            _animSetImgEl(hs, s._imgEl);
+            const hid = "sign-halt-" + fi, hsig = "halt|" + _animSignBildSignaturVon(s, hs);
+            if (!(map.hasImage(hid) && _animSignImgSig.get(hid) === hsig)) {
+              const himg = _animSignDrawImageData(hs);
+              if (himg) { if (map.hasImage(hid)) map.removeImage(hid); map.addImage(hid, himg.data, { pixelRatio: himg.dpr }); _animSignImgSig.set(hid, hsig); }
+            }
+            if (map.hasImage(hid)) {
+              _animSignImgIds.push(hid);
+              _animHaltKopie.set(fi, ANIM_HALT_ID + fi);
+              features.push({ type: "Feature", id: ANIM_HALT_ID + fi, properties: { imgId: hid, signIdx: fi, op0: 0, zoomScale: !!hs.zoomScale,
+                a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(hs), popScale: 1 },
+                geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
+            }
+          } catch (e) { applog("warn", "[fotostopp] Halt-Fassung " + fi + ": " + e); }
+        }
       });
       // Bilder, die nach diesem Aufbau niemand mehr braucht (gelöschte Schilder).
       if (_animSignsAltIds && _animSignsAltIds.length) {
@@ -13746,7 +14170,7 @@ function mountAnimator(body, headerActions, opts) {
             "icon-pitch-alignment": "viewport",
             "icon-rotation-alignment": "viewport",
           },
-          paint: { "icon-opacity": ["coalesce", ["feature-state", "op"], 1] },
+          paint: { "icon-opacity": ["coalesce", ["feature-state", "op"], ["get", "op0"], 1] },   // op0: Halt-Fassung startet unsichtbar
         });
         // 20.09.2026 — Render-Modus, „Karte glätten": Weichzeichner-Ebene UNTER den Schildern statt
         // CSS-Filter über die ganze Leinwand (der machte Foto-Schilder weich). core/szene.py setzt
@@ -13864,6 +14288,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       map.__rzSignAlleStand = null;   // zurück im Zeitfenster-Modus → „alle" beim nächsten Mal wieder setzen
       if (window.__rzSignFrame) window.__rzSignFrame(map, _ANIM_SIGNS_LYR, _ANIM_SIGNS_SRC, _animSignMetas, M);
+      if (_fsUeberAkt) _animHaltUeberAnwenden(null);   // 11.10.2026 — Überblendung „eigen“ nach der Fenster-Deckkraft
     }
     // DOM-Modus: pro Marker Sichtbarkeit/Opacity/Zoom-Scale, Change-Detection gegen Jank.
     function _animSignsApplyDOM(M) {
@@ -14240,6 +14665,7 @@ function mountAnimator(body, headerActions, opts) {
     // Modal mit Backdrop) — Karte + Schild bleiben sichtbar, Änderungen live.
     let _animSignEditorEl = null;
     let _animSignEditorIdx = -1;   // v0.9.194 — welches Schild ist im Editor offen
+    let _seHaltTab = false;        // 11.10.2026 — Editor zeigt/bearbeitet die Halt-Gestaltung (Fotostopp „eigen“)
     let _animSignEditorReposition = null;
     // 22.08.2026 (Audit): Der Cleanup in mountAnimator sah diese Funktion
     // nicht (innere Closure) → ReferenceError, vom try/catch geschluckt →
@@ -14368,11 +14794,12 @@ function mountAnimator(body, headerActions, opts) {
         e.preventDefault();
       });
     }
-    function _animSignsOpenEditor(idx, focusText) {
+    function _animSignsOpenEditor(idx, focusText, opts) {
+      const _haltGewuenscht = !!(opts && opts.halt);
       // v0.9.194 — Ist der Editor für GENAU dieses Schild schon offen, NICHT neu
       // aufbauen (sonst springt das verschobene Modal zurück auf Default-Position).
       // Nur bei einem anderen Schild neu öffnen/positionieren.
-      if (_animSignEditorEl && _animSignEditorIdx === idx) {
+      if (_animSignEditorEl && _animSignEditorIdx === idx && _haltGewuenscht === _seHaltTab && !(opts && opts.neu)) {
         _animSignForceIdx = idx;   // sichtbar halten
         return;
       }
@@ -14386,7 +14813,11 @@ function mountAnimator(body, headerActions, opts) {
         _animSignEditMode = true;
         try { _animSignsAttachToMap(); } catch (_) {}
       }
-      const c = _animSignNormalize(list[idx]);
+      // 11.10.2026 — Reiter „Beim Halt“ (Fotostopp „eigene Gestaltung“): die Form-Felder zeigen die Halt-Gestaltung
+      const _look = _fsLook(list[idx]);
+      _seHaltTab = _haltGewuenscht && !!list[idx].stopp && _look === "eigen";
+      const c = _seHaltTab ? _animSignNormalize(_animSignHaltSchild(list[idx])) : _animSignNormalize(list[idx]);
+      const _fsFoto = _look === "foto";
       const sel = (v, cv) => v === cv ? " selected" : "";
       const chk = (b) => b ? " checked" : "";
       const _fsZahlE = (v, std) => { const x = Number(v); return (v == null || v === "" || !isFinite(x)) ? std : x; };   // 01.10.2026 Fotostopp-Felder
@@ -14426,7 +14857,13 @@ function mountAnimator(body, headerActions, opts) {
             <div class="se-grid">
               <label for="se-stopp">${t("signs.stopp", "Hier anhalten")}</label>
               <span class="se-inline"><input type="checkbox" id="se-stopp"${chk(c.stopp)}></span>
-              <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${t("signs.stopp_hint", "Erreicht der Track das Foto, hält er an: Die Kamera fährt heran, das Foto erscheint groß, danach geht es weiter. Das Video wird um Anflug, Foto und Abflug länger.")}</div>
+              <label for="se-stopp-look" title="${t("signs.stopp_look_tip", "Wie das Bild beim Halt aussieht: groß in der Bildmitte, genau wie unterwegs oder mit einer eigenen Gestaltung für den Halt.")}">${t("signs.stopp_look", "Beim Anhalten zeigen")}</label>
+              <select id="se-stopp-look">
+                <option value="foto"${sel("foto", _look)}>${t("signs.stopp_look_foto", "Foto groß")}</option>
+                <option value="schild"${sel("schild", _look)}>${t("signs.stopp_look_schild", "Schild wie unterwegs")}</option>
+                <option value="eigen"${sel("eigen", _look)}>${t("signs.stopp_look_eigen", "Eigene Gestaltung")}</option>
+              </select>
+              <div class="se-hint" style="grid-column:1/-1;font-size:11px;color:var(--text-muted,#93a1b0);margin:0 2px 2px;">${t("signs.stopp_hint", "Erreicht der Track das Foto, hält er an: Die Kamera fährt heran, das Bild zeigt sich wie unter „Beim Anhalten zeigen“ gewählt, danach geht es weiter. Das Video wird um Anflug, Halt und Abflug länger.")}</div>
               <label for="se-stopp-s"${c.clip && c.clip.pfad ? ' style="display:none"' : ""}>${t("signs.stopp_s", "Foto zeigen (Sek.)")}</label>
               <input type="number" id="se-stopp-s"${c.clip && c.clip.pfad ? ' style="display:none"' : ""} min="0.5" max="30" step="0.5" value="${_fsZahlE(c.stopp_s, 3)}">
               <label for="se-stopp-pin" title="${t("signs.stopp_pin_tip", "So viele Sekunden vor dem Anflug erscheint der Foto-Pin auf der Karte. Auch über den linken Rand des Balkens in der Schilder-Spur.")}">${t("signs.stopp_pin", "Pin vorher (Sek.)")}</label>
@@ -14441,12 +14878,12 @@ function mountAnimator(body, headerActions, opts) {
               <input type="range" id="se-stopp-zoom" min="0" max="4" step="0.25" value="${_fsZahlE(c.stopp_zoom, 1.5)}">
               <label for="se-stopp-schwenk">${t("signs.stopp_schwenk", "Karte schwenken (°)")}</label>
               <input type="number" id="se-stopp-schwenk" min="0" max="10" step="0.5" value="${_fsZahlE(c.stopp_schwenk, 2)}">
-              <label for="se-stopp-ken"${c.clip && c.clip.pfad ? ' style="display:none"' : ""}>${t("signs.stopp_ken", "Foto heranzoomen (%)")}</label>
-              <input type="number" id="se-stopp-ken"${c.clip && c.clip.pfad ? ' style="display:none"' : ""} min="0" max="30" step="1" value="${_fsZahlE(c.stopp_ken, 8)}">
-              <label for="se-stopp-ortzeit">${t("signs.stopp_ortzeit", "Ort und Uhrzeit")}</label>
-              <span class="se-inline"><input type="checkbox" id="se-stopp-ortzeit"${chk(c.stopp_ortzeit !== false)}></span>
-              <label for="se-stopp-exif">${t("signs.stopp_exif", "Kameradaten (EXIF)")}</label>
-              <span class="se-inline"><input type="checkbox" id="se-stopp-exif"${chk(c.stopp_exif)}></span>
+              <label for="se-stopp-ken"${(c.clip && c.clip.pfad) || !_fsFoto ? ' style="display:none"' : ""}>${t("signs.stopp_ken", "Foto heranzoomen (%)")}</label>
+              <input type="number" id="se-stopp-ken"${(c.clip && c.clip.pfad) || !_fsFoto ? ' style="display:none"' : ""} min="0" max="30" step="1" value="${_fsZahlE(c.stopp_ken, 8)}">
+              <label for="se-stopp-ortzeit"${_fsFoto ? "" : ' style="display:none"'}>${t("signs.stopp_ortzeit", "Ort und Uhrzeit")}</label>
+              <span class="se-inline"${_fsFoto ? "" : ' style="display:none"'}><input type="checkbox" id="se-stopp-ortzeit"${chk(c.stopp_ortzeit !== false)}></span>
+              <label for="se-stopp-exif"${_fsFoto ? "" : ' style="display:none"'}>${t("signs.stopp_exif", "Kameradaten (EXIF)")}</label>
+              <span class="se-inline"${_fsFoto ? "" : ' style="display:none"'}><input type="checkbox" id="se-stopp-exif"${chk(c.stopp_exif)}></span>
             </div>
             ${c.clip && c.clip.pfad ? `
             <!-- 02.10.2026 — Videoclip: Ausschnitt und Ton -->
@@ -14464,6 +14901,14 @@ function mountAnimator(body, headerActions, opts) {
             </div>` : ""}
           </div>
 
+          ${list[idx].stopp && _look === "eigen" ? `
+          <div class="se-halt-reiter" role="tablist">
+            <button type="button" class="se-halt-tab${_seHaltTab ? "" : " an"}" data-se-halt="0">${t("signs.halt_tab_weg", "Unterwegs")}</button>
+            <button type="button" class="se-halt-tab${_seHaltTab ? " an" : ""}" data-se-halt="1">${t("signs.halt_tab_halt", "Beim Halt")}</button>
+          </div>
+          <div class="se-hint" style="font-size:11px;color:var(--text-muted,#93a1b0);margin:2px 2px 4px;">${_seHaltTab
+            ? t("signs.halt_tab_hint_halt", "Du gestaltest, wie das Schild beim Halt aussieht. Beim Anhalten blendet es weich von „Unterwegs“ hierher über.")
+            : t("signs.halt_tab_hint_weg", "Du gestaltest, wie das Schild unterwegs aussieht. Den Look beim Halt stellst du unter „Beim Halt“ ein.")}</div>` : ""}
           <div class="se-group-title">${t("signs.grp.shape", "Form & Akzent")}</div>
           <div class="se-grid">
             <label>${t("signs.style", "Form")}</label>
@@ -14715,6 +15160,7 @@ function mountAnimator(body, headerActions, opts) {
           stopp_kamera: $("#se-stopp-kamera") ? $("#se-stopp-kamera").checked : true,
           stopp_ortzeit: $("#se-stopp-ortzeit") ? $("#se-stopp-ortzeit").checked : true,
           stopp_exif: !!($("#se-stopp-exif") && $("#se-stopp-exif").checked),
+          ...($("#se-stopp-look") ? { stopp_look: $("#se-stopp-look").value } : {}),   // 11.10.2026
           // 02.10.2026 — Videoclip: Ausschnitt (ab/Länge, innerhalb der Clip-Länge) und Ton
           ...(l2[idx].clip && l2[idx].clip.pfad ? { clip: (() => {
             const c0 = l2[idx].clip, lang = Math.max(0.5, +c0.laenge || 30);
@@ -14731,13 +15177,24 @@ function mountAnimator(body, headerActions, opts) {
         // Bild (Marc-Bug: „Bild verschwindet sobald man Ecken/Text ändert"). Gleiche
         // imageSrc → selbes Bild, also sicher übertragbar.
         const _prevSign = l2[idx];
+        // 11.10.2026 — Reiter „Beim Halt“: die Form-Felder gehören zur Halt-Gestaltung (`stopp_stil`), nicht zum Schild
+        if (_seHaltTab && patch.stopp_look === "eigen") {
+          const stil = {};
+          for (const k of FS_STIL_FELDER) if (k in patch) { stil[k] = patch[k]; delete patch[k]; }
+          patch.stopp_stil = stil;
+        } else if (patch.stopp_look === "eigen" && !(_prevSign.stopp_stil && typeof _prevSign.stopp_stil === "object")) {
+          // erster Wechsel auf „eigene Gestaltung“: startet als Kopie des Unterwegs-Looks
+          const stil = {};
+          for (const k of FS_STIL_FELDER) if (k in patch) stil[k] = patch[k];
+          patch.stopp_stil = stil;
+        }
         l2[idx] = { ...l2[idx], ...patch };
         if (_prevSign && _prevSign._imgEl && l2[idx].imageSrc && l2[idx].imageSrc === _prevSign.imageSrc) {
           _animSetImgEl(l2[idx], _prevSign._imgEl);
         }
         // Stil/Verhalten (ohne Text) als Default fürs nächste Schild merken
-        const { text, alwaysVisible: _av, stopp: _st, ...rest } = patch;   // „ganze Zeit" erbt das nächste Schild nicht (29.09.2026), der Fotostopp auch nicht (01.10.2026)
-        _animSignLast = { ..._animSignLast, ...rest };
+        const { text, alwaysVisible: _av, stopp: _st, stopp_look: _sl, stopp_stil: _ss, ...rest } = patch;   // „ganze Zeit" erbt das nächste Schild nicht (29.09.2026), der Fotostopp auch nicht (01.10.2026)
+        if (!_seHaltTab) _animSignLast = { ..._animSignLast, ...rest };
         _animSignsSave(l2);
         // v0.9.254 — Live-Update ohne Layer/Source-Neuaufbau (kein Flackern beim
         // Ziehen von Bildgröße/Ecken/Rahmen-Slidern). Fällt auf den vollen Attach
@@ -14777,6 +15234,23 @@ function mountAnimator(body, headerActions, opts) {
                     || elm.type === "number" || elm.type === "text") ? "input" : "change";
         elm.addEventListener(ev, apply);
       });
+      // 11.10.2026 — Fotostopp: Wechsel von „Hier anhalten“/„Beim Anhalten zeigen“ und die Reiter bauen den Editor neu
+      // (andere Felder sichtbar, Form-Felder aus der Halt- bzw. Unterwegs-Gestaltung)
+      const _seNeu = (halt) => setTimeout(() => {
+        if (_animSignEditorIdx !== idx || !_animSignEditorEl) return;
+        // Lage des (verschobenen) Fensters und Scrollstand mitnehmen
+        const alt = _animSignEditorEl, pos = { left: alt.style.left, top: alt.style.top, right: alt.style.right, bottom: alt.style.bottom },
+          koerper = alt.querySelector(".sign-editor-body"), sc = koerper ? koerper.scrollTop : 0;
+        _animSignsOpenEditor(idx, false, { halt, neu: true });
+        const neu = _animSignEditorEl;
+        if (neu) {
+          Object.assign(neu.style, pos);
+          const k2 = neu.querySelector(".sign-editor-body"); if (k2) k2.scrollTop = sc;
+        }
+      }, 0);
+      { const lk = $("#se-stopp-look"); if (lk) lk.addEventListener("change", () => _seNeu(lk.value === "eigen" && _seHaltTab)); }
+      { const st = $("#se-stopp"); if (st) st.addEventListener("change", () => _seNeu(false)); }
+      panel.querySelectorAll("[data-se-halt]").forEach(b => b.addEventListener("click", () => _seNeu(b.dataset.seHalt === "1")));
       // v0.9.479 — Live-Label für den Breite-Slider (0 = „Auto", sonst „NNN px").
       { const _mw = $("#se-mw"), _mwv = $("#se-mw-v");
         if (_mw && _mwv) _mw.addEventListener("input", () => {
@@ -14877,7 +15351,15 @@ function mountAnimator(body, headerActions, opts) {
           // Verhalten
           "zoomScale", "entry", "entry_s", "exit", "exit_s", "before", "after"];
         const patch = {}; APPLY_KEYS.forEach(k => patch[k] = src[k]);
-        const l2 = l.map((s, i) => (i === idx ? s : { ...s, ...patch }));
+        // 11.10.2026 (Bugreport eines Nutzers: „Hier anhalten“ kam bei den anderen Fotos nicht an) — bei einem Foto-Schild gehört
+        // der Fotostopp zum Verhalten: auf alle anderen Foto-Schilder (nicht auf Text-Schilder und Clips). Die Stelle
+        // (stopp_bei) bleibt je Schild.
+        const istFotoSchild = (x) => !!(x && x.imageSrc && !x.clip);
+        const STOPP_KEYS = ["stopp", "stopp_s", "stopp_look", "stopp_stil", "stopp_pin_s", "stopp_anflug_s", "stopp_abflug_s",
+                            "stopp_kamera", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_ortzeit", "stopp_exif"];
+        const stoppPatch = {};
+        if (istFotoSchild(src)) STOPP_KEYS.forEach(k => { if (src[k] !== undefined) stoppPatch[k] = src[k]; });
+        const l2 = l.map((s, i) => (i === idx ? s : { ...s, ...patch, ...(istFotoSchild(s) ? stoppPatch : {}) }));
         // v0.9.201 — gecachtes Bild-Element ALLER Schilder droppen, damit das Icon
         // bei geänderter Bildgröße garantiert neu gezeichnet wird (sonst behält
         // Mapbox das alte Icon-Bild → Größe schien nicht zu wirken).
@@ -15355,7 +15837,7 @@ function mountAnimator(body, headerActions, opts) {
             ${i < n - 1 ? `<div class="route-wp-art"><span>↓ ${t("route.art_weiter", "weiter mit")}</span>
               <select class="route-wp-art-sel" data-i="${i}">
                 <option value="">${t("route.art_wie_oben", "wie oben eingestellt")}</option>
-                ${["auto", "rad", "wanderer", "zug", "boot", "flugzeug"].map(a => `<option value="${a}"${w.art === a ? " selected" : ""}>${t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a])}</option>`).join("")}
+                ${["auto", "rad", "wanderer", "laeufer", "zug", "boot", "flugzeug"].map(a => `<option value="${a}"${w.art === a ? " selected" : ""}>${t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a])}</option>`).join("")}
               </select></div>` : ""}
           </div>`;
       }).join("");
@@ -15526,7 +16008,7 @@ function mountAnimator(body, headerActions, opts) {
       // Geladenen Route-Track aus der Vorschau nehmen (frisches Projekt = leer).
       currentGpx = null; currentCoords = null; currentBbox = null; _gpxStats = null; _ovSeries = null; _ovSensorFields = []; _gpxElevations = null;
       if (map) {
-        ["preview-line", "preview-kontur", "preview-glow", "preview-highlight"].forEach(l => { try { if (map.getLayer(l)) map.removeLayer(l); } catch (_) {} });
+        ["preview-line", "preview-kontur", "preview-glow", "preview-halo", "preview-highlight", "preview-kern"].forEach(l => { try { if (map.getLayer(l)) map.removeLayer(l); } catch (_) {} });
         try { if (map.getSource("preview-track")) map.removeSource("preview-track"); } catch (_) {}
       }
       try {
@@ -16519,7 +17001,7 @@ function mountAnimator(body, headerActions, opts) {
 
   // 07.10.2026 (Marc: „eigentlich auch direkt als Laufpunkt auswählen lassen im normalen Track“) — Form und Aussehen als
   // Bildkacheln statt Textlisten; die (versteckten) Auswahllisten bleiben die Quelle für Speichern/Laden.
-  const _DOT_SYMBOL = { dot: "●", arrow: "➤", auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", zug: "🚆", boot: "⛴", flugzeug: "✈️" };
+  const _DOT_SYMBOL = { dot: "●", arrow: "➤", auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", laeufer: "🏃", zug: "🚆", boot: "⛴", flugzeug: "✈️" };
   /** Kacheln füllen: `formBox` (Kugel, Pfeil, Fahrzeuge — `setForm(f)`), `fzsBox` (Aussehen, gilt für alle Fahrzeuge). */
   function _dotKacheln(formBox, fzsBox, form, setForm) {
     const fzs = dotFzStil(), esc = _animEscapeHtml;
@@ -16846,10 +17328,12 @@ function mountAnimator(body, headerActions, opts) {
   const OVERLAY_FIELD_CATALOG = {
     live: [
       { id: "dist_done", req: "none" }, { id: "dist_left", req: "none" },
-      { id: "speed", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
+      { id: "speed", req: "time" }, { id: "pace", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
       { id: "ele_now", req: "ele" }, { id: "grade", req: "ele" },
       // 11.09.2026 (Marc) — Datum & Uhrzeit am aktuellen Punkt.
       { id: "datetime_now", req: "time" }, { id: "time_now", req: "time" },
+      // 11.10.2026 — Tag Nr. bei Mehrtagestouren (Kalendertag in Ortszeit, wie „Farbe je Tag“)
+      { id: "day_no", req: "time" },
       // 29.08.2026 (Marc) — kumulierte Höhenmeter bis zum aktuellen Punkt.
       { id: "asc_done", req: "ele" }, { id: "desc_done", req: "ele" },
       // 23.08.2026 — Etappen-Werte (nur bei zusammengeführten Touren). SYNCHRON
@@ -16863,6 +17347,7 @@ function mountAnimator(body, headerActions, opts) {
       { id: "dist_total", req: "none" }, { id: "duration", req: "time" },
       { id: "date", req: "time" }, { id: "time_span", req: "time" },   // 11.09.2026 — Datum (Zeitraum), Uhrzeit von–bis
       { id: "moving_time", req: "time" }, { id: "avg_speed", req: "time" }, { id: "avg_speed_total", req: "time" }, { id: "max_speed", req: "time" },
+      { id: "avg_pace", req: "time" }, { id: "avg_pace_total", req: "time" }, { id: "best_pace", req: "time" },   // 11.10.2026 — Läufer
       { id: "elev_gain", req: "ele" }, { id: "elev_loss", req: "ele" },
       { id: "ele_high", req: "ele" }, { id: "ele_low", req: "ele" },
       { id: "swarm_total", req: "schwarm" },
@@ -16881,7 +17366,31 @@ function mountAnimator(body, headerActions, opts) {
     dist_total: "Strecke", duration: "Zeit", moving_time: "Bewegungszeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
     elev_gain: "Bergauf", elev_loss: "Bergab", ele_high: "Höchster Punkt", ele_low: "Tiefster Punkt",
     date: "Datum", time_span: "Uhrzeit", datetime_now: "Datum & Uhrzeit", time_now: "Uhrzeit",
+    pace: "Pace", avg_pace: "Ø Pace", avg_pace_total: "Ø Pace (gesamt)", best_pace: "Beste Pace", day_no: "Tag",
   };
+  // 11.10.2026 (Beta-Tester: „Du bist kein Läufer, oder? … Pace statt der Geschwindigkeit“) — Tempo als km/h oder Pace
+  // (min/km). Projekt-Einstellung `tempo_als`: „auto“ (Standard: Pace bei Fortbewegung „Laufen“), „kmh“ oder „pace“.
+  // Wirkt auf die Tempo-Werte (Tempo, Ø Tempo, Max. Tempo → Beste Pace); die Pace-Werte zeigen immer Pace.
+  const _OV_TEMPO_ZU_PACE = { speed: "pace", avg_speed: "avg_pace", avg_speed_total: "avg_pace_total", max_speed: "best_pace" };
+  const _ovTempoEinstellung = () => {
+    const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    const v = p && p.tempo_als;
+    return v === "kmh" || v === "pace" ? v : "auto";
+  };
+  const _ovTempoAlsPace = () => {
+    const v = _ovTempoEinstellung();
+    if (v !== "auto") return v === "pace";
+    return !!(_gpxStats && _gpxStats.activity === "laufen");
+  };
+  /** Tempo für die Live-Pace: über ±4 Punkte gemittelt (die Reihe ist schon ±2 geglättet) — sonst springt die
+   *  Pace bei GPS-Rauschen um Minuten je km. */
+  const _ovPaceTempo = (sr, i) => {
+    const a = sr.speedKmh || [], n = a.length;
+    let s = 0, k = 0;
+    for (let j = Math.max(0, i - 4); j <= Math.min(n - 1, i + 4); j++) { const v = +a[j]; if (isFinite(v)) { s += v; k++; } }
+    return k ? s / k : 0;
+  };
+  const _ovTempo = (kmh) => _ovTempoAlsPace() ? fmtPace(kmh) : (Number(kmh) || 0).toFixed(1) + " km/h";
   // v0.9.330 — FIT-Sensorfelder dynamisch an den Live-Katalog anhängen (id = "sensor:<key>").
   const _ovSensorMeta = (key) => (_ovSensorFields || []).find(f => f.key === key);
   const _ovSensorCatItems = () => (_ovSensorFields || []).map(f => ({ id: "sensor:" + f.key, req: "none" }));
@@ -16909,6 +17418,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.393 — projekt-eigene Umbenennung auch für Standard-Felder (z.B. „Bewegungszeit" → „Gehzeit").
     const o = _ovOverrides()[id];
     if (o && o.label) return o.label;
+    if (_OV_TEMPO_ZU_PACE[id] && _ovTempoAlsPace()) id = _OV_TEMPO_ZU_PACE[id];
     return t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id);
   };
   const _ovSensorUnit = (key) => { const m = _ovResolvedMeta(key); return m.unit ? " " + m.unit : ""; };
@@ -16945,6 +17455,8 @@ function mountAnimator(body, headerActions, opts) {
     try { if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog("warn", "[container] Editor: " + e); }
   }
   // Vorschau-Wert (Endzustand) für ein Feld — WYSIWYG-Annäherung.
+  window.__rzTempo = { alsPace: () => _ovTempoAlsPace(), label: (id) => _ovFieldLabel(id), wert: (id) => _ovFieldValue(id),
+                       aktivitaet: () => (_gpxStats && _gpxStats.activity) || "" };   // Prüfstand (11.10.2026)
   function _ovFieldValue(id) {
     // v0.9.330 — FIT-Sensorfeld: Endzustand = letzter vorhandener Messwert.
     if (typeof id === "string" && id.startsWith("sensor:")) {
@@ -16998,9 +17510,12 @@ function mountAnimator(body, headerActions, opts) {
       case "time_now": return fmtTimeJS(_sr.end_epoch, _off);
       case "dist_done": case "dist_total": return _ovFmtKm(km);
       case "dist_left": return _ovFmtKm(0);
-      case "speed": case "avg_speed": return avgMov.toFixed(1) + " km/h";
-      case "avg_speed_total": return avgTotal.toFixed(1) + " km/h";
-      case "max_speed": return maxKmh > 0 ? maxKmh.toFixed(1) + " km/h" : "—";
+      case "speed": case "avg_speed": return _ovTempo(avgMov);
+      case "avg_speed_total": return _ovTempo(avgTotal);
+      case "max_speed": return maxKmh > 0 ? _ovTempo(maxKmh) : "—";
+      case "pace": case "avg_pace": return fmtPace(avgMov);
+      case "avg_pace_total": return fmtPace(avgTotal);
+      case "best_pace": return maxKmh > 0 ? fmtPace(maxKmh) : "—";
       case "moving_time": return _ovFmtDur(movS);
       case "time_elapsed": case "duration": return _ovFmtDur(dur);
       case "time_left": return _ovFmtDur(0);
@@ -17127,13 +17642,15 @@ function mountAnimator(body, headerActions, opts) {
         switch (id) {
           case "dist_done": v = _ovFmtKm((_sw ? _sw.done : sr.cumDistM[i]) / 1000); break;
           case "dist_left": v = _ovFmtKm(Math.max(0, ((_sw ? _sw.gesamt : totD) - (_sw ? _sw.done : sr.cumDistM[i])) / 1000)); break;
-          case "speed": if (sr.has_time) v = Math.round(sr.speedKmh[i]) + " km/h"; break;
+          case "speed": if (sr.has_time) v = _ovTempoAlsPace() ? fmtPace(_ovPaceTempo(sr, i)) : Math.round(sr.speedKmh[i]) + " km/h"; break;
+          case "pace": if (sr.has_time) v = fmtPace(_ovPaceTempo(sr, i)); break;
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i] + (_sw ? _sw.tzeit : 0)); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
           // 26.09.2026 — Reise: Zeitzone je Punkt (tzOffS), sonst die der Tour
           case "datetime_now": if (sr.has_time && sr.epochS) v = fmtDateTimeJS(sr.epochS[i], sr.tzOffS ? sr.tzOffS[i] : (sr.tz_offset_min || 0), sr.lang || "de"); break;
           case "time_now": if (sr.has_time && sr.epochS) v = fmtTimeJS(sr.epochS[i], sr.tzOffS ? sr.tzOffS[i] : (sr.tz_offset_min || 0)); break;
+          case "day_no": if (sr.has_time) { const st = _tagesStarts(); let d = 1; for (const x of st) { if (x <= i) d++; else break; } v = String(d); } break;
           case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i] + (_sw ? _sw.asc : 0)) + " m"; break;
           // 29.08.2026 (Marc: „noch unterwegs funktioniert nicht") — das Feld
           // hatte in der VORSCHAU keinen Rechen-Fall (nur im Render). Spiegel
@@ -17332,9 +17849,12 @@ function mountAnimator(body, headerActions, opts) {
       case "dist_total": return _ovFmtKm(km);
       case "duration": return _ovFmtDur(dur);
       case "moving_time": return _ovFmtDur(movS);
-      case "avg_speed": return movS > 0 ? (km / (movS / 3600)).toFixed(1) + " km/h" : "—";
-      case "avg_speed_total": return dur > 0 ? (km / (dur / 3600)).toFixed(1) + " km/h" : "—";
-      case "max_speed": return (st.max_speed_kmh || 0).toFixed(1) + " km/h";
+      case "avg_speed": return movS > 0 ? _ovTempo(km / (movS / 3600)) : "—";
+      case "avg_speed_total": return dur > 0 ? _ovTempo(km / (dur / 3600)) : "—";
+      case "max_speed": return _ovTempo(st.max_speed_kmh || 0);
+      case "avg_pace": return movS > 0 ? fmtPace(km / (movS / 3600)) : "—";
+      case "avg_pace_total": return dur > 0 ? fmtPace(km / (dur / 3600)) : "—";
+      case "best_pace": return fmtPace(st.max_speed_kmh || 0);
       case "elev_gain": return "↑ " + Math.round(st.ascent_m || 0) + " m";
       case "elev_loss": return "↓ " + Math.round(st.descent_m || 0) + " m";
       case "ele_high": return st.ele_max != null ? Math.round(st.ele_max) + " m" : "—";
@@ -18303,11 +18823,15 @@ function mountAnimator(body, headerActions, opts) {
       for (const tr of mitHaupt.concat(_extraTours)) {
         const et = tr && tr.etappe;
         if (!et || et.beschriften === false) continue;
-        (et.wps || []).forEach((w, i) => {
-          if (!w || w.lon == null || w.lat == null || w.auto) return;
+        const wps = et.wps || [], haupt = mitHaupt.length && tr === mitHaupt[0];
+        wps.forEach((w, i) => {
+          if (!w || w.lon == null || w.lat == null || w.auto || w.schild === false) return;
           const key = "station:" + (et.id || tr.gpx_path) + ":" + i;
           if (belegt.has(key)) return;
-          const st = sg.normalize({ ...HL_SCHILD, style: "pin", color: tr.line_color || "#ffd166", size: 30, icon: "",
+          // 11.10.2026 (Web-Feedback: „Startort und Untertitel, Zielort und km-Anzeige übereinander“) — Start und Ziel der
+          // Haupt-Etappe ragen nicht ins Intro (Titel) und nicht ins Halten am Ende (Schlusskarte): die Einblendung gewinnt.
+          const zeit = !haupt ? {} : i === 0 ? { before: 0 } : i === wps.length - 1 ? { after: 0.05 } : {};
+          const st = sg.normalize({ ...HL_SCHILD, ...zeit, style: "pin", color: tr.line_color || "#ffd166", size: 30, icon: "",
                                     text: _etName(w), lat: +w.lat, lon: +w.lon, auto: key });
           st.auto_sig = _hlSig(st);
           neu.push(st);
@@ -19122,6 +19646,7 @@ function mountAnimator(body, headerActions, opts) {
     let b = "";
     if (z.typ === "wert") {
       b += `<select data-zk="bezug">${_ctBezugOptionen(z)}</select><select data-zk="feld">${_ctFeldOptionen(z)}</select>`
+        + (_OV_TEMPO_ZU_PACE[z.feld] ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.tempo_als", "Tempo als"))} <select class="ct-tempo-als">${[["auto", t("container.tempo_auto", "automatisch (Laufen → Pace)")], ["kmh", "km/h"], ["pace", t("container.tempo_pace", "Pace (min/km)")]].map(([v, x]) => _ctOpt(v, _ovTempoEinstellung(), x)).join("")}</select></label></div>` : "")
         + `<div class="ct-ez-reihe"><input type="text" data-zk="label" placeholder="${_ctEsc(_ovFieldLabel(z.feld))}" value="${_ctEsc(z.label || "")}">`
         + `<label title="${_ctEsc(t("container.label_aus", "Beschriftung ausblenden"))}"><input type="checkbox" data-zk="label_aus"${z.label_aus ? " checked" : ""}> ${_ctEsc(t("container.aus", "aus"))}</label></div>`;
     } else if (z.typ === "text") {
@@ -19305,6 +19830,12 @@ function mountAnimator(body, headerActions, opts) {
     p.addEventListener("compositionend", (e) => beiEingabe(e.target));
     p.addEventListener("change", (e) => {
       const el = e.target;
+      if (el.classList && el.classList.contains("ct-tempo-als")) {   // 11.10.2026 — gilt fürs ganze Projekt
+        saveProjectSettings(_MODKEY, { tempo_als: el.value });
+        try { if (_activeProject && _activeProject[_MODKEY]) _activeProject[_MODKEY].tempo_als = el.value; } catch (_) {}
+        _ctSpeichern(JSON.parse(JSON.stringify(_ctListe())), t("container.tempo_als", "Tempo als"));
+        return;
+      }
       if (el.id === "ct-zeile-neu") {
         const ty = el.value; el.value = "";
         if (!ty) return;
@@ -20043,10 +20574,11 @@ function mountAnimator(body, headerActions, opts) {
       : parseFloat(document.getElementById("anim-spur-glatt")?.value);
     return isFinite(v) ? Math.max(0, Math.min(500, v)) : 0;
   }
+  // 11.10.2026 (Marc: „warum bleibt Garmin auf dem Weg und wir rennen übers Feld?“) — die LINIE wird nicht mehr
+  // geglättet: die Gauß-Glättung rundete jede Kreuzung zum Bogen übers Feld. „Spur glätten“ beruhigt nur noch die
+  // Pfeilrichtung (_kursAn) und die Kamera (_kameraBahn); Punkte-Regler wie bisher.
   function _spurAnwenden(roh, mWert, ohnePunkte) {
-    const m = (mWert != null && isFinite(+mWert)) ? Math.max(0, +mWert) : _spurGlattM();
-    const r = ohnePunkte ? roh : _punkteReduziert(roh);   // 30.09.2026 — Punkte-Regler zuerst (wie der klassische Render)
-    return (m > 0 && window.rzSpurGlaetten && r && r.length > 2) ? rzSpurGlaetten(r, m) : r;
+    return ohnePunkte ? roh : _punkteReduziert(roh);   // 30.09.2026 — Punkte-Regler (wie der klassische Render)
   }
   function _spurNeu(v) {
     const m = (v != null && isFinite(+v)) ? Math.max(0, +v) : _spurGlattM();
@@ -20070,7 +20602,7 @@ function mountAnimator(body, headerActions, opts) {
     return isFinite(v) ? Math.max(0, Math.min(3000, Math.round(v))) : 0;
   }
   function _kameraBahn() {
-    const m = _folgeGlattM();
+    const m = Math.max(_folgeGlattM(), _spurGlattM());   // 11.10.2026 — „Spur glätten“ wirkt auf die Kamera, nicht die Linie
     if (!(m > 0) || !currentCoords || currentCoords.length < 3 || !window.rzSpurGlaetten) return currentCoords;
     if (!_kamBahnCache || _kamBahnCache.co !== currentCoords || _kamBahnCache.m !== m) _kamBahnCache = { co: currentCoords, m, bahn: rzSpurGlaetten(currentCoords, m) };
     return _kamBahnCache.bahn;
@@ -20525,6 +21057,11 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-stil="shadow" min="0" max="10" step="0.5" value="${st.shadow}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.field.glow_strength", "Glow-Stärke")} <b data-v="glow">${st.glow}</b></label>
         <input type="range" data-stil="glow" min="0" max="10" step="0.5" value="${st.glow}"></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.look.tip", ""))}"><label>${t("animator.look", "Linien-Look")}</label>
+        <select data-linien-look>${["klassisch", "glut", "neon"].map(k => `<option value="${k}"${currentLinienLook() === k ? " selected" : ""}>${t("animator.look." + k, k)}</option>`).join("")}</select></div>
+      <div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.schweif.tip", ""))}"><label>${t("animator.schweif", "Schweif")} <b data-schweif-v>${currentSchweifPct()}</b> %</label>
+        <input type="range" data-schweif min="0" max="15" step="0.5" value="${currentSchweifPct()}"></div>
+      ${_tagesStarts().length ? `<div class="anim-stil-zeile ist-check" title="${_animEscapeHtml(t("animator.farbe_je_tag.tip", ""))}"><label><input type="checkbox" data-farbe-je-tag${currentFarbeJeTag() ? " checked" : ""}> ${t("animator.farbe_je_tag", "Farbe je Tag")}</label></div>` : ""}` : ""}
       <div class="anim-stil-zeile"><label>${t("animator.stil.deckkraft", "Deckkraft")} <b data-v="opacity">${Math.round(_deckkraft(st) * 100)}</b> %</label>
         <input type="range" data-stil="opacity" min="0.05" max="1" step="0.05" value="${_deckkraft(st)}"></div>
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-blass="show"${blass.show ? " checked" : ""}> ${t("animator.blass.show", "Ganze Strecke blass zeigen")}</label></div>
@@ -20535,6 +21072,8 @@ function mountAnimator(body, headerActions, opts) {
       ${ziel === "haupt" ? `<div class="anim-stil-zeile ist-check" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label><input type="checkbox" data-blass="dashed"${document.getElementById("anim-ghost-dashed")?.checked ? " checked" : ""}> ${t("animator.blass.dashed", "Gestrichelt")}</label></div>` : ""}
       <div class="anim-stil-zeile"><label>${t("animator.stil.reduce", "Punkte")} <b data-v="reduce_pct">${st.reduce_pct}</b> %</label>
         <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.spur_glatt.hint", ""))}"><label>${t("animator.spur_glatt", "Pfeil und Kamera beruhigen")} <b data-spur-glatt-v>${Math.round(_spurGlattM())}</b> m</label>
+        <input type="range" data-spur-glatt min="0" max="200" step="5" value="${Math.round(_spurGlattM())}"></div>` : ""}
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
         <div class="dot-wahl" data-dot-wahl></div>
@@ -20590,6 +21129,49 @@ function mountAnimator(body, headerActions, opts) {
       inp.addEventListener("input", () => { zeig(); if (k !== "reduce_pct" || ziel === "haupt") anwenden(); });
       inp.addEventListener("change", () => { zeig(); anwenden(); });
     });
+    // 11.10.2026 (Marc: „wo finde ich Spur glätten?“ — der Regler war beim Umzug nach rechts liegen geblieben) — bedient
+    // das unsichtbare Feld #anim-spur-glatt, das gespeichert und gerendert wird (bindSetting spur_glaetten_m)
+    { const sg = el.querySelector("[data-spur-glatt]"), alt = document.getElementById("anim-spur-glatt");
+      if (sg && alt) {
+        const setz = (ev) => { alt.value = sg.value; const v = el.querySelector("[data-spur-glatt-v]"); if (v) v.textContent = sg.value;
+          alt.dispatchEvent(new Event(ev, { bubbles: true })); };
+        sg.addEventListener("input", () => setz("input"));
+        sg.addEventListener("change", () => setz("change"));
+      } }
+    // 11.10.2026 — Linien-Look (wählt beim Umschalten einmal die passende Farbe vor) und Schweif
+    { const ls = el.querySelector("[data-linien-look]"), alt = document.getElementById("anim-linien-look");
+      if (ls && alt) ls.addEventListener("change", () => {
+        alt.value = ls.value;
+        const L = LINIEN_LOOKS[ls.value], fe = document.getElementById("anim-color");
+        if (L && fe && fe.value.toLowerCase() !== L.farbe) {
+          fe.value = L.farbe; fe.dispatchEvent(new Event("input", { bubbles: true })); fe.dispatchEvent(new Event("change", { bubbles: true }));
+          const tf = document.querySelector("#anim-track-editor .tred-farbe"); if (tf && _trackEdZiel === "haupt") tf.value = L.farbe;
+        }
+        // die blasse kommende Strecke zieht mit (sonst türkis gestrichelt vor einer orangen Glut-Linie)
+        const ge = document.getElementById("anim-ghost-color");
+        if (L && ge && ge.value.toLowerCase() !== L.farbe) {
+          ge.value = L.farbe; ge.dispatchEvent(new Event("input", { bubbles: true })); ge.dispatchEvent(new Event("change", { bubbles: true }));
+          const bf = el.querySelector('[data-blass="color"]'); if (bf) bf.value = L.farbe;
+        }
+        // Übersichtskarte und Höhenprofil mit eigener Linienfarbe ziehen ebenfalls mit
+        try {
+          let geaendert = false;
+          const neu = _ctListe().map(c => ({ ...c, zeilen: (c.zeilen || []).map(z => (L && z.typ === "diagramm" && (z.art === "karte" || z.art === "hoehe") && z.linienfarbe && z.linienfarbe !== L.farbe)
+            ? (geaendert = true, { ...z, linienfarbe: L.farbe }) : z) }));
+          if (geaendert) _ctSpeichern(neu, t("animator.look", "Linien-Look"), undefined, undefined, true);
+        } catch (e) { rzSwallow(e, "look@container"); }
+        alt.dispatchEvent(new Event("change", { bubbles: true }));
+        try { _animRenderToursList(); } catch (_) {}
+      }); }
+    { const fj = el.querySelector("[data-farbe-je-tag]"), alt = document.getElementById("anim-farbe-je-tag");
+      if (fj && alt) fj.addEventListener("change", () => { alt.checked = fj.checked; alt.dispatchEvent(new Event("change", { bubbles: true })); }); }
+    { const sw = el.querySelector("[data-schweif]"), alt = document.getElementById("anim-schweif");
+      if (sw && alt) {
+        const setz = (ev) => { alt.value = sw.value; const v = el.querySelector("[data-schweif-v]"); if (v) v.textContent = sw.value;
+          alt.dispatchEvent(new Event(ev, { bubbles: true })); };
+        sw.addEventListener("input", () => setz("input"));
+        sw.addEventListener("change", () => setz("change"));
+      } }
     return el;
   }
   function _stilToggleBauen(schluessel, ziel, tr, row) {
@@ -20858,7 +21440,7 @@ function mountAnimator(body, headerActions, opts) {
         // Layer neu bauen — Breite/Schatten/Glow stecken in den Paint-Werten
         // der bestehenden Layer und ändern sich sonst nicht.
         try {
-          ["preview-shadow", "preview-glow", "preview-kontur", "preview-line", "preview-highlight",
+          ["preview-shadow", "preview-glow", "preview-halo", "preview-kontur", "preview-line", "preview-highlight", "preview-kern",
            "preview-pin-glow", "preview-pin-core"]
             .forEach(id => { if (map && map.getLayer(id)) map.removeLayer(id); });
         } catch (_) {}
@@ -21894,6 +22476,7 @@ function mountAnimator(body, headerActions, opts) {
     const o = _hauptDeckkraft();
     for (const [id, basis] of [["preview-line", 0.95], ["preview-kontur", 0.95], ["preview-glow", 0.35], ["preview-highlight", 0.55]])
       if (map.getLayer(id)) map.setPaintProperty(id, "line-opacity", basis * o);
+    try { applyLinienLook(); } catch (_) {}
   }
   // Der Punkte-Regler von Track 1 (#anim-pointcount) zählt in PUNKTEN (10 … n),
   // das Panel in Prozent — hier wird umgerechnet.
@@ -22001,7 +22584,7 @@ function mountAnimator(body, headerActions, opts) {
    *  Punktzahl wäre eine berechnete Autoroute mit 4000 Punkten länger als jede Wanderung; ein Flug braucht im Video
    *  nur einen Moment. Je Abschnitt: Grundwert des Verkehrsmittels × Wurzel der Strecke (lange Strecken etwas
    *  länger, nicht proportional); die Abschnitte addieren sich, höchstens 1,5. Tempo je Etappe bleibt über den Faktor. */
-  const _ET_ZEIT = { flugzeug: 0.3, zug: 0.4, boot: 0.4, auto: 0.45, motorrad: 0.45, rad: 0.6, wanderer: 0.7 };
+  const _ET_ZEIT = { flugzeug: 0.3, zug: 0.4, boot: 0.4, auto: 0.45, motorrad: 0.45, rad: 0.6, laeufer: 0.65, wanderer: 0.7 };
   function _etZeitAnteil(et) {
     const ab = Array.isArray(et && et.abschnitte) ? et.abschnitte : [];
     const kmAb = (a) => {
@@ -23565,8 +24148,8 @@ function mountAnimator(body, headerActions, opts) {
   // zusammenklicken, wo man am Punkt drehen kann, damit sich die Kurve ändert“). „Weichheit“ rundet alle Kurven, die
   // man nicht selbst eingestellt hat; Doppelklick auf einen Punkt = scharfe Ecke. Die Linie setzt der Animator selbst
   // zusammen (Vorschau = Ergebnis) und lässt sie von `etappe_speichern` als GPX ins Projekt schreiben.
-  const _ET_ARTEN = ["auto", "motorrad", "rad", "wanderer", "zug", "boot", "flugzeug"];
-  const _ET_SYMBOL = { auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", zug: "🚆", boot: "⛴", flugzeug: "✈️" };   // nur Oberfläche (Knöpfe), nicht im Video
+  const _ET_ARTEN = ["auto", "motorrad", "rad", "wanderer", "laeufer", "zug", "boot", "flugzeug"];
+  const _ET_SYMBOL = { auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", laeufer: "🏃", zug: "🚆", boot: "⛴", flugzeug: "✈️" };   // nur Oberfläche (Knöpfe), nicht im Video
   let _etEd = null;   // offener Editor (siehe _etappeNeu)
   const _etLeer = () => ({ text: "", lon: null, lat: null, label: "" });
   const _etName = (w) => {
@@ -24113,6 +24696,7 @@ function mountAnimator(body, headerActions, opts) {
           <span class="et-nr">${i === 0 ? "A" : (i === n - 1 ? "B" : i)}</span>
           <input type="text" class="et-wp-input" data-i="${i}" value="${esc(w.text || "")}" placeholder="${esc(w.label || (w.lon != null ? _etName(w) : (i === 0 ? t("animator.etappe.start", "Start") : t("animator.etappe.ziel", "Ziel"))))}">
           <button type="button" class="btn btn-small et-pick" data-i="${i}" title="${esc(t("animator.etappe.pick", "Auf die Karte klicken"))}">📍</button>
+          ${E.beschriften !== false ? `<button type="button" class="btn btn-small et-schild${w.schild === false ? " aus" : ""}" data-i="${i}" aria-pressed="${w.schild === false ? "false" : "true"}" title="${esc(w.schild === false ? t("animator.etappe.schild_aus", "Kein Ortsschild an dieser Station — klicken zum Einschalten") : t("animator.etappe.schild_an", "Ortsschild an dieser Station — klicken zum Ausschalten"))}">${typeof rzIcon === "function" ? rzIcon(w.schild === false ? "eye-off" : "eye", { size: 14 }) : (w.schild === false ? "–" : "●")}</button>` : ""}
           ${n > 2 ? `<button type="button" class="btn btn-small et-weg" data-i="${i}" title="${esc(t("common.delete", "Löschen"))}">✕</button>` : ""}
         </div>
         <div class="et-status muted" data-i="${i}"></div>
@@ -24178,6 +24762,13 @@ function mountAnimator(body, headerActions, opts) {
       _etEdZeichnen();
     }));
     box.querySelectorAll(".et-weg").forEach(b => b.addEventListener("click", () => _etPunktWeg(+b.dataset.i)));
+    // 11.10.2026 (Marc: „die einzelnen Wegpunkte … an/aus schalten“) — Ortsschild je Station (`wps[i].schild`)
+    box.querySelectorAll(".et-schild").forEach(b => b.addEventListener("click", () => {
+      const w = E.wps[+b.dataset.i]; if (!w) return;
+      _etMerken();
+      if (w.schild === false) delete w.schild; else w.schild = false;
+      _etEdZeichnen();
+    }));
     box.querySelector('[data-et="station"]').addEventListener("click", () => {
       E.wps.push(_etLeer()); E.arten.push(E.arten[E.arten.length - 1] || "auto"); E.kurve.push(false); _etEdZeichnen();
       setTimeout(() => { try { box.querySelector(`.et-wp-input[data-i="${E.wps.length - 1}"]`)?.focus(); } catch (_) {} }, 30);
@@ -24194,7 +24785,7 @@ function mountAnimator(body, headerActions, opts) {
     box.querySelector('[data-et="leeren"]').addEventListener("click", () => {
       _etMerken(); E.wps = [_etLeer(), _etLeer()]; E.arten = [E.arten[0] || "auto"]; E.kurve = [false]; E.sel = -1; _etEdZeichnen();
     });
-    box.querySelector(".et-beschriften-cb").addEventListener("change", (ev) => { E.beschriften = !!ev.target.checked; });
+    box.querySelector(".et-beschriften-cb").addEventListener("change", (ev) => { E.beschriften = !!ev.target.checked; _etEdZeichnen(); });
     box.querySelector('[data-et="archiv"]')?.addEventListener("click", () => _etInsArchiv(E.pfad));
     box.querySelector('[data-et="abbrechen"]').addEventListener("click", _etEdZu);
     box.querySelector(".et-kopf .sign-editor-x").addEventListener("click", _etEdZu);

@@ -3494,8 +3494,10 @@
     detailFuer: (pfad) => detailZeigen({ path: pfad }),
     // 08.10.2026 — „Alle ansehen“ aus der gemeinsamen Suche: Nach Touren, gefiltert
     zeigeTouren: (text) => { _tourenSuche = String(text || ""); ansicht = "touren"; zeichnen(); },
-    gross: (pfad, liste) => {
+    // 11.10.2026 — `opt.oben`: über allem (Video-Assistent/Schnell-Video liegen über dem Layout, z-index 900)
+    gross: (pfad, liste, opt) => {
       const l = (liste || []).map(x => (typeof x === "string" ? { path: x } : x));
       grossOeffnen(l.find(x => x.path === pfad) || { path: pfad }, l);
+      if (gross && gross.el) gross.el.classList.toggle("ganz-oben", !!(opt && opt.oben));
     } };
 })();

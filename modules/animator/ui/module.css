@@ -1651,3 +1651,20 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .va-liste li span:last-child { color: var(--text-dim); }
 .va-bericht .va-liste li { grid-template-columns: 22px 1fr; }
 .va-bericht .va-liste li span:last-child { grid-column: 2; }
+
+/* 11.10.2026 — Fotostopp „eigene Gestaltung“: Reiter Unterwegs | Beim Halt im Schild-Editor */
+.se-halt-reiter { display: flex; gap: 0; margin: 10px 0 2px; border: 1px solid var(--border, #2a3340); border-radius: 7px; overflow: hidden; }
+.se-halt-tab { flex: 1; padding: 6px 8px; font-size: 12px; background: transparent; color: var(--text-muted, #93a1b0); border: 0; cursor: pointer; }
+.se-halt-tab + .se-halt-tab { border-left: 1px solid var(--border, #2a3340); }
+.se-halt-tab.an { background: var(--accent, #2dd4bf); color: #0e1116; font-weight: 600; }
+
+/* Etappen-Editor: Ortsschild je Station an/aus (11.10.2026) */
+#anim-etappe-editor .et-schild { display: inline-flex; align-items: center; justify-content: center; }
+#anim-etappe-editor .et-schild.aus { opacity: 0.45; }
+
+/* 11.10.2026 — Vignette über dem Kartenbild (unter Bedienelementen und Einblendungen) */
+.rz-vignette { position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(0,0,0,0.22) 78%, rgba(0,0,0,0.5) 100%); }
+.rz-vignette[hidden] { display: none; }
+.va-liste .va-ic { color: var(--text-dim); }
+.va-liste .va-ic svg { vertical-align: -3px; }

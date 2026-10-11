@@ -6,7 +6,7 @@ oben, transparenter Hintergrund. Das Skript schneidet jede Zelle auf ihren sicht
 quadratisches Feld und speichert `ui/img/fahrzeuge/<fahrzeug>_<stil>.png` (192 px, in der App mit pixelRatio 4 = 48 px).
 
 Aufruf:  python3 scripts/fahrzeug_icons_schneiden.py <ordner-mit-den-sammelbildern>
-Erwartete Dateinamen: rz-icons-<auto|motorrad|fahrrad|wanderer|zug|boot|flugzeug>-stile.png — fehlende werden übersprungen.
+Erwartete Dateinamen: rz-icons-<auto|motorrad|fahrrad|wanderer|zug|boot|flugzeug|laeufer>-stile.png — fehlende werden übersprungen.
 """
 import sys
 from pathlib import Path
@@ -17,7 +17,7 @@ REPO = Path(__file__).resolve().parent.parent
 ZIEL = REPO / "ui" / "img" / "fahrzeuge"
 # Dateiname im Sammelbild → Schlüssel in der App (FAHRZEUGE in modules/animator/ui/module.js)
 FAHRZEUGE = {"auto": "auto", "motorrad": "motorrad", "fahrrad": "rad", "wanderer": "wanderer",
-             "zug": "zug", "boot": "boot", "flugzeug": "flugzeug"}
+             "zug": "zug", "boot": "boot", "flugzeug": "flugzeug", "laeufer": "laeufer"}   # 11.10.2026 Läufer
 # Reihenfolge im Raster: oben links → rechts, dann unten (so stand es im Prompt)
 STILE = ["foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"]
 GROESSE = 192

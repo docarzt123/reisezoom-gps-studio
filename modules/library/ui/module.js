@@ -2055,8 +2055,10 @@ function mountLibrary(body, headerActions) {
       b.onclick = (e) => {
         halt(e);
         const it = _items[+b.dataset.zmehr]; if (!it) return;
-        if (!(_multi.size && _multi.has(it.path))) { _multi.clear(); select(it); }
+        // 11.10.2026 (Marc: „das Menü kommt ganz links oben in der Ecke“) — Lage VOR dem Auswählen messen: select()
+        // zeichnet die Liste neu, der Knopf hängt danach nicht mehr im Dokument und meldet 0/0.
         const r = b.getBoundingClientRect();
+        if (!(_multi.size && _multi.has(it.path))) { _multi.clear(); select(it); }
         itemKontextmenu(it, r.left, r.bottom + 4);
       };
     });
@@ -2406,15 +2408,20 @@ function mountLibrary(body, headerActions) {
     box.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 6)) + "px";
     const zu = (ev) => { if (!ev || !box.contains(ev.target)) kontextmenuZu(); };
     const taste = (ev) => { if (ev.key === "Escape") kontextmenuZu(); };
+    // 11.10.2026 (Beta-Tester, Windows: „Im Animator öffnen“ reagiert nicht) — nur wenn das FENSTER den Fokus verliert.
+    // Mit `true` (Capture) kam hier auch der Blur jedes Eingabefelds an: Bei markierten Touren hat die Sammel-Spalte
+    // rechts ein Feld im Fokus; der Druck auf den Menüpunkt nahm ihm den Fokus, das Menü schloss sich vor dem Klick.
+    const fensterWeg = (ev) => { if (ev.target === window) kontextmenuZu(); };
     setTimeout(() => {
+      if (!box.isConnected) return;   // schon wieder zu (zweites Menü im selben Augenblick): keine Wächter hinterlassen
       document.addEventListener("mousedown", zu, true);
       document.addEventListener("keydown", taste, true);
-      window.addEventListener("blur", zu, true);
+      window.addEventListener("blur", fensterWeg);
     }, 0);
     _ctxWeg = () => {
       document.removeEventListener("mousedown", zu, true);
       document.removeEventListener("keydown", taste, true);
-      window.removeEventListener("blur", zu, true);
+      window.removeEventListener("blur", fensterWeg);
       try { box.remove(); } catch (_) {}
     };
   }
@@ -4547,6 +4554,8 @@ function mountLibrary(body, headerActions) {
       [T("library.ascent", "Höhenmeter"), `↑ ${num(q.ascent_m)} m · ↓ ${num(q.descent_m)} m`],
       [T("library.speed", "Schnitt"), q.avg_speed_kmh ? (+q.avg_speed_kmh).toFixed(1) + " km/h" : "—"],
       [T("library.maxspeed", "Max. Tempo"), q.max_speed_kmh ? (+q.max_speed_kmh).toFixed(1) + " km/h" : "—"],
+      // 11.10.2026 — für Läufer: Pace (min/km) zusätzlich
+      ...(q.activity === "laufen" && q.avg_speed_kmh && typeof fmtPace === "function" ? [[T("library.pace", "Ø Pace"), fmtPace(+q.avg_speed_kmh)]] : []),
       [T("library.points", "Punkte"), `${q.n_points || 0}${q.n_segments > 1 ? ` · ${q.n_segments} ${T("library.segments", "Etappen")}` : ""}`],
       [T("library.activity", "Fortbewegung"), ACT_LABELS[q.activity] || (q.activity || "—")],
       [T("library.file", "Datei"), q.filename || "—"],

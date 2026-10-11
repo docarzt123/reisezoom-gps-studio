@@ -3939,14 +3939,10 @@ def spur_glaetten(coords, meter):
 
 
 def _punkte_verteilen(cfg, raw_points):
-    """Verteilen (s. `_punkte_verteilen_roh`), danach ggf. Spur glätten (29.09.2026)."""
-    pts = _punkte_verteilen_roh(cfg, raw_points)
-    m = float(getattr(cfg, "spur_glaetten_m", 0.0) or 0.0)
-    if m <= 0 or len(pts) < 3:
-        return pts
-    import dataclasses
-    glatt = spur_glaetten([[p.lon, p.lat] for p in pts], m)
-    return [dataclasses.replace(p, lon=g[0], lat=g[1]) for p, g in zip(pts, glatt)]
+    """Verteilen (s. `_punkte_verteilen_roh`). 11.10.2026: die Linie wird NICHT mehr geglättet (Marc: „warum bleibt Garmin
+    auf dem Weg und wir rennen übers Feld?“ — „Spur glätten“ rundete jede Kreuzung zum Bogen übers Feld); `spur_glaetten_m`
+    beruhigt nur noch Pfeilrichtung und Kamera (Vorschau/Szene: modules/animator/ui/module.js `_kursAn`, `_kameraBahn`)."""
+    return _punkte_verteilen_roh(cfg, raw_points)
 
 
 def _punkte_verteilen_roh(cfg, raw_points):

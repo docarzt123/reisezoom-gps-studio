@@ -3960,6 +3960,12 @@ function mountGpxInspect(body, headerActions) {
   const _lbEsc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const _lbArt = (art) => t("logbuch.art." + art, _LB_ARTEN_DE[art] || art);
   const _lbFarbe = (art) => _LB_FARBE[art] || "#8b8fa3";
+  // 11.10.2026 (Schritt 9) — Symbole und Titel aus dem gemeinsamen Logbuch-Baustein (ui/js/logbuch_ansicht.js): Strich-Symbole
+  // statt Emojis, „Fahrt nach Hamburg“ statt nur „Fahrt“ — wie auf der Tour-Seite. Eigene Punkte behalten ihr gewähltes Symbol.
+  const _lbLA = () => window.rzLogbuchAnsicht || null;
+  const _lbSym = (art, g) => (_lbLA() && _lbLA().symbolHtml ? _lbLA().symbolHtml(art, g || 15) : (_LB_ICON[art] || "•"));
+  const _lbPSym = (p, g) => (p.symbol ? _lbEsc(p.symbol) : _lbSym(p.art, g));
+  const _lbTitel = (x) => (_lbLA() && _lbLA().titel ? _lbLA().titel(x, _lbOrte || {}) : (x.name || _lbArt(x.anzeige_art || x.art)));
   function _lbDatum(tEpoch, versatz) { return new Date((tEpoch + (versatz || 0) * 60) * 1000); }
   function _lbUhr(tEpoch, versatz) {
     try { return _lbDatum(tEpoch, versatz).toLocaleTimeString(rzSprachCode(), { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }); }
@@ -4119,11 +4125,11 @@ function mountGpxInspect(body, headerActions) {
     const z = _lb.zusammenfassung || {};
     const teile = [];
     const mitDauer = ["fahrt", "rad", "laufen"], mitZahl = ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung", "unsicher"];
-    for (const art of mitDauer) if (z[art]) teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_LB_ICON[art] || ""} ${_lbDauer(z[art].dauer_s)} ${_lbArt(art)}</span>`);
+    for (const art of mitDauer) if (z[art]) teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_lbSym(art, 13)} ${_lbDauer(z[art].dauer_s)} ${_lbArt(art)}</span>`);
     for (const art of mitZahl) if (z[art]) {
       const n = z[art].anzahl;
       const name = n === 1 ? _lbArt(art) : t("logbuch.mehrzahl." + art, _lbArt(art));
-      teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_LB_ICON[art] || ""} ${n} ${name}</span>`);
+      teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_lbSym(art, 13)} ${n} ${name}</span>`);
     }
     if (_lb.hoechster && _lb.hoechster.ele != null) {
       teile.push(`<span class="gpxi-lb-chip" style="--c:#c084fc">⛰ ${t("logbuch.hoechster", "höchster Punkt {m} m", { m: Math.round(_lb.hoechster.ele).toLocaleString(rzSprachCode()) })}</span>`);
@@ -4140,7 +4146,7 @@ function mountGpxInspect(body, headerActions) {
     if (e.hoehe_auf >= 20) meta.push("↑" + e.hoehe_auf + " m");
     if (e.tempo_kmh && e.art !== "pause") meta.push(e.tempo_kmh.toLocaleString(rzSprachCode(), { maximumFractionDigits: 1 }) + " km/h");
     const artName = _lbArt(e.anzeige_art);
-    const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : artName;
+    const name = e.name ? `${_lbEsc(e.name)} <small>${artName}</small>` : _lbEsc(_lbTitel(e));
     const geraten = e.geraten ? ` <button type="button" class="gpxi-lb-badge ist-vermutet" data-vermutet="${e.id}" title="${t("logbuch.geraten_tip2", "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen.")}">${t("logbuch.geraten", "vermutet")}</button>` : "";
     const roh = e.roh ? ` <span class="gpxi-lb-badge">${t("logbuch.roh", "roh")}</span>` : "";
     // 24.09.2026 — Anzeige im Video, wenn nicht „zeigen"
@@ -4149,7 +4155,7 @@ function mountGpxInspect(body, headerActions) {
     const video = imVideo ? ` <span class="gpxi-lb-badge" data-im-video="${e.anzeige}" title="${_lbEsc(t("logbuch.menue.im_video", "Im Video") + ": " + imVideo[1])}">${imVideo[0]} ${_lbEsc(imVideo[1])}</span>` : "";
     const notiz = e.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(e.notiz)}</div>` : "";
     return `<div class="gpxi-lb-zeile${gew}" data-lb="${e.id}" style="--c:${_lbFarbe(e.anzeige_art)}">
-      <span class="gpxi-lb-icon">${_LB_ICON[e.anzeige_art] || "•"}</span>
+      <span class="gpxi-lb-icon">${_lbSym(e.anzeige_art)}</span>
       <div class="gpxi-lb-text"><div class="gpxi-lb-name">${name}${geraten}${roh}${video}</div><div class="gpxi-lb-meta">${meta.join(" · ")}</div>${notiz}</div>
       <button type="button" class="gpxi-lb-mehr" title="${t("logbuch.menue.titel", "Bearbeiten")}">⋯</button></div>`;
   }
@@ -4157,10 +4163,10 @@ function mountGpxInspect(body, headerActions) {
     const gew = p.id === _lbSel ? " ist-gewaehlt" : "";
     const txt = p.art === "hoechster_punkt"
       ? `${_lbArt(p.art)} · ${Math.round(p.ele || 0).toLocaleString(rzSprachCode())} m`
-      : (p.name ? `${_lbEsc(p.name)} <small>${_lbArt(p.art)}</small>` : _lbArt(p.art));
+      : (p.name ? `${_lbEsc(p.name)} <small>${_lbArt(p.art)}</small>` : _lbEsc(_lbTitel(p)));
     const notiz = p.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(p.notiz)}</div>` : "";
     const ortP = _lbOrtText(p);
-    return `<div class="gpxi-lb-zeile ist-punkt${p.art === "punkt" || p.art === "poi" ? " ist-eigen" : ""}${gew}" data-lb="${p.id}"><span class="gpxi-lb-icon">${p.symbol || _LB_ICON[p.art] || "•"}</span>
+    return `<div class="gpxi-lb-zeile ist-punkt${p.art === "punkt" || p.art === "poi" ? " ist-eigen" : ""}${gew}" data-lb="${p.id}"><span class="gpxi-lb-icon">${_lbPSym(p)}</span>
       <div class="gpxi-lb-text"><div class="gpxi-lb-name">${txt}</div><div class="gpxi-lb-meta">${_lbUhr(p.t, p.versatz_min)}${ortP ? " · " + _lbEsc(ortP) : ""}</div>${notiz}</div>
       <button type="button" class="gpxi-lb-mehr" title="${t("logbuch.menue.titel", "Bearbeiten")}">⋯</button></div>`;
   }
@@ -4250,11 +4256,11 @@ function mountGpxInspect(body, headerActions) {
       const fill = e.anzeige_art === "unsicher" ? "url(#gpxi-lb-streifen)" : _lbFarbe(e.anzeige_art);
       const cls = "gpxi-lb-block" + (still ? " ist-still" : "") + (e.id === _lbSel ? " ist-gewaehlt" : "") + (e.geraten ? " ist-geraten" : "");
       const name = e.name || _lbArt(e.anzeige_art);
-      const label = w > 34 ? (_LB_ICON[e.anzeige_art] || "") + " " + name : "";
+      const label = w > 34 ? name : "";
       const passt = label && (label.length * 6.4 + 10) < w;
       const zeile2 = w > 64 ? _lbDauer(e.dauer_s) + (e.strecke_m > 950 && w > 96 ? " · " + _lbKm(e.strecke_m) : "") : "";
       s += `<g class="${cls}" data-lb="${e.id}"><rect x="${xa.toFixed(1)}" y="${y0}" width="${w.toFixed(1)}" height="${hB}" rx="4" fill="${fill}"/>`
-         + (passt ? `<text class="gpxi-lb-bl1" x="${(xa + 6).toFixed(1)}" y="${y0 + 18}">${_lbEsc(label)}</text>` : (w > 22 ? `<text class="gpxi-lb-bl1" x="${(xa + w / 2).toFixed(1)}" y="${y0 + 18}" text-anchor="middle">${_LB_ICON[e.anzeige_art] || ""}</text>` : ""))
+         + (passt ? `<text class="gpxi-lb-bl1" x="${(xa + 6).toFixed(1)}" y="${y0 + 18}">${_lbEsc(label)}</text>` : (w > 22 ? `<g class="gpxi-lb-blsym" transform="translate(${(xa + w / 2 - 6).toFixed(1)},${y0 + 8})">${_lbSym(e.anzeige_art, 12)}</g>` : ""))
          + (zeile2 && passt ? `<text class="gpxi-lb-bl2" x="${(xa + 6).toFixed(1)}" y="${y0 + 36}">${_lbEsc(zeile2)}</text>` : "")
          + `<title>${_lbEsc(name + " · " + _lbUhr(e.t0, e.versatz_min) + " – " + _lbUhr(e.t1, e.versatz_min) + " · " + _lbDauer(e.dauer_s) + (e.strecke_m > 50 ? " · " + _lbKm(e.strecke_m) : ""))}</title></g>`;
     }
@@ -4660,7 +4666,7 @@ function mountGpxInspect(body, headerActions) {
       M.push({ text: t("logbuch.menue.art", "Art ändern"), aus: true });
       for (const art of _LB_HAND_ARTEN) {
         if (art === e.anzeige_art) continue;
-        M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: () =>
+        M.push({ unter: true, symbol: _lbSym(art, 14), text: _lbArt(art), tu: () =>
           _lbAktion(t("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids: e.bids, art }) });
       }
       // 24.09.2026 — was dieser Abschnitt im Video tut; dieselbe
@@ -4803,7 +4809,7 @@ function mountGpxInspect(body, headerActions) {
     const t0 = z[Math.min(_selA, _selB)], t1 = z[Math.max(_selA, _selB)];
     if (!isFinite(t0) || !isFinite(t1) || t1 - t0 < 30) { toast(t("logbuch.ab_zu_kurz", "Der Abschnitt A→B ist zu kurz für einen Eintrag."), "warn"); return; }
     const M = [{ text: t("logbuch.menue.art_fuer_ab", "Art des neuen Eintrags"), aus: true }];
-    for (const art of _LB_HAND_ARTEN) M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: async () => {
+    for (const art of _LB_HAND_ARTEN) M.push({ unter: true, symbol: _lbSym(art, 14), text: _lbArt(art), tu: async () => {
       const r = await _lbAktion(t("logbuch.undo.bereich", "Logbuch: Bereich A→B"), "setzen", { t0, t1, art, name: "" }, { auswahl: null });
       if (r) { try { clearSelection(); } catch (_) {} }
     } });
@@ -5142,7 +5148,7 @@ function mountGpxInspect(body, headerActions) {
     w.querySelector("#gpxi-lbf-art").addEventListener("click", (ev) => {
       const bids = _lbFensterBids(); if (!bids.length) return;
       const M = [{ text: t("logbuch.menue.art", "Art ändern"), aus: true }];
-      for (const art of _LB_HAND_ARTEN) M.push({ unter: true, symbol: _LB_ICON[art] || "", text: _lbArt(art), tu: () =>
+      for (const art of _LB_HAND_ARTEN) M.push({ unter: true, symbol: _lbSym(art, 14), text: _lbArt(art), tu: () =>
         _lbAktion(t("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids, art }) });
       const r = ev.currentTarget.getBoundingClientRect(); _lbMenue(r.left, r.bottom + 4, M);
     });
@@ -5192,8 +5198,8 @@ function mountGpxInspect(body, headerActions) {
     if (!_lbGross || _lbGross.hidden || !_lb) return;
     const nm = _lbGross.querySelector("#gpxi-lbf-name"); if (nm) nm.textContent = _lb.name || "";
     const su = _lbGross.querySelector("#gpxi-lbf-summe"); if (su) su.innerHTML = (_lbEl("gpxi-lb-summe") || {}).innerHTML || "";
-    const zeilen = _lbEintraege().map(e => Object.assign({ _punkt: false, _t: e.t0, _art: _lbArt(e.anzeige_art), _icon: _LB_ICON[e.anzeige_art] || "" }, e))
-      .concat(_lbPunkteSichtbar().map(p => Object.assign({ _punkt: true, _t: p.t, t0: p.t, dauer_s: 0, strecke_m: 0, hoehe_auf: 0, tempo_kmh: 0, _art: _lbArt(p.art), _icon: p.symbol || _LB_ICON[p.art] || "•" }, p)))
+    const zeilen = _lbEintraege().map(e => Object.assign({ _punkt: false, _t: e.t0, _art: _lbArt(e.anzeige_art), _icon: _lbSym(e.anzeige_art, 14) }, e))
+      .concat(_lbPunkteSichtbar().map(p => Object.assign({ _punkt: true, _t: p.t, t0: p.t, dauer_s: 0, strecke_m: 0, hoehe_auf: 0, tempo_kmh: 0, _art: _lbArt(p.art), _icon: _lbPSym(p, 14) }, p)))
       .filter(z => !_lbFensterNurVermutet || z.geraten);
     const sp = _lbFensterSort, k = sp.spalte;
     const wert = (z) => k === "t0" ? z._t : k === "art" ? z._art : k === "name" ? (z.name || "") : k === "ort" ? _lbOrtText(z) : (z[k] || 0);
@@ -5491,7 +5497,7 @@ function mountGpxInspect(body, headerActions) {
     if (!ohneFlug) _lbKarteHin(lage, 14);
     const titel = p.art === "hoechster_punkt" ? _lbArt(p.art) : (p.name ? _lbEsc(p.name) : _lbArt(p.art));
     const ort = _lbOrtText(p);
-    const html = `<div class="gpxi-lb-info-kopf"><span class="gpxi-lb-info-sym">${p.symbol || _LB_ICON[p.art] || "•"}</span><b>${titel}</b></div>
+    const html = `<div class="gpxi-lb-info-kopf"><span class="gpxi-lb-info-sym">${_lbPSym(p, 16)}</span><b>${titel}</b></div>
       <div class="gpxi-lb-info-was">${_lbPunktBeschreibung(p)}</div>
       <div class="gpxi-lb-info-meta">${_lbUhr(p.t, p.versatz_min)}${ort ? " · " + _lbEsc(ort) : ""}${p.quelle === "hand" ? " · " + t("logbuch.karte.von_hand", "von Hand") : ""}</div>
       ${p.notiz ? `<div class="gpxi-lb-notiz">${_lbEsc(p.notiz)}</div>` : ""}
@@ -5619,7 +5625,7 @@ function mountGpxInspect(body, headerActions) {
     if (!_lb || _lbAlles) { if (befSrc) befSrc.setData({ type: "FeatureCollection", features: [] }); return; }
     const neu = (lage, sym, cls, titel, klick, rechts, lbId) => {
       const el = document.createElement("div");
-      el.className = "gpxi-lb-marke " + cls; el.textContent = sym; el.title = titel;
+      el.className = "gpxi-lb-marke " + cls; el.innerHTML = sym; el.title = titel;   // sym ist HTML (Strich-Symbol oder escaptes eigenes Symbol)
       if (lbId != null) el.dataset.lb = lbId;
       el.addEventListener("click", (ev) => { ev.stopPropagation(); klick(); });
       el.addEventListener("dblclick", (ev) => ev.stopPropagation());
@@ -5632,14 +5638,14 @@ function mountGpxInspect(body, headerActions) {
       if (p.art === "start" || p.art === "ziel") continue;
       const lage = _lbLage(p); if (!lage) continue;
       const titel = (p.name || _lbArt(p.art)) + (p.art === "hoechster_punkt" && p.ele != null ? " · " + Math.round(p.ele) + " m" : "");
-      neu(lage, p.symbol || _LB_ICON[p.art] || "•", "ist-" + p.art + (p.id === _lbSel ? " ist-gewaehlt" : ""), titel,
+      neu(lage, _lbPSym(p, 14), "ist-" + p.art + (p.id === _lbSel ? " ist-gewaehlt" : ""), titel,
         () => lbWaehlen(p.id, { zoom: false }), (ev) => _lbEintragMenue(p, ev.clientX, ev.clientY, null), p.id);
     }
     if (_lbPoisAn) {
       const menge = Math.max(0, Math.round((_lb.einstellungen && _lb.einstellungen.pois_menge) || 30));
       const liste = _lbPois.filter(q => !q.im_logbuch && q.lat != null).slice().sort((a, b) => a.rang - b.rang).slice(0, menge);
       for (const q of liste) {
-        neu([q.lon, q.lat], q.symbol || "📍", "ist-poi-spur", q.name + " · " + t("logbuch.poi.klick_karte", "Klick: was ist das?"),
+        neu([q.lon, q.lat], q.symbol ? _lbEsc(q.symbol) : _lbSym("poi", 14), "ist-poi-spur", q.name + " · " + t("logbuch.poi.klick_karte", "Klick: was ist das?"),
           () => _lbPoiZeigen(q, true), (ev) => _lbMenue(ev.clientX, ev.clientY, [{ text: q.name, aus: true },
             { symbol: "📍", text: t("logbuch.poi.uebernehmen", "Ins Logbuch übernehmen"), tu: () => _lbPoiUebernehmen(q.id) }]));
       }

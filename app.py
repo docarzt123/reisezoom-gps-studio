@@ -5082,7 +5082,8 @@ class Api:
         selbst ab, die App sieht es nie. Die Seitenleiste schaut danach von selbst nach, ob das Laufwerk da ist."""
         from core import laufwerke as clw
         try:
-            url = cfotos.laufwerk_url(self._lib(), str(ordner or ""))
+            with clib._DB_LOCK:   # 11.10.2026 — gemeinsame Verbindung nur unter der Sperre (sonst sqlite3.InterfaceError)
+                url = cfotos.laufwerk_url(self._lib(), str(ordner or ""))
             if not url:
                 return {"ok": False, "error": _ui_t()("fotos.lw_keine_adresse",
                         "Die Adresse dieses Laufwerks ist nicht bekannt — bitte einmal im Finder verbinden.")}
@@ -5527,7 +5528,8 @@ class Api:
                 return {"ok": False, "error": (r.stderr or "ffmpeg")[-300:]}
             _ds.ersetzen(tmp, ziel, "standbild")
             # Aufnahmezeit und Ort vom Video übernehmen
-            z = cfotos.zeile(self._lib(), str(quelle)) or {}
+            with clib._DB_LOCK:   # 11.10.2026 — gemeinsame Verbindung nur unter der Sperre
+                z = cfotos.zeile(self._lib(), str(quelle)) or {}
             felder = {}
             if z.get("aufnahme_utc"):
                 tzm = int(z.get("tz_minuten") or 0)
@@ -5575,7 +5577,8 @@ class Api:
 
     def _foto_nach_schreiben(self, path: str) -> dict:
         try:
-            cfotos.neu_lesen(self._lib(), [path])
+            with clib._DB_LOCK:   # 11.10.2026 — gemeinsame Verbindung nur unter der Sperre
+                cfotos.neu_lesen(self._lib(), [path])
         except Exception:  # noqa: BLE001 — die nächste Nachschau holt es sonst nach
             log.exception("[fotos] neu lesen nach dem Schreiben")
         return self.fotos_details(path)
@@ -8445,7 +8448,7 @@ class Api:
             # den Cache legen: session_open_for_track (kommt direkt danach mit
             # demselben Original-Pfad) spart sich so den zweiten Datei-Parse.
             self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
-            ds = cgpx.downsample(pts, 800)
+            ds = cgpx.downsample_ecken(pts, 800)   # 11.10.2026 — Ecken bleiben (Linie bleibt an Kreuzungen auf dem Weg)
             # 10.10.2026 — Datumsgrenze: fürs Zeichnen und die Kamera fortlaufende Längengrade (179,9 → 180,1 statt
             # → −179,9), sonst Strich quer über die Welt und Kamerasprung. Die Datei selbst bleibt unverändert.
             coords = croute.lon_fortlaufend([[p.lon, p.lat] for p in ds])
@@ -8546,6 +8549,8 @@ class Api:
                     "moving_time_s": stats.moving_time_s,
                     "max_speed_kmh": stats.max_speed_kmh,
                     "start_epoch": e_start, "end_epoch": e_end, "tz_offset_min": tz_off,
+                    # 11.10.2026 (Läufer: „Pace statt Geschwindigkeit“) — Fortbewegung aus dem Archiv, „laufen“ → Pace
+                    "activity": self._aktivitaet_fuer(path),
                 },
                 "series": series,
                 # v0.9.331 — vorhandene Sensorfelder [{key,label,unit}] fürs UI.
@@ -8874,7 +8879,7 @@ class Api:
         log.info("[etappe] %d Etappe(n) aus dem Paket nach %s", len(umbiegen), ordner)
         return len(umbiegen)
 
-    _ETAPPE_LAND = ("auto", "motorrad", "rad", "wanderer")
+    _ETAPPE_LAND = ("auto", "motorrad", "rad", "wanderer", "laeufer")
 
     def _etappe_hoehen(self, co: list, teile: list) -> tuple:
         """07.10.2026 (Etappen) — Höhen einer geplanten Etappe: Straße und Weg (Auto, Motorrad,
@@ -13214,6 +13219,14 @@ class Api:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "vorhanden": False}
 
+    def _aktivitaet_fuer(self, path: str) -> str:
+        """Fortbewegung der Tour laut Archiv („laufen“, „rad“ …), leer außerhalb des Archivs."""
+        try:
+            t = clib.get_track(self._lib(), path)
+            return str((t or {}).get("activity") or "")
+        except Exception:  # noqa: BLE001 — nur Anzeige (Tempo oder Pace)
+            return ""
+
     def _art_stats_fuer(self, path: str, pts) -> dict:
         """Kennzahlen je Bewegungsart für die Vorschau. Leer, wenn
         die Tour nicht im Archiv ist oder keine Zeitstempel hat."""
@@ -13335,10 +13348,28 @@ class Api:
             zone = czz.zone_fuer(lat, lon, land=(t or {}).get("country") or "")
         except Exception:  # noqa: BLE001
             zone = "UTC"
+        # 11.10.2026 — Position je Eintrag/Punkt ([lon, lat]) für die Logbuch-Ansicht der Tour-Seite (Pins, „zeig die
+        # Stelle“): Pausen und Punkte an ihrer Stelle, Abschnitte in der Mitte, dazu Anfang und Ende
+        def _ll(i):
+            try:
+                q = pts[int(i)]
+                la = q.get("lat") if isinstance(q, dict) else getattr(q, "lat", None)
+                lo = q.get("lon") if isinstance(q, dict) else getattr(q, "lon", None)
+                return [float(lo), float(la)] if la is not None and lo is not None else None
+            except (TypeError, ValueError, IndexError):
+                return None
         for e in lb["eintraege"]:
             e["versatz_min"] = czz.offset_min(zone, e["t0"])
+            a_, b_ = e.get("von_idx"), e.get("bis_idx")
+            if a_ is not None:
+                e["pos_von"], e["pos_bis"] = _ll(a_), _ll(b_ if b_ is not None else a_)
+                e["pos"] = e["pos_von"] if e.get("art") == "pause" else _ll((int(a_) + int(b_ if b_ is not None else a_)) // 2)
         for p in lb["punkte"]:
             p["versatz_min"] = czz.offset_min(zone, p["t"])
+            if p.get("idx") is not None:
+                p["pos"] = _ll(p["idx"])
+            elif p.get("lat") is not None and p.get("lon") is not None:
+                p["pos"] = [float(p["lon"]), float(p["lat"])]
         for d in tage:
             d["versatz_min"] = czz.offset_min(zone, d["t0"])
         return {"ok": True, "tour": tour, "name": (t or {}).get("name") or "",
@@ -14344,6 +14375,29 @@ class Api:
     # rendert dann über den normalen Animator (Szene) in eine Zwischendatei; „Speichern …"
     # verschiebt sie an den gewählten Ort, „Teilen" öffnet das System-Teilen-Menü.
 
+    def videostil_vorlage_speichern(self, name: str, stil: dict) -> dict:
+        """11.10.2026 (Video-Assistent Schritt 8) — eigenen Videostil als Vorlage merken (nur Stil: Zweck/Vorlage, Format,
+        Länge, Look, Einblendungen, Kamera-Stil, Halte, Texte, Fotos-Menge, Musik, Schluss). Gleicher Name ersetzt."""
+        name = str(name or "").strip()[:60]
+        if not name or not isinstance(stil, dict):
+            return {"ok": False, "error": _ui_t()("error.vorlage_name", "Bitte einen Namen angeben")}
+        erlaubt = {"vorlage", "format", "laenge", "eigen_s", "look", "zahlen", "profil", "uebersicht", "felder", "musik",
+                   "kamera", "kam_leb", "halte_dauer", "halte_alle", "text_menge", "foto_menge", "schluss_an", "foto_art",
+                   "highlights", "gebaeude"}
+        sauber = {k: v for k, v in stil.items() if k in erlaubt}
+        liste = [x for x in (_load_settings().get("videostil_vorlagen") or []) if isinstance(x, dict)]
+        vorhanden = next((x for x in liste if str(x.get("name", "")).strip().lower() == name.lower()), None)
+        import uuid
+        eintrag = {"id": (vorhanden or {}).get("id") or "vs_" + uuid.uuid4().hex[:10], "name": name, "stil": sauber}
+        liste = [x for x in liste if x is not vorhanden] + [eintrag]
+        self.settings_set({"videostil_vorlagen": liste[-30:]})
+        return {"ok": True, "vorlage": eintrag, "liste": liste[-30:]}
+
+    def videostil_vorlage_loeschen(self, vid: str) -> dict:
+        liste = [x for x in (_load_settings().get("videostil_vorlagen") or []) if isinstance(x, dict) and x.get("id") != vid]
+        self.settings_set({"videostil_vorlagen": liste})
+        return {"ok": True, "liste": liste}
+
     def schnellvideo_vorschlag(self, path: str) -> dict:
         """Name, Datum, Region und Ausdehnung einer Tour + die zuletzt gewählten Optionen."""
         try:
@@ -14402,7 +14456,9 @@ class Api:
                     "linie": linie, "pois": pois, "profil": profil, "zahlen": zahlen,
                     "bbox": [min(lons), min(lats), max(lons), max(lats)],
                     "distance_km": round((st.distance_m or 0) / 1000, 2),
-                    "letzte": (_load_settings().get("schnellvideo_letzte") or {})}
+                    "letzte": (_load_settings().get("schnellvideo_letzte") or {}),
+                    # 11.10.2026 (Video-Assistent Schritt 8) — eigene Videostil-Vorlagen, gemeinsam mit dem Schnell-Video
+                    "eigene_vorlagen": (_load_settings().get("videostil_vorlagen") or [])}
         except Exception as e:
             log.error("schnellvideo_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
@@ -14738,6 +14794,19 @@ class Api:
             if n < 2:
                 return {"ok": True, "eintraege": []}
             pois = {q.get("pause"): q for q in (lb.get("punkte") or []) if q.get("pause") and q.get("name")}
+            zone = None
+            try:
+                from zoneinfo import ZoneInfo
+                zone = ZoneInfo(lb.get("zone")) if lb.get("zone") else None
+            except Exception:  # noqa: BLE001
+                zone = None
+
+            def _uhrzeit(t):
+                try:
+                    import datetime as _dt
+                    return _dt.datetime.fromtimestamp(float(t), zone).strftime("%H:%M") if t else ""
+                except Exception:  # noqa: BLE001
+                    return ""
             raus = []
             for e in lb.get("eintraege") or []:
                 if e.get("anzeige") == "ueberspringen" or e.get("von_idx") is None:
@@ -14761,8 +14830,28 @@ class Api:
                 la, lo = (q.get("lat"), q.get("lon")) if isinstance(q, dict) else (getattr(q, "lat", None), getattr(q, "lon", None))
                 raus.append({"art": "notiz" if notiz else "pause", "text": text, "icon": icon,
                              "von": round(vi / (n - 1), 6), "bis": round(bi / (n - 1), 6), "bei": round((vi + bi) / 2 / (n - 1), 6),
-                             "lat": la, "lon": lo, "dauer_s": float(e.get("dauer_s") or 0)})
-            return {"ok": True, "eintraege": raus}
+                             "lat": la, "lon": lo, "dauer_s": float(e.get("dauer_s") or 0),
+                             # 11.10.2026 (Video-Assistent „Die Geschichte“) — für die Auswahlliste: wann, welcher Tag, welcher Eintrag
+                             "id": e.get("id"), "tag": e.get("tag"), "zeit": _uhrzeit(e.get("t0"))})
+            hoch = lb.get("hoechster") or {}
+            hi = hoch.get("idx")
+            # 11.10.2026 (Video-Assistent „Texte“) — Kapitelanfänge: je Tag die erste Stelle auf der Strecke + Datum
+            kapitel = {}
+            for e in lb.get("eintraege") or []:
+                tg, vi = e.get("tag"), e.get("von_idx")
+                if tg is None or vi is None:
+                    continue
+                if tg not in kapitel or int(vi) < kapitel[tg]["idx"]:
+                    kapitel[tg] = {"idx": int(vi), "t": e.get("t0")}
+            datum = {}
+            for tg_ in lb.get("tage") or []:
+                if isinstance(tg_, dict) and tg_.get("nr") is not None:
+                    datum[tg_.get("nr")] = tg_.get("datum") or ""
+            kap_liste = [{"tag": k, "bei": round(v["idx"] / (n - 1), 6), "datum": datum.get(k, ""), "zeit": _uhrzeit(v["t"])}
+                         for k, v in sorted(kapitel.items(), key=lambda kv: kv[1]["idx"])]
+            return {"ok": True, "eintraege": raus, "tage": len(lb.get("tage") or []) or 1, "kapitel": kap_liste,
+                    "hoechster": ({"ele": hoch.get("ele"), "bei": round(int(hi) / (n - 1), 6), "lat": hoch.get("lat"), "lon": hoch.get("lon"),
+                                   "zeit": _uhrzeit(hoch.get("t")), "tag": hoch.get("tag")} if hi is not None and n > 1 else None)}
         except Exception as e:  # noqa: BLE001
             log.warning("schnellvideo_logbuch: %s", e)
             return {"ok": True, "eintraege": [], "hinweis": str(e)}
@@ -17550,6 +17639,35 @@ def _format_offset(seconds: float) -> str:
     return sign + " ".join(parts)
 
 
+def _start_html_ordner() -> Optional[Path]:
+    """11.10.2026 (Klicktest: App aus „GPS Studio Final“ auf der externen Platte → „Programmdatei fehlt … app.css“) —
+    WKWebView liest beim Laden einer file://-Seite nur auf DEM Laufwerk, auf dem die Seite liegt. Die Startseite lag im
+    System-Temp-Ordner (interne Platte), CSS/JS im App-Bündel: liegt die App auf einem anderen Laufwerk (externe Platte,
+    direkt aus dem DMG gestartet), lädt nichts. Dann den Temp-Ordner nehmen, den macOS für das Laufwerk der App vergibt;
+    None = kein beschreibbarer (DMG) → Seite direkt aus dem Bündel."""
+    std = Path(tempfile.gettempdir()) / "reisezoom_gps_html"
+    if sys.platform != "darwin":
+        return std
+    try:
+        if os.stat(UI_DIR).st_dev == os.stat(tempfile.gettempdir()).st_dev:
+            return std
+    except OSError:
+        return std
+    try:
+        from Foundation import NSFileManager, NSURL   # pyobjc kommt mit pywebview (Cocoa)
+        url, _err = NSFileManager.defaultManager().URLForDirectory_inDomain_appropriateForURL_create_error_(
+            99, 1, NSURL.fileURLWithPath_(str(UI_DIR)), True, None)   # NSItemReplacementDirectory, NSUserDomainMask
+        if url is not None:
+            ordner = Path(str(url.path())).parent / "reisezoom_gps_html"   # fester Ordner neben dem frisch vergebenen
+            ordner.mkdir(parents=True, exist_ok=True)
+            if os.stat(ordner).st_dev == os.stat(UI_DIR).st_dev and os.access(ordner, os.W_OK):
+                log.info("Startseite auf dem Laufwerk der App: %s", ordner)
+                return ordner
+    except Exception as e:  # noqa: BLE001 — dann eben direkt aus dem Bündel
+        log.info("Temp-Ordner auf dem Laufwerk der App nicht verfügbar: %s", e)
+    return None
+
+
 def _prepare_html_with_cache_busting() -> str:
     """
     WKWebView cached file:// CSS/JS aggressiv über App-Restarts hinweg.
@@ -17628,7 +17746,11 @@ def _prepare_html_with_cache_busting() -> str:
     # System-Temp-Ordners, der als Temp-Bereich gemerkt ist — so räumt das Tor nur dort
     # auf und nie im gemeinsamen Temp-Ordner. (Alte Dateien direkt im Temp-Ordner aus
     # früheren Fassungen räumt das Betriebssystem selbst weg.)
-    html_ordner = Path(tempfile.gettempdir()) / "reisezoom_gps_html"
+    html_ordner = _start_html_ordner()
+    if html_ordner is None:
+        # Schreibgeschütztes Laufwerk (App direkt aus dem DMG): die Seite aus dem Bündel laden — dort liegt alles daneben
+        log.info("Startseite direkt aus dem Bündel (Laufwerk ohne Temp-Ordner): %s", src_html)
+        return str(src_html)
     html_ordner.mkdir(parents=True, exist_ok=True)
     _ds.temp_ordner_merken(html_ordner)
     try:
@@ -18515,9 +18637,10 @@ def main() -> None:
         webview.start(func=_reset_start_hook, debug=debug, private_mode=False, menu=menu, localization=_lok)
     else:
         webview.start(debug=debug, private_mode=False)
-    # Cleanup beim Shutdown
+    # Cleanup beim Shutdown — nie die index.html im Bündel (Start direkt aus dem DMG, siehe _start_html_ordner)
     try:
-        _ds.loeschen(html_path, "start_html_beenden", art=_ds.ART_TEMP)
+        if Path(html_path).resolve() != (UI_DIR / "index.html").resolve():
+            _ds.loeschen(html_path, "start_html_beenden", art=_ds.ART_TEMP)
     except OSError:
         pass
     try:
@@ -18559,6 +18682,9 @@ for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage",
               "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum",
               "geotagger_tracks_fuer_fotos", "fotostopp_info",
               # 08.10.2026 — Touren und Medien verzahnen
+              # 11.10.2026 (Klicktest: sqlite3.InterfaceError in tour_medien_kurz) — tour_medien_zahlen lief ohne Sperre
+              # neben tour_medien_kurz auf derselben Verbindung; seine Fehler wurden still zu „0 Fotos“
+              "tour_medien_zahlen",
               "tour_medien_kurz", "tour_medien_kandidaten", "tour_medien_korrigieren", "medium_touren", "touren_an_tagen",
               # 09.10.2026 — Favoriten und Alben
               "fotos_favorit", "fotos_alben", "fotos_album_neu", "fotos_album_aendern", "fotos_album_inhalt"):

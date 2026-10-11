@@ -1329,8 +1329,22 @@ function uebersetzeMarkup(wurzel) {
  * rohe Key in der UI. Diese Signatur schaltet ~780 vorhandene Fallbacks
  * scharf, ohne die 11 Platzhalter-Aufrufe zu brechen.
  */
+/** Pace aus km/h: „5:23 min/km“ (11.10.2026, für Läufer). Unter ~1,5 km/h (Stehen, Pause) „—“ statt einer Riesenzahl. */
+function fmtPace(kmh) {
+  const v = Number(kmh);
+  if (!(v >= 1.5) || !isFinite(v)) return "—";
+  let sek = Math.round(3600 / v);
+  const m = Math.floor(sek / 60), s = sek - m * 60;
+  return m + ":" + String(s).padStart(2, "0") + " min/km";
+}
+window.fmtPace = fmtPace;
+
+// 11.10.2026 (Beta-Tester unter Windows zog Fotos hinein, nichts passierte) — unter Windows ist Hineinziehen abgeschaltet
+// (app.py: WebView2 AllowExternalDrop). Gibt es zu einem Text eine Fassung „<key>@win“, gilt dort diese.
+const _RZ_WIN = /Windows/i.test((typeof navigator !== "undefined" && navigator.userAgent) || "");
 function t(key, fallbackOrParams, maybeParams) {
   const store = _i18nStrings || {};
+  if (_RZ_WIN && store[key + "@win"]) key = key + "@win";
   const hasKey = Object.prototype.hasOwnProperty.call(store, key)
     && store[key] != null && store[key] !== "";
   let s, params;
@@ -3265,6 +3279,9 @@ window.createUndoController = function(opts) {
   return {
     push: pushSnap,
     undo, redo, reset, applyState,
+    // 11.10.2026 (Video-Assistent als schwebendes Fenster) — einen Stand anwenden OHNE ⌘Z-Schritt: jede Stufe wirkt
+    // sofort, der ganze Lauf wird am Ende EIN Schritt (applyState mit dem Ausgangsstand).
+    anwenden: (state) => { if (state != null) _runApply(state); },
     canUndo: () => undoStack.length > 0,
     canRedo: () => redoStack.length > 0,
     _stackSize: () => undoStack.length,

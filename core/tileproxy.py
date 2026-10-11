@@ -329,6 +329,70 @@ def cache_path(cache_dir: Path, url: str) -> Path:
 
 
 TERRARIUM_HOST = "elevation-tiles-prod/terrarium"
+# 11.10.2026 (Marc: „probier direkt aus“) — Höhen von Mapterhorn (freie amtliche Geländemodelle: Deutschland 1 m,
+# Alpenländer/Skandinavien/UK 0,5–2 m, Spanien 2 m, sonst 30 m) statt der AWS-Kacheln (meist 30–90 m, an Kachel-
+# grenzen Nähte). Gleiche Terrarium-Kodierung, aber 512 px WebP — wir schneiden aus der Kachel eine Stufe tiefer das
+# passende Viertel heraus und liefern es als 256er PNG: Stile, Kachelraster und Klemme bleiben unverändert.
+# Antwortet Mapterhorn nicht, kommt die AWS-Kachel. `RZ_TERRAIN=aws` erzwingt die alte Quelle (Vergleiche).
+# Nur das geklemmte Gelände: Meerestiefen (`terrain-aws-roh`, Seekarte) gibt es nur bei AWS.
+MAPTERHORN_URL = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp"
+
+
+def terrain_quelle() -> str:
+    return "aws" if os.environ.get("RZ_TERRAIN", "").strip().lower() == "aws" else "mapterhorn"
+
+
+def _mapterhorn_viertel(z: int, x: int, y: int, cache_dir, timeout: float) -> Optional[bytes]:
+    """256er Terrarium-PNG für z/x/y aus der 512er Mapterhorn-Kachel z-1 (oder None)."""
+    if z < 1:
+        return None
+    from io import BytesIO
+    from PIL import Image
+    from . import net
+    url = MAPTERHORN_URL.replace("{z}", str(z - 1)).replace("{x}", str(x // 2)).replace("{y}", str(y // 2))
+    cp = cache_path(Path(cache_dir), url) if cache_dir else None
+    roh = None
+    if cp is not None and cache_fresh(cp):
+        try:
+            roh = cp.read_bytes()
+        except OSError:
+            roh = None
+    if roh is None:
+        for _versuch in range(2):
+            try:
+                req = urllib.request.Request(url, headers=_UA)
+                with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
+                    roh = resp.read()
+                break
+            except Exception as e:  # noqa: BLE001
+                code = getattr(e, "code", None)
+                if code is not None and int(code) < 500:
+                    return None              # 404: hier keine Kachel → AWS
+                if _versuch == 1:
+                    _log.info("Mapterhorn z%d/%d/%d: %s", z - 1, x // 2, y // 2, e)
+                    return None
+                time.sleep(1.0)
+        with _fehl_lock:
+            _geladen["bytes"] += len(roh); _geladen["kacheln"] += 1
+        if cp is not None and len(roh) < 8_000_000:
+            try:
+                cp.parent.mkdir(parents=True, exist_ok=True)
+                tmp = cp.with_name(cp.name + f".{os.getpid()}.tmp")
+                tmp.write_bytes(roh)
+                _ds.ersetzen(tmp, cp, "kachel", art=_ds.ART_CACHE)
+            except OSError as e:
+                _log.debug("Zwischenspeicher: %s", e)
+    try:
+        im = Image.open(BytesIO(roh)).convert("RGB")
+        h = im.width // 2
+        q = im.crop(((x % 2) * h, (y % 2) * h, (x % 2) * h + h, (y % 2) * h + h))
+        if q.width != 256:
+            q = q.resize((256, 256), Image.NEAREST)   # Terrarium nie mitteln (Farbkanäle sind Stellen einer Zahl)
+        out = BytesIO(); q.save(out, format="PNG", compress_level=1)
+        return out.getvalue()
+    except Exception as e:  # noqa: BLE001
+        _log.info("Mapterhorn-Kachel unlesbar z%d/%d/%d: %s", z - 1, x // 2, y // 2, e)
+        return None
 CLAMP_KEY_SUFFIX = "#clamp0"     # eigener Schlüssel: alte, ungeklemmte Kacheln bleiben liegen
 
 
@@ -613,6 +677,9 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
         if region is None:
             return 404, "text/plain", b"unknown region"
         url = upstream_url(region, z, x, y, transparent)
+    mh = klemmen and terrain_quelle() == "mapterhorn"   # roh (Meerestiefen der Seekarte) bleibt AWS: Mapterhorn hat keine
+    if mh:
+        url = "mapterhorn:" + MAPTERHORN_URL.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
     if terrain:
         _suffix = CLAMP_KEY_SUFFIX if klemmen else ""   # geklemmt und roh liegen unter verschiedenen Schlüsseln
     else:
@@ -627,10 +694,23 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
             pass
     from . import net
     body = b""; ct = ""; fehler = None
+    if mh:
+        body = _mapterhorn_viertel(z, x, y, cache_dir, timeout) or b""
+        if body:
+            ct = "image/png"
+        else:   # keine Mapterhorn-Kachel → AWS (eigener Cache-Schlüssel wie bisher)
+            url = ms.TERRAIN["aws"]["tiles"][0].replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+            cp = cache_path(Path(cache_dir), url + _suffix) if cache_dir else None
+            if cp is not None and cache_fresh(cp):
+                try:
+                    raw = cp.read_bytes(); nl = raw.index(b"\n")
+                    return 200, raw[:nl].decode("ascii", "ignore") or "image/png", raw[nl + 1:]
+                except Exception:  # noqa: BLE001
+                    pass
     # 30.09.2026 (Marc, MacBook: der spanische Dienst antwortete bei vielen gleichzeitigen Anfragen mit 502 — zwei
     # Szene-Seiten × 16 Anfragen): höchstens region["max_parallel"] Abrufe zugleich, bei 5xx neuer Versuch nach 1 s / 2 s.
     _sem = _drossel(region)
-    for _versuch in range(3):                   # 04.09.2026: wiederholen — unter Last kippten einzelne Kacheln mit 502
+    for _versuch in range(0 if body else 3):    # 04.09.2026: wiederholen — unter Last kippten einzelne Kacheln mit 502
         try:
             if _sem is not None:
                 _sem.acquire()

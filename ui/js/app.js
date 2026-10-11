@@ -1541,6 +1541,7 @@ async function openAboutModal() {
               (${t("about.credits.positron", "Kartenstil „Positron“ von CARTO/OpenMapTiles als Vorlage der Kartenlooks, mitgeliefert")}) ·
             <a href="#" class="md-about-link" data-url="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — ODbL ·
             <a href="#" class="md-about-link" data-url="https://www.maptiler.com/copyright/">MapTiler</a> — MapTiler Cloud Terms (${t("about.credits.own_key", "eigener Schlüssel")}) ·
+            <a href="#" class="md-about-link" data-url="https://mapterhorn.com/attribution/">Mapterhorn</a> — ${t("about.credits.mapterhorn", "Geländehöhen aus amtlichen Geländemodellen, offene Lizenzen (CC BY 4.0, dl-de/by-2-0, Licence Ouverte u. a.)")} ·
             <a href="#" class="md-about-link" data-url="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> — Mapzen/Tilezen (SRTM, EU-DEM, 3DEP ${t("about.credits.etc", "u. a.")}) ·
             ${t("about.credits.orthos", "staatliche Orthofotos der Landesvermessungen (dl-de/by-2-0, CC BY 4.0 u. a.; Nennung im Bild)")}
           </li>

@@ -1229,3 +1229,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-gruppe-ueber .tl-gruppe-glyph + .tl-gruppe-sek { margin-left: -3px; padding-left: 0; border-radius: 0 3px 3px 0; }
 .tl-gruppe-ueber .tl-gruppe-glyph:has(+ .tl-gruppe-sek) { border-radius: 3px 0 0 3px; padding-right: 3px; }
 .timeline-lane[data-kind="tempo"].ist-gruppen .lane-icon { display: none; }
+
+/* 11.10.2026 — Knopf in der Kopfzeile einer Balken-Spur */
+.ov-kopf-knopf { margin-left: auto; border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 12px; padding: 0 4px; border-radius: 4px; }
+.ov-kopf-knopf:hover, .ov-kopf-knopf.an { opacity: 1; background: rgba(255,255,255,.08); }

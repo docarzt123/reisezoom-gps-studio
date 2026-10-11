@@ -1803,3 +1803,52 @@ canvas.foto-gross-bild { display: block; }
 .fb-zs-titel { font-size: 12px; margin: 8px 0 2px; }
 .fb-zs-seiten { flex-wrap: wrap; }
 .fb-zs-seiten .fb-stil { flex: 0 0 calc(25% - 4px); }
+
+/* ── 11.10.2026 — Tour-Seite: Reiter Übersicht | Logbuch, Logbuch-Ansicht (ui/js/logbuch_ansicht.js) ── */
+.ts-reiter { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border, #24303c); }
+.ts-reiter-knopf { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: none; border: 0;
+  border-bottom: 2px solid transparent; color: var(--text-muted, #93a1b0); font-size: 13px; cursor: pointer; }
+.ts-reiter-knopf.an { color: var(--accent, #2dd4bf); border-bottom-color: var(--accent, #2dd4bf); font-weight: 600; }
+.ts-mit-logbuch .ts-streifen { display: none; }
+.ts-mit-logbuch .ts-pin { display: none; }
+.ts-lb-pin { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; background: var(--c, #2dd4bf); color: #fff;
+  display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.45); padding: 0; }
+.ts-lb-pin.is-on { transform: scale(1.3); box-shadow: 0 0 0 4px rgba(45,212,191,.45), 0 2px 8px rgba(0,0,0,.5); z-index: 2; }
+.ts-logbuch-spalte { height: 100%; overflow: auto; }
+.ts-zum-logbuch { display: inline-flex; align-items: center; gap: 4px; margin: 10px 12px 0; }
+.lba { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.lba-titel { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.lba-unter { font-size: 12px; margin-top: -4px; }
+.lba-chips, .lba-tage { display: flex; flex-wrap: wrap; gap: 6px; }
+.lba-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); color: var(--text, #e6edf3); }
+.lba-tag { font-size: 12px; padding: 5px 10px; border-radius: 7px; background: transparent; border: 1px solid var(--border, #2a3340);
+  color: var(--text, #e6edf3); cursor: pointer; }
+.lba-tag.an { border-color: var(--accent, #2dd4bf); background: color-mix(in srgb, var(--accent, #2dd4bf) 18%, transparent); }
+.lba-tag-mehr { color: var(--text-muted, #93a1b0); }
+.lba-tagkopf { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-top: 4px; }
+.lba-tagkopf span { color: var(--text-muted, #93a1b0); font-size: 12px; }
+.lba-liste { display: flex; flex-direction: column; gap: 6px; }
+.lba-eintrag { display: flex; gap: 10px; align-items: flex-start; padding: 8px 8px 8px 10px; border-radius: 8px; cursor: pointer;
+  background: var(--panel-2, #18212b); border-left: 3px solid var(--c); }
+.lba-eintrag:hover { background: var(--panel-3, #1e2934); }
+.lba-eintrag.gewaehlt { outline: 2px solid var(--accent, #2dd4bf); outline-offset: -2px; }
+.lba-symbol { color: var(--c); flex: none; margin-top: 1px; }
+.lba-text { flex: 1; min-width: 0; }
+.lba-kopf { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.lba-kopf b { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; min-width: 0; }
+.lba-kopf > span, .lba-kopf time { flex: none; white-space: nowrap; }
+.lba-zeit { color: var(--text-muted, #93a1b0); font-size: 11.5px; white-space: nowrap; }
+.lba-meta { color: var(--text-muted, #93a1b0); font-size: 11.5px; margin-top: 2px; }
+.lba-badge { display: inline-block; font-size: 10.5px; padding: 0 6px; border-radius: 6px; background: rgba(255,255,255,.08); margin-left: 4px; }
+.lba-notiz { font-size: 12px; margin-top: 5px; padding-left: 8px; border-left: 2px solid rgba(255,255,255,.18); color: var(--text, #e6edf3); }
+.lba-mehr { background: none; border: 0; color: var(--text-muted, #93a1b0); cursor: pointer; padding: 2px; border-radius: 6px; }
+.lba-mehr:hover { background: rgba(255,255,255,.08); color: var(--text, #e6edf3); }
+.lba-leer, .lba-laedt { padding: 14px; color: var(--text-muted, #93a1b0); font-size: 13px; }
+.lba-rueck { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; padding: 6px 8px;
+  border-radius: 8px; background: color-mix(in srgb, var(--accent, #2dd4bf) 12%, transparent); }
+.lba-fuss { font-size: 11px; margin-top: 4px; }
+.lba-frage { width: 100%; }
+
+/* 11.10.2026 — Großansicht aus dem Video-Assistenten/Schnell-Video: über deren Fenster */
+.foto-gross.ganz-oben, .foto-gross.im-layout.ganz-oben { z-index: 4000; }

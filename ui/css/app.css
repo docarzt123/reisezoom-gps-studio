@@ -3865,3 +3865,76 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .rz-zs { display: inline-flex; align-items: center; vertical-align: -0.15em; line-height: 1; }
 .rz-zs .rz-i { vertical-align: baseline; }
 .rz-punkt { display: inline-block; width: 0.62em; height: 0.62em; border-radius: 50%; vertical-align: 0.05em; }
+
+/* 11.10.2026 — Video-Assistent als schwebendes Fenster über dem Animator */
+.va-fenster { position: fixed; top: 92px; right: 24px; width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 120px);
+  display: flex; flex-direction: column; z-index: 900; background: var(--panel, #161b22); color: var(--text, #e6edf3);
+  border: 1px solid var(--border, #2b3440); border-radius: 12px; box-shadow: 0 18px 48px rgba(0,0,0,.45); overflow: hidden; }
+.va-f-kopf { display: flex; align-items: center; gap: 6px; padding: 9px 10px 9px 14px; cursor: move; user-select: none;
+  border-bottom: 1px solid var(--border, #2b3440); background: var(--panel-2, #1c232c); }
+.va-f-titel { font-size: 13.5px; }
+.va-f-luecke { flex: 1; }
+.va-f-knopf { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px;
+  border: 0; background: transparent; color: inherit; cursor: pointer; }
+.va-f-knopf:hover { background: rgba(255,255,255,.08); }
+.va-f-rumpf { overflow: auto; padding: 12px 14px; flex: 1; }
+.va-f-fuss { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 12px; border-top: 1px solid var(--border, #2b3440); }
+.va-f-fuss .btn { padding: 6px 10px; font-size: 12.5px; }
+.va-fenster.va-zu .va-f-rumpf, .va-fenster.va-zu .va-f-fuss { display: none; }
+/* der Animator dahinter IST die Vorschau — die kleine Karte im Fenster entfällt */
+.va-fenster .sv-vorschau { display: none; }
+.va-leuchtet > .section-collapse-header, .va-leuchtet:not(:has(.section-collapse-header)) { box-shadow: 0 0 0 2px var(--accent, #48d6c4) inset;
+  animation: va-puls 1.2s ease-in-out 2; border-radius: 8px; }
+@keyframes va-puls { 50% { box-shadow: 0 0 0 4px var(--accent, #48d6c4) inset; } }
+.va-hier { margin-left: 8px; font-size: 11px; color: var(--accent, #48d6c4); font-weight: 600; }
+
+/* 11.10.2026 — Video-Assistent „Die Geschichte“ */
+.va-lead { margin: 2px 0 8px; font-size: 13px; }
+.va-g-liste { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow: auto; }
+.va-g-zeile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border, #2b3440); cursor: pointer; }
+.va-g-zeile:hover { background: rgba(255,255,255,.04); }
+.va-g-ic { display: inline-flex; color: var(--accent, #48d6c4); }
+.va-g-text { display: flex; flex-direction: column; min-width: 0; }
+.va-g-text b { font-size: 13px; font-weight: 600; }
+.va-g-text small { font-size: 11.5px; color: var(--text-muted, #93a1b0); }
+.va-g-kapitel { font-size: 12px; margin-top: 8px; }
+.va-g-zeile.va-g-aus { opacity: .55; cursor: default; }
+.va-g-tag { border: 1px solid var(--border, #2b3440); border-radius: 8px; padding: 2px 6px; }
+.va-g-tag > summary { cursor: pointer; font-size: 12.5px; padding: 5px 2px; color: var(--text-muted, #93a1b0); }
+.va-g-tag[open] > summary { color: inherit; }
+.va-g-tag .va-g-zeile { margin-bottom: 4px; }
+.va-k-zeile { justify-content: space-between; cursor: default; }
+.va-f-status { font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; }
+.va-f-status[hidden] { display: none; }
+/* 11.10.2026 — Assistent, Fotos: was ins Video kommt und warum */
+.sv-foto { position: relative; }
+.sv-foto.va-im-video { outline: 2px solid var(--accent, #48d6c4); outline-offset: -2px; }
+.va-foto-grund { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9.5px; line-height: 1.2; padding: 2px 3px; background: rgba(0,0,0,.65); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-eigene { display: contents; }
+.sv-vorlage-eigen .sv-vl-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-vorlage-sp { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border, #2b3440); }
+/* 11.10.2026 — Musik im Assistenten: Liste mit Probehören */
+.va-musik-liste { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 220px; overflow-y: auto; }
+.va-mu-zeile { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12.5px; border: 1px solid transparent; }
+.va-mu-zeile:hover { background: var(--bg-hover, rgba(255,255,255,.05)); }
+.va-mu-zeile.is-on { border-color: var(--accent, #4fd1c5); background: rgba(79, 209, 197, .08); }
+.va-mu-play { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border, #2b3440); background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.va-mu-play:hover { border-color: var(--accent, #4fd1c5); }
+#va-fenster #sv-musik, #va-fenster #sv-musik-hoeren { display: none; }
+/* 11.10.2026 — Fotos im Schnell-Video/Assistenten: Großansicht-Ecke und „Alle Medien der Tour“ */
+.sv-foto-gross { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.6); color: #fff; opacity: 0; transition: opacity .12s; }
+.sv-foto:hover .sv-foto-gross, .sv-foto:focus-visible .sv-foto-gross { opacity: 1; }
+.sv-foto-gross:hover { background: var(--accent, #4fd1c5); color: #0b0d10; }
+.sv-alle { margin-top: 8px; padding: 8px; border: 1px solid var(--border, #2b3440); border-radius: 8px; }
+.sv-alle-info { font-size: 11px; margin-bottom: 6px; }
+.sv-alle-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; max-height: 260px; overflow-y: auto; }
+.sv-alle-bild { width: auto; aspect-ratio: 4 / 3; height: auto; }
+.sv-alle-bild:not(.is-on) img { opacity: .55; }
+.sv-alle-haken { position: absolute; left: 2px; bottom: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent, #4fd1c5); color: #0b0d10;
+  display: inline-flex; align-items: center; justify-content: center; }
+[data-sv-alle].is-on { border-color: var(--accent, #4fd1c5); }
+.sv-eigen-zeile { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.sv-eigen-zeile[hidden] { display: none; }
+.sv-eigen-zeile input { width: 90px; }
+#va-zweck .sv-eigene { display: contents; }

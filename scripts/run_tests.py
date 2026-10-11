@@ -84,6 +84,13 @@ FARBE_AUS = "\033[0m"
 
 ZEITLIMIT_S = int(os.environ.get("RZ_TEST_ZEITLIMIT_S", "1800"))   # je Testdatei
 
+# 11.10.2026 (Marc: „alles auf der externen Platte machen“) — auf dem Mac mini legen die Tests ihre Kopien auf der externen
+# Platte an statt im System-Temp der kleinen Systemplatte. Die Testdateien erben TMPDIR (tempfile folgt ihm).
+_EXT_TEMP = Path("/Volumes/MacMini 2TB Acasis/_tmp/gps-studio-tests")
+if _EXT_TEMP.parent.parent.is_dir() and not os.environ.get("TMPDIR", "").startswith("/Volumes/"):
+    _EXT_TEMP.mkdir(parents=True, exist_ok=True)
+    os.environ["TMPDIR"] = str(_EXT_TEMP) + "/"
+
 
 def netz_da() -> bool:
     import socket

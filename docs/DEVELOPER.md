@@ -6828,6 +6828,15 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   (ease_in_out), pb, p1 (ease_in_out), Drehungs-Schwenk bei ¼ und ¾. Orbit: Drehung pa → pb (+12°/s), danach in 1,5 s zurück.
   Ohne Keyframe-Editor kommen Fest/Folgen aus `_basisKeyframes()` (konstanter Satz). Die Zusätze im Bildaufbau, beim Ziehen
   und im Faith-Pfad (`_fsKamera`, Orbit, `_mcRun`) sind weg; `_haltSchluessel()` gehört zum Merk-Schlüssel.
+  **Kamera „Fest“ (11.10.2026):** Die Basis hat dort keine Mitte (`center: null`). Die Heranfahrt knüpft dann an die
+  Gesamtsicht an (`fitKameraGesamt().center`, `mitteOhneBasis`), und sobald ein Stopp Mitte-Keyframes hat, bekommen auch
+  die leeren Basis-Mitten die Gesamtsicht — sonst entstand zwischen „keine Mitte“ und Heranfahrt eine dritte Ansicht.
+  Bei „folgt Track“ bleibt `null` (= dem Laufpunkt folgen). Test: `tests/test_fotostopp_kamera_fest.py`.
+- **Stationsschilder (11.10.2026):** `wps[i].schild === false` lässt das Schild einer Station weg (Auge `.et-schild` im
+  Etappen-Editor). Start der Haupt-Etappe `before: 0`, Ziel `after: 0.05` — sie ragen nicht ins Intro (Titel) und nicht
+  ins Halten (Schlusskarte). Test: `tests/test_etappe_ohne_gps.py` (C, E).
+- **Fotostopp-Bühne:** das `<img>` wird erst mit Quelle eingehängt (leeres `src` = die Seite selbst; Bild-Erfassungen,
+  die jede Ebene einzeln lesen, brechen daran ab).
 - **Touren-Spur oben (07.10.2026, Kamera-Basis Schritt 3):** timeline.js baut die Tempo-Spur in einen eigenen Behälter
   `#tl-touren` (Klasse `timeline-lanes timeline-touren`) über `#tl-ov`; die Gruppen-Zeilen hängen darunter
   (`_gruppenZeilenSicherstellen` nimmt `tempoLane.parentElement`). Ohne Keyframe-Editor wird der Keyframe-Behälter
@@ -6852,6 +6861,18 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
     `.ts-links` über `#lib-panel`; `renderDetail` im Archiv hält sich zurück, solange sie offen ist), `ui/js/exportarchiv.js`
     (`window.rzArchivExport.touren/medien` — **nicht** `rzExportDialog`, so heißt der Video-Export-Dialog), `rzFotos.detailFuer/gross/zeigeTouren` (fotos.js), Großansicht mit
     `.foto-gross-streifen` und `.foto-gross-seite` (Karte über `createMap`), Raster-Mehrfachauswahl (`markiert`).
+
+  - **Logbuch-Reiter (11.10.2026):** gemeinsame Komponente `ui/js/logbuch_ansicht.js` (`window.rzLogbuchAnsicht.zeichnen(box,
+    {path, onWahl, onDaten, onTag})` → `{waehlen, neuLaden, daten, tagEintraege, titel, tag}`; CSS-Präfix `lba-` in
+    `modules/library/ui/module.css`). Liest `logbuch_lesen` (Einträge/Punkte tragen jetzt `pos`, Einträge zusätzlich
+    `pos_von`/`pos_bis` — `_logbuch_antwort`), Ortsnamen über `logbuch_orte`, ändert über `einteilung_aktion`
+    (`aendern`, `zusammenlegen`), Rückgängig über `einteilung_stand_setzen` mit dem vorher gelesenen `stand`. „⋯“ nur an
+    Einträgen mit `bids` (der Tagesstart ist abgeleitet). `tourseite.js`: Reiter `.ts-reiter` (nicht bei Reisen),
+    `_reiterSetzen`, Pins `.ts-lb-pin` (`_lbPinsSetzen`), `_lbZeigen` (fitBounds/flyTo); `.ts-mit-logbuch` blendet
+    Streifen und Medien-Pins aus. Gedacht auch für den Video-Assistenten und den Inspektor. Test:
+    `tests/test_tourseite_logbuch.py`. Seit dem Abend des 11.10.2026 steht das Logbuch auch bei „Übersicht“ rechts
+    (`_logbuchSpalte`: die Ansicht wird einmal gebaut — `Z.lbBox` — und nur wieder eingehängt); `waehlen()` setzt nach
+    `rzFotos.detailFuer` den Knopf `.ts-zum-logbuch` davor.
   - **Stufe 2:** `tour_aus_fotos(pfade, profil, name)` (Fotos mit Ort nach Zeit; `croute.route_geometry` für
     walking/cycling/driving, Zeit linear über die Weglänge; GPX in `APP_SUPPORT/import`, Ordner beobachtet, nie
     überschreiben), `touren_an_tagen(tage)` (Tag in Ortszeit der Fotos, Touren mit Überlappung) für die Tagesköpfe,
@@ -7088,3 +7109,231 @@ mit dem Ausdrucks-Index `idx_fotos_zeit_sort`; „ohne Aufnahmezeit“ (Filter `
 `aufnahme_utc IS NULL AND zeit_ordner IS NULL`. Bestehende Bibliotheken bekommen die Spalte in `schema_anlegen` und
 einmal das Nachtragen für alle gelesenen Dateien ohne Datum. `_behalten` (Doppelte) bevorzugt nach der Auflösung die
 Fassung in einem Datums-Ordner. Test: `tests/test_datums_ordner.py`.
+
+## Arbeitsdaten auf der externen Platte (11.10.2026)
+
+Auf dem Mac mini ist die Systemplatte nur für installierte Programme da. Deshalb:
+- `scripts/nachtlauf.py`: Kopie, Zustand, Log und Test-Temp unter `/Volumes/MacMini 2TB Acasis/GPS-Studio-Nachtlauf`
+  (`repo/`, `zustand.json`, `launchd.log`, `tmp/`); die Suite läuft mit `TMPDIR=…/tmp/`, Reste älter als 6 h werden
+  vor jedem Lauf geleert. Nach Pfadänderungen `nachtlauf.py --einrichten` (schreibt den launchd-Auftrag neu).
+- `scripts/run_tests.py`: setzt `TMPDIR=/Volumes/MacMini 2TB Acasis/_tmp/gps-studio-tests/`, wenn die Platte da ist
+  und TMPDIR nicht schon extern zeigt (andere Rechner: unverändert).
+- `scripts/deploy_release.sh`: Downloads nach `/Volumes/MacMini 2TB Acasis/GPS-Studio-Deploy/`, die letzten zwei bleiben.
+- Testbibliothek: `~/GPS-Studio-Test` ist ein Link auf `/Volumes/MacMini 2TB Acasis/GPS-Studio-Test`.
+
+## Fotostopp-Look (11.10.2026)
+
+`modules/animator/ui/module.js`: `stopp_look` je Foto-Schild — `foto` (große Bühne `#anim-fotostopp` + Foto-Pin, wie bisher),
+`schild` (das Schild wird normal gezeichnet; während des Halts steht der Anker still, das Schild bleibt sichtbar; kein Pin,
+keine Bühne) oder `eigen` (`stopp_stil` = Felder aus `FS_STIL_FELDER`). Ohne Angabe entscheidet `_fsLook`: Sofortbild und
+schlichtes Callout → `foto`, sonst `schild`. Nur `foto` wird aus der Schilder-Ebene gefiltert (`_fsErsetzt`).
+„eigen“: Die GPU-Ebene bekommt je Schild eine Halt-Fassung (Feature-id `ANIM_HALT_ID + i`, gleiche `signIdx` → gleiches
+Sichtbarkeitsfenster, `op0: 0` → ohne Zustand unsichtbar). `_fotostoppZeigen` setzt `_fsUeberAkt = {i, p}`;
+`_animHaltUeberAnwenden` (nach `__rzSignFrame`) blendet Unterwegs (1−p) und Halt (p) über die Feature-States. Editor:
+Auswahl `se-stopp-look`, Reiter `[data-se-halt]` (baut den Editor mit `{ halt, neu }` neu auf); auf „Beim Halt“ schreibt
+`apply()` die Form-Felder in `stopp_stil`. Test: `tests/test_fotostopp_look.py`.
+
+`ui/js/util.js` `t()`: unter Windows gilt `<key>@win`, falls vorhanden (Zieh-Hinweise; Hineinziehen ist dort per
+`AllowExternalDrop=False` aus).
+
+## Pace (11.10.2026)
+
+`ui/js/util.js` `fmtPace(kmh)` → „m:ss min/km“, unter 1,5 km/h „—“. `app.py` `animator_load_gpx` liefert
+`stats.activity` (Archiv, `_aktivitaet_fuer`). `modules/animator/ui/module.js`: Felder `pace` (live, ±4 Punkte gemittelt,
+`_ovPaceTempo`), `avg_pace`, `avg_pace_total`, `best_pace`; Projekt-Einstellung `animator.tempo_als` („auto“ = Pace bei
+`activity === "laufen"`, „kmh“, „pace“) schaltet die Tempo-Felder (`_OV_TEMPO_ZU_PACE`, `_ovTempo`, Beschriftung in
+`_ovFieldLabel`). Prüfstand `window.__rzTempo`. Test: `tests/test_pace.py`; `test_wysiwyg_stats` stubbt die Pace-Helfer.
+
+## Linie exakt, Ecken behalten (11.10.2026)
+
+`spur_glaetten_m` glättet die Linie nicht mehr (`_spurAnwenden` nur Punkte-Regler; `core/animator.py` `_punkte_verteilen`
+ohne Glättung). Es wirkt als σ/2-Untergrenze der Pfeilrichtung (`_kursAn`) und als Mindest-Glättung der Kamerabahn
+(`_kameraBahn`, max mit `camera_follow_glatt_m`). Regler sichtbar im Track-Panel (`[data-spur-glatt]` bedient das
+unsichtbare `#anim-spur-glatt`). `core/gpx.py` `downsample_ecken`: gleiche Anzahl/Reihenfolge wie `downsample`, je
+Abschnitt (±½ Schritt) der Punkt mit der größten Abweichung von der Sehne (ab 4 m) — genutzt in `animator_load_gpx`.
+Test: `tests/test_linie_ecken.py`.
+
+## Linien-Look und Schweif (11.10.2026)
+- Felder `#anim-linien-look` (klassisch | glut | neon → `linien_look`) und `#anim-schweif` (0–15 % → `schweif_pct`),
+  bedient im Aussehen-Panel der Haupt-Tour (`[data-linien-look]`, `[data-schweif]`). `LINIEN_LOOKS` hält Farbe,
+  Mindest-Glow, Lichthof-Deckkraft/-Breite und Kern-Deckkraft.
+- Ebenen auf `preview-track`: `preview-halo` (unter Kontur/Linie, breit + weich) und `preview-kern` (über der Linie,
+  ~40 % Breite, fast weiß). `applyLinienLook()` setzt Sichtbarkeit und Werte; `currentGlowStrength()` hebt den Glow
+  auf `glowMin`, `currentKonturBreite()` ist bei Glut/Neon 0. Lücken-Masken: Lichthof wie Glow, Kern über
+  `_kernMaske()` in Weiß, nie der Farbverlauf.
+- Schweif: eigene Quelle `preview-schweif` (lineMetrics) mit `preview-schweif-glow` und `preview-schweif` (line-gradient
+  von durchsichtig zum hellen Kopf). `_schweifVerdrahten()` hängt sich wie der Flugmodus an `setData` von
+  `preview-track` — jeder Weg, der die Linie wachsen lässt (Ziehen, Probelauf, Szene-Render), zieht den Schweif nach.
+  Länge = Prozent der Gesamtlänge, vom Kopf rückwärts; bei „ganzen Track zeigen“ in Ruhe leer. Prüfstand:
+  `window.__rzSchweif()`. Test: `tests/test_linien_look.py` (inkl. Szene-Render).
+- Nur die Haupt-Tour; weitere Touren/Schwarm-Linien behalten ihren Stil.
+
+## Geländehöhen von Mapterhorn (11.10.2026)
+- `core/tileproxy.py`: `terrain-aws` (geklemmt) holt die Höhen von `tiles.mapterhorn.com` (Terrarium, 512 px WebP):
+  `_mapterhorn_viertel()` lädt die Kachel eine Stufe tiefer und schneidet das passende Viertel als 256er PNG heraus
+  (NEAREST, Terrarium nie mitteln) — Stile und Kachelraster bleiben unverändert. Kein Mapterhorn (404/Netz) → AWS.
+  `terrain-aws-roh` (Meerestiefen der Seekarte) bleibt AWS: Mapterhorn hat keine Tiefen. `RZ_TERRAIN=aws` erzwingt
+  die alte Quelle (Vergleiche). Quellenregister-Eintrag `terrain` und Über-Fenster nennen beide.
+
+## Farblook und Vignette (11.10.2026)
+- Felder `#anim-farblook` (`farblook`: aus | kino | goldene_stunde | noir | lebendig | matt | sonnig | glut | terrakotta |
+  vertraeumt | silhouette), `#anim-farblook-staerke` (`farblook_staerke`, 0–1,5) und `#anim-vignette` (`vignette`).
+- `_farblookAnwenden()`: SVG-Filter `#rz-farblook` (color-interpolation-filters sRGB) als CSS-`filter` auf
+  `map.getCanvas()` — je Kanal `feFuncX type=gamma` (amplitude = Gain × Temperatur/Tönung × (1 − Lift), exponent =
+  1/Gamma, offset = Lift), danach `type=linear` (Kontrast um 0,5) und `feColorMatrix saturate`. Die Szene macht
+  Seiten-Screenshots → der Filter wirkt im Video; Einblendungen liegen außerhalb der Leinwand. Vignette = `.rz-vignette`
+  (radialer Verlauf) im Karten-Container. Stärke mischt linear zwischen neutral und Vorlage.
+- **Startreihenfolge:** `bindSetting(…, onLoad)` läuft beim Binden — vor den Konstanten weiter unten. Darum `_spaeter()`
+  (setTimeout 0) für die Look-/Farblook-onLoads und `var` für `LINIEN_LOOKS`/`FARBLOOKS` (Kontur/Glow fragen schon beim
+  Start). Ohne das brach der Szene-Render mit „Cannot access … before initialization“ ab.
+- Test: `tests/test_linien_look.py` F (Filter, Vignette, Noir im Video schwarz-weiß).
+
+## Farbe je Tag (11.10.2026)
+- Feld `#anim-farbe-je-tag` (`farbe_je_tag`), Schalter im Aussehen-Panel nur, wenn `_tagesStarts()` Grenzen findet.
+- `_tagesStarts()`: Indizes, an denen der Kalendertag wechselt — aus `_ovSeries.epochS` + `tz_offset_min` (Ortszeit der
+  Tour), gemerkt je Reihe. `_tagesFarbenExpr(i0, i1)`: `line-gradient` mit harten Wechseln (±1e-6) über die geometrische
+  Kumulativlänge `_cumGeoM`; Tag 1 = Track-Farbe, dann `TAGES_PALETTEN[look]`. Eingehängt im „kein Verlauf“-Zweig von
+  `applyPreviewColorGradient` nur ohne `_segStarts` (Etappen-/Logbuch-Masken haben Vorrang); gilt für Linie, Glow und
+  Lichthof. Prüfstand `window.__rzTagesFarben()`. Test: `tests/test_farbe_je_tag.py` (inkl. Video).
+
+## Editorial-Einblendung und Feld „Tag“ (11.10.2026)
+- `ui/js/container.js` `VORLAGEN.editorial` (Stil „frei“, links oben, Plex, Beschriftung oben, Zeilen dist_done · ele_now ·
+  day_no); im Animator in `#ct-neu` (nicht im Standbild).
+- Live-Feld `day_no` (req time): 1 + Anzahl der `_tagesStarts()` ≤ i. Nur auf der Seite berechnet (der Katalog in
+  core/animator.py führt die neueren Felder nicht mehr).
+- Look-Wechsel im Panel: setzt Linien-, Geister- (`anim-ghost-color`) und Container-Linienfarben (Übersichtskarte,
+  Höhenprofil mit eigener `linienfarbe`) in einem Zug.
+
+## Video-Assistent als schwebendes Fenster (11.10.2026, Schritt 2)
+- `ui/js/schnellvideo.js`: im Assistenten-Modus (`opts.assistent`) baut `vaFenster()` statt `openModal` ein
+  `#va-fenster` (gleiche Schnittstelle `body`/`close`, dazu `onX`); Lage/eingeklappt in `localStorage["rz.va.lage"]`.
+- Live: `zeigen()` ruft `vaLive()` (450 ms entprellt) → `uebernehmen("live")` schreibt über `schnellvideo_uebernehmen`
+  und wendet mit `ctrl.anwenden()` an (Undo-Controller, util.js: anwenden OHNE Stapel-Eintrag). Der erste `vorher`
+  wird `ausgang`. „Fertig“ = `uebernehmen("fertig")` → `ctrl.applyState(nachher, "Video-Assistent", ausgang)` = genau
+  ein ⌘Z-Schritt. „Abbrechen“/✕ = `vaAbbrechen()` → `ctrl.anwenden(ausgang)`. Keyframe-Frage nur einmal je Lauf.
+- `vaLeuchten(seite)`: Stufe → Abschnitt der Seitenleiste (`VA_BEREICH`), Klasse `.va-leuchtet` + „Das findest du
+  später hier“ für 2,6 s. Die kleine Vorschau-Karte ist im Fenster ausgeblendet (der Animator dahinter ist die Vorschau).
+- Test: `tests/test_videoassistent_ui.py` (live ohne ⌘Z-Schritt, Fertig = ein Schritt, Abbrechen, Einklappen, Leuchten).
+
+## Video-Assistent Stufe „Die Geschichte“ (11.10.2026, Schritt 3)
+- Reihenfolge der Seiten (`data-va`): 1 Titel · 2 Was für ein Video · **3 Geschichte** · 4 Fotos · 5 Karte · 6 Einblendungen ·
+  7 Kamera · 8 Schluss & Musik · 9 Fertig. `VA_BEREICH` entsprechend.
+- `schnellvideo_logbuch` liefert je Eintrag zusätzlich `id`, `tag`, `zeit` (Ortszeit), dazu `tage` und `hoechster`.
+- `vaGeschichte()` (schnellvideo.js): Liste `#va-g-liste`, Auswahl in `w.lbWahl` (Set der Indizes in `w.lb`), Vorauswahl
+  nach Länge (kurz 2 · normal 4 · lang 7; Übernachtungen, Notizen, längste Pausen); „hoch“ schaltet `#sv-highlights`.
+  Momente innerhalb ±0,05 eines Regie-Höhepunkts (`v.regie`) sind bei eingeschalteten Highlights gesperrt (`.va-g-aus`).
+- `logbuchAnwenden(…, gewaehlt)`: mit Auswahl ohne Mindestdauer und ohne Obergrenze 3. Schnell-Video unverändert.
+- Test: `tests/test_videoassistent_ui.py` (Liste, Vorauswahl, gesperrte Momente, Abwahl → kein Schild).
+
+## Video-Assistent Stufe „Halte“ und ⏸ an der Schilder-Spur (11.10.2026)
+- Stufen jetzt 10 (`LETZTE = NAMEN.length - 1`, „Schritt {n} von {m}“): … 4 Fotos · **5 Halte** · 6 Karte · 7 Einblendungen ·
+  8 Kamera · 9 Schluss & Musik · 10 Fertig.
+- `vaHalte()` + `halteAn()` (Vorgabe: Foto-Art „gross“ → an; `w.halteAlle` überschreibt), `HALT_FAKTOR` kurz 0,6 · normal 1 ·
+  lang 1,7 auf `stopp_s`; `w.fotoPause` = heranfahren. In `schilderJetzt()` (nur Assistent): aus → `stopp:false`; an → auch
+  Sofortbilder halten (`stopp_look: "schild"`). „Bild im Bild“ (pip) hat keine Foto-Schilder → Schalter gesperrt.
+- timeline.js `_balkenGruppe({ kopfKnopf: {html, tip}, rc: {knopf} })`: Knopf im Spurkopf; Schilder-Spur → `onSchilderHaltAlle`
+  → `window.__rzFotoHalteAlle(soll?)` (Foto-Schilder ohne Clips, ein ⌘Z-Schritt über `sg.speichern(liste, label)`).
+- Test: `tests/test_videoassistent_halte.py` (Masca, 8 Fotos: Landschaft/Erinnerung/Social, ⏸ + ⌘Z).
+
+## Video-Assistent Stufe „Kamera“ (11.10.2026, Schritt 5)
+- `kamerafahrt(bbox, animS, regie, opt)`: `opt` nur aus dem Assistenten (`w.kamOpt`): `lebendig` 0…1 (0,5 = bisher;
+  zNah ± 0,6 Stufen, Neigung 33…57°) und `momente` [{bei, bewegung}] → `momentShots()` statt `gipfelShot()`
+  (panorama = Gipfel-Shot, nah = +0,9 Stufen und +10°, ruhig = nichts; zu nahe Momente entfallen).
+- `kamMomente()` aus Höhepunkt (`v.regie` hoechster, wenn Highlights an) + `w.lbWahl`; Vorgabe Gipfel → panorama,
+  Übernachtung → ruhig, sonst nah; `w.kamBew[key]` überschreibt („andere Bewegung“). `kamOptSetzen()` vor jedem Schreiben.
+- Test: `tests/test_videoassistent_kamera.py`.
+
+## Video-Assistent Stufe „Texte“ und Live-Schreiben ohne Sperre (11.10.2026, Schritt 6)
+- Reihenfolge: 1 Was für ein Video · 2 Geschichte · 3 Fotos · 4 Halte · 5 Kamera · 6 Texte (Titel/Unterzeile) · 7 Karte ·
+  8 Einblendungen · 9 Schluss & Musik · 10 Fertig.
+- `schnellvideo_logbuch` liefert `kapitel` [{tag, bei, datum, zeit}] (erste Stelle je Tag). `kapitelTitel()`: bei „normal“/„viele“
+  und Reisen je Tag ein Titel-Container (`zeit.von/bis` Art „strecke“, 2,5 s), Abstand ≥ 3,5 s Animation; Tag 1 trägt der
+  Haupttitel. „wenige“: keine Unterzeile, keine Foto-Unterschrift; „viele“: `stopp_exif`.
+- **Falle:** `rzWarten` legt eine Eingabesperre über die App (`_eingabeSperre`). Das Live-Schreiben des Assistenten läuft
+  deshalb direkt über die Brücke (`// warte-ok`, Spinner `.va-f-status` im Fensterkopf) — sonst verpufften Klicks auf
+  „Weiter“. „Fertig“ nutzt weiter `rzWarten`. Test `test_videoassistent_ui.py` prüft „kein Klick ging verloren“.
+
+## Video-Assistent Stufe „Fotos“ (11.10.2026, Schritt 7)
+- `stoppsWaehlen(…, opt)` / `fotosOhneHalt(…, opt)`: `opt.faktor` (Budget bzw. Höchstzahl × Faktor; Assistent 0,4…1,6 aus
+  `w.fotoMenge`, 0,5 → 1) und `opt.kapitel` (Tagesanfänge) → `kapitelZuerst()` nimmt je Kapitel zuerst das beste Foto.
+  Schnell-Video ohne `opt` unverändert. `fotoOpt()` nur im Assistenten.
+- Anzeige: `.va-im-video` + `.va-foto-grund` (erster Grund aus `grundText`), Satz `#va-f-lead` „n von m“.
+- Tests: `test_videoassistent_halte.py` (F: Masca, 2/5/8 Fotos), `test_videoassistent_geschichte.py` (E: je Kapitel).
+
+## Video-Assistent: eigene Vorlagen (11.10.2026, Schritt 8)
+- app.py `videostil_vorlage_speichern(name, stil)` → Einstellung `videostil_vorlagen` (Liste `{id, name, stil}`, max. 30;
+  gleicher Name ohne Groß/klein ersetzt, `id` bleibt); `stil` nur mit erlaubten Schlüsseln (vorlage, format, laenge, eigen_s,
+  look, zahlen, profil, uebersicht, felder, musik, kamera, kam_leb, halte_dauer, halte_alle, text_menge, foto_menge,
+  schluss_an, foto_art, highlights, gebaeude). `videostil_vorlage_loeschen(id)`. `schnellvideo_vorschlag` liefert
+  `eigene_vorlagen`.
+- schnellvideo.js: `#sv-eigene` in `#sv-vorlagen` (Knöpfe `[data-sv-eigen]`, gilt für Assistent und Schnell-Video);
+  `stilJetzt()` sammelt den Stil (nach `werteLesen()`), `eigeneSetzen(id)` = eingebaute Vorlage + Knöpfe/Schalter/Regler
+  setzen (unter `vlSetzt`, zählt nicht als „angepasst“), danach `vorschau.stil()` und im Assistenten `vaLive()`.
+  `w.eigeneVorlage` steuert die Markierung in `vlStand()`. Speichern: letzte Stufe `#va-vorlage-name` +
+  `#va-vorlage-speichern`; Löschen per `contextmenu` + `rzConfirm`.
+- Test: `tests/test_videoassistent_vorlagen.py`.
+
+## GPX-Inspektor nimmt Symbole und Titel aus dem Logbuch-Baustein (11.10.2026, Schritt 9)
+- `ui/js/logbuch_ansicht.js` exportiert zusätzlich `artName`, `titel(x, orte)` und `symbolHtml(art, px)` (rzIcon).
+- `modules/gpxinspect/ui/module.js`: `_lbSym(art)`, `_lbPSym(p)` (eigenes Symbol escaped, sonst Strich-Symbol), `_lbTitel(x)`
+  (Titel mit `_lbOrte`, Format wie `logbuch_orte`). Ersetzt die Emojis aus `_LB_ICON` (bleibt nur als Rückfall, falls der
+  Baustein fehlt) in Liste, Kopf-Chips, Menüs, Tabelle, Info-Kasten und Kartenmarken (`neu()` setzt jetzt `innerHTML` —
+  Aufrufer liefern escaptes HTML). Schmale Blöcke im Zeitstrahl: `<g class="gpxi-lb-blsym">` mit dem SVG-Symbol statt Text.
+- Daten, Bearbeiten und Profi-Werkzeuge bleiben im Inspektor (er kann auch Dateien außerhalb des Archivs zeigen —
+  `logbuch_vorschau`), die Liste wird also nicht durch `zeichnen()` ersetzt.
+
+
+## Video-Assistent: Strich-Symbole und Kurztitel (11.10.2026, nach den Testvideos)
+- `vaIc(name, px)` (schnellvideo.js): Zweck-/Kamera-Karten und die Fertig-/Bericht-Liste tragen rzIcon-Namen statt Emojis.
+- Titel: `unhandlich(x)` (Emoji, „…“ oder > 40 Zeichen) zählt im Assistenten wie ein Dateiname → erster Vorschlag aus
+  `schnellvideo_titel_vorschlaege` wird übernommen; `kurzName(x)` (ohne Emojis und Klammern, bis zum ersten `:`/`|`/`+`/` - `,
+  höchstens 40 Zeichen) kommt als Chip dazu. Achtung: `EMOJI` hat `/g` (für replace) — zum Prüfen `EMOJI1` ohne `g`
+  (sonst merkt sich `.test()` den `lastIndex`).
+- Test: `tests/test_videoassistent_vorlagen.py` Abschnitt F.
+- Unterzeile: `datumText(v)` zeigt bei Reisen (> 36 h zwischen `start_epoch` und `end_epoch`) den Zeitraum; `ortKurz(ort)`
+  kürzt lange Ortslisten auf die Gegend (Teil nach dem letzten Komma, höchstens die letzten zwei „ · “-Teile, ≤ 40 Zeichen).
+  Gilt für Schnell-Video und Assistent.
+- `amRand(x, lbRand(w))`: Rand in Sekunden (erste 1 s, letzte 0,5 s der Fahrt, je mindestens 2 %) umgerechnet auf die Animationsdauer; Schilder kurz vor dem Ziel bekommen ein kürzeres `after` (endet 0,3 s vor dem Ende der Fahrt = Beginn der Schlusskarte). Logbuch-Momente am Start/Ziel werden in `logbuchAnwenden` nicht zu Schildern und sind in
+  `vaGeschichte` gesperrt (`sperrGrund`: Start → Titel, Ziel → Schlusskarte, sonst Höhepunkt). Test: test_videoassistent_geschichte.
+
+## Foto-Brücken: Sperre auch für tour_medien_zahlen (11.10.2026, Klicktest)
+- `tour_medien_zahlen` steht jetzt in der `_db_gesperrt`-Liste (app.py); `fotos_laufwerk_verbinden` (laufwerk_url),
+  `fotos_video_standbild` (zeile) und `_foto_nach_schreiben` (neu_lesen) nehmen `clib._DB_LOCK` um ihren Datenbank-Aufruf.
+  Ohne Sperre lasen zwei Fäden gleichzeitig auf der gemeinsamen Verbindung → `sqlite3.InterfaceError: bad parameter or
+  other API misuse`. Test: `tests/test_tour_medien_sperre.py` (8 Fäden; ohne Fix rot).
+
+## Startseite auf dem Laufwerk der App (11.10.2026, macOS)
+- WKWebView liest beim Laden einer file://-Seite (pywebview `loadRequest`) nur auf dem Laufwerk der Seite. Die Startseite
+  (`_prepare_html_with_cache_busting`, Kopie von ui/index.html mit `?v=`-Links) lag im System-Temp — lag das Bündel auf
+  einem anderen Laufwerk (externe Platte, direkt aus dem DMG), lud kein CSS/JS („Programmdatei fehlt“). Ebenso beim
+  Start mit `TMPDIR` auf einem anderen Laufwerk als das Bündel.
+- `_start_html_ordner()`: gleiches Laufwerk → `<tmp>/reisezoom_gps_html` wie bisher; sonst neben dem Ordner, den
+  `NSFileManager URLForDirectory(NSItemReplacementDirectory, appropriateForURL: UI_DIR)` auf dem Laufwerk der App
+  vergibt (`…/.TemporaryItems/…/reisezoom_gps_html`); kein beschreibbarer (DMG) → `None` → `ui/index.html` direkt
+  (relative Links gehen dort; beim Beenden wird sie nicht gelöscht). Windows/Linux unverändert.
+- Test: `tests/test_start_html_laufwerk.py` (braucht Repo und Temp auf verschiedenen Laufwerken für Fall B).
+
+## „Stil + Verhalten auf alle“ mit Fotostopp (11.10.2026, Bugreport)
+- `#se-apply-all` (module.js): ist das Ausgangsschild ein Foto (`imageSrc`, kein `clip`), gehen zusätzlich `STOPP_KEYS`
+  (stopp, stopp_s, stopp_look, stopp_stil, stopp_pin_s, stopp_anflug_s, stopp_abflug_s, stopp_kamera, stopp_zoom,
+  stopp_schwenk, stopp_ken, stopp_ortzeit, stopp_exif) auf alle anderen Foto-Schilder; `stopp_bei` (Stelle) bleibt.
+  Test: `tests/test_fotostopp_alle.py`.
+
+## Video-Assistent: Fotos groß, alle Medien, Musik-Liste, Live bei jedem Klick (11.10.2026, Marc-Punkte)
+- Fotos (schnellvideo.js): Kachel mit `.sv-foto-gross[data-sv-gross]` → `rzFotos.gross(pfad, liste, { oben: true })`
+  (fotos.js: Option `oben` = Klasse `.ganz-oben`, z-index 4000 über Assistent/Dialog). „Alle Medien der Tour“
+  (`[data-sv-alle]`, `#sv-alle`): `tour_medien(pfad)`, Vorschaubilder je 40 über `fotos_thumbs`; Klick → `alleUmschalten`:
+  vorhandenes ab-/anwählen, sonst `schnellvideo_fotos(pfad, 1, [pfad], "foto", true)` bzw. `schnellvideo_clips(pfad, 1, [pfad], true)`
+  holen, `gewaehlt: true, wert: 1000` (Vorrang in `stoppsWaehlen`/`fotosOhneHalt`), `listeDazu` hält die Abwahl-Menge bei
+  ihren Dateien. Gewählte Clips zählen auch ohne den (entfallenen) Clips-Schalter.
+- Musik: `#va-musik-liste` (nur Assistent; `#sv-musik` dort ausgeblendet) aus den Optionen von `#sv-musik`; `hoerenStart(d)` /
+  `hoerenStopp()` über `ton_url`; `#sv-musik-hoeren` (▶ neben dem Menü) wieder im Markup (fehlte seit 0.9.782, Handler war da).
+- Live: ein Zuhörer (`change`/`click` in `[data-va]`) ruft `vaLive()` (250 ms entprellt) — vorher nur einzelne Knöpfe.
+- Tests: `tests/test_videoassistent_medien.py` (Masca: 8 Vorschläge, 167 Medien), `test_videoassistent_ui.py` (Look/Profil sofort, Musik-Liste).
+
+## Video-Assistent Stufe 1 = Vorlage (11.10.2026, Marc: „Stufe 1 ist eh sehr seltsam“)
+- Assistent: `#sv-vorlagen` (Weite/Tagebuch/Puls) ist `hidden` — der Zweck (`data-va-zweck`) setzt sie weiter über
+  `vorlageSetzen`; eigene Vorlagen (`#sv-eigene`) stehen im Assistenten als `.va-karte` in `#va-zweck`, im Schnell-Video wie
+  bisher in `#sv-vorlagen`. Klick-/Rechtsklick-Handler hängen an beiden Behältern; Zweck-Klick hebt `w.eigeneVorlage` auf.
+- Länge „eigen“ nur im Assistenten: Knopf + `#sv-eigen-zeile`/`#sv-eigen` (LAENGE_MIN…600 s); das Schnell-Video bleibt bei Kurz · Normal · Lang (Entscheidung 0.9.782, test_schnellvideo_mehr).
+- Test: `tests/test_videoassistent_vorlagen.py` Abschnitt G.

@@ -3,6 +3,8 @@ GPX-Parsing + Stats. Wrapper um gpxpy mit ergonomischen Helfern für UI/Renderer
 """
 from __future__ import annotations
 
+import math
+
 from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import bisect
 import json
@@ -950,6 +952,38 @@ def parse_waypoints(path: str) -> List[dict]:
             "sym": (getattr(w, "symbol", None) or "").strip(),
         })
     return out
+
+
+def downsample_ecken(pts: List[TrackPoint], target: int = 500, min_abw_m: float = 4.0) -> List[TrackPoint]:
+    """Wie `downsample` (gleich viele Punkte, gleichmäßig über die Reihenfolge — Timing und Reihen am Index bleiben),
+    aber jeder Punkt darf innerhalb seines Abschnitts (± halber Abstand) auf die ECKE rutschen: den Punkt, der am
+    weitesten von der Sehne zwischen den Abschnittsenden abweicht (ab `min_abw_m`). 11.10.2026 (Marc: „warum bleibt
+    Garmin auf dem Weg und wir rennen übers Feld?“) — jeder n-te Punkt schnitt Kreuzungen gerade ab."""
+    n = len(pts)
+    if n <= target or target < 3:
+        return downsample(pts, target)
+    step = (n - 1) / (target - 1)
+    rad = math.pi / 180.0
+    lat0 = pts[n // 2].lat * rad
+    kx, ky = 6371000.0 * rad * math.cos(lat0), 6371000.0 * rad
+    xy = [(p.lon * kx, p.lat * ky) for p in pts]
+    idx = [0]
+    for k in range(1, target - 1):
+        lo = max(idx[-1] + 1, int(math.ceil((k - 0.5) * step)))
+        hi = min(n - 2, int(math.floor((k + 0.5) * step)))
+        mitte = min(max(round(k * step), lo), hi) if lo <= hi else lo
+        best, bd = mitte, min_abw_m
+        if hi - lo >= 2:
+            (ax, ay), (bx, by) = xy[lo - 1], xy[hi + 1]
+            dx, dy = bx - ax, by - ay
+            ln = math.hypot(dx, dy) or 1e-9
+            for j in range(lo, hi + 1):
+                d = abs((xy[j][0] - ax) * dy - (xy[j][1] - ay) * dx) / ln
+                if d > bd:
+                    best, bd = j, d
+        idx.append(best)
+    idx.append(n - 1)
+    return [pts[i] for i in idx]
 
 
 def downsample(pts: List[TrackPoint], target: int = 500) -> List[TrackPoint]:

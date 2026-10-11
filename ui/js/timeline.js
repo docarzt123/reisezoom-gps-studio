@@ -1013,7 +1013,7 @@ function mountTimelineBar(opts) {
         kopf.className = "timeline-lane";
         kopf.dataset.kind = "ovkopf";
         kopf.style.setProperty("--lane-color", g.farbe);
-        kopf.innerHTML = `<div class="lane-label ov-kopf-label" role="button" tabindex="0" title="${_esc(g.kopfTip)}"><span class="lane-icon ov-kopf-pfeil">▸</span><span class="lane-name">${_esc(g.kopfTitel)}</span></div>
+        kopf.innerHTML = `<div class="lane-label ov-kopf-label" role="button" tabindex="0" title="${_esc(g.kopfTip)}"><span class="lane-icon ov-kopf-pfeil">▸</span><span class="lane-name">${_esc(g.kopfTitel)}</span>${g.kopfKnopf ? `<button type="button" class="ov-kopf-knopf" title="${_esc(g.kopfKnopf.tip)}">${g.kopfKnopf.html}</button>` : ""}</div>
           <div class="lane-track"><div class="lane-markers ov-mini" id="${g.miniId}"></div></div>`;
         lanes.prepend(kopf);
         const umschalten = () => {
@@ -1022,6 +1022,9 @@ function mountTimelineBar(opts) {
           ruf("offen", offen);
         };
         const lab = kopf.querySelector(".lane-label");
+        // 11.10.2026 — optionaler Knopf in der Kopfzeile (Schilder: „An allen Foto-Schildern anhalten“)
+        const kk = kopf.querySelector(".ov-kopf-knopf");
+        if (kk) kk.addEventListener("click", (e) => { e.stopPropagation(); const an = ruf("knopf"); if (typeof an === "boolean") kk.classList.toggle("an", an); });
         lab.addEventListener("click", umschalten);
         lab.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); umschalten(); } });
         kopf.querySelector(".lane-track").addEventListener("click", () => { if (!offen) umschalten(); });
@@ -1322,7 +1325,8 @@ function mountTimelineBar(opts) {
     box: "#tl-sg", miniId: "tl-sg-mini", farbe: "#ff8a5c", zeilenIcon: "🚩", blendenGriffe: true, zeitraumNeu: false, stapeln: true,   // 29.09.2026 — Blenden wie bei den Overlays
     kopfTitel: tlT("animator.lane.schilder", "Schilder"),
     kopfTip: tlT("animator.lane.schilder_tip", "Wann die Schilder zu sehen sind. Aufklappen, dann Balken ziehen: verschieben ändert den Zeitpunkt, die Ränder ändern Vorlauf und „Bleibt sichtbar“. Doppelklick oder Rechtsklick öffnet das Schild."),
-    rc: { neu: "onSchildNeu", offen: "onSchilderOffen", oeffnen: "onSchildOeffnen",
+    kopfKnopf: { html: "⏸", tip: tlT("animator.lane.schilder_halt", "An allen Foto-Schildern anhalten — noch ein Klick: an keinem") },
+    rc: { neu: "onSchildNeu", offen: "onSchilderOffen", oeffnen: "onSchildOeffnen", knopf: "onSchilderHaltAlle",
           text: "onSchildText", vorschau: "onSchildVorschau", auswahl: "onSchildAuswahl", ziehen: "onSchildZiehen",
           loeschen: "onSchildLoeschen" },
   });

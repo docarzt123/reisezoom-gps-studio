@@ -34,8 +34,12 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 PYTHON = REPO / ".venv" / "bin" / "python"
-SPIEGEL = Path.home() / "GPS-Studio-Nachtlauf" / "repo"
-ZUSTAND = Path.home() / "GPS-Studio-Nachtlauf" / "zustand.json"
+# 11.10.2026 (Marc: „alles auf der externen Platte machen, die interne ist zu klein“) — Kopie, Zustand, Log UND der
+# Temp-Ordner der Tests liegen extern; vorher ließ jede Nacht Testkopien im System-Temp zurück (zuletzt 6,7 GB)
+BASIS = Path("/Volumes/MacMini 2TB Acasis/GPS-Studio-Nachtlauf")
+SPIEGEL = BASIS / "repo"
+ZUSTAND = BASIS / "zustand.json"
+TEMP = BASIS / "tmp"
 ZIEL = Path("/Volumes/MacMini 2TB Acasis/GPS Studio Final/Nachtlauf")
 LABEL = "com.reisezoom.gpsstudio.nachtlauf"
 PLIST = Path.home() / "Library" / "LaunchAgents" / f"{LABEL}.plist"
@@ -48,6 +52,18 @@ AUSLASSEN = {".git", ".venv", "node_modules", "__pycache__", "dist", "build", "_
              "_renders", "_papierkorb", "photo_thumb_cache", "library_thumbs", "tests/_out", "tests/output"}
 
 
+def _temp_leeren() -> None:
+    """Was frühere Läufe im Test-Temp liegen ließen (Testkopien, die ein abgebrochener Test nicht mehr wegräumt)."""
+    import shutil
+    grenze = time.time() - 6 * 3600
+    for e in TEMP.iterdir():
+        try:
+            if e.lstat().st_mtime < grenze:
+                shutil.rmtree(e) if e.is_dir() and not e.is_symlink() else e.unlink()
+        except OSError:
+            pass
+
+
 def _umgebung() -> dict:
     """Umgebung für die Suite. 06.10.2026: launchd startet mit PATH=/usr/bin:/bin:/usr/sbin:/sbin — node, ffmpeg,
     ffprobe (Homebrew) fehlten, 38 Tests wurden rot, ohne dass am Code etwas war. RZ_NACHTLAUF=1 sagt den Tests,
@@ -58,6 +74,9 @@ def _umgebung() -> dict:
     env["PATH"] = ":".join(vorne + rest)
     env.setdefault("LANG", "de_DE.UTF-8")
     env["RZ_NACHTLAUF"] = "1"
+    TEMP.mkdir(parents=True, exist_ok=True)
+    _temp_leeren()
+    env["TMPDIR"] = str(TEMP) + "/"   # Testkopien auf die externe Platte (tempfile.gettempdir folgt TMPDIR)
     return env
 
 
@@ -225,7 +244,7 @@ def lauf(jetzt: bool = False) -> int:
 
 def einrichten() -> None:
     PLIST.parent.mkdir(parents=True, exist_ok=True)
-    log = Path.home() / "GPS-Studio-Nachtlauf" / "launchd.log"
+    log = BASIS / "launchd.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     daten = {
         "Label": LABEL,
