@@ -29,6 +29,18 @@
   let angemeldet = false;
   let ansicht = "raster";     // raster | karte | touren
   let filter = {};
+  // 11.10.2026 (Beta-Tester: „Klicke auf den ersten Eintrag. Wie komme ich danach auf diese Liste zurück, ohne nach Touren
+  // wieder einzulesen?“) — die gewählte Tour bleibt sichtbar (Chip mit ✕), „← Alle Touren“ führt sofort zurück: Liste,
+  // Suchtext und Scrollstand bleiben gemerkt, nichts lädt neu.
+  let _tourWahl = null;      // { name, datum } der Tour, deren Zeitfenster gerade filtert
+  let _tourenMerk = null;    // { key, liste, t, scroll } — die zuletzt gezeigte Tourenliste
+  const _tourKey = () => { const f = Object.assign({}, filter); delete f.von_utc; delete f.bis_utc; return JSON.stringify(f); };
+  function _tourFilterWeg() {
+    if (!_tourWahl) return false;
+    filter = Object.assign({}, filter); delete filter.von_utc; delete filter.bis_utc;
+    _tourWahl = null;
+    return true;
+  }
   let geladen = [];           // die bisher geholten Fotos
   let gesamt = 0;
   let gesamtOhneGps = null;   // 25.09.2026 — „ohne Koordinate" unter den Treffern (null = noch unbekannt)
@@ -86,7 +98,9 @@
   /** Was an einem Foto fehlt — sichtbar, statt still (Marc, Q16). */
   function maengel(f) {
     const m = [];
-    if (!f.aufnahme_utc) m.push(T("fotos.fehlt_zeit", "keine Aufnahmezeit"));
+    // 11.10.2026 — ohne Datum in der Datei, aber Datums-Ordner („1980.01.10“): das Datum stammt aus dem Ordnernamen
+    if (!f.aufnahme_utc && f.zeit_ordner) m.push(T("fotos.zeit_ordner", "Datum aus Ordnername"));
+    else if (!f.aufnahme_utc) m.push(T("fotos.fehlt_zeit", "keine Aufnahmezeit"));
     else if (!f.tz_bekannt) m.push(T("fotos.fehlt_tz", "Zeitzone geraten"));
     if (f.lat == null || f.lon == null) m.push(T("fotos.fehlt_ort", "keine Koordinate"));
     if (f.fehlt_seit) m.push(T("fotos.fehlt_datei", "Datei nicht erreichbar"));
@@ -923,6 +937,8 @@
         ${filter.aehnlich ? `<button class="lib-chip is-on foto-db-chip" id="foto-aehnlich-chip" type="button" title="${esc(T("fotos.inh_aehnlich_weg", "Ähnlich-Suche aufheben"))}">${I("search", 13)} ${esc(T("fotos.inh_aehnlich_chip", "Ähnlich wie {n}").replace("{n}", String(filter.aehnlich).split(/[\\/]/).pop()))} ✕</button>` : ""}
         ${filter.verz ? `<button class="lib-chip is-on foto-db-chip" id="foto-ob-chip" type="button" title="${esc(obTitel(filter.verz) + " — " + T("fotos.ob_chip_weg", "Ordnerfilter aufheben"))}">${I("folder", 13)} ${esc(obTitel(filter.verz))} ✕</button>` : ""}
         ${datumsFilterText() ? `<button class="lib-chip is-on foto-db-chip" id="foto-db-chip" type="button" title="${esc(T("fotos.db_chip_weg", "Datumsfilter aufheben"))}">${I("calendar", 13)} ${esc(datumsFilterText())} ✕</button>` : ""}
+        ${_tourWahl ? `<button class="lib-chip" id="foto-tour-zurueck" type="button" title="${esc(T("fotos.tour_zurueck_tip", "Zurück zur Tourenliste — da, wo du warst"))}">← ${esc(T("fotos.tour_zurueck", "Alle Touren"))}</button>
+          <button class="lib-chip is-on foto-db-chip" id="foto-tour-chip" type="button" title="${esc(T("fotos.tour_chip_weg", "Tour-Auswahl aufheben"))}">${I("route", 13)} ${esc(T("fotos.tour_chip", "Tour: {n}").replace("{n}", _tourWahl.name + (_tourWahl.datum ? " · " + _tourWahl.datum : "")))} ✕</button>` : ""}
         <button class="lib-chip lib-chip-ghost" id="foto-reset" type="button">${T("library.reset", "Zurücksetzen")}</button>
         <span class="lib-bar-spacer"></span>
         <div class="lib-views" role="group">
@@ -1835,10 +1851,18 @@
 
   let _tourenSuche = "";   // 08.10.2026 — Suche in „Nach Touren“ bleibt beim Neuzeichnen stehen
   async function tourenZeichnen(box) {
-    box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${T("common.loading", "Lädt …")}</div>`;
-    const r = await rzWarten("fotos_touren", () => api().fotos_touren(filter)).catch(() => null);
-    if (!r || !r.ok) { box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${esc((r && r.error) || "?")}</div>`; return; }
-    const liste = r.touren || [];
+    const key = _tourKey();
+    let liste;
+    // dieselbe Liste wie eben (gleicher Filter, höchstens 10 min alt): sofort, ohne neu zu fragen
+    if (_tourenMerk && _tourenMerk.key === key && Date.now() - _tourenMerk.t < 600000) liste = _tourenMerk.liste;
+    else {
+      box.innerHTML = `<div class="lib-detail-empty" style="padding:20px"><span class="ass-spinner"></span> ${T("fotos.touren_laedt", "Ordnet die Dateien den Touren zu …")}</div>`;
+      const r = await rzWarten("fotos_touren", () => api().fotos_touren(filter)).catch(() => null);
+      if (!r || !r.ok) { box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${esc((r && r.error) || "?")}</div>`; return; }
+      if (ansicht !== "touren" || key !== _tourKey()) return;   // inzwischen weitergeklickt
+      liste = r.touren || [];
+      _tourenMerk = { key, liste, t: Date.now(), scroll: (_tourenMerk && _tourenMerk.key === key) ? _tourenMerk.scroll : 0 };
+    }
     if (!liste.length) {
       box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${
         T("fotos.touren_leer", "Keine Tour passt zeitlich zu diesen Fotos. Das Archiv braucht Touren mit Uhrzeit.")}</div>`;
@@ -1893,6 +1917,7 @@
           const r2 = await rzWarten("fotos_einer_tour", () => api().fotos_einer_tour(g.geo_hash || "", g.path || "")).catch(() => null);
           if (!r2 || !r2.ok) return;
           filter = Object.assign({}, filter, { von_utc: r2.von - 1800, bis_utc: r2.bis + 1800 });
+          _tourWahl = { name: anzeigeName(g), datum: datum(g.von) };
           ansicht = "raster";
           neuLaden();
           toast(T("fotos.tour_gefiltert", "Zeigt die Dateien im Zeitfenster von „{n}“").replace("{n}", anzeigeName(g)), "info");
@@ -1912,6 +1937,11 @@
       });
     };
     binden();
+    if (_tourenMerk && _tourenMerk.key === key) {
+      if (_tourenMerk.scroll) box.scrollTop = _tourenMerk.scroll;
+      const merk = _tourenMerk;
+      box.onscroll = () => { if (ansicht === "touren") merk.scroll = box.scrollTop; };   // Stand mitschreiben (Neuzeichnen springt nicht)
+    }
     const q = box.querySelector("#foto-touren-q");
     if (q) q.oninput = () => { _tourenSuche = q.value; listeEl.innerHTML = listeHtml(q.value); binden(); };
   }
@@ -3071,7 +3101,7 @@
         ${befunde ? befundeHtml(befunde)
                   : (m.length ? `<div class="foto-detail-warn">${I("triangle-alert", 14)} ${esc(m.join(" · "))}</div>` : "")}
         <div class="fd-tabelle">
-          ${tz(I("calendar"), T("fotos.d_zeit", "Aufnahme"), d.tag_lokal ? esc(`${d.tag_lokal} ${uhrzeit(d)}`) + (d.tz_bekannt ? "" : ` <span class="muted">(${esc(T("fotos.geraten", "geraten"))})</span>`) : "")}
+          ${tz(I("calendar"), T("fotos.d_zeit", "Aufnahme"), d.tag_lokal ? esc(`${d.tag_lokal} ${uhrzeit(d)}`) + (!d.aufnahme_utc && d.zeit_ordner ? ` <span class="muted">(${esc(T("fotos.zeit_ordner", "Datum aus Ordnername"))})</span>` : d.tz_bekannt ? "" : ` <span class="muted">(${esc(T("fotos.geraten", "geraten"))})</span>`) : "")}
           ${tz(I("camera"), T("fotos.d_kamera", "Kamera"), [d.kamera, d.objektiv].filter(Boolean).map(esc).join("<br><span class=\"muted\">") + (d.kamera && d.objektiv ? "</span>" : ""))}
           ${tz(I("aperture"), T("fotos.d_blende", "Blende"), esc(d.blende || ""))}
           ${tz(I("timer"), T("fotos.d_belichtung", "Belichtungszeit"), esc(d.belichtung || ""))}
@@ -3304,7 +3334,11 @@
     const dbChip = haupt.querySelector("#foto-db-chip");
     if (dbChip) dbChip.onclick = () => { filter = Object.assign({}, filter); delete filter.von; delete filter.bis; navZeichnen(); zeichnen(); neuLaden(); };
     const reset = haupt.querySelector("#foto-reset");
-    if (reset) reset.onclick = () => { filter = {}; navZeichnen(); neuLaden(); };
+    if (reset) reset.onclick = () => { filter = {}; _tourWahl = null; navZeichnen(); neuLaden(); };
+    const tourChip = haupt.querySelector("#foto-tour-chip");
+    if (tourChip) tourChip.onclick = () => { _tourFilterWeg(); zeichnen(); neuLaden(); };
+    const tourZurueck = haupt.querySelector("#foto-tour-zurueck");
+    if (tourZurueck) tourZurueck.onclick = () => { _tourFilterWeg(); ansicht = "touren"; zeichnen(); neuLaden(true); };
     const exOben = haupt.querySelector("#foto-export-oben");
     if (exOben) exOben.onclick = () => exportMenue(exOben, auswahl ? geladen.find(x => x.path === auswahl) : null);
     const obChip = haupt.querySelector("#foto-ob-chip");
@@ -3316,6 +3350,8 @@
       b.onclick = () => {
         if (ansicht === b.dataset.fview) return;
         ansicht = b.dataset.fview;
+        // zur Tourenliste: die gewählte Tour filtert nicht mehr (sonst stand nur noch sie in der Liste)
+        if (ansicht === "touren" && _tourFilterWeg()) { zeichnen(); neuLaden(true); return; }
         zeichnen();
       };
     });

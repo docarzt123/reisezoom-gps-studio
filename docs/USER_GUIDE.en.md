@@ -1753,6 +1753,9 @@ A folder you remove only disappears from the stock; the files stay where they ar
   grouped by year, and **“Search tours”** finds a tour by place, year or name. Tours whose file only has a number as its
   name (e.g. Garmin exports “…_ACTIVITY”) are named after their place here. **🎬 Open in Animator** on every tour opens it
   directly.
+  While a tour is selected, the chip **“Tour: … ✕”** sits at the top (✕ clears it), next to **“← All tours”**: back to the
+  list, right where you were and with your search — without reloading (since v0.9.789). Clicking “By tour” also shows all
+  tours again.
 
 ### View large, videos, edit and place (since v0.9.781)
 
@@ -1793,6 +1796,13 @@ The search box covers everything the files carry: file name, camera, lens,
 keywords, place names. On top of that: year, camera and *with / without
 coordinates*. On the left you see at a glance how many files have no coordinates
 or no capture time — one click filters for them.
+
+**Date from the folder name** (since v0.9.789): if a file carries no capture date — typical for scanned photos and
+slides — but sits in a folder with a date in its name, that date counts. Recognised: `1980.01.10`, `1980-01-10`,
+`1980_01_10`, `10.01.1980`, `19800110` and the folder chain `1980/01/10`, also with text after it
+(`1980.01.10 Christmas`). The file itself is not changed. The photo then sits on that day in the grid, the details
+say „(Date from folder name)“, and it no longer counts as „no capture time“. It is not assigned to a tour this way —
+the time of day is missing.
 
 The grid loads on as you scroll: reach the bottom and the next page is added
 without a click. The foot says how many of how many are loaded, and at the end
@@ -1945,9 +1955,10 @@ original first. Read-only files are counted as „could not be written“ afterw
 In Media on the left: **„⧉ Find duplicates …“**. The dialog has two tabs:
 
 - **Identical** — the same file in several places (say the original and a copy in an export folder). Everything is
-  marked except **one** copy: the largest, then the one with a location, then the original rather than a „copy“ or
+  marked except **one** copy: the largest, then the one in a **date folder** (e.g. `1980.01.10` — what you sorted by
+  hand stays), then the one with a location, then the original rather than a „copy“ or
   an export (by name or folder), then the older file. Click another picture to keep that
-  one instead. The top line says how much space this frees.
+  one instead. The top line says how much space this frees. Each picture shows the **full folder** it is in.
 - **Almost the same** — the same shot but not the same file: a downsized export, a JPEG saved differently. Recognised
   by capture time (±2 seconds) and picture content. **Nothing is marked here** — look first, then click the picture
   that should stay. With content search switched off, the group relies only on time, camera and aspect ratio and

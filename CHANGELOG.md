@@ -14,7 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Media: files without a capture date (typically scans) that sit in a folder with a date in its name — `1980.01.10`, `1980-01-10`, `10.01.1980`, `19800110`, `1980/01/10`, also with text after it — get that date: sorted onto that day, marked „Date from folder name“ in the details, no longer counted as „no capture time“. The file is not changed, and such files are never matched to a tour by time.
+- Media → By tour: after clicking a tour, a chip „Tour: … ✕“ shows the selection and „← All tours“ goes straight back to the list — same scroll position and search, no reloading. Switching to „By tour“ also clears the tour selection; before, only that one tour was left in the list and only „Reset“ (which reloads everything) brought the others back.
+- Duplicates: the copy in a date folder is kept (right after the highest resolution), so what was sorted by hand stays. Every copy shows its full folder path.
+
 ### Fixed
+- Duplicates window: pressing „Tidy up“ could miss — the footer wrapped to two lines at that moment and the button slid away under the mouse.
 - 3D buildings: stacked building parts get their colour from the tiles currently loaded. A simplified piece from a coarser tile seen briefly while flying in could give a part a different host building — and a different roof colour than its neighbour, so the shared walls flickered.
 - About window: the FOSSGIS donation link points to the new address (`fossgis.de/verein/spenden/`); the old page returned 404.
 

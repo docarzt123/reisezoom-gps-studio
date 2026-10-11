@@ -262,6 +262,19 @@ def schema_anlegen(conn: sqlite3.Connection) -> None:
     spalten = {r[1] for r in conn.execute("PRAGMA table_info(fotos)")}
     if "fp" not in spalten:
         conn.execute("ALTER TABLE fotos ADD COLUMN fp TEXT")
+    if "zeit_ordner" not in spalten:
+        # 11.10.2026 — Datum aus dem Ordnernamen für Dateien ohne Aufnahmedatum; einmal für den Bestand nachtragen
+        conn.execute("ALTER TABLE fotos ADD COLUMN zeit_ordner REAL")
+        n = 0
+        for r in conn.execute("SELECT path FROM fotos WHERE aufnahme_utc IS NULL AND indexed_at IS NOT NULL").fetchall():
+            z, tag, jahr = _ordner_zeit(r[0])
+            if z is not None:
+                conn.execute("UPDATE fotos SET zeit_ordner = ?, tag_lokal = ?, jahr = ? WHERE path = ?", (z, tag, jahr, r[0]))
+                n += 1
+        if n:
+            log.info("[fotos] Datum aus dem Ordnernamen nachgetragen: %d Dateien ohne Aufnahmedatum", n)
+    # Sortieren nach Zeit samt Ordner-Datum, ohne den Bestand zu durchlaufen
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_fotos_zeit_sort ON fotos(COALESCE(aufnahme_utc, zeit_ordner))")
     if "geprueft" not in {r[1] for r in conn.execute("PRAGMA table_info(foto_verz)")}:
         conn.execute("ALTER TABLE foto_verz ADD COLUMN geprueft REAL")
     try:
@@ -1193,11 +1206,13 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             dt = m.get("datetime")
             tz_min = m.get("tz_minutes")
             utc = dt.replace(tzinfo=timezone.utc).timestamp() if dt else None
-            tag_lokal = jahr = None
+            tag_lokal = jahr = zeit_ordner = None
             if utc is not None:
                 lokal = datetime.fromtimestamp(utc, timezone.utc) + timedelta(minutes=tz_min or 0)
                 tag_lokal = lokal.strftime("%Y-%m-%d")
                 jahr = lokal.year
+            else:
+                zeit_ordner, tag_lokal, jahr = _ordner_zeit(p)   # 11.10.2026 — kein Datum in der Datei: das des Ordners
 
             kamera = m.get("camera") or _wert(tags, "Model")
             hay = _hay(pfad, tags, kamera)
@@ -1216,7 +1231,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 "kamera = ?, objektiv = ?, iso = ?, blende = ?, brennweite = ?, "
                 "belichtung = ?, breite = ?, hoehe = ?, dauer_s = ?, ort = ?, region = ?, "
                 "land = ?, stichworte = ?, tags_blob = ?, tags_n = ?, hay = ?, thumb = ?, "
-                "indexed_at = ?, error = ? WHERE path = ?")
+                "indexed_at = ?, error = ?, zeit_ordner = ? WHERE path = ?")
             werte = (kennungen.get(p),
                  utc, tz_min, 1 if tz_min is not None else 0, tag_lokal, jahr,
                  m.get("lat"), m.get("lon"), m.get("alt"),
@@ -1230,7 +1245,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                  _wert(tags, "State", "Province-State"),
                  _wert(tags, "Country", "Country-PrimaryLocationName"),
                  _wert(tags, "Keywords", "Subject"),
-                 blob, len(rest), hay, 0, _jetzt(), fehlt_grund, p)
+                 blob, len(rest), hay, 0, _jetzt(), fehlt_grund, zeit_ordner, p)
             geduldig(conn.execute, sql, werte)
             fertig += 1
 
@@ -1648,6 +1663,49 @@ def tags_lesen(conn: sqlite3.Connection, path: str) -> dict:
         return {}
 
 
+# ── Datum aus dem Ordnernamen (11.10.2026) ──────────────────────────────────
+# Beta-Tester: eingescannte Fotos/Clips ohne Aufnahmedatum, von Hand in Ordner wie „1980.01.10“ einsortiert. Fehlt in
+# der Datei das Datum, gilt das des Ordners — nur als Tag (tag_lokal/jahr) und in `zeit_ordner` zum Sortieren;
+# `aufnahme_utc` bleibt leer, damit Tour-Zuordnung, Geotaggen und „fast gleich“ (alles sekundengenau) sie nie anfassen.
+_ORDNER_DATUM = (
+    re.compile(r"^(?P<j>(?:19|20)\d\d)[.\-_ ](?P<m>\d\d?)[.\-_ ](?P<t>\d\d?)(?!\d)"),     # 1980.01.10, 1980-01-10 …
+    re.compile(r"^(?P<t>\d\d?)\.(?P<m>\d\d?)\.(?P<j>(?:19|20)\d\d)(?!\d)"),             # 10.01.1980
+    re.compile(r"^(?P<j>(?:19|20)\d\d)(?P<m>\d\d)(?P<t>\d\d)(?![\d])(?:$|[ _\-])"),       # 19800110, 19800110 Text
+)
+
+
+def _datum_ok(j, m, t):
+    try:
+        return datetime(int(j), int(m), int(t))
+    except ValueError:
+        return None
+
+
+def datum_aus_ordner(pfad: str) -> Optional[datetime]:
+    """Das Datum, das im Ordnernamen der Datei steht (nächster Ordner zuerst, höchstens drei Ebenen; auch
+    „1980/01/10“ als Ordnerkette). Text dahinter ist erlaubt („1980.01.10 Weihnachten“). Sonst None."""
+    teile = Path(str(pfad)).parent.parts
+    for name in reversed(teile[-3:]):
+        for rx in _ORDNER_DATUM:
+            m = rx.match(name.strip())
+            if m:
+                d = _datum_ok(m["j"], m["m"], m["t"])
+                if d:
+                    return d
+    if len(teile) >= 3 and re.fullmatch(r"(?:19|20)\d\d", teile[-3]) and re.fullmatch(r"\d\d?", teile[-2]) \
+            and re.fullmatch(r"\d\d?", teile[-1]):
+        return _datum_ok(teile[-3], teile[-2], teile[-1])
+    return None
+
+
+def _ordner_zeit(pfad: str) -> tuple:
+    """(zeit_ordner, tag_lokal, jahr) aus dem Ordnernamen — Mittag UTC, damit der Tag in keiner Zeitzone kippt."""
+    d = datum_aus_ordner(pfad)
+    if not d:
+        return None, None, None
+    return d.replace(hour=12, tzinfo=timezone.utc).timestamp(), d.strftime("%Y-%m-%d"), d.year
+
+
 # ── Abfragen ────────────────────────────────────────────────────────────────
 
 def _where(f: dict) -> tuple:
@@ -1681,7 +1739,7 @@ def _where(f: dict) -> tuple:
     elif f.get("gps") == "ohne":
         teile.append("(lat IS NULL OR lon IS NULL)")
     if f.get("ohne_zeit"):
-        teile.append("aufnahme_utc IS NULL")
+        teile.append("aufnahme_utc IS NULL AND zeit_ordner IS NULL")
     if f.get("fav"):
         teile.append("path IN (SELECT pfad FROM foto_fav)")
     if f.get("bearbeitet"):
@@ -1726,7 +1784,7 @@ def _where(f: dict) -> tuple:
 _SPALTEN = ("path, ordner, dateiname, art, size, aufnahme_utc, tz_minuten, tz_bekannt, "
             "tag_lokal, jahr, lat, lon, ele, kamera, objektiv, iso, blende, brennweite, "
             "belichtung, breite, hoehe, dauer_s, ort, region, land, stichworte, tags_n, "
-            "thumb, fehlt_seit, indexed_at, error")
+            "thumb, fehlt_seit, indexed_at, error, zeit_ordner")
 
 
 def abfrage(conn: sqlite3.Connection, filter: Optional[dict] = None,
@@ -1734,11 +1792,11 @@ def abfrage(conn: sqlite3.Connection, filter: Optional[dict] = None,
     """Eine Seite des Bestands, plus die Gesamtzahl zum Filter."""
     wo, werte = _where(filter or {})
     ordnung = {
-        "zeit_neu": "aufnahme_utc DESC NULLS LAST, dateiname DESC",
-        "zeit_alt": "aufnahme_utc ASC NULLS LAST, dateiname ASC",
+        "zeit_neu": "COALESCE(aufnahme_utc, zeit_ordner) DESC NULLS LAST, dateiname DESC",
+        "zeit_alt": "COALESCE(aufnahme_utc, zeit_ordner) ASC NULLS LAST, dateiname ASC",
         "name": "dateiname ASC",
         "ordner": "ordner ASC, dateiname ASC",
-    }.get(sortierung, "aufnahme_utc DESC NULLS LAST, dateiname DESC")
+    }.get(sortierung, "COALESCE(aufnahme_utc, zeit_ordner) DESC NULLS LAST, dateiname DESC")
     n = conn.execute(f"SELECT COUNT(*) FROM fotos WHERE {wo}", werte).fetchone()[0]
     # 25.09.2026 — „ohne Koordinate" für die TREFFER, nicht für den ganzen Bestand:
     # die Suche „Canon" zeigte „1 Dateien · 8 ohne Koordinate". Gezählt wie in
@@ -1970,7 +2028,7 @@ def stand(conn: sqlite3.Connection) -> dict:
         " SUM(fehlt_seit IS NULL AND indexed_at IS NULL),"
         " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND art = ? AND COALESCE(thumb, 0) = 0),"
         " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND (lat IS NULL OR lon IS NULL)),"
-        " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND aufnahme_utc IS NULL),"
+        " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND aufnahme_utc IS NULL AND zeit_ordner IS NULL),"
         " SUM(fehlt_seit IS NULL AND aufnahme_utc IS NOT NULL AND tz_bekannt = 0),"
         " SUM(fehlt_seit IS NOT NULL)"
         " FROM fotos", (ART_FOTO, ART_VIDEO, ART_FOTO)).fetchone()
@@ -2552,8 +2610,11 @@ def _kopie_punkte(pfad: str) -> int:
 def _behalten(gruppe: list) -> str:
     """Welche Fassung bleibt (08.10.2026, im Klicktest nachgeschärft — vorher gewann bei gleicher Größe der kürzere Pfad,
     und die Kopie in „export/“ schlug das Original): höchste Auflösung, dann mit Koordinate (für Touren entscheidend),
-    dann die größere Datei, dann kein Kopie-Name/-Ordner, dann die ältere Datei (das Original), zuletzt der kürzere Pfad."""
-    return max(gruppe, key=lambda d: ((d.get("breite") or 0) * (d.get("hoehe") or 0), d.get("lat") is not None,
+    dann die größere Datei, dann kein Kopie-Name/-Ordner, dann die ältere Datei (das Original), zuletzt der kürzere Pfad.
+    11.10.2026 (Beta-Tester: Scans von Hand in Datums-Ordner wie „1980.01.10“ einsortiert — „möchte nicht die Doppelten aus
+    diesem Verzeichnis löschen“): gleich nach der Auflösung gewinnt die Fassung in einem Datums-Ordner."""
+    return max(gruppe, key=lambda d: ((d.get("breite") or 0) * (d.get("hoehe") or 0),
+                                      datum_aus_ordner(d.get("path") or "") is not None, d.get("lat") is not None,
                                       d.get("size") or 0, -_kopie_punkte(d.get("path") or ""),
                                       -(d.get("mtime") or 0), -len(d.get("path") or "")))["path"]
 

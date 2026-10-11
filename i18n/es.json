@@ -5834,7 +5834,7 @@
   "dop.wegraeumen": "retirar",
   "dop.keine": "No se encontraron duplicados.",
   "dop.ohne_inhalt": "Sin la búsqueda por contenido, la app reconoce «casi igual» solo por hora de captura, cámara y proporción; con ella también encuentra versiones reducidas con más seguridad.",
-  "dop.kopf_gleich": "El mismo archivo está varias veces: sobran {n} copias ({mb}). Está marcado todo salvo una copia: la más grande, luego la que tiene ubicación, luego el original en lugar de una «copia» o una exportación. Un clic en una imagen conserva esa en su lugar.",
+  "dop.kopf_gleich": "El mismo archivo está varias veces: sobran {n} copias ({mb}). Está marcado todo salvo una copia: la más grande, luego la que está en una carpeta con fecha (p. ej. «1980.01.10»), luego la que tiene ubicación, luego el original en lugar de una «copia» o una exportación. Un clic en una imagen conserva esa en su lugar.",
   "dop.kopf_fast": "La misma toma, pero no el mismo archivo, p. ej. una exportación reducida. No hay nada marcado: haz clic en la imagen que debe quedarse.",
   "dop.r_gleich": "Iguales",
   "dop.r_fast": "Casi iguales",
@@ -5977,5 +5977,11 @@
   "bearb.zs_fertig": "Listo",
   "bearb.zs_hinweis": "Arrastra el marco para moverlo; las esquinas y los bordes cambian su tamaño. Intro = listo, Esc = cancelar.",
   "dop.kein_papierkorb": "{n} están en una unidad sin papelera (p. ej. el NAS) y se quedan donde están — para ellos elige «a la carpeta ‹Duplicados (GPS Studio)›».",
-  "library.kein_papierkorb": "Esta unidad no tiene papelera (p. ej. un NAS): el archivo se queda donde está. Bórralo en el Finder si quieres."
+  "library.kein_papierkorb": "Esta unidad no tiene papelera (p. ej. un NAS): el archivo se queda donde está. Bórralo en el Finder si quieres.",
+  "fotos.zeit_ordner": "Fecha del nombre de la carpeta",
+  "fotos.tour_zurueck": "Todas las rutas",
+  "fotos.tour_zurueck_tip": "Volver a la lista de rutas, justo donde estabas",
+  "fotos.tour_chip": "Ruta: {n}",
+  "fotos.tour_chip_weg": "Quitar la ruta elegida",
+  "fotos.touren_laedt": "Asignando los archivos a las rutas …"
 }

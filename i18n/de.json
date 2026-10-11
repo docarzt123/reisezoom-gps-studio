@@ -5834,7 +5834,7 @@
   "dop.wegraeumen": "wegräumen",
   "dop.keine": "Keine Doppelten gefunden.",
   "dop.ohne_inhalt": "Ohne Inhaltssuche erkennt die App „fast gleich“ nur an Aufnahmezeit, Kamera und Seitenverhältnis — mit Inhaltssuche findet sie auch verkleinerte Fassungen sicherer.",
-  "dop.kopf_gleich": "Dieselbe Datei liegt mehrfach da — {n} Fassungen sind zu viel ({mb}). Vorgemerkt ist alles bis auf eine Fassung: die größte, dann die mit Koordinate, dann das Original statt einer „Kopie“ oder eines Exports. Ein Klick auf ein Bild behält stattdessen dieses.",
+  "dop.kopf_gleich": "Dieselbe Datei liegt mehrfach da — {n} Fassungen sind zu viel ({mb}). Vorgemerkt ist alles bis auf eine Fassung: die größte, dann die in einem Datums-Ordner (z. B. „1980.01.10“), dann die mit Koordinate, dann das Original statt einer „Kopie“ oder eines Exports. Ein Klick auf ein Bild behält stattdessen dieses.",
   "dop.kopf_fast": "Dieselbe Aufnahme, aber nicht dieselbe Datei — etwa ein verkleinerter Export. Nichts ist vorgemerkt: Klick auf das Bild, das bleiben soll.",
   "dop.r_gleich": "Gleich",
   "dop.r_fast": "Fast gleich",
@@ -5977,5 +5977,11 @@
   "bearb.zs_fertig": "Fertig",
   "bearb.zs_hinweis": "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen.",
   "dop.kein_papierkorb": "{n} liegen auf einem Laufwerk ohne Papierkorb (z. B. dem NAS) und bleiben, wo sie sind — dafür „in Ordner ‚Doppelte (GPS Studio)‘“ wählen.",
-  "library.kein_papierkorb": "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder."
+  "library.kein_papierkorb": "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder.",
+  "fotos.zeit_ordner": "Datum aus Ordnername",
+  "fotos.tour_zurueck": "Alle Touren",
+  "fotos.tour_zurueck_tip": "Zurück zur Tourenliste — da, wo du warst",
+  "fotos.tour_chip": "Tour: {n}",
+  "fotos.tour_chip_weg": "Tour-Auswahl aufheben",
+  "fotos.touren_laedt": "Ordnet die Dateien den Touren zu …"
 }

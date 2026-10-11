@@ -1797,6 +1797,9 @@ estaban.
   transporte y distancia**, la lista se agrupa por años y el campo **«Buscar ruta»** la encuentra por lugar, año o nombre.
   Las rutas cuyo archivo solo lleva un número como nombre (p. ej. exportaciones de Garmin «…_ACTIVITY») se llaman aquí
   según su lugar. **🎬 Abrir en el Animador** en cada ruta la abre directamente.
+  Mientras hay una ruta elegida, arriba aparece la etiqueta **«Ruta: … ✕»** (✕ la quita) y al lado **«← Todas las
+  rutas»**: vuelve a la lista justo donde estabas y con tu búsqueda, sin volver a cargar (desde v0.9.789). Un clic en
+  «Por ruta» también muestra de nuevo todas las rutas.
 
 ### Ver en grande, vídeos, editar y ubicar (desde v0.9.781)
 
@@ -1838,6 +1841,13 @@ El campo de búsqueda abarca todo lo que hay en los archivos: nombre, cámara,
 objetivo, palabras clave, lugares. Además: año, cámara y *con / sin
 coordenadas*. A la izquierda ves de un vistazo cuántos archivos no tienen
 coordenadas o no tienen hora; un clic filtra por ellos.
+
+**Fecha del nombre de la carpeta** (desde v0.9.789): si un archivo no lleva fecha de captura (lo típico en fotos y
+diapositivas escaneadas) pero está en una carpeta con una fecha en el nombre, vale esa fecha. Se reconocen
+`1980.01.10`, `1980-01-10`, `1980_01_10`, `10.01.1980`, `19800110` y la cadena de carpetas `1980/01/10`, también con
+texto detrás (`1980.01.10 Navidad`). El archivo no se modifica. La foto aparece en la cuadrícula en ese día, en los
+detalles pone «(Fecha del nombre de la carpeta)» y deja de contar como «sin hora». No se asigna así a ninguna ruta:
+falta la hora del día.
 
 La cuadrícula sigue cargando al desplazarte: al llegar abajo se añade la
 página siguiente sin hacer clic. Al pie se indica cuántos de cuántos están
@@ -1992,9 +2002,11 @@ copia de seguridad de cada original. Los archivos de solo lectura se cuentan des
 En Medios, a la izquierda: **«⧉ Buscar duplicados …»**. El diálogo tiene dos pestañas:
 
 - **Iguales**: el mismo archivo en varios sitios (por ejemplo el original y una copia en una carpeta de exportación).
-  Está marcado todo salvo **una** copia: la más grande, luego la que tiene ubicación, luego el original en lugar de una
+  Está marcado todo salvo **una** copia: la más grande, luego la que está en una **carpeta con fecha** (p. ej.
+  `1980.01.10`: se queda lo que ordenaste a mano), luego la que tiene ubicación, luego el original en lugar de una
   «copia» o una exportación (por nombre o carpeta), luego el archivo más antiguo. Un clic en otra imagen
-  conserva esa en su lugar. Arriba se indica cuánto espacio se libera.
+  conserva esa en su lugar. Arriba se indica cuánto espacio se libera. Bajo cada imagen aparece la **carpeta completa**
+  en la que está.
 - **Casi iguales**: la misma toma, pero no el mismo archivo: una exportación reducida, un JPEG guardado de otra forma.
   Se reconoce por la hora de captura (±2 segundos) y el contenido de la imagen. **Aquí no hay nada marcado**: primero
   mira, luego haz clic en la imagen que debe quedarse. Con la búsqueda por contenido desactivada, el grupo se basa solo

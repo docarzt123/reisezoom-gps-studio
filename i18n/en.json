@@ -5834,7 +5834,7 @@
   "dop.wegraeumen": "tidy up",
   "dop.keine": "No duplicates found.",
   "dop.ohne_inhalt": "Without content search the app recognises “almost the same” only by capture time, camera and aspect ratio — with content search it also finds downsized versions more reliably.",
-  "dop.kopf_gleich": "The same file exists more than once — {n} copies are too many ({mb}). Everything is marked except one copy: the largest, then the one with a location, then the original rather than a “copy” or an export. Click a picture to keep that one instead.",
+  "dop.kopf_gleich": "The same file exists more than once — {n} copies are too many ({mb}). Everything is marked except one copy: the largest, then the one in a date folder (e.g. “1980.01.10”), then the one with a location, then the original rather than a “copy” or an export. Click a picture to keep that one instead.",
   "dop.kopf_fast": "The same shot but not the same file — e.g. a downsized export. Nothing is marked: click the picture you want to keep.",
   "dop.r_gleich": "Identical",
   "dop.r_fast": "Almost the same",
@@ -5977,5 +5977,11 @@
   "bearb.zs_fertig": "Done",
   "bearb.zs_hinweis": "Drag the frame to move it, corners and edges change its size. Enter = done, Esc = cancel.",
   "dop.kein_papierkorb": "{n} are on a drive without a Trash (e.g. the NAS) and stay where they are — choose “to folder ‘Duplicates (GPS Studio)’” for those.",
-  "library.kein_papierkorb": "This drive has no Trash (e.g. a NAS) — the file stays where it is. Delete it in the Finder if you want."
+  "library.kein_papierkorb": "This drive has no Trash (e.g. a NAS) — the file stays where it is. Delete it in the Finder if you want.",
+  "fotos.zeit_ordner": "Date from folder name",
+  "fotos.tour_zurueck": "All tours",
+  "fotos.tour_zurueck_tip": "Back to the tour list — right where you were",
+  "fotos.tour_chip": "Tour: {n}",
+  "fotos.tour_chip_weg": "Clear the tour selection",
+  "fotos.touren_laedt": "Matching the files to your tours …"
 }

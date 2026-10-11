@@ -7076,3 +7076,15 @@ ein Aufruf je Bild, volle Leinwand, richtige Lese-Framebuffer). Gefunden per Ver
 Renderzeit je Bild). Die Ebene liegt unter der ersten eigenen Ebene
 (Track/Geister-Spur/Punkt bleiben scharf). Ursache im Zusammenspiel CDP-Aufnahme ↔ Ebene noch offen.
 Prüfstand: Kurzrender eines Projekts in 4K/1080p, Ausschnitt bei 1,5 s, Laplace-Varianz; Test `test_glaetten_aufnahme`.
+
+## Datum aus dem Ordnernamen (11.10.2026)
+
+`core/fotos.py` `datum_aus_ordner(pfad)` erkennt ein Datum im Namen der nächsten drei Ordner (`1980.01.10`,
+`1980-01-10`, `1980_01_10`, `10.01.1980`, `19800110`, Text dahinter erlaubt) und die Kette `1980/01/10`. Hat eine Datei
+kein Aufnahmedatum, schreibt Durchgang 2 `zeit_ordner` (Mittag UTC des Tages) sowie `tag_lokal`/`jahr`;
+**`aufnahme_utc` bleibt NULL**. Damit fassen alle sekundengenauen Wege (Tour-Zuordnung, Geotaggen, „fast gleich“ in
+der Doppelten-Suche, `medium_touren`) solche Dateien nicht an. Sortiert wird über `COALESCE(aufnahme_utc, zeit_ordner)`
+mit dem Ausdrucks-Index `idx_fotos_zeit_sort`; „ohne Aufnahmezeit“ (Filter `ohne_zeit`, `stand()`) heißt jetzt
+`aufnahme_utc IS NULL AND zeit_ordner IS NULL`. Bestehende Bibliotheken bekommen die Spalte in `schema_anlegen` und
+einmal das Nachtragen für alle gelesenen Dateien ohne Datum. `_behalten` (Doppelte) bevorzugt nach der Auflösung die
+Fassung in einem Datums-Ordner. Test: `tests/test_datums_ordner.py`.

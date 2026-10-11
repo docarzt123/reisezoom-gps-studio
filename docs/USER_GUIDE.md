@@ -1829,6 +1829,9 @@ Dateien bleiben liegen.
   Fortbewegung und Distanz**, die Liste ist nach Jahren gegliedert, und das Feld **„Tour suchen“** findet sie über Ort,
   Jahr oder Namen. Touren, deren Datei nur eine Nummer als Namen trägt (etwa Garmin-Exporte „…_ACTIVITY“), heißen hier
   nach ihrem Ort. **🎬 Im Animator öffnen** an jeder Tour öffnet sie direkt.
+  Solange eine Tour gewählt ist, steht oben der Chip **„Tour: … ✕“** (✕ hebt die Auswahl auf), daneben
+  **„← Alle Touren“**: zurück zur Liste, genau an die Stelle, an der du warst, mit deiner Suche — ohne neu zu laden
+  (seit v0.9.789). Auch ein Klick auf „Nach Touren“ zeigt wieder alle Touren.
 
 ### Nach Datum (seit v0.9.781)
 
@@ -1851,6 +1854,13 @@ Das Suchfeld durchsucht alles, was in den Dateien steht: Dateiname, Kamera,
 Objektiv, Stichwörter, Ortsangaben. Dazu kommen Jahr, Kamera und *mit / ohne
 Koordinate*. Links siehst du auf einen Blick, wie viele Dateien ohne
 Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.
+
+**Datum aus dem Ordnernamen** (seit v0.9.789): Steht in einer Datei kein Aufnahmedatum — typisch bei eingescannten
+Fotos und Dias —, liegt sie aber in einem Ordner mit Datum im Namen, gilt dieses Datum. Erkannt werden `1980.01.10`,
+`1980-01-10`, `1980_01_10`, `10.01.1980`, `19800110` und die Ordnerkette `1980/01/10`, auch mit Text dahinter
+(`1980.01.10 Weihnachten`). Die Datei wird dabei nicht verändert. Das Foto steht dann im Raster an diesem Tag, in
+den Details steht „(Datum aus Ordnername)“, und es zählt nicht mehr zu „ohne Aufnahmezeit“. Einer Tour wird es
+darüber nicht zugeordnet — dafür fehlt die Uhrzeit.
 
 Das Raster lädt beim Blättern von selbst nach: Bist du unten angekommen,
 kommt die nächste Seite dazu, ohne dass du klickst. Unten steht, wie viele von
@@ -2015,9 +2025,11 @@ Original eine Sicherung an. Schreibgeschützte Dateien zählt die Meldung danach
 Links in Medien: **„⧉ Doppelte suchen …“**. Der Dialog hat zwei Reiter:
 
 - **Gleich** — dieselbe Datei liegt an mehreren Stellen (etwa Original und eine Kopie im Export-Ordner). Vorgemerkt
-  ist alles bis auf **eine** Fassung: die größte, dann die mit Koordinate, dann das Original statt einer „Kopie“
+  ist alles bis auf **eine** Fassung: die größte, dann die in einem **Datums-Ordner** (z. B. `1980.01.10` — so
+  bleibt, was du von Hand einsortiert hast), dann die mit Koordinate, dann das Original statt einer „Kopie“
   oder eines Exports (Name oder Ordner), dann die ältere Datei. Ein Klick auf ein anderes
-  Bild behält stattdessen dieses. Oben steht, wie viel Platz das freimacht.
+  Bild behält stattdessen dieses. Oben steht, wie viel Platz das freimacht. Unter jedem Bild steht der **ganze Ordner**,
+  in dem es liegt.
 - **Fast gleich** — dieselbe Aufnahme, aber nicht dieselbe Datei: ein verkleinerter Export, ein anders gespeichertes
   JPEG. Erkannt an der Aufnahmezeit (±2 Sekunden) und am Bildinhalt. **Hier ist nichts vorgemerkt** — erst ansehen,
   dann auf das Bild klicken, das bleiben soll. Ist die Inhaltssuche aus, beruht die Gruppe nur auf Zeit, Kamera und

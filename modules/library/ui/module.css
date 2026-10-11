@@ -1514,6 +1514,8 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .dp-vid { position: absolute; right: 6px; bottom: 4px; color: #fff; text-shadow: 0 1px 3px #000; }
 .dp-name { margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-info { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 11.10.2026 — der ganze Ordnerpfad, umbrechend statt abgeschnitten */
+.dp-pfad { overflow-wrap: anywhere; line-height: 1.3; margin-top: 1px; }
 .dp-weg-l { display: flex; gap: 4px; align-items: center; margin-top: 2px; }
 .dp-wohin { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; margin-right: 8px; }
 
@@ -1603,7 +1605,10 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .foto-gross.im-layout .foto-gross-seite { top: 50px; }
 .foto-gross:not(.im-layout) > .foto-export-knopf { display: none; }
 /* 09.10.2026 — Doppelte: wie viel Platz frei wird */
-.dp-spart { font-size: 12px; margin-left: 4px; }
+/* 11.10.2026 — der Spar-Text nimmt den freien Platz und bricht IN SICH um. Vorher stand die Fußzeile genau an der
+   Umbruchgrenze: beim Drücken von „Wegräumen“ sprang sie auf zwei Zeilen, der Knopf rutschte unter der Maus weg und der
+   Klick ging ins Leere (Chromium, test_doppelte_ui) */
+.dp-spart { font-size: 12px; margin-left: 4px; flex: 1 1 0; min-width: 120px; line-height: 1.3; }
 .dp-g-spart { color: var(--accent, #48d6c4); font-weight: 600; }
 
 /* ── 09.10.2026 Statistik als Übersichtsseite (st-*) ─────────────────────────────────────────── */

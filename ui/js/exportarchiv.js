@@ -306,7 +306,6 @@
       footer: `<label class="dp-wohin"><input type="radio" name="dp-wohin" value="papierkorb"${merk("dop-wohin") !== "ordner" ? " checked" : ""}> ${esc(T("dop.papierkorb", "in den Papierkorb"))}</label>
                <label class="dp-wohin" title="${esc(T("dop.ordner_tip", "Neben dem Original entsteht ein Ordner „Doppelte (GPS Studio)“ — das Einlesen lässt ihn aus."))}"><input type="radio" name="dp-wohin" value="ordner"${merk("dop-wohin") === "ordner" ? " checked" : ""}> ${esc(T("dop.ordner", "in Ordner „Doppelte (GPS Studio)“"))}</label>
                <span class="dp-spart muted" id="dp-spart"></span>
-               <span style="flex:1"></span>
                <button type="button" class="btn" id="dp-ab">${esc(T("common.close", "Schließen"))}</button>
                <button type="button" class="btn btn-primary" id="dp-ok" disabled>${I("archive")} ${esc(T("dop.los0", "Wegräumen"))}</button>`,
       onClose: () => { if (ov) ov.classList.remove("dp-gross"); },
@@ -338,7 +337,8 @@
 
     function kachel(d, g, key) {
       const behalt = bleibt[key] === d.path, w = weg.has(d.path);
-      const ort = String(d.path || "").split(/[\\/]/).slice(-3, -1).join("/");   // der Ordner der Datei, nicht der beobachtete Hauptordner
+      // 11.10.2026 (Marc: „generell sollte man den kompletten Pfad immer sehen“) — der ganze Ordner, umbrechend
+      const ort = String(d.path || "").replace(/[\\/][^\\/]*$/, "");
       const mass = d.breite && d.hoehe ? `${d.breite}×${d.hoehe}` : "";
       const tu = thumbs[d.path];
       return `<div class="dp-k${behalt ? " ist-bleibt" : ""}${w ? " ist-weg" : ""}" data-dp-pfad="${esc(d.path)}" data-dp-g="${key}" title="${esc(d.path)}">
@@ -346,7 +346,7 @@
             ${behalt ? `<span class="dp-marke dp-m-bleibt">✓ ${esc(T("dop.bleibt", "bleibt"))}</span>` : w ? `<span class="dp-marke dp-m-weg">${I("archive", 12)} ${esc(T("dop.weg", "weg"))}</span>` : ""}</div>
           <div class="dp-name">${esc(d.dateiname || "")}</div>
           <div class="dp-info muted">${esc([mass, mb(d.size)].filter(Boolean).join(" · "))}</div>
-          <div class="dp-info muted">${I("folder", 12)} ${esc(ort)}</div>
+          <div class="dp-pfad muted">${I("folder", 12)} ${esc(ort)}</div>
           <label class="dp-weg-l"><input type="checkbox" data-dp-weg="${esc(d.path)}"${w ? " checked" : ""}${behalt ? " disabled" : ""}> ${esc(T("dop.wegraeumen", "wegräumen"))}</label>
         </div>`;
     }
@@ -360,7 +360,7 @@
       }
       const liste = gruppen();
       const kopf = reiter === "gleich"
-        ? T("dop.kopf_gleich", "Dieselbe Datei liegt mehrfach da — {n} Fassungen sind zu viel ({mb}). Vorgemerkt ist alles bis auf eine Fassung: die größte, dann die mit Koordinate, dann das Original statt einer „Kopie“ oder eines Exports. Ein Klick auf ein Bild behält stattdessen dieses.", { n: num(res.n_gleich), mb: mb(res.bytes_gleich) })
+        ? T("dop.kopf_gleich", "Dieselbe Datei liegt mehrfach da — {n} Fassungen sind zu viel ({mb}). Vorgemerkt ist alles bis auf eine Fassung: die größte, dann die in einem Datums-Ordner (z. B. „1980.01.10“), dann die mit Koordinate, dann das Original statt einer „Kopie“ oder eines Exports. Ein Klick auf ein Bild behält stattdessen dieses.", { n: num(res.n_gleich), mb: mb(res.bytes_gleich) })
         : T("dop.kopf_fast", "Dieselbe Aufnahme, aber nicht dieselbe Datei — etwa ein verkleinerter Export. Nichts ist vorgemerkt: Klick auf das Bild, das bleiben soll.");
       b.innerHTML = `<div class="dp-reiter">
           <button type="button" class="dp-r${reiter === "gleich" ? " is-on" : ""}" data-dp-r="gleich">${esc(T("dop.r_gleich", "Gleich"))} <b>${num(nG)}</b></button>
