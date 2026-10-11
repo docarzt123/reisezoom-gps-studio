@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- 3D buildings: stacked building parts get their colour from the tiles currently loaded. A simplified piece from a coarser tile seen briefly while flying in could give a part a different host building — and a different roof colour than its neighbour, so the shared walls flickered.
+- About window: the FOSSGIS donation link points to the new address (`fossgis.de/verein/spenden/`); the old page returned 404.
+
 ## [0.9.788] – 2026-10-10
 
 ### Fixed

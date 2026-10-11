@@ -6172,7 +6172,13 @@ function mountAnimator(body, headerActions, opts) {
     const src = map.getLayer(GEB_EBENE).source;
     let feats = [];
     try { feats = map.querySourceFeatures(src, { sourceLayer: "building" }); } catch (_) { return; }
-    const neu = [];
+    // 09.10.2026 (test_gebaeude_3d: 2 von 239 Paaren ungleich, je nach Ladereihenfolge) — ein großes Gebäude kommt über
+    // mehrere Kacheln in STÜCKEN mit derselben Kennung. Bisher galt das zuerst geladene Stück (anderer Mittelpunkt,
+    // andere Fläche → anderer Wirt, je nachdem, welche Kachel zuerst da war). Jetzt gilt immer das größte Stück.
+    // 11.10.2026 (test_gebaeude_3d wieder 1 von 246 ungleich) — „das größte“ nur unter den GERADE geladenen Kacheln:
+    // vorher zählte das größte je gesehene, auch das vereinfachte Stück einer gröberen Kachel, die beim Anflug kurz da
+    // war und wieder verschwand. Dessen Mittelpunkt lag woanders → anderer Wirt, andere Farbe als der Nachbar.
+    const stuecke = new Map();   // id → größtes Stück dieser Runde
     for (const f of feats) {
       if (f.id == null) continue;
       const ring = _gebRing(f.geometry); if (!ring || ring.length < 4) continue;
@@ -6183,12 +6189,13 @@ function mountAnimator(body, headerActions, opts) {
         a2 += c[0] * d[1] - d[0] * c[1];
       }
       const flaeche = Math.abs(a2) / 2;
-      // 09.10.2026 (test_gebaeude_3d: 2 von 239 Paaren ungleich, je nach Ladereihenfolge) — ein großes Gebäude kommt über
-      // mehrere Kacheln in STÜCKEN mit derselben Kennung. Bisher galt das zuerst geladene Stück (anderer Mittelpunkt,
-      // andere Fläche → anderer Wirt, je nachdem, welche Kachel zuerst da war). Jetzt gilt immer das größte Stück;
-      // kommt ein größeres nach, wird neu zugeordnet.
+      const s = stuecke.get(f.id);
+      if (!s || flaeche > s.flaeche) stuecke.set(f.id, { f, ring, bb, flaeche });
+    }
+    const neu = [];
+    for (const { f, ring, bb, flaeche } of stuecke.values()) {
       const alt = _gebFlaechen.get(f.id);
-      if (alt && alt.a >= flaeche) continue;
+      if (alt && alt.a === flaeche) continue;
       const m = _gebMitte(f.geometry); if (!m) continue;
       _gebFlaechen.set(f.id, { m, ring, bb, a: flaeche, wirt: alt ? alt.wirt : null, wurzel: alt ? alt.wurzel : undefined,
                                aus: f.properties && f.properties.hide_3d === true });

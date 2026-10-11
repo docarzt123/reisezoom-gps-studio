@@ -1486,7 +1486,7 @@ async function openAboutModal() {
         <div style="font-size:12px; font-weight:600; color:var(--text-dim);">${t("about.support.services_title", "… und die freien Dienste, auf denen die App läuft")}</div>
         <div class="muted" style="font-size:11.5px; margin:6px auto 0; max-width:420px; line-height:1.55;">${t("about.support.services_body", "Karten, Ortssuche, Routen und Gelände kommen ohne Schlüssel von OpenStreetMap-Projekten und Vereinen. Sie leben von Spenden und Mitgliedern.")}</div>
         <div style="margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-          ${[["https://supporting.openstreetmap.org/", "OpenStreetMap (OSMF)"], ["https://www.fossgis.de/spenden/", "FOSSGIS e.\u00a0V. (Valhalla, Nominatim)"], ["https://github.com/sponsors/hyperknot", "OpenFreeMap"], ["https://opencollective.com/maplibre", "MapLibre"]].map(([u, l]) =>
+          ${[["https://supporting.openstreetmap.org/", "OpenStreetMap (OSMF)"], ["https://www.fossgis.de/verein/spenden/", "FOSSGIS e.\u00a0V. (Valhalla, Nominatim)"], ["https://github.com/sponsors/hyperknot", "OpenFreeMap"], ["https://opencollective.com/maplibre", "MapLibre"]].map(([u, l]) =>
             `<a href="#" class="md-about-link btn" data-url="${u}" style="text-decoration:none; padding:6px 12px; border-radius:8px; background:var(--bg-3); color:var(--text); font-size:12px; font-weight:600; border:1px solid var(--border);">💚&nbsp;${l}</a>`).join("")}
         </div>
       </div>
