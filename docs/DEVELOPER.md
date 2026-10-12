@@ -7445,4 +7445,7 @@ Test: `tests/test_linie_ecken.py`.
   unter Last rot, hier eintragen. Nachtlauf: `--parallel=3` (`RZ_SUITE_PARALLEL=1` = wie früher).
 - `tests/szene_umgebung._ordner_klonen`: der Kachel-Cache der Testumgebung (2,3 GB) als Vorlage je 12 h neben den Test-Temps,
   je Test ein APFS-Klon (`cp -c`): 2,4 s statt ~14 s Aufbau (54 Oberflächentests).
+- `core/exif.reap_orphan_daemons`: räumt nur Daemons ab, deren Elternprozess weg ist (`ps -o ppid=` == 1). Vorher nur am
+  Programmpfad erkannt → eine zweite Instanz (zweite App, parallele Suite) schoss die Daemons der anderen ab (gefunden mit
+  `--parallel=3`: test_exiftool_daemon rot). Test: `tests/test_exif_verwaiste.py` (Zombie-Zustand „Z“ zählt als getötet).
 

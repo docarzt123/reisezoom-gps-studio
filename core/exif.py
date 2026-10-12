@@ -249,9 +249,9 @@ def reap_orphan_daemons() -> int:
 
     POSIX-only (pgrep/ps). Matcht nur UNSERE exiftool-Binary (Bundle-/Repo-Pfad),
     damit ein evtl. eigenständig laufender exiftool-Prozess des Users (anderer
-    Pfad) nicht abgeschossen wird. Edge-Case: zwei parallel laufende Instanzen
-    der App würden sich gegenseitig die Daemons killen — in der Praxis ist die
-    App single-instance, daher akzeptabel.
+    Pfad) nicht abgeschossen wird. Seit 12.10.2026 nur Daemons, deren Elternprozess
+    nicht mehr lebt (Eltern-PID 1) — vorher killten sich zwei gleichzeitig laufende
+    Instanzen (zweite App, parallele Tests) gegenseitig die Daemons.
     """
     if os.name != "posix":
         return 0
@@ -272,14 +272,19 @@ def reap_orphan_daemons() -> int:
             if pid == me:
                 continue
             try:
-                cmd = subprocess.run(
-                    ["ps", "-o", "command=", "-p", str(pid)],
+                zeile = subprocess.run(
+                    ["ps", "-o", "ppid=,command=", "-p", str(pid)],
                     capture_output=True, text=True, timeout=3,
-                ).stdout
+                ).stdout.strip()
             except Exception:
                 continue
+            ppid_txt, _, cmd = zeile.partition(" ")
             # Nur UNSERE exiftool-Instanz killen (Pfad-Match verhindert Fremd-Kills).
             if et not in cmd:
+                continue
+            # 12.10.2026 — nur wirklich VERWAISTE: lebt der Elternprozess, gehört der Daemon einer laufenden Instanz
+            # (zweite App, parallel laufende Tests) und bleibt. Verwaist = vom System übernommen (Eltern-PID 1).
+            if ppid_txt.strip().isdigit() and int(ppid_txt) != 1:
                 continue
             try:
                 os.kill(pid, signal.SIGKILL)

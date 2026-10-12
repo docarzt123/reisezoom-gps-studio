@@ -59,6 +59,7 @@ Bei jeder neuen Version:
 - Video assistant is now a floating, movable window over the Animator (collapsible, remembers its place): every step takes effect right away, the matching sidebar area lights up, „Done“ on every step, „Cancel“ restores the project, the whole run is still one ⌘Z.
 
 ### Fixed
+- Photo metadata: on start the app cleared exiftool helpers left over from crashed sessions, but it recognised them only by path — a second running instance lost its helpers mid-scan. Only helpers whose parent process is gone are cleared now.
 - Tile pre-warming before a render now stops within its time budget instead of starting one more stop just before the end.
 - Self-update on macOS: the update image is now always mounted below /private/tmp. If the temp folder pointed to an external drive, macOS refused to mount it ("access denied") and the update stopped.
 - Photo folders on an external USB/Thunderbolt drive were treated like a network share (small batches, two readers, slower scan). The app now asks macOS whether a drive is local; only real network shares (SMB, AFP, NFS) count as remote. A renamed or removed folder on such a drive now shows as "not there" right away.
