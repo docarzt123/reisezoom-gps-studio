@@ -28,9 +28,12 @@ Aufruf:
 """
 from __future__ import annotations
 
+import json
 import os
+import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -84,6 +87,19 @@ FARBE_AUS = "\033[0m"
 
 ZEITLIMIT_S = int(os.environ.get("RZ_TEST_ZEITLIMIT_S", "1800"))   # je Testdatei
 
+# 12.10.2026 (Marc: „zweieinhalb Stunden? das wird ja immer länger") — `--parallel=N`: die meisten Tests laufen zu N
+# gleichzeitig (längste zuerst, Dauern aus dem letzten Lauf), danach EINZELN, was rendert oder Zeiten misst — deren
+# Messungen sollen keine fremde Last sehen. Erkannt an „langsam“ und am Namen; bei Bedarf hier ergänzen.
+ALLEIN_MUSTER = ("render", "szene", "vorwaermen", "kachel", "vorlaeufer", "tempo", "zeit", "haenger", "flimmer",
+                 "wackel", "matrix", "bench", "timing", "dauer", "zwei_leser", "mount_haengt", "ladefeedback")
+DAUERN_DATEI = Path(__file__).resolve().parent.parent / "tests" / ".dauern.json"
+
+
+def allein(name: str) -> bool:
+    # „…_schnell“ = Tempo-Messung; die Schnell-Video-Tests (Oberfläche) dürfen parallel
+    return ("langsam" in BEDINGT.get(name, ()) or any(m in name for m in ALLEIN_MUSTER)
+            or bool(re.search(r"schnell(?!video)", name)))
+
 # 11.10.2026 (Marc: „alles auf der externen Platte machen“) — auf dem Mac mini legen die Tests ihre Kopien auf der externen
 # Platte an statt im System-Temp der kleinen Systemplatte. Die Testdateien erben TMPDIR (tempfile folgt ihm).
 _EXT_TEMP = Path("/Volumes/MacMini 2TB Acasis/_tmp/gps-studio-tests")
@@ -124,6 +140,13 @@ def main() -> int:
     # 09.10.2026 (Marc: „entweder du behebst alles, was rot ist oder übersprungen werden muss, oder du nimmst die Tests
     # raus“) — die echten Renders („langsam“) laufen in der Nacht-Suite mit; Netz/Schlüssel werden weiter geprüft
     mit_langsam = "--langsam" in argv
+    parallel = 1
+    for a in argv:
+        if a.startswith("--parallel="):
+            try:
+                parallel = max(1, min(8, int(a.split("=", 1)[1])))
+            except ValueError:
+                pass
     muster = [a for a in argv if not a.startswith("--")]
 
     # 04.10.2026 — Stempel „volle Suite grün für diesen Commit" (scripts/suite_stempel.py): nur bei sauberem
@@ -173,18 +196,20 @@ def main() -> int:
     ok, rot, sprung, veraltet = [], [], [], []
     beginn = time.time()
 
+    laufen = []
     for d in dateien:
         if d.name in VERALTET and not alles:
             veraltet.append(d.name)
             print(f"{FARBE_GRAU}  ⊘ {d.name}  — veraltet{FARBE_AUS}")
             continue
-
         fehlt = [b for b in BEDINGT.get(d.name, ()) if not hat.get(b, True)]
         if fehlt and not alles:
             sprung.append((d.name, ", ".join(fehlt)))
             print(f"{FARBE_GRAU}  ⏭  {d.name}  — braucht {', '.join(fehlt)}{FARBE_AUS}")
             continue
+        laufen.append(d)
 
+    def einer(d):
         t0 = time.time()
         # 06.10.2026: ein Test hing in der Nacht-Suite fast 3 Stunden und kostete den Rest der Nacht. Zeitlimit je
         # Test (der längste braucht ~6 min); wer es reißt, ist rot und die Suite läuft weiter.
@@ -196,13 +221,60 @@ def main() -> int:
                 return v.decode("utf-8", "replace") if isinstance(v, bytes) else (v or "")
             r = subprocess.CompletedProcess(e.cmd, 124, _txt(e.stdout) + f"\n⏱ Zeitlimit {ZEITLIMIT_S // 60} min überschritten — abgebrochen\n",
                                             _txt(e.stderr))
-        dauer = time.time() - t0
-        if r.returncode == 0:
-            ok.append(d.name)
-            print(f"{FARBE_OK}  ✓ {d.name}{FARBE_AUS}  ({dauer:.1f}s)")
-        else:
-            rot.append((d.name, r))
-            print(f"{FARBE_ROT}  ✗ {d.name}{FARBE_AUS}  ({dauer:.1f}s)")
+        return d, r, time.time() - t0
+
+    dauern_alt = {}
+    try:
+        dauern_alt = json.loads(DAUERN_DATEI.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        pass
+    dauern_neu = {}
+    sperre = threading.Lock()
+
+    def melden(d, r, dauer):
+        with sperre:
+            dauern_neu[d.name] = round(dauer, 1)
+            if r.returncode == 0:
+                ok.append(d.name)
+                print(f"{FARBE_OK}  ✓ {d.name}{FARBE_AUS}  ({dauer:.1f}s)", flush=True)
+            else:
+                rot.append((d.name, r))
+                print(f"{FARBE_ROT}  ✗ {d.name}{FARBE_AUS}  ({dauer:.1f}s)", flush=True)
+                if parallel > 1:   # sofort sehen, was los ist — nicht erst am Ende
+                    for zeile in (r.stdout or "").strip().splitlines()[-6:]:
+                        print(f"      {zeile}", flush=True)
+
+    if parallel <= 1:
+        for d in laufen:
+            melden(*einer(d))
+    else:
+        # 12.10.2026 (Marc: „je schneller man Tests durchhat, desto früher weiß man, ob einer rot ist“) — die schnellsten
+        # zuerst (früh Bescheid), aber EINE Bahn nimmt von hinten die langsamsten, damit die Riesen nicht am Ende allein
+        # laufen. Danach einzeln (Render/Zeitmessung), ebenfalls kurze zuerst.
+        dauer_von = lambda d: float(dauern_alt.get(d.name, 30))
+        schlange = sorted((d for d in laufen if not allein(d.name)), key=dauer_von)
+        einzeln = sorted((d for d in laufen if allein(d.name)), key=dauer_von)
+        print(f"  {len(schlange)} zu {parallel} gleichzeitig (kurze zuerst, eine Bahn von hinten), danach {len(einzeln)} einzeln", flush=True)
+        q_sperre = threading.Lock()
+
+        def bahn(von_hinten):
+            while True:
+                with q_sperre:
+                    if not schlange:
+                        return
+                    d = schlange.pop() if von_hinten else schlange.pop(0)
+                melden(*einer(d))
+        faeden = [threading.Thread(target=bahn, args=(i == 0,), daemon=True) for i in range(parallel)]
+        for f in faeden:
+            f.start()
+        for f in faeden:
+            f.join()
+        for d in einzeln:
+            melden(*einer(d))
+    try:
+        DAUERN_DATEI.write_text(json.dumps(dict(dauern_alt, **dauern_neu), indent=0, sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass
 
     print(f"\n{'═' * 62}")
     print(f"  {len(ok)} bestanden · {len(rot)} gescheitert · "

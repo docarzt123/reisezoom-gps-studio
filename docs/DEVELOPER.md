@@ -3680,6 +3680,7 @@ holen, was sie nicht anzeigt.
 .venv/bin/python scripts/run_tests.py            # alles, was laufen kann (~15 s)
 .venv/bin/python scripts/run_tests.py --list     # nur auflisten
 .venv/bin/python scripts/run_tests.py --alle     # auch die bedingten (echte Renders), ohne Netz-/Schlüssel-Prüfung
+.venv/bin/python scripts/run_tests.py --langsam --parallel=3   # zu dritt gleichzeitig; Render/Zeitmessung danach einzeln (Nachtlauf)
 .venv/bin/python scripts/run_tests.py --langsam  # mit den echten Renders („langsam“), Netz/Schlüssel weiter geprüft — so läuft die Nacht-Suite (seit 09.10.2026)
 .venv/bin/python scripts/run_tests.py test_core  # gezielt, Teilname genügt
 ```
@@ -7435,4 +7436,13 @@ Test: `tests/test_linie_ecken.py`.
   galt für ALLES unter /Volumes (außer Startplatte) → USB/Thunderbolt-Platten wie NAS. Jetzt `_mount_lokal(wurzel)` (`/sbin/mount`,
   Option „local“, je Laufwerk gemerkt); unbekannt = fern wie bisher. `core/laufwerke.info`: bei `art == "extern"` zusätzlich
   `os.path.isdir(p)` (die gemerkte Lesbarkeit `_LESBAR_MERK` hielt einen entfernten Ordner sonst bis zu LESBAR_MERK_S für „da“).
+
+## Suite schneller (12.10.2026, Marc: „zweieinhalb Stunden? das wird ja immer länger“)
+- 450 Tests, 151 min — 283 Tests zusammen 5 min, die 25 längsten 80 min, alles nacheinander auf einem von 12 Kernen.
+- `scripts/run_tests.py --parallel=N`: zuerst alle übrigen zu N gleichzeitig (kurze zuerst, eine Bahn nimmt von hinten die längsten; Dauern aus `tests/.dauern.json`
+  vom letzten Lauf), danach EINZELN, was rendert oder Zeiten misst — `allein(name)`: „langsam“ oder Name enthält ein Wort aus
+  `ALLEIN_MUSTER` (render, szene, kachel, tempo, zeit, haenger …) bzw. „schnell“ (nicht „schnellvideo“). Wird ein Test nur
+  unter Last rot, hier eintragen. Nachtlauf: `--parallel=3` (`RZ_SUITE_PARALLEL=1` = wie früher).
+- `tests/szene_umgebung._ordner_klonen`: der Kachel-Cache der Testumgebung (2,3 GB) als Vorlage je 12 h neben den Test-Temps,
+  je Test ein APFS-Klon (`cp -c`): 2,4 s statt ~14 s Aufbau (54 Oberflächentests).
 

@@ -687,7 +687,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                 for _i in _grob_nach_fein(_vorwaermen):
                     if is_cancelled and is_cancelled():
                         raise A.RenderCancelled()
-                    if time.time() - _t_vw > _budget_s:
+                    # 12.10.2026 (Suite: 24,2 s bei 20 s Budget) — keinen Halt mehr anfangen, der nicht mehr ins Budget
+                    # passt: ein Halt wartet bis 2,5 s, dazu das Springen der Karte
+                    if time.time() - _t_vw > _budget_s - 2.5:
                         _log.info("Szene: Vorwärmen nach Zeitbudget %.0f s beendet (%d von %d)", _budget_s, _halte, _vorwaermen)
                         break
                     _tv = (total_frames - 1) / cfg.fps * _i / (_vorwaermen - 1)

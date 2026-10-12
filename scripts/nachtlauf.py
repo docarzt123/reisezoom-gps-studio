@@ -209,7 +209,9 @@ def lauf(jetzt: bool = False) -> int:
     log_pfad = ZIEL / f"{stempel}-suite.log"
     t0 = time.time()
     with open(log_pfad, "w", encoding="utf-8") as fh:
-        r = subprocess.run([str(PYTHON), "-u", "scripts/run_tests.py", "--langsam"], cwd=SPIEGEL, stdout=fh, stderr=subprocess.STDOUT,
+        # 12.10.2026 — zu dritt gleichzeitig (Render/Zeitmessung weiter einzeln, s. run_tests.ALLEIN_MUSTER); RZ_SUITE_PARALLEL=1 = wie früher
+        par = os.environ.get("RZ_SUITE_PARALLEL", "3")
+        r = subprocess.run([str(PYTHON), "-u", "scripts/run_tests.py", "--langsam", f"--parallel={par}"], cwd=SPIEGEL, stdout=fh, stderr=subprocess.STDOUT,
                            env=_umgebung())
     dauer = time.time() - t0
     text = log_pfad.read_text(encoding="utf-8", errors="replace")

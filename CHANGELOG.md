@@ -59,6 +59,7 @@ Bei jeder neuen Version:
 - Video assistant is now a floating, movable window over the Animator (collapsible, remembers its place): every step takes effect right away, the matching sidebar area lights up, „Done“ on every step, „Cancel“ restores the project, the whole run is still one ⌘Z.
 
 ### Fixed
+- Tile pre-warming before a render now stops within its time budget instead of starting one more stop just before the end.
 - Self-update on macOS: the update image is now always mounted below /private/tmp. If the temp folder pointed to an external drive, macOS refused to mount it ("access denied") and the update stopped.
 - Photo folders on an external USB/Thunderbolt drive were treated like a network share (small batches, two readers, slower scan). The app now asks macOS whether a drive is local; only real network shares (SMB, AFP, NFS) count as remote. A renamed or removed folder on such a drive now shows as "not there" right away.
 - Several tours with 3D terrain: the accompanying tours no longer float above the map in close views, and in the preview they follow the route as closely as in the video (before, each animated tour was thinned to 150 points and cut corners). Their lines were lifted a fixed 150 m against flickering in the terrain mesh — invisible from afar, a clear offset next to the route up close. The lift now depends on the zoom (a few pixels, at most 150 m as before), in preview and video.
