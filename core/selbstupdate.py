@@ -216,7 +216,9 @@ def mac_bereitstellen(dmg: Path, bundle: Path, erwartete_version: str, erwartete
     _ds.nutzer_ziel(stage)   # unsere Zwischenstufe neben dem Bundle (kein GPS-Studio-Bereich)
     if stage.exists():
         _ds.ordner_loeschen(stage, "selbstupdate", art=_ds.ART_TEMP, ignore_errors=True)
-    mnt = Path(tempfile.mkdtemp(prefix="rz-update-mnt-"))
+    # 12.10.2026 — Einhängepunkt immer auf der Startplatte: zeigt TMPDIR auf eine externe Platte, verweigert hdiutil das
+    # Einhängen („attach failed - Zugriff verweigert“). Nur ein leerer Ordner, er geht nach dem Abhängen wieder weg.
+    mnt = Path(tempfile.mkdtemp(prefix="rz-update-mnt-", dir="/private/tmp" if os.path.isdir("/private/tmp") else None))
     eingehaengt = False
     try:
         r = _run(["hdiutil", "attach", "-nobrowse", "-readonly", "-noautoopen",

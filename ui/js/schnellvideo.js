@@ -1336,7 +1336,7 @@
       if (ASS) {
         const lead = box.querySelector("#va-f-lead");
         if (lead) lead.textContent = T("va.f_lead2", "{n} von {m} kommen ins Video", { n: imVideo.size, m: w.fotos.length })
-          + (fotoOpt() && fotoOpt().kapitel ? " · " + T("va.f_kapitel2", "je Reisetag zuerst das beste") : "");
+          + (fotoOpt() && fotoOpt().kapitel ? " · " + T("va.f_kapitel2", "je Tag zuerst das beste") : "");
         // 12.10.2026 — Wenige/Ausgewogen/Viele mit der Zahl, die bei dieser Länge tatsächlich ins Video kommt
         const alt = w.fotoMenge, jetzt = isFinite(+alt) ? +alt : 0.5;
         box.querySelectorAll("[data-va-f-menge]").forEach(b => {
@@ -1737,7 +1737,7 @@
       const lname = { kurz: T("va.g_kurz", "kurzes"), lang: T("va.g_lang", "langes") }[w.laenge] || T("va.g_normal", "normales");
       if (lead) lead.textContent = n ? T("va.g_lead2", "Die schönsten Stationen sind schon vorgeschlagen — {n} Momente gefunden, für ein {laenge} Video passen etwa {k}.",
         { n, laenge: lname, k: Math.min(n, ziel + hlListe().length) }) : T("va.h2_sub", "Die schönsten Stationen deiner Tour.");
-      if (kap) kap.textContent = w.lbTage > 1 ? T("va.g_kapitel_n", "Je Reisetag ein Kapitel — {n} Kapitel.", { n: w.lbTage })
+      if (kap) kap.textContent = w.lbTage > 1 ? T("va.g_kapitel_n", "Je Tag ein Kapitel — {n} Kapitel.", { n: w.lbTage })
         : T("va.g_kapitel_1", "Diese Tour dauert einen Tag — Kapitel sind hier nicht nötig.");
       const lbcb = box.querySelector("#sv-logbuch");
       const sync = () => { if (lbcb) lbcb.checked = w.lbWahl.size > 0; };
