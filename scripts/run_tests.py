@@ -91,7 +91,9 @@ ZEITLIMIT_S = int(os.environ.get("RZ_TEST_ZEITLIMIT_S", "1800"))   # je Testdate
 # gleichzeitig (längste zuerst, Dauern aus dem letzten Lauf), danach EINZELN, was rendert oder Zeiten misst — deren
 # Messungen sollen keine fremde Last sehen. Erkannt an „langsam“ und am Namen; bei Bedarf hier ergänzen.
 ALLEIN_MUSTER = ("render", "szene", "vorwaermen", "kachel", "vorlaeufer", "tempo", "zeit", "haenger", "flimmer",
-                 "wackel", "matrix", "bench", "timing", "dauer", "zwei_leser", "mount_haengt", "ladefeedback")
+                 "wackel", "matrix", "bench", "timing", "dauer", "zwei_leser", "mount_haengt", "ladefeedback",
+                 # warten auf kurze Zwischenzustände („wird eingelesen …“, Neustart) — unter dreifacher Last zu knapp
+                 "fotos_startort", "etappe_ohne_gps", "videoassistent_vorschau")
 DAUERN_DATEI = Path(__file__).resolve().parent.parent / "tests" / ".dauern.json"
 
 

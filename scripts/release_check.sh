@@ -81,7 +81,7 @@ else
   if [ "${RZ_OHNE_SUITE:-0}" = "1" ]; then
     printf "\n\033[2m▶ Alle Tests (run_tests): übersprungen — volle Suite für diesen Stand schon grün\033[0m\n"
   else
-    run "Alle Tests (run_tests)" python3 scripts/run_tests.py
+    run "Alle Tests (run_tests)" python3 scripts/run_tests.py --parallel="${RZ_SUITE_PARALLEL:-3}"
   fi
 
   # 7d) Dialoge übereinander + sichtbarer Tastatur-Fokus.

@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.789] – 2026-10-12
+
 ### Added
 - Video assistant, camera: short looping clips show what each camera choice and each movement does.
 - Video assistant: on each step the animator shows what you are setting — the story, photo and stop steps show the whole tour with all signs, the text step jumps to the title, the ending step to the end card, map and overlays to the middle of the ride.

@@ -7442,7 +7442,10 @@ Test: `tests/test_linie_ecken.py`.
 - `scripts/run_tests.py --parallel=N`: zuerst alle übrigen zu N gleichzeitig (kurze zuerst, eine Bahn nimmt von hinten die längsten; Dauern aus `tests/.dauern.json`
   vom letzten Lauf), danach EINZELN, was rendert oder Zeiten misst — `allein(name)`: „langsam“ oder Name enthält ein Wort aus
   `ALLEIN_MUSTER` (render, szene, kachel, tempo, zeit, haenger …) bzw. „schnell“ (nicht „schnellvideo“). Wird ein Test nur
-  unter Last rot, hier eintragen. Nachtlauf: `--parallel=3` (`RZ_SUITE_PARALLEL=1` = wie früher).
+  unter Last rot, hier eintragen. Nachtlauf und Release-Gate (`release_check.sh`): `--parallel=3` (`RZ_SUITE_PARALLEL=1` = wie früher).
+  Erster Lauf 12.10.2026: **69 min statt 144–151**. Nur unter Last rot (einzeln grün) waren drei Klicktests, die auf kurze
+  Zwischenzustände warten („wird eingelesen …“, „wird gesucht …“, Neustart): `fotos_startort`, `etappe_ohne_gps`,
+  `videoassistent_vorschau` → stehen jetzt in `ALLEIN_MUSTER`.
 - `tests/szene_umgebung._ordner_klonen`: der Kachel-Cache der Testumgebung (2,3 GB) als Vorlage je 12 h neben den Test-Temps,
   je Test ein APFS-Klon (`cp -c`): 2,4 s statt ~14 s Aufbau (54 Oberflächentests).
 - `core/exif.reap_orphan_daemons`: räumt nur Daemons ab, deren Elternprozess weg ist (`ps -o ppid=` == 1). Vorher nur am
