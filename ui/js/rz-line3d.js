@@ -234,11 +234,19 @@ void main() {
         // 06.10.2026 (Klicktest: Wanderung mit „Flug in der Luft“ — nach ⌘Z Lücken in der Linie): bodennahe Stücke
         // (Höhe über Grund ≈ 0) lagen genau in der Geländefläche und verschwanden je nach Kachelauflösung darin.
         // Mindesthöhe ≈ 3 Bildpunkte in Metern bei der aktuellen Zoomstufe (MapLibre: 512er Kacheln).
-        let aglMin = 0;
+        let aglMin = 0, hebM = offsetM;
         try {
           const mp = this._map, br = mp.getCenter().lat;
-          aglMin = 3 * 78271.517 * Math.cos(br * Math.PI / 180) / Math.pow(2, mp.getZoom());
+          const mpp = 78271.517 * Math.cos(br * Math.PI / 180) / Math.pow(2, mp.getZoom());   // Meter je Bildpunkt
+          aglMin = 3 * mpp;
+          // 12.10.2026 (Nutzerfrage: Straightline-Challenge, Mehrtouren mit Gelände — „alle anderen Tracks haben einen Offset
+          // und hängen in der Luft“): der feste Versatz von 150 m gegen das Flimmern im groben Geländenetz war aus der Ferne
+          // unsichtbar (Zoom 10: ~1,5 Bildpunkte), in der Nähe aber eine schwebende Linie (Zoom 16: ~100 Bildpunkte). Jetzt
+          // höchstens ~8 Bildpunkte in Metern, nie mehr als bisher; die Höhen werden je ganzer Zoomstufe neu gerechnet.
+          if (offsetM > 0 && opts.offsetPx !== 0) hebM = Math.min(offsetM, (opts.offsetPx || 8) * mpp);
         } catch (_) {}
+        const hebF = offsetM > 0 ? hebM / offsetM : 1;   // je Spur gesetzte Versätze (z. B. 150,5 für das Glanzlicht) gleich mitskalieren
+        this._hebM = hebM;   // Prüfstand
         for (const b of this._bufs) { try { gl.deleteBuffer(b.vbo); gl.deleteBuffer(b.ibo); } catch (_) {} }
         this._bufs = [];
         this._bodenProbe = [];   // Prüfstand: ~20 abgefragte Bodenhöhen der ersten Spur [lng, lat, m]
@@ -251,7 +259,7 @@ void main() {
             const boden = this._elev(c[i][0], c[i][1]);
             if (probeAll && i % probeAll === 0) this._bodenProbe.push([c[i][0], c[i][1], boden]);
             const h = t.agl ? boden + Math.max(t.lot ? 0 : aglMin, Math.max(0, +t.agl[i] || 0) * ex)
-                            : boden + ((t.offsetM != null) ? +t.offsetM : offsetM);
+                            : boden + ((t.offsetM != null) ? +t.offsetM * hebF : hebM);
             const mc = MC.fromLngLat([c[i][0], c[i][1]], h);
             merc[i] = [mc.x, mc.y, mc.z, h];
             if (t.lot) {   // Lot: zusätzlich der Fußpunkt am Boden (leicht angehoben gegen Z-Fighting)

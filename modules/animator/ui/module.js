@@ -11892,6 +11892,7 @@ function mountAnimator(body, headerActions, opts) {
       // Tastenwiederholung — am Ende stand der Lauf zufällig an oder aus.
       if (istSpace && e.repeat) { e.preventDefault(); e.stopPropagation(); return; }
       { const ov = document.getElementById("modal-overlay"); if (ov && !ov.hidden) return; }   // Dialog offen: Tasten gehören ihm
+      if (document.querySelector('[role="dialog"][aria-modal="true"]:not([hidden])')) return;   // 11.10.2026 — Lupe/Foto-Editor offen: deren Tasten
       // 02.10.2026 (Marc: „mit Command+ und Command- die Timeline zoomen") — ⌘+ / ⌘− / ⌘0 (Windows: Strg)
       if ((e.metaKey || e.ctrlKey) && !e.altKey && ["+", "=", "-", "_", "0"].includes(e.key)) {
         const id = (e.key === "+" || e.key === "=") ? "tl-zoom-in" : e.key === "0" ? "tl-zoom-reset" : "tl-zoom-out";
@@ -16399,6 +16400,15 @@ function mountAnimator(body, headerActions, opts) {
       // Schild-Timing greift (Nutzer-Bug #5). Diese Variablen leben in DIESEM Scope und
       // sind aus runTimelinePreview (anderer Scope) NICHT direkt erreichbar → über diese
       // Methode zurücksetzen. (Vorher direkter Zugriff → „Can't find variable"-Crash.)
+      // 11.10.2026 (Video-Assistent, Stufe „Geschichte“: „die Schilder sollten direkt auf der Karte zu sehen sein“) —
+      // „Vorschau: alle Schilder“ von außen schalten (nur Vorschau, nicht Render)
+      alleZeigen: (an) => {
+        _animSignsPreviewAll = !!an;
+        const pa = document.getElementById("anim-signs-preview-all"); if (pa) pa.checked = _animSignsPreviewAll;
+        try { const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0; _animSignsUpdateAtAnchor(a); } catch (_) {}
+        return _animSignsPreviewAll;
+      },
+      alleAn: () => _animSignsPreviewAll,
       beginPreview: () => {
         try { _animSignsCloseEditor(); } catch (_) {}
         _animSignForceIdx = -1;
@@ -16708,6 +16718,37 @@ function mountAnimator(body, headerActions, opts) {
     if (!_tlBar || !(G > 0)) return 0;
     return Math.max(0, Math.min(G, _tlBar.trackToBar(_tlBar.getScrubber()) * G));
   }
+  // 11.10.2026 (Video-Assistent: „der Scrubber muss dorthin springen, wo man sieht, was man einstellt“) — Videosekunde
+  // anfahren (echter Zeitleisten-Scrubber) und die Phasen (intro/anim/hold/G) lesen
+  window.__rzGeheZuZeit = (t) => { try { _tpGeheZu(+t || 0); return true; } catch (e) { applog("warn", "[assistent] gehe zu: " + e); return false; } };
+  window.__rzVideoPhasen = () => { try { return _sgPhasen(); } catch (_) { return null; } };
+  window.__rzTpZeit = () => { try { return _tpZeitJetzt(); } catch (_) { return null; } };   // Prüfstand
+  // 12.10.2026 (Klicktest: Assistent „Karte“ landete mitten in einem Fotostopp, das Foto verdeckte den Look) — Zeitfenster
+  // der Fotostopps in Videosekunden (die Phase, in der das Foto groß steht)
+  window.__rzFotostoppFenster = () => {
+    try {
+      const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+      return ((_tempoInfo && _tempoInfo.halte) || []).filter(h => h.kamera === "fotostopp").map(h => [intro + h.ab_s - 0.3, intro + h.bis_s + 0.3]);   // nur „Foto groß“
+    } catch (_) { return []; }
+  };
+  // ohne Animation: eine Fahrt, die der nächste Sprung abbricht, ließ MapLibres Bildschleife hängen (_onEaseFrame, s. fitTrackPreview)
+  // fitTrackPreview überspringt einen nicht animierten Aufruf ≤ 700 ms nach dem letzten Einpassen (Schutz gegen die
+  // Resize-Kaskade) — hier ist es gewollt (Klicktest 12.10.2026: die Gesamtsicht wurde still verworfen)
+  window.__rzGesamtsicht = () => {
+    // 12.10.2026 (Klicktest) — NICHT fitTrackPreview: dessen moveend setzt bei Keyframes sofort wieder die Keyframe-Kamera
+    // an der Scrubber-Stelle (gewollt beim Neuladen) und überschrieb den Überblick. Hier direkt: Ausschnitt der ganzen
+    // Tour, nur die Kamera der Vorschau, nichts am Projekt. Rückgabe: Ziel-Zoom (Prüfstand).
+    try {
+      const b = currentBbox;
+      if (!map || !b || !("min_lon" in b)) return null;
+      const vpEl = document.getElementById("map-canvas") || document.getElementById("anim-viewport");
+      const vpMin = vpEl ? Math.min(vpEl.clientWidth, vpEl.clientHeight) : 600;
+      const cam = map.cameraForBounds([[b.min_lon, b.min_lat], [b.max_lon, b.max_lat]], { padding: Math.max(2, Math.round(0.08 * vpMin)), bearing: map.getBearing() });
+      if (!cam) return null;
+      map.jumpTo({ center: cam.center, zoom: cam.zoom, bearing: map.getBearing(), pitch: Math.min(map.getPitch(), 45) });
+      return cam.zoom;
+    } catch (e) { applog("warn", "[assistent] Gesamtsicht: " + e); return null; }
+  };
   function _tpGeheZu(t) {
     const G = _tpG();
     if (!_tlBar || !(G > 0)) return;
@@ -17920,6 +17961,17 @@ function mountAnimator(body, headerActions, opts) {
   // 01.10.2026 (Marc: „die Highlights müssen doch als Schilder drin sein") — nach „In dieses Projekt
   // übernehmen" IMMER abgleichen (nicht erst, wenn der Render-Knopf bereit ist wie bei __rzSchnellBereit).
   // Liefert die Zahl der Highlight-Schilder; ist der Track noch nicht da, ein Versuch später.
+  // 12.10.2026 — Video-Assistent „Die Geschichte“: dieselben Höhepunkte wie die Schilder (Art, Stelle 0…1 nach Punkt, Wert)
+  window.__rzHlVorschau = (arten) => {
+    try {
+      const sr = _ovSeries, co = currentCoords;
+      if (!sr || !co || !co.length) return null;
+      const n = co.length;
+      // jede Art einzeln: die Abstandsregel (< 6 % → das spätere fällt weg) hängt davon ab, welche gewählt sind
+      return (arten || ["hoechster", "steilste", "schnellste", "halbe"]).map(a => _hlBerechnen(sr, co, [a])[0]).filter(Boolean)
+        .map(h => ({ art: h.art, bei: n > 1 ? h.i / (n - 1) : 0, f: h.f, wert: h.wert }));
+    } catch (e) { if (window.rzSwallow) rzSwallow(e, "hl:vorschau"); return null; }
+  };
   window.__rzHlAbgleichen = () => {
     try {
       _hlSchilderAbgleichen(true);
@@ -22032,6 +22084,11 @@ function mountAnimator(body, headerActions, opts) {
     // Mitglied 0: steht er nicht vorn (Gruppen vor dem Haupt-Track gebaut, Gruppen
     // zusammengelegt), fehlte sonst die erste Tour und der Haupt-Track lag doppelt.
     const _hauptK = _pfadNFC(currentGpx || "");
+    // 12.10.2026 (Nutzerfrage Mehrtouren: „animiert schwebt daneben, ‚Ganz zeigen‘ liegt richtig“) — die Vorschau dünnte jede
+    // animierte Tour auf 150 Punkte aus: Kurven wurden abgekürzt, die Linie lag neben der Strecke. Jetzt ein Budget von
+    // ~12 000 Punkten für alle Touren zusammen (5 Touren → je 1500 wie im Video; großer Schwarm → weiter mindestens 150).
+    const _swAnzahl = Math.max(1, _gruppen.reduce((s, g) => s + ((_gruppeIstGanz(g) && !_gruppeHatHaupt(g)) ? 0 : g.mitglieder.length), 0));
+    const _swPunkte = window.__rzRenderMode ? 1500 : Math.max(150, Math.min(1500, Math.round(12000 / _swAnzahl)));
     _gruppen.forEach((g, gi) => {
       if (_gruppeIstGanz(g) && !_gruppeHatHaupt(g)) return;   // §72 — eigene Ebenen, s. _ganzPrevBauen
       const inKette = kette.includes(g);
@@ -22041,9 +22098,8 @@ function mountAnimator(body, headerActions, opts) {
         if (_hauptHier ? _pfadNFC(m.gpx_path) === _hauptK : (j === 0 && inKette)) return;
         const tour = _tourVon(m.gpx_path);
         if (!tour || !tour.coords || tour.coords.length < 2) return;
-        // Render-Modus (gemeinsame Szene): feiner abtasten — Geometrie-Detail fürs Video,
-        // Aussehen identisch; 150 Punkte reichen nur für die schnelle Vorschau.
-        const idx = _swAusduennenIdx(tour.coords.length, window.__rzRenderMode ? 1500 : 150);
+        // Render-Modus (gemeinsame Szene): 1500 Punkte je Tour; Vorschau: Budget je Tourenzahl (s. o.)
+        const idx = _swAusduennenIdx(tour.coords.length, _swPunkte);
         const coords = idx ? idx.map(k => tour.coords[k]) : tour.coords;
         let zeit = null;
         if (_animModus === "uhrzeit") {

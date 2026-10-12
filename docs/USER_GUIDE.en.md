@@ -581,14 +581,18 @@ Since v0.9.651 you choose the provider — the same list on every map in the app
 
 | Group | Styles | Rights |
 |---|---|---|
-| **Free · video allowed** | **Satellite (free, country picks itself)**, Map Liberty/Bright/Positron (OpenFreeMap), OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian | no key, videos allowed, attribution is placed in the picture automatically |
+| **Free · video allowed** | **Satellite (free, country picks itself)**, Map Liberty/Bright/Positron (OpenFreeMap), the eight looks | no key, videos allowed, attribution is placed in the picture automatically (Italy is left out: there is no documented permission for videos for its aerial imagery — Sentinel-2 is used there) |
+| **Free · mind the server rules** | OpenStreetMap, OpenTopoMap | the licence allows videos (OpenTopoMap: CC BY-SA, the map counts as adapted); the servers only allow frame-by-frame rendering by arrangement — or with your own tile server |
+| **Free · not for videos** | CyclOSM, Humanitarian | the OpenStreetMap France server only serves non-commercial sites — fine for viewing, not for published videos |
 | **MapTiler · your own key** | Satellite, Satellite + labels, Outdoor, Topo, Streets | free key at cloud.maptiler.com; videos allowed for channels up to 100,000 subscribers; the free plan is non-commercial only |
 | **Mapbox · video only with purchased rights** | Satellite (3D), Satellite + streets, Outdoors, Streets, Light, Dark | token required; publishing videos only with purchased video rights |
+
+Every service in detail — licence, permission for videos, on-screen credit, date checked — is listed in the **source register** in the settings under **Maps**. This is our reading, not legal advice.
 
 **Satellite (free)** uses the official aerial imagery of the national mapping
 agencies — usually sharper than Mapbox (20–50 cm): 15 German states (Hamburg is
 currently missing), Austria, Switzerland, Luxembourg, the Netherlands, France,
-Spain incl. the Canaries, Portugal, Italy, Czechia, Poland, Estonia, Japan and
+Spain incl. the Canaries, Portugal, Czechia, Poland, Estonia, Japan and
 the USA. Which source is active is shown below the style field ("Aerial
 imagery: Brandenburg"). Outside the coverage the app quietly falls back to the
 OpenFreeMap map with 3D terrain — and tells you so in the same place.
@@ -653,7 +657,8 @@ the mapping agencies all require it.
 The app picks the source from the track's location; the style field shows which one is active. As of 3 Sept 2026:
 
 - **Germany (state by state):** Baden-Württemberg, Bavaria (CC BY 4.0), Berlin (TrueDOP), Brandenburg, Bremen (CC BY 4.0), Hesse, Mecklenburg-Vorpommern, Lower Saxony (CC BY 4.0), North Rhine-Westphalia, Rhineland-Palatinate, Saarland, Saxony, Saxony-Anhalt, Schleswig-Holstein (CC BY 4.0), Thuringia — mostly under "Datenlizenz Deutschland – Namensnennung 2.0". **Hamburg is missing** (no reachable service). Near a state border the app stacks the neighbouring states.
-- **Europe:** Austria (basemap.at, CC BY 4.0), Switzerland (swisstopo), Luxembourg (CC0), Netherlands (PDOK, CC BY 4.0), France (IGN Géoplateforme), Spain incl. the Canaries (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Italy (Geoportale Nazionale, 2012), Czechia (ČÚZK), Poland (GUGiK), Estonia (Maa-amet, CC BY 4.0), since 17 Sept 2026 Belgium (Flanders: Digitaal Vlaanderen; Wallonia: SPW, CC BY 4.0) and Slovakia (ÚGKK SR/GKÚ, CC BY 4.0); since 18 Sept 2026 Slovenia (GURS, CC BY 4.0). With your own free key (Settings → Maps → **Country keys**): Denmark (Dataforsyningen), Finland (Maanmittauslaitos), New Zealand (LINZ) — without a key Sentinel-2 stays there and the style note tells you. Outside Europe: USA, Japan and New South Wales, Australia (Spatial Services, CC BY 4.0).
+- **Italy left out (since 12 Oct 2026):** there is no documented permission to use the Italian aerial imagery (Geoportale Nazionale, AGEA 2012) in published videos. The app therefore leaves it out; in Italy „Satellite (free)“ shows Sentinel-2 and the note on the map gives the reason. Once the licence is clarified, it comes back.
+- **Europe:** Austria (basemap.at, CC BY 4.0), Switzerland (swisstopo), Luxembourg (CC0), Netherlands (PDOK, CC BY 4.0), France (IGN Géoplateforme), Spain incl. the Canaries (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Czechia (ČÚZK), Poland (GUGiK), Estonia (Maa-amet, CC BY 4.0), since 17 Sept 2026 Belgium (Flanders: Digitaal Vlaanderen; Wallonia: SPW, CC BY 4.0) and Slovakia (ÚGKK SR/GKÚ, CC BY 4.0); since 18 Sept 2026 Slovenia (GURS, CC BY 4.0). With your own free key (Settings → Maps → **Country keys**): Denmark (Dataforsyningen), Finland (Maanmittauslaitos), New Zealand (LINZ) — without a key Sentinel-2 stays there and the style note tells you. Outside Europe: USA, Japan and New South Wales, Australia (Spatial Services, CC BY 4.0).
 - **World:** Japan (GSI), USA incl. Alaska and Hawaii (USGS, public domain).
 - **No free source yet** for Scandinavia, the UK, Ireland and Canada — there the app falls back to the OpenFreeMap map with terrain; for satellite use MapTiler.
 
@@ -866,11 +871,11 @@ longitude), otherwise from the tour's location. The format follows the app langu
 ### 🧭 Video assistant — step by step to your own video (since v0.9.787) ⭐
 
 At the top of the Animator, next to **„Quick video …“**, there is **„🧭 Video assistant …“** (also on the tour page in
-the archive under **🎬 Video ▾**). In **ten short steps** — with a preview at the top — it asks how your video should
+the archive under **🎬 Video ▾**). In **ten short steps** it asks how your video should
 be: **1 Template** (Memory, Social, Landscape or one of your own ★ templates — sets everything up; below it format and length, including a **custom length** in seconds) · **2 The story** (the moments from the tour's logbook to tick — breaks with their length, overnight stays, your
-notes, plus the highest point with the other highlights; as many preselected as fit the video length, spread over all
+notes, plus the **special moments of the route** one by one — highest point, steepest section, top speed, halfway point, each with its value and each can be deselected; as many preselected as fit the video length, spread over all
 days on trips and grouped by day; anything right at a highlight is greyed out because a sign is already there) ·
-**3 Photos** (chosen for sharpness, variety and spread — deselect or add your own; slider **„How many photos?“** fewer ↔ more; what goes into the video is outlined and shows its reason, e.g. „from a series“ or „from a break“; on trips the best photo of each travel day comes first) · **4 Stops** („Stop at every photo
+**3 Photos** (chosen for sharpness, variety and spread — deselect or add your own; **Few · Balanced · Many** with the number that fits this length; what goes into the video has a tick and is outlined; on trips the best photo of each travel day comes first) · **4 Stops** („Stop at every photo
 sign“ — on by default with large photos, off with instant prints; switched on, instant prints stop too and keep their
 look; length short/normal/long; camera moves in or not; with „picture in picture“ the video always drives on) ·
 **5 Camera** (camera flight, follow or fixed; with the camera flight a **calm ↔ lively** slider and for each moment of
@@ -878,24 +883,28 @@ the story the movement in words, e.g. summit: „pull back and look to the horiz
 **6 Texts** (title and subtitle; **„How much text?“** — *little*: only the title · *normal*: title, subtitle, place and
 time below the photos, on trips a chapter title per day („Day 3 · 7 July“) where the day begins, as densely as the
 video length allows · *a lot*: camera data below the photos too) · **7 Map** (the eight looks, plus 3D buildings) ·
-**8 Overlays** (numbers, elevation profile, highlights) · **9 Ending and music** · **10 Done** — a list of what goes into the project. You can **skip** every page, then the suggestion stays; the dots at
+**8 Overlays** (numbers along the way, elevation profile) · **9 Ending and music** · **10 Done** — a list of what goes into the project. You can **skip** every page, then the suggestion stays; the dots at
 the top jump straight to a page.
 
-The assistant is a **floating window over the Animator** — drag it by its header, collapse it with ⌃, it remembers where
-it was. **Every step takes effect right away**: behind the window you see the change in the Animator, and the matching
+The assistant is a **floating window on the left, over the tools** — the map moves aside and stays fully visible; drag it
+by its header (⠿), collapse it with ⌃, it remembers where it was. **Every step takes effect right away**: behind the window you see the change in the Animator, and the matching
 area of the sidebar lights up briefly („You'll find this here later“). You may keep working in the Animator meanwhile.
-**„✓ Done“** is on every step — nothing more is added after it. Everything is **editable** in the project — signs in the
+On the last step **„Apply to project“** takes everything over; before that, **✕** asks „Close the assistant?“ — **Apply to project** or **Discard**. Everything is **editable** in the project — signs in the
 timeline, camera under „Camera“, overlays under „Overlays“ —, **„What the assistant did“** appears on the right, and
-**one ⌘Z** takes the whole assistant back. **„Cancel“** (or ✕) puts your project back the way it was before. The difference to the quick video: the quick video makes a finished file with a few choices, the
+**one ⌘Z** takes the whole assistant back. **„Cancel“** (or ✕ → Discard) puts your project back the way it was before. The difference to the quick video: the quick video makes a finished file with a few choices, the
 assistant sets up your project so you can keep working on it.
 
-**Own templates (since 11.10.2026).** On the last step you can keep your style under a name — **„★ Save as
-template“**. Only the style is kept: format, length, look, overlays, camera, stops, texts, music and ending — no title
+**How it looks (since 12.10.2026).** Every step asks one big question („What do you want to tell?“, „The look of your tour.“) and shows the choices as **pictures**: the templates and the stops („Pause briefly“ or „Keep flying“) each play a **short clip** of what happens, the camera shows its moves, the looks show the same route in eight moods. For moments, texts and overlays the assistant draws from **your tour**: your line with the moment's spot (or the photo taken there), your title, your kilometres and metres of climb, your elevation profile. Format, length, number of photos and length of stops are equal-width buttons, switches sit on the right. Less common settings are under **„Details“** (movement at individual moments, places and 3D buildings, more end-card values); music shows four tracks, **„All tracks“** the rest. The last step sums everything up in seven rows — **„Change ›“** jumps back to the step. At the bottom there is always just one main action (**Next**, at the end **Apply to project**). With „Reduce motion“ switched on, the clips only play when you hover over them. The assistant belongs to the Animator: in other modules it is hidden, back in the Animator it is on the same step again (if another project is open there by then, it closes — what it already set up stays in the previous project).
+
+**Own templates (since 11.10.2026).** On the last step you can keep your style under a name — **„Save as
+template“** (enter a name, **Save**). Only the style is kept: format, length, look, overlays, camera, stops, texts, music and ending — no title
 and no tour. Next time it appears as **„★ Name“** in the template row on the first page, in the assistant as well as in
 the quick video; one click sets everything. The same name replaces the old version, **right-click** on the template
 deletes it.
 
 **Look at photos large and pick them yourself (since 11.10.2026).** On the *Photos* step, **⤢** (top right on a photo, on hover) shows it large — browse with the arrows. **“All media of the tour (N) …”** opens every photo and video of the tour, not only the suggestions: what is in the video has a tick; a click puts an image in or takes it out, **⤢** shows it large. Your own picks get priority (“chosen by you”) as long as the video length allows; a chosen video comes in as a clip stop. **Every click takes effect right away** — look, overlays and ending show up directly in the animator. **Music** lists all tracks: **▶** plays a preview, a click on the row chooses it.
+
+**See what you set (since 11.10.2026, night).** While you are in the assistant, the animator behind it shows the matching spot: on *Story*, *Photos* and *Stops* **all signs** are on the map, on *Texts* the timeline jumps to the **title**, on *Ending & music* to the **end card**, on *Map* and *Overlays* to the middle of the ride. On the *Camera* step each card shows a **short clip** of how the camera moves, and each moment a clip of its movement. **⤢** on a photo opens a **viewer** (← → to browse, Esc closes); from there **“Open in photo editor”** leads to the editor — close it and you are back in the viewer. If the photo search takes a while (e.g. on a NAS) it says **“Searching photos of this tour …”**; if the media library can't be reached yet, **“Waiting for the media library …”** — the photos appear by themselves once they are there.
 
 ### 🎬 Quick video — a finished tour video with just a few choices (since v0.9.739) ⭐
 
@@ -2465,7 +2474,7 @@ Since v0.9.658 the finished video is literally the preview in high resolution: t
 
 **Prewarming tiles (faster since v0.9.742):** before the first frame the render loads the map tiles along the camera path — first coarsely across the whole video, then finer. It takes at most 45 seconds and shows its progress as "prewarming tiles 12 of 120". When you render the same place again most of it is already cached and it continues after a few seconds. Measured with an empty cache (20 s portrait video): prewarming 45 s instead of 104 s, whole render 185 s instead of 226 s.
 
-With the swarm on 3D terrain, the lines now run just above the terrain in the preview too (no more flickering on ridges) — just like in the video.
+With the swarm on 3D terrain, the lines now run just above the terrain in the preview too (no more flickering on ridges) — just like in the video. Since 12 Oct 2026 the height above ground depends on the zoom: from afar as before (up to 150 m), close up only a few metres — before, accompanying tours visibly floated next to the route in close views.
 
 Since v0.9.752 every video, still image and the alpha export (transparent background) runs through this preview scene — there is no second, older render path any more. If a render stops, **Help → Report a problem** with the log helps to narrow it down.
 

@@ -7337,3 +7337,97 @@ Test: `tests/test_linie_ecken.py`.
   bisher in `#sv-vorlagen`. Klick-/Rechtsklick-Handler hängen an beiden Behältern; Zweck-Klick hebt `w.eigeneVorlage` auf.
 - Länge „eigen“ nur im Assistenten: Knopf + `#sv-eigen-zeile`/`#sv-eigen` (LAENGE_MIN…600 s); das Schnell-Video bleibt bei Kurz · Normal · Lang (Entscheidung 0.9.782, test_schnellvideo_mehr).
 - Test: `tests/test_videoassistent_vorlagen.py` Abschnitt G.
+
+## Video-Assistent: Vorschau beim Einstellen, Lupe, Mediathek-Warten, Kamera-Clips (11.10.2026 nachts)
+- Animator-Schnittstellen (module.js): `__rzGeheZuZeit(t)` (echter Zeitleisten-Scrubber, `_tpGeheZu`), `__rzVideoPhasen()`
+  (`_sgPhasen`), `__rzTpZeit()` (Prüfstand), `__rzAnimSigns.alleZeigen(an)` / `.alleAn()` („Vorschau: alle Schilder“).
+  Tasten-Handler ignoriert Tasten, solange ein sichtbarer `[role=dialog][aria-modal=true]` offen ist (Lupe, Foto-Editor).
+- schnellvideo.js `vaVorschauStelle()`: je Stufe (`vaSeiteJetzt`) alle Schilder an (2/3/4) und Zeit (1/6: 1,5 s; 2/3/4: kurz vor Fahrtende + `__rzGesamtsicht()` = `fitTrackPreview(false)`, nicht animiert;
+  7/8: Mitte; 9: G−1); nach jedem Live-Schreiben erneut (das Anwenden setzt den Scrubber zurück); Fenster-`close` schaltet aus.
+- `lupe(pfad, liste)`: `.sv-lupe` (z 3900) mit `fotos_gross`; „Im Foto-Editor öffnen“ = `rzFotos.gross(…, { oben: true })` (z 4000)
+  darüber. Tasten in der Capture-Phase.
+- Mediathek: `schnellvideo_fotos` prüft Erreichbarkeit je Ordner (`os.path.isdir`, gemerkt) statt `os.path.exists` je Datei
+  (NAS: 423 Fotos ≈ 60 s) und liefert `_mediathek_stand(n_fehlt)` = {n_fehlt, einlesen, bib_bereit}. Oberfläche: `w.fotosLaden`
+  („werden gesucht …“), `w.fotosWarten` („Warten auf die Mediathek …“, alle 3 s neu, höchstens 60×).
+- `.spinner` (app.css) war undefiniert — jetzt ein Ring (`ass-spin`).
+- Alle Medien: `alleStand()` schaltet nur Klassen um (kein Neuaufbau), Kachel `.laedt` während des Holens.
+- Kamera-Clips: `ui/media/kamera/{fahrt,folgen,fest,panorama,nah,ruhig}.mp4` (480 px, stumm, ~150 KB; Teide, gerendert mit dem
+  eigenen Renderer über `__rzSchnellPatch`), `kamClip(k)` in Karten und Momente-Zeilen.
+- Test: `tests/test_videoassistent_vorschau.py` (Brücke verzögert/gefälscht für das Warten).
+- Platz für das Fenster: seit 12.10.2026 `vaFenster().platz()` (siehe „Neue Optik“ unten) — die Fläche weicht auf der
+  überdeckten Seite aus (`--va-platz-l/-r`); der ResizeObserver der Fläche passt die Vorschau ein.
+- Raster „Alle Medien“: `grid-auto-rows: 54px`, Bild absolut (vorher drückte `img { height:100% }` die natürliche Höhe durch).
+
+## Medien: Ladeanzeige sofort beim Öffnen (12.10.2026)
+- `rzFotos.mount` (fotos.js) zeichnet vor dem ersten `await` (settings_get, fotos_letzter_stand) „Medien werden geladen …“
+  (`.fotos-laedt`, nur wenn noch nichts geladen ist) und links „Ordner werden geladen …“, falls die Leiste leer ist.
+- Test: `tests/test_medien_laden_anzeige.py` (die beiden ersten Antworten 4 s verzögert).
+
+## Nachträge Klicktest 12.10.2026 morgens
+- `__rzGesamtsicht()` fährt den Überblick direkt (`cameraForBounds` + `jumpTo`), nicht über `fitTrackPreview` — dessen
+  `moveend` setzt bei Keyframes die Keyframe-Kamera an der Scrubber-Stelle wieder und überschrieb den Überblick (im
+  WebKit-Test unbemerkt, weil zweimal derselbe überschriebene Zoom verglichen wurde; der Test vergleicht jetzt mit dem
+  Ziel-Zoom und dem Start).
+- `__rzFotostoppFenster()` = Phasen „Foto groß“ in Videosekunden; `freieStelle(ph)` wählt für Karte/Einblendungen eine Stelle
+  nahe der Mitte außerhalb davon.
+- Archiv `reload()` zeichnet vor der ersten Abfrage („Touren werden geladen …“ mit `.spinner`), solange `_tourenGeladen` falsch ist.
+- Assistent-Raster: `.sv-alle-bild` setzt `opacity`/`filter` der Vorschlags-Kachel zurück (sah wie abgewählt aus).
+
+## Weltumrundung und Import freier Web-Projekte (12.10.2026, Web-Funde F-14/F-15)
+- `kamerafahrt(bbox, animS, regie, opt, linie)` (schnellvideo.js): umspannt die Box ≥ 300° Länge, liegen die Übersichts-
+  Keyframes am Anfang über `linie[0]`, am Ende über `linie[-1]` (Breite: Mitte der Box). Vorher Mitte der Box = Gegenseite
+  (abgewickelt −166,6° bei Berlin westwärts) bzw. irgendwo (roh −180…180). Bereits gespeicherte Projekte behalten ihre
+  Keyframes. Test: `tests/test_weltumrundung_uebersicht.py`.
+- `_umschlag_einspielen` (app.py): `projekte.json` mit `track_hash` „frei:…“ → `_frei_einspielen`, auch ohne `frei.json`
+  (das Web legt track.gpx + tour.json bei). Vorher als Tour eingespielt: `geo_hashes` gesetzt, `haupt_etappe.gpx_path` zeigte
+  auf eine andere Datei als die geladene → `__rzAnimBereit().route` nie wahr, Render „Routen-GPX lädt“ bis zur Zeitgrenze.
+  Test: `tests/test_etappe_paket.py` Abschnitt E.
+
+## Video-Assistent: neue Optik (12.10.2026)
+- Eigener Rumpf `vaRumpf()` in `rzSchnellVideo` (schnellvideo.js), `body: ASS ? vaRumpf() : …` — das Schnell-Video behält
+  seine Vorlage (ohne Assistenten-Reste). Gleiche IDs wie dort (`#sv-fotos`, `#sv-musik`, `#sv-zahlen`, `[data-sv-gruppe]`,
+  `[data-sv-feld]` …): die Logik dahinter ist dieselbe. Je Stufe `<section data-va="n">` mit `.va-h` (Frage) und `.va-sub`.
+- Bausteine: `karte()` = Bildkarte `.va-bk` (Bild/Clip, `.va-haken` bei `.is-on`), `wahl()` = gleich breite Knöpfe `.va-wahl`,
+  `schalter()` = `.va-schalter` (Schalter-Checkbox), `details()` = `.va-details` (Aufklapper mit Anzahl rechts).
+- Grafiken aus der eigenen Tour: `routeSvg({bei})` (v.linie, Punkt an Stelle `bei`), `profilSvg()` (v.profil),
+  `textBild(menge)` (Titel/Unterzeile aus den Eingabefeldern, erstes Foto; `vaTexte()` zeichnet sie bei jedem Besuch neu).
+  Momente: Foto mit |bei − Moment| < 0,035, sonst die Linie mit Punkt.
+- Medien: `ui/media/assistent/vorlage_{erinnerung,social,landschaft}.mp4`, `halt_{an,weiter}.mp4` (Masca der Testumgebung,
+  über den echten Assistenten eingerichtet und mit dem eigenen Renderer gerendert, 480 px, stumm) und `look_<name>.jpg`
+  (Überblick derselben Strecke je Look, ohne Einblendungen/Keyframe-Pins, 480 × 300). `vaClip(pfad)`; bei
+  `prefers-reduced-motion` ohne autoplay, Abspielen beim Darüberfahren. `zeigen()` spielt nur die Clips der sichtbaren Stufe.
+- Fenster `vaFenster`: links (`top` = Oberkante der Arbeitsfläche, `bottom: 12px`), Griff `grip-vertical`, Lage in
+  `rz.va.lage2`. `platz()` misst Fenster ↔ `.anim-canvas` und setzt `--va-platz-l` oder `--va-platz-r` (≤ 60 % der Fläche),
+  bei Ziehen-Ende, Ein-/Ausklappen, Fenstergröße; eingeklappt kein Platz.
+- Fuß: eine Hauptaktion (`#va-weiter`, am Ende `#sv-uebernehmen`), `#va-skip` versteckt (Prüfstand). ✕ = `m.onX` → Leiste
+  `#va-ende` („Assistent beenden?“ Verwerfen = `vaAbbrechen` · Übernehmen = `uebernehmen("fertig")` · weiter).
+- Fotos: Häkchen nur an `va-im-video`; Wenige/Ausgewogen/Viele = `w.fotoMenge` 0,1/0,5/0,9 — die Zahl je Knopf rechnet
+  `fotosZeigen()` mit `stoppsJetzt()` + `ohneHaltJetzt()` für jeden Wert aus. Halte: Karten `[data-va-h-art]` schalten die
+  versteckte `#va-h-alle`. Musik: vier sichtbare Zeilen (gewähltes Stück immer dabei), Rest `.va-mu-mehr` bis „Alle Musikstücke“.
+  Zusammenfassung: sieben Zeilen aus `vaListe` mit `[data-va-geh]`.
+- Neue Symbole in icons.js: `bookmark`, `grip-vertical`, `monitor`.
+- Tests angepasst: `test_videoassistent_ui` (✕-Leiste, sieben Zeilen, „Ändern“), `_vorlagen` (Clips, „Als Vorlage merken“),
+  `_halte` (Mengen-Knöpfe), `_vorschau` (Fenster links, Karte daneben).
+- Besondere Momente (12.10.2026, Marc): `hlListe()` = Höhepunkte aus `v.pois` (hoechster, steilster→steilste, schnellster→schnellste)
+  plus „halbe“ (Distanz entlang `v.linie`); `w.hlArten` (nur Assistent, Set) wird in „Die Geschichte“ als Zeilen `data-va-g="hl:<art>"`
+  gewählt und geht als `highlights_arten` (+ „wegpunkte“) ins Projekt; `#sv-highlights` (versteckt) = mindestens eine Art. Belegte
+  Stellen (± 0,05) sperren Logbuch-Momente nur für gewählte Arten. Stufe 8 ohne Highlights-Karte. Eigene Vorlagen merken `hl_arten`.
+- Nur im Animator: `switchMod` (app.js) meldet `rz-modul` {slug}; `vaFenster` blendet sich außerhalb aus (`hidden`, ohne `va-offen`),
+  zurück im Animator `o.beimAnimator()`: anderes Projekt → schließen, sonst nach `__rzSchnellBereit(P.id)` neu eintragen (`vaLive`).
+  `uebernehmen("live")` bricht nach dem Speichern ab, wenn der Animator nicht mehr aktiv ist (Karte abgebaut — sonst MapLibre-Fehler).
+
+## Kartenfehler nach Modulwechsel, F-16, F-17, schwebende Zusatztouren (12.10.2026)
+- MapLibre-Patches 15/16 (`ui/vendor/maplibre-gl.js`, Wächter `tests/test_vendor_patches.py`):
+  `/* rz-patch elevcenter */` — `_updateElevation` setzt `_elevationCenter` nach, wenn das Gelände erst während einer
+  animierten Kamerafahrt dazukam (vorher `e.wrap` auf undefined in `_getOverscaledTileIDFromLngLatZoom`);
+  `/* rz-patch taskqueue */` — `TaskQueue.run` mit try/finally: ein Fehler in einer Render-Aufgabe ließ `_currentlyRunning`
+  stehen, jedes weitere Bild warf „Attempting to run(), but is already running.“ (Vorschau stand). Ausgelöst beim
+  Neuaufbau des Animators nach Modulwechsel (9:16/Nachtkarte/Gelände), ~2 von 3 Läufen; danach 0 von 3.
+- F-16: `core/mapstyles.py` `OHNE_VIDEO_FREIGABE` — Regionen mit `commercial_video` „unknown“/„false“ im Register fallen aus
+  `ORTHO_REGIONS` (Python und JS-Katalog) und stehen als `KNOWN_GAPS` mit Grund (`map.gap.<id>.reason`). Derzeit `it`.
+- F-17: Schnell-Video „Weite“: Live-Werte `anker: "bc"`, mit Profil über dessen Kopfzeile (wie Puls); Übersichtskarte
+  bleibt oben rechts (`y: 3`); Dialog-Vorschau `.sv-vk-zahlen.art-weite` unten (`.ueber-profil` 19 %).
+- `ui/js/rz-line3d.js`: Versatz über Gelände = min(`offsetM`, `offsetPx` (8) × Meter je Bildpunkt), je ganzer Zoomstufe
+  neu (wie die Höhen); je Spur gesetzte `offsetM` (Glanzlicht 150,5, Ghosts 145…) skalieren mit. Flüge (`agl`) unberührt.
+  `opts.offsetPx: 0` = alter fester Versatz (Prüfstand). Test: `tests/test_line3d_hoehe.py` (node, nachgebaute Karte).
+- Schwarm-Vorschau: Punkte je animierter Tour = clamp(12 000 / Tourenzahl, 150, 1500) statt fest 150 (Render weiter 1500).

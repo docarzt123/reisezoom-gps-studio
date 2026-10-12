@@ -506,6 +506,9 @@ function mountLibrary(body, headerActions) {
   }
   async function reload() {
     const seq = ++_reloadSeq;
+    // 12.10.2026 (Klicktest: nach dem Start war die Touren-Liste ein leerer Kasten, bis die erste Abfrage kam) — vorher
+    // einmal zeichnen: noch nichts geladen → „Touren werden geladen …“ mit Ladeanzeige
+    if (!_tourenGeladen && !_fotoView) { try { renderView(); } catch (e) { if (window.rzSwallow) rzSwallow(e, "library:laedt"); } }
     const res = await api().library_query(queryParams({
       limit: view === "map" ? MAP_CAP : (view === "stats" ? 1 : PAGE),
       with_thumbs: false,          // 22.08.2026: Bilder holt das Fenster gezielt (library_thumbs)
@@ -1849,7 +1852,8 @@ function mountLibrary(body, headerActions) {
   function emptyHtml() {
     // 06.10.2026 (Marc: „auf Touren geklickt, da stand erst keine Touren … ich dachte: wo sind meine ganzen Touren?")
     if (!_tourenGeladen) {
-      return `<div class="lib-empty"><div class="lib-empty-title">${T("library.laedt", "Touren werden geladen …")}</div></div>`;
+      return `<div class="lib-empty"><div class="lib-empty-title"><span class="spinner"></span> ${T("library.laedt", "Touren werden geladen …")}</div>
+        <div class="lib-empty-text">${T("library.laedt_hinweis", "Direkt nach dem Start kann das ein paar Sekunden dauern.")}</div></div>`;
     }
     if (!_folders.length) {
       return `

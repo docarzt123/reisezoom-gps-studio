@@ -482,6 +482,17 @@ KNOWN_GAPS = [
      "reason": "Der Luftbild-Dienst der Stadt Hamburg ist abgeschaltet (alle bekannten Adressen 404, Stand 04.09.2026)."},
 ]
 
+# 12.10.2026 (Web-Fund F-16, Marc: „weglassen“) — Luftbild-Länder, deren Freigabe für Videos im Quellen-Register nicht
+# geklärt („unknown“) oder verneint („false“) ist, benutzt die App nicht: Vorschau und Video zeigen dort den Untergrund
+# (Sentinel-2), der Hinweis nennt den Grund (KNOWN_GAPS). Wird die Freigabe im Register auf „true“ geklärt, sind sie
+# automatisch wieder dabei. Betrifft derzeit Italien (Ortofoto AGEA 2012, Lizenz unbelegt).
+OHNE_VIDEO_FREIGABE = [r for r in ORTHO_REGIONS if ((_kq.eintrag(r["id"]) or {}).get("commercial_video") in ("unknown", "false"))]
+ORTHO_REGIONS = [r for r in ORTHO_REGIONS if r not in OHNE_VIDEO_FREIGABE]
+for _r in OHNE_VIDEO_FREIGABE:
+    KNOWN_GAPS.append({"id": _r["id"], "name": _r["name"], "bbox": _r["bbox"],
+                       "reason": "Für diese Luftbilder ist keine Freigabe für veröffentlichte Videos belegt — "
+                                 "deshalb nimmt die App sie nicht, bis die Lizenz geklärt ist."})
+
 
 # ── Regionen mit eigenem Schlüssel (18.09.2026) ─────────────────────────────
 _REGION_KEY_VALUES: dict = {}

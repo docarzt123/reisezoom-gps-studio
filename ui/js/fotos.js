@@ -3370,6 +3370,14 @@
 
   async function mount(hauptEl, navEl) {
     haupt = hauptEl; nav = navEl; angemeldet = true;
+    // 12.10.2026 (Marc: „wenn ich die App starte und relativ zügig zu Medien klicke, lande ich in einem schwarzen Loch“) —
+    // die ersten Antworten (Einstellungen, gemerkter Stand) warten kurz nach dem Start auf das noch beschäftigte Backend;
+    // bis dahin blieb der Bereich leer. Sofort zeigen, dass geladen wird — die echte Ansicht ersetzt es.
+    if (!geladen.length && haupt) {
+      haupt.innerHTML = `<div class="lib-detail-empty fotos-laedt" style="padding:20px"><div><span class="spinner"></span> ${esc(T("fotos.laedt_start", "Medien werden geladen …"))}</div>
+        <div class="muted" style="margin-top:6px">${esc(T("fotos.laedt_start_hinweis", "Direkt nach dem Start kann das ein paar Sekunden dauern."))}</div></div>`;
+    }
+    if (nav && !nav.textContent.trim()) nav.innerHTML = `<div class="muted fotos-laedt" style="padding:10px 12px;font-size:12px"><span class="spinner"></span> ${esc(T("fotos.laedt_ordner", "Ordner werden geladen …"))}</div>`;
     albenLaden();   // 09.10.2026 — Alben links (still nachgeladen)
     // Jeder Schritt sagt, was er tut: bei zehntausenden Dateien dauert das
     // sonst lange genug, dass man die App für tot hält.

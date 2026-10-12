@@ -598,14 +598,18 @@ auf allen Karten der App aus derselben Liste.
 
 | Gruppe | Stile | Rechtelage |
 |---|---|---|
-| **Kostenlos · Video erlaubt** | **Satellit (kostenlos, Land wählt sich selbst)**, Karte Liberty/Bright/Positron (OpenFreeMap), OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian | kein Schlüssel, Videos erlaubt, Nennung steht automatisch im Bild |
+| **Kostenlos · Video erlaubt** | **Satellit (kostenlos, Land wählt sich selbst)**, Karte Liberty/Bright/Positron (OpenFreeMap), die acht Looks | kein Schlüssel, Videos erlaubt, Nennung steht automatisch im Bild (Italien ist ausgelassen: für die dortigen Luftbilder ist keine Freigabe für Videos belegt — dort kommt Sentinel-2) |
+| **Kostenlos · Server-Regeln beachten** | OpenStreetMap, OpenTopoMap | die Lizenz erlaubt Videos (OpenTopoMap: CC BY-SA, die Karte gilt als bearbeitet); die Server erlauben Bild-für-Bild-Rendern aber nur nach Absprache — oder mit eigenem Kachelserver |
+| **Kostenlos · nicht für Videos** | CyclOSM, Humanitarian | der Server von OpenStreetMap France bedient nur nichtkommerzielle Seiten — zum Ansehen ja, für veröffentlichte Videos nein |
 | **MapTiler · eigener Schlüssel** | Satellit, Satellit + Beschriftung, Outdoor, Topo, Streets | kostenloser Schlüssel auf cloud.maptiler.com; Videos für Kanäle bis 100.000 Abonnenten erlaubt; Gratistarif nur nicht-kommerziell |
 | **Mapbox · Video nur mit gekauften Rechten** | Satellit (3D), Satellit + Straßen, Outdoor, Streets, Hell, Dunkel | Token nötig; Veröffentlichung von Videos nur mit gekauften Videorechten |
+
+Jeden Dienst einzeln — Lizenz, Freigabe für Videos, Nennung im Bild, Prüfdatum — zeigt das **Quellen-Register** in den Einstellungen unter **Karten**. Das ist unsere Lesart, keine Rechtsberatung.
 
 **Satellit (kostenlos)** nimmt die amtlichen Luftbilder der Landesvermessung —
 meist schärfer als Mapbox (20–50 cm). Dabei: 15 deutsche Bundesländer (Hamburg
 fehlt derzeit), Österreich, Schweiz, Luxemburg, Niederlande, Frankreich,
-Spanien mit Kanaren, Portugal, Italien, Tschechien, Polen, Estland, Japan und
+Spanien mit Kanaren, Portugal, Tschechien, Polen, Estland, Japan und
 die USA. Welche Quelle gerade greift, steht unter dem Stil-Feld
 („Luftbild: Brandenburg"). Liegt der Track außerhalb, weicht die App still auf
 die OpenFreeMap-Karte mit 3D-Gelände aus — und sagt es dir an derselben Stelle.
@@ -672,7 +676,8 @@ Landesvermessungen verlangen sie.
 Die App wählt die Quelle anhand der Track-Lage; unter dem Stil-Feld steht, welche greift. Stand 03.09.2026:
 
 - **Deutschland (Land für Land):** Baden-Württemberg (LGL), Bayern (Vermessungsverwaltung, CC BY 4.0), Berlin (TrueDOP), Brandenburg (LGB), Bremen (CC BY 4.0), Hessen (HVBG), Mecklenburg-Vorpommern, Niedersachsen (LGLN, CC BY 4.0), Nordrhein-Westfalen (Geobasis NRW), Rheinland-Pfalz, Saarland, Sachsen (GeoSN), Sachsen-Anhalt, Schleswig-Holstein (CC BY 4.0), Thüringen — meist unter „Datenlizenz Deutschland – Namensnennung 2.0". **Hamburg fehlt** (kein erreichbarer Dienst). Liegt der Track an einer Landesgrenze, legt die App die Nachbarländer übereinander.
-- **Europa:** Österreich (basemap.at, CC BY 4.0), Schweiz (swisstopo), Luxemburg (CC0), Niederlande (PDOK, CC BY 4.0), Frankreich (IGN Géoplateforme), Spanien inkl. Kanaren (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Italien (Geoportale Nazionale, 2012), Tschechien (ČÚZK), Polen (GUGiK), Estland (Maa-amet, CC BY 4.0), seit 17.09.2026 Belgien (Flandern: Digitaal Vlaanderen; Wallonien: SPW, CC BY 4.0) und Slowakei (ÚGKK SR/GKÚ, CC BY 4.0); seit 18.09.2026 Slowenien (GURS, CC BY 4.0). Mit eigenem, kostenlosem Schlüssel (Einstellungen → Karten → **Länder-Schlüssel**): Dänemark (Dataforsyningen), Finnland (Maanmittauslaitos), Neuseeland (LINZ) — ohne Schlüssel bleibt dort Sentinel-2, und der Stil-Hinweis sagt es. Außerhalb Europas: USA, Japan und New South Wales in Australien (Spatial Services, CC BY 4.0).
+- **Italien ausgelassen (seit 12.10.2026):** Für die italienischen Luftbilder (Geoportale Nazionale, AGEA 2012) ist keine Freigabe für veröffentlichte Videos belegt. Die App nimmt sie deshalb nicht; in Italien zeigt „Satellit (kostenlos)“ Sentinel-2, der Hinweis an der Karte nennt den Grund. Wird die Lizenz geklärt, sind sie wieder dabei.
+- **Europa:** Österreich (basemap.at, CC BY 4.0), Schweiz (swisstopo), Luxemburg (CC0), Niederlande (PDOK, CC BY 4.0), Frankreich (IGN Géoplateforme), Spanien inkl. Kanaren (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Tschechien (ČÚZK), Polen (GUGiK), Estland (Maa-amet, CC BY 4.0), seit 17.09.2026 Belgien (Flandern: Digitaal Vlaanderen; Wallonien: SPW, CC BY 4.0) und Slowakei (ÚGKK SR/GKÚ, CC BY 4.0); seit 18.09.2026 Slowenien (GURS, CC BY 4.0). Mit eigenem, kostenlosem Schlüssel (Einstellungen → Karten → **Länder-Schlüssel**): Dänemark (Dataforsyningen), Finnland (Maanmittauslaitos), Neuseeland (LINZ) — ohne Schlüssel bleibt dort Sentinel-2, und der Stil-Hinweis sagt es. Außerhalb Europas: USA, Japan und New South Wales in Australien (Spatial Services, CC BY 4.0).
 - **Welt:** Japan (GSI), USA inkl. Alaska und Hawaii (USGS, gemeinfrei).
 - **Keine kostenlose Quelle** gibt es derzeit für Skandinavien, Großbritannien, Irland und Kanada — dort weicht die App auf die OpenFreeMap-Karte mit Gelände aus; für Satellit dort MapTiler nehmen.
 
@@ -891,13 +896,13 @@ App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
 ### 🧭 Video-Assistent — Schritt für Schritt zum eigenen Video (seit v0.9.787) ⭐
 
 Oben im Animator, neben **„Schnell-Video …“**, steht **„🧭 Video-Assistent …“** (auch auf der Tour-Seite im Archiv unter
-**🎬 Video ▾**). Er fragt dich in **zehn kurzen Stufen** — mit Vorschau oben —, wie dein Video werden soll:
+**🎬 Video ▾**). Er fragt dich in **zehn kurzen Stufen**, wie dein Video werden soll:
 **1 Vorlage** (Erinnerung, Social, Landschaft oder eine deiner eigenen ★-Vorlagen — stellt alles passend ein; darunter
 Format und Länge, auch eine **eigene Länge** in Sekunden) · **2 Die Geschichte** (die Momente aus dem Logbuch der Tour zum Anhaken — Pausen
-mit Dauer, Übernachtungen, deine Notizen, dazu der höchste Punkt mit den anderen Höhepunkten; vorausgewählt so viele,
+mit Dauer, Übernachtungen, deine Notizen, dazu die **besonderen Momente der Strecke** einzeln — höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke, jeder mit seinem Wert und abwählbar; vorausgewählt so viele,
 wie zur Videolänge passen, bei Reisen über alle Tage verteilt und nach Tagen gruppiert; was direkt an einem Höhepunkt
 liegt, ist ausgegraut, weil dort schon ein Schild steht) · **3 Fotos** (ausgewählt nach Schärfe, Abwechslung und
-Verteilung — abwählen oder eigene dazunehmen; Regler **„Wie viele Fotos?“** weniger ↔ mehr; was ins Video kommt, ist umrandet und zeigt seinen Grund, z. B. „aus einer Serie“ oder „aus einer Pause“; bei Reisen kommt aus jedem Reisetag zuerst das beste Foto) · **4 Halte** („An allen Foto-Schildern anhalten“ — bei großen Fotos
+Verteilung — abwählen oder eigene dazunehmen; **Wenige · Ausgewogen · Viele** mit der Zahl, die bei dieser Länge ins Video passt; was ins Video kommt, trägt ein Häkchen und ist umrandet; bei Reisen kommt aus jedem Reisetag zuerst das beste Foto) · **4 Halte** („An allen Foto-Schildern anhalten“ — bei großen Fotos
 vorgegeben an, bei Sofortbildern aus; eingeschaltet halten auch Sofortbilder an und behalten ihr Aussehen; Dauer
 kurz/normal/lang; Kamera fährt heran oder nicht; bei „Bild im Bild“ fährt das Video immer durch) · **5 Kamera**
 (Kamerafahrt, Folgen oder Fest; bei der Kamerafahrt ein Regler **ruhig ↔ lebendig** und je Moment der Geschichte die
@@ -905,25 +910,29 @@ Bewegung in Worten, z. B. Gipfel: „aufziehen und zum Horizont blicken“; **�
 **6 Texte** (Titel und Unterzeile; **„Wie viel Text?“** — *wenige*: nur der Titel · *normal*: Titel, Unterzeile, unter
 den Fotos Ort und Uhrzeit, bei Reisen ein Kapiteltitel je Tag („Tag 3 · 7. Juli“) dort, wo der Tag beginnt, so dicht,
 wie es die Videolänge erlaubt · *viele*: dazu Kameradaten unter den Fotos) · **7 Karte** (die acht Looks, dazu 3D-Häuser)
-· **8 Einblendungen** (Zahlen, Höhenprofil, Highlights) · **9 Schluss & Musik** · **10 Fertig** — eine Liste, was ins Projekt kommt. Jede Seite kannst du
+· **8 Einblendungen** (Zahlen unterwegs, Höhenprofil) · **9 Schluss & Musik** · **10 Fertig** — eine Liste, was ins Projekt kommt. Jede Seite kannst du
 **überspringen**, dann bleibt der Vorschlag; über die Punkte oben springst du direkt auf eine Seite.
 
-Der Assistent ist ein **schwebendes Fenster über dem Animator** — verschieben am Kopf, mit ⌃ einklappen, die Lage merkt
-er sich. **Jede Stufe wirkt sofort**: hinter dem Fenster siehst du im Animator, was sich ändert, und der passende Bereich
+Der Assistent ist ein **schwebendes Fenster links über den Werkzeugen** — die Karte rückt daneben und bleibt ganz sichtbar;
+verschieben am Kopf (⠿), mit ⌃ einklappen, die Lage merkt er sich. **Jede Stufe wirkt sofort**: hinter dem Fenster siehst du im Animator, was sich ändert, und der passende Bereich
 der Seitenleiste leuchtet kurz auf („Das findest du später hier“). Du darfst nebenbei im Animator weiterarbeiten.
-**„✓ Fertig“** steht auf jeder Stufe — danach kommt nichts mehr dazu. Alles steht **bearbeitbar** im Projekt — Schilder
+Auf der letzten Stufe übernimmt **„Ins Projekt übernehmen“** alles; **✕** fragt vorher „Assistent beenden?“ — **Ins Projekt übernehmen** oder **Verwerfen**. Alles steht **bearbeitbar** im Projekt — Schilder
 in der Zeitleiste, Kamera unter „Kamera“, Einblendungen unter „Overlays“ —, rechts erscheint **„Das hat der Assistent
-gemacht“**, und **ein ⌘Z** nimmt den ganzen Assistenten zurück. **„Abbrechen“** (oder ✕) stellt dein Projekt wieder so
+gemacht“**, und **ein ⌘Z** nimmt den ganzen Assistenten zurück. **„Abbrechen“** (oder ✕ → Verwerfen) stellt dein Projekt wieder so
 her, wie es vor dem Assistenten war. Der Unterschied zum Schnell-Video: das Schnell-Video macht mit wenigen
 Entscheidungen eine fertige Datei, der Assistent richtet dein Projekt ein, damit du danach weiterarbeitest.
 
+**So sieht er aus (seit 12.10.2026).** Jede Stufe stellt eine große Frage („Was möchtest du erzählen?“, „Der Look deiner Tour.“) und zeigt die Wahl als **Bilder**: Die Vorlagen und die Halte („Kurz anhalten“ oder „Weiterfliegen“) zeigen je einen **kurzen Clip**, was passiert, die Kamera ihre Fahrten, die Looks dieselbe Strecke in acht Stimmungen. Momente, Texte und Einblendungen zeichnet der Assistent aus **deiner Tour**: deine Linie mit dem Punkt des Moments (oder das Foto, das dort entstand), dein Titel, deine Kilometer und Höhenmeter, dein Höhenprofil. Format, Länge, Anzahl der Fotos und Dauer der Halte sind gleich breite Knöpfe, Schalter stehen rechts. Seltener Gebrauchtes liegt unter **„Details“** (Bewegung an einzelnen Momenten, Orte und 3D-Häuser, weitere Angaben der Schlusskarte); die Musik zeigt vier Stücke, **„Alle Musikstücke“** den Rest. Die letzte Stufe fasst alles in sieben Zeilen zusammen — **„Ändern ›“** springt zurück zur Stufe. Unten steht immer nur eine Hauptaktion (**Weiter**, am Ende **Ins Projekt übernehmen**). Wer „Bewegung reduzieren“ eingestellt hat, sieht die Clips erst beim Darüberfahren. Der Assistent gehört zum Animator: In anderen Modulen ist er ausgeblendet, zurück im Animator steht er wieder auf derselben Stufe (ist dort inzwischen ein anderes Projekt offen, schließt er sich — was er schon eingetragen hat, bleibt im vorigen Projekt).
+
 **Eigene Vorlagen (seit 11.10.2026).** Auf der letzten Stufe kannst du deinen Stil unter einem Namen merken —
-**„★ Als Vorlage speichern“**. Gemerkt wird nur der Stil: Format, Länge, Look, Einblendungen, Kamera, Halte, Texte,
+**„Als Vorlage merken“** (Name eingeben, **Merken**). Gemerkt wird nur der Stil: Format, Länge, Look, Einblendungen, Kamera, Halte, Texte,
 Musik und Schluss — kein Titel und keine Tour. Beim nächsten Mal steht er als **„★ Name“** in der Vorlagen-Reihe auf
 der ersten Seite, im Assistenten genauso wie im Schnell-Video; ein Klick stellt alles so ein. Gleicher Name ersetzt die
 alte Fassung, **Rechtsklick** auf die Vorlage löscht sie.
 
 **Fotos groß ansehen und selbst wählen (seit 11.10.2026).** Auf der Stufe *Fotos* zeigt **⤢** (oben rechts am Foto, beim Darüberfahren) das Bild groß — mit Pfeilen blätterst du durch. **„Alle Medien der Tour (N) …“** klappt alle Fotos und Videos der Tour auf, nicht nur die Vorschläge: Was im Video ist, trägt einen Haken; ein Klick nimmt ein Bild dazu oder wieder heraus, **⤢** zeigt es groß. Selbst gewählte Bilder haben Vorrang („von dir gewählt“), solange die Videolänge reicht; ein gewähltes Video kommt als Clip-Stopp hinein. **Jeder Klick wirkt sofort** — Look, Einblendungen, Schluss sieht man direkt im Animator. **Musik** zeigt alle Stücke als Liste: **▶** spielt zum Probehören, ein Klick auf die Zeile wählt.
+
+**Sehen, was du einstellst (seit 11.10.2026, nachts).** Während du im Assistenten bist, zeigt der Animator dahinter die passende Stelle: Bei *Die Geschichte*, *Fotos* und *Halte* stehen **alle Schilder** auf der Karte, bei *Texte* springt die Zeitleiste zum **Titel**, bei *Schluss & Musik* zur **Schlusskarte**, bei *Karte* und *Einblendungen* in die Mitte der Fahrt. Auf der Stufe *Kamera* zeigt jede Karte einen **kurzen Clip**, wie die Kamera fährt, und jeder Moment einen Clip seiner Bewegung. **⤢** an einem Foto öffnet eine **Lupe** (← → blättern, Esc schließt); von dort führt **„Im Foto-Editor öffnen“** in den Editor — schließt du ihn, bist du wieder in der Lupe. Dauert die Suche nach den Fotos (z. B. auf einem NAS), steht dort **„Fotos dieser Tour werden gesucht …“**; ist die Mediathek noch nicht erreichbar, **„Warten auf die Mediathek …“** — die Fotos erscheinen von selbst, sobald sie da sind.
 
 ### 🎬 Schnell-Video — fertiges Tourvideo mit wenigen Entscheidungen (seit v0.9.739) ⭐
 
@@ -2563,7 +2572,7 @@ Das fertige Video ist seit v0.9.658 wörtlich die Vorschau in hoher Auflösung: 
 
 **Kacheln vorwärmen (seit v0.9.742 schneller):** Vor dem ersten Bild lädt der Render die Kartenkacheln entlang der Kamerafahrt vor — erst grob über das ganze Video, dann feiner. Das dauert höchstens 45 Sekunden, der Fortschritt steht als „Kacheln vorwärmen 12 von 120“ da. Beim zweiten Render derselben Stelle ist das meiste schon im Speicher und es geht nach wenigen Sekunden weiter. Gemessen mit leerem Speicher (20-s-Video hochkant): Vorwärmen 45 s statt 104 s, ganzer Render 185 s statt 226 s.
 
-Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp über dem Gelände (kein Flimmern an Graten mehr) — genau wie im Video.
+Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp über dem Gelände (kein Flimmern an Graten mehr) — genau wie im Video. Seit 12.10.2026 hängt der Abstand zum Boden am Zoom: aus der Ferne wie bisher (bis 150 m), in der Nahansicht nur wenige Meter — vorher schwebten mitlaufende Touren in der Nähe sichtbar neben der Strecke.
 
 Seit v0.9.752 laufen alle Videos, Standbilder und der Alpha-Export (transparenter Hintergrund) über diese Vorschau-Szene — einen zweiten, älteren Render-Weg gibt es nicht mehr. Bricht ein Render ab, hilft **Hilfe → Fehler melden** mit dem Protokoll beim Eingrenzen.
 

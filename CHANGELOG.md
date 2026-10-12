@@ -15,6 +15,8 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Video assistant, camera: short looping clips show what each camera choice and each movement does.
+- Video assistant: on each step the animator shows what you are setting — the story, photo and stop steps show the whole tour with all signs, the text step jumps to the title, the ending step to the end card, map and overlays to the middle of the ride.
 - Video assistant and quick video, photos: ⤢ on every photo opens it large (browse with the arrows); „All media of the tour (N) …“ shows every photo and video of the tour — click to put it into the video or take it out; your own picks get priority („chosen by you“). Videos picked there come in as clip stops.
 - Video assistant, music: a list of all tracks, each with ▶ to listen before choosing; a click on the row chooses it. The quick video has its ▶ button next to the menu again.
 - Video assistant: own templates. On the last step „★ Save as template“ keeps the style (format, length, look, overlays, camera, stops, texts, music, ending — no title, no tour); it then appears as „★ Name“ in the template row of the assistant and the quick video. Same name replaces, right-click deletes.
@@ -35,6 +37,13 @@ Bei jeder neuen Version:
 - Duplicates: the copy in a date folder is kept (right after the highest resolution), so what was sorted by hand stays. Every copy shows its full folder path.
 
 ### Changed
+- Video assistant: the special moments of the route (highest point, steepest section, top speed, halfway point) now sit with the other moments on „Which moments belong in it?“ — each on its own, with its value, and each can be deselected. The overlays step only offers numbers and the elevation profile.
+- Video assistant: only visible in the Animator. Switching to another module hides it; back in the Animator it is on the same step again. If another project was opened meanwhile, it closes and leaves what it already set up in the previous project.
+- Video assistant: new look. The window sits on the left over the tools and runs full height; the map moves aside and stays fully visible. Every step asks one big question and shows the choices as pictures: short clips for the templates and for „Pause briefly / Keep flying“, the same route in all eight looks, and drawings from your own tour (your line with the moment's spot or the photo taken there, your title, your kilometres, climb and elevation profile) for moments, texts and overlays. Format, length, number of photos and stop length are equal-width buttons, switches sit on the right, rarer settings live under „Details“. Music shows four tracks plus „All tracks“; the end card values are chips. The last step sums up in seven rows, each with „Change ›“. One main action per step (Next, at the end Apply to project); ✕ now asks „Close the assistant?“ — apply or discard — instead of silently discarding. With „Reduce motion“ the clips only play on hover.
+- User guide, map providers: the table now follows the source register — OpenStreetMap and OpenTopoMap „mind the server rules“, CyclOSM and Humanitarian „not for videos“ (they were wrongly listed as free for videos).
+- Video assistant: while it is open, the animator keeps room for its window on the right, so the preview (title, end card …) is not covered.
+- Video assistant and quick video, photos: ⤢ opens a small viewer (browse with ← →, Esc closes) instead of the photo editor; „Open in photo editor“ is a link there, and closing the editor brings you back.
+- „All media of the tour“: a click only updates the marks (no rebuild, no jump to the top), the tile shows it is loading.
 - Video assistant, step 1 is now one choice of template: Memory, Social, Landscape and your own ★ templates side by side (the second row of styles is gone here — the map look comes in step 7); below it format and length.
 - Video assistant: length „Custom …“ with a seconds field (the quick video keeps Short · Normal · Long).
 - Video assistant: every click and change on a step now shows up in the animator right away (look, overlays, ending …), not only after „Next“.
@@ -50,6 +59,19 @@ Bei jeder neuen Version:
 - Video assistant is now a floating, movable window over the Animator (collapsible, remembers its place): every step takes effect right away, the matching sidebar area lights up, „Done“ on every step, „Cancel“ restores the project, the whole run is still one ⌘Z.
 
 ### Fixed
+- Several tours with 3D terrain: the accompanying tours no longer float above the map in close views, and in the preview they follow the route as closely as in the video (before, each animated tour was thinned to 150 points and cut corners). Their lines were lifted a fixed 150 m against flickering in the terrain mesh — invisible from afar, a clear offset next to the route up close. The lift now depends on the zoom (a few pixels, at most 150 m as before), in preview and video.
+- Animator: leaving it and coming back could throw a series of map errors and freeze the preview (a camera move started before the 3D terrain was on; the terrain arrived mid-move). Fixed in the bundled MapLibre: the move picks up the terrain, and one failed frame no longer blocks all later ones.
+- Quick video „Wide“: the numbers along the way now sit at the bottom centre (above the elevation profile) instead of the top, where the highlight signs of the coming high points appeared on top of them.
+- Free satellite in Italy: the Italian aerial imagery (2012) is no longer used — there is no documented permission to use it in published videos. Italy shows Sentinel-2, the note on the map says why. Regions whose video permission is unclear in the source register are left out automatically.
+- Quick video and video assistant, trip around the world: the overview showed the opposite side of the globe (the middle of the longitudes) and the globe swung half around before reaching the start — it now sits over the start (and at the end over the finish).
+- Import of a project without a tour (a planned stage as main track) made in the web version: it came in as a tour project, opening and rendering then waited forever for „route GPX loading“ — it is now imported as a project without a tour.
+- Archive, tours: right after starting, the tour list was an empty box until the first query came — it now says „Loading tours …“ with a spinner.
+- Video assistant: the story, photo and stop steps really show the whole tour now (the keyframe camera took over again right after fitting); map and overlays jump to a moment without a big photo in front.
+- Media: opened right after starting the app, the area stayed empty and black until the first answers came — it now shows „Loading media …“ with a spinner straight away (folders on the left too).
+- „All media of the tour“: the tiles were tall narrow strips (the image pushed its own height through) — fixed row height, image fills the tile.
+- Photos for the quick video and the assistant: while the search runs it says so (instead of „No photos for this tour“); if the media library is not reachable yet (drive or NAS still connecting), „Waiting for the media library …“ and it asks again until the photos are there. On a NAS the search took up to a minute — reachability is now checked once per folder instead of per file.
+- Loading spinners were invisible in many places (tour page, archive, logbook, assistant): the spinner style was missing.
+- Animator: arrow keys and space no longer act on the timeline while a viewer or the photo editor is open on top.
 - Tour page: the „← Logbook“ button showed no arrow (the symbol was missing).
 - Signs: „Apply style + behavior to all“ on a photo sign now also carries the photo stop („Stop here“, duration, look while stopped, camera) to all other photo signs; text signs and clips are left alone.
 - macOS: the app started from another drive than the system (external disk, or straight from the DMG) showed „Program file missing … app.css“ instead of its window; the start page now lies on the app's own drive (or is loaded from the bundle on a read-only drive), so the offer to move the app into Applications appears as intended.

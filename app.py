@@ -11413,6 +11413,16 @@ class Api:
             return self._menge_einspielen(z, namen, quelle)
         if "frei.json" in namen:             # 07.10.2026 (Web-Fund F-4) — Projekt ohne GPS
             return self._frei_einspielen(z, namen, quelle)
+        # 12.10.2026 (Web-Fund F-15, Projekt „Berlin–Erwin“) — das Web legt einem Projekt ohne Tour (Etappe als Haupt-Track)
+        # zusätzlich track.gpx + tour.json bei, aber kein frei.json. Als Tour eingespielt, hing an ihm dann eine Archiv-Tour,
+        # die Haupt-Etappe zeigte auf eine andere Datei — Öffnen/Render warteten endlos auf „Routen-GPX lädt“.
+        if "projekte.json" in namen:
+            try:
+                _pj = json.loads(z.read("projekte.json").decode("utf-8"))
+            except Exception:  # noqa: BLE001 — dann wie bisher
+                _pj = {}
+            if str((_pj or {}).get("track_hash") or "").startswith("frei:"):
+                return self._frei_einspielen(z, namen, quelle)
         if "track.gpx" not in namen:
             return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
         tour = json.loads(z.read("tour.json").decode("utf-8")) if "tour.json" in namen else {}
@@ -14485,6 +14495,7 @@ class Api:
             if n < 2:
                 return {"ok": True, "fotos": [], "n_gesamt": 0}
             fotos = []
+            n_fehlt = 0
             tz_tour = 0
             # 07.10.2026 (Web-Fund F-5) — ein Eintrag in `quellen` darf ein Objekt sein: {path, bei?, text?}.
             # `bei` (0…1, Streckenanteil wie unten) legt das Foto FEST an diese Stelle — für Fotos ohne GPS/Zeit, die
@@ -14539,8 +14550,22 @@ class Api:
                 except Exception as e:   # noqa: BLE001 — kein Foto-Bestand
                     log.info("schnellvideo_fotos: kein Foto-Bestand (%s)", e)
                     rows = []
+                # 11.10.2026 (Marc-Log: schnellvideo_fotos 29–62 s, Hänger in os.path.exists) — auf dem NAS kostet jede
+                # Prüfung einen Netzzugriff (423 Fotos ≈ 1 min). Erreichbarkeit je ORDNER prüfen (einmal), nicht je Datei;
+                # eine einzelne fehlende Datei fällt später beim Vorschaubild auf.
+                ordner_da: dict = {}
+                def erreichbar(pfad: str) -> bool:
+                    d = os.path.dirname(pfad)
+                    if d not in ordner_da:
+                        ordner_da[d] = os.path.isdir(d)
+                    return ordner_da[d]
                 for r in rows:
-                    if (r.get("art") or "foto") != art or not r.get("path") or not os.path.exists(r["path"]):
+                    if (r.get("art") or "foto") != art or not r.get("path"):
+                        continue
+                    if not erreichbar(r["path"]):
+                        # 11.10.2026 (Marc: „keine Fotos zu dieser Tour, was nicht stimmte, nach einer Weile waren die da“)
+                        # — Laufwerk/NAS der Mediathek noch nicht verbunden: mitzählen, die Oberfläche wartet dann
+                        n_fehlt += 1
                         continue
                     if clip and not cclips.taugt(r["path"]):
                         continue
@@ -14558,7 +14583,7 @@ class Api:
                     if fe.get("bei") is not None and qp in hand:
                         zu.append(dict(hand[qp], idx=int(round(fe["bei"] * (n - 1))), manuell=True))
             if not zu:
-                return {"ok": True, "fotos": [], "n_gesamt": len(fotos)}
+                return {"ok": True, "fotos": [], "n_gesamt": len(fotos), **self._mediathek_stand(n_fehlt)}
             halte = chl.halte_punkte(punkte)
             ep = sorted(f["epoch"] for f in zu if f.get("epoch") is not None)
 
@@ -14608,10 +14633,16 @@ class Api:
                 raus.append(e)
             log.info("Schnell-Video-%s: %d von %d der Tour (%d der Strecke zugeordnet)", "Clips" if clip else "Fotos",
                      len(raus), len(fotos), len(zu))
-            return {"ok": True, "fotos": raus, "n_gesamt": len(fotos)}
+            return {"ok": True, "fotos": raus, "n_gesamt": len(fotos), **self._mediathek_stand(n_fehlt)}
         except Exception as e:
             log.error("schnellvideo_fotos: %s", e)
             return {"ok": False, "error": str(e), "fotos": []}
+
+    def _mediathek_stand(self, n_fehlt: int = 0) -> dict:
+        """11.10.2026 — für „Warten auf die Mediathek …“: Fotos im Bestand, deren Datei gerade nicht erreichbar ist (Laufwerk/
+        NAS noch nicht verbunden), und ob das Einlesen läuft."""
+        st = dict(getattr(self, "_foto_scan_state", {}) or {})
+        return {"n_fehlt": int(n_fehlt or 0), "einlesen": bool(st.get("running")), "bib_bereit": bool(BIB_BEREIT)}
 
     def tour_medien(self, path: str) -> dict:
         """06.10.2026 — alle Fotos und Videos im Zeitraum der Tour aus dem Medien-Bestand, der

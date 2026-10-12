@@ -166,6 +166,8 @@ function switchMod(slug) {
   } catch (_) {}
   renderTabs();
   renderMod();
+  // 12.10.2026 — Modulwechsel melden (der Video-Assistent blendet sich außerhalb des Animators aus)
+  try { window.dispatchEvent(new CustomEvent("rz-modul", { detail: { slug } })); } catch (_) {}
 }
 
 /** 03.09.2026 — Modul neu aufbauen, wenn ein Stilwechsel die Karten-Engine

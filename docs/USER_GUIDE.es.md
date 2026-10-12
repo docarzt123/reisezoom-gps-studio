@@ -589,14 +589,18 @@ v0.9.651 eliges el proveedor — la misma lista en todos los mapas de la app.
 
 | Grupo | Estilos | Derechos |
 |---|---|---|
-| **Gratis · vídeo permitido** | **Satélite (gratis, el país se elige solo)**, Mapa Liberty/Bright/Positron (OpenFreeMap), OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian | sin clave, vídeos permitidos, la atribución aparece automáticamente en la imagen |
+| **Gratis · vídeo permitido** | **Satélite (gratis, el país se elige solo)**, Mapa Liberty/Bright/Positron (OpenFreeMap), los ocho estilos | sin clave, vídeos permitidos, la atribución aparece automáticamente en la imagen (Italia queda fuera: no consta permiso para vídeos de sus ortofotos — allí se usa Sentinel-2) |
+| **Gratis · respetar las reglas del servidor** | OpenStreetMap, OpenTopoMap | la licencia permite vídeos (OpenTopoMap: CC BY-SA, el mapa cuenta como adaptado); los servidores solo permiten renderizar fotograma a fotograma previo acuerdo — o con un servidor de teselas propio |
+| **Gratis · no para vídeos** | CyclOSM, Humanitarian | el servidor de OpenStreetMap France solo atiende sitios no comerciales — sí para ver, no para vídeos publicados |
 | **MapTiler · clave propia** | Satélite, Satélite + etiquetas, Outdoor, Topo, Streets | clave gratis en cloud.maptiler.com; vídeos permitidos para canales de hasta 100.000 suscriptores; el plan gratis es solo para uso no comercial |
 | **Mapbox · vídeo solo con derechos comprados** | Satélite (3D), Satélite + calles, Outdoors, Streets, Claro, Oscuro | token necesario; publicar vídeos solo con derechos de vídeo comprados |
+
+Cada servicio en detalle — licencia, permiso para vídeos, atribución en la imagen, fecha de revisión — aparece en el **registro de fuentes** de los ajustes, en **Mapas**. Es nuestra interpretación, no asesoría jurídica.
 
 **Satélite (gratis)** usa las ortofotos oficiales de los institutos
 cartográficos — normalmente más nítidas que Mapbox (20–50 cm): 15 estados
 alemanes (falta Hamburgo), Austria, Suiza, Luxemburgo, Países Bajos, Francia,
-España con Canarias, Portugal, Italia, Chequia, Polonia, Estonia, Japón y
+España con Canarias, Portugal, Chequia, Polonia, Estonia, Japón y
 EE. UU. Qué fuente está activa se muestra bajo el campo de estilo («Ortofoto:
 Brandenburg»). Fuera de la cobertura la app pasa en silencio al mapa
 OpenFreeMap con relieve 3D — y te lo dice en el mismo sitio.
@@ -663,7 +667,8 @@ cartográficos la exigen.
 La app elige la fuente según la posición del track; bajo el campo de estilo se muestra cuál está activa. A 3 de septiembre de 2026:
 
 - **Alemania (estado por estado):** Baden-Wurtemberg, Baviera (CC BY 4.0), Berlín (TrueDOP), Brandeburgo, Bremen (CC BY 4.0), Hesse, Mecklemburgo-Pomerania Occidental, Baja Sajonia (CC BY 4.0), Renania del Norte-Westfalia, Renania-Palatinado, Sarre, Sajonia, Sajonia-Anhalt, Schleswig-Holstein (CC BY 4.0), Turingia — casi todo bajo «Datenlizenz Deutschland – Namensnennung 2.0». **Falta Hamburgo** (sin servicio accesible). Cerca de una frontera entre estados la app superpone los vecinos.
-- **Europa:** Austria (basemap.at, CC BY 4.0), Suiza (swisstopo), Luxemburgo (CC0), Países Bajos (PDOK, CC BY 4.0), Francia (IGN Géoplateforme), **España con Canarias (PNOA © IGN, CC BY 4.0)**, Portugal (DGT, CC BY 4.0), Italia (Geoportale Nazionale, 2012), Chequia (ČÚZK), Polonia (GUGiK), Estonia (Maa-amet, CC BY 4.0), desde el 17.09.2026 Bélgica (Flandes: Digitaal Vlaanderen; Valonia: SPW, CC BY 4.0) y Eslovaquia (ÚGKK SR/GKÚ, CC BY 4.0); desde el 18.09.2026 Eslovenia (GURS, CC BY 4.0). Con tu propia clave gratuita (Ajustes → Mapas → **Claves por país**): Dinamarca (Dataforsyningen), Finlandia (Maanmittauslaitos), Nueva Zelanda (LINZ); sin clave sigue Sentinel-2 y el aviso del estilo lo indica. Fuera de Europa: EE. UU., Japón y Nueva Gales del Sur, Australia (Spatial Services, CC BY 4.0).
+- **Italia queda fuera (desde el 12.10.2026):** no consta ningún permiso para usar las ortofotos italianas (Geoportale Nazionale, AGEA 2012) en vídeos publicados. Por eso la app no las usa; en Italia «Satélite (gratis)» muestra Sentinel-2 y el aviso del mapa explica el motivo. Cuando se aclare la licencia, vuelven.
+- **Europa:** Austria (basemap.at, CC BY 4.0), Suiza (swisstopo), Luxemburgo (CC0), Países Bajos (PDOK, CC BY 4.0), Francia (IGN Géoplateforme), **España con Canarias (PNOA © IGN, CC BY 4.0)**, Portugal (DGT, CC BY 4.0), Chequia (ČÚZK), Polonia (GUGiK), Estonia (Maa-amet, CC BY 4.0), desde el 17.09.2026 Bélgica (Flandes: Digitaal Vlaanderen; Valonia: SPW, CC BY 4.0) y Eslovaquia (ÚGKK SR/GKÚ, CC BY 4.0); desde el 18.09.2026 Eslovenia (GURS, CC BY 4.0). Con tu propia clave gratuita (Ajustes → Mapas → **Claves por país**): Dinamarca (Dataforsyningen), Finlandia (Maanmittauslaitos), Nueva Zelanda (LINZ); sin clave sigue Sentinel-2 y el aviso del estilo lo indica. Fuera de Europa: EE. UU., Japón y Nueva Gales del Sur, Australia (Spatial Services, CC BY 4.0).
 - **Mundo:** Japón (GSI), EE. UU. con Alaska y Hawái (USGS, dominio público).
 - **Aún sin fuente gratis** para Escandinavia, Reino Unido, Irlanda y Canadá — ahí la app pasa al mapa OpenFreeMap con relieve; para satélite usa MapTiler.
 
@@ -877,11 +882,11 @@ longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la a
 ### 🧭 Asistente de vídeo — paso a paso hacia tu propio vídeo (desde v0.9.787) ⭐
 
 Arriba en el Animator, junto a **«Vídeo rápido …»**, está **«🧭 Asistente de vídeo …»** (también en la página de la ruta
-del archivo, en **🎬 Vídeo ▾**). En **diez pasos cortos** — con vista previa arriba — te pregunta cómo quieres tu
+del archivo, en **🎬 Vídeo ▾**). En **diez pasos cortos** te pregunta cómo quieres tu
 vídeo: **1 Plantilla** (Recuerdo, Social, Paisaje o una de tus plantillas ★ — lo ajusta todo; debajo formato y duración, también una **duración propia** en segundos) · **2 La historia** (los momentos de la bitácora para marcar — pausas con su duración, pernoctaciones, tus notas,
-más el punto más alto con los demás destacados; preseleccionados tantos como encajan con la duración, en viajes
+más los **momentos especiales de la ruta** uno a uno — punto más alto, tramo más empinado, velocidad máxima, mitad del camino, cada uno con su valor y se puede desmarcar; preseleccionados tantos como encajan con la duración, en viajes
 repartidos por todos los días y agrupados por día; lo que está justo en un punto destacado aparece en gris porque allí ya
-hay un cartel) · **3 Fotos** (elegidas por nitidez, variedad y reparto — desmarca o añade las tuyas; control **«¿Cuántas fotos?»** menos ↔ más; lo que entra en el vídeo aparece enmarcado con su motivo, p. ej. «de una serie» o «de una pausa»; en viajes primero la mejor de cada día) · **4 Paradas**
+hay un cartel) · **3 Fotos** (elegidas por nitidez, variedad y reparto — desmarca o añade las tuyas; **Pocas · Equilibrado · Muchas** con el número que cabe en esa duración; lo que entra en el vídeo lleva una marca y aparece enmarcado; en viajes primero la mejor de cada día) · **4 Paradas**
 («Parar en todos los carteles de fotos» — activado con fotos grandes, desactivado con instantáneas; activado, también
 paran las instantáneas y conservan su aspecto; duración corta/normal/larga; la cámara se acerca o no; con «imagen en
 imagen» el vídeo siempre sigue) · **5 Cámara** (recorrido, seguir o fija; con el recorrido, un control **tranquila ↔
@@ -889,24 +894,28 @@ viva** y para cada momento el movimiento en palabras; **«otro movimiento»** va
 subtítulo; **«¿Cuánto texto?»** — *poco*: solo el título · *normal*: título, subtítulo, lugar y hora bajo las fotos, en
 viajes un título de capítulo por día («Día 3 · 7 de julio») donde empieza el día, tan seguido como permite la duración ·
 *mucho*: además datos de cámara bajo las fotos) · **7 Mapa** (los ocho looks, más edificios 3D) · **8 Superposiciones**
-(cifras, perfil de altitud, destacados) · **9 Final y música** · **10 Listo** — una lista de lo que va al proyecto. Puedes **saltar** cada página y se queda la
+(cifras por el camino, perfil de altitud) · **9 Final y música** · **10 Listo** — una lista de lo que va al proyecto. Puedes **saltar** cada página y se queda la
 propuesta; los puntos de arriba saltan directamente a una página.
 
-El asistente es una **ventana flotante sobre el Animator** — se mueve por la cabecera, se pliega con ⌃ y recuerda dónde
-estaba. **Cada paso se aplica al momento**: detrás de la ventana ves el cambio en el Animator y la zona correspondiente de
+El asistente es una **ventana flotante a la izquierda, sobre las herramientas** — el mapa se aparta y queda entero a la vista;
+se mueve por la cabecera (⠿), se pliega con ⌃ y recuerda dónde estaba. **Cada paso se aplica al momento**: detrás de la ventana ves el cambio en el Animator y la zona correspondiente de
 la barra lateral se ilumina un instante («Aquí lo encontrarás después»). Puedes seguir trabajando en el Animator mientras
-tanto. **«✓ Listo»** está en cada paso — después no se añade nada más. Todo queda **editable** en el proyecto — carteles en
+tanto. En el último paso **«Aplicar al proyecto»** lo aplica todo; antes, **✕** pregunta «¿Cerrar el asistente?» — **Aplicar al proyecto** o **Descartar**. Todo queda **editable** en el proyecto — carteles en
 la línea de tiempo, cámara en «Cámara», superposiciones en «Superposiciones» —, a la derecha aparece **«Lo que hizo el
-asistente»** y **un ⌘Z** deshace todo el asistente. **«Cancelar»** (o ✕) deja tu proyecto como estaba antes. La diferencia con el vídeo rápido: el vídeo rápido hace un archivo terminado con pocas decisiones; el
+asistente»** y **un ⌘Z** deshace todo el asistente. **«Cancelar»** (o ✕ → Descartar) deja tu proyecto como estaba antes. La diferencia con el vídeo rápido: el vídeo rápido hace un archivo terminado con pocas decisiones; el
 asistente prepara tu proyecto para que sigas trabajando en él.
 
-**Plantillas propias (desde el 11.10.2026).** En el último paso puedes guardar tu estilo con un nombre — **«★ Guardar
-como plantilla»**. Solo se guarda el estilo: formato, duración, look, rótulos, cámara, paradas, textos, música y final —
+**Cómo se ve (desde el 12.10.2026).** Cada paso hace una gran pregunta («¿Qué quieres contar?», «El estilo de tu ruta.») y muestra las opciones como **imágenes**: las plantillas y las paradas («Parar un momento» o «Seguir volando») reproducen cada una un **clip corto** de lo que pasa, la cámara muestra sus movimientos, los estilos la misma ruta en ocho ambientes. Para momentos, textos y superposiciones el asistente dibuja a partir de **tu ruta**: tu línea con el punto del momento (o la foto hecha allí), tu título, tus kilómetros y metros de desnivel, tu perfil de altitud. Formato, duración, número de fotos y duración de las paradas son botones del mismo ancho; los interruptores están a la derecha. Lo menos usado está en **«Detalles»** (movimiento en momentos concretos, lugares y edificios 3D, más datos de la tarjeta final); la música muestra cuatro pistas, **«Todas las pistas»** el resto. El último paso lo resume todo en siete filas — **«Cambiar ›»** vuelve al paso. Abajo siempre hay una sola acción principal (**Siguiente**, al final **Aplicar al proyecto**). Con «Reducir movimiento» activado, los clips solo se reproducen al pasar el ratón por encima. El asistente pertenece al Animador: en otros módulos se oculta y al volver al Animador está en el mismo paso (si entretanto hay otro proyecto abierto, se cierra; lo que ya había aplicado se queda en el proyecto anterior).
+
+**Plantillas propias (desde el 11.10.2026).** En el último paso puedes guardar tu estilo con un nombre — **«Guardar
+como plantilla»** (escribe un nombre, **Guardar**). Solo se guarda el estilo: formato, duración, look, rótulos, cámara, paradas, textos, música y final —
 sin título ni ruta. La próxima vez aparece como **«★ Nombre»** en la fila de plantillas de la primera página, tanto en
 el asistente como en el vídeo rápido; un clic lo ajusta todo. El mismo nombre sustituye la versión anterior; **clic
 derecho** sobre la plantilla la borra.
 
 **Ver las fotos en grande y elegirlas tú (desde el 11.10.2026).** En el paso *Fotos*, **⤢** (arriba a la derecha de la foto, al pasar el ratón) la muestra en grande — con las flechas pasas a las demás. **«Todos los medios de la ruta (N) …»** abre todas las fotos y vídeos de la ruta, no solo las propuestas: lo que está en el vídeo lleva una marca; un clic añade o quita una imagen, **⤢** la muestra en grande. Lo que eliges tú tiene prioridad («elegida por ti») mientras la duración lo permita; un vídeo elegido entra como parada de clip. **Cada clic se ve al momento** — look, rótulos y final aparecen directamente en el animador. **Música** muestra todas las pistas en una lista: **▶** la reproduce para escucharla, un clic en la fila la elige.
+
+**Ver lo que ajustas (desde el 11.10.2026, de noche).** Mientras estás en el asistente, el animador muestra el punto adecuado: en *Historia*, *Fotos* y *Paradas* aparecen **todos los carteles** en el mapa, en *Textos* la línea de tiempo salta al **título**, en *Final y música* a la **tarjeta final**, en *Mapa* y *Rótulos* a la mitad del recorrido. En el paso *Cámara* cada tarjeta muestra un **clip corto** de cómo se mueve la cámara, y cada momento un clip de su movimiento. **⤢** en una foto abre un **visor** (← → para pasar, Esc cierra); desde ahí **«Abrir en el editor de fotos»** lleva al editor — al cerrarlo vuelves al visor. Si la búsqueda de fotos tarda (p. ej. en un NAS) aparece **«Buscando fotos de esta ruta …»**; si la mediateca aún no está accesible, **«Esperando a la mediateca …»** — las fotos aparecen solas en cuanto están.
 
 ### 🎬 Vídeo rápido — un vídeo de la ruta listo con pocas decisiones (desde v0.9.739) ⭐
 
@@ -2517,7 +2526,7 @@ Desde v0.9.658 el vídeo terminado es literalmente la vista previa en alta resol
 
 **Precarga de teselas (más rápida desde v0.9.742):** antes del primer fotograma el render carga las teselas del mapa a lo largo del recorrido de la cámara, primero de forma aproximada en todo el vídeo y luego más fina. Tarda como máximo 45 segundos y muestra el progreso como «precargando teselas 12 de 120». Si vuelves a renderizar el mismo lugar, casi todo está ya en caché y continúa en pocos segundos. Medido con la caché vacía (vídeo vertical de 20 s): precarga 45 s en vez de 104 s, render completo 185 s en vez de 226 s.
 
-En el enjambre con terreno 3D, las líneas van ahora también en la vista previa justo por encima del terreno (sin parpadeo en las crestas), igual que en el vídeo.
+En el enjambre con terreno 3D, las líneas van ahora también en la vista previa justo por encima del terreno (sin parpadeo en las crestas), igual que en el vídeo. Desde el 12.10.2026 la altura sobre el suelo depende del zoom: de lejos como antes (hasta 150 m), de cerca solo unos metros; antes, las rutas acompañantes flotaban a la vista junto al recorrido en las vistas cercanas.
 
 Desde v0.9.752 todos los vídeos, las imágenes fijas y la exportación con alfa (fondo transparente) pasan por esta escena de vista previa: ya no existe un segundo método de render más antiguo. Si un render se detiene, **Ayuda → Informar de un problema** con el registro ayuda a acotarlo.
 
