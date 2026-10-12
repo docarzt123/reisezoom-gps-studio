@@ -7431,3 +7431,8 @@ Test: `tests/test_linie_ecken.py`.
   neu (wie die Höhen); je Spur gesetzte `offsetM` (Glanzlicht 150,5, Ghosts 145…) skalieren mit. Flüge (`agl`) unberührt.
   `opts.offsetPx: 0` = alter fester Versatz (Prüfstand). Test: `tests/test_line3d_hoehe.py` (node, nachgebaute Karte).
 - Schwarm-Vorschau: Punkte je animierter Tour = clamp(12 000 / Tourenzahl, 150, 1500) statt fest 150 (Render weiter 1500).
+- Fotos auf externen Platten (12.10.2026, Suite rot nach dem Umzug der Test-Temps auf die externe Platte): `core/fotos.ist_fern`
+  galt für ALLES unter /Volumes (außer Startplatte) → USB/Thunderbolt-Platten wie NAS. Jetzt `_mount_lokal(wurzel)` (`/sbin/mount`,
+  Option „local“, je Laufwerk gemerkt); unbekannt = fern wie bisher. `core/laufwerke.info`: bei `art == "extern"` zusätzlich
+  `os.path.isdir(p)` (die gemerkte Lesbarkeit `_LESBAR_MERK` hielt einen entfernten Ordner sonst bis zu LESBAR_MERK_S für „da“).
+

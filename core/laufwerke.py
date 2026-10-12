@@ -293,6 +293,10 @@ def info(pfad: str, tabelle: Optional[list[dict]] = None, gemerkt: Optional[dict
     lesbar: Optional[bool]
     if verbunden:
         lesbar = _lesbar(p) if pruefen else None
+        # 12.10.2026 — lokal angeschlossene Platte (kein Netz): den Ordner selbst prüfen, gefahrlos und ohne die gemerkte
+        # Lesbarkeit — ein umbenannter/entfernter Ordner gilt sofort als „nicht da“, wie auf der Startplatte
+        if pruefen and art == "extern" and lesbar is not False and not os.path.isdir(p):
+            lesbar = False
     else:
         lesbar = False
     # Unter anderem Namen eingehängt? („Fotos-1", „Fotos 1") — und liegt derselbe Unterordner dort?

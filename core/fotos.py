@@ -41,6 +41,7 @@ import logging
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import threading
 import time
@@ -616,12 +617,30 @@ def _jetzt() -> str:
 _FERN_CACHE: dict = {}
 
 
+def _mount_lokal(wurzel: str):
+    """macOS: hängt `wurzel` (/Volumes/<Name>) als lokales Laufwerk? True/False, None = unbekannt (dann gilt fern)."""
+    try:
+        aus = subprocess.run(["/sbin/mount"], capture_output=True, text=True, timeout=5).stdout
+    except Exception:  # noqa: BLE001
+        return None
+    for zeile in aus.splitlines():
+        # „/dev/disk7s1 on /Volumes/Name (apfs, local, nodev …)“ — der Name darf Leerzeichen enthalten
+        m = re.match(r"^.+? on (.+) \(([^()]*)\)\s*$", zeile)
+        if m and m.group(1) == wurzel:
+            return "local" in [t.strip() for t in m.group(2).split(",")]
+    return None
+
+
 def ist_fern(path) -> bool:
     """Liegt der Pfad auf einem eingehängten (Netz-)Laufwerk statt auf der
     Startplatte? Entscheidet Stapelgröße und Fadenzahl im Scan (14.09.2026).
 
-    macOS: alles unter /Volumes/, das nicht die Startplatte selbst ist (die
-    hängt dort als Link auf „/"). Linux: /mnt, /media, /net, /run/media, gvfs.
+    macOS: unter /Volumes/ alles, was nicht die Startplatte selbst ist (die
+    hängt dort als Link auf „/") und was macOS nicht als „local“ einhängt —
+    seit 12.10.2026: eine per USB/Thunderbolt angeschlossene Platte ist lokal
+    (`mount` meldet „local“), ein NAS (smbfs/afpfs/nfs) nicht. Vorher galt jede
+    externe Platte als Netz: kleine Stapel, zwei Leser, langsamer Scan.
+    Linux: /mnt, /media, /net, /run/media, gvfs.
     Windows: UNC-Pfade. Ein gemappter Windows-Laufwerksbuchstabe ist nicht
     erkennbar — dann gilt der lokale Wert, wie bisher.
     """
@@ -641,6 +660,10 @@ def ist_fern(path) -> bool:
                 da = os.path.realpath(wurzel) != "/"
             except OSError:
                 da = True
+            if da:
+                lokal = _mount_lokal(wurzel)
+                if lokal is not None:
+                    da = not lokal
             _FERN_CACHE[wurzel] = da
         return da
     return p.startswith(("/mnt/", "/media/", "/net/", "/run/media/")) or "/gvfs/" in p
