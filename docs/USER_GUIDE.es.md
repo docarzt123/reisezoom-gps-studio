@@ -77,24 +77,26 @@ Los ajustes y cachés están en `%APPDATA%\Reisezoom GPS Studio\` — para quita
 
 ### Linux (desde el código fuente)
 
-Para Linux **no hay un binario listo** — el backend de mapa/render (pywebview) necesita los bindings de GTK/WebKit del sistema, que no se pueden empaquetar de forma fiable en un binario único. En su lugar, la app se ejecuta directamente desde el código fuente (abierto):
+Para Linux **no hay descarga lista** — allí la app necesita los componentes WebKit/GTK del sistema, que no se pueden empaquetar de forma fiable en un solo archivo. Por eso se ejecuta directamente desde el código fuente (abierto). **Probado el 13.10.2026 en Ubuntu 24.04 (x86_64):** arranque, crear la biblioteca y un vídeo terminado.
 
-**1. Paquetes del sistema** (una sola vez — incluye ffmpeg + ExifTool para el render y los metadatos de fotos):
+**1. Paquetes del sistema** (una vez):
 
 ```bash
-# Fedora / RHEL
-sudo dnf install git python3 python3-gobject gobject-introspection \
-                 webkit2gtk4.1 python3-cairo ffmpeg perl-Image-ExifTool
-
-# Debian / Ubuntu
+# Ubuntu / Debian (probado: Ubuntu 24.04)
 sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
-                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 ffmpeg libimage-exiftool-perl
+                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 libimage-exiftool-perl
 
-# Arch
-sudo pacman -S git python python-gobject webkit2gtk-4.1 ffmpeg perl-image-exiftool
+# Fedora (sin probar)
+sudo dnf install git python3 python3-gobject gobject-introspection \
+                 webkit2gtk4.1 python3-cairo perl-Image-ExifTool
+
+# Arch (sin probar)
+sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool
 ```
 
-**2. Obtener el repo e iniciar:**
+No hace falta instalar ffmpeg aparte: llega con el paso 2.
+
+**2. Descargar y preparar:**
 
 ```bash
 git clone https://github.com/docarzt123/reisezoom-gps-studio.git
@@ -102,15 +104,28 @@ cd reisezoom-gps-studio
 python3 -m venv --system-site-packages .venv   # --system-site-packages → el venv ve el GTK del sistema (gi)
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+**3. Instalar una vez el navegador de renderizado** (pide tu contraseña de `sudo`, porque Chromium necesita algunas bibliotecas del sistema):
+
+```bash
+python -m playwright install --with-deps chromium-headless-shell
+```
+
+**4. Arrancar:**
+
+```bash
 python app.py
 ```
 
-En el primer render, la app descarga Chromium una sola vez (~150 MB).
+En el primer arranque la app pregunta dónde guardar la biblioteca (propuesta: la carpeta `reisezoom-gps-studio/Bibliothek`). Después, cada vez: `cd reisezoom-gps-studio && source .venv/bin/activate && python app.py`.
 
-Sin ExifTool, las fotos JPEG, TIFF y HEIC funcionan igualmente (mediante piexif +
-pillow-heif, ambos integrados). Solo los archivos RAW (CR3, NEF, ARW, RAF, RW2, ORF,
-DNG, PEF, RWL, SRW) y los metadatos de vídeo necesitan exiftool, y también la
-escritura de GPS en HEIC.
+**Actualizar:** en la carpeta, `git pull` y `pip install -r requirements.txt` — tu biblioteca y tus ajustes no se tocan.
+
+**Conviene saber:**
+- **No la versión de Windows con Wine**: necesita WebView2 y .NET y no funciona allí. El camino de arriba es el correcto.
+- **Cierre nada más arrancar** con `has invalid format` en el terminal: era un fallo del menú con GTK, corregido desde el 13.10.2026; basta con actualizar (`git pull`).
+- Sin ExifTool, las fotos JPEG, TIFF y HEIC funcionan igual (integrado); solo los RAW (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW), los metadatos de vídeo y escribir GPS en HEIC necesitan exiftool.
 
 ---
 ---

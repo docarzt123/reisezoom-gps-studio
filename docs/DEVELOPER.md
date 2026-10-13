@@ -7543,3 +7543,13 @@ Test: `tests/test_linie_ecken.py`.
 - Testhinweis: Playwrights WebKit (Build 2311) bricht mit der variablen IBM Plex Sans ab (`FontCascade::drawGlyphBuffer`,
   SIGTRAP) — `test_videoassistent_geschichte` nutzt deshalb die Systemschrift; die echte App ist nicht betroffen (Klicktest).
 
+## Linux (13.10.2026)
+- `_linux_menue_reparieren()` (app.py, vor `webview.start`, nur Linux): ersetzt `webview.platforms.gtk.create_menu` durch
+  eine Fassung mit gültigen Aktionsnamen (`rz1`, `rz2` …). pywebview bildet sie aus den Titeln und ersetzt nur Leerzeichen;
+  „(.rzproj)…“/Umlaute → `GLib-GIO-ERROR … has invalid format` → SIGTRAP beim Start. Bei pywebview-Updates prüfen, ob
+  `create_menu` noch über den Modulnamen aufgerufen wird (`_state['menu']` in `gtk.py`).
+- Durchgespielt in OrbStack (`orb create --arch amd64 ubuntu:noble`): README-Schritte, Start mit Xvfb, Bibliothek anlegen,
+  `python app.py cli render … --template social --length 15` → MP4 1080×1920 (13 min unter Rosetta-Emulation).
+  Chromium braucht `python -m playwright install --with-deps chromium-headless-shell` (System-Bibliotheken, sudo).
+  ffmpeg kommt über `imageio-ffmpeg` (pip), System-ffmpeg ist optional.
+

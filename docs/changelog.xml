@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 12 Oct 2026 20:41:50 +0000</lastBuildDate>
+<lastBuildDate>Tue, 13 Oct 2026 15:50:09 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.791</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-791</link>
+<guid isPermaLink="false">gps-studio-v0.9.791</guid>
+<pubDate>Tue, 13 Oct 2026 12:00:00 +0000</pubDate>
+<description>Video-Export auf neuen Macs — Lag von einer früheren Installation noch ein altes ffmpeg für Intel-Prozessoren auf dem Mac, brach der Export sofort ab („Bad CPU type“). GPS Studio prüft jetzt, ob ein ffmpeg auch startet, und nimmt sonst das mitgelieferte.
+
+Medien einlesen, ohne zu bremsen — Einlesen und Inhaltssuche laufen auf der Hintergrund-Stufe des Systems: Schneidest du nebenher ein Video oder arbeitest im Animator, tritt das Einlesen von selbst zurück.
+
+Vorschaubilder viel schneller — Auch mit eingeschalteter Inhaltssuche kommt das Raster jetzt zuerst, aus dem Bild, das die Kamera schon in die Datei geschrieben hat. Die Suche liest die Fotos danach in Ruhe. Auf einem NAS mit großen Fotos: Stunden statt Tage.
+
+Dokumente zur Tour — Ausschreibung, Routenbeschreibung, Tickets, Notizen (PDF, Text, Word …) an die Tour hängen — die Datei bleibt, wo sie ist, und die Archiv-Suche findet die Tour auch über den Text darin.</description>
+</item>
 <item>
 <title>v0.9.789</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-789</link>
@@ -209,13 +222,6 @@ Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem R
 <guid isPermaLink="false">gps-studio-v0.9.771</guid>
 <pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
 <description>Schnell-Video: eigene Fotos wählen — findet das Foto-Archiv keine Fotos zur Tour, kannst du im Dialog einen Ordner oder einzelne Fotos wählen. Sie werden über GPS oder die Aufnahmezeit der Strecke zugeordnet.</description>
-</item>
-<item>
-<title>v0.9.770</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-770</link>
-<guid isPermaLink="false">gps-studio-v0.9.770</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotostopp einstellbar — wie weit die Karte während des Fotos schwenkt und wie stark das Foto heranzoomt, stellst du jetzt am Foto-Schild ein.</description>
 </item>
 </channel>
 </rss>

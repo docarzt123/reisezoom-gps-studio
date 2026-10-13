@@ -58,21 +58,26 @@ Architektur, Module und Render-Pipeline: [`docs/DEVELOPER.md`](docs/DEVELOPER.md
 
 ## 🐧 Linux (aus Quellcode)
 
-Für macOS und Windows gibt es fertige Builds (siehe oben). Für **Linux läuft die App direkt aus dem Quellcode** — das Karten-/Render-Backend (pywebview) braucht dort die System-GTK-/WebKit-Bindings, die sich nicht zuverlässig in ein einzelnes Binary packen lassen.
+Für Linux gibt es **keinen fertigen Download** — die App braucht dort die WebKit-/GTK-Bausteine des Systems, die sich nicht zuverlässig in eine einzelne Datei packen lassen. Sie läuft deshalb direkt aus dem (offenen) Quellcode. **Durchgespielt am 13.10.2026 auf Ubuntu 24.04 (x86_64):** Start, Bibliothek anlegen und ein fertiges Video.
 
-**1. System-Pakete installieren** (einmalig):
+**1. System-Pakete** (einmalig):
 
 ```bash
-# Fedora
-sudo dnf install python3 python3-gobject gobject-introspection \
-                 webkit2gtk4.1 python3-cairo ffmpeg
+# Ubuntu / Debian (getestet: Ubuntu 24.04)
+sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
+                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 libimage-exiftool-perl
 
-# Debian / Ubuntu
-sudo apt install python3 python3-venv python3-gi python3-gi-cairo \
-                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 ffmpeg
+# Fedora (nicht getestet)
+sudo dnf install git python3 python3-gobject gobject-introspection \
+                 webkit2gtk4.1 python3-cairo perl-Image-ExifTool
+
+# Arch (nicht getestet)
+sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool
 ```
 
-**2. Repo holen & starten:**
+ffmpeg brauchst du nicht extra — es kommt in Schritt 2 mit.
+
+**2. Herunterladen und einrichten:**
 
 ```bash
 git clone https://github.com/docarzt123/reisezoom-gps-studio.git
@@ -80,10 +85,28 @@ cd reisezoom-gps-studio
 python3 -m venv --system-site-packages .venv   # --system-site-packages → die venv sieht das System-GTK (gi)
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+**3. Render-Browser einmalig installieren** (fragt nach deinem `sudo`-Passwort, weil Chromium ein paar System-Bibliotheken braucht):
+
+```bash
+python -m playwright install --with-deps chromium-headless-shell
+```
+
+**4. Starten:**
+
+```bash
 python app.py
 ```
 
-Karten und Luftbilder sind ohne Schlüssel dabei; MapTiler/Mapbox lassen sich optional unter ⚙ eintragen.
+Beim ersten Start fragt die App, wo die Bibliothek liegen soll (Vorschlag: im Ordner `reisezoom-gps-studio/Bibliothek`). Danach jedes Mal: `cd reisezoom-gps-studio && source .venv/bin/activate && python app.py`.
+
+**Aktualisieren:** im Ordner `git pull` und `pip install -r requirements.txt` — deine Bibliothek und Einstellungen bleiben dabei unberührt.
+
+**Gut zu wissen:**
+- **Nicht die Windows-Fassung unter Wine** — sie braucht WebView2 und .NET und läuft dort nicht. Der Weg oben ist der richtige.
+- **Absturz direkt beim Start** mit `has invalid format` im Terminal: Das war ein Fehler mit dem Menü unter GTK, behoben seit 13.10.2026 — einfach aktualisieren (`git pull`).
+- Ohne ExifTool funktionieren JPEG-, TIFF- und HEIC-Fotos trotzdem (eingebaut); nur RAW-Dateien (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW), Video-Metadaten und GPS-Schreiben in HEIC brauchen exiftool.
 
 ## 📜 Lizenz & Credits
 

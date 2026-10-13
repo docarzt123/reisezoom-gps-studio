@@ -18258,6 +18258,57 @@ for _n, _f in list(vars(Api).items()):
 
 
 
+def _linux_menue_reparieren() -> None:
+    """13.10.2026 (Linux-Test in einer Ubuntu-VM; ein Beta-Tester: „nativ gescheitert“) — pywebview baut unter GTK aus jedem
+    Menütitel einen Aktionsnamen und ersetzt dabei nur Leerzeichen. „Projekt exportieren (.rzproj)…“, Umlaute und „…“
+    sind in GTK-Aktionsnamen verboten → GLib-ERROR „has invalid format“ → die App bricht beim Start sofort ab (SIGTRAP).
+    Hier: dieselbe Menü-Funktion, aber mit schlichten gültigen Namen (rz1, rz2 …); die Titel bleiben, wie sie sind."""
+    try:
+        import webview.platforms.gtk as _g  # type: ignore
+        from webview.menu import Menu as _Menu, MenuAction as _Aktion, MenuSeparator as _Trenner  # type: ignore
+    except Exception:  # noqa: BLE001 — kein GTK (z. B. Qt) → nichts zu tun
+        return
+    if getattr(_g, "_rz_menue_repariert", False):
+        return
+    zaehler = [0]
+
+    def create_menu(app_menu_list):
+        def action_callback(action, parameter):
+            fn = _g._app_actions.get(action.get_name())
+            if fn is not None:
+                threading.Thread(target=fn, daemon=True).start()
+
+        def untermenue(titel, eintraege, obermenue):
+            m = _g.Gio.Menu.new()
+            abschnitt = _g.Gio.Menu.new()
+            for e in eintraege:
+                if isinstance(e, _Trenner):
+                    m.append_section(None, abschnitt)
+                    abschnitt = _g.Gio.Menu.new()
+                elif isinstance(e, _Aktion):
+                    zaehler[0] += 1
+                    name = f"rz{zaehler[0]}"
+                    _g._app_actions[name] = e.function
+                    aktion = _g.Gio.SimpleAction.new(name, None)
+                    aktion.connect("activate", action_callback)
+                    _g._app.add_action(aktion)
+                    abschnitt.append(e.title, "app." + name)
+                elif isinstance(e, _Menu):
+                    untermenue(e.title, e.items, abschnitt)
+            m.append_section(None, abschnitt)
+            obermenue.append_submenu(titel, m)
+
+        leiste = _g.Gio.Menu()
+        for am in app_menu_list:
+            if am.title == "__app__":   # nur macOS
+                continue
+            untermenue(am.title, am.items, leiste)
+        return leiste
+
+    _g.create_menu = create_menu
+    _g._rz_menue_repariert = True
+
+
 def _erster_klick_durchreichen() -> None:
     """08.10.2026 (Beta-Tester: „Im Animator geht der grünhinterlegte Knopf nicht mit der Maus, aber mit der Leertaste“) —
     macOS: Klickt man in das Fenster, während eine andere App vorn ist, aktiviert ein WKWebView mit dem ersten Klick nur
@@ -18825,6 +18876,8 @@ def main() -> None:
                         ("selectAll", "Alles auswählen")):
             _lok["cocoa.menu." + _k] = _strings.get("menu.cocoa." + _k, _fb)
     _erster_klick_durchreichen()
+    if menu and sys.platform.startswith("linux"):
+        _linux_menue_reparieren()
     if menu:
         webview.start(func=_reset_start_hook, debug=debug, private_mode=False, menu=menu, localization=_lok)
     else:

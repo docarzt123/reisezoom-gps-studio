@@ -339,27 +339,37 @@
 <p>Uninstall like any other Windows app: <strong>Control Panel → Apps &amp; Features → Reisezoom GPS Studio → Uninstall</strong>.</p>
 <p>Settings and caches live in <code>%APPDATA%\Reisezoom GPS Studio\</code> — to remove everything, delete that folder by hand after uninstalling. The library stays where you created it.</p>
 <h3 id="linux-from-source">Linux (from source)</h3>
-<p>There is <strong>no prebuilt binary</strong> for Linux — the map/render backend (pywebview) needs the system GTK/WebKit bindings, which can&#x27;t be reliably packed into a single binary. Instead, the app runs directly from the (open) source code:</p>
-<p><strong>1. System packages</strong> (one-time — incl. ffmpeg + ExifTool for rendering &amp; photo metadata):</p>
-<pre><code class="lang-bash"># Fedora / RHEL
-sudo dnf install git python3 python3-gobject gobject-introspection \
-                 webkit2gtk4.1 python3-cairo ffmpeg perl-Image-ExifTool
-
-# Debian / Ubuntu
+<p>There is <strong>no ready-made download</strong> for Linux — the app needs the system&#x27;s WebKit/GTK components there, which cannot be packed reliably into a single file. So it runs straight from the (open) source code. <strong>Walked through on 13.10.2026 on Ubuntu 24.04 (x86_64):</strong> start, creating the library and a finished video.</p>
+<p><strong>1. System packages</strong> (once):</p>
+<pre><code class="lang-bash"># Ubuntu / Debian (tested: Ubuntu 24.04)
 sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
-                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 ffmpeg libimage-exiftool-perl
+                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 libimage-exiftool-perl
 
-# Arch
-sudo pacman -S git python python-gobject webkit2gtk-4.1 ffmpeg perl-image-exiftool</code></pre>
-<p><strong>2. Get the repo &amp; start:</strong></p>
+# Fedora (not tested)
+sudo dnf install git python3 python3-gobject gobject-introspection \
+                 webkit2gtk4.1 python3-cairo perl-Image-ExifTool
+
+# Arch (not tested)
+sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool</code></pre>
+<p>You don&#x27;t need ffmpeg separately — it comes with step 2.</p>
+<p><strong>2. Download and set up:</strong></p>
 <pre><code class="lang-bash">git clone https://github.com/docarzt123/reisezoom-gps-studio.git
 cd reisezoom-gps-studio
-python3 -m venv --system-site-packages .venv   # --system-site-packages → the venv can see the system GTK (gi)
+python3 -m venv --system-site-packages .venv   # --system-site-packages → the venv sees the system GTK (gi)
 source .venv/bin/activate
-pip install -r requirements.txt
-python app.py</code></pre>
-<p>On the first render the app downloads Chromium once (~150 MB).</p>
-<p>Without ExifTool, JPEG, TIFF and HEIC photos still work (via piexif + pillow-heif, both built in). Only RAW files (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW) and video metadata need exiftool, as does writing GPS into HEIC.</p>
+pip install -r requirements.txt</code></pre>
+<p><strong>3. Install the render browser once</strong> (asks for your <code>sudo</code> password, because Chromium needs a few system libraries):</p>
+<pre><code class="lang-bash">python -m playwright install --with-deps chromium-headless-shell</code></pre>
+<p><strong>4. Start:</strong></p>
+<pre><code class="lang-bash">python app.py</code></pre>
+<p>On the first start the app asks where the library should live (suggestion: the folder <code>reisezoom-gps-studio/Bibliothek</code>). After that, every time: <code>cd reisezoom-gps-studio &amp;&amp; source.venv/bin/activate &amp;&amp; python app.py</code>.</p>
+<p><strong>Updating:</strong> in the folder run <code>git pull</code> and <code>pip install -r requirements.txt</code> — your library and settings stay untouched.</p>
+<p><strong>Good to know:</strong></p>
+<ul>
+<li><strong>Not the Windows version under Wine</strong> — it needs WebView2 and.NET and does not run there. The way above is the right one.</li>
+<li><strong>Crash right at start</strong> with <code>has invalid format</code> in the terminal: that was a menu bug under GTK, fixed since 13.10.2026 — just update (<code>git pull</code>).</li>
+<li>Without ExifTool, JPEG, TIFF and HEIC photos still work (built in); only RAW files (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW), video metadata and writing GPS into HEIC need exiftool.</li>
+</ul>
 <hr>
 <hr>
 <h2 id="1a-your-library">1a · Your library 📚 ⭐</h2>

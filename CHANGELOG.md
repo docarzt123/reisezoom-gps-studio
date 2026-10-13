@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Linux: the app crashed right at start („… has invalid format“, Trace/breakpoint trap) — GTK rejected menu entries with brackets, „…“ or umlauts in their internal names. The menu now uses plain internal names; the titles stay the same.
+
+### Changed
+- Linux guide (README and user guide, three languages) rewritten after a full run on Ubuntu 24.04: git in the package list, ffmpeg no longer needed separately, a step to install the render browser with its system libraries, how to update, and not to use the Windows version under Wine.
+
 ## [0.9.791] – 2026-10-13
 
 ### Fixed
