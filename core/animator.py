@@ -77,6 +77,21 @@ def find_ffmpeg_mit(filtername: str) -> Optional[str]:
     return None
 
 
+_FFMPEG_CACHE: dict = {}
+
+
+def ffmpeg_startet(path: str) -> bool:
+    """13.10.2026 (Tester-Log: „OSError: [Errno 86] Bad CPU type in executable: '/usr/local/bin/ffmpeg'") — ein ffmpeg
+    zählt nur, wenn es auch STARTET. Ein altes Intel-ffmpeg aus einer früheren Homebrew-Installation (oder vom
+    Migrationsassistenten) liegt auf Apple-Silicon-Macs ohne Rosetta noch in /usr/local/bin und wurde bisher vor dem
+    mitgelieferten genommen — der Export brach sofort ab."""
+    try:
+        r = subprocess.run([path, "-version"], capture_output=True, timeout=10, creationflags=_WIN_NO_WINDOW)
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+
+
 def find_ffmpeg() -> str:
     """Sucht ffmpeg robust.
 
@@ -87,30 +102,35 @@ def find_ffmpeg() -> str:
     4. **Gebündeltes Binary** aus `imageio-ffmpeg` — wird mit der App
        ausgeliefert, sodass User NICHTS extra installieren müssen.
 
-    Erst ab Stufe 4 muss kein User je was machen — der Animator funktioniert
-    out-of-the-box auf macOS/Win/Linux.
+    Jeder Kandidat zählt nur, wenn er startet (`ffmpeg_startet`) — nicht startbare (falsche CPU-Architektur, kaputt)
+    werden übersprungen und protokolliert. Das Ergebnis wird gemerkt (eine Prüfung je Sitzung).
     """
-    # 1. PATH
-    p = shutil.which("ffmpeg")
+    gemerkt = _FFMPEG_CACHE.get("exe")
+    if gemerkt and os.path.isfile(gemerkt):
+        return gemerkt
+    candidates = []
+    p = shutil.which("ffmpeg")                      # 1. PATH
     if p:
-        return p
-    # 2 + 3. Typische Fix-Pfade
-    candidates = [
+        candidates.append(p)
+    candidates += [                                 # 2 + 3. Typische Fix-Pfade
         "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg",
         r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
         r"C:\ffmpeg\bin\ffmpeg.exe",
     ]
-    for cand in candidates:
-        if os.path.isfile(cand):
-            return cand
-    # 4. Fallback: gebündeltes imageio-ffmpeg-Binary
-    try:
+    try:                                            # 4. Fallback: gebündeltes imageio-ffmpeg-Binary
         import imageio_ffmpeg  # type: ignore
-        bundled = imageio_ffmpeg.get_ffmpeg_exe()
-        if bundled and os.path.isfile(bundled):
-            return bundled
+        candidates.append(imageio_ffmpeg.get_ffmpeg_exe())
     except Exception:
         pass
+    gesehen = set()
+    for cand in candidates:
+        if not cand or cand in gesehen or not os.path.isfile(cand):
+            continue
+        gesehen.add(cand)
+        if ffmpeg_startet(cand):
+            _FFMPEG_CACHE["exe"] = cand
+            return cand
+        _log.warning("ffmpeg übersprungen, startet nicht (falsche CPU-Architektur?): %s", cand)
     raise RuntimeError(_i18n.t_aktiv(
         "animator.err_ffmpeg_fehlt",
         "ffmpeg nicht gefunden — weder im System-PATH noch als gebündeltes Binary. "

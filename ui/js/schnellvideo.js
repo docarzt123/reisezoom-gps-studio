@@ -1558,6 +1558,15 @@
     });
     box.querySelectorAll("[data-sv-gruppe='laenge']").forEach(r => r.addEventListener("click", () => setTimeout(() => { fotosInfo(); vorschau.inhalt(); }, 0)));
     box.querySelector("#sv-eigen")?.addEventListener("input", () => { w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen").value || w.eigenS); fotosInfo(); });
+    // 13.10.2026 — Kommandozeile (core/cli, `--length`): die klassische Ansicht hat nur Kurz/Normal/Lang — eine andere Länge
+    // setzt der Aufrufer hierüber (wie „Eigene" im Assistenten). Nur solange dieser Dialog offen ist.
+    window.__rzSchnellLaenge = (sek) => {
+      w.laenge = "eigen"; w.eigenS = laengeKlemmen(sek);
+      box.querySelectorAll("[data-sv-gruppe='laenge'] [data-sv-wert]").forEach(b => b.classList.toggle("is-on", b.dataset.svWert === "eigen"));
+      const e = box.querySelector("#sv-eigen"); if (e) e.value = w.eigenS;
+      fotosInfo(); vorschau.inhalt();
+      return laengeS(w);
+    };
     (async () => {
       // 11.10.2026 — Mediathek noch nicht bereit (Laufwerk/NAS wird verbunden, Einlesen läuft, Bibliothek öffnet):
       // „Warten auf die Mediathek …“ und alle 3 s neu fragen (höchstens 3 min), statt gleich „keine Fotos“ zu melden

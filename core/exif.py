@@ -1652,11 +1652,12 @@ def extract_video_thumbnail(path: str) -> Optional[bytes]:
         return emb
     # 3) Fallback: ffmpeg-Frame-Extraktion (für Videos ohne eingebettetes Thumb,
     #    z.B. iPhone-.mov auf Windows/Linux).
-    # ffmpeg-Pfad robust suchen (gleiche Logik wie animator)
-    ff = shutil.which("ffmpeg") \
-         or ("/opt/homebrew/bin/ffmpeg" if os.path.isfile("/opt/homebrew/bin/ffmpeg") else None) \
-         or ("/usr/local/bin/ffmpeg"   if os.path.isfile("/usr/local/bin/ffmpeg")   else None)
-    if not ff:
+    # 13.10.2026 — dieselbe Suche wie der Animator: nur ein ffmpeg, das auch startet (altes Intel-ffmpeg in
+    # /usr/local/bin auf Apple Silicon ohne Rosetta → übersprungen), sonst das mitgelieferte
+    try:
+        from .animator import find_ffmpeg
+        ff = find_ffmpeg()
+    except Exception:  # noqa: BLE001
         return None
     # v0.9.147 (Geotagger-Video-Speed): schnellere ffmpeg-Flags.
     #  -noaccurate_seek : springt zum nächsten Keyframe statt bis zur exakten

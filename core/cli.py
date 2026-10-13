@@ -295,10 +295,11 @@ async def _render(app, api, gpx: str, a) -> dict:
                 s = int(round(float(a.length)))
                 if s in LAENGEN:
                     await page.evaluate(f"() => document.querySelector('[data-sv-gruppe=\"laenge\"] [data-sv-wert=\"{LAENGEN[s]}\"]')?.click()")
+                    gesetzt = s
                 else:
-                    await page.evaluate("() => document.querySelector('[data-sv-gruppe=\"laenge\"] [data-sv-wert=\"eigen\"]')?.click()")
-                    await page.evaluate(f"""() => {{ const e = document.getElementById('sv-eigen'); if (!e) return;
-                        e.value = '{s}'; e.dispatchEvent(new Event('input', {{ bubbles: true }})); e.dispatchEvent(new Event('change', {{ bubbles: true }})); }}""")
+                    gesetzt = await page.evaluate(f"() => typeof window.__rzSchnellLaenge === 'function' ? window.__rzSchnellLaenge({s}) : null")
+                if gesetzt != s:
+                    raise CliFehler(f"--length {s}: could not be set in the dialog (got {gesetzt})")
             if a.no_photos:
                 await page.evaluate("""() => { const c = document.getElementById('sv-fotos-an');
                     if (c && c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } }""")

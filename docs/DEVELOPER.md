@@ -7524,3 +7524,12 @@ Test: `tests/test_linie_ecken.py`.
   Programmpfad erkannt → eine zweite Instanz (zweite App, parallele Suite) schoss die Daemons der anderen ab (gefunden mit
   `--parallel=3`: test_exiftool_daemon rot). Test: `tests/test_exif_verwaiste.py` (Zombie-Zustand „Z“ zählt als getötet).
 
+## ffmpeg nur, wenn es startet (13.10.2026)
+- `animator.find_ffmpeg()` prüft jeden Kandidaten (PATH, /opt/homebrew, /usr/local, /usr/bin, Windows-Pfade,
+  gebündeltes imageio-ffmpeg) mit `ffmpeg_startet()` (`ffmpeg -version`, 10 s, OSError/Exit≠0 → False). Nicht
+  startbare werden mit Warnung übersprungen; das Ergebnis liegt in `_FFMPEG_CACHE`. Anlass: altes Intel-ffmpeg in
+  /usr/local/bin auf Apple Silicon ohne Rosetta → `Errno 86 Bad CPU type` beim Export.
+- `exif` (Video-Vorschau-Fallback) nutzt `find_ffmpeg` statt einer eigenen Pfadliste. `find_ffmpeg_mit` baut darauf auf.
+  exiftool: gebündelt zuerst (Perl-Skript bzw. Windows-exe, architekturunabhängig) — keine Änderung nötig.
+- Test: `tests/test_ffmpeg_startet.py` (Mach-O-Attrappe im PATH).
+
