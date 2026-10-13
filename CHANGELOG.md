@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.791] – 2026-10-13
+
+### Fixed
+- Video assistant, „All media of the tour“ could stay empty for many seconds on a slow network: looking up the place name of a photo stop (online) held the library lock, so the media list waited behind it. Only the database part is locked now.
+- Start question „The last loading did not finish“ no longer appears while another, still running GPS Studio process is loading.
+
 ## [0.9.790] – 2026-10-13
 
 ### Added

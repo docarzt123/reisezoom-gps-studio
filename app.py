@@ -182,7 +182,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.790"
+APP_VERSION = "0.9.791"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -895,6 +895,28 @@ def _ladeflagge_schreiben(info: dict) -> None:
 # Stand vom letzten Lauf — einmal beim Start gelesen, bevor der erste neue
 # Ladevorgang die Datei überschreibt.
 _LADEFLAGGE_VORHER = {"info": _ladeflagge_lesen(), "gemeldet": False}
+
+
+def _ladeflagge_haengt(info) -> bool:
+    """Hing der letzte Ladevorgang? „lädt" zählt nur, wenn der Prozess, der lädt, nicht mehr lebt — oder wir selbst
+    sind. 13.10.2026: Lädt gerade ein ANDERER, noch laufender Prozess (zweite Instanz, parallel laufende Tests), ist das
+    kein hängengebliebener letzter Start; vorher stand dann bei jedem Start die Nachfrage im Weg."""
+    info = info or {}
+    if info.get("status") != "laedt":
+        return False
+    try:
+        pid = int(info.get("pid") or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    if pid and pid != os.getpid():
+        try:
+            os.kill(pid, 0)
+            return False            # lebt noch → lädt gerade, hängt nicht vom letzten Mal
+        except PermissionError:
+            return False            # lebt, gehört nur jemand anderem
+        except OSError:
+            pass                    # weg → der Ladevorgang wurde nie fertig
+    return True
 
 
 def _mit_wach(fn, grund: str) -> None:
@@ -8209,7 +8231,8 @@ class Api:
                 return {"ok": False, "error": "not found"}
             d = None
             try:
-                d = cfotos.zeile(self._lib(), path)
+                with clib._DB_LOCK:   # 13.10.2026 — nur die Datenbankzeile unter der Sperre (nicht Datei, nicht Netz)
+                    d = cfotos.zeile(self._lib(), path)
             except Exception:   # noqa: BLE001 — Bestand fehlt → aus der Datei
                 d = None
             if not d or d.get("aufnahme_utc") is None:
@@ -12570,7 +12593,7 @@ class Api:
     def ladeflagge_vom_letzten_start(self) -> dict:
         """Hing der letzte Ladevorgang? Liefert ihn einmal je Prozess."""
         info = _LADEFLAGGE_VORHER.get("info") or {}
-        if info.get("status") != "laedt" or _LADEFLAGGE_VORHER.get("gemeldet"):
+        if not _ladeflagge_haengt(info) or _LADEFLAGGE_VORHER.get("gemeldet"):
             return {"ok": True, "problem": False}
         _LADEFLAGGE_VORHER["gemeldet"] = True
         gpx = str(info.get("gpx") or "")
@@ -14115,7 +14138,7 @@ class Api:
             # der Start das Projekt NICHT von selbst wieder öffnen — sonst friert die App
             # erneut ein, während hinter ihr die Nachfrage „ohne Schilder und Fotos öffnen?"
             # steht. Die Nachfrage (rzLadeflaggePruefen) öffnet es dann nach Wahl.
-            if ((_LADEFLAGGE_VORHER.get("info") or {}).get("status") == "laedt"):
+            if _ladeflagge_haengt(_LADEFLAGGE_VORHER.get("info")):
                 log.info("letzte_sitzung: nicht fortsetzen — letzter Ladevorgang nicht fertig")
                 return {"ok": True, "weiter": False, "grund": "ladeflagge"}
             pid = str(s.get("letztes_projekt") or "")
@@ -18153,7 +18176,11 @@ def _stapel(ident) -> str:
     fr = sys._current_frames().get(ident)
     if fr is None:
         return "  (Faden beendet)"
-    return "".join(_tb.format_stack(fr)[-12:]).rstrip()
+    # 13.10.2026 — nur die letzten 12 Rahmen zeigten bei einem Netzaufruf nur urllib/ssl, nicht WER die Sperre hielt:
+    # die eigenen Rahmen (app.py, core/) immer, dazu die letzten 6
+    rahmen = _tb.format_stack(fr)
+    eigen = [r for r in rahmen[:-6] if "/core/" in r or "app.py" in r]
+    return "".join(eigen[-10:] + (["  …\n"] if eigen else []) + rahmen[-6:]).rstrip()
 
 
 def _sperre_halter():
@@ -18845,7 +18872,10 @@ def _db_gesperrt(fn):
 
 for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage", "fotos_punkte", "fotos_ordnerbaum",
               "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum",
-              "geotagger_tracks_fuer_fotos", "fotostopp_info",
+              "geotagger_tracks_fuer_fotos",
+              # 13.10.2026 — fotostopp_info NICHT mehr ganz: es fragt Photon übers Netz (Ort am Punkt) und liest Dateien;
+              # unter der Sperre wartete bei langsamem Netz die ganze Bibliothek (tour_medien 16 s). Es sperrt jetzt selbst
+              # nur die Datenbankzeile.
               # 08.10.2026 — Touren und Medien verzahnen
               # 11.10.2026 (Klicktest: sqlite3.InterfaceError in tour_medien_kurz) — tour_medien_zahlen lief ohne Sperre
               # neben tour_medien_kurz auf derselben Verbindung; seine Fehler wurden still zu „0 Fotos“

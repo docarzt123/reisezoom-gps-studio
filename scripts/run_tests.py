@@ -138,6 +138,37 @@ def fixtures_da() -> bool:
     return (TESTS / "fixtures").is_dir() and any((TESTS / "fixtures").iterdir())
 
 
+def _ladeflagge_aufraeumen() -> None:
+    """13.10.2026 — Im Quellbaum teilen sich alle Tests `ladevorgang.json`. Wurde ein Test mitten im Laden beendet
+    (Zeitlimit, Absturz), stand dort „lädt" mit einer toten Prozessnummer, und JEDER folgende Oberflächen-Test sah beim
+    Start die Nachfrage „Der letzte Ladevorgang wurde nicht fertig" (Suite 13.10.: 4 Tests rot, auch einzeln). Vor jedem
+    Test: eine solche verwaiste Marke als abgebrochen kennzeichnen — eine von einem noch laufenden Test bleibt."""
+    f = REPO / "ladevorgang.json"
+    try:
+        info = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return
+    if info.get("status") != "laedt":
+        return
+    try:
+        pid = int(info.get("pid") or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    if pid > 0:
+        try:
+            os.kill(pid, 0)
+            return                   # der Test läuft noch
+        except PermissionError:
+            return
+        except OSError:
+            pass
+    info["status"] = "abgebrochen_im_test"
+    try:
+        f.write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def main() -> int:
     argv = [a for a in sys.argv[1:]]
     nur_liste = "--list" in argv
@@ -218,6 +249,7 @@ def main() -> int:
 
     def einer(d):
         t0 = time.time()
+        _ladeflagge_aufraeumen()
         # 06.10.2026: ein Test hing in der Nacht-Suite fast 3 Stunden und kostete den Rest der Nacht. Zeitlimit je
         # Test (der längste braucht ~6 min); wer es reißt, ist rot und die Suite läuft weiter.
         try:

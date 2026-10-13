@@ -7533,3 +7533,13 @@ Test: `tests/test_linie_ecken.py`.
   exiftool: gebündelt zuerst (Perl-Skript bzw. Windows-exe, architekturunabhängig) — keine Änderung nötig.
 - Test: `tests/test_ffmpeg_startet.py` (Mach-O-Attrappe im PATH).
 
+## Bibliothekssperre und Netz, Ladeflagge (13.10.2026)
+- `fotostopp_info` steht nicht mehr in der `_db_gesperrt`-Liste: es sperrt selbst nur `cfotos.zeile`; Datei-Lesen und
+  `_ort_am_punkt` (Photon übers Netz) laufen ohne `clib._DB_LOCK`. Grundsatz: **nie Netz oder Laufwerk unter der
+  Bibliothekssperre**. Wächter: `tests/test_sperre_ohne_netz.py` (prüft aus einem zweiten Faden, ob die Sperre frei ist).
+- Hänger-Melder `_stapel`: zeigt die eigenen Rahmen (app.py, core/) plus die letzten 6 — vorher nur 12 aus urllib/ssl.
+- `_ladeflagge_haengt(info)`: „lädt“ zählt nur, wenn der ladende Prozess tot ist oder wir selbst. `run_tests` kennzeichnet
+  vor jedem Test eine verwaiste Marke (`_ladeflagge_aufraeumen`). Test: `tests/test_ladeflagge_fremd.py`.
+- Testhinweis: Playwrights WebKit (Build 2311) bricht mit der variablen IBM Plex Sans ab (`FontCascade::drawGlyphBuffer`,
+  SIGTRAP) — `test_videoassistent_geschichte` nutzt deshalb die Systemschrift; die echte App ist nicht betroffen (Klicktest).
+
