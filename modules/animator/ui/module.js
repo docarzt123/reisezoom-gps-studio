@@ -5913,6 +5913,8 @@ function mountAnimator(body, headerActions, opts) {
         // 06.10.2026 — die Schilder-Spur kennt die Fotostopps erst mit den Halten: neu zeichnen (sonst stand der
         // Fotostopp-Balken bis zur nächsten Änderung auf dem kurzen Schild-Fenster)
         try { _sgSpurAktualisieren(); } catch (_) {}
+        // 13.10.2026 (F-19) — die Schild-Zeitpunkte hängen jetzt an der Tempo-Kurve: mit der neuen Kurve neu berechnen
+        try { window.__rzAnimSigns && window.__rzAnimSigns.attach && window.__rzAnimSigns.attach(); } catch (_) {}
       } else { _paceMap = null; _tempoInfo = null; }
     } catch (_) { _paceMap = null; _tempoInfo = null; }
     // Tester-Befund (ein Beta-Tester, 29.08.2026: „keine Veränderung spürbar"): auf
@@ -13680,12 +13682,40 @@ function mountAnimator(body, headerActions, opts) {
       }
       return best;
     }
+    // 13.10.2026 (Web-Fund F-19: „Höchster Punkt“ stand am Bildrand, während der Pfeil noch ein gutes Stück davor war) —
+    // der Anker ist der ZEITPUNKT, an dem der Pfeil die Stelle erreicht (Umkehrung der Tempo-Kurve), nicht der Punktanteil.
+    // Bei ungleich dicht aufgezeichneten Punkten liefen beide sonst auseinander; ohne Tempo-Kurve ist beides gleich.
     function _animSignAnchorForLngLat(lng, lat) {
       const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
       if (n < 2) return 0;
       const idx = _animSignsNearestIdx(lng, lat);
-      return idx < 0 ? 0 : idx / (n - 1);
+      if (idx < 0) return 0;
+      try { return _ankerAusBahn(idx); } catch (_) { return idx / (n - 1); }
     }
+    /** 13.10.2026 (F-19, Folge) — wie lange der Pfeil an der Stelle steht (Halt/Fotostopp in der Tempo-Kurve), in Anker-
+     *  Einheiten. Das Schild bleibt so viel länger stehen: sein „nachher“ zählt ab dem Weiterfahren, nicht ab dem Ankommen. */
+    function _animSignHaltAnker(lng, lat) {
+      const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+      if (n < 2 || !_paceMap) return 0;
+      const idx = _animSignsNearestIdx(lng, lat);
+      if (idx < 0) return 0;
+      try {
+        const von = _ankerAusBahn(idx);
+        let lo = von, hi = 1;   // größter Fortschritt, an dem die Bahn noch nicht über die Stelle hinaus ist
+        for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (fracAusFortschritt(m, n) <= idx + 1e-6) lo = m; else hi = m; }
+        return Math.max(0, lo - von);
+      } catch (_) { return 0; }
+    }
+    /** Das Schild mit Anker für die Fenster-Rechnung (rzSignMeta): „nachher“ um den Halt an der Stelle verlängert. */
+    function _animSignMitAnker(sn, trackAnchor, dur) {
+      const o = { ...sn, track_anchor: trackAnchor };
+      if (typeof sn.timeAnchor !== "number" && (+sn.after || 0) > 0 && dur > 0) {
+        const halt = _animSignHaltAnker(Number(sn.lon), Number(sn.lat));
+        if (halt > 1e-6) o.after = (+sn.after || 0) + halt * dur;
+      }
+      return o;
+    }
+    window.__rzSignAnkerAusOrt = _animSignAnchorForLngLat;   // 13.10.2026 — Highlights zeitlich trennen (F-21)
     // Schild als Canvas-Bild zeichnen → ImageData. Nutzt die GEMEINSAME Engine
     // window.__rzDrawSign (ui/js/sign_draw.js) — identisch zum Render (kein
     // doppelt gepflegter Klon mehr). `s` = volles Schild-Objekt.
@@ -14021,7 +14051,7 @@ function mountAnimator(body, headerActions, opts) {
         // Banner-/Wegweiser-Pfosten proportional zur echten Box-Höhe sitzen.
         try { window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) {}
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
-        _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
+        _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
         _animSignMarkers[fi] = { marker, wrap, zoomScale: !!sn.zoomScale, anchor: _mkAnchor };
       });
       if (!_animSignZoomHooked) {
@@ -14172,7 +14202,7 @@ function mountAnimator(body, headerActions, opts) {
           _animSignImgIds.push(id);
         } catch (_) { return; }
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
-        const meta = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
+        const meta = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
         // 05.10.2026 — Sofortbild mit Ausgang „mini": rundes Mini-Bild dazu registrieren (sign_draw.js rzSignApplyFrame)
         if (meta.mini != null && sn.style === "sofortbild" && window.__rzDrawSofortbildMini && _animSignHasImg(s)) {
           try {
@@ -14249,6 +14279,7 @@ function mountAnimator(body, headerActions, opts) {
                  16, ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0],
                  20, ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0]],
             "icon-anchor": ["coalesce", ["get", "iconAnchor"], "bottom"],  // v0.9.408 — Sprechblasen-Richtung pro Schild
+            "icon-offset": ["coalesce", ["get", "rzOff"], ["literal", [0, 0]]],   // 13.10.2026 (F-20) — am Bildrand ins Bild schieben
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
             "icon-pitch-alignment": "viewport",
@@ -14315,7 +14346,7 @@ function mountAnimator(body, headerActions, opts) {
         try { mk.marker.setLngLat([Number(sn.lon), Number(sn.lat)]); } catch (_) {}
         mk.zoomScale = !!sn.zoomScale;
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
-        _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
+        _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
       });
       if (!ok) return false;
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
@@ -18934,11 +18965,13 @@ function mountAnimator(body, headerActions, opts) {
         if (name && !rand(bi)) aus.push({ art: "wegpunkte", i: bi, wert: name.length > 28 ? name.slice(0, 27) + "…" : name });
       }
     }
-    // Zu dicht beieinander (< 6 % der Strecke) → das spätere in der Vorrang-Liste fällt weg.
+    // Zu dicht beieinander (< 6 % der Strecke): GPX-Wegpunkte werden ausgedünnt. 13.10.2026 (Web-Fund F-21, Marc: „Man kann
+    // nicht Steilste Stelle und gleichzeitig Halbzeit angeben — beides wird nicht gleichzeitig angezeigt“) — ausdrücklich
+    // gewählte Arten fallen nie mehr still weg; nahe Paare trennt _hlZeitlichTrennen beim Anlegen der Schilder zeitlich.
     const bleibt = [];
     for (const h of aus) {
       h.f = anteil(h.i);
-      if (bleibt.some(b => Math.abs(b.f - h.f) < 0.06)) continue;
+      if (h.art === "wegpunkte" && bleibt.some(b => Math.abs(b.f - h.f) < 0.06)) continue;
       bleibt.push(h);
     }
     return bleibt.sort((a, b) => a.f - b.f);
@@ -19031,6 +19064,7 @@ function mountAnimator(body, headerActions, opts) {
         });
       }
     } catch (e) { applog("warn", "[etappe] Stations-Schilder: " + e); }
+    _hlZeitlichTrennen(neu);
     const gleich = (a, b) => a.length === b.length && a.every((x, i) => x.auto === b[i].auto && _hlSig(x) === _hlSig(b[i]));
     const altAuto = alt.filter(s => s && s.auto && s.auto_sig === _hlSig(s));
     if (gleich(altAuto, neu)) return 0;
@@ -19041,6 +19075,27 @@ function mountAnimator(body, headerActions, opts) {
     try { sg.neuZeichnen(); } catch (e) { applog("warn", "[hl] Schilder neu zeichnen: " + e); }
     try { applog("info", `[hl] Schilder abgeglichen: ${neu.length} automatisch, ${bleiben.length} weitere`); } catch (_) {}
     return neu.length;
+  }
+  /** 13.10.2026 (Web-Fund F-21) — zwei automatische Schilder dicht hintereinander überdeckten sich auf der Karte, und die Karte
+   *  blendete eines aus (Teide: „Halbe Strecke“ stand nur ~0,8 s neben „Steilste Stelle“). Jetzt teilen sie sich die Zeit
+   *  dazwischen: das frühere geht in der Mitte, das spätere kommt erst dann — jedes steht für sich. Der Fingerabdruck wird
+   *  danach neu gebildet (die Zeiten gehören dazu). */
+  function _hlZeitlichTrennen(schilder) {
+    const dur = parseFloat(document.getElementById("anim-dur")?.value) || +(_activeProject?.[_MODKEY]?.duration_s) || 0;
+    if (!(dur > 0) || !Array.isArray(schilder) || schilder.length < 2) return;
+    const mitF = schilder.map(s => ({ s, f: _animSignAnchorForLngLatSafe(+s.lon, +s.lat) })).filter(x => x.f != null).sort((a, b) => a.f - b.f);
+    for (let k = 0; k + 1 < mitF.length; k++) {
+      const a = mitF[k], b = mitF[k + 1];
+      const luecke = (b.f - a.f) * dur;                       // Sekunden zwischen beiden Stellen
+      const halb = Math.max(0, luecke / 2);
+      if (luecke >= (+a.s.after || 0) + (+b.s.before || 0)) continue;   // überlappen zeitlich nicht
+      a.s.after = Math.round(Math.min(+a.s.after || 0, halb) * 100) / 100;
+      b.s.before = Math.round(Math.min(+b.s.before || 0, halb) * 100) / 100;
+    }
+    for (const x of mitF) x.s.auto_sig = _hlSig(x.s);
+  }
+  function _animSignAnchorForLngLatSafe(lng, lat) {
+    try { return typeof window.__rzSignAnkerAusOrt === "function" ? window.__rzSignAnkerAusOrt(lng, lat) : null; } catch (_) { return null; }
   }
   function _hlText(art) {
     return {

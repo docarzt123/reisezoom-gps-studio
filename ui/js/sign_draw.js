@@ -832,6 +832,11 @@
     // setData den feature-state resetten kann.
     var fc = map.__rzSignFC;
     var popDirty = false;
+    // 13.10.2026 (Web-Fund F-20: im Hochformat ragten Schilder und Sofortbilder halb über den Bildrand) — ein sichtbares
+    // Schild, das über den Rand ragen würde, wird per icon-offset ins Bild geschoben (8 px Rand). Ausgerechnet aus Ort,
+    // Bildgröße und icon-size; geschrieben nur, wenn sich der Versatz ändert (in 4er-Schritten, kein setData-Sturm).
+    var randDirty = rzSignRandVersatz(map, fc, vis, metas);
+    if (randDirty) popDirty = true;
     // v0.9.479b — nur anfassen, wenn wirklich ein Schild Aufpoppen nutzt. Sonst KEIN
     // setData/popScale (die icon-size ist dann der reine Zoom-Ausdruck → scharf, kein Zittern).
     var anyPop = false;
@@ -884,6 +889,10 @@
         map.__rzSignOpLast = null;   // setData kann Feature-States zurücksetzen → neu schreiben
       }
     }
+    if (randDirty && !anyPop) {
+      try { map.getSource(src).setData(fc); } catch (_) {}
+      map.__rzSignOpLast = null;
+    }
     // v0.9.484 — den datengetriebenen icon-size-Ausdruck NUR während des laufenden
     // Aufpoppens anlegen und sofort danach wieder abnehmen. Ergebnis: es poppt auf
     // UND die Schrift bleibt beim Zoomen scharf (kein „Buchstabentanzen").
@@ -912,6 +921,53 @@
       map.__rzSignOpLast[i] = opq;
       try { map.setFeatureState({ source: src, id: i }, { op: op }); } catch (_) {}
     }
+  }
+
+  // Versatz je sichtbarem Schild, damit es ganz im Bild bleibt (F-20). true = Eigenschaften geändert (setData nötig).
+  function rzSignRandVersatz(map, fc, vis, metas) {
+    if (!fc || !fc.features || !vis || !vis.length || !map.project || !map.getCanvas) return false;
+    var cv = map.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height, RAND = 8;
+    if (!(W > 0 && H > 0)) return false;
+    var skal = map.__rzSignSizeScale || 1;
+    var zs = 0.5 * Math.pow(RZ_SIGN_ZOOM_BASE, Math.max(8, Math.min(20, map.getZoom())) - 8) * skal;
+    var geaendert = false, gesehen = {};
+    for (var v = 0; v < vis.length; v++) {
+      var k = vis[v], f = fc.features[k];
+      if (!f || !f.geometry || !f.properties) continue;
+      var pr = f.properties, img = null;
+      // Das runde Mini nach dem Sofortbild markiert den Aufnahmeort an der Route — es bleibt an seinem Ort (kein Versatz)
+      var mm = metas && metas[k];
+      if (mm && mm.miniId && pr.imgId === mm.miniId) continue;
+      gesehen[k] = 1;
+      try { img = map.getImage ? map.getImage(pr.imgId) : null; } catch (_) { img = null; }
+      if (!img) { try { img = map.style && map.style.getImage ? map.style.getImage(pr.imgId) : null; } catch (_) { img = null; } }
+      if (!img || !img.data || !img.data.width) continue;
+      var pop = (map.__rzSignPopLast && map.__rzSignPopLast[k]) || 1;
+      var gr = (pr.zoomScale === true ? zs : skal) * (map.__rzSignPopMode ? pop : 1);
+      var w = img.data.width / (img.pixelRatio || 1) * gr, h = img.data.height / (img.pixelRatio || 1) * gr;
+      var p = map.project(f.geometry.coordinates), a = String(pr.iconAnchor || "bottom");
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
+      var x0 = p.x - (a.indexOf("left") >= 0 ? 0 : a.indexOf("right") >= 0 ? w : w / 2);
+      var y0 = p.y - (a.indexOf("top") >= 0 ? 0 : a.indexOf("bottom") >= 0 ? h : h / 2);
+      // Nur Schilder, die schon (teilweise) im Bild stehen, werden ganz hereingeschoben. Liegt der Kasten komplett draußen
+      // (Ort weit weg, oder die Projektion stammt noch von der Kamera vor einem Sprung), wird nichts hereingezogen.
+      if (x0 + w <= 0 || x0 >= W || y0 + h <= 0 || y0 >= H) continue;
+      var dx = 0, dy = 0;
+      if (w + 2 * RAND <= W) { if (x0 < RAND) dx = RAND - x0; else if (x0 + w > W - RAND) dx = (W - RAND) - (x0 + w); }
+      if (h + 2 * RAND <= H) { if (y0 < RAND) dy = RAND - y0; else if (y0 + h > H - RAND) dy = (H - RAND) - (y0 + h); }
+      // icon-offset wird mit icon-size multipliziert → in Symbol-Bildpunkte, auf 4er-Schritte gerundet
+      var g = Math.max(0.05, gr);
+      var schritt = function (d) { var x = d / g / 4; return (x < 0 ? Math.floor(x) : Math.ceil(x)) * 4; };   // nach außen runden: ganz im Bild
+      var ox = schritt(dx), oy = schritt(dy);
+      var alt = pr.rzOff || [0, 0];
+      if (alt[0] !== ox || alt[1] !== oy) { pr.rzOff = [ox, oy]; geaendert = true; }
+    }
+    // nicht mehr sichtbare Schilder zurück auf 0 (beim nächsten Erscheinen frisch)
+    for (var i = 0; i < fc.features.length; i++) {
+      var q = fc.features[i] && fc.features[i].properties;
+      if (q && q.rzOff && !gesehen[i] && (q.rzOff[0] || q.rzOff[1])) { q.rzOff = [0, 0]; geaendert = true; }
+    }
+    return geaendert;
   }
 
   // Deckkraft eines Schilds beim Anker M aus Ein- und Ausblenden (getrennt; alte Metas: `fade` beidseitig).
@@ -988,6 +1044,7 @@
     window.__rzSignMeta = rzSignMeta;
     window.__rzSignDeckkraft = rzSignDeckkraft;
     window.__rzSignIconSize = rzSignIconSize;
+    window.__rzSignRandVersatz = rzSignRandVersatz;   // Prüfstand (F-20)
     window.__rzSignDpr = rzSignDpr;
     window.__rzHlStile = RZ_HL_STILE;
     window.__rzHlFarben = RZ_HL_FARBEN;

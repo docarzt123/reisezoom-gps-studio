@@ -7571,3 +7571,19 @@ Test: `tests/test_linie_ecken.py`.
 - Kommandozeile: wartet auf `window.__rzSchnellGeladen()` (Fotos/Clips gefunden) und setzt `#sv-fotos-an` ausdrücklich
   (sonst erbte sie „Fotos aus“ vom letzten Mal in der App).
 
+## Schilder: nahe Highlights, Zeit = Pfeil, im Bild halten (13.10.2026, Web-Funde F-21/F-19/F-20)
+- `_hlBerechnen`: die 6-%-Regel dünnt nur noch GPX-Wegpunkte aus; ausdrücklich gewählte Arten bleiben.
+  `_hlZeitlichTrennen(neu)` (in `_hlSchilderAbgleichen`): überlappen zwei Auto-Schilder zeitlich, geht das frühere in der
+  Mitte (`after`), das spätere kommt dann (`before`); Fingerabdruck danach neu. Anker über `window.__rzSignAnkerAusOrt`.
+- `_animSignAnchorForLngLat` liefert `_ankerAusBahn(idx)` (Zeitpunkt, an dem der Pfeil den Punkt erreicht) statt
+  `idx/(n-1)`; nach dem Laden der Tempo-Kurve `__rzAnimSigns.attach()` (Metas neu). Ohne Kurve identisch.
+- `sign_draw.js rzSignRandVersatz(map, fc, vis, metas)` je Bild: Kasten aus `map.project` + Bildgröße/`pixelRatio` ×
+  icon-size (zoomScale: 0,5·Basis^(z−8)), Überstand → `properties.rzOff` (Symbol-Pixel, nach außen auf 4er gerundet),
+  Schild-Ebene `icon-offset: ["coalesce", ["get","rzOff"], [0,0]]`; setData nur bei Änderung. Minis (Aufnahmeort) nie.
+  Geschoben wird nur ein Kasten, der schon (teilweise) im Bild steht — ganz draußen (Ort weit weg oder Projektion noch
+  von der Kamera vor einem Sprung beim Scrubben) bleibt er, wo er ist (sonst landete ein Fotostopp-Schild nach dem Sprung
+  mit −692 px Versatz außerhalb).
+- Halt an der Stelle (Fotostopp in der Tempo-Kurve): `_animSignMitAnker` verlängert `after` um die Zeit, die der Pfeil
+  dort steht (`_animSignHaltAnker`) — mit dem Zeit-Anker (F-19) lief das Fenster sonst mitten im Halt ab.
+- Tests: `test_track_highlights.py` (F-21), `test_schild_zeit_pfeil.py`, `test_schild_bildrand.py`.
+

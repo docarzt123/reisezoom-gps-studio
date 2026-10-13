@@ -18,6 +18,9 @@ Bei jeder neuen Version:
 - Quick video: photos count right up to the destination (before, the last 3 % of the route were left out, so a photo at the destination was missing). The last instant print in the final 15 % appears at the latest 2 s before the destination and stays until the end of the video, then fades out — before it was visible for only 2.5 s and shrank during the zoom-out to the closing card. Same behaviour as the web version.
 
 ### Fixed
+- Highlights you tick no longer disappear silently when two are close together (e.g. „Half way“ and „Steepest section“ on the Teide tour): both stay, and they share the time between them — the first one goes when the second one comes, so they do not cover each other.
+- Signs appear when the moving dot really reaches their spot: with unevenly recorded points (dense in one part, sparse in another) a sign like „Highest point“ showed up while the arrow was still far away. The sign time now follows the same speed curve as the arrow.
+- Portrait (9:16): signs and instant prints no longer stick out of the frame — a sign that would cross the edge is pushed back into the picture (8 px margin). The small round photo markers stay at their spot on the route.
 - Command line `gpsstudio render`: the video could come out without photos — it started before the dialog had found them, and it took over „photos off“ from the last time in the app. It now waits for the photo search and switches photos on unless `--no-photos` is given.
 - Linux: the app crashed right at start („… has invalid format“, Trace/breakpoint trap) — GTK rejected menu entries with brackets, „…“ or umlauts in their internal names. The menu now uses plain internal names; the titles stay the same.
 
