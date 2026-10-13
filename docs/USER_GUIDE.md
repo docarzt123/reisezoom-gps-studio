@@ -418,11 +418,17 @@ und darunter ihre Bedienung:
   Linien-Stil (durchgezogen, gestrichelt, gepunktet, Strich-Punkt, Röhre) mit Abstand,
   Schatten, Glow, die Punktreduzierung in Prozent und den **Laufpunkt** (zeigen, Kugel
   oder Pfeil in Fahrtrichtung oder ein Fahrzeug, Größe; „Ruhe des Pfeils" gilt für alle Pfeile).
-  Die Form wählst du als Bildkachel; darunter steht **„Fahrzeug-Aussehen (alle Fahrzeuge)“** mit elf
-  Kacheln: Plakette (das gezeichnete Symbol) oder fotorealistisch, Bleistift & Aquarell, Comic,
+  Die Form wählst du als Bildkachel; darunter steht **„Fahrzeug-Aussehen (alle Fahrzeuge)“** mit zwölf
+  Kacheln: Plakette (das gezeichnete Symbol), **Symbol** (seit v0.9.792, siehe unten) oder fotorealistisch, Bleistift & Aquarell, Comic,
   Piktogramm, Kupferstich, Neon, Pixel-Art, Blaupause, Papier, Knete. Diese Bilder sind von oben
   gezeichnet, liegen flach auf der Karte und drehen sich mit der Fahrtrichtung — auch auf geplanten
-  Etappen. **Eigenes Bild (seit v0.9.790):** Die letzte Kachel nimmt ein Bild von dir als Laufpunkt — dein Wohnmobil,
+  Etappen. **Symbole je Bewegungsart (seit v0.9.792):** 20 schlichte Symbole von oben — Auto, Motorrad, Wohnmobil, Bus,
+  Fahrrad, Mountainbike, Wanderer, Läufer, Reiter, Ski, Zug, Boot, Segelboot, Fähre, Kajak, SUP, Flugzeug, Hubschrauber,
+  Gleitschirm, Heißluftballon. Sie liegen flach auf der Karte und drehen sich mit dem Weg. Darunter wählst du die
+  **Farbe der Symbole** (gilt für alle): **Linienfarbe** färbt das Symbol in der Farbe der Tour mit passendem Akzent,
+  **Feste Farben** nimmt zwei Farben deiner Wahl (Körper und Akzent, „Vorgabe“ = Schiefer und Mint). Die neuen Arten ab
+  Wohnmobil gibt es nur als Symbol — wählst du ein anderes Aussehen, zeigen sie trotzdem ihr Symbol.
+  **Eigenes Bild (seit v0.9.790):** Die letzte Kachel nimmt ein Bild von dir als Laufpunkt — dein Wohnmobil,
   dein Motorrad, ein Avatar. Klick darauf öffnet die Bildauswahl (PNG, JPG, WebP, HEIC); **Plakette** zeigt es rund in der
   Linienfarbe wie die Fahrzeuge, **Frei** das Bild selbst (ein freigestelltes PNG behält seine Form). „Dreht sich mit der
   Fahrtrichtung“ legt es flach auf den Weg, sonst steht es aufrecht. Größe über den Regler; Vorschau und Video sehen gleich
@@ -1003,7 +1009,7 @@ Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs näc
 
 **Drei Vorlagen (seit v0.9.782).** Ganz oben im Dialog wählst du, wie das Video aussehen soll — die Vorlage stellt die Zutaten unter „Mehr“ passend ein, ändern kannst du danach alles (dann steht „Vorlage angepasst“ da; ein Klick auf die Vorlage stellt sie wieder her):
 - **Weite** (Standard) — Landschaft im Mittelpunkt: Luftbild, Look „Natürlich“, Fotos als großer **Fotostopp**, unterwegs keine Zahlen, am Schluss wenige große Werte; Musik „Panorama“.
-- **Tagebuch** — Orte und Erinnerungen: Look „Reiseatlas“ (Papierkarte, Titel in Handschrift), Fotos als **Sofortbild am Ort** mit dem Ortsnamen als Unterschrift (die Fahrt hält nicht an, das Foto schrumpft danach zum kleinen runden Bild an der Route; **seit v0.9.792 zählen Fotos bis zum Ziel, und das letzte Sofortbild kurz vor dem Ziel bleibt bis zum Ende des Videos stehen**), ein kleines Kärtchen mit Strecke und Höhenmetern, Fazit mit Titel; Musik „Tagebuch“.
+- **Tagebuch** — Orte und Erinnerungen: Look „Reiseatlas“ (Papierkarte, Titel in Handschrift), Fotos als **Sofortbild am Ort** mit dem Ortsnamen als Unterschrift (die Fahrt hält nicht an, das Foto schrumpft danach zum kleinen runden Bild an der Route; **seit v0.9.792 zählen Fotos bis zum Ziel, und das letzte Sofortbild kurz vor dem Ziel steht mindestens 3 Sekunden, bis zum Ziel, und blendet aus, wenn die Schlusskarte kommt**), ein kleines Kärtchen mit Strecke und Höhenmetern, Fazit mit Titel; Musik „Tagebuch“.
 - **Puls** — Strecke und Leistung: Look „Nachtkarte“, unten eine Datenleiste (Strecke, Höhe, Tempo) mit Höhenprofil, Fotos als kleines **Bild im Bild** oben rechts ohne Halt, kompakte Schlussübersicht; Musik „Puls“.
 
 Die Fotoart bringt die Vorlage mit (seit v0.9.782 gibt es dafür kein eigenes Feld mehr im Dialog; im Animator lässt sich jedes Foto-Schild danach frei umstellen). Fotos ohne Halt kosten keine Länge; damit es nicht wimmelt, kommt höchstens etwa ein Foto je 4 Sekunden Fahrt dazu (die besten zuerst).
@@ -1322,10 +1328,12 @@ und dem Anfang der Tour danach belegt. Die Etappe bekommt eine eigene Zeile (�
 läuft wie jede Tour; der Laufpunkt zeigt das Fahrzeug des gerade laufenden Abschnitts. Die Etappe gehört zum Projekt
 (sie reist auch im `.rzproj` mit) und hat keine Uhrzeit.
 
-**Verkehrsmittel.** Ganz oben im Editor steht die Leiste **„Unterwegs mit“** (Auto, Motorrad, Fahrrad, zu Fuß, Zug,
-Boot, Flugzeug). Ein Klick gilt für alle Abschnitte — oder, wenn ein Punkt ausgewählt ist, ab diesem Punkt. Einzelne
-Abschnitte stellst du in der Liste zwischen zwei Stationen um; dort schaltest du auch „Straße“ (bei Zug, Boot, Flugzeug
-„Bogen“) aus, dann wird der Abschnitt eine freie Kurve. Die kleine Leiste am ausgewählten Punkt bleibt immer in der
+**Verkehrsmittel.** Ganz oben im Editor steht die Leiste **„Unterwegs mit“** mit 20 Symbolen (seit v0.9.792): Auto,
+Motorrad, Wohnmobil, Bus, Fahrrad, Mountainbike, Wanderer, Läufer, Reiter folgen der Straße bzw. dem Weg; Ski, Zug, Boot,
+Segelboot, Fähre, Kajak, SUP, Flugzeug, Hubschrauber, Gleitschirm und Heißluftballon fahren einen Bogen (Ski mit Höhen
+aus dem Gelände, Wasser und Luft flach). Ein Klick gilt für alle Abschnitte — oder, wenn ein Punkt ausgewählt ist, ab
+diesem Punkt. Einzelne Abschnitte stellst du in der Liste zwischen zwei Stationen um; dort schaltest du auch „Straße“
+(bei den Bogen-Arten „Bogen“) aus, dann wird der Abschnitt eine freie Kurve. Die kleine Leiste am ausgewählten Punkt bleibt immer in der
 Karte; am Griff ⠿ kannst du sie zur Seite ziehen.
 
 **Etappe zeichnen.** Am schnellsten klickst du die Strecke einfach auf die Karte: jeder Klick setzt einen Punkt, ein
@@ -3487,6 +3495,28 @@ genau **eine JSON-Zeile** auf stdout, z. B. `{"ok": true, "file": "/…/video.mp
 **Sicher neben der App:** Die Kommandozeile liest dein Archiv nur — sie ändert nichts daran und darf laufen, während
 GPS Studio offen ist. Das Video entsteht genau wie in der App (Schnell-Video mit der gewählten Vorlage, Fotostopps aus
 deinem Archiv, Musik, Schlusskarte); das Projekt dafür liegt nur kurz in einem Temp-Ordner.
+
+### Für KI-Assistenten (MCP, seit v0.9.792)
+
+Claude und andere KI-Programme, die das **Model Context Protocol (MCP)** können, steuern GPS Studio über denselben Befehl:
+„Such meine Tour vom Gantrisch und mach daraus ein 9:16-Video.“ Alles läuft auf deinem Rechner, nichts wird hochgeladen.
+
+**Einrichten:** Erst **„Kommandozeile einrichten“** (siehe oben), dann im selben Bereich **„Einstellung für KI-Programme
+kopieren“**. Das kopiert diesen Eintrag (mit dem Pfad deines Befehls):
+
+```json
+{ "mcpServers": { "gps-studio": { "command": "/Users/du/.local/bin/gpsstudio", "args": ["mcp"] } } }
+```
+
+In **Claude** (Desktop-App): Einstellungen → Entwickler → Konfiguration bearbeiten, den Eintrag einfügen, Claude neu
+starten. In **Claude Code**: `claude mcp add gps-studio -- gpsstudio mcp`. Andere Programme haben eine ähnliche
+MCP-Einstellung.
+
+**Was die KI darf:** Touren suchen, die Vorlagen sehen, ein **Video** oder ein **Kartenbild** einer Tour in Auftrag geben,
+den Fortschritt abfragen und einen Auftrag abbrechen. Ein Video dauert ein paar Minuten; die KI fragt zwischendurch nach
+und sagt dir am Ende, wo die Datei liegt. Aufträge laufen nacheinander. Die KI kann **nichts im Archiv ändern** und keinen
+Speicherort wählen: Videos und Kartenbilder landen im Render-Ordner der App (bzw. im Ordner aus `gpsstudio mcp --out-dir
+ORDNER`) und überschreiben nie etwas. Beim Kartenbild bekommt die KI eine kleine Vorschau zu sehen.
 
 ## 9 · Hilfe, Feedback & Bug-Reports
 

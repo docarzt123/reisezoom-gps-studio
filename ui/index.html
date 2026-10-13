@@ -359,21 +359,24 @@
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/timeline.css">
 <!-- Modul-CSS (Cache-Buster patcht hier den ?v=... an) -->
+<!-- 13.10.2026 (Web-Fund F-24): `data-nur-app` = nur die Desktop-App braucht das (Mapbox, Leaflet, Geotagger, Höhen-Animator,
+     GPX-Inspektor, Bibliothek). Das Web lässt diese Zeilen beim Erzeugen seiner Seite weg; der Animator läuft ohne sie
+     (tests/test_web_schlank.py). Neue App-only-Dateien bitte genauso markieren. -->
 <link rel="stylesheet" href="../modules/animator/ui/module.css">
-<link rel="stylesheet" href="../modules/geotagger/ui/module.css">
-<link rel="stylesheet" href="../modules/heightanim/ui/module.css">
-<link rel="stylesheet" href="../modules/gpxinspect/ui/module.css">
-<link rel="stylesheet" href="../modules/library/ui/module.css">
+<link rel="stylesheet" href="../modules/geotagger/ui/module.css" data-nur-app>
+<link rel="stylesheet" href="../modules/heightanim/ui/module.css" data-nur-app>
+<link rel="stylesheet" href="../modules/gpxinspect/ui/module.css" data-nur-app>
+<link rel="stylesheet" href="../modules/library/ui/module.css" data-nur-app>
 <!-- Karten-Engines: Mapbox GL JS für Token-User, MapLibre GL JS als Fallback ohne Token (OSM-Tiles). MapLibre erbt das gleiche `mapboxgl`-Globale-Pattern, wir wrappen das in util.js.
      v0.9.446 — LOKAL gebündelt (vorher CDN api.mapbox.com/unpkg.com). Ohne Internet
      oder hinter einer Firewall blockierte das den Start komplett (weißes Fenster). -->
-<script src="vendor/mapbox-gl.js"></script>
-<link href="vendor/mapbox-gl.css" rel="stylesheet">
+<script src="vendor/mapbox-gl.js" data-nur-app></script>
+<link href="vendor/mapbox-gl.css" rel="stylesheet" data-nur-app>
 <script src="vendor/maplibre-gl.js"></script>
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
 <!-- v0.9.418 — Leaflet (leicht) NUR für den Tour-Map „HTML (Blog)"-Modus (Spar-Editor). -->
-<link href="vendor/leaflet/leaflet.css" rel="stylesheet">
-<script src="vendor/leaflet/leaflet.js"></script>
+<link href="vendor/leaflet/leaflet.css" rel="stylesheet" data-nur-app>
+<script src="vendor/leaflet/leaflet.js" data-nur-app></script>
 </head>
 <body>
 
@@ -452,6 +455,8 @@
 <script src="js/rz-line3d.js"></script>
 <script src="js/maplibre-camera.js"></script>
 <script src="js/icons.js"></script>
+<script src="js/bewegung_pfade.js"></script>
+<script src="js/bewegung.js"></script>
 <script src="js/util.js"></script>
   <script src="js/regler.js"></script>
   <script src="js/seitenleisten.js"></script>
@@ -482,10 +487,10 @@
 <script src="js/sign_dom.js"></script>
 <script src="../modules/animator/ui/module.js"></script>
 <script src="../modules/web-karte/ui/module.js"></script>
-<script src="../modules/geotagger/ui/module.js"></script>
-<script src="../modules/heightanim/ui/module.js"></script>
-<script src="../modules/gpxinspect/ui/module.js"></script>
-<script src="../modules/library/ui/module.js"></script>
+<script src="../modules/geotagger/ui/module.js" data-nur-app></script>
+<script src="../modules/heightanim/ui/module.js" data-nur-app></script>
+<script src="../modules/gpxinspect/ui/module.js" data-nur-app></script>
+<script src="../modules/library/ui/module.js" data-nur-app></script>
 <script src="js/quickstart.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/bibliothek.js"></script>

@@ -1583,10 +1583,18 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .anim-etappe-editor .et-fahrzeuge { margin: 0 0 10px; }
 .anim-etappe-editor .et-fz-titel { font-size: 11.5px; font-weight: 600; margin-bottom: 5px; }
 .anim-etappe-editor .et-fz-titel .muted { font-weight: 400; }
-.anim-etappe-editor .et-fz-knoepfe { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.anim-etappe-editor .et-fz-knoepfe { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 4px; }   /* 13.10.2026: 20 Arten */
 .anim-etappe-editor .et-fz { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 4px; border-radius: 7px; cursor: pointer;
   border: 1px solid var(--border, rgba(255,255,255,.12)); background: var(--bg-3, rgba(255,255,255,.04)); color: var(--text); font: inherit; }
 .anim-etappe-editor .et-fz span { font-size: 17px; line-height: 1.2; }
+/* 13.10.2026 — Symbol je Bewegungsart (ui/js/bewegung.js) auf hellem Grund: Schiefer und Mint brauchen ihn im dunklen Thema */
+.rz-sym-chip { display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: #eef2f1; padding: 2px; line-height: 0; }
+.rz-sym-chip svg { display: block; }
+.dot-kachel .rz-sym-chip { width: 100%; height: 100%; box-sizing: border-box; }
+.dot-kachel .rz-sym-chip svg { width: 100%; height: 100%; }
+.dot-sym-fest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 11.5px; }
+.dot-sym-fest label { display: inline-flex; align-items: center; gap: 4px; }
+.dot-sym-fest input[type="color"] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--border, rgba(255,255,255,.12)); border-radius: 4px; background: none; }
 .anim-etappe-editor .et-fz i { font-style: normal; font-size: 9px; color: var(--text-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
 .anim-etappe-editor .et-fz:hover { border-color: var(--accent, #48d6c4); }
 .anim-etappe-editor .et-fz.ist-an { border-color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 18%, transparent); }

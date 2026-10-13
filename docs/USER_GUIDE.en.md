@@ -431,9 +431,15 @@ list) that opens the editor of **this** track: colour, width,
 line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow, the point
 reduction in percent and the **running dot** (show, ball, arrow in travel direction or a
 vehicle, size; "arrow smoothing" applies to all arrows). You pick the shape as a picture tile; below it,
-**"Vehicle look (all vehicles)"** offers eleven tiles: badge (the drawn symbol) or photorealistic, pencil &
+**"Vehicle look (all vehicles)"** offers twelve tiles: badge (the drawn symbol), **symbol** (since v0.9.792, see below) or photorealistic, pencil &
 watercolour, comic, pictogram, engraving, neon, pixel art, blueprint, paper, clay. These pictures are drawn
-from above, lie flat on the map and turn with the direction of travel — on planned stages too. **Own picture (since
+from above, lie flat on the map and turn with the direction of travel — on planned stages too. **Symbols for every way of
+travelling (since v0.9.792):** 20 simple top-down symbols — car, motorbike, camper van, bus, bike, mountain bike, hiker,
+runner, horse rider, ski, train, boat, sailboat, ferry, kayak, SUP, plane, helicopter, paraglider, hot-air balloon. They
+lie flat on the map and turn with the route. Below you choose the **symbol colours** (for all of them): **Line colour**
+uses the tour's colour with a matching accent, **Fixed colours** two colours of your choice (body and accent, “Default”
+= slate and mint). The new ones from camper van on exist only as symbols — with another look they still show their
+symbol. **Own picture (since
 v0.9.790):** the last tile uses a picture of yours as the running dot — your camper, your motorbike, an avatar. A click
 opens the picture choice (PNG, JPG, WebP, HEIC); **Badge** shows it round in the line colour like the vehicles, **Free**
 the picture itself (a cut-out PNG keeps its shape). "Turns with the direction of travel" lays it flat on the route,
@@ -975,7 +981,7 @@ The dialog asks only a few things — the app remembers your choice for next tim
 
 **Three templates (since v0.9.782).** At the very top of the dialog you choose how the video should look — the template sets the ingredients under “More” to match, and you can change everything afterwards (then it says “Template adjusted”; one click on the template restores it):
 - **Wide** (default) — the landscape first: aerial imagery, look “Natural”, photos as a large **photo stop**, no numbers along the way, a few big values at the end; music “Panorama”.
-- **Diary** — places and memories: look “Travel atlas” (paper map, handwritten titles), photos as an **instant print at the spot** with the place name as caption (the ride does not stop, afterwards the photo shrinks to a small round picture on the route; **since v0.9.792 photos count right up to the destination, and the last instant print shortly before it stays until the end of the video**), a small card with distance and climb, a summary with the title; music “Diary”.
+- **Diary** — places and memories: look “Travel atlas” (paper map, handwritten titles), photos as an **instant print at the spot** with the place name as caption (the ride does not stop, afterwards the photo shrinks to a small round picture on the route; **since v0.9.792 photos count right up to the destination, and the last instant print shortly before it stays at least 3 seconds, up to the destination, and fades out when the closing card comes**), a small card with distance and climb, a summary with the title; music “Diary”.
 - **Pulse** — route and performance: look “Night map”, a data bar at the bottom (distance, climb, speed) with elevation profile, photos as a small **picture in picture** top right without stopping, a compact summary at the end; music “Pulse”.
 
 The photo style comes with the preset (since v0.9.782 the dialog has no field of its own for it; in the Animator every photo sign can be changed freely afterwards). Photos without a stop cost no length; so it does not get crowded, at most about one photo per 4 seconds of ride is added (best first).
@@ -1282,9 +1288,11 @@ start and destination are then prefilled with the end of the tour before and the
 gets its own row (🗺, ✎ edits it again) and runs like any tour; the running dot shows the vehicle of the current
 section. The stage belongs to the project (it also travels in the `.rzproj`) and has no clock time.
 
-**Means of transport.** At the very top of the editor is the **“Travelling by”** row (car, motorbike, bike, walking,
-train, boat, plane). A click applies to all sections — or, with a point selected, from that point on. Single sections
-are changed in the list between two stops; there you can also switch off “Road” (for train, boat and plane “Arc”), and
+**Means of transport.** At the very top of the editor is the **“Travelling by”** row with 20 symbols (since v0.9.792): car,
+motorbike, camper van, bus, bike, mountain bike, hiker, runner and horse rider follow roads and paths; ski, train, boat,
+sailboat, ferry, kayak, SUP, plane, helicopter, paraglider and hot-air balloon go in an arc (ski with heights from the
+terrain, water and air flat). A click applies to all sections — or, with a point selected, from that point on. Single
+sections are changed in the list between two stops; there you can also switch off “Road” (“Arc” for the arc ones), and
 the section becomes a free curve. The small bar at the selected point always stays inside the map; drag it aside by its
 grip ⠿.
 
@@ -3381,6 +3389,27 @@ code 0 = ok, 1 = error, 2 = wrong usage.
 **Safe next to the app:** the command line only reads your archive — it changes nothing and may run while GPS Studio is
 open. The video is made exactly as in the app (quick video with the chosen template, photo stops from your archive,
 music, end card); its project lives only briefly in a temp folder.
+
+### For AI assistants (MCP, since v0.9.792)
+
+Claude and other AI apps that speak the **Model Context Protocol (MCP)** control GPS Studio through the same command:
+“Find my Gantrisch tour and make a 9:16 video of it.” Everything runs on your computer, nothing is uploaded.
+
+**Set up:** first **“Set up command line”** (see above), then in the same place **“Copy setting for AI apps”**. That copies
+this entry (with the path of your command):
+
+```json
+{ "mcpServers": { "gps-studio": { "command": "/Users/you/.local/bin/gpsstudio", "args": ["mcp"] } } }
+```
+
+In **Claude** (desktop app): Settings → Developer → Edit Config, paste the entry, restart Claude. In **Claude Code**:
+`claude mcp add gps-studio -- gpsstudio mcp`. Other apps have a similar MCP setting.
+
+**What the AI may do:** search tours, see the templates, order a **video** or a **map image** of a tour, ask for the
+progress and cancel a job. A video takes a few minutes; the AI checks in between and tells you at the end where the file
+is. Jobs run one after another. The AI **cannot change anything in the archive** and cannot choose where to save: videos
+and map images go to the app's render folder (or the folder from `gpsstudio mcp --out-dir FOLDER`) and never overwrite
+anything. For a map image the AI gets a small preview to look at.
 
 ## 9 · Help, Feedback & Bug Reports
 

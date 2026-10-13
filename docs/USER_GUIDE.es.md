@@ -438,9 +438,15 @@ estilo de línea (continua, discontinua, punteada, raya-punto, tubo) con separac
 sombra, brillo, la reducción de puntos en porcentaje y el **punto en movimiento** (mostrar,
 bola, flecha en el sentido de la marcha o un vehículo, tamaño; la «calma de la flecha» vale para todas
 las flechas). La forma se elige como mosaico de imagen; debajo, **«Aspecto del vehículo (todos los
-vehículos)»** ofrece once mosaicos: insignia (el símbolo dibujado) o fotorrealista, lápiz y acuarela, cómic,
+vehículos)»** ofrece doce mosaicos: insignia (el símbolo dibujado), **símbolo** (desde v0.9.792, ver abajo) o fotorrealista, lápiz y acuarela, cómic,
 pictograma, grabado, neón, pixel art, plano, papel, plastilina. Estas imágenes están dibujadas desde arriba,
-quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. **Imagen propia
+quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. **Símbolos para cada
+forma de moverse (desde v0.9.792):** 20 símbolos sencillos vistos desde arriba — coche, moto, autocaravana, autobús, bici,
+bicicleta de montaña, senderista, corredor, jinete, esquí, tren, barco, velero, ferri, kayak, SUP, avión, helicóptero,
+parapente, globo aerostático. Quedan planos sobre el mapa y giran con la ruta. Debajo eliges el **color de los símbolos**
+(para todos): **Color de la línea** usa el color del recorrido con un acento a juego, **Colores fijos** dos colores a tu
+elección (cuerpo y acento, «Predeterminado» = pizarra y menta). Los nuevos a partir de la autocaravana solo existen como
+símbolo — con otro aspecto siguen mostrando su símbolo. **Imagen propia
 (desde v0.9.790):** el último mosaico usa una imagen tuya como punto: tu autocaravana, tu moto, un avatar. Un clic abre
 la elección de imagen (PNG, JPG, WebP, HEIC); **Insignia** la muestra redonda en el color de la línea como los vehículos,
 **Libre** la imagen tal cual (un PNG recortado conserva su forma). «Gira con la dirección de la marcha» la pone plana
@@ -988,7 +994,7 @@ El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxim
 
 **Tres plantillas (desde v0.9.782).** Arriba del todo eliges cómo debe verse el vídeo — la plantilla ajusta los ingredientes de «Más» y después puedes cambiarlo todo (aparece «Plantilla ajustada»; un clic en la plantilla la restablece):
 - **Amplitud** (por defecto) — el paisaje primero: imagen aérea, estilo «Natural», fotos como **parada de foto** grande, sin cifras durante el recorrido, pocas cifras grandes al final; música «Panorama».
-- **Diario** — lugares y recuerdos: estilo «Atlas de viaje» (mapa de papel, títulos manuscritos), fotos como **instantánea en el lugar** con el nombre del lugar como pie (el recorrido no se detiene, después la foto se encoge a una pequeña imagen redonda en la ruta; **desde v0.9.792 cuentan las fotos hasta el destino y la última instantánea poco antes de él se queda hasta el final del vídeo**), una pequeña tarjeta con distancia y desnivel, resumen con el título; música «Diario».
+- **Diario** — lugares y recuerdos: estilo «Atlas de viaje» (mapa de papel, títulos manuscritos), fotos como **instantánea en el lugar** con el nombre del lugar como pie (el recorrido no se detiene, después la foto se encoge a una pequeña imagen redonda en la ruta; **desde v0.9.792 cuentan las fotos hasta el destino y la última instantánea poco antes de él se queda al menos 3 segundos, hasta el destino, y se desvanece cuando llega la tarjeta final**), una pequeña tarjeta con distancia y desnivel, resumen con el título; música «Diario».
 - **Pulso** — ruta y rendimiento: estilo «Mapa nocturno», abajo una barra de datos (distancia, desnivel, velocidad) con perfil de altitud, fotos como pequeña **imagen en imagen** arriba a la derecha sin parada, resumen compacto al final; música «Pulso».
 
 El tipo de foto lo trae la plantilla (desde v0.9.782 el diálogo ya no tiene un campo propio para ello; en el Animador cada cartel de foto se puede cambiar libremente después). Las fotos sin parada no cuestan duración; para que no se amontonen, se añade como mucho una foto cada 4 segundos de recorrido (las mejores primero).
@@ -1306,9 +1312,11 @@ salida y el destino ya vienen con el final de la ruta anterior y el inicio de la
 fila (🗺, con ✎ la vuelves a editar) y va como cualquier ruta; el punto muestra el vehículo del tramo actual. La etapa
 pertenece al proyecto (también viaja en el `.rzproj`) y no tiene hora.
 
-**Medio de transporte.** Arriba del todo en el editor está la fila **«Viajando en»** (coche, moto, bici, a pie, tren,
-barco, avión). Un clic vale para todos los tramos — o, con un punto seleccionado, desde ese punto. Cada tramo se cambia
-en la lista entre dos paradas; ahí también desactivas «Carretera» (en tren, barco y avión «Arco») y el tramo pasa a ser
+**Medio de transporte.** Arriba del todo en el editor está la fila **«Viajando en»** con 20 símbolos (desde v0.9.792): coche,
+moto, autocaravana, autobús, bici, bicicleta de montaña, senderista, corredor y jinete siguen carreteras y caminos; esquí,
+tren, barco, velero, ferri, kayak, SUP, avión, helicóptero, parapente y globo van en arco (el esquí con alturas del
+terreno, agua y aire planos). Un clic vale para todos los tramos — o, con un punto seleccionado, desde ese punto. Cada
+tramo se cambia en la lista entre dos paradas; ahí también desactivas «Carretera» («Arco» en los de arco) y el tramo pasa a ser
 una curva libre. La pequeña barra del punto seleccionado siempre queda dentro del mapa; arrástrala por el asa ⠿.
 
 **Dibujar una etapa.** Lo más rápido es hacer clic en el mapa: cada clic pone un punto, un clic sobre la línea inserta
@@ -3445,6 +3453,27 @@ Código de salida 0 = ok, 1 = error, 2 = uso incorrecto.
 **Seguro junto a la app:** la línea de comandos solo lee tu archivo, no cambia nada y puede funcionar con GPS Studio
 abierto. El vídeo se hace igual que en la app (vídeo rápido con la plantilla elegida, paradas de fotos de tu archivo,
 música, tarjeta final); su proyecto solo vive un momento en una carpeta temporal.
+
+### Para asistentes de IA (MCP, desde v0.9.792)
+
+Claude y otros programas de IA que hablan el **Model Context Protocol (MCP)** controlan GPS Studio con el mismo comando:
+«Busca mi recorrido del Gantrisch y haz un vídeo 9:16». Todo funciona en tu ordenador, no se sube nada.
+
+**Configurar:** primero **«Configurar la línea de comandos»** (ver arriba) y luego, en el mismo lugar, **«Copiar ajuste
+para programas de IA»**. Eso copia esta entrada (con la ruta de tu comando):
+
+```json
+{ "mcpServers": { "gps-studio": { "command": "/Users/tu/.local/bin/gpsstudio", "args": ["mcp"] } } }
+```
+
+En **Claude** (app de escritorio): Ajustes → Desarrollador → Editar configuración, pega la entrada y reinicia Claude. En
+**Claude Code**: `claude mcp add gps-studio -- gpsstudio mcp`. Otros programas tienen un ajuste MCP parecido.
+
+**Qué puede hacer la IA:** buscar recorridos, ver las plantillas, encargar un **vídeo** o una **imagen de mapa** de un
+recorrido, consultar el progreso y cancelar un encargo. Un vídeo tarda unos minutos; la IA pregunta entre medias y al final
+te dice dónde está el archivo. Los encargos van uno tras otro. La IA **no puede cambiar nada del archivo** ni elegir dónde
+guardar: vídeos e imágenes van a la carpeta de renders de la app (o a la de `gpsstudio mcp --out-dir CARPETA`) y nunca
+sobrescriben nada. Con la imagen de mapa la IA recibe una pequeña vista previa.
 
 ## 9 · Ayuda, feedback y reportes de bugs
 

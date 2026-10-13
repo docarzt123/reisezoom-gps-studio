@@ -806,9 +806,16 @@ def map_match(
 # ── GPX schreiben ────────────────────────────────────────────────────────────
 # 05.10.2026 (Marc: „Verkehrsart je Abschnitt, Fahrzeugsymbole") — jede Etappe zwischen zwei
 # Stationen mit ihrer eigenen Art: Straße (Auto/Rad/zu Fuß) über den Routendienst, Flug/Boot/Zug als Großkreis.
-ARTEN_STRASSE = {"auto": "driving", "rad": "cycling", "wanderer": "walking", "laeufer": "walking"}
-ARTEN_GERADE = ("flugzeug", "boot", "zug")
+# 13.10.2026 (Marc: „neue Verkehrsarten wie Wohnmobil, Fähre und Gleitschirm“) — eine Art je Symbol (ui/img/bewegung/).
+# Motorrad stand vorher nicht in der Liste und wurde in der Reiseroute still zum Auto.
+ARTEN_STRASSE = {"auto": "driving", "motorrad": "driving", "wohnmobil": "driving", "bus": "driving",
+                 "rad": "cycling", "mountainbike": "cycling",
+                 "wanderer": "walking", "laeufer": "walking", "reiter": "walking"}
+ARTEN_GERADE = ("flugzeug", "hubschrauber", "gleitschirm", "heissluftballon",
+                "boot", "segelboot", "faehre", "kajak", "sup", "zug", "ski")
 ARTEN = tuple(ARTEN_STRASSE) + ARTEN_GERADE
+#: Höhen aus dem Gelände (auf dem Boden unterwegs); alle anderen flach zwischen den Enden des Abschnitts
+ARTEN_LAND = tuple(ARTEN_STRASSE) + ("ski",)
 
 
 def gemischte_route(waypoints: List[Tuple[float, float]], arten: List[str], token: str = "", *,

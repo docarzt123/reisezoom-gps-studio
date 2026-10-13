@@ -502,7 +502,12 @@ async function openSettingsModal(reiter) {
             <a href="#" class="md-about-link" id="md-cli-hilfe">${t("settings.cli.manual", "Anleitung im Handbuch")}</a>
           </div>
           <p class="muted" id="md-cli-stand" style="margin-top:6px; font-size:11px; line-height:1.5;"></p>
-        </details</p>
+          <!-- 13.10.2026 — MCP-Server (core/mcp_server.py): KI-Assistenten suchen Touren und lassen Videos rendern -->
+          <p class="muted" style="margin-top:14px; font-size:11.5px; line-height:1.5;">${t("settings.mcp.help", "Für KI-Assistenten (MCP): Claude und andere KI-Programme können deine Touren suchen und Videos oder Kartenbilder machen lassen — alles bleibt auf deinem Rechner, das Archiv wird nur gelesen. Erst die Kommandozeile einrichten, dann die Einstellung ins KI-Programm übernehmen.")}</p>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px;">
+            <button type="button" class="btn btn-sm" id="md-mcp-kopieren">${rzIcon ? rzIcon("copy", { size: 14 }) : ""} ${t("settings.mcp.copy", "Einstellung für KI-Programme kopieren")}</button>
+          </div>
+        </details>
       </div>
 
       <div class="set-panel" data-panel="karten" hidden>
@@ -1187,6 +1192,15 @@ function _bindSettingsModalHandlers() {
       zeigen(r);
       if (r && r.ok) toast(t("settings.cli.done", "Kommandozeile eingerichtet — im Terminal: gpsstudio tours"), "success", 5000);
       else toast((r && r.error) || t("common.error", "Fehler"), "error");
+    });
+    // 13.10.2026 — MCP: Eintrag für claude_desktop_config.json & Co. mit dem Pfad des eingerichteten Befehls
+    document.getElementById("md-mcp-kopieren")?.addEventListener("click", async () => {
+      const r = await Promise.resolve(api().cli_status ? api().cli_status() : null).catch(() => null);   // warte-ok: kurze Abfrage
+      if (!r || !r.ok || !r.eingerichtet) { toast(t("settings.mcp.erst_cli", "Bitte zuerst „Kommandozeile einrichten“."), "error", 5000); return; }
+      const json = JSON.stringify({ mcpServers: { "gps-studio": { command: r.pfad, args: ["mcp"] } } }, null, 2);
+      const k = await Promise.resolve(api().copy_to_clipboard(json)).catch(() => ({ ok: false }));   // warte-ok: Zwischenablage
+      if (k && k.ok) toast(t("settings.mcp.copied", "Kopiert — in die MCP-Einstellung des KI-Programms einfügen (z. B. Claude: Einstellungen → Entwickler → Konfiguration bearbeiten)."), "success", 7000);
+      else toast((k && k.error) || t("common.error", "Fehler"), "error");
     });
     document.getElementById("md-cli-hilfe")?.addEventListener("click", (e) => { e.preventDefault(); api().open_user_guide(t("settings.cli.manual_anker", "8b-kommandozeile-gpsstudio-f-r-skripte")).catch(() => null); });
   })();

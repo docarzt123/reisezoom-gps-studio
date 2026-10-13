@@ -71,14 +71,20 @@ function mountAnimator(body, headerActions, opts) {
   // Rechnern (ein fester Pfad zeigte dort ins Leere).
   const WM_EINGEBAUT = ["@lockup-white", "@lockup-dark"];   // 05.10.2026: dunkle Fassung für helle Looks
   // 05.10.2026 — Laufpunkt als Fahrzeug-Symbol (_fahrzeugBild)
-  const FAHRZEUGE = ["wanderer", "laeufer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug"];   // 11.10.2026 + Läufer
-  const FAHRZEUG_NAMEN = { wanderer: "Wanderer", laeufer: "Läufer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug" };
+  const FAHRZEUGE = ["wanderer", "laeufer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug",   // 11.10.2026 + Läufer
+    // 13.10.2026 (Marc: Symbole je Bewegungsart) — gibt es nur als Symbol (ui/js/bewegung.js), nicht als Plakette/Bild
+    "wohnmobil", "bus", "mountainbike", "reiter", "ski", "segelboot", "faehre", "kajak", "sup", "hubschrauber", "gleitschirm", "heissluftballon"];
+  const FAHRZEUG_NAMEN = { wanderer: "Wanderer", laeufer: "Läufer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug",
+    wohnmobil: "Wohnmobil", bus: "Bus", mountainbike: "Mountainbike", reiter: "Reiter", ski: "Ski", segelboot: "Segelboot", faehre: "Fähre",
+    kajak: "Kajak", sup: "SUP", hubschrauber: "Hubschrauber", gleitschirm: "Gleitschirm", heissluftballon: "Heißluftballon" };
+  const FZ_NUR_SYMBOL = new Set(FAHRZEUGE.slice(8));
   // 07.10.2026 (Marc: „von jedem Verkehrsmittel 10 Stück … mehr Comic, realistischer, handgezeichnet, passend zu den
   // Kartenstilen“) — Fahrzeug-Aussehen: „plakette“ = das gezeichnete Symbol wie bisher, sonst ein Bild aus
   // ui/img/fahrzeuge/<fahrzeug>_<stil>.png (Draufsicht, Front nach oben; geschnitten mit scripts/fahrzeug_icons_schneiden.py).
   // Fehlt ein Bild (Boot/Flugzeug noch nicht geliefert), bleibt es bei der Plakette.
-  const FZ_STILE = ["plakette", "foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"];
-  const FZ_STIL_NAMEN = { plakette: "Plakette (wie bisher)", foto: "Fotorealistisch", aquarell: "Bleistift & Aquarell", comic: "Comic",
+  // 13.10.2026 — „symbol“: das einfärbbare Symbol je Bewegungsart (ui/js/bewegung.js), in Linienfarbe oder fest
+  const FZ_STILE = ["plakette", "symbol", "foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"];
+  const FZ_STIL_NAMEN = { plakette: "Plakette (wie bisher)", symbol: "Symbol", foto: "Fotorealistisch", aquarell: "Bleistift & Aquarell", comic: "Comic",
     piktogramm: "Piktogramm", kupferstich: "Kupferstich", neon: "Neon", pixel: "Pixel-Art", blaupause: "Blaupause", papier: "Papier", knete: "Knete" };
   const _fzBilder = new Map();   // "auto_comic" → { img, ok, fehl }
   // Die App lädt ihre Oberfläche aus einer Temp-Kopie (app.py) — per Skript gebaute Bild-Pfade brauchen die Asset-Basis;
@@ -86,7 +92,7 @@ function mountAnimator(body, headerActions, opts) {
   const _fzPfad = (key) => (window.__rzAssetBase || "") + "img/fahrzeuge/" + key + ".png";
   let _fzLaedt = 0, _fzNeuT = 0;
   function _fzBild(art, stil) {
-    if (!art || !stil || stil === "plakette") return null;
+    if (!art || !stil || stil === "plakette" || stil === "symbol" || FZ_NUR_SYMBOL.has(art)) return null;
     const key = art + "_" + stil;
     let e = _fzBilder.get(key);
     if (!e) {
@@ -791,6 +797,10 @@ function mountAnimator(body, headerActions, opts) {
               <select id="anim-dot-fz-stil" class="select" hidden>
                 ${FZ_STILE.map(s => `<option value="${s}">${t("animator.dot.fzs_" + s, FZ_STIL_NAMEN[s])}</option>`).join("")}
               </select>
+              <!-- 13.10.2026 — Farbe der Symbole (bedient vom Track-Editor rechts) -->
+              <input type="hidden" id="anim-dot-sym-farbe" value="linie">
+              <input type="color" id="anim-dot-sym-dunkel" value="#2b3a40" hidden>
+              <input type="color" id="anim-dot-sym-akzent" value="#4fc9ab" hidden>
               <label class="field-label" style="margin-top:8px;">${t("animator.dot.size", "Größe")}
                 <span class="label-val" id="anim-dot-size-v">1.0×</span>
               </label>
@@ -7784,6 +7794,20 @@ function mountAnimator(body, headerActions, opts) {
   }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotFzStil()  { const v = document.getElementById("anim-dot-fz-stil")?.value; return FZ_STILE.includes(v) ? v : "plakette"; }
+  // 13.10.2026 — Farbe der Symbole: „linie“ (Linienfarbe der Tour + Akzent) oder „fest“ (zwei Farben, Vorgabe Schiefer/Mint)
+  function dotSymFarbe()  { return document.getElementById("anim-dot-sym-farbe")?.value === "fest" ? "fest" : "linie"; }
+  function dotSymDunkel() { return document.getElementById("anim-dot-sym-dunkel")?.value || "#2b3a40"; }
+  function dotSymAkzent() { return document.getElementById("anim-dot-sym-akzent")?.value || "#4fc9ab"; }
+  /** Zeigt der Laufpunkt für `art` das Symbol? Beim Stil „Symbol“ immer, die neuen Arten gibt es nur so. */
+  function _fzAlsSymbol(art) { return !!(window.rzBewegungSymbol && rzBewegungSymbol(art)) && (dotFzStil() === "symbol" || FZ_NUR_SYMBOL.has(art)); }
+  /** Symbol-Farben für eine Linienfarbe (je Tour verschieden) nach der gewählten Farbart. */
+  /** Symbol als SVG für Knöpfe und Kacheln — in den festen Farben (gewählt oder Schiefer/Mint), auf hellem Grund. */
+  function _symUiSvg(art, px) {
+    if (!window.rzBewegungSvg) return "";
+    const f = dotSymFarbe() === "fest" ? rzBewegungFarben("fest", "", dotSymDunkel(), dotSymAkzent()) : window.RZ_BEWEGUNG_FEST;
+    return rzBewegungSvg(art, f, px || 24);
+  }
+  function _symFarben(linie) { return window.rzBewegungFarben ? rzBewegungFarben(dotSymFarbe(), linie, dotSymDunkel(), dotSymAkzent()) : null; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
   function dotBild()       { return document.getElementById("anim-dot-bild")?.value || ""; }
   function dotBildForm()   { const v = document.getElementById("anim-dot-bild-form")?.value; return LP_FORMEN.includes(v) ? v : "plakette"; }
@@ -7959,6 +7983,15 @@ function mountAnimator(body, headerActions, opts) {
           paint: { "circle-radius": Math.max(3, currentLineWidth() * 1.5), "circle-color": farbe,
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2,
                    "circle-pitch-alignment": "map" } });
+      } else if (FAHRZEUGE.includes(dst.style) && _fzAlsSymbol(dst.style)) {
+        // 13.10.2026 — Symbol je Bewegungsart (Draufsicht, Front nach oben): flach auf der Karte, dreht sich mit dem Weg
+        try {
+          if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
+          map.addImage("anim-fz", rzBewegungBild(dst.style, _symFarben(farbe), 192), { pixelRatio: 4 });
+        } catch (e) { applog("warn", "[dot] Symbol auf die Karte: " + e); }
+        map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
+          layout: { "icon-image": "anim-fz", "icon-size": gr, "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+                    "icon-pitch-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true } });
       } else if (FAHRZEUGE.includes(dst.style) && _fzBild(dst.style, dotFzStil())) {
         // 07.10.2026 — Fahrzeug als Bild (Draufsicht, Front nach oben): liegt flach auf der Karte und dreht sich mit dem Weg
         try {
@@ -15952,7 +15985,7 @@ function mountAnimator(body, headerActions, opts) {
             ${i < n - 1 ? `<div class="route-wp-art"><span>↓ ${t("route.art_weiter", "weiter mit")}</span>
               <select class="route-wp-art-sel" data-i="${i}">
                 <option value="">${t("route.art_wie_oben", "wie oben eingestellt")}</option>
-                ${["auto", "rad", "wanderer", "laeufer", "zug", "boot", "flugzeug"].map(a => `<option value="${a}"${w.art === a ? " selected" : ""}>${t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a])}</option>`).join("")}
+                ${(window.RZ_BEWEGUNGEN || ["auto", "rad", "wanderer", "laeufer", "zug", "boot", "flugzeug"]).map(a => `<option value="${a}"${w.art === a ? " selected" : ""}>${t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a])}</option>`).join("")}
               </select></div>` : ""}
           </div>`;
       }).join("");
@@ -17156,11 +17189,27 @@ function mountAnimator(body, headerActions, opts) {
 
   // 07.10.2026 (Marc: „eigentlich auch direkt als Laufpunkt auswählen lassen im normalen Track“) — Form und Aussehen als
   // Bildkacheln statt Textlisten; die (versteckten) Auswahllisten bleiben die Quelle für Speichern/Laden.
-  const _DOT_SYMBOL = { dot: "●", arrow: "➤", auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", laeufer: "🏃", zug: "🚆", boot: "⛴", flugzeug: "✈️" };
+  const _DOT_SYMBOL = { dot: "●", arrow: "➤" };
+  // 13.10.2026 — Kachel „Plakette“: das echte gezeichnete Bild (_fahrzeugBild) statt eines Emojis, je Fahrzeug einmal
+  const _plakettenUrl = new Map();
+  function _plaketteUrl(art) {
+    const farbe = document.getElementById("anim-color")?.value || "#ff6b35", key = art + farbe;
+    let u = _plakettenUrl.get(key);
+    if (!u) {
+      try {
+        const b = _fahrzeugBild(art, farbe);
+        const c = document.createElement("canvas"); c.width = b.width; c.height = b.height;
+        c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(b.data), b.width, b.height), 0, 0);
+        u = c.toDataURL("image/png"); _plakettenUrl.set(key, u);
+      } catch (_) { u = ""; }
+    }
+    return u;
+  }
   /** Kacheln füllen: `formBox` (Kugel, Pfeil, Fahrzeuge — `setForm(f)`), `fzsBox` (Aussehen, gilt für alle Fahrzeuge). */
   function _dotKacheln(formBox, fzsBox, form, setForm) {
     const fzs = dotFzStil(), esc = _animEscapeHtml;
-    const bild = (fz, s) => s && s !== "plakette" ? `<img src="${_fzPfad(fz + "_" + s)}" alt="" onerror="this.replaceWith(document.createTextNode('${_DOT_SYMBOL[fz]}'))">` : _DOT_SYMBOL[fz];
+    const bild = (fz, s) => (s === "symbol" || FZ_NUR_SYMBOL.has(fz)) ? `<span class="rz-sym-chip">${_symUiSvg(fz, 30)}</span>`
+      : (s && s !== "plakette" ? `<img src="${_fzPfad(fz + "_" + s)}" alt="" onerror="this.remove()">` : `<img src="${_plaketteUrl(fz)}" alt="">`);
     if (formBox) {
       const lp = _lpBilder.get(dotBild());
       formBox.innerHTML = ["dot", "arrow", ...FAHRZEUGE, "bild"].map(f => {
@@ -17173,7 +17222,7 @@ function mountAnimator(body, headerActions, opts) {
       formBox.querySelectorAll("[data-form]").forEach(k => k.onclick = () => setForm(k.dataset.form));
     }
     if (fzsBox) {
-      const fz = FAHRZEUGE.includes(form) ? form : "auto";
+      const fz = FAHRZEUGE.includes(form) && !FZ_NUR_SYMBOL.has(form) ? form : "auto";   // die neuen Arten gibt es nur als Symbol
       fzsBox.innerHTML = FZ_STILE.map(st => `<button type="button" class="dot-kachel${fzs === st ? " ist-an" : ""}" data-fzs="${st}" title="${esc(t("animator.dot.fzs_" + st, FZ_STIL_NAMEN[st]))}"><span class="dot-kachel-bild">${bild(fz, st)}</span></button>`).join("");
       fzsBox.querySelectorAll("[data-fzs]").forEach(k => k.onclick = () => {
         const sel = document.getElementById("anim-dot-fz-stil"); sel.value = k.dataset.fzs; sel.dispatchEvent(new Event("change"));
@@ -17222,7 +17271,8 @@ function mountAnimator(body, headerActions, opts) {
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(), marker_dot_fz_stil: dotFzStil(),
                     marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(),
                     marker_dot_rueckblick_m: dotRueckblick(),
-                    marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen() };
+                    marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen(),
+                    marker_dot_sym_farbe: dotSymFarbe(), marker_dot_sym_dunkel: dotSymDunkel(), marker_dot_sym_akzent: dotSymAkzent() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
     else if (typeof saveSettings === "function") saveSettings({ animator: patch });
   }
@@ -17266,6 +17316,15 @@ function mountAnimator(body, headerActions, opts) {
     row.querySelectorAll("[data-lpform]").forEach(b => b.classList.toggle("ist-an", b.dataset.lpform === dotBildForm()));
     document.querySelectorAll("[data-lp-zeile]").forEach(_dotBildZeileFuellen);
     try { if (_dotEditorFuellen) _dotEditorFuellen(); } catch (_) {}
+  }
+  /** 13.10.2026 — Farbzeile der Symbole im Track-Editor aus den Animator-Feldern füllen. */
+  function _symZeileFuellen(z) {
+    if (!z) return;
+    const fest = dotSymFarbe() === "fest";
+    z.querySelectorAll("[data-symfarbe]").forEach(b => b.classList.toggle("ist-an", b.dataset.symfarbe === dotSymFarbe()));
+    const fz = z.querySelector("[data-sym-fest]"); if (fz) fz.hidden = !fest;
+    const d = z.querySelector('[data-sym="dunkel"]'); if (d) d.value = dotSymDunkel();
+    const a = z.querySelector('[data-sym="akzent"]'); if (a) a.value = dotSymAkzent();
   }
   /** Bildzeile im Track-Editor (rechts) aus den Animator-Feldern füllen. */
   function _dotBildZeileFuellen(z) {
@@ -17337,6 +17396,10 @@ function mountAnimator(body, headerActions, opts) {
       const lpb = document.getElementById("anim-dot-bild"); if (lpb) lpb.value = a.marker_dot_bild || "";
       const lpf = document.getElementById("anim-dot-bild-form"); if (lpf) lpf.value = LP_FORMEN.includes(a.marker_dot_bild_form) ? a.marker_dot_bild_form : "plakette";
       const lpd = document.getElementById("anim-dot-bild-drehen"); if (lpd) lpd.checked = !!a.marker_dot_bild_drehen;
+      const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(String(v || "")) ? v : d;
+      const sf = document.getElementById("anim-dot-sym-farbe"); if (sf) sf.value = a.marker_dot_sym_farbe === "fest" ? "fest" : "linie";
+      const sd = document.getElementById("anim-dot-sym-dunkel"); if (sd) sd.value = hx(a.marker_dot_sym_dunkel, "#2b3a40");
+      const sa = document.getElementById("anim-dot-sym-akzent"); if (sa) sa.value = hx(a.marker_dot_sym_akzent, "#4fc9ab");
       const gr = document.getElementById("anim-dot-size");
       if (gr && a.marker_dot_size) gr.value = a.marker_dot_size;
       const sm = document.getElementById("anim-dot-smooth");
@@ -21335,13 +21398,36 @@ function mountAnimator(body, headerActions, opts) {
         <label class="checkbox-row"><input type="checkbox" data-lp-drehen${dotBildDrehen() ? " checked" : ""}> ${t("animator.dot.bild_drehen", "Dreht sich mit der Fahrtrichtung")}</label></div>` : ""}
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="muted">(${t("animator.dot.fz_stil_alle", "alle Fahrzeuge")})</span></label>
         <div class="dot-wahl dot-fzs-wahl" data-fzs-wahl></div></div>
+      <div class="anim-stil-zeile" data-nur-dot data-sym-zeile ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.sym_farbe", "Farbe der Symbole")} <span class="muted">(${t("animator.dot.sym_alle", "alle Symbole")})</span></label>
+        <div class="dot-bild-formen" role="group">
+          <button type="button" class="btn btn-sm dot-bild-form" data-symfarbe="linie" title="${_animEscapeHtml(t("animator.dot.sym_linie_tip", "In der Linienfarbe der Tour, mit passendem Akzent"))}">${t("animator.dot.sym_linie", "Linienfarbe")}</button>
+          <button type="button" class="btn btn-sm dot-bild-form" data-symfarbe="fest" title="${_animEscapeHtml(t("animator.dot.sym_fest_tip", "Zwei feste Farben für alle Symbole"))}">${t("animator.dot.sym_fest", "Feste Farben")}</button></div>
+        <div class="dot-sym-fest" data-sym-fest hidden>
+          <label>${t("animator.dot.sym_koerper", "Körper")} <input type="color" data-sym="dunkel"></label>
+          <label>${t("animator.dot.sym_akzent", "Akzent")} <input type="color" data-sym="akzent"></label>
+          <button type="button" class="btn btn-sm" data-sym-zurueck title="${_animEscapeHtml(t("animator.dot.sym_zurueck_tip", "Schiefer und Mint"))}">${t("animator.dot.sym_zurueck", "Vorgabe")}</button></div></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
         <input type="range" data-stil="dot_size" min="0.5" max="3" step="0.1" value="${st.dot_size}"></div>
       <div class="anim-stil-zeile" data-nur-pfeil ${st.dot_show && !ganz && st.dot_style === "arrow" ? "" : "hidden"}><label>${t("animator.dot.smooth", "Ruhe des Pfeils")} <b data-v="dot_smooth">${dotGlaettung()}</b> <span class="muted">(${t("animator.stil.alle_pfeile", "alle Pfeile")})</span></label>
         <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
     {   // 07.10.2026 — Laufpunkt-Kacheln: Klick setzt die (versteckte) Liste, deren Änderung wie bisher verarbeitet wird
       const sel = el.querySelector('[data-stil="dot_style"]'), fb = el.querySelector("[data-dot-wahl]"), zb = el.querySelector("[data-fzs-wahl]");
-      const fuellen = () => _dotKacheln(fb, zb, ziel === "haupt" ? dotStil() : sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); });
+      const fuellen = () => { _dotKacheln(fb, zb, ziel === "haupt" ? dotStil() : sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); });
+                              _symZeileFuellen(el.querySelector("[data-sym-zeile]")); };
+      // 13.10.2026 — Farbe der Symbole: gilt für alle Symbole (Felder im Laufpunkt-Block, gespeichert wie die übrigen)
+      const sz = el.querySelector("[data-sym-zeile]");
+      if (sz) {
+        const neu = () => { dotGeaendert(true); try { if (_etEd) _etEdZeichnen(); } catch (e) { applog("warn", "[dot] Symbolfarbe im Etappen-Editor: " + e); } fuellen(); };
+        sz.querySelectorAll("[data-symfarbe]").forEach(b => b.addEventListener("click", () => {
+          document.getElementById("anim-dot-sym-farbe").value = b.dataset.symfarbe; neu(); }));
+        sz.querySelectorAll("[data-sym]").forEach(inp => {
+          const id = inp.dataset.sym === "dunkel" ? "anim-dot-sym-dunkel" : "anim-dot-sym-akzent";
+          inp.addEventListener("input", () => { document.getElementById(id).value = inp.value; dotGeaendert(false); });
+          inp.addEventListener("change", () => { document.getElementById(id).value = inp.value; neu(); });
+        });
+        sz.querySelector("[data-sym-zurueck]")?.addEventListener("click", () => {
+          document.getElementById("anim-dot-sym-dunkel").value = "#2b3a40"; document.getElementById("anim-dot-sym-akzent").value = "#4fc9ab"; neu(); });
+      }
       if (sel && fb) fuellen();
       // 12.10.2026 — „Eigenes Bild“ (nur Haupt-Tour): die Zeile spiegelt die Animator-Felder; nach der Bildauswahl
       // (oder Abbruch) zieht _dotBildZeileZeigen Kacheln und Zeile nach
@@ -22856,7 +22942,9 @@ function mountAnimator(body, headerActions, opts) {
    *  Punktzahl wäre eine berechnete Autoroute mit 4000 Punkten länger als jede Wanderung; ein Flug braucht im Video
    *  nur einen Moment. Je Abschnitt: Grundwert des Verkehrsmittels × Wurzel der Strecke (lange Strecken etwas
    *  länger, nicht proportional); die Abschnitte addieren sich, höchstens 1,5. Tempo je Etappe bleibt über den Faktor. */
-  const _ET_ZEIT = { flugzeug: 0.3, zug: 0.4, boot: 0.4, auto: 0.45, motorrad: 0.45, rad: 0.6, laeufer: 0.65, wanderer: 0.7 };
+  const _ET_ZEIT = { flugzeug: 0.3, zug: 0.4, boot: 0.4, auto: 0.45, motorrad: 0.45, rad: 0.6, laeufer: 0.65, wanderer: 0.7,
+    hubschrauber: 0.35, faehre: 0.4, wohnmobil: 0.5, bus: 0.5, segelboot: 0.45, gleitschirm: 0.5, heissluftballon: 0.55,
+    kajak: 0.55, ski: 0.6, sup: 0.6, mountainbike: 0.6, reiter: 0.65 };
   function _etZeitAnteil(et) {
     const ab = Array.isArray(et && et.abschnitte) ? et.abschnitte : [];
     const kmAb = (a) => {
@@ -24420,8 +24508,10 @@ function mountAnimator(body, headerActions, opts) {
   // zusammenklicken, wo man am Punkt drehen kann, damit sich die Kurve ändert“). „Weichheit“ rundet alle Kurven, die
   // man nicht selbst eingestellt hat; Doppelklick auf einen Punkt = scharfe Ecke. Die Linie setzt der Animator selbst
   // zusammen (Vorschau = Ergebnis) und lässt sie von `etappe_speichern` als GPX ins Projekt schreiben.
-  const _ET_ARTEN = ["auto", "motorrad", "rad", "wanderer", "laeufer", "zug", "boot", "flugzeug"];
-  const _ET_SYMBOL = { auto: "🚗", motorrad: "🏍", rad: "🚲", wanderer: "🚶", laeufer: "🏃", zug: "🚆", boot: "⛴", flugzeug: "✈️" };   // nur Oberfläche (Knöpfe), nicht im Video
+  // 13.10.2026 — alle Bewegungsarten mit Symbol (ui/js/bewegung.js) statt Emojis; Reihenfolge Straße, Schiene, Wasser, Luft
+  const _ET_ARTEN = (window.RZ_BEWEGUNGEN || ["auto", "motorrad", "rad", "wanderer", "laeufer", "zug", "boot", "flugzeug"]).filter(a => FAHRZEUGE.includes(a));
+  /** Arten, die der Straße/dem Weg folgen — die übrigen fahren einen Bogen (synchron zu ARTEN_STRASSE in core/route.py) */
+  const _ET_STRASSE = new Set(["auto", "motorrad", "wohnmobil", "bus", "rad", "mountainbike", "wanderer", "laeufer", "reiter"]);
   let _etEd = null;   // offener Editor (siehe _etappeNeu)
   const _etLeer = () => ({ text: "", lon: null, lat: null, label: "" });
   const _etName = (w) => {
@@ -24780,7 +24870,7 @@ function mountAnimator(body, headerActions, opts) {
     const artAb = j < E.wps.length - 1 ? (E.arten[j] || "auto") : "";
     el.innerHTML = `<span class="et-menue-griff" title="${esc(t("animator.etappe.m_ziehen", "Leiste verschieben"))}">⠿</span>
       <button type="button" data-m="scharf">${esc(w.scharf ? t("animator.etappe.m_rund", "Rund machen") : t("animator.etappe.m_scharf", "Scharfe Ecke"))}</button>
-      ${j < E.wps.length - 1 ? `<label>${esc(t("animator.etappe.m_ab_hier", "ab hier mit"))} <select data-m="art">${_ET_ARTEN.map(a => `<option value="${a}"${artAb === a ? " selected" : ""}>${_ET_SYMBOL[a]} ${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select></label>` : ""}
+      ${j < E.wps.length - 1 ? `<label>${esc(t("animator.etappe.m_ab_hier", "ab hier mit"))} <select data-m="art">${_ET_ARTEN.map(a => `<option value="${a}"${artAb === a ? " selected" : ""}>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select></label>` : ""}
       ${E.wps.length > 2 ? `<button type="button" data-m="weg" class="ist-weg">🗑 ${esc(t("animator.etappe.m_weg", "Punkt löschen"))}</button>` : ""}`;
     el.querySelector('[data-m="scharf"]').onclick = () => _etScharf(j);
     const sel = el.querySelector('[data-m="art"]');
@@ -24953,7 +25043,7 @@ function mountAnimator(body, headerActions, opts) {
         const ab = (E.sel >= 0 && E.sel < n - 1) ? E.sel : 0, teil = E.arten.slice(ab, n - 1);
         const gleich = teil.length && teil.every(a => a === teil[0]) ? teil[0] : "";
         return `<div class="et-fahrzeuge"><div class="et-fz-titel">${esc(t("animator.etappe.unterwegs", "Unterwegs mit"))} <span class="muted">${esc(ab > 0 ? t("animator.etappe.ab_punkt", "ab Punkt {n}").replace("{n}", String(ab)) : t("animator.etappe.alle_abschnitte", "alle Abschnitte"))}</span></div>
-          <div class="et-fz-knoepfe">${_ET_ARTEN.map(a => `<button type="button" class="et-fz${gleich === a ? " ist-an" : ""}" data-fz="${a}" title="${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}"><span>${_ET_SYMBOL[a]}</span><i>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</i></button>`).join("")}</div></div>`;
+          <div class="et-fz-knoepfe">${_ET_ARTEN.map(a => `<button type="button" class="et-fz${gleich === a ? " ist-an" : ""}" data-fz="${a}" title="${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}"><span class="rz-sym-chip">${_symUiSvg(a, 24)}</span><i>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</i></button>`).join("")}</div></div>`;
       })()}
       <div class="et-knoepfe">
         <button type="button" class="btn btn-small" data-et="glaetten" title="${esc(t("animator.etappe.glaetten_tip", "Eigene Hebel und scharfe Ecken zurücksetzen — alle Kurven folgen der Weichheit"))}">〰 ${esc(t("animator.etappe.glaetten", "Alles glätten"))}</button>
@@ -24973,8 +25063,8 @@ function mountAnimator(body, headerActions, opts) {
         </div>
         <div class="et-status muted" data-i="${i}"></div>
         ${i < n - 1 ? `<div class="et-art" title="${esc(t("animator.etappe.abschnitt_tip", "Abschnitt {a} → {b}").replace("{a}", i === 0 ? "A" : String(i)).replace("{b}", i + 1 === n - 1 ? "B" : String(i + 1)))}">
-          <select class="et-art-sel" data-i="${i}">${_ET_ARTEN.map(a => `<option value="${a}"${(E.arten[i] || "auto") === a ? " selected" : ""}>${_ET_SYMBOL[a]} ${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
-          <label class="et-folgen" title="${esc(t("animator.etappe.folgen_tip", "An: der Straße folgen (Flug, Boot, Zug: Bogen). Aus: freie Kurve, am Punkt mit dem Hebel drehbar."))}"><input type="checkbox" class="et-folgen-cb" data-i="${i}"${E.kurve[i] ? "" : " checked"}> ${esc(["zug", "boot", "flugzeug"].includes(E.arten[i]) ? t("animator.etappe.folgen_bogen", "Bogen") : t("animator.etappe.folgen_kurz", "Straße"))}</label>${E.kurve[i] ? `<span class="et-kurve-hinweis">${esc(t("animator.etappe.freie_kurve", "freie Kurve"))}</span>` : ""}</div>` : ""}`).join("")}
+          <select class="et-art-sel" data-i="${i}">${_ET_ARTEN.map(a => `<option value="${a}"${(E.arten[i] || "auto") === a ? " selected" : ""}>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
+          <label class="et-folgen" title="${esc(t("animator.etappe.folgen_tip", "An: der Straße folgen (Flug, Boot, Zug: Bogen). Aus: freie Kurve, am Punkt mit dem Hebel drehbar."))}"><input type="checkbox" class="et-folgen-cb" data-i="${i}"${E.kurve[i] ? "" : " checked"}> ${esc(!_ET_STRASSE.has(E.arten[i] || "auto") ? t("animator.etappe.folgen_bogen", "Bogen") : t("animator.etappe.folgen_kurz", "Straße"))}</label>${E.kurve[i] ? `<span class="et-kurve-hinweis">${esc(t("animator.etappe.freie_kurve", "freie Kurve"))}</span>` : ""}</div>` : ""}`).join("")}
       <div class="et-regler">
         <label>${esc(t("animator.etappe.weich", "Weichheit der Kurven"))} <input type="range" class="et-weich" min="0" max="100" step="1" value="${Math.round((+E.weich || 0) * 100)}"></label>
         <label>${esc(t("animator.etappe.grob", "Straße: fein ↔ grob"))} <input type="range" class="et-grob" min="0" max="100" step="1" value="${Math.round((+E.grob || 0) * 100)}"></label>
@@ -24982,7 +25072,7 @@ function mountAnimator(body, headerActions, opts) {
       ${(() => { const geht = _etRundGeht(E), an = !!E.rund && geht, ra = E.rund_art || E.arten[n - 2] || "auto";
         return `<label class="et-rund${geht ? "" : " aus"}" title="${esc(t("animator.etappe.rund_tip", "Ab drei Punkten: die Etappe führt am Ende zurück zum Start."))}"><input type="checkbox" class="et-rund-cb"${an ? " checked" : ""}${geht ? "" : " disabled"}> ${esc(t("animator.etappe.rund", "🔄 Rundtour — zurück zum Start"))}</label>
         ${an ? `<div class="et-art et-art-rund" title="${esc(t("animator.etappe.rund_abschnitt", "Weg zurück zum Start"))}"><span class="muted">↩ A</span>
-          <select class="et-rund-art">${_ET_ARTEN.map(a => `<option value="${a}"${ra === a ? " selected" : ""}>${_ET_SYMBOL[a]} ${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
+          <select class="et-rund-art">${_ET_ARTEN.map(a => `<option value="${a}"${ra === a ? " selected" : ""}>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
           <label class="et-folgen"><input type="checkbox" class="et-rund-folgen"${E.rund_kurve ? "" : " checked"}> ${esc(t("animator.etappe.folgen", "Straße folgen"))}</label></div>` : ""}`; })()}
       <button type="button" class="btn btn-small et-station-plus" data-et="station">＋ ${esc(t("animator.etappe.station", "Station"))}</button>
       <details class="et-anleitung"${E.wps.filter(w => w.lon != null).length < 2 ? " open" : ""}><summary>${esc(t("animator.etappe.so_gehts", "So zeichnest du"))}</summary><ol>

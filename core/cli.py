@@ -5,6 +5,7 @@
     gpsstudio render <gpx file | tour id | unique tour name> [--template NAME] [--format 9:16|16:9|1:1]
                      [--length SECONDS] [--no-photos] [--out FILE] [--overwrite]
     gpsstudio map-image <gpx file | tour id | name> [--out FILE] [--overwrite]
+    gpsstudio mcp [--out-dir FOLDER]      MCP server for AI assistants (stdio, core/mcp_server.py)
     (global: --library FOLDER)
 
 Befehle, Schalter und das Ergebnis-JSON sind englisch (Marc: „wir wollen international sein“); die lesbaren
@@ -383,6 +384,8 @@ def _parser() -> argparse.ArgumentParser:
     m.add_argument("tour")
     m.add_argument("--out")
     m.add_argument("--overwrite", action="store_true")
+    s = sub.add_parser("mcp", help="run as MCP server for AI assistants (stdio; started by the AI app, not by hand)")
+    s.add_argument("--out-dir", help="folder for videos and map images (default: the app's render folder)")
     return ap
 
 
@@ -409,6 +412,10 @@ def main(argv: list, app) -> int:
         ausgabe({"ok": False, "error": "usage"})
         return 2
     tmp = None
+    if sys.platform != "win32":
+        # 13.10.2026 — abgebrochen (MCP cancel_job, kill): wie Strg+C behandeln, damit finally den Temp-Ordner räumt
+        import signal
+        signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
         api, tmp = _vorbereiten(app, a.library)
         if a.command == "tours":
@@ -423,6 +430,10 @@ def main(argv: list, app) -> int:
         elif a.command == "map-image":
             gpx = api._ensure_gpx(_tour_aufloesen(app, api, a.tour))
             ausgabe(asyncio.run(_kartenbild(app, api, gpx, a)))
+        elif a.command == "mcp":
+            from core import mcp_server
+            ordner = Path(a.out_dir).expanduser().resolve() if a.out_dir else Path(app.APP_SUPPORT) / "_renders"
+            return mcp_server.laufen(app, api, ordner, a.library, echt)
         return 0
     except CliFehler as e:
         _melden(f"✗ {e}")
@@ -432,6 +443,10 @@ def main(argv: list, app) -> int:
         _melden(f"✗ {type(e).__name__}: {e}")
         ausgabe({"ok": False, "error": f"{type(e).__name__}: {e}"})
         return 1
+    except KeyboardInterrupt:
+        _melden("✗ cancelled")
+        ausgabe({"ok": False, "error": "cancelled"})
+        return 130
     finally:
         if tmp is not None:
             _aufraeumen(app, tmp)

@@ -8919,8 +8919,6 @@ class Api:
             if art in croute.ARTEN_STRASSE:
                 r = croute.road_route([tuple(von), tuple(nach)], _active_mapbox_token() or "",
                                       profile=croute.ARTEN_STRASSE[art], coarseness=grob_eff)
-            elif art == "motorrad":
-                r = croute.road_route([tuple(von), tuple(nach)], _active_mapbox_token() or "", profile="driving", coarseness=grob_eff)
             else:
                 r = croute.arc_route([tuple(von), tuple(nach)], n_points=60)
             out = {"coords": r["coords"], "distance_m": float(r.get("distance_m") or 0)}
@@ -9033,7 +9031,7 @@ class Api:
         log.info("[etappe] %d Etappe(n) aus dem Paket nach %s", len(umbiegen), ordner)
         return len(umbiegen)
 
-    _ETAPPE_LAND = ("auto", "motorrad", "rad", "wanderer", "laeufer")
+    _ETAPPE_LAND = croute.ARTEN_LAND   # 13.10.2026 — mit den neuen Verkehrsarten (Ski: Höhen aus dem Gelände)
 
     def _etappe_hoehen(self, co: list, teile: list) -> tuple:
         """07.10.2026 (Etappen) — Höhen einer geplanten Etappe: Straße und Weg (Auto, Motorrad,

@@ -6733,9 +6733,11 @@ Größenprüfung beim ersten Bild, sonst `page.screenshot`). WebCodecs gemessen 
 
 ### Reiseroute: Verkehrsart je Etappe (v0.9.782, Block 4 Schritt 1)
 
-- `core/route.gemischte_route(waypoints, arten, token, coarseness)`: je Etappe `ARTEN_STRASSE` (auto/rad/wanderer →
-  `road_route` driving/cycling/walking) oder `ARTEN_GERADE` (flugzeug/boot/zug → `arc_route`, 60 Punkte), verkettet ohne
-  doppelte Stationen; liefert `abschnitte: [{art, von, bis}]` (Koordinaten der Stationen).
+- `core/route.gemischte_route(waypoints, arten, token, coarseness)`: je Etappe `ARTEN_STRASSE` (auto/motorrad/wohnmobil/bus →
+  driving, rad/mountainbike → cycling, wanderer/laeufer/reiter → walking; `road_route`) oder `ARTEN_GERADE` (Luft, Wasser, Zug,
+  Ski → `arc_route`, 60 Punkte), verkettet ohne doppelte Stationen; liefert `abschnitte: [{art, von, bis}]` (Koordinaten der
+  Stationen). `ARTEN_LAND` (Straße + Ski) = Höhen aus dem Gelände (`Api._ETAPPE_LAND`), der Rest flach. Bis 13.10.2026 fehlte
+  Motorrad in `ARTEN` und wurde still zum Auto. Im Animator spiegelt `_ET_STRASSE` die Straßen-Arten („Straße“/„Bogen“).
 - `route_compute(params.abschnitte)`: leere Einträge = allgemeine Wahl (Stil/Fortbewegung); GPX-Name mit `_mix_`.
 - Oberfläche: `_routeWps[i].art` (Select `.route-wp-art-sel`, gespeichert in `route_wps`), nach dem Berechnen
   `route_abschnitte` im Projekt. `_routeArtAn(frac)` sucht je Grenze den nächsten Punkt in `currentCoords` (Cache je
@@ -6820,6 +6822,25 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   Ausrichtung `map`, `pixelRatio: 4`. Einstellung `marker_dot_fz_stil` (global, verstecktes `#anim-dot-fz-stil`); die Kacheln
   (`_dotKacheln`) stehen im Aussehen-Editor je Tour und setzen die versteckten Listen. `__rzAnimBereit().fzBilder`, core/szene.py
   wartet darauf.
+- **App-only-Markierung in `ui/index.html` (13.10.2026, Web-Fund F-24):** `<script>`/`<link>` mit `data-nur-app` braucht nur die
+  Desktop-App (Mapbox, Leaflet, Geotagger, Höhen-Animator, GPX-Inspektor, Bibliothek). Das Web entfernt diese Zeilen beim Erzeugen
+  seiner `web.html` (gps-studio-web `scripts/build_engine.py`). `tests/test_web_schlank.py` lädt die Seite ohne sie (MapLibre,
+  Animator, Laufpunkt, Abspielen). **Neue Dateien, die nur die App braucht, ebenso markieren** — nie etwas aus `ui/js/`, MapLibre
+  oder den Animator (der Test prüft das).
+- **Symbole je Bewegungsart (13.10.2026):** 20 Arten, eine je Verkehrsart der Routenberechnung. Quelle: `ui/img/bewegung/<art>.svg`
+  (drei Ebenen `rz-hell`/`rz-dunkel`/`rz-akzent`, 512er-Fläche, erzeugt aus KI-Bögen mit `scripts/bewegungsarten_svg.py`,
+  potrace nur dort). `scripts/bewegungsarten_svg.py js` schreibt daraus `ui/js/bewegung_pfade.js` (`RZ_BEWEGUNG_PFADE`, Pfade je
+  Ebene) — **nach jeder SVG-Änderung neu erzeugen** (test_bewegung_symbole prüft den Abgleich). `ui/js/bewegung.js` zeichnet
+  selbst, ohne Bild-Laden: `rzBewegungBild(art, farben, px)` → `{width,height,data}` für `map.addImage` (weißer Rand + Schatten,
+  `pixelRatio: 4` bei 192 px), `rzBewegungSvg(art, farben, px)` für Knöpfe/Kacheln/Web, `rzBewegungFarben(modus, linie, dunkel,
+  akzent)` (`linie`: Körper = Linienfarbe, Akzent auf-/abgedunkelt, sehr helle Linien → Körper abgedunkelt; `fest`: gewählte
+  Farben, Vorgabe `RZ_BEWEGUNG_FEST` Schiefer #2b3a40 / Mint #4fc9ab), `RZ_BEWEGUNGEN` (Reihenfolge der Oberfläche),
+  `rzBewegungSymbol(art)` (`boot` → Motorboot). Animator: `FZ_STILE` hat `symbol`; `FAHRZEUGE[8:]` = `FZ_NUR_SYMBOL` (nur als
+  Symbol, `_fzBild` liefert für sie nichts). `_fzAlsSymbol(art)` entscheidet in `dotEbenenAufbauen` vor den Bild-/Plaketten-
+  Zweigen. Farbe global: `marker_dot_sym_farbe` (`linie`|`fest`), `marker_dot_sym_dunkel`, `marker_dot_sym_akzent` (versteckte
+  Felder `#anim-dot-sym-*`, bedient von der Zeile `[data-sym-zeile]` im Track-Editor). Kacheln „Plakette“ zeigen jetzt das
+  echte `_fahrzeugBild` (`_plaketteUrl`), keine Emojis mehr; Etappen-Editor-Knöpfe `.et-fz` zeigen `_symUiSvg` (feste Farben
+  auf hellem `.rz-sym-chip`).
 - **Standard-Keyframes (07.10.2026, Kamera-Basis Schritt 1):** `getEffectiveEvents()` = eigene Keyframes (Editor an und
   vorhanden), sonst `_standardKeyframes()`: `buildDefaultEvents()` + in der Reise Mitte/Zoom je Tour (Anfang der Tour,
   `sprung` nach Schnitt/Pause) und je Übergang Abtastungen von `_reiseKamera` (2–12 Stellen, `_ankerAusBahn` = Umkehrung von
@@ -7474,6 +7495,19 @@ Test: `tests/test_linie_ecken.py`.
   `cli.einrichten/status` (`~/.local/bin/gpsstudio` bzw. `%LOCALAPPDATA%\Microsoft\WindowsApps\gpsstudio.cmd`), Brücken
   `cli_status`/`cli_einrichten`, UI Einstellungen → Allgemein → „Für Fortgeschrittene“. Test: `test_cli.py` (Render nur
   mit `RZ_LANGSAM`, das run_tests bei `--langsam` setzt; Einzel-Liste).
+- **MCP-Server `gpsstudio mcp` (`core/mcp_server.py`, 13.10.2026, Stufe 1: lokal, nur lesen + Ausgabeordner):** stdio, eine JSON-RPC-Nachricht je
+  Zeile, von Hand (keine Bibliothek): `initialize` (Protokolle 2025-06-18/2025-03-26/2024-11-05, `instructions` für die KI),
+  `tools/list`, `tools/call` (je Aufruf eigener Faden, Schreiben unter Lock), `ping`, sonst -32601. Werkzeuge `search_tours`,
+  `list_templates` (direkt über `cli._tours/_templates`, Archiv nur lesend), `render_video`/`render_map_image` (Aufträge →
+  `job_id`), `job_status` (wartet ≤ 50 s; Kartenbild fertig → JPEG-Vorschau ≤ 1024 px als Bildinhalt), `cancel_job`.
+  Aufträge (`Auftraege`) nacheinander in einem Faden, je einer als eigener `gpsstudio render|map-image … --out <Ordner>`-
+  Prozess (`cli_aufruf()`: frozen → Programmdatei + `cli`, Windows-`gpsstudio.exe` ohne `cli`) in eigener Prozessgruppe;
+  Fortschritt aus den stderr-Zeilen `NN %`, Ergebnis aus der JSON-Zeile. Abbrechen beendet die Gruppe (Browser mit;
+  Windows `taskkill /T`); die CLI fängt SIGTERM wie Strg+C und räumt den Temp-Ordner. Die KI wählt keinen Pfad: Ausgabe
+  = `APP_SUPPORT/_renders` oder `--out-dir`, Dateipfade als `tour` werden abgelehnt. Ende von stdin → laufende Aufträge
+  abbrechen, Exit 0. Einstellungen: „Einstellung für KI-Programme kopieren“ (`#md-mcp-kopieren`, JSON mit `cli_status().pfad`).
+  Test `test_mcp.py` (echter Prozess: Handschlag, Fehler, Kartenbild-Auftrag mit Vorschau, Abbruch ohne Browser-Waisen,
+  Archiv unverändert, stdout nur Protokoll).
 - **Geländehöhen der ruhigen Kamera bei langsamem Netz (13.10.2026):** `demsample.hoehen` holt alle gebrauchten
   Kacheln (samt Randnachbarn) zuerst parallel (8 Fäden), dann wird abgetastet (20 Kacheln à 0,3 s: 6,4 s → < 2 s,
   `test_demsample.test_kacheln_kommen_parallel`). `_faithBuild` wartet in der Vorschau höchstens `DEM_WARTE_MS` (6 s) auf

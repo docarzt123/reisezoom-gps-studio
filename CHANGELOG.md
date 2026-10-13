@@ -14,8 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Symbols for every way of travelling: 20 simple top-down symbols (car, motorbike, camper van, bus, bike, mountain bike, hiker, runner, horse rider, ski, train, boat, sailboat, ferry, kayak, SUP, plane, helicopter, paraglider, hot-air balloon). In the animator they are a new look „Symbol“ for the moving dot: it lies flat on the map and turns with the route. Colour either automatically in the tour's line colour with a matching accent, or two fixed colours (default slate and mint) with colour pickers — Track editor → „Symbol colours“.
+- MCP server for AI assistants: `gpsstudio mcp` lets Claude and other AI apps search your tours and order quick videos and map images (as jobs with progress, cancel, and a small preview of map images). Runs locally over stdio, reads the archive only and writes only to the render folder (or `--out-dir`), never overwriting. Settings → General → Advanced → „Copy setting for AI apps“ copies the entry for the AI app.
+- Stages and travel route: twelve new ways of travelling — camper van, bus, mountain bike and horse rider follow roads and paths; sailboat, ferry, kayak, SUP, helicopter, paraglider, hot-air balloon and ski go in an arc (ski with heights from the terrain). The stage editor shows the symbols instead of emojis.
+
+### Fixed
+- Command line: a render stopped from outside (e.g. cancelled) now removes its temp folder.
+- Travel route: a stage by motorbike was calculated and shown as a car.
+
 ### Changed
-- Quick video: photos count right up to the destination (before, the last 3 % of the route were left out, so a photo at the destination was missing). The last instant print in the final 15 % appears at the latest 2 s before the destination and stays until the end of the video, then fades out — before it was visible for only 2.5 s and shrank during the zoom-out to the closing card. Same behaviour as the web version.
+- Quick video: photos count right up to the destination (before, the last 3 % of the route were left out, so a photo at the destination was missing). The last instant print in the final 15 % appears at the latest 3 s before the destination, stays until the destination and fades out while the closing card comes in — before it was visible for only 2.5 s and shrank during the zoom-out to the closing card (and kept on through the closing card, it slid to the top edge over the logo).
 
 ### Fixed
 - Highlights you tick no longer disappear silently when two are close together (e.g. „Half way“ and „Steepest section“ on the Teide tour): both stay, and they share the time between them — the first one goes when the second one comes, so they do not cover each other.

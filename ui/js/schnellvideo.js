@@ -535,15 +535,19 @@
   /** 13.10.2026 (Web-Feedback: „Beim Einfügen von Bildern ist das letzte Bild nur ganz kurz zu sehen. Besser wäre es, wenn
    *  das Bild zum Endpunkt länger stehen bleibt“; übernommen aus der Web-Fassung, damit beide gleich aussehen) — ein Sofortbild
    *  kurz vor dem Ziel stand 2,5 s und schrumpfte dann im Herauszoomen zur Schlusskarte. Jetzt: das letzte Sofortbild in den
-   *  letzten 15 % erscheint spätestens 2 s vor dem Ziel und bleibt bis zum Ende stehen, dann blendet es weich aus. */
+   *  letzten 15 % erscheint spätestens 2 s vor dem Ziel und bleibt bis zum Ende stehen, dann blendet es weich aus.
+   *  13.10.2026 abends (Testvideo): „bis zum Ende“ hieß durch die Schlusskarte hindurch — beim Herauszoomen rutschte das
+   *  Foto an den oberen Rand, wurde abgeschnitten und lag über dem Logo (im Hochformat noch enger). Jetzt: spätestens 3 s
+   *  vor dem Ziel da, steht bis zum Ziel und blendet aus, während die Schlusskarte kommt. */
+  const LETZTES_FOTO_MIN_S = 3;
   function letztesFotoLaenger(schilder, animS) {
     let best = null;
     for (const x of schilder || []) if (x && x.style === "sofortbild" && x.imageSrc && isFinite(x.__bei) && (!best || x.__bei > best.__bei)) best = x;
     if (!best || best.__bei < 0.85 || !(animS > 0)) return null;
     const rest = (1 - best.__bei) * animS;   // Sekunden bis zum Ziel
-    best.before = Math.max(+best.before || 0, Math.max(0, 2 - rest));
-    best.after = Math.max(+best.after || 0, rest + HOLD_S);
-    best.exit = "fade"; best.exit_s = 0.4;
+    best.before = Math.max(+best.before || 0, Math.max(0, LETZTES_FOTO_MIN_S - rest));
+    best.after = rest;   // bis zum Ziel = Beginn der Schlusskarte, nicht hinein
+    best.exit = "fade"; best.exit_s = 0.5;
     return best;
   }
   window.__rzLetztesFotoLaenger = letztesFotoLaenger;   // Prüfstand
