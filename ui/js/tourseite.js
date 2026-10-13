@@ -219,6 +219,7 @@
         <button type="button" class="btn btn-sm" id="ts-plus">＋ ${esc(T("tourseite.plus_tag", "Medien vom selben Tag …"))}</button>
         <button type="button" class="btn btn-sm" id="ts-auto" title="${esc(T("tourseite.auto_tip", "Alle Fotos der Tour automatisch aufhübschen (Ton und Weißabgleich je Foto) — Originale bleiben, nachher einzeln nacharbeiten"))}">${I("sparkles")} ${esc(T("tourseite.auto", "Auto für alle Fotos"))}</button>
       </div>
+      <div class="ts-dokumente" id="ts-dokumente"></div>
       <div class="lib-hint ts-hinweis">${esc(T("tourseite.hinweis", "Zur Tour gehört, was während der Tour aufgenommen wurde und höchstens 2 km vom Track entfernt liegt (ohne Koordinate zählt die Zeit). Rechtsklick auf ein Bild nimmt es heraus, „＋ Medien vom selben Tag“ nimmt weitere dazu — das gilt dann überall in GPS Studio."))}</div>`;
     Z.links.querySelector("#ts-video").onclick = (e) => _videoMenue(e.currentTarget);
     Z.links.querySelector("#ts-karte-knopf").onclick = () => _oeffnenIn("tourmap");
@@ -246,6 +247,89 @@
       else if (typeof toast === "function") toast((r && r.error) || "?", "warn");
     };
     _logbuch(tr.path);
+    _dokumente(tr.path);
+    if (!Z.links.__rzDokDrop && typeof setupDropZone === "function") {
+      Z.links.__rzDokDrop = true;
+      setupDropZone({ target: Z.links, accept: DOK_ENDUNGEN, highlightClass: "ts-dok-ziel",
+        onDrop: async (dateien) => {
+          const pfade = (dateien || []).map(x => x.nativePath).filter(Boolean);   // nur echte Pfade — _drops-Kopien sind Temp
+          if (!pfade.length) { if (typeof toast === "function") toast(T("dok.drop_kein_pfad", "Diese Datei lässt sich nicht verknüpfen — bitte über „＋ Dokument …“ wählen."), "warn", 5000); return; }
+          if (Z && Z.tour && Z.tour.path) await _dokHinzu(Z.tour.path, pfade);
+        } });
+    }
+  }
+
+  /* 12.10.2026 (Marc: „wenn es zur Tour gehört, gehört es dazu“) — Dokumente zur Tour: PDF-Ankündigungen,
+     Routenbeschreibungen, Tickets, Notizen. Nur verknüpft (Datei bleibt, wo sie ist, wird nie verändert), der Text kommt in
+     die Archiv-Suche (core/dokumente). Hinzufügen per Knopf oder Ziehen auf die linke Spalte; Klick öffnet im
+     zuständigen Programm, ⋯ zeigt im Finder oder löst die Verknüpfung. */
+  const DOK_ENDUNGEN = ["pdf", "txt", "md", "markdown", "rtf", "doc", "docx", "odt", "pages", "xls", "xlsx", "ods", "numbers", "csv", "html", "htm", "webloc", "url"];
+  const DOK_SYMBOL = { pdf: "file-text", text: "file-text", word: "file-text", tabelle: "table", web: "globe", bild: "image", datei: "file-text" };
+  const _groesse = (b) => b >= 1048576 ? _zahl(b / 1048576, 1) + " MB" : (b >= 1024 ? Math.round(b / 1024) + " KB" : (b || 0) + " B");
+  async function _dokumente(path, liste) {
+    const box = Z && Z.links && Z.links.querySelector("#ts-dokumente"); if (!box || !path) return;
+    const kopf = `<div class="ts-dok-kopf"><span>${I("file-text", 13)} ${esc(T("dok.titel", "Dokumente"))}</span>
+      <button type="button" class="btn btn-sm btn-ghost" id="ts-dok-plus" title="${esc(T("dok.plus_tip", "PDF, Text, Word … an diese Tour hängen. Die Datei bleibt, wo sie ist."))}">＋ ${esc(T("dok.plus", "Dokument …"))}</button></div>`;
+    if (!liste) {
+      box.innerHTML = kopf + `<div class="lib-nav-hint"><span class="ass-spinner"></span> ${esc(T("dok.laedt", "Dokumente werden geladen …"))}</div>`;
+      let r = null; try { r = await api().tour_dokumente(path); } catch (_) {}   // warte-ok: Ladeanzeige im Kasten
+      if (!Z || !box.isConnected || Z.tour.path !== path) return;
+      liste = (r && r.ok && r.dokumente) || [];
+    }
+    box.innerHTML = kopf + (liste.length ? `<div class="ts-dok-liste">${liste.map((d, i) => `
+        <div class="ts-dok${d.fehlt ? " ist-weg" : ""}" data-dok="${i}" title="${esc(d.pfad)}">
+          <span class="ts-dok-bild" data-dok-bild="${i}">${I(DOK_SYMBOL[d.art] || "file-text", 18)}</span>
+          <span class="ts-dok-text"><b>${esc(d.name)}</b><small>${esc(d.fehlt ? T("dok.fehlt", "nicht gefunden — Laufwerk ab oder verschoben?") : _groesse(d.groesse))}</small></span>
+          <button type="button" class="btn btn-sm btn-ghost ts-dok-mehr" data-dok-mehr="${i}" aria-label="${esc(T("dok.mehr", "Mehr"))}">${I("ellipsis", 14)}</button>
+        </div>`).join("")}</div>`
+      : `<div class="lib-hint ts-dok-leer">${esc(T("dok.leer", "Ankündigung, Routenbeschreibung, Tickets … — hierher ziehen oder „＋ Dokument …“. Ihr Text wird in der Archiv-Suche gefunden."))}</div>`);
+    box.querySelector("#ts-dok-plus").onclick = async () => {
+      let res = null;
+      try { res = await api().pick_file("open", [T("dok.filter", "Dokumente") + " (" + DOK_ENDUNGEN.map(e => "*." + e).join(";") + ")"], true); } catch (_) {}   // warte-ok: Systemdialog
+      const pfade = Array.isArray(res) ? res.filter(Boolean) : (res ? [res] : []);
+      if (pfade.length) await _dokHinzu(path, pfade);
+    };
+    box.querySelectorAll("[data-dok]").forEach(z => {
+      const d = liste[+z.dataset.dok];
+      z.onclick = (e) => { if (e.target.closest("[data-dok-mehr]")) return; if (!d.fehlt) api().open_path(d.pfad); };
+      z.oncontextmenu = (e) => { e.preventDefault(); _dokMenue(z, path, d); };
+    });
+    box.querySelectorAll("[data-dok-mehr]").forEach(b => { b.onclick = (e) => { e.stopPropagation(); _dokMenue(b, path, liste[+b.dataset.dokMehr]); }; });
+    // Vorschau der ersten Seite nachladen (Quick Look auf dem Mac; sonst bleibt das Symbol)
+    liste.forEach((d, i) => {
+      if (d.fehlt || !["pdf", "word", "text", "bild", "tabelle"].includes(d.art)) return;
+      Promise.resolve(api().tour_dokument_vorschau(d.pfad, 160)).then(r => {   // warte-ok: Symbol bleibt bis dahin
+        const el = box.querySelector(`[data-dok-bild="${i}"]`);
+        if (el && r && r.ok && r.data) el.innerHTML = `<img src="${r.data}" alt="">`;
+      }).catch(() => {});
+    });
+  }
+  async function _dokHinzu(path, pfade) {
+    let r = null;
+    try { r = await rzWarten("tour_dokumente_hinzu", () => api().tour_dokumente_hinzu(path, pfade)); } catch (e) { r = { ok: false, error: String(e) }; }
+    if (!r || !r.ok) { if (typeof toast === "function") toast((r && r.error) || "?", "warn"); return; }
+    if (Z && Z.tour && Z.tour.path === path) _dokumente(path, r.dokumente || []);
+    if (typeof toast === "function") {
+      const teile = [];
+      if (r.neu) teile.push(r.neu === 1 ? T("dok.neu_1", "1 Dokument verknüpft") : T("dok.neu_n", "{n} Dokumente verknüpft", { n: r.neu }));
+      if (r.schon) teile.push(T("dok.schon", "{n} waren schon dabei (neu gelesen)", { n: r.schon }));
+      if (r.ohne_text) teile.push(T("dok.ohne_text", "{n} ohne lesbaren Text (z. B. eingescannt) — sie zählen nicht für die Suche", { n: r.ohne_text }));
+      if (r.fehlt) teile.push(T("dok.nicht_da", "{n} nicht gefunden", { n: r.fehlt }));
+      toast(teile.join(" · ") || T("dok.nichts", "Nichts verknüpft"), r.fehlt ? "warn" : "success", 5000);
+    }
+  }
+  function _dokMenue(anker, path, d) {
+    if (!d) return;
+    _menue(anker, [
+      { text: T("dok.oeffnen", "Öffnen"), tun: () => api().open_path(d.pfad) },
+      { text: T("dok.finder", "Im Finder zeigen"), tun: () => api().reveal_in_finder(d.pfad) },
+      "-",
+      { text: T("dok.loesen", "Von der Tour lösen"), tip: T("dok.loesen_tip", "Nur die Verknüpfung — die Datei bleibt unangetastet."), gefahr: true,
+        tun: async () => {
+          let r = null; try { r = await api().tour_dokument_entfernen(path, d.pfad); } catch (_) {}   // warte-ok: nur Datenbank
+          if (r && r.ok) _dokumente(path, r.dokumente || []);
+        } },
+    ]);
   }
 
   async function _logbuch(path) {

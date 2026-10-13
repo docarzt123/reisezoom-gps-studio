@@ -145,28 +145,87 @@
       if (typeof toast === "function") toast(T("tour_aus_fotos.zu_wenig", "Dafür braucht es mindestens zwei Fotos mit Ort und Aufnahmezeit."), "info", 5000);
       return;
     }
+    // 12.10.2026 (Ausbau) — Vorschau im Dialog: die Linie je Tag in eigener Farbe, die Fotos als Punkte, Ausreißer rot.
+    // Gerechnet wird im Hintergrund (core/fotospur), „Tour anlegen“ nimmt das gemerkte Ergebnis.
+    const FARBEN = ["#2dd4bf", "#f59e0b", "#a78bfa", "#f472b6", "#60a5fa", "#4ade80", "#fb7185", "#facc15"];
+    let karte = null, seq = 0, letzte = null;
     const m = openModal({
       title: T("tour_aus_fotos.titel", "Tour aus {n} Fotos machen", { n: num(pfade.length) }),
       body: `<div class="ex-dialog">
-          <p class="muted" style="margin:0 0 6px">${esc(T("tour_aus_fotos.text", "Die Fotos mit Ort werden in der Reihenfolge ihrer Aufnahme verbunden — eine neue Tour im Archiv, mit Karte, Fotos und allem, was eine Tour kann."))}</p>
+          <p class="muted" style="margin:0 0 6px">${esc(T("tour_aus_fotos.text2", "Die Fotos mit Ort werden in der Reihenfolge ihrer Aufnahme verbunden — jeder Tag wird eine Etappe, jedes Foto liegt zu seiner Zeit auf der Linie. Eine neue Tour im Archiv, mit Karte, Fotos und allem, was eine Tour kann."))}</p>
           <label class="field-label" for="taf-name">${esc(T("tour_aus_fotos.name_label", "Name"))}</label>
           <input type="text" id="taf-name" class="lib-input" placeholder="${esc(T("tour_aus_fotos.name_ph", "leer = Ort und Datum"))}">
           <div class="field-label" style="margin-top:8px">${esc(T("tour_aus_fotos.wie", "Verbinden"))}</div>
           ${[["gerade", T("tour_aus_fotos.gerade", "gerade Linien (Luftlinie von Foto zu Foto)")], ["walking", T("tour_aus_fotos.zu_fuss", "entlang von Wegen — zu Fuß")],
              ["cycling", T("tour_aus_fotos.rad", "entlang von Wegen — Rad")], ["driving", T("tour_aus_fotos.auto", "entlang von Straßen — Auto")]]
             .map(([k, l], i) => `<label class="ex-zeile"><input type="radio" name="taf-wie" value="${k}"${i === 0 ? " checked" : ""}> ${esc(l)}</label>`).join("")}
-          <div class="lib-hint ex-hinweis">${esc(T("tour_aus_fotos.hinweis", "Fotos ohne Ort zählen nicht mit. Die Wegeführung fragt einen freien Kartendienst; klappt das nicht, werden es gerade Linien."))}</div>
+          <div class="os-karte taf-karte" id="taf-karte"></div>
+          <div class="taf-info" id="taf-info"></div>
+          <div class="lib-hint ex-hinweis">${esc(T("tour_aus_fotos.hinweis2", "Fotos ohne Ort zählen nicht mit, Fotos mit unmöglichem Sprung (falscher GPS-Punkt) bleiben weg. Zwischen zwei Fotos steht der Punkt beim früheren und geht so spät los, dass er rechtzeitig ankommt. Die Wegeführung fragt einen freien Kartendienst; klappt das nicht, werden es gerade Linien."))}</div>
         </div>`,
       footer: `<button type="button" class="btn" id="taf-ab">${esc(T("common.cancel", "Abbrechen"))}</button>
-               <button type="button" class="btn btn-primary" id="taf-ok">${I("compass")} ${esc(T("tour_aus_fotos.los", "Tour anlegen"))}</button>`,
+               <button type="button" class="btn btn-primary" id="taf-ok" disabled>${I("compass")} ${esc(T("tour_aus_fotos.los", "Tour anlegen"))}</button>`,
+      onClose: () => { try { if (karte) karte.remove(); } catch (_) {} karte = null; window.__rzTafKarte = null; },
     });
+    const info = document.getElementById("taf-info"), okKnopf = document.getElementById("taf-ok");
+    const wieWert = () => (document.querySelector('input[name="taf-wie"]:checked') || {}).value || "gerade";
+    try {
+      const c = createMap({ container: "taf-karte", styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : ((typeof mapDefaultStyle === "function") ? mapDefaultStyle() : undefined),
+                            common: { center: [10.4, 51.2], zoom: 3.5, attributionControl: true } });
+      karte = c.map; window.__rzTafKarte = karte;   // Prüfstand
+    } catch (_) {}
+    // Stil noch nicht fertig → nach dem nächsten „idle“ nachholen (wie _whenStyleReady im Animator, nie still aussteigen)
+    const bereit = (fn) => { if (!karte) return; if (typeof rzStyleReady === "function" && rzStyleReady(karte)) fn(); else karte.once("idle", () => { try { fn(); } catch (_) {} }); };
+    function zeichnen(r) {
+      bereit(() => {
+        const linien = { type: "FeatureCollection", features: (r.linien || []).map((co, i) => ({ type: "Feature", properties: { farbe: FARBEN[i % FARBEN.length] }, geometry: { type: "LineString", coordinates: co } })) };
+        const punkte = (liste, art) => liste.map(co => ({ type: "Feature", properties: { art }, geometry: { type: "Point", coordinates: co } }));
+        const fotos = { type: "FeatureCollection", features: punkte(r.fotos || [], "gut").concat(punkte(r.raus || [], "raus")) };
+        if (karte.getSource("taf-linien")) { karte.getSource("taf-linien").setData(linien); karte.getSource("taf-fotos").setData(fotos); }
+        else {
+          karte.addSource("taf-linien", { type: "geojson", data: linien });
+          karte.addSource("taf-fotos", { type: "geojson", data: fotos });
+          karte.addLayer({ id: "taf-linien", type: "line", source: "taf-linien", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": ["get", "farbe"], "line-width": 3 } });
+          karte.addLayer({ id: "taf-fotos", type: "circle", source: "taf-fotos", paint: {
+            "circle-radius": ["case", ["==", ["get", "art"], "raus"], 5, 3], "circle-color": ["case", ["==", ["get", "art"], "raus"], "#ef4444", "#ffffff"],
+            "circle-stroke-color": "#0f172a", "circle-stroke-width": 1 } });
+        }
+        const alle = [].concat(...(r.linien || []), r.fotos || []);
+        if (alle.length) {
+          let w = 180, s = 90, o = -180, n = -90;
+          for (const [x, y] of alle) { w = Math.min(w, x); o = Math.max(o, x); s = Math.min(s, y); n = Math.max(n, y); }
+          try { karte.fitBounds([[w, s], [o, n]], { padding: 24, maxZoom: 15, duration: 0 }); } catch (_) {}
+        }
+      });
+    }
+    async function rechnen() {
+      const meins = ++seq;
+      okKnopf.disabled = true; letzte = null;
+      info.innerHTML = `<span class="ass-spinner"></span> ${esc(wieWert() === "gerade" ? T("tour_aus_fotos.rechnet", "Linie wird berechnet …") : T("tour_aus_fotos.rechnet_wege", "Wege werden gesucht … (bei vielen Fotos bis zu einer Minute)"))}`;
+      let r = null;
+      try { r = await api().tour_aus_fotos(pfade, wieWert(), "", true); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Ladeanzeige in #taf-info, Knopf aus
+      if (meins !== seq || !document.getElementById("taf-info")) return;
+      if (!r || !r.ok) { info.innerHTML = `<span class="taf-fehler">${esc((r && r.error) || "?")}</span>`; return; }
+      letzte = r; okKnopf.disabled = false;
+      const teile = [((r.tage || []).length === 1 ? T("tour_aus_fotos.v_tag", "1 Tag") : T("tour_aus_fotos.v_tage", "{n} Tage", { n: num((r.tage || []).length) })),
+                     num(r.km) + " km", T("tour_aus_fotos.v_fotos", "{n} Fotos", { n: num(r.n_fotos) })];
+      if (r.ausreisser) teile.push(T("tour_aus_fotos.v_raus", "{n} mit falschem Ort weggelassen (rot)", { n: num(r.ausreisser) }));
+      if (r.ohne_ort) teile.push(T("tour_aus_fotos.v_ohne_ort", "{n} ohne Ort", { n: num(r.ohne_ort) }));
+      if (wieWert() !== "gerade" && r.wege_teilweise) teile.push(T("tour_aus_fotos.v_teils", "teils gerade — dort kennt der Dienst keinen Weg"));
+      else if (wieWert() !== "gerade" && !r.wege) teile.push(T("tour_aus_fotos.v_kein_weg", "kein Weg gefunden — gerade Linien"));
+      info.textContent = teile.join(" · ");
+      zeichnen(r);
+    }
+    document.querySelectorAll('input[name="taf-wie"]').forEach(x => { x.onchange = rechnen; });
+    rechnen();
     document.getElementById("taf-ab").onclick = () => m.close();
-    document.getElementById("taf-ok").onclick = async () => {
-      const wie = (document.querySelector('input[name="taf-wie"]:checked') || {}).value || "gerade";
+    okKnopf.onclick = async () => {
+      if (!letzte) return;
+      const wie = wieWert();
       const name = (document.getElementById("taf-name") || {}).value || "";
       m.close();
       let r = null;
-      try { r = await rzWarten("tour_aus_fotos", () => api().tour_aus_fotos(pfade, wie, name)); } catch (e) { r = { ok: false, error: String(e) }; }
+      try { r = await rzWarten("tour_aus_fotos", () => api().tour_aus_fotos(pfade, wie, name, false)); } catch (e) { r = { ok: false, error: String(e) }; }
       if (!r || !r.ok) { if (typeof toast === "function") toast((r && r.error) || "?", "error", 6000); return; }
       // ins Archiv einlesen (nur der Import-Ordner) und dann die Tour-Seite öffnen
       try { await api().library_scan_start(false, r.folder); } catch (_) {}   // warte-ok: Fortschritt unten in der Statusbox
@@ -175,7 +234,9 @@
         let st = null; try { st = await api().library_scan_status(); } catch (_) {}   // warte-ok: kurzes Nachfragen
         if (st && !st.running) break;
       }
+      const tage = (r.tage || []).length;
       if (typeof toast === "function") toast(T("tour_aus_fotos.ok", "Neue Tour „{n}“ aus {f} Fotos{w}.", { n: r.name, f: num(r.n_fotos), w: r.wege ? " — " + T("tour_aus_fotos.mit_wegen", "entlang von Wegen") : "" })
+        + (tage > 1 ? " " + T("tour_aus_fotos.ok_tage", "{n} Tage = {n} Etappen.", { n: num(tage) }) : "")
         + (r.ohne_ort ? " " + T("tour_aus_fotos.ohne_ort", "{n} ohne Ort blieben weg.", { n: num(r.ohne_ort) }) : ""), "success", 6000);
       if (window.rzTourSeite) window.rzTourSeite.oeffnen({ path: r.pfad, name: r.name });
     };

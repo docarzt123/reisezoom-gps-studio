@@ -662,6 +662,7 @@ function mountLibrary(body, headerActions) {
   // Datum = der vorhandene Zeitraum-Filter (von/bis, Feld zeigt dann „eigener Zeitraum"); Ordner = `verz`.
   const TB_DB_KEY = "rz-touren-datumsbaum", TB_OB_KEY = "rz-touren-ordnerbaum";
   const tbDbOffen = rzBaum.offenLaden(TB_DB_KEY), tbObOffen = rzBaum.offenLaden(TB_OB_KEY);
+  let _tbDbAnker = null;   // ⇧-Klick in „Nach Datum“: zuletzt normal angeklickte Zeile
   let tbTage = null, tbOrdner = null, tbSeq = 0;
   /** Lesbare Namen für die App-eigenen Ordner (Importe, Zusammengeführtes); sonst der letzte Ordnername. */
   function tbWurzelText(p) {
@@ -706,8 +707,11 @@ function mountLibrary(body, headerActions) {
       b.onclick = (e) => { e.stopPropagation(); const k = b.dataset.obauf; if (tbObOffen.has(k)) tbObOffen.delete(k); else tbObOffen.add(k); rzBaum.offenMerken(TB_OB_KEY, tbObOffen); baeumeZeichnen(); };
     });
     box.querySelectorAll("[data-dbwahl]").forEach(b => {
-      b.onclick = () => {
-        const neu = rzBaum.datumKlick(b.dataset.dbwahl, tbDbOffen, state.von, state.bis);
+      b.onmousedown = (e) => { if (e.shiftKey) e.preventDefault(); };   // ⇧-Klick markiert sonst Text
+      b.onclick = (e) => {
+        // 12.10.2026 (Marc) — ⇧-Klick: Zeitraum von der zuletzt angeklickten Zeile bis hier
+        const neu = rzBaum.datumKlick(b.dataset.dbwahl, tbDbOffen, state.von, state.bis, { shift: e.shiftKey, anker: _tbDbAnker });
+        _tbDbAnker = neu.anker;
         rzBaum.offenMerken(TB_DB_KEY, tbDbOffen);
         if ($("lib-range")) $("lib-range").value = neu.von ? "eigen" : "";
         zeitraumSetzen(neu.von, neu.bis);

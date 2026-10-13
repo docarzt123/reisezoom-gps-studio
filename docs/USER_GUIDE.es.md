@@ -425,7 +425,12 @@ bola, flecha en el sentido de la marcha o un vehículo, tamaño; la «calma de l
 las flechas). La forma se elige como mosaico de imagen; debajo, **«Aspecto del vehículo (todos los
 vehículos)»** ofrece once mosaicos: insignia (el símbolo dibujado) o fotorrealista, lápiz y acuarela, cómic,
 pictograma, grabado, neón, pixel art, plano, papel, plastilina. Estas imágenes están dibujadas desde arriba,
-quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. La sección aparte «Línea» ya no existe, tampoco el bloque global «Punto en
+quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. **Imagen propia
+(desde v0.9.790):** el último mosaico usa una imagen tuya como punto: tu autocaravana, tu moto, un avatar. Un clic abre
+la elección de imagen (PNG, JPG, WebP, HEIC); **Insignia** la muestra redonda en el color de la línea como los vehículos,
+**Libre** la imagen tal cual (un PNG recortado conserva su forma). «Gira con la dirección de la marcha» la pone plana
+sobre la ruta; si no, queda de pie. Tamaño con el regulador; vista previa y vídeo se ven igual. Vale para la ruta
+principal; al exportar el proyecto la imagen viaja con él. Si aun así falta, corre la bola. La sección aparte «Línea» ya no existe, tampoco el bloque global «Punto en
 movimiento» ni la casilla «forma de la ruta principal para todas»; un track nuevo copia el
 aspecto del track 1 al añadirse. Vale en cada pista: una ruta que corre en paralelo en su
 propia pista lleva también su sombra, brillo, patrón y su propio punto. **«Aplicar aspecto a
@@ -1203,6 +1208,15 @@ que no está (fuera del horario, a más de 2 km, quitado por ti) — marcar y li
 sus rutas con **✕** y **«＋ Añadir a una ruta …»**. Estas correcciones valen **en todo GPS Studio** — en el archivo, en
 el Animator («Medios de la ruta») y en el vídeo rápido.
 
+**Documentos de una ruta (desde v0.9.790):** a la izquierda de la página de la ruta está el bloque **«Documentos»**: para
+el anuncio en PDF, la descripción de la ruta, billetes, una lista de participantes. Usa **«＋ Documento …»** o arrastra
+los archivos a la columna izquierda (PDF, texto, Markdown, Word, OpenDocument, Pages, hojas de cálculo, HTML). El archivo
+se queda donde está y nunca se modifica: GPS Studio solo guarda el vínculo. Un clic lo abre en su programa, **⋯** lo
+muestra en el Finder o lo quita de la ruta (el archivo se queda). En el Mac la primera página aparece como miniatura. El
+**texto** de los documentos cuenta para la búsqueda del archivo: si «Schwarzenburg» solo aparece en el PDF, la búsqueda
+encuentra igualmente la ruta. Los PDF escaneados sin capa de texto no cuentan (GPS Studio lo avisa al añadirlos). Si un
+archivo se movió o la unidad está desconectada, aparece «no encontrado».
+
 **Vista grande como una mesa de luz:** abajo la tira (las fotos por las que pasas), a la derecha el mapa con la ruta y
 el punto de la foto, debajo los datos de captura y las rutas — un clic en una ruta abre su página.
 
@@ -1214,7 +1228,12 @@ correspondientes.
 **Crear una ruta con fotos:** ¿sin GPX pero con fotos con lugar? Márcalas en Medios (⌘-clic) y elige con clic
 derecho **«🧭 Crear una ruta con estas fotos …»** — o haz clic en **«🧭 Ruta con estas fotos»** en la cabecera del día.
 Las fotos se unen en el orden de captura, con líneas rectas o **por caminos** (a pie, bici, coche). La ruta nueva llega
-al archivo y abre enseguida su página.
+al archivo y abre enseguida su página. **Desde v0.9.790:** un pequeño mapa en el diálogo muestra antes el resultado: cada
+día en su color y las fotos como puntos. Cada día de viaje es una **etapa** propia (sin línea durante la noche), cada
+foto queda en la línea justo a su hora, y entre dos fotos el punto espera en la anterior y sale justo a tiempo para
+llegar; la pausa del mediodía ya no se reparte por el recorrido. Una foto con una ubicación claramente errónea (un salto
+imposible de ida y vuelta) se deja fuera y aparece en rojo en la vista previa. Por caminos, la ruta recibe alturas del
+terreno.
 
 **Días y viajes:** en la cuadrícula de Medios, la cabecera de cada día muestra **las rutas de ese día** — un clic abre
 la página de la ruta. Una **colección** (p. ej. «Tenerife 2026») tiene arriba el botón **«🗺 Página del viaje ▸»**, varias
@@ -1445,7 +1464,8 @@ la última sección elegida.
 rutas, y tus carpetas vigiladas con todas sus subcarpetas (las subcarpetas cuentan). Un clic en un año, un mes o una
 carpeta la despliega y muestra exactamente esas rutas; un segundo clic la pliega y quita la selección. La fecha va al
 campo de periodo de arriba («periodo propio»), la carpeta aparece como chip **«📁 Rutas › 2024 ✕»**; **Restablecer
-filtros** quita ambos.
+filtros** quita ambos. **Varias filas con ⇧ Mayús:** haz clic en una fila y luego en otra con Mayús pulsada; se
+muestra todo lo que hay entre ambas, p. ej. de 2023 a 2024 o del 4 al 12 de marzo (desde v0.9.790).
 
 **¿Hecha o solo planificada?** La app lo detecta sola, venga el track de la app que venga:
 
@@ -1863,7 +1883,10 @@ A la izquierda, en **📅 Por fecha**, despliegas tu archivo como en Lightroom: 
 **día** («miércoles, 4 de marzo»), cada uno con su número de fotos. Un clic en un año o un mes lo despliega
 o lo pliega como la flechita y, al desplegar, muestra exactamente ese periodo; un clic en un día muestra ese día.
 Arriba aparece un chip como **«📅 marzo 2026 ✕»**: ✕, volver a plegar el año o el mes, un segundo clic en el
-mismo día o **Todo** lo quitan. La app recuerda qué está desplegado.
+mismo día o **Todo** lo quitan. La app recuerda qué está desplegado. **Varios días, meses o años (desde
+v0.9.790):** haz clic en una fila y luego en otra con **⇧ Mayús** pulsada; se muestra todo lo que hay entre ambas y el
+chip dice p. ej. **«4–12 de marzo de 2026»**. Las filas del periodo quedan marcadas; un mes plegado que solo entra en
+parte lleva una raya a la izquierda. Un clic normal empieza de nuevo.
 
 ### Por carpeta (desde v0.9.781)
 

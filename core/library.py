@@ -473,6 +473,11 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         _logbuch.schema_anlegen(conn)
     except Exception:
         log.exception("library: Tabelle der Einteilungen konnte nicht angelegt werden")
+    try:
+        from . import dokumente as _dok         # 12.10.2026 — Dokumente zur Tour (PDF, Text …)
+        _dok.schema_anlegen(conn)
+    except Exception:
+        log.exception("library: Tabelle der Tour-Dokumente konnte nicht angelegt werden")
     conn.commit()
     return conn
 
@@ -1766,6 +1771,12 @@ def _spalten_ohne_geom(conn: sqlite3.Connection) -> str:
     return _SPALTEN_OHNE_GEOM_CACHE
 
 
+# 12.10.2026 — gibt es irgendwo Dokumente zur Tour (core/dokumente)? Nur dann sucht die Archiv-Suche je Wort auch in
+# deren Text; ohne Dokumente bleibt die Abfrage genau wie vorher (ein FTS-MATCH für alle Wörter).
+_DOKUMENTE_DA = False
+_DOK_TEIL = "tour_id IN (SELECT tour FROM tour_dokumente WHERE text_norm LIKE ? ESCAPE '\\')"
+
+
 def _norm(s: str) -> str:
     """Kleinschreibung ohne Akzente — damit „Müritz" auch „muritz" findet."""
     s = unicodedata.normalize("NFKD", (s or "").lower())
@@ -1886,6 +1897,16 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
     for w in (search or "").split():
         n = _norm(w)
         if not n:
+            continue
+        if _DOKUMENTE_DA:
+            # Wort steht in der Tour ODER in einem ihrer Dokumente — je Wort, damit „Gantrisch Anmeldung“ auch findet,
+            # wenn das eine Wort im Namen und das andere nur in der PDF-Ankündigung steht
+            if _FTS_OK and len(n) >= 3:
+                where.append(f"(path IN (SELECT path FROM tracks_fts WHERE tracks_fts MATCH ?) OR {_DOK_TEIL})")
+                args.extend([_fts_anfrage([n]), f"%{_like_escape(n)}%"])
+            else:
+                where.append(f"(rz_norm({_SEARCH_HAY}) LIKE ? ESCAPE '\\' OR {_DOK_TEIL})")
+                args.extend([f"%{_like_escape(n)}%", f"%{_like_escape(n)}%"])
             continue
         if _FTS_OK and len(n) >= 3:
             # 22.08.2026: über den Trigramm-Index (siehe `_fts_einrichten`);
@@ -3232,6 +3253,11 @@ def track_hash_migrieren(conn: sqlite3.Connection, alt: str, neu: str) -> int:
         conn.execute("DELETE FROM track_meta WHERE geo_hash = ?", (alt,))
     else:
         conn.execute("UPDATE track_meta SET geo_hash = ? WHERE geo_hash = ?", (neu, alt))
+    # 12.10.2026 — Dokumente zur Tour hängen an der Tour-Kennung; ohne Register ist die „gh:<geo_hash>“
+    try:
+        conn.execute("UPDATE OR IGNORE tour_dokumente SET tour = ? WHERE tour = ?", (f"gh:{neu}", f"gh:{alt}"))
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     return n
 

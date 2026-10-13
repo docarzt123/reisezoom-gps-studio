@@ -94,12 +94,15 @@ ALLEIN_MUSTER = ("render", "szene", "vorwaermen", "kachel", "vorlaeufer", "tempo
                  "wackel", "matrix", "bench", "timing", "dauer", "zwei_leser", "mount_haengt", "ladefeedback",
                  # warten auf kurze Zwischenzustände („wird eingelesen …“, Neustart) — unter dreifacher Last zu knapp
                  "fotos_startort", "etappe_ohne_gps", "videoassistent_vorschau")
+# einzelne Dateien, deren Name kein Muster trägt: test_logbuch ändert globale Logbuch-Einstellungen (⌘Z-Prüfung) und
+# fragt den POI-Dienst — zu dritt rot (12.10.2026), einzeln grün
+ALLEIN_NAMEN = {"test_logbuch.py"}
 DAUERN_DATEI = Path(__file__).resolve().parent.parent / "tests" / ".dauern.json"
 
 
 def allein(name: str) -> bool:
     # „…_schnell“ = Tempo-Messung; die Schnell-Video-Tests (Oberfläche) dürfen parallel
-    return ("langsam" in BEDINGT.get(name, ()) or any(m in name for m in ALLEIN_MUSTER)
+    return ("langsam" in BEDINGT.get(name, ()) or name in ALLEIN_NAMEN or any(m in name for m in ALLEIN_MUSTER)
             or bool(re.search(r"schnell(?!video)", name)))
 
 # 11.10.2026 (Marc: „alles auf der externen Platte machen“) — auf dem Mac mini legen die Tests ihre Kopien auf der externen

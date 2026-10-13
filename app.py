@@ -4994,6 +4994,33 @@ class Api:
         Api._FZ_BILD_CACHE[k] = data
         return {"ok": True, "data": data}
 
+    _LP_BILD_CACHE: dict = {}
+
+    def laufpunkt_bild(self, path: str) -> dict:
+        """12.10.2026 (Marc: „dass man den eigenen Laufpunkt ändern können muss“) — eigenes Bild als Laufpunkt: auf
+        256 px verkleinert als PNG-data:-URL (wie fahrzeug_bild: file:// darf die Karte nicht auslesen); die Transparenz
+        freigestellter PNGs bleibt. Nur lesend — läuft deshalb auch im Video-Render. Returns {ok, data, name}."""
+        import base64
+        import io
+        try:
+            p = str(path or "")
+            if not p or not os.path.isfile(p):
+                return {"ok": False, "error": "not found"}
+            key = (p, os.path.getmtime(p))
+            if key not in Api._LP_BILD_CACHE:
+                from PIL import Image, ImageOps
+                with Image.open(p) as im:
+                    im = ImageOps.exif_transpose(im).convert("RGBA")
+                    im.thumbnail((256, 256))
+                    buf = io.BytesIO()
+                    im.save(buf, "PNG")
+                if len(Api._LP_BILD_CACHE) > 20:
+                    Api._LP_BILD_CACHE.clear()
+                Api._LP_BILD_CACHE[key] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+            return {"ok": True, "data": Api._LP_BILD_CACHE[key], "name": os.path.basename(p)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def fotos_letzter_stand(self) -> dict:
         try:
             pfad = APP_SUPPORT / "fotos_letzter_stand.json"
@@ -5974,6 +6001,64 @@ class Api:
             log.exception("tour_medien_korrigieren")
             return {"ok": False, "error": str(e)}
 
+    # ── Dokumente zur Tour (12.10.2026, core/dokumente) ──────────────────────────────────────────────────────────────
+    # Marc: „wenn es zur Tour gehört, gehört es dazu“ — PDF-Ankündigungen, Routenbeschreibungen, Tickets an eine Tour
+    # hängen. Nur VERKNÜPFT (Datei bleibt, wo sie ist, wird nie verändert); Schlüssel ist die Tour (tour_id).
+    def _dok_tour(self, path: str) -> str:
+        r = self._lib().execute("SELECT tour_id, geo_hash FROM tracks WHERE path = ?", (str(path or ""),)).fetchone()
+        if not r:
+            return ""
+        return r[0] or (f"gh:{r[1]}" if r[1] else "")
+
+    def tour_dokumente(self, path: str) -> dict:
+        """Dokumente der Tour, zu der die Datei `path` gehört. Returns {ok, dokumente: [{pfad, name, art, groesse, fehlt …}]}."""
+        try:
+            from core import dokumente as cdok
+            with clib._DB_LOCK:
+                tour = self._dok_tour(path)
+                if not tour:
+                    return {"ok": False, "error": "not found"}
+                return {"ok": True, "tour": tour, "dokumente": cdok.liste(self._lib(), tour)}
+        except Exception as e:
+            log.exception("tour_dokumente")
+            return {"ok": False, "error": str(e)}
+
+    def tour_dokumente_hinzu(self, path: str, pfade: list) -> dict:
+        """Dateien an die Tour hängen; der Text (PDF, Text, Word) kommt in die Archiv-Suche."""
+        try:
+            from core import dokumente as cdok
+            with clib._DB_LOCK:
+                tour = self._dok_tour(path)
+                if not tour:
+                    return {"ok": False, "error": "not found"}
+                r = cdok.verknuepfen(self._lib(), tour, [str(p) for p in (pfade or []) if p][:200])
+                r.update({"ok": True, "dokumente": cdok.liste(self._lib(), tour)})
+            log.info("[dokumente] %s: %d neu, %d schon da, %d fehlen, %d ohne Text", tour, r["neu"], r["schon"], r["fehlt"], r["ohne_text"])
+            return r
+        except Exception as e:
+            log.exception("tour_dokumente_hinzu")
+            return {"ok": False, "error": str(e)}
+
+    def tour_dokument_entfernen(self, path: str, pfad: str) -> dict:
+        """Verknüpfung lösen — die Datei selbst bleibt unangetastet."""
+        try:
+            from core import dokumente as cdok
+            with clib._DB_LOCK:
+                tour = self._dok_tour(path)
+                ok = bool(tour) and cdok.entfernen(self._lib(), tour, pfad)
+                return {"ok": ok, "dokumente": cdok.liste(self._lib(), tour) if tour else []}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def tour_dokument_vorschau(self, pfad: str, px: int = 240) -> dict:
+        """Vorschaubild der ersten Seite (Quick Look auf dem Mac, Bilder über Pillow). Returns {ok, data}."""
+        try:
+            from core import dokumente as cdok
+            d = cdok.vorschau(str(pfad or ""), max(64, min(600, int(px or 240))))
+            return {"ok": bool(d), "data": d or ""}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def tour_seite_daten(self, geo_hash: str = "", path: str = "") -> dict:
         """Alles für die Tour-Seite im Archiv (08.10.2026): die Tour (Felder aus dem Archiv), ihre Linie je
         Etappe (≤ 2000 Punkte), das Höhenprofil (≤ 400 Werte) und ihre Medien mit Lage — Medien ohne Koordinate werden
@@ -6238,49 +6323,64 @@ class Api:
             self._medex["stopp"] = True
         return {"ok": True}
 
-    def tour_aus_fotos(self, pfade: list, profil: str = "gerade", name: str = "") -> dict:
-        """„Aus diesen Fotos eine Tour machen“ (08.10.2026, Stufe 2): die Fotos/Clips MIT
-        Koordinate in Aufnahmereihenfolge zu einem Track verbinden — gerade Linien oder, auf Wunsch, entlang von Wegen
-        (`walking` | `cycling` | `driving`, dieselben freien Dienste wie die Etappen). Die GPX-Datei kommt in den
-        Import-Ordner des Archivs (wie „Dateien importieren“), das Archiv liest sie danach ein."""
+    def tour_aus_fotos(self, pfade: list, profil: str = "gerade", name: str = "", vorschau: bool = False) -> dict:
+        """„Aus diesen Fotos eine Tour machen“ (08.10.2026, Stufe 2; Ausbau 12.10.2026 in core/fotospur): die Fotos/Clips
+        MIT Koordinate und Zeit zu einem Track — gerade Linien oder entlang von Wegen (`walking` | `cycling` | `driving`,
+        dieselben freien Dienste wie die Etappen). Ausreißer fallen heraus, jeder Tag wird eine Etappe (<trkseg>), jedes
+        Foto liegt zu seiner Zeit auf der Linie, Pausen stehen beim Foto. `vorschau=True`: nur rechnen (für die Karte im
+        Dialog), das Ergebnis bleibt für das Anlegen gemerkt. Sonst: GPX in den Import-Ordner des Archivs (wie „Dateien
+        importieren“), Höhen aus den Geländekacheln."""
         try:
+            from core import fotospur as cfotospur
             pfade = [str(p) for p in (pfade or []) if p][:5000]
             with clib._DB_LOCK:
                 z = cfotos.zeilen(self._lib(), pfade)
-            punkte = sorted([d for d in z.values() if d.get("lat") is not None and d.get("lon") is not None
-                             and d.get("aufnahme_utc") is not None], key=lambda d: d["aufnahme_utc"])
-            if len(punkte) < 2:
+            fotos = [d for d in z.values() if d.get("lat") is not None and d.get("lon") is not None
+                     and d.get("aufnahme_utc") is not None]
+            if len(fotos) < 2:
                 return {"ok": False, "error": _ui_t()("tour_aus_fotos.zu_wenig", "Dafür braucht es mindestens zwei Fotos mit Ort und Aufnahmezeit.")}
-            def iso(t):
-                return datetime.fromtimestamp(float(t), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            spur = []
-            weg_ok = False
-            if profil in ("walking", "cycling", "driving"):
+            schluessel = (tuple(sorted(pfade)), profil)
+            gemerkt = getattr(self, "_taf_merk", None)
+            if gemerkt and gemerkt[0] == schluessel:
+                r = gemerkt[1]
+            else:
+                def weg(pts):
+                    return croute.route_geometry(pts, profil, token="")
+                r = cfotospur.spur_aus_fotos(fotos, profil, weg if profil in ("walking", "cycling", "driving") else None)
+                self._taf_merk = (schluessel, r)
+            tage = r["tage"]
+            ort = next((d.get("ort") for d in sorted(fotos, key=lambda d: d["aufnahme_utc"]) if d.get("ort")), "") or ""
+            tag = tage[0]["tag"] if tage else ""
+            spanne = tag if len(tage) < 2 else f"{tag} – {tage[-1]['tag']}"
+            titel = (str(name or "").strip() or (f"{ort} {spanne}" if ort else
+                     _ui_t()("tour_aus_fotos.name", "Tour aus Fotos {tag}").replace("{tag}", spanne)))
+            raus = set(r["ausreisser"])
+            antwort = {"ok": True, "n_fotos": r["n_fotos"], "n_punkte": len(r["punkte"]), "wege": r["wege"],
+                       "wege_teilweise": r["wege_teilweise"], "tage": tage, "km": round(sum(t["km"] for t in tage), 1),
+                       "ausreisser": len(raus), "ohne_ort": len(pfade) - len(fotos), "name": titel}
+            if vorschau:
+                linien = {}
+                for q in r["punkte"]:
+                    linien.setdefault(q["seg"], []).append([q["lon"], q["lat"]])
+                antwort.update({"linien": [linien[k] for k in sorted(linien)],
+                                "fotos": [[d["lon"], d["lat"]] for d in fotos if d.get("path") not in raus],
+                                "raus": [[d["lon"], d["lat"]] for d in fotos if d.get("path") in raus]})
+                return antwort
+            # Höhen je Tag aus dem Gelände (wie bei geplanten Etappen); ohne Netz bleiben die der Fotos
+            punkte = r["punkte"]
+            for seg in sorted({q["seg"] for q in punkte}):
+                teil = [q for q in punkte if q["seg"] == seg]
+                if len(teil) < 2:
+                    continue
                 try:
-                    n = len(punkte)
-                    idx = sorted({0, n - 1} | {round(i * (n - 1) / 23) for i in range(24)}) if n > 25 else list(range(n))
-                    wp = [(float(punkte[i]["lon"]), float(punkte[i]["lat"])) for i in idx]
-                    r = croute.route_geometry(wp, profil, token="")
-                    coords = r.get("coords") or []
-                    if len(coords) >= 2:
-                        # Zeit linear über die Weglänge vom ersten bis zum letzten Foto
-                        import math as _m
-                        dist = [0.0]
-                        for a, b in zip(coords, coords[1:]):
-                            k = _m.cos(_m.radians(a[1])) * 111320.0
-                            dist.append(dist[-1] + _m.hypot((b[0] - a[0]) * k, (b[1] - a[1]) * 111320.0))
-                        t0, t1 = float(punkte[0]["aufnahme_utc"]), float(punkte[-1]["aufnahme_utc"])
-                        gesamt = dist[-1] or 1.0
-                        spur = [{"lat": c[1], "lon": c[0], "time": iso(t0 + (t1 - t0) * d / gesamt)} for c, d in zip(coords, dist)]
-                        weg_ok = True
-                except Exception as e:  # noqa: BLE001 — kein Weg gefunden: gerade Linien
-                    log.info("[tour-aus-fotos] Wegeführung (%s) nicht möglich: %s — gerade Linien", profil, e)
-            if not spur:
-                spur = [{"lat": d["lat"], "lon": d["lon"], "ele": d.get("ele"), "time": iso(d["aufnahme_utc"])} for d in punkte]
-            tag = datetime.fromtimestamp(float(punkte[0]["aufnahme_utc"]), timezone.utc).strftime("%Y-%m-%d")
-            ort = next((d.get("ort") for d in punkte if d.get("ort")), "") or ""
-            titel = (str(name or "").strip() or (f"{ort} {tag}" if ort else
-                     _ui_t()("tour_aus_fotos.name", "Tour aus Fotos {tag}").replace("{tag}", tag)))
+                    eles, _flach = self._etappe_hoehen([(q["lon"], q["lat"]) for q in teil], [])
+                except Exception as e:  # noqa: BLE001
+                    log.info("[tour-aus-fotos] Höhen: %s", e)
+                    eles = None
+                if eles:
+                    for q, h in zip(teil, eles):
+                        if h is not None:
+                            q["ele"] = round(float(h), 1)
             ziel = APP_SUPPORT / "import"
             ziel.mkdir(parents=True, exist_ok=True)
             stamm = re.sub(r"[^\w\-. ]+", "_", f"{tag} {titel}").strip(" ._")[:80] or "tour-aus-fotos"
@@ -6288,12 +6388,14 @@ class Api:
             n = 2
             while datei.exists():
                 datei = ziel / f"{stamm}-{n}.gpx"; n += 1
-            datei.write_text(ctrackio.to_gpx_string(spur, titel), encoding="utf-8")
+            datei.write_text(ctrackio.to_gpx_string(punkte, titel, segmente=True), encoding="utf-8")
+            self._taf_merk = None
             with clib._DB_LOCK:
                 clib.add_folder(self._lib(), str(ziel), recursive=False)
-            log.info("[tour-aus-fotos] %d Fotos → %s (%s, %d Punkte)", len(punkte), datei.name, "Wege" if weg_ok else "gerade", len(spur))
-            return {"ok": True, "pfad": str(datei), "folder": str(ziel), "n_fotos": len(punkte), "n_punkte": len(spur),
-                    "wege": weg_ok, "name": titel, "ohne_ort": len(pfade) - len(punkte)}
+            log.info("[tour-aus-fotos] %d Fotos → %s (%s, %d Tage, %d Punkte, %d Ausreißer)", r["n_fotos"], datei.name,
+                     "Wege" if r["wege"] else ("teils Wege" if r["wege_teilweise"] else "gerade"), len(tage), len(punkte), len(raus))
+            antwort.update({"pfad": str(datei), "folder": str(ziel)})
+            return antwort
         except Exception as e:
             log.exception("tour_aus_fotos")
             return {"ok": False, "error": str(e)}
@@ -11497,7 +11599,7 @@ class Api:
             projekte["track_hash"] = geo_hash
             # Fotos/Schild-Bilder: Original-Pfad gibt es auf diesem Rechner meist
             # nicht → auf die mitgebrachte Kopie zeigen (sonst „Bild fehlt" überall).
-            from core.projektpaket import BILD_FELDER
+            from core.projektpaket import BILD_FELDER, einzelbilder_umbiegen
             for proj in (projekte.get("projects") or {}).values():
                 if not isinstance(proj, dict):
                     continue
@@ -11506,6 +11608,7 @@ class Api:
                         if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
                             eintrag["original_" + feld] = eintrag.get(feld)
                             eintrag[feld] = eintrag["vorschau"]
+                einzelbilder_umbiegen(proj)
             with _projekte.LOCK:
                 daten = _projekte.laden(DATEN_ORT)
                 vorhanden = {pid: p for pid, p in (daten.get("projects") or {}).items()
@@ -11744,7 +11847,7 @@ class Api:
         überschreibt), Etappen nach `<Bibliothek>/etappen/<pid>/`, Foto-Vorschauen daneben. Die Etappe kommt NICHT
         ins Archiv — sie ist eine geplante Strecke, keine Tour."""
         import uuid as _uuid
-        from core.projektpaket import BILD_FELDER
+        from core.projektpaket import BILD_FELDER, einzelbilder_umbiegen
         projekte = json.loads(z.read("projekte.json").decode("utf-8")) if "projekte.json" in namen else None
         if not projekte or not projekte.get("projects"):
             return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
@@ -11766,6 +11869,7 @@ class Api:
                     if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
                         eintrag["original_" + feld] = eintrag.get(feld)
                         eintrag[feld] = eintrag["vorschau"]
+            einzelbilder_umbiegen(proj)
         with _projekte.LOCK:
             daten = _projekte.laden(DATEN_ORT)
             # gleiche ID schon da (Export und Import auf demselben Rechner) → neue ID, nichts überschreiben
@@ -11879,7 +11983,7 @@ class Api:
                 if name.startswith("fotos/") or name.startswith("bilder/"):
                     text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).parent.name / Path(name).name)))
             projekte = json.loads(text)
-            from core.projektpaket import BILD_FELDER
+            from core.projektpaket import BILD_FELDER, einzelbilder_umbiegen
             for proj in (projekte.get("projects") or {}).values():
                 if not isinstance(proj, dict):
                     continue
@@ -11888,6 +11992,7 @@ class Api:
                         if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
                             eintrag["original_" + feld] = eintrag.get(feld)
                             eintrag[feld] = eintrag["vorschau"]
+                einzelbilder_umbiegen(proj)
         ablauf = "schwarm" if str(meta.get("ablauf")) == "schwarm" else "reise"
         modus = str(meta.get("schwarm_modus") or "gleich")
         pausen = bool(meta.get("schwarm_pausen", True))

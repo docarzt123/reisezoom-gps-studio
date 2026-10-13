@@ -193,6 +193,12 @@ try:
     hidden += ["rawpy", "rawpy._rawpy"]
 except ImportError:
     pass
+# 12.10.2026 — Dokumente zur Tour: core/dokumente liest PDF-Text mit pypdf (Import erst bei Bedarf)
+try:
+    import pypdf as _pypdf  # noqa: F401
+    hidden += collect_submodules("pypdf")
+except ImportError:
+    pass
 # Auto-collect playwright (große Library) — nur Vollversion (v0.9.331)
 if not _IS_GEO:
     hidden += collect_submodules("playwright")

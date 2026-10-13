@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 10 Oct 2026 17:34:18 +0000</lastBuildDate>
+<lastBuildDate>Mon, 12 Oct 2026 20:41:50 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.789</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-789</link>
+<guid isPermaLink="false">gps-studio-v0.9.789</guid>
+<pubDate>Mon, 12 Oct 2026 12:00:00 +0000</pubDate>
+<description>Video-Assistent im neuen Look — Schritt für Schritt zum fertigen Video: Das Fenster sitzt links über den Werkzeugen, die Karte rückt beiseite und bleibt ganz sichtbar. Jeder Schritt stellt eine Frage und zeigt die Möglichkeiten als Bilder — kurze Clips für Vorlagen und Kamera, deine Route in allen acht Looks, Zeichnungen aus deiner eigenen Tour. Die besonderen Momente (höchster Punkt, steilstes Stück, Höchsttempo, Halbzeit) stehen jetzt bei den Momenten der Geschichte und lassen sich einzeln abwählen. Musik vorhören, eigene Vorlagen mit ★ speichern. Der Assistent ist nur im Animator zu sehen und wartet beim Zurückkommen auf demselben Schritt.
+
+Linien-Looks, Farblooks und Farbe je Tag — Glut und Neon lassen die Linie von selbst leuchten, ein Schweif zieht hinter dem Kopf her. Dazu Farblooks für das ganze Kartenbild (Cinematic, Goldene Stunde, Noir …) mit Stärkeregler und Vignette. Mehrtägige Touren bekommen auf Wunsch eine Farbe je Tag.
+
+Schärferes 3D-Gelände — Höhendaten von Mapterhorn: amtliche Geländemodelle (Deutschland 1 m, Alpen und Skandinavien bis 0,5 m) statt grober Kacheln — schärferes Relief und richtige Gipfelhöhen.
+
+Logbuch auf der Tour-Seite — Die Tour Tag für Tag neben der Karte: Pausen, Übernachtungen, Notizen. Ein Klick auf einen Eintrag zeigt die Stelle auf der Karte; umbenennen, Notiz, zusammenfassen.</description>
+</item>
 <item>
 <title>v0.9.788</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-788</link>
@@ -203,13 +216,6 @@ Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem R
 <guid isPermaLink="false">gps-studio-v0.9.770</guid>
 <pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
 <description>Fotostopp einstellbar — wie weit die Karte während des Fotos schwenkt und wie stark das Foto heranzoomt, stellst du jetzt am Foto-Schild ein.</description>
-</item>
-<item>
-<title>v0.9.769</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-769</link>
-<guid isPermaLink="false">gps-studio-v0.9.769</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotostopp ruhiger — die Karte schwenkt während des Fotos nur noch halb so weit.</description>
 </item>
 </channel>
 </rss>

@@ -1532,6 +1532,10 @@ async function openAboutModal() {
             (${t("about.credits.libraw", "RAW-Fotos entwickeln, gebündelt")})
           </li>
           <li>
+            <a href="#" class="md-about-link" data-url="https://github.com/py-pdf/pypdf">pypdf</a> — BSD-3-Clause
+            (${t("about.credits.pypdf", "Text aus PDF-Dokumenten zur Tour für die Suche, gebündelt")})
+          </li>
+          <li>
             <a href="#" class="md-about-link" data-url="https://lucide.dev/">Lucide</a>
             — ISC (${t("about.credits.lucide", "Strich-Symbole der Oberfläche, Teile aus Feather (MIT), gebündelt")})
           </li>

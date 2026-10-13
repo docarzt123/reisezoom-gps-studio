@@ -418,7 +418,12 @@ reduction in percent and the **running dot** (show, ball, arrow in travel direct
 vehicle, size; "arrow smoothing" applies to all arrows). You pick the shape as a picture tile; below it,
 **"Vehicle look (all vehicles)"** offers eleven tiles: badge (the drawn symbol) or photorealistic, pencil &
 watercolour, comic, pictogram, engraving, neon, pixel art, blueprint, paper, clay. These pictures are drawn
-from above, lie flat on the map and turn with the direction of travel — on planned stages too. The separate "Line" section is gone, so
+from above, lie flat on the map and turn with the direction of travel — on planned stages too. **Own picture (since
+v0.9.790):** the last tile uses a picture of yours as the running dot — your camper, your motorbike, an avatar. A click
+opens the picture choice (PNG, JPG, WebP, HEIC); **Badge** shows it round in the line colour like the vehicles, **Free**
+the picture itself (a cut-out PNG keeps its shape). "Turns with the direction of travel" lays it flat on the route,
+otherwise it stands upright. Size via the slider; preview and video look the same. Applies to the main tour; a project export takes the
+picture along. If it is still missing, the ball runs instead. The separate "Line" section is gone, so
 are the global "Running dot" block and the "main tour's dot shape for all" checkbox; a
 new track copies track 1's look when added. This holds on every row: a tour running in
 parallel on its own row carries its shadow, glow, pattern and its own dot too. **"Apply
@@ -1183,6 +1188,15 @@ why it isn't included (outside the tour time, more than 2 km away, removed by yo
 list all its tours with **✕** and **„＋ Add to a tour …“**. These corrections apply **everywhere in GPS Studio** — in the
 archive, in the Animator („Media of the tour“) and in the quick video.
 
+**Documents of a tour (since v0.9.790):** on the left of the tour page there is the **„Documents“** block — for the
+announcement as a PDF, the route description, tickets, a list of participants. Use **„＋ Document …“** or simply drag
+files onto the left column (PDF, text, Markdown, Word, OpenDocument, Pages, spreadsheets, HTML). The file stays where it
+is and is never changed — GPS Studio only remembers the link. A click opens it in its app, **⋯** shows it in the Finder
+or detaches it from the tour (the file stays). On a Mac the first page shows as a small preview. The documents' **text**
+counts for the archive search: if „Schwarzenburg“ is only in the PDF announcement, the search still finds the tour.
+Scanned PDFs without a text layer don't count (GPS Studio says so when adding). If a file was moved or the drive is
+disconnected, it says „not found“.
+
 **Large view like a light table:** the filmstrip (the photos you browse) below, the map with the tour and the photo's
 point on the right, capture data and tours underneath — click a tour to open its tour page.
 
@@ -1193,7 +1207,12 @@ number works as the year („Masca 2023“). In Media, the search shows the matc
 **Make a tour from photos:** no GPX, but photos with a location? Mark them in Media (⌘-click) and right-click
 **„🧭 Make a tour from these photos …“** — or click **„🧭 Tour from these photos“** in the day header. The photos are
 connected in recording order, as straight lines or **along paths** (on foot, bike, car). The new tour lands in the
-archive and opens its tour page right away.
+archive and opens its tour page right away. **Since v0.9.790:** a small map in the dialog shows the result first — each
+day in its own colour, the photos as dots. Every travel day becomes its own **stage** (no line overnight), every photo
+sits on the line exactly at its capture time, and between two photos the dot waits at the earlier one and sets off just
+in time to arrive — the lunch break is no longer smeared across the route. A photo with an obviously wrong location (an
+impossible jump there and back) is left out and shown red in the preview. Along paths, the tour gets elevations from the
+terrain.
 
 **Days and trips:** in the Media grid, every day header shows **that day's tours** — a click opens the tour page. A
 **collection** (e.g. „Tenerife 2026“) has the button **„🗺 Trip page ▸“** at the top, several marked tours have **„View
@@ -1415,7 +1434,8 @@ section you were last in.
 of tours, and your watched folders with all subfolders (subfolders are counted in). Clicking a year, a month or a
 folder unfolds it and shows exactly those tours; a second click folds it and clears the selection. The date goes into
 the period field at the top (“custom period”), the folder appears as a chip **“📁 Tours › 2024 ✕”**; **Reset filters**
-clears both.
+clears both. **Several rows with ⇧ Shift:** click one row normally, then a second with Shift held — everything in
+between is shown, e.g. 2023 to 2024 or 4 to 12 March (since v0.9.790).
 
 **Done or only planned?** The app works this out by itself — no matter which app the track
 comes from:
@@ -1818,7 +1838,10 @@ On the left under **📅 By date** you unfold your library like in Lightroom: **
 **day** (“Wednesday, 4 March”), each with its number of photos. A click on a year or month unfolds or
 folds it like the small arrow and, when unfolding, shows exactly that period; a click on a day shows that day. At
 the top a chip like **“📅 March 2026 ✕”** appears — ✕, folding the year or month again, a second click on the
-same day or **All** clears it. The app remembers what is unfolded.
+same day or **All** clears it. The app remembers what is unfolded. **Several days, months or years (since
+v0.9.790):** click one row, then a second one with **⇧ Shift** held — everything in between is shown, the chip then
+reads e.g. **“4–12 March 2026”**. The rows in the period are marked; a folded month that is only partly inside gets a
+line on the left. A normal click starts over.
 
 ### By folder (since v0.9.781)
 

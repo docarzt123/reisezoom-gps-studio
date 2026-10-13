@@ -75,10 +75,12 @@ def _point_extensions(p) -> str:
     return ("<extensions>" + "".join(parts) + "</extensions>") if parts else ""
 
 
-def to_gpx_string(points, name: Optional[str] = None) -> str:
+def to_gpx_string(points, name: Optional[str] = None, segmente: bool = False) -> str:
     """Punkte als valides GPX-1.1 (ein Track, ein Segment) zurückgeben.
     Sensor-Standardfelder (HR/Trittfrequenz/Temp/Leistung) werden als
-    gpxtpx/gpxpx-Extensions mitgeschrieben (Strava/Garmin lesen die)."""
+    gpxtpx/gpxpx-Extensions mitgeschrieben (Strava/Garmin lesen die).
+    `segmente=True` (12.10.2026, Tour aus Fotos): wechselt das Feld `seg` eines Punktes, beginnt ein neues
+    <trkseg> — die App liest jedes als eigene Etappe."""
     nm = _sx.escape(name) if name else "Track"
     out = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -87,10 +89,16 @@ def to_gpx_string(points, name: Optional[str] = None) -> str:
         f'xmlns:gpxtpx="{_GPXTPX_NS}" xmlns:gpxpx="{_GPXPX_NS}">',
         f"<trk><name>{nm}</name><trkseg>",
     ]
+    seg_davor = None
     for p in points:
         lat = _get(p, "lat"); lon = _get(p, "lon")
         if lat is None or lon is None:
             continue
+        if segmente:
+            s_nr = _get(p, "seg")
+            if seg_davor is not None and s_nr != seg_davor:
+                out.append("</trkseg><trkseg>")
+            seg_davor = s_nr
         ele = _get(p, "ele"); tm = _get(p, "time")
         seg = [f'<trkpt lat="{float(lat):.7f}" lon="{float(lon):.7f}">']
         if ele is not None:

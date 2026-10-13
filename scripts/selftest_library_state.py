@@ -247,6 +247,9 @@ async def main() -> int:
         await zu("animator")
         await zu("library")
         await page.wait_for_timeout(900)
+        # Seit dem Archiv-Umbau (0.9.787) startet das Archiv in der Zeilen-Ansicht — geprüft wird hier die Kachel-Ansicht
+        await page.evaluate("() => { const v = document.querySelector('.lib-view[data-view=\"cards\"]'); if (v) v.click(); }")
+        await page.wait_for_timeout(900)
 
         # 22.08.2026: Fenster-Rendering — im DOM steht nur der sichtbare
         # Ausschnitt. Gezählt wird deshalb die höchste gezeigte Nummer.
@@ -446,7 +449,7 @@ async def main() -> int:
 
         print("\n[8] Häufigste Startpunkte")
         orte = await page.evaluate(
-            "() => Array.from(document.querySelectorAll('.lib-acts'))"
+            "() => Array.from(document.querySelectorAll('.lib-acts, .st-ort-name'))"  # .st-ort-name: Statistik-Seite seit 0.9.787
             ".map(e => e.textContent).join(' ')")
         sagen("Zuhause" in orte, "die Startpunkte stehen da", "Zuhause" in orte)
 

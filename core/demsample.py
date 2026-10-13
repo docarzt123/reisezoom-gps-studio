@@ -68,6 +68,33 @@ def hoehen(points, z: int = DEM_ZOOM, cache_dir=None, clamp0: bool = True,
         except Exception:       # noqa: BLE001
             return None
 
+    # 13.10.2026 (Klicktest mit gedrosseltem Netz, Schottland 39 Tage) — die Kacheln kamen eine nach der anderen; bei
+    # langsamem Netz wartete „Play“ minutenlang auf die ruhige Kamera. Erst alle gebrauchten Kacheln (samt Nachbarn am
+    # Rand, s. px_at) parallel holen, dann wie bisher abtasten.
+    gebraucht = set()
+    for p in points or []:
+        try:
+            fx, fy = _tile_xy(float(p[0]), float(p[1]), z)
+        except Exception:       # noqa: BLE001
+            continue
+        tx, ty = int(math.floor(fx)), int(math.floor(fy))
+        rx, ry = (fx - tx) * 256.0, (fy - ty) * 256.0
+        for dx in ((-1, 0) if rx < 1.5 else ((0, 1) if rx > 254.5 else (0,))):
+            for dy in ((-1, 0) if ry < 1.5 else ((0, 1) if ry > 254.5 else (0,))):
+                if 0 <= ty + dy < n:
+                    gebraucht.add(((tx + dx) % n, ty + dy))
+    if len(gebraucht) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _hol(key):
+            try:
+                return key, laden(z, key[0], key[1])
+            except Exception:       # noqa: BLE001
+                return key, None
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for key, im in ex.map(_hol, sorted(gebraucht)):
+                kacheln[key] = im
+
     for p in points or []:
         try:
             lng, lat = float(p[0]), float(p[1])

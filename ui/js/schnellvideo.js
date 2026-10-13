@@ -598,6 +598,7 @@
                   "highlights_enabled", "highlights_arten",
                   "ton_musik_an", "ton_musik", "ton_musik_laut", "ton_musik_ein", "ton_musik_aus", "ton_klick_an", "ton_klick_laut", "ton_klick_klang",
                   "marker_dot_show", "marker_dot_style", "marker_dot_size", "marker_dot_smooth", "marker_dot_rueckblick_m",
+                  "marker_dot_bild", "marker_dot_bild_form", "marker_dot_bild_drehen",
                   "spur_glaetten_m", "camera_follow_glatt_m", "smooth_camera_3d"];
   function nurAblauf(patch) {
     const o = {};

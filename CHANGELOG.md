@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Documents of a tour: the tour page has a „Documents“ block — attach the announcement PDF, route description, tickets, notes (PDF, text, Markdown, Word, OpenDocument, Pages, spreadsheets, HTML) with „＋ Document …“ or by dragging them onto the left column. Files are only linked, never changed; a click opens them, ⋯ shows them in the Finder or detaches them. On macOS the first page shows as a preview. Their text counts for the archive search (each search word may be in the tour or in one of its documents); scanned PDFs without a text layer are reported. New bundled library pypdf (BSD-3, credits in About).
+- Running dot „Own picture“: the last tile of the dot shapes takes a picture of yours (camper, motorbike, avatar — PNG, JPG, WebP, HEIC) as the running dot of the main tour. „Badge“ shows it round in the line colour like the vehicles, „Free“ the picture itself (cut-out PNGs keep their shape); optionally it turns with the direction of travel. Same in preview and video; stored in the project (and in quick-video templates), travels with a project export (as PNG); if the picture is missing, the ball runs instead.
+- „Make a tour from these photos“ for real trips: a small map in the dialog shows the result before it is created (each day in its own colour, photos as dots, left-out ones red). Every travel day becomes its own stage (no line overnight); along paths every photo lies on the line — routing goes in pieces of up to 20 photos instead of 24 support points for the whole trip; every photo sits on the line at its capture time and between two photos the dot waits at the earlier one and sets off just in time (before, the time was spread evenly over the whole route, breaks and nights included); a photo with an impossible jump there and back (wrong GPS point) is left out; along paths the tour gets elevations from the terrain. The preview result is reused when creating, so the free routing service is asked only once.
+- Archive and Media, „By date“: Shift-click selects several rows — click one row, then another with Shift held, and everything in between is shown (e.g. 2023–2024, or 4–12 March). The chip reads the period („4–12 March 2026“), the rows inside are marked, a folded month that is only partly inside gets a line on the left. A normal click starts over.
+
+### Fixed
+- Animator, slow network: „Play“ could wait minutes (hourglass) before the preview started — the calm camera fetched its terrain heights tile by tile and waited without limit (long trips, hotel Wi-Fi). Tiles now load in parallel, and the preview waits at most 6 seconds, then starts with the map's own heights while the exact ones keep loading for the next play. The video render still waits for the exact heights.
+
 ## [0.9.789] – 2026-10-12
 
 ### Added

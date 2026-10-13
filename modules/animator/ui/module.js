@@ -103,6 +103,52 @@ function mountAnimator(body, headerActions, opts) {
     }
     return e.ok ? e.img : null;
   }
+  // 12.10.2026 (Marc: „dass man den eigenen Laufpunkt ändern können muss“) — Form „bild“: ein eigenes Bild (Wohnmobil,
+  // Motorrad, Avatar …). Pfad im Projekt (marker_dot_bild), Bild als data:-URL über die nur lesende Brücke
+  // laufpunkt_bild — so auch im Video-Render. „plakette“: rund in der Linienfarbe wie die Fahrzeuge, „frei“: das Bild
+  // selbst (freigestellte PNGs behalten ihre Transparenz).
+  const LP_FORMEN = ["plakette", "frei"];
+  const _lpBilder = new Map();   // Pfad → { img, ok, fehl, data }
+  function _lpBild(pfad) {
+    if (!pfad) return null;
+    let e = _lpBilder.get(pfad);
+    if (!e) {
+      e = { img: new Image(), ok: false, fehl: false, data: "" };
+      _lpBilder.set(pfad, e); _fzLaedt++;
+      const fertig = () => { _fzLaedt = Math.max(0, _fzLaedt - 1);
+        clearTimeout(_fzNeuT); _fzNeuT = setTimeout(() => { try { dotEbenenAufbauen(); dotSetzen(_dotFracZuletzt); _dotWahlZeichnen(); _dotBildZeileZeigen(); } catch (err) { applog("warn", "[dot] eigenes Bild: " + err); } }, 30); };
+      e.img.onload = () => { e.ok = true; fertig(); };
+      e.img.onerror = () => { e.fehl = true; fertig(); };
+      Promise.resolve(api() && api().laufpunkt_bild ? api().laufpunkt_bild(pfad) : null)   // warte-ok: Bild kommt im Hintergrund
+        .then((r) => { if (r && r.ok && r.data) { e.data = r.data; e.img.src = r.data; } else { e.fehl = true; fertig(); } })
+        .catch(() => { e.fehl = true; fertig(); });
+    }
+    return e.ok ? e.img : null;
+  }
+  /** Eigenes Bild als Kartensymbol ({width, height, data} wie _fahrzeugBild): Plakette = Kreis in der Linienfarbe mit
+   *  weißem Rand, das Bild füllt ihn (zugeschnitten); frei = das ganze Bild mit leichtem Schatten. */
+  function _laufpunktBildKarte(img, form, farbe) {
+    const d = 2, w = 46 * d, h = 46 * d;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.translate(w / 2, h / 2); g.scale(d, d);
+    const iw = img.naturalWidth || img.width || 1, ih = img.naturalHeight || img.height || 1;
+    if (form === "frei") {
+      const f = 42 / Math.max(iw, ih);
+      g.shadowColor = "rgba(0,0,0,0.38)"; g.shadowBlur = 4; g.shadowOffsetY = 1;
+      g.drawImage(img, -iw * f / 2, -ih * f / 2, iw * f, ih * f);
+    } else {
+      g.shadowColor = "rgba(0,0,0,0.38)"; g.shadowBlur = 5; g.shadowOffsetY = 1;
+      g.beginPath(); g.arc(0, 0, 19, 0, Math.PI * 2); g.fillStyle = farbe || "#d3e76b"; g.fill();
+      g.shadowColor = "transparent"; g.shadowOffsetY = 0;
+      g.save(); g.beginPath(); g.arc(0, 0, 17, 0, Math.PI * 2); g.clip();
+      const f = 34 / Math.min(iw, ih);
+      g.drawImage(img, -iw * f / 2, -ih * f / 2, iw * f, ih * f);
+      g.restore();
+      g.lineWidth = 2.6; g.strokeStyle = "#ffffff"; g.beginPath(); g.arc(0, 0, 17.6, 0, Math.PI * 2); g.stroke();
+    }
+    return { width: w, height: h, data: g.getImageData(0, 0, w, h).data };
+  }
   // Vorgabe für NEUE Projekte (01.09.2026, Marc: „größe, opacity und position
   // per default so, wie im aktuell offenen projekt").
   const WM_STANDARD = { path: "@lockup-white", x: 84.5, y: 91.3, w: 15, op: 0.65 };
@@ -725,7 +771,21 @@ function mountAnimator(body, headerActions, opts) {
                 <option value="dot">${t("animator.dot.style_dot", "Kugel")}</option>
                 <option value="arrow">${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>
                 ${FAHRZEUGE.map(f => `<option value="${f}">${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}
+                <option value="bild">${t("animator.dot.style_bild", "Eigenes Bild")}</option>
               </select>
+              <div class="dot-bild-zeile" id="anim-dot-bild-row" hidden>
+                <input type="hidden" id="anim-dot-bild">
+                <div class="dot-bild-kopf">
+                  <button type="button" class="btn btn-sm" id="anim-dot-bild-wahl">${(window.rzIcon ? rzIcon("image", { size: 14 }) : "")} ${t("animator.dot.bild_waehlen", "Bild wählen …")}</button>
+                  <span class="muted dot-bild-name" id="anim-dot-bild-name"></span>
+                </div>
+                <div class="dot-bild-formen" role="group">
+                  <button type="button" class="btn btn-sm dot-bild-form" data-lpform="plakette" title="${t("animator.dot.bild_plakette_tip", "Rund in der Linienfarbe, wie die Fahrzeuge")}">${t("animator.dot.bild_plakette", "Plakette")}</button>
+                  <button type="button" class="btn btn-sm dot-bild-form" data-lpform="frei" title="${t("animator.dot.bild_frei_tip", "Das Bild selbst — freigestellte PNGs behalten ihre Form")}">${t("animator.dot.bild_frei", "Frei")}</button>
+                </div>
+                <input type="hidden" id="anim-dot-bild-form" value="plakette">
+                <label class="checkbox-row"><input type="checkbox" id="anim-dot-bild-drehen"> ${t("animator.dot.bild_drehen", "Dreht sich mit der Fahrtrichtung")}</label>
+              </div>
               <label class="field-label dot-fzs-titel" style="margin-top:8px;" title="${t("animator.dot.fz_stil_tip", "Wie Fahrzeuge aussehen — auch auf geplanten Etappen")}">${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="label-val" id="anim-dot-fzs-v"></span></label>
               <div class="dot-wahl dot-fzs-wahl" id="anim-dot-fzs-wahl"></div>
               <select id="anim-dot-fz-stil" class="select" hidden>
@@ -7723,6 +7783,9 @@ function mountAnimator(body, headerActions, opts) {
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotFzStil()  { const v = document.getElementById("anim-dot-fz-stil")?.value; return FZ_STILE.includes(v) ? v : "plakette"; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
+  function dotBild()       { return document.getElementById("anim-dot-bild")?.value || ""; }
+  function dotBildForm()   { const v = document.getElementById("anim-dot-bild-form")?.value; return LP_FORMEN.includes(v) ? v : "plakette"; }
+  function dotBildDrehen() { return !!document.getElementById("anim-dot-bild-drehen")?.checked; }
   /** Rückblick in Metern (0 = aus): Pfeilrichtung aus der gezeichneten Linie (util.js kursRueckblickAn). */
   function dotRueckblick() {
     if (!document.getElementById("anim-dot-rb")?.checked) return 0;
@@ -7741,6 +7804,7 @@ function mountAnimator(body, headerActions, opts) {
    *  Vorschau zappelte deshalb auch dann noch, wenn der Render längst ruhig
    *  wäre. Beide benutzen jetzt dieselbe Formel (util.js → kursAusSpur, im
    *  Render gespiegelt als __rzKurs in core/animator.py). */
+  const DEM_WARTE_MS = 6000;   // 13.10.2026 — so lange wartet „Play“ höchstens auf die festen Geländehöhen (s. _faithBuild)
   function _kursAn(coords, i) {
     // 30.09.2026 — Schnell-Video: Richtung aus dem Rückblick der gezeichneten Linie (marker_dot_rueckblick_m, util.js)
     const _rb = dotRueckblick();
@@ -7913,6 +7977,19 @@ function mountAnimator(body, headerActions, opts) {
           layout: { "icon-image": "anim-fz", "icon-size": gr * (flug ? 1 : 0.85),
                     "icon-rotate": flug ? ["get", "brg"] : 0, "icon-rotation-alignment": flug ? "map" : "viewport",
                     "icon-pitch-alignment": flug ? "map" : "viewport", "icon-allow-overlap": true,
+                    "icon-ignore-placement": true } });
+      } else if (dst.style === "bild" && _lpBild(dotBild())) {
+        // 12.10.2026 — eigenes Bild (s. _laufpunktBildKarte); aufrecht zur Kamera oder mit dem Weg gedreht.
+        // Solange das Bild lädt oder fehlt (Projekt von einem anderen Rechner), bleibt es bei der Kugel (else-Zweig).
+        const dreh = dotBildDrehen();
+        try {
+          if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
+          map.addImage("anim-fz", _laufpunktBildKarte(_lpBild(dotBild()), dotBildForm(), farbe), { pixelRatio: 2 });
+        } catch (e) { applog("warn", "[dot] eigenes Bild auf die Karte: " + e); }
+        map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
+          layout: { "icon-image": "anim-fz", "icon-size": gr,
+                    "icon-rotate": dreh ? ["get", "brg"] : 0, "icon-rotation-alignment": dreh ? "map" : "viewport",
+                    "icon-pitch-alignment": dreh ? "map" : "viewport", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
       } else if (dst.style === "arrow") {
         try {
@@ -11228,7 +11305,13 @@ function mountAnimator(body, headerActions, opts) {
           let _demH = null;
           if (_demFest()) {
             try {
-              const r = await api().dem_hoehen(_plan.map((q) => [q.ll[0], q.ll[1]]), 13);
+              // 13.10.2026 (Klicktest, gedrosseltes Netz) — in der Vorschau höchstens DEM_WARTE_MS auf die festen Höhen warten,
+              // danach mit den Höhen der Karte weiter (else-Zweig unten); die Anfrage läuft weiter und füllt den Cache fürs
+              // nächste Play. Der Video-Render (__rzStepMode) wartet wie bisher — dort zählt die exakte Höhe.
+              const _demP = api().dem_hoehen(_plan.map((q) => [q.ll[0], q.ll[1]]), 13);
+              const r = window.__rzStepMode ? await _demP
+                : await Promise.race([_demP, new Promise((ok) => setTimeout(() => ok({ ok: false, error: "zeitgrenze" }), DEM_WARTE_MS))]);   // warte-ok: Sanduhr am Play-Knopf
+              if (r && r.error === "zeitgrenze") { try { applog("info", `[faith-build] Geländehöhen nach ${DEM_WARTE_MS} ms noch nicht da — Vorschau startet mit den Höhen der Karte`); } catch (_) {} }
               if (r && r.ok && Array.isArray(r.hoehen) && r.hoehen.length === _plan.length) _demH = r.hoehen;
               else { try { applog("warn", "[faith-build] dem_hoehen ohne Ergebnis: " + JSON.stringify(r && (r.error || { n_ok: r.n_ok, n: r.n }))); } catch (_) {} }
             } catch (e) { try { applog("warn", "[faith-build] dem_hoehen fehlgeschlagen: " + e); } catch (_) {} }
@@ -17048,9 +17131,13 @@ function mountAnimator(body, headerActions, opts) {
     const fzs = dotFzStil(), esc = _animEscapeHtml;
     const bild = (fz, s) => s && s !== "plakette" ? `<img src="${_fzPfad(fz + "_" + s)}" alt="" onerror="this.replaceWith(document.createTextNode('${_DOT_SYMBOL[fz]}'))">` : _DOT_SYMBOL[fz];
     if (formBox) {
-      formBox.innerHTML = ["dot", "arrow", ...FAHRZEUGE].map(f => {
-        const name = f === "dot" ? t("animator.dot.style_dot", "Kugel") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung") : t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f]));
-        return `<button type="button" class="dot-kachel${form === f ? " ist-an" : ""}" data-form="${f}" title="${esc(name)}"><span class="dot-kachel-bild">${FAHRZEUGE.includes(f) ? bild(f, fzs) : _DOT_SYMBOL[f]}</span></button>`;
+      const lp = _lpBilder.get(dotBild());
+      formBox.innerHTML = ["dot", "arrow", ...FAHRZEUGE, "bild"].map(f => {
+        const name = f === "dot" ? t("animator.dot.style_dot", "Kugel") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")
+          : (f === "bild" ? t("animator.dot.style_bild", "Eigenes Bild") : t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])));
+        const inhalt = f === "bild" ? (lp && lp.ok && lp.data ? `<img src="${lp.data}" alt="">` : (window.rzIcon ? rzIcon("image", { size: 18 }) : "＋"))
+          : (FAHRZEUGE.includes(f) ? bild(f, fzs) : _DOT_SYMBOL[f]);
+        return `<button type="button" class="dot-kachel${form === f ? " ist-an" : ""}" data-form="${f}" title="${esc(name)}"><span class="dot-kachel-bild">${inhalt}</span></button>`;
       }).join("");
       formBox.querySelectorAll("[data-form]").forEach(k => k.onclick = () => setForm(k.dataset.form));
     }
@@ -17065,7 +17152,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _dotWahlZeichnen() {
     _dotKacheln(document.getElementById("anim-dot-wahl"), document.getElementById("anim-dot-fzs-wahl"), dotStil(),
-      (f) => { const sel = document.getElementById("anim-dot-style"); sel.value = f; sel.dispatchEvent(new Event("change")); });
+      (f) => { const sel = document.getElementById("anim-dot-style"); _dotStilVorBild = sel.value; sel.value = f; sel.dispatchEvent(new Event("change")); });
     const v = document.getElementById("anim-dot-fzs-v"); if (v) v.textContent = t("animator.dot.fzs_" + dotFzStil(), FZ_STIL_NAMEN[dotFzStil()]);
   }
   function dotGeaendert(speichern) {
@@ -17089,6 +17176,7 @@ function mountAnimator(body, headerActions, opts) {
     // so beim Test in der laufenden App gesehen (02.09.2026).
     const smRow = document.getElementById("anim-dot-smooth-row");
     if (smRow) smRow.hidden = (dotStil() !== "arrow");
+    _dotBildZeileZeigen();
     const smV = document.getElementById("anim-dot-smooth-v");
     if (smV) smV.textContent = dotGlaettung() + " (" + kursGlaettung(dotGlaettung()).basisM + " m)";
     const rbAn = !!document.getElementById("anim-dot-rb")?.checked;
@@ -17102,7 +17190,8 @@ function mountAnimator(body, headerActions, opts) {
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.laufpunkt_geaendert", "Laufpunkt geändert")); } catch (_) {}   // 10.09.2026
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(), marker_dot_fz_stil: dotFzStil(),
                     marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(),
-                    marker_dot_rueckblick_m: dotRueckblick() };
+                    marker_dot_rueckblick_m: dotRueckblick(),
+                    marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
     else if (typeof saveSettings === "function") saveSettings({ animator: patch });
   }
@@ -17112,7 +17201,56 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-dot-rb-m")?.addEventListener("input", () => dotGeaendert(false));
   document.getElementById("anim-dot-rb-m")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-show")?.addEventListener("change", () => dotGeaendert(true));
-  document.getElementById("anim-dot-style")?.addEventListener("change", () => dotGeaendert(true));
+  document.getElementById("anim-dot-style")?.addEventListener("change", () => {
+    // „Eigenes Bild“ ohne Bild: gleich die Auswahl öffnen; abgebrochen → zurück zur vorigen Form
+    if (dotStil() === "bild" && !dotBild()) { _dotBildWaehlen(true); return; }
+    dotGeaendert(true);
+  });
+  var _dotStilVorBild = "dot";   // var: die Kachel-Wahl (früher im Code) setzt ihn
+  document.getElementById("anim-dot-style")?.addEventListener("focus", () => { _dotStilVorBild = dotStil(); });
+  async function _dotBildWaehlen(neu) {
+    let pfad = "";
+    try {
+      const res = await api().pick_file("open", [t("animator.dot.bild_filter", "Bilder") + " (*.png;*.jpg;*.jpeg;*.webp;*.heic)"], false);   // warte-ok: Systemdialog
+      pfad = Array.isArray(res) ? (res[0] || "") : (typeof res === "string" ? res : "");
+    } catch (e) { applog("warn", "[dot] Bild wählen: " + e); }
+    const sel = document.getElementById("anim-dot-style");
+    if (!pfad) {
+      if (neu && sel && !dotBild()) { sel.value = (_dotStilVorBild && _dotStilVorBild !== "bild") ? _dotStilVorBild : "dot"; }
+      dotGeaendert(false); return;
+    }
+    document.getElementById("anim-dot-bild").value = pfad;
+    if (sel) sel.value = "bild";
+    dotGeaendert(true);
+  }
+  function _dotBildZeileZeigen() {
+    const row = document.getElementById("anim-dot-bild-row");
+    if (!row) return;
+    row.hidden = dotStil() !== "bild";
+    const nm = document.getElementById("anim-dot-bild-name");
+    if (nm) {
+      const p = dotBild(), e = _lpBilder.get(p);
+      nm.textContent = !p ? t("animator.dot.bild_keins", "noch kein Bild") : (e && e.fehl ? t("animator.dot.bild_fehlt", "Bild nicht gefunden — es bleibt bei der Kugel") : p.split(/[\\/]/).pop());
+    }
+    row.querySelectorAll("[data-lpform]").forEach(b => b.classList.toggle("ist-an", b.dataset.lpform === dotBildForm()));
+    document.querySelectorAll("[data-lp-zeile]").forEach(_dotBildZeileFuellen);
+    try { if (_dotEditorFuellen) _dotEditorFuellen(); } catch (_) {}
+  }
+  /** Bildzeile im Track-Editor (rechts) aus den Animator-Feldern füllen. */
+  function _dotBildZeileFuellen(z) {
+    if (!z) return;
+    z.hidden = !(dotZeigen() && dotStil() === "bild");
+    const p = dotBild(), e = _lpBilder.get(p), n = z.querySelector("[data-lp-name]");
+    if (n) n.textContent = !p ? t("animator.dot.bild_keins", "noch kein Bild") : (e && e.fehl ? t("animator.dot.bild_fehlt", "Bild nicht gefunden — es bleibt bei der Kugel") : p.split(/[\\/]/).pop());
+    z.querySelectorAll("[data-lpform]").forEach(b => b.classList.toggle("ist-an", b.dataset.lpform === dotBildForm()));
+    const d = z.querySelector("[data-lp-drehen]"); if (d) d.checked = dotBildDrehen();
+  }
+  var _dotEditorFuellen = null;   // Track-Editor der Haupt-Tour (rechts), falls offen
+  document.getElementById("anim-dot-bild-wahl")?.addEventListener("click", () => { _dotStilVorBild = dotStil(); _dotBildWaehlen(false); });
+  document.querySelectorAll("#anim-dot-bild-row [data-lpform]").forEach(b => b.addEventListener("click", () => {
+    document.getElementById("anim-dot-bild-form").value = b.dataset.lpform; dotGeaendert(true);
+  }));
+  document.getElementById("anim-dot-bild-drehen")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-fz-stil")?.addEventListener("change", () => dotGeaendert(true));
   try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
   document.getElementById("anim-dot-size")?.addEventListener("input", () => dotGeaendert(false));
@@ -17165,6 +17303,9 @@ function mountAnimator(body, headerActions, opts) {
       if (stil) stil.value = a.marker_dot_style || "dot";
       const fzs = document.getElementById("anim-dot-fz-stil");
       if (fzs) fzs.value = FZ_STILE.includes(a.marker_dot_fz_stil) ? a.marker_dot_fz_stil : "plakette";
+      const lpb = document.getElementById("anim-dot-bild"); if (lpb) lpb.value = a.marker_dot_bild || "";
+      const lpf = document.getElementById("anim-dot-bild-form"); if (lpf) lpf.value = LP_FORMEN.includes(a.marker_dot_bild_form) ? a.marker_dot_bild_form : "plakette";
+      const lpd = document.getElementById("anim-dot-bild-drehen"); if (lpd) lpd.checked = !!a.marker_dot_bild_drehen;
       const gr = document.getElementById("anim-dot-size");
       if (gr && a.marker_dot_size) gr.value = a.marker_dot_size;
       const sm = document.getElementById("anim-dot-smooth");
@@ -21129,7 +21270,14 @@ function mountAnimator(body, headerActions, opts) {
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
         <div class="dot-wahl" data-dot-wahl></div>
-        <select data-stil="dot_style" hidden><option value="dot"${st.dot_style !== "arrow" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}</select></div>
+        <select data-stil="dot_style" hidden><option value="dot"${st.dot_style !== "arrow" && st.dot_style !== "bild" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}${ziel === "haupt" ? `<option value="bild"${st.dot_style === "bild" ? " selected" : ""}>${t("animator.dot.style_bild", "Eigenes Bild")}</option>` : ""}</select></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile dot-bild-zeile" data-nur-dot data-lp-zeile ${st.dot_show && !ganz && dotStil() === "bild" ? "" : "hidden"}>
+        <div class="dot-bild-kopf"><button type="button" class="btn btn-sm" data-lp-wahl>${(window.rzIcon ? rzIcon("image", { size: 14 }) : "")} ${t("animator.dot.bild_waehlen", "Bild wählen …")}</button>
+          <span class="muted dot-bild-name" data-lp-name></span></div>
+        <div class="dot-bild-formen" role="group">
+          <button type="button" class="btn btn-sm dot-bild-form" data-lpform="plakette" title="${_animEscapeHtml(t("animator.dot.bild_plakette_tip", "Rund in der Linienfarbe, wie die Fahrzeuge"))}">${t("animator.dot.bild_plakette", "Plakette")}</button>
+          <button type="button" class="btn btn-sm dot-bild-form" data-lpform="frei" title="${_animEscapeHtml(t("animator.dot.bild_frei_tip", "Das Bild selbst — freigestellte PNGs behalten ihre Form"))}">${t("animator.dot.bild_frei", "Frei")}</button></div>
+        <label class="checkbox-row"><input type="checkbox" data-lp-drehen${dotBildDrehen() ? " checked" : ""}> ${t("animator.dot.bild_drehen", "Dreht sich mit der Fahrtrichtung")}</label></div>` : ""}
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="muted">(${t("animator.dot.fz_stil_alle", "alle Fahrzeuge")})</span></label>
         <div class="dot-wahl dot-fzs-wahl" data-fzs-wahl></div></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
@@ -21138,8 +21286,21 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
     {   // 07.10.2026 — Laufpunkt-Kacheln: Klick setzt die (versteckte) Liste, deren Änderung wie bisher verarbeitet wird
       const sel = el.querySelector('[data-stil="dot_style"]'), fb = el.querySelector("[data-dot-wahl]"), zb = el.querySelector("[data-fzs-wahl]");
-      const fuellen = () => _dotKacheln(fb, zb, sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); });
+      const fuellen = () => _dotKacheln(fb, zb, ziel === "haupt" ? dotStil() : sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); });
       if (sel && fb) fuellen();
+      // 12.10.2026 — „Eigenes Bild“ (nur Haupt-Tour): die Zeile spiegelt die Animator-Felder; nach der Bildauswahl
+      // (oder Abbruch) zieht _dotBildZeileZeigen Kacheln und Zeile nach
+      if (ziel === "haupt" && sel && fb) {
+        _dotEditorFuellen = () => { if (document.body.contains(fb)) { sel.value = dotStil(); fuellen(); } };
+        el.querySelector("[data-lp-wahl]")?.addEventListener("click", () => { _dotStilVorBild = dotStil(); _dotBildWaehlen(false); });
+        el.querySelectorAll("[data-lp-zeile] [data-lpform]").forEach(b => b.addEventListener("click", () => {
+          document.getElementById("anim-dot-bild-form").value = b.dataset.lpform; dotGeaendert(true);
+        }));
+        el.querySelector("[data-lp-drehen]")?.addEventListener("change", (e) => {
+          const c = document.getElementById("anim-dot-bild-drehen"); if (c) { c.checked = e.target.checked; c.dispatchEvent(new Event("change")); }
+        });
+        _dotBildZeileFuellen(el.querySelector("[data-lp-zeile]"));   // el hängt hier noch nicht im Dokument
+      }
     }
     el.querySelectorAll("[data-blass]").forEach(inp => inp.addEventListener(inp.type === "range" ? "input" : "change", () => {
       const art = inp.dataset.blass;

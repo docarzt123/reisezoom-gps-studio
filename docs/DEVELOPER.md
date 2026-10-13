@@ -7446,6 +7446,59 @@ Test: `tests/test_linie_ecken.py`.
   Erster Lauf 12.10.2026: **69 min statt 144–151**. Nur unter Last rot (einzeln grün) waren drei Klicktests, die auf kurze
   Zwischenzustände warten („wird eingelesen …“, „wird gesucht …“, Neustart): `fotos_startort`, `etappe_ohne_gps`,
   `videoassistent_vorschau` → stehen jetzt in `ALLEIN_MUSTER`.
+- **Dokumente zur Tour (`core/dokumente.py`, 12.10.2026):** Tabelle `tour_dokumente(tour, pfad, name, art, groesse, mtime,
+  text_norm, n_zeichen, added_at)`, Schlüssel = `tracks.tour_id` (sonst `gh:<geo_hash>`; `track_hash_migrieren` zieht
+  `gh:`-Schlüssel mit). Nur Verknüpfung, die Datei wird nie angefasst (Dateischutz unberührt). Text: PDF über **pypdf**
+  (neu gebündelt, Spec `collect_submodules`, Credits), .txt/.md/.csv direkt, .docx/.odt aus dem ZIP, HTML ohne Tags;
+  `text_norm` = `library._norm(name + text)`, höchstens 40 000 Zeichen. Suche: `library._DOKUMENTE_DA` (gesetzt in
+  `schema_anlegen`/`verknuepfen`) → in `_build_where` je Wort `(FTS-MATCH oder LIKE) OR tour_id IN (… text_norm LIKE …)`;
+  ohne Dokumente bleibt die Abfrage unverändert. Vorschau `vorschau()` über `exif.extract_quicklook_thumbnail` (macOS) bzw.
+  Pillow. Brücken `tour_dokumente`, `tour_dokumente_hinzu`, `tour_dokument_entfernen`, `tour_dokument_vorschau`; UI
+  `tourseite.js` `_dokumente` (eigene Drop-Zone auf `.ts-links`, nur `nativePath`). Test: `test_tour_dokumente.py`.
+- **Geländehöhen der ruhigen Kamera bei langsamem Netz (13.10.2026):** `demsample.hoehen` holt alle gebrauchten
+  Kacheln (samt Randnachbarn) zuerst parallel (8 Fäden), dann wird abgetastet (20 Kacheln à 0,3 s: 6,4 s → < 2 s,
+  `test_demsample.test_kacheln_kommen_parallel`). `_faithBuild` wartet in der Vorschau höchstens `DEM_WARTE_MS` (6 s) auf
+  `dem_hoehen` (Promise.race), sonst Kartenhöhen; im Render (`__rzStepMode`) unverändert ohne Grenze. Gefunden mit einem
+  drosselnden CONNECT-Proxy (Kacheln 20 s, sonst 3 s; App mit HTTPS_PROXY, leerer Kachel-Cache): vorher > 4 min Sanduhr
+  bei Schottland (39 Tage), danach Start nach 6 s.
+- **Laufpunkt „Eigenes Bild“ (12.10.2026):** Form `bild` in `#anim-dot-style` (nicht als Etappen-Verkehrsart, nicht für
+  Begleit-Touren). Projekt: `marker_dot_bild` (Pfad), `marker_dot_bild_form` (`plakette`|`frei`), `marker_dot_bild_drehen`.
+  Bild über die nur lesende Brücke `laufpunkt_bild(path)` (Pillow, 256 px, PNG-data:-URL mit Alpha, Cache je Pfad+mtime) —
+  läuft so auch im Video-Render (`core/szene._SCHREIBEND` sperrt nur pick_/open_ …). `_lpBild` zählt in `_fzLaedt` mit,
+  der Render wartet also über `fzBilder`. Zeichnung `_laufpunktBildKarte` (Canvas 46×46 pt wie `_fahrzeugBild`). Fehlt
+  das Bild → Kugel-Zweig. Im `.rzproj`-Paket über `projektpaket.EINZELBILDER` als PNG (`marker_dot_bild_vorschau`), beim
+  Einspielen `einzelbilder_umbiegen` (drei Import-Wege in app.py). Tests: `test_laufpunkt_bild.py`, `test_laufpunkt_bild_paket.py`.
+- **Tour aus Fotos (`core/fotospur.py`, 12.10.2026):** `spur_aus_fotos(fotos, profil, route_fn)` — Ausreißer (`ausreisser`:
+  Umweg > 1 km und > 2× direkt, Tempo > VMAX je Profil; Ränder: Sprung > 2 km), Gruppierung nach `tag_lokal` → je Tag ein
+  `seg` (GPX `<trkseg>` via `trackio.to_gpx_string(..., segmente=True)`, App liest Etappen), Orte ≤ 25 m zusammengefasst,
+  Wegeführung in Stücken ≤ `MAX_WP`=20 mit Überlappung (`_stellen`: Foto-Index vorwärts, Suchgrenze 3× Luftlinie + 2 km),
+  Zeit je Abschnitt: Fahrt mit `TYPISCH_KMH` (gerade: Median der Abschnitte), Rest = Stand beim früheren Foto. Bridge
+  `tour_aus_fotos(pfade, profil, name, vorschau)`: `vorschau=True` liefert Linien/Fotos/Ausreißer für die Dialogkarte und
+  merkt das Ergebnis (`_taf_merk`), das Anlegen nimmt es und füllt Höhen über `_etappe_hoehen`. Tests: `test_fotospur.py`
+  (Attrappe Wegedienst), `test_tour_aus_fotos.py`.
+- Stempel aus dem Nachtlauf: Die Suite auf der Kopie schreibt `.rz_suite_gruen.json` in die Kopie. Nach einem grünen Lauf
+  übernimmt `nachtlauf.stempel_uebernehmen` ihn in den Arbeitsordner (nur einen aus genau diesem Lauf), damit
+  `deploy_release.sh` die Suite nicht wiederholt. Gültig wie immer nur, wenn der Arbeitsstand beim Spiegeln sauber war
+  und bis zum Tag nur Doku dazukam. Test: `tests/test_nachtlauf_stempel.py`.
+  Rote Tests prüft der Nachtlauf danach einzeln nach (höchstens 15, je 30 min); sind alle einzeln grün, ist der Lauf
+  grün mit Vermerk „Nur parallel rot, einzeln grün: …“ in LETZTER-LAUF.txt, und `_stempel_nach_einzelpruefung` schreibt
+  den Stempel (nur bei sauberer Kopie). `run_tests.ALLEIN_NAMEN` für einzelne Dateien ohne Muster (test_logbuch).
+- **Brücke in Oberflächentests in Threads (13.10.2026):** Die meisten Playwright-Tests rufen `api.<name>` direkt in
+  `expose_function` auf — synchron in der asyncio-Schleife. Ein langsamer Netzaufruf (Ortsnamen/POIs) hielt so den GANZEN
+  Test an (Profil: Browser 98 % untätig, ein Klick „dauerte“ 70–115 s). In der App ruft pywebview jede Brücke in einem
+  eigenen Thread. Umgestellt (`async def bridge` → `run_in_executor`): test_logbuch 441–492 s → ~190 s,
+  test_codexlauf_2509_ui 728 s → 150 s, test_tourseite_logbuch 390 → 111 s, test_schilder_viele 278 → 103 s,
+  test_farbe_je_tag 251 → 155 s, test_videoassistent_vorlagen 114 → 89, _medien 75 → 32, test_schnellvideo_fotostopps
+  91 → 39, test_ton_und_clips 79 → 55, test_gebaeude_3d 83 → 55, test_linien_look 68 → 52, test_archiv_menue_markiert
+  66 → 54, test_flug_in_der_luft 65 → 49, test_schnellvideo_mehr 64 → 24 (test_codexlauf3_ordner_zeit_punkte unverändert 146 s).
+  Dritte Runde: test_schnellvideo_abbruch 60 → 33, _uebernehmen 54 → 29, test_schnellvideo 57 → 41, test_klickrunde_0510
+  59 → 47, test_etappe_animator 55 → 43, test_fotostopp 54 → 40, test_kacheln_vorwaermen 49 → 36. Zurück auf synchron
+  (kein Gewinn): test_codexlauf3_hoehe_route_punkte, test_ladeflagge. Stand 13.10.: 22 Tests mit Thread-Brücke. Werkzeug zum Umstellen mit
+  Messung: ein Test je Lauf, rot → zurück. **Nicht** umgestellt: test_videoassistent_halte (prüft dann zu früh) und
+  test_videoassistent_geschichte — mit Thread-Brücke stürzte die WebKit-Seite ab („Page crashed“), synchron grün; offen, ob
+  die App bei vielen gleichzeitigen Brückenaufrufen (Fotos der Mehrtagesreise) ähnlich an ihre Grenze kommt. Die übrigen
+  ~105 Tests folgen schrittweise, jeder einzeln gemessen. Danach warten Tests auf Netz-Ergebnisse ausdrücklich
+  (test_logbuch: POIs bis 40 s, sonst „Netzausfall“ statt rot).
 - `tests/szene_umgebung._ordner_klonen`: der Kachel-Cache der Testumgebung (2,3 GB) als Vorlage je 12 h neben den Test-Temps,
   je Test ein APFS-Klon (`cp -c`): 2,4 s statt ~14 s Aufbau (54 Oberflächentests).
 - `core/exif.reap_orphan_daemons`: räumt nur Daemons ab, deren Elternprozess weg ist (`ps -o ppid=` == 1). Vorher nur am

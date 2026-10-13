@@ -407,7 +407,11 @@ und darunter ihre Bedienung:
   Kacheln: Plakette (das gezeichnete Symbol) oder fotorealistisch, Bleistift & Aquarell, Comic,
   Piktogramm, Kupferstich, Neon, Pixel-Art, Blaupause, Papier, Knete. Diese Bilder sind von oben
   gezeichnet, liegen flach auf der Karte und drehen sich mit der Fahrtrichtung — auch auf geplanten
-  Etappen. Eine eigene
+  Etappen. **Eigenes Bild (seit v0.9.790):** Die letzte Kachel nimmt ein Bild von dir als Laufpunkt — dein Wohnmobil,
+  dein Motorrad, ein Avatar. Klick darauf öffnet die Bildauswahl (PNG, JPG, WebP, HEIC); **Plakette** zeigt es rund in der
+  Linienfarbe wie die Fahrzeuge, **Frei** das Bild selbst (ein freigestelltes PNG behält seine Form). „Dreht sich mit der
+  Fahrtrichtung“ legt es flach auf den Weg, sonst steht es aufrecht. Größe über den Regler; Vorschau und Video sehen gleich
+  aus. Gilt für die Haupt-Tour; beim Projekt-Export reist das Bild mit. Fehlt es trotzdem, läuft die Kugel. Eine eigene
   Sektion „Linie" gibt es seit v0.9.683 nicht mehr, ein globales „Laufpunkt" und das
   Häkchen „Form der Haupt-Tour für alle" auch nicht; ein neuer Track übernimmt beim
   Hinzufügen das Aussehen von Track 1. Das gilt auf jeder Spur: auch eine Tour, die
@@ -1219,6 +1223,15 @@ entfernt, von dir herausgenommen) — anhaken, fertig. In den Details eines Foto
 **„＋ Zu einer Tour hinzufügen …“**. Diese Korrekturen gelten **überall in GPS Studio** — im Archiv, im Animator
 („Medien der Tour“) und im Schnell-Video.
 
+**Dokumente zur Tour (seit v0.9.790):** Links auf der Tour-Seite steht der Block **„Dokumente“** — für die Ankündigung als
+PDF, die Routenbeschreibung, Tickets, eine Teilnehmerliste. **„＋ Dokument …“** oder Dateien einfach auf die linke Spalte
+ziehen (PDF, Text, Markdown, Word, OpenDocument, Pages, Tabellen, HTML). Die Datei bleibt, wo sie ist, und wird nie
+verändert — GPS Studio merkt sich nur die Verknüpfung. Ein Klick öffnet sie im zuständigen Programm, **⋯** zeigt sie im
+Finder oder löst sie von der Tour (die Datei bleibt). Auf dem Mac steht die erste Seite als kleines Vorschaubild da. Der
+**Text** der Dokumente zählt für die Archiv-Suche: Steht „Schwarzenburg“ nur in der PDF-Ankündigung, findet die Suche
+trotzdem die Tour. Eingescannte PDFs ohne Textebene zählen nicht (GPS Studio sagt das beim Hinzufügen). Ist eine Datei
+verschoben oder das Laufwerk ab, steht „nicht gefunden“ dabei.
+
 **Großansicht wie ein Leuchttisch:** unten der Filmstreifen (die Fotos, durch die du blätterst), rechts die Karte mit
 der Tour und dem Punkt des Fotos, darunter Aufnahmedaten und Touren — ein Klick auf eine Tour öffnet ihre Tour-Seite.
 
@@ -1230,7 +1243,12 @@ Touren.
 **Aus Fotos eine Tour machen:** Kein GPX dabei, aber Fotos mit Ort? Markiere sie in den Medien (⌘-Klick) und wähle per
 Rechtsklick **„🧭 Tour aus diesen Fotos machen …“** — oder klicke im Tageskopf auf **„🧭 Tour aus diesen Fotos“**. Die
 Fotos werden in der Reihenfolge ihrer Aufnahme verbunden, als gerade Linien oder **entlang von Wegen** (zu Fuß, Rad,
-Auto). Die neue Tour landet im Archiv und öffnet gleich ihre Tour-Seite.
+Auto). Die neue Tour landet im Archiv und öffnet gleich ihre Tour-Seite. **Seit v0.9.790:** Eine kleine Karte im Dialog
+zeigt vorab, was herauskommt — jeder Tag in eigener Farbe, die Fotos als Punkte. Jeder Reisetag wird eine eigene
+**Etappe** (keine Linie über Nacht), jedes Foto liegt genau zu seiner Aufnahmezeit auf der Linie, und zwischen zwei Fotos
+wartet der Punkt beim früheren und geht so spät los, dass er rechtzeitig ankommt — die Mittagspause wird nicht mehr über
+die Strecke verschmiert. Ein Foto mit offensichtlich falschem Ort (unmöglicher Sprung hin und zurück) bleibt weg und
+steht in der Vorschau rot. Mit Wegen bekommt die Tour Höhen aus dem Gelände.
 
 **Tage und Reisen:** Im Medien-Raster stehen im Kopf jedes Tages die **Touren dieses Tages** — ein Klick öffnet die
 Tour-Seite. Eine **Sammlung** (z. B. „Teneriffa 2026“) hat oben den Knopf **„🗺 Reise-Seite ▸“**, mehrere markierte
@@ -1455,7 +1473,9 @@ hebt es wieder auf. Die App merkt sich den zuletzt gewählten Bereich.
 mit der Zahl der Touren, und deine beobachteten Ordner mit allen Unterordnern (Unterordner zählen mit). Ein Klick auf
 ein Jahr, einen Monat oder einen Ordner klappt ihn auf und zeigt genau diese Touren; ein zweiter Klick klappt ihn zu
 und hebt die Auswahl auf. Das Datum landet im Zeitraum-Feld oben („eigener Zeitraum“), der Ordner als Chip
-**„📁 Touren › 2024 ✕“**; **Filter zurücksetzen** räumt beides.
+**„📁 Touren › 2024 ✕“**; **Filter zurücksetzen** räumt beides. **Mit ⇧ (Shift) mehrere Zeilen:** erst eine Zeile normal
+anklicken, dann eine zweite mit gedrückter Shift-Taste — gezeigt wird alles dazwischen, z. B. 2023 bis 2024 oder
+vom 4. bis 12. März (seit v0.9.790).
 
 **Weiter filtern** — in der Leiste über den Touren:
 
@@ -1879,7 +1899,10 @@ Links unter **📅 Nach Datum** klappst du deinen Bestand auf wie in Lightroom: 
 **Tag** („Mittwoch, 4. März“), jeweils mit der Zahl der Fotos. Ein Klick auf ein Jahr oder einen Monat klappt ihn auf
 oder zu wie der kleine Pfeil und zeigt beim Aufklappen genau diesen Zeitraum; ein Klick auf einen Tag zeigt diesen Tag; oben steht dann ein Chip wie **„📅 März 2026 ✕“** — ✕, ein zweiter
 Klick auf dieselbe Zeile oder **Alle** heben die Auswahl wieder auf. Was auf- und zugeklappt ist, merkt
-sich die App.
+sich die App. **Mehrere Tage, Monate oder Jahre (seit v0.9.790):** erst eine Zeile anklicken, dann eine zweite mit
+gedrückter **⇧ (Shift)** — gezeigt wird alles dazwischen, der Chip heißt dann z. B. **„4.–12. März 2026“**. Markiert
+sind die Zeilen im Zeitraum; ein zugeklappter Monat, der nur teilweise drinliegt, bekommt links einen Strich. Ein
+normaler Klick fängt wieder neu an.
 
 ### Nach Ordner (seit v0.9.781)
 

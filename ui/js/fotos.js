@@ -363,7 +363,7 @@
      zeigt genau diesen Zeitraum (Filter von/bis auf den Aufnahmetag). Daten: api.fotos_datumsbaum (alle Tage, ohne
      Datumsfilter); auf-/zugeklappt wird je Gerät gemerkt. */
   const DB_KEY = "rz-fotos-datumsbaum";
-  let dbTage = null, dbSchluessel = "", dbLaedt = false;
+  let dbTage = null, dbSchluessel = "", dbLaedt = false, dbAnker = null;
   const dbOffen = rzBaum.offenLaden(DB_KEY);
   function dbMerken() { rzBaum.offenMerken(DB_KEY, dbOffen); }
   /** Text des aktiven Datumsfilters — für den Chip in der Leiste (Bausteine: rzBaum in ui/js/util.js). */
@@ -403,12 +403,16 @@
     box.querySelectorAll("[data-dbauf]").forEach(b => {
       b.onclick = (e) => { e.stopPropagation(); const k = b.dataset.dbauf; if (dbOffen.has(k)) dbOffen.delete(k); else dbOffen.add(k); dbMerken(); datumsBaumZeichnen(box); };
     });
-    box.querySelectorAll("[data-dbwahl]").forEach(b => { b.onclick = () => datumWaehlen(b.dataset.dbwahl); });
+    box.querySelectorAll("[data-dbwahl]").forEach(b => {
+      b.onmousedown = (e) => { if (e.shiftKey) e.preventDefault(); };   // ⇧-Klick markiert sonst Text
+      b.onclick = (e) => datumWaehlen(b.dataset.dbwahl, e.shiftKey);
+    });
   }
   /** Zeitraum wählen (Regel in rzBaum.datumKlick: Jahr/Monat klappen um wie der Pfeil — Marc, 04.10.2026). */
-  function datumWaehlen(k) {
+  function datumWaehlen(k, shift) {
     filter = Object.assign({}, filter);
-    const neu = rzBaum.datumKlick(k, dbOffen, filter.von, filter.bis);
+    const neu = rzBaum.datumKlick(k, dbOffen, filter.von, filter.bis, { shift, anker: dbAnker });
+    dbAnker = neu.anker;
     dbMerken();
     if (neu.von) { filter.von = neu.von; filter.bis = neu.bis; delete filter.jahr; } else { delete filter.von; delete filter.bis; }
     navZeichnen();

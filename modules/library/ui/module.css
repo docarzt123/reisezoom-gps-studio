@@ -1852,3 +1852,24 @@ canvas.foto-gross-bild { display: block; }
 
 /* 11.10.2026 — Großansicht aus dem Video-Assistenten/Schnell-Video: über deren Fenster */
 .foto-gross.ganz-oben, .foto-gross.im-layout.ganz-oben { z-index: 4000; }
+/* 12.10.2026 — „Nach Datum“: Zeile, die nur teilweise im gewählten Zeitraum liegt (zugeklappter Monat beim ⇧-Klick) */
+.foto-db-zeile.is-teil { box-shadow: inset 2px 0 0 var(--accent); }
+/* 12.10.2026 — Tour aus Fotos: Vorschaukarte und Zusammenfassung im Dialog */
+.taf-karte { height: 240px; }
+.taf-info { margin-top: 6px; min-height: 18px; font-size: 12.5px; color: var(--text-2, inherit); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.taf-fehler { color: var(--danger, #ef4444); }
+/* 12.10.2026 — Dokumente zur Tour (Tour-Seite, linke Spalte) */
+.ts-dokumente { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.ts-dok-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-2, inherit); }
+.ts-dok-kopf > span { display: inline-flex; align-items: center; gap: 6px; }
+.ts-dok-liste { display: flex; flex-direction: column; gap: 4px; }
+.ts-dok { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border, rgba(255,255,255,.1)); background: var(--bg-3, rgba(255,255,255,.03)); min-width: 0; }
+.ts-dok:hover { border-color: var(--accent, #48d6c4); }
+.ts-dok.ist-weg { opacity: .55; cursor: default; }
+.ts-dok-bild { width: 34px; height: 44px; flex: 0 0 34px; display: flex; align-items: center; justify-content: center; border-radius: 4px; overflow: hidden; background: var(--bg-2, rgba(255,255,255,.06)); }
+.ts-dok-bild img { width: 100%; height: 100%; object-fit: cover; }
+.ts-dok-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ts-dok-text b { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-dok-text small { font-size: 11px; color: var(--muted, #8a9aa6); }
+.ts-dok-leer { font-size: 11.5px; }
+.ts-links.ts-dok-ziel { outline: 2px dashed var(--accent, #48d6c4); outline-offset: -4px; }

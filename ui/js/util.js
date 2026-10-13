@@ -5008,6 +5008,12 @@ window.rzBaum = (function () {
     if (v === b) return tagName(v) + " " + v.slice(0, 4);
     if (v.slice(5) === "01-01" && b.slice(5) === "12-31" && v.slice(0, 4) === b.slice(0, 4)) return v.slice(0, 4);
     if (v.slice(0, 7) === b.slice(0, 7) && v.endsWith("-01")) { const [y, m] = v.split("-").map(Number); return monatName(y, m) + " " + y; }
+    // 12.10.2026 (Shift-Klick) — freier Zeitraum lesbar: „3.–7. März 2026“, „28. Februar – 2. März 2026“
+    try {
+      const f = new Intl.DateTimeFormat(sprache(), { day: "numeric", month: "long", year: "numeric" });
+      const d = (x) => { const [y, m, t] = x.split("-").map(Number); return new Date(y, m - 1, t); };
+      if (f.formatRange) return f.formatRange(d(v), d(b));
+    } catch (_) {}
     return v + " – " + b;
   }
   function kopfHtml(id, offen, icon, text) {
@@ -5033,25 +5039,42 @@ window.rzBaum = (function () {
       if (!J.monate.has(m)) J.monate.set(m, { n: 0, tage: [] });
       const M = J.monate.get(m); M.n += t.n; M.tage.push(t);
     }
-    const an = (k) => { const [v, b] = zeitraum(k); return von === v && bis === b; };
-    const tip = (stufe) => stufe < 3 ? T("fotos.db_zeigen_klappen", "Auf- oder zuklappen und diesen Zeitraum zeigen") : T("fotos.db_zeigen", "Nur diesen Zeitraum zeigen");
+    // 12.10.2026 (Marc: „mit Shift mehrere Zeilen auswählen“) — markiert ist jede Zeile, die ganz im Zeitraum liegt, deren
+    // Eltern-Zeile aber nicht (Monat März statt aller 31 Tage); eine Zeile, die nur teilweise drinliegt, bekommt is-teil
+    const drin = (k) => { if (!von || !bis) return false; const [v, b] = zeitraum(k); return v >= von && b <= bis; };
+    const teil = (k) => { if (!von || !bis) return false; const [v, b] = zeitraum(k); return v <= bis && b >= von; };
+    const tip = (stufe) => (stufe < 3 ? T("fotos.db_zeigen_klappen", "Auf- oder zuklappen und diesen Zeitraum zeigen") : T("fotos.db_zeigen", "Nur diesen Zeitraum zeigen"))
+      + "\n" + T("fotos.db_shift", "⇧-Klick: Zeitraum bis hierher erweitern");
     const z = [];
     for (const y of [...baum.keys()].sort().reverse()) {
       const J = baum.get(y);
-      z.push(zeileHtml("data-dbauf", "data-dbwahl", y, "foto-db-s1", 0, y, J.n, true, offen.has(y), an(y), tip(1)));
+      const yAn = drin(y);
+      z.push(zeileHtml("data-dbauf", "data-dbwahl", y, "foto-db-s1" + (!yAn && teil(y) ? " is-teil" : ""), 0, y, J.n, true, offen.has(y), yAn, tip(1)));
       if (!offen.has(y)) continue;
       for (const m of [...J.monate.keys()].sort()) {
         const M = J.monate.get(m), [yy, mm] = m.split("-").map(Number);
-        z.push(zeileHtml("data-dbauf", "data-dbwahl", m, "foto-db-s2", 0, monatName(yy, mm), M.n, true, offen.has(m), an(m), tip(2)));
+        const mAn = !yAn && drin(m);
+        z.push(zeileHtml("data-dbauf", "data-dbwahl", m, "foto-db-s2" + (!yAn && !mAn && teil(m) ? " is-teil" : ""), 0, monatName(yy, mm), M.n, true, offen.has(m), mAn, tip(2)));
         if (!offen.has(m)) continue;
-        for (const t of M.tage) z.push(zeileHtml("data-dbauf", "data-dbwahl", t.tag, "foto-db-s3", 0, tagName(t.tag), t.n, false, false, an(t.tag), tip(3)));
+        for (const t of M.tage) z.push(zeileHtml("data-dbauf", "data-dbwahl", t.tag, "foto-db-s3", 0, tagName(t.tag), t.n, false, false, !yAn && !mAn && drin(t.tag), tip(3)));
       }
     }
     return z.join("");
   }
-  /** Klick auf eine Datumszeile → neuer Filter {von, bis} (null = keiner); `offen` wird angepasst. */
-  function datumKlick(k, offen, von, bis) {
+  /** Klick auf eine Datumszeile → neuer Filter {von, bis, anker} (von null = keiner); `offen` wird angepasst.
+      `art.shift` + `art.anker` (die zuletzt normal angeklickte Zeile): Zeitraum vom Anker bis hier, wie im Finder —
+      klappt nichts um, der Anker bleibt (12.10.2026). */
+  function datumKlick(k, offen, von, bis, art) {
     const [v, b] = zeitraum(k);
+    if (art && art.shift && art.anker && von) {
+      const [a1, a2] = zeitraum(art.anker);
+      return { von: a1 < v ? a1 : v, bis: a2 > b ? a2 : b, anker: art.anker };
+    }
+    const r = datumKlickEinzeln(k, offen, von, bis, v, b);
+    r.anker = (r.von === v && r.bis === b) ? k : (r.von ? (art && art.anker) || null : null);
+    return r;
+  }
+  function datumKlickEinzeln(k, offen, von, bis, v, b) {
     if (k.length < 10 && offen.has(k)) {
       offen.delete(k);
       [...offen].forEach(o => { if (o.startsWith(k + "-")) offen.delete(o); });

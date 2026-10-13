@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import io
+import os
 import json
 import zipfile
 from pathlib import Path
@@ -146,6 +147,35 @@ def _etappen_einpacken(schreiben, kopie: dict) -> None:
             t["etappe_zip"] = name
 
 
+#: 12.10.2026 — einzelne Bildfelder je Modul (kein Listenfeld wie BILD_FELDER): (Modul, Pfadfeld, Vorschau-Feld).
+#: Das eigene Laufpunkt-Bild kommt als PNG mit (Transparenz!), der Einspieler biegt das Pfadfeld über
+#: `einzelbilder_umbiegen` auf die mitgebrachte Kopie, wenn das Original auf diesem Rechner fehlt.
+EINZELBILDER = (("animator", "marker_dot_bild", "marker_dot_bild_vorschau"),
+                ("tourmap", "marker_dot_bild", "marker_dot_bild_vorschau"))
+
+
+def _png_vorschau(pfad: str, kante: int = 512):
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(pfad) as im:
+            im = ImageOps.exif_transpose(im).convert("RGBA")
+            im.thumbnail((kante, kante))
+            buf = io.BytesIO()
+            im.save(buf, "PNG")
+            return buf.getvalue()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def einzelbilder_umbiegen(proj: dict) -> None:
+    """Beim Einspielen: fehlt das Original eines Einzelbilds, auf die mitgebrachte Kopie zeigen."""
+    for modul, feld, vfeld in EINZELBILDER:
+        m = proj.get(modul) if isinstance(proj, dict) else None
+        if isinstance(m, dict) and m.get(vfeld) and not os.path.exists(str(m.get(feld) or "")):
+            m["original_" + feld] = m.get(feld)
+            m[feld] = m[vfeld]
+
+
 def _bilder_einpacken(schreiben, projekte: dict) -> dict:
     """Fotos/Schild-Bilder als Vorschauen ins ZIP; liefert die Kopie der
     Projekte, in der die Pfade durch die ZIP-Namen ersetzt sind (05.09.2026
@@ -173,6 +203,17 @@ def _bilder_einpacken(schreiben, projekte: dict) -> dict:
                 schreiben(name, bild)
                 eintrag["vorschau"] = name
                 schon[(ordner, quelle_bild)] = name
+        for modul, feld, vfeld in EINZELBILDER:
+            m = proj.get(modul)
+            if not isinstance(m, dict) or not m.get(feld) or not os.path.isfile(str(m[feld])):
+                continue
+            png = _png_vorschau(str(m[feld]))
+            if png is None:
+                continue
+            nummern["bilder"] = nummern.get("bilder", 0) + 1
+            name = f"bilder/{nummern['bilder']:04d}.png"
+            schreiben(name, png)
+            m[vfeld] = name
     return kopie
 
 
