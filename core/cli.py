@@ -300,10 +300,22 @@ async def _render(app, api, gpx: str, a) -> dict:
                     gesetzt = await page.evaluate(f"() => typeof window.__rzSchnellLaenge === 'function' ? window.__rzSchnellLaenge({s}) : null")
                 if gesetzt != s:
                     raise CliFehler(f"--length {s}: could not be set in the dialog (got {gesetzt})")
-            if a.no_photos:
-                await page.evaluate("""() => { const c = document.getElementById('sv-fotos-an');
-                    if (c && c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } }""")
+            # 13.10.2026 — Fotos ausdrücklich an oder aus: der Dialog übernimmt sonst die zuletzt in der App gewählte
+            # Einstellung („Fotos aus“ vom letzten Mal → Video ohne Fotos, obwohl --no-photos nicht gesetzt war)
+            await page.evaluate("""(an) => { const c = document.getElementById('sv-fotos-an');
+                if (c && c.checked !== an) { c.checked = an; c.dispatchEvent(new Event('change', { bubbles: true })); } }""",
+                                not a.no_photos)
             await page.wait_for_timeout(600)
+            # 13.10.2026 — Fotos und Clips sucht der Dialog im Hintergrund; vorher losgeschickt, entstand das Video ohne
+            # Fotos. Warten, bis die Suche durch ist (Zustand des Dialogs, window.__rzSchnellGeladen).
+            if not a.no_photos:
+                await _warte(page, "() => typeof window.__rzSchnellGeladen === 'function' && window.__rzSchnellGeladen()", 180,
+                             "photos and clips found")
+                await page.wait_for_timeout(300)
+                # nach dem Laden noch einmal: ohne gefundene Fotos schaltet der Dialog den Haken selbst aus — das bleibt so
+                await page.evaluate("""() => { const c = document.getElementById('sv-fotos-an');
+                    if (c && !c.checked && document.querySelector('#sv-fotos [data-sv-foto]')) { c.checked = true;
+                    c.dispatchEvent(new Event('change', { bubbles: true })); } }""")
             await page.evaluate("() => document.getElementById('sv-animator').click()")
             fertig = await _warte(page, "() => window.__rzSchnellFertig", 240, "project ready")
             name = (fertig or {}).get("name") or Path(gpx).stem

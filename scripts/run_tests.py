@@ -113,6 +113,16 @@ if _EXT_TEMP.parent.parent.is_dir() and not os.environ.get("TMPDIR", "").startsw
     os.environ["TMPDIR"] = str(_EXT_TEMP) + "/"
 
 
+# 13.10.2026 — Netz-Konserve (core/netzkonserve.py): Photon/Nominatim/Overpass beantworten die Tests aus Aufnahmen statt
+# übers Netz (langsames Photon machte die Suite rot). Ein gemeinsamer Ordner auf der externen Platte — Arbeitsordner und
+# Nacht-Kopie (rsync --delete) nutzen dieselben Aufnahmen. `--live-netz` schaltet sie aus.
+_KONSERVE = Path("/Volumes/MacMini 2TB Acasis/GPS-Studio-Testdaten/netz-konserve")
+if not _KONSERVE.parent.parent.is_dir():
+    _KONSERVE = REPO / "tests" / "netz_konserve"
+if "--live-netz" not in sys.argv and not os.environ.get("RZ_NETZ_KONSERVE"):
+    os.environ["RZ_NETZ_KONSERVE"] = str(_KONSERVE)
+
+
 def netz_da() -> bool:
     import socket
     try:

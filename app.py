@@ -14752,7 +14752,9 @@ class Api:
             kandidaten = []
             for f in zu:
                 bei = f["idx"] / (n - 1)
-                if alle or f.get("manuell") or 0.03 < bei < 0.97:
+                # 13.10.2026 (Web-Feedback „das letzte Bild ist nur ganz kurz zu sehen … am Endpunkt länger stehen lassen“,
+                # wie die Web-Fassung) — Fotos bis zum Ziel; nur am Start bleibt die 3-%-Regel (dort läuft der Titel)
+                if alle or f.get("manuell") or 0.03 < bei <= 1.0:
                     kandidaten.append(dict(f, bei=bei, **merkmale(f)))
             wahl = sorted(kandidaten, key=lambda f: f["bei"])[: max(1, int(n_max))] if alle else []   # „alle": selbst gewählt
             if not alle:

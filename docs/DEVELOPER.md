@@ -7553,3 +7553,21 @@ Test: `tests/test_linie_ecken.py`.
   Chromium braucht `python -m playwright install --with-deps chromium-headless-shell` (System-Bibliotheken, sudo).
   ffmpeg kommt über `imageio-ffmpeg` (pip), System-ffmpeg ist optional.
 
+## Netz-Konserve für Tests (13.10.2026)
+- `core/netzkonserve.py`: ist `RZ_NETZ_KONSERVE` gesetzt, biegt der Import von `core` (`core/__init__.py`)
+  `urllib.request.urlopen` um — nur für `photon.komoot.io`, `nominatim.openstreetmap.org`, `overpass-api.de`,
+  `overpass.kumi.systems`. Vorhandene Aufnahme → sofort; fehlt → einmal echt fragen, Erfolg (2xx) ablegen
+  (`<ordner>/<host>/<sha256(url+body)>.json`). Alle anderen Adressen gehen durch. In der App nie aktiv.
+- `scripts/run_tests.py` setzt den Ordner: `/Volumes/MacMini 2TB Acasis/GPS-Studio-Testdaten/netz-konserve` (gemeinsam
+  für Arbeitsordner und Nacht-Kopie), sonst `tests/netz_konserve`. `--live-netz` = ohne Konserve (echte Dienste prüfen).
+  Einzeln gestartete Tests nutzen sie nur mit gesetzter Variable.
+- Test: `tests/test_netzkonserve.py`. Messung: fünf netzlastige Tests 441 s (Aufnahme) → 328 s (Abspielen).
+
+## Schnell-Video: letztes Foto am Ziel (13.10.2026, wie die Web-Fassung)
+- `schnellvideo_fotos`: Kandidaten `0.03 < bei <= 1.0` (vorher `< 0.97`).
+- `schnellvideo.js letztesFotoLaenger(schilder, animS)` in `schilderJetzt`: letztes Sofortbild mit `__bei >= 0.85` →
+  `before >= 2 - rest`, `after >= rest + HOLD_S`, `exit: fade 0.4` (rest = Sekunden bis zum Ziel). Prüfstand
+  `window.__rzLetztesFotoLaenger`; Test `tests/test_letztes_foto.py`.
+- Kommandozeile: wartet auf `window.__rzSchnellGeladen()` (Fotos/Clips gefunden) und setzt `#sv-fotos-an` ausdrücklich
+  (sonst erbte sie „Fotos aus“ vom letzten Mal in der App).
+

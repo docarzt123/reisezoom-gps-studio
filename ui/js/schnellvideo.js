@@ -532,6 +532,21 @@
              entry: "pop", entry_s: 0.5, before: 0.4, after: 2.5, exit: "mini", exit_s: 0.8, visible: true, __bei: k.bei,
              ...(eigen ? { __eigenText: true } : {}) };
   }
+  /** 13.10.2026 (Web-Feedback: „Beim Einfügen von Bildern ist das letzte Bild nur ganz kurz zu sehen. Besser wäre es, wenn
+   *  das Bild zum Endpunkt länger stehen bleibt“; übernommen aus der Web-Fassung, damit beide gleich aussehen) — ein Sofortbild
+   *  kurz vor dem Ziel stand 2,5 s und schrumpfte dann im Herauszoomen zur Schlusskarte. Jetzt: das letzte Sofortbild in den
+   *  letzten 15 % erscheint spätestens 2 s vor dem Ziel und bleibt bis zum Ende stehen, dann blendet es weich aus. */
+  function letztesFotoLaenger(schilder, animS) {
+    let best = null;
+    for (const x of schilder || []) if (x && x.style === "sofortbild" && x.imageSrc && isFinite(x.__bei) && (!best || x.__bei > best.__bei)) best = x;
+    if (!best || best.__bei < 0.85 || !(animS > 0)) return null;
+    const rest = (1 - best.__bei) * animS;   // Sekunden bis zum Ziel
+    best.before = Math.max(+best.before || 0, Math.max(0, 2 - rest));
+    best.after = Math.max(+best.after || 0, rest + HOLD_S);
+    best.exit = "fade"; best.exit_s = 0.4;
+    return best;
+  }
+  window.__rzLetztesFotoLaenger = letztesFotoLaenger;   // Prüfstand
   /** 05.10.2026 — Gründe des Video-Assistenten (core/videoassistent.py) lesbar, für den Tooltip im Dialog. */
   function grundText(gr) {
     return (gr || []).map(g => {
@@ -1567,6 +1582,8 @@
       fotosInfo(); vorschau.inhalt();
       return laengeS(w);
     };
+    // 13.10.2026 — Kommandozeile: erst losschicken, wenn Fotos und Clips gefunden sind (sonst entstand das Video ohne Fotos)
+    window.__rzSchnellGeladen = () => !w.fotosLaden && !w.fotosWarten && !!w.clipsGeladen;
     (async () => {
       // 11.10.2026 — Mediathek noch nicht bereit (Laufwerk/NAS wird verbunden, Einlesen läuft, Bibliothek öffnet):
       // „Warten auf die Mediathek …“ und alle 3 s neu fragen (höchstens 3 min), statt gleich „keine Fotos“ zu melden
@@ -2053,6 +2070,7 @@
           x.stopp_s = Math.max(1, Math.round((+x.stopp_s || STOPP.sek) * f * 10) / 10);
         });
       }
+      letztesFotoLaenger(st, animSJetzt());
       const lbListe = w.lbWahl ? w.lb.filter((x, i) => w.lbWahl.has(i)) : w.lb;
       const lbSchilder = (an("sv-logbuch") && lbListe.length) ? logbuchAnwenden(st, lbListe, (v.regie || []).map(r => r.bei), !!w.lbWahl, lbRand(w)) : [];
       return st.map(x => { const o = Object.assign({}, x); delete o.__bei; delete o.__eigenText; return o; }).concat(lbSchilder);

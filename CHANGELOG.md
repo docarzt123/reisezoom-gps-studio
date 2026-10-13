@@ -14,7 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Quick video: photos count right up to the destination (before, the last 3 % of the route were left out, so a photo at the destination was missing). The last instant print in the final 15 % appears at the latest 2 s before the destination and stays until the end of the video, then fades out — before it was visible for only 2.5 s and shrank during the zoom-out to the closing card. Same behaviour as the web version.
+
 ### Fixed
+- Command line `gpsstudio render`: the video could come out without photos — it started before the dialog had found them, and it took over „photos off“ from the last time in the app. It now waits for the photo search and switches photos on unless `--no-photos` is given.
 - Linux: the app crashed right at start („… has invalid format“, Trace/breakpoint trap) — GTK rejected menu entries with brackets, „…“ or umlauts in their internal names. The menu now uses plain internal names; the titles stay the same.
 
 ### Changed
