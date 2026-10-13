@@ -90,6 +90,7 @@ from core import gpx as cgpx
 from core import medienexport as cmedex
 from core import oeffnen_mit as coeffnen
 from core import entwickeln as cent   # 08.10.2026 — Fotos/Clips exportieren (oben importiert, damit es ins Paket kommt)
+from core import schonend as cschonend   # 13.10.2026 — Einlesen/Inhaltssuche auf Hintergrund-Stufe des Systems
 from core import tempo as ctempo   # 08.09.2026 — Tempo-Kurve (Raffung, Halte, Abschnitte)
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
@@ -190,6 +191,10 @@ APP_VERSION = "0.9.789"
 # Not-Aus stehen — ein Wert, ein Schalter, falls wieder etwas Größeres an der
 # Datenbasis ansteht.
 CLOUD_STILLGELEGT = False
+# 13.10.2026 — Kommandozeile (`gpsstudio …`, core/cli.py): Api() ohne Nebenwirkungen — keine Migration, keine
+# Bibliotheks-Sperre, kein Register-Lauf, keine Cloud. Das Archiv öffnet core/cli nur lesend, Projekte liegen in einem
+# Temp-Ordner. So darf die Kommandozeile neben der offenen App laufen.
+CLI_MODUS = False
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1790,7 +1795,8 @@ class Api:
         # v0.9.529 — Sessions einmalig auf den kanonischen geo_hash
         # umschlüsseln — BEVOR irgendein Thread (Cloud-Auto-Sync liest
         # sessions.json roh!) die Datei anfasst.
-        self._sessions_migrieren()
+        if not CLI_MODUS:   # 13.10.2026 — Kommandozeile: nichts migrieren, nichts sperren, nichts schreiben
+            self._sessions_migrieren()
         # E1 (29.08.2026): einmalige Überführung Sessions → Projekte.
         # Läuft NACH der alten Schema-2-Migration (geo_hash-Schlüssel), damit
         # auch uralte Bestände sauber ankommen. sessions.json wird danach zu
@@ -1800,7 +1806,9 @@ class Api:
         # Datei im App-Ordner eine LEERE Ablage, die Aufräumen und Cloud-Wächter in die Irre führte.
         # Übrig gebliebene leere Ablagen wandern in den Papierkorb von GPS Studio.
         _bib_da = bool(BIB_ORT) and cbib.ist_bibliothek(BIB_ORT)
-        if _bib_da and not SESSIONS_FILE.exists():
+        if CLI_MODUS:
+            pass
+        elif _bib_da and not SESSIONS_FILE.exists():
             self._leere_app_ablage_wegraeumen()
         elif not SESSIONS_FILE.exists():
             # 25.09.2026 (Klicktest ER-01): Erststart ohne Bibliothek und ohne
@@ -1837,12 +1845,13 @@ class Api:
         # bestimmt, wo Archiv, Projekte und Tour-Register liegen. Ist sie es
         # nicht (Erststart, Platte ab, belegt, defekt), läuft die App trotzdem
         # an und erklärt es — sie fasst dann aber keine Daten an.
-        self._bib_oeffnen()
+        if not CLI_MODUS:
+            self._bib_oeffnen()
         # Das Archiv holt sich die Tour-Zuordnung von hier (Schnitt 2).
         clib.REGISTER_HOOK = self._register_fuer_archiv
         clib.AUFNAHME_HOOK = self._archiv_aufnehmen
         # E2: Tour-Register — Alt-Einträge bekommen UUID + Fassung 1.
-        if BIB_BEREIT:
+        if BIB_BEREIT and not CLI_MODUS:
             try:
                 _projekte.register_lauf(DATEN_ORT)
             except Exception:
@@ -1853,7 +1862,9 @@ class Api:
         # sonst liefe ein Thread, der alle 20 s in eine Datenbasis schaut,
         # die gerade umgebaut wird.
         self._cloud_auto_thread = None
-        if not CLOUD_STILLGELEGT:
+        if CLI_MODUS:
+            pass
+        elif not CLOUD_STILLGELEGT:
             self._cloud_auto_start()
         else:
             log.info("Cloud-Archiv stillgelegt (Bibliotheks-Umbau) — "
@@ -2227,6 +2238,24 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ── Settings ──────────────────────────────────────────────────────────────
+
+    # 13.10.2026 — Kommandozeile `gpsstudio` (core/cli.py): Einstellungen → Für Fortgeschrittene
+    def cli_status(self) -> dict:
+        try:
+            from core import cli as _cli
+            return _cli.status(ROOT)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def cli_einrichten(self) -> dict:
+        try:
+            from core import cli as _cli
+            r = _cli.einrichten(ROOT)
+            log.info("[cli] Befehl eingerichtet: %s", r)
+            return r
+        except Exception as e:
+            log.exception("cli_einrichten")
+            return {"ok": False, "error": str(e)}
 
     def settings_get(self) -> dict:
         """Liefert alle persistierten Settings (mit Defaults aufgefüllt)."""
@@ -5265,6 +5294,9 @@ class Api:
 
         def worker():
             conn = None
+            # 13.10.2026 (Marc: „braucht echt viele Ressourcen … drosseln?") — Hintergrund-Stufe: Schnittprogramm,
+            # Animator und Oberfläche haben immer Vorrang; die Lesefäden dieses Laufs erben bzw. setzen sie auch
+            cschonend.hintergrund()
             try:
                 # Eigene Verbindung: der Scan läuft lange, die Oberfläche fragt
                 # währenddessen weiter ab (core/library serialisiert per Lock).
@@ -5346,21 +5378,17 @@ class Api:
                             self._foto_scan_state["schon"] = max(0, int(ges) - cfotos.ohne_bild(conn))
                         except Exception:  # noqa: BLE001
                             pass
-                        if _load_settings().get("inhalt_an"):
-                            try:
-                                self.inhalt_aufholen(auto=True)   # 06.10.2026 — Inhaltssuche läuft mit und leert den Vorrat
-                            except Exception:  # noqa: BLE001
-                                log.exception("[inhalt] mitstarten")
                         r3 = cfotos.durchgang3(
                             conn,
                             fortschritt=lambda n, g: self._foto_scan_state.update(
                                 {"phase": "bilder", "done": n, "total": g}),
                             stop=lambda: self._foto_scan_stop, aktuell=_aktuell,
                             schaetzung=lambda r: self._foto_scan_state.update({"rest_s": r, "rest_am": time.time()}),
-                            # 06.10.2026 (Marc: B) — Schnellbild aus dem EXIF-Vorschaubild, außer die Inhaltssuche ist an:
-                            # dann wird die Datei ohnehin ganz gelesen (A: ein Lesevorgang für Raster UND Suche)
-                            schnell=not bool(_load_settings().get("inhalt_an")),
-                            vorrat=bool(_load_settings().get("inhalt_an")) and cinhalt.verfuegbar())
+                            # 06.10.2026 (Marc: B) — Schnellbild aus dem EXIF-Vorschaubild. 13.10.2026 (Marc: „bau A") —
+                            # auch bei eingeschalteter Inhaltssuche: erst das Raster (nur der Dateianfang), die Suche
+                            # liest danach in ihrem eigenen Lauf. Vorher las Schritt 3 dafür jede Datei ganz (Marcs Log:
+                            # ~30 MB je Bild, 0,7–4 s je Bild, 0 Schnellbilder → Tage statt Stunden).
+                            schnell=True, vorrat=False)
                         self._foto_scan_state.update({"bilder": r3})
                 self._foto_scan_state["stand"] = cfotos.stand(conn)
                 self._foto_scan_state["aktuell"] = ""
@@ -6851,6 +6879,7 @@ class Api:
 
         def worker():
             idx = conn = None
+            cschonend.hintergrund()   # 13.10.2026 — Bildinhalte erfassen nur, wenn sonst niemand rechnet (auch die Modell-Fäden)
             try:
                 if not cinhalt.modell_da(APP_SUPPORT, v):
                     r = cinhalt.modell_laden(
@@ -18880,4 +18909,12 @@ if __name__ == "__main__":
     _st = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--selbsttest=")), None)
     if _st:
         sys.exit(_selbsttest(_st))
+    # 13.10.2026 — Kommandozeile: `ReisezoomGPSStudio cli <command> …` (bzw. der eingerichtete Befehl `gpsstudio`);
+    # die Windows-Konsolenfassung `gpsstudio.exe` (ReisezoomGPSStudio.spec) startet am Namen erkannt direkt so
+    if len(sys.argv) > 1 and sys.argv[1] == "cli":
+        from core import cli as _cli
+        sys.exit(_cli.main(sys.argv[2:], sys.modules[__name__]))
+    if getattr(sys, "frozen", False) and os.path.splitext(os.path.basename(sys.executable))[0].lower() == "gpsstudio":
+        from core import cli as _cli
+        sys.exit(_cli.main(sys.argv[1:], sys.modules[__name__]))
     main()

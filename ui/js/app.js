@@ -493,6 +493,16 @@ async function openSettingsModal(reiter) {
           <span>${t("settings.start_weiter.label", "Beim Start dort weitermachen, wo ich aufgehört habe")}</span>
         </label>
         <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.start_weiter.help", "Öffnet das zuletzt bearbeitete Projekt mit seiner Tour und im selben Modul. Aus = die App startet im Archiv.")}</p>
+        <!-- 13.10.2026 — Kommandozeile gpsstudio (core/cli.py): Touren suchen, Videos und Kartenbilder aus Skripten -->
+        <details class="set-fortgeschritten" style="margin-top:16px;">
+          <summary style="cursor:pointer; font-size:12.5px; font-weight:600;">${t("settings.advanced", "Für Fortgeschrittene")}</summary>
+          <p class="muted" style="margin-top:8px; font-size:11.5px; line-height:1.5;">${t("settings.cli.help", "Mit der Kommandozeile machen Skripte und andere Programme Videos und Kartenbilder deiner Touren — ohne dass jemand klickt. Beispiel: gpsstudio render \"Gantrisch\" --template landscape --out video.mp4")}</p>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px;">
+            <button type="button" class="btn btn-sm" id="md-cli-einrichten">${rzIcon ? rzIcon("square-terminal", { size: 14 }) : ""} ${t("settings.cli.setup", "Kommandozeile einrichten")}</button>
+            <a href="#" class="md-about-link" id="md-cli-hilfe">${t("settings.cli.manual", "Anleitung im Handbuch")}</a>
+          </div>
+          <p class="muted" id="md-cli-stand" style="margin-top:6px; font-size:11px; line-height:1.5;"></p>
+        </details</p>
       </div>
 
       <div class="set-panel" data-panel="karten" hidden>
@@ -1159,6 +1169,27 @@ function _bindSettingsModalHandlers() {
   try { _bindMapQuiz(); } catch (_) {}
   document.querySelectorAll(".rz-ext-link").forEach(a => { a.onclick = (e) => { e.preventDefault(); api().open_url(a.dataset.url); }; });
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
+  // 13.10.2026 — Kommandozeile einrichten (Für Fortgeschrittene)
+  (() => {
+    const stand = document.getElementById("md-cli-stand");
+    const zeigen = (r) => {
+      if (!stand || !r) return;
+      if (!r.ok) { stand.textContent = r.error || t("common.error", "Fehler"); return; }
+      if (!r.eingerichtet) { stand.textContent = t("settings.cli.not_set_up", "Noch nicht eingerichtet."); return; }
+      let txt = t("settings.cli.ready", "Eingerichtet: der Befehl „gpsstudio“ liegt in {p}.").replace("{p}", r.pfad);
+      if (!r.aktuell) txt += " " + t("settings.cli.outdated", "Er zeigt auf eine andere Kopie der App — noch einmal einrichten.");
+      if (!r.im_path) txt += " " + t("settings.cli.path_hint", "Falls das Terminal ihn nicht findet: {o} zum PATH hinzufügen (siehe Handbuch).").replace("{o}", r.ordner);
+      stand.textContent = txt;
+    };
+    Promise.resolve(api().cli_status ? api().cli_status() : null).then(zeigen).catch(() => {});   // warte-ok: nur Anzeige
+    document.getElementById("md-cli-einrichten")?.addEventListener("click", async () => {
+      const r = await rzWarten("cli_einrichten", () => api().cli_einrichten()).catch(e => ({ ok: false, error: String(e) }));
+      zeigen(r);
+      if (r && r.ok) toast(t("settings.cli.done", "Kommandozeile eingerichtet — im Terminal: gpsstudio tours"), "success", 5000);
+      else toast((r && r.error) || t("common.error", "Fehler"), "error");
+    });
+    document.getElementById("md-cli-hilfe")?.addEventListener("click", (e) => { e.preventDefault(); api().open_user_guide(t("settings.cli.manual_anker", "8b-kommandozeile-gpsstudio-f-r-skripte")).catch(() => null); });
+  })();
   document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });
   document.getElementById("md-tc-clear")?.addEventListener("click", async () => {
     const r = await rzWarten("tile_cache_clear", () => api().tile_cache_clear()).catch(() => ({ ok: false }));

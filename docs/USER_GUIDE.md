@@ -1963,9 +1963,11 @@ Kopf jeder Datei, das geht auch auf dem NAS zügig, und danach funktionieren Suc
 3. die Vorschaubilder. **Seit 06.10.2026 nimmt die App dafür bei JPEGs das kleine Vorschaubild, das die Kamera schon
 in die Datei geschrieben hat** — sie liest nur rund 2 % der Datei statt alles übers Netz, das macht Schritt 3 vielfach
 schneller. Im Raster werden die Bilder, die du gerade siehst, still durch scharfe ersetzt. RAW-Dateien neben einem
-gleichnamigen JPG übernehmen dessen Bild. **Ist die Inhaltssuche an**, liest Schritt 3 jede Datei einmal ganz und legt
-dabei gleich das Bild für die Suche mit ab — die Suche muss das NAS dann nicht ein zweites Mal lesen und erfasst schon
-während des Einlesens. Nach einem Neustart macht die App erst das Einlesen fertig und schaut danach (spätestens nach
+gleichnamigen JPG übernehmen dessen Bild. **Seit v0.9.790 auch bei eingeschalteter Inhaltssuche:** erst kommt das Raster
+(nur der Dateianfang), danach erfasst die Suche in ihrem eigenen Lauf. Vorher las Schritt 3 dafür jede Datei ganz — bei
+großen Fotos auf dem NAS dauerte das Tage statt Stunden. **Einlesen und Inhaltssuche laufen schonend:** auf der
+Hintergrund-Stufe des Systems, also nur mit der Leistung, die gerade niemand braucht. Schneidest du nebenher ein Video oder
+arbeitest im Animator, tritt das Einlesen von selbst zurück — ohne Einstellung, ohne Pause-Knopf. Nach einem Neustart macht die App erst das Einlesen fertig und schaut danach (spätestens nach
 24 Stunden) nach neuen Dateien. Wo du gerade hinschaust, kommen die Bilder sofort. **Schließt du die App mittendrin, geht nichts verloren:** Ordner, die schon fertig geprüft sind, merkt
 sich die App sofort; beim nächsten Start geht es dort weiter („macht weiter, wo sie aufhörte“), und Schritt 2 zählt
 mit, was schon gelesen ist. Willst du das nicht — unterwegs am Hotspot, im fremden WLAN — nimm
@@ -2199,7 +2201,7 @@ Track nimmst du weiterhin den **Geotagger** (Kapitel 6).
 
 *(Seit v0.9.782 nicht mehr in der Seitenleiste: der Umschalter ist entfallen, die Schritte kommen später als Video-Assistent wieder — ein eigener Knopf neben „Schnell-Video“. Der folgende Absatz beschreibt die Zwischenversion.)* **Einfach oder Feinarbeit (seit v0.9.782).** Ganz oben in der Seitenleiste schaltest du zwischen **Einfach** und **Feinarbeit** um. *Einfach* zeigt nur fünf Schritte — **Route** (Tour, Länge, Format — 16:9, 9:16, 1:1, 4:5, 4:3 oder 21:9), **Look** (die vier fertigen Looks), **Orte & Fotos** (Höhepunkte, Fotos, Schnell-Video), **Kamera** (Fest · Folgen · Kamerafahrt) und **Export** — mit der großen Vorschau daneben. *Feinarbeit* ist der volle Animator mit allen Abschnitten. Beide Ansichten bearbeiten **dasselbe Projekt**: was du in der einfachen Ansicht wählst, steht in der Feinarbeit genauso da (und umgekehrt), ⌘Z gilt für beide. Die App merkt sich, welche Ansicht du zuletzt benutzt hast. **Beim allerersten Start** fragt die App nach dem Einrichten einmal: *Was möchtest du machen?* — **Video erstellen**, **Track verbessern** oder **Fotos verorten** — und bringt dich direkt ins passende Werkzeug. Neue Nutzer starten den Animator in der einfachen Ansicht.
 
-**Seitenleisten und Detail-Spalte (seit 06.10.2026).** Links steht immer die Seitenleiste des Moduls, rechts öffnet sich bei Bedarf der **Editor des gerade Angeklickten** (Schild, Einblendung) — die Karte rückt dafür zur Seite und wird nie verdeckt. **Esc** oder **✕** schließt ihn; es steht immer nur ein Editor rechts. Beide Seitenleisten ziehst du am Rand mit der Maus **breiter oder schmaler** — in jedem Modul, im Archiv an beiden Rändern; die App merkt sich die Breite je Modul. Doppelklick auf den Rand setzt sie zurück. **Fortschrittskästen** unten rechts („Fotos einlesen · Schritt 3 von 3 …“) klappst du mit **–** auf eine schmale Zeile ein; sie laufen weiter, ein Klick klappt sie wieder auf.
+**Seitenleisten und Detail-Spalte (seit 06.10.2026).** Links steht immer die Seitenleiste des Moduls, rechts öffnet sich bei Bedarf der **Editor des gerade Angeklickten** (Schild, Einblendung) — die Karte rückt dafür zur Seite und wird nie verdeckt. **Esc** oder **✕** schließt ihn; es steht immer nur ein Editor rechts. Beide Seitenleisten ziehst du am Rand mit der Maus **breiter oder schmaler** — in jedem Modul, im Archiv an beiden Rändern; die App merkt sich die Breite je Modul. Doppelklick auf den Rand setzt sie zurück. **Fortschrittskästen** unten rechts („Fotos einlesen · Schritt 3 von 3 …“) klappst du mit **–** auf eine schmale Zeile ein; sie laufen weiter, ein Klick klappt sie wieder auf. Genauso der Fortschritt oben im Kopf der **Medien** (seit v0.9.790): **–** lässt nur Schritt, Prozent und Restzeit mit dem Balken stehen, ein Klick auf die Zeile zeigt wieder alles.
 
 **Kamera-Karte (seit 06.10.2026).** Oben im Abschnitt *Kamera* stehen nur drei Dinge: die **Kameraführung** (*Fest* · *Folgen* · *Start → Ziel* · *Kamerafahrt*), die **Höhe über Gelände** (in Metern bzw. Kilometern, genau wie im Video) und der **Blickwinkel**. Einen Tempo-Regler gibt es nicht — das Tempo ergibt sich aus der Videolänge. Drehung, Trägheit, Glättung, ruhige Kamera und der Keyframe-Editor liegen unter **Mehr**; klickst du einen Keyframe in der Zeitleiste an, klappt *Mehr* von selbst auf. Hast du schon eigene Keyframes, schaltet *Kamerafahrt* sie nur wieder ein, statt sie zu ersetzen. **Start → Ziel** stellt die Kamera über den Start und lässt sie in einer ruhigen Fahrt zum Ziel gleiten (zwei Keyframes, frei änderbar); hast du eigene Keyframes, fragt die App vorher.
 
@@ -3435,6 +3437,42 @@ zweites Projekt für dieselbe Tour an.
 
 ---
 
+## 8b · Kommandozeile — gpsstudio für Skripte (seit v0.9.790)
+
+Mit der Kommandozeile machen Skripte und andere Programme Videos und Kartenbilder deiner Touren — ohne dass jemand
+klickt. Beispiel: ein Wanderarchiv mit 120 Touren, aus dem jede Nacht die neuen Touren ein 9:16-Video bekommen.
+
+**Einrichten:** Einstellungen → Allgemein → **Für Fortgeschrittene** → **„Kommandozeile einrichten“**. Auf dem Mac
+liegt der Befehl danach in `~/.local/bin/gpsstudio`. Findet das Terminal ihn nicht, einmal
+`echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc` ausführen und ein neues Terminal öffnen. Auf Windows liegt
+`gpsstudio.cmd` in einem Ordner, der schon im Suchpfad ist. Wird die App verschoben, einfach noch einmal einrichten.
+
+**Befehle** (Befehle und Schalter sind englisch, damit sie überall gleich sind):
+
+```
+gpsstudio tours --search "Gantrisch 2025"          # Touren als Liste (id, Name, Datum, km, Datei)
+gpsstudio templates                                # Vorlagen: landscape, memory, social und deine ★-Vorlagen
+gpsstudio render "Gantrisch" --template landscape --out video.mp4
+gpsstudio render tour.gpx --template "Mein Wanderlook" --format 9:16 --length 40 --out ~/Videos/
+gpsstudio map-image 11660e04ed1c9695 --out karte.png
+```
+
+- **Tour:** eine GPX-/FIT-/…-Datei (irgendwo, muss nicht im Archiv liegen), die **id** aus `gpsstudio tours` oder ein
+  eindeutiger Name. Passen mehrere Touren, bricht der Befehl ab und nennt die Kandidaten.
+- **Vorlage:** `landscape` (Weite), `memory` (Erinnerung), `social` oder der Name einer eigenen ★-Vorlage — die legst du
+  in der App an (Schnell-Video oder Video-Assistent → „★ Als Vorlage speichern“) und rufst sie hier beim Namen auf.
+- **Schalter:** `--format 16:9|9:16|1:1`, `--length` (Sekunden, 15–600), `--no-photos`, `--out` (Datei oder Ordner;
+  ohne: der Render-Ordner der App), `--overwrite`, `--library <Ordner>` (eine andere Bibliothek).
+- **Nie überschreiben:** Gibt es die Zieldatei schon, kommt ein Zeitstempel vor den Namen — außer mit `--overwrite`.
+
+**Was ein Skript zurückbekommt:** Der Fortschritt steht zeilenweise auf stderr (in der Sprache der App), am Ende steht
+genau **eine JSON-Zeile** auf stdout, z. B. `{"ok": true, "file": "/…/video.mp4", "duration_s": 84}` oder
+`{"ok": false, "error": "…"}`. Exit-Code 0 = ok, 1 = Fehler, 2 = falscher Aufruf.
+
+**Sicher neben der App:** Die Kommandozeile liest dein Archiv nur — sie ändert nichts daran und darf laufen, während
+GPS Studio offen ist. Das Video entsteht genau wie in der App (Schnell-Video mit der gewählten Vorlage, Fotostopps aus
+deinem Archiv, Musik, Schlusskarte); das Projekt dafür liegt nur kurz in einem Temp-Ordner.
+
 ## 9 · Hilfe, Feedback & Bug-Reports
 
 ### Hilfe-Menü
@@ -3481,7 +3519,7 @@ Die Inhaltssuche findet Fotos nach dem, was darauf zu sehen ist — „Sonnenunt
 - **Wo liegt was?** Das **Modell** liegt außerhalb der App, im App-Ordner: Mac `~/Library/Application Support/Reisezoom GPS Studio/inhaltssuche/`, Windows `%APPDATA%\Reisezoom GPS Studio\inhaltssuche\`. Der **Index** (die Vektoren, gut 1,5 KB je Foto) liegt in deiner **Bibliothek** im Ordner `inhaltsindex/`.
 - **Was passiert, wenn ich eine neue Version der App draufkopiere?** **Nichts geht verloren.** Modell und Index liegen nicht in der App, die neue Version findet beide und lädt nichts neu. Nur wenn eine spätere Version ein **anderes** Modell mitbringt, lädt sie das einmal und erfasst die Fotos neu — der Index merkt sich, mit welchem Modell er gebaut wurde. Der alte bleibt, bis du ihn löschst.
 - **Und auf einem anderen Rechner?** Der Index zieht mit der Bibliothek um. Das Modell lädt jeder Rechner einmal selbst.
-- **Wann wird erfasst?** Im Hintergrund, während du weiterarbeitest. Seit 06.10.2026 schon während des Einlesens: Schritt 3 legt das Bild für die Suche beim selben Lesen mit ab, die Suche muss das Laufwerk nicht ein zweites Mal lesen. Während ein Video rendert, pausiert sie.
+- **Wann wird erfasst?** Im Hintergrund, während du weiterarbeitest. Seit v0.9.790 nach dem Einlesen in einem eigenen Lauf — erst kommt das Raster, dann die Suche — und schonend auf der Hintergrund-Stufe des Systems: arbeitest du nebenher (Videoschnitt, Animator), tritt sie zurück. Während ein Video rendert oder eingelesen wird, pausiert sie.
 - **Wo sehe ich den Stand?** Im Archiv unter **Medien** in der Seitenleiste (Zeile mit 🔍: „Bildinhalt erfasst: … von … Fotos“) und unter **Einstellungen → Bibliothek & Cloud → Inhaltssuche in den Fotos**.
 - **Ausschalten oder löschen?** Unter **Einstellungen → Bibliothek & Cloud → Inhaltssuche in den Fotos**. „Modell und Index löschen“ gibt den Platz frei; deine Fotos bleiben unberührt.
 

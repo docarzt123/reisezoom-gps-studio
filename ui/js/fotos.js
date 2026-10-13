@@ -1230,7 +1230,7 @@
       // 18.09.2026 (Marc: „was tatsächlich passiert, sieht man nicht") — Klartext: welcher Schritt, wozu,
       // wie weit, wo gerade, was bisher gefunden wurde.
       return ` <button class="btn btn-sm" id="foto-kopf-stop" type="button">${T("common.cancel", "Abbrechen")}</button>
-        <div class="foto-kopf-klartext" id="foto-kopf-klartext">${scanKlartextHtml(scanStand)}</div>`;
+        <div class="foto-kopf-klartext${ktKlein ? " ist-klein" : ""}" id="foto-kopf-klartext"${ktKlein ? ` title="${esc(T("status.aufklappen", "Aufklappen"))}" role="button" tabindex="0"` : ""}>${scanKlartextHtml(scanStand)}</div>`;
     }
     // Nach dem Lauf: eine Zeile, was herauskam (bleibt 90 s stehen).
     if (scanStand && !scanStand.running && scanStand.fertig_um && (Date.now() / 1000 - scanStand.fertig_um) < 90) {
@@ -1337,14 +1337,28 @@
     if (r) teile.push(r);
     return teile.join(" · ");
   }
+  // 13.10.2026 (Marc: „Schritt 3 von 3 … nicht nur rechts unten, sondern auch da oben" einklappen) — wie der Kasten
+  // unten rechts: „–" klappt auf eine Zeile (Schritt, Prozent, Restzeit, Balken), ein Klick darauf wieder auf. Gemerkt.
+  const _KT_KLEIN_KEY = "rz-fotos-kt-klein";
+  let ktKlein = (() => { try { return localStorage.getItem(_KT_KLEIN_KEY) === "1"; } catch (_) { return false; } })();
+  function ktKleinSetzen(an) {
+    ktKlein = !!an;
+    try { localStorage.setItem(_KT_KLEIN_KEY, ktKlein ? "1" : "0"); } catch (_) { /* ui-falle-ok: Speicher gesperrt — gilt nur jetzt */ }
+    kopfAuffrischen();
+  }
   function scanKlartextHtml(st) {
     const z = scanZahlen(st), zw = st.zwischen || {};
+    if (ktKlein) {
+      const kurz = [z.proz != null ? z.proz + " %" : "", restText(z.rest)].filter(Boolean).join(" · ");
+      return `<div class="foto-kt-1">⏳ ${esc(scanSchrittText(st).split(" — ")[0])}${kurz ? ` <span class="muted">${esc(kurz)}</span>` : ""}</div>
+        ${z.proz != null ? `<div class="foto-kt-balken" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${z.proz}"><span style="width:${z.proz}%"></span></div>` : ""}`;
+    }
     const zweck = z.erste
       ? (st.gruendlich
           ? T("fotos.kt_zweck1_gr", "Fragt bei jeder Datei Größe und Änderungszeit ab — so fallen auch Änderungen IN Dateien auf (z. B. neu geschriebene EXIF-Daten). Läuft einmal pro Woche und bei „Jetzt einlesen“; auf einem Netzlaufwerk dauert das bei vielen Fotos eine Weile. Geöffnet wird dabei nichts.")
           : T("fotos.kt_zweck1_sch", "Übernimmt Ordner, die sich seit dem letzten Mal nicht geändert haben, und vergleicht nur in den übrigen die Dateien mit dem Bestand. Geöffnet wird dabei nichts."))
       : (st.phase === "bilder"
-          ? T("fotos.kt_zweck3", "Legt für jedes Foto ein kleines Vorschaubild in die Bibliothek — dafür muss jede Datei einmal ganz gelesen werden, auf einem Netzlaufwerk ist das der langsamste Teil. Suche, Datum, Karte und Ordner funktionieren schon jetzt; wo du hinschaust, kommen die Bilder sofort.")
+          ? T("fotos.kt_zweck3", "Legt für jedes Foto ein kleines Vorschaubild in die Bibliothek — meist aus dem Bild, das die Kamera schon in die Datei geschrieben hat, also nur aus dem Dateianfang. Auf einem Netzlaufwerk ist das trotzdem der längste Teil, weil jede Datei einmal geöffnet wird. Läuft schonend: arbeitest du nebenher, tritt es zurück. Suche, Datum, Karte und Ordner funktionieren schon jetzt; wo du hinschaust, kommen die Bilder sofort.")
           : T("fotos.kt_zweck2b", "Liest Aufnahmezeit, Ort und Kamera aus jeder Datei (nur den Kopf, nicht das ganze Bild). Sobald das durch ist, gehen Suche, Datum, Karte und Ordner für alles; die Vorschaubilder kommen im Anschluss. Die Originale bleiben unberührt."));
     const ort = st.aktuell
       ? (z.erste ? T("fotos.kt_ordner", "Ordner: {p}") : T("fotos.kt_datei", "Datei: {p}")).replace("{p}", kurzPfad(st.aktuell)) : "";
@@ -1358,7 +1372,8 @@
     // 04.10.2026 (Marc: „mach diesen ganzen langen Text weg … einfach wieder ein Fragezeichen, wo dann ein Tooltip kommt.
     // Schreib nur dazu: läuft im Hintergrund, dass man alles andere weiter benutzen kann") — Zweck und „Danach" im ?.
     const hilfe = (typeof helpTip === "function") ? " " + helpTip([zweck, danach].filter(Boolean).join("\n\n")) : "";
-    return `<div class="foto-kt-1">⏳ ${esc(scanSchrittText(st))}${hilfe}</div>
+    const zu = `<button type="button" class="foto-kt-zu" title="${esc(T("status.einklappen", "Einklappen — läuft weiter"))}" aria-label="${esc(T("status.einklappen", "Einklappen — läuft weiter"))}">–</button>`;
+    return `${zu}<div class="foto-kt-1">⏳ ${esc(scanSchrittText(st))}${hilfe}</div>
       <div class="foto-kt-zahl">${esc(scanStandText(st))}</div>${balken}
       ${(ort || ruhig) ? `<div class="foto-kt-2 muted">${esc([ort, ruhig].filter(Boolean).join(" · "))}</div>` : ""}
       <div class="foto-kt-2 muted">${esc(T("fotos.kt_hintergrund", "Läuft im Hintergrund — du kannst alles andere weiter benutzen."))}</div>`;
@@ -3372,8 +3387,24 @@
     else rasterZeichnen(box);
   }
 
+  function ktKlickBinden(el) {
+    if (!el || el.__rzKtKlick) return;
+    el.__rzKtKlick = true;
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".foto-kt-zu")) { e.stopPropagation(); ktKleinSetzen(true); return; }
+      const kt = e.target.closest("#foto-kopf-klartext.ist-klein");
+      if (kt && !e.target.closest("button, a, .help-tip")) ktKleinSetzen(false);
+    });
+    el.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("#foto-kopf-klartext.ist-klein")) {
+        e.preventDefault(); ktKleinSetzen(false);
+      }
+    });
+  }
+
   async function mount(hauptEl, navEl) {
     haupt = hauptEl; nav = navEl; angemeldet = true;
+    ktKlickBinden(haupt);
     // 12.10.2026 (Marc: „wenn ich die App starte und relativ zügig zu Medien klicke, lande ich in einem schwarzen Loch“) —
     // die ersten Antworten (Einstellungen, gemerkter Stand) warten kurz nach dem Start auf das noch beschäftigte Backend;
     // bis dahin blieb der Bereich leer. Sofort zeigen, dass geladen wird — die echte Ansicht ersetzt es.

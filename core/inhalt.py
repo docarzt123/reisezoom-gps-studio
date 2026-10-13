@@ -85,7 +85,6 @@ VARIANTEN = {
 STANDARD = "base"
 TEXT_LAENGE = 64          # SigLIP 2 ist so trainiert: immer auf 64 Wortteile aufgefüllt
 STAPEL = 16               # Bilder je Modellaufruf
-FAEDEN = 2                # Rechenfäden — gedrosselt, damit Animator und Vorschau nicht ruckeln (Q6)
 PANORAMA_AB = 2.0         # breiter als 2:1 → in Quadrate zerlegen statt stauchen
 QUELLE_PX = 600           # aus dieser Vorschaugröße wird indiziert (Marc, Q9)
 
@@ -223,6 +222,11 @@ class Modell:
         so.intra_op_num_threads = faeden
         so.inter_op_num_threads = 1
         so.log_severity_level = 3
+        # 13.10.2026 (Marc: „braucht echt viele Ressourcen") — wartende Rechenfäden schlafen statt aktiv zu kreisen
+        try:
+            so.add_session_config_entry("session.intra_op.allow_spinning", "0")
+        except Exception:  # noqa: BLE001
+            pass
         return ort.InferenceSession(str(self.ordner / datei), so, providers=["CPUExecutionProvider"])
 
     def bild_vektoren(self, bilder: list) -> "object":
@@ -230,7 +234,9 @@ class Modell:
         import numpy as np
         with self._lock:
             if self._bild is None:
-                self._bild = self._sitzung("vision.onnx", FAEDEN)
+                # 13.10.2026 — EIN Rechenfaden: ONNX rechnet dann im aufrufenden Faden, und der steht beim Erfassen auf der
+                # Hintergrund-Stufe (eigene Pool-Fäden des Modells erbten sie nicht)
+                self._bild = self._sitzung("vision.onnx", 1)
         stuecke, zu = [], []
         for i, im in enumerate(bilder):
             for s in _zuschnitte(im, self.v["px"]):

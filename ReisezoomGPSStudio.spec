@@ -283,8 +283,33 @@ exe = EXE(
     icon=_exe_icon,
 )
 
+# 13.10.2026 — Kommandozeile auf Windows: Die App selbst hat kein Konsolenfenster (console=False) — aus der
+# Eingabeaufforderung aufgerufen gäbe sie nichts aus. Daneben liegt deshalb eine schlanke `gpsstudio.exe` mit Konsole
+# (dieselben Bibliotheken im selben Ordner); sie startet am Namen erkannt direkt im Kommandozeilen-Modus (app.py).
+_cli_exe = []
+if _sys.platform == "win32" and not _IS_GEO:
+    _cli_exe = [EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name="gpsstudio",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=True,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=_exe_icon,
+    )]
+
 coll = COLLECT(
     exe,
+    *_cli_exe,
     a.binaries,
     a.zipfiles,
     a.datas,

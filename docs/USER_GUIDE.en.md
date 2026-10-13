@@ -1906,9 +1906,11 @@ at the bottom right shows the progress everywhere.
 read, which is quick even on a NAS, and afterwards search, date, map and folders work for everything —, 3. the previews.
 **Since 06.10.2026 the app uses the small preview the camera already wrote into each JPEG** — it reads only about 2 % of
 the file instead of all of it over the network, which makes step 3 many times faster. In the grid, the pictures you are
-looking at are quietly replaced by sharp ones. RAW files next to a JPG of the same name take its picture. **With the
-content search on**, step 3 reads each file in full once and keeps the picture for the search at the same time — the
-search no longer reads the NAS a second time and starts recognising while reading. After a restart the app first
+looking at are quietly replaced by sharp ones. RAW files next to a JPG of the same name take its picture. **Since v0.9.790 also with the
+content search on:** the grid comes first (only the start of each file), then the search recognises photos in its own run.
+Before, step 3 read every file in full for it — with large photos on a NAS that took days instead of hours. **Reading and
+content search run gently:** at the system's background level, using only power nobody else needs right now. If you edit a
+video at the same time or work in the Animator, reading steps back by itself — no setting, no pause button. After a restart the app first
 finishes reading and only then (at the latest after 24 hours) checks for new files. Wherever you look, the pictures come right away. **If you close the app halfway, nothing is lost:** folders already checked are remembered at once; the next start
 continues there (“continuing where it stopped”), and step 2 counts what has already been read.
 
@@ -2103,7 +2105,7 @@ here are stages of their own. To locate photos with a track, keep using the
 
 *(Since v0.9.782 no longer in the sidebar: the switch is gone, the steps will come back later as the video assistant — its own button next to “Quick video”. The following paragraph describes the interim version.)* **Simple or fine-tuning (since v0.9.782).** At the very top of the sidebar you switch between **Simple** and **Fine-tuning**. *Simple* shows just five steps — **Route** (tour, length, format — 16:9, 9:16, 1:1, 4:5, 4:3 or 21:9), **Look** (the four ready-made looks), **Places & photos** (highlights, photos, quick video), **Camera** (Fixed · Follow · Camera flight) and **Export** — with the big preview next to it. *Fine-tuning* is the full Animator with all sections. Both views edit **the same project**: what you choose in the simple view is there in fine-tuning too (and vice versa), ⌘Z works for both. The app remembers which view you used last. **On the very first start** the app asks once after setup: *What would you like to do?* — **Create a video**, **Improve a track** or **Geotag photos** — and takes you straight to the right tool. New users start the Animator in the simple view.
 
-**Sidebars and detail column (since 06.10.2026).** The module's sidebar is always on the left; on the right the **editor of whatever you clicked** (sign, overlay) opens when needed — the map moves aside and is never covered. **Esc** or **✕** closes it; there is only ever one editor on the right. Drag the edge of either sidebar to make it **wider or narrower** — in every module, in the Archive on both edges; the app remembers the width per module. Double-click the edge to reset it. **Progress boxes** at the bottom right („Reading photos · step 3 of 3 …“) collapse to a slim line with **–**; they keep running, a click expands them again.
+**Sidebars and detail column (since 06.10.2026).** The module's sidebar is always on the left; on the right the **editor of whatever you clicked** (sign, overlay) opens when needed — the map moves aside and is never covered. **Esc** or **✕** closes it; there is only ever one editor on the right. Drag the edge of either sidebar to make it **wider or narrower** — in every module, in the Archive on both edges; the app remembers the width per module. Double-click the edge to reset it. **Progress boxes** at the bottom right („Reading photos · step 3 of 3 …“) collapse to a slim line with **–**; they keep running, a click expands them again. The same goes for the progress at the top of **Media** (since v0.9.790): **–** leaves only the step, percentage and time left with the bar; a click on the line shows everything again.
 
 **Camera card (since 06.10.2026).** The top of the *Camera* section shows just three things: **Camera** (*Fixed* · *Follow* · *Start → finish* · *Camera flight*), **Height above ground** (in metres or kilometres, exactly as in the video) and the **Viewing angle**. There is no speed slider — the pace follows from the video length. Rotation, inertia, smoothing, smooth camera and the keyframe editor are under **More**; clicking a keyframe in the timeline opens *More* by itself. If you already have keyframes, *Camera flight* just switches them back on instead of replacing them. **Start → finish** places the camera above the start and lets it glide to the finish in one calm move (two keyframes, freely editable); if you have your own keyframes, the app asks first.
 
@@ -3329,6 +3331,42 @@ project menu.
 
 ---
 
+## 8b · Command line — gpsstudio for scripts (since v0.9.790)
+
+With the command line, scripts and other programs make videos and map images of your tours — without anyone clicking.
+Example: a hiking archive with 120 tours where every new tour gets a 9:16 video overnight.
+
+**Set up:** Settings → General → **Advanced** → **“Set up command line”**. On a Mac the command then lives in
+`~/.local/bin/gpsstudio`. If the terminal can't find it, run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc`
+once and open a new terminal. On Windows, `gpsstudio.cmd` is placed in a folder that is already on the search path. If
+you move the app, simply set it up again.
+
+**Commands:**
+
+```
+gpsstudio tours --search "Gantrisch 2025"          # tours as a list (id, name, date, km, file)
+gpsstudio templates                                # templates: landscape, memory, social and your ★ templates
+gpsstudio render "Gantrisch" --template landscape --out video.mp4
+gpsstudio render tour.gpx --template "My hiking look" --format 9:16 --length 40 --out ~/Videos/
+gpsstudio map-image 11660e04ed1c9695 --out map.png
+```
+
+- **Tour:** a GPX/FIT/… file (anywhere, it doesn't have to be in the archive), the **id** from `gpsstudio tours` or a
+  unique name. If several tours match, the command stops and lists the candidates.
+- **Template:** `landscape`, `memory`, `social` or the name of your own ★ template — you create it in the app (quick
+  video or video assistant → “★ Save as template”) and call it here by name.
+- **Options:** `--format 16:9|9:16|1:1`, `--length` (seconds, 15–600), `--no-photos`, `--out` (file or folder; without:
+  the app's render folder), `--overwrite`, `--library <folder>` (another library).
+- **Never overwrites:** if the target file exists, a timestamp is put in front of the name — unless you pass `--overwrite`.
+
+**What a script gets back:** progress line by line on stderr (in the app's language); at the end exactly **one JSON
+line** on stdout, e.g. `{"ok": true, "file": "/…/video.mp4", "duration_s": 84}` or `{"ok": false, "error": "…"}`. Exit
+code 0 = ok, 1 = error, 2 = wrong usage.
+
+**Safe next to the app:** the command line only reads your archive — it changes nothing and may run while GPS Studio is
+open. The video is made exactly as in the app (quick video with the chosen template, photo stops from your archive,
+music, end card); its project lives only briefly in a temp folder.
+
 ## 9 · Help, Feedback & Bug Reports
 
 ### Help menu
@@ -3381,7 +3419,7 @@ Content search finds photos by what is in them — “sunset”, “dog on the b
 - **Where is what stored?** The **model** lives outside the app, in the app folder: Mac `~/Library/Application Support/Reisezoom GPS Studio/inhaltssuche/`, Windows `%APPDATA%\Reisezoom GPS Studio\inhaltssuche\`. The **index** (the vectors, about 1.5 KB per photo) lives in your **library** in the folder `inhaltsindex/`.
 - **What happens if I copy a new version of the app over it?** **Nothing is lost.** Model and index are not inside the app; the new version finds both and downloads nothing again. Only if a later version brings a **different** model does it download that once and recognise the photos again — the index remembers which model built it. The old one stays until you delete it.
 - **And on another computer?** The index moves with the library. Each computer downloads the model once itself.
-- **When are photos recognised?** In the background while you keep working. Since 06.10.2026 already while reading: step 3 keeps the picture for the search from the same read, so the search does not read the drive a second time. It pauses while a video renders.
+- **When are photos recognised?** In the background while you keep working. Since v0.9.790 in its own run after reading — first the grid, then the search — and gently at the system's background level: if you work on something else (video editing, Animator), it steps back. It pauses while a video renders or photos are being read.
 - **Where do I see the progress?** In the Archive under **Media** in the sidebar (line with 🔍: “Image content captured: … of … photos”) and under **Settings → Library & cloud → Content search in photos**.
 - **Switch off or delete?** Under **Settings → Library & cloud → Content search in photos**. “Delete model and index” frees the space; your photos stay untouched.
 

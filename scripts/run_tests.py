@@ -96,7 +96,7 @@ ALLEIN_MUSTER = ("render", "szene", "vorwaermen", "kachel", "vorlaeufer", "tempo
                  "fotos_startort", "etappe_ohne_gps", "videoassistent_vorschau")
 # einzelne Dateien, deren Name kein Muster trägt: test_logbuch ändert globale Logbuch-Einstellungen (⌘Z-Prüfung) und
 # fragt den POI-Dienst — zu dritt rot (12.10.2026), einzeln grün
-ALLEIN_NAMEN = {"test_logbuch.py"}
+ALLEIN_NAMEN = {"test_logbuch.py", "test_cli.py"}
 DAUERN_DATEI = Path(__file__).resolve().parent.parent / "tests" / ".dauern.json"
 
 
@@ -145,6 +145,8 @@ def main() -> int:
     # 09.10.2026 (Marc: „entweder du behebst alles, was rot ist oder übersprungen werden muss, oder du nimmst die Tests
     # raus“) — die echten Renders („langsam“) laufen in der Nacht-Suite mit; Netz/Schlüssel werden weiter geprüft
     mit_langsam = "--langsam" in argv
+    if mit_langsam:
+        os.environ["RZ_LANGSAM"] = "1"   # 13.10.2026 — Tests mit langsamem Zusatzteil (z. B. test_cli: echter Render) sehen es
     parallel = 1
     for a in argv:
         if a.startswith("--parallel="):

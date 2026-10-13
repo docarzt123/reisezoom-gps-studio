@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import logging.handlers
 import sys
 import threading
@@ -78,6 +79,10 @@ def setup_logging(app_support_dir: Path, level: int = logging.INFO,
     sh = logging.StreamHandler(sys.stderr)
     sh.setFormatter(fmt)
     sh.setLevel(level)
+    # 13.10.2026 — Kommandozeile (`… cli …` bzw. gpsstudio.exe): im Terminal nur Fehler; die Protokolldatei bekommt
+    # weiter alles. Sonst gingen Fortschritt und Ergebnis zwischen den Start-Zeilen der App unter.
+    if (len(sys.argv) > 1 and sys.argv[1] == "cli") or os.path.splitext(os.path.basename(sys.executable))[0].lower() == "gpsstudio":
+        sh.setLevel(logging.ERROR)
     root.addHandler(sh)
 
     # Globale Excepthooks → ungefangene Exceptions ins Log

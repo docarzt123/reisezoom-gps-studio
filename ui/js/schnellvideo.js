@@ -2365,6 +2365,7 @@
       if (B && window.__rzKartenBild) { try { B.startbild(await window.__rzKartenBild()); } catch (_) {} }
       // Verfolger-Blickrichtung aus der geglätteten Spur (auch für „Im Animator öffnen")
       try { const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] Blickrichtung: ${n} Keyframes`); } catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
+      window.__rzSchnellFertig = { id: r.project_id, name: v.name || "" };   // 13.10.2026 — Kommandozeile (core/cli): Projekt steht, Animator bereit
       if (!rendern) return;
       await new Promise(res => setTimeout(res, 800));   // gespeicherte Keyframes ankommen lassen
       const dateiName = (v.name || "Tour") + " – " + T("schnell.titel_dialog", "Schnell-Video");

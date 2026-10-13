@@ -380,6 +380,31 @@ def _locked(fn):
     return wrapper
 
 
+def open_db_lesend(db_path: Path) -> sqlite3.Connection:
+    """13.10.2026 — Archiv NUR LESEND öffnen (Kommandozeile, core/cli): kein Anlegen, keine Migration, kein Schreiben;
+    darf neben der laufenden App offen sein (WAL). Freitextsuche wie in open_db (rz_norm, FTS, Dokumente)."""
+    global _FTS_OK, _DOKUMENTE_DA
+    from urllib.parse import quote
+    db_path = Path(db_path)
+    if not db_path.is_file():
+        raise FileNotFoundError(str(db_path))
+    conn = sqlite3.connect(f"file:{quote(str(db_path))}?mode=ro", uri=True, check_same_thread=False, timeout=30.0)
+    _STATS_CACHE.clear()
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=30000")
+    try:
+        conn.create_function("rz_norm", 1, _norm, deterministic=True)
+    except TypeError:
+        conn.create_function("rz_norm", 1, _norm)
+    namen = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')")}
+    _FTS_OK = "tracks_fts" in namen
+    try:
+        _DOKUMENTE_DA = "tour_dokumente" in namen and bool(conn.execute("SELECT 1 FROM tour_dokumente LIMIT 1").fetchone())
+    except sqlite3.Error:
+        _DOKUMENTE_DA = False
+    return conn
+
+
 def open_db(db_path: Path) -> sqlite3.Connection:
     """Öffnet (und erstellt) die Archiv-Datenbank."""
     db_path = Path(db_path)

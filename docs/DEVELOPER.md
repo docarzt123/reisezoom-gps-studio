@@ -4578,13 +4578,13 @@ Standbild (Tour-Map): Pillen aus, „Mehr“ immer offen (`.anim-mehr--immer`). 
 
 - **Schnellbild** (`core/photos.schnellbild_aus_kopf`): JPEG-EXIF-Vorschaubild aus den ersten 64 KB (`_exif_app1` sucht
   APP1 „Exif"), Ausrichtung aus 0th/Orientation, schwarze Balken abgeschnitten, < `SCHNELL_MIN_PX` → None. Schritt 3
-  (`fotos.durchgang3(schnell=True)`, wenn die Inhaltssuche aus ist) öffnet die Datei einmal (`kopf_und_ende`) und bildet
+  (`fotos.durchgang3(schnell=True)`, seit 13.10.2026 immer — auch mit Inhaltssuche) öffnet die Datei einmal (`kopf_und_ende`) und bildet
   daraus Kennung (`kennung_aus`, identisch zu `inhalt_id`) und Bild → `thumb = 2`. `fotos_schaerfen(paths)` baut
   sichtbare Schnellbilder voll (`thumb_neu`) → `thumb = 1`; `fotos.js schaerfen()` nach `thumbsNachholen`.
 - **RAW**: `exif.LESE_ROLLE` (thread-local) wählt den exiftool-Leser; der Pool in `durchgang3` setzt je Faden
   `read`/`read2` (`_leser_setzen`). RAW+JPG: `_jpg_geschwister` → RAW übernimmt das gecachte Bild; Reihenfolge je Ordner
   JPEGs zuerst.
-- **Inhaltssuche im selben Lesevorgang** (`durchgang3(vorrat=True)`, wenn an): `photos.thumb_und_quelle` dekodiert
+- **Inhaltssuche im selben Lesevorgang** (`durchgang3(vorrat=True)`; seit 13.10.2026 vom App-Lauf NICHT mehr benutzt — Marcs Log: 0 Schnellbilder, ~30 MB/Bild, 0,7–4 s/Bild; das Raster wartete Tage. Die Suche liest jetzt nach dem Einlesen in ihrem eigenen Lauf, `inhalt_aufholen` aus dem `finally` des Scan-Fadens. Funktionen bleiben für `test_inhalt_vorrat.py`): `photos.thumb_und_quelle` dekodiert
   einmal (draft 600) → Rasterbild in den Cache, 600er in den Vorrat (`<cache>/inhalt_vorrat/<sha1>.jpg|.txt`, Deckel
   `VORRAT_MAX`). Der Indexer startet mit dem Einlesen; in seiner Pause „einlesen" ruft er `inhalt.vorrat_indizieren`
   (nur Vorrat, kein Laufwerk) und leert ihn. `_bild_holen` nimmt zuerst den Vorrat; `indizieren` überspringt, was seit
@@ -4592,6 +4592,12 @@ Standbild (Tour-Map): Pillen aus, „Mehr“ immer offen (`.anim-mehr--immer`). 
 - **Nachschau**: `fotos_aufholen` schiebt die fällige Nachschau auf, solange Ungelesenes/Vorschaubilder offen sind
   (höchstens `NACHSCHAU_OFFEN_MAX_H` = 24 h).
 - Tests: `test_fotos_schnellbild.py`, `test_inhalt_vorrat.py`, `test_fotos_nachschau_aufschieben.py`.
+- **Schonend (`core/schonend.py`, 13.10.2026):** `hintergrund()` setzt den aufrufenden Faden auf die Hintergrund-Stufe
+  (macOS `pthread_set_qos_class_self_np(QOS_CLASS_BACKGROUND)` → E-Kerne, Platten-Drossel; Windows
+  `THREAD_MODE_BACKGROUND_BEGIN`; Linux nice 19 je Faden). Python-Fäden erben das NICHT: Scan-Faden und Inhalts-Faden
+  rufen es am Anfang, die Pools in `durchgang2`/`durchgang3` per `initializer`. Das Bildmodell (`inhalt.Modell`, vision)
+  läuft mit `intra_op_num_threads=1` (rechnet im gedrosselten Faden) und `allow_spinning=0`. Nicht gedrosselt: Raster-
+  Bilder für die sichtbare Seite (`fotos_thumbs`), Textmodell der Suche, exiftool-Prozesse. Test: `test_einlesen_schonend.py`.
 
 ## Kacheln im Leerlauf vorwärmen (06.10.2026, Liste Punkt 11)
 
@@ -7455,6 +7461,19 @@ Test: `tests/test_linie_ecken.py`.
   ohne Dokumente bleibt die Abfrage unverändert. Vorschau `vorschau()` über `exif.extract_quicklook_thumbnail` (macOS) bzw.
   Pillow. Brücken `tour_dokumente`, `tour_dokumente_hinzu`, `tour_dokument_entfernen`, `tour_dokument_vorschau`; UI
   `tourseite.js` `_dokumente` (eigene Drop-Zone auf `.ts-links`, nur `nativePath`). Test: `test_tour_dokumente.py`.
+- **Kommandozeile `gpsstudio` (`core/cli.py`, 13.10.2026):** Einstieg `app.py cli <command>` (vor `main()`), im Bundle
+  dieselbe Programmdatei; Windows bekommt per Spec eine zweite EXE `gpsstudio.exe` mit Konsole (die App hat
+  `console=False`), am Namen erkannt → direkt CLI. `app.CLI_MODUS` macht `Api()` nebenwirkungsfrei (keine Migration, kein
+  `_bib_oeffnen`/Sperre, kein Register-Lauf, keine Cloud); Archiv über `library.open_db_lesend` (`mode=ro`, FTS/Dokumente-
+  Flags aus dem Bestand), Projekte in einem Temp-`DATEN_ORT` (danach `_ds.ordner_loeschen`). Video: unsichtbare Chromium-
+  Seite mit Brücke in Threads (Schreib-Aufrufe wie in der Szene gesperrt, außer `session_`/`projekt_`/`schnellvideo_`/
+  Render; `schnellvideo_anlegen` ohne `letzte`), echter Schnell-Video-Dialog (`[data-sv-vorlage]`, `[data-sv-eigen]`,
+  Format/Länge, `#sv-fotos-an`) → `#sv-animator` → Haken `window.__rzSchnellFertig` → `__rzSchnellRender({ziel})` →
+  `animator_status` bis fertig. Kartenbild: `loadGlobalGpx` + Tour-Map + derselbe Render-Knopf (PNG). stdout = genau eine
+  JSON-Zeile (sys.stdout wird nach stderr umgebogen), Konsolen-Log im CLI-Modus nur ERROR (`core/logger`). Einrichten:
+  `cli.einrichten/status` (`~/.local/bin/gpsstudio` bzw. `%LOCALAPPDATA%\Microsoft\WindowsApps\gpsstudio.cmd`), Brücken
+  `cli_status`/`cli_einrichten`, UI Einstellungen → Allgemein → „Für Fortgeschrittene“. Test: `test_cli.py` (Render nur
+  mit `RZ_LANGSAM`, das run_tests bei `--langsam` setzt; Einzel-Liste).
 - **Geländehöhen der ruhigen Kamera bei langsamem Netz (13.10.2026):** `demsample.hoehen` holt alle gebrauchten
   Kacheln (samt Randnachbarn) zuerst parallel (8 Fäden), dann wird abgetastet (20 Kacheln à 0,3 s: 6,4 s → < 2 s,
   `test_demsample.test_kacheln_kommen_parallel`). `_faithBuild` wartet in der Vorschau höchstens `DEM_WARTE_MS` (6 s) auf

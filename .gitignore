@@ -192,3 +192,6 @@ logo-konzept/
 
 # 06.10.2026 — Laufzeitdaten (Ortsnamen-Cache), entsteht bei Tests im Projektordner
 ort_punkt_cache.json
+
+# Inhaltssuche-Modell (lädt im Quellbaum-Modus hierher, ~500 MB)
+inhaltssuche/

@@ -53,6 +53,7 @@ from typing import Callable, Iterable, Optional
 
 from . import exif as cexif
 from . import photos as cphotos
+from . import schonend as cschonend
 
 log = logging.getLogger(__name__)
 
@@ -1108,7 +1109,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     # 05.10.2026 — Vorrat gelesener Stapel: auf einem Netzlaufwerk lesen LESER_FERN (2) exiftool-Prozesse zugleich je
     # einen Stapel; Kennung, Schreiben und Fortschritt laufen danach der Reihe nach wie bisher.
     from collections import deque
-    leser = ThreadPoolExecutor(max_workers=LESER_FERN, thread_name_prefix="foto-leser")
+    leser = ThreadPoolExecutor(max_workers=LESER_FERN, thread_name_prefix="foto-leser", initializer=cschonend.hintergrund)
     vorrat: deque = deque()
     lauf_nr = 0
     i = 0
@@ -1287,7 +1288,7 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             fuer_thumb = [r["path"] for r in teil
                           if r["art"] == ART_FOTO and r["path"] not in haenger]
             faeden = THUMB_FAEDEN_FERN if fern_hier else THUMB_FAEDEN
-            with ThreadPoolExecutor(max_workers=faeden) as pool:
+            with ThreadPoolExecutor(max_workers=faeden, initializer=cschonend.hintergrund) as pool:
                 for pfad_ok, ok in pool.map(_thumb_versuch, fuer_thumb):
                     if ok:
                         geduldig(conn.execute,
@@ -1389,6 +1390,7 @@ def _leser_setzen(rollen) -> None:
     Festplatten, s. LESER_FERN). Vorher gingen alle RAW-Vorschauen durch EINEN Prozess (06.10.2026)."""
     with _rollen_sperre:
         cexif.LESE_ROLLE.wert = next(rollen, "read")
+    cschonend.hintergrund()   # 13.10.2026 — Bild-Fäden auf Hintergrund-Stufe (Windows/Linux erben sie nicht)
 
 
 def _jpg_geschwister(conn: sqlite3.Connection, r) -> Optional[tuple]:

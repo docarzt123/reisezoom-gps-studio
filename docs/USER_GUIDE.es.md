@@ -1952,8 +1952,11 @@ archivo, lo que va rápido incluso en un NAS, y después búsqueda, fecha, mapa 
 miniaturas. **Desde el 06.10.2026 la app usa la pequeña vista previa que la cámara ya guardó en cada JPEG**: lee solo
 un 2 % del archivo en lugar de todo por la red, lo que hace el paso 3 muchas veces más rápido. En la cuadrícula, las
 imágenes que estás viendo se sustituyen en silencio por otras nítidas. Los RAW junto a un JPG del mismo nombre toman su
-imagen. **Con la búsqueda por contenido activada**, el paso 3 lee cada archivo entero una vez y guarda a la vez la
-imagen para la búsqueda: la búsqueda ya no lee el NAS por segunda vez y empieza a reconocer durante la lectura. Tras un
+imagen. **Desde v0.9.790 también con la búsqueda por contenido activada:** primero llega la cuadrícula (solo el principio de
+cada archivo) y después la búsqueda reconoce las fotos en su propia pasada. Antes, el paso 3 leía cada archivo entero para
+ello: con fotos grandes en un NAS eso tardaba días en lugar de horas. **La lectura y la búsqueda por contenido van con
+suavidad:** en el nivel de segundo plano del sistema, solo con la potencia que nadie más necesita. Si editas un vídeo a la vez
+o trabajas en el Animador, la lectura se aparta sola, sin ajustes ni botón de pausa. Tras un
 reinicio, la app termina primero la lectura y solo después (como mucho a las 24 horas) busca archivos nuevos. Donde mires, las imágenes llegan al momento. **Si cierras la app a mitad, no se pierde nada:** las carpetas ya revisadas se recuerdan al momento; el siguiente
 inicio sigue ahí («sigue donde se quedó») y el paso 2 cuenta lo que ya se ha leído.
 
@@ -2152,7 +2155,7 @@ captura son etapas propias. Para ubicar fotos con un track sigue usando el
 
 *(Desde v0.9.782 ya no está en la barra lateral: el selector desaparece, los pasos volverán más adelante como asistente de vídeo — un botón propio junto a «Vídeo rápido». El párrafo siguiente describe la versión intermedia.)* **Sencillo o ajuste fino (desde v0.9.782).** Arriba del todo en la barra lateral cambias entre **Sencillo** y **Ajuste fino**. *Sencillo* muestra solo cinco pasos — **Ruta** (ruta, duración, formato — 16:9, 9:16, 1:1, 4:5, 4:3 o 21:9), **Estilo** (los cuatro estilos listos), **Lugares y fotos** (puntos destacados, fotos, vídeo rápido), **Cámara** (Fija · Seguir · Vuelo de cámara) y **Exportar** — con la vista previa grande al lado. *Ajuste fino* es el Animator completo con todas las secciones. Ambas vistas editan **el mismo proyecto**: lo que eliges en la vista sencilla aparece igual en el ajuste fino (y al revés), ⌘Z vale para las dos. La app recuerda qué vista usaste por última vez. **En el primer arranque** la app pregunta una vez tras la configuración: *¿Qué te gustaría hacer?* — **Crear un vídeo**, **Mejorar un track** o **Geolocalizar fotos** — y te lleva directamente a la herramienta adecuada. Los usuarios nuevos empiezan el Animator en la vista sencilla.
 
-**Barras laterales y columna de detalle (desde 06.10.2026).** A la izquierda está siempre la barra lateral del módulo; a la derecha se abre cuando hace falta el **editor de lo que acabas de pulsar** (cartel, superposición) — el mapa se desplaza a un lado y nunca queda tapado. **Esc** o **✕** lo cierra; a la derecha solo hay un editor a la vez. Arrastra el borde de cualquiera de las barras para hacerla **más ancha o más estrecha**: en todos los módulos, en el Archivo en ambos bordes; la app recuerda el ancho por módulo. Doble clic en el borde lo restablece. Las **cajas de progreso** abajo a la derecha («Leyendo fotos · paso 3 de 3 …») se pliegan con **–** a una línea fina; siguen en marcha y un clic las despliega de nuevo.
+**Barras laterales y columna de detalle (desde 06.10.2026).** A la izquierda está siempre la barra lateral del módulo; a la derecha se abre cuando hace falta el **editor de lo que acabas de pulsar** (cartel, superposición) — el mapa se desplaza a un lado y nunca queda tapado. **Esc** o **✕** lo cierra; a la derecha solo hay un editor a la vez. Arrastra el borde de cualquiera de las barras para hacerla **más ancha o más estrecha**: en todos los módulos, en el Archivo en ambos bordes; la app recuerda el ancho por módulo. Doble clic en el borde lo restablece. Las **cajas de progreso** abajo a la derecha («Leyendo fotos · paso 3 de 3 …») se pliegan con **–** a una línea fina; siguen en marcha y un clic las despliega de nuevo. Lo mismo vale para el progreso arriba en **Medios** (desde v0.9.790): **–** deja solo el paso, el porcentaje y el tiempo restante con la barra; un clic en la línea vuelve a mostrarlo todo.
 
 **Tarjeta de cámara (desde 06.10.2026).** Arriba en la sección *Cámara* solo hay tres cosas: la **Cámara** (*Fija* · *Seguir* · *Inicio → meta* · *Vuelo de cámara*), la **Altura sobre el terreno** (en metros o kilómetros, igual que en el vídeo) y el **Ángulo de visión**. No hay control de velocidad: el ritmo se deriva de la duración del vídeo. Giro, inercia, suavizado, cámara suave y el editor de fotogramas clave están en **Más**; al pulsar un fotograma clave en la línea de tiempo, *Más* se abre solo. Si ya tienes fotogramas clave propios, *Vuelo de cámara* solo los vuelve a activar en lugar de sustituirlos. **Inicio → meta** coloca la cámara sobre el inicio y la deja deslizarse hasta la meta en un movimiento tranquilo (dos fotogramas clave, editables); si tienes fotogramas clave propios, la app pregunta antes.
 
@@ -3392,6 +3395,42 @@ de proyectos.
 
 ---
 
+## 8b · Línea de comandos — gpsstudio para scripts (desde v0.9.790)
+
+Con la línea de comandos, scripts y otros programas crean vídeos e imágenes de mapa de tus rutas sin que nadie haga
+clic. Ejemplo: un archivo de excursiones con 120 rutas en el que cada ruta nueva recibe un vídeo 9:16 por la noche.
+
+**Configurar:** Ajustes → General → **Avanzado** → **«Configurar línea de comandos»**. En el Mac el comando queda en
+`~/.local/bin/gpsstudio`. Si el terminal no lo encuentra, ejecuta una vez
+`echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc` y abre un terminal nuevo. En Windows, `gpsstudio.cmd` se
+coloca en una carpeta que ya está en la ruta de búsqueda. Si mueves la app, vuelve a configurarla.
+
+**Comandos** (en inglés, iguales en todas partes):
+
+```
+gpsstudio tours --search "Gantrisch 2025"          # rutas en lista (id, nombre, fecha, km, archivo)
+gpsstudio templates                                # plantillas: landscape, memory, social y tus plantillas ★
+gpsstudio render "Gantrisch" --template landscape --out video.mp4
+gpsstudio render ruta.gpx --template "Mi estilo" --format 9:16 --length 40 --out ~/Videos/
+gpsstudio map-image 11660e04ed1c9695 --out mapa.png
+```
+
+- **Ruta:** un archivo GPX/FIT/… (en cualquier sitio, no hace falta que esté en el archivo), el **id** de
+  `gpsstudio tours` o un nombre único. Si coinciden varias, el comando se detiene y muestra las candidatas.
+- **Plantilla:** `landscape`, `memory`, `social` o el nombre de tu plantilla ★: la creas en la app (vídeo rápido o
+  asistente → «★ Guardar como plantilla») y aquí la llamas por su nombre.
+- **Opciones:** `--format 16:9|9:16|1:1`, `--length` (segundos, 15–600), `--no-photos`, `--out` (archivo o carpeta; sin
+  ella: la carpeta de renders de la app), `--overwrite`, `--library <carpeta>` (otra biblioteca).
+- **Nunca sobrescribe:** si el archivo ya existe, se antepone una marca de tiempo al nombre, salvo con `--overwrite`.
+
+**Qué recibe un script:** el progreso línea a línea en stderr (en el idioma de la app); al final exactamente **una línea
+JSON** en stdout, p. ej. `{"ok": true, "file": "/…/video.mp4", "duration_s": 84}` o `{"ok": false, "error": "…"}`.
+Código de salida 0 = ok, 1 = error, 2 = uso incorrecto.
+
+**Seguro junto a la app:** la línea de comandos solo lee tu archivo, no cambia nada y puede funcionar con GPS Studio
+abierto. El vídeo se hace igual que en la app (vídeo rápido con la plantilla elegida, paradas de fotos de tu archivo,
+música, tarjeta final); su proyecto solo vive un momento en una carpeta temporal.
+
 ## 9 · Ayuda, feedback y reportes de bugs
 
 ### Menú de ayuda
@@ -3438,7 +3477,7 @@ La búsqueda por contenido encuentra fotos por lo que se ve en ellas — «atard
 - **¿Dónde está cada cosa?** El **modelo** está fuera de la app, en la carpeta de la app: Mac `~/Library/Application Support/Reisezoom GPS Studio/inhaltssuche/`, Windows `%APPDATA%\Reisezoom GPS Studio\inhaltssuche\`. El **índice** (los vectores, unos 1,5 KB por foto) está en tu **biblioteca**, en la carpeta `inhaltsindex/`.
 - **¿Qué pasa si copio encima una versión nueva de la app?** **No se pierde nada.** Modelo e índice no están dentro de la app; la versión nueva los encuentra y no descarga nada otra vez. Solo si una versión posterior trae un modelo **distinto**, lo descarga una vez y vuelve a reconocer las fotos: el índice recuerda con qué modelo se creó. El antiguo se queda hasta que lo borres.
 - **¿Y en otro ordenador?** El índice se mueve con la biblioteca. Cada ordenador descarga el modelo una vez.
-- **¿Cuándo se reconocen las fotos?** En segundo plano mientras sigues trabajando. Desde el 06.10.2026 ya durante la lectura: el paso 3 guarda la imagen para la búsqueda en la misma lectura, así que la búsqueda no lee la unidad por segunda vez. Se pausa mientras se renderiza un vídeo.
+- **¿Cuándo se reconocen las fotos?** En segundo plano mientras sigues trabajando. Desde v0.9.790 en su propia pasada después de la lectura —primero la cuadrícula, luego la búsqueda— y con suavidad en el nivel de segundo plano del sistema: si trabajas en otra cosa (edición de vídeo, Animador), se aparta. Se pausa mientras se renderiza un vídeo o se leen fotos.
 - **¿Dónde veo el progreso?** En el Archivo, en **Medios**, en la barra lateral (línea con 🔍: «Contenido captado: … de … fotos») y en **Ajustes → Biblioteca y nube → Búsqueda por contenido en las fotos**.
 - **¿Desactivar o borrar?** En **Ajustes → Biblioteca y nube → Búsqueda por contenido en las fotos**. «Borrar modelo e índice» libera el espacio; tus fotos no se tocan.
 
