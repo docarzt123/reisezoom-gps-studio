@@ -4525,6 +4525,18 @@ Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Deta
 
 ## WYSIWYG-Prüfung Editor ↔ Export (06.10.2026)
 
+- **Nacht-Test (14.10.2026):** `tests/test_wysiwyg_render.py` ruft `demo_wysiwyg_matrix.py` mit `RZ_WYSIWYG_SATZ=pruefung`
+  (vier Fassungen auf ruhigen Looks: Satellit/Häuser rauschen, weil die Vorschau bewusst gröbere Kacheln lädt) und
+  `RZ_WYSIWYG_PRUEFEN=1`. Vor jedem Editor-Foto `HILFEN_AUS` (Keyframe-Punkte `preview-kf-pins`, `#anim-uebersicht`,
+  Zoom-Knöpfe). Maße: „klein“ = Mittel, „Spitze“ = 99. Perzentil der Differenz nach Verkleinern auf 240 px + Gauß 1,5
+  (Schwellen `RZ_WYSIWYG_KLEIN` 4,5 / `RZ_WYSIWYG_SPITZE` 45). Ergebnis-JSON mit `probleme`; bei Rot Bilder nach
+  `GPS Studio Final/Nachtlauf/<Stempel>-WYSIWYG`. Erste Funde: Schild-Versatz (F-20) nach Sprüngen im Editor mit alter
+  Projektion gerechnet → `sign_draw.js` rechnet bei `moveend` nach (`map.__rzSignRandArgs`, Deckkraft danach neu);
+  Nordpfeil/Maßstab verwarfen die gedrosselte letzte Bewegung → Nachzügler in `_ovUpdateNorthScale`.
+- **Schild-Versatz (F-20) nachgeschärft (14.10.2026):** `rzSignRandVersatz` schiebt ganz herein, solange ≥ 25 % des Kastens im
+  Bild lägen, darunter anteilig (gleitet hinaus), ganz draußen Versatz 0 (vorher blieb der letzte stehen → Schild hing in
+  der Ecke, gesehen beim Kranschwenk). Von oben hereingeschoben und über dem Logo (`rzSchutzFlaechen`: `img.ct-bild` mit
+  `@lockup…` im Overlay, in Karten-px) → unter das Logo. Prüfstand-Haken `map.__rzSchutzTest`. Test `test_schild_bildrand`.
 - **Werkzeuge:** `tests/demo_wysiwyg.py` (eine Tour, drei Formate) und `tests/demo_wysiwyg_matrix.py` (9 Fassungen
   weltweit: Karten, Kamera Fest/Folgen/Fahrt, Häuser, Gelände, Schilder, Fotos, Clip, Ton). Je Zeitpunkt
   `#anim-viewport` fotografieren, Export über den echten Dialog, ffmpeg-Bild zur selben Sekunde, „Editor | Video |
@@ -4703,6 +4715,91 @@ alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/t
   (core/animator.py) kennt den Flug nicht.
 - **Grenzen:** nur MapLibre + Gelände + eine Tour (`_flugMoeglich()` → Grund `mapbox|gelaende|reise|keine_tour`).
 - Test `tests/test_flug_in_der_luft.py` (IGC aus echtem Gelände + gewollter Höhe, Scrub, Bild mit/ohne, Video mit/ohne).
+- **Punktgröße nach Zoomsprung (14.10.2026):** `_flugPunkt` misst beim `setData` — also vor `jumpTo`. Ein `move`-Haken
+  (`map.__rzFlugZoomHaken`) misst neu, wenn sich der Zoom um > 0,15 geändert hat (`_flug.punktZoom`, `_flug.letztPos`).
+
+## Hochflug (14.10.2026, v0.9.792)
+
+- **Daten:** je Etappen-Station `wps[i].hoch = {m, p}` (gilt für den Abschnitt ab dieser Station): `m` = höchster Punkt in
+  Metern über Grund (0/fehlt = aus, höchstens 2000 km), `p` = [[u, h], …] mit u = Anteil der Strecke, h = Anteil der Höhe.
+  `_etLinieTeile` gibt es als `teile[k].hoch` an die Brücke `etappe_speichern` weiter.
+- **Kurve:** monoton kubisch (Fritsch–Carlson) — kein Über-/Unterschwingen. Zweimal vorhanden und gleich zu halten:
+  `core/hochflug.py` `profil()` und `ui/js/hoehenprofil.js` `rzHochflug.profil()` (`test_hochflug` A vergleicht 12 Sätze ×
+  201 Stellen über Node). `hoehen(co, teile, abstand)` = Plus je Trackpunkt nach Anteil der Strecke im Abschnitt.
+- **Backend:** `Api._etappe_hoehen` tastet in Hochflug-Abschnitten das Gelände ab (`flach_probe`), legt das Plus drauf
+  und markiert sie trotzdem `rz_flach` (kein Bergauf). Ohne Gelände: nur das Plus.
+- **Editor:** `rzHochflug.editor(box, wert, aendern, T)` — Regler 0…100 logarithmisch 10 m … 1000 km (`reglerZuM`/
+  `mZuRegler`, ≥ 1 für jede Höhe > 0), SVG-Profil mit Ziehpunkten (Pointer-Capture; der Doppelklick sucht den Punkt über
+  den Abstand, weil das Ereignis nach dem Capture vom SVG kommt), Vorlagen. Im Etappen-Editor Knopf `.et-hoch` je Abschnitt,
+  aufgeklappt `.et-hoch-ed` (`E.hochOffen`). CSS `.hp-*` in `modules/animator/ui/module.css`.
+- **Anwenden:** `_etUebernehmen` schaltet bei Hochflug `anim-terrain` + `anim-mc-flug3d` ein und — ohne eigene Keyframes und
+  ohne „folgt“ — `rzEinfach.kameraSetzen("folgen")`. Die Linie läuft über „Flug in der Luft“ (agl = ele − DEM).
+- **Kamera:** `_flugZoomMinus(frac, zoom, lat)` (nur bei `_hochflugAktiv()`) = log2(1 + 2,4·h / D), D = 1,5 × Bildhöhe ×
+  m/px — zieht so weit zurück, dass Punkt in der Höhe und Boden ins Bild passen. Abgezogen in der Scrub-Vorschau
+  (easeArgs), im Kamerafahrt-Plan (`zm`) und im Probelauf/Render-Schritt (`jumpArgs.zoom`).
+- **Globus:** MapLibre 5.4 ignorierte in der Kugelansicht (`vertical-perspective`, unter Zoom 7) die Höhe der Bildmitte.
+  Patch `rz-patch globushoehe` im `_calcMatrices` der Kugel: Translation `-e·(1+h/R)` statt `-e`, Kameraposition
+  `1+h/R` statt `1`, Sichtweite + `e·h/R` (R = `t.bu` = 6 371 008,8 m wie im Shader `interpolateProjection`).
+  Wache: `test_vendor_patches`; Beleg: `test_hochflug` F (Punkt 400 km über der Mitte landet in der Bildmitte).
+- Test `tests/test_hochflug.py` (ohne Netz, ~20 s).
+- **Ruckeln (14.10.):** `_flugAglBei(frac)` interpoliert die Höhe über Grund zwischen den Trackpunkten (vorher nächster Punkt
+  → Treppen bis 320 km). `_previewEleAt` und `_gpxEleAt` ziehen bei „Flug in der Luft“ die Höhe über Grund von der GPX-Höhe
+  ab (die IST die Flughöhe; sonst zählte sie doppelt, sobald das Gelände 0 liefert). Hochflug-Abschnitte werden in
+  `_etLinieTeile` auf `HOCH_PUNKTE` (241) verdichtet (`_etVerdichten`). `_hochflugRampe` lässt das Zurückziehen an Start und
+  Landung weich anlaufen. Der Laufpunkt nimmt seine Höhe ebenfalls zwischen den Nachbarpunkten.
+- **Herumkreisen:** `_hochflugBlick(frac, bearing, pitch)` → {bearing, pitch}. Abschnitte = zusammenhängende Stücke mit
+  agl > 1 m (`_hochflugAbschnitte`, Kurs Start→Ende, `kreisen` aus `wps[k].hoch.kreisen`). Blick: von „hinter dem Flug“
+  gleichmäßig 180° zur näheren Seite (an der Spitze quer, bei der Landung zurück), die ersten 25 % weich aus dem
+  eingestellten Blick; Neigung bis `HOCH_NEIGUNG` (70°) in der Mitte. Drehung bleibt nach dem Abschnitt stehen (mehrere
+  Abschnitte addieren). `_flugZoomMinus(…, pitch)`: flacher als 45° → Faktor 2,4·cos45/cos(p). Angewandt an denselben drei
+  Stellen wie der Zoom (Scrubben, Plan der ruhigen Kamera, Probelauf/Render-Schritt). Test `tests/test_hochflug_kamera.py`
+  (Netz: Ruck je Bild, Drehung, Seitenansicht, Neigung, Kreisen aus).
+
+## Orte nacheinander (14.10.2026, v0.9.792)
+
+- **Daten:** Etappe `nur_orte: true`, `ort_s` (Sekunden je Ort, 1–20), `ort_kamera` (`alles`|`fliegen`). Editor-Zustand
+  `E.nurOrte/ortS/ortKamera`, Haken `.et-nur-orte-cb`, Optionen `.et-orte-opt`.
+- **Geometrie:** jeder Abschnitt gerade von Ort zu Ort (kein Routing), auf `ORT_PUNKTE` (61) verdichtet; Backend bekommt
+  `art: flugzeug` (flach). **Takt:** `_nurOrteEinrichten` stellt das Tempo auf „nach Punkten“ (`anim-pace` = raw), leert die
+  gespeicherte Raffung, setzt die Dauer = n·ort_s + (n−1)·`_ortFahrtS` (1,2 s / 2,5 s) und die Kamera (fest/folgen).
+  `_orteHalte()` geht wie die Fotostopps in `eintraege` der Tempo-Kurve: je Ort ein Halt `kamera: "nichts"`.
+- **Ausblenden:** `_nurOrteFiltern()` filtert `ORTE_EBENEN` (Bodenlinie, Laufpunkt, Geist) — nach `dotEbenenAufbauen` und
+  `drawPreview`; `_flugBodenFiltern` hält sie dann auch aus, `_flugMoeglich` liefert „orte“ (keine Linie in der Luft).
+- **Schilder:** Stationsschilder bekommen `before: 0, vorschau_s: 0` und `after` bis zum Ende inkl. Nachlauf;
+  `_hlZeitlichTrennen` lässt sie aus.
+- Test `tests/test_orte_nacheinander.py` (Netz).
+- **Schilder bleiben am Ort:** Stationsschilder tragen `rand_fest: true` → Feature-Eigenschaft `randFest`, die
+  `rzSignRandVersatz` (ui/js/sign_draw.js) überspringt (kein Hereinschieben am Bildrand). Wache: `test_schild_bildrand`.
+
+## Projekt schließen und Etappe ohne Projekt (14.10.2026, v0.9.792)
+
+- `_etappeNeu` ohne Track und ohne Session → `rzKartenanimationOhneGps()` (leeres Projekt, dann Editor). Vorher legte
+  die Etappe ohne Projekt `haupt_etappe` in die GLOBALEN Modul-Einstellungen; jede Lage ohne Projekt (nach ✕, neues
+  Projekt) lud sie von dort wieder.
+- Restore: `haupt_etappe` nur aus einem Projekt (`proj`), persistiert nur mit aktivem Projekt; verwaiste Linie (kein
+  `currentGpx`, aber Koordinaten) wird beim Projektwechsel mit `_hauptEtappeEntladen` geräumt.
+- `_spurRoh` (Rohspur für Punkte-Regler) wird beim Entladen/Leeren/GPX-Schließen mit gelöscht, `_spurNeu` tut ohne
+  `currentGpx` nichts — sonst setzte das Neuladen der Einstellungen die alte Linie wieder ein.
+- Test `tests/test_projekt_schliessen_etappe.py` (Netz): Marcs Ablauf in fünf Schritten.
+
+## Etappen-Editor: Ortssuche, Live-Höhe, Übernehmen (14.10.2026, v0.9.792)
+
+- **Ortssuche parallel:** `Api.route_geocode` → `_geocode_parallel` (Daemon-Fäden): Photon und `croute.geocode_nominatim`
+  gleichzeitig; Photon hat `_GEO_VORSPRUNG_S` (1,5 s) Vorsprung, dann gilt die erste Antwort mit Treffern, Aufgabe nach
+  `_GEO_GESAMT_S` (12 s); Mapbox bleibt Rückfall. Nominatim: eine Anfrage je Eingabe, User-Agent mit App-Kennung, `viewbox`
+  ±5° um den Nachbarpunkt (nicht bindend), genau benannte Orte vorn.
+- **Abbrechen:** `_etSuchen` zeigt Spinner + `.et-such-stop`; `E.suchGen` verwirft späte Antworten, `E.suchAbgebrochen`
+  stoppt `_etUebernehmen`. Der Klick wird auf `window` in der Einfangphase abgefangen — ein globaler Wächter hält Klicks
+  vor dem Dokument an, solange eine Brücke wartet, und das Panel wird zwischendurch neu gezeichnet.
+- **Live-Höhe:** `_etHoehe3d()` (Ebene `et-edit-3d`, rz-line3d) aus `_etKarteZeichnen` und dem `live`-Rückruf von
+  `rzHochflug.editor(box, wert, aendern, T, live)` (je Animationsbild beim Ziehen/Regeln). Entfernt in `_etAufraeumen`.
+- **Übernehmen:** Hinweis `.et-los-hinweis` ab zwei Orten; `runTimelinePreview` mit offenem Editor (≥ 2 Orte) ruft
+  `__rzEtappe.berechnen()` und startet danach selbst. Knopf „Route bearbeiten“ (`.anim-etappe-edit-text`, rzIcon route).
+- **Stift bei Etappen:** `_stilToggleBauen` (Hauptzeile) und `[data-act=stil]` (weitere Zeilen) öffnen bei `etappe` den
+  Etappen-Editor (`_etappeBearbeiten`), sonst den Track-Editor. Im Etappen-Editor (nur beim Bearbeiten) `.et-aussehen` →
+  `_trackEdOeffnen` (Hauptzeile: "haupt"). Der eigene 🗺-/„Route bearbeiten“-Knopf in den Zeilen ist entfallen; im
+  Track-Editor bleibt `.tred-route`.
+- Test `tests/test_etappe_bedienung.py` (Netz; Ortssuche ohne Netz nachgestellt).
 
 ## Ausreißer: Grund und Schwellen je Sportart (05.10.2026, v0.9.782)
 
@@ -6827,6 +6924,21 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   seiner `web.html` (gps-studio-web `scripts/build_engine.py`). `tests/test_web_schlank.py` lädt die Seite ohne sie (MapLibre,
   Animator, Laufpunkt, Abspielen). **Neue Dateien, die nur die App braucht, ebenso markieren** — nie etwas aus `ui/js/`, MapLibre
   oder den Animator (der Test prüft das).
+- **Flugstile der Kamerafahrt (14.10.2026):** `ui/js/schnellvideo.js FLUGSTILE` (begleiter = bisher, tiefflieger,
+  schwalbe, kranschwenk, thermik, reiseflughoehe, pusteblume, falke, orbit): `dz` Zoom gegenüber dem Begleiter, `p`
+  Neigung, `glatt` Faktor auf `camera_follow_glatt_m`, `kurs` = Optionen für `__rzSchnellKamera` → module.js
+  `_kursKeyframes` (`fenster_f`, `glatt_s`, `tol_grad`, `kran` = Versatz ∝ geglätteter Drehgeschwindigkeit ±35°,
+  `modus: "fest"` = Kreismittel der Fahrtrichtungen, `modus: "kreisen"` + `grad_s` = gleichmäßige Drehung, Anker =
+  Zeit). `kamerafahrt(…, opt.flug)` wendet dz/p auf die Fahrt und die Moment-/Gipfel-Shots an (Zoom ≥ 0,4 über dem
+  Fit), Überblick/Schluss unverändert. Zustand `w.flug` (gemerkt, ★-Vorlagen `stil.flug`); bewusst KEIN eigener Projektschlüssel — die Wirkung besteht aus normalen Animator-Einstellungen (test_schnellvideo_nachbau: alles von Hand nachbaubar).
+  UI: Schnell-Dialog `[data-sv-gruppe="flug"]`, Assistent `[data-va-flug]` mit Clips `ui/media/kamera/flug_<stil>.mp4`
+  (480×270, aus `gpsstudio render … --camera`). CLI `--camera` (`cli.KAMERAS`, englische Namen), MCP `render_video.camera`,
+  `templates` liefert `cameras`. Test `test_kamera_flugstile.py`, Prüfstand `window.__rzFlugstile`.
+  Dazu (14.10.2026): Flugstil `karussell` (`kreisen`, 18 °/s); Moment-Bewegung `umkreisen` (`kursOpts` → `kreise:[{von,bis}]`,
+  `_kursKeyframes` addiert eine Runde mit Smoothstep); Fotostopp `stopp_kreisen` (`_fsWerte.kreisen`, Halt ≥ `FS_KREIS_MIN_S`
+  6 s, `_fotostoppBei.dreh` = 360·smooth(u), `_haltKeyframes` setzt 7 Richtungs-Keyframes bis +360°; Assistent `w.fotoKreisen`,
+  CLI `--circle-photos`, MCP `circle_photos`). Allgemein: `_kursKeyframes` hält benachbarte Keyframes ≤ 120° auseinander
+  (`_interpBearing` nimmt den kürzeren Weg). Prüfstand `__rzEffektiveKeyframes`, `__rzFsWerte`.
 - **Symbole je Bewegungsart (13.10.2026):** 20 Arten, eine je Verkehrsart der Routenberechnung. Quelle: `ui/img/bewegung/<art>.svg`
   (drei Ebenen `rz-hell`/`rz-dunkel`/`rz-akzent`, 512er-Fläche, erzeugt aus KI-Bögen mit `scripts/bewegungsarten_svg.py`,
   potrace nur dort). `scripts/bewegungsarten_svg.py js` schreibt daraus `ui/js/bewegung_pfade.js` (`RZ_BEWEGUNG_PFADE`, Pfade je
@@ -7144,6 +7256,12 @@ Auf dem Mac mini ist die Systemplatte nur für installierte Programme da. Deshal
 - `scripts/nachtlauf.py`: Kopie, Zustand, Log und Test-Temp unter `/Volumes/MacMini 2TB Acasis/GPS-Studio-Nachtlauf`
   (`repo/`, `zustand.json`, `launchd.log`, `tmp/`); die Suite läuft mit `TMPDIR=…/tmp/`, Reste älter als 6 h werden
   vor jedem Lauf geleert. Nach Pfadänderungen `nachtlauf.py --einrichten` (schreibt den launchd-Auftrag neu).
+  **launchd und die externe Platte (14.10.2026):** Seit dem Umzug (11.10.) lief der Nachtauftrag nie — `spawn failed`,
+  EX_CONFIG 78. launchd darf auf der externen Platte weder das Protokoll öffnen (`StandardOutPath`) noch dorthin wechseln
+  (`WorkingDirectory`: „Operation not permitted“), auch `/bin/sh` darf dort nicht schreiben. Das Python des Projekts (und
+  was es startet, z. B. ffmpeg) darf es. Darum enthält das plist nur `[python, nachtlauf.py, --launchd]`; `--launchd` macht
+  `chdir(REPO)` und leitet stdout/stderr selbst nach `GPS-Studio-Nachtlauf/launchd.log`. Prüfen:
+  `launchctl kickstart gui/$(id -u)/com.reisezoom.gpsstudio.nachtlauf` → neue Zeile im Protokoll, `last exit code = 0`.
 - `scripts/run_tests.py`: setzt `TMPDIR=/Volumes/MacMini 2TB Acasis/_tmp/gps-studio-tests/`, wenn die Platte da ist
   und TMPDIR nicht schon extern zeigt (andere Rechner: unverändert).
 - `scripts/deploy_release.sh`: Downloads nach `/Volumes/MacMini 2TB Acasis/GPS-Studio-Deploy/`, die letzten zwei bleiben.
@@ -7451,6 +7569,16 @@ Test: `tests/test_linie_ecken.py`.
   `/* rz-patch taskqueue */` — `TaskQueue.run` mit try/finally: ein Fehler in einer Render-Aufgabe ließ `_currentlyRunning`
   stehen, jedes weitere Bild warf „Attempting to run(), but is already running.“ (Vorschau stand). Ausgelöst beim
   Neuaufbau des Animators nach Modulwechsel (9:16/Nachtkarte/Gelände), ~2 von 3 Läufen; danach 0 von 3.
+  `/* rz-patch datumsgrenze */` (14.10.2026, Web-Fund F-15) — in `coveringTiles` (`xe`) wird der Kamerapunkt `a` auf die
+  Weltkopie der Mitte `s` gelegt (`a.x-=Math.round(a.x-s.x)`). An −180° lag er sonst eine Erdbreite daneben; der Abstand
+  Kamera↔Mitte (Nenner der LOD-Formel) war ~1 Welt, jede Kachel galt als nah → feinste Stufe überall (gemessen 54 633
+  Gelände-, 10 350 und 8 461 Kacheln für ein Bild), `_updateRetainedTiles` lief minutenlang (Stapel per CDP-Pause). Kein
+  Globus- oder Geländeproblem: mit flacher Karte verschob es sich nur. Dazu im Animator: die Stützstellen der ruhigen
+  Kamera (`_faithCams`, Mercator-x) werden fortlaufend abgewickelt und `_faithSeek` mischt x auf dem kürzeren Weg und
+  faltet auf 0…1 (vorher Sprung −178° → −162° → +16°); `rzMlCamApply` faltet die Länge auf −180…180; `_trackAufUmrundung`
+  (JS) / `_track_auf_umrundung` (core/timeline.py) legt einen auf den Track aufgelösten Center-Endpunkt auf die Umrundung
+  des festen Gegenpunkts (abgewickeltes Ziel −346,6° gegen Übersicht 13,4° → keine 360°-Drehung). Test
+  `test_weltumrundung_kamera.py` („langsam“: Render-Ablauf Bild für Bild, Hänger/Sprung/Kachelflut/Drehung/Pendeln).
 - F-16: `core/mapstyles.py` `OHNE_VIDEO_FREIGABE` — Regionen mit `commercial_video` „unknown“/„false“ im Register fallen aus
   `ORTHO_REGIONS` (Python und JS-Katalog) und stehen als `KNOWN_GAPS` mit Grund (`map.gap.<id>.reason`). Derzeit `it`.
 - F-17: Schnell-Video „Weite“: Live-Werte `anker: "bc"`, mit Profil über dessen Kopfzeile (wie Puls); Übersichtskarte
@@ -7620,4 +7748,24 @@ Test: `tests/test_linie_ecken.py`.
 - Halt an der Stelle (Fotostopp in der Tempo-Kurve): `_animSignMitAnker` verlängert `after` um die Zeit, die der Pfeil
   dort steht (`_animSignHaltAnker`) — mit dem Zeit-Anker (F-19) lief das Fenster sonst mitten im Halt ab.
 - Tests: `test_track_highlights.py` (F-21), `test_schild_zeit_pfeil.py`, `test_schild_bildrand.py`.
+
+## Metadaten für Lightroom & Co., KML-Linien, geduldiges Ersetzen (14.10.2026, v0.9.792)
+
+- `core/exif._TAG_ZIELE` / `_LISTEN_ZIELE` / `_tag_zuweisungen`: ein Feld der Oberfläche (ohne Gruppe) → alle Orte
+  (Beschreibung = EXIF:ImageDescription + IPTC:Caption-Abstract + XMP-dc:Description; Titel, Stichwörter (Liste), Urheber,
+  Copyright, Überschrift, Credit, Quelle, Anweisung). IPTC mit `-charset iptc=UTF8` + CodedCharacterSet. Gilt für
+  `write_exif_tags` (Stapel) und `write_exif_tag` (einzeln).
+- `raw_sidecar_nachziehen(path)`: nach jedem Schreiben in eine RAW-Datei (GPS, Felder, Ort) → `NAME.xmp` (Adobe-Schema)
+  per `-tagsFromFile RAW -xmp:all -xmp-exif:all<gps:all`; vorhandene Begleitdatei über Kopie + `_ds.ersetzen` (sichert).
+  Fehler nur im Log. Wache: `tests/test_metadaten_lightroom.py`.
+- Geotagger-Dateimaske: eine Liste `RAW` = alle `core/exif.RAW_EXTS` (+ TIFF/HEIF).
+- `core/imports._parse_kml_string`: gibt es `LineString`, zählen nur deren Koordinaten; Punkte/Flächen nur ohne Linie
+  (Google-Maps-Export: Route + Ortsmarken A/B).
+- `dateischutz.ersetzen` → `_replace_geduldig` (bis 12 Versuche, ~15 s, nur bei PermissionError — Windows-Sync/Virenscanner);
+  `tonspur.anlegen`: bleibt das Ziel gesperrt, liegt die Fassung mit Ton als „NAME (mit Ton).mp4“ daneben.
+- **RAW+JPEG-Paare (Geotagger):** `_gtPaare()` (UI, gecacht je `photos`-Array) — gleicher Ordner + Name, eine RAW-
+  (`_PAAR_RAW_RX`) und eine Bilddatei (JPG/HEIC/TIFF). `_gtIstPaarRaw` blendet die RAW-Hälfte in Raster und Karte aus;
+  `_gtPaareSchreiben(liste, edits)` vor `geotagger_start_write`: eigene Einträge der RAW-Hälften raus, je Bild die RAW-
+  Hälfte mit denselben Werten (Ort/Zeit) dazu, Felder (`exifEdits`) gespiegelt. Schalter `#gt-paare` →
+  `settings.geotagger.raw_jpg_paare`. Prüfstand `window.__rzGtPaare`. Test `tests/test_geotagger_paare.py`.
 

@@ -174,6 +174,55 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     return out[:n]
 
 
+def geocode_nominatim(query: str, *, limit: int = 1, lang: str = "de",
+                      bias: Optional[Tuple[float, float]] = None, timeout: float = 8.0) -> List[dict]:
+    """Ort → Treffer über Nominatim (OpenStreetMap direkt, kein Token).
+    14.10.2026 (Marc: „Orte suchen dauert ewig“) — Photon antwortete an diesem Tag erst nach ~29 s, Nominatim in
+    ~0,2 s. Wird parallel zu Photon gefragt (app.route_geocode). Nutzungsregeln: eine Anfrage je Eingabe, eigene
+    Kennung im User-Agent. `bias` = (lon, lat): bevorzugt Treffer in einem Kasten von ±5° darum (nicht ausschließlich)."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    n = max(1, min(10, int(limit)))
+    params = {"q": q, "format": "jsonv2", "limit": 10, "accept-language": lang or "de", "addressdetails": 1}
+    if bias and len(bias) == 2:
+        lo, la = float(bias[0]), float(bias[1])
+        params["viewbox"] = f"{lo - 5:.4f},{la + 5:.4f},{lo + 5:.4f},{la - 5:.4f}"
+        params["bounded"] = 0
+    req = urllib.request.Request("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(params),
+                                 headers={"User-Agent": "ReisezoomGPSStudio (+https://reisezoom.com)"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except Exception as e:  # noqa: BLE001
+        raise RouteError("Nominatim — " + _i18n.t_aktiv("route.err_geocoding", "Geocoding fehlgeschlagen: ") + str(e)) from e
+    # Orte, die genau so heißen, nach vorn (wie bei Photon: „Schierke“ vor „Schierker Straße“)
+    def _ort(d):
+        return (d.get("category") in ("place", "boundary") or d.get("addresstype") in ("city", "town", "village", "hamlet", "island", "municipality")) \
+            and _namen_gleich(d.get("name") or "", q)
+    data = sorted(data or [], key=lambda d: 0 if _ort(d) else 1)
+    out: List[dict] = []
+    seen = set()
+    for d in data:
+        try:
+            lon, lat = float(d.get("lon")), float(d.get("lat"))
+        except (TypeError, ValueError):
+            continue
+        adr = d.get("address") or {}
+        teile = [d.get("name") or q]
+        for k in ("city", "town", "village", "state", "country"):
+            v = adr.get(k)
+            if v and v not in teile:
+                teile.append(v)
+        name = ", ".join(teile[:3])
+        key = (name, round(lon, 3), round(lat, 3))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"name": name, "lon": lon, "lat": lat})
+    return out[:n]
+
+
 # Photon-Arten, die ein ORT sind (nicht Straße, Haltestelle, Gebäude).
 _ORT_WERTE = {"city", "town", "village", "hamlet", "suburb", "locality", "municipality",
               "island", "islet", "quarter", "neighbourhood", "borough", "isolated_dwelling"}

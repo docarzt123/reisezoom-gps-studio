@@ -521,9 +521,9 @@ def _interpolate_center_property(evs: list[dict], progress: float,
             if av is None and bv is None:
                 return None
             if av is None and track_point_at is not None:
-                av = track_point_at(float(a.get("anchor", 0)))
+                av = _track_auf_umrundung(track_point_at(float(a.get("anchor", 0))), bv)
             if bv is None and track_point_at is not None:
-                bv = track_point_at(float(b.get("anchor", 0)))
+                bv = _track_auf_umrundung(track_point_at(float(b.get("anchor", 0))), av)
             if av is not None and bv is not None:
                 return [_lerp(float(av[0]), float(bv[0]), t),
                         _lerp(float(av[1]), float(bv[1]), t)]
@@ -618,6 +618,15 @@ def _van_wijk_interp(c1, c2, z1: float, z2: float, t: float) -> tuple[list, floa
     return ([float(c1[0] + dx * c_t), float(c1[1] + dy * c_t)], float(zoom_s))
 
 
+def _track_auf_umrundung(tp, fest):
+    """14.10.2026 (Weltumrundung) — einen auf den Track aufgelösten Endpunkt auf die Erdumrundung des festen Gegenpunkts
+    legen (abgewickeltes Ziel −346,6° gegen Übersicht 13,4° → 13,4°), sonst fliegt die Kamera 360° ab. Gewollte Drehungen
+    zwischen zwei festen Keyframes bleiben. Synchron zu module.js `_trackAufUmrundung`."""
+    if tp is None or fest is None:
+        return tp
+    return [float(tp[0]) + 360.0 * round((float(fest[0]) - float(tp[0])) / 360.0), float(tp[1])]
+
+
 def _maybe_flyto_interp(zoom_evs: list[dict], center_evs: list[dict],
                        progress: float, fit_zoom_base: float | None = None,
                        track_point_at=None, abs_shift: float = 0.0):
@@ -667,9 +676,9 @@ def _maybe_flyto_interp(zoom_evs: list[dict], center_evs: list[dict],
     if cav is None and cbv is None:
         return None
     if cav is None and track_point_at is not None:
-        cav = track_point_at(float(c_a.get("anchor", 0)))
+        cav = _track_auf_umrundung(track_point_at(float(c_a.get("anchor", 0))), cbv)
     if cbv is None and track_point_at is not None:
-        cbv = track_point_at(float(c_b.get("anchor", 0)))
+        cbv = _track_auf_umrundung(track_point_at(float(c_b.get("anchor", 0))), cav)
     if cav is None or cbv is None:
         return None
     # Segmente müssen ungefähr dieselben Anchor-Grenzen haben

@@ -65,7 +65,14 @@ BEDINGT = {
     "test_kachel_ausfall.py": ("netz",),               # 30.09.2026: Kartendienst fällt aus → Ersatz-Kachel, kein Warten, Hinweis
     "test_vorlaeufer.py": ("netz", "langsam"),         # 30.09.2026: Vorläufer lädt beim Rendern voraus (kalter Render, Abbruch)
     "test_tempo_szene_render.py": ("netz", "langsam"),  # 08.09.2026: Tempo-Kurve über den Szenen-Render belegt (die schnelle Fassung ist test_tempo_wirkung.py)
-    "test_render_matrix.py": ("netz", "langsam"),     # 06.09.2026 abends: Gelände-Matrix über die gemeinsame Szene (Marcs Archiv-Kopie): Wackeltest, Riss-Test, Kurzrender — NUR Release (langsam)
+    "test_render_matrix.py": ("netz", "langsam"),
+    "test_weltumrundung_kamera.py": ("netz", "langsam"),
+    "test_hochflug_kamera.py": ("netz",),               # 14.10.2026: Hochflug ruckelfrei, Kamera kreist, Seitenansicht
+    "test_orte_nacheinander.py": ("netz",),
+    "test_projekt_schliessen_etappe.py": ("netz",),
+    "test_etappe_bedienung.py": ("netz",),
+    "test_geotagger_paare.py": ("netz",),               # 14.10.2026: RAW+JPEG als Paar im Geotagger (Karte lädt Kacheln)             # 14.10.2026: Live-Höhe, Hinweis Übernehmen, Ortssuche parallel/abbrechen, Route bearbeiten     # 14.10.2026: Projekt schließen → Etappe → ✕ → neues Projekt bleibt leer             # 14.10.2026: Etappe nur mit Orten — Takt, ohne Linie, Schilder bleiben
+    "test_wysiwyg_render.py": ("netz", "langsam"),   # 14.10.2026: Bildvergleich Editor ↔ Video (4 Fassungen, Schwelle)   # 14.10.2026: Weltumrundung Bild für Bild über −180° (Hänger, Sprung, Drehung)     # 06.09.2026 abends: Gelände-Matrix über die gemeinsame Szene (Marcs Archiv-Kopie): Wackeltest, Riss-Test, Kurzrender — NUR Release (langsam)
     "test_geotagger_e2e.py": ("fixtures",),
     "test_raw_geotagging.py": ("fixtures",),
     "test_video_geotagging.py": ("fixtures",),

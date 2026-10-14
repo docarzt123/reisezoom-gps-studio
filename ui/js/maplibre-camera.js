@@ -77,7 +77,9 @@
       const dz = Math.max(1, altM - elev);
       const offMerc = dz * Math.tan(p) * mercZfromAlt(1, cLat);
       const cx = pos[0] + Math.sin(b) * offMerc, cy = pos[1] - Math.cos(b) * offMerc;
-      const nLng = xLng(cx), nLat = yLat(cy);
+      // 14.10.2026 (Weltumrundung) — Länge auf −180…180 falten: an der Datumsgrenze ergab Kamera minus Blickversatz −180,4°,
+      // damit fragten Gelände-Abgriff und jumpTo eine Länge außerhalb der Welt ab
+      const nLng = ((xLng(cx) + 180) % 360 + 360) % 360 - 180, nLat = yLat(cy);
       const e2 = fixed ? elev : terrainAt(map, [nLng, nLat], elev);
       const fertig = Math.abs(e2 - elev) < 0.5 && Math.abs(nLat - cLat) < 1e-7;
       cLng = nLng; cLat = nLat; elev = e2;

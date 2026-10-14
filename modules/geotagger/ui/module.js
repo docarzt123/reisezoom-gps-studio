@@ -59,6 +59,11 @@ function mountGeotagger(body, headerActions) {
           <input type="checkbox" id="gt-folder-recursive">
           <span>${t("geotagger.toggle.folder_recursive")}</span>
         </label>
+        <!-- 14.10.2026 (Nutzer, Lumix LX100: „gemeinsames Bearbeiten von RAW+JPEG wie in Lightroom“) -->
+        <label class="checkbox-row" style="font-size:12px;" title="${t("geotagger.paare.tip", "Eine RAW-Datei und ein JPEG mit gleichem Namen (P1000123.RW2 + P1000123.JPG) erscheinen als ein Foto; Ort, Zeit und Felder werden in beide geschrieben.")}">
+          <input type="checkbox" id="gt-paare"${(_settingsCache && _settingsCache.geotagger && _settingsCache.geotagger.raw_jpg_paare === false) ? "" : " checked"}>
+          <span>${t("geotagger.paare", "RAW+JPG als Paar")}</span>
+        </label>
         <div class="file-label small-info" id="gt-photos-info" hidden></div>
         <!-- 10.09.2026 (Issue #7) — mehrere Tracks: Liste der geladenen
              Tracks in ihrer Farbe, dazu der Weg ins Archiv. -->
@@ -256,6 +261,48 @@ function mountGeotagger(body, headerActions) {
     }
     return _idxCache.mMap.get(path);
   }
+  // 14.10.2026 — RAW+JPEG-Paare: gleicher Ordner + gleicher Name, eine RAW-Datei und ein Bild (JPG/HEIC/TIFF). In der Liste
+  // und auf der Karte steht nur das Bild (mit Plakette „RAW+JPG“); beim Schreiben bekommt die RAW-Datei genau das, was ihr
+  // Bild bekommt (Ort, Zeit, Felder). Beide haben dieselbe Aufnahmezeit, die Zuordnung zum Track ist also ohnehin gleich.
+  const _PAAR_RAW_RX = /\.(cr3|cr2|crw|nef|nrw|arw|srf|sr2|raf|rw2|orf|dng|pef|rwl|srw)$/i;
+  const _PAAR_BILD_RX = /\.(jpe?g|heic|heif|tiff?)$/i;
+  let _gtPaarCache = { arr: null, len: -1, rawZuBild: new Map(), bildZuRaw: new Map() };
+  function _gtPaareAn() { const c = document.getElementById("gt-paare"); return c ? c.checked : !(_settingsCache && _settingsCache.geotagger && _settingsCache.geotagger.raw_jpg_paare === false); }
+  function _gtPaare() {
+    if (_gtPaarCache.arr === photos && _gtPaarCache.len === photos.length) return _gtPaarCache;
+    const gruppen = new Map();
+    for (const p of photos) {
+      if (!p || !p.path || p.is_video) continue;
+      const m = String(p.path).match(/^(.*)\.[^.\/\\]+$/); if (!m) continue;
+      const k = m[1].toLowerCase();
+      if (!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(p);
+    }
+    const rawZuBild = new Map(), bildZuRaw = new Map();
+    gruppen.forEach(g => {
+      if (g.length !== 2) return;
+      const raw = g.find(p => _PAAR_RAW_RX.test(p.path)), bild = g.find(p => _PAAR_BILD_RX.test(p.path));
+      if (raw && bild) { rawZuBild.set(raw.path, bild.path); bildZuRaw.set(bild.path, raw.path); }
+    });
+    _gtPaarCache = { arr: photos, len: photos.length, rawZuBild, bildZuRaw };
+    return _gtPaarCache;
+  }
+  /** RAW-Hälfte eines Paars (steht nicht in der Liste, nicht auf der Karte). */
+  function _gtIstPaarRaw(p) { return !!(p && p.path && _gtPaareAn() && _gtPaare().rawZuBild.has(p.path)); }
+  /** Schreibliste und Felder auf die RAW-Hälften ausdehnen: erst die eigenen Einträge der RAW-Hälften raus (sie sind
+   *  unsichtbar und hätten sonst ein eigenes Häkchen), dann je Bild seine RAW-Hälfte mit denselben Werten dazu. */
+  function _gtPaareSchreiben(liste, edits) {
+    if (!_gtPaareAn()) return liste;
+    const { rawZuBild, bildZuRaw } = _gtPaare();
+    const raus = liste.filter(m => !rawZuBild.has(m.path));
+    for (const m of raus.slice()) { const r = bildZuRaw.get(m.path); if (r) raus.push(Object.assign({}, m, { path: r })); }
+    if (edits) {
+      for (const r of rawZuBild.keys()) delete edits[r];
+      for (const [b, r] of bildZuRaw) if (edits[b]) edits[r] = Object.assign({}, edits[b]);
+    }
+    return raus;
+  }
+
   function _pByPath(path) {
     if (_idxCache.pArr !== photos || _idxCache.pLen !== photos.length) {
       _idxCache.pMap = new Map(); for (const ph of photos) if (ph && ph.path) _idxCache.pMap.set(ph.path, ph);
@@ -1505,12 +1552,16 @@ function mountGeotagger(body, headerActions) {
 
   document.getElementById("gt-pick-photos").addEventListener("click", async () => {
     // pywebview file_types: jeder Filter ist eine Option im Picker-Popup-Menü
+    // 14.10.2026 (Bugreport Lumix LX100: „in der Maske fehlt *.rw2“) — alle RAW-Arten, die die App liest (core/exif.RAW_EXTS),
+    // dazu TIFF/HEIF; eine Liste für alle Filter, damit keine Endung mehr in einem davon fehlt
+    const RAW = "*.cr3;*.cr2;*.crw;*.nef;*.nrw;*.arw;*.srf;*.sr2;*.raf;*.rw2;*.orf;*.dng;*.pef;*.rwl;*.srw";
+    const FOTO = "*.jpg;*.jpeg;*.heic;*.heif;*.tif;*.tiff;" + RAW, VIDEO = "*.mp4;*.mov;*.m4v;*.insv;*.insp;*.mts";
     const filters = [
-      t("geotagger.dlg.media", "Medien") + " (*.jpg;*.jpeg;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng;*.heic;*.mp4;*.mov;*.m4v;*.insv;*.insp)",
-      t("geotagger.dlg.photos", "Fotos") + " (*.jpg;*.jpeg;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng;*.heic)",
-      t("geotagger.dlg.videos", "Videos") + " (*.mp4;*.mov;*.m4v;*.insv;*.insp;*.mts)",
+      t("geotagger.dlg.media", "Medien") + ` (${FOTO};${VIDEO})`,
+      t("geotagger.dlg.photos", "Fotos") + ` (${FOTO})`,
+      t("geotagger.dlg.videos", "Videos") + ` (${VIDEO})`,
       "JPEG (*.jpg;*.jpeg)",
-      "RAW (*.cr3;*.cr2;*.nef;*.arw;*.raf;*.orf;*.dng)",
+      `RAW (${RAW})`,
     ];
     const files = await api().pick_file("open", filters, true); // warte-ok: Systemdialog
     if (!files || !files.length) return;
@@ -1525,6 +1576,16 @@ function mountGeotagger(body, headerActions) {
       await loadPhotos(files);
     } finally { if (frei) frei(); if (frei2) frei2(); }
   });
+
+  // 14.10.2026 — Schalter „RAW+JPG als Paar“: Liste und Pins neu, Einstellung merken
+  document.getElementById("gt-paare")?.addEventListener("change", (ev) => {
+    _gtPaarCache.arr = null;
+    try { saveSettings({ geotagger: { raw_jpg_paare: !!ev.target.checked } }); } catch (_) {}
+    try { renderPhotoGrid(); updateBadges(); } catch (_) {}
+    try { redrawMarkers(); } catch (_) {}
+  });
+  // Prüfstand
+  window.__rzGtPaare = { an: () => _gtPaareAn(), paare: () => Array.from(_gtPaare().bildZuRaw.entries()), schreiben: (l, e) => _gtPaareSchreiben(l, e) };
 
   document.getElementById("gt-pick-folder").addEventListener("click", async () => {
     const folders = await api().pick_file("folder"); // warte-ok: Systemdialog
@@ -1887,6 +1948,7 @@ function mountGeotagger(body, headerActions) {
     let _gtShown = 0;
     photos.forEach((p, i) => {
       if (!_gtPhotoInFilter(p)) return;
+      if (_gtIstPaarRaw(p)) return;   // 14.10.2026 — RAW-Hälfte eines Paars steht beim Bild
       _gtShown++;
       const isSkel = !p.thumb;
       const isUploading = !!p._uploading;
@@ -1907,6 +1969,9 @@ function mountGeotagger(body, headerActions) {
       const thumbWrap = el("div", { class: "photo-thumb" });
       const img = el("img", { src: p.thumb || "", alt: p.name, loading: "lazy" });
       thumbWrap.appendChild(img);
+      if (p.path && _gtPaareAn() && _gtPaare().bildZuRaw.has(p.path)) {
+        thumbWrap.appendChild(el("div", { class: "tile-paar-badge", title: t("geotagger.paare.badge_tip", "Dazu gehört die RAW-Datei {n} — sie bekommt dieselben Angaben.").replace("{n}", String(_gtPaare().bildZuRaw.get(p.path)).split(/[\\/]/).pop()) }, "RAW+JPG"));
+      }
       // Video-Badge mit Play-Icon
       if (p.is_video) {
         thumbWrap.appendChild(el("div", { class: "tile-video-badge", title: t("geotagger.tile.video", "Video") }, "▶"));
@@ -2664,6 +2729,7 @@ function mountGeotagger(body, headerActions) {
       // manuell platzierte Fotos bekommen einen Pin.
       if (!m.in_range && !m.manual) return;
       if (!_gtMatchInFilter(m)) return;          // v0.9.340 — Filter wirkt auch auf die Karte
+      if (_gtIstPaarRaw(_pByPath(m.path))) return;   // 14.10.2026 — RAW-Hälfte: der Pin des Bilds steht für beide
       if (_gedeckelt && !m.manual && m.path !== referencePath && m.path !== selectedPath) return;
       const isManual = !!m.manual;               // v0.9.166 — manuell platziert
       const eltMarker = document.createElement("div");
@@ -3883,7 +3949,8 @@ function mountGeotagger(body, headerActions) {
     if (!_frei) return;                          // läuft schon
     await malPause();
     try {
-    const writable = matches.filter(m => m.lat != null && m.in_range && _gtMatchTaggable(m));
+    let writable = matches.filter(m => m.lat != null && m.in_range && _gtMatchTaggable(m));
+    writable = _gtPaareSchreiben(writable, null);   // 14.10.2026 — RAW-Hälften bekommen, was ihr Bild bekommt
     // v0.9.367 — Gruppen-Schalter: getrennt zusammenbauen, je nach Häkchen mitnehmen.
     const _wf = (id) => { const e = document.getElementById(id); return e ? e.checked : true; };
     const wfKeywords = _wf("gt-wf-keywords");   // Auto-Tag-Stichwörter
@@ -4032,6 +4099,7 @@ function mountGeotagger(body, headerActions) {
         });
         if (!overwriteOriginals) return;   // abgebrochen → nichts schreiben
       }
+      _gtPaareSchreiben([], exifEdits);   // Felder des Bilds auch in die RAW-Hälfte
       runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack,
         writeFields, exifEdits, camOffsets, camSetTime, destDir, overwriteOriginals);
     };

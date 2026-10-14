@@ -286,26 +286,38 @@ def _parse_kml_string(data: str) -> List[Point]:
     if pts:
         return pts
 
-    # 2) Klassische LineString-<coordinates>lon,lat,ele …</coordinates>
-    for coords_el in _iter_local(root, "coordinates"):
-        if not coords_el.text:
-            continue
-        for tok in coords_el.text.replace("\n", " ").split():
-            parts = tok.split(",")
-            if len(parts) < 2:
+    # 2) Klassische <coordinates>lon,lat,ele …</coordinates>
+    # 14.10.2026 (Web-Fund F-25, Bugreport: Google-Maps-Route a → b „mit gerader Linie zurück und viel zu großer
+    # Strecke“) — vorher wurden ALLE <coordinates> hintereinandergehängt, auch die der <Point>-Ortsmarken A und B, die
+    # Google Maps / My Maps neben der Route exportiert (7,31 km → 19,95 km). Jetzt: gibt es Linien (LineString), zählen nur
+    # sie (in Dateireihenfolge); Punkte und Flächen nur, wenn es gar keine Linie gibt (reine Ortsliste → Weg wie bisher).
+    def _coords(el) -> List[Point]:
+        out: List[Point] = []
+        for coords_el in _iter_local(el, "coordinates"):
+            if not coords_el.text:
                 continue
-            try:
-                lon, lat = float(parts[0]), float(parts[1])
-            except ValueError:
-                continue
-            ele = None
-            if len(parts) >= 3:
+            for tok in coords_el.text.replace("\n", " ").split():
+                parts = tok.split(",")
+                if len(parts) < 2:
+                    continue
                 try:
-                    ele = float(parts[2])
+                    lon, lat = float(parts[0]), float(parts[1])
                 except ValueError:
-                    ele = None
-            pts.append((lat, lon, ele, None))
-    return pts
+                    continue
+                ele = None
+                if len(parts) >= 3:
+                    try:
+                        ele = float(parts[2])
+                    except ValueError:
+                        ele = None
+                out.append((lat, lon, ele, None))
+        return out
+
+    for ls in _iter_local(root, "linestring"):
+        pts.extend(_coords(ls))
+    if pts:
+        return pts
+    return _coords(root)
 
 
 def _parse_kml(path: str) -> List[Point]:

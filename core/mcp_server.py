@@ -58,7 +58,7 @@ WERKZEUGE = [
     {"name": "list_templates",
      "title": "List video templates",
      "description": "List the video templates: built-in 'landscape' (calm, wide), 'memory' (diary style), 'social' "
-                    "(fast, for short clips) and the user's own ★ templates.",
+                    "(fast, for short clips) and the user's own ★ templates, plus the camera flight styles for render_video.",
      "inputSchema": {"type": "object", "properties": {}},
      "annotations": {"readOnlyHint": True, "openWorldHint": False}},
     {"name": "render_video",
@@ -68,9 +68,15 @@ WERKZEUGE = [
      "inputSchema": {"type": "object", "required": ["tour"], "properties": {
          "tour": {"type": "string", "description": "Tour id from search_tours (preferred) or a unique tour name"},
          "template": {"type": "string", "default": "landscape", "description": "landscape, memory, social or an own template name"},
+         "camera": {"type": "string", "enum": ["companion", "skimmer", "swallow", "crane", "thermal", "cruise", "dandelion", "falcon", "orbit", "carousel"],
+                    "description": "Camera flight style: companion (soft, behind you — default), skimmer (close, low, steep), swallow (agile), "
+                                   "crane (swings outward in curves), thermal (higher, gliding), cruise (high and flat), dandelion "
+                                   "(drifts in one direction), falcon (high, from above, slowly circling), orbit (top-down from far up, slow orbit), "
+                                   "carousel (close, slowly circling around the moving dot)"},
          "format": {"type": "string", "enum": ["16:9", "9:16", "1:1"], "description": "Picture format (default: the template's)"},
          "length_s": {"type": "number", "minimum": 15, "maximum": 600, "description": "Video length in seconds (default: the template's)"},
-         "photos": {"type": "boolean", "default": True, "description": "Show the tour's photos as stops"}}},
+         "photos": {"type": "boolean", "default": True, "description": "Show the tour's photos as stops"},
+         "circle_photos": {"type": "boolean", "default": False, "description": "Camera circles once around each photo stop"}}},
      "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}},
     {"name": "render_map_image",
      "title": "Render a map image",
@@ -310,6 +316,10 @@ class Server:
                                                              for x in self.cli._eigene_vorlagen(self.api)):
                 raise _Fehler(f"unknown template: {vorlage} — see list_templates")
             args = ["render", tour, "--template", vorlage]
+            if a.get("camera"):
+                if a["camera"] not in self.cli.KAMERAS:
+                    raise _Fehler("unknown camera — see list_templates")
+                args += ["--camera", a["camera"]]
             if a.get("format"):
                 if a["format"] not in self.cli.FORMATE:
                     raise _Fehler("format must be 16:9, 9:16 or 1:1")
@@ -321,6 +331,8 @@ class Server:
                 args += ["--length", f"{s:g}"]
             if a.get("photos") is False:
                 args.append("--no-photos")
+            if a.get("circle_photos"):
+                args.append("--circle-photos")
             return self.auftraege.neu("video", args, tour), []
         if name == "render_map_image":
             tour = str(a.get("tour") or "")

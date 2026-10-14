@@ -71,7 +71,7 @@ sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
 sudo dnf install git python3 python3-gobject gobject-introspection \
                  webkit2gtk4.1 python3-cairo perl-Image-ExifTool
 
-# Arch (nicht getestet)
+# Arch (läuft — von Nutzern bestätigt, Oktober 2026)
 sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool
 ```
 
@@ -87,10 +87,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Render-Browser einmalig installieren** (fragt nach deinem `sudo`-Passwort, weil Chromium ein paar System-Bibliotheken braucht):
+**3. Render-Browser einmalig installieren.** Unter **Ubuntu / Debian** in einem Schritt (fragt nach deinem `sudo`-Passwort, weil Chromium ein paar System-Bibliotheken braucht):
 
 ```bash
 python -m playwright install --with-deps chromium-headless-shell
+```
+
+Unter **Arch** und **Fedora** geht `--with-deps` nicht — es ruft intern `apt-get` auf. Dort die Bibliotheken mit dem eigenen Paketmanager holen und den Browser ohne `--with-deps` installieren:
+
+```bash
+# Arch
+sudo pacman -S --needed nss at-spi2-core libcups libdrm libxkbcommon libxcomposite libxdamage libxrandr mesa pango alsa-lib
+# Fedora
+sudo dnf install nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage libXrandr mesa-libgbm pango alsa-lib
+
+python -m playwright install chromium-headless-shell
 ```
 
 **4. Starten:**

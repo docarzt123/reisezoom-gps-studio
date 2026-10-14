@@ -389,7 +389,26 @@ def ersetzen(quelle, ziel, aktion: str, art: str = ART_NUTZERDATEN) -> None:
     z = pruefen(ziel, aktion)
     if art == ART_NUTZERDATEN and z.exists():
         _sichern_gedrosselt(z, aktion)
-    os.replace(q, z)
+    _replace_geduldig(q, z)
+
+
+def _replace_geduldig(q: Path, z: Path, versuche: int = 12) -> None:
+    """os.replace mit Geduld (14.10.2026, Bugreport Windows 11: „[WinError 5] Toegang geweigerd … .mitton.mp4 -> .mp4“ in
+    einem Dropbox-Ordner). Dropbox, OneDrive und Virenscanner halten eine frisch geschriebene Datei unter Windows kurz offen —
+    dann scheitert das Umbenennen, obwohl alles fertig ist. Bis zu `versuche` Male mit wachsender Pause (~15 s gesamt)."""
+    pause = 0.2
+    for i in range(versuche):
+        try:
+            os.replace(q, z)
+            if i:
+                log.info("[dateischutz] Ersetzen klappte im %d. Versuch: %s", i + 1, z)
+            return
+        except PermissionError:
+            if i == versuche - 1:
+                raise
+            log.info("[dateischutz] %s ist gerade gesperrt (Sync/Virenscanner?) — neuer Versuch in %.1f s", z, pause)
+            time.sleep(pause)
+            pause = min(2.5, pause * 1.6)
 
 
 def verschieben(quelle, ziel, aktion: str, art: str = ART_NUTZERDATEN) -> Path:

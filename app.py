@@ -8794,6 +8794,16 @@ class Api:
             b = tuple(bias) if isinstance(bias, (list, tuple)) and len(bias) == 2 else None
             reihenfolge = ["mapbox", "photon"] if prov == "mapbox" and token else ["photon", "mapbox"]
             fehler = []
+            if reihenfolge[0] == "photon":
+                # 14.10.2026 (Marc: „Orte suchen dauert ewig … da müsste es eine Möglichkeit geben, das abzubrechen“) —
+                # Photon brauchte an diesem Tag ~29 s je Anfrage. Jetzt Photon UND Nominatim gleichzeitig: Photon (kennt
+                # deutsche Namen am besten) bekommt 1,5 s Vorsprung, danach gilt die erste Antwort mit Treffern. Fäden als
+                # Daemon, damit ein hängender Dienst das Beenden der App nicht aufhält.
+                hits, p, f = self._geocode_parallel(query, int(limit), lang, b)
+                fehler.extend(f)
+                if hits:
+                    return {"ok": True, "results": hits, "provider": p}
+                reihenfolge = ["mapbox"]
             for p in reihenfolge:
                 try:
                     if p == "photon":
@@ -8811,6 +8821,52 @@ class Api:
             return {"ok": True, "results": [], "provider": reihenfolge[0], "fehler": fehler}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
+
+    _GEO_VORSPRUNG_S = 1.5    # so lange bekommt Photon allein
+    _GEO_GESAMT_S = 12.0      # danach gibt die Suche auf (vorher bis ~60 s)
+
+    def _geocode_parallel(self, query: str, limit: int, lang: str, bias) -> tuple:
+        """Photon und Nominatim gleichzeitig fragen → (Treffer, Dienst, Fehlerliste)."""
+        import queue as _q
+        import threading as _th
+        import time as _t
+        ergebnisse: dict = {}
+        fertig: "_q.Queue" = _q.Queue()
+
+        def lauf(name, fn):
+            try:
+                ergebnisse[name] = ("ok", fn())
+            except Exception as e:  # noqa: BLE001
+                ergebnisse[name] = ("fehler", str(e))
+            fertig.put(name)
+
+        for name, fn in (("photon", lambda: croute.geocode_photon(query, limit=limit, lang=lang, bias=bias)),
+                         ("nominatim", lambda: croute.geocode_nominatim(query, limit=limit, lang=lang, bias=bias))):
+            _th.Thread(target=lauf, args=(name, fn), daemon=True, name="geocode-" + name).start()
+        t0 = _t.monotonic()
+        while True:
+            rest = self._GEO_GESAMT_S - (_t.monotonic() - t0)
+            if rest <= 0 or len(ergebnisse) == 2 and fertig.empty():
+                break
+            try:
+                fertig.get(timeout=max(0.05, min(rest, 0.25)))
+            except _q.Empty:
+                pass
+            ph = ergebnisse.get("photon")
+            if ph and ph[0] == "ok" and ph[1]:
+                return ph[1], "photon", []
+            if _t.monotonic() - t0 >= self._GEO_VORSPRUNG_S or (ph and not (ph[0] == "ok" and ph[1])):
+                no = ergebnisse.get("nominatim")
+                if no and no[0] == "ok" and no[1]:
+                    log.info("[geocode] %r: Nominatim nach %.1f s (Photon %s)", query, _t.monotonic() - t0,
+                             "ohne Treffer" if ph else "noch nicht da")
+                    return no[1], "nominatim", []
+            if len(ergebnisse) == 2:
+                break
+        fehler = [v[1] for v in ergebnisse.values() if v[0] == "fehler"]
+        if len(ergebnisse) < 2:
+            fehler.append(f"Ortssuche: keine Antwort nach {self._GEO_GESAMT_S:.0f} s")
+        return [], "", fehler
 
     def _route_rechnen(self, params: dict):
         """Gemeinsamer Kern von route_compute und etappe_berechnen (07.10.2026): Wegpunkte, Modus, Verkehrsart je
@@ -9048,10 +9104,16 @@ class Api:
                 continue
             for i in range(a, b + 1):
                 art[i] = str(t.get("art") or "auto")
-        flach = [art[i] not in self._ETAPPE_LAND for i in range(n)]
+        flach0 = [art[i] not in self._ETAPPE_LAND for i in range(n)]
+        # 14.10.2026 — Hochflug (core/hochflug): Abschnitte mit eigener Flughöhe über Grund. Dort wird das Gelände
+        # abgetastet (Höhe = Boden + Flughöhe), für Bergauf/Bergab zählen sie aber als flach (ein 500-km-Flug ist kein Anstieg)
+        from core import hochflug as _hf
+        plus = _hf.hoehen(co, teile or [], lambda p, q: croute._haversine_m(p[1], p[0], q[1], q[0]))
+        flach_probe = [flach0[i] and not plus[i] > 0 for i in range(n)]
+        flach = [flach0[i] or plus[i] > 0 for i in range(n)]
         # Stützstellen: alle Land-Punkte plus die Ränder der flachen Abschnitte; bei langen Strecken ausgedünnt
-        raender = {i for i in range(n) if flach[i] and (i == 0 or i == n - 1 or not flach[i - 1] or not flach[i + 1])}
-        stellen = sorted({i for i in range(n) if not flach[i]} | raender | {0, n - 1})
+        raender = {i for i in range(n) if flach_probe[i] and (i == 0 or i == n - 1 or not flach_probe[i - 1] or not flach_probe[i + 1])}
+        stellen = sorted({i for i in range(n) if not flach_probe[i]} | raender | {0, n - 1})
         if len(stellen) > 2500:
             schritt = len(stellen) / 2500.0
             stellen = sorted({stellen[int(k * schritt)] for k in range(2500)} | raender | {0, n - 1})
@@ -9078,10 +9140,10 @@ class Api:
             h = demsample.hoehen([co[i] for i in stellen], z=z, cache_dir=canim.TILE_CACHE_DIR)
         except Exception as e:  # noqa: BLE001 — offline: Etappe ohne Höhen
             log.info("[etappe] Höhen nicht geholt: %s", e)
-            return None, flach
+            return (plus, flach) if any(plus) else (None, flach)   # Hochflug ohne Gelände: Flughöhe über 0 m
         bekannt = [(i, v) for i, v in zip(stellen, h) if v is not None]
         if not bekannt:
-            return None, flach
+            return (plus, flach) if any(plus) else (None, flach)
         eles: list = [None] * n
         for i, v in bekannt:
             eles[i] = float(v)
@@ -9098,6 +9160,8 @@ class Api:
                 eles[i] = va + (vb - va) * (i - ia) / max(1, ib - ia)
             else:
                 eles[i] = va if ia <= i else bekannt[0][1]
+        if any(plus):
+            eles = [e + p for e, p in zip(eles, plus)]
         return eles, flach
 
     def etappe_ins_archiv(self, gpx_path: str = "", name: str = "") -> dict:

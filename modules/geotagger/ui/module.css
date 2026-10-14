@@ -599,3 +599,9 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
 .gt-chip.track { display: inline-flex; align-items: center; gap: 4px; }
 .gt-chip.doppel { opacity: .85; }
 .gt-track-wahl .gt-chip.track { font-size: 10px; margin-left: 4px; }
+
+/* 14.10.2026 — RAW+JPEG-Paar: Plakette am Bild (die RAW-Hälfte steht nicht in der Liste) */
+.tile-paar-badge {
+  position: absolute; bottom: 4px; left: 4px; z-index: 2; padding: 1px 5px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .3px; line-height: 14px;
+}

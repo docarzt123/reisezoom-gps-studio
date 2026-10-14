@@ -90,7 +90,7 @@ sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
 sudo dnf install git python3 python3-gobject gobject-introspection \
                  webkit2gtk4.1 python3-cairo perl-Image-ExifTool
 
-# Arch (not tested)
+# Arch (works — confirmed by users, October 2026)
 sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool
 ```
 
@@ -106,10 +106,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Install the render browser once** (asks for your `sudo` password, because Chromium needs a few system libraries):
+**3. Install the render browser once.** On **Ubuntu / Debian** in one step (asks for your `sudo` password, because Chromium needs a few system libraries):
 
 ```bash
 python -m playwright install --with-deps chromium-headless-shell
+```
+
+On **Arch** and **Fedora**, `--with-deps` does not work — it calls `apt-get` internally. Get the libraries with your own package manager there and install the browser without `--with-deps`:
+
+```bash
+# Arch
+sudo pacman -S --needed nss at-spi2-core libcups libdrm libxkbcommon libxcomposite libxdamage libxrandr mesa pango alsa-lib
+# Fedora
+sudo dnf install nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage libXrandr mesa-libgbm pango alsa-lib
+
+python -m playwright install chromium-headless-shell
 ```
 
 **4. Start:**
@@ -904,7 +915,7 @@ days on trips and grouped by day; anything right at a highlight is greyed out be
 **3 Photos** (chosen for sharpness, variety and spread — deselect or add your own; **Few · Balanced · Many** with the number that fits this length; what goes into the video has a tick and is outlined; on trips the best photo of each travel day comes first) · **4 Stops** („Stop at every photo
 sign“ — on by default with large photos, off with instant prints; switched on, instant prints stop too and keep their
 look; length short/normal/long; camera moves in or not; with „picture in picture“ the video always drives on) ·
-**5 Camera** (camera flight, follow or fixed; with the camera flight a **calm ↔ lively** slider and for each moment of
+**5 Camera** (camera flight, follow or fixed; with the camera flight the **flight style** — see below — and a **calm ↔ lively** slider and for each moment of
 the story the movement in words, e.g. summit: „pull back and look to the horizon“; **„other movement“** cycles) ·
 **6 Texts** (title and subtitle; **„How much text?“** — *little*: only the title · *normal*: title, subtitle, place and
 time below the photos, on trips a chapter title per day („Day 3 · 7 July“) where the day begins, as densely as the
@@ -955,6 +966,20 @@ styles are in the Animator (Sound & clips, Map, Format & timing). What follows a
 The dialog asks only a few things — the app remembers your choice for next time:
 
 - **Format:** 9:16 portrait (preselected, for phones, Reels, Shorts), 16:9 or 1:1.
+- **Camera flight style (since v0.9.792):** how the camera flies along the route — **Companion** (softly behind you, the
+  classic, preselected) · **Skimmer** (close, low, steep) · **Swallow** (agile, hardly smoothed) · **Crane Swing** (swings
+  outward in bends, the bend opens up across the picture) · **Thermal** (a little higher, calmly gliding) · **Cruising
+  Altitude** (high and flat, lots of landscape) · **Dandelion** (drifts in one fixed direction) · **Falcon** (high, from
+  above, slowly circling) · **Orbit** (straight down from far up, slow orbit) · **Carousel** (close up, slowly circling
+  around your dot, about one round every 20 seconds). The overview at the start and the closing
+  view stay the same for all; the style does not change the video length. In the assistant you pick it on the **Camera**
+  page with a short clip per style. Remembered and saved in your own ★ templates. Command line:
+  `--camera companion|skimmer|swallow|crane|thermal|cruise|dandelion|falcon|orbit|carousel`.
+- **Circle once around the photo (since v0.9.792):** in the assistant on the **Stops** page „Circle once around the photo“,
+  in the sign editor per photo „Circle around once“: during the photo stop the camera flies a full round around the photo
+  spot and arrives back in its direction. A round needs time — the stop then lasts at least 6 seconds. Not for clips.
+  Command line: `--circle-photos`. For highlights of the story the assistant (**Camera** page, „Movement at single
+  moments“) also offers the movement **„circle around once“**.
 - **Length:** Short 20 s, Normal 40 s, Long 60 s or **Custom** (seconds in total, 15–600, remembered). From the Animator
   there is also **“As in the Animator · N s”** with the length currently set there (for a journey including the
   transitions) — applied to the project, the total length stays exactly that.
@@ -1314,7 +1339,45 @@ means of transport and “Follow roads”. A click on that way adds a new last s
 goes east or west follows from the order of your points (Tokyo → Alaska flies across the Pacific, Alaska → Tokyo back).
 Line and camera cross ±180° without a jump. If a single section should span more than half the globe, add a point in
 between. GPX tracks that cross the date line (Fiji, flights across the Pacific) are drawn without a line across the
-whole world map, too.
+whole world map, too. **Since v0.9.792** videos across the date line render through (before, the export stood still there
+for minutes), the camera no longer jumps to the other side of the Earth, and on a trip once around the world the globe no
+longer spins a full turn at the end.
+
+**Apply a stage and change it later.** While the editor is open, the stage is a sketch; only **“Apply stage”** turns it
+into a track for preview and video (a hint in the editor reminds you — if you start the preview with the editor open, the
+app applies the stage by itself). You can change it at any time: in the list under *Tracks* the **pencil ✎** of the stage opens the same
+editor as when creating it, already filled in — add or move points, set the height, then apply again. Colour and moving
+dot are reached there via **“Look of the line …”**. **Place search:** the app asks two map services at
+the same time (Photon and Nominatim, both OpenStreetMap) and takes the first answer; while searching you can press
+**“Cancel”** and click the place on the map instead.
+
+**High flight — flying up into the sky (since v0.9.792).** Every section of a stage has a **“Height”** button in the
+list. It opens a small height editor: at the top, the slider sets the **highest point** (10 m to 1,000 km); below it you
+see the section's **profile** — from the ground at the start over the peak back to the ground at the destination. Drag
+the points with the mouse; **double-click** in the profile adds a point, double-click on a point removes it. Three
+presets get you started: *Arc* (peak in the middle), *Plateau* (up quickly, a long time at the top, then down) and
+*Climb* (climbing for a long time, down shortly before the destination). The curve always runs smoothly through your
+points and never below the ground. Setting the slider to 0 switches high flight off for that section.
+
+This lets you show even a short distance as a big, high flight — say 30 km across the Alps at 300 km altitude. When you
+apply the stage, the app switches on **terrain** and **✈ Flight in the air**: the line sits at its height, with plumb
+lines and a shadow on the ground. If the camera is fixed, the app sets it to **Follow**: the camera climbs with the dot
+and pulls back with the height — from a few hundred kilometres up the map becomes a **globe**, and on the way down it
+comes close again. Your own camera move stays as it is. A high flight does not count towards ascent/descent (a 300 km
+flight is no climb); it still shows in the video's elevation profile.
+
+**The camera circles around.** When the camera follows the flight it turns half way around: it starts behind the flight,
+sees the arc **from the side** at the top and looks back at it on landing; high up it tilts flatter. The switch **“Camera
+circles around (arc from the side)”** is in the height editor (on by default). The arc looks best from the side when height
+and distance are about the same (e.g. 15 km up over 17 km); at 300 km over 17 km it becomes an almost vertical needle — and
+instead the globe and a starry sky fill the picture.
+
+**Show only the places — places one after another (since v0.9.792).** For “I was here, and here, and here” without a
+recorded track: create the places as a stage and tick **“Show only the places (no line)”** in the stage editor. There is no
+line and no moving dot; each place appears in turn as a sign and stays until the end, at an even pace no matter how far apart
+the places are. Below it you set the **seconds per place** and the camera: **“Everything in view”** (the map stands still,
+all places visible) or **“Fly to each place”** (the camera flies from place to place and stops there). The app sets the
+length of the video to match.
 
 **What the app does with a stage by itself.** Every stop you set yourself gets a **sign with its place name** (tick *Label
 stops* in the editor, on by default; a sign you changed stays the way you set it; the **eye** next to a stop turns just its sign off and on again). The sign at
@@ -2861,6 +2924,17 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 3. **Photo tiles** appear in the middle with thumbnails. Markers on the map show where each photo was assigned based on capture time. **Dragging in more photos or picking them via "Choose photos …" adds to the list** (duplicates are skipped). **Loading a different folder** asks whether it should **replace** the current photos (default) or be **added**; the question mentions changes to the current photos that have not been written yet. To clear it, use **"🗑 Remove all"**.
 4. **Check the offset** (see "Time zones" below) — usually it fits right away
 5. **"Write GPS into photos"** → **choose a target folder** → the fully tagged **copies** land there, your **originals stay untouched** → done, the folder opens
+
+### RAW+JPG as a pair, description for Lightroom (since v0.9.792)
+
+- **RAW+JPG as a pair** (tick box on the left below the photo buttons, on by default): if a RAW file and a JPEG with the
+  same name sit side by side (`P1000123.RW2` + `P1000123.JPG`), the list shows only the JPEG with the badge **RAW+JPG**.
+  Location, time and every field you enter on the JPEG are written to **both** files. Untick the JPEG = both stay
+  untouched. Box off = every file on its own as before.
+- **Description, title, keywords, author, copyright** go to EXIF, IPTC **and** XMP — so Lightroom, ACDSee, Apple Photos
+  and others show them.
+- **RAW files** additionally get a sidecar file `NAME.xmp` with GPS and fields: Lightroom reads a RAW file's data from
+  that file. If it already exists (e.g. with your Lightroom settings), it is only added to.
 
 ### Several tracks at once — the archive finds them (since v0.9.686)
 

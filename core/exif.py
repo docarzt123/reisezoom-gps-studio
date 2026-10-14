@@ -2060,6 +2060,7 @@ def write_gps(path: str, lat: float, lon: float,
     if is_raw(path):
         _exiftool_write_gps(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
         _log.info("write_gps: raw/exiftool-Pfad fertig für %s", path)
+        raw_sidecar_nachziehen(path)   # 14.10.2026 — Lightroom liest bei RAW die Begleitdatei
         return
     if is_video(path):
         _exiftool_write_gps_video(path, lat, lon, alt, timestamp_utc, img_direction, gesichert=gesichert)
@@ -2126,6 +2127,8 @@ def write_location(path: str, address: dict, gesichert: bool = False) -> None:
     ok, msg = daemon.write_args(args)
     if not ok:
         raise RuntimeError(f"exiftool (location) fehlgeschlagen: {msg[:300]}")
+    if is_raw(path):
+        raw_sidecar_nachziehen(path)   # 14.10.2026 — Lightroom liest bei RAW die Begleitdatei
 
 
 def read_location(path: str) -> dict:
@@ -2248,10 +2251,92 @@ def write_exif_tag(path: str, tag: str, value: str, gesichert: bool = False) -> 
     val = "" if value is None else str(value)
     _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
     daemon = _ensure_write_daemon()
-    args = ["-overwrite_original", f"-{tag}={val}", path]
+    zw = _tag_zuweisungen(tag, val)   # 14.10.2026 — Beschreibung & Co. in EXIF, IPTC und XMP (siehe _TAG_ZIELE)
+    iptc = any(z.lower().startswith("-iptc:") for z in zw)
+    args = ["-overwrite_original"] + (["-charset", "iptc=UTF8", "-IPTC:CodedCharacterSet=UTF8"] if iptc else []) + zw + [path]
     ok, msg = daemon.write_args(args)
     if not ok:
         raise RuntimeError(f"exiftool ({tag}) fehlgeschlagen: {msg[:300]}")
+    if is_raw(path):
+        raw_sidecar_nachziehen(path)
+
+
+# 14.10.2026 (Bugreport Lumix LX100 + Lightroom/ACDSee: „die Bildbeschreibung ist nicht sichtbar“) — ein Feld der Oberfläche
+# landete nur im EXIF-Tag gleichen Namens. Lightroom und ACDSee zeigen die Bildunterschrift aber aus IPTC Caption-Abstract
+# bzw. XMP dc:description (Metadata Working Group: alle drei gehören zusammen). Darum schreibt jedes dieser Felder in
+# ALLE Orte, die Programme dafür lesen. Ein Tag mit Gruppe („XMP-dc:Title“) bleibt, wie er ist.
+_TAG_ZIELE = {
+    "imagedescription": ("EXIF:ImageDescription", "IPTC:Caption-Abstract", "XMP-dc:Description"),
+    "description":      ("EXIF:ImageDescription", "IPTC:Caption-Abstract", "XMP-dc:Description"),
+    "caption-abstract": ("EXIF:ImageDescription", "IPTC:Caption-Abstract", "XMP-dc:Description"),
+    "title":            ("XMP-dc:Title", "IPTC:ObjectName"),
+    "artist":           ("EXIF:Artist", "IPTC:By-line", "XMP-dc:Creator"),
+    "creator":          ("EXIF:Artist", "IPTC:By-line", "XMP-dc:Creator"),
+    "copyright":        ("EXIF:Copyright", "IPTC:CopyrightNotice", "XMP-dc:Rights"),
+    "headline":         ("IPTC:Headline", "XMP-photoshop:Headline"),
+    "credit":           ("IPTC:Credit", "XMP-photoshop:Credit"),
+    "source":           ("IPTC:Source", "XMP-photoshop:Source"),
+    "instructions":     ("IPTC:SpecialInstructions", "XMP-photoshop:Instructions"),
+}
+_LISTEN_ZIELE = {   # Stichwörter: Liste (Komma oder Semikolon trennt)
+    "keywords": ("IPTC:Keywords", "XMP-dc:Subject"),
+    "subject":  ("IPTC:Keywords", "XMP-dc:Subject"),
+}
+
+
+def _tag_zuweisungen(tag: str, wert: str) -> list:
+    """exiftool-Zuweisungen für ein Feld der Oberfläche (siehe _TAG_ZIELE)."""
+    k = tag.strip().lower()
+    if ":" in k:
+        return [f"-{tag}={wert}"]
+    if k in _LISTEN_ZIELE:
+        teile = [x.strip() for x in re.split(r"[;,]", wert or "") if x.strip()]
+        out = []
+        for z in _LISTEN_ZIELE[k]:
+            out += [f"-{z}={x}" for x in teile] if teile else [f"-{z}="]
+        return out
+    if k in _TAG_ZIELE:
+        return [f"-{z}={wert}" for z in _TAG_ZIELE[k]]
+    return [f"-{tag}={wert}"]
+
+
+def raw_sidecar_pfad(path: str) -> str:
+    """Begleitdatei im Lightroom-/Adobe-Schema: gleicher Name, Endung .xmp (P1000123.RW2 → P1000123.xmp)."""
+    return os.path.splitext(path)[0] + ".xmp"
+
+
+def raw_sidecar_nachziehen(path: str) -> Optional[str]:
+    # dateischutz-ok: schreibt nur in eine eigene Kopie der Begleitdatei bzw. legt sie neu an; ein vorhandenes Original ersetzt _ds.ersetzen mit Sicherung
+    """14.10.2026 (Bugreport Lumix + Lightroom: „GPS-Daten und Bildbeschreibung nicht sichtbar“) — Lightroom und Adobe
+    Camera Raw lesen die Metadaten einer RAW-Datei aus der Begleitdatei NAME.xmp. Nach jedem Schreiben in eine RAW-Datei
+    bekommt sie deshalb deren XMP und GPS (als XMP-exif) mit. Eine vorhandene Begleitdatei (z. B. mit Lightrooms
+    Entwicklungseinstellungen) wird nur ergänzt — über eine Kopie, der alte Stand wird gesichert (Dateischutz).
+    Fehler hier lassen das eigentliche Schreiben gelten (nur Log)."""
+    if not is_raw(path):
+        return None
+    sc = raw_sidecar_pfad(path)
+    try:
+        daemon = _ensure_write_daemon()
+        _ds.nutzer_ziel(sc)
+        quelle = ["-tagsFromFile", path, "-xmp:all", "-xmp-exif:all<gps:all"]
+        if os.path.exists(sc):
+            tmp = os.path.splitext(sc)[0] + ".rz-neu.xmp"
+            _ds.nutzer_ziel(tmp)
+            shutil.copy2(sc, tmp)
+            ok, msg = daemon.write_args(["-overwrite_original"] + quelle + [tmp])
+            if not ok:
+                _ds.loeschen(tmp, "xmp_sidecar", art=_ds.ART_TEMP)
+                raise RuntimeError(msg[:300])
+            _ds.ersetzen(tmp, sc, "xmp_sidecar")          # sichert den bisherigen Stand
+        else:
+            ok, msg = daemon.write_args(quelle + ["-o", sc, path])
+            if not ok:
+                raise RuntimeError(msg[:300])
+        _log.info("raw_sidecar_nachziehen: %s", sc)
+        return sc
+    except Exception as e:   # noqa: BLE001
+        _log.warning("raw_sidecar_nachziehen: Begleitdatei %s nicht geschrieben: %s", sc, e)
+        return None
 
 
 @_merkt_schreiben
@@ -2277,7 +2362,12 @@ def write_exif_tags(path: str, tags: dict[str, str], gesichert: bool = False) ->
     if not clean:
         return
     _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
-    args = ["-overwrite_original"] + [f"-{t}={v}" for t, v in clean.items()] + [path]
+    zuweisungen = []
+    for t, v in clean.items():
+        zuweisungen += _tag_zuweisungen(t, v)
+    iptc = any(z.lower().startswith("-iptc:") for z in zuweisungen)
+    # IPTC in UTF-8 (sonst kommen Umlaute in Lightroom/ACDSee als Zeichensalat an)
+    args = ["-overwrite_original"] + (["-charset", "iptc=UTF8", "-IPTC:CodedCharacterSet=UTF8"] if iptc else []) + zuweisungen + [path]
     # v0.9.371 — bis zu 2 Versuche: Wenn der Daemon einmal wedged (seltener
     # -stay_open-Timing-Hänger unter Last), killt der Timeout ihn und nimmt ihn
     # aus dem Cache; der zweite Versuch bekommt via _ensure_write_daemon() einen
@@ -2287,6 +2377,8 @@ def write_exif_tags(path: str, tags: dict[str, str], gesichert: bool = False) ->
         daemon = _ensure_write_daemon()
         ok, msg = daemon.write_args(args)
         if ok:
+            if is_raw(path):
+                raw_sidecar_nachziehen(path)   # 14.10.2026 — Lightroom liest bei RAW die Begleitdatei
             return
         last = msg
         if attempt == 1 and "innerhalb" in msg:   # Timeout → frischer Daemon

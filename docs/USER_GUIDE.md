@@ -90,7 +90,7 @@ sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
 sudo dnf install git python3 python3-gobject gobject-introspection \
                  webkit2gtk4.1 python3-cairo perl-Image-ExifTool
 
-# Arch (nicht getestet)
+# Arch (läuft — von Nutzern bestätigt, Oktober 2026)
 sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool
 ```
 
@@ -106,10 +106,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Render-Browser einmalig installieren** (fragt nach deinem `sudo`-Passwort, weil Chromium ein paar System-Bibliotheken braucht):
+**3. Render-Browser einmalig installieren.** Unter **Ubuntu / Debian** in einem Schritt (fragt nach deinem `sudo`-Passwort, weil Chromium ein paar System-Bibliotheken braucht):
 
 ```bash
 python -m playwright install --with-deps chromium-headless-shell
+```
+
+Unter **Arch** und **Fedora** geht `--with-deps` nicht — es ruft intern `apt-get` auf. Dort die Bibliotheken mit dem eigenen Paketmanager holen und den Browser ohne `--with-deps` installieren:
+
+```bash
+# Arch
+sudo pacman -S --needed nss at-spi2-core libcups libdrm libxkbcommon libxcomposite libxdamage libxrandr mesa pango alsa-lib
+# Fedora
+sudo dnf install nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage libXrandr mesa-libgbm pango alsa-lib
+
+python -m playwright install chromium-headless-shell
 ```
 
 **4. Starten:**
@@ -930,7 +941,7 @@ liegt, ist ausgegraut, weil dort schon ein Schild steht) · **3 Fotos** (ausgew�
 Verteilung — abwählen oder eigene dazunehmen; **Wenige · Ausgewogen · Viele** mit der Zahl, die bei dieser Länge ins Video passt; was ins Video kommt, trägt ein Häkchen und ist umrandet; bei Reisen kommt aus jedem Reisetag zuerst das beste Foto) · **4 Halte** („An allen Foto-Schildern anhalten“ — bei großen Fotos
 vorgegeben an, bei Sofortbildern aus; eingeschaltet halten auch Sofortbilder an und behalten ihr Aussehen; Dauer
 kurz/normal/lang; Kamera fährt heran oder nicht; bei „Bild im Bild“ fährt das Video immer durch) · **5 Kamera**
-(Kamerafahrt, Folgen oder Fest; bei der Kamerafahrt ein Regler **ruhig ↔ lebendig** und je Moment der Geschichte die
+(Kamerafahrt, Folgen oder Fest; bei der Kamerafahrt der **Flugstil** — siehe unten — und ein Regler **ruhig ↔ lebendig** und je Moment der Geschichte die
 Bewegung in Worten, z. B. Gipfel: „aufziehen und zum Horizont blicken“; **„andere Bewegung“** schaltet durch) ·
 **6 Texte** (Titel und Unterzeile; **„Wie viel Text?“** — *wenige*: nur der Titel · *normal*: Titel, Unterzeile, unter
 den Fotos Ort und Uhrzeit, bei Reisen ein Kapiteltitel je Tag („Tag 3 · 7. Juli“) dort, wo der Tag beginnt, so dicht,
@@ -982,6 +993,20 @@ Kartenstile findest du im Animator (Ton & Clips, Karte, Format & Ablauf). Was un
 Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs nächste Mal:
 
 - **Format:** 9:16 hochkant (vorgewählt, fürs Handy, Reels, Shorts), 16:9 oder 1:1.
+- **Flugstil der Kamera (seit v0.9.792):** wie die Kamera die Strecke entlangfliegt — **Begleiter** (weich hinter dir her,
+  der Klassiker, vorgewählt) · **Tiefflieger** (nah, tief, steil) · **Schwalbe** (wendig, kaum geglättet) · **Kranschwenk**
+  (schwenkt in Kurven nach außen, die Kurve öffnet sich quer übers Bild) · **Thermik** (etwas höher, ruhig gleitend) ·
+  **Reiseflughöhe** (hoch und flach, viel Landschaft) · **Pusteblume** (treibt in einer festen Richtung) · **Falke** (hoch
+  von oben, kreist langsam) · **Orbit** (senkrecht aus großer Höhe, langsame Umkreisung) · **Karussell** (nah dran, kreist
+  langsam um deinen Punkt, eine Runde etwa alle 20 Sekunden). Überblick am Anfang und
+  Schlussblick bleiben bei allen gleich; die Videolänge ändert der Flugstil nicht. Im Assistenten wählst du ihn auf der
+  Seite **Kamera** mit einem kurzen Clip je Stil. Wird gemerkt und in eigenen ★-Vorlagen gespeichert. Kommandozeile:
+  `--camera companion|skimmer|swallow|crane|thermal|cruise|dandelion|falcon|orbit|carousel`.
+- **Einmal ums Foto kreisen (seit v0.9.792):** Im Assistenten auf der Seite **Halte** „Einmal ums Foto kreisen“, im
+  Schild-Editor je Foto „Einmal herumkreisen“: Während des Fotostopps fliegt die Kamera eine volle Runde um den Fotoort
+  und kommt in ihrer Richtung wieder an. Eine Runde braucht Zeit — der Halt dauert dann mindestens 6 Sekunden. Bei Clips
+  gibt es das nicht. Kommandozeile: `--circle-photos`. Für Höhepunkte der Geschichte gibt es im Assistenten (Seite
+  **Kamera**, „Bewegung an einzelnen Momenten“) dazu die Bewegung **„einmal herumkreisen“**.
 - **Länge:** Kurz 20 s, Normal 40 s, Lang 60 s oder **Eigene** (Sekunden gesamt, 15–600, wird gemerkt). Aus dem Animator
   heraus gibt es zusätzlich **„Wie im Animator · N s“** mit der Länge, die dort gerade eingestellt ist (bei einer Reise
   samt Übergängen) — beim Übernehmen ins Projekt bleibt die Gesamtlänge genau so.
@@ -1355,7 +1380,44 @@ Name lautet dann „Start 🔄 Mitte“.
 ost- oder westwärts geht, ergibt sich also aus der Reihenfolge deiner Punkte (Tokio → Alaska fliegt über den Pazifik,
 Alaska → Tokio zurück). Linie und Kamera laufen ohne Sprung über ±180°. Soll ein einzelner Abschnitt mehr als die halbe
 Erde überspannen, setz einen Zwischenpunkt. Auch GPX-Tracks, die die Datumsgrenze kreuzen (Fidschi, Flüge über den
-Pazifik), werden ohne Strich quer über die Weltkarte gezeichnet.
+Pazifik), werden ohne Strich quer über die Weltkarte gezeichnet. **Seit v0.9.792** rendern auch Videos über die
+Datumsgrenze durch (vorher blieb der Export dort minutenlang stehen), die Kamera springt dabei nicht mehr auf die andere
+Seite der Erde, und bei einer Reise einmal um die Welt dreht sich die Kugel am Ende nicht mehr einmal ganz herum.
+
+**Etappe übernehmen und später ändern.** Solange der Editor offen ist, ist die Etappe eine Skizze; erst **„Etappe
+übernehmen“** macht daraus einen Track für Vorschau und Video (ein Hinweis im Editor erinnert daran — startest du die
+Vorschau mit offenem Editor, übernimmt die App die Etappe selbst). Ändern kannst du sie jederzeit: in der Liste unter
+*Tracks* öffnet der **Stift ✎** an der Etappe denselben Editor wie beim Erstellen, schon ausgefüllt — dort Punkte dazu,
+verschieben, Höhe einstellen, dann wieder übernehmen. Farbe und Laufpunkt erreichst du dort über **„Aussehen der Linie …“**. **Ortssuche:** Die App fragt zwei Kartendienste gleichzeitig (Photon und Nominatim, beide OpenStreetMap) und nimmt
+die erste Antwort; beim Suchen kannst du **„Abbrechen“** drücken und den Ort stattdessen auf der Karte anklicken.
+
+**Hochflug — in die Höhe fliegen (seit v0.9.792).** Jeder Abschnitt einer Etappe hat in der Liste den Knopf **„Höhe“**.
+Er öffnet einen kleinen Höheneditor: Oben stellst du mit dem Regler den **höchsten Punkt** ein (10 m bis 1000 km), darunter
+siehst du das **Profil** des Abschnitts — vom Boden am Start über die Spitze zurück zum Boden am Ziel. Die Punkte ziehst
+du mit der Maus; **Doppelklick** ins Profil setzt einen weiteren Punkt, Doppelklick auf einen Punkt nimmt ihn wieder weg.
+Drei Vorlagen helfen beim Start: *Bogen* (Spitze in der Mitte), *Plateau* (schnell hoch, lange oben, dann runter) und
+*Steigflug* (lange steigen, kurz vor dem Ziel runter). Die Kurve läuft immer weich durch deine Punkte und nie unter den
+Boden. Regler auf 0 schaltet den Hochflug für diesen Abschnitt wieder aus.
+
+So kannst du auch eine kurze Strecke als großen, hohen Flug zeigen — etwa 30 km über die Alpen mit 300 km Flughöhe.
+Beim Übernehmen schaltet die App **Gelände** und **✈ Flug in der Luft** ein: Die Linie liegt in ihrer Höhe, mit Lotlinien
+und Schatten am Boden. Steht die Kamera fest, stellt die App sie auf **Folgen**: Die Kamera fliegt mit dem Punkt hoch und
+zieht sich mit der Höhe zurück — ab einigen hundert Kilometern wird die Karte zur **Erdkugel**, beim Abstieg geht es
+wieder nah heran. Eine eigene Kamerafahrt bleibt, wie sie ist. Für Bergauf/Bergab zählt ein Hochflug nicht (ein 300-km-
+Flug ist kein Anstieg); im Höhenprofil des Videos steht er trotzdem drin.
+
+**Kamera kreist herum.** Folgt die Kamera dem Flug, dreht sie sich dabei einmal halb herum: Sie startet hinter dem Flug,
+sieht den Bogen an der Spitze **von der Seite** und schaut beim Landen zurück auf ihn; in der Höhe neigt sie sich flacher.
+Den Schalter **„Kamera kreist herum (Bogen von der Seite)“** findest du im Höheneditor (Standard an). Der Bogen wirkt von
+der Seite am schönsten, wenn Höhe und Strecke ähnlich groß sind (z. B. 15 km hoch über 17 km); bei 300 km Höhe über 17 km
+wird er zur fast senkrechten Nadel, dafür steht dann die Erdkugel mit Sternenhimmel im Bild.
+
+**Nur die Orte zeigen — Orte nacheinander (seit v0.9.792).** Für „ich war hier, und hier, und hier“ ohne aufgezeichneten
+Track: Leg die Orte als Etappe an und setze im Etappen-Editor den Haken **„Nur die Orte zeigen (ohne Linie)“**. Dann gibt es
+keine Linie und keinen Laufpunkt; jeder Ort erscheint der Reihe nach als Schild und bleibt bis zum Schluss stehen. Der Takt
+ist gleichmäßig, egal wie weit die Orte auseinanderliegen. Darunter stellst du ein, wie viele **Sekunden je Ort** gezeigt
+werden, und die Kamera: **„Alles im Blick“** (die Karte steht, alle Orte sind zu sehen) oder **„Zu jedem Ort fliegen“** (die
+Kamera fliegt von Ort zu Ort und hält dort). Die Länge des Videos stellt die App passend ein.
 
 **Was die App bei einer Etappe selbst macht.** Jede Station, die du selbst gesetzt hast, bekommt ein **Schild mit ihrem
 Ortsnamen** (Haken *Stationen beschriften* im Editor, Standard an; ein geändertes Schild bleibt so, wie du es eingestellt
@@ -2966,6 +3028,17 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 3. **Foto-Tiles** erscheinen in der Mitte mit Thumbnails. Marker auf der Karte zeigen wo jedes Foto basierend auf Aufnahmezeit zugeordnet wurde. **Weitere Fotos reinziehen oder über „Fotos auswählen …“ holen ergänzt die Liste** (Dubletten werden übersprungen). **Einen anderen Ordner laden** fragt, ob er die bisherigen Fotos **ersetzen** (Standard) oder **dazukommen** soll; noch nicht geschriebene Änderungen an den bisherigen Fotos nennt die Frage. Zum Leeren das **„🗑 Alle entfernen"** nutzen.
 4. **Offset prüfen** (siehe „Zeitzonen" unten) — meist passt's direkt
 5. **„GPS in Fotos schreiben"** → **Zielordner wählen** → die fertig getaggten **Kopien** landen dort, deine **Originale bleiben unangetastet** → fertig, der Ordner öffnet sich
+
+### RAW+JPG als Paar, Beschreibung für Lightroom (seit v0.9.792)
+
+- **RAW+JPG als Paar** (Haken links unter den Foto-Knöpfen, Standard an): Liegen eine RAW-Datei und ein JPEG mit
+  gleichem Namen nebeneinander (`P1000123.RW2` + `P1000123.JPG`), zeigt die Liste nur das JPEG mit der Plakette
+  **RAW+JPG**. Ort, Zeit und alle Felder, die du am JPEG einträgst, schreibt die App in **beide** Dateien. Häkchen aus
+  am JPEG = beide bleiben unangetastet. Haken aus = alle Dateien einzeln wie bisher.
+- **Beschreibung, Titel, Stichwörter, Urheber, Copyright** landen in EXIF, IPTC **und** XMP — so zeigen sie
+  Lightroom, ACDSee, Apple Fotos und Co. an.
+- **RAW-Dateien** bekommen zusätzlich eine Begleitdatei `NAME.xmp` mit GPS und Feldern: Lightroom liest die Daten einer
+  RAW-Datei aus dieser Datei. Gibt es sie schon (z. B. mit deinen Lightroom-Einstellungen), wird sie nur ergänzt.
 
 ### Mehrere Tracks auf einmal — das Archiv findet sie (seit v0.9.686)
 

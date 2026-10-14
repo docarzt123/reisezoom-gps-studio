@@ -308,12 +308,15 @@ def einrichten() -> None:
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     log = BASIS / "launchd.log"
     log.parent.mkdir(parents=True, exist_ok=True)
+    # 14.10.2026 — seit dem Umzug auf die externe Platte (11.10.) startete launchd den Auftrag nie: „spawn failed“,
+    # EX_CONFIG 78. launchd selbst darf auf der externen Platte weder das Protokoll öffnen (StandardOutPath) noch in den
+    # Arbeitsordner wechseln (WorkingDirectory: „Operation not permitted“), /bin/sh darf dort nicht schreiben — das Python
+    # des Projekts darf beides. Darum keine externen Pfade im plist: `--launchd` wechselt selbst den Ordner und schreibt
+    # selbst ins Protokoll.
     daten = {
         "Label": LABEL,
-        "ProgramArguments": [str(PYTHON), str(Path(__file__).resolve())],
+        "ProgramArguments": [str(PYTHON), str(Path(__file__).resolve()), "--launchd"],
         "StartCalendarInterval": [{"Hour": h, "Minute": 0} for h in STUNDEN],
-        "StandardOutPath": str(log), "StandardErrorPath": str(log),
-        "WorkingDirectory": str(REPO),
     }
     subprocess.run(["launchctl", "unload", str(PLIST)], capture_output=True)
     PLIST.write_bytes(plistlib.dumps(daten))
@@ -331,6 +334,10 @@ def entfernen() -> None:
 
 
 if __name__ == "__main__":
+    if "--launchd" in sys.argv:   # vom Nachtauftrag gestartet: Ordner und Protokoll selbst (s. einrichten)
+        os.chdir(REPO)
+        _fh = open(BASIS / "launchd.log", "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = _fh
     if "--einrichten" in sys.argv:
         einrichten()
     elif "--entfernen" in sys.argv:

@@ -2,7 +2,7 @@
 
     gpsstudio tours [--search TEXT] [--limit N]
     gpsstudio templates
-    gpsstudio render <gpx file | tour id | unique tour name> [--template NAME] [--format 9:16|16:9|1:1]
+    gpsstudio render <gpx file | tour id | unique tour name> [--template NAME] [--camera STYLE] [--format 9:16|16:9|1:1]
                      [--length SECONDS] [--no-photos] [--out FILE] [--overwrite]
     gpsstudio map-image <gpx file | tour id | name> [--out FILE] [--overwrite]
     gpsstudio mcp [--out-dir FOLDER]      MCP server for AI assistants (stdio, core/mcp_server.py)
@@ -27,11 +27,15 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
 #: englischer Name → interne Vorlage des Schnell-Videos (ui/js/schnellvideo.js VORLAGEN)
 VORLAGEN = {"landscape": "weite", "memory": "tagebuch", "social": "puls"}
+#: 14.10.2026 — Flugstile der Kamerafahrt (englischer Name → interner, ui/js/schnellvideo.js FLUGSTILE)
+KAMERAS = {"companion": "begleiter", "skimmer": "tiefflieger", "swallow": "schwalbe", "crane": "kranschwenk", "thermal": "thermik",
+           "cruise": "reiseflughoehe", "dandelion": "pusteblume", "falcon": "falke", "orbit": "orbit", "carousel": "karussell"}
 FORMATE = ("16:9", "9:16", "1:1")
 LAENGEN = {20: "kurz", 40: "normal", 60: "lang"}
 
@@ -63,6 +67,48 @@ _BRIDGE_JS = r"""
   window.dispatchEvent(new Event("pywebviewready"));
 })();
 """
+
+
+# 14.10.2026 — Abbruch von außen (SIGTERM: MCP cancel_job, kill). Hing der Render selbst (Weltumrundung, Datumsgrenze), wartete
+# der Fortschritts-Faden ewig und Python beim Beenden auf ihn — der Prozess lief nach dem Abbruch 1,5 h weiter.
+_ABGEBROCHEN = threading.Event()
+_API = None
+_LAUF: dict = {}          # app, tmp, out (stdout), ausgegeben
+_AUSGABE_LOCK = threading.Lock()
+
+
+def _ausgabe_einmal(d: dict) -> None:
+    """Die eine Ergebnis-Zeile auf stdout — höchstens einmal (Abbruch schreibt sie schon im Signal)."""
+    with _AUSGABE_LOCK:
+        if _LAUF.get("ausgegeben") or not _LAUF.get("out"):
+            return
+        _LAUF["ausgegeben"] = True
+        _LAUF["out"].write(json.dumps(d, ensure_ascii=False) + "\n")
+        _LAUF["out"].flush()
+
+
+def _abbrechen(*_):
+    if _ABGEBROCHEN.is_set():
+        return
+    _ABGEBROCHEN.set()
+    _melden("✗ cancelled")
+    _ausgabe_einmal({"ok": False, "error": "cancelled"})
+    try:
+        if _API is not None:
+            _API.animator_cancel()   # laufenden Render der App-Logik stoppen
+    except Exception:  # noqa: BLE001
+        pass
+
+    def wachhund():   # dauert das Aufräumen länger als 20 s (Brücken-Aufrufe im Hintergrund), Temp räumen, hart beenden
+        time.sleep(20)
+        try:
+            if _LAUF.get("tmp") is not None:
+                _aufraeumen(_LAUF["app"], _LAUF["tmp"])
+        except Exception:  # noqa: BLE001
+            pass
+        os._exit(130)
+    threading.Thread(target=wachhund, daemon=True).start()
+    raise KeyboardInterrupt()
 
 
 class CliFehler(Exception):
@@ -138,7 +184,7 @@ def _eigene_vorlagen(api) -> list:
 def _templates(api) -> dict:
     eigen = _eigene_vorlagen(api)
     return {"ok": True, "templates": [{"name": n, "kind": "builtin"} for n in VORLAGEN]
-            + [{"name": x["name"], "kind": "own"} for x in eigen]}
+            + [{"name": x["name"], "kind": "own"} for x in eigen], "cameras": list(KAMERAS)}
 
 
 def _tour_aufloesen(app, api, ref: str) -> str:
@@ -264,6 +310,9 @@ def _fortschritt_verfolgen(app, api, t0: float) -> dict:
             letzt = txt
         if not st.get("running"):
             return st
+        if _ABGEBROCHEN.is_set():
+            api.animator_cancel()
+            raise CliFehler("cancelled")
         if time.time() - t0 > 4 * 3600:
             api.animator_cancel()
             raise CliFehler("timeout: render")
@@ -283,7 +332,8 @@ async def _render(app, api, gpx: str, a) -> dict:
         browser, page = await _seite(p, app, api)
         try:
             _melden(_t(app, "cli.schritt_projekt", "Projekt wird angelegt …"))
-            await page.evaluate(f"() => {{ window.__rzSchnellFertig = null; window.rzSchnellVideo({json.dumps(gpx)}); }}")
+            opts = {"fotoKreisen": True} if getattr(a, "circle_photos", False) else {}
+            await page.evaluate(f"() => {{ window.__rzSchnellFertig = null; window.rzSchnellVideo({json.dumps(gpx)}, {json.dumps(opts)}); }}")
             await _warte(page, "() => !!document.getElementById('sv-animator')", 120, "quick video dialog")
             if eigen:
                 await page.evaluate(f"() => document.querySelector('[data-sv-eigen=\"{eigen['id']}\"]')?.click()")
@@ -292,6 +342,12 @@ async def _render(app, api, gpx: str, a) -> dict:
             await page.wait_for_timeout(400)
             if a.format:
                 await page.evaluate(f"() => document.querySelector('[data-sv-gruppe=\"format\"] [data-sv-wert=\"{a.format}\"]')?.click()")
+            if getattr(a, "camera", None):
+                k = KAMERAS[a.camera]
+                gesetzt = await page.evaluate(f"""() => {{ const b = document.querySelector('[data-sv-gruppe="flug"] [data-sv-wert="{k}"]');
+                    if (b) b.click(); return !!(b && b.classList.contains('is-on')); }}""")
+                if not gesetzt:
+                    raise CliFehler(f"--camera {a.camera}: could not be set in the dialog")
             if a.length:
                 s = int(round(float(a.length)))
                 if s in LAENGEN:
@@ -333,7 +389,8 @@ async def _render(app, api, gpx: str, a) -> dict:
     if st.get("error") or not ziel.exists():
         _melden(str(st.get("error") or ""))   # ganze Meldung (mit Traceback) ins Protokoll, ins JSON nur die erste Zeile
         raise CliFehler(str(st.get("error") or "").strip().splitlines()[0] if st.get("error") else _t(app, "cli.render_fehlt", "Render ohne Datei beendet"))
-    return {"ok": True, "file": str(ziel), "template": a.template, "duration_s": round(time.time() - t0, 1)}
+    return {"ok": True, "file": str(ziel), "template": a.template, "camera": getattr(a, "camera", None) or "companion",
+            "duration_s": round(time.time() - t0, 1)}
 
 
 async def _kartenbild(app, api, gpx: str, a) -> dict:
@@ -375,9 +432,11 @@ def _parser() -> argparse.ArgumentParser:
     r = sub.add_parser("render", help="render a video of a tour")
     r.add_argument("tour", help="GPX/FIT/… file, tour id from `gpsstudio tours`, or a unique tour name")
     r.add_argument("--template", default="landscape", help="landscape, memory, social or the name of your own ★ template")
+    r.add_argument("--camera", choices=list(KAMERAS), help="camera flight style: " + ", ".join(KAMERAS))
     r.add_argument("--format", choices=FORMATE)
     r.add_argument("--length", type=float, help="video length in seconds (15–600)")
     r.add_argument("--no-photos", action="store_true", help="no photo stops")
+    r.add_argument("--circle-photos", action="store_true", help="camera circles once around each photo stop")
     r.add_argument("--out", help="output file or folder (default: the app's render folder)")
     r.add_argument("--overwrite", action="store_true", help="overwrite an existing file (default: add a timestamp)")
     m = sub.add_parser("map-image", help="render a map image (PNG) of a tour")
@@ -400,9 +459,10 @@ def main(argv: list, app) -> int:
     except Exception:  # noqa: BLE001
         pass
 
+    _LAUF.update(out=echt, app=app, ausgegeben=False)
+
     def ausgabe(d: dict) -> None:
-        echt.write(json.dumps(d, ensure_ascii=False) + "\n")
-        echt.flush()
+        _ausgabe_einmal(d)
 
     try:
         a = _parser().parse_args(argv)
@@ -415,9 +475,12 @@ def main(argv: list, app) -> int:
     if sys.platform != "win32":
         # 13.10.2026 — abgebrochen (MCP cancel_job, kill): wie Strg+C behandeln, damit finally den Temp-Ordner räumt
         import signal
-        signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+        signal.signal(signal.SIGTERM, _abbrechen)
     try:
+        global _API
         api, tmp = _vorbereiten(app, a.library)
+        _API = api
+        _LAUF["tmp"] = tmp
         if a.command == "tours":
             ausgabe(_tours(app, api, a.search, a.limit))
         elif a.command == "templates":
@@ -444,7 +507,8 @@ def main(argv: list, app) -> int:
         ausgabe({"ok": False, "error": f"{type(e).__name__}: {e}"})
         return 1
     except KeyboardInterrupt:
-        _melden("✗ cancelled")
+        if not _ABGEBROCHEN.is_set():
+            _melden("✗ cancelled")
         ausgabe({"ok": False, "error": "cancelled"})
         return 130
     finally:

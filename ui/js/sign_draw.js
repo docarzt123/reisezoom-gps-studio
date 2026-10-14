@@ -837,6 +837,25 @@
     // Bildgröße und icon-size; geschrieben nur, wenn sich der Versatz ändert (in 4er-Schritten, kein setData-Sturm).
     var randDirty = rzSignRandVersatz(map, fc, vis, metas);
     if (randDirty) popDirty = true;
+    // 14.10.2026 (Bildvergleich Editor ↔ Video) — nach einem Sprung im Editor lief diese Rechnung, bevor die Kamera
+    // angekommen war (alte Projektion → Schild galt als „ganz draußen“ und blieb abgeschnitten); im Video kommt die Kamera
+    // vor jedem Bild an. Darum nach jeder Kamerabewegung mit dem letzten Stand nachrechnen.
+    map.__rzSignRandArgs = { vis: vis, metas: metas, src: src };
+    if (!map.__rzSignRandHook && map.on) {
+      map.__rzSignRandHook = true;
+      map.on("moveend", function () {
+        var A = map.__rzSignRandArgs, F = map.__rzSignFC;
+        if (!A || !F) return;
+        try {
+          if (rzSignRandVersatz(map, F, A.vis, A.metas)) {
+            var ops = map.__rzSignOpLast ? map.__rzSignOpLast.slice() : null;
+            map.getSource(A.src).setData(F);
+            // setData setzt die Feature-States zurück → letzte Deckkraft wieder schreiben
+            if (ops) for (var i = 0; i < ops.length; i++) if (ops[i] != null) map.setFeatureState({ source: A.src, id: i }, { op: ops[i] });
+          }
+        } catch (_) {}
+      });
+    }
     // v0.9.479b — nur anfassen, wenn wirklich ein Schild Aufpoppen nutzt. Sonst KEIN
     // setData/popScale (die icon-size ist dann der reine Zoom-Ausdruck → scharf, kein Zittern).
     var anyPop = false;
@@ -924,6 +943,24 @@
   }
 
   // Versatz je sichtbarem Schild, damit es ganz im Bild bleibt (F-20). true = Eigenschaften geändert (setData nötig).
+  /** 14.10.2026 (Flugstile, 3×3-Vergleich: „Halbe Strecke“ von oben hereingeschoben lag über dem GPS-Studio-Logo) —
+   *  Flächen, die ein hereingeschobenes Schild nicht überdecken soll: das Logo (Einblendung mit @lockup-Bild), in
+   *  Bildpunkten der Karte. Vorschau und Video zeichnen dieselbe Seite → gleiche Lage. */
+  function rzSchutzFlaechen(map) {
+    var out = [];
+    try {
+      if (typeof document === "undefined" || !document.querySelectorAll) return out;
+      var cv = map.getCanvas(), cr = cv.getBoundingClientRect(), W = cv.clientWidth || cv.width;
+      var sk = cr.width ? W / cr.width : 1;
+      var bilder = document.querySelectorAll('#anim-overlay-preview img.ct-bild[data-bild^="@lockup"]');
+      for (var i = 0; i < bilder.length; i++) {
+        var r = bilder[i].getBoundingClientRect();
+        if (!(r.width > 0 && r.height > 0)) continue;
+        out.push({ x0: (r.left - cr.left) * sk, x1: (r.right - cr.left) * sk, y0: (r.top - cr.top) * sk, y1: (r.bottom - cr.top) * sk });
+      }
+    } catch (_) {}
+    return out;
+  }
   function rzSignRandVersatz(map, fc, vis, metas) {
     if (!fc || !fc.features || !vis || !vis.length || !map.project || !map.getCanvas) return false;
     var cv = map.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height, RAND = 8;
@@ -931,6 +968,7 @@
     var skal = map.__rzSignSizeScale || 1;
     var zs = 0.5 * Math.pow(RZ_SIGN_ZOOM_BASE, Math.max(8, Math.min(20, map.getZoom())) - 8) * skal;
     var geaendert = false, gesehen = {};
+    var schutz = map.__rzSchutzTest || rzSchutzFlaechen(map);
     for (var v = 0; v < vis.length; v++) {
       var k = vis[v], f = fc.features[k];
       if (!f || !f.geometry || !f.properties) continue;
@@ -938,6 +976,8 @@
       // Das runde Mini nach dem Sofortbild markiert den Aufnahmeort an der Route — es bleibt an seinem Ort (kein Versatz)
       var mm = metas && metas[k];
       if (mm && mm.miniId && pr.imgId === mm.miniId) continue;
+      // 14.10.2026 (Orte nacheinander: „da wandert Madrid mit“) — ein Ortsschild steht für seinen Ort, es wird nie verschoben
+      if (pr.randFest === true) continue;
       gesehen[k] = 1;
       try { img = map.getImage ? map.getImage(pr.imgId) : null; } catch (_) { img = null; }
       if (!img) { try { img = map.style && map.style.getImage ? map.style.getImage(pr.imgId) : null; } catch (_) { img = null; } }
@@ -949,12 +989,28 @@
       if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
       var x0 = p.x - (a.indexOf("left") >= 0 ? 0 : a.indexOf("right") >= 0 ? w : w / 2);
       var y0 = p.y - (a.indexOf("top") >= 0 ? 0 : a.indexOf("bottom") >= 0 ? h : h / 2);
-      // Nur Schilder, die schon (teilweise) im Bild stehen, werden ganz hereingeschoben. Liegt der Kasten komplett draußen
+      // Nur Schilder, die schon (teilweise) im Bild stehen, werden hereingeschoben. Liegt der Kasten komplett draußen
       // (Ort weit weg, oder die Projektion stammt noch von der Kamera vor einem Sprung), wird nichts hereingezogen.
-      if (x0 + w <= 0 || x0 >= W || y0 + h <= 0 || y0 >= H) continue;
+      // 14.10.2026 (Flugstil Kranschwenk: Schild lief mit der Kamera aus dem Bild und blieb dann groß in der Ecke hängen) —
+      // ganz draußen geht der Versatz auf 0 (vorher blieb der letzte stehen). Und damit es nicht springt: ganz
+      // hereingeschoben, solange mindestens ein Viertel im Bild läge (F-20: halb überstehend → ganz herein); darunter
+      // nimmt das Schieben gleichmäßig ab, das Schild gleitet hinaus.
       var dx = 0, dy = 0;
-      if (w + 2 * RAND <= W) { if (x0 < RAND) dx = RAND - x0; else if (x0 + w > W - RAND) dx = (W - RAND) - (x0 + w); }
-      if (h + 2 * RAND <= H) { if (y0 < RAND) dy = RAND - y0; else if (y0 + h > H - RAND) dy = (H - RAND) - (y0 + h); }
+      var drin = !(x0 + w <= 0 || x0 >= W || y0 + h <= 0 || y0 >= H);
+      if (drin) {
+        var antX = (Math.min(x0 + w, W) - Math.max(x0, 0)) / w, antY = (Math.min(y0 + h, H) - Math.max(y0, 0)) / h;
+        var fx = Math.max(0, Math.min(1, antX / 0.25)), fy = Math.max(0, Math.min(1, antY / 0.25));
+        if (w + 2 * RAND <= W) { if (x0 < RAND) dx = RAND - x0; else if (x0 + w > W - RAND) dx = (W - RAND) - (x0 + w); }
+        if (h + 2 * RAND <= H) { if (y0 < RAND) dy = RAND - y0; else if (y0 + h > H - RAND) dy = (H - RAND) - (y0 + h); }
+        dx *= fx; dy *= fy;
+        // von oben hereingeschoben und läge dann über dem Logo → unter das Logo
+        if (dy > 0) {
+          for (var z = 0; z < schutz.length; z++) {
+            var S = schutz[z], nx0 = x0 + dx, ny0 = y0 + dy;
+            if (nx0 < S.x1 && nx0 + w > S.x0 && ny0 < S.y1 && ny0 + h > S.y0 && S.y1 + RAND + h <= H) dy += (S.y1 + RAND) - ny0;
+          }
+        }
+      }
       // icon-offset wird mit icon-size multipliziert → in Symbol-Bildpunkte, auf 4er-Schritte gerundet
       var g = Math.max(0.05, gr);
       var schritt = function (d) { var x = d / g / 4; return (x < 0 ? Math.floor(x) : Math.ceil(x)) * 4; };   // nach außen runden: ganz im Bild

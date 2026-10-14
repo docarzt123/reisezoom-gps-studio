@@ -232,7 +232,20 @@ def anlegen(video: str, plan: Optional[dict], ffmpeg: str, dauer_s: Optional[flo
         # Ziel = der gerade gerenderte Film am vom Nutzer gewählten Platz; das stumme Zwischenergebnis wird ersetzt
         # (eigene Zwischenstufe desselben Vorgangs → keine Sicherung)
         _ds.nutzer_ziel(v); _ds.nutzer_ziel(tmp)
-        _ds.ersetzen(tmp, v, "tonspur", art=_ds.ART_TEMP)
+        try:
+            _ds.ersetzen(tmp, v, "tonspur", art=_ds.ART_TEMP)
+        except PermissionError as e:
+            # 14.10.2026 (Bugreport Windows/Dropbox) — die Datei bleibt gesperrt: das Video ist trotzdem fertig. Die Fassung mit
+            # Ton bleibt als eigene Datei daneben liegen, statt dass der ganze Render als gescheitert gilt.
+            daneben = v.with_name(v.stem + " (mit Ton)" + v.suffix)
+            try:
+                _ds.nutzer_ziel(daneben)
+                _ds.verschieben(tmp, daneben, "tonspur", art=_ds.ART_TEMP)
+            except Exception as e2:  # noqa: BLE001
+                log.warning("Tonspur: Fassung mit Ton ließ sich nicht ablegen: %s", e2)
+                return {"ok": False, "ton": False, "error": str(e)}
+            log.warning("Tonspur: %s gesperrt (%s) — Fassung mit Ton liegt als %s daneben", v.name, e, daneben.name)
+            return {"ok": True, "ton": True, "daneben": str(daneben), **info}
         log.info("Tonspur angelegt: %s (%s)", v.name, info)
         return {"ok": True, "ton": True, **info}
     finally:

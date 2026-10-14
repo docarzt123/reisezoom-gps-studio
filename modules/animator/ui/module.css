@@ -1667,3 +1667,36 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .dot-bild-formen { display: flex; gap: 6px; }
 .dot-bild-form.ist-an { border-color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 18%, transparent); }
 .dot-kachel-bild img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+
+/* 14.10.2026 — Hochflug: Knopf „Höhe“ je Abschnitt und der Höheneditor (ui/js/hoehenprofil.js) */
+.anim-etappe-editor .et-hoch { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font-size: 10.5px; padding: 2px 6px; }
+.anim-etappe-editor .et-hoch.ist-an { border-color: var(--accent, #48d6c4); color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 14%, transparent); }
+.anim-etappe-editor .et-hoch.offen { box-shadow: 0 0 0 1px var(--accent, #48d6c4) inset; }
+.anim-etappe-editor .et-hoch-ed { margin: 4px 0 6px 7px; padding: 8px 10px; border-left: 2px solid var(--accent, #48d6c4);
+  border-radius: 0 6px 6px 0; background: var(--bg-3, rgba(255,255,255,.04)); }
+.hp-kopf { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; }
+.hp-kopf label { display: flex; justify-content: space-between; align-items: baseline; color: var(--text-muted); }
+.hp-kopf .hp-m { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+.hp-regler { width: 100%; }
+.hp-svg { display: block; margin: 6px 0 4px; border-radius: 5px; touch-action: none; user-select: none; cursor: crosshair; }
+.hp-svg .hp-grund { fill: color-mix(in srgb, var(--text, #e8eef2) 4%, transparent); }
+.hp-svg .hp-boden { stroke: var(--text-muted, #9aa7b2); stroke-width: 1; stroke-dasharray: 3 3; opacity: .6; }
+.hp-svg .hp-flaeche { fill: color-mix(in srgb, var(--accent, #48d6c4) 22%, transparent); }
+.hp-svg .hp-linie { fill: none; stroke: var(--accent, #48d6c4); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.hp-svg .hp-punkt { fill: var(--bg-1, #10161b); stroke: var(--accent, #48d6c4); stroke-width: 2; cursor: grab; vector-effect: non-scaling-stroke; }
+.hp-svg .hp-punkt:hover { fill: var(--accent, #48d6c4); }
+.hp-svg .aus { opacity: .35; }
+.hp-kreisen { display: flex; align-items: center; gap: 6px; font-size: 11px; margin: 2px 0 6px; cursor: pointer; }
+.hp-fuss { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; font-size: 10.5px; }
+.hp-vorlagen { display: inline-flex; gap: 4px; }
+.hp-vorlagen .btn-small { font-size: 10.5px; padding: 2px 7px; }
+
+/* 14.10.2026 — Orte nacheinander (Etappe ohne Linie) */
+.anim-etappe-editor .et-nur-orte { display: flex; align-items: center; gap: 6px; font-size: 11.5px; margin-top: 4px; cursor: pointer; }
+.anim-etappe-editor .et-orte-opt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 2px 22px; font-size: 11px; color: var(--text-muted); }
+.anim-etappe-editor .et-orte-opt label { display: inline-flex; align-items: center; gap: 5px; }
+.anim-etappe-editor .et-ort-s { width: 56px; font-size: 11.5px; }
+.anim-etappe-editor .et-orte-kam { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.anim-etappe-editor .et-los-hinweis { margin: 6px 0 2px; padding: 6px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4;
+  color: var(--text); background: color-mix(in srgb, var(--accent, #48d6c4) 14%, transparent); border-left: 3px solid var(--accent, #48d6c4); }
+.anim-etappe-edit-text { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; white-space: nowrap; }

@@ -40,6 +40,49 @@
                 felder: ["dist_total", "elev_gain", "moving_time", "avg_speed"] },
   };
   const VORLAGE_NAMEN = Object.keys(VORLAGEN);
+  /** 14.10.2026 (Marc: „Bau verschiedene Kamerapositionen, also Presets wie bei MapDirector, für Schnell-Video und
+   *  Assistent … coole Namen, anders als bei MapDirector“) — Flugstile der Kamerafahrt. Je Stil: `dz` Zoom gegenüber dem
+   *  Begleiter (+ näher), `p` Neigung (0 = senkrecht von oben), `glatt` Faktor für die Ruhe der Kamerabahn, `kurs` = wie
+   *  die Blickrichtung entsteht (module.js `_kursKeyframes`: Glättung, Fensterlänge, Kran-Schwenk, feste Richtung,
+   *  Kreisen in Grad je Sekunde). Überblick, Anflug und Schlussblick bleiben bei allen gleich. */
+  const FLUGSTILE = {
+    begleiter:      { dz: 0,    p: 45, glatt: 1,   kurs: {} },
+    tiefflieger:    { dz: 1.3,  p: 62, glatt: 0.6, kurs: { glatt_s: 0.7, fenster_f: 0.5 } },
+    schwalbe:       { dz: 0.6,  p: 55, glatt: 0.4, kurs: { glatt_s: 0.4, fenster_f: 0.4, tol_grad: 1 } },
+    kranschwenk:    { dz: 0.2,  p: 52, glatt: 1,   kurs: { glatt_s: 1.2, kran: 0.8 } },
+    thermik:        { dz: -0.6, p: 48, glatt: 1.4, kurs: { glatt_s: 2.5 } },
+    reiseflughoehe: { dz: -1.3, p: 38, glatt: 1.8, kurs: { glatt_s: 3.2, fenster_f: 2 } },
+    pusteblume:     { dz: -0.7, p: 42, glatt: 2.2, kurs: { modus: "fest" } },
+    falke:          { dz: -1.6, p: 12, glatt: 1.5, kurs: { modus: "kreisen", grad_s: 6 } },
+    orbit:          { dz: -2.6, p: 0,  glatt: 2,   kurs: { modus: "kreisen", grad_s: 3 } },
+    // 14.10.2026 (Marc: „so eine Art Orbit, was langsam immer um den Trackpunkt kreist“) — nah und schräg, eine Runde ≈ 20 s
+    karussell:      { dz: 0.2,  p: 52, glatt: 1.2, kurs: { modus: "kreisen", grad_s: 18 } },
+  };
+  const FLUGSTIL_NAMEN = Object.keys(FLUGSTILE);
+  const FLUGSTIL_TEXT = {
+    begleiter: ["Begleiter", "Weich hinter dir her — der Klassiker"],
+    tiefflieger: ["Tiefflieger", "Nah, tief, steil — jede Kurve spürbar"],
+    schwalbe: ["Schwalbe", "Wendig und lebendig, kaum geglättet"],
+    kranschwenk: ["Kranschwenk", "Schwenkt in Kurven nach außen wie ein Kamerakran"],
+    thermik: ["Thermik", "Etwas höher, ruhig gleitend"],
+    reiseflughoehe: ["Reiseflughöhe", "Hoch und flach, viel Landschaft"],
+    pusteblume: ["Pusteblume", "Treibt in einer Richtung, ganz sanft"],
+    falke: ["Falke", "Hoch von oben, kreist langsam"],
+    orbit: ["Orbit", "Senkrecht aus großer Höhe, langsame Umkreisung"],
+    karussell: ["Karussell", "Kreist nah und langsam um deinen Punkt"],
+  };
+  const flugstil = (w) => FLUGSTILE[(w && w.flug) || "begleiter"] || FLUGSTILE.begleiter;
+  /** Optionen für die Blickrichtung (window.__rzSchnellKamera) aus dem gewählten Flugstil. */
+  const kursOpts = (w) => {
+    const o = Object.assign({}, flugstil(w).kurs);
+    // 14.10.2026 — Momente „umkreisen“ (Assistent): eine volle Runde um die Stelle, Bereich wie momentShots (±2d der Strecke)
+    const mo = (w && w.kamOpt && Array.isArray(w.kamOpt.momente)) ? w.kamOpt.momente.filter(m => m && m.bewegung === "umkreisen" && isFinite(+m.bei)) : [];
+    if (mo.length && o.modus !== "kreisen" && o.modus !== "fest") {
+      const animS = Math.max(8, laengeS(w) - INTRO_S - HOLD_S), d = Math.min(0.04, 2.5 / Math.max(1, animS));
+      o.kreise = mo.map(m => ({ von: Math.max(0, +m.bei - 2 * d), bis: Math.min(1, +m.bei + 2 * d) }));
+    }
+    return o;
+  };
   const FOTO_ARTEN = ["gross", "sofortbild", "pip"];
   /** Kartenstil des Looks einer Vorlage (Q2 a). */
   function vorlageStil(n) {
@@ -125,8 +168,9 @@
     // 30.09.2026 (Marc, Vergleich mit Komoot: „die Kamera fliegt tiefer, mehr über den Track") — eine halbe Stufe
     // näher und 45° statt 55°: steiler von oben, kaum Horizont. Getestet: +1 Stufe war im steilen Gelände zu nah.
     const leb = (opt && isFinite(+opt.lebendig)) ? Math.max(0, Math.min(1, +opt.lebendig)) : 0.5;
-    const zNah = Math.max(1.5, Math.min(5, Math.log2(Math.max(0.5, diagonaleKm(bbox)) / 2) + 0.5)) + (leb - 0.5) * 1.2;
-    const NEIGUNG = Math.round(45 + (leb - 0.5) * 24);
+    const fs = FLUGSTILE[(opt && opt.flug) || "begleiter"] || FLUGSTILE.begleiter;   // 14.10.2026 — Flugstil
+    const zNah = Math.max(0.4, Math.max(1.5, Math.min(5, Math.log2(Math.max(0.5, diagonaleKm(bbox)) / 2) + 0.5)) + (leb - 0.5) * 1.2 + fs.dz);
+    const NEIGUNG = Math.max(0, Math.min(70, Math.round(fs.p + (leb - 0.5) * 24)));
     const punkte = [
       { s: 0, c: mitteAnfang, z: -0.15, p: 25, b: 0, e: "linear" },                 // Überblick
       { s: 1.2, c: mitteAnfang, z: -0.15, p: 25, b: 0, e: "linear" },               // … kurz stehen
@@ -150,7 +194,7 @@
   }
   /** Bewegungen je Moment (Assistent): panorama = aufziehen und zum Horizont neigen (wie der Gipfel-Shot), nah = näher
    *  heran und steiler, ruhig = nichts Eigenes. Momente, die zu dicht am Rand oder am vorigen liegen, entfallen. */
-  const BEWEGUNGEN = ["panorama", "nah", "ruhig"];
+  const BEWEGUNGEN = ["panorama", "nah", "umkreisen", "ruhig"];   // 14.10.2026 + umkreisen (Marc: „an signifikanten Stellen einmal rumkreisen“)
   function momentShots(momente, zNah, neigung, animS) {
     const d = Math.min(0.04, 2.5 / Math.max(1, animS)), raus = [];
     let letzt = -1;
@@ -158,7 +202,8 @@
       const bei = +m.bei;
       if (m.bewegung === "ruhig" || !BEWEGUNGEN.includes(m.bewegung)) continue;
       if (bei - 2 * d <= 0.02 || bei + 2 * d >= 0.98 || bei - 2 * d < letzt) continue;
-      const z = m.bewegung === "panorama" ? zNah - 1.1 : zNah + 0.9, p = m.bewegung === "panorama" ? 62 : Math.min(62, neigung + 10);
+      const z = m.bewegung === "panorama" ? panoZ(zNah) : m.bewegung === "umkreisen" ? zNah + 0.3 : zNah + 0.9;
+      const p = m.bewegung === "panorama" ? panoP(neigung) : m.bewegung === "umkreisen" ? Math.min(62, Math.max(45, neigung + 8)) : Math.min(62, neigung + 10);
       raus.push({ a: bei - 2 * d, c: null, z: zNah, p: neigung, b: 0, e: "ease_in_out" },
                 { a: bei - d / 3, c: null, z, p, b: 0, e: "ease_in_out" },
                 { a: bei + d / 3, c: null, z, p, b: 0, e: "ease_in_out" },
@@ -169,6 +214,11 @@
   }
   /** Keyframe-Punkte des Gipfel-Shots (leer ohne höchsten Punkt oder zu nah am Rand). Breite ~2,5 s Fahrt, höchstens
    *  4 % der Strecke; Zoom eine Stufe weiter, Neigung 62°. */
+  /** 14.10.2026 (Flugstile) — Panorama-Moment: aufziehen und zum Horizont kippen. Bei hohen Stilen (Orbit, Falke …) zog das
+   *  sonst über den Überblick hinaus und kippte von senkrecht abrupt auf 62° — dort aufziehen höchstens bis knapp über den
+   *  Überblick und sanfter kippen. */
+  const panoZ = (zNah) => Math.max(zNah - 1.1, Math.min(zNah, 0.15));
+  const panoP = (neigung) => neigung < 30 ? 45 : 62;
   function gipfelShot(regie, zNah, neigung, animS) {
     const h = (regie || []).find(r => r && r.art === "hoechster" && isFinite(+r.bei));
     if (!h) return [];
@@ -176,8 +226,8 @@
     if (bei - 2 * d <= 0.02 || bei + 2 * d >= 0.98) return [];
     return [
       { a: bei - 2 * d, c: null, z: zNah, p: neigung, b: 0, e: "ease_in_out" },
-      { a: bei - d / 3, c: null, z: zNah - 1.1, p: 62, b: 0, e: "ease_in_out" },
-      { a: bei + d / 3, c: null, z: zNah - 1.1, p: 62, b: 0, e: "ease_in_out" },
+      { a: bei - d / 3, c: null, z: panoZ(zNah), p: panoP(neigung), b: 0, e: "ease_in_out" },
+      { a: bei + d / 3, c: null, z: panoZ(zNah), p: panoP(neigung), b: 0, e: "ease_in_out" },
       { a: bei + 2 * d, c: null, z: zNah, p: neigung, b: 0, e: "ease_in_out" },
     ];
   }
@@ -327,7 +377,7 @@
       intro_s: INTRO_S, hold_s: HOLD_S, duration_s: animS,
       keyframes_enabled: true,
       kamera_vorgabe: "fahrt",   // 07.10.2026 (Klicktest) — Kamera-Pille zeigt „Kamerafahrt“, nicht ein altes „Start → Ziel“
-      timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null, w.kamOpt || null, v.linie),
+      timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null, Object.assign({}, w.kamOpt || {}, { flug: w.flug || "begleiter" }), v.linie),
       camera_follow_track: true,
       // 08.10.2026 (Video-Assistent, Seite „Kamera“) — Folgen / Fest statt der Kamerafahrt
       ...(w.kamera === "folgen" ? { keyframes_enabled: false, kamera_vorgabe: "folgen", timeline_events: [], camera_follow_track: true } : {}),
@@ -345,7 +395,7 @@
       // Spur-Glättung, util.js kursRueckblickAn) — gemessen Abweichung zur Linie im Median < 1° (vorher 25°).
       // Kamerabahn etwas enger (~0,35 s Fahrt), weil die Kamera näher ist — sonst wandert der Pfeil weit aus der Mitte.
       marker_dot_rueckblick_m: Math.round(0.75 * spurGlattM(v.bbox)),
-      camera_follow_glatt_m: Math.round(Math.max(50, Math.min(3000, 0.35 * mProS(v, animS))) / 25) * 25,
+      camera_follow_glatt_m: Math.round(Math.max(50, Math.min(4000, 0.35 * mProS(v, animS) * flugstil(w).glatt)) / 25) * 25,
       smooth_camera_3d: true,
       // 29.09.2026 (Marc: „Straßen, Orte, Grenzen usw. alles ausblenden beim Schnell-Video") — nur Landschaft
       // und Strecke. Dieselben Schalter wie Karte → „Alle aus" im Animator (Straßen-/Bahnlinien inklusive).
@@ -912,6 +962,8 @@
       fotoPause: L.foto_pause === "stehen" ? "stehen" : "heran",    // 07.10.2026 (F-5) — Fotostopp mit/ohne Heranfahren
       angepasst: !!L.angepasst,
       tempoRegie: true,   // 06.10.2026 — immer an, kein Haken mehr
+      flug: FLUGSTILE[L.flug] ? L.flug : "begleiter",   // 14.10.2026 — Flugstil der Kamerafahrt
+      fotoKreisen: !!L.foto_kreisen,                      // 14.10.2026 — Kamera kreist im Fotostopp einmal ums Foto
     };
     if (!VORLAGEN[L.vorlage]) {
       // Erster Aufruf mit Vorlagen: Weite vorbelegen (Q5) — eigene Musikdatei und Felder bleiben
@@ -925,6 +977,8 @@
     // 07.10.2026 (Web-Fund F-5) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
     // Fotopause ohne Heranfahren. Der Dialog bleibt schlank (F-14: die Fotoart kommt sonst aus der Vorlage).
     if (opts && FOTO_ARTEN.includes(opts.fotoArt)) w.fotoArt = opts.fotoArt;
+    if (opts && FLUGSTILE[opts.flug]) w.flug = opts.flug;   // 14.10.2026 — Flugstil von außen (Kommandozeile, Web)
+    if (opts && typeof opts.fotoKreisen === "boolean") w.fotoKreisen = opts.fotoKreisen;
     if (opts && opts.sofortGroesse != null) w.sofortGroesse = sofortGroesse(opts.sofortGroesse);
     if (opts && (opts.fotoPause === "stehen" || opts.fotoPause === "heran")) w.fotoPause = opts.fotoPause;
     const feldLabel = (f) => T("animator.statsfield." + f, f);
@@ -1097,6 +1151,7 @@
           ${feldKopf("timer", T("va.h_dauer_frage", "Wie lange bleiben die Bilder?"))}
           ${wahl('id="va-h-dauer"', "data-va-h-dauer", [["kurz", "", T("va.h_kurz_g", "Kurz"), "≈ 2 s"], ["normal", "", T("va.h_normal_g", "Normal"), "3 s"], ["lang", "", T("va.h_lang_g", "Lang"), "≈ 5 s"]], w.halteDauer || "normal")}
           ${schalter("va-h-heran", w.fotoPause !== "stehen", T("va.h_heran_t", "Zu den Fotos heranfahren"), T("va.h_heran_k", "Die Kamera nähert sich sanft."))}
+          ${schalter("va-h-kreisen", !!w.fotoKreisen, T("va.h_kreisen_t", "Einmal ums Foto kreisen"), T("va.h_kreisen_k", "Während des Halts fliegt die Kamera eine Runde um den Fotoort."))}
         </div>
         ${details(T("va.details", "Details"), `<p class="va-klein">${esc(T("va.h_alle_tip", "Damit man die Bilder in Ruhe ansehen kann. Aus: die Fahrt läuft weiter, das Foto steht kurz daneben."))}</p><p class="va-klein">${esc(T("va.h_hinweis2", "Später an der Schilder-Spur: Der Pause-Knopf hält an allen Foto-Schildern; jedes Schild hat im Editor seinen eigenen Halt."))}</p>`)}
       </section>
@@ -1109,6 +1164,8 @@
           ${karte('data-va-kamera="fest"', kamClip("fest"), T("einfach.k_fest", "Fest"), T("va.k_fest_k", "Die ganze Route im Blick"), w.kamera === "fest", T("va.k_fest_t", "die ganze Tour bleibt im Bild, nur die Linie wächst"))}
         </div>
         <div id="va-k-fahrt">
+          ${feldKopf("plane", T("va.k_flug", "Flugstil"))}
+          <div class="va-karten va-karten-3 va-flugstile" id="va-flug">${FLUGSTIL_NAMEN.map(k => karte(`data-va-flug="${k}"`, kamClip("flug_" + k), T("schnell.flug." + k, FLUGSTIL_TEXT[k][0]), T("schnell.flug." + k + "_k", FLUGSTIL_TEXT[k][1]), w.flug === k, "")).join("")}</div>
           ${feldKopf("", T("va.k_leb", "Wie lebendig?"))}
           <input type="range" class="va-regler" id="va-k-leb" min="0" max="1" step="0.05" value="${isFinite(+w.kamLeb) ? w.kamLeb : 0.5}">
           <div class="va-regler-enden"><span>${I("mountain", 15)} ${esc(T("va.k_ruhig_g", "Ruhig & weit"))}</span><span>${esc(T("va.k_lebendig_g", "Lebendig & nah"))} ${I("zap", 15)}</span></div>
@@ -1226,6 +1283,8 @@
         ${knopfReihe("format", [["9:16", "9:16 " + T("schnell.format_hoch", "hochkant")], ["16:9", "16:9"], ["1:1", "1:1"]], w.format)}
         <label class="field-label">${esc(T("schnell.laenge", "Länge"))}</label>
         ${knopfReihe("laenge", [["kurz", T("schnell.kurz", "Kurz") + " · 20 s"], ["normal", T("schnell.normal", "Normal") + " · 40 s"], ["lang", T("schnell.lang", "Lang") + " · 60 s"]], w.laenge)}
+        <label class="field-label">${esc(T("schnell.flugstil", "Flugstil der Kamera"))}</label>
+        <div class="sv-reihe sv-flug" data-sv-gruppe="flug">${FLUGSTIL_NAMEN.map(k => `<button type="button" class="btn btn-small sv-wahl${k === w.flug ? " is-on" : ""}" data-sv-wert="${k}" title="${esc(T("schnell.flug." + k + "_k", FLUGSTIL_TEXT[k][1]))}">${esc(T("schnell.flug." + k, FLUGSTIL_TEXT[k][0]))}</button>`).join("")}</div>
         <label class="field-label" for="sv-titel">${esc(T("schnell.titel", "Titel"))}</label>
         <input type="text" id="sv-titel" class="lib-input" value="${esc(w.titel)}">
         <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
@@ -1530,7 +1589,7 @@
       let q = [];
       try {
         q = art === "ordner" ? await api().pick_file("folder", [])   // warte-ok: Systemdialog
-                             : await api().pick_file("open", ["Fotos (*.jpg;*.jpeg;*.heic;*.heif;*.png;*.dng;*.arw;*.cr3;*.nef)"], true);   // warte-ok: Systemdialog
+                             : await api().pick_file("open", ["Fotos (*.jpg;*.jpeg;*.heic;*.heif;*.png;*.tif;*.tiff;*.dng;*.arw;*.cr3;*.cr2;*.nef;*.raf;*.rw2;*.orf;*.pef)"], true);   // warte-ok: Systemdialog
       } catch (_) { q = []; }
       if (!q || !q.length) return;
       const l = box.querySelector("#sv-fotos");
@@ -1811,6 +1870,7 @@
         if (cb && cb.checked !== an_) { cb.checked = an_; cb.dispatchEvent(new Event("change", { bubbles: true })); }
       });
       box.querySelector("#va-h-heran")?.addEventListener("change", (e) => { w.fotoPause = e.target.checked ? "heran" : "stehen"; vaLive(); });
+      box.querySelector("#va-h-kreisen")?.addEventListener("change", (e) => { w.fotoKreisen = e.target.checked; vaLive(); });
       box.querySelector("#va-h-dauer")?.addEventListener("click", (e) => {
         const b = e.target.closest("[data-va-h-dauer]"); if (!b) return;
         w.halteDauer = b.dataset.vaHDauer;
@@ -1820,7 +1880,7 @@
     }
     /** 11.10.2026 — Kamera-Stufe: ruhig↔lebendig und die Bewegung je Moment der Geschichte in Worten. */
     const BEW_TEXT = () => ({ panorama: T("va.k_b_panorama", "aufziehen und zum Horizont blicken"), nah: T("va.k_b_nah", "näher heran und steiler"),
-                              ruhig: T("va.k_b_ruhig", "ruhig weiterfliegen") });
+                              umkreisen: T("va.k_b_umkreisen", "einmal herumkreisen"), ruhig: T("va.k_b_ruhig", "ruhig weiterfliegen") });
     function kamMomente() {
       const raus = [];
       const hoch = (v.regie || []).find(r => r && r.art === "hoechster" && isFinite(+r.bei));
@@ -1851,6 +1911,11 @@
       if (!box.__vaKamGebunden) {
         box.__vaKamGebunden = true;
         box.querySelector("#va-k-leb")?.addEventListener("change", (e) => { w.kamLeb = +e.target.value; kamOptSetzen(); vaLive(); });
+        box.querySelectorAll("[data-va-flug]").forEach(b => b.addEventListener("click", () => {   // 14.10.2026 — Flugstil
+          w.flug = b.dataset.vaFlug;
+          box.querySelectorAll("[data-va-flug]").forEach(x => x.classList.toggle("is-on", x === b));
+          kamOptSetzen(); vaLive();
+        }));
       }
       kamOptSetzen();
     }
@@ -2057,6 +2122,7 @@
       const st = stoppsJetzt().concat(fotoArtJetzt() === "sofortbild" ? ohneHaltJetzt().map(k => sofortbildSchild(k, w.sofortGroesse)) : [])
         .sort((a, b) => a.__bei - b.__bei);
       if (w.fotoPause === "stehen") st.forEach(x => { if (x.stopp && !x.clip) x.stopp_kamera = false; });   // F-5: Pause ohne Heranfahren
+      // 14.10.2026 — „Einmal ums Foto kreisen“: an jedem Fotostopp mit Kamera (nicht bei Clips)
       // 11.10.2026 — Assistent, Stufe „Halte“: an allen Foto-Schildern oder an keinem; Dauer kurz/normal/lang
       if (ASS) {
         const f = HALT_FAKTOR[w.halteDauer] || 1, an = halteAn(), menge = w.textMenge || "normal";
@@ -2074,6 +2140,7 @@
           x.stopp_s = Math.max(1, Math.round((+x.stopp_s || STOPP.sek) * f * 10) / 10);
         });
       }
+      if (w.fotoKreisen) st.forEach(x => { if (x.stopp && !x.clip && x.stopp_kamera !== false) x.stopp_kreisen = true; });
       letztesFotoLaenger(st, animSJetzt());
       const lbListe = w.lbWahl ? w.lb.filter((x, i) => w.lbWahl.has(i)) : w.lb;
       const lbSchilder = (an("sv-logbuch") && lbListe.length) ? logbuchAnwenden(st, lbListe, (v.regie || []).map(r => r.bei), !!w.lbWahl, lbRand(w)) : [];
@@ -2123,7 +2190,7 @@
       try { werteLesen(); } catch (_) {}
       const mu = box.querySelector("#sv-musik");
       return { vorlage: w.vorlage, format: w.format, laenge: w.laenge, eigen_s: w.eigenS, look: w.look || null, zahlen: an("sv-zahlen"), profil: an("sv-profil"),
-               uebersicht: an("sv-uebersicht"), felder: w.felder.slice(), musik: mu ? mu.value : w.musik, kamera: w.kamera || null,
+               uebersicht: an("sv-uebersicht"), felder: w.felder.slice(), musik: mu ? mu.value : w.musik, kamera: w.kamera || null, flug: w.flug || null, foto_kreisen: !!w.fotoKreisen,
                kam_leb: isFinite(+w.kamLeb) ? +w.kamLeb : null, halte_dauer: w.halteDauer || null, halte_alle: typeof w.halteAlle === "boolean" ? w.halteAlle : null,
                text_menge: w.textMenge || null, foto_menge: isFinite(+w.fotoMenge) ? +w.fotoMenge : null, schluss_an: an("sv-schluss-an"),
                foto_art: w.fotoArt, highlights: an("sv-highlights"), hl_arten: w.hlArten ? [...w.hlArten] : null, gebaeude: an("sv-gebaeude") };
@@ -2146,6 +2213,9 @@
         if (st.foto_art) w.fotoArt = st.foto_art;
         if (st.kamera) { w.kamera = st.kamera; box.querySelectorAll("[data-va-kamera]").forEach(b => b.classList.toggle("is-on", b.dataset.vaKamera === w.kamera)); }
         if (st.kam_leb != null) { w.kamLeb = +st.kam_leb; const e = box.querySelector("#va-k-leb"); if (e) e.value = w.kamLeb; }
+        if (typeof st.foto_kreisen === "boolean") { w.fotoKreisen = st.foto_kreisen; const e = box.querySelector("#va-h-kreisen"); if (e) e.checked = w.fotoKreisen; }
+        if (FLUGSTILE[st.flug]) { w.flug = st.flug; box.querySelectorAll("[data-va-flug]").forEach(b => b.classList.toggle("is-on", b.dataset.vaFlug === w.flug));
+          box.querySelectorAll('[data-sv-gruppe="flug"] [data-sv-wert]').forEach(b => b.classList.toggle("is-on", b.dataset.svWert === w.flug)); }
         if (st.halte_dauer) { w.halteDauer = st.halte_dauer; box.querySelectorAll("[data-va-h-dauer]").forEach(b => b.classList.toggle("is-on", b.dataset.vaHDauer === w.halteDauer)); }
         if (typeof st.halte_alle === "boolean") w.halteAlle = st.halte_alle;
         if (st.text_menge) { w.textMenge = st.text_menge; box.querySelectorAll("[data-va-t-menge]").forEach(b => b.classList.toggle("is-on", b.dataset.vaTMenge === w.textMenge)); }
@@ -2216,7 +2286,7 @@
       hoerenStopp();
       w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen")?.value || w.eigenS);
       // „Wie im Animator" gilt nur für dieses Projekt — gemerkt wird die vorige Wahl
-      return { format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder,
+      return { flug: w.flug || "begleiter", foto_kreisen: !!w.fotoKreisen, format: w.format, laenge: w.laenge === "animator" ? ((LAENGEN[L.laenge] || L.laenge === "eigen") ? L.laenge : "normal") : w.laenge, eigen_s: w.eigenS, qualitaet: w.qualitaet, stil: w.stil, zahlen: w.zahlen, profil: w.profil, highlights: w.highlights, felder: w.felder,
                mehr_offen: w.mehrOffen, fotos_an: w.fotosAn, clips_an: w.clipsAn, clip_ton: w.clipTon, logbuch: w.logbuch,
                musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn, gebaeude: w.gebaeude,
                vorlage: w.vorlage, foto_art: w.fotoArt, sofort_groesse: w.sofortGroesse, foto_pause: w.fotoPause, angepasst: !!w.angepasst, tempo_regie: !!w.tempoRegie };
@@ -2281,7 +2351,7 @@
       // Blickrichtung aus der geglätteten Spur — gehört zum selben ⌘Z-Schritt (kein eigener)
       await new Promise(res => setTimeout(res, live ? 600 : 1200));
       if (live && !imAnimator()) return;
-      try { window.__rzUndoApplying = true; const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] ${live ? "live" : "übernommen"} in ${P.id} · Look ${look ? "behalten" : "neu"} · Blickrichtung ${n} Keyframes`); }
+      try { window.__rzUndoApplying = true; const n = window.__rzSchnellKamera ? window.__rzSchnellKamera(kursOpts(w)) : 0; applog("info", `[schnell] ${live ? "live" : "übernommen"} in ${P.id} · Look ${look ? "behalten" : "neu"} · Blickrichtung ${n} Keyframes`); }
       catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
       finally { setTimeout(() => { window.__rzUndoApplying = false; }, 0); }
       // Highlight-Schilder abgleichen — bis der Track mit den neuen Einstellungen steht (max. ~6 s)
@@ -2395,7 +2465,7 @@
       await new Promise(res => setTimeout(res, 1500));   // Karte, Kacheln und Tempo-Verteilung kurz ankommen lassen
       if (B && window.__rzKartenBild) { try { B.startbild(await window.__rzKartenBild()); } catch (_) {} }
       // Verfolger-Blickrichtung aus der geglätteten Spur (auch für „Im Animator öffnen")
-      try { const n = window.__rzSchnellKamera ? window.__rzSchnellKamera() : 0; applog("info", `[schnell] Blickrichtung: ${n} Keyframes`); } catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
+      try { const n = window.__rzSchnellKamera ? window.__rzSchnellKamera(kursOpts(w)) : 0; applog("info", `[schnell] Blickrichtung (${w.flug || "begleiter"}): ${n} Keyframes`); } catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
       window.__rzSchnellFertig = { id: r.project_id, name: v.name || "" };   // 13.10.2026 — Kommandozeile (core/cli): Projekt steht, Animator bereit
       if (!rendern) return;
       await new Promise(res => setTimeout(res, 800));   // gespeicherte Keyframes ankommen lassen
@@ -2636,6 +2706,7 @@
 
   window.rzSchnellVideo = rzSchnellVideo;
   window.__rzSchnellKamerafahrt = kamerafahrt;   // Prüfstand
+  window.__rzFlugstile = { liste: FLUGSTIL_NAMEN.slice(), stil: (k) => FLUGSTILE[k] || null, kurs: (k) => kursOpts({ flug: k }) };   // Prüfstand, CLI
   window.__rzSchnellPatch = animatorPatch;       // Prüfstand
   window.__rzSchnellAblauf = nurAblauf;          // Prüfstand
   window.__rzSchnellFotostopps = fotostoppSchilder;   // Prüfstand

@@ -90,7 +90,7 @@ sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
 sudo dnf install git python3 python3-gobject gobject-introspection \
                  webkit2gtk4.1 python3-cairo perl-Image-ExifTool
 
-# Arch (sin probar)
+# Arch (funciona — confirmado por usuarios, octubre de 2026)
 sudo pacman -S git python python-gobject webkit2gtk-4.1 perl-image-exiftool
 ```
 
@@ -106,10 +106,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Instalar una vez el navegador de renderizado** (pide tu contraseña de `sudo`, porque Chromium necesita algunas bibliotecas del sistema):
+**3. Instalar una vez el navegador de renderizado.** En **Ubuntu / Debian** en un solo paso (pide tu contraseña de `sudo`, porque Chromium necesita algunas bibliotecas del sistema):
 
 ```bash
 python -m playwright install --with-deps chromium-headless-shell
+```
+
+En **Arch** y **Fedora**, `--with-deps` no funciona — internamente llama a `apt-get`. Allí instala las bibliotecas con tu propio gestor de paquetes y el navegador sin `--with-deps`:
+
+```bash
+# Arch
+sudo pacman -S --needed nss at-spi2-core libcups libdrm libxkbcommon libxcomposite libxdamage libxrandr mesa pango alsa-lib
+# Fedora
+sudo dnf install nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage libXrandr mesa-libgbm pango alsa-lib
+
+python -m playwright install chromium-headless-shell
 ```
 
 **4. Arrancar:**
@@ -915,7 +926,7 @@ repartidos por todos los días y agrupados por día; lo que está justo en un pu
 hay un cartel) · **3 Fotos** (elegidas por nitidez, variedad y reparto — desmarca o añade las tuyas; **Pocas · Equilibrado · Muchas** con el número que cabe en esa duración; lo que entra en el vídeo lleva una marca y aparece enmarcado; en viajes primero la mejor de cada día) · **4 Paradas**
 («Parar en todos los carteles de fotos» — activado con fotos grandes, desactivado con instantáneas; activado, también
 paran las instantáneas y conservan su aspecto; duración corta/normal/larga; la cámara se acerca o no; con «imagen en
-imagen» el vídeo siempre sigue) · **5 Cámara** (recorrido, seguir o fija; con el recorrido, un control **tranquila ↔
+imagen» el vídeo siempre sigue) · **5 Cámara** (recorrido, seguir o fija; con el recorrido, el **estilo de vuelo** — ver abajo — y un control **tranquila ↔
 viva** y para cada momento el movimiento en palabras; **«otro movimiento»** va cambiando) · **6 Textos** (título y
 subtítulo; **«¿Cuánto texto?»** — *poco*: solo el título · *normal*: título, subtítulo, lugar y hora bajo las fotos, en
 viajes un título de capítulo por día («Día 3 · 7 de julio») donde empieza el día, tan seguido como permite la duración ·
@@ -967,6 +978,20 @@ plantillas, guardar en …); el vídeo se escribe directamente en el lugar elegi
 El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxima vez:
 
 - **Formato:** 9:16 vertical (preseleccionado, para el móvil, Reels, Shorts), 16:9 o 1:1.
+- **Estilo de vuelo de la cámara (desde v0.9.792):** cómo vuela la cámara a lo largo de la ruta — **Compañero** (suave
+  detrás de ti, el clásico, preseleccionado) · **Rasante** (cerca, bajo, inclinado) · **Golondrina** (ágil, casi sin
+  suavizar) · **Grúa** (en las curvas gira hacia fuera, la curva se abre a lo ancho de la imagen) · **Térmica** (un poco más
+  alto, planeando tranquilo) · **Altitud de crucero** (alto y plano, mucho paisaje) · **Diente de león** (flota en una sola
+  dirección) · **Halcón** (alto, desde arriba, girando despacio) · **Órbita** (en vertical desde muy alto, órbita lenta) ·
+  **Carrusel** (de cerca, gira despacio alrededor de tu punto, una vuelta cada unos 20 segundos). La
+  vista general del inicio y la vista final son iguales en todos; el estilo no cambia la duración del vídeo. En el asistente
+  lo eliges en la página **Cámara** con un clip corto por estilo. Se recuerda y se guarda en tus plantillas ★. Línea de
+  comandos: `--camera companion|skimmer|swallow|crane|thermal|cruise|dandelion|falcon|orbit|carousel`.
+- **Dar una vuelta alrededor de la foto (desde v0.9.792):** en el asistente, en la página **Paradas**, «Dar una vuelta
+  alrededor de la foto»; en el editor de carteles, por foto, «Dar una vuelta»: durante la parada la cámara da una vuelta
+  completa alrededor del lugar de la foto y vuelve a su dirección. Una vuelta necesita tiempo — la parada dura entonces al
+  menos 6 segundos. No para clips. Línea de comandos: `--circle-photos`. Para los momentos destacados de la historia, el
+  asistente (página **Cámara**, «Movimiento en momentos concretos») ofrece además el movimiento **«dar una vuelta alrededor»**.
 - **Duración:** Corto 20 s, Normal 40 s, Largo 60 s o **Propia** (segundos en total, 15–600, se recuerda). Desde el
   Animator hay además **«Como en el Animator · N s»** con la duración que tiene ahora (en un viaje, con las
   transiciones); al aplicarlo al proyecto, la duración total queda exactamente así.
@@ -1337,7 +1362,45 @@ queda «Inicio 🔄 mitad».
 si va hacia el este o el oeste depende del orden de tus puntos (Tokio → Alaska cruza el Pacífico, Alaska → Tokio vuelve).
 La línea y la cámara cruzan ±180° sin saltos. Si un solo tramo debe abarcar más de media Tierra, añade un punto
 intermedio. Los tracks GPX que cruzan la línea de cambio de fecha (Fiyi, vuelos sobre el Pacífico) también se dibujan sin
-una línea que atraviese todo el mapa.
+una línea que atraviese todo el mapa. **Desde v0.9.792** los vídeos que cruzan la línea de cambio de fecha se renderizan
+completos (antes la exportación se quedaba parada ahí durante minutos), la cámara ya no salta al otro lado de la Tierra y,
+en un viaje alrededor del mundo, el globo ya no da una vuelta entera al final.
+
+**Aplicar una etapa y cambiarla después.** Mientras el editor está abierto, la etapa es un boceto; solo **«Aplicar
+etapa»** la convierte en un track para la vista previa y el vídeo (un aviso en el editor lo recuerda — si inicias la vista
+previa con el editor abierto, la app aplica la etapa sola). Puedes cambiarla cuando quieras: en la lista de *Tracks* el **lápiz ✎**
+de la etapa abre el mismo editor que al crearla, ya rellenado — añade o mueve puntos, ajusta la altura y vuelve a aplicar. El
+color y el punto móvil están allí en **«Aspecto de la línea …»**. **Búsqueda de lugares:** la app
+consulta dos servicios a la vez (Photon y Nominatim, ambos de OpenStreetMap) y toma la primera respuesta; mientras busca
+puedes pulsar **«Cancelar»** y hacer clic en el lugar del mapa.
+
+**Vuelo alto — subir al cielo (desde v0.9.792).** Cada tramo de una etapa tiene en la lista el botón **«Altura»**. Abre
+un pequeño editor de altura: arriba, el control fija el **punto más alto** (de 10 m a 1000 km); debajo ves el **perfil**
+del tramo — desde el suelo en la salida, pasando por la cima, de vuelta al suelo en el destino. Los puntos se arrastran con
+el ratón; **doble clic** en el perfil añade un punto, doble clic sobre un punto lo quita. Tres plantillas para empezar:
+*Arco* (cima en el centro), *Meseta* (sube rápido, mucho tiempo arriba, luego baja) y *Ascenso* (sube durante mucho rato
+y baja poco antes del destino). La curva pasa siempre suave por tus puntos y nunca por debajo del suelo. Con el control
+en 0 se desactiva el vuelo alto de ese tramo.
+
+Así puedes mostrar incluso un trayecto corto como un vuelo grande y alto — por ejemplo 30 km sobre los Alpes a 300 km de
+altura. Al aplicar la etapa, la app activa el **relieve** y **✈ Vuelo en el aire**: la línea está a su altura, con
+plomadas y sombra en el suelo. Si la cámara está fija, la app la pone en **Seguir**: la cámara sube con el punto y se
+aleja con la altura — a partir de unos cientos de kilómetros el mapa se convierte en un **globo terráqueo**, y al
+descender vuelve a acercarse. Tu propio recorrido de cámara se queda como está. Un vuelo alto no cuenta para subida/bajada
+(un vuelo de 300 km no es un ascenso); aun así aparece en el perfil de altitud del vídeo.
+
+**La cámara gira alrededor.** Si la cámara sigue el vuelo, da media vuelta: empieza detrás del vuelo, en la cima ve el arco
+**de lado** y al aterrizar mira atrás hacia él; en lo alto se inclina más. El interruptor **«La cámara gira alrededor (arco
+de lado)»** está en el editor de altura (activado por defecto). El arco se ve mejor de lado cuando altura y distancia son
+parecidas (p. ej. 15 km de altura sobre 17 km); a 300 km sobre 17 km se convierte en una aguja casi vertical — y a cambio
+el globo y un cielo estrellado llenan la imagen.
+
+**Mostrar solo los lugares — lugares uno tras otro (desde v0.9.792).** Para «estuve aquí, y aquí, y aquí» sin un track
+grabado: crea los lugares como etapa y marca **«Mostrar solo los lugares (sin línea)»** en el editor de etapas. No hay línea
+ni punto móvil; cada lugar aparece por turno como cartel y se queda hasta el final, a ritmo uniforme aunque los lugares estén
+a distancias muy distintas. Debajo eliges los **segundos por lugar** y la cámara: **«Todo a la vista»** (el mapa queda
+quieto, se ven todos los lugares) o **«Volar a cada lugar»** (la cámara vuela de lugar en lugar y se detiene allí). La app
+ajusta la duración del vídeo.
 
 **Lo que la app hace sola con una etapa.** Cada parada que pones tú recibe un **cartel con el nombre del lugar** (casilla
 *Rotular paradas* en el editor, activada por defecto; un cartel que hayas cambiado se queda como lo dejaste; el **ojo** junto a una parada quita y vuelve a poner solo su cartel).
@@ -2920,6 +2983,17 @@ Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el
 3. Los **mosaicos de foto** aparecen en el centro con miniaturas. Los marcadores en el mapa muestran dónde se ha asignado cada foto en función de la hora de captura. **Arrastrar más fotos o elegirlas con «Elegir fotos …» amplía la lista** (los duplicados se omiten). **Cargar otra carpeta** pregunta si debe **reemplazar** las fotos actuales (predeterminado) o **añadirse**; la pregunta menciona los cambios en las fotos actuales que aún no se han escrito. Para vaciar, usa **«🗑 Eliminar todas»**.
 4. **Comprobar el offset** (ver «Zonas horarias» más abajo) — normalmente cuadra directamente
 5. **«Escribir GPS en las fotos»** → **elegir carpeta de destino** → las **copias** ya etiquetadas aterrizan ahí, tus **originales quedan intactos** → listo, la carpeta se abre
+
+### RAW+JPG como pareja, descripción para Lightroom (desde v0.9.792)
+
+- **RAW+JPG como pareja** (casilla a la izquierda bajo los botones de fotos, activada por defecto): si un archivo RAW y un
+  JPEG con el mismo nombre están juntos (`P1000123.RW2` + `P1000123.JPG`), la lista muestra solo el JPEG con la etiqueta
+  **RAW+JPG**. Ubicación, hora y todos los campos que pongas en el JPEG se escriben en **los dos** archivos. Si desmarcas
+  el JPEG, ninguno de los dos se toca. Casilla desactivada = cada archivo por separado, como antes.
+- **Descripción, título, palabras clave, autor y copyright** van a EXIF, IPTC **y** XMP — así los muestran Lightroom,
+  ACDSee, Fotos de Apple y otros.
+- **Los archivos RAW** reciben además un archivo auxiliar `NOMBRE.xmp` con GPS y campos: Lightroom lee de ahí los datos
+  de un RAW. Si ya existe (p. ej. con tus ajustes de Lightroom), solo se completa.
 
 ### Varios tracks a la vez: el archivo los encuentra (desde v0.9.686)
 
