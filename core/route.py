@@ -196,11 +196,21 @@ def geocode_nominatim(query: str, *, limit: int = 1, lang: str = "de",
             data = json.loads(resp.read().decode("utf-8", errors="replace"))
     except Exception as e:  # noqa: BLE001
         raise RouteError("Nominatim — " + _i18n.t_aktiv("route.err_geocoding", "Geocoding fehlgeschlagen: ") + str(e)) from e
-    # Orte, die genau so heißen, nach vorn (wie bei Photon: „Schierke“ vor „Schierker Straße“)
-    def _ort(d):
-        return (d.get("category") in ("place", "boundary") or d.get("addresstype") in ("city", "town", "village", "hamlet", "island", "municipality")) \
-            and _namen_gleich(d.get("name") or "", q)
-    data = sorted(data or [], key=lambda d: 0 if _ort(d) else 1)
+    # Treffer, die genau so heißen, nach vorn — egal ob Ort, Gipfel oder Insel („Schierke“ vor „Schierker Straße“). Mit
+    # Bezugspunkt gewinnt unter ihnen der nächste („Brocken“ bei Wernigerode = Harz-Gipfel, nicht der Weiler bei Egestorf);
+    # ohne Bezugspunkt bleibt Nominatims eigene Reihenfolge (Bedeutung). Gleiche Regel wie geocode_photon.
+    def _schluessel(nr_d):
+        nr, d = nr_d
+        genau = _namen_gleich(d.get("name") or "", q)
+        if bias and len(bias) == 2 and genau:
+            try:
+                dx = (float(d["lon"]) - float(bias[0])) * math.cos(math.radians(float(bias[1])))
+                dy = float(d["lat"]) - float(bias[1])
+                return (0, dx * dx + dy * dy, nr)
+            except (KeyError, TypeError, ValueError):
+                pass
+        return (0 if genau else 1, 0.0, nr)
+    data = [d for _nr, d in sorted(enumerate(data or []), key=_schluessel)]
     out: List[dict] = []
     seen = set()
     for d in data:

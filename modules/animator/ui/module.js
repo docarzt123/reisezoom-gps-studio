@@ -6665,7 +6665,7 @@ function mountAnimator(body, headerActions, opts) {
   function _flugBodenFiltern(aus) {
     // 14.10.2026 — Orte nacheinander: dort bleiben Linie und Punkt immer aus, auch wenn „Flug in der Luft“ abschaltet
     const weg = aus || !!_nurOrteEt();
-    for (const id of FLUG_BODEN_EBENEN) {
+    for (const id of FLUG_BODEN_EBENEN.concat(["preview-ghost"])) {   // Geist: hängt im Flug in der Luft (siehe _flugAnwendenKern)
       try { if (map.getLayer(id)) map.setFilter(id, weg ? ["==", ["literal", 1], 0] : null); } catch (_) {}
     }
   }
@@ -6708,9 +6708,15 @@ function mountAnimator(body, headerActions, opts) {
     if (lot[lot.length - 1] !== n - 1) lot.push(n - 1);
     _flug.lot = lot;
     const nullen = new Float32Array(n);
+    // 14.10.2026 (Test mit echtem Gleitschirm-Track: die Geisterlinie lag als orange Spur flach auf dem Gelände, neben dem
+    // Schatten) — mit „Flug in der Luft“ hängt auch der Geist in Flughöhe (blass, in seiner Farbe), am Boden ist er aus
+    let geist = false;
+    try { geist = !!currentGhostEnabled(); } catch (_) {}
+    _flug.mitGeist = geist;
     const spuren = [
       { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: Math.max(2, lw * 0.8), smooth: false },
       { coords: lot.map(i => currentCoords[i]), agl: lot.map(i => agl[i]), lot: true, color: farbe, opacity: 0.35, width: 1.4 },
+      ...(geist ? [{ coords: currentCoords, agl, color: currentGhostColor(), opacity: currentGhostOpacity(), width: lw, smooth: false }] : []),
       { coords: currentCoords, agl, color: farbe, opacity: 0.95 * _hauptDeckkraft(), width: lw, smooth: false },
     ];
     if (!map.getLayer(FLUG_EBENE)) {
@@ -6733,7 +6739,8 @@ function mountAnimator(body, headerActions, opts) {
     const lot = _flug.lot;
     let j0 = 0; while (j0 < lot.length && lot[j0] < ai0) j0++;
     let j1 = lot.length - 1; while (j1 >= 0 && lot[j1] > ende) j1--;
-    _flug.ebene.setRanges([[ai0, ende], j1 >= j0 ? [j0, j1 + 1] : [0, 0], [ai0, ende]]);
+    const nAlle = currentCoords ? currentCoords.length - 1 : ende;
+    _flug.ebene.setRanges([[ai0, ende], j1 >= j0 ? [j0, j1 + 1] : [0, 0], ...(_flug.mitGeist ? [[0, nAlle]] : []), [ai0, ende]]);
     _flug.ai0 = ai0; _flug.voll = ende >= (currentCoords ? currentCoords.length - 1 : 0) && ai0 === 0;
   }
   function _flugPunkt(pos) {
@@ -7760,6 +7767,7 @@ function mountAnimator(body, headerActions, opts) {
         return;
       }
       map.setLayoutProperty("preview-ghost", "visibility", on ? "visible" : "none");
+      if (_flug.an && _flug.mitGeist !== on) _flugAnwenden(false).catch(() => {});   // 14.10.2026 — Geist in der Luft an/aus
       if (on) {
         map.setPaintProperty("preview-ghost", "line-opacity", currentGhostOpacity());
         map.setPaintProperty("preview-ghost", "line-color", currentGhostColor());
@@ -11895,7 +11903,9 @@ function mountAnimator(body, headerActions, opts) {
         const _tgt = _folgePunkt(coordFrac) || currentCoords[coordIdx];
         // v0.9.277 (Nutzer) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
         // 30fps-Render referenziert → Vorschau wirkt genauso träge wie das Video.
-        const _inertia = (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100;
+        // 14.10.2026 (Gleitschirm: Mitte änderte ihr Tempo sprunghaft, bis 21 m je Bild) — bei „Flug in der Luft“ mindestens
+        // FLUG_TRAEGHEIT: die Kamera nimmt Fahrt sanft auf und ab (gemessen: größter Sprung 21 → 5 m)
+        const _inertia = Math.max((parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100, _flugKameraRuhig() ? FLUG_TRAEGHEIT : 0);
         const _kRender = Math.max(0.005, Math.pow(1 - _inertia, 2));
         if (_inertia <= 0 || !_follLL) {
           _follLL = [_tgt[0], _tgt[1]];
@@ -18485,14 +18495,20 @@ function mountAnimator(body, headerActions, opts) {
   // Ausgewertet wird im Animator selbst: Spur, Tempo-Verteilung und Schnitt sind nur hier bekannt.
   // Ersetzt die Richtungs-Keyframes im Track-Abschnitt (Anker 0…1); Intro/Halten bleiben.
   function _kursKeyframes(opts) {
-    const o = opts || {};
+    const o = Object.assign({}, opts || {});
+    // 14.10.2026 (echter Gleitschirm-Track: Richtungs-Keyframes von 86° bis 1477° = vier volle Drehungen) — Thermikkreise
+    // wickeln die Fahrtrichtung immer weiter auf, auch geglättet. Bei „Flug in der Luft“ ohne ausdrücklich gewählten Modus:
+    // EINE feste Blickrichtung (Hauptrichtung des Flugs, wie der Flugstil „Pusteblume“) — der Schirm kreist im Bild, die
+    // Landschaft steht still.
+    if (!o.modus && _flugKameraRuhig()) o.modus = "fest";
     const co = currentCoords;
     if (!co || co.length < 3) return null;
     const a = _activeProject?.[_MODKEY] || {};
     const animS = Math.max(2, +a.duration_s || +document.getElementById("anim-dur")?.value || 20);
     let lenM = 0; for (let i = 1; i < co.length; i++) lenM += kursMeter(co[i - 1], co[i]);
     // 14.10.2026 — Flugstile (schnellvideo.js FLUGSTILE): fenster_f verkürzt/verlängert das Lesestück der Fahrtrichtung
-    const fenster = o.fenster_m || Math.max(120, Math.max(250, Math.min(1500, lenM / 15)) * (+o.fenster_f > 0 ? +o.fenster_f : 1));
+    let fenster = o.fenster_m || Math.max(120, Math.max(250, Math.min(1500, lenM / 15)) * (+o.fenster_f > 0 ? +o.fenster_f : 1));
+    if (_flugKameraRuhig()) fenster = Math.max(fenster, Math.min(FLUG_KURS_FENSTER_M, lenM / 4));   // 14.10.2026 — Flug: Kreise nicht mitdrehen
     const N = Math.max(40, Math.min(480, Math.round(animS * 8)));
     const roh = [];
     for (let k = 0; k < N; k++) {
@@ -18501,7 +18517,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     const u = [roh[0]];
     for (let k = 1; k < N; k++) { let d = (roh[k] - roh[k - 1]) % 360; if (d > 180) d -= 360; if (d < -180) d += 360; u.push(u[k - 1] + d); }
-    const sig = Math.max(0.5, (o.glatt_s || 1.5) * (N - 1) / animS);
+    const sig = Math.max(0.5, Math.max(o.glatt_s || 1.5, _flugKameraRuhig() ? FLUG_KURS_GLATT_S : 0) * (N - 1) / animS);
     let g = u.map((_, i) => {
       const r = Math.min(Math.ceil(3 * sig), i, N - 1 - i);
       let sw = 0, sx = 0;
@@ -21210,8 +21226,13 @@ function mountAnimator(body, headerActions, opts) {
     const v = parseFloat(document.getElementById("anim-follow-glatt")?.value);
     return isFinite(v) ? Math.max(0, Math.min(3000, Math.round(v))) : 0;
   }
+  // 14.10.2026 (Marc zum echten Gleitschirm-Track: „der springt ganz schön“) — gemessen: die Kamera lief jedem Thermikkreis
+  // nach (Mitte 10–57 m je Bild, Richtungswechsel bis 174°) und drehte sich dauernd mit (20–70°/s). Bei „Flug in der Luft“
+  // deshalb mindestens FLUG_BAHN_GLATT_M Bahnglättung (die Kreise mitteln sich heraus) und eine träge Blickrichtung.
+  const FLUG_BAHN_GLATT_M = 600, FLUG_KURS_FENSTER_M = 5000, FLUG_KURS_GLATT_S = 5, FLUG_TRAEGHEIT = 0.6;
+  function _flugKameraRuhig() { try { return _flugGewuenscht(); } catch (_) { return false; } }
   function _kameraBahn() {
-    const m = Math.max(_folgeGlattM(), _spurGlattM());   // 11.10.2026 — „Spur glätten“ wirkt auf die Kamera, nicht die Linie
+    const m = Math.max(_folgeGlattM(), _spurGlattM(), _flugKameraRuhig() ? FLUG_BAHN_GLATT_M : 0);   // 11.10.2026 — „Spur glätten“ wirkt auf die Kamera, nicht die Linie
     if (!(m > 0) || !currentCoords || currentCoords.length < 3 || !window.rzSpurGlaetten) return currentCoords;
     if (!_kamBahnCache || _kamBahnCache.co !== currentCoords || _kamBahnCache.m !== m) _kamBahnCache = { co: currentCoords, m, bahn: rzSpurGlaetten(currentCoords, m) };
     return _kamBahnCache.bahn;

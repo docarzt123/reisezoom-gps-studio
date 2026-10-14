@@ -4715,6 +4715,14 @@ alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/t
   (core/animator.py) kennt den Flug nicht.
 - **Grenzen:** nur MapLibre + Gelände + eine Tour (`_flugMoeglich()` → Grund `mapbox|gelaende|reise|keine_tour`).
 - Test `tests/test_flug_in_der_luft.py` (IGC aus echtem Gelände + gewollter Höhe, Scrub, Bild mit/ohne, Video mit/ohne).
+- **Ruhige Kamera im Flug (14.10.2026, echter Gleitschirm-Track „springt“):** `_flugKameraRuhig()` (= Schalter Flug in der
+  Luft) → `_kameraBahn` mindestens `FLUG_BAHN_GLATT_M` (600 m), `_kursKeyframes` ohne gewählten Modus → `modus: "fest"`
+  (Thermikkreise wickelten die Richtung auf, 86° → 1477°), Fenster/Glättung mindestens 5 km / 5 s, Folge-Trägheit
+  mindestens `FLUG_TRAEGHEIT` (0,6; Ruck der Mitte 21 → 5 m je Bild). Wache: `test_flug_in_der_luft`.
+- **Geist im Flug (14.10.2026, echter Gleitschirm-Track):** ist die Geisterlinie an, kommt sie als eigene Spur (ganzer Track,
+  `currentGhostColor/Opacity`, agl wie die Linie) zwischen Lot und Linie in die Flug-Ebene (`_flug.mitGeist`); `preview-ghost`
+  wird am Boden mit ausgefiltert. `_flugBereich` setzt dann vier Bereiche — die Linie ist immer der letzte. `applyGhost`
+  baut die Flugspur neu, wenn der Geist an/aus geht.
 - **Punktgröße nach Zoomsprung (14.10.2026):** `_flugPunkt` misst beim `setData` — also vor `jumpTo`. Ein `move`-Haken
   (`map.__rzFlugZoomHaken`) misst neu, wenn sich der Zoom um > 0,15 geändert hat (`_flug.punktZoom`, `_flug.letztPos`).
 

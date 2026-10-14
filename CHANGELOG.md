@@ -25,6 +25,8 @@ Bei jeder neuen Version:
 - Stages and travel route: twelve new ways of travelling — camper van, bus, mountain bike and horse rider follow roads and paths; sailboat, ferry, kayak, SUP, helicopter, paraglider, hot-air balloon and ski go in an arc (ski with heights from the terrain). The stage editor shows the symbols instead of emojis.
 
 ### Fixed
+- „Flight in the air“ with a real paragliding track: the camera jumped and spun — it followed every thermal circle and turned with it (four full turns in one flight). With flight in the air, the camera now smooths its path over 600 m, keeps one viewing direction (the main direction of the flight) and picks up speed gently; the glider circles in the picture while the landscape stays calm.
+- „Flight in the air“ (paragliding, drones, gliders): the faded line of the route still ahead lay flat on the ground as a second track next to the shadow. It now hangs at flight height too, and disappears from the ground.
 - Geotagger: the description you enter now reaches Lightroom, ACDSee and other photo programs — it was written only to the EXIF field, which they do not show as caption. Description, title, keywords, author and copyright now go to EXIF, IPTC and XMP alike (IPTC in UTF-8, umlauts stay intact).
 - Geotagger with RAW files: besides the RAW file itself, GPS and the fields also go into a sidecar file NAME.xmp — Lightroom and Adobe Camera Raw read RAW metadata from there. An existing sidecar (e.g. Lightroom's develop settings) is only added to, its previous state is backed up.
 - Geotagger: the file mask for single photos was missing several RAW formats the app reads, among them Panasonic Lumix *.rw2 (also *.pef, *.rwl, *.srw, *.nrw, *.crw and TIFF). The quick video's photo picker too.
