@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.792] – 2026-10-15
+
 ### Added
 - Geotagger: RAW+JPG as a pair — a RAW file and a JPEG with the same name appear as one photo (badge „RAW+JPG“); location, time and fields entered on the JPEG are written to both. Switch „RAW+JPG as a pair“ in the sidebar, on by default.
 - Places one after another: a stage can show only its places — tick „Show only the places (no line)“ in the stage editor. No line and no moving dot; each place pops up as a sign when its turn comes and stays until the end, at an even pace no matter how far apart the places are. Set the seconds per place and the camera: „Everything in view“ (fixed overview) or „Fly to each place“.
