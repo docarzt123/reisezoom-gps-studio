@@ -76,8 +76,26 @@ def mac_signatur_pruefen(dmg: str) -> tuple:
             print(f"⚠️  DMG ließ sich nicht einbinden (Versuch {_versuch + 1}/4): "
                   f"{(r.stderr or b'').decode(errors='replace').strip()[:160]}", file=sys.stderr)
             _time.sleep(5)
+
         if r is None or r.returncode != 0:
-            return (False, False)
+            # 15.10.2026 (0.9.792/0.9.793 standen als „nicht signiert“ auf der Seite, obwohl Developer-ID-signiert und
+            # notarisiert): liegt der Temp-Ordner auf einer externen Platte (TMPDIR), verweigert macOS das Einbinden an
+            # einem Ordner dort („Zugriff verweigert“). Dann ohne eigenen Einhängepunkt — macOS hängt unter /Volumes ein.
+            import plistlib
+            r = subprocess.run(["hdiutil", "attach", "-nobrowse", "-readonly", "-plist", dmg],
+                               capture_output=True, timeout=300)
+            if r.returncode != 0:
+                print(f"⚠️  DMG ließ sich auch unter /Volumes nicht einbinden: "
+                      f"{(r.stderr or b'').decode(errors='replace').strip()[:160]}", file=sys.stderr)
+                return (False, False)
+            try:
+                punkte = [e.get("mount-point") for e in plistlib.loads(r.stdout).get("system-entities", []) if e.get("mount-point")]
+            except Exception:  # noqa: BLE001
+                punkte = []
+            if not punkte:
+                return (False, False)
+            os.rmdir(mnt)
+            mnt = punkte[0]
         try:
             apps = [p for p in os.listdir(mnt) if p.endswith(".app")]
             if not apps:
