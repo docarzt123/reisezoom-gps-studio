@@ -97,14 +97,18 @@
     ab.onclick = () => { if (M) M.close(); };
   }
 
-  function geh(i) {
+  async function geh(i) {
     if (!Z || i < 0 || i >= SCHRITTE.length) return;
     Z.fehler = "";
+    const s = SCHRITTE[i];
+    // Auswahllisten VOR dem Zeichnen: ein späteres Neuzeichnen nähme dem Nutzer Eingabe und Fokus (Suite 15.10.2026:
+    // unter Last ging der eingetippte Titel verloren, als die Titelvorschläge eintrafen)
+    if (s === "angaben") await angabenListen();
+    if (!Z) return;
     Z.seite = i;
     if (karte) { try { karte.remove(); } catch (_) {} karte = null; }
     zeichnen();
-    const s = SCHRITTE[i];
-    if (s === "angaben") angabenLaden();
+    if (s === "angaben") titelLaden();
     if (s === "medien" && !Z.zuordnung) zuordnen();
   }
 
@@ -170,13 +174,28 @@
   }
 
   // ── Schritt 2: Angaben ─────────────────────────────────────────────────────────────────────────────────────────────
+  function chipsHtml() {
+    if (Z.titelLaedt) return ladeZeile(T("ia.lade_titel", "Sucht Titel aus den Orten …"));
+    return (Z.titelVorschlaege || []).filter(v => v && v !== Z.titel)
+      .map(v => `<button type="button" class="ia-chip" data-titel="${esc(v)}">${esc(v)}</button>`).join("");
+  }
+  /** Nur die Vorschlagszeile neu — Titelfeld, Notiz und Fokus bleiben unberührt. */
+  function chipsZeichnen() {
+    const box = document.getElementById("ia-chips");
+    if (!box || !Z) return;
+    box.innerHTML = chipsHtml();
+    box.querySelectorAll(".ia-chip[data-titel]").forEach(b => b.onclick = () => {
+      Z.titel = b.dataset.titel;
+      const f = document.getElementById("ia-titel"); if (f) f.value = Z.titel;
+      chipsZeichnen(); knoepfe();
+    });
+  }
+
   function seiteAngaben() {
-    const chips = (Z.titelVorschlaege || []).filter(v => v && v !== Z.titel);
     const arten = Z.arten.length ? Z.arten : (Z.art ? [Z.art] : []);
     return `<label class="ia-feld">${esc(T("ia.titel_feld", "Titel"))}
         <input type="text" id="ia-titel" class="lib-input" value="${esc(Z.titel)}"></label>
-      <div class="ia-chips">${Z.titelLaedt ? ladeZeile(T("ia.lade_titel", "Sucht Titel aus den Orten …"))
-        : chips.map(v => `<button type="button" class="ia-chip" data-titel="${esc(v)}">${esc(v)}</button>`).join("")}</div>
+      <div class="ia-chips" id="ia-chips">${chipsHtml()}</div>
       <label class="ia-feld">${esc(T("ia.art", "Art"))}
         <select id="ia-art" class="lib-input">${arten.map(a => `<option value="${esc(a)}"${a === Z.art ? " selected" : ""}>${esc(T("library.act." + a, a))}</option>`).join("")}</select></label>
       <label class="ia-feld">${esc(T("ia.notiz", "Notiz"))}
@@ -188,21 +207,22 @@
       ${Z.sammlung === "__neu" ? `<input type="text" id="ia-sammlung-neu" class="lib-input" value="${esc(Z.sammlungNeu)}" placeholder="${esc(T("ia.sammlung_name", "Name der Sammlung"))}">` : ""}`;
   }
 
-  async function angabenLaden() {
+  async function angabenListen() {
     if (!Z.arten.length) {
       try { const r = await api().library_activities(); if (Z && r && r.choices) Z.arten = r.choices; } catch (_) {} // warte-ok: schnelle Liste
     }
-    if (!Z.sammlungen.length) {
+    if (Z && !Z.sammlungen.length) {
       try { const r = await api().library_collections(); if (Z && r && r.collections) Z.sammlungen = r.collections; } catch (_) {} // warte-ok: schnelle Liste
     }
-    if (Z && SCHRITTE[Z.seite] === "angaben") zeichnen();
-    if (Z && !Z.titelVorschlaege.length && Z.trackPfad) {
-      Z.titelLaedt = true; zeichnen();
-      let r; try { r = await api().schnellvideo_titel_vorschlaege(Z.trackPfad); } catch (_) { r = null; } // warte-ok: Ladezeile im Assistenten
-      if (!Z) return;
-      Z.titelLaedt = false; Z.titelVorschlaege = (r && r.titel) || [];
-      if (SCHRITTE[Z.seite] === "angaben") zeichnen();
-    }
+  }
+
+  async function titelLaden() {
+    if (!Z || Z.titelVorschlaege.length || !Z.trackPfad || Z.titelLaedt) return;
+    Z.titelLaedt = true; chipsZeichnen();
+    let r; try { r = await api().schnellvideo_titel_vorschlaege(Z.trackPfad); } catch (_) { r = null; } // warte-ok: Ladezeile im Assistenten
+    if (!Z) return;
+    Z.titelLaedt = false; Z.titelVorschlaege = (r && r.titel) || [];
+    if (SCHRITTE[Z.seite] === "angaben") chipsZeichnen();
   }
 
   // ── Schritt 3: Fotos & Clips ───────────────────────────────────────────────────────────────────────────────────────
@@ -405,7 +425,7 @@
       const x = track(); if (x) { Z.titel = x.titel || ""; Z.art = x.aktivitaet || ""; }
     };
     if ($("ia-titel")) $("ia-titel").oninput = (e) => { Z.titel = e.target.value; knoepfe(); };
-    document.querySelectorAll(".ia-chip[data-titel]").forEach(b => b.onclick = () => { Z.titel = b.dataset.titel; zeichnen(); });
+    chipsZeichnen();
     if ($("ia-art")) $("ia-art").onchange = (e) => { Z.art = e.target.value; };
     if ($("ia-notiz")) $("ia-notiz").oninput = (e) => { Z.notiz = e.target.value; };
     if ($("ia-sammlung")) $("ia-sammlung").onchange = (e) => { Z.sammlung = e.target.value; zeichnen(); };
