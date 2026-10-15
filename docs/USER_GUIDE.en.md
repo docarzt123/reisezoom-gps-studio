@@ -1273,6 +1273,30 @@ as JPEG** (1080, 2048, 3840 pixels or full size — also from RAW and HEIC), opt
 data** (for sharing — including the location in XMP/IPTC written by Lightroom or „Set location“; the colour profile stays), with the original name or as **Date_Time_Place**. Your originals stay unchanged, nothing is
 overwritten; the status box at the bottom right shows the progress.
 
+### Import assistant — drop the tour, take it over step by step (since v0.9.793)
+
+**How do I get track, photos and clips into the archive after a tour with little work?** With the import assistant:
+after the tour, put the track (e.g. the GPX from Komoot), your photos and clips into an inbox folder and start the
+assistant in the library with **“Import assistant …”** (bottom left) or via **File → Import assistant…**. It only opens
+when you start it, and it needs a new track in the inbox.
+
+1. **What's in the inbox?** You choose the inbox folder and the target in the archive once; both are remembered. The
+   assistant shows the new track, the number of photos and clips and what stays behind. A track that is already in the
+   archive does not count as new.
+2. **The track:** map, distance, date, duration and the result of the track check.
+3. **About the tour:** title (suggestions from the places, e.g. “Around …”), type (pre-filled from the speed), note and
+   collection — a new one too.
+4. **Photos and clips:** they lie on the map by their capture time. If the camera stores no time zone, the assistant
+   works it out from the track. Photos with their own GPS keep their position, shots from another day stay in the inbox.
+   **If there is only a track in the inbox,** the assistant looks in the media archive for photos and clips from that
+   time and adds missing locations if needed.
+5. **Import like this?** An overview of what happens: a folder “date title” is created in the target, track, photos and
+   clips (with Lightroom sidecars) move there, the photos get their position (backed up as a ZIP first), the tour goes
+   into the archive with title, type, note and collection, the logbook is created and the photos are read into the media
+   archive.
+6. **What next?** Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the
+   video yourself in the Animator, create a map or animate data.
+
 ### 🩺 Track check — the archive tells you what is wrong with a track (since v0.9.688)
 A GPS spike, a gap or a camera writing ten points per second usually shows up only in the
 finished video. So the archive checks every tour on import and shows a **warning sign ⚠︎** top
@@ -2482,6 +2506,10 @@ Requirements: **terrain (3D) on** and one of the **free maps** (not Mapbox), a s
 tours). If something is missing, the app tells you when you switch it on. Also applies to the rendered video.
 
 **Since v0.9.792:** with “Flight in the air” the camera moves calmly — it smooths its path, keeps one viewing direction (the main direction of the flight) and does not turn with thermal circles; the glider circles in the picture, the landscape stays calm.
+
+**Colours by height, speed … in the air too (since v0.9.793):** the line in the air is coloured exactly like the line on the ground — **Track → Multiple track colours**: by distance, height, speed, gradient or a sensor, with hard colour changes or a smooth gradient, plus **colour per day** and the stage colours. For a paraglider, „by height“ shows at a glance where the glider climbs in a thermal and where it glides. The plumb lines take the colour of their point. Every change to the colour stops shows at once, in the video too.
+
+**IGC tracks go into the air by themselves (since v0.9.793):** load a paragliding, gliding or hang-gliding flight as an IGC file into a project and the app switches terrain and “Flight in the air” on by itself — nothing to set. If you switch it off, it stays off in that project. For DJI drone flights a hint points to the switch, because low camera flights often look better on the ground. The switch is under **Map → 3D on the map → Route**; it appears for flights (IGC, drone) and whenever it is on. 
 
 **🌈 HDR (since v0.9.779).** Under **Video settings → Colour space** choose **SDR** (default), **HDR · HLG** (recommended) or **HDR · PQ (HDR10)**. You need HDR when the video goes into an HDR timeline (Final Cut, DaVinci, YouTube with HDR footage from your camera) — a normal video looks grey and flat there. The map is converted cleanly to the HDR colour space (BT.2020, white at 203 nits as the standard says, 10 bit). HLG also looks good on normal screens; PQ is for pure HDR projects. The video becomes HEVC (or ProRes if you chose ProRes in “Quality & export”). With an alpha background there is no HDR.
 

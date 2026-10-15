@@ -280,6 +280,7 @@ function mountLibrary(body, headerActions) {
 
       <div class="lib-nav-foot">
         <button class="btn btn-primary btn-sm" id="lib-folders-btn" type="button">${SI("folder-plus", 15)} ${T("library.folders_btn", "Ordner & Einlesen")}</button>
+        <button class="btn btn-sm" id="lib-import-assistent" type="button" title="${esc(T("ia.knopf_tip", "Track, Fotos und Clips aus deinem Eingangsordner übernehmen: verorten, ins Archiv, Titel und Art, Logbuch — Schritt für Schritt"))}">${SI("inbox", 15)} ${T("ia.knopf", "Import-Assistent …")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-check-all" type="button" title="${esc(T("trackcheck.all_tip", "Prüft jede Tour im Archiv auf Sprünge, Lücken und andere Aufzeichnungsfehler. Etwa eine Minute je 1000 Touren, abbrechbar. Es wird nur gezählt, nichts verändert."))}">${SI("stethoscope", 15)} ${esc(T("trackcheck.all_btn", "🩺 Alle Touren prüfen").replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, ""))}</button>
         <div class="lib-nav-hint" id="lib-nav-hint">${_ladePlatz()}</div>
@@ -6198,6 +6199,7 @@ function mountLibrary(body, headerActions) {
   } catch (_) {}
   $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
+  $("lib-import-assistent").onclick = () => { if (window.openImportAssistent) window.openImportAssistent(); };   // 15.10.2026
   // 12.09.2026 — Name der geöffneten Bibliothek; Klick öffnet die Verwaltung.
   (function bibName() {
     const b = $("lib-bibname");

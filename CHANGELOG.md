@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.793] – 2026-10-15
+
+### Added
+- The switch „Flight in the air“ (Map → 3D on the map → Route) is visible again for flights — IGC and drone tracks — and whenever it is on; it had been hidden for every track until flights could be recognised.
+- IGC tracks (paragliding, gliding, hang gliding) go into the air by themselves: loading one into a project switches on terrain and „Flight in the air“ (only while the project has not decided — switched off, it stays off). DJI drone flights get a hint where the switch is.
+- Import assistant: put the track (e.g. from Komoot), photos and clips into an inbox folder you choose and start „Import assistant …“ in the library (or File → Import assistant…). Six steps: what is in the inbox (a new track is needed), the track with its track check, title (suggestions from the places), type (from the speed), note and collection, photos and clips on the map by capture time (missing camera time zone worked out from the track, own GPS kept; with only a track in the inbox, the photos come from the media archive), „Import like this?“ and „What next?“ (tour page, Geotagger, quick video, video assistant, Animator, map, data animation). On import, a folder „date title“ is created in the target, everything moves there, photos and clips are geotagged (backed up as ZIP first), the tour goes into the archive with its details and a logbook, and the photos are read into the media archive.
+- „Flight in the air“: the line in the air is now coloured exactly like the line on the ground — „Multiple track colours“ by distance, height, speed, gradient or sensor (hard or gradient), colour per day and stage colours. For paragliders, colouring by height shows climbing in thermals and gliding at a glance. Plumb lines take the colour of their point; changes to the colour stops show at once, in the preview and in the video.
+
 ## [0.9.792] – 2026-10-15
 
 ### Added

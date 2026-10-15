@@ -173,14 +173,11 @@ def spiegeln() -> None:
 
 
 def _stempel_nach_einzelpruefung(bilanz: str) -> None:
-    """Grün erst nach Einzel-Nachprüfung: run_tests hat (wegen der roten) keinen Stempel geschrieben — hier nachholen, aber
-    nur, wenn die Kopie sauber ist (dieselbe Regel wie in run_tests). Die Zahl der bestandenen Tests aus der Bilanz."""
+    """Grün erst nach Einzel-Nachprüfung: run_tests hat (wegen der roten) keinen Stempel geschrieben — hier nachholen.
+    Offene Änderungen der Kopie kommen samt Inhalt in den Stempel (scripts/suite_stempel.py, seit 15.10.2026).
+    Die Zahl der bestandenen Tests aus der Bilanz."""
     import re as _re
     try:
-        if subprocess.run(["git", "-C", str(SPIEGEL), "status", "--porcelain", "--untracked-files=no"],
-                          capture_output=True, text=True).stdout.strip():
-            _log("Kopie nicht sauber — kein Stempel nach der Einzel-Nachprüfung")
-            return
         kopf = subprocess.run(["git", "-C", str(SPIEGEL), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
         m = _re.search(r"(\d+) bestanden.*?(\d+) gescheitert", bilanz)
         n = (int(m.group(1)) + int(m.group(2))) if m else 0

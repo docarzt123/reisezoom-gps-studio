@@ -1295,6 +1295,30 @@ también desde RAW y HEIC), opcionalmente **sin lugar ni datos de cámara** (par
 **Fecha_Hora_Lugar**. Tus originales no cambian, no se sobrescribe nada; el progreso aparece en el recuadro de estado
 abajo a la derecha.
 
+### Asistente de importación — deja la ruta y tómala paso a paso (desde v0.9.793)
+
+**¿Cómo meto el track, las fotos y los clips en el archivo después de una ruta con poco trabajo?** Con el asistente de
+importación: después de la ruta, pon el track (p. ej. el GPX de Komoot), tus fotos y clips en una carpeta de entrada e
+inicia el asistente en el archivo con **«Asistente de importación …»** (abajo a la izquierda) o en **Archivo → Asistente
+de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo en la entrada.
+
+1. **¿Qué hay en la entrada?** La carpeta de entrada y el destino en el archivo se eligen una vez y se recuerdan. El
+   asistente muestra el track nuevo, el número de fotos y clips y lo que se queda. Un track que ya está en el archivo no
+   cuenta como nuevo.
+2. **El track:** mapa, distancia, fecha, duración y el resultado de la revisión del track.
+3. **Datos de la ruta:** título (propuestas a partir de los lugares, p. ej. «Alrededor de …»), tipo (rellenado según la
+   velocidad), nota y colección, también una nueva.
+4. **Fotos y clips:** aparecen en el mapa según su hora de captura. Si la cámara no guarda zona horaria, el asistente la
+   calcula a partir del track. Las fotos con GPS propio conservan su posición; las de otro día se quedan en la entrada.
+   **Si en la entrada solo hay un track,** el asistente busca en el archivo de medios fotos y clips de ese momento y, si
+   hace falta, añade las ubicaciones que faltan.
+5. **¿Importar así?** Un resumen de lo que pasa: en el destino se crea una carpeta «fecha título», el track, las fotos y
+   los clips (con los archivos de Lightroom) se mueven allí, las fotos reciben su posición (antes se guarda una copia
+   ZIP), la ruta entra en el archivo con título, tipo, nota y colección, se crea el cuaderno y las fotos se leen en el
+   archivo de medios.
+6. **¿Y ahora?** Listo, página de la ruta con cuaderno, editar fotos en el Geotagger, vídeo rápido, asistente de vídeo,
+   diseñar el vídeo tú mismo en el Animator, crear un mapa o animar datos.
+
 ### 🩺 Revisión del track — el archivo te dice qué falla en un track (desde v0.9.688)
 Un salto GPS, un hueco o una cámara que escribe diez puntos por segundo suelen verse solo en el
 vídeo final. Por eso el archivo revisa cada ruta al importarla y muestra en la tarjeta, arriba a
@@ -2523,6 +2547,10 @@ Requisitos: **relieve (3D) activado** y uno de los **mapas gratuitos** (no Mapbo
 varias). Si falta algo, la app lo dice al activarlo. Vale también para el vídeo renderizado.
 
 **Desde v0.9.792:** con «Vuelo en el aire» la cámara se mueve con calma — suaviza su recorrido, mantiene una dirección de vista (la dirección principal del vuelo) y no gira con las térmicas; el parapente gira en la imagen y el paisaje queda tranquilo.
+
+**Colores por altura, velocidad … también en el aire (desde v0.9.793):** la línea en el aire se colorea igual que la línea en el suelo — **Track → Varios colores de track**: por distancia, altura, velocidad, pendiente o un sensor, con cambios de color nítidos o degradado, además de **color por día** y los colores de las etapas. En parapente, «por altura» muestra de un vistazo dónde sube el parapente en la térmica y dónde planea. Las líneas de plomada toman el color de su punto. Cada cambio en los tramos de color se ve al instante, también en el vídeo.
+
+**Los tracks IGC suben solos al aire (desde v0.9.793):** si cargas un vuelo de parapente, planeador o ala delta como archivo IGC en un proyecto, la app activa sola el relieve y «Vuelo en el aire»; no hay que ajustar nada. Si lo desactivas, se queda desactivado en ese proyecto. En los vuelos de dron DJI, un aviso recuerda el interruptor, porque los vuelos de cámara bajos suelen verse mejor en el suelo. El interruptor está en **Mapa → 3D en el mapa → Ruta**; aparece en los vuelos (IGC, dron) y siempre que esté activado. 
 
 **🌈 HDR (desde v0.9.779).** En **Ajustes de vídeo → Espacio de color** eliges **SDR** (estándar), **HDR · HLG** (recomendado) o **HDR · PQ (HDR10)**. HDR lo necesitas cuando el vídeo va a una línea de tiempo HDR (Final Cut, DaVinci, YouTube con grabaciones HDR de tu cámara): un vídeo normal se ve gris y apagado allí. El mapa se convierte limpiamente al espacio HDR (BT.2020, blanco a 203 nits según la norma, 10 bits). HLG también se ve bien en pantallas normales; PQ es para proyectos solo HDR. El vídeo será HEVC (o ProRes si elegiste ProRes en «Calidad y exportación»). Con fondo alfa no hay HDR.
 

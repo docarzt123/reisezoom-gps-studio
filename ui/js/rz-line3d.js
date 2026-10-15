@@ -186,12 +186,14 @@ void main() {
         this._bufs = [];
       },
       /** Spuren setzen: [{coords:[[lng,lat],…], color, width(px), opacity,
-       *    colors: [[r,g,b,a]…] je Punkt (optional, 0..1), dash: [strich, lücke] in
+       *    colors: [[r,g,b,a]…] je Punkt (optional, 0..1),
+       *    segColors: [[[r,g,b,a] Anfang, [r,g,b,a] Ende]…] je Segment (optional, Vorrang vor colors — harte
+       *    Farbwechsel an einem Punkt ohne Zusatzpunkte, 15.10.2026 Fluglinie wie die Bodenlinie), dash: [strich, lücke] in
        *    Linienbreiten (optional), feather: px (optional, Glow)}] */
       setTracks(tracks) {
         this._tracks = (tracks || []).map(t => ({
           coords: t.coords || [], color: hexToRgba(t.color, t.opacity), width: (t.width != null ? +t.width : 4),
-          colors: t.colors || null, dash: (t.dash && t.dash.length >= 2) ? [+t.dash[0], +t.dash[1]] : null,
+          colors: t.colors || null, segColors: t.segColors || null, dash: (t.dash && t.dash.length >= 2) ? [+t.dash[0], +t.dash[1]] : null,
           feather: (t.feather != null) ? +t.feather : 0.8,
           translate: (t.translate && t.translate.length >= 2) ? [+t.translate[0], +t.translate[1]] : [0, 0],
           offsetM: (t.offsetM != null) ? +t.offsetM : null,
@@ -306,7 +308,8 @@ void main() {
           for (let s = 0; s < segs; s++) {
             const q = nurGerade ? 2 * s : s;
             const a = merc[q], b = merc[q + 1];
-            const base = s * 64, d0 = cum[q], ca = colAt(q), cb = colAt(q + 1);
+            const sc = (!nurGerade && t.segColors) ? t.segColors[q] : null;
+            const base = s * 64, d0 = cum[q], ca = sc ? sc[0] : colAt(q), cb = sc ? sc[1] : colAt(q + 1);
             const put = (o, P, Q, side, end, col) => { verts.set([P[0], P[1], P[2], Q[0], Q[1], Q[2], P[3], Q[3], side, end, d0, col[0], col[1], col[2], col[3]], base + o); };
             put(0, a, b, -1, 0, ca); put(16, a, b, 1, 0, ca); put(32, b, a, 1, 1, cb); put(48, b, a, -1, 1, cb);
             // Am Ende ist d gespiegelt, deshalb dort die Seite getauscht (siehe put oben) →

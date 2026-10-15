@@ -4183,3 +4183,52 @@ body.va-offen .anim-canvas { padding-left: var(--va-platz-l, 0px); padding-right
 /* Kleine Fenster: Karten zweispaltig, Frage kleiner */
 @media (max-height: 760px) { .va-h { font-size: 23px; } .va-sub { margin-bottom: 12px; } .va-f-rumpf { padding-top: 12px; } }
 @media (prefers-reduced-motion: reduce) { .va-bk, .va-details > summary .rz-i, .va-schalter, .va-schalter::before { transition: none; } .va-bk:hover { transform: none; } }
+
+/* ── Import-Assistent (15.10.2026, ui/js/importassistent.js) ─────────────────────────────────────────────── */
+.modal.ia-modal { width: min(920px, 94vw); max-width: 94vw; }
+.ia-kopf { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.ia-schritt { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.ia-punkte { display: flex; gap: 7px; }
+.ia-punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--bg-4); }
+.ia-punkt.fertig { background: rgb(var(--accent-rgb) / .55); }
+.ia-punkt.an { background: var(--accent); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .25); }
+.ia-name { font-weight: 600; color: var(--text); }
+.ia-intro { color: var(--text-dim); margin: 0 0 12px; line-height: 1.45; }
+.ia-ordner { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: 10px; margin: 6px 0; }
+.ia-ordner-name { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); }
+.ia-ordner code { font-family: var(--font-mono); font-size: 12px; color: var(--text); background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.ia-inhalt { margin-top: 14px; min-height: 60px; }
+.ia-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.ia-liste li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ia-marke { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--bg-3); color: var(--text-muted); }
+.ia-marke.neu { background: rgb(var(--accent-rgb) / .18); color: var(--accent); }
+.ia-hinweis { margin: 10px 0 0; color: var(--warn); }
+.ia-fehler { margin-top: 12px; color: var(--danger); display: flex; gap: 6px; align-items: center; }
+.ia-lade { display: flex; align-items: center; gap: 10px; color: var(--text-dim); padding: 18px 0; }
+.ia-feld { display: flex; flex-direction: column; gap: 5px; margin: 0 0 12px; color: var(--text-dim); font-size: 13px; }
+.ia-feld .lib-input, #ia-sammlung-neu { width: 100%; padding: 7px 10px; font-size: 13.5px; min-height: 34px; box-sizing: border-box; }
+.ia-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 12px; min-height: 8px; }
+.ia-chip { border: 1px solid var(--border); background: var(--bg-2); color: var(--text); border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12.5px; }
+.ia-chip:hover { border-color: var(--accent); }
+.ia-zwei { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.ia-karte { height: 320px; border-radius: 10px; overflow: hidden; background: var(--bg-2); position: relative; }
+.ia-fakten h4 { margin: 0 0 8px; }
+.ia-fakten dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 12px; }
+.ia-fakten dt { color: var(--text-muted); }
+.ia-fakten dd { margin: 0; }
+.ia-check ul { margin: 6px 0; padding-left: 18px; }
+.ia-pin { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #fff; background: var(--bg-3) center/cover no-repeat;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .45); display: block; }
+.ia-pin.eigen { border-color: var(--accent); }
+.ia-streifen { display: flex; gap: 6px; overflow-x: auto; margin-top: 12px; padding-bottom: 4px; }
+.ia-bild { flex: 0 0 64px; height: 48px; border-radius: 5px; background: var(--bg-3) center/cover no-repeat; }
+.ia-plan li { padding: 4px 0; }
+.ia-wie-weiter { margin-top: 18px; font-weight: 600; color: var(--text); }
+.ia-ergebnis li.fehl { color: var(--warn); }
+.ia-wege { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.ia-weg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 84px; padding: 10px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); color: var(--text); cursor: pointer; text-align: center; font-size: 13px; }
+.ia-weg:hover { border-color: var(--accent); background: var(--bg-3); }
+.ia-weg.fertig { border-color: rgb(var(--accent-rgb) / .5); }
+@media (max-width: 760px) { .ia-zwei { grid-template-columns: 1fr; } .ia-wege { grid-template-columns: repeat(2, 1fr); } .ia-ordner { grid-template-columns: 1fr; } }

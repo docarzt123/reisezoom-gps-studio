@@ -9,9 +9,16 @@ Stand Minuten vorher grün gelaufen war. Jetzt:
 
 Gültig nur, wenn
   · der Lauf voll war (kein Namensfilter) und nichts scheiterte,
-  · der Arbeitsstand am Anfang UND am Ende sauber war und HEAD sich nicht bewegt hat (prüft run_tests.py),
+  · HEAD und die nicht eingecheckten Änderungen am Ende dieselben waren wie am Anfang (prüft run_tests.py),
   · der Stempel höchstens STEMPEL_STUNDEN alt ist,
-  · zwischen Stempel-Commit und Tag nur Doku geändert wurde (Changelog, Handbuch, docs/*.md|html|xml).
+  · der Tag genau den getesteten Stand enthält: zwischen Stempel-Commit und Tag nur Doku geändert (Changelog, Handbuch,
+    docs/*.md|html|xml), der reine Versionssprung `APP_VERSION` in app.py, oder Dateien, die beim Lauf schon mit GENAU
+    diesem Inhalt (Git-Blob) im Arbeitsordner lagen.
+
+15.10.2026 (Marc: „die Suite lief doch schon grün! … ändere das, dass das nicht immer 2× läuft“) — vorher galt der
+Stempel nur bei sauberem Arbeitsstand. Der Release-Ablauf ist aber: Versionsnummer + Changelog vorbereiten, Suite,
+grün → Commit + Tag. Die Suite lief also immer mit nicht eingecheckter Versionsnummer → kein Stempel → das Upload-Skript
+fuhr die Suite (~75 min) ein zweites Mal. Jetzt merkt sich der Stempel die offenen Änderungen samt Inhalt.
 Die eigenen Oberflächen-Selbsttests von release_check.sh laufen trotzdem (RZ_OHNE_SUITE=1 überspringt nur die Suite).
 """
 from __future__ import annotations
@@ -45,9 +52,39 @@ def sauber() -> bool:
     return not any(CODE_NEU.match(f) for f in neu)
 
 
-def schreiben(commit: str, bestanden: int) -> None:
+def offen() -> dict:
+    """Nicht eingecheckte Änderungen gegen HEAD: {Pfad: Git-Blob des Inhalts auf der Platte ("" = gelöscht)} — geänderte
+    eingecheckte Dateien und neue, nicht eingecheckte Code-Dateien (CODE_NEU)."""
+    pfade = [f for f in git("diff", "HEAD", "--name-only").splitlines() if f]
+    pfade += [z[3:] for z in git("status", "--porcelain", "--untracked-files=all").splitlines()
+              if z.startswith("?? ") and CODE_NEU.match(z[3:])]
+    out = {}
+    for f in sorted(set(pfade)):
+        out[f] = git("hash-object", "--", f) if (REPO / f).is_file() else ""
+    return out
+
+
+def _blob(ref: str, pfad: str) -> str:
+    r = subprocess.run(["git", "rev-parse", "-q", "--verify", f"{ref}:{pfad}"], cwd=REPO, capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+VERSION_ZEILE = re.compile(r'^[+-]APP_VERSION = "[0-9.]+"\s*$')
+
+
+def _nur_versionssprung(a: str, b: str, pfad: str) -> bool:
+    """Unterscheiden sich a und b in `pfad` nur in der Zeile APP_VERSION = "…"?"""
+    if pfad != "app.py":
+        return False
+    zeilen = [z for z in git("diff", "-U0", a, b, "--", pfad).splitlines()
+              if z[:1] in "+-" and not z.startswith(("+++", "---"))]
+    return bool(zeilen) and all(VERSION_ZEILE.match(z) for z in zeilen)
+
+
+def schreiben(commit: str, bestanden: int, offen_: dict | None = None) -> None:
     STEMPEL.write_text(json.dumps({"commit": commit, "bestanden": int(bestanden), "zeit": time.time(),
-                                   "zeit_text": time.strftime("%Y-%m-%d %H:%M")}, indent=1), encoding="utf-8")
+                                   "zeit_text": time.strftime("%Y-%m-%d %H:%M"), "offen": offen_ or {}}, indent=1),
+                       encoding="utf-8")
 
 
 def pruefen(ref: str) -> tuple[bool, str]:
@@ -68,16 +105,29 @@ def pruefen(ref: str) -> tuple[bool, str]:
         geaendert = [f for f in git("diff", "--name-only", s["commit"], ziel).splitlines() if f]
     except subprocess.CalledProcessError as e:
         return False, f"Git-Vergleich fehlgeschlagen ({(e.stderr or '').strip()[:120]})"
-    code = [f for f in geaendert if not DOKU.match(f)]
+    getestet = s.get("offen") or {}
+    code = []
+    for f in sorted(set(geaendert) | set(getestet)):
+        if DOKU.match(f):
+            continue
+        if f in getestet:
+            if _blob(ziel, f) != getestet[f]:
+                code.append(f)   # im Tag ein anderer Inhalt als beim Lauf
+            continue
+        if not _nur_versionssprung(s["commit"], ziel, f):
+            code.append(f)
     if code:
         return False, f"seit dem grünen Lauf ({s['commit'][:7]}) geändert: {', '.join(code[:5])}" + (" …" if len(code) > 5 else "")
-    return True, (f"volle Suite grün für {s['commit'][:7]} ({s.get('bestanden')} Tests, {s.get('zeit_text')})"
-                  + (f", seitdem nur Doku: {len(geaendert)} Datei(en)" if geaendert else ", identischer Stand"))
+    return True, (f"volle Suite grün für {s['commit'][:7]}" + (f" + {len(getestet)} offene Änderung(en)" if getestet else "")
+                  + f" ({s.get('bestanden')} Tests, {s.get('zeit_text')})"
+                  + ((f", seitdem nur Doku: {len(geaendert)} Datei(en)" if all(DOKU.match(f) for f in geaendert)
+                      else f", Tag enthält genau den getesteten Stand ({len(geaendert)} Datei(en) seitdem: Doku, Version, Getestetes)")
+                     if geaendert else ", identischer Stand"))
 
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2 and sys.argv[1] == "schreiben":
-        schreiben(sys.argv[2], int(sys.argv[3]))
+        schreiben(sys.argv[2], int(sys.argv[3]), offen())
     elif len(sys.argv) >= 3 and sys.argv[1] == "pruefen":
         ok, grund = pruefen(sys.argv[2])
         print(grund)

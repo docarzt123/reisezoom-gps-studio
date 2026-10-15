@@ -204,14 +204,14 @@ def main() -> int:
                 pass
     muster = [a for a in argv if not a.startswith("--")]
 
-    # 04.10.2026 — Stempel „volle Suite grün für diesen Commit" (scripts/suite_stempel.py): nur bei sauberem
-    # Arbeitsstand am Anfang und Ende, ohne Namensfilter, HEAD unverändert. Das Upload-Skript spart sich dann die
-    # Wiederholung der Suite.
+    # 04.10.2026 — Stempel „volle Suite grün für diesen Stand" (scripts/suite_stempel.py): ohne Namensfilter, HEAD und
+    # offene Änderungen am Ende wie am Anfang. Das Upload-Skript spart sich dann die Wiederholung der Suite.
+    # 15.10.2026 — auch mit offenen Änderungen (vorbereitete Versionsnummer): sie stehen mit Inhalt im Stempel.
     try:
         import suite_stempel as _st
-        _st_kopf, _st_sauber = _st.git("rev-parse", "HEAD"), _st.sauber()
+        _st_kopf, _st_offen = _st.git("rev-parse", "HEAD"), _st.offen()
     except Exception:  # noqa: BLE001 — ohne Git (Paket, Kopie) einfach kein Stempel
-        _st, _st_kopf, _st_sauber = None, "", False
+        _st, _st_kopf, _st_offen = None, "", None
 
     dateien = sorted(TESTS.glob("test_*.py"))
     if muster:
@@ -359,17 +359,16 @@ def main() -> int:
         for name in veraltet:
             print(f"  · {name}: {VERALTET[name]}")
 
-    if _st is not None and not rot and not muster and not nur_liste and _st_sauber:
+    if _st is not None and _st_offen is not None and not rot and not muster and not nur_liste:
         try:
-            if _st.git("rev-parse", "HEAD") == _st_kopf and _st.sauber():
-                _st.schreiben(_st_kopf, len(ok))
-                print(f"{FARBE_GRAU}Stempel: volle Suite grün für {_st_kopf[:7]} (.rz_suite_gruen.json){FARBE_AUS}")
+            if _st.git("rev-parse", "HEAD") == _st_kopf and _st.offen() == _st_offen:
+                _st.schreiben(_st_kopf, len(ok), _st_offen)
+                print(f"{FARBE_GRAU}Stempel: volle Suite grün für {_st_kopf[:7]}"
+                      + (f" + {len(_st_offen)} offene Änderung(en)" if _st_offen else "") + f" (.rz_suite_gruen.json){FARBE_AUS}")
             else:
                 print(f"{FARBE_GRAU}Kein Stempel: Arbeitsstand hat sich während des Laufs geändert{FARBE_AUS}")
         except Exception:  # noqa: BLE001
             pass
-    elif _st is not None and not rot and not muster and not nur_liste:
-        print(f"{FARBE_GRAU}Kein Stempel: Arbeitsstand war beim Start nicht sauber (git status){FARBE_AUS}")
 
     return 1 if rot else 0
 

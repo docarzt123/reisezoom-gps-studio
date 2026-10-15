@@ -121,6 +121,7 @@ from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
 from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
 from core import fotos as cfotos  # 12.09.2026: Foto-Bestand, gleiche Datenbank
+from core import eingang as ceingang  # 15.10.2026: Import-Assistent (Eingangsordner)
 from core import inhalt as cinhalt  # 04.10.2026: Inhaltssuche mit SigLIP 2
 from core import wachhalten as cwach  # 05.10.2026: App Nap aus, solange eingelesen/erfasst wird
 from core import bibliothek as cbib  # 02.09.2026: die Tour-Bibliothek (Wahrheit statt Datei-Index)
@@ -182,7 +183,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.792"
+APP_VERSION = "0.9.793"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -613,6 +614,10 @@ DEFAULT_SETTINGS = {
     # sechs Stunden. Abschaltbar, weil das auf einem Netzlaufwerk oder am
     # Hotspot nicht ungefragt laufen soll.
     "fotos_auto": True,
+    # 15.10.2026 — Import-Assistent: Eingangsordner (dort legt man Track + Fotos + Clips ab) und das Ziel im Archiv, in das
+    # je Tour ein Ordner „Datum Titel“ angelegt wird (leer = erster Archiv-Ordner, sonst Dokumente/Reisezoom Touren)
+    "import_eingang": "",
+    "import_ziel": "",
     # 04.10.2026 — Inhaltssuche („Sonnenuntergang"): aus, bis man sie einschaltet (lädt ein Modell);
     # Variante base (≈ 0,5 GB) oder gross (≈ 1,6 GB, besser auf Deutsch)
     "inhalt_an": False,
@@ -3038,6 +3043,233 @@ class Api:
             return {"ok": True, "project_id": pid, "tour_path": tour_path, "schritte": zeilen}
         except Exception as e:
             log.error("assistent_lauf: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e), "schritte": zeilen}
+
+    # ── Import-Assistent (15.10.2026) ───────────────────────────────────────────────────────────────────────────
+    # Marc: „ein Ordner, den ich bestimme, und dann machen wir einen Import-Assistenten, der guckt, was drin ist …, ein paar
+    # Fragen zum Track stellt …, die Fotos auf der Karte im Geotagger zeigt. ‚So übernehmen?‘ Dann fragen: Wie weiter?“
+    # Der Assistent geht nur auf, wenn man ihn startet; Auslöser ist ein neuer Track. Die Dateien ziehen in einen Ordner
+    # „Datum Titel“ unter dem Archiv-Ziel um. Liegt nur ein Track im Eingang, kommen Fotos/Clips aus dem Medienarchiv.
+
+    def _eingang_ziel(self) -> Path:
+        z = str(_load_settings().get("import_ziel") or "").strip()
+        if z:
+            return Path(z).expanduser()
+        offen = self._archiv_ordner_offen()
+        return Path(offen[0]["path"]) if offen else (Path.home() / "Documents" / "Reisezoom Touren")
+
+    def eingang_pruefen(self, ordner: str = "") -> dict:
+        """Was liegt im Eingang? {ok, ordner, ziel, tracks:[{pfad, name, art (neu|im_archiv|nur_version), geo_hash, km,
+        start, ende, punkte, coords, befunde, hoechste, aktivitaet}], medien:[{pfad, name, art, zeit, tz_bekannt, gps}],
+        begleiter, sonst}"""
+        T = _ui_t()
+        try:
+            ordner = str(ordner or _load_settings().get("import_eingang") or "").strip()
+            if not ordner or not Path(ordner).expanduser().is_dir():
+                return {"ok": False, "grund": "kein_ordner", "error": T("eingang.err_ordner", "Der Eingangsordner fehlt.")}
+            inh = ceingang.inhalt(ordner)
+            tracks = []
+            pruef = self.library_import_pruefen(inh["tracks"]) if inh["tracks"] else {"dateien": []}
+            art_von = {d.get("pfad"): d for d in (pruef.get("dateien") or [])}
+            for i, pfad in enumerate(inh["tracks"], 1):
+                _vm("eingang_track", "Liest den Track: {name}", i, len(inh["tracks"]), name=Path(pfad).name)
+                e = {"pfad": pfad, "name": Path(pfad).name, "art": (art_von.get(pfad) or {}).get("art", "neu"),
+                     "geo_hash": (art_von.get(pfad) or {}).get("geo_hash", ""), "tour_name": (art_von.get(pfad) or {}).get("tour_name")}
+                try:
+                    pts, st = cgpx.parse_gpx(self._ensure_gpx(pfad))
+                except Exception as ex:  # noqa: BLE001 — unlesbar: steht trotzdem in der Liste
+                    e.update({"lesbar": False, "fehler": str(ex)})
+                    tracks.append(e)
+                    continue
+                zeiten = [z for z in (ceingang.zeit(q.time) for q in pts) if z is not None]
+                bewegt = float(getattr(st, "moving_time_s", 0) or getattr(st, "duration_s", 0) or 0)
+                e.update({"lesbar": True, "punkte": len(pts), "km": round((st.distance_m or 0) / 1000.0, 2),
+                          "start": zeiten[0].isoformat() if zeiten else None, "ende": zeiten[-1].isoformat() if zeiten else None,
+                          "datum": (zeiten[0].astimezone().strftime("%Y-%m-%d") if zeiten and zeiten[0].tzinfo
+                                    else (zeiten[0].strftime("%Y-%m-%d") if zeiten else "")),
+                          "titel": (st.name or Path(pfad).stem),
+                          "aktivitaet": clib._guess_activity(st.name or Path(pfad).stem, st.distance_m or 0, bewegt),
+                          "coords": [[q.lon, q.lat] for q in cgpx.downsample(pts, 600)]})
+                tc = self.trackcheck_datei(pfad)
+                e["befunde"], e["hoechste"] = (tc.get("befunde") or [], tc.get("hoechste")) if tc.get("ok") else ([], None)
+                tracks.append(e)
+            medien_pfade = inh["fotos"] + inh["videos"]
+            medien = []
+            for i in range(0, len(medien_pfade), 25):
+                _vm("eingang_medien", "Liest Aufnahmezeiten: {n} von {gesamt}", min(i + 25, len(medien_pfade)), len(medien_pfade))
+                medien += ceingang.zeiten_lesen(medien_pfade[i:i + 25])
+            return {"ok": True, "ordner": ordner, "ziel": str(self._eingang_ziel()), "tracks": tracks, "medien": medien,
+                    "begleiter": inh["begleiter"], "sonst": inh["sonst"]}
+        except Exception as e:
+            log.exception("eingang_pruefen")
+            return {"ok": False, "error": str(e)}
+
+    def eingang_zuordnen(self, track_pfad: str, medien: list = None, versatz_s: float = 0.0, tz_min=None) -> dict:
+        """Fotos/Clips aus dem Eingang per Zeit auf den Track. Ohne Medien im Eingang: aus dem Medienarchiv die
+        Aufnahmen im Zeitraum des Tracks (±30 min) — {ok, zeitzone, treffer, archiv: bool, medien}."""
+        try:
+            pts, _st = cgpx.parse_gpx(self._ensure_gpx(str(track_pfad)))
+            medien = list(medien or [])
+            archiv = False
+            if not medien:
+                zeiten = [z for z in (ceingang.zeit(q.time) for q in pts) if z is not None]
+                if zeiten:
+                    # Fotos ohne Zeitzone stehen mit ihrer Kamera-Lokalzeit als UTC im Archiv (tz_bekannt 0) — bis zu
+                    # ±14 h daneben. Darum weit abfragen; die Zeitzone errechnet `zuordnen`, übrig bleibt nur, was auf
+                    # den Track fällt.
+                    t0, t1 = zeiten[0].timestamp(), zeiten[-1].timestamp()
+                    with clib._DB_LOCK:
+                        r = cfotos.abfrage(self._lib(), {"von_utc": t0 - 14 * 3600 - cfotos.SPIELRAUM_S,
+                                                         "bis_utc": t1 + 14 * 3600 + cfotos.SPIELRAUM_S}, limit=3000)
+                    for z in r.get("fotos") or []:
+                        if not z.get("path") or z.get("fehlt_seit"):
+                            continue
+                        au = z.get("aufnahme_utc")
+                        if z.get("tz_bekannt") and au and not (t0 - cfotos.SPIELRAUM_S <= float(au) <= t1 + cfotos.SPIELRAUM_S):
+                            continue
+                        dt = datetime.fromtimestamp(float(au), timezone.utc).replace(tzinfo=None) if au else None
+                        gps = ({"lat": z["lat"], "lon": z["lon"], "alt": z.get("ele")}
+                               if z.get("lat") is not None and z.get("lon") is not None else None)
+                        medien.append({"pfad": z["path"], "name": Path(z["path"]).name, "art": z.get("art") or "foto",
+                                       "zeit": dt.isoformat() if dt else None, "tz_bekannt": bool(z.get("tz_bekannt")),
+                                       "gps": gps})
+                    archiv = True
+            tz = None if tz_min in (None, "") else float(tz_min)
+            r = ceingang.zuordnen(medien, pts, versatz_s=float(versatz_s or 0), tz_min=tz)
+            if archiv:   # aus dem Archiv nur, was wirklich zur Tour gehört
+                drin = {t["pfad"] for t in r["treffer"] if t["im_track"]}
+                medien = [m for m in medien if m["pfad"] in drin]
+                r["treffer"] = [t for t in r["treffer"] if t["pfad"] in drin]
+            return {"ok": True, "archiv": archiv, "medien": medien, **r}
+        except Exception as e:
+            log.exception("eingang_zuordnen")
+            return {"ok": False, "error": str(e)}
+
+    def eingang_vorschaubilder(self, pfade: list) -> dict:
+        """Kleine Vorschaubilder (Fotos, RAW, erstes Bild eines Clips) — höchstens 60 je Aufruf."""
+        raus = {}
+        for p in list(pfade or [])[:60]:
+            try:
+                raus[p] = self._photo_thumbnail_data_url(str(p), 160)
+            except Exception:  # noqa: BLE001 — ohne Bild bleibt der Platzhalter
+                raus[p] = None
+        return {"ok": True, "bilder": raus}
+
+    def eingang_uebernehmen(self, plan: dict) -> dict:
+        """„So übernehmen“: Track + Fotos/Clips in den Tour-Ordner (Ziel/„Datum Titel“) verschieben, Fotos/Clips verorten
+        (vorher als ZIP gesichert), Archiv einlesen, Titel/Art/Notiz/Sammlung setzen, Logbuch anlegen, Medienordner
+        aufnehmen und einlesen. plan = {track, titel, aktivitaet, notiz, sammlung: {id}|{neu: name}|None, datum,
+        medien: [pfad], treffer: [{pfad, lat, lon, alt, quelle}], verorten: bool, archiv_medien: bool}
+        → {ok, pfad, geo_hash, ordner, schritte:[{key, text, ok}], verschoben, verortet}"""
+        T = _ui_t()
+        zeilen = []
+
+        def zeile(key, text, ok=True):
+            zeilen.append({"key": key, "text": text, "ok": bool(ok)})
+        try:
+            plan = dict(plan or {})
+            quelle = Path(str(plan.get("track") or ""))
+            if not quelle.is_file():
+                return {"ok": False, "error": T("eingang.err_track", "Der Track liegt nicht mehr im Eingang."), "schritte": zeilen}
+            titel = str(plan.get("titel") or quelle.stem).strip() or quelle.stem
+            ziel_wurzel = self._eingang_ziel()
+            _ds.nutzer_ziel(ziel_wurzel)
+            ziel_wurzel.mkdir(parents=True, exist_ok=True)
+            tour_ordner = ceingang.frei(ziel_wurzel / ceingang.tour_ordnername(plan.get("datum") or "", titel))
+            _ds.nutzer_ziel(tour_ordner)
+            tour_ordner.mkdir(parents=True)
+            # 1) verschieben: Track, Fotos/Clips aus dem Eingang samt Begleitern (xmp/aae)
+            archiv_medien = bool(plan.get("archiv_medien"))
+            mitnehmen = [] if archiv_medien else [str(x) for x in (plan.get("medien") or []) if Path(str(x)).is_file()]
+            eingang = str(_load_settings().get("import_eingang") or "")
+            alle_begleiter = ceingang.inhalt(eingang)["begleiter"] if eingang else []
+            neu_pfad = {}
+            liste = [str(quelle)] + mitnehmen
+            for i, alt in enumerate(liste, 1):
+                _vm("eingang_verschieben", "Verschiebt: {name}", i, len(liste), name=Path(alt).name)
+                for q in [alt] + ceingang.begleiter_von(alt, alle_begleiter):
+                    if not Path(q).is_file():
+                        continue
+                    z = ceingang.frei(tour_ordner / Path(q).name)
+                    _ds.nutzer_ziel(q); _ds.nutzer_ziel(z)
+                    _ds.verschieben(q, z, "import_assistent")
+                    neu_pfad[q] = str(z)
+            track = neu_pfad[str(quelle)]
+            zeile("verschoben", T("eingang.s_verschoben", "Nach „{ordner}“ verschoben: {n}")
+                  .replace("{n}", str(len(neu_pfad))).replace("{ordner}", tour_ordner.name))
+            # 2) verorten: nur Treffer aus dem Track (eigenes GPS bleibt), vorher ZIP-Sicherung
+            verortet = 0
+            if plan.get("verorten", True):
+                treffer = [t for t in (plan.get("treffer") or []) if t.get("quelle") == "track" and t.get("lat") is not None]
+                if archiv_medien:
+                    for i, t in enumerate(treffer, 1):
+                        _vm("eingang_verorten", "Verortet: {name}", i, len(treffer), name=Path(t["pfad"]).name)
+                        r = self.fotos_verorten(t["pfad"], t["lat"], t["lon"], t.get("alt"))
+                        verortet += 1 if r.get("ok") else 0
+                else:
+                    ziele = [(neu_pfad.get(t["pfad"]), t) for t in treffer if neu_pfad.get(t["pfad"])]
+                    if ziele:
+                        for z, _t in ziele:
+                            _ds.nutzer_ziel(z)
+                        zp = cbak.make_photo_backup([z for z, _t in ziele], str(BACKUPS_DIR / "import_assistent"),
+                                                    label="import")
+                        log.info("[eingang] Sicherung vor dem Verorten → %s", zp)
+                        for i, (z, t) in enumerate(ziele, 1):
+                            _vm("eingang_verorten", "Verortet: {name}", i, len(ziele), name=Path(z).name)
+                            try:
+                                cexif.write_gps(z, float(t["lat"]), float(t["lon"]),
+                                                float(t["alt"]) if t.get("alt") is not None else None, gesichert=True)
+                                verortet += 1
+                            except Exception as ex:  # noqa: BLE001 — ein Foto, das sich nicht schreiben lässt, hält nichts auf
+                                log.warning("[eingang] verorten %s: %s", z, ex)
+                zeile("verortet", T("eingang.s_verortet", "Fotos/Clips verortet: {n}").replace("{n}", str(verortet)),
+                      ok=verortet == len(treffer))
+            # 3) Archiv: Ziel als Archiv-Ordner (rekursiv), einlesen, Angaben setzen
+            _vm("eingang_archiv", "Nimmt die Tour ins Archiv auf …")
+            conn = self._lib()
+            clib.add_folder(conn, str(ziel_wurzel), recursive=True)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ziel_wurzel)],
+                      map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
+            info = self.library_get_track(track)
+            gh = ((info or {}).get("track") or {}).get("geo_hash", "")
+            self.library_set_name(track, titel)
+            if plan.get("aktivitaet"):
+                try:
+                    self.library_set_activity(track, str(plan["aktivitaet"]))
+                except Exception as ex:  # noqa: BLE001
+                    log.warning("[eingang] Art: %s", ex)
+            if str(plan.get("notiz") or "").strip():
+                self.library_set_fields(track, None, None, str(plan["notiz"]).strip())
+            zeile("archiv", T("eingang.s_archiv", "Tour „{titel}“ im Archiv").replace("{titel}", titel), ok=bool(gh))
+            sa = plan.get("sammlung") or None
+            if isinstance(sa, dict) and (sa.get("id") or str(sa.get("neu") or "").strip()):
+                if sa.get("id"):
+                    self.library_collection_add(sa["id"], [track])
+                else:
+                    self.library_collection_create(str(sa["neu"]).strip(), [track])
+                zeile("sammlung", T("eingang.s_sammlung", "In die Sammlung aufgenommen"))
+            # 4) Logbuch (Pausen, Übernachtungen) — braucht Zeiten
+            try:
+                lb = self.logbuch_lesen(track)
+                if lb.get("ok"):
+                    zeile("logbuch", T("eingang.s_logbuch", "Logbuch angelegt, Einträge: {n}")
+                          .replace("{n}", str(len(lb.get("eintraege") or []))))
+            except Exception as ex:  # noqa: BLE001
+                log.warning("[eingang] Logbuch: %s", ex)
+            # 5) Medien: Ziel als Medienordner, im Hintergrund einlesen
+            if mitnehmen:
+                try:
+                    with clib._DB_LOCK:
+                        cfotos.ordner_hinzu(conn, str(ziel_wurzel), True)
+                    self.fotos_scan_start(str(ziel_wurzel))
+                    zeile("medien", T("eingang.s_medien", "Fotos/Clips werden ins Medienarchiv eingelesen"))
+                except Exception as ex:  # noqa: BLE001
+                    log.warning("[eingang] Medien einlesen: %s", ex)
+            log.info("[eingang] %s → %s (%d Dateien, %d verortet)", quelle.name, tour_ordner, len(neu_pfad), verortet)
+            return {"ok": True, "pfad": track, "geo_hash": gh, "ordner": str(tour_ordner), "schritte": zeilen,
+                    "verschoben": len(neu_pfad), "verortet": verortet}
+        except Exception as e:
+            log.error("eingang_uebernehmen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e), "schritte": zeilen}
 
     def projekt_aus_vorlage_anlegen(self, name: str = "", vorlage_id: str = "") -> dict:
@@ -18848,6 +19080,7 @@ def main() -> None:
         # v0.9.288 — Topbar aufgeräumt → diese Aktionen leben jetzt im Menü.
         def _open_track_from_menu():    _trigger_js("window.pickGpx && window.pickGpx()")
         def _open_assistent_from_menu(): _trigger_js("window.openTourAssistent && window.openTourAssistent()")
+        def _open_import_from_menu():    _trigger_js("window.openImportAssistent && window.openImportAssistent()")   # 15.10.2026
         def _open_feedback_from_menu(): _trigger_js("window.openBugReportModal && window.openBugReportModal('Feedback (Menü)')")
         # v0.9.289 — Spenden/Unterstützen: öffnet den Über-Dialog (enthält den Block)
         def _open_support_from_menu():  _trigger_js("window.openAboutModal && window.openAboutModal()")
@@ -18872,6 +19105,7 @@ def main() -> None:
         _menu_blog       = _strings.get("menu.blog", "Blog – reisezoom.com")
         _menu_youtube    = _strings.get("menu.youtube", "YouTube-Kanal")
         _menu_assistent = _strings.get("menu.assistent", "Tour-Assistent…")
+        _menu_import_ass = _strings.get("menu.import_assistent", "Import-Assistent…")
         _menu_export_gpx = _strings.get("menu.export_gpx", "Als GPX exportieren…")
         _menu_export_kml = _strings.get("menu.export_kml", "Als KML exportieren…")
         _menu_export_kmz = _strings.get("menu.export_kmz", "Als KMZ exportieren…")
@@ -18887,6 +19121,7 @@ def main() -> None:
             Menu(_menu_file, [
                 MenuAction(_menu_open_track, _open_track_from_menu),
                 MenuAction(_menu_assistent, _open_assistent_from_menu),
+                MenuAction(_menu_import_ass, _open_import_from_menu),
                 MenuSeparator(),
                 MenuAction(_menu_export_gpx, _export_gpx_from_menu),
                 MenuAction(_menu_export_kml, _export_kml_from_menu),

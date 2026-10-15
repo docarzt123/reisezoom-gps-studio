@@ -514,7 +514,8 @@ function mountAnimator(body, headerActions, opts) {
                  betrifft die Strecke (Linie in echter Flughöhe), nicht die Häuser -->
             <!-- 06.10.2026 (Marc: „verstecke den Button bis dahin, das verwirrt, das müssen wir anders machen") — verborgen,
                  bis „Flug in der Luft“ von selbst erkannt wird; das Feld bleibt im DOM, damit Projekte, in
-                 denen es an ist, weiter so rendern. -->
+                 denen es an ist, weiter so rendern. 15.10.2026: Flüge werden jetzt erkannt (_flugAuto) — sichtbar bei
+                 IGC- und Drohnenflügen und immer, wenn der Flug an ist (_flugZeile). -->
             <div class="anim-3d-reihe" id="anim-3d-strecke" hidden><span class="anim-3d-was">${t("map_config.dreid_strecke", "Strecke")}</span><div class="chip-row">
               <label class="chip-toggle" title="${t("map_config.flug3d_tip", "Für Drohnen-, Gleitschirm- und Segelflüge: Die Linie liegt in ihrer echten Höhe über dem Boden, senkrechte Lotlinien und ein Schatten am Boden zeigen den Abstand. Braucht Gelände (3D) und eine der freien Karten.")}"><input type="checkbox" id="anim-mc-flug3d"><span>${t("map_config.chip.flug3d", "✈ Flug in der Luft")}</span></label>
             </div></div>
@@ -1862,7 +1863,8 @@ function mountAnimator(body, headerActions, opts) {
     { type: "bool", onChange: () => applyHideLabels() });
   const _gebSchalter = () => { const w = document.getElementById("anim-mc-gebaeude-wachsen"); if (w) w.disabled = !document.getElementById("anim-mc-gebaeude")?.checked; };
   bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onLoad: _gebSchalter, onChange: () => { _gebSchalter(); try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } try { _applyAttribText(); } catch (_) {} } });
-  bindSetting("anim-mc-flug3d", _MODKEY, "flug_3d", { type: "bool", onChange: () => { try { _flugAnwenden(true); } catch (e) { applog("warn", "[flug3d] " + e); } } });
+  bindSetting("anim-mc-flug3d", _MODKEY, "flug_3d", { type: "bool", onLoad: () => _flugZeile(),
+    onChange: () => { _flugZeile(); try { _flugAnwenden(true); } catch (e) { applog("warn", "[flug3d] " + e); } } });
   // Flug in der Luft folgt Gelände (an/aus, Überhöhung), Linienfarbe, -breite und -deckkraft — kurz verzögert,
   // weil das Gelände erst nach dem Umschalten am Stil hängt.
   { let _flugT = null;
@@ -6624,6 +6626,51 @@ function mountAnimator(body, headerActions, opts) {
                              "anim-dot-glow", "anim-dot-core", "anim-dot-fz", "anim-dot-arrow"];
   let _flug = { agl: null, key: "", lade: null, lot: [], idx: 0, ebene: null, punkt: null, an: false, grund: "" };
   function _flugGewuenscht() { return !!document.getElementById("anim-mc-flug3d")?.checked; }
+  // 15.10.2026 (Marc: „Was musst du einstellen, damit der Track nicht mehr am Boden klebt? … ja, bau direkt“) — ein
+  // IGC-Track ist ein Flug (Gleitschirm, Segelflug, Drachen): Gelände und „Flug in der Luft“ gehen beim Laden von selbst
+  // an. Nur, solange das Projekt den Schalter noch nie gesetzt hat — wer ihn ausschaltet, dem bleibt er aus. DJI-Drohnen
+  // (Höhe über Start, rel_alt) bekommen nur den Hinweis, wo der Schalter sitzt: tiefe Kameraflüge sind am Boden oft besser.
+  /** Die Zeile „Strecke: Flug in der Luft“ zeigen, wenn der Track ein Flug ist oder der Flug an ist (sonst verwirrt sie). */
+  function _flugZeile() {
+    const z = document.getElementById("anim-3d-strecke");
+    if (!z) return;
+    let flug = false;
+    try { flug = !!_flug.istFlug; } catch (_) { flug = false; }   // beim Einhängen steht `_flug` noch nicht
+    z.hidden = !(flug || _flugGewuenscht());
+  }
+  function _flugAuto(path) {
+    const _igc = /\.igc$/i.test(String(path || ""));
+    _flug.istFlug = _igc || !!(_ovSeries && _ovSeries.sensors && Array.isArray(_ovSeries.sensors.rel_alt) && _ovSeries.sensors.rel_alt.length);
+    _flugZeile();
+    if (_isReiseroute || _reiseAktiv() || _nurOrteEt() || _flugGewuenscht()) return;
+    const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    if (proj && proj.animator && "flug_3d" in proj.animator) return;   // im Projekt schon entschieden
+    const igc = /\.igc$/i.test(String(path || ""));
+    const drohne = !igc && !!(_ovSeries && _ovSeries.sensors && Array.isArray(_ovSeries.sensors.rel_alt) && _ovSeries.sensors.rel_alt.length);
+    if (drohne) {
+      if (_flug.hinweisFuer !== path) {
+        _flug.hinweisFuer = path;
+        toast(t("animator.flug3d_drohne_tipp", "Drohnenflug erkannt: Unter Karte → „Flug in der Luft“ hängt die Linie in ihrer echten Höhe."), "info", 6000);
+      }
+      return;
+    }
+    if (!igc) return;
+    // ohne Projekt landete der Schalter in den globalen Einstellungen — dann flöge jede spätere Wanderung mit: nur Hinweis
+    if (!proj) {
+      if (_flug.hinweisFuer !== path) { _flug.hinweisFuer = path; toast(t("animator.flug3d_igc_tipp", "Flug erkannt: Unter Karte → „Flug in der Luft“ hängt die Linie in ihrer echten Höhe."), "info", 6000); }
+      return;
+    }
+    if (map && map.__rzEngine === "mapbox") {
+      toast(t("animator.flug3d_igc_mapbox", "Flug erkannt: „Flug in der Luft“ geht nur mit den freien Karten (nicht Mapbox)."), "info", 6000);
+      return;
+    }
+    applog("info", "[flug3d] IGC erkannt — Gelände und Flug in der Luft automatisch an: " + String(path).split(/[\\/]/).pop());
+    for (const id of ["anim-terrain", "anim-mc-flug3d"]) {
+      const c = document.getElementById(id);
+      if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event("change", { bubbles: true })); }
+    }
+    toast(t("animator.flug3d_igc_an", "Flug erkannt: Die Linie hängt in ihrer echten Höhe (Karte → „Flug in der Luft“, dort auch ausschalten)."), "success", 6000);
+  }
   function _flugMoeglich() {
     if (!window.rzLine3d || !map || !currentCoords || currentCoords.length < 2) return "keine_tour";
     if (map.__rzEngine === "mapbox") return "mapbox";
@@ -6701,24 +6748,18 @@ function mountAnimator(body, headerActions, opts) {
         : t("animator.flug3d_kein_gelaende", "Die Geländehöhen konnten nicht geladen werden (Internet?)."), "warn");
       return;
     }
-    const n = currentCoords.length, farbe = currentLineColor(), lw = currentLineWidth();
+    const n = currentCoords.length;
     // Lotlinien: rund 120 über die Strecke verteilt
     const schritt = Math.max(1, Math.round(n / 120));
     const lot = []; for (let i = 0; i < n; i += schritt) lot.push(i);
     if (lot[lot.length - 1] !== n - 1) lot.push(n - 1);
     _flug.lot = lot;
-    const nullen = new Float32Array(n);
     // 14.10.2026 (Test mit echtem Gleitschirm-Track: die Geisterlinie lag als orange Spur flach auf dem Gelände, neben dem
     // Schatten) — mit „Flug in der Luft“ hängt auch der Geist in Flughöhe (blass, in seiner Farbe), am Boden ist er aus
     let geist = false;
     try { geist = !!currentGhostEnabled(); } catch (_) {}
     _flug.mitGeist = geist;
-    const spuren = [
-      { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: Math.max(2, lw * 0.8), smooth: false },
-      { coords: lot.map(i => currentCoords[i]), agl: lot.map(i => agl[i]), lot: true, color: farbe, opacity: 0.35, width: 1.4 },
-      ...(geist ? [{ coords: currentCoords, agl, color: currentGhostColor(), opacity: currentGhostOpacity(), width: lw, smooth: false }] : []),
-      { coords: currentCoords, agl, color: farbe, opacity: 0.95 * _hauptDeckkraft(), width: lw, smooth: false },
-    ];
+    const spuren = _flugSpuren(agl);
     if (!map.getLayer(FLUG_EBENE)) {
       _flug.ebene = window.rzLine3d.create(FLUG_EBENE, { offsetM: 0 });
       try { map.addLayer(_flug.ebene); } catch (e) { applog("warn", "[flug3d] Ebene: " + e); return; }
@@ -6742,6 +6783,103 @@ function mountAnimator(body, headerActions, opts) {
     const nAlle = currentCoords ? currentCoords.length - 1 : ende;
     _flug.ebene.setRanges([[ai0, ende], j1 >= j0 ? [j0, j1 + 1] : [0, 0], ...(_flug.mitGeist ? [[0, nAlle]] : []), [ai0, ende]]);
     _flug.ai0 = ai0; _flug.voll = ende >= (currentCoords ? currentCoords.length - 1 : 0) && ai0 === 0;
+  }
+  /** Die Spuren der Fluglinie: Schatten, Lotlinien, ggf. Geist, Hauptlinie. */
+  function _flugSpuren(agl) {
+    const n = currentCoords.length, farbe = currentLineColor(), lw = currentLineWidth(), lot = _flug.lot;
+    const nullen = new Float32Array(n);
+    // 15.10.2026 (Marc, Gleitschirm: „den Track einfärben wie die Tracks am Boden … das Verhalten muss 1:1 gleich sein“)
+    const f = _flugSegFarben(n);
+    _flug.farbKey = _flugFarbSchluessel();
+    _flug.gefaerbt = !!f;
+    const lotFarben = f ? [].concat(...lot.map(i => { const c = f.punkt(i); return [c, c]; })) : null;
+    return [
+      { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: Math.max(2, lw * 0.8), smooth: false },
+      { coords: lot.map(i => currentCoords[i]), agl: lot.map(i => agl[i]), lot: true, color: f ? "#ffffff" : farbe, colors: lotFarben, opacity: 0.35, width: 1.4 },
+      ...(_flug.mitGeist ? [{ coords: currentCoords, agl, color: currentGhostColor(), opacity: currentGhostOpacity(), width: lw, smooth: false }] : []),
+      { coords: currentCoords, agl, color: f ? "#ffffff" : farbe, segColors: f ? f.seg : null, opacity: 0.95 * _hauptDeckkraft(), width: lw, smooth: false },
+    ];
+  }
+  // ── Farben der Linie in der Luft = Farben der Bodenlinie (15.10.2026) ──
+  // Die Bodenlinie färbt MapLibre über einen line-gradient-Ausdruck auf `line-progress` (Track-Farben nach Strecke,
+  // Höhe, Tempo, Steigung oder Sensor, hart oder Verlauf; Farbe je Tag; Etappenfarben und durchsichtige Verbindungs-
+  // stücke). Die Fluglinie wertet GENAU diesen Ausdruck aus (`_verlaufAusdruck`/`_maskeAusdruck`, über die ganze Spur)
+  // — je Segment an seinem Anfang und Ende, `line-progress` wie MapLibre aus der Strecke am Boden. Harte Wechsel bleiben
+  // so scharf, ohne zusätzliche Punkte (die Bereiche `setRanges` hängen an den Punktindizes).
+  function _farbe01(c) {
+    const s = String(c || "").trim();
+    let m;
+    if (s.charAt(0) === "#") {
+      let h = s.slice(1); if (h.length === 3) h = h.replace(/(.)/g, "$1$1");
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+      return (isFinite(r) && isFinite(g) && isFinite(b)) ? [r / 255, g / 255, b / 255, 1] : null;
+    }
+    if ((m = s.match(/rgba?\(([^)]+)\)/))) {
+      const t = m[1].split(",").map(x => parseFloat(x));
+      if (t.length < 3 || !t.slice(0, 3).every(isFinite)) return null;
+      return [t[0] / 255, t[1] / 255, t[2] / 255, (t.length > 3 && isFinite(t[3])) ? Math.max(0, Math.min(1, t[3])) : 1];
+    }
+    return null;
+  }
+  /** Wert eines line-gradient-Ausdrucks („step“ oder „interpolate linear“ auf line-progress) an der Stelle p.
+   *  `links` = Grenzwert von links (Ende eines Segments: ein Wechsel genau bei p gilt erst danach). */
+  function _ausdruckBei(expr, p, links) {
+    if (!Array.isArray(expr)) return null;
+    if (expr[0] === "step") {
+      // Stops ab Index 3: [p1, c1, p2, c2, …] aufsteigend → letzter Stop ≤ p (von links: < p)
+      let lo = 0, hi = Math.floor((expr.length - 3) / 2) - 1, k = -1;
+      while (lo <= hi) { const mid = (lo + hi) >> 1, q = expr[3 + 2 * mid]; if (links ? q < p : q <= p) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+      return _farbe01(k < 0 ? expr[2] : expr[4 + 2 * k]);
+    }
+    if (expr[0] === "interpolate") {
+      const N = Math.floor((expr.length - 3) / 2);
+      if (N < 1) return null;
+      const P = (j) => expr[3 + 2 * j], C = (j) => expr[4 + 2 * j];
+      if (p <= P(0)) return _farbe01(C(0));
+      if (p >= P(N - 1)) return _farbe01(C(N - 1));
+      let lo = 0, hi = N - 2;
+      while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (P(mid) <= p) lo = mid; else hi = mid - 1; }
+      const a = _farbe01(C(lo)), b = _farbe01(C(lo + 1));
+      if (!a || !b) return a || b;
+      const sp = P(lo + 1) - P(lo), f = sp > 0 ? Math.max(0, Math.min(1, (p - P(lo)) / sp)) : 0;
+      // ein durchsichtiges Ende (Lücke) behält die Farbe des anderen — nicht nach Schwarz verblassen
+      const ra = a[3] > 0 ? a : [b[0], b[1], b[2], 0], rb = b[3] > 0 ? b : [a[0], a[1], a[2], 0];
+      return [0, 1, 2, 3].map(i => ra[i] + (rb[i] - ra[i]) * f);
+    }
+    return null;
+  }
+  /** Farben der Fluglinie: { seg: [[Anfang, Ende]…] je Segment, punkt(i) } — oder null (eine Farbe wie bisher). */
+  function _flugSegFarben(n) {
+    if (!(n >= 2)) return null;
+    const metric = previewMetricArr();
+    const expr = _verlaufAn(metric) ? _verlaufAusdruck(0, n - 1, metric) : _maskeAusdruck(0, n - 1);
+    if (!expr) return null;
+    if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+    const G = _cumGeoM, T = G ? G[n - 1] : 0;
+    if (!G || G.length !== n || !(T > 0)) return null;
+    const ersatz = _farbe01(currentLineColor()) || [1, 1, 1, 1];
+    const bei = (p, links) => _ausdruckBei(expr, p, links) || ersatz;
+    const seg = new Array(n - 1);
+    for (let s = 0; s < n - 1; s++) seg[s] = [bei(G[s] / T, false), bei(G[s + 1] / T, true)];
+    return { seg, punkt: (i) => bei(G[i] / T, false), expr };
+  }
+  /** Alles, wovon die Farben abhängen — ändert sich davon etwas, wird die Fluglinie neu eingefärbt. */
+  function _flugFarbSchluessel() {
+    let stops = "";
+    try { loadColorStops(); stops = JSON.stringify(_trackColorStops || []); } catch (_) {}
+    const metric = previewMetricArr();
+    return [currentColorsEnabled() ? 1 : 0, currentColorsSource(), currentColorsMode(), stops, currentLineColor(),
+            JSON.stringify(_tourFarben() || null), (_ovSeries && _ovSeries.stage && _ovSeries.stage.nr) ? _ovSeries.stage.nr.length : "",
+            JSON.stringify(_segStarts || null), currentFarbeJeTag() ? "tag:" + currentLinienLook() : "",
+            metric ? metric.length : -1, currentCoords ? currentCoords.length : 0].join("|");
+  }
+  /** Aus applyPreviewColorGradient (läuft bei jeder Farbänderung): Fluglinie bei Bedarf neu einfärben. */
+  function _flugFarbenPruefen() {
+    if (!_flug.an || !_flug.ebene || !_flug.agl || !currentCoords || _flug.agl.length !== currentCoords.length) return;
+    if (_flugFarbSchluessel() === _flug.farbKey) return;
+    const r = _flug.ebene._ranges ? _flug.ebene._ranges.map(x => x && x.slice()) : null;
+    _flug.ebene.setTracks(_flugSpuren(_flug.agl));
+    if (r) _flug.ebene.setRanges(r);
   }
   function _flugPunkt(pos) {
     if (!_flug.an || !_flug.punkt || !pos || !_flug.agl) return;
@@ -6984,6 +7122,11 @@ function mountAnimator(body, headerActions, opts) {
                       agl: () => _flug.agl ? Array.from(_flug.agl) : null, lot: () => _flug.lot.slice(), idx: () => _flug.idx,
                       ebene: () => !!(map && map.getLayer(FLUG_EBENE)),
                       bereiche: () => (_flug.ebene && _flug.ebene._ranges) ? _flug.ebene._ranges.map(r => r && r.slice()) : null,
+                      gefaerbt: () => !!_flug.gefaerbt,
+                      farben: () => { const f = _flug.ebene && _flug.ebene._tracks; const t = f && f[f.length - 1]; return t && t.segColors ? t.segColors.map(x => x.map(c => c.map(v => Math.round(v * 255)))) : null; },
+                      ausdruck: () => { const f = _flugSegFarben(currentCoords ? currentCoords.length : 0); return f ? f.expr : null; },
+                      ele: () => previewMetricArr() ? Array.from(previewMetricArr()) : null,
+                      auswerten: (e, p, links) => _ausdruckBei(e, p, links), geoAnteil: () => { if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen(); const G = _cumGeoM; return G ? G.map(x => x / G[G.length - 1]) : null; },
                       anwenden: () => _flugAnwenden(false) };   // Prüfstand
   function rebuildPreviewLayers() {
     if (!map) return;
@@ -7535,9 +7678,37 @@ function mountAnimator(body, headerActions, opts) {
   // Stops, Farben, Etappe (+ Identität von Track/Reihen/Ebene) — gleich = nichts tun.
   let _gradStand = null;
   window.__rzPerfZaehler = window.__rzPerfZaehler || { setPaint: 0, gradUebersprungen: 0, etappenSetData: 0, etappenUebersprungen: 0 };
+  // 15.10.2026 — die drei Bausteine des Linien-Ausdrucks getrennt, damit die Linie in der Luft (`_flugSegFarben`) genau
+  // dieselben Farben bekommt wie die Bodenlinie
+  /** Gilt der Farbverlauf („Mehrere Track-Farben“)? Ohne einen einzigen Stop nicht (wie im Render). */
+  function _verlaufAn(metric) {
+    const _nStops = (() => { try { loadColorStops(); return (_trackColorStops || []).length; } catch (_) { return 0; } })();
+    return !!(currentColorsEnabled() && _nStops >= 1 && _ovSeries && _ovSeries.cumDistM
+      && (currentColorsSource() === "distance" || (metric && metric.length)));
+  }
+  /** Ohne Verlauf: Etappenfarben/-lücken, sonst Farbe je Tag (oder null = eine Farbe). */
+  function _maskeAusdruck(i0, i1) {
+    if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+    let m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor(),
+                        _tourFarben(), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : null);
+    // 11.10.2026 — Farbe je Tag: nur auf durchgehenden Touren (Etappen/Logbuch-Masken haben Vorrang)
+    if (!m && !(_segStarts && _segStarts.length)) m = _tagesFarbenExpr(i0, i1);
+    return m;
+  }
+  /** Mit Verlauf: der Verlauf, die Verbindungsstücke der Etappen durchsichtig gestanzt. */
+  function _verlaufAusdruck(i0, i1, metric) {
+    const st = sortedColorStops();
+    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
+    if (g && _segStarts && _segStarts.length) {
+      if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+      g = gradLueckenStanzen(g, _cumGeoM, i0, i1, _segStarts);
+    }
+    return g;
+  }
   function applyPreviewColorGradient(i0, i1) {
     if (!map) return;
     const metric = previewMetricArr();
+    try { _flugFarbenPruefen(); } catch (e) { rzSwallow(e, "flug3d@farben"); }
     try {
       const lyr = map.getLayer("preview-line") || map.getLayer("preview-glow") || map.getLayer("preview-shadow") || null;
       let stopsSig = "";
@@ -7558,19 +7729,13 @@ function mountAnimator(body, headerActions, opts) {
     // 05.09.2026 (Beta-Tester, Windows: „Häkchen an = eine Farbe, Häkchen aus = mehrere"):
     // Ohne einen einzigen Farb-Stop gibt es keinen Verlauf — dann gelten die Etappen-
     // farben weiter, genau wie im Render (`_colors_on` verlangt dort ≥ 1 Stop).
-    const _nStops = (() => { try { loadColorStops(); return (_trackColorStops || []).length; } catch (_) { return 0; } })();
-    const on = currentColorsEnabled() && _nStops >= 1 && _ovSeries && _ovSeries.cumDistM
-      && (currentColorsSource() === "distance" || (metric && metric.length));
+    const on = _verlaufAn(metric);
     if (!on) {
       // 23.08.2026 — Etappen: statt „kein Verlauf" die Maske, die die
       // Verbindungsstücke ausblendet (Mapbox kann Strich-Stil + Verlauf nicht
       // zusammen — wo die Maske greift, entfällt der Strich-Stil).
       // Neuer Track → neu rechnen (Selbst-Invalidierung über die Array-Identität).
-      if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
-      let m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor(),
-                            _tourFarben(), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : null);
-      // 11.10.2026 — Farbe je Tag: nur auf durchgehenden Touren (Etappen/Logbuch-Masken haben Vorrang)
-      if (!m && !(_segStarts && _segStarts.length)) m = _tagesFarbenExpr(i0, i1);
+      const m = _maskeAusdruck(i0, i1);
       // Ohne Maske (eine Tour, kein Verlauf) steht der Wert bild für bild auf null —
       // einmal je Ebenen-Satz schreiben reicht.
       if (!m && _gradStand && _gradStand.leer === _gradStand.lyr && _gradStand.lyr) { window.__rzPerfZaehler.gradUebersprungen++; window.__rzPerfZaehler.setPaint--; _colorsPrevOn = false; return; }
@@ -7607,12 +7772,7 @@ function mountAnimator(body, headerActions, opts) {
     // der Merker „kein Verlauf gesetzt" wurde beim Einschalten nie gelöscht — das
     // Ausschalten übersprang deshalb das Zurücksetzen. Hier steht jetzt ein Verlauf.
     if (_gradStand) _gradStand.leer = null;
-    const st = sortedColorStops();
-    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
-    if (g && _segStarts && _segStarts.length) {
-      if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
-      g = gradLueckenStanzen(g, _cumGeoM, i0, i1, _segStarts);
-    }
+    const g = _verlaufAusdruck(i0, i1, metric);
     if (_segStarts && _segStarts.length && map.getLayer("preview-kontur")) {
       const mkG = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentKonturFarbe(), null, null);
       try { map.setPaintProperty("preview-kontur", "line-gradient", mkG || null); if (mkG) map.setPaintProperty("preview-kontur", "line-dasharray", null); } catch (_) {}
@@ -21171,6 +21331,7 @@ function mountAnimator(body, headerActions, opts) {
     configurePointCountSlider(res.stats.n_points);
     try { paceAnzeigen(); } catch (_) {}
     _demVorwaermen(res.coords);
+    try { _flugAuto(path); } catch (e) { applog("warn", "[flug3d] automatisch: " + e); }
   }
   // 04.10.2026 — Geländehöhen für die ruhige Kamera (api.dem_hoehen, Stufe 13) schon beim Laden des Tracks im
   // Hintergrund holen: der erste Probelauf in einer neuen Gegend wartete sonst ~2,7 s auf das Netz, bevor sich etwas

@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 13 Oct 2026 15:50:09 +0000</lastBuildDate>
+<lastBuildDate>Thu, 15 Oct 2026 04:53:50 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.792</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-792</link>
+<guid isPermaLink="false">gps-studio-v0.9.792</guid>
+<pubDate>Thu, 15 Oct 2026 12:00:00 +0000</pubDate>
+<description>Hochflug — Jeder Abschnitt einer Etappe bekommt einen Höhen-Editor: höchster Punkt von 10 m bis 1.000 km und ein Profil mit Ziehpunkten (Bogen, Plateau, Steigflug). Die Linie fliegt in dieser Höhe, die Kamera folgt und zieht mit — von weit oben wird die Karte zur Weltkugel. Unterwegs kreist sie einmal halb herum und zeigt den Bogen von der Seite.
+
+Orte nacheinander — Eine Etappe kann nur ihre Orte zeigen — ohne Linie, ohne Laufpunkt. Jeder Ort erscheint als Schild, wenn er dran ist, im gleichmäßigen Takt. Kamera: alles im Blick oder zu jedem Ort fliegen.
+
+Zehn Kamera-Flugstile — Im Schnell-Video und im Video-Assistenten fliegt die Kamera auf Wunsch anders mit: Begleiter, Tiefflieger, Schwalbe, Kranschwenk, Thermik, Reiseflughöhe, Pusteblume, Falke, Orbit und Karussell — mit kurzen Vorschau-Clips. Dazu beim Fotostopp „Einmal um das Foto kreisen“.
+
+Symbole für 20 Reisearten — Auto, Motorrad, Wohnmobil, Rad, Wanderer, Segelboot, Gleitschirm, Heißluftballon und mehr: als schlichtes Symbol, das flach auf der Karte liegt und sich mit der Route dreht. Zwölf neue Reisearten auch für Etappen.</description>
+</item>
 <item>
 <title>v0.9.791</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-791</link>
@@ -215,13 +228,6 @@ Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem R
 <guid isPermaLink="false">gps-studio-v0.9.772</guid>
 <pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
 <description>Keine wandernden Punkte mehr — der kleine Punkt, der ein Highlight ankündigt, erscheint nur noch an seiner Stelle auf dem Track und nicht mehr am Bildrand, wo er mit der Kamera mitwanderte.</description>
-</item>
-<item>
-<title>v0.9.771</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-771</link>
-<guid isPermaLink="false">gps-studio-v0.9.771</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Schnell-Video: eigene Fotos wählen — findet das Foto-Archiv keine Fotos zur Tour, kannst du im Dialog einen Ordner oder einzelne Fotos wählen. Sie werden über GPS oder die Aufnahmezeit der Strecke zugeordnet.</description>
 </item>
 </channel>
 </rss>

@@ -1310,6 +1310,30 @@ als JPEG** (1080, 2048, 3840 Pixel oder volle Größe — auch aus RAW und HEIC)
 (zum Teilen — auch die Ortsangaben in XMP/IPTC, die Lightroom oder „Ort setzen“ schreiben; das Farbprofil bleibt), mit dem Originalnamen oder als **Datum_Uhrzeit_Ort**. Deine Originale bleiben unverändert, nichts wird
 überschrieben; den Fortschritt zeigt die Statusbox unten rechts.
 
+### Import-Assistent — Tour hinlegen, Schritt für Schritt übernehmen (seit v0.9.793)
+
+**Wie bekomme ich Track, Fotos und Clips nach einer Tour mit wenig Arbeit ins Archiv?** Mit dem Import-Assistenten:
+Du legst nach der Tour den Track (z. B. das GPX aus Komoot), deine Fotos und Clips in einen Eingangsordner und startest
+den Assistenten im Archiv mit **„Import-Assistent …“** (unten links) oder über **Datei → Import-Assistent…**. Er geht nur
+auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
+
+1. **Was liegt im Eingang?** Eingangsordner und Ziel im Archiv wählst du einmal, beides wird gemerkt. Der Assistent
+   zeigt den neuen Track, die Zahl der Fotos und Clips und was sonst liegen bleibt. Ein Track, der schon im Archiv ist,
+   zählt nicht als neu.
+2. **Der Track:** Karte, Strecke, Datum, Dauer und das Ergebnis des Track-Checks.
+3. **Angaben zur Tour:** Titel (Vorschläge aus den Orten, z. B. „Rund um …“), Art (aus dem Tempo vorausgefüllt),
+   Notiz und Sammlung — auch eine neue.
+4. **Fotos und Clips:** Sie liegen nach ihrer Aufnahmezeit auf der Karte. Speichert die Kamera keine Zeitzone, rechnet
+   der Assistent sie aus dem Track aus. Fotos mit eigenem GPS behalten ihre Position, Aufnahmen von einem anderen Tag
+   bleiben im Eingang. **Liegt nur ein Track im Eingang,** sucht der Assistent im Medienarchiv nach Fotos und Clips aus
+   dieser Zeit und trägt bei Bedarf die fehlenden Orte ein.
+5. **So übernehmen?** Eine Übersicht, was passiert: Im Ziel entsteht ein Ordner „Datum Titel“, Track, Fotos und Clips
+   (samt Lightroom-Begleitdateien) ziehen dorthin um, die Fotos bekommen ihre Position (vorher als ZIP gesichert), die
+   Tour kommt mit Titel, Art, Notiz und Sammlung ins Archiv, das Logbuch wird angelegt, die Fotos ins Medienarchiv
+   eingelesen.
+6. **Wie weiter?** Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video
+   im Animator selbst gestalten, Karte erstellen oder Daten animieren.
+
 ### 🩺 Track-Check — das Archiv sagt dir, was am Track nicht stimmt (seit v0.9.688)
 Ein GPS-Sprung, eine Lücke oder eine Kamera mit zehn Punkten je Sekunde fällt sonst erst im
 fertigen Video auf. Deshalb prüft das Archiv jede Tour beim Einlesen und zeigt auf der Kachel
@@ -2579,6 +2603,10 @@ der **freien Karten** (nicht Mapbox), eine einzelne Tour (nicht mehrere Touren h
 es beim Einschalten. Gilt auch fürs gerenderte Video.
 
 **Seit v0.9.792:** Bei „Flug in der Luft“ fährt die Kamera ruhig — sie glättet ihren Weg, behält eine Blickrichtung (die Hauptrichtung des Flugs) und dreht sich bei Thermikkreisen nicht mit; der Schirm kreist im Bild, die Landschaft bleibt ruhig.
+
+**Farben nach Höhe, Tempo … auch in der Luft (seit v0.9.793):** Die Linie in der Luft färbt sich genau wie die Linie am Boden — **Track → Mehrere Track-Farben**: nach Strecke, Höhe, Tempo, Steigung oder einem Sensor, mit harten Farbwechseln oder fließendem Verlauf, dazu **Farbe je Tag** und die Farben der Etappen. Beim Gleitschirm zeigt „nach Höhe“ so auf einen Blick, wo der Schirm in der Thermik steigt und wo er gleitet. Die Lotlinien nehmen die Farbe ihres Punkts an. Jede Änderung an den Farbstufen sieht man sofort, auch im Video.
+
+**IGC-Tracks gehen von selbst in die Luft (seit v0.9.793):** Lädst du einen Gleitschirm-, Segelflug- oder Drachenflug als IGC-Datei in ein Projekt, schaltet die App Gelände und „Flug in der Luft“ von selbst ein — du musst nichts einstellen. Schaltest du es aus, bleibt es in diesem Projekt aus. Bei DJI-Drohnenflügen erinnert ein Hinweis an den Schalter, weil tiefe Kameraflüge am Boden oft besser aussehen. Den Schalter findest du unter **Karte → 3D auf der Karte → Strecke**; er erscheint bei Flügen (IGC, Drohne) und immer, wenn er an ist. 
 
 **🌈 HDR (seit v0.9.779).** Unter **Video-Einstellungen → Farbraum** wählst du **SDR** (Standard), **HDR · HLG** (empfohlen) oder **HDR · PQ (HDR10)**. HDR brauchst du, wenn das Video in eine HDR-Timeline kommt (Final Cut, DaVinci, YouTube mit HDR-Aufnahmen deiner Kamera) — ein normales Video wirkt dort grau und flau. Die Karte wird dafür sauber in den HDR-Farbraum umgerechnet (BT.2020, Weiß auf 203 nits wie in der Norm, 10 Bit). HLG sieht auch auf normalen Bildschirmen gut aus; PQ ist für reine HDR-Projekte. Das Video wird HEVC (bzw. ProRes, wenn du in „Qualität & Export“ ProRes gewählt hast). Mit Alpha-Hintergrund gibt es kein HDR.
 

@@ -2667,6 +2667,10 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `highlights_vorschlaege(path, foto_quellen, quellen)` | `{ok, vorschlaege:[{id, art, symbol, text, km, uhrzeit, lat, lon, idx, frac, foto, thumb, grund, empfohlen, n_fotos, dauer_s}], n_fotos, n_zugeordnet, netz, tz}` | Highlights-Fenster (11.09.2026): OSM + Track-Stellen + `halte_punkte` + `fotos_zuordnen` (GPS ≤ 150 m, sonst Aufnahmezeit in der Tour-Zone) → `vorschlaege`; Halt-Namen per Photon (≤ 8 Rufe); Thumbs 160 px nur für Vorschläge |
 | `highlights_schilder(path, stil)` | `{ok, netz, n, n_pois, schilder, kurz, start, ziel}` | Knopf im Animator/Tour-Map (11.09.2026); Oberfläche legt sie zu den Schildern (Text-Dedupe) und pusht Undo |
 | `assistent_lauf(path, vorlage_id, name, highlights=True)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
+| `eingang_pruefen(ordner="")` | `{ok, ordner, ziel, tracks:[{pfad, name, art (neu/im_archiv/nur_version), geo_hash, km, start, ende, datum, titel, aktivitaet, punkte, coords, befunde, hoechste}], medien:[{pfad, name, art, zeit, tz_bekannt, gps}], begleiter, sonst}` | Import-Assistent (15.10.2026): Inhalt des Eingangsordners (`core/eingang.inhalt`), Archiv-Abgleich (`library_import_pruefen`), Art aus dem Tempo (`clib._guess_activity`), Track-Check (`trackcheck_datei`), Aufnahmezeiten (`ceingang.zeiten_lesen`) |
+| `eingang_zuordnen(track_pfad, medien=None, versatz_s=0, tz_min=None)` | `{ok, archiv, medien, zeitzone:{minuten, eindeutig, treffer, gesamt}, treffer:[{pfad, lat, lon, alt, im_track, quelle (track/exif/ausserhalb/ohne_zeit), zeit_utc}]}` | Zeit-Zuordnung wie im Geotagger (`core/geotag.zeitzone_raten` + `match_photos`), ohne dessen Sitzungszustand. Ohne Medien: Medienarchiv im Zeitraum ±14 h (Fotos ohne Zeitzone stehen mit Lokalzeit als UTC drin), übrig bleibt, was auf den Track fällt |
+| `eingang_vorschaubilder(pfade)` | `{ok, bilder:{pfad: dataURL/None}}` | höchstens 60, über `_photo_thumbnail_data_url` |
+| `eingang_uebernehmen(plan)` | `{ok, pfad, geo_hash, ordner, schritte:[{key, text, ok}], verschoben, verortet}` | Tour-Ordner `Ziel/„Datum Titel“` (`ceingang.tour_ordnername`, frei), Track + Medien + Begleiter (xmp/aae) per `_ds.verschieben`, Verorten mit ZIP-Sicherung (`cbak.make_photo_backup` → `BACKUPS_DIR/import_assistent`, dann `cexif.write_gps(..., gesichert=True)`; Archivmedien über `fotos_verorten`), Ziel als Archiv-Ordner rekursiv + `clib.scan`, Titel/Art/Notiz/Sammlung, `logbuch_lesen`, Ziel als Medienordner + `fotos_scan_start` |
 | `projekt_vorschau_speichern(project_id, data_url)` | `{ok}` | Vorschaubild aus dem letzten Stand (11.09.2026) → `bilder/projekte/<pid>.jpg`; `projekt_thumbs` bevorzugt es, `vorlage_anlegen/aktualisieren` kopieren es nach `bilder/vorlagen/` |
 | `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
 | `library_repair_file(path)` | `{ok, geo_hash, n_points, schritte}` | Beschädigte GPX reparieren → Version in der Bibliothek |
@@ -3184,6 +3188,18 @@ Oberfläche: `ui/js/vorlagen.js` (Fenster, `rzVorlageAufAktivesProjekt` = Anwend
 `ui/js/projects.js` (`rzNeuesProjektModal` mit Vorlagen-Feld → `projectCreate(name, copy, vorlageId)`).
 Tests: `tests/test_vorlagen.py` (Kern), `tests/test_vorlagen_bridge.py` (echte `Api` gegen Wegwerf-Ordner),
 `scripts/selftest_vorlagen.py` (Browser, 38 Prüfungen) via `tests/test_vorlagen_ui.py`.
+
+**Import-Assistent (15.10.2026, `core/eingang.py`, `Api.eingang_*`, `ui/js/importassistent.js`):** Eingangsordner
+(`settings.import_eingang`) und Ziel im Archiv (`settings.import_ziel`, leer = erster Archiv-Ordner, sonst
+`~/Documents/Reisezoom Touren`). Start nur von Hand: Archiv unten links `#lib-import-assistent`, Menü Datei
+(`menu.import_assistent` → `window.openImportAssistent`). Sechs Schritte in einem `openModal` (Klasse `.ia-modal`, breiter),
+Zustand in `Z`, `zeichnen()` baut den Rumpf aus `Z` neu und bindet alles (`restorePrevious` → `zeichnen`, falls ein
+Fenster darüber aufgeht). Schritt 1 sperrt „Weiter“ ohne neuen Track; Titelvorschläge (`schnellvideo_titel_vorschlaege`)
+laden im Hintergrund und sperren nichts. Karte je Schritt neu (`createMap`, Spur `ia-spur`, Fotos als `.ia-pin` mit
+Vorschaubild); vorige Karte wird abgebaut (WebGL-Kontexte). „Wie weiter?“: Tour-Seite (`rzTourSeite.oeffnen`),
+Schnell-Video (`rzSchnellVideo`), Video-Assistent wie die Tour-Seite (`loadGlobalGpx` → Animator → `__rzVideoAssistent(true)`
+bis bereit), sonst `loadGlobalGpx` + `switchMod`. Prüfstand `window.__rzIa`. Test `tests/test_import_assistent.py`
+(Backend A–D + WebKit-Durchlauf, `RZ_IA_BILDER=<Ordner>` speichert ein Bild je Schritt).
 
 **Tour-Assistent Stufe 1 (11.09.2026, `Api.assistent_lauf`, `ui/js/assistent.js`):**
 Eine Brücke für den ganzen Lauf, damit die Oberfläche nur Zeilen zeigt. Reihenfolge: `clib.get_track` (sonst
@@ -4462,6 +4478,10 @@ Prüfstand dafür: `scratchpad/messen_schorf.py` (Strichdicke je Farbe, Toggle j
 Farbe in Zoom- und Haltephase gegen den Referenz-Render) und
 `scratchpad/check_html_js.py` (alle Skriptblöcke der Render-Seite mit
 `node --check`; `RZ_DUMP_HTML=<pfad>` schreibt die Seite).
+
+**IGC von selbst in die Luft (15.10.2026, `_flugAuto` am Ende von `applyGlobalGpx`):** `.igc` + aktives Projekt ohne `animator.flug_3d` → `anim-terrain` und `anim-mc-flug3d` per change-Ereignis an (bindSetting schreibt ins Projekt, danach entscheidet das Projekt). Ohne Projekt nur ein Hinweis (sonst landete `flug_3d` global in settings.json und jede spätere Tour flöge). Mapbox: Hinweis. DJI (`series.sensors.rel_alt`): nur Hinweis. Test `tests/test_flug_auto_igc.py`.
+
+**Farben je Segment (15.10.2026):** `segColors: [[rgbaAnfang, rgbaEnde]…]` je Segment (0..1, Vorrang vor `colors` je Punkt) — jedes Segment hat eigene vier Eckpunkte, ein harter Farbwechsel an einem Punkt braucht so keine Zusatzpunkte (die Bereiche `setRanges` hängen an den Punktindizes). Die Fluglinie im Animator (`_flugSegFarben`) wertet dafür den line-gradient-Ausdruck der Bodenlinie aus (`_verlaufAusdruck`/`_maskeAusdruck`, dieselben Bausteine wie `applyPreviewColorGradient`) — je Segment am Anfang (`_ausdruckBei(expr, p, false)`) und Ende (von links), `p` aus der Bodenstrecke `_cumGeoM` wie MapLibres `line-progress`. `applyPreviewColorGradient` ruft `_flugFarbenPruefen`: ändert sich `_flugFarbSchluessel` (Quelle, Modus, Stops, Farben, Etappen, Farbe je Tag), wird die Fluglinie neu aufgebaut. Test: `tests/test_flug_farbwechsel.py`.
 
 **Geländehöhen nachladen (06.10.2026):** Die Ebene fragt die Bodenhöhe (`queryTerrainElevation`) beim Aufbau ab. Früher nur beim ersten Laden und je ganzer Zoomstufe — fuhr die Kamera (Anflug, Folgen) in Gegenden, deren Geländekacheln beim Aufbau fehlten, kam dort 0 m und die Linie lag unter dem Berg (4K-Export „Flug in der Luft“ ohne Linie). Jetzt markiert jedes `sourcedata` der Geländequelle mit `tile` die Höhen als veraltet; der nächste Zeichenlauf baut neu (höchstens alle 200 ms). Spuren mit `agl` liegen mindestens ~3 Bildpunkte (in Metern der aktuellen Zoomstufe) über Grund, damit bodennahe Stücke nicht in der Geländefläche verschwinden. `_bodenProbe` hält ~20 abgefragte Höhen der ersten Spur für den Prüfstand (`tests/test_line3d_hoehen_nachladen.py`).
 

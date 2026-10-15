@@ -37,6 +37,15 @@ zwischen Stempel-Commit und Tag nur Doku — `CHANGELOG.md`, `docs/*.md|html|xml
 `release_check.sh` mit `RZ_OHNE_SUITE=1` — alle Gates außer der Suite-Wiederholung (~80 min gespart). Sonst wie
 bisher komplett. Test `tests/test_suite_stempel.py`. Ablauf also: volle Suite → Changelog schließen → Tag → Deploy.
 
+**Seit 15.10.2026 auch mit offenen Änderungen** (Marc: „die Suite lief doch schon grün! … ändere das, dass das nicht
+immer 2× läuft“). Beim Release liegt die vorbereitete Versionsnummer (`app.py`, Changelogs) beim Suite-Lauf noch nicht
+eingecheckt — früher gab es dann keinen Stempel und das Upload-Skript fuhr die Suite ein zweites Mal. Jetzt steht im
+Stempel unter `offen` jede nicht eingecheckte Datei mit ihrem Git-Blob (`suite_stempel.offen()`); `run_tests.py`
+schreibt ihn, wenn HEAD und `offen` am Ende wie am Anfang sind. `pruefen` lässt den Tag gelten, wenn jede seit dem
+Stempel-Commit geänderte Datei Doku ist, beim Lauf schon mit genau diesem Inhalt offen lag oder in `app.py` nur die
+Zeile `APP_VERSION = "…"` springt. Die Nacht-Suite (Kopie) stempelt nach Einzel-Nachprüfung ebenso und übergibt den
+Stempel an den Arbeitsordner (`stempel_uebernehmen`). Tests: `test_suite_stempel.py`, `test_nachtlauf_stempel.py`.
+
 Gate 7 ist **selbst-kalibrierend**: kann die Umgebung die Vorschau nicht befüllen, meldet es SKIP + Manuell-Hinweis (kein falsches Grün). Deshalb ersetzt es **nicht** Teil B.
 
 ---
