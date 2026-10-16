@@ -961,8 +961,9 @@
     } catch (_) {}
     return out;
   }
+  var RAND_ANTEIL = 1 / 3;   // höchstens so viel der Schildgröße wird hereingeschoben (siehe rzSignRandVersatz)
   function rzSignRandVersatz(map, fc, vis, metas) {
-    if (!fc || !fc.features || !vis || !vis.length || !map.project || !map.getCanvas) return false;
+    if (!fc || !fc.features || !vis || !map.project || !map.getCanvas) return false;   // auch ohne sichtbare Schilder: zurücksetzen (unten)
     var cv = map.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height, RAND = 8;
     if (!(W > 0 && H > 0)) return false;
     var skal = map.__rzSignSizeScale || 1;
@@ -998,11 +999,20 @@
       var dx = 0, dy = 0;
       var drin = !(x0 + w <= 0 || x0 >= W || y0 + h <= 0 || y0 >= H);
       if (drin) {
-        var antX = (Math.min(x0 + w, W) - Math.max(x0, 0)) / w, antY = (Math.min(y0 + h, H) - Math.max(y0, 0)) / h;
-        var fx = Math.max(0, Math.min(1, antX / 0.25)), fy = Math.max(0, Math.min(1, antY / 0.25));
-        if (w + 2 * RAND <= W) { if (x0 < RAND) dx = RAND - x0; else if (x0 + w > W - RAND) dx = (W - RAND) - (x0 + w); }
-        if (h + 2 * RAND <= H) { if (y0 < RAND) dy = RAND - y0; else if (y0 + h > H - RAND) dy = (H - RAND) - (y0 + h); }
-        dx *= fx; dy *= fy;
+        // 15.10.2026 (Marc, Video „Linum“: „Das Schild ‚Fasane‘ wandert immer weiter runter. Das hält scheinbar immer den
+        // gleichen Abstand zum Rand, anstatt dass es einfach über den Rand rausgeht.“) — höchstens ein Drittel der
+        // Schildgröße wird hereingeschoben (RAND_ANTEIL). Steht ein Schild knapp über dem Rand, kommt es ganz herein (F-20);
+        // trägt die Kamera es weiter hinaus, wandert es nach diesem Drittel mit der Karte über den Rand, statt am Rand zu
+        // kleben. Nie mehr, als vom Schild noch im Bild läge — so gleitet es am Ende weich hinaus. Ohne Gedächtnis
+        // gerechnet: Editor (Scrubben) und Video (Bild für Bild) zeigen dasselbe.
+        var randAchse = function (lo, groesse, gesamt) {
+          if (groesse + 2 * RAND > gesamt) return 0;
+          var max = groesse * RAND_ANTEIL;
+          if (lo < RAND) return Math.min(RAND - lo, max, Math.max(0, lo + groesse));
+          if (lo + groesse > gesamt - RAND) return -Math.min(lo + groesse - (gesamt - RAND), max, Math.max(0, gesamt - lo));
+          return 0;
+        };
+        dx = randAchse(x0, w, W); dy = randAchse(y0, h, H);
         // von oben hereingeschoben und läge dann über dem Logo → unter das Logo
         if (dy > 0) {
           for (var z = 0; z < schutz.length; z++) {

@@ -496,15 +496,22 @@ function mapGapsForBbox(bbox) {
  * je Schlüssel (`gap`, `no_coverage`, `server`); null = weg.
  */
 function _escHtml(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch])); }
+// 15.10.2026 (Marc: „Die Meldung, dass es keine amtlichen Luftbilder für die Gegend gibt, kann ich gar nicht
+// wegklicken.“) — jedes Banner hat ein ✕; weggeklickt bleibt genau DIESE Meldung (Schlüssel + Text) bis zum Neustart aus
+const _rzBannerWeg = new Set();
 function rzMapBanner(map, key, html) {
   if (!map || !map.getContainer) return;
   const c = map.getContainer();
   let wrap = c.querySelector(".rz-map-banners");
   if (!wrap) { wrap = document.createElement("div"); wrap.className = "rz-map-banners"; c.appendChild(wrap); }
   let el = wrap.querySelector(`[data-banner="${key}"]`);
-  if (!html) { if (el) el.remove(); return; }
+  if (!html || _rzBannerWeg.has(key + "|" + html)) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement("div"); el.className = "rz-map-banner"; el.dataset.banner = key; wrap.appendChild(el); }
-  el.innerHTML = `<span class="rz-map-banner-ico">⚠️</span><span>${html}</span>`;
+  const ico = (typeof rzIcon === "function") ? rzIcon("triangle-alert", { size: 15 }) : "";
+  const zu = (typeof rzIcon === "function") ? rzIcon("x", { size: 14 }) : "×";
+  el.innerHTML = `<span class="rz-map-banner-ico">${ico}</span><span>${html}</span>`
+    + `<button type="button" class="rz-map-banner-zu" title="${_escHtml(t("map.banner.zu", "Hinweis ausblenden"))}" aria-label="${_escHtml(t("map.banner.zu", "Hinweis ausblenden"))}">${zu}</button>`;
+  el.querySelector(".rz-map-banner-zu").onclick = (ev) => { ev.stopPropagation(); _rzBannerWeg.add(key + "|" + html); el.remove(); };
   // 07.10.2026 (Klicktest) — in kleinen Karten (Schnell-Video-Vorschau 9:16) füllte der Text die ganze Vorschau:
   // dort nur das Zeichen, der Text als Tooltip
   const schmal = (c.clientWidth || 0) > 0 && c.clientWidth < 380;

@@ -4737,6 +4737,7 @@ function mountAnimator(body, headerActions, opts) {
       layer.style.height = rh + "px";
       layer.style.transform = `scale(${scale})`;
       layer.style.transformOrigin = "top left";
+      layer.style.setProperty("--rz-vorschau-k", String(scale));   // 15.10.2026 — das ✕ am Container bleibt gleich groß
       // v0.6.3 — Overlay-Skalierung an Render-Höhe koppeln (siehe CSS-Doku
       // `--overlay-scale`). Base 1080. Min 0.5 für sehr kleine Tests.
       // Synchron zum Backend in core/animator.py._overlay_scale().
@@ -6620,7 +6621,7 @@ function mountAnimator(body, headerActions, opts) {
   // sonst Flughöhe − Gelände (core/demsample über die Brücke dem_hoehen, gecacht). Nur MapLibre mit Gelände und
   // nur eine Tour (keine Reise). Die Bodenlinien bleiben stehen, sind aber ausgefiltert; nachgeführt wird über die
   // Quellen selbst (setData von preview-track und anim-dot), damit Scrubben, Probelauf und Render gleich laufen.
-  const FLUG_EBENE = "flug-3d", FLUG_PUNKT = "flug-3d-punkt";
+  const FLUG_EBENE = "flug-3d", FLUG_PUNKT = "flug-3d-punkt", FLUG_LAUFPUNKT = "flug-3d-laufpunkt";
   const FLUG_BODEN_EBENEN = ["preview-glow", "preview-halo", "preview-kontur", "preview-line", "preview-highlight", "preview-kern", "preview-shadow",
                              "preview-schweif-glow", "preview-schweif",
                              "anim-dot-glow", "anim-dot-core", "anim-dot-fz", "anim-dot-arrow"];
@@ -6717,10 +6718,11 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
   function _flugWeg() {
+    try { if (map && map.getLayer(FLUG_LAUFPUNKT)) map.removeLayer(FLUG_LAUFPUNKT); } catch (_) {}
     try { if (map && map.getLayer(FLUG_PUNKT)) map.removeLayer(FLUG_PUNKT); } catch (_) {}
     try { if (map && map.getLayer(FLUG_EBENE)) map.removeLayer(FLUG_EBENE); } catch (_) {}
     if (map) { _flugBodenFiltern(false); map.__rzFlugMitte = false; }
-    _flug.ebene = null; _flug.punkt = null; _flug.an = false;
+    _flug.ebene = null; _flug.punkt = null; _flug.laufpunkt = null; _flug.an = false;
   }
   /** `meldung`: nur beim Klick auf den Schalter erklären, warum es gerade nicht geht. */
   async function _flugAnwenden(meldung) {
@@ -6767,6 +6769,10 @@ function mountAnimator(body, headerActions, opts) {
     if (!map.getLayer(FLUG_PUNKT)) {
       _flug.punkt = window.rzLine3d.create(FLUG_PUNKT, { offsetM: 0, depth: false });
       try { map.addLayer(_flug.punkt); } catch (e) { applog("warn", "[flug3d] Punkt: " + e); }
+    }
+    if (!map.getLayer(FLUG_LAUFPUNKT) && window.rzPunkt3d) {   // 15.10.2026 — der echte Laufpunkt in der Luft
+      _flug.laufpunkt = window.rzPunkt3d.create(FLUG_LAUFPUNKT);
+      try { map.addLayer(_flug.laufpunkt); } catch (e) { applog("warn", "[flug3d] Laufpunkt: " + e); }
     }
     _flug.ebene.setTracks(spuren);
     _flugBodenFiltern(true);
@@ -6881,8 +6887,13 @@ function mountAnimator(body, headerActions, opts) {
     _flug.ebene.setTracks(_flugSpuren(_flug.agl));
     if (r) _flug.ebene.setRanges(r);
   }
-  function _flugPunkt(pos) {
+  /** Laufpunkt in der Luft nach einer Änderung des Aussehens neu zeichnen (dotEbenenAufbauen). */
+  function _flugPunktNeu() {
+    try { if (_flug.an && _flug.letztPos) _flugPunkt(_flug.letztPos, _flug.letztBrg); } catch (e) { applog("warn", "[flug3d] Laufpunkt neu: " + e); }
+  }
+  function _flugPunkt(pos, brg) {
     if (!_flug.an || !_flug.punkt || !pos || !_flug.agl) return;
+    if (brg != null && isFinite(+brg)) _flug.letztBrg = +brg;
     // nächster Track-Index ab dem letzten (Laufpunkt bewegt sich stetig), sonst global
     const c = currentCoords, n = c.length;
     const d2 = (i) => { const dx = c[i][0] - pos[0], dy = c[i][1] - pos[1]; return dx * dx + dy * dy; };
@@ -6895,7 +6906,9 @@ function mountAnimator(body, headerActions, opts) {
     // hier direkt dem Punkt (außer „ganzer Track“).
     // Nur wenn die Bodenlinie gerade teilweise läuft — in Ruhe am Start zeigt sie den ganzen Track (v0.9.469), dann bleibt das so.
     try { if (!previewFullTrack() && _flug.voll === false) _flugBereich(_flug.ai0 || 0, Math.max(_flug.ai0 || 0, best)); } catch (_) {}
-    if (document.getElementById("anim-dot-show")?.checked === false) { _flug.punkt.setTracks([]); return; }
+    if (document.getElementById("anim-dot-show")?.checked === false || !_dotLuft) {
+      _flug.punkt.setTracks([]); if (_flug.laufpunkt) _flug.laufpunkt.setPunkt(null); return;
+    }
     // Punkt = sehr kurze Strecke mit runden Enden: etwa 1 Bildpunkt lang, aber mindestens 3 m — Merkator in float32
     // löst nur ~2–4 m auf (1e-7° ergab Richtung 0 → unsichtbar, 7 m bei Zoom 15 eine Pille statt eines Kreises)
     // Höhe zwischen den Nachbarpunkten (Projektion auf das nähere Segment) — der Punkt sitzt sonst stufig neben der Linie
@@ -6917,11 +6930,21 @@ function mountAnimator(body, headerActions, opts) {
     const q = [pos[0] + _lM / (111320 * Math.max(0.05, Math.cos(pos[1] * Math.PI / 180))), pos[1]];
     const farbe = currentLineColor();
     const gr = Math.max(0.5, parseFloat(document.getElementById("anim-dot-size")?.value) || 1);
-    _flug.punkt.setTracks([
-      { coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 },          // Lot unter dem Punkt
-      { coords: [pos, q], agl: [h, h], color: "#ffffff", width: 19 * gr, smooth: false },
-      { coords: [pos, q], agl: [h, h], color: farbe, width: 13 * gr, smooth: false },
-    ]);
+    // 15.10.2026 — Lot unter dem Punkt bleibt (rz-line3d); der Punkt selbst ist das Bild des Laufpunkts (rz-punkt3d).
+    // Ohne WebGL-Ebene (alte Seite) wie bisher die Ersatzpille.
+    if (_flug.laufpunkt) {
+      _flug.punkt.setTracks([{ coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 }]);
+      const L = _dotLuft;
+      // Drehung: Fahrtrichtung (wie icon-rotate brg am Boden); ohne Drehen nach Norden
+      _flug.laufpunkt.setPunkt({ lng: pos[0], lat: pos[1], agl: h, bild: L.bild, bildKey: L.key, cssPx: L.cssPx,
+                                 drehung: L.dreht ? (_flug.letztBrg || 0) : 0, karte: L.karte });
+    } else {
+      _flug.punkt.setTracks([
+        { coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 },          // Lot unter dem Punkt
+        { coords: [pos, q], agl: [h, h], color: "#ffffff", width: 19 * gr, smooth: false },
+        { coords: [pos, q], agl: [h, h], color: farbe, width: 13 * gr, smooth: false },
+      ]);
+    }
   }
   /** Flughöhe über Grund (Meter × Überhöhung) an einer Stelle 0…1 des Tracks — für die mitfahrende Kamera:
    *  sie zielt sonst auf den Boden unter dem Flug, und die Linie in 300–500 m Höhe wandert oben aus dem Bild. */
@@ -7110,8 +7133,9 @@ function mountAnimator(body, headerActions, opts) {
         try {
           if (_flug.an) {
             const g = d && (d.geometry || (d.features && d.features[0] && d.features[0].geometry));
-            if (g && g.type === "Point") _flugPunkt(g.coordinates);
-            else if (_flug.punkt) _flug.punkt.setTracks([]);
+            const pr = d && (d.properties || (d.features && d.features[0] && d.features[0].properties));
+            if (g && g.type === "Point") _flugPunkt(g.coordinates, pr ? pr.brg : null);
+            else { if (_flug.punkt) _flug.punkt.setTracks([]); if (_flug.laufpunkt) _flug.laufpunkt.setPunkt(null); }
           }
         } catch (e) { rzSwallow(e, "flug3d@dot"); }
         return ret;
@@ -7123,6 +7147,7 @@ function mountAnimator(body, headerActions, opts) {
                       ebene: () => !!(map && map.getLayer(FLUG_EBENE)),
                       bereiche: () => (_flug.ebene && _flug.ebene._ranges) ? _flug.ebene._ranges.map(r => r && r.slice()) : null,
                       gefaerbt: () => !!_flug.gefaerbt,
+                      laufpunkt: () => { const lp = _flug.laufpunkt; const pu = lp && lp._punkt; return pu ? { key: pu.bildKey, cssPx: pu.cssPx, drehung: pu.drehung, karte: pu.karte, gezeichnet: lp._gezeichnet || 0 } : null; },
                       farben: () => { const f = _flug.ebene && _flug.ebene._tracks; const t = f && f[f.length - 1]; return t && t.segColors ? t.segColors.map(x => x.map(c => c.map(v => Math.round(v * 255)))) : null; },
                       ausdruck: () => { const f = _flugSegFarben(currentCoords ? currentCoords.length : 0); return f ? f.expr : null; },
                       ele: () => previewMetricArr() ? Array.from(previewMetricArr()) : null,
@@ -8005,6 +8030,51 @@ function mountAnimator(body, headerActions, opts) {
    *  Keyframe. Wird bei map "moveend" (nur User-Gesten via originalEvent)
    *  gerufen. So kann Marc den Cinematic direkt auf der Karte einstellen
    *  statt mit den Detail-Editor-Slidern hin- und herzuziehen. */
+  /** Werte der Karte als Patch für Keyframe `idx` (Folgen-Keyframes ohne center bleiben ohne). */
+  function _kfPatchAusKarte(idx) {
+    const curPitch = +map.getPitch().toFixed(2), curBearing = +map.getBearing().toFixed(2), curZoom = +map.getZoom().toFixed(3);
+    const fitBase = effectiveFitZoomBase();
+    const zoomOff = fitBase != null ? +(curZoom - fitBase).toFixed(2) : 0;
+    const curProps = clusterPropsAt(clusterAnchors()[idx]);
+    const isTracking = curProps.center == null;
+    const patch = {
+      pitch: curPitch,
+      bearing: curBearing,
+      zoom_offset: zoomOff,
+      // v0.9.73: gleichzeitig zoom_absolute speichern (reload-stabil).
+      // curZoom ist der aktuelle Mapbox-Zoom; bleibt unabhängig von
+      // späteren Fit-Base-Drifts gültig.
+      zoom_absolute: curZoom,
+    };
+    if (!isTracking) {
+      const c = map.getCenter();
+      // v0.9.138/139 (Marc-Bug „Counter zählt, Preview dreht nicht" +
+      // „dreht nicht wie aufgenommen"): map.getCenter().lng ist GEWICKELT
+      // [-180,180). Eine volle Welt-Drehung per Drag steckt aber im
+      // *abgewickelten* Akkumulator (_lngAccum, z.B. 374°). Reconcile
+      // bringt den Akkumulator robust auf die finale (post-Inertia)
+      // Kartenmitte und persistiert den abgewickelten Wert (inkl. voller
+      // Erd-Umdrehungen) — identisch zu snapshotKeyframe. Ersetzt den
+      // fragilen Toleranz-Check (<0.01), der bei Flick-Drehungen wegen
+      // Drag-Trägheit scheiterte → beide KFs hatten denselben lng → keine
+      // Drehung im Probe-Lauf.
+      const recLng = _reconcileLngAccumToCenter();
+      const lngVal = (recLng !== null) ? +recLng.toFixed(6) : +c.lng.toFixed(6);
+      patch.center = [lngVal, +c.lat.toFixed(6)];
+    } else {
+      // 15.10.2026 — Keyframe ohne feste Mitte (folgt dem Track bzw. Gesamtsicht): die verschobene Karte wird als Versatz
+      // zu dieser Mitte gemerkt (vorher ging sie verloren: gespeichert wurden nur Zoom, Neigung, Drehung)
+      try {
+        const a = clusterAnchors()[idx], c = map.getCenter();
+        const tp = _kfBasisMitte(a);
+        if (tp && isFinite(tp[0]) && isFinite(tp[1])) {
+          let dl = c.lng - tp[0]; dl -= 360 * Math.round(dl / 360);
+          patch.versatz = [+dl.toFixed(6), +(c.lat - tp[1]).toFixed(6)];
+        }
+      } catch (e) { applog("warn", "[kf] Versatz merken: " + e); }
+    }
+    return patch;
+  }
   function _syncMapStateToUi() {
     if (!map) return;
     const curPitch = +map.getPitch().toFixed(2);
@@ -8060,34 +8130,7 @@ function mountAnimator(body, headerActions, opts) {
       const onSelectedKf = scrubAnchor != null
         && findKeyframeAtAnchor(scrubAnchor) === _selectedKfIdx;
       if (onSelectedKf && _selectedKfIdx < anchors.length) {
-        const curProps = clusterPropsAt(anchors[_selectedKfIdx]);
-        const isTracking = curProps.center == null;
-        const patch = {
-          pitch: curPitch,
-          bearing: curBearing,
-          zoom_offset: zoomOff,
-          // v0.9.73: gleichzeitig zoom_absolute speichern (reload-stabil).
-          // curZoom ist der aktuelle Mapbox-Zoom; bleibt unabhängig von
-          // späteren Fit-Base-Drifts gültig.
-          zoom_absolute: curZoom,
-        };
-        if (!isTracking) {
-          const c = map.getCenter();
-          // v0.9.138/139 (Marc-Bug „Counter zählt, Preview dreht nicht" +
-          // „dreht nicht wie aufgenommen"): map.getCenter().lng ist GEWICKELT
-          // [-180,180). Eine volle Welt-Drehung per Drag steckt aber im
-          // *abgewickelten* Akkumulator (_lngAccum, z.B. 374°). Reconcile
-          // bringt den Akkumulator robust auf die finale (post-Inertia)
-          // Kartenmitte und persistiert den abgewickelten Wert (inkl. voller
-          // Erd-Umdrehungen) — identisch zu snapshotKeyframe. Ersetzt den
-          // fragilen Toleranz-Check (<0.01), der bei Flick-Drehungen wegen
-          // Drag-Trägheit scheiterte → beide KFs hatten denselben lng → keine
-          // Drehung im Probe-Lauf.
-          const recLng = _reconcileLngAccumToCenter();
-          const lngVal = (recLng !== null) ? +recLng.toFixed(6) : +c.lng.toFixed(6);
-          patch.center = [lngVal, +c.lat.toFixed(6)];
-        }
-        updateKeyframeFields(_selectedKfIdx, patch);
+        updateKeyframeFields(_selectedKfIdx, _kfPatchAusKarte(_selectedKfIdx));
         const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = String(val); };
         const setLbl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
         set("anim-kf-pitch", curPitch);
@@ -8110,6 +8153,43 @@ function mountAnimator(body, headerActions, opts) {
   // v0.7.6: Diese Variablen sind oben in mountAnimator() deklariert (TDZ-Fix).
 
   // v0.8.16 — Master-Toggle: ist der Keyframe-Editor aktiviert?
+  // ── Ansicht geändert (15.10.2026) ───────────────────────────────────────
+  // Marc (Projekt „Linum“, zwei Screenshots): „wie ich die Karte positioniert habe … wie die Karte aussieht, nachdem der
+  // Track die Vorschau durchgelaufen ist. Das kann nicht sein.“ — ohne ausgewählten Keyframe ändert Kartenziehen bewusst
+  // keinen Keyframe (v0.9.64), die Ansicht ging beim Abspielen aber still verloren. Jetzt fragt ein Hinweis unter der
+  // Karte (seit dem Abend nur noch als leise Warnzeile, siehe unten).
+  function _ansichtHinweisWeg() {
+    const el = document.getElementById("anim-ansicht-hinweis");
+    if (el) el.hidden = true;
+  }
+  // 15.10.2026 abends (Marc: „Dieses Schild … nervt total. Das müsste irgendwie nur eine Warnung unten sein und nicht etwas,
+  // was man immer wegklicken muss.“) — nur noch eine leise Zeile unten im Bild, ohne Knöpfe; sie geht von selbst weg
+  // (Scrubben, Abspielen, Keyframe wählen oder setzen).
+  function _ansichtHinweisZeigen() {
+    if (!map || _isStaticFrame || window.__rzRenderMode || !keyframesEnabled()) return;
+    if (!currentCoords || currentCoords.length < 2) return;
+    const anker = _tlBar ? _tlBar.getScrubber() : 0;
+    const idx = findKeyframeAtAnchor(anker);
+    if (idx != null && idx === _selectedKfIdx) return;   // ausgewählter Keyframe übernimmt die Ansicht ohnehin
+    const host = document.getElementById("anim-drop");
+    if (!host) return;
+    let el = document.getElementById("anim-ansicht-hinweis");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "anim-ansicht-hinweis"; el.className = "anim-ansicht-hinweis";
+      host.appendChild(el);
+      document.getElementById("anim-kf-enabled")?.addEventListener("change", _ansichtHinweisWeg);
+    }
+    el.__rzIdx = idx; el.__rzAnker = anker;
+    const ic = typeof rzIcon === "function" ? rzIcon("triangle-alert", { size: 13 }) : "";
+    const text = idx != null
+      ? t("animator.ansicht.auf_kf", "Ansicht nicht gespeichert — erst Keyframe #{n} anklicken, dann übernimmt er die Karte").replace("{n}", idx + 1)
+      : t("animator.ansicht.frei", "Ansicht nicht gespeichert — „Hier Keyframe“ legt an dieser Stelle einen an");
+    el.innerHTML = `${ic}<span>${_animEscapeHtml(text)}</span>`;
+    el.hidden = false;
+  }
+  window.__rzAnsichtHinweis = () => { const el = document.getElementById("anim-ansicht-hinweis");   // Prüfstand
+    return el && !el.hidden ? { idx: el.__rzIdx, knoepfe: el.querySelectorAll("button").length, text: el.textContent } : null; };
   function keyframesEnabled() {
     const cb = document.getElementById("anim-kf-enabled");
     return !!cb?.checked;
@@ -8276,6 +8356,30 @@ function mountAnimator(body, headerActions, opts) {
   /** Ebenen anlegen/erneuern. Bei Stil- oder Farbwechsel werden sie neu
    *  gebaut — Mapbox kann `icon-image` nicht nachträglich austauschen, ohne
    *  dass das Bild schon registriert ist. */
+  // 15.10.2026 (Marc: „wenn ich den Laufpunkt ändere, sehe ich die Änderung gar nicht in der Vorschau“ — bei „Flug in der
+  // Luft“): jeder Zweig unten merkt sich hier das Bild, das er am Boden einsetzt; der Laufpunkt in der Luft
+  // (rz-punkt3d, _flugPunkt) zeichnet GENAU dieses Bild — Form, Symbol, Fahrzeug, eigenes Bild, Farbe, Größe.
+  // {bild, key, cssPx (Kantenlänge), dreht (mit dem Weg), karte (flach statt aufrecht)} | null
+  var _dotLuft;   // var: dotEbenenAufbauen kann vor dieser Zeile laufen (Stil-Ereignis beim Einhängen)
+  /** Die Kugel (Glanz + weißer Kern mit Rand in Linienfarbe) als Bild — wie anim-dot-glow/-core am Boden. */
+  function _kugelBild(farbe, gr, dezent) {
+    const s = 4, rand = dezent ? Math.max(3, currentLineWidth() * 1.5) + 1.2 : 12 * gr, w = Math.max(8, Math.ceil(rand * 2 * s));
+    const c = document.createElement("canvas"); c.width = w; c.height = w;
+    const g = c.getContext("2d"), m = w / 2;
+    if (dezent) {
+      const r = Math.max(3, currentLineWidth() * 1.5) * s;
+      g.beginPath(); g.arc(m, m, r, 0, Math.PI * 2); g.fillStyle = farbe; g.fill();
+      g.lineWidth = 1.2 * s; g.strokeStyle = "#ffffff"; g.stroke();
+    } else {
+      const glow = g.createRadialGradient(m, m, 0, m, m, 10 * gr * s);
+      glow.addColorStop(0, "rgba(255,255,255,0.3)"); glow.addColorStop(0.2, "rgba(255,255,255,0.3)"); glow.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = glow; g.beginPath(); g.arc(m, m, 10 * gr * s, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(m, m, 5 * gr * s, 0, Math.PI * 2); g.fillStyle = "rgba(255,255,255,0.95)"; g.fill();
+      g.lineWidth = 2 * s; g.strokeStyle = farbe; g.stroke();
+    }
+    return { bild: c, cssPx: w / s };
+  }
+
   function dotEbenenAufbauen() {
     if (!map) return;
     // v0.9.531 (Beta-Tester, DRITTER Anlauf „Kugel erst mit dem Regler"): Hier
@@ -8314,8 +8418,11 @@ function mountAnimator(body, headerActions, opts) {
       ["anim-dot-arrow", "anim-dot-fz", "anim-dot-core", "anim-dot-glow"].forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id);
       });
-      if (!dst.show || !currentCoords) return;
+      _dotLuft = null;
+      if (!dst.show || !currentCoords) { _flugPunktNeu(); return; }
       if (hauptDezent()) {
+        const kb = _kugelBild(farbe, gr, true);
+        _dotLuft = { bild: kb.bild, key: "dezent|" + farbe + "|" + currentLineWidth(), cssPx: kb.cssPx, dreht: false, karte: true };
         // currentLineWidth() ist im Dezent-Modus schon auf Schwarm-Breite
         // reduziert — Radius exakt wie die schwarm-dots im Render.
         map.addLayer({ id: "anim-dot-core", type: "circle", source: "anim-dot",
@@ -8326,7 +8433,9 @@ function mountAnimator(body, headerActions, opts) {
         // 13.10.2026 — Symbol je Bewegungsart (Draufsicht, Front nach oben): flach auf der Karte, dreht sich mit dem Weg
         try {
           if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
-          map.addImage("anim-fz", rzBewegungBild(dst.style, _symFarben(farbe), 192), { pixelRatio: 4 });
+          const sb = rzBewegungBild(dst.style, _symFarben(farbe), 192);
+          _dotLuft = { bild: sb, key: "sym|" + dst.style + "|" + JSON.stringify(_symFarben(farbe)), cssPx: 48 * gr, dreht: true, karte: true };
+          map.addImage("anim-fz", sb, { pixelRatio: 4 });
         } catch (e) { applog("warn", "[dot] Symbol auf die Karte: " + e); }
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
           layout: { "icon-image": "anim-fz", "icon-size": gr, "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
@@ -8335,7 +8444,9 @@ function mountAnimator(body, headerActions, opts) {
         // 07.10.2026 — Fahrzeug als Bild (Draufsicht, Front nach oben): liegt flach auf der Karte und dreht sich mit dem Weg
         try {
           if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
-          map.addImage("anim-fz", _fzBild(dst.style, dotFzStil()), { pixelRatio: 4 });
+          const fb = _fzBild(dst.style, dotFzStil());
+          _dotLuft = { bild: fb, key: "fzfoto|" + dst.style + "|" + dotFzStil(), cssPx: (fb.naturalWidth || fb.width || 192) / 4 * gr, dreht: true, karte: true };
+          map.addImage("anim-fz", fb, { pixelRatio: 4 });
         } catch (e) { applog("warn", "[dot] Fahrzeugbild auf die Karte: " + e); }
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
           layout: { "icon-image": "anim-fz", "icon-size": gr, "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
@@ -8345,7 +8456,9 @@ function mountAnimator(body, headerActions, opts) {
         const flug = dst.style === "flugzeug";
         try {
           if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
-          map.addImage("anim-fz", _fahrzeugBild(dst.style, farbe), { pixelRatio: 2 });
+          const fzb = _fahrzeugBild(dst.style, farbe);
+          _dotLuft = { bild: fzb, key: "fz|" + dst.style + "|" + farbe, cssPx: 46 * gr * (flug ? 1 : 0.85), dreht: flug, karte: flug };
+          map.addImage("anim-fz", fzb, { pixelRatio: 2 });
         } catch (_) {}
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
           layout: { "icon-image": "anim-fz", "icon-size": gr * (flug ? 1 : 0.85),
@@ -8358,7 +8471,9 @@ function mountAnimator(body, headerActions, opts) {
         const dreh = dotBildDrehen();
         try {
           if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
-          map.addImage("anim-fz", _laufpunktBildKarte(_lpBild(dotBild()), dotBildForm(), farbe), { pixelRatio: 2 });
+          const eb = _laufpunktBildKarte(_lpBild(dotBild()), dotBildForm(), farbe);
+          _dotLuft = { bild: eb, key: "bild|" + dotBild() + "|" + dotBildForm() + "|" + farbe, cssPx: 46 * gr, dreht: dreh, karte: dreh };
+          map.addImage("anim-fz", eb, { pixelRatio: 2 });
         } catch (e) { applog("warn", "[dot] eigenes Bild auf die Karte: " + e); }
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
           layout: { "icon-image": "anim-fz", "icon-size": gr,
@@ -8368,7 +8483,9 @@ function mountAnimator(body, headerActions, opts) {
       } else if (dst.style === "arrow") {
         try {
           if (map.hasImage("anim-arrow")) map.removeImage("anim-arrow");
-          map.addImage("anim-arrow", _pfeilBild(farbe), { pixelRatio: 2 });
+          const pb = _pfeilBild(farbe);
+          _dotLuft = { bild: pb, key: "pfeil|" + farbe, cssPx: 34 * gr, dreht: true, karte: true };
+          map.addImage("anim-arrow", pb, { pixelRatio: 2 });
         } catch (_) {}
         map.addLayer({ id: "anim-dot-arrow", type: "symbol", source: "anim-dot",
           layout: { "icon-image": "anim-arrow", "icon-size": gr,
@@ -8376,6 +8493,8 @@ function mountAnimator(body, headerActions, opts) {
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
       } else {
+        const kb = _kugelBild(farbe, gr, false);
+        _dotLuft = { bild: kb.bild, key: "kugel|" + farbe + "|" + gr, cssPx: kb.cssPx, dreht: false, karte: true };
         map.addLayer({ id: "anim-dot-glow", type: "circle", source: "anim-dot",
           paint: { "circle-radius": 10 * gr, "circle-color": "#fff", "circle-opacity": 0.3,
                    "circle-blur": 0.8, "circle-pitch-alignment": "map" } });
@@ -8385,6 +8504,7 @@ function mountAnimator(body, headerActions, opts) {
                    "circle-pitch-alignment": "map" } });
       }
       if (_flug.an) _flugBodenFiltern(true);   // 05.10.2026 — Flug in der Luft: der Punkt schwebt, unten keiner
+      _flugPunktNeu();                          // 15.10.2026 — neues Aussehen auch in der Luft
       _nurOrteFiltern();                        // 14.10.2026 — Orte nacheinander: keine Linie, kein Punkt
     } catch (e) { try { applog("warn", "[anim-dot] Aufbau: " + e); } catch (_) {} }
   }
@@ -9222,6 +9342,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function selectKeyframe(idx) {
+    _ansichtHinweisWeg();
     const anchors = clusterAnchors();
     if (idx == null || idx < 0 || idx >= anchors.length) return;
     const anchor = anchors[idx];
@@ -9269,6 +9390,7 @@ function mountAnimator(body, headerActions, opts) {
   // Cluster ist, werden seine Events upgedated.
   function snapshotKeyframe(anchor, options) {
     if (!map) return;
+    _ansichtHinweisWeg();
     options = options || {};
     _animPushUndo(t("undo.keyframe_gesetzt", "Keyframe gesetzt"), { force: true });
     if (anchor == null) anchor = _tlBar ? _tlBar.getScrubber() : 0;
@@ -9421,6 +9543,7 @@ function mountAnimator(body, headerActions, opts) {
   // {kind, anchor} identifiziert genau einen Property-Event.
 
   function selectEvent(ev) {
+    _ansichtHinweisWeg();
     if (!ev || !ev.kind) {
       _selectedEvent = null;
       _selectedKfIdx = null;
@@ -9692,6 +9815,7 @@ function mountAnimator(body, headerActions, opts) {
       zoom_offset:   { kind: "zoom",     field: "value_offset" },
       zoom_absolute: { kind: "zoom",     field: "value_absolute" },
       center:        { kind: "center",   field: "value" },
+      versatz:       { kind: "center",   field: "versatz" },   // 15.10.2026 — Versatz eines folgenden Keyframes
       position:      { kind: "position", field: "value" },
       anchor:        null, // handled separately
     };
@@ -10340,8 +10464,8 @@ function mountAnimator(body, headerActions, opts) {
         if (_selectedKfIdx == null || !map) return;
         const isTracking = followCb.checked;
         if (isTracking) {
-          // Track-folgen → center weg
-          updateKeyframeFields(_selectedKfIdx, { center: null });
+          // Track-folgen → center weg; der Trackpunkt kommt in die Bildmitte (Versatz 0)
+          updateKeyframeFields(_selectedKfIdx, { center: null, versatz: null });
         } else {
           // Frei → aktuellen Karten-Center festhalten
           const c = map.getCenter();
@@ -10423,11 +10547,11 @@ function mountAnimator(body, headerActions, opts) {
     if (interp.center) cam.center = interp.center.slice ? interp.center.slice() : interp.center;
     else if (!folgt && keyframesEnabled()) {
       const fc = fitKameraGesamt();
-      if (fc) cam.center = [fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]];
+      if (fc) cam.center = _mitVersatz([fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]], interp);
     } else if (folgt) {
       const cf = trackFracAusAnkerHaupt(anchor);
       const tp = _folgePunkt(cf) || currentCoords[Math.max(0, Math.min(currentCoords.length - 1, Math.round(cf)))];
-      cam.center = tp.slice ? tp.slice(0, 2) : tp;
+      cam.center = _mitVersatz(tp.slice ? tp.slice(0, 2) : tp, interp);
     }
     // 07.10.2026 — die Handkamera steckt in den Standard-Keyframes (_basisKeyframes)
     if (!cam.center) { const g = map.getCenter(); cam.center = [g.lng, g.lat]; }
@@ -10525,6 +10649,10 @@ function mountAnimator(body, headerActions, opts) {
                             jetzt: () => { _vw.letzteEingabe = 0; return _vwLauf(); }, skizze: (a) => _kameraSkizze(a) };   // Prüfstand
 
   function scrubPreview(anchor, opts) {
+    try {   // 15.10.2026 — Warnzeile „Ansicht nicht gespeichert“ gilt nur für die Stelle, an der verschoben wurde
+      const wh = document.getElementById("anim-ansicht-hinweis");
+      if (wh && !wh.hidden && Math.abs((+anchor || 0) - (wh.__rzAnker || 0)) > 1e-6) wh.hidden = true;
+    } catch (_) {}
     let _flugMitteSoll = null;   // 05.10.2026 — Flug in der Luft: Mittelpunkthöhe nach der Kamerabewegung
     if (!map || !currentCoords || currentCoords.length < 2) return;
     try { _ovTimingAt(_sgZeitAusAnker(anchor), (currentCoords && currentCoords.length > 1) ? Math.max(0, Math.min(1, anchor)) : 0); } catch (_) {}   // 30.09.2026 — Container-Zeiten am Zeitregler
@@ -10629,12 +10757,12 @@ function mountAnimator(body, headerActions, opts) {
       // la parte central de la pantalla").
       const fc = fitKameraGesamt();
       if (fc) {
-        easeArgs.center = [fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]];
+        easeArgs.center = _mitVersatz([fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]], interp);
       }
     } else if (cameraFollow) {
       _flugMitteSoll = null;
       const tp = _folgePunkt(coordFrac) || currentCoords[coordIdx];
-      easeArgs.center = tp.slice ? tp.slice() : tp;
+      easeArgs.center = _mitVersatz(tp.slice ? tp.slice(0, 2) : tp, interp);
       // 05.10.2026 — Flug in der Luft: Bildmitte in Flughöhe (sonst zielt die Kamera auf den Boden darunter)
       if (_flug.an) {
         try {
@@ -10768,6 +10896,7 @@ function mountAnimator(body, headerActions, opts) {
     // mehrere Property-Events sind. Per-Property-Modus wird nur durch
     // explizites Klick auf einen Lane-Marker erreicht.
     const newIdx = findKeyframeAtAnchor(anchor);
+    if (newIdx != null) _ansichtHinweisWeg();   // Keyframe gewählt → er übernimmt die Karte ab jetzt
     if (newIdx === _selectedKfIdx && _selectedEvent == null) return;
     _selectedKfIdx = newIdx;
     _selectedEvent = null;  // Scrubber → Cluster-Modus
@@ -10888,6 +11017,36 @@ function mountAnimator(body, headerActions, opts) {
     if (!tp || !fest) return tp;
     return [tp[0] + 360 * Math.round((fest[0] - tp[0]) / 360), tp[1]];
   }
+  /** 15.10.2026 (Marc: „Ich wähle einen schon vorhandenen Keyframe aus, positioniere die Karte neu, starte die Vorschau,
+   *  und dann wird die Verschiebung der Karte … nicht vom Keyframe übernommen.“) — ein Keyframe, der dem Track folgt
+   *  (center ohne Wert), merkt sich die von Hand verschobene Karte als `versatz` [Δlng, Δlat] zum Trackpunkt: die Kamera
+   *  folgt weiter, nur um diesen Versatz verschoben. Zwischen zwei folgenden Keyframes wird er verblendet. */
+  function _vsVon(e) { return (e && Array.isArray(e.versatz) && e.value == null) ? e.versatz : [0, 0]; }
+  function _interpVersatz(evs, progress) {
+    if (!evs.length || !evs.some(e => e && Array.isArray(e.versatz) && e.value == null)) return null;
+    if (evs.length === 1 || progress <= _xv(evs[0])) return _vsVon(evs[0]);
+    if (progress >= _xv(evs[evs.length - 1])) return _vsVon(evs[evs.length - 1]);
+    for (let i = 0; i < evs.length - 1; i++) {
+      const a = evs[i], b = evs[i + 1], aa = _xv(a), ba = _xv(b);
+      if (progress >= aa && progress <= ba) {
+        const t = _applyEasing(ba > aa ? (progress - aa) / (ba - aa) : 1, b.easing || "linear");
+        const va = _vsVon(a), vb = _vsVon(b);
+        return [va[0] + (vb[0] - va[0]) * t, va[1] + (vb[1] - va[1]) * t];
+      }
+    }
+    return _vsVon(evs[evs.length - 1]);
+  }
+  /** Bildmitte eines Keyframes ohne feste Mitte: der Trackpunkt („Kamera folgt dem Track“ an) oder die Gesamtsicht. */
+  function _kfBasisMitte(anchor) {
+    if (document.getElementById("anim-camera-follow")?.checked) return _folgePunkt(trackFracAusAnkerHaupt(anchor)) || _trackPointAtAnchor(anchor);
+    const fc = fitKameraGesamt();
+    return fc ? [fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]] : null;
+  }
+  function _mitVersatz(ll, ip) {
+    const v = ip && ip.versatz;
+    if (!ll || !v || (!v[0] && !v[1])) return ll;
+    return [ll[0] + v[0], ll[1] + v[1]];
+  }
   function _interpCenter(evs, progress) {
     const withVal = evs.filter(e => e.value != null);
     if (!withVal.length) return null;
@@ -10910,8 +11069,8 @@ function mountAnimator(body, headerActions, opts) {
         // per-Vertex, unverändertes Verhalten).
         let av = a.value, bv = b.value;
         if (av == null && bv == null) return null;
-        if (av == null) av = _trackAufUmrundung(_trackPointAtAnchor(a.anchor || 0), bv);
-        if (bv == null) bv = _trackAufUmrundung(_trackPointAtAnchor(b.anchor || 0), av);
+        if (av == null) av = _trackAufUmrundung(_mitVersatz(_trackPointAtAnchor(a.anchor || 0), { versatz: _vsVon(a) }), bv);
+        if (bv == null) bv = _trackAufUmrundung(_mitVersatz(_trackPointAtAnchor(b.anchor || 0), { versatz: _vsVon(b) }), av);
         if (av && bv) {
           return [av[0] + (bv[0] - av[0]) * t,
                   av[1] + (bv[1] - av[1]) * t];
@@ -11257,6 +11416,7 @@ function mountAnimator(body, headerActions, opts) {
         zoom_offset: z,
         center: c,
         position: posInterp,
+        versatz: c ? null : _interpVersatz(centerEvs, progress),   // 15.10.2026 — Versatz folgender Keyframes
       };
     }
 
@@ -11340,6 +11500,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function runTimelinePreview(forceStart) {
+    _ansichtHinweisWeg();
     try { _tonEntsperren(); } catch (_) {}   // 02.10.2026 — im Klick/Tastendruck: Ton für die Vorschau freischalten
     if (!map) return;
     // v0.9.409 — Cold-Start-Heilung (Beta-Tester-Bug): Nach App-Neustart ist die
@@ -11360,10 +11521,11 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const _etE = window.__rzEtappe && window.__rzEtappe.editor && window.__rzEtappe.editor();
       const _etN = _etE ? (_etE.wps || []).filter(w => w && (w.lon != null || String(w.text || "").trim())).length : 0;
-      if (_etE && !_etE.busy && _etN >= 2) {
+      // 15.10.2026 — nur wenn sich etwas geändert hat; der Editor bleibt danach offen (vorher schloss er sich)
+      if (_etE && !_etE.busy && _etN >= 2 && window.__rzEtappe.geaendert && window.__rzEtappe.geaendert()) {
         if (typeof toast === "function") toast(t("anim.etappe_wird_uebernommen", "Die Etappe wird übernommen — danach startet die Vorschau."), "info", 4000);
-        applog("info", "[runPreview] Etappen-Editor offen → erst übernehmen");
-        Promise.resolve(window.__rzEtappe.berechnen()).then(() => {
+        applog("info", "[runPreview] Etappen-Editor offen und geändert → erst übernehmen");
+        Promise.resolve(window.__rzEtappe.berechnen({ offenLassen: true })).then(() => {
           setTimeout(() => { try { if (currentCoords && currentCoords.length >= 2) runTimelinePreview(forceStart); } catch (_) {} }, 600);
         }).catch((e) => applog("warn", "[runPreview] Etappe übernehmen: " + e));
         return;
@@ -11394,6 +11556,7 @@ function mountAnimator(body, headerActions, opts) {
       _previewRaf = null;
       _previewSpeed = 1;
       if (_tlBar) _tlBar.setPlaying(false);
+      try { window.__rzAnimSigns && window.__rzAnimSigns.endPreview && window.__rzAnimSigns.endPreview(); } catch (_) {}   // 15.10.2026 — Schild-Editor weiter
       // v0.9.45 (Marc-Bug): Track-Linie über refreshPreviewTrackData
       // wiederherstellen — der respektiert previewFullTrack() (= Toggle
       // „Ganzer Track" aus → bei Scrubber-Position trimmen) statt blind
@@ -11712,10 +11875,10 @@ function mountAnimator(body, headerActions, opts) {
             else if (_fFollow) {
               // 29.09.2026 — derselbe Folgepunkt wie Probelauf/Laufpunkt (Tempo-Verteilung, gebrochener
               // Index, Kamerabahn); vorher linear über den Punktindex → Bildmitte und Pfeil liefen auseinander.
-              ll = _folgePunkt(trackFracAusAnkerHaupt(a)) || _fStatic;
-            } else ll = _runFitCam
+              ll = _mitVersatz(_folgePunkt(trackFracAusAnkerHaupt(a)) || _fStatic, ip);
+            } else ll = _mitVersatz(_runFitCam
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
-              : _fStatic;
+              : _fStatic, ip);
             const _fsDreh = 0;   // 07.10.2026 — Fotostopp steckt als Keyframes in den Events (_haltKeyframes)
             let _ipH = ip;
             if (_fFollow && !ip.center && _flug.an && ll) {   // 14.10.2026 Hochflug: herumkreisen + mit der Höhe zurückziehen
@@ -12055,12 +12218,12 @@ function mountAnimator(body, headerActions, opts) {
         // eingeschaltetem Keyframe-EDITOR (auch ganz ohne Keyframes!) dem
         // Track als Fallback — mit Trägheit kroch die Kamera dem Punkt
         // ewig hinterher und ließ ihn aus dem Bild laufen.
-        jumpArgs.center = [_runFitCam.center.lng ?? _runFitCam.center[0],
-                           _runFitCam.center.lat ?? _runFitCam.center[1]];
+        jumpArgs.center = _mitVersatz([_runFitCam.center.lng ?? _runFitCam.center[0],
+                           _runFitCam.center.lat ?? _runFitCam.center[1]], interp);
       }
       else if (cameraFollow2) {
         _didFollow = true;
-        const _tgt = _folgePunkt(coordFrac) || currentCoords[coordIdx];
+        const _tgt = _mitVersatz(_folgePunkt(coordFrac) || currentCoords[coordIdx], interp);
         // v0.9.277 (Nutzer) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
         // 30fps-Render referenziert → Vorschau wirkt genauso träge wie das Video.
         // 14.10.2026 (Gleitschirm: Mitte änderte ihr Tempo sprunghaft, bis 21 m je Bild) — bei „Flug in der Luft“ mindestens
@@ -12218,6 +12381,7 @@ function mountAnimator(body, headerActions, opts) {
         _previewRaf = null;
         _plBilanz("Ende");
         if (_tlBar) _tlBar.setPlaying(false);
+        try { window.__rzAnimSigns && window.__rzAnimSigns.endPreview && window.__rzAnimSigns.endPreview(); } catch (_) {}   // 15.10.2026 — Schild-Editor weiter
         // v0.9.228 — Overlay-Boxen nach Probelauf wieder alle einblenden
         // (statische Konfig-Vorschau zeigt alle aktivierten Boxen).
         try { _animOverlayTimingPreview(-1); } catch (_) {}
@@ -13101,6 +13265,7 @@ function mountAnimator(body, headerActions, opts) {
       // (02.09.2026, siehe `_kameraGehoertNutzer`).
       _kameraGehoertNutzer = true;
       _syncMapStateToUi();
+      try { _ansichtHinweisZeigen(); } catch (e2) { applog("warn", "[kf] Ansicht-Hinweis: " + e2); }
       _manualCamMerken();   // 05.09.2026 — Handkamera ohne Keyframes gilt für Probelauf, Scrub und Video
     });
 
@@ -13140,6 +13305,7 @@ function mountAnimator(body, headerActions, opts) {
       try { if (window.__rzEtappeKlick && window.__rzEtappeKlick(e)) return; } catch (_) {}   // 07.10.2026 Etappen-Editor
       try { _animSignsOnMapClick(e); } catch (_) {}
     });
+    map.on("dblclick", (e) => { try { _animSignsOnMapDblClick(e); } catch (_) {} });   // 15.10.2026
 
     onMapReady(map, () => {
       applog("info", "[Animator onMapReady cb] running");
@@ -13485,6 +13651,7 @@ function mountAnimator(body, headerActions, opts) {
         // teurer als ein Bild. Deshalb pro Bild nur EINMAL zeichnen — die
         // letzte Position gewinnt, alles dazwischen wird übersprungen.
         onScrub:        (anchor) => {
+          _ansichtHinweisWeg();
           _scrubZiel = _tlBar ? _tlBar.barToTrack(anchor) : anchor;
           if (_scrubRaf) return;
           _scrubRaf = requestAnimationFrame(() => {
@@ -13991,6 +14158,7 @@ function mountAnimator(body, headerActions, opts) {
     // sie als GPU-Symbol-Layer (flüssig wie die Foto-Pins, kein Schwimmen). Umgeschaltet
     // wird in _animSignsOpenEditor (→DOM) / _animSignsCloseEditor + beginPreview (→GPU).
     let _animSignEditMode = false;
+    let _animSignVorschauPause = false;   // 15.10.2026 — Editor offen, Vorschau läuft (Schilder mit echtem Timing)
     let _animSignMoveIdx = -1;   // >=0 = bestehendes Schild verschieben statt neues setzen
     let _animSignDragging = false;   // v0.9.476 — true während/kurz nach Marker-Drag (Klick unterdrücken)
     let _animSignMoveArmed = -1;     // v0.9.477 — idx des Schilds, das per „↔ Verschieben" zum Ziehen scharf ist (sonst NICHT ziehbar)
@@ -14361,7 +14529,7 @@ function mountAnimator(body, headerActions, opts) {
         try { Object.defineProperty(allSigns, "__flagsCleaned", { value: true, enumerable: false, configurable: true }); }
         catch (_) { allSigns.__flagsCleaned = true; }
       }
-      const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
+      const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc || _animSignPlatzhalterIst(allSigns, s)) && s.visible !== false);
       if (!list.length) return;
       // Existenz der Original-Bilddatei prüfen (einmal pro Schild) für die Liste-Warnung.
       const zuPruefen = list.filter(s => s.imageSrc && !s._imgChecked);
@@ -14435,6 +14603,52 @@ function mountAnimator(body, headerActions, opts) {
     }
     window.__rzSignsHaltUeber = (war) => _animHaltUeberAnwenden(war);
     // ── DOM-Marker (Editier-Modus): flackerfreies Live-Update am stehenden Element ──
+    // 15.10.2026 (Marc: „Wenn ich ein Schild ersetze, dann sollte das direkt auf der Karte sichtbar sein … man sollte vielleicht
+    // auch direkt in der Karte drin tippen können. So klicke ich auf die Karte, platziere das Schild, sehe aber gar nicht, wo
+    // es platziert ist, bevor ich rechts was eingetippt habe.“) — das Schild im Editor steht sofort da (ohne Text als
+    // Platzhalter), und sein Text lässt sich direkt auf der Karte tippen; das Feld rechts läuft mit.
+    function _animSignPlatzhalterIst(allSigns, s) {
+      return _animSignEditMode && _animSignForceIdx >= 0 && allSigns.indexOf(s) === _animSignForceIdx;
+    }
+    function _animSignTippbar(fi) {
+      const mk = _animSignMarkers[fi], cap = mk && mk.wrap && mk.wrap.__cap;
+      if (!cap) return;
+      const an = _animSignEditMode && fi === _animSignForceIdx && fi === _animSignEditorIdx;
+      mk.wrap.classList.toggle("rz-sign--tippbar", an);
+      const leer = !String(cap.textContent || "").trim();
+      mk.wrap.classList.toggle("rz-sign--platzhalter", an && leer);
+      if (!an) { if (cap.isContentEditable) cap.contentEditable = "false"; return; }
+      cap.style.display = "block";
+      cap.dataset.ph = t("signs.karte_tippen", "Text tippen …");
+      if (!cap.isContentEditable) {
+        try { cap.contentEditable = "plaintext-only"; } catch (_) { cap.contentEditable = "true"; }
+        if (!cap.isContentEditable) cap.contentEditable = "true";
+      }
+      if (cap.__rzTippbar) return;
+      cap.__rzTippbar = true;
+      cap.spellcheck = false;
+      for (const ev of ["mousedown", "pointerdown", "dblclick", "click"]) cap.addEventListener(ev, (e) => { if (cap.isContentEditable) e.stopPropagation(); });
+      cap.addEventListener("keydown", (e) => {
+        e.stopPropagation();   // Karte (Pfeile, +/−) und Esc des Editors bleiben ruhig
+        if (e.key === "Escape") { cap.blur(); }
+      });
+      cap.addEventListener("input", () => {
+        const ta = document.getElementById("se-text");
+        const txt = String(cap.innerText || cap.textContent || "").replace(/\u00a0/g, " ");
+        mk.wrap.classList.toggle("rz-sign--platzhalter", !txt.trim());
+        if (ta && ta.value !== txt) { ta.value = txt; ta.dispatchEvent(new Event("input", { bubbles: true })); }
+      });
+    }
+    function _animSignTippenFokus(fi) {
+      const mk = _animSignMarkers[fi], cap = mk && mk.wrap && mk.wrap.__cap;
+      if (!cap || !cap.isContentEditable) return false;
+      try {
+        cap.focus();
+        const r = document.createRange(); r.selectNodeContents(cap); r.collapse(false);
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      } catch (_) { return false; }
+      return true;
+    }
     function _animSignsAttachDOM(allSigns, list) {
       const dur = _animSignsDuration();
       const MarkerCls = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
@@ -14454,6 +14668,8 @@ function mountAnimator(body, headerActions, opts) {
           try { ev.stopPropagation(); } catch (_) {}
           _animSignsOpenEditor(fi);
         });
+        // 15.10.2026 (Marc: „Direkt doppelklicken auf das Schild muss auch den Schildeditor öffnen.“) — und nicht zoomen
+        wrap.addEventListener("dblclick", (ev) => { try { ev.stopPropagation(); ev.preventDefault(); } catch (_) {} if (!_animSignPlaceMode) _animSignsOpenEditor(fi); });
         let marker;
         const _mkAnchor = _signMarkerAnchor(sn);   // v0.9.408 — Sprechblasen-Richtung
         // v0.9.476/477 — Schilder per Drag & Drop verschieben. Aber (Nutzer-Feedback):
@@ -14491,6 +14707,7 @@ function mountAnimator(body, headerActions, opts) {
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
         _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
         _animSignMarkers[fi] = { marker, wrap, zoomScale: !!sn.zoomScale, anchor: _mkAnchor };
+        _animSignTippbar(fi);
       });
       if (!_animSignZoomHooked) {
         _animSignZoomHooked = true;
@@ -14766,7 +14983,7 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignsUpdateInPlace() {
       if (!map || !_animSignEditMode) return false;
       const allSigns = _animSignsList();
-      const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
+      const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc || _animSignPlatzhalterIst(allSigns, s)) && s.visible !== false);
       if (!list.length) return false;
       const dur = _animSignsDuration();
       let ok = true;
@@ -14781,6 +14998,7 @@ function mountAnimator(body, headerActions, opts) {
         let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
         if (s.imageSrc && !imageUrl) { try { _animSignEnsureImage(s).then(() => { try { _animSignsUpdateInPlace(); } catch (_) {} }); } catch (_) {} }
         try { window.__rzSignDomStyle(mk.wrap, sn, { imageUrl }); } catch (_) {}
+        if (fi === _animSignForceIdx) _animSignTippbar(fi);   // __rzSignDomStyle blendet die leere Zeile sonst aus
         try { mk.marker.setLngLat([Number(sn.lon), Number(sn.lat)]); } catch (_) {}
         mk.zoomScale = !!sn.zoomScale;
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
@@ -15358,6 +15576,8 @@ function mountAnimator(body, headerActions, opts) {
       }
       _animSignsCloseEditor();
       _animSignMoveArmed = -1;   // v0.9.477 — beim Öffnen eines (anderen) Schilds Verschieben-Modus entschärfen
+      _animSignForceIdx = idx;   // 15.10.2026 — schon beim ersten Aufbau sichtbar (auch ohne Text)
+      _animSignEditorIdx = idx;
       const list = _animSignsList();
       if (idx < 0 || idx >= list.length || !map || !map.getContainer) return;
       // v0.9.256 — Editor auf → in den DOM-Marker-Modus wechseln (flackerfreies
@@ -15961,7 +16181,9 @@ function mountAnimator(body, headerActions, opts) {
         const fsb = $("#se-stopp-block"); if (fsb) fsb.style.display = "none";
         $("#se-text").placeholder = t("signs.modal_ph", "z.B. Gipfel erreicht!");
       };
-      if (focusText) { try { tEl.focus(); } catch (_) {} }
+      // 15.10.2026 — neues Schild ohne Text: gleich in der Karte tippen (das Feld rechts läuft mit)
+      try { _animSignTippbar(idx); } catch (_) {}
+      if (focusText && !(String(tEl.value || "").trim() === "" && _animSignTippenFokus(idx))) { try { tEl.focus(); } catch (_) {} }
     }
     function _animSignsStartMove(idx) {
       if (!Array.isArray(currentCoords) || currentCoords.length < 2) return;
@@ -15997,6 +16219,17 @@ function mountAnimator(body, headerActions, opts) {
       }
       const cont = map && map.getCanvas ? map.getCanvas() : null;
       if (cont) cont.style.cursor = _animSignPlaceMode ? "crosshair" : "";
+    }
+    /** 15.10.2026 — Doppelklick auf ein Schild (Editor zu, GPU-Ebene): Editor öffnen statt zoomen. */
+    function _animSignsOnMapDblClick(e) {
+      if (_animSignPlaceMode || !map || !map.getLayer(_ANIM_SIGNS_LYR)) return false;
+      let f = null;
+      try { f = map.queryRenderedFeatures(e.point, { layers: [_ANIM_SIGNS_LYR] })[0]; } catch (_) { f = null; }
+      const i = f && f.properties ? +f.properties.signIdx : NaN;
+      if (!isFinite(i) || i < 0) return false;
+      try { e.preventDefault(); } catch (_) {}
+      _animSignsOpenEditor(i);
+      return true;
     }
     function _animSignsOnMapClick(e) {
       const lng = e.lngLat.lng, lat = e.lngLat.lat;
@@ -16944,6 +17177,8 @@ function mountAnimator(body, headerActions, opts) {
         speichern: (l, label) => _animSignsSave(l, label), bildUebernehmen: (ziel, el) => _animSetImgEl(ziel, el),
         neuZeichnen: () => { if (!_animSignsUpdateInPlace()) _animSignsAttachToMap(); _animSignsRenderList(); },
         oeffnen: (i) => _animSignsOpenEditor(i),
+        neuAuf: (lng, lat) => _animSignsAddNew(lng, lat, true),   // Prüfstand: wie ein Klick „Frei platzieren“
+        editor: () => (_animSignEditorEl ? _animSignEditorIdx : -1),
         loeschen: (i) => { try { _animSignsCloseEditor(); } catch (_) {} _animSignsDelete(i); },   // 10.10.2026 Entfernen-Taste in der Zeitleiste
       },
       updateAtAnchor: _animSignsUpdateAtAnchor,
@@ -16964,9 +17199,22 @@ function mountAnimator(body, headerActions, opts) {
         return _animSignsPreviewAll;
       },
       alleAn: () => _animSignsPreviewAll,
+      endPreview: () => {   // 15.10.2026 — Vorschau zu Ende: offener Editor bearbeitet wieder sein Schild
+        if (!_animSignVorschauPause) return;
+        _animSignVorschauPause = false;
+        if (_animSignEditorEl && _animSignEditorIdx >= 0) {
+          _animSignEditMode = true; _animSignForceIdx = _animSignEditorIdx;
+          try { _animSignsAttachToMap(); } catch (e) { applog("warn", "[signs] nach der Vorschau: " + e); }
+        }
+      },
       beginPreview: () => {
-        try { _animSignsCloseEditor(); } catch (_) {}
+        // 15.10.2026 (Marc: „Wenn ich eine Vorschau starte, dann verschwindet das Detailfenster rechts.“) — der Editor bleibt
+        // offen; nur für die Dauer der Vorschau zeigen die Schilder ihr echtes Timing (GPU), danach geht's weiter mit dem Editor
         _animSignForceIdx = -1;
+        if (_animSignEditMode && _animSignEditorEl) {
+          _animSignVorschauPause = true; _animSignEditMode = false;
+          try { _animSignsAttachToMap(); } catch (e) { applog("warn", "[signs] Vorschau: " + e); }
+        }
         if (_animSignsPreviewAll) {
           _animSignsPreviewAll = false;
           const _pa = document.getElementById("anim-signs-preview-all");
@@ -17214,7 +17462,23 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzSpurTeile = (cs, max) => _spurTeile(cs, max);   // Prüfstand
   function _uebZeichnen() {
     const el = document.getElementById("anim-uebersicht");
-    if (!el || el.hidden || !map || !Array.isArray(currentCoords) || currentCoords.length < 2) return;
+    if (!el) return;
+    // 15.10.2026 (Marc: neues leeres Projekt, „in der Übersichtskarte … weiterhin der Track drin") — ohne Track brach
+    // das Zeichnen hier nur ab und die alte Linie blieb stehen. Jetzt: leeren und samt 🗺-Knopf ausblenden.
+    const ohne = !Array.isArray(currentCoords) || currentCoords.length < 2;
+    el.classList.toggle("ohne-track", ohne);
+    const auf = document.getElementById("anim-uebersicht-auf");
+    if (auf) auf.classList.toggle("ohne-track", ohne);
+    if (ohne) {
+      if (_uebRahmen) {
+        _uebRahmen = null;
+        el.querySelector(".anim-ueb-track").setAttribute("d", "");
+        el.querySelector(".anim-ueb-rahmen").setAttribute("points", "");
+        const pk = el.querySelector(".anim-ueb-punkt"); pk.setAttribute("cx", "-20"); pk.setAttribute("cy", "-20");
+      }
+      return;
+    }
+    if (el.hidden || !map) return;
     const svg = el.querySelector("svg");
     const W = el.clientWidth || 100, H = el.clientHeight || 100;
     const n = currentCoords.length, a = currentCoords[0], z = currentCoords[n - 1];
@@ -17253,7 +17517,7 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
   window.__rzUebersicht = () => { const el = document.getElementById("anim-uebersicht"); if (!el) return null;   // Prüfstand
-    return { zustand: _uebZustand(), hidden: el.hidden, gross: el.classList.contains("gross"), w: el.clientWidth,
+    return { zustand: _uebZustand(), hidden: el.hidden, ohne: el.classList.contains("ohne-track") && getComputedStyle(el).display === "none", gross: el.classList.contains("gross"), w: el.clientWidth,
              punkte: ((el.querySelector(".anim-ueb-track").getAttribute("d") || "").match(/[ML]/g) || []).length,
              teile: ((el.querySelector(".anim-ueb-track").getAttribute("d") || "").match(/M/g) || []).length,
              rahmen: el.querySelector(".anim-ueb-rahmen").getAttribute("points") || "",
@@ -20014,6 +20278,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _ctKarteAt(_ctLetztFrac, true); } catch (e) { applog("warn", "[container] Übersichtskarte: " + e); }
     try { _ovUpdateNorthScale(true); } catch (_) {}
     if (_ctEditId) layer.querySelector(`.ct[data-ctid="${CSS.escape(_ctEditId)}"]`)?.classList.add("ct-aktiv");
+    _ctXSetzen();
     _ctStapelListe = liste;
     try { _ctStapeln(layer, liste); } catch (e) { applog("warn", "[container] stapeln: " + e); }
     // Formatwechsel (16:9 → 9:16) ändert nur die Fläche, nicht die Liste → bei jeder Größenänderung neu stapeln
@@ -20341,6 +20606,12 @@ function mountAnimator(body, headerActions, opts) {
     layer.__ctZiehen = true;
     layer.addEventListener("mousedown", (e) => {
       if (window.__rzRenderMode || e.button !== 0) return;
+      const x = e.target.closest(".ct-x");
+      if (x) {   // 15.10.2026 — ✕ an der gewählten Einblendung: ausschalten
+        e.preventDefault(); e.stopPropagation();
+        _ctAusschalten(x.closest(".ct")?.getAttribute("data-ctid"));
+        return;
+      }
       const el = e.target.closest(".ct");
       if (!el) return;
       const id = el.getAttribute("data-ctid");
@@ -20373,10 +20644,31 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   // ── Editor (Q12/Q21): schwebendes Fenster wie beim Schild-Editor ──
+  // 15.10.2026 (Marc: „Wenn man Overlays anklickt, dann sollte da ein kleines Kreuz in der Ecke kommen, damit man sie
+  // abschalten kann.“) — ✕ an der gewählten Einblendung; schaltet sie aus wie das Häkchen in der Liste (mit ⌘Z)
+  function _ctXSetzen() {
+    document.querySelectorAll("#anim-overlay-preview .ct-x").forEach(x => x.remove());
+    if (!_ctEditId || window.__rzRenderMode) return;
+    const el = document.querySelector(`#anim-overlay-preview .ct[data-ctid="${CSS.escape(_ctEditId)}"]`);
+    if (!el) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ct-x";
+    b.title = t("container.x_tip", "Einblendung ausschalten");
+    b.setAttribute("aria-label", b.title);
+    b.innerHTML = typeof rzIcon === "function" ? rzIcon("x", { size: 14 }) : "×";
+    el.appendChild(b);
+  }
+  function _ctAusschalten(id) {
+    if (!id) return;
+    if (_ctEditId === id) _ctEditorZu();
+    _ctAendern(id, c => { c.an = false; }, t("container.aus_x", "Einblendung ausgeschaltet"));
+    try { _ctListeZeichnen(); } catch (e) { applog("warn", "[container] Liste nach ✕: " + e); }
+  }
   function _ctEditorZu() {
     _ctEditId = null;
     document.getElementById("ct-editor")?.remove();
     document.querySelectorAll("#anim-overlay-preview .ct-aktiv").forEach(e => e.classList.remove("ct-aktiv"));
+    document.querySelectorAll("#anim-overlay-preview .ct-x").forEach(x => x.remove());
     _ctListeZeichnen();
   }
   function _ctEditorOeffnen(id) {
@@ -20399,6 +20691,7 @@ function mountAnimator(body, headerActions, opts) {
     _ctEditorZeichnen();
     _ctListeZeichnen();
     document.querySelectorAll("#anim-overlay-preview .ct").forEach(e => e.classList.toggle("ct-aktiv", e.getAttribute("data-ctid") === id));
+    _ctXSetzen();
   }
   function _ctOpt(v, sel, txt) { return `<option value="${_ctEsc(v)}"${String(v) === String(sel) ? " selected" : ""}>${_ctEsc(txt)}</option>`; }
   function _ctFeldOptionen(z) {
@@ -20729,7 +21022,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!layer) return {};
     const html = Array.from(layer.querySelectorAll(":scope > .ct")).map(e => {
       const k = e.cloneNode(true);
-      k.classList.remove("ct-aktiv"); k.style.visibility = ""; k.style.opacity = ""; k.style.removeProperty("--rz-ov-pop");
+      k.classList.remove("ct-aktiv"); k.querySelectorAll(".ct-x").forEach(x => x.remove()); k.style.visibility = ""; k.style.opacity = ""; k.style.removeProperty("--rz-ov-pop");
       return k.outerHTML;
     }).join("");
     return { container_html: html, container_verlauf: _ctVerlauf() };
@@ -25007,7 +25300,9 @@ function mountAnimator(body, headerActions, opts) {
   let _etEd = null;   // offener Editor (siehe _etappeNeu)
   const _etLeer = () => ({ text: "", lon: null, lat: null, label: "" });
   const _etName = (w) => {
-    const s = String(w && (w.text || w.label) || "").trim();
+    // 15.10.2026 (Marc: „Wenn man die Kartenpunkte einfach nur benennen möchte, geht das gar nicht. Dann sucht er die
+    // ganze Zeit die Adresse.“) — `name` = selbst gewählter Name eines Kartenpunkts, geht vor Suchtext und Ortsname
+    const s = String(w && (w.name || w.text || w.label) || "").trim();
     if (!s || /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(s)) return t("animator.etappe.kartenpunkt", "Kartenpunkt");
     let r = s;
     for (const k of [["animator.etappe.ende_von", "Ende: {n}"], ["animator.etappe.anfang_von", "Anfang: {n}"]]) {
@@ -25115,10 +25410,16 @@ function mountAnimator(body, headerActions, opts) {
                        nurOrte: !!et.nur_orte, ortS: et.ort_s > 0 ? +et.ort_s : ORT_STD_S, ortKamera: et.ort_kamera === "fliegen" ? "fliegen" : "alles" });
     while (E.arten.length < E.wps.length - 1) E.arten.push(E.arten[E.arten.length - 1] || "auto");
     while (E.kurve.length < E.wps.length - 1) E.kurve.push(false);
+    E.stand = _etSig(E);   // 15.10.2026 — unverändert? Dann übernimmt „Vorschau abspielen“ nichts und lässt den Editor offen
     _etEd = E;
     _etEdZeichnen();
     _etTeileHolen();   // 07.10.2026 (Marc-Screenshot: schwarzer Strich) — Straßen-Abschnitte auch beim Bearbeiten holen
     E.wps.forEach(w => { if (_etName(w) === t("animator.etappe.kartenpunkt", "Kartenpunkt")) _etOrtHolen(w); });   // ältere Etappen: Namen nachholen
+  }
+  /** Alles, was die Etappe ausmacht — gleich = nichts geändert. */
+  function _etSig(E) {
+    if (!E) return "";
+    return JSON.stringify([E.wps, E.arten, E.kurve, E.weich, E.grob, E.rund, E.rund_art, E.rund_kurve, E.nurOrte, E.ortS, E.ortKamera, E.beschriften]);
   }
   function _etEdZu() {
     if (!_etEd) return;
@@ -25370,7 +25671,7 @@ function mountAnimator(body, headerActions, opts) {
         el.addEventListener("dblclick", (ev) => { ev.stopPropagation(); ev.preventDefault(); _etScharf(+el.dataset.i); });
         m.on("dragstart", () => _etMerken());
         m.on("drag", () => { const E2 = _etEd, j = +el.dataset.i; if (!E2 || !E2.wps[j]) return; const ll = m.getLngLat();
-          Object.assign(E2.wps[j], { lon: ll.lng, lat: ll.lat, text: "", label: "", auto: false }); _etKarteZeichnen(); });
+          Object.assign(E2.wps[j], { lon: ll.lng, lat: ll.lat, text: "", label: "", auto: false }); _etKarteZeichnen(); });   // ein eigener Name (w.name) bleibt
         m.on("dragend", () => { _etEdZeichnen(); _etTeileHolen(); if (_etEd) _etOrtHolen(_etEd.wps[+el.dataset.i]); });
         _etMarker[k] = m;
       }
@@ -25514,8 +25815,32 @@ function mountAnimator(body, headerActions, opts) {
     if (s) s.textContent = ab > 0 ? t("animator.etappe.ab_punkt", "ab Punkt {n}").replace("{n}", String(ab)) : t("animator.etappe.alle_abschnitte", "alle Abschnitte");
   }
   /** Klicktest 07.10.: geklickte Punkte hießen nur „Kartenpunkt“ — den nächsten Ort nachladen (Photon; ohne Netz bleibt es so). */
+  /** Ein auf der Karte gesetzter Punkt (nicht gesucht, nicht von einer Tour) — sein Feld nimmt nur einen Namen. */
+  function _etKartenpunkt(w) { return !!(w && w.lon != null && !w.text && !w.auto); }
+  /** Höhenprofil für die Gegenrichtung: gleiche Höhe, Verlauf gespiegelt. */
+  function _etHochSpiegeln(h) {
+    if (!h || !(+h.m > 0)) return null;
+    const p = (h.p || []).map(x => [1 - (+x[0] || 0), +x[1] || 0]);
+    return Object.assign({}, h, { p: window.rzHochflug ? window.rzHochflug.sortiert(p) : p.sort((a, b) => a[0] - b[0]) });
+  }
+  /** Station von → nach verschieben: ihr Abschnitt (Art, freie Kurve, Höhe an der Station) zieht mit. */
+  function _etUmsortieren(von, nach) {
+    const E = _etEd;
+    if (!E || von === nach || von < 0 || nach < 0) return;
+    _etMerken();
+    const n = E.wps.length, sek = E.wps.map((_, i) => ({ art: E.arten[i], kurve: !!E.kurve[i] }));
+    const [w] = E.wps.splice(von, 1); E.wps.splice(nach, 0, w);
+    const [s1] = sek.splice(von, 1); sek.splice(nach, 0, s1);
+    const fb = E.arten[n - 2] || "auto";
+    E.arten = sek.slice(0, n - 1).map(x => x.art || fb);
+    E.kurve = sek.slice(0, n - 1).map(x => x.kurve);
+    if (!E.rund && E.wps[n - 1]) delete E.wps[n - 1].hoch;   // die letzte Station hat keinen Abschnitt
+    for (const j of [von - 1, von, nach - 1, nach, nach + 1]) if (E.wps[j]) E.wps[j].hebel = null;   // Hebel passen nicht mehr
+    E.sel = -1; E.pick = -1; E.hochOffen = -1;
+    _etEdZeichnen(); _etTeileHolen();
+  }
   async function _etOrtHolen(w) {
-    if (!w || w.lon == null || w.text || w.auto) return;
+    if (!w || w.lon == null || w.text || w.name || w.auto) return;
     const lon = w.lon, lat = w.lat;
     let r = null;
     try { r = await api().etappe_ortsname(lat, lon); } catch (_) { return; }   // warte-ok: Hintergrund, der Name kommt nach
@@ -25615,10 +25940,13 @@ function mountAnimator(body, headerActions, opts) {
       ${!E.pfad ? (() => { const k = _etKette(); return k.length ? `<label class="et-platz">${esc(t("animator.etappe.platz", "Platz"))}
         <select class="et-platz-sel">${k.map((x, i) => i === 0 ? `<option value="0"${E.platz === 0 ? " selected" : ""}>${esc(t("animator.etappe.platz_vor", "vor „{n}“").replace("{n}", x.name))}</option>` : `<option value="${i}"${E.platz === i ? " selected" : ""}>${esc(t("animator.etappe.platz_zwischen", "zwischen „{a}“ und „{b}“").replace("{a}", k[i - 1].name).replace("{b}", x.name))}</option>`).join("")}
           <option value="${k.length}"${E.platz === k.length ? " selected" : ""}>${esc(t("animator.etappe.platz_nach", "nach „{n}“").replace("{n}", k[k.length - 1].name))}</option></select></label>` : ""; })() : ""}
-      ${E.wps.map((w, i) => `<div class="et-wp${E.pick === i ? " ist-pick" : ""}${E.sel === i ? " ist-sel" : ""}" data-i="${i}">
+      ${E.wps.map((w, i) => `<div class="et-station" data-i="${i}"${w.auto ? " data-sort-aus" : ""}><div class="et-wp${E.pick === i ? " ist-pick" : ""}${E.sel === i ? " ist-sel" : ""}" data-i="${i}">
+          <span class="et-ziehen" title="${esc(t("animator.etappe.ziehen", "Ziehen, um die Reihenfolge zu ändern"))}">⠿</span>
           <span class="et-nr">${i === 0 ? "A" : (i === n - 1 ? "B" : i)}</span>
-          <input type="text" class="et-wp-input" data-i="${i}" value="${esc(w.text || "")}" placeholder="${esc(w.label || (w.lon != null ? _etName(w) : (i === 0 ? t("animator.etappe.start", "Start") : t("animator.etappe.ziel", "Ziel"))))}">
+          <input type="text" class="et-wp-input${_etKartenpunkt(w) ? " ist-name" : ""}" data-i="${i}" value="${esc(_etKartenpunkt(w) ? (w.name || "") : (w.text || ""))}" placeholder="${esc(w.label || (w.lon != null ? _etName(w) : (i === 0 ? t("animator.etappe.start", "Start") : t("animator.etappe.ziel", "Ziel"))))}"${_etKartenpunkt(w) ? ` title="${esc(t("animator.etappe.name_tip", "Kartenpunkt: hier nur einen Namen eingeben — gesucht wird nicht. Lupe: den Text als Ort suchen."))}"` : ""}>
+          ${_etKartenpunkt(w) && w.name ? `<button type="button" class="btn btn-small et-suchen" data-i="${i}" title="${esc(t("animator.etappe.suchen_tip", "Diesen Text als Ort suchen (der Punkt springt dorthin)"))}">${typeof rzIcon === "function" ? rzIcon("search", { size: 13 }) : "?"}</button>` : ""}
           <button type="button" class="btn btn-small et-pick" data-i="${i}" title="${esc(t("animator.etappe.pick", "Auf die Karte klicken"))}">📍</button>
+          ${w.auto ? "" : `<span class="et-sort">${rzSortPfeile(i, n)}</span>`}
           ${E.beschriften !== false ? `<button type="button" class="btn btn-small et-schild${w.schild === false ? " aus" : ""}" data-i="${i}" aria-pressed="${w.schild === false ? "false" : "true"}" title="${esc(w.schild === false ? t("animator.etappe.schild_aus", "Kein Ortsschild an dieser Station — klicken zum Einschalten") : t("animator.etappe.schild_an", "Ortsschild an dieser Station — klicken zum Ausschalten"))}">${typeof rzIcon === "function" ? rzIcon(w.schild === false ? "eye-off" : "eye", { size: 14 }) : (w.schild === false ? "–" : "●")}</button>` : ""}
           ${n > 2 ? `<button type="button" class="btn btn-small et-weg" data-i="${i}" title="${esc(t("common.delete", "Löschen"))}">✕</button>` : ""}
         </div>
@@ -25627,7 +25955,7 @@ function mountAnimator(body, headerActions, opts) {
           <select class="et-art-sel" data-i="${i}">${_ET_ARTEN.map(a => `<option value="${a}"${(E.arten[i] || "auto") === a ? " selected" : ""}>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</option>`).join("")}</select>
           <label class="et-folgen" title="${esc(t("animator.etappe.folgen_tip", "An: der Straße folgen (Flug, Boot, Zug: Bogen). Aus: freie Kurve, am Punkt mit dem Hebel drehbar."))}"><input type="checkbox" class="et-folgen-cb" data-i="${i}"${E.kurve[i] ? "" : " checked"}> ${esc(!_ET_STRASSE.has(E.arten[i] || "auto") ? t("animator.etappe.folgen_bogen", "Bogen") : t("animator.etappe.folgen_kurz", "Straße"))}</label>${E.kurve[i] ? `<span class="et-kurve-hinweis">${esc(t("animator.etappe.freie_kurve", "freie Kurve"))}</span>` : ""}
           <button type="button" class="btn btn-small et-hoch${w.hoch && w.hoch.m > 0 ? " ist-an" : ""}${E.hochOffen === i ? " offen" : ""}" data-i="${i}" title="${esc(t("animator.hoch.knopf_tip", "Hochflug: dieser Abschnitt fliegt in die Höhe — Profil und höchsten Punkt einstellen"))}">${typeof rzIcon === "function" ? rzIcon("mountain", { size: 13 }) : ""} ${esc(w.hoch && w.hoch.m > 0 ? window.rzHochflug.mText(w.hoch.m) : t("animator.hoch.knopf", "Höhe"))}</button></div>
-        ${E.hochOffen === i ? `<div class="et-hoch-ed" data-i="${i}"></div>` : ""}` : ""}`).join("")}
+        ${E.hochOffen === i ? `<div class="et-hoch-ed" data-i="${i}"></div>` : ""}` : ""}</div>`).join("")}
       <div class="et-regler">
         <label>${esc(t("animator.etappe.weich", "Weichheit der Kurven"))} <input type="range" class="et-weich" min="0" max="100" step="1" value="${Math.round((+E.weich || 0) * 100)}"></label>
         <label>${esc(t("animator.etappe.grob", "Straße: fein ↔ grob"))} <input type="range" class="et-grob" min="0" max="100" step="1" value="${Math.round((+E.grob || 0) * 100)}"></label>
@@ -25663,8 +25991,19 @@ function mountAnimator(body, headerActions, opts) {
         <button type="button" class="btn btn-small btn-primary" data-et="los"${E.busy ? " disabled" : ""}>${esc(E.busy ? t("animator.etappe.rechnet", "Wird berechnet …") : t("animator.etappe.uebernehmen", "Etappe übernehmen"))}</button>
       </div>`;
     box.querySelectorAll(".et-wp-input").forEach(inp => {
-      inp.addEventListener("input", () => { const w = E.wps[+inp.dataset.i]; if (w) { w.text = inp.value; w.lon = null; w.lat = null; w.label = ""; w.auto = false; } });
-      inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); _etSuchen(+inp.dataset.i); } });
+      inp.addEventListener("input", () => {
+        const w = E.wps[+inp.dataset.i];
+        if (!w) return;
+        if (_etKartenpunkt(w)) { w.name = inp.value; return; }   // 15.10.2026 — Kartenpunkt: nur benennen, Lage bleibt
+        w.text = inp.value; w.lon = null; w.lat = null; w.label = ""; w.auto = false;
+      });
+      inp.addEventListener("keydown", (ev) => {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        const w = E.wps[+inp.dataset.i];
+        if (w && _etKartenpunkt(w)) { inp.blur(); _etEdZeichnen(); return; }
+        _etSuchen(+inp.dataset.i);
+      });
       inp.addEventListener("blur", () => { const w = E.wps[+inp.dataset.i]; if (w && w.text && w.lon == null) _etSuchen(+inp.dataset.i); });
       inp.addEventListener("focus", () => { E.sel = +inp.dataset.i; _etKarteZeichnen(); _etListeMarkieren(); });
     });
@@ -25722,10 +26061,25 @@ function mountAnimator(body, headerActions, opts) {
       E.wps.push(_etLeer()); E.arten.push(E.arten[E.arten.length - 1] || "auto"); E.kurve.push(false); _etEdZeichnen();
       setTimeout(() => { try { box.querySelector(`.et-wp-input[data-i="${E.wps.length - 1}"]`)?.focus(); } catch (_) {} }, 30);
     });
+    box.querySelectorAll(".et-suchen").forEach(b => b.addEventListener("click", () => {
+      const i = +b.dataset.i, w = E.wps[i];
+      if (!w || !w.name) return;
+      _etMerken(); w.text = w.name; w.name = ""; w.lon = null; w.lat = null; w.label = "";
+      _etSuchen(i);
+    }));
+    // 15.10.2026 (Marc: „Generell würde ich gerne diese Routepunkte frei sortieren können.“)
+    if (typeof rzSortierbar === "function") rzSortierbar(box, { zeile: ".et-station", griff: ".et-ziehen", onEnde: (von, nach) => _etUmsortieren(von, nach) });
     box.querySelector('[data-et="umkehren"]').addEventListener("click", () => {
-      _etMerken(); E.wps.reverse(); E.arten.reverse(); E.kurve.reverse();
-      E.wps.forEach(w => { if (w.hebel) w.hebel = { ang: w.hebel.ang + Math.PI, ln: w.hebel.lv, lv: w.hebel.ln }; });
-      E.sel = -1; _etEdZeichnen(); _etTeileHolen();
+      // 15.10.2026 (Marc: „Wenn ich eine Route umkehre, bei der ich eine Höhe gemacht habe, dann ist die Höhe weg.“) —
+      // die Höhe hängt an der Startstation ihres Abschnitts: nach dem Umkehren gehört sie zur anderen Station, und das
+      // Profil läuft andersherum (u → 1 − u)
+      _etMerken();
+      const n2 = E.wps.length, alt = E.wps.map(w => w.hoch || null);
+      E.wps.reverse(); E.arten.reverse(); E.kurve.reverse();
+      E.wps.forEach(w => { delete w.hoch; if (w.hebel) w.hebel = { ang: w.hebel.ang + Math.PI, ln: w.hebel.lv, lv: w.hebel.ln }; });
+      for (let k = 0; k < n2 - 1; k++) { const h = _etHochSpiegeln(alt[n2 - 2 - k]); if (h) E.wps[k].hoch = h; }
+      if (E.rund) { const h = _etHochSpiegeln(alt[n2 - 1]); if (h) E.wps[n2 - 1].hoch = h; }   // der Rückweg kehrt sich in sich um
+      E.hochOffen = -1; E.sel = -1; _etEdZeichnen(); _etTeileHolen();
     });
     box.querySelector('[data-et="glaetten"]').addEventListener("click", () => {
       _etMerken(); E.wps.forEach(w => { w.hebel = null; w.scharf = false; }); _etEdZeichnen();
@@ -25800,8 +26154,9 @@ function mountAnimator(body, headerActions, opts) {
     return false;
   }
   /** Etappe übernehmen: fehlende Orte suchen, Straßen-Abschnitte holen, Linie zusammensetzen, als GPX ins Projekt. */
-  async function _etUebernehmen() {
+  async function _etUebernehmen(opt) {
     const E = _etEd; if (!E || E.busy) return;
+    const offenLassen = !!(opt && opt.offenLassen === true);   // Knopf übergibt ein MouseEvent → nur echtes true zählt
     E.suchAbgebrochen = false;
     for (let i = 0; i < E.wps.length && !E.suchAbgebrochen; i++) if (E.wps[i].lon == null && E.wps[i].text) await _etSuchen(i);
     if (E.suchAbgebrochen) { E.suchAbgebrochen = false; return; }   // Abbrechen gedrückt: nicht übernehmen
@@ -25886,6 +26241,9 @@ function mountAnimator(body, headerActions, opts) {
     applog("info", `[etappe] ${name}: ${etappe.km} km, ${etappe.arten.join("/")}, Kurven ${etappe.kurve.filter(Boolean).length}`);
     try { _hlSchilderAbgleichen(true); } catch (e) { applog("warn", "[etappe] Schilder: " + e); }   // Punkt 6: Stationen
     _etEdZu();
+    // 15.10.2026 (Marc: „Wenn ich eine Vorschau starte, dann verschwindet das Detailfenster auf der rechten Seite.“) —
+    // aus „Vorschau abspielen“ heraus übernommen: Editor mit der neuen Fassung gleich wieder öffnen
+    if (offenLassen && r && r.gpx_path) { try { _etappeBearbeiten(r.gpx_path); } catch (e) { applog("warn", "[etappe] wieder öffnen: " + e); } }
   }
   /** 07.10.2026 (Etappen) — „Ins Archiv“: die Etappe als Tour ins Archiv (ohne Uhrzeit = geplant).
    *  Das Projekt behält seine eigene Fassung; die Archiv-Kopie ist ab dann eine ganz normale geplante Tour. */
@@ -25939,7 +26297,8 @@ function mountAnimator(body, headerActions, opts) {
     _etGruppeAn(pfad, zi);
     _gruppenAbleiten(); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
   }
-  window.__rzEtappe = { neu: _etappeNeu, bearbeiten: _etappeBearbeiten, berechnen: _etUebernehmen, editor: () => _etEd,   // Prüfstand
+  window.__rzEtappe = { neu: _etappeNeu, bearbeiten: _etappeBearbeiten, berechnen: _etUebernehmen, editor: () => _etEd,
+                        geaendert: () => !!_etEd && (!_etEd.pfad || _etSig(_etEd) !== _etEd.stand),   // Prüfstand
                         touren: () => _extraTours.map(x => ({ gpx_path: x.gpx_path, name: x.name, etappe: x.etappe || null, n: (x.coords || []).length })),
                         bahnN: () => (_reiseAktiv() && _reiseBahn ? _reiseBahn.coords.length : 0), dotStil: (f) => _dotStilAktuell(f).style,
                         linie: () => (_etEd ? _etLinie(_etEd) : null), hebel: (seite, lng, lat) => _etHebelGezogen(seite, { lng, lat }),

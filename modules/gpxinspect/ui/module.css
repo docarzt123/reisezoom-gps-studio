@@ -613,3 +613,8 @@
 .gpxi-lb-blsym { color: #fff; pointer-events: none; }
 .gpxi-lb-icon svg, .gpxi-lb-chip svg, .gpxi-lb-marke svg, .gpxi-lbt-art svg, .gpxi-lb-menue-symbol svg, .gpxi-lb-info-sym svg { vertical-align: -2px; }
 .gpxi-lb-marke { display: flex; align-items: center; justify-content: center; }
+
+/* 15.10.2026 — Mehrfachauswahl im Logbuch: Leiste über der Liste */
+.gpxi-lb-mehrfach { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 0 6px; border-radius: 8px;
+  background: rgb(var(--accent-rgb) / .10); border: 1px solid rgb(var(--accent-rgb) / .35); font-size: 12px; }
+.gpxi-lb-mehrfach > span { flex: 1; }

@@ -368,7 +368,106 @@ _ADD_COLS = [
 # zurück, weil die Seitenleiste ihre Statistik parallel zur Trefferliste holte.
 # Ein Modul-Lock reicht — die App hat genau ein Archiv, und die Abfragen sind
 # Millisekunden-Sache.
-_DB_LOCK = threading.RLock()
+class _ZeitSperre:
+    """Die Bibliotheks-Sperre (RLock) mit Messung (15.10.2026, Marc: „Überlegen wir mal, wie wir die ganze Datenbank
+    beschleunigen können. Das ist einfach zu langsam.“). MacBook-Log: ein Render stand 6 min bei 2 %, weil
+    `library_folders` 159 s auf diese Sperre wartete — gehalten vom Foto-Scan. Statt zu raten: wer sie länger als
+    MELDEN_S hält oder darauf wartet, steht mit Faden und Stelle im Log (`[sperre] …`).
+
+    Verhält sich wie threading.RLock (acquire mit blocking/timeout, release, with). `repr` nennt `owner=<Faden>` wie
+    das RLock — der Hänger-Melder (app._sperre_halter) liest den Halter daraus."""
+    MELDEN_S = 1.0
+
+    def __init__(self):
+        self._l = threading.RLock()
+        self._owner = 0
+        self._tiefe = 0
+        self._seit = 0.0
+        self._wo = ""
+
+    @staticmethod
+    def _stelle() -> str:
+        """Die ersten zwei Aufrufer außerhalb dieser Klasse und contextlib/functools (Datei:Zeile Funktion)."""
+        import sys as _sys
+        f = _sys._getframe(2)
+        teile = []
+        while f is not None and len(teile) < 2:
+            co = f.f_code
+            name = co.co_filename.replace("\\", "/")
+            if not (name.endswith(("/contextlib.py", "/functools.py", "/threading.py")) or co.co_name in ("wrapper", "__enter__", "acquire")):
+                teile.append(f"{name.rsplit('/', 2)[-2] + '/' if '/core/' in name else ''}{name.rsplit('/', 1)[-1]}:{f.f_lineno} {co.co_name}")
+            f = f.f_back
+        return " ← ".join(teile)
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        ich = threading.get_ident()
+        if self._owner == ich:                       # verschachtelt: nichts messen
+            self._l.acquire(blocking, timeout)
+            self._tiefe += 1
+            return True
+        halter_wo = self._wo
+        t0 = time.perf_counter()
+        if not self._l.acquire(blocking, timeout):
+            return False
+        gewartet = time.perf_counter() - t0
+        self._owner, self._tiefe, self._seit = ich, 1, time.perf_counter()
+        try:
+            self._wo = self._stelle()
+        except Exception:  # noqa: BLE001 — die Messung darf nie die Arbeit stören
+            self._wo = ""
+        if gewartet >= self.MELDEN_S:
+            log.warning("[sperre] %s wartete %.1f s auf die Bibliothek (%s) — gehalten von: %s",
+                        threading.current_thread().name, gewartet, self._wo, halter_wo or "?")
+        return True
+
+    def release(self) -> None:
+        self._tiefe -= 1
+        if self._tiefe <= 0:
+            dauer = time.perf_counter() - self._seit
+            if dauer >= self.MELDEN_S:
+                log.warning("[sperre] %s hielt die Bibliothek %.1f s (%s)", threading.current_thread().name, dauer, self._wo)
+            self._owner, self._tiefe = 0, 0
+        self._l.release()
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *_a):
+        self.release()
+        return False
+
+    def __repr__(self) -> str:
+        return f"<_ZeitSperre owner={self._owner} count={self._tiefe}>"
+
+
+_DB_LOCK = _ZeitSperre()
+_GEMEINSAM = None   # die gemeinsame Verbindung der Oberfläche (Api._lib) — nur sie braucht _DB_LOCK
+
+
+def gemeinsam_merken(conn) -> None:
+    """15.10.2026 — die App meldet ihre gemeinsame Verbindung. Fäden mit EIGENER Verbindung (Foto-Scan) brauchen die
+    Sperre nicht: WAL lässt Lesen und Schreiben parallel laufen. Vorher nahm der Scan sie trotzdem und hielt damit
+    minutenlang die ganze Oberfläche an."""
+    global _GEMEINSAM
+    _GEMEINSAM = conn
+
+
+def sperre_fuer(conn):
+    """_DB_LOCK für die gemeinsame Verbindung, sonst nichts (eigene Verbindung eines Fadens)."""
+    import contextlib
+    return _DB_LOCK if (_GEMEINSAM is None or conn is _GEMEINSAM) else contextlib.nullcontext()
+
+
+def _tempo_pragmas(conn) -> None:
+    """15.10.2026 — Zwischenspeicher passend zur Größe: SQLite nimmt von sich aus 2 MB Cache; die Bibliothek hat mit
+    einer halben Million Fotos Hunderte MB — ohne Platz wird ständig von der Platte nachgelesen (besonders, wenn ein
+    Render den Arbeitsspeicher braucht). 64 MB Cache je Verbindung, Speicher-Mapping bis 256 MB, Hilfstabellen im RAM."""
+    for sql in ("PRAGMA cache_size=-65536", "PRAGMA mmap_size=268435456", "PRAGMA temp_store=MEMORY"):
+        try:
+            conn.execute(sql)
+        except sqlite3.Error as e:
+            log.info("library: %s nicht möglich (%s)", sql, e)
 
 
 def _locked(fn):
@@ -392,6 +491,7 @@ def open_db_lesend(db_path: Path) -> sqlite3.Connection:
     _STATS_CACHE.clear()
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=30000")
+    _tempo_pragmas(conn)
     try:
         conn.create_function("rz_norm", 1, _norm, deterministic=True)
     except TypeError:
@@ -428,6 +528,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     except sqlite3.Error as e:
         log.info("library: WAL nicht möglich (%s) — Journal bleibt", e)
     conn.execute("PRAGMA busy_timeout=30000")
+    _tempo_pragmas(conn)
     # Die Freitextsuche gehört ins SQL, nicht hinterher in Python: sonst filtert
     # die Liste anders als `stats()` zählt („2 Touren … 16.314 km"). SQLite kann
     # kein akzent-unempfindliches LIKE, also reichen wir `_norm` als Funktion

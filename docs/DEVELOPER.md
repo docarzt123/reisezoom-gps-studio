@@ -4481,6 +4481,9 @@ Farbe in Zoom- und Haltephase gegen den Referenz-Render) und
 
 **IGC von selbst in die Luft (15.10.2026, `_flugAuto` am Ende von `applyGlobalGpx`):** `.igc` + aktives Projekt ohne `animator.flug_3d` → `anim-terrain` und `anim-mc-flug3d` per change-Ereignis an (bindSetting schreibt ins Projekt, danach entscheidet das Projekt). Ohne Projekt nur ein Hinweis (sonst landete `flug_3d` global in settings.json und jede spätere Tour flöge). Mapbox: Hinweis. DJI (`series.sensors.rel_alt`): nur Hinweis. Test `tests/test_flug_auto_igc.py`.
 
+**Laufpunkt in der Luft — `ui/js/rz-punkt3d.js` (15.10.2026):** Custom-Layer, ein Bild als Viereck in Flughöhe (Projektion wie rz-line3d, auch Globus; keine Tiefenprüfung). `karte: true` = flach in der Kartenebene, gedreht um `drehung` (Grad ab Nord, im Uhrzeigersinn; Merkator-y nach Süden) wie `icon-pitch/rotation-alignment: map`; `karte: false` = aufrecht, feste Bildpunktgröße wie `viewport`. Textur wird jedes Bild gebunden (MapLibre lässt Einheit 0 belegt). Der Animator merkt sich in `dotEbenenAufbauen` je Zweig das Bodenbild als `_dotLuft = {bild, key, cssPx, dreht, karte}` (Kugel/Dezent als Canvas über `_kugelBild`); `_flugPunkt(pos, brg)` setzt die Ebene `flug-3d-laufpunkt` (Lot bleibt in `flug-3d-punkt`), `_flugPunktNeu()` nach jeder Änderung. Prüfstand `__rzFlug.laufpunkt()`. Test `tests/test_flug_laufpunkt.py`.
+
+
 **Farben je Segment (15.10.2026):** `segColors: [[rgbaAnfang, rgbaEnde]…]` je Segment (0..1, Vorrang vor `colors` je Punkt) — jedes Segment hat eigene vier Eckpunkte, ein harter Farbwechsel an einem Punkt braucht so keine Zusatzpunkte (die Bereiche `setRanges` hängen an den Punktindizes). Die Fluglinie im Animator (`_flugSegFarben`) wertet dafür den line-gradient-Ausdruck der Bodenlinie aus (`_verlaufAusdruck`/`_maskeAusdruck`, dieselben Bausteine wie `applyPreviewColorGradient`) — je Segment am Anfang (`_ausdruckBei(expr, p, false)`) und Ende (von links), `p` aus der Bodenstrecke `_cumGeoM` wie MapLibres `line-progress`. `applyPreviewColorGradient` ruft `_flugFarbenPruefen`: ändert sich `_flugFarbSchluessel` (Quelle, Modus, Stops, Farben, Etappen, Farbe je Tag), wird die Fluglinie neu aufgebaut. Test: `tests/test_flug_farbwechsel.py`.
 
 **Geländehöhen nachladen (06.10.2026):** Die Ebene fragt die Bodenhöhe (`queryTerrainElevation`) beim Aufbau ab. Früher nur beim ersten Laden und je ganzer Zoomstufe — fuhr die Kamera (Anflug, Folgen) in Gegenden, deren Geländekacheln beim Aufbau fehlten, kam dort 0 m und die Linie lag unter dem Berg (4K-Export „Flug in der Luft“ ohne Linie). Jetzt markiert jedes `sourcedata` der Geländequelle mit `tile` die Höhen als veraltet; der nächste Zeichenlauf baut neu (höchstens alle 200 ms). Spuren mit `agl` liegen mindestens ~3 Bildpunkte (in Metern der aktuellen Zoomstufe) über Grund, damit bodennahe Stücke nicht in der Geländefläche verschwinden. `_bodenProbe` hält ~20 abgefragte Höhen der ersten Spur für den Prüfstand (`tests/test_line3d_hoehen_nachladen.py`).
@@ -4488,6 +4491,25 @@ Farbe in Zoom- und Haltephase gegen den Referenz-Render) und
 Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
+
+**Lotlinien ausdünnen (15.10.2026).** Spuren mit `lot: true` (senkrechte Linien unter einer Fluglinie) merken sich
+ihre Koordinaten im Puffer (`lotCoords`). `_lotSchritt` misst je Bild den Median-Abstand benachbarter Lotfüße auf dem
+Bildschirm (`map.project`, Gerätepixel) und wählt k = 1, 2, 4 … so, dass mindestens `LOT_MIN_PX` (6) Pixel dazwischen
+liegen; zurück zu kleinerem k erst ab 1,3 × Schwelle. Gezeichnet wird dann je k-ter Linie ein eigener `drawElements`,
+am Punktindex ausgerichtet (wächst die Spur, wandern keine Linien). Grund: in der kleinen Vorschau standen die Linien
+dichter als ein Pixel, beim Fahren lief ein Moiré durch den Vorhang; im 4K-Video bleibt k meist 1. Test:
+`tests/test_lot_ausduennen.py`.
+
+**Animator — Versatz folgender Keyframes + Warnzeile (15.10.2026).** Ein center-Event ohne Wert (Keyframe folgt dem Track
+bzw. Gesamtsicht) kann `versatz: [Δlng, Δlat]` tragen. `_kfPatchAusKarte` schreibt ihn beim Kartenziehen (ausgewählter
+Keyframe) als Abstand zur Basis-Mitte `_kfBasisMitte(anker)` (Folgepunkt bei „Kamera folgt dem Track“, sonst
+`fitKameraGesamt`). `interpolateCameraJs` liefert `versatz` (`_interpVersatz`, verblendet zwischen folgenden Keyframes),
+alle Kamera-Stellen ohne feste Mitte (Scrub, Probelauf/Render, ruhige Kamera, Kamera-bei-Anker) rechnen
+`_mitVersatz(basis, interp)`; gemischte Segmente lösen den Null-Endpunkt mit seinem Versatz auf. Schalter „Kamera folgt
+dem Track“ am Keyframe setzt den Versatz zurück. Ohne ausgewählten Keyframe zeigt `_ansichtHinweisZeigen` eine leise Zeile
+`#anim-ansicht-hinweis` (keine Knöpfe, `pointer-events: none`); weg bei anderem Abspielort (`scrubPreview`), Keyframe-
+Auswahl (`syncScrubberSelection`), Abspielen, Snapshot, Editor aus. Prüfstand `window.__rzAnsichtHinweis()`, Test
+`tests/test_ansicht_geaendert.py`.
 
 ## Seitenleisten + rechte Detail-Spalte — `ui/js/seitenleisten.js` (06.10.2026)
 
@@ -4557,6 +4579,11 @@ Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Deta
   Bild lägen, darunter anteilig (gleitet hinaus), ganz draußen Versatz 0 (vorher blieb der letzte stehen → Schild hing in
   der Ecke, gesehen beim Kranschwenk). Von oben hereingeschoben und über dem Logo (`rzSchutzFlaechen`: `img.ct-bild` mit
   `@lockup…` im Overlay, in Karten-px) → unter das Logo. Prüfstand-Haken `map.__rzSchutzTest`. Test `test_schild_bildrand`.
+- **Schild-Versatz höchstens ein Drittel (15.10.2026):** `rzSignRandVersatz` schiebt je Achse höchstens
+  `RAND_ANTEIL` (1/3) der Schildgröße herein und nie mehr, als vom Schild noch im Bild läge (gleitet weich hinaus).
+  Vorher: ganz herein, solange ≥ 25 % im Bild — trug die Kamera ein Schild hinaus, klebte es lange am Rand (Marc,
+  „Fasane“). Ein Zwischenstand mit Gedächtnis (Versatz darf nicht wachsen) wich im Bildvergleich Editor ↔ Video ab
+  (Scrubben springt, das Video rechnet Bild für Bild) und flog wieder raus: die Regel muss ohne Gedächtnis sein.
 - **Werkzeuge:** `tests/demo_wysiwyg.py` (eine Tour, drei Formate) und `tests/demo_wysiwyg_matrix.py` (9 Fassungen
   weltweit: Karten, Kamera Fest/Folgen/Fahrt, Häuser, Gelände, Schilder, Fotos, Clip, Ton). Je Zeitpunkt
   `#anim-viewport` fotografieren, Export über den echten Dialog, ffmpeg-Bild zur selben Sekunde, „Editor | Video |
@@ -5872,7 +5899,54 @@ lässt einen echten Scan laufen, während ein zweiter Faden ununterbrochen in
 dieselbe Datenbank schreibt.
 
 
+### Marcs Bedien-Punkte (15.10.2026, `tests/test_marc_punkte_1510.py`, Logbuch: `tests/test_logbuch.py` Teil 14)
+
+- **Archiv „+ Tour hinzufügen“** (`#lib-tour-add`, `modules/library/ui/module.js`): `oeffneKontextmenu` mit
+  `importSingleFiles()`, `addFolder()`, `window.openImportAssistent`.
+- **Logbuch-Mehrfachauswahl** (gpxinspect): `_lbMulti` (Set) + `_lbMultiAnker`; `_lbZeileKlick(ev, id)` (⇧ Bereich in
+  DOM-Reihenfolge, ⌘/Strg einzeln, Punkte ausgenommen), `_lbMultiZeigen` (Markierung + Spanne auf der Karte),
+  `_lbMultiLeiste` (`#gpxi-lb-mehrfach`), `_lbAuswahlInsArchiv` → `_lbZeitraumInsArchiv(t0, t1, …)` (gemeinsam mit „Als
+  eigene Tour“). Zurückgesetzt bei Laden/Leeren/„alles zeigen“/Esc.
+- **Etappen-Editor:** Stationen als `.et-station` (Wrapper um `.et-wp`, `.et-status`, `.et-art`, `.et-hoch-ed`) mit Griff
+  `.et-ziehen` und `rzSortPfeile`; `rzSortierbar(box, {zeile: ".et-station", griff: ".et-ziehen"})` →
+  `_etUmsortieren(von, nach)` (Art/Kurve ziehen mit der Startstation, `hoch` hängt ohnehin an ihr, Hebel daneben weg).
+  Umkehren: `hoch` an die neue Startstation des Abschnitts, `_etHochSpiegeln` (u → 1 − u). `w.name` = selbst gewählter
+  Name eines Kartenpunkts (`_etKartenpunkt(w)`: lon gesetzt, kein Suchtext, nicht auto) — Eingabe ändert nur `name`,
+  Enter/Blur suchen nicht; `.et-suchen` sucht bewusst. `_etName` nimmt `name` zuerst.
+- **Vorschau lässt Editoren offen:** `E.stand = _etSig(E)` beim Bearbeiten, `__rzEtappe.geaendert()`; nur geändert →
+  `_etUebernehmen({offenLassen: true})` (öffnet danach die neue Fassung wieder). Schild-Editor:
+  `__rzAnimSigns.beginPreview` schaltet nur auf GPU-Zeichnung (`_animSignVorschauPause`), `endPreview` an beiden
+  Halte-Stellen von `runTimelinePreview` zurück in den Editier-Modus.
+- **Schild sofort/tippbar:** Filter lässt das bearbeitete Schild (`_animSignPlatzhalterIst`) auch ohne Text durch;
+  `_animSignTippbar(fi)` macht `wrap.__cap` `contenteditable="plaintext-only"` (Klassen `rz-sign--tippbar`,
+  `rz-sign--platzhalter` am `.rz-sign-wrap`), Eingabe → `#se-text` + input-Ereignis → `apply()`. `_animSignsOpenEditor`
+  setzt `_animSignForceIdx`/`_animSignEditorIdx` vor dem ersten Aufbau. Doppelklick: DOM-Marker (`dblclick` am Wrap) und
+  GPU-Ebene (`map.on("dblclick")` → `_animSignsOnMapDblClick`, `properties.signIdx`).
+- **Einblendung ✕:** `_ctXSetzen` hängt `.ct-x` an den gewählten `.ct` (nach `_ctRendern`/`_ctEditorOeffnen`),
+  `mousedown` auf `.ct-x` → `_ctAusschalten` (`c.an = false` über `_ctAendern`, mit ⌘Z); Größe gegen die
+  Vorschau-Verkleinerung über `--rz-vorschau-k`; im Export (`_ctExportHtml`) und im Render ausgeblendet.
+- **Karten-Hinweise** (`rzMapBanner`, ui/js/util.js): ✕ je Banner, weggeklickt bleibt `key|html` bis zum Neustart aus.
+
+### Datenbank-Tempo (15.10.2026)
+
+MacBook-Log: Render 6 min bei 2 %, `library_folders` wartete 159/176 s auf `clib._DB_LOCK`, gehalten vom Foto-Scan in
+`fotos.ordner_liste` (Zählen über 522 000 Fotos). Stufe 1+2:
+- **`clib._DB_LOCK` ist eine `_ZeitSperre`** (RLock-Ersatz, acquire mit blocking/timeout, verschachtelt, `with`): hält
+  oder wartet ein Faden ≥ 1 s, steht `[sperre] <Faden> hielt|wartete … (<Datei:Zeile Funktion ← Aufrufer>)` im Log.
+  `repr` nennt `owner=` wie RLock (Hänger-Melder `_sperre_halter`).
+- **Sperre nur für die gemeinsame Verbindung:** `Api._lib()` meldet sie mit `clib.gemeinsam_merken`;
+  `clib.sperre_fuer(conn)` / `fotos._sperre(conn)` geben für eigene Verbindungen (Foto-Scan) `nullcontext` — WAL lässt
+  Lesen und Schreiben parallel laufen.
+- **Index `idx_fotos_ordner_fehlt (ordner, fehlt_seit)`:** Ordnerzählung und `erwartete_dateien` nur im Index (467 000
+  Fotos: 2,1 s kalt → 0,02 s).
+- **`_tempo_pragmas`** in `open_db`/`open_db_lesend`: `cache_size` 64 MB, `mmap_size` 256 MB, `temp_store=MEMORY`.
+- **Render mit App Nap aus:** beide Render-Fäden über `_mit_wach(worker, "Video rendern")`.
+Stufe 3 (eigene Lese-Verbindungen für die Oberfläche) erst nach Auswertung der `[sperre]`-Zeilen. Test
+`tests/test_db_tempo.py`.
+
 ### Inhaltssuche — `core/inhalt.py` (04.10.2026, v0.9.781)
+
+**Vorrang für neue Fotos (15.10.2026):** `indizieren(..., vorrang=)` — meldet `vorrang()` True, holt `neu_dazu()` die Fotos, die weder in der Liste des Durchgangs noch im Index stehen, und setzt sie vor den Rest (nächster Stapel à 32). In `Api.inhalt_aufholen` setzt ein Aufruf während eines laufenden Durchgangs `_inhalt_vorrang` (wird beim nächsten Stapel abgefragt) und `_inhalt_nochmal` (zweiter Durchgang danach, falls die neuen erst nach dem letzten Stapel kamen). Das Einlesen ruft am Ende `inhalt_aufholen(auto=True)` — der Import-Assistent braucht dafür nichts Eigenes. Test `tests/test_inhalt_vorrang.py`.
 
 **Was.** „Sonnenuntergang", „Hund am Strand", „ähnliche Fotos" — über Bildinhalt, in jeder Sprache, lokal. SigLIP 2
 (Google, Apache-2.0) als ONNX-Export von onnx-community, Laufzeit `onnxruntime` (MIT), Tokenizer `tokenizers`

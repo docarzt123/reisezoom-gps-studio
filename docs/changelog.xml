@@ -5,8 +5,19 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 15 Oct 2026 04:53:50 +0000</lastBuildDate>
+<lastBuildDate>Thu, 15 Oct 2026 10:08:26 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.793</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-793</link>
+<guid isPermaLink="false">gps-studio-v0.9.793</guid>
+<pubDate>Thu, 15 Oct 2026 12:00:00 +0000</pubDate>
+<description>Import-Assistent — Nach der Tour Track, Fotos und Clips in einen Eingangsordner legen und im Archiv „Import-Assistent …“ starten: Er zeigt, was drin ist, prüft den Track, füllt Titel und Art vor, legt die Fotos nach ihrer Aufnahmezeit auf die Karte (fehlende Zeitzone der Kamera aus dem Track errechnet) und übernimmt alles in einen Ordner „Datum Titel“ — Fotos verortet und vorher gesichert, Tour im Archiv mit Notiz, Sammlung und Logbuch. Liegt nur ein Track im Eingang, kommen die Fotos aus dem Medienarchiv. Zum Schluss: Wie weiter? Schnell-Video, Video-Assistent, Karte, Daten animieren …
+
+Gleitschirm nach Höhe eingefärbt — Die Linie in der Luft färbt sich genau wie die Linie am Boden: „Mehrere Track-Farben“ nach Höhe, Tempo, Steigung …, hart oder als Verlauf, auch Farbe je Tag. So sieht man auf einen Blick, wo der Schirm in der Thermik steigt und wo er gleitet.
+
+Flüge gehen von selbst in die Luft — Ein IGC-Track (Gleitschirm, Segelflug, Drachen) schaltet Gelände und „Flug in der Luft“ selbst ein. Der Schalter ist bei Flügen wieder zu sehen: Karte → 3D auf der Karte → Strecke.</description>
+</item>
 <item>
 <title>v0.9.792</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-792</link>
@@ -221,13 +232,6 @@ Schnell-Video mit „Mehr“ — oben bleibt alles schnell, unter „Mehr“ wä
 Render meldet sich — dauert ein Bild länger, zählt die Anzeige mit („wartet auf die Karte … 4 s“).
 
 Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem Render direkt zur Zeitleiste.</description>
-</item>
-<item>
-<title>v0.9.772</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-772</link>
-<guid isPermaLink="false">gps-studio-v0.9.772</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Keine wandernden Punkte mehr — der kleine Punkt, der ein Highlight ankündigt, erscheint nur noch an seiner Stelle auf dem Track und nicht mehr am Bildrand, wo er mit der Kamera mitwanderte.</description>
 </item>
 </channel>
 </rss>

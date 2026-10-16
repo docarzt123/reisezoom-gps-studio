@@ -426,10 +426,22 @@ def _bild_holen(path: str, fp: Optional[str], art: str = "foto") -> tuple:
     return im, (QUELLE_PX if art == "video" else px)
 
 
+def neu_dazu(conn: sqlite3.Connection, idx: sqlite3.Connection, geplant: set) -> list:
+    """Fotos, die seit dem Start des Durchgangs in den Bestand kamen: weder geplant noch im Index (jüngste zuerst)."""
+    im_index = {p for (p,) in idx.execute("SELECT path FROM vek")}
+    return [dict(r) for r in conn.execute("SELECT path, art, fp, inhalt_id FROM fotos WHERE fehlt_seit IS NULL "
+                                          "ORDER BY aufnahme_utc DESC NULLS LAST")
+            if r["path"] not in geplant and r["path"] not in im_index]
+
+
 def indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell: Modell,
                fortschritt: Optional[Callable] = None, stop: Optional[Callable] = None,
-               pause: Optional[Callable] = None) -> dict:
-    """Alles Offene in den Index rechnen. Stapelweise, abbrechbar; `pause()` → True hält an (Render läuft)."""
+               pause: Optional[Callable] = None, vorrang: Optional[Callable] = None) -> dict:
+    """Alles Offene in den Index rechnen. Stapelweise, abbrechbar; `pause()` → True hält an (Render läuft).
+
+    `vorrang()` → True (15.10.2026, Marc: „die Suche soll halt bevorzugt die neu hochgeladenen indizieren“): seit dem
+    Start kamen Fotos dazu (Import-Assistent, Einlesen). Sie kommen VOR den Rest dieses Durchgangs — beim nächsten
+    Stapel, nicht erst nach Stunden am Ende einer Erfassung des ganzen Archivs."""
     import numpy as np
     dim = int(modell.v["dim"])
     rechnen, kopieren, schon = offene(conn, idx)
@@ -449,14 +461,25 @@ def indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell: Modell
         fortschritt(0, gesamt, schon + len(kopieren))
     STUECK = 32
     t_start = time.time()
-    for i in range(0, gesamt, STUECK):
+    geplant = {r["path"] for r in rechnen}
+    pos = 0
+    while pos < len(rechnen):
         while pause and pause():
             if stop and stop():
                 break
             time.sleep(2.0)
         if stop and stop():
             return {"abbruch": True, "fertig": fertig, "gesamt": gesamt, "fehler": fehler, "ohne_bild": ohne}
-        teil = rechnen[i:i + STUECK]
+        if vorrang and vorrang():
+            neu = neu_dazu(conn, idx, geplant)
+            if neu:
+                rechnen[pos:pos] = neu
+                geplant.update(r["path"] for r in neu)
+                gesamt += len(neu)
+                log.info("[inhalt] Vorrang: %d neue Fotos kommen vor den Rest dieses Durchgangs", len(neu))
+        teil = rechnen[pos:pos + STUECK]
+        n_teil = len(teil)
+        pos += STUECK
         # 06.10.2026 — was während einer Pause schon aus dem Vorrat erfasst wurde, nicht noch einmal übers NAS lesen
         if teil:
             ph = ",".join("?" * len(teil))
@@ -501,7 +524,7 @@ def indizieren(conn: sqlite3.Connection, idx: sqlite3.Connection, modell: Modell
             idx.commit()
             for r, _px in zeilen:
                 cphotos_weg(r["path"])
-        fertig += len(rechnen[i:i + STUECK])
+        fertig += n_teil
         if fortschritt:
             fortschritt(fertig, gesamt, schon + len(kopieren))
     return {"fertig": fertig, "gesamt": gesamt, "fehler": fehler, "ohne_bild": ohne}

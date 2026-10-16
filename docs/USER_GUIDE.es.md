@@ -1319,6 +1319,21 @@ de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo e
 6. **¿Y ahora?** Listo, página de la ruta con cuaderno, editar fotos en el Geotagger, vídeo rápido, asistente de vídeo,
    diseñar el vídeo tú mismo en el Animator, crear un mapa o animar datos.
 
+### Novedades en v0.9.794: editar más rápido
+
+- **Añadir ruta:** en el archivo, arriba en la columna de rutas, está **«+ Añadir ruta»** — con archivo de track, vigilar una carpeta y asistente de importación. También puedes arrastrar archivos de track al archivo.
+- **Varias entradas del cuaderno como ruta propia:** en el cuaderno del GPX-Inspector, **⇧-clic** elige un rango y **⌘-clic** (Windows: Ctrl) entradas sueltas. La barra sobre la lista ofrece **«Selección como ruta propia …»** — de la primera a la última entrada elegida, pausas incluidas. Así sacas, por ejemplo, la caminata con su descanso de un archivo que también contiene el trayecto en coche. Esc quita la selección.
+- **Editor de etapas:** arrastra las estaciones por el asa ⠿ o muévelas con ▲▼; medio de transporte, curva libre y altura se mueven con ellas. **Invertir** conserva la altura de un vuelo alto (el perfil va entonces al revés). Un punto puesto en el mapa se puede **nombrar** sin más — no se busca nada; la lupa de al lado busca el texto como lugar si quieres.
+- **Carteles:** un cartel nuevo aparece al instante en el mapa (discontinuo, «Escribe el texto …») — puedes **escribir el texto directamente en el mapa**, el campo de la derecha lo sigue. **Doble clic** en un cartel abre el editor de carteles.
+- **Superposiciones:** al hacer clic en una superposición de la vista previa aparece una **✕** en su esquina — un clic la desactiva (⌘Z la recupera).
+- **Reproducir la vista previa** deja abierto el panel de la derecha (editor de etapas, editor de carteles). Una etapa sin cambios no se vuelve a calcular.
+- **Los avisos del mapa** (p. ej. «sin imágenes aéreas oficiales») se pueden cerrar con ✕.
+- **Los fotogramas clave guardan el mapa desplazado:** un fotograma clave sin centro fijo («la cámara sigue el track» o la vista general) recuerda ahora también hacia dónde moviste el mapa, como desplazamiento respecto a su centro. La cámara sigue, pero con tu encuadre; entre dos de ellos el desplazamiento se mezcla. Al volver a activar «la cámara sigue el track» en el fotograma clave, el desplazamiento se borra.
+- **Vista sin guardar:** si mueves el mapa sin ningún fotograma clave seleccionado (por ejemplo, tras reproducir la vista previa hasta el final), aparece abajo una línea de aviso discreta — «primero haz clic en el fotograma clave #2 …» o ««Captura aquí» añade uno en este punto». No tiene botones y desaparece sola.
+- **Mientras se renderiza**, también la columna de detalles de la derecha queda gris y bloqueada.
+- **Carteles en el borde:** un cartel junto al borde se mete en la imagen como mucho un tercio de su tamaño. Cuando la cámara avanza, ya no se queda pegado al borde: se mueve con el mapa y sale por el borde, igual en el editor que en el vídeo.
+- **Vuelo en el aire:** las líneas verticales bajo un arco alto ya no parpadean en la vista previa: si en pantalla quedan demasiado juntas, la app dibuja solo una de cada dos, cuatro … líneas.
+
 ### 🩺 Revisión del track — el archivo te dice qué falla en un track (desde v0.9.688)
 Un salto GPS, un hueco o una cámara que escribe diez puntos por segundo suelen verse solo en el
 vídeo final. Por eso el archivo revisa cada ruta al importarla y muestra en la tarjeta, arriba a
@@ -2552,6 +2567,8 @@ varias). Si falta algo, la app lo dice al activarlo. Vale también para el víde
 
 **Los tracks IGC suben solos al aire (desde v0.9.793):** si cargas un vuelo de parapente, planeador o ala delta como archivo IGC en un proyecto, la app activa sola el relieve y «Vuelo en el aire»; no hay que ajustar nada. Si lo desactivas, se queda desactivado en ese proyecto. En los vuelos de dron DJI, un aviso recuerda el interruptor, porque los vuelos de cámara bajos suelen verse mejor en el suelo. El interruptor está en **Mapa → 3D en el mapa → Ruta**; aparece en los vuelos (IGC, dron) y siempre que esté activado. 
 
+**Punto móvil en el aire (desde v0.9.794):** el punto que vuela a la altura del vuelo se ve igual que tu punto móvil en el suelo — esfera, flecha, símbolo (p. ej. parapente), vehículo o imagen propia, con color y tamaño, y gira según la dirección del vuelo. Si cambias el punto móvil, lo ves al instante en la vista previa y en el vídeo.
+
 **🌈 HDR (desde v0.9.779).** En **Ajustes de vídeo → Espacio de color** eliges **SDR** (estándar), **HDR · HLG** (recomendado) o **HDR · PQ (HDR10)**. HDR lo necesitas cuando el vídeo va a una línea de tiempo HDR (Final Cut, DaVinci, YouTube con grabaciones HDR de tu cámara): un vídeo normal se ve gris y apagado allí. El mapa se convierte limpiamente al espacio HDR (BT.2020, blanco a 203 nits según la norma, 10 bits). HLG también se ve bien en pantallas normales; PQ es para proyectos solo HDR. El vídeo será HEVC (o ProRes si elegiste ProRes en «Calidad y exportación»). Con fondo alfa no hay HDR.
 
 **🎵 Música y sonido (desde v0.9.778).** En la sección **«🎵 Música y sonido»** pones música bajo el vídeo: **«De camino»** es una pieza propia de la app (40 s, se repite sin cortes, libre para YouTube y similares), y cinco más en otros estilos: **Amplitud** (tranquila, cinematográfica), **Asalto a la cumbre** (enérgica), **Descanso** (lo-fi, relajada), **Cresta** (épica), **Canción de ruta** (folk con guitarra); con **…** usas tu propia música (MP3, M4A, WAV, FLAC …; los derechos los necesitas tú). Además **volumen**, **aparecer** y **desvanecer** (segundos) y **📷 Clic en cada parada de foto** con su propio **sonido** (réflex, sin espejo, analógica con arrastre, telémetro, móvil, instantánea, pop, madera, campanita, silbido + clic, sencillo; o un sonido propio desde un archivo con **…**, **▶** lo reproduce) y volumen; el clic suena cuando la foto ha llegado. En la línea de tiempo, la pista **«Sonido»** muestra la música (las rampas son la entrada y la salida; arrastrarlas las cambia), los clics y el sonido de los clips; doble clic abre los ajustes. Al reproducir ya lo oyes todo en la vista previa; **🔊** junto al tiempo silencia la vista previa. En el vídeo terminado el sonido es una pista de audio normal (AAC).
@@ -3618,6 +3635,8 @@ Ante errores de render se abre automáticamente un modal de error con un extract
 ## 10 · FAQ
 
 ### Búsqueda por contenido (SigLIP 2): ¿qué pasa exactamente?
+
+**Las fotos nuevas primero (desde v0.9.794):** las fotos que acaban de llegar —con el asistente de importación o al leer— las analiza la búsqueda por contenido antes que todas las demás. Si está en marcha el largo primer análisis de todo tu archivo, adelanta las nuevas en el siguiente lote; las fotos de ayer se encuentran con «atardecer» o «cruz de cumbre» en minutos, no en horas. Al final, el asistente de importación indica si la búsqueda por contenido está en marcha o dónde activarla.
 La búsqueda por contenido encuentra fotos por lo que se ve en ellas — «atardecer», «perro en la playa», «glaciar» —, en cualquier idioma. Para ello un modelo de imagen mira cada foto una vez.
 
 - **¿Qué modelo?** **SigLIP 2** de Google, un modelo abierto (licencia Apache). Funciona **solo en tu ordenador**: ninguna foto sale de él, sin cuenta, sin nube.

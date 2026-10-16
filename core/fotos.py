@@ -183,6 +183,9 @@ CREATE TABLE IF NOT EXISTS fotos (
 CREATE INDEX IF NOT EXISTS idx_fotos_zeit   ON fotos(aufnahme_utc);
 CREATE INDEX IF NOT EXISTS idx_fotos_tag    ON fotos(tag_lokal);
 CREATE INDEX IF NOT EXISTS idx_fotos_ordner ON fotos(ordner);
+-- 15.10.2026 — Zählen je Ordner (ordner_liste, erwartete_dateien) nur im Index: ohne ihn holte SQLite für jedes Foto
+-- die Tabellenzeile (fehlt_seit) von der Platte — auf Marcs MacBook mit 522 000 Fotos minutenlang unter der Sperre
+CREATE INDEX IF NOT EXISTS idx_fotos_ordner_fehlt ON fotos(ordner, fehlt_seit);
 CREATE INDEX IF NOT EXISTS idx_fotos_art    ON fotos(art);
 CREATE INDEX IF NOT EXISTS idx_fotos_jahr   ON fotos(jahr);
 CREATE INDEX IF NOT EXISTS idx_fotos_kamera ON fotos(kamera);
@@ -313,7 +316,7 @@ def ordner_liste(conn: sqlite3.Connection, pruefen: bool = True) -> list:
     from . import laufwerke as _lw
     # 05.10.2026 (Audit B-3/E-8) — Datenbank unter der Bibliotheks-Sperre, die Laufwerksprüfung (bei hängendem NAS
     # Sekunden) OHNE: sonst stünde während der Prüfung das ganze Archiv.
-    with db_sperre():
+    with _sperre(conn):
         gemerkt = {r["wurzel"]: dict(r) for r in conn.execute("SELECT * FROM foto_laufwerk")}
         zeilen = []
         # 06.10.2026 — je Ordner zwei Zählungen waren je zwei Durchgänge über dessen Fotos; jetzt eine gruppierte
@@ -337,10 +340,20 @@ def ordner_liste(conn: sqlite3.Connection, pruefen: bool = True) -> list:
         raus.append({"path": p, "added_at": added, "recursive": bool(rek),
                      "n": n, "fehlt": fehlt, "da": bool(lw["da"]), "laufwerk": lw})
     if merken:
-        with db_sperre():
+        with _sperre(conn):
             for lw in merken:
                 _laufwerk_merken(conn, lw, gemerkt)
     return raus
+
+
+def _sperre(conn):
+    """15.10.2026 — die Bibliotheks-Sperre nur für die gemeinsame Verbindung der Oberfläche; ein Faden mit eigener
+    Verbindung (Einlesen) braucht sie nicht (WAL) und hielt damit vorher die ganze Oberfläche an."""
+    try:
+        from .library import sperre_fuer
+        return sperre_fuer(conn)
+    except Exception:  # noqa: BLE001
+        return db_sperre()
 
 
 def db_sperre():
@@ -1628,7 +1641,7 @@ def was_zu_tun(conn: sqlite3.Connection) -> dict:
     """
     liste = ordner_liste(conn)
     erreichbar = [o["path"] for o in liste if o["da"]]
-    with db_sperre():
+    with _sperre(conn):
         offen = conn.execute("SELECT COUNT(*) FROM fotos WHERE indexed_at IS NULL "
                              "AND fehlt_seit IS NULL").fetchone()[0]
         letzte = letzte_nachschau(conn)

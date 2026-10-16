@@ -14,6 +14,31 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.794] – 2026-10-15
+
+### Added
+- Library: „+ Add tour“ at the top of the tour column (track file, watch a folder, import assistant); a hint says files can be dragged in.
+- GPX Inspector logbook: select several entries (⇧-click range, ⌘/Ctrl-click single) and save „Selection as its own tour …“ — from the first to the last entry, breaks in between included.
+- Stage editor: stations can be reordered (drag handle or ▲▼); way of travelling, free curve and height move along. A point set on the map can simply be named — no address search; a magnifier searches the text on purpose.
+- Signs: a new sign shows on the map at once as a placeholder and its text can be typed right on the map (the editor field follows); double-clicking a sign opens the sign editor.
+- Overlays: a selected overlay shows ✕ in its corner to switch it off (with undo).
+
+### Fixed
+- Keyframes: a keyframe without a fixed centre (camera follows the track, or the overall view) dropped a moved map — only zoom, tilt and rotation were kept. It now stores the move as an offset to its centre; the camera keeps following with exactly that framing (preview and video).
+- Keyframes: moving the map with no keyframe selected (e.g. after the preview played to the end) was silently lost — a quiet warning line at the bottom now says so (no buttons, goes away by itself).
+- Signs at the edge of the picture: a sign near the edge was pushed in and then kept clinging to the edge while the camera moved on (it seemed to wander) — it is now pushed in by at most a third of its size and otherwise moves with the map and leaves over the edge (same in editor and video).
+- Flight in the air: the vertical lines under a high arc flickered in the preview (moiré) — lines that stand too close on screen are thinned out.
+- While a video renders, the detail column on the right is greyed out and locked like everything else (it could be closed before).
+- Animator: after starting a new empty project, the overview map (preview only) still showed the old track — without a track it is now empty and hidden.
+- Stage editor: reversing a stage lost the height of a high flight — the height now stays with its section and the profile runs the other way.
+- „Play preview“ closed the panel on the right (stage editor, sign editor); it stays open now, and an unchanged stage is no longer recalculated.
+- Notices on the map (e.g. „no official aerial imagery for this area“) can be closed with ✕; a closed notice stays away for that area until the app restarts. The warning sign is a line icon now.
+- Large photo libraries: reading in photos no longer holds up the rest of the app. With half a million photos, a render could stand at 2 % for minutes and the archive waited, because the photo scan held the library lock during a count over all photos. The scan now works on its own connection without that lock, the count runs in an index (2 s → 0.02 s measured), SQLite gets a larger cache, and rendering keeps macOS from throttling the app in the background (App Nap). Waits and holds of more than a second are now written to the log.
+- „Flight in the air“: the moving dot in the air now looks exactly like on the ground — shape (ball, arrow, symbol per way of travelling, vehicle, own image), colours and size; it turns with the direction of travel. Before, a plain stand-in in the line colour hung in the air, and changes to the moving dot did not show in the preview or the video.
+
+### Changed
+- Content search: new photos first. Photos that just arrived (import assistant, reading in) are captured before all others — if a long capture of the whole archive is running, they move to the front at the next batch instead of waiting until it ends. The import assistant says whether content search is running or where to switch it on.
+
 ## [0.9.793] – 2026-10-15
 
 ### Added

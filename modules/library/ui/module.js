@@ -266,6 +266,9 @@ function mountLibrary(body, headerActions) {
       <!-- 09.10.2026 — Kopf wie bei den Medien: Titel und Anzahl -->
       <div class="foto-nav-kopf"><div class="foto-nav-titel">${T("pm.seg_archive", "Touren-Archiv")}</div>
         <div class="foto-nav-zahl muted" id="lib-nav-zahl">…</div></div>
+      <!-- 15.10.2026 (Marc: „ich weiß nicht, wie ich da eine Tour hinzufüge … es ist ganz unten. Das sollte weiter oben sein“) -->
+      <button class="lib-nav-add lib-tour-add" id="lib-tour-add" type="button">${SI("plus", 15)} ${T("library.tour_add", "Tour hinzufügen")}</button>
+      <div class="lib-nav-hint lib-tour-add-hint">${T("library.tour_add_drop", "oder Track-Datei hierher ziehen")}</div>
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
       <!-- 07.10.2026 (Marc: „überall, wo man warten muss, sollte etwas kommen, dass man wartet“) — Platzhalter mit
            drehendem Kreis; der echte Inhalt ersetzt ihn (innerHTML), sobald die Bibliothek antwortet -->
@@ -6199,6 +6202,14 @@ function mountLibrary(body, headerActions) {
   } catch (_) {}
   $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
+  $("lib-tour-add").onclick = (ev) => {   // 15.10.2026 — „+ Tour hinzufügen“: Datei, Ordner oder Import-Assistent
+    const r = ev.currentTarget.getBoundingClientRect();
+    oeffneKontextmenu(r.left, r.bottom + 4, [
+      { text: T("library.tour_add_datei", "Track-Datei …"), tun: () => importSingleFiles() },
+      { text: T("library.tour_add_ordner", "Ordner beobachten …"), tun: () => addFolder() },
+      { text: T("ia.knopf", "Import-Assistent …"), tun: () => { if (window.openImportAssistent) window.openImportAssistent(); } },
+    ]);
+  };
   $("lib-import-assistent").onclick = () => { if (window.openImportAssistent) window.openImportAssistent(); };   // 15.10.2026
   // 12.09.2026 — Name der geöffneten Bibliothek; Klick öffnet die Verwaltung.
   (function bibName() {

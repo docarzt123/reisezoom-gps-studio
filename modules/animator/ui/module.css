@@ -1373,6 +1373,7 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
   border-radius: 8px; z-index: 50; cursor: zoom-in; overflow: hidden; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   transition: bottom 0.18s ease; }
 .anim-ueb[hidden], .anim-ueb-auf[hidden] { display: none; }
+.anim-ueb.ohne-track, .anim-ueb-auf.ohne-track { display: none; }   /* kein Track (leeres Projekt) */
 .anim-ueb.gross { width: 40%; max-width: 560px; cursor: zoom-out; }
 .anim-ueb-svg { width: 100%; height: 100%; display: block; }
 .anim-ueb-track { fill: none; stroke: var(--route-default); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; opacity: 0.95; }
@@ -1537,6 +1538,12 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .anim-etappe-editor .et-platz { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; }
 .anim-etappe-editor .et-hint { font-size: 11px; line-height: 1.4; margin-bottom: 8px; }
 .anim-etappe-editor .et-wp { display: flex; align-items: center; gap: 5px; }
+/* 15.10.2026 — Stationen umsortieren (Griff + Pfeile), Kartenpunkt nur benennen */
+.anim-etappe-editor .et-station.rz-sort-zieht { background: var(--bg-2); border-radius: 6px; }
+.anim-etappe-editor .et-ziehen { cursor: grab; color: var(--text-muted); padding: 0 2px; user-select: none; }
+.anim-etappe-editor .et-station[data-sort-aus] .et-ziehen { visibility: hidden; }
+.anim-etappe-editor .et-sort .rz-sort-pfeil { font-size: 8px; padding: 0 2px; }
+.anim-etappe-editor .et-wp-input.ist-name { font-style: italic; }
 .anim-etappe-editor .et-wp.ist-pick { outline: 1px dashed var(--accent, #48d6c4); outline-offset: 2px; border-radius: 4px; }
 .anim-etappe-editor .et-nr { width: 16px; text-align: center; font-weight: 700; font-size: 11px; color: var(--accent, #48d6c4); }
 .anim-etappe-editor .et-wp-input { flex: 1; min-width: 0; }
@@ -1700,3 +1707,24 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .anim-etappe-editor .et-los-hinweis { margin: 6px 0 2px; padding: 6px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4;
   color: var(--text); background: color-mix(in srgb, var(--accent, #48d6c4) 14%, transparent); border-left: 3px solid var(--accent, #48d6c4); }
 .anim-etappe-edit-text { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; white-space: nowrap; }
+
+/* 15.10.2026 — Schild direkt in der Karte beschriften: Platzhalter, Textcursor */
+.rz-sign-wrap.rz-sign--tippbar .rz-sign__cap { cursor: text; user-select: text; -webkit-user-select: text; outline: none; min-width: 3ch; }
+.rz-sign-wrap.rz-sign--tippbar .rz-sign { outline: 2px dashed rgb(var(--accent-rgb) / .8); outline-offset: 3px; }
+.rz-sign-wrap.rz-sign--platzhalter .rz-sign__cap:empty::before { content: attr(data-ph); opacity: .55; font-style: italic; }
+
+/* 15.10.2026 — ✕ an der gewählten Einblendung (gegen die Verkleinerung der Vorschau gleich groß) */
+#anim-overlay-preview .ct-x { position: absolute; top: 0; right: 0; z-index: 5; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;
+  background: var(--bg-1, #1b1f24); color: var(--text, #fff); border: 1px solid rgb(var(--accent-rgb) / .8); box-shadow: 0 2px 6px rgba(0,0,0,.45);
+  transform: translate(50%, -50%) scale(calc(1 / var(--rz-vorschau-k, 1))); transform-origin: center; }
+#anim-overlay-preview .ct-x:hover { background: var(--danger, #e5484d); border-color: transparent; }
+body.rz-render-mode #anim-overlay-preview .ct-x { display: none; }
+
+/* 15.10.2026 — „Ansicht nicht gespeichert“: leise Warnzeile unten im Bild, ohne Knöpfe, klickt durch */
+.anim-ansicht-hinweis { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--anim-tl-h, 230px) + 10px);
+  z-index: 55; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 32px); pointer-events: none;
+  padding: 4px 10px; border-radius: 6px; background: rgba(12, 16, 22, 0.78); color: #ffd166; font-size: 12px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.anim-ansicht-hinweis[hidden] { display: none; }
+body.is-rendering .anim-ansicht-hinweis { display: none; }

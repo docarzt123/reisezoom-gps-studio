@@ -1334,6 +1334,21 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 6. **Wie weiter?** Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video
    im Animator selbst gestalten, Karte erstellen oder Daten animieren.
 
+### Neu in v0.9.794: schneller bearbeiten
+
+- **Tour hinzufügen:** Im Archiv steht oben in der Touren-Spalte **„+ Tour hinzufügen“** — mit Track-Datei, Ordner beobachten und Import-Assistent. Track-Dateien kannst du auch einfach ins Archiv ziehen.
+- **Mehrere Logbuch-Einträge als eigene Tour:** Im GPX-Inspektor im Logbuch mit **⇧-Klick** einen Bereich, mit **⌘-Klick** (Windows: Strg) einzelne Einträge wählen. Die Leiste über der Liste bietet **„Auswahl als eigene Tour …“** — vom ersten bis zum letzten gewählten Eintrag, Pausen dazwischen inklusive. So holst du z. B. die Wanderung samt Rast aus einer Datei, in der auch die Autofahrt steckt. Esc hebt die Auswahl auf.
+- **Etappen-Editor:** Stationen lassen sich am Griff ⠿ ziehen oder mit ▲▼ umsortieren; Verkehrsmittel, freie Kurve und Höhe ziehen mit. **Umkehren** behält die Höhe eines Hochflugs (das Profil läuft dann andersherum). Einen auf der Karte gesetzten Punkt kannst du einfach **benennen** — gesucht wird dabei nichts; die Lupe daneben sucht den Text bei Bedarf als Ort.
+- **Schilder:** Ein neues Schild steht sofort auf der Karte (gestrichelt, „Text tippen …“) — du kannst den Text **direkt auf der Karte tippen**, das Feld rechts läuft mit. **Doppelklick** auf ein Schild öffnet den Schild-Editor.
+- **Einblendungen:** Klick auf eine Einblendung in der Vorschau zeigt ein **✕** in ihrer Ecke — ein Klick schaltet sie aus (⌘Z holt sie zurück).
+- **Vorschau abspielen** lässt das Fenster rechts offen (Etappen-Editor, Schild-Editor). Eine unveränderte Etappe wird dabei nicht neu berechnet.
+- **Hinweise auf der Karte** (z. B. „keine amtlichen Luftbilder“) lassen sich mit ✕ ausblenden.
+- **Keyframes übernehmen die verschobene Karte:** Ein Keyframe ohne feste Mitte („Kamera folgt dem Track“ bzw. Gesamtsicht) merkt sich jetzt auch, wohin du die Karte geschoben hast — als Versatz zu seiner Mitte. Die Kamera folgt weiter, nur genau mit deinem Ausschnitt; zwischen zwei solchen Keyframes wird der Versatz verblendet. Schaltest du „Kamera folgt dem Track“ am Keyframe neu ein, ist der Versatz weg.
+- **Ansicht nicht gespeichert:** Verschiebst du die Karte, ohne dass ein Keyframe ausgewählt ist (etwa nachdem die Vorschau bis zum Ende gelaufen ist), steht unten im Bild eine leise Warnzeile — „erst Keyframe #2 anklicken, dann übernimmt er die Karte“ bzw. „„Hier Keyframe“ legt an dieser Stelle einen an“. Sie hat keine Knöpfe und verschwindet von selbst.
+- **Während des Renderns** ist auch die Detailspalte rechts ausgegraut und gesperrt.
+- **Schilder am Bildrand:** Ein Schild knapp am Rand wird höchstens um ein Drittel seiner Größe ins Bild geschoben. Fährt die Kamera weiter, klebt es nicht mehr am Rand, sondern wandert mit der Karte und geht über den Rand hinaus — im Editor genauso wie im Video.
+- **Flug in der Luft:** Die senkrechten Linien unter einem hohen Bogen flimmern in der Vorschau nicht mehr — stehen sie auf dem Bildschirm zu dicht, zeichnet die App nur jede zweite, vierte … Linie.
+
 ### 🩺 Track-Check — das Archiv sagt dir, was am Track nicht stimmt (seit v0.9.688)
 Ein GPS-Sprung, eine Lücke oder eine Kamera mit zehn Punkten je Sekunde fällt sonst erst im
 fertigen Video auf. Deshalb prüft das Archiv jede Tour beim Einlesen und zeigt auf der Kachel
@@ -2608,6 +2623,8 @@ es beim Einschalten. Gilt auch fürs gerenderte Video.
 
 **IGC-Tracks gehen von selbst in die Luft (seit v0.9.793):** Lädst du einen Gleitschirm-, Segelflug- oder Drachenflug als IGC-Datei in ein Projekt, schaltet die App Gelände und „Flug in der Luft“ von selbst ein — du musst nichts einstellen. Schaltest du es aus, bleibt es in diesem Projekt aus. Bei DJI-Drohnenflügen erinnert ein Hinweis an den Schalter, weil tiefe Kameraflüge am Boden oft besser aussehen. Den Schalter findest du unter **Karte → 3D auf der Karte → Strecke**; er erscheint bei Flügen (IGC, Drohne) und immer, wenn er an ist. 
 
+**Laufpunkt in der Luft (seit v0.9.794):** Der Punkt, der in Flughöhe mitfliegt, sieht genauso aus wie dein Laufpunkt am Boden — Kugel, Pfeil, Symbol (z. B. Gleitschirm), Fahrzeug oder eigenes Bild, mit Farbe und Größe, und er dreht sich in Flugrichtung. Änderst du den Laufpunkt, siehst du es sofort in der Vorschau und im Video.
+
 **🌈 HDR (seit v0.9.779).** Unter **Video-Einstellungen → Farbraum** wählst du **SDR** (Standard), **HDR · HLG** (empfohlen) oder **HDR · PQ (HDR10)**. HDR brauchst du, wenn das Video in eine HDR-Timeline kommt (Final Cut, DaVinci, YouTube mit HDR-Aufnahmen deiner Kamera) — ein normales Video wirkt dort grau und flau. Die Karte wird dafür sauber in den HDR-Farbraum umgerechnet (BT.2020, Weiß auf 203 nits wie in der Norm, 10 Bit). HLG sieht auch auf normalen Bildschirmen gut aus; PQ ist für reine HDR-Projekte. Das Video wird HEVC (bzw. ProRes, wenn du in „Qualität & Export“ ProRes gewählt hast). Mit Alpha-Hintergrund gibt es kein HDR.
 
 **🎵 Musik und Ton (seit v0.9.778).** Im Abschnitt **„🎵 Musik und Ton“** legst du Musik unter das Video: **„Unterwegs“** ist ein eigenes Stück der App (40 s, läuft nahtlos endlos, frei für YouTube & Co.), dazu fünf weitere in anderen Stilen: **Weite** (ruhig, filmisch), **Gipfelsturm** (treibend), **Rast** (Lo-Fi, entspannt), **Grat** (episch), **Wanderlied** (Folk mit Gitarre), über **…** nimmst du eigene Musik (MP3, M4A, WAV, FLAC …; die Rechte daran brauchst du selbst). Dazu **Lautstärke**, **Einblenden** und **Ausblenden** (Sekunden) und **📷 Klick bei jedem Fotostopp** mit eigenem **Klang** (Spiegelreflex, spiegellos, analog mit Filmtransport, Messsucher, Handy, Sofortbild, Pop, Holz, Glöckchen, Wusch + Klick, einfach — oder über **…** ein eigener Klang aus einer Datei, **▶** hört ihn an) und eigener Lautstärke — der Klick kommt, wenn das Foto groß angekommen ist. In der Zeitleiste zeigt die Spur **„Ton“** die Musik (die Schrägen sind Ein- und Ausblenden — ziehen ändert sie), die Klicks und den Ton der Clips; Doppelklick öffnet die Einstellungen. Beim Abspielen hörst du alles schon in der Vorschau, **🔊** neben der Zeit schaltet den Vorschau-Ton aus. Im fertigen Video ist der Ton eine normale Tonspur (AAC).
@@ -3660,6 +3677,8 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 ## 10 · FAQ
 
 ### Inhaltssuche (SigLIP 2): Was passiert da genau?
+
+**Neue Fotos zuerst (seit v0.9.794):** Fotos, die gerade dazukommen — über den Import-Assistenten oder beim Einlesen —, erfasst die Inhaltssuche vor allen anderen. Läuft gerade die lange erste Erfassung deines ganzen Archivs, schiebt sie die neuen beim nächsten Stapel nach vorn; die Fotos von gestern sind also nach Minuten über „Sonnenuntergang“ oder „Gipfelkreuz“ zu finden, nicht erst nach Stunden. Der Import-Assistent sagt am Ende, ob die Inhaltssuche läuft oder wo du sie einschaltest.
 Die Inhaltssuche findet Fotos nach dem, was darauf zu sehen ist — „Sonnenuntergang“, „Hund am Strand“, „Gletscher“ —, in jeder Sprache. Dafür schaut ein Bildmodell einmal jedes Foto an.
 
 - **Welches Modell?** **SigLIP 2** von Google, ein offenes Modell (Apache-Lizenz). Es läuft **nur auf deinem Rechner** — kein Foto verlässt ihn, kein Konto, keine Cloud.

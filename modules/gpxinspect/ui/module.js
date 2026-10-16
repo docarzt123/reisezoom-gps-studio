@@ -3642,6 +3642,7 @@ function mountGpxInspect(body, headerActions) {
     if (e.key === "Escape") {
       if (_lbMenueEl) { _lbMenueZu(); return; }
       if (_lbPunktModus) { _lbPunktUmschalten(); return; }
+      if (_lbMulti.size) { _lbMulti.clear(); _lbMultiAnker = null; _lbMultiZeigen(); lbWaehlen(null); return; }
       if (_lbSel) {
         const panel = document.getElementById("gpxi-panel");
         if (panel && !panel.hidden && panel.offsetParent) { lbWaehlen(null); return; }
@@ -3891,6 +3892,9 @@ function mountGpxInspect(body, headerActions) {
   let _LB_ZEILEN_AKTIV = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], pois: [113, 131], achse: [135, 153] };
   let _lb = null;            // Antwort der Brücke (Einträge, Punkte, Tage, roh …)
   let _lbSel = null;         // Kennung des gewählten Eintrags
+  // 15.10.2026 (Marc: „Wenn da Fahrten und Wanderungen drin sind, möchte ich nur die Wanderung haben, inklusive der Pause.
+  // Ein paar Segmente anklicken und sagen: Hier, neuer Track.“) — Mehrfachauswahl mit ⇧ (Bereich) und ⌘/Strg (einzeln)
+  let _lbMulti = new Set(), _lbMultiAnker = null;
   let _lbAlles = false;      // Schalter „alles zeigen" (Q5: rohe Bereiche samt kurzer Halte)
   let _lbFenster = null;     // [t0, t1] sichtbarer Ausschnitt; null = ganze Reise
   let _lbZeiten = null;      // Epoch je Punkt (Index ↔ Zeit), lazy
@@ -4066,7 +4070,7 @@ function mountGpxInspect(body, headerActions) {
     catch (e) { r = { ok: false, error: String(e) }; }
     if (isUnmounted || _lbPfad !== pfad || _origPath !== pfad || lauf !== _lbLadeLauf) return;
     const behalten = opt.auswahl || null, fensterAlt = opt.auswahl ? _lbFenster : null;
-    _lbSel = null; _lbFenster = fensterAlt; _lbHover = null;
+    _lbSel = null; _lbFenster = fensterAlt; _lbHover = null; _lbMulti.clear(); _lbMultiAnker = null;
     _lbHighlight(null);
     wrap.hidden = false;
     const note = _lbEl("gpxi-lb-hinweis"), koerper = _lbEl("gpxi-lb-koerper");
@@ -4103,7 +4107,7 @@ function mountGpxInspect(body, headerActions) {
   }
   function _lbZuIst() { const w = _lbEl("gpxi-logbuch"); return !!(w && w.classList.contains("ist-zu")); }
   function logbuchLeeren() {
-    _lb = null; _lbSel = null; _lbFenster = null; _lbZeiten = null; _lbZeitSort = null; _lbPfad = null; _lbFensterLetzte = null;
+    _lb = null; _lbSel = null; _lbMulti.clear(); _lbMultiAnker = null; _lbFenster = null; _lbZeiten = null; _lbZeitSort = null; _lbPfad = null; _lbFensterLetzte = null;
     _lbStandMerken(null); _lbPunktModus = false; try { _lbKnoepfe(); } catch (_) {}
     _lbOrte = {}; _lbPois = []; _lbNetzLauf++; if (_lbGross) { _lbFensterMerken(); _lbGross.hidden = true; } _lbEigene = [];
     const w = _lbEl("gpxi-logbuch"); if (w) w.hidden = true;
@@ -4137,7 +4141,7 @@ function mountGpxInspect(body, headerActions) {
     el.innerHTML = teile.join("");
   }
   function _lbZeileHtml(e) {
-    const gew = e.id === _lbSel ? " ist-gewaehlt" : "";
+    const gew = (e.id === _lbSel || _lbMulti.has(e.id)) ? " ist-gewaehlt" : "";
     const meta = [];
     meta.push(_lbUhr(e.t0, e.versatz_min) + " – " + _lbUhr(e.t1, e.versatz_min));
     { const ort = _lbOrtText(e); if (ort) meta.push(ort); }
@@ -4199,7 +4203,11 @@ function mountGpxInspect(body, headerActions) {
     }
     if (!zeilen.length) html = `<div class="gpxi-lb-leer">${t("logbuch.leer", "Nichts erkannt — der Track ist zu kurz oder hat keine Bewegung.")}</div>`;
     el.innerHTML = html;
-    el.querySelectorAll("[data-lb]").forEach(z => z.addEventListener("click", () => lbWaehlen(z.dataset.lb, { zoom: true })));
+    el.querySelectorAll("[data-lb]").forEach(z => {
+      z.addEventListener("click", (ev) => _lbZeileKlick(ev, z.dataset.lb));
+      z.addEventListener("mousedown", (ev) => { if (ev.shiftKey) ev.preventDefault(); });   // ⇧-Klick markiert sonst Text
+    });
+    _lbMultiLeiste();
     el.querySelectorAll("[data-vermutet]").forEach(bt => bt.addEventListener("click", (ev) => {
       ev.stopPropagation(); const r = bt.getBoundingClientRect();
       _lbEintragMenue(_lbFinde(bt.dataset.vermutet), r.left, r.bottom + 2, null);
@@ -4254,7 +4262,7 @@ function mountGpxInspect(body, headerActions) {
       const xa = Math.max(-2, x0), xb = Math.min(W + 2, x1), w = Math.max(1.5, xb - xa);
       const still = e.art === "pause" || e.art === "halt";
       const fill = e.anzeige_art === "unsicher" ? "url(#gpxi-lb-streifen)" : _lbFarbe(e.anzeige_art);
-      const cls = "gpxi-lb-block" + (still ? " ist-still" : "") + (e.id === _lbSel ? " ist-gewaehlt" : "") + (e.geraten ? " ist-geraten" : "");
+      const cls = "gpxi-lb-block" + (still ? " ist-still" : "") + ((e.id === _lbSel || _lbMulti.has(e.id)) ? " ist-gewaehlt" : "") + (e.geraten ? " ist-geraten" : "");
       const name = e.name || _lbArt(e.anzeige_art);
       const label = w > 34 ? name : "";
       const passt = label && (label.length * 6.4 + 10) < w;
@@ -4342,6 +4350,81 @@ function mountGpxInspect(body, headerActions) {
     if (!_lb || !id) return null;
     const e = _lbEintraege().find(x => x.id === id); if (e) return e;
     return (_lb.punkte || []).find(x => x.id === id) || null;
+  }
+  /** Klick auf eine Zeile: ohne Taste wie bisher; ⌘/Strg nimmt dazu oder heraus, ⇧ wählt den Bereich vom Anker an. */
+  function _lbZeileKlick(ev, id) {
+    const mehr = ev && (ev.shiftKey || ev.metaKey || ev.ctrlKey);
+    if (!mehr) { _lbMulti.clear(); _lbMultiAnker = id; lbWaehlen(id, { zoom: true }); _lbMultiLeiste(); return; }
+    const e = _lbFinde(id);
+    if (!e || _lbIstPunkt(e)) return;
+    if (!_lbMulti.size && _lbSel) { const s = _lbFinde(_lbSel); if (s && !_lbIstPunkt(s)) { _lbMulti.add(s.id); if (!_lbMultiAnker) _lbMultiAnker = s.id; } }
+    const liste = _lbEl("gpxi-lb-liste");
+    if (ev.shiftKey && _lbMultiAnker && liste) {
+      const ids = [...liste.querySelectorAll("[data-lb]")].map(z => z.dataset.lb);
+      let a = ids.indexOf(_lbMultiAnker), b = ids.indexOf(id);
+      if (a < 0) a = b;
+      for (let k = Math.min(a, b); k <= Math.max(a, b); k++) { const x = _lbFinde(ids[k]); if (x && !_lbIstPunkt(x)) _lbMulti.add(x.id); }
+    } else {
+      if (_lbMulti.has(id)) _lbMulti.delete(id); else _lbMulti.add(id);
+      _lbMultiAnker = id;
+    }
+    _lbMultiZeigen();
+  }
+  function _lbMultiEintraege() {
+    return [..._lbMulti].map(_lbFinde).filter(x => x && !_lbIstPunkt(x)).sort((a, b) => a.t0 - b.t0);
+  }
+  /** Markierung in Liste und Zeitstrahl, Spanne vom ersten bis zum letzten gewählten Eintrag auf der Karte. */
+  function _lbMultiZeigen() {
+    const liste = _lbEl("gpxi-lb-liste"), svg = _lbEl("gpxi-lb-svg");
+    const an = (id) => _lbMulti.size ? _lbMulti.has(id) : id === _lbSel;
+    if (liste) liste.querySelectorAll("[data-lb]").forEach(z => z.classList.toggle("ist-gewaehlt", an(z.dataset.lb)));
+    if (svg) svg.querySelectorAll("[data-lb]").forEach(g => g.classList.toggle("ist-gewaehlt", an(g.dataset.lb)));
+    const es = _lbMultiEintraege();
+    if (es.length) {
+      _lbSel = null;
+      _lbHighlight({ von: _lbIdxZuZeit(es[0].t0), bis: _lbIdxZuZeit(Math.max(...es.map(x => x.t1))), farbe: "#ff6b35" });
+    }
+    _lbMultiLeiste();
+  }
+  /** Leiste über der Liste, sobald mehrere Einträge gewählt sind: „N gewählt · Als eigene Tour …“. */
+  function _lbMultiLeiste() {
+    const liste = _lbEl("gpxi-lb-liste");
+    if (!liste || !liste.parentNode) return;
+    let bar = _lbEl("gpxi-lb-mehrfach");
+    const es = _lbMultiEintraege();
+    if (es.length < 2) { if (bar) bar.remove(); return; }
+    if (!bar) {
+      bar = document.createElement("div"); bar.id = "gpxi-lb-mehrfach"; bar.className = "gpxi-lb-mehrfach";
+      liste.parentNode.insertBefore(bar, liste);
+    }
+    const ic = (n) => (typeof rzIcon === "function" ? rzIcon(n, { size: 14 }) : "");
+    bar.innerHTML = `<span>${_lbEsc(t("logbuch.mehrfach_n", "{n} Einträge gewählt").replace("{n}", es.length))}</span>
+      <button type="button" class="btn btn-sm" data-mf="tour">${ic("download")} ${_lbEsc(t("logbuch.menue.auswahl_als_tour", "Auswahl als eigene Tour …"))}</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-mf="weg" title="${_lbEsc(t("logbuch.mehrfach_weg", "Auswahl aufheben (Esc)"))}">${ic("x")}</button>`;
+    bar.querySelector('[data-mf="tour"]').onclick = () => _lbAuswahlInsArchiv();
+    bar.querySelector('[data-mf="weg"]').onclick = () => { _lbMulti.clear(); _lbMultiAnker = null; _lbMultiZeigen(); lbWaehlen(null); };
+  }
+  /** Zeitraum t0…t1 (Sekunden) als eigene Tour ins Archiv — gemeinsam für einen und mehrere Einträge. */
+  function _lbZeitraumInsArchiv(t0, t1, vorschlag, art) {
+    const z = _lbZeiten || _lbZeitenBauen();
+    let i0 = -1, i1 = -1;
+    for (let i = 0; i < z.length; i++) {
+      if (!(z[i] >= t0 && z[i] <= t1)) continue;
+      if (i0 < 0) i0 = i;
+      i1 = i;
+    }
+    if (i0 < 0 || i1 <= i0) { toast(t("gpxinspect.abschnitt_zu_kurz", "Der Abschnitt braucht mindestens zwei Punkte."), "warn"); return; }
+    _abschnittInsArchiv(i0, i1, vorschlag, art);
+  }
+  /** Vom ersten bis zum letzten gewählten Eintrag — Pausen und Halte dazwischen gehören dazu. */
+  function _lbAuswahlInsArchiv() {
+    const es = _lbMultiEintraege();
+    if (es.length < 1) return;
+    const arten = new Set(es.filter(x => x.art !== "pause" && x.art !== "halt").map(x => x.anzeige_art || x.art || ""));
+    const art = arten.size === 1 ? [...arten][0] : "";
+    const tag = _lbDatum(es[0].t0, es[0].versatz_min);
+    const datum = tag.getUTCDate() + "." + (tag.getUTCMonth() + 1) + "." + tag.getUTCFullYear();
+    _lbZeitraumInsArchiv(es[0].t0, Math.max(...es.map(x => x.t1)), (art ? _lbArt(art) : t("gpxinspect.abschnitt", "Abschnitt")) + " " + datum, art);
   }
   function lbWaehlen(id, opt) {
     opt = opt || {};
@@ -4453,7 +4536,7 @@ function mountGpxInspect(body, headerActions) {
     box.addEventListener("dblclick", (e) => { if (e.target === svg || e.target === box) { _lbFenster = null; logbuchRender(); _lbFensterAufKarte(true, true); } });
     _on("gpxi-lb-reise", () => { _lbFenster = null; logbuchRender(); _lbFensterAufKarte(true, true); });
     _on("gpxi-lb-neu", () => logbuchLaden(true));
-    { const a = _lbEl("gpxi-lb-alles"); if (a) a.addEventListener("change", () => { _lbAlles = !!a.checked; _lbSel = null; _lbHighlight(null); logbuchRender(); }); }
+    { const a = _lbEl("gpxi-lb-alles"); if (a) a.addEventListener("change", () => { _lbAlles = !!a.checked; _lbSel = null; _lbMulti.clear(); _lbHighlight(null); logbuchRender(); }); }
     _on("gpxi-lb-zu", () => {
       const w = _lbEl("gpxi-logbuch"); if (!w) return;
       const zu = !w.classList.contains("ist-zu");
@@ -4709,18 +4792,13 @@ function mountGpxInspect(body, headerActions) {
         _lbAktion(t("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen"), "zusammenlegen", { bid_a: e.bids[e.bids.length - 1], bid_b: nach.bids[0] }, { auswahl: null }) });
       M.push("-");
       // 14.09.2026 (Marc/Beta-Tester: Autofahrt und Wanderung in einer Datei) — den Eintrag als eigene Tour
+      if (_lbMulti.size > 1 && _lbMulti.has(e.id)) {   // 15.10.2026 — mehrere gewählt: alles von erstem bis letztem
+        M.push({ symbol: "📥", text: t("logbuch.menue.auswahl_als_tour", "Auswahl als eigene Tour …"), tu: () => _lbAuswahlInsArchiv() });
+      }
       M.push({ symbol: "📥", text: t("logbuch.menue.als_tour", "Als eigene Tour ins Archiv …"), tu: () => {
-        const z = _lbZeiten || _lbZeitenBauen();
-        let i0 = -1, i1 = -1;
-        for (let i = 0; i < z.length; i++) {
-          if (!(z[i] >= e.t0 && z[i] <= e.t1)) continue;
-          if (i0 < 0) i0 = i;
-          i1 = i;
-        }
-        if (i0 < 0 || i1 <= i0) { toast(t("gpxinspect.abschnitt_zu_kurz", "Der Abschnitt braucht mindestens zwei Punkte."), "warn"); return; }
         const tag = _lbDatum(e.t0, e.versatz_min);
         const datum = tag.getUTCDate() + "." + (tag.getUTCMonth() + 1) + "." + tag.getUTCFullYear();
-        _abschnittInsArchiv(i0, i1, e.name || (_lbArt(e.anzeige_art) + " " + datum), e.anzeige_art || e.art || "");
+        _lbZeitraumInsArchiv(e.t0, e.t1, e.name || (_lbArt(e.anzeige_art) + " " + datum), e.anzeige_art || e.art || "");
       } });
       M.push("-");
       M.push({ symbol: "🗑", text: t("logbuch.menue.loeschen", "Löschen (geht im Nachbarn auf)"), tu: () =>

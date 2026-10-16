@@ -1297,6 +1297,21 @@ when you start it, and it needs a new track in the inbox.
 6. **What next?** Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the
    video yourself in the Animator, create a map or animate data.
 
+### New in v0.9.794: quicker editing
+
+- **Add tour:** at the top of the tour column in the library there is **“+ Add tour”** — with track file, watch a folder and import assistant. You can also simply drag track files into the library.
+- **Several logbook entries as their own tour:** in the GPX Inspector logbook, **⇧-click** selects a range, **⌘-click** (Windows: Ctrl) single entries. The bar above the list offers **“Selection as its own tour …”** — from the first to the last selected entry, breaks in between included. That way you get e.g. the hike including the rest out of a file that also holds the drive. Esc clears the selection.
+- **Stage editor:** drag stations by the handle ⠿ or move them with ▲▼; way of travelling, free curve and height move along. **Reverse** keeps the height of a high flight (the profile then runs the other way). A point set on the map can simply be **named** — nothing is searched; the magnifier next to it searches the text as a place if you want.
+- **Signs:** a new sign appears on the map at once (dashed, “Type text …”) — you can **type the text right on the map**, the field on the right follows. **Double-click** a sign to open the sign editor.
+- **Overlays:** clicking an overlay in the preview shows an **✕** in its corner — one click switches it off (⌘Z brings it back).
+- **Play preview** keeps the panel on the right open (stage editor, sign editor). An unchanged stage is not recalculated.
+- **Notices on the map** (e.g. “no official aerial imagery”) can be closed with ✕.
+- **Keyframes keep the moved map:** a keyframe without a fixed centre (“camera follows the track”, or the overall view) now also remembers where you moved the map — as an offset to its centre. The camera keeps following, just with your framing; between two such keyframes the offset is blended. Switching “camera follows the track” on again at the keyframe clears the offset.
+- **View not saved:** if you move the map with no keyframe selected (for example after the preview has played to the end), a quiet warning line appears at the bottom of the picture — “click keyframe #2 first …” or ““Capture keyframe” adds one at this spot”. It has no buttons and goes away by itself.
+- **While rendering**, the detail column on the right is greyed out and locked as well.
+- **Signs at the edge:** a sign near the edge is pushed into the picture by at most a third of its size. When the camera moves on, it no longer clings to the edge but moves with the map and leaves over the edge — in the editor just like in the video.
+- **Flight in the air:** the vertical lines under a high arc no longer flicker in the preview — when they are too close on screen, the app draws only every second, fourth … line.
+
 ### 🩺 Track check — the archive tells you what is wrong with a track (since v0.9.688)
 A GPS spike, a gap or a camera writing ten points per second usually shows up only in the
 finished video. So the archive checks every tour on import and shows a **warning sign ⚠︎** top
@@ -2511,6 +2526,8 @@ tours). If something is missing, the app tells you when you switch it on. Also a
 
 **IGC tracks go into the air by themselves (since v0.9.793):** load a paragliding, gliding or hang-gliding flight as an IGC file into a project and the app switches terrain and “Flight in the air” on by itself — nothing to set. If you switch it off, it stays off in that project. For DJI drone flights a hint points to the switch, because low camera flights often look better on the ground. The switch is under **Map → 3D on the map → Route**; it appears for flights (IGC, drone) and whenever it is on. 
 
+**Moving dot in the air (since v0.9.794):** the dot flying along at flight height looks exactly like your moving dot on the ground — ball, arrow, symbol (e.g. paraglider), vehicle or own image, with colour and size, and it turns with the direction of flight. Change the moving dot and you see it at once, in the preview and in the video.
+
 **🌈 HDR (since v0.9.779).** Under **Video settings → Colour space** choose **SDR** (default), **HDR · HLG** (recommended) or **HDR · PQ (HDR10)**. You need HDR when the video goes into an HDR timeline (Final Cut, DaVinci, YouTube with HDR footage from your camera) — a normal video looks grey and flat there. The map is converted cleanly to the HDR colour space (BT.2020, white at 203 nits as the standard says, 10 bit). HLG also looks good on normal screens; PQ is for pure HDR projects. The video becomes HEVC (or ProRes if you chose ProRes in “Quality & export”). With an alpha background there is no HDR.
 
 **🎵 Music and sound (since v0.9.778).** In the section **“🎵 Music and sound”** you put music under the video: **“On the way”** is the app's own piece (40 s, loops seamlessly, free for YouTube and the like), plus five more in other styles: **Expanse** (calm, cinematic), **Summit push** (driving), **Break** (lo-fi, relaxed), **Ridge** (epic), **Hiking song** (folk with guitar); with **…** you use your own music (MP3, M4A, WAV, FLAC …; you need the rights yourself). Plus **volume**, **fade in** and **fade out** (seconds) and **📷 Click at every photo stop** with its own **sound** (DSLR, mirrorless, film camera with winder, rangefinder, phone, instant camera, pop, wood, little bell, whoosh + click, simple — or your own sound from a file via **…**, **▶** plays it) and volume — the click comes when the photo has arrived. In the timeline the **“Sound”** lane shows the music (the slopes are fade in and out — drag them to change), the clicks and the sound of the clips; double-click opens the settings. While playing you already hear everything in the preview; **🔊** next to the time mutes the preview. In the finished video the sound is a normal audio track (AAC).
@@ -3560,6 +3577,8 @@ On render errors an error modal opens automatically with an expandable log excer
 ## 10 · FAQ
 
 ### Content search (SigLIP 2): what exactly happens?
+
+**New photos first (since v0.9.794):** photos that have just arrived — through the import assistant or when reading in — are captured by the content search before all others. If the long first capture of your whole archive is running, it moves the new ones forward at the next batch; yesterday's photos can be found via “sunset” or “summit cross” after minutes, not hours. At the end, the import assistant tells you whether content search is running or where to switch it on.
 Content search finds photos by what is in them — “sunset”, “dog on the beach”, “glacier” — in any language. An image model looks at every photo once for this.
 
 - **Which model?** **SigLIP 2** by Google, an open model (Apache licence). It runs **only on your computer** — no photo leaves it, no account, no cloud.

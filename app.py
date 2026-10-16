@@ -183,7 +183,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.793"
+APP_VERSION = "0.9.794"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -3261,8 +3261,12 @@ class Api:
                 try:
                     with clib._DB_LOCK:
                         cfotos.ordner_hinzu(conn, str(ziel_wurzel), True)
-                    self.fotos_scan_start(str(ziel_wurzel))
+                    self.fotos_scan_start(str(ziel_wurzel))   # danach von selbst: inhalt_aufholen (Inhaltssuche)
                     zeile("medien", T("eingang.s_medien", "Fotos/Clips werden ins Medienarchiv eingelesen"))
+                    if _load_settings().get("inhalt_an") and cinhalt.verfuegbar():
+                        zeile("inhalt", T("eingang.s_inhalt", "Danach erfasst die Inhaltssuche die Bildinhalte — die neuen Fotos sind dann auch über „Sonnenuntergang“, „Gipfelkreuz“ … zu finden"))
+                    else:
+                        zeile("inhalt_aus", T("eingang.s_inhalt_aus", "Die Inhaltssuche ist aus — die Fotos findest du über Ort und Zeit. Einschalten: Einstellungen → Bibliothek & Cloud"))
                 except Exception as ex:  # noqa: BLE001
                     log.warning("[eingang] Medien einlesen: %s", ex)
             log.info("[eingang] %s → %s (%d Dateien, %d verortet)", quelle.name, tour_ordner, len(neu_pfad), verortet)
@@ -4791,6 +4795,7 @@ class Api:
                 # Oberfläche zeigt den Grund aus `bibliothek_status()`.
                 raise RuntimeError("bibliothek-nicht-bereit")
             self._lib_conn = clib.open_db(LIBRARY_DB)
+            clib.gemeinsam_merken(self._lib_conn)   # 15.10.2026 — nur sie braucht die Sperre (core/library.sperre_fuer)
             self._lib_startup_jobs()
         return self._lib_conn
 
@@ -7124,8 +7129,15 @@ class Api:
             return {"ok": True, "gestartet": False, "grund": "angehalten"}
         with self._start_lock:
             if getattr(self, "_inhalt_laeuft", False):
-                return {"ok": True, "gestartet": False, "grund": "läuft bereits"}
+                # 15.10.2026 (Marc: „Der Import-Assistent sollte natürlich auch gleich die Fotos mit CLIP durchgehen, damit
+                # die neuesten Fotos direkt in der Suche drin sind“) — der laufende Durchgang hat seine Liste beim Start
+                # festgelegt; neue Fotos warteten bis zur nächsten Nachschau (20 min). Jetzt folgt ein zweiter Durchgang.
+                self._inhalt_nochmal = True
+                self._inhalt_vorrang = True   # und der laufende Durchgang nimmt sie beim nächsten Stapel zuerst
+                return {"ok": True, "gestartet": False, "grund": "läuft bereits", "nachlauf": True}
             self._inhalt_laeuft = True
+            self._inhalt_nochmal = False
+            self._inhalt_vorrang = False
         self._inhalt_stop = False
         v = self._inhalt_var()
         self._inhalt_state = {"running": True, "phase": "laden" if not cinhalt.modell_da(APP_SUPPORT, v) else "index",
@@ -7168,11 +7180,18 @@ class Api:
                     return bool(grund)
 
                 # Audit A-2: das Modell der Variante DIESES Laufs, nicht die (inzwischen evtl. geänderte) Einstellung
+                def vorrang():
+                    if getattr(self, "_inhalt_vorrang", False):
+                        self._inhalt_vorrang = False
+                        self._inhalt_nochmal = False   # die neuen kommen jetzt in diesen Durchgang
+                        return True
+                    return False
+
                 r = cinhalt.indizieren(
                     conn, idx, self._inhalt_modell(v),
                     fortschritt=lambda n, g, schon: self._inhalt_state.update(
                         {"done": n, "total": g, "schon": schon}),
-                    stop=lambda: self._inhalt_stop, pause=pause)
+                    stop=lambda: self._inhalt_stop, pause=pause, vorrang=vorrang)
                 self._inhalt_state.update({"ergebnis": r, "fertig_um": time.time()})
                 if r.get("abbruch"):
                     self._inhalt_state["abbruch"] = True
@@ -7191,6 +7210,13 @@ class Api:
                 self._inhalt_state["running"] = False
                 self._inhalt_state["pausiert"] = ""
                 self._inhalt_laeuft = False
+                if getattr(self, "_inhalt_nochmal", False) and not self._inhalt_stop:
+                    self._inhalt_nochmal = False
+                    log.info("[inhalt] Nachlauf: während des Durchgangs kamen neue Fotos dazu")
+                    try:
+                        self.inhalt_aufholen(auto=True)
+                    except Exception:  # noqa: BLE001
+                        log.exception("[inhalt] Nachlauf")
 
         threading.Thread(target=lambda: _mit_wach(worker, "Bildinhalte erfassen"), daemon=True, name="inhalt-index").start()
         return {"ok": True, "gestartet": True}
@@ -10043,7 +10069,9 @@ class Api:
                 rlog.error("Render fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
                 rlog.error("Traceback:\n%s", tb)
 
-        self._render_thread = threading.Thread(target=worker, daemon=True)
+        # 15.10.2026 (Marc: „das kann ja nicht daran liegen, dass die App im Hintergrund ist. Oder doch?“) — doch: beim
+        # Einlesen war App Nap aus, beim Rendern nicht; mit verdecktem Fenster drosselte macOS den Render
+        self._render_thread = threading.Thread(target=lambda: _mit_wach(worker, "Video rendern"), daemon=True)
         self._render_thread.start()
         return {"ok": True}
 
@@ -10264,7 +10292,7 @@ class Api:
                 rlog.error("Render fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
                 rlog.error("Traceback:\n%s", tb)
 
-        self._height_render_thread = threading.Thread(target=worker, daemon=True)
+        self._height_render_thread = threading.Thread(target=lambda: _mit_wach(worker, "Video rendern"), daemon=True)   # App Nap aus (s. oben)
         self._height_render_thread.start()
         return {"ok": True}
 

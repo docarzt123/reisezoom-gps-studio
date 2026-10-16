@@ -138,6 +138,7 @@ void main() {
     return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, opacity == null ? 1 : opacity];
   }
 
+  const LOT_MIN_PX = 6;   // Mindestabstand der Lotlinien in Gerätepixeln (siehe _lotSchritt)
   function create(id, opts) {
     opts = opts || {};
     const offsetM = (opts.offsetM != null) ? opts.offsetM : 150;
@@ -322,8 +323,33 @@ void main() {
           }
           const vbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
           const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-          this._bufs.push({ vbo, ibo, segs, color: t.color, width: t.width, dash: t.dash, feather: t.feather, translate: t.translate });
+          this._bufs.push({ vbo, ibo, segs, color: t.color, width: t.width, dash: t.dash, feather: t.feather, translate: t.translate,
+                           lotCoords: t.lot ? c : null, lotK: 1 });
         }
+      },
+      /** 15.10.2026 (Marc: „dass der Bogen zumindest in der Vorschau flimmert“ — im Video nicht) — die Lotlinien
+       *  unter einer hohen Fluglinie stehen in der kleinen Vorschau dichter als ein Bildpunkt; fährt die Kamera, wandert
+       *  ein Moiré durch den Vorhang. Jetzt wird nur jede k-te Linie gezeichnet (k = 1, 2, 4 …), so dass auf dem Bildschirm
+       *  mindestens LOT_MIN_PX Gerätepixel zwischen zwei Linien liegen. Ausgerichtet am Punktindex (keine wandernden
+       *  Linien beim Wachsen), mit Schwelle gegen Hin-und-her-Springen. Im 4K-Video bleibt k meist 1. */
+      _lotSchritt(b, first, segs, pr) {
+        const c = b.lotCoords, mp = this._map;
+        if (!c || segs < 4 || !mp || typeof mp.project !== "function") return 1;
+        const proben = [], schritt = Math.max(1, Math.floor((segs - 1) / 9));
+        try {
+          for (let s = first; s < first + segs - 1 && proben.length < 10; s += schritt) {
+            const a = mp.project(c[s]), q = mp.project(c[s + 1]);
+            proben.push(Math.hypot(q.x - a.x, q.y - a.y) * pr);
+          }
+        } catch (_) { return b.lotK || 1; }
+        if (!proben.length) return 1;
+        proben.sort((x, y) => x - y);
+        const med = proben[proben.length >> 1];
+        let k = 1; while (k < 64 && med * k < LOT_MIN_PX) k *= 2;
+        const alt = b.lotK || 1;
+        if (k < alt && med * (alt / 2) < LOT_MIN_PX * 1.3) k = alt;   // erst deutlich über der Schwelle wieder dichter
+        b.lotK = k;
+        return k;
       },
       render(gl, args) {
         if (!this._tracks.length) return;
@@ -398,7 +424,9 @@ void main() {
           if (L.translate) gl.uniform2f(L.translate, (b.translate ? b.translate[0] : 0) * pr, (b.translate ? b.translate[1] : 0) * pr);
           if (b.dash) gl.uniform2f(L.dash, b.dash[0] * b.width * pr, b.dash[1] * b.width * pr); else gl.uniform2f(L.dash, 0, 0);
           gl.uniform4f(L.ucolor, b.color[0], b.color[1], b.color[2], b.color[3]);
-          gl.drawElements(gl.TRIANGLES, segs * 6, gl.UNSIGNED_INT, first * 6 * 4);
+          const k = b.lotCoords ? this._lotSchritt(b, first, segs, pr) : 1;
+          if (k <= 1) gl.drawElements(gl.TRIANGLES, segs * 6, gl.UNSIGNED_INT, first * 6 * 4);
+          else for (let s = Math.ceil(first / k) * k; s < first + segs; s += k) gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, s * 6 * 4);
         }
         gl.disableVertexAttribArray(L.pos); gl.disableVertexAttribArray(L.other);
         if (L.elev >= 0) gl.disableVertexAttribArray(L.elev); if (L.elevOther >= 0) gl.disableVertexAttribArray(L.elevOther);

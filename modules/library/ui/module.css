@@ -56,6 +56,11 @@
   padding: 4px 8px; cursor: pointer; border-radius: 6px;
 }
 .lib-nav-add:hover { background: var(--bg-2); color: var(--text); }
+/* 15.10.2026 — „+ Tour hinzufügen“ oben in der Touren-Spalte: gut sichtbar, nicht so leise wie die übrigen „+“ */
+.lib-tour-add { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0 2px; padding: 7px 10px; font-size: 12.5px; font-weight: 600;
+  color: var(--accent); border: 1px solid rgb(var(--accent-rgb) / .45); background: rgb(var(--accent-rgb) / .08); }
+.lib-tour-add:hover { background: rgb(var(--accent-rgb) / .16); color: var(--accent); }
+.lib-tour-add-hint { padding: 0 2px 6px; }
 
 /* „Wo lade ich überhaupt den Ordner?" — deshalb unten fest verankert und als
    einziger Knopf in der Seitenleiste farbig. */
