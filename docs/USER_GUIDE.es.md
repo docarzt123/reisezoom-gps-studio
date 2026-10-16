@@ -1319,6 +1319,12 @@ de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo e
 6. **¿Y ahora?** Listo, página de la ruta con cuaderno, editar fotos en el Geotagger, vídeo rápido, asistente de vídeo,
    diseñar el vídeo tú mismo en el Animator, crear un mapa o animar datos.
 
+### Novedades en v0.9.795: render más robusto
+
+- **Imagen aérea en una frontera:** si tu ruta pasa justo junto a una frontera, la app también trae la imagen aérea del país vecino para esa zona. Donde ese servicio no tiene imagen, el trozo queda transparente y se ve el mapa base — sin aviso y sin peticiones inútiles.
+- **Navegador del render caído:** si el navegador invisible que graba el vídeo fotograma a fotograma se cae en mitad del render, la app lo reinicia y sigue en el mismo fotograma («Navegador de render reiniciado – continúa en el fotograma …»), como mucho dos veces. El vídeo no se alarga ni se acorta. El registro dice por qué se cayó y cuánta memoria quedaba libre — envíalo si pasa a menudo.
+- **Medios:** mientras se leen fotos en segundo plano, una lista de búsqueda ya no salta arriba al desplazarte.
+
 ### Novedades en v0.9.794: editar más rápido
 
 - **Añadir ruta:** en el archivo, arriba en la columna de rutas, está **«+ Añadir ruta»** — con archivo de track, vigilar una carpeta y asistente de importación. También puedes arrastrar archivos de track al archivo.

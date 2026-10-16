@@ -1038,6 +1038,12 @@ python -m playwright install chromium-headless-shell</code></pre>
 <li><strong>What next?</strong> Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the</li>
 </ol>
 <p> video yourself in the Animator, create a map or animate data.</p>
+<h3 id="new-sturdier-rendering">New: sturdier rendering</h3>
+<ul>
+<li><strong>Aerial imagery at a border:</strong> if your tour runs right along a border, the app also fetches the neighbouring country&#x27;s aerial imagery for that corner. Where that service has no image, the spot stays transparent and the base map shows through — no warning and no needless retries.</li>
+<li><strong>Render browser crashed:</strong> if the hidden browser that records the video frame by frame crashes mid-render, the app restarts it and continues at the same frame (“Render browser restarted – continuing at frame …”), at most twice. The video does not get longer or shorter. The log says why it crashed and how much memory was free — send it along if this happens more often.</li>
+<li><strong>Media:</strong> while photos are read in in the background, a search list no longer jumps back to the top as you scroll.</li>
+</ul>
 <h3 id="new-quicker-editing">New: quicker editing</h3>
 <ul>
 <li><strong>Add tour:</strong> at the top of the tour column in the library there is <strong>“+ Add tour”</strong> — with track file, watch a folder and import assistant. You can also simply drag track files into the library.</li>

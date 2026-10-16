@@ -117,9 +117,21 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.795</span>
+    <span class="version-date">16 de octubre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Imagen aérea en una frontera</strong> &mdash; Si una ruta pasa justo junto a una frontera, la app también pide la imagen aérea del país vecino para esa zona. Cuando ese servicio respondía «aquí no hay imagen», se contaba como una caída — con muchas peticiones inútiles y el aviso «Imagen aérea … no responde – faltan cientos de teselas». Ahora ese trozo queda transparente, se ve el mapa base y no hay aviso.</li>
+    <li><strong>El render de vídeo ya no se rinde</strong> &mdash; Si el navegador invisible del render se cae en mitad de un vídeo, la app lo reinicia y sigue en el mismo fotograma en lugar de tirar medio vídeo. El registro dice ahora por qué se cayó y cuánta memoria quedaba libre.</li>
+    <li><strong>Medios: la lista se queda donde está</strong> &mdash; Mientras se leen fotos en segundo plano, una lista de búsqueda ya no salta arriba al desplazarte.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.794</span>
     <span class="version-date">15 de octubre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <ul>
     <li><strong>Añadir ruta, bien visible</strong> &mdash; Arriba en la columna de rutas del archivo: «+ Añadir ruta» — archivo de track, vigilar una carpeta o el asistente de importación.</li>

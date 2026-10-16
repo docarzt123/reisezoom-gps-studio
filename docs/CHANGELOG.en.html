@@ -117,9 +117,21 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.795</span>
+    <span class="version-date">16 October 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Aerial imagery at a border</strong> &mdash; If a tour runs right along a border, the app also asks the neighbouring country's aerial service for that corner. When that service answered “no image here”, it counted as an outage — with many needless requests and the warning “Aerial … is not responding – hundreds of tiles missing”. Now that spot is simply transparent, the base map shows through, and there is no warning.</li>
+    <li><strong>Video rendering no longer gives up</strong> &mdash; If the hidden render browser crashes in the middle of a video, the app restarts it and continues at the same frame instead of throwing half the video away. The log now says why it died and how much memory was free.</li>
+    <li><strong>Media: the list stays put</strong> &mdash; While photos are read in in the background, a search list no longer jumps back to the top as you scroll.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.794</span>
     <span class="version-date">15 October 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <ul>
     <li><strong>Add a tour, easy to find</strong> &mdash; At the top of the tour column in the library: „+ Add tour“ — track file, watch a folder or the import assistant.</li>

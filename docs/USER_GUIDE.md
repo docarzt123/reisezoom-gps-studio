@@ -1334,6 +1334,12 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 6. **Wie weiter?** Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video
    im Animator selbst gestalten, Karte erstellen oder Daten animieren.
 
+### Neu in v0.9.795: robuster rendern
+
+- **Luftbild an der Landesgrenze:** Liegt deine Tour direkt an einer Grenze, holt die App für die Ecke auch das Luftbild des Nachbarlands. Hat dieser Dienst für eine Stelle kein Bild, bleibt sie durchsichtig und die Grundkarte scheint durch — ohne Warnung und ohne unnötiges Nachfragen.
+- **Render-Browser abgestürzt:** Stürzt der unsichtbare Browser, der das Video Bild für Bild aufnimmt, mitten im Render ab, startet die App ihn neu und macht beim selben Bild weiter („Render-Browser neu gestartet – weiter bei Bild …“), höchstens zweimal. Das Video wird dadurch nicht länger oder kürzer. Im Log steht, warum er abgestürzt ist und wie viel Arbeitsspeicher frei war — schick es mit, wenn das öfter passiert.
+- **Medien:** Während im Hintergrund Fotos eingelesen werden, springt eine Suchliste beim Scrollen nicht mehr nach oben.
+
 ### Neu in v0.9.794: schneller bearbeiten
 
 - **Tour hinzufügen:** Im Archiv steht oben in der Touren-Spalte **„+ Tour hinzufügen“** — mit Track-Datei, Ordner beobachten und Import-Assistent. Track-Dateien kannst du auch einfach ins Archiv ziehen.

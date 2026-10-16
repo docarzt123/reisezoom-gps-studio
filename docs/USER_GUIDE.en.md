@@ -1297,6 +1297,12 @@ when you start it, and it needs a new track in the inbox.
 6. **What next?** Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the
    video yourself in the Animator, create a map or animate data.
 
+### New in v0.9.795: sturdier rendering
+
+- **Aerial imagery at a border:** if your tour runs right along a border, the app also fetches the neighbouring country's aerial imagery for that corner. Where that service has no image, the spot stays transparent and the base map shows through — no warning and no needless retries.
+- **Render browser crashed:** if the hidden browser that records the video frame by frame crashes mid-render, the app restarts it and continues at the same frame (“Render browser restarted – continuing at frame …”), at most twice. The video does not get longer or shorter. The log says why it crashed and how much memory was free — send it along if this happens more often.
+- **Media:** while photos are read in in the background, a search list no longer jumps back to the top as you scroll.
+
 ### New in v0.9.794: quicker editing
 
 - **Add tour:** at the top of the tour column in the library there is **“+ Add tour”** — with track file, watch a folder and import assistant. You can also simply drag track files into the library.

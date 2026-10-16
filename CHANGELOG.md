@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.795] – 2026-10-16
+
 ### Fixed
 - Aerial imagery at a border: a regional aerial service answers „no image here“ for tiles just across its border (e.g. the Czech service on the German side of Saxon Switzerland). The app took that for an outage — retries, the service blocked again and again, and during rendering „Aerial Czechia is not responding – 868 tiles missing“. Such tiles are now simply transparent (the base map shows through), without retries and without a warning.
 - Rendering: if the hidden render browser or its control process dies mid-render (seen on Windows: „Connection closed while reading from the driver“ at frame 213 of 1050), the app restarts it and continues at the same frame instead of discarding the video — „Render browser restarted – continuing at frame …“, at most twice. The log now also says how the process ended and how much memory was free.
