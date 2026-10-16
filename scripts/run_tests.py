@@ -65,6 +65,7 @@ BEDINGT = {
     "test_vorwaermen.py": ("netz",),                   # 29.09.2026: Kacheln vorwärmen grob → fein, Budget, Abbrechen
     "test_punkte_regler.py": ("netz",),                # 30.09.2026: Punkte-Regler wirkt auch im Probelauf/Video
     "test_kachel_ausfall.py": ("netz",),               # 30.09.2026: Kartendienst fällt aus → Ersatz-Kachel, kein Warten, Hinweis
+    "test_render_neustart.py": ("netz",),              # 16.10.2026: Render-Browser stirbt → Neustart, weiter beim selben Bild
     "test_vorlaeufer.py": ("netz", "langsam"),         # 30.09.2026: Vorläufer lädt beim Rendern voraus (kalter Render, Abbruch)
     "test_tempo_szene_render.py": ("netz", "langsam"),  # 08.09.2026: Tempo-Kurve über den Szenen-Render belegt (die schnelle Fassung ist test_tempo_wirkung.py)
     "test_render_matrix.py": ("netz", "langsam"),

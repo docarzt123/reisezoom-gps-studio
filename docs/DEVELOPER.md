@@ -5269,6 +5269,30 @@ Brücke), `test_container_szene.py` (WYSIWYG, Alpha über die Szene, Web-Export)
 - **Zeit je Bild**: Summen `_z` in der Bildschleife → `Szene: Zeit je Bild … ms (springen · warten auf Karte · Bild
   greifen · schreiben)`. `_WARTE_BILD_JS` feste Pause über `RZ_BILD_RUHE_MS` (Standard 60) — nur zum Messen.
 - Wächter: `tests/test_kachel_ausfall.py`.
+- **Keine Abdeckung ≠ Ausfall (16.10.2026):** antwortet ein Bild-Dienst mit **404/410**, gibt es dort kein Bild (z. B.
+  Luftbild Tschechien für Kacheln auf deutscher Seite innerhalb seiner bbox). `_fetch_tile_roh` liefert dann sofort
+  `_KEINE_ABDECKUNG_PNG` (256×256 durchsichtig, *nicht* das 1×1 der Ersatz-Kachel) mit 200 — kein Wiederholen, kein
+  `_fehl`/Nachholen, keine Störung, zählt in `_dienst_ergebnis` als Erfolg, wird gespeichert. Eine Logzeile je Region
+  (`hier keine Abdeckung (404)`). Gelände-Kacheln unverändert. Wächter: `tests/test_kachel_keine_abdeckung.py`.
+
+## Render-Browser stirbt — Neustart und Fortsetzen (16.10.2026)
+
+- **Anlass:** Windows-Log, `Page.evaluate: Connection closed while reading from the driver` bei Bild 213/1050 — der
+  Playwright-Treiber (node) war weg, die Teildatei wurde gelöscht.
+- **`render_szene`** hält Treiber, Seite und Vorläufer als „Sitzung“ (`sitz`, `_sitzung_starten(melden)` /
+  `_sitzung_beenden()`; Playwright per `async_playwright().start()`/`p.stop()` statt `async with`). Die Bildschleife ist
+  eine `while`-Schleife; ein Fehler, den `_browser_weg(e)` als „Treiber/Browser weg“ erkennt (`_WEG_MUSTER`), führt zu:
+  Log `Render-Browser weg bei Bild … — Treiber: … · Arbeitsspeicher …`, neue Sitzung, weiter beim selben Bild
+  (war es schon geschrieben, beim nächsten). Höchstens `NEUSTARTS_MAX` (2) Mal, danach wie bisher Abbruch.
+  ffmpeg (`FrameMuxer`) läuft die ganze Zeit weiter. Fortschritt: `szene.neustart`. Das erste Bild nach dem Neustart
+  bekommt die Schwarz-Prüfung wie die ersten drei Bilder.
+- **Warum nahtlos:** jedes Bild entsteht per `__rzPreviewStep.seek(t)` aus seiner Zeit, nicht aus dem Bild davor.
+- **Diagnose:** `_treiber_ende(cm)` liest den Ausstiegscode des Treiber-Prozesses
+  (`cm._connection._transport._proc`) und deutet Windows-NTSTATUS (`_WIN_CODES`) bzw. POSIX-Signale.
+  `core/logger.arbeitsspeicher_label()` (Windows `GlobalMemoryStatusEx`, macOS `vm_stat`, Linux `/proc/meminfo`) steht
+  am Render-Anfang (`Szene: Arbeitsspeicher …`) und in der Neustart-Zeile.
+- Wächter: `tests/test_render_neustart.py` (langsam; beendet den Treiber per `kill()` mitten im Render, vergleicht mit
+  einem ungestörten Lauf).
 
 ## Schnell-Video-Bildschirm und Startbild im Render-Fortschritt (30.09.2026, v0.9.744)
 

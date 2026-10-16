@@ -165,6 +165,50 @@ def get_hardware_label() -> str:
     return " · ".join(parts) if parts else (platform.machine() or "?")
 
 
+def arbeitsspeicher_label() -> str:
+    """Freier und gesamter Arbeitsspeicher, z. B. „frei 3,1 von 16 GB“ — fürs Render-Log (16.10.2026: ein Render
+    unter Windows brach ab, weil der Playwright-Treiber starb; ohne diese Zeile blieb offen, ob der Speicher voll war).
+    Fehlertolerant: liefert "" statt einer Ausnahme."""
+    import platform
+    frei = gesamt = None
+    try:
+        system = platform.system()
+        if system == "Windows":
+            import ctypes
+
+            class _MS(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            ms = _MS(); ms.dwLength = ctypes.sizeof(_MS)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(ms)):
+                frei, gesamt = ms.ullAvailPhys, ms.ullTotalPhys
+        elif system == "Darwin":
+            import re
+            import subprocess
+            gesamt = int(subprocess.run(["/usr/sbin/sysctl", "-n", "hw.memsize"], capture_output=True, text=True,
+                                        timeout=5).stdout.strip() or 0) or None
+            vm = subprocess.run(["/usr/bin/vm_stat"], capture_output=True, text=True, timeout=5).stdout
+            seite = int((re.search(r"page size of (\d+)", vm) or [0, 4096])[1])
+            def _n(name):
+                m = re.search(name + r":\s+(\d+)", vm)
+                return int(m.group(1)) if m else 0
+            frei = (_n("Pages free") + _n("Pages inactive") + _n("Pages speculative")) * seite
+        elif system == "Linux":
+            werte = {}
+            for z in Path("/proc/meminfo").read_text().splitlines():
+                k, _, v = z.partition(":")
+                werte[k] = int(v.split()[0]) * 1024 if v.split() else 0
+            frei, gesamt = werte.get("MemAvailable"), werte.get("MemTotal")
+    except Exception:
+        return ""
+    if not frei or not gesamt:
+        return ""
+    return ("frei %.1f von %.0f GB" % (frei / 1024 ** 3, gesamt / 1024 ** 3)).replace(".", ",")
+
+
 def get_os_label() -> str:
     """Liefert ein lesbares OS-Label fürs Log und Bug-Reports.
     Beispiele:

@@ -4881,6 +4881,7 @@
   "schnell.b.fertig": "✓ Your video is ready",
   "schnell.b.fehler": "The video could not be created. Details are in the error window.",
   "szene.kacheln_fehlen": "⚠️ {dienst} is not responding – {n} tiles missing, rendering continues",
+  "szene.neustart": "Render browser restarted – continuing at frame {n}",
   "szene.luftbild": "Aerial imagery {name}",
   "szene.kartendienst": "Map service {name}",
   "container.abstand": "Offset",

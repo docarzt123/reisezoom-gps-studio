@@ -4881,6 +4881,7 @@
   "schnell.b.fertig": "✓ Tu vídeo está listo",
   "schnell.b.fehler": "No se pudo crear el vídeo. Los detalles están en la ventana de error.",
   "szene.kacheln_fehlen": "⚠️ {dienst} no responde – faltan {n} teselas, el render continúa",
+  "szene.neustart": "Navegador de render reiniciado – continúa en el fotograma {n}",
   "szene.luftbild": "La ortofoto de {name}",
   "szene.kartendienst": "El servicio de mapas {name}",
   "container.abstand": "Distancia",

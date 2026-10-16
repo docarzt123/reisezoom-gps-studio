@@ -62,6 +62,7 @@ ERSATZ_MAX = 500
 _nachhol: dict = {}       # key → (fällig_um, funktion)
 _nachhol_faden = None
 FEHL_VERGESSEN_S = 600.0  # in der Vorschau (ohne Render) gemerkte Fehler nach 10 min neu versuchen
+_ohne_abdeckung_gemeldet: set = set()   # 16.10.2026 — Region einmal je Sitzung loggen, wenn sie 404 (= keine Abdeckung) liefert
 _geladen = {"bytes": 0, "kacheln": 0}   # 30.09.2026 — aus dem Netz geladen seit dem letzten Zurücksetzen (Log je Render)
 
 
@@ -70,6 +71,21 @@ class _Ersatz(bytes):
 
 
 _LEER_ERSATZ = _Ersatz(_LEER_PNG)
+
+
+def _keine_abdeckung_png() -> bytes:
+    """16.10.2026 — „hier kein Luftbild“ (Dienst antwortet 404): 256×256 durchsichtig. Bewusst NICHT das 1×1-PNG der
+    Ersatz-Kachel: diese Kachel darf in den Speicher, und Prüfungen erkennen Ersatz-Kacheln dort an 1×1."""
+    try:
+        import io
+        from PIL import Image
+        b = io.BytesIO(); Image.new("RGBA", (256, 256), (0, 0, 0, 0)).save(b, "PNG", optimize=True)
+        return b.getvalue()
+    except Exception:  # noqa: BLE001
+        return _LEER_PNG
+
+
+_KEINE_ABDECKUNG_PNG = _keine_abdeckung_png()
 _ersatz_bild: dict = {}   # key → _Ersatz (aus der Elternkachel geschnitten), solange die Kachel fehlt
 
 
@@ -710,6 +726,7 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
     # 30.09.2026 (Marc, MacBook: der spanische Dienst antwortete bei vielen gleichzeitigen Anfragen mit 502 — zwei
     # Szene-Seiten × 16 Anfragen): höchstens region["max_parallel"] Abrufe zugleich, bei 5xx neuer Versuch nach 1 s / 2 s.
     _sem = _drossel(region)
+    keine_abdeckung = False
     for _versuch in range(0 if body else 3):    # 04.09.2026: wiederholen — unter Last kippten einzelne Kacheln mit 502
         try:
             if _sem is not None:
@@ -729,8 +746,20 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
         except Exception as e:      # noqa: BLE001
             fehler = e
             code = getattr(e, "code", None)
+            if not terrain and code is not None and int(code) in (404, 410):
+                # 16.10.2026 (Windows-Log, Tour an der deutsch-tschechischen Grenze): der tschechische Dienst
+                # antwortet für Kacheln jenseits der Grenze mit 404 = „hier kein Luftbild“. Das wurde als Ausfall
+                # gewertet (Ersatz, Nachholen, Dienst gesperrt, „antwortet nicht – 868 Kacheln fehlen“) und
+                # erzeugte Hunderte unnötige Anfragen. Keine Abdeckung = durchsichtige Kachel, darunter die Grundkarte.
+                keine_abdeckung = True; fehler = None
+                break
             if _versuch < 2 and (code is None or int(code) >= 500):
                 time.sleep(1.0 * (_versuch + 1))
+    if keine_abdeckung:
+        if region_id not in _ohne_abdeckung_gemeldet:
+            _ohne_abdeckung_gemeldet.add(region_id)
+            _log.info("Kartendienst %s: hier keine Abdeckung (404) — durchsichtige Kachel, z. B. z%d/%d/%d", region_id, z, x, y)
+        ct, body = "image/png", _KEINE_ABDECKUNG_PNG
     if fehler is not None:
         _log.warning("Kachel %s z%d/%d/%d: %s", region_id, z, x, y, fehler)
         return 502, "text/plain", str(fehler).encode("utf-8", "ignore")
@@ -740,7 +769,7 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
     if terrain:
         if klemmen:
             body = clamp_terrarium(body)
-    elif region is not None:
+    elif region is not None and not keine_abdeckung:
         if oversample_factor(region, z) > 1:
             body, ct = downscale_tile(body, ct)
         if region.get("sea_mask") and z <= SEA_MASK_MAX_Z:

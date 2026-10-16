@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Aerial imagery at a border: a regional aerial service answers „no image here“ for tiles just across its border (e.g. the Czech service on the German side of Saxon Switzerland). The app took that for an outage — retries, the service blocked again and again, and during rendering „Aerial Czechia is not responding – 868 tiles missing“. Such tiles are now simply transparent (the base map shows through), without retries and without a warning.
+- Rendering: if the hidden render browser or its control process dies mid-render (seen on Windows: „Connection closed while reading from the driver“ at frame 213 of 1050), the app restarts it and continues at the same frame instead of discarding the video — „Render browser restarted – continuing at frame …“, at most twice. The log now also says how the process ended and how much memory was free.
+- Media: while photos were being read in the background, the list was quietly redrawn every few seconds and jumped back to the top when you scrolled through search results. A search now keeps its list, and a quiet refresh keeps the scroll position.
+
 ### Changed
 - Test suite: every test gets its own copy of the settings file (`RZ_SETTINGS_DATEI`). Without a built app all tests shared the one `settings.json` in the repository, and tests running in parallel changed values for each other — the cause of tests that were only red in parallel.
 

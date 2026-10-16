@@ -4881,6 +4881,7 @@
   "schnell.b.fertig": "✓ Dein Video ist fertig",
   "schnell.b.fehler": "Das Video konnte nicht erstellt werden. Details stehen im Fehlerfenster.",
   "szene.kacheln_fehlen": "⚠️ {dienst} antwortet nicht – {n} Kacheln fehlen, es geht weiter",
+  "szene.neustart": "Render-Browser neu gestartet – weiter bei Bild {n}",
   "szene.luftbild": "Luftbild {name}",
   "szene.kartendienst": "Kartendienst {name}",
   "container.abstand": "Abstand",

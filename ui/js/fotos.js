@@ -543,7 +543,9 @@
         const jetzt = Date.now();
         const phasenWechsel = st.phase !== letztePhase;
         letztePhase = st.phase;
-        if (phasenWechsel || (geladen.length < SEITE && jetzt - letztesNachziehen > 3000)) {
+        // 16.10.2026 — bei einer Suche nicht im Takt nachziehen: die Treffer stehen, jedes Neuzeichnen störte das Blättern
+        const sucht = !!(filter.suche || filter.aehnlich);
+        if (!sucht && (phasenWechsel || (geladen.length < SEITE && jetzt - letztesNachziehen > 3000))) {
           letztesNachziehen = jetzt;
           neuLaden(true);
         }
@@ -600,7 +602,17 @@
       // Beim Weiterblättern nur anhängen: ein vollständiges Neuzeichnen würde
       // die Ansicht nach oben reißen und bei tausenden Kacheln hängen.
       if (ab && ansicht === "raster") rasterAnhaengen(ab);
-      else zeichnen();
+      else {
+        // 16.10.2026 (Marc: „Das Hochschieben des Ergebnisses: Dann springt die Liste immer wieder nach oben.“) — ein
+        // stilles Auffrischen (Einlesen läuft, Inhaltssuche fertig) zeichnet alles neu; die Scrollposition bleibt
+        const altBox = leise && neu && haupt ? haupt.querySelector("#foto-body") : null;
+        const altTop = altBox ? altBox.scrollTop : 0;
+        zeichnen();
+        if (altTop > 0 && haupt) {
+          const nb = haupt.querySelector("#foto-body");
+          if (nb) { nb.scrollTop = altTop; requestAnimationFrame(() => { if (nb.isConnected && nb.scrollTop < altTop) nb.scrollTop = altTop; }); }
+        }
+      }
     } finally {
       nachladend = false;
     }

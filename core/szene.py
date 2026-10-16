@@ -43,6 +43,7 @@ from typing import Callable, Optional
 from . import animator as A
 from . import tileproxy as _tileproxy
 from . import tonspur as _tonspur
+from . import logger as _logger   # 16.10.2026 — freier Arbeitsspeicher fürs Render-Log
 from .frame_driver import FrameMuxer, muxer_fuer, teildatei
 
 _log = logging.getLogger("animator.szene")
@@ -594,6 +595,51 @@ async def _vorlaeufer(p, cfg, api, projekt_id, params, modul, zustand, is_cancel
             except Exception: pass
 
 
+# 16.10.2026 (Windows-Log: „Page.evaluate: Connection closed while reading from the driver“ bei Bild 213 von 1050 — der
+# Playwright-Treiber starb, das angefangene Video wurde gelöscht). ffmpeg läuft in unserem Prozess weiter; die Szene
+# startet Treiber + Chromium neu und macht beim abgebrochenen Bild weiter. Jedes Bild entsteht per seek(t) aus seiner
+# Zeit, nicht aus dem Bild davor — das Video läuft nahtlos weiter (Test test_render_neustart).
+NEUSTARTS_MAX = 2
+_WEG_MUSTER = ("connection closed", "target page, context or browser has been closed", "browser has been closed",
+               "target crashed", "browser has disconnected", "target closed")
+# Windows-Ausstiegscodes (NTSTATUS), die beim Treiber-Tod vorkommen — fürs Log, damit die Ursache lesbar ist
+_WIN_CODES = {0xC0000005: "Zugriffsverletzung", 0xC0000409: "Notabbruch (oft Speichermangel)",
+              0xC0000017: "kein Speicher mehr", 0xC00000FD: "Stapelüberlauf", 0xC000013A: "Abmelden/Strg+C",
+              0xC0000142: "Start fehlgeschlagen (Ressourcen)", 1: "von außen beendet oder Fehler", 134: "abort (oft Speichermangel)"}
+
+
+def _browser_weg(e: BaseException) -> bool:
+    """Ist der Fehler „Treiber oder Browser nicht mehr da“ (→ Neustart), nicht ein Fehler in der Seite?"""
+    if isinstance(e, A.RenderCancelled):
+        return False
+    t = str(e).lower()
+    return any(m in t for m in _WEG_MUSTER)
+
+
+async def _treiber_ende(cm) -> str:
+    """Wie der Playwright-Treiber (node) geendet hat: Ausstiegscode mit Deutung, oder dass er noch läuft."""
+    try:
+        proc = cm._connection._transport._proc
+    except Exception:  # noqa: BLE001
+        return "unbekannt"
+    try:
+        rc = proc.returncode
+        if rc is None:
+            try:
+                rc = await asyncio.wait_for(proc.wait(), 5)
+            except asyncio.TimeoutError:
+                return f"läuft noch (pid {proc.pid}) — der Browser ist weg, nicht der Treiber"
+        if rc < 0:
+            import signal
+            try: name = signal.Signals(-rc).name
+            except Exception: name = "?"   # noqa: E701
+            return f"durch Signal {-rc} ({name}) beendet"
+        u = rc & 0xFFFFFFFF
+        return f"Ausstiegscode {rc} (0x{u:08X}{', ' + _WIN_CODES[u] if u in _WIN_CODES else ''})"
+    except Exception as e:  # noqa: BLE001
+        return f"unbekannt ({e})"
+
+
 async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                        on_progress: Optional[Callable[[float, str], None]] = None,
                        on_preview: Optional[Callable[[str], None]] = None,
@@ -615,118 +661,141 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
               projekt_id, total_frames, cfg.fps, getattr(cfg, "intro_s", 0), cfg.duration_s, cfg.hold_s,
               cfg.width, cfg.height, cfg.codec)
 
-    async with async_playwright() as p:
-        _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0" and not getattr(cfg, "transparent_background", False)   # Alpha: keine Kacheln
-        _vl = {"bild": 0, "ende": total_frames, "stop": False, "stand": 0, "bereit": False}
-        _vl_task = asyncio.create_task(_vorlaeufer(p, cfg, api, projekt_id, params, modul, _vl, is_cancelled)) if _vl_an else None
-        try:
-            browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
-        except BaseException:
-            _vl["stop"] = True
-            if _vl_task is not None:
-                try: await asyncio.wait_for(_vl_task, 15)
-                except BaseException: pass
-            raise
-        try:
-            emit(0.05, _i18n.t_aktiv("szene.probelauf", "Szene: Probelauf im Schrittmodus …"))
-            await page.evaluate("() => window.__rzPreviewRun()")
-            await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
-            # ⚠️ 09.09.2026 (Marc) — DIE VORSCHAU BESTIMMT DIE LÄNGE, und zwar wirklich.
-            # Hier stand dieser Satz bisher nur als Warnung im Log, gerechnet wurde
-            # weiter mit `duration_s` aus den Einstellungen. Bei einer Etappenfolge
-            # kommen die Übergänge aber ZUSÄTZLICH zur eingestellten Dauer: gemessen
-            # 8,00 s Video gegen 11,00 s Vorschau — die letzten drei Sekunden fehlten
-            # schlicht. Zwei Quellen für eine Zahl, dieselbe Sorte Riss wie beim
-            # Zeitplan der Etappen.
-            total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
-            erwartet_ms = total_frames / cfg.fps * 1000
-            aus_vorschau = max(1, int(round(total_ms / 1000.0 * cfg.fps)))
-            if aus_vorschau != total_frames:
-                _log.info("Szene: Länge kommt aus der Vorschau — %d statt %d Bildern "
-                          "(%.2f s statt %.2f s)", aus_vorschau, total_frames,
-                          total_ms / 1000.0, erwartet_ms / 1000.0)
-                total_frames = aus_vorschau
+    _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0" and not getattr(cfg, "transparent_background", False)   # Alpha: keine Kacheln
+    _vl = {"bild": 0, "ende": total_frames, "stop": False, "stand": 0, "bereit": False}
+    # 16.10.2026 — eine „Sitzung“ = Playwright-Treiber + Render-Seite + Vorläufer. Stirbt der Treiber oder der Browser
+    # mitten im Render, wird sie ersetzt (siehe NEUSTARTS_MAX); ffmpeg läuft unterdessen weiter.
+    sitz = {"cm": None, "p": None, "browser": None, "page": None, "vl_task": None}
+
+    async def _sitzung_beenden():
+        _vl["stop"] = True
+        if sitz["vl_task"] is not None:
+            try: await asyncio.wait_for(sitz["vl_task"], 15)
+            except BaseException: pass
+        if sitz["browser"] is not None:
+            try: await asyncio.wait_for(sitz["browser"].close(), 15)
+            except BaseException: pass
+        if sitz["p"] is not None:
+            try: await asyncio.wait_for(sitz["p"].stop(), 15)
+            except BaseException: pass
+        sitz.update(cm=None, p=None, browser=None, page=None, vl_task=None)
+
+    async def _sitzung_starten(melden):
+        sitz["cm"] = async_playwright()
+        sitz["p"] = p = await sitz["cm"].start()
+        _vl["stop"] = False; _vl["bereit"] = False
+        sitz["vl_task"] = asyncio.create_task(_vorlaeufer(p, cfg, api, projekt_id, params, modul, _vl, is_cancelled)) if _vl_an else None
+        browser, page, _dsf, _ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, melden, params, modul=modul)
+        sitz["browser"], sitz["page"] = browser, page
+        melden(0.05, _i18n.t_aktiv("szene.probelauf", "Szene: Probelauf im Schrittmodus …"))
+        await page.evaluate("() => window.__rzPreviewRun()")
+        await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+        if os.environ.get("RZ_SEITE_JS"):
+            await page.evaluate(os.environ["RZ_SEITE_JS"])
+        return page
+
+    _log.info("Szene: Arbeitsspeicher %s", _logger.arbeitsspeicher_label() or "unbekannt")
+    try:
+        page = await _sitzung_starten(emit)
+        # ⚠️ 09.09.2026 (Marc) — DIE VORSCHAU BESTIMMT DIE LÄNGE, und zwar wirklich.
+        # Hier stand dieser Satz bisher nur als Warnung im Log, gerechnet wurde
+        # weiter mit `duration_s` aus den Einstellungen. Bei einer Etappenfolge
+        # kommen die Übergänge aber ZUSÄTZLICH zur eingestellten Dauer: gemessen
+        # 8,00 s Video gegen 11,00 s Vorschau — die letzten drei Sekunden fehlten
+        # schlicht. Zwei Quellen für eine Zahl, dieselbe Sorte Riss wie beim
+        # Zeitplan der Etappen.
+        total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
+        erwartet_ms = total_frames / cfg.fps * 1000
+        aus_vorschau = max(1, int(round(total_ms / 1000.0 * cfg.fps)))
+        if aus_vorschau != total_frames:
+            _log.info("Szene: Länge kommt aus der Vorschau — %d statt %d Bildern "
+                      "(%.2f s statt %.2f s)", aus_vorschau, total_frames,
+                      total_ms / 1000.0, erwartet_ms / 1000.0)
+            total_frames = aus_vorschau
+        _vl["ende"] = total_frames
+        # 03.10.2026 Prüfstand (Häuser-Flimmern): RZ_TEILSTUECK="ab,bis,schritte_je_s" rendert nur dieses
+        # Stück in feinen Zeitschritten; RZ_SEITE_JS wird vorher einmal in der Seite ausgeführt (Hypothese an/aus).
+        _teil = [float(x) for x in (os.environ.get("RZ_TEILSTUECK") or "").split(",") if x.strip()]
+        if len(_teil) == 3:
+            total_frames = max(1, int(round((_teil[1] - _teil[0]) * _teil[2])))
             _vl["ende"] = total_frames
-            # 03.10.2026 Prüfstand (Häuser-Flimmern): RZ_TEILSTUECK="ab,bis,schritte_je_s" rendert nur dieses
-            # Stück in feinen Zeitschritten; RZ_SEITE_JS wird vorher einmal in der Seite ausgeführt (Hypothese an/aus).
-            _teil = [float(x) for x in (os.environ.get("RZ_TEILSTUECK") or "").split(",") if x.strip()]
-            if len(_teil) == 3:
-                total_frames = max(1, int(round((_teil[1] - _teil[0]) * _teil[2])))
-                _vl["ende"] = total_frames
-            if os.environ.get("RZ_SEITE_JS"):
-                await page.evaluate(os.environ["RZ_SEITE_JS"])
-            # 08.09.2026 - Kacheln vorwaermen (wie der klassische Pfad seit v0.9.19 ueber
-            # window.prewarmTiles): N Haltepunkte ueber die Zeitachse, je einmal auf idle
-            # warten. Die Karte holt die Kacheln je Halt gebuendelt und parallel; ohne das
-            # wartet die Bildschleife bei jedem Bild einzeln auf Nachzuegler. Marcs 4K-Lauf
-            # vom 08.09.: 1826 Fehlgriffe im Zwischenspeicher, 2,1 s je Bild gegen 0,75 s
-            # warm. RZ_VORWAERMEN=0 schaltet es ab (Pruefstand).
-            # Dichte: rund 6 Haltepunkte je Sekunde Video, mindestens 12, hoechstens 200.
-            # Kalt gemessen (Masca, 4 s, 4K): ohne 2336 ms/Bild, 24 Halte 1703, 48 Halte 1611.
-            _vw_std = max(12, min(200, round(total_frames / max(1, cfg.fps) * 6)))
-            # 30.09.2026 — mit Vorläufer entfällt das Vorwärmen vor dem ersten Bild: er lädt ohnehin voraus,
-            # die Bildschleife startet sofort (RZ_VORWAERMEN erzwingt es weiterhin).
-            _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", "0" if _vl_task is not None else str(_vw_std)) or 0)
-            if _vorwaermen > 1:
-                _t_vw = time.time()
-                emit(0.05, _i18n.t_aktiv("szene.vorwaermen", "Szene: Kacheln vorwärmen ({n}) …").replace("{n}", str(_vorwaermen)))
-                # 08.09.2026 — Ist alles schon da, ist jeder weitere Halt verschenkte
-                # Zeit (Marcs zweiter Masca-Lauf: 90 s Vorwaermen, kaum noch Ertrag).
-                # Gemessen wird die WARTEZEIT je Halt, die `_WARTE_BILD_JS` zurueckgibt,
-                # nicht der Kachel-Zaehler: rund die Haelfte der Fehlgriffe wird nie
-                # abgelegt (Dienste ohne brauchbare Antwort), der Zaehler bliebe also
-                # auch bei warmem Speicher hoch — gemessen 295 „neue" Kacheln in einem
-                # Lauf, der zu 92 Prozent aus Treffern bestand.
-                _warten = []
-                _halte = 0
-                # 29.09.2026 (Marc: „Kacheln vorwärmen dauert immer ziemlich lange … dann hängt's bei mir"):
-                # grob → fein, höchstens 2,5 s je Halt, Zeitbudget (Standard 45 s, RZ_VORWAERMEN_S),
-                # Fortschritt je Halt sichtbar.
-                _budget_s = float(os.environ.get("RZ_VORWAERMEN_S", "45") or 45)
-                _txt = _i18n.t_aktiv("szene.vorwaermen_n", "Szene: Kacheln vorwärmen {i} von {n} …")
-                for _i in _grob_nach_fein(_vorwaermen):
-                    if is_cancelled and is_cancelled():
-                        raise A.RenderCancelled()
-                    # 12.10.2026 (Suite: 24,2 s bei 20 s Budget) — keinen Halt mehr anfangen, der nicht mehr ins Budget
-                    # passt: ein Halt wartet bis 2,5 s, dazu das Springen der Karte
-                    if time.time() - _t_vw > _budget_s - 2.5:
-                        _log.info("Szene: Vorwärmen nach Zeitbudget %.0f s beendet (%d von %d)", _budget_s, _halte, _vorwaermen)
+        # 08.09.2026 - Kacheln vorwaermen (wie der klassische Pfad seit v0.9.19 ueber
+        # window.prewarmTiles): N Haltepunkte ueber die Zeitachse, je einmal auf idle
+        # warten. Die Karte holt die Kacheln je Halt gebuendelt und parallel; ohne das
+        # wartet die Bildschleife bei jedem Bild einzeln auf Nachzuegler. Marcs 4K-Lauf
+        # vom 08.09.: 1826 Fehlgriffe im Zwischenspeicher, 2,1 s je Bild gegen 0,75 s
+        # warm. RZ_VORWAERMEN=0 schaltet es ab (Pruefstand).
+        # Dichte: rund 6 Haltepunkte je Sekunde Video, mindestens 12, hoechstens 200.
+        # Kalt gemessen (Masca, 4 s, 4K): ohne 2336 ms/Bild, 24 Halte 1703, 48 Halte 1611.
+        _vw_std = max(12, min(200, round(total_frames / max(1, cfg.fps) * 6)))
+        # 30.09.2026 — mit Vorläufer entfällt das Vorwärmen vor dem ersten Bild: er lädt ohnehin voraus,
+        # die Bildschleife startet sofort (RZ_VORWAERMEN erzwingt es weiterhin).
+        _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", "0" if sitz["vl_task"] is not None else str(_vw_std)) or 0)
+        if _vorwaermen > 1:
+            _t_vw = time.time()
+            emit(0.05, _i18n.t_aktiv("szene.vorwaermen", "Szene: Kacheln vorwärmen ({n}) …").replace("{n}", str(_vorwaermen)))
+            # 08.09.2026 — Ist alles schon da, ist jeder weitere Halt verschenkte
+            # Zeit (Marcs zweiter Masca-Lauf: 90 s Vorwaermen, kaum noch Ertrag).
+            # Gemessen wird die WARTEZEIT je Halt, die `_WARTE_BILD_JS` zurueckgibt,
+            # nicht der Kachel-Zaehler: rund die Haelfte der Fehlgriffe wird nie
+            # abgelegt (Dienste ohne brauchbare Antwort), der Zaehler bliebe also
+            # auch bei warmem Speicher hoch — gemessen 295 „neue" Kacheln in einem
+            # Lauf, der zu 92 Prozent aus Treffern bestand.
+            _warten = []
+            _halte = 0
+            # 29.09.2026 (Marc: „Kacheln vorwärmen dauert immer ziemlich lange … dann hängt's bei mir"):
+            # grob → fein, höchstens 2,5 s je Halt, Zeitbudget (Standard 45 s, RZ_VORWAERMEN_S),
+            # Fortschritt je Halt sichtbar.
+            _budget_s = float(os.environ.get("RZ_VORWAERMEN_S", "45") or 45)
+            _txt = _i18n.t_aktiv("szene.vorwaermen_n", "Szene: Kacheln vorwärmen {i} von {n} …")
+            for _i in _grob_nach_fein(_vorwaermen):
+                if is_cancelled and is_cancelled():
+                    raise A.RenderCancelled()
+                # 12.10.2026 (Suite: 24,2 s bei 20 s Budget) — keinen Halt mehr anfangen, der nicht mehr ins Budget
+                # passt: ein Halt wartet bis 2,5 s, dazu das Springen der Karte
+                if time.time() - _t_vw > _budget_s - 2.5:
+                    _log.info("Szene: Vorwärmen nach Zeitbudget %.0f s beendet (%d von %d)", _budget_s, _halte, _vorwaermen)
+                    break
+                _tv = (total_frames - 1) / cfg.fps * _i / (_vorwaermen - 1)
+                await page.evaluate(f"() => window.__rzPreviewStep.seek({_tv:.6f})")
+                _ms = await page.evaluate(_WARTE_VORWAERMEN_JS)
+                _warten.append(float(_ms) if isinstance(_ms, (int, float)) else 0.0)
+                _halte += 1
+                emit(0.05, _txt.replace("{i}", str(_halte)).replace("{n}", str(_vorwaermen)) + _stoerung_hinweis(page))
+                if _halte >= 12 and _halte % 6 == 0:
+                    _letzte = sorted(_warten[-6:])[3]
+                    # Schwelle aus Messungen (Masca, 4K): kalt wartet ein Halt
+                    # 600 bis 900 ms, warm 380 bis 400 ms. Unter 500 ms ist nichts
+                    # mehr zu holen — die verbleibende Wartezeit ist MapLibres
+                    # eigenes Nachzeichnen, nicht das Laden von Kacheln.
+                    if _letzte < 500:
+                        _log.info("Szene: Vorwärmen früh beendet — Karte wartet nur noch %.0f ms je Halt (%d von %d)",
+                                  _letzte, _halte, _vorwaermen)
                         break
-                    _tv = (total_frames - 1) / cfg.fps * _i / (_vorwaermen - 1)
-                    await page.evaluate(f"() => window.__rzPreviewStep.seek({_tv:.6f})")
-                    _ms = await page.evaluate(_WARTE_VORWAERMEN_JS)
-                    _warten.append(float(_ms) if isinstance(_ms, (int, float)) else 0.0)
-                    _halte += 1
-                    emit(0.05, _txt.replace("{i}", str(_halte)).replace("{n}", str(_vorwaermen)) + _stoerung_hinweis(page))
-                    if _halte >= 12 and _halte % 6 == 0:
-                        _letzte = sorted(_warten[-6:])[3]
-                        # Schwelle aus Messungen (Masca, 4K): kalt wartet ein Halt
-                        # 600 bis 900 ms, warm 380 bis 400 ms. Unter 500 ms ist nichts
-                        # mehr zu holen — die verbleibende Wartezeit ist MapLibres
-                        # eigenes Nachzeichnen, nicht das Laden von Kacheln.
-                        if _letzte < 500:
-                            _log.info("Szene: Vorwärmen früh beendet — Karte wartet nur noch %.0f ms je Halt (%d von %d)",
-                                      _letzte, _halte, _vorwaermen)
-                            break
-                _mitte = sorted(_warten)[len(_warten) // 2] if _warten else 0.0
-                _log.info("Szene: Kacheln vorgewärmt an %d von %d Haltepunkten in %.1fs (Warten je Halt im Mittel %.0f ms)",
-                          _halte, _vorwaermen, time.time() - _t_vw, _mitte)
-            # 08.09.2026 - Verkleinern uebernimmt ffmpeg (siehe _vf_args/_grab_frame).
-            cfg.skalieren_in_ffmpeg = True
-            mux = FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
-            preview_every = max(1, cfg.fps // 10)
-            # 30.09.2026 (Marc: „das Komoot-Video rendert so schnell, bei uns dauert es ewig") — wohin geht die
-            # Zeit je Bild? Summen je Schritt, am Ende eine Logzeile „Szene: Zeit je Bild …".
-            _z = {"seek": 0.0, "warten": 0.0, "greifen": 0.0, "schreiben": 0.0}
-            # 01.10.2026 — Hänger zählen statt Gesamtzeit messen: ein Bild, das bis an die Grenze von
-            # _WARTE_BILD_JS (5 s) auf die Karte wartet, ist der Fehler vom 30.09. (Kartendienst-Ausfall).
-            # Die Gesamtzeit hängt an der Rechnerlast, diese Zahl nicht.
-            _haenger, _warte_max = 0, 0.0
-            _hinweis_alt = ""
-            _t_bilder = time.time()
-            await page.evaluate("() => { window.__rzBildNr = 0; }")   # 05.10.2026 — Anlauf-Pause zählt ab dem ersten Bild
-            try:
-                for frame in range(total_frames):
+            _mitte = sorted(_warten)[len(_warten) // 2] if _warten else 0.0
+            _log.info("Szene: Kacheln vorgewärmt an %d von %d Haltepunkten in %.1fs (Warten je Halt im Mittel %.0f ms)",
+                      _halte, _vorwaermen, time.time() - _t_vw, _mitte)
+        # 08.09.2026 - Verkleinern uebernimmt ffmpeg (siehe _vf_args/_grab_frame).
+        cfg.skalieren_in_ffmpeg = True
+        mux = FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
+        preview_every = max(1, cfg.fps // 10)
+        # 30.09.2026 (Marc: „das Komoot-Video rendert so schnell, bei uns dauert es ewig") — wohin geht die
+        # Zeit je Bild? Summen je Schritt, am Ende eine Logzeile „Szene: Zeit je Bild …".
+        _z = {"seek": 0.0, "warten": 0.0, "greifen": 0.0, "schreiben": 0.0}
+        # 01.10.2026 — Hänger zählen statt Gesamtzeit messen: ein Bild, das bis an die Grenze von
+        # _WARTE_BILD_JS (5 s) auf die Karte wartet, ist der Fehler vom 30.09. (Kartendienst-Ausfall).
+        # Die Gesamtzeit hängt an der Rechnerlast, diese Zahl nicht.
+        _haenger, _warte_max = 0, 0.0
+        _hinweis_alt = ""
+        _t_bilder = time.time()
+        await page.evaluate("() => { window.__rzBildNr = 0; }")   # 05.10.2026 — Anlauf-Pause zählt ab dem ersten Bild
+        try:
+            frame = 0
+            _neustarts = 0
+            _nach_neustart = -1
+            while frame < total_frames:
+                _geschrieben = False
+                try:
                     if is_cancelled and is_cancelled():
                         raise A.RenderCancelled()
                     _vl["bild"] = frame
@@ -757,7 +826,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     shot = await _mit_meldung(A._grab_frame(page, cfg),
                                               _meldung("szene.m_greifen", "nimmt das Bild auf … {s} s"), is_cancelled)
                     _z["greifen"] += time.perf_counter() - _t
-                    if frame <= 2:
+                    if frame <= 2 or frame == _nach_neustart:   # frische Seite: erstes Bild kann schwarz sein
                         for _k in range(6):
                             if A._frame_black_ratio(shot) < 0.05:
                                 break
@@ -767,6 +836,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                             shot = await A._grab_frame(page, cfg)
                     _t = time.perf_counter()
                     mux.schreiben(shot, frame + 1)
+                    _geschrieben = True
                     _z["schreiben"] += time.perf_counter() - _t
                     if on_preview and frame % preview_every == 0:
                         try: on_preview(base64.b64encode(shot).decode("ascii"))
@@ -774,41 +844,58 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     if frame % 10 == 0:
                         _hinweis_alt = _stoerung_hinweis(page)   # 30.09.2026 — Kartendienst-Ausfälle sichtbar machen
                     emit(0.05 + 0.87 * (frame + 1) / total_frames, f"Frame {frame + 1} / {total_frames}" + _hinweis_alt)
-            except BaseException as _fehler:
-                mux.abbrechen("abgebrochen" if isinstance(_fehler, A.RenderCancelled) else "Fehler")
-                raise
-            _n = max(1, total_frames)
-            _log.info("Szene: Zeit je Bild %.0f ms (springen %.0f · warten auf Karte %.0f · Bild greifen %.0f · schreiben %.0f) — %d Bilder in %.1f s",
-                      (time.time() - _t_bilder) * 1000 / _n, _z["seek"] * 1000 / _n, _z["warten"] * 1000 / _n,
-                      _z["greifen"] * 1000 / _n, _z["schreiben"] * 1000 / _n, _n, time.time() - _t_bilder)
-            _log.info("Szene: längstes Warten auf die Karte %.0f ms · Bilder an der 5-s-Grenze: %d", _warte_max * 1000, _haenger)
-            LETZTE_ZEITEN.clear()
-            LETZTE_ZEITEN.update(bilder=_n, haenger=_haenger, warte_max_s=_warte_max, je_bild_ms={k: v * 1000 / _n for k, v in _z.items()})
-            # 02.10.2026 — Tonplan (Musik, Foto-Klicks, Clip-Ton) aus der Seite: dieselben Zeiten wie in der Vorschau
-            try: _tonplan = await page.evaluate("() => (window.__rzTonPlan ? window.__rzTonPlan() : null)")
-            except Exception as _e:  # noqa: BLE001
-                _tonplan = None; _log.warning("Szene: Tonplan nicht lesbar: %s", _e)
-            emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
-            mux.abschliessen(is_cancelled)
-            if not _tonspur.plan_leer(_tonplan):
-                emit(0.95, _i18n.t_aktiv("animator.progress.ton", "Tonspur wird angelegt …"))
-                _ton = _tonspur.anlegen(cfg.output_path, _tonplan, A.find_ffmpeg(), total_frames / cfg.fps)
-                if not _ton.get("ok"):
-                    _log.warning("Szene: Tonspur fehlgeschlagen — Video bleibt stumm: %s", _ton.get("error"))
-            _log.info("Szene: Kacheln %s", _stats_json(getattr(page, "_rz_tile_stats", None)))
-            _gl = _tileproxy.geladen()
-            _log.info("Szene: über die Kachel-Weiche aus dem Netz geladen: %d Kacheln, %.1f MB", _gl["kacheln"], _gl["bytes"] / 1e6)
-            _st = _tileproxy.stoerungen()
-            if _st or ((getattr(page, "_rz_tile_stats", None) or {}).get("aus")):
-                _log.warning("Szene: Kartendienste mit Ausfällen — Weiche %s · direkt %s", json.dumps(_st, ensure_ascii=False),
-                             _stats_json((getattr(page, "_rz_tile_stats", None) or {}).get("aus")))
-        finally:
-            _vl["stop"] = True
-            if _vl_task is not None:
-                try: await asyncio.wait_for(_vl_task, 15)
-                except BaseException: pass
-            try: await browser.close()
-            except Exception: pass
+                except Exception as _weg:     # noqa: BLE001
+                    if not _browser_weg(_weg):
+                        raise
+                    _treiber = await _treiber_ende(sitz["cm"])
+                    _log.warning("Szene: Render-Browser weg bei Bild %d / %d (%s) — Treiber: %s · Arbeitsspeicher %s",
+                                 frame + 1, total_frames, str(_weg)[:160], _treiber, _logger.arbeitsspeicher_label() or "unbekannt")
+                    if _neustarts >= NEUSTARTS_MAX:
+                        raise
+                    _neustarts += 1
+                    if _geschrieben:
+                        frame += 1          # dieses Bild ist schon im Video
+                    _p = 0.05 + 0.87 * frame / total_frames
+                    _neu_txt = (_i18n.t_aktiv("szene.neustart", "Render-Browser neu gestartet – weiter bei Bild {n}")
+                                .replace("{n}", str(frame + 1)))
+                    _log.info("Szene: Neustart %d/%d — weiter bei Bild %d", _neustarts, NEUSTARTS_MAX, frame + 1)
+                    await _sitzung_beenden()
+                    page = await _sitzung_starten(lambda _q, m, _p=_p, _t=_neu_txt: emit(_p, _t + " · " + m))
+                    _vl["bild"] = frame
+                    _nach_neustart = frame
+                    emit(_p, _neu_txt)
+                    continue
+                frame += 1
+        except BaseException as _fehler:
+            mux.abbrechen("abgebrochen" if isinstance(_fehler, A.RenderCancelled) else "Fehler")
+            raise
+        _n = max(1, total_frames)
+        _log.info("Szene: Zeit je Bild %.0f ms (springen %.0f · warten auf Karte %.0f · Bild greifen %.0f · schreiben %.0f) — %d Bilder in %.1f s",
+                  (time.time() - _t_bilder) * 1000 / _n, _z["seek"] * 1000 / _n, _z["warten"] * 1000 / _n,
+                  _z["greifen"] * 1000 / _n, _z["schreiben"] * 1000 / _n, _n, time.time() - _t_bilder)
+        _log.info("Szene: längstes Warten auf die Karte %.0f ms · Bilder an der 5-s-Grenze: %d", _warte_max * 1000, _haenger)
+        LETZTE_ZEITEN.clear()
+        LETZTE_ZEITEN.update(bilder=_n, haenger=_haenger, warte_max_s=_warte_max, je_bild_ms={k: v * 1000 / _n for k, v in _z.items()})
+        # 02.10.2026 — Tonplan (Musik, Foto-Klicks, Clip-Ton) aus der Seite: dieselben Zeiten wie in der Vorschau
+        try: _tonplan = await page.evaluate("() => (window.__rzTonPlan ? window.__rzTonPlan() : null)")
+        except Exception as _e:  # noqa: BLE001
+            _tonplan = None; _log.warning("Szene: Tonplan nicht lesbar: %s", _e)
+        emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
+        mux.abschliessen(is_cancelled)
+        if not _tonspur.plan_leer(_tonplan):
+            emit(0.95, _i18n.t_aktiv("animator.progress.ton", "Tonspur wird angelegt …"))
+            _ton = _tonspur.anlegen(cfg.output_path, _tonplan, A.find_ffmpeg(), total_frames / cfg.fps)
+            if not _ton.get("ok"):
+                _log.warning("Szene: Tonspur fehlgeschlagen — Video bleibt stumm: %s", _ton.get("error"))
+        _log.info("Szene: Kacheln %s", _stats_json(getattr(page, "_rz_tile_stats", None)))
+        _gl = _tileproxy.geladen()
+        _log.info("Szene: über die Kachel-Weiche aus dem Netz geladen: %d Kacheln, %.1f MB", _gl["kacheln"], _gl["bytes"] / 1e6)
+        _st = _tileproxy.stoerungen()
+        if _st or ((getattr(page, "_rz_tile_stats", None) or {}).get("aus")):
+            _log.warning("Szene: Kartendienste mit Ausfällen — Weiche %s · direkt %s", json.dumps(_st, ensure_ascii=False),
+                         _stats_json((getattr(page, "_rz_tile_stats", None) or {}).get("aus")))
+    finally:
+        await _sitzung_beenden()
     emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))
     return cfg.output_path
 
