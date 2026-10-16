@@ -954,6 +954,21 @@ def parse_waypoints(path: str) -> List[dict]:
     return out
 
 
+# Punktzahl der Vorschau-Linie. Fest 800 Punkte bedeuteten bei einer 175-km-Tour rund 219 m zwischen zwei
+# Linienpunkten: Serpentinen und Kehren wurden abgeschnitten (gemessen bis 23 m neben dem Weg). Deshalb
+# richtet sich die Zahl nach dem Punktabstand; der Deckel hält Vorschau und Karte bei sehr langen Touren flüssig.
+LINIE_MAX_ABSTAND_M = 10.0
+LINIE_MIN_PUNKTE = 800
+LINIE_MAX_PUNKTE = 20_000
+
+
+def linien_punktzahl(pts: List[TrackPoint]) -> int:
+    """Zielpunktzahl für `downsample_ecken` bei der Vorschau-Linie: höchstens `LINIE_MAX_ABSTAND_M` Meter
+    Strecke je Linienstück, mindestens `LINIE_MIN_PUNKTE`, höchstens `LINIE_MAX_PUNKTE` und nie mehr als vorhanden."""
+    laenge_m = sum(_haversine_m(a.lat, a.lon, b.lat, b.lon) for a, b in zip(pts, pts[1:]))
+    return min(len(pts), LINIE_MAX_PUNKTE, max(LINIE_MIN_PUNKTE, math.ceil(laenge_m / LINIE_MAX_ABSTAND_M)))
+
+
 def downsample_ecken(pts: List[TrackPoint], target: int = 500, min_abw_m: float = 4.0) -> List[TrackPoint]:
     """Wie `downsample` (gleich viele Punkte, gleichmäßig über die Reihenfolge — Timing und Reihen am Index bleiben),
     aber jeder Punkt darf innerhalb seines Abschnitts (± halber Abstand) auf die ECKE rutschen: den Punkt, der am

@@ -8872,7 +8872,9 @@ class Api:
             # den Cache legen: session_open_for_track (kommt direkt danach mit
             # demselben Original-Pfad) spart sich so den zweiten Datei-Parse.
             self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
-            ds = cgpx.downsample_ecken(pts, 800)   # 11.10.2026 — Ecken bleiben (Linie bleibt an Kreuzungen auf dem Weg)
+            # 11.10.2026 — Ecken bleiben (Linie bleibt an Kreuzungen auf dem Weg). Punktzahl nach Punktabstand statt
+            # fest 800: bei langen Touren schnitt die Linie sonst Serpentinen ab (siehe `cgpx.linien_punktzahl`).
+            ds = cgpx.downsample_ecken(pts, cgpx.linien_punktzahl(pts))
             # 10.10.2026 — Datumsgrenze: fürs Zeichnen und die Kamera fortlaufende Längengrade (179,9 → 180,1 statt
             # → −179,9), sonst Strich quer über die Welt und Kamerasprung. Die Datei selbst bleibt unverändert.
             coords = croute.lon_fortlaufend([[p.lon, p.lat] for p in ds])
