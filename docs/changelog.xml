@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 15 Oct 2026 10:08:26 +0000</lastBuildDate>
+<lastBuildDate>Fri, 16 Oct 2026 05:04:29 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.794</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-794</link>
+<guid isPermaLink="false">gps-studio-v0.9.794</guid>
+<pubDate>Thu, 15 Oct 2026 12:00:00 +0000</pubDate>
+<description>Tour hinzufügen, gut sichtbar — Im Archiv steht oben in der Touren-Spalte „+ Tour hinzufügen“ — Track-Datei, Ordner beobachten oder Import-Assistent.
+
+Logbuch: Auswahl als eigene Tour — Im GPX-Inspektor mehrere Logbuch-Einträge wählen (⇧-Klick Bereich, ⌘-Klick einzeln) und als eigene Tour speichern — vom ersten bis zum letzten Eintrag, Pausen dazwischen inklusive. So holst du die Wanderung samt Rast aus einer Datei, in der auch die Autofahrt steckt.
+
+Etappen leichter bearbeiten — Stationen am Griff ziehen oder mit ▲▼ umsortieren, einen Kartenpunkt einfach benennen (ohne Adresssuche), und Umkehren behält die Höhe eines Hochflugs.
+
+Schilder direkt auf der Karte — Ein neues Schild steht sofort auf der Karte, und du tippst seinen Text gleich dort. Doppelklick auf ein Schild öffnet den Schild-Editor.</description>
+</item>
 <item>
 <title>v0.9.793</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-793</link>
@@ -221,17 +234,6 @@ Schnell-Video mit „Mehr“ — oben bleibt alles schnell, unter „Mehr“ wä
 <guid isPermaLink="false">gps-studio-v0.9.774</guid>
 <pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
 <description>Übersichtskarte im Animator — ein kleines Fenster zeigt den ganzen Track, den gerade gezeigten Ausschnitt und die Position. Klick macht es größer. Es ist nur eine Hilfe und erscheint nie im Video. Der Knopf „Auf Track zoomen“ ist dafür weg.</description>
-</item>
-<item>
-<title>v0.9.773</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-773</link>
-<guid isPermaLink="false">gps-studio-v0.9.773</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Schnell-Video: Titel und Untertitel — ein langer Titel schiebt den Untertitel jetzt nach unten statt ihn zu überdecken, in allen Formaten. Textzeilen in Einblendungen haben eine eigene Größe.
-
-Render meldet sich — dauert ein Bild länger, zählt die Anzeige mit („wartet auf die Karte … 4 s“).
-
-Logo ohne dunkle Unterlage im Schnell-Video; „Im Animator“ führt nach dem Render direkt zur Zeitleiste.</description>
 </item>
 </channel>
 </rss>

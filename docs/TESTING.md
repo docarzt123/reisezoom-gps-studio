@@ -30,6 +30,15 @@ Grün = alle Gates bestanden. Exit ≠ 0 = Release blockiert.
 | 7 | Track-Sichtbarkeit | `preview-track`-Quelle ≥ 2 Punkte — *best effort*, SKIPt wenn headless nicht befüllbar (`selftest_track_visible.py`) |
 | 8 | Echte Renders | nur mit `--full`: rendert echte Videos über `core/animator.py` (`selftest_renders.py`) |
 
+**Eigene Einstellungen je Test (seit 16.10.2026):** Ohne gebaute App ist der App-Ordner das Repo — alle Tests
+teilten sich die eine `settings.json` dort (gitignored). Bei `--parallel=3` stellte ein Test dem anderen Werte um
+(Kartenschlüssel, „Fotos von selbst“, zuletzt geöffnete Tour) → Tests, die nur parallel rot und einzeln grün waren.
+`scripts/run_tests.py` legt deshalb je Test eine Kopie dieser Datei in einen eigenen Temp-Ordner und übergibt sie mit
+`RZ_SETTINGS_DATEI`; `app.py` nimmt dann diese Datei (nicht bei `RZ_APP_ORDNER` — dort ist sie schon getrennt).
+Einzelwerte (`_einstellung_merken`) landen darin nach derselben Regel wie ohne Kopie: nicht, wenn der Test
+`APP.APP_SUPPORT` umgeleitet hat (sonst setzte z. B. eine zweite Testseite das Projekt der ersten fort). Die Vorlage selbst ändert sich während der Suite nicht mehr.
+Wer einen Test von Hand startet, benutzt weiter die gemeinsame Repo-Datei.
+
 **Suite nicht doppelt (seit 04.10.2026):** `scripts/run_tests.py` schreibt nach einem vollen, grünen Lauf auf
 sauberem Arbeitsstand (Anfang und Ende, HEAD unverändert, kein Namensfilter) den Stempel `.rz_suite_gruen.json`
 (Commit, Anzahl, Zeit). `deploy_release.sh` prüft ihn mit `scripts/suite_stempel.py pruefen <tag>`: gilt er (≤ 72 h,

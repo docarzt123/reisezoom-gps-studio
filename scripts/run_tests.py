@@ -31,8 +31,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -93,6 +95,10 @@ FARBE_GRAU = "\033[2m"
 FARBE_AUS = "\033[0m"
 
 ZEITLIMIT_S = int(os.environ.get("RZ_TEST_ZEITLIMIT_S", "1800"))   # je Testdatei
+#: Vorlage für die Einstellungs-Kopie je Test (16.10.2026): was die Tests ohne Kopie benutzt hätten — der App-Ordner
+#: ohne gebaute App ist das Repo (app.py: APP_SUPPORT = ROOT), mit RZ_APP_ORDNER dieser Ordner
+EINSTELLUNGEN_VORLAGE = (Path(os.environ["RZ_APP_ORDNER"].strip()).expanduser() if (os.environ.get("RZ_APP_ORDNER") or "").strip()
+                         else REPO) / "settings.json"
 
 # 12.10.2026 (Marc: „zweieinhalb Stunden? das wird ja immer länger") — `--parallel=N`: die meisten Tests laufen zu N
 # gleichzeitig (längste zuerst, Dauern aus dem letzten Lauf), danach EINZELN, was rendert oder Zeiten misst — deren
@@ -269,14 +275,26 @@ def main() -> int:
         _ladeflagge_aufraeumen()
         # 06.10.2026: ein Test hing in der Nacht-Suite fast 3 Stunden und kostete den Rest der Nacht. Zeitlimit je
         # Test (der längste braucht ~6 min); wer es reißt, ist rot und die Suite läuft weiter.
+        # 16.10.2026 — eigene Kopie der Einstellungen je Test (RZ_SETTINGS_DATEI, siehe app.py). Vorlage ist die Datei, die
+        # die Tests bisher gemeinsam benutzt haben (ohne gebaute App: settings.json im Repo, bzw. im RZ_APP_ORDNER).
+        # Parallele Tests stellten sich dort sonst gegenseitig Werte um — die „nur parallel roten“ Wackeltests.
+        einst_ordner = Path(tempfile.mkdtemp(prefix="einstellungen-" + d.stem[:30] + "-"))
+        einst = einst_ordner / "settings.json"
         try:
-            r = subprocess.run([sys.executable, str(d)], cwd=str(REPO),
+            if EINSTELLUNGEN_VORLAGE.is_file():
+                shutil.copy2(EINSTELLUNGEN_VORLAGE, einst)
+        except OSError:
+            pass
+        try:
+            r = subprocess.run([sys.executable, str(d)], cwd=str(REPO), env=dict(os.environ, RZ_SETTINGS_DATEI=str(einst)),
                                capture_output=True, text=True, timeout=ZEITLIMIT_S)
         except subprocess.TimeoutExpired as e:
             def _txt(v):
                 return v.decode("utf-8", "replace") if isinstance(v, bytes) else (v or "")
             r = subprocess.CompletedProcess(e.cmd, 124, _txt(e.stdout) + f"\n⏱ Zeitlimit {ZEITLIMIT_S // 60} min überschritten — abgebrochen\n",
                                             _txt(e.stderr))
+        finally:
+            shutil.rmtree(einst_ordner, ignore_errors=True)   # eigener Temp-Ordner dieses Laufs
         return d, r, time.time() - t0
 
     dauern_alt = {}

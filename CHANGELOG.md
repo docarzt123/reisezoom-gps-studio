@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Test suite: every test gets its own copy of the settings file (`RZ_SETTINGS_DATEI`). Without a built app all tests shared the one `settings.json` in the repository, and tests running in parallel changed values for each other — the cause of tests that were only red in parallel.
+
 ## [0.9.794] – 2026-10-15
 
 ### Added

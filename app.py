@@ -313,6 +313,15 @@ DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
 TOURMAPS_DIR = (APP_SUPPORT / "Tour Maps") if APP_ORDNER_UEBERSCHRIEBEN else (Path.home() / "Pictures" / "Reisezoom Tour Maps")
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
+# 16.10.2026 — Testsuite: jeder Test bekommt eine eigene Kopie der Einstellungen (scripts/run_tests.py setzt
+# RZ_SETTINGS_DATEI). Ohne gebaute App ist der App-Ordner das Repo — alle Tests teilten sich die eine settings.json dort,
+# und bei mehreren parallelen Tests stellte einer dem anderen Werte um (Schlüssel, „Fotos von selbst“) → Wackeltests.
+# Ein eigener App-Ordner (RZ_APP_ORDNER, Testumgebung) geht vor: dort liegen die Einstellungen schon getrennt.
+_EINSTELLUNGEN_KOPIE = None   # Kopie je Test: Einzelwerte wie ohne Kopie (siehe _einstellung_merken)
+_APP_SUPPORT_START = APP_SUPPORT
+if (os.environ.get("RZ_SETTINGS_DATEI") or "").strip() and not APP_ORDNER_UEBERSCHRIEBEN:
+    SETTINGS_FILE = _EINSTELLUNGEN_KOPIE = Path(os.environ["RZ_SETTINGS_DATEI"].strip()).expanduser().resolve()
+    _ds.temp_ordner_merken(SETTINGS_FILE.parent)
 LADEFLAGGE_FILE = APP_SUPPORT / "ladevorgang.json"   # 13.09.2026 — siehe Api.ladeflagge_setzen
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
 SESSIONS_FILE = APP_SUPPORT / "sessions.json"
@@ -1133,7 +1142,10 @@ def _einstellung_merken(schluessel: str, wert) -> None:
         # SETTINGS_FILE zeigt aber weiter auf die ECHTE Datei des Nutzers. Ohne
         # diese Sperre landete beim Testlauf die Kennung eines Testprojekts als
         # „zuletzt offen" in Marcs settings.json.
-        if SETTINGS_FILE.parent != APP_SUPPORT:
+        # Prüfstand: wer APP_SUPPORT umleitet, schreibt keine Einzelwerte. Mit der Kopie je Test (RZ_SETTINGS_DATEI) gilt
+        # dieselbe Regel wie ohne — gemessen am App-Ordner beim Start, nicht am Ort der Kopie.
+        umgeleitet = (APP_SUPPORT != _APP_SUPPORT_START) if SETTINGS_FILE == _EINSTELLUNGEN_KOPIE else (SETTINGS_FILE.parent != APP_SUPPORT)
+        if umgeleitet:
             log.debug("Einstellung %s nicht gemerkt: APP_SUPPORT umgeleitet (Prüfstand)", schluessel)
             return
         s = _load_settings() or {}
