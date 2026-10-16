@@ -713,6 +713,7 @@ function mountAnimator(body, headerActions, opts) {
             <select id="anim-linien-look"><option value="klassisch" selected>klassisch</option><option value="glut">glut</option><option value="neon">neon</option></select>
             <input type="range" id="anim-schweif" min="0" max="15" step="0.5" value="0">
             <input type="checkbox" id="anim-farbe-je-tag">
+            <select id="anim-tempo-farben"><option value="aus" selected>aus</option><option value="ampel">ampel</option><option value="eigen">eigen</option></select>
           </div>
           <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
             <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
@@ -2977,6 +2978,10 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-farbe-je-tag", _MODKEY, "farbe_je_tag", { type: "bool",
     onLoad: _spaeter(() => { _gradStand = null; refreshPreviewTrackData(); }),
     onChange: () => { _gradStand = null; try { refreshPreviewTrackData(); } catch (_) {} } });
+  // 17.10.2026 — Tempo-Farben: gefahrene Strecke nach Geschwindigkeit (aus | ampel | eigen); der blasse Rest kommt über applyGhost
+  bindSetting("anim-tempo-farben", _MODKEY, "tempo_farben", { type: "string",
+    onLoad: _spaeter(() => { _gradStand = null; applyGhost(); refreshPreviewTrackData(); }),
+    onChange: () => { _gradStand = null; try { applyGhost(); refreshPreviewTrackData(); } catch (_) {} } });
   bindSetting("anim-schweif", _MODKEY, "schweif_pct", { type: "number",
     onLoad: _spaeter(() => applyLinienLook()),
     onChange: () => { applyLinienLook(); try { refreshPreviewTrackData(); } catch (_) {} } });
@@ -6877,7 +6882,7 @@ function mountAnimator(body, headerActions, opts) {
     return [currentColorsEnabled() ? 1 : 0, currentColorsSource(), currentColorsMode(), stops, currentLineColor(),
             JSON.stringify(_tourFarben() || null), (_ovSeries && _ovSeries.stage && _ovSeries.stage.nr) ? _ovSeries.stage.nr.length : "",
             JSON.stringify(_segStarts || null), currentFarbeJeTag() ? "tag:" + currentLinienLook() : "",
-            metric ? metric.length : -1, currentCoords ? currentCoords.length : 0].join("|");
+            metric ? metric.length : -1, currentCoords ? currentCoords.length : 0, _tempoSchluessel()].join("|");
   }
   /** Aus applyPreviewColorGradient (läuft bei jeder Farbänderung): Fluglinie bei Bedarf neu einfärben. */
   function _flugFarbenPruefen() {
@@ -7579,7 +7584,7 @@ function mountAnimator(body, headerActions, opts) {
   // Distanz-Modus (Wert=km, linear in progress).
   function __rzHex2rgb(h){ h=(h||"#000").replace("#",""); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; }
   function __rzRgb2hex(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); const s=x.toString(16); return s.length<2?"0"+s:s; } return "#"+c(r)+c(g)+c(b); }
-  function __rzLerpHex(a,b,f){ const x=__rzHex2rgb(a), y=__rzHex2rgb(b); return __rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); }
+  function __rzLerpHex(a,b,f){ if(/^rgba/.test(a)||/^rgba/.test(b)) return window.rzTempoFarben.mischen(a,b,f); const x=__rzHex2rgb(a), y=__rzHex2rgb(b); return __rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); }
   /** 20.09.2026 — Verbindungsstücke durchsichtig in einen fertigen Verlauf stanzen.
    *  Wortgleich zu `__rzGradLuecken` in core/animator.py — bei Änderung beide pflegen. */
   function gradLueckenStanzen(expr, cumGeo, i0, i1, segStarts) {
@@ -7702,11 +7707,13 @@ function mountAnimator(body, headerActions, opts) {
   // Ebenen, auch wenn sich nichts geändert hatte. Jetzt: Schlüssel aus Spanne, Quelle,
   // Stops, Farben, Etappe (+ Identität von Track/Reihen/Ebene) — gleich = nichts tun.
   let _gradStand = null;
+  let _tempoCache = null;   // 17.10.2026 — geglättete Tempo-Reihe je geladener Tour (s. _tempoSpec)
   window.__rzPerfZaehler = window.__rzPerfZaehler || { setPaint: 0, gradUebersprungen: 0, etappenSetData: 0, etappenUebersprungen: 0 };
   // 15.10.2026 — die drei Bausteine des Linien-Ausdrucks getrennt, damit die Linie in der Luft (`_flugSegFarben`) genau
   // dieselben Farben bekommt wie die Bodenlinie
   /** Gilt der Farbverlauf („Mehrere Track-Farben“)? Ohne einen einzigen Stop nicht (wie im Render). */
   function _verlaufAn(metric) {
+    if (_tempoSpec()) return true;   // 17.10.2026 — Tempo-Farben haben Vorrang vor „Mehrere Track-Farben“
     const _nStops = (() => { try { loadColorStops(); return (_trackColorStops || []).length; } catch (_) { return 0; } })();
     return !!(currentColorsEnabled() && _nStops >= 1 && _ovSeries && _ovSeries.cumDistM
       && (currentColorsSource() === "distance" || (metric && metric.length)));
@@ -7722,8 +7729,9 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** Mit Verlauf: der Verlauf, die Verbindungsstücke der Etappen durchsichtig gestanzt. */
   function _verlaufAusdruck(i0, i1, metric) {
-    const st = sortedColorStops();
-    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
+    const tp = _tempoSpec();
+    const st = tp ? tp.stops : sortedColorStops();
+    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), tp ? "gradient" : currentColorsMode(), tp ? tp.serie : metric);
     if (g && _segStarts && _segStarts.length) {
       if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
       g = gradLueckenStanzen(g, _cumGeoM, i0, i1, _segStarts);
@@ -7740,7 +7748,7 @@ function mountAnimator(body, headerActions, opts) {
       try { loadColorStops(); stopsSig = JSON.stringify(_trackColorStops || []); } catch (_) {}
       const key = [i0, i1, currentColorsEnabled() ? 1 : 0, currentColorsSource(), currentColorsMode(), stopsSig,
                    currentLineColor(), JSON.stringify(_tourFarben() || null), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : "",
-                   currentFarbeJeTag() ? "tag:" + currentLinienLook() : "",
+                   currentFarbeJeTag() ? "tag:" + currentLinienLook() : "", _tempoSchluessel(),
                    metric ? metric.length : -1].join("|");
       if (_gradStand && _gradStand.key === key && _gradStand.coords === currentCoords && _gradStand.serie === _ovSeries
           && _gradStand.metric === metric && _gradStand.lyr === lyr && lyr) {
@@ -7824,6 +7832,30 @@ function mountAnimator(body, headerActions, opts) {
     neon: ["#ff3ea5", "#b6ff3b", "#ffe93b", "#a46bff", "#ff8a3d"],
   };
   function currentFarbeJeTag() { return !!document.getElementById("anim-farbe-je-tag")?.checked; }
+  // ── 17.10.2026 — Tempo-Farben: die gefahrene Strecke nach Geschwindigkeit färben (ui/js/tempo_farben.js) ──
+  function currentTempoFarben() { return document.getElementById("anim-tempo-farben")?.value || "aus"; }
+  /** Nur mit Zeitstempeln und nicht auf Reisen (dort ist `speedKmh` null, die Bahn hat keine eigene Geschwindigkeit). */
+  function _tempoMoeglich() {
+    const sr = _colorSeriesSafe();
+    return !!(sr && sr.has_time && sr.speedKmh !== null && sr.cumDistM && sr.cumTimeS && window.rzTempoFarben);
+  }
+  /** { serie: km/h je Punkt (geglättet), stops, sig } — oder null (aus / nicht möglich). Die Reihe wird je Tour einmal gerechnet. */
+  function _tempoSpec() {
+    const v = currentTempoFarben();
+    if (v === "aus" || !_tempoMoeglich()) return null;
+    const sr = _colorSeriesSafe(), T = window.rzTempoFarben, farbe = currentLineColor();
+    let c = _tempoCache;
+    if (!c || c.serie !== sr || c.cumDistM !== sr.cumDistM) {
+      const glatt = T.glaetten(sr.cumDistM, sr.cumTimeS);
+      c = _tempoCache = { serie: sr, cumDistM: sr.cumDistM, glatt, vmax: Math.max(1, T.perzentil(glatt, 98)), v: "", farbe: "", spec: null };
+    }
+    if (!c.spec || c.v !== v || c.farbe !== farbe) {
+      c.v = v; c.farbe = farbe;
+      c.spec = { serie: c.glatt, stops: T.stufen(v, c.vmax, farbe), sig: "tempo:" + v + ":" + farbe + ":" + c.vmax };
+    }
+    return c.spec;
+  }
+  function _tempoSchluessel() { const tp = _tempoSpec(); return tp ? tp.sig : ""; }
   let _tageFuer = null, _tageStarts = [];
   /** Startindizes der Tage 2, 3, … (leer bei einem Tag oder ohne Zeiten). */
   function _tagesStarts() {
@@ -7943,7 +7975,10 @@ function mountAnimator(body, headerActions, opts) {
     if (!map) return;
     try {
       if (!map.getLayer("preview-ghost")) return;
-      const on = currentGhostEnabled();
+      const eigen = currentGhostEnabled();
+      // 17.10.2026 — mit Tempo-Farben zeigt der Geist die noch nicht gefahrene Strecke blass (30 %, Linienfarbe), auch wenn er sonst aus ist
+      const blass = !eigen && !!_tempoSpec();
+      const on = eigen || blass;
       if (map.__rzGhostDash !== undefined && map.__rzGhostDash !== JSON.stringify(currentGhostDash())) {
         // dasharray backt Mapbox nur beim Anlegen — Ebene neu anlegen statt setPaintProperty
         try { map.removeLayer("preview-ghost"); } catch (_) {}
@@ -7952,10 +7987,10 @@ function mountAnimator(body, headerActions, opts) {
         return;
       }
       map.setLayoutProperty("preview-ghost", "visibility", on ? "visible" : "none");
-      if (_flug.an && _flug.mitGeist !== on) _flugAnwenden(false).catch(() => {});   // 14.10.2026 — Geist in der Luft an/aus
+      if (_flug.an && _flug.mitGeist !== eigen) _flugAnwenden(false).catch(() => {});   // 14.10.2026 — Geist in der Luft an/aus
       if (on) {
-        map.setPaintProperty("preview-ghost", "line-opacity", currentGhostOpacity());
-        map.setPaintProperty("preview-ghost", "line-color", currentGhostColor());
+        map.setPaintProperty("preview-ghost", "line-opacity", blass ? 0.3 : currentGhostOpacity());
+        map.setPaintProperty("preview-ghost", "line-color", blass ? currentLineColor() : currentGhostColor());
         map.setPaintProperty("preview-ghost", "line-width", currentLineWidth());
         // Ghost-Source aktuell halten (voller Track, unabhängig vom Trim/Scrub).
         if (currentCoords && map.getSource("preview-ghost")) {
@@ -22147,7 +22182,9 @@ function mountAnimator(body, headerActions, opts) {
         <select data-linien-look>${["klassisch", "glut", "neon"].map(k => `<option value="${k}"${currentLinienLook() === k ? " selected" : ""}>${t("animator.look." + k, k)}</option>`).join("")}</select></div>
       <div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.schweif.tip", ""))}"><label>${t("animator.schweif", "Schweif")} <b data-schweif-v>${currentSchweifPct()}</b> %</label>
         <input type="range" data-schweif min="0" max="15" step="0.5" value="${currentSchweifPct()}"></div>
-      ${_tagesStarts().length ? `<div class="anim-stil-zeile ist-check" title="${_animEscapeHtml(t("animator.farbe_je_tag.tip", ""))}"><label><input type="checkbox" data-farbe-je-tag${currentFarbeJeTag() ? " checked" : ""}> ${t("animator.farbe_je_tag", "Farbe je Tag")}</label></div>` : ""}` : ""}
+      ${_tagesStarts().length ? `<div class="anim-stil-zeile ist-check" title="${_animEscapeHtml(t("animator.farbe_je_tag.tip", ""))}"><label><input type="checkbox" data-farbe-je-tag${currentFarbeJeTag() ? " checked" : ""}> ${t("animator.farbe_je_tag", "Farbe je Tag")}</label></div>` : ""}
+      <div class="anim-stil-zeile" title="${_animEscapeHtml(t(_tempoMoeglich() ? "animator.tempo_farben.tip" : "animator.tempo_farben.ohne_zeit", ""))}"><label>${t("animator.tempo_farben", "Tempo-Farben")}</label>
+        <select data-tempo-farben${_tempoMoeglich() ? "" : " disabled"}>${["aus", "ampel", "eigen"].map(k => `<option value="${k}"${currentTempoFarben() === k ? " selected" : ""}>${t("animator.tempo_farben." + k, k)}</option>`).join("")}</select></div>` : ""}
       <div class="anim-stil-zeile"><label>${t("animator.stil.deckkraft", "Deckkraft")} <b data-v="opacity">${Math.round(_deckkraft(st) * 100)}</b> %</label>
         <input type="range" data-stil="opacity" min="0.05" max="1" step="0.05" value="${_deckkraft(st)}"></div>
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-blass="show"${blass.show ? " checked" : ""}> ${t("animator.blass.show", "Ganze Strecke blass zeigen")}</label></div>
@@ -22294,6 +22331,8 @@ function mountAnimator(body, headerActions, opts) {
       }); }
     { const fj = el.querySelector("[data-farbe-je-tag]"), alt = document.getElementById("anim-farbe-je-tag");
       if (fj && alt) fj.addEventListener("change", () => { alt.checked = fj.checked; alt.dispatchEvent(new Event("change", { bubbles: true })); }); }
+    { const tf = el.querySelector("[data-tempo-farben]"), alt = document.getElementById("anim-tempo-farben");
+      if (tf && alt) tf.addEventListener("change", () => { alt.value = tf.value; alt.dispatchEvent(new Event("change", { bubbles: true })); }); }
     { const sw = el.querySelector("[data-schweif]"), alt = document.getElementById("anim-schweif");
       if (sw && alt) {
         const setz = (ev) => { alt.value = sw.value; const v = el.querySelector("[data-schweif-v]"); if (v) v.textContent = sw.value;
