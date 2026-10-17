@@ -245,7 +245,7 @@ async def main():
         await pg.click("#hl-q-halte")
         await pg.click("#hl-finden"); await pg.wait_for_timeout(500)
         r = await rufe("highlights_vorschlaege")
-        sagen(r and r[-1]["args"][0] == "/mock/t1.gpx" and r[-1]["args"][1] == ["/mock/fotos"] and r[-1]["args"][2] == {"osm": True, "track": True, "halte": False},
+        sagen(r and r[-1]["args"][0] == "/mock/t1.gpx" and r[-1]["args"][1] == ["/mock/fotos"] and r[-1]["args"][2] == {"osm": True, "track": True, "halte": False, "orte": False},
               "„Finden“ ruft die Brücke mit Track, Ordner und Quellen", str(r[-1:]))
         n = await pg.eval_on_selector_all(".hl-zeile", "e => e.length")
         an = await pg.eval_on_selector_all(".hl-zeile input[data-hlon]:checked", "e => e.length")

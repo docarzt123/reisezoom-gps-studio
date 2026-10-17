@@ -2827,12 +2827,12 @@ class Api:
     def highlights_vorschlaege(self, path: str, foto_quellen: list = None, quellen: dict = None) -> dict:
         """Highlights-Fenster (Marc, 11.09.2026): Vorschläge für den offenen Track —
         OSM-Orte, Track-Stellen, Halte-Punkte mit Fotos, Foto-Serien, übrige Fotos.
-        `foto_quellen` = Ordner/Dateien; `quellen` = {osm, track, halte} (bool)."""
+        `foto_quellen` = Ordner/Dateien; `quellen` = {osm, track, halte, orte} (bool; `orte` = alle Orte und Pässe)."""
         from core import highlights as chl
         from core import geocode as cgeocode
         from core import photos as cphotos
         T = _ui_t()
-        q = {"osm": True, "track": True, "halte": True}
+        q = {"osm": True, "track": True, "halte": True, "orte": False}
         q.update({k: bool(v) for k, v in (quellen or {}).items()})
         try:
             load = self.gpxinspect_load(str(path or ""))
@@ -2875,6 +2875,17 @@ class Api:
                 info["netz"] = r["netz"]
                 pois = r["gewaehlt"]
                 pois = [p for p in pois if p.get("art") not in chl.TRACK_ARTEN]
+            orte = []
+            if q["orte"]:
+                # eigene Meldung (vorgang.hl_orte): die Abfrage dauert länger und soll als eigener Schritt erscheinen
+                _vm("hl_orte", "Fragt OpenStreetMap nach allen Orten und Pässen entlang des Tracks (Netz)")
+                ro = chl.orte_und_paesse(pts, cache_pfad=APP_SUPPORT / "orte_paesse_cache.json")
+                orte = ro["eintraege"]
+                if not ro["netz"]:
+                    info["netz"] = False
+                # Dubletten: was als Ort/Pass dabei ist, entfällt bei den OSM-Vorschlägen
+                bekannt = {chl.gleicher_ort(e["name"]) for e in orte}
+                pois = [p for p in pois if chl.gleicher_ort(str(p.get("name") or "")) not in bekannt]
             track = chl.track_highlights(pts) if q["track"] else []
             cum = chl._kumuliert(pts); ges = cum[-1] or 1.0
             for h in track:
@@ -2903,6 +2914,11 @@ class Api:
                     n_ruf += 1
             _vm("hl_wahl", "Wählt die besten Stellen aus und verteilt sie über die Strecke")
             vs = chl.vorschlaege(pts, pois=pois, track=track, halte=halte, fotos=fz, labels=labels, halt_namen=halt_namen)
+            if orte:
+                vs += chl.orte_als_vorschlaege(pts, orte)
+                vs.sort(key=lambda v: (v["frac"], v["art"]))
+                for k, v in enumerate(vs):
+                    v["id"] = f"v{k}"
             for v in vs:
                 v["uhrzeit"] = czeit.fmt_uhrzeit(v.get("epoch"), tz_off) if v.get("epoch") else ""
                 if v.get("foto"):

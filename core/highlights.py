@@ -22,13 +22,18 @@ Kein Netz → leere Liste, kein Fehler: der Assistent meldet es als Zeile.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
+import re
+import time
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Callable, List, Optional
 
+from . import dateischutz as _ds
 from . import gpxsimplify
 from . import net as cnet
 
@@ -786,4 +791,280 @@ def vorschlaege(points: List[dict], *, pois: Optional[List[dict]] = None, track:
     out.sort(key=lambda v: (v["frac"], v["art"]))
     for k, v in enumerate(out):
         v["id"] = f"v{k}"
+    return out
+
+
+# ── 6) Alle Orte und Pässe entlang der Strecke ───────────────────
+#
+# Highlights-Fenster, Option „Alle Orte und Pässe“: nicht die besten Stellen, sondern JEDE Gemeinde bis 5 km neben
+# dem Track und JEDEN benannten Pass, den der Track berührt (150 m). Gemeinden: Verwaltungsgrenzen mit admin_level 8,
+# kreisfreie Städte auf Kreisebene (4 bis 7) mit place city/town, Pässe: mountain_pass=yes, Namen: lokaler Name.
+# Eigene Abfrage (Verwaltungsgrenzen statt Orts-Punkte), eigener Cache, nicht in `auswaehlen` eingebunden.
+
+ORTE_RADIUS_M = 5000.0      # eine Gemeinde zählt, wenn ihre Lage so nah am Track liegt
+PASS_NAH_M = 150.0         # ein Pass zählt, wenn der Track so nah an ihm vorbeiführt
+ORTE_ABSCHNITT_M = 10_000.0  # die Strecke wird in Abschnitten von 10 km abgefragt (je Abschnitt eine Box)
+ORTE_PAUSE_S = 1.0          # Pause zwischen zwei Overpass-Abfragen
+GEMEINDE_LEVEL = "8"
+STADT_LEVELS = {"4", "5", "6", "7"}   # kreisfreie Städte (Koblenz, Innsbruck) liegen auf Kreisebene
+STADT_PLACES = {"city", "town"}
+ORTSTEIL_RADIUS_M = 1500.0  # ein Ortsteil (Orts-Knoten) zählt, wenn er so nah am Track liegt
+ORTSTEIL_PLACES = {"town", "village", "hamlet", "suburb"}
+ORTE_CACHE_VERSION = "orte_v3"   # v3: Lage ohne label/admin_centre = gleichnamiger Orts-Knoten (v2: Flächenmitte)
+ORTE_CACHE_MAX_S = 30 * 86400.0   # ältere Cache-Einträge werden neu abgefragt
+
+
+def orte_abfrage(box: tuple[float, float, float, float]) -> str:
+    """Overpass-QL für eine Box (s, w, n, e): zuerst die Orts-Knoten (town, village, hamlet, suburb — die Ortsteile),
+    dann Verwaltungsgrenzen Level 4–8 mit ihrer Lage (label, sonst admin_centre,
+    sonst gleichnamiger Orts-Knoten, zuletzt `center`) und benannte Pässe. Die Ausgabe je Relation: erst die Relation, dann ihre label-Knoten, dann ihre
+    admin_centre-Knoten — der ERSTE Knoten nach einer Relation ist also das label, falls es eines gibt.
+    Die Knoten kommen mit `out body`: `out tags` ließe ihre Koordinaten weg (live geprüft 17.10.2026)."""
+    s, w, n, e = box
+    # `out body` statt `out tags` bei den Knoten: `out tags` liefert keine Koordinaten (live geprüft), ohne die gäbe es keine Lage.
+    b = f"({s:.5f},{w:.5f},{n:.5f},{e:.5f})"
+    return ('[out:json][timeout:20];\n'
+            f'node["place"~"^(city|town|village|hamlet|suburb)$"]["name"]{b}; out body;\n'
+            f'rel["boundary"="administrative"]["admin_level"~"^[4-8]$"]["name"]{b}->.g;\n'
+            'foreach.g->.r(.r out tags center; node(r.r:"label"); out body; node(r.r:"admin_centre"); out body;);\n'
+            f'node["mountain_pass"="yes"]["name"]{b}; out body;')
+
+
+def ist_gemeinde(tags: dict, knoten_tags: Optional[dict]) -> bool:
+    """Gemeinde (Level 8) — oder eine Stadt auf höherer Ebene (Level 4–7, `place` des Lage-Knotens bzw. `de:place`).
+    Stadtteile (Level 9, 10) tragen „town“ auch und bleiben draußen. Der Lage-Knoten muss den Namen der Relation tragen:
+    sonst wäre ein Landkreis wegen seines Sitzes (admin_centre „Kreisstadt“) oder ein Regierungsbezirk eine „Stadt“."""
+    level = str(tags.get("admin_level") or "")
+    if level == GEMEINDE_LEVEL:
+        return True
+    if level in STADT_LEVELS:
+        kn = knoten_tags or {}
+        # Namensgleichheit: der admin_centre eines Landkreises ist dessen Sitz (anderer Name) und macht ihn nicht zur Stadt.
+        return (kn.get("place") in STADT_PLACES and kn.get("name") == tags.get("name")) or tags.get("de:place") in STADT_PLACES
+    return False
+
+
+def lokaler_name(tags: dict) -> Optional[str]:
+    """Name wie vor Ort: der deutsche nur, wo er im Namen steckt („Meran - Merano“); zweisprachige Namen
+    („Passo Tre Croci - Son Zuógo“) nur der erste Teil."""
+    name = tags.get("name") or ""
+    de = tags.get("name:de") or ""
+    if de and (not name or de in name):
+        return de
+    return re.split(r"\s+-\s+|/", name)[0].strip() or None
+
+
+def gleicher_ort(name: str) -> str:
+    """Schreibweisen eines Ortes sind gleich: „St. Ingbert“ (Orts-Knoten) und „Sankt Ingbert“ (Gemeinde)."""
+    return re.sub(r"\bsankt\s+|\bst\.?\s+", "st. ", name.casefold()).strip()
+
+
+def _orte_boxen(points: List[dict], cum: List[float]) -> List[tuple[float, float, float, float]]:
+    """Boxen (s, w, n, e) der 10-km-Abschnitte, ringsum um ORTE_RADIUS_M erweitert."""
+    boxen = []
+    i, n = 0, len(points)
+    while True:
+        j = i
+        while j < n - 1 and cum[j] - cum[i] < ORTE_ABSCHNITT_M:
+            j += 1
+        seg = points[i:j + 1]
+        la0, la1 = min(float(p["lat"]) for p in seg), max(float(p["lat"]) for p in seg)
+        lo0, lo1 = min(float(p["lon"]) for p in seg), max(float(p["lon"]) for p in seg)
+        dlat = ORTE_RADIUS_M / 111_320.0
+        dlon = ORTE_RADIUS_M / (111_320.0 * max(0.2, math.cos(math.radians((la0 + la1) / 2))))
+        boxen.append((la0 - dlat, lo0 - dlon, la1 + dlat, lo1 + dlon))
+        if j >= n - 1:
+            return boxen
+        i = j
+
+
+def _orte_sammeln(elemente: List[dict], rels: dict, paesse: dict, teile: Optional[dict] = None) -> None:
+    """Liest eine Antwort von `orte_abfrage`: Knoten vor der ersten Relation sind Orts-Knoten (Ortsteile, in `teile`),
+    Knoten nach einer Relation gehören zu ihr (der erste ist ihre Lage), ein Knoten mit `mountain_pass` ist ein Pass.
+    Schon bekannte Relationen/Pässe/Orts-Knoten (Boxen überlappen) bleiben."""
+    aktuell = None
+    vor_relationen = True
+    for el in elemente or []:
+        tags = el.get("tags") or {}
+        if el.get("type") == "relation":
+            vor_relationen = False
+            if el.get("id") in rels:
+                aktuell = None
+                continue
+            aktuell = rels[el.get("id")] = {"tags": tags, "knoten": None, "center": None}
+            if isinstance(el.get("center"), dict):
+                aktuell["center"] = (float(el["center"]["lat"]), float(el["center"]["lon"]))
+        elif el.get("type") == "node" and el.get("lat") is not None and el.get("lon") is not None:
+            lage = (float(el["lat"]), float(el["lon"]))
+            if tags.get("mountain_pass") == "yes":
+                paesse.setdefault(el.get("id"), {"tags": tags, "lage": lage})
+            elif vor_relationen:
+                if teile is not None and tags.get("place") in ORTSTEIL_PLACES | {"city"}:
+                    teile.setdefault(el.get("id"), {"tags": tags, "lage": lage})
+            elif aktuell is not None and aktuell["knoten"] is None:
+                aktuell["knoten"] = {"lage": lage, "tags": tags}
+
+
+def _ele_text(text) -> Optional[float]:
+    m = re.search(r"\d+(?:[.,]\d+)?", str(text or ""))
+    return float(m.group().replace(",", ".")) if m else None
+
+
+def _orts_knoten_lage(name: Optional[str], center: Optional[tuple], teile: Optional[dict]) -> Optional[tuple]:
+    """Lage einer Gemeinde ohne label/admin_centre: der gleichnamige Orts-Knoten (bei mehreren der zur Flächenmitte
+    nächste), sonst die Flächenmitte `center` der Relation (liegt oft weit neben dem Ort)."""
+    if not name:
+        return center
+    key = gleicher_ort(name)
+    treffer = []
+    for k in (teile or {}).values():
+        n = lokaler_name(k["tags"])
+        if n and gleicher_ort(n) == key:
+            treffer.append(k["lage"])
+    if not treffer:
+        return center
+    if center is None:
+        return treffer[0]
+    return min(treffer, key=lambda t: _haversine_m(center[0], center[1], t[0], t[1]))
+
+
+def _orte_auswerten(points: List[dict], cum: List[float], rels: dict, paesse: dict, teile: Optional[dict] = None) -> List[dict]:
+    ges = cum[-1] or 1.0
+    orte: dict = {}
+    for rid, r in rels.items():
+        tags = r["tags"]
+        kn = r["knoten"]
+        if not ist_gemeinde(tags, kn["tags"] if kn else None):
+            continue
+        name = lokaler_name(tags)
+        lage = kn["lage"] if kn else _orts_knoten_lage(name, r["center"], teile)
+        if not name or lage is None:
+            continue
+        idx, d = _naechster_index(points, lage[0], lage[1])
+        if idx < 0 or d > ORTE_RADIUS_M:
+            continue
+        key = gleicher_ort(name)
+        if key in orte and orte[key]["abstand_m"] <= d:
+            continue
+        orte[key] = {"art": "ort", "name": name, "lat": lage[0], "lon": lage[1], "ele": None, "osm_id": rid,
+                     "idx": idx, "frac": cum[idx] / ges, "abstand_m": round(d)}
+    # Ortsteile: Orts-Knoten bis ORTSTEIL_RADIUS_M, ohne die gleichnamigen (auch anders geschriebenen) Gemeinden
+    ortsteile: dict = {}
+    for nid, k in (teile or {}).items():
+        if k["tags"].get("place") == "city":   # nur als Lage einer Gemeinde gesammelt, kein Ortsteil
+            continue
+        name = lokaler_name(k["tags"])
+        key = gleicher_ort(name) if name else None
+        if not key or key in orte:
+            continue
+        idx, d = _naechster_index(points, k["lage"][0], k["lage"][1])
+        if idx < 0 or d > ORTSTEIL_RADIUS_M:
+            continue
+        if key in ortsteile and ortsteile[key]["abstand_m"] <= d:
+            continue
+        ortsteile[key] = {"art": "ortsteil", "name": name, "lat": k["lage"][0], "lon": k["lage"][1], "ele": None, "osm_id": nid,
+                          "idx": idx, "frac": cum[idx] / ges, "abstand_m": round(d)}
+    pass_ok: dict = {}
+    for nid, p in paesse.items():
+        name = lokaler_name(p["tags"])
+        if not name or name in pass_ok:
+            continue
+        idx, d = _naechster_index(points, p["lage"][0], p["lage"][1])
+        if idx < 0 or d > PASS_NAH_M:
+            continue
+        pass_ok[name] = {"art": "pass", "name": name, "lat": p["lage"][0], "lon": p["lage"][1],
+                         "ele": _ele_text(p["tags"].get("ele")), "osm_id": nid,
+                         "idx": idx, "frac": cum[idx] / ges, "abstand_m": round(d)}
+    return sorted(list(orte.values()) + list(ortsteile.values()) + list(pass_ok.values()), key=lambda e: (e["idx"], e["art"]))
+
+
+def _orte_geo_hash(points: List[dict]) -> str:
+    schritt = max(1, len(points) // 2000)
+    roh = f"{len(points)}|" + ";".join(f"{float(p['lat']):.5f},{float(p['lon']):.5f}" for p in points[::schritt])
+    return hashlib.sha1(roh.encode("utf-8")).hexdigest()[:16]
+
+
+def _orte_cache_lesen(pfad: Optional[Path], key: str) -> Optional[list]:
+    if not pfad:
+        return None
+    try:
+        v = (json.loads(Path(pfad).read_text(encoding="utf-8")) or {}).get(key)
+        if not (isinstance(v, dict) and isinstance(v.get("v"), list)):
+            return None
+        if time.time() - float(v.get("t") or 0) > ORTE_CACHE_MAX_S:
+            return None   # abgelaufen
+        return v["v"]
+    except Exception:  # noqa: BLE001 — fehlende/kaputte Cache-Datei = kein Treffer
+        return None
+
+
+def _orte_cache_schreiben(pfad: Path, key: str, eintraege: list) -> None:
+    pfad = Path(pfad)
+    try:
+        try:
+            cache = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
+        except Exception:  # noqa: BLE001
+            cache = {}
+        cache[key] = {"t": time.time(), "v": eintraege}
+        pfad.parent.mkdir(parents=True, exist_ok=True)
+        tmp = pfad.with_suffix(".tmp")
+        tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        _ds.ersetzen(tmp, pfad, "orte_cache", art=_ds.ART_CACHE)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Orte-Cache: %s", e)
+
+
+def orte_und_paesse(points: List[dict], *, http: Optional[Callable[[str], dict]] = None,
+                    cache_pfad: Optional[Path] = None, pause_s: float = ORTE_PAUSE_S) -> dict:
+    """Alle Gemeinden (bis ORTE_RADIUS_M neben dem Track) und benannten Pässe (bis PASS_NAH_M) entlang der Strecke:
+    {eintraege: [{art: "ort"|"ortsteil"|"pass", name, lat, lon, ele, osm_id, idx, frac, abstand_m}], netz}, nach `idx` sortiert.
+    Fällt Overpass aus, ist `netz` False und es wird nichts gecacht."""
+    pts = [p for p in points if p.get("lat") is not None and p.get("lon") is not None]
+    if len(pts) < 2:
+        return {"eintraege": [], "netz": True}
+    key = f"{ORTE_CACHE_VERSION}|{_orte_geo_hash(pts)}"
+    gemerkt = _orte_cache_lesen(cache_pfad, key)
+    if gemerkt is not None:
+        return {"eintraege": gemerkt, "netz": True}
+    cum = _kumuliert(pts)
+    rels: dict = {}
+    paesse: dict = {}
+    teile: dict = {}
+    netz = True
+    for k, box in enumerate(_orte_boxen(pts, cum)):
+        if k and pause_s > 0:
+            time.sleep(pause_s)
+        try:
+            antwort = (http or _http_overpass)(orte_abfrage(box))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Orte/Pässe: Overpass nicht erreichbar: %s", e)
+            netz = False
+            break
+        remark = str((antwort or {}).get("remark") or "")
+        if remark:   # Overpass antwortet bei Zeitüberschreitung/Speichermangel mit HTTP 200 und Teilergebnis
+            log.warning("Orte/Pässe: Overpass-Antwort unvollständig: %s", remark[:200])
+            netz = False
+            break
+        _orte_sammeln((antwort or {}).get("elements") or [], rels, paesse, teile)
+    eintraege = _orte_auswerten(pts, cum, rels, paesse, teile)
+    if netz and cache_pfad:
+        _orte_cache_schreiben(cache_pfad, key, eintraege)
+    return {"eintraege": eintraege, "netz": netz}
+
+
+ORTE_SYMBOL = {"ort": "🏘", "ortsteil": "🏘", "pass": "🏔"}
+
+
+def orte_als_vorschlaege(points: List[dict], eintraege: List[dict]) -> List[dict]:
+    """Die Einträge als Vorschläge fürs Highlights-Fenster (`grund` „orte“, alle empfohlen). Ort = Name,
+    Pass = „Name\\n884 m“ (wie `_text`). Kein Deckel, kein NUR_MIT_FOTO."""
+    cum = _kumuliert(points)
+    ges = cum[-1] or 1.0
+    out = []
+    for e in eintraege:
+        idx = e["idx"]
+        out.append({"art": e["art"], "symbol": ORTE_SYMBOL.get(e["art"], ""), "text": _text(e, {}), "name": e["name"],
+                    "lat": float(e["lat"]), "lon": float(e["lon"]), "idx": idx, "frac": cum[idx] / ges,
+                    "km": round(cum[idx] / 1000.0, 1), "epoch": _parse_t(points[idx].get("time")), "foto": None,
+                    "grund": "orte", "empfohlen": True, "abstand_m": e.get("abstand_m")})
     return out

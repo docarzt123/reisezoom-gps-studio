@@ -15251,12 +15251,14 @@ function mountAnimator(body, headerActions, opts) {
     // 11.09.2026 — Highlights-Fenster (Marc: „ein komplettes Highlights-Modal, groß in der
     // Mitte: Fotoordner hinzufügen, Highlights finden, Liste mit Vorschlägen, an-/abwählen,
     // Text ändern"). Quellen: OSM-Orte, Track-Stellen, Halte-Punkte + Fotos, Foto-Serien.
-    const _hlState = { ordner: [], quellen: { osm: true, track: true, halte: true }, vs: [], info: null };
+    const _hlState = { ordner: [], quellen: { osm: true, track: true, halte: true, orte: false }, vs: [], info: null };
     const _hlEsc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     function _hlGrund(v) {
       const g = { poi: t("hl.grund_poi", "Ort aus OpenStreetMap"), poi_foto: t("hl.grund_poi_foto", "Ort aus OpenStreetMap, Foto dabei"),
                   track: t("hl.grund_track", "Aus dem Track"), halt_foto: t("hl.grund_halt", "Halt mit Fotos"),
-                  serie: t("hl.grund_serie", "Foto-Serie"), foto: t("hl.grund_foto", "Einzelnes Foto") };
+                  serie: t("hl.grund_serie", "Foto-Serie"), foto: t("hl.grund_foto", "Einzelnes Foto"),
+                  // Grund „orte“: Zeilen der Option „Alle Orte und Pässe“ (eigener Text statt des rohen Schlüssels)
+                  orte: t("hl.grund_orte", "Ort oder Pass entlang der Strecke") };
       let s = g[v.grund] || v.grund || "";
       if (v.n_fotos > 1) s += " · " + t("hl.n_fotos", "{n} Fotos").replace("{n}", v.n_fotos);
       if (v.dauer_s) s += " · " + Math.round(v.dauer_s / 60) + " min";
@@ -15320,23 +15322,37 @@ function mountAnimator(body, headerActions, opts) {
       const vorhanden = new Set(_animSignsList().map(s => String(s.text || "").trim() + "|" + String(s.imageSrc || "").split(/[\\/]/).pop()));
       const list = _animSignsList().slice();
       let neu = 0;
+      const orteKand = [];
       for (const v of gew) {
         const key = String(v.text || "").trim() + "|" + String(v.foto || "").split(/[\\/]/).pop();
         if (vorhanden.has(key) || (!v.text && !v.foto)) continue;
         vorhanden.add(key);
-        list.push({ ...(_SIGN_DEFAULTS),
+        const schild = { ...(_SIGN_DEFAULTS),
           style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size, font: _animSignLast.font, weight: _animSignLast.weight,
           before: 1, after: 4, entry: "fade",
           lat: Number(v.lat), lon: Number(v.lon), text: String(v.text || ""), anchorMode: "track", visible: true,
-          ...(v.foto ? { imageSrc: v.foto, thumb: v.thumb || undefined } : {}) });
+          ...(v.foto ? { imageSrc: v.foto, thumb: v.thumb || undefined } : {}) };
+        if (v.grund === "orte") {
+          // „Alle Orte und Pässe“: kleine, dezente Pins (feste Größe, nicht die zuletzt benutzte), kurz sichtbar; Pässe gelb abgesetzt
+          Object.assign(schild, { style: "pin", size: ORTE_SCHILD_GROESSE, opacity: 0.6, before: 2, after: 2, entry: "both", hl_quelle: "orte",
+            color: v.art === "pass" ? "#2b3a40" : "#1d2b36", ...(v.art === "pass" ? { accent: "#ffc21a" } : {}) });
+          orteKand.push({ s: schild, pass: v.art === "pass", ortsteil: v.art === "ortsteil", abstand: Number(v.abstand_m) });
+          continue;
+        }
+        list.push(schild);
         neu++;
       }
+      const orteBehalten = _hlOrteAusduennen(orteKand);
+      const orteWeg = orteKand.length - orteBehalten.length;
+      for (const s of orteBehalten) { list.push(s); neu++; }
       m.close();
       if (!neu) { toast(t("signs.highlights_none", "Keine neuen Highlights gefunden."), "info"); return; }
       _animSignsSave(list, t("hl.undo", "Highlights übernommen"));
       _animSignsAttachToMap(); _animSignsRenderList();
       try { applog("info", "[highlights] übernommen: " + neu); } catch (_) {}
-      toast(t("hl.uebernommen", "{n} Highlights als Schilder übernommen — Rückgängig mit ⌘Z.").replace("{n}", neu), "success", 4000);
+      let meldung = t("hl.uebernommen", "{n} Highlights als Schilder übernommen — Rückgängig mit ⌘Z.").replace("{n}", neu);
+      if (orteWeg > 0) meldung += " " + t("hl.orte_ausgelassen", "{n} Orte ausgelassen (zu weit vom Track oder zu dicht)").replace("{n}", orteWeg);
+      toast(meldung, "success", orteWeg > 0 ? 6000 : 4000);
     }
     async function _animSignsHighlights() {
       const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
@@ -15354,6 +15370,7 @@ function mountAnimator(body, headerActions, opts) {
               <label><input type="checkbox" id="hl-q-osm" ${_hlState.quellen.osm ? "checked" : ""}> ${_hlEsc(t("hl.q_osm", "Orte aus OpenStreetMap"))}</label>
               <label><input type="checkbox" id="hl-q-track" ${_hlState.quellen.track ? "checked" : ""}> ${_hlEsc(t("hl.q_track", "Track-Stellen (höchster/tiefster Punkt, schnellste, steilste)"))}</label>
               <label><input type="checkbox" id="hl-q-halte" ${_hlState.quellen.halte ? "checked" : ""}> ${_hlEsc(t("hl.q_halte", "Halte-Punkte mit Fotos"))}</label>
+              <label><input type="checkbox" id="hl-q-orte" ${_hlState.quellen.orte ? "checked" : ""}> ${_hlEsc(t("hl.q_orte", "Orte und Pässe am Track"))}</label>
               <button type="button" class="btn btn-primary btn-sm" id="hl-finden">🔎 ${_hlEsc(t("hl.finden", "Highlights finden"))}</button>
             </div>
             <div class="lib-hint" id="hl-status"></div>
@@ -15372,7 +15389,7 @@ function mountAnimator(body, headerActions, opts) {
         const p = Array.isArray(res) ? res[0] : (res && res.path) || res;
         if (p && typeof p === "string" && !_hlState.ordner.includes(p)) { _hlState.ordner.push(p); _hlOrdnerRender(); }
       };
-      ["osm", "track", "halte"].forEach(k => { const cb = document.getElementById("hl-q-" + k); if (cb) cb.onchange = () => { _hlState.quellen[k] = cb.checked; }; });
+      ["osm", "track", "halte", "orte"].forEach(k => { const cb = document.getElementById("hl-q-" + k); if (cb) cb.onchange = () => { _hlState.quellen[k] = cb.checked; }; });
       const f = document.getElementById("hl-finden"); if (f) f.onclick = _hlFinden;
       const ab = document.getElementById("hl-ab"); if (ab) ab.onclick = () => m.close();
       const ok = document.getElementById("hl-uebernehmen"); if (ok) ok.onclick = () => _hlUebernehmen(m);
@@ -19889,6 +19906,45 @@ function mountAnimator(body, headerActions, opts) {
       b.s.before = Math.round(Math.min(+b.s.before || 0, halb) * 100) / 100;
     }
     for (const x of mitF) x.s.auto_sig = _hlSig(x.s);
+  }
+  const ORTE_SCHILD_GROESSE = 20;   // Orts-, Ortsteil- und Pass-Schilder sind klein (Upstream-Standard 40 wäre zu groß)
+  /** „Alle Orte und Pässe“ (Highlights-Fenster): die Liste zeigt ALLE Orte bis 5 km (und Ortsteile bis 1,5 km), als Schilder
+   *  wird ausgedünnt. Ein Pin steht am Ortsmittelpunkt; verschöbe man sein Zeitfenster gegen die Vorbeifahrt, läge er außerhalb des
+   *  Bildausschnitts (im Referenzvideo war so kein einziges Schild zu sehen). Darum bleibt `timeAnchor` immer der natürliche Anker,
+   *  und es wird stattdessen weggelassen: Gemeinden und Ortsteile nur bis ORTE_NAH_M Abstand zum Track (Pässe immer). Zeitlich
+   *  überlappende Fenster sind erlaubt, aber höchstens ORTE_MAX_GLEICHZEITIG Schilder gleichzeitig: würde ein Schild eine weitere
+   *  gleichzeitige Anzeige erzeugen, entfällt das mit der niedrigsten Priorität (Pass > Gemeinde > Ortsteil, bei Gleichstand das weiter
+   *  vom Track entfernte). Die Fenster bleiben wie vorgesehen (nicht gekürzt). */
+  function _hlOrteAusduennen(kand) {
+    const ORTE_NAH_M = 1500;   // weiter weg liegt der Ortsmittelpunkt am Track nicht mehr im Bild: das Schild wäre nicht zu sehen
+    const ORTE_MAX_GLEICHZEITIG = 3;
+    const dur = parseFloat(document.getElementById("anim-dur")?.value) || +(_activeProject?.[_MODKEY]?.duration_s) || 0;
+    const orteGefunden = kand.filter(k => !k.pass).length;
+    const nah = kand.filter(k => k.pass || !(k.abstand > ORTE_NAH_M));
+    const wegAbstand = kand.length - nah.length;
+    const mitF = nah.map(k => ({ ...k, f: _animSignAnchorForLngLatSafe(+k.s.lon, +k.s.lat) }));
+    const ohneF = mitF.filter(k => k.f == null);      // ohne Anker lässt sich nichts vergleichen: bleibt
+    let gewaehlt = mitF.filter(k => k.f != null).sort((a, b) => a.f - b.f);
+    const fenster = (k) => [k.f * dur - (+k.s.before || 0), k.f * dur + (+k.s.after || 0)];
+    const rang = (k) => k.pass ? 3 : (k.ortsteil ? 1 : 2);
+    const schwaecher = (a, b) => rang(a) !== rang(b) ? rang(a) < rang(b) : (a.abstand || 0) > (b.abstand || 0);
+    let wegZeit = 0;
+    while (dur > 0) {
+      // Die meisten gleichzeitigen Fenster gibt es immer an einem Fensteranfang: dort zählen
+      let voll = null;
+      for (const k of gewaehlt) {
+        const t = fenster(k)[0];
+        const aktiv = gewaehlt.filter(g => { const w = fenster(g); return w[0] <= t && t < w[1]; });
+        if (aktiv.length > ORTE_MAX_GLEICHZEITIG) { voll = aktiv; break; }
+      }
+      if (!voll) break;
+      let weg = voll[0];
+      for (const k of voll) if (schwaecher(k, weg)) weg = k;
+      gewaehlt = gewaehlt.filter(g => g !== weg);
+      wegZeit++;
+    }
+    try { console.log("[hl] Orte-Schilder: " + orteGefunden + " Orte gefunden, " + wegAbstand + " wegen Abstand (> " + ORTE_NAH_M + " m) und " + wegZeit + " wegen Zeit (mehr als " + ORTE_MAX_GLEICHZEITIG + " gleichzeitig) entfallen"); } catch (_) {}
+    return gewaehlt.concat(ohneF).map(k => k.s);
   }
   function _animSignAnchorForLngLatSafe(lng, lat) {
     try { return typeof window.__rzSignAnkerAusOrt === "function" ? window.__rzSignAnkerAusOrt(lng, lat) : null; } catch (_) { return null; }
