@@ -7837,7 +7837,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Nur mit Zeitstempeln und nicht auf Reisen (dort ist `speedKmh` null, die Bahn hat keine eigene Geschwindigkeit). */
   function _tempoMoeglich() {
     const sr = _colorSeriesSafe();
-    return !!(sr && sr.has_time && sr.speedKmh !== null && sr.cumDistM && sr.cumTimeS && window.rzTempoFarben);
+    return !!(sr && sr.has_time && sr.speedKmh != null && sr.cumDistM && sr.cumTimeS && window.rzTempoFarben);
   }
   /** { serie: km/h je Punkt (geglättet), stops, sig } — oder null (aus / nicht möglich). Die Reihe wird je Tour einmal gerechnet. */
   function _tempoSpec() {

@@ -12,6 +12,7 @@ Ausgabe: je Prüfung OK/FAIL, am Ende RESULT: OK bzw. RESULT: FAIL (Exit 0 / 1).
 import asyncio
 import hashlib
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -63,7 +64,23 @@ async def teil_a(p):
       return { konstMin: Math.min(...konst), konstMax: Math.max(...konst), ausrMax: Math.max(...ausr), ohneZeit,
                p98: T.perzentil(roh, 98), ampel: T.stufen("ampel", 80, "#ff8c2e"), eigen: T.stufen("eigen", 50, "#ff8c2e") };
     }""")
+    # _tempoMoeglich aus dem echten Quelltext: Reihe ohne Geschwindigkeit (Reise: null, fehlend: undefined) → gesperrt
+    quelle = (REPO / "modules/animator/ui/module.js").read_text(encoding="utf-8")
+    m = re.search(r"function _tempoMoeglich\(\) \{.*?\n  \}", quelle, re.S)
+    moeglich = await page.evaluate("""(src) => {
+      const T = window.rzTempoFarben;
+      let reihe = null;
+      const _colorSeriesSafe = () => reihe;
+      const f = new Function("_colorSeriesSafe", src + "; return _tempoMoeglich;")(_colorSeriesSafe);
+      const basis = { has_time: true, cumDistM: [0, 1], cumTimeS: [0, 1] };
+      const lauf = (o) => { reihe = o; return f(); };
+      return { mit: lauf({ ...basis, speedKmh: [0, 1] }), reise: lauf({ ...basis, speedKmh: null }),
+               fehlt: lauf({ ...basis }), ohneZeit: lauf({ ...basis, speedKmh: [0, 1], has_time: false }),
+               keineReihe: lauf(null), tempoDa: !!T };
+    }""", m.group(0) if m else "")
     await browser.close()
+    pruefe("A7 _tempoMoeglich: mit Geschwindigkeit möglich; Reise (null), fehlend (undefined), ohne Zeit, ohne Reihe gesperrt",
+           moeglich == {"mit": True, "reise": False, "fehlt": False, "ohneZeit": False, "keineReihe": False, "tempoDa": True}, moeglich)
     pruefe("A0 window.rzTempoFarben vorhanden", not r.get("fehlt"))
     if r.get("fehlt"):
         return
