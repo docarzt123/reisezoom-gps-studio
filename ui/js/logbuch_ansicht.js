@@ -2,10 +2,10 @@
  *
  * Marc (11.10.2026): „Das Logbuch ist im Inspektor eigentlich falsch aufgehoben … das gehört doch zur Tour, sodass
  * man das in allen Modulen nutzen kann.“ Die Daten liegen je Tour in der
- * Bibliothek (Einteilung), gelesen über `logbuch_lesen`, Namen/Notizen über `einteilung_aktion` — Notizen, die man hier
- * setzt, sieht man überall. Profi-Werkzeuge (Teilen, Art ändern, Grenzen ziehen) bleiben im GPX-Inspektor.
+ * Bibliothek (Einteilung), gelesen über `logbuch_lesen`, Namen/Notizen/Art über `einteilung_aktion` — was man hier
+ * setzt, sieht man überall. Profi-Werkzeuge (Teilen, Grenzen ziehen) bleiben im GPX-Inspektor.
  *
- *   const lb = rzLogbuchAnsicht.zeichnen(box, { path, onWahl: (eintrag) => …, onDaten: (daten) => … });
+ *   const lb = rzLogbuchAnsicht.zeichnen(box, { path, onWahl: (eintrag) => …, onDaten: (daten) => …, onGeaendert: () => … });
  *   lb.waehlen(id) · lb.neuLaden() · lb.tagEintraege() · lb.daten()
  */
 (function () {
@@ -26,6 +26,8 @@
                      rad: "Rad", laufen: "Laufen", pause: "Pause", uebernachtung: "Übernachtung", halt: "Halt",
                      unsicher: "Rad oder Laufen?", wassersport: "Wassersport", hoechster_punkt: "Höchster Punkt", start: "Start",
                      ziel: "Ziel", punkt: "Eigener Punkt", poi: "Sehenswürdigkeit" };
+  // 16.10.2026 — Arten, die man von Hand setzen kann (wie core/logbuch.HAND_ARTEN und das „Art ändern“ im Inspektor)
+  const HAND_ARTEN = ["fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause"];
   const artName = (a) => T("logbuch.art." + a, ARTEN_DE[a] || a);
   const farbe = (a) => FARBE[a] || "#8b8fa3";
   const symbol = (a) => I(SYMBOL[a] || "map-pin", 17);
@@ -162,7 +164,7 @@
           ${kopf}
           <div class="lba-liste">${liste.length ? liste.map(zeileHtml).join("") : `<div class="lba-leer">${esc(T("logbuch.leer", "Nichts erkannt — der Track ist zu kurz oder hat keine Bewegung."))}</div>`}</div>
           ${rueck}
-          <div class="lba-fuss muted">${esc(T("logbuch.fuss", "Hier: Namen ändern, Notizen ergänzen, Einträge verbinden. Track-Reparaturen bleiben im GPX-Inspektor."))}</div>
+          <div class="lba-fuss muted">${esc(T("logbuch.fuss_art", "Hier: Namen und Art ändern, Notizen ergänzen, Einträge verbinden. Track-Reparaturen bleiben im GPX-Inspektor."))}</div>
         </div>`;
       binden();
     }
@@ -205,18 +207,21 @@
       try { r = await rzWarten("einteilung_aktion", () => api().einteilung_aktion(d.eid, was, params)); } catch (e) { r = { ok: false, error: String(e) }; }
       if (!r || !r.ok) { if (typeof toast === "function") toast((r && r.error) || T("logbuch.fehler_aktion", "Das ging nicht"), "error", 5000); return; }
       Z.rueck = vorher ? { text, stand: vorher, eid: d.eid, tour: d.tour } : null;
+      // gespeichert ist es schon — Bescheid geben, bevor `laden` auf die Ortsnamen aus dem Netz wartet
+      if (opt.onGeaendert) { try { opt.onGeaendert(); } catch (_) {} }
       await laden(false);
     }
     async function rueckgaengig() {
       const u = Z.rueck; if (!u) return;
       Z.rueck = null;
       try { await rzWarten("einteilung_stand_setzen", () => api().einteilung_stand_setzen(u.eid, u.stand, u.tour)); } catch (_) {}
+      if (opt.onGeaendert) { try { opt.onGeaendert(); } catch (_) {} }
       await laden(false);
     }
     function menue(id, anker) {
       const x = finde(id); if (!x || istPunkt(x) || !(x.bids && x.bids.length)) return;
       const liste = (Z.d.eintraege || []), i = liste.findIndex((e) => e.id === id), vor = liste[i - 1], nach = liste[i + 1];
-      const pkt = [];
+      const pkt = [];   // [Text, Aktion] · {kopf} · "-" · {html, fn, art}
       pkt.push([T("logbuch.menue.umbenennen", "Umbenennen …"), async () => {
         const v = await frage(T("logbuch.frage.name", "Name"), x.name || titel(x, Z.orte));
         if (v != null) aktion(T("logbuch.undo.umbenannt", "Umbenannt"), "aendern", { bids: x.bids, name: v.trim() });
@@ -227,11 +232,29 @@
       }]);
       if (vor) pkt.push([T("logbuch.menue.mit_vorherigem", "Mit vorherigem zusammenlegen"), () => aktion(T("logbuch.undo.verbunden", "Verbunden"), "zusammenlegen", { bid_a: vor.bids[vor.bids.length - 1], bid_b: x.bids[0] })]);
       if (nach) pkt.push([T("logbuch.menue.mit_naechstem", "Mit nächstem zusammenlegen"), () => aktion(T("logbuch.undo.verbunden", "Verbunden"), "zusammenlegen", { bid_a: x.bids[x.bids.length - 1], bid_b: nach.bids[0] })]);
+      // 16.10.2026 — Art der Fortbewegung ändern (Rückmeldung: „Ich kann den Namen ändern, aber nicht die Art
+      // der Fortbewegung“). Dieselbe Aktion wie im Inspektor: `aendern` mit `art` macht den Eintrag zu Handarbeit,
+      // die jede Neuberechnung überlebt; Animator, Video-Assistent und Kurzfassung lesen sie aus der Einteilung.
+      const jetzt = x.anzeige_art || x.art;
+      pkt.push("-");
+      pkt.push({ kopf: T("logbuch.menue.art", "Art ändern") });
+      for (const a of HAND_ARTEN) {
+        const ist = a === jetzt;
+        if (ist && !x.geraten) continue;   // vermutete Art: hier bestätigen (wird dann Handarbeit)
+        const text = ist ? T("logbuch.menue.bestaetigen", "{art} bestätigen", { art: artName(a) }) : artName(a);
+        pkt.push({ art: a, html: `<span class="lba-menue-sym" style="--c:${farbe(a)}">${I(SYMBOL[a] || "map-pin", 14)}</span>${esc(text)}`,
+                   fn: () => aktion(T("logbuch.undo.art_geaendert", "Art geändert"), "aendern", { bids: x.bids, art: a }) });
+      }
       document.querySelectorAll(".lba-menue").forEach((m) => m.remove());
       const m = document.createElement("div");
       m.className = "lib-ctxmenu lba-menue"; m.setAttribute("role", "menu");
-      for (const [txt, fn] of pkt) {
-        const b = document.createElement("button"); b.type = "button"; b.className = "lib-ctx-item"; b.textContent = txt;
+      for (const e of pkt) {
+        if (e === "-") { m.appendChild(document.createElement("hr")); continue; }
+        if (e.kopf) { const k = document.createElement("div"); k.className = "lba-menue-kopf"; k.textContent = e.kopf; m.appendChild(k); continue; }
+        const b = document.createElement("button"); b.type = "button"; b.className = "lib-ctx-item"; b.setAttribute("role", "menuitem");
+        let fn;
+        if (Array.isArray(e)) { b.textContent = e[0]; fn = e[1]; }
+        else { b.innerHTML = e.html; b.dataset.lbaArt = e.art; fn = e.fn; }
         b.onclick = () => { zu(); fn(); }; m.appendChild(b);
       }
       document.body.appendChild(m);
@@ -248,6 +271,6 @@
   }
 
   // 11.10.2026 (Schritt 9) — der GPX-Inspektor nimmt Symbole, Namen und Titel von hier (eine Quelle für alle Module)
-  window.rzLogbuchAnsicht = { zeichnen, symbolName: (a) => SYMBOL[a] || "map-pin", farbe, artName, titel,
+  window.rzLogbuchAnsicht = { zeichnen, symbolName: (a) => SYMBOL[a] || "map-pin", farbe, artName, titel, handArten: HAND_ARTEN.slice(),
     symbolHtml: (a, g) => I(SYMBOL[a] || "map-pin", g || 16) };
 })();

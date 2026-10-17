@@ -1334,6 +1334,14 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 6. **Wie weiter?** Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video
    im Animator selbst gestalten, Karte erstellen oder Daten animieren.
 
+### Neu in v0.9.796: kleine Korrekturen
+
+- **Track-Check: Fehler aus dem Archiv im Inspektor finden.** Meldet das Archiv bei einer Tour „Fehler im Track“, öffne sie mit „Im Inspektor reparieren“. Oben im Inspektor steht der Track-Check mit jeder Befund-Art, darunter die einzelnen Fundstellen als kleine Knöpfe mit dem Kilometer. Ein Klick springt zur Stelle, markiert sie auf Karte und Höhenprofil und bietet „Reparieren“ an. Nach dem Reparieren und „Im Archiv ersetzen“ verschwindet der Hinweis im Archiv. Stammt das Archiv-Ergebnis noch aus einer älteren Prüfung, prüft GPS Studio die Tour beim Öffnen neu und sagt dir, was sich geändert hat — oft ist dann gar nichts mehr zu reparieren.
+- **Logbuch: Art der Fortbewegung ändern.** Auf der Tour-Seite kannst du im Logbuch über „⋯“ an einem Eintrag unter **„Art ändern“** die Fortbewegung umstellen: Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport oder Pause. Hat GPS Studio eine Art nur vermutet, kannst du sie dort bestätigen. Die Änderung gilt überall — im Inspektor, im Animator, im Video-Assistenten und in der Kurzfassung der Tour. „Rückgängig“ unter der Liste nimmt sie zurück.
+- **Fahrzeug der Etappe zeigen.** Im Etappen-Editor steht unter „Unterwegs mit“ der Schalter **„Fahrzeug der Etappe zeigen“**. Eingeschaltet (Standard) wird der Laufpunkt zum Verkehrsmittel des Abschnitts — Auto, Flugzeug, Boot. Ausgeschaltet behält er die Form, die du unter „Laufpunkt“ eingestellt hast (Kugel, Pfeil, Symbol oder eigenes Bild); das Verkehrsmittel bestimmt dann nur noch, ob die Linie der Straße folgt oder als Bogen fliegt. Ganz ohne Punkt, nur mit der Linie: Knopf „Laufpunkt einstellen …“ direkt darunter, dort den Haken „Laufpunkt zeigen“ entfernen. Der Schalter gilt je Etappe und wirkt sofort.
+- **Ortssuche: Stadt vor Dorf.** Gibt es mehrere Orte gleichen Namens, nimmt die Ortssuche die Stadt vor dem Dorf („Lindau“ → Lindau (Bodensee), „Frankfurt“ → Frankfurt am Main). Steht schon eine Nachbar-Station fest, gewinnt der nächstgelegene Ort dieses Namens.
+- **Medien:** Fotos, die du im Finder bzw. Explorer verschiebst oder umbenennst, stehen gleich am neuen Ort, mit dem Datum, das jetzt in der Datei steht (siehe „Von selbst aktuell halten“).
+
 ### Neu in v0.9.795: robuster rendern
 
 - **Luftbild an der Landesgrenze:** Liegt deine Tour direkt an einer Grenze, holt die App für die Ecke auch das Luftbild des Nachbarlands. Hat dieser Dienst für eine Stelle kein Bild, bleibt sie durchsichtig und die Grundkarte scheint durch — ohne Warnung und ohne unnötiges Nachfragen.
@@ -2086,6 +2094,11 @@ Fotobereichs macht die App dort weiter, wo der letzte Lauf aufhörte:
   jedem Öffnen. Sofort geht es über **Einlesen** in der Seitenleiste. Seit v0.9.781 schaut die App auch
   **still nach, wenn sie einfach offen bleibt** — etwa alle 20 Minuten prüft sie, ob etwas fällig ist, auch
   während du im Animator arbeitest. So kommen neue Fotos vom NAS von selbst dazu.
+- **Verschoben oder umbenannt** (seit v0.9.796): Verschiebst du Fotos im Finder bzw. Explorer in einen anderen
+  Ordner (oder benennst sie um), merkt die App das, sobald du sie in der Liste siehst — sie prüft im Hintergrund,
+  ob die gezeigten Dateien noch da sind, und sieht in diesem Fotoordner gleich nach. Die Fotos stehen dann am neuen
+  Ort, mit dem Datum, das jetzt in der Datei steht. Mit „Von selbst aktuell halten“ aus werden sie nur als fehlend
+  markiert; **Einlesen** holt sie dann an den neuen Ort.
 
 Beides läuft im Hintergrund, sagt unten rechts was es tut, und lässt sich
 abbrechen. **Drei Schritte (seit v0.9.781):** 1. die Dateiliste, 2. Aufnahmezeit, Ort und Kamera — dafür liest die App nur den

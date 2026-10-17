@@ -8521,7 +8521,9 @@ function mountAnimator(body, headerActions, opts) {
       if (_reiseAktiv() && _reiseBahn && _reiseBahn.etappen) {
         const ab = _bahnAbschnitt(f);
         const e = ab ? _reiseBahn.etappen[ab.teil] : null;
-        if (e && e.tour && e.tour.haupt && e.tour.etappe) {   // 07.10.2026 Punkt 10: Etappe als Haupt-Track
+        // 16.10.2026 — „Fahrzeug der Etappe zeigen“ aus (etappe.fz_zeigen === false): das Verkehrsmittel steuert nur
+        // noch die Linie (Straße/Bogen), der Laufpunkt behält die Form aus „Laufpunkt“ (Kugel, Pfeil, Symbol, eigenes Bild)
+        if (e && e.tour && e.tour.haupt && e.tour.etappe && e.tour.etappe.fz_zeigen !== false) {   // 07.10.2026 Punkt 10: Etappe als Haupt-Track
           const fzH = _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], e.tour.etappe);
           if (fzH) return { key: "h-" + fzH, show: dotZeigen(), style: fzH, size: dotGroesse(), farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
         }
@@ -8530,7 +8532,7 @@ function mountAnimator(body, headerActions, opts) {
           // 07.10.2026 — geplante Etappe: Fahrzeug des gerade laufenden Abschnitts (Flug → Auto …)
           // die Reise rechnet mit einer verdünnten Kopie der Tour — die Etappen-Angaben hängen am Original (`tr`)
           const etQ = e.tour.etappe || (e.tour.tr && e.tour.tr.etappe) || null;
-          const fzE = etQ ? _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], etQ) : "";
+          const fzE = (etQ && etQ.fz_zeigen !== false) ? _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], etQ) : "";
           if (fzE) return { key: "e" + ab.teil + "-" + fzE, show: st.dot_show !== false, style: fzE,
                             size: Math.max(0.1, +st.dot_size || 1), farbe: e.tour.line_color || "#35a7ff" };
           return { key: "e" + ab.teil, show: st.dot_show !== false, style: (st.dot_style === "arrow" || FAHRZEUGE.includes(st.dot_style)) ? st.dot_style : "dot",
@@ -8541,7 +8543,7 @@ function mountAnimator(body, headerActions, opts) {
     // 07.10.2026 Punkt 10 — Etappe als Haupt-Track (ohne Reise): Fahrzeug des laufenden Abschnitts
     try {
       const he = _hauptEt();
-      if (he && currentCoords && currentCoords.length) {
+      if (he && he.etappe && he.etappe.fz_zeigen !== false && currentCoords && currentCoords.length) {   // 16.10.2026 s. oben
         _hauptEtHalter.coords = currentCoords;
         const fzH = _etappeArtAn(_hauptEtHalter, currentCoords[Math.max(0, Math.min(currentCoords.length - 1, Math.round(+f || 0)))], he.etappe);
         if (fzH) return { key: "h-" + fzH, show: dotZeigen(), style: fzH, size: dotGroesse(), farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
@@ -25360,6 +25362,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _etNeuerZustand() {
     return { pfad: null, wps: [_etLeer(), _etLeer()], arten: ["auto"], kurve: [false], weich: 0.5, grob: 0.55, beschriften: true,
+             fzZeigen: true,   // 16.10.2026 — Laufpunkt = Verkehrsmittel des Abschnitts (aus: Form aus „Laufpunkt“)
              nurOrte: false, ortS: ORT_STD_S, ortKamera: "alles",
              rund: false, rund_art: null, rund_kurve: false,
              pick: -1, sel: -1, busy: false, teile: new Map(), laeuft: 0, verlauf: [] };
@@ -25406,7 +25409,7 @@ function mountAnimator(body, headerActions, opts) {
     const et = tr.etappe, E = _etNeuerZustand();
     Object.assign(E, { pfad: tr.gpx_path, wps: JSON.parse(JSON.stringify(et.wps || [])), arten: (et.arten || []).slice(),
                        kurve: (et.kurve || []).slice(), weich: et.weich != null ? +et.weich : 0.5, grob: et.grob != null ? +et.grob : 0.55,
-                       beschriften: et.beschriften !== false, rund: !!et.rund, rund_art: et.rund_art || null, rund_kurve: !!et.rund_kurve,
+                       beschriften: et.beschriften !== false, fzZeigen: et.fz_zeigen !== false, rund: !!et.rund, rund_art: et.rund_art || null, rund_kurve: !!et.rund_kurve,
                        nurOrte: !!et.nur_orte, ortS: et.ort_s > 0 ? +et.ort_s : ORT_STD_S, ortKamera: et.ort_kamera === "fliegen" ? "fliegen" : "alles" });
     while (E.arten.length < E.wps.length - 1) E.arten.push(E.arten[E.arten.length - 1] || "auto");
     while (E.kurve.length < E.wps.length - 1) E.kurve.push(false);
@@ -25805,6 +25808,19 @@ function mountAnimator(body, headerActions, opts) {
     E.sel = -1;
     _etEdZeichnen(); _etTeileHolen();
   }
+  /** 16.10.2026 — „Fahrzeug der Etappe zeigen“ wirkt bei einer schon übernommenen Etappe sofort (ohne neu zu rechnen):
+   *  der Wert landet direkt in ihrer `etappe` (Zusatz-Tour oder Haupt-Track; die Reise hält dasselbe Objekt), wird
+   *  gespeichert, und der Laufpunkt wird neu gebaut. Eine neue Etappe bekommt ihn erst mit „Etappe übernehmen“. */
+  function _etFzZeigenAnwenden(E) {
+    if (!E || !E.pfad) return;
+    const he = _hauptEt();
+    const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(E.pfad));
+    const et = (tr && tr.etappe) || (he && _pfadNFC(he.gpx_path) === _pfadNFC(E.pfad) ? he.etappe : null);
+    if (!et) return;
+    if (E.fzZeigen === false) et.fz_zeigen = false; else delete et.fz_zeigen;
+    _animPersistTours(t("animator.etappe.undo_bearbeiten", "Etappe geändert"));
+    try { _dotStufeZuletzt = null; dotEbenenAufbauen(); dotSetzen(_dotFracZuletzt); } catch (e) { applog("warn", "[etappe] Fahrzeug zeigen: " + e); }
+  }
   /** Fahrzeugleiste an die Auswahl anpassen (ohne das Panel neu zu bauen — ein Eingabefeld behält den Fokus). */
   function _etFzLeiste() {
     const E = _etEd, box = document.querySelector("#anim-etappe-editor .et-fahrzeuge"); if (!E || !box) return;
@@ -25929,7 +25945,9 @@ function mountAnimator(body, headerActions, opts) {
         const ab = (E.sel >= 0 && E.sel < n - 1) ? E.sel : 0, teil = E.arten.slice(ab, n - 1);
         const gleich = teil.length && teil.every(a => a === teil[0]) ? teil[0] : "";
         return `<div class="et-fahrzeuge"><div class="et-fz-titel">${esc(t("animator.etappe.unterwegs", "Unterwegs mit"))} <span class="muted">${esc(ab > 0 ? t("animator.etappe.ab_punkt", "ab Punkt {n}").replace("{n}", String(ab)) : t("animator.etappe.alle_abschnitte", "alle Abschnitte"))}</span></div>
-          <div class="et-fz-knoepfe">${_ET_ARTEN.map(a => `<button type="button" class="et-fz${gleich === a ? " ist-an" : ""}" data-fz="${a}" title="${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}"><span class="rz-sym-chip">${_symUiSvg(a, 24)}</span><i>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</i></button>`).join("")}</div></div>`;
+          <div class="et-fz-knoepfe">${_ET_ARTEN.map(a => `<button type="button" class="et-fz${gleich === a ? " ist-an" : ""}" data-fz="${a}" title="${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}"><span class="rz-sym-chip">${_symUiSvg(a, 24)}</span><i>${esc(t("animator.dot.fz_" + a, FAHRZEUG_NAMEN[a] || a))}</i></button>`).join("")}</div>
+          <label class="et-fz-zeigen" title="${esc(t("animator.etappe.fz_zeigen_tip", "An: Der Laufpunkt wird zum Verkehrsmittel des Abschnitts (Auto, Flugzeug …). Aus: Er behält seine Form aus „Laufpunkt“ (Kugel, Pfeil, Symbol, eigenes Bild) — das Verkehrsmittel bestimmt dann nur noch die Linie."))}"><input type="checkbox" class="et-fz-zeigen-cb"${E.fzZeigen !== false ? " checked" : ""}> ${esc(t("animator.etappe.fz_zeigen", "Fahrzeug der Etappe zeigen"))}</label>
+          <div class="et-fz-hinweis muted">${esc(t("animator.etappe.fz_zeigen_hinweis", "Form des Laufpunkts und „Laufpunkt zeigen“ (ganz ohne Punkt, nur die Linie): unter „Aussehen der Linie“."))}${E.pfad ? ` <button type="button" class="btn btn-small et-fz-laufpunkt">${typeof rzIcon === "function" ? rzIcon("palette", { size: 12 }) : ""} ${esc(t("animator.etappe.laufpunkt_knopf", "Laufpunkt einstellen …"))}</button>` : ""}</div></div>`;
       })()}
       <div class="et-knoepfe">
         <button type="button" class="btn btn-small" data-et="glaetten" title="${esc(t("animator.etappe.glaetten_tip", "Eigene Hebel und scharfe Ecken zurücksetzen — alle Kurven folgen der Weichheit"))}">〰 ${esc(t("animator.etappe.glaetten", "Alles glätten"))}</button>
@@ -26089,10 +26107,16 @@ function mountAnimator(body, headerActions, opts) {
       _etMerken(); E.wps = [_etLeer(), _etLeer()]; E.arten = [E.arten[0] || "auto"]; E.kurve = [false]; E.sel = -1; _etEdZeichnen();
     });
     box.querySelector(".et-beschriften-cb").addEventListener("change", (ev) => { E.beschriften = !!ev.target.checked; _etEdZeichnen(); });
-    box.querySelector(".et-aussehen")?.addEventListener("click", () => {
+    const _etAussehenOeffnen = () => {
       const pfad = E.pfad, haupt = _hauptEt() && _pfadNFC(currentGpx) === _pfadNFC(pfad);
       _etEdZu(); _trackEdOeffnen(haupt ? "haupt" : pfad);
-    });
+    };
+    box.querySelector(".et-aussehen")?.addEventListener("click", _etAussehenOeffnen);
+    // 16.10.2026 (Marc: „nur einen Punkt … oder gar keinen Trackpunkt, sodass nur die Linie entsteht … kann ich bis jetzt
+    // nur Auto, Flugzeug … wählen“, „Wo finde ich denn ‚Laufpunkt zeigen‘ überhaupt?“) — Schalter direkt unter der
+    // Fahrzeugleiste, Knopf führt zum Laufpunkt der Etappe
+    box.querySelector(".et-fz-laufpunkt")?.addEventListener("click", _etAussehenOeffnen);
+    box.querySelector(".et-fz-zeigen-cb")?.addEventListener("change", (ev) => { E.fzZeigen = !!ev.target.checked; _etFzZeigenAnwenden(E); });
     // 14.10.2026 — Orte nacheinander (ohne Linie)
     box.querySelector(".et-nur-orte-cb")?.addEventListener("change", (ev) => { E.nurOrte = !!ev.target.checked; if (E.nurOrte) E.beschriften = true; _etEdZeichnen(); });
     box.querySelector(".et-ort-s")?.addEventListener("change", (ev) => { const v = parseFloat(ev.target.value); E.ortS = isFinite(v) ? Math.max(1, Math.min(20, v)) : ORT_STD_S; });
@@ -26200,6 +26224,7 @@ function mountAnimator(body, headerActions, opts) {
     const etappe = { id: String(r.gpx_path).split("/").pop().split("_")[0], wps: E.wps.map(w => Object.assign({}, w)),
                      arten: E.arten.slice(0, E.wps.length - 1), kurve: E.kurve.slice(0, E.wps.length - 1), weich: E.weich, grob: E.grob,
                      abschnitte, km: Math.round((r.distance_m || 0) / 100) / 10, beschriften: E.beschriften !== false,
+                     ...(E.fzZeigen === false ? { fz_zeigen: false } : {}),   // 16.10.2026 — nur gespeichert, wenn aus
                      ...(E.nurOrte ? { nur_orte: true, ort_s: E.ortS, ort_kamera: E.ortKamera } : {}),
                      ...(G.rund ? { rund: true, rund_art: G.arten[G.arten.length - 1], rund_kurve: !!G.kurve[G.kurve.length - 1] } : {}) };
     _animPushUndo(E.pfad ? t("animator.etappe.undo_bearbeiten", "Etappe geändert") : t("animator.etappe.undo_neu", "Etappe erstellt"), { force: true });

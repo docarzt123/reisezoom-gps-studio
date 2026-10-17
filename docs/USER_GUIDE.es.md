@@ -1319,6 +1319,14 @@ de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo e
 6. **¿Y ahora?** Listo, página de la ruta con cuaderno, editar fotos en el Geotagger, vídeo rápido, asistente de vídeo,
    diseñar el vídeo tú mismo en el Animator, crear un mapa o animar datos.
 
+### Novedades en v0.9.796: pequeñas correcciones
+
+- **Comprobación del track: encontrar en el inspector los errores del archivo.** Si el archivo marca una ruta con «errores en el track», ábrela con «Reparar en el inspector». Arriba, el inspector muestra cada tipo de hallazgo y, debajo, los puntos concretos como botones pequeños con su kilómetro. Un clic salta allí, lo marca en el mapa y en el perfil y ofrece «Reparar». Tras reparar y «Reemplazar en el archivo», el aviso del archivo desaparece. Si el resultado del archivo viene de una comprobación antigua, GPS Studio vuelve a comprobar la ruta al abrirla y te dice qué ha cambiado; a menudo ya no queda nada que reparar.
+- **Diario: cambiar la forma de desplazarse.** En la página de la ruta, el menú «⋯» de una entrada del diario tiene **«Cambiar tipo»**: trayecto, ferry, senderismo, paseo, bici, carrera, deportes acuáticos o pausa. Un tipo que GPS Studio solo suponía se puede confirmar ahí. El cambio vale en todas partes: inspector, Animator, asistente de vídeo y resumen de la ruta. «Deshacer» bajo la lista lo revierte.
+- **Mostrar el vehículo de la etapa.** En el editor de etapas, bajo «Viajando en», está el interruptor **«Mostrar el vehículo de la etapa»**. Activado (por defecto), el punto móvil se convierte en el medio de transporte del tramo: coche, avión, barco. Desactivado, conserva la forma que elegiste en «Punto móvil» (bola, flecha, símbolo o imagen propia); el medio de transporte solo decide si la línea sigue la carretera o vuela en arco. Sin punto, solo la línea: botón «Ajustar el punto móvil …» justo debajo y quitar «Mostrar el punto». El interruptor vale por etapa y actúa al momento.
+- **Búsqueda de lugares: ciudad antes que pueblo.** Si varios lugares se llaman igual, la búsqueda elige la ciudad antes que el pueblo («Lindau» → Lindau (Bodensee), «Frankfurt» → Frankfurt am Main). Si ya hay una estación vecina, gana el lugar de ese nombre más cercano.
+- **Medios:** las fotos que mueves o renombras en el Finder o el Explorador aparecen enseguida en su nuevo sitio, con la fecha que ahora tiene el archivo (ver «Mantener al día por sí solo»).
+
 ### Novedades en v0.9.795: render más robusto
 
 - **Imagen aérea en una frontera:** si tu ruta pasa justo junto a una frontera, la app también trae la imagen aérea del país vecino para esa zona. Donde ese servicio no tiene imagen, el trozo queda transparente y se ve el mapa base — sin aviso y sin peticiones inútiles.
@@ -2069,6 +2077,11 @@ aplicación continúa donde se quedó la última pasada:
   **Escanear** en la barra lateral se hace al momento. Desde v0.9.781 la app también **revisa en silencio
   aunque simplemente siga abierta**: cada unos 20 minutos mira si toca algo, incluso mientras trabajas en el
   Animator. Así las fotos nuevas del NAS entran solas.
+- **Movidas o renombradas** (desde v0.9.796): si mueves fotos a otra carpeta en el Finder o el Explorador (o las
+  renombras), la app lo nota en cuanto las ves en la lista: comprueba en segundo plano si los archivos mostrados
+  siguen ahí y revisa esa carpeta de fotos al momento. Las fotos aparecen entonces en su nuevo sitio, con la fecha
+  que ahora tiene el archivo. Con «Mantener al día por sí solo» desactivado solo se marcan como que faltan; **Escanear**
+  las lleva luego a su nuevo sitio.
 
 Ambas cosas van en segundo plano, dicen abajo a la derecha qué hacen y se pueden
 cancelar. Si prefieres que no ocurra —en un punto de acceso, en una wifi

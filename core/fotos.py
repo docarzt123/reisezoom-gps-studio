@@ -1627,6 +1627,34 @@ def nachschau_merken(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def sichtbare_pruefen(conn: sqlite3.Connection, pfade: list, erreichbar, existiert=os.path.exists) -> dict:
+    """Sind die gerade gezeigten Dateien noch da? (16.10.2026, Nutzerbericht: 66 Dateien mit falschem Kameradatum 2036
+    umdatiert und im Explorer in den richtigen Ordner verschoben — sie standen bis zur nächsten Nachschau, also bis
+    zu 6 bzw. 24 Stunden, weiter mit 2036 ganz oben.)
+
+    Prüft nur die übergebenen Pfade (eine Seite der Ansicht) und nur unter erreichbaren Fotoordnern — ein fehlendes
+    Laufwerk ist kein Verschieben. Fehlende werden sofort als fehlend markiert; `wurzeln` sind die Fotoordner, in denen
+    nachgeschaut werden sollte (dort tauchen sie am neuen Ort wieder auf)."""
+    pfade = [p for p in dict.fromkeys(pfade or []) if p]
+    if not pfade:
+        return {"weg": [], "wurzeln": []}
+    erreichbar = set(erreichbar or ())
+    zeilen = []
+    with _sperre(conn):
+        for i in range(0, len(pfade), 500):
+            teil = pfade[i:i + 500]
+            zeilen += conn.execute(f"SELECT path, ordner FROM fotos WHERE fehlt_seit IS NULL AND path IN "
+                                   f"({','.join('?' * len(teil))})", teil).fetchall()
+    weg = [(r["path"], r["ordner"]) for r in zeilen if r["ordner"] in erreichbar and not existiert(r["path"])]
+    if weg:
+        jetzt = _jetzt()
+        with _sperre(conn):
+            for pf, _o in weg:
+                geduldig(conn.execute, "UPDATE fotos SET fehlt_seit = ? WHERE path = ? AND fehlt_seit IS NULL", (jetzt, pf))
+            geduldig(conn.commit)
+    return {"weg": [pf for pf, _o in weg], "wurzeln": sorted({o for _p, o in weg})}
+
+
 def was_zu_tun(conn: sqlite3.Connection) -> dict:
     """Was beim Öffnen des Bereichs von selbst nachgeholt werden sollte.
 
@@ -2068,12 +2096,17 @@ def stand(conn: sqlite3.Connection) -> dict:
         " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND (lat IS NULL OR lon IS NULL)),"
         " SUM(fehlt_seit IS NULL AND indexed_at IS NOT NULL AND aufnahme_utc IS NULL AND zeit_ordner IS NULL),"
         " SUM(fehlt_seit IS NULL AND aufnahme_utc IS NOT NULL AND tz_bekannt = 0),"
-        " SUM(fehlt_seit IS NOT NULL)"
+        " SUM(fehlt_seit IS NOT NULL),"
+        " MAX(indexed_at)"
         " FROM fotos", (ART_FOTO, ART_VIDEO, ART_FOTO)).fetchone()
-    z = [int(x or 0) for x in r]
+    z = [int(x or 0) for x in tuple(r)[:9]]
+    zuletzt = tuple(r)[9]
     return {
         "gesamt": z[0], "fotos": z[1], "videos": z[2], "ungelesen": z[3], "ohne_bild": z[4],
         "ohne_koordinate": z[5], "ohne_zeit": z[6], "zeit_geraten": z[7], "fehlt": z[8],
+        # 16.10.2026 — wann zuletzt eine Datei gelesen wurde: die Bäume der Oberfläche hängen daran (eine verschobene
+        # oder umdatierte Datei ändert die Zahlen nicht, nur das, was gelesen wurde)
+        "zuletzt_gelesen": str(zuletzt) if zuletzt is not None else "",
         "ordner": conn.execute("SELECT COUNT(*) FROM foto_ordner").fetchone()[0],
         "fav": conn.execute("SELECT COUNT(*) FROM foto_fav JOIN fotos ON fotos.path = foto_fav.pfad AND fotos.fehlt_seit IS NULL").fetchone()[0],
         "bearbeitet": conn.execute("SELECT COUNT(*) FROM foto_rezept JOIN fotos ON fotos.path = foto_rezept.pfad AND fotos.fehlt_seit IS NULL").fetchone()[0],

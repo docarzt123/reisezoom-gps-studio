@@ -4267,6 +4267,7 @@
   "warte.fotos_fern_nochmal.titel": "Buscando la unidad",
   "warte.fotos_fern_nochmal.text": "Comprobando si las carpetas de fotos vuelven a estar accesibles",
   "fotos.kt_ungelesen": "Poniéndose al día con lo no leído",
+  "fotos.kt_verschoben": "Se movieron o renombraron archivos — revisando la carpeta",
   "fotos.kt_schritt1": "Paso 1 de 2: revisando las carpetas",
   "fotos.kt_hintergrund": "Se ejecuta en segundo plano: puedes seguir usando todo lo demás.",
   "fotos.kt_schritt2": "Paso 2 de 2: leyendo los archivos nuevos",
@@ -6526,5 +6527,16 @@
   "container.x_tip": "Desactivar esta superposición",
   "container.aus_x": "Superposición desactivada",
   "animator.ansicht.auf_kf": "Vista sin guardar — primero haz clic en el fotograma clave #{n} y adoptará el mapa",
-  "animator.ansicht.frei": "Vista sin guardar — «Captura aquí» añade uno en este punto"
+  "animator.ansicht.frei": "Vista sin guardar — «Captura aquí» añade uno en este punto",
+  "trackcheck.stelle_km": "km {km}",
+  "trackcheck.stelle_tip": "Punto {i} de {n} · punto n.º {p} — clic: ir allí y ofrecer la reparación",
+  "trackcheck.stellen_mehr": "+{n} más",
+  "trackcheck.archiv_neu": "El archivo había indicado «{alt}», de una comprobación anterior. La ruta se ha vuelto a comprobar; archivo e inspector muestran ahora lo mismo.",
+  "trackcheck.archiv_neu_leer": "El archivo había indicado «{alt}», de una comprobación anterior. Con las reglas actuales no hay nada que reparar en esta ruta; el aviso del archivo ha desaparecido.",
+  "logbuch.undo.art_geaendert": "Tipo cambiado",
+  "logbuch.fuss_art": "Aquí: cambiar nombres y tipos, añadir notas, unir entradas. Las reparaciones del track siguen en el inspector GPX.",
+  "animator.etappe.fz_zeigen": "Mostrar el vehículo de la etapa",
+  "animator.etappe.fz_zeigen_tip": "Activado: el punto móvil se convierte en el medio de transporte del tramo (coche, avión …). Desactivado: conserva su forma de punto móvil (bola, flecha, símbolo, imagen propia) — el medio de transporte solo define la línea.",
+  "animator.etappe.fz_zeigen_hinweis": "Forma del punto móvil y «Mostrar el punto» (sin punto, solo la línea): en «Aspecto de la línea».",
+  "animator.etappe.laufpunkt_knopf": "Ajustar el punto móvil …"
 }

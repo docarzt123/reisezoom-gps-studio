@@ -20,6 +20,7 @@ from __future__ import annotations
 from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import json
 import math
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -116,19 +117,41 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     n = max(1, min(10, int(limit)))
     hat_bias = bool(bias and len(bias) == 2)
 
-    def _holen(mit_bias: bool) -> list:
+    def _holen(mit_bias: bool, nur_staedte: bool = False) -> list:
         # 25.09.2026 — immer 10 holen: die Auswahl unten braucht die Kandidaten,
         # gekürzt wird erst am Ende.
-        params = {"q": q, "lang": plang, "limit": 10}
+        params = [("q", q), ("lang", plang), ("limit", 10)]
         if mit_bias:
-            params["lon"] = f"{float(bias[0]):.5f}"; params["lat"] = f"{float(bias[1]):.5f}"
+            params += [("lon", f"{float(bias[0]):.5f}"), ("lat", f"{float(bias[1]):.5f}")]
+        if nur_staedte:
+            params += [("osm_tag", "place:city"), ("osm_tag", "place:town")]
         try:
             data = _http_get_json("https://photon.komoot.io/api/?" + urllib.parse.urlencode(params))
         except Exception as e:  # noqa: BLE001
             raise RouteError("Photon — " + _i18n.t_aktiv("route.err_geocoding", "Geocoding fehlgeschlagen: ") + str(e)) from e
         return data.get("features", []) or []
 
+    # 16.10.2026 (Etappe Lindau → Bregenz → Dornbirn wurde 894 km statt ~30 km) — Photon liefert auf „Lindau“ zehn
+    # Dörfer gleichen Namens; die Stadt Lindau (Bodensee) stand erst auf Platz 11 und fiel damit aus der Antwort.
+    # Darum gleichzeitig eine zweite Anfrage nur nach Städten (place:city/town). Sie läuft im eigenen Faden und darf
+    # die Suche nicht aufhalten: kommt sie nicht bis kurz nach der Hauptanfrage, geht es ohne sie weiter; scheitert
+    # sie, zählt das nicht als Fehler.
+    staedte: dict = {}
+    staedte_da = threading.Event()
+
+    def _staedte_holen() -> None:
+        try:
+            staedte["feats"] = _holen(hat_bias, nur_staedte=True)
+        except Exception:  # noqa: BLE001
+            staedte["feats"] = []
+        finally:
+            staedte_da.set()
+
+    threading.Thread(target=_staedte_holen, daemon=True, name="geocode-photon-staedte").start()
     feats = _holen(hat_bias)
+    staedte_da.wait(_STADT_NACHFRIST_S)
+    # nur echte Städte gleichen Namens übernehmen (die Städte-Anfrage findet unscharf auch „Linda“, „Liandu“ …)
+    feats = feats + [f for f in (staedte.get("feats") or []) if _stadt_rang(f) < 2 and _ist_ort_namens(f, q)]
     # 25.09.2026 (Klicktest RR-02/03: Stationen Berlin Hbf → Wernigerode → „Schierke" + Enter
     # ergab „Schierker Straße, Berlin", Route 483 km). Photon gewichtet die Nähe zum Bezugs-
     # punkt so stark, dass mit Bezug Berlin NUR noch zwei Berliner Straßen kamen — der Ort im
@@ -151,6 +174,10 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     if orte:
         if hat_bias:
             orte.sort(key=lambda f: _abstand_grob(f, bias))
+        else:
+            # 16.10.2026 — ohne Bezugspunkt schlägt die Stadt das Dorf gleichen Namens („Lindau“ → Lindau (Bodensee),
+            # nicht das Dorf in Schleswig-Holstein); unter gleich großen Orten bleibt Photons Reihenfolge.
+            orte.sort(key=_stadt_rang)
         feats = orte + [f for f in feats if not _ist_ort_namens(f, q)]
     out: List[dict] = []
     seen = set()
@@ -199,9 +226,12 @@ def geocode_nominatim(query: str, *, limit: int = 1, lang: str = "de",
     # Treffer, die genau so heißen, nach vorn — egal ob Ort, Gipfel oder Insel („Schierke“ vor „Schierker Straße“). Mit
     # Bezugspunkt gewinnt unter ihnen der nächste („Brocken“ bei Wernigerode = Harz-Gipfel, nicht der Weiler bei Egestorf);
     # ohne Bezugspunkt bleibt Nominatims eigene Reihenfolge (Bedeutung). Gleiche Regel wie geocode_photon.
+    # 16.10.2026 — „Lindau (Bodensee)“ zählt für „Lindau“ als genau benannt (vorher rutschte die Stadt hinter die Dörfer
+    # namens „Lindau“); ohne Bezugspunkt kommen Städte vor Dörfern, sonst bleibt Nominatims Reihenfolge.
     def _schluessel(nr_d):
         nr, d = nr_d
-        genau = _namen_gleich(d.get("name") or "", q)
+        genau = _namen_gleich_ort(d.get("name") or "", q,
+                                  stadt=str(d.get("addresstype") or d.get("type") or "") == "city")
         if bias and len(bias) == 2 and genau:
             try:
                 dx = (float(d["lon"]) - float(bias[0])) * math.cos(math.radians(float(bias[1])))
@@ -209,7 +239,8 @@ def geocode_nominatim(query: str, *, limit: int = 1, lang: str = "de",
                 return (0, dx * dx + dy * dy, nr)
             except (KeyError, TypeError, ValueError):
                 pass
-        return (0 if genau else 1, 0.0, nr)
+        rang = _STADT_RANG.get(str(d.get("addresstype") or d.get("type") or ""), 2)
+        return (0, rang, nr) if genau else (1, 0, nr)
     data = [d for _nr, d in sorted(enumerate(data or []), key=_schluessel)]
     out: List[dict] = []
     seen = set()
@@ -246,13 +277,36 @@ def _namen_gleich(a: str, b: str) -> bool:
     return bool(a) and norm(a) == norm(b)
 
 
+# 16.10.2026 — Rang beim Sortieren gleichnamiger Orte: Stadt (city) vor Kleinstadt (town) vor allem anderen.
+_STADT_RANG = {"city": 0, "town": 1}
+_STADT_NACHFRIST_S = 2.5   # so lange wartet die Suche nach der Hauptanfrage noch auf die Städte-Anfrage
+
+
+def _namen_gleich_ort(name: str, query: str, *, stadt: bool = False) -> bool:
+    """Ortsname passt zum Suchtext: genau gleich, oder gleich bis auf einen Zusatz in Klammern („Lindau (Bodensee)“,
+    „Halle (Saale)“). Bei einer Großstadt (`stadt`) genügt auch der Name als erstes Wort („Frankfurt am Main“ für
+    „Frankfurt“), damit „Frankfurt (Oder)“ nicht allein als passend gilt und vor die größere Stadt rutscht."""
+    if _namen_gleich(name, query):
+        return True
+    n = str(name or "").strip()
+    k = n.split(" (", 1)[0] if n.endswith(")") and " (" in n else ""
+    if k and _namen_gleich(k, query):
+        return True
+    return bool(stadt) and len(n) > len(query) and _namen_gleich(n[:len(query)], query) and n[len(query)] == " "
+
+
+def _stadt_rang(feat: dict) -> int:
+    p = (feat or {}).get("properties") or {}
+    return _STADT_RANG.get(p.get("osm_value"), 2) if p.get("osm_key") == "place" else 2
+
+
 def _ist_ort_namens(feat: dict, query: str) -> bool:
-    """Treffer ist ein Ort (place/Stadt/Dorf …) und heißt genau wie der Suchtext."""
+    """Treffer ist ein Ort (place/Stadt/Dorf …) und heißt genau wie der Suchtext (Klammerzusatz erlaubt)."""
     p = (feat or {}).get("properties") or {}
     ort = (p.get("osm_key") == "place" and p.get("osm_value") in _ORT_WERTE) or p.get("type") in _ORT_TYPEN
     if p.get("osm_key") in ("highway", "railway", "amenity", "building", "public_transport"):
         ort = False
-    return bool(ort) and _namen_gleich(p.get("name") or "", query)
+    return bool(ort) and _namen_gleich_ort(p.get("name") or "", query, stadt=_stadt_rang(feat) == 0)
 
 
 def _abstand_grob(feat: dict, bias) -> float:

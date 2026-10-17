@@ -5540,7 +5540,7 @@ class Api:
         self._foto_wache.start()
 
     def fotos_scan_start(self, ordner: str = "", nur_liste: bool = False,
-                         ohne_liste: bool = False, gruendlich=True) -> dict:
+                         ohne_liste: bool = False, gruendlich=True, ohne_bilder: bool = False, art: str = "") -> dict:
         """Einlesen im Hintergrund, in zwei Durchgängen.
 
         Erst die Dateiliste (Sekunden, danach steht die Ansicht), dann die
@@ -5557,7 +5557,7 @@ class Api:
         # `aktuell` wo der Lauf gerade ist, `zwischen` was er bisher fand.
         self._foto_scan_state = {"running": True, "phase": "dateien", "done": 0,
                                  "total": 0, "neu": 0, "aktuell": "", "zwischen": {},
-                                 "art": ("ordner" if ordner else ("ungelesen" if ohne_liste else "nachschau"))}
+                                 "art": art or ("ordner" if ordner else ("ungelesen" if ohne_liste else "nachschau"))}
         def _aktuell(pfad, zw):
             self._foto_scan_state["aktuell"] = pfad
             if zw: self._foto_scan_state["zwischen"] = dict(zw)
@@ -5640,7 +5640,9 @@ class Api:
                         schaetzung=lambda r: self._foto_scan_state.update({"rest_s": r, "rest_am": time.time()}))
                     self._foto_scan_state.update({"daten": r2})
                     # 04.10.2026 (Marc: „225 h … fast 2 Wochen" → „Daten zuerst, Bilder danach") — Schritt 3: Vorschaubilder
-                    if not self._foto_scan_stop:
+                    # (16.10.2026: nicht bei der kleinen Nachschau nach verschobenen Dateien — die Ansicht holt ihre
+                    # Bilder selbst, und Schritt 3 liefe sonst über alle noch fehlenden Vorschaubilder des Bestands)
+                    if not self._foto_scan_stop and not ohne_bilder:
                         self._foto_scan_state.update({"phase": "bilder", "done": 0, "total": 0, "schon": 0,
                                                       "rest_s": None, "rest_am": None, "phase_seit": time.time()})
                         try:
@@ -5686,6 +5688,57 @@ class Api:
         # 05.10.2026 (Marc-Log, Nacht-Lauf: 165 s je 200 Dateien, nach dem Aufwecken 95 s) — ohne App Nap
         threading.Thread(target=lambda: _mit_wach(worker, "Fotos einlesen"), daemon=True, name="foto-scan").start()
         return {"ok": True}
+
+    # 16.10.2026 (Nutzerbericht: 66 Dateien mit Kameradatum 2036 umdatiert und im Explorer in den richtigen Ordner
+    # verschoben — sie standen weiter mit 2036 ganz oben, bis zur nächsten Nachschau in bis zu 6 bzw. 24 Stunden; auch
+    # ein Neustart half nicht). Jede gezeigte Seite wird im Hintergrund geprüft: fehlt eine Datei unter einem
+    # erreichbaren Fotoordner, ist sie sofort „fehlend“, und in diesem Ordner läuft gleich eine schnelle Nachschau (nur
+    # geänderte Unterordner, ohne Schritt 3) — die Dateien tauchen am neuen Ort mit ihrem Datum wieder auf.
+    SICHT_PAUSE_S = 30         # dieselbe Datei frühestens nach 30 s wieder prüfen (kurz in den Explorer und zurück)
+    SICHT_SCAN_PAUSE_S = 60    # höchstens eine solche Nachschau je Minute
+
+    def _sichtbare_pruefen_bald(self, pfade: list) -> None:
+        pfade = [p for p in (pfade or []) if p]
+        if not pfade or getattr(self, "_foto_scan_running", False):
+            return
+        jetzt = time.time()
+        gesehen = self.__dict__.setdefault("_sicht_gesehen", {})
+        neu = [p for p in pfade if jetzt - gesehen.get(p, 0) > self.SICHT_PAUSE_S]
+        if not neu:
+            return
+        with self._start_lock:
+            if getattr(self, "_sicht_laeuft", False):
+                return
+            self._sicht_laeuft = True
+        if len(gesehen) > 50000:
+            gesehen.clear()
+        for p in neu:
+            gesehen[p] = jetzt
+
+        def faden():
+            try:
+                conn = self._lib()
+                erreichbar = [o["path"] for o in cfotos.ordner_liste(conn) if o["da"]]
+                r = cfotos.sichtbare_pruefen(conn, neu, erreichbar)
+                if not r["weg"]:
+                    return
+                log.info("[fotos] %d gezeigte Dateien nicht mehr da (verschoben/umbenannt/gelöscht?), z. B. %s — Ordner: %s",
+                         len(r["weg"]), r["weg"][0], ", ".join(r["wurzeln"]))
+                if not _load_settings().get("fotos_auto", True):
+                    return
+                if time.time() - getattr(self, "_sicht_scan_um", 0) < self.SICHT_SCAN_PAUSE_S:
+                    return
+                self._sicht_scan_um = time.time()
+                res = self.fotos_scan_start(ordner=r["wurzeln"][0] if len(r["wurzeln"]) == 1 else "",
+                                            gruendlich=False, ohne_bilder=True, art="verschoben")
+                log.info("[fotos] Nachschau nach verschobenen Dateien: %s", "gestartet" if res.get("ok") else res.get("error"))
+            except Exception:  # noqa: BLE001 — die Prüfung darf die Ansicht nie stören
+                log.exception("[fotos] gezeigte Dateien prüfen")
+            finally:
+                self._sicht_laeuft = False
+
+        self._sicht_faden = threading.Thread(target=faden, daemon=True, name="foto-sicht")
+        self._sicht_faden.start()
 
     def fotos_scan_status(self) -> dict:
         return dict(getattr(self, "_foto_scan_state", {"running": False}))
@@ -5772,6 +5825,7 @@ class Api:
                     log.info("[fotos] Vorschaubilder der Seite aus dem Speicher: %.0f ms (%d)",
                              (time.perf_counter() - t_b) * 1000, len(res["fotos"]))
             res["ok"] = True
+            self._sichtbare_pruefen_bald([f.get("path") for f in res.get("fotos") or []])
             return res
         except Exception as e:
             log.exception("fotos_abfrage")
@@ -13949,6 +14003,12 @@ class Api:
         ok_liste = []
         try:
             t = clib.get_track(self._lib(), path)
+            if t and (t.get("check") or {}).get("veraltet"):
+                # 16.10.2026 — Ergebnis von älteren Prüfregeln: einmal neu rechnen und
+                # speichern, sonst meldet der Hinweis, was der Inspektor nicht mehr findet.
+                neu = clib.track_check_datei(self._lib(), path, IMPORTS_DIR)
+                if neu.get("ok"):
+                    t = dict(t, check=neu["check"])
             if t and (t.get("check") or {}).get("geprueft"):
                 c = t["check"]
                 return {"ok": True, "befunde": c["befunde"], "marke": c["marke"], "hoechste": c["hoechste"],
@@ -13976,9 +14036,23 @@ class Api:
         die abgewählten Arten dieser Tour aus dem Archiv (leer bei Dateien außerhalb)."""
         from core import trackcheck
         ok_liste, im_archiv, geplant, activity = [], False, False, ""
+        archiv_neu = None
         if path:
             try:
                 t = clib.get_track(self._lib(), path)
+                if t and (t.get("check") or {}).get("veraltet"):
+                    # 16.10.2026 — Das Archiv meldete Befunde aus einer älteren Prüfung
+                    # (trackcheck.REGELN_STAND), der Inspektor prüft immer mit den heutigen
+                    # Regeln: Der Kasten blieb leer oder zeigte etwas anderes als die Kachel.
+                    # Beim Öffnen die Archiv-Zeile einmal neu prüfen (aus der Datei, nicht aus
+                    # den Punkten im Editor) und der Oberfläche sagen, was vorher dort stand.
+                    alt = t.get("check") or {}
+                    neu = clib.track_check_datei(self._lib(), path, IMPORTS_DIR)
+                    if neu.get("ok"):
+                        archiv_neu = {"vorher": alt.get("befunde") or [], "marke_vorher": alt.get("marke") or "",
+                                      "nachher": (neu.get("check") or {}).get("befunde") or [],
+                                      "marke": (neu.get("check") or {}).get("marke") or ""}
+                        t = clib.get_track(self._lib(), path) or t
                 if t:
                     im_archiv = True
                     ok_liste = list((t.get("check") or {}).get("ok") or [])
@@ -13995,7 +14069,8 @@ class Api:
         f = trackcheck.filtern(r["befunde"], ok_liste)
         return {"ok": True, "befunde": f["befunde"], "abgewaehlt": f["abgewaehlt"],
                 "hoechste": f["hoechste"], "marke": f["marke"], "ok_liste": ok_liste,
-                "im_archiv": im_archiv, "activity": activity, "n_points": r["n_points"], "ms": r["ms"]}
+                "im_archiv": im_archiv, "activity": activity, "n_points": r["n_points"], "ms": r["ms"],
+                "archiv_neu": archiv_neu}
 
     def gpxinspect_werkzeug(self, action: str, points: list, params: dict = None) -> dict:
         """10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die

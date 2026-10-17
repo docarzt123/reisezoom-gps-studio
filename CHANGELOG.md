@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Tour page logbook: the way of travelling of an entry (drive, ferry, hike, walk, bike, run, water sports, break) can be changed from the entry menu („⋯“ → „Change type“), like its name and note; a guessed type can be confirmed there. The Animator, the video assistant and the logbook summary use the new type, and „Undo“ takes it back.
+- Stage editor: new switch „Show the stage's vehicle“ below „Travelling by“. When off, the moving dot keeps its own shape (ball, arrow, symbol, own image) and the means of transport only shapes the route (road or arc); a hint and a button lead to the moving-dot settings. Saved per stage, applies at once in preview, video and the dot in the air.
+
+### Fixed
+- Track check: a tour the archive flagged with „track has errors“ showed nothing to repair in the GPX inspector. The archive kept results from older check rules (most from 10 September, before the thresholds per way of travelling), the inspector always checks with today's rules. Outdated results are now checked again when the tour is opened or selected, so archive and inspector agree, and the inspector says when the old notice no longer applies. Each finding now lists its spots by kilometre — a click jumps there, marks it on map and profile and offers the repair.
+- Place search in the stage editor: a town now wins over villages of the same name („Lindau“ finds Lindau (Bodensee), „Frankfurt“ Frankfurt am Main, „Halle“ Halle (Saale)), also when the town carries a suffix in brackets. Before, a route Lindau → Bregenz could become 894 km long. The search additionally asks for cities and towns; with a neighbouring station already set, the nearest place of that name still wins.
+- Media: photos moved or renamed outside the app (Finder/Explorer) stayed in the archive with their old data until the next full check — up to 6 or 24 hours, a restart did not help (seen with 66 files whose wrong camera date 2036 had been corrected: they kept standing at the top). Every page the media list shows is now checked in the background; missing files are marked at once and a quick check of that photo folder finds them in their new place, with the date that is now in the file. The date and folder trees also refresh when files were only moved or re-dated (the total count stays the same).
+
 ## [0.9.795] – 2026-10-16
 
 ### Fixed

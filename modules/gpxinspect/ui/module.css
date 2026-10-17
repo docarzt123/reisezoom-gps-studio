@@ -331,6 +331,16 @@
 .gpxi-tc-ok:hover { color: var(--text); }
 .gpxi-tc-hidden { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border); }
 .gpxi-tc-actions { margin-top: 6px; display: flex; gap: 6px; }
+/* 16.10.2026 — Fundstellen einzeln (Kilometer-Knöpfe unter der Befund-Zeile) und der Hinweis,
+   wenn das Archiv ein Ergebnis aus einer älteren Prüfung hatte. */
+.gpxi-tc-stellen { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 6px 21px; }
+.gpxi-tc-stelle { font: inherit; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--text); border: 1px solid var(--border); white-space: nowrap; }
+.gpxi-tc-stelle:hover { background: var(--bg-3); }
+.gpxi-tc-stelle.ist-an { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.gpxi-tc-stelle-mehr { font-size: 10.5px; color: var(--text-muted); align-self: center; }
+.gpxi-tc-archiv { font-size: 11px; line-height: 1.4; color: var(--text-muted); margin: 0 0 6px; padding: 5px 8px;
+  border-left: 2px solid var(--border); background: var(--bg-3); border-radius: 0 6px 6px 0; }
 
 /* 12.09.2026 (Marc: „klar und deutlich gekennzeichnet, was er als fehler erkennt
    und wie er es reparieren würde") — der Reparatur-Satz unter jeder Befund-Zeile. */

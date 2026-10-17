@@ -2281,7 +2281,10 @@ def _check_dict(d: dict) -> dict:
     f = _trackcheck.filtern(befunde if isinstance(befunde, list) else [], ok)
     return {"befunde": f["befunde"], "abgewaehlt": f["abgewaehlt"], "marke": f["marke"],
             "hoechste": f["hoechste"], "ok": ok, "ts": d.get("check_ts") or "",
-            "geprueft": bool(d.get("check_ts"))}
+            "geprueft": bool(d.get("check_ts")),
+            # 16.10.2026 — Ergebnis von älteren Prüfregeln (trackcheck.REGELN_STAND): wird beim
+            # nächsten Anfassen der Tour (Detail, Inspektor, Lade-Hinweis) neu gerechnet.
+            "veraltet": _trackcheck.veraltet(d.get("check_ts"))}
 
 
 def punkte_lesen(path: str, import_cache: Path):
@@ -2378,10 +2381,13 @@ def ist_aufgezeichnet(row) -> bool:
 def _check_kandidaten(conn: sqlite3.Connection, nur_ungeprueft: bool) -> list:
     wo = ("COALESCE(error,'') = '' AND COALESCE(haupt,1) = 1 "
           "AND COALESCE(missing_since,'') = ''")
+    werte: list = []
     if nur_ungeprueft:
-        wo += " AND COALESCE(check_ts,'') = ''"
+        # 16.10.2026 — „ungeprüft" heißt auch: mit älteren Regeln geprüft (trackcheck.REGELN_STAND)
+        wo += " AND (COALESCE(check_ts,'') = '' OR check_ts < ?)"
+        werte.append(_trackcheck.REGELN_STAND)
     return [r["path"] for r in conn.execute(
-        f"SELECT path FROM tracks WHERE {wo} ORDER BY started_at DESC").fetchall()]
+        f"SELECT path FROM tracks WHERE {wo} ORDER BY started_at DESC", werte).fetchall()]
 
 
 def track_check_alle(conn: sqlite3.Connection, import_cache: Path, *,

@@ -1591,6 +1591,10 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .anim-etappe-editor .et-fz-titel { font-size: 11.5px; font-weight: 600; margin-bottom: 5px; }
 .anim-etappe-editor .et-fz-titel .muted { font-weight: 400; }
 .anim-etappe-editor .et-fz-knoepfe { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 4px; }   /* 13.10.2026: 20 Arten */
+/* 16.10.2026 — „Fahrzeug der Etappe zeigen“ + Hinweis, wo der Laufpunkt eingestellt wird */
+.anim-etappe-editor .et-fz-zeigen { display: flex; align-items: center; gap: 6px; font-size: 11.5px; margin-top: 7px; cursor: pointer; }
+.anim-etappe-editor .et-fz-hinweis { font-size: 10.5px; line-height: 1.4; margin: 2px 0 0 22px; }
+.anim-etappe-editor .et-fz-hinweis .et-fz-laufpunkt { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 1px 7px; margin-top: 3px; }
 .anim-etappe-editor .et-fz { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 4px; border-radius: 7px; cursor: pointer;
   border: 1px solid var(--border, rgba(255,255,255,.12)); background: var(--bg-3, rgba(255,255,255,.04)); color: var(--text); font: inherit; }
 .anim-etappe-editor .et-fz span { font-size: 17px; line-height: 1.2; }

@@ -4894,6 +4894,17 @@ alle `FOTO_WACHE_MIN` (20) Minuten `fotos_aufholen` — die Entscheidung bleibt 
 Ordner, `cfotos.was_zu_tun`: Ungelesenes oder Nachschau nach `NACHSCHAU_STUNDEN`), nie neben `_foto_scan_running`.
 Nicht im Api-Konstruktor, damit Tests/Render-Umgebungen keine Wache bekommen. Test `tests/test_fotos_wache.py`.
 
+**Gezeigte Seite prüfen (16.10.2026):** außerhalb verschobene/umbenannte Dateien standen bis zur nächsten Nachschau
+(6 h, aufgeschoben bis 24 h; ein Neustart half nicht) mit ihren alten Daten im Archiv. Jetzt ruft `fotos_abfrage` am
+Ende `_sichtbare_pruefen_bald(pfade)`: ein Faden „foto-sicht“ (höchstens einer, nie neben `_foto_scan_running`; je Pfad
+höchstens alle `SICHT_PAUSE_S` = 30 s) → `cfotos.sichtbare_pruefen(conn, pfade, erreichbar)` (nur Zeilen ohne
+`fehlt_seit` unter **erreichbaren** Fotoordnern, `os.path.exists`; Fehlende sofort `fehlt_seit`). Gab es welche und ist
+`fotos_auto` an: höchstens alle `SICHT_SCAN_PAUSE_S` (60 s) `fotos_scan_start(ordner=<Wurzel> | alle, gruendlich=False,
+ohne_bilder=True, art="verschoben")` — schnelle Nachschau (nur geänderte Unterordner), Schritt 2 liest die Dateien am
+neuen Ort, Schritt 3 entfällt. `cfotos.stand()` liefert zusätzlich `zuletzt_gelesen` (`MAX(indexed_at)`, im selben
+Durchgang); `fotos.js` hängt die Schlüssel von Datums- und Ordnerbaum an `bestandStempel()` (fehlt + zuletzt_gelesen),
+weil Verschieben die Gesamtzahl nicht ändert. Fortschritt: `fotos.kt_verschoben`. Test `tests/test_medien_verschoben.py`.
+
 ## Foto-Archiv: Großansicht, Standbild, Bearbeiten, Verorten (04.10.2026, v0.9.781)
 
 app.py: `fotos_gross(path)` (Original über `serve_media` für `_GROSS_NATIV` + Videos, sonst `cphotos.thumb_gecacht(…,
@@ -7894,4 +7905,28 @@ Test: `tests/test_linie_ecken.py`.
   `_gtPaareSchreiben(liste, edits)` vor `geotagger_start_write`: eigene Einträge der RAW-Hälften raus, je Bild die RAW-
   Hälfte mit denselben Werten (Ort/Zeit) dazu, Felder (`exifEdits`) gespiegelt. Schalter `#gt-paare` →
   `settings.geotagger.raw_jpg_paare`. Prüfstand `window.__rzGtPaare`. Test `tests/test_geotagger_paare.py`.
+
+## Kleine Korrekturen (16.10.2026, kommt mit 0.9.796)
+
+- **Track-Check veraltet** (`core/trackcheck.py`): `REGELN_STAND` (Datum der letzten Regeländerung) + `veraltet(check_ts)`.
+  **Bei jeder Änderung an Erkennung oder Schwellen `REGELN_STAND` auf den Folgetag setzen.** `core/library._check_dict`
+  liefert `veraltet`, `_check_kandidaten` nimmt veraltete mit („Alle Touren prüfen“). `Api.gpxinspect_track_check` prüft
+  eine Archiv-Tour mit veraltetem Ergebnis neu, schreibt die Archivzeile und liefert `archiv_neu` (vorher/nachher);
+  `trackcheck_datei` frischt vor der Verwendung auf. Inspektor (`analyseTrack`, `trackCheckStelle`): je Befund Fundstellen
+  als Knöpfe (km, bis 12), Klick → Karte/Profil + Logbuch-Infokasten mit „Reparieren“ (`trackCheckReparieren`). Archiv
+  (`bindCheckBox`): Auswahl einer veralteten Tour prüft sie einmal je Sitzung still neu. Bekannte Lücke: eine Reparatur,
+  die nur Zeiten ändert (gleicher Geometrie-Hash), landet nur im Versionsspeicher — die Archivzeile zeigt weiter auf die
+  unveränderte Datei. Tests `test_trackcheck_veraltet`, `test_inspektor_fundstellen`.
+- **Logbuch: Art ändern** (`ui/js/logbuch_ansicht.js`): Menü „Art ändern“ mit `rzLogbuchAnsicht.handArten` (= `core/logbuch.
+  HAND_ARTEN`), speichert über `einteilung_aktion(eid, "aendern", {bids, art})` als Handeintrag (übersteht Neuberechnung,
+  Rückgängig wie Name/Notiz); `onGeaendert` → `tourseite.js` lädt die Kurzfassung neu. Test `test_logbuch_art_aendern`.
+- **Fahrzeug der Etappe** (`modules/animator/ui/module.js`): `etappe.fz_zeigen` (nur gespeichert, wenn `false`);
+  `_dotStilAktuell` beachtet es in allen drei Etappen-Zweigen (Vorschau, Szene/Video, Flug-in-der-Luft-Punkt über
+  denselben Stil). Schalter + Hinweis + Knopf „Laufpunkt einstellen …“ in `_etEdZeichnen`, sofort wirksam über
+  `_etFzZeigenAnwenden(E)` (mit Rückgängig). Test `test_etappe_fahrzeug_zeigen`.
+- **Ortssuche Stadt vor Dorf** (`core/route.py`): `geocode_photon` fragt parallel zusätzlich `osm_tag=place:city` /
+  `place:town` (eigener Faden, Nachfrist `_STADT_NACHFRIST_S` = 2,5 s, Fehler still), nur namensgleiche Städte zählen;
+  „Name (Zusatz)“ gilt als gleicher Name, bei Großstädten auch der Name als erstes Wort. Ohne Nachbar-Station:
+  Stadt > Kleinstadt > Rest (Photon und Nominatim); mit Nachbar-Station gewinnt wie bisher der nächstgelegene Ort.
+  Test `test_ortssuche_stadt_vor_dorf` (ohne Netz, aufgezeichnete Antworten).
 

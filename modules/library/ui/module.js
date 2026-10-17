@@ -5099,6 +5099,20 @@ function mountLibrary(body, headerActions) {
       let r; try { r = await api().library_track_check_ok(it.path, b.dataset.checkShow, false); } catch (e) { r = { ok: false, error: String(e) }; }
       uebernehmen(r);
     });
+    // 16.10.2026 — Ergebnis von älteren Prüfregeln (Kern: trackcheck.REGELN_STAND): die gewählte
+    // Tour einmal still neu prüfen. Sonst steht hier „Im Inspektor reparieren", und der Inspektor
+    // findet mit den heutigen Regeln nichts davon. Nur diese eine Tour, nur einmal je Sitzung.
+    const c = it.check || {};
+    if (c.geprueft && c.veraltet && !it._checkAufgefrischt) {
+      it._checkAufgefrischt = true;
+      (async () => {
+        let r; try { r = await api().library_track_check(it.path); } catch (_) { r = null; }   // warte-ok: still im Hintergrund, Kasten steht schon
+        if (_unmounted || !r || !r.ok) return;
+        if (r.track) Object.assign(it, r.track); else if (r.check) it.check = r.check;
+        if (_sel === it) renderDetail();
+        renderView();
+      })();
+    }
   }
   async function trackCheckAlleStarten(nurUngeprueft) {
     let r; try { r = await api().library_track_check_alle(!!nurUngeprueft); } catch (e) { r = { ok: false, error: String(e) }; }

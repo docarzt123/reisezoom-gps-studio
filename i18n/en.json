@@ -4267,6 +4267,7 @@
   "warte.fotos_fern_nochmal.titel": "Looking for the drive",
   "warte.fotos_fern_nochmal.text": "Checking whether the photo folders are reachable again",
   "fotos.kt_ungelesen": "Catching up on unread files",
+  "fotos.kt_verschoben": "Files were moved or renamed — looking in the folder",
   "fotos.kt_schritt1": "Step 1 of 2 — looking through the folders",
   "fotos.kt_hintergrund": "Runs in the background — you can keep using everything else.",
   "fotos.kt_schritt2": "Step 2 of 2 — reading the new files",
@@ -6526,5 +6527,16 @@
   "container.x_tip": "Switch off this overlay",
   "container.aus_x": "Overlay switched off",
   "animator.ansicht.auf_kf": "View not saved — click keyframe #{n} first, then it takes over the map",
-  "animator.ansicht.frei": "View not saved — “Capture keyframe” adds one at this spot"
+  "animator.ansicht.frei": "View not saved — “Capture keyframe” adds one at this spot",
+  "trackcheck.stelle_km": "km {km}",
+  "trackcheck.stelle_tip": "Spot {i} of {n} · point #{p} — click to jump there and offer a repair",
+  "trackcheck.stellen_mehr": "+{n} more",
+  "trackcheck.archiv_neu": "The archive had reported “{alt}” — from an older check. The tour has been checked again; archive and inspector now show the same.",
+  "trackcheck.archiv_neu_leer": "The archive had reported “{alt}” — from an older check. Under the current rules there is nothing to repair on this tour; the notice in the archive is gone.",
+  "logbuch.undo.art_geaendert": "Type changed",
+  "logbuch.fuss_art": "Here: change names and types, add notes, join entries. Track repairs stay in the GPX inspector.",
+  "animator.etappe.fz_zeigen": "Show the stage's vehicle",
+  "animator.etappe.fz_zeigen_tip": "On: the moving dot becomes the section's means of transport (car, plane …). Off: it keeps its moving-dot shape (ball, arrow, symbol, own image) — the means of transport then only shapes the line.",
+  "animator.etappe.fz_zeigen_hinweis": "Moving-dot shape and “Show moving dot” (no dot at all, just the line): under “Look of the line”.",
+  "animator.etappe.laufpunkt_knopf": "Set up moving dot …"
 }

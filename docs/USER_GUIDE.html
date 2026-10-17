@@ -1043,6 +1043,14 @@ python -m playwright install chromium-headless-shell</code></pre>
 <li><strong>Wie weiter?</strong> Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video</li>
 </ol>
 <p> im Animator selbst gestalten, Karte erstellen oder Daten animieren.</p>
+<h3 id="neu-kleine-korrekturen">Neu: kleine Korrekturen</h3>
+<ul>
+<li><strong>Track-Check: Fehler aus dem Archiv im Inspektor finden.</strong> Meldet das Archiv bei einer Tour „Fehler im Track“, öffne sie mit „Im Inspektor reparieren“. Oben im Inspektor steht der Track-Check mit jeder Befund-Art, darunter die einzelnen Fundstellen als kleine Knöpfe mit dem Kilometer. Ein Klick springt zur Stelle, markiert sie auf Karte und Höhenprofil und bietet „Reparieren“ an. Nach dem Reparieren und „Im Archiv ersetzen“ verschwindet der Hinweis im Archiv. Stammt das Archiv-Ergebnis noch aus einer älteren Prüfung, prüft GPS Studio die Tour beim Öffnen neu und sagt dir, was sich geändert hat — oft ist dann gar nichts mehr zu reparieren.</li>
+<li><strong>Logbuch: Art der Fortbewegung ändern.</strong> Auf der Tour-Seite kannst du im Logbuch über „⋯“ an einem Eintrag unter <strong>„Art ändern“</strong> die Fortbewegung umstellen: Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport oder Pause. Hat GPS Studio eine Art nur vermutet, kannst du sie dort bestätigen. Die Änderung gilt überall — im Inspektor, im Animator, im Video-Assistenten und in der Kurzfassung der Tour. „Rückgängig“ unter der Liste nimmt sie zurück.</li>
+<li><strong>Fahrzeug der Etappe zeigen.</strong> Im Etappen-Editor steht unter „Unterwegs mit“ der Schalter <strong>„Fahrzeug der Etappe zeigen“</strong>. Eingeschaltet (Standard) wird der Laufpunkt zum Verkehrsmittel des Abschnitts — Auto, Flugzeug, Boot. Ausgeschaltet behält er die Form, die du unter „Laufpunkt“ eingestellt hast (Kugel, Pfeil, Symbol oder eigenes Bild); das Verkehrsmittel bestimmt dann nur noch, ob die Linie der Straße folgt oder als Bogen fliegt. Ganz ohne Punkt, nur mit der Linie: Knopf „Laufpunkt einstellen …“ direkt darunter, dort den Haken „Laufpunkt zeigen“ entfernen. Der Schalter gilt je Etappe und wirkt sofort.</li>
+<li><strong>Ortssuche: Stadt vor Dorf.</strong> Gibt es mehrere Orte gleichen Namens, nimmt die Ortssuche die Stadt vor dem Dorf („Lindau“ → Lindau (Bodensee), „Frankfurt“ → Frankfurt am Main). Steht schon eine Nachbar-Station fest, gewinnt der nächstgelegene Ort dieses Namens.</li>
+<li><strong>Medien:</strong> Fotos, die du im Finder bzw. Explorer verschiebst oder umbenennst, stehen gleich am neuen Ort, mit dem Datum, das jetzt in der Datei steht (siehe „Von selbst aktuell halten“).</li>
+</ul>
 <h3 id="neu-robuster-rendern">Neu: robuster rendern</h3>
 <ul>
 <li><strong>Luftbild an der Landesgrenze:</strong> Liegt deine Tour direkt an einer Grenze, holt die App für die Ecke auch das Luftbild des Nachbarlands. Hat dieser Dienst für eine Stelle kein Bild, bleibt sie durchsichtig und die Grundkarte scheint durch — ohne Warnung und ohne unnötiges Nachfragen.</li>
@@ -1344,6 +1352,10 @@ python -m playwright install chromium-headless-shell</code></pre>
 <li><strong>Vollständig nachsehen</strong>, was sich in den Ordnern geändert hat — neue,</li>
 </ul>
 <p> geänderte und gelöschte Dateien — läuft höchstens alle sechs Stunden. Auf  einem Netzlaufwerk dauert ein solcher Durchgang Minuten, deshalb nicht bei  jedem Öffnen. Sofort geht es über <strong>Einlesen</strong> in der Seitenleiste. schaut die App auch  <strong>still nach, wenn sie einfach offen bleibt</strong> — etwa alle 20 Minuten prüft sie, ob etwas fällig ist, auch  während du im Animator arbeitest. So kommen neue Fotos vom NAS von selbst dazu.</p>
+<ul>
+<li><strong>Verschoben oder umbenannt</strong>: Verschiebst du Fotos im Finder bzw. Explorer in einen anderen</li>
+</ul>
+<p> Ordner (oder benennst sie um), merkt die App das, sobald du sie in der Liste siehst — sie prüft im Hintergrund,  ob die gezeigten Dateien noch da sind, und sieht in diesem Fotoordner gleich nach. Die Fotos stehen dann am neuen  Ort, mit dem Datum, das jetzt in der Datei steht. Mit „Von selbst aktuell halten“ aus werden sie nur als fehlend  markiert; <strong>Einlesen</strong> holt sie dann an den neuen Ort.</p>
 <p>Beides läuft im Hintergrund, sagt unten rechts was es tut, und lässt sich abbrechen. <strong>Drei Schritte:</strong> 1. die Dateiliste, 2. Aufnahmezeit, Ort und Kamera — dafür liest die App nur den Kopf jeder Datei, das geht auch auf dem NAS zügig, und danach funktionieren Suche, Datum, Karte und Ordner für alles —,</p>
 <ol>
 <li>die Vorschaubilder. **Seit 06.10.2026 nimmt die App dafür bei JPEGs das kleine Vorschaubild, das die Kamera schon</li>

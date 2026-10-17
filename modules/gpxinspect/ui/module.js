@@ -34,6 +34,9 @@ function mountGpxInspect(body, headerActions) {
   let _origPath = null;    // v0.9.335 — Original-Datei des Nutzers (für Default-Speicherort)
   let _hasTime = false, _hasEle = false, _hasSensors = false;
   let _localTimeN = 0, _tc = null;   // 10.09.2026 — Track-Check: Zeiten ohne Zone, letztes Ergebnis
+  // 16.10.2026 — das Archiv-Ergebnis dieser Tour war von älteren Prüfregeln und wurde beim Öffnen
+  // neu gerechnet ({vorher, marke_vorher, nachher, marke}); der Kasten sagt einmal, was sich geändert hat.
+  let _tcArchivNeu = null;
   let _selA = null, _selB = null;   // Anker-Indizes (a <= b)
   let _dirty = false;
   // 26.09.2026 (Klicktest S-08: nach dem Wechsel in den Inspektor stand erst „Lade ein GPX über
@@ -679,6 +682,7 @@ function mountGpxInspect(body, headerActions) {
     _origPath = path;             // v0.9.335 — Original-Datei (für Default-Speicherort beim „Speichern unter…")
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
     _localTimeN = res.local_time_n || 0;   // 10.09.2026 — Zeiten ohne Zeitzone (Track-Check, grau)
+    _tcArchivNeu = null;                   // 16.10.2026 — Hinweis gehört zur vorigen Tour
     // 05.10.2026 (Klickrunde: DJI-Datei ohne Hinweis „Zeit ohne Zone“) — der Track-Check erst NACH den Zuweisungen:
     // vorher lief er mit _localTimeN = 0, leerem _origPath (keine Archiv-Abwahlen, keine Aktivität) und altem _hasTime.
     try { analyseTrack(); } catch (_) {}
@@ -2252,6 +2256,20 @@ function mountGpxInspect(body, headerActions) {
       .replace("{n}", stellen.length) + ((b && b.stellen_gekappt) ? " +" : ""), "info", 1800);
   }
 
+  /** 16.10.2026 — eine einzelne Fundstelle aus der Liste im Kasten: auf der Karte markieren
+   *  (alle Stellen dieser Art, wie „Zeigen"), hinspringen, im Höhenprofil anzeigen und den
+   *  Info-Kasten des Logbuchs öffnen — der bietet „Reparieren" für diese Befund-Art an. */
+  function trackCheckStelle(key, idx) {
+    const b = ((_tc && _tc.befunde) || []).find((x) => x.key === key);
+    const stellen = (b && b.stellen) || [];
+    if (!b || !_points[idx]) return;
+    _tcZeigeKey = key; _tcMarkiert = new Set(stellen); _tcZeigeIdx = Math.max(0, stellen.indexOf(idx));
+    renderPoints();
+    document.querySelectorAll("#gpxi-heal-analysis [data-tc-stelle]").forEach((el) =>
+      el.classList.toggle("ist-an", el.dataset.tcStelle === key && +el.dataset.idx === idx));
+    try { _lbBefundZeigen(key, idx); } catch (e) { applog("warn", `[gpxinspect] Fundstelle: ${e}`); }
+  }
+
   function trackCheckMarkierungWeg() {
     if (!_tcMarkiert.size) return;
     _tcMarkiert = new Set(); _tcZeigeKey = ""; _tcZeigeIdx = -1;
@@ -2268,12 +2286,29 @@ function mountGpxInspect(body, headerActions) {
     try { _grenzenZeigen(); } catch (e) { applog("warn", `[gpxinspect] Grenzen: ${e}`); }
     if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     _tc = r;
+    if (r.archiv_neu) _tcArchivNeu = r.archiv_neu;
     try { if (_lb) _lbStrahlRender(); } catch (_) {}   // Logbuch Stufe 4: Befunde-Spur
     try { _profilAusArt(r.activity); } catch (_) {}
     _healFunde = (r.befunde || []).filter((b) => !(b.key in _TC_OHNE_SCHRITT)).map((b) => ({ key: b.key, n: b.n }));
     const kurz = (typeof rzTrackCheckKurz === "function") ? rzTrackCheckKurz(r.befunde, 4) : "";
     const zeile = (typeof rzTrackCheckZeile === "function") ? rzTrackCheckZeile : (b) => b.key + " " + b.n;
     const stufeTxt = (typeof rzTrackCheckStufeText === "function") ? rzTrackCheckStufeText : () => "";
+    // 16.10.2026 — die Fundstellen einzeln: je Stelle ein Knopf mit Kilometer. Klick springt hin,
+    // markiert sie auf Karte und Höhenprofil und öffnet den Info-Kasten mit „Reparieren" (derselbe
+    // wie im Logbuch). Vorher gab es nur „Zeigen" (der Reihe nach) — wo die Stellen liegen, sah man nicht.
+    const _esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    let _km = null;
+    const kmBei = (i) => { if (!_km) _km = _cumDist(); const m = _km[i] || 0;
+      return (m / 1000).toLocaleString(rzSprachCode(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
+    const STELLEN_MAX = 12;
+    const stellenHtml = (b) => {
+      const st = (b.stellen || []).filter((i) => i >= 0 && i < _points.length);
+      if (!st.length || b.stufe === "grau") return "";
+      const knoepfe = st.slice(0, STELLEN_MAX).map((i, k) => `<button type="button" class="gpxi-tc-stelle${_tcZeigeKey === b.key && _tcZeigeIdx === k ? " ist-an" : ""}" data-tc-stelle="${b.key}" data-idx="${i}" title="${_esc(t("trackcheck.stelle_tip", "Stelle {i} von {n} · Punkt #{p} — Klick: hinspringen, Reparieren anbieten", { i: k + 1, n: st.length, p: i + 1 }))}">${_esc(t("trackcheck.stelle_km", "km {km}", { km: kmBei(i) }))}</button>`).join("");
+      const rest = Math.max(b.n || 0, st.length) - Math.min(st.length, STELLEN_MAX);
+      const mehr = rest > 0 ? `<span class="gpxi-tc-stelle-mehr">${_esc(t("trackcheck.stellen_mehr", "+{n} weitere", { n: rest }))}</span>` : "";
+      return `<div class="gpxi-tc-stellen" data-tc-stellen="${b.key}">${knoepfe}${mehr}</div>`;
+    };
     const okKnopf = (k) => r.im_archiv
       ? `<button type="button" class="gpxi-tc-ok" data-tc-ok="${k}" title="${t("trackcheck.btn_ok_tip", "Diese Befund-Art bei dieser Tour nicht mehr melden — weder auf der Kachel noch beim Laden.")}">${t("trackcheck.btn_ok", "Ist so in Ordnung")}</button>` : "";
     const rows = (r.befunde || []).map((b) => {
@@ -2288,24 +2323,43 @@ function mountGpxInspect(body, headerActions) {
           ? ` <span class="gpxi-tc-stufe">${t("trackcheck.uebersetzen_hinweis", "Fähre, Flug oder Autozug: Die Strecke wurde wirklich zurückgelegt, nur ohne Aufzeichnung. Daran wird nichts repariert.")}</span>` : "";
         const zeigen2 = (b.stellen && b.stellen.length)
           ? `<button type="button" class="gpxi-tc-ok" data-tc-zeig="${b.key}">${t("trackcheck.btn_zeigen", "Zeigen")}</button>` : "";
-        return `<div class="gpxi-tc-row is-${b.stufe}"><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)}${erklaerung}</span>${zeigen2}${sprung}${okKnopf(b.key)}</div>`;
+        return `<div class="gpxi-tc-row is-${b.stufe}"><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)}${erklaerung}</span>${zeigen2}${sprung}${okKnopf(b.key)}</div>` + stellenHtml(b);
       }
       const rep = _TC_REPARATUR[b.key];
       const repTxt = rep ? `<span class="gpxi-tc-rep">${t(rep[0], rep[1])}</span>` : "";
       const zeigen = (b.stellen && b.stellen.length)
         ? `<button type="button" class="gpxi-tc-ok" data-tc-zeig="${b.key}" title="${t("trackcheck.btn_zeigen_tip", "Die Fundstellen auf der Karte markieren und der Reihe nach anspringen.")}">${t("trackcheck.btn_zeigen", "Zeigen")}</button>` : "";
-      return `<label class="gpxi-tc-row is-${b.stufe}"><input type="checkbox" data-heal="${b.key}"${b.stufe === "grau" ? "" : " checked"}><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)} <span class="gpxi-tc-stufe">${stufeTxt(b.stufe)}</span>${repTxt}</span>${zeigen}${okKnopf(b.key)}</label>`;
+      return `<label class="gpxi-tc-row is-${b.stufe}"><input type="checkbox" data-heal="${b.key}"${b.stufe === "grau" ? "" : " checked"}><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)} <span class="gpxi-tc-stufe">${stufeTxt(b.stufe)}</span>${repTxt}</span>${zeigen}${okKnopf(b.key)}</label>` + stellenHtml(b);
     }).join("");
     const abgew = (r.abgewaehlt || []).map((b) => `<div class="gpxi-tc-row is-grau"><span class="gpxi-tc-txt">${zeile(b)}</span><button type="button" class="gpxi-tc-ok" data-tc-show="${b.key}">${t("trackcheck.btn_show_again", "wieder anzeigen")}</button></div>`).join("");
     const hatSchritt = _healFunde.length > 0;
+    // 16.10.2026 — Das Archiv hatte ein Ergebnis von älteren Prüfregeln; es ist beim Öffnen neu
+    // gerechnet worden. Einmal sagen, was dort stand und was jetzt gilt (sonst sucht man das,
+    // was die Kachel gemeldet hat, vergeblich).
+    let archivHinweis = "";
+    const an = _tcArchivNeu;
+    if (an && an.marke_vorher) {
+      const sig = (l) => (l || []).filter((b) => b.stufe !== "grau").map((b) => b.key + ":" + b.n).join(",");
+      if (sig(an.vorher) !== sig(an.nachher)) {
+        const alt = (typeof rzTrackCheckKurz === "function") ? rzTrackCheckKurz(an.vorher, 3) : "";
+        archivHinweis = `<div class="gpxi-tc-archiv">${_esc(an.marke
+          ? t("trackcheck.archiv_neu", "Das Archiv hatte „{alt}“ gemeldet — aus einer älteren Prüfung. Die Tour ist neu geprüft, Archiv und Inspektor zeigen jetzt dasselbe.", { alt })
+          : t("trackcheck.archiv_neu_leer", "Das Archiv hatte „{alt}“ gemeldet — aus einer älteren Prüfung. Mit den heutigen Regeln ist an dieser Tour nichts zu reparieren; der Hinweis im Archiv ist weg.", { alt }))}</div>`;
+      }
+    }
     box.innerHTML = `<div class="gpxi-tc-title is-${r.marke || (r.hoechste || "leer")}"><span class="gpxi-tc-dot"></span>${
         (r.befunde || []).length ? t("trackcheck.title", "Track-Check") + ": " + kurz : t("trackcheck.inspector_none", "Track-Check: nichts gefunden 👍")}</div>`
+      + archivHinweis
       + rows
       + (abgew ? `<div class="gpxi-tc-hidden">${abgew}</div>` : "")
       + (hatSchritt ? `<div class="gpxi-tc-actions"><button class="btn btn-primary btn-sm" id="gpxi-tc-repair" title="${t("trackcheck.repair_hint", "Repariert nur, was angehakt ist. Vorher/Nachher erscheint unten, Rückgängig geht jederzeit.")}">${t("trackcheck.repair_btn", "🩹 Reparieren")}</button></div>` : "");
-    box.hidden = !(r.befunde || []).length && !abgew;
+    box.hidden = !(r.befunde || []).length && !abgew && !archivHinweis;
     const rep = document.getElementById("gpxi-tc-repair");
     if (rep) rep.onclick = trackCheckReparieren;
+    box.querySelectorAll("[data-tc-stelle]").forEach((b) => b.onclick = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      trackCheckStelle(b.dataset.tcStelle, +b.dataset.idx);
+    });
     box.querySelectorAll("[data-tc-zeig]").forEach((b) => b.onclick = (ev) => {
       ev.preventDefault(); ev.stopPropagation();   // nicht das Häkchen umschalten
       trackCheckZeigen(b.dataset.tcZeig);
@@ -2375,6 +2429,7 @@ function mountGpxInspect(body, headerActions) {
     if (lueckenRouten) schritte = schritte.filter((k) => k !== "gaps" && k !== "gaps_klein");
     _pushUndo(t("trackcheck.repair", "Track-Check reparieren"));
     merkeVorher();
+    _tcArchivNeu = null;   // 16.10.2026 — der Hinweis auf das alte Archiv-Ergebnis hat sich erledigt
     let r = { ok: true, points: _points.slice(), bericht: [] };
     if (schritte.length) {
       try { r = await rzWarten("gpxinspect_heal", () => api().gpxinspect_heal(_points, 250, schritte, false, aktivitaet)); } catch (e) { r = { ok: false, error: String(e) }; }

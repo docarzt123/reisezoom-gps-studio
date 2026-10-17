@@ -4267,6 +4267,7 @@
   "warte.fotos_fern_nochmal.titel": "Laufwerk wird gesucht",
   "warte.fotos_fern_nochmal.text": "Schaut nach, ob die Fotoordner wieder erreichbar sind",
   "fotos.kt_ungelesen": "Holt Ungelesenes nach",
+  "fotos.kt_verschoben": "Dateien wurden verschoben oder umbenannt — sieht im Ordner nach",
   "fotos.kt_schritt1": "Schritt 1 von 2 — sieht in den Ordnern nach",
   "fotos.kt_hintergrund": "Läuft im Hintergrund — du kannst alles andere weiter benutzen.",
   "fotos.kt_schritt2": "Schritt 2 von 2 — liest die neuen Dateien",
@@ -6526,5 +6527,16 @@
   "container.x_tip": "Einblendung ausschalten",
   "container.aus_x": "Einblendung ausgeschaltet",
   "animator.ansicht.auf_kf": "Ansicht nicht gespeichert — erst Keyframe #{n} anklicken, dann übernimmt er die Karte",
-  "animator.ansicht.frei": "Ansicht nicht gespeichert — „Hier Keyframe“ legt an dieser Stelle einen an"
+  "animator.ansicht.frei": "Ansicht nicht gespeichert — „Hier Keyframe“ legt an dieser Stelle einen an",
+  "trackcheck.stelle_km": "km {km}",
+  "trackcheck.stelle_tip": "Stelle {i} von {n} · Punkt #{p} — Klick: hinspringen, Reparieren anbieten",
+  "trackcheck.stellen_mehr": "+{n} weitere",
+  "trackcheck.archiv_neu": "Das Archiv hatte „{alt}“ gemeldet — aus einer älteren Prüfung. Die Tour ist neu geprüft, Archiv und Inspektor zeigen jetzt dasselbe.",
+  "trackcheck.archiv_neu_leer": "Das Archiv hatte „{alt}“ gemeldet — aus einer älteren Prüfung. Mit den heutigen Regeln ist an dieser Tour nichts zu reparieren; der Hinweis im Archiv ist weg.",
+  "logbuch.undo.art_geaendert": "Art geändert",
+  "logbuch.fuss_art": "Hier: Namen und Art ändern, Notizen ergänzen, Einträge verbinden. Track-Reparaturen bleiben im GPX-Inspektor.",
+  "animator.etappe.fz_zeigen": "Fahrzeug der Etappe zeigen",
+  "animator.etappe.fz_zeigen_tip": "An: Der Laufpunkt wird zum Verkehrsmittel des Abschnitts (Auto, Flugzeug …). Aus: Er behält seine Form aus „Laufpunkt“ (Kugel, Pfeil, Symbol, eigenes Bild) — das Verkehrsmittel bestimmt dann nur noch die Linie.",
+  "animator.etappe.fz_zeigen_hinweis": "Form des Laufpunkts und „Laufpunkt zeigen“ (ganz ohne Punkt, nur die Linie): unter „Aussehen der Linie“.",
+  "animator.etappe.laufpunkt_knopf": "Laufpunkt einstellen …"
 }

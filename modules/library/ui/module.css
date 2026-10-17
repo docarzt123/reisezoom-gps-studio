@@ -1864,6 +1864,11 @@ canvas.foto-gross-bild { display: block; }
   border-radius: 8px; background: color-mix(in srgb, var(--accent, #2dd4bf) 12%, transparent); }
 .lba-fuss { font-size: 11px; margin-top: 4px; }
 .lba-frage { width: 100%; }
+/* 16.10.2026 — „Art ändern“ im Bearbeiten-Menü des Logbuchs: Überschrift + Symbol in der Farbe der Art */
+.lba-menue { max-height: calc(100vh - 12px); overflow-y: auto; }
+.lba-menue-kopf { font-size: 11px; color: var(--text-muted, #93a1b0); padding: 4px 10px 2px; }
+.lba-menue .lib-ctx-item[data-lba-art] { display: flex; align-items: center; gap: 8px; }
+.lba-menue-sym { color: var(--c); display: inline-flex; }
 
 /* 11.10.2026 — Großansicht aus dem Video-Assistenten/Schnell-Video: über deren Fenster */
 .foto-gross.ganz-oben, .foto-gross.im-layout.ganz-oben { z-index: 4000; }

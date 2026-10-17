@@ -1297,6 +1297,14 @@ when you start it, and it needs a new track in the inbox.
 6. **What next?** Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the
    video yourself in the Animator, create a map or animate data.
 
+### New in v0.9.796: small fixes
+
+- **Track check: find the archive's errors in the inspector.** If the archive flags a tour with “track has errors”, open it with “Repair in inspector”. At the top of the inspector the track check lists each kind of finding, and below it the individual spots as small buttons with their kilometre. A click jumps there, marks it on map and elevation profile and offers “Repair”. After repairing and “Replace in archive” the notice in the archive is gone. If the archive's result comes from an older check, GPS Studio checks the tour again when you open it and tells you what changed — often there is nothing left to repair.
+- **Logbook: change the way of travelling.** On the tour page, the logbook entry menu “⋯” has **“Change type”**: drive, ferry, hike, walk, bike, run, water sports or break. A type GPS Studio only guessed can be confirmed there. The change applies everywhere — inspector, Animator, video assistant and the tour summary. “Undo” below the list takes it back.
+- **Show the stage's vehicle.** In the stage editor, below “Travelling by”, there is the switch **“Show the stage's vehicle”**. On (default), the moving dot becomes the section's means of transport — car, plane, boat. Off, it keeps the shape you set under “Moving dot” (ball, arrow, symbol or own image); the means of transport then only decides whether the line follows the road or flies as an arc. No dot at all, just the line: button “Set up moving dot …” right below it, then untick “Show moving dot”. The switch applies per stage and takes effect at once.
+- **Place search: town before village.** If several places share a name, the search takes the town before the village (“Lindau” → Lindau (Bodensee), “Frankfurt” → Frankfurt am Main). If a neighbouring station is already set, the nearest place of that name wins.
+- **Media:** photos you move or rename in Finder or Explorer show up in their new place right away, with the date that is now in the file (see “Keep up to date by itself”).
+
 ### New in v0.9.795: sturdier rendering
 
 - **Aerial imagery at a border:** if your tour runs right along a border, the app also fetches the neighbouring country's aerial imagery for that corner. Where that service has no image, the spot stays transparent and the base map shows through — no warning and no needless retries.
@@ -2024,6 +2032,11 @@ carries on where the last run stopped:
   minutes, so not on every visit. **Scan** in the sidebar does it right away. Since v0.9.781 the app also
   **checks quietly while it simply stays open** — about every 20 minutes it looks whether something is due,
   even while you work in the Animator. New photos on the NAS come in by themselves.
+- **Moved or renamed** (since v0.9.796): if you move photos to another folder in Finder or Explorer (or rename
+  them), the app notices as soon as you see them in the list — it checks in the background whether the shown files
+  are still there and looks into that photo folder right away. The photos then show up in their new place, with the
+  date that is now in the file. With “Keep up to date by itself” off they are only marked as missing; **Scan** then
+  brings them to their new place.
 
 Both run in the background, say what they are doing in the bottom right, and can
 be cancelled. If you would rather they did not — on a hotspot, on someone else's

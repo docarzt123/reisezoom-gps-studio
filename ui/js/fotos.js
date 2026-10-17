@@ -373,6 +373,8 @@
     return rzBaum.kopfHtml("foto-db-kopf", auf, I("calendar"), T("fotos.nach_datum", "Nach Datum"))
       + `<div id="foto-datumsbaum" class="foto-datumsbaum"${auf ? "" : " hidden"}></div>`;
   }
+  /** 16.10.2026 — ändert sich, wenn Dateien fehlen oder neu gelesen wurden (Schlüssel der Bäume „Nach Datum/Ordner“). */
+  function bestandStempel() { return ((stand && stand.fehlt) || 0) + "|" + ((stand && stand.zuletzt_gelesen) || ""); }
   async function datumsBaumFuellen() {
     const box = nav && nav.querySelector("#foto-datumsbaum");
     const kopf = nav && nav.querySelector("#foto-db-kopf");
@@ -384,7 +386,8 @@
     // Baum hängt an Art/Kamera/Koordinate (nicht am Datum) und am Bestand — bei Änderung neu holen
     const basis = Object.fromEntries(Object.entries(filter).filter(([k]) => !["von", "bis", "jahr", "suche", "aehnlich"].includes(k)));
     // Audit C-15: wie der Ordnerbaum ohne Text- und Ähnlich-Suche — beide zählen über die Trefferliste, nicht über den Baum
-    const schluessel = JSON.stringify(basis) + "|" + ((stand && stand.gesamt) || 0);
+    // 16.10.2026 — dazu Fehlende und „zuletzt gelesen“: verschobene oder umdatierte Dateien ändern die Gesamtzahl nicht
+    const schluessel = JSON.stringify(basis) + "|" + ((stand && stand.gesamt) || 0) + "|" + bestandStempel();
     if (dbTage && schluessel === dbSchluessel) { datumsBaumZeichnen(box); return; }
     if (dbTage) datumsBaumZeichnen(box);
     if (dbLaedt) return;
@@ -444,7 +447,7 @@
     };
     if (!box) return;
     const basis = Object.fromEntries(Object.entries(filter).filter(([k]) => !["verz", "suche", "aehnlich"].includes(k)));
-    const schluessel = JSON.stringify(basis) + "|" + ((stand && stand.gesamt) || 0) + "|" + ordner.map(o => o.path).join(",");
+    const schluessel = JSON.stringify(basis) + "|" + ((stand && stand.gesamt) || 0) + "|" + bestandStempel() + "|" + ordner.map(o => o.path).join(",");
     if (obDaten && schluessel === obSchluessel) { ordnerBaumZeichnen(box); return; }
     if (obDaten) ordnerBaumZeichnen(box);
     if (obLaedt) return;
@@ -1324,6 +1327,7 @@
   function scanSchrittText(st) {
     if (st.phase === "bilder") return T("fotos.kt_schritt3", "Schritt 3 von 3 — legt die Vorschaubilder an");
     if (st.art === "ungelesen") return T("fotos.kt_ungelesen", "Holt Ungelesenes nach");
+    if (st.art === "verschoben" && st.phase === "dateien") return T("fotos.kt_verschoben", "Dateien wurden verschoben oder umbenannt — sieht im Ordner nach");
     if (st.phase !== "dateien") return T("fotos.kt_schritt2b", "Schritt 2 von 3 — liest Aufnahmezeit, Ort und Kamera");
     if (st.gruendlich && st.fortsetzung) return T("fotos.kt_schritt1_fort3", "Schritt 1 von 3 — gründliche Nachschau, macht weiter, wo sie aufhörte: schon geprüfte Ordner gehen schnell");
     return st.gruendlich

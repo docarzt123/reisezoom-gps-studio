@@ -59,6 +59,22 @@ STUFEN: Dict[str, str] = {
 REIHENFOLGE = tuple(STUFEN.keys())
 _RANG = {"rot": 3, "gelb": 2, "grau": 1, "": 0}
 
+# 16.10.2026 — Stand der Prüfregeln (Datum, ab dem gespeicherte Ergebnisse gelten). Die
+# Bibliothek merkt sich das Ergebnis mit Zeitstempel (`check_ts`); ein älteres stammt von
+# früheren Regeln. Gefunden an einem echten Archiv: 162 von 164 markierten Touren waren am
+# 10.09. geprüft worden, bei 64 davon fand die heutige Prüfung nichts mehr — das Archiv
+# meldete „Fehler im Track", der Inspektor (der immer frisch prüft) zeigte einen leeren Kasten.
+# Bei JEDER Änderung an Erkennung oder Schwellen (auch in core/bewegung) auf den Tag NACH
+# der Änderung setzen; veraltete Ergebnisse werden dann beim nächsten Anfassen neu gerechnet.
+REGELN_STAND = "2026-10-07"
+
+
+def veraltet(check_ts) -> bool:
+    """Stammt ein gespeichertes Ergebnis (ISO-Zeitstempel) von älteren Regeln?
+    Leer = nie geprüft, das ist nicht „veraltet"."""
+    ts = str(check_ts or "")
+    return bool(ts) and ts < REGELN_STAND
+
 # Feste Größen (siehe Spezifikation §2)
 LUECKE_ABSTAND_M = 20.0          # Füll-Abstand beim Lückenfüllen (wie der Inspektor)
 NACHTPAUSE_S = 2 * 3600.0        # Pause > 2 h UND …

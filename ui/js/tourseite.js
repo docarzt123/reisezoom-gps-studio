@@ -622,6 +622,8 @@
         onDaten: () => { if (Z === zust) _lbPinsSetzen(); },
         onTag: () => { if (Z === zust) _lbPinsSetzen(Z.reiter === "logbuch"); },
         onWahl: (x) => { if (Z === zust) _lbZeigen(x); },
+        // 16.10.2026 — nach Umbenennen/Art ändern/Rückgängig auch die Kurzfassung links („2 h Fahrt · 1 Wanderung“) neu holen
+        onGeaendert: () => { if (Z === zust) _logbuch(Z.tour.path); },
       });
     }
     if (Z.lbBox.parentNode !== det) { det.hidden = false; det.innerHTML = ""; det.appendChild(Z.lbBox); }
