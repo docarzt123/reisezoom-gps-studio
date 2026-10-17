@@ -1161,7 +1161,10 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         url, _over = _tileproxy.wms_oversample_url(url)
         h = hashlib.sha1((url + (_tileproxy.CLAMP_KEY_SUFFIX if _terr else "")).encode("utf-8")).hexdigest()
         f = (d / h[:2] / (h + ".bin")) if d is not None else None
-        _tf = _fehl_url.get(url)
+        # 17.10.2026 — Gelände-Kacheln (DEM) nie sperren: die Szene lädt fehlerhafte Kacheln vor dem Greifen
+        # gezielt neu (s. szene._DEM_NACHLADEN_JS) und begrenzt die Versuche selbst
+        _dem = "/tile/terrain-aws/" in url
+        _tf = None if _dem else _fehl_url.get(url)
         if _tf is not None and time.time() - _tf < _tileproxy.NACHHOLEN_S:
             try: await route.abort()
             except Exception: pass
@@ -1197,7 +1200,8 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         if resp.status >= 400:
             stats["fehler"][str(resp.status)] = stats["fehler"].get(str(resp.status), 0) + 1
             if resp.status in (429, 502, 503, 504):
-                _fehl_url[url] = time.time()
+                if not _dem:
+                    _fehl_url[url] = time.time()
                 try:
                     from urllib.parse import urlparse as _up
                     stats["aus"].setdefault(_up(url).hostname or "?", set()).add(url)
