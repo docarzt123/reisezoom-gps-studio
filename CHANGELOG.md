@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.796] – 2026-10-17
+
 ### Added
 - Tour page logbook: the way of travelling of an entry (drive, ferry, hike, walk, bike, run, water sports, break) can be changed from the entry menu („⋯“ → „Change type“), like its name and note; a guessed type can be confirmed there. The Animator, the video assistant and the logbook summary use the new type, and „Undo“ takes it back.
 - Stage editor: new switch „Show the stage's vehicle“ below „Travelling by“. When off, the moving dot keeps its own shape (ball, arrow, symbol, own image) and the means of transport only shapes the route (road or arc); a hint and a button lead to the moving-dot settings. Saved per stage, applies at once in preview, video and the dot in the air.
