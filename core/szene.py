@@ -216,6 +216,36 @@ LETZTE_ZEITEN: dict = {}
 
 _WARTE_VORWAERMEN_JS = _WARTE_BILD_JS.replace("setTimeout(on, 5000)", "setTimeout(on, 2500)")
 
+# 17.10.2026 — Gelände-Kacheln (DEM) vor dem Greifen nachladen. Fehlt eine Kachel (502, Abbruch) oder braucht sie
+# länger als die 5-s-Grenze von _WARTE_BILD_JS, fehlt im gegriffenen Bild ein Stück Gelände (schwarzer Keil).
+# Hier: fehlerhafte Kacheln neu laden und auf die langsamen warten. Grenzen: höchstens `maxRunden` Runden je Bild,
+# 30 Runden je Render und 3 Neuladungen je Kachel — danach wird nur noch mit dem vorhandenen Stand weitergemacht.
+# `_reloadTile` statt `reload()`: `reload()` lässt fehlerhafte Kacheln aus (private MapLibre-API, Version ist fest).
+_DEM_NACHLADEN_JS = """async (maxRunden) => {
+  const m = window.__rzLetzteKarte; if (!m) return {runden: 0, errored: 0, loading: 0, gesamt: 0};
+  let sc = null;
+  try { sc = m.style.sourceCaches[m.getTerrain().source]; } catch (_) {}
+  if (!sc || !sc._tiles) return {runden: 0, errored: 0, loading: 0, gesamt: 0};
+  const st = window.__rzDemNachladen = window.__rzDemNachladen || {gesamt: 0, je: {}};
+  const stand = () => { const f = [], l = [];
+    for (const k in sc._tiles) { const s = sc._tiles[k].state;
+      if (s === 'errored') f.push(k); else if (s === 'loading' || s === 'reloading') l.push(k); }
+    return {f, l}; };
+  const idle = (ms) => new Promise((r) => { let d = false; const on = () => { if (d) return; d = true; try { m.off('idle', on); } catch (_) {} r(); };
+    try { m.on('idle', on); } catch (_) { r(); } setTimeout(on, ms); });
+  let runden = 0, s = stand();
+  while (runden < maxRunden && st.gesamt < 30 && (s.f.length || s.l.length)) {
+    const neu = s.f.filter((k) => (st.je[k] || 0) < 3);
+    if (!neu.length && !s.l.length) break;
+    runden++; st.gesamt++;
+    for (const k of neu) { st.je[k] = (st.je[k] || 0) + 1; try { sc._reloadTile(k, 'reloading'); } catch (_) {} }
+    await idle(3000);
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 20)));
+    s = stand();
+  }
+  return {runden, errored: s.f.length, loading: s.l.length, gesamt: st.gesamt};
+}"""
+
 
 async def _mit_meldung(aw, melden, is_cancelled=None, ab_s: float = 1.0):
     """02.10.2026 (Marc: „an manchen Frames steht er so lang, dass man fast denkt, er wäre abgestürzt") — einen
@@ -786,6 +816,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         # _WARTE_BILD_JS (5 s) auf die Karte wartet, ist der Fehler vom 30.09. (Kartendienst-Ausfall).
         # Die Gesamtzeit hängt an der Rechnerlast, diese Zahl nicht.
         _haenger, _warte_max = 0, 0.0
+        _dem_warnt = False
         _hinweis_alt = ""
         _t_bilder = time.time()
         await page.evaluate("() => { window.__rzBildNr = 0; }")   # 05.10.2026 — Anlauf-Pause zählt ab dem ersten Bild
@@ -815,6 +846,15 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     _warte_max = max(_warte_max, _w)
                     if _w >= 4.5:
                         _haenger += 1
+                    # 17.10.2026 — fehlende Gelände-Kacheln nachladen, bevor das Bild gegriffen wird (s. _DEM_NACHLADEN_JS)
+                    _t = time.perf_counter()
+                    _dem = await _mit_meldung(page.evaluate(_DEM_NACHLADEN_JS, 2),
+                                              _meldung("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s"), is_cancelled)
+                    _z["warten"] += time.perf_counter() - _t
+                    if _dem and (_dem["errored"] or _dem["loading"]) and not _dem_warnt:
+                        _dem_warnt = True
+                        _log.warning("Szene Frame %d: Geländekacheln unvollständig (fehlerhaft %d, ladend %d, Runden gesamt %d) — "
+                                     "Bild wird mit dem vorhandenen Stand aufgenommen", frame + 1, _dem["errored"], _dem["loading"], _dem["gesamt"])
                     if _SEEK2:
                         # 07.09.2026 — mit Gelände bezieht MapLibre die Kamerahöhe auf die Bodenhöhe im
                         # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht
