@@ -98,6 +98,115 @@
     } catch (e) { try { applog("warn", "[einfach] Kamerafahrt: " + e); } catch (_) {} }
   }
 
+  // wie KF_LANES in module.js: nur diese Ereignisarten gehören zur Kamera, alles andere (Marker …) bleibt
+  const KAMERA_LANES = ["pitch", "bearing", "zoom", "center", "position"];
+  /** 18.10.2026 (Fahrt neu erzeugen) — ersetzt NUR die Kamera-Keyframes durch eine neue Fahrt: art = "fahrt" (Kamerafahrt
+   *  mit opt.flug / opt.lebendig), "startziel" oder "standard" (Standard-Keyframes). Felder laut Art, Blickrichtung
+   *  der Kamerafahrt und alles zusammen ein Undo-Schritt. Liefert true = erzeugt, false = nichts geändert. */
+  async function fahrtNeu(art, opt) {
+    const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
+    const a = (window.rzReadModuleSettings && window.rzReadModuleSettings("animator")) || {};
+    const keinTrack = () => { try { if (typeof toast === "function") toast(T("animator.kf.fahrt_neu_kein_track", "Erst eine Tour laden – ohne Strecke gibt es keine Kamerafahrt."), "warn"); } catch (_) {} return false; };
+    try {
+      if (!ctrl) return false;
+      const bbox = window.__rzEinfachBbox ? window.__rzEinfachBbox() : null;
+      let kamera, felder, flug = "begleiter";
+      if (art === "fahrt") {
+        const linie = window.__rzTrackLinie ? window.__rzTrackLinie() : null;
+        if (!window.__rzSchnellKamerafahrt || !bbox || !linie) return keinTrack();
+        flug = (opt && window.__rzFlugstile && window.__rzFlugstile.stil(opt.flug)) ? opt.flug : "begleiter";
+        const lebendig = (opt && isFinite(+opt.lebendig)) ? +opt.lebendig : 0.5;
+        kamera = window.__rzSchnellKamerafahrt(bbox, +a.duration_s || 20, null, { flug, lebendig }, linie);
+        felder = { camera_follow_track: true, kamera_vorgabe: "fahrt" };
+      } else if (art === "startziel") {
+        const sz = window.__rzStartZiel ? window.__rzStartZiel() : null;
+        if (!sz) return keinTrack();
+        kamera = startZielKeyframes(sz[0], sz[1], bbox);
+        felder = { camera_follow_track: false, kamera_vorgabe: "startziel" };
+      } else if (art === "standard") {
+        if (!window.__rzStandardKeyframes) return false;
+        kamera = window.__rzStandardKeyframes().map((ev) => { const c = Object.assign({}, ev); delete c.standard; return c; });
+        felder = { kamera_vorgabe: "fahrt" };   // camera_follow_track bleibt unverändert
+      } else return false;
+      const behalten = (a.timeline_events || []).filter((e) => !(e && KAMERA_LANES.includes(e.kind)));
+      const neu = Object.assign({}, a, felder, { keyframes_enabled: true, timeline_events: behalten.concat(kamera) });
+      ctrl.applyState(neu, T("animator.kf.fahrt_neu_undo", "Kamerafahrt neu erzeugt"));
+      if (art === "fahrt" && window.__rzSchnellKamera) {
+        // Blickrichtung aus der geglätteten Spur — gehört zum selben Undo-Schritt (wie im Video-Assistenten)
+        await new Promise((res) => setTimeout(res, 600));
+        try { window.__rzUndoApplying = true; window.__rzSchnellKamera(window.__rzFlugstile.kurs(flug)); }
+        finally { setTimeout(() => { window.__rzUndoApplying = false; }, 0); }
+      }
+      return true;
+    } catch (e) { try { applog("warn", "[einfach] Fahrt neu: " + e); } catch (_) {} return false; }
+  }
+
+  // zuletzt erzeugte Auswahl des Popups — beim nächsten Öffnen vorbelegt (nur bis zum Neuladen der Seite)
+  let _fnLetzte = { art: "fahrt", flug: "begleiter", lebendig: 0.5 };
+  /** 18.10.2026 (Fahrt neu erzeugen) — Popup „Kamerafahrt neu erzeugen“: Art, Flugstil, Lebendigkeit wählen, dann
+   *  fahrtNeu(). opts.onAbbruch wird beim Schließen ohne Erzeugen gerufen (Abbrechen, Esc, ✕, Klick daneben) — genau einmal. */
+  function fahrtNeuDialog(opts) {
+    const fs = window.__rzFlugstile;
+    const cur = Object.assign({}, _fnLetzte);
+    if (!fs || !fs.liste.includes(cur.flug)) cur.flug = "begleiter";
+    const nKamera = ((window.__rzKeyframes && window.__rzKeyframes.liste()) || []).filter((e) => e && KAMERA_LANES.includes(e.kind)).length;
+    const ARTEN = [["fahrt", T("einfach.k_fahrt", "Kamerafahrt")], ["startziel", T("einfach.k_startziel", "Start → Ziel")],
+      ["standard", T("animator.kf.fahrt_neu_standard", "Standard-Keyframes")]];
+    const flugKarten = (fs ? fs.liste : []).map((k) => {
+      const [name, kurz] = fs.text(k);
+      return `<button type="button" class="va-bk${k === cur.flug ? " is-on" : ""}" data-fn-flug="${esc(k)}"><span class="va-bk-bild">${fs.clip(k)}</span><b>${esc(name)}</b><span class="va-bk-text">${esc(kurz)}</span></button>`;
+    }).join("");
+    const body = `<div class="fn-dialog">
+      <div class="va-feld-kopf"><span>${esc(T("animator.kf.fahrt_neu_art", "Art"))}</span></div>
+      <div class="anim-pillen" id="fn-arten">${ARTEN.map(([a, l]) => `<button type="button" class="anim-pille${a === cur.art ? " is-on" : ""}" data-fn-art="${a}">${esc(l)}</button>`).join("")}</div>
+      <div id="fn-fahrt-block"${cur.art === "fahrt" ? "" : " hidden"}>
+        <div class="va-feld-kopf"><span>${esc(T("va.k_flug", "Flugstil"))}</span></div>
+        <div class="va-karten va-karten-3 va-flugstile" id="fn-flug">${flugKarten}</div>
+        <div class="va-feld-kopf"><span>${esc(T("va.k_leb", "Wie lebendig?"))}</span></div>
+        <input type="range" class="va-regler" id="fn-leb" min="0" max="1" step="0.05" value="${cur.lebendig}">
+        <div class="va-regler-enden"><span>${esc(T("va.k_ruhig_g", "Ruhig & weit"))}</span><span>${esc(T("va.k_lebendig_g", "Lebendig & nah"))}</span></div>
+      </div>
+      ${nKamera > 0 ? `<p class="muted va-klein" id="fn-hinweis">${esc(T("animator.kf.fahrt_neu_hinweis", "Ersetzt die {n} Keyframes der aktuellen Fahrt – ⌘Z holt sie zurück.").replace("{n}", nKamera))}</p>` : ""}
+    </div>`;
+    const footer = `<button type="button" class="btn btn-ghost" id="fn-abbrechen">${esc(T("common.cancel", "Abbrechen"))}</button>
+      <button type="button" class="btn btn-primary" id="fn-ok">${esc(T("animator.kf.fahrt_neu_ok", "Erzeugen"))}</button>`;
+    let erzeugt = false, m = null;
+    // 18.10.2026 — Wird das Modal ohne onClose beendet (closeAllModals, überlagernder Dialog), bliebe dieser
+    // Listener hängen und verschluckte jedes spätere Esc. Ist der Erzeugen-Knopf dieses Popups nicht mehr im DOM,
+    // ist es nicht der oberste sichtbare Dialog: Listener entfernen und Esc durchlassen.
+    let okKnopf = null;
+    const taste = (e) => {
+      if (e.key !== "Escape") return;
+      if (!okKnopf || !okKnopf.isConnected) { document.removeEventListener("keydown", taste, true); return; }
+      e.preventDefault(); e.stopPropagation(); if (m) m.close();
+    };
+    m = openModal({ title: T("animator.kf.fahrt_neu_titel", "Kamerafahrt neu erzeugen"), body, footer, onClose: () => {
+      document.removeEventListener("keydown", taste, true);
+      if (!erzeugt && opts && typeof opts.onAbbruch === "function") { try { opts.onAbbruch(); } catch (_) {} }
+    } });
+    okKnopf = document.getElementById("fn-ok");
+    document.addEventListener("keydown", taste, true);
+    const wurzel = document.querySelector("#modal-body .fn-dialog"); if (!wurzel) return;
+    wurzel.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-fn-art]");
+      if (a) {
+        cur.art = a.dataset.fnArt;
+        wurzel.querySelectorAll("[data-fn-art]").forEach((b) => b.classList.toggle("is-on", b === a));
+        wurzel.querySelector("#fn-fahrt-block").hidden = cur.art !== "fahrt";
+        return;
+      }
+      const f = e.target.closest("[data-fn-flug]");
+      if (f) { cur.flug = f.dataset.fnFlug; wurzel.querySelectorAll("[data-fn-flug]").forEach((b) => b.classList.toggle("is-on", b === f)); }
+    });
+    wurzel.querySelector("#fn-leb").addEventListener("input", (e) => { cur.lebendig = +e.target.value; });
+    document.getElementById("fn-abbrechen").addEventListener("click", () => m.close());
+    document.getElementById("fn-ok").addEventListener("click", () => {
+      erzeugt = true; _fnLetzte = Object.assign({}, cur);
+      m.close();
+      fahrtNeu(cur.art, { flug: cur.flug, lebendig: cur.lebendig });
+    });
+  }
+
   function karten(gruppe, liste, aktiv) {
     return `<div class="rz-ef-karten" data-ef-gruppe="${gruppe}">` + liste.map(([wert, titel, text]) =>
       `<button type="button" class="rz-ef-karte${wert === aktiv ? " is-on" : ""}" data-ef-wert="${esc(wert)}"><b>${esc(titel)}</b>${text ? `<span>${esc(text)}</span>` : ""}</button>`).join("") + "</div>";
@@ -214,5 +323,5 @@
   const beob = new MutationObserver(() => { if (an() && $("anim-panel") && !$("rz-ansicht")) einbauen(); });
   const start = () => { beob.observe(document.body, { childList: true, subtree: true }); einbauen(); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
-  window.rzEinfach = { einbauen, anwenden, zeichnen, kameraSetzen, formatSetzen, SCHRITTE };
+  window.rzEinfach = { einbauen, anwenden, zeichnen, kameraSetzen, fahrtNeu, fahrtNeuDialog, formatSetzen, SCHRITTE };
 })();
