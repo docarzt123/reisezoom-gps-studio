@@ -924,13 +924,10 @@ def _ladeflagge_haengt(info) -> bool:
     except (TypeError, ValueError):
         pid = 0
     if pid and pid != os.getpid():
-        try:
-            os.kill(pid, 0)
+        # 18.10.2026 — `os.kill(pid, 0)` ist unter Windows Strg+C, keine Lebendprüfung (siehe `cbib._pid_lebt`).
+        if cbib._pid_lebt(pid):
             return False            # lebt noch → lädt gerade, hängt nicht vom letzten Mal
-        except PermissionError:
-            return False            # lebt, gehört nur jemand anderem
-        except OSError:
-            pass                    # weg → der Ladevorgang wurde nie fertig
+        # weg → der Ladevorgang wurde nie fertig
     return True
 
 
@@ -19149,6 +19146,13 @@ def main() -> None:
             # während pywebview den Prozess abbaut. `beenden` sperrt auch Neustarts.
             try:
                 cexif._ExifToolDaemon.beenden()
+            except Exception:
+                pass
+            # 18.10.2026 — Bibliotheks-Sperre freigeben, bevor der Prozess hart endet. Sonst blieb `.sperre` liegen
+            # (`_bib_schliessen` wurde nirgends aufgerufen), und eine geteilte Bibliothek (NAS/Cloud) war für den
+            # anderen Rechner bis zum Verfall belegt.
+            try:
+                api._bib_schliessen()
             except Exception:
                 pass
             log.info("Background-Worker gestoppt — Force-Exit via os._exit(0)")
