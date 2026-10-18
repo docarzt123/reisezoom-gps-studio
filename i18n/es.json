@@ -179,7 +179,7 @@
   "animator.field.padding_tip": "Espacio entre la ruta y el borde de la imagen",
   "animator.field.pause_mode": "Paradas",
   "animator.field.pitch": "Inclinación",
-  "animator.field.point_count": "Puntos del trazado (arrastra para reducir)",
+  "animator.field.point_count": "Puntos del trazado (densidad de la línea)",
   "animator.field.resolution": "Resolución",
   "animator.field.resolution_custom": "Resolución personalizada",
   "animator.field.rotation": "Rotación",
@@ -354,7 +354,9 @@
   "animator.playwright_missing.installing": "Descargando navegador (~150 MB, un momento) …",
   "animator.playwright_missing.success": "Navegador listo — comienza el renderizado.",
   "animator.playwright_missing.title": "Falta el navegador para renderizar",
-  "animator.point_count.hint": "Por defecto se usan todos los puntos de tu GPX. Mueve el control a la izquierda para simplificar la traza: la línea, el punto/flecha y la cámara siguen entonces la traza simplificada, igual al desplazarte, en la prueba y en el vídeo final. El tiempo de render apenas cambia; depende sobre todo de la carga de las teselas del mapa.",
+  "animator.point_count.hint": "Con qué precisión sigue la línea tu GPX. Por defecto, un punto cada 10 m: los recorridos cortos y largos se ven igual de precisos, las curvas cerradas y los cruces se quedan en el camino (los recorridos cortos conservan al menos 800 puntos). Totalmente a la derecha, la línea usa todos los puntos de tu GPX; solo los archivos muy grandes (más de 50.000 puntos) se quedan en 50.000, indicado como «máximo». Hacia la izquierda la traza se simplifica: la línea, el punto/flecha y la cámara siguen la traza simplificada, igual al desplazarte, en la prueba y en el vídeo final. Velocidad, altitud y distancia de los rótulos vienen siempre de todos los puntos.",
+  "animator.punkte.deckel": "máximo",
+  "animator.punkte.text": "1 punto cada {abstand} · {n} de {alle}",
   "animator.pos.bc": "↧ abajo",
   "animator.pos.bcw": "↧ abajo ancho",
   "animator.pos.bl": "↙ abajo izquierda",
@@ -6544,5 +6546,12 @@
   "projekt.weg_nicht_gespeichert": "Este proyecto ya no existe: los cambios no se guardan. Abre un proyecto o crea uno nuevo.",
   "topbar.project.action_new_tip": "Otro proyecto con la misma ruta, p. ej. una segunda versión del vídeo",
   "container.name_liste": "Nombre en la lista",
-  "container.name_liste_tip": "Solo para la lista de rótulos: el texto del vídeo está arriba, en «Filas»."
+  "container.name_liste_tip": "Solo para la lista de rótulos: el texto del vídeo está arriba, en «Filas».",
+  "library.fg_hoehe": "Altitud corregida",
+  "library.fg_zeit": "Tiempos reparados",
+  "library.fg_hoehe_zeit": "Altitud y tiempos corregidos",
+  "gpxinspect.ersetzt_version": "Ahora versión %n",
+  "gpxinspect.ersetzt_unveraendert": "Nada ha cambiado: no se ha creado ninguna versión nueva.",
+  "about.mitwirkende.title": "Colaboradores",
+  "about.mitwirkende.intro": "Gracias a todos los que han mejorado GPS Studio con su propio código:"
 }

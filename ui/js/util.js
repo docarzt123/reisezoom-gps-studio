@@ -3878,7 +3878,11 @@ function rzSpurGlaetten(coords, meter) {
     if (hi < i) hi = i;
     while (hi + 1 < n && cum[hi + 1] <= cum[i] + r) hi++;
     let sx = 0, sy = 0, sw = 0;
-    for (let k = lo; k <= hi; k++) {
+    // 18.10.2026 (Punktdichte) — die Vorschau hat jetzt alle Punkte (bis 50 000): bei 4 km Glättung lagen ~7000 Punkte
+    // im Fenster, die Kamerabahn eines 127 000-Punkte-Tracks brauchte 3,2 s (4× gedrosselt 13 s). Ab 400 Punkten im
+    // Fenster jeden k-ten nehmen — darunter (alle bisherigen Fälle mit 800 Punkten) rechnet es genau wie vorher.
+    const st = Math.max(1, Math.floor((hi - lo + 1) / 400));
+    for (let k = lo; k <= hi; k += st) {
       const d = (cum[k] - cum[i]) / sig, w = Math.exp(-0.5 * d * d);
       sx += coords[k][0] * w; sy += coords[k][1] * w; sw += w;
     }
@@ -3947,7 +3951,8 @@ function kursReihe(coords, basisM, minPunkte, sigM) {
     if (hi < i) hi = i;
     while (hi + 1 < n && cum[hi + 1] <= cum[i] + 3 * sig) hi++;
     let sw = 0, sx = 0;
-    for (let k = lo; k <= hi; k++) { const d = (cum[k] - cum[i]) / sig, w = Math.exp(-0.5 * d * d); sx += u[k] * w; sw += w; }
+    const st = Math.max(1, Math.floor((hi - lo + 1) / 400));   // 18.10.2026 — wie rzSpurGlaetten: große Fenster ausdünnen
+    for (let k = lo; k <= hi; k += st) { const d = (cum[k] - cum[i]) / sig, w = Math.exp(-0.5 * d * d); sx += u[k] * w; sw += w; }
     out[i] = sx / sw;
   }
   if (!c) { c = {}; _kursReihenCache.set(coords, c); }

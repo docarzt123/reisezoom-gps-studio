@@ -179,7 +179,7 @@
   "animator.field.padding_tip": "Space between the track and the image edge",
   "animator.field.pause_mode": "Stops",
   "animator.field.pitch": "Pitch",
-  "animator.field.point_count": "Track points (drag to reduce)",
+  "animator.field.point_count": "Track points (line density)",
   "animator.field.resolution": "Resolution",
   "animator.field.resolution_custom": "Custom resolution",
   "animator.field.rotation": "Rotation",
@@ -354,7 +354,9 @@
   "animator.playwright_missing.installing": "Downloading browser (~150 MB, this may take a moment) …",
   "animator.playwright_missing.success": "Browser ready — render starts.",
   "animator.playwright_missing.title": "Render browser missing",
-  "animator.point_count.hint": "By default all points from your GPX are used. Drag the slider to the left to make the track coarser: line, moving point/arrow and camera then follow the simplified track — the same when scrubbing, in the test run and in the finished video. Render time hardly changes; it mostly depends on loading the map tiles.",
+  "animator.point_count.hint": "How closely the line follows your GPX. The default is one point every 10 m — short and long tours look equally precise, hairpins and junctions stay on the road (short tours keep at least 800 points). Far right, the line uses every point of your GPX; only very large files (over 50,000 points) stop at 50,000, marked “maximum”. Drag left to make the track coarser: line, moving point/arrow and camera then follow the simplified track — the same when scrubbing, in the test run and in the finished video. Speed, elevation and distance in the overlays always come from all points.",
+  "animator.punkte.deckel": "maximum",
+  "animator.punkte.text": "1 point every {abstand} · {n} of {alle}",
   "animator.pos.bc": "↧ bottom",
   "animator.pos.bcw": "↧ bottom wide",
   "animator.pos.bl": "↙ bottom left",
@@ -6544,5 +6546,12 @@
   "projekt.weg_nicht_gespeichert": "This project no longer exists — changes are not being saved. Open a project or create a new one.",
   "topbar.project.action_new_tip": "Another project with the same tour, e.g. a second version of the video",
   "container.name_liste": "Name in the list",
-  "container.name_liste_tip": "Only for the list of overlays — the text shown in the video is under “Rows” above."
+  "container.name_liste_tip": "Only for the list of overlays — the text shown in the video is under “Rows” above.",
+  "library.fg_hoehe": "Elevation corrected",
+  "library.fg_zeit": "Times repaired",
+  "library.fg_hoehe_zeit": "Elevation and times corrected",
+  "gpxinspect.ersetzt_version": "Now version %n",
+  "gpxinspect.ersetzt_unveraendert": "Nothing changed — no new version was created.",
+  "about.mitwirkende.title": "Contributors",
+  "about.mitwirkende.intro": "Thanks to everyone who made GPS Studio better with their own code:"
 }

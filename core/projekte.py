@@ -443,12 +443,15 @@ def find_kontext_by_ui_hash(daten: dict, ui_hash: str) -> str:
     if not ui_hash:
         return ""
     touren = daten.get("touren") or {}
-    if ui_hash in touren:
-        return ui_hash
-    for gh, t in touren.items():
-        if ui_hash in (t.get("ui_hashes") or []):
-            return gh
-    return ""
+    # 18.10.2026 — Versionen mit korrigierter Höhe/Zeit haben dieselben Koordinaten wie ihr
+    # Original, also auch denselben UI-Hash. Treffen mehrere zu, gewinnt die zuletzt geöffnete
+    # (ein pfadloser Aufruf folgt immer einem Öffnen mit Pfad). Mit nur einem Treffer wie bisher.
+    treffer = ([ui_hash] if ui_hash in touren else []) + [
+        gh for gh, t in touren.items()
+        if gh != ui_hash and isinstance(t, dict) and ui_hash in (t.get("ui_hashes") or [])]
+    if len(treffer) > 1:
+        return max(treffer, key=lambda g: str((touren.get(g) or {}).get("last_active_at") or ""))
+    return treffer[0] if treffer else ""
 
 
 # ── Projekt-CRUD (Verträge wie die sessions-Pendants) ───────────────────────

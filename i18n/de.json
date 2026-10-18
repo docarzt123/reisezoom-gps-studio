@@ -179,7 +179,7 @@
   "animator.field.padding_tip": "Luft zwischen Track und Bildrand",
   "animator.field.pause_mode": "Pausen",
   "animator.field.pitch": "Neigung",
-  "animator.field.point_count": "Track-Punkte (zum Reduzieren ziehen)",
+  "animator.field.point_count": "Track-Punkte (Dichte der Linie)",
   "animator.field.resolution": "Auflösung",
   "animator.field.resolution_custom": "Eigene Auflösung",
   "animator.field.rotation": "Rotation",
@@ -354,7 +354,9 @@
   "animator.playwright_missing.installing": "Lade Browser herunter (~150 MB, einen Moment) …",
   "animator.playwright_missing.success": "Browser bereit — Render startet.",
   "animator.playwright_missing.title": "Browser für Render fehlt",
-  "animator.point_count.hint": "Standard sind alle Punkte aus deinem GPX. Ziehe den Regler nach links, um den Track gröber zu machen: Linie, Laufpunkt/Pfeil und Kamera laufen dann auf der vereinfachten Spur — beim Scrubben, im Probelauf und im fertigen Video gleich. Die Render-Zeit ändert sich dadurch kaum; sie hängt vor allem vom Laden der Kartenkacheln ab.",
+  "animator.point_count.hint": "Wie genau die Linie deinem GPX folgt. Standard ist ein Punkt alle 10 m — kurze und lange Touren sehen gleich genau aus, Kehren und Kreuzungen bleiben auf dem Weg (kurze Touren behalten mindestens 800 Punkte). Ganz rechts nutzt die Linie alle Punkte deines GPX; nur bei sehr großen Dateien (über 50.000 Punkte) ist bei 50.000 Schluss, dann steht „Höchstwert“ dabei. Nach links wird der Track gröber: Linie, Laufpunkt/Pfeil und Kamera laufen dann auf der vereinfachten Spur — beim Scrubben, im Probelauf und im fertigen Video gleich. Tempo, Höhe und Strecke in den Einblendungen kommen immer aus allen Punkten.",
+  "animator.punkte.deckel": "Höchstwert",
+  "animator.punkte.text": "1 Punkt alle {abstand} · {n} von {alle}",
   "animator.pos.bc": "↧ unten",
   "animator.pos.bcw": "↧ unten breit",
   "animator.pos.bl": "↙ unten links",
@@ -6544,5 +6546,12 @@
   "projekt.weg_nicht_gespeichert": "Dieses Projekt gibt es nicht mehr — Änderungen werden nicht gespeichert. Öffne ein Projekt oder lege ein neues an.",
   "topbar.project.action_new_tip": "Weiteres Projekt mit derselben Tour, z. B. eine zweite Fassung des Videos",
   "container.name_liste": "Name in der Liste",
-  "container.name_liste_tip": "Nur für die Liste der Einblendungen — der Text im Video steht oben unter „Zeilen“."
+  "container.name_liste_tip": "Nur für die Liste der Einblendungen — der Text im Video steht oben unter „Zeilen“.",
+  "library.fg_hoehe": "Höhe korrigiert",
+  "library.fg_zeit": "Zeiten repariert",
+  "library.fg_hoehe_zeit": "Höhe und Zeiten korrigiert",
+  "gpxinspect.ersetzt_version": "Jetzt Version %n",
+  "gpxinspect.ersetzt_unveraendert": "Nichts geändert — es wurde keine neue Version angelegt.",
+  "about.mitwirkende.title": "Mitwirkende",
+  "about.mitwirkende.intro": "Danke an alle, die GPS Studio mit eigenem Code besser gemacht haben:"
 }

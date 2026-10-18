@@ -1545,6 +1545,18 @@ async function openAboutModal() {
         <div style="margin-top:6px;"><strong style="color:var(--text-dim); font-family:inherit;">${t("about.paths.renders")}:</strong><br>${escapeHtml(info.renders_dir || "?")}</div>
       </div>
 
+      <!-- 18.10.2026 — Mitwirkende: wer per Pull Request etwas beigetragen hat (GitHub-Name, Link aufs Profil) -->
+      <hr style="border:none; border-top:1px solid var(--border); margin:18px 0 12px;">
+      <div style="font-size:11.5px; font-weight:600; color:var(--text-dim); margin-bottom:6px;">
+        ${t("about.mitwirkende.title", "Mitwirkende")}
+      </div>
+      <div style="font-size:11.5px; color:var(--text-muted); line-height:1.65;">
+        ${t("about.mitwirkende.intro", "Danke an alle, die GPS Studio mit eigenem Code besser gemacht haben:")}
+        <ul style="margin:6px 0 0 18px; padding:0; font-size:11px;">
+          <li><a href="#" class="md-about-link" data-url="https://github.com/kaennchenstruggle">@kaennchenstruggle</a></li>
+        </ul>
+      </div>
+
       <!-- v0.9.40 — License-Credits für gebundelte Bibliotheken
            (Nutzer-Hint 2026-05-25). FFmpeg-LGPL verlangt prominente
            Attribution + Source-Link bei Distribution. -->

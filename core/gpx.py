@@ -959,9 +959,18 @@ def downsample_ecken(pts: List[TrackPoint], target: int = 500, min_abw_m: float 
     aber jeder Punkt darf innerhalb seines Abschnitts (± halber Abstand) auf die ECKE rutschen: den Punkt, der am
     weitesten von der Sehne zwischen den Abschnittsenden abweicht (ab `min_abw_m`). 11.10.2026 (Marc: „warum bleibt
     Garmin auf dem Weg und wir rennen übers Feld?“) — jeder n-te Punkt schnitt Kreuzungen gerade ab."""
+    return [pts[i] for i in downsample_ecken_idx(pts, target, min_abw_m)]
+
+
+def downsample_ecken_idx(pts: List[TrackPoint], target: int = 500, min_abw_m: float = 4.0) -> List[int]:
+    """Indizes zu `downsample_ecken` (18.10.2026: die Vorschau-Reihen werden auf der VOLLEN Spur gerechnet und an
+    genau diesen Stellen abgegriffen — Tempo und Steigung hängen so nicht davon ab, wie dicht die Linie ist)."""
     n = len(pts)
     if n <= target or target < 3:
-        return downsample(pts, target)
+        if n <= target:
+            return list(range(n))
+        step = (n - 1) / (target - 1) if target > 1 else 0
+        return [round(i * step) for i in range(target)]
     step = (n - 1) / (target - 1)
     rad = math.pi / 180.0
     lat0 = pts[n // 2].lat * rad
@@ -983,7 +992,7 @@ def downsample_ecken(pts: List[TrackPoint], target: int = 500, min_abw_m: float 
                     best, bd = j, d
         idx.append(best)
     idx.append(n - 1)
-    return [pts[i] for i in idx]
+    return idx
 
 
 def downsample(pts: List[TrackPoint], target: int = 500) -> List[TrackPoint]:

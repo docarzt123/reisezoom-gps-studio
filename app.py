@@ -1828,6 +1828,11 @@ def _nur_einmal(gruppe: str):
     return deko
 
 
+# 18.10.2026 (Punktdichte-Regler) — so viele Punkte bekommt die Animator-Vorschau höchstens je Tour (vorher fest 800).
+# Gemessen (Phase 1, Bericht 18.10.2026): Ladezeit, Antwortgröße, Probelauf-fps auch bei 4× gedrosselter CPU,
+# Bildzeit im Render. Darunter kommen alle Punkte der Datei an; was die Linie davon nutzt, entscheidet der Regler.
+ANIM_PUNKTE_MAX = 50000
+ANIM_PUNKTE_MIN_DECKEL = 800   # kleinster Deckel je Tour (auch in sehr großen Kompositionen nie gröber als bisher)
 
 
 class Api:
@@ -3341,12 +3346,38 @@ class Api:
             log.exception("Session-Migration fehlgeschlagen — Sessions bleiben "
                           "auf Schema 1 (Cloud-Umschläge dann ohne Projekte)")
 
+    @staticmethod
+    def _versions_kennung(pfad) -> str:
+        """18.10.2026 — Ist `pfad` eine Datei unseres Versionsspeichers (`touren/ab/<kennung>.gpx.gz`)
+        oder deren ausgepackte Kopie (`<GPX_CACHE_DIR>/<kennung>.gpx`)? Dann ist ihr NAME die Kennung.
+
+        Seit eine Korrektur nur an Höhe oder Zeiten eine eigene Version wird, gibt es Versionen mit
+        denselben Koordinaten. Aus dem Inhalt gerechnet hießen sie wie das Original; wer sie aus dem
+        Archiv öffnet, landete in dessen Projekten. Für alle älteren Speicherdateien ist der Name
+        ohnehin der Koordinaten-Hash — dort ändert sich nichts. "" für jede andere Datei."""
+        try:
+            p = Path(str(pfad or ""))
+            name = p.name
+            kennung = clib.version_kennung_aus_name(name)
+            if kennung:
+                # Aufbau des Speichers: <Bibliothek>/touren/<2 Zeichen>/<kennung>.gpx.gz — unabhängig
+                # davon, wo die Bibliothek gerade liegt.
+                return kennung if (p.parent.name == kennung[:2] and p.parent.parent.name == "touren") else ""
+            if name.endswith(".gpx") and re.fullmatch(r"[0-9a-f]{16}", name[:-4] or ""):
+                if os.path.realpath(str(p.parent)) == os.path.realpath(str(GPX_CACHE_DIR)):
+                    return name[:-4]
+        except Exception:  # noqa: BLE001
+            pass
+        return ""
+
     def _merke_geo_hash(self, orig_path: str, coords: list) -> str:
         """Kanonischen geo_hash aus frisch geparsten VOLLEN Koordinaten in den
         Cache legen (Schlüssel: der Original-Pfad, wie ihn das Frontend später
         an session_open_for_track weiterreicht)."""
         try:
-            geo = _sessions.compute_track_hash(coords) if len(coords) >= 2 else ""
+            # 18.10.2026 — Dateien des Versionsspeichers tragen ihre Kennung im Namen.
+            geo = self._versions_kennung(orig_path) or (
+                _sessions.compute_track_hash(coords) if len(coords) >= 2 else "")
             st = Path(orig_path).stat()
             self._geo_hash_cache[str(Path(orig_path))] = (
                 (st.st_mtime_ns, st.st_size), geo)
@@ -3362,6 +3393,10 @@ class Api:
         try:
             p = Path(gpx_path)
             st = p.stat()
+            # 18.10.2026 — Speicherdatei einer Version: Kennung steht im Namen (siehe _versions_kennung).
+            kennung = self._versions_kennung(p)
+            if kennung:
+                return kennung
             eintrag = self._geo_hash_cache.get(str(p))
             if eintrag and eintrag[0] == (st.st_mtime_ns, st.st_size):
                 return eintrag[1]
@@ -8702,7 +8737,7 @@ class Api:
         „Teufelsmauerkammweg“-Tour dann „fehlalarm-tempo-hopser.gpx“. Jetzt wie beim
         Projekt-Export: Name der Tour in der Bibliothek, sonst der Dateiname."""
         try:
-            gh = self._track_geo_hash(self._ensure_gpx(src))
+            gh = self._versions_kennung(src) or self._track_geo_hash(self._ensure_gpx(src))   # 18.10.2026
             if gh:
                 return self._export_namensvorschlag(self._lib(), gh, None, src)
         except Exception as e:  # noqa: BLE001
@@ -8858,16 +8893,22 @@ class Api:
     # und im kopflosen Render mehrfach — der zweite Durchgang kostet dann nichts mehr.
     _GPX_CACHE: dict = {}
     _GPX_CACHE_MAX = 300
+    # 18.10.2026 — seit die Vorschau alle Punkte bekommt, ist eine Antwort bis ~10 MB groß: der Cache ist
+    # zusätzlich nach Größe gedeckelt (Summe der JSON-Texte), die ältesten Einträge gehen zuerst.
+    _GPX_CACHE_MAX_BYTES = 256 * 1024 * 1024
+    _GPX_CACHE_BYTES = 0
+    _GPX_CACHE_LOCK = threading.Lock()
 
-    def animator_load_gpx_viele(self, paths: list) -> dict:
+    def animator_load_gpx_viele(self, paths: list, max_punkte: int = 0) -> dict:
         """Mehrere Touren auf einmal (Komposition): parallel geparst, Reihenfolge wie `paths`.
+        `max_punkte` deckelt die Punkte JE Tour (0 = technisches Maximum, siehe ANIM_PUNKTE_MAX).
         Ergebnis {ok, results: [<animator_load_gpx-Antwort je Pfad>]}."""
         try:
             pf = [str(p) for p in (paths or []) if p]
             if not pf:
                 return {"ok": True, "results": []}
             with ThreadPoolExecutor(max_workers=min(6, max(1, len(pf)))) as ex:
-                res = list(ex.map(self.animator_load_gpx, pf))
+                res = list(ex.map(lambda q: self.animator_load_gpx(q, max_punkte), pf))
             return {"ok": True, "results": res}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
@@ -8900,36 +8941,56 @@ class Api:
             log.exception("_bibliothek_ersatz")
         return "", ""
 
-    def animator_load_gpx(self, path: str) -> dict:
-        """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück.
+    def animator_load_gpx(self, path: str, max_punkte: int = 0) -> dict:
+        """Lädt eine GPX, gibt die Punkte (bis zum technischen Maximum) + Stats fürs UI zurück.
         Andere Track-Formate werden vorher automatisch nach GPX konvertiert.
+
+        18.10.2026 (Punktdichte-Regler): Bis hierher kamen höchstens 800 Punkte in der Vorschau an —
+        auf einem 200-km-Tag ein Punkt je 250 m, Kehren wurden abgeschnitten. Jetzt kommen ALLE Punkte
+        (höchstens `ANIM_PUNKTE_MAX`, gemessen); wie viele davon die Linie nutzt, entscheidet allein der
+        Punkte-Regler im Animator. `max_punkte` > 0 deckelt kleiner (Touren einer großen Komposition).
 
         Fehlt die Datei draußen, springt die Bibliothekskopie ein (siehe
         `_bibliothek_ersatz`); das Ergebnis sagt es über `ersatz`.
         """
+        try:
+            max_punkte = int(max_punkte or 0)
+        except (TypeError, ValueError):
+            max_punkte = 0
+        deckel = min(ANIM_PUNKTE_MAX, max_punkte) if max_punkte > 0 else ANIM_PUNKTE_MAX
+        deckel = max(ANIM_PUNKTE_MIN_DECKEL, deckel)
         if path and not Path(path).exists():
             ersatz, name = self._bibliothek_ersatz(path)
             if ersatz:
-                erg = self.animator_load_gpx(ersatz)
+                erg = self.animator_load_gpx(ersatz, max_punkte)
                 if erg.get("ok"):
                     erg["ersatz"] = {"quelle": "bibliothek", "fehlt": str(path),
                                      "pfad": ersatz, "name": name}
                 return erg
         try:
             st = os.stat(path)
-            key = (str(path), st.st_size, int(st.st_mtime))
+            key = (str(path), st.st_size, int(st.st_mtime), deckel)
         except OSError:
             key = None
         if key is not None:
             hit = Api._GPX_CACHE.get(key)
             if hit is not None:
                 return json.loads(hit)   # eigene Kopie je Aufrufer
-        erg = self._animator_load_gpx_roh(path)
+        erg = self._animator_load_gpx_roh(path, deckel)
         if key is not None and erg.get("ok"):
             try:
-                if len(Api._GPX_CACHE) >= Api._GPX_CACHE_MAX:
-                    Api._GPX_CACHE.pop(next(iter(Api._GPX_CACHE)))
-                Api._GPX_CACHE[key] = json.dumps(erg)
+                text = json.dumps(erg)
+                with Api._GPX_CACHE_LOCK:
+                    alt = Api._GPX_CACHE.pop(key, None)
+                    if alt is not None:
+                        Api._GPX_CACHE_BYTES -= len(alt)
+                    # 18.10.2026 — nach Anzahl UND Größe deckeln (älteste zuerst)
+                    while Api._GPX_CACHE and (len(Api._GPX_CACHE) >= Api._GPX_CACHE_MAX
+                                              or Api._GPX_CACHE_BYTES + len(text) > Api._GPX_CACHE_MAX_BYTES):
+                        Api._GPX_CACHE_BYTES -= len(Api._GPX_CACHE.pop(next(iter(Api._GPX_CACHE))))
+                    if len(text) <= Api._GPX_CACHE_MAX_BYTES:
+                        Api._GPX_CACHE[key] = text
+                        Api._GPX_CACHE_BYTES += len(text)
             except Exception:  # noqa: BLE001
                 pass
         return erg
@@ -8957,7 +9018,17 @@ class Api:
             lat, lon = getattr(m, "lat", None), getattr(m, "lon", None)
         return czeit.zone_fuer(lat, lon, land)
 
-    def _animator_load_gpx_roh(self, path: str) -> dict:
+    @staticmethod
+    def _etappen_reihen_an(pts, ds, ds_idx, seg_names) -> dict:
+        """18.10.2026 — Etappen-Reihen auf der vollen Spur rechnen und an den geladenen Punkten abgreifen (der
+        Etappenanfang d0/t0 ist dann der echte, nicht der erste geladene Punkt der Etappe)."""
+        if ds is pts:
+            return cgpx.etappen_reihen(ds, seg_names)
+        r = cgpx.etappen_reihen(pts, seg_names)
+        return {k: ([v[i] for i in ds_idx] if isinstance(v, list) and len(v) == len(pts) else v) for k, v in r.items()}
+
+    def _animator_load_gpx_roh(self, path: str, deckel: int = 0) -> dict:
+        deckel = int(deckel or 0) or ANIM_PUNKTE_MAX
         try:
             orig_path = path
             path = self._ensure_gpx(path)
@@ -8966,7 +9037,10 @@ class Api:
             # den Cache legen: session_open_for_track (kommt direkt danach mit
             # demselben Original-Pfad) spart sich so den zweiten Datei-Parse.
             self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
-            ds = cgpx.downsample_ecken(pts, 800)   # 11.10.2026 — Ecken bleiben (Linie bleibt an Kreuzungen auf dem Weg)
+            # 18.10.2026 — alle Punkte (bis zum technischen Maximum); vorher fest 800. Über dem Deckel wie bisher mit
+            # Ecken (11.10.2026: die Linie bleibt an Kreuzungen auf dem Weg). Wie viele die Linie nutzt: Punkte-Regler.
+            ds_idx = cgpx.downsample_ecken_idx(pts, deckel)
+            ds = pts if len(ds_idx) == len(pts) else [pts[i] for i in ds_idx]
             # 10.10.2026 — Datumsgrenze: fürs Zeichnen und die Kamera fortlaufende Längengrade (179,9 → 180,1 statt
             # → −179,9), sonst Strich quer über die Welt und Kamerasprung. Die Datei selbst bleibt unverändert.
             coords = croute.lon_fortlaufend([[p.lon, p.lat] for p in ds])
@@ -8989,8 +9063,19 @@ class Api:
             tz_name = self._tz_fuer_track(path, ds)
             tz_off = czeit.offset_min(tz_name, e_start)
             eles_full = [p.ele if p.ele is not None else 0.0 for p in ds]
-            _spd, _grd, _, _ = canim._overlay_compute_speed_grade(
-                ds, cum_dist, cum_time, eles_full, has_time, has_ele)
+            # 18.10.2026 — Tempo und Steigung auf der VOLLEN Spur rechnen und an den geladenen Punkten abgreifen: auf
+            # einer ausgedünnten Spur (800 Punkte mit Ecken) hing die Tempo-Reihe am Fenster aus ±2 ausgedünnten
+            # Punkten (Stunden über eine 5-Wochen-Reise, Pausen inklusive). Jetzt ist jeder Wert derselbe, egal wie
+            # viele Punkte geladen sind.
+            if ds is pts:
+                _spd, _grd, _, _ = canim._overlay_compute_speed_grade(
+                    ds, cum_dist, cum_time, eles_full, has_time, has_ele)
+            else:
+                _sv, _gv, _, _ = canim._overlay_compute_speed_grade(
+                    pts, [p.dist_m for p in pts], [p.elapsed_s for p in pts],
+                    [p.ele if p.ele is not None else 0.0 for p in pts], has_time, has_ele)
+                _spd = [_sv[i] for i in ds_idx]
+                _grd = [_gv[i] for i in ds_idx]
             # v0.9.331 — FIT-Sensoren (HF/Trittfrequenz/Leistung/Temp/…) als
             # Per-Punkt-Reihen (index-gleich zu `ds`/coords), damit die Live-Box
             # sie wie Tempo/Höhe mitlaufen lassen kann. Nur vorhandene Felder.
@@ -9031,7 +9116,7 @@ class Api:
                 "tz_name": tz_name, "tz_offset_min": tz_off, "lang": _ui_sprache(),
                 "waypoints": wp_out,
                 # 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
-                "stage": cgpx.etappen_reihen(ds, stats.seg_names),
+                "stage": self._etappen_reihen_an(pts, ds, ds_idx, stats.seg_names),
                 # 23.09.2026 — Kennzahlen je Etappe (Overlay-Box-Bezug), volle Punkte
                 "stage_stats": cgpx.etappen_stats(pts),
                 # 24.09.2026 — Kennzahlen je Bewegungsart aus dem Logbuch
@@ -9056,6 +9141,8 @@ class Api:
                 "bbox": stats.bbox,
                 "stats": {
                     "n_points": stats.n_points,
+                    # 18.10.2026 — so viele Punkte trägt diese Antwort (= n_points, außer über dem technischen Maximum)
+                    "n_geladen": len(ds), "punkte_deckel": deckel,
                     "distance_km": stats.distance_m / 1000,
                     "duration_s": stats.duration_s,
                     "ascent_m": stats.ascent_m,
@@ -12238,7 +12325,9 @@ class Api:
             if not src or not os.path.exists(src):
                 return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
             gpx_datei = self._ensure_gpx(src)
-            geo_hash = self._track_geo_hash(gpx_datei)
+            # 18.10.2026 — Version aus dem Speicher (.gpx.gz): Kennung aus dem Namen, nicht aus der
+            # ausgepackten Kopie (sonst landete ein Höhe/Zeit-Stand bei den Projekten des Originals).
+            geo_hash = self._versions_kennung(src) or self._track_geo_hash(gpx_datei)
             if not geo_hash:
                 return {"ok": False, "error": _ui_t()("error.gpx_generic", "GPX-Fehler")}
             with _projekte.LOCK:
@@ -14287,6 +14376,10 @@ class Api:
         bisherige Version, wird sie ersetzt statt eine weitere anzulegen —
         sonst hinterlässt eine Inspektor-Sitzung fünf Versionen, von denen
         vier niemanden interessieren.
+
+        18.10.2026 — Auch eine Korrektur NUR an Höhe oder Zeiten ist eine eigene
+        Version (Kennung aus `_stand_kennung`, Grund `fassung.grund`, Register-Feld
+        `stand_von` = Koordinaten-Hash). Vorher überschrieb sie die abgelegte Kopie.
         """
         try:
             pfad = str(orig_path or "")
@@ -14322,23 +14415,35 @@ class Api:
                 return {"ok": False, "error": _ui_t()(
                     "gpxinspect.ersetzen_unbekannt", "Diese Datei liegt nicht im Archiv.")}
 
-            # 2) Nur die ZEIT geheilt? Dann ist es dieselbe Geometrie und damit
-            #    dieselbe Version — sie wird aufgefrischt, keine neue angelegt.
-            if neu_gh == alt_gh:
-                cbib.version_bytes_ablegen(BIB, tmp.read_bytes(), neu_gh)
-                _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
-                # Der ausgepackte Arbeitsstand ist jetzt veraltet (neu erzeugbar).
-                _ds.loeschen(GPX_CACHE_DIR / f"{neu_gh}.gpx", "track_ersetzen:cache", art=_ds.ART_CACHE)
-                log.info("Version aufgefrischt (nur Zeit geheilt): %s", neu_gh[:12])
-                return {"ok": True, "out_path": pfad, "geo_hash": neu_gh,
-                        "fassung": 0, "nur_zeit": True,
-                        "sensors_kept": res.get("sensors_kept"),
-                        "fmt": "gpx", "count": res.get("count", 0)}
+            # 2) Gleiche Koordinaten? Dann wurde nur an Höhe und/oder Zeiten gearbeitet.
+            #
+            # 18.10.2026 (zwei Nutzer-Meldungen, Owner-Entscheid „setze direkt um"): Bis hierher
+            # hieß das „dieselbe Version — sie wird aufgefrischt" und ÜBERSCHRIEB die abgelegte
+            # Kopie. Die Meldung sagte „im Archiv ersetzt", es gab aber weder „V2" noch einen Weg
+            # zurück, und die Archivzeile zeigte weiter auf die unveränderte Datei des Nutzers
+            # (Track-Check-Warnung blieb stehen). Jetzt bekommt so ein Stand eine EIGENE Version:
+            # Kennung = Hash über Koordinaten + Höhen + Zeiten (`_stand_kennung`), eigene Datei im
+            # Speicher, eigener Eintrag in der Kette mit Grund („hoehe"/„zeit"). Verglichen wird mit
+            # dem Stand, den der Nutzer offen hatte (die Datei hinter `orig_path`).
+            grund: list = []
+            alt_pts = self._stand_punkte(pfad) or self._stand_punkte(cbib.version_datei(BIB, alt_gh))
+            alt_geo = (_sessions.compute_track_hash([(q.lon, q.lat) for q in alt_pts])
+                       if len(alt_pts) >= 2 else alt_gh)
+            if neu_gh == alt_geo:
+                neu_pts = self._stand_punkte(tmp)
+                grund = self._stand_unterschied(alt_pts, neu_pts)
+                if not grund:
+                    _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
+                    log.info("Im Archiv ersetzen: nichts geändert (%s) — keine neue Version", alt_gh[:12])
+                    return {"ok": True, "out_path": pfad, "geo_hash": alt_gh, "fassung": 0,
+                            "unveraendert": True, "fmt": "gpx", "count": res.get("count", 0)}
+                neu_gh = self._stand_kennung(alt_geo, neu_pts)
 
             # 3) Neue Version: erst in die Bibliothek, dann ins Register,
             #    dann als Archivzeile. In dieser Reihenfolge — bricht etwas ab,
             #    liegen höchstens Daten herum, aber nie ein Verweis ins Leere.
             ersetzt = ""
+            speicher_pfad = cbib.version_datei(BIB, neu_gh)
             with _projekte.LOCK:
                 pdaten = _projekte.laden(DATEN_ORT)
                 # Zwischenstand-Regel — bewusst eng: Verworfen wird NUR eine
@@ -14349,23 +14454,54 @@ class Api:
                 # jemand die Quelldatei draußen wegräumt.
                 alt_e = (pdaten.get("touren") or {}).get(alt_gh) or {}
                 alt_quelle = (alt_e.get("fassung") or {}).get("quelle", "")
-                if alt_quelle == "werkzeug" and self._version_frei(pdaten, alt_gh):
+                if alt_quelle == "werkzeug" and self._version_frei(pdaten, alt_gh) \
+                        and alt_gh != neu_gh:
                     ersetzt = alt_gh
+                if grund and ersetzt:
+                    # 18.10.2026 — Der verworfene Zwischenstand war schon eine Korrektur: Sein Grund
+                    # wandert mit (Höhe korrigiert, dann Zeiten → „Höhe und Zeiten"). War er eine
+                    # Änderung der Strecke (ohne Grund), bleibt es bei „geheilt/ersetzt".
+                    alt_grund = (alt_e.get("fassung") or {}).get("grund")
+                    grund = sorted(set(grund) | set(alt_grund)) if alt_grund else []
+                vorhanden = (pdaten.get("touren") or {}).get(neu_gh)
                 neu_t = _projekte.fassung_anlegen(
                     pdaten, alt_gh, neu_gh, "werkzeug",
                     snapshot_pfad=f"touren/{neu_gh[:2]}/{neu_gh}.gpx.gz",
                     gpx_path="")
+                if neu_t is not None and grund:
+                    # 18.10.2026 — Stand mit gleichen Koordinaten: Datei ist allein die Speicherdatei
+                    # (nicht die des Nutzers — die hält ja den alten Stand).
+                    tid_neu = neu_t.get("id") or ""
+                    if isinstance(vorhanden, dict) and vorhanden.get("id") == tid_neu \
+                            and neu_gh != _projekte.neueste_fassung(pdaten, tid_neu):
+                        # Genau dieser Stand war schon einmal da (etwa nach ↩︎): wieder ans Ende stellen.
+                        nmax = max(((e.get("fassung") or {}).get("nr", 1)
+                                    for _, e in _projekte.kette(pdaten, tid_neu)), default=1)
+                        neu_t["fassung"] = {"nr": nmax + 1, "erstellt": _projekte._now_iso(),
+                                            "quelle": "werkzeug"}
+                    if grund:
+                        neu_t.setdefault("fassung", {})["grund"] = list(grund)
+                    neu_t["stand_von"] = alt_geo
+                    neu_t["gpx_paths"] = [str(speicher_pfad)]
+                    if speicher_pfad.name not in (neu_t.get("gpx_filenames_seen") or []):
+                        neu_t.setdefault("gpx_filenames_seen", []).append(speicher_pfad.name)
                 fassung_nr = ((neu_t or {}).get("fassung") or {}).get("nr", 0)
                 _projekte.speichern(DATEN_ORT, pdaten)
                 if not tour_id and neu_t:
                     tour_id = neu_t.get("id") or ""
 
             daten_neu = tmp.read_bytes()
-            cbib.version_bytes_ablegen(BIB, daten_neu, neu_gh)
+            if not (grund and speicher_pfad.is_file()):
+                # Ein Stand mit derselben Kennung hat denselben Inhalt — vorhandene Datei bleibt.
+                cbib.version_bytes_ablegen(BIB, daten_neu, neu_gh)
             _ds.loeschen(tmp, "track_ersetzen:tmp", art=_ds.ART_TEMP)
 
+            # 18.10.2026 — Favorit, Schlagwörter, Name … gelten für die Tour; die neue Kachel trägt sie
+            # weiter. Vorher legte die Aufnahme eine LEERE Meta-Zeile an und `track_hash_migrieren`
+            # verwarf daraufhin die alte — nach dem Heilen standen Schlagwörter und Favorit nicht mehr da.
+            clib.meta_uebernehmen(conn, alt_gh, neu_gh)
             auf = clib.version_aufnehmen(
-                conn, cbib.version_datei(BIB, neu_gh), LIBRARY_THUMBS, IMPORTS_DIR,
+                conn, speicher_pfad, LIBRARY_THUMBS, IMPORTS_DIR,
                 LIBRARY_MAP_THUMBS, LIBRARY_COVERS, tour_id=tour_id)
             if not auf.get("ok"):
                 return {"ok": False, "error": auf.get("error") or "?"}
@@ -14387,17 +14523,89 @@ class Api:
                 conn.commit()
                 log.info("Zwischenstand %s verworfen (kein Projekt hielt ihn)", ersetzt[:12])
 
-            log.info("Neue Version übernommen: %s → %s (Nr. %s) · %d Sammlungs-Einträge "
+            log.info("Neue Version übernommen: %s → %s (Nr. %s%s) · %d Sammlungs-Einträge "
                      "· Quelldatei unangetastet: %s",
-                     alt_gh[:12], neu_gh[:12], fassung_nr, n_col, pfad)
+                     alt_gh[:12], neu_gh[:12], fassung_nr,
+                     (", gleiche Strecke, " + "+".join(grund)) if grund else "", n_col, pfad)
             return {"ok": True, "out_path": pfad, "fassung": fassung_nr,
                     "collections": n_col, "mengen": 0, "geo_hash": neu_gh,
-                    "ersetzt": ersetzt,
+                    "ersetzt": ersetzt, "grund": list(grund),
+                    # Altfeld: nur die Zeiten geändert (Aufrufer von früher lesen es noch).
+                    "nur_zeit": grund == ["zeit"],
                     "sensors_kept": res.get("sensors_kept"),
                     "fmt": "gpx", "count": res.get("count", 0)}
         except Exception as e:
             log.error("library_track_ersetzen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
+
+    # ── 18.10.2026: Stände mit gleichen Koordinaten (Höhe/Zeiten korrigiert) ──
+
+    def _stand_punkte(self, pfad) -> list:
+        """Alle Punkte einer Track-Datei (auch `.gpx.gz` aus dem Speicher und Fremdformate); [] wenn nicht lesbar."""
+        try:
+            p = Path(str(pfad or ""))
+            if not str(pfad or "") or not p.is_file():
+                return []
+            if p.name.lower().endswith(".gz"):
+                import gzip as _gzip
+                with _gzip.open(p, "rt", encoding="utf-8") as fh:
+                    pts, _st = cgpx.parse_gpx(str(p), text=fh.read())
+            else:
+                pts, _st = cgpx.parse_gpx(self._ensure_gpx(str(p)))
+            return list(pts or [])
+        except Exception as e:  # noqa: BLE001
+            log.warning("Stand nicht lesbar (%s): %s", pfad, e)
+            return []
+
+    @staticmethod
+    def _stand_unterschied(alt_pts: list, neu_pts: list) -> list:
+        """Was hat sich bei gleichen Koordinaten geändert? Teilmenge von ["hoehe", "zeit"].
+
+        Mit Spielraum, weil Speichern Zahlen und Zeitangaben anders schreiben darf
+        (0,05 m Höhe, 0,5 s Zeit) — sonst wäre jedes Speichern eine „Änderung"."""
+        def _sek(t):
+            if not t:
+                return None
+            try:
+                return datetime.fromisoformat(str(t).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return str(t)
+        grund = []
+        if len(alt_pts) != len(neu_pts):
+            return ["hoehe", "zeit"]
+        for a, b in zip(alt_pts, neu_pts):
+            ea, eb = a.ele, b.ele
+            if (ea is None) != (eb is None) or (ea is not None and abs(float(ea) - float(eb)) > 0.05):
+                grund.append("hoehe")
+                break
+        for a, b in zip(alt_pts, neu_pts):
+            ta, tb = _sek(a.time), _sek(b.time)
+            if (ta is None) != (tb is None):
+                grund.append("zeit")
+                break
+            if ta is None:
+                continue
+            if isinstance(ta, str) or isinstance(tb, str):
+                if ta != tb:
+                    grund.append("zeit")
+                    break
+            elif abs(ta - tb) > 0.5:
+                grund.append("zeit")
+                break
+        return grund
+
+    @staticmethod
+    def _stand_kennung(geo: str, pts: list) -> str:
+        """Kennung eines Stands mit gleichen Koordinaten: Hash über Koordinaten-Hash + Höhen + Zeiten.
+
+        Gleiche Form wie ein geo_hash (16 Hex), damit Speicher, Register, Archivzeile, Projekte und
+        Cloud ihn wie jede andere Version behandeln. Aus dem Inhalt gerechnet: derselbe Stand ergibt
+        dieselbe Kennung, ein zweites Speichern legt nichts doppelt an."""
+        h = hashlib.sha1(f"stand:{geo}\x00".encode("ascii", "replace"))
+        for q in pts:
+            ele = "" if q.ele is None else f"{float(q.ele):.2f}"
+            h.update(f"{ele}|{q.time or ''}\n".encode("utf-8", "replace"))
+        return h.hexdigest()[:16]
 
     @staticmethod
     def _version_frei(pdaten: dict, geo_hash: str) -> bool:
@@ -14481,8 +14689,11 @@ class Api:
                 pfad = (k.get("gpx_paths") or [None])[0]
                 # Gepinnte Solo-Projekte laden vom FASSUNGS-SNAPSHOT — die
                 # Archiv-Datei trägt ja längst die neue Geometrie.
-                if hinweis and k.get("ablauf") not in ("reise", "schwarm"):
-                    kk = k.get("kontext") or ""
+                # 18.10.2026 — dasselbe für einen Stand mit korrigierter Höhe/Zeit: Er liegt NUR im
+                # Speicher; die Datei des Nutzers (evtl. noch in `gpx_paths`) hält den alten Stand.
+                kk = k.get("kontext") or ""
+                if k.get("ablauf") not in ("reise", "schwarm") and (
+                        hinweis or (touren.get(kk) or {}).get("stand_von")):
                     snap = self._version_pfad(kk)
                     if snap:
                         pfad = str(snap)
@@ -14724,7 +14935,15 @@ class Api:
             except Exception:
                 log.debug("letztes_projekt nicht gemerkt", exc_info=True)
             pfade = []
-            for pf in (p.get("gpx_paths") or []):
+            # 18.10.2026 — Solo-Projekt auf einem Stand mit korrigierter Höhe/Zeit: den Stand aus dem
+            # Speicher öffnen, nicht die (gleich verlaufende) Datei des Nutzers mit dem alten Stand.
+            _kk = str(p.get("kontext") or "")
+            if p.get("ablauf", "solo") not in ("reise", "schwarm") \
+                    and ((daten.get("touren") or {}).get(_kk) or {}).get("stand_von"):
+                _snap = self._version_pfad(_kk)
+                if _snap:
+                    pfade.append(str(_snap))
+            for pf in ([] if pfade else (p.get("gpx_paths") or [])):
                 if Path(str(pf)).exists():
                     pfade.append(pf)
                     continue
@@ -15823,6 +16042,9 @@ class Api:
                             "nr": (e.get("fassung") or {}).get("nr", 1),
                             "erstellt": (e.get("fassung") or {}).get("erstellt", ""),
                             "quelle": (e.get("fassung") or {}).get("quelle", ""),
+                            # 18.10.2026 — gleiche Strecke, korrigiert: ["hoehe"], ["zeit"] oder beides
+                            # (leer bei allen anderen Versionen und in älteren Bibliotheken).
+                            "grund": list((e.get("fassung") or {}).get("grund") or []),
                             "distance_km": st.get("distance_km"),
                             "n_points": st.get("n_points"),
                             "aktuell": gh == geo_hash,

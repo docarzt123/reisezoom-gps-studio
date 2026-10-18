@@ -707,6 +707,9 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * R * math.asin(min(1.0, math.sqrt(a)))
 
 
+SPEED_HALB_S = 10.0   # 18.10.2026 — halbes Mindestfenster der Live-Tempo-Glättung in Sekunden
+
+
 def _overlay_compute_speed_grade(points, cum_dist, cum_time, eles, has_time: bool, has_ele: bool):
     """Pro-Punkt-Tempo (km/h, geglättet für Live-Anzeige) + Steigung (%) +
     Bewegungszeit (Fahrzeit) + echtes Max-Tempo.
@@ -724,8 +727,15 @@ def _overlay_compute_speed_grade(points, cum_dist, cum_time, eles, has_time: boo
     FLOOR_MS = 0.6 / 3.6  # netto < 0,6 km/h Fortschritt im Fenster = Pause
     SPIKE_CAP_MS = 33.3   # ~120 km/h: darüber GPS-Ausreißer, nicht fürs Max
     if has_time and n > 1:
+        # 18.10.2026 (Punktdichte-Regler) — die Vorschau bekommt jetzt alle Punkte statt 800: ±2 Punkte sind bei
+        # 1 Hz nur 4 s, bei 10 Hz 0,4 s — das GPS-Rauschen sprang dann voll in die Tempo-Anzeige. Das Fenster
+        # reicht deshalb mindestens ±SPEED_HALB_S Sekunden (und weiterhin mindestens ±2 Punkte).
+        _ct_sortiert = all(cum_time[k] <= cum_time[k + 1] for k in range(n - 1))
         for i in range(n):
             a, b = max(0, i - W), min(n - 1, i + W)
+            if _ct_sortiert:
+                a = min(a, bisect.bisect_left(cum_time, cum_time[i] - SPEED_HALB_S))
+                b = max(b, bisect.bisect_right(cum_time, cum_time[i] + SPEED_HALB_S) - 1)
             dd = cum_dist[b] - cum_dist[a]
             dt = cum_time[b] - cum_time[a]
             speed[i] = (dd / dt * 3.6) if dt > 0 else 0.0

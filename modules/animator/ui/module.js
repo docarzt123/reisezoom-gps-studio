@@ -2157,6 +2157,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _ghostSpurenLaden(); _ghostListeZeichnen(); _ghostSpurenAufbauen(); } catch (e) { applog("warn", "[undo] ghosts: " + e); }
     // Laufpunkt (Felder sind nicht gebunden)
     try { paceAusProjekt(); } catch (_) {}
+    try { _punkteAusProjekt(); } catch (e) { applog("warn", "[punkte] aus Projekt: " + e); }   // 18.10.2026 — Punktdichte gehört zum Projekt
     // Tracks, Gruppen, Aussehen je Track
     _animEtappe1S = Math.max(0, +snap.etappe1_dauer_s || 0);
     _animEtappe1Name = typeof snap.etappe1_name === "string" ? snap.etappe1_name : "";
@@ -2204,6 +2205,14 @@ function mountAnimator(body, headerActions, opts) {
   // deren onLoad schon beim Einhängen _spurNeu ruft):
   // weiter unten stand „var _spurRoh = null“ — die Modul-Funktion läuft asynchron, drawPreview lief davor, die Zuweisung löschte die Rohspur wieder.
   let _spurRoh = null;
+  // 18.10.2026 — Punktdichte-Regler (siehe _punkteAusAbstand). Oben deklariert: die Modul-Funktion läuft asynchron, ein
+  // GPX-Load kann vor dem Erreichen weiter unten stehender const-Zeilen kommen (TDZ).
+  const PUNKTE_DICHTE_M = 10;          // Standard-Dichte: ein Punkt je 10 m (gemessen, Bericht 18.10.2026)
+  const PUNKTE_STANDARD_MIN = 800;     // kurze Touren: nie weniger Punkte als bisher
+  const PUNKTE_REGLER_MIN = 10;
+  const PUNKTE_BAHN_MAX = 60000;       // Reise-Bahn: höchstens so viele Punkte für alle Etappen zusammen (vorher 6000)
+  const PUNKTE_KOMPOSITION_MAX = 200000;   // Zusatz-Touren zusammen: so viele Punkte laden sie höchstens (_tourDeckel)
+  let _reiseBasisZiel = -1;          // mit welcher Punktzahl _reiseBasis gebaut wurde (Reise, _spurNeu)
   // 14.09.2026 — Projekt-Vorschaubild (util.js rzProjektVorschauAufnehmen, 4 s nach
   // dem Speichern) soll nicht mitten in einem Probelauf fotografieren: Bild vom
   // halben Lauf, dazu ein triggerRepaint + render-Warten im laufenden Bild.
@@ -6745,7 +6754,11 @@ function mountAnimator(body, headerActions, opts) {
       const ele = _hoehenAnPunkte((_ovSeries && _ovSeries.ele) || _gpxElevations, n);
       if (!rel && !(ele && ele.some(v => +v))) { _flug.grund = "keine_hoehe"; return null; }
       let r = null;
-      try { r = await rzWarten("dem_hoehen", () => api().dem_hoehen(currentCoords.map(c => [c[0], c[1]]), 13)); } catch (e) { r = null; }
+      // 18.10.2026 (Punktdichte) — Gelände unter den ECHTEN Punkten (Rohspur), nicht unter der ausgedünnten Linie: deren
+      // Zwischenpunkte liegen auf der Sehne, die Höhe aus der Datei gehört aber zum echten Ort (Kehre am Hang → falsche Höhe
+      // über Grund). Rohspur und Linie haben gleich viele Punkte (_punkteReduziert).
+      const _orte = (Array.isArray(_spurRoh) && _spurRoh.length === n && !_reiseAktiv()) ? _spurRoh : currentCoords;
+      try { r = await rzWarten("dem_hoehen", () => api().dem_hoehen(_orte.map(c => [c[0], c[1]]), 13)); } catch (e) { r = null; }
       const dem = (r && r.ok && Array.isArray(r.hoehen) && r.hoehen.length === n) ? r.hoehen : null;
       if (!dem) { _flug.grund = "kein_gelaende"; return null; }
       const agl = new Float32Array(n);
@@ -7693,9 +7706,18 @@ function mountAnimator(body, headerActions, opts) {
   }
   return e;
   }
-  function colorGradientExpr(CD, i0, i1, stopsVal, stopsCol, mode, metricArr){
+  function colorGradientExpr(CD, i0, i1, stopsVal, stopsCol, mode, metricArr, GEO){
     if(!CD || i1<=i0 || !stopsVal || !stopsVal.length) return null;
     const d0=CD[i0], dT=CD[i1]-d0; if(!(dT>0)) return null;
+    // 18.10.2026 (Punktdichte) — `line-progress` läuft entlang der GEZEICHNETEN Linie (GEO = deren Längen), die Werte
+    // (km der Stops, Höhe/Tempo je Punkt) gehören zur echten Strecke (CD). Bei ausgedünnter Linie ist sie in Kehren
+    // kürzer: ohne Umrechnung rutschten Farbgrenzen mit der Reglerstellung. Ohne GEO wie bisher (CD für beides).
+    const G=(Array.isArray(GEO) && GEO.length===CD.length && GEO[i1]-GEO[i0]>0) ? GEO : CD;
+    const g0=G[i0], gT=G[i1]-g0;
+    const pAnIdx=(i)=>(G[i]-g0)/gT;
+    const pAnM=(m)=>{ if(G===CD) return (m-d0)/dT; if(m<=CD[i0]) return 0; if(m>=CD[i1]) return 1;
+      let lo=i0, hi=i1; while(hi-lo>1){ const mi=(lo+hi)>>1; if(CD[mi]<=m) lo=mi; else hi=mi; }
+      const sp=CD[hi]-CD[lo], f=sp>0?(m-CD[lo])/sp:0; return (G[lo]+(G[hi]-G[lo])*f-g0)/gT; };
     const n=stopsVal.length;
     const colAtVal=(v)=>{ if(v<=stopsVal[0]) return stopsCol[0]; if(v>=stopsVal[n-1]) return stopsCol[n-1];
       let i=0; while(i<n-1 && stopsVal[i+1]<=v) i++;
@@ -7707,7 +7729,7 @@ function mountAnimator(body, headerActions, opts) {
     const flat=(c)=>["interpolate",["linear"],["line-progress"], 0, c, 1, c];
     // DISTANZ-Modus: Wert = km, linear in progress; Kanten exakt an den Stops.
     if(!metricArr){
-      const pOfKm=(km)=>(km*1000-d0)/dT;
+      const pOfKm=(km)=>pAnM(km*1000);
       if(mode==="gradient"){
         // v0.9.439 — Stützstellen EXAKT an den Farb-Stops (feste Kilometer)
         // statt an einem Raster über die gezeichnete Länge. Vorher wanderte das
@@ -7732,7 +7754,7 @@ function mountAnimator(body, headerActions, opts) {
       const NG=80, stride=Math.max(1, Math.ceil((CD.length-1)/NG));
       const g=["interpolate",["linear"],["line-progress"], 0, colAtVal(metricArr[i0])];
       let lastp=0;
-      for(let i=i0+stride;i<i1;i+=stride){ const pi=(CD[i]-d0)/dT;
+      for(let i=i0+stride;i<i1;i+=stride){ const pi=pAnIdx(i);
         if(!(pi>lastp) || pi>=1) continue; lastp=pi; g.push(pi, colAtVal(metricArr[i])); }
       g.push(1, colAtVal(metricArr[i1]));
       return g;
@@ -7743,11 +7765,11 @@ function mountAnimator(body, headerActions, opts) {
     for(let j=i0+1;j<=i1;j++){
       const vb=bandAtVal(metricArr[j]);
       if(vb===prevBand) continue;
-      let p3=(CD[j]-d0)/dT;
+      let p3=pAnIdx(j);
       if(!(p3>0) || p3>=1){ prevBand=vb; continue; }
       // Verrauschte Daten: Grenzen unter 10 m Abstand zusammenfassen (absolut,
       // damit die Entscheidung nicht von der gezeichneten Länge abhängt).
-      if(lastB>=0 && (p3-lastB)*dT < 10){ prevBand=vb; continue; }
+      if(lastB>=0 && (p3-lastB)*gT < 10){ prevBand=vb; continue; }
       if(p3<=lastB) p3=lastB+1e-6;
       lastB=p3; st.push(p3, stopsCol[vb]); prevBand=vb; anyB=true;
     }
@@ -7786,7 +7808,8 @@ function mountAnimator(body, headerActions, opts) {
   /** Mit Verlauf: der Verlauf, die Verbindungsstücke der Etappen durchsichtig gestanzt. */
   function _verlaufAusdruck(i0, i1, metric) {
     const st = sortedColorStops();
-    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
+    if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();   // 18.10.2026 — Linienlänge für line-progress
+    let g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric, _cumGeoM);
     if (g && _segStarts && _segStarts.length) {
       if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
       g = gradLueckenStanzen(g, _cumGeoM, i0, i1, _segStarts);
@@ -17537,6 +17560,7 @@ function mountAnimator(body, headerActions, opts) {
       heileDoppelteKeyframes();
       // v0.9.506 — auch die Verteilung gehört zum Projekt.
       try { paceAusProjekt(); } catch (_) {}
+      try { _punkteAusProjekt(); } catch (e) { applog("warn", "[punkte] aus Projekt: " + e); }   // 18.10.2026 — Punktdichte gehört zum Projekt
       // v0.8.12 — Wenn das Projekt noch track_style=tube hatte, ins
       // line_style mergen.
       migrateTrackStyleToLineStyleIfNeeded();
@@ -18090,16 +18114,18 @@ function mountAnimator(body, headerActions, opts) {
   });
   // v0.9.21 — Slider-Wert ans aktive Projekt speichern (debounced via
   // saveProjectSettings's internem Patch-Akkumulator → kein Spam). 0 = alle.
+  // 18.10.2026 — gespeichert wird die DICHTE (punkte_abstand_m: null = Standard, 0 = alle, sonst Meter je Punkt),
+  // nicht mehr die Punktzahl: sie gilt so auch für eine andere Datei derselben Tour und bleibt beim Wiederöffnen exakt.
   document.getElementById("anim-pointcount")?.addEventListener("change", () => {
     const sl = document.getElementById("anim-pointcount");
     if (!sl || sl.disabled) return;
     const v = parseInt(sl.value);
     const mx = parseInt(sl.max);
-    const toSave = (v >= mx) ? 0 : v;
+    const toSave = _punkteAbstandAus(v, mx, _punkteStrecke());
     if (typeof saveProjectSettings === "function") {
-      saveProjectSettings(_MODKEY, { point_count: toSave });
+      saveProjectSettings(_MODKEY, { punkte_abstand_m: toSave });
     } else if (typeof saveSettings === "function") {
-      saveSettings({ animator: { point_count: toSave } });
+      saveSettings({ animator: { punkte_abstand_m: toSave } });
     }
   });
   // ── Laufpunkt (v0.9.509) ─────────────────────────────────────────────────
@@ -21484,10 +21510,9 @@ function mountAnimator(body, headerActions, opts) {
     if (map && _whenStyleReady("loadGpx", _nachLaden)) _nachLaden();
     renderOverlayPreview();  // jetzt haben wir Stats → echte Werte zeigen
 
-    // Punkte-Slider auf den geladenen Track kalibrieren.
-    // Max-Wert = volle Punkte-Anzahl des Tracks (aus stats.n_points).
-    // Initial: voll rechts (alle Punkte). User kann reduzieren.
-    configurePointCountSlider(res.stats.n_points);
+    // Punkte-Slider auf den geladenen Track kalibrieren (18.10.2026: Max = geladene Punkte, Standard = Dichte
+    // nach Strecke, siehe _punkteAusAbstand).
+    configurePointCountSlider(res.stats.n_points, (res.coords || []).length);   // 18.10.2026 — Regler zählt in geladenen Punkten
     try { paceAnzeigen(); } catch (_) {}
 
     toast(t("animator.toast.gpx_loaded", "GPX geladen: {name}", { name: res.name }), "success", 2500);
@@ -21504,40 +21529,129 @@ function mountAnimator(body, headerActions, opts) {
     return out;
   }
 
-  function configurePointCountSlider(nPoints) {
+  // 18.10.2026 (Marc: Punktdichte-Regler) — Nur der Regler entscheidet, wie viele Punkte die Linie nutzt. Bis hierher
+  // kamen höchstens 800 Punkte an (ein Punkt je 250 m auf einem 200-km-Tag, Kehren abgeschnitten), der Regler zeigte
+  // trotzdem „x / alle Punkte". Jetzt: das Backend schickt alle Punkte (bis zum technischen Maximum, stats.n_geladen),
+  // Standard ist eine Dichte nach Strecke (ein Punkt je PUNKTE_DICHTE_M Meter, kurze Touren nie gröber als bisher),
+  // ganz rechts = alle. Gespeichert wird die DICHTE (`punkte_abstand_m`: fehlt/null = Standard, 0 = alle, sonst Meter
+  // je Punkt) — der alte Schlüssel `point_count` wird nicht mehr gelesen (alte Projekte bekommen den neuen Standard).
+  // (Konstanten PUNKTE_DICHTE_M, PUNKTE_STANDARD_MIN, PUNKTE_REGLER_MIN stehen oben bei _spurRoh.)
+  /** Zielpunktzahl aus der Dichte: m == null → Standard, m == 0 → alle geladenen, sonst ein Punkt je m Meter. */
+  function _punkteAusAbstand(nGeladen, streckeM, m) {
+    const n = Math.max(0, nGeladen | 0);
+    if (n < 3) return n;
+    if (m === 0) return n;
+    if (!(streckeM > 0)) return n;
+    if (m == null || !(+m > 0)) return Math.min(n, Math.max(Math.min(n, PUNKTE_STANDARD_MIN), Math.round(streckeM / PUNKTE_DICHTE_M) + 1));
+    return Math.max(Math.min(n, PUNKTE_REGLER_MIN), Math.min(n, Math.round(streckeM / +m) + 1));
+  }
+  /** Gespeicherte Dichte des Haupt-Tracks: undefined/null = Standard, 0 = alle, > 0 = Meter je Punkt. */
+  function _punkteAbstandGespeichert() {
+    const a = _activeProject?.[_MODKEY];
+    const v = (a && "punkte_abstand_m" in a) ? a.punkte_abstand_m : _settingsCache?.[_MODKEY]?.punkte_abstand_m;
+    return (v === 0 || v === "0") ? 0 : ((v != null && isFinite(+v) && +v > 0) ? +v : null);
+  }
+  function _punkteStrecke() {
+    if (_gpxStats && +_gpxStats.distance_km > 0) return +_gpxStats.distance_km * 1000;
+    let c = null; try { c = _ovSeries && _ovSeries.cumDistM; } catch (_) {}   // ohne Stats (Prüfstand): Strecke der Reihe, sonst Länge der Linie
+    if (Array.isArray(c) && c.length && +c[c.length - 1] > 0) return +c[c.length - 1];
+    if (Array.isArray(_spurRoh) && _spurRoh.length > 1) { const m = _cumDistBerechnen(_spurRoh); return m[m.length - 1] || 0; }
+    return 0;
+  }
+  /** Strecke einer Zusatz-Tour in Metern (Stats, sonst Reihe, sonst Länge der Linie). */
+  function _tourStrecke(tr) {
+    if (tr && tr.stats && +tr.stats.distance_km > 0) return +tr.stats.distance_km * 1000;
+    if (tr && Array.isArray(tr.dist) && tr.dist.length > 1) return Math.max(0, +tr.dist[tr.dist.length - 1] - +tr.dist[0]);
+    if (tr && Array.isArray(tr.coords) && tr.coords.length > 1) {
+      if (!tr.__strecke || tr.__strecke.co !== tr.coords) { const m = _cumDistBerechnen(tr.coords); tr.__strecke = { co: tr.coords, m: m[m.length - 1] || 0 }; }
+      return tr.__strecke.m;
+    }
+    return 0;
+  }
+  function _punkteAlle(nGeladen) { return Math.max(nGeladen | 0, (_gpxStats && +_gpxStats.n_points) || 0); }
+  function _punkteAbstandText(m) {
+    const spr = window.rzSprachCode ? window.rzSprachCode() : undefined;
+    if (!(m > 0) || !isFinite(m)) return "–";
+    if (m >= 1000) return (m / 1000).toLocaleString(spr, { maximumFractionDigits: 1 }) + " km";
+    if (m < 9.95) return m.toLocaleString(spr, { maximumFractionDigits: 1 }) + " m";
+    return Math.round(m).toLocaleString(spr) + " m";
+  }
+  /** „1 Punkt alle 10 m · 12.000 von 48.000" (+ „· Höchstwert", wenn die Datei mehr Punkte hat als die Vorschau nimmt). */
+  function _punkteText(v, nGeladen, nAlle, streckeM) {
+    const spr = window.rzSprachCode ? window.rzSprachCode() : undefined;
+    const abst = (v > 1 && streckeM > 0) ? streckeM / (v - 1) : 0;
+    let s = t("animator.punkte.text", "1 Punkt alle {abstand} · {n} von {alle}", {
+      abstand: _punkteAbstandText(abst), n: (v | 0).toLocaleString(spr), alle: (nAlle | 0).toLocaleString(spr) });
+    if (v >= nGeladen && nAlle > nGeladen) s += " · " + t("animator.punkte.deckel", "Höchstwert");
+    return s;
+  }
+  /** Log-Skala des sichtbaren Reglers (0 … 1000) ↔ Punktzahl (PUNKTE_REGLER_MIN … nGeladen). */
+  function _punkteAusPos(pos, nGeladen) {
+    const n = Math.max(1, nGeladen | 0), lo = Math.log(Math.min(n, PUNKTE_REGLER_MIN)), hi = Math.log(n);
+    const p = Math.max(0, Math.min(1000, +pos || 0));
+    return p >= 1000 ? n : Math.max(Math.min(n, PUNKTE_REGLER_MIN), Math.min(n, Math.round(Math.exp(lo + (hi - lo) * p / 1000))));
+  }
+  function _punktePosAus(v, nGeladen) {
+    const n = Math.max(1, nGeladen | 0), lo = Math.log(Math.min(n, PUNKTE_REGLER_MIN)), hi = Math.log(n);
+    if (!(hi > lo)) return 1000;
+    return Math.max(0, Math.min(1000, Math.round(1000 * (Math.log(Math.max(1, v)) - lo) / (hi - lo))));
+  }
+  /** Dichte zum Speichern aus einer Punktzahl: null = Standard, 0 = alle, sonst Meter je Punkt. */
+  function _punkteAbstandAus(v, nGeladen, streckeM) {
+    if (v >= nGeladen) return 0;
+    if (v === _punkteAusAbstand(nGeladen, streckeM, null)) return null;
+    return (streckeM > 0 && v > 1) ? Math.round(streckeM / (v - 1) * 100) / 100 : null;
+  }
+
+  function configurePointCountSlider(nPoints, nGeladen) {
     const sl = document.getElementById("anim-pointcount");
     const lbl = document.getElementById("anim-pointcount-v");
     if (!sl || !lbl) return;
+    const n = (nGeladen | 0) || (_spurRoh ? _spurRoh.length : 0) || (nPoints | 0);
+    const alle = _punkteAlle(n);
     // Min = 10 (sonst sieht der Track aus wie ein Polygon mit 5 Ecken).
-    // Wenn der Track sehr klein ist (< 10 Punkte): Slider unsinnig — deaktivieren.
-    if (!nPoints || nPoints < 20) {
+    // Wenn der Track sehr klein ist (< 20 Punkte): Slider unsinnig — deaktivieren.
+    if (!n || n < 20) {
       sl.disabled = true;
-      lbl.textContent = nPoints ? `${nPoints} / ${nPoints}` : "— / —";
+      lbl.textContent = n ? _punkteText(n, n, alle, _punkteStrecke()) : "—";
+      try { _punkteReglerSync(); } catch (_) {}
       return;
     }
     sl.disabled = false;
-    sl.min = 10;
-    sl.max = nPoints;
-    // v0.9.21 — persistierten Wert aus dem aktiven Projekt restoren statt
-    // immer auf max zu setzen. Convention: 0 = „alle Punkte" (Default).
-    // Marc-Spec 2026-05-24: „trackpunkte also wenn man reduziert, das wird
-    // nicht im projekt/in der session gespeichert".
+    sl.min = PUNKTE_REGLER_MIN;
+    sl.max = n;   // 18.10.2026 — ganz rechts = alle geladenen Punkte (vorher n_points, obwohl nur 800 ankamen)
     // v0.9.506 — Verteilung aus dem Projekt herstellen.
     paceAusProjekt();
-
-    const stored = (_activeProject?.[_MODKEY] && "point_count" in _activeProject[_MODKEY])
-      ? _activeProject[_MODKEY].point_count
-      : (_settingsCache?.[_MODKEY]?.point_count ?? 0);
-    const restored = (stored > 0)
-      ? Math.min(Math.max(10, stored), nPoints)
-      : nPoints;
-    sl.value = String(restored);
-    lbl.textContent = `${restored} / ${nPoints}`;
-    // currentCoords sind die downsampled-800-Punkte aus dem Bridge-Load.
-    // Wir merken sie einmal als „voll" — Slider-Drag resampelt davon weiter.
+    const v = _punkteAusAbstand(n, _punkteStrecke(), _punkteAbstandGespeichert());
+    sl.value = String(v);
+    lbl.textContent = _punkteText(v, n, alle, _punkteStrecke());
+    try { _punkteReglerSync(); } catch (_) {}
     // 30.09.2026 — immer: der Regler steht jetzt auf dem Projektwert; Spur daraus neu bauen
-    // (drawPreview hat ohne Punkte-Reduktion gezeichnet, weil der Regler da noch vom vorigen Projekt stand).
+    // (drawPreview hat mit dem Reglerstand des vorigen Tracks gezeichnet).
     _spurNeu();
+  }
+  /** 18.10.2026 — Projektwechsel/Undo: Dichte neu aus dem Projekt lesen; Spur nur neu, wenn sich die Zahl ändert. */
+  function _punkteAusProjekt() {
+    const sl = document.getElementById("anim-pointcount");
+    if (!sl || sl.disabled || !_spurRoh) return;
+    const n = parseInt(sl.max) || _spurRoh.length;
+    const v = _punkteAusAbstand(n, _punkteStrecke(), _punkteAbstandGespeichert());
+    if (v === parseInt(sl.value)) return;
+    sl.value = String(v);
+    applyPointCountToPreview();
+  }
+  /** Sichtbarer Regler im Track-Editor (Eintrag 1) folgt dem Speicher-Regler #anim-pointcount. */
+  function _punkteReglerSync() {
+    const sl = document.getElementById("anim-pointcount");
+    if (!sl) return;
+    const n = parseInt(sl.max) || 0, v = parseInt(sl.value) || n;
+    const txt = (document.getElementById("anim-pointcount-v") || {}).textContent || "";
+    document.querySelectorAll('[data-punkte="haupt"]').forEach((inp) => {
+      inp.disabled = sl.disabled;
+      if (document.activeElement !== inp) inp.value = String(_punktePosAus(v, n));
+      const b = inp.closest(".anim-stil-zeile")?.querySelector("[data-punkte-v]");
+      if (b) b.textContent = txt;
+    });
   }
 
 
@@ -21545,18 +21659,16 @@ function mountAnimator(body, headerActions, opts) {
   // Scrubben, im Probelauf und damit im Video liefen Linie, Laufpunkt und Kamera auf allen Punkten.
   // Jetzt baut _punkteReduziert eine Spur mit DERSELBEN Punktzahl: die behaltenen Punkte stehen an
   // ihrem Index, dazwischen gerade Verbindungen. Form = reduzierte Linie, alle Reihen am Punkt-Index
-  // (Höhen, Zeiten, Anker, Tempo) stimmen weiter. currentCoords = glätten(reduziert(roh)) — dieselbe
-  // Reihenfolge wie der klassische Render (_punkte_verteilen: verteilen, dann spur_glaetten).
+  // (Höhen, Zeiten, Anker, Tempo) stimmen weiter.
   function _punkteZiel(n) {
     const sl = document.getElementById("anim-pointcount");
     if (!sl || sl.disabled || !n) return n;
     const v = parseInt(sl.value), maxN = parseInt(sl.max);
     if (!(v > 0) || !(maxN > 0) || v >= maxN) return n;
-    // Tester-Befund (ein Beta-Tester, 29.08.2026): proportional (800·v/maxN) landete
-    // links bei 2 Punkten — bei einer RUNDTOUR ist Start≈Ziel und die Linie
-    // unsichtbar („keine Spur zu sehen"). Bis 800 nehmen wir v DIREKT (der
-    // Render nutzt ja auch genau v Punkte), erst darüber proportional.
-    return Math.max(3, Math.min(n, v <= n ? v : Math.round(n * (v / maxN))));
+    // 18.10.2026 — der Regler zählt in Punkten der geladenen Spur (max = n). Steht er noch auf einem anderen Track
+    // (anderes max), anteilig umrechnen. Mindestens 3 Punkte (Tester-Befund 29.08.2026: 2 Punkte bei einer Rundtour =
+    // Start≈Ziel, unsichtbare Linie).
+    return Math.max(3, Math.min(n, maxN === n ? v : Math.round(n * (v / maxN))));
   }
   function _punkteReduziert(roh) {
     const n = roh ? roh.length : 0, t = _punkteZiel(n);
@@ -21576,10 +21688,32 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzSpurStand = () => ({ roh: _spurRoh ? _spurRoh.length : null, jetzt: currentCoords ? currentCoords.length : null,
     ziel: _punkteZiel(currentCoords ? currentCoords.length : 0), reduziert: !!(_spurRoh && currentCoords && _spurRoh !== currentCoords),
     reise: _reiseGilt() });   // Prüfstand
+  // 18.10.2026 — Prüfstand Punktdichte: Zielzahl, geladene/alle Punkte, Strecke, Beschriftung, gespeicherte Dichte
+  window.__rzPunkteStand = () => {
+    const sl = document.getElementById("anim-pointcount"), n = _spurRoh ? _spurRoh.length : 0;
+    return { ziel: _punkteZiel(n), geladen: n, alle: _punkteAlle(n), strecke_m: _punkteStrecke(), standard: _punkteAusAbstand(n, _punkteStrecke(), null),
+             gespeichert: _punkteAbstandGespeichert(), regler: sl ? { wert: parseInt(sl.value), max: parseInt(sl.max), aus: sl.disabled } : null,
+             text: (document.getElementById("anim-pointcount-v") || {}).textContent || "", dichte_m: PUNKTE_DICHTE_M };
+  };
+  window.__rzSpurKoords = () => (currentCoords || []).map(c => [c[0], c[1]]);   // Prüfstand
+  /** 18.10.2026 — Prüfstand abgeleitete Werte: Live-Reihen des Haupt-Tracks und Farbwechsel-Reihen der Zusatz-Touren
+   *  (Tempo/Steigung/Strecke je Punkt), dazu die Farbe je gezeichnetem Punkt einer Zusatz-Tour. */
+  window.__rzAbgeleitet = () => {
+    let sr = null; try { sr = _ovSeries; } catch (_) {}
+    const touren = (_extraTours || []).map(tr => { let v = null; try { v = _fwVoll(tr); } catch (_) {}
+      const d = (() => { try { return _tourGeduennt(tr); } catch (_) { return null; } })();
+      return { pfad: tr.gpx_path, n: (tr.coords || []).length, speed: v && v.speed, grade: v && v.grade, km: v && v.km,
+               duenn_n: d && d.coords ? d.coords.length : 0 }; });
+    return { n: currentCoords ? currentCoords.length : 0, speed: sr && sr.speedKmh, grade: sr && sr.gradePct, dist: sr && sr.cumDistM, touren };
+  };
   function applyPointCountToPreview() {
     const sl = document.getElementById("anim-pointcount");
     const lbl = document.getElementById("anim-pointcount-v");
-    if (sl && lbl && !sl.disabled) lbl.textContent = `${parseInt(sl.value)} / ${parseInt(sl.max)}`;
+    if (sl && lbl && !sl.disabled) {
+      const n = parseInt(sl.max) || 0;
+      lbl.textContent = _punkteText(parseInt(sl.value) || n, n, _punkteAlle(n), _punkteStrecke());   // 18.10.2026
+    }
+    try { _punkteReglerSync(); } catch (_) {}
     _spurNeu();
   }
 
@@ -21955,7 +22089,7 @@ function mountAnimator(body, headerActions, opts) {
     if (map) drawPreview(res);
     else applog("warn", "[applyGlobalGpx] map is null — skipping drawPreview");
     renderOverlayPreview();
-    configurePointCountSlider(res.stats.n_points);
+    configurePointCountSlider(res.stats.n_points, (res.coords || []).length);   // 18.10.2026 — Regler zählt in geladenen Punkten
     try { paceAnzeigen(); } catch (_) {}
     _demVorwaermen(res.coords);
     try { _flugAuto(path); } catch (e) { applog("warn", "[flug3d] automatisch: " + e); }
@@ -21997,9 +22131,21 @@ function mountAnimator(body, headerActions, opts) {
     if (lbl) lbl.textContent = Math.round(m) + " m";
     // 14.10.2026 (Marc: im neuen leeren Projekt „immer noch der Track vom alten Projekt“) — ohne Track nichts zurückholen:
     // die Rohspur des letzten Tracks lag noch hier, und das Neuladen der Einstellungen setzte sie wieder als Linie ein
-    if (!_spurRoh || !currentGpx || _reiseGilt()) return;
+    if (!_spurRoh || !currentGpx) return;
+    // 18.10.2026 — Reise: auch die erste Etappe folgt ihrer Punktdichte (vorher wirkte der Regler hier nicht, und
+    // drawPreview reduzierte mit dem Reglerstand des vorigen Tracks). Neu gebaut wird nur, wenn sich die Zahl ändert.
+    if (_reiseGilt()) {
+      const z = _punkteZiel(_spurRoh.length);
+      if (z === _reiseBasisZiel) return;
+      _reiseBasis = _spurAnwenden(_spurRoh, m);
+      _reiseBasisZiel = z;
+      try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] Punktdichte: " + e); }
+      try { dotSetzen(_dotFracZuletzt); } catch (_) {}
+      return;
+    }
     currentCoords = _spurAnwenden(_spurRoh, m);
     _reiseBasis = currentCoords;
+    _reiseBasisZiel = _punkteZiel(_spurRoh.length);
     _hlBeimLaden();   // Highlight-Schilder sitzen auf der geglätteten Linie
     try { refreshPreviewTrackData(); } catch (_) {}
     try { applyGhost(); } catch (_) {}
@@ -22039,6 +22185,7 @@ function mountAnimator(body, headerActions, opts) {
     // 08.09.2026 — die erste Etappe merken; bei einer Reise ersetzt die
     // Etappen-Bahn den Track (siehe _reiseAnwenden).
     _reiseBasis = currentCoords;
+    _reiseBasisZiel = _punkteZiel(res.coords ? res.coords.length : 0);
     _reiseBasisSerie = res.series || null;      // Reihen der ERSTEN Etappe
     _reiseBasisEle = res.elevations || null;
     _reiseBahn = null;
@@ -22109,6 +22256,7 @@ function mountAnimator(body, headerActions, opts) {
       heileDoppelteKeyframes();
       // v0.9.506 — auch die Verteilung gehört zum Projekt.
       try { paceAusProjekt(); } catch (_) {}
+      try { _punkteAusProjekt(); } catch (e) { applog("warn", "[punkte] aus Projekt: " + e); }   // 18.10.2026 — Punktdichte gehört zum Projekt
       migrateTrackStyleToLineStyleIfNeeded();
       migrateCameraToPropertyEventsIfNeeded();
       migrateKeyframesEnabledIfNeeded();
@@ -22490,8 +22638,9 @@ function mountAnimator(body, headerActions, opts) {
       <div class="anim-stil-zeile" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label>${t("animator.blass.color", "Farbe der blassen Strecke")}</label>
         <input type="color" data-blass="color" value="${_animEscapeHtml(blass.color)}"></div>
       ${ziel === "haupt" ? `<div class="anim-stil-zeile ist-check" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label><input type="checkbox" data-blass="dashed"${document.getElementById("anim-ghost-dashed")?.checked ? " checked" : ""}> ${t("animator.blass.dashed", "Gestrichelt")}</label></div>` : ""}
-      <div class="anim-stil-zeile"><label>${t("animator.stil.reduce", "Punkte")} <b data-v="reduce_pct">${st.reduce_pct}</b> %</label>
-        <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>
+      ${(() => { const pi = _tourPunkteInfo(ziel, tr);   // 18.10.2026 — Punktdichte (log. Regler, ganz rechts = alle)
+        return `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.point_count.hint", ""))}"><label>${t("animator.stil.reduce", "Punkte")} <b data-punkte-v>${_animEscapeHtml(pi.text)}</b></label>
+        <input type="range" data-punkte="${ziel === "haupt" ? "haupt" : "tour"}" min="0" max="1000" step="1" value="${_punktePosAus(pi.v, pi.n)}"${pi.n < 20 ? " disabled" : ""}></div>`; })()}
       ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.spur_glatt.hint", ""))}"><label>${t("animator.spur_glatt", "Pfeil und Kamera beruhigen")} <b data-spur-glatt-v>${Math.round(_spurGlattM())}</b> m</label>
         <input type="range" data-spur-glatt min="0" max="200" step="5" value="${Math.round(_spurGlattM())}"></div>` : ""}
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
@@ -22589,9 +22738,27 @@ function mountAnimator(body, headerActions, opts) {
         if (k === "dot_show" || k === "dot_style") sicht();
         _stilSetzen(ziel, { [k]: wert });
       };
-      inp.addEventListener("input", () => { zeig(); if (k !== "reduce_pct" || ziel === "haupt") anwenden(); });
+      inp.addEventListener("input", () => { zeig(); anwenden(); });
       inp.addEventListener("change", () => { zeig(); anwenden(); });
     });
+    // 18.10.2026 — Punktdichte: Haupt-Track bedient den Speicher-Regler #anim-pointcount (Punkte der geladenen Spur),
+    // Zusatz-Touren speichern ihre Dichte im Stil (punkte_m: fehlt = wie Track 1, 0 = alle, sonst Meter je Punkt).
+    { const pr = el.querySelector("[data-punkte]");
+      if (pr) {
+        const info = () => _tourPunkteInfo(ziel, tr);
+        const zeigP = (v) => { const pi = info(), b = el.querySelector("[data-punkte-v]"); if (b) b.textContent = _punkteText(v, pi.n, pi.alle, pi.strecke); };
+        pr.addEventListener("input", () => {
+          const pi = info(), v = _punkteAusPos(pr.value, pi.n);
+          if (ziel === "haupt") { const sl = document.getElementById("anim-pointcount"); if (sl && !sl.disabled) { sl.value = String(v); sl.dispatchEvent(new Event("input", { bubbles: true })); } }
+          zeigP(v);
+        });
+        pr.addEventListener("change", () => {
+          const pi = info(), v = _punkteAusPos(pr.value, pi.n);
+          if (ziel === "haupt") { const sl = document.getElementById("anim-pointcount"); if (sl && !sl.disabled) { sl.value = String(v); sl.dispatchEvent(new Event("change", { bubbles: true })); } }
+          else _stilSetzen(ziel, { punkte_m: _punkteAbstandAus(v, pi.n, pi.strecke) });
+          zeigP(v);
+        });
+      } }
     // 11.10.2026 (Marc: „wo finde ich Spur glätten?“ — der Regler war beim Umzug nach rechts liegen geblieben) — bedient
     // das unsichtbare Feld #anim-spur-glatt, das gespeichert und gerendert wird (bindSetting spur_glaetten_m)
     { const sg = el.querySelector("[data-spur-glatt]"), alt = document.getElementById("anim-spur-glatt");
@@ -22776,7 +22943,7 @@ function mountAnimator(body, headerActions, opts) {
       .concat(_extraTours.map((tr, i) => ({ key: String(i), name: tr.name || _dateiName(tr.gpx_path) })));
     const felder = [["width", t("animator.field.line_width", "Track-Dicke"), true], ["line_style", t("animator.stil.stil_abstand", "Stil + Abstand"), true],
                     ["shadow", t("animator.field.shadow_strength", "Schatten"), true], ["glow", t("animator.field.glow_strength", "Glow"), true],
-                    ["reduce_pct", t("animator.stil.reduce", "Punkte (%)"), true], ["dot", t("animator.dot.show", "Laufpunkt"), true],
+                    ["punkte_m", t("animator.stil.reduce", "Punkte"), true], ["dot", t("animator.dot.show", "Laufpunkt"), true],
                     ["opacity", t("animator.stil.deckkraft", "Deckkraft"), true],
                     ["color", t("animator.tours.color", "Farbe"), false]];
     const m = openModal({
@@ -22802,7 +22969,7 @@ function mountAnimator(body, headerActions, opts) {
       if (gew.has("line_style")) { patch.line_style = src.line_style; patch.spacing = src.spacing; }
       if (gew.has("shadow")) patch.shadow = src.shadow;
       if (gew.has("glow")) patch.glow = src.glow;
-      if (gew.has("reduce_pct")) patch.reduce_pct = src.reduce_pct;
+      if (gew.has("punkte_m")) patch.punkte_m = src.punkte_m;   // 18.10.2026 — Punktdichte statt Prozent
       if (gew.has("dot")) { patch.dot_show = src.dot_show; patch.dot_style = src.dot_style; patch.dot_size = src.dot_size; }
       if (gew.has("opacity")) patch.opacity = src.opacity;
       if (q !== "haupt") { _stilSetzenHaupt(patch); if (gew.has("color") && srcFarbe) { const f = document.getElementById("anim-color"); if (f) { f.value = srcFarbe; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); } } }
@@ -23335,7 +23502,11 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _cumDistFuer(traeger, coords) {
     if (!traeger.__rzCum || traeger.__rzCumRef !== coords) {
-      traeger.__rzCum = _cumDistBerechnen(coords);
+      // 18.10.2026 (Punktdichte) — echte Strecke aus der Reihe der vollen Tour, wenn sie zu diesen Punkten gehört
+      // (Zusatz-Tour: tr.dist; Haupt-Track: _ovSeries.cumDistM). Die Länge der Linie hing an der Punktdichte.
+      const d = (traeger === _swHauptCum) ? (_ovSeries && _ovSeries.cumDistM) : traeger.dist;
+      traeger.__rzCum = (Array.isArray(d) && coords && d.length === coords.length && d.length > 1)
+        ? d.map(x => (+x || 0) - (+d[0] || 0)) : _cumDistBerechnen(coords);
       traeger.__rzCumRef = coords;
     }
     return traeger.__rzCum;
@@ -23528,7 +23699,10 @@ function mountAnimator(body, headerActions, opts) {
           if (achse) zeit = idx ? idx.map(k => achse[k]) : achse;
         }
         const st = _stilVon(tour);   // 09.09.2026 — Aussehen je Tour (Linie UND Laufpunkt)
-        liste.push({ coords, cum: _cumDistBerechnen(coords), zeit,
+        // 18.10.2026 — Strecke je Punkt aus der vollen Tour (tour.dist), nicht aus der ausgedünnten Linie
+        const _dq = Array.isArray(tour.dist) && tour.dist.length === tour.coords.length ? tour.dist : null;
+        const _cum = _dq ? (idx ? idx.map(k => (+_dq[k] || 0) - (+_dq[0] || 0)) : _dq.map(x => (+x || 0) - (+_dq[0] || 0))) : _cumDistBerechnen(coords);
+        liste.push({ coords, cum: _cum, zeit,
                      dauer: zeit ? zeit[zeit.length - 1] : 0,
                      color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path, quelle: tour.tr || tour,
                      width: Math.max(0.5, +st.width || lw), stil: st,
@@ -23912,6 +24086,13 @@ function mountAnimator(body, headerActions, opts) {
     const n = String(resName || "").trim();
     return n || gesetzt || datei;
   }
+  /** 18.10.2026 — Reihe der ersten Tour, index-gleich zu _reiseBasis (sonst null). */
+  function _hauptReihe(k) {
+    const sr = _reiseBasisSerie, n = (_reiseBasis || currentCoords || []).length;
+    if (!sr || !n) return null;
+    if ((k === "speedKmh" && sr.has_time === false) || ((k === "gradePct" || k === "ele") && sr.has_ele === false)) return null;
+    return (Array.isArray(sr[k]) && sr[k].length === n) ? sr[k] : null;
+  }
   function _tourPool() {
     const raus = [];
     if (currentGpx) {
@@ -23922,7 +24103,9 @@ function mountAnimator(body, headerActions, opts) {
                   // 26.09.2026 — Uhrzeit je Punkt + Zeitzone (Reise: „Datum & Uhrzeit" je Etappe)
                   epochs: (_reiseBasisSerie && _reiseBasisSerie.epochS) || null,
                   tz: (_reiseBasisSerie && _reiseBasisSerie.tz_offset_min) || 0,
-                  ele: _reiseBasisEle || null, stats: _gpxStats || null, haupt: true, tr: null,
+                  // 18.10.2026 — Höhe/Strecke/Tempo/Steigung je Punkt der vollen Tour (index-gleich zu _reiseBasis), statt 200 Höhen
+                  ele: _hauptReihe("ele") || _reiseBasisEle || null, dist: _hauptReihe("cumDistM"), speed: _hauptReihe("speedKmh"),
+                  grade: _hauptReihe("gradePct"), stats: _gpxStats || null, haupt: true, tr: null,
                   etappe: (_hauptEt() || {}).etappe || null, flach: _hauptEt() ? _hauptFlach : null });   // 07.10.2026 Punkt 10
     }
     _extraTours.forEach((t, i) => { const d = _tourGeduennt(t); raus.push({
@@ -23930,6 +24113,7 @@ function mountAnimator(body, headerActions, opts) {
       line_color: t.line_color || "#35a7ff", zeit: Array.isArray(d.zeit) ? d.zeit : null,
       epochs: Array.isArray(d.epochs) ? d.epochs : null, tz: +t.tz || 0,   // 26.09.2026
       ele: _hoehenAnPunkte(d.ele, d.coords ? d.coords.length : 0),   // 09.09.2026 — 200 Höhen zu 800 Punkten: abbilden statt verwerfen
+      dist: d.dist || null, speed: d.speed || null, grade: d.grade || null,   // 18.10.2026 — echte Reihen je Punkt (_tourGeduennt)
       stats: t.stats || null, haupt: false, tr: t, extraIdx: i,
       // 07.10.2026 — geplante Etappe (Dauer nach Verkehrsmittel, flache Punkte, Zeit hält an)
       etappe: t.etappe || null, flach: Array.isArray(d.flach) ? d.flach : null }); });
@@ -23941,7 +24125,8 @@ function mountAnimator(body, headerActions, opts) {
   // im Projekt (extra_tours[i].stil); fehlt ein Feld (alte Projekte), gilt Track 1.
   // 09.09.2026 (Marc: „warum ist das global? das könnte man doch auch auf
   // Trackebene ziehen") — der Laufpunkt (zeigen, Form, Größe) gehört auch dazu.
-  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "reduce_pct", "dot_show", "dot_style", "dot_size", "opacity"];
+  // 18.10.2026 — „reduce_pct“ (Prozent von 800 geladenen Punkten) ersetzt durch „punkte_m“ (Punktdichte, siehe _punkteAusAbstand)
+  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "punkte_m", "dot_show", "dot_style", "dot_size", "opacity"];
   /** §72 Q10 — Deckkraft eines Stils (0.05 … 1), fehlt sie: 1. */
   function _deckkraft(st) { const o = st ? +st.opacity : NaN; return isFinite(o) ? Math.max(0.05, Math.min(1, o)) : 1; }
   /** §72 Q14 — Deckkraft der blassen ganzen Strecke (Prozent 5 … 80 wie bei der Haupt-Tour, Standard 30). */
@@ -23955,19 +24140,32 @@ function mountAnimator(body, headerActions, opts) {
       if (map.getLayer(id)) map.setPaintProperty(id, "line-opacity", basis * o);
     try { applyLinienLook(); } catch (_) {}
   }
-  // Der Punkte-Regler von Track 1 (#anim-pointcount) zählt in PUNKTEN (10 … n),
-  // das Panel in Prozent — hier wird umgerechnet.
-  function _hauptPunkteProzent() {
-    const sl = document.getElementById("anim-pointcount");
-    if (!sl || sl.disabled) return 100;
-    const mx = parseInt(sl.max) || 100, v = parseInt(sl.value) || mx;
-    return Math.max(10, Math.min(100, Math.round(v / mx * 100)));
+  /** 18.10.2026 — Punktdichte einer Tour fürs Track-Panel: geladene Punkte n, Zielzahl v, alle Punkte, Strecke, Text. */
+  function _tourPunkteInfo(ziel, tr) {
+    let n, v, alle, strecke;
+    if (ziel === "haupt" || !tr) {
+      const sl = document.getElementById("anim-pointcount");
+      n = sl ? (parseInt(sl.max) || 0) : 0; v = sl ? (parseInt(sl.value) || n) : n;
+      if (!sl || sl.disabled) { n = _spurRoh ? _spurRoh.length : 0; v = n; }
+      alle = _punkteAlle(n); strecke = _punkteStrecke();
+    } else {
+      n = (tr.coords || []).length;
+      strecke = _tourStrecke(tr);
+      alle = Math.max(n, (tr.stats && +tr.stats.n_points) || 0);
+      v = n < 20 ? n : _punkteAusAbstand(n, strecke, _tourPunkteAbstand(tr));
+    }
+    return { n, v, alle, strecke, text: n ? _punkteText(v, n, alle, strecke) : "—" };
+  }
+  /** Dichte einer Zusatz-Tour: eigener Stil, sonst wie Track 1 (null = Standard, 0 = alle, sonst Meter je Punkt). */
+  function _tourPunkteAbstand(tr) {
+    const m = _stilVon(tr).punkte_m;
+    return (m === 0 || m === "0") ? 0 : ((m != null && m !== "" && isFinite(+m) && +m > 0) ? +m : null);
   }
   function _stilVonHaupt() {
     const v = (id, d) => { const el = document.getElementById(id); const x = el ? parseFloat(el.value) : NaN; return isFinite(x) ? x : d; };
     return { width: v("anim-lw", 3.5), line_style: document.getElementById("anim-line-style")?.value || "solid",
              spacing: v("anim-line-spacing", 1), shadow: v("anim-shadow-strength", 0), glow: v("anim-glow-strength", 0),
-             reduce_pct: _hauptPunkteProzent(),
+             punkte_m: _punkteAbstandGespeichert(),
              dot_show: dotZeigen(), dot_style: dotStil(), dot_size: dotGroesse(), opacity: _hauptDeckkraft() };
   }
   function _stilSetzenHaupt(patch) {
@@ -23978,9 +24176,12 @@ function mountAnimator(body, headerActions, opts) {
     if (patch.spacing != null) setz("anim-line-spacing", patch.spacing);
     if (patch.shadow != null) setz("anim-shadow-strength", patch.shadow);
     if (patch.glow != null) setz("anim-glow-strength", patch.glow);
-    if (patch.reduce_pct != null) {
+    if ("punkte_m" in patch) {   // 18.10.2026 — Punktdichte übernehmen (null = Standard, 0 = alle)
       const sl = document.getElementById("anim-pointcount");
-      if (sl && !sl.disabled) { const mx = parseInt(sl.max) || 100; setz("anim-pointcount", Math.max(10, Math.round(mx * Math.max(10, Math.min(100, +patch.reduce_pct)) / 100))); }
+      if (sl && !sl.disabled) {
+        const m = patch.punkte_m;
+        setz("anim-pointcount", _punkteAusAbstand(parseInt(sl.max) || 0, _punkteStrecke(), (m === 0 || m === "0") ? 0 : ((m != null && +m > 0) ? +m : null)));
+      }
     }
     if (patch.dot_show != null) { const cb = document.getElementById("anim-dot-show"); if (cb) { cb.checked = !!patch.dot_show; cb.dispatchEvent(new Event("change", { bubbles: true })); } }
     if (patch.dot_style != null) setz("anim-dot-style", patch.dot_style);
@@ -24004,9 +24205,11 @@ function mountAnimator(body, headerActions, opts) {
     if (ziel === "haupt") { _stilSetzenHaupt(patch); return; }
     const tr = _extraTours[ziel]; if (!tr) return;
     tr.stil = Object.assign({}, tr.stil || {}, patch);
-    if (patch.reduce_pct != null) tr.__duenn = null;
+    if ("punkte_m" in patch) tr.__duenn = null;
     _animPersistTours();
     try { _animDrawExtraToursPreview(); } catch (_) {}
+    // 18.10.2026 — Punktdichte einer Etappe ändert die Reise-Bahn (vorher wirkte „Punkte %“ dort erst beim Neuaufbau)
+    if ("punkte_m" in patch && _reiseGilt()) { try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] Punktdichte Etappe: " + e); } }
     try { _bahnStilAnwenden(); } catch (_) {}   // die Tour könnte vorne in der Kette liegen
     try { if (patch.dot_show != null || patch.dot_style != null || patch.dot_size != null) dotEbenenAufbauen(); } catch (e) { applog("warn", "[anim-dot] je Track: " + e); }
   }
@@ -24019,18 +24222,21 @@ function mountAnimator(body, headerActions, opts) {
     const f = (layerW > 0 && st.width > 0) ? st.width / layerW : 1;
     return base.map(v => v * sp * f);
   }
-  /** Punktreduzierung je Zusatz-Tour (Prozent der Punkte), mit Höhen und Zeiten
-   *  im Gleichschritt; gemerkt an der Tour, bis sich das Prozent ändert. */
+  /** Punktreduzierung je Zusatz-Tour, mit allen Reihen im Gleichschritt; gemerkt an der Tour, bis sich die Zahl ändert.
+   *  18.10.2026 — nach Punktdichte (wie Track 1: Standard ein Punkt je PUNKTE_DICHTE_M Meter, 0 = alle) statt Prozent;
+   *  dazu Strecke, Tempo, Steigung und Höhe JE PUNKT aus der vollen Tour (dist/speed/grade/eleV), damit Farbwechsel,
+   *  Reise-Reihen und Schwarm-Summen nicht aus der ausgedünnten Linie geschätzt werden. */
   function _tourGeduennt(tr) {
-    const st = _stilVon(tr);
-    const pct = Math.max(10, Math.min(100, +st.reduce_pct || 100));
-    if (pct >= 100 || !tr.coords || tr.coords.length < 20) return { coords: tr.coords, ele: tr.ele, zeit: tr.zeit, epochs: tr.epochs, flach: tr.flach };
-    if (tr.__duenn && tr.__duenn.pct === pct && tr.__duenn.n === tr.coords.length) return tr.__duenn;
-    const n = tr.coords.length, ziel = Math.max(10, Math.round(n * pct / 100));
+    const n = tr.coords ? tr.coords.length : 0;
+    const eleN = () => (Array.isArray(tr.eleV) && tr.eleV.length === n) ? tr.eleV : _hoehenAnPunkte(tr.ele, n);
+    const ziel = n < 20 ? n : _punkteAusAbstand(n, _tourStrecke(tr), _tourPunkteAbstand(tr));
+    if (ziel >= n) return { coords: tr.coords, ele: n ? eleN() : tr.ele, zeit: tr.zeit, epochs: tr.epochs, flach: tr.flach,
+                            dist: tr.dist || null, speed: tr.speed || null, grade: tr.grade || null };
+    if (tr.__duenn && tr.__duenn.ziel === ziel && tr.__duenn.n === n) return tr.__duenn;
     const idx = []; for (let i = 0; i < ziel; i++) idx.push(Math.round(i * (n - 1) / (ziel - 1)));
     const pick = (arr) => (Array.isArray(arr) && arr.length === n) ? idx.map(i => arr[i]) : null;
-    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(_hoehenAnPunkte(tr.ele, n)), zeit: pick(tr.zeit), epochs: pick(tr.epochs),
-                   flach: pick(tr.flach) };
+    tr.__duenn = { ziel, n, coords: idx.map(i => tr.coords[i]), ele: pick(eleN()), zeit: pick(tr.zeit), epochs: pick(tr.epochs),
+                   flach: pick(tr.flach), dist: pick(tr.dist), speed: pick(tr.speed), grade: pick(tr.grade) };
     return tr.__duenn;
   }
   function _tourVon(gpx) {
@@ -24816,8 +25022,18 @@ function mountAnimator(body, headerActions, opts) {
     });
 
     // Punktbudget ∝ Zeit: fein genug für die Linie, klein genug für die Vorschau.
-    const roh = etappen.reduce((a, e) => a + e.coords.length, 0);
-    const NGES = Math.max(600, Math.min(6000, roh));
+    // 18.10.2026 (Punktdichte) — vorher höchstens 6000 Punkte für die GANZE Reise (zwei 116-km-Passetappen: ein Punkt
+    // je ~40 m, Kehren abgeschnitten — ein zweiter versteckter Deckel). Jetzt so viele, dass jede Etappe mindestens
+    // ihre eigene Punktzahl nach Regler bekommt (Budget weiter ∝ Zeit, Index bleibt linear in der Zeit), höchstens
+    // PUNKTE_BAHN_MAX. Erste Etappe: ihre Zielzahl (_reiseBasis hat gleich viele Punkte wie geladen, s. _punkteReduziert).
+    const _bedarf = (e) => Math.max(2, (e.tour && e.tour.haupt && _reiseBasisZiel > 1) ? Math.min(e.coords.length, _reiseBasisZiel) : e.coords.length);
+    let NGES = 600;
+    for (const ab of abschnitte) {
+      if (ab.art !== "inhalt") continue;
+      const dt = Math.max(1e-6, ab.t1 - ab.t0);
+      NGES = Math.max(NGES, Math.ceil(_bedarf(etappen[ab.teil]) * dauer / dt));
+    }
+    NGES = Math.min(PUNKTE_BAHN_MAX, NGES);
     const coords = [], teilVon = [], istUeber = [], teile = [];
     for (const ab of abschnitte) {
       const dt = Math.max(0, ab.t1 - ab.t0);
@@ -24886,6 +25102,21 @@ function mountAnimator(body, headerActions, opts) {
   /** Distanz, Zeit und Höhe entlang der Bahn — durchlaufend über alle Etappen,
    *  im Übergang stehend. Zusätzlich je Punkt der Etappen-Anteil (`etappeDist`,
    *  `etappeZeit`), damit ein Etappenzähler daraus lesen kann. */
+  /** 18.10.2026 — wie viele Punkte eine Zusatz-Tour höchstens mitbringt: alle (bis zum technischen Maximum der Brücke),
+   *  in großen Kompositionen ein Anteil an PUNKTE_KOMPOSITION_MAX — nie weniger als die bisherigen 800. Ein Schwarm aus
+   *  96 Touren brächte sonst bis zu 96 × 50 000 Punkte in EINEM Brückenaufruf. Die Tour zeigt es ehrlich („Höchstwert“). */
+  function _tourDeckel(anzahl) { return Math.max(800, Math.floor(PUNKTE_KOMPOSITION_MAX / Math.max(1, anzahl | 0))); }
+  /** 18.10.2026 — Reihen JE PUNKT einer Zusatz-Tour aus der Brückenantwort (volle Tour, index-gleich zu coords):
+   *  Strecke ab Start, Tempo, Steigung, Höhe. Damit rechnen Farbwechsel, Reise-Reihen und Schwarm-Summen mit den echten
+   *  Werten statt aus der (ausgedünnten) Linie: dort gab die Sehne in Kehren 0 km/h, die 200 Höhen eine Treppe. */
+  function _tourReihen(res) {
+    const sr = res && res.series, n = (res && res.coords) ? res.coords.length : 0;
+    const ok = (a) => Array.isArray(a) && a.length === n && n > 0;
+    return { dist: sr && ok(sr.cumDistM) ? sr.cumDistM : null,
+             speed: sr && sr.has_time !== false && ok(sr.speedKmh) ? sr.speedKmh : null,
+             grade: sr && sr.has_ele !== false && ok(sr.gradePct) ? sr.gradePct : null,
+             eleV: sr && sr.has_ele !== false && ok(sr.ele) ? sr.ele : null };
+  }
   function _hoehenAnPunkte(ele, n) {
     if (!Array.isArray(ele) || !ele.length || !n) return null;
     if (ele.length === n) return ele;
@@ -24909,7 +25140,10 @@ function mountAnimator(body, headerActions, opts) {
     });
     etappen.forEach((e, i) => {
       const idx = e.__idx || [];
-      const cum = _cumDistBerechnen(e.coords);
+      // 18.10.2026 — echte Strecke der Tour (Reihe der vollen Datei), nicht die Länge der ausgedünnten Linie: in Kehren
+      // ist die Sehne kürzer, „Zurückgelegt“ hing sonst an der Reglerstellung
+      const _dq = e.tour && Array.isArray(e.tour.dist) && e.tour.dist.length === e.coords.length ? e.tour.dist : null;
+      const cum = _dq ? _dq.map(x => (+x || 0) - (+_dq[0] || 0)) : _cumDistBerechnen(e.coords);
       // Zeitreihe der Etappe: eigene, sonst gleichmäßig über die Distanz.
       const zeit = (Array.isArray(e.zeit) && e.zeit.length === e.coords.length) ? e.zeit : null;
       // 07.10.2026 (Etappen) — eine geplante Etappe hat
@@ -25340,15 +25574,23 @@ function mountAnimator(body, headerActions, opts) {
   function _fwVoll(Q) {
     const co = Q.coords || [];
     if (Q.__fwVoll && Q.__fwVoll.co === co) return Q.__fwVoll;
-    const n = co.length, m = _cumDistBerechnen(co), km = m.map(x => x / 1000);
-    const eleA = (Array.isArray(Q.ele) && Q.ele.length) ? _hoehenAnPunkte(Q.ele, n) : null;   // 200 Höhen zu 800 Punkten: abbilden
+    // 18.10.2026 (Punktdichte) — Strecke, Tempo, Steigung und Höhe kommen aus den Reihen der VOLLEN Tour (Q.dist/speed/
+    // grade/eleV, index-gleich zu Q.coords). Vorher aus der Linie geschätzt: die Sehne einer ausgedünnten Kehre ergab
+    // 0 km/h (29 % Nullen auf einem 1-Hz-Motorradtag bei 800 Punkten), die 200 Höhen eine Treppe mit Steigungen bis 460 %.
+    // Nur ohne Reihen (alte Antwort, Prüfstand) wie bisher aus der Linie.
+    const n = co.length, passt = (a) => Array.isArray(a) && a.length === n && n > 0;
+    const m = passt(Q.dist) ? Q.dist.map(x => (+x || 0) - (+Q.dist[0] || 0)) : _cumDistBerechnen(co), km = m.map(x => x / 1000);
+    const eleQ = passt(Q.eleV) ? Q.eleV : Q.ele;
+    const eleA = (Array.isArray(eleQ) && eleQ.length) ? _hoehenAnPunkte(eleQ, n) : null;   // 200 Höhen zu 800 Punkten: abbilden
     const ele = (eleA && eleA.length === n) ? eleA.map(v => +v || 0) : (n && co[0].length > 2 ? co.map(c => +c[2] || 0) : null);
     const zeit = (Array.isArray(Q.zeit) && Q.zeit.length === n) ? Q.zeit : null;
-    const speed = zeit ? new Array(n) : null, grade = ele ? new Array(n) : null;
-    for (let i = 0; i < n; i++) {
-      if (speed) { const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3), dt = (zeit[b] - zeit[a]) / 3600;
+    let speed = passt(Q.speed) ? Q.speed.map(v => +v || 0) : (zeit ? new Array(n) : null);
+    let grade = passt(Q.grade) ? Q.grade.map(v => +v || 0) : (ele ? new Array(n) : null);
+    const speedSelbst = !passt(Q.speed) && !!speed, gradeSelbst = !passt(Q.grade) && !!grade;
+    for (let i = 0; i < n && (speedSelbst || gradeSelbst); i++) {
+      if (speedSelbst) { const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3), dt = (zeit[b] - zeit[a]) / 3600;
         speed[i] = dt > 0 ? Math.max(0, (km[b] - km[a]) / dt) : (i ? speed[i - 1] : 0); }
-      if (grade) { const a = Math.max(0, i - 5), b = Math.min(n - 1, i + 5), d = m[b] - m[a];
+      if (gradeSelbst) { const a = Math.max(0, i - 5), b = Math.min(n - 1, i + 5), d = m[b] - m[a];
         grade[i] = d > 1 ? (ele[b] - ele[a]) / d * 100 : (i ? grade[i - 1] : 0); }
     }
     Q.__fwVoll = { co, km, ele, speed, grade };
@@ -25610,7 +25852,7 @@ function mountAnimator(body, headerActions, opts) {
     let coords = null;
     let _ladeRes = null;
     try {
-      const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
+      const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path, _tourDeckel(_extraTours.length + 2)));
       _ladeRes = res;
       if (res && res.ok) {
         coords = res.coords;
@@ -25641,7 +25883,7 @@ function mountAnimator(body, headerActions, opts) {
                                 && _ladeRes.series.epochS.length === (coords || []).length)
                                ? _ladeRes.series.epochS : null,
                        tz: (_ladeRes && _ladeRes.series && +_ladeRes.series.tz_offset_min) || 0,
-                       stats: (_ladeRes && _ladeRes.stats) || null });
+                       stats: (_ladeRes && _ladeRes.stats) || null, ..._tourReihen(_ladeRes) });
     // §60: die neue Tour sofort einsortieren (Mitglied oder eigene Gruppe),
     // sonst rechnen Liste und Vorschau mit dem alten Stand.
     _gruppenSync(); _gruppenAbleiten();
@@ -26651,7 +26893,7 @@ function mountAnimator(body, headerActions, opts) {
     const tr = _extraTours.find(x => _pfadNFC(x.gpx_path) === _pfadNFC(altPfad));
     if (!tr) return;
     let res = null;
-    try { res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(neuPfad)); } catch (_) {}
+    try { res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(neuPfad, _tourDeckel(_extraTours.length + 1))); } catch (_) {}
     if (!res || !res.ok) { toast(t("animator.tours.load_fail", "Tour konnte nicht geladen werden."), "error"); return; }
     for (const g of _gruppen) {
       for (const m of g.mitglieder) if (_pfadNFC(m.gpx_path) === _pfadNFC(altPfad)) m.gpx_path = neuPfad;
@@ -26660,7 +26902,7 @@ function mountAnimator(body, headerActions, opts) {
     const _ix = _extraTours.indexOf(tr), _vor = _ix > 0 ? _extraTours[_ix - 1].coords : currentCoords;
     Object.assign(tr, { gpx_path: res.gpx_path || neuPfad, coords: _lonAnschluss(res.coords, _vor), ele: Array.isArray(res.elevations) ? res.elevations : null,
                         flach: Array.isArray(res.flach) ? res.flach : null,
-                        zeit: null, epochs: null, stats: res.stats || null, etappe, name });
+                        zeit: null, epochs: null, stats: res.stats || null, etappe, name, ..._tourReihen(res), __duenn: null });
     _gruppenSync(); _gruppenAbleiten();
     _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
   }
@@ -27108,7 +27350,7 @@ function mountAnimator(body, headerActions, opts) {
     if (saved.length >= 3) {
       try {
         const pf = saved.filter(t => t && t.gpx_path).map(t => t.gpx_path);
-        const r = await api().animator_load_gpx_viele(pf);   // eigener Fortschritt: tourenLadeModal
+        const r = await api().animator_load_gpx_viele(pf, _tourDeckel(saved.length + 1));   // eigener Fortschritt: tourenLadeModal
         if (r && r.ok && Array.isArray(r.results) && r.results.length === pf.length) {
           _vorrat = new Map(); pf.forEach((p, i) => _vorrat.set(p, r.results[i]));
         }
@@ -27123,7 +27365,7 @@ function mountAnimator(body, headerActions, opts) {
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
       // statt mit einer Tour ohne Koordinaten weiterzumachen.
       try {
-        const res = (_vorrat && _vorrat.has(t.gpx_path)) ? _vorrat.get(t.gpx_path) : await api().animator_load_gpx(t.gpx_path);   // warte-ok: eigener Fortschritt tourenLadeModal
+        const res = (_vorrat && _vorrat.has(t.gpx_path)) ? _vorrat.get(t.gpx_path) : await api().animator_load_gpx(t.gpx_path, _tourDeckel(saved.length + 1));   // warte-ok: eigener Fortschritt tourenLadeModal
         if (res && res.ok) {
           const pfad = res.gpx_path || t.gpx_path;
           if (gesehen.has(_pfadNFC(pfad)) && pfad !== t.gpx_path) continue;   // Cache-Pfad-Dublette
@@ -27151,7 +27393,7 @@ function mountAnimator(body, headerActions, opts) {
                                       && res.series.epochS.length === (res.coords || []).length)
                                      ? res.series.epochS : null,
                              tz: (res.series && +res.series.tz_offset_min) || 0,
-                             stats: res.stats || null,
+                             stats: res.stats || null, ..._tourReihen(res),
                              // 07.10.2026 — geplante Etappe mitnehmen (Stationen, Verkehrsart je Abschnitt)
                              ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) });
         } else {

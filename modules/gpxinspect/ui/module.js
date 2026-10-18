@@ -3229,7 +3229,9 @@ function mountGpxInspect(body, headerActions) {
     // Ohne Archiv (oder bei Nicht-GPX-Originalen) bleibt alles wie bisher.
     const origPfad = _origPath || _srcPath || "";
     let imArchiv = false;
-    if (origPfad.toLowerCase().endsWith(".gpx")) {
+    // 18.10.2026 — auch eine Version aus der Bibliothek (.gpx.gz, etwa nach „Höhe korrigiert“ aus der
+    // Kachel geöffnet) lässt sich wieder „Im Archiv ersetzen“ — sonst ginge die nächste Korrektur nur als neue Datei.
+    if (origPfad.toLowerCase().endsWith(".gpx") || origPfad.toLowerCase().endsWith(".gpx.gz")) {
       try {
         const st = await api().archiv_status(origPfad);
         imArchiv = !!(st && st.ok && st.im_archiv);
@@ -3263,13 +3265,27 @@ function mountGpxInspect(body, headerActions) {
         if (isUnmounted) return;
         if (!res || !res.ok) { toast((res && res.error) || t("gpxinspect.save_failed", "Speichern fehlgeschlagen"), "error", 6000); return; }
         _dirty = false; updateUI();
+        // 18.10.2026 — nichts geändert: keine neue Version, und das auch so sagen.
+        if (res.unveraendert) {
+          toast(t("gpxinspect.ersetzt_unveraendert", "Nichts geändert — es wurde keine neue Version angelegt."), "info", 5000);
+          return;
+        }
         const teile = [t("gpxinspect.ersetzt_toast", "Im Archiv ersetzt.")];
+        // 18.10.2026 — welche Version entstanden ist (vorher meldete die Höhenkorrektur „ersetzt“, ohne dass eine da war).
+        if (res.fassung) {
+          const g = res.grund || [];
+          const art = (g.includes("hoehe") && g.includes("zeit")) ? t("library.fg_hoehe_zeit", "Höhe und Zeiten korrigiert")
+            : g.includes("hoehe") ? t("library.fg_hoehe", "Höhe korrigiert")
+            : g.includes("zeit") ? t("library.fg_zeit", "Zeiten repariert") : "";
+          teile.push(t("gpxinspect.ersetzt_version", "Jetzt Version %n").replace("%n", res.fassung) + (art ? " · " + art : ""));
+        }
         if (res.collections) teile.push(t("gpxinspect.ersetzt_col", "%n Sammlungs-Einträge umgezogen").replace("%n", res.collections));
         if (res.mengen) teile.push(t("gpxinspect.ersetzt_mengen", "%n Kompositionen aktualisiert").replace("%n", res.mengen));
         if (res.sensors_kept) teile.push(t("gpxinspect.sensors_kept", "Sensordaten erhalten"));
         toast(teile.join(" · "), "success", 7000);
         const note = document.getElementById("gpxi-note");
-        if (note) note.textContent = teile.join(" · ") + " — " + t("gpxinspect.ersetzt_backup", "Sicherung:") + " " + (res.backup || "");
+        // 18.10.2026 — eine Sicherung gibt es seit dem 02.09.2026 nicht mehr (die Datei des Nutzers bleibt unberührt).
+        if (note) note.textContent = teile.join(" · ") + (res.backup ? " — " + t("gpxinspect.ersetzt_backup", "Sicherung:") + " " + res.backup : "");
         return;
       }
       // „Als neue Datei …" → normaler Weg unten.

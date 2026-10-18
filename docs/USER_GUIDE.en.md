@@ -234,6 +234,8 @@ Each version in the list carries up to four small buttons:
 | ⬇ | Export this version as a GPX file — the way out, now that GPS Studio no longer writes into your files. |
 | 🗑 | Delete this version. If a project depends on it, nothing happens and the app tells you which one. |
 
+Even if you only **correct the elevation** (e.g. “Load elevation profile from map”) or **repair times**, **Replace in archive** creates a new version (since v0.9.798). The list then says “Elevation corrected”, “Times repaired” or “Elevation and times corrected”. From then on the archive and the Track-Check show this state; your original file stays untouched. ↩︎ brings back the previous version at any time; if nothing changed, GPS Studio creates no new version.
+
 Clicking the row itself shows the figures of **that** version above —
 otherwise two versions of the same tour look identical.
 
@@ -2418,7 +2420,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Camera follows track** — the camera stays on the moving point instead of on the whole route.
   - **Camera inertia** (appears then) — soft trailing instead of hard sticking to the point (against GPS jitter).
   - **Smooth camera path** (since v0.9.741, 0–4000 m) — the camera looks at a smoothed path instead of every kink of the track; in fast videos of twisty routes the map stops jerking back and forth. The point drifts a little around the centre instead. 0 = exactly above the point. The slider is also shown during a camera ride (keyframe editor on) as long as "Camera follows track" is on; the quick video sets up to 4000 m here depending on the speed.
-- **Points** (Track section) — simplifies the track: left = few points with straight connections. Since v0.9.743 line, moving point/arrow and camera follow this simplified track when scrubbing, in the test run and in the finished video (before, only the resting line showed it). It hardly makes rendering faster — the time mostly goes into loading map tiles. The slider has no effect on journeys with several stages.
+- **Points** (Track section, since v0.9.798) — sets how closely the line follows your GPX. The default is **one point every 10 m**: short and long tours look equally precise, hairpins and junctions stay on the road. The label shows what applies, e.g. “1 point every 10 m · 12,000 of 48,000”. Far right uses **all points** of your file; only very large files (over 50,000 points) stop at 50,000, then “maximum” is shown. To the left the line gets coarser — line, moving point/arrow and camera use the same track when scrubbing, in the test run and in the video. Speed, elevation, gradient and distance in overlays and track colours always come from all points, wherever the slider is. (Before, the Animator silently got at most 800 points — on long tours the line cut hairpins.)
 - **Smooth track** (Track section, below "Points", since v0.9.741, 0–200 m) — removes GPS jitter and small zigzags. Line, moving point/arrow, camera and the faint whole route then use the smoothed track. 0 = original track.
   **Since v0.9.789 the slider is called “Calm arrow and camera” and sits in the fold-out panel of the track (below “Points”).** It only smooths the arrow direction and the camera movement — the **line itself always stays exactly on the path**. Before, it rounded every junction into an arc across the field. In addition, the app now keeps corners when reducing to the preview points: junctions and hairpins are no longer cut off.
 - **Terrain exaggeration** 0–4× — how pronounced the mountains look

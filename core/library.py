@@ -1766,6 +1766,36 @@ def _upsert(conn: sqlite3.Connection, row: dict) -> None:
                 row.get("cover") or "")
 
 
+# 18.10.2026 — so heißt eine Datei im Versionsspeicher: `<16 Hex>.gpx.gz`.
+_VERSION_DATEINAME = re.compile(r"^([0-9a-f]{16})\.gpx\.gz$")
+
+
+def version_kennung_aus_name(dateiname: str) -> str:
+    """Versionskennung aus dem Namen einer Speicherdatei (`<kennung>.gpx.gz`), sonst ""."""
+    m = _VERSION_DATEINAME.match(str(dateiname or ""))
+    return m.group(1) if m else ""
+
+
+@_locked
+def meta_uebernehmen(conn: sqlite3.Connection, alt: str, neu: str) -> bool:
+    """18.10.2026 — Nutzer-Eingaben (Favorit, Schlagwörter, Name, Titelbild …) einer
+    Version für eine NEUE Version derselben Tour übernehmen, bevor deren Zeile entsteht.
+
+    `_apply_meta` legt für eine unbekannte Kennung eine leere Meta-Zeile an; die
+    neue Kachel stünde dann ohne Schlagwörter da. Vorhandenes wird nie überschrieben."""
+    if not alt or not neu or alt == neu:
+        return False
+    if conn.execute("SELECT 1 FROM track_meta WHERE geo_hash = ?", (neu,)).fetchone():
+        return False
+    spalten = [r[1] for r in conn.execute("PRAGMA table_info(track_meta)").fetchall()
+               if r[1] != "geo_hash"]
+    liste = ", ".join(spalten)
+    n = conn.execute(f"INSERT INTO track_meta(geo_hash, {liste}) "
+                     f"SELECT ?, {liste} FROM track_meta WHERE geo_hash = ?", (neu, alt)).rowcount
+    conn.commit()
+    return bool(n)
+
+
 def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path,
                       import_cache: Path, map_thumbs_dir: Optional[Path] = None,
                       covers_dir: Optional[Path] = None,
@@ -1803,6 +1833,14 @@ def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path
     # Gibt es zu dieser Geometrie schon eine echte Datei, braucht es keine
     # zweite Zeile: Die Bibliothekskopie ist Speicher, kein Fundort.
     row["speicher"] = 1        # das hier IST der Versionsspeicher
+    # 18.10.2026 — Der Name einer Datei im Versionsspeicher IST ihre Versionskennung.
+    # Bisher stimmte er immer mit dem Koordinaten-Hash überein; seit eine Korrektur
+    # nur an Höhe oder Zeiten eine eigene Version bekommt, haben zwei Versionen
+    # dieselben Koordinaten. Ihre Zeile muss trotzdem unter der eigenen Kennung
+    # stehen — sonst fiele sie mit dem Original zusammen.
+    kennung = version_kennung_aus_name(gpx_pfad.name)
+    if kennung and kennung != row.get("geo_hash"):
+        row["geo_hash"] = kennung
     # 14.09.2026 (Nacht-Review): Datei lesen und Vorschaubild zeichnen (oben) laufen
     # ohne Datenbank-Sperre — nur dieser Schreibteil ist gesperrt. Vorher hielt jede
     # Aufnahme die Sperre für die ganze Auswertung der Datei.

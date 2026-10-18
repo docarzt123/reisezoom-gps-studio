@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Track points are set by density: by default one point every 10 m (short tours keep at least 800), far right uses every point of the GPX up to 50,000. The label shows „1 point every X m · n of N“; the hidden 800-point cap is gone, so hairpins on long tours stay on the road (idea and first measurements thanks to @kaennchenstruggle).
+- About dialog: new „Contributors“ section with the GitHub names of everyone who contributed code.
+
+### Fixed
+- Speed, gradient and distance in overlays, per-track colours and stage values always come from the full track — on the thinned line they could show 0 km/h or impossible peaks in hairpins, and gradients up to several hundred percent.
+- Windows: the check „is the app still running?“ for the library lock sent a Ctrl+C to the process instead of only looking, and the library lock was never released when the app closed (thanks to @kaennchenstruggle).
+- Export: the very first video export landed directly in the user folder on Windows and Linux; it now goes to „Videos“ („Movies“ on the Mac) (thanks to @kaennchenstruggle).
+- „Smooth camera path“ goes up to 4000 m and is also available with the camera flight. The quick video sets the smoothing from the distance per video second, but the slider silently capped it at 1000 m — long, fast tours (e.g. by motorbike) had a less steady camera than intended; hikes are unchanged (thanks to @kaennchenstruggle).
+- Video render: terrain tiles that failed to load are fetched again before the frame is captured — before, they counted as loaded and could leave a black wedge in the video (thanks to @kaennchenstruggle).
+- Correcting only the elevation or the times of an archived tour and choosing „Replace in archive“ now creates a new version („Elevation corrected“ / „Times repaired“). Before, it silently overwrote the stored copy, with no new version and no way back; after a time-only repair the archive also kept showing the unrepaired file and its warning. The archive tile and the Track-Check now show the repaired state, and tags and favourite carry over to the new version (also for ordinary new versions, where they were lost).
+
 ## [0.9.797] – 2026-10-18
 
 ### Fixed

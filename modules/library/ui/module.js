@@ -4204,6 +4204,15 @@ function mountLibrary(body, headerActions) {
                          extern: T("library.fq_extern", "extern geändert"),
                          rollback: T("library.fq_rollback", "wiederhergestellt"),
                          backup: T("library.fq_backup", "aus Sicherung") };
+        // 18.10.2026 — gleiche Strecke, nur Höhe und/oder Zeiten korrigiert: das sagt die Zeile
+        // statt des allgemeinen „geheilt/ersetzt" (sonst sehen zwei Versionen gleich aus).
+        const fassungArt = (f) => {
+          const g = f.grund || [];
+          if (g.includes("hoehe") && g.includes("zeit")) return T("library.fg_hoehe_zeit", "Höhe und Zeiten korrigiert");
+          if (g.includes("hoehe")) return T("library.fg_hoehe", "Höhe korrigiert");
+          if (g.includes("zeit")) return T("library.fg_zeit", "Zeiten repariert");
+          return QUELLE[f.quelle] || f.quelle;
+        };
         el.innerHTML = `<div class="field-label">${T("library.fassungen", "Versionen")} (${fs.length})</div>`
           + `<div class="lib-hint" id="lib-d-vhint" hidden></div>`
           // 02.09.2026 (Marc: „das hab ich jetzt nicht geblickt") — Versionen
@@ -4218,7 +4227,7 @@ function mountLibrary(body, headerActions) {
             <div class="lib-fassung${f.aktuell ? " is-on" : ""}${weg ? " is-weg" : ""}" data-gh="${f.geo_hash}"${
               weg ? ` title="${esc(T("library.version_weg_tip", "Dieser Zwischenstand wurde beim nächsten Heilen verworfen, weil ihn kein Projekt benutzt hat. Er lässt sich nicht mehr zurückholen."))}"` : ""}>
               <span class="lib-fassung-nr">${f.nr}</span>
-              <span class="lib-fassung-info">${esc(fmtDate(f.erstellt))} · ${esc(QUELLE[f.quelle] || f.quelle)}${
+              <span class="lib-fassung-info">${esc(fmtDate(f.erstellt))} · ${esc(fassungArt(f))}${
                 f.distance_km ? ` · ${(+f.distance_km).toFixed(1)} km` : ""}${
                 f.aktuell ? ` · <b>${T("library.fassung_aktuell", "aktuell")}</b>` : ""}${
                 weg ? ` · <i>${T("library.version_weg", "nicht mehr vorhanden")}</i>` : ""}</span>
