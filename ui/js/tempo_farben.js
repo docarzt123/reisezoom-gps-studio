@@ -1,11 +1,15 @@
-/* Tempo-Farben: die gefahrene Strecke nach Geschwindigkeit färben (17.10.2026).
+/* Tempo-Farben (17.10.2026, umgebaut 18.10.2026): Hilfen für „Mehrere Track-Farben“ mit der Quelle Geschwindigkeit.
  *
- * Die Roh-Geschwindigkeit je Punkt springt (GPS-Rauschen, Stillstand). Hier wird sie über ein zentriertes
- * Zeitfenster aus Distanz und Zeit neu gerechnet:
+ * Die Roh-Geschwindigkeit je Punkt springt (GPS-Rauschen, Stillstand). Für die Farben wird sie über ein zentriertes
+ * Zeitfenster aus Distanz und Zeit neu gerechnet (glaetten):
  *
  *   v_i = (Strecke im Fenster) / (Zeit im Fenster) · 3,6      Fenster = [t_i − F/2, t_i + F/2], am Rand gekürzt
  *
- * Die Skala endet beim 98. Perzentil, damit einzelne Ausreißer nicht die ganze Linie blass machen.
+ * Das Fenster ist mindestens 15 s und mindestens ±2 Punkte breit: die Reihe des Animators ist auf 800 Punkte
+ * ausgedünnt, bei langen Touren liegen die Punkte weiter als F/2 auseinander.
+ *
+ * „Auto“ endet beim 98. Perzentil (perzentil), damit einzelne Ausreißer nicht die ganze Skala verschieben;
+ * „Ampel“ (ampelStufen) liefert die drei Stufen grün → gelb → rot über dieselbe Spanne.
  * Rein und ohne DOM — läuft in der App (Animator) und unter node (Test).
  */
 (function (root) {
@@ -28,8 +32,11 @@
       a = Math.max(hi, i); b = n - 1;
       while (a < b) { const m = (a + b + 1) >> 1; if (cumTimeS[m] > t + halb) b = m - 1; else a = m; }
       hi = a;
-      const dt = cumTimeS[hi] - cumTimeS[lo];
-      aus[i] = dt > 0 ? Math.max(0, (cumDistM[hi] - cumDistM[lo]) / dt * 3.6) : 0;
+      // Mindestens ±2 Punkte im Fenster (wie core/animator.py): bei dünnen Reihen (Punktabstand > F/2) wäre es sonst leer.
+      // Erweitert wird nur lokal — lo/hi bleiben die echten Suchgrenzen für den nächsten Punkt.
+      const l = Math.min(lo, Math.max(0, i - 2)), h = Math.max(hi, Math.min(n - 1, i + 2));
+      const dt = cumTimeS[h] - cumTimeS[l];
+      aus[i] = dt > 0 ? Math.max(0, (cumDistM[h] - cumDistM[l]) / dt * 3.6) : 0;
     }
     return aus;
   }
@@ -43,36 +50,11 @@
     return s[u] + (s[o] - s[u]) * (pos - u);
   }
 
-  function hexZuRgb(h) {
-    h = String(h || "#000").replace("#", "");
-    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-    return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0];
-  }
-  function mitDeckkraft(hex, a) {
-    const c = hexZuRgb(hex);
-    return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")";
+  /** Ampel-Skala grün → gelb → rot über lo..hi (Mitte = Mittelwert), v auf 0,1 gerundet wie bei „Auto“. */
+  function ampelStufen(lo, hi) {
+    const r = (x) => Math.round(x * 10) / 10;
+    return [{ v: r(lo), color: "#2e9e44" }, { v: r((lo + hi) / 2), color: "#f2c40f" }, { v: r(hi), color: "#d7191c" }];
   }
 
-  /** Farbstufen der Skala: „ampel“ grün → gelb → rot, „eigen“ blass → kräftig in der Linienfarbe. */
-  function stufen(variante, vmax, linienFarbe) {
-    if (variante === "ampel") {
-      return [{ v: 0, color: "#2e9e44" }, { v: vmax / 2, color: "#f2c40f" }, { v: vmax, color: "#d7191c" }];
-    }
-    return [{ v: 0, color: mitDeckkraft(linienFarbe, 0.25) }, { v: vmax, color: mitDeckkraft(linienFarbe, 1) }];
-  }
-
-  /** Mischfarbe zweier Stufen: Hex wie bisher, bei „rgba(…)“ samt Deckkraft (für die „eigen“-Skala). */
-  function mischen(a, b, f) {
-    const lies = (c) => {
-      const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(String(c));
-      if (m) return [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]];
-      const x = hexZuRgb(c); return [x[0], x[1], x[2], 1];
-    };
-    const x = lies(a), y = lies(b);
-    const w = [0, 1, 2].map(i => Math.round(x[i] + (y[i] - x[i]) * f));
-    const al = Math.round((x[3] + (y[3] - x[3]) * f) * 1000) / 1000;
-    return "rgba(" + w[0] + "," + w[1] + "," + w[2] + "," + al + ")";
-  }
-
-  root.rzTempoFarben = { glaetten, perzentil, stufen, mischen };
+  root.rzTempoFarben = { glaetten, perzentil, ampelStufen };
 })(typeof window !== "undefined" ? window : globalThis);
