@@ -2835,12 +2835,13 @@ class Api:
     def highlights_vorschlaege(self, path: str, foto_quellen: list = None, quellen: dict = None) -> dict:
         """Highlights-Fenster (Marc, 11.09.2026): Vorschläge für den offenen Track —
         OSM-Orte, Track-Stellen, Halte-Punkte mit Fotos, Foto-Serien, übrige Fotos.
-        `foto_quellen` = Ordner/Dateien; `quellen` = {osm, track, halte} (bool)."""
+        `foto_quellen` = Ordner/Dateien; `quellen` = {osm, track, halte, orte} (bool).
+        18.10.2026 — `orte`: alle Städte, Dörfer und Pässe entlang der Strecke (core/highlights.orte_und_paesse)."""
         from core import highlights as chl
         from core import geocode as cgeocode
         from core import photos as cphotos
         T = _ui_t()
-        q = {"osm": True, "track": True, "halte": True}
+        q = {"osm": True, "track": True, "halte": True, "orte": False}
         q.update({k: bool(v) for k, v in (quellen or {}).items()})
         try:
             load = self.gpxinspect_load(str(path or ""))
@@ -2883,11 +2884,31 @@ class Api:
                 info["netz"] = r["netz"]
                 pois = r["gewaehlt"]
                 pois = [p for p in pois if p.get("art") not in chl.TRACK_ARTEN]
+            orte = []
+            if q["orte"]:
+                # 18.10.2026 — eigener Schritt mit Fortschritt je Overpass-Anfrage (bei 500 km zwei, nicht fünfzig)
+                def _orte_stand(i, n):
+                    _vm("hl_orte", "Fragt OpenStreetMap nach Orten und Pässen entlang der Strecke (Netz) — Abschnitt {i} von {g}",
+                        i, n, i=i, g=n)
+                ro = chl.orte_und_paesse(pts, cache_pfad=APP_SUPPORT / "orte_paesse_cache.json", fortschritt=_orte_stand)
+                orte = ro["eintraege"]
+                if not ro["netz"]:
+                    info["netz"] = False
+                if ro.get("unvollstaendig"):
+                    info["orte_unvollstaendig"] = True
+                info["n_orte"] = len(orte)
+                # Was schon als Ort/Pass dabei ist, entfällt bei den OSM-Vorschlägen — nur bei gleichem Namen an
+                # (fast) derselben Stelle; ein Gipfel, der wie das Dorf heißt, bleibt.
+                pois = [p for p in pois if not chl.ist_ort_dublette(p, orte)]
             track = chl.track_highlights(pts) if q["track"] else []
             cum = chl._kumuliert(pts); ges = cum[-1] or 1.0
             for h in track:
                 h["frac"] = cum[h["idx"]] / ges
             track = [h for h in track if 0.03 < h["frac"] < 0.97]
+            if orte:
+                # „Höchster Punkt“ direkt am Pass: das Pass-Schild sagt es schon (mit Namen und Höhe)
+                track = [h for h in track if not (h.get("art") == "hoechster" and any(
+                    e["art"] == "pass" and abs(cum[e["idx"]] - cum[h["idx"]]) < 300 for e in orte))]
             halte = chl.halte_punkte(pts) if q["halte"] else []
             labels = {"hoechster": T("assistent.s_hoechster", "Höchster Punkt"), "tiefster": T("assistent.s_tiefster", "Tiefster Punkt"),
                       "schnellster": T("assistent.s_schnellster", "Schnellste Stelle"), "steilster": T("assistent.s_steilster", "Steilste Stelle"),
@@ -2911,15 +2932,25 @@ class Api:
                     n_ruf += 1
             _vm("hl_wahl", "Wählt die besten Stellen aus und verteilt sie über die Strecke")
             vs = chl.vorschlaege(pts, pois=pois, track=track, halte=halte, fotos=fz, labels=labels, halt_namen=halt_namen)
+            if orte:
+                vs += chl.orte_als_vorschlaege(pts, orte)
+                vs.sort(key=lambda v: (v["frac"], v["art"]))
+                for k, v in enumerate(vs):
+                    v["id"] = f"v{k}"
             for v in vs:
                 v["uhrzeit"] = czeit.fmt_uhrzeit(v.get("epoch"), tz_off) if v.get("epoch") else ""
+                # 18.10.2026 — Stelle in Metern ab Start (Schild-Feld `strecke_m`): auf Hin-und-zurück-Strecken landet das
+                # Schild an SEINER Durchfahrt, nicht an der nächstgelegenen (module.js `_animSignsNearestIdx`).
+                if v.get("strecke_m") is None and v.get("idx") is not None and 0 <= int(v["idx"]) < len(pts):
+                    dm = pts[int(v["idx"])].get("dist_m")
+                    v["strecke_m"] = round(float(dm) if dm is not None else cum[int(v["idx"])], 1)
                 if v.get("foto"):
                     try:
                         v["thumb"] = cphotos.thumbnail_data_url(v["foto"], max_px=160) or ""
                     except Exception:  # noqa: BLE001
                         v["thumb"] = ""
-            log.info("[highlights] Vorschläge für %s: %d (Fotos %d/%d, OSM %d, Track %d, Halte %d)",
-                     Path(str(path)).name, len(vs), info["n_zugeordnet"], info["n_fotos"], len(pois), len(track), len(halte))
+            log.info("[highlights] Vorschläge für %s: %d (Fotos %d/%d, OSM %d, Track %d, Halte %d, Orte/Pässe %d)",
+                     Path(str(path)).name, len(vs), info["n_zugeordnet"], info["n_fotos"], len(pois), len(track), len(halte), len(orte))
             return {"ok": True, "vorschlaege": vs, **info}
         except Exception as e:  # noqa: BLE001
             log.error("highlights_vorschlaege: %s\n%s", e, traceback.format_exc())

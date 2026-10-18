@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Highlights window: new option „Towns and passes along the route“ (off by default) — every city up to 5 km from the route (small towns up to 3 km), every village up to 1.5 km and every named pass the route goes over (with its height), named as they are locally. On out-and-back rides a place is listed for each pass and its sign appears at that pass. The list unticks what would be too dense for the video length (at most three signs at once, places at least 1.5 s apart, passes first) and says why; the rest becomes small pins, passes with a yellow pin. OpenStreetMap is asked in a few large sections (twice for 500 km instead of fifty times) with progress in the waiting message; answers are kept for 30 days in a size-limited cache. (thanks to @kaennchenstruggle)
+
+### Fixed
+- Highlights window: signs taken over from it now remember their spot along the route, so on routes that pass the same place twice they appear at the right pass. The window uses line symbols instead of emoji.
+
 ## [0.9.797] – 2026-10-18
 
 ### Fixed
