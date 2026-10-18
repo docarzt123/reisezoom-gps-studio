@@ -17,6 +17,7 @@ Bei jeder neuen Version:
 ### Added
 - Track points are set by density: by default one point every 10 m (short tours keep at least 800), far right uses every point of the GPX up to 50,000. The label shows „1 point every X m · n of N“; the hidden 800-point cap is gone, so hairpins on long tours stay on the road (idea and first measurements thanks to @kaennchenstruggle).
 - About dialog: new „Contributors“ section with the GitHub names of everyone who contributed code.
+- Highlights window: new option „Towns and passes along the route“ (off by default) — every city up to 5 km from the route (small towns up to 3 km), every village up to 1.5 km and every named pass the route goes over (with its height), named as they are locally. On out-and-back rides a place is listed for each pass and its sign appears at that pass. The list unticks what would be too dense for the video length (at most three signs at once, places at least 1.5 s apart, passes first) and says why; the rest becomes small pins, passes with a yellow pin. OpenStreetMap is asked in a few large sections (twice for 500 km instead of fifty times) with progress in the waiting message; answers are kept for 30 days in a size-limited cache. (thanks to @kaennchenstruggle)
 
 ### Fixed
 - Speed, gradient and distance in overlays, per-track colours and stage values always come from the full track — on the thinned line they could show 0 km/h or impossible peaks in hairpins, and gradients up to several hundred percent.
@@ -25,6 +26,7 @@ Bei jeder neuen Version:
 - „Smooth camera path“ goes up to 4000 m and is also available with the camera flight. The quick video sets the smoothing from the distance per video second, but the slider silently capped it at 1000 m — long, fast tours (e.g. by motorbike) had a less steady camera than intended; hikes are unchanged (thanks to @kaennchenstruggle).
 - Video render: terrain tiles that failed to load are fetched again before the frame is captured — before, they counted as loaded and could leave a black wedge in the video (thanks to @kaennchenstruggle).
 - Correcting only the elevation or the times of an archived tour and choosing „Replace in archive“ now creates a new version („Elevation corrected“ / „Times repaired“). Before, it silently overwrote the stored copy, with no new version and no way back; after a time-only repair the archive also kept showing the unrepaired file and its warning. The archive tile and the Track-Check now show the repaired state, and tags and favourite carry over to the new version (also for ordinary new versions, where they were lost).
+- Highlights window: signs taken over from it now remember their spot along the route, so on routes that pass the same place twice they appear at the right pass. The window uses line symbols instead of emoji.
 
 ## [0.9.797] – 2026-10-18
 

@@ -1132,6 +1132,18 @@ du es um, wandert es zu deinen Projekten.
   listet Einzelfotos. In der Liste hakst du an oder ab und änderst den Schildtext; Empfohlenes ist
   vorgehakt, Nebensächliches ohne Foto abgewählt. „Als Schilder übernehmen“ legt die Schilder an,
   Foto-Karten wo ein Foto dazugehört, als ein ⌘Z-Schritt. Die Fotodateien werden nicht verändert.
+  **Orte und Pässe entlang der Strecke** (Häkchen im Highlights-Fenster, Standard aus): für Touren,
+  bei denen man sehen will, wo man durchgefahren ist — etwa einen Motorradtag. Die App holt jede
+  Stadt bis 5 km neben der Strecke (Kleinstädte bis 3 km), jedes Dorf bis 1,5 km und jeden benannten
+  Pass, über den die Strecke führt (bis 150 m, mit Höhe: „Stilfser Joch · 2757 m“), mit dem Namen,
+  wie er vor Ort heißt. Fährst du hin und zurück, steht ein Ort für jede Durchfahrt in der Liste,
+  und das Schild erscheint jeweils an seiner Stelle. Damit das Video lesbar bleibt, wählt die App
+  nach der Videolänge ab, was zu dicht käme (höchstens drei Schilder gleichzeitig, Orte nacheinander
+  mit mindestens 1,5 s Abstand; Pässe zuerst, dann Städte, dann Dörfer, Nahes vor Fernem) — der Grund
+  steht in der Zeile, und du kannst jeden Ort wieder anhaken. Übernommen werden sie als kleine
+  Stecknadeln (Pässe mit gelber Nadel), die kurz an ihrer Stelle erscheinen; danach sind es normale
+  Schilder. OpenStreetMap wird dafür in wenigen großen Abschnitten gefragt (bei 500 km zweimal), die
+  Wartemeldung zeigt, welcher gerade dran ist; die Antworten merkt sich die App 30 Tage.
 - **Sprung in den Animator** mit dem geöffneten Projekt.
 
 Gab es nichts zu reparieren, steht das so in der Liste und das Projekt hängt an der Originaldatei.

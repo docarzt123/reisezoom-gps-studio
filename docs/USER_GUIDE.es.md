@@ -1118,6 +1118,19 @@ automáticamente**. Si le cambias el nombre, pasa a tus proyectos.
   sueltas. En la lista marcas o desmarcas y editas el texto; lo recomendado viene marcado, lo
   secundario sin foto desmarcado. «Añadir como carteles» crea los carteles, tarjetas con foto donde
   corresponde, como un paso ⌘Z. Los archivos de foto no se modifican.
+  **Pueblos y puertos a lo largo de la ruta** (casilla en la ventana de puntos destacados,
+  desactivada por defecto): para rutas en las que quieres ver por dónde pasaste, por ejemplo un día
+  en moto. La app busca cada ciudad hasta 5 km de la ruta (ciudades pequeñas hasta 3 km), cada
+  pueblo hasta 1,5 km y cada puerto de montaña con nombre por el que pasa la ruta (hasta 150 m, con
+  su altura: «Paso del Stelvio · 2757 m»), con el nombre que tiene allí. Si vas y vuelves por el
+  mismo camino, un lugar aparece una vez por cada paso y su cartel sale en ese paso. Para que el
+  vídeo se lea bien, la app desmarca lo que quedaría demasiado junto para la duración del vídeo
+  (como mucho tres carteles a la vez, lugares separados al menos 1,5 s; primero puertos, luego
+  ciudades, luego pueblos, lo cercano antes que lo lejano): la fila dice por qué y puedes volver a
+  marcar cualquier lugar. Se añaden como chinchetas pequeñas (los puertos con chincheta amarilla)
+  que aparecen un momento en su sitio; después son carteles normales. A OpenStreetMap se le
+  pregunta en pocos tramos grandes (dos veces para 500 km), el mensaje de espera muestra cuál está
+  en curso; las respuestas se guardan 30 días.
 - **Salto al Animador** con el proyecto abierto.
 
 Si no había nada que reparar, la lista lo dice y el proyecto queda ligado al fichero original.

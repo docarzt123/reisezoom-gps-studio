@@ -15517,17 +15517,78 @@ function mountAnimator(body, headerActions, opts) {
     // 11.09.2026 — Highlights-Fenster (Marc: „ein komplettes Highlights-Modal, groß in der
     // Mitte: Fotoordner hinzufügen, Highlights finden, Liste mit Vorschlägen, an-/abwählen,
     // Text ändern"). Quellen: OSM-Orte, Track-Stellen, Halte-Punkte + Fotos, Foto-Serien.
-    const _hlState = { ordner: [], quellen: { osm: true, track: true, halte: true }, vs: [], info: null };
+    // 18.10.2026 — Quelle `orte`: alle Städte, Dörfer und Pässe entlang der Strecke (Standard aus)
+    const _hlState = { ordner: [], quellen: { osm: true, track: true, halte: true, orte: false }, vs: [], info: null };
     const _hlEsc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    // 18.10.2026 — Strich-Symbole statt Bildzeichen im Highlights-Fenster
+    const _hlI = (n, g) => (typeof rzIcon === "function" ? rzIcon(n, { size: g || 14 }) : "");
+    function _hlSymbolHtml(v, g) {
+      if (v && v.icon) { const h = _hlI(v.icon, g); if (h) return h; }
+      const z = v && v.symbol ? (typeof rzZeichenHtml === "function" ? rzZeichenHtml(v.symbol, g) : "") : "";
+      return z || _hlI("flag", g);
+    }
     function _hlGrund(v) {
       const g = { poi: t("hl.grund_poi", "Ort aus OpenStreetMap"), poi_foto: t("hl.grund_poi_foto", "Ort aus OpenStreetMap, Foto dabei"),
                   track: t("hl.grund_track", "Aus dem Track"), halt_foto: t("hl.grund_halt", "Halt mit Fotos"),
-                  serie: t("hl.grund_serie", "Foto-Serie"), foto: t("hl.grund_foto", "Einzelnes Foto") };
+                  serie: t("hl.grund_serie", "Foto-Serie"), foto: t("hl.grund_foto", "Einzelnes Foto"),
+                  orte: v.art === "pass" ? t("hl.grund_pass", "Pass auf der Strecke") : t("hl.grund_ort", "Ort an der Strecke") };
       let s = g[v.grund] || v.grund || "";
       if (v.n_fotos > 1) s += " · " + t("hl.n_fotos", "{n} Fotos").replace("{n}", v.n_fotos);
       if (v.dauer_s) s += " · " + Math.round(v.dauer_s / 60) + " min";
+      if (v.grund === "orte" && v.art !== "pass" && v.abstand_m > 300) s += " · " + t("hl.orte_abstand", "{km} km neben der Strecke").replace("{km}", (Math.round(v.abstand_m / 100) / 10).toLocaleString(window.rzSprachCode ? window.rzSprachCode() : undefined));
+      if (v.ab_dicht) s += " · " + t("hl.orte_dicht", "abgewählt: zu dicht an anderen Schildern");
       return s;
     }
+    // 18.10.2026 — „Orte und Pässe entlang der Strecke“ (Wunsch aus der Community, PR #11): bei einer langen Tour sind das
+    // schnell 80 Orte. Damit das Video lesbar bleibt, stehen höchstens HL_ORTE_MAX_GLEICHZEITIG Schilder zugleich im Bild
+    // (alle Schilder gezählt: vorhandene, andere gewählte Vorschläge, Orte). Reihenfolge: Pass vor Stadt vor Kleinstadt vor
+    // Dorf, bei Gleichstand das nähere. Was zu viel wäre, wird in der Liste nur ABGEWÄHLT (mit Grund) — wer es trotzdem
+    // will, hakt es an. Ohne Videolänge oder geladene Strecke wird nichts abgewählt.
+    // Sichtprüfung (Teneriffa, 352 km in 60 s, Übersichtskamera): drei Orte binnen 3 km kamen fast gleichzeitig und lagen als
+    // Stapel übereinander. Darum zusätzlich HL_ORTE_ABSTAND_S zwischen zwei Orts-Schildern — sie kommen nacheinander.
+    const HL_ORTE_MAX_GLEICHZEITIG = 3;
+    const HL_ORTE_ABSTAND_S = 1.5;
+    const HL_ORTE_SCHILD = { style: "pin", before: 1.2, after: 1.8, entry: "both", entry_s: 0.35, exit: "fade", exit_s: 0.35,
+                             zoomScale: false, opacity: 0.92 };
+    function _hlOrteRang(v) { return v.art === "pass" ? 0 : (Number.isFinite(+v.rang) ? +v.rang : 3); }
+    function _hlOrteAusduennen(vs) {
+      const dur = _animSignsDuration();
+      if (!(dur > 0) || !Array.isArray(currentCoords) || currentCoords.length < 2) return 0;
+      const anker = (lat, lon, m) => { try { return window.__rzSignAnkerAusOrt ? window.__rzSignAnkerAusOrt(+lon, +lat, m) : null; } catch (_) { return null; } };
+      const fenster = (f, vor, nach) => [f * dur - vor, f * dur + nach];
+      const fest = [];   // Zeitfenster (Sekunden) der Schilder, die sicher kommen
+      for (const s of _animSignsList()) {
+        if (!s || s.visible === false || s.alwaysVisible) continue;
+        const f = (typeof s.timeAnchor === "number") ? s.timeAnchor : anker(s.lat, s.lon, s.strecke_m);
+        if (f != null && isFinite(f)) fest.push(fenster(f, +s.before || 0, +s.after || 0));
+      }
+      for (const v of vs) {
+        if (!v.an || v.grund === "orte") continue;
+        const f = anker(v.lat, v.lon, v.strecke_m);
+        if (f != null && isFinite(f)) fest.push(fenster(f, 1, 4));   // before/after wie in _hlUebernehmen
+      }
+      const kand = vs.filter(v => v.an && v.grund === "orte").map(v => ({ v, f: anker(v.lat, v.lon, v.strecke_m) }))
+        .filter(k => k.f != null && isFinite(k.f))
+        .sort((a, b) => (_hlOrteRang(a.v) - _hlOrteRang(b.v)) || ((+a.v.abstand_m || 0) - (+b.v.abstand_m || 0)));
+      let ab = 0;
+      const orteZeiten = [];   // Sekunden der schon gewählten Orts-Schilder
+      for (const k of kand) {
+        const w = fenster(k.f, HL_ORTE_SCHILD.before, HL_ORTE_SCHILD.after);
+        if (orteZeiten.some(z => Math.abs(z - k.f * dur) < HL_ORTE_ABSTAND_S)) { k.v.an = false; k.v.ab_dicht = true; ab++; continue; }
+        const ueber = fest.filter(x => x[0] < w[1] && w[0] < x[1]);
+        // die meisten gleichzeitigen Fenster liegen am eigenen Anfang oder an einem Fensteranfang darin
+        let am = 0;
+        for (const tp of [w[0]].concat(ueber.map(x => x[0]).filter(tp => tp > w[0] && tp < w[1]))) {
+          const nn = ueber.filter(x => x[0] <= tp && tp < x[1]).length;
+          if (nn > am) am = nn;
+        }
+        if (am + 1 > HL_ORTE_MAX_GLEICHZEITIG) { k.v.an = false; k.v.ab_dicht = true; ab++; }
+        else { fest.push(w); orteZeiten.push(k.f * dur); }
+      }
+      try { applog("info", `[highlights] Orte/Pässe: ${kand.length} Kandidaten, ${ab} abgewählt (> ${HL_ORTE_MAX_GLEICHZEITIG} gleichzeitig, Video ${dur} s)`); } catch (_) {}
+      return ab;
+    }
+    window.__rzHlOrteAusduennen = _hlOrteAusduennen;   // Prüfstand
     function _hlRender() {
       const box = document.getElementById("hl-liste");
       if (!box) return;
@@ -15537,12 +15598,12 @@ function mountAnimator(body, headerActions, opts) {
       } else {
         box.innerHTML = vs.map(v => `<div class="hl-zeile${v.an ? "" : " aus"}" data-id="${v.id}">
             <label class="hl-check"><input type="checkbox" data-hlon="${v.id}"${v.an ? " checked" : ""}></label>
-            <div class="hl-thumb">${v.thumb ? `<img src="${v.thumb}" alt="">` : `<span class="hl-sym">${_hlEsc(v.symbol || "🚩")}</span>`}</div>
+            <div class="hl-thumb">${v.thumb ? `<img src="${v.thumb}" alt="">` : `<span class="hl-sym">${_hlSymbolHtml(v, 22)}</span>`}</div>
             <div class="hl-mitte">
-              <div class="hl-meta">${_hlEsc(v.symbol || "")} <b>${v.km} km</b>${v.uhrzeit ? " · " + _hlEsc(v.uhrzeit) : ""} · <span class="muted">${_hlEsc(_hlGrund(v))}</span></div>
+              <div class="hl-meta"><b>${v.km} km</b>${v.uhrzeit ? " · " + _hlEsc(v.uhrzeit) : ""} · <span class="muted">${_hlEsc(_hlGrund(v))}</span></div>
               <textarea class="hl-text" data-hltext="${v.id}" rows="2" placeholder="${_hlEsc(t("hl.text_ph", "Text auf dem Schild (leer = nur Foto)"))}">${_hlEsc(v.text || "")}</textarea>
             </div>
-            ${v.foto ? `<button type="button" class="btn btn-ghost btn-sm" data-hlnofoto="${v.id}" title="${_hlEsc(t("hl.foto_weg", "Foto entfernen"))}">🖼✕</button>` : ""}
+            ${v.foto ? `<button type="button" class="btn btn-ghost btn-sm" data-hlnofoto="${v.id}" title="${_hlEsc(t("hl.foto_weg", "Foto entfernen"))}">${_hlI("image")}${_hlI("x", 12)}</button>` : ""}
           </div>`).join("");
       }
       const n = vs.filter(v => v.an).length;
@@ -15555,7 +15616,7 @@ function mountAnimator(body, headerActions, opts) {
     function _hlOrdnerRender() {
       const el = document.getElementById("hl-ordner");
       if (!el) return;
-      el.innerHTML = _hlState.ordner.map((o, i) => `<span class="hl-chip">📂 ${_hlEsc(String(o).split("/").pop())} <button type="button" data-hlrm="${i}" title="${_hlEsc(t("common.remove", "Entfernen"))}">✕</button></span>`).join("")
+      el.innerHTML = _hlState.ordner.map((o, i) => `<span class="hl-chip">${_hlI("folder-open")} ${_hlEsc(String(o).split("/").pop())} <button type="button" data-hlrm="${i}" title="${_hlEsc(t("common.remove", "Entfernen"))}">✕</button></span>`).join("")
         || `<span class="muted">${_hlEsc(t("hl.kein_ordner", "noch kein Fotoordner"))}</span>`;
       el.querySelectorAll("[data-hlrm]").forEach(b => b.onclick = () => { _hlState.ordner.splice(+b.dataset.hlrm, 1); _hlOrdnerRender(); });
     }
@@ -15574,27 +15635,48 @@ function mountAnimator(body, headerActions, opts) {
       if (!r || !r.ok) { if (st) st.textContent = t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?"); return; }
       _hlState.info = r;
       _hlState.vs = (r.vorschlaege || []).map(v => ({ ...v, an: !!v.empfohlen }));
+      let orteAb = 0;
+      try { orteAb = _hlOrteAusduennen(_hlState.vs); } catch (e) { applog("warn", "[highlights] Orte ausdünnen: " + e); }
       if (st) st.textContent = t("hl.gefunden", "{n} Vorschläge · {f} von {g} Fotos dem Track zugeordnet{netz}")
         .replace("{n}", _hlState.vs.length).replace("{f}", r.n_zugeordnet || 0).replace("{g}", r.n_fotos || 0)
-        .replace("{netz}", r.netz === false ? " · " + t("hl.kein_netz", "OpenStreetMap nicht erreichbar") : "");
+        .replace("{netz}", r.netz === false ? " · " + t("hl.kein_netz", "OpenStreetMap nicht erreichbar") : "")
+        + (r.n_orte != null ? " · " + t("hl.orte_gefunden", "{n} Orte und Pässe").replace("{n}", r.n_orte) : "")
+        + (orteAb ? " · " + t("hl.orte_abgewaehlt", "{n} davon abgewählt — sonst zu dicht für die Videolänge (höchstens {m} Schilder gleichzeitig)").replace("{n}", orteAb).replace("{m}", HL_ORTE_MAX_GLEICHZEITIG) : "")
+        + (r.orte_unvollstaendig ? " · " + t("hl.orte_unvollstaendig", "OpenStreetMap hat nicht alle Orte geliefert — später noch einmal suchen") : "");
       try { applog("info", "[highlights] Fenster: " + _hlState.vs.length + " Vorschläge, " + (r.n_zugeordnet || 0) + "/" + (r.n_fotos || 0) + " Fotos"); } catch (_) {}
       _hlRender();
     }
     function _hlUebernehmen(m) {
       const gew = _hlState.vs.filter(v => v.an);
       if (!gew.length) return;
-      const vorhanden = new Set(_animSignsList().map(s => String(s.text || "").trim() + "|" + String(s.imageSrc || "").split(/[\\/]/).pop()));
+      // 18.10.2026 — Orte/Pässe: derselbe Ort darf auf einer Hin-und-zurück-Strecke zweimal stehen (eigene Durchfahrt);
+      // gleich ist er nur an (fast) derselben Stelle der Strecke (je 2 km).
+      const ortKey = (text, m) => "orte|" + String(text || "").trim() + "|" + (isFinite(+m) && m != null ? Math.round(+m / 2000) : "");
+      const vorhanden = new Set();
+      for (const s of _animSignsList()) {
+        vorhanden.add(String(s.text || "").trim() + "|" + String(s.imageSrc || "").split(/[\\/]/).pop());
+        if (s.strecke_m != null) vorhanden.add(ortKey(s.text, s.strecke_m));
+      }
       const list = _animSignsList().slice();
       let neu = 0;
       for (const v of gew) {
-        const key = String(v.text || "").trim() + "|" + String(v.foto || "").split(/[\\/]/).pop();
+        const orte = v.grund === "orte";
+        const key = orte ? ortKey(v.text, v.strecke_m) : String(v.text || "").trim() + "|" + String(v.foto || "").split(/[\\/]/).pop();
         if (vorhanden.has(key) || (!v.text && !v.foto)) continue;
         vorhanden.add(key);
-        list.push({ ...(_SIGN_DEFAULTS),
+        const schild = { ...(_SIGN_DEFAULTS),
           style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size, font: _animSignLast.font, weight: _animSignLast.weight,
           before: 1, after: 4, entry: "fade",
           lat: Number(v.lat), lon: Number(v.lon), text: String(v.text || ""), anchorMode: "track", visible: true,
-          ...(v.foto ? { imageSrc: v.foto, thumb: v.thumb || undefined } : {}) });
+          // 18.10.2026 — Stelle in Metern ab Start: auf Hin-und-zurück-Strecken an SEINER Durchfahrt (_animSignsNearestIdx)
+          ...(v.strecke_m != null && isFinite(+v.strecke_m) ? { strecke_m: +v.strecke_m } : {}),
+          ...(v.foto ? { imageSrc: v.foto, thumb: v.thumb || undefined } : {}) };
+        if (orte) {
+          // kleine, ruhige Stecknadeln (nicht die zuletzt benutzte Schildgröße): Stadt und Pass etwas größer als ein Dorf,
+          // Pässe mit gelber Nadel; kurz sichtbar (HL_ORTE_SCHILD: 1,2 s davor, 1,8 s danach) — danach wie jedes Schild bearbeitbar
+          Object.assign(schild, HL_ORTE_SCHILD, { size: v.art === "dorf" ? 17 : 20, accent: v.art === "pass" ? "#ffc21a" : "auto" });
+        }
+        list.push(schild);
         neu++;
       }
       m.close();
@@ -15609,18 +15691,19 @@ function mountAnimator(body, headerActions, opts) {
       if (!pfad || !_activeProject) { toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
       const ov = document.getElementById("modal-overlay"); if (ov) ov.classList.add("hl-gross");
       const m = openModal({
-        title: "🏔 " + t("hl.titel", "Highlights") + " · " + t("hl.experimentell", "Experimentell"),
+        title: t("hl.titel", "Highlights") + " · " + t("hl.experimentell", "Experimentell"),
         body: `<div class="hl-dialog">
-            <div class="lib-hint hl-exp">🧪 ${_hlEsc(t("hl.experimentell_hint", "Experimentell — Auswahl und Texte sind erste Vorschläge; Rückgängig mit ⌘Z. Feedback willkommen."))}</div>
+            <div class="lib-hint hl-exp">${_hlI("flask-conical")} ${_hlEsc(t("hl.experimentell_hint", "Experimentell — Auswahl und Texte sind erste Vorschläge; Rückgängig mit ⌘Z. Feedback willkommen."))}</div>
             <div class="hl-kopf">
               <div class="hl-ordner" id="hl-ordner"></div>
-              <button type="button" class="btn btn-sm" id="hl-ordner-add">📂 ${_hlEsc(t("hl.ordner_add", "Fotoordner hinzufügen …"))}</button>
+              <button type="button" class="btn btn-sm" id="hl-ordner-add">${_hlI("folder-open")} ${_hlEsc(t("hl.ordner_add", "Fotoordner hinzufügen …"))}</button>
             </div>
             <div class="hl-quellen">
               <label><input type="checkbox" id="hl-q-osm" ${_hlState.quellen.osm ? "checked" : ""}> ${_hlEsc(t("hl.q_osm", "Orte aus OpenStreetMap"))}</label>
               <label><input type="checkbox" id="hl-q-track" ${_hlState.quellen.track ? "checked" : ""}> ${_hlEsc(t("hl.q_track", "Track-Stellen (höchster/tiefster Punkt, schnellste, steilste)"))}</label>
               <label><input type="checkbox" id="hl-q-halte" ${_hlState.quellen.halte ? "checked" : ""}> ${_hlEsc(t("hl.q_halte", "Halte-Punkte mit Fotos"))}</label>
-              <button type="button" class="btn btn-primary btn-sm" id="hl-finden">🔎 ${_hlEsc(t("hl.finden", "Highlights finden"))}</button>
+              <label title="${_hlEsc(t("hl.q_orte_tip", "Jede Stadt (bis 5 km), jedes Dorf (bis 1,5 km) und jeder Pass auf der Strecke — als kleine Stecknadeln; was für die Videolänge zu dicht wäre, wird abgewählt"))}"><input type="checkbox" id="hl-q-orte" ${_hlState.quellen.orte ? "checked" : ""}> ${_hlEsc(t("hl.q_orte", "Orte und Pässe entlang der Strecke"))}</label>
+              <button type="button" class="btn btn-primary btn-sm" id="hl-finden">${_hlI("search")} ${_hlEsc(t("hl.finden", "Highlights finden"))}</button>
             </div>
             <div class="lib-hint" id="hl-status"></div>
             <div class="hl-liste" id="hl-liste"></div>
@@ -15638,7 +15721,7 @@ function mountAnimator(body, headerActions, opts) {
         const p = Array.isArray(res) ? res[0] : (res && res.path) || res;
         if (p && typeof p === "string" && !_hlState.ordner.includes(p)) { _hlState.ordner.push(p); _hlOrdnerRender(); }
       };
-      ["osm", "track", "halte"].forEach(k => { const cb = document.getElementById("hl-q-" + k); if (cb) cb.onchange = () => { _hlState.quellen[k] = cb.checked; }; });
+      ["osm", "track", "halte", "orte"].forEach(k => { const cb = document.getElementById("hl-q-" + k); if (cb) cb.onchange = () => { _hlState.quellen[k] = cb.checked; }; });
       const f = document.getElementById("hl-finden"); if (f) f.onclick = _hlFinden;
       const ab = document.getElementById("hl-ab"); if (ab) ab.onclick = () => m.close();
       const ok = document.getElementById("hl-uebernehmen"); if (ok) ok.onclick = () => _hlUebernehmen(m);

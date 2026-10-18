@@ -22,13 +22,21 @@ Kein Netz → leere Liste, kein Fehler: der Assistent meldet es als Zeile.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
+import os
+import re
+import threading
+import time
 import urllib.parse
 import urllib.request
+import uuid
+from pathlib import Path
 from typing import Callable, List, Optional
 
+from . import dateischutz as _ds
 from . import gpxsimplify
 from . import net as cnet
 
@@ -787,3 +795,340 @@ def vorschlaege(points: List[dict], *, pois: Optional[List[dict]] = None, track:
     for k, v in enumerate(out):
         v["id"] = f"v{k}"
     return out
+
+
+# ── 6) Orte und Pässe entlang der Strecke (18.10.2026) ──────────────────────
+#
+# 18.10.2026 — Wunsch aus der Community (PR #11: „Highlights ja schon, aber die Ortsnamen nicht“): für einen Motorradtag
+# die Städte und Dörfer, durch die man fährt, und die Pässe, über die man fährt. Die Highlights oben suchen dagegen die
+# BESTEN Stellen (8–16 Schilder, Orte nur als Lückenfüller). Eigene Option im Highlights-Fenster, Standard aus.
+#
+# Abfrage: Orts-Knoten (`place` = city/town/village) und benannte Pässe (`mountain_pass=yes`) in kleinen Kästen
+# entlang der Strecke (je 25 km), viele Kästen in EINER Overpass-Anfrage (je 250 km Strecke) — bei 500 km zwei
+# Anfragen statt fünfzig. Jede Art bekommt nur den Rand, den sie braucht (Pass 200 m, Dorf 1,5 km, Stadt 5 km).
+# Läuft über `_http_overpass` (Hauptserver, Wiederholung, Spiegel); jede Antwort wird einzeln gemerkt (Cache mit
+# Obergrenze), ein Ausfall mittendrin kostet beim nächsten Mal nur die fehlenden Anfragen.
+#
+# Auswertung lokal: je Ort jede DURCHFAHRT (Weg kommt näher als der Radius); führt die Strecke zweimal vorbei (hin und
+# zurück, zweimal über denselben Pass), gibt es zwei Einträge mit ihrer eigenen Stelle `strecke_m`.
+
+ORTE_STADT_M = 5000.0        # city: so weit darf der Ortsmittelpunkt neben der Strecke liegen
+ORTE_KLEINSTADT_M = 3000.0   # town
+ORTE_DORF_M = 1500.0         # village (Weiler und Ortsteile bleiben draußen: zu viele, zu klein)
+ORTE_PASS_M = 150.0          # ein Pass zählt, wenn die Strecke so nah an ihm vorbeiführt
+ORTE_KASTEN_M = 25_000.0     # Strecke je Kasten (eng am Weg, wenig Beifang)
+ORTE_ANFRAGE_M = 250_000.0   # Strecke je Overpass-Anfrage (die Kästen dazu gehen in eine Abfrage)
+ORTE_TIMEOUT_S = 45          # Server-Limit je Anfrage; der Client wartet 5 s länger
+ORTE_PAUSE_S = 1.0           # Pause zwischen zwei Anfragen (Rücksicht auf den freien Server)
+ORTE_GLEICH_M = 2000.0       # gleicher Name an (fast) derselben Stelle der Strecke = derselbe Ort
+ORTE_MAX_DURCHFAHRTEN = 3    # öfter als dreimal am selben Ort vorbei: nur die drei nächsten
+ORTE_CACHE_VERSION = "orte1"
+ORTE_CACHE_MAX = 60          # so viele Antworten bleiben gemerkt (die ältesten fallen heraus)
+ORTE_CACHE_MAX_S = 30 * 86400.0
+ORTE_ZELLE_M = 1500.0        # Raster für die Abstandssuche
+
+#: place → (Art, Rang: kleiner = wichtiger, Radius)
+ORTE_PLACE = {"city": ("stadt", 1, ORTE_STADT_M), "town": ("stadt", 2, ORTE_KLEINSTADT_M), "village": ("dorf", 3, ORTE_DORF_M)}
+ORTE_PASS_RANG = 0
+#: Linien-Symbol (Lucide-Name, ui/js/icons.js) je Art — die Oberfläche zeigt keine Bildzeichen
+ORTE_ICON = {"stadt": "map-pinned", "dorf": "map-pin", "pass": "mountain-snow"}
+
+_ORTE_CACHE_LOCK = threading.Lock()
+
+
+def lokaler_name(tags: dict) -> Optional[str]:
+    """Name wie vor Ort: der deutsche nur, wo er im Namen steckt („Meran - Merano“ → „Meran“); zweisprachige Namen
+    („Passo Tre Croci - Son Zuógo“) nur der erste Teil. (Regel aus PR #11 übernommen.)"""
+    name = str(tags.get("name") or "").strip()
+    de = str(tags.get("name:de") or "").strip()
+    if de and (not name or de in name):
+        return de
+    return re.split(r"\s+-\s+|\s*/\s*", name)[0].strip() or None
+
+
+def gleicher_ort(name: str) -> str:
+    """Schreibweisen eines Ortes gleich machen: „St. Ingbert“ und „Sankt Ingbert“. (Aus PR #11.)"""
+    return re.sub(r"\bsankt\s+|\bst\.?\s+", "st. ", str(name or "").casefold()).strip()
+
+
+def _orte_kaesten(points: List[dict], cum: List[float]) -> List[tuple]:
+    """Rechtecke (s, w, n, e) der Strecke in Abschnitten von ORTE_KASTEN_M — OHNE Rand (den setzt die Abfrage je Art)."""
+    kaesten = []
+    i, n = 0, len(points)
+    while i < n - 1:
+        j = i
+        while j < n - 1 and cum[j] - cum[i] < ORTE_KASTEN_M:
+            j += 1
+        seg = points[i:j + 1]
+        la = [float(p["lat"]) for p in seg]
+        lo = [float(p["lon"]) for p in seg]
+        kaesten.append((min(la), min(lo), max(la), max(lo)))
+        i = j
+    return kaesten
+
+
+def _kasten_rand(k: tuple, rand_m: float) -> str:
+    s, w, n, e = k
+    dlat = rand_m / 111_320.0
+    dlon = rand_m / (111_320.0 * max(0.2, math.cos(math.radians(max(abs(s), abs(n))))))
+    return f"({s - dlat:.5f},{w - dlon:.5f},{n + dlat:.5f},{e + dlon:.5f})"
+
+
+def orte_abfrage(kaesten: List[tuple]) -> str:
+    """Overpass-QL für mehrere Kästen in EINER Anfrage: Städte (city/town) mit 5 km Rand, Dörfer mit 1,5 km,
+    benannte Pässe mit 200 m. `out body` — bei Knoten heißt das: Lage und Tags (`out tags` ließe die Lage weg)."""
+    zeilen = []
+    for k in kaesten:
+        zeilen.append(f'node["place"~"^(city|town)$"]["name"]{_kasten_rand(k, ORTE_STADT_M)};')
+        zeilen.append(f'node["place"="village"]["name"]{_kasten_rand(k, ORTE_DORF_M)};')
+        zeilen.append(f'node["mountain_pass"="yes"]["name"]{_kasten_rand(k, ORTE_PASS_M + 50)};')
+    return f"[out:json][timeout:{ORTE_TIMEOUT_S}];(" + "".join(zeilen) + ");out body qt;"
+
+
+_ORTE_TAGS = ("name", "name:de", "place", "mountain_pass", "ele")
+
+
+def _orte_knappe_elemente(antwort: dict) -> List[dict]:
+    """Nur was die Auswertung braucht (der Cache bleibt klein): id, lat, lon, ausgewählte Tags."""
+    out = []
+    for el in (antwort or {}).get("elements") or []:
+        if el.get("type", "node") != "node" or el.get("lat") is None or el.get("lon") is None:
+            continue
+        tags = el.get("tags") or {}
+        out.append({"id": el.get("id"), "lat": float(el["lat"]), "lon": float(el["lon"]),
+                    "tags": {k: tags[k] for k in _ORTE_TAGS if k in tags}})
+    return out
+
+
+def _orte_cache_lesen(pfad: Optional[Path], key: str) -> Optional[list]:
+    if not pfad:
+        return None
+    with _ORTE_CACHE_LOCK:
+        try:
+            v = (json.loads(Path(pfad).read_text(encoding="utf-8")) or {}).get(key)
+        except Exception:  # noqa: BLE001 — fehlende/kaputte Datei = kein Treffer
+            return None
+    if not (isinstance(v, dict) and isinstance(v.get("v"), list)):
+        return None
+    if time.time() - float(v.get("t") or 0) > ORTE_CACHE_MAX_S:
+        return None
+    return v["v"]
+
+
+def _orte_cache_schreiben(pfad: Optional[Path], key: str, elemente: list) -> None:
+    """Eintrag dazu; Abgelaufenes fliegt raus, und es bleiben höchstens ORTE_CACHE_MAX Einträge (die neuesten).
+    Eigener, eindeutiger Temp-Name je Schreibvorgang (zwei Fenster schrieben sonst in dieselbe .tmp)."""
+    if not pfad:
+        return
+    pfad = Path(pfad)
+    with _ORTE_CACHE_LOCK:
+        tmp = None
+        try:
+            try:
+                cache = json.loads(pfad.read_text(encoding="utf-8")) if pfad.is_file() else {}
+                if not isinstance(cache, dict):
+                    cache = {}
+            except Exception:  # noqa: BLE001
+                cache = {}
+            jetzt = time.time()
+            cache[key] = {"t": jetzt, "v": elemente}
+            cache = {k: v for k, v in cache.items()
+                     if isinstance(v, dict) and jetzt - float(v.get("t") or 0) <= ORTE_CACHE_MAX_S}
+            if len(cache) > ORTE_CACHE_MAX:
+                neueste = sorted(cache, key=lambda k: float(cache[k].get("t") or 0), reverse=True)[:ORTE_CACHE_MAX]
+                cache = {k: cache[k] for k in neueste}
+            pfad.parent.mkdir(parents=True, exist_ok=True)
+            tmp = pfad.with_name(f"{pfad.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+            tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+            _ds.ersetzen(tmp, pfad, "orte_cache", art=_ds.ART_CACHE)
+            tmp = None
+        except Exception as e:  # noqa: BLE001
+            log.warning("Orte-Cache: %s", e)
+        finally:
+            if tmp is not None:
+                try:
+                    _ds.loeschen(tmp, "orte_cache:tmp", art=_ds.ART_CACHE)
+                except Exception:  # noqa: BLE001 — eine liegengebliebene .tmp stört niemanden
+                    pass
+
+
+class _TrackRaster:
+    """Trackpunkte in einem Gitter (Zellen ORTE_ZELLE_M) — „welche Punkte liegen im Radius um diesen Ort?“, ohne
+    jeden Punkt der Strecke anzufassen (500 km mit 50 000 Punkten × ein paar tausend Orte)."""
+
+    def __init__(self, points: List[dict]):
+        self.lat = [float(p["lat"]) for p in points]
+        self.lon = [float(p["lon"]) for p in points]
+        cos_min = max(0.05, math.cos(math.radians(max(abs(x) for x in self.lat))))
+        self.zl = ORTE_ZELLE_M / 111_320.0                 # Zellhöhe in Grad
+        self.zo = ORTE_ZELLE_M / (111_320.0 * cos_min)     # Zellbreite am polnächsten Punkt gerechnet: deckt überall ab
+        self.zellen: dict = {}
+        for i, (la, lo) in enumerate(zip(self.lat, self.lon)):
+            self.zellen.setdefault((int(math.floor(la / self.zl)), int(math.floor(lo / self.zo))), []).append(i)
+
+    def im_radius(self, lat: float, lon: float, radius_m: float) -> List[tuple]:
+        """[(Index, Abstand m)] aller Punkte bis `radius_m`, nach Index sortiert."""
+        r = int(math.ceil(radius_m / ORTE_ZELLE_M))
+        zy, zx = int(math.floor(lat / self.zl)), int(math.floor(lon / self.zo))
+        kx = 111_320.0 * math.cos(math.radians(lat))
+        out = []
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                for i in self.zellen.get((zy + dy, zx + dx), ()):
+                    d = math.hypot((self.lon[i] - lon) * kx, (self.lat[i] - lat) * 111_320.0)
+                    if d <= radius_m:
+                        out.append((i, d))
+        out.sort()
+        return out
+
+
+def _durchfahrten(treffer: List[tuple], cum: List[float], luecke_m: float) -> List[tuple]:
+    """Treffer (Index, Abstand) in Durchfahrten teilen: liegt zwischen zwei Treffern mehr als `luecke_m` Strecke, ist es
+    eine neue Durchfahrt. Je Durchfahrt der nächste Punkt. Höchstens ORTE_MAX_DURCHFAHRTEN (die nächsten)."""
+    gruppen: List[tuple] = []
+    best = None
+    vorher = None
+    for i, d in treffer:
+        if vorher is not None and cum[i] - cum[vorher] > luecke_m:
+            gruppen.append(best)
+            best = None
+        if best is None or d < best[1]:
+            best = (i, d)
+        vorher = i
+    if best is not None:
+        gruppen.append(best)
+    if len(gruppen) > ORTE_MAX_DURCHFAHRTEN:
+        gruppen = sorted(sorted(gruppen, key=lambda g: g[1])[:ORTE_MAX_DURCHFAHRTEN])
+    return gruppen
+
+
+def _orte_auswerten(points: List[dict], cum: List[float], knoten: dict) -> List[dict]:
+    if not knoten:
+        return []
+    raster = _TrackRaster(points)
+    ges = cum[-1] or 1.0
+    roh = []
+    for nid, kn in knoten.items():
+        tags = kn.get("tags") or {}
+        if tags.get("mountain_pass") == "yes":
+            art, rang, radius = "pass", ORTE_PASS_RANG, ORTE_PASS_M
+        elif tags.get("place") in ORTE_PLACE:
+            art, rang, radius = ORTE_PLACE[tags["place"]]
+        else:
+            continue
+        name = lokaler_name(tags)
+        if not name:
+            continue
+        ele = None
+        if art == "pass":
+            m = re.search(r"\d+(?:[.,]\d+)?", str(tags.get("ele") or ""))
+            ele = float(m.group().replace(",", ".")) if m else None
+        treffer = raster.im_radius(float(kn["lat"]), float(kn["lon"]), radius)
+        for idx, _d in _durchfahrten(treffer, cum, max(3000.0, radius)):
+            q = points[idx]
+            d = _haversine_m(float(kn["lat"]), float(kn["lon"]), float(q["lat"]), float(q["lon"]))
+            dm = q.get("dist_m")
+            roh.append({"art": art, "rang": rang, "name": name, "lat": float(kn["lat"]), "lon": float(kn["lon"]), "ele": ele,
+                        "osm_id": nid, "place": tags.get("place") or "", "idx": idx, "frac": cum[idx] / ges,
+                        "strecke_m": round(float(dm) if dm is not None else cum[idx], 1), "abstand_m": round(d)})
+    # Doppelte: gleicher Name (auch „St.“/„Sankt“) an derselben Stelle der Strecke — z. B. ein Ort als town UND village
+    # eingetragen. Der wichtigere (Pass vor Stadt vor Dorf), dann der nähere bleibt. Gleichnamige Orte weiter
+    # auseinander (zwei „Neustadt“) bleiben beide.
+    roh.sort(key=lambda e: (e["rang"], e["abstand_m"]))
+    behalten: List[dict] = []
+    for e in roh:
+        key = gleicher_ort(e["name"])
+        if any(gleicher_ort(b["name"]) == key and abs(b["strecke_m"] - e["strecke_m"]) < ORTE_GLEICH_M for b in behalten):
+            continue
+        behalten.append(e)
+    behalten.sort(key=lambda e: (e["idx"], e["rang"]))
+    return behalten
+
+
+def orte_und_paesse(points: List[dict], *, http: Optional[Callable[[str], dict]] = None,
+                    cache_pfad: Optional[Path] = None, pause_s: float = ORTE_PAUSE_S,
+                    fortschritt: Optional[Callable[[int, int], None]] = None) -> dict:
+    """Städte, Dörfer und Pässe entlang der Strecke: {eintraege, netz, unvollstaendig, anfragen}.
+    eintraege = [{art: stadt|dorf|pass, rang, name, lat, lon, ele, osm_id, place, idx, frac, strecke_m, abstand_m}],
+    nach Strecke sortiert. `netz` False: Overpass nicht erreichbar (was bis dahin kam, ist dabei). `unvollstaendig`:
+    der Server hat eine Antwort abgebrochen (`remark`) — sie wird nicht gemerkt. `anfragen` = gestellte HTTP-Anfragen.
+    `fortschritt(i, n)` vor jeder Anfrage (n kann wachsen, wenn eine zu große Anfrage geteilt wird)."""
+    pts = [p for p in points if p.get("lat") is not None and p.get("lon") is not None]
+    if len(pts) < 2:
+        return {"eintraege": [], "netz": True, "unvollstaendig": False, "anfragen": 0}
+    cum = _kumuliert(pts)
+    kaesten = _orte_kaesten(pts, cum)
+    je = max(1, int(round(ORTE_ANFRAGE_M / ORTE_KASTEN_M)))
+    auftraege = [kaesten[k:k + je] for k in range(0, len(kaesten), je)]
+    abfrage = http or (lambda q: _http_overpass(q, timeout=ORTE_TIMEOUT_S + 5))
+    knoten: dict = {}
+    netz, unvollstaendig, anfragen = True, False, 0
+    i = 0
+    while i < len(auftraege):
+        teil = auftraege[i]
+        if fortschritt:
+            try:
+                fortschritt(i + 1, len(auftraege))
+            except Exception:  # noqa: BLE001 — eine Meldung darf die Suche nie stören
+                pass
+        q = orte_abfrage(teil)
+        key = ORTE_CACHE_VERSION + "|" + hashlib.sha1(q.encode("utf-8")).hexdigest()[:20]
+        elemente = _orte_cache_lesen(cache_pfad, key)
+        if elemente is None:
+            if anfragen and pause_s > 0:
+                time.sleep(pause_s)
+            anfragen += 1
+            try:
+                antwort = abfrage(q)
+            except Exception as e:  # noqa: BLE001
+                log.warning("Orte/Pässe: Overpass nicht erreichbar: %s", e)
+                netz = False
+                break    # der Server ist weg — nicht jede weitere Anfrage bis zum Zeitlimit warten lassen
+            remark = str((antwort or {}).get("remark") or "")
+            if remark and len(teil) > 1:
+                # Overpass bricht bei Zeit-/Speichergrenze mit HTTP 200 und Teilergebnis ab: in zwei Hälften neu fragen
+                log.warning("Orte/Pässe: Antwort unvollständig (%d Kästen), teile: %s", len(teil), remark[:160])
+                h = len(teil) // 2
+                auftraege[i:i + 1] = [teil[:h], teil[h:]]
+                continue
+            elemente = _orte_knappe_elemente(antwort)
+            if remark:
+                # ein einzelner Kasten: das Teilergebnis nehmen, aber nicht merken
+                log.warning("Orte/Pässe: Antwort unvollständig: %s", remark[:160])
+                unvollstaendig = True
+            else:
+                _orte_cache_schreiben(cache_pfad, key, elemente)
+        for el in elemente:
+            knoten.setdefault(el.get("id"), el)
+        i += 1
+    eintraege = _orte_auswerten(pts, cum, knoten)
+    log.info("Orte/Pässe: %d Einträge aus %d Knoten, %d Anfragen (%d Abschnitte), netz=%s, unvollständig=%s",
+             len(eintraege), len(knoten), anfragen, len(auftraege), netz, unvollstaendig)
+    return {"eintraege": eintraege, "netz": netz, "unvollstaendig": unvollstaendig, "anfragen": anfragen}
+
+
+def orte_als_vorschlaege(points: List[dict], eintraege: List[dict]) -> List[dict]:
+    """Die Einträge als Zeilen fürs Highlights-Fenster (`grund` „orte“): Stadt/Dorf = Name, Pass = „Name\\n2094 m“.
+    Alle vorgeschlagen; was davon gleichzeitig zu viel wäre, wählt die Oberfläche nach der Videolänge ab."""
+    cum = _kumuliert(points)
+    ges = cum[-1] or 1.0
+    out = []
+    for e in eintraege:
+        idx = int(e["idx"])
+        out.append({"art": e["art"], "symbol": "", "icon": ORTE_ICON.get(e["art"], "map-pin"), "text": _text(e, {}),
+                    "name": e["name"], "lat": float(e["lat"]), "lon": float(e["lon"]), "idx": idx, "frac": cum[idx] / ges,
+                    "km": round(cum[idx] / 1000.0, 1), "strecke_m": e.get("strecke_m"), "epoch": _parse_t(points[idx].get("time")),
+                    "foto": None, "grund": "orte", "empfohlen": True, "abstand_m": e.get("abstand_m"), "rang": e.get("rang"),
+                    "place": e.get("place", "")})
+    return out
+
+
+def ist_ort_dublette(poi: dict, eintraege: List[dict], nah_m: float = 1000.0) -> bool:
+    """Ein OSM-Highlight, das schon als Ort/Pass dabei ist: gleicher Name UND höchstens `nah_m` entfernt. Nur der Name
+    reicht nicht — ein Gipfel heißt oft wie das Dorf darunter (oder wie ein anderer Gipfel) und ist ein eigenes Ziel."""
+    key = gleicher_ort(str(poi.get("name") or ""))
+    if not key:
+        return False
+    return any(gleicher_ort(e["name"]) == key
+               and _haversine_m(float(poi["lat"]), float(poi["lon"]), float(e["lat"]), float(e["lon"])) <= nah_m
+               for e in eintraege)

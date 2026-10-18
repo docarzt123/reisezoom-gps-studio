@@ -2664,7 +2664,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
 | `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
 | `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
-| `highlights_vorschlaege(path, foto_quellen, quellen)` | `{ok, vorschlaege:[{id, art, symbol, text, km, uhrzeit, lat, lon, idx, frac, foto, thumb, grund, empfohlen, n_fotos, dauer_s}], n_fotos, n_zugeordnet, netz, tz}` | Highlights-Fenster (11.09.2026): OSM + Track-Stellen + `halte_punkte` + `fotos_zuordnen` (GPS ≤ 150 m, sonst Aufnahmezeit in der Tour-Zone) → `vorschlaege`; Halt-Namen per Photon (≤ 8 Rufe); Thumbs 160 px nur für Vorschläge |
+| `highlights_vorschlaege(path, foto_quellen, quellen)` | `{ok, vorschlaege:[{id, art, symbol, icon?, text, km, strecke_m, uhrzeit, lat, lon, idx, frac, foto, thumb, grund, empfohlen, n_fotos, dauer_s, abstand_m?, rang?}], n_fotos, n_zugeordnet, netz, tz, n_orte?, orte_unvollstaendig?}` | Highlights-Fenster (11.09.2026): OSM + Track-Stellen + `halte_punkte` + `fotos_zuordnen` (GPS ≤ 150 m, sonst Aufnahmezeit in der Tour-Zone) → `vorschlaege`; Halt-Namen per Photon (≤ 8 Rufe); Thumbs 160 px nur für Vorschläge. 18.10.2026: `quellen.orte` (Standard aus) → `orte_und_paesse` (Zeilen `grund: "orte"`), `strecke_m` für alle Zeilen |
 | `highlights_schilder(path, stil)` | `{ok, netz, n, n_pois, schilder, kurz, start, ziel}` | Knopf im Animator/Tour-Map (11.09.2026); Oberfläche legt sie zu den Schildern (Text-Dedupe) und pusht Undo |
 | `assistent_lauf(path, vorlage_id, name, highlights=True)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
 | `eingang_pruefen(ordner="")` | `{ok, ordner, ziel, tracks:[{pfad, name, art (neu/im_archiv/nur_version), geo_hash, km, start, ende, datum, titel, aktivitaet, punkte, coords, befunde, hoechste}], medien:[{pfad, name, art, zeit, tz_bekannt, gps}], begleiter, sonst}` | Import-Assistent (15.10.2026): Inhalt des Eingangsordners (`core/eingang.inhalt`), Archiv-Abgleich (`library_import_pruefen`), Art aus dem Tempo (`clib._guess_activity`), Track-Check (`trackcheck_datei`), Aufnahmezeiten (`ceingang.zeiten_lesen`) |
@@ -3220,6 +3220,28 @@ Zustand `_hlState` (Ordner, Quellen, Vorschläge mit `an`), Overlay-Klasse `hl-g
 (≥ 180 s in 40 m), `fotos_zuordnen` (GPS ≤ 150 m, sonst Zeit; EXIF-Zeit = Ortszeit → mit `tz_offset_min`),
 `vorschlaege` (Foto an Ort ≤ 300 m/20 min, Halt nur mit Fotos, Serien 5 min/100 m, Rest als Einzelfoto abgewählt;
 `NUR_MIT_FOTO` für Nebensächliches). Prüfstand: Marcs 72-km-Tour + 87 Fotos → 93 Vorschläge in 11 s.
+
+**Orte und Pässe entlang der Strecke (18.10.2026, Quelle `orte`, Idee aus PR #11):** `core/highlights.orte_und_paesse(points,
+http, cache_pfad, pause_s, fortschritt)` → `{eintraege, netz, unvollstaendig, anfragen}`. Strecke in Kästen à
+`ORTE_KASTEN_M` (25 km, ohne Rand), je `ORTE_ANFRAGE_M` (250 km) Strecke EINE Overpass-Anfrage (`orte_abfrage`: je Kasten
+city/town mit 5 km Rand, village 1,5 km, `mountain_pass=yes` 200 m; `out body qt`) über `_http_overpass` (Spiegel,
+Wiederholung, `ORTE_TIMEOUT_S`). 500 km = 2 Anfragen (PR-Fassung: je 10 km eine = 50). `remark` bei mehreren Kästen →
+Anfrage halbieren und neu; bei einem Kasten → Teilergebnis, `unvollstaendig`, nicht gemerkt. HTTP-Fehler → `netz` False,
+Abbruch (keine weiteren Anfragen). Cache je Anfrage (`sha1` der Abfrage, Version `ORTE_CACHE_VERSION`) in
+`APP_SUPPORT/orte_paesse_cache.json`: nur id/lat/lon/5 Tags, 30 Tage, höchstens `ORTE_CACHE_MAX` Einträge (neueste),
+eindeutiger Temp-Name + `_ds.ersetzen`. Auswertung lokal: `_TrackRaster` (Gitter 1,5 km) → Punkte im Radius
+(Stadt 5 km, Kleinstadt 3 km, Dorf 1,5 km, Pass 150 m) → `_durchfahrten` (Lücke > max(3 km, Radius) = neue Durchfahrt,
+höchstens 3) → je Durchfahrt ein Eintrag mit `idx`, `strecke_m` (`dist_m` des Punkts, sonst `cum[idx]`), `abstand_m`.
+Doppelte nur bei gleichem Namen (`gleicher_ort`: „St.“ = „Sankt“) an derselben Stelle (< 2 km Strecke); Name über
+`lokaler_name`. `app.highlights_vorschlaege`: Wartemeldung `vorgang.hl_orte` mit i/n, OSM-Vorschläge fallen nur weg, wenn
+`ist_ort_dublette` (gleicher Name UND ≤ 1 km), „Höchster Punkt“ < 300 m neben einem Pass entfällt; ALLE Vorschläge
+bekommen `strecke_m`. Oberfläche: `_hlOrteAusduennen(vs)` nach „Finden“ (Videolänge, Anker über
+`__rzSignAnkerAusOrt(lon, lat, strecke_m)`): Rang Pass > Stadt > Kleinstadt > Dorf, dann Abstand; abgewählt (`ab_dicht`,
+nicht gelöscht), wenn `HL_ORTE_ABSTAND_S` (1,5 s) zu einem gewählten Orts-Schild fehlt oder sonst mehr als
+`HL_ORTE_MAX_GLEICHZEITIG` (3) Fenster gleichzeitig offen wären (vorhandene Schilder und andere gewählte Vorschläge
+zählen mit). Übernehmen: `HL_ORTE_SCHILD` (pin, 1,2 s vor/1,8 s nach, Größe 20/Dorf 17, Pass `accent` #ffc21a,
+`zoomScale` aus) + `strecke_m`; Dedupe für Orte über Text + Stelle (2-km-Raster), damit Hin und Rück beide bleiben.
+Selbsttest: `scripts/selftest_orte_paesse.py` (Welt-Attrappe für Overpass, Brücke, echte Oberfläche).
 
 **Datum/Uhrzeit in den Einblendungen (11.09.2026, `core/zeitzone.py`):** Tracks tragen UTC; die Zone kommt aus
 `zone_fuer(lat, lon, land)` — `land` = deutscher Ländername aus `tracks.country` (Ortslauf), Mehrzonen-Länder über den

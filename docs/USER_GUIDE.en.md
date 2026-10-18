@@ -1102,6 +1102,18 @@ you rename it, it moves to your projects.
   edit the sign text; recommended rows are pre-ticked, minor places without a photo unticked. “Add
   as signs” creates the signs, photo cards where a photo belongs, as one ⌘Z step. Photo files are
   not modified.
+  **Towns and passes along the route** (tick box in the highlights window, off by default): for
+  tours where you want to see where you rode through — a motorcycle day, for example. The app
+  fetches every city up to 5 km from the route (small towns up to 3 km), every village up to 1.5 km
+  and every named pass the route goes over (up to 150 m, with its height: “Stelvio Pass · 2757 m”),
+  named as they are locally. On an out-and-back ride a place is listed once for each pass, and its
+  sign appears at that pass. To keep the video readable, the app unticks what would come too
+  close for the video length (at most three signs at once, places at least 1.5 s apart; passes
+  first, then cities, then villages, nearer before farther) — the row says why, and you can tick
+  any place again. They are added as small pins (passes with a yellow pin) that show briefly at
+  their spot; after that they are normal signs. OpenStreetMap is asked in a few large sections
+  (twice for 500 km), the waiting message shows which one is running; the answers are kept for
+  30 days.
 - **Jump into the Animator** with the project open.
 
 If there was nothing to repair, the list says so and the project hangs on the original file.
