@@ -1706,12 +1706,14 @@ function mountAnimator(body, headerActions, opts) {
     if (!b) return;
     const art = b.dataset.kameraArt;
     let hatKf = false;
-    try { hatKf = getTimelineEvents().some(e => e && (KF_LANES.includes(e.kind) || e.kind === "camera")); } catch (_) {}
+    // 18.10.2026 — die gespeicherten Keyframes zählen, auch wenn der Schalter aus ist (sie sind nur ausgeblendet)
+    try { hatKf = getRawTimelineEvents().some(e => e && (KF_LANES.includes(e.kind) || e.kind === "camera")); } catch (_) {}
     if (art === "fahrt" && hatKf) {
       const c = document.getElementById("anim-kf-enabled");
       if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event("change", { bubbles: true })); }
-    } else if (art === "startziel" && hatKf && keyframesEnabled() && typeof window.rzConfirm === "function") {
+    } else if (art === "startziel" && hatKf && typeof window.rzConfirm === "function") {
       // 07.10.2026 — eigene Keyframes nie still ersetzen (⌘Z holt sie zurück, aber erst fragen)
+      // 18.10.2026 — auch ausgeblendete Keyframes (Editor aus) werden nicht still ersetzt
       window.rzConfirm(t("einfach.k_startziel", "Start → Ziel"),
         t("animator.kamera.startziel_frage", "Deine Keyframes werden durch die Fahrt vom Start zum Ziel ersetzt. ⌘Z holt sie zurück."),
         t("animator.kamera.ersetzen", "Ersetzen")).then(ok => {
@@ -1784,12 +1786,10 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-kf-enabled", _MODKEY, "keyframes_enabled", { type: "bool",
     onChange: () => applyKeyframesEnabled() });
 
-  // v0.9.11 — Warnung wenn der User den Editor mit bestehenden Keyframes
-  // ausschaltet. Marc-Spec: „Da muss eine Warnung kommen 'Keyframes gehen
-  // verloren! Willst du den Keyframes Editor wirklich verlassen?'".
-  // Click-Handler läuft VOR dem change-Listener von bindSetting. Wenn wir
-  // preventDefault() rufen, kippt der Checkbox-State nicht und kein change
-  // feuert — wir können dann via Modal entscheiden.
+  // 18.10.2026 — Ausschalten blendet die Keyframes nur aus (getTimelineEvents liefert dann []); sie bleiben im Projekt
+  // und kommen beim Einschalten zurück. Bewusst löschen: „🗑 Alle weg“.
+  // Der Click-Handler läuft VOR dem change-Listener von bindSetting; er greift nur beim Einschalten ohne eigene
+  // Keyframes ein (preventDefault, Frage nach den Standard-Keyframes, dann programmatisch kippen).
   (() => {
     const cbKf = document.getElementById("anim-kf-enabled");
     if (!cbKf) return;
@@ -1819,33 +1819,6 @@ function mountAnimator(body, headerActions, opts) {
         document.getElementById("md-kf-mit").onclick = () => ein(true);
         return;
       }
-      const hasKfs = getRawTimelineEvents().some(ev => ev && KF_LANES.includes(ev.kind));
-      if (!hasKfs) return;       // nichts zu verlieren → durchlassen
-      e.preventDefault();        // Toggle-Kippen abbrechen
-      const titleStr  = (typeof t === "function" ? t("animator.kf.deactivate_warn_title") : null) || "Zurück zu den Standard-Keyframes?";
-      const bodyStr   = (typeof t === "function" ? t("animator.kf.deactivate_warn_body")  : null)
-                     || "Du hast bestehende Keyframes gesetzt. Wenn du den Keyframe-Editor jetzt deaktivierst, werden <strong>alle Keyframes gelöscht</strong>. Möchtest du fortfahren?";
-      const cancelStr = (typeof t === "function" ? t("common.cancel") : null) || "Abbrechen";
-      const okStr     = (typeof t === "function" ? t("animator.kf.deactivate_warn_ok") : null) || "Editor deaktivieren";
-      openModal({
-        title: titleStr,
-        body:  `<p style="margin:0 0 4px; font-size:13.5px; line-height:1.5;">${bodyStr}</p>`,
-        footer: `
-          <button type="button" class="btn" id="md-kf-deact-cancel">${cancelStr}</button>
-          <button type="button" class="btn btn-primary" id="md-kf-deact-ok" style="background:#d94343; border-color:#b53636;">${okStr}</button>
-        `,
-      });
-      document.getElementById("md-kf-deact-cancel").onclick = () => openModal({}).close();
-      document.getElementById("md-kf-deact-ok").onclick = () => {
-        openModal({}).close();
-        // Alle Keyframe-Events killen (marker/photo bleiben für später)
-        const filtered = getRawTimelineEvents().filter(e => e && !KF_LANES.includes(e.kind));
-        setTimelineEvents(filtered);
-        // Jetzt programmatisch toggeln + change-Event auslösen, damit
-        // bindSetting persistiert + applyKeyframesEnabled() läuft.
-        cbKf.checked = false;
-        cbKf.dispatchEvent(new Event("change"));
-      };
     });
   })();
   // Karten-Feinabstimmung-Felder — jetzt direkt in der Karten-Sektion (v0.6.0).
@@ -3757,7 +3730,7 @@ function mountAnimator(body, headerActions, opts) {
   let _manualCam = null;
   function _manualCamGet() {
     try {
-      if ((getRawTimelineEvents() || []).length) return null;      // Keyframes gewinnen
+      if (keyframesEnabled() && (getRawTimelineEvents() || []).length) return null;      // Keyframes gewinnen — nur bei eingeschaltetem Editor (18.10.2026: ausgeblendete zählen nicht)
       // 07.10.2026 — in der Reise führen die Standard-Keyframes (Sicht je Tour, Übergänge); vorher überschrieb die
       // Reise-Kamera die Handkamera im Bildaufbau, jetzt gilt das hier
       if (!_isStaticFrame && typeof _reiseAktiv === "function" && _reiseAktiv()) return null;
@@ -3774,7 +3747,7 @@ function mountAnimator(body, headerActions, opts) {
   function _manualCamMerken() {
     try {
       if (!map || _previewRaf) return;
-      if ((getRawTimelineEvents() || []).length) return;
+      if (keyframesEnabled() && (getRawTimelineEvents() || []).length) return;
       const c = map.getCenter();
       _manualCamSpeichern({ center: [c.lng, c.lat], zoom: +map.getZoom().toFixed(4), pitch: +map.getPitch().toFixed(2), bearing: +map.getBearing().toFixed(2) });
     } catch (_) {}
@@ -23847,6 +23820,7 @@ function mountAnimator(body, headerActions, opts) {
   // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
   try { window.__rzAnimCoords = () => currentCoords || []; } catch (_) {}
   try { window.__rzRohEvents = () => (getRawTimelineEvents() || []); } catch (_) {}
+  try { window.__rzHandKamera = () => _manualCamGet(); } catch (_) {}   // Prüfstand (selftest_kf_schalter.py)
   window.__rzReiseKamera = (idx) => _reiseKamera(idx);   // Prüfstand
   try { window.__rzReiseBahn = () => (_reiseBahn ? {
     punkte: _reiseBahn.coords.length, teile: _reiseBahn.teile,
