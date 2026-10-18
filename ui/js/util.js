@@ -2056,6 +2056,34 @@ function _resetActiveSession() {
   _notifySessionChanged();
 }
 
+/** 17.10.2026 (Beta-Tester: „Projekt gelöscht und ein neues begonnen — das Intro zeigte Tirol bis in die Toskana“) —
+ *  Das Archiv löscht Projekte; war eines davon gerade offen, arbeiteten die Module bisher weiter darauf: Track, Touren,
+ *  Schilder blieben stehen, jede Änderung ging ins Leere, und „Neues Projekt“ oben rechts legte ein weiteres Projekt
+ *  auf die Tour des gelöschten (der alte Track blieb Track 1, eine neue Tour kam als Track 2 daneben).
+ *  Jetzt wird das offene Projekt geschlossen wie mit ✕ — ohne Rückfrage, gelöscht ist es ja schon.
+ *  `kontexte`: Kontexte der gelöschten Projekte (für ein Projekt, dessen Kennung die Oberfläche noch nicht kennt).
+ *  → true, wenn das offene Projekt dabei war. */
+async function rzProjekteGeloescht(ids, kontexte) {
+  const p = _activeProject, s = _activeSession;
+  if (!p || !s) return false;
+  const weg = new Set((ids || []).map(String));
+  const kx = new Set((kontexte || []).map(String));
+  const trifft = (z) => !!z && ((z.id && weg.has(String(z.id))) || (!z.id && kx.has(String(z.hash))));
+  if (!trifft({ id: p.id, hash: s.track_hash })) return false;
+  // Offene Änderungen gehören dem gelöschten Projekt: verwerfen. Beim Wegschreiben würde ein noch schwebendes
+  // Projekt (Kennung "") sonst gleich wieder angelegt — das gelöschte Projekt käme zurück.
+  if (trifft(_projectPendingZiel)) { clearTimeout(_projectSaveTimer); _projectPendingPatch = null; _projectPendingZiel = null; }
+  if (trifft(_projectRootPendingZiel)) { clearTimeout(_projectRootSaveTimer); _projectRootPendingPatch = null; _projectRootPendingZiel = null; }
+  applog("info", "[projekt] offenes Projekt wurde gelöscht — wird geschlossen: " + (p.id || s.track_hash));
+  try {
+    if (typeof window.rzProjektSchliessen === "function") await window.rzProjektSchliessen();
+    else if (typeof window.clearGlobalGpx === "function") window.clearGlobalGpx();
+    else _resetActiveSession();
+  } catch (e) { applog("warn", "[projekt] Schließen nach dem Löschen: " + e); }
+  return true;
+}
+window.rzProjekteGeloescht = rzProjekteGeloescht;
+
 /** v0.8.4: Wartet bis eine Mapbox-Map-Instanz fertig style-geladen ist.
  *  Robust gegen Race-Conditions: wenn `isStyleLoaded()` bereits true ist,
  *  wird `cb` sofort gerufen; sonst via `on("load")`. Mapbox's `load`-Event
@@ -2346,9 +2374,38 @@ function _projectFlushNow() {
   if (!toSend || !ziel) return;
   Object.entries(toSend).forEach(([mod, modPatch]) => {
     api().session_update_project_settings(ziel.hash, ziel.id, mod, modPatch)
+      .then(r => _projektAntwortPruefen(r, ziel))
       .catch(err => applog("warn", "[projekt] Speichern von " + mod
                            + " fehlgeschlagen: " + (err && err.message ? err.message : err)));
   });
+}
+
+/** 17.10.2026 (Beta-Tester: Projekt gelöscht, neues begonnen — „nicht einmal den Titel konnte ich ändern“) — Antwort
+ *  auf einen Speichervorgang auswerten, statt sie zu verwerfen:
+ *  · ein SCHWEBENDES Projekt wurde beim Speichern festgeschrieben → seine Kennung übernehmen. Ohne sie wusste die
+ *    Oberfläche nie, welches Projekt offen ist (Löschen im Archiv traf es nicht; jedes weitere Speichern hätte ein
+ *    gelöschtes Projekt still neu angelegt).
+ *  · das Projekt gibt es nicht mehr → einmal sagen. Vorher gingen alle Änderungen kommentarlos verloren. */
+const _projektWegGesagt = new Set();
+function _projektAntwortPruefen(r, ziel) {
+  if (!r || !ziel) return;
+  if (r.ok && r.project_id && !ziel.id && _activeProject && !_activeProject.id
+      && _activeSession && _activeSession.track_hash === ziel.hash) {
+    _activeProject.id = r.project_id;
+    delete _activeProject.schwebend;
+    applog("info", "[projekt] festgeschrieben: " + r.project_id);
+    return;
+  }
+  if (r.ok === false && r.grund === "projekt_weg") {
+    const k = ziel.hash + "|" + ziel.id;
+    applog("warn", "[projekt] Speichern ins Leere — Projekt existiert nicht mehr: " + k);
+    if (_projektWegGesagt.has(k)) return;
+    _projektWegGesagt.add(k);
+    try {
+      toast(t("projekt.weg_nicht_gespeichert",
+        "Dieses Projekt gibt es nicht mehr — Änderungen werden nicht gespeichert. Öffne ein Projekt oder lege ein neues an."), "warn", 8000);
+    } catch (_) {}
+  }
 }
 
 /**
@@ -2423,6 +2480,7 @@ function _projectRootFlushNow() {
   _projectRootPendingZiel = null;
   if (!toSend || !ziel) return;
   api().session_update_project_root(ziel.hash, ziel.id, toSend)
+    .then(r => _projektAntwortPruefen(r, ziel))   // 17.10.2026 — gelöschtes Projekt melden
     .catch(err => applog("warn", "[projekt] Speichern der Projektdaten fehlgeschlagen: "
                          + (err && err.message ? err.message : err)));
 }

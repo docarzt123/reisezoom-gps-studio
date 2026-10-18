@@ -73,21 +73,7 @@
               window.dispatchEvent(new CustomEvent("rz-projekte-anzeigen"));
               return;
             }
-            const name = await promptModal(
-              tT("topbar.project.new_empty_title", "Neues leeres Projekt"),
-              tT("topbar.project.new_empty_msg", "Name (Touren kannst du später hinzufügen):"),
-              tT("topbar.project.new_empty_default", "Neues Projekt"));
-            if (!name) return;
-            const r = await rzWarten("projekt_frei_anlegen", () => api().projekt_frei_anlegen(name)).catch((e) => ({ ok: false, error: String(e) }));
-            if (r && r.ok === false && r.error && typeof toast === "function") toast(r.error, "warn");
-            if (typeof applog === "function") applog("info", "[PM] Neues leeres Projekt via TOPBAR: " + JSON.stringify(!!(r && r.ok)));
-            if (r && r.ok && typeof sessionActivateFrei === "function") {
-              await sessionActivateFrei(r.track_hash);
-              if (typeof rebindAllSettings === "function") rebindAllSettings();
-              // v0.9.614: Wenn die Projektliste gerade offen ist, muss sie das
-              // neue Projekt SOFORT zeigen (Marc: „landet nicht in der liste").
-              window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
-            }
+            await neuesLeeresProjekt();
           });
         });
         return;
@@ -110,7 +96,10 @@
                  </button>`;
       }
       html += `<div class="topbar-project-menu-sep"></div>`;
-      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="new">+ ${tT("topbar.project.action_new", "Neues Projekt")}</button>`;
+      // 17.10.2026 — „Neues Projekt“ legt ein weiteres Projekt auf DIESE Tour (Tooltip sagt es); daneben jetzt auch
+      // „Neues leeres Projekt …“ (schließt die Tour vorher)
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="new" title="${escapeAttr(tT("topbar.project.action_new_tip", "Weiteres Projekt mit derselben Tour, z. B. eine zweite Fassung des Videos"))}">+ ${tT("topbar.project.action_new", "Neues Projekt")}</button>`;
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="new_frei">${typeof rzIcon === "function" ? rzIcon("folder-plus", { size: 14 }) : "+"} ${tT("topbar.project.action_new_empty", "Neues leeres Projekt …")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="duplicate">⎘ ${tT("topbar.project.action_duplicate", "Aktuelles duplizieren")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="rename">✎ ${tT("topbar.project.action_rename", "Umbenennen …")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action menu-action-danger" data-action="delete">🗑 ${tT("topbar.project.action_delete", "Aktuelles löschen")}</button>`;
@@ -166,6 +155,9 @@
               // 25.09.2026 (Klicktest PR-02): offene Projektliste im Archiv auffrischen.
               if (r && r.ok) window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
             }
+          } else if (action === "new_frei") {
+            menu.hidden = true;
+            await neuesLeeresProjekt();
           } else if (action === "duplicate") {
             menu.hidden = true;
             const name = await promptModal(
@@ -256,6 +248,34 @@
     }
     // Initial
     renderLabel();
+  }
+
+  /** Leeres Projekt anlegen und öffnen. 17.10.2026 — auch aus einer offenen Tour heraus: dann erst die Tour schließen
+   *  (wie ✕, offene Änderungen gehen vorher ins alte Projekt). Vorher gab es mit offener Tour nur „Neues Projekt“ —
+   *  ein weiteres Projekt AUF DIESER TOUR; wer damit neu anfangen wollte, behielt den alten Track als Track 1. */
+  async function neuesLeeresProjekt() {
+    const name = await promptModal(
+      tT("topbar.project.new_empty_title", "Neues leeres Projekt"),
+      tT("topbar.project.new_empty_msg", "Name (Touren kannst du später hinzufügen):"),
+      tT("topbar.project.new_empty_default", "Neues Projekt"));
+    if (!name) return;
+    if (typeof getActiveSession === "function" && getActiveSession()) {
+      try {
+        if (typeof window.rzProjektSchliessen === "function") await window.rzProjektSchliessen();
+        else if (typeof clearGlobalGpx === "function") clearGlobalGpx();
+      } catch (e) { if (typeof applog === "function") applog("warn", "[PM] Tour schließen vor leerem Projekt: " + e); }
+    }
+    const r = await rzWarten("projekt_frei_anlegen", () => api().projekt_frei_anlegen(name)).catch((e) => ({ ok: false, error: String(e) }));
+    if (r && r.ok === false && r.error && typeof toast === "function") toast(r.error, "warn");
+    if (typeof applog === "function") applog("info", "[PM] Neues leeres Projekt via TOPBAR: " + JSON.stringify(!!(r && r.ok)));
+    if (r && r.ok && typeof sessionActivateFrei === "function") {
+      await sessionActivateFrei(r.track_hash);
+      if (typeof rebindAllSettings === "function") rebindAllSettings();
+      if (typeof window._animOnProjectChanged === "function") { try { window._animOnProjectChanged(); } catch (_) {} }
+      // v0.9.614: Wenn die Projektliste gerade offen ist, muss sie das
+      // neue Projekt SOFORT zeigen (Marc: „landet nicht in der liste").
+      window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
+    }
   }
 
   function suggestName(projects, base) {

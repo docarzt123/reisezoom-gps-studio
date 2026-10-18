@@ -726,7 +726,12 @@
 
     // anchor = auf welchen Bildrand der Geo-Punkt fällt (Sprechblasen-Spitze).
     // Für alle Nicht-Callout-Stile bleibt es "bottom" (calloutDir default).
-    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: calloutDir };
+    // 18.10.2026 — `text`: wo der Text im Bild steht (CSS-px ab der linken oberen Bildecke). Das HTML-Schild im Editor
+    // zeigt dieses Bild und legt seinen tippbaren Text unsichtbar genau darüber (Schreibmarke an der richtigen Stelle).
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: calloutDir,
+             text: { x: (bx + pad + contentDX) / dpr, y: (by + pad + (hasImg ? imgH + imgGap : 0)) / dpr,
+                     w: (boxW - arrowW - pad * 2) / dpr, h: Math.max(textH, lineH) / dpr, zeile: lineH / dpr,
+                     px: fontPx, ausrichtung: align, farbe: textColor, schrift: FONT.replace(fs + "px", fontPx + "px") } };
   }
 
   // ── Pro-Frame: Sichtbarkeits-Fenster + Einblend-Animation ──────────────
@@ -771,6 +776,37 @@
     // identische Werte. Kurve: exponentiell 0,5 → 2,4 (Basis 4,8^(1/12)), nahe an
     // den alten Stützwerten (bei 12: 0,84 statt 0,80; bei 16: 1,42 statt 1,50).
     return ["interpolate", ["exponential", RZ_SIGN_ZOOM_BASE], ["zoom"], 8, sz(0.5), 20, sz(2.4)];
+  }
+  // 18.10.2026 (Marc: „Wir brauchen WYSIWYG. Überall.“) — derselbe Wert wie der icon-size-Ausdruck oben, als Zahl: für den
+  // Randversatz und für das HTML-Schild im Editor (sign_dom.js, module.js). Vorher rechnete der Editor mit den alten
+  // Stützwerten (bei Zoom 12: 0,80 statt 0,84) — das Schild war dort ein paar Prozent anders groß als im Video.
+  function rzSignZoomGroesse(zoom) {
+    var z = Math.max(8, Math.min(20, Number(zoom) || 0));
+    return 0.5 * Math.pow(RZ_SIGN_ZOOM_BASE, z - 8);
+  }
+  /** Größenfaktor eines Schilds auf der Karte (= icon-size der Schild-Ebene ohne Aufpoppen). */
+  function rzSignGroesse(map, zoomScale) {
+    var skal = (map && map.__rzSignSizeScale) || 1;
+    return zoomScale === true ? rzSignZoomGroesse(map && map.getZoom ? map.getZoom() : 12) * skal : skal;
+  }
+
+  // 18.10.2026 — Objekt eines Schilds über seine id (= Schild-Index), nicht über seine Stelle in der Liste. Die Liste
+  // enthält nicht jedes Schild (ausgelassen: Fotostopp „Foto groß“, ausgeblendete, noch ohne Bild) und beim Fotostopp
+  // „eigene Gestaltung“ zusätzlich die Halt-Fassung (id 1000000 + Index) direkt hinter ihrem Schild. Über die Stelle
+  // gelesen landeten Aufpoppen, Mini-Bild und Randversatz beim falschen Objekt. Merker je Liste in einer WeakMap (nicht
+  // an der Liste selbst — die geht per setData an MapLibre).
+  var _rzFeatNachId = (typeof WeakMap !== "undefined") ? new WeakMap() : null;
+  function rzSignFeat(fc, k) {
+    if (!fc || !fc.features) return null;
+    var e = _rzFeatNachId ? _rzFeatNachId.get(fc) : null;
+    if (!e || e.n !== fc.features.length) {
+      e = { n: fc.features.length, m: {} };
+      for (var i = 0; i < fc.features.length; i++) { var f = fc.features[i]; if (f && f.id != null && !(f.id in e.m)) e.m[f.id] = f; }
+      if (_rzFeatNachId) _rzFeatNachId.set(fc, e);
+    }
+    if (e.m[k]) return e.m[k];
+    var g = fc.features[k];   // Objekte ohne id (Prüfstände): Stelle = Index
+    return (g && g.id == null) ? g : null;
   }
 
   function rzSignApplyFrame(map, lyr, src, metas, M) {
@@ -877,8 +913,9 @@
           if (mp <= 0) bild = mk.fullId;
           else if (mp < 0.5) { bild = mk.fullId; ps = sF; popRunning = true; }
           else { bild = mk.miniId; ps = sF / t; if (mp < 1) popRunning = true; }
-          if (bild && fc.features[k] && fc.features[k].properties && fc.features[k].properties.imgId !== bild) {
-            fc.features[k].properties.imgId = bild; popDirty = true;
+          var fk = rzSignFeat(fc, k);   // 18.10.2026 — über die id (siehe rzSignFeat)
+          if (bild && fk && fk.properties && fk.properties.imgId !== bild) {
+            fk.properties.imgId = bild; popDirty = true;
           }
         }
         // Nur INNERHALB des Aufpopp-Fensters skalieren. Davor (Schild noch
@@ -900,7 +937,8 @@
         if (prev == null || Math.abs(prev - ps) > 0.004) {
           popDirty = true;
           map.__rzSignPopLast[k] = ps;
-          if (fc.features[k] && fc.features[k].properties) fc.features[k].properties.popScale = ps;
+          var fp = rzSignFeat(fc, k);   // 18.10.2026 — über die id (siehe rzSignFeat)
+          if (fp && fp.properties) fp.properties.popScale = ps;
         }
       }
       if (popDirty) {
@@ -962,69 +1000,86 @@
     return out;
   }
   var RAND_ANTEIL = 1 / 3;   // höchstens so viel der Schildgröße wird hereingeschoben (siehe rzSignRandVersatz)
+  /** 18.10.2026 — die Randregel für EINEN Kasten (Bildschirm-px: Ort p, Breite w, Höhe h, Anker a, Größenfaktor gr) →
+   *  Versatz [x, y] in Symbol-Bildpunkten (wie icon-offset, nach außen auf 4er gerundet). Genutzt von rzSignRandVersatz
+   *  (Schild-Ebene, Video) und rzSignRandPx (HTML-Schild im Editor) — eine Regel, kein Nachbau. */
+  function rzSignRandSymbol(W, H, p, w, h, a, gr, schutz) {
+    var RAND = 8;
+    var x0 = p.x - (a.indexOf("left") >= 0 ? 0 : a.indexOf("right") >= 0 ? w : w / 2);
+    var y0 = p.y - (a.indexOf("top") >= 0 ? 0 : a.indexOf("bottom") >= 0 ? h : h / 2);
+    // Nur Schilder, die schon (teilweise) im Bild stehen, werden hereingeschoben. Liegt der Kasten komplett draußen
+    // (Ort weit weg, oder die Projektion stammt noch von der Kamera vor einem Sprung), wird nichts hereingezogen.
+    // 14.10.2026 (Flugstil Kranschwenk: Schild lief mit der Kamera aus dem Bild und blieb dann groß in der Ecke hängen) —
+    // ganz draußen geht der Versatz auf 0 (vorher blieb der letzte stehen). Und damit es nicht springt: ganz
+    // hereingeschoben, solange mindestens ein Viertel im Bild läge (F-20: halb überstehend → ganz herein); darunter
+    // nimmt das Schieben gleichmäßig ab, das Schild gleitet hinaus.
+    var dx = 0, dy = 0;
+    var drin = !(x0 + w <= 0 || x0 >= W || y0 + h <= 0 || y0 >= H);
+    if (drin) {
+      // 15.10.2026 (Marc, Video „Linum“: „Das Schild ‚Fasane‘ wandert immer weiter runter. Das hält scheinbar immer den
+      // gleichen Abstand zum Rand, anstatt dass es einfach über den Rand rausgeht.“) — höchstens ein Drittel der
+      // Schildgröße wird hereingeschoben (RAND_ANTEIL). Steht ein Schild knapp über dem Rand, kommt es ganz herein (F-20);
+      // trägt die Kamera es weiter hinaus, wandert es nach diesem Drittel mit der Karte über den Rand, statt am Rand zu
+      // kleben. Nie mehr, als vom Schild noch im Bild läge — so gleitet es am Ende weich hinaus. Ohne Gedächtnis
+      // gerechnet: Editor (Scrubben) und Video (Bild für Bild) zeigen dasselbe.
+      var randAchse = function (lo, groesse, gesamt) {
+        if (groesse + 2 * RAND > gesamt) return 0;
+        var max = groesse * RAND_ANTEIL;
+        if (lo < RAND) return Math.min(RAND - lo, max, Math.max(0, lo + groesse));
+        if (lo + groesse > gesamt - RAND) return -Math.min(lo + groesse - (gesamt - RAND), max, Math.max(0, gesamt - lo));
+        return 0;
+      };
+      dx = randAchse(x0, w, W); dy = randAchse(y0, h, H);
+      // von oben hereingeschoben und läge dann über dem Logo → unter das Logo
+      if (dy > 0) {
+        for (var z = 0; z < schutz.length; z++) {
+          var S = schutz[z], nx0 = x0 + dx, ny0 = y0 + dy;
+          if (nx0 < S.x1 && nx0 + w > S.x0 && ny0 < S.y1 && ny0 + h > S.y0 && S.y1 + RAND + h <= H) dy += (S.y1 + RAND) - ny0;
+        }
+      }
+    }
+    // icon-offset wird mit icon-size multipliziert → in Symbol-Bildpunkte, auf 4er-Schritte gerundet
+    var g = Math.max(0.05, gr);
+    var schritt = function (d) { var x = d / g / 4; return (x < 0 ? Math.floor(x) : Math.ceil(x)) * 4; };   // nach außen runden: ganz im Bild
+    var ox = schritt(dx), oy = schritt(dy);
+    return [ox, oy];
+  }
   function rzSignRandVersatz(map, fc, vis, metas) {
     if (!fc || !fc.features || !vis || !map.project || !map.getCanvas) return false;   // auch ohne sichtbare Schilder: zurücksetzen (unten)
-    var cv = map.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height, RAND = 8;
+    var cv = map.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height;
     if (!(W > 0 && H > 0)) return false;
     var skal = map.__rzSignSizeScale || 1;
-    var zs = 0.5 * Math.pow(RZ_SIGN_ZOOM_BASE, Math.max(8, Math.min(20, map.getZoom())) - 8) * skal;
+    var zs = rzSignGroesse(map, true);   // 18.10.2026 — eine Rechnung für Ebene und Editor
     var geaendert = false, gesehen = {};
     var schutz = map.__rzSchutzTest || rzSchutzFlaechen(map);
-    for (var v = 0; v < vis.length; v++) {
-      var k = vis[v], f = fc.features[k];
+    // 18.10.2026 (Beta-Tester, Fotostopp „eigene Gestaltung“: „se mezclan dos tipos de bocadillo“) — alle Objekte der
+    // sichtbaren Schilder, über `signIdx` (Render-Objekte: id) statt über die Stelle in der Liste: die Halt-Fassung
+    // (zweites Objekt desselben Schilds) blieb sonst ohne Versatz und stand im Halt halb über dem Rand, in der
+    // Überblendung neben der verschobenen Unterwegs-Fassung; Schilder dahinter bekamen den Versatz eines Nachbarn.
+    var visMenge = {};
+    for (var v = 0; v < vis.length; v++) visMenge[vis[v]] = 1;
+    for (var n = 0; n < fc.features.length; n++) {
+      var f = fc.features[n];
       if (!f || !f.geometry || !f.properties) continue;
       var pr = f.properties, img = null;
+      var k = (pr.signIdx != null) ? pr.signIdx : (f.id != null ? f.id : n);
+      if (!visMenge[k]) continue;
       // Das runde Mini nach dem Sofortbild markiert den Aufnahmeort an der Route — es bleibt an seinem Ort (kein Versatz)
       var mm = metas && metas[k];
       if (mm && mm.miniId && pr.imgId === mm.miniId) continue;
       // 14.10.2026 (Orte nacheinander: „da wandert Madrid mit“) — ein Ortsschild steht für seinen Ort, es wird nie verschoben
       if (pr.randFest === true) continue;
-      gesehen[k] = 1;
+      gesehen[n] = 1;   // 18.10.2026 — Stelle in der Liste (wie das Zurücksetzen unten), nicht Schild-Index
       try { img = map.getImage ? map.getImage(pr.imgId) : null; } catch (_) { img = null; }
       if (!img) { try { img = map.style && map.style.getImage ? map.style.getImage(pr.imgId) : null; } catch (_) { img = null; } }
       if (!img || !img.data || !img.data.width) continue;
-      var pop = (map.__rzSignPopLast && map.__rzSignPopLast[k]) || 1;
+      var pop = Number(pr.popScale) || 1;   // 18.10.2026 — Aufpopp-Faktor dieses Objekts (die Halt-Fassung poppt nicht)
       var gr = (pr.zoomScale === true ? zs : skal) * (map.__rzSignPopMode ? pop : 1);
       var w = img.data.width / (img.pixelRatio || 1) * gr, h = img.data.height / (img.pixelRatio || 1) * gr;
       var p = map.project(f.geometry.coordinates), a = String(pr.iconAnchor || "bottom");
       if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
-      var x0 = p.x - (a.indexOf("left") >= 0 ? 0 : a.indexOf("right") >= 0 ? w : w / 2);
-      var y0 = p.y - (a.indexOf("top") >= 0 ? 0 : a.indexOf("bottom") >= 0 ? h : h / 2);
-      // Nur Schilder, die schon (teilweise) im Bild stehen, werden hereingeschoben. Liegt der Kasten komplett draußen
-      // (Ort weit weg, oder die Projektion stammt noch von der Kamera vor einem Sprung), wird nichts hereingezogen.
-      // 14.10.2026 (Flugstil Kranschwenk: Schild lief mit der Kamera aus dem Bild und blieb dann groß in der Ecke hängen) —
-      // ganz draußen geht der Versatz auf 0 (vorher blieb der letzte stehen). Und damit es nicht springt: ganz
-      // hereingeschoben, solange mindestens ein Viertel im Bild läge (F-20: halb überstehend → ganz herein); darunter
-      // nimmt das Schieben gleichmäßig ab, das Schild gleitet hinaus.
-      var dx = 0, dy = 0;
-      var drin = !(x0 + w <= 0 || x0 >= W || y0 + h <= 0 || y0 >= H);
-      if (drin) {
-        // 15.10.2026 (Marc, Video „Linum“: „Das Schild ‚Fasane‘ wandert immer weiter runter. Das hält scheinbar immer den
-        // gleichen Abstand zum Rand, anstatt dass es einfach über den Rand rausgeht.“) — höchstens ein Drittel der
-        // Schildgröße wird hereingeschoben (RAND_ANTEIL). Steht ein Schild knapp über dem Rand, kommt es ganz herein (F-20);
-        // trägt die Kamera es weiter hinaus, wandert es nach diesem Drittel mit der Karte über den Rand, statt am Rand zu
-        // kleben. Nie mehr, als vom Schild noch im Bild läge — so gleitet es am Ende weich hinaus. Ohne Gedächtnis
-        // gerechnet: Editor (Scrubben) und Video (Bild für Bild) zeigen dasselbe.
-        var randAchse = function (lo, groesse, gesamt) {
-          if (groesse + 2 * RAND > gesamt) return 0;
-          var max = groesse * RAND_ANTEIL;
-          if (lo < RAND) return Math.min(RAND - lo, max, Math.max(0, lo + groesse));
-          if (lo + groesse > gesamt - RAND) return -Math.min(lo + groesse - (gesamt - RAND), max, Math.max(0, gesamt - lo));
-          return 0;
-        };
-        dx = randAchse(x0, w, W); dy = randAchse(y0, h, H);
-        // von oben hereingeschoben und läge dann über dem Logo → unter das Logo
-        if (dy > 0) {
-          for (var z = 0; z < schutz.length; z++) {
-            var S = schutz[z], nx0 = x0 + dx, ny0 = y0 + dy;
-            if (nx0 < S.x1 && nx0 + w > S.x0 && ny0 < S.y1 && ny0 + h > S.y0 && S.y1 + RAND + h <= H) dy += (S.y1 + RAND) - ny0;
-          }
-        }
-      }
-      // icon-offset wird mit icon-size multipliziert → in Symbol-Bildpunkte, auf 4er-Schritte gerundet
-      var g = Math.max(0.05, gr);
-      var schritt = function (d) { var x = d / g / 4; return (x < 0 ? Math.floor(x) : Math.ceil(x)) * 4; };   // nach außen runden: ganz im Bild
-      var ox = schritt(dx), oy = schritt(dy);
+      var oxy = rzSignRandSymbol(W, H, p, w, h, a, gr, schutz);   // 18.10.2026 — Regel in eine Funktion (auch fürs HTML-Schild im Editor)
+      var ox = oxy[0], oy = oxy[1];
       var alt = pr.rzOff || [0, 0];
       if (alt[0] !== ox || alt[1] !== oy) { pr.rzOff = [ox, oy]; geaendert = true; }
     }
@@ -1034,6 +1089,24 @@
       if (q && q.rzOff && !gesehen[i] && (q.rzOff[0] || q.rzOff[1])) { q.rzOff = [0, 0]; geaendert = true; }
     }
     return geaendert;
+  }
+  /** 18.10.2026 (Marc: „Wir brauchen WYSIWYG. Überall. Im Editor muss man die Kamera halt verschieben, wenn man das Schild
+   *  sehen will.“) — Randversatz für das HTML-Schild im Editor, in Bildschirm-px (Marker-offset). Dieselbe Regel und
+   *  Rundung wie die Schild-Ebene (rzSignRandSymbol × Größenfaktor), damit das bearbeitete Schild genau dort steht, wo
+   *  es im Video steht. ll = [lon, lat], w/h = Kasten auf dem Bildschirm (Bild × Größenfaktor), anker wie icon-anchor.
+   *  opts: { anzahl: Zahl der Schild-Metas (bei vielen Schildern schiebt auch die Ebene nicht, siehe rzSignApplyFrame),
+   *  randFest: Ortsschild — nie verschieben }. */
+  function rzSignRandPx(map, ll, w, h, anker, gr, opts) {
+    opts = opts || {};
+    if (!map || !map.project || !map.getCanvas || opts.randFest === true) return [0, 0];
+    if (Number(opts.anzahl) > RZ_SIGN_BILD_VOLL) return [0, 0];
+    var cv = map.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height;
+    if (!(W > 0 && H > 0) || !(w > 0 && h > 0)) return [0, 0];
+    var p = map.project(ll);
+    if (!p || !isFinite(p.x) || !isFinite(p.y)) return [0, 0];
+    var o = rzSignRandSymbol(W, H, p, w, h, String(anker || "bottom"), gr, map.__rzSchutzTest || rzSchutzFlaechen(map));
+    var g = Math.max(0.05, gr);
+    return [o[0] * g, o[1] * g];
   }
 
   // Deckkraft eines Schilds beim Anker M aus Ein- und Ausblenden (getrennt; alte Metas: `fade` beidseitig).
@@ -1111,6 +1184,9 @@
     window.__rzSignDeckkraft = rzSignDeckkraft;
     window.__rzSignIconSize = rzSignIconSize;
     window.__rzSignRandVersatz = rzSignRandVersatz;   // Prüfstand (F-20)
+    window.__rzSignRandPx = rzSignRandPx;             // 18.10.2026 — HTML-Schild im Editor (module.js)
+    window.__rzSignGroesse = rzSignGroesse;
+    window.__rzSignZoomGroesse = rzSignZoomGroesse;
     window.__rzSignDpr = rzSignDpr;
     window.__rzHlStile = RZ_HL_STILE;
     window.__rzHlFarben = RZ_HL_FARBEN;

@@ -498,8 +498,10 @@
     return wahl.map(f => ({
       text: String(f.text || "").trim(), imageSrc: f.path, lat: f.lat, lon: f.lon, anchorMode: "track", style: "callout", imageSize: 44,
       // kleines Foto-Schild: kurz vorher auf, nach dem Stopp wieder weg — sonst stehen am Ende alle Karten
-      // auf der Gesamtsicht und verdecken die Schlusskarte (01.10.2026, Teide-Demo)
-      entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
+      // auf der Gesamtsicht und verdecken die Schlusskarte (01.10.2026, Teide-Demo). 18.10.2026 (Marc: „beim
+      // Schnell-Video würde ich die Fotopins stehen lassen“) — „mini“: die Karte schrumpft zum runden Foto-Pin, der
+      // bis zum Ende stehen bleibt (seit 17.10. folgt der Pin dem Ausblende-Verhalten, „pop“ hätte ihn weggenommen)
+      entry: "pop", before: 0.6, after: 1.5, exit: "mini", exit_s: 0.4,
       stopp: true, stopp_s: STOPP.sek, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 8,
       stopp_ortzeit: true, stopp_exif: false,
       ...(String(f.text || "").trim() ? { __eigenText: true } : {}),   // F-5: eigene Unterschrift bleibt (Logbuch überschreibt nicht)
@@ -515,7 +517,7 @@
     const ab = Math.round(Math.max(0, (lang - dauer) * 0.25) * 10) / 10;
     return {
       text: "", imageSrc: c.standbild, lat: c.lat, lon: c.lon, anchorMode: "track", style: "callout", imageSize: 44,
-      entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
+      entry: "pop", before: 0.6, after: 1.5, exit: "mini", exit_s: 0.4,   // 18.10.2026 — Pin bleibt stehen (wie Fotos)
       stopp: true, stopp_s: dauer, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5, stopp_schwenk: 1.5, stopp_ken: 0,
       stopp_ortzeit: true, stopp_exif: false,
       clip: { pfad: c.path, ab, dauer, laenge: lang, ton: !!(mitTon && c.ton), laut: 1 },
@@ -654,6 +656,8 @@
                                              && !(belegt || []).some(b => Math.abs(b - x.bei) < 0.05) && !amRand(x, rand))
       .sort((a, b) => (b.art === "notiz") - (a.art === "notiz") || b.dauer_s - a.dauer_s).slice(0, gewaehlt ? 99 : 3)
       .map(x => ({ text: x.text, lat: x.lat, lon: x.lon, anchorMode: "track", style: "pille", icon: x.icon,
+                   // 17.10.2026 — Stelle in Metern ab Start: an Orten, an denen der Weg zweimal vorbeiführt, gilt die richtige Durchfahrt
+                   ...(isFinite(+x.m) && x.m != null ? { strecke_m: +x.m } : {}),
                    color: { pause: "#e0a96d", uebernachtung: "#8fa8ff", notiz: "#f2d36b" }[x.icon] || "#e0a96d", size: 36,
                    before: 1.6, after: rand && rand.animS ? Math.max(0.5, Math.min(LB_NACHLAUF_S, Math.round(((1 - x.bei) * rand.animS - 0.3) * 10) / 10)) : LB_NACHLAUF_S, entry: "both", entry_s: 0.35, exit: "fade", exit_s: 0.35, zoomScale: false, visible: true }));
   }

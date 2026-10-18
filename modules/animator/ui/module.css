@@ -1731,4 +1731,6 @@ body.rz-render-mode #anim-overlay-preview .ct-x { display: none; }
   padding: 4px 10px; border-radius: 6px; background: rgba(12, 16, 22, 0.78); color: #ffd166; font-size: 12px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .anim-ansicht-hinweis[hidden] { display: none; }
+/* 17.10.2026 — gleiche Zeile als Info: der ausgewählte Keyframe hat die Karte übernommen (⌘Z holt ihn zurück) */
+.anim-ansicht-hinweis.ist-info { color: #d6e4f0; }
 body.is-rendering .anim-ansicht-hinweis { display: none; }

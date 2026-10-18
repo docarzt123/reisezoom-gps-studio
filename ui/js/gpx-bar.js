@@ -367,6 +367,15 @@
     });
   };
 
+  /** 17.10.2026 — dasselbe wie ✕ nach der Bestätigung, nur ohne Rückfrage: für ein Projekt, das im Archiv
+   *  gelöscht wurde, während es offen war (rzProjekteGeloescht in util.js). */
+  window.rzProjektSchliessen = async function() {
+    try { if (typeof _resetActiveSession === "function") _resetActiveSession(); }
+    catch (e) { if (window.applog) window.applog("warn", `[workspace] Projekt schließen: ${e}`); }
+    await _runAllResetters();
+    window.clearGlobalGpx();
+  };
+
   async function _runAllResetters() {
     for (const fn of window.__workspaceResetters.values()) {
       try { await fn(); }

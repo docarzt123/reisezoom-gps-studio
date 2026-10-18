@@ -6538,5 +6538,11 @@
   "animator.etappe.fz_zeigen": "Mostrar el vehículo de la etapa",
   "animator.etappe.fz_zeigen_tip": "Activado: el punto móvil se convierte en el medio de transporte del tramo (coche, avión …). Desactivado: conserva su forma de punto móvil (bola, flecha, símbolo, imagen propia) — el medio de transporte solo define la línea.",
   "animator.etappe.fz_zeigen_hinweis": "Forma del punto móvil y «Mostrar el punto» (sin punto, solo la línea): en «Aspecto de la línea».",
-  "animator.etappe.laufpunkt_knopf": "Ajustar el punto móvil …"
+  "animator.etappe.laufpunkt_knopf": "Ajustar el punto móvil …",
+  "animator.ansicht.kf_uebernimmt": "El keyframe #{n} toma la vista del mapa — {taste} lo deshace",
+  "animator.ansicht.undo_taste": "Ctrl+Z",
+  "projekt.weg_nicht_gespeichert": "Este proyecto ya no existe: los cambios no se guardan. Abre un proyecto o crea uno nuevo.",
+  "topbar.project.action_new_tip": "Otro proyecto con la misma ruta, p. ej. una segunda versión del vídeo",
+  "container.name_liste": "Nombre en la lista",
+  "container.name_liste_tip": "Solo para la lista de rótulos: el texto del vídeo está arriba, en «Filas»."
 }

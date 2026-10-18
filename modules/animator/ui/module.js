@@ -5110,6 +5110,11 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzFotostoppAnker = (s) => _fsAnkerFrisch(s);
   window.__rzFotostoppGeaendert = () => {
     try { if (JSON.stringify(_fotostoppHalte()) !== _fsKurveStand) paceMapLaden(); } catch (e) { applog("warn", "[fotostopp] Kurve: " + e); }
+    // 18.10.2026 (Beta-Tester: „se mezclan dos tipos de bocadillo“ — im Editor „Beim Anhalten zeigen“ von „Foto groß“ auf
+    // „Schild wie unterwegs“ gestellt: das Schild stand da, der runde Foto-Pin daneben blieb stehen; zurück auf „Foto groß“
+    // fehlte der Pin) — Pin, großes Foto und Halt-Überblendung gehören zum Look; sie wurden erst beim nächsten Bild
+    // (Abspielen/Scrubben) neu gesetzt. Jetzt sofort an der zuletzt gezeigten Stelle.
+    try { if (_fsZeitLetzt != null) _fotostoppZeigen(_fsZeitLetzt); } catch (e) { applog("warn", "[fotostopp] neu zeigen: " + e); }
   };
   /** Ist die Animationssekunde `tSek` (ohne Anlauf) im Bereich eines Fotostopps? Bereich = Anflug VOR dem Halt
    *  (die Strecke läuft noch), der Halt (Fotozeit), Abflug NACH dem Halt (die Strecke läuft schon weiter).
@@ -5157,10 +5162,13 @@ function mountAnimator(body, headerActions, opts) {
   const _fsBilder = new Map();
   function _fsBildHolen(s) {
     const src = s.imageSrc;
-    let e = _fsBilder.get(src);
+    // 18.10.2026 — Schlüssel mit der Stelle des Schilds: ein weit verschobener Fotostopp bekommt den Ort von dort
+    // (app.py fotostopp_info), die alte Unterschrift darf nicht aus dem Speicher kommen
+    const stelle = (isFinite(+s.lat) && isFinite(+s.lon)) ? `|${(+s.lat).toFixed(3)},${(+s.lon).toFixed(3)}` : "";
+    let e = _fsBilder.get(src + stelle);
     if (e) return e;
     e = { el: null, laden: true, info: null };
-    _fsBilder.set(src, e);
+    _fsBilder.set(src + stelle, e);
     const stufe = window.__rzRenderMode ? 1440 : 1000;
     const clip = s.clip && s.clip.pfad ? s.clip : null;
     // Clip: fehlt das Standbild (Cache geleert), legt die App es neu an
@@ -5331,6 +5339,23 @@ function mountAnimator(body, headerActions, opts) {
    *  (Zeit aus der Tempo-Kurve, nicht aus dem Schild-Anker), im Stopp wächst das große Foto aus ihm heraus
    *  (der Pin ist dann weg), danach steht er wieder an seiner Stelle. */
   const FS_PIN_VORLAUF = 2.5, FS_PIN_AUF = 0.35;
+  /** 17.10.2026 (Beta-Tester: „eines geht immer bis zum Ende … es bleibt immer das kleine runde Bildchen zurück, egal was
+   *  ich beim Verhalten eingestellt habe“) — der Foto-Pin nach dem Stopp folgt jetzt dem „Verhalten“ des Schilds, wie jedes
+   *  andere Schild: „Bleibt sichtbar“ 0 oder Ausgang „Schrumpft zum runden Mini-Bild“ = bleibt bis zum Ende stehen (wie
+   *  bisher); sonst geht er „Bleibt sichtbar“ Sekunden nach dem Abflug, mit der gewählten Ausblendung. Vorher stand er
+   *  immer bis zum Videoende, die Einstellungen wirkten nicht. Liefert null (bleibt) oder { ende, aus, ausS } in
+   *  Animationssekunden; `aus` wie rzSignMeta: ohne Angabe blendet aus, wer einblendet. */
+  function _fsPinEnde(s, h) {
+    if (!s || !h) return null;
+    const after = Math.max(0, Number(s.after) || 0);
+    const entry = s.entry || "none";
+    const aus = (s.exit == null || s.exit === "") ? ((entry === "fade" || entry === "both") ? "fade" : "none") : String(s.exit);
+    if (!(after > 0) || aus === "mini") return null;
+    const ende = h.bis_s + _fsWerte(s).abflug + after;
+    const outS = (s.exit_s != null && s.exit_s !== "" && isFinite(Number(s.exit_s))) ? Math.max(0, Number(s.exit_s)) : 0.6;
+    return { ende, aus, ausS: aus === "none" ? 0 : Math.min(outS, after) };
+  }
+  window.__rzFsPinEnde = (s, h) => _fsPinEnde(s, h);   // Prüfstand
   /** 06.10.2026 (Marc: „die Schilder poppen in der Vorschau zu früh auf im Vergleich zur Timeline") — Fenster eines
    *  Fotostopps in Videosekunden, so wie ihn die Vorschau zeigt: der Foto-Pin erscheint Anflug + 2,5 s vor dem Halt und
    *  bleibt bis zum Ende stehen (_fotostoppZeigen). Die Schilder-Spur zeichnete bisher das Fenster des Schilds
@@ -5341,8 +5366,11 @@ function mountAnimator(body, headerActions, opts) {
     const h = ((_tempoInfo && _tempoInfo.halte) || []).find(x => x.kamera === "fotostopp" && x.ref === "fs:" + i);
     if (!h) return null;
     const w = _fsWerte(s);
+    // 17.10.2026 — `aus`: wann der Pin geht (Videosekunde, null = bleibt bis zum Ende), `ausS` Dauer der Ausblendung
+    const pe = _fsPinEnde(s, h);
     return { an: Math.max(0, intro + h.ab_s - w.anflug - w.pin), halt: [intro + h.ab_s, intro + h.bis_s], anflugAb: intro + h.ab_s - w.anflug,
-             abflugBis: intro + h.bis_s + w.abflug, w, clip: !!(s.clip && s.clip.pfad) };
+             abflugBis: intro + h.bis_s + w.abflug, w, clip: !!(s.clip && s.clip.pfad),
+             aus: pe ? intro + pe.ende : null, ausS: pe ? pe.ausS : 0 };
   }
   function _fotostoppZeigen(tSek) {
     _fsZeitLetzt = tSek;
@@ -5370,7 +5398,13 @@ function mountAnimator(body, headerActions, opts) {
       if (tSek < pinAb) continue;
       const auf = Math.max(0, Math.min(1, (tSek - pinAb) / FS_PIN_AUF));
       const imStopp = (fs && fs.s === s) ? fs.p : 0;
-      pins.push({ i, s, op: auf * (1 - Math.min(1, imStopp * 3)), sc: 0.3 + 0.7 * (1 - Math.pow(1 - auf, 3)) });
+      // 17.10.2026 — nach dem Stopp: „Bleibt sichtbar“ + Ausblendung des Schilds (_fsPinEnde)
+      const pe = _fsPinEnde(s, h);
+      if (pe && tSek >= pe.ende) continue;
+      const weg = (pe && pe.ausS > 0) ? Math.max(0, Math.min(1, (pe.ende - tSek) / pe.ausS)) : 1;
+      const blende = (pe && (pe.aus === "fade" || pe.aus === "both")) ? weg : 1;
+      const klein = (pe && (pe.aus === "pop" || pe.aus === "both")) ? weg : 1;
+      pins.push({ i, s, op: auf * blende * (1 - Math.min(1, imStopp * 3)), sc: (0.3 + 0.7 * (1 - Math.pow(1 - auf, 3))) * klein });
     }
     _fsPinsSetzen(pins, d);
     // ── „eigen“: Unterwegs-Fassung aus-, Halt-Fassung einblenden (Schilder-Ebene, siehe _animHaltUeberAnwenden) ──
@@ -5742,6 +5776,13 @@ function mountAnimator(body, headerActions, opts) {
     return (typeof b === "string") ? b : "";
   }
   function _tempoRateSichern(rate, basis) {
+    // 17.10.2026 — schwebendes Projekt (frisch geöffnete Tour): nur im Speicher. Das Speichern legte beim bloßen Öffnen
+    // jeder Tour ein echtes Projekt an, von dem die Oberfläche nichts wusste. Die Raffung ergibt sich beim nächsten
+    // Öffnen wieder gleich aus der Dauer; gespeichert wird sie mit der ersten echten Änderung.
+    try {
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      if (p && !p.id) { p[_MODKEY] = Object.assign(p[_MODKEY] || {}, { tempo_rate: rate, tempo_basis: basis }); return; }
+    } catch (_) {}
     try { saveProjectSettings(_MODKEY, { tempo_rate: rate, tempo_basis: basis }); } catch (_) {}
   }
 
@@ -6725,6 +6766,12 @@ function mountAnimator(body, headerActions, opts) {
     _flug.ebene = null; _flug.punkt = null; _flug.laufpunkt = null; _flug.an = false;
   }
   /** `meldung`: nur beim Klick auf den Schalter erklären, warum es gerade nicht geht. */
+  /** 18.10.2026 — eine Ebene ließ sich nicht anlegen (Karte lädt noch): einmal nachholen, sobald die Karte ruhig ist. */
+  function _flugNochmal() {
+    if (_flug.nachholen || !map) return;
+    _flug.nachholen = true;
+    try { map.once("idle", () => { _flug.nachholen = false; _flugAnwenden(false); }); } catch (_) { _flug.nachholen = false; }
+  }
   async function _flugAnwenden(meldung) {
     if (!map) return;
     if (!_flugGewuenscht()) { _flugWeg(); return; }
@@ -6764,15 +6811,22 @@ function mountAnimator(body, headerActions, opts) {
     const spuren = _flugSpuren(agl);
     if (!map.getLayer(FLUG_EBENE)) {
       _flug.ebene = window.rzLine3d.create(FLUG_EBENE, { offsetM: 0 });
-      try { map.addLayer(_flug.ebene); } catch (e) { applog("warn", "[flug3d] Ebene: " + e); return; }
+      // 18.10.2026 (Suite unter Last: „Style is not done loading“ beim Anlegen der Flugebene — sie fehlte, und niemand
+      // versuchte es erneut) — sobald die Karte ruhig ist, noch einmal. Bis dahin ist _flug.an falsch, die Szene wartet
+      // (__rzAnimBereit.flug). Die pixelgleichen Kugel-/Symbol-Videos im Test hatten eine andere Ursache (Test setzte
+      // dot_style statt marker_dot_style).
+      try { map.addLayer(_flug.ebene); } catch (e) {
+        applog("warn", "[flug3d] Ebene: " + e + " — neuer Versuch, sobald die Karte bereit ist");
+        _flug.ebene = null; _flugNochmal(); return;
+      }
     }
     if (!map.getLayer(FLUG_PUNKT)) {
       _flug.punkt = window.rzLine3d.create(FLUG_PUNKT, { offsetM: 0, depth: false });
-      try { map.addLayer(_flug.punkt); } catch (e) { applog("warn", "[flug3d] Punkt: " + e); }
+      try { map.addLayer(_flug.punkt); } catch (e) { applog("warn", "[flug3d] Punkt: " + e); _flugNochmal(); return; }
     }
     if (!map.getLayer(FLUG_LAUFPUNKT) && window.rzPunkt3d) {   // 15.10.2026 — der echte Laufpunkt in der Luft
       _flug.laufpunkt = window.rzPunkt3d.create(FLUG_LAUFPUNKT);
-      try { map.addLayer(_flug.laufpunkt); } catch (e) { applog("warn", "[flug3d] Laufpunkt: " + e); }
+      try { map.addLayer(_flug.laufpunkt); } catch (e) { applog("warn", "[flug3d] Laufpunkt: " + e); _flugNochmal(); return; }
     }
     _flug.ebene.setTracks(spuren);
     _flugBodenFiltern(true);
@@ -8086,6 +8140,14 @@ function mountAnimator(body, headerActions, opts) {
     const fitBase = effectiveFitZoomBase();
     const zoomOff = fitBase != null ? +(curZoom - fitBase).toFixed(2) : 0;
 
+    // 17.10.2026 (Marc: „Geht Undo beim Verschieben der Karte? … einen aus Versehen veränderten Keyframe wieder
+    // zurückholen“) — übernimmt der ausgewählte Keyframe gleich die Karte, kommt der Undo-Schritt VOR jeder Änderung: der
+    // Neigungsregler (cfg.pitch) wurde vorher schon gespeichert, ⌘Z holte zwar den Keyframe, ließ den Regler aber verstellt.
+    // updateKeyframeFields pusht danach noch einmal — das fängt die Drossel ab (ein Schritt je Geste).
+    const _kfUebernimmt = _selectedKfIdx != null && _selectedKfIdx < clusterAnchors().length && !!_tlBar
+      && findKeyframeAtAnchor(_tlBar.getScrubber()) === _selectedKfIdx;
+    if (_kfUebernimmt) _animPushUndo(t("undo.keyframe_werte_geaendert", "Keyframe-Werte geändert"));
+
     // Haupt-Pitch-Slider mitführen (cfg.pitch — Fallback ohne Keyframes)
     const pitchSlider = document.getElementById("anim-pitch");
     const pitchLabel  = document.getElementById("anim-pitch-v");
@@ -8142,6 +8204,7 @@ function mountAnimator(body, headerActions, opts) {
         const absZoom = (fitBase != null ? fitBase : curZoom) + zoomOff;
         set("anim-kf-zoom", absZoom);
         setLbl("anim-kf-zoom-v", absZoom.toFixed(1));
+        try { _kfUebernahmeHinweis(_selectedKfIdx); } catch (e) { applog("warn", "[kf] Übernahme-Hinweis: " + e); }   // 17.10.2026
       }
     }
   }
@@ -8160,7 +8223,39 @@ function mountAnimator(body, headerActions, opts) {
   // Karte (seit dem Abend nur noch als leise Warnzeile, siehe unten).
   function _ansichtHinweisWeg() {
     const el = document.getElementById("anim-ansicht-hinweis");
-    if (el) el.hidden = true;
+    if (el) { el.hidden = true; clearTimeout(el.__rzZeit); }
+  }
+  function _ansichtHinweisEl() {
+    const host = document.getElementById("anim-drop");
+    if (!host) return null;
+    let el = document.getElementById("anim-ansicht-hinweis");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "anim-ansicht-hinweis"; el.className = "anim-ansicht-hinweis";
+      host.appendChild(el);
+      document.getElementById("anim-kf-enabled")?.addEventListener("change", _ansichtHinweisWeg);
+    }
+    clearTimeout(el.__rzZeit);
+    return el;
+  }
+  // 17.10.2026 (Marc: „Geht Undo beim Verschieben der Karte? Mir geht es darum, dass man einen aus Versehen veränderten
+  // Keyframe wieder zurückholen kann.“) — ein ausgewählter Keyframe übernahm jede Kartenbewegung still. Jetzt sagt es die
+  // leise Zeile (gleicher Ort, ohne Knöpfe, klickt durch) und nennt den Rückweg; nach ein paar Sekunden ist sie von selbst weg.
+  const KF_UEBERNAHME_MS = 4000;
+  function _kfUebernahmeHinweis(idx) {
+    if (!map || _isStaticFrame || window.__rzRenderMode || !keyframesEnabled() || idx == null) return;
+    const el = _ansichtHinweisEl();
+    if (!el) return;
+    el.__rzIdx = idx; el.__rzArt = "uebernahme"; el.__rzAnker = _tlBar ? _tlBar.getScrubber() : 0;
+    const mac = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || "");
+    const taste = mac ? "⌘Z" : t("animator.ansicht.undo_taste", "Strg+Z");
+    const ic = typeof rzIcon === "function" ? rzIcon("rotate-ccw", { size: 13 }) : "";
+    const text = t("animator.ansicht.kf_uebernimmt", "Keyframe #{n} übernimmt die Karte — {taste} macht es rückgängig")
+      .replace("{n}", idx + 1).replace("{taste}", taste);
+    el.innerHTML = `${ic}<span>${_animEscapeHtml(text)}</span>`;
+    el.classList.add("ist-info");
+    el.hidden = false;
+    el.__rzZeit = setTimeout(() => { el.hidden = true; }, KF_UEBERNAHME_MS);
   }
   // 15.10.2026 abends (Marc: „Dieses Schild … nervt total. Das müsste irgendwie nur eine Warnung unten sein und nicht etwas,
   // was man immer wegklicken muss.“) — nur noch eine leise Zeile unten im Bild, ohne Knöpfe; sie geht von selbst weg
@@ -8171,16 +8266,9 @@ function mountAnimator(body, headerActions, opts) {
     const anker = _tlBar ? _tlBar.getScrubber() : 0;
     const idx = findKeyframeAtAnchor(anker);
     if (idx != null && idx === _selectedKfIdx) return;   // ausgewählter Keyframe übernimmt die Ansicht ohnehin
-    const host = document.getElementById("anim-drop");
-    if (!host) return;
-    let el = document.getElementById("anim-ansicht-hinweis");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "anim-ansicht-hinweis"; el.className = "anim-ansicht-hinweis";
-      host.appendChild(el);
-      document.getElementById("anim-kf-enabled")?.addEventListener("change", _ansichtHinweisWeg);
-    }
-    el.__rzIdx = idx; el.__rzAnker = anker;
+    const el = _ansichtHinweisEl();
+    if (!el) return;
+    el.__rzIdx = idx; el.__rzAnker = anker; el.__rzArt = "warnung"; el.classList.remove("ist-info");
     const ic = typeof rzIcon === "function" ? rzIcon("triangle-alert", { size: 13 }) : "";
     const text = idx != null
       ? t("animator.ansicht.auf_kf", "Ansicht nicht gespeichert — erst Keyframe #{n} anklicken, dann übernimmt er die Karte").replace("{n}", idx + 1)
@@ -8189,7 +8277,7 @@ function mountAnimator(body, headerActions, opts) {
     el.hidden = false;
   }
   window.__rzAnsichtHinweis = () => { const el = document.getElementById("anim-ansicht-hinweis");   // Prüfstand
-    return el && !el.hidden ? { idx: el.__rzIdx, knoepfe: el.querySelectorAll("button").length, text: el.textContent } : null; };
+    return el && !el.hidden ? { idx: el.__rzIdx, art: el.__rzArt || "warnung", knoepfe: el.querySelectorAll("button").length, text: el.textContent } : null; };
   function keyframesEnabled() {
     const cb = document.getElementById("anim-kf-enabled");
     return !!cb?.checked;
@@ -13261,15 +13349,24 @@ function mountAnimator(body, headerActions, opts) {
       // erzeugte Welt-Drehung beim finalen Settle verloren.
       const wasUser = _userInteracting;
       _userInteracting = false;
-      if (!e || (!e.originalEvent && !wasUser)) return;
+      // 17.10.2026 — Mausrad-Zoom: Maplibre hängt das Rad-Ereignis nur an, wenn mehrere Rad-Schritte schnell aufeinander
+      // folgen; ein einzelner Rasterschritt endete ohne `originalEvent`. Der ausgewählte Keyframe übernahm den Zoom dann
+      // nicht (still verloren beim Abspielen), ohne Auswahl fehlte die Warnzeile. Gemerkt wird das letzte Rad-Ereignis;
+      // nur im Keyframe-Modus und nicht während des Abspielens (ohne Keyframes bleibt Rad-Zoom Umschauen, 31.08.2026).
+      const wasRad = !!e && !e.originalEvent && !wasUser && _radZeit > 0 && performance.now() - _radZeit < 800
+        && !_previewRaf && keyframesEnabled();
+      _radZeit = 0;
+      if (!e || (!e.originalEvent && !wasUser && !wasRad)) return;
       // Wer selbst zieht oder zoomt, will diesen Ausschnitt — ein
       // Layout-Zucken darf ihn nicht zurück auf den Track ziehen
       // (02.09.2026, siehe `_kameraGehoertNutzer`).
       _kameraGehoertNutzer = true;
       _syncMapStateToUi();
       try { _ansichtHinweisZeigen(); } catch (e2) { applog("warn", "[kf] Ansicht-Hinweis: " + e2); }
-      _manualCamMerken();   // 05.09.2026 — Handkamera ohne Keyframes gilt für Probelauf, Scrub und Video
+      if (!wasRad) _manualCamMerken();   // 05.09.2026 — Handkamera ohne Keyframes gilt für Probelauf, Scrub und Video
     });
+    let _radZeit = 0;   // 17.10.2026 — Zeit des letzten Mausrad-Ereignisses auf der Karte (siehe moveend)
+    map.on("wheel", () => { _radZeit = performance.now(); });
 
     // v0.9.136/139 — Längengrad-Akkumulator: nur ECHTE User-Gesten
     // akkumulieren. `dragstart` markiert die Geste (Flag) + seedet den Prev-
@@ -14278,34 +14375,63 @@ function mountAnimator(body, headerActions, opts) {
       try { if (window.__rzFotostoppGeaendert) window.__rzFotostoppGeaendert(); } catch (_) {}   // 01.10.2026
     }
     // Nächster Track-Index zu einer Klick-Position (rastet das Schild auf den Track).
-    function _animSignsNearestIdx(lng, lat) {
+    // 17.10.2026 (Beta-Tester: „Die Pause erschien 1000 m zu früh und wollte sich nicht verschieben lassen.“) — `m` =
+    // Stelle in Metern ab Start (Schild-Feld `strecke_m`). Führt der Weg zweimal an derselben Stelle vorbei (hin und
+    // zurück, Schleife), gewann bisher der nächste Punkt der ganzen Strecke — oft die frühere Durchfahrt. Mit `m` zählen
+    // nur Punkte in der Nähe dieser Stelle (±1 % der Strecke, mindestens 150 m, oder `fensterM`) — wenn dort einer
+    // höchstens 50 m weiter weg liegt als der nächste überhaupt; sonst wie bisher.
+    function _animSignsNearestIdx(lng, lat, m, fensterM) {
       if (!Array.isArray(currentCoords) || currentCoords.length < 1) return -1;
       const clat = Math.cos(lat * Math.PI / 180);
-      let best = -1, bestD = Infinity;
+      const cd = (m != null && m !== "" && isFinite(+m) && _ovSeries && Array.isArray(_ovSeries.cumDistM)
+                  && _ovSeries.cumDistM.length === currentCoords.length) ? _ovSeries.cumDistM : null;
+      const fenster = !cd ? 0 : (fensterM > 0 ? fensterM : Math.max(150, Math.abs((+cd[cd.length - 1] || 0) - (+cd[0] || 0)) * 0.01));
+      let best = -1, bestD = Infinity, nah = -1, nahD = Infinity;
       for (let i = 0; i < currentCoords.length; i++) {
         const c = currentCoords[i];
         const dx = (lng - c[0]) * clat, dy = lat - c[1];
         const d = dx * dx + dy * dy;
         if (d < bestD) { bestD = d; best = i; }
+        if (cd && d < nahD && Math.abs((+cd[i] || 0) - (+m)) <= fenster) { nahD = d; nah = i; }
       }
-      return best;
+      const GRAD_M = 111320;
+      return (nah >= 0 && Math.sqrt(nahD) * GRAD_M <= Math.sqrt(bestD) * GRAD_M + 50) ? nah : best;
     }
+    /** 17.10.2026 — Index → Meter ab Start (für `strecke_m` nach dem Verschieben). null ohne Reihe. */
+    function _animSignsMeterBei(idx) {
+      const cd = _ovSeries && Array.isArray(_ovSeries.cumDistM) && Array.isArray(currentCoords)
+                 && _ovSeries.cumDistM.length === currentCoords.length ? _ovSeries.cumDistM : null;
+      return (cd && idx >= 0 && idx < cd.length && isFinite(+cd[idx])) ? Math.round(+cd[idx] * 10) / 10 : null;
+    }
+    /** 17.10.2026 — Schild auf der Karte nach (lng, lat) gezogen: neue Stelle in Metern, gesucht in der Nähe der alten
+     *  Stelle (bis 3 × die gezogene Luftlinie + 300 m entlang der Strecke). So bleibt das Schild auf seiner Durchfahrt. */
+    function _animSignsStelleNachZiehen(alt, lng, lat) {
+      const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+      if (!alt || n < 2) return null;
+      let altIdx = -1;
+      try { altIdx = (typeof alt.timeAnchor === "number") ? idxAusFortschritt(alt.timeAnchor, n) : _animSignsNearestIdx(+alt.lon, +alt.lat, alt.strecke_m); } catch (_) {}
+      const altM = _animSignsMeterBei(altIdx);
+      if (altM == null) return null;
+      const cl = Math.cos(lat * Math.PI / 180), luft = Math.hypot((lng - +alt.lon) * cl, lat - +alt.lat) * 111320;
+      return _animSignsMeterBei(_animSignsNearestIdx(lng, lat, altM, isFinite(luft) ? luft * 3 + 300 : 0));
+    }
+    window.__rzSignStelleNachZiehen = (alt, lng, lat) => _animSignsStelleNachZiehen(alt, lng, lat);   // Prüfstand
     // 13.10.2026 (Web-Fund F-19: „Höchster Punkt“ stand am Bildrand, während der Pfeil noch ein gutes Stück davor war) —
     // der Anker ist der ZEITPUNKT, an dem der Pfeil die Stelle erreicht (Umkehrung der Tempo-Kurve), nicht der Punktanteil.
     // Bei ungleich dicht aufgezeichneten Punkten liefen beide sonst auseinander; ohne Tempo-Kurve ist beides gleich.
-    function _animSignAnchorForLngLat(lng, lat) {
+    function _animSignAnchorForLngLat(lng, lat, m) {
       const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
       if (n < 2) return 0;
-      const idx = _animSignsNearestIdx(lng, lat);
+      const idx = _animSignsNearestIdx(lng, lat, m);
       if (idx < 0) return 0;
       try { return _ankerAusBahn(idx); } catch (_) { return idx / (n - 1); }
     }
     /** 13.10.2026 (F-19, Folge) — wie lange der Pfeil an der Stelle steht (Halt/Fotostopp in der Tempo-Kurve), in Anker-
      *  Einheiten. Das Schild bleibt so viel länger stehen: sein „nachher“ zählt ab dem Weiterfahren, nicht ab dem Ankommen. */
-    function _animSignHaltAnker(lng, lat) {
+    function _animSignHaltAnker(lng, lat, m) {
       const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
       if (n < 2 || !_paceMap) return 0;
-      const idx = _animSignsNearestIdx(lng, lat);
+      const idx = _animSignsNearestIdx(lng, lat, m);
       if (idx < 0) return 0;
       try {
         const von = _ankerAusBahn(idx);
@@ -14318,7 +14444,7 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignMitAnker(sn, trackAnchor, dur) {
       const o = { ...sn, track_anchor: trackAnchor };
       if (typeof sn.timeAnchor !== "number" && (+sn.after || 0) > 0 && dur > 0) {
-        const halt = _animSignHaltAnker(Number(sn.lon), Number(sn.lat));
+        const halt = _animSignHaltAnker(Number(sn.lon), Number(sn.lat), sn.strecke_m);
         if (halt > 1e-6) o.after = (+sn.after || 0) + halt * dur;
       }
       return o;
@@ -14454,7 +14580,7 @@ function mountAnimator(body, headerActions, opts) {
     // Was das gerasterte Schild-Bild bestimmt — ohne Ort, Zeitanker und Sichtbarkeit.
     const _animSignImgSig = new Map();
     let _animSignsAltIds = [];
-    const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "visible", "anchorMode", "_imgEl", "_imgLoading",
+    const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "strecke_m", "visible", "anchorMode", "_imgEl", "_imgLoading",
                                "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
                                "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_kamera", "stopp_ortzeit", "stopp_exif", "stopp_bei", "stopp_pin_s", "clip", "stopp_kreisen"]);
     // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
@@ -14478,10 +14604,12 @@ function mountAnimator(body, headerActions, opts) {
       const bild = im && im.src ? (im.src.length + ":" + im.src.slice(-24)) : (sn.imageSrc ? "ohne-bild" : "");
       return teile.join("|") + "|bild=" + bild;
     }
-    function _animSignsDetach(bilderBehalten) {
-      // DOM-Marker entfernen …
-      (_animSignMarkers || []).forEach(m => { try { if (m && m.marker) m.marker.remove(); } catch (_) {} });
-      _animSignMarkers = [];
+    function _animSignsDetach(bilderBehalten, markerBehalten) {
+      // DOM-Marker entfernen … (18.10.2026: außer beim reinen Neuaufbau der Ebene, siehe _animSignsAttachToMap nurGpu)
+      if (!markerBehalten) {
+        (_animSignMarkers || []).forEach(m => { try { if (m && m.marker) m.marker.remove(); } catch (_) {} });
+        _animSignMarkers = [];
+      }
       // … und GPU-Layer + Icon-Bilder. Beim Neuzeichnen bleiben die Bilder liegen
       // (13.09.2026): Sie werden über ihre Signatur wiederverwendet, statt bei
       // tausenden Foto-Schildern jedes Mal neu gerastert zu werden.
@@ -14495,7 +14623,18 @@ function mountAnimator(body, headerActions, opts) {
       }
       if (!bilderBehalten) _animSignImgIds = [];
     }
-    function _animSignsAttachToMap() {
+    // 18.10.2026 — Fotostopp, dessen „Foto groß“ das Schild ersetzt (vorher lokal in _animSignsAttachToMap; jetzt auch für
+    // _animSignsUpdateInPlace). 11.10.2026 — nur „Foto groß“ ersetzt das Schild; „wie unterwegs“/„eigen“ zeigen es.
+    function _animSignFsErsetzt(s) { return !!(s && s.stopp && s.imageSrc) && (!window.__rzFsLook || window.__rzFsLook(s) === "foto"); }
+    /** 18.10.2026 — Soll das Schild im Editor als HTML-Element stehen? Nur das bearbeitete (tippbar, ziehbar); alle anderen
+     *  zeigt auch bei offenem Editor die Schild-Ebene wie im Video. 17.10.2026 — Ausnahme: ein per „↔ Verschieben“ scharf
+     *  geschalteter Fotostopp mit „Foto groß“ (sonst gab es nichts zu greifen). */
+    function _animSignDomIst(allSigns, s) {
+      const ei = _animSignEditorIdx;
+      if (!_animSignEditMode || ei < 0 || allSigns[ei] !== s) return false;
+      return !_animSignFsErsetzt(s) || _animSignMoveArmed === ei;
+    }
+    function _animSignsAttachToMap(opts) {
       if (!map) return;
       // v0.9.379 — Style-Loaded-Guard (analog PhotoPins.attachToMap). Ist der Map-
       // Style beim Aufruf noch nicht fertig geladen, sind addSource/addLayer ein
@@ -14503,16 +14642,22 @@ function mountAnimator(body, headerActions, opts) {
       // Style dann warm). Betraf besonders „Aus Geotagger" direkt nach Ankunft auf
       // der Tour-Map (Marc 2026-07-01). Auf idle warten + einmal neu versuchen.
       if (!rzStyleReady(map)) {
-        try { map.once("idle", _animSignsAttachToMap); } catch (_) {}
+        try { map.once("idle", () => _animSignsAttachToMap(opts)); } catch (_) {}
         return;
       }
+      // 18.10.2026 — `nurGpu`: bei offenem Editor nur die Schild-Ebene neu bauen (z. B. Bild eines anderen Schilds geladen),
+      // das HTML-Schild im Editor bleibt stehen — sonst verlöre es beim Tippen den Fokus.
+      const nurGpu = !!(opts && opts.nurGpu === true) && _animSignEditMode && (_animSignMarkers || []).some(Boolean);
+      const domMetas = new Map();
+      if (nurGpu) (_animSignMarkers || []).forEach((mk, fi) => { if (mk && _animSignMetas[fi]) domMetas.set(fi, _animSignMetas[fi]); });
       // Bilder liegen lassen und merken, welche es gab — was danach nicht mehr
       // gebraucht wird (gelöschte Schilder), räumt der GPU-Weg am Ende weg.
       const _vorherIds = (_animSignImgIds || []).slice();
-      _animSignsDetach(true);
+      _animSignsDetach(true, nurGpu);
       _animSignImgIds = [];
       _animSignsAltIds = _vorherIds;
       _animSignMetas = [];
+      domMetas.forEach((m, fi) => { _animSignMetas[fi] = m; });
       if (!_animSignsShow()) return;
       const allSigns = _animSignsList();
       // v0.9.378 — Transiente Bild-Flags beim ERSTEN Zugriff nach dem Laden strippen.
@@ -14562,12 +14707,18 @@ function mountAnimator(body, headerActions, opts) {
       // 06.10.2026 (Marc, Screenshot: „doppelt — eins mit schwarzem Rahmen, eins mit weißem“; schon am 01.10. beim
       // Teide-Demo) — Fotostopps zeigt auch beim Bearbeiten nur die Fotostopp-Ebene (Pin + großes Foto), nicht
       // zusätzlich die Fotokarte des Schilds. Vorher galt der Ausschluss nur im GPU-Weg.
-      // 11.10.2026 — nur „Foto groß“ ersetzt das Schild; „wie unterwegs“/„eigen“ zeigen es (window.__rzFsLook)
-      const _fsErsetzt = (s) => !!(s.stopp && s.imageSrc) && (!window.__rzFsLook || window.__rzFsLook(s) === "foto");
-      if (_animSignEditMode) _animSignsAttachDOM(allSigns, list.filter(s => !_fsErsetzt(s)).map(_animSignHaltVorschau));
       // 01.10.2026 — Fotostopps zeigt die Fotostopp-Ebene als Foto-Pin (_fotostoppZeigen); die Fotokarte
       // des Schilds nur beim Bearbeiten (sonst zwei Karten hintereinander, Marc: Teide-Demo)
-      else _animSignsAttachGPU(allSigns, list.filter(s => !_fsErsetzt(s)));
+      // 18.10.2026 (Marc: „Wir brauchen WYSIWYG. Überall. Im Editor muss man die Kamera halt verschieben, wenn man das
+      // Schild sehen will.“) — bei offenem Editor ist nur noch das BEARBEITETE Schild ein HTML-Element (tippbar, ziehbar);
+      // es zeigt das Bild der Canvas-Engine mit Größe und Randversatz der Schild-Ebene (_animSignDomRand). Alle anderen
+      // Schilder zeigt auch dann die Schild-Ebene — wie im Video (vorher waren alle HTML-Nachbauten: ohne Randversatz, ein
+      // paar Pixel anders groß, mit alter Zoom-Kurve). Pixelmaß der Bilder aus derselben Liste wie bei geschlossenem Editor.
+      const gpuAlle = list.filter(s => !_animSignFsErsetzt(s));
+      if (_animSignEditMode) {
+        _animSignsAttachGPU(allSigns, gpuAlle.filter(s => !_animSignDomIst(allSigns, s)), gpuAlle);
+        if (!nurGpu) _animSignsAttachDOM(allSigns, list.filter(s => _animSignDomIst(allSigns, s)).map(_animSignHaltVorschau), _animSignsDprBild(gpuAlle));
+      } else _animSignsAttachGPU(allSigns, gpuAlle);
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       _animSignsUpdateAtAnchor(a);
     }
@@ -14615,7 +14766,9 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignTippbar(fi) {
       const mk = _animSignMarkers[fi], cap = mk && mk.wrap && mk.wrap.__cap;
       if (!cap) return;
-      const an = _animSignEditMode && fi === _animSignForceIdx && fi === _animSignEditorIdx;
+      // 18.10.2026 — zum Verschieben scharf geschaltet (↔): nicht tippbar, sonst schluckt der Text den Mausdruck und ein
+      // reines Text-Schild ließ sich nicht mehr ziehen
+      const an = _animSignEditMode && fi === _animSignForceIdx && fi === _animSignEditorIdx && fi !== _animSignMoveArmed;
       mk.wrap.classList.toggle("rz-sign--tippbar", an);
       const leer = !String(cap.textContent || "").trim();
       mk.wrap.classList.toggle("rz-sign--platzhalter", an && leer);
@@ -14651,7 +14804,45 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) { return false; }
       return true;
     }
-    function _animSignsAttachDOM(allSigns, list) {
+    /** 18.10.2026 — Bild des Schilds aus der Canvas-Engine, genau wie die Schild-Ebene es rastert (_animSignsAttachGPU:
+     *  gleiches Pixelmaß, gleiches Bild-Element). null = noch kein Bild (Platzhalter ohne Text, Foto lädt noch) → das
+     *  HTML-Schild zeigt dann den CSS-Nachbau. */
+    function _animSignDomBild(s, dprBild) {
+      if (!s || !window.__rzDrawSign) return null;
+      if (!((s.text || "").trim() || s.imageSrc)) return null;
+      if (s.imageSrc && !_animSignHasImg(s)) return null;
+      const so = _animSignNormalize(s);
+      if (s.imageSrc) { const d = _animSignDprFuer(s, dprBild == null ? _animSignsDprBild() : dprBild); if (d !== 2) so.__dpr = d; }
+      if (_animSignHasImg(s)) _animSetImgEl(so, s._imgEl);
+      try { return _animSignDrawImageData(so); } catch (_) { return null; }
+    }
+    /** 18.10.2026 (Marc: „Im Editor muss man die Kamera halt verschieben, wenn man das Schild sehen will.“) — Größe und
+     *  Randversatz des HTML-Schilds im Editor wie die Schild-Ebene im Video: Größenfaktor aus sign_draw.js rzSignGroesse,
+     *  Versatz aus rzSignRandPx (dieselbe Regel: höchstens ein Drittel der Schildgröße, nichts bei Schildern breiter als
+     *  das Bild, ohne Gedächtnis). Läuft bei jeder Kamerabewegung; beim Ziehen bleibt der Versatz stehen, nach dem
+     *  Loslassen wird neu aufgebaut. `zsc` = Zoom-Faktor des CSS-Platzhalters (der skaliert per transform). */
+    function _animSignDomRand(mk, zsc) {
+      if (!mk || !mk.marker || !mk.wrap || !map) return;
+      const wrap = mk.wrap;
+      let w = 0, h = 0, gr = 1;
+      if (wrap.__bildAn && wrap.__bildMass) {
+        gr = window.__rzSignGroesse ? window.__rzSignGroesse(map, mk.zoomScale) : 1;
+        if (wrap.__bildK !== gr && window.__rzSignDomBildGroesse) window.__rzSignDomBildGroesse(wrap, gr);
+        w = wrap.__bildMass.w * gr; h = wrap.__bildMass.h * gr;
+      } else {
+        gr = zsc || 1;
+        w = (wrap.offsetWidth || 0) * gr; h = (wrap.offsetHeight || 0) * gr;
+      }
+      if (mk.zieht) return;   // beim Ziehen bleibt der Versatz stehen (nach dem Loslassen wird neu aufgebaut)
+      let off = [0, 0];
+      try {
+        const ll = mk.marker.getLngLat();
+        if (window.__rzSignRandPx) off = window.__rzSignRandPx(map, [ll.lng, ll.lat], w, h, mk.anchor, gr, { anzahl: _animSignMetas.length, randFest: mk.randFest });
+      } catch (_) { off = [0, 0]; }
+      const key = off[0].toFixed(2) + "," + off[1].toFixed(2);
+      if (mk._lastOff !== key) { mk._lastOff = key; try { mk.marker.setOffset(off); } catch (_) {} }
+    }
+    function _animSignsAttachDOM(allSigns, list, dprBild) {
       const dur = _animSignsDuration();
       const MarkerCls = (typeof mapLib === "function" ? mapLib() : (window.mapboxgl || window.maplibregl)).Marker;
       const _idxVon = new Map(); allSigns.forEach((s, i) => { if (!_idxVon.has(s)) _idxVon.set(s, i); });
@@ -14659,11 +14850,14 @@ function mountAnimator(body, headerActions, opts) {
         const fi = _idxVon.has(s) ? _idxVon.get(s) : (s.__haltVon && _idxVon.has(s.__haltVon)) ? _idxVon.get(s.__haltVon) : allSigns.indexOf(s);
         const sn = _animSignNormalize(s);
         let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
-        if (s.imageSrc && !imageUrl) {
+        // 18.10.2026 — auch mit Vorschaubild, aber ohne geladenes Bild-Element: das Bild der Canvas-Engine braucht es
+        if (s.imageSrc && (!imageUrl || !_animSignHasImg(s))) {
           try { _animSignEnsureImage(s).then(() => { try { _animSignsUpdateInPlace(); _animSignsListeBald(); } catch (_) {} }); } catch (_) {}
         }
         let wrap;
-        try { wrap = window.__rzSignDomBuild(); window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) { return; }
+        const bild = _animSignDomBild(s, dprBild);   // 18.10.2026 — Bild der Canvas-Engine (= Video)
+        const _gr = (bild && window.__rzSignGroesse) ? window.__rzSignGroesse(map, !!sn.zoomScale) : 1;
+        try { wrap = window.__rzSignDomBuild(); window.__rzSignDomStyle(wrap, sn, { imageUrl, bild, groesse: _gr }); } catch (_) { return; }
         wrap.addEventListener("click", (ev) => {
           if (_animSignPlaceMode) return;
           if (_animSignDragging) return;   // v0.9.476 — nach dem Ziehen KEINEN Editor öffnen
@@ -14684,8 +14878,9 @@ function mountAnimator(body, headerActions, opts) {
         try { wrap.style.cursor = _armed ? "grab" : "pointer"; } catch (_) {}
         try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor, draggable: _armed }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
         try {
-          marker.on("dragstart", () => { _animSignDragging = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
+          marker.on("dragstart", () => { _animSignDragging = true; const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
           marker.on("dragend", () => {
+            { const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = false; }
             let ll = null; try { ll = marker.getLngLat(); } catch (_) {}
             _animSignMoveArmed = -1;   // Ziehen wieder entschärfen
             if (ll) {
@@ -14693,6 +14888,10 @@ function mountAnimator(body, headerActions, opts) {
               if (fi < l2.length) {
                 const _moved = { ...l2[fi], lat: ll.lat, lon: ll.lng, anchorMode: "free" };
                 delete _moved.timeAnchor;
+                // 17.10.2026 — die Durchfahrt behalten (an Stellen, die der Weg zweimal passiert, sprang das Schild
+                // sonst immer auf die frühere zurück — „wollte sich nicht verschieben lassen“)
+                const _m = _animSignsStelleNachZiehen(l2[fi], ll.lng, ll.lat);
+                if (_m != null) _moved.strecke_m = _m; else delete _moved.strecke_m;
                 l2[fi] = _moved;
                 _animSignsSave(l2); _animSignsAttachToMap(); _animSignsRenderList();
                 // WICHTIG: das Editor-Fenster NICHT mitbewegen — es bleibt, wo der Nutzer
@@ -14705,16 +14904,23 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) {}
         // v0.9.256 — jetzt im DOM → Box-Höhe ist messbar → einmal nach-stylen, damit die
         // Banner-/Wegweiser-Pfosten proportional zur echten Box-Höhe sitzen.
-        try { window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) {}
-        const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
+        if (!bild) { try { window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) {} }
+        const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat), sn.strecke_m);
         _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
-        _animSignMarkers[fi] = { marker, wrap, zoomScale: !!sn.zoomScale, anchor: _mkAnchor };
+        _animSignMarkers[fi] = { marker, wrap, zoomScale: !!sn.zoomScale, anchor: _mkAnchor, randFest: sn.rand_fest === true };
         _animSignTippbar(fi);
+        _animSignDomRand(_animSignMarkers[fi], _animSignZoomCss(sn));   // 18.10.2026 — gleich mit Randversatz aufs Bild
       });
       if (!_animSignZoomHooked) {
         _animSignZoomHooked = true;
-        try { map.on("zoom", () => { if (_animSignEditMode) _animSignsApplyMarkerAnchor(_animSignLastAnchorM); }); } catch (_) {}
+        // 18.10.2026 — bei jeder Kamerabewegung (nicht nur Zoom): Größe und Randversatz des Editor-Schilds folgen der Kamera
+        try { map.on("move", () => { if (_animSignEditMode) _animSignsApplyDOM(_animSignLastAnchorM); }); } catch (_) {}
       }
+    }
+    /** Zoom-Faktor des CSS-Platzhalters (transform: scale), gleiche Kurve wie die Ebene (sign_dom.js zoomScale). */
+    function _animSignZoomCss(sn) {
+      if (!sn || !sn.zoomScale || !map || !map.getZoom) return 1;
+      return window.__rzSignDomZoomScale ? window.__rzSignDomZoomScale(map.getZoom(), true) : 1;
     }
     function _animSignsDprBild(list) {
       const l = list || _animSignsList().filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
@@ -14777,7 +14983,7 @@ function mountAnimator(body, headerActions, opts) {
       if (_animSignImgIds.indexOf(id) < 0) _animSignImgIds.push(id);
     }
     // ── GPU-Symbol-Layer (Probelauf/Export/Ruhe): flüssig wie die Foto-Pins ──
-    function _animSignsAttachGPU(allSigns, list) {
+    function _animSignsAttachGPU(allSigns, list, dprListe) {   // dprListe: 18.10.2026 — Liste fürs Pixelmaß (Editor offen: alle)
       const needImg = list.filter(s => s.imageSrc && !_animSignHasImg(s) && !s._imgLoading && !s._imgFailed);
       if (needImg.length) {
         // v0.9.379 — Progressives Nachzeichnen. Vorher wartete ein einziges
@@ -14789,7 +14995,7 @@ function mountAnimator(body, headerActions, opts) {
         // stößt KEINE neuen Ladevorgänge an (kein Nesting), es zeichnet nur die
         // bereits fertigen. `map.getContainer`-Check schützt vor totem Modul.
         const _total = needImg.length;
-        const _dprVorab = _animSignsDprBild(list);
+        const _dprVorab = _animSignsDprBild(dprListe || list);
         let _settled = 0;
         // 13.09.2026 — nie mehr als ~8 Bilder gleichzeitig laden, und neu gezeichnet
         // wird gebündelt (höchstens alle 0,4 s), nicht mehr alle 20 Bilder komplett.
@@ -14812,12 +15018,13 @@ function mountAnimator(body, headerActions, opts) {
             _laeuft++;
             _animSignEnsureImage(s).then(() => {
               _laeuft--; _settled++;
-              if (_total > 200 && !_animSignEditMode) { try { _animSignVorrastern(s, _dprVorab); } catch (_) {} }
+              // 18.10.2026 — auch bei offenem Editor: die anderen Schilder zeigt dann ebenfalls die Ebene
+              if (_total > 200 && !_animSignDomIst(_animSignsList(), s)) { try { _animSignVorrastern(s, _dprVorab); } catch (_) {} }
               if (_mitAnzeige) {
                 if (_settled === _total) window.rzStatus.fertig(_stId, t("signs.laden_fertig", "{n} Schilder bereit").replace("{n}", _total));
                 else if (_settled % 10 === 0) window.rzStatus.schritt(_stId, { n: _settled });
               }
-              if (map && map.getContainer && !_animSignEditMode) {
+              if (map && map.getContainer) {   // 18.10.2026 — auch bei offenem Editor (_animSignsKarteBald baut dann nur die Ebene)
                 // 14.09.2026 — bei sehr vielen Bild-Schildern nicht in Wellen neu aufbauen:
                 // jeder Aufbau lässt MapLibre alle geladenen Bilder je Kachel kopieren.
                 if (_total <= 200 || _settled === _total) _animSignsKarteBald();
@@ -14834,7 +15041,7 @@ function mountAnimator(body, headerActions, opts) {
       _animHaltKopie.clear();
       // 14.09.2026 — Pixelmaß nach Zahl der Bild-Schilder (ui/js/sign_draw.js rzSignDpr),
       // synchron zu core/animator.py (Render) — bei Änderung beide pflegen.
-      const _dprBild = _animSignsDprBild(list);
+      const _dprBild = _animSignsDprBild(dprListe || list);
       // 14.09.2026 — Index je Schild einmal (vorher allSigns.indexOf je Schild: 2830² Schritte).
       const _idxVon = new Map(); allSigns.forEach((s, i) => { if (!_idxVon.has(s)) _idxVon.set(s, i); });
       list.forEach((s) => {
@@ -14858,7 +15065,7 @@ function mountAnimator(body, headerActions, opts) {
           }
           _animSignImgIds.push(id);
         } catch (_) { return; }
-        const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
+        const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat), sn.strecke_m);
         const meta = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
         // 05.10.2026 — Sofortbild mit Ausgang „mini": rundes Mini-Bild dazu registrieren (sign_draw.js rzSignApplyFrame)
         if (meta.mini != null && sn.style === "sofortbild" && window.__rzDrawSofortbildMini && _animSignHasImg(s)) {
@@ -14988,24 +15195,44 @@ function mountAnimator(body, headerActions, opts) {
       const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc || _animSignPlatzhalterIst(allSigns, s)) && s.visible !== false);
       if (!list.length) return false;
       const dur = _animSignsDuration();
+      // 18.10.2026 — HTML-Element ist nur noch das bearbeitete Schild (_animSignDomIst); die anderen zeigt die Schild-Ebene.
+      // Hier: das HTML-Schild neu zeichnen und die Zeiten ALLER Schilder neu rechnen (die Ebene liest sie aus den Metas).
+      // Passt die Struktur nicht (HTML-Element fehlt oder ist übrig, Anker geändert) → false, der Aufrufer baut neu auf.
       let ok = true;
+      const dprBild = _animSignsDprBild(list.filter(s => !_animSignFsErsetzt(s)));
+      const domFi = new Set();
+      const _idxVon = new Map(); allSigns.forEach((s, i) => { if (!_idxVon.has(s)) _idxVon.set(s, i); });
       list.forEach((s) => {
-        const fi = allSigns.indexOf(s);
+        const fi = _idxVon.get(s);
+        const sn = _animSignNormalize(s);
+        const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat), sn.strecke_m);
+        const meta = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
+        const alt = _animSignMetas[fi];
+        if (alt && alt.miniId && meta.mini != null) { meta.fullId = alt.fullId; meta.miniId = alt.miniId; meta.miniW = alt.miniW; }   // Sofortbild-Mini der Ebene behalten
+        _animSignMetas[fi] = meta;
+        if (!_animSignDomIst(allSigns, s)) return;
+        domFi.add(fi);
         const mk = _animSignMarkers[fi];
         if (!mk || !mk.wrap || !mk.marker) { ok = false; return; }
-        const sn = _animSignNormalize(s);
+        const sd = _animSignHaltVorschau(s);   // Reiter „Beim Halt“: Halt-Gestaltung (wie _animSignsAttachToMap)
+        const sdn = (sd === s) ? sn : _animSignNormalize(sd);
         // v0.9.408 — Sprechblasen-Richtung geändert → Marker-Anker muss neu (nicht
         // in-place änderbar) → Full-Rebuild anstoßen.
-        if (mk.anchor !== _signMarkerAnchor(sn)) { ok = false; return; }
-        let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
-        if (s.imageSrc && !imageUrl) { try { _animSignEnsureImage(s).then(() => { try { _animSignsUpdateInPlace(); } catch (_) {} }); } catch (_) {} }
-        try { window.__rzSignDomStyle(mk.wrap, sn, { imageUrl }); } catch (_) {}
+        if (mk.anchor !== _signMarkerAnchor(sdn)) { ok = false; return; }
+        let imageUrl = (sd._imgEl && sd._imgEl.src) || sd.thumb || "";
+        // 18.10.2026 — nur bei geladenem Bild erneut: lud das Bild noch (_imgLoading), löste _animSignEnsureImage sofort mit
+        // false auf, der Aufruf stieß sich selbst wieder an → endlose Mikroaufgaben-Schleife, die Seite hing (Foto-Schild ohne
+        // Vorschaubild, Fotostopp-Look im Editor von „Foto groß“ auf „wie unterwegs“ gestellt)
+        if (s.imageSrc && (!imageUrl || !_animSignHasImg(s))) { try { _animSignEnsureImage(s).then((da) => { if (da) { try { _animSignsUpdateInPlace(); } catch (_) {} } }); } catch (_) {} }
+        const bild = _animSignDomBild(sd, dprBild);   // 18.10.2026 — Bild der Canvas-Engine (= Video)
+        mk.zoomScale = !!sdn.zoomScale; mk.randFest = sdn.rand_fest === true;
+        const gr = (bild && window.__rzSignGroesse) ? window.__rzSignGroesse(map, mk.zoomScale) : 1;
+        try { window.__rzSignDomStyle(mk.wrap, sdn, { imageUrl, bild, groesse: gr }); } catch (_) {}
         if (fi === _animSignForceIdx) _animSignTippbar(fi);   // __rzSignDomStyle blendet die leere Zeile sonst aus
+        mk._lastScale = null; mk._lastOff = null;
         try { mk.marker.setLngLat([Number(sn.lon), Number(sn.lat)]); } catch (_) {}
-        mk.zoomScale = !!sn.zoomScale;
-        const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
-        _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta(_animSignMitAnker(sn, trackAnchor, dur), dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
       });
+      (_animSignMarkers || []).forEach((mk, fi) => { if (mk && !domFi.has(fi)) ok = false; });
       if (!ok) return false;
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       _animSignsUpdateAtAnchor(a);
@@ -15015,7 +15242,8 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignsApplyMarkerAnchor(markerAnchor) {
       const M = Number(markerAnchor);
       _animSignLastAnchorM = M;
-      if (_animSignEditMode) _animSignsApplyDOM(M);
+      // 18.10.2026 — Editor offen: die Schild-Ebene (alle anderen Schilder) UND das HTML-Schild im Editor
+      if (_animSignEditMode) { _animSignsApplyGPU(M); _animSignsApplyDOM(M); }
       else _animSignsApplyGPU(M);
       try { _animSignsVorankuendigung(M); } catch (_) {}
     }
@@ -15030,7 +15258,7 @@ function mountAnimator(body, headerActions, opts) {
         const vs = Number(sn && sn.vorschau_s) || 0;
         if (vs <= 0 || sn.visible === false || sn.alwaysVisible) continue;
         let A = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _vkAnker.get(sn);
-        if (A == null) { A = _animSignAnchorForLngLat(sn.lon, sn.lat); _vkAnker.set(sn, A); }
+        if (A == null) { A = _animSignAnchorForLngLat(sn.lon, sn.lat, sn.strecke_m); _vkAnker.set(sn, A); }
         const zeigen = A - (Number(sn.before) || 0) / dur, von = zeigen - vs / dur;
         if (M < von || M > zeigen + bl) continue;
         const op = Math.min(Math.max(0, Math.min(1, (M - von) / bl)), Math.max(0, Math.min(1, (zeigen + bl - M) / bl)));
@@ -15083,6 +15311,8 @@ function mountAnimator(body, headerActions, opts) {
         if (!visible) return;
         const opR = Math.round(op * 100) / 100;
         if (mk._lastOp !== opR) { wrap.style.opacity = String(opR); mk._lastOp = opR; }
+        // 18.10.2026 — Bild-Modus (Bild der Canvas-Engine): Größe und Randversatz wie die Schild-Ebene, kein CSS-Zoom
+        if (wrap.__bildAn) { _animSignDomRand(mk); return; }
         // 05.10.2026 — Ausgang „mini": aus dem Anker berechnet (kein CSS-Übergang), damit Video = Vorschau.
         let miniP = 0;
         if (meta.mini != null && !(_animSignsPreviewAll || _isStaticFrame) && M > meta.mini) {
@@ -15120,6 +15350,7 @@ function mountAnimator(body, headerActions, opts) {
           const scR = Math.round(sc * 1000) / 1000;
           if (mk._lastScale !== scR) { card.style.transform = (scR !== 1) ? ("scale(" + scR + ")") : ""; mk._lastScale = scR; }
         }
+        _animSignDomRand(mk, zsc);   // 18.10.2026 — auch der Platzhalter (noch ohne Text) bleibt im Bild
       });
     }
     /** Schilder an einer Scrubber-Position mitführen.
@@ -15151,7 +15382,8 @@ function mountAnimator(body, headerActions, opts) {
       if (_animKarteTimer) return;
       _animKarteTimer = setTimeout(() => {
         _animKarteTimer = 0;
-        try { if (map && map.getContainer) _animSignsAttachToMap(); } catch (_) {}
+        // 18.10.2026 — bei offenem Editor nur die Ebene neu; das HTML-Schild bleibt stehen (Fokus) und zeichnet sich neu
+        try { if (map && map.getContainer) { _animSignsAttachToMap({ nurGpu: true }); if (_animSignEditMode) _animSignsUpdateInPlace(); } } catch (_) {}
       }, 400);
     }
     // 11.09.2026 — Undo-Rückweg (der Controller steht weiter oben, außerhalb dieses Blocks).
@@ -15709,7 +15941,7 @@ function mountAnimator(body, headerActions, opts) {
             <label class="se-hl-row" style="${_istHlStil(c.style) ? "" : "display:none;"}">${t("signs.icon", "Symbol")}</label>
             <select id="se-icon" class="se-hl-row" style="${_istHlStil(c.style) ? "" : "display:none;"}">
               <option value=""${sel("", c.icon || "")}>${t("signs.icon_none", "keins")}</option>
-              ${HL_ARTEN.map(a => `<option value="${a}"${sel(a, c.icon || "")}>${_hlText(a)}</option>`).join("")}
+              ${SCHILD_SYMBOLE.concat(c.icon && !SCHILD_SYMBOLE.includes(c.icon) ? [c.icon] : []).map(a => `<option value="${_animEscapeHtml(a)}"${sel(a, c.icon || "")}>${_animEscapeHtml(_hlText(a))}</option>`).join("")}
             </select>
             <label class="se-hl-row" style="${_istHlStil(c.style) ? "" : "display:none;"}">${t("signs.hl_color", "Farbe")}</label>
             <input type="color" id="se-hlcolor" class="se-hl-row" value="${_animEscapeHtml(/^#[0-9a-f]{6}$/i.test(c.color || "") ? c.color : "#ffc21a")}" style="${_istHlStil(c.style) ? "" : "display:none;"}">
@@ -16258,6 +16490,14 @@ function mountAnimator(body, headerActions, opts) {
       }
       // v0.9.255 — Schilder sind jetzt HTML-Marker und fangen ihren Klick selbst ab
       // (siehe wrap.addEventListener in _animSignsAttachToMap). Hier kein Hit-Test mehr.
+      // 18.10.2026 — bei offenem Editor zeigt die Schild-Ebene alle anderen Schilder (nur das bearbeitete ist ein HTML-
+      // Element): ein Klick auf eines davon öffnet wie bisher dessen Editor.
+      if (_animSignEditMode && !_animSignDragging && map && map.getLayer(_ANIM_SIGNS_LYR)) {
+        let f = null;
+        try { f = map.queryRenderedFeatures(e.point, { layers: [_ANIM_SIGNS_LYR] })[0]; } catch (_) { f = null; }
+        const i = f && f.properties ? +f.properties.signIdx : NaN;
+        if (isFinite(i) && i >= 0 && i !== _animSignEditorIdx) _animSignsOpenEditor(i);
+      }
     }
     // v0.9.198 — Foto-Import: legt für jedes Foto (mit GPS) ein Schild MIT Bild an
     // den Aufnahme-Koordinaten an. Die Sign lädt ihren eigenen 600px-Thumb (imageSrc).
@@ -17175,7 +17415,7 @@ function mountAnimator(body, headerActions, opts) {
       // 28.09.2026 — für die Schilder-Spur in der Zeitleiste (anderer Scope, siehe _sgSpurJetzt)
       spur: {
         show: () => _animSignsShow(), list: () => _animSignsList(), normalize: (x) => _animSignNormalize(x),
-        ankerFuer: (lng, lat) => _animSignAnchorForLngLat(lng, lat), dauer: () => _animSignsDuration(),
+        ankerFuer: (lng, lat, m) => _animSignAnchorForLngLat(lng, lat, m), dauer: () => _animSignsDuration(),
         speichern: (l, label) => _animSignsSave(l, label), bildUebernehmen: (ziel, el) => _animSetImgEl(ziel, el),
         neuZeichnen: () => { if (!_animSignsUpdateInPlace()) _animSignsAttachToMap(); _animSignsRenderList(); },
         oeffnen: (i) => _animSignsOpenEditor(i),
@@ -19179,7 +19419,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _sgMeta(s) {
     const sn = _sgS().normalize(s);
-    const A = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _sgS().ankerFuer(Number(sn.lon), Number(sn.lat));
+    const A = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _sgS().ankerFuer(Number(sn.lon), Number(sn.lat), sn.strecke_m);
     const dur = _sgS().dauer();
     const m = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: A }, dur) : { a_show: A, a_hide: 2, fade: 0, pop: 0 };
     return { sn, A, dur, m };
@@ -19227,10 +19467,12 @@ function mountAnimator(body, headerActions, opts) {
       if (!s || !((s.text || "").trim() || s.imageSrc)) return;
       const { sn, m, dur } = _sgMeta(s);
       const immer = !!sn.alwaysVisible;
-      const fsF = immer ? null : _fsSpurFenster(s, ph.intro);   // Fotostopp: ab dem Pin bis zum Ende (wie die Vorschau)
+      const fsF = immer ? null : _fsSpurFenster(s, ph.intro);   // Fotostopp: ab dem Pin bis der Pin geht (wie die Vorschau)
       const tAn = immer ? 0 : (fsF ? fsF.an : _sgZeitAusAnker(m.a_show, ph));
-      const tAus = immer ? ph.G : (fsF ? ph.G : _sgZeitAusAnker(m.a_hide, ph));
-      const einS = immer ? 0 : Math.max(m.fadeIn || 0, m.pop || 0) * dur, ausS = immer ? 0 : Math.max(m.fadeOut || 0, m.popOut || 0) * dur;
+      // 17.10.2026 — Fotostopp: Ende = wann der Pin geht (Verhalten des Schilds), sonst Videoende
+      const fsBisEnde = !!fsF && !(fsF.aus != null && fsF.aus < ph.G - 0.05);
+      const tAus = immer ? ph.G : (fsF ? (fsBisEnde ? ph.G : fsF.aus) : _sgZeitAusAnker(m.a_hide, ph));
+      const einS = immer ? 0 : Math.max(m.fadeIn || 0, m.pop || 0) * dur, ausS = immer ? 0 : fsF ? (fsBisEnde ? 0 : fsF.ausS) : Math.max(m.fadeOut || 0, m.popOut || 0) * dur;
       const name = (sn.text || "").trim().split("\n")[0] || (sn.imageSrc ? t("signs.photo_row", "Foto") + " " + (i + 1) : "#" + (i + 1));
       zeilen.push({
         id: _sgIdVon(i), name, enabled: s.visible !== false, tAn, tAus, fotostopp: fsF ? { pin: fsF.an, anflug: fsF.anflugAb, halt: fsF.halt, abflugBis: fsF.abflugBis } : null, farbe: sn.color && sn.color !== "auto" ? sn.color : "#ff8a5c",
@@ -19251,7 +19493,7 @@ function mountAnimator(body, headerActions, opts) {
                      ohneBlende: immer,
                      // 02.10.2026 (Marc: „den Namen des Schildes … sehen") — Name vorn, Zeit dahinter
                      text: fsF ? name.replace(/\s+/g, " ") + " · " + t("animator.fs.gross", "Foto groß") + " " + zahl(fsF.halt[0]) + "–" + zahl(fsF.halt[1]) + " s"
-                         : name.replace(/\s+/g, " ") + " · " + (immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + ((fsF || m.a_hide >= 1.5) ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s"))),
+                         : name.replace(/\s+/g, " ") + " · " + (immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + ((fsF ? fsBisEnde : m.a_hide >= 1.5) ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s"))),
                      immer }],
       });
     });
@@ -19388,10 +19630,34 @@ function mountAnimator(body, headerActions, opts) {
     // die Ränder haben keine eigene Bedeutung (Anflug/Fotozeit stellt man im Schild ein)
     const fsF = sn.alwaysVisible ? null : _fsSpurFenster(s, ph.intro);
     if (fsF) {
-      if (griff === "schieben") out.timeAnchor = Math.round(Math.max(0, Math.min(1, A + (aShow - _sgAnkerAusZeit(fsF.an, ph)))) * 100000) / 100000;
+      if (griff === "schieben") {
+        out.timeAnchor = Math.round(Math.max(0, Math.min(1, A + (aShow - _sgAnkerAusZeit(fsF.an, ph)))) * 100000) / 100000;
+        // 17.10.2026 (Beta-Tester: „Verschiebt man ein Foto mit GPS-Daten sehr weit entfernt, dann verhält sich die Kamera so,
+        // als ob sie zum Ursprung des Fotos zurück will.“) — nur der Zeitpunkt wanderte: der Halt lag an der neuen Stelle,
+        // Kamera und Foto-Pin blieben am Ort aus den GPS-Daten. Der Foto-Ort wandert jetzt um dasselbe Stück Strecke mit
+        // (ein Abstand zum Track bleibt erhalten); Vorschau, Probelauf und Video lesen alle lat/lon des Schilds.
+        try {
+          const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+          if (n >= 2 && isFinite(+sn.lat) && isFinite(+sn.lon) && Math.abs(out.timeAnchor - A) > 1e-6) {
+            const p0 = coordBeiFrac(currentCoords, Math.max(0, Math.min(1, A)) * (n - 1));
+            const p1 = coordBeiFrac(currentCoords, out.timeAnchor * (n - 1));
+            out.lon = +(+sn.lon + (p1[0] - p0[0])).toFixed(7);
+            out.lat = +(+sn.lat + (p1[1] - p0[1])).toFixed(7);
+          }
+        } catch (e) { applog("warn", "[sg-spur] Foto-Ort mitziehen: " + e); }
+      }
       // 06.10.2026 (Marc: „ich kann es links nicht so hinschieben, dass es später anfängt“) — linker Rand = wann der
       // Foto-Pin erscheint (Sekunden vor dem Anflug, 0 … 30)
       if (griff === "l") out.stopp_pin_s = Math.round(Math.max(0, Math.min(30, fsF.anflugAb - tAn)) * 10) / 10;
+      // 17.10.2026 — rechter Rand = „Bleibt sichtbar“ nach dem Abflug (ganz rechts = bis zum Ende). Wer den Pin vor dem
+      // Ende gehen lässt, bekommt statt „Mini-Bild bleibt stehen“ eine Ausblendung.
+      if (griff === "r") {
+        if (bisEnde) out.after = 0;
+        else {
+          out.after = Math.max(0.1, Math.round((tAus - fsF.abflugBis) * 10) / 10);
+          if (sn.exit === "mini") out.exit = "fade";
+        }
+      }
       // 06.10.2026 — Phasengrenzen: Anflug-Beginn, Ende „Foto groß“ (Fotodauer), Ende Abflug
       const zt = (k) => (neu.fs && neu.fs[k] != null) ? _ovZeitAusLeiste(neu.fs[k]) : null, r1 = (x) => Math.round(x * 10) / 10;
       if (griff === "fs-anflug" && zt("anflug") != null) out.stopp_anflug_s = r1(Math.max(0, Math.min(5, fsF.halt[0] - zt("anflug"))));
@@ -19681,6 +19947,11 @@ function mountAnimator(body, headerActions, opts) {
   // zu normalen, automatisch gepflegten Schildern (Kennzahl-Stile in sign_draw.js):
   // editierbar, in der Liste und Zeitleiste, in Vorschau, Szene und klassischem Render.
   const HL_ARTEN = ["hoechster", "steilste", "schnellste", "halbe", "wegpunkte"];
+  // 17.10.2026 (Beta-Tester: „Wenn man bei einer Pause das Symbol ändert, kann man es nicht wieder zu einer Kaffeetasse
+  // zurückändern.“) — die Symbol-Auswahl im Schild-Editor kannte nur die Highlight-Zeichen; die Logbuch-Zeichen (Tasse,
+  // Mond, Stift aus sign_draw.js) fehlten. Schlimmer: das Feld zeigte bei einer Pause „keins“ und schrieb beim nächsten
+  // Ändern „keins“ zurück. Jetzt stehen alle Zeichen zur Wahl, die sign_draw.js zeichnen kann.
+  const SCHILD_SYMBOLE = HL_ARTEN.concat(["pause", "uebernachtung", "notiz"]);
   function _istHlStil(st) { return ["pille", "hl_pin", "hl_rund", "hl_form", "hl_pinsel"].includes(st); }
   function _hlEin() {
     return !_isStaticFrame && !!document.getElementById("anim-hl-on")?.checked;
@@ -19902,6 +20173,9 @@ function mountAnimator(body, headerActions, opts) {
       schnellste: t("animator.hl.schnellste", "Höchstes Tempo"),
       halbe: t("animator.hl.halbe", "Halbe Strecke"),
       wegpunkte: t("animator.hl.wegpunkt", "Wegpunkt"),
+      pause: t("logbuch.art.pause", "Pause"),                       // 17.10.2026 — Logbuch-Zeichen (SCHILD_SYMBOLE)
+      uebernachtung: t("logbuch.art.uebernachtung", "Übernachtung"),
+      notiz: t("logbuch.karte.notiz", "Notiz"),
     }[art] || art;
   }
   /** Vorankündigung (Schild-Feld `vorschau_s`): ein kleiner Punkt in der Schildfarbe
@@ -20128,11 +20402,16 @@ function mountAnimator(body, headerActions, opts) {
     catch (e) { applog("error", "[container] Umzug fehlgeschlagen: " + e); return false; }
     let liste = m.container;
     if (_isStaticFrame) liste = liste.filter(c => c.vorlage !== "live");   // Tour-Map: keine Live-Werte (wie bisher)
-    if (window.__rzRenderMode) {
+    // 17.10.2026 — auch bei einem SCHWEBENDEN Projekt (frisch geöffnete Tour, Kennung "") nur im Speicher: das Speichern
+    // hier legte bei JEDER geöffneten Tour sofort ein echtes Projekt an (gegen „Projekt erst bei der ersten echten
+    // Änderung“), ohne dass die Oberfläche davon wusste — gelöscht im Archiv, kam es mit der nächsten Änderung wieder.
+    // Die Übersetzung ist aus denselben Feldern jedes Mal gleich; gespeichert wird sie mit der ersten Änderung daran.
+    const _schwebend = typeof _activeProject !== "undefined" && _activeProject && !_activeProject.id;
+    if (window.__rzRenderMode || _schwebend) {
       // Render-Fenster (Szene): nur im Speicher übersetzen, nie ins Projekt schreiben
       Object.assign(p, { container: liste, container_v: 1, verlauf: m.verlauf });
       _ctCache = { roh: undefined, liste: [] };
-      applog("info", `[container] im Render-Fenster übersetzt (nicht gespeichert): ${liste.length} Einblendungen`);
+      applog("info", `[container] ${_schwebend ? "schwebendes Projekt" : "im Render-Fenster"} übersetzt (nicht gespeichert): ${liste.length} Einblendungen`);
       return true;
     }
     const warUndo = window.__rzUndoApplying;
@@ -20516,6 +20795,14 @@ function mountAnimator(body, headerActions, opts) {
     if (z.typ === "text") return String(z.text || "").slice(0, 30) || t("container.z.text", "Freitext");
     return t("container.z." + z.typ, z.typ);
   }
+  /** 17.10.2026 — in der Liste auch den Text zeigen („Titel · Tirol Runde“): so findet man die Einblendung, deren Text
+   *  man ändern will, ohne sie in der Vorschau erst an die richtige Stelle der Zeitleiste zu scrubben. */
+  function _ctListenName(c) {
+    const n = _ctName(c);
+    const z = (c.zeilen || []).find(x => x && x.typ === "text" && String(x.text || "").trim());
+    const tx = z ? String(z.text).trim().split("\n")[0].slice(0, 40) : "";
+    return tx && !tx.startsWith(n) ? n + " · " + tx : n;
+  }
   function _ctListeZeichnen() {
     const box = document.getElementById("ct-liste");
     if (!box) return;
@@ -20523,7 +20810,7 @@ function mountAnimator(body, headerActions, opts) {
     box.innerHTML = liste.length ? liste.map((c, i) => `<div class="ct-zeile${c.an ? "" : " ct-aus"}${c.id === _ctEditId ? " ct-offen" : ""}" data-ct="${_ctEsc(c.id)}">`
         + `<span class="ct-griff" title="${_ctEsc(t("container.sortieren", "Ziehen zum Sortieren (oben = hinten)"))}">⠿</span>`
         + `<input type="checkbox" class="ct-an"${c.an ? " checked" : ""} title="${_ctEsc(t("container.an", "anzeigen"))}">`
-        + `<span class="ct-name">${_ctEsc(_ctName(c))}</span>`
+        + `<span class="ct-name">${_ctEsc(_ctListenName(c))}</span>`
         + `<span class="ct-lage">${_ctEsc(t("animator.pos." + c.anker, c.anker))}</span>`
         + `<span class="ct-sort">${rzSortPfeile(i, liste.length)}</span>`
         + `<button type="button" class="ct-knopf ct-edit" title="${_ctEsc(t("container.bearbeiten", "Gestalten"))}">✎</button>`
@@ -20643,7 +20930,39 @@ function mountAnimator(body, headerActions, opts) {
       };
       window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
     }, true);
+    // 17.10.2026 (Beta-Tester: Titel nicht änderbar) — Doppelklick auf einen Text in der Vorschau: Editor auf und gleich
+    // ins Textfeld dieser Zeile (ganzer Text markiert). Der einfache Klick öffnet weiter nur den Editor.
+    layer.addEventListener("dblclick", (e) => {
+      if (window.__rzRenderMode || e.target.closest(".ct-x")) return;
+      const el = e.target.closest(".ct");
+      if (!el) return;
+      e.preventDefault(); e.stopPropagation();
+      _ctTextBearbeiten(el.getAttribute("data-ctid"), e.target.closest(".ct-text")?.getAttribute("data-f") || "");
+    }, true);
   }
+  /** Editor der Einblendung öffnen und das Textfeld der Zeile `zid` (sonst der ersten Textzeile) fokussieren. */
+  function _ctTextBearbeiten(id, zid) {
+    const c = _ctListe().find(x => x.id === id);
+    if (!c) return false;
+    if (_ctEditId !== id || !document.getElementById("ct-editor")) _ctEditorOeffnen(id);
+    const z = (zid && c.zeilen.find(x => x.id === zid && x.typ === "text")) || c.zeilen.find(x => x.typ === "text");
+    if (!z) return false;
+    const feld = () => document.querySelector(`#ct-editor [data-z="${CSS.escape(z.id)}"] textarea[data-zk="text"]`);
+    if (!feld()) return false;
+    // Die Detail-Spalte rechts geht erst nach der Doppelklick-Frist auf (ui/js/seitenleisten.js, DOPPEL_MS) — bis
+    // dahin ist das Feld nicht sichtbar und nimmt keinen Fokus an. So lange nachfassen (höchstens ~1,5 s).
+    let n = 0;
+    const setzen = () => {
+      const ta = feld();
+      if (!ta || _ctEditId !== id) return;
+      if (!ta.offsetParent && n++ < 30) { setTimeout(setzen, 50); return; }
+      try { ta.scrollIntoView({ block: "nearest" }); } catch (_) {}
+      ta.focus(); try { ta.select(); } catch (_) {}
+    };
+    setzen();
+    return true;
+  }
+  window.__rzCtTextBearbeiten = (id, zid) => _ctTextBearbeiten(id, zid);   // Prüfstand
 
   // ── Editor (Q12/Q21): schwebendes Fenster wie beim Schild-Editor ──
   // 15.10.2026 (Marc: „Wenn man Overlays anklickt, dann sollte da ein kleines Kreuz in der Ecke kommen, damit man sie
@@ -20764,7 +21083,15 @@ function mountAnimator(body, headerActions, opts) {
     p.innerHTML = `<div class="sign-editor-head" id="ct-editor-kopf"><span>${_ctEsc(t("container.editor", "Einblendung"))}</span>`
       + `<button type="button" class="sign-editor-x" id="ct-editor-x" title="${_ctEsc(t("common.close", "Schließen"))}">✕</button></div>`
       + `<div class="sign-editor-body">`
-      + `<input type="text" data-k="name" value="${_ctEsc(c.name)}" placeholder="${_ctEsc(_ctName(c))}">`
+      // 17.10.2026 (Beta-Tester: „nicht einmal den Titel konnte ich ändern“) — der INHALT zuerst. Oben stand bisher das
+      // Namensfeld („Titel“); wer dort tippte, benannte nur die Zeile in der Liste um, im Video blieb der alte Text. Die
+      // Textzeilen standen ganz unten, unter Stil, Lage, Zeit und „Mehr“.
+      + `<div class="se-group-title">${_ctEsc(t("container.gr.zeilen", "Zeilen"))}</div>`
+      + `<div class="ct-ez-liste">${c.zeilen.map((z, i, a) => _ctZeileEditorHtml(z, i, a.length)).join("")}</div>`
+      + `<select id="ct-zeile-neu">${_ctOpt("", "", "＋ " + t("container.zeile_neu", "Zeile hinzufügen"))}`
+      + ["wert", "text", "diagramm", "bild", "nord", "massstab"].map(ty => _ctOpt(ty, "", t("container.z." + ty, ty))).join("") + `</select>`
+      + `<div class="se-group-title">${_ctEsc(t("container.name_liste", "Name in der Liste"))}</div>`
+      + `<input type="text" data-k="name" value="${_ctEsc(c.name)}" placeholder="${_ctEsc(_ctName(c))}" title="${_ctEsc(t("container.name_liste_tip", "Nur für die Liste der Einblendungen — der Text im Video steht oben unter „Zeilen“."))}">`
       + `<div class="se-group-title">${_ctEsc(t("container.gr.stil", "Stil"))}</div>`
       + `<div class="ct-stile">${stile.map(([v, txt]) => `<button type="button" class="ct-stil${c.stil === v ? " on" : ""}" data-stil="${v}">${_ctEsc(txt)}</button>`).join("")}</div>`
       + `<div class="se-grid">`
@@ -20802,10 +21129,6 @@ function mountAnimator(body, headerActions, opts) {
       + `<label>${_ctEsc(t("container.einheit_faktor", "Einheit"))}</label>${zahl("einheit_faktor", 0.2, 1, 0.05, "em")}`
       + `<label>${_ctEsc(t("container.deckkraft", "Deckkraft"))}</label><input type="range" data-k="deckkraft" min="0.05" max="1" step="0.05" value="${c.deckkraft}">`
       + `</div></details>`
-      + `<div class="se-group-title">${_ctEsc(t("container.gr.zeilen", "Zeilen"))}</div>`
-      + `<div class="ct-ez-liste">${c.zeilen.map((z, i, a) => _ctZeileEditorHtml(z, i, a.length)).join("")}</div>`
-      + `<select id="ct-zeile-neu">${_ctOpt("", "", "＋ " + t("container.zeile_neu", "Zeile hinzufügen"))}`
-      + ["wert", "text", "diagramm", "bild", "nord", "massstab"].map(ty => _ctOpt(ty, "", t("container.z." + ty, ty))).join("") + `</select>`
       + `<div class="muted-note">${_ctEsc(t("container.hinweis_zeit", "Wann die Einblendung zu sehen ist, stellst du in der Zeitleiste ein (Spur „Einblendungen“)."))}</div>`
       + `</div>`;
     if (fokus && fokus.k) {
@@ -25242,6 +25565,38 @@ function mountAnimator(body, headerActions, opts) {
       toast(t("animator.tours.dup", "Diese Tour ist schon geladen."), "info");
       return;
     }
+    // 17.10.2026 (Beta-Tester: Projekt „direkt in der Desktopversion“ angelegt, Tour dazu, gelöscht, neues — das Intro
+    // reichte von Tirol bis in die Toskana) — ohne Projekt und ohne Track wurde „＋ Tour hinzufügen“ eine Zusatz-Tour
+    // ohne Haupt-Track und landete in den GLOBALEN Einstellungen. Jetzt wird sie geöffnet wie mit „Tour öffnen“:
+    // Haupt-Track mit eigenem Projekt; weitere Touren kommen danach als Track 2, 3 … dazu.
+    if (!currentGpx && !_isReiseroute && typeof getActiveProject === "function" && !getActiveProject()
+        && typeof window.loadGlobalGpx === "function") {
+      applog("info", "[tours] ohne Projekt: Tour wird als Haupt-Track geöffnet: " + path);
+      const ok = await window.loadGlobalGpx(path, { stumm: true });
+      // Touren-Wiederherstellung des frischen Projekts abwarten — sonst überschriebe sie die nächste Tour gleich wieder
+      if (ok !== false) { try { await _animLoadTours(); } catch (_) {} }
+      return;
+    }
+    // 17.10.2026 — leeres Projekt (ohne Tour, ohne Etappe, ohne Zusatz-Touren): die erste Tour wird SEIN Haupt-Track,
+    // wie „➕ Touren“ auf der Projektkarte im Archiv (projekt_touren_setzen). Vorher wurde sie eine Zusatz-Tour ohne
+    // Haupt-Track: Schilder bekamen alle den Anker 0 und fehlten in der Zeitleiste, Übersichtskarte und Gesamtsicht
+    // blieben leer, das Intro begann irgendwo (bei einem Beta-Tester: „Ausschnitt von Tirol bis in die Toskana“).
+    const _P = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    const _S = (typeof getActiveSession === "function") ? getActiveSession() : null;
+    if (!currentGpx && !_isReiseroute && !_hauptEtappe && !_extraTours.length && _P && _P.id && _S
+        && String(_S.track_hash || "").startsWith("frei:") && typeof window.loadGlobalGpx === "function") {
+      try { if (typeof window.projektFuerRenderSichern === "function") await window.projektFuerRenderSichern(_MODKEY); }   // offene Änderungen vorher ins Projekt
+      catch (e) { applog("warn", "[tours] offene Änderungen sichern: " + e); }
+      const r = await rzWarten("projekt_touren_setzen", () => api().projekt_touren_setzen(_P.id, [path])).catch((e) => ({ ok: false, error: String(e) }));
+      if (r && r.ok) {
+        applog("info", "[tours] leeres Projekt: Tour wird Haupt-Track: " + path);
+        try { await api().projekt_aktivieren(_P.id); } catch (_) {}   // warte-ok: Millisekunden — macht das Projekt in seinem neuen Kontext aktiv
+        const ok = await window.loadGlobalGpx(path, { stumm: true });
+        if (ok !== false) { try { await _animLoadTours(); } catch (_) {} }
+        return;
+      }
+      applog("warn", "[tours] leeres Projekt: Tour setzen fehlgeschlagen: " + ((r && r.error) || "?"));
+    }
     // Coords für die Vorschau laden (downsampled GeoJSON aus dem Backend).
     let coords = null;
     let _ladeRes = null;
@@ -26442,6 +26797,10 @@ function mountAnimator(body, headerActions, opts) {
   // klicken. `coords` bleibt draußen (kann bei langen Tracks Megabytes sein)
   // und wird beim Laden aus der GPX nachgezogen.
   function _animPersistTours(undoLabel) {
+    // 17.10.2026 — ohne Projekt UND ohne Track nichts schreiben: saveProjectSettings fiele auf die GLOBALEN Einstellungen
+    // zurück, und Touren/Gruppen von dort tauchten später in anderen Lagen wieder auf (s. _animLoadToursInner). Mit Track
+    // ohne Projekt gibt es das nur auf dem Prüfstand (Brücke ohne Sitzungen) — dort bleibt es wie bisher.
+    if (!currentGpx && typeof getActiveProject === "function" && !getActiveProject()) return;
     // 10.09.2026 (Marc: „Undo muss für alles gehen") — der Schnappschuss VOR dem
     // Schreiben ist der alte Stand des Projekts; nicht beim Laden und nicht
     // während ein Undo gerade angewendet wird.
@@ -26622,7 +26981,13 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
       // 10.09.2026 — ohne Projekt (Prüfstand, Undo ohne Sitzung) den Modul-Block nehmen
-      const a = proj?.[_MODKEY] || (window.rzReadModuleSettings ? window.rzReadModuleSettings(_MODKEY) : null) || {};
+      // 17.10.2026 (Beta-Tester: neues Projekt, „Ausschnitt von Tirol bis in die Toskana“) — NICHT mehr: ohne Projekt
+      // sind das die globalen Einstellungen. Eine dort gelandete Tour (＋ Tour ohne Projekt) kam nach jedem ✕, nach dem
+      // Löschen des offenen Projekts und beim Start ohne Projekt wieder auf die Karte und in die Gesamtsicht. Touren
+      // gehören nur einem Projekt (wie die Haupt-Etappe, 14.10.2026). Ausnahme: ein Track ist geladen, aber kein Projekt
+      // offen — das gibt es nur auf dem Prüfstand (Brücke ohne Sitzungen); dort wie bisher der Modul-Block.
+      const a = proj ? (proj[_MODKEY] || {})
+        : (currentGpx && window.rzReadModuleSettings ? window.rzReadModuleSettings(_MODKEY) : null) || {};
       projId = proj ? proj.id : null;
       if (Array.isArray(a.gruppen) && a.gruppen.length) gespeicherteGruppen = a.gruppen;
       saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];

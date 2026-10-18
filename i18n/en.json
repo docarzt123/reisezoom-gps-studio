@@ -6538,5 +6538,11 @@
   "animator.etappe.fz_zeigen": "Show the stage's vehicle",
   "animator.etappe.fz_zeigen_tip": "On: the moving dot becomes the section's means of transport (car, plane …). Off: it keeps its moving-dot shape (ball, arrow, symbol, own image) — the means of transport then only shapes the line.",
   "animator.etappe.fz_zeigen_hinweis": "Moving-dot shape and “Show moving dot” (no dot at all, just the line): under “Look of the line”.",
-  "animator.etappe.laufpunkt_knopf": "Set up moving dot …"
+  "animator.etappe.laufpunkt_knopf": "Set up moving dot …",
+  "animator.ansicht.kf_uebernimmt": "Keyframe #{n} takes over the map — {taste} undoes it",
+  "animator.ansicht.undo_taste": "Ctrl+Z",
+  "projekt.weg_nicht_gespeichert": "This project no longer exists — changes are not being saved. Open a project or create a new one.",
+  "topbar.project.action_new_tip": "Another project with the same tour, e.g. a second version of the video",
+  "container.name_liste": "Name in the list",
+  "container.name_liste_tip": "Only for the list of overlays — the text shown in the video is under “Rows” above."
 }

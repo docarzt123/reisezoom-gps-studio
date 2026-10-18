@@ -141,6 +141,54 @@
     return wrap;
   }
 
+  // ── 18.10.2026 — Bild-Modus (siehe style): Bild der Canvas-Engine + unsichtbarer, tippbarer Text darüber ──────────
+  // r = { data: ImageData, dpr, text: { x, y, w, h, zeile, px, ausrichtung, farbe, schrift } } (sign_draw.js rzDrawSign),
+  // k = Größenfaktor auf der Karte (= icon-size der Schild-Ebene, sign_draw.js rzSignGroesse).
+  function bildModus(wrap, o, r, k) {
+    var card = wrap.__card, img = wrap.__img, cap = wrap.__cap;
+    var cv = wrap.__cv;
+    if (!cv) {
+      cv = document.createElement("canvas");
+      cv.className = "rz-sign__bild";
+      card.insertBefore(cv, card.firstChild);
+      wrap.__cv = cv;
+    }
+    if (cv.width !== r.data.width) cv.width = r.data.width;
+    if (cv.height !== r.data.height) cv.height = r.data.height;
+    try { cv.getContext("2d").putImageData(r.data, 0, 0); } catch (_) {}
+    wrap.__bildAn = true;
+    wrap.__bildMass = { w: r.data.width / (r.dpr || 2), h: r.data.height / (r.dpr || 2), text: r.text || null };
+    wrap.__hlKey = null;
+    card.className = "rz-sign rz-sign--bild";
+    card.style.cssText = "display:block;position:relative;background:transparent;padding:0;border:none;box-shadow:none;" +
+                         "filter:none;opacity:1;transform:none;min-width:0;border-radius:0;rotate:none;color:transparent";
+    img.style.display = "none";
+    ["rz-sign__pin", "rz-sign__poles", "rz-sign__arrow"].forEach(function (n) { var e = card.querySelector("." + n); if (e) e.remove(); });
+    wrap.style.paddingTop = ""; wrap.style.paddingLeft = ""; wrap.style.paddingRight = ""; wrap.style.paddingBottom = "0px";
+    wrap.style.opacity = "1";
+    var text = String(o.text == null ? "" : o.text);
+    if (String(cap.textContent).replace(/\u00a0/g, " ") !== text) cap.textContent = text;   // siehe style(): Schreibmarke bleibt
+    bildGroesse(wrap, k);
+  }
+  /** Bild-Modus: Größe auf der Karte setzen (Zoom), ohne neu zu rastern. */
+  function bildGroesse(wrap, k) {
+    var M = wrap && wrap.__bildMass, cv = wrap && wrap.__cv, cap = wrap && wrap.__cap;
+    if (!M || !cv) return;
+    k = Number(k) || 1;
+    cv.style.cssText = "display:block;width:" + (M.w * k) + "px;height:" + (M.h * k) + "px";
+    var T = M.text;
+    // Text unsichtbar über dem gezeichneten Text — nur für Schreibmarke und Eingabe; zu sehen ist das Bild
+    if (T) {
+      cap.style.cssText = "position:absolute;margin:0;padding:0;white-space:pre;overflow:visible;text-shadow:none;" +
+        "color:transparent;caret-color:" + (T.farbe || "#fff") + ";font:" + T.schrift + ";font-size:" + (T.px * k) + "px;" +
+        "line-height:" + (T.zeile * k) + "px;text-align:" + (T.ausrichtung || "center") + ";" +
+        "left:" + (T.x * k) + "px;top:" + (T.y * k) + "px;width:" + (T.w * k) + "px;min-height:" + (T.h * k) + "px";
+    } else {
+      cap.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;margin:0;padding:0;color:transparent;text-shadow:none;display:none";
+    }
+    wrap.__bildK = k;
+  }
+
   // ── Stil + Inhalt anwenden (idempotent → flackerfreies Live-Update) ──────
   // `o` = normalisiertes Schild-Objekt (gleiche Felder wie sign_draw.js erwartet).
   // `scale` = zusätzlicher Pixel-Faktor (Render skaliert relativ zur Videohöhe;
@@ -152,6 +200,14 @@
     var unit = Number(opts.scale) || 1;                 // px-Multiplikator
     var px = function (v) { return (Number(v) * unit) + "px"; };
 
+    // 18.10.2026 (Marc: „Wir brauchen WYSIWYG. Überall.“) — Bild-Modus: das Schild zeigt das Bild der Canvas-Engine
+    // (sign_draw.js, `opts.bild` = Ergebnis von __rzDrawSign), also genau das, was die Schild-Ebene im Video zeigt —
+    // Größe, Spitze, Schatten, Schrift pixelgleich. Der CSS-Nachbau unten war ein paar Pixel breiter und saß anders.
+    if (opts.bild && opts.bild.data) { bildModus(wrap, o, opts.bild, Number(opts.groesse) || 1); return; }
+    if (wrap.__bildAn) {   // zurück aus dem Bild-Modus (z. B. Text gelöscht → Platzhalter)
+      wrap.__bildAn = false; card.style.cssText = ""; cap.style.cssText = "";
+      if (wrap.__cv) wrap.__cv.style.display = "none";
+    }
     var styleName = o.style || "callout";
     // 05.10.2026 — „karte" = warmweiße Sprechblase mit weichem Schatten (synchron zu sign_draw.js)
     var istKarte = (styleName === "karte");
@@ -315,7 +371,9 @@
 
     // Text (= Bildunterschrift wenn Bild da)
     var text = String(o.text == null ? "" : o.text);
-    if (text.trim()) { cap.style.display = "block"; if (cap.textContent !== text) cap.textContent = text; }
+    // 18.10.2026 — geschütztes Leerzeichen (tippt der Browser in ein bearbeitbares Feld) gilt als Leerzeichen: sonst setzte
+    // jedes getippte Leerzeichen den Text neu und die Schreibmarke sprang an den Anfang („NordZiel“ statt „Ziel Nord“)
+    if (text.trim()) { cap.style.display = "block"; if (String(cap.textContent).replace(/\u00a0/g, " ") !== text) cap.textContent = text; }
     else { cap.style.display = "none"; cap.textContent = ""; }
 
     // ── Sofortbild (05.10.2026, I-001; Marc nach MapAnimator: „Fotos ein bisschen schräg mit Schreibschrift, macht alles
@@ -440,8 +498,12 @@
   }
 
   // „Mit Zoom wachsen" — gleiche Stützpunkte wie die alte icon-size-Interpolation.
+  // 18.10.2026 — die Schild-Ebene rechnet seit 05.09.2026 mit EINER exponentiellen Kurve (sign_draw.js rzSignZoomGroesse);
+  // die Stützpunkte hier waren davon abgewichen (Zoom 12: 0,80 statt 0,84, Zoom 16: 1,50 statt 1,42) → Editor ≠ Video.
+  // Jetzt dieselbe Rechnung; die alten Stützpunkte nur noch ohne sign_draw.js.
   function zoomScale(zoom, on) {
     if (!on) return 1;
+    if (typeof window !== "undefined" && window.__rzSignZoomGroesse) return window.__rzSignZoomGroesse(zoom);
     var z = Number(zoom) || 12;
     var pts = [[8, 0.5], [12, 0.8], [16, 1.5], [20, 2.4]];
     if (z <= pts[0][0]) return pts[0][1];
@@ -470,6 +532,7 @@
     window.__rzSignDomBuild = build;
     window.__rzSignDomStyle = style;
     window.__rzSignDomZoomScale = zoomScale;
+    window.__rzSignDomBildGroesse = bildGroesse;   // 18.10.2026 — Bild-Modus: Größe auf der Karte (Zoom)
     window.__rzSignDomAnchor = anchorFor;
     window.__rzSignDom = api;
   }

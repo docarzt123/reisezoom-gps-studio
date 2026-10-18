@@ -6538,5 +6538,11 @@
   "animator.etappe.fz_zeigen": "Fahrzeug der Etappe zeigen",
   "animator.etappe.fz_zeigen_tip": "An: Der Laufpunkt wird zum Verkehrsmittel des Abschnitts (Auto, Flugzeug …). Aus: Er behält seine Form aus „Laufpunkt“ (Kugel, Pfeil, Symbol, eigenes Bild) — das Verkehrsmittel bestimmt dann nur noch die Linie.",
   "animator.etappe.fz_zeigen_hinweis": "Form des Laufpunkts und „Laufpunkt zeigen“ (ganz ohne Punkt, nur die Linie): unter „Aussehen der Linie“.",
-  "animator.etappe.laufpunkt_knopf": "Laufpunkt einstellen …"
+  "animator.etappe.laufpunkt_knopf": "Laufpunkt einstellen …",
+  "animator.ansicht.kf_uebernimmt": "Keyframe #{n} übernimmt die Karte — {taste} macht es rückgängig",
+  "animator.ansicht.undo_taste": "Strg+Z",
+  "projekt.weg_nicht_gespeichert": "Dieses Projekt gibt es nicht mehr — Änderungen werden nicht gespeichert. Öffne ein Projekt oder lege ein neues an.",
+  "topbar.project.action_new_tip": "Weiteres Projekt mit derselben Tour, z. B. eine zweite Fassung des Videos",
+  "container.name_liste": "Name in der Liste",
+  "container.name_liste_tip": "Nur für die Liste der Einblendungen — der Text im Video steht oben unter „Zeilen“."
 }

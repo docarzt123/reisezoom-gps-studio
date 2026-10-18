@@ -1319,6 +1319,16 @@ de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo e
 6. **¿Y ahora?** Listo, página de la ruta con cuaderno, editar fotos en el Geotagger, vídeo rápido, asistente de vídeo,
    diseñar el vídeo tú mismo en el Animator, crear un mapa o animar datos.
 
+### Novedades en v0.9.797: correcciones a partir de comentarios de testers
+
+- **Borrar un proyecto abierto:** el proyecto se cierra en todas partes; su track no se queda en el Animator ni vuelve con el siguiente clic. «＋ Ruta» sin proyecto abierto abre la ruta con su propio proyecto; en un proyecto vacío la primera ruta pasa a ser la principal. Con una ruta abierta, el menú de proyectos ofrece también **«Nuevo proyecto vacío …»**.
+- **Cambiar el título:** en «Rótulos» el editor muestra ahora **las líneas de texto arriba**; el campo «Nombre en la lista» es solo el nombre en la lista. **Doble clic en un texto de la vista previa** (p. ej. el título al principio) pone el cursor directamente en esa línea.
+- **¿Keyframe cambiado sin querer?** Con un keyframe seleccionado, mover, girar o hacer zoom en el mapa hace que tome la nueva vista; abajo aparece en voz baja «El keyframe #2 toma la vista del mapa — ⌘Z lo deshace». **Un ⌘Z** (Windows: Ctrl+Z) recupera el keyframe exactamente.
+- **Parada de foto:** el pin redondo tras la parada sigue «Sigue visible» y la desaparición en lugar de quedarse hasta el final del vídeo; puedes acortar su barra en la línea de tiempo por el borde derecho. Si mueves una parada en la línea de tiempo, su lugar se desplaza por la ruta y la cámara vuela al nuevo sitio. Si la parada queda a más de 200 m del lugar donde se hizo la foto, el pie de foto nombra el lugar del nuevo sitio; la hora sigue siendo la de la toma.
+- **Pausas** del diario en el lugar correcto, también cuando la ruta pasa dos veces por el mismo sitio, y el símbolo puede volver a la **taza de café**.
+- **Editar un cartel = como en el vídeo:** el cartel que editas se ve ahora exactamente como en el vídeo final: mismo tamaño y, en el borde, metido hacia dentro de la misma forma. Para verlo entero, mueve un poco la cámara. Los carteles de texto se pueden volver a coger por el texto tras «↔ Mover», y un espacio al escribir en el mapa ya no salta al principio.
+- **Línea de tiempo ampliada:** los keyframes fuera de la parte visible ya no se pueden agarrar sin querer (eso podía apuntar la cámara al cielo estrellado).
+
 ### Novedades en v0.9.796: pequeñas correcciones
 
 - **Comprobación del track: encontrar en el inspector los errores del archivo.** Si el archivo marca una ruta con «errores en el track», ábrela con «Reparar en el inspector». Arriba, el inspector muestra cada tipo de hallazgo y, debajo, los puntos concretos como botones pequeños con su kilómetro. Un clic salta allí, lo marca en el mapa y en el perfil y ofrece «Reparar». Tras reparar y «Reemplazar en el archivo», el aviso del archivo desaparece. Si el resultado del archivo viene de una comprobación antigua, GPS Studio vuelve a comprobar la ruta al abrirla y te dice qué ha cambiado; a menudo ya no queda nada que reparar.

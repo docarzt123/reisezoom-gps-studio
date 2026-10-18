@@ -1334,6 +1334,16 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 6. **Wie weiter?** Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video
    im Animator selbst gestalten, Karte erstellen oder Daten animieren.
 
+### Neu in v0.9.797: Korrekturen aus Tester-Rückmeldungen
+
+- **Projekt löschen, während es offen ist:** Das Projekt wird überall geschlossen — sein Track bleibt nicht im Animator stehen und kommt beim nächsten Klick nicht zurück. „＋ Tour“ ohne offenes Projekt öffnet die Tour mit eigenem Projekt; im leeren Projekt wird die erste Tour die Haupttour. Das Projektmenü oben bietet bei offener Tour auch **„Neues leeres Projekt …“**.
+- **Titel ändern:** In „Einblendungen“ stehen im Editor jetzt die **Textzeilen ganz oben** — das Feld „Name in der Liste“ ist nur der Name in der Liste. Ein **Doppelklick auf einen Text in der Vorschau** (z. B. den Titel am Anfang) setzt den Cursor direkt in diese Zeile.
+- **Keyframe aus Versehen verändert?** Ist ein Keyframe gewählt und du verschiebst, drehst oder zoomst die Karte, übernimmt er die neue Ansicht — unten steht dann leise „Keyframe #2 übernimmt die Karte — ⌘Z macht es rückgängig“. **Ein ⌘Z** (Windows: Strg+Z) holt den Keyframe genau zurück.
+- **Fotostopp:** Der runde Foto-Pin nach dem Stopp richtet sich nach „Bleibt sichtbar“ und der Ausblendung, statt bis zum Videoende stehen zu bleiben; den Balken in der Zeitleiste kannst du rechts kürzer ziehen. Verschiebst du einen Fotostopp in der Zeitleiste, wandert sein Ort entlang der Strecke mit — die Kamera fliegt zum neuen Ort. Liegt der Fotostopp dann mehr als 200 m vom Aufnahmeort entfernt, nennt die Bildunterschrift den Ort an der neuen Stelle; die Uhrzeit bleibt die der Aufnahme.
+- **Pausen** aus dem Logbuch stehen an der richtigen Stelle, auch wenn die Route zweimal am selben Ort vorbeikommt, und das Symbol lässt sich wieder auf die **Kaffeetasse** zurückstellen.
+- **Schild bearbeiten = wie im Video:** Das Schild, das du gerade bearbeitest, sitzt jetzt genau so wie im fertigen Video — gleiche Größe, und am Bildrand genauso hereingeschoben. Willst du es ganz sehen, schieb die Kamera etwas. Textschilder lassen sich nach „↔ Verschieben“ wieder am Text greifen, und ein Leerzeichen beim Tippen auf der Karte springt nicht mehr an den Anfang.
+- **Vergrößerte Zeitleiste:** Keyframes außerhalb des sichtbaren Ausschnitts lassen sich nicht mehr aus Versehen greifen (das zog die Kamera mitunter in den Sternenhimmel).
+
 ### Neu in v0.9.796: kleine Korrekturen
 
 - **Track-Check: Fehler aus dem Archiv im Inspektor finden.** Meldet das Archiv bei einer Tour „Fehler im Track“, öffne sie mit „Im Inspektor reparieren“. Oben im Inspektor steht der Track-Check mit jeder Befund-Art, darunter die einzelnen Fundstellen als kleine Knöpfe mit dem Kilometer. Ein Klick springt zur Stelle, markiert sie auf Karte und Höhenprofil und bietet „Reparieren“ an. Nach dem Reparieren und „Im Archiv ersetzen“ verschwindet der Hinweis im Archiv. Stammt das Archiv-Ergebnis noch aus einer älteren Prüfung, prüft GPS Studio die Tour beim Öffnen neu und sagt dir, was sich geändert hat — oft ist dann gar nichts mehr zu reparieren.

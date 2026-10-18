@@ -5,8 +5,32 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 16 Oct 2026 05:04:29 +0000</lastBuildDate>
+<lastBuildDate>Sat, 17 Oct 2026 06:18:50 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.796</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-796</link>
+<guid isPermaLink="false">gps-studio-v0.9.796</guid>
+<pubDate>Sat, 17 Oct 2026 12:00:00 +0000</pubDate>
+<description>Verschobene Fotos gleich am richtigen Ort — Fotos, die du im Finder oder Explorer verschiebst oder umbenennst, stehen in den Medien sofort am neuen Ort — mit dem Datum, das jetzt in der Datei steht. Vorher blieben sie bis zur nächsten großen Nachschau (bis zu einem Tag) mit den alten Daten stehen.
+
+Track-Fehler im Inspektor finden — Meldet das Archiv „Fehler im Track“, zeigt der Inspektor jetzt die einzelnen Stellen mit Kilometer — ein Klick springt hin und bietet „Reparieren“ an. Alte Prüfergebnisse werden beim Öffnen neu geprüft, Archiv und Inspektor sagen dasselbe.
+
+Logbuch: Art ändern — Auf der Tour-Seite stellst du über „⋯“ an einem Logbuch-Eintrag die Fortbewegung um — Fahrt, Wanderung, Rad, Pause … Das gilt dann überall.
+
+Etappe ohne Fahrzeug — Neuer Schalter „Fahrzeug der Etappe zeigen“: ausgeschaltet bleibt der Laufpunkt Kugel, Pfeil oder dein Bild, statt zum Auto oder Flugzeug zu werden.</description>
+</item>
+<item>
+<title>v0.9.795</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-795</link>
+<guid isPermaLink="false">gps-studio-v0.9.795</guid>
+<pubDate>Fri, 16 Oct 2026 12:00:00 +0000</pubDate>
+<description>Luftbild an der Landesgrenze — Liegt eine Tour direkt an einer Grenze, fragt die App für die Ecke auch das Luftbild des Nachbarlands ab. Antwortet dieser Dienst „hier kein Bild“, galt das bisher als Ausfall — mit vielen unnötigen Nachfragen und der Warnung „Luftbild … antwortet nicht – Hunderte Kacheln fehlen“. Jetzt ist die Stelle einfach durchsichtig, die Grundkarte scheint durch, ohne Warnung.
+
+Video-Render gibt nicht mehr auf — Stürzt der unsichtbare Render-Browser mitten im Video ab, startet die App ihn neu und macht beim selben Bild weiter, statt das halbe Video wegzuwerfen. Im Log steht jetzt, warum er gestorben ist und wie viel Arbeitsspeicher frei war.
+
+Medien: Liste springt nicht mehr — Während im Hintergrund Fotos eingelesen werden, springt eine Suchliste beim Scrollen nicht mehr nach oben.</description>
+</item>
 <item>
 <title>v0.9.794</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-794</link>
@@ -220,20 +244,6 @@ Schnell-Video mit „Mehr“ — oben bleibt alles schnell, unter „Mehr“ wä
 <guid isPermaLink="false">gps-studio-v0.9.776</guid>
 <pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
 <description>Hilfe-Blasen — ein Klick auf ein „?“ ganz unten in einer Spalte zeigt die Erklärung jetzt zuverlässig (vorher verschwand sie sofort wieder).</description>
-</item>
-<item>
-<title>v0.9.775</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-775</link>
-<guid isPermaLink="false">gps-studio-v0.9.775</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Animator wie ein Videoeditor — Abspielleiste direkt unter der Vorschau (Anfang, Kanten, Bild vor/zurück, Abspielen, Ende), Pfeiltasten springen bildgenau oder zur nächsten Kante, und Seitenleiste und Zeitleiste lassen sich oben rechts einzeln ausblenden für eine große Vorschau.</description>
-</item>
-<item>
-<title>v0.9.774</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-774</link>
-<guid isPermaLink="false">gps-studio-v0.9.774</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Übersichtskarte im Animator — ein kleines Fenster zeigt den ganzen Track, den gerade gezeigten Ausschnitt und die Position. Klick macht es größer. Es ist nur eine Hilfe und erscheint nie im Video. Der Knopf „Auf Track zoomen“ ist dafür weg.</description>
 </item>
 </channel>
 </rss>

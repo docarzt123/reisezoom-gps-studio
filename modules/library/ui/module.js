@@ -1291,6 +1291,11 @@ function mountLibrary(body, headerActions) {
         const ids = Array.from(_projMulti);
         let r = null;
         try { r = await rzWarten("projekte_loeschen", () => api().projekte_loeschen(ids)); } catch (e) { r = { ok: false, error: String(e) }; }
+        // 17.10.2026 — war das offene Projekt dabei: in den Modulen schließen (wie beim einzelnen Löschen)
+        if (r && r.ok && r.geloescht && window.rzProjekteGeloescht) {
+          try { await window.rzProjekteGeloescht(ids, ids.map(pid => (_projekte.find(x => x.id === pid) || {}).kontext || "")); }
+          catch (e) { applog("warn", "[bib] offenes Projekt schließen: " + e); }
+        }
         for (const pid of ids) if (_projSel === pid) _projSel = null;
         _projMulti.clear();
         if (r && r.ok) {
@@ -1414,6 +1419,10 @@ function mountLibrary(body, headerActions) {
       if (ok) ok.onclick = async () => {
         m.close();
         const r = await rzWarten("projekt_loeschen", () => api().projekt_loeschen(b.dataset.del)).catch((e) => ({ ok: false, error: String(e) }));
+        // 17.10.2026 — war es das offene Projekt: in den Modulen schließen (sonst arbeitete der Animator darauf weiter)
+        if (r && r.ok && window.rzProjekteGeloescht) {
+          try { await window.rzProjekteGeloescht([b.dataset.del], [(p || {}).kontext || ""]); } catch (e) { applog("warn", "[bib] offenes Projekt schließen: " + e); }
+        }
         renderProjekte();
         if (r && r.ok === false) toast(r.error || "?", "error");
         else toast(T("library.proj_geloescht", "Projekt gelöscht."), "info");

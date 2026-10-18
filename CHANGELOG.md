@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Deleting a project in the archive while it is open now closes it everywhere: its track no longer stays in the Animator, and the next change no longer brings the deleted project back. „Add tour“ with no project open opens the tour with its own project, and in an empty project the first tour becomes the main track — before, a tour could linger in the global settings and widen the intro and overview of later projects (e.g. from Tyrol to Tuscany). Opening a tour no longer saves a project until something is actually changed; saving into a project that no longer exists shows a warning instead of silently losing the changes.
+- Photo stops: the round photo pin after a stop follows the sign's „Stays visible“ and fade-out settings instead of always staying to the end of the video; its timeline bar ends there and can be dragged at its right edge. Dragging a photo stop along the timeline moves its spot along the track, so the camera flies to the new place instead of back to where the photo was taken; photo stops shown as a large photo can be moved on the map after „Move“. If a photo stop sits more than 200 m from where the photo was taken, its caption names the place at the new spot (town and landmark); the time stays the time of the shot.
+- Signs: the sign you are editing now looks and sits exactly as in the video — same size, same push into the picture at the edge, same zoom growth; while the editor is open all other signs are shown as in the video too. Text signs can be dragged by their text again after „↔ Move“, and typing a space on the map no longer moves the cursor to the start.
+- Photo stops: switching „When stopped, show“ in the sign editor updates the map at once — no leftover round photo pin next to the sign card, and the pin is back right away for „Large photo“. With „Own design“ the stop version of the card is pushed in from the picture edge like the sign itself, so the two bubbles no longer drift apart while cross-fading. Pop-in, shrink-to-mini and edge push of a sign no longer land on its neighbour when a photo stop is left out of the sign layer. Switching a photo sign without a preview thumbnail from „Large photo“ to „Sign as on the way“ no longer freezes the app.
+- Pause and note signs from the logbook appear where the break happened, also on routes that pass the same spot twice (they could land up to several kilometres too early), and keep their pass when dragged on the map. The sign editor's symbol list includes the logbook symbols (coffee cup, moon, pen), so a pause can be switched back to the coffee cup.
+- Flight in the air: if the map was still loading when the flight line and the dot in the air were set up, they are now added once the map is ready (before they could stay missing).
+- Timeline zoom: keyframes outside the visible part of the zoomed timeline are no longer shown or grabbable — a click on the lane names could pull the globe keyframe into the middle of the track and point the camera at the stars; the percent marks show the visible part.
+- Keyframes: when the selected keyframe takes over a map move, a quiet line says so and names ⌘Z; one ⌘Z restores the keyframe, the view and the tilt slider exactly. A single mouse-wheel step on the map is now taken over like a drag (it was silently lost, and the next ⌘Z undid the step before).
+
+### Changed
+- Overlay editor: the text lines come first, the name field is labelled „Name in the list“, double-clicking a text in the preview puts the cursor straight into it, and the list shows each overlay's text. The project menu offers „New empty project …“ while a tour is open.
+
 ## [0.9.796] – 2026-10-17
 
 ### Added

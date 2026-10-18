@@ -450,6 +450,24 @@ function mountTimelineBar(opts) {
   function _clampViewOffset(off) {
     return Math.max(0, Math.min(1 - _viewWindow(), off));
   }
+  // 17.10.2026 (Beta-Tester: „Wenn ich … die Darstellung vergrößere (x2, x4, ..) passiert es, dass beim Ansehen der
+  // Vorschau man plötzlich irgendwo hinsieht“) — bei Zeitleisten-Zoom lagen die Keyframe-Knöpfe AUSSERHALB des sichtbaren
+  // Fensters trotzdem im Bild: die Keyframe-Zeile ist `overflow: visible` (Übergangs-Reiter darüber), links vom Fenster
+  // saßen sie über „Cluster“/Spur-Namen bzw. am Rand der Seitenleiste. Ein Klick dort mit dem kleinsten Zittern griff den
+  // Keyframe und zog ihn an den Fensterrand — die Kamera blickte danach an dieser Stelle woanders hin (Welt-Anflug-
+  // Keyframe: Sternenhimmel). Was außerhalb des Fensters liegt, wird jetzt weder gezeigt noch angefasst.
+  function _ausserSicht(pct) {
+    if (_viewZoom <= 1) return false;
+    const p = parseFloat(pct);
+    return !(p >= -0.01 && p <= 100.01);
+  }
+  /** 17.10.2026 — die Prozent-Marken unter der Keyframe-Zeile zeigen das sichtbare Fenster (vorher bei jedem Zoom 0–100 %). */
+  function _ticksZeichnen() {
+    host.querySelectorAll(".timeline-tick").forEach((el, k, alle) => {
+      const p = (_viewOffset + (k / Math.max(1, alle.length - 1)) * _viewWindow()) * 100;
+      el.textContent = (_viewZoom > 1 ? String(Math.round(p * 10) / 10) : String(Math.round(p))) + "%";
+    });
+  }
   let _scrubAnchor = 0;
   // v0.9.3: Per-Event-Selection. _selectedEvent = {kind, anchor} oder null.
   // Frühere _selectedIdx (Cluster-Index) ist weg.
@@ -1115,7 +1133,9 @@ function mountTimelineBar(opts) {
               + griffFs("anflug", f.anflug, tlT("animator.fs.griff_anflug", "Anflug: früher = Kamera fährt länger heran"))
               + griffFs("grossBis", f.grossBis, tlT("animator.fs.griff_gross", "Foto groß: so lange steht das Foto"))
               + griffFs("abflugBis", f.abflugBis, tlT("animator.fs.griff_abflug", "Abflug: so lange fährt die Kamera wieder weg"))
-              + (sg.festL ? "" : `<span class="tl-ov-rand" data-griff="l"></span>`);
+              + (sg.festL ? "" : `<span class="tl-ov-rand" data-griff="l"></span>`)
+              // 17.10.2026 — rechter Rand = wann der Foto-Pin nach dem Stopp geht („Bleibt sichtbar“; ganz rechts = bis zum Ende)
+              + (sg.festR ? "" : `<span class="tl-ov-rand" data-griff="r"></span>`);
             mk.appendChild(b);
             return;
           }
@@ -2092,6 +2112,7 @@ function mountTimelineBar(opts) {
         m.className = "timeline-marker timeline-marker-cluster"
                     + (isSelected ? " is-selected" : "");
         m.style.left = _anchorToPct(_trackToBar(c.anchor || 0)) + "%";
+        if (_ausserSicht(m.style.left)) m.style.display = "none";   // 17.10.2026 — außerhalb des Zoom-Fensters
         m.dataset.kind = "__cluster";
         m.dataset.anchor = String(c.anchor || 0);
         m.title = `${tlT("animator.lane.cluster", "Cluster")} @ ${((c.anchor || 0) * 100).toFixed(0)}%\n\n`
@@ -2129,6 +2150,7 @@ function mountTimelineBar(opts) {
         sym.type = "button";
         sym.className = "timeline-easing-symbol easing-" + targetEasing + (targetSmooth ? " is-smooth" : "");
         sym.style.left = _anchorToPct(_trackToBar(midAnchor)) + "%";
+        if (_ausserSicht(sym.style.left)) continue;   // 17.10.2026 — außerhalb des Zoom-Fensters
         sym.dataset.targetAnchor = String(b.anchor);
         sym.dataset.easing = targetEasing;
         sym.title = `${tlT("animator.timeline.easing.tip", "Übergang")}: ${_easingLabel(targetEasing)}\n${tlT("animator.timeline.easing.click", "Klicken zum Ändern.")}`;
@@ -2198,6 +2220,7 @@ function mountTimelineBar(opts) {
         m.className = `timeline-marker timeline-marker-${L.kind}`
                     + (isSelected ? " is-selected" : "");
         m.style.left = _anchorToPct(_trackToBar(item.anchor || 0)) + "%";
+        if (_ausserSicht(m.style.left)) m.style.display = "none";   // 17.10.2026 — außerhalb des Zoom-Fensters
         m.dataset.kind = L.kind;
         m.dataset.anchor = String(item.anchor || 0);
         m.title = `${L.label} @ ${((item.anchor || 0) * 100).toFixed(0)}%\n\n`
@@ -2212,6 +2235,7 @@ function mountTimelineBar(opts) {
     }
     btnClear.disabled = clusters.length === 0;
     btnPlay.disabled  = false;
+    _ticksZeichnen();   // 17.10.2026
     // v0.9.41 — Marker-Dimming für Trim-Range neu anwenden
     _applyTrimDimToMarkers();
   }

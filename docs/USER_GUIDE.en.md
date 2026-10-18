@@ -1297,6 +1297,16 @@ when you start it, and it needs a new track in the inbox.
 6. **What next?** Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the
    video yourself in the Animator, create a map or animate data.
 
+### New in v0.9.797: fixes from tester feedback
+
+- **Deleting a project while it is open:** the project is closed everywhere — its track does not stay in the Animator and does not come back with the next click. “＋ Tour” with no project open opens the tour with its own project; in an empty project the first tour becomes the main tour. With a tour open, the project menu at the top also offers **“New empty project …”**.
+- **Changing the title:** in “Overlays” the editor now shows the **text lines at the top** — the “Name in the list” field is only the name in the list. **Double-clicking a text in the preview** (e.g. the title at the start) puts the cursor straight into that line.
+- **Keyframe changed by accident?** With a keyframe selected, moving, turning or zooming the map makes it take over the new view — a quiet line at the bottom says “Keyframe #2 takes over the map — ⌘Z undoes it”. **One ⌘Z** (Windows: Ctrl+Z) brings the keyframe back exactly.
+- **Photo stop:** the round photo pin after the stop follows “Stays visible” and the fade-out instead of staying until the end of the video; you can drag its timeline bar shorter at the right edge. Moving a photo stop in the timeline moves its spot along the route — the camera flies to the new place. If the photo stop then sits more than 200 m from where the photo was taken, the caption names the place at the new spot; the time stays the time of the shot.
+- **Breaks** from the logbook sit in the right place, also when the route passes the same spot twice, and the symbol can be set back to the **coffee cup**.
+- **Editing a sign = as in the video:** the sign you are editing now sits exactly as in the finished video — same size, and pushed in at the picture edge the same way. To see it whole, move the camera a little. Text signs can be grabbed by their text again after “↔ Move”, and a space typed on the map no longer jumps to the start.
+- **Zoomed timeline:** keyframes outside the visible part can no longer be grabbed by accident (that could point the camera at the starry sky).
+
 ### New in v0.9.796: small fixes
 
 - **Track check: find the archive's errors in the inspector.** If the archive flags a tour with “track has errors”, open it with “Repair in inspector”. At the top of the inspector the track check lists each kind of finding, and below it the individual spots as small buttons with their kilometre. A click jumps there, marks it on map and elevation profile and offers “Repair”. After repairing and “Replace in archive” the notice in the archive is gone. If the archive's result comes from an older check, GPS Studio checks the tour again when you open it and tells you what changed — often there is nothing left to repair.

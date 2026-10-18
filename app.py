@@ -13,6 +13,7 @@ import functools
 import io
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -1419,6 +1420,16 @@ def _vm(key: str, fallback: str, n: int = 0, gesamt: int = 0, **werte) -> None:
 # 29.09.2026 — core-Module (gpxedit, imports, selbstupdate …) übersetzen ihre
 # Meldungen über `ci18n.t_aktiv`; die Sprache holen sie sich hier ab.
 ci18n.sprach_quelle_setzen(_ui_sprache)
+
+
+FOTOSTOPP_VERSCHOBEN_M = 200.0   # 18.10.2026 — weiter weg vom Foto-GPS = Schild bewusst verschoben (Ort von dort)
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(min(1.0, a)))
 
 
 def _fotostopp_texte(d: dict) -> dict:
@@ -3746,7 +3757,9 @@ class Api:
             if not _projekte.update_settings(daten, track_hash, project_id, module,
                                              patch, defaults=self._projekt_defaults(),
                                              aktives_modul=_aktiv_mod):
-                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+                # 17.10.2026 — `grund`: die Oberfläche meldet es einmal, statt Änderungen still zu verlieren
+                return {"ok": False, "grund": "projekt_weg",
+                        "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _projekte.speichern(DATEN_ORT, daten)
             if not project_id:
                 p_neu = _projekte._aktives_projekt(daten, track_hash)
@@ -3783,9 +3796,13 @@ class Api:
                                       "gpx_paths", "status", "auto")}
             if not _projekte.update_settings(daten, track_hash, project_id, None, patch,
                                              defaults=self._projekt_defaults()):
-                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+                return {"ok": False, "grund": "projekt_weg",   # 17.10.2026 — wie session_update_project_settings
+                        "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _projekte.speichern(DATEN_ORT, daten)
-            return {"ok": True}
+            # 17.10.2026 — Kennung zurückgeben: ein eben festgeschriebenes (vorher schwebendes) Projekt übernimmt sie
+            if not project_id:
+                project_id = (_projekte._aktives_projekt(daten, track_hash) or {}).get("id", "")
+            return {"ok": True, "project_id": project_id}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -8546,6 +8563,22 @@ class Api:
         """Markantester benannter Ort im Umkreis (Gipfel vor Hütte …) — {ok, ort: {name, art, symbol, abstand_m} | None}."""
         return {"ok": True, "ort": self._ort_am_punkt(lat, lon, radius_m, nur_gipfel)}
 
+    def _gemeinde_am_punkt(self, lat: float, lon: float) -> str:
+        """Gemeinde/Stadt an einer Koordinate (derselbe Anbieter wie „Adresse“ beim Verorten) — "" ohne Netz/abgeschaltet."""
+        try:
+            s = _load_settings()
+            if not s.get("geocode_enabled", True):
+                return ""
+            raw_token = (s.get("mapbox_token") or "").strip()
+            provider = cgeocode.resolve_provider(s.get("geocode_provider", "auto"), raw_token)
+            if not provider:
+                return ""
+            a = cgeocode.reverse(lat, lon, provider=provider, mapbox_token=raw_token, lang=_ui_sprache() or "de", zoom=14)
+            return str((a or {}).get("city") or "").strip()
+        except Exception as e:  # noqa: BLE001
+            log.info("fotostopp: Gemeinde am Punkt: %s", e)
+            return ""
+
     def fotostopp_info(self, path: str, lat: float = None, lon: float = None) -> dict:
         """01.10.2026 (Marc, Fotostopp wie bei Relive) — was unter dem großen Foto stehen kann:
         Ort, Uhrzeit (Ortszeit der Aufnahme) und eine EXIF-Zeile („X5 · 24 mm · f/8 · 1/500 s").
@@ -8573,6 +8606,14 @@ class Api:
             # Markanter Ort an der Aufnahmestelle (GPS des Fotos, sonst die Stelle des Schilds) statt der Gemeinde
             la = d.get("lat") if d.get("lat") is not None else lat
             lo = d.get("lon") if d.get("lon") is not None else lon
+            # 18.10.2026 (Marc: Fotostopp weit verschoben → die Unterschrift nannte weiter den Aufnahmeort) — liegt das
+            # Schild mehr als FOTOSTOPP_VERSCHOBEN_M vom Foto-GPS entfernt, wurde es bewusst verschoben: Gemeinde und
+            # markanter Ort kommen von der Stelle des Schilds. Die Uhrzeit bleibt die der Aufnahme.
+            if (lat is not None and lon is not None and d.get("lat") is not None and d.get("lon") is not None
+                    and _haversine_m(float(d["lat"]), float(d["lon"]), float(lat), float(lon)) > FOTOSTOPP_VERSCHOBEN_M):
+                la, lo = lat, lon
+                texte["ort"] = self._gemeinde_am_punkt(float(lat), float(lon))
+                texte["verschoben"] = True
             if la is not None and lo is not None:
                 poi = self._ort_am_punkt(la, lo, 350.0)
                 if poi:
@@ -15427,9 +15468,14 @@ class Api:
                     text, icon = T("logbuch.art.pause", "Pause") + f" · {dauer}" + (f" · {ort}" if ort else ""), "pause"
                 q = pts[vi]
                 la, lo = (q.get("lat"), q.get("lon")) if isinstance(q, dict) else (getattr(q, "lat", None), getattr(q, "lon", None))
+                # 17.10.2026 (Beta-Tester: „Die Pause erschien 1000 m zu früh“) — Stelle als Meter ab Start dazu. Führt der
+                # Weg zweimal an der Pause vorbei (hin und zurück, Schleife), fand die Vorschau über den nächsten Punkt die
+                # FRÜHERE Durchfahrt; mit `m` sucht sie nur an der richtigen (Schild-Feld `strecke_m`, module.js).
+                dm = q.get("dist_m") if isinstance(q, dict) else getattr(q, "dist_m", None)
                 raus.append({"art": "notiz" if notiz else "pause", "text": text, "icon": icon,
                              "von": round(vi / (n - 1), 6), "bis": round(bi / (n - 1), 6), "bei": round((vi + bi) / 2 / (n - 1), 6),
                              "lat": la, "lon": lo, "dauer_s": float(e.get("dauer_s") or 0),
+                             "m": round(float(dm), 1) if dm is not None else None,
                              # 11.10.2026 (Video-Assistent „Die Geschichte“) — für die Auswahlliste: wann, welcher Tag, welcher Eintrag
                              "id": e.get("id"), "tag": e.get("tag"), "zeit": _uhrzeit(e.get("t0"))})
             hoch = lb.get("hoechster") or {}
