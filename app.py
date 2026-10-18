@@ -3888,7 +3888,9 @@ class Api:
             ordner = ordner_hinweis
         if not ordner:
             png = any(e in ("png", "jpg", "jpeg") for e in _parse_extensions(tuple(file_types or ())))
-            for kand in (Path.home() / ("Pictures" if png else "Movies"), Path.home()):
+            # 18.10.2026 — der Videoordner heißt nur auf dem Mac „Movies“, sonst „Videos“
+            film = "Movies" if sys.platform == "darwin" else "Videos"
+            for kand in (Path.home() / ("Pictures" if png else film), Path.home()):
                 if kand.is_dir():
                     ordner = str(kand)
                     break
