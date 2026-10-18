@@ -23587,7 +23587,8 @@ function mountAnimator(body, headerActions, opts) {
     if (!traeger.__rzCum || traeger.__rzCumRef !== coords) {
       // 18.10.2026 (Punktdichte) — echte Strecke aus der Reihe der vollen Tour, wenn sie zu diesen Punkten gehört
       // (Zusatz-Tour: tr.dist; Haupt-Track: _ovSeries.cumDistM). Die Länge der Linie hing an der Punktdichte.
-      const d = (traeger === _swHauptCum) ? (_ovSeries && _ovSeries.cumDistM) : traeger.dist;
+      // Haupt-Track: die Reihe der ERSTEN Tour (_reiseBasisSerie) — in einer Reise ist _ovSeries die Bahn-Reihe.
+      const d = (traeger === _swHauptCum) ? ((_reiseBasisSerie && _reiseBasisSerie.cumDistM) || (_ovSeries && _ovSeries.cumDistM)) : traeger.dist;
       traeger.__rzCum = (Array.isArray(d) && coords && d.length === coords.length && d.length > 1)
         ? d.map(x => (+x || 0) - (+d[0] || 0)) : _cumDistBerechnen(coords);
       traeger.__rzCumRef = coords;
