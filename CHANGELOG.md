@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.797] – 2026-10-18
+
 ### Fixed
 - Deleting a project in the archive while it is open now closes it everywhere: its track no longer stays in the Animator, and the next change no longer brings the deleted project back. „Add tour“ with no project open opens the tour with its own project, and in an empty project the first tour becomes the main track — before, a tour could linger in the global settings and widen the intro and overview of later projects (e.g. from Tyrol to Tuscany). Opening a tour no longer saves a project until something is actually changed; saving into a project that no longer exists shows a warning instead of silently losing the changes.
 - Photo stops: the round photo pin after a stop follows the sign's „Stays visible“ and fade-out settings instead of always staying to the end of the video; its timeline bar ends there and can be dragged at its right edge. Dragging a photo stop along the timeline moves its spot along the track, so the camera flies to the new place instead of back to where the photo was taken; photo stops shown as a large photo can be moved on the map after „Move“. If a photo stop sits more than 200 m from where the photo was taken, its caption names the place at the new spot (town and landmark); the time stays the time of the shot.
