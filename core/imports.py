@@ -84,6 +84,7 @@ _DISPATCH = {
     ".json": "sniff_json",  # GeoJSON wenn es so aussieht
     ".igc": "igc",          # 05.10.2026 — Gleitschirm/Segelflug-Logger
     ".srt": "sniff_srt",    # 05.10.2026 — DJI-Drohnen-Telemetrie neben dem Video
+    ".dat": "sniff_dat",    # 18.10.2026 — Dashcam-GPS (z. B. Vantrue) neben dem Video, nur wenn der Inhalt passt
 }
 
 IMPORT_EXTS = set(_DISPATCH.keys())
@@ -494,6 +495,45 @@ _SRT_BARO = re.compile(r"BAROMETER\s*:\s*(-?\d+(?:\.\d+)?)", re.I)
 _SRT_H = re.compile(r"(?:^|[ ,])H\s+(-?\d+(?:\.\d+)?)\s*m", re.M)
 
 
+# ── Dashcam-GPS (.dat neben dem Video, z. B. Vantrue) ──────────────────────
+# 18.10.2026 (Nutzer mit Vantrue E1 Pro: „jedes Mal ist die Datei nicht lesbar“) — Text, ein Punkt je Sekunde:
+#   20261003074310,50.484741,N,7.018743,E,0.030,221.873
+#   Zeit (JJJJMMTThhmmss, UTC wie NMEA) · Breite · N/S · Länge · E/W · Tempo (Knoten) · Richtung (Grad)
+# Fahrten sind durch Zeilen mit „#“ getrennt; die Lücke dazwischen bleibt eine Pause in der Zeit.
+_DASHCAM_ZEILE = re.compile(r"^(\d{14}),(-?\d+(?:\.\d+)?),([NS]),(-?\d+(?:\.\d+)?),([EW])(?:,|$)")
+
+
+def _looks_like_dashcam_dat(path: str) -> bool:
+    try:
+        with open(path, "r", encoding="ascii", errors="replace") as fh:
+            head = fh.read(4096)
+    except OSError:
+        return False
+    return any(_DASHCAM_ZEILE.match(z.strip()) for z in head.splitlines()[:40])
+
+
+def _parse_dashcam_dat(path: str) -> List[Point]:
+    pts: List[Point] = []
+    with open(path, "r", encoding="ascii", errors="replace") as fh:
+        for raw in fh:
+            m = _DASHCAM_ZEILE.match(raw.strip())
+            if not m:
+                continue
+            lat, lon = float(m.group(2)), float(m.group(4))
+            if m.group(3) == "S":
+                lat = -lat
+            if m.group(5) == "W":
+                lon = -lon
+            if (lat == 0.0 and lon == 0.0) or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                continue   # ohne Fix schreiben manche Kameras 0/0
+            try:
+                tiso = datetime.strptime(m.group(1), "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc).isoformat()
+            except ValueError:
+                tiso = None
+            pts.append((lat, lon, None, tiso))
+    return pts
+
+
 def _looks_like_dji_srt(path: str) -> bool:
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
@@ -614,6 +654,13 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
             # ⚠️ library.fehler_grund erkennt diesen Satz wieder (alle Sprachen) — normale Film-Untertitel
             raise TrackImportError(_i18n.t_aktiv(
                 "import.err_kein_dji", ".srt sieht nicht nach DJI-Drohnendaten aus — kein Track erkannt."))
+    elif key == "sniff_dat":
+        if _looks_like_dashcam_dat(path):
+            key = "dashcam_dat"
+        else:
+            # ⚠️ library.fehler_grund erkennt diesen Satz wieder (alle Sprachen)
+            raise TrackImportError(_i18n.t_aktiv(
+                "import.err_kein_dashcam", ".dat sieht nicht nach Dashcam-GPS aus — kein Track erkannt."))
     elif key == "sniff_json":
         key = "geojson" if _looks_like_geojson(path) else None
         if key is None:
@@ -622,7 +669,7 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
     parser = {
         "fit": _parse_fit, "nmea": _parse_nmea, "kml": _parse_kml,
         "kmz": _parse_kmz, "tcx": _parse_tcx, "geojson": _parse_geojson, "igc": _parse_igc,
-        "dji_srt": _parse_dji_srt,
+        "dji_srt": _parse_dji_srt, "dashcam_dat": _parse_dashcam_dat,
     }[key]
     rows = parser(path, meta_out) if key == "fit" else parser(path)
     if not rows:

@@ -39,7 +39,7 @@
     configurable: true,
     get() {
       return [
-        t("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.igc;*.srt)",
+        t("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.igc;*.srt;*.dat)",
         "GPX (*.gpx)",
       ];
     },

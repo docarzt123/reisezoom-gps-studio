@@ -93,7 +93,7 @@ PARSER_VERSION = 3   # 2 = Routen (<rte>) als Track, 22.08.2026 · 3 = beschädi
 # Für diese drei entscheidet deshalb der INHALT, nicht die Endung: ein kurzer
 # Blick in die ersten Kilobytes (`_sieht_nach_track_aus`). Das kostet fast
 # nichts und hält alles draußen, was offensichtlich kein Track ist.
-MEHRDEUTIGE_EXTS = {".json", ".txt", ".log"}
+MEHRDEUTIGE_EXTS = {".json", ".txt", ".log", ".dat"}   # 18.10.2026: .dat (Dashcam-GPS) nur mit passendem Inhalt
 
 # 25.09.2026 (Klicktest FE-03) — Ordner, in die nur AUSDRÜCKLICH gewählte Dateien
 # kommen (der Import-Ordner für „Einzelne Track-Datei“). Dort gilt die Inhalts-
@@ -904,6 +904,8 @@ def _sieht_nach_track_aus(p: Path) -> bool:
     try:
         if ext == ".json":
             return cimports._looks_like_geojson(str(p))
+        if ext == ".dat":
+            return cimports._looks_like_dashcam_dat(str(p))
         return cimports._looks_like_nmea(str(p))
     except Exception:       # noqa: BLE001 — im Zweifel draußen lassen
         return False
@@ -3537,7 +3539,7 @@ def fehler_grund(fehler: str, art: str = "") -> str:
 # vorliegen; `fehler_grund` erkennt sie deshalb an den Übersetzungen ALLER
 # Sprachen wieder (die festen deutschen Bruchstücke oben bleiben für Altbestand).
 _GRUND_KEINE_PUNKTE = ("import.err_keine_punkte", "gpx.err_keine_punkte")
-_GRUND_KEIN_TRACK = ("import.err_kein_nmea", "import.err_kein_geojson", "import.err_kein_dji")
+_GRUND_KEIN_TRACK = ("import.err_kein_nmea", "import.err_kein_geojson", "import.err_kein_dji", "import.err_kein_dashcam")
 _FRAGMENT_CACHE: dict = {}
 
 

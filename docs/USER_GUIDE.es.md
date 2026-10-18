@@ -289,7 +289,7 @@ La barra de track está arriba. Dos caminos:
 2. arrastra el archivo a la ventana.
 
 No tienen que ser archivos GPX — también se leen FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON, IGC (registradores de vuelo), NMEA
-y los archivos `.srt` de drones DJI, y se convierten en segundo plano.
+y los archivos `.srt` de drones DJI y los archivos GPS `.dat` de cámaras de coche (p. ej. Vantrue), y se convierten en segundo plano.
 
 Después aparece arriba el nombre de la ruta con distancia, duración y desnivel. **El track
 cargado vale para todos los módulos** — lo cargas una vez y cambias de herramienta libremente.
@@ -1220,6 +1220,7 @@ No necesitas tener un **GPX**. Abre (a través de la barra GPX o mediante arrast
 | **GeoJSON** | `.geojson` | herramientas web/OSM |
 | **IGC** (desde v0.9.782) | `.igc` | registradores de vuelo de parapente, ala delta, vuelo a vela — altitud GPS, altitud barométrica como sensor |
 | **Dron DJI** (desde v0.9.782) | `.srt` | archivo de subtítulos junto a cada vídeo DJI (Mini, Air, Mavic, Phantom, Avata) — un punto por segundo, altura sobre el despegue como sensor. La hora es local sin zona (aviso en el Inspector). Los subtítulos de películas normales se omiten como «sin track». |
+| **Cámara de coche** (desde v0.9.798) | `.dat` | archivo GPS junto al vídeo, p. ej. Vantrue: un punto por segundo, hora en UTC; varios trayectos en un archivo forman una ruta con pausas entre ellos. Otros archivos `.dat` se reconocen por su contenido y se omiten como «sin track». |
 
 Las altitudes y las marcas de tiempo se conservan — siempre que estén presentes en el formato — (importante para el geotagging y la indicación de velocidad).
 

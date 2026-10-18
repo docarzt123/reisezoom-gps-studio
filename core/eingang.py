@@ -36,6 +36,13 @@ def art_von(pfad: str) -> str:
     e = os.path.splitext(pfad)[1].lower()
     if e in TRACK_EXTS:
         return "track"
+    if e == ".dat":   # 18.10.2026 — Dashcam-GPS neben dem Video, nur wenn der Inhalt passt
+        try:
+            from . import imports as _imp
+            if _imp._looks_like_dashcam_dat(pfad):
+                return "track"
+        except Exception:  # noqa: BLE001 — im Zweifel „sonst“
+            pass
     if e in VIDEO_EXTS:
         return "video"
     if e in FOTO_EXTS:

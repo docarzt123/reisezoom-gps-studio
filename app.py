@@ -8884,7 +8884,7 @@ class Api:
         """
         try:
             if aus_dialog:
-                pfade = self.pick_file("open", (_ui_t()("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea;*.igc;*.srt)",), True)
+                pfade = self.pick_file("open", (_ui_t()("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea;*.igc;*.srt;*.dat)",), True)
             pfade = [str(x) for x in (pfade or []) if x]
             if not pfade:
                 return {"ok": True, "ghosts": [], "cancelled": True}

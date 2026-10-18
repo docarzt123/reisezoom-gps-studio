@@ -6563,5 +6563,6 @@
   "gpxinspect.ersetzt_version": "Now version %n",
   "gpxinspect.ersetzt_unveraendert": "Nothing changed — no new version was created.",
   "about.mitwirkende.title": "Contributors",
-  "about.mitwirkende.intro": "Thanks to everyone who made GPS Studio better with their own code:"
+  "about.mitwirkende.intro": "Thanks to everyone who made GPS Studio better with their own code:",
+  "import.err_kein_dashcam": ".dat doesn't look like dashcam GPS — no track found."
 }

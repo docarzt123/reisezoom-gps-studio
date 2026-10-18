@@ -15,6 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Dashcam GPS files (`.dat` next to the video, e.g. Vantrue) are read: one point per second, time in UTC, several drives in one file become one tour. Other `.dat` files are recognised by their content and skipped quietly instead of showing up as unreadable in the archive.
 - Track points are set by density: by default one point every 10 m (short tours keep at least 800), far right uses every point of the GPX up to 50,000. The label shows „1 point every X m · n of N“; the hidden 800-point cap is gone, so hairpins on long tours stay on the road (idea and first measurements thanks to @kaennchenstruggle).
 - About dialog: new „Contributors“ section with the GitHub names of everyone who contributed code.
 - Highlights window: new option „Towns and passes along the route“ (off by default) — every city up to 5 km from the route (small towns up to 3 km), every village up to 1.5 km and every named pass the route goes over (with its height), named as they are locally. On out-and-back rides a place is listed for each pass and its sign appears at that pass. The list unticks what would be too dense for the video length (at most three signs at once, places at least 1.5 s apart, passes first) and says why; the rest becomes small pins, passes with a yellow pin. OpenStreetMap is asked in a few large sections (twice for 500 km instead of fifty times) with progress in the waiting message; answers are kept for 30 days in a size-limited cache. (thanks to @kaennchenstruggle)

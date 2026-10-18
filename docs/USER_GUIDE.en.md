@@ -288,7 +288,7 @@ The track bar sits at the top. Two ways:
 2. simply drag the file onto the window.
 
 They do not have to be GPX files — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON, NMEA, IGC (flight recorders) and the
-`.srt` files of DJI drones are read as well and converted in the background.
+`.srt` files of DJI drones and the `.dat` GPS files of dashcams (e.g. Vantrue) are read as well and converted in the background.
 
 After that the tour name appears at the top with distance, duration and ascent. **The loaded
 track applies to every module** — load it once, then switch between the tools freely.
@@ -1199,6 +1199,7 @@ You don't need to have a **GPX**. Just open (via the GPX bar or by drag & drop) 
 | **GeoJSON** | `.geojson` | web / OSM tools |
 | **IGC** (since v0.9.782) | `.igc` | flight recorders for paragliding, hang gliding, gliding — GPS altitude, pressure altitude as a sensor value |
 | **DJI drone** (since v0.9.782) | `.srt` | subtitle file next to every DJI video (Mini, Air, Mavic, Phantom, Avata) — one point per second, height above take-off as a sensor value. The time is local time without a zone (note in the Inspector). Ordinary film subtitles are skipped as „no track“. |
+| **Dashcam** (since v0.9.798) | `.dat` | GPS file next to the video, e.g. Vantrue — one point per second, time in UTC; several drives in one file become one tour with breaks in between. Other `.dat` files are recognised by their content and skipped as “no track”. |
 
 Elevations and timestamps are carried over — as far as the format contains them — which matters for geotagging and the speed readout.
 

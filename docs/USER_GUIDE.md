@@ -295,7 +295,7 @@ Oben sitzt die Track-Leiste. Zwei Wege:
 2. die Datei einfach in das Fenster ziehen.
 
 Es müssen keine GPX-Dateien sein — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON, NMEA, IGC (Flugschreiber) und die
-`.srt`-Dateien von DJI-Drohnen werden ebenso gelesen und im Hintergrund umgewandelt.
+`.srt`-Dateien von DJI-Drohnen und die `.dat`-GPS-Dateien von Dashcams (z. B. Vantrue) werden ebenso gelesen und im Hintergrund umgewandelt.
 
 Danach steht oben der Name der Tour mit Strecke, Dauer und Höhenmetern. **Der geladene Track
 gilt für alle Module** — du lädst ihn einmal und wechselst dann frei zwischen den Werkzeugen.
@@ -1233,6 +1233,7 @@ Du musst **keine GPX** haben. Öffne (über die GPX-Leiste oder per Drag & Drop)
 | **GeoJSON** | `.geojson` | Web-/OSM-Tools |
 | **IGC** (seit v0.9.782) | `.igc` | Flugschreiber für Gleitschirm, Drachen, Segelflug — GPS-Höhe, Druckhöhe als Sensorwert |
 | **DJI-Drohne** (seit v0.9.782) | `.srt` | Untertitel-Datei neben jedem DJI-Video (Mini, Air, Mavic, Phantom, Avata) — ein Punkt je Sekunde, Höhe über Start als Sensorwert. Die Uhrzeit ist Ortszeit ohne Zone (Hinweis im Inspektor). Normale Film-Untertitel werden als „kein Track“ übergangen. |
+| **Dashcam** (seit v0.9.798) | `.dat` | GPS-Datei neben dem Video, z. B. Vantrue — ein Punkt je Sekunde, Zeit in UTC; mehrere Fahrten in einer Datei werden zu einer Tour mit Pausen dazwischen. Andere `.dat`-Dateien werden am Inhalt erkannt und als „kein Track“ übergangen. |
 
 Höhen und Zeitstempel werden — soweit im Format vorhanden — übernommen (wichtig fürs Geotagging und die Geschwindigkeits-Anzeige).
 
