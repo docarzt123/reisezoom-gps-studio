@@ -1073,11 +1073,6 @@ function mountAnimator(body, headerActions, opts) {
               <label class="field-label">${t("animator.field.follow_inertia", "Kamera-Trägheit")} <span class="label-val" id="anim-follow-inertia-v">0%</span></label>
               <input type="range" id="anim-follow-inertia" min="0" max="100" step="5" value="0"
                      title="${t("animator.field.follow_inertia_tip", "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach")}">
-              <!-- 29.09.2026 (Marc: „flieg die Kamera immer dem Pfeil hinterher … ggf. doppelt glätten") —
-                   die Kamera schaut auf eine geglättete Bahn statt auf jeden Knick der Spur. -->
-              <label class="field-label" style="margin-top:8px;">${t("animator.field.follow_glatt", "Kamerabahn glätten")} <span class="label-val" id="anim-follow-glatt-v">0 m</span></label>
-              <input type="range" id="anim-follow-glatt" min="0" max="1000" step="25" value="0"
-                     title="${t("animator.field.follow_glatt_tip", "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit")}">
             </div>
 
             <!-- v0.9.310 — Standbild-Modus (Tour-Map): feste Kamera-Regler.
@@ -1101,6 +1096,17 @@ function mountAnimator(body, headerActions, opts) {
                 <span>📍 ${t("animator.field.static_pins", "Start/Ziel-Markierung")}</span>
               </label>
             </div>
+          </div>
+
+          <!-- 29.09.2026 (Marc: „flieg die Kamera immer dem Pfeil hinterher … ggf. doppelt glätten") —
+               die Kamera schaut auf eine geglättete Bahn statt auf jeden Knick der Spur.
+               18.10.2026: außerhalb des Klassik-Bereichs, damit der Regler auch in der Kamerafahrt (KF an)
+               erreichbar bleibt — die Follow-Kamera wirkt dort weiter (center-Keyframes mit value null).
+               Sichtbar nur bei „Kamera folgt Track“ (_fiSync); Bereich bis 4000 m wie im Schnell-Video. -->
+          <div class="field" id="anim-follow-glatt-row">
+            <label class="field-label">${t("animator.field.follow_glatt", "Kamerabahn glätten")} <span class="label-val" id="anim-follow-glatt-v">0 m</span></label>
+            <input type="range" id="anim-follow-glatt" min="0" max="4000" step="25" value="0"
+                   title="${t("animator.field.follow_glatt_tip", "0 = Kamera genau über dem Punkt; höher = sie schaut auf eine geglättete Bahn und schwenkt nicht bei jeder Kurve mit")}">
           </div>
 
           <!-- Keyframe-Modus (KF an): pro Keyframe Anchor/Pitch/Bearing/Zoom + Buttons.
@@ -1922,6 +1928,7 @@ function mountAnimator(body, headerActions, opts) {
     _hideClosest("anim-rot", ".field");                   // Rotation (Schwenk über die Anim)
     _hideClosest("anim-camera-follow", ".checkbox-row");  // Kamera folgt Track
     _hideSel("#anim-follow-inertia-row");                 // Kamera-Trägheit
+    _hideSel("#anim-follow-glatt-row");                   // Kamerabahn glätten
     _hideSel("#anim-smooth-camera-row");                  // Ruhige Kamera (3D)
     _hideSel("#anim-cinematic-flyto-row");                // Cinematic-Flug
     // 06.10.2026 (Trailframe A4) — keine Kameraführung im Standbild; „Mehr“ ist hier immer offen (Ausrichtung/Randabstand)
@@ -2357,6 +2364,8 @@ function mountAnimator(body, headerActions, opts) {
     const cb = document.getElementById("anim-camera-follow");
     const row = document.getElementById("anim-follow-inertia-row");
     if (cb && row) row.style.display = cb.checked ? "" : "none";
+    const glatt = document.getElementById("anim-follow-glatt-row");   // 18.10.2026 — liegt außerhalb des Klassik-Bereichs (auch in der Kamerafahrt)
+    if (cb && glatt) glatt.style.display = (cb.checked && !_isStaticFrame) ? "" : "none";   // Standbild: bleibt ausgeblendet
   };
   bindSetting("anim-camera-follow", _MODKEY, "camera_follow_track", { type: "bool", onLoad: _fiSync, onChange: _fiSync });
   bindSetting("anim-follow-inertia", _MODKEY, "camera_follow_inertia_pct", { type: "number", onLoad: _fiLbl, onChange: _fiLbl });
@@ -21678,7 +21687,7 @@ function mountAnimator(body, headerActions, opts) {
   var _kamBahnCache;   // ohne Zuweisung, s. _spurRoh
   function _folgeGlattM() {
     const v = parseFloat(document.getElementById("anim-follow-glatt")?.value);
-    return isFinite(v) ? Math.max(0, Math.min(3000, Math.round(v))) : 0;
+    return isFinite(v) ? Math.max(0, Math.min(4000, Math.round(v))) : 0;   // 18.10.2026 — 4000 wie der Deckel des Schnell-Videos (vorher 3000, Regler 1000)
   }
   // 14.10.2026 (Marc zum echten Gleitschirm-Track: „der springt ganz schön“) — gemessen: die Kamera lief jedem Thermikkreis
   // nach (Mitte 10–57 m je Bild, Richtungswechsel bis 174°) und drehte sich dauernd mit (20–70°/s). Bei „Flug in der Luft“
