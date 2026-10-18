@@ -198,6 +198,41 @@ def cloud_ordner_grund(ort: Path) -> str:
 
 # ── Riegel 2: nur eine App je Bibliothek ────────────────────────────────────
 
+# 18.10.2026 — Unter Windows ist `os.kill(pid, 0)` KEINE Lebendprüfung: Signal 0 ist dort Strg+C (CTRL_C_EVENT). Je nach
+# Konsole schickt der Aufruf Strg+C an die Konsole oder wirft `OSError`, und ein beendeter Prozess gilt mal als lebend,
+# mal als weg. Damit lagen Doppelstart-Schutz und `_ladeflagge_haengt` unter Windows falsch. Windows fragt deshalb den
+# Prozess selbst; andere Systeme wie bisher.
+def _pid_lebt(pid: int) -> bool:
+    """Läuft der Prozess mit dieser PID noch?"""
+    if sys.platform.startswith("win"):
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        h = k32.OpenProcess(0x1000, False, int(pid))      # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return ctypes.get_last_error() == 5           # ERROR_ACCESS_DENIED: lebt, gehört nur jemand anderem
+        try:
+            code = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(h, ctypes.byref(code)):
+                return True
+            return code.value == 259                      # STILL_ACTIVE
+        finally:
+            k32.CloseHandle(h)
+    try:
+        os.kill(pid, 0)                  # Signal 0 = „lebst du?"
+        return True
+    except (ProcessLookupError, ValueError):
+        return False
+    except PermissionError:
+        return True                      # fremder Nutzer, aber am Leben
+    except OSError:
+        return False
+
+
 def _sperre_lebt(d: dict) -> bool:
     """Gehört die Sperre einem Prozess, der noch läuft?
 
@@ -216,13 +251,7 @@ def _sperre_lebt(d: dict) -> bool:
     pid = int(d.get("pid") or 0)
     if pid <= 0:
         return False
-    try:
-        os.kill(pid, 0)                  # Signal 0 = „lebst du?"
-        return True
-    except (ProcessLookupError, ValueError):
-        return False
-    except PermissionError:
-        return True                      # fremder Nutzer, aber am Leben
+    return _pid_lebt(pid)
 
 
 # 10.10.2026 (Marc: „mit ‚Sofort beenden‘ gekillt, jetzt startet es nicht mehr … beim Neustart alte verwaiste Prozesse
