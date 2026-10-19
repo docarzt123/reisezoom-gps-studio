@@ -673,10 +673,13 @@ function draw(progress) {{
       }}, distKm.toFixed(1) + " km"));
     }}
   }}
+  // 19.10.2026 (Audit) — der Plotboden liegt etwas unter dem kleinsten Wert (Luft für Marker/Strich). Bei Reihen
+  // ohne negative Werte (Tempo ab 0) stand dort „−9,1 km/h“. Dann beginnt die Beschriftung bei 0, an ihrer echten Höhe.
+  const yTickLo = (_eMin >= 0 && eLo < 0) ? 0 : eLo;
   if (AX_Y) {{
     for (let i = 0; i <= AXIS_Y_TICKS; i++) {{
-      const y = PAD_T + (i / AXIS_Y_TICKS) * PLOT_H;
-      const ele = eHi - (i / AXIS_Y_TICKS) * eSpan;
+      const ele = eHi - (i / AXIS_Y_TICKS) * (eHi - yTickLo);
+      const y = py(ele);
       svg.appendChild(svgNS("text", {{
         x: PAD_L - AX_GAP, y: y + Math.round(FONT_SIZE * 0.34),
         fill: LBL_COLOR, "font-size": FONT_SIZE,
@@ -687,9 +690,10 @@ function draw(progress) {{
   // v0.9.438 — rechte Achse für Reihe B, in deren Linienfarbe damit klar ist
   // welche Achse zu welcher Kurve gehört.
   if (AX_Y2) {{
+    const bHi = bLo + bSpanV, bTickLo = (bLo < 0 && bLo + bottomPadFrac * bSpanV >= 0) ? 0 : bLo;   // wie links
     for (let i = 0; i <= AXIS_Y_TICKS; i++) {{
-      const y = PAD_T + (i / AXIS_Y_TICKS) * PLOT_H;
-      const v = (bLo + bSpanV) - (i / AXIS_Y_TICKS) * bSpanV;
+      const v = bHi - (i / AXIS_Y_TICKS) * (bHi - bTickLo);
+      const y = pyB(v);
       svg.appendChild(svgNS("text", {{
         x: PAD_L + PLOT_W + AX_GAP, y: y + Math.round(FONT_SIZE * 0.34),
         fill: LC_B, "font-size": FONT_SIZE,
