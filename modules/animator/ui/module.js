@@ -15549,7 +15549,17 @@ function mountAnimator(body, headerActions, opts) {
     const HL_ORTE_MAX_GLEICHZEITIG = 3;
     const HL_ORTE_ABSTAND_S = 1.5;
     const HL_ORTE_SCHILD = { style: "pin", before: 1.2, after: 1.8, entry: "both", entry_s: 0.35, exit: "fade", exit_s: 0.35,
-                             zoomScale: false, opacity: 0.92 };
+                             zoomScale: false };
+    // Deckkraft (0,1 bis 1) und Größe (10 bis 60) der Orts-Schilder aus den Projekt-Einstellungen; fehlend oder ungültig = null
+    function _hlOrteStil() {
+      const p = _activeProject?.[_MODKEY];
+      const zahl = (w, lo, hi) => { const n = (w == null || w === "") ? NaN : +w; return Number.isFinite(n) && n >= lo && n <= hi ? n : null; };
+      return { opacity: zahl(p?.hl_orte_opacity, 0.1, 1), size: zahl(p?.hl_orte_size, 10, 60) };
+    }
+    // Sollwerte je Art ("stadt" | "dorf" | "pass"); ohne Einstellung wie bisher: 0,92, Dorf 17, sonst 20
+    function _hlOrteSoll(art, stil) {
+      return { opacity: stil.opacity ?? 0.92, size: stil.size ?? (art === "dorf" ? 17 : 20) };
+    }
     function _hlOrteRang(v) { return v.art === "pass" ? 0 : (Number.isFinite(+v.rang) ? +v.rang : 3); }
     function _hlOrteAusduennen(vs) {
       const dur = _animSignsDuration();
@@ -15674,7 +15684,8 @@ function mountAnimator(body, headerActions, opts) {
         if (orte) {
           // kleine, ruhige Stecknadeln (nicht die zuletzt benutzte Schildgröße): Stadt und Pass etwas größer als ein Dorf,
           // Pässe mit gelber Nadel; kurz sichtbar (HL_ORTE_SCHILD: 1,2 s davor, 1,8 s danach) — danach wie jedes Schild bearbeitbar
-          Object.assign(schild, HL_ORTE_SCHILD, { size: v.art === "dorf" ? 17 : 20, accent: v.art === "pass" ? "#ffc21a" : "auto" });
+          Object.assign(schild, HL_ORTE_SCHILD, _hlOrteSoll(v.art, _hlOrteStil()),
+            { accent: v.art === "pass" ? "#ffc21a" : "auto", hl_quelle: "orte", hl_art: v.art });
         }
         list.push(schild);
         neu++;
@@ -15685,6 +15696,66 @@ function mountAnimator(body, headerActions, opts) {
       _animSignsAttachToMap(); _animSignsRenderList();
       try { applog("info", "[highlights] übernommen: " + neu); } catch (_) {}
       toast(t("hl.uebernommen", "{n} Highlights als Schilder übernommen — Rückgängig mit ⌘Z.").replace("{n}", neu), "success", 4000);
+    }
+    // Deckkraft/Größe der Orts- und Pass-Schilder ändern: Projektwert setzen und bereits übernommene Schilder nachziehen.
+    // Weichen einzelne Schilder vom bisherigen Sollwert ab (von Hand geändert), fragt ein Kasten im Fenster nach.
+    // true = angewendet, false = „Nichts ändern“.
+    async function _hlOrteStilAendern(neu) {
+      const lim = (w, lo, hi) => { if (w == null) return null; const n = +w; return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : null; };
+      // Zielwerte aus dem aktuellen Projektstand; wird nach der Antwort erneut gebildet (Rückgängig im Fenster möglich)
+      const plane = () => {
+        const alt = _hlOrteStil();
+        const ziel = { ...alt };
+        if ("opacity" in neu) ziel.opacity = lim(neu.opacity, 0.1, 1);
+        if ("size" in neu) ziel.size = lim(neu.size, 10, 60);
+        return { alt, ziel, dO: ziel.opacity !== alt.opacity, dG: ziel.size !== alt.size };
+      };
+      let p = plane();
+      if (!p.dO && !p.dG) return true;   // nichts zu ändern: kein Undo-Schritt, keine Frage
+      // Der Dialog „Schild bearbeiten“ rastet Werte ein (Deckkraft 5 %, Größe 2): kleine Unterschiede zählen als gleich
+      const nah = (a, b, tol) => Math.abs((+a) - (+b)) <= tol + 1e-9;
+      const abweichend = (s, q) => {
+        const so = _hlOrteSoll(s.hl_art, q.alt);
+        return (q.dO && !nah(s.opacity, so.opacity, 0.025)) || (q.dG && !nah(s.size, so.size, 1));
+      };
+      if (_animSignsList().some(s => s && s.hl_quelle === "orte" && abweichend(s, p))) {
+        const teile = [];
+        if (p.dO) teile.push(t("hl.orte_deckkraft", "Deckkraft") + " " + Math.round((p.ziel.opacity ?? 0.92) * 100) + " %");
+        if (p.dG) teile.push(t("hl.orte_groesse", "Größe") + " " + (p.ziel.size ?? "17/20"));
+        const kasten = document.getElementById("hl-orte-frage");
+        const txt = document.getElementById("hl-orte-frage-text");
+        const ja = document.getElementById("hl-orte-angleichen"), nein = document.getElementById("hl-orte-nichts");
+        if (kasten && txt && ja && nein) {
+          txt.textContent = t("hl.orte_frage", "Alle Orts- und Pass-Schilder auf {werte} setzen?").replace("{werte}", teile.join(t("hl.orte_und", " und ")));
+          kasten.hidden = false;
+          const antwort = await new Promise(res => { ja.onclick = () => res(true); nein.onclick = () => res(false); });   // warte-ok: Antwort des Nutzers
+          kasten.hidden = true;
+          if (!antwort) return false;
+          p = plane();   // Stand neu lesen: ein Rückgängig während der Frage darf nicht überschrieben werden
+          if (!p.dO && !p.dG) return true;
+        }
+      }
+      const liste = _animSignsList();
+      const markiert = liste.filter(s => s && s.hl_quelle === "orte");
+      const undoLabel = t("hl.orte_stil_undo", "Orts-Schilder angepasst");
+      const patch = { hl_orte_opacity: p.ziel.opacity, hl_orte_size: p.ziel.size };
+      if (markiert.length) {
+        // nur die tatsächlich geänderten Eigenschaften ziehen die Schilder nach (Hand-Größe bleibt bei reiner Deckkraft-Änderung)
+        const zuweisen = (s) => {
+          const so = _hlOrteSoll(s.hl_art, p.ziel), neuS = { ...s };
+          if (p.dO) neuS.opacity = so.opacity;
+          if (p.dG) neuS.size = so.size;
+          return neuS;
+        };
+        // erst die Schilder speichern (pusht den Stand davor samt Modul-Block), danach den Projektwert
+        _animSignsSave(liste.map(s => (s && s.hl_quelle === "orte") ? zuweisen(s) : s), undoLabel);
+        saveProjectSettings(_MODKEY, patch);
+        _animSignsAttachToMap(); _animSignsRenderList();
+      } else {
+        try { if (!window.__rzUndoApplying && _animUndoCtrl) _animUndoCtrl.push(undoLabel, { force: true }); } catch (_) {}
+        saveProjectSettings(_MODKEY, patch);
+      }
+      return true;
     }
     async function _animSignsHighlights() {
       const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
@@ -15705,6 +15776,20 @@ function mountAnimator(body, headerActions, opts) {
               <label title="${_hlEsc(t("hl.q_orte_tip", "Jede Stadt (bis 5 km), jedes Dorf (bis 1,5 km) und jeder Pass auf der Strecke — als kleine Stecknadeln; was für die Videolänge zu dicht wäre, wird abgewählt"))}"><input type="checkbox" id="hl-q-orte" ${_hlState.quellen.orte ? "checked" : ""}> ${_hlEsc(t("hl.q_orte", "Orte und Pässe entlang der Strecke"))}</label>
               <button type="button" class="btn btn-primary btn-sm" id="hl-finden">${_hlI("search")} ${_hlEsc(t("hl.finden", "Highlights finden"))}</button>
             </div>
+            <div class="hl-quellen hl-orte-stil">
+              <strong>${_hlEsc(t("hl.orte_stil", "Orts- und Pass-Schilder"))}</strong>
+              <label>${_hlEsc(t("hl.orte_deckkraft", "Deckkraft"))}
+                <input type="range" id="hl-orte-deckkraft" min="10" max="100" step="1" value="${Math.round((_hlOrteStil().opacity ?? 0.92) * 100)}">
+                <span id="hl-orte-deckkraft-wert"></span></label>
+              <label>${_hlEsc(t("hl.orte_groesse", "Größe"))}
+                <input type="number" id="hl-orte-groesse" min="10" max="60" step="1" placeholder="17/20" value="${_hlOrteStil().size ?? ""}"></label>
+            </div>
+            <div class="hl-orte-frage" id="hl-orte-frage" hidden>
+              <strong>${_hlEsc(t("hl.orte_frage_titel", "Einzelne Orte/Pässe haben eigene Werte."))}</strong>
+              <span id="hl-orte-frage-text"></span>
+              <button type="button" class="btn btn-primary btn-sm" id="hl-orte-angleichen">${_hlEsc(t("hl.orte_angleichen", "Alle angleichen"))}</button>
+              <button type="button" class="btn btn-sm" id="hl-orte-nichts">${_hlEsc(t("hl.orte_nichts", "Nichts ändern"))}</button>
+            </div>
             <div class="lib-hint" id="hl-status"></div>
             <div class="hl-liste" id="hl-liste"></div>
           </div>`,
@@ -15722,6 +15807,21 @@ function mountAnimator(body, headerActions, opts) {
         if (p && typeof p === "string" && !_hlState.ordner.includes(p)) { _hlState.ordner.push(p); _hlOrdnerRender(); }
       };
       ["osm", "track", "halte", "orte"].forEach(k => { const cb = document.getElementById("hl-q-" + k); if (cb) cb.onchange = () => { _hlState.quellen[k] = cb.checked; }; });
+      const deck = document.getElementById("hl-orte-deckkraft"), gr = document.getElementById("hl-orte-groesse");
+      const stilAnzeige = () => {
+        const st = _hlOrteStil();
+        if (deck) deck.value = Math.round((st.opacity ?? 0.92) * 100);
+        if (gr) gr.value = st.size ?? "";
+        const w = document.getElementById("hl-orte-deckkraft-wert"); if (w && deck) w.textContent = deck.value + " %";
+      };
+      stilAnzeige();
+      if (deck) deck.oninput = () => { const w = document.getElementById("hl-orte-deckkraft-wert"); if (w) w.textContent = deck.value + " %"; };
+      if (deck) deck.onchange = async () => { await _hlOrteStilAendern({ opacity: Math.round(+deck.value) / 100 }); stilAnzeige(); };
+      if (gr) gr.onchange = async () => {
+        const n = Math.round(+gr.value);
+        await _hlOrteStilAendern({ size: gr.value === "" || !Number.isFinite(n) ? null : Math.min(60, Math.max(10, n)) });
+        stilAnzeige();
+      };
       const f = document.getElementById("hl-finden"); if (f) f.onclick = _hlFinden;
       const ab = document.getElementById("hl-ab"); if (ab) ab.onclick = () => m.close();
       const ok = document.getElementById("hl-uebernehmen"); if (ok) ok.onclick = () => _hlUebernehmen(m);
