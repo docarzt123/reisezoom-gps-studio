@@ -4718,6 +4718,7 @@
   "route.err_zu_wenige": "Route contains too few points",
   "szene.app_laden": "Scene: loading app …",
   "szene.err_kein_ausschnitt": "The map could not calculate a section for the video (preview area too small or track without extent?)",
+  "szene.err_startfehler": "The interface reported a startup error: ",
   "szene.err_zeitgrenze": "Not ready after {s} s: ",
   "szene.g_ausschnitt": "Map section not calculated yet",
   "szene.g_kacheln": "Loading map tiles",

@@ -347,6 +347,9 @@
   (function watchdog() {
     setTimeout(function () {
       if (window.__rzBooted) return;
+      // 19.10.2026: im Szenen-Render nie auslösen; die Szene hat eigene Zeitgrenzen, und ein Schirm
+      // hier geriete fälschlich in jedes Bild des Videos.
+      if (window.__rzRenderMode) return;
       if (window.__rzOnboarding) { watchdog(); return; }
       window.__rzShowStartError('Zeitüberschreitung beim Laden',
         'Die Oberfläche hat sich nach 25 Sekunden nicht gemeldet.',

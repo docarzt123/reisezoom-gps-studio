@@ -472,6 +472,16 @@ async def _warte_bereit(page, js: str, timeout_s: float, was: str, is_cancelled,
         await asyncio.sleep(0.5)
 
 
+async def _startfehler_pruefen(page) -> None:
+    """19.10.2026: Steht der Startfehler-Schirm der Oberfläche (`#rz-start-error`), geriete er in jedes Bild des
+    Videos. Dann abbrechen, mit dem Text aus `__rzStartErrors`."""
+    texte = await page.evaluate(
+        "() => document.getElementById('rz-start-error') ? (window.__rzStartErrors || []).map(String) : null")
+    if texte is not None:
+        raise RuntimeError(_i18n.t_aktiv("szene.err_startfehler", "Die Oberfläche meldet einen Startfehler: ")
+                           + (" / ".join(texte)[:300] or "ohne Text"))
+
+
 async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, params=None, modul: Optional[str] = None):
     """Chromium starten, App laden, Projekt öffnen, Render-Modus. Liefert (browser, page, dsf, ss)."""
     t_pw = time.time()
@@ -553,6 +563,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
         const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && b.fzBilder !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
+    await _startfehler_pruefen(page)
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")
     if modul and modul != "animator" and aktiv != modul:
         # 07.09.2026 — Rückfall: falls das Archiv nicht im gewünschten Modul geöffnet hat
