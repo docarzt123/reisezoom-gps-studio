@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.798] – 2026-10-19
+
 ### Added
 - Dashcam GPS files (`.dat` next to the video, e.g. Vantrue) are read: one point per second, time in UTC, several drives in one file become one tour. Other `.dat` files are recognised by their content and skipped quietly instead of showing up as unreadable in the archive.
 - Track points are set by density: by default one point every 10 m (short tours keep at least 800), far right uses every point of the GPX up to 50,000. The label shows „1 point every X m · n of N“; the hidden 800-point cap is gone, so hairpins on long tours stay on the road (idea and first measurements thanks to @kaennchenstruggle).

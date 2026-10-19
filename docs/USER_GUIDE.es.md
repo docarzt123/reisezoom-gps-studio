@@ -1335,6 +1335,14 @@ de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo e
 6. **¿Y ahora?** Listo, página de la ruta con cuaderno, editar fotos en el Geotagger, vídeo rápido, asistente de vídeo,
    diseñar el vídeo tú mismo en el Animator, crear un mapa o animar datos.
 
+### Novedades en v0.9.798: línea más precisa, pueblos y puertos, cámara de coche
+
+- **Puntos de la traza según la distancia:** la línea sigue tu GPX con un punto cada 10 m; en rutas largas las curvas cerradas quedan sobre la carretera. Del todo a la derecha en «Puntos» usa todos los puntos (hasta 50.000). Velocidad, pendiente y distancia salen siempre de todos los puntos.
+- **Pueblos y puertos a lo largo de la ruta:** la ventana de highlights tiene una opción para poner como chinchetas pequeñas todos los pueblos por los que pasas y todos los puertos, aclarados para que la imagen no se llene.
+- **Versiones también para altitud y tiempo:** si solo corriges la altitud o reparas tiempos, «Reemplazar en el archivo» crea su propia versión a la que puedes volver con ↩︎.
+- **Cámara de coche:** se leen los archivos GPS de cámaras de coche (`.dat` junto al vídeo, p. ej. Vantrue).
+- **Correcciones:** ya no hay cuña negra en el vídeo cuando fallan teselas de terreno, «Suavizar trayectoria de la cámara» hasta 4000 m, en Windows la primera exportación va a «Vídeos», y la biblioteca se libera bien al cerrar. ¡Gracias a @kaennchenstruggle por las aportaciones!
+
 ### Novedades en v0.9.797: correcciones a partir de comentarios de testers
 
 - **Borrar un proyecto abierto:** el proyecto se cierra en todas partes; su track no se queda en el Animator ni vuelve con el siguiente clic. «＋ Ruta» sin proyecto abierto abre la ruta con su propio proyecto; en un proyecto vacío la primera ruta pasa a ser la principal. Con una ruta abierta, el menú de proyectos ofrece también **«Nuevo proyecto vacío …»**.

@@ -1312,6 +1312,14 @@ when you start it, and it needs a new track in the inbox.
 6. **What next?** Done, tour page with logbook, edit photos in the Geotagger, quick video, video assistant, design the
    video yourself in the Animator, create a map or animate data.
 
+### New in v0.9.798: a more precise line, towns and passes, dashcam
+
+- **Track points by distance:** the line now follows your GPX with one point every 10 m — on long tours hairpins stay on the road. Far right on the “Points” slider it uses all points (up to 50,000). Speed, gradient and distance always come from all points.
+- **Towns and passes along the route:** the Highlights window has an option to place every town you pass through and every pass as small pins — thinned out so the picture does not get crowded.
+- **Versions for elevation and time too:** if you only correct the elevation or repair times, “Replace in archive” creates its own version you can go back to with ↩︎.
+- **Dashcam:** GPS files from dashcams (`.dat` next to the video, e.g. Vantrue) are read.
+- **Fixes:** no more black wedge in the video when terrain tiles fail, “Smooth camera path” up to 4000 m, on Windows the first export goes to “Videos”, and the library is released cleanly on close. Thanks to @kaennchenstruggle for the contributions!
+
 ### New in v0.9.797: fixes from tester feedback
 
 - **Deleting a project while it is open:** the project is closed everywhere — its track does not stay in the Animator and does not come back with the next click. “＋ Tour” with no project open opens the tour with its own project; in an empty project the first tour becomes the main tour. With a tour open, the project menu at the top also offers **“New empty project …”**.

@@ -1349,6 +1349,14 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 6. **Wie weiter?** Fertig, Tour-Seite mit Logbuch, Fotos im Geotagger bearbeiten, Schnell-Video, Video-Assistent, Video
    im Animator selbst gestalten, Karte erstellen oder Daten animieren.
 
+### Neu in v0.9.798: genauere Linie, Orte und Pässe, Dashcam
+
+- **Track-Punkte nach Strecke:** Die Linie folgt deinem GPX jetzt mit einem Punkt alle 10 m — bei langen Touren bleiben Kehren auf der Straße. Ganz rechts am Regler „Punkte“ nimmt sie alle Punkte (bis 50.000). Tempo, Steigung und Strecke kommen immer aus allen Punkten.
+- **Orte und Pässe entlang der Strecke:** Im Highlights-Fenster gibt es die Option, alle Orte, durch die du fährst, und alle Pässe als kleine Stecknadeln zu setzen — ausgedünnt, damit das Bild nicht vollläuft.
+- **Versionen auch für Höhe und Zeit:** Korrigierst du nur die Höhe oder reparierst Zeiten, entsteht beim „Im Archiv ersetzen“ eine eigene Version, zu der du mit ↩︎ zurückkannst.
+- **Dashcam:** GPS-Dateien von Dashcams (`.dat` neben dem Video, z. B. Vantrue) werden gelesen.
+- **Korrekturen:** kein schwarzer Keil mehr im Video bei fehlenden Geländekacheln, „Kamerabahn glätten“ bis 4000 m, unter Windows landet der erste Export in „Videos“, und die Bibliothek wird beim Schließen sauber freigegeben. Danke an @kaennchenstruggle für die Beiträge!
+
 ### Neu in v0.9.797: Korrekturen aus Tester-Rückmeldungen
 
 - **Projekt löschen, während es offen ist:** Das Projekt wird überall geschlossen — sein Track bleibt nicht im Animator stehen und kommt beim nächsten Klick nicht zurück. „＋ Tour“ ohne offenes Projekt öffnet die Tour mit eigenem Projekt; im leeren Projekt wird die erste Tour die Haupttour. Das Projektmenü oben bietet bei offener Tour auch **„Neues leeres Projekt …“**.
