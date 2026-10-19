@@ -15519,6 +15519,148 @@ function mountAnimator(body, headerActions, opts) {
     // Text ändern"). Quellen: OSM-Orte, Track-Stellen, Halte-Punkte + Fotos, Foto-Serien.
     // 18.10.2026 — Quelle `orte`: alle Städte, Dörfer und Pässe entlang der Strecke (Standard aus)
     const _hlState = { ordner: [], quellen: { osm: true, track: true, halte: true, orte: false }, vs: [], info: null };
+    // 19.10.2026 - Fällt Overpass für "Orte und Pässe" aus, zeigt das Fenster einen Hinweis-Kasten mit "Erneut versuchen";
+    // schlägt auch das fehl, bietet er eine automatische Wiederholung an (alle `s` Sekunden, höchstens `max` Versuche).
+    // Schließen des Fensters oder ein neuer Suchlauf beendet sie sofort.
+    const HL_ORTE_WDH = { s: 180, max: 10 };
+    window.__rzHlOrteWdh = HL_ORTE_WDH;   // Prüfstand
+    _hlState.orte = { zustand: "aus", versuch: 0, naechster_ms: 0, timer: null, lauf: 0 };
+    function _hlOrteStop() {
+      const o = _hlState.orte;
+      if (o.timer) { clearInterval(o.timer); o.timer = null; }
+    }
+    // Fenster zu: Timer und laufende Abfrage enden sofort. Ein Ausfall bleibt aber sichtbar: beim Wiedereröffnen steht der Kasten
+    // wieder da (mit "Erneut versuchen"); nur ein erfolgreiches Ergebnis verschwindet.
+    function _hlOrteSchliessen() {
+      const o = _hlState.orte;
+      _hlOrteStop(); o.lauf++; o.sucht = false;
+      o.zustand = o.zustand === "ok" || o.zustand === "aus" ? "aus" : o.zustand === "aufgegeben" ? "aufgegeben" : "fehler2";
+    }
+    function _hlOrteZeit(ms) {
+      const z = Math.max(0, Math.ceil(ms / 1000));
+      return Math.floor(z / 60) + ":" + String(z % 60).padStart(2, "0");
+    }
+    function _hlOrteZaehlerText() {
+      const o = _hlState.orte;
+      if (o.sucht) return t("hl.orte_sucht", "Versuch {n} von {m}: sucht …").replace("{n}", o.versuch).replace("{m}", HL_ORTE_WDH.max);
+      return t("hl.orte_versuch", "Versuch {n} von {m}, nächster in {z}").replace("{n}", o.versuch).replace("{m}", HL_ORTE_WDH.max).replace("{z}", _hlOrteZeit(o.naechster_ms - Date.now()));
+    }
+    // Im Sekundentakt nur den Zähler ändern: die Knöpfe bleiben stehen (ein neu gebauter Knopf könnte einen Klick verschlucken)
+    function _hlOrteZaehler() {
+      const el = document.querySelector("#hl-orte-kasten .hl-orte-zaehler");
+      if (el) el.textContent = _hlOrteZaehlerText();
+    }
+    function _hlOrteKasten() {
+      const box = document.getElementById("hl-orte-kasten");
+      if (!box) return;
+      const o = _hlState.orte, z = o.zustand;
+      if (z === "aus") { box.innerHTML = ""; box.className = ""; box.hidden = true; return; }
+      box.hidden = false;
+      box.className = z === "ok" ? "hl-orte-ok" : "hl-orte-warn";
+      const knopf = (id, txt, off) => `<button type="button" class="btn btn-sm" id="${id}"${off ? " disabled" : ""}>${_hlEsc(txt)}</button>`;
+      const nochmal = t("hl.orte_nochmal", "Erneut versuchen");
+      let html;
+      if (z === "ok") {
+        html = `<span class="hl-orte-text">${_hlEsc(t("hl.orte_ok", "Orte und Pässe vollständig"))}</span>`;
+      } else if (z === "aufgegeben") {
+        html = `<span class="hl-orte-text">${_hlEsc(t("hl.orte_aufgegeben", "Nach {m} Versuchen weiterhin nicht erreichbar").replace("{m}", HL_ORTE_WDH.max))}</span>` + knopf("hl-orte-nochmal", nochmal);
+      } else {
+        html = `<span class="hl-orte-text">${_hlEsc(t("hl.orte_fehlt", "Orte und Pässe unvollständig: OpenStreetMap (Overpass) ist gerade überlastet oder nicht erreichbar."))}</span>`;
+        if (z === "auto") {
+          html += `<span class="hl-orte-zaehler">${_hlEsc(_hlOrteZaehlerText())}</span>`
+            + knopf("hl-orte-abbrechen", t("hl.orte_abbrechen", "Abbrechen"));
+        } else {
+          html += knopf("hl-orte-nochmal", nochmal, z === "laeuft");
+          if (z === "fehler2") html += knopf("hl-orte-auto", t("hl.orte_auto", "Automatisch wiederholen"));
+        }
+      }
+      box.innerHTML = html;
+      const b1 = document.getElementById("hl-orte-nochmal"); if (b1) b1.onclick = _hlOrteManuell;
+      const b2 = document.getElementById("hl-orte-auto"); if (b2) b2.onclick = _hlOrteAutoStart;
+      const b3 = document.getElementById("hl-orte-abbrechen"); if (b3) b3.onclick = () => { _hlOrteStop(); o.lauf++; o.sucht = false; o.zustand = "fehler2"; _hlOrteKasten(); };   // lauf++: eine laufende Abfrage wird verworfen
+    }
+    // Dieselben Regeln wie `highlights_vorschlaege` im Backend (ist_ort_dublette, "Höchster Punkt" am Pass), aber nur ABwählen:
+    // OSM-Vorschlag mit gleichem Namen höchstens 1000 m neben einem Ort/Pass; "Höchster Punkt" höchstens 300 m (Strecke) neben einem Pass.
+    const _hlGleicherOrt = (n) => String(n || "").toLowerCase().replace(/\bsankt\s+|\bst\.?\s+/g, "st. ").trim();
+    function _hlMeter(la1, lo1, la2, lo2) {
+      const r = Math.PI / 180, a = Math.sin((la2 - la1) * r / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin((lo2 - lo1) * r / 2) ** 2;
+      return 2 * 6371000 * Math.asin(Math.sqrt(a));
+    }
+    function _hlOrteDubletten(neu) {
+      for (const v of _hlState.vs) {
+        if (v.grund === "orte" || v.ab_dublette) continue;
+        if ((v.grund === "poi" || v.grund === "poi_foto") && v.name) {
+          const key = _hlGleicherOrt(v.name);
+          if (key && neu.some(e => _hlGleicherOrt(e.name) === key && _hlMeter(+v.lat, +v.lon, +e.lat, +e.lon) <= 1000)) { v.an = false; v.ab_dublette = "ort"; }
+        } else if (v.grund === "track" && v.art === "hoechster" && isFinite(+v.strecke_m)) {
+          if (neu.some(e => e.art === "pass" && isFinite(+e.strecke_m) && Math.abs(+e.strecke_m - +v.strecke_m) < 300)) { v.an = false; v.ab_dublette = "pass"; }
+        }
+      }
+    }
+    // Fragt nur die Orte und Pässe neu ab und ersetzt deren Zeilen; Häkchen, Texte und Fotos der übrigen Zeilen bleiben.
+    // true = vollständig. Wurde inzwischen neu gesucht oder das Fenster geschlossen (lauf geändert), wird die Antwort verworfen.
+    async function _hlOrteNeu() {
+      const o = _hlState.orte, lauf = o.lauf;
+      const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      if (!pfad) return false;
+      let r;
+      try { r = await api().highlights_vorschlaege(pfad, [], { osm: false, track: false, halte: false, orte: true }); } catch (e) { r = { ok: false, error: String(e) }; } // warte-ok: stille Wiederholung
+      if (lauf !== o.lauf) return false;
+      if (!r || !r.ok) return false;
+      const vollstaendig = r.orte_netz !== false && !r.orte_unvollstaendig;
+      const neu = (r.vorschlaege || []).filter(v => v.grund === "orte").map(v => ({ ...v, id: "w" + lauf + "-" + v.id, an: !!v.empfohlen }));
+      // Auch eine Teilantwort ersetzt die Orts-Zeilen (dank Cache wird ein späteres Ergebnis nie kleiner); nur ein Ausfall ohne
+      // Orte würde die schon vorhandenen Zeilen löschen und lässt sie deshalb stehen.
+      if (vollstaendig || (neu.length && neu.length >= _hlState.vs.filter(v => v.grund === "orte").length)) {
+        _hlState.vs = _hlState.vs.filter(v => v.grund !== "orte").concat(neu);
+        // wie im Backend (bei einem vollen Suchlauf mit Orten): was schon als Ort oder Pass dabei ist, entfällt; hier wird es nur abgewählt
+        _hlOrteDubletten(neu);
+        let ab = 0;
+        try { ab = _hlOrteAusduennen(_hlState.vs); } catch (e) { applog("warn", "[highlights] Orte ausdünnen: " + e); }
+        // Reihenfolge wie im Backend: nach Stelle auf der Strecke, bei Gleichstand nach Art
+        _hlState.vs.sort((a, b) => ((+a.frac || 0) - (+b.frac || 0)) || (String(a.art) < String(b.art) ? -1 : String(a.art) > String(b.art) ? 1 : 0));
+        if (_hlState.info) {
+          _hlState.info.n_orte = neu.length;
+          _hlState.info.orte_unvollstaendig = !vollstaendig;
+          _hlState.netzFehler = _hlState.info.osm_netz === false;   // nur ein Ausfall der OSM-Highlights selbst bleibt stehen
+          _hlState.orteAb = ab;
+        }
+        _hlStatusZeile();
+        _hlRender();
+      }
+      return vollstaendig;
+    }
+    async function _hlOrteManuell() {
+      const o = _hlState.orte, lauf = o.lauf;
+      if (o.zustand !== "fehler" && o.zustand !== "fehler2" && o.zustand !== "aufgegeben") return;
+      o.zustand = "laeuft"; _hlOrteKasten();
+      const ok = await _hlOrteNeu();
+      if (lauf !== o.lauf) return;
+      o.zustand = ok ? "ok" : "fehler2"; _hlOrteKasten();
+    }
+    function _hlOrteAutoStart() {
+      const o = _hlState.orte, lauf = o.lauf;
+      if (o.zustand !== "fehler2") return;
+      _hlOrteStop();
+      o.zustand = "auto"; o.versuch = 1; o.sucht = false;
+      const warten = () => {
+        o.naechster_ms = Date.now() + HL_ORTE_WDH.s * 1000;
+        _hlOrteKasten();
+        o.timer = setInterval(async () => {
+          if (lauf !== o.lauf) { _hlOrteStop(); return; }
+          if (Date.now() < o.naechster_ms) { _hlOrteZaehler(); return; }
+          _hlOrteStop();
+          o.sucht = true; _hlOrteZaehler();
+          const ok = await _hlOrteNeu();
+          if (lauf !== o.lauf || o.zustand !== "auto") return;
+          o.sucht = false;
+          if (ok) { o.zustand = "ok"; _hlOrteKasten(); }
+          else if (o.versuch < HL_ORTE_WDH.max) { o.versuch++; warten(); }
+          else { o.zustand = "aufgegeben"; _hlOrteKasten(); }
+        }, Math.max(50, Math.min(1000, HL_ORTE_WDH.s * 1000)));
+      };
+      warten();
+    }
     const _hlEsc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     // 18.10.2026 — Strich-Symbole statt Bildzeichen im Highlights-Fenster
     const _hlI = (n, g) => (typeof rzIcon === "function" ? rzIcon(n, { size: g || 14 }) : "");
@@ -15537,6 +15679,8 @@ function mountAnimator(body, headerActions, opts) {
       if (v.dauer_s) s += " · " + Math.round(v.dauer_s / 60) + " min";
       if (v.grund === "orte" && v.art !== "pass" && v.abstand_m > 300) s += " · " + t("hl.orte_abstand", "{km} km neben der Strecke").replace("{km}", (Math.round(v.abstand_m / 100) / 10).toLocaleString(window.rzSprachCode ? window.rzSprachCode() : undefined));
       if (v.ab_dicht) s += " · " + t("hl.orte_dicht", "abgewählt: zu dicht an anderen Schildern");
+      if (v.ab_dublette === "ort") s += " · " + t("hl.dublette_ort", "abgewählt: schon als Ort oder Pass dabei");
+      if (v.ab_dublette === "pass") s += " · " + t("hl.dublette_pass", "abgewählt: das Pass-Schild nennt die Stelle schon");
       return s;
     }
     // 18.10.2026 — „Orte und Pässe entlang der Strecke“ (Wunsch aus der Community, PR #11): bei einer langen Tour sind das
@@ -15606,6 +15750,7 @@ function mountAnimator(body, headerActions, opts) {
             ${v.foto ? `<button type="button" class="btn btn-ghost btn-sm" data-hlnofoto="${v.id}" title="${_hlEsc(t("hl.foto_weg", "Foto entfernen"))}">${_hlI("image")}${_hlI("x", 12)}</button>` : ""}
           </div>`).join("");
       }
+      _hlOrteKasten();
       const n = vs.filter(v => v.an).length;
       const cnt = document.getElementById("hl-count"); if (cnt) cnt.textContent = t("hl.ausgewaehlt", "{n} ausgewählt").replace("{n}", n);
       const ok = document.getElementById("hl-uebernehmen"); if (ok) ok.disabled = !n;
@@ -15620,10 +15765,22 @@ function mountAnimator(body, headerActions, opts) {
         || `<span class="muted">${_hlEsc(t("hl.kein_ordner", "noch kein Fotoordner"))}</span>`;
       el.querySelectorAll("[data-hlrm]").forEach(b => b.onclick = () => { _hlState.ordner.splice(+b.dataset.hlrm, 1); _hlOrdnerRender(); });
     }
+    // Statuszeile unter den Quellen; wird nach einer erfolgreichen Orte-Wiederholung erneut aufgebaut
+    function _hlStatusZeile() {
+      const st = document.getElementById("hl-status"), r = _hlState.info;
+      if (!st || !r) return;
+      st.textContent = t("hl.gefunden", "{n} Vorschläge · {f} von {g} Fotos dem Track zugeordnet{netz}")
+        .replace("{n}", _hlState.vs.length).replace("{f}", r.n_zugeordnet || 0).replace("{g}", r.n_fotos || 0)
+        .replace("{netz}", _hlState.netzFehler ? " · " + t("hl.kein_netz", "OpenStreetMap nicht erreichbar") : "")
+        + (r.n_orte != null ? " · " + t("hl.orte_gefunden", "{n} Orte und Pässe").replace("{n}", r.n_orte) : "")
+        + (_hlState.orteAb ? " · " + t("hl.orte_abgewaehlt", "{n} davon abgewählt, sonst zu dicht für die Videolänge (höchstens {m} Schilder gleichzeitig)").replace("{n}", _hlState.orteAb).replace("{m}", HL_ORTE_MAX_GLEICHZEITIG) : "")
+        + (r.orte_unvollstaendig ? " · " + t("hl.orte_unvollstaendig", "OpenStreetMap hat nicht alle Orte geliefert, später noch einmal suchen") : "");
+    }
     async function _hlFinden() {
       const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
       const btn = document.getElementById("hl-finden"), st = document.getElementById("hl-status");
       if (!pfad) { if (st) st.textContent = t("signs.highlights_nogpx", "Erst einen Track öffnen."); return; }
+      _hlOrteStop(); _hlState.orte.lauf++; _hlState.orte.sucht = false; _hlState.orte.zustand = "aus"; _hlOrteKasten();   // ein neuer Suchlauf beendet eine laufende Wiederholung
       const t0 = performance.now();
       if (btn) btn.disabled = true;
       if (st) st.innerHTML = `<span class="ass-spinner"></span> ${_hlEsc(t("hl.sucht", "Suche Highlights …"))} <span class="ass-sek" id="hl-sek"></span>`;
@@ -15634,15 +15791,12 @@ function mountAnimator(body, headerActions, opts) {
       if (btn) btn.disabled = false;
       if (!r || !r.ok) { if (st) st.textContent = t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?"); return; }
       _hlState.info = r;
+      _hlState.orte.zustand = (_hlState.quellen.orte && (r.orte_netz === false || r.orte_unvollstaendig)) ? "fehler" : "aus";
       _hlState.vs = (r.vorschlaege || []).map(v => ({ ...v, an: !!v.empfohlen }));
       let orteAb = 0;
       try { orteAb = _hlOrteAusduennen(_hlState.vs); } catch (e) { applog("warn", "[highlights] Orte ausdünnen: " + e); }
-      if (st) st.textContent = t("hl.gefunden", "{n} Vorschläge · {f} von {g} Fotos dem Track zugeordnet{netz}")
-        .replace("{n}", _hlState.vs.length).replace("{f}", r.n_zugeordnet || 0).replace("{g}", r.n_fotos || 0)
-        .replace("{netz}", r.netz === false ? " · " + t("hl.kein_netz", "OpenStreetMap nicht erreichbar") : "")
-        + (r.n_orte != null ? " · " + t("hl.orte_gefunden", "{n} Orte und Pässe").replace("{n}", r.n_orte) : "")
-        + (orteAb ? " · " + t("hl.orte_abgewaehlt", "{n} davon abgewählt — sonst zu dicht für die Videolänge (höchstens {m} Schilder gleichzeitig)").replace("{n}", orteAb).replace("{m}", HL_ORTE_MAX_GLEICHZEITIG) : "")
-        + (r.orte_unvollstaendig ? " · " + t("hl.orte_unvollstaendig", "OpenStreetMap hat nicht alle Orte geliefert — später noch einmal suchen") : "");
+      _hlState.netzFehler = r.netz === false; _hlState.orteAb = orteAb;
+      _hlStatusZeile();
       try { applog("info", "[highlights] Fenster: " + _hlState.vs.length + " Vorschläge, " + (r.n_zugeordnet || 0) + "/" + (r.n_fotos || 0) + " Fotos"); } catch (_) {}
       _hlRender();
     }
@@ -15706,12 +15860,13 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" class="btn btn-primary btn-sm" id="hl-finden">${_hlI("search")} ${_hlEsc(t("hl.finden", "Highlights finden"))}</button>
             </div>
             <div class="lib-hint" id="hl-status"></div>
+            <div id="hl-orte-kasten" hidden></div>
             <div class="hl-liste" id="hl-liste"></div>
           </div>`,
         footer: `<span class="muted" id="hl-count"></span>
                  <button class="btn" id="hl-ab">${_hlEsc(t("common.cancel", "Abbrechen"))}</button>
                  <button class="btn btn-primary" id="hl-uebernehmen" disabled>${_hlEsc(t("hl.uebernehmen", "Als Schilder übernehmen"))}</button>`,
-        onClose: () => { if (ov) ov.classList.remove("hl-gross"); },
+        onClose: () => { if (ov) ov.classList.remove("hl-gross"); _hlOrteSchliessen(); },
       });
       _hlOrdnerRender(); _hlRender();
       const add = document.getElementById("hl-ordner-add");
