@@ -3567,8 +3567,16 @@ function mountLibrary(body, headerActions) {
     });
     const host = () => document.getElementById("lib-merge-list");
     const namensfeld = () => document.getElementById("lib-merge-name");
-    const nameVorschlag = () => liste.map(x => x.display_name || x.name || "").filter(Boolean).slice(0, 3).join(" + ")
-      + (liste.length > 3 ? " …" : "");
+    // 19.10.2026 (Audit) — „Reise Tag 1 (2026-08-10) + Reise Tag 2 (2026-08-11) + Reise Tag 3 (2026-08-12)“ wurde im
+    // Schnell-Video zum dreizeiligen Titel. Gleicher Anfang + laufende Nummern → „Reise Tag 1–3“; sonst die ersten zwei.
+    const nameVorschlag = () => {
+      const namen = liste.map(x => String(x.display_name || x.name || "").replace(/\s*\(\d{4}-\d{2}-\d{2}\)\s*$/, "").trim()).filter(Boolean);
+      if (!namen.length) return "";
+      const m = namen.map(n => n.match(/^(.*?)(\d+)$/));
+      if (namen.length > 1 && m.every(x => x && x[1].trim() && x[1] === m[0][1])) return m[0][1] + m[0][2] + "–" + m[m.length - 1][2];
+      if (namen.length <= 2) return namen.join(" + ");
+      return namen.slice(0, 2).join(" + ") + " … (" + namen.length + ")";
+    };
     const neuZeichnen = () => {
       const h = host(); if (!h) return;
       h.innerHTML = zeilen();

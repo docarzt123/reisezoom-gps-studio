@@ -1747,13 +1747,16 @@
       const liste = ((r && r.titel) || []).filter(x => x && x !== (ein && ein.value));
       // 11.10.2026 (Testvideo Teide: „Pico del Teide Brutal: Teleferico 🔄 Teide + Roques de Garcia, …“ als Titel) —
       // im Assistenten die bereinigte Kurzform des Tournamens als Vorschlag dazu (vorn, wenn es sonst keinen gibt)
-      if (ASS && ein && unhandlich(ein.value)) { const k = kurzName(ein.value); if (k && !liste.includes(k)) liste.push(k); }
+      // 19.10.2026 (Audit, zusammengeführte Mehrtagestour: „Reise Tag 1 (2026-08-10) + Reise Tag 2 … + Reise Tag 3 …“ lief
+      // im Hochkant-Video über drei Zeilen, mitten im Datum umgebrochen) — auch im Schnell-Video, sobald der Name zu lang ist
+      const zuLang = (x) => String(x || "").length > 40;
+      if (ein && (ASS ? unhandlich(ein.value) : zuLang(ein.value))) { const k = kurzName(ein.value); if (k && !liste.includes(k)) liste.push(k); }
       if (!box_ || !liste.length) return;
       // 08.10.2026 (Klicktest) — Assistent: steht noch der Dateiname im Feld („2023-05-05_Barranco … -1106845751“,
       // „24613993220_ACTIVITY“), gleich den ersten Vorschlag nehmen; der Dateiname bleibt als Chip wählbar
       const dateiname = (x) => /^\d{4}-\d{2}-\d{2}[_ ]|\d{7,}|_ACTIVITY|\.(gpx|fit|kml)$/i.test(String(x || ""))
         || (ASS && unhandlich(x));   // 11.10.2026 (Testvideo Teide) — auch lange Komoot-Namen mit Emojis
-      if (ASS && ein && !ein.dataset.getippt && dateiname(ein.value)) {
+      if (ein && !ein.dataset.getippt && (ASS ? dateiname(ein.value) : zuLang(ein.value))) {
         const alt = ein.value; ein.value = liste[0]; ein.dispatchEvent(new Event("input"));
         liste.splice(0, 1, alt);
       }
