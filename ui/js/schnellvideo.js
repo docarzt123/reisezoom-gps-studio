@@ -1751,6 +1751,11 @@
       // im Hochkant-Video über drei Zeilen, mitten im Datum umgebrochen) — auch im Schnell-Video, sobald der Name zu lang ist
       const zuLang = (x) => String(x || "").length > 40;
       if (ein && (ASS ? unhandlich(ein.value) : zuLang(ein.value))) { const k = kurzName(ein.value); if (k && !liste.includes(k)) liste.push(k); }
+      // 19.10.2026 (Audit) — „Wer sieht die Schildkröte 🐢?“ und „Wer sieht die Schildkröte?“ standen nebeneinander:
+      // Vorschläge, die sich nur durch Emojis/Satzzeichen unterscheiden, einmal zeigen
+      { const schl = (x) => String(x || "").replace(EMOJI, " ").replace(/[\s?!.,:;…]+/g, " ").trim().toLowerCase();
+        const gesehen = new Set([schl(ein && ein.value)]);
+        for (let i = 0; i < liste.length; i++) { const k = schl(liste[i]); if (gesehen.has(k)) { liste.splice(i, 1); i--; } else gesehen.add(k); } }
       if (!box_ || !liste.length) return;
       // 08.10.2026 (Klicktest) — Assistent: steht noch der Dateiname im Feld („2023-05-05_Barranco … -1106845751“,
       // „24613993220_ACTIVITY“), gleich den ersten Vorschlag nehmen; der Dateiname bleibt als Chip wählbar

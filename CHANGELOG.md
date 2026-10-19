@@ -19,6 +19,7 @@ Bei jeder neuen Version:
 
 ### Fixed
 - Archive: remembered filters (date range, year, search, tags, length, folder, collection) belong to the library they were set in. After switching to another library they are reset — before, a date range from the other library made a freshly read archive look empty („0 tours — no tour matches these filters“). The empty state now also has a „Reset filters“ button and uses line icons.
+- Quick video / video assistant: title suggestions that differ only by emojis or punctuation („… Turtle 🐢?“ and „… Turtle?“) appear once.
 - Archive: the tour column offers „Video assistant“ next to „Quick video“ — it opens the Animator with the tour and starts the assistant (before it was only reachable inside the Animator).
 - Data Animator: a single GPS jump no longer sets the speed axis and „max speed“ (a 1.6 km jump in seconds gave an axis up to 444 km/h on a motorbike tour, the real ride lay flat at the bottom). Spikes above 1.3 × the 99.5th percentile are capped; a real flight or train stage is long enough to stay. Preview and video read the same series.
 - Export file names from long project names are cut at a word boundary (50 characters) and no longer end in a separator such as „ ·“.
