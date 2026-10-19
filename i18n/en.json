@@ -1723,6 +1723,7 @@
   "library.empty_filter": "No tour matches these filters.",
   "library.empty_filter_hint": "Reset the filters or rescan.",
   "library.empty_filter_hint2": "Reset the filters or pick another section on the left.",
+  "library.empty_filter_reset": "Reset filters",
   "library.empty_start": "The library is still empty.",
   "library.empty_start_hint": "Add the folder holding your tracks on the left — the app will read it in.",
   "library.empty_start_hint2": "Tell the app once where your track files live — it reads the folder and shows every tour here with a picture and its numbers.",

@@ -588,6 +588,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_error_kind(conn)
     _migrate_fit_neu_lesen(conn, schema_alt)
     _migrate_tag_lokal(conn)
+    _migrate_status_anhang(conn)
     if "speicher" not in have:
         # Zum Zeitpunkt dieser Migration gibt es `.gpx.gz` nur als unsere
         # Kopien — Nutzer-Dateien mit dieser Endung liest das Archiv erst ab
@@ -818,6 +819,26 @@ def _migrate_tag_lokal(conn: sqlite3.Connection) -> None:
         return
     if n:
         log.info("library: Tourtag für %d Tour(en) in Ortszeit nachgerechnet", n)
+
+
+def _migrate_status_anhang(conn: sqlite3.Connection) -> None:
+    """19.10.2026 — Altbestände: Komoots „(Completed)“/„(Planned)“ einmal aus dem Tournamen nehmen.
+
+    Selbstbegrenzend (nur Namen, die auf eine Klammer enden und den Anhang tragen); keine Datei wird angefasst,
+    gemacht/geplant steht schon in `recorded`."""
+    try:
+        rows = conn.execute("SELECT path, name FROM tracks WHERE name LIKE '%)'").fetchall()
+        n = 0
+        for r in rows:
+            neu = name_ohne_status(r[1])
+            if neu != r[1]:
+                conn.execute("UPDATE tracks SET name = ? WHERE path = ?", (neu, r[0]))
+                n += 1
+    except sqlite3.Error as e:
+        log.warning("library: Status-Anhang im Namen nicht entfernt (%s)", e)
+        return
+    if n:
+        log.info("library: Status-Anhang „(Completed)“ aus %d Tournamen entfernt", n)
 
 
 def _migrate_error_kind(conn: sqlite3.Connection) -> None:
@@ -1173,6 +1194,17 @@ RECORDED_SPEED_CV = 0.30  # Streuung der Geschwindigkeit
 HOCHFREQUENT_ANTEIL = 0.30  # Anteil Punktpaare in derselben Sekunde → Aufnahme mit hoher Rate
 
 
+# 19.10.2026 (Audit, Schnell-Video-Titel „Wer sieht die Schildkröte? (Completed)“) — Komoot hängt den Status an den
+# Tournamen. Für „gemacht/geplant“ zählt er (`_recorded_guess` sieht noch den Rohnamen), in Titel, Liste und Video stört er.
+_STATUS_ANHANG = re.compile(r"\s*\((?:completed|planned|abgeschlossen|geplant|completado|planificado)\)\s*$", re.IGNORECASE)
+
+
+def name_ohne_status(name: str) -> str:
+    """Tourname ohne Komoots Status-Anhang „(Completed)“/„(Planned)“; bleibt sonst nichts übrig, der alte Name."""
+    roh = str(name or "").strip()
+    return _STATUS_ANHANG.sub("", roh).strip() or roh
+
+
 def _recorded_guess(pts: list, stats, name: str) -> tuple:
     """(gemacht: bool, quelle: str)"""
     if getattr(stats, "sensor_fields", None):
@@ -1350,6 +1382,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     src, src_url = _peek_source(path, head=(text[:4096] if text is not None else None))
     name = (stats.name or path.stem).strip()
     _rec, _rec_src = _recorded_guess(pts, stats, name)
+    name = name_ohne_status(name)   # 19.10.2026 — erst nach der Erkennung gemacht/geplant, die den Anhang braucht
 
     _hashes = csessions.compute_track_hashes(coords, name=path.name)
     row.update({

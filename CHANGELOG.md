@@ -17,6 +17,10 @@ Bei jeder neuen Version:
 ### Added
 - „Ask GPS Studio“: a question field that searches the manual and the labels of the app's buttons and shows the matching paragraphs — offline, without a language model, in German, English and Spanish. Open it with ⌘K (Windows/Linux: Ctrl+K), the search field at the top right, „Help → Ask GPS Studio …“ or the field in „Quick Start“. Plain questions work („how do I change the date of many photos“, „camera follows the track“, „video in 9:16“). „Show me“ jumps straight to the right module and control, opens the section it sits in and briefly highlights it; if it needs a loaded tour or selected photos first, the result says so. Clicking a manual hit opens the manual at that section.
 
+### Fixed
+- Archive: remembered filters (date range, year, search, tags, length, folder, collection) belong to the library they were set in. After switching to another library they are reset — before, a date range from the other library made a freshly read archive look empty („0 tours — no tour matches these filters“). The empty state now also has a „Reset filters“ button and uses line icons.
+- Archive: Komoot's status suffix „(Completed)“ / „(Planned)“ is no longer part of the tour name — it ended up as the title of the quick video. Whether a tour was done or planned is still detected from it; existing archives are cleaned on the next start.
+
 ## [0.9.799] – 2026-10-19
 
 ### Added

@@ -1884,21 +1884,26 @@ function mountLibrary(body, headerActions) {
     if (!_folders.length) {
       return `
         <div class="lib-empty">
-          <div class="lib-empty-big">📂</div>
+          <div class="lib-empty-big">${SI("folder-open", 40)}</div>
           <div class="lib-empty-title">${T("library.empty_start", "Das Archiv ist noch leer.")}</div>
           <div class="lib-empty-text">${T("library.empty_start_hint2", "Sag der App einmal, wo deine Track-Dateien liegen — sie liest den Ordner dann ein und zeigt hier jede Tour mit Bild und Zahlen.")}</div>
-          <button class="btn btn-primary" id="lib-empty-add">📂 ${T("library.add_folder", "+ Ordner hinzufügen")}</button>
+          <button class="btn btn-primary" id="lib-empty-add">${SI("folder-plus", 15)} ${T("library.add_folder", "+ Ordner hinzufügen")}</button>
         </div>`;
     }
     return `
       <div class="lib-empty">
         <div class="lib-empty-title">${T("library.empty_filter", "Keine Tour passt zu dieser Auswahl.")}</div>
         <div class="lib-empty-text">${T("library.empty_filter_hint2", "Filter zurücksetzen oder links einen anderen Bereich wählen.")}</div>
+        <button class="btn btn-primary" id="lib-empty-reset">${SI("rotate-ccw", 15)} ${T("library.empty_filter_reset", "Filter zurücksetzen")}</button>
       </div>`;
   }
   function bindEmpty() {
     const b = $("lib-empty-add");
     if (b) b.onclick = addFolder;
+    // 19.10.2026 (Audit) — der Leerstand nennt den Ausweg, jetzt auch als Knopf: ein vergessener Zeitraum ließ ein
+    // volles Archiv leer aussehen
+    const r = $("lib-empty-reset");
+    if (r) r.onclick = () => { filterZuruecksetzen(); reload(); };
   }
 
   function badges(it) {
@@ -6263,7 +6268,23 @@ function mountLibrary(body, headerActions) {
     };
     window.rzBibNameZeigen = zeigen;
     b.onclick = () => { if (typeof window.openSettingsModal === "function") window.openSettingsModal("bibliothek"); };
-    api().bibliothek_status().then(st => { if (!_unmounted) zeigen(st && st.name); }).catch(() => {});
+    api().bibliothek_status().then(st => {
+      if (_unmounted) return;
+      zeigen(st && st.name);
+      // 19.10.2026 (Audit) — die gemerkten Filter gehören zu einer Bibliothek. Nach einem Wechsel (Arbeit ↔ Test, neue
+      // Bibliothek) galt der alte Zeitraum weiter: „0 Touren — keine Tour passt“, obwohl gerade 10 eingelesen waren.
+      const ort = st && st.ort ? String(st.ort) : "";
+      if (!ort) return;
+      const vorher = store.get("filter_bib", "");
+      store.set("filter_bib", ort);
+      if (vorher && vorher !== ort) {
+        filterZuruecksetzen();
+        setFilter("collection_id", 0);
+        store.set("sel", "");
+        applog("info", "[archiv] andere Bibliothek — gemerkte Filter zurückgesetzt");
+        reload();
+      }
+    }).catch(() => {});
   })();
   $("lib-dupes").onclick = showDuplicates;
   $("lib-check-all").onclick = () => trackCheckAlleStarten(false);
