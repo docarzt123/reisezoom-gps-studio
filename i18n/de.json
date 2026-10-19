@@ -3056,6 +3056,7 @@
   "webkarte.consent_preview_hint": "Zeigt ein geblurrtes Standbild deiner Karte hinter dem Zustimmungs-Text (lokal eingebettet, DSGVO-konform). Aus = deutlich schnellerer Export, aber leeres Gate.",
   "webkarte.delete": "Löschen",
   "webkarte.export_btn": "Als HTML exportieren",
+  "webkarte.hauptaktion": "⤓ Als HTML exportieren",
   "webkarte.export_rendering": "Karte wird gerendert – das Vorschaubild kann ein paar Sekunden dauern …",
   "webkarte.export_working": "Export läuft …",
   "webkarte.intro": "Leichte, interaktive Karte fürs Web. Track kommt automatisch aus dem GPX; Beschriftungen setzt du direkt auf der Karte. Die Vorschau hier ist exakt der Export.",

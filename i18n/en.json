@@ -3056,6 +3056,7 @@
   "webkarte.consent_preview_hint": "Shows a blurred still of your map behind the consent text (embedded locally, GDPR-compliant). Off = much faster export, but an empty gate.",
   "webkarte.delete": "Delete",
   "webkarte.export_btn": "Export as HTML",
+  "webkarte.hauptaktion": "⤓ Export as HTML",
   "webkarte.export_rendering": "Rendering the map – the preview image can take a few seconds …",
   "webkarte.export_working": "Exporting …",
   "webkarte.intro": "Lightweight interactive map for the web. The track comes automatically from the GPX; place labels directly on the map. The preview here is exactly the export.",

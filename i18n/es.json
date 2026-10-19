@@ -3056,6 +3056,7 @@
   "webkarte.consent_preview_hint": "Muestra una imagen difuminada de tu mapa tras el texto de consentimiento (incrustada localmente, conforme al RGPD). Desactivado = exportación mucho más rápida, pero puerta vacía.",
   "webkarte.delete": "Borrar",
   "webkarte.export_btn": "Exportar como HTML",
+  "webkarte.hauptaktion": "⤓ Exportar como HTML",
   "webkarte.export_rendering": "Renderizando el mapa – la vista previa puede tardar unos segundos …",
   "webkarte.export_working": "Exportando …",
   "webkarte.intro": "Mapa interactivo ligero para la web. La ruta viene automáticamente del GPX; coloca las etiquetas directamente en el mapa. La vista previa es exactamente la exportación.",

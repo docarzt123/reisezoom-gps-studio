@@ -174,7 +174,7 @@
             <input type="checkbox" id="wk-attribution"${attribution0 ? " checked" : ""}>
             <span>${T("webkarte.attribution", "Link „erstellt mit Reisezoom GPS Studio“ einbetten")}</span>
           </label>
-          <button class="btn btn-primary btn-block" id="wk-export">🌐 ${T("webkarte.export_btn", "Als HTML exportieren")}</button>
+          <button class="btn btn-primary btn-block" id="wk-export">${typeof rzIcon === "function" ? rzIcon("globe", { size: 15 }) : ""} ${T("webkarte.export_btn", "Als HTML exportieren")}</button>
           <div class="muted" id="wk-status" style="font-size:11px; margin-top:8px; min-height:14px;"></div>
         </div>
       </aside>
@@ -723,6 +723,15 @@
     el("wk-scale")?.addEventListener("change", () => { save({ show_scale: !!el("wk-scale").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-north")?.addEventListener("change", () => { save({ show_north: !!el("wk-north").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-export")?.addEventListener("click", doExport);
+    // 19.10.2026 (Audit) — wie in Animator und Tour-Map: die Hauptaktion oben rechts. Der Knopf stand nur ganz unten in
+    // der Seitenleiste; als Neuling sucht man ihn dort, wo die anderen Module „Exportieren“ haben.
+    if (_headerActions && !window.__rzRenderMode && !_headerActions.querySelector("#wk-hauptaktion")) {
+      const ha = document.createElement("button");
+      ha.type = "button"; ha.id = "wk-hauptaktion"; ha.className = "btn btn-cta btn-sm anim-hauptaktion";
+      ha.textContent = T("webkarte.hauptaktion", "⤓ Als HTML exportieren");
+      ha.addEventListener("click", () => { const b = el("wk-export"); if (b && !b.disabled) b.click(); });
+      _headerActions.insertBefore(ha, _headerActions.firstChild);
+    }
 
     if (typeof onGpxLoaded === "function") {
       try { _gpxUnsub = onGpxLoaded(() => { if (!destroyed) loadTrack(); }); } catch (_) {}
