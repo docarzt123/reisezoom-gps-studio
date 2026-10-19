@@ -6291,6 +6291,8 @@ function mountLibrary(body, headerActions) {
         setFilter("collection_id", 0);
         store.set("sel", "");
         applog("info", "[archiv] andere Bibliothek — gemerkte Filter zurückgesetzt");
+        // … und der zuletzt offene Reiter (Medien/Projekte/Vorlagen) — eine andere Bibliothek beginnt bei den Touren
+        if (_fotoView || _projView || _vorlView) { const tb = $("lib-seg-touren"); if (tb) tb.click(); }
         reload();
       }
     }).catch(() => {});

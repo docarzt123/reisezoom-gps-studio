@@ -19,6 +19,8 @@ Bei jeder neuen Version:
 
 ### Fixed
 - Archive: remembered filters (date range, year, search, tags, length, folder, collection) belong to the library they were set in. After switching to another library they are reset — before, a date range from the other library made a freshly read archive look empty („0 tours — no tour matches these filters“). The empty state now also has a „Reset filters“ button and uses line icons.
+- Archive: after switching to another library the archive opens on „Tours“ instead of the tab last used in the other library (e.g. an empty „Media“).
+- First start: the second dialog is called „Maps are included — you can start right away“ instead of greeting a second time right after „Welcome to GPS Studio“.
 - Archive, „Folders & reading“: after „Read again“ the number of tours next to each folder is updated right away (a new folder kept showing „0“), and the dialog uses line icons.
 - Archive: Komoot's status suffix „(Completed)“ / „(Planned)“ is no longer part of the tour name — it ended up as the title of the quick video. Whether a tour was done or planned is still detected from it; existing archives are cleaned on the next start.
 

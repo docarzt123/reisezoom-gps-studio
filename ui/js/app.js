@@ -1726,7 +1726,7 @@ async function openFirstRunMapboxModal() {
   // Schlüssel hingehört.
   return new Promise(resolve => {
     openModal({
-      title: t("first_run.title2", "Willkommen — es geht sofort los"),
+      title: t("first_run.title2", "Karten sind schon dabei — es geht sofort los"),   // 19.10.2026 (Audit) — nicht zweimal „Willkommen“ hintereinander
       body: `
         <p>${t("first_run.intro2", "Karten und Satellitenbilder sind ohne Anmeldung dabei: kostenlose Luftbilder der Landesvermessungen (Deutschland, Österreich, Schweiz, Spanien, Frankreich und weitere), OpenStreetMap-Karten und ein 3D-Gelände. Damit gerenderte Videos dürfen auf YouTube & Co. veröffentlicht werden — die Nennung der Quelle steht automatisch im Bild.")}</p>
         <div style="margin-top:12px; padding:12px 14px; background:var(--bg-3); border-radius:8px; font-size:12px; line-height:1.55;">
