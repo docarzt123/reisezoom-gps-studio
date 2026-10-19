@@ -940,8 +940,8 @@ App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
 
 ### 🧭 Video-Assistent — Schritt für Schritt zum eigenen Video (seit v0.9.787) ⭐
 
-Oben im Animator, neben **„Schnell-Video …“**, steht **„🧭 Video-Assistent …“** (auch auf der Tour-Seite im Archiv unter
-**🎬 Video ▾**). Er fragt dich in **zehn kurzen Stufen**, wie dein Video werden soll:
+Oben im Animator, neben **„Schnell-Video …“**, steht **„🧭 Video-Assistent …“** (auch im Archiv: in der Tour-Spalte neben
+**„Schnell-Video“** und auf der Tour-Seite unter **🎬 Video ▾**). Er fragt dich in **zehn kurzen Stufen**, wie dein Video werden soll:
 **1 Vorlage** (Erinnerung, Social, Landschaft oder eine deiner eigenen ★-Vorlagen — stellt alles passend ein; darunter
 Format und Länge, auch eine **eigene Länge** in Sekunden) · **2 Die Geschichte** (die Momente aus dem Logbuch der Tour zum Anhaken — Pausen
 mit Dauer, Übernachtungen, deine Notizen, dazu die **besonderen Momente der Strecke** einzeln — höchster Punkt, steilste Stelle, höchstes Tempo, halbe Strecke, jeder mit seinem Wert und abwählbar; vorausgewählt so viele,
@@ -1651,7 +1651,8 @@ hebt es wieder auf. Die App merkt sich den zuletzt gewählten Bereich.
 mit der Zahl der Touren, und deine beobachteten Ordner mit allen Unterordnern (Unterordner zählen mit). Ein Klick auf
 ein Jahr, einen Monat oder einen Ordner klappt ihn auf und zeigt genau diese Touren; ein zweiter Klick klappt ihn zu
 und hebt die Auswahl auf. Das Datum landet im Zeitraum-Feld oben („eigener Zeitraum“), der Ordner als Chip
-**„📁 Touren › 2024 ✕“**; **Filter zurücksetzen** räumt beides. **Mit ⇧ (Shift) mehrere Zeilen:** erst eine Zeile normal
+**„📁 Touren › 2024 ✕“**; **Filter zurücksetzen** räumt beides. Die Filter gehören zur Bibliothek: nach einem Wechsel in eine andere beginnt das Archiv ohne Filter bei den
+Touren, und passt keine Tour zu den Filtern, steht im leeren Archiv ein Knopf **„Filter zurücksetzen“**. **Mit ⇧ (Shift) mehrere Zeilen:** erst eine Zeile normal
 anklicken, dann eine zweite mit gedrückter Shift-Taste — gezeigt wird alles dazwischen, z. B. 2023 bis 2024 oder
 vom 4. bis 12. März (seit v0.9.790).
 
@@ -2210,9 +2211,11 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
 ### 🖼 Medien wie in Lightroom — Raster, Lupe, Karte (seit v0.9.787)
 
 - **Kacheln:** das Bild, darunter Datum · Uhrzeit und Ort. Beim Drüberfahren erscheint links oben ein Kästchen zum
-  **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten. Sobald etwas markiert ist, zeigt eine Leiste
-  **„N ausgewählt“** mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit. Esc hebt die
-  Markierung auf, ⌘A markiert alle.
+  **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten. Sobald etwas markiert ist, schwebt unten über dem Raster eine Leiste
+  **„N ausgewählt“** mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit — die Bilder
+  bleiben dabei an ihrem Platz. Esc hebt die Markierung auf, ⌘A markiert alle.
+- **Ort setzen** (für Fotos ohne Koordinate): Die Karte startet dort, wo die Fotos hingehören — bei Fotos desselben Tages mit
+  GPS, sonst bei den Touren dieses Tages —, und die Ortssuche bevorzugt Treffer in dieser Gegend. Gleichnamige Treffer stehen nur einmal da.
 - **Links:** oben die Zahl, dann **Sammlungen** (Alle, Favoriten, Bearbeitet, Ohne Koordinate …), **Alben** (＋ legt eins an,
   Rechtsklick benennt um oder löscht — die Fotos bleiben), Datum, Ordner und aufklappbare **Filter** (Jahr, Kamera, Ort).
 - **Ein Klick** zeigt rechts das Bild mit allen Angaben (Kamera, Blende, Belichtung, ISO, Bildgröße), dem Standort mit Karte,
@@ -3049,7 +3052,7 @@ Ein eigener, bewusst **schlanker** Tab für **interaktive Karten fürs Web/Blog*
 2. **Track-Farbe/-Breite**, **Kartenstil** und **Quellenangabe** links einstellen — die Quellenangabe steht entweder klein in der **Ecke unten rechts** (Standard) oder als **schmale Leiste über die ganze Breite**, in Vorschau und Export gleich.
 3. **Beschriftungen setzen:** **„＋ Beschriftung hinzufügen"** anklicken → auf die Karte tippen. In der **Beschriftungs-Liste** darunter stellst du pro Eintrag **Text, Farbe und Größe** ein und löschst ihn per 🗑. Auf der Karte lässt sich jede Beschriftung **ziehen** (verschieben); ein Klick darauf springt zur passenden Zeile in der Liste. Die Textfarbe (hell/dunkel) wählt sich automatisch passend zur gewählten Farbe.
 4. Optional den **DSGVO-Button** aktivieren (siehe unten).
-5. **„🌐 Als HTML exportieren"** → Fenster mit den Ausgabe-Optionen.
+5. **„Als HTML exportieren"** — oben rechts in der Kopfzeile (wie „Video exportieren“ im Animator) oder ganz unten in der Seitenleiste → Fenster mit den Ausgabe-Optionen.
 
 ### Mehrere Tracks (seit v0.9.432) ⭐
 Du kannst mehrere GPX-Tracks in **einer** Karte zeigen — z. B. mehrere Etappen einer Tour oder Hin- und Rückweg. Der **erste Track kommt aus dem geladenen GPX** (globale GPX-Leiste). Weitere fügst du in der Sidebar-Sektion **„Weitere Tracks"** über **„＋ Track hinzufügen"** hinzu und wählst je Datei eine GPX. Pro Track stellst du **Name, Farbe, Breite** und **Start/Ziel-Pins** ein; mit 🗑 entfernst du ihn wieder. Die Karte passt sich automatisch auf **alle** Tracks zusammen ein, und die Vorschau ist wie immer **exakt** der Export.

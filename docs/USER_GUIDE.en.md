@@ -916,8 +916,8 @@ longitude), otherwise from the tour's location. The format follows the app langu
 
 ### 🧭 Video assistant — step by step to your own video (since v0.9.787) ⭐
 
-At the top of the Animator, next to **„Quick video …“**, there is **„🧭 Video assistant …“** (also on the tour page in
-the archive under **🎬 Video ▾**). In **ten short steps** it asks how your video should
+At the top of the Animator, next to **„Quick video …“**, there is **„🧭 Video assistant …“** (also in the archive: in the tour column next to
+**„Quick video“** and on the tour page under **🎬 Video ▾**). In **ten short steps** it asks how your video should
 be: **1 Template** (Memory, Social, Landscape or one of your own ★ templates — sets everything up; below it format and length, including a **custom length** in seconds) · **2 The story** (the moments from the tour's logbook to tick — breaks with their length, overnight stays, your
 notes, plus the **special moments of the route** one by one — highest point, steepest section, top speed, halfway point, each with its value and each can be deselected; as many preselected as fit the video length, spread over all
 days on trips and grouped by day; anything right at a highlight is greyed out because a sign is already there) ·
@@ -1613,7 +1613,8 @@ section you were last in.
 of tours, and your watched folders with all subfolders (subfolders are counted in). Clicking a year, a month or a
 folder unfolds it and shows exactly those tours; a second click folds it and clears the selection. The date goes into
 the period field at the top (“custom period”), the folder appears as a chip **“📁 Tours › 2024 ✕”**; **Reset filters**
-clears both. **Several rows with ⇧ Shift:** click one row normally, then a second with Shift held — everything in
+clears both. Filters belong to the library: after switching to another one the archive starts on Tours without filters, and if no
+tour matches the filters, the empty archive shows a **„Reset filters“** button. **Several rows with ⇧ Shift:** click one row normally, then a second with Shift held — everything in
 between is shown, e.g. 2023 to 2024 or 4 to 12 March (since v0.9.790).
 
 **Which day does a tour belong to?** The calendar day on which it started **at its starting point** — in local time
@@ -2146,8 +2147,11 @@ On request the search field also finds **what the photos show**: “sunset”, �
 ### 🖼 Media like in Lightroom — grid, loupe, map (since v0.9.787)
 
 - **Tiles:** the picture with date · time and place below. On hover a box at the top left **marks** it (or ⌘/Shift-click),
-  the **heart** at the top right makes it a favourite. As soon as something is marked, a bar **„N selected“** offers Export,
-  Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto and Open with. Esc clears, ⌘A marks all.
+  the **heart** at the top right makes it a favourite. As soon as something is marked, a bar **„N selected“** floats at the bottom of
+  the grid with Export, Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto and Open with — the pictures
+  stay where they are. Esc clears, ⌘A marks all.
+- **Set location** (for photos without coordinates): the map starts where the photos belong — at photos of the same day that have
+  GPS, otherwise at the tours of that day — and the place search prefers hits in that area. Hits with the same name appear once.
 - **Left:** the number, then **collections** (All, Favourites, Edited, Without coordinate …), **albums** (＋ creates one,
   right-click renames or deletes — the photos stay), date, folders and collapsible **filters** (year, camera, location).
 - **One click** shows the picture on the right with all data (camera, aperture, shutter, ISO, size), the location with a
@@ -2944,7 +2948,7 @@ A dedicated, deliberately **lean** tab for **interactive maps for the web/blog**
 2. Set the **track color/width**, the **map style** and the **source credit** on the left — the credit sits small in the **bottom-right corner** (default) or as a **thin bar across the full width**, the same in preview and export.
 3. **Add labels:** click **"＋ Add label"** → tap on the map. In the **label list** below, you set the **text, color and size** for each entry and delete it with 🗑. On the map each label can be **dragged** (moved); clicking it jumps to the matching row in the list. The text color (light/dark) is chosen automatically to match the selected color.
 4. Optionally enable the **GDPR button** (see below).
-5. **"🌐 Export as HTML"** → a window with the output options.
+5. **"Export as HTML"** — at the top right of the header (like „Export video“ in the Animator) or at the very bottom of the sidebar → a window with the output options.
 
 ### Multiple tracks (since v0.9.432) ⭐
 You can show several GPX tracks on **one** map — e.g. multiple stages of a tour or the outbound and return legs. The **first track comes from the loaded GPX** (global GPX bar). Add more in the sidebar section **"More tracks"** via **"＋ Add track"** and pick a GPX per file. For each track you set **name, colour, width** and **start/finish pins**; remove it again with 🗑. The map automatically fits to **all** tracks together, and the preview is, as always, **exactly** the export.

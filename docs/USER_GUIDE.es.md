@@ -927,8 +927,8 @@ longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la a
 
 ### 🧭 Asistente de vídeo — paso a paso hacia tu propio vídeo (desde v0.9.787) ⭐
 
-Arriba en el Animator, junto a **«Vídeo rápido …»**, está **«🧭 Asistente de vídeo …»** (también en la página de la ruta
-del archivo, en **🎬 Vídeo ▾**). En **diez pasos cortos** te pregunta cómo quieres tu
+Arriba en el Animator, junto a **«Vídeo rápido …»**, está **«🧭 Asistente de vídeo …»** (también en el archivo: en la columna de la ruta junto a
+**«Vídeo rápido»** y en la página de la ruta, en **🎬 Vídeo ▾**). En **diez pasos cortos** te pregunta cómo quieres tu
 vídeo: **1 Plantilla** (Recuerdo, Social, Paisaje o una de tus plantillas ★ — lo ajusta todo; debajo formato y duración, también una **duración propia** en segundos) · **2 La historia** (los momentos de la bitácora para marcar — pausas con su duración, pernoctaciones, tus notas,
 más los **momentos especiales de la ruta** uno a uno — punto más alto, tramo más empinado, velocidad máxima, mitad del camino, cada uno con su valor y se puede desmarcar; preseleccionados tantos como encajan con la duración, en viajes
 repartidos por todos los días y agrupados por día; lo que está justo en un punto destacado aparece en gris porque allí ya
@@ -1644,7 +1644,8 @@ la última sección elegida.
 rutas, y tus carpetas vigiladas con todas sus subcarpetas (las subcarpetas cuentan). Un clic en un año, un mes o una
 carpeta la despliega y muestra exactamente esas rutas; un segundo clic la pliega y quita la selección. La fecha va al
 campo de periodo de arriba («periodo propio»), la carpeta aparece como chip **«📁 Rutas › 2024 ✕»**; **Restablecer
-filtros** quita ambos. **Varias filas con ⇧ Mayús:** haz clic en una fila y luego en otra con Mayús pulsada; se
+filtros** quita ambos. Los filtros pertenecen a la biblioteca: al cambiar a otra, el archivo empieza en Rutas sin filtros y, si ninguna
+ruta encaja con los filtros, el archivo vacío muestra un botón **«Restablecer filtros»**. **Varias filas con ⇧ Mayús:** haz clic en una fila y luego en otra con Mayús pulsada; se
 muestra todo lo que hay entre ambas, p. ej. de 2023 a 2024 o del 4 al 12 de marzo (desde v0.9.790).
 
 **¿A qué día pertenece una ruta?** Al día en que empezó **en su punto de salida**, en la hora local de allí. Una ruta
@@ -2194,9 +2195,11 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
 ### 🖼 Medios como en Lightroom: cuadrícula, lupa, mapa (desde v0.9.787)
 
 - **Miniaturas:** la imagen con fecha · hora y lugar debajo. Al pasar el ratón, una casilla arriba a la izquierda **marca**
-  la foto (o clic con ⌘/Mayús) y el **corazón** arriba a la derecha la hace favorita. En cuanto hay algo marcado, una barra
-  **«N seleccionados»** ofrece Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con. Esc
-  quita la selección, ⌘A marca todo.
+  la foto (o clic con ⌘/Mayús) y el **corazón** arriba a la derecha la hace favorita. En cuanto hay algo marcado, flota abajo sobre la cuadrícula una barra
+  **«N seleccionados»** con Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con; las
+  imágenes no se mueven. Esc quita la selección, ⌘A marca todo.
+- **Poner ubicación** (para fotos sin coordenadas): el mapa empieza donde pertenecen las fotos —en fotos del mismo día con GPS o,
+  si no hay, en las rutas de ese día— y la búsqueda de lugares prefiere resultados de esa zona. Los resultados con el mismo nombre aparecen una vez.
 - **Izquierda:** el número, luego **colecciones** (Todo, Favoritos, Editadas, Sin coordenada …), **álbumes** (＋ crea uno,
   clic derecho renombra o elimina; las fotos se quedan), fecha, carpetas y **filtros** desplegables (año, cámara, ubicación).
 - **Un clic** muestra la imagen a la derecha con todos los datos (cámara, diafragma, exposición, ISO, tamaño), la ubicación
@@ -3001,7 +3004,7 @@ Una pestaña propia, deliberadamente **ligera**, para **mapas interactivos para 
 2. **Color/grosor del track**, **estilo de mapa** y **atribución** se ajustan a la izquierda: la atribución aparece pequeña en la **esquina inferior derecha** (predeterminado) o como **barra fina a todo el ancho**, igual en la vista previa y en la exportación.
 3. **Colocar etiquetas:** haz clic en **«＋ Añadir etiqueta»** → toca en el mapa. En la **lista de etiquetas** de debajo ajustas por cada entrada **texto, color y tamaño** y la eliminas con 🗑. En el mapa, cada etiqueta se puede **arrastrar** (desplazar); un clic sobre ella salta a la fila correspondiente en la lista. El color del texto (claro/oscuro) se elige automáticamente acorde al color escogido.
 4. Opcionalmente activa el **botón RGPD** (ver más abajo).
-5. **«🌐 Exportar como HTML»** → ventana con las opciones de salida.
+5. **«Exportar como HTML»** — arriba a la derecha en la cabecera (como «Exportar vídeo» en el Animator) o al final de la barra lateral → ventana con las opciones de salida.
 
 ### Varios tracks (desde v0.9.432) ⭐
 Puedes mostrar varios tracks GPX en **un** mapa — p. ej. varias etapas de una ruta o los tramos de ida y vuelta. El **primer track viene del GPX cargado** (barra GPX global). Los demás los añades en la sección de la barra lateral **«Más tracks»** con **«＋ Añadir track»** y eliges un GPX por archivo. Para cada track ajustas **nombre, color, grosor** y **pines de inicio/fin**; lo quitas de nuevo con 🗑. El mapa se ajusta automáticamente a **todos** los tracks juntos, y la vista previa es, como siempre, **exactamente** la exportación.

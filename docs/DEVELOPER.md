@@ -8131,3 +8131,37 @@ Test: `tests/test_linie_ecken.py`.
   Track-Editor öffnen, falls aus einschalten (Tempo, sonst Höhe, sonst Strecke), Block `.tred-mehrfarbig` kurz
   `.ist-hervor`. Hinweis `.anim-colors-blass` statt eines eigenen „Rest blass“-Schalters — das macht „Ganze Strecke blass
   zeigen“ (Geist) schon. Prüfstände `__rzSpanneRobust`, `__rzColorMetric`. Test `test_farben_tempo`.
+
+## Durchklick-Prüfung „neu bei GPS Studio“ (19.10.2026)
+
+Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `tests/`.
+
+- **Archiv-Filter je Bibliothek:** Die `localStorage`-Schlüssel `rz.library.*` gelten je Rechner, nicht je Bibliothek.
+  `rz.library.filter_bib` hält den Ort der Bibliothek (`bibliothek_status().ort`), zu der die Filter gehören; weicht er
+  ab, setzt `modules/library/ui/module.js` Zeitraum, Jahr, Suche, Tags, Länge, Ordner und Sammlung zurück und öffnet
+  den Reiter „Touren“. Leerstand „keine Tour passt“ mit `#lib-empty-reset`. Test `test_archiv_filter_bibliothek`.
+- **Komoot-Statusanhang:** `core/library.name_ohne_status(name)` entfernt „(Completed)/(Planned)“ (und de/es) nach
+  `_recorded_guess` — der Anhang zählt weiter als Hinweis gemacht/geplant. `_migrate_status_anhang(conn)` räumt
+  Bestand beim Start; `animator_load_gpx` und `schnellvideo_vorschlag` nutzen dieselbe Funktion. Test `test_status_anhang_name`.
+- **Ort setzen in der Gegend der Fotos:** `Api.fotos_ort_naehe(pfade)` → Median der Koordinaten gleichtägiger Fotos mit
+  GPS, sonst Mitte der Touren dieses Tages; `exportarchiv.js` zentriert die Karte (Zoom 9) und gibt den Punkt als
+  `bias` an `route_geocode(text, 6, naehe)`. `route_geocode` gibt je Name (klein geschrieben) nur einen Treffer zurück.
+  Test `test_ort_setzen_naehe`.
+- **Tempo-Spitzen im Daten-Animator:** `core/heightanim._series_speed` kappt ab 20 Punkten Werte über 1,3 × P99,5 —
+  ein GPS-Sprung setzt nicht mehr Achse und Höchstwert; lange echte Flug-/Zugetappen bleiben. Die Y-Achse beschriftet
+  bei Reihen ohne negative Werte ab 0 an ihrer echten Höhe (`yTickLo`/`bTickLo`), der Plotboden selbst bleibt gepolstert.
+  Test `test_daten_tempo_spitze`.
+- **Lesefehler verständlich:** `window.rzLesefehler(err, path)` (`ui/js/gpx-bar.js`) macht aus Parser-Rohtext
+  (Codec, XML, „not a FIT file“, Zeile/Spalte …) einen Satz mit Dateinamen (`error.datei_unlesbar`) und schreibt den
+  Rohtext ins Log; verständliche Meldungen gehen unverändert durch. Genutzt in `loadGlobalGpx`, im Animator
+  (`loadGpxByPath`, Tour-Liste) und im Inspektor. Test `test_kaputte_dateien_meldung`.
+- **Schwebende Auswahlleiste (Medien):** `.foto-markleiste` liegt absolut über `.lib-fotowrap`; solange markiert ist,
+  bekommt der Wrapper `.ist-markiert` (Polster unten), damit die letzte Reihe nicht verdeckt wird. Archiv-Zeilen:
+  die Leiste steht immer (`#lz-leiste-leer` mit Hinweis), gleiche Höhe (56 px). Tests `test_aufnahmezeit_mehrere_ui`,
+  `test_archiv_filter_bibliothek`.
+- **Einblendungs-Liste:** `.ct-bereich > .ct-liste` nimmt die Breite des Bereichs (`flex: 1 1 100%; min-width: 0`) —
+  in der umbrechenden `.overlay-group` war sie sonst so breit wie ihr Inhalt. Test `test_einblendungen_breite`.
+- Kleinere: Exportnamen `rzExportDialog.stammSauber()` (50 Zeichen an Wortgrenze), Vorlage „Schnell 720p“ mit
+  Projekt-Seitenverhältnis (`formatVon(stand())`), Zusammenführen-Name `nameVorschlag()` („Tag 1–3“), Schnell-Video
+  ersetzt Namen > 40 Zeichen durch den ersten Ortsvorschlag und entfernt Beinahe-Dubletten, Web Karte `#wk-hauptaktion`
+  in der Kopfzeile, Archiv-Knopf `[data-assistent]` → `window.__rzVideoAssistent(true)`.
