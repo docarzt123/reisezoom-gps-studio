@@ -2210,6 +2210,7 @@
   "library.zeile_medien_tip": "Photos and clips of this tour",
   "library.zeile_mehr_tip": "More actions",
   "library.zeilen_auswahl": "{n} of {m} selected",
+  "library.zeilen_tipp": "Tick tours to edit several of them together.",
   "library.zeilen_tags": "Tags …",
   "library.zeilen_sammlung": "Add to collection …",
   "library.zeilen_quelle": "Map images: © OpenStreetMap contributors · OpenFreeMap",

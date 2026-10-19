@@ -2044,7 +2044,9 @@ function mountLibrary(body, headerActions) {
 
   function zeilenLeisteHtml() {
     const n = _multi.size;
-    if (!n) return "";
+    // 19.10.2026 (Audit) — die Leiste steht immer da (ohne Auswahl als leiser Tipp, gleiche Höhe): vorher kam sie mit dem
+    // ersten Häkchen dazu, die Liste rutschte nach unten, und der nächste Klick traf die falsche Tour
+    if (!n) return `<div class="lz-leiste ist-leer" id="lz-leiste-leer"><span class="lz-leiste-tipp muted">${SI("square-check", 14)} ${esc(T("library.zeilen_tipp", "Häkchen setzen, um mehrere Touren gemeinsam zu bearbeiten."))}</span></div>`;
     return `<div class="lz-leiste" id="lz-leiste">
         <button type="button" class="lz-check an" id="lz-alle-weg" title="${esc(T("library.clear_sel", "Auswahl aufheben"))}">${SI("check", 12)}</button>
         <span class="lz-leiste-zahl">${esc(T("library.zeilen_auswahl", "{n} von {m} ausgewählt").replace("{n}", num(n)).replace("{m}", num(_total || _items.length)))}</span>

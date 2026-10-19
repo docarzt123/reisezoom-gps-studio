@@ -2210,6 +2210,7 @@
   "library.zeile_medien_tip": "Fotos und Clips dieser Tour",
   "library.zeile_mehr_tip": "Weitere Aktionen",
   "library.zeilen_auswahl": "{n} von {m} ausgewählt",
+  "library.zeilen_tipp": "Häkchen setzen, um mehrere Touren gemeinsam zu bearbeiten.",
   "library.zeilen_tags": "Schlagwörter …",
   "library.zeilen_sammlung": "Zu Sammlung …",
   "library.zeilen_quelle": "Kartenbilder: © OpenStreetMap-Mitwirkende · OpenFreeMap",
