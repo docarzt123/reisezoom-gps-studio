@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 19 Oct 2026 05:25:39 +0000</lastBuildDate>
+<lastBuildDate>Mon, 19 Oct 2026 19:34:36 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.799</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-799</link>
+<guid isPermaLink="false">gps-studio-v0.9.799</guid>
+<pubDate>Mon, 19 Oct 2026 12:00:00 +0000</pubDate>
+<description>Laufpunkt nach Aktivität — Neuer Schalter beim Laufpunkt: Das Symbol wechselt mit dem Logbuch — Auto oder Motorrad auf der Fahrt, Boot auf der Fähre, Wanderer zu Fuß, Fahrrad auf dem Rad.
+
+Farbe nach Tempo — „Auto“ verteilt die Farben über den typischen Bereich deiner Tour, einzelne GPS-Ausreißer färben nicht mehr alles ein. Neu: Vorgabe „Ampel“ und ein Knopf direkt bei „Aussehen der Linie“. Ideen von @kaennchenstruggle, danke!
+
+Aufnahmezeit vieler Fotos ändern — Kamera stand auf dem falschen Jahr? Fotos markieren, „Aufnahmezeit ändern …“, z. B. 10 Jahre früher — mit Vorschau und Sicherung der Originale.
+
+Richtiger Tag im Archiv — Eine Tour zählt für den Tag, an dem sie vor Ort begonnen hat — wer nach Mitternacht losfährt, landet nicht mehr am Vortag.</description>
+</item>
 <item>
 <title>v0.9.798</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-798</link>
@@ -243,19 +256,6 @@ Gipfelhöhe — unter Gipfelfotos steht jetzt auch die Höhe („🌋 Teide · 3
 3D-Häuser — unter Karte einschalten: Gebäude aus OpenStreetMap stehen als Klötze in echter Größe auf der Karte, auch im Video.
 
 Häuser in Dachfarbe — auf Luftbild-Karten bekommen die 3D-Häuser die Farbe ihres Dachs aus dem Luftbild.</description>
-</item>
-<item>
-<title>v0.9.778</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-778</link>
-<guid isPermaLink="false">gps-studio-v0.9.778</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Musik und Ton — ein eigenes Stück der App („Unterwegs“, endlos und frei nutzbar) oder deine eigene Musik unter dem Video, sanft ein- und ausgeblendet, dazu ein Kamera-Klick bei jedem Fotostopp. Im Animator mit eigener Ton-Spur in der Zeitleiste, beim Abspielen schon zu hören.
-
-Videoclips — kurze Clips deiner Kamera erscheinen wie Fotostopps an der Stelle, wo sie entstanden sind, und laufen dort ab — auf Wunsch mit Originalton.
-
-Übersichtskarte im Video — die ganze Runde klein in der Ecke, der gefahrene Teil wächst mit.
-
-Schnell-Video mit „Mehr“ — oben bleibt alles schnell, unter „Mehr“ wählst du die Zutaten: Fotos, Videoclips, Logbuch (Pausen als Bildunterschrift oder kleines Schild), Musik, Übersichtskarte, Schlusskarte.</description>
 </item>
 </channel>
 </rss>
