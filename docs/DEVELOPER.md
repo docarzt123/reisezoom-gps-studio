@@ -8159,6 +8159,12 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
   bekommt der Wrapper `.ist-markiert` (Polster unten), damit die letzte Reihe nicht verdeckt wird. Archiv-Zeilen:
   die Leiste steht immer (`#lz-leiste-leer` mit Hinweis), gleiche Höhe (56 px). Tests `test_aufnahmezeit_mehrere_ui`,
   `test_archiv_filter_bibliothek`.
+- **Inspektor mit sehr langen Tracks:** `_punktFormAnwenden()` setzt ab `PFEIL_MAX` (20 000) Punkten Zoom-Bereiche —
+  `gpxi-pts-lyr` (Kreise) bis `PFEIL_ZOOM` (14), `gpxi-pts-arrow` (Pfeil-Symbole) ab 14. Grund: MapLibres
+  `CrossTileSymbolIndex.findMatches` wird bei vielen Symbolen in wenigen Kacheln quadratisch (200 000 Punkte:
+  Chromium/WebView2 65 s Blockade). Läuft auch nach jedem Kartenstil-Wechsel (Ebenen neu). Prüfstand
+  `window.__rzInspektorPunktForm()`. Rest: `gpxinspect_load` liefert ~100 Byte/Punkt (Objekte mit Feldnamen).
+  Test `test_inspektor_pfeile_gross`.
 - **Einblendungs-Liste:** `.ct-bereich > .ct-liste` nimmt die Breite des Bereichs (`flex: 1 1 100%; min-width: 0`) —
   in der umbrechenden `.overlay-group` war sie sonst so breit wie ihr Inhalt. Test `test_einblendungen_breite`.
 - Kleinere: Exportnamen `rzExportDialog.stammSauber()` (50 Zeichen an Wortgrenze), Vorlage „Schnell 720p“ mit

@@ -586,6 +586,7 @@ function mountGpxInspect(body, headerActions) {
           paint: { "circle-radius": 11, "circle-color": ["coalesce", ["get", "c"], "#c084fc"], "circle-opacity": 0.35,
                    "circle-stroke-width": 3, "circle-stroke-color": ["coalesce", ["get", "c"], "#c084fc"] } });
       } catch (e) { applog && applog("warn", "[gpxinspect] layer add: " + e); }
+      try { _punktFormAnwenden(); } catch (_) {}   // Zoom-Schwelle der Pfeile auch nach neuem Kartenstil
       // v0.9.291 — Terrain-DEM für die Höhenkorrektur (queryTerrainElevation).
       // 03.09.2026: hängt createMap() aus dem Stil an (Mapbox-DEM / MapTiler /
       // AWS terrarium) — für jede Quelle, nicht mehr nur mit Mapbox-Token.
@@ -1196,15 +1197,30 @@ function mountGpxInspect(body, headerActions) {
     try { return !!(map && map.hasImage && map.hasImage("gpxi-arrow")); }
     catch (_) { return false; }
   }
+  // 19.10.2026 (Audit, sehr lange Tour) — 200 000 Punkte als Pfeil-Symbole: MapLibre gleicht Symbole zwischen den
+  // Kacheln ab (CrossTileSymbolIndex), weit herausgezoomt liegen alle in wenigen Kacheln → die Oberfläche hing 4 s
+  // (WebKit) bis 60 s (Chromium). Ab PFEIL_MAX Punkten: herausgezoomt die Kreise, Pfeile erst ab PFEIL_ZOOM — dort
+  // stehen nur die Punkte der sichtbaren Kacheln. Kleinere Tracks wie bisher: Pfeile auf jeder Zoomstufe.
+  const PFEIL_MAX = 20000, PFEIL_ZOOM = 14;
   function _punktFormAnwenden() {
     const pfeile = _pfeilModus();
+    const viele = pfeile && _points.length > PFEIL_MAX;
     try {
-      if (map.getLayer("gpxi-pts-lyr"))
-        map.setLayoutProperty("gpxi-pts-lyr", "visibility", pfeile ? "none" : "visible");
-      if (map.getLayer("gpxi-pts-arrow"))
+      if (map.getLayer("gpxi-pts-lyr")) {
+        map.setLayoutProperty("gpxi-pts-lyr", "visibility", (pfeile && !viele) ? "none" : "visible");
+        map.setLayerZoomRange("gpxi-pts-lyr", 0, viele ? PFEIL_ZOOM : 24);
+      }
+      if (map.getLayer("gpxi-pts-arrow")) {
         map.setLayoutProperty("gpxi-pts-arrow", "visibility", pfeile ? "visible" : "none");
+        map.setLayerZoomRange("gpxi-pts-arrow", viele ? PFEIL_ZOOM : 0, 24);
+      }
     } catch (_) {}
   }
+  window.__rzInspektorPunktForm = () => {   // Prüfstand
+    const z = (id) => { const l = map && map.getLayer(id); return l ? { min: l.minzoom ?? 0, max: l.maxzoom ?? 24,
+      sicht: map.getLayoutProperty(id, "visibility") || "visible" } : null; };
+    return { n: _points.length, kreise: z("gpxi-pts-lyr"), pfeile: z("gpxi-pts-arrow") };
+  };
 
   function renderPoints() {
     if (!map || !map.getSource("gpxi-pts")) return;
