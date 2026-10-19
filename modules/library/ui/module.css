@@ -1051,7 +1051,7 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
    Bewusst dieselben Bausteine wie die Touren-Ansicht (.lib-bar, .lib-head,
    .lib-nav-item), damit es nicht wie ein fremdes Programm wirkt.
    ────────────────────────────────────────────────────────────────────────── */
-.lib-fotowrap { display: flex; flex-direction: column; overflow: hidden; }
+.lib-fotowrap { display: flex; flex-direction: column; overflow: hidden; position: relative; }
 .foto-body { flex: 1; min-height: 0; overflow: auto; padding: 0 10px 16px; }
 
 .foto-tag { margin-top: 14px; }
@@ -1099,10 +1099,14 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .foto-kachel:hover .foto-kachel-check, .hat-markierung .foto-kachel-check, .foto-kachel.is-markiert .foto-kachel-check { opacity: 1; }
 .foto-kachel.is-markiert .foto-kachel-check { background: var(--accent); border-color: var(--accent); }
 .foto-kachel.is-markiert .foto-kachel-check::after { content: "✓"; color: var(--bg-0, #151b22); font-size: 13px; font-weight: 700; position: absolute; left: 3px; top: -1px; }
+/* 19.10.2026 (Audit) — schwebend unten über dem Raster: vorher schob die (oft zweizeilige) Leiste beim ersten Häkchen
+   das ganze Raster ~90 px nach unten, der nächste Klick traf das falsche Foto. Das Raster bekommt unten Luft (.ist-markiert). */
 .foto-markleiste {
-  align-items: center; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; display: flex;
-  flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding: 6px 10px; position: sticky; top: 0; z-index: 3;
+  align-items: center; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; display: flex;
+  flex-wrap: wrap; gap: 6px; padding: 6px 10px; position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 6;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .45);
 }
+.lib-fotowrap.ist-markiert .foto-body { padding-bottom: 120px; }
 .fml-zahl { font-weight: 600; margin-right: 6px; }
 .fml-luft { flex: 1; }
 .foto-kachel:hover { border-color: var(--accent); }

@@ -1647,13 +1647,13 @@
     let l = haupt.querySelector("#foto-markleiste");
     const sichtbar = new Set(geladen.map(x => x.path));
     const pfade = [...markiert].filter(p => sichtbar.has(p));
-    if (!pfade.length) { if (l) l.remove(); return; }
+    if (!pfade.length) { if (l) l.remove(); haupt.classList.remove("ist-markiert"); return; }
     if (!l) {
       l = document.createElement("div");
       l.id = "foto-markleiste"; l.className = "foto-markleiste";
-      const kopf = haupt.querySelector("#foto-kopf");
-      if (kopf && kopf.nextSibling) kopf.parentNode.insertBefore(l, kopf.nextSibling); else haupt.prepend(l);
+      haupt.appendChild(l);   // 19.10.2026 — schwebt unten (CSS), verschiebt das Raster nicht mehr
     }
+    haupt.classList.add("ist-markiert");
     const n = pfade.length;
     l.innerHTML = `<span class="fml-zahl">${esc(T("fotos.markiert_n", "{n} ausgewählt").replace("{n}", num(n)))}</span>
       <button type="button" class="btn btn-sm" data-ml="export">${I("share", 14)} ${esc(T("export.medien_eins", "Exportieren …"))}</button>
