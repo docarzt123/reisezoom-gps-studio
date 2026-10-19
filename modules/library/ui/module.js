@@ -5241,22 +5241,28 @@ function mountLibrary(body, headerActions) {
     } catch (_) {}
   }
 
-  function foldersModalHtml() {
-    const list = _folders.length
+  /** 19.10.2026 (Audit) — eigene Funktion: nach dem Einlesen wird nur die Liste neu gezeichnet (Anzahl je Ordner),
+   *  Fortschritt/Ergebnis darunter bleiben stehen. Vorher stand nach „10 neu“ weiter „0“ am Ordner. */
+  function ordnerListeHtml() {
+    return _folders.length
       ? _folders.map(f => `
           <div class="lib-folder${f.exists ? "" : " is-missing"}" title="${esc(f.path)}">
             <span class="lib-folder-name">${esc(f.path)}</span>
             <span class="lib-folder-n">${f.n_tracks}</span>
-            <button class="lib-folder-rescan" data-folder="${esc(f.path)}" title="${esc(T("library.rescan_folder", "Nur diesen Ordner neu einlesen"))}">🔄</button>
-            <button class="lib-folder-x" data-folder="${esc(f.path)}" title="${esc(T("library.remove_folder", "Ordner nicht mehr beobachten"))}">✕</button>
+            <button class="lib-folder-rescan" data-folder="${esc(f.path)}" title="${esc(T("library.rescan_folder", "Nur diesen Ordner neu einlesen"))}">${SI("refresh-cw", 14)}</button>
+            <button class="lib-folder-x" data-folder="${esc(f.path)}" title="${esc(T("library.remove_folder", "Ordner nicht mehr beobachten"))}">${SI("x", 14)}</button>
           </div>`).join("")
       : `<div class="lib-empty-hint">${T("library.no_folders", "Noch kein Ordner. Füge den Ordner hinzu, in dem deine GPX-Dateien liegen.")}</div>`;
+  }
+
+  function foldersModalHtml() {
+    const list = ordnerListeHtml();
     return `
       <div class="lib-fmodal">
         <div class="lib-folders">${list}</div>
         <div class="lib-actions" style="margin-top:10px;">
-          <button class="btn btn-primary btn-sm" id="lib-add-folder">📂 ${T("library.add_folder", "+ Ordner hinzufügen")}</button>
-          <button class="btn btn-sm" id="lib-import-file">📄 ${T("library.import_file", "+ Einzelne Track-Datei …")}</button>
+          <button class="btn btn-primary btn-sm" id="lib-add-folder">${SI("folder-plus", 14)} ${T("library.add_folder", "+ Ordner hinzufügen")}</button>
+          <button class="btn btn-sm" id="lib-import-file">${SI("file-text", 14)} ${T("library.import_file", "+ Einzelne Track-Datei …")}</button>
           <button class="btn btn-ghost btn-sm" id="lib-scan">${T("library.scan", "Neu einlesen")}</button>
           <button class="btn btn-ghost btn-sm" id="lib-scan-stop" hidden>${T("library.scan_stop", "Anhalten")}</button>
         </div>
@@ -5636,6 +5642,9 @@ function mountLibrary(body, headerActions) {
           } else info.innerHTML = "";
         }
         await reloadFolders();
+        // 19.10.2026 (Audit) — offener Dialog: Anzahl je Ordner nachziehen (Knöpfe neu binden)
+        const liste = document.querySelector("#modal-body .lib-folders");
+        if (_foldersModal && liste) { liste.innerHTML = ordnerListeHtml(); bindFoldersModal(); }
         if (_importZeigen) await importErgebnisZeigen();
         else await reload();
       }
