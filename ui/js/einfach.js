@@ -74,13 +74,30 @@
     return ev;
   }
   /** Kamera-Vorgaben: Fest · Folgen · Kamerafahrt (wie im Schnell-Video, als bearbeitbare Keyframes). */
-  function kameraSetzen(art) {
-    if (art === "fest") { feld("anim-kf-enabled", false); feld("anim-camera-follow", false); return; }
-    if (art === "folgen") { feld("anim-kf-enabled", false); feld("anim-camera-follow", true); return; }
+  function kameraSetzen(art, opt) {
+    if (art === "fest" || art === "folgen") {
+      // 19.10.2026 (Klicktest) — ein Klick des Nutzers = EIN ⌘Z-Schritt. Über zwei Felder nacheinander lagen zwei Schritte
+      // auf dem Stapel, das erste ⌘Z nach „Folgen“ landete im nie gesehenen Zwischenstand „Fest, Editor aus“.
+      // Nur für Klicks (opt.einSchritt): interne Aufrufer setzen mitten in einem größeren Ablauf und nutzen weiter die Felder.
+      const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
+      const a = opt && opt.einSchritt && window.rzReadModuleSettings && window.rzReadModuleSettings("animator");
+      if (a && ctrl && typeof ctrl.applyState === "function") {
+        ctrl.applyState(Object.assign({}, a, { keyframes_enabled: false, camera_follow_track: art === "folgen" }),
+          art === "folgen" ? T("einfach.k_folgen", "Folgen") : T("einfach.k_fest", "Fest"));
+        return;
+      }
+      feld("anim-kf-enabled", false); feld("anim-camera-follow", art === "folgen"); return;
+    }
     // Kamerafahrt: Überblick → Flug entlang der Strecke → Schlussblick (ein Undo-Schritt über den Animator)
     try {
       const ctrl = window.__rzUndoControllers && window.__rzUndoControllers.animator;
       const a = (window.rzReadModuleSettings && window.rzReadModuleSettings("animator")) || {};
+      // 19.10.2026 — „Fest“/„Folgen“ lassen die Keyframes ruhen (Editor aus). Kommt danach dieselbe Art wieder, gilt die
+      // vorhandene Fahrt wieder — exakt, nicht neu erzeugt (vorher ersetzte aus → an eine eigene oder aus Schnell-Video/
+      // Assistent übernommene Fahrt ohne Frage). Eine andere Art (Kamerafahrt ↔ Start → Ziel) erzeugt wie bisher neu.
+      const ruhend = !($("anim-kf-enabled") || {}).checked && typeof window.rzEigeneKeyframesGespeichert === "function"
+        && window.rzEigeneKeyframesGespeichert();
+      if (ruhend && (art === "startziel") === (a.kamera_vorgabe === "startziel")) { feld("anim-kf-enabled", true); return; }
       const bbox = window.__rzEinfachBbox ? window.__rzEinfachBbox() : null;
       if (art === "startziel") {
         const sz = window.__rzStartZiel ? window.__rzStartZiel() : null;
@@ -197,7 +214,7 @@
         const g = k.closest("[data-ef-gruppe]").dataset.efGruppe, v = k.dataset.efWert;
         if (g === "dauer") feld("anim-dur", v);
         if (g === "format") formatSetzen(v);
-        if (g === "kamera") kameraSetzen(v);
+        if (g === "kamera") kameraSetzen(v, { einSchritt: true });
         setTimeout(zeichnen, 80); return;
       }
       const tat = e.target.closest("[data-ef-tat]"); if (!tat) return;

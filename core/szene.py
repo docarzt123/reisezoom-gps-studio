@@ -247,6 +247,21 @@ _DEM_NACHLADEN_JS = """async (maxRunden) => {
 }"""
 
 
+async def _gelaende_nachladen(page, max_runden: int = 2, melden=None, is_cancelled=None) -> dict:
+    """19.10.2026 — EIN Aufruf für Video, Standbild und Einzelbild (WYSIWYG): fehlerhafte DEM-Kacheln neu laden und auf
+    langsame warten (s. _DEM_NACHLADEN_JS, dort auch die Grenzen je Kachel/Render). `melden` = Fortschrittsmeldung bei
+    langem Warten (nur im Video)."""
+    aw = page.evaluate(_DEM_NACHLADEN_JS, max_runden)
+    return (await (_mit_meldung(aw, melden, is_cancelled) if melden else aw)) or {}
+
+
+def _gelaende_warnen(wo: str, dem: dict) -> None:
+    if dem and (dem.get("errored") or dem.get("loading")):
+        _log.warning("Szene %s: Geländekacheln unvollständig (fehlerhaft %d, ladend %d, Runden gesamt %d) — "
+                     "Bild wird mit dem vorhandenen Stand aufgenommen", wo, dem.get("errored", 0), dem.get("loading", 0),
+                     dem.get("gesamt", 0))
+
+
 async def _mit_meldung(aw, melden, is_cancelled=None, ab_s: float = 1.0):
     """02.10.2026 (Marc: „an manchen Frames steht er so lang, dass man fast denkt, er wäre abgestürzt") — einen
     Schritt eines Bildes abwarten und, solange er länger als `ab_s` dauert, jede Sekunde `melden(sekunden)` rufen.
@@ -384,6 +399,8 @@ def _warte_grund(b) -> str:
         return _i18n.t_aktiv("szene.g_modal", "Lade-Fenster offen")
     if b.get("route") is False:
         return _i18n.t_aktiv("szene.g_route", "Routen-GPX lädt")
+    if b.get("lb") is False:   # 19.10.2026 — Laufpunkt „Symbol nach Aktivität“ wartet auf das Logbuch
+        return _i18n.t_aktiv("szene.g_logbuch", "Logbuch wird gelesen")
     if not b.get("tiles"):
         return _i18n.t_aktiv("szene.g_kacheln", "Kartenkacheln laden")
     if b.get("fitBase") is None:
@@ -550,7 +567,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && b.fzBilder !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && b.fzBilder !== false && b.lb !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
     aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")
@@ -848,13 +865,12 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                         _haenger += 1
                     # 17.10.2026 — fehlende Gelände-Kacheln nachladen, bevor das Bild gegriffen wird (s. _DEM_NACHLADEN_JS)
                     _t = time.perf_counter()
-                    _dem = await _mit_meldung(page.evaluate(_DEM_NACHLADEN_JS, 2),
-                                              _meldung("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s"), is_cancelled)
+                    _dem = await _gelaende_nachladen(page, 2, _meldung("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s"),
+                                                     is_cancelled)
                     _z["warten"] += time.perf_counter() - _t
-                    if _dem and (_dem["errored"] or _dem["loading"]) and not _dem_warnt:
+                    if _dem and (_dem.get("errored") or _dem.get("loading")) and not _dem_warnt:
                         _dem_warnt = True
-                        _log.warning("Szene Frame %d: Geländekacheln unvollständig (fehlerhaft %d, ladend %d, Runden gesamt %d) — "
-                                     "Bild wird mit dem vorhandenen Stand aufgenommen", frame + 1, _dem["errored"], _dem["loading"], _dem["gesamt"])
+                        _gelaende_warnen(f"Frame {frame + 1}", _dem)
                     if _SEEK2:
                         # 07.09.2026 — mit Gelände bezieht MapLibre die Kamerahöhe auf die Bodenhöhe im
                         # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht
@@ -958,10 +974,14 @@ async def render_szene_still(cfg, *, api, projekt_id: str, params: Optional[dict
         try:
             emit(0.6, _i18n.t_aktiv("szene.standbild", "Szene: Standbild …"))
             # Kacheln/Gelände/Schilder nachladen lassen, dann zweimal ruhig abwarten (Kamerahöhe mit Gelände)
+            # 19.10.2026 — wie im Video: fehlerhafte Geländekacheln je Durchgang nachladen (sonst flaches Gelände/Keil)
+            _dem: dict = {}
             for _k in range(2):
                 await page.evaluate(_WARTE_BILD_JS)
+                _dem = await _gelaende_nachladen(page, 2)
                 await page.wait_for_timeout(400)
             await page.evaluate(_WARTE_BILD_JS)
+            _gelaende_warnen("Standbild", _dem)
             alt = cfg.frame_format
             try:
                 cfg.frame_format = "png"
@@ -998,10 +1018,15 @@ async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params:
             # MapLibre bezieht die Kamerahöhe mit Gelände auf die Bodenhöhe im Mittelpunkt —
             # erst der zweite Sprung nach dem Laden steht exakt wie das Video (das Bild für
             # Bild springt). Gemessen 06.09.2026: sonst ~1 % Bildhöhe Versatz (Teide, Lofoten).
+            # 19.10.2026 — je Sprung wie im Video fehlerhafte Geländekacheln nachladen; der zweite Sprung steht dann auf
+            # den vollständigen Höhen
+            _dem: dict = {}
             for _k in range(2):
                 await page.evaluate(f"() => window.__rzPreviewStep.seek({float(t_sek):.6f})")
                 await page.evaluate(_WARTE_BILD_JS)
+                _dem = await _gelaende_nachladen(page, 2)
                 await page.wait_for_timeout(300)
+            _gelaende_warnen(f"Einzelbild t={float(t_sek):.2f}s", _dem)
             # 07.09.2026 — Globus-Fehlerkorrektur (Vendor-Patch globeerr) gleicht sich auf der
             # Video-Uhr an; ein Einzelbild hat keine Vorgeschichte, also die Uhr eine Sekunde
             # vorstellen und neu zeichnen, damit die Korrektur wie im laufenden Video ankommt.

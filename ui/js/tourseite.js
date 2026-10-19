@@ -48,8 +48,27 @@
       return d.toLocaleDateString(sprache(), { weekday: "short", day: "numeric", month: "long", year: "numeric" });
     } catch (_) { return String(iso).slice(0, 10); }
   }
-  function _uhr(iso) {
+  function _uhr(iso, tz) {
+    if (typeof tourUhrzeitJS === "function") return tourUhrzeitJS(iso, tz, sprache());
     try { return new Date(iso).toLocaleTimeString(sprache(), { hour: "2-digit", minute: "2-digit" }); } catch (_) { return ""; }
+  }
+  // 19.10.2026 — Datum einer Tour in der Ortszeit ihres Startpunkts (`tag_lokal`), wie Archiv und Datumsbaum;
+  // ohne den Archiv-Tag wie bisher aus `started_at`.
+  function _datumTour(tr) {
+    if (!tr) return "";
+    if (typeof tourDatumJS === "function" && tr.tag_lokal) {
+      return tourDatumJS(tr, { weekday: "short", day: "numeric", month: "long", year: "numeric" }, sprache());
+    }
+    return _datum(tr.started_at);
+  }
+  /** Ende einer Tour als Datum (Ortszeit über den Versatz am Start). */
+  function _datumEnde(tr) {
+    if (!tr || !tr.ended_at) return "";
+    const ms = Date.parse(tr.ended_at);
+    if (typeof tr.tz_minuten === "number" && isFinite(ms)) {
+      return _datumTour({ tag_lokal: new Date(ms + tr.tz_minuten * 60000).toISOString().slice(0, 10) });
+    }
+    return _datum(tr.ended_at);
   }
   function _dauer(s) {
     s = Math.max(0, Math.round(+s || 0));
@@ -142,22 +161,29 @@
   }
 
   function _name(tr) { return tr.display_name || tr.name || tr.filename || ""; }
+  /** 19.10.2026 — [erster Tag, letzter Tag] einer Reise in Ortszeit (erste Tour Start, letzte Tour Ende). */
+  function _reiseSpanne(d) {
+    const t = (d.touren || []).map(x => x.tour).filter(Boolean);
+    if (!t.length) return [d.von ? _datum(d.von) : "", d.bis ? _datum(d.bis) : ""];
+    return [_datumTour(t[0]), _datumEnde(t[t.length - 1]) || _datumTour(t[t.length - 1])];
+  }
 
   function _kopfZeichnen() {
     const d = Z.daten, tr = d.tour;
     if (Z.tour.reise) {
       Z.seite.querySelector(".ts-titel").innerHTML = I("compass", 18) + " " + esc(d.name || Z.tour.name || "");
-      Z.seite.querySelector(".ts-unter").textContent = [d.von ? _datum(d.von) : "", d.bis && d.bis.slice(0, 10) !== String(d.von || "").slice(0, 10) ? "– " + _datum(d.bis) : ""].filter(Boolean).join(" ");
+      const _r = _reiseSpanne(d);
+      Z.seite.querySelector(".ts-unter").textContent = [_r[0], _r[1] && _r[1] !== _r[0] ? "– " + _r[1] : ""].filter(Boolean).join(" ");
       Z.seite.querySelector(".ts-zahlen").innerHTML = `${I("route", 13)} ${(d.touren || []).length} · ${I("camera", 13)} ${d.n_foto || 0} · ${I("clapperboard", 13)} ${d.n_video || 0}`;
       return;
     }
     Z.seite.querySelector(".ts-titel").textContent = _name(tr) || Z.tour.name || "";
-    Z.seite.querySelector(".ts-unter").textContent = [_datum(tr.started_at), [tr.place, tr.region, tr.country].filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+    Z.seite.querySelector(".ts-unter").textContent = [_datumTour(tr), [tr.place, tr.region, tr.country].filter(Boolean).join(", ")].filter(Boolean).join(" · ");
     Z.seite.querySelector(".ts-zahlen").innerHTML = `${I("camera", 13)} ${d.n_foto || 0} · ${I("clapperboard", 13)} ${d.n_video || 0}`;
   }
 
   function _linksZeichnenReise() {
-    const d = Z.daten;
+    const d = Z.daten, rs = _reiseSpanne(d);
     const werte = [
       [T("tourseite.w_distanz", "Distanz"), d.distance_m ? _zahl(d.distance_m / 1000, 1) + " km" : ""],
       [T("tourseite.w_dauer", "Dauer"), d.duration_s ? _dauer(d.duration_s) : ""],
@@ -166,12 +192,12 @@
     ].filter(x => x[1]);
     Z.links.innerHTML = `
       <div class="ts-l-name">${I("compass", 16)} ${esc(d.name || Z.tour.name || "")}</div>
-      <div class="ts-l-zeile">${I("calendar", 13)} ${esc(d.von ? _datum(d.von) : "")}${d.bis ? " – " + esc(_datum(d.bis)) : ""}</div>
+      <div class="ts-l-zeile">${I("calendar", 13)} ${esc(rs[0])}${rs[1] && rs[1] !== rs[0] ? " – " + esc(rs[1]) : ""}</div>
       ${werte.length ? `<div class="ts-werte">${werte.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>` : ""}
       <div class="ts-reise-touren">${(d.touren || []).map((x, i) => `<button type="button" class="ts-reise-tour" data-i="${i}">
           <span class="ts-reise-farbe" style="background:${FARBEN[i % FARBEN.length]}"></span>
           <span class="ts-reise-name">${esc(x.tour.display_name || x.tour.name || x.tour.filename || "")}</span>
-          <small>${esc(_datum(x.tour.started_at).replace(/^\w+\.?,?\s*/, ""))}${x.tour.distance_m ? " · " + _zahl(x.tour.distance_m / 1000, 1) + " km" : ""}${(x.n_foto || x.n_video) ? " · " + I("camera", 12) + " " + (x.n_foto + x.n_video) : ""}</small></button>`).join("")}</div>
+          <small>${esc(_datumTour(x.tour).replace(/^\w+\.?,?\s*/, ""))}${x.tour.distance_m ? " · " + _zahl(x.tour.distance_m / 1000, 1) + " km" : ""}${(x.n_foto || x.n_video) ? " · " + I("camera", 12) + " " + (x.n_foto + x.n_video) : ""}</small></button>`).join("")}</div>
       <div class="ts-aktionen">
         <button type="button" class="btn btn-primary btn-sm" id="ts-video">${I("clapperboard")} ${esc(T("reise.video", "Reise-Video …"))}</button>
         <button type="button" class="btn btn-sm" id="ts-export">${I("share")} ${esc(T("tourseite.export", "Exportieren …"))}</button>
@@ -204,10 +230,10 @@
       [T("tourseite.w_aufstieg", "Aufstieg"), tr.ascent_m ? "↑ " + _zahl(tr.ascent_m) + " m" : ""],
       [T("tourseite.w_hoechster", "Höchster Punkt"), tr.ele_max != null ? _zahl(tr.ele_max) + " m" : ""],
     ].filter(x => x[1]);
-    const zeit = tr.started_at ? `${_uhr(tr.started_at)}${tr.ended_at ? "–" + _uhr(tr.ended_at) : ""}` : "";
+    const zeit = tr.started_at ? `${_uhr(tr.started_at, tr.tz_minuten)}${tr.ended_at ? "–" + _uhr(tr.ended_at, tr.tz_minuten) : ""}` : "";
     Z.links.innerHTML = `
       <div class="ts-l-name">${esc(_name(tr))}</div>
-      <div class="ts-l-zeile">${I("calendar", 13)} ${esc(_datum(tr.started_at))}${zeit ? ` · ${esc(zeit)}` : ""}</div>
+      <div class="ts-l-zeile">${I("calendar", 13)} ${esc(_datumTour(tr))}${zeit ? ` · ${esc(zeit)}` : ""}</div>
       ${tr.place || tr.region || tr.country ? `<div class="ts-l-zeile">${I("map-pin", 13)} ${esc([tr.place, tr.region, tr.country].filter(Boolean).join(", "))}</div>` : ""}
       ${werte.length ? `<div class="ts-werte">${werte.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>` : ""}
       ${_profilSvg(d.profil)}

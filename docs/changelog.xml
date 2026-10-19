@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 18 Oct 2026 16:41:15 +0000</lastBuildDate>
+<lastBuildDate>Mon, 19 Oct 2026 05:25:39 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.798</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-798</link>
+<guid isPermaLink="false">gps-studio-v0.9.798</guid>
+<pubDate>Mon, 19 Oct 2026 12:00:00 +0000</pubDate>
+<description>Genauere Linie bei langen Touren — Die Linie folgt deinem GPX mit einem Punkt alle 10 m statt mit höchstens 800 Punkten — Kehren und Pässe bleiben auf der Straße. Tempo, Steigung und Strecke kommen immer aus allen Punkten, keine 190 km/h mehr in der Kehre.
+
+Orte und Pässe entlang der Strecke — Neue Option im Highlights-Fenster: alle Orte, durch die du fährst, und alle Pässe als kleine Stecknadeln — ideal für Motorradtouren.
+
+Versionen für Höhe und Zeit — Nur die Höhe korrigiert oder Zeiten repariert? Das wird jetzt eine eigene Version, zu der du zurückkannst.
+
+Dashcam-GPS — GPS-Dateien von Dashcams (.dat, z. B. Vantrue) werden gelesen.</description>
+</item>
 <item>
 <title>v0.9.797</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-797</link>
@@ -243,13 +256,6 @@ Videoclips — kurze Clips deiner Kamera erscheinen wie Fotostopps an der Stelle
 Übersichtskarte im Video — die ganze Runde klein in der Ecke, der gefahrene Teil wächst mit.
 
 Schnell-Video mit „Mehr“ — oben bleibt alles schnell, unter „Mehr“ wählst du die Zutaten: Fotos, Videoclips, Logbuch (Pausen als Bildunterschrift oder kleines Schild), Musik, Übersichtskarte, Schlusskarte.</description>
-</item>
-<item>
-<title>v0.9.777</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-777</link>
-<guid isPermaLink="false">gps-studio-v0.9.777</guid>
-<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
-<description>Abspielleiste ganz unten — die Steuerleiste sitzt jetzt in der Knopfzeile unter der Zeitleiste, der Abspielknopf genau in der Mitte. Die Vorschau bleibt oben frei.</description>
 </item>
 </channel>
 </rss>

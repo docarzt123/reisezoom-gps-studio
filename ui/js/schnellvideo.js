@@ -119,16 +119,23 @@
     if (!v || !v.start_epoch) return "";
     try {
       const lang = (window.rzSprachCode ? window.rzSprachCode() : "de") || "de";
-      const a = new Date(v.start_epoch * 1000), voll = { day: "numeric", month: "long", year: "numeric" };
+      // 19.10.2026 — in der Ortszeit der Tour (`versatz_min` vom Backend), sonst in der dieses Rechners: eine Tour,
+      // die um 00:44 Uhr in Norwegen begann, trug am Mac in New York sonst den Vortag im Titel
+      const ort = typeof v.versatz_min === "number" && isFinite(v.versatz_min);
+      const zeit = (ep) => new Date((ep + (ort ? v.versatz_min * 60 : 0)) * 1000);
+      const z = ort ? { timeZone: "UTC" } : {};
+      const a = zeit(v.start_epoch), voll = Object.assign({ day: "numeric", month: "long", year: "numeric" }, z);
       // 11.10.2026 (Testvideo Schottland) — Reisen über mehrere Tage: „5. Juli – 9. August 2026“
       if (v.end_epoch && v.end_epoch - v.start_epoch > 36 * 3600) {
-        const e = new Date(v.end_epoch * 1000);
-        if (a.getFullYear() === e.getFullYear()) return a.toLocaleDateString(lang, { day: "numeric", month: "long" }) + " – " + e.toLocaleDateString(lang, voll);
+        const e = zeit(v.end_epoch);
+        const jahrA = ort ? a.getUTCFullYear() : a.getFullYear(), jahrE = ort ? e.getUTCFullYear() : e.getFullYear();
+        if (jahrA === jahrE) return a.toLocaleDateString(lang, Object.assign({ day: "numeric", month: "long" }, z)) + " – " + e.toLocaleDateString(lang, voll);
         return a.toLocaleDateString(lang, voll) + " – " + e.toLocaleDateString(lang, voll);
       }
       return a.toLocaleDateString(lang, voll);
     } catch (_) { return ""; }
   }
+  window.__rzSchnellDatumText = datumText;   // Prüfstand (19.10.2026)
   /** 11.10.2026 (Testvideo Schottland: „Norderstedt · Ludgershall · Dalnaspidal · … , Schleswig-Holstein · England · Schottland“)
    *  — Ort für die Unterzeile: kurz lassen, sonst die Gegend (nach dem Komma), höchstens die letzten zwei Teile. */
   function ortKurz(ort) {

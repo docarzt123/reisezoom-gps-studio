@@ -349,6 +349,129 @@
     };
   }
 
+  /* 19.10.2026 — „Aufnahmezeit ändern …“ für viele Dateien (Nutzer: 66 Dateien mit Kameradatum 2036; bisher ging das nur
+     einzeln im EXIF-Editor). Wie Lightroom „Aufnahmezeit bearbeiten“: um eine Zeitspanne verschieben oder auf ein festes
+     Datum setzen (die früheste Datei bekommt es, die anderen rücken mit). Vorschau alt → neu, dann im Hintergrund mit
+     Fortschritt und Abbrechen; vorher eine Sicherung aller Originale (Backend: fotos_zeit_*, core/aufnahmezeit). */
+  function zeitAendern(pfade, fertig) {
+    pfade = (pfade || []).filter(Boolean);
+    if (!pfade.length || typeof openModal !== "function") return;
+    const n = pfade.length;
+    const zahl = (id, label) => `<label class="za-zahl"><input type="number" id="${id}" class="lib-input" min="0" step="1" value="0"> <span>${esc(label)}</span></label>`;
+    const m = openModal({
+      title: n === 1 ? T("zeitaendern.titel_1", "Aufnahmezeit ändern") : T("zeitaendern.titel_n", "Aufnahmezeit von {n} Dateien ändern", { n: num(n) }),
+      body: `<div class="ex-dialog za-dialog">
+          <label class="ex-zeile"><input type="radio" name="za-art" value="versatz" checked> ${esc(T("zeitaendern.versatz", "Um eine Zeitspanne verschieben"))}</label>
+          <div class="za-block" id="za-versatz">
+            <select id="za-richtung" class="lib-select">
+              <option value="frueher">${esc(T("zeitaendern.frueher", "früher"))}</option>
+              <option value="spaeter">${esc(T("zeitaendern.spaeter", "später"))}</option>
+            </select>
+            ${zahl("za-jahre", T("zeitaendern.jahre", "Jahre"))}${zahl("za-tage", T("zeitaendern.tage", "Tage"))}
+            ${zahl("za-stunden", T("zeitaendern.stunden", "Stunden"))}${zahl("za-minuten", T("zeitaendern.minuten", "Minuten"))}
+          </div>
+          <label class="ex-zeile"><input type="radio" name="za-art" value="fest"> ${esc(T("zeitaendern.fest", "Auf ein festes Datum setzen"))}</label>
+          <div class="za-block" id="za-fest">
+            <input type="date" id="za-datum" class="lib-input"> <input type="time" id="za-zeit" class="lib-input" step="1" value="12:00:00">
+            <label class="ex-zeile za-gleich"><input type="checkbox" id="za-abstand" checked> <span>${esc(T("zeitaendern.abstand", "Abstände behalten — die früheste Aufnahme bekommt diese Zeit, die anderen rücken mit"))}</span></label>
+          </div>
+          <label class="ex-zeile"><input type="checkbox" id="za-partner" checked> <span>${esc(T("zeitaendern.partner", "RAW+JPG-Paare gemeinsam ändern (gleicher Name im selben Ordner)"))}</span></label>
+          <div class="za-vorschau" id="za-vorschau"></div>
+          <div class="lib-hint ex-hinweis">${esc(T("zeitaendern.hinweis", "Die Zeit wird in die Dateien geschrieben (Fotos: EXIF und XMP, RAW mit Begleitdatei; Videos: QuickTime). Vorher legt die App eine Sicherung aller Originale an."))}</div>
+        </div>`,
+      footer: `<button type="button" class="btn" id="za-ab">${esc(T("common.cancel", "Abbrechen"))}</button>
+               <button type="button" class="btn btn-primary" id="za-ok" disabled>${I("clock")} ${esc(T("zeitaendern.los0", "Ändern"))}</button>`,
+    });
+    const $ = (id) => document.getElementById(id);
+    const regel = () => {
+      const art = (document.querySelector('input[name="za-art"]:checked') || {}).value || "versatz";
+      if (art === "fest") return { art, datum: $("za-datum").value, zeit: $("za-zeit").value || "00:00:00", gleich: !$("za-abstand").checked };
+      return { art, richtung: $("za-richtung").value, jahre: +$("za-jahre").value || 0, tage: +$("za-tage").value || 0,
+               stunden: +$("za-stunden").value || 0, minuten: +$("za-minuten").value || 0 };
+    };
+    const leer = (r) => r.art === "versatz" ? !(r.jahre || r.tage || r.stunden || r.minuten) : !r.datum;
+    let lauf = 0, tmr = 0, letzte = null;
+    const AKTION = { verschieben: "", setzen: T("zeitaendern.a_setzen", "hatte keine Zeit"), gleich: T("zeitaendern.a_gleich", "unverändert"),
+                     ohne_zeit: T("zeitaendern.a_ohne", "ohne Zeit — bleibt"), nicht: T("zeitaendern.a_nicht", "Format kann keine Zeit speichern — bleibt"),
+                     bereich: T("zeitaendern.a_bereich", "außerhalb 1900–2100 — bleibt") };
+    async function vorschau() {
+      const box = $("za-vorschau"), ok = $("za-ok");
+      if (!box) return;
+      $("za-versatz").classList.toggle("ist-aus", regel().art !== "versatz");
+      $("za-fest").classList.toggle("ist-aus", regel().art !== "fest");
+      const r = regel();
+      if (leer(r)) { box.innerHTML = `<div class="muted">${esc(r.art === "fest" ? T("zeitaendern.leer_fest", "Datum wählen — die Vorschau zeigt dann alt → neu.") : T("zeitaendern.leer_versatz", "Zeitspanne eintragen — die Vorschau zeigt dann alt → neu."))}</div>`; ok.disabled = true; letzte = null; return; }
+      const mein = ++lauf;
+      box.innerHTML = `<div class="muted"><span class="ass-spinner"></span> ${esc(T("zeitaendern.rechnet", "Vorschau wird berechnet …"))}</div>`;
+      ok.disabled = true;
+      let v = null; try { v = await api().fotos_zeit_vorschau(pfade, r, $("za-partner").checked); } catch (e) { v = { ok: false, error: String(e) }; }   // warte-ok: Vorschau zeigt „wird berechnet …“
+      if (mein !== lauf || !$("za-vorschau")) return;
+      if (!v || !v.ok) { box.innerHTML = `<div class="za-fehler">${esc((v && v.error) || "?")}</div>`; letzte = null; return; }
+      letzte = v;
+      const z = v.zahlen || {};
+      const zeilen = (v.beispiele || []).map(b => `<tr><td class="za-name" title="${esc(b.name)}">${esc(b.name)}</td><td>${esc(b.alt || "—")}</td><td class="za-pfeil">${I("arrow-right", 12)}</td>
+          <td>${b.neu ? `<b>${esc(b.neu)}</b>` : "—"}${AKTION[b.aktion] ? ` <small class="muted">${esc(AKTION[b.aktion])}</small>` : ""}</td></tr>`).join("");
+      const teile = [T("zeitaendern.sum_schreiben", "{n} werden geändert", { n: num(z.schreiben || 0) })];
+      if (v.n_partner) teile.push(T("zeitaendern.sum_partner", "davon {n} RAW/JPG-Partner", { n: num(v.n_partner) }));
+      const bleibt = (z.gleich || 0) + (z.ohne_zeit || 0) + (z.nicht || 0) + (z.bereich || 0);
+      if (bleibt) teile.push(T("zeitaendern.sum_bleibt", "{n} bleiben unverändert", { n: num(bleibt) }));
+      if (z.video) teile.push(T("zeitaendern.sum_video", "{n} Videos", { n: num(z.video) }));
+      box.innerHTML = `<table class="za-tabelle"><tbody>${zeilen}</tbody></table>
+        ${(v.n || 0) > (v.beispiele || []).length ? `<div class="muted za-mehr">${esc(T("zeitaendern.und_mehr", "… und {n} weitere", { n: num((v.n || 0) - (v.beispiele || []).length) }))}</div>` : ""}
+        <div class="za-summe">${esc(teile.join(" · "))}</div>`;
+      ok.disabled = !(z.schreiben > 0);
+      ok.innerHTML = I("clock") + " " + esc(z.schreiben ? T("zeitaendern.los", "In {n} Dateien schreiben", { n: num(z.schreiben) }) : T("zeitaendern.los0", "Ändern"));
+    }
+    const spaeter = () => { clearTimeout(tmr); tmr = setTimeout(vorschau, 250); };
+    document.querySelectorAll(".za-dialog input, .za-dialog select").forEach(e => { e.addEventListener("input", spaeter); e.addEventListener("change", spaeter); });
+    // wer in die Felder einer Art klickt, meint diese Art
+    [["za-versatz", "versatz"], ["za-fest", "fest"]].forEach(([id, art]) => $(id).addEventListener("focusin", () => {
+      const r = document.querySelector(`input[name="za-art"][value="${art}"]`);
+      if (r && !r.checked) { r.checked = true; spaeter(); }
+    }));
+    $("za-ab").onclick = () => m.close();
+    $("za-ok").onclick = async () => {
+      if (!letzte) return;
+      const r = regel(), partner = $("za-partner").checked;
+      m.close();
+      let st = null;
+      try { st = await api().fotos_zeit_aendern(pfade, r, partner); } catch (e) { st = { ok: false, error: String(e) }; }   // warte-ok: startet nur, Fortschritt in der Statusbox
+      if (!st || !st.ok) { if (typeof toast === "function") toast((st && st.error) || "?", "error", 6000); return; }
+      zeitVerfolgen(st.gesamt || 0, fertig);
+    };
+    vorschau();
+  }
+
+  async function zeitVerfolgen(gesamt, fertig) {
+    const S = window.rzStatus, ID = "medien-zeit";
+    if (S) S.start(ID, { titel: T("zeitaendern.status_titel", "Aufnahmezeit ändern"), text: T("zeitaendern.status_sichern", "Sicherung der Originale …"),
+                         gesamt, abbrechen: true, hintergrund: true });
+    let gestoppt = false;
+    for (;;) {
+      await new Promise(r => setTimeout(r, 400));
+      if (!gestoppt && S && S.abgebrochen && S.abgebrochen(ID)) { gestoppt = true; try { api().fotos_zeit_stopp(); } catch (_) {} }   // warte-ok: nur ein Signal, die Statusbox zeigt das Ende
+      let st = null; try { st = await api().fotos_zeit_status(); } catch (_) {}   // warte-ok: Fortschritt steht in der Statusbox
+      if (!st) continue;
+      if (st.laeuft) {
+        const text = st.phase === "sichern" ? T("zeitaendern.status_sichern", "Sicherung der Originale …")
+          : st.phase === "einlesen" ? T("zeitaendern.status_einlesen", "Liest die geänderten Dateien neu ein …")
+          : T("zeitaendern.status_datei", "{a} von {b} · {d}", { a: num(st.n || 0), b: num(st.gesamt || gesamt), d: st.datei || "" });
+        if (S) S.schritt(ID, { text, n: st.n || 0, gesamt: st.gesamt || gesamt });
+        continue;
+      }
+      const e = st.ergebnis || {};
+      if (e.ok === false && !e.abgebrochen) { if (S) S.fehler(ID, e.error || "?"); else if (typeof toast === "function") toast(e.error || "?", "error", 6000); return; }
+      let text = T("zeitaendern.ok", "Aufnahmezeit in {n} Dateien geändert.", { n: num(e.n_ok || 0) });
+      if (e.abgebrochen) text = T("zeitaendern.abgebrochen", "Abgebrochen — {n} Dateien waren schon geändert.", { n: num(e.n_ok || 0) });
+      if (e.n_fehler) text += " " + T("zeitaendern.fehler", "{n} gingen nicht (schreibgeschützt oder nicht erreichbar).", { n: num(e.n_fehler) });
+      if ((e.abweichend || []).length) text += " " + T("zeitaendern.abweichend", "Bei {n} liest die App danach eine andere Zeit — bitte im EXIF-Editor ansehen.", { n: num(e.abweichend.length) });
+      if (S) S.fertig(ID, text);
+      if (typeof toast === "function") toast(text, (e.n_fehler || e.abgebrochen || (e.abweichend || []).length) ? "warn" : "success", 7000);
+      if (typeof fertig === "function") fertig(e);
+      return;
+    }
+  }
+
   /* Doppelte Fotos/Clips (08.10.2026, Beta-Tester: „eine Menge Doppelte“). Zwei Arten:
      gleich      dieselbe Datei an zwei Stellen (Inhaltskennung) — vorgeschlagen: alle bis auf eine weg, auf einen Schlag
      fast gleich dieselbe Aufnahme, verkleinert oder anders gespeichert (Zeit ±2 s + Bildinhalt) — erst ansehen: nichts
@@ -536,5 +659,5 @@
     box.querySelectorAll("[data-om]").forEach(b => { b.onclick = () => { const a = apps[+b.dataset.om]; m.close(); los(a.pfad); }; });
   }
 
-  window.rzArchivExport = { touren, medien, tourAusFotos, ortSetzen, koordinateLesen, doppelte, oeffnenMit };
+  window.rzArchivExport = { touren, medien, tourAusFotos, ortSetzen, koordinateLesen, doppelte, oeffnenMit, zeitAendern };
 })();

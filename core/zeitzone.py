@@ -146,6 +146,31 @@ def epoch_von_iso(s: Optional[str]) -> Optional[float]:
         return None
 
 
+def tag_lokal(iso: Optional[str], lat: Optional[float], lon: Optional[float],
+              land: str = "") -> tuple:
+    """19.10.2026 — Kalendertag einer Tour in der Ortszeit ihres Startpunkts.
+
+    Anlass: ein Track mit erstem Punkt `2026-06-01T22:44:13Z` (Norwegen, 00:44 Uhr
+    Sommerzeit) stand im Archiv unter dem 1. Juni, weil der Tag einfach aus dem
+    UTC-Text geschnitten wurde. Ergebnis: ('JJJJ-MM-TT', Versatz in Minuten) bzw.
+    ('', None) ohne (lesbare) Zeit. Zeiten ohne Zone gelten als UTC — so liest
+    `core/gpx` sie auch ein (GPX-Standard), nie als Uhrzeit dieses Rechners."""
+    if not iso:
+        return "", None
+    try:
+        d = datetime.fromisoformat(str(iso).strip().replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return "", None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    epoch = d.timestamp()
+    try:
+        off = offset_min(zone_fuer(lat, lon, land or ""), epoch)
+    except Exception:  # noqa: BLE001 — eine kaputte Lage darf das Archiv nicht kippen
+        off = 0
+    return _lokal(epoch, off).strftime("%Y-%m-%d"), int(off)
+
+
 # ── Formate (Spiegel: fmtDateJS in core/animator.py und modules/animator) ──
 
 _MON_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]

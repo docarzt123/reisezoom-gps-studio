@@ -1502,6 +1502,22 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .os-hit:hover, .os-hit.is-on { border-color: var(--accent); }
 .os-karte { height: 200px; border-radius: 8px; overflow: hidden; margin-top: 6px; background: var(--bg-3); }
 .os-wahl { font-size: 12.5px; margin-top: 4px; }
+/* 19.10.2026 — Aufnahmezeit ändern (ui/js/exportarchiv.js rzArchivExport.zeitAendern) */
+.za-dialog { min-width: 520px; }
+.za-block { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 2px 0 6px 22px; }
+.za-block.ist-aus { opacity: .45; }
+.za-zahl { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+.za-zahl input { width: 64px; }
+.za-block input[type="date"], .za-block input[type="time"] { width: auto; flex: 0 0 auto; }
+.za-gleich { flex-basis: 100%; padding: 0; }
+.za-vorschau { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-2); padding: 8px 10px; min-height: 48px; font-size: 12px; }
+.za-tabelle { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.za-tabelle td { padding: 2px 10px 2px 0; white-space: nowrap; vertical-align: top; }
+.za-tabelle .za-name { max-width: 170px; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
+.za-tabelle .za-pfeil { color: var(--text-muted); }
+.za-summe { margin-top: 6px; font-weight: 600; }
+.za-mehr { margin-top: 2px; }
+.za-fehler { color: var(--danger, #ff6b6b); }
 .foto-kopf-ohne { border: 1px solid var(--border); background: var(--bg-3); color: var(--text); border-radius: 999px; padding: 1px 9px; cursor: pointer; font-size: 12px; }
 .foto-kopf-ohne:hover { border-color: var(--accent); }
 .foto-d-ort-tippen { margin: 2px 0 6px; }

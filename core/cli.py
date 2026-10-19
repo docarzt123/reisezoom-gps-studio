@@ -164,7 +164,8 @@ def _aufraeumen(app, tmp: Path) -> None:
 
 def _tour_json(it: dict) -> dict:
     return {"id": it.get("geo_hash"), "name": it.get("display_name") or it.get("name") or Path(str(it.get("path"))).stem,
-            "date": it.get("started_at"), "distance_km": round(float(it.get("distance_m") or 0) / 1000.0, 1),
+            "date": it.get("started_at"), "day": it.get("tag_lokal") or "",   # 19.10.2026 — Tourtag in Ortszeit
+            "distance_km": round(float(it.get("distance_m") or 0) / 1000.0, 1),
             "activity": it.get("activity") or "", "file": it.get("path")}
 
 

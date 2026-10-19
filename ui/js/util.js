@@ -521,13 +521,60 @@ function rzMapBanner(map, key, html) {
 }
 window.rzMapBanner = rzMapBanner;
 
+/** 19.10.2026 — Kartenstil aus einem Karten-Hinweis heraus wählen. Wer die Karte besitzt, hört auf
+ *  „rz-kartenstil-wahl“ am Kartencontainer (Animator/Tour-Map: über #anim-style, also mit Projekt und ⌘Z) und ruft
+ *  preventDefault; Archivkarten nehmen den gemeinsamen Archiv-Stil; sonst wird nur diese Karte umgestellt. */
+function rzKarteStilWaehlen(map, key) {
+  if (!map || !key) return "";
+  const c = map.getContainer();
+  const ev = new CustomEvent("rz-kartenstil-wahl", { bubbles: true, cancelable: true, detail: { key } });
+  c.dispatchEvent(ev);
+  if (ev.defaultPrevented) return "modul";
+  if (c.classList.contains("rz-archivkarte") && typeof rzArchivStilSetzen === "function") { rzArchivStilSetzen(key); return "archiv"; }
+  try { applyMapStyle(map, key, null); } catch (_) {}
+  return "karte";
+}
+window.rzKarteStilWaehlen = rzKarteStilWaehlen;
+/** Ist ein MapTiler-Schlüssel eingetragen? (Katalog aus den Einstellungen, wie resolveMapStyle) */
+function rzHatMaptilerSchluessel() {
+  try { const k = (mapCatalog().key_values || {}).maptiler; return !!String(k || "").trim(); } catch (_) { return false; }
+}
+// Ziele der beiden Knöpfe im Hinweis „nur grobes Satellitenbild“: MapTiler Satellit MIT Beschriftung (Anlass war
+// „Ortsnamen nicht lesbar“) und eine OpenFreeMap-Karte mit Namen (ohne Schlüssel)
+const RZ_STIL_SCHAERFER = "maptiler_hybrid", RZ_STIL_NAMEN = "ofm_liberty";
+
 /** Abdeckungs-Banner aus einer Auflösung setzen/entfernen (Lücke, keine Abdeckung). */
 function rzMapCoverageBanners(map, spec) {
   if (!map) return;
   const noCov = !!(spec && (spec.notes || []).includes("no_coverage"));
+  // 19.10.2026 (Kommentar unter einem Video: „Karte verschwommen, Ortsnamen nicht lesbar“) — außerhalb der amtlichen
+  // Luftbilder gibt es mit „Satellit (kostenlos)“ nur Sentinel-2 (10 m). Der Hinweis sagt das klar und bietet die zwei
+  // Auswege direkt an. Leise wie bisher (✕ blendet aus), Strich-Symbole, nur in der Vorschau (Render blendet aus).
+  const knopf = (aktion, icon, text, tip) => `<button type="button" class="rz-map-banner-aktion" data-rz-banner-aktion="${aktion}" title="${_escHtml(tip)}">`
+    + `${typeof rzIcon === "function" ? rzIcon(icon, { size: 13 }) : ""}<span>${_escHtml(text)}</span></button>`;
   rzMapBanner(map, "no_coverage", noCov
-    ? _escHtml(t("map.banner.no_coverage", "Für diese Gegend gibt es keine amtlichen Luftbilder — gezeigt wird Sentinel-2 (10 m, 2016). Für mehr Details einen anderen Kartenstil wählen, z. B. MapTiler oder OpenStreetMap."))
+    ? _escHtml(t("map.banner.no_coverage", "Hier gibt es keine amtlichen Luftbilder — nur das grobe Satellitenbild (Sentinel-2, 10 m). Straßen und Ortsnamen sind darin kaum zu erkennen."))
+      + `<span class="rz-map-banner-aktionen">`
+      + knopf("maptiler", "satellite", t("map.banner.no_coverage_maptiler", "MapTiler-Satellit (schärfer, kostenloser Schlüssel)"),
+              t("map.banner.no_coverage_maptiler_tip", "Mit Schlüssel: auf MapTiler Satellit mit Beschriftung umstellen. Ohne: zeigt, wie du den kostenlosen Schlüssel bekommst und einträgst."))
+      + knopf("namen", "map", t("map.banner.no_coverage_namen", "Kartenstil mit Namen"),
+              t("map.banner.no_coverage_namen_tip", "Auf eine Karte mit Straßen und Ortsnamen umstellen (OpenFreeMap Liberty, ohne Schlüssel)"))
+      + `</span>`
     : null);
+  const el = noCov && map.getContainer().querySelector('.rz-map-banners [data-banner="no_coverage"]');
+  if (el) el.querySelectorAll("[data-rz-banner-aktion]").forEach(b => {
+    b.onclick = (ev) => {
+      ev.stopPropagation();
+      const a = b.dataset.rzBannerAktion;
+      try { applog("info", "[map] Hinweis grobes Satellitenbild: " + a + (a === "maptiler" ? (rzHatMaptilerSchluessel() ? " (Schlüssel da)" : " (ohne Schlüssel)") : "")); } catch (_) {}
+      if (a === "namen") { rzKarteStilWaehlen(map, RZ_STIL_NAMEN); return; }
+      if (rzHatMaptilerSchluessel()) { rzKarteStilWaehlen(map, RZ_STIL_SCHAERFER); return; }
+      // ohne Schlüssel: Einstellungen → Karten → MapTiler (Erklärung, Eingabefeld, „Wie bekomme ich einen Schlüssel?“)
+      try { localStorage.setItem("rz_settings_subtab_karten", "maptiler"); } catch (_) {}
+      if (typeof window.openSettingsModal === "function") window.openSettingsModal("karten");
+      else if (typeof window.openMapTilerHelpModal === "function") window.openMapTilerHelpModal();
+    };
+  });
   const gaps = (spec && spec.gaps) || [];
   rzMapBanner(map, "gap", gaps.length
     ? _escHtml(t("map.banner.gap", "Für {gebiet} gibt es derzeit keine amtlichen Luftbilder — gezeigt wird Sentinel-2 (10 m, 2016).").replace("{gebiet}", gaps.map(g => g.name).join(", ")))
@@ -4223,7 +4270,7 @@ async function rzArchivTourenWaehlen(opts) {
   const zeile = (it, neu) => {
     const pf = nfc(it.path);
     const schon = drin.has(pf);
-    const meta = [datum(it.started_at), km(it)].filter(Boolean).join(" · ");
+    const meta = [it.tag_lokal ? tourDatumJS(it) : datum(it.started_at), km(it)].filter(Boolean).join(" · ");   // 19.10.2026 — Ortstag
     // Vorschaubild (Marc, 09.09.2026: „mach im Modal noch die Vorschaubilder
     // dazu"): Platzhalter mit dem Bildpfad; geholt wird erst, wenn die Zeile
     // ins Bild scrollt (library_thumbs, gebündelt) — 300 data-URLs auf einmal
@@ -4516,6 +4563,41 @@ function fmtDateRangeJS(e1, e2, offMin, lang){
   return fmtDateJS(e1, offMin, lang) + ' – ' + fmtDateJS(e2, offMin, lang);
 }
 function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == null) return fmtTimeJS(e1, offMin); return fmtTimeJS(e1, offMin) + ' – ' + fmtTimeJS(e2, offMin); }
+
+/* 19.10.2026 — Datum und Uhrzeit einer TOUR in der Ortszeit ihres Startpunkts. Das Archiv liefert `tag_lokal`
+ * (JJJJ-MM-TT) und `tz_minuten` (Versatz zu UTC dort). Vorher formatierte jede Stelle `started_at` (UTC) in der
+ * Zeitzone dieses Rechners, der Datumsbaum schnitt dagegen den UTC-Tag ab — eine Tour, die um 00:44 Uhr begann,
+ * stand im Baum unter dem Vortag. Ohne die Felder (Dateien von außerhalb des Archivs) bleibt es beim Alten. */
+function tourTagJS(it) {
+  const t = it && it.tag_lokal;
+  return (typeof t === "string" && /^\d{4}-\d{2}-\d{2}$/.test(t)) ? t : "";
+}
+function tourDatumJS(it, opts, loc) {
+  if (!it) return "";
+  const o = Object.assign({ year: "numeric", month: "2-digit", day: "2-digit" }, opts || {});
+  const tag = tourTagJS(it);
+  try {
+    if (tag) {
+      const [y, m, d] = tag.split("-").map(Number);
+      return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString(loc || undefined, Object.assign(o, { timeZone: "UTC" }));
+    }
+    if (!it.started_at) return "";
+    const d = new Date(it.started_at);
+    return isNaN(d) ? String(it.started_at).slice(0, 10) : d.toLocaleDateString(loc || undefined, o);
+  } catch (_) { return tag || String(it.started_at || "").slice(0, 10); }
+}
+/** Uhrzeit eines Zeitpunkts der Tour (ISO, UTC) in deren Ortszeit (`tzMin`); ohne Versatz in der des Rechners. */
+function tourUhrzeitJS(iso, tzMin, loc) {
+  if (!iso) return "";
+  const ms = Date.parse(iso);
+  if (!isFinite(ms)) return "";
+  try {
+    if (typeof tzMin === "number" && isFinite(tzMin)) {
+      return new Date(ms + tzMin * 60000).toLocaleTimeString(loc || undefined, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+    }
+    return new Date(ms).toLocaleTimeString(loc || undefined, { hour: "2-digit", minute: "2-digit" });
+  } catch (_) { return ""; }
+}
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Ladeanzeige — „schreib hin, was gerade passiert" (Marc, 12.09.2026)

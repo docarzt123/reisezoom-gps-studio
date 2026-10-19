@@ -1648,6 +1648,14 @@ und hebt die Auswahl auf. Das Datum landet im Zeitraum-Feld oben („eigener Zei
 anklicken, dann eine zweite mit gedrückter Shift-Taste — gezeigt wird alles dazwischen, z. B. 2023 bis 2024 oder
 vom 4. bis 12. März (seit v0.9.790).
 
+**Welcher Tag ist der Tag einer Tour?** Der Kalendertag, an dem sie **am Startpunkt** begann — in der Ortszeit dort.
+Eine Tour, die in Norwegen um 00:44 Uhr losging, steht unter diesem Tag, auch wenn das GPS die Zeit in UTC
+(22:44 Uhr am Vortag) aufschreibt und auch wenn dein Rechner gerade in einer anderen Zeitzone ist. Datumsbaum,
+Zeitraum, Jahres- und Monatsstatistik, Kachel, Tour-Seite und Schnell-Video zeigen denselben Tag. Eine Tour über
+Mitternacht zählt für ihren Starttag; ein Track ohne Zeitstempel hat kein Datum. Sobald der Ort der Tour bekannt ist,
+gilt die Zeitzone ihres Landes (z. B. Sommerzeit in den USA). Bestehende Archive rechnet die App beim nächsten Start
+einmal nach — deine Dateien bleiben dabei unberührt.
+
 **Weiter filtern** — in der Leiste über den Touren:
 
 - **Suchfeld** — sucht in Name, Dateiname, Schlagwörtern und Notizen. Akzente sind egal
@@ -2196,7 +2204,7 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
 
 - **Kacheln:** das Bild, darunter Datum · Uhrzeit und Ort. Beim Drüberfahren erscheint links oben ein Kästchen zum
   **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten. Sobald etwas markiert ist, zeigt eine Leiste
-  **„N ausgewählt“** mit Exportieren, Ort setzen, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit. Esc hebt die
+  **„N ausgewählt“** mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit. Esc hebt die
   Markierung auf, ⌘A markiert alle.
 - **Links:** oben die Zahl, dann **Sammlungen** (Alle, Favoriten, Bearbeitet, Ohne Koordinate …), **Alben** (＋ legt eins an,
   Rechtsklick benennt um oder löscht — die Fotos bleiben), Datum, Ordner und aufklappbare **Filter** (Jahr, Kamera, Ort).
@@ -2260,6 +2268,28 @@ eingeben …“**. Im Dialog kannst du
 
 Die Adresse wird auf Wunsch mitgeschrieben. Geschrieben wird in die Dateien selbst — vorher legt die App von jedem
 Original eine Sicherung an. Schreibgeschützte Dateien zählt die Meldung danach als „gingen nicht“.
+
+### 🕒 Aufnahmezeit mehrerer Fotos und Clips ändern
+
+Stand die Uhr der Kamera falsch (falsches Jahr, Zeitzone vergessen), korrigierst du alle betroffenen Dateien auf
+einmal — wie in Lightroom „Aufnahmezeit bearbeiten“. Markieren (⌘- oder Shift-Klick), dann in der Leiste
+**„Aufnahmezeit ändern …“** oder Rechtsklick → **„Aufnahmezeit von N ändern …“**. Im Dialog wählst du:
+
+- **Um eine Zeitspanne verschieben** — früher oder später um Jahre, Tage, Stunden und Minuten (z. B. „10 Jahre früher“
+  für eine Kamera, die 2036 statt 2026 schrieb). Alle Dateien rücken um denselben Betrag; Dateien ohne Aufnahmezeit
+  bleiben, wie sie sind.
+- **Auf ein festes Datum setzen** — mit „Abstände behalten“ bekommt die früheste Aufnahme genau diese Zeit und alle
+  anderen rücken mit (die Reihenfolge bleibt); ohne den Haken bekommen alle genau diese Zeit. Dateien ohne Aufnahmezeit
+  bekommen sie in beiden Fällen.
+
+Die **Vorschau** zeigt für die ersten Dateien alt → neu und darunter, wie viele geändert werden und wie viele bleiben.
+**RAW+JPG-Paare** (gleicher Name im selben Ordner) ändert die App gemeinsam, auch wenn nur das JPG markiert ist.
+Geschrieben wird in die Dateien selbst: bei Fotos EXIF (Aufnahme-, Digitalisierungs- und Änderungszeit) und vorhandene
+XMP-Zeiten, bei RAW zusätzlich eine vorhandene Begleitdatei (`.xmp` von Lightroom), bei Videos (MP4, MOV) die
+QuickTime-Zeiten. Die Zeitzonen-Angabe einer Datei bleibt erhalten. Insta360-Rohdateien, AVI, MKV und AVCHD bleiben
+unverändert — die Vorschau sagt das. Vorher legt die App **eine Sicherung aller Originale** an (ein ZIP); klappt die
+nicht, wird nichts geändert. Der Fortschritt steht unten rechts, dort lässt sich der Lauf auch abbrechen. Danach liest
+die App die Dateien neu ein: Raster, „Nach Datum“ und die Zuordnung zu Touren stimmen sofort.
 
 ### ⧉ Doppelte finden und wegräumen (seit v0.9.787)
 
@@ -2385,8 +2415,11 @@ Track nimmst du weiterhin den **Geotagger** (Kapitel 6).
 nicht: Die App erzeugt sie aus den Kamera-Einstellungen und, bei mehreren Touren, aus der Sicht je Tour und den
 Übergängen (Kinoflug, Luftlinie, Pause, Schnitt). Vorschau, Ziehen in der Zeitleiste und Video zeigen damit immer
 dasselbe. **Schaltest du den Keyframe-Editor ein**, fragt die App *„Standard-Keyframes übernehmen?“* — mit *Übernehmen*
-werden sie zu deinen Keyframes, stehen in der Zeitleiste und lassen sich ändern. **Schaltest du ihn aus**, werden deine
-Keyframes verworfen und es gelten wieder die Standard-Keyframes. Wählst du bei offenem Editor eine andere Übergangs-Art,
+werden sie zu deinen Keyframes, stehen in der Zeitleiste und lassen sich ändern. Gefragt wird nur, wenn du noch keine
+eigenen Keyframes hast. **Schaltest du ihn aus** (auch über *Fest* oder *Folgen*), gelten wieder die Standard-Keyframes —
+deine Keyframes bleiben aber im Projekt gespeichert und ruhen nur. **Schaltest du ihn wieder ein** (oder wählst
+*Kamerafahrt*), ist genau deine Kamerafahrt wieder da, egal ob sie aus dem Schnell-Video, dem Video-Assistenten oder
+von Hand stammt (seit 19.10.2026; vorher wurde sie beim Ausschalten verworfen). ⌘Z nimmt das Umschalten zurück. Wählst du bei offenem Editor eine andere Übergangs-Art,
 setzt die App die passenden Keyframes in diesen Übergang ein.
 Auch **Foto-Stopps** (hinfliegen, kurz schwenken, zurück) und der **Orbit** am Ende sind Keyframes: Ziehst du den
 Abspielkopf durch die Zeitleiste, siehst du den Foto-Stopp und den Orbit genau so wie im Video. Nach dem Orbit dreht die
@@ -2461,13 +2494,13 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
     Das funktioniert in Vorschau und fertigem Video identisch. (Bei **Foto-Karten** passiert das automatisch über die Aufnahme-Zeit des Fotos.)
   - **Vorschau-Hilfe:** Checkbox **„In der Vorschau ALLE Schilder zeigen"** — zeigt beim Platzieren alle Schilder gleichzeitig (nur Vorschau; im Video gilt weiter das Timing).
 - **Ganze Strecke blass zeigen (früher „Ghost-Track", seit v0.9.169; seit v0.9.734 im Aussehen-Panel ▸ jeder Tour)** — zeigt die **komplette Route** schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: **eigene Farbe** (unabhängig von der Track-Farbe — z.B. dezentes Grau) und **Deckkraft** (5–80 %, Standard 30 %). Wirkt in Vorschau und Video. Bei neuen Projekten an (seit 05.10.2026), bei bestehenden wie gespeichert.
-- **Mehrere Track-Farben (seit v0.9.435, erweitert v0.9.448)** — die Track-Linie kann die **Farbe wechseln**. Mit dem Selektor **„Einfärben nach"** wählst du, wonach:
+- **Farbe nach Tempo, Höhe oder Steigung (früher „Mehrere Track-Farben“, seit v0.9.435, erweitert v0.9.448)** — die Track-Linie kann die **Farbe wechseln**. Am schnellsten kommst du hin über den Knopf **„Farbe nach Tempo, Höhe oder Steigung …“** im Aussehen der Linie (✎ an der Tour): Er schaltet die Farben ein (nach Tempo, wenn der Track Zeiten hat) und zeigt den Block oben im Editor — für jede Tour. Mit dem Selektor **„Einfärben nach"** wählst du, wonach:
   - **Distanz (km)** — Farb-Stops **ab km** (Zahl), **an der aktuellen Marker-Position** (übernimmt die Scrubber-Position) oder **an allen GPX-Wegpunkten** (automatisch). Die erste Farbe gilt ab km 0 (= Track-Farbe).
   - **Jede Datenreihe des Tracks** — seit v0.9.448 steht hier **alles zur Auswahl, was auch der Daten-Animator plotten kann**: Höhe, Tempo, Steigung und sämtliche Sensorwerte aus FIT/TCX-Dateien (**Puls, Leistung, Trittfrequenz, Temperatur** …). Die Liste zeigt **nur, was der geladene Track wirklich enthält**; die Einheit steht in Klammern dahinter.
 
-    Farb-Stops setzt du dann **im Wertebereich der Reihe** (z. B. „ab 145 bpm", „ab 8 %", „ab 2400 m"). **„＋ ab &lt;Reihe&gt; (hier)"** übernimmt den Wert an der Marker-Position, **„Auto (min → max)"** legt automatisch eine Blau→Rot-Rampe über die Spannweite. Negative Werte sind erlaubt — wichtig bei **Steigung** (Abfahrten) und **Temperatur** (Frost).
+    Farb-Stops setzt du dann **im Wertebereich der Reihe** (z. B. „ab 145 bpm", „ab 8 %", „ab 2400 m"). **„＋ ab &lt;Reihe&gt; (hier)"** übernimmt den Wert an der Marker-Position, **„Auto (typischer Bereich)"** legt automatisch eine Blau→Rot-Rampe über den typischen Bereich der Tour — vom 2. bis zum 98. Perzentil, damit ein einzelner GPS-Ausreißer (etwa 60 km/h mitten in einer Wanderung) nicht die ganze Linie in eine Farbe schiebt. Beim Tempo gibt es zusätzlich **„Ampel"**: langsam rot, mittel gelb, schnell grün, mit Grenzen bei einem und zwei Dritteln des typischen Bereichs (harte Wechsel). Die Werte kommen immer aus allen Punkten der Tour, egal wie dicht die Linie gezeichnet ist. Den noch nicht gefahrenen Rest zeigst du blass mit **„Ganze Strecke blass zeigen"** im selben Editor. Negative Werte sind erlaubt — wichtig bei **Steigung** (Abfahrten) und **Temperatur** (Frost).
 
-  Pro Stop stellst du **Wert + Farbe** ein, 🗑 entfernt ihn. Der Schalter **„Übergang"** legt fest, ob die Farbe **hart** (crispe Bänder) oder als weicher **Verlauf** wechselt. Wirkt WYSIWYG in Vorschau, Probelauf und Render. Standard aus. *(Aktuell nur Einzeltrack-Animator.)*
+  Pro Stop stellst du **Wert + Farbe** ein, das Papierkorb-Symbol entfernt ihn. Der Schalter **„Übergang"** legt fest, ob die Farbe **hart** (crispe Bänder) oder als weicher **Verlauf** wechselt. Wirkt WYSIWYG in Vorschau, Probelauf und Render. Standard aus. *(Aktuell nur Einzeltrack-Animator.)*
 - **Karte ohne Beschriftungen** (seit v0.4.4) — blendet Ortsnamen, Straßennamen und POI-Icons auf der Karte aus. Macht die Karte zum reinen Hintergrund — guter Look wenn du den Track als visuellen Hauptdarsteller haben willst statt einer Google-Maps-mäßigen Übersicht. Funktioniert mit allen Karten-Stilen und auch im Tour-Map-Modul.
 
 **🧱 Einblendungen (seit v0.9.752)** — Alles, was fest im Bild steht, ist eine **Einblendung**: Werte, Höhenprofil, Diagramme, Nordpfeil und Maßstab, Titel, Schlusskarte, Logo. Eine Einblendung ist ein Kasten mit **Zeilen**.
@@ -2493,6 +2526,15 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Quellenzeile** (seit 07.09.2026) — die Nennung der Kartenquellen ist Pflicht und bleibt immer sichtbar, aber du bestimmst **Ecke** (unten rechts, unten links, oben rechts, oben links) und **Breite** (schmal = hoher Block, mittel, breit = flache Zeile, ganze Breite = Leiste am unteren Rand), damit sie Höhenprofil oder Nordpfeil nicht verdeckt. Vorschau und Video zeigen sie gleich groß. Seit v0.9.741 ist sie deutlich kleiner: Die Schrift misst 1,2 % der kurzen Bildseite (im 1080er-Video 13 Pixel), bei jedem Format und jeder Fenstergröße gleich im Verhältnis zum Bild.
 - **Karte von Hand einstellen, ohne Keyframes** (seit 05.09.2026): Zoomst, schwenkst oder neigst du die Karte in der Vorschau und hast keine Keyframes gesetzt, dann ist genau das die Kamera, im Probelauf, beim Ziehen des Reglers und im Video. Zurück zur Gesamtansicht geht es mit **⤢ in der Übersichtskarte** (seit v0.9.774, erscheint nur bei einer Handansicht ohne Keyframes); sobald du einen Keyframe setzt, gilt der Keyframe.
 - **Satellit (kostenlos) überall** (seit 05.09.2026, Zoom-Stufung seit v0.9.656: bei weiten Ansichten zeigt der Stil nur Sentinel-2, die Landesluftbilder blenden ab Zoom 12 ein, voll ab 13,5 — seit v0.9.658 eine Stufe später als zuvor, weil Sentinel bis dahin pixelscharf reicht): Wo es keine amtlichen Luftbilder gibt (Hamburg, Neuseeland, USA …), zeigt der Stil jetzt Sentinel-2-Satellitenbilder (10 m, Jahrgang 2016, EOX) statt einer leeren Fläche. Ein Banner auf der Karte sagt es dir. Häuser und Wege sieht man darauf nicht, Landschaft, Flüsse und Stadtstruktur schon; für Nahaufnahmen einen anderen Stil wählen (MapTiler, OpenStreetMap). Die Nennung „Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016" steht in der Quellenzeile, Videos dürfen veröffentlicht werden.
+- **Hinweis „nur grobes Satellitenbild“ mit zwei Auswegen** (seit 19.10.2026): Liegt der Track außerhalb der amtlichen
+  Luftbilder, sagt der Hinweis oben auf der Vorschau, dass hier nur das grobe Sentinel-2-Bild (10 m) zur Verfügung steht
+  und Straßen und Ortsnamen darin kaum zu erkennen sind. Darunter zwei Knöpfe: **„MapTiler-Satellit (schärfer, kostenloser
+  Schlüssel)“** stellt auf MapTiler Satellit mit Beschriftung um — ist noch kein Schlüssel eingetragen, öffnen sich die
+  Einstellungen bei Karten → MapTiler mit der Anleitung; **„Kartenstil mit Namen“** stellt auf die Karte Liberty
+  (OpenFreeMap, ohne Schlüssel). Im Animator und in der Tour-Map gilt der neue Stil fürs Projekt (⌘Z holt den alten
+  zurück), in den Archivkarten für alle Archivkarten. Der Hinweis ist leise, lässt sich mit ✕ ausblenden und erscheint
+  nie im Video. Seit derselben Version erscheint er im Animator auch dann, wenn das Projekt gleich mit „Satellit
+  (kostenlos)“ außerhalb der Luftbilder geöffnet wird (vorher erst nach einem Stilwechsel).
 - **ProRes 422 HQ** (seit 05.09.2026): in Einstellungen → Video-Codec, für den Schnitt in Final Cut oder Resolve. Datei wird .mov und groß.
 - **Kartenanimation ohne GPS exportieren** (neu nach v0.9.784): Ein Projekt ohne Aufzeichnung reist samt seiner Etappe im `.rzproj` mit — Punkte, Kurven und Verkehrsmittel bleiben bearbeitbar. Der Import legt beim Empfänger ein eigenes neues Projekt an (ein zweiter Import überschreibt nichts). Hat das Projekt noch keine Etappe, sagt der Export das, statt eine leere Datei zu schreiben.
 - **Schwarm/Reise exportieren** (seit 05.09.2026): „Projekt exportieren (.rzproj)" packt bei einer Komposition jetzt **alle** Touren und das Schwarm-/Reise-Projekt ein. Der Empfänger importiert das Paket wie gewohnt, die Komposition öffnet sich direkt im Animator. Vorher kam nur die erste Tour ohne Projekt an.
@@ -2674,6 +2716,8 @@ es beim Einschalten. Gilt auch fürs gerenderte Video.
 **Farben nach Höhe, Tempo … auch in der Luft (seit v0.9.793):** Die Linie in der Luft färbt sich genau wie die Linie am Boden — **Track → Mehrere Track-Farben**: nach Strecke, Höhe, Tempo, Steigung oder einem Sensor, mit harten Farbwechseln oder fließendem Verlauf, dazu **Farbe je Tag** und die Farben der Etappen. Beim Gleitschirm zeigt „nach Höhe“ so auf einen Blick, wo der Schirm in der Thermik steigt und wo er gleitet. Die Lotlinien nehmen die Farbe ihres Punkts an. Jede Änderung an den Farbstufen sieht man sofort, auch im Video.
 
 **IGC-Tracks gehen von selbst in die Luft (seit v0.9.793):** Lädst du einen Gleitschirm-, Segelflug- oder Drachenflug als IGC-Datei in ein Projekt, schaltet die App Gelände und „Flug in der Luft“ von selbst ein — du musst nichts einstellen. Schaltest du es aus, bleibt es in diesem Projekt aus. Bei DJI-Drohnenflügen erinnert ein Hinweis an den Schalter, weil tiefe Kameraflüge am Boden oft besser aussehen. Den Schalter findest du unter **Karte → 3D auf der Karte → Strecke**; er erscheint bei Flügen (IGC, Drohne) und immer, wenn er an ist. 
+
+**Laufpunkt nach Aktivität (seit 19.10.2026):** Im Track-Editor unter dem Laufpunkt schaltest du **„Symbol nach Aktivität (aus dem Logbuch)“** ein. Dann zeigt der Laufpunkt, was das Logbuch an der Stelle erkannt hat: **Auto** bei einer Fahrt (das **Motorrad**, wenn die Tour im Archiv als Motorrad-Tour eingetragen ist), **Boot** auf der Fähre (mit dem Fahrzeug-Aussehen „Symbol“ die Fähre), **Wanderer** beim Wandern und Spazieren, **Fahrrad**, **Läufer** und beim Wassersport **Kajak**. Pausen und Übernachtungen behalten das Symbol davor. An jedem Wechsel wird der Punkt kurz klein und wieder groß; die Linie bleibt eine Linie. Abschnitte, die im Video kürzer als eine Sekunde zu sehen wären (die Minute vom Parkplatz zur Aussicht), behalten das Symbol davor, damit der Punkt nicht zuckt — der Hinweis unter dem Schalter sagt, welche Symbole deshalb fehlen; mit längerer Videodauer erscheinen sie. Das gilt in der Vorschau, beim Scrubben, im Video und für den Punkt in der Luft. Vorrang behalten das Fahrzeug einer geplanten Etappe, dein eigenes Bild und „Laufpunkt zeigen“ aus. Ohne Logbuch (Tour nicht im Archiv, keine Zeitstempel, mehrere Touren nacheinander) ist der Schalter grau, mit dem Grund daneben.
 
 **Laufpunkt in der Luft (seit v0.9.794):** Der Punkt, der in Flughöhe mitfliegt, sieht genauso aus wie dein Laufpunkt am Boden — Kugel, Pfeil, Symbol (z. B. Gleitschirm), Fahrzeug oder eigenes Bild, mit Farbe und Größe, und er dreht sich in Flugrichtung. Änderst du den Laufpunkt, siehst du es sofort in der Vorschau und im Video.
 

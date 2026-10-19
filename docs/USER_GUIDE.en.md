@@ -1609,6 +1609,14 @@ the period field at the top (“custom period”), the folder appears as a chip 
 clears both. **Several rows with ⇧ Shift:** click one row normally, then a second with Shift held — everything in
 between is shown, e.g. 2023 to 2024 or 4 to 12 March (since v0.9.790).
 
+**Which day does a tour belong to?** The calendar day on which it started **at its starting point** — in local time
+there. A tour that set off in Norway at 00:44 is filed under that day, even though the GPS records the time in UTC
+(22:44 the day before) and even if your computer is in another time zone right now. Date tree, period, year and
+month statistics, tile, tour page and quick video all show the same day. A tour across midnight counts for its start
+day; a track without timestamps has no date. Once the place of the tour is known, its country's time zone applies
+(e.g. daylight saving time in the US). Existing archives are recomputed once on the next start — your files are not
+touched.
+
 **Done or only planned?** The app works this out by itself — no matter which app the track
 comes from:
 
@@ -2132,7 +2140,7 @@ On request the search field also finds **what the photos show**: “sunset”, �
 
 - **Tiles:** the picture with date · time and place below. On hover a box at the top left **marks** it (or ⌘/Shift-click),
   the **heart** at the top right makes it a favourite. As soon as something is marked, a bar **„N selected“** offers Export,
-  Set location, Favourite, Add to album, Add to tour, ✨ Auto and Open with. Esc clears, ⌘A marks all.
+  Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto and Open with. Esc clears, ⌘A marks all.
 - **Left:** the number, then **collections** (All, Favourites, Edited, Without coordinate …), **albums** (＋ creates one,
   right-click renames or deletes — the photos stay), date, folders and collapsible **filters** (year, camera, location).
 - **One click** shows the picture on the right with all data (camera, aperture, shutter, ISO, size), the location with a
@@ -2188,6 +2196,25 @@ you can
 
 The address is written too if you want. The location goes into the files themselves — the app backs up every
 original first. Read-only files are counted as „could not be written“ afterwards.
+
+### 🕒 Change the capture time of several photos and clips
+
+If the camera clock was wrong (wrong year, time zone forgotten), you fix all affected files at once — like Lightroom's
+„Edit Capture Time“. Mark them (⌘ or Shift click), then **„Change capture time …“** in the bar or right-click →
+**„Change capture time of N …“**. In the dialog you choose:
+
+- **Shift by a time span** — earlier or later by years, days, hours and minutes (e.g. „10 years earlier“ for a camera
+  that wrote 2036 instead of 2026). All files move by the same amount; files without a capture time stay as they are.
+- **Set to a specific date** — with „Keep the gaps“ the earliest shot gets exactly this time and all others move along
+  (the order stays); without it, all get exactly this time. Files without a capture time get it in both cases.
+
+The **preview** shows old → new for the first files and below how many will be changed and how many stay.
+**RAW+JPG pairs** (same name in the same folder) are changed together, even if only the JPG is marked. The time is
+written into the files themselves: for photos EXIF (capture, digitised and modify time) and existing XMP times, for RAW
+also an existing sidecar (`.xmp` from Lightroom), for videos (MP4, MOV) the QuickTime times. A file's time zone note is
+kept. Insta360 raw files, AVI, MKV and AVCHD stay unchanged — the preview says so. The app first makes **one backup of
+all originals** (a ZIP); if that fails, nothing is changed. Progress shows at the bottom right, where you can also
+cancel. Afterwards the files are read again: grid, „By date“ and the assignment to tours are right at once.
 
 ### ⧉ Find and tidy up duplicates (since v0.9.787)
 
@@ -2290,8 +2317,11 @@ here are stages of their own. To locate photos with a track, keep using the
 see them: the app creates them from the camera settings and, with several tours, from the view per tour and the
 transitions (cinema flight, straight line, pause, cut). Preview, dragging in the timeline and video therefore always show
 the same. **When you switch the keyframe editor on**, the app asks *"Take over the standard keyframes?"* — with *Take
-over* they become your keyframes, appear in the timeline and can be changed. **When you switch it off**, your keyframes
-are discarded and the standard keyframes apply again. Choosing another transition type while the editor is open inserts
+over* they become your keyframes, appear in the timeline and can be changed. The app only asks when you don't have
+keyframes of your own yet. **When you switch it off** (also via *Fixed* or *Follow*), the standard keyframes apply
+again — but your keyframes stay saved in the project and just rest. **When you switch it back on** (or choose *Camera
+flight*), exactly your camera flight is back, whether it came from the quick video, the video assistant or was made by
+hand (since 19.10.2026; before, it was discarded when switching off). ⌘Z undoes the switch. Choosing another transition type while the editor is open inserts
 the matching keyframes into that transition.
 **Photo stops** (fly to the photo, a short sway, back) and the **orbit** at the end are keyframes too: when you drag the
 playhead through the timeline you see the photo stop and the orbit exactly as in the video. After the orbit the camera
@@ -2366,13 +2396,13 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
     This works identically in the preview and the finished video. (For **photo cards** this happens automatically via the photo's capture time.)
   - **Preview help:** the **"Show ALL signs in the preview"** checkbox — shows all signs at once while placing (preview only; in the video the timing still applies).
 - **Show the whole route faintly (formerly "ghost track", since v0.9.169; since v0.9.734 in every tour's ▸ panel)** — shows the **entire route** semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: **its own ghost-track color** (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and **opacity** (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. On for new projects (since 05.10.2026), existing projects keep their setting.
-- **Multiple track colours (since v0.9.435, extended v0.9.448)** — the track line can **change colour**. The **"Colour by"** picker decides what drives it:
+- **Colour by speed, elevation or gradient (formerly “Multiple track colours”, since v0.9.435, extended v0.9.448)** — the track line can **change colour**. The quickest way there is the button **“Colour by speed, elevation or gradient …”** in the line's look (✎ on the tour): it switches the colours on (by speed if the track has times) and shows the block at the top of the editor — for every tour. The **"Colour by"** picker decides what drives it:
   - **Distance (km)** — colour stops **at km** (number), **at the current marker position** (adopts the scrubber position) or **at all GPX waypoints** (automatic). The first colour applies from km 0 (= track colour).
   - **Any data series of the track** — since v0.9.448 this offers **everything the Data Animator can plot**: elevation, speed, gradient and every sensor value from FIT/TCX files (**heart rate, power, cadence, temperature** …). The list only shows **what the loaded track actually contains**; the unit is in brackets.
 
-    Colour stops are then set **in the value range of that series** (e.g. "from 145 bpm", "from 8 %", "from 2400 m"). **"＋ from &lt;series&gt; (here)"** adopts the value at the marker position, **"Auto (min → max)"** lays a blue→red ramp across the range. Negative values are allowed — which matters for **gradient** (descents) and **temperature** (frost).
+    Colour stops are then set **in the value range of that series** (e.g. "from 145 bpm", "from 8 %", "from 2400 m"). **"＋ from &lt;series&gt; (here)"** adopts the value at the marker position, **"Auto (typical range)"** lays a blue→red ramp across the tour's typical range — from the 2nd to the 98th percentile, so a single GPS outlier (say 60 km/h in the middle of a hike) doesn't push the whole line into one colour. For speed there is also **"Traffic light"**: slow red, medium yellow, fast green, with limits at one and two thirds of the typical range (hard changes). The values always come from all points of the tour, however densely the line is drawn. To show the part not yet travelled faintly, use **"Show the whole route faintly"** in the same editor. Negative values are allowed — which matters for **gradient** (descents) and **temperature** (frost).
 
-  Each stop has **value + colour**, 🗑 removes it. The **"Transition"** switch sets whether the colour changes **hard** (crisp bands) or as a soft **gradient**. Works WYSIWYG in preview, probe run and render. Off by default. *(Single-track animator only for now.)*
+  Each stop has **value + colour**, the bin icon removes it. The **"Transition"** switch sets whether the colour changes **hard** (crisp bands) or as a soft **gradient**. Works WYSIWYG in preview, probe run and render. Off by default. *(Single-track animator only for now.)*
 - **Map without labels** (since v0.4.4) — hides place names, street names and POI icons on the map. Turns the map into a pure background — a good look when you want the track as the visual lead actor instead of a Google-Maps-style overview. Works with all map styles and also in the Tour-Map module.
 
 **🧱 Overlays (since v0.9.752)** — Everything that stays fixed in the frame is an **overlay**: values, elevation profile, charts, north arrow and scale bar, title, end card, logo. An overlay is a box made of **rows**.
@@ -2398,6 +2428,15 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Source line** (since 2026-09-07) — crediting the map sources is mandatory and always stays visible, but you choose the **corner** (bottom right, bottom left, top right, top left) and the **width** (narrow = tall block, medium, wide = flat line, full width = bar along the bottom edge) so it does not cover the elevation profile or the north arrow. Preview and video show it at the same size. Since v0.9.741 it is much smaller: the text is 1.2 % of the short side of the frame (13 pixels in a 1080 video), in the same proportion for every format and window size.
 - **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. To get back to the overview use **⤢ in the overview map** (since v0.9.774, it only appears for a hand-set view without keyframes); once you set a keyframe, the keyframe wins.
 - **Free satellite everywhere** (since 2026-09-05; zoom staging since v0.9.656: in wide views the style shows Sentinel-2 only, the official aerial imagery fades in from zoom 12 and is complete at 13.5 — since v0.9.658 one step later than before, because Sentinel stays pixel-sharp up to there): where no official aerial imagery exists (Hamburg, New Zealand, USA …) the style now shows Sentinel-2 satellite imagery (10 m, 2016, EOX) instead of an empty area. A banner on the map tells you. No houses or trails at that resolution, but landscape, rivers and city structure; for close-ups pick another style (MapTiler, OpenStreetMap). The credit “Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016” appears in the attribution line; videos may be published.
+- **Note „only the coarse satellite image“ with two ways out** (since 2026-10-19): if the track lies outside the
+  official aerial imagery, the note at the top of the preview says that only the coarse Sentinel-2 image (10 m) is
+  available here and that roads and place names are hard to make out in it. Below it are two buttons: **„MapTiler
+  satellite (sharper, free key)“** switches to MapTiler satellite with labels — if no key has been entered yet, the
+  settings open at Maps → MapTiler with the instructions; **„Map style with names“** switches to the Liberty map
+  (OpenFreeMap, no key). In the Animator and the Tour Map the new style applies to the project (⌘Z brings the old one
+  back), in the archive maps to all archive maps. The note is quiet, can be closed with ✕ and never appears in the
+  video. Since the same version it also appears in the Animator when a project is opened straight away with „Satellite
+  (free)“ outside the aerial imagery (before, only after a style change).
 - **ProRes 422 HQ** (since 2026-09-05): Settings → video codec, for editing in Final Cut or Resolve. Output is .mov and large.
 - **Export a map animation without GPS** (new after v0.9.784): a project without a recording travels in the `.rzproj` together with its stage — points, curves and means of transport stay editable. Importing creates a new project of its own (a second import overwrites nothing). If the project has no stage yet, the export says so instead of writing an empty file.
 - **Export swarm/journey** (since 2026-09-05): “Export project (.rzproj)” now packs **all** tracks and the swarm/journey project of a composition. The recipient imports it as usual and the composition opens right in the Animator. Before, only the first track arrived, without the project.
@@ -2577,6 +2616,8 @@ tours). If something is missing, the app tells you when you switch it on. Also a
 **Colours by height, speed … in the air too (since v0.9.793):** the line in the air is coloured exactly like the line on the ground — **Track → Multiple track colours**: by distance, height, speed, gradient or a sensor, with hard colour changes or a smooth gradient, plus **colour per day** and the stage colours. For a paraglider, „by height“ shows at a glance where the glider climbs in a thermal and where it glides. The plumb lines take the colour of their point. Every change to the colour stops shows at once, in the video too.
 
 **IGC tracks go into the air by themselves (since v0.9.793):** load a paragliding, gliding or hang-gliding flight as an IGC file into a project and the app switches terrain and “Flight in the air” on by itself — nothing to set. If you switch it off, it stays off in that project. For DJI drone flights a hint points to the switch, because low camera flights often look better on the ground. The switch is under **Map → 3D on the map → Route**; it appears for flights (IGC, drone) and whenever it is on. 
+
+**Moving dot by activity (since 2026-10-19):** In the track editor, under the moving dot, switch on **“Symbol by activity (from the logbook)”**. The dot then shows what the logbook detected at that spot: **car** for a drive (the **motorbike** if the tour is filed as a motorbike tour in the archive), **boat** on a ferry (the ferry with the vehicle look “Symbol”), **hiker** for hikes and walks, **bicycle**, **runner** and **kayak** for water sports. Breaks and overnight stops keep the symbol before them. At each change the dot shrinks briefly and grows again; the line stays one line. Sections that would be on screen for less than a second (the minute from the car park to the viewpoint) keep the previous symbol so the dot doesn't flicker — the hint below the switch says which symbols are left out for that reason; a longer video shows them. This applies in the preview, while scrubbing, in the video and to the dot in the air. A planned stage's vehicle, your own image and “Show moving dot” off still take precedence. Without a logbook (tour not in the archive, no timestamps, several tours in a row) the switch is grey, with the reason next to it.
 
 **Moving dot in the air (since v0.9.794):** the dot flying along at flight height looks exactly like your moving dot on the ground — ball, arrow, symbol (e.g. paraglider), vehicle or own image, with colour and size, and it turns with the direction of flight. Change the moving dot and you see it at once, in the preview and in the video.
 

@@ -3081,6 +3081,10 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-map-banner-ico { flex-shrink: 0; color: rgb(255, 176, 96); display: inline-flex; }
 .rz-map-banner-zu { flex-shrink: 0; margin-left: 4px; background: none; border: 0; color: rgba(255, 255, 255, .75); cursor: pointer; padding: 0 2px; display: inline-flex; align-items: center; }
 .rz-map-banner-zu:hover { color: #fff; }
+/* 19.10.2026 — Auswege im Hinweis „nur grobes Satellitenbild“ (util.js rzMapCoverageBanners) */
+.rz-map-banner-aktionen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.rz-map-banner-aktion { display: inline-flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .28); color: #fff; border-radius: 6px; padding: 3px 9px; font: inherit; font-size: 12px; line-height: 1.3; cursor: pointer; }
+.rz-map-banner-aktion:hover { border-color: rgb(255, 176, 96); background: rgba(255, 176, 96, .14); }
 .rz-map-banner.rz-map-banner-kompakt .rz-map-banner-zu { display: none; }
 .rz-map-banner.rz-map-banner-kompakt { padding: 4px 6px; }
 .rz-map-banners.rz-map-banners-kompakt { left: auto; right: 6px; top: 6px; transform: none; }

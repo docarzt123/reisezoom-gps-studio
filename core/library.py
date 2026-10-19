@@ -69,6 +69,7 @@ from . import fitmeta as _fitmeta
 from . import sessions as csessions
 from . import trackcheck as _trackcheck
 from . import gpxrepair as _gpxrepair
+from . import zeitzone as _zeitzone  # 19.10.2026 — Tourtag in der Ortszeit
 
 log = logging.getLogger(__name__)
 
@@ -301,6 +302,8 @@ _TECH_COLS = [
     "speicher",
     # 10.09.2026 — Track-Check-Ergebnis entsteht beim Einlesen.
     "check_json", "check_stufe", "check_ts",
+    # 19.10.2026 — Tourtag in der Ortszeit (abgeleitet aus Startzeit + Startpunkt).
+    "tag_lokal", "tz_minuten",
 ]
 
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
@@ -358,6 +361,13 @@ _ADD_COLS = [
     # Wahrheit steht in `track_meta.check_ok` (je geo_hash — eine neue Version
     # wird frisch geprüft und hat ihre eigene Liste).
     ("check_ok", "TEXT DEFAULT ''"),
+    # 19.10.2026 — Kalendertag der Tour in der ORTSZEIT ihres Startpunkts
+    # ('JJJJ-MM-TT') und der Versatz zu UTC dort (Minuten). Vorher wurde der Tag
+    # aus dem UTC-Text von `started_at` geschnitten: eine Tour, die in Norwegen
+    # um 00:44 Uhr begann (22:44 UTC), stand im Datumsbaum einen Tag zu früh.
+    # Abgeleitet, keine Nutzer-Eingabe — `_migrate_tag_lokal` füllt Altbestände.
+    ("tag_lokal", "TEXT DEFAULT ''"),
+    ("tz_minuten", "INTEGER DEFAULT NULL"),
 ]
 
 
@@ -498,6 +508,7 @@ def open_db_lesend(db_path: Path) -> sqlite3.Connection:
         conn.create_function("rz_norm", 1, _norm)
     namen = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')")}
     _FTS_OK = "tracks_fts" in namen
+    _tag_spalte_pruefen(conn)
     try:
         _DOKUMENTE_DA = "tour_dokumente" in namen and bool(conn.execute("SELECT 1 FROM tour_dokumente LIMIT 1").fetchone())
     except sqlite3.Error:
@@ -558,11 +569,14 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     # Seite der Liste. MUSS nach den ALTER TABLEs stehen, sonst gibt es die
     # Spalte noch nicht.
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_tour ON tracks(tour_id)")
+    _tag_spalte_pruefen(conn)
     # 14.09.2026 (Nacht-Review): Fehler-Zeilen sind wenige, gesucht werden sie aber
     # bei jedem Start (`_migrate_error_kind`: zwei volle Durchläufe) und bei jeder
     # Statistik (`n_failed`, `n_nogps`). Ein Teil-Index nur über diese Zeilen kostet
     # fast nichts und macht die Abfragen unabhängig von der Archivgröße.
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_fehler ON tracks(error) WHERE error != ''")
+    # 19.10.2026 — Datumsbaum und Zeitraum-Filter gehen über den Ortstag.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_tag ON tracks(tag_lokal)")
     conn.execute(
         "INSERT INTO meta(key, value) VALUES('schema', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -573,6 +587,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_collection_items(conn)
     _migrate_error_kind(conn)
     _migrate_fit_neu_lesen(conn, schema_alt)
+    _migrate_tag_lokal(conn)
     if "speicher" not in have:
         # Zum Zeitpunkt dieser Migration gibt es `.gpx.gz` nur als unsere
         # Kopien — Nutzer-Dateien mit dieser Endung liest das Archiv erst ab
@@ -721,6 +736,88 @@ def _migrate_fit_neu_lesen(conn: sqlite3.Connection, schema_alt: int) -> None:
     if cur.rowcount:
         log.info("library: %d FIT-Touren zum Neu-Einlesen vorgemerkt "
                  "(Tour-Ebene, v0.9.501)", cur.rowcount)
+
+
+# 19.10.2026 — Der Tourtag (Datumsbaum, Zeitraum, Monats-/Wochen-Statistik) kommt
+# aus `tag_lokal`. Nur ein Archiv, das noch nie mit dieser Version geöffnet wurde
+# und NUR LESEND offen ist (Kommandozeile), hat die Spalte nicht — dann der alte
+# UTC-Schnitt, statt mit „no such column" auszusteigen.
+_TAG_SQL = "tag_lokal"
+
+
+def _tag_spalte_pruefen(conn: sqlite3.Connection) -> None:
+    global _TAG_SQL, _SPALTEN_OHNE_GEOM_CACHE
+    # Spaltenliste je geöffnetem Archiv neu bestimmen — ein anderes (älteres) Archiv hat andere Spalten.
+    _SPALTEN_OHNE_GEOM_CACHE = None
+    try:
+        have = {r[1] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()}
+    except sqlite3.Error:
+        have = set()
+    _TAG_SQL = "tag_lokal" if "tag_lokal" in have else "substr(started_at, 1, 10)"
+
+
+def _startpunkt(geom, center_lat=None, center_lon=None) -> tuple:
+    """(lat, lon) des ersten Punkts aus `geom` ([[lon,lat],…] oder JSON-Text), sonst die Mitte."""
+    try:
+        g = json.loads(geom) if isinstance(geom, str) else geom
+        if g:
+            lon, lat = float(g[0][0]), float(g[0][1])
+            if math.isfinite(lat) and math.isfinite(lon):
+                return lat, lon
+    except (TypeError, ValueError, IndexError):
+        pass
+    return center_lat, center_lon
+
+
+def tag_felder(started_at, lat, lon, land: str = "") -> dict:
+    """19.10.2026 — Die abgeleiteten Datumsfelder einer Tour: Ortstag, Versatz, Jahr.
+
+    Eine Tour gehört zu dem Tag, an dem sie am Startpunkt begann — auch wenn sie
+    über Mitternacht oder die Datumsgrenze weiterläuft (wie das Logbuch, das die
+    Tage ebenfalls ab dem ersten Punkt in Ortszeit zählt). Ohne Zeitstempel: leer."""
+    tag, off = _zeitzone.tag_lokal(started_at, lat, lon, land or "")
+    if not tag:
+        return {"tag_lokal": "", "tz_minuten": None, "year": 0}
+    return {"tag_lokal": tag, "tz_minuten": off, "year": int(tag[:4])}
+
+
+def _tag_nachrechnen(conn: sqlite3.Connection, where: str, args: Iterable = ()) -> int:
+    """Ortstag für die Zeilen `where` aus dem gespeicherten Stand neu rechnen (Startzeit, erster
+    Punkt von `geom`, Land). Fasst nur abgeleitete Spalten an, nie Nutzer-Eingaben oder Dateien."""
+    rows = conn.execute(
+        "SELECT path, started_at, center_lat, center_lon, COALESCE(country,'') AS country, "
+        "json_extract(CASE WHEN json_valid(geom) THEN geom END, '$[0]') AS g0, "
+        f"tag_lokal, tz_minuten, year FROM tracks WHERE {where}", list(args)).fetchall()
+    n = 0
+    for r in rows:
+        if not r["started_at"]:
+            continue
+        lat, lon = _startpunkt(f"[{r['g0']}]" if r["g0"] else None, r["center_lat"], r["center_lon"])
+        f = tag_felder(r["started_at"], lat, lon, r["country"])
+        if not f["tag_lokal"]:
+            continue
+        if (f["tag_lokal"], f["tz_minuten"], f["year"]) == (r["tag_lokal"], r["tz_minuten"], r["year"]):
+            continue
+        conn.execute("UPDATE tracks SET tag_lokal = ?, tz_minuten = ?, year = ? WHERE path = ?",
+                     (f["tag_lokal"], f["tz_minuten"], f["year"], r["path"]))
+        n += 1
+    return n
+
+
+def _migrate_tag_lokal(conn: sqlite3.Connection) -> None:
+    """19.10.2026 — bestehende Archive bekommen den Ortstag einmal nachgerechnet.
+
+    Selbstbegrenzend: nur Zeilen mit Startzeit und noch leerem `tag_lokal`. Keine
+    Datei wird geöffnet — Startzeit, Startpunkt (erster Punkt des gespeicherten
+    Verlaufs) und Land stehen schon in der Zeile. Das Jahr wird mitgezogen (eine
+    Silvester-Tour kurz nach Mitternacht gehört ins neue Jahr)."""
+    try:
+        n = _tag_nachrechnen(conn, "COALESCE(tag_lokal,'') = '' AND COALESCE(started_at,'') != ''")
+    except sqlite3.Error as e:
+        log.warning("library: Ortstag konnte nicht nachgerechnet werden (%s)", e)
+        return
+    if n:
+        log.info("library: Tourtag für %d Tour(en) in Ortszeit nachgerechnet", n)
 
 
 def _migrate_error_kind(conn: sqlite3.Connection) -> None:
@@ -1267,6 +1364,8 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "started_at": times[0] if times else "",
         "ended_at": times[-1] if times else "",
         "year": int(times[0][:4]) if times and times[0][:4].isdigit() else 0,
+        "tag_lokal": "",
+        "tz_minuten": None,
         "distance_m": dist,
         "duration_s": dur,
         "moving_time_s": moving,
@@ -1304,6 +1403,12 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "recorded_src": _rec_src,
         "geom": json.dumps(_simplify(coords), separators=(",", ":")),
     })
+    # 19.10.2026 — Tourtag in der Ortszeit des Startpunkts (der erste Punkt MIT Zeit,
+    # wie das Logbuch zählt). Das Land kennt erst der Ortslauf — `_upsert` rechnet
+    # mit ihm nach, sobald es in der Zeile steht.
+    if times:
+        _p0 = next((p for p in pts if p.time), pts[0])
+        row.update(tag_felder(times[0], _p0.lat, _p0.lon))
     # 10.09.2026 — Track-Check gleich beim Einlesen: die Punkte liegen hier
     # ohnehin im Speicher, ein zweites Öffnen wäre der teure Teil (2–20 ms
     # je Tour, gemessen). Ein Fehler darin darf den Index nie kippen.
@@ -1766,6 +1871,13 @@ def _upsert(conn: sqlite3.Connection, row: dict) -> None:
     )
     _apply_meta(conn, row.get("geo_hash") or "", row.get("name") or "",
                 row.get("cover") or "")
+    # 19.10.2026 — steht das Land schon in der Zeile (Ortslauf früher gelaufen), gilt
+    # dessen Zone (Kanaren, Portugal, USA …) statt der Schätzung aus der Lage.
+    if row.get("tag_lokal"):
+        try:
+            _tag_nachrechnen(conn, "path = ? AND COALESCE(country,'') != ''", [row["path"]])
+        except sqlite3.Error as e:
+            log.info("library: Ortstag mit Land nicht nachgerechnet (%s)", e)
 
 
 # 18.10.2026 — so heißt eine Datei im Versionsspeicher: `<16 Hex>.gpx.gz`.
@@ -2012,10 +2124,12 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
     if verz:
         from .fotos import pfadbereich   # Audit B-9: eine Regel für Fotos und Touren (auch `C:\\`)
         where.append("(path > ? AND path < ?)"); args.extend(pfadbereich(verz))
+    # 19.10.2026 — über den Ortstag statt den UTC-Text: „1.–1. Juni" zeigt genau die
+    # Touren, die im Datumsbaum unter dem 1. Juni stehen.
     if von:
-        where.append("started_at >= ?"); args.append(str(von)[:10])
+        where.append(f"{_TAG_SQL} >= ?"); args.append(str(von)[:10])
     if bis:
-        where.append("started_at <= ?"); args.append(str(bis)[:10] + "z")
+        where.append(f"{_TAG_SQL} <= ?"); args.append(str(bis)[:10])
     if activity:
         # Sammelposten (`grp:rad`) fassen mehrere Arten zusammen; alles andere
         # ist eine einzelne Art. Bewusst hier und nicht in der Oberfläche:
@@ -2570,7 +2684,8 @@ def datumsbaum(conn: sqlite3.Connection, **filters) -> list:
     # 05.10.2026 — unter _DB_LOCK: beim Öffnen fragt die Oberfläche Statistik und beide Bäume gleichzeitig; parallel auf
     # derselben Verbindung kam „sqlite3.InterfaceError: bad parameter or other API misuse" (Marcs Log)
     with _DB_LOCK:
-        rows = conn.execute(f"SELECT substr(started_at, 1, 10) AS tag, COUNT(*) AS n FROM tracks WHERE {wo} "
+        # 19.10.2026 — Tag in der Ortszeit der Tour (`tag_lokal`), nicht der UTC-Tag
+        rows = conn.execute(f"SELECT {_TAG_SQL} AS tag, COUNT(*) AS n FROM tracks WHERE {wo} "
                             f"AND started_at IS NOT NULL AND started_at != '' GROUP BY tag ORDER BY tag", args).fetchall()
     return [{"tag": r["tag"], "n": r["n"]} for r in rows if r["tag"] and len(r["tag"]) == 10]
 
@@ -2645,9 +2760,9 @@ def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
 
     # Monate: „01"…„12" quer über alle Jahre — zeigt die Saison.
     months = [{"month": int(x["m"] or 0), "n": x["n"], "km": round((x["d"] or 0) / 1000.0, 1)}
-              for x in rows(f"SELECT CAST(substr(started_at, 6, 2) AS INTEGER) m, COUNT(*) n, "
+              for x in rows(f"SELECT CAST(substr({_TAG_SQL}, 6, 2) AS INTEGER) m, COUNT(*) n, "
                             f"SUM(distance_m) d FROM tracks WHERE {sql_where} "
-                            f"AND length(started_at) >= 7 GROUP BY m ORDER BY m")]
+                            f"AND length({_TAG_SQL}) >= 7 GROUP BY m ORDER BY m")]
 
     acts = [{"activity": x["activity"] or "", "n": x["n"], "km": round((x["d"] or 0) / 1000.0, 1)}
             for x in rows(f"SELECT activity, COUNT(*) n, SUM(distance_m) d FROM tracks "
@@ -2673,9 +2788,9 @@ def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
                   "km": round((x["d"] or 0) / 1000.0, 1),
                   "hours": round((x["t"] or 0) / 3600.0, 1)}
                  for x in rows(
-                     f"SELECT substr(started_at, 1, 7) m, activity, COUNT(*) n, "
+                     f"SELECT substr({_TAG_SQL}, 1, 7) m, activity, COUNT(*) n, "
                      f"SUM(distance_m) d, SUM(COALESCE(moving_time_s, duration_s)) t "
-                     f"FROM tracks WHERE {sql_where} AND length(started_at) >= 7 "
+                     f"FROM tracks WHERE {sql_where} AND length({_TAG_SQL}) >= 7 "
                      f"GROUP BY m, activity ORDER BY m, n DESC")]
 
     # ISO-Kalenderwochen (v0.9.505). ⚠️ SQLite kann das nicht: `strftime('%W')`
@@ -2684,11 +2799,11 @@ def _stats_rechnen(conn: sqlite3.Connection, **filters) -> dict:
     # Woche 0 des neuen. Garmin und Komoot rechnen nach ISO, also wir auch.
     # Deshalb hier gruppieren statt in SQL: eine Abfrage, Zuordnung in Python.
     _wochen: dict = {}
-    for x in rows(f"SELECT started_at, activity, distance_m d, "
+    for x in rows(f"SELECT {_TAG_SQL} AS tag, activity, distance_m d, "
                   f"COALESCE(moving_time_s, duration_s) t FROM tracks "
-                  f"WHERE {sql_where} AND length(started_at) >= 10"):
+                  f"WHERE {sql_where} AND length({_TAG_SQL}) >= 10"):
         try:
-            d = _date.fromisoformat(str(x["started_at"])[:10])
+            d = _date.fromisoformat(str(x["tag"])[:10])
         except ValueError:
             continue
         iso = d.isocalendar()
@@ -3784,4 +3899,9 @@ def ort_speichern(conn: sqlite3.Connection, path: str, felder: dict) -> None:
                      "WHERE geo_hash = ? AND COALESCE(place,'') = ''",
                      (felder.get("place", ""), felder.get("region", ""),
                       felder.get("country", ""), geo))
+    # 19.10.2026 — mit dem Land ist die Zeitzone genauer: Tourtag nachziehen.
+    try:
+        _tag_nachrechnen(conn, "path = ? OR (geo_hash = ? AND ? != '')", [path, geo or "", geo or ""])
+    except sqlite3.Error as e:
+        log.info("library: Ortstag nach Ortslauf nicht nachgerechnet (%s)", e)
     conn.commit()

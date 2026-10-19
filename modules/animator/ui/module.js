@@ -798,6 +798,8 @@ function mountAnimator(body, headerActions, opts) {
               <select id="anim-dot-fz-stil" class="select" hidden>
                 ${FZ_STILE.map(s => `<option value="${s}">${t("animator.dot.fzs_" + s, FZ_STIL_NAMEN[s])}</option>`).join("")}
               </select>
+              <!-- 19.10.2026 — Symbol nach Aktivität aus dem Logbuch (bedient von der Zeile im Track-Editor rechts) -->
+              <input type="checkbox" id="anim-dot-lb" hidden>
               <!-- 13.10.2026 — Farbe der Symbole (bedient vom Track-Editor rechts) -->
               <input type="hidden" id="anim-dot-sym-farbe" value="linie">
               <input type="color" id="anim-dot-sym-dunkel" value="#2b3a40" hidden>
@@ -924,8 +926,11 @@ function mountAnimator(body, headerActions, opts) {
             </div>
             <div class="anim-colors-btns" id="anim-color-btns-metric" style="display:none; flex-wrap:wrap; gap:6px; margin-top:6px;">
               <button type="button" class="btn btn-small" id="anim-color-add-val">＋ <span id="anim-color-add-val-lbl">${t("animator.colors.add_ele", "ab Höhe (hier)")}</span></button>
-              <button type="button" class="btn btn-small" id="anim-color-auto">${t("animator.colors.auto", "Auto (min → max)")}</button>
+              <button type="button" class="btn btn-small" id="anim-color-auto" title="${t("animator.colors.auto_tip", "Spannt die Farben über den typischen Bereich der Tour (2. bis 98. Perzentil) — einzelne GPS-Ausreißer zählen nicht.")}">${t("animator.colors.auto", "Auto (typischer Bereich)")}</button>
+              <!-- 19.10.2026 — Vorlage „Ampel“ (Tempo): langsam rot → gelb → schnell grün (Idee: @kaennchenstruggle) -->
+              <button type="button" class="btn btn-small" id="anim-color-ampel" hidden title="${t("animator.colors.ampel_tip", "Langsam rot, mittel gelb, schnell grün — Grenzen bei einem und zwei Dritteln des typischen Tempos dieser Tour.")}">${t("animator.colors.ampel", "Ampel")}</button>
             </div>
+            <div class="muted anim-colors-blass" style="font-size:11px; margin-top:6px; line-height:1.4;">${t("animator.colors.blass_hinweis", "Noch nicht gefahrenen Rest blass zeigen: „Ganze Strecke blass zeigen“ weiter unten.")}</div>
             <div style="margin-top:4px;">
               <button type="button" class="field-help" data-help="colors_hint">?</button>
               <span class="muted" style="font-size:11px;">${t("animator.colors.hint_kurz", "Wie die Farbwechsel gelten")}</span>
@@ -1711,13 +1716,17 @@ function mountAnimator(body, headerActions, opts) {
     const b = ev.target.closest("[data-kamera-art]");
     if (!b) return;
     const art = b.dataset.kameraArt;
+    // 19.10.2026 — auch ruhende Keyframes (Editor aus, z. B. nach „Fest“) zählen: vorher sah „Kamerafahrt“ nach „Fest“
+    // keine Keyframes (getTimelineEvents filtert sie bei ausgeschaltetem Editor weg) und erzeugte die Fahrt neu
     let hatKf = false;
-    try { hatKf = getTimelineEvents().some(e => e && (KF_LANES.includes(e.kind) || e.kind === "camera")); } catch (_) {}
+    try { hatKf = getRawTimelineEvents().some(e => e && (KF_LANES.includes(e.kind) || e.kind === "camera")); } catch (_) {}
     if (art === "fahrt" && hatKf) {
       const c = document.getElementById("anim-kf-enabled");
       if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event("change", { bubbles: true })); }
-    } else if (art === "startziel" && hatKf && keyframesEnabled() && typeof window.rzConfirm === "function") {
+    } else if (art === "startziel" && hatKf && typeof window.rzConfirm === "function"
+               && (keyframesEnabled() || ((window.rzReadModuleSettings && window.rzReadModuleSettings(_MODKEY)) || {}).kamera_vorgabe !== "startziel")) {
       // 07.10.2026 — eigene Keyframes nie still ersetzen (⌘Z holt sie zurück, aber erst fragen)
+      // 19.10.2026 — auch ruhende (Editor aus); ruhende Start→Ziel-Keyframes holt rzEinfach.kameraSetzen ohne Frage zurück
       window.rzConfirm(t("einfach.k_startziel", "Start → Ziel"),
         t("animator.kamera.startziel_frage", "Deine Keyframes werden durch die Fahrt vom Start zum Ziel ersetzt. ⌘Z holt sie zurück."),
         t("animator.kamera.ersetzen", "Ersetzen")).then(ok => {
@@ -1726,7 +1735,7 @@ function mountAnimator(body, headerActions, opts) {
       });
       return;
     } else if (window.rzEinfach && window.rzEinfach.kameraSetzen) {
-      window.rzEinfach.kameraSetzen(art);
+      window.rzEinfach.kameraSetzen(art, { einSchritt: true });   // 19.10.2026 — Klick = ein ⌘Z-Schritt
     }
     setTimeout(_kameraKurzSync, 60);
   });
@@ -1790,68 +1799,40 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-kf-enabled", _MODKEY, "keyframes_enabled", { type: "bool",
     onChange: () => applyKeyframesEnabled() });
 
-  // v0.9.11 — Warnung wenn der User den Editor mit bestehenden Keyframes
-  // ausschaltet. Marc-Spec: „Da muss eine Warnung kommen 'Keyframes gehen
-  // verloren! Willst du den Keyframes Editor wirklich verlassen?'".
-  // Click-Handler läuft VOR dem change-Listener von bindSetting. Wenn wir
-  // preventDefault() rufen, kippt der Checkbox-State nicht und kein change
-  // feuert — wir können dann via Modal entscheiden.
+  // v0.9.11 — beim Ausschalten fragte hier eine Warnung „alle Keyframes werden gelöscht“ und löschte sie dann.
+  // 19.10.2026 — Ausschalten löscht nichts mehr: die Keyframes bleiben im Projekt und ruhen nur (getTimelineEvents()
+  // liefert dann keine, wirksam sind die Standard-Keyframes); Einschalten holt exakt dieselben zurück. Vorher ersetzte
+  // aus → an eine Kamerafahrt (Schnell-Video, Video-Assistent, von Hand) durch die Standard-Keyframes. Gefragt wird nur
+  // noch beim Einschalten OHNE eigene Keyframes (Standard-Keyframes übernehmen?).
+  // Click-Handler läuft VOR dem change-Listener von bindSetting. Mit preventDefault() kippt der Checkbox-State nicht
+  // und kein change feuert — dann entscheidet das Modal.
   (() => {
     const cbKf = document.getElementById("anim-kf-enabled");
     if (!cbKf) return;
     cbKf.addEventListener("click", (e) => {
       // checked reflektiert HIER schon den geplanten neuen Zustand.
-      if (cbKf.checked) {
-        // 07.10.2026 (Marc: „beim Umschalten eine Frage: Standard-Keyframes übernehmen?“) — die Kamera lief bis hier über
-        // die Standard-Keyframes; übernommen werden sie zu eigenen, voll wirksam und frei veränderbar.
-        if (getRawTimelineEvents().some(ev => ev && KF_LANES.includes(ev.kind))) return;
-        e.preventDefault();
-        const ein = (mitStandard) => {
-          openModal({}).close();
-          if (mitStandard) {
-            const std = _standardKeyframes().map(ev => { const c = Object.assign({}, ev); delete c.standard; return c; });
-            setTimelineEvents(getRawTimelineEvents().filter(ev => ev && !KF_LANES.includes(ev.kind)).concat(std));
-          }
-          cbKf.checked = true;
-          cbKf.dispatchEvent(new Event("change"));
-        };
-        openModal({
-          title: t("animator.kf.uebernehmen_titel", "Standard-Keyframes übernehmen?"),
-          body: `<p style="margin:0 0 4px; font-size:13.5px; line-height:1.5;">${t("animator.kf.uebernehmen_text", "Die Kamera läuft gerade über die Standard-Keyframes: Einstellungen der Kamera, Sicht je Tour und die Übergänge. Übernimmst du sie, werden sie zu deinen Keyframes — sichtbar in der Zeitleiste und frei veränderbar.")}</p>`,
-          footer: `<button type="button" class="btn" id="md-kf-ohne">${t("animator.kf.uebernehmen_nein", "Ohne beginnen")}</button>
-                   <button type="button" class="btn btn-primary" id="md-kf-mit">${t("animator.kf.uebernehmen_ja", "Übernehmen")}</button>`,
-        });
-        document.getElementById("md-kf-ohne").onclick = () => ein(false);
-        document.getElementById("md-kf-mit").onclick = () => ein(true);
-        return;
-      }
-      const hasKfs = getRawTimelineEvents().some(ev => ev && KF_LANES.includes(ev.kind));
-      if (!hasKfs) return;       // nichts zu verlieren → durchlassen
-      e.preventDefault();        // Toggle-Kippen abbrechen
-      const titleStr  = (typeof t === "function" ? t("animator.kf.deactivate_warn_title") : null) || "Zurück zu den Standard-Keyframes?";
-      const bodyStr   = (typeof t === "function" ? t("animator.kf.deactivate_warn_body")  : null)
-                     || "Du hast bestehende Keyframes gesetzt. Wenn du den Keyframe-Editor jetzt deaktivierst, werden <strong>alle Keyframes gelöscht</strong>. Möchtest du fortfahren?";
-      const cancelStr = (typeof t === "function" ? t("common.cancel") : null) || "Abbrechen";
-      const okStr     = (typeof t === "function" ? t("animator.kf.deactivate_warn_ok") : null) || "Editor deaktivieren";
-      openModal({
-        title: titleStr,
-        body:  `<p style="margin:0 0 4px; font-size:13.5px; line-height:1.5;">${bodyStr}</p>`,
-        footer: `
-          <button type="button" class="btn" id="md-kf-deact-cancel">${cancelStr}</button>
-          <button type="button" class="btn btn-primary" id="md-kf-deact-ok" style="background:#d94343; border-color:#b53636;">${okStr}</button>
-        `,
-      });
-      document.getElementById("md-kf-deact-cancel").onclick = () => openModal({}).close();
-      document.getElementById("md-kf-deact-ok").onclick = () => {
+      if (!cbKf.checked) return;   // ausschalten: nichts geht verloren → durchlassen
+      // 07.10.2026 (Marc: „beim Umschalten eine Frage: Standard-Keyframes übernehmen?“) — die Kamera lief bis hier über
+      // die Standard-Keyframes; übernommen werden sie zu eigenen, voll wirksam und frei veränderbar.
+      if (_eigeneKeyframesGespeichert()) return;   // ruhende eigene Keyframes → einfach wieder wirksam
+      e.preventDefault();
+      const ein = (mitStandard) => {
         openModal({}).close();
-        // Alle Keyframe-Events killen (marker/photo bleiben für später)
-        const filtered = getRawTimelineEvents().filter(e => e && !KF_LANES.includes(e.kind));
-        setTimelineEvents(filtered);
-        // Jetzt programmatisch toggeln + change-Event auslösen, damit
-        // bindSetting persistiert + applyKeyframesEnabled() läuft.
-        cbKf.checked = false;
+        if (mitStandard) {
+          const std = _standardKeyframes().map(ev => { const c = Object.assign({}, ev); delete c.standard; return c; });
+          setTimelineEvents(getRawTimelineEvents().filter(ev => ev && !KF_LANES.includes(ev.kind)).concat(std));
+        }
+        cbKf.checked = true;
         cbKf.dispatchEvent(new Event("change"));
       };
+      openModal({
+        title: t("animator.kf.uebernehmen_titel", "Standard-Keyframes übernehmen?"),
+        body: `<p style="margin:0 0 4px; font-size:13.5px; line-height:1.5;">${t("animator.kf.uebernehmen_text", "Die Kamera läuft gerade über die Standard-Keyframes: Einstellungen der Kamera, Sicht je Tour und die Übergänge. Übernimmst du sie, werden sie zu deinen Keyframes — sichtbar in der Zeitleiste und frei veränderbar.")}</p>`,
+        footer: `<button type="button" class="btn" id="md-kf-ohne">${t("animator.kf.uebernehmen_nein", "Ohne beginnen")}</button>
+                 <button type="button" class="btn btn-primary" id="md-kf-mit">${t("animator.kf.uebernehmen_ja", "Übernehmen")}</button>`,
+      });
+      document.getElementById("md-kf-ohne").onclick = () => ein(false);
+      document.getElementById("md-kf-mit").onclick = () => ein(true);
     });
   })();
   // Karten-Feinabstimmung-Felder — jetzt direkt in der Karten-Sektion (v0.6.0).
@@ -2471,6 +2452,13 @@ function mountAnimator(body, headerActions, opts) {
     sel.dispatchEvent(new Event("change", { bubbles: true }));
     setTimeout(_gesamtLookSync, 0);
   }
+  // 19.10.2026 — Knöpfe im Karten-Hinweis „nur grobes Satellitenbild“ (util.js rzKarteStilWaehlen): über #anim-style,
+  // damit Projekt, ⌘Z und Video denselben Stil haben
+  body.addEventListener("rz-kartenstil-wahl", (ev) => {
+    const k = ev.detail && ev.detail.key, sel = document.getElementById("anim-style");
+    if (!k || !sel || ![...sel.options].some(o => o.value === k)) return;
+    ev.preventDefault(); _basisSetzen(k);
+  });
   document.getElementById("anim-gesamtlook")?.addEventListener("click", ev => {
     // 07.10.2026 — ✎ an der aktiven Kachel: Karten-Editor (rechte Seitenleiste) statt Look neu anwenden
     // 08.10.2026 (Marc: „der Stift, wenn das Fenster schon offen ist — da denkt man, es passiert nichts“) — ✎ schaltet um
@@ -3098,7 +3086,7 @@ function mountAnimator(body, headerActions, opts) {
         <input type="number" class="anim-color-km" data-idx="${i}"${ui.min0 ? ' min="0"' : ""} step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="flex:0 0 84px; width:84px; min-width:84px;">
         ${ui.unit ? `<span class="muted" style="font-size:11px;">${_animEscapeHtml(ui.unit)}</span>` : ""}
         <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px; margin-left:auto;">
-        <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
+        <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px; color:inherit;">${typeof rzIcon === "function" ? rzIcon("trash-2", { size: 14 }) : "✕"}</button>
       </div>`).join("");
   }
   // Prüfstand-Griff (tests/test_farbstufen_felder.py): eine Stufe anlegen, ohne
@@ -3215,13 +3203,44 @@ function mountAnimator(body, headerActions, opts) {
       return +arr[Math.max(0, Math.min(idx, arr.length - 1))] || 0;
     } catch (_) { return 0; }
   }
-  // „Auto": Min→Max der Metrik in 5 gleichmäßige Stops (blau→rot-Rampe).
+  /** 19.10.2026 (Idee: @kaennchenstruggle) — typischer Bereich einer Reihe: 2. bis 98. Perzentil statt Min → Max.
+   *  Ein einzelner GPS-Sprung schob sonst die ganze Linie in eine Farbe (gemessen: Max 59,6 bei P98 6,1 km/h auf einer
+   *  Wanderung, Max 206 bei P98 97 km/h auf einer Autofahrt). Bei sehr gleichmäßigen Reihen (P2 = P98) Min → Max.
+   *  Die Werte kommen aus den Reihen der vollen Spur (Punktdichte 18.10.2026), nicht aus der gezeichneten Linie. */
+  function _spanneRobust(arr) {
+    const v = [];
+    for (const x of (arr || [])) if (typeof x === "number" && isFinite(x)) v.push(x);
+    if (!v.length) return null;
+    v.sort((a, b) => a - b);
+    const q = (p) => { const k = p * (v.length - 1), i = Math.floor(k), f = k - i; return i + 1 < v.length ? v[i] + (v[i + 1] - v[i]) * f : v[i]; };
+    let lo = q(0.02), hi = q(0.98);
+    if (!(hi > lo)) { lo = v[0]; hi = v[v.length - 1]; }
+    return hi > lo ? [lo, hi] : null;
+  }
+  window.__rzSpanneRobust = _spanneRobust;   // Prüfstand (tests/test_farben_tempo.py)
+  window.__rzColorMetric = (q) => metricArrFor(q);   // Prüfstand: Reihe, nach der Track 1 färbt
+  const _AMPEL = ["#e0322c", "#f1c40f", "#27ae60"];   // langsam rot → gelb → schnell grün
+  /** Ampel-Stufen aus dem typischen Bereich: rot ab unten, gelb ab einem Drittel, grün ab zwei Dritteln (hart). */
+  function _ampelStufen(sp, rund) {
+    const [lo, hi] = sp;
+    return [{ v: rund(lo), color: _AMPEL[0] }, { v: rund(lo + (hi - lo) / 3), color: _AMPEL[1] }, { v: rund(lo + (hi - lo) * 2 / 3), color: _AMPEL[2] }];
+  }
+  function ampelSeed() {
+    const sp = _spanneRobust(currentMetricArr());
+    if (!sp) { toast(t("animator.colors.no_metric", "Für diese Quelle liegen keine Daten vor."), "info"); return; }
+    _trackColorStops = _ampelStufen(sp, (x) => Math.round(x * 10) / 10);
+    persistColorStops();   // ⚠️ vor dem Moduswechsel: dessen Neuzeichnen liest die Stufen aus dem Projekt (loadColorStops)
+    const md = document.getElementById("anim-colors-mode");
+    if (md && md.value !== "hard") { md.value = "hard"; md.dispatchEvent(new Event("change", { bubbles: true })); }
+    renderColorStops(); refreshPreviewTrackData();
+  }
+  // „Auto": typischer Bereich (P2 → P98, s. _spanneRobust) der Metrik in 5 gleichmäßige Stops (blau→rot-Rampe).
   function autoSeedMetric() {
     const arr = currentMetricArr();
     if (!arr || !arr.length) { toast(t("animator.colors.no_metric", "Für diese Quelle liegen keine Daten vor."), "info"); return; }
-    let lo = Infinity, hi = -Infinity;
-    for (const x of arr) { if (isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; } }
-    if (!(hi > lo)) { toast(t("animator.colors.no_metric", "Für diese Quelle liegen keine Daten vor."), "info"); return; }
+    const sp = _spanneRobust(arr);
+    if (!sp) { toast(t("animator.colors.no_metric", "Für diese Quelle liegen keine Daten vor."), "info"); return; }
+    const [lo, hi] = sp;
     const N = _METRIC_RAMP.length;
     _trackColorStops = _METRIC_RAMP.map((c, i) => ({ v: Math.round((lo + (hi - lo) * i / (N - 1)) * 10) / 10, color: c }));
     persistColorStops(); renderColorStops(); refreshPreviewTrackData();
@@ -3247,6 +3266,7 @@ function mountAnimator(body, headerActions, opts) {
   });
   document.getElementById("anim-color-add-val")?.addEventListener("click", () => addColorStop(currentMarkerMetric()));
   document.getElementById("anim-color-auto")?.addEventListener("click", () => autoSeedMetric());
+  document.getElementById("anim-color-ampel")?.addEventListener("click", () => ampelSeed());   // 19.10.2026
   (function wireColorStopList() {
     const box = document.getElementById("anim-colors-list"); if (!box) return;
     const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
@@ -3312,6 +3332,7 @@ function mountAnimator(body, headerActions, opts) {
     const gMet = document.getElementById("anim-color-btns-metric");
     if (gDist) gDist.style.display = (!hide && s === "distance") ? "flex" : "none";
     if (gMet) gMet.style.display = (!hide && s !== "distance") ? "flex" : "none";
+    const amp = document.getElementById("anim-color-ampel"); if (amp) amp.hidden = (s !== "speed");   // 19.10.2026 — Ampel nur fürs Tempo
     // v0.9.448 — Button-Text nennt die gewählte Reihe beim Namen („ab Puls (hier)").
     const lbl = document.getElementById("anim-color-add-val-lbl");
     if (lbl && s !== "distance") {
@@ -3320,7 +3341,7 @@ function mountAnimator(body, headerActions, opts) {
     const hint = document.getElementById("anim-colors-hint");
     if (hint) hint.textContent = (s === "distance")
       ? t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")
-      : t("animator.colors.hint_metric", "Jeder Eintrag setzt ab seinem Wert eine neue Farbe. „Auto\" füllt Min→Max. „hart\" = Bänder, „Verlauf\" = weicher Übergang.");
+      : t("animator.colors.hint_metric", "Jeder Eintrag setzt ab seinem Wert eine neue Farbe. „Auto“ verteilt die Farben über den typischen Bereich der Tour (ohne Ausreißer). „hart“ = Bänder, „Verlauf“ = weicher Übergang.");
   }
   rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi();
   // v0.9.448 — nach GPX-Load die Quellen-Liste aus dem neuen Track neu aufbauen.
@@ -3775,7 +3796,7 @@ function mountAnimator(body, headerActions, opts) {
   let _manualCam = null;
   function _manualCamGet() {
     try {
-      if ((getRawTimelineEvents() || []).length) return null;      // Keyframes gewinnen
+      if ((getTimelineEvents() || []).length) return null;      // Keyframes gewinnen (19.10.2026: nur wirksame — ruhende bei ausgeschaltetem Editor nicht)
       // 07.10.2026 — in der Reise führen die Standard-Keyframes (Sicht je Tour, Übergänge); vorher überschrieb die
       // Reise-Kamera die Handkamera im Bildaufbau, jetzt gilt das hier
       if (!_isStaticFrame && typeof _reiseAktiv === "function" && _reiseAktiv()) return null;
@@ -3792,7 +3813,7 @@ function mountAnimator(body, headerActions, opts) {
   function _manualCamMerken() {
     try {
       if (!map || _previewRaf) return;
-      if ((getRawTimelineEvents() || []).length) return;
+      if ((getTimelineEvents() || []).length) return;   // 19.10.2026 — wie _manualCamGet: nur wirksame Keyframes
       const c = map.getCenter();
       _manualCamSpeichern({ center: [c.lng, c.lat], zoom: +map.getZoom().toFixed(4), pitch: +map.getPitch().toFixed(2), bearing: +map.getBearing().toFixed(2) });
     } catch (_) {}
@@ -3860,26 +3881,180 @@ function mountAnimator(body, headerActions, opts) {
     return _lbBereiche.filter(b => _LB_FAKTOR[b.anzeige])
       .map(b => ({ art: "tempo", von: b.von, bis: b.bis, faktor: _LB_FAKTOR[b.anzeige], quelle: "logbuch" }));
   }
+  // ── Laufpunkt „Symbol nach Aktivität“ (19.10.2026) ──────────────────
+  // Mit dem Schalter im Laufpunkt-Block zeigt der Laufpunkt das Symbol des Logbuch-Abschnitts, in dem er gerade ist:
+  // Fahrt → Auto (Motorrad, wenn die Tour im Archiv als Motorrad-Tour gilt), Fähre → Fähre/Boot, Wanderung und
+  // Spaziergang → Wanderer, Rad → Fahrrad, Laufen → Läufer, Wassersport → Kajak/Boot. Pause, Übernachtung und Unsicheres
+  // behalten das Symbol davor. Der Track wird dafür NICHT geteilt — nur der Laufpunkt wechselt, an der Grenze kurz
+  // klein → groß (`_lbSymSkala`, gerechnet in Videosekunden über die Tempo-Kurve: Vorschau, Scrubben, Video und der
+  // Punkt in der Luft sehen gleich aus). Vorrang behalten: Fahrzeug der Etappe/Reiseroute, eigenes Bild, „Laufpunkt zeigen“ aus.
+  let _lbAktivitaet = "", _lbFuer = null, _lbLaeuft = false;
+  const _LB_FZ = { fahrt: "auto", uebersetzen: "faehre", wanderung: "wanderer", spaziergang: "wanderer", gehen: "wanderer",
+                   rad: "rad", laufen: "laeufer", wassersport: "kajak" };
+  const LB_WECHSEL_S = 0.25;    // halbe Dauer des Symbolwechsels in Videosekunden (klein werden → tauschen → groß werden)
+  const LB_WECHSEL_MIN = 0.15;  // kleinste Größe mitten im Wechsel
+  function _lbSymAn() { return !!document.getElementById("anim-dot-lb")?.checked; }
+  /** Logbuch-Art → Laufpunkt-Fahrzeug ("" = behält das Symbol davor). Arten, die es nur als Symbol gibt (Fähre, Kajak,
+   *  Mountainbike), nur beim Fahrzeug-Aussehen „Symbol“ — sonst stünde ein Symbol zwischen Plaketten/Bildern. */
+  function _lbFzVon(art) {
+    let fz = _LB_FZ[art] || "";
+    const sym = dotFzStil() === "symbol";
+    if (fz === "auto" && _lbAktivitaet === "motorrad") fz = "motorrad";
+    if (fz === "rad" && _lbAktivitaet === "mtb" && sym) fz = "mountainbike";
+    if (fz && FZ_NUR_SYMBOL.has(fz) && !sym) fz = fz === "mountainbike" ? "rad" : "boot";
+    return FAHRZEUGE.includes(fz) ? fz : "";
+  }
+  let _lbSymPlanC = null;
+  /** Lage im Video: Trim, Dauer und Tempo-Kurve — daraus Videosekunden je Track-Stelle (über _ankerAusBahn). */
+  function _lbVideoLage() {
+    const tr = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const tA = Math.max(0, Math.min(1, tr.start ?? 0)), tB = Math.max(tA, Math.min(1, tr.end ?? 1));
+    const dur = Math.max(0.5, parseFloat(document.getElementById("anim-dur")?.value) || 20);
+    let pace = null; try { pace = _paceMap; } catch (_) { pace = null; }
+    return { tA, tB, dur, pace };
+  }
+  /** Plan des Laufpunkts: Stufen {ab (Bruchteil-Index in currentCoords), fz} und je Grenze das Fenster des Wechsels
+   *  {g, lo, hi}. Lage über denselben Anteil wie die Linien-Masken (_segStartsSetzen). Abschnitte, die im Video kürzer
+   *  als LB_MIN_S stehen (die Minute zu Fuß vom Parkplatz), behalten das Symbol davor — sonst zuckte der Laufpunkt auf
+   *  langen Fahrten bei jedem Halt. Gemerkt je Spur, Logbuch, Aktivität, Fahrzeug-Aussehen, Tempo-Kurve, Dauer, Trim. */
+  const LB_MIN_S = 1.0;
+  function _lbSymPlan() {
+    const n = (currentCoords && currentCoords.length) || 0;
+    if (n < 2 || !_lbBereiche.length) return null;
+    const fzs = dotFzStil(), L = _lbVideoLage(), key = [n, fzs, _lbAktivitaet, L.tA, L.tB, L.dur].join("|");
+    const C = _lbSymPlanC;
+    if (C && C.co === currentCoords && C.b === _lbBereiche && C.pace === L.pace && C.key === key) return C.plan;
+    const liste = _lbBereiche.filter(b => isFinite(+b.von)).slice().sort((x, y) => x.von - y.von)
+      .map(b => ({ ab: Math.max(0, Math.min(n - 1, +b.von * (n - 1))), fz: _lbFzVon(b.art) }));
+    let vorher = "";
+    for (const s of liste) { if (s.fz) vorher = s.fz; else s.fz = vorher; }   // Pause & Co. behalten das Symbol davor
+    const erstes = (liste.find(s => s.fz) || {}).fz || "";
+    for (const s of liste) { if (s.fz) break; s.fz = erstes; }               // vor dem ersten bekannten: dessen Symbol
+    const zusammen = (arr) => { const o = []; for (const s of arr) if (s.fz && (!o.length || o[o.length - 1].fz !== s.fz)) o.push(s); return o; };
+    let stufen = zusammen(liste.map(s => ({ ab: s.ab, fz: s.fz, A: _ankerAusBahn(s.ab) })));
+    const alle = [...new Set(stufen.map(s => s.fz))];   // für den Hinweis: was das Logbuch hergäbe
+    // Videosekunden je Stufe (im Trim); zu kurze fallen weg (die erste übernimmt dann die nächste), bis nichts mehr fällt
+    const sek = (a, b) => (Math.max(L.tA, Math.min(L.tB, b)) - Math.max(L.tA, Math.min(L.tB, a))) / Math.max(1e-9, L.tB - L.tA) * L.dur;
+    for (let runde = 0; runde < 8 && stufen.length > 1; runde++) {
+      const raus = new Set();
+      stufen.forEach((s, i) => { const bis = i + 1 < stufen.length ? stufen[i + 1].A : 1; if (sek(s.A, bis) < LB_MIN_S) raus.add(i); });
+      if (!raus.size || raus.size === stufen.length) break;
+      let neu = stufen.filter((_, i) => !raus.has(i));
+      if (raus.has(0) && neu.length) neu[0] = Object.assign({}, neu[0], { ab: stufen[0].ab, A: stufen[0].A });
+      neu = zusammen(neu);
+      if (neu.length === stufen.length) break;
+      stufen = neu;
+    }
+    let plan = null;
+    if (stufen.length) {
+      const w = LB_WECHSEL_S / L.dur * Math.max(1e-6, L.tB - L.tA);
+      plan = { stufen: stufen.map(s => ({ ab: s.ab, fz: s.fz })), grenzen: stufen.slice(1).map(s => s.ab), alle,
+               fenster: stufen.slice(1).map(s => ({ g: s.ab, lo: Math.min(s.ab, fracAusFortschritt(s.A - w, n)), hi: Math.max(s.ab, fracAusFortschritt(s.A + w, n)) })) };
+    }
+    _lbSymPlanC = { co: currentCoords, b: _lbBereiche, pace: L.pace, key, plan };
+    return plan;
+  }
+  /** Wirkt der Schalter gerade? (an, Logbuch mit erkannten Arten, kein eigenes Bild) */
+  function _lbSymWirkt() { try { return _lbSymAn() && dotStil() !== "bild" && !!_lbSymPlan(); } catch (_) { return false; } }
+  /** Fahrzeug an der Stelle `frac` (Bruchteil-Index in currentCoords) oder "". */
+  function _lbSymArtAn(frac) {
+    if (!_lbSymWirkt()) return "";
+    const p = _lbSymPlan(), f = +frac || 0;
+    let fz = p.stufen[0].fz;
+    for (const s of p.stufen) { if (s.ab <= f) fz = s.fz; else break; }
+    return fz;
+  }
+  /** Größe des Laufpunkts (0,15…1) um eine Symbolgrenze: ±LB_WECHSEL_S Videosekunden, über die Tempo-Kurve in Track-
+   *  Stellen umgerechnet (im Plan gemerkt) — dieselbe Rechnung in Vorschau, Scrubben und Video. */
+  function _lbSymSkala(frac) {
+    try {
+      if (!_lbSymWirkt()) return 1;
+      const plan = _lbSymPlan();
+      if (!plan.fenster.length) return 1;
+      const f = +frac || 0, glatt = (u) => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+      let s = 1;
+      for (const x of plan.fenster) {
+        if (f > x.lo && f < x.g) s = Math.min(s, glatt((x.g - f) / (x.g - x.lo)));
+        else if (f >= x.g && f < x.hi) s = Math.min(s, glatt((f - x.g) / (x.hi - x.g)));
+        else if (f === x.g) s = 0;
+      }
+      return LB_WECHSEL_MIN + (1 - LB_WECHSEL_MIN) * s;
+    } catch (_) { return 1; }
+  }
+  /** Größe als Ausdruck für die Laufpunkt-Ebenen: nur mit wirksamem Schalter datengetrieben (Eigenschaft `sk`). */
+  function _dotSk(v) { return _lbSymWirkt() ? ["*", v, ["coalesce", ["get", "sk"], 1]] : v; }
+  /** Zeile im Track-Editor (rechts): Schalter + Hinweis, warum er nicht geht / was er zeigt. */
+  function _lbSymZeileFuellen(z) {
+    if (!z) return;
+    const cb = z.querySelector("[data-lb-sym]"), h = z.querySelector("[data-lb-sym-hinweis]");
+    if (cb) cb.checked = _lbSymAn();
+    if (!h) return;
+    const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const laedt = !!currentGpx && (_lbLaeuft || _lbFuer !== currentGpx);
+    let plan = null; try { plan = _lbSymPlan(); } catch (_) { plan = null; }
+    let text = "", aus = false;
+    if (laedt) text = `<span class="spinner"></span> ${esc(t("animator.dot.lb_sym_laedt", "Logbuch wird gelesen …"))}`;
+    else if (!currentGpx) { aus = true; text = esc(t("animator.dot.lb_sym_keine", "Im Logbuch dieser Tour ist keine Aktivität erkannt.")); }
+    else if (_lbGrund) {
+      aus = true;
+      text = esc(_lbGrund === "reise" ? t("animator.lb.reise", "Bei mehreren Touren nacheinander führt der Etappen-Zeitplan — die Logbuch-Anzeige gilt für einzelne Touren.")
+        : _lbGrund === "nicht_im_archiv" ? t("animator.lb.nicht_im_archiv", "Das Logbuch gibt es für Touren im Archiv.")
+        : _lbGrund === "ohne_zeit" ? t("animator.lb.ohne_zeit", "Der Track hat keine Zeitstempel — ohne Uhrzeit gibt es kein Logbuch.")
+        : t("animator.lb.fehler", "Logbuch nicht lesbar."));
+    } else if (!plan) { aus = true; text = esc(t("animator.dot.lb_sym_keine", "Im Logbuch dieser Tour ist keine Aktivität erkannt.")); }
+    else if (_lbSymAn() && dotStil() === "bild") text = esc(t("animator.dot.lb_sym_bild", "Das eigene Bild hat Vorrang — mit einer anderen Form wechselt das Symbol."));
+    else {
+      const name = (f) => t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f] || f);
+      const da = [...new Set(plan.stufen.map(s => s.fz))], kurz = (plan.alle || []).filter(f => !da.includes(f));
+      text = esc(da.length > 1 ? t("animator.dot.lb_sym_arten", "Wechselt zwischen: {liste}").replace("{liste}", da.map(name).join(", "))
+                                : t("animator.dot.lb_sym_eins", "Zeigt: {x}").replace("{x}", name(da[0])));
+      // Abschnitte, die im Video kürzer als LB_MIN_S stehen, behalten das Symbol davor — sagen, warum sie fehlen
+      if (kurz.length) text += "<br>" + esc(t("animator.dot.lb_sym_kurz", "Zu kurz im Video (unter 1 s), behält das Symbol davor: {liste}. Längere Videodauer zeigt sie.").replace("{liste}", kurz.map(name).join(", ")));
+    }
+    if (cb) cb.disabled = aus;
+    z.classList.toggle("ist-aus", aus);
+    h.innerHTML = text;
+  }
   async function _lbLaden() {
     const lauf = ++_lbLauf;
     let reise = false; try { reise = !!_reiseGilt(); } catch (_) {}
     if (!currentGpx || reise) {
-      _lbBereiche = []; _lbEid = null; _lbGrund = currentGpx ? "reise" : "";
-      _segStartsSetzen(); _lbListeZeichnen(); return;
+      _lbBereiche = []; _lbEid = null; _lbGrund = currentGpx ? "reise" : ""; _lbAktivitaet = ""; _lbFuer = currentGpx; _lbLaeuft = false;
+      _segStartsSetzen(); _lbListeZeichnen(); _lbSymNachLaden(); return;
     }
+    _lbLaeuft = true;
+    const fuer = currentGpx;
     let r = null;
     try { r = await api().animator_logbuch_bereiche(currentGpx); } catch (_) { r = null; }   // warte-ok: Datenbank + Einlesen, kurz
     if (lauf !== _lbLauf) return;
+    _lbLaeuft = false; _lbFuer = fuer;
     const vorher = JSON.stringify(_lbBereiche.map(b => [b.von, b.bis, b.anzeige]));
-    if (r && r.ok) { _lbBereiche = r.bereiche || []; _lbEid = r.eid || null; _lbGrund = ""; }
-    else { _lbBereiche = []; _lbEid = null; _lbGrund = (r && r.grund) || "fehler"; }
+    if (r && r.ok) { _lbBereiche = r.bereiche || []; _lbEid = r.eid || null; _lbGrund = ""; _lbAktivitaet = String(r.aktivitaet || ""); }
+    else { _lbBereiche = []; _lbEid = null; _lbGrund = (r && r.grund) || "fehler"; _lbAktivitaet = ""; }
     _segStartsSetzen();
     _lbListeZeichnen();
+    _lbSymNachLaden();
     if (JSON.stringify(_lbBereiche.map(b => [b.von, b.bis, b.anzeige])) !== vorher) {
       try { if (!_isStaticFrame) paceMapLaden(); else vorschauNeuZeichnen(); }
       catch (e) { applog("warn", `[logbuch-video] Tempo/Vorschau: ${e && e.message || e}`); }
     }
   }
+  /** Nach dem Laden des Logbuchs: Laufpunkt mit dem neuen Plan neu aufbauen (nur mit Schalter) und die Zeile füllen. */
+  function _lbSymNachLaden() {
+    _lbSymPlanC = null;
+    try { document.querySelectorAll("[data-lb-sym-zeile]").forEach(_lbSymZeileFuellen); } catch (_) {}
+    if (!_lbSymAn() || !map) return;
+    try { dotEbenenAufbauen(); dotSetzen(_dotFracZuletzt); }
+    catch (e) { applog("warn", `[laufpunkt-logbuch] Neuaufbau: ${e && e.message || e}`); }
+  }
+  // Prüfstand (tests/test_laufpunkt_logbuch.py): Plan, Fahrzeug und Größe an einer Stelle — ohne etwas zu ändern.
+  window.__rzLbSymbol = {
+    plan: () => { try { const p = _lbSymPlan(); return p ? JSON.parse(JSON.stringify(p)) : null; } catch (_) { return null; } },
+    art: (f) => _lbSymArtAn(f), skala: (f) => _lbSymSkala(f), wirkt: () => _lbSymWirkt(),
+    stil: (f) => _dotStilAktuell(f).style, aktivitaet: () => _lbAktivitaet,
+    zeit: (f) => { const L = _lbVideoLage(); return (Math.max(L.tA, Math.min(L.tB, _ankerAusBahn(f))) - L.tA) / Math.max(1e-9, L.tB - L.tA) * L.dur; },
+    bereit: () => !_lbLaeuft && _lbFuer === currentGpx,
+  };
   // Prüfstand (tests/test_logbuch_im_video.py): Zustand lesen, ohne ihn zu ändern.
   window.__rzAnimLb = () => {
     // ui-falle-ok: erst beim Aufruf gelesen (nur aus dem Test, lange nach dem Aufbau)
@@ -4609,8 +4784,33 @@ function mountAnimator(body, headerActions, opts) {
    *  der DEM-Kacheln ins Log und lädt sie neu, wenn nichts mehr lädt und die
    *  beste geladene Stufe weit unter der nötigen liegt. */
   let _gelaendeLetzt = "";
+  /** 19.10.2026 — fehlerhafte DEM-Kacheln gezielt neu laden, wie das Video vor jedem Bild (core/szene._DEM_NACHLADEN_JS).
+   *  `_reloadTile` je Kachel statt `reload()`: `reload()` lädt alle geladenen Kacheln neu und lässt gerade die fehlerhaften
+   *  aus (private MapLibre-API, die Version ist fest). Grenzen: 3 Neuladungen je Kachel, höchstens 32 Kacheln und eine
+   *  Runde je Aufruf, 30 Runden je Karte und 5 Minuten (dann neues Kontingent). Unter Mapbox nichts.
+   *  Liefert die Zahl der neu angestoßenen Kacheln. */
+  function _demFehlerNachladen(sc) {
+    if (!map || map.__rzEngine === "mapbox" || !sc || !sc._tiles || typeof sc._reloadTile !== "function") return 0;
+    let st = map.__rzDemNachladen;
+    if (!st || Date.now() - st.seit > 300000) st = map.__rzDemNachladen = { seit: Date.now(), runden: 0, je: {} };
+    if (st.runden >= 30) return 0;
+    const neu = [];
+    for (const k in sc._tiles) {
+      if (neu.length >= 32) break;
+      const tl = sc._tiles[k];
+      if (tl && tl.state === "errored" && (st.je[k] || 0) < 3) neu.push(k);
+    }
+    if (!neu.length) return 0;
+    st.runden++;
+    for (const k of neu) {
+      st.je[k] = (st.je[k] || 0) + 1;
+      try { const pr = sc._reloadTile(k, "reloading"); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
+    }
+    return neu.length;
+  }
   function _gelaendePruefen(anlass) {
     if (!map || !map.terrain) return false;
+    if (map.__rzEngine === "mapbox") return false;   // 19.10.2026 — Nachladen nutzt MapLibre-Interna
     try {
       const tsc = map.terrain.sourceCache;                 // TerrainSourceCache
       const sc = tsc && tsc.sourceCache;                   // die DEM-Quelle
@@ -4634,11 +4834,19 @@ function mountAnimator(body, headerActions, opts) {
       // einem Zoomsprung die alte Stufe fest — Patch korrigiert, das hier ist
       // der Fangriemen).
       const haengt = n > 0 && laedt === 0 && sichtbarMax >= 0 && sichtbarMax < Math.floor(z) - 1 && Math.floor(z) - 1 <= maxZ;
+      // 19.10.2026 — fehlerhafte DEM-Kacheln gelten MapLibre als fertig (flaches Gelände, im Video lädt sie die Szene
+      // nach): hier ebenso gezielt neu laden. Vorher bei „hängt“ `sc.reload()` = alle geladenen Kacheln neu, die
+      // fehlerhaften gerade nicht.
+      const nachgeladen = fehler > 0 ? _demFehlerNachladen(sc) : 0;
       if (haengt) {
-        applog("warn", "[gelände] Kacheln hängen — Stufenspeicher leeren, DEM neu laden · " + zeile);
+        applog("warn", `[gelände] Kacheln hängen — Stufenspeicher leeren, ${nachgeladen} fehlerhafte DEM-Kacheln neu laden · ` + zeile);
         try { map.terrain.__rzLod = null; } catch (_) {}
-        try { if (sc && sc.reload) sc.reload(); } catch (e) { applog("warn", "[gelände] reload: " + e); }
         try { if (tsc.freeRtt) tsc.freeRtt(); } catch (_) {}
+        try { map.triggerRepaint(); } catch (_) {}
+        return true;
+      }
+      if (nachgeladen) {
+        applog("info", `[gelände] ${nachgeladen} fehlerhafte DEM-Kacheln neu laden · ` + zeile);
         try { map.triggerRepaint(); } catch (_) {}
         return true;
       }
@@ -6967,9 +7175,10 @@ function mountAnimator(body, headerActions, opts) {
   function _flugPunktNeu() {
     try { if (_flug.an && _flug.letztPos) _flugPunkt(_flug.letztPos, _flug.letztBrg); } catch (e) { applog("warn", "[flug3d] Laufpunkt neu: " + e); }
   }
-  function _flugPunkt(pos, brg) {
+  function _flugPunkt(pos, brg, sk) {
     if (!_flug.an || !_flug.punkt || !pos || !_flug.agl) return;
     if (brg != null && isFinite(+brg)) _flug.letztBrg = +brg;
+    if (sk != null && isFinite(+sk)) _flug.letztSk = +sk;   // 19.10.2026 — Symbolwechsel nach Logbuch (klein → groß)
     // nächster Track-Index ab dem letzten (Laufpunkt bewegt sich stetig), sonst global
     const c = currentCoords, n = c.length;
     const d2 = (i) => { const dx = c[i][0] - pos[0], dy = c[i][1] - pos[1]; return dx * dx + dy * dy; };
@@ -7012,7 +7221,7 @@ function mountAnimator(body, headerActions, opts) {
       _flug.punkt.setTracks([{ coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 }]);
       const L = _dotLuft;
       // Drehung: Fahrtrichtung (wie icon-rotate brg am Boden); ohne Drehen nach Norden
-      _flug.laufpunkt.setPunkt({ lng: pos[0], lat: pos[1], agl: h, bild: L.bild, bildKey: L.key, cssPx: L.cssPx,
+      _flug.laufpunkt.setPunkt({ lng: pos[0], lat: pos[1], agl: h, bild: L.bild, bildKey: L.key, cssPx: L.cssPx * (_flug.letztSk > 0 ? _flug.letztSk : 1),
                                  drehung: L.dreht ? (_flug.letztBrg || 0) : 0, karte: L.karte });
     } else {
       _flug.punkt.setTracks([
@@ -7210,7 +7419,7 @@ function mountAnimator(body, headerActions, opts) {
           if (_flug.an) {
             const g = d && (d.geometry || (d.features && d.features[0] && d.features[0].geometry));
             const pr = d && (d.properties || (d.features && d.features[0] && d.features[0].properties));
-            if (g && g.type === "Point") _flugPunkt(g.coordinates, pr ? pr.brg : null);
+            if (g && g.type === "Point") _flugPunkt(g.coordinates, pr ? pr.brg : null, pr ? pr.sk : null);
             else { if (_flug.punkt) _flug.punkt.setTracks([]); if (_flug.laufpunkt) _flug.laufpunkt.setPunkt(null); }
           }
         } catch (e) { rzSwallow(e, "flug3d@dot"); }
@@ -8558,7 +8767,7 @@ function mountAnimator(body, headerActions, opts) {
           map.addImage("anim-fz", sb, { pixelRatio: 4 });
         } catch (e) { applog("warn", "[dot] Symbol auf die Karte: " + e); }
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
-          layout: { "icon-image": "anim-fz", "icon-size": gr, "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+          layout: { "icon-image": "anim-fz", "icon-size": _dotSk(gr), "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true } });
       } else if (FAHRZEUGE.includes(dst.style) && _fzBild(dst.style, dotFzStil())) {
         // 07.10.2026 — Fahrzeug als Bild (Draufsicht, Front nach oben): liegt flach auf der Karte und dreht sich mit dem Weg
@@ -8569,7 +8778,7 @@ function mountAnimator(body, headerActions, opts) {
           map.addImage("anim-fz", fb, { pixelRatio: 4 });
         } catch (e) { applog("warn", "[dot] Fahrzeugbild auf die Karte: " + e); }
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
-          layout: { "icon-image": "anim-fz", "icon-size": gr, "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+          layout: { "icon-image": "anim-fz", "icon-size": _dotSk(gr), "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true } });
       } else if (FAHRZEUGE.includes(dst.style)) {
         // 05.10.2026 — Fahrzeug-Symbol (s. _fahrzeugBild); nur das Flugzeug dreht sich mit dem Weg
@@ -8581,7 +8790,7 @@ function mountAnimator(body, headerActions, opts) {
           map.addImage("anim-fz", fzb, { pixelRatio: 2 });
         } catch (_) {}
         map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
-          layout: { "icon-image": "anim-fz", "icon-size": gr * (flug ? 1 : 0.85),
+          layout: { "icon-image": "anim-fz", "icon-size": _dotSk(gr * (flug ? 1 : 0.85)),
                     "icon-rotate": flug ? ["get", "brg"] : 0, "icon-rotation-alignment": flug ? "map" : "viewport",
                     "icon-pitch-alignment": flug ? "map" : "viewport", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
@@ -8608,7 +8817,7 @@ function mountAnimator(body, headerActions, opts) {
           map.addImage("anim-arrow", pb, { pixelRatio: 2 });
         } catch (_) {}
         map.addLayer({ id: "anim-dot-arrow", type: "symbol", source: "anim-dot",
-          layout: { "icon-image": "anim-arrow", "icon-size": gr,
+          layout: { "icon-image": "anim-arrow", "icon-size": _dotSk(gr),
                     "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
@@ -8616,10 +8825,10 @@ function mountAnimator(body, headerActions, opts) {
         const kb = _kugelBild(farbe, gr, false);
         _dotLuft = { bild: kb.bild, key: "kugel|" + farbe + "|" + gr, cssPx: kb.cssPx, dreht: false, karte: true };
         map.addLayer({ id: "anim-dot-glow", type: "circle", source: "anim-dot",
-          paint: { "circle-radius": 10 * gr, "circle-color": "#fff", "circle-opacity": 0.3,
+          paint: { "circle-radius": _dotSk(10 * gr), "circle-color": "#fff", "circle-opacity": 0.3,
                    "circle-blur": 0.8, "circle-pitch-alignment": "map" } });
         map.addLayer({ id: "anim-dot-core", type: "circle", source: "anim-dot",
-          paint: { "circle-radius": 5 * gr, "circle-color": "#fff", "circle-opacity": 0.95,
+          paint: { "circle-radius": _dotSk(5 * gr), "circle-color": "#fff", "circle-opacity": 0.95,
                    "circle-stroke-color": farbe, "circle-stroke-width": 2,
                    "circle-pitch-alignment": "map" } });
       }
@@ -8671,7 +8880,10 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
     // 05.10.2026 — Reiseroute mit Verkehrsart je Etappe: der Laufpunkt zeigt das Fahrzeug der Etappe
     const fz = _routeArtAn(f);
-    return { key: fz ? "route-" + fz : "haupt", show: dotZeigen(), style: fz || dotStil(), size: dotGroesse(),
+    // 19.10.2026 — „Symbol nach Aktivität (aus dem Logbuch)“: Fahrzeug des Logbuch-Abschnitts (nach Etappe/Reiseroute,
+    // nie statt eines eigenen Bilds — das prüft _lbSymWirkt)
+    const lbFz = fz ? "" : _lbSymArtAn(f);
+    return { key: fz ? "route-" + fz : lbFz ? "lb-" + lbFz : "haupt", show: dotZeigen(), style: fz || lbFz || dotStil(), size: dotGroesse(),
              farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
   }
   /** 07.10.2026 — Verkehrsart einer geplanten Etappe am Punkt `ll` ([lon, lat]) oder "": Grenzen der
@@ -8736,9 +8948,10 @@ function mountAnimator(body, headerActions, opts) {
       }
       const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
       const _brg = _kursAn(currentCoords, f), _pos = coordBeiFrac(currentCoords, f);
-      window.__rzDotZuletzt = { c: _pos, brg: _brg };   // Prüfstand (Ruhe des Pfeils, test_schnellvideo)
+      const _sk = _lbSymSkala(f);   // 19.10.2026 — Symbolwechsel nach Logbuch: kurz klein → groß (1 = normal)
+      window.__rzDotZuletzt = { c: _pos, brg: _brg, sk: _sk };   // Prüfstand (Ruhe des Pfeils, test_schnellvideo)
       rzSetDataLatest(map, src, { type: "Feature",
-                    properties: { brg: _brg },
+                    properties: { brg: _brg, sk: _sk },
                     geometry: { type: "Point", coordinates: _pos } });
     } catch (_) {}
   }
@@ -9009,6 +9222,12 @@ function mountAnimator(body, headerActions, opts) {
     if (!keyframesEnabled()) return [];
     return getRawTimelineEvents();
   }
+  /** 19.10.2026 — hat das Projekt eigene Kamera-Keyframes gespeichert, auch wenn der Editor gerade aus ist (dann ruhen
+   *  sie)? Einschalten holt genau diese zurück; Standard-Keyframes bzw. eine neu erzeugte Kamerafahrt nur ohne sie. */
+  function _eigeneKeyframesGespeichert() {
+    try { return (getRawTimelineEvents() || []).some(ev => ev && KF_LANES.includes(ev.kind)); } catch (_) { return false; }
+  }
+  window.rzEigeneKeyframesGespeichert = _eigeneKeyframesGespeichert;   // einfach.js (Kamera-Vorgaben)
 
   // v0.9.86 (Marc-Refactor „Classic = KF-Modus mit Default-KFs"):
   // Baut ein Set aus 2 impliziten KFs (anchor=0 + anchor=1) aus den globalen
@@ -10997,6 +11216,9 @@ function mountAnimator(body, headerActions, opts) {
   // entsprechen — wir bauen die Toleranz so dass auch das matcht.
   function findKeyframeAtAnchor(anchor) {
     if (!currentCoords || currentCoords.length < 2) return null;
+    // 19.10.2026 — bei ausgeschaltetem Editor ruhen die Keyframes: nicht auswählbar, sonst nähme ein ruhender Keyframe
+    // beim Scrubben auf seinen Anker die nächste Kartenbewegung an (_syncMapStateToUi schreibt in den ausgewählten)
+    if (!keyframesEnabled()) return null;
     // v0.9.0: Cluster-Anchors (= unique anchors über Property-Events)
     const anchors = clusterAnchors();
     const tolerance = Math.max(0.005, 0.5 / Math.max(1, currentCoords.length - 1));
@@ -12590,7 +12812,13 @@ function mountAnimator(body, headerActions, opts) {
              // 05.10.2026 — Flug in der Luft: erst rendern, wenn die Flughöhen da sind (oder feststeht, dass es nicht geht)
              flug: !_flugGewuenscht() || _flug.an || (!!_flug.grund && !_flug.laedt),
              // 07.10.2026 — Fahrzeugbilder geladen (sonst fehlte das Fahrzeug in den ersten Bildern des Videos)
-             fzBilder: _fzLaedt === 0 };
+             fzBilder: _fzLaedt === 0,
+             // 19.10.2026 — „Symbol nach Aktivität“: erst rendern, wenn das Logbuch gelesen ist (sonst begann das Video mit
+             // der Grundform); fehlt der Stand zur geladenen Tour, holt er sich selbst nach
+             lb: (() => { if (!_lbSymAn() || !currentGpx) return true;
+                          if (_lbLaeuft) return false;
+                          if (_lbFuer !== currentGpx) { _lbLaden().catch(() => {}); return false; }
+                          return true; })() };
   };
   // 25.09.2026 (Klicktest AN-12/13) — Anstoß für core/szene.py: steht alles bereit außer
   // fitBase, den Ausschnitt einmal ausdrücklich berechnen (Wiederholungszähler zurück).
@@ -13303,7 +13531,16 @@ function mountAnimator(body, headerActions, opts) {
         const go = () => { try { applyStyle(sel ? sel.value : wanted); } catch (_) {} };
         if (map.isMoving && map.isMoving()) map.once("moveend", () => setTimeout(go, 80));
         else setTimeout(go, 80);
-      } else _updateStyleHints(sel ? sel.value : wanted);
+      } else {
+        // 19.10.2026 — gleicher Stil, aber erst jetzt mit der Lage des Tracks: die Hinweise auf der Karte („keine
+        // amtlichen Luftbilder“, Lücken) nachziehen. Vorher entstand die Karte ohne Lage, und außerhalb der Luftbilder
+        // erschien der Hinweis nie — es blieb beim groben Sentinel-Bild ohne Erklärung.
+        if (JSON.stringify(now.notes || []) !== JSON.stringify(cur.notes || [])) {
+          cur.notes = now.notes; cur.gaps = now.gaps;
+          try { rzMapCoverageBanners(map, cur); } catch (e) { applog("warn", "[map] Hinweise nachziehen: " + e); }
+        }
+        _updateStyleHints(sel ? sel.value : wanted);
+      }
     } catch (_) {}
   }
 
@@ -17943,7 +18180,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!(G > 0)) return [];
     let ph = { intro: 0, anim: G }; try { ph = _sgPhasen(); } catch (_) {}
     const k = [0, ph.intro, ph.intro + ph.anim, G];
-    try { for (const e of (getRawTimelineEvents() || [])) if (e && KF_LANES.includes(e.kind)) k.push(_tlBar.trackToBar(+e.anchor || 0) * G); } catch (_) {}
+    try { for (const e of (getTimelineEvents() || [])) if (e && KF_LANES.includes(e.kind)) k.push(_tlBar.trackToBar(+e.anchor || 0) * G); } catch (_) {}   // 19.10.2026 — ruhende Keyframes sind keine Kanten
     try { for (const h of ((_tempoInfo && _tempoInfo.halte) || [])) k.push(ph.intro + h.ab_s, ph.intro + h.bis_s); } catch (_) {}
     k.push(..._kantenOv, ..._kantenSg);
     return [...new Set(k.filter(x => isFinite(x) && x >= 0 && x <= G + 1e-6).map(x => Math.round(Math.min(G, x) * 1000) / 1000))].sort((a, b) => a - b);
@@ -18304,7 +18541,8 @@ function mountAnimator(body, headerActions, opts) {
                     marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(),
                     marker_dot_rueckblick_m: dotRueckblick(),
                     marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen(),
-                    marker_dot_sym_farbe: dotSymFarbe(), marker_dot_sym_dunkel: dotSymDunkel(), marker_dot_sym_akzent: dotSymAkzent() };
+                    marker_dot_sym_farbe: dotSymFarbe(), marker_dot_sym_dunkel: dotSymDunkel(), marker_dot_sym_akzent: dotSymAkzent(),
+                    marker_dot_nach_logbuch: _lbSymAn() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
     else if (typeof saveSettings === "function") saveSettings({ animator: patch });
   }
@@ -18347,6 +18585,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     row.querySelectorAll("[data-lpform]").forEach(b => b.classList.toggle("ist-an", b.dataset.lpform === dotBildForm()));
     document.querySelectorAll("[data-lp-zeile]").forEach(_dotBildZeileFuellen);
+    document.querySelectorAll("[data-lb-sym-zeile]").forEach(_lbSymZeileFuellen);   // 19.10.2026
     try { if (_dotEditorFuellen) _dotEditorFuellen(); } catch (_) {}
   }
   /** 13.10.2026 — Farbzeile der Symbole im Track-Editor aus den Animator-Feldern füllen. */
@@ -18374,6 +18613,9 @@ function mountAnimator(body, headerActions, opts) {
   }));
   document.getElementById("anim-dot-bild-drehen")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-fz-stil")?.addEventListener("change", () => dotGeaendert(true));
+  document.getElementById("anim-dot-lb")?.addEventListener("change", () => dotGeaendert(true));   // 19.10.2026 — Symbol nach Aktivität
+  // die Videodauer entscheidet, welche Abschnitte lang genug für ein eigenes Symbol sind → Hinweis nachziehen
+  document.getElementById("anim-dur")?.addEventListener("change", () => { try { document.querySelectorAll("[data-lb-sym-zeile]").forEach(_lbSymZeileFuellen); } catch (_) {} });
   try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
   document.getElementById("anim-dot-size")?.addEventListener("input", () => dotGeaendert(false));
   document.getElementById("anim-dot-size")?.addEventListener("change", () => dotGeaendert(true));
@@ -18428,6 +18670,7 @@ function mountAnimator(body, headerActions, opts) {
       const lpb = document.getElementById("anim-dot-bild"); if (lpb) lpb.value = a.marker_dot_bild || "";
       const lpf = document.getElementById("anim-dot-bild-form"); if (lpf) lpf.value = LP_FORMEN.includes(a.marker_dot_bild_form) ? a.marker_dot_bild_form : "plakette";
       const lpd = document.getElementById("anim-dot-bild-drehen"); if (lpd) lpd.checked = !!a.marker_dot_bild_drehen;
+      const lbs = document.getElementById("anim-dot-lb"); if (lbs) lbs.checked = !!a.marker_dot_nach_logbuch;   // 19.10.2026
       const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(String(v || "")) ? v : d;
       const sf = document.getElementById("anim-dot-sym-farbe"); if (sf) sf.value = a.marker_dot_sym_farbe === "fest" ? "fest" : "linie";
       const sd = document.getElementById("anim-dot-sym-dunkel"); if (sd) sd.value = hx(a.marker_dot_sym_dunkel, "#2b3a40");
@@ -22713,6 +22956,8 @@ function mountAnimator(body, headerActions, opts) {
       <div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.schweif.tip", ""))}"><label>${t("animator.schweif", "Schweif")} <b data-schweif-v>${currentSchweifPct()}</b> %</label>
         <input type="range" data-schweif min="0" max="15" step="0.5" value="${currentSchweifPct()}"></div>
       ${_tagesStarts().length ? `<div class="anim-stil-zeile ist-check" title="${_animEscapeHtml(t("animator.farbe_je_tag.tip", ""))}"><label><input type="checkbox" data-farbe-je-tag${currentFarbeJeTag() ? " checked" : ""}> ${t("animator.farbe_je_tag", "Farbe je Tag")}</label></div>` : ""}` : ""}
+      <div class="anim-stil-zeile anim-fw-einstieg-zeile" title="${_animEscapeHtml(t("animator.colors.einstieg_tip", "Färbt die Linie nach Tempo, Höhe, Steigung oder Strecke — öffnet die Track-Farben oben in diesem Editor."))}">
+        <button type="button" class="btn btn-small anim-fw-einstieg" data-fw-einstieg>${typeof rzIcon === "function" ? rzIcon("palette", { size: 13 }) : ""} ${t("animator.colors.einstieg", "Farbe nach Tempo, Höhe oder Steigung …")}</button></div>
       <div class="anim-stil-zeile"><label>${t("animator.stil.deckkraft", "Deckkraft")} <b data-v="opacity">${Math.round(_deckkraft(st) * 100)}</b> %</label>
         <input type="range" data-stil="opacity" min="0.05" max="1" step="0.05" value="${_deckkraft(st)}"></div>
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-blass="show"${blass.show ? " checked" : ""}> ${t("animator.blass.show", "Ganze Strecke blass zeigen")}</label></div>
@@ -22730,6 +22975,9 @@ function mountAnimator(body, headerActions, opts) {
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
         <div class="dot-wahl" data-dot-wahl></div>
         <select data-stil="dot_style" hidden><option value="dot"${st.dot_style !== "arrow" && st.dot_style !== "bild" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}${ziel === "haupt" ? `<option value="bild"${st.dot_style === "bild" ? " selected" : ""}>${t("animator.dot.style_bild", "Eigenes Bild")}</option>` : ""}</select></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile ist-check dot-lb-zeile" data-nur-dot data-lb-sym-zeile ${st.dot_show && !ganz ? "" : "hidden"} title="${_animEscapeHtml(t("animator.dot.lb_sym_tip", "Der Laufpunkt zeigt das Symbol der Aktivität, die das Logbuch an dieser Stelle erkannt hat — Auto, Fähre, Wanderer, Fahrrad … Pausen behalten das Symbol davor."))}">
+        <label><input type="checkbox" data-lb-sym${_lbSymAn() ? " checked" : ""}> ${t("animator.dot.lb_sym", "Symbol nach Aktivität (aus dem Logbuch)")}</label>
+        <div class="muted dot-lb-hinweis" data-lb-sym-hinweis></div></div>` : ""}
       ${ziel === "haupt" ? `<div class="anim-stil-zeile dot-bild-zeile" data-nur-dot data-lp-zeile ${st.dot_show && !ganz && dotStil() === "bild" ? "" : "hidden"}>
         <div class="dot-bild-kopf"><button type="button" class="btn btn-sm" data-lp-wahl>${(window.rzIcon ? rzIcon("image", { size: 14 }) : "")} ${t("animator.dot.bild_waehlen", "Bild wählen …")}</button>
           <span class="muted dot-bild-name" data-lp-name></span></div>
@@ -22782,8 +23030,15 @@ function mountAnimator(body, headerActions, opts) {
           const c = document.getElementById("anim-dot-bild-drehen"); if (c) { c.checked = e.target.checked; c.dispatchEvent(new Event("change")); }
         });
         _dotBildZeileFuellen(el.querySelector("[data-lp-zeile]"));   // el hängt hier noch nicht im Dokument
+        // 19.10.2026 — „Symbol nach Aktivität“: bedient das versteckte #anim-dot-lb (gespeichert wie die übrigen Laufpunkt-Felder)
+        const lbz = el.querySelector("[data-lb-sym-zeile]");
+        lbz?.querySelector("[data-lb-sym]")?.addEventListener("change", (e) => {
+          const c = document.getElementById("anim-dot-lb"); if (c) { c.checked = e.target.checked; c.dispatchEvent(new Event("change")); }
+        });
+        _lbSymZeileFuellen(lbz);
       }
     }
+    el.querySelector("[data-fw-einstieg]")?.addEventListener("click", () => _fwEinstieg(ziel === "haupt" ? "haupt" : tr));   // 19.10.2026
     el.querySelectorAll("[data-blass]").forEach(inp => inp.addEventListener(inp.type === "range" ? "input" : "change", () => {
       const art = inp.dataset.blass;
       if (art === "show") el.querySelectorAll("[data-nur-blass]").forEach(z => { z.hidden = !inp.checked; });
@@ -22908,7 +23163,8 @@ function mountAnimator(body, headerActions, opts) {
   // Tracks steht rechts in der Detail-Spalte (statt aufgeklappt in der Liste). Inhalt: Farbe + das Aussehen-Panel
   // (_stilPanelBauen: Linie, Schatten, Glow, Punkte, Laufpunkt mit Fahrzeug-Aussehen); geplante Etappen: „Route bearbeiten“.
   /** 08.10.2026 — „Mehrere Track-Farben“ für eine weitere Tour (Track-Editor rechts). Gleiche Bedienung wie bei Track 1:
-   *  Einfärben nach Distanz/Höhe/Tempo/Steigung, hart oder Verlauf, Stufen mit Wert + Farbe; „Auto“ spannt min → max. */
+   *  Einfärben nach Distanz/Höhe/Tempo/Steigung, hart oder Verlauf, Stufen mit Wert + Farbe; „Auto“ spannt den typischen
+   *  Bereich (seit 19.10.2026 P2 → P98 statt min → max), „Ampel“ beim Tempo. */
   function _tredFwZeichnen(box, tr) {
     if (!box) return;
     const esc = _animEscapeHtml;
@@ -22928,7 +23184,9 @@ function mountAnimator(body, headerActions, opts) {
           <span>${esc(t("animator.colors.ab", "ab"))}</span><input type="number" class="tred-fw-v" step="any" value="${esc(String(+x.v || 0))}"><span class="muted">${esc(einheit)}</span>
           <input type="color" class="tred-fw-c" value="${esc(x.color || "#ff0000")}"><button type="button" class="btn btn-ghost btn-sm tred-fw-weg" title="${esc(t("common.delete", "Löschen"))}">✕</button></div>`).join("")}</div>
         <div class="tred-fw-knoepfe"><button type="button" class="btn btn-small tred-fw-neu">＋ ${esc(t("animator.colors.stufe", "Farbstufe"))}</button>
-          <button type="button" class="btn btn-small tred-fw-auto">${esc(t("animator.colors.auto", "Auto (min → max)"))}</button></div>
+          <button type="button" class="btn btn-small tred-fw-auto" title="${esc(t("animator.colors.auto_tip", "Spannt die Farben über den typischen Bereich der Tour (2. bis 98. Perzentil) — einzelne GPS-Ausreißer zählen nicht."))}">${esc(t("animator.colors.auto", "Auto (typischer Bereich)"))}</button>
+          ${f.quelle === "speed" ? `<button type="button" class="btn btn-small tred-fw-ampel" title="${esc(t("animator.colors.ampel_tip", "Langsam rot, mittel gelb, schnell grün — Grenzen bei einem und zwei Dritteln des typischen Tempos dieser Tour."))}">${esc(t("animator.colors.ampel", "Ampel"))}</button>` : ""}</div>
+        <div class="muted" style="font-size:11px; margin-top:6px; line-height:1.4;">${esc(t("animator.colors.blass_hinweis", "Noch nicht gefahrenen Rest blass zeigen: „Ganze Strecke blass zeigen“ weiter unten."))}</div>
       </div>`;
     let timer = 0;
     const speichern = (neu, sofort) => {
@@ -22938,7 +23196,9 @@ function mountAnimator(body, headerActions, opts) {
       if (sofort) los(); else timer = setTimeout(los, 250);
     };
     const kopie = () => JSON.parse(JSON.stringify(tr.farbwechsel || f));
+    // 19.10.2026 — Höhe/Tempo/Steigung über den typischen Bereich (P2 → P98, _spanneRobust), Strecke über die ganze Tour
     const spanne = (q) => { const r = (_fwReihe(tr, q) || []).filter(v => isFinite(v)); if (!r.length) return [0, 1];
+      if (q !== "distance") { const sp = _spanneRobust(r); if (sp) return sp; }
       let lo = Infinity, hi = -Infinity; for (const v of r) { if (v < lo) lo = v; if (v > hi) hi = v; } return [lo, hi]; };
     const rund = (v) => Math.round(v * 10) / 10;
     box.querySelector(".tred-fw-an").addEventListener("change", (e) => {
@@ -22970,6 +23230,48 @@ function mountAnimator(body, headerActions, opts) {
       n.stops = [{ v: rund(lo), color: "#2ecc71" }, { v: rund(lo + (hi - lo) / 2), color: "#f1c40f" }, { v: rund(hi), color: "#e74c3c" }];
       n.modus = "gradient"; speichern(n, true); _tredFwZeichnen(box, tr);
     });
+    box.querySelector(".tred-fw-ampel")?.addEventListener("click", () => {   // 19.10.2026 — Ampel (nur Tempo)
+      const n = kopie(); n.stops = _ampelStufen(spanne("speed"), rund); n.modus = "hard"; n.an = true;
+      speichern(n, true); _tredFwZeichnen(box, tr);
+    });
+  }
+  /** 19.10.2026 (Idee: @kaennchenstruggle — wer „nach Tempo färben“ sucht, schaut bei „Aussehen der Linie“) — Einstieg
+   *  „Farbe nach Tempo, Höhe oder Steigung …“: öffnet den Track-Editor dieses Tracks, schaltet die Track-Farben ein, falls
+   *  sie aus sind (nach Tempo, sonst Höhe, sonst Strecke; Werte aus dem typischen Bereich), und zeigt den Block. */
+  function _fwEinstieg(ziel) {
+    const tr = ziel === "haupt" ? null : ziel;
+    const schl = tr ? tr.gpx_path : "haupt";
+    if (!_trackEd || !_trackEd.isConnected || _trackEdZiel !== schl) _trackEdOeffnen(schl);
+    const ed = _trackEd; if (!ed) return;
+    try {
+      if (!tr) {
+        const cb = document.getElementById("anim-colors-enabled");
+        if (cb && !cb.checked) {
+          cb.checked = true; cb.dispatchEvent(new Event("change", { bubbles: true }));
+          const sel = document.getElementById("anim-colors-source");
+          const hat = (v) => !!sel && [...sel.options].some(o => o.value === v);
+          const q = hat("speed") ? "speed" : hat("ele") ? "ele" : "";
+          if (sel && q && sel.value !== q) { sel.value = q; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+          else if (sel && sel.value !== "distance" && !_trackColorStops.length) autoSeedMetric();
+        }
+      } else if (!(tr.farbwechsel && tr.farbwechsel.an)) {
+        const qs = _fwQuellenVon(tr), q = qs.includes("speed") ? "speed" : qs.includes("ele") ? "ele" : "distance";
+        const rund = (v) => Math.round(v * 10) / 10, r = (_fwReihe(tr, q) || []).filter(v => isFinite(v));
+        let stops;
+        if (q === "distance") { const hi = r.length ? r[r.length - 1] : 1; stops = [{ v: rund(hi / 2), color: "#e74c3c" }]; }
+        else { const [lo, hi] = _spanneRobust(r) || [0, 1]; stops = [{ v: rund(lo), color: "#2ecc71" }, { v: rund(lo + (hi - lo) / 2), color: "#f1c40f" }, { v: rund(hi), color: "#e74c3c" }]; }
+        tr.farbwechsel = { an: true, quelle: q, modus: q === "distance" ? "hard" : "gradient", stops };
+        _animPersistTours(t("animator.colors.undo_tour", "Track-Farben geändert"));
+        try { _animDrawExtraToursPreview(); } catch (e) { applog("warn", "[farbwechsel] " + e); }
+        _tredFwZeichnen(ed.querySelector(".tred-fw"), tr);
+      }
+    } catch (e) { applog("warn", "[farbwechsel] Einstieg: " + e); }
+    const block = ed.querySelector(".tred-mehrfarbig");
+    if (block) {
+      try { block.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {}
+      block.classList.remove("ist-hervor"); void block.offsetWidth; block.classList.add("ist-hervor");
+      setTimeout(() => block.classList.remove("ist-hervor"), 1800);
+    }
   }
   let _trackEd = null, _trackEdZiel = null;
   const _TRED_FARBEN = ["anim-etappenfarben", "anim-colors-block"];

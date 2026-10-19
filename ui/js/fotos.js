@@ -1658,6 +1658,7 @@
     l.innerHTML = `<span class="fml-zahl">${esc(T("fotos.markiert_n", "{n} ausgewählt").replace("{n}", num(n)))}</span>
       <button type="button" class="btn btn-sm" data-ml="export">${I("share", 14)} ${esc(T("export.medien_eins", "Exportieren …"))}</button>
       <button type="button" class="btn btn-sm" data-ml="ort">${I("map-pin", 14)} ${esc(T("ort.ctx_1", "Ort setzen …"))}</button>
+      <button type="button" class="btn btn-sm" data-ml="zeit">${I("clock", 14)} ${esc(T("zeitaendern.ctx_1", "Aufnahmezeit ändern …"))}</button>
       <button type="button" class="btn btn-sm" data-ml="fav" title="${esc(T("fotos.fav_tip", "Favorit (P)"))}">${I("heart", 14)} ${esc(T("fotos.fav", "Favorit"))}</button>
       <button type="button" class="btn btn-sm" data-ml="album">${I("book-image", 14)} ${esc(T("fotos.zu_album", "Zu Album …"))}</button>
       <button type="button" class="btn btn-sm" data-ml="auto" title="${esc(T("bearb.auto_alle_tip", "Ton und Weißabgleich je Foto automatisch — danach einzeln nacharbeiten"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
@@ -1676,6 +1677,7 @@
         else if (w === "alle") { geladen.forEach(x => markiert.add(x.path)); markierungZeigen(); }
         else if (w === "export" && A) A.medien(p);
         else if (w === "ort" && A) A.ortSetzen(p, () => { markiert.clear(); neuLaden(true); });
+        else if (w === "zeit" && A && A.zeitAendern) A.zeitAendern(p, nachZeitAendern);   // 19.10.2026
         else if (w === "neu" && A) A.tourAusFotos(p);
         else if (w === "mit" && A) A.oeffnenMit(p);
         else if (w === "tour") zuTourMenue(b, p);
@@ -1685,6 +1687,21 @@
         else if (w === "album") zuAlbumMenue(b, p);
       };
     });
+  }
+  /** 19.10.2026 — nach „Aufnahmezeit ändern …“: Raster UND Datumsbaum neu (die Gesamtzahl bleibt gleich, der Baum
+      merkte die Änderung sonst erst beim nächsten Bestandsstand). */
+  async function nachZeitAendern() {
+    markiert.clear(); dbSchluessel = "";
+    // 19.10.2026 (Klicktest) — stand ein Datumsfilter (z. B. „2036“), zeigte das Raster danach „0 Dateien“: die
+    // geänderten Dateien waren aus dem Blick. Der Datumsfilter fällt weg, damit man sie am neuen Tag sieht.
+    if (filter.von || filter.bis || filter.jahr) {
+      filter = Object.assign({}, filter); delete filter.von; delete filter.bis; delete filter.jahr;
+      try { zeichnen(); } catch (e) { applog("warn", "[fotos] Raster nach Aufnahmezeit: " + e); }
+    }
+    await neuLaden(true);
+    try { navZeichnen(); } catch (e) { applog("warn", "[fotos] Seitenleiste nach Aufnahmezeit: " + e); }
+    // … und rechts stand im Detailfeld noch die alte Aufnahmezeit, bis man eine andere Datei anklickte
+    if (auswahl) { const f = geladen.find(x => x.path === auswahl); detailZeigen(f || { path: auswahl }); }
   }
   /** „Zu Tour …“ für mehrere: die Touren der Tage der markierten Medien zur Auswahl. */
   async function zuTourMenue(knopf, pfade) {
@@ -1746,6 +1763,9 @@
         () => { if (window.rzArchivExport) window.rzArchivExport.medien(pfade); }],
       ["📍 " + (pfade.length > 1 ? T("ort.ctx_n", "Ort für {n} setzen …").replace("{n}", num(pfade.length)) : T("ort.ctx_1", "Ort setzen …")),
         () => { if (window.rzArchivExport) window.rzArchivExport.ortSetzen(pfade, () => { markiert.clear(); neuLaden(true); }); }],
+      // 19.10.2026 — Aufnahmezeit vieler Dateien auf einmal (Lightroom „Aufnahmezeit bearbeiten“)
+      ["🕒 " + (pfade.length > 1 ? T("zeitaendern.ctx_n", "Aufnahmezeit von {n} ändern …").replace("{n}", num(pfade.length)) : T("zeitaendern.ctx_1", "Aufnahmezeit ändern …")),
+        () => { if (window.rzArchivExport && window.rzArchivExport.zeitAendern) window.rzArchivExport.zeitAendern(pfade, nachZeitAendern); }],
       ...(pfade.length > 1 ? [["🧭 " + T("tour_aus_fotos.ctx", "Tour aus diesen {n} Fotos machen …").replace("{n}", num(pfade.length)),
         () => { if (window.rzArchivExport) window.rzArchivExport.tourAusFotos(pfade); }]] : []),
       ["⬇ " + T("export.medien_alle", "Alle {n} gefilterten exportieren …").replace("{n}", num(gesamt)),
@@ -3230,7 +3250,7 @@
     if (!_suchT.touren.length) { el2.hidden = true; return; }
     el2.hidden = false;
     el2.innerHTML = `<span class="muted">${I("route", 13)} ${esc(T("suche.touren_zu", "Touren zu „{q}“:").replace("{q}", text))}</span>`
-      + _suchT.touren.map((x, i) => `<button type="button" class="foto-such-tour" data-i="${i}" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${esc(x.name || "")}${x.started_at ? ` <small>${esc(String(x.started_at).slice(0, 4))}</small>` : ""}</button>`).join("")
+      + _suchT.touren.map((x, i) => `<button type="button" class="foto-such-tour" data-i="${i}" title="${esc(T("fotos.d_tour_tip", "Tour-Seite öffnen: Karte, alle Fotos und Clips der Tour"))}">${esc(x.name || "")}${(x.tag_lokal || x.started_at) ? ` <small>${esc(String(x.tag_lokal || x.started_at).slice(0, 4))}</small>` : ""}</button>`).join("")
       + (_suchT.n > _suchT.touren.length ? `<span class="muted">+${_suchT.n - _suchT.touren.length}</span>` : "");
     el2.querySelectorAll(".foto-such-tour").forEach(b => {
       b.onclick = () => { const x = _suchT.touren[+b.dataset.i]; if (x && window.rzTourSeite) window.rzTourSeite.oeffnen({ geo_hash: x.geo_hash, path: x.path, name: x.name }); };

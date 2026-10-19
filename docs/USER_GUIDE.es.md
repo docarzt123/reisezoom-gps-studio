@@ -1640,6 +1640,14 @@ campo de periodo de arriba («periodo propio»), la carpeta aparece como chip **
 filtros** quita ambos. **Varias filas con ⇧ Mayús:** haz clic en una fila y luego en otra con Mayús pulsada; se
 muestra todo lo que hay entre ambas, p. ej. de 2023 a 2024 o del 4 al 12 de marzo (desde v0.9.790).
 
+**¿A qué día pertenece una ruta?** Al día en que empezó **en su punto de salida**, en la hora local de allí. Una ruta
+que arrancó en Noruega a las 00:44 aparece en ese día, aunque el GPS anote la hora en UTC (las 22:44 del día anterior)
+y aunque tu ordenador esté ahora en otra zona horaria. El árbol de fechas, el periodo, las estadísticas por año y mes,
+la tarjeta, la página de la ruta y el vídeo rápido muestran el mismo día. Una ruta que pasa la medianoche cuenta para
+su día de inicio; un track sin marcas de tiempo no tiene fecha. En cuanto se conoce el lugar de la ruta, se aplica la
+zona horaria de su país (p. ej. el horario de verano de EE. UU.). Los archivos existentes se recalculan una vez en el
+siguiente arranque; tus ficheros no se tocan.
+
 **¿Hecha o solo planificada?** La app lo detecta sola, venga el track de la app que venga:
 
 | Indicio | Significado |
@@ -2180,7 +2188,7 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
 
 - **Miniaturas:** la imagen con fecha · hora y lugar debajo. Al pasar el ratón, una casilla arriba a la izquierda **marca**
   la foto (o clic con ⌘/Mayús) y el **corazón** arriba a la derecha la hace favorita. En cuanto hay algo marcado, una barra
-  **«N seleccionados»** ofrece Exportar, Poner ubicación, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con. Esc
+  **«N seleccionados»** ofrece Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con. Esc
   quita la selección, ⌘A marca todo.
 - **Izquierda:** el número, luego **colecciones** (Todo, Favoritos, Editadas, Sin coordenada …), **álbumes** (＋ crea uno,
   clic derecho renombra o elimina; las fotos se quedan), fecha, carpetas y **filtros** desplegables (año, cámara, ubicación).
@@ -2237,6 +2245,28 @@ justo esos archivos (lo mismo que «Sin coordenada» a la izquierda). Marca vari
 
 Si quieres, también se escribe la dirección. La ubicación se guarda en los propios archivos; antes la app hace una
 copia de seguridad de cada original. Los archivos de solo lectura se cuentan después como «no se pudieron escribir».
+
+### 🕒 Cambiar la hora de captura de varias fotos y clips
+
+Si el reloj de la cámara estaba mal (año equivocado, zona horaria olvidada), corriges todos los archivos afectados de
+una vez, como con «Editar hora de captura» de Lightroom. Márcalos (clic con ⌘ o Mayús) y luego **«Cambiar hora de
+captura …»** en la barra o clic derecho → **«Cambiar hora de captura de N …»**. En el diálogo eliges:
+
+- **Desplazar un intervalo de tiempo**: antes o después en años, días, horas y minutos (p. ej. «10 años antes» para una
+  cámara que escribió 2036 en lugar de 2026). Todos los archivos se mueven lo mismo; los que no tienen hora de captura
+  se quedan como están.
+- **Fijar una fecha concreta**: con «Mantener los intervalos», la toma más antigua recibe exactamente esa hora y las
+  demás se desplazan igual (el orden se mantiene); sin la marca, todas reciben exactamente esa hora. Los archivos sin
+  hora de captura la reciben en ambos casos.
+
+La **vista previa** muestra antes → después para los primeros archivos y, debajo, cuántos se cambian y cuántos se quedan
+igual. Los **pares RAW+JPG** (mismo nombre en la misma carpeta) se cambian juntos, aunque solo esté marcado el JPG. La
+hora se escribe en los propios archivos: en las fotos EXIF (hora de captura, de digitalización y de modificación) y las
+horas XMP existentes, en RAW además un archivo auxiliar existente (`.xmp` de Lightroom), en los vídeos (MP4, MOV) las
+horas QuickTime. La indicación de zona horaria del archivo se conserva. Los archivos en bruto de Insta360, AVI, MKV y
+AVCHD no se tocan; la vista previa lo indica. Antes, la app hace **una copia de seguridad de todos los originales** (un
+ZIP); si falla, no se cambia nada. El progreso aparece abajo a la derecha, donde también puedes cancelar. Después la app
+vuelve a leer los archivos: la cuadrícula, «Por fecha» y la asignación a rutas quedan bien al momento.
 
 ### ⧉ Encontrar y retirar duplicados (desde v0.9.787)
 
@@ -2341,8 +2371,11 @@ captura son etapas propias. Para ubicar fotos con un track sigue usando el
 solo que no los ves: la app los crea a partir de los ajustes de cámara y, con varias rutas, de la vista por ruta y de las
 transiciones (vuelo de cine, línea recta, pausa, corte). Vista previa, arrastrar en la línea de tiempo y vídeo muestran
 siempre lo mismo. **Al activar el editor de keyframes**, la app pregunta *«¿Adoptar los keyframes estándar?»* — con
-*Adoptar* pasan a ser tus keyframes, aparecen en la línea de tiempo y se pueden cambiar. **Al desactivarlo**, tus keyframes
-se descartan y vuelven a valer los estándar. Si eliges otro tipo de transición con el editor abierto, la app inserta los
+*Adoptar* pasan a ser tus keyframes, aparecen en la línea de tiempo y se pueden cambiar. Solo pregunta si aún no tienes
+keyframes propios. **Al desactivarlo** (también con *Fija* o *Seguir*), vuelven a valer los estándar, pero tus keyframes
+siguen guardados en el proyecto y solo quedan en reposo. **Al activarlo de nuevo** (o elegir *Vuelo de cámara*), vuelve
+exactamente tu vuelo de cámara, venga del vídeo rápido, del asistente de vídeo o hecho a mano (desde 19.10.2026; antes se
+descartaba al desactivarlo). ⌘Z deshace el cambio. Si eliges otro tipo de transición con el editor abierto, la app inserta los
 keyframes correspondientes en esa transición.
 También las **paradas de foto** (volar hasta la foto, un breve vaivén, volver) y la **órbita** final son keyframes: si
 arrastras el cabezal por la línea de tiempo, ves la parada de foto y la órbita exactamente como en el vídeo. Tras la
@@ -2417,13 +2450,13 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
     Esto funciona igual en la vista previa y en el vídeo final. (En las **tarjetas de foto** ocurre automáticamente a partir de la hora de captura de la foto.)
   - **Ayuda de vista previa:** casilla **«Mostrar TODOS los carteles en la vista previa»** — muestra todos los carteles a la vez al colocarlos (solo vista previa; en el vídeo sigue rigiendo el timing).
 - **Mostrar la ruta completa atenuada (antes «Ghost-Track», desde v0.9.169; desde v0.9.734 en el panel ▸ de cada ruta)** — muestra la **ruta completa** ya semitransparente en el fondo, mientras que solo la parte animada se dibuja encima con opacidad total. Así se ve desde el principio hacia dónde va el recorrido. Ajustable: **color propio del ghost-track** (selector de color propio, independiente del color del track — p. ej. un gris discreto, desde v0.9.170) y **opacidad** (slider 5–80 %, por defecto 30 %). Funciona en la vista previa y en el render, incluido el modo alfa/transparente. Activado en proyectos nuevos (desde 05.10.2026); los existentes conservan su ajuste.
-- **Varios colores de track (desde v0.9.435, ampliado en v0.9.448)** — la línea del track puede **cambiar de color**. El selector **«Colorear según»** decide en función de qué:
+- **Color según velocidad, altitud o pendiente (antes «Varios colores de track», desde v0.9.435, ampliado en v0.9.448)** — la línea del track puede **cambiar de color**. Lo más rápido es el botón **«Color según velocidad, altitud o pendiente …»** en el aspecto de la línea (✎ en la ruta): activa los colores (por velocidad si el track tiene horas) y muestra el bloque arriba en el editor, para cada ruta. El selector **«Colorear según»** decide en función de qué:
   - **Distancia (km)** — paradas de color **en km** (número), **en la posición actual del marcador** (adopta la posición del scrubber) o **en todos los waypoints del GPX** (automático). El primer color se aplica desde el km 0 (= color del track).
   - **Cualquier serie de datos de la pista** — desde la v0.9.448 aquí está **todo lo que el Animador de datos puede representar**: altitud, velocidad, pendiente y cualquier valor de sensor de archivos FIT/TCX (**pulso, potencia, cadencia, temperatura**…). La lista solo muestra **lo que la pista cargada contiene realmente**; la unidad aparece entre paréntesis.
 
-    Las paradas de color se definen entonces **en el rango de valores de esa serie** (p. ej. «desde 145 bpm», «desde 8 %», «desde 2400 m»). **«＋ desde &lt;serie&gt; (aquí)»** adopta el valor en la posición del marcador y **«Auto (mín → máx)»** aplica una rampa azul→rojo sobre todo el rango. Se admiten valores negativos, algo importante en **pendiente** (bajadas) y **temperatura** (heladas).
+    Las paradas de color se definen entonces **en el rango de valores de esa serie** (p. ej. «desde 145 bpm», «desde 8 %», «desde 2400 m»). **«＋ desde &lt;serie&gt; (aquí)»** adopta el valor en la posición del marcador y **«Auto (rango típico)»** aplica una rampa azul→rojo sobre el rango típico de la ruta, del percentil 2 al 98, para que un único valor atípico del GPS (por ejemplo 60 km/h en plena caminata) no lleve toda la línea a un solo color. Para la velocidad hay además **«Semáforo»**: lento rojo, medio amarillo, rápido verde, con límites en uno y dos tercios del rango típico (cambios bruscos). Los valores salen siempre de todos los puntos de la ruta, por muy densa que se dibuje la línea. Para mostrar tenue lo que falta por recorrer usa **«Mostrar la ruta completa atenuada»** en el mismo editor. Se admiten valores negativos, algo importante en **pendiente** (bajadas) y **temperatura** (heladas).
 
-  Cada parada tiene **valor + color**, 🗑 la quita. El interruptor **«Transición»** define si el color cambia **brusco** (bandas nítidas) o como un **degradado** suave. Funciona WYSIWYG en la vista previa, la prueba y el render. Desactivado por defecto. *(De momento solo animador de un track.)*
+  Cada parada tiene **valor + color**, el icono de papelera la quita. El interruptor **«Transición»** define si el color cambia **brusco** (bandas nítidas) o como un **degradado** suave. Funciona WYSIWYG en la vista previa, la prueba y el render. Desactivado por defecto. *(De momento solo animador de un track.)*
 - **Mapa sin etiquetas** (desde v0.4.4) — oculta nombres de lugares, nombres de calles e iconos de POI en el mapa. Convierte el mapa en un fondo puro — un buen look si quieres que el track sea el protagonista visual en vez de una vista tipo Google Maps. Funciona con todos los estilos de mapa y también en el módulo Tour-Map.
 
 **🧱 Superposiciones (desde v0.9.752)** — Todo lo que queda fijo en la imagen es una **superposición**: valores, perfil de altitud, gráficos, flecha del norte y escala, título, tarjeta final, logo. Una superposición es una caja hecha de **filas**.
@@ -2449,6 +2482,15 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 - **Línea de fuentes** (desde 07.09.2026) — citar las fuentes del mapa es obligatorio y siempre queda visible, pero tú eliges la **esquina** (abajo derecha, abajo izquierda, arriba derecha, arriba izquierda) y el **ancho** (estrecha = bloque alto, media, ancha = línea plana, ancho completo = barra en el borde inferior) para que no tape el perfil de altitud ni la flecha del norte. La vista previa y el vídeo la muestran del mismo tamaño. Desde v0.9.741 es bastante más pequeña: el texto mide el 1,2 % del lado corto de la imagen (13 píxeles en un vídeo 1080), en la misma proporción con cualquier formato y tamaño de ventana.
 - **Ajustar el mapa a mano, sin keyframes** (desde 05.09.2026): si haces zoom, desplazas o inclinas la vista previa y no tienes keyframes, esa vista es la cámara: en la prueba, al arrastrar el tirador y en el vídeo. Vuelves a la vista general con **⤢ en el mapa de vista general** (desde v0.9.774, solo aparece con una vista ajustada a mano y sin keyframes); en cuanto pones un keyframe, manda el keyframe.
 - **Satélite gratis en todas partes** (desde 05.09.2026; escalonado por zoom desde v0.9.656: en vistas amplias el estilo muestra solo Sentinel-2, las ortofotos oficiales aparecen a partir del zoom 12 y del todo a partir de 13,5; desde v0.9.658 un nivel más tarde que antes, porque Sentinel se ve nítido hasta ahí): donde no hay ortofotos oficiales (Hamburgo, Nueva Zelanda, EE. UU. …) el estilo muestra ahora imágenes Sentinel-2 (10 m, 2016, EOX) en vez de una zona vacía. Un aviso en el mapa te lo indica. A esa resolución no se ven casas ni senderos, pero sí paisaje, ríos y estructura urbana; para primeros planos elige otro estilo (MapTiler, OpenStreetMap). La atribución «Sentinel-2 cloudless by EOX … Contains modified Copernicus Sentinel data 2016» aparece en la línea de fuentes; los vídeos se pueden publicar.
+- **Aviso «solo la imagen de satélite gruesa» con dos salidas** (desde el 19.10.2026): si el track queda fuera de las
+  ortofotos oficiales, el aviso arriba en la vista previa indica que aquí solo hay la imagen gruesa de Sentinel-2 (10 m)
+  y que en ella apenas se distinguen carreteras y nombres de lugares. Debajo hay dos botones: **«Satélite de MapTiler
+  (más nítido, clave gratuita)»** cambia a satélite de MapTiler con rótulos; si todavía no hay clave, se abren los ajustes
+  en Mapas → MapTiler con las instrucciones. **«Estilo de mapa con nombres»** cambia al mapa Liberty (OpenFreeMap, sin
+  clave). En el animador y en el Tour-Map el nuevo estilo vale para el proyecto (⌘Z recupera el anterior); en los mapas
+  del archivo, para todos los mapas del archivo. El aviso es discreto, se cierra con ✕ y nunca aparece en el vídeo.
+  Desde la misma versión aparece también en el animador cuando un proyecto se abre directamente con «Satélite (gratis)»
+  fuera de las ortofotos (antes, solo tras cambiar de estilo).
 - **ProRes 422 HQ** (desde 05.09.2026): en Ajustes → códec de vídeo, para editar en Final Cut o Resolve. El archivo es .mov y grande.
 - **Exportar una animación de mapa sin GPS** (nuevo tras v0.9.784): un proyecto sin grabación viaja en el `.rzproj` junto con su etapa; puntos, curvas y medios de transporte siguen siendo editables. La importación crea un proyecto nuevo propio (una segunda importación no sobrescribe nada). Si el proyecto aún no tiene etapa, la exportación lo dice en lugar de escribir un archivo vacío.
 - **Exportar enjambre/viaje** (desde 05.09.2026): «Exportar proyecto (.rzproj)» incluye ahora **todas** las rutas y el proyecto de enjambre/viaje de una composición. El destinatario lo importa como siempre y la composición se abre directamente en el Animador. Antes solo llegaba la primera ruta, sin proyecto.
@@ -2619,6 +2661,8 @@ varias). Si falta algo, la app lo dice al activarlo. Vale también para el víde
 **Colores por altura, velocidad … también en el aire (desde v0.9.793):** la línea en el aire se colorea igual que la línea en el suelo — **Track → Varios colores de track**: por distancia, altura, velocidad, pendiente o un sensor, con cambios de color nítidos o degradado, además de **color por día** y los colores de las etapas. En parapente, «por altura» muestra de un vistazo dónde sube el parapente en la térmica y dónde planea. Las líneas de plomada toman el color de su punto. Cada cambio en los tramos de color se ve al instante, también en el vídeo.
 
 **Los tracks IGC suben solos al aire (desde v0.9.793):** si cargas un vuelo de parapente, planeador o ala delta como archivo IGC en un proyecto, la app activa sola el relieve y «Vuelo en el aire»; no hay que ajustar nada. Si lo desactivas, se queda desactivado en ese proyecto. En los vuelos de dron DJI, un aviso recuerda el interruptor, porque los vuelos de cámara bajos suelen verse mejor en el suelo. El interruptor está en **Mapa → 3D en el mapa → Ruta**; aparece en los vuelos (IGC, dron) y siempre que esté activado. 
+
+**Punto móvil según la actividad (desde 19.10.2026):** En el editor de track, bajo el punto móvil, activa **«Símbolo según la actividad (del cuaderno de ruta)»**. El punto muestra entonces lo que el cuaderno de ruta detectó en ese lugar: **coche** en un trayecto en coche (la **moto** si la ruta figura en el archivo como ruta en moto), **barco** en un ferri (el ferri con el aspecto de vehículo «Símbolo»), **senderista** en caminatas y paseos, **bicicleta**, **corredor** y **kayak** en deportes acuáticos. Las pausas y las noches mantienen el símbolo anterior. En cada cambio el punto se encoge un instante y vuelve a crecer; la línea sigue siendo una sola. Los tramos que se verían menos de un segundo en el vídeo (el minuto del aparcamiento al mirador) mantienen el símbolo anterior para que el punto no parpadee; la nota bajo el interruptor dice qué símbolos faltan por eso, y con un vídeo más largo aparecen. Vale en la vista previa, al desplazar, en el vídeo y para el punto en el aire. Siguen teniendo prioridad el vehículo de una etapa planificada, tu imagen propia y «Mostrar el punto» desactivado. Sin cuaderno de ruta (ruta fuera del archivo, sin marcas de tiempo, varias rutas seguidas) el interruptor aparece gris, con el motivo al lado.
 
 **Punto móvil en el aire (desde v0.9.794):** el punto que vuela a la altura del vuelo se ve igual que tu punto móvil en el suelo — esfera, flecha, símbolo (p. ej. parapente), vehículo o imagen propia, con color y tamaño, y gira según la dirección del vuelo. Si cambias el punto móvil, lo ves al instante en la vista previa y en el vídeo.
 

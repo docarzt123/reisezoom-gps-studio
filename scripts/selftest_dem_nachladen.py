@@ -16,6 +16,10 @@ Szenarien: A ohne Fehler · B Ausfall: die ersten 4 Anfragen je Kachel antworten
 unabhängig von der Rechnerlast) · C langsam (erste Antwort 10 s) · D dauerhaft 502 (muss begrenzt bleiben) · E sofort 502 für die ersten 3
 Anfragen (Kachel endet als errored; Gelände dort flach, aber ohne schwarze Fläche).
 
+19.10.2026 — dasselbe für Standbild und Einzelbild (WYSIWYG mit dem Video): G `render_szene_still` und H
+`render_szene_frame` laufen ECHT durch (nur `_seite_vorbereiten` liefert die Harness-Seite statt der App-Szene), je mit
+E-Fehlern (beim Greifen keine fehlerhafte/ladende DEM-Kachel) und D-Fehlern (Render endet, Wiederholungen begrenzt).
+
 Umgebungsvariable `DEM_BILDER=<Ordner>`: legt je Szenario PNGs ab (vor/nach dem Nachladen).
 Exit 0 = alle Fälle grün (oder übersprungen, wenn WebGL fehlt) · Exit 1 = mindestens ein Fall rot.
 """
@@ -28,6 +32,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 VENDOR = REPO / "ui" / "vendor"
 fehler = 0
+fehl_texte: list = []
 
 
 def sagen(ok: bool, text: str, zusatz: str = "") -> None:
@@ -35,6 +40,7 @@ def sagen(ok: bool, text: str, zusatz: str = "") -> None:
     print(f"  [{'OK  ' if ok else 'FAIL'}] {text}" + (f"  {zusatz}" if zusatz else ""))
     if not ok:
         fehler += 1
+        fehl_texte.append(f"{text} {zusatz}".strip())
 
 
 def dem_png(z: int, x: int, y: int) -> bytes:
@@ -74,6 +80,8 @@ const m = new maplibregl.Map({container: 'map', fadeDuration: 0, center: [8.8, 4
     layers: [{id: 'deck', type: 'raster', source: 'deck'}],
     terrain: {source: 'dem', exaggeration: 1.5}}});
 window.__rzLetzteKarte = m;
+// Stellvertreter für den Probelauf der App (render_szene_frame springt damit an die Videozeit)
+window.__rzPreviewRun = () => {}; window.__rzPreviewStep = { ready: true, seek: () => {} };
 window.demStand = () => {
   const id = m.getTerrain().source, sc = m.style.sourceCaches[id];
   const c = {loaded: 0, loading: 0, errored: 0, andere: 0, errKeys: [], ladKeys: []};
@@ -316,8 +324,83 @@ async def main() -> int:
             await ctx.close()
             srv.stop()
         await browser.close()
+    await einzelbild_faelle()
+    for t in fehl_texte:   # am Ende wiederholen — run_tests.py zeigt nur das Ende der Ausgabe
+        print(f"  ✗ {t}")
     print(f"\n{'ALLES GRÜN' if not fehler else str(fehler) + ' FEHLER'}")
     return 1 if fehler else 0
+
+
+async def einzelbild_faelle() -> None:
+    """G/H: Standbild (Tour-Map) und Einzelbild (Animator) über die echten Render-Funktionen aus core.szene."""
+    import tempfile
+    import core.animator as A
+    import core.szene as S
+    WEBGL_ARGS = ["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist"]
+    regeln = [("E", lambda n: 502 if n <= 3 else None, "sofort 502 für die ersten 3 Anfragen"),
+              ("D", lambda n: 502, "dauerhaft sofort 502")]
+    alt_seite, alt_greifen = S._seite_vorbereiten, A._grab_frame
+    ausgabe = Path(tempfile.mkdtemp(prefix="dem-einzelbild-"))
+    try:
+        for fall, fn_name in (("G", "render_szene_still"), ("H", "render_szene_frame")):
+            for kurz, regel_fn, text in regeln:
+                print(f"\nSzenario {fall}{kurz}: {fn_name} — {text} (jede zweite Kachel)")
+                srv = Testserver()
+                srv.regel = lambda z, x, y, n, f=regel_fn: f(n) if (x + y) % 2 == 0 else None
+                beim_greifen: dict = {}
+                webgl = {"ok": True}
+
+                async def seite(p, cfg, api, projekt_id, is_cancelled, emit, params=None, modul=None, _srv=srv, webgl=webgl):
+                    b = await p.chromium.launch(headless=True, args=WEBGL_ARGS)
+                    page = await (await b.new_context(viewport={"width": 900, "height": 600})).new_page()
+                    await A._install_tile_cache(page, SimpleNamespace(transparent_background=False))
+                    await page.goto(f"http://127.0.0.1:{_srv.port}/harness.html")
+                    webgl["ok"] = await page.evaluate("() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch (e) { return false; } }")
+                    if webgl["ok"]:
+                        await page.evaluate("() => window.__bereit")
+                    return b, page, 1, 1
+
+                async def greifen(page, cfg, beim_greifen=beim_greifen):
+                    beim_greifen.update(await page.evaluate("() => window.demStand()"))
+                    return await alt_greifen(page, cfg)
+
+                S._seite_vorbereiten, A._grab_frame = seite, greifen
+                cfg = A.AnimatorConfig(gpx_path="", output_path=str(ausgabe / f"{fall}{kurz}.png"), mapbox_token="",
+                                       width=900, height=600, fps=30, duration_s=4, intro_s=0, hold_s=0)
+                t0 = time.perf_counter()
+                try:
+                    if fn_name == "render_szene_still":
+                        await S.render_szene_still(cfg, api=None, projekt_id="selftest")
+                    else:
+                        await S.render_szene_frame(cfg, api=None, projekt_id="selftest", t_sek=1.0)
+                    fertig = Path(cfg.output_path).is_file()
+                except Exception as e:  # noqa: BLE001
+                    fertig = False
+                    print(f"  Render-Fehler: {e}")
+                finally:
+                    S._seite_vorbereiten, A._grab_frame = alt_seite, alt_greifen
+                    srv.stop()
+                if not webgl["ok"]:
+                    print("  [SKIP] WebGL2 nicht verfügbar — Szenario übersprungen")
+                    continue
+                d = dunkel_anteil(Path(cfg.output_path).read_bytes()) if fertig else 1.0
+                print(f"  beim Greifen: loaded={beim_greifen.get('loaded')} loading={beim_greifen.get('loading')} "
+                      f"errored={beim_greifen.get('errored')} dunkel={d:.4f} in {time.perf_counter() - t0:.1f} s "
+                      f"Serveranfragen={srv.anfragen()}")
+                sagen(fertig, f"{fn_name}: Bild geschrieben")
+                if kurz == "E":
+                    sagen(beim_greifen.get("errored") == 0 and beim_greifen.get("loading") == 0,
+                          f"{fn_name}: alle DEM-Kacheln geladen, bevor das Bild gegriffen wird",
+                          f"errored={beim_greifen.get('errored')} loading={beim_greifen.get('loading')}")
+                    sagen(d < 0.01, f"{fn_name}: keine dunkle Fläche im Bild", f"dunkel={d:.4f}")
+                else:
+                    meist = max(srv.zaehler.values()) if srv.zaehler else 0
+                    sagen(meist <= 12, f"{fn_name}: dauerhafter Ausfall — Wiederholungen je Kachel begrenzt",
+                          f"meiste Anfragen je Kachel={meist}")
+    finally:
+        S._seite_vorbereiten, A._grab_frame = alt_seite, alt_greifen
+        import shutil
+        shutil.rmtree(ausgabe, ignore_errors=True)
 
 
 if __name__ == "__main__":

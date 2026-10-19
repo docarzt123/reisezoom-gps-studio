@@ -419,6 +419,15 @@ function mountLibrary(body, headerActions) {
     try { loc = (typeof i18nMeta === "function") ? i18nMeta().active : null; } catch (_) { loc = null; }
     return d.toLocaleDateString(loc || undefined, { year: "numeric", month: "2-digit", day: "2-digit" });
   }
+  // 19.10.2026 — Datum einer Tour: der Tag in der Ortszeit ihres Startpunkts (`tag_lokal`), derselbe wie im
+  // Datumsbaum — nicht `started_at` (UTC) in der Zeitzone dieses Rechners.
+  function fmtTourDate(it) {
+    if (!it || (!it.tag_lokal && !it.started_at)) return "—";
+    if (typeof tourDatumJS !== "function") return fmtDate(it.started_at);
+    let loc;
+    try { loc = (typeof i18nMeta === "function") ? i18nMeta().active : null; } catch (_) { loc = null; }
+    return tourDatumJS(it, null, loc) || "—";
+  }
   const fmtKmVal = (m) => (typeof fmtKm === "function") ? fmtKm(m) : ((m / 1000).toFixed(1) + " km");
   const fmtDurVal = (s) => (typeof fmtDur === "function") ? fmtDur(s) : Math.round(s / 60) + " min";
   // Zahlen in der Sprache der OBERFLÄCHE, nicht in der des Systems. Genau das
@@ -1936,7 +1945,7 @@ function mountLibrary(body, headerActions) {
         </span>
         <span class="lib-card-name">${esc(it.name)}</span>
         <span class="lib-card-meta">
-          <span>${fmtDate(it.started_at)}</span><span>${fmtKmVal(it.distance_m || 0)}</span><span>↑ ${num(it.ascent_m)} m</span>
+          <span>${fmtTourDate(it)}</span><span>${fmtKmVal(it.distance_m || 0)}</span><span>↑ ${num(it.ascent_m)} m</span>
         </span>
       </button>`;
   }
@@ -1986,7 +1995,7 @@ function mountLibrary(body, headerActions) {
           <span class="lib-row-name">${it.fav ? "★ " : ""}${esc(it.name)}
             ${it.recorded_eff ? "" : `<i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}
             ${it.has_session ? `<i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</span>
-          <span>${fmtDate(it.started_at)}</span>
+          <span>${fmtTourDate(it)}</span>
           <span>${fmtKmVal(it.distance_m || 0)}</span>
           <span>↑ ${num(it.ascent_m)} m</span>
           <span>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</span>
@@ -2015,7 +2024,7 @@ function mountLibrary(body, headerActions) {
           <div class="lz-bild">${bild}</div>
           <div class="lz-text">
             <div class="lz-name">${it.fav ? `<span class="lz-fav">${SI("star", 13)}</span>` : ""}${esc(it.name || it.filename || "")}${it.recorded_eff ? "" : ` <i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}${it.has_session ? ` <i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</div>
-            <div class="lz-sub">${fmtDate(it.started_at)}${act ? ` <span class="lz-trenner"></span> ${act}` : ""}</div>
+            <div class="lz-sub">${fmtTourDate(it)}${act ? ` <span class="lz-trenner"></span> ${act}` : ""}</div>
             <div class="lz-werte">
               <span><b>${fmtKmVal(it.distance_m || 0)}</b><i>${esc(T("library.zeile_distanz", "Distanz"))}</i></span>
               <span><b>+${num(it.ascent_m)} m</b><i>${esc(T("library.zeile_aufstieg", "Aufstieg"))}</i></span>
@@ -3015,7 +3024,7 @@ function mountLibrary(body, headerActions) {
             <div class="st-k-kopf"><h3>${esc(T("library.stat_top", "Die längsten Touren"))}</h3>
               <button type="button" class="st-alle" id="st-laengste-alle">${esc(T("library.stat_alle", "Alle anzeigen"))} ${SI("arrow-right", 13)}</button></div>
             <div class="lib-top st-top">${(s.longest || []).map((it, i) => `
-                <button class="lib-top-row" data-top="${i}" type="button" title="${esc(fmtDate(it.started_at))}">
+                <button class="lib-top-row" data-top="${i}" type="button" title="${esc(fmtTourDate(it))}">
                   <span class="lib-top-n st-rang">${i + 1}</span>
                   <span class="lib-top-name">${esc(it.display_name || it.name)}</span>
                   <span class="lib-top-km">${fmtKmVal(it.distance_m || (it.distance_km || 0) * 1000)}</span>
@@ -3392,7 +3401,7 @@ function mountLibrary(body, headerActions) {
     }).setLngLat(lngLat).setHTML(`
       <div class="lib-pop">
         <div class="lib-pop-title" title="${esc(T("library.pop_drag", "Zum Verschieben ziehen"))}">${esc(it.name)}</div>
-        <div class="lib-pop-sub">${fmtDate(it.started_at)}
+        <div class="lib-pop-sub">${fmtTourDate(it)}
           ${it.activity ? " · " + esc(ACT_LABELS[it.activity] || it.activity) : ""}
           ${it.recorded_eff ? "" : " · " + T("library.planned", "geplant")}</div>
         <div class="lib-pop-stats">
@@ -3532,7 +3541,7 @@ function mountLibrary(body, headerActions) {
         <span class="lib-merge-handle" title="${T("route.drag", "Ziehen, um die Reihenfolge zu ändern")}">⠿</span>
         <span class="lib-merge-n">${i + 1}</span>
         <span class="lib-merge-name">${esc(it.display_name || it.name || "")}</span>
-        <span class="lib-merge-meta">${fmtDate(it.started_at)} · ${fmtKmVal(it.distance_m || 0)}</span>
+        <span class="lib-merge-meta">${fmtTourDate(it)} · ${fmtKmVal(it.distance_m || 0)}</span>
         <span class="lib-merge-sort">${rzSortPfeile(i, liste.length)}</span>
       </div>`).join("");
     const m = openModal({
@@ -3970,7 +3979,7 @@ function mountLibrary(body, headerActions) {
       <div class="ld-tags" id="ld-tags">${(it.tag_list || []).map((x, k) => `<span class="lz-tag ld-tag">${esc(x)}<button type="button" data-ldtagweg="${k}" title="${esc(T("library.d_tag_weg", "Schlagwort entfernen"))}">×</button></span>`).join("")}<button type="button" class="lz-tag-plus" id="ld-tag-plus" title="${esc(T("library.zeile_tag_tip", "Schlagwort hinzufügen"))}">${SI("plus", 13)}</button></div>
       <input type="hidden" id="lib-d-tags" value="${esc((it.tag_list || []).join(", "))}">
       <div class="ld-meta">
-        <span>${SI("calendar", 15)} ${fmtDate(it.started_at)}</span>
+        <span>${SI("calendar", 15)} ${fmtTourDate(it)}</span>
         <span>${SI(ACT_SYMBOL[it.activity] || "route", 15)} ${esc(ACT_LABELS[it.activity] || it.activity || T("library.act_none", "keine"))}</span>
         ${it.source ? `<span title="${esc(T("library.d_geraet_tip", "Gerät oder App, die die Datei geschrieben hat"))}">${SI("smartphone", 15)} ${esc(it.source)}</span>` : ""}
         ${ordnerName ? `<span title="${esc(it.folder || "")}">${SI("folder", 15)} ${esc(ordnerName)}</span>` : ""}
@@ -4578,7 +4587,7 @@ function mountLibrary(body, headerActions) {
    *  `q` sind rohe Werte aus der Datenbank (siehe `tour_version_daten`). */
   function kennzahlen(q) {
     return [
-      [T("library.date", "Datum"), fmtDate(q.started_at)],
+      [T("library.date", "Datum"), fmtTourDate(q)],
       [T("library.distance", "Strecke"), fmtKmVal(q.distance_m || 0)],
       [T("library.duration", "Dauer"), q.duration_s ? fmtDurVal(q.duration_s) : "—"],
       [T("library.ascent", "Höhenmeter"), `↑ ${num(q.ascent_m)} m · ↓ ${num(q.descent_m)} m`],

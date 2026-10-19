@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.798"
+APP_VERSION = "0.9.799"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -6096,6 +6096,139 @@ class Api:
         log.info("[fotos] %d von %d verortet (%.5f, %.5f)", ok, len(pfade), float(lat), float(lon))
         return {"ok": ok > 0 or not pfade, "n_ok": ok, "n_fehler": len(fehler), "fehler": fehler[:30]}
 
+    # ── 19.10.2026 — Aufnahmezeit vieler Dateien ändern (Nutzer: 66 Dateien mit Kameradatum 2036) ─────────────
+    def _zeit_plan(self, pfade: list, regel: dict, partner: bool = True) -> tuple:
+        """(plan, regel, n_partner) — Rechnung siehe core/aufnahmezeit. Die alte Zeit kommt aus dem Bestand."""
+        from core import aufnahmezeit as caz
+        pfade = list(dict.fromkeys(str(p) for p in (pfade or []) if p))[:caz.MAX_DATEIEN]
+        r = caz.regel_lesen(regel)
+        dazu = caz.partner_finden(pfade) if partner else []
+        alle = pfade + dazu
+        with clib._DB_LOCK:
+            zeilen = cfotos.zeilen(self._lib(), alle)
+        eintraege = [{"path": p, "alt": caz.alt_aus_zeile(zeilen.get(p) or {})} for p in alle]
+        if dazu:
+            # ein Partner, der (noch) nicht im Bestand steht, rechnet mit der Zeit seines Bilds
+            alt_von = {os.path.splitext(e["path"])[0]: e["alt"] for e in eintraege if e["alt"] is not None}
+            for e in eintraege:
+                if e["alt"] is None and e["path"] in dazu:
+                    e["alt"] = alt_von.get(os.path.splitext(e["path"])[0])
+        return caz.planen(eintraege, r), r, len(dazu)
+
+    def fotos_zeit_vorschau(self, pfade: list, regel: dict, partner: bool = True) -> dict:
+        """Vorschau für den Dialog „Aufnahmezeit ändern …": die ersten Dateien alt → neu und was mit allen geschieht."""
+        from core import aufnahmezeit as caz
+        try:
+            plan, _r, n_partner = self._zeit_plan(pfade, regel, partner)
+            reihe = sorted(plan, key=lambda z: (z["alt"] is None, z["alt"] or datetime.min, z["path"]))
+            beispiele = [{"name": Path(z["path"]).name, "alt": caz.text(z["alt"]), "neu": caz.text(z["neu"]),
+                          "aktion": z["aktion"]} for z in reihe[:caz.VORSCHAU_N]]
+            return {"ok": True, "n": len(plan), "n_partner": n_partner, "zahlen": caz.zusammenfassung(plan),
+                    "beispiele": beispiele}
+        except caz.RegelFehler as e:
+            return {"ok": False, "error": _ui_t()(e.schluessel, str(e)), "regel": True}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_zeit_vorschau")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_zeit_aendern(self, pfade: list, regel: dict, partner: bool = True) -> dict:
+        """Aufnahmezeit schreiben — im Hintergrund (Fortschritt über `fotos_zeit_status`, Abbruch `fotos_zeit_stopp`).
+        Erst EINE Sicherung aller Originale (ZIP, wie der Geotagger); scheitert sie, bleibt jede Datei unverändert.
+        Danach je Datei schreiben (core/exif.aufnahmezeit_schreiben) und den Bestand neu einlesen, damit Liste,
+        Datumsbaum und Tour-Zuordnung sofort stimmen."""
+        from core import aufnahmezeit as caz
+        if getattr(self, "_zeitlauf", {}).get("laeuft"):
+            return {"ok": False, "error": _ui_t()("error.laeuft_bereits", "Das läuft gerade schon. Bitte warten, bis es fertig ist.")}
+        try:
+            plan, _r, _np = self._zeit_plan(pfade, regel, partner)
+        except caz.RegelFehler as e:
+            return {"ok": False, "error": _ui_t()(e.schluessel, str(e))}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_zeit_aendern")
+            return {"ok": False, "error": str(e)}
+        arbeit = [z for z in plan if z["aktion"] in ("verschieben", "setzen")]
+        if not arbeit:
+            return {"ok": False, "error": _ui_t()("zeitaendern.nichts", "Bei keiner Datei ändert sich etwas.")}
+        n_ausgelassen = len(plan) - len(arbeit)
+        self._zeitlauf = {"laeuft": True, "phase": "sichern", "n": 0, "gesamt": len(arbeit), "datei": "",
+                          "stopp": False, "ergebnis": None}
+
+        def lauf():
+            ok_pfade, fehler, abweichend = [], [], []
+            try:
+                drin = [z["path"] for z in arbeit if not _unter(z["path"], DROPS_DIR)]
+                begleit = [s for s in (cexif.raw_sidecar_pfad(p) for p in drin if cexif.is_raw(p)) if os.path.isfile(s)]
+                gesichert = True
+                if drin:
+                    try:
+                        for p in drin:
+                            _ds.nutzer_ziel(p)
+                        zp = cbak.make_photo_backup(
+                            drin + begleit, str(BACKUPS_DIR / "archiv_zeit"), label="zeit",
+                            should_cancel=lambda: self._zeitlauf.get("stopp"),
+                            on_progress=lambda i, g, d: self._zeitlauf.update({"n": i, "gesamt": g, "datei": d}))
+                        log.info("[fotos] Aufnahmezeit: Sicherung von %d Datei(en) → %s", len(drin), zp)
+                    except cbak.BackupCancelled:
+                        self._zeitlauf["ergebnis"] = {"ok": False, "abgebrochen": True, "n_ok": 0, "n_fehler": 0}
+                        return
+                    except Exception as e:  # noqa: BLE001 — ohne Sicherung wird nichts geschrieben
+                        log.exception("[fotos] Aufnahmezeit: Sicherung fehlgeschlagen")
+                        self._zeitlauf["ergebnis"] = {"ok": False, "error": _ui_t()(
+                            "zeitaendern.err_sicherung", "Die Sicherung der Originale ging nicht — es wurde nichts geändert.")
+                            + f" ({e})"}
+                        return
+                self._zeitlauf.update({"phase": "schreiben", "n": 0, "gesamt": len(arbeit)})
+                abgebrochen = False
+                for i, z in enumerate(arbeit):
+                    if self._zeitlauf.get("stopp"):
+                        abgebrochen = True
+                        break
+                    self._zeitlauf.update({"n": i, "datei": Path(z["path"]).name})
+                    try:
+                        cexif.aufnahmezeit_schreiben(z["path"], z["neu"], z["alt"] if z["aktion"] == "verschieben" else None,
+                                                     gesichert=gesichert)
+                        ok_pfade.append(z["path"])
+                    except Exception as e:  # noqa: BLE001 — eine Datei darf den Rest nicht aufhalten
+                        log.warning("[fotos] Aufnahmezeit: %s nicht geschrieben: %s", z["path"], e)
+                        fehler.append({"pfad": z["path"], "grund": str(e)[:160]})
+                self._zeitlauf.update({"phase": "einlesen", "n": len(arbeit), "datei": ""})
+                if ok_pfade:
+                    conn = clib.open_db(LIBRARY_DB)      # eigene Verbindung: kein Warten der Oberfläche auf exiftool
+                    try:
+                        for k in range(0, len(ok_pfade), 50):
+                            cfotos.neu_lesen(conn, ok_pfade[k:k + 50])
+                        soll = {z["path"]: z["neu"] for z in arbeit}
+                        for p, zl in cfotos.zeilen(conn, ok_pfade).items():
+                            ist = caz.alt_aus_zeile(zl)
+                            if ist is None or abs((ist - soll[p]).total_seconds()) > 1:
+                                abweichend.append(Path(p).name)
+                    finally:
+                        conn.close()
+                log.info("[fotos] Aufnahmezeit: %d geschrieben, %d Fehler, %d ausgelassen, %d weichen ab%s",
+                         len(ok_pfade), len(fehler), n_ausgelassen, len(abweichend), " (abgebrochen)" if abgebrochen else "")
+                self._zeitlauf["ergebnis"] = {"ok": True, "n_ok": len(ok_pfade), "n_fehler": len(fehler),
+                                              "fehler": fehler[:30], "n_ausgelassen": n_ausgelassen,
+                                              "abweichend": abweichend[:30], "abgebrochen": abgebrochen,
+                                              "pfade": ok_pfade[:caz.MAX_DATEIEN]}
+            except Exception as e:  # noqa: BLE001
+                log.exception("fotos_zeit_aendern")
+                self._zeitlauf["ergebnis"] = {"ok": False, "error": str(e), "n_ok": len(ok_pfade)}
+            finally:
+                self._zeitlauf["laeuft"] = False
+
+        threading.Thread(target=lauf, name="fotos-zeit", daemon=True).start()
+        return {"ok": True, "gestartet": True, "gesamt": len(arbeit), "n_ausgelassen": n_ausgelassen}
+
+    def fotos_zeit_status(self) -> dict:
+        m = dict(getattr(self, "_zeitlauf", {}) or {})
+        m.pop("stopp", None)
+        return m
+
+    def fotos_zeit_stopp(self) -> dict:
+        if getattr(self, "_zeitlauf", None):
+            self._zeitlauf["stopp"] = True
+        return {"ok": True}
+
     def fotos_adresse(self, lat: float, lon: float, lang: str = "de") -> dict:
         """Adresse zu einer Koordinate (derselbe Anbieter wie beim Geotagger) — Vorschlag beim Verorten."""
         try:
@@ -6581,7 +6714,8 @@ class Api:
                 else:
                     tq = clib.query(conn, search=rest, year=jahr, limit=max(1, int(n_touren)), sort="date_desc")
                 touren = [{"path": t["path"], "geo_hash": t.get("geo_hash"), "name": t.get("display_name") or t.get("name") or t.get("filename"),
-                           "started_at": t.get("started_at"), "place": t.get("place", ""), "country": t.get("country", ""),
+                           "started_at": t.get("started_at"), "tag_lokal": t.get("tag_lokal") or "",   # 19.10.2026 — Ortstag
+                           "place": t.get("place", ""), "country": t.get("country", ""),
                            "distance_m": t.get("distance_m")} for t in tq.get("items", [])]
                 filt = {"suche": rest} if rest else {}
                 if jahr is not None:
@@ -13991,7 +14125,15 @@ class Api:
                             "strecke_m": float(e.get("strecke_m") or 0),
                             "anzeige": e.get("anzeige") or "",
                             "von": anteil(t0, True), "bis": anteil(t1, False)})
-            return {"ok": True, "eid": lb.get("eid"), "bereiche": out}
+            # 19.10.2026 — Fortbewegungsart der Tour aus dem Archiv (Laufpunkt „Symbol nach Aktivität“:
+            # eine Fahrt auf einer Motorrad-Tour zeigt das Motorrad statt des Autos)
+            akt = ""
+            try:
+                _tid, _trow = self._einteilung_tour(path)
+                akt = str((_trow or {}).get("activity_user") or (_trow or {}).get("activity") or "")
+            except Exception:  # noqa: BLE001
+                akt = ""
+            return {"ok": True, "eid": lb.get("eid"), "bereiche": out, "aktivitaet": akt}
         except Exception as e:  # noqa: BLE001
             log.warning("animator_logbuch_bereiche: %s", e)
             return {"ok": False, "error": str(e)}
@@ -15272,7 +15414,7 @@ class Api:
             if len(pts) < 2:
                 return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "Der Track hat zu wenige Punkte.")}
             lons = [q.lon for q in pts]; lats = [q.lat for q in pts]
-            name, ort = "", ""
+            name, ort, land = "", "", ""
             try:
                 with sqlite3.connect(str(LIBRARY_DB)) as con:
                     row = con.execute("SELECT COALESCE(NULLIF(display_name,''), name), place, region, country "
@@ -15280,6 +15422,7 @@ class Api:
                 if row:
                     name = row[0] or ""
                     ort = ", ".join(x for x in (row[1], row[2]) if x) or (row[3] or "")
+                    land = row[3] or ""
             except Exception as e:  # noqa: BLE001 — Archiv optional (Datei von außen)
                 log.info("schnellvideo_vorschlag: kein Archiv-Eintrag (%s)", e)
             def _ep(iso):
@@ -15290,6 +15433,11 @@ class Api:
             zeiten = [q.time for q in pts if q.time]
             start = _ep(zeiten[0]) if zeiten else None
             ende = _ep(zeiten[-1]) if zeiten else None
+            # 19.10.2026 — Datum im Titel in der Ortszeit der Tour (wie im Archiv), nicht in der dieses Rechners
+            versatz = None
+            if start is not None:
+                _p0 = next((q for q in pts if q.time), pts[0])
+                versatz = czeit.offset_min(czeit.zone_fuer(_p0.lat, _p0.lon, land), start)
             if not name:
                 name = st.name or Path(pf).stem
             # 05.10.2026 — Video-Assistent/Auto-Regie: Höhepunkte der Strecke für die Tempo-Regie (Anteil wie bei den Fotos)
@@ -15318,7 +15466,8 @@ class Api:
             zahlen = {"aufstieg_m": round(st.ascent_m or 0), "dauer_s": round((st.moving_time_s or st.duration_s or 0)),
                       "ele_min": round(st.ele_min) if st.ele_min is not None else None,
                       "ele_max": round(st.ele_max) if st.ele_max is not None else None}
-            return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende, "regie": regie,
+            return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende, "versatz_min": versatz,
+                    "regie": regie,
                     "linie": linie, "pois": pois, "profil": profil, "zahlen": zahlen,
                     "bbox": [min(lons), min(lats), max(lons), max(lats)],
                     "distance_km": round((st.distance_m or 0) / 1000, 2),

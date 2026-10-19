@@ -1170,6 +1170,13 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
 .anim-stil-alle .anim-stil-check input { margin-right: 6px; }
 .anim-stil-zeile.ist-check label { display: flex; align-items: center; gap: 6px; color: var(--text, #eee); cursor: pointer; }
 .anim-stil-zeile label .muted { font-weight: 400; }
+/* 19.10.2026 — Einstieg „Farbe nach Tempo, Höhe oder Steigung …“ im Aussehen der Linie + kurzes Aufleuchten des Blocks */
+.anim-fw-einstieg-zeile .anim-fw-einstieg { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; }
+.tred-mehrfarbig.ist-hervor { animation: rz-fw-hervor 1.6s ease-out; border-radius: 6px; }
+@keyframes rz-fw-hervor { 0%, 40% { box-shadow: 0 0 0 2px var(--accent, #4fc9ab); } 100% { box-shadow: 0 0 0 2px transparent; } }
+/* 19.10.2026 — Laufpunkt „Symbol nach Aktivität (aus dem Logbuch)“: Hinweis unter dem Schalter */
+.dot-lb-zeile .dot-lb-hinweis { font-size: 10.5px; line-height: 1.4; margin: 1px 0 0 20px; }
+.dot-lb-zeile.ist-aus label { opacity: 0.55; cursor: default; }
 
 /* 20.09.2026 — Farbe je Etappe (zusammengeführter Track) */
 .anim-etappenfarben { margin-top: 10px; }

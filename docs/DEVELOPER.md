@@ -1104,10 +1104,10 @@ Filter, damit `query()` und `stats()` nicht auseinanderlaufen. `query()` führt
 beide zusätzlich in der Signatur; ohne das fallen sie stillschweigend in
 `**_ignored`, und die Liste zeigt weiter alles, während die Statistik schneidet.
 
-⚠️ **Der letzte Tag.** `started_at` ist ISO-Text **mit Uhrzeit**. Ein Vergleich
-gegen ein blankes `2025-12-31` schlösse jede Tour dieses Tages aus, weil
-`2025-12-31T09:00` größer ist. Deshalb wird an `bis` ein `z` angehängt — es
-sortiert hinter jede Uhrzeit und schließt den Tag mit ein.
+⚠️ **Der letzte Tag.** Bis 18.10.2026 wurde gegen `started_at` (ISO-Text **mit
+Uhrzeit**, UTC) verglichen und an `bis` ein `z` gehängt, damit der letzte Tag
+mitzählt. Seit 19.10.2026 vergleicht der Filter den Ortstag `tag_lokal`
+(`JJJJ-MM-TT`, siehe unten) — ohne Uhrzeit, also ohne Anhängsel.
 
 ⚠️ **ISO-Wochen gehen nicht in SQLite.** `strftime('%W')` zählt ab dem ersten
 Sonntag und weicht am Jahreswechsel ab (1. Januar 2027 = ISO-Woche 53 von 2026).
@@ -1122,6 +1122,28 @@ ergeben sonst ein Ergebnis, das niemand mehr erklären kann.
 
 `tests/test_zeitraum_wochen.py` prüft beide Ränder und die Wochenzuordnung gegen
 `isocalendar()`.
+
+#### Tourtag in Ortszeit — `tracks.tag_lokal` (19.10.2026)
+
+`started_at` bleibt UTC-Text (Sortierung, Foto-Zuordnung, Zeitpläne rechnen mit dem absoluten Zeitpunkt). Der
+**Kalendertag** einer Tour steht seit 19.10.2026 in eigenen, abgeleiteten Spalten: `tag_lokal` (`JJJJ-MM-TT`, Ortszeit
+am ersten Punkt mit Zeit) und `tz_minuten` (Versatz zu UTC dort); `year` ist das Jahr dieses Tages. Gerechnet über
+`core/zeitzone.tag_lokal(iso, lat, lon, land)` bzw. `library.tag_felder()` — dieselbe Zone wie das Logbuch
+(`zone_fuer`, Land aus dem Ortslauf, sonst aus der Lage). Zeiten ohne Zone gelten als UTC, nie als Rechnerzeit.
+
+- **Wer liest den Tag:** `_build_where` (`von`/`bis` als einfacher Textvergleich, ohne das alte `z`-Anhängsel),
+  `datumsbaum`, Monats-/Wochenstatistik in `stats` — alle über die Modulvariable `_TAG_SQL` (`tag_lokal`; nur ein
+  NUR LESEND geöffnetes Alt-Archiv ohne Spalte fällt auf `substr(started_at, 1, 10)` zurück).
+- **Wer schreibt ihn:** `_row_from_file` (ohne Land), `_upsert` rechnet mit dem Land nach, wenn es schon in der Zeile
+  steht, `ort_speichern` nach dem Ortslauf, `_migrate_tag_lokal` beim Öffnen für alle Zeilen mit Startzeit und leerem
+  Tag (selbstbegrenzend, öffnet keine Datei: Startpunkt = erster Punkt von `geom`).
+- **Oberfläche:** `tourDatumJS(it, opts, loc)` / `tourUhrzeitJS(iso, tzMin, loc)` in `ui/js/util.js` formatieren
+  `tag_lokal` bzw. die Uhrzeit mit `tz_minuten` (Zeitzone UTC im `Intl`-Aufruf); ohne die Felder bleibt es beim
+  `Date` des Rechners. Archiv (`fmtTourDate`), Tour-/Reise-Seite, Tourenwahl und Medien-Suche nutzen sie; das
+  Schnell-Video bekommt `versatz_min` aus `schnellvideo_vorschlag`.
+
+Wächter: `tests/test_tourtag_ortszeit.py` (Kern, Migration, Datumsgrenze, Silvester, Land) und
+`tests/test_tourtag_ortszeit_ui.py` (WebKit in `America/New_York`).
 
 ### Sammelposten im Fortbewegungs-Filter (v0.9.504)
 
@@ -1572,6 +1594,35 @@ per Doku).
 - **Gotcha bei exiftool**: `-n` (numerisch) hat Vorrang über `-d` (Date-Format) — wir lesen DateTime ohne `-n` und parsen das Standard-EXIF-Format `YYYY:MM:DD HH:MM:SS`
 - **RAW-Schreibvorgang ändert die Datei minimal** (~0.5% Größenänderung bei CR3). Strukturell intakt, alle Bilddaten unangetastet — nur EXIF-IFDs erweitert
 - Backup vor Write trotzdem Pflicht (große ZIPs! Plan: pro Foto 12-50 MB)
+
+#### Aufnahmezeit vieler Dateien ändern (19.10.2026)
+
+Medien → Mehrfachauswahl → „Aufnahmezeit ändern …“ (Leiste `data-ml="zeit"` und Kontextmenü in `ui/js/fotos.js`,
+Dialog `rzArchivExport.zeitAendern` in `ui/js/exportarchiv.js`).
+
+- **Rechnen:** `core/aufnahmezeit.py` (rein, ohne Dateizugriff außer `partner_finden`): `regel_lesen` (`versatz` mit
+  `richtung`/`jahre`/`tage`/`stunden`/`minuten`, `fest` mit `datum`/`zeit`/`gleich`; Fehler als `RegelFehler` mit
+  i18n-Schlüssel), `planen` → je Datei `aktion` ∈ verschieben · setzen · gleich · ohne_zeit · nicht · bereich.
+  Gerechnet wird mit der Uhrzeit, **wie sie in der Datei steht** (`aufnahme_utc + tz_minuten` aus dem Bestand) —
+  keine Zonenumrechnung. `fest` ohne `gleich`: Versatz = Ziel − früheste Zeit, für alle gleich (Lightroom-Verhalten).
+  Jahre kalendarisch (29.2. → 28.2.), Ergebnis nur 1900–2100.
+- **Schreiben:** `core/exif.aufnahmezeit_schreiben(path, neu, alt, gesichert)`. Mit `alt` wird **verschoben** (exiftool
+  `-AllDates±=H:MM:SS` bzw. bei Videos `-QuickTime:Time:All±=`, dazu die XMP-Zeitfelder aus `_ZEIT_XMP` — exiftool
+  verschiebt nur vorhandene Felder): Abstände der Felder und Zonenangaben (`OffsetTime*`, `Keys:CreationDate`) bleiben.
+  Ohne `alt` wird **gesetzt** (`-AllDates=` bzw. die QuickTime-Felder `_ZEIT_QT`). RAW: eine **vorhandene**
+  Begleitdatei bekommt die Zeit über eine Kopie + `_ds.ersetzen` (keine neue anlegen). Videos nur
+  QuickTime-Container (`VIDEO_SCHREIBBAR`); Insta360-Rohdateien (`.insv/.insp`), AVI, MKV, AVCHD → `nicht`.
+- **Ablauf:** `fotos_zeit_vorschau` (erste 8 + Zählung, RAW/JPG-Partner über `partner_finden`) und
+  `fotos_zeit_aendern` (Hintergrund-Faden, `fotos_zeit_status`/`fotos_zeit_stopp`, Statusbox `medien-zeit`):
+  erst **eine** ZIP-Sicherung aller Originale + vorhandener Begleitdateien (`cbak.make_photo_backup`, abbrechbar;
+  scheitert sie, wird nichts geschrieben), dann je Datei schreiben, danach `cfotos.neu_lesen` über eine eigene
+  Verbindung und Abgleich Soll/Ist (`abweichend`, z. B. wenn ein anderes Zeitfeld der Datei Vorrang hat).
+- **Wächter:** `tests/test_aufnahmezeit_mehrere.py` (Rechnen, echte JPEG/DNG/MP4/AVI, Begleitdatei, Sicherung,
+  Abbrechen, Sicherung scheitert) und `tests/test_aufnahmezeit_mehrere_ui.py` (WebKit: Leiste, Menü, Dialog, Vorschau,
+  Schreiben, Datumsbaum, Datumsfilter + Detailfeld).
+- **Danach (`nachZeitAendern` in `ui/js/fotos.js`):** ein Datumsfilter (`filter.von/bis/jahr`) fällt weg — sonst stünde
+  nach „2036 → 2023“ ein leeres Raster da —, Raster und Datumsbaum neu, das Detailfeld der ausgewählten Datei neu
+  gelesen (vorher zeigte es bis zum nächsten Klick die alte Zeit).
 
 ### `core/sun.py` (seit v0.9.333) — Lichtstempel + Blickrichtung
 
@@ -4649,7 +4700,8 @@ nur beim Anlegen — `applyGhost()` vergleicht `map.__rzGhostDash` und legt die 
 ## Kamera-Karte im Animator (06.10.2026)
 
 Oben `#anim-kamera-kurz`: Pillen `#anim-kamera-art` (fest/folgen/fahrt → `rzEinfach.kameraSetzen`; bei vorhandenen
-Keyframes schaltet „fahrt“ nur `anim-kf-enabled` an), `#anim-zoom` als „Höhe über Gelände“ (Anzeige
+Keyframes schaltet „fahrt“ nur `anim-kf-enabled` an; Klicks auf fest/folgen gehen mit `{ einSchritt: true }` über
+`applyState` = **ein** ⌘Z-Schritt, interne Aufrufer setzen weiter die beiden Felder), `#anim-zoom` als „Höhe über Gelände“ (Anzeige
 `#anim-kamera-hoehe-v` = `transform.cameraToCenterDistance × m/px × cos(pitch)` aus der Live-Vorschau), `#anim-pitch`
 als „Blickwinkel“. Alles andere in `details#anim-kamera-mehr`; `renderKeyframeEditor` öffnet es bei Auswahl.
 `_kameraKurzSync()` (aus `applyKeyframesEnabled`) stellt Pillen und Sichtbarkeit nach dem echten Zustand.
@@ -5626,6 +5678,15 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    neue Stufe benachbart sind (`1===Math.abs(F-p.z)`). Fangriemen: `_gelaendePruefen` in
    module.js (nach jeder Fahrt/Ruhe) leert `terrain.__rzLod`, lädt die DEM-Quelle neu und gibt
    die RTT frei, wenn die beste sichtbare DEM-Stufe unter floor(Zoom)−1 liegt und nichts lädt.
+   **Seit 19.10.2026** kein `sc.reload()` mehr (lud alle geladenen Kacheln neu und ließ die
+   fehlerhaften aus): `_demFehlerNachladen(sc)` lädt nur `errored`-Kacheln per `_reloadTile` neu —
+   bei jeder Prüfung, nicht nur bei „hängt“ (wie das Video vor jedem Bild). Grenzen in
+   `map.__rzDemNachladen`: 3 je Kachel, 32 Kacheln und eine Runde je Aufruf, 30 Runden je Karte
+   und 5 min. Unter Mapbox nichts. Video, Standbild (`render_szene_still`) und Einzelbild
+   (`render_szene_frame`) laden über dieselbe Funktion `szene._gelaende_nachladen` →
+   `_DEM_NACHLADEN_JS` (Standbild/Einzelbild je Warte-Durchgang 2 Runden). Tests:
+   `scripts/selftest_dem_nachladen.py` (Szenarien G/H über die echten Render-Funktionen),
+   `tests/test_gelaende_vorschau_nachladen.py` (Vorschau, Fehler per `page.route`).
    Schlüssel = tileSize + Rundungsart (r/f) + maxzoom_minzoom + z/x/y — NICHT nur tileSize:
    Höhenmodell (floor) und Sentinel (round) teilen die Kachelgröße und überschrieben sich
    abwechselnd, die Geländestufe kippte 13↔14, eine z13-Geländekachel ohne geladenes DEM lag
@@ -5983,6 +6044,17 @@ dieselbe Datenbank schreibt.
   `mousedown` auf `.ct-x` → `_ctAusschalten` (`c.an = false` über `_ctAendern`, mit ⌘Z); Größe gegen die
   Vorschau-Verkleinerung über `--rz-vorschau-k`; im Export (`_ctExportHtml`) und im Render ausgeblendet.
 - **Karten-Hinweise** (`rzMapBanner`, ui/js/util.js): ✕ je Banner, weggeklickt bleibt `key|html` bis zum Neustart aus.
+- **Hinweis „nur grobes Satellitenbild“ (19.10.2026):** `rzMapCoverageBanners` hängt an `no_coverage` zwei Knöpfe
+  (`data-rz-banner-aktion` = `maptiler` | `namen`, Ziele `RZ_STIL_SCHAERFER = maptiler_hybrid`,
+  `RZ_STIL_NAMEN = ofm_liberty`). Ohne MapTiler-Schlüssel (`mapCatalog().key_values.maptiler`) öffnet `maptiler`
+  die Einstellungen (Reiter `karten`, Unterreiter `maptiler` über `rz_settings_subtab_karten`). Gewählt wird über
+  `rzKarteStilWaehlen(map, key)`: Ereignis `rz-kartenstil-wahl` (bubbles, cancelable) am Kartencontainer — der
+  Animator (`mountAnimator`, `body`) fängt es ab und setzt `#anim-style` über `_basisSetzen` (Projekt, ⌘Z, Render);
+  ohne Abnehmer nimmt eine Archivkarte (`.rz-archivkarte`) `rzArchivStilSetzen`, sonst nur `applyMapStyle` auf
+  diese Karte. Im Render blendet `body.rz-render-mode .rz-map-banners` alles aus. Dazu `_refreshStyleForTrack`:
+  bleibt Stil und Region nach dem Track-Laden gleich, werden trotzdem `notes`/`gaps` nachgezogen und die Hinweise
+  neu gesetzt (vorher entstand die Karte ohne Lage, und `no_coverage` erschien im Animator nie). Wächter:
+  `tests/test_karten_hinweis_satellit.py` (WebKit-Teil + Chromium mit echter Brücke).
 
 ### Datenbank-Tempo (15.10.2026)
 
@@ -7121,6 +7193,16 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   eigenen Keyframes → `_uebergangKfEinsetzen(g)` (ersetzt Mitte/Zoom zwischen Ende der Tour davor und Anfang von g).
   Prüfstand: `__rzStandardKeyframes`, `__rzKamLetzt`, `__rzGruppeUebergang`. Kinoflug = 5 Stellen (q 0/.25/.5/.75/1),
   Luftlinie = 2.
+- **Editor aus = Keyframes ruhen (19.10.2026):** `anim-kf-enabled` aus löscht nichts mehr (vorher Modal
+  `md-kf-deact-ok` → alle KF_LANES-Events weg; aus → an ersetzte so eine Kamerafahrt durch die Standard-Keyframes). Die
+  Events bleiben in `timeline_events`, `getTimelineEvents()`/`getEffectiveEvents()` filtern sie bei ausgeschaltetem Editor
+  weg — Vorschau und Szene (Render-Modus) lesen denselben Projektstand. Einschalten: mit gespeicherten eigenen Keyframes
+  (`_eigeneKeyframesGespeichert()`, auch `window.rzEigeneKeyframesGespeichert` für `einfach.js`) ohne Frage, sonst Modal
+  `md-kf-mit/md-kf-ohne`. Pillen „Kamerafahrt“ und `rzEinfach.kameraSetzen` holen ruhende Keyframes derselben Art
+  zurück statt neu zu erzeugen (Start → Ziel nur bei `kamera_vorgabe: "startziel"`, sonst Frage/neu). Wer „ruhende“
+  Keyframes nicht anfassen darf: `findKeyframeAtAnchor` liefert bei ausgeschaltetem Editor `null` (sonst schrieb
+  `_syncMapStateToUi` eine Kartenbewegung in einen ruhenden Keyframe), `_manualCamGet/_manualCamMerken` und `_tpKanten`
+  zählen nur wirksame Keyframes. ⌘Z: bindSetting pusht den Stand davor. Test `test_keyframe_editor_umschalten.py`.
 - **Halte als Keyframes (07.10.2026, Kamera-Basis Schritt 2):** `_haltKeyframes(basis)` legt Foto-Stopps und Orbit als
   Keyframes auf die Basis (Standard oder eigene; Markierung `stopp: "fs:i"` / `"orbit:x"`). Anker aus der Animationszeit
   (`tA + s/animSekunden()·(tB−tA)`), Grundwerte über `interpolateCameraJs(basis, …)`. Foto-Stopp: Mitte/Zoom bei p0, pa
@@ -7967,3 +8049,38 @@ Test: `tests/test_linie_ecken.py`.
 - **Punktdichte-Regler (18.10.2026):** `animator_load_gpx` liefert alle Punkte bis `ANIM_PUNKTE_MAX` (50.000; darüber `downsample_ecken_idx`). Tempo, Steigung und Etappen-Reihen werden auf der vollen Spur gerechnet und an den geladenen Indizes abgegriffen; Tempo mit mindestens ±10 s Fenster (`SPEED_HALB_S`). Der Lade-Cache ist auch nach Bytes gedeckelt (256 MB), der Schlüssel enthält den Deckel. In der UI zählt `#anim-pointcount` in geladenen Punkten; Standard `_punkteAusAbstand` (Strecke / 10 m, mindestens 800). Gespeichert wird `punkte_abstand_m` (null = Standard, 0 = alle, sonst Meter); `point_count` wird nicht mehr gelesen. `_punkteReduziert` behält die Punktzahl, alle Reihen bleiben indexgleich. Zusatz-Touren tragen `dist`/`speed`/`grade`/`eleV`; `_fwVoll`, `_reiseSerieBauen`, `_cumDistFuer` und die Flughöhe rechnen damit statt mit der Linie. Reise-Bahn: jede Etappe mindestens ihre eigene Punktzahl, höchstens `PUNKTE_BAHN_MAX` (60.000). `rzSpurGlaetten`/`kursReihe` dünnen Fenster über 400 Punkte aus (sonst wuchs die Glättung überlinear: 3,2 s bei 127.000 Punkten). Messungen (Chromium, normal und 4× gedrosselt): bis 50.000 geladene Punkte ≥ 36 fps gedrosselt, Render 70 → 96 ms/Bild. Prüfstände `__rzPunkteStand`, `__rzSpurKoords`, `__rzAbgeleitet`. Wächter `test_punktdichte`, `test_punktdichte_laden`.
 - **Dashcam-GPS `.dat` (18.10.2026):** `core/imports.py` `_DISPATCH[".dat"] = "sniff_dat"` → `_looks_like_dashcam_dat` (Zeile `^\d{14},lat,[NS],lon,[EW]`) → `_parse_dashcam_dat` (Zeit UTC, 0/0 übersprungen, „#“-Trenner = neue Fahrt, Lücke bleibt Pause). Tempo (Knoten) und Richtung werden nicht übernommen (Tempo rechnet die App aus den Punkten). `.dat` ist in `clib.MEHRDEUTIGE_EXTS` (Archiv-Scan schaut in den Inhalt), `import.err_kein_dashcam` in `_GRUND_KEIN_TRACK`, Import-Assistent `eingang.art_von` prüft den Inhalt. Test `test_dashcam_dat`.
 
+
+## Laufpunkt nach Logbuch, Track-Farben nach Tempo (19.10.2026)
+
+- **Laufpunkt „Symbol nach Aktivität (aus dem Logbuch)“** (`modules/animator/ui/module.js`, Block hinter `_lbTempo`):
+  Schalter = verstecktes `#anim-dot-lb` (gespeichert als `marker_dot_nach_logbuch` in `dotGeaendert`, gelesen in
+  `paceAusProjekt`), bedient von der Zeile `[data-lb-sym-zeile]` im Track-Editor von Track 1 (`_stilPanelBauen`,
+  `data-nur-dot`; `_lbSymZeileFuellen` = Sperre + Hinweis mit Grund aus `_lbGrund`). Abbildung `_LB_FZ`/`_lbFzVon`:
+  fahrt → auto (motorrad, wenn `animator_logbuch_bereiche` `aktivitaet == "motorrad"` liefert = `activity_user` oder
+  `activity` der Archivzeile), uebersetzen → faehre, wanderung/spaziergang/gehen → wanderer, rad → rad (mountainbike bei
+  `mtb`), laufen → laeufer, wassersport → kajak; Arten aus `FZ_NUR_SYMBOL` nur beim Fahrzeug-Aussehen „symbol“ (sonst
+  boot/rad). Pause, Übernachtung, unsicher → Symbol davor, vor dem ersten bekannten dessen Symbol.
+  **Plan** `_lbSymPlan()`: Stufen `{ab (Bruchteil-Index in currentCoords = von·(n−1), wie die Linien-Masken), fz}`;
+  Stufen, die im Video kürzer als `LB_MIN_S` (1 s) stehen, fallen weg (Videosekunden über `_ankerAusBahn` + Trim +
+  `anim-dur`, also über die Tempo-Kurve inkl. Logbuch-Raffen), dazu je Grenze das Fenster `{g, lo, hi}` = ±`LB_WECHSEL_S`
+  (0,25 s) über `fracAusFortschritt`. Gemerkt je Spur, Logbuch, Aktivität, Fahrzeug-Aussehen, `_paceMap`, Dauer, Trim.
+  **Vorrang** in `_dotStilAktuell`: Reise-/Etappen-Fahrzeug und Reiseroute zuerst, dann `_lbSymArtAn` (Schlüssel
+  `lb-<fz>`, der Wechsel baut die Ebenen über `dotSetzen` neu); `_lbSymWirkt()` ist falsch bei eigenem Bild (`bild`),
+  „Laufpunkt zeigen“ aus wirkt wie bisher. **Übergang:** `dotSetzen` legt `sk = _lbSymSkala(f)` (0,15 … 1, Smoothstep)
+  in die Feature-Eigenschaften; die Ebenen lesen ihn nur bei wirksamem Schalter über `_dotSk(v)` =
+  `["*", v, ["coalesce", ["get","sk"], 1]]` (icon-size bzw. circle-radius). Punkt in der Luft: der `setData`-Haken reicht
+  `sk` an `_flugPunkt(pos, brg, sk)` (`_flug.letztSk`, `cssPx × sk`). **Render:** `__rzAnimBereit().lb` ist falsch,
+  solange das Logbuch der geladenen Tour liest (fehlt der Stand, stößt es `_lbLaden` an); `core/szene.py` wartet darauf
+  (`szene.g_logbuch`). Nach dem Laden `_lbSymNachLaden` (Plan verwerfen, Ebenen neu, Zeile füllen).
+  Prüfstand `window.__rzLbSymbol` (plan, art, skala, stil, zeit, bereit, aktivitaet). Tests `test_laufpunkt_logbuch`
+  (WebKit, echte Brücke), `test_laufpunkt_logbuch_video` (Flug in der Luft + Szenen-Video gegen feste Formen, Netz).
+- **Track-Farben nach Tempo** (Ideen eines externen Vorschlags, ins bestehende System übernommen statt eines zweiten):
+  `_spanneRobust(arr)` = [P2, P98] (bei P2 = P98 Min → Max, sonst null) für „Auto“ (`autoSeedMetric`, Track 1) und
+  `spanne()` in `_tredFwZeichnen` (weitere Touren, nicht bei Distanz); Reihen wie bisher aus der vollen Spur
+  (`_ovSeries`/`metricArrFor` bzw. `_fwVoll`), die gespeicherten Stufen sind Zahlen — Vorschau und Video lesen dieselben.
+  Vorlage „Ampel“ (`_ampelStufen`: rot ab P2, gelb ab ⅓, grün ab ⅔ der Spanne, Modus hart): `#anim-color-ampel`
+  (`ampelSeed`, nur bei Quelle `speed`, `syncColorsUi`; ⚠️ Stufen VOR dem Moduswechsel speichern — dessen Neuzeichnen ruft
+  `loadColorStops`) und `.tred-fw-ampel`. Einstieg `[data-fw-einstieg]` im Aussehen-Panel jeder Tour → `_fwEinstieg(ziel)`:
+  Track-Editor öffnen, falls aus einschalten (Tempo, sonst Höhe, sonst Strecke), Block `.tred-mehrfarbig` kurz
+  `.ist-hervor`. Hinweis `.anim-colors-blass` statt eines eigenen „Rest blass“-Schalters — das macht „Ganze Strecke blass
+  zeigen“ (Geist) schon. Prüfstände `__rzSpanneRobust`, `__rzColorMetric`. Test `test_farben_tempo`.

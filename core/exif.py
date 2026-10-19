@@ -1434,6 +1434,107 @@ def set_datetime(path: str, dt, gesichert: bool = False) -> bool:
     return False
 
 
+# 19.10.2026 — XMP-Zeitfelder, die Lightroom & Co. statt/neben EXIF lesen. Verschoben werden sie nur, wenn sie schon
+# in der Datei stehen (exiftool verschiebt nie ein fehlendes Feld) — angelegt wird nichts.
+_ZEIT_XMP = ("XMP-exif:DateTimeOriginal", "XMP-exif:DateTimeDigitized", "XMP-photoshop:DateCreated",
+             "XMP-xmp:CreateDate")
+# QuickTime-Zeiten eines Videos (MP4/MOV). Die App liest sie wörtlich (ohne Zonenumrechnung) — genauso wird geschrieben.
+_ZEIT_QT = ("QuickTime:CreateDate", "QuickTime:ModifyDate", "QuickTime:TrackCreateDate", "QuickTime:TrackModifyDate",
+            "QuickTime:MediaCreateDate", "QuickTime:MediaModifyDate")
+
+
+def _spanne(sek: int) -> tuple:
+    """(Operator, Dauer) für exiftool: +=/-= und „H:MM:SS" (Stunden dürfen über 24 gehen, wie in shift_datetime)."""
+    a = abs(int(sek))
+    return ("+=" if sek >= 0 else "-="), f"{a // 3600}:{(a % 3600) // 60:02d}:{a % 60:02d}"
+
+
+def _begleitdatei_zeit(path: str, sek: int, neu: datetime) -> Optional[str]:
+    # dateischutz-ok: schreibt nur in eine eigene Kopie der Begleitdatei; das Original ersetzt _ds.ersetzen mit Sicherung
+    """Zeit in einer VORHANDENEN Begleitdatei NAME.xmp mitziehen — Lightroom liest bei RAW-Dateien die Zeit von dort,
+    wenn sie dort steht. `sek` ≠ 0: vorhandene Zeitfelder verschieben; sonst DateTimeOriginal auf `neu` setzen.
+    Ohne Begleitdatei: nichts (die Zeit steht in der RAW-Datei). Fehler nur ins Log (die RAW-Datei ist geschrieben)."""
+    sc = raw_sidecar_pfad(path)
+    if not os.path.exists(sc):
+        return None
+    try:
+        daemon = _ensure_write_daemon()
+        tmp = os.path.splitext(sc)[0] + ".rz-zeit.xmp"
+        _ds.nutzer_ziel(sc)
+        _ds.nutzer_ziel(tmp)
+        shutil.copy2(sc, tmp)
+        if sek:
+            op, d = _spanne(sek)
+            zuw = [f"-{t}{op}{d}" for t in _ZEIT_XMP]
+        else:
+            zuw = [f"-XMP-exif:DateTimeOriginal={neu.strftime('%Y:%m:%d %H:%M:%S')}"]
+        ok, msg = daemon.write_args(["-overwrite_original"] + zuw + [tmp])
+        if not ok:
+            _ds.loeschen(tmp, "xmp_zeit", art=_ds.ART_TEMP)
+            if "unchanged" in msg:      # Begleitdatei ohne Zeitfelder: nichts zu verschieben
+                return None
+            raise RuntimeError(msg[:300])
+        _ds.ersetzen(tmp, sc, "xmp_zeit")          # sichert den bisherigen Stand
+        return sc
+    except Exception as e:  # noqa: BLE001
+        _log.warning("aufnahmezeit: Begleitdatei %s nicht angepasst: %s", sc, e)
+        return None
+
+
+@_merkt_schreiben
+def aufnahmezeit_schreiben(path: str, neu: datetime, alt: Optional[datetime] = None,
+                           gesichert: bool = False) -> dict:
+    """19.10.2026 — Aufnahmezeit einer Datei ändern (Mehrfach-Aktion „Aufnahmezeit ändern …" im Medien-Bestand).
+
+    `neu`/`alt` = Uhrzeit, wie sie in der Datei steht (naiv, ohne Zone — so liest die App sie auch).
+    Mit `alt` wird VERSCHOBEN (neu − alt): alle vorhandenen Zeitfelder rücken um denselben Betrag, ihre Abstände
+    und Zonenangaben (OffsetTime*, Keys:CreationDate mit Zone) bleiben erhalten — wie shift_datetime.
+    Ohne `alt` (Datei hat keine Zeit) wird GESETZT: DateTimeOriginal/CreateDate/ModifyDate bzw. die
+    QuickTime-Zeiten eines Videos. RAW: eine vorhandene Begleitdatei NAME.xmp zieht mit.
+    Ergebnis {"art": "verschoben"|"gesetzt"|"gleich", "begleitdatei": Pfad|None}. Wirft RuntimeError."""
+    if neu is None:
+        raise ValueError("neu fehlt")
+    neu = neu.replace(tzinfo=None) if neu.tzinfo else neu
+    video = is_video(path)
+    if not (video or is_photo(path)):
+        raise RuntimeError(f"Format nicht unterstützt: {os.path.splitext(path)[1]}")
+    if alt is not None:
+        alt = alt.replace(tzinfo=None) if alt.tzinfo else alt
+        sek = int(round((neu - alt).total_seconds()))
+        if sek == 0:
+            return {"art": "gleich", "begleitdatei": None}
+        op, d = _spanne(sek)
+        if video:
+            # Keys:CreationDate (Apple, mit Zone) und die QuickTime-Zeiten gehören zur Familie QuickTime:Time
+            zuw = [f"-QuickTime:Time:All{op}{d}"] + [f"-{t}{op}{d}" for t in _ZEIT_XMP]
+        else:
+            zuw = [f"-AllDates{op}{d}"] + [f"-{t}{op}{d}" for t in _ZEIT_XMP]
+        art = "verschoben"
+    else:
+        sek = 0
+        v = neu.strftime("%Y:%m:%d %H:%M:%S")
+        zuw = [f"-{t}={v}" for t in _ZEIT_QT] if video else [f"-AllDates={v}"]
+        art = "gesetzt"
+    _ds.foto_schreiben_pruefen(path, gesichert=gesichert)
+    args = ["-overwrite_original"] + zuw + [path]
+    last = ""
+    for versuch in (1, 2):      # wie write_exif_tags: ein Timeout-Hänger bekommt einen frischen Daemon
+        daemon = _ensure_write_daemon()
+        ok, msg = daemon.write_args(args)
+        if ok:
+            break
+        last = msg
+        if versuch == 1 and "innerhalb" in msg:
+            continue
+        raise RuntimeError(f"exiftool (Aufnahmezeit) fehlgeschlagen: {msg[:300]}")
+    else:
+        raise RuntimeError(f"exiftool (Aufnahmezeit) fehlgeschlagen: {last[:300]}")
+    _log.info("aufnahmezeit_schreiben: %s %s → %s (%s)", os.path.basename(path), art, neu, " ".join(zuw[:2]))
+    # RAW: eine vorhandene Begleitdatei (Lightroom) bekommt dieselbe Zeit — eine neue wird dafür nicht angelegt
+    sc = _begleitdatei_zeit(path, sek, neu) if is_raw(path) else None
+    return {"art": art, "begleitdatei": sc}
+
+
 def _exiftool_read_video_meta(path: str) -> dict:
     """Liest Video-Metadaten (MP4/MOV/Insta360/etc.) — analog _exiftool_read_meta
     aber andere Tag-Quellen (QuickTime nicht EXIF).
