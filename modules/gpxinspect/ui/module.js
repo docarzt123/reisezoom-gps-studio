@@ -666,7 +666,7 @@ function mountGpxInspect(body, headerActions) {
     _leerText();
     if (!res || !res.ok) {
       if (window.isMissingFileError && window.isMissingFileError(res && res.error)) window.showSourceMissingBanner(path);
-      else toast((res && res.error) || t("error.gpx_generic", "GPX-Fehler"), "error", 5000);
+      else toast((window.rzLesefehler ? window.rzLesefehler(res && res.error, path) : (res && res.error)) || t("error.gpx_generic", "GPX-Fehler"), "error", 7000);
       return;
     }
     if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();

@@ -21802,7 +21802,7 @@ function mountAnimator(body, headerActions, opts) {
 
   async function loadGpxByPath(path) {
     const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
-    if (!res.ok) { toast(res.error || t("animator.toast.gpx_error", "GPX-Fehler"), "error"); return; }
+    if (!res.ok) { toast((window.rzLesefehler ? window.rzLesefehler(res.error, path) : res.error) || t("animator.toast.gpx_error", "GPX-Fehler"), "error", 7000); return; }
     currentGpx = path;
     _gpxStats = res.stats;
     _hauptFlach = Array.isArray(res.flach) ? res.flach : null;   // 07.10.2026 Etappe als Haupt-Track
@@ -26249,7 +26249,7 @@ function mountAnimator(body, headerActions, opts) {
         // damit der Multi-Track-Render echte GPX nutzt statt FIT/NMEA/…
         if (res.gpx_path) path = res.gpx_path;
       }
-      else { toast(res?.error || t("animator.tours.load_fail", "Tour konnte nicht geladen werden."), "error"); return; }
+      else { toast((window.rzLesefehler ? window.rzLesefehler(res?.error, path) : res?.error) || t("animator.tours.load_fail", "Tour konnte nicht geladen werden."), "error", 7000); return; }
     } catch (e) {
       console.warn("animator_load_gpx (tour):", e);
       toast(t("animator.tours.load_fail", "Tour konnte nicht geladen werden."), "error");

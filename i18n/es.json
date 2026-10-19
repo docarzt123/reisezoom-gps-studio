@@ -818,6 +818,7 @@
   "error.foto_hat_keine_exif_zeit": "La foto no tiene hora EXIF",
   "error.gpx_datei_fehlt_oder_existiert": "Falta el archivo GPX o no existe",
   "error.gpx_generic": "Error de GPX",
+  "error.datei_unlesbar": "No se puede abrir «{d}»: el archivo está vacío, dañado o no es un track (GPX, FIT, TCX, KML…).",
   "error.gpx_hat_zu_wenig_punkte": "El GPX tiene muy pocos puntos (< 2)",
   "error.gpx_load": "No se pudo cargar el GPX",
   "error.gpx_nicht_gefunden": "GPX no encontrado",

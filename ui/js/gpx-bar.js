@@ -168,6 +168,18 @@
   // Module rufen window.showSourceMissingBanner(path) in ihrem Load-Fehlerpfad.
   const _MISSING_FILE_RE = /no such file|errno\s*2|enoent|nicht gefunden|cannot find|file not found/i;
   window.isMissingFileError = (err) => _MISSING_FILE_RE.test(String(err || ""));
+  // 19.10.2026 (Audit, kaputte Dateien) — der Animator meldete Parser-Rohtext („'utf-8' codec can't decode byte 0x90 …“,
+  // „Error parsing XML: no element found: line 1, column 0“, „not a FIT file @ 0“). Technische Meldungen werden ein Satz
+  // mit Dateinamen; die Details stehen weiter im Log. Schon verständliche Meldungen (z. B. „keine Trackpunkte“) bleiben.
+  const _ROH_FEHLER_RE = /codec|decode|parsing xml|not well-formed|no element found|not a fit|unexpected|traceback|errno|line \d+, column|invalid|syntax|keyerror|valueerror|typeerror|indexerror/i;
+  window.rzLesefehler = (err, path) => {
+    const roh = String(err || "");
+    const datei = String(path || "").split(/[\\/]/).pop();
+    if (roh && !_ROH_FEHLER_RE.test(roh)) return roh;
+    if (window.applog && roh) window.applog("warn", `[lesefehler] ${datei}: ${roh}`);
+    return t("error.datei_unlesbar", "„{d}“ lässt sich nicht öffnen — die Datei ist leer, beschädigt oder kein Track (GPX, FIT, TCX, KML …).")
+      .replace("{d}", datei || "?");
+  };
   let _smBannerBound = false;
   function _bindSourceMissingBanner() {
     if (_smBannerBound) return;
@@ -218,10 +230,10 @@
       _ladeflaggeSetzen({ gpx: path });
       const res = await api().animator_load_gpx(path);   // warte-ok: eigenes Fenster track-laden
       if (!res || !res.ok) {
-        if (window.rzStatus) window.rzStatus.fehler(ladeId, res?.error || t("error.gpx_generic", "GPX-Fehler"));
+        if (window.rzStatus) window.rzStatus.fehler(ladeId, window.rzLesefehler(res?.error, path) || t("error.gpx_generic", "GPX-Fehler"));
         if (window.applog) window.applog("error", `[loadGlobalGpx] parse fail: ${res?.error}`);
         if (window.isMissingFileError(res?.error)) window.showSourceMissingBanner(path);
-        else toast(res?.error || t("error.gpx_generic", "GPX-Fehler"), "error");
+        else toast(window.rzLesefehler(res?.error, path) || t("error.gpx_generic", "GPX-Fehler"), "error", 7000);
         return false;
       }
       window.hideSourceMissingBanner();
