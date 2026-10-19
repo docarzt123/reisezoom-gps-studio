@@ -1235,6 +1235,15 @@ def _series_speed(points: list) -> list[float]:
         dt = points[b].elapsed_s - points[a].elapsed_s
         dd = points[b].dist_m - points[a].dist_m
         out[i] = (dd / dt * 3.6) if dt > 0 else 0.0
+    # 19.10.2026 (Audit, Motorrad-Mehrtagestour) — ein GPS-Sprung (1,6 km in wenigen Sekunden = 659 km/h) bestimmte
+    # die Tempo-Achse (bis 444 km/h) und „Tempo max“; die eigentliche Fahrt lag flach am Boden. Spitzen über dem
+    # 1,3-Fachen des 99,5-%-Werts werden gekappt — eine echte Flug-/Zugetappe ist lang genug, um selbst im Perzentil
+    # zu stehen. Vorschau und Render lesen dieselbe Reihe (WYSIWYG).
+    if n >= 20:
+        s = sorted(out)
+        deckel = max(5.0, s[int(0.995 * (n - 1))] * 1.3)
+        if s[-1] > deckel:
+            out = [min(v, deckel) for v in out]
     return out
 
 
