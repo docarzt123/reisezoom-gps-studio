@@ -39,7 +39,8 @@
       v("yt1080", T("exportdlg.v_yt1080", "YouTube 1080p"), "16:9", 1080),
       v("reel", T("exportdlg.v_reel", "Instagram Reel 9:16"), "9:16", 1080),
       v("insta45", T("exportdlg.v_insta45", "Instagram 4:5"), "4:5", 1080),
-      v("schnell", T("exportdlg.v_schnell", "Schnell ansehen 720p"), "16:9", 720),
+      // 19.10.2026 (Audit) — „Schnell ansehen“ im Format des Projekts: ein 9:16-Reel wurde sonst als 1280×720 quer gerendert
+      v("schnell", T("exportdlg.v_schnell", "Schnell ansehen 720p"), (() => { try { const s = stand(); return formatVon(s.w, s.h) || "16:9"; } catch (_) { return "16:9"; } })(), 720),
     ];
   }
   const einst = () => { try { return (typeof _settingsCache !== "undefined" && _settingsCache) || {}; } catch (_) { return {}; } };

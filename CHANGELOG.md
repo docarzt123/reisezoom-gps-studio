@@ -19,6 +19,7 @@ Bei jeder neuen Version:
 
 ### Fixed
 - Archive: remembered filters (date range, year, search, tags, length, folder, collection) belong to the library they were set in. After switching to another library they are reset — before, a date range from the other library made a freshly read archive look empty („0 tours — no tour matches these filters“). The empty state now also has a „Reset filters“ button and uses line icons.
+- Export: the template „Quick preview 720p“ keeps the project's aspect ratio (720×1280 for a vertical reel) — before it always switched to 1280×720 landscape.
 - Merging tours: numbered day files get a short name („Day 1–3“ instead of „Day 1 (date) + Day 2 (date) + Day 3 (date)“), and the quick video uses the first place suggestion as title when the tour name is longer than 40 characters — the long name ran over three lines in a vertical video, broken in the middle of a date. The long name stays available as a suggestion.
 - Archive: after switching to another library the archive opens on „Tours“ instead of the tab last used in the other library (e.g. an empty „Media“).
 - First start: the second dialog is called „Maps are included — you can start right away“ instead of greeting a second time right after „Welcome to GPS Studio“.
