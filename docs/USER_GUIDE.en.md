@@ -724,6 +724,13 @@ Mapbox permits **publishing videos** containing its map content **only with purc
 
 **Change keys later**: macOS menu → **Reisezoom** → **Settings…** (or Cmd+,) — Windows/Linux: ⚙ button top right → **Map providers**.
 
+### Ask GPS Studio — search the manual and the buttons (⌘K)
+Looking for a switch, or not sure what something is called? Press **⌘K** (Windows/Linux: **Ctrl+K**) or click **Ask GPS Studio …** at the top right (also under **Help → Ask GPS Studio …** and in the **Quick Start** window). Type your question the way you would ask it — “how do I change the date of many photos”, “camera follows the track”, “video in 9:16”. GPS Studio searches this manual and the labels of all buttons and shows the matching places, with the found words highlighted. It runs on your computer, without internet and without an AI service.
+
+- **Show me** jumps right there: GPS Studio switches to the right module, opens the section (or “More”) and briefly highlights the control. If the place first needs a loaded tour or selected photos, the result tells you — for example “Change capture time …”, which only appears once photos are selected.
+- A **manual hit** (click it or press **↵**) opens the manual at exactly that section.
+- **↑ ↓** pick a result, **Esc** closes the search.
+
 ### Change the language 🌍
 The app starts automatically in the **system language** (German, English or Spanish — fallback English). Switch it in the **⚙ Settings modal** → language dropdown. Active immediately, no restart needed.
 

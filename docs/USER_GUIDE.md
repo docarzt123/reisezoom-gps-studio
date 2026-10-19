@@ -742,6 +742,13 @@ Mapbox erlaubt die **Veröffentlichung von Videos** mit seinem Kartenmaterial **
 
 **Schlüssel später ändern**: macOS-Menü → **Reisezoom** → **Einstellungen…** (oder Cmd+,) — Windows/Linux: ⚙-Button oben rechts → **Kartenanbieter**.
 
+### Frag GPS Studio — Handbuch und Knöpfe durchsuchen (⌘K)
+Du suchst einen Schalter oder weißt nicht, wie etwas heißt? Drück **⌘K** (Windows/Linux: **Strg+K**) oder klick oben rechts auf **Frag GPS Studio …** (auch unter **Hilfe → Frag GPS Studio …** und im Fenster **Erste Schritte**). Schreib deine Frage so, wie du sie stellen würdest — „wie ändere ich das Datum vieler Fotos“, „Kamera folgt dem Track“, „Video in 9:16“. GPS Studio durchsucht dieses Handbuch und die Beschriftungen aller Knöpfe und zeigt die passenden Stellen, die gefundenen Wörter sind markiert. Das läuft ohne Internet und ohne KI-Dienst auf deinem Rechner.
+
+- **Zeig mir** springt direkt dorthin: GPS Studio wechselt ins richtige Modul, klappt den Abschnitt (oder „Mehr“) auf und lässt den Schalter kurz aufleuchten. Braucht die Stelle erst eine geladene Tour oder markierte Fotos, steht das im Treffer — zum Beispiel bei „Aufnahmezeit ändern …“, das erst erscheint, wenn Fotos markiert sind.
+- Ein **Handbuch-Treffer** (anklicken oder **↵**) öffnet das Handbuch genau an diesem Abschnitt.
+- Mit **↑ ↓** wählst du einen Treffer, **Esc** schließt die Suche.
+
 ### Sprache wechseln 🌍
 Die App startet automatisch in der **Systemsprache** (Deutsch, Englisch oder Spanisch — Fallback Englisch). Wechseln im **⚙-Einstellungen-Modal** → Sprache-Dropdown. Sofort aktiv, kein Restart nötig.
 

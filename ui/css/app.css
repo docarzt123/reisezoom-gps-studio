@@ -4243,3 +4243,102 @@ body.va-offen .anim-canvas { padding-left: var(--va-platz-l, 0px); padding-right
 .ia-weg:hover { border-color: var(--accent); background: var(--bg-3); }
 .ia-weg.fertig { border-color: rgb(var(--accent-rgb) / .5); }
 @media (max-width: 760px) { .ia-zwei { grid-template-columns: 1fr; } .ia-wege { grid-template-columns: repeat(2, 1fr); } .ia-ordner { grid-template-columns: 1fr; } }
+
+/* ── 19.10.2026 — „Frag GPS Studio“ (ui/js/fragen.js): Fragefeld in der Kopfzeile, schwebende Suche, „Zeig mir“ ── */
+.topbar-frag {
+  display: flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 8px 0 10px; border-radius: 7px;
+  background: var(--bg-2); color: var(--text-muted); border: 1px solid var(--border);
+  font: 12px var(--font-ui); cursor: text; white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.topbar-frag:hover { background: var(--bg-3); color: var(--text); border-color: var(--border-strong); }
+.topbar-frag svg { flex: 0 0 auto; }
+.topbar-frag-kbd, .rz-frag-kbd, .rz-frag-feld kbd {
+  font: 10.5px var(--font-mono); color: var(--text-muted);
+  border: 1px solid var(--border-strong); border-radius: 4px; padding: 1px 5px; background: var(--bg-1);
+}
+/* Wird die Kopfzeile eng, fällt zuerst der Text des Fragefelds weg (passeTabsAnBreiteAn in app.js) */
+.topbar.frag-kurz .topbar-frag-text { display: none; }
+.topbar.frag-kurz .topbar-frag { padding: 0 6px 0 8px; cursor: pointer; }
+
+.rz-frag {
+  position: fixed; inset: 0; z-index: 1300;
+  background: rgb(5 9 12 / 0.38);
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 11vh 16px 16px;
+}
+.rz-frag[hidden] { display: none; }
+.rz-frag.ist-unterwegs { visibility: hidden; }
+.rz-frag-karte {
+  width: min(680px, 100%); max-height: 74vh; display: flex; flex-direction: column;
+  background: var(--bg-1); border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: var(--shadow), 0 0 0 1px rgb(0 0 0 / 0.2);
+  overflow: hidden; animation: modal-slide 0.14s ease-out;
+}
+.rz-frag-kopf { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.rz-frag-lupe { color: var(--accent); display: flex; }
+#rz-frag-eingabe {
+  flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+  color: var(--text); font: 15px var(--font-ui); padding: 4px 0;
+}
+#rz-frag-eingabe::placeholder { color: var(--text-muted); }
+.rz-frag-x { background: transparent; border: 0; color: var(--text-muted); cursor: pointer; display: flex; padding: 4px; border-radius: 6px; }
+.rz-frag-x:hover { color: var(--text); background: var(--bg-3); }
+.rz-frag-status { padding: 8px 16px; font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.rz-frag-status[hidden] { display: none; }
+.rz-frag-liste { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+.rz-frag-treffer {
+  display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid transparent;
+}
+.rz-frag-treffer:hover { background: var(--bg-2); }
+.rz-frag-treffer.is-sel { background: var(--bg-3); border-color: rgb(var(--accent-rgb) / 0.35); }
+.rz-frag-art { color: var(--text-muted); padding-top: 2px; display: flex; }
+.rz-frag-treffer.is-sel .rz-frag-art { color: var(--accent); }
+.rz-frag-inhalt { flex: 1; min-width: 0; }
+.rz-frag-titel { color: var(--text); font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.rz-frag-pfad { color: var(--text-muted); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rz-frag-schnipsel { color: var(--text-dim); font-size: 12px; line-height: 1.45; margin-top: 4px; }
+.rz-frag-liste mark { background: rgb(var(--accent-rgb) / 0.22); color: var(--text); border-radius: 3px; padding: 0 2px; }
+.rz-frag-meldung {
+  margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--warn);
+  background: rgb(242 196 107 / 0.08); border: 1px solid rgb(242 196 107 / 0.3); border-radius: 6px; padding: 6px 8px;
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.rz-frag-meldung[hidden] { display: none; }
+.rz-frag-meldung svg { flex: 0 0 auto; margin-top: 2px; }
+.rz-frag-knoepfe { display: flex; gap: 4px; align-items: center; flex: 0 0 auto; }
+.rz-frag-zeig { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rz-frag-treffer.is-sel .rz-frag-zeig { border-color: var(--accent); color: var(--accent); }
+.rz-frag-leer { padding: 18px 12px; color: var(--text-muted); font-size: 13px; text-align: center; }
+.rz-frag-beispiele { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 8px; font-size: 12px; }
+.rz-frag-chip {
+  background: var(--bg-2); border: 1px solid var(--border); color: var(--text-dim); border-radius: 999px;
+  padding: 4px 10px; font: 12px var(--font-ui); cursor: pointer;
+}
+.rz-frag-chip:hover { border-color: var(--accent); color: var(--text); }
+.rz-frag-fuss {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 8px 14px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted);
+}
+.rz-frag-hb { background: transparent; border: 0; color: var(--text-dim); font: 12px var(--font-ui); cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.rz-frag-hb:hover { color: var(--accent); }
+/* Fragefeld in anderen Fenstern (Erste Schritte) */
+.rz-frag-feld {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 14px 0; padding: 7px 10px;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted);
+}
+.rz-frag-feld:focus-within { border-color: var(--accent); }
+.rz-frag-feld input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--text); font: 13px var(--font-ui); }
+/* „Zeig mir“: kurz pulsierender Rahmen um die gefundene Stelle, verschwindet von selbst */
+.rz-zeigmir {
+  outline: 2px solid var(--accent) !important; outline-offset: 3px; border-radius: 6px;
+  animation: rz-zeigmir-puls 0.9s ease-in-out 3;
+  position: relative; z-index: 2;
+}
+@keyframes rz-zeigmir-puls {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0.0); }
+  50% { box-shadow: 0 0 0 7px rgb(var(--accent-rgb) / 0.35); }
+}
+@media (prefers-reduced-motion: reduce) { .rz-zeigmir { animation: none; } }

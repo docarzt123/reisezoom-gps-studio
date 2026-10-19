@@ -2690,6 +2690,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `reveal_in_finder(path)` | `→ {ok}` | macOS: `open -R`, Win/Linux: pendant |
 | `open_url(url)` | `→ {ok}` | URL im Default-Browser/Default-App öffnen (`open`/`xdg-open`/`startfile`). Auch für `mailto:`-URLs |
 | `get_app_info()` | `{ok, name, version, python, app_support, log_path, tour_maps_dir, renders_dir}` | Über-Dialog-Daten + Pfade |
+| `hilfe_handbuch()` | `{ok, sprache, abschnitte:[{a, pfad}], bloecke:[[abschnitt, text]], schluessel:[…]}` | „Frag GPS Studio“: Handbuch der App-Sprache in Absätzen + benutzte i18n-Schlüssel (`core/hilfesuche.py`, 19.10.2026) |
 | `prepare_bug_report(context)` | `{ok, to, subject, body, mailto}` | Baut einen vorbefüllten Bug-Report (App-Version + OS + Log-Auszug). UI zeigt das Modal mit Copy-Buttons — funktioniert für Webmail-User OHNE lokales Mail-Programm. mailto-URL als optionaler Bequemlichkeits-Pfad. |
 | `playwright_check()` | `{ok, browser_present, browsers_path, version?, executable?, error?}` | Prüft ob Chromium-Headless-Shell für Animator/Tour-Map verfügbar ist |
 | `playwright_install_chromium()` | `{ok, log?, error?}` | Lädt Chromium über den gebundelten Playwright-Driver — wird vom UI nach `playwright_browser_missing`-Error angeboten |
@@ -3602,6 +3603,52 @@ Höhenprofil, „Kein Track geladen", Stats „—").
   wie `animator`) bzw. auf `gpx_snapshot_path` (jede Session legt eine lokale
   Kopie unter `sessions/<hash>.gpx` ab). Das Banner ist die bewusst gewählte,
   transparente Zwischenlösung.
+
+### „Frag GPS Studio“ — Hilfesuche ohne Sprachmodell (19.10.2026)
+
+Ein Fragefeld durchsucht das Handbuch und die Beschriftungen der Knöpfe; „Zeig mir“ springt zur Stelle in der App.
+Offline, ohne Bibliothek von außen, in de/en/es (Sprache der App, Rückfall Deutsch).
+
+**Dateien**
+- `ui/js/fragen.js` — Index, Suche, Panel, „Zeig mir“, Ziel-Tabelle `ZIELE`. API: `window.rzFrag.{oeffnen(text),
+  schliessen(), suchen(frage, max), zeigMir(zielId), handbuchBereit(), ziele()}`.
+- `core/hilfesuche.py` — zerlegt die **HTML**-Fassung des Handbuchs (`docs/USER_GUIDE[.en|.es].html`, nur sie liegt im
+  Bündel) in Abschnitte (Anker = `id` der Überschrift, Überschriften-Pfad ohne Emojis) und Absätze (p, li, blockquote,
+  Tabellenzeile, Bildunterschrift; `pre` bleibt draußen). Dazu `benutzte_schluessel()`: i18n-Schlüssel, die in
+  `ui/js/*.js` und `modules/*/ui/*.js` wörtlich vorkommen. Beides zwischengespeichert.
+- Brücke `Api.hilfe_handbuch()` → `{sprache, abschnitte, bloecke, schluessel}`; Sprung ins Handbuch weiter über
+  `open_user_guide(anker)`.
+- Einstiege: ⌘K / Strg+K (Fenster-Listener in der Capture-Phase, früh registriert — der Animator legt sonst auf „K“
+  einen Keyframe), Knopf `#topbar-frag` in der Kopfzeile (wird bei Platzmangel als Stufe 0 von
+  `passeTabsAnBreiteAn()` zur Lupe, Klasse `.topbar.frag-kurz`), Menü „Hilfe → Frag GPS Studio …“ (`app.py`,
+  `menu.frag`), Fragefeld im Fenster „Erste Schritte“ (`rzFrag.feldHtml/feldVerbinden`).
+
+**Suche** — drei Quellen in einem BM25-Index (k1 1,2, b 0,6): Ziel-Tabelle (Aufschlag ×1,5), Handbuch-Absätze (der erste
+Absatz eines Abschnitts trägt die Überschrift als Kopf), Knopf-Beschriftungen aus i18n (×0,7; nur benutzte Schlüssel,
+ohne Meldungen/Fehler/Tooltips, Tooltip wird als Text angehängt). Kopf zählt dreifach, Überschriften-Pfad einfach.
+Wörter: klein, ä→ae/ö→oe/ü→ue/ß→ss, Akzente weg, „9:16“→„9x16“, Stoppwörter (`frag.stoppwoerter`), leichtes Stemming je
+Sprache. Je Fragewort zählt der beste Treffer aus: genau (1,0), Synonym (`frag.synonyme`, 0,7), Wortanfang (0,6),
+deutsches Wortende/Kompositum (0,5). Bonus für Treffer mit mehr Fragewörtern; Handbuch je Abschnitt nur der beste
+Absatz. Index entsteht beim ersten Öffnen (~20 ms + ~30 ms Handbuch), eine Frage braucht ~1–2 ms.
+Ein Handbuch-Treffer bekommt „Zeig mir“, wenn alle Wörter einer Ziel-Beschriftung in seiner Überschrift stehen
+(Ausnahme `kopfLink: false` für zu allgemeine Wörter wie „Einstellungen“).
+
+**„Zeig mir“** — `zeigMir()`: Modul wechseln (`switchMod`), ggf. auf Tour (`__rzAnimCoords`) prüfen, `vorher()`
+(Archiv-Reiter wählen, Track-Editor über `window.__rzAnimTrackEditor` öffnen), Element suchen, dann `aufdecken()`
+(Akkordeon-Abschnitt per Klick auf seinen Kopf, `<details>` öffnen, ausgeblendete Seitenleiste einblenden) und
+`hervorheben()` (Klasse `.rz-zeigmir`, pulsierender Rahmen, nach 2,8 s weg). Ergebnis `{ok, grund}` mit `grund` =
+`track` | `auswahl` | `unsichtbar` — das Panel zeigt dazu die Erklärung (`frag.braucht_track`, `frag.braucht_auswahl`,
+`frag.nicht_sichtbar`). Beschriftungen ohne Tabelleneintrag: Modul aus dem Schlüssel-Präfix (`MODUL_VON`), Suche nach
+dem Text im DOM des Moduls (`sucheLabel`).
+
+**Neues „Zeig mir“-Ziel anlegen**
+1. Eintrag in `ZIELE` (`ui/js/fragen.js`): `id`, `modul` (Slug oder `null`), `label: [i18n-Schlüssel, Rückfall]`,
+   `ort: [[Schlüssel, Rückfall], …]` (Anzeige „Modul › Abschnitt“), `tip` (oder `null`), `finde: () => Element|null`.
+   Optional: `braucht: "track"|"auswahl"`, `vorher: async () => {…}`, `markiere: (el) => Element` (z. B. `reihe` = die
+   ganze Zeile eines Häkchens), `kopfLink: false`.
+2. Suchwörter `frag.w.<id>` in `i18n/de.json`, `en.json`, `es.json` (Leerzeichen-getrennt, Umgangssprache und
+   Synonyme, gern Formate wie „9:16“).
+3. Prüfung in `tests/test_frag_gps_studio.py` ergänzen (Frage → Ziel oben, „Zeig mir“ → `.rz-zeigmir` am Element).
 
 ---
 

@@ -18367,6 +18367,9 @@ function mountAnimator(body, headerActions, opts) {
       starten: (pfad) => { _exportZiel = { pfad, t: Date.now() }; const r = document.getElementById("anim-render"); if (r && !r.disabled) r.click(); } });
   }
   window.__rzExportDialogOeffnen = _exportDialogOeffnen;
+  // 19.10.2026 — „Frag GPS Studio“ (ui/js/fragen.js): „Zeig mir“ öffnet den Track-Editor (Track-Farben, Laufpunkt)
+  // ui-falle-ok: _trackEd wird erst beim Aufruf gelesen (Klick in der Hilfesuche), lange nach dem Aufbau des Moduls
+  window.__rzAnimTrackEditor = (ziel) => { _trackEdOeffnen(ziel || "haupt"); return !!(_trackEd && _trackEd.isConnected); };
   window.__rzTransport = { zeit: () => _tpZeitJetzt(), G: () => _tpG(), kanten: () => _tpKanten(), geheZu: (t) => _tpGeheZu(t), ansicht: () => _ansicht() };   // Prüfstand
   _tpAufbauen();
   _ansichtKnoepfe();

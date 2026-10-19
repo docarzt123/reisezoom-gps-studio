@@ -11599,6 +11599,27 @@ class Api:
                 log.warning("open_user_guide: Sprung nicht möglich (%s) — ohne Anker", e)
         return self._open_path_native(p)
 
+    def hilfe_handbuch(self) -> dict:
+        """19.10.2026 — „Frag GPS Studio“ (ui/js/fragen.js): das Handbuch der App-Sprache in Absätzen, je Absatz die
+        Überschrift mit Anker (für den Sprung über `open_user_guide`) und Überschriften-Pfad. Quelle ist die HTML-Fassung,
+        weil nur sie im Bündel liegt; Rückfall Deutsch. Liest nur, schreibt nichts."""
+        sprache = ci18n.sprache_aktiv("de")
+        p = self._resolve_bundled_doc(f"USER_GUIDE.{sprache}.html") if sprache in ("en", "es") else None
+        if not p:
+            sprache = "de"
+            p = self._resolve_bundled_doc("USER_GUIDE.html")
+        if not p:
+            return {"ok": False, "error": _ui_t()("error.user_guide_html_nicht_gefunden", "USER_GUIDE.html nicht gefunden — `python3 scripts/build_user_guide_html.py` ausführen.")}
+        try:
+            from core import hilfesuche as _hs
+            d = _hs.handbuch(p)
+            # dazu die i18n-Schlüssel, die die Oberfläche wirklich benutzt (Beschriftungen für „Zeig mir“)
+            benutzt = _hs.benutzte_schluessel(ROOT, set(ci18n.get_strings("de").keys()))
+            return {"ok": True, "sprache": sprache, "abschnitte": d["abschnitte"], "bloecke": d["bloecke"], "schluessel": benutzt}
+        except Exception as e:  # noqa: BLE001
+            log.warning("hilfe_handbuch: %s", e)
+            return {"ok": False, "error": str(e)}
+
 
     # ══════════════════════════════════════════════════════════════════════
     #  Cloud-Archiv (v0.9.515)
@@ -19651,6 +19672,8 @@ def main() -> None:
         def _open_assistent_from_menu(): _trigger_js("window.openTourAssistent && window.openTourAssistent()")
         def _open_import_from_menu():    _trigger_js("window.openImportAssistent && window.openImportAssistent()")   # 15.10.2026
         def _open_feedback_from_menu(): _trigger_js("window.openBugReportModal && window.openBugReportModal('Feedback (Menü)')")
+        # 19.10.2026 — „Frag GPS Studio“: Hilfesuche (ui/js/fragen.js), auch über ⌘K / Strg+K
+        def _open_frag_from_menu():     _trigger_js("window.rzFrag && window.rzFrag.oeffnen()")
         # v0.9.289 — Spenden/Unterstützen: öffnet den Über-Dialog (enthält den Block)
         def _open_support_from_menu():  _trigger_js("window.openAboutModal && window.openAboutModal()")
 
@@ -19662,6 +19685,8 @@ def main() -> None:
         _menu_settings   = _strings.get("menu.settings", "Settings…")
         _menu_help       = _strings.get("menu.help", "Help")
         _menu_quickstart = _strings.get("menu.quickstart", "Erste Schritte")
+        _menu_frag = _strings.get("menu.frag", "Frag GPS Studio … ({taste})").replace(
+            "{taste}", "⌘K" if sys.platform == "darwin" else _strings.get("frag.taste_win", "Strg+K"))
         _menu_reset = _strings.get("menu.reset", "Einstellungen zurücksetzen und neu starten …")
         _menu_user_guide = _strings.get("menu.user_guide", "User Guide")
         _menu_log        = _strings.get("menu.open_log", "Open Log File")
@@ -19705,6 +19730,7 @@ def main() -> None:
                 MenuAction(_menu_settings, _open_settings_from_menu),
             ]),
             Menu(_menu_help, [
+                MenuAction(_menu_frag, _open_frag_from_menu),
                 MenuAction(_menu_quickstart, _open_quickstart_from_menu),
                 MenuAction(_menu_user_guide, _open_user_guide_from_menu),
                 MenuAction(_menu_mapbox, _open_mapbox_help_from_menu),

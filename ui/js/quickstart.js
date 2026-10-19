@@ -150,8 +150,11 @@
     const tipHtml = g.tip
       ? `<p class="qs-tip">💡 ${esc(tr("tip", g.tip))}</p>` : "";
 
+    // 19.10.2026 — „Frag GPS Studio“: Fragefeld ganz oben; Enter oder Tippen öffnet die Suche mit dem Text
+    const frag = window.rzFrag ? window.rzFrag.feldHtml("qs-frag") : "";
     const body = `
       <div class="qs-wrap">
+        ${frag}
         <p class="qs-intro">${esc(tr("intro", g.intro))}</p>
         <img class="qs-shot" src="${g.img}" alt="${esc(titel)}"
              onerror="this.style.display='none'">
@@ -166,6 +169,7 @@
         <button class="btn" id="qs-guide">${T("quickstart.full_guide", "Ganzes Handbuch")}</button>
         <button class="btn btn-primary" id="qs-ok">${T("common.ok", "Verstanden")}</button>`,
     });
+    if (window.rzFrag) window.rzFrag.feldVerbinden("qs-frag", () => { try { window.openModal({}).close(); } catch (e) { console.warn("[quickstart]", e); } });
     const ok = document.getElementById("qs-ok");
     if (ok) ok.onclick = () => { try { window.openModal({}).close(); } catch (_) {} };
     const gd = document.getElementById("qs-guide");

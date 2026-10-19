@@ -106,6 +106,10 @@ function passeTabsAnBreiteAn() {
   const wrap = document.getElementById("module-tabs");
   if (!wrap) return;
   wrap.classList.remove("kompakt", "sehr-kompakt", "nur-symbole");
+  // 19.10.2026 — Stufe 0: Das Fragefeld „Frag GPS Studio“ (ui/js/fragen.js) wird zur Lupe, bevor die Module schrumpfen.
+  const kopf = wrap.closest(".topbar");
+  if (kopf) kopf.classList.remove("frag-kurz");
+  if (kopf && wrap.scrollWidth > wrap.clientWidth + 1) kopf.classList.add("frag-kurz");
   // Stufenweise prüfen — nach jedem Schritt kann es bereits passen.
   if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("kompakt");
   if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("sehr-kompakt");
