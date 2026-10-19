@@ -97,6 +97,15 @@
 
   // ── Fenster ──────────────────────────────────────────────────────────────────────────────────────
   let _offen = null;
+  /** Dateiname aus dem Projektnamen: ohne Emojis/Symbole (🔁 …) und ohne Zeichen, die Dateisysteme nicht mögen.
+   *  19.10.2026 (Audit) — lange Namen an einer Wortgrenze auf 50 Zeichen, ohne Trenner am Ende (vorher endete
+   *  „Reise Tag 1 (…) + Reise Tag 2 (…) + Reise Tag 3 (…) · Schnell-Video“ nach 80 Zeichen auf „ ·“). */
+  function stammSauber(roh) {
+    let s = String(roh || "Tour").replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, "")
+      .replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim();
+    if (s.length > 50) { const k = s.slice(0, 50); const w = k.lastIndexOf(" "); s = w > 25 ? k.slice(0, w) : k; }
+    return s.replace(/[\s·+\-–—_,;.(]+$/u, "").trim() || "Tour";
+  }
   function zeitstempel() {
     const d = new Date(), z = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
@@ -148,8 +157,7 @@
     // Speicherort vorschlagen
     const ext = endung(bild);
     // Dateiname: ohne Emojis/Symbole aus dem Tournamen (🔁 …) und ohne Zeichen, die Dateisysteme nicht mögen
-    const stamm = String(opt.stamm || "Tour").replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, "")
-      .replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim().slice(0, 80) || "Tour";
+    const stamm = stammSauber(opt.stamm);
     try {
       const r = await api().export_ziel_vorschlag(`${stamm}_${zeitstempel()}.${ext}`, filter(ext), opt.ordnerHinweis || "");   // warte-ok: Vorschlag, sofort
       if (r) st.ziel = { ordner: r.ordner || "", name: r.name || "" };
@@ -334,5 +342,5 @@
     }
   }
 
-  window.rzExportDialog = { oeffnen, schliessen, offen: () => !!_offen, groesse, formatVon, eingebaut, standardAufNeuesProjekt, FORMATE };
+  window.rzExportDialog = { oeffnen, schliessen, offen: () => !!_offen, groesse, formatVon, eingebaut, standardAufNeuesProjekt, FORMATE, stammSauber };
 })();

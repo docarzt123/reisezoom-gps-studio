@@ -19,6 +19,7 @@ Bei jeder neuen Version:
 
 ### Fixed
 - Archive: remembered filters (date range, year, search, tags, length, folder, collection) belong to the library they were set in. After switching to another library they are reset — before, a date range from the other library made a freshly read archive look empty („0 tours — no tour matches these filters“). The empty state now also has a „Reset filters“ button and uses line icons.
+- Export file names from long project names are cut at a word boundary (50 characters) and no longer end in a separator such as „ ·“.
 - Web Map: „Export as HTML“ is now also the main button at the top right, like „Export video“ in the Animator and „Export image“ in the Tour Map — before it was only at the very bottom of the sidebar.
 - Archive, tour rows: the selection bar is always there (without a selection as a quiet hint, same height) — before it appeared with the first tick, the list slid down and the next click hit the wrong tour.
 - Export: the template „Quick preview 720p“ keeps the project's aspect ratio (720×1280 for a vertical reel) — before it always switched to 1280×720 landscape.
