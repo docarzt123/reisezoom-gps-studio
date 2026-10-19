@@ -6343,6 +6343,41 @@ class Api:
             raus[p] = self._bearbeitet_url(p, raus[p], r)
         return {"ok": True, "thumbs": raus}
 
+    def fotos_ort_naehe(self, pfade: list) -> dict:
+        """19.10.2026 (Audit, „Ort setzen“ für Fotos ohne GPS: die Suche nach „Masca“ fand nur Orte in Frankreich) — die
+        Gegend der markierten Dateien: Mitte der Fotos derselben Tage, die schon eine Koordinate haben, sonst der Touren
+        dieser Tage. {ok, lon, lat} oder {ok: False}; die Ortssuche nimmt das als Vorzug, die Karte startet dort."""
+        try:
+            pfade = [str(p) for p in (pfade or []) if p][:2000]
+            if not pfade:
+                return {"ok": False}
+            conn = self._lib()
+            tage: set = set()
+            for i in range(0, len(pfade), 400):
+                teil = pfade[i:i + 400]
+                tage.update(r[0] for r in conn.execute(
+                    f"SELECT DISTINCT tag_lokal FROM fotos WHERE path IN ({','.join('?' * len(teil))}) AND COALESCE(tag_lokal,'') != ''",
+                    teil))
+            if not tage:
+                return {"ok": False}
+            t_liste = sorted(tage)[:60]
+            ph = ",".join("?" * len(t_liste))
+            pkt = [(r[0], r[1]) for r in conn.execute(
+                f"SELECT lat, lon FROM fotos WHERE tag_lokal IN ({ph}) AND lat IS NOT NULL AND lon IS NOT NULL LIMIT 5000", t_liste)]
+            quelle = "fotos"
+            if not pkt:
+                pkt = [(r[0], r[1]) for r in conn.execute(
+                    f"SELECT center_lat, center_lon FROM tracks WHERE tag_lokal IN ({ph}) AND center_lat IS NOT NULL", t_liste)]
+                quelle = "touren"
+            if not pkt:
+                return {"ok": False}
+            la = sorted(p[0] for p in pkt)[len(pkt) // 2]
+            lo = sorted(p[1] for p in pkt)[len(pkt) // 2]
+            return {"ok": True, "lat": round(la, 5), "lon": round(lo, 5), "quelle": quelle, "n": len(pkt)}
+        except Exception as e:  # noqa: BLE001
+            log.debug("fotos_ort_naehe: %s", e)
+            return {"ok": False}
+
     def fotos_details(self, path: str) -> dict:
         """Eine Datei mit allen gelesenen Tags — für die Detailansicht."""
         try:

@@ -317,6 +317,15 @@
       if (typeof rzMassstab === "function") rzMassstab(karte);
       karte.on("click", (e) => setzen(e.lngLat.lat, e.lngLat.lng, ""));
     } catch (_) {}
+    // 19.10.2026 (Audit) — Gegend der Dateien (Fotos derselben Tage mit GPS, sonst Touren dieser Tage): die Karte startet
+    // dort, und die Suche bevorzugt nahe Treffer („Masca“ fand ohne das nur Mascaraàs-Haron und Co. in Frankreich)
+    let naehe = null;
+    (async () => {
+      let r = null; try { r = await api().fotos_ort_naehe(pfade); } catch (_) {}   // warte-ok: im Hintergrund, Dialog ist bedienbar
+      if (!r || !r.ok || !document.getElementById("os-q")) return;
+      naehe = [+r.lon, +r.lat];
+      try { if (karte && !wahl) karte.jumpTo({ center: naehe, zoom: 9 }); } catch (_) {}
+    })();
     q.oninput = () => {
       clearTimeout(tmr);
       const k = koordinateLesen(q.value);
@@ -325,7 +334,7 @@
       if (text.length < 3) { tr.innerHTML = ""; return; }
       tmr = setTimeout(async () => {
         tr.innerHTML = `<span class="muted">${esc(T("ort.sucht", "Sucht …"))}</span>`;
-        let r = null; try { r = await api().route_geocode(text, 6); } catch (_) {}   // warte-ok: Trefferliste zeigt „Sucht …“
+        let r = null; try { r = await api().route_geocode(text, 6, naehe); } catch (_) {}   // warte-ok: Trefferliste zeigt „Sucht …“
         if (q.value.trim() !== text) return;
         const hits = (r && r.ok && r.results) || [];
         tr.innerHTML = hits.length ? hits.map((h, i) => `<button type="button" class="os-hit" data-i="${i}">${I("map-pin", 13)} ${esc(h.name || "")}</button>`).join("")
