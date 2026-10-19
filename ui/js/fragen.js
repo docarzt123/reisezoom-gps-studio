@@ -130,6 +130,8 @@
       if (PRAEFIX_AUS.has(pr) || !MODUL_VON[pr] || SCHLUESSEL_AUS.test(k) || zielKeys.has(k) || !benutzt.has(k)) continue;
       const titel = sauber(v).replace(/[…:]+$/, "").trim();
       if (titel.length < 4 || titel.length > 70 || /[{}<>%]/.test(titel) || !/[a-zA-ZäöüÄÖÜ]/.test(titel)) continue;
+      // 19.10.2026 (Audit) — ganze Sätze sind Meldungen, keine Knöpfe („Keine doppelten Touren gefunden.“ stand vor „Doppelte finden“)
+      if (/[.!?]$/.test(titel) && titel.split(/\s+/).length >= 3) continue;
       const sig = MODUL_VON[pr] + "|" + norm(titel);
       if (gesehen.has(sig)) continue;
       gesehen.add(sig);
@@ -149,6 +151,7 @@
         extra: T("frag.w." + z.id, ""), ziel: z.id, modul: z.modul, boost: 1.5 });
     }
   }
+  const RE_VERSIONSNOTIZ = /^\s*(neu in v?\d|neu:|new in v?\d|new:|novedades en v?\d|nuevo en v?\d|novedades:)/i;
   function handbuchDocs(ix, hb) {
     const abschn = hb.abschnitte || [];
     // Erster Absatz eines Abschnitts trägt die Überschrift als Kopf — so findet eine Frage auch kurze Abschnitte
@@ -157,7 +160,10 @@
       const a = abschn[ai]; if (!a) continue;
       const pfad = a.pfad || [];
       const kopf = pfad[pfad.length - 1] || "";
-      docAufnehmen(ix, { typ: "hb", titel: erster.has(ai) ? "" : kopf, kopf, pfad: pfad.slice(0, -1), text, anker: a.a, ai, boost: 1 });
+      // 19.10.2026 (Audit) — „Neu in v0.9.7xx“-Abschnitte sind Versionsnotizen: sie nannten oft dieselben Wörter und
+      // standen vor der eigentlichen Anleitung („titel ändern“ → „Neu: Korrekturen …“)
+      const notiz = RE_VERSIONSNOTIZ.test(kopf) || pfad.some(x => RE_VERSIONSNOTIZ.test(x));
+      docAufnehmen(ix, { typ: "hb", titel: erster.has(ai) ? "" : kopf, kopf, pfad: pfad.slice(0, -1), text, anker: a.a, ai, boost: notiz ? 0.35 : 1 });
       erster.add(ai);
     }
   }
@@ -395,6 +401,13 @@
       finde: () => $("#anim-gesamtlook-field") },
     { id: "overlays", modul: "animator", label: ["animator.section.overlays", "Overlays"], ort: [], tip: ["frag.z.overlays_tip", "Einblendungen im Video: Tempo, Höhe, Distanz, Uhrzeit, Höhenprofil, Minikarte."],
       finde: abschnittKopf('#anim-panel [data-accordion-section="overlays"]') },
+    // 19.10.2026 (Audit) — Highlights und Doppelte: Neulingsfragen („Ortsnamen anzeigen“, „doppelte Touren löschen“) fanden sie nicht
+    { id: "highlights", modul: "animator", label: ["animator.hl.title", "Highlights"], ort: [["animator.section.overlays", "Overlays"]],
+      tip: ["frag.z.highlights_tip", "Gipfel, Aussichtspunkte, Orte und Pässe entlang der Strecke als Schilder im Video."],
+      finde: () => $("#anim-hl-on"), markiere: reihe },
+    { id: "etappe", modul: "animator", label: ["animator.etappe.neu", "Etappe erstellen"], ort: [["animator.section.tours", "Tracks"]],
+      tip: ["animator.etappe.neu_tip", "Eine geplante Strecke ohne GPS-Aufzeichnung: Anreise, Flug, Fähre, Autofahrt."],
+      finde: () => $("#anim-etappe-neu") },
     { id: "fotostopps", modul: "animator", label: ["animator.section.signs_photos", "Schilder und Fotos"], ort: [], tip: ["frag.z.fotostopps_tip", "Fotostopps: Fotos der Tour erscheinen im Video an ihrem Ort, dazu Schilder mit Text."],
       finde: abschnittKopf("#anim-signs-section") },
     { id: "logbuch", modul: "animator", label: ["animator.section.logbuch", "Logbuch im Video"], ort: [], tip: ["frag.z.logbuch_tip", "Das Logbuch erkennt Abschnitte (Fahrt, Pause, Wanderung) und zeigt sie im Video."],
@@ -408,6 +421,9 @@
       vorher: segment("lib-seg-touren"), finde: () => $("#lib-import-assistent") },
     { id: "medien", kopfLink: false, modul: "library", label: ["fotos.titel", "Medien"], ort: [], tip: ["frag.z.medien_tip", "Alle Fotos und Clips: Ordner einlesen, nach Datum, Ort oder Inhalt suchen."],
       finde: () => $("#lib-seg-fotos") },
+    { id: "doppelte", modul: "library", label: ["library.duplicates", "Doppelte finden"], ort: [["pm.seg_archive", "Touren-Archiv"]],
+      tip: ["frag.z.doppelte_tip", "Gleiche Touren im Archiv finden und wegräumen — die Datei bleibt, nur der doppelte Eintrag geht."],
+      vorher: segment("lib-seg-touren"), finde: () => $("#lib-dupes") },
     { id: "projekte", kopfLink: false, modul: "library", label: ["pm.title", "Projekte"], ort: [], tip: null, finde: () => $("#lib-seg-projekte") },
     { id: "vorlagen", kopfLink: false, modul: "library", label: ["vorlagen.titel", "Vorlagen"], ort: [], tip: null, finde: () => $("#lib-seg-vorlagen") },
     { id: "geotagger", modul: "geotagger", label: ["modules.geotagger.name", "Geotagger"], ort: [], tip: ["modules.geotagger.desc", "Fotos mit GPS taggen"],
