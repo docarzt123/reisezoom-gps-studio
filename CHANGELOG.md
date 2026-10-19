@@ -28,7 +28,7 @@ Bei jeder neuen Version:
 - Archive: after switching to another library the archive opens on „Tours“ instead of the tab last used in the other library (e.g. an empty „Media“).
 - First start: the second dialog is called „Maps are included — you can start right away“ instead of greeting a second time right after „Welcome to GPS Studio“.
 - Archive, „Folders & reading“: after „Read again“ the number of tours next to each folder is updated right away (a new folder kept showing „0“), and the dialog uses line icons.
-- Archive: Komoot's status suffix „(Completed)“ / „(Planned)“ is no longer part of the tour name — it ended up as the title of the quick video. Whether a tour was done or planned is still detected from it; existing archives are cleaned on the next start.
+- Archive: Komoot's status suffix „(Completed)“ / „(Planned)“ is no longer part of the tour name — it ended up as the title of the quick video. Whether a tour was done or planned is still detected from it; existing archives are cleaned on the next start. The Animator header and the quick video proposal, which read the name from the file, drop it too.
 
 ## [0.9.799] – 2026-10-19
 

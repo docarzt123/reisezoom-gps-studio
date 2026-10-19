@@ -9290,7 +9290,8 @@ class Api:
             _t_ui = _ui_t()   # v0.9.507 — Katalog-Labels in der App-Sprache
             return {
                 "ok": True,
-                "name": stats.name or Path(path).stem,
+                # 19.10.2026 (Audit) — wie im Archiv ohne Komoots „(Completed)“ (stand sonst oben im Animator)
+                "name": clib.name_ohne_status(stats.name or Path(path).stem),
                 # v0.9.282: aufgelöster GPX-Pfad (bei FIT/NMEA/… der Cache-GPX),
                 # damit Multi-Track-Render echte GPX nutzt statt das Fremdformat.
                 "gpx_path": path,
@@ -15487,6 +15488,7 @@ class Api:
             zahlen = {"aufstieg_m": round(st.ascent_m or 0), "dauer_s": round((st.moving_time_s or st.duration_s or 0)),
                       "ele_min": round(st.ele_min) if st.ele_min is not None else None,
                       "ele_max": round(st.ele_max) if st.ele_max is not None else None}
+            name = clib.name_ohne_status(name)   # 19.10.2026 (Audit) — Komoots „(Completed)“ nicht in den Videotitel
             return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende, "versatz_min": versatz,
                     "regie": regie,
                     "linie": linie, "pois": pois, "profil": profil, "zahlen": zahlen,
