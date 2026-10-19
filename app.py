@@ -9439,6 +9439,18 @@ class Api:
         wenn der Nutzer in den Einstellungen ausdrücklich Mapbox gewählt hat (dann
         umgekehrt). `bias` = [lon, lat] eines schon aufgelösten Wegpunkts.
         """
+        def einmal(hits):
+            # 19.10.2026 (Audit, „Ort setzen“: „Masca, Buenavista del Norte …“ stand viermal da) — Photon liefert für
+            # einen Ort oft mehrere OSM-Objekte gleichen Namens (Ort, Gemeinde, Tal …): je Name nur der erste
+            gesehen, out = set(), []
+            for h in hits or []:
+                k = str((h or {}).get("name") or "").strip().lower()
+                if k and k in gesehen:
+                    continue
+                gesehen.add(k)
+                out.append(h)
+            return out
+
         try:
             token = _active_mapbox_token()
             prov = str(_load_settings().get("geocode_provider") or "auto")
@@ -9454,7 +9466,7 @@ class Api:
                 hits, p, f = self._geocode_parallel(query, int(limit), lang, b)
                 fehler.extend(f)
                 if hits:
-                    return {"ok": True, "results": hits, "provider": p}
+                    return {"ok": True, "results": einmal(hits), "provider": p}
                 reihenfolge = ["mapbox"]
             for p in reihenfolge:
                 try:
@@ -9467,7 +9479,7 @@ class Api:
                 except croute.RouteError as e:
                     fehler.append(str(e)); continue
                 if hits:
-                    return {"ok": True, "results": hits, "provider": p}
+                    return {"ok": True, "results": einmal(hits), "provider": p}
             if fehler and not token:
                 return {"ok": False, "error": fehler[0]}
             return {"ok": True, "results": [], "provider": reihenfolge[0], "fehler": fehler}

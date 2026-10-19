@@ -20,6 +20,7 @@ Bei jeder neuen Version:
 ### Fixed
 - Archive: remembered filters (date range, year, search, tags, length, folder, collection) belong to the library they were set in. After switching to another library they are reset — before, a date range from the other library made a freshly read archive look empty („0 tours — no tour matches these filters“). The empty state now also has a „Reset filters“ button and uses line icons.
 - Media: the selection bar floats at the bottom of the grid — before it appeared above the grid with the first tick (often two rows high), pushed everything down by about 90 px and the next click hit the wrong photo.
+- Place search (set place, stage stations): hits with the same name appear once — Photon often returns the village, the municipality and the valley under one name.
 - Media, „Set place“: the map starts where the selected files belong (photos of the same day that have GPS, otherwise the tours of that day), and the place search prefers hits there — searching „Masca“ for photos taken on Tenerife only listed places in France before.
 - Quick video / video assistant: title suggestions that differ only by emojis or punctuation („… Turtle 🐢?“ and „… Turtle?“) appear once.
 - Archive: the tour column offers „Video assistant“ next to „Quick video“ — it opens the Animator with the tour and starts the assistant (before it was only reachable inside the Animator).
