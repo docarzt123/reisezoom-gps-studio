@@ -303,7 +303,8 @@
   // steht (__rzBooted). Sonst würde ein harmloser später Fehler die laufende App
   // zudecken. Ins app.log wandert der Fehler aber IMMER.
   function fail(title, detail, anzeige) {
-    if (window.__rzBooted) { toBackend(title + ' | ' + detail, true); return; }
+    // 20.10.2026 — im Betrieb hieß die Zeile trotzdem „JavaScript-Fehler beim Start“ (Titel des Start-Bildschirms)
+    if (window.__rzBooted) { toBackend(String(title).replace(/ beim Start$/, '') + ' | ' + detail, true); return; }
     window.__rzShowStartError(title, detail, anzeige);
   }
 
