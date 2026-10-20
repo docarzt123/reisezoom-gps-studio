@@ -6346,20 +6346,34 @@ class Api:
     def fotos_ort_naehe(self, pfade: list) -> dict:
         """19.10.2026 (Audit, „Ort setzen“ für Fotos ohne GPS: die Suche nach „Masca“ fand nur Orte in Frankreich) — die
         Gegend der markierten Dateien: Mitte der Fotos derselben Tage, die schon eine Koordinate haben, sonst der Touren
-        dieser Tage. {ok, lon, lat} oder {ok: False}; die Ortssuche nimmt das als Vorzug, die Karte startet dort."""
+        dieser Tage. {ok, lon, lat} oder {ok: False}; die Ortssuche nimmt das als Vorzug, die Karte startet dort.
+
+        20.10.2026 (Marc: „bau sowas“) — dazu `namen`: Ortsangaben, die schon IN den Dateien stehen (IPTC/XMP Stadt ·
+        Region · Land, etwa aus Lightroom), je Kombination mit Anzahl, häufigste zuerst. Der Dialog schlägt sie vor."""
         try:
             pfade = [str(p) for p in (pfade or []) if p][:2000]
             if not pfade:
                 return {"ok": False}
             conn = self._lib()
             tage: set = set()
+            zaehl: dict = {}
             for i in range(0, len(pfade), 400):
                 teil = pfade[i:i + 400]
+                ph_t = ",".join("?" * len(teil))
                 tage.update(r[0] for r in conn.execute(
-                    f"SELECT DISTINCT tag_lokal FROM fotos WHERE path IN ({','.join('?' * len(teil))}) AND COALESCE(tag_lokal,'') != ''",
+                    f"SELECT DISTINCT tag_lokal FROM fotos WHERE path IN ({ph_t}) AND COALESCE(tag_lokal,'') != ''",
                     teil))
+                for o, rg, la in conn.execute(
+                        f"SELECT TRIM(COALESCE(ort,'')), TRIM(COALESCE(region,'')), TRIM(COALESCE(land,'')) FROM fotos "
+                        f"WHERE path IN ({ph_t}) AND (COALESCE(ort,'') != '' OR COALESCE(region,'') != '' OR COALESCE(land,'') != '')",
+                        teil):
+                    k = (o, rg, la)
+                    zaehl[k] = zaehl.get(k, 0) + 1
+            namen = [{"ort": k[0], "region": k[1], "land": k[2], "text": ", ".join(x for x in k if x), "n": n}
+                     for k, n in sorted(zaehl.items(), key=lambda kv: -kv[1])[:4]]
+            aus = {"ok": True, "namen": namen, "n_dateien": len(pfade)} if namen else {"ok": False}
             if not tage:
-                return {"ok": False}
+                return aus
             t_liste = sorted(tage)[:60]
             ph = ",".join("?" * len(t_liste))
             pkt = [(r[0], r[1]) for r in conn.execute(
@@ -6370,10 +6384,11 @@ class Api:
                     f"SELECT center_lat, center_lon FROM tracks WHERE tag_lokal IN ({ph}) AND center_lat IS NOT NULL", t_liste)]
                 quelle = "touren"
             if not pkt:
-                return {"ok": False}
+                return aus
             la = sorted(p[0] for p in pkt)[len(pkt) // 2]
             lo = sorted(p[1] for p in pkt)[len(pkt) // 2]
-            return {"ok": True, "lat": round(la, 5), "lon": round(lo, 5), "quelle": quelle, "n": len(pkt)}
+            return {"ok": True, "lat": round(la, 5), "lon": round(lo, 5), "quelle": quelle, "n": len(pkt),
+                    "namen": namen, "n_dateien": len(pfade)}
         except Exception as e:  # noqa: BLE001
             log.debug("fotos_ort_naehe: %s", e)
             return {"ok": False}

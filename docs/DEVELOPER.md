@@ -8146,6 +8146,9 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
 - **Ort setzen in der Gegend der Fotos:** `Api.fotos_ort_naehe(pfade)` → Median der Koordinaten gleichtägiger Fotos mit
   GPS, sonst Mitte der Touren dieses Tages; `exportarchiv.js` zentriert die Karte (Zoom 9) und gibt den Punkt als
   `bias` an `route_geocode(text, 6, naehe)`. `route_geocode` gibt je Name (klein geschrieben) nur einen Treffer zurück.
+  Seit 20.10.2026 liefert `fotos_ort_naehe` zusätzlich `namen` (je Kombination `ort`/`region`/`land` der markierten
+  Dateien mit Anzahl, häufigste zuerst, max. 4) und `n_dateien`; `ok` ist wahr, wenn Gegend ODER Namen da sind (`lat`
+  fehlt dann evtl.). Der Dialog zeigt sie in `#os-namen` (`.os-name`); die häufigste (≥ Hälfte) füllt das Suchfeld.
   Test `test_ort_setzen_naehe`.
 - **Tempo-Spitzen im Daten-Animator:** `core/heightanim._series_speed` kappt ab 20 Punkten Werte über 1,3 × P99,5 —
   ein GPS-Sprung setzt nicht mehr Achse und Höchstwert; lange echte Flug-/Zugetappen bleiben. Die Y-Achse beschriftet

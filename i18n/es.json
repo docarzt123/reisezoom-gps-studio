@@ -6000,6 +6000,8 @@
   "ort.ph": "Buscar un lugar o pegar coordenadas — p. ej. Masca o 28.2905, -16.8452",
   "ort.noch_keiner": "Aún sin lugar — busca, pega o haz clic en el mapa.",
   "ort.adresse": "Escribir también la dirección",
+  "ort.aus_dateien": "Los archivos indican:",
+  "ort.aus_dateien_tip": "Lugar guardado en los datos de la foto (IPTC/XMP, p. ej. de Lightroom): en {n} de {m} archivos. Haz clic para buscarlo.",
   "ort.hinweis": "El lugar se escribe en los archivos — antes la app guarda una copia de cada original.",
   "ort.los_1": "Escribir lugar",
   "ort.los_n": "Escribir en {n} archivos",

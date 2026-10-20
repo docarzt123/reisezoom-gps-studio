@@ -2216,6 +2216,9 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
   bleiben dabei an ihrem Platz. Esc hebt die Markierung auf, ⌘A markiert alle.
 - **Ort setzen** (für Fotos ohne Koordinate): Die Karte startet dort, wo die Fotos hingehören — bei Fotos desselben Tages mit
   GPS, sonst bei den Touren dieses Tages —, und die Ortssuche bevorzugt Treffer in dieser Gegend. Gleichnamige Treffer stehen nur einmal da.
+  Steht in den Dateien schon ein Ortsname (Stadt, Region, Land aus IPTC/XMP — etwa aus Lightroom), zeigt der Dialog ihn unter
+  dem Suchfeld als Vorschlag, mit der Zahl der Dateien. Gilt er für mindestens die Hälfte der markierten Dateien, steht er gleich
+  im Suchfeld und ist schon gesucht; ein Klick auf einen anderen Vorschlag sucht nach diesem.
 - **Links:** oben die Zahl, dann **Sammlungen** (Alle, Favoriten, Bearbeitet, Ohne Koordinate …), **Alben** (＋ legt eins an,
   Rechtsklick benennt um oder löscht — die Fotos bleiben), Datum, Ordner und aufklappbare **Filter** (Jahr, Kamera, Ort).
 - **Ein Klick** zeigt rechts das Bild mit allen Angaben (Kamera, Blende, Belichtung, ISO, Bildgröße), dem Standort mit Karte,

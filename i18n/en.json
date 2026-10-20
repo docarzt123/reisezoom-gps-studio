@@ -6000,6 +6000,8 @@
   "ort.ph": "Search a place or paste coordinates — e.g. Masca or 28.2905, -16.8452",
   "ort.noch_keiner": "No location yet — search, paste or click into the map.",
   "ort.adresse": "Also write the address",
+  "ort.aus_dateien": "The files say:",
+  "ort.aus_dateien_tip": "Place stored in the photo data (IPTC/XMP, e.g. from Lightroom) — in {n} of {m} files. Click to search for it.",
   "ort.hinweis": "The location is written into the files — the app backs up every original first.",
   "ort.los_1": "Write location",
   "ort.los_n": "Write into {n} files",

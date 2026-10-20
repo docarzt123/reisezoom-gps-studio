@@ -2152,6 +2152,9 @@ On request the search field also finds **what the photos show**: “sunset”, �
   stay where they are. Esc clears, ⌘A marks all.
 - **Set location** (for photos without coordinates): the map starts where the photos belong — at photos of the same day that have
   GPS, otherwise at the tours of that day — and the place search prefers hits in that area. Hits with the same name appear once.
+  If the files already contain a place name (city, region, country from IPTC/XMP — e.g. from Lightroom), the dialog shows it
+  below the search field as a suggestion, with the number of files. If it applies to at least half of the marked files, it is
+  already in the search field and searched; clicking another suggestion searches for that one.
 - **Left:** the number, then **collections** (All, Favourites, Edited, Without coordinate …), **albums** (＋ creates one,
   right-click renames or deletes — the photos stay), date, folders and collapsible **filters** (year, camera, location).
 - **One click** shows the picture on the right with all data (camera, aperture, shutter, ISO, size), the location with a

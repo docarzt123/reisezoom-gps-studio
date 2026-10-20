@@ -2200,6 +2200,9 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
   imágenes no se mueven. Esc quita la selección, ⌘A marca todo.
 - **Poner ubicación** (para fotos sin coordenadas): el mapa empieza donde pertenecen las fotos —en fotos del mismo día con GPS o,
   si no hay, en las rutas de ese día— y la búsqueda de lugares prefiere resultados de esa zona. Los resultados con el mismo nombre aparecen una vez.
+  Si los archivos ya contienen un nombre de lugar (ciudad, región, país de IPTC/XMP, p. ej. de Lightroom), el diálogo lo
+  muestra bajo el campo de búsqueda como sugerencia, con el número de archivos. Si vale para al menos la mitad de los archivos
+  marcados, ya está en el campo y buscado; un clic en otra sugerencia busca esa.
 - **Izquierda:** el número, luego **colecciones** (Todo, Favoritos, Editadas, Sin coordenada …), **álbumes** (＋ crea uno,
   clic derecho renombra o elimina; las fotos se quedan), fecha, carpetas y **filtros** desplegables (año, cámara, ubicación).
 - **Un clic** muestra la imagen a la derecha con todos los datos (cámara, diafragma, exposición, ISO, tamaño), la ubicación

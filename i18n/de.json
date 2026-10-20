@@ -6000,6 +6000,8 @@
   "ort.ph": "Ort suchen oder Koordinate einfügen — z. B. Masca oder 28.2905, -16.8452",
   "ort.noch_keiner": "Noch kein Ort — suchen, einfügen oder in die Karte klicken.",
   "ort.adresse": "Adresse mitschreiben",
+  "ort.aus_dateien": "In den Dateien steht:",
+  "ort.aus_dateien_tip": "Ortsangabe aus den Fotodaten (IPTC/XMP, z. B. von Lightroom) — in {n} von {m} Dateien. Klicken sucht danach.",
   "ort.hinweis": "Der Ort wird in die Dateien geschrieben — vorher legt die App von jedem Original eine Sicherung an.",
   "ort.los_1": "Ort schreiben",
   "ort.los_n": "In {n} Dateien schreiben",

@@ -1506,6 +1506,11 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .os-hit:hover, .os-hit.is-on { border-color: var(--accent); }
 .os-karte { height: 200px; border-radius: 8px; overflow: hidden; margin-top: 6px; background: var(--bg-3); }
 .os-wahl { font-size: 12.5px; margin-top: 4px; }
+/* 20.10.2026 — Ortsangaben aus den Dateien (IPTC/XMP) als Vorschläge */
+.os-namen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 4px; font-size: 12.5px; }
+.os-name { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text);
+           border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12.5px; }
+.os-name:hover, .os-name.is-on { border-color: var(--accent); }
 /* 19.10.2026 — Aufnahmezeit ändern (ui/js/exportarchiv.js rzArchivExport.zeitAendern) */
 .za-dialog { min-width: 520px; }
 .za-block { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 2px 0 6px 22px; }

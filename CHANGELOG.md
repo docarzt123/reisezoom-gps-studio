@@ -15,6 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Media, „Set place“: place names that are already stored in the files (city, region, country from IPTC/XMP, e.g. from Lightroom) appear as suggestions below the search field, with the number of files. If one applies to at least half of the marked files, it is filled in and searched right away.
 - „Ask GPS Studio“: a question field that searches the manual and the labels of the app's buttons and shows the matching paragraphs — offline, without a language model, in German, English and Spanish. Open it with ⌘K (Windows/Linux: Ctrl+K), the search field at the top right, „Help → Ask GPS Studio …“ or the field in „Quick Start“. Plain questions work („how do I change the date of many photos“, „camera follows the track“, „video in 9:16“). „Show me“ jumps straight to the right module and control, opens the section it sits in and briefly highlights it; if it needs a loaded tour or selected photos first, the result says so. Clicking a manual hit opens the manual at that section.
 
 ### Fixed

@@ -276,6 +276,7 @@
       title: (pfade.length === 1 ? T("ort.titel_1", "Ort setzen") : T("ort.titel_n", "Ort für {n} Dateien setzen", { n: num(pfade.length) })),
       body: `<div class="ex-dialog os-dialog">
           <input type="text" id="os-q" class="lib-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="${esc(T("ort.ph", "Ort suchen oder Koordinate einfügen — z. B. Masca oder 28.2905, -16.8452"))}">
+          <div class="os-namen" id="os-namen" hidden></div>
           <div class="os-treffer" id="os-treffer"></div>
           <div class="os-karte" id="os-karte"></div>
           <div class="os-wahl muted" id="os-wahl">${esc(T("ort.noch_keiner", "Noch kein Ort — suchen, einfügen oder in die Karte klicken."))}</div>
@@ -319,12 +320,27 @@
     } catch (_) {}
     // 19.10.2026 (Audit) — Gegend der Dateien (Fotos derselben Tage mit GPS, sonst Touren dieser Tage): die Karte startet
     // dort, und die Suche bevorzugt nahe Treffer („Masca“ fand ohne das nur Mascaraàs-Haron und Co. in Frankreich)
+    // 20.10.2026 (Marc: „bau sowas“) — Ortsangaben, die schon in den Dateien stehen (IPTC/XMP Stadt · Region · Land, etwa
+    // aus Lightroom), als Vorschläge über der Trefferliste. Steht in mindestens der Hälfte der Dateien derselbe Ort und ist
+    // noch nichts getippt, wird er gleich eingetragen und gesucht — die Gegend (oben) sortiert die Treffer.
     let naehe = null;
     (async () => {
       let r = null; try { r = await api().fotos_ort_naehe(pfade); } catch (_) {}   // warte-ok: im Hintergrund, Dialog ist bedienbar
       if (!r || !r.ok || !document.getElementById("os-q")) return;
-      naehe = [+r.lon, +r.lat];
-      try { if (karte && !wahl) karte.jumpTo({ center: naehe, zoom: 9 }); } catch (_) {}
+      if (r.lat != null && r.lon != null) {
+        naehe = [+r.lon, +r.lat];
+        try { if (karte && !wahl) karte.jumpTo({ center: naehe, zoom: 9 }); } catch (_) {}
+      }
+      const namen = (r.namen || []).filter(x => x && x.text);
+      const box = document.getElementById("os-namen");
+      if (!namen.length || !box) return;
+      const gesamt = r.n_dateien || pfade.length;
+      box.innerHTML = `<span class="muted">${esc(T("ort.aus_dateien", "In den Dateien steht:"))}</span>` + namen.map((x, i) =>
+        `<button type="button" class="os-name" data-n="${i}" title="${esc(T("ort.aus_dateien_tip", "Ortsangabe aus den Fotodaten (IPTC/XMP, z. B. von Lightroom) — in {n} von {m} Dateien. Klicken sucht danach.", { n: num(x.n), m: num(gesamt) }))}">${I("tag", 12)} ${esc(x.text)}${gesamt > 1 ? ` <span class="muted">${esc(num(x.n))}</span>` : ""}</button>`).join("");
+      box.hidden = false;
+      const suchen = (x) => { q.value = x.text; box.querySelectorAll(".os-name").forEach(b => b.classList.toggle("is-on", b.dataset.n === String(namen.indexOf(x)))); q.oninput(); };
+      box.querySelectorAll("[data-n]").forEach(b => { b.onclick = () => suchen(namen[+b.dataset.n]); });
+      if (!q.value.trim() && !wahl && namen[0].n * 2 >= gesamt) { suchen(namen[0]); try { q.select(); } catch (_) {} }
     })();
     q.oninput = () => {
       clearTimeout(tmr);
