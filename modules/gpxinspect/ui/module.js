@@ -5974,6 +5974,36 @@ function mountGpxInspect(body, headerActions) {
   updateUI();
 
   // ── Cleanup ──────────────────────────────────────────────────────────────────
+  // 20.10.2026 (Marc: „Der Inspektor soll sich das merken“) — Werkzeug-Einstellungen überleben den Neustart
+  // (gpxinspect.werkzeug in den Einstellungen). Bewusst NICHT: Routing-Profil und Sportart (je Tour geschätzt),
+  // Startzeit/Verschiebung/Punktzahl/Bereich A–B (gehören zur offenen Tour), Tempo-Schwelle und -Deckel (eigener Speicher).
+  // Zurückgeholt NACH allen Verdrahtungen, damit die Handler auch ihre inneren Zustände setzen.
+  const _WZ_MERKEN = ["gpxi-heal-gaps", "gpxi-heal-spikes", "gpxi-heal-tempo", "gpxi-sens", "gpxi-spacing", "gpxi-speedcolor",
+    "gpxi-ele-weight", "gpxi-join-mode", "gpxi-join-pause", "gpxi-lb-alles", "gpxi-lb-befunde", "gpxi-lb-eigene", "gpxi-lb-pois",
+    "gpxi-speed-v", "gpxi-wz-tol", "gpxi-wz-every", "gpxi-wz-retime-mode"];
+  (function _gpxiWerkzeugMerken() {
+    let gem = {};
+    try { gem = Object.assign({}, ((typeof window.rzReadModuleSettings === "function" && window.rzReadModuleSettings("gpxinspect")) || {}).werkzeug || {}); } catch (_) {}
+    const speichern = () => { try { saveSettings({ gpxinspect: { werkzeug: Object.assign({}, gem) } }); } catch (_) {} };
+    for (const id of _WZ_MERKEN) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const bool = el.type === "checkbox";
+      if (id in gem) {
+        try {
+          if (bool) { if (el.checked !== !!gem[id]) { el.checked = !!gem[id]; el.dispatchEvent(new Event("change", { bubbles: true })); } }
+          else if (el.value !== String(gem[id])) {
+            el.value = String(gem[id]);
+            el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        } catch (e) { try { applog("warn", "[inspektor] Einstellung " + id + ": " + e); } catch (_) {} }
+      }
+      const merk = () => { gem[id] = bool ? !!el.checked : el.value; speichern(); };
+      el.addEventListener("change", merk);
+      if (!bool) el.addEventListener("input", merk);   // saveSettings bündelt selbst (200 ms)
+    }
+  })();
+
   return function cleanup() {
     isUnmounted = true;
     // 25.09.2026 — die Kopfzeile gehört wieder der Datei (andere Module zeigen die Datei)
