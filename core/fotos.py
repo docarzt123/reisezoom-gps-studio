@@ -2383,6 +2383,8 @@ def tour_fuer_foto(conn: sqlite3.Connection, d: dict) -> Optional[dict]:
     if r and r["geom"]:
         try:
             geom = json.loads(r["geom"])
+            from core import library as _lib
+            geom = _lib.geom_anzeige(geom)   # 20.10.2026 Datumsgrenze
         except (TypeError, ValueError):
             geom = []
     teile = None

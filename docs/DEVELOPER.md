@@ -8173,6 +8173,9 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
   Kreismittel nur in diesem Fall. Angewendet: Animator/Tour-Map (`bbox`), Schnell-Video (`linie`, `bbox`), Geotagger
   (`coords`, `bbox`), Web Karte (Vorschau + Export, `lon_fortlaufend`), Inspektor nur Ausschnitt (`load_points`
   → `bbox`, `fitTrack` nimmt ihn bei > 180° Spanne; Punkte bleiben roh, Speichern unverändert), Archiv `center_lon`.
+  Archiv: `core/library.geom_anzeige(geom)` (nur bei Sprung > 180°) in `_to_dict(with_geom)`, `geoms()` (Kartenbilder)
+  und `map_thumb_render_free`; Medien-Tour (`core/fotos`) ebenso. Gespeicherte Kartenbilder (`bilder/karten/<hash>_<stil>.jpg`)
+  entstehen nicht automatisch neu.
   Datenbank-bbox (`min_lon`/`max_lon`) bleibt roh. Test `test_datumsgrenze`.
 - **Karten in Dialogen (20.10.2026):** `createMap` hängt `_rzKarteMitwachsen(map)` an (`ui/js/util.js`): ein eigener
   `ResizeObserver` vergleicht `canvas.style.width/height` mit `container.clientWidth/Height` und ruft `map.resize()` nur

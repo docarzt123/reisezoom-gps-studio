@@ -45,6 +45,18 @@ from __future__ import annotations
 from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 
 
+def geom_anzeige(geom):
+    """20.10.2026 — Linie fürs Zeichnen: über die Datumsgrenze fortlaufend (179,9 → 180,1 statt → −179,9), sonst wurde
+    die Tour als Strich um die halbe Erde gezeichnet und die Karte zoomte auf die ganze Welt. Ohne Sprung UNVERÄNDERT."""
+    try:
+        if not geom or not any(abs(float(geom[i][0]) - float(geom[i - 1][0])) > 180 for i in range(1, len(geom))):
+            return geom
+        from core import route as _route
+        return _route.lon_fortlaufend(geom)
+    except (TypeError, ValueError, IndexError):
+        return geom
+
+
 def _mitte_lon(lons):
     """20.10.2026 — mittlerer Längengrad, auch über die Datumsgrenze (core/route.mitte_lon; verzögert geladen)."""
     from core import route as _route
@@ -2369,7 +2381,7 @@ def geoms(conn: sqlite3.Connection, pfade: list) -> dict:
         teil = pf[i:i + 100]
         for r in conn.execute(f"SELECT path, geom FROM tracks WHERE path IN ({','.join('?' * len(teil))})", teil):
             try:
-                raus[r["path"]] = json.loads(r["geom"] or "[]")
+                raus[r["path"]] = geom_anzeige(json.loads(r["geom"] or "[]"))   # 20.10.2026 Datumsgrenze (Kartenbild)
             except (TypeError, ValueError):
                 raus[r["path"]] = []
     return raus
@@ -2387,7 +2399,7 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     # dass sie jemand anschaut.
     if with_geom:
         try:
-            d["geom"] = json.loads(d.get("geom") or "[]")
+            d["geom"] = geom_anzeige(json.loads(d.get("geom") or "[]"))   # 20.10.2026 Datumsgrenze
         except (TypeError, ValueError):
             d["geom"] = []
     else:
@@ -3205,6 +3217,7 @@ def map_thumb_render_free(pts: list, out: Path, *, width: int = 720, height: int
 
     if len(pts) < 2:
         return False
+    pts = geom_anzeige(pts)   # 20.10.2026 — Datumsgrenze: fortlaufend; die Kacheln brechen über `tx % n` um
     z = _thumb_zoom_for(pts, width, height)
     n = 2 ** z
     def wx(lon): return (float(lon) + 180.0) / 360.0 * n * 256
