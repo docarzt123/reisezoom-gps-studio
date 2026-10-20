@@ -6167,13 +6167,17 @@ function mountLibrary(body, headerActions) {
     if (su && su.value) { su.value = ""; setFilter("search", ""); }
     renderProjekte();
   });
-  $("lib-search").oninput = debounce(() => {
-    setFilter("search", $("lib-search").value);
+  // 20.10.2026 (Zufalls-Klicktest) — Werte beim Tippen lesen, nur das Neuladen verzögern: wer tippte und gleich das
+  // Modul wechselte, bekam „null.value“ (das Archiv war schon weg). Jetzt bleibt der Filter gemerkt, neu geladen wird
+  // nur, solange das Archiv noch steht.
+  const _suchenBald = debounce(() => {
+    if (!document.getElementById("lib-search")) return;
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben
     zuerstGeoWeg();
     if (_projView) { renderProjekte(); return; }
     reload();
   }, 400);
+  $("lib-search").oninput = () => { setFilter("search", $("lib-search").value); _suchenBald(); };
   $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); zuerstGeoWeg(); reload(); };
   $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); zuerstGeoWeg(); reload(); };
   $("lib-tags").onchange = () => { setFilter("tags", $("lib-tags").value || null); zuerstGeoWeg(); reload(); };
@@ -6182,12 +6186,12 @@ function mountLibrary(body, headerActions) {
     const v = parseFloat($(id).value);
     return (isFinite(v) && v > 0) ? v : null;
   };
-  const kmGesetzt = debounce(() => {
-    setFilter("min_km", kmLesen("lib-kmmin"));
-    setFilter("max_km", kmLesen("lib-kmmax"));
+  const _kmNeuBald = debounce(() => {
+    if (!document.getElementById("lib-kmmin")) return;   // 20.10.2026 — Archiv schon verlassen (siehe Suche oben)
     zuerstGeoWeg();
     reload();
   }, 500);
+  const kmGesetzt = () => { setFilter("min_km", kmLesen("lib-kmmin")); setFilter("max_km", kmLesen("lib-kmmax")); _kmNeuBald(); };
   $("lib-kmmin").oninput = kmGesetzt;
   $("lib-kmmax").oninput = kmGesetzt;
 
