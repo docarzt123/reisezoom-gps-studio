@@ -133,7 +133,9 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
     """Eine Koordinate → normalisierte Adresse (oder None). Gecacht + gedrosselt.
     `zoom` wirkt nur bei Nominatim (3=Land … 18=Hausnummer)."""
     prov = (provider or "nominatim").lower()
-    key = (prov, round(lat, 4), round(lon, 4), zoom if prov == "nominatim" else 0)
+    # 20.10.2026 — Sprache im Schlüssel: die Archiv-Ortssuche fragt auf Deutsch, das Logbuch in der App-Sprache; am
+    # gleichen Startpunkt bekam ein englischer Nutzer sonst „Bozen, Trentino-Südtirol“ aus dem Zwischenspeicher.
+    key = (prov, round(lat, 4), round(lon, 4), zoom if prov == "nominatim" else 0, (lang or "").lower())
     with _LOCK:
         if key in _CACHE:
             return _CACHE[key]
