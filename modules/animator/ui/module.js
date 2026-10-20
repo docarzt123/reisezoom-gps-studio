@@ -12726,9 +12726,10 @@ function mountAnimator(body, headerActions, opts) {
         _plBilanz("Ende");
         if (_tlBar) _tlBar.setPlaying(false);
         try { window.__rzAnimSigns && window.__rzAnimSigns.endPreview && window.__rzAnimSigns.endPreview(); } catch (_) {}   // 15.10.2026 — Schild-Editor weiter
-        // v0.9.228 — Overlay-Boxen nach Probelauf wieder alle einblenden
-        // (statische Konfig-Vorschau zeigt alle aktivierten Boxen).
-        try { _animOverlayTimingPreview(-1); } catch (_) {}
+        // v0.9.228 zeigte nach dem Probelauf wieder alle Boxen. 20.10.2026 (Marc: „wie Sekunde 0“ bzw. wie am
+        // Zeitregler) — dann lagen Titel und Schluss-Statistik übereinander. Jetzt wie im Video an der Reglerstelle;
+        // der Container im Editor bleibt trotzdem sichtbar (_ovTimingAt).
+        try { _ctZeitAmRegler(); } catch (_) {}
         refreshPreviewTrackData();
         // v0.9.79 — Foto-Filter auf den scrubAnchor zurücksetzen, sonst
         // bleiben am Probe-Lauf-Ende alle Fotos sichtbar obwohl der Scrubber
@@ -21794,11 +21795,6 @@ function mountAnimator(body, headerActions, opts) {
     });
   }
 
-  // v0.9.228 → 23.09.2026: Zeitsteuerung der Vorschau-Boxen im Probelauf läuft über
-  // _ovTimingAt (gemeinsame Regeln mit dem Render). Nur noch der Ruhezustand hier.
-  function _animOverlayTimingPreview(tSec) {
-    if (tSec < 0) _ovTimingAt(-1, 0);
-  }
 
   async function loadGpxByPath(path) {
     const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
