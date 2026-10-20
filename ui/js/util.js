@@ -854,6 +854,31 @@ function rzApplyPreviewQuality() {
 }
 window.rzPreviewQuality = rzPreviewQuality; window.rzApplyPreviewQuality = rzApplyPreviewQuality;
 
+/** 20.10.2026 — Karten in Dialogen („Ort setzen“, „Tour aus Fotos“, Schnell-Video …) entstehen, während der Dialog noch
+ *  aufgeht: die Zeichenfläche bekam 510 px, der Kasten hatte danach 614 px, rechts stand Sternenhimmel. MapLibre überhört
+ *  die erste Größenmeldung seines eigenen Beobachters — kommt die neue Breite genau dann, bleibt die Fläche zu klein.
+ *  Diese Wache vergleicht Fläche und Kasten und passt nur bei Abweichung an; im Render (Bild für Bild) ist sie aus. */
+function _rzKarteMitwachsen(map) {
+  if (typeof ResizeObserver !== "function" || !map || typeof map.getContainer !== "function") return;
+  const el = map.getContainer();
+  let tmr = 0;
+  const pruefen = () => {
+    tmr = 0;
+    try {
+      if (window.__rzStepMode || window.__rzRenderMode || !el.isConnected) return;
+      const cv = typeof map.getCanvas === "function" ? map.getCanvas() : null;
+      if (!cv) return;
+      const w = el.clientWidth, h = el.clientHeight;
+      const cw = parseFloat(cv.style.width) || cv.clientWidth, ch = parseFloat(cv.style.height) || cv.clientHeight;
+      if (w > 0 && h > 0 && (Math.abs(w - cw) > 1 || Math.abs(h - ch) > 1)) map.resize();
+    } catch (_) {}
+  };
+  const ro = new ResizeObserver(() => { if (!tmr) tmr = setTimeout(pruefen, 60); });
+  ro.observe(el);
+  try { map.once("remove", () => { try { ro.disconnect(); } catch (_) {} clearTimeout(tmr); }); } catch (_) {}
+  map.__rzMitwachsen = pruefen;   // Prüfstand
+}
+
 function createMap(opts) {
   // 09.10.2026 — „look:<name>“ (Archiv-Stilwahl): einer der Karten-Looks über der Positron-Vorlage; „natuerlich“ = Luftbild
   if (opts && typeof opts.styleKey === "string" && opts.styleKey.startsWith("look:")) {
@@ -936,6 +961,7 @@ function createMap(opts) {
   // 02.09.2026 — Prüfstand-Haken: die zuletzt gebaute Karte nach außen geben,
   // damit headless (Playwright) Kamera-Zustände auslesbar sind.
   try { window.__rzLetzteKarte = map; } catch (_) {}
+  try { _rzKarteMitwachsen(map); } catch (_) {}
   try { applog && applog("info", `[map] ${opts.container}: Stil ${spec.key} (gewünscht ${key}) · ${spec.engine}` + (spec.region ? ` · ${spec.region.name}` : "") + (spec.notes.length ? ` · ${spec.notes.join(",")}` : "")); } catch (_) {}
   return { map, engine: spec.engine, lib, spec, styleKey: spec.key };
 }

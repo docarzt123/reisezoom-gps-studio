@@ -8168,6 +8168,13 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
   Chromium/WebView2 65 s Blockade). Läuft auch nach jedem Kartenstil-Wechsel (Ebenen neu). Prüfstand
   `window.__rzInspektorPunktForm()`. Rest: `gpxinspect_load` liefert ~100 Byte/Punkt (Objekte mit Feldnamen).
   Test `test_inspektor_pfeile_gross`.
+- **Karten in Dialogen (20.10.2026):** `createMap` hängt `_rzKarteMitwachsen(map)` an (`ui/js/util.js`): ein eigener
+  `ResizeObserver` vergleicht `canvas.style.width/height` mit `container.clientWidth/Height` und ruft `map.resize()` nur
+  bei Abweichung — MapLibre überhört die erste Meldung seines Beobachters; wächst der Dialog genau dann, blieb die
+  Fläche zu klein. Aus bei `__rzStepMode`/`__rzRenderMode`. Prüfstand `map.__rzMitwachsen()`. Test E in `test_ort_setzen_naehe`.
+- **Ruhende Vorschau im Animator (20.10.2026):** Am Ende eines Probelaufs `_ctZeitAmRegler()` statt „alle Boxen
+  sichtbar“ (`_animOverlayTimingPreview(-1)` entfernt) — Einblendungen wie im Video an der Reglerstelle.
+  Test `test_einblendungen_ruhe_wie_video`.
 - **Einblendungs-Liste:** `.ct-bereich > .ct-liste` nimmt die Breite des Bereichs (`flex: 1 1 100%; min-width: 0`) —
   in der umbrechenden `.overlay-group` war sie sonst so breit wie ihr Inhalt. Test `test_einblendungen_breite`.
 - Kleinere: Exportnamen `rzExportDialog.stammSauber()` (50 Zeichen an Wortgrenze), Vorlage „Schnell 720p“ mit
