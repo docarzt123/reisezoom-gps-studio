@@ -756,8 +756,10 @@
           if (typeof saveProjectSettings === "function") saveProjectSettings(MODKEY, state);
           if (el("wk-scale")) el("wk-scale").checked = state.show_scale !== false;
           if (el("wk-north")) el("wk-north").checked = state.show_north !== false;
-          if (el("wk-consent-text")) el("wk-consent-text").value = state.consent_text || "";
-          if (el("wk-consent-button")) el("wk-consent-button").value = state.consent_button || "";
+          // 20.10.2026 (Rückgängig-Prüfung) — ohne gespeicherten Text die Standardtexte wie beim Öffnen; vorher waren
+          // Datenschutz-Text und Knopf nach jedem ⌘Z leer (und gingen leer in den Export)
+          if (el("wk-consent-text")) el("wk-consent-text").value = state.consent_text || DEFAULT_CONSENT;
+          if (el("wk-consent-button")) el("wk-consent-button").value = state.consent_button || T("tourmap.html.consent_button_default", "Karte laden");
           applyProjectState();
           try { applyDeco(); } catch (_) {}
         },
