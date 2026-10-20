@@ -20788,7 +20788,8 @@ function mountAnimator(body, headerActions, opts) {
     const _schwebend = typeof _activeProject !== "undefined" && _activeProject && !_activeProject.id;
     if (window.__rzRenderMode || _schwebend) {
       // Render-Fenster (Szene): nur im Speicher übersetzen, nie ins Projekt schreiben
-      Object.assign(p, { container: liste, container_v: 1, verlauf: m.verlauf });
+      // 20.10.2026 — einen schon gespeicherten Verlauf nicht mit dem übersetzten überschreiben
+      Object.assign(p, { container: liste, container_v: 1, verlauf: (p.verlauf && typeof p.verlauf === "object") ? p.verlauf : m.verlauf });
       _ctCache = { roh: undefined, liste: [] };
       applog("info", `[container] ${_schwebend ? "schwebendes Projekt" : "im Render-Fenster"} übersetzt (nicht gespeichert): ${liste.length} Einblendungen`);
       return true;
@@ -21257,7 +21258,10 @@ function mountAnimator(body, headerActions, opts) {
         const v = _ctVerlauf();
         v[teil] = { an: !!vl(teil, "an")?.checked, staerke: (parseInt(vl(teil, "st")?.value, 10) || 0) / 100 };
         if (_animUndoCtrl) { try { _animUndoCtrl.push(label, { force: window.__rzLastUndoEl !== "ct-vl-" + teil }); window.__rzLastUndoEl = "ct-vl-" + teil; } catch (_) {} }
-        saveProjectSettings(_MODKEY, { verlauf: v });
+        // 20.10.2026 (Neustart-Prüfung) — wie _ctSpeichern den übersetzten Stand mitspeichern (container + container_v):
+        // bei einer frisch geöffneten Tour lief die Übersetzung sonst beim nächsten Laden erneut und setzte den Verlauf
+        // auf den Standard zurück („Verlauf oben/unten“ war nach dem Neustart wieder aus)
+        saveProjectSettings(_MODKEY, { verlauf: v, container: _ctListe().map(c => Object.assign({}, c)), container_v: 1 });
         vlSync(); renderOverlayPreview();
       };
       vl(teil, "an")?.addEventListener("change", () => schreib(t("container.verlauf", "Verlauf")));
