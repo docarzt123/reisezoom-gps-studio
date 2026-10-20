@@ -635,6 +635,7 @@
         return;
       }
       map = L.map(host, { scrollWheelZoom: true }).setView([51.16, 10.45], 5);
+      try { window.__rzWkKarte = map; } catch (_) {}   // Prüfstand
       tileLayer = tileFor(tileStyle0).addTo(map);
       _scaleCtl = null; _northCtl = null; try { applyDeco(); applyAttrib(); } catch (_) {}
       _ro = new ResizeObserver(() => { try { map.invalidateSize(false); } catch (_) {} });
@@ -774,6 +775,10 @@
       try { if (_gpxUnsub) _gpxUnsub(); } catch (_) {}
       try { if (_sessUnsub) _sessUnsub(); } catch (_) {}
       try { if (_ro) _ro.disconnect(); } catch (_) {}
+      // 20.10.2026 (Zufalls-Klicktest) — Leaflet 1.1 baut die Karte ab, während die Zoom-Animation des Einpassens noch
+      // läuft; deren Zeitgeber griff danach auf die entfernte Karte zu („t._leaflet_pos“). Die Animation vorher für
+      // beendet erklären — der Zeitgeber prüft genau diese Markierung —, laufendes Schwenken anhalten.
+      try { if (map) { map._animatingZoom = false; if (typeof map.stop === "function") map.stop(); } } catch (_) {}
       try { if (map) map.remove(); } catch (_) {}
       map = null; _ro = null; _gpxUnsub = null; _sessUnsub = null;
     };
