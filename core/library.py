@@ -43,6 +43,12 @@ Zwei Hashes pro Tour:
 from __future__ import annotations
 
 from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
+
+
+def _mitte_lon(lons):
+    """20.10.2026 — mittlerer Längengrad, auch über die Datumsgrenze (core/route.mitte_lon; verzögert geladen)."""
+    from core import route as _route
+    return _route.mitte_lon(lons)
 import functools
 import io
 import json
@@ -1418,7 +1424,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "min_lon": (stats.bbox or {}).get("min_lon"),
         "max_lon": (stats.bbox or {}).get("max_lon"),
         "center_lat": sum(p.lat for p in pts) / len(pts) if pts else None,
-        "center_lon": sum(p.lon for p in pts) / len(pts) if pts else None,
+        "center_lon": _mitte_lon([p.lon for p in pts]) if pts else None,   # 20.10.2026 — Kreismittel (Datumsgrenze)
         # Rangfolge der Fortbewegungsart: Raten → FIT → von Hand.
         # Die Datei weiß es besser als der Dateiname: ein Garmin schreibt
         # `sub_sport = gravel_cycling`, wo wir aus „Tour_2024.fit" gar nichts

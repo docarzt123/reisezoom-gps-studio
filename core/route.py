@@ -518,6 +518,42 @@ def lon_fortlaufend(coords, start_lon: Optional[float] = None) -> List[List[floa
     return out
 
 
+def bbox_anzeige(roh: Optional[dict], lonlat) -> Optional[dict]:
+    """20.10.2026 — Ausschnitt für Karten. Liegt ein Track über der Datumsgrenze, ist das rohe bbox fast 360° breit
+    (−179,9 … 179,9) und die Karte zeigte Längengrad 0 statt Fidschi. Dann Min/Max aus fortlaufenden Längengraden
+    (`max_lon` darf über 180 liegen, MapLibre und Leaflet zeichnen das als Nachbarwelt). Sonst `roh` UNVERÄNDERT —
+    normale Touren bekommen exakt dasselbe wie bisher; Datenbank-Abfragen nutzen weiter das rohe bbox."""
+    if not roh:
+        return roh
+    try:
+        if float(roh["max_lon"]) - float(roh["min_lon"]) <= 180.0:
+            return roh
+        f = lon_fortlaufend(lonlat)
+        if not f:
+            return roh
+        lons = [c[0] for c in f]
+        if max(lons) - min(lons) >= float(roh["max_lon"]) - float(roh["min_lon"]):
+            return roh
+        return dict(roh, min_lon=min(lons), max_lon=max(lons))
+    except (KeyError, TypeError, ValueError):
+        return roh
+
+
+def mitte_lon(lons) -> Optional[float]:
+    """Mittlerer Längengrad, auch über die Datumsgrenze (Kreismittel; −180…180). Leer → None."""
+    import math as _m
+    lons = [float(x) for x in lons or [] if x is not None]
+    if not lons:
+        return None
+    if max(lons) - min(lons) <= 180.0:   # normale Touren: genau der bisherige Mittelwert
+        return sum(lons) / len(lons)
+    s = sum(_m.sin(_m.radians(x)) for x in lons)
+    c = sum(_m.cos(_m.radians(x)) for x in lons)
+    if abs(s) < 1e-12 and abs(c) < 1e-12:
+        return sum(lons) / len(lons)
+    return _m.degrees(_m.atan2(s, c))
+
+
 def stationen_fortlaufend(pts) -> List[Tuple[float, float]]:
     """Stationen so verschieben, dass jede Etappe den kürzeren Weg von der vorigen nimmt (ost- wie westwärts)."""
     out: List[Tuple[float, float]] = []

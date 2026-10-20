@@ -8168,6 +8168,12 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
   Chromium/WebView2 65 s Blockade). Läuft auch nach jedem Kartenstil-Wechsel (Ebenen neu). Prüfstand
   `window.__rzInspektorPunktForm()`. Rest: `gpxinspect_load` liefert ~100 Byte/Punkt (Objekte mit Feldnamen).
   Test `test_inspektor_pfeile_gross`.
+- **Datumsgrenze (20.10.2026):** `core/route.bbox_anzeige(roh, lonlat)` — Ausschnitt aus fortlaufenden Längengraden,
+  nur wenn das rohe bbox über 180° breit ist (sonst `roh` unverändert, auch für Weltreisen über 0°); `mitte_lon()` =
+  Kreismittel nur in diesem Fall. Angewendet: Animator/Tour-Map (`bbox`), Schnell-Video (`linie`, `bbox`), Geotagger
+  (`coords`, `bbox`), Web Karte (Vorschau + Export, `lon_fortlaufend`), Inspektor nur Ausschnitt (`load_points`
+  → `bbox`, `fitTrack` nimmt ihn bei > 180° Spanne; Punkte bleiben roh, Speichern unverändert), Archiv `center_lon`.
+  Datenbank-bbox (`min_lon`/`max_lon`) bleibt roh. Test `test_datumsgrenze`.
 - **Karten in Dialogen (20.10.2026):** `createMap` hängt `_rzKarteMitwachsen(map)` an (`ui/js/util.js`): ein eigener
   `ResizeObserver` vergleicht `canvas.style.width/height` mit `container.clientWidth/Height` und ruft `map.resize()` nur
   bei Abweichung — MapLibre überhört die erste Meldung seines Beobachters; wächst der Dialog genau dann, blieb die

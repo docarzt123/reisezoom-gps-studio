@@ -1316,6 +1316,11 @@ function mountGpxInspect(body, headerActions) {
         if (p.lon < minLon) minLon = p.lon; if (p.lon > maxLon) maxLon = p.lon;
         if (p.lat < minLat) minLat = p.lat; if (p.lat > maxLat) maxLat = p.lat;
       }
+      // 20.10.2026 — Datumsgrenze: aus den Punkten fast 360° breit (−179,9 … 179,9) → die Karte stand auf Längengrad 0.
+      // Das Backend liefert dann einen fortlaufenden Ausschnitt (max_lon > 180); die Punkte selbst bleiben wie in der Datei.
+      if (maxLon - minLon > 180 && bbox && isFinite(bbox.min_lon) && isFinite(bbox.max_lon) && bbox.max_lon - bbox.min_lon < maxLon - minLon) {
+        minLon = bbox.min_lon; maxLon = bbox.max_lon;
+      }
       map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 60, duration: 600, maxZoom: 17 });
     } catch (_) {}
   }

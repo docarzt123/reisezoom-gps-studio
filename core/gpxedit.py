@@ -146,6 +146,12 @@ def load_points(path: str) -> dict:
     # beim Speichern erhalten bleiben). extra ist nur intern, geht nicht raus.
     has_sensors = any(getattr(p, "extra", None) for p in pts)
     bbox = getattr(stats, "bbox", None) or {}
+    # 20.10.2026 — Datumsgrenze: nur der Ausschnitt fortlaufend; Punkte (bearbeitet, gespeichert) bleiben wie in der Datei
+    try:
+        from core import route as _route
+        bbox = _route.bbox_anzeige(bbox, [[p.lon, p.lat] for p in pts]) or bbox
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "ok": True,
         "points": out,

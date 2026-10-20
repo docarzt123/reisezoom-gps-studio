@@ -9354,7 +9354,7 @@ class Api:
                 # 07.10.2026 — geplante Etappe: welche Punkte flach sind (Flug/Schiff/Bahn, zählen nicht zu Hm)
                 "flach": ([1 if p.extra.get("rz_flach") else 0 for p in ds]
                           if any(p.extra.get("rz_flach") for p in ds) else None),
-                "bbox": stats.bbox,
+                "bbox": croute.bbox_anzeige(stats.bbox, coords),   # 20.10.2026 — Datumsgrenze: Ausschnitt fortlaufend
                 "stats": {
                     "n_points": stats.n_points,
                     # 18.10.2026 — so viele Punkte trägt diese Antwort (= n_points, außer über dem technischen Maximum)
@@ -10969,8 +10969,8 @@ class Api:
                         tgp = self._ensure_gpx(tp)
                         tpts, _ = cgpx.parse_gpx(tgp)
                         tds = cgpx.downsample(tpts, 1500)
-                        coords = [[p.lat, p.lon] for p in tds
-                                  if p.lat is not None and p.lon is not None]
+                        coords = [[c[1], c[0]] for c in croute.lon_fortlaufend(
+                            [[p.lon, p.lat] for p in tds if p.lat is not None and p.lon is not None])]   # 20.10.2026 Datumsgrenze
                         if len(coords) < 1:
                             continue
                         out.append({"path": tp, "coords": coords, "name": str(t.get("name") or ""),
@@ -10987,8 +10987,8 @@ class Api:
             gpx_path = self._ensure_gpx(gpx_path)
             pts, _stats = cgpx.parse_gpx(gpx_path)
             ds = cgpx.downsample(pts, 1500)
-            track = [[p.lat, p.lon] for p in ds
-                     if p.lat is not None and p.lon is not None]
+            track = [[c[1], c[0]] for c in croute.lon_fortlaufend(
+                [[p.lon, p.lat] for p in ds if p.lat is not None and p.lon is not None])]   # 20.10.2026 Datumsgrenze
             return {"ok": True, "track": track}
         except Exception as e:
             log.exception("webkarte_prepare fehlgeschlagen: %s", e)
@@ -11006,8 +11006,8 @@ class Api:
             if len(pts) < 2:
                 return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)")}
             ds = cgpx.downsample(pts, 1500)
-            track = [[p.lat, p.lon] for p in ds
-                     if p.lat is not None and p.lon is not None]
+            track = [[c[1], c[0]] for c in croute.lon_fortlaufend(
+                [[p.lon, p.lat] for p in ds if p.lat is not None and p.lon is not None])]   # 20.10.2026 Datumsgrenze
 
             # §17 — Multi-Track: optionale `tracks:[{path,name,color,width,show_pins}]`.
             # Jeder Track wird aus seiner Datei geladen + downsampled. Fallback = der
@@ -11023,8 +11023,8 @@ class Api:
                     if len(tpts) < 2:
                         continue
                     tds = cgpx.downsample(tpts, 1500)
-                    tcoords = [[p.lat, p.lon] for p in tds
-                               if p.lat is not None and p.lon is not None]
+                    tcoords = [[c[1], c[0]] for c in croute.lon_fortlaufend(
+                        [[p.lon, p.lat] for p in tds if p.lat is not None and p.lon is not None])]   # 20.10.2026 Datumsgrenze
                     if len(tcoords) < 2:
                         continue
                     tracks_cfg.append({
@@ -15543,6 +15543,9 @@ class Api:
             linie = [[round(q.lon, 6), round(q.lat, 6)] for q in pts[::schritt]]
             if linie and (linie[-1][0] != round(pts[-1].lon, 6) or linie[-1][1] != round(pts[-1].lat, 6)):
                 linie.append([round(pts[-1].lon, 6), round(pts[-1].lat, 6)])
+            linie = croute.lon_fortlaufend(linie)   # 20.10.2026 — Datumsgrenze: kein Strich quer über die Welt
+            if len(linie) >= 2 and max(c[0] for c in linie) - min(c[0] for c in linie) < max(lons) - min(lons):
+                lons = [c[0] for c in linie]
             # 06.10.2026 (Marc: „Stats und Höhenprofil fehlen noch in der Vorschau") — Zahlen + Profil (≤ 120 Höhen)
             eles = [q.ele for q in pts if q.ele is not None]
             ps = max(1, len(eles) // 120)
@@ -16566,8 +16569,8 @@ class Api:
             "path": str(orig_path), "gpx_path": str(path), "orig_path": str(orig_path),
             "name": stats.name or Path(path).stem,
             "points": pts, "display": ds, "stats": stats,
-            "coords": [[p.lon, p.lat] for p in ds],
-            "bbox": stats.bbox,
+            "coords": croute.lon_fortlaufend([[p.lon, p.lat] for p in ds]),   # 20.10.2026 — Datumsgrenze
+            "bbox": croute.bbox_anzeige(stats.bbox, [[p.lon, p.lat] for p in ds]),
             "time_start": pts[0].time if pts else None,
             "time_end": pts[-1].time if pts else None,
             "n_points": stats.n_points,
