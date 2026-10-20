@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.800] – 2026-10-20
+
 ### Added
 - GPX Inspector remembers its tool settings across a restart (sensitivity, what „Heal“ repairs, speed colours, logbook view, tolerances, join pause). The routing profile is still estimated per tour.
 - Media, „Set place“: place names that are already stored in the files (city, region, country from IPTC/XMP, e.g. from Lightroom) appear as suggestions below the search field, with the number of files. If one applies to at least half of the marked files, it is filled in and searched right away.
