@@ -19,6 +19,9 @@ Bei jeder neuen Version:
 - „Ask GPS Studio“: a question field that searches the manual and the labels of the app's buttons and shows the matching paragraphs — offline, without a language model, in German, English and Spanish. Open it with ⌘K (Windows/Linux: Ctrl+K), the search field at the top right, „Help → Ask GPS Studio …“ or the field in „Quick Start“. Plain questions work („how do I change the date of many photos“, „camera follows the track“, „video in 9:16“). „Show me“ jumps straight to the right module and control, opens the section it sits in and briefly highlights it; if it needs a loaded tour or selected photos first, the result says so. Clicking a manual hit opens the manual at that section.
 
 ### Fixed
+- Animator: ⌘Z now also undoes the frame distribution („Even“/„As recorded“), the pause settings and „Show on map“ for signs — before, these changed without an undo step, and the pause trim stayed on its last value after undo.
+- Archive: typing in the search or the km filter and switching module right away no longer causes a script error, and the typed filter is kept.
+- Web Map: undo no longer empties the privacy text and the „Load map“ button label.
 - Web Map: leaving it while the map is still zooming into the tour no longer causes a script error.
 - The app log no longer labels runtime script errors as „JavaScript error at start“.
 - Tours across the date line (180°, e.g. Fiji, the Aleutians, a Pacific crossing): Animator, Tour Map, quick video, Geotagger, GPX Inspector and Web Map now frame the tour — before, every map jumped to longitude 0 (off West Africa) and the archive placed the tour there too. Lines are drawn continuously instead of across the whole world. Files are not changed; flights in stages already worked.

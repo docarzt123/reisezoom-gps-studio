@@ -15657,7 +15657,11 @@ function mountAnimator(body, headerActions, opts) {
       }, 400);
     }
     // 11.09.2026 — Undo-Rückweg (der Controller steht weiter oben, außerhalb dieses Blocks).
-    window._animSignsNachUndo = (l) => { _animSignsSave(l); _animSignsAttachToMap(); _animSignsRenderList(); };
+    window._animSignsNachUndo = (l) => {
+      _animSignsSave(l);
+      try { const ssh = document.getElementById("anim-signs-show"); if (ssh) ssh.checked = _animSignsShow(); } catch (_) {}   // 20.10.2026
+      _animSignsAttachToMap(); _animSignsRenderList();
+    };
     function _animSignsRenderList() {
       try { _sgSpurAktualisieren(); } catch (_) {}   // 28.09.2026 — Schilder-Spur folgt der Liste
       const host = document.getElementById("anim-signs-list");
@@ -17030,6 +17034,8 @@ function mountAnimator(body, headerActions, opts) {
         show._wired = true;
         show.checked = _animSignsShow();
         show.addEventListener("change", () => {
+          // 20.10.2026 (Rückgängig-Prüfung) — vorher ohne ⌘Z-Schritt; der Haken wird beim Zurückholen nachgezogen (_animSignsNachUndo)
+          try { if (!window.__rzUndoApplying && _animUndoCtrl) _animUndoCtrl.push(t("signs.show_combined", "Auf Karte anzeigen"), { force: true }); } catch (_) {}
           try {
             if (typeof saveProjectSettings === "function" && typeof getActiveSession === "function" && getActiveSession())
               saveProjectSettings(_MODKEY, { signs_show: !!show.checked });
@@ -18657,10 +18663,12 @@ function mountAnimator(body, headerActions, opts) {
       if (sel) sel.value = a.pace_mode || "raw";
       const pm = document.getElementById("anim-pause-mode");
       if (pm) pm.value = a.pause_mode || "trim";
+      // 20.10.2026 (Rückgängig-Prüfung) — fehlt der Wert im Projekt (noch nie geändert), den Standard des Feldes zeigen;
+      // vorher blieb nach ⌘Z der zuletzt eingestellte Wert stehen
       const mn = document.getElementById("anim-pause-min");
-      if (mn && a.pause_min_s) mn.value = (a.pause_min_s / 60);
+      if (mn) mn.value = a.pause_min_s ? (a.pause_min_s / 60) : mn.defaultValue;
       const tr = document.getElementById("anim-pause-trim");
-      if (tr && a.pause_trim_s != null) tr.value = a.pause_trim_s;
+      if (tr) tr.value = (a.pause_trim_s != null) ? a.pause_trim_s : tr.defaultValue;
       paceAnzeigen();
 
       // v0.9.509 — Laufpunkt aus dem Projekt. Fehlt die Angabe (Projekt von
@@ -18807,6 +18815,8 @@ function mountAnimator(body, headerActions, opts) {
   setTimeout(() => { try { paceAnzeigen(); } catch (_) {} }, 0);
 
   document.getElementById("anim-pace")?.addEventListener("change", () => {
+    // 20.10.2026 (Rückgängig-Prüfung) — vor dem Speichern ein ⌘Z-Schritt; vorher nahm ⌘Z diese Einstellung nicht zurück
+    try { if (!window.__rzUndoApplying) _animPushUndo(t("animator.field.pace_mode", "Tempo"), { force: true }); } catch (_) {}
     paceAnzeigen();
     if (typeof saveProjectSettings === "function") {
       saveProjectSettings(_MODKEY, { pace_mode: _paceModus() });
@@ -18815,6 +18825,8 @@ function mountAnimator(body, headerActions, opts) {
     }
   });
   document.getElementById("anim-pause-mode")?.addEventListener("change", () => {
+    // 20.10.2026 (Rückgängig-Prüfung) — vor dem Speichern ein ⌘Z-Schritt; vorher nahm ⌘Z diese Einstellung nicht zurück
+    try { if (!window.__rzUndoApplying) _animPushUndo(t("animator.field.pause_mode", "Pausen"), { force: true }); } catch (_) {}
     paceAnzeigen();
     const v = document.getElementById("anim-pause-mode").value;
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { pause_mode: v });
@@ -18833,6 +18845,8 @@ function mountAnimator(body, headerActions, opts) {
       paceMapLaden();      // die Schwelle ändert auch die Verteilung selbst
     });
     document.getElementById(id)?.addEventListener("change", () => {
+      // 20.10.2026 (Rückgängig-Prüfung) — vor dem Speichern ein ⌘Z-Schritt; vorher nahm ⌘Z die Pausenschwelle nicht zurück
+      try { if (!window.__rzUndoApplying) _animPushUndo(t("animator.field.pause_mode", "Pausen"), { force: true }); } catch (_) {}
       const patch = {
         pause_min_s: (parseFloat(document.getElementById("anim-pause-min").value) || 2) * 60,
         pause_trim_s: parseFloat(document.getElementById("anim-pause-trim").value) || 0,
