@@ -3151,6 +3151,10 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .hl-chip button { border: 0; background: transparent; cursor: pointer; color: var(--text-muted); }
 .hl-quellen { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 12px; }
 .hl-quellen label { display: inline-flex; align-items: center; gap: 4px; }
+.hl-orte-stil input[type=range] { width: 120px; vertical-align: middle; }
+.hl-orte-stil input[type=number] { width: 64px; }
+.hl-orte-frage { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; padding: 6px 8px; border-left: 3px solid #e0a030; background: rgba(224,160,48,.12); }
+.hl-orte-frage[hidden] { display: none; }
 .hl-liste { overflow-y: auto; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column; gap: 6px; }
 .hl-zeile { display: grid; grid-template-columns: 24px 96px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid rgba(127,127,127,.25); border-radius: 8px; }
 .hl-zeile.aus { opacity: .5; }
