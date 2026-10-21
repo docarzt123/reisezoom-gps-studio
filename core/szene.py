@@ -630,6 +630,8 @@ async def _vorlaeufer(p, cfg, api, projekt_id, params, modul, zustand, is_cancel
             await page.evaluate(f"() => window.__rzPreviewStep.seek({pos / cfg.fps:.6f})")
             await page.evaluate(_WARTE_VORLAEUFER_JS)
             halte += 1
+            if GC_BILDER > 0 and halte % max(1, GC_BILDER // VORLAEUFER_SCHRITT) == 0:
+                await _speicher_aufraeumen(page)
             zustand["stand"] = pos
             pos += VORLAEUFER_SCHRITT
     except Exception as e:      # noqa: BLE001
@@ -640,6 +642,29 @@ async def _vorlaeufer(p, cfg, api, projekt_id, params, modul, zustand, is_cancel
         if browser is not None:
             try: await browser.close()
             except Exception: pass
+
+
+# 19.10.2026: Der Render-Browser wuchs je 100 Bilder um mehrere hundert MB, bis der Arbeitsspeicher ausging (lange Videos
+# brachen ab). Kein Leck: die Seite erzeugt je Bild viel kurzlebigen Müll (Kacheln, Gelände, Gebäude), an dem nativer
+# Speicher hängt; V8 räumt ihn erst spät weg, weil es den nativen Anteil kaum sieht. Ein voller GC alle GC_BILDER Bilder
+# (Render-Seite und Vorläufer) hält den Speicher flach und kostet kaum Zeit. RZ_GC_BILDER=0 schaltet ihn ab (Messen).
+GC_BILDER = int(os.environ.get("RZ_GC_BILDER") or 25)
+
+
+async def _speicher_aufraeumen(page) -> bool:
+    """Voller GC in der Seite über eine CDP-Sitzung (je Seite einmal angelegt). Fehler beenden nie den Render."""
+    try:
+        cdp = getattr(page, "_rz_cdp", None)
+        if cdp is None:
+            cdp = await page.context.new_cdp_session(page)
+            page._rz_cdp = cdp
+        await cdp.send("HeapProfiler.collectGarbage")
+        return True
+    except Exception as e:      # noqa: BLE001
+        if not getattr(page, "_rz_gc_fehler", False):
+            page._rz_gc_fehler = True
+            _log.info("Szene: Speicher aufräumen nicht möglich: %s", str(e)[:160])
+        return False
 
 
 # 16.10.2026 (Windows-Log: „Page.evaluate: Connection closed while reading from the driver“ bei Bild 213 von 1050 — der
@@ -897,6 +922,8 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     if on_preview and frame % preview_every == 0:
                         try: on_preview(base64.b64encode(shot).decode("ascii"))
                         except Exception: pass
+                    if GC_BILDER > 0 and (frame + 1) % GC_BILDER == 0:
+                        await _speicher_aufraeumen(page)
                     if frame % 10 == 0:
                         _hinweis_alt = _stoerung_hinweis(page)   # 30.09.2026 — Kartendienst-Ausfälle sichtbar machen
                     emit(0.05 + 0.87 * (frame + 1) / total_frames, f"Frame {frame + 1} / {total_frames}" + _hinweis_alt)
