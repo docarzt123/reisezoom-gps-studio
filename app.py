@@ -19598,6 +19598,28 @@ def _fenster_sichtbar(x: int, y: int, w: int, h: int) -> bool:
         return False
 
 
+def _mac_rahmen_sichtbar(r) -> bool:
+    """Liegt die Titelleiste des gemerkten Rahmens (globale Cocoa-Koordinaten: x, y von unten, Breite, Höhe) auf einem der
+    jetzigen Bildschirme?"""
+    try:
+        import AppKit  # type: ignore
+        x, y, w, h = (float(v) for v in r)
+        if w < 200 or h < 200:
+            return False
+        sx, sy, sw, sh = x + 40, y + h - 30, max(1.0, w - 80), 30.0
+        for sc in AppKit.NSScreen.screens() or []:
+            f = sc.visibleFrame()
+            bx = min(sx + sw, f.origin.x + f.size.width) - max(sx, f.origin.x)
+            by = min(sy + sh, f.origin.y + f.size.height) - max(sy, f.origin.y)
+            if bx >= min(200, sw) and by >= 20:
+                return True
+        log.info("[fenster] gemerkter Rahmen %s liegt auf keinem Bildschirm", r)
+        return False
+    except Exception as e:  # noqa: BLE001
+        log.info("[fenster] Bildschirme nicht lesbar: %s", e)
+        return False
+
+
 def _fenster_absturz_abfangen() -> None:
     """Zweite Sicherung zur Prüfung oben: pywebviews `windowDidMove_` liest `window.screen().frame()` ohne zu prüfen, ob
     das Fenster überhaupt auf einem Bildschirm liegt. Ohne Bildschirm die Meldung auslassen statt abzustürzen."""
@@ -19618,7 +19640,8 @@ def _fenster_absturz_abfangen() -> None:
             except Exception:  # noqa: BLE001
                 return
             alt(self, notification)
-        dele.windowDidMove_ = windowDidMove_
+        import objc  # type: ignore
+        dele.windowDidMove_ = objc.selector(windowDidMove_, selector=b"windowDidMove:", signature=b"v@:@")
         dele._rz_sicher = True
     except Exception as e:  # noqa: BLE001
         log.info("[fenster] Absturz-Sicherung nicht gesetzt: %s", e)
@@ -19698,7 +19721,15 @@ def main() -> None:
         background_color="#0e1116",
         maximized=(not _have_remembered),
     )
-    if _have_remembered and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
+    # 21.10.2026 (zweite Nutzer-Meldung: „der zweite Monitor war immer angeschlossen, eventuell nicht ausgewählt“) —
+    # pywebview rechnet x/y relativ zum gerade AKTIVEN Bildschirm (NSScreen.mainScreen = der mit dem Fokus) um, gemerkt
+    # wurde y aber relativ zum Bildschirm, auf dem das Fenster lag. Je nachdem, welcher Bildschirm beim Start aktiv war,
+    # landete das Fenster woanders oder im Nichts. Auf dem Mac darum den echten Rahmen in globalen Koordinaten merken
+    # (`mac_rahmen`) und ihn vor dem Zeigen selbst setzen.
+    _mac_rahmen = _win_cfg.get("mac_rahmen") if sys.platform == "darwin" else None
+    if not (isinstance(_mac_rahmen, list) and len(_mac_rahmen) == 4 and _mac_rahmen_sichtbar(_mac_rahmen)):
+        _mac_rahmen = None
+    if _have_remembered and not _mac_rahmen and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
         create_kwargs["x"] = _win_x
         create_kwargs["y"] = _win_y
     _fenster_absturz_abfangen()
@@ -19730,6 +19761,16 @@ def main() -> None:
 
     win = webview.create_window(**create_kwargs)
     api.set_window(win)
+    if _mac_rahmen and _have_remembered:
+        def _rahmen_vor_dem_zeigen(window):
+            # läuft auf dem Cocoa-Hauptfaden, bevor das Fenster erscheint (pywebview before_show ist synchron)
+            try:
+                import AppKit  # type: ignore
+                window.native.setFrame_display_(AppKit.NSMakeRect(*[float(v) for v in _mac_rahmen]), False)
+                log.info("[fenster] Rahmen wiederhergestellt: %s", _mac_rahmen)
+            except Exception as e:  # noqa: BLE001
+                log.info("[fenster] Rahmen nicht gesetzt: %s", e)
+        win.events.before_show += _rahmen_vor_dem_zeigen
 
     # Fenster nach Start auf volle Bildschirmgröße ziehen — pywebview's
     # `maximized=True` greift in 6.x auf macOS nicht zuverlässig. NSWindow-
@@ -19860,6 +19901,12 @@ def main() -> None:
                     _wcfg["height"] = h
                     _wcfg["x"] = x
                     _wcfg["y"] = y
+                    if sys.platform == "darwin":
+                        try:
+                            fr = win.native.frame()
+                            _wcfg["mac_rahmen"] = [round(fr.origin.x), round(fr.origin.y), round(fr.size.width), round(fr.size.height)]
+                        except Exception:  # noqa: BLE001
+                            pass
                     _cur_settings["window"] = _wcfg
                     _save_settings(_cur_settings)
                     log.info(f"Fenster-Geometrie gespeichert: {w}×{h} @ ({x},{y})")

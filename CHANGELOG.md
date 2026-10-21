@@ -18,7 +18,7 @@ Bei jeder neuen Version:
 - About dialog: the Ko-fi button — supporting the app now goes through PayPal only.
 
 ### Fixed
-- Mac: the app no longer fails to start when its remembered window position is on no screen any more (e.g. a second display unplugged or rearranged) — it opened nothing, every time, until the display was back. Now it opens centered on the main display.
+- Mac with two displays: the app sometimes did not start at all — it remembered the window position relative to one display but restored it relative to whichever display was active at launch, so the window could land off every screen and the start broke off silently. The window now comes back exactly where it was, whichever display is active; if that place is on no screen any more, it opens centered.
 
 ## [0.9.804] – 2026-10-21
 
