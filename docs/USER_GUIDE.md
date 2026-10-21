@@ -2212,7 +2212,7 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
 
 - **Kacheln:** das Bild, darunter Datum · Uhrzeit und Ort. Beim Drüberfahren erscheint links oben ein Kästchen zum
   **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten. Sobald etwas markiert ist, schwebt unten über dem Raster eine Leiste
-  **„N ausgewählt“** mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit — die Bilder
+  **„N ausgewählt“** mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto, Öffnen mit und In den Papierkorb — die Bilder
   bleiben dabei an ihrem Platz. Esc hebt die Markierung auf, ⌘A markiert alle.
 - **Ort setzen** (für Fotos ohne Koordinate): Die Karte startet dort, wo die Fotos hingehören — bei Fotos desselben Tages mit
   GPS, sonst bei den Touren dieses Tages —, und die Ortssuche bevorzugt Treffer in dieser Gegend. Gleichnamige Treffer stehen nur einmal da.
@@ -2303,6 +2303,23 @@ QuickTime-Zeiten. Die Zeitzonen-Angabe einer Datei bleibt erhalten. Insta360-Roh
 unverändert — die Vorschau sagt das. Vorher legt die App **eine Sicherung aller Originale** an (ein ZIP); klappt die
 nicht, wird nichts geändert. Der Fortschritt steht unten rechts, dort lässt sich der Lauf auch abbrechen. Danach liest
 die App die Dateien neu ein: Raster, „Nach Datum“ und die Zuordnung zu Touren stimmen sofort.
+
+### 🗑 Medien in den Papierkorb legen
+
+Rechtsklick auf ein Foto oder einen Clip → **„In den Papierkorb …“**, bei mehreren markierten **„N in den Papierkorb …“** —
+oder in der Leiste unten, oder einfach die **Entf-/⌫-Taste**. GPS Studio fragt vorher nach und nennt, wie viele Dateien es
+sind und wie viel Platz sie belegen. Dazu:
+
+- **RAW+JPG-Paare:** Liegt neben dem Foto die passende RAW- bzw. JPG-Datei (gleicher Name, gleicher Ordner), kannst du sie
+  mit einem Haken gleich mitnehmen.
+- **Begleitdateien** (`.xmp` von Lightroom oder darktable) gehen mit, wenn ihr Foto ganz weg ist — bleibt die RAW-Datei
+  liegen, bleibt auch ihre `.xmp`.
+- **In Projekten:** Steckt ein Foto in einem Projekt (z. B. als Fotostopp), nennt die Rückfrage das Projekt — dort fehlt
+  es danach.
+
+Die Dateien landen im **Papierkorb deines Systems** und lassen sich von dort zurücklegen; endgültig weg sind sie erst,
+wenn du ihn leerst. Liegt eine Datei auf einem Laufwerk ohne Papierkorb (z. B. einem NAS), bleibt sie, wo sie ist, und die
+Meldung sagt das. Raster, „Nach Datum“ und Alben sind danach sofort aktuell, rechts rückt das nächste Foto nach.
 
 ### ⧉ Doppelte finden und wegräumen (seit v0.9.787)
 

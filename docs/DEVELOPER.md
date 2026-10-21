@@ -7324,6 +7324,15 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
     (`_ds.umbenennen`, nie überschreiben: `-2`); die drei Ordnernamen stehen in `SKIP_DIRS`, sonst holte das Einlesen
     sie zurück. Danach fliegen ihre Zeilen (und `tour_medien_korr`) aus dem Bestand — als `fehlt_seit` standen sie unter „Nicht erreichbar“. UI: `rzArchivExport.doppelte(fertig)` (Overlay-Klasse `dp-gross`), Eintrag
     `#foto-nav-doppelte`. Wächter: `test_doppelte`, `test_doppelte_ui`.
+  - **Medien in den Papierkorb (20.10.2026):** gemeinsamer Weg `Api._medien_wegraeumen(pfade, wohin, anlass)` (Papierkorb
+    bzw. Doppelte-Ordner, `KeinPapierkorb` → Datei bleibt, danach Zeilen aus `fotos`, `tour_medien_korr`, `foto_fav`,
+    `foto_album_inhalt`). `_papierkorb_plan(pfade, partner)` = Auswahl + RAW/JPG-Partner (`aufnahmezeit.partner_finden`)
+    + Begleitdateien `NAME.xmp` (nur wenn keine Datei mit dem Namen bleibt) und `NAME.EXT.xmp`; `medien_in_papierkorb`
+    prüft die Begleitdateien erst NACH dem Wegräumen erneut (ging ein Partner nicht, bleibt seine `.xmp`).
+    `medien_papierkorb_vorschau` → Zahl, Bytes, Partnernamen, `projekte` (`_projekte_mit_medien`: Pfad als JSON-String
+    im Projekt gesucht). UI: `rzArchivExport.papierkorb(pfade, fertig)` (Dialog `.korb-dialog`), Einträge in
+    `kachelMenue`, Leiste `data-ml="korb"`, Entf/⌫ in `fotos.js`; `nachPapierkorb` lädt neu und zeigt rechts das
+    nächste Medium. Wächter: `test_medien_papierkorb`, `test_medien_papierkorb_ui`.
   - **Durchsicht 08.10.2026 nachgezogen:** Export „ohne Metadaten“ schneidet APP1 (EXIF+XMP), APP13 (IPTC), APP12 und COM
     verlustfrei heraus (`medienexport.jpeg_ohne_metadaten`, APP2-Farbprofil und APP14 bleiben); Orientation ≠ 1 → einmal
     gedreht neu gespeichert; `verkleinert_jpeg` nimmt das Farbprofil mit und setzt `comment=b""` (Pillow übernimmt den

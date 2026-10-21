@@ -7239,7 +7239,13 @@ class Api:
         „Doppelte (GPS Studio)“ neben dem Original (das Einlesen lässt ihn aus). Danach fliegen ihre Einträge aus dem
         Bestand (08.10.2026, Klicktest: als „fehlend“ markiert standen sie links unter „Nicht erreichbar“ — sie sind aber
         bewusst weg, nicht vermisst)."""
-        pfade = [str(p) for p in (pfade or []) if p][:5000]
+        r = self._medien_wegraeumen([str(p) for p in (pfade or []) if p][:5000], wohin, "doppelte")
+        r.pop("pfade_ok", None)
+        return r
+
+    def _medien_wegraeumen(self, pfade: list, wohin: str, anlass: str) -> dict:
+        """Gemeinsamer Weg für „Doppelte wegräumen“ und „In den Papierkorb“ (20.10.2026): nie endgültig löschen,
+        Laufwerk ohne Papierkorb → Datei bleibt (`kein_papierkorb`), danach die Einträge aus Bestand, Alben, Favoriten."""
         ok, fehler = [], []
         for p in pfade:
             try:
@@ -7277,10 +7283,107 @@ class Api:
                         c.execute(f"DELETE FROM foto_album_inhalt WHERE pfad IN ({frage})", teil)
                     c.commit()
             except Exception as e:  # noqa: BLE001
-                log.warning("[doppelte] Bestand nicht nachgezogen: %s", e)
-        log.info("[doppelte] %d weggeräumt (%s), %d nicht", len(ok), wohin, len(fehler))
+                log.warning("[%s] Bestand nicht nachgezogen: %s", anlass, e)
+        log.info("[%s] %d weggeräumt (%s), %d nicht", anlass, len(ok), wohin, len(fehler))
         return {"ok": bool(ok) or not pfade, "n_ok": len(ok), "n_fehler": len(fehler), "fehler": fehler[:30], "wohin": wohin,
-                "n_kein_papierkorb": sum(1 for f in fehler if f["grund"] == "kein_papierkorb")}
+                "n_kein_papierkorb": sum(1 for f in fehler if f["grund"] == "kein_papierkorb"), "pfade_ok": ok}
+
+    # ── 20.10.2026 — Medien per Rechtsklick in den Papierkorb (Nutzerwunsch) ─────────────────────────────────────
+    def _papierkorb_plan(self, pfade: list, partner: bool) -> dict:
+        """Was „In den Papierkorb“ mitnimmt: die gewählten Medien, auf Wunsch ihre RAW-/JPG-Partner (gleicher Ordner,
+        gleicher Name — die stehen im Archiv als eigene Kachel) und Lightroom-/darktable-Begleitdateien (NAME.xmp,
+        NAME.EXT.xmp) — eine Begleitdatei aber nur, wenn keine Datei mit diesem Namen liegen bleibt."""
+        from core import aufnahmezeit as caz
+        pfade = list(dict.fromkeys(str(p) for p in (pfade or []) if p))[:caz.MAX_DATEIEN]
+        dazu = caz.partner_finden(pfade) if partner else []
+        weg = pfade + dazu
+        weg_k = {os.path.normcase(os.path.abspath(p)) for p in weg}
+        begleit, ordner = [], {}
+        for p in weg:
+            d, name = os.path.split(p)
+            stamm = os.path.splitext(name)[0]
+            if d not in ordner:
+                try:
+                    ordner[d] = os.listdir(d)
+                except OSError:
+                    ordner[d] = []
+            bleibt = [n for n in ordner[d] if os.path.splitext(n)[0] == stamm and not n.lower().endswith(".xmp")
+                      and os.path.normcase(os.path.abspath(os.path.join(d, n))) not in weg_k]
+            for n in (stamm + ".xmp", name + ".xmp"):
+                treffer = [x for x in ordner[d] if x.lower() == n.lower()]
+                for x in treffer:
+                    q = os.path.join(d, x)
+                    if q not in begleit and (n != stamm + ".xmp" or not bleibt):
+                        begleit.append(q)
+        return {"pfade": pfade, "partner": dazu, "begleit": begleit}
+
+    def _projekte_mit_medien(self, pfade: list) -> list:
+        """Namen der Projekte, in deren Arbeitsstand eines der Medien steckt (Fotostopp, Clip, Einblendung)."""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+        except Exception:  # noqa: BLE001
+            return []
+        such = [json.dumps(str(p), ensure_ascii=False)[1:-1] for p in pfade]
+        namen = []
+        for pr in (daten.get("projects") or {}).values():
+            try:
+                roh = json.dumps(pr, ensure_ascii=False)
+            except Exception:  # noqa: BLE001
+                continue
+            if any(s in roh for s in such):
+                n = _projekte.anzeigename(daten, pr)
+                if n not in namen:
+                    namen.append(n)
+        return namen
+
+    def medien_papierkorb_vorschau(self, pfade: list, partner: bool = True) -> dict:
+        """Für die Rückfrage: wie viele Dateien, wie viel Platz, welche Partner/Begleitdateien, welche Projekte."""
+        try:
+            plan = self._papierkorb_plan(pfade, partner)
+            alle = plan["pfade"] + plan["partner"] + plan["begleit"]
+            groesse = 0
+            for p in alle:
+                try:
+                    groesse += os.path.getsize(p)
+                except OSError:
+                    pass
+            return {"ok": True, "n": len(plan["pfade"]), "n_partner": len(plan["partner"]),
+                    "n_begleit": len(plan["begleit"]), "bytes": groesse,
+                    "partner_namen": [Path(p).name for p in plan["partner"][:6]],
+                    "projekte": self._projekte_mit_medien(plan["pfade"] + plan["partner"])[:8]}
+        except Exception as e:  # noqa: BLE001
+            log.exception("medien_papierkorb_vorschau")
+            return {"ok": False, "error": str(e)}
+
+    def medien_in_papierkorb(self, pfade: list, partner: bool = True) -> dict:
+        """Markierte Medien (und auf Wunsch ihre Partner + Begleitdateien) in den Papierkorb des Systems — nie
+        endgültig. Begleitdateien stehen nicht im Bestand; sie wandern nur mit, wenn ihr Medium wirklich weg ist."""
+        try:
+            plan = self._papierkorb_plan(pfade, partner)
+            r = self._medien_wegraeumen(plan["pfade"] + plan["partner"], "papierkorb", "papierkorb")
+            n_begleit = 0
+            for q in plan["begleit"]:
+                # erst jetzt nachsehen: ging ein Partner nicht in den Papierkorb, bleibt seine Begleitdatei bei ihm
+                d, x = os.path.split(q)
+                ohne = x[:-4]                       # NAME.EXT.xmp → NAME.EXT · NAME.xmp → NAME
+                try:
+                    da = [n for n in os.listdir(d) if not n.lower().endswith(".xmp")]
+                except OSError:
+                    continue
+                if any(n == ohne or os.path.splitext(n)[0] == ohne for n in da):
+                    continue
+                try:
+                    _ds.nutzer_ziel(Path(q))
+                    clib._in_den_papierkorb(Path(q))
+                    n_begleit += 1
+                except Exception as e:  # noqa: BLE001
+                    log.info("[papierkorb] Begleitdatei bleibt: %s (%s)", q, e)
+            r["n_begleit"] = n_begleit
+            r.pop("pfade_ok", None)
+            return r
+        except Exception as e:  # noqa: BLE001
+            log.exception("medien_in_papierkorb")
+            return {"ok": False, "error": str(e), "n_ok": 0, "n_fehler": 0}
 
     def medium_touren(self, path: str) -> dict:
         """Alle Touren eines Mediums (für die rechte Spalte: ✕ / ＋) und die Touren seines Tages zum Hinzufügen."""

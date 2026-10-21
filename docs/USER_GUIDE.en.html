@@ -1421,7 +1421,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <ul>
 <li><strong>Tiles:</strong> the picture with date · time and place below. On hover a box at the top left <strong>marks</strong> it (or ⌘/Shift-click),</li>
 </ul>
-<p> the <strong>heart</strong> at the top right makes it a favourite. As soon as something is marked, a bar <strong>„N selected“</strong> floats at the bottom of  the grid with Export, Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto and Open with — the pictures  stay where they are. Esc clears, ⌘A marks all.</p>
+<p> the <strong>heart</strong> at the top right makes it a favourite. As soon as something is marked, a bar <strong>„N selected“</strong> floats at the bottom of  the grid with Export, Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto, Open with and Move to Trash — the pictures  stay where they are. Esc clears, ⌘A marks all.</p>
 <ul>
 <li><strong>Set location</strong> (for photos without coordinates): the map starts where the photos belong — at photos of the same day that have</li>
 </ul>
@@ -1495,6 +1495,21 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ul>
 <p> (the order stays); without it, all get exactly this time. Files without a capture time get it in both cases.</p>
 <p>The <strong>preview</strong> shows old → new for the first files and below how many will be changed and how many stay. <strong>RAW+JPG pairs</strong> (same name in the same folder) are changed together, even if only the JPG is marked. The time is written into the files themselves: for photos EXIF (capture, digitised and modify time) and existing XMP times, for RAW also an existing sidecar (<code>.xmp</code> from Lightroom), for videos (MP4, MOV) the QuickTime times. A file&#x27;s time zone note is kept. Insta360 raw files, AVI, MKV and AVCHD stay unchanged — the preview says so. The app first makes <strong>one backup of all originals</strong> (a ZIP); if that fails, nothing is changed. Progress shows at the bottom right, where you can also cancel. Afterwards the files are read again: grid, „By date“ and the assignment to tours are right at once.</p>
+<h3 id="move-media-to-the-trash">🗑 Move media to the Trash</h3>
+<p>Right-click a photo or clip → <strong>„Move to Trash …“</strong>, with several marked <strong>„Move N to Trash …“</strong> — or in the bar at the bottom, or simply the <strong>Delete/⌫ key</strong>. GPS Studio asks first and says how many files it is and how much space they take. Also:</p>
+<ul>
+<li><strong>RAW+JPG pairs:</strong> if the matching RAW or JPG file lies next to the photo (same name, same folder), one tick takes it</li>
+</ul>
+<p> along.</p>
+<ul>
+<li><strong>Sidecar files</strong> (<code>.xmp</code> from Lightroom or darktable) go along when their photo is gone completely — if the RAW file</li>
+</ul>
+<p> stays, its <code>.xmp</code> stays too.</p>
+<ul>
+<li><strong>In projects:</strong> if a photo is used in a project (e.g. as a photo stop), the question names the project — it will be</li>
+</ul>
+<p> missing there afterwards.</p>
+<p>The files go to <strong>your system&#x27;s Trash</strong> and can be put back from there; they are only gone for good when you empty it. A file on a drive without a Trash (e.g. a NAS) stays where it is, and the message says so. Grid, „By date“ and albums are up to date at once, and the next photo moves up on the right.</p>
 <h3 id="find-and-tidy-up-duplicates">⧉ Find and tidy up duplicates</h3>
 <p>In Media on the left: <strong>„⧉ Find duplicates …“</strong>. The dialog has two tabs:</p>
 <ul>

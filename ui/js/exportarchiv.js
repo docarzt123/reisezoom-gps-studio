@@ -656,6 +656,80 @@
     laden();
   }
 
+  /* 20.10.2026 (Nutzerwunsch: „Für Medien Rechtsklick löschen mit einbinden“) — Medien in den Papierkorb des Systems.
+     Nie endgültig: von dort lassen sie sich zurücklegen. Laufwerke ohne Papierkorb (NAS) lassen die Datei liegen und
+     sagen es (gleicher Weg wie „Doppelte wegräumen“). Die Rückfrage nennt Anzahl, Platz, RAW-/JPG-Partner und Projekte,
+     in denen ein Medium steckt. */
+  function papierkorb(pfade, fertig) {
+    pfade = (pfade || []).filter(Boolean);
+    if (!pfade.length || typeof openModal !== "function") return;
+    const n = pfade.length;
+    const mb = (b) => (b >= 1e9 ? (b / 1e9).toLocaleString(undefined, { maximumFractionDigits: 1 }) + " GB" : Math.max(1, Math.round((b || 0) / 1e6)) + " MB");
+    const m = openModal({
+      title: n === 1 ? T("korb.titel_1", "In den Papierkorb legen?") : T("korb.titel_n", "{n} Medien in den Papierkorb legen?", { n: num(n) }),
+      body: `<div class="ex-dialog korb-dialog">
+          <div id="korb-info"><div class="dp-laedt"><span class="ass-spinner"></span> ${esc(T("korb.prueft", "Prüft die Dateien …"))}</div></div>
+          <label class="ex-zeile" id="korb-partner-zeile" hidden><input type="checkbox" id="korb-partner" checked> <span id="korb-partner-text"></span></label>
+          <div class="lib-hint ex-hinweis">${esc(T("korb.hinweis", "Die Dateien landen im Papierkorb deines Systems und lassen sich von dort zurücklegen. Endgültig weg sind sie erst, wenn du ihn leerst."))}</div>
+        </div>`,
+      footer: `<button type="button" class="btn" id="korb-ab">${esc(T("common.cancel", "Abbrechen"))}</button>
+               <button type="button" class="btn btn-danger" id="korb-ok" disabled>${I("trash-2", 14)} ${esc(T("korb.ok", "In den Papierkorb"))}</button>`,
+    });
+    const $ = (id) => document.getElementById(id);
+    // Esc = Abbrechen (wie bei jeder Lösch-Rückfrage); nicht, solange es läuft
+    const taste = (e) => {
+      if (!document.querySelector(".korb-dialog")) { document.removeEventListener("keydown", taste, true); return; }
+      if (e.key !== "Escape" || e.isComposing || ($("korb-ab") && $("korb-ab").disabled)) return;
+      e.preventDefault(); e.stopPropagation(); zu();
+    };
+    const zu = () => { document.removeEventListener("keydown", taste, true); m.close(); };
+    document.addEventListener("keydown", taste, true);
+    $("korb-ab").onclick = zu;
+    let stand = 0;
+    async function pruefen() {
+      const mein = ++stand, ok = $("korb-ok"); if (ok) ok.disabled = true;
+      const partner = !!($("korb-partner") && $("korb-partner").checked);
+      let r = null; try { r = await api().medien_papierkorb_vorschau(pfade, partner); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Spinner im Dialog
+      const box = $("korb-info"); if (!box || mein !== stand) return;
+      if (!r || !r.ok) { box.innerHTML = `<div class="dp-leer">${I("triangle-alert", 16)} ${esc((r && r.error) || "?")}</div>`; return; }
+      const zeile = $("korb-partner-zeile");
+      if (r.n_partner || zeile.dataset.gesehen) {
+        zeile.hidden = false; zeile.dataset.gesehen = "1";
+        if (r.n_partner) $("korb-partner-text").textContent = T("korb.partner", "Dazugehörige RAW-/JPG-Dateien auch ({n}: {namen})", { n: num(r.n_partner), namen: (r.partner_namen || []).join(", ") + (r.n_partner > (r.partner_namen || []).length ? " …" : "") });
+      }
+      const teile = [];
+      const gesamt = r.n + (r.n_partner || 0) + (r.n_begleit || 0);
+      teile.push(`<p class="korb-zahl">${esc(gesamt === 1 ? T("korb.zahl_1", "1 Datei, {mb}.", { mb: mb(r.bytes) })
+                                                        : T("korb.zahl", "{n} Dateien, zusammen {mb}.", { n: num(gesamt), mb: mb(r.bytes) }))}</p>`);
+      if (r.n_begleit) teile.push(`<p class="korb-zeile">${I("file-text", 14)} ${esc(r.n_begleit === 1 ? T("korb.begleit_1", "1 Begleitdatei (.xmp, z. B. von Lightroom) geht mit.")
+                                                                 : T("korb.begleit", "{n} Begleitdateien (.xmp, z. B. von Lightroom) gehen mit.", { n: num(r.n_begleit) }))}</p>`);
+      if ((r.projekte || []).length) teile.push(`<p class="korb-zeile korb-warn">${I("triangle-alert", 14)} ${esc(T("korb.projekte", "Steckt in Projekten: {namen}. Dort fehlt das Medium danach.", { namen: r.projekte.join(", ") }))}</p>`);
+      box.innerHTML = teile.join("");
+      if (ok) ok.disabled = false;
+    }
+    $("korb-partner").onchange = pruefen;
+    $("korb-ok").onclick = async () => {
+      const k = $("korb-ok"); k.disabled = true; k.innerHTML = `<span class="ass-spinner"></span> ${esc(T("korb.laeuft", "Legt in den Papierkorb …"))}`;
+      try { m.update({ closable: false }); } catch (_) {}
+      const ab = $("korb-ab"); if (ab) ab.disabled = true;
+      const partner = !!($("korb-partner") && $("korb-partner").checked);
+      let r = null; try { r = await api().medien_in_papierkorb(pfade, partner); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Knopf zeigt „Legt in den Papierkorb …“
+      try { m.update({ closable: true }); } catch (_) {}
+      zu();
+      if (typeof toast === "function") {
+        const ohne = (r && r.n_kein_papierkorb) || 0, sonst = ((r && r.n_fehler) || 0) - ohne;
+        const satz = (r && r.n_ok) ? T("korb.fertig", "{n} in den Papierkorb gelegt — von dort lassen sie sich zurücklegen.", { n: num(r.n_ok) }) : "";
+        toast([satz,
+               ohne ? T("korb.kein_papierkorb", "{n} liegen auf einem Laufwerk ohne Papierkorb (z. B. einem NAS) und bleiben, wo sie sind.", { n: num(ohne) }) : "",
+               sonst > 0 ? T("dop.fehler", "{n} gingen nicht (schreibgeschützt oder nicht erreichbar).", { n: num(sonst) }) : "",
+               r && r.error ? r.error : ""].filter(Boolean).join(" "),
+              r && r.ok && !r.n_fehler ? "success" : "warn", ohne ? 12000 : 6000);
+      }
+      if (typeof fertig === "function") fertig(r);
+    };
+    pruefen();
+  }
+
   /* „Öffnen mit …“ (08.10.2026) — Fotos/Clips im Bildprogramm der Wahl nacharbeiten, ohne erst den Ordner zu suchen.
      macOS: Liste der Programme, die macOS für die Datei kennt (zuletzt benutzte zuerst, Standard markiert).
      Windows: gleich der System-Dialog „Öffnen mit“. */
@@ -684,5 +758,5 @@
     box.querySelectorAll("[data-om]").forEach(b => { b.onclick = () => { const a = apps[+b.dataset.om]; m.close(); los(a.pfad); }; });
   }
 
-  window.rzArchivExport = { touren, medien, tourAusFotos, ortSetzen, koordinateLesen, doppelte, oeffnenMit, zeitAendern };
+  window.rzArchivExport = { touren, medien, tourAusFotos, ortSetzen, koordinateLesen, doppelte, oeffnenMit, zeitAendern, papierkorb };
 })();

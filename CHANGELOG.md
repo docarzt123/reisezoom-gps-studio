@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Media: „Move to Trash …“ for one or many photos and clips — right-click, the selection bar or the Delete/⌫ key. A question first names the number of files and their size, offers to take matching RAW/JPG files along (same name, same folder) and names projects that use one of them; Lightroom/darktable sidecars (`.xmp`) go along when their photo is gone completely. Files go to the system Trash and can be put back; on a drive without a Trash (NAS) they stay and the message says so. Grid, date tree and albums update at once.
+
 ## [0.9.800] – 2026-10-20
 
 ### Added

@@ -1641,7 +1641,7 @@
     };
   }
 
-  /* 08.10.2026 — „N ausgewählt“ mit den Aktionen des Rechtsklicks; kein Löschen. */
+  /* 08.10.2026 — „N ausgewählt“ mit den Aktionen des Rechtsklicks. 20.10.2026: auch „In den Papierkorb“ (Nutzerwunsch). */
   function markLeisteZeigen() {
     if (!haupt) return;
     let l = haupt.querySelector("#foto-markleiste");
@@ -1666,6 +1666,7 @@
       <button type="button" class="btn btn-sm" data-ml="tour">${I("route", 14)} ${esc(T("fotos.zu_tour", "Zu Tour …"))}</button>
       ${n > 1 ? `<button type="button" class="btn btn-sm" data-ml="neu">${I("compass", 14)} ${esc(T("tour_aus_fotos.kurz", "Tour daraus …"))}</button>` : ""}
       <button type="button" class="btn btn-sm" data-ml="mit">${I("external-link", 14)} ${esc(T("oeffnen.ctx_1", "Öffnen mit …"))}</button>
+      <button type="button" class="btn btn-sm" data-ml="korb" title="${esc(T("korb.tip", "In den Papierkorb legen (Entf) — lässt sich von dort zurücklegen"))}">${I("trash-2", 14)} ${esc(T("korb.ctx_1", "In den Papierkorb …"))}</button>
       <span class="fml-luft"></span>
       <button type="button" class="btn btn-sm btn-ghost" data-ml="alle" title="${esc(T("fotos.alle_markieren_tip", "Alle geladenen markieren (⌘A)"))}">${esc(T("fotos.alle_markieren", "Alle"))}</button>
       <button type="button" class="btn btn-sm btn-ghost" data-ml="weg" title="${esc(T("fotos.markierung_weg", "Markierung aufheben (Esc)"))}">✕</button>`;
@@ -1680,6 +1681,7 @@
         else if (w === "zeit" && A && A.zeitAendern) A.zeitAendern(p, nachZeitAendern);   // 19.10.2026
         else if (w === "neu" && A) A.tourAusFotos(p);
         else if (w === "mit" && A) A.oeffnenMit(p);
+        else if (w === "korb") papierkorbFuer(p);
         else if (w === "tour") zuTourMenue(b, p);
         else if (w === "fav") favUmschalten(p);
         else if (w === "auto") bearbFuerMarkierte({ auto: true }, p);
@@ -1702,6 +1704,31 @@
     try { navZeichnen(); } catch (e) { applog("warn", "[fotos] Seitenleiste nach Aufnahmezeit: " + e); }
     // … und rechts stand im Detailfeld noch die alte Aufnahmezeit, bis man eine andere Datei anklickte
     if (auswahl) { const f = geladen.find(x => x.path === auswahl); detailZeigen(f || { path: auswahl }); }
+  }
+  /** 20.10.2026 — „In den Papierkorb …“ (Rechtsklick, Auswahlleiste, Entf/⌫). Danach Raster, Datumsbaum und
+      Detailfeld ohne die weggelegten Medien; rechts rückt das nächste Medium nach (wie in Lightroom). */
+  function papierkorbFuer(pfade) {
+    const A = window.rzArchivExport;
+    if (!pfade || !pfade.length || !A || !A.papierkorb) return;
+    A.papierkorb(pfade, (r) => nachPapierkorb(r));
+  }
+  async function nachPapierkorb(r) {
+    if (!r || !r.n_ok) return;
+    const vorher = auswahl ? geladen.findIndex(x => x.path === auswahl) : -1;
+    markiert.clear(); _letzterKlick = -1; dbSchluessel = "";
+    // Zahlen links („4 Fotos und Clips“, Sammlungen) mit auffrischen — wie nach „Doppelte wegräumen“
+    const o = await api().fotos_ordner().catch(() => null);   // warte-ok: Zahlen links frischen still auf
+    if (o && o.ok && angemeldet) { ordner = o.ordner || []; stand = o.stand || stand; }
+    await neuLaden(true);
+    try { navZeichnen(); } catch (e) { applog("warn", "[fotos] Seitenleiste nach Papierkorb: " + e); }
+    if (!auswahl || geladen.some(x => x.path === auswahl)) return;
+    const naechste = vorher >= 0 && geladen.length ? geladen[Math.min(vorher, geladen.length - 1)] : null;
+    if (naechste) detailZeigen(naechste);
+    else {
+      auswahl = null;
+      const box = document.getElementById("lib-detail");
+      if (box) { detailKarteWeg(); box.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${T("fotos.detail_hint", "Datei anklicken — dann stehen hier Aufnahmedaten, Ort und was fehlt.")}</div>`; }
+    }
   }
   /** „Zu Tour …“ für mehrere: die Touren der Tage der markierten Medien zur Auswahl. */
   async function zuTourMenue(knopf, pfade) {
@@ -1773,6 +1800,9 @@
       ["↗ " + (pfade.length > 1 ? T("oeffnen.ctx_n", "{n} öffnen mit …").replace("{n}", num(pfade.length)) : T("oeffnen.ctx_1", "Öffnen mit …")),
         () => { if (window.rzArchivExport) window.rzArchivExport.oeffnenMit(pfade); }],
       ["📁 " + T("fotos.im_finder", "Im Finder zeigen"), () => api().reveal_in_finder(f.path)],
+      // 20.10.2026 (Nutzerwunsch) — in den Papierkorb des Systems, nie endgültig; die Rückfrage nennt Partner + Projekte
+      ["🗑 " + (pfade.length > 1 ? T("korb.ctx_n", "{n} in den Papierkorb …").replace("{n}", num(pfade.length)) : T("korb.ctx_1", "In den Papierkorb …")),
+        () => papierkorbFuer(pfade)],
     ];
     menueZeigen(menue, eintraege, e.clientX, e.clientY);
   }
@@ -3111,6 +3141,13 @@
     }
     if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === "a" || e.key === "A")) {
       e.preventDefault(); geladen.forEach(x => markiert.add(x.path)); markierungZeigen(); return;
+    }
+    // 20.10.2026 — Entf/⌫ wie in Lightroom: fragt erst nach, legt in den Papierkorb
+    if ((e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.ctrlKey) {
+      const sichtbar = new Set(geladen.map(x => x.path));
+      const p = markiert.size ? [...markiert].filter(x => sichtbar.has(x)) : (auswahl && sichtbar.has(auswahl) ? [auswahl] : []);
+      if (p.length) { e.preventDefault(); papierkorbFuer(p); }
+      return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey || !(e.key === " " || e.key === "e" || e.key === "E")) return;
     if (!auswahl) return;

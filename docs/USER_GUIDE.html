@@ -1429,7 +1429,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <ul>
 <li><strong>Kacheln:</strong> das Bild, darunter Datum · Uhrzeit und Ort. Beim Drüberfahren erscheint links oben ein Kästchen zum</li>
 </ul>
-<p> <strong>Markieren</strong> (oder ⌘-/Shift-Klick), rechts oben das <strong>Herz</strong> für Favoriten. Sobald etwas markiert ist, schwebt unten über dem Raster eine Leiste  <strong>„N ausgewählt“</strong> mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto und Öffnen mit — die Bilder  bleiben dabei an ihrem Platz. Esc hebt die Markierung auf, ⌘A markiert alle.</p>
+<p> <strong>Markieren</strong> (oder ⌘-/Shift-Klick), rechts oben das <strong>Herz</strong> für Favoriten. Sobald etwas markiert ist, schwebt unten über dem Raster eine Leiste  <strong>„N ausgewählt“</strong> mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto, Öffnen mit und In den Papierkorb — die Bilder  bleiben dabei an ihrem Platz. Esc hebt die Markierung auf, ⌘A markiert alle.</p>
 <ul>
 <li><strong>Ort setzen</strong> (für Fotos ohne Koordinate): Die Karte startet dort, wo die Fotos hingehören — bei Fotos desselben Tages mit</li>
 </ul>
@@ -1504,6 +1504,21 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ul>
 <p> anderen rücken mit (die Reihenfolge bleibt); ohne den Haken bekommen alle genau diese Zeit. Dateien ohne Aufnahmezeit  bekommen sie in beiden Fällen.</p>
 <p>Die <strong>Vorschau</strong> zeigt für die ersten Dateien alt → neu und darunter, wie viele geändert werden und wie viele bleiben. <strong>RAW+JPG-Paare</strong> (gleicher Name im selben Ordner) ändert die App gemeinsam, auch wenn nur das JPG markiert ist. Geschrieben wird in die Dateien selbst: bei Fotos EXIF (Aufnahme-, Digitalisierungs- und Änderungszeit) und vorhandene XMP-Zeiten, bei RAW zusätzlich eine vorhandene Begleitdatei (<code>.xmp</code> von Lightroom), bei Videos (MP4, MOV) die QuickTime-Zeiten. Die Zeitzonen-Angabe einer Datei bleibt erhalten. Insta360-Rohdateien, AVI, MKV und AVCHD bleiben unverändert — die Vorschau sagt das. Vorher legt die App <strong>eine Sicherung aller Originale</strong> an (ein ZIP); klappt die nicht, wird nichts geändert. Der Fortschritt steht unten rechts, dort lässt sich der Lauf auch abbrechen. Danach liest die App die Dateien neu ein: Raster, „Nach Datum“ und die Zuordnung zu Touren stimmen sofort.</p>
+<h3 id="medien-in-den-papierkorb-legen">🗑 Medien in den Papierkorb legen</h3>
+<p>Rechtsklick auf ein Foto oder einen Clip → <strong>„In den Papierkorb …“</strong>, bei mehreren markierten <strong>„N in den Papierkorb …“</strong> oder in der Leiste unten, oder einfach die <strong>Entf-/⌫-Taste</strong>. GPS Studio fragt vorher nach und nennt, wie viele Dateien es sind und wie viel Platz sie belegen. Dazu:</p>
+<ul>
+<li><strong>RAW+JPG-Paare:</strong> Liegt neben dem Foto die passende RAW- bzw. JPG-Datei (gleicher Name, gleicher Ordner), kannst du sie</li>
+</ul>
+<p> mit einem Haken gleich mitnehmen.</p>
+<ul>
+<li><strong>Begleitdateien</strong> (<code>.xmp</code> von Lightroom oder darktable) gehen mit, wenn ihr Foto ganz weg ist — bleibt die RAW-Datei</li>
+</ul>
+<p> liegen, bleibt auch ihre <code>.xmp</code>.</p>
+<ul>
+<li><strong>In Projekten:</strong> Steckt ein Foto in einem Projekt (z. B. als Fotostopp), nennt die Rückfrage das Projekt — dort fehlt</li>
+</ul>
+<p> es danach.</p>
+<p>Die Dateien landen im <strong>Papierkorb deines Systems</strong> und lassen sich von dort zurücklegen; endgültig weg sind sie erst, wenn du ihn leerst. Liegt eine Datei auf einem Laufwerk ohne Papierkorb (z. B. einem NAS), bleibt sie, wo sie ist, und die Meldung sagt das. Raster, „Nach Datum“ und Alben sind danach sofort aktuell, rechts rückt das nächste Foto nach.</p>
 <h3 id="doppelte-finden-und-wegr-umen">⧉ Doppelte finden und wegräumen</h3>
 <p>Links in Medien: <strong>„⧉ Doppelte suchen …“</strong>. Der Dialog hat zwei Reiter:</p>
 <ul>

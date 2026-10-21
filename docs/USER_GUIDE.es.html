@@ -1425,7 +1425,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <ul>
 <li><strong>Miniaturas:</strong> la imagen con fecha · hora y lugar debajo. Al pasar el ratón, una casilla arriba a la izquierda <strong>marca</strong></li>
 </ul>
-<p> la foto (o clic con ⌘/Mayús) y el <strong>corazón</strong> arriba a la derecha la hace favorita. En cuanto hay algo marcado, flota abajo sobre la cuadrícula una barra  <strong>«N seleccionados»</strong> con Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con; las  imágenes no se mueven. Esc quita la selección, ⌘A marca todo.</p>
+<p> la foto (o clic con ⌘/Mayús) y el <strong>corazón</strong> arriba a la derecha la hace favorita. En cuanto hay algo marcado, flota abajo sobre la cuadrícula una barra  <strong>«N seleccionados»</strong> con Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto, Abrir con y Mover a la papelera; las  imágenes no se mueven. Esc quita la selección, ⌘A marca todo.</p>
 <ul>
 <li><strong>Poner ubicación</strong> (para fotos sin coordenadas): el mapa empieza donde pertenecen las fotos —en fotos del mismo día con GPS o,</li>
 </ul>
@@ -1499,6 +1499,21 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ul>
 <p> demás se desplazan igual (el orden se mantiene); sin la marca, todas reciben exactamente esa hora. Los archivos sin  hora de captura la reciben en ambos casos.</p>
 <p>La <strong>vista previa</strong> muestra antes → después para los primeros archivos y, debajo, cuántos se cambian y cuántos se quedan igual. Los <strong>pares RAW+JPG</strong> (mismo nombre en la misma carpeta) se cambian juntos, aunque solo esté marcado el JPG. La hora se escribe en los propios archivos: en las fotos EXIF (hora de captura, de digitalización y de modificación) y las horas XMP existentes, en RAW además un archivo auxiliar existente (<code>.xmp</code> de Lightroom), en los vídeos (MP4, MOV) las horas QuickTime. La indicación de zona horaria del archivo se conserva. Los archivos en bruto de Insta360, AVI, MKV y AVCHD no se tocan; la vista previa lo indica. Antes, la app hace <strong>una copia de seguridad de todos los originales</strong> (un ZIP); si falla, no se cambia nada. El progreso aparece abajo a la derecha, donde también puedes cancelar. Después la app vuelve a leer los archivos: la cuadrícula, «Por fecha» y la asignación a rutas quedan bien al momento.</p>
+<h3 id="mover-medios-a-la-papelera">🗑 Mover medios a la papelera</h3>
+<p>Clic derecho en una foto o un clip → <strong>«Mover a la papelera …»</strong>, con varios marcados <strong>«Mover N a la papelera …»</strong>, o en la barra de abajo, o simplemente la <strong>tecla Supr/⌫</strong>. GPS Studio pregunta antes y dice cuántos archivos son y cuánto espacio ocupan. Además:</p>
+<ul>
+<li><strong>Pares RAW+JPG:</strong> si junto a la foto está el archivo RAW o JPG correspondiente (mismo nombre, misma carpeta), una</li>
+</ul>
+<p> casilla lo incluye.</p>
+<ul>
+<li><strong>Archivos complementarios</strong> (<code>.xmp</code> de Lightroom o darktable) van con la foto cuando esta desaparece del todo; si el</li>
+</ul>
+<p> RAW se queda, su <code>.xmp</code> también.</p>
+<ul>
+<li><strong>En proyectos:</strong> si una foto se usa en un proyecto (p. ej. como parada de foto), la pregunta nombra el proyecto; allí</li>
+</ul>
+<p> faltará después.</p>
+<p>Los archivos van a <strong>la papelera de tu sistema</strong> y se pueden recuperar desde allí; solo desaparecen del todo cuando la vacías. Un archivo en una unidad sin papelera (p. ej. un NAS) se queda donde está y el aviso lo dice. La cuadrícula, «Por fecha» y los álbumes se actualizan al momento, y a la derecha aparece la foto siguiente.</p>
 <h3 id="encontrar-y-retirar-duplicados">⧉ Encontrar y retirar duplicados</h3>
 <p>En Medios, a la izquierda: <strong>«⧉ Buscar duplicados …»</strong>. El diálogo tiene dos pestañas:</p>
 <ul>

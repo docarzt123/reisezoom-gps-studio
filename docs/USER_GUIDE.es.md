@@ -2196,7 +2196,7 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
 
 - **Miniaturas:** la imagen con fecha · hora y lugar debajo. Al pasar el ratón, una casilla arriba a la izquierda **marca**
   la foto (o clic con ⌘/Mayús) y el **corazón** arriba a la derecha la hace favorita. En cuanto hay algo marcado, flota abajo sobre la cuadrícula una barra
-  **«N seleccionados»** con Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto y Abrir con; las
+  **«N seleccionados»** con Exportar, Poner ubicación, Cambiar hora de captura, Favorito, Añadir a álbum, Añadir a ruta, ✨ Auto, Abrir con y Mover a la papelera; las
   imágenes no se mueven. Esc quita la selección, ⌘A marca todo.
 - **Poner ubicación** (para fotos sin coordenadas): el mapa empieza donde pertenecen las fotos —en fotos del mismo día con GPS o,
   si no hay, en las rutas de ese día— y la búsqueda de lugares prefiere resultados de esa zona. Los resultados con el mismo nombre aparecen una vez.
@@ -2280,6 +2280,23 @@ horas QuickTime. La indicación de zona horaria del archivo se conserva. Los arc
 AVCHD no se tocan; la vista previa lo indica. Antes, la app hace **una copia de seguridad de todos los originales** (un
 ZIP); si falla, no se cambia nada. El progreso aparece abajo a la derecha, donde también puedes cancelar. Después la app
 vuelve a leer los archivos: la cuadrícula, «Por fecha» y la asignación a rutas quedan bien al momento.
+
+### 🗑 Mover medios a la papelera
+
+Clic derecho en una foto o un clip → **«Mover a la papelera …»**, con varios marcados **«Mover N a la papelera …»**, o en
+la barra de abajo, o simplemente la **tecla Supr/⌫**. GPS Studio pregunta antes y dice cuántos archivos son y cuánto
+espacio ocupan. Además:
+
+- **Pares RAW+JPG:** si junto a la foto está el archivo RAW o JPG correspondiente (mismo nombre, misma carpeta), una
+  casilla lo incluye.
+- **Archivos complementarios** (`.xmp` de Lightroom o darktable) van con la foto cuando esta desaparece del todo; si el
+  RAW se queda, su `.xmp` también.
+- **En proyectos:** si una foto se usa en un proyecto (p. ej. como parada de foto), la pregunta nombra el proyecto; allí
+  faltará después.
+
+Los archivos van a **la papelera de tu sistema** y se pueden recuperar desde allí; solo desaparecen del todo cuando la
+vacías. Un archivo en una unidad sin papelera (p. ej. un NAS) se queda donde está y el aviso lo dice. La cuadrícula,
+«Por fecha» y los álbumes se actualizan al momento, y a la derecha aparece la foto siguiente.
 
 ### ⧉ Encontrar y retirar duplicados (desde v0.9.787)
 

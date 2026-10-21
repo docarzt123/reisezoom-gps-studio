@@ -2148,7 +2148,7 @@ On request the search field also finds **what the photos show**: “sunset”, �
 
 - **Tiles:** the picture with date · time and place below. On hover a box at the top left **marks** it (or ⌘/Shift-click),
   the **heart** at the top right makes it a favourite. As soon as something is marked, a bar **„N selected“** floats at the bottom of
-  the grid with Export, Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto and Open with — the pictures
+  the grid with Export, Set location, Change capture time, Favourite, Add to album, Add to tour, ✨ Auto, Open with and Move to Trash — the pictures
   stay where they are. Esc clears, ⌘A marks all.
 - **Set location** (for photos without coordinates): the map starts where the photos belong — at photos of the same day that have
   GPS, otherwise at the tours of that day — and the place search prefers hits in that area. Hits with the same name appear once.
@@ -2229,6 +2229,23 @@ also an existing sidecar (`.xmp` from Lightroom), for videos (MP4, MOV) the Quic
 kept. Insta360 raw files, AVI, MKV and AVCHD stay unchanged — the preview says so. The app first makes **one backup of
 all originals** (a ZIP); if that fails, nothing is changed. Progress shows at the bottom right, where you can also
 cancel. Afterwards the files are read again: grid, „By date“ and the assignment to tours are right at once.
+
+### 🗑 Move media to the Trash
+
+Right-click a photo or clip → **„Move to Trash …“**, with several marked **„Move N to Trash …“** — or in the bar at the
+bottom, or simply the **Delete/⌫ key**. GPS Studio asks first and says how many files it is and how much space they take.
+Also:
+
+- **RAW+JPG pairs:** if the matching RAW or JPG file lies next to the photo (same name, same folder), one tick takes it
+  along.
+- **Sidecar files** (`.xmp` from Lightroom or darktable) go along when their photo is gone completely — if the RAW file
+  stays, its `.xmp` stays too.
+- **In projects:** if a photo is used in a project (e.g. as a photo stop), the question names the project — it will be
+  missing there afterwards.
+
+The files go to **your system's Trash** and can be put back from there; they are only gone for good when you empty it. A
+file on a drive without a Trash (e.g. a NAS) stays where it is, and the message says so. Grid, „By date“ and albums are
+up to date at once, and the next photo moves up on the right.
 
 ### ⧉ Find and tidy up duplicates (since v0.9.787)
 
