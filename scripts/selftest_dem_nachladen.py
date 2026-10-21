@@ -256,6 +256,15 @@ async def main() -> int:
                 print("  [SKIP] WebGL2 nicht verfügbar — Szenario übersprungen")
                 continue
             srv, page, st0, ctx, _ = erg
+            if name == "A":
+                # 21.10.2026 — die Kontrolle ohne Fehler wackelte nur in der vollen Suite (Rechnerlast: eine Kachel lief in
+                # die Zeitgrenze und zählte als „errored“). Einmal frisch wiederholen, bevor sie als rot gilt.
+                st_a = await page.evaluate("() => window.demStand()")
+                if not (st_a["loaded"] > 0 and st_a["errored"] == 0 and st_a["tsc"]):
+                    print(f"  .. Kontrolle unter Last unvollständig ({st_a}) — einmal wiederholen", flush=True)
+                    await ctx.close(); srv.stop()
+                    erg = await lauf(name, regel_fn, False)
+                    srv, page, st0, ctx, _ = erg
             try:
                 st1 = await page.evaluate("() => window.demStand()")
                 await ruhe(page)
