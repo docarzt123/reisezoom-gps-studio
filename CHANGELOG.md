@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Quick video: the end card appears once the camera is back in the overview — before, the big distance figure lay for almost two seconds on the finish pin and the moving dot (the vehicle or plane).
+- Quick video without an end card: the video ends one second after the finish instead of four empty seconds; the ride gets the time.
+- Quick video: a photo taken at the start (or just before the recording began) is shown right after the title instead of being dropped.
+- Quick video: photos placed by hand are kept first when the length is short — before, a hand-placed photo at the end of a round trip could fall out at „Short“.
+- Photos with GPS up to a few kilometres beside a planned route without times (e.g. a Google Maps route) get the nearest point of the route (within 2 % of its length, 1–10 km) instead of no place at all.
+- Smooth camera without 3D terrain: on mountain tours the picture showed tile patches and wedges and the route disappeared, because the camera aimed at the GPX height several kilometres above the flat map.
+- Place search: a country, region or island of the same name comes right after a city („Bali“ finds the island, not a town in Cameroon or a district in Taiwan); a reference point only favours places within about 500 km.
+
 ## [0.9.801] – 2026-10-21
 
 ### Added

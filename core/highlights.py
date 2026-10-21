@@ -606,6 +606,7 @@ HALT_RADIUS_M = 40.0        # … innerhalb dieses Umkreises
 FOTO_NAH_M = 300.0          # Foto gehört zu einem Highlight, wenn es so nah … (Ort bis 120 m neben dem Weg + Foto daneben)
 FOTO_NAH_S = 20 * 60.0      # … und zeitlich so nah liegt
 FOTO_GPS_MAX_M = 150.0      # GPS-Foto weiter weg vom Track → nach Zeit zuordnen
+FOTO_NAEHE_ANTEIL, FOTO_NAEHE_MIN_M, FOTO_NAEHE_MAX_M = 0.02, 1000.0, 10000.0   # danach: nächster Punkt (F-30)
 SERIE_S = 5 * 60.0          # Foto-Serie: mehrere Fotos in fünf Minuten …
 SERIE_M = 100.0             # … am selben Fleck
 NUR_MIT_FOTO = {"huette", "kunst", "denkmal", "museum", "ort", "turm", "quelle", "hoehle", "ruine", "sehenswert"}
@@ -687,6 +688,12 @@ def fotos_zuordnen(points: List[dict], fotos: List[dict], tz_off_min: int = 0) -
             if k > 0 and abs(ts[k - 1] - ep) < abs(ts[k] - ep):
                 k -= 1
             g.update(idx=k, frac=cum[k] / ges, abstand_m=0.0, per_zeit=True)
+        # 21.10.2026 (Web-Fund F-30, Rundreise mit geplanter Route ohne Uhrzeiten) — ein GPS-Foto 400 m … 1,5 km neben der
+        # Straße blieb ohne Platz. Danach: an den nächsten Trackpunkt, wenn er innerhalb 2 % der Strecke liegt (1–10 km)
+        if g["idx"] is None and f.get("lat") is not None and f.get("lon") is not None:
+            i, d = _naechster_index(points, float(f["lat"]), float(f["lon"]))
+            if i >= 0 and d <= max(FOTO_NAEHE_MIN_M, min(FOTO_NAEHE_MAX_M, FOTO_NAEHE_ANTEIL * ges)):
+                g.update(idx=i, frac=cum[i] / ges, abstand_m=d, per_naehe=True)
         out.append(g)
     return out
 

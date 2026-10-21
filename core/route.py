@@ -173,11 +173,16 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     orte = [f for f in feats if _ist_ort_namens(f, q)]
     if orte:
         if hat_bias:
-            orte.sort(key=lambda f: _abstand_grob(f, bias))
+            # 21.10.2026 (Web-Fund F-34: „Bali“ nach Frankfurt → Kamerun, Indien, Taiwan vor der Insel) — die Nähe zählt nur
+            # bis ~500 km (gleichnamige Dörfer in der Gegend: der nächste gewinnt); weiter weg entscheidet die Größe:
+            # Stadt, dann Land/Region/Insel, dann Kleinstadt, dann der Rest
+            orte.sort(key=lambda f: (0, _abstand_grob(f, bias)) if _abstand_grob(f, bias) <= _BIAS_NAH_GRAD2
+                      else (1, _gross_rang(f), _abstand_grob(f, bias)))
         else:
             # 16.10.2026 — ohne Bezugspunkt schlägt die Stadt das Dorf gleichen Namens („Lindau“ → Lindau (Bodensee),
             # nicht das Dorf in Schleswig-Holstein); unter gleich großen Orten bleibt Photons Reihenfolge.
-            orte.sort(key=_stadt_rang)
+            # 21.10.2026 (F-34) — Land, Region oder Insel gleichen Namens („Bali“, „Kreta“) kommen gleich nach der Stadt
+            orte.sort(key=_gross_rang)
         feats = orte + [f for f in feats if not _ist_ort_namens(f, q)]
     out: List[dict] = []
     seen = set()
@@ -298,6 +303,19 @@ def _namen_gleich_ort(name: str, query: str, *, stadt: bool = False) -> bool:
 def _stadt_rang(feat: dict) -> int:
     p = (feat or {}).get("properties") or {}
     return _STADT_RANG.get(p.get("osm_value"), 2) if p.get("osm_key") == "place" else 2
+
+
+# 21.10.2026 (F-34) — Rang nach Größe: Stadt 0, Land/Region/Insel 0,5, Kleinstadt 1, Rest 2 (sortiert gleichnamige Orte
+# ohne nahen Bezugspunkt); Nähe gilt bis ~500 km (Quadrat in Grad wie _abstand_grob)
+_GROSS_WERTE = {"country", "state", "island", "archipelago", "region"}
+_BIAS_NAH_GRAD2 = (500.0 / 111.0) ** 2
+
+
+def _gross_rang(feat: dict) -> float:
+    p = (feat or {}).get("properties") or {}
+    if (p.get("osm_key") == "place" and p.get("osm_value") in _GROSS_WERTE) or p.get("type") in ("country", "state"):
+        return 0.5 if p.get("osm_value") != "city" else 0
+    return float(_stadt_rang(feat))
 
 
 def _ist_ort_namens(feat: dict, query: str) -> bool:
