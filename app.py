@@ -19584,6 +19584,86 @@ def _verwaiste_helfer_beenden() -> int:
     return n
 
 
+def _fenster_sichtbar(x: int, y: int, w: int, h: int) -> bool:
+    """21.10.2026 (Nutzer-Meldung: App startete nach dem Update 15 min lang nicht, im Log `windowDidMove_` →
+    'NoneType' object has no attribute 'frame'): Die gemerkte Fensterposition lag auf keinem Bildschirm mehr (zweiter
+    Monitor ab- oder umgesteckt). pywebview schiebt das Fenster dorthin, `window.screen()` ist dann None und der Start
+    bricht ab — jedes Mal wieder. Darum vor dem Start prüfen: Liegt die Titelleiste (oberer Streifen) auf einem der
+    jetzigen Bildschirme? Sonst mittig auf dem Hauptbildschirm öffnen. Ohne AppKit (Windows/Linux): wie bisher."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        import AppKit  # type: ignore
+        haupt = AppKit.NSScreen.mainScreen() or (AppKit.NSScreen.screens() or [None])[0]
+        if haupt is None:
+            return False
+        hf = haupt.frame()
+        # pywebview: x/y = links/oben relativ zum Hauptbildschirm (y von oben) → Cocoa-Koordinaten (y von unten)
+        links = hf.origin.x + x
+        oben = hf.origin.y + hf.size.height - y
+        sx, sy, sw, sh = links + 40, oben - 30, max(1, w - 80), 30   # Titelleiste ohne die Ränder
+        for sc in AppKit.NSScreen.screens() or []:
+            f = sc.visibleFrame()
+            bx = min(sx + sw, f.origin.x + f.size.width) - max(sx, f.origin.x)
+            by = min(sy + sh, f.origin.y + f.size.height) - max(sy, f.origin.y)
+            if bx >= min(200, sw) and by >= 20:
+                return True
+        log.info("[fenster] gemerkte Position (%d,%d %dx%d) liegt auf keinem Bildschirm — öffne mittig", x, y, w, h)
+        return False
+    except Exception as e:  # noqa: BLE001
+        log.info("[fenster] Bildschirme nicht lesbar (%s) — öffne mittig", e)
+        return False
+
+
+def _mac_rahmen_sichtbar(r) -> bool:
+    """Liegt die Titelleiste des gemerkten Rahmens (globale Cocoa-Koordinaten: x, y von unten, Breite, Höhe) auf einem der
+    jetzigen Bildschirme?"""
+    try:
+        import AppKit  # type: ignore
+        x, y, w, h = (float(v) for v in r)
+        if w < 200 or h < 200:
+            return False
+        sx, sy, sw, sh = x + 40, y + h - 30, max(1.0, w - 80), 30.0
+        for sc in AppKit.NSScreen.screens() or []:
+            f = sc.visibleFrame()
+            bx = min(sx + sw, f.origin.x + f.size.width) - max(sx, f.origin.x)
+            by = min(sy + sh, f.origin.y + f.size.height) - max(sy, f.origin.y)
+            if bx >= min(200, sw) and by >= 20:
+                return True
+        log.info("[fenster] gemerkter Rahmen %s liegt auf keinem Bildschirm", r)
+        return False
+    except Exception as e:  # noqa: BLE001
+        log.info("[fenster] Bildschirme nicht lesbar: %s", e)
+        return False
+
+
+def _fenster_absturz_abfangen() -> None:
+    """Zweite Sicherung zur Prüfung oben: pywebviews `windowDidMove_` liest `window.screen().frame()` ohne zu prüfen, ob
+    das Fenster überhaupt auf einem Bildschirm liegt. Ohne Bildschirm die Meldung auslassen statt abzustürzen."""
+    if sys.platform != "darwin":
+        return
+    try:
+        from webview.platforms import cocoa as _cocoa  # type: ignore
+        dele = _cocoa.BrowserView.WindowDelegate
+        alt = dele.windowDidMove_
+        if getattr(dele, "_rz_sicher", False):
+            return
+
+        def windowDidMove_(self, notification):
+            try:
+                i = _cocoa.BrowserView.get_instance("window", notification.object())
+                if i is None or i.window is None or i.window.screen() is None:
+                    return
+            except Exception:  # noqa: BLE001
+                return
+            alt(self, notification)
+        import objc  # type: ignore
+        dele.windowDidMove_ = objc.selector(windowDidMove_, selector=b"windowDidMove:", signature=b"v@:@")
+        dele._rz_sicher = True
+    except Exception as e:  # noqa: BLE001
+        log.info("[fenster] Absturz-Sicherung nicht gesetzt: %s", e)
+
+
 def main() -> None:
     # 10.09.2026 — Reset-Start (⌘⌥ / Strg+Alt gedrückt halten, oder --reset), wie bei FCPX.
     # Die Rückfrage kommt als nativer Dialog, sobald das Fenster steht (ein NSAlert VOR dem
@@ -19658,9 +19738,18 @@ def main() -> None:
         background_color="#0e1116",
         maximized=(not _have_remembered),
     )
-    if _have_remembered and _win_x >= 0 and _win_y >= 0:
+    # 21.10.2026 (zweite Nutzer-Meldung: „der zweite Monitor war immer angeschlossen, eventuell nicht ausgewählt“) —
+    # pywebview rechnet x/y relativ zum gerade AKTIVEN Bildschirm (NSScreen.mainScreen = der mit dem Fokus) um, gemerkt
+    # wurde y aber relativ zum Bildschirm, auf dem das Fenster lag. Je nachdem, welcher Bildschirm beim Start aktiv war,
+    # landete das Fenster woanders oder im Nichts. Auf dem Mac darum den echten Rahmen in globalen Koordinaten merken
+    # (`mac_rahmen`) und ihn vor dem Zeigen selbst setzen.
+    _mac_rahmen = _win_cfg.get("mac_rahmen") if sys.platform == "darwin" else None
+    if not (isinstance(_mac_rahmen, list) and len(_mac_rahmen) == 4 and _mac_rahmen_sichtbar(_mac_rahmen)):
+        _mac_rahmen = None
+    if _have_remembered and not _mac_rahmen and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
         create_kwargs["x"] = _win_x
         create_kwargs["y"] = _win_y
+    _fenster_absturz_abfangen()
 
     # v0.9.230 (Windows-Bug-Report eines Nutzers): Datei-Drag&Drop auf Windows
     # abschalten. Hintergrund: WebView2 (Edge) fängt einen Datei-Drop auf
@@ -19689,6 +19778,16 @@ def main() -> None:
 
     win = webview.create_window(**create_kwargs)
     api.set_window(win)
+    if _mac_rahmen and _have_remembered:
+        def _rahmen_vor_dem_zeigen(window):
+            # läuft auf dem Cocoa-Hauptfaden, bevor das Fenster erscheint (pywebview before_show ist synchron)
+            try:
+                import AppKit  # type: ignore
+                window.native.setFrame_display_(AppKit.NSMakeRect(*[float(v) for v in _mac_rahmen]), False)
+                log.info("[fenster] Rahmen wiederhergestellt: %s", _mac_rahmen)
+            except Exception as e:  # noqa: BLE001
+                log.info("[fenster] Rahmen nicht gesetzt: %s", e)
+        win.events.before_show += _rahmen_vor_dem_zeigen
 
     # Fenster nach Start auf volle Bildschirmgröße ziehen — pywebview's
     # `maximized=True` greift in 6.x auf macOS nicht zuverlässig. NSWindow-
@@ -19819,6 +19918,12 @@ def main() -> None:
                     _wcfg["height"] = h
                     _wcfg["x"] = x
                     _wcfg["y"] = y
+                    if sys.platform == "darwin":
+                        try:
+                            fr = win.native.frame()
+                            _wcfg["mac_rahmen"] = [round(fr.origin.x), round(fr.origin.y), round(fr.size.width), round(fr.size.height)]
+                        except Exception:  # noqa: BLE001
+                            pass
                     _cur_settings["window"] = _wcfg
                     _save_settings(_cur_settings)
                     log.info(f"Fenster-Geometrie gespeichert: {w}×{h} @ ({x},{y})")

@@ -1469,8 +1469,8 @@ function openHelpModal() {
 // Leerer String ("") = Button wird ausgeblendet. Solange "DEIN_" drinsteht, gilt
 // der Link als Platzhalter und der Button wird (noch) NICHT angezeigt — so kann
 // nichts auf eine tote Seite führen, bevor du die echten Links eingetragen hast.
+// 21.10.2026 (Marc: „Schmeiß Ko-fi überall raus. Das nutzt eh kein Mensch.“) — nur noch PayPal.
 const SUPPORT_LINKS = {
-  kofi:   "https://ko-fi.com/A0A6KR1N",      // Marcs Ko-fi (2026-06-15)
   paypal: "https://paypal.me/reisezoom",     // Marcs PayPal.me (2026-06-15)
 };
 function _supportLinkOk(u) { return !!u && !u.includes("DEIN_"); }
@@ -1522,9 +1522,6 @@ async function openAboutModal() {
         <div style="font-size:12.5px; font-weight:600; color:var(--text);">${t("about.support.title")}</div>
         <div class="muted" style="font-size:11.5px; margin:6px auto 0; max-width:400px; line-height:1.55;">${t("about.support.body")}</div>
         <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-          ${_supportLinkOk(SUPPORT_LINKS.kofi)
-            ? `<a href="#" class="md-about-link btn" data-url="${SUPPORT_LINKS.kofi}" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:#ffdd66; color:#3a2d00; font-size:12.5px; font-weight:700;">☕&nbsp;${t("about.support.kofi")}</a>`
-            : `<a href="#" class="md-support-todo btn" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:var(--bg-3); color:var(--text-muted); font-size:12.5px; font-weight:700; border:1px dashed var(--border);">☕&nbsp;${t("about.support.kofi")}</a>`}
           ${_supportLinkOk(SUPPORT_LINKS.paypal)
             ? `<a href="#" class="md-about-link btn" data-url="${SUPPORT_LINKS.paypal}" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:var(--bg-3); color:var(--text); font-size:12.5px; font-weight:700; border:1px solid var(--border);">${t("about.support.paypal")}</a>`
             : `<a href="#" class="md-support-todo btn" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:var(--bg-3); color:var(--text-muted); font-size:12.5px; font-weight:700; border:1px dashed var(--border);">${t("about.support.paypal")}</a>`}

@@ -17,6 +17,12 @@ Bei jeder neuen Version:
 ### Added
 - Place search everywhere (stage stations, route, set place) accepts coordinates: decimal („45.0556, 6.0302“, also with German comma), degrees/minutes/seconds and Google/Apple Maps links — e.g. spots saved in a camping app. The station is set exactly there, named after the place nearby.
 
+### Removed
+- About dialog: the Ko-fi button — supporting the app now goes through PayPal only.
+
+### Fixed
+- Mac with two displays: the app sometimes did not start at all — it remembered the window position relative to one display but restored it relative to whichever display was active at launch, so the window could land off every screen and the start broke off silently. The window now comes back exactly where it was, whichever display is active; if that place is on no screen any more, it opens centered.
+
 ## [0.9.804] – 2026-10-21
 
 ### Added

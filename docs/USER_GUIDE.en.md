@@ -3743,7 +3743,7 @@ account. The manual button in the About dialog keeps working.
 
 ### How can I support the project? (since 07.09.2026)
 The **About dialog** (logo top left → "About") has buttons for supporting:
-Ko-fi and PayPal for the development of the app (covers developer account, signing,
+PayPal for the development of the app (covers developer account, signing,
 servers), and below them the free services the app runs on without any key:
 OpenStreetMap Foundation, FOSSGIS e. V. (runs the routing and address services),
 OpenFreeMap (vector maps) and MapLibre (the map library). They live on donations

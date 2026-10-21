@@ -3849,7 +3849,7 @@ im Über-Dialog funktioniert weiterhin.
 
 ### Wie kann ich das Projekt unterstützen? (seit 07.09.2026)
 Im **Über-Dialog** (Logo oben links → „Über") gibt es Knöpfe zum Unterstützen:
-Ko-fi und PayPal für die Entwicklung der App (deckt Entwicklerkonto, Signatur,
+PayPal für die Entwicklung der App (deckt Entwicklerkonto, Signatur,
 Server), und darunter die freien Dienste, auf denen die App ohne jeden Schlüssel
 läuft: OpenStreetMap Foundation, FOSSGIS e. V. (betreibt die Routen- und
 Adressdienste), OpenFreeMap (Vektorkarten) und MapLibre (die Kartenbibliothek).
