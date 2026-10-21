@@ -324,6 +324,10 @@ if (os.environ.get("RZ_SETTINGS_DATEI") or "").strip() and not APP_ORDNER_UEBERS
     SETTINGS_FILE = _EINSTELLUNGEN_KOPIE = Path(os.environ["RZ_SETTINGS_DATEI"].strip()).expanduser().resolve()
     _ds.temp_ordner_merken(SETTINGS_FILE.parent)
 LADEFLAGGE_FILE = APP_SUPPORT / "ladevorgang.json"   # 13.09.2026 — siehe Api.ladeflagge_setzen
+# 21.10.2026 — mit eigener Einstellungs-Kopie je Test auch eine eigene Ladeflagge: sonst ließ ein abgestürzter Test
+# „lädt“ stehen, und parallele Tests sahen einen hängengebliebenen Start (Nachfrage-Dialog im Weg, kein Fortsetzen).
+if _EINSTELLUNGEN_KOPIE is not None:
+    LADEFLAGGE_FILE = _EINSTELLUNGEN_KOPIE.parent / "ladevorgang.json"
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
 SESSIONS_FILE = APP_SUPPORT / "sessions.json"
 

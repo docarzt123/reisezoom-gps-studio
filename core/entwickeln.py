@@ -11,6 +11,8 @@ Rezept (alle Werte optional, 0 = neutral):
   dynamik     −100 … +100 (schont Hauttöne / Gesättigtes)
   saettigung  −100 … +100                  klarheit     −100 … +100 (Mitten-Kontrast)
   dunst       −100 … +100 (+ = Dunst weg)
+  schaerfen   0 … 150 (Unscharfmaske auf der Helligkeit, Radius 1 Pixel der Quelle — wie in Lightroom erst bei 100 % voll
+              sichtbar)
 
 Gerechnet wird in Gleitkomma auf dem ganzen Bild (numpy): Weißabgleich und Belichtung linear, Ton und Farbe auf der
 wahrgenommenen Helligkeit. Lichter/Tiefen/Klarheit arbeiten mit einer weichgezeichneten Helligkeit (lokal, nicht nur
@@ -69,6 +71,7 @@ REGLER = {
     "belichtung": (-3.0, 3.0), "kontrast": (-100, 100), "lichter": (-100, 100), "tiefen": (-100, 100),
     "temperatur": (-100, 100), "toenung": (-100, 100), "dynamik": (-100, 100), "saettigung": (-100, 100),
     "klarheit": (-100, 100), "dunst": (-100, 100),
+    "schaerfen": (0, 150),   # 21.10.2026 (Marc: „Schärfen fehlt auch noch“) — wie Lightroom „Betrag“, Radius 1 px
 }
 # Voreinstellungen — „Natürlich“ = Auto
 VOREINSTELLUNGEN = {
@@ -335,10 +338,21 @@ def wirksam(rezept: Optional[dict], img=None) -> dict:
 
 # ── Entwickeln ───────────────────────────────────────────────────────────────────────────
 
-def anwenden(img, rezept: Optional[dict], rahmen: bool = False):
+def anwenden(img, rezept: Optional[dict], rahmen: bool = False, gpu: bool = True):
     """PIL-Bild → entwickeltes PIL-Bild (RGB). `rezept` sind die wirksamen Werte (siehe `wirksam`): erst der Ton auf
-    dem ganzen Bild, dann die Geometrie."""
+    dem ganzen Bild, dann die Geometrie.
+
+    21.10.2026 — zuerst auf der Grafikkarte (core/entwickeln_gpu: derselbe Code wie die Live-Vorschau, 24 MP in ~1 s
+    statt 3–7 s). numpy unten ist nur noch der Ausweg ohne Grafikkarte und kennt nur die Grundregler; `gpu=False`
+    erzwingt ihn (Abgleichstest)."""
     r = sauber(rezept)
+    if not r:
+        return img.convert("RGB")
+    if gpu:
+        from . import entwickeln_gpu
+        aus = entwickeln_gpu.entwickeln(img, r, rahmen)
+        if aus is not None:
+            return aus
     ton = {k: v for k, v in r.items() if k in REGLER}
     aus = _ton(img, ton) if ton else img.convert("RGB")
     return geometrie(aus, r, rahmen) if any(k in r for k in GEOMETRIE) else aus
@@ -374,6 +388,15 @@ def _ton(img, r: dict):
         v = np.clip(v, 0, 1)
         l = _luma(v)
 
+    # Schärfen: Detail der Quelle (Helligkeit minus 3×3-Gauß), am Ende auf die Farben addiert — wie entwickeln_gl.js
+    scharf = None
+    if r.get("schaerfen"):
+        p_ = np.pad(l, 1, mode="edge")
+        hh, ww = l.shape
+        k3 = ((1, 2, 1), (2, 4, 2), (1, 2, 1))
+        bl = sum(k3[j][i] * p_[j:j + hh, i:i + ww] for j in range(3) for i in range(3)) / 16.0
+        scharf = (l - bl) * (r["schaerfen"] / 100.0 * 1.2)
+
     basis = _weich(l, groesse / 90)   # lokale Helligkeit
     # Lichter und Tiefen (lokal über die weiche Helligkeit)
     if r.get("lichter"):
@@ -405,6 +428,8 @@ def _ton(img, r: dict):
     faktor = np.clip(l / np.clip(lum0, 1e-4, None), 0, 3)[..., None]
     w = (1 - _glatt(lum0, 0.02, 0.18))[..., None]
     v = (v * faktor) * (1 - w) + (v + (l - lum0)[..., None]) * w
+    if scharf is not None:
+        v = v + scharf[..., None]
     v = np.clip(v, 0, 1)
 
     # Dynamik und Sättigung um die Helligkeit

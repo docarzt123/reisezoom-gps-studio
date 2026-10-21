@@ -2569,7 +2569,25 @@
     ["temperatur", "bearb.r_temperatur", "Temperatur", 1], ["toenung", "bearb.r_toenung", "Tönung", 1],
     ["dynamik", "bearb.r_dynamik", "Dynamik", 1], ["saettigung", "bearb.r_saettigung", "Sättigung", 1],
     ["klarheit", "bearb.r_klarheit", "Klarheit", 1], ["dunst", "bearb.r_dunst", "Dunst entfernen", 1],
+    ["schaerfen", "bearb.r_schaerfen", "Schärfen", 1],
   ];
+  const BEARB_SPANNE = { belichtung: [-3, 3], schaerfen: [0, 150] };   // sonst −100 … +100
+  // 21.10.2026 (Foto-Editor Paket 1, wie Lightroom): Regler in einklappbaren Bereichen; das Auge blendet die Wirkung
+  // eines Bereichs kurz aus (nur in der Ansicht, gespeichert bleibt alles). Eingeklappt merkt sich die App.
+  const BEARB_BEREICHE = [
+    ["licht", "bearb.b_licht", "Licht", ["belichtung", "kontrast", "lichter", "tiefen"]],
+    ["farbe", "bearb.b_farbe", "Farbe", ["temperatur", "toenung", "dynamik", "saettigung"]],
+    ["effekte", "bearb.b_effekte", "Effekte", ["klarheit", "dunst"]],
+    ["details", "bearb.b_details", "Details", ["schaerfen"]],
+  ];
+  const bearbZu = new Set((() => { try { return JSON.parse(localStorage.getItem("rz.bearb.zu") || "[]"); } catch (_) { return []; } })());
+  function bearbZuMerken() { try { localStorage.setItem("rz.bearb.zu", JSON.stringify([...bearbZu])); } catch (_) {} }
+  /** Wirksame Werte für die Ansicht — ohne die Bereiche, deren Auge aus ist. */
+  function bearbSicht(z) {
+    const w = rzEntwickler.wirksam(z.rezept, z.auto, z.voreinst);
+    (z.aus || new Set()).forEach(b => { const d = BEARB_BEREICHE.find(x => x[0] === b); if (d) d[3].forEach(k => { delete w[k]; }); });
+    return w;
+  }
   const BEARB_STILE = [["natuerlich", "bearb.s_natuerlich", "Natürlich"], ["kraeftig", "bearb.s_kraeftig", "Kräftig"],
                        ["matt", "bearb.s_matt", "Matt"], ["sw", "bearb.s_sw", "SW"]];
   let bearbAblage = null;      // „Einstellungen kopieren“
@@ -2672,12 +2690,22 @@
         <button type="button" class="btn btn-sm btn-ghost" id="fb-reset" title="${esc(T("bearb.reset", "Zurücksetzen"))}">${I("rotate-ccw", 14)}</button>
       </div>
       <div class="fb-stile">${BEARB_STILE.map(([k, ik, fb]) => `<button type="button" class="fb-stil${rz.stil === k ? " is-on" : ""}" data-stil="${k}">${esc(T(ik, fb))}</button>`).join("")}</div>
-      <div class="fb-regler">${BEARB_REGLER.map(([k, ik, fb, schritt]) => {
-        const [lo, hi] = k === "belichtung" ? [-3, 3] : [-100, 100];
-        const v = +(rz[k] || 0);
-        return `<label class="fb-r"><span class="fb-r-name">${esc(T(ik, fb))}</span><span class="fb-r-wert" id="fbw-${k}">${k === "belichtung" ? (v > 0 ? "+" : "") + v.toFixed(2) : (v > 0 ? "+" : "") + Math.round(v)}</span>
-          <input type="range" min="${lo}" max="${hi}" step="${schritt}" value="${v}" data-r="${k}"></label>`;
-      }).join("")}</div>
+      ${BEARB_BEREICHE.map(([bk, bik, bfb, keys]) => {
+        const zu = bearbZu.has(bk), aus = !!(z.aus && z.aus.has(bk));
+        const gesetzt = keys.some(k => +(rz[k] || 0));
+        return `<section class="fb-bereich${zu ? " is-zu" : ""}${aus ? " is-aus" : ""}" data-bereich="${bk}">
+        <div class="fb-b-kopf">
+          <button type="button" class="fb-b-auf" data-b-auf="${bk}" aria-expanded="${zu ? "false" : "true"}">${I("chevron-down", 14)}<span>${esc(T(bik, bfb))}</span>${gesetzt ? `<i class="fb-b-punkt" title="${esc(T("bearb.b_geaendert", "In diesem Bereich ist etwas eingestellt"))}"></i>` : ""}</button>
+          <button type="button" class="fb-b-auge" data-b-auge="${bk}" aria-pressed="${aus ? "true" : "false"}" title="${esc(aus ? T("bearb.b_auge_an", "Wirkung wieder zeigen") : T("bearb.b_auge_aus", "Wirkung dieses Bereichs kurz ausblenden"))}">${I(aus ? "eye-off" : "eye", 14)}</button>
+        </div>
+        <div class="fb-regler">${BEARB_REGLER.filter(([k]) => keys.includes(k)).map(([k, ik, fb, schritt]) => {
+          const [lo, hi] = BEARB_SPANNE[k] || [-100, 100];
+          const v = +(rz[k] || 0);
+          return `<label class="fb-r"><span class="fb-r-name">${esc(T(ik, fb))}</span><span class="fb-r-wert" id="fbw-${k}">${k === "belichtung" ? (v > 0 ? "+" : "") + v.toFixed(2) : (v > 0 ? "+" : "") + Math.round(v)}</span>
+            <input type="range" min="${lo}" max="${hi}" step="${schritt}" value="${v}" data-r="${k}"></label>`;
+        }).join("")}</div>
+      </section>`;
+      }).join("")}
       <div class="fb-zeile fb-unten">
         <button type="button" class="btn btn-sm" id="fb-kopieren" title="${esc(T("bearb.kopieren_tip", "Diese Einstellungen merken, um sie auf andere Fotos zu übertragen"))}">${I("copy", 14)} ${esc(T("bearb.kopieren", "Kopieren"))}</button>
         <button type="button" class="btn btn-sm" id="fb-einfuegen"${bearbAblage ? "" : " disabled"}>${esc(T("bearb.einfuegen", "Einfügen"))}</button>
@@ -2688,9 +2716,30 @@
     const geaendert = bearbGeaendert;
     box.querySelector("#fb-zs").onclick = () => zuschnittAn(true);
     box.querySelectorAll("[data-r]").forEach(inp => {
-      inp.oninput = () => { const v = +inp.value; if (v) rz[inp.dataset.r] = v; else delete rz[inp.dataset.r]; geaendert(false); };
+      inp.oninput = () => {
+        const v = +inp.value; if (v) rz[inp.dataset.r] = v; else delete rz[inp.dataset.r];
+        // wer an einem ausgeblendeten Bereich dreht, will die Wirkung sehen — Auge wieder an (ohne neu zu zeichnen: Ziehen bleibt)
+        const sek = inp.closest(".fb-bereich"), bk = sek && sek.dataset.bereich;
+        if (bk && z.aus && z.aus.has(bk)) {
+          z.aus.delete(bk); sek.classList.remove("is-aus");
+          const au = sek.querySelector("[data-b-auge]"); if (au) { au.setAttribute("aria-pressed", "false"); au.innerHTML = I("eye", 14); }
+        }
+        geaendert(false);
+      };
       inp.ondblclick = () => { delete rz[inp.dataset.r]; inp.value = 0; geaendert(false); };   // wie Lightroom: Doppelklick = 0
     });
+    box.querySelectorAll("[data-b-auf]").forEach(k => { k.onclick = () => {
+      const bk = k.dataset.bAuf, sek = k.closest(".fb-bereich");
+      if (bearbZu.has(bk)) bearbZu.delete(bk); else bearbZu.add(bk);
+      bearbZuMerken();
+      sek.classList.toggle("is-zu", bearbZu.has(bk)); k.setAttribute("aria-expanded", bearbZu.has(bk) ? "false" : "true");
+    }; });
+    box.querySelectorAll("[data-b-auge]").forEach(k => { k.onclick = () => {
+      const bk = k.dataset.bAuge;
+      z.aus = z.aus || new Set();
+      if (z.aus.has(bk)) z.aus.delete(bk); else z.aus.add(bk);
+      bearbZeichnen(); bearbPlanen();
+    }; });
     box.querySelector("#fb-auto").onclick = () => { autoInRegler(rz, bearbZ && bearbZ.auto, false); bearbZeichnen(); geaendert(true); };
     box.querySelectorAll("[data-stil]").forEach(b => { b.onclick = () => { if (rz.stil === b.dataset.stil) delete rz.stil; else rz.stil = b.dataset.stil; bearbZeichnen(); geaendert(true); }; });
     box.querySelector("#fb-reset").onclick = () => { z.rezept = nurGeo(z.rezept); bearbZeichnen(); geaendert(true); };   // der Zuschnitt hat sein eigenes Zurücksetzen
@@ -2718,7 +2767,9 @@
     const lauf = ++z.lauf;
     if (await bearbGLZeichnen()) return;
     if (gross !== g || bearbZ !== z || lauf !== z.lauf) return;
-    const r = await api().foto_entwickeln_vorschau(z.pfad, z.rezept, false, !!z.zuschneiden).catch(() => null);   // warte-ok: das Bild wechselt, sobald fertig (~0,1 s)
+    // ausgeblendete Bereiche (Auge): die Ansicht bekommt die wirksamen Werte ohne sie, statt des Rezepts
+    const sicht = (z.aus && z.aus.size && window.rzEntwickler) ? Object.assign(bearbSicht(z), { auto: false }) : z.rezept;
+    const r = await api().foto_entwickeln_vorschau(z.pfad, sicht, false, !!z.zuschneiden).catch(() => null);   // warte-ok: das Bild wechselt, sobald fertig (~0,1 s)
     if (gross !== g || bearbZ !== z || lauf !== z.lauf || !r || !r.ok) return;
     z.url = r.url;
     if (g.liste[g.idx] && g.liste[g.idx].path === z.pfad && !z.vorher) {
@@ -2755,7 +2806,7 @@
     }
     if (!bearbGLVorbereiten(z)) return false;
     try {
-      const w = z.vorher ? {} : rzEntwickler.wirksam(z.rezept, z.auto, z.voreinst);
+      const w = z.vorher ? {} : bearbSicht(z);
       const rahmen = !!z.zuschneiden && !z.vorher;
       bearbGL.zeichnen(w, { rahmen });
       const buehne = g.el.querySelector(".foto-gross-buehne");
@@ -2842,7 +2893,7 @@
         <button type="button" class="btn btn-sm" id="fb-zs-reset">${esc(T("bearb.zs_reset", "Zurücksetzen"))}</button>
         <button type="button" class="btn btn-sm btn-primary" id="fb-zs-fertig">${I("check", 14)} ${esc(T("bearb.zs_fertig", "Fertig"))}</button>
       </div>
-      <div class="muted fb-hinweis">${esc(T("bearb.zs_hinweis", "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen."))}</div>`;
+      <div class="muted fb-hinweis">${esc(T("bearb.zs_hinweis", "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe, außerhalb des Rahmens ziehen dreht. Enter = fertig, Esc = abbrechen."))}</div>`;
     const [Wr, Hr] = zsRahmen(z);
     const ger = box.querySelector("#fb-gerade");
     ger.oninput = () => {
@@ -2881,12 +2932,15 @@
     const buehne = g.el.querySelector(".foto-gross-buehne"); if (!buehne) return;
     let ov = buehne.querySelector(".fb-zs-ov");
     const bild = [...buehne.querySelectorAll(".foto-gross-bild")].find(e => !e.hidden && e.offsetWidth);
-    if (!z || !z.zuschneiden || z.vorher || !bild || !window.rzEntwickler) { if (ov) ov.remove(); return; }
+    const an = !!(z && z.zuschneiden && !z.vorher && bild && window.rzEntwickler);
+    buehne.classList.toggle("ist-zs", an);
+    if (!an) { if (ov) ov.remove(); return; }
     if (!ov) {
       ov = document.createElement("div"); ov.className = "fb-zs-ov";
-      ov.innerHTML = `<div class="fb-zs-r"><i class="fb-zs-drittel"></i>${["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(h => `<b data-h="${h}"></b>`).join("")}</div>`;
+      ov.innerHTML = `<div class="fb-zs-r"><i class="fb-zs-drittel"></i><i class="fb-zs-fein"></i>${["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(h => `<b data-h="${h}"></b>`).join("")}</div><span class="fb-zs-winkel" hidden></span>`;
       buehne.appendChild(ov); zuschnittZiehen(ov);
     }
+    if (!buehne.__rzDrehen) { buehne.__rzDrehen = true; zuschnittDrehen(buehne); }
     const bb = buehne.getBoundingClientRect(), r = bild.getBoundingClientRect();
     Object.assign(ov.style, { left: (r.left - bb.left) + "px", top: (r.top - bb.top) + "px", width: r.width + "px", height: r.height + "px" });
     const zs = zsAktuell(z);
@@ -2949,6 +3003,50 @@
       };
       ov.addEventListener("pointermove", zug); ov.addEventListener("pointerup", los); ov.addEventListener("pointercancel", los);
     });
+  }
+  /** 21.10.2026 (Marc: „jedes leichte Drehen soll einfach beim Zuschneiden passieren … komplett grafisch“) — wie in
+   *  Lightroom: außerhalb des Rahmens ziehen (neben einer Ecke, im abgedunkelten Rand oder neben dem Bild) dreht das Foto.
+   *  Gedreht wird um die Rahmenmitte; der Rahmen schrumpft nur so weit wie nötig (ein größtmöglicher Rahmen bleibt der
+   *  größtmögliche, auch beim Zurückdrehen in einem späteren Zug). Beim Drehen ein feines Gitter + Winkelanzeige; Shift = in 1°-Schritten. */
+  function zuschnittDrehen(buehne) {
+    buehne.addEventListener("pointerdown", (e) => {
+      const z = bearbZ; if (!z || !z.zuschneiden || z.vorher || e.button !== 0) return;
+      const ov = buehne.querySelector(".fb-zs-ov"); if (!ov) return;
+      const rEl = ov.firstElementChild;
+      if (rEl.contains(e.target)) return;   // Rahmen und Griffe: verschieben/Größe (zuschnittZiehen)
+      e.preventDefault(); e.stopPropagation();
+      try { buehne.setPointerCapture(e.pointerId); } catch (_) {}
+      const rz = z.rezept, [Wr, Hr] = zsRahmen(z), g0 = +rz.gerade || 0, st = zsAktuell(z);
+      const rb = rEl.getBoundingClientRect(), cx = rb.left + rb.width / 2, cy = rb.top + rb.height / 2;
+      const a0 = Math.atan2(e.clientY - cy, e.clientX - cx);
+      // War der Rahmen beim Anfassen der größtmögliche (z. B. noch nie zugeschnitten), bleibt er es beim Drehen —
+      // auch beim Zurückdrehen in einem zweiten Zug wächst er dann wieder. Sonst: vom Stand beim Anfassen einpassen.
+      const A = (st[2] * Wr) / (st[3] * Hr), gross0 = rzEntwickler.passend(Wr, Hr, g0, A);
+      const maximal = !rz.zuschnitt || (Math.abs(gross0[2] - st[2]) < 0.004 && Math.abs(gross0[3] - st[3]) < 0.004);
+      const wink = ov.querySelector(".fb-zs-winkel"), bb = ov.getBoundingClientRect();
+      ov.classList.add("dreht");
+      const zug = (ev) => {
+        let d = (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
+        if (d > 180) d -= 360; if (d < -180) d += 360;
+        let v = Math.max(-45, Math.min(45, g0 + d));
+        v = ev.shiftKey ? Math.round(v) : Math.round(v * 10) / 10;
+        if (Math.abs(v) < 0.05) v = 0;
+        if (v) rz.gerade = v; else delete rz.gerade;
+        // vom Rahmen beim Anfassen aus einpassen — nicht vom schon geschrumpften
+        rz.zuschnitt = maximal ? rzEntwickler.passend(Wr, Hr, v, A) : rzEntwickler.einpassen(st, Wr, Hr, v);
+        wink.hidden = false; wink.textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "°";
+        Object.assign(wink.style, { left: (ev.clientX - bb.left + 14) + "px", top: (ev.clientY - bb.top + 14) + "px" });
+        const reg = document.getElementById("fb-gerade"); if (reg) reg.value = v;
+        const wt = document.getElementById("fbw-gerade"); if (wt) wt.textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "°";
+        zuschnittRahmen(); bearbGeaendert(false);
+      };
+      const los = () => {
+        buehne.removeEventListener("pointermove", zug); buehne.removeEventListener("pointerup", los); buehne.removeEventListener("pointercancel", los);
+        ov.classList.remove("dreht"); wink.hidden = true;
+        bearbGeaendert(false);
+      };
+      buehne.addEventListener("pointermove", zug); buehne.addEventListener("pointerup", los); buehne.addEventListener("pointercancel", los);
+    }, true);
   }
   function grossTastenHoch(e) { if (e.key === ".") { e.preventDefault(); bearbVorher(false); } }
   async function bearbSpeichernJetzt() {

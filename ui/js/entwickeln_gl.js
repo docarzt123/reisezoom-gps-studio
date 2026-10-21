@@ -15,6 +15,7 @@
   const REGLER = {
     belichtung: [-3, 3], kontrast: [-100, 100], lichter: [-100, 100], tiefen: [-100, 100], temperatur: [-100, 100],
     toenung: [-100, 100], dynamik: [-100, 100], saettigung: [-100, 100], klarheit: [-100, 100], dunst: [-100, 100],
+    schaerfen: [0, 150],
   };
 
   // ── Rezept (wie entwickeln.sauber / wirksam) ────────────────────────────────────────────
@@ -150,7 +151,7 @@ void main() {
     l2: KOPF + `uniform sampler2D v2; uniform sampler2D basis;
 void main() { vec3 v = texture(v2, uv).rgb; o = vec4(vec3(tonLT(luma(v), texture(basis, uv).r)), 1.0); }`,
     ende: KOPF + `uniform sampler2D v2; uniform sampler2D basis; uniform sampler2D detb;
-uniform float kl, ko, sat, dyn, th, flip; uniform int d90; uniform vec4 rect; uniform vec2 rahmen;
+uniform float kl, ko, sat, dyn, th, flip, sch; uniform int d90; uniform vec4 rect; uniform vec2 rahmen;
 void main() {
   vec2 u = vec2(uv.x, flip > 0.5 ? 1.0 - uv.y : uv.y);
   vec2 p = (rect.xy + u * rect.zw) * rahmen, c = rahmen * 0.5, d = p - c;
@@ -159,12 +160,20 @@ void main() {
   if (f.x < 0.0 || f.y < 0.0 || f.x > 1.0 || f.y > 1.0) { o = vec4(vec3(24.0 / 255.0), 1.0); return; }
   vec2 s = d90 == 1 ? vec2(f.y, 1.0 - f.x) : (d90 == 2 ? vec2(1.0 - f.x, 1.0 - f.y) : (d90 == 3 ? vec2(1.0 - f.y, f.x) : f));
   vec3 v = texture(v2, s).rgb; float b = texture(basis, s).r;
-  float l0 = luma(v), l = tonLT(l0, b);
+  float l0 = luma(v), l = tonLT(l0, b), scharf = 0.0;
+  if (sch != 0.0) {   // Schärfen: Helligkeit minus 3×3-Gauß der Quelle (wie entwickeln._ton)
+    vec2 tx = 1.0 / vec2(textureSize(v2, 0)); float bl = 0.0;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      float w = float((2 - abs(i)) * (2 - abs(j)));
+      bl += w * luma(texture(v2, s + vec2(float(i), float(j)) * tx).rgb);
+    }
+    scharf = (l0 - bl / 16.0) * sch * 1.2;
+  }
   if (kl != 0.0) { float det = l - texture(detb, s).r; l = l + kl * 1.2 * det * clamp(1.0 - abs(b - 0.5) * 1.6, 0.0, 1.0); }
   if (ko != 0.0) { float x = clamp(l, 0.0, 1.0); float sm = x * x * (3.0 - 2.0 * x); l = ko > 0.0 ? x + ko * 1.6 * (sm - x) : x + ko * 0.6 * (x - 0.5); }
   l = clamp(l, 0.0, 1.2);
   float fk = clamp(l / max(l0, 1e-4), 0.0, 3.0), w = 1.0 - glatt(l0, 0.02, 0.18);
-  v = clamp((v * fk) * (1.0 - w) + (v + (l - l0)) * w, 0.0, 1.0);
+  v = clamp((v * fk) * (1.0 - w) + (v + (l - l0)) * w + scharf, 0.0, 1.0);
   float lum = luma(v), sk = 1.0 + sat;
   if (dyn != 0.0) { float sj = max(v.r, max(v.g, v.b)) - min(v.r, min(v.g, v.b)); sk *= 1.0 + dyn * (1.0 - clamp(sj * 1.6, 0.0, 1.0)); }
   o = vec4(clamp(lum + (v - lum) * sk, 0.0, 1.0), 1.0);
@@ -324,7 +333,7 @@ void main() {
       const v2 = this._stufen(w);
       this._pass("ende", ziel, { v2: v2.t, basis: this.ziele.basis.t, detb: (this.ziele.det || this.ziele.basis).t }, {
         li: (w.lichter || 0) / 100, ti: (w.tiefen || 0) / 100, kl: (w.klarheit || 0) / 100, ko: (w.kontrast || 0) / 100,
-        sat: (w.saettigung || 0) / 100, dyn: (w.dynamik || 0) / 100, th: (w.gerade || 0) * Math.PI / 180, flip: flip ? 1 : 0,
+        sat: (w.saettigung || 0) / 100, dyn: (w.dynamik || 0) / 100, sch: (w.schaerfen || 0) / 100, th: (w.gerade || 0) * Math.PI / 180, flip: flip ? 1 : 0,
         d90: w.drehen90 || 0, rect, rahmen: [Wr, Hr],
       });
       return { rect, Wr, Hr };
@@ -340,6 +349,39 @@ void main() {
       if (this.canvas.height !== bh) this.canvas.height = bh;
       const r = this._ende(w, null, !!opt.rahmen, true);
       return { breite: bw, hoehe: bh, rect: r.rect, Wr, Hr };
+    }
+    /** Quelle aus rohen RGBA-Pixeln (oben zuerst) — für das Speichern in voller Größe (core/entwickeln_gpu.py). */
+    quelleRoh(px, w, h) {
+      const gl = this.gl;
+      if (this.q) gl.deleteTexture(this.q);
+      this.W = w; this.H = h;
+      this.q = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.q);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
+      [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE));
+      this.merk = {};
+      const g = Math.max(w, h);
+      this.F = g >= 1000 ? 4 : (g >= 500 ? 2 : 1);
+    }
+    /** Entwickeln in voller Größe in eine unsichtbare Fläche; Rückgabe RGBA-Pixel (oben zuerst) + Größe. */
+    ausgeben(werte, opt) {
+      const gl = this.gl, w = werte || {};
+      const [Wr, Hr] = rahmenMasse(this.W, this.H, w.drehen90 || 0);
+      const rect = (opt && opt.rahmen) ? [0, 0, 1, 1] : ((w.gerade || w.zuschnitt) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1]);
+      const bw = Math.max(1, Math.round(rect[2] * Wr)), bh = Math.max(1, Math.round(rect[3] * Hr));
+      const z = this._ziel("aus", bw, bh, [gl.RGBA8, gl.UNSIGNED_BYTE]);
+      this._ende(w, z, !!(opt && opt.rahmen), false);
+      const px = new Uint8Array(bw * bh * 4);
+      gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
+      gl.readPixels(0, 0, bw, bh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      // Zwischenstufen in voller Größe freigeben — sonst hält der Browser bei 24 MP mehrere hundert MB
+      ["v1", "v2", "l2", "aus"].forEach(n => { const t = this.ziele[n]; if (t) { gl.deleteTexture(t.t); gl.deleteFramebuffer(t.fb); delete this.ziele[n]; } });
+      this.merk = {};
+      return { pixel: px, breite: bw, hoehe: bh };
     }
     /** Histogramm (64 Stufen je Kanal) des entwickelten Bildes — aus einer verkleinerten Fassung. */
     histogramm(werte, opt) {

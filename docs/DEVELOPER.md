@@ -6565,6 +6565,35 @@ Werkzeug. `foto_rezept_speichern` mit Liste überträgt nur den Ton (Geometrie j
 `zuschnittPanel`, `zuschnittRahmen` (Overlay `.fb-zs-ov` über Canvas/Bild), `zuschnittZiehen` (Verschieben/Ecken/Kanten,
 Seitenverhältnis, Einpassen per Halbierung). Tests `test_zuschneiden_ui`, `test_bearbeiten` E.
 
+**Gespeichertes auch auf der Grafikkarte (21.10.2026, Foto-Editor Paket 1):** `core/entwickeln.anwenden(img, werte,
+rahmen, gpu=True)` fragt zuerst `core/entwickeln_gpu.entwickeln` — ein Faden besitzt einen unsichtbaren Chromium
+(Playwright, dieselben GL-Schalter wie die Szene) mit einer leeren Seite, die `ui/js/entwickeln_gl.js` lädt. Pixel gehen
+roh hin und zurück über einen kleinen `ThreadingHTTPServer` auf 127.0.0.1 mit Zufallspfad (`GET …/ein`, `POST …/aus` als
+**Blob** — ArrayBuffer als Body war 20× langsamer, Playwright-`route` und Base64 ebenso). JS: `EntwicklerGL.quelleRoh(px,
+w, h)` + `ausgeben(werte, {rahmen})` (Endpass in eine RGBA8-Fläche, `readPixels`, danach die vollen Zwischenstufen
+freigeben). Aufträge stellen sich in einer Queue an (Raster-Vorbereitung mit 2 Fäden); nach `LEERLAUF_S` = 90 s ohne
+Auftrag schließt der Browser. Messung M6: 24 MP 0,8–1,2 s (numpy 2,8–6,9 s), 2 MP 0,1 s (0,46 s), 400 px 0,01 s.
+`None` (→ numpy) ohne Playwright, ohne WebGL 2, bei SwiftShader/llvmpipe (Software-Grafik, dann ist numpy schneller),
+über 16384 px Kante oder bei Fehlern; `RZ_ENTWICKELN_GPU=0` schaltet ab. numpy (`_ton`/`geometrie`) bleibt Ausweg und
+kennt künftig nur die Grundregler; `test_entwickeln_gl` vergleicht mit `gpu=False`. Test `test_entwickeln_gpu`.
+
+**Bereiche im Panel:** `fotos.js` `BEARB_BEREICHE` (Licht · Farbe · Effekte → Reglerschlüssel), `.fb-bereich` mit Kopf
+`[data-b-auf]` (einklappen, gemerkt in `localStorage` `rz.bearb.zu`) und `[data-b-auge]` (Auge: `bearbZ.aus` = Set,
+`bearbSicht(z)` = wirksame Werte ohne diese Bereiche — für GL-Vorschau und, ohne GL, als Rezept an
+`foto_entwickeln_vorschau`). Drehen an einem Regler eines ausgeblendeten Bereichs schaltet sein Auge wieder an. Test
+`test_bearb_bereiche`.
+
+**Schärfen (21.10.2026):** Regler `schaerfen` 0–150 (`REGLER` in Python und JS, `BEARB_SPANNE`). Detail = Helligkeit nach
+Dunst minus 3×3-Gauß (1-2-1) **in Quellpixeln**, × Betrag/100 × 1,2, additiv auf die Farben vor Dynamik/Sättigung —
+im Endpass (`sch`, 9 Abtastungen von `v2` um `s`) und in `_ton` (Rand wiederholt). Wirkt pixelbezogen wie in Lightroom:
+in der verkleinerten Vorschau schwächer als im Export bei 100 %.
+
+**Drehen im Zuschneiden-Werkzeug:** `zuschnittDrehen(buehne)` (einmal je Bühne, Capture-`pointerdown`): Ziel außerhalb
+`.fb-zs-r` → Winkel = Start + Änderung von `atan2` um die Rahmenmitte (Shift = 1°), `gerade` ±45°; war der Rahmen beim
+Anfassen maximal (`passend` mit seinem Seitenverhältnis), bleibt er maximal, sonst `einpassen(st, …)` vom Stand beim
+Anfassen. Bühne bekommt `.ist-zs` (Dreh-Zeiger als SVG-Cursor), Overlay `.dreht` (feines 12er-Gitter `.fb-zs-fein`,
+Winkel `.fb-zs-winkel`). Test `test_bearb_bereiche` E.
+
 ## Statistik als Übersichtsseite (09.10.2026)
 
 `modules/library/ui/module.js` `renderStats()`: Kennzahlen (`.st-kpi`, Ring `.st-ring` gemacht/geplant), `stKurveHtml(s)`

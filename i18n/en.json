@@ -6277,7 +6277,7 @@
   "bearb.rechts": "Rotate 90° right",
   "bearb.zs_reset": "Reset",
   "bearb.zs_fertig": "Done",
-  "bearb.zs_hinweis": "Drag the frame to move it, corners and edges change its size. Enter = done, Esc = cancel.",
+  "bearb.zs_hinweis": "Drag the frame to move it, corners and edges change its size, drag outside the frame to rotate. Enter = done, Esc = cancel.",
   "dop.kein_papierkorb": "{n} are on a drive without a Trash (e.g. the NAS) and stay where they are — choose “to folder ‘Duplicates (GPS Studio)’” for those.",
   "library.kein_papierkorb": "This drive has no Trash (e.g. a NAS) — the file stays where it is. Delete it in the Finder if you want.",
   "fotos.zeit_ordner": "Date from folder name",
@@ -6756,5 +6756,13 @@
   "frag.w.datenanimator": "data animator elevation profile video measurements heart rate chart",
   "frag.w.gpxinspektor": "GPX inspector repair heal track outliers statistics check cut edit",
   "frag.w.webkarte": "web map interactive map website blog embed HTML",
-  "frag.w.einstellungen": "settings language Mapbox MapTiler key token quality"
+  "frag.w.einstellungen": "settings language Mapbox MapTiler key token quality",
+  "bearb.b_licht": "Light",
+  "bearb.b_farbe": "Color",
+  "bearb.b_effekte": "Effects",
+  "bearb.b_geaendert": "Something is set in this section",
+  "bearb.b_auge_an": "Show the effect again",
+  "bearb.b_auge_aus": "Hide this section's effect for a moment",
+  "bearb.r_schaerfen": "Sharpening",
+  "bearb.b_details": "Detail"
 }

@@ -6277,7 +6277,7 @@
   "bearb.rechts": "90° nach rechts drehen",
   "bearb.zs_reset": "Zurücksetzen",
   "bearb.zs_fertig": "Fertig",
-  "bearb.zs_hinweis": "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen.",
+  "bearb.zs_hinweis": "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe, außerhalb des Rahmens ziehen dreht. Enter = fertig, Esc = abbrechen.",
   "dop.kein_papierkorb": "{n} liegen auf einem Laufwerk ohne Papierkorb (z. B. dem NAS) und bleiben, wo sie sind — dafür „in Ordner ‚Doppelte (GPS Studio)‘“ wählen.",
   "library.kein_papierkorb": "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder.",
   "fotos.zeit_ordner": "Datum aus Ordnername",
@@ -6756,5 +6756,13 @@
   "frag.w.datenanimator": "Daten-Animator Höhenprofil Video Messwerte Puls Herzfrequenz Diagramm",
   "frag.w.gpxinspektor": "GPX-Inspektor Track reparieren heilen Ausreißer Statistik prüfen schneiden bearbeiten",
   "frag.w.webkarte": "Web Karte interaktive Karte Webseite Blog einbetten HTML",
-  "frag.w.einstellungen": "Einstellungen Sprache Mapbox MapTiler Schlüssel Token Qualität"
+  "frag.w.einstellungen": "Einstellungen Sprache Mapbox MapTiler Schlüssel Token Qualität",
+  "bearb.b_licht": "Licht",
+  "bearb.b_farbe": "Farbe",
+  "bearb.b_effekte": "Effekte",
+  "bearb.b_geaendert": "In diesem Bereich ist etwas eingestellt",
+  "bearb.b_auge_an": "Wirkung wieder zeigen",
+  "bearb.b_auge_aus": "Wirkung dieses Bereichs kurz ausblenden",
+  "bearb.r_schaerfen": "Schärfen",
+  "bearb.b_details": "Details"
 }

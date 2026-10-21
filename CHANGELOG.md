@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Photo editing: the sliders sit in collapsible sections like in Lightroom — Light, Color, Effects. Click a heading to fold it (the app remembers it); a dot shows where something is set. The eye on each section hides its effect for a moment to compare, nothing is lost; moving one of its sliders shows it again.
+- Photo editing: Sharpening, in the new Detail section (0–150, like Lightroom's amount; strongest visible at 100 % zoom).
+- Cropping: drag outside the frame — next to a corner, in the darkened border or beside the photo — to rotate, like in Lightroom. A fine grid and the angle show while rotating, Shift snaps to whole degrees; the frame only shrinks as far as needed and grows back when you rotate back.
+
+### Changed
+- Photo editing: export, „Save as new file“, the grid thumbnails, videos and signs now develop on the graphics card with the same code as the live preview — preview and result are the same, and a 24-megapixel photo takes about one second instead of three to seven. Without a usable graphics card (or with only software graphics) the app develops as before.
+
 ## [0.9.804] – 2026-10-21
 
 ### Added

@@ -6277,7 +6277,7 @@
   "bearb.rechts": "Girar 90° a la derecha",
   "bearb.zs_reset": "Restablecer",
   "bearb.zs_fertig": "Listo",
-  "bearb.zs_hinweis": "Arrastra el marco para moverlo; las esquinas y los bordes cambian su tamaño. Intro = listo, Esc = cancelar.",
+  "bearb.zs_hinweis": "Arrastra el marco para moverlo; las esquinas y los bordes cambian su tamaño; arrastra fuera del marco para girar. Intro = listo, Esc = cancelar.",
   "dop.kein_papierkorb": "{n} están en una unidad sin papelera (p. ej. el NAS) y se quedan donde están — para ellos elige «a la carpeta ‹Duplicados (GPS Studio)›».",
   "library.kein_papierkorb": "Esta unidad no tiene papelera (p. ej. un NAS): el archivo se queda donde está. Bórralo en el Finder si quieres.",
   "fotos.zeit_ordner": "Fecha del nombre de la carpeta",
@@ -6756,5 +6756,13 @@
   "frag.w.datenanimator": "animador de datos perfil de altitud vídeo mediciones pulso gráfico",
   "frag.w.gpxinspektor": "inspector GPX reparar track valores atípicos estadísticas cortar editar",
   "frag.w.webkarte": "mapa web mapa interactivo página web blog incrustar HTML",
-  "frag.w.einstellungen": "ajustes idioma Mapbox MapTiler clave token calidad"
+  "frag.w.einstellungen": "ajustes idioma Mapbox MapTiler clave token calidad",
+  "bearb.b_licht": "Luz",
+  "bearb.b_farbe": "Color",
+  "bearb.b_effekte": "Efectos",
+  "bearb.b_geaendert": "Hay ajustes en esta sección",
+  "bearb.b_auge_an": "Mostrar de nuevo el efecto",
+  "bearb.b_auge_aus": "Ocultar un momento el efecto de esta sección",
+  "bearb.r_schaerfen": "Enfoque",
+  "bearb.b_details": "Detalle"
 }

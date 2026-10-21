@@ -1641,6 +1641,19 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .fb-stil.is-on { border-color: var(--accent); color: var(--accent); }
 .fb-r { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; margin: 5px 0; font-size: 12px; }
 .fb-r input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+/* 21.10.2026 — einklappbare Bereiche wie Lightroom (Licht · Farbe · Effekte), Auge blendet die Wirkung kurz aus */
+.fb-bereich { border-top: 1px solid var(--border); padding: 2px 0 4px; }
+.fb-b-kopf { display: flex; align-items: center; gap: 4px; }
+.fb-b-auf { flex: 1; display: flex; align-items: center; gap: 6px; padding: 6px 2px; background: none; border: 0; color: var(--text);
+  font: 600 12px var(--font-ui); text-align: left; cursor: pointer; }
+.fb-b-auf svg { transition: transform .15s; color: var(--text-muted); }
+.fb-bereich.is-zu .fb-b-auf svg { transform: rotate(-90deg); }
+.fb-bereich.is-zu .fb-regler { display: none; }
+.fb-b-punkt { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.fb-b-auge { background: none; border: 0; padding: 4px; color: var(--text-muted); cursor: pointer; border-radius: 4px; }
+.fb-b-auge:hover { color: var(--text); background: var(--bg-3); }
+.fb-bereich.is-aus .fb-b-auge { color: var(--warn); }
+.fb-bereich.is-aus .fb-regler { opacity: .45; }
 .fb-r-wert { color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .fb-unten { flex-wrap: wrap; }
 .fb-hinweis { font-size: 11px; margin: 4px 0; }
@@ -1852,6 +1865,16 @@ canvas.foto-gross-bild { display: block; }
 .fb-zs-r b[data-h="s"] { left: calc(50% - 7px); bottom: -7px; cursor: ns-resize; }
 .fb-zs-r b[data-h="sw"] { left: -7px; bottom: -7px; cursor: nesw-resize; }
 .fb-zs-r b[data-h="w"] { left: -7px; top: calc(50% - 7px); cursor: ew-resize; }
+/* 21.10.2026 — Drehen durch Ziehen außerhalb des Rahmens (wie Lightroom): Dreh-Zeiger, beim Drehen feines Gitter + Winkel */
+.foto-gross-buehne.ist-zs, .foto-gross-buehne.ist-zs .fb-zs-ov {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='%23000' stroke-width='4'%3E%3Cpath d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/g%3E%3Cg stroke='%23fff' stroke-width='2'%3E%3Cpath d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/g%3E%3C/svg%3E") 12 12, alias; }
+.fb-zs-fein { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .12s;
+  background-image: linear-gradient(rgba(255,255,255,.28) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.28) 1px, transparent 1px);
+  background-size: 8.333% 8.333%; }
+.fb-zs-ov.dreht .fb-zs-fein { opacity: 1; }
+.fb-zs-ov.dreht .fb-zs-drittel { opacity: 0; }
+.fb-zs-winkel { position: absolute; pointer-events: none; background: rgba(0,0,0,.7); color: #fff; font: 12px var(--font-mono);
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
 .fb-zs-kopf { display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 8px 0 4px; }
 .fb-zs-titel { font-size: 12px; margin: 8px 0 2px; }
 .fb-zs-seiten { flex-wrap: wrap; }
