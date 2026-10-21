@@ -6641,6 +6641,7 @@
   "logbuch.mehrfach_n": "{n} entries selected",
   "logbuch.mehrfach_weg": "Clear selection (Esc)",
   "animator.etappe.ziehen": "Drag to change the order",
+  "animator.etappe.eingabe_tip": "Type a place or paste a coordinate — e.g. 45.0556, 6.0302 or a Google Maps link",
   "animator.etappe.name_tip": "Map point: just type a name here — nothing is searched. Magnifier: search the text as a place.",
   "animator.etappe.suchen_tip": "Search this text as a place (the point moves there)",
   "signs.karte_tippen": "Type text …",

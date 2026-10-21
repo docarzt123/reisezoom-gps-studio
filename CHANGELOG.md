@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Place search everywhere (stage stations, route, set place) accepts coordinates: decimal („45.0556, 6.0302“, also with German comma), degrees/minutes/seconds and Google/Apple Maps links — e.g. spots saved in a camping app. The station is set exactly there, named after the place nearby.
+
 ## [0.9.804] – 2026-10-21
 
 ### Added

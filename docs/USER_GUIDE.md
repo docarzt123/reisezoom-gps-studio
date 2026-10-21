@@ -1440,7 +1440,7 @@ heile Fassung als Tour ins Archiv. Deine Datei bleibt, wie sie ist.
 **Etappe erstellen (seit v0.9.783).** Unter *Tracks* steht neben „＋ Tour hinzufügen“ der Knopf **„＋ Etappe erstellen“**.
 Der Editor öffnet rechts in der Seitenspalte (✕ oder Esc schließt ihn).
 Eine Etappe ist eine Strecke ohne GPS-Aufzeichnung — Anreise, Flug, Fähre, Autofahrt —, die zwischen oder vor deinen
-echten Touren läuft. Stationen tippst du ein (Enter) oder du drückst 📍 und klickst auf die Karte; zwischen zwei
+echten Touren läuft. Stationen tippst du ein (Enter) — Ortsname, Adresse oder **Koordinaten** (z. B. `45.0556, 6.0302`, Grad/Minuten/Sekunden oder ein Google-/Apple-Maps-Link, etwa ein Stellplatz aus einer Camping-App) — oder du drückst 📍 und klickst auf die Karte; zwischen zwei
 Stationen wählst du **„dann mit …“** (Auto, Motorrad, Fahrrad, zu Fuß, Zug, Boot, Flugzeug) — innerhalb einer Etappe
 gemischt, z. B. Berlin –Flug→ Teneriffa –Auto→ Hotel. Unter **„Platz“** legst du fest, wo sie läuft: vor der ersten
 Tour (Anreise), zwischen zwei Touren oder nach der letzten; Start und Ziel sind dann schon mit dem Ende der Tour davor

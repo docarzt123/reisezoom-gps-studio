@@ -6641,6 +6641,7 @@
   "logbuch.mehrfach_n": "{n} entradas seleccionadas",
   "logbuch.mehrfach_weg": "Quitar selección (Esc)",
   "animator.etappe.ziehen": "Arrastra para cambiar el orden",
+  "animator.etappe.eingabe_tip": "Escribe un lugar o pega una coordenada, p. ej. 45.0556, 6.0302 o un enlace de Google Maps",
   "animator.etappe.name_tip": "Punto del mapa: escribe aquí solo un nombre, no se busca nada. Lupa: buscar el texto como lugar.",
   "animator.etappe.suchen_tip": "Buscar este texto como lugar (el punto se mueve allí)",
   "signs.karte_tippen": "Escribe el texto …",
