@@ -2725,7 +2725,10 @@
 
   window.rzSchnellVideo = rzSchnellVideo;
   window.__rzSchnellKamerafahrt = kamerafahrt;   // Prüfstand
-  window.__rzFlugstile = { liste: FLUGSTIL_NAMEN.slice(), stil: (k) => FLUGSTILE[k] || null, kurs: (k) => kursOpts({ flug: k }) };   // Prüfstand, CLI
+  window.__rzFlugstile = { liste: FLUGSTIL_NAMEN.slice(), stil: (k) => FLUGSTILE[k] || null, kurs: (k) => kursOpts({ flug: k }),   // Prüfstand, CLI
+    // 18.10.2026 (Fahrt neu erzeugen) — Name + Kurztext und Vorschau-Clip eines Flugstils für das Popup im Animator
+    text: (k) => FLUGSTIL_TEXT[k] ? [T("schnell.flug." + k, FLUGSTIL_TEXT[k][0]), T("schnell.flug." + k + "_k", FLUGSTIL_TEXT[k][1])] : [k, ""],
+    clip: (k) => kamClip("flug_" + k) };
   window.__rzSchnellPatch = animatorPatch;       // Prüfstand
   window.__rzSchnellAblauf = nurAblauf;          // Prüfstand
   window.__rzSchnellFotostopps = fotostoppSchilder;   // Prüfstand

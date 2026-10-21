@@ -16,6 +16,7 @@
  *     onDelete: (idx) => { ... },           // Rechtsklick auf Marker
  *     onSnapshot: () => { ... },            // 📍 Hier Keyframe gedrückt
  *     onClearAll: () => { ... },            // 🗑 Alle weg
+ *     onFahrtNeu: () => { ... },            // 🎬 Fahrt neu erzeugen… (18.10.2026)
  *     onRunPreview: () => { ... },          // ▶ Probe-Lauf
  *   });
  *   tl.refresh();           // nach Änderung von events neu zeichnen
@@ -214,6 +215,10 @@ function mountTimelineBar(opts) {
           <input type="checkbox" id="tl-cb-kfpins">
           <span>${tlT('animator.timeline.kfpins', 'KF-Pins')}</span>
         </label>
+        <button type="button" class="btn btn-subtle timeline-btn-fahrt-neu" id="tl-btn-fahrt-neu"
+                title="${tlT('animator.kf.fahrt_neu_tip', 'Kamerafahrt mit einer anderen Art oder einem anderen Flugstil neu erzeugen. ⌘Z holt die bisherige zurück.')}">
+          🎬 <span>${tlT('animator.kf.fahrt_neu', 'Fahrt neu erzeugen…')}</span>
+        </button>
         <button type="button" class="btn btn-subtle timeline-btn-clear" id="tl-btn-clear"
                 title="${tlT('animator.timeline.clear_tip', 'Entfernt alle Keyframes. Pitch/Rotation-Slider sind danach wieder aktiv.')}">
           🗑 <span>${tlT('animator.timeline.clear', 'Alle weg')}</span>
@@ -308,6 +313,7 @@ function mountTimelineBar(opts) {
   const btnSnap     = host.querySelector("#tl-btn-snap");
   const btnPlay     = host.querySelector("#tl-btn-play");
   const btnClear    = host.querySelector("#tl-btn-clear");
+  const btnFahrtNeu = host.querySelector("#tl-btn-fahrt-neu");   // 18.10.2026
 
   // v0.9.125 — Easing-Glyphs + Label (Mini-Picker auf Cluster-Verbindungslinie).
   function _easingLabel(kind) {
@@ -2256,6 +2262,7 @@ function mountTimelineBar(opts) {
     host.classList.toggle("is-disabled", !_enabled);
     btnSnap.disabled = !_enabled;
     btnPlay.disabled = !_enabled;
+    btnFahrtNeu.disabled = !_enabled;   // 18.10.2026: aktiv genau dann, wenn der Editor an ist (nicht an clusters.length gekoppelt)
     if (!_enabled) btnClear.disabled = true;
     else refresh();
   }
@@ -2493,6 +2500,10 @@ function mountTimelineBar(opts) {
       span.textContent = tlT('animator.timeline.stop', 'Stopp');
     }
   }
+  btnFahrtNeu.addEventListener("click", () => {
+    if (!_enabled || !cb.onFahrtNeu) return;
+    cb.onFahrtNeu();
+  });
   btnClear.addEventListener("click", () => {
     if (!_enabled || !cb.onClearAll) return;
     cb.onClearAll();

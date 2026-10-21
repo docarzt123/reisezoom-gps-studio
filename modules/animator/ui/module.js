@@ -1829,10 +1829,17 @@ function mountAnimator(body, headerActions, opts) {
         title: t("animator.kf.uebernehmen_titel", "Standard-Keyframes übernehmen?"),
         body: `<p style="margin:0 0 4px; font-size:13.5px; line-height:1.5;">${t("animator.kf.uebernehmen_text", "Die Kamera läuft gerade über die Standard-Keyframes: Einstellungen der Kamera, Sicht je Tour und die Übergänge. Übernimmst du sie, werden sie zu deinen Keyframes — sichtbar in der Zeitleiste und frei veränderbar.")}</p>`,
         footer: `<button type="button" class="btn" id="md-kf-ohne">${t("animator.kf.uebernehmen_nein", "Ohne beginnen")}</button>
+                 <button type="button" class="btn" id="md-kf-waehlen">${t("animator.kf.uebernehmen_waehlen", "Fahrt wählen…")}</button>
                  <button type="button" class="btn btn-primary" id="md-kf-mit">${t("animator.kf.uebernehmen_ja", "Übernehmen")}</button>`,
       });
       document.getElementById("md-kf-ohne").onclick = () => ein(false);
       document.getElementById("md-kf-mit").onclick = () => ein(true);
+      // 18.10.2026 (Beitrag aus der Community) — „Fahrt wählen…": Art und Flugstil im Popup festlegen; der Schalter bleibt
+      // wegen preventDefault aus, bis „Erzeugen" (fahrtNeu schaltet den Editor selbst ein); bei Abbruch ändert sich nichts
+      document.getElementById("md-kf-waehlen").onclick = () => {
+        openModal({}).close();
+        if (window.rzEinfach && window.rzEinfach.fahrtNeuDialog) window.rzEinfach.fahrtNeuDialog();
+      };
     });
   })();
   // Karten-Feinabstimmung-Felder — jetzt direkt in der Karten-Sektion (v0.6.0).
@@ -14063,6 +14070,7 @@ function mountAnimator(body, headerActions, opts) {
         onValueDrag:      (e) => wertZiehen(e),
         onValueDragEnd:   ()  => wertZiehEnde(),
         onClearAll:     () => clearAllKeyframes(),
+        onFahrtNeu:     () => window.rzEinfach && window.rzEinfach.fahrtNeuDialog(),   // 18.10.2026
         onRunPreview:   () => runTimelinePreview(),
         // v0.9.8 — Doppelklick auf eine Lane = nur dieser Property einen
         // Event geben (statt immer den ganzen Cluster anzulegen).
@@ -18209,7 +18217,7 @@ function mountAnimator(body, headerActions, opts) {
       if (!zeile.classList.contains("mit-transport")) {
         const links = document.createElement("div"), rechts = document.createElement("div");
         links.className = "tl-akt-links"; rechts.className = "tl-akt-rechts";
-        for (const c of [...zeile.children]) (c.classList.contains("timeline-btn-clear") ? rechts : links).appendChild(c);
+        for (const c of [...zeile.children]) (c.classList.contains("timeline-btn-clear") || c.classList.contains("timeline-btn-fahrt-neu") ? rechts : links).appendChild(c);
         zeile.append(links, rechts);
         zeile.classList.add("mit-transport");
       }
@@ -24429,6 +24437,9 @@ function mountAnimator(body, headerActions, opts) {
   // 07.10.2026 Kamera-Vorgabe „Start → Ziel“: erster und letzter Punkt der Strecke (bei einer Reise die ganze Bahn)
   window.__rzStartZiel = () => { const co = (_reiseAktiv() && _reiseBahn && _reiseBahn.coords) || currentCoords;
     return co && co.length >= 2 ? [co[0].slice(0, 2), co[co.length - 1].slice(0, 2)] : null; };
+  // 18.10.2026 — Prüfstand + Fahrt neu erzeugen: Track-Linie [[lon,lat],…] (bei einer Reise die ganze Bahn)
+  window.__rzTrackLinie = () => { const co = (_reiseAktiv() && _reiseBahn && _reiseBahn.coords) || currentCoords;
+    return co && co.length >= 2 ? co.map(c => [c[0], c[1]]) : null; };
 
   // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
   try { window.__rzAnimCoords = () => currentCoords || []; } catch (_) {}

@@ -565,6 +565,13 @@
 .timeline-btn-clear {
   margin-left: auto;
 }
+/* 18.10.2026 — „Fahrt neu erzeugen…“ sitzt links neben „Alle weg“ und übernimmt dessen Rechtsbündigkeit */
+.timeline-btn-fahrt-neu {
+  margin-left: auto;
+}
+.timeline-btn-fahrt-neu + .timeline-btn-clear {
+  margin-left: 0;
+}
 
 /* v0.9.11 — Vollständiger-Track-Toggle neben Probe-Lauf.
    Inline-Layout passt zu den Buttons, kein eigener Block. */
@@ -638,6 +645,7 @@
 .anim-timeline-host--kf-off .timeline-lanes,
 .anim-timeline-host--kf-off .timeline-btn-snap,
 .anim-timeline-host--kf-off .timeline-btn-clear,
+.anim-timeline-host--kf-off .timeline-btn-fahrt-neu,
 /* v0.9.454 — „KF-Pins" schaltet die gelben Keyframe-Dots auf der Karte.
    Ohne Keyframe-Editor gibt es keine Keyframes und damit keine Pins →
    die Checkbox hätte nichts zu schalten. */
