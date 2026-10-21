@@ -4724,6 +4724,7 @@
   "route.err_zu_wenige": "La ruta contiene muy pocos puntos",
   "szene.app_laden": "Escena: cargando la app …",
   "szene.err_kein_ausschnitt": "El mapa no pudo calcular un encuadre para el vídeo (¿área de vista previa demasiado pequeña o track sin extensión?)",
+  "szene.err_startfehler": "La interfaz notificó un error de inicio: ",
   "szene.err_zeitgrenze": "No está listo tras {s} s: ",
   "szene.g_ausschnitt": "Aún no se ha calculado el encuadre del mapa",
   "szene.g_kacheln": "Cargando las teselas del mapa",

@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
@@ -1136,6 +1137,23 @@ def _tile_cache_prune(max_mb: int) -> None:
               n, total / 2**20, max_mb)
 
 
+_prune_lock = threading.Lock()
+
+
+def _tile_cache_prune_hintergrund(max_mb: int) -> None:
+    """19.10.2026: Aufräumen im eigenen Thread statt im Ereignisschleifen-Faden. Dort blockierte es bei vielen
+    Dateien viele Sekunden, die Seite bekam keine Antworten, und der Start-Wächter der Oberfläche zeigte den
+    Fehlerschirm. Läuft schon eines (zweite Seite, Vorläufer), wird übersprungen."""
+    if not _prune_lock.acquire(blocking=False):
+        return
+    try:
+        _tile_cache_prune(max_mb)
+    except Exception as e:      # noqa: BLE001
+        _log.warning("Kachel-Zwischenspeicher: Aufräumen fehlgeschlagen: %s", e)
+    finally:
+        _prune_lock.release()
+
+
 async def _install_tile_cache(page, cfg) -> Optional[dict]:
     """Playwright-Route: Kacheln aus dem Zwischenspeicher bedienen, neue ablegen.
     Liefert das Zähler-Dict (hit/miss/store) fürs Log, None wenn aus."""
@@ -1151,7 +1169,7 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
     if d is not None:
         try:
             d.mkdir(parents=True, exist_ok=True)
-            _tile_cache_prune(TILE_CACHE_MAX_MB)
+            threading.Thread(target=_tile_cache_prune_hintergrund, args=(TILE_CACHE_MAX_MB,), daemon=True).start()
         except OSError as e:
             _log.warning("Kachel-Zwischenspeicher nicht nutzbar: %s", e)
             d = None

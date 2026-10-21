@@ -4724,6 +4724,7 @@
   "route.err_zu_wenige": "Route enthält zu wenige Punkte",
   "szene.app_laden": "Szene: App laden …",
   "szene.err_kein_ausschnitt": "Die Karte konnte keinen Ausschnitt für das Video berechnen (Vorschau-Fläche zu klein oder Track ohne Ausdehnung?)",
+  "szene.err_startfehler": "Die Oberfläche meldet einen Startfehler: ",
   "szene.err_zeitgrenze": "Nach {s} s nicht bereit: ",
   "szene.g_ausschnitt": "Kartenausschnitt noch nicht berechnet",
   "szene.g_kacheln": "Kartenkacheln laden",
