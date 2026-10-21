@@ -109,7 +109,7 @@
       if (!ctrl || !window.__rzSchnellKamerafahrt || !bbox) { feld("anim-camera-follow", true); return; }
       const animS = +a.duration_s || 20;
       const neu = Object.assign({}, a, { keyframes_enabled: true, camera_follow_track: true, kamera_vorgabe: "fahrt",
-        timeline_events: window.__rzSchnellKamerafahrt(bbox, animS, null) });
+        timeline_events: window.__rzSchnellKamerafahrt(bbox, animS, null, { hold_s: isFinite(+a.hold_s) ? +a.hold_s : undefined }) });
       ctrl.applyState(neu, T("einfach.kamera_undo", "Kamerafahrt"));
       setTimeout(() => { try { if (window.__rzSchnellKamera) window.__rzSchnellKamera(); } catch (_) {} }, 600);
     } catch (e) { try { applog("warn", "[einfach] Kamerafahrt: " + e); } catch (_) {} }
@@ -133,7 +133,7 @@
         if (!window.__rzSchnellKamerafahrt || !bbox || !linie) return keinTrack();
         flug = (opt && window.__rzFlugstile && window.__rzFlugstile.stil(opt.flug)) ? opt.flug : "begleiter";
         const lebendig = (opt && isFinite(+opt.lebendig)) ? +opt.lebendig : 0.5;
-        kamera = window.__rzSchnellKamerafahrt(bbox, +a.duration_s || 20, null, { flug, lebendig }, linie);
+        kamera = window.__rzSchnellKamerafahrt(bbox, +a.duration_s || 20, null, { flug, lebendig, hold_s: isFinite(+a.hold_s) ? +a.hold_s : undefined }, linie);
         felder = { camera_follow_track: true, kamera_vorgabe: "fahrt" };
       } else if (art === "startziel") {
         const sz = window.__rzStartZiel ? window.__rzStartZiel() : null;
