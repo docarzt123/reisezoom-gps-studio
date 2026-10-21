@@ -2476,8 +2476,8 @@
         <div class="foto-gross-hinweis" hidden></div>
         <div class="foto-gross-streifen"></div>
         <aside class="foto-gross-seite"><div class="foto-gross-karte" id="foto-gross-karte"></div>
-          <div class="fg-reiter" role="tablist"><button type="button" class="fg-r is-on" data-fg="bearb">${I("sliders-horizontal", 14)} ${esc(T("bearb.reiter", "Bearbeiten"))}</button><button type="button" class="fg-r" data-fg="info">${esc(T("bearb.reiter_info", "Info"))}</button></div>
-          <div class="foto-gross-info" hidden></div><div class="foto-gross-bearb"></div></aside>
+          <div class="fg-reiter" role="tablist"><button type="button" class="fg-r is-on" data-fg="bearb">${I("sliders-horizontal", 14)} ${esc(T("bearb.reiter", "Bearbeiten"))}</button><button type="button" class="fg-r" data-fg="verlauf" title="${esc(T("bearb.verlauf_tip", "Verlauf und Versionen (⌘Z / ⇧⌘Z: Schritt zurück/vor)"))}">${I("history", 14)} ${esc(T("bearb.reiter_verlauf", "Verlauf"))}</button><button type="button" class="fg-r" data-fg="info">${esc(T("bearb.reiter_info", "Info"))}</button></div>
+          <div class="foto-gross-info" hidden></div><div class="foto-gross-bearb"></div><div class="foto-gross-verlauf" hidden></div></aside>
         <div class="foto-gross-leiste"><span class="foto-gross-name"></span><span class="foto-gross-knoepfe"></span></div>`;
       document.body.appendChild(el);
       el.classList.add("mit-seite");
@@ -2569,7 +2569,40 @@
     ["temperatur", "bearb.r_temperatur", "Temperatur", 1], ["toenung", "bearb.r_toenung", "Tönung", 1],
     ["dynamik", "bearb.r_dynamik", "Dynamik", 1], ["saettigung", "bearb.r_saettigung", "Sättigung", 1],
     ["klarheit", "bearb.r_klarheit", "Klarheit", 1], ["dunst", "bearb.r_dunst", "Dunst entfernen", 1],
+    ["schaerfen", "bearb.r_schaerfen", "Schärfen", 1],
+    ["weiss", "bearb.r_weiss", "Weiß", 1], ["schwarz", "bearb.r_schwarz", "Schwarz", 1], ["struktur", "bearb.r_struktur", "Struktur", 1],
+    ["boost", "bearb.r_boost", "Boost", 1],
   ];
+  const BEARB_SPANNE = { belichtung: [-3, 3], schaerfen: [0, 150], boost: [0, 100] };   // sonst −100 … +100
+  // 21.10.2026 (Foto-Editor Paket 1, wie Lightroom): Regler in einklappbaren Bereichen; das Auge blendet die Wirkung
+  // eines Bereichs kurz aus (nur in der Ansicht, gespeichert bleibt alles). Eingeklappt merkt sich die App.
+  const BEARB_BEREICHE = [
+    ["licht", "bearb.b_licht", "Licht", ["belichtung", "kontrast", "lichter", "tiefen", "weiss", "schwarz"]],
+    ["farbe", "bearb.b_farbe", "Farbe", ["temperatur", "toenung", "dynamik", "saettigung"]],
+    ["effekte", "bearb.b_effekte", "Effekte", ["struktur", "klarheit", "dunst"]],
+    ["details", "bearb.b_details", "Details", ["schaerfen"]],
+    ["geometrie", "bearb.b_geometrie", "Geometrie", []],
+  ];
+  // 21.10.2026 (Marc: „Bilder auch nur leicht drehen und stürzende Linien korrigieren, wie in LR“) — Transformieren.
+  // Eigene Regler (data-g), denn das ist Geometrie je Foto: nicht bei „Kopieren“/„Auto für viele“ dabei.
+  const BEARB_GEO_REGLER = [
+    ["vertikal", "bearb.g_vertikal", "Vertikal", -100, 100, 1], ["horizontal", "bearb.g_horizontal", "Horizontal", -100, 100, 1],
+    ["gerade", "bearb.g_drehen", "Drehen", -45, 45, 0.1], ["aspekt", "bearb.g_aspekt", "Seitenverhältnis", -100, 100, 1],
+    ["skala", "bearb.g_skala", "Skalieren", -50, 50, 1], ["versatz_x", "bearb.g_versatz_x", "Versatz X", -100, 100, 1],
+    ["versatz_y", "bearb.g_versatz_y", "Versatz Y", -100, 100, 1],
+  ];
+  const geoWert = (k, v) => k === "gerade" ? (v > 0 ? "+" : "") + v.toFixed(1) + "°" : (k === "skala" ? Math.round(100 + v) + " %" : (v > 0 ? "+" : "") + Math.round(v));
+  const bearbZu = new Set((() => { try { return JSON.parse(localStorage.getItem("rz.bearb.zu") || "[]"); } catch (_) { return []; } })());
+  function bearbZuMerken() { try { localStorage.setItem("rz.bearb.zu", JSON.stringify([...bearbZu])); } catch (_) {} }
+  /** Wirksame Werte für die Ansicht — ohne die Bereiche, deren Auge aus ist. */
+  function bearbSicht(z) {
+    const w = rzEntwickler.wirksam(z.rezept, z.auto, z.voreinst);
+    (z.aus || new Set()).forEach(b => {
+      if (b === "geometrie") { BEARB_GEO_REGLER.forEach(([k]) => { delete w[k]; }); return; }
+      const d = BEARB_BEREICHE.find(x => x[0] === b); if (d) d[3].forEach(k => { delete w[k]; });
+    });
+    return w;
+  }
   const BEARB_STILE = [["natuerlich", "bearb.s_natuerlich", "Natürlich"], ["kraeftig", "bearb.s_kraeftig", "Kräftig"],
                        ["matt", "bearb.s_matt", "Matt"], ["sw", "bearb.s_sw", "SW"]];
   let bearbAblage = null;      // „Einstellungen kopieren“
@@ -2581,7 +2614,8 @@
   function grossReiter(w) {
     const g = gross; if (!g) return;
     g.reiter = w;
-    if (grossReiterZeigen() === "bearb") bearbLaden(g.liste[g.idx]).catch(() => {});
+    const w2 = grossReiterZeigen();
+    if (w2 === "bearb" || w2 === "verlauf") bearbLaden(g.liste[g.idx]).catch(() => {});
   }
   /** Zeigt den gewählten Reiter; ein Video lässt sich nicht bearbeiten, dort steht Info (die Wahl bleibt gemerkt). */
   function grossReiterZeigen() {
@@ -2591,6 +2625,7 @@
     g.el.querySelectorAll("[data-fg]").forEach(b => b.classList.toggle("is-on", b.dataset.fg === w));
     g.el.querySelector(".foto-gross-info").hidden = w !== "info";
     g.el.querySelector(".foto-gross-bearb").hidden = w !== "bearb";
+    g.el.querySelector(".foto-gross-verlauf").hidden = w !== "verlauf";
     return w;
   }
   async function bearbLaden(f) {
@@ -2605,7 +2640,8 @@
       if (gross !== g || g.liste[g.idx] !== f) return;
       if (!r || !r.ok) { box.innerHTML = `<div class="muted">${esc((r && r.error) || "?")}</div>`; return; }
       bearbZ = { pfad: f.path, f, rezept: JSON.parse(JSON.stringify(r.rezept || {})), auto: r.auto || {}, aus_vorschau: r.aus_vorschau, lauf: 0, tmrV: 0, tmrS: 0, offen: false, hist: r.hist || null,
-                 quelleUrl: r.quelle_url || null, voreinst: r.voreinstellungen || {}, W: r.breite || 0, H: r.hoehe || 0, seite: "orig" };
+                 quelleUrl: r.quelle_url || null, voreinst: r.voreinstellungen || {}, W: r.breite || 0, H: r.hoehe || 0, seite: "orig",
+                 gespeichert: JSON.parse(JSON.stringify(r.rezept || {})), zurueck: [], vor: [] };
       // altes Rezept mit unsichtbarem Auto-Schalter (ohne Voreinstellung): Werte sichtbar in die Regler holen, gleiches Bild
       if (bearbZ.rezept.auto && !bearbZ.rezept.stil) { autoInRegler(bearbZ.rezept, bearbZ.auto, true); bearbZ.offen = true; clearTimeout(bearbZ.tmrS); bearbZ.tmrS = setTimeout(bearbSpeichernJetzt, 600); }
       if (r.quelle_url) {
@@ -2620,6 +2656,7 @@
     bearbZeichnen();
     if (!ist_leer(bearbZ.rezept)) bearbVorschau();
     else if (bearbZ.hist) bearbHist(bearbZ.hist);
+    if (g.reiter === "verlauf") verlaufZeichnen();
   }
   /** 21.10.2026 (Marc: „wenn ich Auto drücke, sollen sich die Regler entsprechend verschieben“) — wie Lightroom: Auto rechnet
       die Werte aus und stellt sie in die Regler (Belichtung … Dynamik), danach frei nacharbeiten. `dazu` = auf die eigenen Werte
@@ -2638,7 +2675,7 @@
     delete rz.auto;
   }
   const ist_leer = (rz) => !rz || !(rz.auto || rz.stil || BEARB_REGLER.some(([k]) => +rz[k]) || +rz.drehen90 || +rz.gerade || rz.zuschnitt);
-  const BEARB_GEO = ["drehen90", "gerade", "zuschnitt"];
+  const BEARB_GEO = ["drehen90", "gerade", "zuschnitt", "vertikal", "horizontal", "aspekt", "skala", "versatz_x", "versatz_y"];
   const nurTon = (rz) => { const o = JSON.parse(JSON.stringify(rz || {})); BEARB_GEO.forEach(k => delete o[k]); return o; };
   const nurGeo = (rz) => { const o = {}; BEARB_GEO.forEach(k => { if (rz && rz[k] != null) o[k] = JSON.parse(JSON.stringify(rz[k])); }); return o; };
   /** Ein Regler hat sich geändert: Vorschau neu (Grafikkarte sofort im nächsten Bild, Python nach 70 ms), speichern nach 600 ms. */
@@ -2672,12 +2709,29 @@
         <button type="button" class="btn btn-sm btn-ghost" id="fb-reset" title="${esc(T("bearb.reset", "Zurücksetzen"))}">${I("rotate-ccw", 14)}</button>
       </div>
       <div class="fb-stile">${BEARB_STILE.map(([k, ik, fb]) => `<button type="button" class="fb-stil${rz.stil === k ? " is-on" : ""}" data-stil="${k}">${esc(T(ik, fb))}</button>`).join("")}</div>
-      <div class="fb-regler">${BEARB_REGLER.map(([k, ik, fb, schritt]) => {
-        const [lo, hi] = k === "belichtung" ? [-3, 3] : [-100, 100];
-        const v = +(rz[k] || 0);
-        return `<label class="fb-r"><span class="fb-r-name">${esc(T(ik, fb))}</span><span class="fb-r-wert" id="fbw-${k}">${k === "belichtung" ? (v > 0 ? "+" : "") + v.toFixed(2) : (v > 0 ? "+" : "") + Math.round(v)}</span>
-          <input type="range" min="${lo}" max="${hi}" step="${schritt}" value="${v}" data-r="${k}"></label>`;
-      }).join("")}</div>
+      ${(() => { const v = +(rz.boost || 0); return `<label class="fb-r fb-boost" title="${esc(T("bearb.r_boost_tip", "Ein Regler für mehr Bild: Farben, Struktur, Tiefen und Lichter zugleich"))}"><span class="fb-r-name">${I("sparkles", 13)} ${esc(T("bearb.r_boost", "Boost"))}</span><span class="fb-r-wert" id="fbw-boost">${Math.round(v)}</span>
+        <input type="range" min="0" max="100" step="1" value="${v}" data-r="boost"></label>`; })()}
+            ${BEARB_BEREICHE.map(([bk, bik, bfb, keys]) => {
+        const zu = bearbZu.has(bk), aus = !!(z.aus && z.aus.has(bk));
+        const gesetzt = (bk === "geometrie" ? BEARB_GEO_REGLER.map(x => x[0]) : keys).some(k => +(rz[k] || 0));
+        return `<section class="fb-bereich${zu ? " is-zu" : ""}${aus ? " is-aus" : ""}" data-bereich="${bk}">
+        <div class="fb-b-kopf">
+          <button type="button" class="fb-b-auf" data-b-auf="${bk}" aria-expanded="${zu ? "false" : "true"}">${I("chevron-down", 14)}<span>${esc(T(bik, bfb))}</span><i class="fb-b-punkt" title="${esc(T("bearb.b_geaendert", "In diesem Bereich ist etwas eingestellt"))}"${gesetzt ? "" : " hidden"}></i></button>
+          <button type="button" class="fb-b-auge" data-b-auge="${bk}" aria-pressed="${aus ? "true" : "false"}" title="${esc(aus ? T("bearb.b_auge_an", "Wirkung wieder zeigen") : T("bearb.b_auge_aus", "Wirkung dieses Bereichs kurz ausblenden"))}">${I(aus ? "eye-off" : "eye", 14)}</button>
+        </div>
+        ${bk === "geometrie" ? `<div class="fb-regler fb-geo"><div class="fb-upright"><span class="fb-r-name">${esc(T("bearb.upright", "Upright"))}</span>${[["auto", "bearb.u_auto", "Auto"], ["waagerecht", "bearb.u_waagerecht", "Waagerecht"], ["senkrecht", "bearb.u_senkrecht", "Senkrecht"], ["voll", "bearb.u_voll", "Voll"]].map(([m, ik, fb]) => `<button type="button" class="fb-stil" data-upright="${m}" title="${esc(T(ik + "_tip", ""))}">${esc(T(ik, fb))}</button>`).join("")}</div>${BEARB_GEO_REGLER.map(([k, ik, fb, lo, hi, schritt]) => {
+          const v = +(rz[k] || 0);
+          return `<label class="fb-r"><span class="fb-r-name">${esc(T(ik, fb))}</span><span class="fb-r-wert" id="fbg-${k}">${geoWert(k, v)}</span>
+            <input type="range" min="${lo}" max="${hi}" step="${schritt}" value="${v}" data-g="${k}"></label>`;
+        }).join("")}</div>` : ""}
+        <div class="fb-regler"${bk === "geometrie" ? " hidden" : ""}>${BEARB_REGLER.filter(([k]) => keys.includes(k)).map(([k, ik, fb, schritt]) => {
+          const [lo, hi] = BEARB_SPANNE[k] || [-100, 100];
+          const v = +(rz[k] || 0);
+          return `<label class="fb-r"><span class="fb-r-name">${esc(T(ik, fb))}</span><span class="fb-r-wert" id="fbw-${k}">${k === "belichtung" ? (v > 0 ? "+" : "") + v.toFixed(2) : (v > 0 ? "+" : "") + Math.round(v)}</span>
+            <input type="range" min="${lo}" max="${hi}" step="${schritt}" value="${v}" data-r="${k}"></label>`;
+        }).join("")}</div>
+      </section>`;
+      }).join("")}
       <div class="fb-zeile fb-unten">
         <button type="button" class="btn btn-sm" id="fb-kopieren" title="${esc(T("bearb.kopieren_tip", "Diese Einstellungen merken, um sie auf andere Fotos zu übertragen"))}">${I("copy", 14)} ${esc(T("bearb.kopieren", "Kopieren"))}</button>
         <button type="button" class="btn btn-sm" id="fb-einfuegen"${bearbAblage ? "" : " disabled"}>${esc(T("bearb.einfuegen", "Einfügen"))}</button>
@@ -2688,9 +2742,56 @@
     const geaendert = bearbGeaendert;
     box.querySelector("#fb-zs").onclick = () => zuschnittAn(true);
     box.querySelectorAll("[data-r]").forEach(inp => {
-      inp.oninput = () => { const v = +inp.value; if (v) rz[inp.dataset.r] = v; else delete rz[inp.dataset.r]; geaendert(false); };
+      inp.oninput = () => {
+        const v = +inp.value; if (v) rz[inp.dataset.r] = v; else delete rz[inp.dataset.r];
+        // wer an einem ausgeblendeten Bereich dreht, will die Wirkung sehen — Auge wieder an (ohne neu zu zeichnen: Ziehen bleibt)
+        const sek = inp.closest(".fb-bereich"), bk = sek && sek.dataset.bereich;
+        if (bk && z.aus && z.aus.has(bk)) {
+          z.aus.delete(bk); sek.classList.remove("is-aus");
+          const au = sek.querySelector("[data-b-auge]"); if (au) { au.setAttribute("aria-pressed", "false"); au.innerHTML = I("eye", 14); }
+        }
+        geaendert(false);
+      };
       inp.ondblclick = () => { delete rz[inp.dataset.r]; inp.value = 0; geaendert(false); };   // wie Lightroom: Doppelklick = 0
     });
+    box.querySelectorAll("[data-upright]").forEach(btn => { btn.onclick = async () => {
+      const knoepfe = box.querySelectorAll("[data-upright]");
+      knoepfe.forEach(k => { k.disabled = true; });
+      btn.innerHTML = `<span class="ass-spinner"></span>`;
+      const r = await api().foto_upright(z.pfad, btn.dataset.upright, +rz.drehen90 || 0).catch(() => null);   // warte-ok: Spinner im Knopf
+      if (bearbZ !== z) return;
+      if (!r || !r.ok) { toast((r && r.error) || "?", "error", 4000); bearbZeichnen(); return; }
+      ["gerade", "vertikal", "horizontal"].forEach(k => { if (r.werte[k]) rz[k] = r.werte[k]; else delete rz[k]; });
+      if (rz.zuschnitt) { const [Wr, Hr] = zsRahmen(z); rz.zuschnitt = rzEntwickler.einpassen(rz.zuschnitt, Wr, Hr, +rz.gerade || 0, rz); }
+      if (!Object.keys(r.werte).length) toast(T("bearb.u_nichts", "Keine geraden Kanten gefunden, die sich ausrichten ließen."), "info", 3500);
+      bearbZeichnen(); bearbGeaendert(true);
+    }; });
+    box.querySelectorAll("[data-g]").forEach(inp => {
+      const setzen = (v) => {
+        const k = inp.dataset.g;
+        if (v) rz[k] = v; else delete rz[k];
+        // Zuschnitt im Bild halten (wie beim Geraderichten); ohne eigenen gilt ohnehin der größtmögliche
+        if (rz.zuschnitt) { const [Wr, Hr] = zsRahmen(z); rz.zuschnitt = rzEntwickler.einpassen(rz.zuschnitt, Wr, Hr, +rz.gerade || 0, rz); }
+        const el = box.querySelector("#fbg-" + k); if (el) el.textContent = geoWert(k, v);
+        const sek = inp.closest(".fb-bereich");
+        if (sek && z.aus && z.aus.has("geometrie")) { z.aus.delete("geometrie"); sek.classList.remove("is-aus"); const au = sek.querySelector("[data-b-auge]"); if (au) { au.setAttribute("aria-pressed", "false"); au.innerHTML = I("eye", 14); } }
+        geaendert(false);
+      };
+      inp.oninput = () => setzen(+inp.value);
+      inp.ondblclick = () => { inp.value = 0; setzen(0); };
+    });
+    box.querySelectorAll("[data-b-auf]").forEach(k => { k.onclick = () => {
+      const bk = k.dataset.bAuf, sek = k.closest(".fb-bereich");
+      if (bearbZu.has(bk)) bearbZu.delete(bk); else bearbZu.add(bk);
+      bearbZuMerken();
+      sek.classList.toggle("is-zu", bearbZu.has(bk)); k.setAttribute("aria-expanded", bearbZu.has(bk) ? "false" : "true");
+    }; });
+    box.querySelectorAll("[data-b-auge]").forEach(k => { k.onclick = () => {
+      const bk = k.dataset.bAuge;
+      z.aus = z.aus || new Set();
+      if (z.aus.has(bk)) z.aus.delete(bk); else z.aus.add(bk);
+      bearbZeichnen(); bearbPlanen();
+    }; });
     box.querySelector("#fb-auto").onclick = () => { autoInRegler(rz, bearbZ && bearbZ.auto, false); bearbZeichnen(); geaendert(true); };
     box.querySelectorAll("[data-stil]").forEach(b => { b.onclick = () => { if (rz.stil === b.dataset.stil) delete rz.stil; else rz.stil = b.dataset.stil; bearbZeichnen(); geaendert(true); }; });
     box.querySelector("#fb-reset").onclick = () => { z.rezept = nurGeo(z.rezept); bearbZeichnen(); geaendert(true); };   // der Zuschnitt hat sein eigenes Zurücksetzen
@@ -2707,6 +2808,11 @@
   }
   function bearbZeichnenWerte() {
     const g = gross, z = bearbZ; if (!g || !z) return;
+    // Punkt „hier ist etwas eingestellt“ je Bereich — auch beim Ziehen, ohne das Panel neu zu bauen
+    BEARB_BEREICHE.forEach(([bk, , , keys]) => {
+      const pt = g.el.querySelector(`[data-bereich="${bk}"] .fb-b-punkt`); if (!pt) return;
+      pt.hidden = !(bk === "geometrie" ? BEARB_GEO_REGLER.map(x => x[0]) : keys).some(k => +(z.rezept[k] || 0));
+    });
     BEARB_REGLER.forEach(([k]) => {
       const el = g.el.querySelector("#fbw-" + k); if (!el) return;
       const v = +(z.rezept[k] || 0);
@@ -2718,7 +2824,9 @@
     const lauf = ++z.lauf;
     if (await bearbGLZeichnen()) return;
     if (gross !== g || bearbZ !== z || lauf !== z.lauf) return;
-    const r = await api().foto_entwickeln_vorschau(z.pfad, z.rezept, false, !!z.zuschneiden).catch(() => null);   // warte-ok: das Bild wechselt, sobald fertig (~0,1 s)
+    // ausgeblendete Bereiche (Auge): die Ansicht bekommt die wirksamen Werte ohne sie, statt des Rezepts
+    const sicht = (z.aus && z.aus.size && window.rzEntwickler) ? Object.assign(bearbSicht(z), { auto: false }) : z.rezept;
+    const r = await api().foto_entwickeln_vorschau(z.pfad, sicht, false, !!z.zuschneiden).catch(() => null);   // warte-ok: das Bild wechselt, sobald fertig (~0,1 s)
     if (gross !== g || bearbZ !== z || lauf !== z.lauf || !r || !r.ok) return;
     z.url = r.url;
     if (g.liste[g.idx] && g.liste[g.idx].path === z.pfad && !z.vorher) {
@@ -2755,7 +2863,7 @@
     }
     if (!bearbGLVorbereiten(z)) return false;
     try {
-      const w = z.vorher ? {} : rzEntwickler.wirksam(z.rezept, z.auto, z.voreinst);
+      const w = z.vorher ? {} : bearbSicht(z);
       const rahmen = !!z.zuschneiden && !z.vorher;
       bearbGL.zeichnen(w, { rahmen });
       const buehne = g.el.querySelector(".foto-gross-buehne");
@@ -2811,7 +2919,7 @@
   }
   function zsAktuell(z) {
     const [Wr, Hr] = zsRahmen(z), gr = +z.rezept.gerade || 0;
-    return z.rezept.zuschnitt ? rzEntwickler.einpassen(z.rezept.zuschnitt, Wr, Hr, gr) : rzEntwickler.passend(Wr, Hr, gr);
+    return z.rezept.zuschnitt ? rzEntwickler.einpassen(z.rezept.zuschnitt, Wr, Hr, gr, z.rezept) : rzEntwickler.passend(Wr, Hr, gr, null, z.rezept);
   }
   async function zuschnittAn() {
     const z = bearbZ, g = gross; if (!z || !g || !window.rzEntwickler) return;
@@ -2842,13 +2950,13 @@
         <button type="button" class="btn btn-sm" id="fb-zs-reset">${esc(T("bearb.zs_reset", "Zurücksetzen"))}</button>
         <button type="button" class="btn btn-sm btn-primary" id="fb-zs-fertig">${I("check", 14)} ${esc(T("bearb.zs_fertig", "Fertig"))}</button>
       </div>
-      <div class="muted fb-hinweis">${esc(T("bearb.zs_hinweis", "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe. Enter = fertig, Esc = abbrechen."))}</div>`;
+      <div class="muted fb-hinweis">${esc(T("bearb.zs_hinweis", "Rahmen ziehen verschiebt, Ecken und Kanten ändern die Größe, außerhalb des Rahmens ziehen dreht. Enter = fertig, Esc = abbrechen."))}</div>`;
     const [Wr, Hr] = zsRahmen(z);
     const ger = box.querySelector("#fb-gerade");
     ger.oninput = () => {
       const v = +ger.value;
       if (v) rz.gerade = v; else delete rz.gerade;
-      if (rz.zuschnitt) rz.zuschnitt = rzEntwickler.einpassen(rz.zuschnitt, Wr, Hr, v);
+      if (rz.zuschnitt) rz.zuschnitt = rzEntwickler.einpassen(rz.zuschnitt, Wr, Hr, v, rz);
       box.querySelector("#fbw-gerade").textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "°";
       zuschnittRahmen(); bearbGeaendert(false);
     };
@@ -2857,7 +2965,7 @@
       b.onclick = () => {
         z.seite = b.dataset.seite;
         const A = zsSeite(z);
-        if (A) rz.zuschnitt = rzEntwickler.passend(Wr, Hr, +rz.gerade || 0, A);
+        if (A) rz.zuschnitt = rzEntwickler.passend(Wr, Hr, +rz.gerade || 0, A, rz);
         box.querySelectorAll("[data-seite]").forEach(x => x.classList.toggle("is-on", x === b));
         zuschnittRahmen(); bearbGeaendert(false);
       };
@@ -2881,12 +2989,15 @@
     const buehne = g.el.querySelector(".foto-gross-buehne"); if (!buehne) return;
     let ov = buehne.querySelector(".fb-zs-ov");
     const bild = [...buehne.querySelectorAll(".foto-gross-bild")].find(e => !e.hidden && e.offsetWidth);
-    if (!z || !z.zuschneiden || z.vorher || !bild || !window.rzEntwickler) { if (ov) ov.remove(); return; }
+    const an = !!(z && z.zuschneiden && !z.vorher && bild && window.rzEntwickler);
+    buehne.classList.toggle("ist-zs", an);
+    if (!an) { if (ov) ov.remove(); return; }
     if (!ov) {
       ov = document.createElement("div"); ov.className = "fb-zs-ov";
-      ov.innerHTML = `<div class="fb-zs-r"><i class="fb-zs-drittel"></i>${["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(h => `<b data-h="${h}"></b>`).join("")}</div>`;
+      ov.innerHTML = `<div class="fb-zs-r"><i class="fb-zs-drittel"></i><i class="fb-zs-fein"></i>${["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(h => `<b data-h="${h}"></b>`).join("")}</div><span class="fb-zs-winkel" hidden></span>`;
       buehne.appendChild(ov); zuschnittZiehen(ov);
     }
+    if (!buehne.__rzDrehen) { buehne.__rzDrehen = true; zuschnittDrehen(buehne); }
     const bb = buehne.getBoundingClientRect(), r = bild.getBoundingClientRect();
     Object.assign(ov.style, { left: (r.left - bb.left) + "px", top: (r.top - bb.top) + "px", width: r.width + "px", height: r.height + "px" });
     const zs = zsAktuell(z);
@@ -2901,7 +3012,7 @@
       e.preventDefault(); e.stopPropagation();
       try { ov.setPointerCapture(e.pointerId); } catch (_) {}
       const box = ov.getBoundingClientRect(), [Wr, Hr] = zsRahmen(z), gr = +z.rezept.gerade || 0;
-      const drin = (r) => rzEntwickler.drinnen(r, Wr, Hr, gr);
+      const drin = (r) => rzEntwickler.drinnen(r, Wr, Hr, gr, z.rezept);
       const st = zsAktuell(z), A = zsSeite(z), MIN = 0.03;
       const x0 = e.clientX, y0 = e.clientY;
       const zug = (ev) => {
@@ -2950,12 +3061,65 @@
       ov.addEventListener("pointermove", zug); ov.addEventListener("pointerup", los); ov.addEventListener("pointercancel", los);
     });
   }
+  /** 21.10.2026 (Marc: „jedes leichte Drehen soll einfach beim Zuschneiden passieren … komplett grafisch“) — wie in
+   *  Lightroom: außerhalb des Rahmens ziehen (neben einer Ecke, im abgedunkelten Rand oder neben dem Bild) dreht das Foto.
+   *  Gedreht wird um die Rahmenmitte; der Rahmen schrumpft nur so weit wie nötig (ein größtmöglicher Rahmen bleibt der
+   *  größtmögliche, auch beim Zurückdrehen in einem späteren Zug). Beim Drehen ein feines Gitter + Winkelanzeige; Shift = in 1°-Schritten. */
+  function zuschnittDrehen(buehne) {
+    buehne.addEventListener("pointerdown", (e) => {
+      const z = bearbZ; if (!z || !z.zuschneiden || z.vorher || e.button !== 0) return;
+      const ov = buehne.querySelector(".fb-zs-ov"); if (!ov) return;
+      const rEl = ov.firstElementChild;
+      if (rEl.contains(e.target)) return;   // Rahmen und Griffe: verschieben/Größe (zuschnittZiehen)
+      e.preventDefault(); e.stopPropagation();
+      try { buehne.setPointerCapture(e.pointerId); } catch (_) {}
+      const rz = z.rezept, [Wr, Hr] = zsRahmen(z), g0 = +rz.gerade || 0, st = zsAktuell(z);
+      const rb = rEl.getBoundingClientRect(), cx = rb.left + rb.width / 2, cy = rb.top + rb.height / 2;
+      const a0 = Math.atan2(e.clientY - cy, e.clientX - cx);
+      // War der Rahmen beim Anfassen der größtmögliche (z. B. noch nie zugeschnitten), bleibt er es beim Drehen —
+      // auch beim Zurückdrehen in einem zweiten Zug wächst er dann wieder. Sonst: vom Stand beim Anfassen einpassen.
+      const A = (st[2] * Wr) / (st[3] * Hr), gross0 = rzEntwickler.passend(Wr, Hr, g0, A, rz);
+      const maximal = !rz.zuschnitt || (Math.abs(gross0[2] - st[2]) < 0.004 && Math.abs(gross0[3] - st[3]) < 0.004);
+      const wink = ov.querySelector(".fb-zs-winkel"), bb = ov.getBoundingClientRect();
+      ov.classList.add("dreht");
+      const zug = (ev) => {
+        let d = (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
+        if (d > 180) d -= 360; if (d < -180) d += 360;
+        let v = Math.max(-45, Math.min(45, g0 + d));
+        v = ev.shiftKey ? Math.round(v) : Math.round(v * 10) / 10;
+        if (Math.abs(v) < 0.05) v = 0;
+        if (v) rz.gerade = v; else delete rz.gerade;
+        // vom Rahmen beim Anfassen aus einpassen — nicht vom schon geschrumpften
+        rz.zuschnitt = maximal ? rzEntwickler.passend(Wr, Hr, v, A, rz) : rzEntwickler.einpassen(st, Wr, Hr, v, rz);
+        wink.hidden = false; wink.textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "°";
+        Object.assign(wink.style, { left: (ev.clientX - bb.left + 14) + "px", top: (ev.clientY - bb.top + 14) + "px" });
+        const reg = document.getElementById("fb-gerade"); if (reg) reg.value = v;
+        const wt = document.getElementById("fbw-gerade"); if (wt) wt.textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "°";
+        zuschnittRahmen(); bearbGeaendert(false);
+      };
+      const los = () => {
+        buehne.removeEventListener("pointermove", zug); buehne.removeEventListener("pointerup", los); buehne.removeEventListener("pointercancel", los);
+        ov.classList.remove("dreht"); wink.hidden = true;
+        bearbGeaendert(false);
+      };
+      buehne.addEventListener("pointermove", zug); buehne.addEventListener("pointerup", los); buehne.addEventListener("pointercancel", los);
+    }, true);
+  }
   function grossTastenHoch(e) { if (e.key === ".") { e.preventDefault(); bearbVorher(false); } }
-  async function bearbSpeichernJetzt() {
+  async function bearbSpeichernJetzt(was) {
     const z = bearbZ; if (!z || !z.offen) return;
     clearTimeout(z.tmrS); z.offen = false;
-    const r = await api().foto_rezept_speichern(z.pfad, z.rezept).catch(() => null);   // warte-ok: schreibt eine Zeile
+    // ⌘Z-Stapel: der vorige gespeicherte Stand (nicht beim Rückgängig/Wiederholen selbst — die führen ihn)
+    const jetzt = JSON.stringify(z.rezept);
+    if (!z.stapelLeise && z.gespeichert && JSON.stringify(z.gespeichert) !== jetzt) { z.zurueck.push(z.gespeichert); if (z.zurueck.length > 200) z.zurueck.shift(); z.vor = []; }
+    z.stapelLeise = false;
+    z.gespeichert = JSON.parse(jetzt);
+    const r = await api().foto_rezept_speichern(z.pfad, z.rezept, was || null).catch(() => null);   // warte-ok: schreibt eine Zeile
     if (!r || !r.ok) return;
+    nachRezept(z, r);
+  }
+  /** Nach dem Speichern eines Rezepts: Zwischenspeicher, Kachel, Zähler, Verlauf nachziehen. */
+  function nachRezept(z, r) {
     // gemerkte Ansicht der Lupe ist jetzt veraltet; die Bearbeiten-Daten behalten, nur mit dem neuen Rezept
     _grossMerk.delete(z.pfad);
     { const b = _bearbMerk.get(z.pfad); if (b) b.rezept = JSON.parse(JSON.stringify(z.rezept)); }
@@ -2967,6 +3131,87 @@
     navZeichnen();
     kachelBilderNeu([z.pfad]);
     window.dispatchEvent(new CustomEvent("rz-rezept-geaendert", { detail: { pfade: [z.pfad] } }));
+    if (gross && gross.reiter === "verlauf" && bearbZ === z) verlaufZeichnen();
+  }
+  /** ⌘Z / ⇧⌘Z im Editor: einen gespeicherten Schritt zurück bzw. wieder vor. */
+  function bearbSchritt(zurueck) {
+    const z = bearbZ; if (!z || z.zuschneiden) return false;
+    if (z.offen) bearbSpeichernJetzt();   // laufende Änderung erst als Schritt festhalten
+    const von = zurueck ? z.zurueck : z.vor, nach = zurueck ? z.vor : z.zurueck;
+    if (!von.length) return false;
+    nach.push(JSON.parse(JSON.stringify(z.gespeichert || z.rezept)));
+    z.rezept = von.pop();
+    z.stapelLeise = true;
+    bearbZeichnen(); bearbGeaendert(true);
+    return true;
+  }
+  /** Stand übernehmen (Verlauf/Version/Original): wird selbst ein Schritt; ⌘Z führt zurück. */
+  async function verlaufAnwenden(eid) {
+    const z = bearbZ; if (!z) return;
+    if (z.offen) await bearbSpeichernJetzt();
+    const r = await api().foto_verlauf_anwenden(z.pfad, eid).catch(() => null);   // warte-ok: eine Zeile, das Bild folgt sofort
+    if (!r || !r.ok || bearbZ !== z) { if (r && r.error) toast(r.error, "error", 4000); return; }
+    z.zurueck.push(z.gespeichert || {}); z.vor = [];
+    z.rezept = JSON.parse(JSON.stringify(r.rezept || {})); z.gespeichert = JSON.parse(JSON.stringify(z.rezept));
+    bearbZeichnen(); bearbPlanen();
+    nachRezept(z, r);
+  }
+  /* 21.10.2026 (Marc: „man braucht einen Verlauf der Bearbeitung“ + LR-Screenshot „Versionen“) — Reiter Verlauf:
+     „＋ Version erstellen“ (Name), Benannt | Automatisch, Einträge mit kleinem Bild, Name und Zeit; unten „Original“.
+     Klick übernimmt den Stand (als neuer Schritt — nichts geht verloren). Bildchen rechnet die Grafikkarte. */
+  let verlaufArt = "auto";
+  async function verlaufZeichnen() {
+    const g = gross, z = bearbZ; if (!g || !z) return;
+    const box = g.el.querySelector(".foto-gross-verlauf"); if (!box) return;
+    const r = await api().foto_verlauf(z.pfad).catch(() => null);   // warte-ok: Liste erscheint gleich
+    if (gross !== g || bearbZ !== z) return;
+    if (!r || !r.ok) { box.innerHTML = `<div class="muted">${esc((r && r.error) || "?")}</div>`; return; }
+    const zeit = (iso) => { try { const d = new Date(iso); return d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" }) + ", " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch (_) { return ""; } };
+    const liste = verlaufArt === "benannt" ? r.versionen : r.schritte;
+    const jetzt = JSON.stringify(r.rezept || {});
+    // markiert: der Stand, der gerade gilt (Automatisch: nur der neueste Schritt; Original: wenn nichts eingestellt ist)
+    const istJetzt = (e, original) => original ? jetzt === "{}" : (JSON.stringify(e.rezept || {}) === jetzt && (verlaufArt === "benannt" || e === liste[0]));
+    const zeile = (e, original) => `<button type="button" class="fv-e${istJetzt(e, original) ? " ist-jetzt" : ""}" data-fv="${original ? "original" : e.id}">
+        <img class="fv-bild" alt="" data-fv-bild="${original ? "original" : e.id}"><span class="fv-text"><span class="fv-name">${esc(original ? T("bearb.v_original", "Original") : e.name)}</span><span class="fv-zeit">${esc(original ? "" : zeit(e.am))}</span></span>
+        ${!original && verlaufArt === "benannt" ? `<span class="fv-weg" data-fv-weg="${e.id}" title="${esc(T("bearb.v_loeschen", "Version löschen"))}">${I("x", 13)}</span>` : ""}</button>`;
+    box.innerHTML = `
+      <div class="fv-kopf"><b>${esc(T("bearb.versionen", "Versionen"))}</b></div>
+      <div class="fv-reiter"><button type="button" class="fv-r${verlaufArt === "auto" ? " is-on" : ""}" data-fv-art="auto">${esc(T("bearb.v_automatisch", "Automatisch"))}</button><button type="button" class="fv-r${verlaufArt === "benannt" ? " is-on" : ""}" data-fv-art="benannt">${esc(T("bearb.v_benannt", "Benannt"))}</button></div>
+      <button type="button" class="fv-neu" id="fv-neu">${I("plus", 16)} ${esc(T("bearb.v_erstellen", "Version erstellen"))}</button>
+      <div class="fv-neu-form" hidden><input type="text" id="fv-name" placeholder="${esc(T("bearb.v_unbenannt", "Unbenannt"))}" maxlength="80">
+        <button type="button" class="btn btn-sm btn-ghost" id="fv-abbr">${esc(T("bearb.v_abbr", "Abbr."))}</button><button type="button" class="btn btn-sm btn-primary" id="fv-ok">${esc(T("bearb.v_ok", "Erstellen"))}</button></div>
+      <div class="fv-liste">${(liste || []).map(e => zeile(e, false)).join("") || `<div class="muted fv-leer">${esc(verlaufArt === "benannt" ? T("bearb.v_keine_versionen", "Noch keine benannte Version — „Version erstellen“ hält den jetzigen Stand fest.") : T("bearb.v_keine_schritte", "Noch keine Schritte — jede Änderung landet hier."))}</div>`}
+        ${zeile({ rezept: {} }, true)}</div>
+      <div class="muted fb-hinweis">${esc(T("bearb.v_hinweis", "Klick übernimmt den Stand. ⌘Z / ⇧⌘Z: Schritt zurück/vor."))}</div>`;
+    box.querySelectorAll("[data-fv-art]").forEach(b => { b.onclick = () => { verlaufArt = b.dataset.fvArt; verlaufZeichnen(); }; });
+    const form = box.querySelector(".fv-neu-form"), name = box.querySelector("#fv-name");
+    box.querySelector("#fv-neu").onclick = () => { form.hidden = false; name.value = ""; name.focus(); };
+    box.querySelector("#fv-abbr").onclick = () => { form.hidden = true; };
+    const anlegen = async () => {
+      if (z.offen) await bearbSpeichernJetzt();
+      const r2 = await api().foto_version_anlegen(z.pfad, name.value.trim() || T("bearb.v_unbenannt", "Unbenannt")).catch(() => null);   // warte-ok: eine Zeile
+      if (r2 && r2.ok) { verlaufArt = "benannt"; verlaufZeichnen(); toast(T("bearb.v_angelegt", "Version erstellt"), "success", 2000); }
+    };
+    box.querySelector("#fv-ok").onclick = anlegen;
+    name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); anlegen(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); form.hidden = true; } };
+    box.querySelectorAll("[data-fv]").forEach(b => { b.onclick = (e) => {
+      if (e.target.closest("[data-fv-weg]")) return;
+      verlaufAnwenden(b.dataset.fv === "original" ? null : +b.dataset.fv);
+    }; });
+    box.querySelectorAll("[data-fv-weg]").forEach(x => { x.onclick = async (e) => {
+      e.stopPropagation();
+      await api().foto_version_loeschen(+x.dataset.fvWeg).catch(() => null);   // warte-ok: eine Zeile
+      verlaufZeichnen();
+    }; });
+    // Bildchen: Grafikkarte, sobald die Quelle da ist (sonst bleibt das Feld leer)
+    if (z.quelleBereit) await z.quelleBereit;
+    if (gross !== g || bearbZ !== z || !bearbGLVorbereiten(z)) return;
+    const alle = [...(liste || []).slice(0, 40).map(e => [String(e.id), e.rezept]), ["original", {}]];
+    for (const [id, rz] of alle) {
+      const img = box.querySelector(`[data-fv-bild="${id}"]`); if (!img) continue;
+      try { img.src = bearbGL.bildchen(rzEntwickler.wirksam(rz, z.auto, z.voreinst), 96); } catch (_) { break; }
+    }
+    bearbPlanen();   // die Bildchen haben die Zwischenstufen belegt — Vorschau wieder auf den jetzigen Stand
   }
   /** 09.10.2026 — nach dem Bearbeiten zeigt die Kachel die neue Fassung (fotos_thumbs entwickelt das kleine Bild). */
   async function kachelBilderNeu(pfade) {
@@ -3155,6 +3400,10 @@
     const v = gross.el.querySelector("video");
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.target.type !== "range") return;
     if (e.target && e.target.type === "range" && /^Arrow/.test(e.key)) return;   // Pfeile bewegen den Regler
+    if ((e.key === "z" || e.key === "Z") && (e.metaKey || e.ctrlKey) && bearbZ && !(e.target && e.target.type === "text")) {
+      if (bearbSchritt(!e.shiftKey)) { e.preventDefault(); e.stopPropagation(); }
+      return;
+    }
     if (e.key === "." && !e.metaKey && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) bearbVorher(true); return; }
     if ((e.key === "z" || e.key === "Z") && !e.metaKey && !e.ctrlKey && !e.altKey && !(bearbZ && bearbZ.zuschneiden)) {
       e.preventDefault(); e.stopPropagation();
@@ -3277,7 +3526,7 @@
     } else if (r && r.ok) {
       if (!gemerkt || gemerkt.url !== r.url) { buehne.innerHTML = ""; buehne.appendChild(_gross(r)); }
       g.originalUrl = r.quelle === "bearbeitet" ? null : r.url;   // „Vorher“ darf nie die bearbeitete Fassung sein
-      if (f.bearbeitet || g.reiter === "bearb") bearbLaden(f).catch(() => {});
+      if (f.bearbeitet || g.reiter === "bearb" || g.reiter === "verlauf") bearbLaden(f).catch(() => {});
       if (r.quelle === "bibliothek") { hinweis.hidden = false; hinweis.textContent = T("fotos.gross_fern", "Original gerade nicht erreichbar — gezeigt wird die Vorschau aus der Bibliothek."); }
     } else if (r && r.error) { hinweis.hidden = false; hinweis.textContent = r.error; }
     if (r && r.original_da !== false) {

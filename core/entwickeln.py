@@ -11,6 +11,11 @@ Rezept (alle Werte optional, 0 = neutral):
   dynamik     −100 … +100 (schont Hauttöne / Gesättigtes)
   saettigung  −100 … +100                  klarheit     −100 … +100 (Mitten-Kontrast)
   dunst       −100 … +100 (+ = Dunst weg)
+  weiss       −100 … +100 (Weißpunkt)       schwarz      −100 … +100 (Schwarzpunkt, + = Schwarz heller)
+  struktur    −100 … +100 (feiner Lokalkontrast, kleiner als Klarheit)
+  boost       0 … 100 (ein Regler für „mehr Bild“ — verteilt sich in `wirksam` auf Dynamik, Struktur, Tiefen …)
+  schaerfen   0 … 150 (Unscharfmaske auf der Helligkeit, Radius 1 Pixel der Quelle — wie in Lightroom erst bei 100 % voll
+              sichtbar)
 
 Gerechnet wird in Gleitkomma auf dem ganzen Bild (numpy): Weißabgleich und Belichtung linear, Ton und Farbe auf der
 wahrgenommenen Helligkeit. Lichter/Tiefen/Klarheit arbeiten mit einer weichgezeichneten Helligkeit (lokal, nicht nur
@@ -69,6 +74,9 @@ REGLER = {
     "belichtung": (-3.0, 3.0), "kontrast": (-100, 100), "lichter": (-100, 100), "tiefen": (-100, 100),
     "temperatur": (-100, 100), "toenung": (-100, 100), "dynamik": (-100, 100), "saettigung": (-100, 100),
     "klarheit": (-100, 100), "dunst": (-100, 100),
+    "weiss": (-100, 100), "schwarz": (-100, 100), "struktur": (-100, 100),   # 21.10.2026 Paket 2 (wie Lightroom)
+    "boost": (0, 100),       # 21.10.2026 — ein Regler wie „Verstärken“ in Luminar; `wirksam` verteilt ihn auf andere
+    "schaerfen": (0, 150),   # 21.10.2026 (Marc: „Schärfen fehlt auch noch“) — wie Lightroom „Betrag“, Radius 1 px
 }
 # Voreinstellungen — „Natürlich“ = Auto
 VOREINSTELLUNGEN = {
@@ -101,7 +109,13 @@ def sauber(rezept: Optional[dict]) -> dict:
 # [x, y, b, h] normiert im Rahmen NACH dem Drehen um 90°. Angewandt wird die Geometrie zuletzt (nach dem Ton), damit
 # die Vorschau in der Grafikkarte (ui/js/entwickeln_gl.js) dieselben Rechnungen auf dem ganzen Bild machen kann —
 # beide Seiten benutzen dieselben Formeln, bei Änderung beide pflegen.
-GEOMETRIE = ("drehen90", "gerade", "zuschnitt")
+GEOMETRIE = ("drehen90", "gerade", "zuschnitt", "vertikal", "horizontal", "aspekt", "skala", "versatz_x", "versatz_y")
+# 21.10.2026 (Marc: „stürzende Linien usw. korrigieren können, wie in LR“) — Transformieren wie Lightroom, alles −100…100
+# (Skalieren −50…50 = 50 … 150 %). Die ganze Geometrie ist EINE Projektivmatrix (`geo_matrix`): Ausgabepunkt im Rahmen →
+# Quellpunkt. So rechnen Grafikkarte (ui/js/entwickeln_gl.js) und PIL (PERSPECTIVE) dasselbe; der Zuschnitt bleibt
+# automatisch im Bild (wie beim Geraderichten).
+PERSPEKTIVE = {"vertikal": (-100, 100), "horizontal": (-100, 100), "aspekt": (-100, 100), "skala": (-50, 50),
+               "versatz_x": (-100, 100), "versatz_y": (-100, 100)}
 
 
 def _geo_sauber(rezept: dict) -> dict:
@@ -118,6 +132,13 @@ def _geo_sauber(rezept: dict) -> dict:
         g = 0.0
     if abs(g) >= 0.01:
         raus["gerade"] = round(g, 2)
+    for k, (lo, hi) in PERSPEKTIVE.items():
+        try:
+            v = max(lo, min(hi, float(rezept.get(k) or 0)))
+        except (TypeError, ValueError):
+            v = 0.0
+        if abs(v) >= 0.01:
+            raus[k] = round(v, 2)
     z = rezept.get("zuschnitt")
     if isinstance(z, (list, tuple)) and len(z) == 4:
         try:
@@ -135,21 +156,91 @@ def rahmen_masse(w: int, h: int, drehen90: int = 0):
     return (h, w) if int(drehen90 or 0) % 2 else (w, h)
 
 
-def passend(W: float, H: float, grad: float, seite: Optional[float] = None) -> list:
+def _mal(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+
+
+def _invers(m):
+    a, b, c = m[0]; d, e, f = m[1]; g, h, i = m[2]
+    A, B, C = e * i - f * h, -(d * i - f * g), d * h - e * g
+    det = a * A + b * B + c * C
+    if abs(det) < 1e-12:
+        return None
+    return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+            [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+            [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]]
+
+
+def hat_perspektive(werte: Optional[dict]) -> bool:
+    return bool(werte) and any(abs(float(werte.get(k) or 0)) >= 0.01 for k in PERSPEKTIVE)
+
+
+def geo_matrix(W: float, H: float, werte: Optional[dict]) -> list:
+    """3×3-Matrix: Punkt im Rahmen (Pixel, nach den 90°-Drehungen) → Punkt in der Quelle (Pixel). Kette rückwärts:
+    Geraderichten zurück → Versatz/Skalieren/Seitenverhältnis zurück → Perspektive (Vertikal/Horizontal). Bei Änderung
+    `geoMatrix` in ui/js/entwickeln_gl.js mitpflegen."""
+    w = werte or {}
+    g = float(w.get("gerade") or 0)
+    co, si = math.cos(math.radians(g)), math.sin(math.radians(g))
+    cx, cy, R = W / 2, H / 2, max(W, H) / 2
+    sx = 1 + float(w.get("aspekt") or 0) / 200          # + = breiter
+    sk = 1 + float(w.get("skala") or 0) / 100
+    ox, oy = float(w.get("versatz_x") or 0) / 200, float(w.get("versatz_y") or 0) / 200
+    av, ah = -float(w.get("vertikal") or 0) / 200, -float(w.get("horizontal") or 0) / 200
+    m = [[1, 0, -cx], [0, 1, -cy], [0, 0, 1]]
+    m = _mal([[co, si, 0], [-si, co, 0], [0, 0, 1]], m)                 # Geraderichten zurück
+    m = _mal([[1 / R, 0, 0], [0, 1 / R, 0], [0, 0, 1]], m)
+    m = _mal([[1, 0, -ox], [0, 1, -oy], [0, 0, 1]], m)                   # Versatz
+    m = _mal([[1 / (sk * sx), 0, 0], [0, 1 / sk, 0], [0, 0, 1]], m)     # Skalieren, Seitenverhältnis
+    m = _mal([[1, 0, 0], [0, 1, 0], [-ah, -av, 1]], m)                   # Perspektive
+    m = _mal([[R, 0, cx], [0, R, cy], [0, 0, 1]], m)
+    return m
+
+
+def _abbilden(m, x: float, y: float):
+    w = m[2][0] * x + m[2][1] * y + m[2][2]
+    if w <= 1e-9:
+        return None
+    return ((m[0][0] * x + m[0][1] * y + m[0][2]) / w, (m[1][0] * x + m[1][1] * y + m[1][2]) / w)
+
+
+def passend(W: float, H: float, grad: float, seite: Optional[float] = None, werte: Optional[dict] = None) -> list:
     """Größtes Rechteck mit Seitenverhältnis `seite` (Breite/Höhe in Pixeln, Standard wie das Bild), mittig, das nach dem
-    Geraderichten ganz im Bild liegt — normiert [x, y, b, h]."""
+    Geraderichten (und der Perspektive aus `werte`) ganz im Bild liegt — normiert [x, y, b, h]."""
+    A = seite or (W / H)
+    if hat_perspektive(werte):
+        w = dict(werte or {}, gerade=grad)
+        mi = _invers(geo_matrix(W, H, w))
+        mitte = _abbilden(mi, W / 2, H / 2) if mi else None
+        mx, my = (mitte[0] / W, mitte[1] / H) if mitte and 0 < mitte[0] < W and 0 < mitte[1] < H else (0.5, 0.5)
+        b0 = min(W, H * A); h0 = b0 / A
+        lo, hi = 0.0, 1.0
+        for _ in range(26):
+            t = (lo + hi) / 2
+            k = [mx - b0 * t / W / 2, my - h0 * t / H / 2, b0 * t / W, h0 * t / H]
+            lo, hi = (t, hi) if _drinnen(k, W, H, grad, w) else (lo, t)
+        b, h = b0 * lo / W, h0 * lo / H
+        x, y = max(0.0, min(1 - b, mx - b / 2)), max(0.0, min(1 - h, my - h / 2))
+        return [x, y, b, h]
     t = abs(math.radians(grad or 0))
     c, s = math.cos(t), math.sin(t)
-    A = seite or (W / H)
     b = min(W / (c + s / A), H / (s + c / A), W, H * A)
     h = b / A
     return [(W - b) / 2 / W, (H - h) / 2 / H, b / W, h / H]
 
 
-def _drinnen(r: list, W: float, H: float, grad: float) -> bool:
+def _drinnen(r: list, W: float, H: float, grad: float, werte: Optional[dict] = None) -> bool:
+    eps = 1e-3 * max(W, H)
+    if hat_perspektive(werte):
+        m = geo_matrix(W, H, dict(werte or {}, gerade=grad))
+        for px, py in ((r[0], r[1]), (r[0] + r[2], r[1]), (r[0], r[1] + r[3]), (r[0] + r[2], r[1] + r[3])):
+            q = _abbilden(m, px * W, py * H)
+            if q is None or q[0] < -eps or q[0] > W + eps or q[1] < -eps or q[1] > H + eps:
+                return False
+        return True
     th = math.radians(grad or 0)
     co, si = math.cos(th), math.sin(th)
-    cx, cy, eps = W / 2, H / 2, 1e-3 * max(W, H)
+    cx, cy = W / 2, H / 2
     for px, py in ((r[0], r[1]), (r[0] + r[2], r[1]), (r[0], r[1] + r[3]), (r[0] + r[2], r[1] + r[3])):
         dx, dy = px * W - cx, py * H - cy
         qx, qy = cx + dx * co + dy * si, cy - dx * si + dy * co
@@ -158,19 +249,21 @@ def _drinnen(r: list, W: float, H: float, grad: float) -> bool:
     return True
 
 
-def einpassen(r: list, W: float, H: float, grad: float) -> list:
-    """Zuschnitt so verkleinern (um seine Mitte, notfalls zur Bildmitte hin), dass er nach dem Geraderichten im Bild liegt."""
+def einpassen(r: list, W: float, H: float, grad: float, werte: Optional[dict] = None) -> list:
+    """Zuschnitt so verkleinern (um seine Mitte, notfalls zur Bildmitte hin), dass er nach dem Geraderichten (und der
+    Perspektive) im Bild liegt."""
     r = [float(v) for v in r]
-    if _drinnen(r, W, H, grad):
+    if _drinnen(r, W, H, grad, werte):
         return r
     mx, my = r[0] + r[2] / 2, r[1] + r[3] / 2
-    if not _drinnen([mx, my, 0, 0], W, H, grad):
-        mx, my = 0.5, 0.5
+    if not _drinnen([mx, my, 0, 0], W, H, grad, werte):
+        p = passend(W, H, grad, None, werte)
+        mx, my = p[0] + p[2] / 2, p[1] + p[3] / 2
     lo, hi = 0.0, 1.0
     for _ in range(24):
         m = (lo + hi) / 2
         k = [mx - r[2] * m / 2, my - r[3] * m / 2, r[2] * m, r[3] * m]
-        lo, hi = (m, hi) if _drinnen(k, W, H, grad) else (lo, m)
+        lo, hi = (m, hi) if _drinnen(k, W, H, grad, werte) else (lo, m)
     return [mx - r[2] * lo / 2, my - r[3] * lo / 2, r[2] * lo, r[3] * lo]
 
 
@@ -182,23 +275,156 @@ def geometrie(img, rezept: Optional[dict], rahmen: bool = False):
     if d:
         img = img.transpose({1: Image.Transpose.ROTATE_270, 2: Image.Transpose.ROTATE_180, 3: Image.Transpose.ROTATE_90}[d])
     g, z = r.get("gerade", 0.0), r.get("zuschnitt")
-    if not g and not z:
+    persp = hat_perspektive(r)
+    if not g and not z and not persp:
         return img
     W, H = img.size
     if rahmen:
         rect = [0.0, 0.0, 1.0, 1.0]
     else:
-        rect = einpassen(z or passend(W, H, g), W, H, g)
+        rect = einpassen(z or passend(W, H, g, None, r), W, H, g, r)
     ow, oh = max(1, round(rect[2] * W)), max(1, round(rect[3] * H))
     ox, oy = rect[0] * W, rect[1] * H
-    if not g:
+    if not g and not persp:
         x0, y0 = round(ox), round(oy)
         return img.crop((x0, y0, x0 + ow, y0 + oh))
+    if persp:
+        m = _mal(geo_matrix(W, H, r), [[1, 0, ox], [0, 1, oy], [0, 0, 1]])
+        n = m[2][2]
+        daten = tuple(v / n for v in (m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1]))
+        return img.transform((ow, oh), Image.Transform.PERSPECTIVE, daten, resample=Image.Resampling.BICUBIC,
+                             fillcolor=(24, 24, 24))
     th = math.radians(g)
     co, si = math.cos(th), math.sin(th)
     cx, cy = W / 2, H / 2
     daten = (co, si, cx + (ox - cx) * co + (oy - cy) * si, -si, co, cy - (ox - cx) * si + (oy - cy) * co)
     return img.transform((ow, oh), Image.Transform.AFFINE, daten, resample=Image.Resampling.BICUBIC, fillcolor=(24, 24, 24))
+
+
+# ── Upright (21.10.2026, wie Lightroom: Auto · Waagerecht · Senkrecht · Voll) ─────────────────────────────────────
+# Gerade Kanten im Bild finden (Hough in numpy auf ≈ 800 px, nur fast senkrechte bzw. fast waagerechte Kanten) und
+# daraus Drehen, Vertikal und Horizontal bestimmen. Modell aus `geo_matrix`: eine senkrechte Linie der Ausgabe bei
+# x = c erscheint in der Quelle als x = c + c·av·y (normiert, Mitte 0, Radius = halbe lange Kante) — alle treffen sich im
+# Fluchtpunkt (0, −1/av). Eine kleine Drehung kippt alle Linien gleich: Steigung b = r + av·a. Gewichtete Ausgleichsgerade
+# über die gefundenen Linien liefert r (Drehung) und av (Vertikal); waagerecht entsprechend für Horizontal.
+
+def _linien(g, fast_senkrecht: bool, R: float, maske=None):
+    """Gerade Kanten einer Richtung: Liste (a, b, gewicht) mit x = a + b·y (bzw. y = a + b·x), normiert. `maske` =
+    nur dort suchen (beim Nachmessen auf dem schon korrigierten Bild: nicht an den grauen Rändern)."""
+    np = _np()
+    h, w = g.shape
+    gx = np.zeros_like(g); gy = np.zeros_like(g)
+    gx[:, 1:-1] = g[:, 2:] - g[:, :-2]
+    gy[1:-1, :] = g[2:, :] - g[:-2, :]
+    if not fast_senkrecht:
+        g, gx, gy = g.T, gy.T, gx.T
+        h, w = w, h
+        if maske is not None:
+            maske = maske.T
+    mag = np.hypot(gx, gy)
+    if maske is not None:
+        mag = mag * maske
+    schwelle = max(0.04, float(np.percentile(mag, 92)))
+    ys, xs = np.nonzero((mag > schwelle) & (np.abs(gx) > 2.2 * np.abs(gy)))
+    if len(xs) < 50:
+        return []
+    if len(xs) > 60000:
+        wahl = np.random.default_rng(1).choice(len(xs), 60000, replace=False)
+        ys, xs = ys[wahl], xs[wahl]
+    gew = mag[ys, xs]
+    cx, cy = w / 2, h / 2
+    xn, yn = (xs - cx) / R, (ys - cy) / R
+    steig = np.linspace(-0.47, 0.47, 95)                     # ±25°
+    x0_bins = int(w * 0.75)
+    x0_lo, x0_hi = -w / 2 / R * 1.6, w / 2 / R * 1.6
+    acc = np.zeros((len(steig), x0_bins), np.float32)
+    for i, t in enumerate(steig):
+        x0 = xn - t * yn
+        k = ((x0 - x0_lo) / (x0_hi - x0_lo) * x0_bins).astype(np.int64)
+        gut = (k >= 0) & (k < x0_bins)
+        np.add.at(acc[i], k[gut], gew[gut])
+    linien = []
+    mind = float(np.median(gew)) * h * 0.12                  # mindestens ~12 % der Bildhöhe Kante
+    a2 = acc.copy()
+    for _ in range(24):
+        i, k = np.unravel_index(int(np.argmax(a2)), a2.shape)
+        wert = float(a2[i, k])
+        if wert < mind:
+            break
+        linien.append((x0_lo + (k + 0.5) / x0_bins * (x0_hi - x0_lo), float(steig[i]), wert))
+        a2[max(0, i - 6):i + 7, max(0, k - 8):k + 9] = 0      # Nachbarn derselben Kante weg
+    return linien
+
+
+def _ausgleich(linien):
+    """Gewichtete Ausgleichsgerade b = r + v·a → (r, v); mit wenigen Linien nur r (Median)."""
+    np = _np()
+    if not linien:
+        return None, None
+    a = np.array([x[0] for x in linien]); b = np.array([x[1] for x in linien]); w = np.array([x[2] for x in linien])
+    if len(linien) < 3 or float(np.ptp(a)) < 0.25:
+        return float(np.average(b, weights=w)), None
+    A = np.stack([np.ones_like(a), a], 1) * np.sqrt(w)[:, None]
+    r, v = np.linalg.lstsq(A, b * np.sqrt(w), rcond=None)[0]
+    return float(r), float(v)
+
+
+def _upright_einmal(g, modus: str, maske=None) -> dict:
+    h, w = g.shape
+    R = max(w, h) / 2
+    senk = _linien(g, True, R, maske)
+    waag = _linien(g, False, R, maske)
+    rs, vs = _ausgleich(senk)
+    rw, vw = _ausgleich(waag)
+    raus: dict = {}
+    # Drehung: Senkrechte zählen mehr (Gebäude), Waagerechte stützen; Bild-Kippung = Linienneigung
+    teile = [(rs, sum(x[2] for x in senk) * 1.5), (-rw if rw is not None else None, sum(x[2] for x in waag))]
+    teile = [(r, wt) for r, wt in teile if r is not None and wt > 0]
+    if modus == "waagerecht" and rw is not None:
+        teile = [(-rw, 1.0)]
+    if teile:
+        r = sum(r * wt for r, wt in teile) / sum(wt for _, wt in teile)
+        raus["gerade"] = math.degrees(math.atan(r))
+    if modus in ("senkrecht", "voll", "auto") and vs is not None:
+        raus["vertikal"] = -vs * 200
+    if modus == "voll" and vw is not None:
+        raus["horizontal"] = -vw * 200
+    return raus
+
+
+def upright(img, modus: str = "auto") -> dict:
+    """Werte für Drehen/Vertikal/Horizontal (Rezeptschlüssel `gerade`, `vertikal`, `horizontal`) — Modus „auto“
+    (ausgewogen: Vertikal gedämpft), „waagerecht“ (nur Drehen), „senkrecht“ (Drehen + Vertikal), „voll“ (+ Horizontal).
+    Zwei Runden: messen, auf dem so korrigierten Bild (ganzer Rahmen, ohne Zuschnitt) nachmessen und den Rest dazu."""
+    np = _np()
+    from PIL import Image
+    im = img.convert("RGB")
+    im.thumbnail((800, 800), Image.Resampling.BILINEAR)
+    g0 = np.asarray(im.convert("L"), np.float32) / 255.0
+    werte = _upright_einmal(g0, modus)
+    weiss = Image.new("L", im.size, 255)
+    for _ in range(2):
+        if not werte:
+            break
+        zw = {k: v for k, v in werte.items()}
+        korr = geometrie(im, zw, rahmen=True)
+        m = np.asarray(geometrie(weiss.convert("RGB"), zw, rahmen=True).convert("L"), np.float32) > 250
+        # Rand der gültigen Fläche nicht als Kante zählen: Maske um 3 Pixel einschrumpfen
+        m2 = m.copy()
+        for _k in range(3):
+            m2[1:, :] &= m2[:-1, :]; m2[:-1, :] &= m2[1:, :]; m2[:, 1:] &= m2[:, :-1]; m2[:, :-1] &= m2[:, 1:]
+        rest = _upright_einmal(np.asarray(korr.convert("L"), np.float32) / 255.0, modus, m2.astype(np.float32))
+        for k, v in rest.items():
+            werte[k] = werte.get(k, 0.0) + v
+    raus: dict = {}
+    if "gerade" in werte and abs(werte["gerade"]) <= 15 and abs(werte["gerade"]) >= 0.05:
+        raus["gerade"] = round(werte["gerade"], 1)
+    for k in ("vertikal", "horizontal"):
+        if k in werte:
+            v = werte[k] * (0.7 if (modus == "auto" and k == "vertikal") else 1.0)
+            if abs(v) >= 1:
+                raus[k] = round(max(-100.0, min(100.0, v)), 0)
+    return raus
 
 
 def ist_leer(rezept: Optional[dict]) -> bool:
@@ -327,18 +553,44 @@ def wirksam(rezept: Optional[dict], img=None) -> dict:
         v = float(basis.get(k, 0) or 0) + float(r.get(k, 0) or 0)
         if v:
             raus[k] = raus.get(k, 0) + v
+    _boost_verteilen(raus)
     for k in GEOMETRIE:
         if k in r:
             raus[k] = r[k]
     return sauber(raus)
 
 
+# 21.10.2026 — „Boost“ (Marc: Regler wie „Verstärken“ in Luminar Neo, Name „Boost“), erste, regelbasierte Fassung: ein
+# Regler verteilt sich auf Dynamik, Struktur, Tiefen, Lichter, Kontrast und Dunst. Später lernt ein Modell die Mischung
+# je Foto. Bei Änderung `BOOST` in ui/js/entwickeln_gl.js mitpflegen.
+BOOST = {"dynamik": 0.35, "struktur": 0.3, "tiefen": 0.25, "lichter": -0.3, "kontrast": 0.1, "dunst": 0.08, "schwarz": -0.05}
+
+
+def _boost_verteilen(werte: dict) -> None:
+    b = float(werte.pop("boost", 0) or 0)
+    if not b:
+        return
+    for k, f in BOOST.items():
+        werte[k] = werte.get(k, 0) + b * f
+
+
 # ── Entwickeln ───────────────────────────────────────────────────────────────────────────
 
-def anwenden(img, rezept: Optional[dict], rahmen: bool = False):
+def anwenden(img, rezept: Optional[dict], rahmen: bool = False, gpu: bool = True):
     """PIL-Bild → entwickeltes PIL-Bild (RGB). `rezept` sind die wirksamen Werte (siehe `wirksam`): erst der Ton auf
-    dem ganzen Bild, dann die Geometrie."""
+    dem ganzen Bild, dann die Geometrie.
+
+    21.10.2026 — zuerst auf der Grafikkarte (core/entwickeln_gpu: derselbe Code wie die Live-Vorschau, 24 MP in ~1 s
+    statt 3–7 s). numpy unten ist nur noch der Ausweg ohne Grafikkarte und kennt nur die Grundregler; `gpu=False`
+    erzwingt ihn (Abgleichstest)."""
     r = sauber(rezept)
+    if not r:
+        return img.convert("RGB")
+    if gpu:
+        from . import entwickeln_gpu
+        aus = entwickeln_gpu.entwickeln(img, r, rahmen)
+        if aus is not None:
+            return aus
     ton = {k: v for k, v in r.items() if k in REGLER}
     aus = _ton(img, ton) if ton else img.convert("RGB")
     return geometrie(aus, r, rahmen) if any(k in r for k in GEOMETRIE) else aus
@@ -374,6 +626,15 @@ def _ton(img, r: dict):
         v = np.clip(v, 0, 1)
         l = _luma(v)
 
+    # Schärfen: Detail der Quelle (Helligkeit minus 3×3-Gauß), am Ende auf die Farben addiert — wie entwickeln_gl.js
+    scharf = None
+    if r.get("schaerfen"):
+        p_ = np.pad(l, 1, mode="edge")
+        hh, ww = l.shape
+        k3 = ((1, 2, 1), (2, 4, 2), (1, 2, 1))
+        bl = sum(k3[j][i] * p_[j:j + hh, i:i + ww] for j in range(3) for i in range(3)) / 16.0
+        scharf = (l - bl) * (r["schaerfen"] / 100.0 * 1.2)
+
     basis = _weich(l, groesse / 90)   # lokale Helligkeit
     # Lichter und Tiefen (lokal über die weiche Helligkeit)
     if r.get("lichter"):
@@ -390,12 +651,23 @@ def _ton(img, r: dict):
         detail = l - _weich(l, groesse / 120)
         mitten = 1 - np.abs(basis - 0.5) * 1.6
         l = l + k * 1.2 * detail * np.clip(mitten, 0, 1)
+    # Struktur: feines Detailband (Radius ≈ 1/350 der langen Kante), vor allem in den Mitten — wie entwickeln_gl.js
+    if r.get("struktur"):
+        k = r["struktur"] / 100.0
+        detail = l - _weich(l, groesse / 350)
+        mitten = np.clip(1 - np.abs(basis - 0.5) * 1.4, 0, 1)
+        l = l + k * 1.6 * detail * mitten
     # Kontrast: S-Kurve um die Mitte
     if r.get("kontrast"):
         k = r["kontrast"] / 100.0
         x = np.clip(l, 0, 1)
         s = x * x * (3 - 2 * x)
         l = x + k * 1.6 * (s - x) if k > 0 else x + k * 0.6 * (x - 0.5)
+    # Weiß- und Schwarzpunkt (linear umspannen)
+    if r.get("weiss") or r.get("schwarz"):
+        lo = -0.08 * r.get("schwarz", 0) / 100.0
+        hi = 1 - 0.15 * r.get("weiss", 0) / 100.0
+        l = (l - lo) / max(1e-3, hi - lo)
 
     # Helligkeitsänderung auf die Farben übertragen (Verhältnis, Farbton bleibt)
     # Helligkeitsänderung auf die Farben: als Faktor (Farbton bleibt) — in den tiefen Schatten aber additiv, sonst
@@ -405,6 +677,8 @@ def _ton(img, r: dict):
     faktor = np.clip(l / np.clip(lum0, 1e-4, None), 0, 3)[..., None]
     w = (1 - _glatt(lum0, 0.02, 0.18))[..., None]
     v = (v * faktor) * (1 - w) + (v + (l - lum0)[..., None]) * w
+    if scharf is not None:
+        v = v + scharf[..., None]
     v = np.clip(v, 0, 1)
 
     # Dynamik und Sättigung um die Helligkeit

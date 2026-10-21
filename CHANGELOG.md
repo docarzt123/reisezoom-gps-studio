@@ -16,6 +16,15 @@ Bei jeder neuen Version:
 
 ### Added
 - Place search everywhere (stage stations, route, set place) accepts coordinates: decimal („45.0556, 6.0302“, also with German comma), degrees/minutes/seconds and Google/Apple Maps links — e.g. spots saved in a camping app. The station is set exactly there, named after the place nearby.
+- Photo editing: the sliders sit in collapsible sections like in Lightroom — Light, Color, Effects, Detail, Geometry. Click a heading to fold it (the app remembers it); a dot shows where something is set. The eye on each section hides its effect for a moment to compare, nothing is lost; moving one of its sliders shows it again.
+- Photo editing: Boost — one slider for „more picture“ (colours, texture, shadows, highlights at once), right below the presets. Whites and Blacks in Light, Texture (fine local contrast) in Effects.
+- Photo editing: Sharpening, in the new Detail section (0–150, like Lightroom's amount; strongest visible at 100 % zoom).
+- Cropping: drag outside the frame — next to a corner, in the darkened border or beside the photo — to rotate, like in Lightroom. A fine grid and the angle show while rotating, Shift snaps to whole degrees; the frame only shrinks as far as needed and grows back when you rotate back.
+- Photo editing: Geometry section like Lightroom's Transform — Vertical (converging lines), Horizontal, Rotate, Aspect, Scale, Offset X/Y — plus Upright: Auto, Level, Vertical and Full find straight edges in the photo and set the sliders. The crop stays inside the photo automatically, no grey corners.
+- Photo editing: History tab — every change becomes a step with a name („Exposure +0.40“, „Preset: Vivid“), each with a small preview; „Create version“ keeps a named state, „Original“ is always at the bottom. A click goes back to that state (as a new step, nothing is lost). ⌘Z / ⇧⌘Z (Ctrl on Windows) step back and forward in the editor.
+
+### Changed
+- Photo editing: export, „Save as new file“, the grid thumbnails, videos and signs now develop on the graphics card with the same code as the live preview — preview and result are the same, and a 24-megapixel photo takes about one second instead of three to seven. Without a usable graphics card (or with only software graphics) the app develops as before.
 
 ### Removed
 - About dialog: the Ko-fi button — supporting the app now goes through PayPal only.

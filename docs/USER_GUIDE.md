@@ -2261,8 +2261,30 @@ Tönung, Dynamik, Sättigung, Klarheit und Dunst entfernen. **Taste „.“ halt
 Original, Doppelklick auf einen Regler setzt ihn zurück, ↺ setzt alles zurück. Die Vorschau rechnet die Grafikkarte: Das Bild
 folgt dem Regler ohne Verzögerung, und es sieht genauso aus wie später im Export und im Video.
 
+Die Regler stehen wie in Lightroom in **Bereichen: Licht, Farbe, Effekte, Details, Geometrie**. Ein Klick auf die Überschrift klappt einen
+Bereich ein oder aus (die App merkt sich das), ein Punkt neben der Überschrift zeigt, dass dort etwas eingestellt ist. Das
+**Auge** rechts blendet die Wirkung eines Bereichs kurz aus — zum Vergleichen, verloren geht nichts. Drehst du an einem
+seiner Regler, ist er wieder an. Export, „Als neue Datei …“, Raster, Video und Schilder rechnen ebenfalls auf der
+Grafikkarte, mit demselben Code wie die Vorschau: ein 24-Megapixel-Foto in etwa einer Sekunde.
+Ganz oben unter den Voreinstellungen steht **Boost**: ein Regler für „mehr Bild“ — er hebt Farben, Struktur und Tiefen
+und holt Lichter zurück, alles zugleich. In **Licht** gibt es zusätzlich **Weiß** und **Schwarz** (wie hell das Hellste,
+wie dunkel das Dunkelste wird), in **Effekte** die **Struktur** (feine Details, kleiner als Klarheit).
+Unter **Details** sitzt **Schärfen** (0–150). Wie in Lightroom siehst du es am besten in der 100-%-Ansicht (Klick ins Bild).
+
+**Geometrie (stürzende Linien):** **Vertikal** richtet zusammenlaufende Hauswände auf (nach links ziehen, wenn sie oben
+zusammenlaufen), **Horizontal** dasselbe quer, dazu **Drehen**, **Seitenverhältnis**, **Skalieren** und **Versatz X/Y**.
+**Upright** macht das automatisch: **Auto** (ausgewogen), **Waagerecht** (nur den Horizont gerade), **Senkrecht** (gerade +
+stürzende Linien) und **Voll** (auch waagerecht) — die App sucht die geraden Kanten im Foto und stellt die Regler, danach
+frei nacharbeiten. Der Zuschnitt bleibt dabei automatisch im Bild, es entstehen keine grauen Ecken.
+
+**Verlauf und Versionen:** Im Reiter **„Verlauf“** steht jeder Schritt mit Namen und kleinem Bild („Belichtung +0,40“,
+„Voreinstellung: Kräftig“ …), ganz unten das **Original**. Ein Klick holt diesen Stand zurück — das wird selbst ein neuer
+Schritt, es geht also nichts verloren. **„Version erstellen“** hält den jetzigen Stand unter einem Namen fest (Reiter
+**Benannt**), z. B. „Schwarzweiß“ und „Farbe“ zum Vergleichen. Im Editor gehen **⌘Z / ⇧⌘Z** (Windows: Strg) einen Schritt
+zurück und wieder vor.
+
 **Zuschneiden und Geraderichten:** **„Zuschneiden“** oder **Taste R**. Die Lupe zeigt dann das ganze Foto mit einem Rahmen
-und Drittel-Linien. Den Rahmen ziehst du zum Verschieben, an Ecken und Kanten änderst du die Größe. **Geraderichten** dreht
+und Drittel-Linien. Den Rahmen ziehst du zum Verschieben, an Ecken und Kanten änderst du die Größe. **Drehen geht direkt mit der Maus:** außerhalb des Rahmens ziehen (neben einer Ecke, im dunklen Rand oder neben dem Foto) dreht das Bild — mit feinem Gitter und Winkelanzeige, Shift rastet auf ganze Grad. **Geraderichten** dreht
 das Bild um bis zu ±45°; der Rahmen wird dabei so verkleinert, dass keine leeren Ecken entstehen. Das **Seitenverhältnis**
 wählst du darunter (Original, Frei, 1:1, 4:5, 3:2, 2:3, 16:9, 9:16), die zwei Pfeile drehen um 90°. **Enter** oder „Fertig“
 übernimmt, **Esc** bricht ab, „Zurücksetzen“ nimmt nur den Zuschnitt weg. Auch der Zuschnitt ist Teil des Rezepts: Raster,

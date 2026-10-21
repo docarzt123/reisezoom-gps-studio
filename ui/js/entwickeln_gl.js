@@ -11,11 +11,17 @@
 (function () {
   "use strict";
 
-  const GEOMETRIE = ["drehen90", "gerade", "zuschnitt"];
+  const GEOMETRIE = ["drehen90", "gerade", "zuschnitt", "vertikal", "horizontal", "aspekt", "skala", "versatz_x", "versatz_y"];
+  // 21.10.2026 — Transformieren wie Lightroom (wie entwickeln.PERSPEKTIVE)
+  const PERSPEKTIVE = { vertikal: [-100, 100], horizontal: [-100, 100], aspekt: [-100, 100], skala: [-50, 50], versatz_x: [-100, 100], versatz_y: [-100, 100] };
   const REGLER = {
     belichtung: [-3, 3], kontrast: [-100, 100], lichter: [-100, 100], tiefen: [-100, 100], temperatur: [-100, 100],
     toenung: [-100, 100], dynamik: [-100, 100], saettigung: [-100, 100], klarheit: [-100, 100], dunst: [-100, 100],
+    weiss: [-100, 100], schwarz: [-100, 100], struktur: [-100, 100], boost: [0, 100],
+    schaerfen: [0, 150],
   };
+  // „Boost“ wie entwickeln.BOOST — ein Regler verteilt sich auf diese (bei Änderung beide pflegen)
+  const BOOST = { dynamik: 0.35, struktur: 0.3, tiefen: 0.25, lichter: -0.3, kontrast: 0.1, dunst: 0.08, schwarz: -0.05 };
 
   // ── Rezept (wie entwickeln.sauber / wirksam) ────────────────────────────────────────────
   function geoSauber(rz) {
@@ -24,6 +30,10 @@
     if (d) raus.drehen90 = d;
     const g = Math.max(-45, Math.min(45, +((rz && rz.gerade) || 0) || 0));
     if (Math.abs(g) >= 0.01) raus.gerade = Math.round(g * 100) / 100;
+    Object.keys(PERSPEKTIVE).forEach(k => {
+      const [lo, hi] = PERSPEKTIVE[k], v = Math.max(lo, Math.min(hi, +((rz && rz[k]) || 0) || 0));
+      if (Math.abs(v) >= 0.01) raus[k] = Math.round(v * 100) / 100;
+    });
     const z = rz && rz.zuschnitt;
     if (Array.isArray(z) && z.length === 4 && z.every(v => isFinite(+v))) {
       let [x, y, b, h] = z.map(Number);
@@ -43,6 +53,9 @@
       const v = (+basis[k] || 0) + (+rz[k] || 0);
       if (v) raus[k] = (raus[k] || 0) + v;
     });
+    const bo = +raus.boost || 0;
+    delete raus.boost;
+    if (bo) Object.keys(BOOST).forEach(k => { raus[k] = (raus[k] || 0) + bo * BOOST[k]; });
     Object.keys(REGLER).forEach(k => {
       if (raus[k] == null) return;
       const [lo, hi] = REGLER[k];
@@ -52,41 +65,91 @@
     return Object.assign(raus, geoSauber(rz));
   }
 
+  // Projektivmatrix Rahmenpunkt → Quellpunkt (Pixel), wie entwickeln.geo_matrix — bei Änderung beide pflegen
+  const mal = (a, b) => [0, 1, 2].map(i => [0, 1, 2].map(j => a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j]));
+  function invers(m) {
+    const [[a, b, c], [d, e, f], [g, h, i]] = m;
+    const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
+    if (Math.abs(det) < 1e-12) return null;
+    return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det], [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+            [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]];
+  }
+  const hatPerspektive = (w) => !!w && Object.keys(PERSPEKTIVE).some(k => Math.abs(+w[k] || 0) >= 0.01);
+  function geoMatrix(W, H, w) {
+    w = w || {};
+    const t = (+w.gerade || 0) * Math.PI / 180, co = Math.cos(t), si = Math.sin(t);
+    const cx = W / 2, cy = H / 2, R = Math.max(W, H) / 2;
+    const sx = 1 + (+w.aspekt || 0) / 200, sk = 1 + (+w.skala || 0) / 100;
+    const ox = (+w.versatz_x || 0) / 200, oy = (+w.versatz_y || 0) / 200;
+    const av = -(+w.vertikal || 0) / 200, ah = -(+w.horizontal || 0) / 200;
+    let m = [[1, 0, -cx], [0, 1, -cy], [0, 0, 1]];
+    m = mal([[co, si, 0], [-si, co, 0], [0, 0, 1]], m);
+    m = mal([[1 / R, 0, 0], [0, 1 / R, 0], [0, 0, 1]], m);
+    m = mal([[1, 0, -ox], [0, 1, -oy], [0, 0, 1]], m);
+    m = mal([[1 / (sk * sx), 0, 0], [0, 1 / sk, 0], [0, 0, 1]], m);
+    m = mal([[1, 0, 0], [0, 1, 0], [-ah, -av, 1]], m);
+    return mal([[R, 0, cx], [0, R, cy], [0, 0, 1]], m);
+  }
+  function abbilden(m, x, y) {
+    const w = m[2][0] * x + m[2][1] * y + m[2][2];
+    if (w <= 1e-9) return null;
+    return [(m[0][0] * x + m[0][1] * y + m[0][2]) / w, (m[1][0] * x + m[1][1] * y + m[1][2]) / w];
+  }
   // ── Geometrie (wie entwickeln.passend / _drinnen / einpassen) ────────────────────────────
   const rahmenMasse = (w, h, d) => ((d || 0) % 2 ? [h, w] : [w, h]);
-  function passend(W, H, grad, seite) {
-    const t = Math.abs((grad || 0) * Math.PI / 180), c = Math.cos(t), s = Math.sin(t);
+  function passend(W, H, grad, seite, werte) {
     const A = seite || W / H;
+    if (hatPerspektive(werte)) {
+      const w = Object.assign({}, werte, { gerade: grad });
+      const mi = invers(geoMatrix(W, H, w)), mitte = mi ? abbilden(mi, W / 2, H / 2) : null;
+      const [mx, my] = (mitte && mitte[0] > 0 && mitte[0] < W && mitte[1] > 0 && mitte[1] < H) ? [mitte[0] / W, mitte[1] / H] : [0.5, 0.5];
+      const b0 = Math.min(W, H * A), h0 = b0 / A;
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 26; i++) {
+        const t = (lo + hi) / 2;
+        if (drinnen([mx - b0 * t / W / 2, my - h0 * t / H / 2, b0 * t / W, h0 * t / H], W, H, grad, w)) lo = t; else hi = t;
+      }
+      const b = b0 * lo / W, h = h0 * lo / H;
+      return [Math.max(0, Math.min(1 - b, mx - b / 2)), Math.max(0, Math.min(1 - h, my - h / 2)), b, h];
+    }
+    const t = Math.abs((grad || 0) * Math.PI / 180), c = Math.cos(t), s = Math.sin(t);
     const b = Math.min(W / (c + s / A), H / (s + c / A), W, H * A), h = b / A;
     return [(W - b) / 2 / W, (H - h) / 2 / H, b / W, h / H];
   }
-  function drinnen(r, W, H, grad) {
+  function drinnen(r, W, H, grad, werte) {
+    const eps = 1e-3 * Math.max(W, H);
+    const ecken = [[r[0], r[1]], [r[0] + r[2], r[1]], [r[0], r[1] + r[3]], [r[0] + r[2], r[1] + r[3]]];
+    if (hatPerspektive(werte)) {
+      const m = geoMatrix(W, H, Object.assign({}, werte, { gerade: grad }));
+      return ecken.every(([px, py]) => { const q = abbilden(m, px * W, py * H); return !!q && q[0] >= -eps && q[0] <= W + eps && q[1] >= -eps && q[1] <= H + eps; });
+    }
     const th = (grad || 0) * Math.PI / 180, co = Math.cos(th), si = Math.sin(th);
-    const cx = W / 2, cy = H / 2, eps = 1e-3 * Math.max(W, H);
-    for (const [px, py] of [[r[0], r[1]], [r[0] + r[2], r[1]], [r[0], r[1] + r[3]], [r[0] + r[2], r[1] + r[3]]]) {
+    const cx = W / 2, cy = H / 2;
+    for (const [px, py] of ecken) {
       const dx = px * W - cx, dy = py * H - cy;
       const qx = cx + dx * co + dy * si, qy = cy - dx * si + dy * co;
       if (qx < -eps || qx > W + eps || qy < -eps || qy > H + eps) return false;
     }
     return true;
   }
-  function einpassen(r, W, H, grad) {
+  function einpassen(r, W, H, grad, werte) {
     r = r.map(Number);
-    if (drinnen(r, W, H, grad)) return r;
+    if (drinnen(r, W, H, grad, werte)) return r;
     let mx = r[0] + r[2] / 2, my = r[1] + r[3] / 2;
-    if (!drinnen([mx, my, 0, 0], W, H, grad)) { mx = 0.5; my = 0.5; }
+    if (!drinnen([mx, my, 0, 0], W, H, grad, werte)) { const p = passend(W, H, grad, null, werte); mx = p[0] + p[2] / 2; my = p[1] + p[3] / 2; }
     let lo = 0, hi = 1;
     for (let i = 0; i < 24; i++) {
       const m = (lo + hi) / 2;
-      if (drinnen([mx - r[2] * m / 2, my - r[3] * m / 2, r[2] * m, r[3] * m], W, H, grad)) lo = m; else hi = m;
+      if (drinnen([mx - r[2] * m / 2, my - r[3] * m / 2, r[2] * m, r[3] * m], W, H, grad, werte)) lo = m; else hi = m;
     }
     return [mx - r[2] * lo / 2, my - r[3] * lo / 2, r[2] * lo, r[3] * lo];
   }
   /** Zuschnitt, der gerade gilt (ohne eigenen: der größte im Seitenverhältnis des Bildes). */
   function zuschnittWirksam(werte, W, H) {
     const g = werte.gerade || 0;
-    return einpassen(werte.zuschnitt || passend(W, H, g), W, H, g);
+    return einpassen(werte.zuschnitt || passend(W, H, g, null, werte), W, H, g, werte);
   }
+  const brauchtGeo = (w) => !!(w.gerade || w.zuschnitt || hatPerspektive(w));
 
   // ── WebGL 2 ─────────────────────────────────────────────────────────────────────────────
   const VS = `#version 300 es
@@ -149,22 +212,32 @@ void main() {
     // Helligkeit nach Lichter/Tiefen — Grundlage der Klarheit
     l2: KOPF + `uniform sampler2D v2; uniform sampler2D basis;
 void main() { vec3 v = texture(v2, uv).rgb; o = vec4(vec3(tonLT(luma(v), texture(basis, uv).r)), 1.0); }`,
-    ende: KOPF + `uniform sampler2D v2; uniform sampler2D basis; uniform sampler2D detb;
-uniform float kl, ko, sat, dyn, th, flip; uniform int d90; uniform vec4 rect; uniform vec2 rahmen;
+    ende: KOPF + `uniform sampler2D v2; uniform sampler2D basis; uniform sampler2D detb; uniform sampler2D strb;
+uniform float kl, ko, sat, dyn, flip, sch, st, ws, sw; uniform int d90; uniform vec4 rect; uniform vec2 rahmen; uniform mat3 M;
 void main() {
   vec2 u = vec2(uv.x, flip > 0.5 ? 1.0 - uv.y : uv.y);
-  vec2 p = (rect.xy + u * rect.zw) * rahmen, c = rahmen * 0.5, d = p - c;
-  float co = cos(th), si = sin(th);
-  vec2 f = (c + vec2(d.x * co + d.y * si, -d.x * si + d.y * co)) / rahmen;
+  vec2 p = (rect.xy + u * rect.zw) * rahmen;
+  vec3 q = M * vec3(p, 1.0);   // Geraderichten + Transformieren als eine Projektivmatrix (geoMatrix)
+  vec2 f = q.z > 1e-6 ? (q.xy / q.z) / rahmen : vec2(-1.0);
   if (f.x < 0.0 || f.y < 0.0 || f.x > 1.0 || f.y > 1.0) { o = vec4(vec3(24.0 / 255.0), 1.0); return; }
   vec2 s = d90 == 1 ? vec2(f.y, 1.0 - f.x) : (d90 == 2 ? vec2(1.0 - f.x, 1.0 - f.y) : (d90 == 3 ? vec2(1.0 - f.y, f.x) : f));
   vec3 v = texture(v2, s).rgb; float b = texture(basis, s).r;
-  float l0 = luma(v), l = tonLT(l0, b);
+  float l0 = luma(v), l = tonLT(l0, b), scharf = 0.0;
+  if (sch != 0.0) {   // Schärfen: Helligkeit minus 3×3-Gauß der Quelle (wie entwickeln._ton)
+    vec2 tx = 1.0 / vec2(textureSize(v2, 0)); float bl = 0.0;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      float w = float((2 - abs(i)) * (2 - abs(j)));
+      bl += w * luma(texture(v2, s + vec2(float(i), float(j)) * tx).rgb);
+    }
+    scharf = (l0 - bl / 16.0) * sch * 1.2;
+  }
   if (kl != 0.0) { float det = l - texture(detb, s).r; l = l + kl * 1.2 * det * clamp(1.0 - abs(b - 0.5) * 1.6, 0.0, 1.0); }
+  if (st != 0.0) { float det = l - texture(strb, s).r; l = l + st * 1.6 * det * clamp(1.0 - abs(b - 0.5) * 1.4, 0.0, 1.0); }
   if (ko != 0.0) { float x = clamp(l, 0.0, 1.0); float sm = x * x * (3.0 - 2.0 * x); l = ko > 0.0 ? x + ko * 1.6 * (sm - x) : x + ko * 0.6 * (x - 0.5); }
+  if (ws != 0.0 || sw != 0.0) { float lo = -0.08 * sw, hi = 1.0 - 0.15 * ws; l = (l - lo) / max(1e-3, hi - lo); }
   l = clamp(l, 0.0, 1.2);
   float fk = clamp(l / max(l0, 1e-4), 0.0, 3.0), w = 1.0 - glatt(l0, 0.02, 0.18);
-  v = clamp((v * fk) * (1.0 - w) + (v + (l - l0)) * w, 0.0, 1.0);
+  v = clamp((v * fk) * (1.0 - w) + (v + (l - l0)) * w + scharf, 0.0, 1.0);
   float lum = luma(v), sk = 1.0 + sat;
   if (dyn != 0.0) { float sj = max(v.r, max(v.g, v.b)) - min(v.r, min(v.g, v.b)); sk *= 1.0 + dyn * (1.0 - clamp(sj * 1.6, 0.0, 1.0)); }
   o = vec4(clamp(lum + (v - lum) * sk, 0.0, 1.0), 1.0);
@@ -236,6 +309,7 @@ void main() {
       Object.entries(uniforms || {}).forEach(([n, v]) => {
         const ort = this._ort(pr, n); if (ort == null) return;
         if (n === "F" || n === "modus" || n === "d90") gl.uniform1i(ort, v);
+        else if (n === "M") gl.uniformMatrix3fv(ort, false, [v[0][0], v[1][0], v[2][0], v[0][1], v[1][1], v[2][1], v[0][2], v[1][2], v[2][2]]);
         else if (Array.isArray(v)) gl[`uniform${v.length}fv`](ort, v);
         else gl.uniform1f(ort, v);
       });
@@ -305,26 +379,37 @@ void main() {
         this._pass("klein", lk, { q: v2.t }, { F, modus: 0 });
         this._pass("weich", lt, { q: lk.t }, { dir: [1, 0], sigma: g / 90 / F });
         this._pass("weich", b, { q: lt.t }, { dir: [0, 1], sigma: g / 90 / F });
-        this.merk.basis = this.merk.v2 + "|" + k1; this.merk.det = null;
+        this.merk.basis = this.merk.v2 + "|" + k1; this.merk.det = null; this.merk.l2 = null; this.merk.stru = null;
       }
-      const li = (w.lichter || 0) / 100, ti = (w.tiefen || 0) / 100;
-      if ((w.klarheit || 0) && this.merk.det !== this.merk.basis + "|" + li + "|" + ti) {
-        const l2 = this._ziel("l2", W, H), dk = this._ziel("dk", kw, kh), dt = this._ziel("dt", kw, kh), det = this._ziel("det", kw, kh);
+      const li = (w.lichter || 0) / 100, ti = (w.tiefen || 0) / 100, kl2 = this.merk.basis + "|" + li + "|" + ti;
+      if ((w.klarheit || w.struktur) && this.merk.l2 !== kl2) {   // Helligkeit nach Lichter/Tiefen, verkleinert
+        const l2 = this._ziel("l2", W, H), dk = this._ziel("dk", kw, kh);
         this._pass("l2", l2, { v2: v2.t, basis: this.ziele.basis.t }, { li, ti });
         this._pass("klein", dk, { q: l2.t }, { F, modus: 3 });
-        this._pass("weich", dt, { q: dk.t }, { dir: [1, 0], sigma: g / 120 / F });
+        this.merk.l2 = kl2; this.merk.det = null; this.merk.stru = null;
+      }
+      if ((w.klarheit || 0) && this.merk.det !== kl2) {
+        const dt = this._ziel("dt", kw, kh), det = this._ziel("det", kw, kh);
+        this._pass("weich", dt, { q: this.ziele.dk.t }, { dir: [1, 0], sigma: g / 120 / F });
         this._pass("weich", det, { q: dt.t }, { dir: [0, 1], sigma: g / 120 / F });
-        this.merk.det = this.merk.basis + "|" + li + "|" + ti;
+        this.merk.det = kl2;
+      }
+      if ((w.struktur || 0) && this.merk.stru !== kl2) {   // Struktur: kleinerer Radius (g/350)
+        const sa = this._ziel("sa", kw, kh), stru = this._ziel("stru", kw, kh);
+        this._pass("weich", sa, { q: this.ziele.dk.t }, { dir: [1, 0], sigma: g / 350 / F });
+        this._pass("weich", stru, { q: sa.t }, { dir: [0, 1], sigma: g / 350 / F });
+        this.merk.stru = kl2;
       }
       return v2;
     }
     _ende(w, ziel, rahmen, flip) {
       const [Wr, Hr] = rahmenMasse(this.W, this.H, w.drehen90 || 0);
-      const rect = rahmen ? [0, 0, 1, 1] : ((w.gerade || w.zuschnitt) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1]);
+      const rect = rahmen ? [0, 0, 1, 1] : (brauchtGeo(w) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1]);
       const v2 = this._stufen(w);
-      this._pass("ende", ziel, { v2: v2.t, basis: this.ziele.basis.t, detb: (this.ziele.det || this.ziele.basis).t }, {
+      this._pass("ende", ziel, { v2: v2.t, basis: this.ziele.basis.t, detb: (this.ziele.det || this.ziele.basis).t, strb: (this.ziele.stru || this.ziele.basis).t }, {
+        st: (w.struktur || 0) / 100, ws: (w.weiss || 0) / 100, sw: (w.schwarz || 0) / 100,
         li: (w.lichter || 0) / 100, ti: (w.tiefen || 0) / 100, kl: (w.klarheit || 0) / 100, ko: (w.kontrast || 0) / 100,
-        sat: (w.saettigung || 0) / 100, dyn: (w.dynamik || 0) / 100, th: (w.gerade || 0) * Math.PI / 180, flip: flip ? 1 : 0,
+        sat: (w.saettigung || 0) / 100, dyn: (w.dynamik || 0) / 100, sch: (w.schaerfen || 0) / 100, M: geoMatrix(Wr, Hr, w), flip: flip ? 1 : 0,
         d90: w.drehen90 || 0, rect, rahmen: [Wr, Hr],
       });
       return { rect, Wr, Hr };
@@ -334,12 +419,61 @@ void main() {
       opt = opt || {};
       const w = werte || {};
       const [Wr, Hr] = rahmenMasse(this.W, this.H, w.drehen90 || 0);
-      const rect = opt.rahmen ? [0, 0, 1, 1] : ((w.gerade || w.zuschnitt) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1]);
+      const rect = opt.rahmen ? [0, 0, 1, 1] : (brauchtGeo(w) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1]);
       const bw = Math.max(1, Math.round(rect[2] * Wr)), bh = Math.max(1, Math.round(rect[3] * Hr));
       if (this.canvas.width !== bw) this.canvas.width = bw;
       if (this.canvas.height !== bh) this.canvas.height = bh;
       const r = this._ende(w, null, !!opt.rahmen, true);
       return { breite: bw, hoehe: bh, rect: r.rect, Wr, Hr };
+    }
+    /** Quelle aus rohen RGBA-Pixeln (oben zuerst) — für das Speichern in voller Größe (core/entwickeln_gpu.py). */
+    quelleRoh(px, w, h) {
+      const gl = this.gl;
+      if (this.q) gl.deleteTexture(this.q);
+      this.W = w; this.H = h;
+      this.q = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.q);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
+      [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE));
+      this.merk = {};
+      const g = Math.max(w, h);
+      this.F = g >= 1000 ? 4 : (g >= 500 ? 2 : 1);
+    }
+    /** Entwickeln in voller Größe in eine unsichtbare Fläche; Rückgabe RGBA-Pixel (oben zuerst) + Größe. */
+    ausgeben(werte, opt) {
+      const gl = this.gl, w = werte || {};
+      const [Wr, Hr] = rahmenMasse(this.W, this.H, w.drehen90 || 0);
+      const rect = (opt && opt.rahmen) ? [0, 0, 1, 1] : (brauchtGeo(w) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1]);
+      const bw = Math.max(1, Math.round(rect[2] * Wr)), bh = Math.max(1, Math.round(rect[3] * Hr));
+      const z = this._ziel("aus", bw, bh, [gl.RGBA8, gl.UNSIGNED_BYTE]);
+      this._ende(w, z, !!(opt && opt.rahmen), false);
+      const px = new Uint8Array(bw * bh * 4);
+      gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
+      gl.readPixels(0, 0, bw, bh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      // Zwischenstufen in voller Größe freigeben — sonst hält der Browser bei 24 MP mehrere hundert MB
+      ["v1", "v2", "l2", "aus"].forEach(n => { const t = this.ziele[n]; if (t) { gl.deleteTexture(t.t); gl.deleteFramebuffer(t.fb); delete this.ziele[n]; } });
+      this.merk = {};
+      return { pixel: px, breite: bw, hoehe: bh };
+    }
+    /** Kleines entwickeltes Bild als data-URL (Verlauf/Versionen, 21.10.2026). */
+    bildchen(werte, max) {
+      const gl = this.gl, w = werte || {};
+      const [Wr, Hr] = rahmenMasse(this.W, this.H, w.drehen90 || 0);
+      const rect = brauchtGeo(w) ? zuschnittWirksam(w, Wr, Hr) : [0, 0, 1, 1];
+      const s = Math.min(1, (max || 96) / Math.max(rect[2] * Wr, rect[3] * Hr));
+      const bw = Math.max(1, Math.round(rect[2] * Wr * s)), bh = Math.max(1, Math.round(rect[3] * Hr * s));
+      const z = this._ziel("bildchen", bw, bh, [gl.RGBA8, gl.UNSIGNED_BYTE]);
+      this._ende(w, z, false, false);
+      const px = new Uint8ClampedArray(bw * bh * 4);
+      gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
+      gl.readPixels(0, 0, bw, bh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const c = document.createElement("canvas"); c.width = bw; c.height = bh;
+      c.getContext("2d").putImageData(new ImageData(px, bw, bh), 0, 0);
+      return c.toDataURL("image/jpeg", 0.8);
     }
     /** Histogramm (64 Stufen je Kanal) des entwickelten Bildes — aus einer verkleinerten Fassung. */
     histogramm(werte, opt) {
@@ -360,5 +494,5 @@ void main() {
     }
   }
 
-  window.rzEntwickler = { wirksam, geoSauber, passend, drinnen, einpassen, zuschnittWirksam, rahmenMasse, GEOMETRIE, EntwicklerGL };
+  window.rzEntwickler = { wirksam, geoSauber, passend, drinnen, einpassen, zuschnittWirksam, rahmenMasse, geoMatrix, hatPerspektive, GEOMETRIE, PERSPEKTIVE, EntwicklerGL };
 })();
