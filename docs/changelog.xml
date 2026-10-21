@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 21 Oct 2026 09:30:41 +0000</lastBuildDate>
+<lastBuildDate>Wed, 21 Oct 2026 13:02:01 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.804</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-804</link>
+<guid isPermaLink="false">gps-studio-v0.9.804</guid>
+<pubDate>Wed, 21 Oct 2026 12:00:00 +0000</pubDate>
+<description>Zoomen wie in Lightroom — In der Lupe vergrößert ein Klick genau dort, wo du klickst — Pinch auf dem Trackpad zoomt stufenlos, mit gedrückter Maus verschieben, Z schaltet um.
+
+Blättern ohne Warten — Was du im Raster siehst und gleich sehen könntest, bereitet GPS Studio im Hintergrund vor — beim Durchklicken ist das große Bild sofort da.
+
+Besseres Auto — „Auto“ hellt die Tiefen nicht mehr flau auf, der Weißabgleich lässt Sonnenuntergänge in Ruhe, und die Regler zeigen, was Auto eingestellt hat.
+
+Doppelte Zeile für Zeile — Beim Wegräumen von Doppelten entscheidest du je Gruppe, ob sie angefasst wird. Danke für die Idee aus der Community!</description>
+</item>
 <item>
 <title>v0.9.803</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-803</link>
@@ -243,19 +256,6 @@ Info-Karte — neue Einblendung im Stil der App: Tourname, Strecke, Bergauf, Bew
 Kommender Weg gestrichelt — neue Projekte zeigen die ganze Strecke blass und gestrichelt; die Linie zeichnet sich darüber.
 
 Video exportieren mit eigenem Fenster — „⤓ Video exportieren“ öffnet ein Fenster mit Vorlagen (YouTube 4K, YouTube 1080p, Instagram Reel, Instagram 4:5, Schnell ansehen 720p — und deine eigenen), Auflösung, Bildrate, HDR und Qualität. Der Name bekommt Datum und Uhrzeit, nichts wird überschrieben; „Exportieren“ legt sofort los.</description>
-</item>
-<item>
-<title>v0.9.781</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-781</link>
-<guid isPermaLink="false">gps-studio-v0.9.781</guid>
-<pubDate>Mon, 05 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotos nach Inhalt suchen — „Sonnenuntergang“, „Hund am Strand“, „Gletscher“: das Suchfeld findet jetzt auch, was auf den Fotos zu sehen ist, in jeder Sprache, dazu „Ähnliche Fotos“ zu einem Bild. Das Bildmodell (SigLIP 2) wird nur geladen, wenn du die Inhaltssuche einschaltest (ca. 0,5 GB), und läuft danach ganz auf deinem Rechner, ohne Konto.
-
-Fotos groß ansehen und Videos abspielen — Doppelklick oder Leertaste öffnet das Foto im ganzen Fenster, ← → blättert, Videos laufen mit Ton. Aus einem Video speicherst du ein Standbild als Foto.
-
-Fotos im Archiv bearbeiten und verorten — Aufnahmedaten wie im Geotagger ändern (Titel, Stichwörter, Zeit, Zeitzone, Ort …) und ein einzelnes Foto per Klick in die Karte verorten. Vorher wird das Original gesichert.
-
-Fotoordner zeigen ihr Laufwerk wie der Finder — „Fotos“ statt /Volumes/Fotos, dazu 🟢 verbunden oder 📴 nicht verbunden, ob es ein Netzlaufwerk (auf welchem NAS), ein Zusatzlaufwerk oder dieser Rechner ist, und ein Knopf „Verbinden“ für das NAS.</description>
 </item>
 </channel>
 </rss>

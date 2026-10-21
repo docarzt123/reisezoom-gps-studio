@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.804] – 2026-10-21
+
 ### Added
 - Duplicates: decide row by row — each group has a „tidy up“ tick (off leaves the whole row alone, on marks everything except the version that stays), plus „Mark all rows“ and „None“.
 
