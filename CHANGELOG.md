@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.802] – 2026-10-21
+
+### Fixed
+- Start: whoever switches to another module right after starting stays there — the archive's „continue where you left off“ jumped back to the last module about a second later.
+
 ## [0.9.801] – 2026-10-21
 
 ### Added

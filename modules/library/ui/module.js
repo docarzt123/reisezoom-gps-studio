@@ -1751,6 +1751,8 @@ function mountLibrary(body, headerActions) {
   // denn der Nutzer hat nichts angeklickt; der Grund steht im Log.
   async function projektOeffnen(pid, modulWunsch, opts) {
     const stumm = !!(opts && opts.stumm);
+    // 21.10.2026 — beim stillen Fortsetzen nur umschalten, wenn man noch im Archiv ist (sonst zog es zurück)
+    const darfWechseln = () => !stumm || (!_unmounted && activeMod === "library");
     const melden = (text, art) => {
       if (stumm) { try { applog("info", "[bib] Fortsetzen übersprungen: " + text); } catch (_) {} return; }
       toast(text, art, 6000);
@@ -1773,7 +1775,7 @@ function mountLibrary(body, headerActions) {
     if (info.frei) {
       try { if (typeof clearGlobalGpx === "function") clearGlobalGpx(); } catch (_) {}
       if (typeof sessionActivateFrei === "function") await sessionActivateFrei(info.kontext);
-      if (typeof switchMod === "function") switchMod(modul);
+      if (typeof switchMod === "function" && darfWechseln()) switchMod(modul);
       return;
     }
     if (info.ablauf === "reise" || info.ablauf === "schwarm") {
@@ -1793,7 +1795,7 @@ function mountLibrary(body, headerActions) {
         if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
         return;
       }
-      if (typeof switchMod === "function") switchMod("animator");
+      if (typeof switchMod === "function" && darfWechseln()) switchMod("animator");
       return;
     }
     // 14.09.2026 (Nachttest): Beim Weitermachen nach dem Start ist die Projektliste noch nicht geladen
@@ -1805,7 +1807,7 @@ function mountLibrary(body, headerActions) {
     }
     const ok = await window.loadGlobalGpx(haupt, { stumm: true });
     if (ok === false) return;
-    if (typeof switchMod === "function") switchMod(modul);
+    if (typeof switchMod === "function" && darfWechseln()) switchMod(modul);
   }
 
   window.rzProjektOeffnen = projektOeffnen;   // 05.09.2026 — Import eines Mehr-Touren-Pakets öffnet so
@@ -6390,6 +6392,9 @@ function mountLibrary(body, headerActions) {
   async function fortsetzen() {
     try {
       const r = await api().letzte_sitzung();
+      // 21.10.2026 (Suite: Modul gewechselt, eine Sekunde später zog „Fortsetzen“ zurück in den Geotagger) — wer beim Start
+      // schon selbst in ein anderes Modul gegangen ist, bleibt dort
+      if (_unmounted || activeMod !== "library") return false;
       // War zuletzt das Archiv offen, bleibt es das auch: dort arbeitet man
       // nicht an einem Projekt, und ins Modul zu springen würde genau den
       // Ort verlassen, an dem man aufgehört hat.
@@ -6400,7 +6405,8 @@ function mountLibrary(body, headerActions) {
         // 25.09.2026 (Klicktest S-12): noch kein gespeichertes Projekt — die Tour im letzten Modul öffnen
         const ok = await window.loadGlobalGpx(r.tour_pfad, { stumm: true });
         const mod = (window.RZGPS_MODULES || {})[r.zuletzt_modul] ? r.zuletzt_modul : "animator";
-        if (ok !== false && typeof switchMod === "function") switchMod(mod);
+        // … auch nicht, wenn man während des Ladens schon gewechselt hat
+        if (ok !== false && typeof switchMod === "function" && !_unmounted && activeMod === "library") switchMod(mod);
         try { applog("info", "[bib] Fortsetzen ohne Projekt: " + r.zuletzt_modul); } catch (_) {}
         return ok !== false;
       }
