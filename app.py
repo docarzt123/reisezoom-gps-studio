@@ -2887,6 +2887,7 @@ class Api:
                 _vm("hl_osm", "Fragt OpenStreetMap nach Gipfeln, Aussichten, Hütten und Orten entlang des Tracks (Netz)")
                 r = chl.highlights_fuer_track(pts)
                 info["netz"] = r["netz"]
+                info["osm_netz"] = bool(r["netz"])   # 19.10.2026: getrennt von `orte_netz`, damit das Fenster nach einer Orte-Wiederholung nur den echten OSM-Ausfall meldet
                 pois = r["gewaehlt"]
                 pois = [p for p in pois if p.get("art") not in chl.TRACK_ARTEN]
             orte = []
@@ -2897,6 +2898,8 @@ class Api:
                         i, n, i=i, g=n)
                 ro = chl.orte_und_paesse(pts, cache_pfad=APP_SUPPORT / "orte_paesse_cache.json", fortschritt=_orte_stand)
                 orte = ro["eintraege"]
+                # 19.10.2026: eigenes Flag, damit das Fenster den Orte-Ausfall von einem OSM-Ausfall unterscheiden kann
+                info["orte_netz"] = bool(ro["netz"])
                 if not ro["netz"]:
                     info["netz"] = False
                 if ro.get("unvollstaendig"):

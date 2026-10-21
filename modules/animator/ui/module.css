@@ -1745,3 +1745,10 @@ body.rz-render-mode #anim-overlay-preview .ct-x { display: none; }
 /* 17.10.2026 — gleiche Zeile als Info: der ausgewählte Keyframe hat die Karte übernommen (⌘Z holt ihn zurück) */
 .anim-ansicht-hinweis.ist-info { color: #d6e4f0; }
 body.is-rendering .anim-ansicht-hinweis { display: none; }
+/* 19.10.2026 Highlights-Fenster: Hinweis-Kasten, wenn Overpass für "Orte und Pässe" ausfällt (warn) bzw. wieder da ist (ok) */
+#hl-orte-kasten { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: 8px; border: 1px solid; font-size: 13px; }
+#hl-orte-kasten[hidden] { display: none; }
+#hl-orte-kasten.hl-orte-warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+#hl-orte-kasten.hl-orte-ok { border-color: var(--success); background: color-mix(in srgb, var(--success) 16%, transparent); }
+#hl-orte-kasten .hl-orte-text { flex: 1 1 260px; font-weight: 600; }
+#hl-orte-kasten .hl-orte-zaehler { font-variant-numeric: tabular-nums; color: var(--text-dim); }
