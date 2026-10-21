@@ -2212,6 +2212,12 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
 - **Doble clic, E o espacio** abre la **lupa**: la imagen grande junto a la barra lateral, debajo la tira de imágenes, a la
   derecha el mapa con la ruta y justo debajo **✎ Editar** con los reguladores (al lado la
   pestaña **Info**; los vídeos muestran Info). ←/→ pasa fotos, **F** = pantalla completa, **G** o Esc vuelve.
+- **Zoom en la lupa como en Lightroom:** el puntero es una lupa: un clic amplía justo ahí (al 100 %, al menos el doble) y
+  otro clic vuelve a mostrar la imagen entera. **Pellizcar** en el trackpad o **⌘/Ctrl + rueda** amplía de forma
+  continua, arrastrando mueves la imagen ampliada y **Z** alterna. Al ampliar se carga el original a resolución completa.
+- **Pasar fotos sin esperar:** lo que muestra la cuadrícula (y las dos pantallas siguientes) y las vecinas de la tira se
+  preparan en segundo plano a un tamaño intermedio; una foto editada se vuelve a calcular nada más guardarla. Al pasar
+  las fotos, la imagen grande aparece al instante.
 - **Buscar duplicados …** muestra cuánto espacio libera retirarlos: en el botón (p. ej. „Retirar 12 (3,4 GB)“), „ahorra …“
   por grupo y abajo, cuándo queda libre de verdad: al vaciar la papelera, o solo cuando borres la carpeta.
 - **Iconos sencillos:** toda la app muestra iconos de línea de un solo color en lugar de emojis de colores. La vista
@@ -2227,7 +2233,7 @@ Si quieres, el buscador también encuentra **lo que muestran las fotos**: «pues
 
 ### ✎ Editar fotos (desde v0.9.787)
 
-En la lupa, pestaña **«✎ Editar»**: el histograma, **✨ Auto** (tono y balance de blancos según la foto), los ajustes
+En la lupa, pestaña **«✎ Editar»**: el histograma, **✨ Auto** (calcula tono y balance de blancos según la foto y coloca los controles en esos valores; luego retócalos a tu gusto, como en Lightroom), los ajustes
 **Natural · Intenso · Mate · B/N** y controles de exposición, contraste, iluminaciones, sombras, temperatura, matiz,
 intensidad, saturación, claridad y quitar neblina. **Mantén pulsada «.»** (o «◐ Antes») para ver el original; doble clic en
 un control lo restablece, ↺ restablece todo. La vista previa la calcula la tarjeta gráfica: la imagen sigue al control sin
@@ -2323,6 +2329,10 @@ definitivamente. Mientras se retiran, la ventana permanece abierta.
 **Un NAS y otras unidades de red no suelen tener papelera.** Allí, con «a la Papelera», la app deja los archivos donde
 están y te lo dice; para ellos elige «a la carpeta ‹Duplicados (GPS Studio)›». (Hasta el 9-10-2026 el Finder los borraba
 allí al instante; solo los recogía una papelera del propio NAS, p. ej. la carpeta `#recycle`.)
+
+**Decidir fila por fila:** cada grupo tiene arriba a la izquierda la casilla **«retirar»**: desactivada, no se toca nada
+de esa fila; activada de nuevo, se marca todo menos la versión que se queda. Encima están **«Marcar todas las filas»** y
+**«Ninguna»**. Los archivos sueltos se siguen marcando con su propia casilla bajo la imagen.
 
 ### ↗ Abrir con … — retocar en tu programa de fotos (desde v0.9.787)
 

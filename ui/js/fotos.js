@@ -1513,6 +1513,7 @@
       return;
     }
     box.innerHTML = gruppenHtml(0) + fussHtml();
+    rasterVorbereitenBald();
     rasterVerdrahten(box, 0);
   }
 
@@ -2492,6 +2493,7 @@
       el.addEventListener("click", (e) => { if ((e.target === el || e.target.classList.contains("foto-gross-buehne")) && !(bearbZ && bearbZ.zuschneiden)) grossZu(); });
       document.addEventListener("keydown", grossTasten, true);
       document.addEventListener("keyup", grossTastenHoch, true);
+      grossZoomEinhaengen(el.querySelector(".foto-gross-buehne"));
       el.querySelectorAll("[data-fg]").forEach(b => { b.onclick = () => grossReiter(b.dataset.fg); });
       // 09.10.2026 (Marc: „öffne Bearbeiten direkt, nicht Info“) — Karte oben, darunter gleich die Regler
       gross = { el, liste, idx, reiter: "bearb" };
@@ -2598,11 +2600,14 @@
     if (!bearbZ || bearbZ.pfad !== f.path) {
       bearbSpeichernJetzt();
       box.innerHTML = `<div class="muted"><span class="ass-spinner"></span> ${esc(T("bearb.laedt", "Bild wird vorbereitet …"))}</div>`;
-      const r = await api().foto_bearbeiten_laden(f.path).catch(() => null);   // warte-ok: Feld zeigt „Bild wird vorbereitet …“
+      const r = _bearbMerk.get(f.path) || await api().foto_bearbeiten_laden(f.path).catch(() => null);   // warte-ok: Feld zeigt „Bild wird vorbereitet …“
+      if (r && r.ok) _merken(_bearbMerk, f.path, r, BEARB_MERK);
       if (gross !== g || g.liste[g.idx] !== f) return;
       if (!r || !r.ok) { box.innerHTML = `<div class="muted">${esc((r && r.error) || "?")}</div>`; return; }
-      bearbZ = { pfad: f.path, f, rezept: r.rezept || {}, auto: r.auto || {}, aus_vorschau: r.aus_vorschau, lauf: 0, tmrV: 0, tmrS: 0, offen: false, hist: r.hist || null,
+      bearbZ = { pfad: f.path, f, rezept: JSON.parse(JSON.stringify(r.rezept || {})), auto: r.auto || {}, aus_vorschau: r.aus_vorschau, lauf: 0, tmrV: 0, tmrS: 0, offen: false, hist: r.hist || null,
                  quelleUrl: r.quelle_url || null, voreinst: r.voreinstellungen || {}, W: r.breite || 0, H: r.hoehe || 0, seite: "orig" };
+      // altes Rezept mit unsichtbarem Auto-Schalter (ohne Voreinstellung): Werte sichtbar in die Regler holen, gleiches Bild
+      if (bearbZ.rezept.auto && !bearbZ.rezept.stil) { autoInRegler(bearbZ.rezept, bearbZ.auto, true); bearbZ.offen = true; clearTimeout(bearbZ.tmrS); bearbZ.tmrS = setTimeout(bearbSpeichernJetzt, 600); }
       if (r.quelle_url) {
         const z = bearbZ, bild = new Image();
         z.quelleBild = bild;
@@ -2615,6 +2620,22 @@
     bearbZeichnen();
     if (!ist_leer(bearbZ.rezept)) bearbVorschau();
     else if (bearbZ.hist) bearbHist(bearbZ.hist);
+  }
+  /** 21.10.2026 (Marc: „wenn ich Auto drücke, sollen sich die Regler entsprechend verschieben“) — wie Lightroom: Auto rechnet
+      die Werte aus und stellt sie in die Regler (Belichtung … Dynamik), danach frei nacharbeiten. `dazu` = auf die eigenen Werte
+      rechnen (altes Rezept mit unsichtbarem Auto-Schalter, z. B. aus „Auto“ für viele Markierte) statt sie zu ersetzen. */
+  const AUTO_REGLER = ["belichtung", "kontrast", "lichter", "tiefen", "temperatur", "toenung", "dynamik"];
+  function autoInRegler(rz, auto, dazu) {
+    if (!rz) return;
+    const a = auto || {};
+    for (const k of AUTO_REGLER) {
+      const [, , , schritt] = BEARB_REGLER.find(([n]) => n === k) || [0, 0, 0, 1];
+      let v = (+a[k] || 0) + (dazu ? (+rz[k] || 0) : 0);
+      v = Math.round(v / schritt) * schritt;
+      v = Math.round(v * 100) / 100;
+      if (v) rz[k] = v; else delete rz[k];
+    }
+    delete rz.auto;
   }
   const ist_leer = (rz) => !rz || !(rz.auto || rz.stil || BEARB_REGLER.some(([k]) => +rz[k]) || +rz.drehen90 || +rz.gerade || rz.zuschnitt);
   const BEARB_GEO = ["drehen90", "gerade", "zuschnitt"];
@@ -2645,7 +2666,7 @@
         <button type="button" class="btn btn-sm${(rz.zuschnitt || rz.gerade || rz.drehen90) ? " is-on" : ""}" id="fb-zs" title="${esc(T("bearb.zuschneiden_tip", "Zuschneiden und Geraderichten (R)"))}">${I("crop", 14)} ${esc(T("bearb.zuschneiden", "Zuschneiden"))}</button>
       </div>
       <div class="fb-zeile">
-        <button type="button" class="btn btn-sm${rz.auto ? " is-on" : ""}" id="fb-auto" title="${esc(T("bearb.auto_tip", "Ton und Weißabgleich automatisch — die Regler kommen obendrauf"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
+        <button type="button" class="btn btn-sm" id="fb-auto" title="${esc(T("bearb.auto_tip", "Ton und Weißabgleich automatisch — stellt die Regler ein, danach frei nacharbeiten"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
         <span class="fml-luft"></span>
         <button type="button" class="btn btn-sm btn-ghost" id="fb-vorher" title="${esc(T("bearb.vorher_tip", "Gedrückt halten (oder Taste „.“): Original zeigen"))}">${I("columns-2", 14)} ${esc(T("bearb.vorher", "Vorher"))}</button>
         <button type="button" class="btn btn-sm btn-ghost" id="fb-reset" title="${esc(T("bearb.reset", "Zurücksetzen"))}">${I("rotate-ccw", 14)}</button>
@@ -2670,7 +2691,7 @@
       inp.oninput = () => { const v = +inp.value; if (v) rz[inp.dataset.r] = v; else delete rz[inp.dataset.r]; geaendert(false); };
       inp.ondblclick = () => { delete rz[inp.dataset.r]; inp.value = 0; geaendert(false); };   // wie Lightroom: Doppelklick = 0
     });
-    box.querySelector("#fb-auto").onclick = () => { if (rz.auto) delete rz.auto; else rz.auto = true; bearbZeichnen(); geaendert(true); };
+    box.querySelector("#fb-auto").onclick = () => { autoInRegler(rz, bearbZ && bearbZ.auto, false); bearbZeichnen(); geaendert(true); };
     box.querySelectorAll("[data-stil]").forEach(b => { b.onclick = () => { if (rz.stil === b.dataset.stil) delete rz.stil; else rz.stil = b.dataset.stil; bearbZeichnen(); geaendert(true); }; });
     box.querySelector("#fb-reset").onclick = () => { z.rezept = nurGeo(z.rezept); bearbZeichnen(); geaendert(true); };   // der Zuschnitt hat sein eigenes Zurücksetzen
     const vk = box.querySelector("#fb-vorher");
@@ -2741,6 +2762,7 @@
       if (buehne && g.liste[g.idx] && g.liste[g.idx].path === z.pfad && bearbGL.canvas.parentNode !== buehne) {
         buehne.querySelectorAll("img.foto-gross-bild").forEach(i => { i.hidden = true; });
         buehne.appendChild(bearbGL.canvas);
+        grossZoomAnwenden();
       }
       if (!z.vorher) bearbHist(bearbGL.histogramm(w, { rahmen }));
       zuschnittRahmen();
@@ -2934,6 +2956,9 @@
     clearTimeout(z.tmrS); z.offen = false;
     const r = await api().foto_rezept_speichern(z.pfad, z.rezept).catch(() => null);   // warte-ok: schreibt eine Zeile
     if (!r || !r.ok) return;
+    // gemerkte Ansicht der Lupe ist jetzt veraltet; die Bearbeiten-Daten behalten, nur mit dem neuen Rezept
+    _grossMerk.delete(z.pfad);
+    { const b = _bearbMerk.get(z.pfad); if (b) b.rezept = JSON.parse(JSON.stringify(z.rezept)); }
     const an = !ist_leer(z.rezept) ? 1 : 0;
     geladen.forEach(x => { if (x.path === z.pfad) x.bearbeitet = an; });
     if (gross) gross.liste.forEach(x => { if (x.path === z.pfad) x.bearbeitet = an; });
@@ -2960,6 +2985,7 @@
   async function bearbFuerMarkierte(rezept, pfade) {
     const r = await rzWarten("foto_rezept_speichern", () => api().foto_rezept_speichern(pfade, rezept)).catch(() => null);
     if (!r || !r.ok) { toast((r && r.error) || "?", "warn"); return; }
+    pfade.forEach(grossVergessen);   // gemerkte Lupen-Ansicht und Bearbeiten-Daten sind jetzt veraltet
     const an = !ist_leer(rezept) ? 1 : 0;
     geladen.forEach(x => { if (pfade.includes(x.path)) x.bearbeitet = an; });
     if (stand) stand.bearbeitet = r.stand_bearbeitet;
@@ -3028,6 +3054,95 @@
     } else if (g.karte.isStyleLoaded && g.karte.isStyleLoaded()) zeichnen();
     else g.karte.once("load", zeichnen);
   }
+  /* 21.10.2026 (Marc: „pinch to zoom … mit dem Lupen-Mauszeiger, da wo man draufklickt wird vergrößert, ist in LR auch so“)
+     — Klick aufs Bild: auf 100 % (mindestens doppelt) genau an der Klickstelle, nochmal Klick: ganzes Bild. Pinch auf dem
+     Trackpad bzw. ⌘/Strg + Scrollen zoomt stufenlos um den Mauszeiger, gezoomt mit der Maus ziehen = verschieben. Z = Zoom an/aus.
+     Gilt für das Bild und für die Leinwand der Live-Bearbeitung; nicht im Zuschneiden. */
+  function grossZoomZiel() {
+    const g = gross; if (!g) return null;
+    const b = g.el.querySelector(".foto-gross-buehne");
+    const el = b && [...b.querySelectorAll(".foto-gross-bild")].find(e => !e.hidden);
+    return el ? { b, el } : null;
+  }
+  function grossZoomAnwenden() {
+    const g = gross; if (!g) return;
+    const z = g.zoom || (g.zoom = { s: 1, x: 0, y: 0 });
+    const t = grossZoomZiel(); if (!t) return;
+    // nicht über den Rand hinaus verschieben
+    const bw = t.b.clientWidth, bh = t.b.clientHeight, w = t.el.offsetWidth, h = t.el.offsetHeight;
+    const mx = Math.max(0, (w * z.s - bw) / 2), my = Math.max(0, (h * z.s - bh) / 2);
+    z.x = Math.max(-mx, Math.min(mx, z.x)); z.y = Math.max(-my, Math.min(my, z.y));
+    // hineingezoomt: jetzt das Original holen (die Lupe zeigt sonst die Zwischengröße)
+    if (z.s > 1.001 && t.el.tagName === "IMG" && t.el.dataset.orig && !t.el.dataset.origDa) { t.el.dataset.origDa = "1"; t.el.src = t.el.dataset.orig; }
+    t.b.querySelectorAll(".foto-gross-bild").forEach(e => {
+      e.style.transform = z.s > 1.001 ? `translate(${z.x}px, ${z.y}px) scale(${z.s})` : "";
+      e.style.transformOrigin = "center center";
+    });
+    t.b.classList.toggle("ist-gezoomt", z.s > 1.001);
+  }
+  /** Zoom auf `s` so, dass der Bildpunkt unter (cx, cy) dort bleibt. */
+  function grossZoomAuf(s, cx, cy) {
+    const g = gross; if (!g) return;
+    const z = g.zoom || (g.zoom = { s: 1, x: 0, y: 0 });
+    const t = grossZoomZiel(); if (!t) return;
+    const r = t.b.getBoundingClientRect();
+    const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+    const qx = (dx - z.x) / z.s, qy = (dy - z.y) / z.s;
+    z.s = Math.max(1, Math.min(16, s));
+    z.x = z.s > 1.001 ? dx - z.s * qx : 0; z.y = z.s > 1.001 ? dy - z.s * qy : 0;
+    grossZoomAnwenden();
+  }
+  function grossZoom100() {
+    const t = grossZoomZiel(); if (!t) return 2;
+    const nat = t.el.naturalWidth || t.el.width || 0;
+    return Math.max(2, nat / Math.max(1, t.el.offsetWidth));
+  }
+  function grossZoomUmschalten(cx, cy) {
+    const g = gross; if (!g) return;
+    const z = g.zoom || (g.zoom = { s: 1, x: 0, y: 0 });
+    if (z.s > 1.001) { z.s = 1; z.x = 0; z.y = 0; grossZoomAnwenden(); }
+    else grossZoomAuf(grossZoom100(), cx, cy);
+  }
+  function grossZoomEinhaengen(b) {
+    if (!b || b.__rzZoom) return;
+    b.__rzZoom = true;
+    const aus = () => !gross || (bearbZ && bearbZ.zuschneiden);
+    let zug = null;
+    b.addEventListener("mousedown", (e) => {
+      if (aus() || e.button !== 0 || !e.target.classList.contains("foto-gross-bild")) return;
+      const z = gross.zoom || { s: 1 };
+      zug = { x: e.clientX, y: e.clientY, x0: z.x || 0, y0: z.y || 0, bewegt: false, gezoomt: z.s > 1.001 };
+      if (zug.gezoomt) e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!zug || !zug.gezoomt || !gross) return;
+      const dx = e.clientX - zug.x, dy = e.clientY - zug.y;
+      if (Math.abs(dx) + Math.abs(dy) > 3) zug.bewegt = true;
+      gross.zoom.x = zug.x0 + dx; gross.zoom.y = zug.y0 + dy;
+      b.classList.add("zieht");
+      grossZoomAnwenden();
+    });
+    window.addEventListener("mouseup", () => { b.classList.remove("zieht"); setTimeout(() => { zug = null; }, 0); });
+    b.addEventListener("click", (e) => {
+      if (aus() || !e.target.classList.contains("foto-gross-bild")) return;
+      if (zug && zug.bewegt) return;   // war ein Verschieben
+      e.stopPropagation();
+      grossZoomUmschalten(e.clientX, e.clientY);
+    });
+    // Trackpad-Pinch kommt in Chromium als Scrollen mit Strg, in WebKit (Safari, macOS-App) als Gesture-Ereignis
+    b.addEventListener("wheel", (e) => {
+      if (aus() || !(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const z = gross.zoom || { s: 1 };
+      grossZoomAuf(z.s * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
+    }, { passive: false });
+    let g0 = 1;
+    b.addEventListener("gesturestart", (e) => { if (aus()) return; e.preventDefault(); g0 = (gross.zoom || { s: 1 }).s; });
+    b.addEventListener("gesturechange", (e) => {
+      if (aus()) return; e.preventDefault();
+      grossZoomAuf(g0 * e.scale, e.clientX, e.clientY);
+    });
+  }
   function grossBlaettern(r) {
     if (!gross) return;
     const n = gross.idx + r;
@@ -3041,6 +3156,11 @@
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.target.type !== "range") return;
     if (e.target && e.target.type === "range" && /^Arrow/.test(e.key)) return;   // Pfeile bewegen den Regler
     if (e.key === "." && !e.metaKey && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) bearbVorher(true); return; }
+    if ((e.key === "z" || e.key === "Z") && !e.metaKey && !e.ctrlKey && !e.altKey && !(bearbZ && bearbZ.zuschneiden)) {
+      e.preventDefault(); e.stopPropagation();
+      const t = grossZoomZiel(); if (t) { const r = t.b.getBoundingClientRect(); grossZoomUmschalten(r.left + r.width / 2, r.top + r.height / 2); }
+      return;
+    }
     if (bearbZ && bearbZ.zuschneiden && (e.key === "Enter" || e.key === "Escape")) {
       e.preventDefault(); e.stopPropagation(); zuschnittAus(e.key === "Enter"); return;
     }
@@ -3060,20 +3180,94 @@
     }
   }
   function istWindows() { return /Windows/i.test(navigator.userAgent || ""); }
+  /* 21.10.2026 (Marc: „wenn ich ein Bild öffne, sehe ich es erst klein … wenn ich weiterklicke und zurückkomme, wieder erst
+     das kleine“) — die Lupe merkt sich, was sie schon hatte (großes Bild, Bearbeiten-Daten), und holt die Nachbarn vorab.
+     Ein bearbeitetes Bild fällt beim Speichern seines Rezepts heraus (dann ist die gemerkte Ansicht veraltet). */
+  const GROSS_MERK = 40, BEARB_MERK = 8;
+  const _grossMerk = new Map(), _grossLaeuft = new Map(), _bearbMerk = new Map();
+  const _merken = (m, k, v, max) => { m.delete(k); m.set(k, v); while (m.size > max) m.delete(m.keys().next().value); };
+  function grossHolen(path) {
+    if (_grossMerk.has(path)) return Promise.resolve(_grossMerk.get(path));
+    if (_grossLaeuft.has(path)) return _grossLaeuft.get(path);
+    const pr = api().fotos_gross(path).catch(() => null).then((r) => {   // warte-ok: Lupe zeigt bis dahin das Vorschaubild
+      _grossLaeuft.delete(path);
+      if (r && r.ok && r.art === "bild") {
+        _merken(_grossMerk, path, r, GROSS_MERK);
+        try { const im = new Image(); im.src = r.url; if (im.decode) im.decode().catch(() => {}); r.__bild = im; } catch (_) {}
+      }
+      return r;
+    });
+    _grossLaeuft.set(path, pr);
+    return pr;
+  }
+  function grossVorladen(g) {
+    if (!g || !g.liste) return;
+    for (const d of [1, -1, 2, -2, 3, -3]) {
+      const f = g.liste[g.idx + d];
+      if (f && f.art !== "video" && !_grossMerk.has(f.path)) grossHolen(f.path);
+    }
+    // weiter weg im Band: nur im Hintergrund rechnen lassen (Platten-Cache), noch nicht in den Browser holen
+    const um = g.liste.slice(Math.max(0, g.idx - 15), g.idx + 16).filter(f => f && f.art !== "video").map(f => f.path);
+    _vorbereiten(um);
+  }
+  /* 21.10.2026 (Marc: „einfach alles vorladen, was man schon sieht und was man bald sehen könnte“) — das Raster meldet
+     die sichtbaren Kacheln und die nächsten zwei Bildschirmseiten; das Backend rechnet ihre Lupen-Ansicht im Hintergrund
+     (fotos_gross_vorbereiten, Neuestes zuerst). */
+  let _vorLetzt = "";
+  function _vorbereiten(pfade) {
+    const k = pfade.join("|"); if (!pfade.length || k === _vorLetzt) return;
+    _vorLetzt = k;
+    try { api().fotos_gross_vorbereiten(pfade).catch(() => {}); } catch (_) {}   // warte-ok: läuft im Hintergrund
+  }
+  let _rasterVorT = 0;
+  function rasterVorbereitenBald() { clearTimeout(_rasterVorT); _rasterVorT = setTimeout(rasterVorbereiten, 300); }
+  function rasterVorbereiten() {
+    if (!haupt || !haupt.offsetParent || gross) return;
+    const kacheln = [...haupt.querySelectorAll(".foto-kachel[data-foto]")];
+    if (!kacheln.length) return;
+    const H = window.innerHeight;
+    let erst = -1, letzt = -1;
+    for (const k of kacheln) {
+      const r = k.getBoundingClientRect();
+      if (r.bottom >= 0 && r.top <= H) { const i = +k.dataset.foto; if (erst < 0 || i < erst) erst = i; if (i > letzt) letzt = i; }
+    }
+    if (erst < 0) return;
+    const n = letzt - erst + 1;
+    const bis = Math.min(geladen.length - 1, letzt + 2 * n);
+    const pfade = [];
+    for (let i = erst; i <= bis && pfade.length < 200; i++) { const f = geladen[i]; if (f && f.art !== "video") pfade.push(f.path); }
+    _vorbereiten(pfade);
+  }
+  document.addEventListener("scroll", (e) => { if (haupt && e.target && e.target.contains && e.target.contains(haupt.querySelector(".foto-kachel"))) rasterVorbereitenBald(); }, true);
+  function grossVergessen(path) { _grossMerk.delete(path); _bearbMerk.delete(path); }
   async function grossZeigen() {
     const g = gross; if (!g) return;
     const f = g.liste[g.idx];
     const buehne = g.el.querySelector(".foto-gross-buehne"), hinweis = g.el.querySelector(".foto-gross-hinweis");
     hinweis.hidden = true; hinweis.innerHTML = "";
     grossReiterZeigen();   // geladen wird die Bearbeitung unten, sobald das Bild da ist
-    buehne.innerHTML = f.thumb_url ? `<img class="foto-gross-bild is-vorschau" src="${f.thumb_url}" alt="">` : `<div class="muted">${esc(T("common.loading", "Lädt …"))}</div>`;
+    if (g.zoom) g.zoom = { s: 1, x: 0, y: 0 };
+    buehne.classList.remove("ist-gezoomt");
+    const gemerkt = _grossMerk.get(f.path);
+    // 21.10.2026 (Marc: „wenn das große Bild schon da ist, soll das kleine nicht noch angezeigt werden“) — das schon
+    // dekodierte Bild selbst einsetzen (ein neues <img> mit derselben Adresse dekodiert 2560 px noch einmal); ist das große
+    // gerade unterwegs, 250 ms darauf warten, bevor das kleine Vorschaubild kommt
+    const _gross = (r) => { const im = (r.__bild && r.__bild.complete) ? r.__bild : new Image(); if (!im.src) im.src = r.url;
+      im.className = "foto-gross-bild"; im.alt = ""; im.hidden = false; im.style.transform = "";
+      if (r.original_url) im.dataset.orig = r.original_url; return im; };
+    const _klein = () => { buehne.innerHTML = f.thumb_url ? `<img class="foto-gross-bild is-vorschau" src="${f.thumb_url}" alt="">` : `<div class="muted">${esc(T("common.loading", "Lädt …"))}</div>`; };
+    if (gemerkt && f.art !== "video") { buehne.innerHTML = ""; buehne.appendChild(_gross(gemerkt)); }
+    else if (_grossLaeuft.has(f.path)) { buehne.innerHTML = ""; setTimeout(() => { if (gross === g && g.liste[g.idx] === f && !buehne.querySelector(".foto-gross-bild")) _klein(); }, 250); }
+    else _klein();
+    grossVorladen(g);   // Nachbarn sofort mit anfordern, nicht erst nach dem eigenen Bild
     g.el.querySelector(".foto-gross-links").disabled = g.idx <= 0;
     g.el.querySelector(".foto-gross-rechts").disabled = g.idx >= g.liste.length - 1;
     g.el.querySelector(".foto-gross-name").textContent = [f.dateiname, f.tag_lokal ? `${tagText(f.tag_lokal)} ${uhrzeit(f)}` : ""].filter(Boolean).join(" · ");
     try { grossStreifen(); } catch (_) {}
     grossSeite(f).catch(() => {});
-    const r = await api().fotos_gross(f.path).catch(() => null);
+    const r = await (f.art === "video" ? api().fotos_gross(f.path).catch(() => null) : grossHolen(f.path));   // warte-ok: Vorschaubild steht
     if (gross !== g || g.liste[g.idx] !== f) return;   // inzwischen weitergeblättert
+    setTimeout(() => { if (gross === g) grossVorladen(g); }, 150);
     const knoepfe = [];
     if (r && r.ok && r.art === "video" && r.quelle === "original") {
       buehne.innerHTML = `<video class="foto-gross-video" controls autoplay playsinline src="${r.url}"></video>`;
@@ -3081,7 +3275,7 @@
       v.addEventListener("error", () => videoGehtNicht(f, hinweis), { once: true });
       knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="standbild">${I("camera", 14)} ${esc(T("fotos.standbild", "Standbild speichern"))}</button>`);
     } else if (r && r.ok) {
-      buehne.innerHTML = `<img class="foto-gross-bild" src="${r.url}" alt="">`;
+      if (!gemerkt || gemerkt.url !== r.url) { buehne.innerHTML = ""; buehne.appendChild(_gross(r)); }
       g.originalUrl = r.quelle === "bearbeitet" ? null : r.url;   // „Vorher“ darf nie die bearbeitete Fassung sein
       if (f.bearbeitet || g.reiter === "bearb") bearbLaden(f).catch(() => {});
       if (r.quelle === "bibliothek") { hinweis.hidden = false; hinweis.textContent = T("fotos.gross_fern", "Original gerade nicht erreichbar — gezeigt wird die Vorschau aus der Bibliothek."); }

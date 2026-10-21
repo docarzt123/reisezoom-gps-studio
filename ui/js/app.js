@@ -1633,6 +1633,11 @@ async function openAboutModal() {
             (${t("about.credits.inhalt", "Inhaltssuche im Foto-Archiv; das Modell wird erst beim Einschalten geladen")})<br>
             ${t("about.credits.immich", "Foto-Inhaltssuche angelehnt an")} <a href="#" class="md-about-link" data-url="https://github.com/immich-app/immich">Immich</a> (${t("about.credits.immich_kein_code", "Idee und Vorverarbeitung, kein Code übernommen")})
           </li>
+          <!-- 21.10.2026 — „Auto“ beim Bearbeiten von Fotos aus LightCraft übernommen -->
+          <li>
+            <a href="#" class="md-about-link" data-url="https://github.com/storytold/lightcraft">LightCraft</a> (ArtCraft Team und Mitwirkende) — MIT / Apache-2.0
+            (${t("about.credits.lightcraft", "„Auto“ für Ton und Weißabgleich beim Bearbeiten von Fotos, übernommen und angepasst")})
+          </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://playwright.dev/">Playwright</a> — Apache-2.0 ·
             <a href="#" class="md-about-link" data-url="https://www.chromium.org/">Chromium</a> — BSD-3-Clause (${t("about.credits.chromium", "Render-Engine, gebündelt auf macOS + Windows")})

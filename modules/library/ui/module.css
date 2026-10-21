@@ -1331,6 +1331,12 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .foto-gross-buehne { position: absolute; inset: 44px 64px 64px; display: flex; align-items: center; justify-content: center; }
 .foto-gross-bild, .foto-gross-video { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 6px 30px rgba(0,0,0,.6); }
 .foto-gross-bild.is-vorschau { filter: blur(1px); opacity: .85; }
+/* 21.10.2026 — Zoom in der Lupe wie Lightroom: Lupen-Zeiger, gezoomt ziehen */
+.foto-gross-buehne { overflow: hidden; }
+.foto-gross-buehne .foto-gross-bild { cursor: zoom-in; transition: transform .12s ease-out; will-change: transform; }
+.foto-gross-buehne.ist-gezoomt .foto-gross-bild { cursor: grab; }
+.foto-gross-buehne.ist-gezoomt.zieht .foto-gross-bild { cursor: grabbing; transition: none; }
+.foto-gross.zuschneiden .foto-gross-buehne .foto-gross-bild { cursor: default; }
 .foto-gross-zu { position: absolute; top: 10px; right: 14px; z-index: 2; font-size: 20px; background: none; border: 0; color: #ddd; cursor: pointer; }
 .foto-gross-pfeil { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; font-size: 42px; line-height: 1; padding: 10px 14px; background: rgba(255,255,255,.06); border: 0; border-radius: 10px; color: #eee; cursor: pointer; }
 .foto-gross-pfeil:disabled { opacity: .2; cursor: default; }
@@ -1542,6 +1548,9 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .dp-liste { display: flex; flex-direction: column; gap: 10px; }
 .dp-gruppe { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--bg-1); }
 .dp-g-kopf { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+/* 21.10.2026 — je Zeile wegräumen an/aus, oben „Alle Zeilen vormerken / Keine“ */
+.dp-g-an { display: inline-flex; align-items: center; gap: 5px; margin-right: 10px; color: var(--text); font-weight: 600; cursor: pointer; }
+.dp-alle { display: flex; gap: 8px; margin: 2px 0 10px; }
 .dp-unsicher { background: rgba(240, 170, 40, .18); color: #e8a93a; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
 .dp-g-bilder { display: flex; gap: 8px; overflow-x: auto; }
 .dp-k { width: 168px; flex: none; font-size: 11px; }

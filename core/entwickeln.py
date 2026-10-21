@@ -258,34 +258,58 @@ def _glatt(x, a, b):
 # ── Auto ─────────────────────────────────────────────────────────────────────────────────
 
 def auto_werte(img) -> dict:
-    """Auto-Ton und Auto-Weißabgleich aus den Perzentilen eines verkleinerten Bildes (wie die freien Programme:
-    Mitte der Helligkeit auf ~18 % Grau, Spreizung der Lichter/Tiefen, Grauwelt in den Mitten)."""
+    """Auto-Ton und Auto-Weißabgleich — übernommen aus LightCraft (crates/pipeline/src/auto.rs, MIT/Apache-2.0,
+    © ArtCraft Team und LightCraft-Mitwirkende; in den Credits genannt), angepasst an unsere Regler (21.10.2026).
+
+    Marc: „Auto macht es meist schlechter, die Tiefen werden zu weit angehoben.“ Vorher: Tiefen schon, wenn das dunkelste
+    1 % fast schwarz war (bei 49 von 60 echten Fotos, im Mittel +26), Weißabgleich als einfache Graue Welt über alles.
+    Jetzt wie LightCraft: Helligkeit in Blendenstufen um Mittelgrau (log2(Y/0,18)) auf einem 512-px-Abbild; Tiefen erst,
+    wenn die dunkelsten 5 % mehr als 4 Stufen unter Mittelgrau absaufen; Weißabgleich nur aus neutralen, mittelhellen
+    Bildteilen (bunte Flächen wie Abendhimmel, Wald, Meer zählen kaum)."""
     np = _np()
     klein = img.convert("RGB").copy()
     klein.thumbnail((512, 512))
     a = _linear(_zu_float(klein))
-    l = _luma(a)
-    p1, p50, p99 = (float(x) for x in np.percentile(l, [1, 50, 99]))
+    y = _luma(a)
+    ev = np.sort(np.log2(np.maximum(y, 1e-6) / 0.18).ravel())
+
+    def pz(q):
+        return float(ev[int((len(ev) - 1) * q)]) if len(ev) else 0.0
     w = {}
-    if p50 > 1e-4:
-        w["belichtung"] = max(-1.5, min(1.5, math.log2(0.18 / p50) * 0.55))
-    hell = p99 * (2 ** w.get("belichtung", 0))
-    if hell > 0.95:
-        w["lichter"] = -min(60, (hell - 0.95) * 600 + 15)
-    dunkel = p1 * (2 ** w.get("belichtung", 0))
-    if dunkel < 0.01:
-        w["tiefen"] = min(45, (0.01 - dunkel) * 2500 + 10)
-    spreizung = _srgb(np.array([hell]))[0] - _srgb(np.array([dunkel]))[0]
-    if spreizung < 0.75:
-        w["kontrast"] = min(30, (0.75 - spreizung) * 80)
-    # Weißabgleich: Grauwelt über die Mitten
-    m = (l > 0.05) & (l < 0.8)
-    if m.sum() > 500:
-        r, g, b = (float(a[..., i][m].mean()) for i in range(3))
+    belichtung = max(-2.0, min(2.0, -pz(0.5) * 0.85 - 0.1))
+    p01, p05, p95, p995 = (pz(q) + belichtung for q in (0.01, 0.05, 0.95, 0.995))
+    w["belichtung"] = belichtung
+    lichter = -min(90.0, (p995 - 2.2) * 38.0) if p995 > 2.2 else 0.0
+    tiefen = min(70.0, (-4.0 - p05) * 22.0) if p05 < -4.0 else 0.0
+    kontrast = max(-20.0, min(30.0, (6.5 - (p95 - p05)) * 6.0))
+    # LightCraft hat dazu eigene Regler für Weiß und Schwarz; wir haben sie (noch) nicht: zu dunkles Weiß hebt etwas
+    # den Kontrast, ausfressendes Weiß drückt die Lichter, zu helles Schwarz gibt etwas Kontrast dazu
+    weiss = ((1.8 - p995) * 25.0 if p995 < 1.8 else -max(0.0, p995 - 3.5) * 10.0)
+    schwarz = -min(35.0, (p01 + 5.0) * 10.0) if p01 > -5.0 else 0.0
+    if weiss > 0:
+        kontrast += min(15.0, weiss * 0.4)
+    elif weiss < 0:
+        lichter += max(-30.0, weiss)
+    if schwarz < 0:
+        kontrast += min(10.0, -schwarz * 0.25)
+    w["lichter"] = max(-100.0, lichter)
+    w["tiefen"] = tiefen
+    w["kontrast"] = max(-20.0, min(30.0, kontrast))
+    # Weißabgleich: Graue Welt, gewichtet auf neutrale Mitten (LightCraft auto_wb)
+    k2 = img.convert("RGB").copy()
+    k2.thumbnail((256, 256))
+    b = _linear(_zu_float(k2)).reshape(-1, 3)
+    yb = b[:, 0] * 0.2126 + b[:, 1] * 0.7152 + b[:, 2] * 0.0722
+    mx, mn = b.max(axis=1), b.min(axis=1)
+    chroma = (mx - mn) / (mx + 1e-6)
+    gew = (1.0 - chroma) ** 2 * (1.0 - np.minimum(1.0, np.abs(np.log2(np.maximum(yb, 1e-6)) + 2.5) / 4.0))
+    gew = np.where((yb >= 0.01) & (yb <= 2.0), gew, 0.0)
+    if float(gew.sum()) > 1e-3:
+        r, g, bl = (float((b[:, i] * gew).sum() / gew.sum()) for i in range(3))
         if g > 1e-4:
-            w["temperatur"] = max(-40, min(40, (b - r) / g * 60))
-            w["toenung"] = max(-25, min(25, ((r + b) / 2 - g) / g * 60))
-    w["dynamik"] = 12
+            w["temperatur"] = max(-30.0, min(30.0, (bl - r) / g * 60))
+            w["toenung"] = max(-20.0, min(20.0, ((r + bl) / 2 - g) / g * 60))
+    w["dynamik"] = 12   # LightCraft gibt dazu +3 Sättigung — bei uns nicht: „SW“ (Sättigung −100) bliebe sonst leicht farbig
     return sauber(w)
 
 

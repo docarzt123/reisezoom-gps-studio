@@ -1753,7 +1753,11 @@ function mountLibrary(body, headerActions) {
     const stumm = !!(opts && opts.stumm);
     // 21.10.2026 — beim stillen Fortsetzen nur umschalten, wenn man noch im Archiv ist (sonst zog es zurück)
     const darfWechseln = () => !stumm || (!_unmounted && activeMod === "library");
+    // 21.10.2026 (Nutzer-Log Windows: Video-Export wartete 240 s auf „Track lädt“) — das Ergebnis steht für den Video-Render
+    // (core/szene.py) in window.__rzProjektOeffnenFehler: scheitert das Öffnen, bricht er sofort mit diesem Grund ab
+    window.__rzProjektOeffnenFehler = null;
     const melden = (text, art) => {
+      if (art === "error" || art === "warn") window.__rzProjektOeffnenFehler = String(text || "?");
       if (stumm) { try { applog("info", "[bib] Fortsetzen übersprungen: " + text); } catch (_) {} return; }
       toast(text, art, 6000);
     };
@@ -1791,6 +1795,7 @@ function mountLibrary(body, headerActions) {
       if (pfade.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
       const ok = await window.loadGlobalGpx(pfade[0], { stumm: true, menge: true });
       if (ok === false) {
+        window.__rzProjektOeffnenFehler = T("library.proj_tour_unlesbar", "Die Tour-Datei ließ sich nicht laden: {pfad}").replace("{pfad}", pfade[0]);
         window.__rzPendingTours = null;
         if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
         return;
@@ -1806,7 +1811,7 @@ function mountLibrary(body, headerActions) {
       return;
     }
     const ok = await window.loadGlobalGpx(haupt, { stumm: true });
-    if (ok === false) return;
+    if (ok === false) { window.__rzProjektOeffnenFehler = T("library.proj_tour_unlesbar", "Die Tour-Datei ließ sich nicht laden: {pfad}").replace("{pfad}", haupt); return; }
     if (typeof switchMod === "function" && darfWechseln()) switchMod(modul);
   }
 
@@ -5527,10 +5532,14 @@ function mountLibrary(body, headerActions) {
     const _keinTrack = res.kein_track || [], _abgelehnt = res.abgelehnt || [];
     if (_abgelehnt.length) toast(T("library.import_abgelehnt", "„{name}“ ist keine Track-Datei — nicht übernommen.")
       .replace("{name}", _abgelehnt.join("“, „")), "warn");
+    // 21.10.2026 — Datei ließ sich nicht kopieren (Windows): benennen statt den ganzen Import scheitern zu lassen
+    { const nk = res.nicht_kopiert || [];
+      if (nk.length) toast(T("library.import_nicht_kopiert", "„{name}“ ließ sich nicht übernehmen: {grund}")
+        .replace("{name}", nk.map(x => x.name).join("“, „")).replace("{grund}", (nk[0] && nk[0].grund) || "?"), "error", 9000); }
     if (_keinTrack.length) toast(T("library.import_kein_track", "„{name}“ enthält keinen Track — steht jetzt in der Liste der nicht lesbaren Dateien.")
       .replace("{name}", _keinTrack.join("“, „")), "warn");
     if (!res.kopiert && !res.uebersprungen) {
-      if (!_abgelehnt.length && !_keinTrack.length) toast(T("library.import_none", "Keine Track-Dateien erkannt"), "warn");
+      if (!_abgelehnt.length && !_keinTrack.length && !(res.nicht_kopiert || []).length) toast(T("library.import_none", "Keine Track-Dateien erkannt"), "warn");
       return;
     }
     // 14.09.2026 (Marc: „ich erwarte, dass ich im Archiv lande, wo die Tour vorausgewählt

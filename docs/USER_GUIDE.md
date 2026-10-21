@@ -2229,6 +2229,13 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
   rechts die Karte mit dem Track und darunter gleich **✎ Bearbeiten** mit den Reglern (daneben
   der Reiter **Info**; Videos zeigen Info). ←/→ blättert, **F** = Vollbild, **G** oder Esc
   zurück zum Raster.
+- **Zoomen in der Lupe wie in Lightroom:** Der Mauszeiger ist eine Lupe — ein Klick vergrößert genau an der Stelle (auf
+  100 %, mindestens doppelt), noch ein Klick zeigt wieder das ganze Bild. **Pinch** auf dem Trackpad oder **⌘/Strg +
+  Scrollen** zoomt stufenlos, gezoomt verschiebst du das Bild mit gedrückter Maus, **Z** schaltet um. Beim Hineinzoomen
+  holt die Lupe das Original in voller Auflösung.
+- **Blättern ohne Warten:** Was im Raster zu sehen ist (und die nächsten zwei Bildschirmseiten) sowie die Nachbarn im
+  Filmstreifen bereitet GPS Studio im Hintergrund in einer Zwischengröße vor; ein bearbeitetes Foto wird nach dem
+  Speichern gleich neu gerechnet. Beim Durchklicken steht das große Bild sofort da.
 - **Doppelte suchen …** zeigt, wie viel Platz das Wegräumen frei macht: im Knopf (z. B. „12 wegräumen (3,4 GB)“), je Gruppe
   „spart …“ und unten, wann der Platz wirklich frei ist — beim Papierkorb nach dem Leeren, beim Ordner erst nach dessen Löschen.
 - **Schlichte Symbole:** Die ganze App zeigt einfarbige Strich-Symbole statt bunter Emojis. Die Vorschau und das Video
@@ -2248,7 +2255,7 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
 „Als neue Datei …“ und Export entwickeln in voller Größe. Kann LibRaw eine Datei nicht lesen (z. B. DNG mit JPEG-XL-Kompression
 aus Lightroom 7.2), nimmt die App auf dem Mac ein großes Vorschaubild des Systems.
 
-In der Lupe der Reiter **„✎ Bearbeiten“**: oben das Histogramm, **✨ Auto** (Ton und Weißabgleich passend zum Foto), die
+In der Lupe der Reiter **„✎ Bearbeiten“**: oben das Histogramm, **✨ Auto** (rechnet Ton und Weißabgleich passend zum Foto aus und stellt die Regler darauf — danach frei nacharbeiten, wie in Lightroom), die
 Voreinstellungen **Natürlich · Kräftig · Matt · SW** und Regler für Belichtung, Kontrast, Lichter, Tiefen, Temperatur,
 Tönung, Dynamik, Sättigung, Klarheit und Dunst entfernen. **Taste „.“ halten** (oder „◐ Vorher“ gedrückt halten) zeigt das
 Original, Doppelklick auf einen Regler setzt ihn zurück, ↺ setzt alles zurück. Die Vorschau rechnet die Grafikkarte: Das Bild
@@ -2338,6 +2345,11 @@ Links in Medien: **„⧉ Doppelte suchen …“**. Der Dialog hat zwei Reiter:
   dann auf das Bild klicken, das bleiben soll. Ist die Inhaltssuche aus, beruht die Gruppe nur auf Zeit, Kamera und
   Seitenverhältnis und trägt das Schild **„unsicher“**. Lange Serien im Sekundentakt (Zeitraffer, Intervallaufnahmen)
   zählen nicht als Doppelte — der Dialog nennt, wie viele er übersprungen hat.
+
+**Zeile für Zeile entscheiden:** Jede Gruppe hat links oben das Häkchen **„wegräumen“** — aus heißt, aus dieser Zeile
+wird nichts angefasst; wieder an, und alles außer der Fassung, die bleibt, ist vorgemerkt. Darüber stehen **„Alle Zeilen
+vormerken“** und **„Keine“**. Einzelne Dateien kannst du weiter mit ihrem eigenen Häkchen unter dem Bild ab- und
+anwählen.
 
 Unten wählst du, wohin: **in den Papierkorb** (von dort zurückholbar) oder **in einen Ordner „Doppelte (GPS
 Studio)“** neben dem Original. Diesen Ordner lässt das Einlesen aus, die Dateien kommen also nicht zurück in den

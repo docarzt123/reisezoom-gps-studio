@@ -2194,14 +2194,32 @@ function onMapReady(map, cb) {
   const styleReady = nachLoad ? map.__rzStyleReady !== false : map.isStyleLoaded();
   applog("info", `[onMapReady] styleLoaded=${styleReady}${nachLoad ? " (nach load)" : ""}`);
   if (styleReady) { try { cb(); } catch (err) { console.warn("onMapReady cb:", err); applog("error", "[onMapReady cb-sync] " + err); } return; }
-  map.once(nachLoad ? "style.load" : "load", () => {
+  let erledigt = false;
+  const einmal = (text) => {
+    if (erledigt) return;
+    erledigt = true;
     if (!_mapLebt(map)) {
       applog("info", "[onMapReady] Karte war beim load-Event schon abgebaut — Rückruf übersprungen");
       return;
     }
-    applog("info", "[onMapReady] load event fired, calling cb");
+    applog("info", "[onMapReady] " + text);
     try { cb(); } catch (err) { console.warn("onMapReady cb:", err); applog("error", "[onMapReady cb-load] " + err); }
-  });
+  };
+  map.once(nachLoad ? "style.load" : "load", () => einmal("load event fired, calling cb"));
+  // 21.10.2026 (Nutzer-Log Windows: Video-Export wartete 240 s auf „Track lädt“) — scheitert eine Quelle des Kartenstils
+  // (OpenFreeMap-TileJSON/Sprite: ERR_FAILED, Verbindung vom Netz abgebrochen), kommt MapLibres `load` nie. Der Rückruf
+  // (Track auflegen) fiel dann still aus. Steht das Stil-JSON (style.load) seit 8 s, geht es ohne `load` weiter.
+  if (!nachLoad) {
+    const t0 = Date.now();
+    let stilSeit = 0;
+    const iv = setInterval(() => {
+      if (erledigt || !_mapLebt(map) || Date.now() - t0 > 120000) { clearInterval(iv); return; }
+      if (map.__rzStyleReady === true) {
+        stilSeit = stilSeit || Date.now();
+        if (Date.now() - stilSeit >= 8000) { clearInterval(iv); einmal("load blieb aus (Kartendienst gestört?) — Stil ist da, weiter ohne"); }
+      }
+    }, 500);
+  }
 }
 
 // v0.8.4: JS-Logger der in die Python-app.log schreibt — damit Marc

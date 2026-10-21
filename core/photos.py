@@ -139,6 +139,34 @@ def _cache_get(fp: str) -> Optional[bytes]:
         return None
 
 
+def vorschau_datei(path: str, max_px: int, fp: Optional[str] = None) -> Optional[str]:
+    """21.10.2026 (Lupe: „alles vorladen, was man sieht“) — Vorschau in `max_px` erzeugen bzw. aus dem Platten-Cache und
+    den PFAD der Cache-Datei liefern (die Lupe lädt sie über den Medien-Server mit fester Adresse statt als base64)."""
+    if not thumb_gecacht(path, max_px, fp):
+        return None
+    schl = _fingerprint(path, fp)
+    if not schl or _cache_dir is None:
+        return None
+    f = _cache_dir / f"{schl}@{int(max_px)}.jpg"
+    return str(f) if f.is_file() else None
+
+
+def cache_datei_schreiben(schluessel: str, data: bytes) -> Optional[str]:
+    """Bytes unter `schluessel` in den Platten-Cache legen und den Pfad liefern (z. B. bearbeitete Großansicht)."""
+    _cache_put(schluessel, data)
+    if _cache_dir is None:
+        return None
+    f = _cache_dir / f"{schluessel}.jpg"
+    return str(f) if f.is_file() else None
+
+
+def cache_datei(schluessel: str) -> Optional[str]:
+    if _cache_dir is None or not schluessel:
+        return None
+    f = _cache_dir / f"{schluessel}.jpg"
+    return str(f) if f.is_file() else None
+
+
 def _cache_put(fp: str, data: bytes) -> None:
     if _cache_dir is None or not fp or not data:
         return

@@ -8199,3 +8199,22 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
   Projekt-Seitenverhältnis (`formatVon(stand())`), Zusammenführen-Name `nameVorschlag()` („Tag 1–3“), Schnell-Video
   ersetzt Namen > 40 Zeichen durch den ersten Ortsvorschlag und entfernt Beinahe-Dubletten, Web Karte `#wk-hauptaktion`
   in der Kopfzeile, Archiv-Knopf `[data-assistent]` → `window.__rzVideoAssistent(true)`.
+
+
+## Lupe: Zwischengröße, Vorladen, Zoom (21.10.2026)
+
+- `Api.fotos_gross(path)`: Fotos kommen als **Zwischengröße 2048 px** (`_GROSS_ZW_PX`) aus dem Vorschau-Cache
+  (`core/photos.vorschau_datei`) über eine **feste Medien-Adresse** `/media/f.<sha1>` (`_media_url_fest`, nie verdrängt,
+  `Cache-Control: max-age=86400`); `original_url` (Medien-Server) nur für Browser-Formate, die Lupe tauscht beim Hineinzoomen.
+  Bearbeitete Fotos: Render je Rezept als Cache-Datei `b<sha1>` (`cache_datei_schreiben`). Videos wie bisher.
+- `Api.fotos_gross_vorbereiten(pfade)`: Hintergrund-Warteschlange (Neuestes zuerst, max. 400, 2 Fäden, `_VOR_FERTIG`).
+  Aufrufer: Raster (`rasterVorbereiten` — sichtbare Kacheln + 2 Bildschirmseiten, beim Zeichnen und Scrollen),
+  Lupe (`grossVorladen` — ±3 in den Browser, ±15 nur Cache), `foto_rezept_speichern` (bearbeitete Fassung neu).
+- Frontend `ui/js/fotos.js`: `_grossMerk` (40) / `_bearbMerk` (8) mit dekodiertem `Image` (`__bild`, wird beim Zeigen
+  wiederverwendet), `_grossLaeuft` (250 ms auf das große Bild warten, bevor das Vorschaubild kommt).
+- Zoom: `grossZoomEinhaengen` (Klick = 100 %/ganz, Strg/⌘+Rad und WebKit-`gesture*` = Pinch, Ziehen = verschieben, Z),
+  Transform auf `.foto-gross-bild` (Bild oder WebGL-Leinwand), nicht im Zuschneiden.
+- Auto: `core/entwickeln.auto_werte` = Port von LightCraft `crates/pipeline/src/auto.rs` (auto_tone + auto_wb),
+  Weiß/Schwarz in Kontrast/Lichter eingerechnet, ohne +3 Sättigung (SW-Voreinstellung). Lupe: `autoInRegler` setzt die
+  Werte sichtbar in die Regler; alte Rezepte mit `auto: true` werden beim Öffnen umgerechnet.
+- Tests: `test_lupe_schnell_auto` (A–E), `test_bearbeitet_ueberall`, `test_fotos_bearbeiten`.

@@ -28757,6 +28757,8 @@ function mountAnimator(body, headerActions, opts) {
    * so auch den PNG-Export der Tour-Map, ohne erreichbaren Abbrechen-Knopf.
    */
   (async () => {
+    // 21.10.2026 (Nutzer-Log) — die Render-Seite des Videos ist selbst der laufende Render: nicht daran „dranhängen“
+    if (window.__rzRenderMode) return;
     try {
       const s = await api().animator_status();
       if (_animUnmounted || !s) return;

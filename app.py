@@ -1688,6 +1688,8 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             # WebKit den Zugriff von file:// auf 127.0.0.1. Nur registrierte, zufällige Tokens werden bedient.
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Length", str(length))
+            if self.path.startswith("/media/f."):   # 21.10.2026 — feste Bild-Adressen (Inhalt ändert sich nie): Browser darf halten
+                self.send_header("Cache-Control", "max-age=86400")
             if status == 206:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{fsize}")
             self.end_headers()
@@ -5213,6 +5215,7 @@ class Api:
             #                als „nicht lesbar“ mit Grund in der Fehlerliste steht
             abgelehnt: list = []
             kein_track: list = []
+            nicht_kopiert: list = []
 
             def _inhalt(pf: Path) -> str:
                 h = hashlib.sha256()
@@ -5256,7 +5259,51 @@ class Api:
                         uebersprungen += 1
                         pfade.append(str(schon_da))
                     continue
-                shutil.copy2(src, d)
+                # 21.10.2026 (Nutzer, Windows: „Wenn der Name Punkte, Unterstriche oder Zahlen hat, bricht der Import ab“ — im
+                # Log FileNotFoundError in copy2, danach brach der ganze Import ab) — scheitert das Kopieren, einmal mit einem
+                # schlichten Namen versuchen; geht auch das nicht, nur diese Datei melden (voller Pfad ins Log) und weiter
+                try:
+                    shutil.copy2(src, d)
+                except OSError as e:
+                    log.warning("library_import_files: %r → %r nicht kopiert: %s", str(src), str(d), e)
+                    # Python 3.12 kopiert unter Windows über CopyFile2 (mit Sicherheitsinfos und Datenströmen, z. B. der
+                    # Download-Markierung) — scheitert das, schlicht Byte für Byte unter demselben Namen
+                    try:
+                        with open(src, "rb") as fq, open(d, "xb") as fz:
+                            shutil.copyfileobj(fq, fz, 1024 * 1024)
+                        try:
+                            os.utime(d, (src.stat().st_atime, src.stat().st_mtime))
+                        except OSError:
+                            pass
+                        log.info("library_import_files: Byte-Kopie gelungen: %r", str(d))
+                        kopiert.append(d.name)
+                        pfade.append(str(d))
+                        if _ohne_track:
+                            kein_track.append(src.name)
+                        continue
+                    except OSError as e1:
+                        log.warning("library_import_files: Byte-Kopie nach %r auch nicht: %s", str(d), e1)
+                        try:
+                            if d.exists() and d.stat().st_size == 0:
+                                d.unlink()   # dateischutz-ok: eben selbst angelegte, leere Teilkopie im eigenen Import-Ordner
+                        except OSError:
+                            pass
+                    # wie der Nutzer es von Hand tat („merged_dashcam_videos2“ → „track“, „2026-06-27-Anette-Suedtirol“ →
+                    # „annetteSuedtirol“): nur Buchstaben
+                    schlicht = re.sub(r"[^A-Za-zÄÖÜäöüß]+", "", src.stem) or "tour"
+                    d2 = ziel / f"{schlicht}{src.suffix.lower()}"
+                    n2 = 1
+                    while d2.exists():
+                        d2 = ziel / f"{schlicht}-{n2}{src.suffix.lower()}"
+                        n2 += 1
+                    try:
+                        shutil.copy2(src, d2)
+                        log.info("library_import_files: mit schlichtem Namen kopiert: %r", str(d2))
+                        d = d2
+                    except OSError as e2:
+                        log.warning("library_import_files: auch %r nicht: %s", str(d2), e2)
+                        nicht_kopiert.append({"name": src.name, "grund": str(e2)[:200]})
+                        continue
                 kopiert.append(d.name)
                 pfade.append(str(d))
                 if _ohne_track:
@@ -5268,7 +5315,7 @@ class Api:
             # Importierte gleich an; dafür braucht sie die vollen Pfade.
             return {"ok": True, "kopiert": len(kopiert), "pfade": pfade,
                     "uebersprungen": uebersprungen, "folder": str(ziel),
-                    "abgelehnt": abgelehnt, "kein_track": kein_track}
+                    "abgelehnt": abgelehnt, "kein_track": kein_track, "nicht_kopiert": nicht_kopiert}
         except Exception as e:
             log.exception("library_import_files")
             return {"ok": False, "error": str(e)}
@@ -5922,6 +5969,7 @@ class Api:
     # Geotagger … einzelne Bilder einfach verorten … ohne die ganze Linie hin- und herspringen".
     _GROSS_NATIV = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     _GROSS_PX = 2560
+    _GROSS_ZW_PX = 2048   # 21.10.2026 — Zwischengröße der Lupe (vorab im Hintergrund, Original erst beim Zoomen)
 
     def fotos_gross(self, path: str) -> dict:
         """Großansicht eines Fotos/Videos. Fotos in Browser-Formaten und Videos kommen im Original über den Medien-
@@ -5935,19 +5983,32 @@ class Api:
             rz = None if video or not da else self._rezepte_fuer([str(p)]).get(str(p))
             if rz:
                 try:
-                    img, _ = self._entw_quelle(str(p), self._GROSS_PX)
-                    aus = cent.anwenden(img, cent.wirksam(rz, img))
-                    return {"ok": True, "art": "bild", "url": "data:image/jpeg;base64," + base64.b64encode(cent.jpeg(aus, 90)).decode("ascii"),
-                            "quelle": "bearbeitet", "original_da": True}
+                    # 21.10.2026 (Marc: Lupe zu langsam) — die bearbeitete Großansicht wurde bei jedem Öffnen neu entwickelt;
+                    # jetzt einmal je Rezept auf die Platte (Vorschau-Cache) und über eine feste Adresse
+                    schl = "b" + hashlib.sha1(json.dumps([str(p), p.stat().st_mtime, rz], sort_keys=True).encode("utf-8")).hexdigest()[:30]
+                    datei = cphotos.cache_datei(schl)
+                    if not datei:
+                        img, _ = self._entw_quelle(str(p), self._GROSS_PX)
+                        datei = cphotos.cache_datei_schreiben(schl, cent.jpeg(cent.anwenden(img, cent.wirksam(rz, img)), 90))
+                    if datei:
+                        return {"ok": True, "art": "bild", "url": self._media_url_fest(datei), "quelle": "bearbeitet", "original_da": True}
                 except Exception as e:  # noqa: BLE001 — dann wie bisher das Original
                     log.info("[fotos_gross] bearbeitet: %s", e)
+            conn = self._lib()
+            fp = cfotos.fps_lesen(conn, [str(p)]).get(str(p))
+            # 21.10.2026 (Marc: „es muss nicht die volle Größe sein, irgendwas dazwischen“) — Fotos in der Zwischengröße
+            # aus dem Platten-Cache (einmal gerechnet, auch vorab im Hintergrund), das Original erst beim Hineinzoomen
+            if da and not video:
+                datei = cphotos.vorschau_datei(str(p), self._GROSS_ZW_PX, fp)
+                if datei:
+                    orig = self.serve_media(str(p)) if p.suffix.lower() in self._GROSS_NATIV else {}
+                    return {"ok": True, "art": "bild", "url": self._media_url_fest(datei), "quelle": "vorschau", "original_da": True,
+                            "original_url": orig.get("url") if orig.get("ok") else None}
             if da and (video or p.suffix.lower() in self._GROSS_NATIV):
                 r = self.serve_media(str(p))
                 if r.get("ok"):
                     return {"ok": True, "art": "video" if video else "bild", "url": r["url"], "quelle": "original",
                             "original_da": True, "mime": _media_typ(str(p))}
-            conn = self._lib()
-            fp = cfotos.fps_lesen(conn, [str(p)]).get(str(p))
             if da:
                 b = cphotos.thumb_gecacht(str(p), self._GROSS_PX, fp)
                 if b:
@@ -5963,6 +6024,46 @@ class Api:
         except Exception as e:
             log.exception("fotos_gross")
             return {"ok": False, "error": str(e)}
+
+    # 21.10.2026 (Marc: „einfach alles vorladen, was man schon sieht und was man bald sehen könnte“) — Hintergrund-
+    # Vorbereitung der Lupen-Ansicht: das Raster meldet, was zu sehen ist (+ zwei Bildschirmseiten), die Lupe ihre Nachbarn.
+    # Das Neueste zuerst (wer weiterscrollt, will das Neue), höchstens 400 offen, zwei Fäden, nie doppelt.
+    _VOR_LOCK = threading.Lock()
+    _VOR_LISTE: list = []
+    _VOR_FAEDEN = 0
+    _VOR_FERTIG: set = set()
+
+    def fotos_gross_vorbereiten(self, pfade: list) -> dict:
+        neu = [str(x) for x in (pfade or []) if x][:400]
+        with Api._VOR_LOCK:
+            vorher = [x for x in Api._VOR_LISTE if x not in neu]
+            Api._VOR_LISTE = [x for x in neu if x not in Api._VOR_FERTIG] + vorher
+            del Api._VOR_LISTE[400:]
+            starten = max(0, min(2, len(Api._VOR_LISTE)) - Api._VOR_FAEDEN)
+            Api._VOR_FAEDEN += starten
+        for _ in range(starten):
+            threading.Thread(target=self._vorbereiten_lauf, daemon=True, name="lupe-vorbereiten").start()
+        return {"ok": True, "offen": len(Api._VOR_LISTE)}
+
+    def _vorbereiten_lauf(self) -> None:
+        try:
+            while True:
+                with Api._VOR_LOCK:
+                    if not Api._VOR_LISTE:
+                        return
+                    pfad = Api._VOR_LISTE.pop(0)
+                try:
+                    if not cexif.is_video(pfad) and os.path.isfile(pfad):
+                        self.fotos_gross(pfad)   # rechnet Zwischengröße bzw. bearbeitete Fassung und legt sie in den Cache
+                    with Api._VOR_LOCK:
+                        Api._VOR_FERTIG.add(pfad)
+                        if len(Api._VOR_FERTIG) > 20000:
+                            Api._VOR_FERTIG.clear()
+                except Exception as e:  # noqa: BLE001
+                    log.debug("[lupe-vorbereiten] %s: %s", pfad, e)
+        finally:
+            with Api._VOR_LOCK:
+                Api._VOR_FAEDEN -= 1
 
     def fotos_video_standbild(self, path: str, t: float) -> dict:
         """Ein Bild aus einem Video als JPEG speichern (Ort wählt der Nutzer, Vorschlag: neben dem Video).
@@ -7109,7 +7210,7 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ── Bearbeiten (09.10.2026) — Rezept je Foto, das Original bleibt ─────────────
-    _ENTW_QUELLE: dict = {}   # pfad → (verkleinerte Quelle für die Vorschau, aus_vorschau) — höchstens 4
+    _ENTW_QUELLE: dict = {}   # pfad → (verkleinerte Quelle für die Vorschau, aus_vorschau) — höchstens 10
 
     def _entw_quelle(self, path: str, px: int = 1600):
         k = (str(path), int(px))
@@ -7119,7 +7220,7 @@ class Api:
             img.thumbnail((px, px))
             q = (img, aus_vorschau)
             Api._ENTW_QUELLE[k] = q
-            while len(Api._ENTW_QUELLE) > 4:
+            while len(Api._ENTW_QUELLE) > 10:   # 21.10.2026 — Lupe blättert hin und zurück (vorher 4 = zwei Fotos)
                 Api._ENTW_QUELLE.pop(next(iter(Api._ENTW_QUELLE)))
         return q
 
@@ -7178,6 +7279,11 @@ class Api:
                 n = cfotos.stand(c).get("bearbeitet", 0)
             self._rezept_stand = getattr(self, "_rezept_stand", 0) + 1
             self.__dict__.setdefault("_rezept_memo", {}).clear()
+            # 21.10.2026 — die bearbeitete Großansicht gleich im Hintergrund neu rechnen (beim nächsten Öffnen schon da)
+            with Api._VOR_LOCK:
+                for p in liste[:400]:
+                    Api._VOR_FERTIG.discard(str(p))
+            self.fotos_gross_vorbereiten(liste[:400])
             return {"ok": True, "n": len(liste), "stand_bearbeitet": n}
         except Exception as e:  # noqa: BLE001
             log.exception("foto_rezept_speichern")
@@ -11720,6 +11826,18 @@ class Api:
             log.exception("medien_oeffnen_mit")
             return {"ok": False, "error": str(e)}
 
+    def _media_url_fest(self, pfad: str) -> str:
+        """21.10.2026 — feste Adresse für eine Bilddatei des Vorschau-Caches (Name = Fingerabdruck), damit der Browser
+        dieselbe Vorschau beim Zurückblättern nicht neu lädt. Höchstens 6000 solcher Einträge."""
+        port = _ensure_media_server()
+        tok = "f." + hashlib.sha1(str(pfad).encode("utf-8")).hexdigest()[:24]   # „.“ kommt in Zufallsadressen nie vor
+        if tok not in _media_registry:
+            _media_registry[tok] = str(pfad)
+            feste = [k for k in _media_registry if k.startswith("f.")]
+            for k in feste[:-6000]:
+                _media_registry.pop(k, None)
+        return f"http://127.0.0.1:{port}/media/{tok}"
+
     def serve_media(self, path: str) -> dict:
         """v0.9.160 — Registriert eine Datei beim lokalen Media-HTTP-Server und
         liefert eine `http://127.0.0.1:<port>/media/<token>`-URL zurück. Das
@@ -11733,10 +11851,10 @@ class Api:
             port = _ensure_media_server()
             token = _secrets.token_urlsafe(16)
             _media_registry[token] = str(p.resolve())
-            # Registry begrenzen (nur die letzten 50 Videos behalten)
-            if len(_media_registry) > 50:
-                for k in list(_media_registry.keys())[:-50]:
-                    _media_registry.pop(k, None)
+            # Registry begrenzen (nur die letzten 50 Videos behalten; feste Bild-Adressen „f.…“ zählen nicht mit)
+            fluechtig = [k for k in _media_registry if not k.startswith("f.")]
+            for k in fluechtig[:-50]:
+                _media_registry.pop(k, None)
             return {"ok": True, "url": f"http://127.0.0.1:{port}/media/{token}"}
         except Exception as e:
             return {"ok": False, "error": str(e)}

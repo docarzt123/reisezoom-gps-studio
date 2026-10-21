@@ -1441,6 +1441,14 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ul>
 <p> the track on the right and right below it <strong>✎ Edit</strong> with the sliders (next to it the  <strong>Info</strong> tab; videos show Info). ←/→ browse, <strong>F</strong> = full screen, <strong>G</strong> or Esc back to the grid.</p>
 <ul>
+<li><strong>Zoom in the loupe like in Lightroom:</strong> the pointer is a magnifier — one click zooms in exactly there (to 100 %, at</li>
+</ul>
+<p> least double), another click shows the whole picture again. <strong>Pinch</strong> on the trackpad or <strong>⌘/Ctrl + scroll</strong> zooms  smoothly, drag to move the zoomed picture, <strong>Z</strong> toggles. Zooming in loads the full-resolution original.</p>
+<ul>
+<li><strong>Paging without waiting:</strong> what the grid shows (plus the next two screens) and the neighbours in the filmstrip are</li>
+</ul>
+<p> prepared in the background at an in-between size; an edited photo is rendered again right after saving. Paging through  shows the large picture at once.</p>
+<ul>
 <li><strong>Find duplicates …</strong> shows how much space tidying up frees: in the button (e.g. „Tidy up 12 (3.4 GB)“), „saves …“ per</li>
 </ul>
 <p> group and, at the bottom, when the space is really free — after emptying the Trash, or only once you delete the folder.</p>
@@ -1461,7 +1469,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ul>
 <p> maps show a <strong>scale bar</strong> at the bottom left (0 · 1 · 2 · 5 km), the track in turquoise and <strong>start and finish as pins</strong> (round trip: one). Clicking a spot shows the photo and a  strip of all photos taken there.</p>
 <h3 id="edit-photos">✎ Edit photos</h3>
-<p>In the loupe, tab <strong>„✎ Edit“</strong>: the histogram, <strong>✨ Auto</strong> (tone and white balance to suit the photo), the presets <strong>Natural · Vivid · Matte · B&amp;W</strong> and sliders for exposure, contrast, highlights, shadows, temperature, tint, vibrance, saturation, clarity and dehaze. <strong>Hold „.“</strong> (or hold „◐ Before“) to see the original; double-click a slider resets it, ↺ resets all. The graphics card computes the preview: the picture follows the slider without delay and looks exactly as it will in the export and the video.</p>
+<p>In the loupe, tab <strong>„✎ Edit“</strong>: the histogram, <strong>✨ Auto</strong> (works out tone and white balance for the photo and sets the sliders to it — then fine-tune freely, like in Lightroom), the presets <strong>Natural · Vivid · Matte · B&amp;W</strong> and sliders for exposure, contrast, highlights, shadows, temperature, tint, vibrance, saturation, clarity and dehaze. <strong>Hold „.“</strong> (or hold „◐ Before“) to see the original; double-click a slider resets it, ↺ resets all. The graphics card computes the preview: the picture follows the slider without delay and looks exactly as it will in the export and the video.</p>
 <p><strong>Crop and straighten:</strong> <strong>„Crop“</strong> or the <strong>R key</strong>. The loupe then shows the whole photo with a frame and thirds lines. Drag the frame to move it, drag corners and edges to resize it. <strong>Straighten</strong> rotates the picture by up to ±45°; the frame shrinks so that no empty corners appear. Pick the <strong>aspect ratio</strong> below (Original, Free, 1:1, 4:5, 3:2, 2:3, 16:9, 9:16); the two arrows rotate by 90°. <strong>Enter</strong> or „Done“ applies, <strong>Esc</strong> cancels, „Reset“ removes only the crop. The crop is part of the recipe: grid, export, animator and video show the cropped photo, the original stays whole. „Copy/Paste“ and „✨ Auto“ for several photos transfer only colour and light, every photo keeps its own crop.</p>
 <ul>
 <li><strong>The original stays untouched.</strong> Only your settings are saved (a „recipe“ in the library). Export uses the edited</li>
@@ -1524,6 +1532,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <p> by capture time (±2 seconds) and picture content. <strong>Nothing is marked here</strong> — look first, then click the picture  that should stay. With content search switched off, the group relies only on time, camera and aspect ratio and  carries the label <strong>„uncertain“</strong>. Long series shot every second (time-lapse, interval shots) don&#x27;t count as  duplicates — the dialog says how many it skipped.</p>
 <p>At the bottom you choose where they go: <strong>to the Trash</strong> (restorable from there) or <strong>to a folder „Duplicates (GPS Studio)“</strong> next to the original. Scanning skips that folder, so the files don&#x27;t come back into the stock. Nothing is ever deleted for good. While it tidies up, the window stays open.</p>
 <p><strong>A NAS and other network drives usually have no Trash.</strong> There the app leaves the files in place when you choose „to the Trash“ and tells you so — choose „to folder ‚Duplicates (GPS Studio)‘“ for them. (Until 9 Oct 2026 the Finder deleted them there at once; only a recycle bin of the NAS itself, e.g. the <code>#recycle</code> folder, caught them.)</p>
+<p><strong>Decide row by row:</strong> each group has a <strong>„tidy up“</strong> tick at the top left — off means nothing in this row is touched; on again, and everything except the version that stays is marked. Above them are <strong>„Mark all rows“</strong> and <strong>„None“</strong>. Single files can still be ticked on and off below their picture.</p>
 <h3 id="open-with-edit-in-your-photo-app">↗ Open with … — edit in your photo app</h3>
 <p>Right-click a photo or clip (or several marked ones) → <strong>„Open with …“</strong> — also in the large view and in the media strip of the tour page. On the Mac the list shows the apps that can open the file, the one you used last on top and the default marked — one click opens the original there (say Lightroom, Affinity Photo, Pixelmator or Preview). On Windows the system&#x27;s „Open with“ dialog appears right away. If the app saves changes, GPS Studio picks them up at the next scan.</p>
 <h3 id="what-the-stock-knows-about-a-photo">What the stock knows about a photo</h3>

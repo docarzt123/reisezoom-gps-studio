@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Duplicates: decide row by row — each group has a „tidy up“ tick (off leaves the whole row alone, on marks everything except the version that stays), plus „Mark all rows“ and „None“.
+
+### Changed
+- Media loupe zooms like Lightroom: the pointer is a magnifier, a click zooms in exactly where you click (to 100 %), another click shows the whole picture; trackpad pinch or ⌘/Ctrl + scroll zooms smoothly, drag moves the zoomed picture, Z toggles. Zooming in loads the full-resolution original.
+- Media: what the grid shows plus the next two screens, and the filmstrip neighbours, are prepared in the background at 2048 px (disk cache, served at a fixed local address); an edited photo is rendered again right after saving. Paging through the loupe no longer flashes the small preview when the large picture is already there.
+- „✨ Auto“ now uses the auto tone and white balance of LightCraft (MIT/Apache-2.0, credited in About): shadows are lifted only when the darkest 5 % really sink (before: on almost every photo, on average +26), white balance only from neutral mid-tones (sunsets, forest and sea no longer get a cast).
+- Media loupe: „✨ Auto“ sets the sliders (exposure, contrast, highlights, shadows, temperature, tint, vibrance) to the values it works out, like Lightroom — before it switched on an invisible auto layer and the sliders stayed at 0. Photos edited with the old auto switch show their values in the sliders when opened.
+- Media loupe: opening, paging forward and back is immediate — the loupe keeps the large pictures and edit data it already had, fetches the neighbours ahead, and an edited photo's large view is no longer developed again on every opening.
+
+### Fixed
+- Import (Windows): a track file that cannot be copied (FileNotFoundError from the system copy, seen with names like „merged_dashcam_videos2.gpx“) is copied byte by byte, if needed under a plain letters-only name; if even that fails only this file is reported with the reason — before, the whole import stopped.
+- Video export: when the map style's sources could not be reached (e.g. OpenFreeMap blocked or the connection cut by the network), the map's „load“ never came and the tour was never placed — the export waited 240 s and failed with „Track loading“. The tour is now placed once the style itself is loaded; a project that cannot be opened stops the export at once with the reason, and an empty project after 60 s with a clear message.
+
 ## [0.9.803] – 2026-10-21
 
 ### Added

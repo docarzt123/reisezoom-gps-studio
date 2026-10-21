@@ -2164,6 +2164,12 @@ On request the search field also finds **what the photos show**: “sunset”, �
 - **Double-click, E or space** opens the **loupe**: the picture large next to the sidebar, the filmstrip below, the map with
   the track on the right and right below it **✎ Edit** with the sliders (next to it the
   **Info** tab; videos show Info). ←/→ browse, **F** = full screen, **G** or Esc back to the grid.
+- **Zoom in the loupe like in Lightroom:** the pointer is a magnifier — one click zooms in exactly there (to 100 %, at
+  least double), another click shows the whole picture again. **Pinch** on the trackpad or **⌘/Ctrl + scroll** zooms
+  smoothly, drag to move the zoomed picture, **Z** toggles. Zooming in loads the full-resolution original.
+- **Paging without waiting:** what the grid shows (plus the next two screens) and the neighbours in the filmstrip are
+  prepared in the background at an in-between size; an edited photo is rendered again right after saving. Paging through
+  shows the large picture at once.
 - **Find duplicates …** shows how much space tidying up frees: in the button (e.g. „Tidy up 12 (3.4 GB)“), „saves …“ per
   group and, at the bottom, when the space is really free — after emptying the Trash, or only once you delete the folder.
 - **Plain icons:** the whole app shows single-colour line icons instead of colourful emojis. Preview and video are
@@ -2178,7 +2184,7 @@ On request the search field also finds **what the photos show**: “sunset”, �
 
 ### ✎ Edit photos (since v0.9.787)
 
-In the loupe, tab **„✎ Edit“**: the histogram, **✨ Auto** (tone and white balance to suit the photo), the presets **Natural ·
+In the loupe, tab **„✎ Edit“**: the histogram, **✨ Auto** (works out tone and white balance for the photo and sets the sliders to it — then fine-tune freely, like in Lightroom), the presets **Natural ·
 Vivid · Matte · B&W** and sliders for exposure, contrast, highlights, shadows, temperature, tint, vibrance, saturation,
 clarity and dehaze. **Hold „.“** (or hold „◐ Before“) to see the original; double-click a slider resets it, ↺ resets all.
 The graphics card computes the preview: the picture follows the slider without delay and looks exactly as it will in the
@@ -2271,6 +2277,10 @@ ever deleted for good. While it tidies up, the window stays open.
 **A NAS and other network drives usually have no Trash.** There the app leaves the files in place when you choose „to
 the Trash“ and tells you so — choose „to folder ‚Duplicates (GPS Studio)‘“ for them. (Until 9 Oct 2026 the Finder
 deleted them there at once; only a recycle bin of the NAS itself, e.g. the `#recycle` folder, caught them.)
+
+**Decide row by row:** each group has a **„tidy up“** tick at the top left — off means nothing in this row is touched;
+on again, and everything except the version that stays is marked. Above them are **„Mark all rows“** and **„None“**. Single
+files can still be ticked on and off below their picture.
 
 ### ↗ Open with … — edit in your photo app (since v0.9.787)
 

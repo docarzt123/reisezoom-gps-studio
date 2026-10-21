@@ -576,10 +576,12 @@
           <button type="button" class="dp-r${reiter === "fast" ? " is-on" : ""}" data-dp-r="fast">${esc(T("dop.r_fast", "Fast gleich"))} <b>${num(nF)}</b></button>
         </div>
         <div class="lib-hint dp-kopf">${esc(kopf)}${reiter === "fast" && !res.mit_inhalt ? " " + esc(T("dop.ohne_inhalt_kurz", "Die Inhaltssuche ist aus — die Gruppen beruhen nur auf Zeit und Kamera, darum „unsicher“.")) : ""}${reiter === "fast" && res.serien ? " " + esc(T("dop.serien", "{n} Serien (Zeitraffer, Intervallaufnahmen) zählen nicht als Doppelte.", { n: num(res.serien) })) : ""}</div>
+        <div class="dp-alle"><button type="button" class="btn btn-sm" data-dp-alle="1">${esc(T("dop.alle_an", "Alle Zeilen vormerken"))}</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-dp-alle="0">${esc(T("dop.alle_aus", "Keine"))}</button></div>
         <div class="dp-liste">${liste.slice(0, zeigen).map((g, i) => {
           const key = gid(reiter === "gleich" ? "g" : "f", i);
           return `<div class="dp-gruppe">
-            <div class="dp-g-kopf">${esc(T("dop.gruppe", "{n} Fassungen", { n: num(g.pfade.length) }))}${(() => { const b = spart(g.pfade.map(d => d.path).filter(p => weg.has(p))); return b ? ` · <b class="dp-g-spart">${esc(T("dop.gruppe_spart", "spart {mb}", { mb: mb(b) }))}</b>` : ""; })()}${g.unsicher ? ` <span class="dp-unsicher" title="${esc(T("dop.unsicher_tip", "Nur nach Aufnahmezeit, Kamera und Seitenverhältnis zugeordnet — bitte genau hinsehen."))}">${esc(T("dop.unsicher", "unsicher"))}</span>` : ""}</div>
+            <div class="dp-g-kopf"><label class="dp-g-an" title="${esc(T("dop.gruppe_an_tip", "Diese Zeile wegräumen (alles außer der Fassung, die bleibt) — oder ganz in Ruhe lassen"))}"><input type="checkbox" data-dp-gruppe="${key}"${g.pfade.some(d => weg.has(d.path)) ? " checked" : ""}> ${esc(T("dop.gruppe_an", "wegräumen"))}</label> ${esc(T("dop.gruppe", "{n} Fassungen", { n: num(g.pfade.length) }))}${(() => { const b = spart(g.pfade.map(d => d.path).filter(p => weg.has(p))); return b ? ` · <b class="dp-g-spart">${esc(T("dop.gruppe_spart", "spart {mb}", { mb: mb(b) }))}</b>` : ""; })()}${g.unsicher ? ` <span class="dp-unsicher" title="${esc(T("dop.unsicher_tip", "Nur nach Aufnahmezeit, Kamera und Seitenverhältnis zugeordnet — bitte genau hinsehen."))}">${esc(T("dop.unsicher", "unsicher"))}</span>` : ""}</div>
             <div class="dp-g-bilder">${g.pfade.map(d => kachel(d, g, key)).join("")}</div></div>`;
         }).join("")}
         ${liste.length > zeigen ? `<button type="button" class="btn btn-sm" id="dp-mehr">${esc(T("dop.mehr", "Weitere {n} Gruppen zeigen", { n: num(Math.min(40, liste.length - zeigen)) }))}</button>` : ""}</div>`;
@@ -595,6 +597,20 @@
         };
       });
       b.querySelectorAll("[data-dp-weg]").forEach(c => { c.onchange = () => { if (c.checked) weg.add(c.dataset.dpWeg); else weg.delete(c.dataset.dpWeg); zeichnen(); }; });
+      // 21.10.2026 (Nutzerwunsch: „Zeile für Zeile das Löschen entscheiden“) — eine ganze Gruppe an/aus, und alle Zeilen auf einmal
+      const zeileSetzen = (key, an) => {
+        const i = +key.slice(1), g = (key[0] === "g" ? res.gleich : res.fast)[i]; if (!g) return;
+        if (!an) { g.pfade.forEach(d => weg.delete(d.path)); return; }
+        const halt = bleibt[key] || g.behalten || (g.pfade[0] || {}).path;
+        bleibt[key] = halt;
+        g.pfade.forEach(d => { if (d.path === halt) weg.delete(d.path); else weg.add(d.path); });
+      };
+      b.querySelectorAll("[data-dp-gruppe]").forEach(c => { c.onchange = () => { zeileSetzen(c.dataset.dpGruppe, c.checked); zeichnen(); }; });
+      b.querySelectorAll("[data-dp-alle]").forEach(x => { x.onclick = () => {
+        const an = x.dataset.dpAlle === "1";
+        gruppen().forEach((_, i) => zeileSetzen(gid(reiter === "gleich" ? "g" : "f", i), an));
+        zeichnen();
+      }; });
       knopf();
       bilderHolen(liste.slice(0, zeigen));
     }

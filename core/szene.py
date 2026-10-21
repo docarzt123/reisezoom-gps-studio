@@ -451,7 +451,16 @@ async def _warte_bereit(page, js: str, timeout_s: float, was: str, is_cancelled,
             letzte = {"err": str(e)[:200]}
         if isinstance(letzte, dict) and letzte.get("ok"):
             return letzte
+        # 21.10.2026 (Nutzer-Log: 240 s „Track lädt“) — das Archiv konnte das Projekt nicht öffnen (Tour-Datei fehlt …):
+        # sofort mit diesem Grund abbrechen statt vier Minuten zu warten
+        if isinstance(letzte, dict) and letzte.get("oeffnen_fehler"):
+            raise RuntimeError(_i18n.t_aktiv("szene.err_projekt_oeffnen", "Projekt ließ sich nicht öffnen: ") + str(letzte["oeffnen_fehler"])[:300])
         dt = time.time() - t0
+        # … und der Animator steht ohne jede Tour da (kein GPX, keine Etappe, nichts lädt): nach 60 s mit Klartext abbrechen
+        if (dt > 60 and isinstance(letzte, dict) and letzte.get("map") and (letzte.get("coords") or 0) < 2 and not letzte.get("gpx")
+                and letzte.get("route") is not False and not letzte.get("pending") and not letzte.get("modal")):
+            raise RuntimeError(_i18n.t_aktiv("szene.err_keine_tour", "Im Projekt ist keine Tour geladen — öffne das Projekt im Archiv "
+                                             "und prüfe, ob die Tour-Datei noch da ist."))
         grund = _warte_grund(letzte)
         if dt > 4 and grund != grund_alt:
             grund_alt = grund
@@ -576,8 +585,8 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # 07.09.2026 — das Archiv öffnet direkt im gewünschten Modul (Animator, Reiseroute, Tour-Map)
     await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
-    bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && b.fzBilder !== false && b.lb !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+    bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, oeffnen_fehler: window.__rzProjektOeffnenFehler || null, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false && b.flug !== false && b.fzBilder !== false && b.lb !== false && !(b.schilderLaden > 0 && !window.__rzSzeneSchilderNichtAbwarten); return Object.assign({ ok, oeffnen_fehler: ok ? null : (window.__rzProjektOeffnenFehler || null) }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_bereit(page, bereit_js, 240, "Projekt/Animator", is_cancelled, emit, 0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     _log.info("Szene: Animator bereit — %s", _warte_zeile(info))
     await _startfehler_pruefen(page)
