@@ -28,6 +28,11 @@
   const SCHLUSS_FELDER = ["dist_total", "elev_gain", "elev_loss", "moving_time", "duration", "avg_speed", "date"];
   const SCHLUSS_STANDARD = ["dist_total", "elev_gain", "moving_time"];
   const INTRO_S = 3, HOLD_S = 4, FPS = 30;
+  // 21.10.2026 (Web-Funde F-32/F-35) — Halt am Ende nur mit Schlusskarte voll (sonst „das Bild am Ende sollte auch das
+  // Ende sein“: 1 s); die Kamera fliegt in RUECK_S zurück in die Gesamtsicht, erst dann kommt die Schlusskarte — vorher
+  // lag die km-Zahl 1,8 s lang auf Ziel und Laufpunkt
+  const HOLD_OHNE_S = 1, RUECK_S = 1.2;
+  const holdS = (w) => (w && w.schlussAn && (w.felder || []).length) ? HOLD_S : HOLD_OHNE_S;
   // 05.10.2026 (Marc: „drei Vorlagen fürs Schnell-Video … richtig schön") —
   // eine Vorlage belegt die Zutaten vor (Q1 a, „Mehr" bleibt zum Anpassen), setzt den Look samt Kartenstil (Q2 a,
   // ui/js/looks.js), die Fotoart (Q3) und die Schrift der Zahlen (Q4 über den Look). Standard: Weite (Q5).
@@ -78,7 +83,7 @@
     // 14.10.2026 — Momente „umkreisen“ (Assistent): eine volle Runde um die Stelle, Bereich wie momentShots (±2d der Strecke)
     const mo = (w && w.kamOpt && Array.isArray(w.kamOpt.momente)) ? w.kamOpt.momente.filter(m => m && m.bewegung === "umkreisen" && isFinite(+m.bei)) : [];
     if (mo.length && o.modus !== "kreisen" && o.modus !== "fest") {
-      const animS = Math.max(8, laengeS(w) - INTRO_S - HOLD_S), d = Math.min(0.04, 2.5 / Math.max(1, animS));
+      const animS = Math.max(8, laengeS(w) - INTRO_S - holdS(w)), d = Math.min(0.04, 2.5 / Math.max(1, animS));
       o.kreise = mo.map(m => ({ von: Math.max(0, +m.bei - 2 * d), bis: Math.min(1, +m.bei + 2 * d) }));
     }
     return o;
@@ -163,6 +168,7 @@
    *  festen Gipfel-Shot (Bewegung je Moment: panorama · nah · ruhig), `lebendig` 0…1 (0,5 = wie bisher) macht die Fahrt
    *  näher und steiler bzw. weiter und flacher. */
   function kamerafahrt(bbox, animS, regie, opt, linie) {
+    const hold = (opt && isFinite(+opt.hold_s)) ? +opt.hold_s : HOLD_S;
     const anker = (s) => s < INTRO_S ? -(INTRO_S - s) / animS
       : (s <= INTRO_S + animS ? (s - INTRO_S) / animS : 1 + (s - INTRO_S - animS) / animS);
     const mitte = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
@@ -186,8 +192,8 @@
       // 05.10.2026 (Auto-Regie §8.4 „Gipfel-Shot") — am höchsten Punkt kurz aufziehen und zum Horizont neigen:
       // Panorama statt Draufsicht, dann zurück in die Verfolgung (die Tempo-Regie verweilt dort)
       ...((opt && Array.isArray(opt.momente)) ? momentShots(opt.momente, zNah, NEIGUNG, animS) : gipfelShot(regie, zNah, NEIGUNG, animS)),
-      { s: INTRO_S + animS + 1.8, c: mitteEnde, z: -0.15, p: 25, b: 0, e: "ease_in_out" }, // zurück in die Gesamtsicht
-      { s: INTRO_S + animS + HOLD_S, c: mitteEnde, z: -0.15, p: 25, b: 0, e: "linear" },
+      { s: INTRO_S + animS + Math.min(RUECK_S, hold), c: mitteEnde, z: -0.15, p: 25, b: 0, e: "ease_in_out" }, // zurück in die Gesamtsicht
+      ...(hold > RUECK_S ? [{ s: INTRO_S + animS + hold, c: mitteEnde, z: -0.15, p: 25, b: 0, e: "linear" }] : []),
     ];
     const ev = [];
     for (const k of punkte) {
@@ -313,7 +319,7 @@
       kt.name = k.text;
       kt.zeilen = [C.zeile("text", { text: k.text })];
       Object.assign(kt, { schriftgroesse: 4.4, y: 14 });
-      const animS = Math.max(8, laengeS(w) - INTRO_S - HOLD_S);
+      const animS = Math.max(8, laengeS(w) - INTRO_S - holdS(w));
       kt.zeit = { von: { art: "strecke", wert: k.bei }, bis: { art: "strecke", wert: Math.min(1, k.bei + 2.5 / animS) } };
       kt.blende = { ein: "fade", aus: "fade", ein_s: 0.5, aus_s: 0.5 };
       liste.push(C.normalisieren(kt));
@@ -334,7 +340,8 @@
     if (w.schlussAn && w.felder.length) {
       const sk = C.neu("schluss", T);
       sk.zeilen = w.felder.map(f => C.wert(f, "gesamt"));
-      sk.zeit = { von: { art: "video_ende", wert: HOLD_S }, bis: null };
+      // 21.10.2026 (F-35) — erst wenn die Kamera in der Gesamtsicht steht (RUECK_S nach dem Ziel)
+      sk.zeit = { von: { art: "video_ende", wert: HOLD_S - RUECK_S }, bis: null };
       // 05.10.2026 — Weite: wenige große Zahlen frei in einer ruhigen Zeile; Tagebuch: Fazit mit Titel (Handschrift
       // über den Look); Puls: kompakte Übersicht. Hochkant stehen die Werte bei Weite untereinander.
       if (vl === "weite") Object.assign(sk, S.frei, { stil: "frei", schriftgroesse: w.format === "9:16" ? 7.5 : 6.5,
@@ -377,14 +384,14 @@
     const [bw, bh] = FORMATE[w.format] || FORMATE["9:16"];
     const f = w.qualitaet === "4k" ? 2 : 1;
     const gesamt = laengeS(w);
-    const animS = Math.max(8, gesamt - INTRO_S - HOLD_S);
+    const animS = Math.max(8, gesamt - INTRO_S - holdS(w));
     return {
       width: bw * f, height: bh * f, fps: FPS,
       map_style: w.stil,
-      intro_s: INTRO_S, hold_s: HOLD_S, duration_s: animS,
+      intro_s: INTRO_S, hold_s: holdS(w), duration_s: animS,
       keyframes_enabled: true,
       kamera_vorgabe: "fahrt",   // 07.10.2026 (Klicktest) — Kamera-Pille zeigt „Kamerafahrt“, nicht ein altes „Start → Ziel“
-      timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null, Object.assign({}, w.kamOpt || {}, { flug: w.flug || "begleiter" }), v.linie),
+      timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null, Object.assign({}, w.kamOpt || {}, { flug: w.flug || "begleiter", hold_s: holdS(w) }), v.linie),
       camera_follow_track: true,
       // 08.10.2026 (Video-Assistent, Seite „Kamera“) — Folgen / Fest statt der Kamerafahrt
       ...(w.kamera === "folgen" ? { keyframes_enabled: false, kamera_vorgabe: "folgen", timeline_events: [], camera_follow_track: true } : {}),
@@ -424,7 +431,7 @@
       gebaeude_3d: !!w.gebaeude, gebaeude_wachsen: false,
       // 05.10.2026 — Tempo-Regie (Höhepunkte + Fotos ohne Halt langsamer), nur wenn angehakt
       tempo_eintraege: w.tempoRegie ? tempoRegie(((v && v.regie) || []).map(r => r.bei).concat((w.pip || []).map(p => (p.von + p.bis) / 2)).concat(w.regieFotos || [])) : [],
-      ton_musik_ein: 1, ton_musik_aus: Math.min(3, HOLD_S), ton_klick_an: !!w.klick, ton_klick_laut: 25, ton_klick_klang: w.vorlage && w.vorlage !== "weite" ? "builtin:klick_k" : "builtin:klick_a",   // Marc: A, „ganz subtil"; Tagebuch/Puls: weicher Einblendton
+      ton_musik_ein: 1, ton_musik_aus: Math.min(3, holdS(w)), ton_klick_an: !!w.klick, ton_klick_laut: 25, ton_klick_klang: w.vorlage && w.vorlage !== "weite" ? "builtin:klick_k" : "builtin:klick_a",   // Marc: A, „ganz subtil"; Tagebuch/Puls: weicher Einblendton
     };
   }
 
@@ -544,15 +551,18 @@
     }
     return erste.sort((a, b) => b.wert - a.wert).concat(kand.filter(x => !erste.includes(x)));
   }
+  const manuellZuerst = (liste) => [...liste.filter(k => k.manuell), ...liste.filter(k => !k.manuell)];
   function stoppsWaehlen(fotos, clips, animS, mitTon, opt) {
     const budget = Math.max(0, animS * 0.5 * ((opt && opt.faktor) || 1));
     const kand = [].concat(
-      (fotos || []).map(f => ({ art: "foto", f, kosten: STOPP_KOSTEN, wert: +f.wert || 0, bei: +f.bei })),
+      (fotos || []).map(f => ({ art: "foto", f, kosten: STOPP_KOSTEN, wert: +f.wert || 0, bei: +f.bei, manuell: !!f.manuell })),
       (clips || []).map(c => ({ art: "clip", f: c, kosten: Math.min(CLIP_S, Math.max(0.5, +c.dauer || CLIP_S)), wert: (+c.wert || 0) + 1, bei: +c.bei })));
     kand.sort((a, b) => b.wert - a.wert || a.bei - b.bei);
     let summe = 0;
     const wahl = [];
-    for (const k of kapitelZuerst(kand, opt && opt.kapitel)) {
+    // 21.10.2026 (Web-Fund F-31) — von Hand gesetzte Fotos kommen zuerst ins Budget; bei „Kurz“ fiel ein selbst ans Ende
+    // gesetztes Foto sonst gegen wertvollere weg
+    for (const k of manuellZuerst(kapitelZuerst(kand, opt && opt.kapitel))) {
       if (summe + k.kosten > budget + 1e-6) continue;
       if (wahl.some(x => Math.abs(x.bei - k.bei) < 0.04)) continue;
       wahl.push(k); summe += k.kosten;
@@ -566,10 +576,10 @@
   const OHNE_HALT_S = 3.2;
   function fotosOhneHalt(fotos, animS, belegt, opt) {
     const max = Math.max(0, Math.floor(animS / 4 * ((opt && opt.faktor) || 1)));
-    const kand = (fotos || []).map(f => ({ f, bei: +f.bei, wert: +f.wert || 0 })).filter(k => isFinite(k.bei))
+    const kand = (fotos || []).map(f => ({ f, bei: +f.bei, wert: +f.wert || 0, manuell: !!f.manuell })).filter(k => isFinite(k.bei))
       .sort((a, b) => b.wert - a.wert || a.bei - b.bei);
     const wahl = [], besetzt = (belegt || []).slice();
-    for (const k of kapitelZuerst(kand, opt && opt.kapitel)) {
+    for (const k of manuellZuerst(kapitelZuerst(kand, opt && opt.kapitel))) {
       if (wahl.length >= max) break;
       if (besetzt.some(b => Math.abs(b - k.bei) < 0.06)) continue;
       wahl.push(k); besetzt.push(k.bei);
@@ -646,7 +656,7 @@
   //  so in die Schlusskarte. Darum: Momente kurz vor dem Ziel bleiben, ihr Schild endet aber 0,3 s vor dem Ende der
   //  Fahrt (= Beginn der Schlusskarte); gesperrt ist nur, was in der letzten halben Sekunde bzw. der ersten Sekunde liegt.
   function lbRand(w) {
-    const animS = Math.max(8, laengeS(w) - INTRO_S - HOLD_S);
+    const animS = Math.max(8, laengeS(w) - INTRO_S - holdS(w));
     return { start: Math.max(0.02, 1.0 / animS), ende: Math.max(0.02, 0.5 / animS), animS };
   }
   const LB_NACHLAUF_S = 2.2;
@@ -1379,7 +1389,7 @@
 
     // Fotostopps: Vorschlag aus dem Foto-Bestand, im Dialog abwählbar (Marc, Q1 „beides")
     w.fotos = []; w.fotosAus = new Set(); w.fotosLaden = true;
-    const animSJetzt = () => Math.max(8, laengeS(w) - INTRO_S - HOLD_S);
+    const animSJetzt = () => Math.max(8, laengeS(w) - INTRO_S - holdS(w));
     const fotosInfo = () => {
       const z = box.querySelector("#sv-fotos-info"); if (!z) return;
       const an = w.fotos.filter((_, i) => !w.fotosAus.has(i));
@@ -1943,7 +1953,7 @@
     const KAPITEL_ABSTAND_S = 3.5;
     function kapitelTitel() {
       if (!ASS || (w.textMenge || "normal") === "wenige" || !(w.lbTage > 1) || !Array.isArray(w.lbKapitel)) return [];
-      const animS = Math.max(8, laengeS(w) - INTRO_S - HOLD_S);
+      const animS = Math.max(8, laengeS(w) - INTRO_S - holdS(w));
       const sprache = (window.rzSprachCode ? window.rzSprachCode() : "de") || "de";
       const raus = []; let letzt = -1;
       for (const k of w.lbKapitel) {

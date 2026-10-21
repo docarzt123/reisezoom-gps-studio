@@ -12271,6 +12271,11 @@ function mountAnimator(body, headerActions, opts) {
               if (e === 0) { const g0 = _gpxEleAt(a); if (g0 != null && Math.abs(g0) > 50) e = null; }
               if (e != null && isFinite(e)) { ez = _MC().fromLngLat(ll, e).z; eM = e; _letztEM = e; }
             } catch (_) {}
+            // 21.10.2026 (Web-Fund F-33: Teide ohne 3D-Gelände → Kachelflecken, schräge Keile, Route weg) — ohne Gelände
+            // ist die Karte flach: die Mitte liegt auf Höhe 0, nicht auf der GPX-Höhe (2–3 km über der Karte)
+            if (eM == null && !(map.getTerrain && map.getTerrain()) && !_flug.an) {
+              eM = 0; _letztEM = 0; try { ez = _MC().fromLngLat(ll, 0).z; } catch (_) {}
+            }
             if (eM == null) {   // Kachel nicht geladen → GPX-Höhe des Streckenpunkts (× Überhöhung)
               const g = _gpxEleAt(a);
               if (g != null) { eM = g; _letztEM = g; try { ez = _MC().fromLngLat(ll, g).z; } catch (_) {} }

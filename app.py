@@ -15796,6 +15796,10 @@ class Api:
                 bei = f["idx"] / (n - 1)
                 # 13.10.2026 (Web-Feedback „das letzte Bild ist nur ganz kurz zu sehen … am Endpunkt länger stehen lassen“,
                 # wie die Web-Fassung) — Fotos bis zum Ziel; nur am Start bleibt die 3-%-Regel (dort läuft der Titel)
+                # 21.10.2026 (Web-Fund F-29, Nutzer: „das erste Foto wurde immer weggelassen“) — ein Foto am Start (GPS dort
+                # oder kurz vor Beginn der Aufzeichnung) nicht verwerfen, sondern gleich hinter den Titel legen (3,5 %)
+                if not (alle or f.get("manuell")) and 0 <= bei <= 0.03:
+                    bei = 0.035
                 if alle or f.get("manuell") or 0.03 < bei <= 1.0:
                     kandidaten.append(dict(f, bei=bei, **merkmale(f)))
             wahl = sorted(kandidaten, key=lambda f: f["bei"])[: max(1, int(n_max))] if alle else []   # „alle": selbst gewählt
