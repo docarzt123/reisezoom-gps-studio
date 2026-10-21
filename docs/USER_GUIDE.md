@@ -1011,6 +1011,7 @@ Im Dialog entscheidest du nur wenig — die App merkt sich deine Wahl fürs näc
   Schlussblick bleiben bei allen gleich; die Videolänge ändert der Flugstil nicht. Im Assistenten wählst du ihn auf der
   Seite **Kamera** mit einem kurzen Clip je Stil. Wird gemerkt und in eigenen ★-Vorlagen gespeichert. Kommandozeile:
   `--camera companion|skimmer|swallow|crane|thermal|cruise|dandelion|falcon|orbit|carousel`.
+- **Kamerafahrt neu erzeugen:** In der Zeitleiste (Keyframe-Editor an) erzeugt **„Fahrt neu erzeugen …“** die Kamerafahrt mit einer anderen Art (Kamerafahrt, Start → Ziel, Standard-Keyframes), einem anderen Flugstil und anderer Lebendigkeit neu. Ersetzt werden nur die Kamera-Keyframes — Marker, Fotos und Schilder bleiben —, und ⌘Z holt die vorige Fahrt in einem Schritt zurück. Beim Einschalten des Keyframe-Editors bietet die Rückfrage dafür auch **„Fahrt wählen …“** an.
 - **Einmal ums Foto kreisen (seit v0.9.792):** Im Assistenten auf der Seite **Halte** „Einmal ums Foto kreisen“, im
   Schild-Editor je Foto „Einmal herumkreisen“: Während des Fotostopps fliegt die Kamera eine volle Runde um den Fotoort
   und kommt in ihrer Richtung wieder an. Eine Runde braucht Zeit — der Halt dauert dann mindestens 6 Sekunden. Bei Clips
@@ -1152,6 +1153,7 @@ du es um, wandert es zu deinen Projekten.
   Schilder. OpenStreetMap wird dafür in wenigen großen Abschnitten gefragt (bei 500 km zweimal), die
   Wartemeldung zeigt, welcher gerade dran ist; die Antworten merkt sich die App 30 Tage.
 - **Sprung in den Animator** mit dem geöffneten Projekt.
+  **Darstellung der Orts- und Pass-Schilder:** Unter den Quellen im Highlights-Fenster stellst du **Deckkraft** (10–100 %) und **Größe** der Orts- und Pass-Schilder für das ganze Projekt ein — mit weniger Deckkraft bleiben Strecke und Gelände dahinter sichtbar. Ändern zieht alle schon übernommenen Orts-Schilder nach; haben einzelne eigene Werte, fragt die App, ob sie angeglichen werden sollen. Liefert OpenStreetMap (Overpass) die Orte nicht oder nur teilweise, steht über der Liste ein deutlicher Hinweis mit **Erneut versuchen** und **Automatisch wiederholen** (alle 3 Minuten, höchstens 10 Versuche) — die übrigen Vorschläge und deine Häkchen bleiben dabei stehen.
 
 Gab es nichts zu reparieren, steht das so in der Liste und das Projekt hängt an der Originaldatei.
 Fotos und Highlights kommen in den nächsten Stufen des Assistenten.

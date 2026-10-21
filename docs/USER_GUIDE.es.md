@@ -996,6 +996,7 @@ El diálogo te pregunta muy poco, y la app recuerda tu elección para la próxim
   vista general del inicio y la vista final son iguales en todos; el estilo no cambia la duración del vídeo. En el asistente
   lo eliges en la página **Cámara** con un clip corto por estilo. Se recuerda y se guarda en tus plantillas ★. Línea de
   comandos: `--camera companion|skimmer|swallow|crane|thermal|cruise|dandelion|falcon|orbit|carousel`.
+- **Crear de nuevo el vuelo de cámara:** en la línea de tiempo (editor de keyframes activo), **«Nuevo vuelo de cámara …»** vuelve a crear el vuelo con otro tipo (vuelo de cámara, inicio → meta, keyframes estándar), otro estilo de vuelo y otra viveza. Solo se sustituyen los keyframes de cámara —marcadores, fotos y carteles se mantienen— y ⌘Z recupera el vuelo anterior en un paso. Al activar el editor de keyframes, la pregunta ofrece también **«Elegir un vuelo …»**.
 - **Dar una vuelta alrededor de la foto (desde v0.9.792):** en el asistente, en la página **Paradas**, «Dar una vuelta
   alrededor de la foto»; en el editor de carteles, por foto, «Dar una vuelta»: durante la parada la cámara da una vuelta
   completa alrededor del lugar de la foto y vuelve a su dirección. Una vuelta necesita tiempo — la parada dura entonces al
@@ -1139,6 +1140,7 @@ automáticamente**. Si le cambias el nombre, pasa a tus proyectos.
   pregunta en pocos tramos grandes (dos veces para 500 km), el mensaje de espera muestra cuál está
   en curso; las respuestas se guardan 30 días.
 - **Salto al Animador** con el proyecto abierto.
+  **Aspecto de los carteles de pueblos y puertos:** debajo de las fuentes, en la ventana de puntos destacados, ajustas la **opacidad** (10–100 %) y el **tamaño** de los carteles de pueblos y puertos para todo el proyecto; con menos opacidad se siguen viendo la ruta y el terreno de detrás. Al cambiarlos se actualizan todos los carteles ya añadidos; si algunos tienen valores propios, la app pregunta si quieres igualarlos. Si OpenStreetMap (Overpass) no entrega los pueblos o solo algunos, un aviso claro sobre la lista ofrece **Reintentar** y **Reintentar automáticamente** (cada 3 minutos, como máximo 10 intentos); las demás sugerencias y tus marcas se mantienen.
 
 Si no había nada que reparar, la lista lo dice y el proyecto queda ligado al fichero original.
 Las fotos y los puntos destacados llegan en las siguientes etapas del asistente.

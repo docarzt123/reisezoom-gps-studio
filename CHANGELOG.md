@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Animator: „New camera flight …“ in the timeline creates the camera flight again with another type, flight style and liveliness; only the camera keyframes are replaced and ⌘Z brings the previous flight back in one step. The question when switching the keyframe editor on also offers „Choose a flight …“. Contributed by @kaennchenstruggle.
+- Highlights: opacity and size of the town and pass signs can be set for the whole project (updates signs already added, asks before overriding own values). Contributed by @kaennchenstruggle.
+- Highlights: a clear note with „Try again“ and „Retry automatically“ (every 3 minutes, at most 10 attempts) when OpenStreetMap (Overpass) does not deliver the towns and passes, or only some. Contributed by @kaennchenstruggle.
+
+### Fixed
+- Video render: the render browser frees its memory regularly — long videos no longer stop because the memory runs out. Contributed by @kaennchenstruggle.
+- Video render: a full tile cache no longer puts the „GPS Studio could not start“ screen into every frame; tidying the cache runs in the background, and a render stops with a message if the screen appears anyway. Contributed by @kaennchenstruggle.
+
 ## [0.9.802] – 2026-10-21
 
 ### Fixed

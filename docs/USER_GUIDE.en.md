@@ -984,6 +984,7 @@ The dialog asks only a few things — the app remembers your choice for next tim
   view stay the same for all; the style does not change the video length. In the assistant you pick it on the **Camera**
   page with a short clip per style. Remembered and saved in your own ★ templates. Command line:
   `--camera companion|skimmer|swallow|crane|thermal|cruise|dandelion|falcon|orbit|carousel`.
+- **Create the camera flight again:** in the timeline (keyframe editor on), **„New camera flight …“** creates the camera flight again with another type (camera flight, start → finish, standard keyframes), another flight style and liveliness. Only the camera keyframes are replaced — markers, photos and signs stay — and ⌘Z brings back the previous flight in one step. When you switch the keyframe editor on, the question also offers **„Choose a flight …“**.
 - **Circle once around the photo (since v0.9.792):** in the assistant on the **Stops** page „Circle once around the photo“,
   in the sign editor per photo „Circle around once“: during the photo stop the camera flies a full round around the photo
   spot and arrives back in its direction. A round needs time — the stop then lasts at least 6 seconds. Not for clips.
@@ -1122,6 +1123,7 @@ you rename it, it moves to your projects.
   (twice for 500 km), the waiting message shows which one is running; the answers are kept for
   30 days.
 - **Jump into the Animator** with the project open.
+  **Look of the town and pass signs:** below the sources in the highlights window you set the **opacity** (10–100 %) and **size** of the town and pass signs for the whole project — with less opacity the route and terrain behind stay visible. Changing them updates all town signs already added; if some have their own values, the app asks whether to align them. If OpenStreetMap (Overpass) does not deliver the towns or only some of them, a clear note above the list offers **Try again** and **Retry automatically** (every 3 minutes, at most 10 attempts) — the other suggestions and your ticks stay as they are.
 
 If there was nothing to repair, the list says so and the project hangs on the original file.
 Photos and highlights come in the next stages of the assistant.
