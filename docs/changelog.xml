@@ -5,8 +5,15 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 20 Oct 2026 19:25:17 +0000</lastBuildDate>
+<lastBuildDate>Wed, 21 Oct 2026 05:59:47 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.801</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-801</link>
+<guid isPermaLink="false">gps-studio-v0.9.801</guid>
+<pubDate>Wed, 21 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotos in den Papierkorb — Rechtsklick, Leiste oder Entf-Taste: Fotos und Clips landen im Papierkorb deines Systems — mit Rückfrage, auf Wunsch samt passender RAW-Datei, und von dort zurückholbar. Danke für die Idee aus der Community!</description>
+</item>
 <item>
 <title>v0.9.800</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-800</link>
@@ -243,19 +250,6 @@ Fotos groß ansehen und Videos abspielen — Doppelklick oder Leertaste öffnet 
 Fotos im Archiv bearbeiten und verorten — Aufnahmedaten wie im Geotagger ändern (Titel, Stichwörter, Zeit, Zeitzone, Ort …) und ein einzelnes Foto per Klick in die Karte verorten. Vorher wird das Original gesichert.
 
 Fotoordner zeigen ihr Laufwerk wie der Finder — „Fotos“ statt /Volumes/Fotos, dazu 🟢 verbunden oder 📴 nicht verbunden, ob es ein Netzlaufwerk (auf welchem NAS), ein Zusatzlaufwerk oder dieser Rechner ist, und ein Knopf „Verbinden“ für das NAS.</description>
-</item>
-<item>
-<title>v0.9.780</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-780</link>
-<guid isPermaLink="false">gps-studio-v0.9.780</guid>
-<pubDate>Sun, 04 Oct 2026 12:00:00 +0000</pubDate>
-<description>Play und Pause reagieren sofort — nach dem Öffnen musste man mehrmals drücken. Jetzt zeigt der Knopf ⏳, solange die Vorschau vorbereitet wird, und die Geländehöhen werden schon beim Laden geholt.
-
-Vorschau wieder flüssig — die Kantenglättung gegen flimmernde Häuser läuft nur noch beim Rendern, nicht in der Live-Vorschau.
-
-3D-Häuser ruhiger — Wände benachbarter Häuser, die genau übereinanderliegen, flackerten gestreift. Jetzt gewinnt in jedem Bild dasselbe Haus.
-
-Fotos beim Ziehen der Zeitleiste — Foto-Schilder und Foto-Pins erscheinen jetzt auch, während du den Abspielkopf von Hand ziehst, nicht erst beim Loslassen.</description>
 </item>
 </channel>
 </rss>
