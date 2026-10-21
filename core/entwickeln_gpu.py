@@ -29,7 +29,8 @@ _log = logging.getLogger(__name__)
 LEERLAUF_S = 90          # so lange bleibt der Browser nach dem letzten Auftrag offen
 ZEITLIMIT_S = 60         # je Bild
 MAX_KANTE = 16384        # größer kann WebGL meist nicht; dann numpy
-_JS = Path(__file__).resolve().parent.parent / "ui" / "js" / "entwickeln_gl.js"
+import sys
+_JS = Path(getattr(sys, "_MEIPASS", "") or Path(__file__).resolve().parent.parent) / "ui" / "js" / "entwickeln_gl.js"
 
 _SEITE = """<!doctype html><meta charset="utf-8"><title>rz-entwickeln</title><body><script>__JS__</script><script>
 window.__rzEntwickeln = async (w, h, werte, rahmen) => {

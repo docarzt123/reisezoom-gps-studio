@@ -7264,9 +7264,10 @@ class Api:
             log.info("[bearbeiten] Vorschau %s: %s", path, e)
             return {"ok": False, "error": str(e)}
 
-    def foto_rezept_speichern(self, pfade, rezept: dict = None) -> dict:
+    def foto_rezept_speichern(self, pfade, rezept: dict = None, was: str = None) -> dict:
         """Ein Rezept für eins oder mehrere Fotos (Einfügen / Auto für alle). Leer = Bearbeitung entfernen.
-        Für mehrere (Liste) bleibt der Zuschnitt jedes Fotos stehen — Einfügen und Auto übertragen nur den Ton."""
+        Für mehrere (Liste) bleibt der Zuschnitt jedes Fotos stehen — Einfügen und Auto übertragen nur den Ton.
+        `was` = Beschriftung des Schritts im Verlauf (sonst aus dem Unterschied gebildet)."""
         try:
             mehrere = not isinstance(pfade, str)
             liste = [pfade] if not mehrere else list(pfade or [])
@@ -7279,7 +7280,7 @@ class Api:
                         rz = dict(ton, **{k: alt[k] for k in cent.GEOMETRIE if k in alt})
                     else:
                         rz = rezept or {}
-                    cfotos.rezept_setzen(c, p, rz)
+                    cfotos.rezept_setzen(c, p, rz, was)
                 n = cfotos.stand(c).get("bearbeitet", 0)
             self._rezept_stand = getattr(self, "_rezept_stand", 0) + 1
             self.__dict__.setdefault("_rezept_memo", {}).clear()
@@ -7291,6 +7292,67 @@ class Api:
             return {"ok": True, "n": len(liste), "stand_bearbeitet": n}
         except Exception as e:  # noqa: BLE001
             log.exception("foto_rezept_speichern")
+            return {"ok": False, "error": str(e)}
+
+    def foto_upright(self, path: str, modus: str = "auto", drehen90: int = 0) -> dict:
+        """Upright wie Lightroom (Auto · Waagerecht · Senkrecht · Voll): Drehen/Vertikal/Horizontal aus den geraden Kanten
+        des Fotos (nach den 90°-Drehungen des Rezepts). Die Lupe stellt die Werte in die Regler."""
+        try:
+            img, _ = self._entw_quelle(path)
+            if int(drehen90 or 0) % 4:
+                img = cent.geometrie(img, {"drehen90": int(drehen90)})
+            return {"ok": True, "werte": cent.upright(img, str(modus or "auto"))}
+        except Exception as e:  # noqa: BLE001
+            log.info("[upright] %s: %s", path, e)
+            return {"ok": False, "error": str(e)}
+
+    # ── Verlauf und Versionen (21.10.2026, wie Lightroom) ──────────────────────────────────────
+    def foto_verlauf(self, path: str) -> dict:
+        """Schritte (neueste zuerst) und benannte Versionen eines Fotos, dazu das aktuelle Rezept."""
+        try:
+            with clib._DB_LOCK:
+                c = self._lib()
+                v = cfotos.verlauf_lesen(c, path)
+                v["rezept"] = cfotos.rezept_lesen(c, path)
+            return dict(v, ok=True)
+        except Exception as e:  # noqa: BLE001
+            log.exception("foto_verlauf")
+            return {"ok": False, "error": str(e)}
+
+    def foto_version_anlegen(self, path: str, name: str = "") -> dict:
+        try:
+            with clib._DB_LOCK:
+                eid = cfotos.version_anlegen(self._lib(), path, name)
+            return {"ok": True, "id": eid}
+        except Exception as e:  # noqa: BLE001
+            log.exception("foto_version_anlegen")
+            return {"ok": False, "error": str(e)}
+
+    def foto_version_loeschen(self, eid: int) -> dict:
+        try:
+            with clib._DB_LOCK:
+                cfotos.version_loeschen(self._lib(), int(eid))
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def foto_verlauf_anwenden(self, path: str, eid=None) -> dict:
+        """Einen Stand aus dem Verlauf/den Versionen übernehmen (`eid` None = Original). Wird selbst ein Schritt —
+        nichts geht verloren, der Stand davor steht weiter im Verlauf."""
+        try:
+            if eid in (None, "", "original"):
+                rz, name = {}, ci18n.t_aktiv("bearb.v_original", "Original")
+            else:
+                with clib._DB_LOCK:
+                    e = cfotos.verlauf_eintrag(self._lib(), int(eid))
+                if not e or e.get("pfad") != str(path):
+                    return {"ok": False, "error": "Eintrag fehlt"}
+                rz, name = e["rezept"], e["name"]
+            was = ci18n.t_aktiv("bearb.v_zurueck_zu", "Zurück zu: {n}").replace("{n}", name)
+            r = self.foto_rezept_speichern(path, rz, was)
+            return dict(r, rezept=rz)
+        except Exception as e:  # noqa: BLE001
+            log.exception("foto_verlauf_anwenden")
             return {"ok": False, "error": str(e)}
 
     def foto_entwickelt_speichern(self, path: str) -> dict:

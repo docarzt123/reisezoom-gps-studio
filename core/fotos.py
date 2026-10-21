@@ -222,6 +222,11 @@ CREATE TABLE IF NOT EXISTS foto_album_inhalt (album_id INTEGER NOT NULL, pfad TE
 CREATE INDEX IF NOT EXISTS idx_fai_pfad ON foto_album_inhalt(pfad);
 -- 09.10.2026 — Bearbeitung als Rezept (JSON, core/entwickeln.py); das Original bleibt unberührt
 CREATE TABLE IF NOT EXISTS foto_rezept (pfad TEXT PRIMARY KEY, inhalt_id TEXT, rezept TEXT NOT NULL, am TEXT);
+-- 21.10.2026 — Verlauf und Versionen wie in Lightroom: jeder gespeicherte Schritt (art 'schritt', höchstens VERLAUF_MAX je
+-- Foto) und benannte Fassungen (art 'version', bleiben). Das Rezept steht jeweils ganz drin — Zurückspringen = übernehmen.
+CREATE TABLE IF NOT EXISTS foto_verlauf (id INTEGER PRIMARY KEY AUTOINCREMENT, pfad TEXT NOT NULL, art TEXT NOT NULL,
+    name TEXT, rezept TEXT NOT NULL, am TEXT);
+CREATE INDEX IF NOT EXISTS idx_foto_verlauf_pfad ON foto_verlauf(pfad, art, id);
 """
 
 # Der Volltext-Index ist dieselbe Bauart wie bei den Touren (FTS5, Trigramm):
@@ -1920,18 +1925,106 @@ def rezepte(conn: sqlite3.Connection, pfade: list) -> dict:
     return raus
 
 
-def rezept_setzen(conn: sqlite3.Connection, pfad: str, rezept: Optional[dict]) -> None:
-    """Leeres Rezept (alles neutral, kein Auto) = Bearbeitung entfernen."""
+VERLAUF_MAX = 100   # Schritte je Foto (benannte Versionen zählen nicht mit)
+
+
+def rezept_setzen(conn: sqlite3.Connection, pfad: str, rezept: Optional[dict], was: Optional[str] = None) -> None:
+    """Leeres Rezept (alles neutral, kein Auto) = Bearbeitung entfernen. Jede Änderung wird ein Schritt im Verlauf
+    (`was` = Beschriftung, sonst aus dem Unterschied gebildet)."""
     from core import entwickeln as cent
     rz = dict(cent.sauber(rezept))
     if (rezept or {}).get("auto"):
         rz["auto"] = True
+    alt = rezept_lesen(conn, pfad)
+    if json.dumps(alt, sort_keys=True) != json.dumps(rz, sort_keys=True):
+        jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        conn.execute("INSERT INTO foto_verlauf(pfad, art, name, rezept, am) VALUES (?,?,?,?,?)",
+                     (str(pfad), "schritt", was or verlauf_name(alt, rz), json.dumps(rz, sort_keys=True), jetzt))
+        conn.execute("DELETE FROM foto_verlauf WHERE pfad = ? AND art = 'schritt' AND id NOT IN "
+                     "(SELECT id FROM foto_verlauf WHERE pfad = ? AND art = 'schritt' ORDER BY id DESC LIMIT ?)",
+                     (str(pfad), str(pfad), VERLAUF_MAX))
     if not rz:
         conn.execute("DELETE FROM foto_rezept WHERE pfad = ?", (str(pfad),))
     else:
         conn.execute("INSERT OR REPLACE INTO foto_rezept(pfad, inhalt_id, rezept, am) VALUES (?,?,?,?)",
                      (str(pfad), _iid(conn, pfad), json.dumps(rz, sort_keys=True),
                       datetime.now(timezone.utc).isoformat(timespec="seconds")))
+    conn.commit()
+
+
+_VERLAUF_NAMEN = {
+    "belichtung": ("bearb.r_belichtung", "Belichtung"), "kontrast": ("bearb.r_kontrast", "Kontrast"),
+    "lichter": ("bearb.r_lichter", "Lichter"), "tiefen": ("bearb.r_tiefen", "Tiefen"),
+    "temperatur": ("bearb.r_temperatur", "Temperatur"), "toenung": ("bearb.r_toenung", "Tönung"),
+    "dynamik": ("bearb.r_dynamik", "Dynamik"), "saettigung": ("bearb.r_saettigung", "Sättigung"),
+    "klarheit": ("bearb.r_klarheit", "Klarheit"), "dunst": ("bearb.r_dunst", "Dunst entfernen"),
+    "schaerfen": ("bearb.r_schaerfen", "Schärfen"), "weiss": ("bearb.r_weiss", "Weiß"),
+    "schwarz": ("bearb.r_schwarz", "Schwarz"), "struktur": ("bearb.r_struktur", "Struktur"), "boost": ("bearb.r_boost", "Boost"), "vertikal": ("bearb.g_vertikal", "Vertikal"),
+    "horizontal": ("bearb.g_horizontal", "Horizontal"), "gerade": ("bearb.g_drehen", "Drehen"),
+    "aspekt": ("bearb.g_aspekt", "Seitenverhältnis"), "skala": ("bearb.g_skala", "Skalieren"),
+    "versatz_x": ("bearb.g_versatz_x", "Versatz X"), "versatz_y": ("bearb.g_versatz_y", "Versatz Y"),
+    "zuschnitt": ("bearb.zuschneiden", "Zuschneiden"), "drehen90": ("bearb.v_drehen90", "90° drehen"),
+}
+
+
+def verlauf_name(alt: dict, neu: dict) -> str:
+    """Beschriftung eines Schritts wie in Lightroom: „Belichtung +0,40“, „Voreinstellung: Kräftig“, „Zurückgesetzt“,
+    bei mehreren Reglern „Mehrere Einstellungen“."""
+    from core import i18n as _i18n
+    t = _i18n.t_aktiv
+    alt, neu = alt or {}, neu or {}
+    if not neu:
+        return t("bearb.v_zurueck", "Zurückgesetzt")
+    anders = sorted(k for k in set(alt) | set(neu) if json.dumps(alt.get(k)) != json.dumps(neu.get(k)) and k != "auto")
+    if anders == ["stil"]:
+        return t("bearb.v_stil", "Voreinstellung: {n}").replace("{n}", t("bearb.s_" + str(neu["stil"]), str(neu["stil"]))) \
+            if neu.get("stil") else t("bearb.v_stil_weg", "Voreinstellung entfernt")
+    if len(anders) == 1 and anders[0] in _VERLAUF_NAMEN:
+        k = anders[0]
+        name = t(*_VERLAUF_NAMEN[k])
+        v = neu.get(k)
+        if v is None or k in ("zuschnitt", "drehen90"):
+            return name if v is not None else name + " · " + t("bearb.v_aus", "aus")
+        komma = _i18n.sprache_aktiv("de") in ("de", "es")
+        txt = (f"{v:+.2f}" if k == "belichtung" else (f"{v:+.1f}°" if k == "gerade" else f"{v:+.0f}"))
+        return f"{name} {txt.replace('.', ',') if komma else txt}"
+    if anders and all(k in ("zuschnitt", "gerade", "drehen90") for k in anders):
+        return t("bearb.zuschneiden", "Zuschneiden")
+    return t("bearb.v_mehrere", "Mehrere Einstellungen")
+
+
+def _verlauf_zeile(r) -> dict:
+    try:
+        rz = json.loads(r[4])
+    except (TypeError, ValueError):
+        rz = {}
+    return {"id": r[0], "art": r[2], "name": r[3] or "", "rezept": rz, "am": r[5]}
+
+
+def verlauf_lesen(conn: sqlite3.Connection, pfad: str) -> dict:
+    """Schritte (neueste zuerst) und benannte Versionen eines Fotos."""
+    zeilen = conn.execute("SELECT id, pfad, art, name, rezept, am FROM foto_verlauf WHERE pfad = ? ORDER BY id DESC",
+                          (str(pfad),)).fetchall()
+    return {"schritte": [_verlauf_zeile(r) for r in zeilen if r[2] == "schritt"],
+            "versionen": [_verlauf_zeile(r) for r in zeilen if r[2] == "version"]}
+
+
+def verlauf_eintrag(conn: sqlite3.Connection, eid: int) -> Optional[dict]:
+    r = conn.execute("SELECT id, pfad, art, name, rezept, am FROM foto_verlauf WHERE id = ?", (int(eid),)).fetchone()
+    return dict(_verlauf_zeile(r), pfad=r[1]) if r else None
+
+
+def version_anlegen(conn: sqlite3.Connection, pfad: str, name: str) -> int:
+    rz = rezept_lesen(conn, pfad)
+    cur = conn.execute("INSERT INTO foto_verlauf(pfad, art, name, rezept, am) VALUES (?,?,?,?,?)",
+                       (str(pfad), "version", (name or "").strip()[:80] or "Unbenannt", json.dumps(rz, sort_keys=True),
+                        datetime.now(timezone.utc).isoformat(timespec="seconds")))
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def version_loeschen(conn: sqlite3.Connection, eid: int) -> None:
+    conn.execute("DELETE FROM foto_verlauf WHERE id = ? AND art = 'version'", (int(eid),))
     conn.commit()
 
 

@@ -6594,6 +6594,38 @@ Anfassen maximal (`passend` mit seinem Seitenverhältnis), bleibt er maximal, so
 Anfassen. Bühne bekommt `.ist-zs` (Dreh-Zeiger als SVG-Cursor), Overlay `.dreht` (feines 12er-Gitter `.fb-zs-fein`,
 Winkel `.fb-zs-winkel`). Test `test_bearb_bereiche` E.
 
+**Paket 2 — Weiß, Schwarz, Struktur, Boost (21.10.2026):** `weiss`/`schwarz` spannen die Helligkeit nach dem Kontrast
+linear um (lo = −0,08·Schwarz, hi = 1 − 0,15·Weiß). `struktur` = Detailband wie Klarheit mit Radius g/350 (GPU: eigene
+Weichzeichnung `sa`→`stru` aus `dk`, `l2` wird jetzt für Klarheit ODER Struktur gerechnet, `merk.l2/det/stru`), Gewicht
+Mitten (1 − |Basis−0,5|·1,4), ×1,6, vor dem Kontrast. `boost` (0–100) wird in `wirksam` (Python `_boost_verteilen`, JS
+gleich) auf `BOOST` verteilt (Dynamik .35, Struktur .3, Tiefen .25, Lichter −.3, Kontrast .1, Dunst .08, Schwarz −.05) —
+gespeichert bleibt nur `boost`. Später ersetzt ein gelerntes Modell die feste Mischung.
+
+**Geometrie als eine Projektivmatrix (21.10.2026):** neue Rezeptschlüssel `vertikal`, `horizontal`, `aspekt`, `skala`
+(−50…50 = 50–150 %), `versatz_x`, `versatz_y` (`PERSPEKTIVE`, gehören zu `GEOMETRIE` — je Foto, nicht bei
+Kopieren/Auto-für-viele). `geo_matrix(W, H, werte)` / JS `geoMatrix`: Rahmenpunkt (Pixel nach 90°) → Quellpunkt; Kette
+rückwärts: Geraderichten zurück → ÷R (halbe lange Kante) → Versatz → ÷(Skala·Aspekt) → Perspektive
+`[[1,0,0],[0,1,0],[−ah,−av,1]]` (av = −vertikal/200) → ×R. Endpass: `uniform mat3 M` statt Winkel; PIL:
+`Transform.PERSPECTIVE` (8 Koeffizienten aus `M · T(Zuschnitt)`). `passend`/`_drinnen`/`einpassen` nehmen `werte`:
+ohne Perspektive wie bisher geschlossen, mit Perspektive Ecken durch `M` prüfen und den größten Rahmen um das Bild der
+Quellmitte per Halbierung suchen (die gültige Fläche ist ein konvexes Viereck, Ecken genügen). Panel: Bereich
+`geometrie` mit `data-g`-Reglern (`BEARB_GEO_REGLER`), damit `[data-r]` die Ton-Regler bleiben.
+
+**Upright:** `entwickeln.upright(img, modus)` — Bild auf 800 px, Gradienten, Kantenpunkte fast senkrecht
+(|gx| > 2,2·|gy|) bzw. waagerecht, Hough über (Steigung ±25°, Achsenabschnitt) mit Gewicht = Gradientenstärke, bis 24
+Linien mit Unterdrückung der Nachbarn; Ausgleich `b = r + v·a` (r = Kippung, v = Fluchtpunkt-Term, aus dem Modell von
+`geo_matrix`). Zwei Nachmess-Runden auf dem korrigierten Rahmen (Maske ohne die grauen Ränder). „auto“ dämpft Vertikal
+×0,7. Brücke `foto_upright(path, modus, drehen90)`. Test `test_upright`.
+
+**Verlauf und Versionen:** Tabelle `foto_verlauf(id, pfad, art 'schritt'|'version', name, rezept, am)`.
+`cfotos.rezept_setzen(…, was)` schreibt bei jeder echten Änderung einen Schritt (Name aus `verlauf_name(alt, neu)`, i18n
+`bearb.*`; höchstens `VERLAUF_MAX` = 100 je Foto). Brücken `foto_verlauf`, `foto_version_anlegen`,
+`foto_version_loeschen`, `foto_verlauf_anwenden(path, id|None)` (setzt das Rezept über `foto_rezept_speichern` mit
+„Zurück zu: …“). UI: Reiter `[data-fg="verlauf"]`, `.foto-gross-verlauf`, `verlaufZeichnen` (Bildchen über
+`EntwicklerGL.bildchen(werte, 96)`), `verlaufAnwenden`; ⌘Z/⇧⌘Z über `bearbSchritt` mit Stapel `bearbZ.zurueck/vor`
+(gespeicherte Stände; `stapelLeise` beim Zurück/Vor selbst), `nachRezept` = gemeinsame Nacharbeit nach dem Speichern.
+Test `test_bearb_verlauf`.
+
 ## Statistik als Übersichtsseite (09.10.2026)
 
 `modules/library/ui/module.js` `renderStats()`: Kennzahlen (`.st-kpi`, Ring `.st-ring` gemacht/geplant), `stKurveHtml(s)`
