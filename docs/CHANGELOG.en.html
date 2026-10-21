@@ -117,12 +117,17 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.802</span>
+    <span class="version-num">v0.9.803</span>
     <span class="version-date">21 October 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
     <li><strong>Photos to the Trash</strong> &mdash; Right-click, the selection bar or the Delete key: photos and clips go to your system's Trash — after a question, optionally with the matching RAW file, and can be put back from there.</li>
+    <li><strong>New camera flight</strong> &mdash; „New camera flight …“ in the timeline: try another flight style, only the camera is replaced, ⌘Z brings the old one back.</li>
+    <li><strong>Town and pass signs</strong> &mdash; Set opacity and size for all of them at once — and a clear note with „Try again“ when OpenStreetMap does not deliver the towns.</li>
+    <li><strong>Long videos</strong> &mdash; The render frees its memory regularly, and a full tile cache no longer puts an error screen into the video. Thanks to @kaennchenstruggle for these contributions!</li>
+    <li><strong>Quick video</strong> &mdash; The end card waits until the camera shows the whole route; no empty end without an end card; the first photo at the start and hand-placed photos stay in.</li>
+    <li><strong>Place search</strong> &mdash; „Bali“ finds the island, not a town in Cameroon.</li>
   </ul>
 </article>
 
@@ -419,7 +424,7 @@
     <li><strong>Photos as instant prints</strong> &mdash; warm-white frame, slightly tilted, handwritten caption — and at the end the photo shrinks to a small round picture on the route.</li>
     <li><strong>New music and photo sounds</strong> &mdash; „Panorama“, „Diary“ and „Pulse“, plus „Soft with tone“ and „Camera shutter“ — all our own pieces, free for your videos.</li>
     <li><strong>Fixed</strong> &mdash; after ⌘Z the line vanished from the preview; the elevation profile was invisible on light overlays.</li>
-      <li><strong>Vehicle instead of a dot</strong> &mdash; hiker, bicycle, car, motorbike, boat, train or plane shows where you are.</li>
+    <li><strong>Vehicle instead of a dot</strong> &mdash; hiker, bicycle, car, motorbike, boat, train or plane shows where you are.</li>
     <li><strong>New sign „Card“</strong> &mdash; warm white with a soft shadow, calmer than the dark speech bubble.</li>
     <li><strong>Smarter photo choice in the quick video</strong> &mdash; near-identical pictures only once, no photos from the car, themes mixed — with content search the app also recognises what is in the photos.</li>
     <li><strong>Fixed</strong> &mdash; numbers in overlays now follow the chosen font size.</li>
@@ -430,7 +435,7 @@
     <li><strong>IGC flights</strong> &mdash; paragliding, hang gliding and gliding flights from the flight recorder now open and animate like a GPX tour — and so do drone flights from DJI <code>.srt</code> files.</li>
     <li><strong>Title suggestions</strong> &mdash; the quick video suggests titles — the summit with its height, start → end or „Around …“.</li>
     <li><strong>Library on another computer</strong> &mdash; if your photo drive has a different name there (e.g. „Fotos-1“), the app notices and updates the stock after asking — with a backup first, without re-reading. The ZIP backup can include the photo previews, so the other computer does not have to generate them again.</li>
-      <li><strong>Why an outlier?</strong> &mdash; the Inspector shows what it measures and gives the reason for every outlier (e.g. „42&nbsp;km/h between two points, limit 30&nbsp;km/h“). New: „Getting around“ — on foot, running, bike, car, flying — with a matching upper limit.</li>
+    <li><strong>Why an outlier?</strong> &mdash; the Inspector shows what it measures and gives the reason for every outlier (e.g. „42&nbsp;km/h between two points, limit 30&nbsp;km/h“). New: „Getting around“ — on foot, running, bike, car, flying — with a matching upper limit.</li>
   </ul>
 </article>
 
@@ -449,7 +454,7 @@
     <li><strong>Clean tiles</strong> &mdash; no time and no “!” on the photos any more (the time looked like a video length); name and capture data appear on the right when you click a photo.</li>
     <li><strong>You can see what reading in does</strong> &mdash; quick or thorough check, “x of ≈ y files”, a bar and the time left.</li>
     <li><strong>New photos arrive by themselves</strong> &mdash; the app now also checks quietly while it simply stays open.</li>
-      <li><strong>Reading in continues after a restart</strong> &mdash; closing the app during the check no longer starts it over; folders already checked go quickly, and step 2 shows the overall progress.</li>
+    <li><strong>Reading in continues after a restart</strong> &mdash; closing the app during the check no longer starts it over; folders already checked go quickly, and step 2 shows the overall progress.</li>
     <li><strong>Merged tours without zigzag</strong> &mdash; the map next to a photo draws every stage separately instead of lines across the loop, and a photo only belongs to such a tour if it was taken during one of its stages.</li>
     <li><strong>Time left counts down instead of up</strong> &mdash; reading in now reckons with the megabytes still to come and remembers its pace; the time is realistic right away.</li>
     <li><strong>Searching in Photos</strong> &mdash; just one search field, Enter searches at once, and typing on no longer goes nowhere. When turning on content search you pick Standard or Large right there.</li>
@@ -3918,13 +3923,13 @@
   <div class="highlight">
     <strong>🎯 Geotagger-Workflow deutlich runder</strong> — sieben Punkte aus einer Feedback-Mail eingearbeitet:
     <ul style="margin-top:8px;">
-      <li><strong>GPX automatisch finden:</strong> Lädst du einen Foto-Ordner, scannt die App automatisch den Ordner selbst + Parent + Geschwister-Ordner nach GPX-Dateien. Bei einem Treffer bietet sie direkt „GPX gefunden: <em>name.gpx</em> — laden?" an. Bei mehreren: Auswahl-Modal. Praktisch wenn deine Bilder z.B. in <code>Jahr-Monat-Tag/jpeg/</code> liegen und das GPX auf Datums-Ebene.</li>
-      <li><strong>Unterordner einbeziehen:</strong> neue Checkbox unter dem Folder-Pick-Button. Default aus.</li>
-      <li><strong>Geotagger merkt sich State:</strong> letzter Track + letzte Foto-Liste werden gespeichert. Nach Modul-Wechsel oder App-Neustart sind sie wieder da. Verschwundene Files werden sauber rausgefiltert.</li>
-      <li><strong>Offset-Eingabe lesbar:</strong> der ✎-Edit-Button akzeptiert jetzt <code>4s</code>, <code>4m</code>, <code>1h30m</code>, <code>-2h</code> oder <code>1:30:00</code> — nicht nur rohe Sekunden.</li>
-      <li><strong>Offset-Slider Tot-Zone behoben:</strong> bei Werten zwischen −5 und +5 Min sprang der Slider immer auf 0. Jetzt kannst du auch ±4-Min-Offsets per Slider eingeben.</li>
-      <li><strong>Selektierter Foto-Pin nach vorn:</strong> in dichten Foto-Clustern hervorgehoben mit dickerem Ring + Glow, und kommt in der Z-Order ganz nach oben. Du siehst sofort welches Foto aktiv ist.</li>
-      <li><strong>Fenster-Größe merken:</strong> neuer Toggle im Settings-Modal. Default startet die App weiter maximiert. Aktiviert merkt sie sich die letzte Größe + Position — angenehm auf Curved-Monitors.</li>
+    <li><strong>GPX automatisch finden:</strong> Lädst du einen Foto-Ordner, scannt die App automatisch den Ordner selbst + Parent + Geschwister-Ordner nach GPX-Dateien. Bei einem Treffer bietet sie direkt „GPX gefunden: <em>name.gpx</em> — laden?" an. Bei mehreren: Auswahl-Modal. Praktisch wenn deine Bilder z.B. in <code>Jahr-Monat-Tag/jpeg/</code> liegen und das GPX auf Datums-Ebene.</li>
+    <li><strong>Unterordner einbeziehen:</strong> neue Checkbox unter dem Folder-Pick-Button. Default aus.</li>
+    <li><strong>Geotagger merkt sich State:</strong> letzter Track + letzte Foto-Liste werden gespeichert. Nach Modul-Wechsel oder App-Neustart sind sie wieder da. Verschwundene Files werden sauber rausgefiltert.</li>
+    <li><strong>Offset-Eingabe lesbar:</strong> der ✎-Edit-Button akzeptiert jetzt <code>4s</code>, <code>4m</code>, <code>1h30m</code>, <code>-2h</code> oder <code>1:30:00</code> — nicht nur rohe Sekunden.</li>
+    <li><strong>Offset-Slider Tot-Zone behoben:</strong> bei Werten zwischen −5 und +5 Min sprang der Slider immer auf 0. Jetzt kannst du auch ±4-Min-Offsets per Slider eingeben.</li>
+    <li><strong>Selektierter Foto-Pin nach vorn:</strong> in dichten Foto-Clustern hervorgehoben mit dickerem Ring + Glow, und kommt in der Z-Order ganz nach oben. Du siehst sofort welches Foto aktiv ist.</li>
+    <li><strong>Fenster-Größe merken:</strong> neuer Toggle im Settings-Modal. Default startet die App weiter maximiert. Aktiviert merkt sie sich die letzte Größe + Position — angenehm auf Curved-Monitors.</li>
     </ul>
   </div>
 </article>
@@ -4187,9 +4192,9 @@
   <div class="highlight">
     <strong>⭐ Timeline-Bar unter der Karten-Vorschau</strong> — neue Schiene mit Track-Position 0–100 %. Klick auf die Bar setzt den Scrubber + zeigt live die Kamera an dieser Stelle. Drei Buttons:
     <ul style="margin-top:10px; margin-left:8px;">
-      <li><strong>📍 Hier Keyframe</strong> — snapshottet die aktuelle Karten-Ansicht (Position, Neigung, Drehung, Zoom) als Keyframe</li>
-      <li><strong>▶ Probe-Lauf</strong> — spielt den Track in deiner echten Animations-Dauer ab. Zweiter Klick (oder <kbd>Space</kbd>) stoppt</li>
-      <li><strong>🗑 Alle weg</strong> — zurück zum klassischen statischen Pitch + linearen Rotation-Sweep</li>
+    <li><strong>📍 Hier Keyframe</strong> — snapshottet die aktuelle Karten-Ansicht (Position, Neigung, Drehung, Zoom) als Keyframe</li>
+    <li><strong>▶ Probe-Lauf</strong> — spielt den Track in deiner echten Animations-Dauer ab. Zweiter Klick (oder <kbd>Space</kbd>) stoppt</li>
+    <li><strong>🗑 Alle weg</strong> — zurück zum klassischen statischen Pitch + linearen Rotation-Sweep</li>
     </ul>
   </div>
 
@@ -4314,10 +4319,10 @@
   <div class="highlight">
     <strong>⭐ Linien-Stil für den Track</strong> — neues Dropdown in der Track-Sektion (Animator und Tour-Map):
     <ul style="margin-top:10px; margin-left:8px;">
-      <li><strong>Durchgezogen</strong> (Default — wie bisher)</li>
-      <li><strong>Gestrichelt</strong></li>
-      <li><strong>Gepunktet</strong></li>
-      <li><strong>Strich-Punkt</strong></li>
+    <li><strong>Durchgezogen</strong> (Default — wie bisher)</li>
+    <li><strong>Gestrichelt</strong></li>
+    <li><strong>Gepunktet</strong></li>
+    <li><strong>Strich-Punkt</strong></li>
     </ul>
     Track-Endungen + Ecken sind außerdem jetzt sauber abgerundet (vorher waren sie kantig, sah man besonders bei kurzen Track-Segmenten oder dicken Linien).
   </div>
@@ -4380,12 +4385,12 @@
   <div class="highlight">
     <strong>⭐ Sidebar neu strukturiert</strong> — jede Einstellungs-Sektion ist jetzt ausklappbar. Header anklicken → Bereich öffnet sich. Beim nächsten App-Start merkt sich die App, was du offen hattest. Sechs klar gegliederte Sektionen:
     <ul style="margin-top:10px; margin-left:8px;">
-      <li><strong>Karte</strong> — Stil, 3D-Terrain, Beleuchtung (Sonnenuntergang, Nacht …), Beschriftungs-Filter</li>
-      <li><strong>Track</strong> — Farbe, Dicke, Schlagschatten, Detail-Stufe</li>
-      <li><strong>Overlays</strong> — Stats-Boxen + Höhenprofil</li>
-      <li><strong>Kamera</strong> — Neigung, Rotation</li>
-      <li><strong>Video-Einstellungen</strong> (im Animator) bzw. <strong>Bild-Einstellungen</strong> (im Tour-Map)</li>
-      <li><strong>Quelle</strong> — GPX laden</li>
+    <li><strong>Karte</strong> — Stil, 3D-Terrain, Beleuchtung (Sonnenuntergang, Nacht …), Beschriftungs-Filter</li>
+    <li><strong>Track</strong> — Farbe, Dicke, Schlagschatten, Detail-Stufe</li>
+    <li><strong>Overlays</strong> — Stats-Boxen + Höhenprofil</li>
+    <li><strong>Kamera</strong> — Neigung, Rotation</li>
+    <li><strong>Video-Einstellungen</strong> (im Animator) bzw. <strong>Bild-Einstellungen</strong> (im Tour-Map)</li>
+    <li><strong>Quelle</strong> — GPX laden</li>
     </ul>
   </div>
 

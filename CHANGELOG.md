@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.803] – 2026-10-21
+
 ### Added
 - Animator: „New camera flight …“ in the timeline creates the camera flight again with another type, flight style and liveliness; only the camera keyframes are replaced and ⌘Z brings the previous flight back in one step. The question when switching the keyframe editor on also offers „Choose a flight …“. Contributed by @kaennchenstruggle.
 - Highlights: opacity and size of the town and pass signs can be set for the whole project (updates signs already added, asks before overriding own values). Contributed by @kaennchenstruggle.

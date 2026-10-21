@@ -5,14 +5,20 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 21 Oct 2026 07:53:31 +0000</lastBuildDate>
+<lastBuildDate>Wed, 21 Oct 2026 09:30:41 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.802</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-802</link>
-<guid isPermaLink="false">gps-studio-v0.9.802</guid>
+<title>v0.9.803</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-803</link>
+<guid isPermaLink="false">gps-studio-v0.9.803</guid>
 <pubDate>Wed, 21 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotos in den Papierkorb — Rechtsklick, Leiste oder Entf-Taste: Fotos und Clips landen im Papierkorb deines Systems — mit Rückfrage, auf Wunsch samt passender RAW-Datei, und von dort zurückholbar. Danke für die Idee aus der Community!</description>
+<description>Fotos in den Papierkorb — Rechtsklick, Leiste oder Entf-Taste: Fotos und Clips landen im Papierkorb deines Systems — mit Rückfrage, auf Wunsch samt passender RAW-Datei, und von dort zurückholbar. Danke für die Idee aus der Community!
+
+Kamerafahrt neu erzeugen — In der Zeitleiste „Fahrt neu erzeugen …“: anderen Flugstil ausprobieren, nur die Kamera wird ersetzt, ⌘Z holt die alte zurück.
+
+Orts- und Pass-Schilder — Deckkraft und Größe für alle auf einmal einstellen — und ein klarer Hinweis mit „Erneut versuchen“, wenn OpenStreetMap die Orte gerade nicht liefert.
+
+Lange Videos — Der Render räumt seinen Speicher regelmäßig auf, und ein voller Kachelspeicher legt keinen Fehlerschirm mehr ins Video. Danke an @kaennchenstruggle für diese Beiträge!</description>
 </item>
 <item>
 <title>v0.9.800</title>
