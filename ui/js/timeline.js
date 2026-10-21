@@ -534,11 +534,16 @@ function mountTimelineBar(opts) {
   // Scrubber, Griffe) zeichnen weiter sofort — sie müssen unter der Maus bleiben.
   let _zeichnungOffen = null;   // { voll, raf, timer } — der angemeldete Durchlauf
   /** Einen Durchlauf anmelden: voll = alle Spuren (refresh), sonst nur die Tempo-Spur. */
+  let _zuletztGezeichnet = 0;
   function _zeichnenPlanen(voll) {
     if (_zeichnungOffen) { if (voll) _zeichnungOffen.voll = true; return; }
     const z = { voll: !!voll, raf: 0, timer: 0 };
     _zeichnungOffen = z;
-    const lauf = () => { if (_zeichnungOffen === z) _zeichnenJetzt(); };
+    const lauf = () => { if (_zeichnungOffen === z) { _zuletztGezeichnet = performance.now(); _zeichnenJetzt(); } };
+    // 21.10.2026 (Suite: „3 Durchläufe“ je Tastendruck) — zwei späte Antworten (Tempo-Kurve, Bahn) kamen 19 ms
+    // auseinander und zeichneten je einmal. Kurz nach einem Durchlauf wartet die nächste Anmeldung 100 ms, damit
+    // eine gleich folgende Antwort noch mitgenommen wird; sonst wie bisher zum nächsten Bild.
+    if (performance.now() - _zuletztGezeichnet < 300) { z.timer = setTimeout(lauf, 100); return; }
     try { z.raf = (typeof requestAnimationFrame === "function") ? requestAnimationFrame(lauf) : 0; }
     catch (_) { z.raf = 0; }
     z.timer = setTimeout(lauf, 40);
