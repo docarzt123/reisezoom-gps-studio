@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Removed
+- About dialog: the Ko-fi button — supporting the app now goes through PayPal only.
+
 ### Fixed
 - Mac: the app no longer fails to start when its remembered window position is on no screen any more (e.g. a second display unplugged or rearranged) — it opened nothing, every time, until the display was back. Now it opens centered on the main display.
 

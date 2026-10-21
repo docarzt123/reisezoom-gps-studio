@@ -3805,7 +3805,7 @@ funcionando.
 
 ### ¿Cómo puedo apoyar el proyecto? (desde el 07.09.2026)
 En el **diálogo Acerca de** (logo arriba a la izquierda → «Acerca de») hay botones para apoyar:
-Ko-fi y PayPal para el desarrollo de la app (cubre la cuenta de desarrollador, la firma y
+PayPal para el desarrollo de la app (cubre la cuenta de desarrollador, la firma y
 los servidores), y debajo los servicios libres con los que la app funciona sin ninguna clave:
 OpenStreetMap Foundation, FOSSGIS e. V. (gestiona los servicios de rutas y direcciones),
 OpenFreeMap (mapas vectoriales) y MapLibre (la biblioteca de mapas). Viven de donaciones
