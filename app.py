@@ -9678,6 +9678,23 @@ class Api:
                 out.append(h)
             return out
 
+        # 21.10.2026 (Nutzer: Stellplätze aus Park4Night als Koordinaten eingeben) — eine Koordinate (Dezimal, Grad/Minuten/
+        # Sekunden, Karten-Link) ist schon der Ort: nicht suchen, nur für den Namen kurz rückwärts nachschlagen
+        try:
+            k = croute.koordinate_lesen(query)
+        except Exception:  # noqa: BLE001
+            k = None
+        if k:
+            lat, lon = k
+            name = f"{lat:.5f}, {lon:.5f}"
+            try:
+                a = cgeocode.reverse(lat, lon, lang=_ui_sprache(), zoom=14, timeout=4.0) or {}
+                ort = ", ".join(x for x in (a.get("city"), a.get("country")) if x)
+                if ort:
+                    name = f"{ort} ({lat:.4f}, {lon:.4f})"
+            except Exception:  # noqa: BLE001 — ohne Netz bleibt die Koordinate als Name
+                pass
+            return {"ok": True, "results": [{"name": name, "lon": lon, "lat": lat}], "provider": "koordinate"}
         try:
             token = _active_mapbox_token()
             prov = str(_load_settings().get("geocode_provider") or "auto")

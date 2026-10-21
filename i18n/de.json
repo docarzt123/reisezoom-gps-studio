@@ -6641,6 +6641,7 @@
   "logbuch.mehrfach_n": "{n} Einträge gewählt",
   "logbuch.mehrfach_weg": "Auswahl aufheben (Esc)",
   "animator.etappe.ziehen": "Ziehen, um die Reihenfolge zu ändern",
+  "animator.etappe.eingabe_tip": "Ort eintippen oder Koordinate einfügen — z. B. 45.0556, 6.0302 oder ein Google-Maps-Link",
   "animator.etappe.name_tip": "Kartenpunkt: hier nur einen Namen eingeben — gesucht wird nicht. Lupe: den Text als Ort suchen.",
   "animator.etappe.suchen_tip": "Diesen Text als Ort suchen (der Punkt springt dorthin)",
   "signs.karte_tippen": "Text tippen …",

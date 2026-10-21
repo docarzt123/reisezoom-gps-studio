@@ -20,6 +20,7 @@ from __future__ import annotations
 from core import i18n as _i18n  # 29.09.2026 — Meldungen in der App-Sprache
 import json
 import math
+import re
 import threading
 import urllib.error
 import urllib.parse
@@ -100,6 +101,41 @@ def geocode(query: str, token: str, *, limit: int = 1) -> List[dict]:
                 "lat": float(center[1]),
             })
     return out
+
+
+def koordinate_lesen(text: str) -> Optional[Tuple[float, float]]:
+    """21.10.2026 (Nutzer: Punkte aus Park4Night als GPS-Koordinaten eingeben) — Koordinate statt Ortsname → (lat, lon).
+    Wie `koordinateLesen` in ui/js/exportarchiv.js: Dezimal („45.123, 6.456“, deutsch „45,123 6,456“), Grad/Minuten/
+    Sekunden mit N/S/E/W/O, Google-/Apple-Maps-Links (…/@45.12,6.45,15z · ?q=45.12,6.45 · ll=)."""
+    s = str(text or "")
+    for a_, b_ in (("′", "'"), ("’", "'"), ("‘", "'"), ("´", "'"), ("`", "'"), ("″", '"'), ("“", '"'), ("”", '"'), ("„", '"'), ("º", "°")):
+        s = s.replace(a_, b_)
+    s = s.strip()
+    if not s:
+        return None
+
+    def gut(lat, lon):
+        return (lat, lon) if (math.isfinite(lat) and math.isfinite(lon) and abs(lat) <= 90 and abs(lon) <= 180) else None
+    m = re.search(r"[@=]\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)", s)
+    if m:
+        return gut(float(m.group(1)), float(m.group(2)))
+    dms = list(re.finditer(r"(\d+(?:[.,]\d+)?)\s*°\s*(?:(\d+(?:[.,]\d+)?)\s*'\s*)?(?:(\d+(?:[.,]\d+)?)\s*(?:\"|'')\s*)?([NSEWOnsewo])?", s))
+    if len(dms) >= 2:
+        def wert(x):
+            v = float(x.group(1).replace(",", ".")) + (float(x.group(2).replace(",", ".")) / 60 if x.group(2) else 0) \
+                + (float(x.group(3).replace(",", ".")) / 3600 if x.group(3) else 0)
+            return -v if x.group(4) and x.group(4) in "SWsw" else v
+        a1, b1 = dms[0], dms[1]
+        if a1.group(4) and a1.group(4) in "EeOoWw" and b1.group(4) and b1.group(4) in "NnSs":
+            a1, b1 = b1, a1
+        return gut(wert(a1), wert(b1))
+    m = re.match(r"^(-?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)$", s)
+    if m:
+        return gut(float(m.group(1)), float(m.group(2)))
+    m = re.match(r"^(-?\d{1,2},\d+)\s*[;\s]\s*(-?\d{1,3},\d+)$", s)
+    if m:
+        return gut(float(m.group(1).replace(",", ".")), float(m.group(2).replace(",", ".")))
+    return None
 
 
 def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
