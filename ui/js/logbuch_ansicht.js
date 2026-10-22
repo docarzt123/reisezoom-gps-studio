@@ -68,16 +68,28 @@
     return a;
   }
 
+  // 22.10.2026 — gemerkte Logbücher dieser Sitzung (siehe tourseite.js): sofort zeigen, im Hintergrund frisch lesen
+  const _lbMerk = new Map(), LB_MERK = 12;
   function zeichnen(box, opt) {
     opt = opt || {};
     const Z = { box, opt, d: null, orte: {}, tag: null, alleTage: false, sel: null, rueck: null, lauf: 0 };
 
     async function laden(neu) {
       const lauf = ++Z.lauf;
-      box.innerHTML = `<div class="lba-laedt"><span class="spinner"></span> ${esc(T("logbuch.laedt", "Logbuch wird geladen …"))}</div>`;
+      const alt = !neu ? _lbMerk.get(opt.path) : null;
+      if (alt) {   // sofort die gemerkte Fassung
+        Z.d = alt.r; Z.orte = alt.orte || {};
+        if (Z.tag == null || !(alt.r.tage || []).some((d) => d.nr === Z.tag)) Z.tag = (alt.r.tage && alt.r.tage.length) ? alt.r.tage[0].nr : null;
+        render();
+        if (opt.onDaten) opt.onDaten(alt.r);
+      } else box.innerHTML = `<div class="lba-laedt"><span class="spinner"></span> ${esc(T("logbuch.laedt", "Logbuch wird geladen …"))}</div>`;
       let r = null;
-      try { r = await api().logbuch_lesen(opt.path, !!neu); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Ladeanzeige im Kasten
+      try { r = await api().logbuch_lesen(opt.path, !!neu); } catch (e) { r = { ok: false, error: String(e) }; }   // warte-ok: Ladeanzeige im Kasten (bzw. gemerkte Fassung)
       if (lauf !== Z.lauf || !box.isConnected) return;
+      if (alt && (!r || !r.ok)) return;   // Lesefehler im Hintergrund: die gemerkte Fassung bleibt stehen
+      const json = r && r.ok ? JSON.stringify(r) : "";
+      if (r && r.ok) { _lbMerk.delete(opt.path); _lbMerk.set(opt.path, { r, json, orte: (alt && alt.orte) || {} }); while (_lbMerk.size > LB_MERK) _lbMerk.delete(_lbMerk.keys().next().value); }
+      if (alt && alt.json === json) { _orteNachladen(lauf); return; }
       if (!r || !r.ok) {
         const g = r && r.grund;
         const text = g === "nicht_im_archiv" ? T("logbuch.nicht_im_archiv", "Diese Datei liegt nicht im Archiv — das Logbuch gibt es für Touren im Archiv.")
@@ -91,12 +103,16 @@
       if (Z.tag == null || !(r.tage || []).some((d) => d.nr === Z.tag)) Z.tag = (r.tage && r.tage.length) ? r.tage[0].nr : null;
       render();
       if (opt.onDaten) opt.onDaten(r);
-      // Ortsnamen: erst der Cache (sofort), dann bis zu 25 neue im Hintergrund
+      _orteNachladen(lauf);
+    }
+    // Ortsnamen: erst der Cache (sofort), dann bis zu 25 neue im Hintergrund — und mit dem Logbuch merken
+    async function _orteNachladen(lauf) {
+      const merk = () => { const m = _lbMerk.get(opt.path); if (m) m.orte = Z.orte; };
       try {
         const c = await api().logbuch_orte(opt.path, 0);   // warte-ok: nur Cache
-        if (lauf === Z.lauf && c && c.ok) { Z.orte = c.orte || {}; render(); }
+        if (lauf === Z.lauf && c && c.ok && JSON.stringify(c.orte || {}) !== JSON.stringify(Z.orte || {})) { Z.orte = c.orte || {}; merk(); render(); }
         const n = await api().logbuch_orte(opt.path, 25);   // warte-ok: Namen kommen nach, Liste steht schon
-        if (lauf === Z.lauf && n && n.ok) { Z.orte = n.orte || {}; render(); }
+        if (lauf === Z.lauf && n && n.ok && JSON.stringify(n.orte || {}) !== JSON.stringify(Z.orte || {})) { Z.orte = n.orte || {}; merk(); render(); }
       } catch (_) {}
     }
 

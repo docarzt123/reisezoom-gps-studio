@@ -140,24 +140,39 @@
     return true;
   }
 
-  async function laden() {
-    if (!Z) return;
-    const zust = Z;
-    let r = null;
-    try {
-      r = zust.tour.reise ? await api().reise_seite_daten(zust.tour.reise, zust.tour.name || "")   // warte-ok: Ladeanzeige in der Seite
-                          : await api().tour_seite_daten(zust.tour.geo_hash || "", zust.tour.path || "");   // warte-ok: Ladeanzeige in der Seite
-    } catch (e) { r = { ok: false, error: String(e) }; }
-    if (Z !== zust) return;
-    if (!r || !r.ok) {
-      zust.seite.querySelector("#ts-karte").innerHTML = `<div class="ts-laden ts-fehler">${esc((r && r.error) || "?")}</div>`;
-      zust.links.innerHTML = "";
-      return;
-    }
+  // 22.10.2026 (Marc: „Doppelklick, dauert eine Weile … nochmal Doppelklick auf den gleichen Track, dauert wieder“) —
+  // die zuletzt geöffneten Tour-Seiten bleiben in dieser Sitzung gemerkt: beim Wiederöffnen steht die Seite sofort, im
+  // Hintergrund wird frisch gelesen und nur neu gezeichnet, wenn sich etwas geändert hat.
+  const _seitenMerk = new Map(), SEITEN_MERK = 12;
+  const _seitenSchluessel = (t) => t.reise ? "r:" + t.reise : "t:" + (t.path || t.geo_hash || "");
+  function _anwenden(zust, r) {
     zust.daten = r;
     if (!zust.tour.reise) zust.tour = Object.assign({}, zust.tour, { geo_hash: r.tour.geo_hash || zust.tour.geo_hash, path: r.tour.path || zust.tour.path });
     _kopfZeichnen(); _linksZeichnen(); _streifenZeichnen(); _karteZeichnen();
     if (zust.auswahl) setTimeout(() => waehlen(zust.auswahl, true), 60);
+  }
+  async function laden() {
+    if (!Z) return;
+    const zust = Z;
+    const schl = _seitenSchluessel(zust.tour), alt = _seitenMerk.get(schl);
+    if (alt) _anwenden(zust, alt.r);
+    let r = null;
+    try {
+      r = zust.tour.reise ? await api().reise_seite_daten(zust.tour.reise, zust.tour.name || "")   // warte-ok: Ladeanzeige in der Seite (bzw. gemerkte Seite)
+                          : await api().tour_seite_daten(zust.tour.geo_hash || "", zust.tour.path || "");   // warte-ok: Ladeanzeige in der Seite (bzw. gemerkte Seite)
+    } catch (e) { r = { ok: false, error: String(e) }; }
+    if (Z !== zust) return;
+    if (!r || !r.ok) {
+      if (alt) return;   // die gemerkte Seite steht schon — ein Lesefehler im Hintergrund wirft sie nicht weg
+      zust.seite.querySelector("#ts-karte").innerHTML = `<div class="ts-laden ts-fehler">${esc((r && r.error) || "?")}</div>`;
+      zust.links.innerHTML = "";
+      return;
+    }
+    const json = JSON.stringify(r);
+    _seitenMerk.delete(schl); _seitenMerk.set(schl, { r, json });
+    while (_seitenMerk.size > SEITEN_MERK) _seitenMerk.delete(_seitenMerk.keys().next().value);
+    if (alt && alt.json === json) return;   // nichts geändert — nicht noch einmal zeichnen
+    _anwenden(zust, r);
   }
 
   function _name(tr) { return tr.display_name || tr.name || tr.filename || ""; }

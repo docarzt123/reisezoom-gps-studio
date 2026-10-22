@@ -20,6 +20,7 @@ Bei jeder neuen Version:
 - Media loupe: opening large photos while others were being prepared in the background could log database errors; both now take turns.
 
 ### Changed
+- Tour page and logbook open at once the second time: the last twelve stay remembered for the session, and fresh data is read in the background (redrawn only if something changed).
 - Import into collections: one button instead of two — without a tick it reads „Add without collection“.
 
 ## [0.9.806] – 2026-10-22
