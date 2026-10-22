@@ -7346,7 +7346,7 @@ class Api:
                 with clib._DB_LOCK:
                     e = cfotos.verlauf_eintrag(self._lib(), int(eid))
                 if not e or e.get("pfad") != str(path):
-                    return {"ok": False, "error": "Eintrag fehlt"}
+                    return {"ok": False, "error": ci18n.t_aktiv("bearb.v_fehlt", "Diesen Stand gibt es nicht mehr.")}
                 rz, name = e["rezept"], e["name"]
             was = ci18n.t_aktiv("bearb.v_zurueck_zu", "Zurück zu: {n}").replace("{n}", name)
             r = self.foto_rezept_speichern(path, rz, was)
@@ -19987,24 +19987,24 @@ def main() -> None:
             # Beim nächsten Start kommt die App in derselben Position+Größe.
             try:
               with _SETTINGS_LOCK:     # 22.08.2026: sonst verliert ein Debounce-Patch gegen uns
-                _cur_settings = _load_settings()
-                _wcfg = _cur_settings.get("window") or {}
                 w = int(win.width or _win_w)
                 h = int(win.height or _win_h)
                 x = int(win.x if win.x is not None else _win_x)
                 y = int(win.y if win.y is not None else _win_y)
+                mac_rahmen = None
+                if sys.platform == "darwin":
+                    try:
+                        fr = win.native.frame()
+                        mac_rahmen = [round(fr.origin.x), round(fr.origin.y), round(fr.size.width), round(fr.size.height)]
+                    except Exception:  # noqa: BLE001
+                        pass
+                _cur_settings = _load_settings()
+                _wcfg = _cur_settings.get("window") or {}
                 # Sanity-Check: nicht miniaturisierte / negative Werte
                 if w >= 200 and h >= 200:
-                    _wcfg["width"] = w
-                    _wcfg["height"] = h
-                    _wcfg["x"] = x
-                    _wcfg["y"] = y
-                    if sys.platform == "darwin":
-                        try:
-                            fr = win.native.frame()
-                            _wcfg["mac_rahmen"] = [round(fr.origin.x), round(fr.origin.y), round(fr.size.width), round(fr.size.height)]
-                        except Exception:  # noqa: BLE001
-                            pass
+                    _wcfg.update(width=w, height=h, x=x, y=y)
+                    if mac_rahmen:
+                        _wcfg["mac_rahmen"] = mac_rahmen
                     _cur_settings["window"] = _wcfg
                     _save_settings(_cur_settings)
                     log.info(f"Fenster-Geometrie gespeichert: {w}×{h} @ ({x},{y})")

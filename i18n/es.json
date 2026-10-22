@@ -6809,5 +6809,6 @@
   "bearb.r_schwarz": "Negros",
   "bearb.r_struktur": "Textura",
   "bearb.r_boost": "Boost",
-  "bearb.r_boost_tip": "Un solo control para más imagen: colores, textura, sombras y altas luces a la vez"
+  "bearb.r_boost_tip": "Un solo control para más imagen: colores, textura, sombras y altas luces a la vez",
+  "bearb.v_fehlt": "Este estado ya no existe."
 }
