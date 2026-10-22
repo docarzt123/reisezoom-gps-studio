@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 21 Oct 2026 18:17:31 +0000</lastBuildDate>
+<lastBuildDate>Thu, 22 Oct 2026 05:58:09 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.805</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-805</link>
+<guid isPermaLink="false">gps-studio-v0.9.805</guid>
+<pubDate>Thu, 22 Oct 2026 12:00:00 +0000</pubDate>
+<description>Fotos bearbeiten wie in Lightroom — Die Regler stehen in einklappbaren Bereichen mit Auge zum Vergleichen, neu sind Weiß, Schwarz, Struktur und Schärfen. Zum leichten Drehen ziehst du beim Zuschneiden einfach neben dem Rahmen.
+
+Stürzende Linien — Geometrie mit Vertikal, Horizontal und mehr — oder „Upright“ macht es automatisch: Auto, Waagerecht, Senkrecht oder Voll.
+
+Verlauf und Versionen — Jeder Schritt steht im Verlauf, benannte Versionen hältst du fest, ⌘Z geht zurück. „Auto“ schaltet sich mit einem zweiten Klick wieder aus, und in der Lupe setzt das Herz (oder P) einen Favoriten.
+
+Schneller speichern — Export, Videos und Vorschaubilder rechnet jetzt die Grafikkarte — mit demselben Code wie die Vorschau, ein großes Foto in rund einer Sekunde.</description>
+</item>
 <item>
 <title>v0.9.804</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-804</link>
@@ -243,19 +256,6 @@ Etappe zeichnen mit Kurven — Punkte auf die Karte klicken, die Linie folgt der
 Verkehrsmittel auf einen Klick — Oben im Etappen-Editor „Unterwegs mit“: 🚗 🏍 🚲 🚶 🚆 ⛴ ✈ für alle Abschnitte oder ab dem ausgewählten Punkt. Die Stationsliste ist aufgeräumt, die Punkt-Leiste bleibt immer in der Karte und lässt sich verschieben, und nach einem Kartenwechsel ist die Linie wieder da.
 
 Eine Kamera für alles — Auch die automatische Kamera (Sicht je Tour, Kinoflug zwischen den Touren) läuft jetzt über Keyframes. Vorschau, Ziehen in der Zeitleiste und Video zeigen immer dasselbe. Beim Einschalten des Keyframe-Editors kannst du die Standard-Keyframes übernehmen und dann frei ändern.</description>
-</item>
-<item>
-<title>v0.9.782</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-782</link>
-<guid isPermaLink="false">gps-studio-v0.9.782</guid>
-<pubDate>Tue, 06 Oct 2026 12:00:00 +0000</pubDate>
-<description>Medien der Tour — die Fotos und Videos, die während der Tour entstanden sind, stehen als Striche in der Zeitleiste und rechts als Raster — ein Klick macht ein Schild daraus.
-
-Info-Karte — neue Einblendung im Stil der App: Tourname, Strecke, Bergauf, Bewegungszeit.
-
-Kommender Weg gestrichelt — neue Projekte zeigen die ganze Strecke blass und gestrichelt; die Linie zeichnet sich darüber.
-
-Video exportieren mit eigenem Fenster — „⤓ Video exportieren“ öffnet ein Fenster mit Vorlagen (YouTube 4K, YouTube 1080p, Instagram Reel, Instagram 4:5, Schnell ansehen 720p — und deine eigenen), Auflösung, Bildrate, HDR und Qualität. Der Name bekommt Datum und Uhrzeit, nichts wird überschrieben; „Exportieren“ legt sofort los.</description>
 </item>
 </channel>
 </rss>
