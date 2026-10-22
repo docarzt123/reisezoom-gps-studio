@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Importing a track or saving a photo edit could fail with „database is locked“ while the photo scan ran over a large, unchanged collection (e.g. on a NAS): the scan kept the library locked for minutes after each finished folder. It now lets go right away.
+- Media loupe: opening large photos while others were being prepared in the background could log database errors; both now take turns.
+
+### Changed
+- Import into collections: one button instead of two — without a tick it reads „Add without collection“.
+
 ## [0.9.806] – 2026-10-22
 
 ### Added

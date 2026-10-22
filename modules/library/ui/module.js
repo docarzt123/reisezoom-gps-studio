@@ -5452,8 +5452,7 @@ function mountLibrary(body, headerActions) {
           <label class="lib-imp-col lib-imp-col-neu">${T("library.imp_col_neu", "Neue Sammlung")}
             <input type="text" id="lib-imp-col-neu" placeholder="${esc(T("library.imp_col_neu_ph", "Name, z. B. Harz 2026"))}"></label>
           <div class="lib-actions" style="margin-top:12px;">
-            <button class="btn btn-sm" id="lib-imp-col-ohne">${T("library.imp_col_ohne", "Ohne Sammlung")}</button>
-            <button class="btn btn-sm btn-primary" id="lib-imp-col-ok">${T("library.imp_col_ok", "Aufnehmen")}</button>
+            <button class="btn btn-sm btn-primary" id="lib-imp-col-ok">${T("library.imp_col_ok_ohne", "Ohne Sammlung aufnehmen")}</button>
           </div>
         </div>`,
         onClose: () => { if (!beantwortet) { beantwortet = true; fertig(null); } },
@@ -5463,10 +5462,15 @@ function mountLibrary(body, headerActions) {
         ids: [...document.querySelectorAll(".lib-imp-cols input:checked")].map(x => parseInt(x.value, 10)).filter(Boolean),
         neu: ((document.getElementById("lib-imp-col-neu") || {}).value || "").trim(),
       });
-      document.getElementById("lib-imp-col-ohne").onclick = () => ende({ ids: [], neu: "" });
-      document.getElementById("lib-imp-col-ok").onclick = () => ende(wahl());
+      // 22.10.2026 (Marc: „‚Ohne Sammlung‘ ist doppelt gemoppelt“) — ein Knopf: ohne Häkchen/Namen heißt er „Ohne Sammlung
+      // aufnehmen“, sonst „Aufnehmen“. Das × bricht den Import ab.
+      const ok = document.getElementById("lib-imp-col-ok");
+      const knopf = () => { const w = wahl(); ok.textContent = (w.ids.length || w.neu) ? T("library.imp_col_ok", "Aufnehmen") : T("library.imp_col_ok_ohne", "Ohne Sammlung aufnehmen"); };
+      document.querySelectorAll(".lib-imp-cols input").forEach(x => x.addEventListener("change", knopf));
+      ok.onclick = () => ende(wahl());
       const feld = document.getElementById("lib-imp-col-neu");
-      if (feld) feld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ende(wahl()); } });
+      if (feld) { feld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ende(wahl()); } }); feld.addEventListener("input", knopf); }
+      knopf();
     });
   }
 

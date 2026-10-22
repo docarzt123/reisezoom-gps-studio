@@ -799,6 +799,18 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     t_start = t_log = time.time()
     verz_fertig = 0
     unlesbar: set = set()
+
+    def kurz_halten():
+        """Schreibsperre nie länger als 0,3 s halten (13.09.2026). 22.10.2026 (Nutzer-Log: „database is locked“ beim
+        GPX-Import, Bearbeitung speichern scheiterte): Nach einem fertigen Ordner (foto_verz) öffnete der Scan eine
+        Schreibtransaktion — und schloss sie erst bei der nächsten NEUEN oder GEÄNDERTEN Datei. Bei 515.000
+        unveränderten Dateien auf dem NAS hielt Schritt 1 die Sperre so minutenlang; jeder andere Schreiber gab nach
+        30 s auf. Darum jetzt an jeder Stelle der Schleife prüfen, nicht nur nach geänderten Dateien."""
+        nonlocal letzter_commit
+        if conn.in_transaction and time.monotonic() - letzter_commit > 0.3:
+            geduldig(conn.commit)
+            letzter_commit = time.monotonic()
+
     for o in ziele:
         for f, ruhig in medien_pruefen(o, rek.get(o, True), verz, bekannt, bool(gruendlich), verz_neu, runde, unlesbar):
             if time.time() - t_log >= 60:
@@ -815,10 +827,17 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                 geduldig(conn.execute, "INSERT INTO foto_verz(path, mtime, geprueft) VALUES(?, ?, ?) "
                          "ON CONFLICT(path) DO UPDATE SET mtime = excluded.mtime, geprueft = excluded.geprueft",
                          (vd, verz_neu.get(vd), vgp if vruhig else time.time()))
+                # sofort abschließen: als Nächstes liest der Scan den nächsten Ordner vom NAS (kann Sekunden dauern) —
+                # so lange darf keine Schreibsperre offen bleiben
+                geduldig(conn.commit)
+                letzter_commit = time.monotonic()
                 continue
             if stop and stop():
+                if conn.in_transaction:
+                    geduldig(conn.commit)
                 return {"abbruch": True, "neu": neu, "gesehen": gesehen,
                         "geaendert": geaendert, "uebernommen": uebernommen}
+            kurz_halten()
             if ruhig and (not selbst or os.path.abspath(str(f)) not in selbst):
                 alle_pfade.add(str(f))
                 gesehen += 1
@@ -866,9 +885,7 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
                                  "UPDATE fotos SET fp = ? WHERE path = ?", (fp, p))
             # Schreibsperre kurz halten: spätestens nach 0,3 s abschließen, nicht erst
             # nach 200 Dateien (13.09.2026).
-            if conn.in_transaction and time.monotonic() - letzter_commit > 0.3:
-                geduldig(conn.commit)
-                letzter_commit = time.monotonic()
+            kurz_halten()
             if fortschritt and gesehen % 200 == 0:
                 geduldig(conn.commit)
                 letzter_commit = time.monotonic()

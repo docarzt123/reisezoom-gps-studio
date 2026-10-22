@@ -5998,8 +5998,10 @@ class Api:
                         return {"ok": True, "art": "bild", "url": self._media_url_fest(datei), "quelle": "bearbeitet", "original_da": True}
                 except Exception as e:  # noqa: BLE001 — dann wie bisher das Original
                     log.info("[fotos_gross] bearbeitet: %s", e)
-            conn = self._lib()
-            fp = cfotos.fps_lesen(conn, [str(p)]).get(str(p))
+            # 22.10.2026 — unter der Sperre: die gemeinsame Verbindung darf nicht von zwei Fäden zugleich benutzt werden
+            # (Vorbereiten im Hintergrund + Lupe → „bad parameter or other API misuse“ im Nutzer-Log)
+            with clib._DB_LOCK:
+                fp = cfotos.fps_lesen(self._lib(), [str(p)]).get(str(p))
             # 21.10.2026 (Marc: „es muss nicht die volle Größe sein, irgendwas dazwischen“) — Fotos in der Zwischengröße
             # aus dem Platten-Cache (einmal gerechnet, auch vorab im Hintergrund), das Original erst beim Hineinzoomen
             if da and not video:

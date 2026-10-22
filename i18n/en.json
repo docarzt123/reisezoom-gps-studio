@@ -4550,7 +4550,6 @@
   "library.imp_col_text": "Add the {n} tours to one or more collections right away? You can also do this later.",
   "library.imp_col_neu": "New collection",
   "library.imp_col_neu_ph": "Name, e.g. Harz 2026",
-  "library.imp_col_ohne": "No collection",
   "library.imp_col_ok": "Import",
   "library.imp_col_done": "Added to collection: {namen}",
   "animator.lane.schilder": "Signs",
@@ -6810,5 +6809,6 @@
   "bearb.r_struktur": "Texture",
   "bearb.r_boost": "Boost",
   "bearb.r_boost_tip": "One slider for more picture: colours, texture, shadows and highlights at once",
-  "bearb.v_fehlt": "This state no longer exists."
+  "bearb.v_fehlt": "This state no longer exists.",
+  "library.imp_col_ok_ohne": "Add without collection"
 }

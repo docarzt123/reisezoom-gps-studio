@@ -4550,7 +4550,6 @@
   "library.imp_col_text": "Die {n} Touren gleich einer oder mehreren Sammlungen zuordnen? Das geht auch später noch.",
   "library.imp_col_neu": "Neue Sammlung",
   "library.imp_col_neu_ph": "Name, z. B. Harz 2026",
-  "library.imp_col_ohne": "Ohne Sammlung",
   "library.imp_col_ok": "Aufnehmen",
   "library.imp_col_done": "In Sammlung eingeordnet: {namen}",
   "animator.lane.schilder": "Schilder",
@@ -6810,5 +6809,6 @@
   "bearb.r_struktur": "Struktur",
   "bearb.r_boost": "Boost",
   "bearb.r_boost_tip": "Ein Regler für mehr Bild: Farben, Struktur, Tiefen und Lichter zugleich",
-  "bearb.v_fehlt": "Diesen Stand gibt es nicht mehr."
+  "bearb.v_fehlt": "Diesen Stand gibt es nicht mehr.",
+  "library.imp_col_ok_ohne": "Ohne Sammlung aufnehmen"
 }

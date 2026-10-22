@@ -4550,7 +4550,6 @@
   "library.imp_col_text": "¿Añadir las {n} rutas ya a una o varias colecciones? También puedes hacerlo después.",
   "library.imp_col_neu": "Nueva colección",
   "library.imp_col_neu_ph": "Nombre, p. ej. Harz 2026",
-  "library.imp_col_ohne": "Sin colección",
   "library.imp_col_ok": "Importar",
   "library.imp_col_done": "Añadido a la colección: {namen}",
   "animator.lane.schilder": "Carteles",
@@ -6810,5 +6809,6 @@
   "bearb.r_struktur": "Textura",
   "bearb.r_boost": "Boost",
   "bearb.r_boost_tip": "Un solo control para más imagen: colores, textura, sombras y altas luces a la vez",
-  "bearb.v_fehlt": "Este estado ya no existe."
+  "bearb.v_fehlt": "Este estado ya no existe.",
+  "library.imp_col_ok_ohne": "Añadir sin colección"
 }
