@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Logbook export: „PDF“ saves a travel diary with every day (date, kilometres, a small map of the day's route, all entries with time, place, duration and notes), „CSV“ a table for Excel or Numbers (one row per entry, with coordinates).
+
 ### Fixed
 - Importing a track or saving a photo edit could fail with „database is locked“ while the photo scan ran over a large, unchanged collection (e.g. on a NAS): the scan kept the library locked for minutes after each finished folder. It now lets go right away.
 - Import: a track whose first import broke off after copying (e.g. database busy) now still lands in the archive on the next try — before, it counted as „already there“ and never showed up.

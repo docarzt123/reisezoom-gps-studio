@@ -3635,6 +3635,10 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 - **„vermutet“** steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.
 - Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.
 
+**Exportieren (seit 22.10.2026):** Oben im Logbuch der Tour-Seite stehen **PDF** und **CSV**. **PDF** speichert ein
+Reisetagebuch: je Tag Datum und Kilometer, ein Kärtchen der Tagesstrecke und alle Einträge mit Uhrzeit, Ort, Dauer und
+Notiz. **CSV** speichert eine Tabelle für Excel oder Numbers, eine Zeile je Eintrag, mit Koordinaten.
+
 **Bearbeiten (seit v0.9.709):** Jeder Eintrag hat ein **⋯-Menü** (auch Rechtsklick in der Liste oder auf einen Block im Zeitstrahl): *Umbenennen*, *Notiz*, *Art ändern* (Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport, Pause), *Aktivität teilen* — hier (im Zeitstrahl an der Mausstelle), bei Anker A, bei einer Uhrzeit oder in der Mitte; geteilt wird nur der Eintrag, nie der Track —, *Mit vorherigem/nächstem zusammenlegen*, *Löschen* — das Gelöschte geht im Nachbarn auf. **Grenzen ziehen:** im Zeitstrahl den Übergang zwischen zwei Blöcken packen und schieben. **＋ A→B** macht aus dem Abschnitt zwischen Anker A und B einen eigenen Eintrag, **📍 Punkt** setzt mit dem nächsten Kartenklick einen eigenen Punkt (mit Namen). Alles ist ein **⌘Z**-Schritt; deine Handarbeit bleibt auch nach ↻ (neu erkennen) stehen.
 
 **Vermutete Arten bestätigen (seit v0.9.713):** War die Erkennung unsicher, steht beim Eintrag die Marke **„vermutet“**. Ein Klick darauf — oder Rechtsklick/⋯ in Liste, Zeitstrahl und auf der Karte — bietet ganz oben **„✓ Rad bestätigen“** (bzw. die angezeigte Art); daneben kannst du wie gewohnt eine andere Art wählen. Bestätigte Einträge sind Handarbeit und bleiben auch nach ↻ Neu-Erkennen. Im **großen Fenster** zeigt das Häkchen **„nur vermutete“** genau diese Einträge; alle markieren → **„✓ Vermutete bestätigen“**. Alles mit ⌘Z.

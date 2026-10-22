@@ -1927,6 +1927,8 @@ canvas.foto-gross-bild { display: block; }
 .ts-zum-logbuch { display: inline-flex; align-items: center; gap: 4px; margin: 10px 12px 0; }
 .lba { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .lba-titel { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.lba-luft { flex: 1; }
+.lba-titel .btn { font-size: 12px; }
 .lba-unter { font-size: 12px; margin-top: -4px; }
 .lba-chips, .lba-tage { display: flex; flex-wrap: wrap; gap: 6px; }
 .lba-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 3px 8px; border-radius: 999px;

@@ -6810,5 +6810,21 @@
   "bearb.r_boost": "Boost",
   "bearb.r_boost_tip": "Ein Regler für mehr Bild: Farben, Struktur, Tiefen und Lichter zugleich",
   "bearb.v_fehlt": "Diesen Stand gibt es nicht mehr.",
-  "library.imp_col_ok_ohne": "Ohne Sammlung aufnehmen"
+  "library.imp_col_ok_ohne": "Ohne Sammlung aufnehmen",
+  "logbuch.export_pdf_tip": "Als PDF speichern — Reisetagebuch mit allen Tagen",
+  "logbuch.export_csv_tip": "Als Tabelle (CSV) speichern — für Excel oder Numbers",
+  "logbuch.export_ok": "Gespeichert: {n}",
+  "logbuch.export_fuss": "Erstellt mit GPS Studio by reisezoom.com",
+  "logbuch.csv.tag": "Tag",
+  "logbuch.csv.datum": "Datum",
+  "logbuch.csv.von": "Von",
+  "logbuch.csv.bis": "Bis",
+  "logbuch.csv.art": "Art",
+  "logbuch.csv.titel": "Titel",
+  "logbuch.csv.ort": "Ort",
+  "logbuch.csv.dauer": "Dauer (min)",
+  "logbuch.csv.strecke": "Strecke (km)",
+  "logbuch.csv.notiz": "Notiz",
+  "logbuch.csv.breite": "Breite",
+  "logbuch.csv.laenge": "Länge"
 }

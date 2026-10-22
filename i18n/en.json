@@ -6810,5 +6810,21 @@
   "bearb.r_boost": "Boost",
   "bearb.r_boost_tip": "One slider for more picture: colours, texture, shadows and highlights at once",
   "bearb.v_fehlt": "This state no longer exists.",
-  "library.imp_col_ok_ohne": "Add without collection"
+  "library.imp_col_ok_ohne": "Add without collection",
+  "logbuch.export_pdf_tip": "Save as PDF — travel diary with every day",
+  "logbuch.export_csv_tip": "Save as a table (CSV) — for Excel or Numbers",
+  "logbuch.export_ok": "Saved: {n}",
+  "logbuch.export_fuss": "Made with GPS Studio by reisezoom.com",
+  "logbuch.csv.tag": "Day",
+  "logbuch.csv.datum": "Date",
+  "logbuch.csv.von": "From",
+  "logbuch.csv.bis": "To",
+  "logbuch.csv.art": "Type",
+  "logbuch.csv.titel": "Title",
+  "logbuch.csv.ort": "Place",
+  "logbuch.csv.dauer": "Duration (min)",
+  "logbuch.csv.strecke": "Distance (km)",
+  "logbuch.csv.notiz": "Note",
+  "logbuch.csv.breite": "Latitude",
+  "logbuch.csv.laenge": "Longitude"
 }

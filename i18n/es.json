@@ -6810,5 +6810,21 @@
   "bearb.r_boost": "Boost",
   "bearb.r_boost_tip": "Un solo control para más imagen: colores, textura, sombras y altas luces a la vez",
   "bearb.v_fehlt": "Este estado ya no existe.",
-  "library.imp_col_ok_ohne": "Añadir sin colección"
+  "library.imp_col_ok_ohne": "Añadir sin colección",
+  "logbuch.export_pdf_tip": "Guardar como PDF — diario de viaje con todos los días",
+  "logbuch.export_csv_tip": "Guardar como tabla (CSV) — para Excel o Numbers",
+  "logbuch.export_ok": "Guardado: {n}",
+  "logbuch.export_fuss": "Creado con GPS Studio by reisezoom.com",
+  "logbuch.csv.tag": "Día",
+  "logbuch.csv.datum": "Fecha",
+  "logbuch.csv.von": "Desde",
+  "logbuch.csv.bis": "Hasta",
+  "logbuch.csv.art": "Tipo",
+  "logbuch.csv.titel": "Título",
+  "logbuch.csv.ort": "Lugar",
+  "logbuch.csv.dauer": "Duración (min)",
+  "logbuch.csv.strecke": "Distancia (km)",
+  "logbuch.csv.notiz": "Nota",
+  "logbuch.csv.breite": "Latitud",
+  "logbuch.csv.laenge": "Longitud"
 }

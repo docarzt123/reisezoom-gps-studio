@@ -660,6 +660,7 @@
       const zust = Z;
       Z.lb = window.rzLogbuchAnsicht.zeichnen(Z.lbBox, {
         path: Z.tour.path,
+        name: (Z.daten && Z.daten.tour && _name(Z.daten.tour)) || Z.tour.name || "",   // für den Export (Titel, Dateiname)
         onDaten: () => { if (Z === zust) _lbPinsSetzen(); },
         onTag: () => { if (Z === zust) _lbPinsSetzen(Z.reiter === "logbuch"); },
         onWahl: (x) => { if (Z === zust) _lbZeigen(x); },

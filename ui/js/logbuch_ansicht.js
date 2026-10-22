@@ -173,7 +173,9 @@
       }
       const rueck = Z.rueck ? `<div class="lba-rueck">${esc(Z.rueck.text)} <button type="button" class="btn btn-sm" data-lba-rueck="1">${I("rotate-ccw", 13)} ${esc(T("logbuch.rueckgaengig", "Rückgängig"))}</button></div>` : "";
       box.innerHTML = `<div class="lba">
-          <div class="lba-titel">${I("book-open", 18)} <b>${esc(T("logbuch.titel", "Logbuch"))}</b></div>
+          <div class="lba-titel">${I("book-open", 18)} <b>${esc(T("logbuch.titel", "Logbuch"))}</b><span class="lba-luft"></span>
+            <button type="button" class="btn btn-sm btn-ghost" data-lba-export="pdf" title="${esc(T("logbuch.export_pdf_tip", "Als PDF speichern — Reisetagebuch mit allen Tagen"))}">${I("file-down", 14)} PDF</button>
+            <button type="button" class="btn btn-sm btn-ghost" data-lba-export="csv" title="${esc(T("logbuch.export_csv_tip", "Als Tabelle (CSV) speichern — für Excel oder Numbers"))}">${I("table", 14)} CSV</button></div>
           <div class="lba-unter muted">${esc(T("logbuch.unter", "Deine Tour, Tag für Tag. Namen und Notizen bleiben überall gleich."))}</div>
           <div class="lba-chips">${chipsHtml()}</div>
           ${tageHtml()}
@@ -184,7 +186,68 @@
         </div>`;
       binden();
     }
+    /* 22.10.2026 (Marc: „ein Export des Logbuchs wäre super“ → PDF + CSV) — alle Tage, dieselben Titel, Orte und Zeiten
+       wie auf dem Bildschirm. Die Kärtchen je Tag setzt das Backend ein (<!--RZKARTE:n-->). */
+    function csvText() {
+      const d = Z.d, alle = alleEintraege(), tz = (n) => (d.tage || []).find((x) => x.nr === n);
+      const zelle = (v) => { v = String(v == null ? "" : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      const kopf = [T("logbuch.csv.tag", "Tag"), T("logbuch.csv.datum", "Datum"), T("logbuch.csv.von", "Von"), T("logbuch.csv.bis", "Bis"),
+        T("logbuch.csv.art", "Art"), T("logbuch.csv.titel", "Titel"), T("logbuch.csv.ort", "Ort"), T("logbuch.csv.dauer", "Dauer (min)"),
+        T("logbuch.csv.strecke", "Strecke (km)"), T("logbuch.csv.notiz", "Notiz"), T("logbuch.csv.breite", "Breite"), T("logbuch.csv.laenge", "Länge")];
+      const zeilen = alle.map((x) => {
+        const p = istPunkt(x), art = p ? x.art : (x.anzeige_art || x.art), o = ortVon(Z.orte, x), tg = x.tag == null ? 1 : x.tag;
+        const t0 = p ? x.t : x.t0, pos = x.pos || x.pos_von || null, t = tz(tg);
+        return [tg, tagText(t0, x.versatz_min, { year: "numeric", month: "2-digit", day: "2-digit" }) || (t ? t.datum : ""), uhr(t0, x.versatz_min),
+          p ? "" : uhr(x.t1, x.versatz_min), artName(art), titel(x, Z.orte), o.text, p ? "" : Math.round((x.dauer_s || 0) / 60),
+          p || !x.strecke_m ? "" : (x.strecke_m / 1000).toLocaleString(sprache(), { maximumFractionDigits: 2 }), x.notiz || "",
+          pos ? pos[1].toFixed(6) : "", pos ? pos[0].toFixed(6) : ""].map(zelle).join(";");
+      });
+      return [kopf.map(zelle).join(";")].concat(zeilen).join("\r\n") + "\r\n";
+    }
+    function pdfHtml() {
+      const d = Z.d, alle = alleEintraege(), name = opt.name || d.name || "";
+      const tage = d.mehrtaegig && (d.tage || []).length ? d.tage : [{ nr: 1, t0: (alle[0] || {}).t0 || (alle[0] || {}).t, t1: 0, versatz_min: (alle[0] || {}).versatz_min }];
+      const kapitel = tage.map((tg) => {
+        const liste = d.mehrtaegig ? alle.filter((x) => (x.tag == null ? 1 : x.tag) === tg.nr) : alle;
+        const m = liste.reduce((s, x) => s + (+x.strecke_m || 0), 0);
+        const zeilen = liste.map((x) => {
+          const p = istPunkt(x), art = p ? x.art : (x.anzeige_art || x.art), o = ortVon(Z.orte, x);
+          const zeit = p ? uhr(x.t, x.versatz_min) : (uhr(x.t0, x.versatz_min) + "–" + uhr(x.t1, x.versatz_min));
+          const meta = [o.text, p ? "" : dauer(x.dauer_s), (!p && x.strecke_m > 50) ? km(x.strecke_m) : ""].filter(Boolean).join(" · ");
+          return `<tr><td class="z">${esc(zeit)}</td><td class="s"><span style="color:${farbe(art)}">${symbol(art)}</span></td>
+            <td><b>${esc(titel(x, Z.orte))}</b>${meta ? `<div class="m">${esc(meta)}</div>` : ""}${x.notiz ? `<div class="n">${esc(x.notiz)}</div>` : ""}</td></tr>`;
+        }).join("");
+        const kopf = d.mehrtaegig ? T("logbuch.tag_kopf", "Tag {n} · {d}", { n: tg.nr, d: tagText(tg.t0, tg.versatz_min, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) })
+                                  : tagText(tg.t0, tg.versatz_min, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+        return `<section><h2>${esc(kopf)}<span>${esc(km(m))}</span></h2><!--RZKARTE:${tg.nr}--><table>${zeilen}</table></section>`;
+      }).join("");
+      const chips = ((typeof document !== "undefined") ? (() => { const div = document.createElement("div"); div.innerHTML = chipsHtml(); return [...div.querySelectorAll(".lba-chip")].map((c) => c.textContent.trim()).join(" · "); })() : "");
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(name)}</title><style>
+        body { font: 11pt system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1d2421; }
+        h1 { font-size: 20pt; margin: 0 0 4px; } .unter { color: #5d6b66; margin-bottom: 18px; }
+        section { break-inside: auto; margin-bottom: 18px; }
+        h2 { font-size: 13pt; display: flex; justify-content: space-between; border-bottom: 1.5px solid #1f7a5c; padding-bottom: 3px; margin: 18px 0 8px; break-after: avoid; }
+        h2 span { color: #5d6b66; font-weight: 500; } svg.karte { display: block; margin: 6px 0 10px; max-width: 100%; height: auto; break-inside: avoid; }
+        table { width: 100%; border-collapse: collapse; } tr { break-inside: avoid; } td { vertical-align: top; padding: 4px 6px; border-bottom: 1px solid #e3e8e6; }
+        td.z { white-space: nowrap; color: #5d6b66; width: 92px; font-variant-numeric: tabular-nums; } td.s { width: 22px; } td.s svg { width: 15px; height: 15px; }
+        .m { color: #5d6b66; font-size: 9.5pt; } .n { font-style: italic; font-size: 9.5pt; margin-top: 2px; }
+        .fuss { color: #8a9893; font-size: 8.5pt; margin-top: 24px; }
+      </style></head><body><h1>${esc(name || T("logbuch.titel", "Logbuch"))}</h1><div class="unter">${esc(chips)}</div>${kapitel}
+      <div class="fuss">${esc(T("logbuch.export_fuss", "Erstellt mit GPS Studio by reisezoom.com"))}</div></body></html>`;
+    }
+    async function exportieren(art, knopf) {
+      if (!Z.d) return;
+      const vorher = knopf.innerHTML; knopf.disabled = true; knopf.innerHTML = `<span class="spinner"></span>`;
+      try {
+        const tage = (Z.d.tage || []).map((t) => ({ nr: t.nr, t0: t.t0, t1: t.t1 }));
+        if (!tage.length) { const a = alleEintraege(); if (a.length) tage.push({ nr: 1, t0: (a[0].t0 != null ? a[0].t0 : a[0].t) - 1, t1: (a[a.length - 1].t1 || a[a.length - 1].t) + 1 }); }
+        const r = await api().logbuch_export(opt.path, art, art === "pdf" ? pdfHtml() : csvText(), opt.name || Z.d.name || "", tage);   // warte-ok: Knopf zeigt Spinner, davor Systemdialog
+        if (r && r.ok) toast(T("logbuch.export_ok", "Gespeichert: {n}", { n: String(r.pfad).split(/[\\/]/).pop() }), "success", 4000);
+        else if (r && !r.abbruch) toast((r && r.error) || "?", "error", 6000);
+      } finally { knopf.disabled = false; knopf.innerHTML = vorher; }
+    }
     function binden() {
+      box.querySelectorAll("[data-lba-export]").forEach((b) => { b.onclick = () => exportieren(b.dataset.lbaExport, b); });
       box.querySelectorAll("[data-lba-tag]").forEach((b) => { b.onclick = () => { Z.tag = +b.dataset.lbaTag; Z.sel = null; render(); if (opt.onTag) opt.onTag(Z.tag); }; });
       const mehr = box.querySelector("[data-lba-mehr]"); if (mehr) mehr.onclick = () => { Z.alleTage = true; render(); };
       box.querySelectorAll("[data-lba-id]").forEach((el) => {

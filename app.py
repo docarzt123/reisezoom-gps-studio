@@ -14347,6 +14347,83 @@ class Api:
                            einstellungen=einst)
         return {"tour": tour, "t": t, "pts": pts, "bew": bew, "lb": lb, "einst": einst}
 
+    # ── Logbuch exportieren (22.10.2026, Marc: „ein Export des Logbuchs wäre super“ → PDF + CSV) ─────────────
+    # Die Oberfläche baut Text und Tabelle selbst (dieselben Titel, Orte und Zeiten wie auf dem Bildschirm) und schickt
+    # sie hierher; hier kommen der Speichern-Dialog, je Tag ein Kärtchen der Strecke (SVG aus den Trackpunkten) und das
+    # PDF aus dem mitgelieferten Chromium (wie beim Video-Render).
+    def _logbuch_tageskarte(self, path: str, t0: float, t1: float, b: int = 520, h: int = 230) -> str:
+        from core import logbuch as clb
+        pts = self._logbuch_punkte(path)
+        ll = []
+        for p_ in pts:
+            t = clb._epoch(p_.get("time") if isinstance(p_, dict) else getattr(p_, "time", None))
+            if t is None or t < t0 or t > t1:
+                continue
+            la = p_.get("lat") if isinstance(p_, dict) else getattr(p_, "lat", None)
+            lo = p_.get("lon") if isinstance(p_, dict) else getattr(p_, "lon", None)
+            if la is not None and lo is not None:
+                ll.append((float(lo), float(la)))
+        if len(ll) < 2:
+            return ""
+        schritt = max(1, len(ll) // 600)
+        ll = ll[::schritt] + [ll[-1]]
+        import math as _m
+        k = _m.cos(_m.radians(sum(y for _x, y in ll) / len(ll)))
+        xs = [x * k for x, _y in ll]; ys = [y for _x, y in ll]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        sp = max(x1 - x0, y1 - y0, 1e-6)
+        rand = 14
+        f = min((b - 2 * rand) / max(x1 - x0, sp * 0.05), (h - 2 * rand) / max(y1 - y0, sp * 0.05))
+        ox = (b - (x1 - x0) * f) / 2; oy = (h - (y1 - y0) * f) / 2
+        pkt = [(ox + (x - x0) * f, h - (oy + (y - y0) * f)) for x, y in zip(xs, ys)]
+        d = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in pkt)
+        (sx, sy), (ex, ey) = pkt[0], pkt[-1]
+        return (f'<svg class="karte" viewBox="0 0 {b} {h}" width="{b}" height="{h}" xmlns="http://www.w3.org/2000/svg">'
+                f'<rect width="{b}" height="{h}" rx="8" fill="#f1f4f2"/>'
+                f'<path d="{d}" fill="none" stroke="#1f7a5c" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>'
+                f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="5" fill="#2dd4bf" stroke="#fff" stroke-width="1.5"/>'
+                f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="5" fill="#e4572e" stroke="#fff" stroke-width="1.5"/></svg>')
+
+    def logbuch_export(self, path: str, art: str, inhalt: str, name: str = "", tage: list = None) -> dict:
+        """`art` „csv“ oder „pdf“. `inhalt` = CSV-Text bzw. HTML; im HTML wird `<!--RZKARTE:n-->` durch das Kärtchen des
+        Tages n ersetzt (`tage` = [{nr, t0, t1}]). Speichern-Dialog; → {ok, pfad} | {abbruch}."""
+        try:
+            art = "pdf" if str(art) == "pdf" else "csv"
+            stamm = re.sub(r'[\\/:*?"<>|]+', "-", str(name or "Logbuch")).strip() or "Logbuch"
+            ziel = self.pick_save_path(f"{stamm} – Logbuch.{art}", "",
+                                       ("PDF (*.pdf)",) if art == "pdf" else ("CSV (*.csv)",))
+            if not ziel:
+                return {"ok": False, "abbruch": True}
+            if not str(ziel).lower().endswith("." + art):
+                ziel = str(ziel) + "." + art
+            _ds.nutzer_ziel(ziel)
+            if art == "csv":
+                Path(ziel).write_text("\ufeff" + str(inhalt or ""), encoding="utf-8")
+                return {"ok": True, "pfad": str(ziel)}
+            html = str(inhalt or "")
+            for t in (tage or []):
+                try:
+                    karte = self._logbuch_tageskarte(path, float(t["t0"]), float(t["t1"]))
+                except Exception as e:  # noqa: BLE001 — ohne Kärtchen geht es auch
+                    log.info("[logbuch-export] Kärtchen Tag %s: %s", t.get("nr"), e)
+                    karte = ""
+                html = html.replace(f"<!--RZKARTE:{t.get('nr')}-->", karte)
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as pw:
+                b = pw.chromium.launch(headless=True)
+                try:
+                    seite = b.new_page()
+                    seite.set_content(html, wait_until="load")
+                    seite.pdf(path=str(ziel), format="A4", print_background=True,
+                              margin={"top": "16mm", "bottom": "16mm", "left": "14mm", "right": "14mm"})
+                finally:
+                    b.close()
+            log.info("[logbuch-export] PDF gespeichert: %s", ziel)
+            return {"ok": True, "pfad": str(ziel)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_export")
+            return {"ok": False, "error": str(e)}
+
     def logbuch_orte(self, path: str, budget: int = 25) -> dict:
         """Q10 — Ortsnamen für Pausen (hier), Bewegung (von/nach) und Punkte: erst aus dem
         Cache der Bibliothek, sonst Photon (kostenlos), höchstens `budget` Rufe je Aufruf;
