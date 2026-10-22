@@ -6850,5 +6850,8 @@
   "orte.err_ungueltig": "Name and location are missing.",
   "logbuch.titel_mein_ort": "{art} · {ort}",
   "logbuch.als_mein_ort": "Add to „My places“ — recognised in every logbook",
-  "logbuch.ort_gemerkt": "„{n}“ is now in „My places“."
+  "logbuch.ort_gemerkt": "„{n}“ is now in „My places“.",
+  "tourseite.ansicht_links": "Show/hide the left bar",
+  "tourseite.ansicht_rechts": "Show/hide the logbook on the right",
+  "tourseite.ansicht_unten": "Show/hide the photos at the bottom — without photos the map shows the logbook entries"
 }

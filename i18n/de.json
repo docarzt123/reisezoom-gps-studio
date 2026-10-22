@@ -6850,5 +6850,8 @@
   "orte.err_ungueltig": "Name und Lage fehlen.",
   "logbuch.titel_mein_ort": "{art} · {ort}",
   "logbuch.als_mein_ort": "Zu „Meine Orte“ hinzufügen — wird in allen Logbüchern erkannt",
-  "logbuch.ort_gemerkt": "„{n}“ steht jetzt in „Meine Orte“."
+  "logbuch.ort_gemerkt": "„{n}“ steht jetzt in „Meine Orte“.",
+  "tourseite.ansicht_links": "Linke Leiste ein-/ausblenden",
+  "tourseite.ansicht_rechts": "Logbuch rechts ein-/ausblenden",
+  "tourseite.ansicht_unten": "Bilder unten ein-/ausblenden — ohne Bilder zeigt die Karte die Logbuch-Einträge"
 }

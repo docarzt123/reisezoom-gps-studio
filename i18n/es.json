@@ -6850,5 +6850,8 @@
   "orte.err_ungueltig": "Faltan el nombre y la ubicación.",
   "logbuch.titel_mein_ort": "{art} · {ort}",
   "logbuch.als_mein_ort": "Añadir a «Mis lugares» — se reconoce en todos los diarios",
-  "logbuch.ort_gemerkt": "«{n}» está ahora en «Mis lugares»."
+  "logbuch.ort_gemerkt": "«{n}» está ahora en «Mis lugares».",
+  "tourseite.ansicht_links": "Mostrar/ocultar la barra izquierda",
+  "tourseite.ansicht_rechts": "Mostrar/ocultar el diario a la derecha",
+  "tourseite.ansicht_unten": "Mostrar/ocultar las fotos de abajo — sin fotos el mapa muestra las entradas del diario"
 }

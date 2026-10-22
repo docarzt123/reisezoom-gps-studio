@@ -1275,14 +1275,15 @@ Logbuch) mit den Aktionen **🎬 Video ▾** (Schnell-Video, Animator, Daten-Ani
 Doppelklick öffnet es groß. **„← Touren“ oder Esc** bringt dich zurück an dieselbe Stelle der Liste. Auch die
 Tour-Details rechts zeigen jetzt **„📷 34 Fotos · 🎬 5 Clips“** mit einem Bildstreifen und **„Tour öffnen ▸“**.
 
-**Reiter „Übersicht | Logbuch“:** Über der Karte schaltest du zwischen Medien und **Logbuch** um. Das Logbuch zeigt
+**Leisten ein- und ausblenden (seit 22.10.2026, wie im Animator):** Oben rechts über der Karte stehen drei kleine
+Knöpfe: **linke Leiste**, **Logbuch rechts** und **Bilder unten**, je ein- und ausblendbar (gemerkt). Sind die Bilder unten
+aus, zeigt die Karte statt der Fotos alle Logbuch-Einträge des gewählten Tages. Das Logbuch zeigt
 rechts die Tour Tag für Tag — oben Fahrtzeit, Pausen, Übernachtungen, darunter die Tage (Mehrtagestouren: drei Tage,
 „＋ weitere Tage“ klappt den Rest auf) und je Tag die Einträge mit Ort, Dauer und Strecke. Ein Klick auf einen Eintrag
 zeigt seine Stelle auf der Karte, ein Klick auf einen Punkt der Karte wählt den Eintrag. Über **⋯** benennst du einen
 Eintrag um, schreibst eine Notiz dazu oder legst ihn mit dem vorigen/nächsten zusammen; **„Rückgängig“** nimmt die letzte
 Änderung zurück. Namen und Notizen gelten überall in GPS Studio — im GPX-Inspektor, im Animator und im Video.
-Auch bei **„Übersicht“** steht rechts das Logbuch (Bildstreifen und Foto-Punkte bleiben dabei); ein angeklicktes Foto
-zeigt dort seine Aufnahmedaten, **„← Logbuch“** führt zurück.
+Ein angeklicktes Foto zeigt rechts seine Aufnahmedaten, **„← Logbuch“** führt zurück.
 
 **Was gehört zur Tour?** Alles, was **während der Tour** aufgenommen wurde (eine halbe Stunde davor und danach zählt
 mit) und — wenn es eine Koordinate hat — **höchstens 2 km vom Track** entfernt liegt. Ohne Koordinate entscheidet die
