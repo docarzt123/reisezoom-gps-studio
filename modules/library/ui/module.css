@@ -1341,6 +1341,10 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .foto-gross-pfeil { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; font-size: 42px; line-height: 1; padding: 10px 14px; background: rgba(255,255,255,.06); border: 0; border-radius: 10px; color: #eee; cursor: pointer; }
 .foto-gross-pfeil:disabled { opacity: .2; cursor: default; }
 .foto-gross-links { left: 10px; } .foto-gross-rechts { right: 10px; }
+.foto-gross-links-teil { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.foto-gross-fav { background: none; border: 0; padding: 4px; color: #ddd; cursor: pointer; border-radius: 6px; display: inline-flex; }
+.foto-gross-fav:hover { background: rgba(255,255,255,.1); color: #fff; }
+.foto-gross-fav.ist-fav { color: var(--coral, #ff896b); }
 .foto-gross-leiste { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px; color: #ccc; font-size: 12.5px; }
 .foto-gross-knoepfe { display: flex; gap: 8px; }
 .foto-gross-hinweis { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 3; max-width: 560px; background: #1d2027; border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 12px 14px; color: #ddd; font-size: 12.5px; line-height: 1.45; }

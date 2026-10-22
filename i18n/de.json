@@ -6231,7 +6231,7 @@
   "bearb.video": "Videos lassen sich hier nicht bearbeiten.",
   "bearb.laedt": "Bild wird vorbereitet …",
   "bearb.aus_vorschau": "RAW: Diese Datei kann LibRaw nicht lesen — bearbeitet wird ein großes Vorschaubild.",
-  "bearb.auto_tip": "Ton und Weißabgleich automatisch — stellt die Regler ein, danach frei nacharbeiten",
+  "bearb.auto_tip": "Ton und Weißabgleich automatisch — stellt die Regler ein, danach frei nacharbeiten. Nochmal klicken = Auto aus",
   "bearb.auto": "Auto",
   "bearb.vorher_tip": "Gedrückt halten (oder Taste „.“): Original zeigen",
   "bearb.vorher": "Vorher",

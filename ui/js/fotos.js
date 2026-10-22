@@ -1569,6 +1569,14 @@
     markLeisteZeigen();
   }
   /* 09.10.2026 — Favoriten: nur in der Bibliothek. Sind alle schon Favorit, wird es weggenommen. */
+  /** 21.10.2026 (Marc: „favorisieren muss man ein Bild können“) — auch in der Lupe: Herz unten links und Taste P. */
+  function grossFavZeigen() {
+    const g = gross; if (!g) return;
+    const f = g.liste[g.idx], b = g.el.querySelector(".foto-gross-fav"); if (!b || !f) return;
+    b.innerHTML = herz(!!f.fav, 18); b.classList.toggle("ist-fav", !!f.fav);
+    b.setAttribute("aria-pressed", f.fav ? "true" : "false");
+    b.onclick = () => favUmschalten([f.path]);
+  }
   async function favUmschalten(pfade, jetztFav) {
     pfade = (pfade || []).filter(Boolean); if (!pfade.length) return;
     const an = jetztFav !== undefined ? !jetztFav : !pfade.every(p => (geladen.find(x => x.path === p) || {}).fav);
@@ -1583,6 +1591,7 @@
     navZeichnen();
     if (filter.fav && !an) neuLaden(true);
     if (auswahl && pfade.includes(auswahl)) { const h = document.getElementById("fd-fav"); if (h) { h.innerHTML = herz(an, 18); h.classList.toggle("ist-fav", an); } }
+    if (gross) { gross.liste.forEach(x => { if (pfade.includes(x.path)) x.fav = an ? 1 : 0; }); grossFavZeigen(); }
   }
 
   /* 09.10.2026 — Alben: selbst zusammengestellt, nur in der Bibliothek. */
@@ -2478,7 +2487,7 @@
         <aside class="foto-gross-seite"><div class="foto-gross-karte" id="foto-gross-karte"></div>
           <div class="fg-reiter" role="tablist"><button type="button" class="fg-r is-on" data-fg="bearb">${I("sliders-horizontal", 14)} ${esc(T("bearb.reiter", "Bearbeiten"))}</button><button type="button" class="fg-r" data-fg="verlauf" title="${esc(T("bearb.verlauf_tip", "Verlauf und Versionen (⌘Z / ⇧⌘Z: Schritt zurück/vor)"))}">${I("history", 14)} ${esc(T("bearb.reiter_verlauf", "Verlauf"))}</button><button type="button" class="fg-r" data-fg="info">${esc(T("bearb.reiter_info", "Info"))}</button></div>
           <div class="foto-gross-info" hidden></div><div class="foto-gross-bearb"></div><div class="foto-gross-verlauf" hidden></div></aside>
-        <div class="foto-gross-leiste"><span class="foto-gross-name"></span><span class="foto-gross-knoepfe"></span></div>`;
+        <div class="foto-gross-leiste"><span class="foto-gross-links-teil"><button type="button" class="foto-gross-fav" title="${esc(T("fotos.fav_tip", "Favorit (P)"))}"></button><span class="foto-gross-name"></span></span><span class="foto-gross-knoepfe"></span></div>`;
       document.body.appendChild(el);
       el.classList.add("mit-seite");
       // 08.10.2026 („Lupe wie Lightroom“) — liegt im Layout: links bleiben Seitenleiste und Reiter
@@ -2571,7 +2580,6 @@
     ["klarheit", "bearb.r_klarheit", "Klarheit", 1], ["dunst", "bearb.r_dunst", "Dunst entfernen", 1],
     ["schaerfen", "bearb.r_schaerfen", "Schärfen", 1],
     ["weiss", "bearb.r_weiss", "Weiß", 1], ["schwarz", "bearb.r_schwarz", "Schwarz", 1], ["struktur", "bearb.r_struktur", "Struktur", 1],
-    ["boost", "bearb.r_boost", "Boost", 1],
   ];
   const BEARB_SPANNE = { belichtung: [-3, 3], schaerfen: [0, 150], boost: [0, 100] };   // sonst −100 … +100
   // 21.10.2026 (Foto-Editor Paket 1, wie Lightroom): Regler in einklappbaren Bereichen; das Auge blendet die Wirkung
@@ -2674,6 +2682,32 @@
     }
     delete rz.auto;
   }
+  /** 21.10.2026 (Marc: „Auto muss man auch wieder ausschalten können, wenn man wieder drauf klickt. an/aus“) — Auto ist
+      an, solange die Auto-Regler genau auf den Auto-Werten stehen (auch nach erneutem Öffnen). Aus = die Auto-Regler zurück
+      auf den Stand vor Auto (in dieser Sitzung gemerkt, sonst 0); alle anderen Regler bleiben. */
+  function autoIstAn(rz, auto) {
+    if (!rz || !auto) return false;
+    let eins = false;
+    for (const k of AUTO_REGLER) {
+      const [, , , schritt] = BEARB_REGLER.find(([n]) => n === k) || [0, 0, 0, 1];
+      const soll = Math.round(Math.round((+auto[k] || 0) / schritt) * schritt * 100) / 100;
+      if (Math.abs((+rz[k] || 0) - soll) > 1e-6) return false;
+      if (soll) eins = true;
+    }
+    return eins;
+  }
+  function autoUmschalten(z) {
+    const rz = z.rezept;
+    if (autoIstAn(rz, z.auto)) {
+      const vor = z.autoVorher || {};
+      AUTO_REGLER.forEach(k => { if (+vor[k]) rz[k] = vor[k]; else delete rz[k]; });
+      z.autoVorher = null;
+      return false;
+    }
+    z.autoVorher = Object.fromEntries(AUTO_REGLER.map(k => [k, +rz[k] || 0]));
+    autoInRegler(rz, z.auto, false);
+    return true;
+  }
   const ist_leer = (rz) => !rz || !(rz.auto || rz.stil || BEARB_REGLER.some(([k]) => +rz[k]) || +rz.drehen90 || +rz.gerade || rz.zuschnitt);
   const BEARB_GEO = ["drehen90", "gerade", "zuschnitt", "vertikal", "horizontal", "aspekt", "skala", "versatz_x", "versatz_y"];
   const nurTon = (rz) => { const o = JSON.parse(JSON.stringify(rz || {})); BEARB_GEO.forEach(k => delete o[k]); return o; };
@@ -2703,15 +2737,14 @@
         <button type="button" class="btn btn-sm${(rz.zuschnitt || rz.gerade || rz.drehen90) ? " is-on" : ""}" id="fb-zs" title="${esc(T("bearb.zuschneiden_tip", "Zuschneiden und Geraderichten (R)"))}">${I("crop", 14)} ${esc(T("bearb.zuschneiden", "Zuschneiden"))}</button>
       </div>
       <div class="fb-zeile">
-        <button type="button" class="btn btn-sm" id="fb-auto" title="${esc(T("bearb.auto_tip", "Ton und Weißabgleich automatisch — stellt die Regler ein, danach frei nacharbeiten"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
+        <button type="button" class="btn btn-sm${autoIstAn(rz, z.auto) ? " is-on" : ""}" id="fb-auto" aria-pressed="${autoIstAn(rz, z.auto) ? "true" : "false"}" title="${esc(T("bearb.auto_tip", "Ton und Weißabgleich automatisch — stellt die Regler ein, danach frei nacharbeiten. Nochmal klicken = Auto aus"))}">${I("sparkles", 14)} ${esc(T("bearb.auto", "Auto"))}</button>
         <span class="fml-luft"></span>
         <button type="button" class="btn btn-sm btn-ghost" id="fb-vorher" title="${esc(T("bearb.vorher_tip", "Gedrückt halten (oder Taste „.“): Original zeigen"))}">${I("columns-2", 14)} ${esc(T("bearb.vorher", "Vorher"))}</button>
         <button type="button" class="btn btn-sm btn-ghost" id="fb-reset" title="${esc(T("bearb.reset", "Zurücksetzen"))}">${I("rotate-ccw", 14)}</button>
       </div>
       <div class="fb-stile">${BEARB_STILE.map(([k, ik, fb]) => `<button type="button" class="fb-stil${rz.stil === k ? " is-on" : ""}" data-stil="${k}">${esc(T(ik, fb))}</button>`).join("")}</div>
-      ${(() => { const v = +(rz.boost || 0); return `<label class="fb-r fb-boost" title="${esc(T("bearb.r_boost_tip", "Ein Regler für mehr Bild: Farben, Struktur, Tiefen und Lichter zugleich"))}"><span class="fb-r-name">${I("sparkles", 13)} ${esc(T("bearb.r_boost", "Boost"))}</span><span class="fb-r-wert" id="fbw-boost">${Math.round(v)}</span>
-        <input type="range" min="0" max="100" step="1" value="${v}" data-r="boost"></label>`; })()}
-            ${BEARB_BEREICHE.map(([bk, bik, bfb, keys]) => {
+      <!-- 21.10.2026 Boost-Regler vorerst raus (Marc: „taugt im Moment noch nicht“); Rechnung bleibt in wirksam/BOOST -->
+      ${BEARB_BEREICHE.map(([bk, bik, bfb, keys]) => {
         const zu = bearbZu.has(bk), aus = !!(z.aus && z.aus.has(bk));
         const gesetzt = (bk === "geometrie" ? BEARB_GEO_REGLER.map(x => x[0]) : keys).some(k => +(rz[k] || 0));
         return `<section class="fb-bereich${zu ? " is-zu" : ""}${aus ? " is-aus" : ""}" data-bereich="${bk}">
@@ -2792,7 +2825,7 @@
       if (z.aus.has(bk)) z.aus.delete(bk); else z.aus.add(bk);
       bearbZeichnen(); bearbPlanen();
     }; });
-    box.querySelector("#fb-auto").onclick = () => { autoInRegler(rz, bearbZ && bearbZ.auto, false); bearbZeichnen(); geaendert(true); };
+    box.querySelector("#fb-auto").onclick = () => { autoUmschalten(z); bearbZeichnen(); geaendert(true); };
     box.querySelectorAll("[data-stil]").forEach(b => { b.onclick = () => { if (rz.stil === b.dataset.stil) delete rz.stil; else rz.stil = b.dataset.stil; bearbZeichnen(); geaendert(true); }; });
     box.querySelector("#fb-reset").onclick = () => { z.rezept = nurGeo(z.rezept); bearbZeichnen(); geaendert(true); };   // der Zuschnitt hat sein eigenes Zurücksetzen
     const vk = box.querySelector("#fb-vorher");
@@ -2808,6 +2841,7 @@
   }
   function bearbZeichnenWerte() {
     const g = gross, z = bearbZ; if (!g || !z) return;
+    { const ab = g.el.querySelector("#fb-auto"); if (ab) { const an = autoIstAn(z.rezept, z.auto); ab.classList.toggle("is-on", an); ab.setAttribute("aria-pressed", an ? "true" : "false"); } }
     // Punkt „hier ist etwas eingestellt“ je Bereich — auch beim Ziehen, ohne das Panel neu zu bauen
     BEARB_BEREICHE.forEach(([bk, , , keys]) => {
       const pt = g.el.querySelector(`[data-bereich="${bk}"] .fb-b-punkt`); if (!pt) return;
@@ -3404,6 +3438,11 @@
       if (bearbSchritt(!e.shiftKey)) { e.preventDefault(); e.stopPropagation(); }
       return;
     }
+    if ((e.key === "p" || e.key === "P") && !e.metaKey && !e.ctrlKey && !e.altKey && !(e.target && e.target.type === "text")) {
+      e.preventDefault(); e.stopPropagation();
+      const f = gross.liste[gross.idx]; if (f) favUmschalten([f.path]);
+      return;
+    }
     if (e.key === "." && !e.metaKey && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) bearbVorher(true); return; }
     if ((e.key === "z" || e.key === "Z") && !e.metaKey && !e.ctrlKey && !e.altKey && !(bearbZ && bearbZ.zuschneiden)) {
       e.preventDefault(); e.stopPropagation();
@@ -3512,6 +3551,7 @@
     g.el.querySelector(".foto-gross-links").disabled = g.idx <= 0;
     g.el.querySelector(".foto-gross-rechts").disabled = g.idx >= g.liste.length - 1;
     g.el.querySelector(".foto-gross-name").textContent = [f.dateiname, f.tag_lokal ? `${tagText(f.tag_lokal)} ${uhrzeit(f)}` : ""].filter(Boolean).join(" · ");
+    grossFavZeigen();
     try { grossStreifen(); } catch (_) {}
     grossSeite(f).catch(() => {});
     const r = await (f.art === "video" ? api().fotos_gross(f.path).catch(() => null) : grossHolen(f.path));   // warte-ok: Vorschaubild steht

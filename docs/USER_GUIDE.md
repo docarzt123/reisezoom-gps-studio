@@ -2213,7 +2213,7 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
 ### 🖼 Medien wie in Lightroom — Raster, Lupe, Karte (seit v0.9.787)
 
 - **Kacheln:** das Bild, darunter Datum · Uhrzeit und Ort. Beim Drüberfahren erscheint links oben ein Kästchen zum
-  **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten. Sobald etwas markiert ist, schwebt unten über dem Raster eine Leiste
+  **Markieren** (oder ⌘-/Shift-Klick), rechts oben das **Herz** für Favoriten (auch in der Lupe: Herz unten links oder Taste **P**). Sobald etwas markiert ist, schwebt unten über dem Raster eine Leiste
   **„N ausgewählt“** mit Exportieren, Ort setzen, Aufnahmezeit ändern, Favorit, Zu Album, Zu Tour, ✨ Auto, Öffnen mit und In den Papierkorb — die Bilder
   bleiben dabei an ihrem Platz. Esc hebt die Markierung auf, ⌘A markiert alle.
 - **Ort setzen** (für Fotos ohne Koordinate): Die Karte startet dort, wo die Fotos hingehören — bei Fotos desselben Tages mit
@@ -2255,7 +2255,7 @@ Das Suchfeld findet auf Wunsch auch, **was auf den Fotos zu sehen ist**: „Sonn
 „Als neue Datei …“ und Export entwickeln in voller Größe. Kann LibRaw eine Datei nicht lesen (z. B. DNG mit JPEG-XL-Kompression
 aus Lightroom 7.2), nimmt die App auf dem Mac ein großes Vorschaubild des Systems.
 
-In der Lupe der Reiter **„✎ Bearbeiten“**: oben das Histogramm, **✨ Auto** (rechnet Ton und Weißabgleich passend zum Foto aus und stellt die Regler darauf — danach frei nacharbeiten, wie in Lightroom), die
+In der Lupe der Reiter **„✎ Bearbeiten“**: oben das Histogramm, **✨ Auto** (rechnet Ton und Weißabgleich passend zum Foto aus und stellt die Regler darauf — danach frei nacharbeiten, wie in Lightroom; **nochmal klicken schaltet Auto wieder aus**, die Regler gehen zurück auf den Stand davor), die
 Voreinstellungen **Natürlich · Kräftig · Matt · SW** und Regler für Belichtung, Kontrast, Lichter, Tiefen, Temperatur,
 Tönung, Dynamik, Sättigung, Klarheit und Dunst entfernen. **Taste „.“ halten** (oder „◐ Vorher“ gedrückt halten) zeigt das
 Original, Doppelklick auf einen Regler setzt ihn zurück, ↺ setzt alles zurück. Die Vorschau rechnet die Grafikkarte: Das Bild
@@ -2266,8 +2266,7 @@ Bereich ein oder aus (die App merkt sich das), ein Punkt neben der Überschrift 
 **Auge** rechts blendet die Wirkung eines Bereichs kurz aus — zum Vergleichen, verloren geht nichts. Drehst du an einem
 seiner Regler, ist er wieder an. Export, „Als neue Datei …“, Raster, Video und Schilder rechnen ebenfalls auf der
 Grafikkarte, mit demselben Code wie die Vorschau: ein 24-Megapixel-Foto in etwa einer Sekunde.
-Ganz oben unter den Voreinstellungen steht **Boost**: ein Regler für „mehr Bild“ — er hebt Farben, Struktur und Tiefen
-und holt Lichter zurück, alles zugleich. In **Licht** gibt es zusätzlich **Weiß** und **Schwarz** (wie hell das Hellste,
+In **Licht** gibt es zusätzlich **Weiß** und **Schwarz** (wie hell das Hellste,
 wie dunkel das Dunkelste wird), in **Effekte** die **Struktur** (feine Details, kleiner als Klarheit).
 Unter **Details** sitzt **Schärfen** (0–150). Wie in Lightroom siehst du es am besten in der 100-%-Ansicht (Klick ins Bild).
 

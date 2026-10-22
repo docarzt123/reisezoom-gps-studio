@@ -6231,7 +6231,7 @@
   "bearb.video": "Videos can't be edited here.",
   "bearb.laedt": "Preparing the picture …",
   "bearb.aus_vorschau": "RAW: LibRaw cannot read this file — a large preview is edited instead.",
-  "bearb.auto_tip": "Automatic tone and white balance — sets the sliders, then fine-tune freely",
+  "bearb.auto_tip": "Automatic tone and white balance — sets the sliders, then fine-tune freely. Click again = Auto off",
   "bearb.auto": "Auto",
   "bearb.vorher_tip": "Hold (or press “.”): show the original",
   "bearb.vorher": "Before",

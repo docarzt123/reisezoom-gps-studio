@@ -6231,7 +6231,7 @@
   "bearb.video": "Los vídeos no se pueden editar aquí.",
   "bearb.laedt": "Preparando la imagen …",
   "bearb.aus_vorschau": "RAW: LibRaw no puede leer este archivo — se edita una vista previa grande.",
-  "bearb.auto_tip": "Tono y balance de blancos automáticos: ajusta los controles; luego retócalos a tu gusto",
+  "bearb.auto_tip": "Tono y balance de blancos automáticos — ajusta los controles; después puedes retocar. Otro clic = Auto desactivado",
   "bearb.auto": "Auto",
   "bearb.vorher_tip": "Mantener pulsado (o tecla «.»): ver el original",
   "bearb.vorher": "Antes",
