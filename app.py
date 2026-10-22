@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.805"
+APP_VERSION = "0.9.806"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -19703,6 +19703,22 @@ def _mac_rahmen_sichtbar(r) -> bool:
         return False
 
 
+def _mac_rahmen_als_xy(r):
+    """Globaler Cocoa-Rahmen [x, y von unten, b, h] → pywebview-x/y (links/oben relativ zu NSScreen.mainScreen, y von
+    oben). pywebview rechnet beim Verschieben genau zurück: Oberkante = Bildschirm-Unterkante + Höhe − y."""
+    try:
+        import AppKit  # type: ignore
+        haupt = AppKit.NSScreen.mainScreen() or (AppKit.NSScreen.screens() or [None])[0]
+        if haupt is None:
+            return None
+        f = haupt.frame()
+        x, y, w, h = (float(v) for v in r)
+        return int(round(x - f.origin.x)), int(round(f.origin.y + f.size.height - (y + h)))
+    except Exception as e:  # noqa: BLE001
+        log.info("[fenster] Rahmen nicht umrechenbar: %s", e)
+        return None
+
+
 def _fenster_absturz_abfangen() -> None:
     """Zweite Sicherung zur Prüfung oben: pywebviews `windowDidMove_` liest `window.screen().frame()` ohne zu prüfen, ob
     das Fenster überhaupt auf einem Bildschirm liegt. Ohne Bildschirm die Meldung auslassen statt abzustürzen."""
@@ -19809,10 +19825,17 @@ def main() -> None:
     # wurde y aber relativ zum Bildschirm, auf dem das Fenster lag. Je nachdem, welcher Bildschirm beim Start aktiv war,
     # landete das Fenster woanders oder im Nichts. Auf dem Mac darum den echten Rahmen in globalen Koordinaten merken
     # (`mac_rahmen`) und ihn vor dem Zeigen selbst setzen.
+    # 22.10.2026 (MacBook, macOS 26: Fenster blieb nach dem Neustart leer) — den Rahmen NICHT selbst vor dem Zeigen setzen
+    # (setFrame in before_show ließ WebKit dort nichts mehr zeichnen), sondern in pywebviews x/y umrechnen: relativ zum
+    # Bildschirm, den pywebview gleich nimmt (NSScreen.mainScreen), y = Abstand der Oberkante von dessen Oberkante.
     _mac_rahmen = _win_cfg.get("mac_rahmen") if sys.platform == "darwin" else None
     if not (isinstance(_mac_rahmen, list) and len(_mac_rahmen) == 4 and _mac_rahmen_sichtbar(_mac_rahmen)):
         _mac_rahmen = None
-    if _have_remembered and not _mac_rahmen and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
+    _mac_xy = _mac_rahmen_als_xy(_mac_rahmen) if (_mac_rahmen and _have_remembered) else None
+    if _mac_xy:
+        create_kwargs["x"], create_kwargs["y"] = _mac_xy
+        create_kwargs["width"], create_kwargs["height"] = int(_mac_rahmen[2]), int(_mac_rahmen[3])
+    elif _have_remembered and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
         create_kwargs["x"] = _win_x
         create_kwargs["y"] = _win_y
     _fenster_absturz_abfangen()
@@ -19844,16 +19867,8 @@ def main() -> None:
 
     win = webview.create_window(**create_kwargs)
     api.set_window(win)
-    if _mac_rahmen and _have_remembered:
-        def _rahmen_vor_dem_zeigen(window):
-            # läuft auf dem Cocoa-Hauptfaden, bevor das Fenster erscheint (pywebview before_show ist synchron)
-            try:
-                import AppKit  # type: ignore
-                window.native.setFrame_display_(AppKit.NSMakeRect(*[float(v) for v in _mac_rahmen]), False)
-                log.info("[fenster] Rahmen wiederhergestellt: %s", _mac_rahmen)
-            except Exception as e:  # noqa: BLE001
-                log.info("[fenster] Rahmen nicht gesetzt: %s", e)
-        win.events.before_show += _rahmen_vor_dem_zeigen
+    if _mac_xy:
+        log.info("[fenster] Rahmen %s → x/y %s", _mac_rahmen, _mac_xy)
 
     # Fenster nach Start auf volle Bildschirmgröße ziehen — pywebview's
     # `maximized=True` greift in 6.x auf macOS nicht zuverlässig. NSWindow-
