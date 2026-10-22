@@ -6853,5 +6853,7 @@
   "logbuch.ort_gemerkt": "„{n}“ is now in „My places“.",
   "tourseite.ansicht_links": "Show/hide the left bar",
   "tourseite.ansicht_rechts": "Show/hide the logbook on the right",
-  "tourseite.ansicht_unten": "Show/hide the photos at the bottom — without photos the map shows the logbook entries"
+  "tourseite.ansicht_unten": "Show/hide the photos at the bottom — without photos the map shows the logbook entries",
+  "library.ansicht_links": "Show/hide the left bar",
+  "library.ansicht_rechts": "Show/hide the right column"
 }

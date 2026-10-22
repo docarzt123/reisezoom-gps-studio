@@ -109,10 +109,7 @@
     seite.innerHTML = `<div class="ts-kopf">
         <button type="button" class="btn btn-sm ts-zurueck" title="${esc(T("tourseite.zurueck_tip", "Zurück zur Tourenliste (Esc)"))}">← ${esc(T("tourseite.zurueck", "Touren"))}</button>
         <b class="ts-titel">${esc(tour.name || "")}</b><span class="ts-unter muted"></span><span class="ts-zahlen"></span></div>
-      <div class="ts-ansicht">
-        <button type="button" class="ansicht-knopf" data-ts-ansicht="links" title="${esc(T("tourseite.ansicht_links", "Linke Leiste ein-/ausblenden"))}"><span class="ak-seite"></span></button>
-        ${tour.reise ? "" : `<button type="button" class="ansicht-knopf" data-ts-ansicht="rechts" title="${esc(T("tourseite.ansicht_rechts", "Logbuch rechts ein-/ausblenden"))}"><span class="ak-rechts"></span></button>`}
-        <button type="button" class="ansicht-knopf" data-ts-ansicht="unten" title="${esc(T("tourseite.ansicht_unten", "Bilder unten ein-/ausblenden — ohne Bilder zeigt die Karte die Logbuch-Einträge"))}"><span class="ak-zeit"></span></button></div>
+
       <div class="ts-karte" id="ts-karte"><div class="ts-laden"><span class="spinner"></span> ${esc(T("tourseite.laedt", "Tour und Medien werden geladen …"))}</div></div>
       <div class="ts-streifen" id="ts-streifen"></div>`;
     main.appendChild(seite);
@@ -127,7 +124,12 @@
           reiter: "uebersicht", lb: null, lbBox: null, lbPins: {} };
     // 22.10.2026 (Marc: „man braucht eigentlich nur die Möglichkeit, die Seitenleisten und die Leiste unten ein- und
     // auszublenden, so wie im Animator“) — statt der Reiter Übersicht/Logbuch drei Ansichts-Knöpfe, je Gerät gemerkt
-    seite.querySelectorAll("[data-ts-ansicht]").forEach(b => { b.onclick = () => { const a = _ansicht(); a[b.dataset.tsAnsicht] = !a[b.dataset.tsAnsicht]; _ansichtMerken(a); _ansichtAnwenden(); b.blur(); }; });
+    // linke/rechte Leiste schaltet das Archiv selbst (Kopfzeile oben rechts); die Tour-Seite bringt „Bilder unten“ dazu
+    { const platz = document.getElementById("lib-ansicht-extra");
+      if (platz) {
+        platz.innerHTML = `<button type="button" class="ansicht-knopf" data-ts-ansicht="unten" title="${esc(T("tourseite.ansicht_unten", "Bilder unten ein-/ausblenden — ohne Bilder zeigt die Karte die Logbuch-Einträge"))}"><span class="ak-zeit"></span></button>`;
+        platz.querySelector("[data-ts-ansicht]").onclick = (ev) => { const a = _ansicht(); a.unten = !a.unten; _ansichtMerken(a); _ansichtAnwenden(); ev.currentTarget.blur(); };
+      } }
     // 11.10.2026 (Marc: „rechts ist bei Übersicht alles frei — warum nicht direkt das Logbuch?“) — rechts steht bei
     // einer Tour immer das Logbuch; ein angeklicktes Foto zeigt dort seine Daten mit „← Logbuch“ zurück.
     if (tour.reise) { if (det) det.innerHTML = `<div class="lib-detail-empty">${esc(T("tourseite.detail_leer", "Foto oder Clip anklicken — dann stehen hier seine Aufnahmedaten und seine Touren."))}</div>`; }
@@ -649,15 +651,13 @@
   // Das Logbuch der Tour (ui/js/logbuch_ansicht.js) steht rechts, die Karte zeigt die Einträge des Tages als Pins; ein Klick
   // auf einen Eintrag zeigt die Stelle, ein Klick auf einen Pin wählt den Eintrag. Medien-Pins und Bildstreifen ruhen solange.
   const _ANSICHT_KEY = "rz-ts-ansicht";
-  function _ansicht() { try { return Object.assign({ links: true, rechts: true, unten: true }, JSON.parse(localStorage.getItem(_ANSICHT_KEY) || "{}")); } catch (_) { return { links: true, rechts: true, unten: true }; } }
+  function _ansicht() { try { return Object.assign({ unten: true }, JSON.parse(localStorage.getItem(_ANSICHT_KEY) || "{}")); } catch (_) { return { unten: true }; } }
   function _ansichtMerken(a) { try { localStorage.setItem(_ANSICHT_KEY, JSON.stringify(a)); } catch (_) {} }
   function _ansichtAnwenden() {
     if (!Z) return;
-    const a = _ansicht(), body = document.getElementById("module-body");
-    if (Z.tour.reise) a.rechts = true;   // die Reise hat rechts nur die Fotodaten
-    if (body) { body.classList.toggle("ts-ohne-links", !a.links); body.classList.toggle("ts-ohne-rechts", !a.rechts); }
+    const a = _ansicht();
     Z.seite.classList.toggle("ts-ohne-streifen", !a.unten);
-    Z.seite.querySelectorAll("[data-ts-ansicht]").forEach(b => { const k = b.dataset.tsAnsicht; b.classList.toggle("an", !!a[k]); b.setAttribute("aria-pressed", a[k] ? "true" : "false"); });
+    document.querySelectorAll("[data-ts-ansicht]").forEach(b => { const k = b.dataset.tsAnsicht; b.classList.toggle("an", !!a[k]); b.setAttribute("aria-pressed", a[k] ? "true" : "false"); });
     // ohne Bilder unten zeigt die Karte die Logbuch-Einträge (früher der Reiter „Logbuch“), mit Bildern die Fotos
     if (!Z.tour.reise) {
       const soll = a.unten ? "uebersicht" : "logbuch";
@@ -784,7 +784,7 @@
     try { zust.seite.remove(); } catch (_) {}
     try { zust.links.remove(); } catch (_) {}
     document.querySelectorAll(".lib-main.ts-aktiv, #lib-panel.ts-aktiv").forEach(x => x.classList.remove("ts-aktiv"));
-    { const body = document.getElementById("module-body"); if (body) { body.classList.remove("ts-ohne-links", "ts-ohne-rechts"); } }
+    { const platz = document.getElementById("lib-ansicht-extra"); if (platz) platz.innerHTML = ""; }
     setTimeout(() => { try { window.dispatchEvent(new Event("resize")); } catch (_) {} }, 30);
     window.__rzTourSeiteKarte = null;
     if (!still) {

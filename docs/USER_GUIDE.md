@@ -1275,7 +1275,7 @@ Logbuch) mit den Aktionen **🎬 Video ▾** (Schnell-Video, Animator, Daten-Ani
 Doppelklick öffnet es groß. **„← Touren“ oder Esc** bringt dich zurück an dieselbe Stelle der Liste. Auch die
 Tour-Details rechts zeigen jetzt **„📷 34 Fotos · 🎬 5 Clips“** mit einem Bildstreifen und **„Tour öffnen ▸“**.
 
-**Leisten ein- und ausblenden (seit 22.10.2026, wie im Animator):** Oben rechts über der Karte stehen drei kleine
+**Leisten ein- und ausblenden (seit 22.10.2026, wie im Animator):** Oben rechts in der Kopfzeile des Archivs stehen kleine
 Knöpfe: **linke Leiste**, **Logbuch rechts** und **Bilder unten**, je ein- und ausblendbar (gemerkt). Sind die Bilder unten
 aus, zeigt die Karte statt der Fotos alle Logbuch-Einträge des gewählten Tages. Das Logbuch zeigt
 rechts die Tour Tag für Tag — oben Fahrtzeit, Pausen, Übernachtungen, darunter die Tage (Mehrtagestouren: drei Tage,

@@ -24,7 +24,7 @@ Bei jeder neuen Version:
 - Media loupe: opening large photos while others were being prepared in the background could log database errors; both now take turns.
 
 ### Changed
-- Tour page: instead of the tabs „Overview | Logbook“ three small buttons (like in the Animator) show or hide the left bar, the logbook on the right and the photos at the bottom; with the photos hidden the map shows the logbook entries.
+- Archive: the empty row at the top is used now — the sections (Projects · Templates · Tour archive · Media · My places) sit on the left, the views and buttons to show or hide the left bar and right column on the right (like in the Animator). On the tour page a third button shows or hides the photos at the bottom (instead of the tabs „Overview | Logbook“); with the photos hidden the map shows the logbook entries.
 - Tour page: the map starts with the whole tour in view instead of first showing a small section and then jumping.
 - Tour page and logbook open at once the second time: the last twelve stay remembered for the session, and fresh data is read in the background (redrawn only if something changed).
 - Import into collections: one button instead of two — without a tick it reads „Add without collection“.

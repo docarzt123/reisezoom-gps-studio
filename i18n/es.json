@@ -6853,5 +6853,7 @@
   "logbuch.ort_gemerkt": "«{n}» está ahora en «Mis lugares».",
   "tourseite.ansicht_links": "Mostrar/ocultar la barra izquierda",
   "tourseite.ansicht_rechts": "Mostrar/ocultar el diario a la derecha",
-  "tourseite.ansicht_unten": "Mostrar/ocultar las fotos de abajo — sin fotos el mapa muestra las entradas del diario"
+  "tourseite.ansicht_unten": "Mostrar/ocultar las fotos de abajo — sin fotos el mapa muestra las entradas del diario",
+  "library.ansicht_links": "Mostrar/ocultar la barra izquierda",
+  "library.ansicht_rechts": "Mostrar/ocultar la columna derecha"
 }

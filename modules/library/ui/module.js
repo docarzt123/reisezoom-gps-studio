@@ -1024,6 +1024,37 @@ function mountLibrary(body, headerActions) {
     const sf = document.getElementById("lib-seg-fotos");
     if (sf) sf.classList.remove("is-on");
   }
+  const _LIB_ANSICHT = "rz-lib-ansicht";
+  function _libAnsicht() { try { return Object.assign({ links: true, rechts: true }, JSON.parse(localStorage.getItem(_LIB_ANSICHT) || "{}")); } catch (_) { return { links: true, rechts: true }; } }
+  function _libAnsichtAnwenden() {
+    const a = _libAnsicht(), mb = document.getElementById("module-body");
+    if (mb) { mb.classList.toggle("lib-ohne-links", !a.links); mb.classList.toggle("lib-ohne-rechts", !a.rechts); }
+    document.querySelectorAll("[data-lib-ansicht]").forEach(b => { const k = b.dataset.libAnsicht; b.classList.toggle("an", !!a[k]); b.setAttribute("aria-pressed", a[k] ? "true" : "false"); });
+    setTimeout(() => { try { window.dispatchEvent(new Event("resize")); } catch (_) {} }, 30);
+  }
+  function _kopfzeileFuellen() {
+    const links = document.getElementById("mod-header-gpx"), rechts = headerActions || document.getElementById("mod-header-actions");
+    const kopf = links && links.closest(".module-header");
+    const bar = body.querySelector(".lib-bar");
+    if (!links || !rechts || !kopf || !bar) return;
+    kopf.classList.add("lib-kopf");
+    const seg = bar.querySelector(".pmgr-seg"), bib = bar.querySelector("#lib-bibname"), views = bar.querySelector(".lib-views");
+    if (seg) links.appendChild(seg);
+    if (bib) links.appendChild(bib);
+    if (views) rechts.appendChild(views);
+    const knoepfe = document.createElement("div");
+    knoepfe.className = "lib-ansicht";
+    knoepfe.innerHTML = `<button type="button" class="ansicht-knopf" data-lib-ansicht="links" title="${esc(T("library.ansicht_links", "Linke Leiste ein-/ausblenden"))}"><span class="ak-seite"></span></button>
+      <button type="button" class="ansicht-knopf" data-lib-ansicht="rechts" title="${esc(T("library.ansicht_rechts", "Rechte Spalte ein-/ausblenden"))}"><span class="ak-rechts"></span></button>
+      <span id="lib-ansicht-extra"></span>`;
+    rechts.appendChild(knoepfe);
+    knoepfe.querySelectorAll("[data-lib-ansicht]").forEach(b => { b.onclick = () => { const a = _libAnsicht(); a[b.dataset.libAnsicht] = !a[b.dataset.libAnsicht]; try { localStorage.setItem(_LIB_ANSICHT, JSON.stringify(a)); } catch (_) {} _libAnsichtAnwenden(); b.blur(); }; });
+    // Projekt-/Foto-Ansicht blendet in der alten Zeile alles außer Bereichen und Suche aus — die Ansichten oben ebenso
+    const spiegeln = () => { kopf.classList.toggle("lib-proj-mode", bar.classList.contains("proj-mode")); kopf.classList.toggle("lib-foto-mode", bar.classList.contains("foto-mode")); };
+    spiegeln();
+    new MutationObserver(spiegeln).observe(bar, { attributes: true, attributeFilter: ["class"] });
+    _libAnsichtAnwenden();
+  }
   function vorlViewSetzen(an) {
     _vorlView = !!an;
     if (_vorlView) _projView = false;
@@ -6367,6 +6398,11 @@ function mountLibrary(body, headerActions) {
     };
   });
   if (headerActions) headerActions.innerHTML = "";
+  // 22.10.2026 (Marc, Screenshot: „eine komplett leere Zeile, die nur Platz wegnimmt … im Archiv direkt, da könnten
+  // doch die Steuereinheiten für die Ansicht hin“) — die Kopfzeile des Moduls war im Archiv leer. Jetzt stehen dort links
+  // die Bereiche (Projekte · Vorlagen · Touren-Archiv · Medien · Meine Orte) und rechts die Ansichten samt den Knöpfen,
+  // die die Leisten ein- und ausblenden (wie im Animator). Die Elemente behalten ihre IDs, nur der Platz ändert sich.
+  _kopfzeileFuellen();
 
   // ── Start ─────────────────────────────────────────────────────────────
   // Jahr und Art bauen ihre Auswahl aus den Bestandszahlen und setzen `selected`
