@@ -15,6 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- My places: „Home“, „Grandma's“ … — a new „My places“ button in the archive opens a page with a map and a list: search or click on the map to add, rename, choose the radius, drag the pin to move, delete. Logbooks recognise them in every tour („Pause · Home“, a drive to or from there); renaming a stop in the logbook has a tick „Add to My places“. Private — never part of an export.
 - Logbook export: „PDF“ saves a travel diary with every day (date, kilometres, a small map of the day's route, all entries with time, place, duration and notes), „CSV“ a table for Excel or Numbers (one row per entry, with coordinates).
 
 ### Fixed
@@ -23,6 +24,7 @@ Bei jeder neuen Version:
 - Media loupe: opening large photos while others were being prepared in the background could log database errors; both now take turns.
 
 ### Changed
+- Tour page: the map starts with the whole tour in view instead of first showing a small section and then jumping.
 - Tour page and logbook open at once the second time: the last twelve stay remembered for the session, and fresh data is read in the background (redrawn only if something changed).
 - Import into collections: one button instead of two — without a tick it reads „Add without collection“.
 

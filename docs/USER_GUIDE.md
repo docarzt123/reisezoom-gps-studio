@@ -3635,6 +3635,13 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 - **„vermutet“** steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.
 - Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.
 
+**Meine Orte (seit 22.10.2026):** Im Archiv oben gibt es **„Meine Orte“** — eine Seite mit Karte und Liste deiner
+eigenen Orte, etwa „Zu Hause“ oder „Bei Oma“. Anlegen über die Suche (auch Koordinaten) oder **„＋ Ort“** und Klick in die
+Karte; in der Liste änderst du den Namen und den **Umkreis** (wie nah ein Halt sein muss), die Stecknadel ziehst du zum
+Verschieben, der Papierkorb löscht. Das Logbuch erkennt die Orte in **allen** Touren: Ein Halt dort heißt dann
+„Pause · Zu Hause“, eine Fahrt zeigt „Zu Hause → Hamburg“. Schneller geht es direkt im Logbuch: Beim **Umbenennen** eines
+Halts das Häkchen **„Zu ‚Meine Orte‘ hinzufügen“** setzen. Die Orte bleiben privat und gehen in keinen Export.
+
 **Exportieren (seit 22.10.2026):** Oben im Logbuch der Tour-Seite stehen **PDF** und **CSV**. **PDF** speichert ein
 Reisetagebuch: je Tag Datum und Kilometer, ein Kärtchen der Tagesstrecke und alle Einträge mit Uhrzeit, Ort, Dauer und
 Notiz. **CSV** speichert eine Tabelle für Excel oder Numbers, eine Zeile je Eintrag, mit Koordinaten.

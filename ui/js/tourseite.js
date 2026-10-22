@@ -565,10 +565,19 @@
       const lo = alle.map(c => c[0]), la = alle.map(c => c[1]);
       bbox = { min_lon: Math.min(...lo), max_lon: Math.max(...lo), min_lat: Math.min(...la), max_lat: Math.max(...la) };
     }
+    // 22.10.2026 (Marc: „die Tour-Seite lädt die Karte 2×, erst einen kleinen Ausschnitt, dann die ganze Tour“) — gleich
+    // mit dem Ausschnitt starten, den das Einpassen nach dem Laden ohnehin nimmt (Strecke + Medien), statt Zoom 11 am Start
+    const huelle = alle.concat((d.medien || []).filter(m => m.lat != null && m.lon != null).map(m => [m.lon, m.lat]));
+    let start = { center: alle.length ? alle[0] : [10.4, 51.2], zoom: alle.length ? 11 : 4.5 };
+    if (huelle.length > 1) {
+      const lo = huelle.map(c => c[0]), la = huelle.map(c => c[1]);
+      const w = [Math.min(...lo), Math.min(...la)], o = [Math.max(...lo), Math.max(...la)];
+      if (o[0] - w[0] > 1e-6 || o[1] - w[1] > 1e-6) start = { bounds: [w, o], fitBoundsOptions: { padding: 50, maxZoom: 15 } };
+    }
     let created;
     try {
       created = createMap({ container: host, styleKey: (typeof rzArchivStil === "function") ? rzArchivStil() : ((typeof mapDefaultStyle === "function") ? mapDefaultStyle() : undefined),
-        bbox, common: { center: alle.length ? alle[0] : [10.4, 51.2], zoom: alle.length ? 11 : 4.5, attributionControl: true } });
+        bbox, common: Object.assign({ attributionControl: true }, start) });
     } catch (e) { log("warn", "Karte: " + e); return; }
     Z.map = created.map; Z.lib = created.lib;
     if (typeof rzMassstab === "function") rzMassstab(Z.map);

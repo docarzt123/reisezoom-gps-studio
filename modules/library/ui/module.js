@@ -301,6 +301,7 @@ function mountLibrary(body, headerActions) {
           <button type="button" class="pmgr-seg-btn" id="lib-seg-vorlagen">${(typeof rzIcon === "function" ? rzIcon("puzzle", { size: 15 }) : "")} ${T("vorlagen.titel", "Vorlagen")}</button>
           <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">${(typeof rzIcon === "function" ? rzIcon("library", { size: 15 }) : "")} ${T("pm.seg_archive", "Touren-Archiv")}</button>
           <button type="button" class="pmgr-seg-btn" id="lib-seg-fotos">${(typeof rzIcon === "function" ? rzIcon("images", { size: 15 }) : "")} ${T("fotos.titel", "Medien")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-orte" title="${esc(T("orte.seg_tip", "Zu Hause, bei Oma … — eigene Orte, die das Logbuch erkennt"))}">${(typeof rzIcon === "function" ? rzIcon("map-pin-house", { size: 15 }) : "")} ${T("orte.titel", "Meine Orte")}</button>
         </div>
         <!-- 12.09.2026 (Marc): im Archiv steht nur der NAME der Bibliothek, ein
              Klick öffnet die Verwaltung in den Einstellungen — „dann bleibt das
@@ -6102,7 +6103,11 @@ function mountLibrary(body, headerActions) {
       if (_projView || _vorlView) projViewSetzen(false);
     };
     if (sv) sv.onclick = () => { if (!_vorlView) vorlViewSetzen(true); };
-    if (sf) sf.onclick = () => { if (!_fotoView) fotoViewSetzen(true); }; }
+    if (sf) sf.onclick = () => { if (!_fotoView) fotoViewSetzen(true); };
+    // 22.10.2026 — „Meine Orte“: eine Seite über dem Archiv (ui/js/meine_orte.js); jeder andere Bereich schließt sie
+    const so = document.getElementById("lib-seg-orte");
+    if (so) so.onclick = () => { if (window.rzTourSeite && window.rzTourSeite.offen()) window.rzTourSeite.schliessen(); if (window.rzMeineOrte) window.rzMeineOrte.oeffnen(); };
+    [sp, st, sv, sf].forEach((b) => { if (b) b.addEventListener("click", () => { if (window.rzMeineOrte && window.rzMeineOrte.offen()) window.rzMeineOrte.schliessen(); }, true); }); }
   { const nv = document.getElementById("lib-vorl-new");
     if (nv) nv.onclick = async () => {
       // Projekt wählen → Name → Vorlage anlegen.

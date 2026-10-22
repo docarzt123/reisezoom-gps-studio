@@ -14347,6 +14347,106 @@ class Api:
                            einstellungen=einst)
         return {"tour": tour, "t": t, "pts": pts, "bew": bew, "lb": lb, "einst": einst}
 
+    # ── Meine Orte (22.10.2026, Marc: „‚zu Hause‘ festlegen können … und andere Orte, z. B. bei Oma … in zukünftigen
+    # Logbüchern wird das dann anhand der Location erkannt“) — Liste in den Einstellungen (gilt für alle Bibliotheken):
+    # {id, name, lat, lon, radius_m}. Das Logbuch merkt an, wenn ein Halt/Start/Ziel im Umkreis liegt (`mein_ort`) bzw.
+    # eine Fahrt dort beginnt/endet (`mein_ort_von`/`_nach`). Privat: geht nirgends nach draußen.
+    _ORT_RADIUS = (30, 5000, 150)   # min, max, Standard in Metern
+
+    @staticmethod
+    def _orte_sauber(liste) -> list:
+        lo, hi, std = Api._ORT_RADIUS
+        raus = []
+        for o in (liste or []):
+            try:
+                name = str(o.get("name") or "").strip()[:80]
+                lat, lon = float(o["lat"]), float(o["lon"])
+                if not name or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    continue
+                r = max(lo, min(hi, float(o.get("radius_m") or std)))
+                raus.append({"id": str(o.get("id") or uuid.uuid4().hex[:10]), "name": name, "lat": round(lat, 6),
+                             "lon": round(lon, 6), "radius_m": round(r)})
+            except (TypeError, ValueError, KeyError):
+                continue
+        return raus
+
+    def meine_orte(self) -> dict:
+        try:
+            return {"ok": True, "orte": self._orte_sauber(_load_settings().get("meine_orte")),
+                    "radius": {"min": self._ORT_RADIUS[0], "max": self._ORT_RADIUS[1], "standard": self._ORT_RADIUS[2]}}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e), "orte": []}
+
+    def meine_orte_speichern(self, ort: dict) -> dict:
+        """Neu (ohne id) oder ändern (mit id): Name, Lage, Umkreis."""
+        try:
+            neu = self._orte_sauber([ort])
+            if not neu:
+                return {"ok": False, "error": _ui_t()("orte.err_ungueltig", "Name und Lage fehlen.")}
+            neu = neu[0]
+            with _SETTINGS_LOCK:
+                cur = _load_settings()
+                liste = self._orte_sauber(cur.get("meine_orte"))
+                i = next((k for k, o in enumerate(liste) if o["id"] == neu["id"]), None)
+                if i is None:
+                    liste.append(neu)
+                else:
+                    liste[i] = neu
+                cur["meine_orte"] = liste
+                _save_settings(cur)
+            return {"ok": True, "ort": neu, "orte": liste}
+        except Exception as e:  # noqa: BLE001
+            log.exception("meine_orte_speichern")
+            return {"ok": False, "error": str(e)}
+
+    def meine_orte_loeschen(self, oid: str) -> dict:
+        try:
+            with _SETTINGS_LOCK:
+                cur = _load_settings()
+                liste = [o for o in self._orte_sauber(cur.get("meine_orte")) if o["id"] != str(oid)]
+                cur["meine_orte"] = liste
+                _save_settings(cur)
+            return {"ok": True, "orte": liste}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _mein_ort_bei(orte: list, lon, lat):
+        """Der nächste eigene Ort, in dessen Umkreis die Stelle liegt — oder None."""
+        if lon is None or lat is None:
+            return None
+        best = None
+        for o in orte:
+            d = _haversine_m(float(lat), float(lon), o["lat"], o["lon"])
+            if d <= o["radius_m"] and (best is None or d < best[0]):
+                best = (d, o)
+        return best[1] if best else None
+
+    def _meine_orte_anmerken(self, eintraege: list, punkte: list) -> None:
+        orte = self._orte_sauber(_load_settings().get("meine_orte"))
+        if not orte:
+            return
+        bei = lambda pos: self._mein_ort_bei(orte, *(pos or [None, None]))   # noqa: E731
+        still = {"pause", "uebernachtung", "halt"}
+        for e in eintraege or []:
+            art = e.get("anzeige_art") or e.get("art")
+            if art in still:
+                o = bei(e.get("pos") or e.get("pos_von"))
+                if o:
+                    e["mein_ort"] = o["name"]
+            else:
+                ov = bei(e.get("pos_von"))
+                on = bei(e.get("pos_bis"))
+                if ov:
+                    e["mein_ort_von"] = ov["name"]
+                if on:
+                    e["mein_ort_nach"] = on["name"]
+        for p_ in punkte or []:
+            if p_.get("art") in ("start", "ziel"):
+                o = bei(p_.get("pos"))
+                if o:
+                    p_["mein_ort"] = o["name"]
+
     # ── Logbuch exportieren (22.10.2026, Marc: „ein Export des Logbuchs wäre super“ → PDF + CSV) ─────────────
     # Die Oberfläche baut Text und Tabelle selbst (dieselben Titel, Orte und Zeiten wie auf dem Bildschirm) und schickt
     # sie hierher; hier kommen der Speichern-Dialog, je Tag ein Kärtchen der Strecke (SVG aus den Trackpunkten) und das
@@ -14699,6 +14799,7 @@ class Api:
                 p["pos"] = [float(p["lon"]), float(p["lat"])]
         for d in tage:
             d["versatz_min"] = czz.offset_min(zone, d["t0"])
+        self._meine_orte_anmerken(lb["eintraege"], lb["punkte"])
         return {"ok": True, "tour": tour, "name": (t or {}).get("name") or "",
                 "aktivitaet": aktivitaet, "zone": zone,
                 "eid": stand["bewegung"]["id"], "eid_tage": stand["tage"]["id"],

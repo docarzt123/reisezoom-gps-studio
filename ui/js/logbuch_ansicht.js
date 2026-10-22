@@ -51,6 +51,12 @@
 
   /** Ort zum Eintrag aus `logbuch_orte` ({von, nach, hier}). */
   function ortVon(orte, x) {
+    // 22.10.2026 — „Meine Orte“ gehen vor dem Ortsnamen aus dem Netz („Zu Hause“ statt „Ahrensweg 9“)
+    if (x.mein_ort) return { text: x.mein_ort, nach: x.mein_ort, hier: x.mein_ort, mein: true };
+    if (x.mein_ort_von || x.mein_ort_nach) {
+      const o0 = orte[x.id] || {}, von = x.mein_ort_von || o0.von || "", nach = x.mein_ort_nach || o0.nach || "";
+      return { text: von && nach ? von + " → " + nach : (von || nach), nach, hier: von || nach, mein: true };
+    }
     const o = orte[x.id]; if (!o) return { text: "", nach: "", hier: "" };
     const hier = o.hier || (o.von && o.von === o.nach ? o.von : "");
     return { text: hier || (o.von && o.nach ? o.von + " → " + o.nach : (o.von || o.nach || "")), nach: o.nach || "", hier: hier || o.von || "" };
@@ -61,6 +67,7 @@
   function titel(x, orte) {
     if (x.name) return x.name;
     const art = istPunkt(x) ? x.art : (x.anzeige_art || x.art), o0 = ortVon(orte, x), a = artName(art);
+    if (x.mein_ort) return T("logbuch.titel_mein_ort", "{art} · {ort}", { art: a, ort: x.mein_ort });
     const o = { hier: kurzOrt(o0.hier), nach: kurzOrt(o0.nach) };
     if (art === "hoechster_punkt") return a + (x.ele != null ? " · " + Math.round(x.ele).toLocaleString(sprache()) + " m" : "");
     if ((art === "fahrt" || art === "uebersetzen" || art === "rad") && o.nach && o.nach !== o.hier) return T("logbuch.titel_nach", "{art} nach {ort}", { art: a, ort: o.nach });
@@ -268,12 +275,18 @@
     }
 
     // ── Bearbeiten (gleiche Brücke wie der Inspektor, eigenes Rückgängig) ──
-    function frage(titelText, wert, mehrzeilig) {
+    function frage(titelText, wert, mehrzeilig, ortHaken) {
       return new Promise((res) => {
         const feld = mehrzeilig ? `<textarea id="lba-frage" class="lba-frage" rows="4">${esc(wert || "")}</textarea>` : `<input id="lba-frage" class="lba-frage" type="text" value="${esc(wert || "")}">`;
-        const m = openModal({ title: titelText, body: `<div class="lib-fmodal">${feld}</div>`,
+        // 22.10.2026 (Marc: „beim Umbenennen mit einem Haken zu ‚Meine Orte‘ hinzufügen“)
+        const haken = ortHaken ? `<label class="lba-orthaken"><input type="checkbox" id="lba-frage-ort"> ${esc(T("logbuch.als_mein_ort", "Zu „Meine Orte“ hinzufügen — wird in allen Logbüchern erkannt"))}</label>` : "";
+        const m = openModal({ title: titelText, body: `<div class="lib-fmodal">${feld}${haken}</div>`,
           footer: `<button class="btn" id="lba-frage-nein">${esc(T("common.cancel", "Abbrechen"))}</button><button class="btn btn-primary" id="lba-frage-ja">${esc(T("common.ok", "OK"))}</button>` });
-        const el = document.getElementById("lba-frage"), fertig = (v) => { try { m.close(); } catch (_) {} res(v); };
+        const el = document.getElementById("lba-frage"), fertig = (v) => {
+          const h = document.getElementById("lba-frage-ort"), alsOrt = !!(h && h.checked);
+          try { m.close(); } catch (_) {}
+          res(ortHaken ? (v == null ? null : { wert: v, alsOrt }) : v);
+        };
         document.getElementById("lba-frage-ja").onclick = () => fertig(el ? el.value : "");
         document.getElementById("lba-frage-nein").onclick = () => fertig(null);
         if (el) { el.focus(); try { el.select(); } catch (_) {} if (!mehrzeilig) el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); fertig(el.value); } }); }
@@ -302,8 +315,19 @@
       const liste = (Z.d.eintraege || []), i = liste.findIndex((e) => e.id === id), vor = liste[i - 1], nach = liste[i + 1];
       const pkt = [];   // [Text, Aktion] · {kopf} · "-" · {html, fn, art}
       pkt.push([T("logbuch.menue.umbenennen", "Umbenennen …"), async () => {
-        const v = await frage(T("logbuch.frage.name", "Name"), x.name || titel(x, Z.orte));
-        if (v != null) aktion(T("logbuch.undo.umbenannt", "Umbenannt"), "aendern", { bids: x.bids, name: v.trim() });
+        const art = x.anzeige_art || x.art, pos = x.pos || x.pos_von;
+        const ortTauglich = !!pos && ["pause", "uebernachtung", "halt"].includes(art);
+        const v = await frage(T("logbuch.frage.name", "Name"), x.name || x.mein_ort || titel(x, Z.orte), false, ortTauglich);
+        if (v == null) return;
+        const name = (ortTauglich ? v.wert : v).trim();
+        if (ortTauglich && v.alsOrt && name) {
+          const r = await api().meine_orte_speichern({ name, lat: pos[1], lon: pos[0] }).catch(() => null);   // warte-ok: eine Zeile in den Einstellungen
+          if (r && r.ok) toast(T("logbuch.ort_gemerkt", "„{n}“ steht jetzt in „Meine Orte“.", { n: name }), "success", 3500);
+          // der Eintrag heißt dann über den Ort — kein eigener Name nötig
+          await aktion(T("logbuch.undo.umbenannt", "Umbenannt"), "aendern", { bids: x.bids, name: "" });
+          return;
+        }
+        aktion(T("logbuch.undo.umbenannt", "Umbenannt"), "aendern", { bids: x.bids, name });
       }]);
       pkt.push([T("logbuch.menue.notiz", "Notiz …"), async () => {
         const v = await frage(T("logbuch.frage.notiz", "Notiz"), x.notiz || "", true);
