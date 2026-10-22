@@ -5555,7 +5555,10 @@ function mountLibrary(body, headerActions) {
       + ` (${_nNeu}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
     await reloadFolders();
     if (_foldersModal) { try { _foldersModal.close(); } catch (_) {} _foldersModal = null; }
-    if (!res.kopiert) { await importErgebnisZeigen(); return; }   // alles schon da: gleich zeigen
+    // 22.10.2026 (Nutzer-Log: Tour nach dem Import nicht im Archiv) — „schon im Import-Ordner“ heißt nicht „im Archiv“:
+    // scheiterte das Einlesen beim ersten Versuch (z. B. Datenbank belegt), lag die Datei danach im Ordner, aber nie im
+    // Archiv, und jeder weitere Import sprang direkt zum Zeigen. Darum immer diesen einen Ordner einlesen lassen — für
+    // schon Bekanntes kostet das nur einen kurzen Blick.
     startScan(false, res.folder);
   }
 
@@ -5641,7 +5644,11 @@ function mountLibrary(body, headerActions) {
 
   async function startScan(force, folder) {
     const res = await api().library_scan_start(!!force, folder || "");
-    if (!res.ok) { toast(res.error || T("library.scan_laeuft", "Einlesen läuft bereits"), "warn"); return; }
+    if (!res.ok) {
+      toast(res.error || T("library.scan_laeuft", "Einlesen läuft bereits"), "warn");
+      if (_importZeigen) await importErgebnisZeigen();   // wenigstens zeigen, was schon da ist
+      return;
+    }
     const btn = $("lib-scan");
     if (btn) btn.disabled = true;
     const stop = $("lib-scan-stop");

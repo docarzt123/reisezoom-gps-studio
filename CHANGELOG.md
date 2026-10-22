@@ -16,6 +16,7 @@ Bei jeder neuen Version:
 
 ### Fixed
 - Importing a track or saving a photo edit could fail with „database is locked“ while the photo scan ran over a large, unchanged collection (e.g. on a NAS): the scan kept the library locked for minutes after each finished folder. It now lets go right away.
+- Import: a track whose first import broke off after copying (e.g. database busy) now still lands in the archive on the next try — before, it counted as „already there“ and never showed up.
 - Media loupe: opening large photos while others were being prepared in the background could log database errors; both now take turns.
 
 ### Changed
