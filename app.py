@@ -310,6 +310,8 @@ def _shrink_data_uri(uri: str, max_px: int = 520, quality: int = 82) -> str:
     except Exception:
         return uri
 _ds.app_ordner_setzen(APP_SUPPORT)   # 14.09.2026: Bereich + Papierkorb des Dateischutzes
+from core import ortsdaten as _ortsdaten  # noqa: E402
+_ortsdaten.einrichten(APP_SUPPORT / "ortsdaten")   # 22.10.2026: Sehenswürdigkeiten/Orte aus Kacheln statt Overpass
 DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
 TOURMAPS_DIR = (APP_SUPPORT / "Tour Maps") if APP_ORDNER_UEBERSCHRIEBEN else (Path.home() / "Pictures" / "Reisezoom Tour Maps")
@@ -14567,6 +14569,70 @@ class Api:
             log.exception("logbuch_orte")
             return {"ok": False, "error": str(e), "orte": {}}
 
+    # 22.10.2026 (Marc: „sieht so aus, als würden keine POIs abgefragt“) — eine 1.600-km-Tour ging als EIN Korridor an
+    # Overpass und lief in die Zeitgrenze (0 POIs). Sehenswürdigkeiten zählen dort, wo man zu Fuß war oder angehalten hat:
+    # nur diese Abschnitte abfragen, alle Kästen in EINER Anfrage (je Abschnitt eine eigene brauchte über 10 min). Kurze Touren (≤ 60 km) wie bisher am Stück.
+    _POI_ARTEN = {"wanderung", "spaziergang", "gehen", "laufen", "rad", "pause", "uebernachtung", "halt", "wassersport", "unsicher"}
+
+    def _pois_abschnittsweise(self, chl, pts: list, eintraege: list) -> dict:
+        from core import logbuch as clb
+        n = len(pts)
+        gesamt_m = 0.0
+        try:
+            st = clb.strecke(pts, 0, n - 1) if n > 1 else 0.0
+            gesamt_m = float(st or 0.0)
+        except Exception:  # noqa: BLE001
+            gesamt_m = 0.0
+        if n < 2 or gesamt_m <= 60000:
+            return chl.highlights_fuer_track(pts, max_n=80)
+        teile = []
+        for e in eintraege or []:
+            art = e.get("anzeige_art") or e.get("art")
+            a, b = e.get("von_idx"), e.get("bis_idx")
+            if art not in self._POI_ARTEN or a is None:
+                continue
+            a, b = int(a), int(b if b is not None else a)
+            if b - a < 6:                       # Halt an einer Stelle: ein kleines Fenster drumherum
+                a, b = max(0, a - 6), min(n - 1, b + 6)
+            teile.append([a, b, art])
+        teile.sort()
+        zusammen = []
+        for t in teile:
+            if zusammen and t[0] <= zusammen[-1][1] + 3:
+                zusammen[-1][1] = max(zusammen[-1][1], t[1])
+            else:
+                zusammen.append(list(t))
+        # die wichtigsten zuerst (Wanderungen/Spaziergänge, dann lange Pausen), höchstens 30 Abfragen
+        zusammen.sort(key=lambda t: (0 if t[2] in ("wanderung", "spaziergang", "gehen", "laufen", "rad") else 1, -(t[1] - t[0])))
+        zusammen = zusammen[:30]
+        kaesten = [(a, b, chl._kasten(pts[a:b + 1], chl.KORRIDOR_M)) for a, b, _art in zusammen if b > a]
+        kaesten = [k for k in kaesten if k[2]]
+        unvollstaendig = False
+        try:
+            gefunden = chl.osm_pois_kaesten([k[2] for k in kaesten])
+        except chl.KeinNetz as e:
+            gefunden = getattr(e, "teil", None) or []
+            if not gefunden:
+                return {"gewaehlt": [], "netz": False}
+            unvollstaendig = True   # Kacheln ja, Overpass nein: zeigen, aber nicht merken (später kommt der Rest)
+        netz = True
+        alle = []
+        for a, b, (s_, w_, n_, e_) in kaesten:
+            drin = [q for q in gefunden if s_ <= q["lat"] <= n_ and w_ <= q["lon"] <= e_]
+            for q in chl.auswaehlen(pts[a:b + 1], drin, max_n=12, radius_m=chl.KORRIDOR_M) if drin else []:
+                q = dict(q)
+                q["idx"] = a + int(q.get("idx") or 0)
+                alle.append(q)
+        gesehen, raus = set(), []
+        for q in sorted(alle, key=lambda q: int(q.get("rang") or 9)):
+            k = q.get("osm_id") or (round(float(q["lat"]), 4), round(float(q["lon"]), 4))
+            if k in gesehen:
+                continue
+            gesehen.add(k)
+            raus.append(q)
+        log.info("[logbuch] POIs abschnittsweise: %d Abschnitte, %d Treffer (%.0f km Tour)", len(zusammen), len(raus), gesamt_m / 1000)
+        return {"gewaehlt": raus[:80], "netz": netz, "unvollstaendig": unvollstaendig}
+
     def logbuch_pois(self, path: str, neu: bool = False) -> dict:
         """Q11 — Sehenswürdigkeiten am Weg (OSM über core/highlights), je Tour in der
         Bibliothek gemerkt. Wichtige (Gipfel, Pässe, Burgen) und solche in Pausen-Nähe
@@ -14582,7 +14648,7 @@ class Api:
             netz = True
             if pois is None:
                 pts = [p if isinstance(p, dict) else {"lat": p.lat, "lon": p.lon, "ele": getattr(p, "ele", None), "time": getattr(p, "time", None)} for p in f["pts"]]
-                r = chl.highlights_fuer_track(pts, max_n=80)
+                r = self._pois_abschnittsweise(chl, pts, f["lb"]["eintraege"])
                 netz = bool(r.get("netz"))
                 if not netz:
                     return {"ok": True, "netz": False, "pois": [], "im_logbuch": 0}
@@ -14595,8 +14661,9 @@ class Api:
                     pois.append({"id": f"osm{q.get('osm_id') or idx}", "osm_id": q.get("osm_id"), "name": q.get("name") or "",
                                  "art": q.get("art") or "", "symbol": q.get("symbol") or "📍", "rang": int(q.get("rang") or 9),
                                  "lat": float(q["lat"]), "lon": float(q["lon"]), "ele": q.get("ele"), "idx": idx, "t": tt})
-                with clib._DB_LOCK:
-                    clb.pois_merken(conn, f["tour"], pois)
+                if not r.get("unvollstaendig"):
+                    with clib._DB_LOCK:
+                        clb.pois_merken(conn, f["tour"], pois)
             pois = clb.pois_bewerten(pois, f["lb"]["eintraege"], f["pts"])
             # Wichtige ins Logbuch — als Punkte mit Quelle auto (nicht doppelt)
             vorhanden = {str(b.get("osm_id")) for b in f["bew"]["bereiche"] if b.get("art") == "poi"}
@@ -14633,8 +14700,16 @@ class Api:
             lb = clb.eintraege(bew["bereiche"], None, aktivitaet=(t or {}).get("activity") or "",
                                einstellungen=self._logbuch_einstellungen(tour)["wirksam"])
             tage = len({b.get("tag") for b in bew["bereiche"] if b.get("art") == "start"}) or 1
+            hoch = lb["hoechster"]
+            # 23.10.2026 — wie im Logbuch: erst ab HOECHSTER_HUB_M über dem Tiefsten (hier: der ganzen Tour, ohne Punkte)
+            try:
+                tief = (t or {}).get("ele_min")
+                if hoch and hoch.get("ele") is not None and tief is not None and float(hoch["ele"]) - float(tief) < clb.HOECHSTER_HUB_M:
+                    hoch = None
+            except (TypeError, ValueError):
+                pass
             return {"ok": True, "vorhanden": True, "zusammenfassung": lb["zusammenfassung"],
-                    "hoechster": lb["hoechster"], "tage": tage, "n": len(lb["eintraege"])}
+                    "hoechster": hoch, "tage": tage, "n": len(lb["eintraege"])}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "vorhanden": False}
 

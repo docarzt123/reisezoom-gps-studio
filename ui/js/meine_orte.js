@@ -26,7 +26,9 @@
 
   async function oeffnen() {
     schliessen(true);
-    const main = document.querySelector(".lib-main");
+    // 22.10.2026 (Marc: „links bleibt, was der alte Tab angezeigt hat, und rechts ist quasi leer“) — die Seite liegt
+    // über dem GANZEN Archiv (linke Leiste, Mitte, rechte Spalte), nicht nur über der Mitte.
+    const main = document.querySelector(".module-body.lib-mode") || document.querySelector(".lib-main");
     if (!main) return false;
     const seite = document.createElement("div");
     seite.className = "ts-seite mo-seite";
@@ -45,9 +47,9 @@
         </div>
       </div>`;
     main.appendChild(seite);
-    main.classList.add("ts-aktiv");
-    { const k = document.getElementById("lib-seg-orte"); if (k) k.classList.add("is-on"); }
+    main.classList.add("mo-aktiv");
     Z = { seite, orte: [], map: null, lib: null, marker: {}, sel: null, setzen: false, radius: { standard: 150 } };
+    window.dispatchEvent(new Event("rz-meine-orte"));   // Archiv: Bereichsknöpfe neu markieren (jetzt ist sie offen)
     seite.querySelector(".ts-zurueck").onclick = () => schliessen();
     seite.querySelector("#mo-neu").onclick = () => setzenModus(!Z.setzen);
     const such = seite.querySelector("#mo-suche");
@@ -222,9 +224,10 @@
     const z = Z; Z = null;
     if (z.map) { try { z.map.remove(); } catch (_) {} }
     try { z.seite.remove(); } catch (_) {}
-    if (!document.querySelector(".ts-seite")) document.querySelectorAll(".lib-main.ts-aktiv").forEach((x) => x.classList.remove("ts-aktiv"));
+    document.querySelectorAll(".mo-aktiv").forEach((x) => x.classList.remove("mo-aktiv"));
     window.__rzMeineOrteKarte = null;
     { const k = document.getElementById("lib-seg-orte"); if (k) k.classList.remove("is-on"); }
+    window.dispatchEvent(new Event("rz-meine-orte"));
     if (!still && typeof window.__rzLibDetailNeu === "function") try { window.__rzLibDetailNeu(); } catch (_) {}
   }
   window.addEventListener("keydown", (e) => {

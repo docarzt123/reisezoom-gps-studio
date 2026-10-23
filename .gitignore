@@ -196,3 +196,6 @@ ort_punkt_cache.json
 
 # Inhaltssuche-Modell (lädt im Quellbaum-Modus hierher, ~500 MB)
 inhaltssuche/
+
+# Ortsdaten-Kacheln (Zwischenspeicher im Dev-Modus)
+/ortsdaten/

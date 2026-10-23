@@ -6855,5 +6855,10 @@
   "tourseite.ansicht_rechts": "Mostrar/ocultar el diario a la derecha",
   "tourseite.ansicht_unten": "Mostrar/ocultar las fotos de abajo — sin fotos el mapa muestra las entradas del diario",
   "library.ansicht_links": "Mostrar/ocultar la barra izquierda",
-  "library.ansicht_rechts": "Mostrar/ocultar la columna derecha"
+  "library.ansicht_rechts": "Mostrar/ocultar la columna derecha",
+  "about.credits.ortsdaten": "Lugares de interés y localidades en el camino",
+  "about.credits.ortsdaten_kacheln": "teselas de datos propias de reisezoom.com, creadas con",
+  "about.credits.aus": "a partir de",
+  "about.credits.auszuege": "extractos de",
+  "logbuch.stau": "incl. {n} min de atasco"
 }

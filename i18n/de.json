@@ -6811,7 +6811,7 @@
   "bearb.r_boost_tip": "Ein Regler für mehr Bild: Farben, Struktur, Tiefen und Lichter zugleich",
   "bearb.v_fehlt": "Diesen Stand gibt es nicht mehr.",
   "library.imp_col_ok_ohne": "Ohne Sammlung aufnehmen",
-  "logbuch.export_pdf_tip": "Als PDF speichern — Reisetagebuch mit allen Tagen",
+  "logbuch.export_pdf_tip": "Als PDF speichern — Tagebuch der Tour mit allen Tagen",
   "logbuch.export_csv_tip": "Als Tabelle (CSV) speichern — für Excel oder Numbers",
   "logbuch.export_ok": "Gespeichert: {n}",
   "logbuch.export_fuss": "Erstellt mit GPS Studio by reisezoom.com",
@@ -6855,5 +6855,10 @@
   "tourseite.ansicht_rechts": "Logbuch rechts ein-/ausblenden",
   "tourseite.ansicht_unten": "Bilder unten ein-/ausblenden — ohne Bilder zeigt die Karte die Logbuch-Einträge",
   "library.ansicht_links": "Linke Leiste ein-/ausblenden",
-  "library.ansicht_rechts": "Rechte Spalte ein-/ausblenden"
+  "library.ansicht_rechts": "Rechte Spalte ein-/ausblenden",
+  "about.credits.ortsdaten": "Sehenswürdigkeiten und Orte am Weg",
+  "about.credits.ortsdaten_kacheln": "eigene Ortsdaten-Kacheln von reisezoom.com, gebaut mit",
+  "about.credits.aus": "aus",
+  "about.credits.auszuege": "Auszügen",
+  "logbuch.stau": "davon {n} min Stau"
 }

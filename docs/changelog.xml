@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 22 Oct 2026 16:21:34 +0000</lastBuildDate>
+<lastBuildDate>Fri, 23 Oct 2026 05:36:18 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.807</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-807</link>
+<guid isPermaLink="false">gps-studio-v0.9.807</guid>
+<pubDate>Fri, 23 Oct 2026 12:00:00 +0000</pubDate>
+<description>Meine Orte — Zu Hause, bei Oma, der Stammplatz am See: Im Archiv legst du deine Orte auf einer Karte an — jedes Logbuch erkennt sie dann („Pause · Zu Hause“). Bleibt privat, geht in keinen Export.
+
+Logbuch als PDF und Tabelle — Ein Tagebuch der Tour mit Karte je Tag als PDF, oder alle Einträge als CSV für Excel und Numbers.
+
+Sehenswürdigkeiten im Logbuch — Aussichtspunkte, Gipfel und Burgen am Weg landen jetzt auch auf der Tourseite im Logbuch — auch bei langen Reisen. Die Daten kommen aus eigenen Kacheln statt von einem oft überlasteten Server.
+
+Logbuch erkennt besser — Stau auf der Autobahn bleibt Teil der Fahrt statt „Rad oder Laufen?“, keine „0 min“-Einträge mehr, Start und Ziel sitzen an Abfahrt und Ankunft, und der höchste Punkt erscheint nur, wo es wirklich bergauf ging.</description>
+</item>
 <item>
 <title>v0.9.806</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-806</link>
@@ -243,19 +256,6 @@ Kartenanimation ohne GPS weitergeben — Das .rzproj nimmt jetzt die Etappe mit 
 <guid isPermaLink="false">gps-studio-v0.9.784</guid>
 <pubDate>Wed, 07 Oct 2026 12:00:00 +0000</pubDate>
 <description>Etappen-Editor — Der ✕-Knopf einer Station hatte auf Englisch und Spanisch keinen eigenen Text.</description>
-</item>
-<item>
-<title>v0.9.783</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-783</link>
-<guid isPermaLink="false">gps-studio-v0.9.783</guid>
-<pubDate>Wed, 07 Oct 2026 12:00:00 +0000</pubDate>
-<description>Etappe erstellen im Animator — Unter „Tracks“ legst du eine Strecke ohne GPS an — Anreise, Flug, Fähre, Autofahrt — vor, zwischen oder nach deinen Touren. Stationen eintippen oder auf die Karte klicken, je Abschnitt das Verkehrsmittel wählen; der Laufpunkt wechselt das Fahrzeug mit.
-
-Etappe zeichnen mit Kurven — Punkte auf die Karte klicken, die Linie folgt der Straße. Ein Punkt angeklickt zeigt zwei Hebel: drehen macht aus den Abschnitten eine freie Kurve. Doppelklick = scharfe Ecke, Entf löscht, ⌘Z nimmt zurück; Weichheit und Grobheit stellst du rechts ein. Punkte heißen nach dem nächsten Ort.
-
-Verkehrsmittel auf einen Klick — Oben im Etappen-Editor „Unterwegs mit“: 🚗 🏍 🚲 🚶 🚆 ⛴ ✈ für alle Abschnitte oder ab dem ausgewählten Punkt. Die Stationsliste ist aufgeräumt, die Punkt-Leiste bleibt immer in der Karte und lässt sich verschieben, und nach einem Kartenwechsel ist die Linie wieder da.
-
-Eine Kamera für alles — Auch die automatische Kamera (Sicht je Tour, Kinoflug zwischen den Touren) läuft jetzt über Keyframes. Vorschau, Ziehen in der Zeitleiste und Video zeigen immer dasselbe. Beim Einschalten des Keyframe-Editors kannst du die Standard-Keyframes übernehmen und dann frei ändern.</description>
 </item>
 </channel>
 </rss>

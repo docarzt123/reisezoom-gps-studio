@@ -1380,7 +1380,7 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 
 /* ── 08.10.2026 — Tour-Seite (ui/js/tourseite.js) ─────────────────────────────
    Liegt über der Tourenliste (Mitte) und über der Archiv-Navigation (links); rechts die Medien-Details. */
-.lib-main.ts-aktiv, #lib-panel.ts-aktiv { position: relative; }
+.lib-main.ts-aktiv, #lib-panel.ts-aktiv, .module-body.mo-aktiv { position: relative; }
 /* 22.10.2026 — Meine Orte: Karte links, Liste rechts */
 .mo-koerper { flex: 1; min-height: 0; display: flex; }
 .mo-karte { flex: 1; min-width: 0; position: relative; }
@@ -1948,9 +1948,8 @@ canvas.foto-gross-bild { display: block; }
 .module-header.lib-kopf .module-header-actions { display: flex; align-items: center; gap: 10px; }
 .module-header.lib-kopf.lib-proj-mode .lib-views { display: none; }
 .lib-ansicht { display: inline-flex; gap: 4px; align-items: center; }
-.module-body.lib-mode.lib-ohne-links { grid-template-columns: minmax(0, 1fr) 320px !important; }
-.module-body.lib-mode.lib-ohne-rechts { grid-template-columns: 208px minmax(0, 1fr) !important; }
-.module-body.lib-mode.lib-ohne-links.lib-ohne-rechts { grid-template-columns: minmax(0, 1fr) !important; }
+/* Spaltenbreiten setzt ui/js/seitenleisten.js (gezogene Breite bleibt — Marc 23.10.: „wird die linke schmaler“);
+   hier nur das Ausblenden */
 .module-body.lib-mode.lib-ohne-links > .lib-nav, .module-body.lib-mode.lib-ohne-rechts > .lib-detail { display: none !important; }
 /* 22.10.2026 — Ansichts-Knöpfe der Tour-Seite (wie im Animator): Leisten links/rechts/unten ein- und ausblenden */
 .ansicht-knopf .ak-rechts::before { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 6px; background: currentColor; opacity: 0.85; }

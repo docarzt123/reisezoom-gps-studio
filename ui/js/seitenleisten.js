@@ -112,7 +112,9 @@
     const vorher = b.__rzSpalten || "";
     // 06.10.2026 (test_videoeditor) — Seitenleiste per „ohne-seite“ ausgeblendet: keine linke Spalte, sonst rutscht die
     // Vorschau in die 360-px-Spalte der versteckten Leiste (Bild 320×180)
-    const ohneLinks = !tl.lib && b.classList.contains("ohne-seite");
+    // 23.10.2026 — im Archiv blendet „links aus“ (lib-ohne-links) die Bereiche aus; die gezogene Breite der anderen
+    // Spalte bleibt dabei stehen (vorher setzte das Stylesheet feste 208/320 px darüber).
+    const ohneLinks = tl.lib ? getComputedStyle(tl.links).display === "none" : b.classList.contains("ohne-seite");
     const soll = ohneLinks ? (offen ? `minmax(0, 1fr) ${wr}px` : "minmax(0, 1fr)")
                : (offen ? `${wl}px minmax(0, 1fr) ${wr}px` : `${wl}px minmax(0, 1fr)`);
     if (vorher !== soll) { b.style.gridTemplateColumns = soll; b.__rzSpalten = soll; }
@@ -120,7 +122,9 @@
     const rv = offen ? wr + "px" : "0px";
     if (tl.lib) {
       if (document.documentElement.style.getPropertyValue("--rz-detail-breite") !== rv) document.documentElement.style.setProperty("--rz-detail-breite", rv);
-      griff(b, "l").style.left = wl + "px";
+      const gL = griff(b, "l");
+      gL.hidden = ohneLinks;
+      gL.style.left = wl + "px";
       const gl = griff(b, "r");
       gl.hidden = !offen;
       gl.style.left = (w - wr) + "px";

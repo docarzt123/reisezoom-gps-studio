@@ -6138,7 +6138,22 @@ function mountLibrary(body, headerActions) {
     // 22.10.2026 — „Meine Orte“: eine Seite über dem Archiv (ui/js/meine_orte.js); jeder andere Bereich schließt sie
     const so = document.getElementById("lib-seg-orte");
     if (so) so.onclick = () => { if (window.rzTourSeite && window.rzTourSeite.offen()) window.rzTourSeite.schliessen(); if (window.rzMeineOrte) window.rzMeineOrte.oeffnen(); };
-    [sp, st, sv, sf].forEach((b) => { if (b) b.addEventListener("click", () => { if (window.rzMeineOrte && window.rzMeineOrte.offen()) window.rzMeineOrte.schliessen(); }, true); }); }
+    // Jeder andere Bereich schließt Meine Orte und eine offene Tour-Seite (23.10.2026, Rundgang: „Medien“ ließ die Tour stehen)
+    [sp, st, sv, sf].forEach((b) => { if (b) b.addEventListener("click", () => {
+      if (window.rzMeineOrte && window.rzMeineOrte.offen()) window.rzMeineOrte.schliessen();
+      if (window.rzTourSeite && window.rzTourSeite.offen()) window.rzTourSeite.schliessen();
+    }, true); });
+    // 22.10.2026 (Marc: „Meine Orte … da bleibt der alte Tab aktiv“) — genau ein Bereich ist markiert: Meine Orte, solange
+    // die Seite offen ist, sonst der Bereich des Archivs darunter.
+    const segMarkieren = () => {
+      const orte = !!(window.rzMeineOrte && window.rzMeineOrte.offen());
+      if (so) so.classList.toggle("is-on", orte);
+      if (sp) sp.classList.toggle("is-on", !orte && _projView && !_vorlView && !_fotoView);
+      if (sv) sv.classList.toggle("is-on", !orte && _vorlView && !_fotoView);
+      if (sf) sf.classList.toggle("is-on", !orte && _fotoView);
+      if (st) st.classList.toggle("is-on", !orte && !_projView && !_vorlView && !_fotoView);
+    };
+    window.addEventListener("rz-meine-orte", segMarkieren); }
   { const nv = document.getElementById("lib-vorl-new");
     if (nv) nv.onclick = async () => {
       // Projekt wählen → Name → Vorlage anlegen.

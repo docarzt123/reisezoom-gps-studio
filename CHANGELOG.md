@@ -14,11 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.807] – 2026-10-23
+
 ### Added
 - My places: „Home“, „Grandma's“ … — a new „My places“ button in the archive opens a page with a map and a list: search or click on the map to add, rename, choose the radius, drag the pin to move, delete. Logbooks recognise them in every tour („Pause · Home“, a drive to or from there); renaming a stop in the logbook has a tick „Add to My places“. Private — never part of an export.
 - Logbook export: „PDF“ saves a travel diary with every day (date, kilometres, a small map of the day's route, all entries with time, place, duration and notes), „CSV“ a table for Excel or Numbers (one row per entry, with coordinates).
 
+- Sights and places from own place-data tiles: GPS Studio first looks in small tiles built from OpenStreetMap extracts (loaded once per area and kept), and only asks the free Overpass server where there are none. Overpass is often overloaded in the evening — then logbooks stayed without sights.
+
 ### Fixed
+- Logbook on the tour page: sights along the way (viewpoints, peaks, castles …) were never looked up there — only in the Track Inspector. They now load in the background after the logbook appears.
+- Long tours (hundreds of kilometres) got no sights at all: the whole route went to the server as one huge area and ran out of time. Now only the parts on foot, by bike, breaks and overnight stays are asked, all in one request.
+- Logbook: on a hike or bike ride, viewpoints, waterfalls, lakes and lighthouses you passed now get their own entry (up to three per section) — before, only peaks, passes and castles did.
+- Logbook: a traffic jam on the motorway no longer shows up as „Bike or run?“ and a short walk — slow parts directly between two drives, after which the car is somewhere else, belong to the drive („… · incl. 11 min in traffic jams“). Stopping, getting out and walking back to the car still counts as a walk.
+- Logbook: no more „Walk · 0 min“ entries (movement under 1½ minutes is part of its neighbour); a „drive“ at walking pace over a few hundred metres without a drive next to it (GPS jumps in a car park) is now on foot.
+- Logbook: Start and Finish sit where you set off and arrived — before, a recording running in the morning while you were still parked put „Start 07:34“ in the middle of the overnight stay (until 08:54), and „Finish“ came after the overnight stay. Start/Finish now show one time instead of „13:25–13:25 · 0 min“.
+- Logbook: „Highest point“ only where it means something — at least 150 m above the lowest point of the day, and on a drive only from 1,000 m (a pass); 652 m somewhere on the motorway is gone.
+- Archive: „My places“ is now the only highlighted section while it is open, covers the whole archive (no left-over list on the left, no empty column on the right), and every other section button closes it. A section button also closes an open tour page — „Media“ used to leave the tour in front.
+- Archive: hiding the right column (or the left bar) keeps the width you dragged the other one to — the left bar used to snap back to its default width.
 - Importing a track or saving a photo edit could fail with „database is locked“ while the photo scan ran over a large, unchanged collection (e.g. on a NAS): the scan kept the library locked for minutes after each finished folder. It now lets go right away.
 - Import: a track whose first import broke off after copying (e.g. database busy) now still lands in the archive on the next try — before, it counted as „already there“ and never showed up.
 - Media loupe: opening large photos while others were being prepared in the background could log database errors; both now take turns.

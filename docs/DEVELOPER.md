@@ -8279,3 +8279,30 @@ Gefunden beim Durchspielen typischer Erstnutzer-Wege; je Punkt ein Test unter `t
   Weiß/Schwarz in Kontrast/Lichter eingerechnet, ohne +3 Sättigung (SW-Voreinstellung). Lupe: `autoInRegler` setzt die
   Werte sichtbar in die Regler; alte Rezepte mit `auto: true` werden beim Öffnen umgerechnet.
 - Tests: `test_lupe_schnell_auto` (A–E), `test_bearbeitet_ueberall`, `test_fotos_bearbeiten`.
+
+## Ortsdaten-Kacheln statt Overpass — `core/ortsdaten.py`, `scripts/ortsdaten_bauen.py` (22.10.2026)
+
+Overpass (freier Server von FOSSGIS) ist abends oft überlastet (502, Zeitüberschreitung) → Logbuch ohne
+Sehenswürdigkeiten. Jetzt zuerst eigene Kacheln, Overpass nur, wo es keine gibt.
+
+- **Bauen** (Entwicklerrechner, nicht in der App): `scripts/ortsdaten_bauen.py ZIEL auszug-latest.osm.pbf …` — braucht
+  `osmium` (brew `osmium-tool`) und die Geofabrik-Grenze `auszug.poly` neben der `.pbf`. `osmium tags-filter` auf
+  `core/highlights.ARTEN` + `place=city|town|village|hamlet`, `osmium export` → je Objekt ein knappes
+  Overpass-Element `{type, id, lat/lon | center+bounds, tags}` (nur benannt; Flüsse, Stolpersteine raus).
+  Kacheln 0,5° × 0,5°: `ZIEL/<YYYY-MM>/k_<i>_<j>.json.gz` (`i = floor(lat/0,5)`), dazu `ZIEL/stand.json` mit
+  `format`, `version`, `grenzen` (Ringe der .poly) und `kacheln` (Name → SHA1-Präfix; fehlende Kachel = leer).
+  Mecklenburg-Vorpommern: 26 Kacheln, 10.000 Objekte, 0,3 MB, 2 s.
+- **App**: `ortsdaten.einrichten(APP_SUPPORT/"ortsdaten")` beim Start (Dev: Repo/ortsdaten, gitignored).
+  `teilantwort(kaesten)` → (Elemente, Rest-Kästen): ein Kasten zählt, wenn er ganz in einer Grenze liegt (Ecken drin,
+  kein Grenzpunkt im Kasten). `antwort(abfrage)` liest die Kästen `(s,w,n,e)` aus einer Overpass-QL und antwortet nur,
+  wenn alle abgedeckt sind. Eingehängt in `highlights._http_overpass` (gilt für alle Abfragen inkl. Orte/Pässe) und
+  getrennt in `osm_pois_kaesten` (abgedeckte Kästen aus Kacheln, nur der Rest an Overpass; scheitert Overpass,
+  trägt `KeinNetz.teil` die Kachel-Treffer → Logbuch zeigt sie, merkt aber nicht (`unvollstaendig`)).
+- **Zwischenspeicher**: Kacheln unveränderlich (Version im Pfad, Prüfsumme), `stand.json` höchstens alle 7 Tage;
+  Quelle weg → 6 h Pause, gemerkter Stand gilt weiter. `RZ_ORTSDATEN_URL` (URL oder Ordner), `RZ_ORTSDATEN=0` aus.
+- **Quelle** `https://data.reisezoom.com/ortsdaten/` (eigene Subdomain, damit ein Umzug ohne App-Update geht). Neue Kacheln: zuerst alle Kacheln hochladen, `stand.json` zuletzt.
+- **Logbuch dazu**: `_pois_abschnittsweise` (app.py) fragt bei Touren > 60 km nur Abschnitte zu Fuß/Rad/Pause/
+  Übernachtung, alle Kästen in einer Anfrage; `logbuch_ansicht.js` ruft `logbuch_pois` nach dem Laden im Hintergrund;
+  `pois_bewerten`: auf Wegen zu Fuß/Rad auch Rang ≤ 2 (Aussicht, Wasserfall, See, Leuchtturm), höchstens 3 je Abschnitt.
+- Tests: `test_ortsdaten`, `test_pois_lange_tour`.
+

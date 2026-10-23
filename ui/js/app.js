@@ -1617,6 +1617,15 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://photon.komoot.io/">Photon</a> — Apache-2.0 (Komoot) ·
             <a href="#" class="md-about-link" data-url="https://nominatim.org/">Nominatim</a> — GPL-2.0 · ${t("about.credits.routing_data", "Daten: OpenStreetMap-Mitwirkende (ODbL)")}
           </li>
+          <!-- 22.10.2026 — Sehenswürdigkeiten/Orte: eigene Kacheln aus OSM-Auszügen, sonst Overpass -->
+          <li>
+            ${t("about.credits.ortsdaten", "Sehenswürdigkeiten und Orte am Weg")}:
+            <a href="#" class="md-about-link" data-url="https://overpass-api.de/">Overpass API</a> — AGPL-3.0 (FOSSGIS e.&nbsp;V.) ·
+            ${t("about.credits.ortsdaten_kacheln", "eigene Ortsdaten-Kacheln von reisezoom.com, gebaut mit")}
+            <a href="#" class="md-about-link" data-url="https://osmcode.org/osmium-tool/">osmium</a> — GPL-3.0 ${t("about.credits.aus", "aus")}
+            <a href="#" class="md-about-link" data-url="https://download.geofabrik.de/">Geofabrik</a>-${t("about.credits.auszuege", "Auszügen")} ·
+            ${t("about.credits.routing_data", "Daten: OpenStreetMap-Mitwirkende (ODbL)")}
+          </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://pywebview.flowrl.com/">pywebview</a> — BSD-3-Clause ·
             <a href="#" class="md-about-link" data-url="https://python-pillow.org/">Pillow</a> — HPND ·

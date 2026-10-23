@@ -150,6 +150,15 @@ def _http_overpass_einmal(url: str, query: str, timeout: float) -> dict:
 def _http_overpass(query: str, timeout: float = OVERPASS_TIMEOUT_S + 5) -> dict:
     """Mit Wiederholung: 504/Zeitüberschreitung → nächster Versuch. Wirft den
     letzten Fehler, wenn alle scheitern."""
+    # 22.10.2026: zuerst die eigenen Ortsdaten-Kacheln (core/ortsdaten) — Overpass nur, wo es keine gibt
+    try:
+        from . import ortsdaten
+        lokal = ortsdaten.antwort(query)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Ortsdaten: %s", e)
+        lokal = None
+    if lokal is not None:
+        return lokal
     letzter = None
     for i, url in enumerate(OVERPASS_SERVER):
         try:
@@ -245,6 +254,60 @@ def _osm_ele(typ: str, osm_id, timeout: float = 6.0) -> Optional[float]:
         return None
 
 
+def _kasten(points: List[dict], radius_m: float) -> Optional[tuple]:
+    pts = [p for p in points if p.get("lat") is not None and p.get("lon") is not None]
+    if not pts:
+        return None
+    lats = [float(p["lat"]) for p in pts]
+    lons = [float(p["lon"]) for p in pts]
+    dlat = radius_m / 111_000.0
+    dlon = radius_m / (111_000.0 * max(0.2, math.cos(math.radians(sum(lats) / len(lats)))))
+    return (min(lats) - dlat, min(lons) - dlon, max(lats) + dlat, max(lons) + dlon)
+
+
+def overpass_abfrage_kaesten(kaesten: List[tuple]) -> str:
+    """EINE Overpass-Abfrage für viele kleine Kästen (22.10.2026, Logbuch langer Touren: je Abschnitt eine eigene
+    Abfrage brauchte über 10 min). Je Kasten eine Zeile pro OSM-Schlüssel mit Werte-Liste; ohne Orte (`place`) —
+    die kommen im Logbuch aus der eigenen Orte-Abfrage."""
+    werte: dict = {}
+    for (k, v) in ARTEN:
+        if k != "place":
+            werte.setdefault(k, []).append(v)
+    zeilen = []
+    for (s, w, n, e) in kaesten:
+        bbox = f"{s:.5f},{w:.5f},{n:.5f},{e:.5f}"
+        for k, vs in werte.items():
+            zeilen.append(f'nwr["{k}"~"^({"|".join(vs)})$"]["name"]({bbox});')
+    return f"[out:json][timeout:{OVERPASS_TIMEOUT_S * 2}];(" + "".join(zeilen) + ");out center bb tags;"
+
+
+def osm_pois_kaesten(kaesten: List[tuple], *, http: Optional[Callable[[str], dict]] = None) -> List[dict]:
+    """Wie osm_pois, aber für viele Kästen in einer Anfrage.
+    Kästen mit eigenen Ortsdaten-Kacheln (core/ortsdaten) werden daraus beantwortet, nur der Rest geht an Overpass.
+    Scheitert Overpass, aber Kacheln lieferten etwas: KeinNetz mit `.teil` = die Treffer aus den Kacheln."""
+    if not kaesten:
+        return []
+    lokal, rest = [], list(kaesten)
+    if http is None:
+        try:
+            from . import ortsdaten
+            lokal, rest = ortsdaten.teilantwort(kaesten)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Ortsdaten: %s", e)
+            lokal, rest = [], list(kaesten)
+    pois = _pois_aus_antwort({"elements": lokal}) if lokal else []
+    if not rest:
+        return pois
+    try:
+        res = (http or (lambda q: _http_overpass(q, OVERPASS_TIMEOUT_S * 2 + 5)))(overpass_abfrage_kaesten(rest))
+    except Exception as e:  # noqa: BLE001
+        log.warning("Overpass nicht erreichbar: %s", e)
+        fehler = KeinNetz(str(e))
+        fehler.teil = pois
+        raise fehler from e
+    return pois + _pois_aus_antwort(res)
+
+
 def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
              http: Optional[Callable[[str], dict]] = None) -> List[dict]:
     """Highlights aus OSM: [{lat, lon, name, art, rang, symbol, ele, tags}]. `http`
@@ -257,6 +320,10 @@ def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
     except Exception as e:  # noqa: BLE001
         log.warning("Overpass nicht erreichbar: %s", e)
         raise KeinNetz(str(e)) from e
+    return _pois_aus_antwort(res)
+
+
+def _pois_aus_antwort(res: dict) -> List[dict]:
     out = []
     for el in (res or {}).get("elements") or []:
         tags = el.get("tags") or {}

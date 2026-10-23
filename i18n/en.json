@@ -6855,5 +6855,10 @@
   "tourseite.ansicht_rechts": "Show/hide the logbook on the right",
   "tourseite.ansicht_unten": "Show/hide the photos at the bottom — without photos the map shows the logbook entries",
   "library.ansicht_links": "Show/hide the left bar",
-  "library.ansicht_rechts": "Show/hide the right column"
+  "library.ansicht_rechts": "Show/hide the right column",
+  "about.credits.ortsdaten": "Sights and places along the way",
+  "about.credits.ortsdaten_kacheln": "own place-data tiles from reisezoom.com, built with",
+  "about.credits.aus": "from",
+  "about.credits.auszuege": "extracts",
+  "logbuch.stau": "incl. {n} min in traffic jams"
 }

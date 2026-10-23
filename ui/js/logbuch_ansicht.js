@@ -47,7 +47,10 @@
     if (m < 950) return Math.round(m) + " m";
     return (m / 1000).toLocaleString(sprache(), { maximumFractionDigits: m < 20000 ? 1 : 0 }) + " km";
   }
-  const istPunkt = (x) => x && x.t != null && x.t0 == null;
+  // Punkte (Start, Ziel, höchster Punkt, eigene, POIs) tragen aus der Einteilung auch t0 == t1 — an der Art erkennen,
+  // sonst zeigt die Liste „Start 13:25–13:25 · 0 min“ (Marc, PDF der Rügen-Reise, 22.10.2026)
+  const PUNKT_ARTEN = ["start", "ziel", "hoechster_punkt", "punkt", "poi"];
+  const istPunkt = (x) => !!x && x.t != null && (x.t0 == null || PUNKT_ARTEN.includes(x.art));
 
   /** Ort zum Eintrag aus `logbuch_orte` ({von, nach, hier}). */
   function ortVon(orte, x) {
@@ -120,6 +123,11 @@
         if (lauf === Z.lauf && c && c.ok && JSON.stringify(c.orte || {}) !== JSON.stringify(Z.orte || {})) { Z.orte = c.orte || {}; merk(); render(); }
         const n = await api().logbuch_orte(opt.path, 25);   // warte-ok: Namen kommen nach, Liste steht schon
         if (lauf === Z.lauf && n && n.ok && JSON.stringify(n.orte || {}) !== JSON.stringify(Z.orte || {})) { Z.orte = n.orte || {}; merk(); render(); }
+        // Sehenswürdigkeiten am Weg (22.10.2026: die Tourseite fragte sie nie ab — nur der Track-Inspektor tat das).
+        // Je Tour in der Bibliothek gemerkt; neue wichtige landen als Punkte im Logbuch → dann neu lesen.
+        if (lauf !== Z.lauf) return;
+        const p = await api().logbuch_pois(opt.path, false);   // warte-ok: Logbuch steht schon, Punkte kommen nach
+        if (lauf === Z.lauf && box.isConnected && p && p.ok && p.im_logbuch > 0) laden(false);
       } catch (_) {}
     }
 
@@ -127,7 +135,8 @@
       const d = Z.d || {};
       const liste = (d.eintraege || []).concat((d.punkte || []).filter((p) => p.art !== "poi" || p.name));
       return liste.sort((a, b) => ((a.t0 != null ? a.t0 : a.t) - (b.t0 != null ? b.t0 : b.t))
-        || ((a.art === "start" ? 0 : a.art === "ziel" ? 2 : 1) - (b.art === "start" ? 0 : b.art === "ziel" ? 2 : 1)));
+        // Start und Ziel vor dem Eintrag, der zur selben Zeit beginnt: Ziel 17:37 vor der Übernachtung ab 17:37
+        || ((a.art === "start" || a.art === "ziel" ? 0 : 1) - (b.art === "start" || b.art === "ziel" ? 0 : 1)));
     };
     const tagEintraege = () => {
       const d = Z.d; if (!d) return [];
@@ -160,6 +169,7 @@
       const meta = [];
       if (o.text) meta.push(esc(o.text));
       if (!p) { meta.push(esc(dauer(x.dauer_s))); if (x.strecke_m > 50) meta.push(esc(km(x.strecke_m))); }
+      if (!p && x.stau_s >= 120) meta.push(esc(T("logbuch.stau", "davon {n} min Stau", { n: Math.round(x.stau_s / 60) })));
       const vermutet = (!p && x.geraten) ? ` <span class="lba-badge" title="${esc(T("logbuch.geraten_tip2", "Die Erkennung war hier unsicher."))}">${esc(T("logbuch.geraten", "vermutet"))}</span>` : "";
       const notiz = x.notiz ? `<div class="lba-notiz">${esc(x.notiz)}</div>` : "";
       return `<div class="lba-eintrag${Z.sel === x.id ? " gewaehlt" : ""}" data-lba-id="${esc(x.id)}" style="--c:${farbe(art)}" role="button" tabindex="0">
@@ -181,7 +191,7 @@
       const rueck = Z.rueck ? `<div class="lba-rueck">${esc(Z.rueck.text)} <button type="button" class="btn btn-sm" data-lba-rueck="1">${I("rotate-ccw", 13)} ${esc(T("logbuch.rueckgaengig", "Rückgängig"))}</button></div>` : "";
       box.innerHTML = `<div class="lba">
           <div class="lba-titel">${I("book-open", 18)} <b>${esc(T("logbuch.titel", "Logbuch"))}</b><span class="lba-luft"></span>
-            <button type="button" class="btn btn-sm btn-ghost" data-lba-export="pdf" title="${esc(T("logbuch.export_pdf_tip", "Als PDF speichern — Reisetagebuch mit allen Tagen"))}">${I("file-down", 14)} PDF</button>
+            <button type="button" class="btn btn-sm btn-ghost" data-lba-export="pdf" title="${esc(T("logbuch.export_pdf_tip", "Als PDF speichern — Tagebuch der Tour mit allen Tagen"))}">${I("file-down", 14)} PDF</button>
             <button type="button" class="btn btn-sm btn-ghost" data-lba-export="csv" title="${esc(T("logbuch.export_csv_tip", "Als Tabelle (CSV) speichern — für Excel oder Numbers"))}">${I("table", 14)} CSV</button></div>
           <div class="lba-unter muted">${esc(T("logbuch.unter", "Deine Tour, Tag für Tag. Namen und Notizen bleiben überall gleich."))}</div>
           <div class="lba-chips">${chipsHtml()}</div>

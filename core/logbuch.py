@@ -45,6 +45,12 @@ STANDARD = {
 HM_SCHWELLE_M = 3.0            # Höhenmeter zählen erst ab 3 m Änderung (GPS-Rauschen)
 
 UNSICHER_RAD_AB_KMH = 7.0   # 14.09.2026 — dauerhaft schneller geht niemand; darüber ist „unsicher“ Rad/Laufen
+# 22.10.2026 (Marc, Logbuch der Rügen-Reise: „Stau auf der Autobahn fragt, ob's Fahrrad war“)
+MIKRO_S = 90.0              # Bewegung unter 1½ min ist kein eigener Eintrag („Spaziergang · 0 min“)
+STAU_VERSATZ_M = 300.0      # Langsames zwischen zwei Fahrten, nach dem das Auto woanders steht = Stau, kein Aussteigen
+FAHRT_ZU_FUSS_M = 1000.0    # „Fahrt“ unter 1 km mit Schritttempo, ohne Fahrt daneben = zu Fuß (GPS-Sprünge am Parkplatz)
+HOECHSTER_HUB_M = 150.0            # „Höchster Punkt“ nur ab so viel Höhe über dem tiefsten Punkt des Tages (wie highlights.HUB_MIN_M)
+HOECHSTER_FAHRT_AB_M = 1000.0      # „Höchster Punkt“ auf einer Fahrt nur ab dieser Höhe (Pass) — 600 m auf der Autobahn sagen nichts
 PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt", "poi")
 HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause")   # Q12: Art ändern
 BEWEGT = ("gehen", "laufen", "rad", "fahrt", "uebersetzen")
@@ -297,7 +303,11 @@ def _verschmelzen(folge: List[dict]) -> List[dict]:
             v["dauer_roh"] = (v.get("dauer_roh") or 0.0) + (e.get("dauer_roh") or 0.0)
             v["bids"] += e["bids"]
             v["geraten"] = v["geraten"] or e["geraten"]
+            if e.get("stau"):
+                v["stau_s"] = (v.get("stau_s") or 0.0) + (e["t1"] - e["t0"])
             continue
+        if e.get("stau"):
+            e["stau_s"] = e["t1"] - e["t0"]
         raus.append(e)
     return raus
 
@@ -424,6 +434,71 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
             e["art"] = "fahrt"
             e["geraten"] = True
 
+    # 22.10.2026 — Kleinkram und Stau (Marc: „da gibt's noch viel, was besser erkannt werden könnte“)
+    # (1) Bewegung unter MIKRO_S geht im Nachbarn auf, wie kurze Halte (Q5) — „Spaziergang · 0 min“.
+    behalten = []
+    for k, e in enumerate(folge):
+        mikro = (e["art"] not in ("pause",) and e["quelle"] == "auto" and not e["name"]
+                 and (e.get("dauer_roh") or (e["t1"] - e["t0"])) < MIKRO_S)
+        if not mikro:
+            behalten.append(e)
+            continue
+        verborgen.append(e["id"])
+        if behalten:
+            behalten[-1]["t1"] = e["t1"]
+        elif k + 1 < len(folge):
+            folge[k + 1]["t0"] = e["t0"]
+    folge = behalten
+
+    def nachbar_direkt(k, schritt):
+        m = k + schritt
+        return folge[m] if 0 <= m < len(folge) and abs(folge[m]["t1" if schritt < 0 else "t0"] - folge[k]["t0" if schritt < 0 else "t1"]) < 1.0 else None
+
+    # (2) „Fahrt“ im Schritttempo über ein paar hundert Meter, ohne Fahrt daneben: zu Fuß (Parkplatz, GPS-Sprünge).
+    for k, e in enumerate(folge):
+        if e["art"] != "fahrt" or e["quelle"] != "auto" or e["strecke_m"] >= FAHRT_ZU_FUSS_M or tempo(e) >= UNSICHER_RAD_AB_KMH:
+            continue
+        if any((n or {}).get("art") == "fahrt" for n in (nachbar_direkt(k, -1), nachbar_direkt(k, +1))):
+            continue
+        e["art"] = "gehen"
+        e["geraten"] = True
+
+    # (3) Stau: langsame Stücke (unsicher/gehen/rad/laufen) direkt zwischen zwei Fahrten, ohne Halt — und das Auto steht
+    # danach woanders. Wer aussteigt, kommt zum Auto zurück; im Stau rollt es weiter.
+    def lage_bei(t):
+        if z is None:
+            return None
+        i = z.naechster(t)
+        p = z.pts[i] if i is not None else None
+        g = (lambda n: p.get(n) if isinstance(p, dict) else getattr(p, n, None))
+        try:
+            return float(g("lat")), float(g("lon"))
+        except (TypeError, ValueError):
+            return None
+
+    k = 0
+    while k < len(folge):
+        if folge[k]["art"] != "fahrt":
+            k += 1
+            continue
+        m = k + 1
+        while m < len(folge) and folge[m]["art"] in ("unsicher", "gehen", "rad", "laufen") and folge[m]["quelle"] == "auto" \
+                and not folge[m]["name"] and abs(folge[m]["t0"] - folge[m - 1]["t1"]) < 1.0:
+            m += 1
+        lauf = folge[k + 1:m]
+        if lauf and m < len(folge) and folge[m]["art"] == "fahrt" and abs(folge[m]["t0"] - folge[m - 1]["t1"]) < 1.0 \
+                and (lauf[-1]["t1"] - lauf[0]["t0"]) <= einst["langsame_fahrt_bis_s"]:
+            a, b = lage_bei(lauf[0]["t0"]), lage_bei(lauf[-1]["t1"])
+            versatz = _hav(a[0], a[1], b[0], b[1]) if a and b else 0.0
+            weg_m = sum(e["strecke_m"] for e in lauf)
+            # … und der Track fährt den Versatz auch ab (kein GPS-Sprung über eine Lücke)
+            if versatz >= STAU_VERSATZ_M and weg_m >= 0.7 * versatz:
+                for e in lauf:
+                    e["art"] = "fahrt"
+                    e["geraten"] = True
+                    e["stau"] = True
+        k = m if m > k + 1 else k + 1
+
     # 14.09.2026 — die Aktivität aus der Datei ist ein schwacher Hinweis: Komoot schreibt
     # „hike“ auch über eine Radtour. Überwiegt Rad/Laufen die Gehstrecke deutlich, gilt der
     # Wander-Hinweis nicht; die Gehstücke dazwischen sind dann Spaziergänge (Absteigen).
@@ -456,6 +531,50 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
         for e in folge:
             if e["art"] == "pause" and (tag_von(e["t1"]) or e["tag"]) != e["tag"]:
                 e["anzeige_art"] = "uebernachtung"
+
+    # 22.10.2026 — Start und Ziel an die Bewegung: Die Aufzeichnung läuft oft schon/noch, während man steht. Ein Start
+    # mitten in der Übernachtung (07:34, losgefahren 08:54) rückt an ihr Ende, ein Ziel in einer Pause an deren Anfang.
+    for p in punkte:
+        if p.get("art") not in ("start", "ziel") or p.get("quelle", "auto") != "auto":
+            continue
+        t = float(p["t"])
+        for e in folge:
+            if e["art"] != "pause":
+                continue
+            if p["art"] == "start" and e["t0"] <= t < e["t1"]:
+                t = e["t1"]
+            elif p["art"] == "ziel" and e["t0"] < t <= e["t1"]:
+                t = e["t0"]
+        if t != float(p["t"]):
+            p["t"] = p["t0"] = p["t1"] = t
+            if z is not None:
+                p["idx"] = z.naechster(t)
+                q = z.pts[p["idx"]] if p["idx"] is not None else None
+                if q is not None:
+                    g = (lambda n, q=q: q.get(n) if isinstance(q, dict) else getattr(q, n, None))
+                    p["lat"], p["lon"] = g("lat"), g("lon")
+
+    # 22.10.2026 — „Höchster Punkt“ nur, wo er etwas sagt: zu Fuß/Rad/in der Pause erreicht, oder auf einer Fahrt ab
+    # HOECHSTER_FAHRT_AB_M (Pass mit dem Motorrad). Auf der Autobahn ist er Zufall (Marc, Rügen-Reise: 652 m auf der A7).
+    weg = []
+    for p in punkte:
+        if p.get("art") != "hoechster_punkt" or p.get("quelle", "auto") != "auto":
+            continue
+        t = float(p["t"])
+        drin = next((e for e in folge if e["t0"] <= t <= e["t1"]), None)
+        if drin is not None and drin["art"] == "fahrt" and (p.get("ele") is None or float(p["ele"]) < HOECHSTER_FAHRT_AB_M):
+            weg.append(p)
+            continue
+        # 23.10.2026 (Marc, Schorfheide: „Höchster Punkt · 85 m“) — wie bei den Highlight-Schildern (HUB_MIN_M): nur, wenn
+        # es an dem Tag spürbar bergauf ging
+        if z is not None and p.get("ele") is not None:
+            f = next(((float(x["t0"]), float(x["t1"])) for k, x in enumerate(tage or [])
+                      if x.get("t0") is not None and int(x.get("nr") or k + 1) == p.get("tag")), (z.ts[0], z.ts[-1]) if z.ts else None)
+            hs = [h for h in (_ele(z.pts[i]) for i in z.indizes(*f)) if h is not None] if f else []
+            if hs and float(p["ele"]) - min(hs) < HOECHSTER_HUB_M:
+                weg.append(p)
+    if weg:
+        punkte = [p for p in punkte if p not in weg]
 
     zsf: dict = {}
     for e in folge:
@@ -506,6 +625,9 @@ CREATE TABLE IF NOT EXISTS logbuch_pois (
 """
 POI_WICHTIG_RANG = 1        # Gipfel, Pässe, Burgen: immer ins Logbuch (Q11)
 POI_PAUSE_NAH_M = 300.0     # ein POI so nah an einer Pause gehört dazu
+POI_WEG_RANG = 2            # zu Fuß/mit dem Rad: auch Aussichtspunkte, Wasserfälle, Seen, Leuchttürme …
+POI_WEG_MAX = 3             # … höchstens so viele je Abschnitt (die wichtigsten)
+POI_WEG_ARTEN = ("wanderung", "spaziergang", "gehen", "laufen", "rad")
 
 
 def schema_anlegen(conn: _sqlite3.Connection) -> None:
@@ -605,12 +727,25 @@ def pois_bewerten(pois: List[dict], eintraege_: List[dict], points) -> List[dict
             lo = p.get("lon") if isinstance(p, dict) else getattr(p, "lon", None)
             if la is not None:
                 pausen.append((float(la), float(lo), e["id"]))
+    # 22.10.2026 (Marc, Rügen: Wissower Klinken, Victoria-Sicht fehlten im Logbuch): wer zu Fuß oder mit dem Rad
+    # unterwegs war, hat die Aussicht gesehen — dort zählt auch Rang 2, je Abschnitt die POI_WEG_MAX besten.
+    wege = [(int(e["von_idx"]), int(e.get("bis_idx") if e.get("bis_idx") is not None else e["von_idx"]))
+            for e in eintraege_ if (e.get("anzeige_art") or e["art"]) in POI_WEG_ARTEN and e.get("von_idx") is not None]
+    je_weg: dict = {}
+    for q in sorted(pois, key=lambda q: int(q.get("rang", 9))):
+        idx = q.get("idx")
+        if idx is None or int(q.get("rang", 9)) > POI_WEG_RANG:
+            continue
+        w = next((k for k, (a, b) in enumerate(wege) if a <= int(idx) <= b), None)
+        if w is not None and len(je_weg.setdefault(w, [])) < POI_WEG_MAX:
+            je_weg[w].append(id(q))
+    am_weg = {i for v in je_weg.values() for i in v}
     raus = []
-    for q in pois:
-        q = dict(q)
+    for q0 in pois:
+        q = dict(q0)
         nah = next((pid for la, lo, pid in pausen if _hav(la, lo, q["lat"], q["lon"]) <= POI_PAUSE_NAH_M), None)
         q["pause"] = nah
-        q["wichtig"] = bool(int(q.get("rang", 9)) <= POI_WICHTIG_RANG or nah)
+        q["wichtig"] = bool(int(q.get("rang", 9)) <= POI_WICHTIG_RANG or nah or id(q0) in am_weg)
         raus.append(q)
     return raus
 

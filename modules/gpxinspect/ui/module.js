@@ -4270,7 +4270,7 @@ function mountGpxInspect(body, headerActions) {
     const el = _lbEl("gpxi-lb-liste"); if (!el || !_lb) return;
     const es = _lbEintraege(), ps = _lbPunkteSichtbar();
     const zeilen = es.map(e => ({ t: e.t0, tag: e.tag, html: _lbZeileHtml(e), rang: 1 }))
-      .concat(ps.map(p => ({ t: p.t, tag: p.tag, html: _lbPunktHtml(p), rang: p.art === "start" ? 0 : (p.art === "ziel" ? 2 : 1) })));
+      .concat(ps.map(p => ({ t: p.t, tag: p.tag, html: _lbPunktHtml(p), rang: (p.art === "start" || p.art === "ziel") ? 0 : 1 })));   // Ziel vor der Übernachtung zur selben Zeit
     zeilen.sort((a, b) => (a.t - b.t) || (a.rang - b.rang));
     let html = "";
     if (_lb.mehrtaegig) {
