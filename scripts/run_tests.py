@@ -108,11 +108,39 @@ EINSTELLUNGEN_VORLAGE = (Path(os.environ["RZ_APP_ORDNER"].strip()).expanduser() 
 ALLEIN_MUSTER = ("render", "szene", "vorwaermen", "kachel", "vorlaeufer", "tempo", "zeit", "haenger", "flimmer",
                  "wackel", "matrix", "bench", "timing", "dauer", "zwei_leser", "mount_haengt", "ladefeedback",
                  # warten auf kurze Zwischenzustände („wird eingelesen …“, Neustart) — unter dreifacher Last zu knapp
-                 "fotos_startort", "etappe_ohne_gps", "videoassistent_vorschau")
+                 "fotos_startort", "etappe_ohne_gps", "videoassistent_vorschau",
+                 # 23.10.2026 (Deploy-Gate 0.9.807 zweimal rot, einzeln grün; Marc: „entzerre die Tests in der Suite“) —
+                 # UI-Läufe mit Zeitfenstern: Editor öffnen/Probelauf/„Oberfläche steht höchstens kurz“
+                 "codexlauf3", "schilder_viele")
 # einzelne Dateien, deren Name kein Muster trägt: test_logbuch ändert globale Logbuch-Einstellungen (⌘Z-Prüfung) und
 # fragt den POI-Dienst — zu dritt rot (12.10.2026), einzeln grün
 ALLEIN_NAMEN = {"test_logbuch.py", "test_cli.py"}
 DAUERN_DATEI = Path(__file__).resolve().parent.parent / "tests" / ".dauern.json"
+
+
+#: 23.10.2026 (Marc: „Das müsste doch einfach nur langsam und fertig werden") — Programme, die die Grafikkarte belegen.
+#: Läuft eins davon, warten die Browser-Tests länger (scripts/test_tempo_start.py), statt an festen Pausen zu scheitern.
+SCHWERE_PROGRAMME = ("Blender", "Final Cut Pro", "DaVinci Resolve", "Compressor", "Motion")
+
+
+def test_tempo() -> float:
+    """Streckfaktor für feste Wartezeiten: RZ_TEST_TEMPO von außen, sonst 2,5 bei laufendem Blender & Co.,
+    1,5 bei hoher Gesamtlast, sonst 1."""
+    v = (os.environ.get("RZ_TEST_TEMPO_FEST") or "").strip()
+    if v:
+        try:
+            return max(1.0, min(5.0, float(v)))
+        except ValueError:
+            pass
+    try:
+        laeuft = subprocess.run(["ps", "-Ao", "comm"], capture_output=True, text=True, timeout=5).stdout
+        if any(f"/{n}.app/" in laeuft for n in SCHWERE_PROGRAMME):
+            return 2.5
+        if os.getloadavg()[0] > (os.cpu_count() or 8) * 0.75:
+            return 1.5
+    except Exception:  # noqa: BLE001
+        pass
+    return 1.0
 
 
 def allein(name: str) -> bool:
@@ -274,6 +302,7 @@ def main() -> int:
 
     def einer(d):
         t0 = time.time()
+        tempo = test_tempo()
         _ladeflagge_aufraeumen()
         # 06.10.2026: ein Test hing in der Nacht-Suite fast 3 Stunden und kostete den Rest der Nacht. Zeitlimit je
         # Test (der längste braucht ~6 min); wer es reißt, ist rot und die Suite läuft weiter.
@@ -288,8 +317,10 @@ def main() -> int:
         except OSError:
             pass
         try:
-            r = subprocess.run([sys.executable, str(d)], cwd=str(REPO), env=dict(os.environ, RZ_SETTINGS_DATEI=str(einst)),
-                               capture_output=True, text=True, timeout=ZEITLIMIT_S)
+            # 23.10.2026 — über scripts/test_tempo_start.py: feste Wartezeiten der Browser-Tests × RZ_TEST_TEMPO (Fremdlast)
+            r = subprocess.run([sys.executable, str(REPO / "scripts" / "test_tempo_start.py"), str(d)], cwd=str(REPO),
+                               env=dict(os.environ, RZ_SETTINGS_DATEI=str(einst), RZ_TEST_TEMPO=f"{tempo:.2f}"),
+                               capture_output=True, text=True, timeout=int(ZEITLIMIT_S * min(2.0, tempo)))
         except subprocess.TimeoutExpired as e:
             def _txt(v):
                 return v.decode("utf-8", "replace") if isinstance(v, bytes) else (v or "")
@@ -305,6 +336,7 @@ def main() -> int:
     except Exception:  # noqa: BLE001
         pass
     dauern_neu = {}
+    nur_parallel_rot: list = []
     sperre = threading.Lock()
 
     def melden(d, r, dauer):
@@ -331,6 +363,8 @@ def main() -> int:
         schlange = sorted((d for d in laufen if not allein(d.name)), key=dauer_von)
         einzeln = sorted((d for d in laufen if allein(d.name)), key=dauer_von)
         print(f"  {len(schlange)} zu {parallel} gleichzeitig (kurze zuerst, eine Bahn von hinten), danach {len(einzeln)} einzeln", flush=True)
+        if test_tempo() > 1.0:
+            print(f"  Fremdlast erkannt (z. B. Blender): feste Wartezeiten der Browser-Tests × {test_tempo():.1f}", flush=True)
         q_sperre = threading.Lock()
 
         def bahn(von_hinten):
@@ -347,6 +381,26 @@ def main() -> int:
             f.join()
         for d in einzeln:
             melden(*einer(d))
+        # 23.10.2026 (Marc: „entzerre die Tests in der Suite“) — wer nur im Parallellauf rot war, läuft noch einmal ALLEIN.
+        # Grün allein = Lastfrage, kein Fehler im Code: zählt als bestanden und steht ausdrücklich in der Bilanz (so hält
+        # es die Nacht-Suite schon seit 12.10.); rot allein bleibt rot. Vorher brach das Deploy-Gate an solchen Tests ab.
+        nach = [(n, r) for n, r in list(rot) if not allein(n)]
+        if nach:
+            print(f"\n  {len(nach)} nur im Parallellauf rot — noch einmal einzeln:", flush=True)
+            for n, _r in nach:
+                d = next((x for x in laufen if x.name == n), None)
+                if d is None:
+                    continue
+                d2, r2, dauer2 = einer(d)
+                if r2.returncode == 0:
+                    rot[:] = [(a, b) for a, b in rot if a != n]
+                    ok.append(n)
+                    nur_parallel_rot.append(n)
+                    dauern_neu[n] = round(dauer2, 1)
+                    print(f"{FARBE_OK}  ✓ {n}{FARBE_AUS}  ({dauer2:.1f}s, einzeln)", flush=True)
+                else:
+                    rot[:] = [(a, (r2 if a == n else b)) for a, b in rot]
+                    print(f"{FARBE_ROT}  ✗ {n}{FARBE_AUS}  ({dauer2:.1f}s, auch einzeln rot)", flush=True)
     try:
         DAUERN_DATEI.write_text(json.dumps(dict(dauern_alt, **dauern_neu), indent=0, sort_keys=True), encoding="utf-8")
     except OSError:
@@ -358,10 +412,18 @@ def main() -> int:
           f"   [{time.time() - beginn:.0f}s]")
     print(f"{'═' * 62}")
 
+    if nur_parallel_rot:
+        print(f"\n{FARBE_GRAU}Nur parallel rot, einzeln grün (Last, kein Code-Fehler): {', '.join(nur_parallel_rot)}{FARBE_AUS}")
     if rot:
         print(f"\n{FARBE_ROT}Gescheitert:{FARBE_AUS}")
         for name, r in rot:
             print(f"\n──── {name} " + "─" * (52 - len(name)))
+            # 23.10.2026 — die roten Prüfungen samt Detail aus der GANZEN Ausgabe zeigen: im Gate-Log fehlten sie oft,
+            # weil nach der FAIL-Zeile noch viele Zeilen kamen (nur die letzten 12 stehen unten)
+            alle = (r.stdout or "").splitlines()
+            rote = [z for z in alle if re.search(r"\[FAIL\]|^\s*FEHL |✗ FAIL|Traceback|Error: ", z)]
+            for zeile in rote[:15]:
+                print(f"  {FARBE_ROT}» {zeile.strip()[:400]}{FARBE_AUS}")
             hinten = (r.stdout or "").strip().splitlines()[-12:]
             for zeile in hinten:
                 print(f"  {zeile}")

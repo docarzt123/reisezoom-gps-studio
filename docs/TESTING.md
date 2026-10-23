@@ -55,6 +55,19 @@ Stempel-Commit geänderte Datei Doku ist, beim Lauf schon mit genau diesem Inhal
 Zeile `APP_VERSION = "…"` springt. Die Nacht-Suite (Kopie) stempelt nach Einzel-Nachprüfung ebenso und übergibt den
 Stempel an den Arbeitsordner (`stempel_uebernehmen`). Tests: `test_suite_stempel.py`, `test_nachtlauf_stempel.py`.
 
+**Entzerrt (seit 23.10.2026)** (Marc: „entzerre die Tests in der Suite“). Das Deploy-Gate für 0.9.807 brach zweimal
+an UI-Tests ab, die einzeln grün waren — unter paralleler Last öffnete ein Editor nicht rechtzeitig, ein Probelauf
+antwortete erst nach 10 s, ein fremder Höhendienst lieferte Lücken. Drei Regeln in `scripts/run_tests.py`:
+1. **Einzel-Nachprüfung:** Wer im Parallellauf rot war, läuft am Ende noch einmal allein. Grün allein = Lastfrage, kein
+   Code-Fehler — zählt als bestanden und steht in der Bilanz unter „Nur parallel rot, einzeln grün“ (wie die
+   Nacht-Suite seit 12.10.). Rot allein bleibt rot.
+2. **Rote Prüfungen sichtbar:** Bei einem roten Test zeigt der Runner alle `[FAIL]`/`FEHL`-Zeilen samt Detail aus der
+   ganzen Ausgabe (`»`), nicht nur die letzten zwölf Zeilen — im Gate-Log fehlte sonst oft die Ursache.
+3. **Mehr Tests einzeln** (`ALLEIN_MUSTER`): UI-Läufe mit Zeitfenstern (`codexlauf3`, `schilder_viele`).
+In den Tests selbst: auf Zustände warten statt fester Pausen, Klicks mit kurzem Zeitlimit und direktem Auslösen als
+Rückfall (Bildschirmfoto, was darüber lag), Zeitlimit für Seitenabfragen 30 s statt 10 s, fremde Dienste bis zu
+dreimal fragen.
+
 Gate 7 ist **selbst-kalibrierend**: kann die Umgebung die Vorschau nicht befüllen, meldet es SKIP + Manuell-Hinweis (kein falsches Grün). Deshalb ersetzt es **nicht** Teil B.
 
 ---

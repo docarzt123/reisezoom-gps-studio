@@ -13635,7 +13635,11 @@ function mountAnimator(body, headerActions, opts) {
       // folgen; ein einzelner Rasterschritt endete ohne `originalEvent`. Der ausgewählte Keyframe übernahm den Zoom dann
       // nicht (still verloren beim Abspielen), ohne Auswahl fehlte die Warnzeile. Gemerkt wird das letzte Rad-Ereignis;
       // nur im Keyframe-Modus und nicht während des Abspielens (ohne Keyframes bleibt Rad-Zoom Umschauen, 31.08.2026).
-      const wasRad = !!e && !e.originalEvent && !wasUser && _radZeit > 0 && performance.now() - _radZeit < 800
+      // 23.10.2026 (Marc: „Einfach so ein fixer Wert ist doof … müsste man dynamisch machen") — bis dahin galt der Schritt
+      // nur, wenn die Karte binnen 800 ms stand. Rendert nebenher etwas auf der Grafikkarte (Blender, großes Projekt),
+      // dauert die Zoom-Animation länger, und der Schritt ging still verloren. Jetzt gilt: Rad gedreht → das nächste
+      // Bewegungsende gehört dazu; 10 s nur als Notbremse.
+      const wasRad = !!e && !e.originalEvent && !wasUser && _radZeit > 0 && performance.now() - _radZeit < 10000
         && !_previewRaf && keyframesEnabled();
       _radZeit = 0;
       if (!e || (!e.originalEvent && !wasUser && !wasRad)) return;
@@ -13649,6 +13653,10 @@ function mountAnimator(body, headerActions, opts) {
     });
     let _radZeit = 0;   // 17.10.2026 — Zeit des letzten Mausrad-Ereignisses auf der Karte (siehe moveend)
     map.on("wheel", () => { _radZeit = performance.now(); });
+    // 23.10.2026 — die Rad-Merke gilt nur für die Bewegung, die das Rad selbst auslöst (beginnt sofort). Eine spätere eigene
+    // Kamerafahrt (Scrubben, Abspielen, Keyframe wählen) löscht sie — sonst übernähme ein Keyframe nach einem Rad-Schritt
+    // ohne Bewegung (z. B. am Zoom-Anschlag) die nächste Scrub-Kamera.
+    map.on("movestart", (e) => { if (!(e && e.originalEvent) && _radZeit > 0 && performance.now() - _radZeit > 300) _radZeit = 0; });
 
     // v0.9.136/139 — Längengrad-Akkumulator: nur ECHTE User-Gesten
     // akkumulieren. `dragstart` markiert die Geste (Flag) + seedet den Prev-
@@ -22897,6 +22905,10 @@ function mountAnimator(body, headerActions, opts) {
         try { if (typeof _rrRouteRestoreFn === "function") _rrRouteRestoreFn(); } catch (_) {}
         try { _ghostGpxRestore(); } catch (_) {}
       }
+      // 23.10.2026 (Marc: „Wie macht man das generell? Einfach so ein fixer Wert ist doof") — Signal „Tour fertig geladen":
+      // Tests warten darauf statt auf feste Pausen. Unter Last kam dieser Schritt erst nach dem ersten Klick des Tests und
+      // setzte dessen Keyframe-Auswahl zurück (test_keyframe_karte_undo rot, solange Blender rendert).
+      window.__rzSitzungStand = (window.__rzSitzungStand || 0) + 1;
     };
     // 28.08.2026 (Marcs 96-Touren-Schwarm): Steht eine MENGEN-Übergabe an,
     // die Einzel-Sitzung NICHT aktivieren — sie käme asynchron NACH der

@@ -14,7 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.807] – 2026-10-23
+## [0.9.808] – 2026-10-23
+
+(0.9.807 was tagged but never published; its changes ship with this version.)
+
+### Fixed
+- Animator: a single mouse-wheel step on the map was sometimes lost when the computer was busy (big project, another program using the graphics card) — the keyframe didn't take over the zoom and the hint didn't show. The step now counts however long the zoom takes.
+
 
 ### Added
 - My places: „Home“, „Grandma's“ … — a new „My places“ button in the archive opens a page with a map and a list: search or click on the map to add, rename, choose the radius, drag the pin to move, delete. Logbooks recognise them in every tour („Pause · Home“, a drive to or from there); renaming a stop in the logbook has a tick „Add to My places“. Private — never part of an export.
