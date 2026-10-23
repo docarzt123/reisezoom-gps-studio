@@ -64,6 +64,9 @@ antwortete erst nach 10 s, ein fremder Höhendienst lieferte Lücken. Drei Regel
 2. **Rote Prüfungen sichtbar:** Bei einem roten Test zeigt der Runner alle `[FAIL]`/`FEHL`-Zeilen samt Detail aus der
    ganzen Ausgabe (`»`), nicht nur die letzten zwölf Zeilen — im Gate-Log fehlte sonst oft die Ursache.
 3. **Mehr Tests einzeln** (`ALLEIN_MUSTER`): UI-Läufe mit Zeitfenstern (`codexlauf3`, `schilder_viele`).
+4. **Gestreckte Wartezeiten nur von Hand** (`RZ_TEST_TEMPO_FEST=2.5`, über `scripts/test_tempo_start.py`): automatisch
+   bei Blender-Last ausprobiert und wieder abgeschaltet — Tests, die einen kurzen Zwischenzustand prüfen („läuft seit
+   N s“), verpassten ihn dann (12 statt 3–4 rote im Parallellauf).
 In den Tests selbst: auf Zustände warten statt fester Pausen, Klicks mit kurzem Zeitlimit und direktem Auslösen als
 Rückfall (Bildschirmfoto, was darüber lag), Zeitlimit für Seitenabfragen 30 s statt 10 s, fremde Dienste bis zu
 dreimal fragen.

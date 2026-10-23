@@ -124,22 +124,16 @@ SCHWERE_PROGRAMME = ("Blender", "Final Cut Pro", "DaVinci Resolve", "Compressor"
 
 
 def test_tempo() -> float:
-    """Streckfaktor für feste Wartezeiten: RZ_TEST_TEMPO von außen, sonst 2,5 bei laufendem Blender & Co.,
-    1,5 bei hoher Gesamtlast, sonst 1."""
+    """Streckfaktor für feste Wartezeiten — nur von Hand (RZ_TEST_TEMPO_FEST=2.5), sonst 1."""
     v = (os.environ.get("RZ_TEST_TEMPO_FEST") or "").strip()
     if v:
         try:
             return max(1.0, min(5.0, float(v)))
         except ValueError:
             pass
-    try:
-        laeuft = subprocess.run(["ps", "-Ao", "comm"], capture_output=True, text=True, timeout=5).stdout
-        if any(f"/{n}.app/" in laeuft for n in SCHWERE_PROGRAMME):
-            return 2.5
-        if os.getloadavg()[0] > (os.cpu_count() or 8) * 0.75:
-            return 1.5
-    except Exception:  # noqa: BLE001
-        pass
+    # Automatisch NICHT mehr (Deploy-Gate 0.9.808, 23.10.2026 abends): gestreckte Pausen halfen Tests, die auf etwas
+    # Erscheinendes warten, verdarben aber die, die einen kurzen Zwischenzustand prüfen („läuft seit N s“ in der
+    # Statusbox) — 12 statt 3–4 rote im Parallellauf. Unter Fremdlast hilft die Einzel-Nachprüfung am Ende.
     return 1.0
 
 
@@ -364,7 +358,7 @@ def main() -> int:
         einzeln = sorted((d for d in laufen if allein(d.name)), key=dauer_von)
         print(f"  {len(schlange)} zu {parallel} gleichzeitig (kurze zuerst, eine Bahn von hinten), danach {len(einzeln)} einzeln", flush=True)
         if test_tempo() > 1.0:
-            print(f"  Fremdlast erkannt (z. B. Blender): feste Wartezeiten der Browser-Tests × {test_tempo():.1f}", flush=True)
+            print(f"  feste Wartezeiten der Browser-Tests × {test_tempo():.1f} (RZ_TEST_TEMPO_FEST)", flush=True)
         q_sperre = threading.Lock()
 
         def bahn(von_hinten):
