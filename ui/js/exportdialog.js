@@ -65,7 +65,7 @@
   function stand() {
     return { w: +($("anim-w") || {}).value || 1920, h: +($("anim-h") || {}).value || 1080,
              fps: +($("anim-fps") || {}).value || 30, farbraum: ($("anim-farbraum") || {}).value || "sdr",
-             codec: codecJetzt(), glaettung: +($("anim-map-smoothing") || {}).value };
+             codec: codecJetzt(), glaettung: +($("anim-map-smoothing") || {}).value, hq: !!($("anim-hq") || {}).checked };
   }
   /** Mehrere Felder als EIN ⌘Z-Schritt (wie Looks: vorher einmal merken, dann gesammelt). */
   function alsEinSchritt(label, fn) {
@@ -206,6 +206,8 @@
         <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("exportdlg.qualitaet", "Qualität"))}</span>
           ${sel("rz-exp-codec", [["h264", T("settings.render.codec_h264", "H.264")], ["h265", T("settings.render.codec_h265", "H.265")], ["prores422", T("settings.render.codec_prores422", "ProRes 422 HQ")], ["prores", T("settings.render.codec_prores", "ProRes 4444")]], s.codec)}</label>
         ${alpha ? `<p class="muted rz-exp-hinweis">${esc(T("exportdlg.alpha", "Kartenstil „Alpha“: Das Video wird ProRes 4444 mit Transparenz (.mov), ohne HDR."))}</p>` : ""}`}
+        <label class="checkbox-row rz-exp-hq" title="${esc(T("animator.field.hq_tip", "Rendert intern in doppelter Auflösung und rechnet herunter — feine Luftbild-Details und Linien flimmern nicht. Der Export dauert etwa doppelt so lange."))}">
+          <input type="checkbox" id="rz-exp-hq"${s.hq ? " checked" : ""}> <span>${esc(T("animator.field.hq_title", "Höchste Qualität (langsamer)"))}</span></label>
         <details class="anim-mehr rz-exp-mehr"${st.mehrOffen ? " open" : ""}><summary>${esc(T("animator.mehr", "Mehr"))}</summary>
           <div class="rz-exp-reihe">
             <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.width", "Breite"))}</span><input type="number" id="rz-exp-w" min="320" max="7680" step="2" value="${s.w}"></label>
@@ -246,6 +248,8 @@
       an("rz-exp-codec", (v) => codecSetzen(v));
       an("rz-exp-w", (v) => feld("anim-w", gerade(+v || 1920)));
       an("rz-exp-h", (v) => feld("anim-h", gerade(+v || 1080)));
+      const hq = inhalt.querySelector("#rz-exp-hq");   // 23.10.2026 — Höchste Qualität (doppelte Render-Auflösung)
+      if (hq) hq.onchange = () => { const e = $("anim-hq"); if (e && e.checked !== hq.checked) { e.checked = hq.checked; e.dispatchEvent(new Event("change", { bubbles: true })); } };
       const gl = inhalt.querySelector("#rz-exp-glaettung");
       if (gl) {
         gl.oninput = () => { const l = inhalt.querySelector("#rz-exp-gl-v"); if (l) l.textContent = (+gl.value).toFixed(1) + " px"; };

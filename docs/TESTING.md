@@ -67,6 +67,9 @@ antwortete erst nach 10 s, ein fremder Höhendienst lieferte Lücken. Drei Regel
 4. **Gestreckte Wartezeiten nur von Hand** (`RZ_TEST_TEMPO_FEST=2.5`, über `scripts/test_tempo_start.py`): automatisch
    bei Blender-Last ausprobiert und wieder abgeschaltet — Tests, die einen kurzen Zwischenzustand prüfen („läuft seit
    N s“), verpassten ihn dann (12 statt 3–4 rote im Parallellauf).
+5. **Kein Start-Dialog in Tests** (24.10.2026): `scripts/run_tests.py` und `tests/szene_umgebung.py` setzen
+   `RZ_KEIN_WILLKOMMEN=1` — dann zeigt die App beim Start kein „Neu in GPS Studio …“ (das würde sonst jede Oberfläche
+   mit gemerkter alter Version blockieren). `test_neu_in_version` nimmt die Variable bewusst weg.
 In den Tests selbst: auf Zustände warten statt fester Pausen, Klicks mit kurzem Zeitlimit und direktem Auslösen als
 Rückfall (Bildschirmfoto, was darüber lag), Zeitlimit für Seitenabfragen 30 s statt 10 s, fremde Dienste bis zu
 dreimal fragen.

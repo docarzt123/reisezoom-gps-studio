@@ -14,6 +14,37 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Screenshots everywhere in the help**: every step of the module quick starts („Learn more“) now has its own picture of the real interface with the button it means highlighted — the quick-start window gets wider for it. The three steps of „Your first video in three steps“ on the welcome page have pictures too. Step texts that no longer matched the interface were corrected (e.g. „Export video“ at the top right instead of rendering at the bottom).
+- „New in GPS Studio …“ and the first-start dialog open with a picture banner; the logbook question shows the type menu it is about and two boxes: what goes out anonymously (speed, standing time, gradient, road type, correct type) and what stays with you (places, times, names, photos).
+- **Overview page „Welcome“**: after the first setup (and on request at every start, „Show at start“) GPS Studio shows one page with a three-step quick start („Your first video in three steps“ — open a track or read in a folder right there, open the tour, quick video), the shortcuts of the old start page, and every module as a card with a fresh screenshot and one sentence. „Learn more“ opens the module's quick start (three steps with screenshot), „Open“ goes straight there. Any time again via **Help → GPS Studio overview** or the button in „New in GPS Studio …“.
+- On the first start of a new version: a short „New in GPS Studio …“ with **What's new?** (the changes since your previous version) — and, until answered once, the question whether to share logbook corrections anonymously („Yes, share anonymously“ / „No, thanks“). New users get the same question as a checkbox in the welcome dialog (off by default).
+- Logbook learns from corrections — **shared, only if you switch it on** (Settings → General, off by default): when you change or confirm an entry's type, only numbers about that stretch go to reisezoom.com (duration, distance, speed distribution, standing time, gradient, road-type shares, rough tour type, the correct type) — no places, no times, no names. From all contributions a small model is trained; once it is reliably right it comes back and takes over only where the rules merely guess, marked „guessed“. Your own corrections always win.
+- Logbook: **road type under the track** decides where speed alone can only guess — a slow stretch mostly on the motorway is a traffic jam (drive, never a bike), a stretch mostly on a ferry route is a ferry, „bike or running?“ mostly on cycle paths is a bike. Read from the same vector map tiles the maps already use (OpenFreeMap), once per tour and then kept; entries your own changes set stay as they are. The entry says why („on the motorway“). Long trips use coarser tile levels (5,900 km Scotland trip: 201 instead of 909 tiles, about 20 s once); there only ferry routes count. Recording gaps count as „unknown“, and nothing faster than 60 km/h becomes a ferry.
+- Logbook: while place names, sights and roads are still loading in the background, a line with a spinner says so above the list — with a counter for the roads („… 23 of 60“).
+- Tour page: **In Inspector** and **Open in ▾** (Inspector, Animator, Tour map, Data animator, Web map, Geotagger) — the same tools as in the archive's detail column.
+- Tour page: the logbook **timeline** from the GPX Inspector now sits under the map — days, movement with height profile, points, time axis. Click a block to select the entry (list and map follow), scroll to zoom, double-click a day to show only that day.
+
+### Changed
+- One logbook list everywhere: the GPX Inspector shows the same rows and day sections as the tour page (type colour and line icon, own name with the type next to it, „guessed“ as a button, „In the video“ marker); in the Inspector it keeps its light paper look, and each day heading stays on top until the next day pushes it away.
+- One logbook menu everywhere: the tour page now offers everything the Inspector does — split an activity (at a time or in the middle), merge, delete, „In the video“ (show, faint, fast, skip), save as a tour of its own, confirm a guessed type; start and finish can be renamed. The Inspector adds its tools (split here or at anchor A, own point, anchors).
+- Logbook on the tour page: multi-day tours now scroll through all days in one list. Each day starts with a heading („Day 2 · Monday, 27 July · 57 km“) that stays at the top while you scroll until the next day pushes it away; the day buttons jump to a day and show which one you are in, and the map follows.
+
+### Fixed
+- Rendering with terrain shadows was slow: a shadow tile computed the sun ray over its whole 3×3 neighbourhood although only the middle tile is needed. Now only the middle is computed (same result, about 25× faster per tile) — the longest wait for the map per video frame dropped from about 4 s to a quarter of a second.
+- Pictures in the welcome overview, the quick starts („Learn more“), the logbook question and the dialog banners did not show in the app: they were linked relative to the start page, which the app loads as a copy from a temporary folder. They now use the app's asset folder — this also brings back the picture in the quick starts that had been missing in the app.
+- Quick start: titles with „&“ showed „&amp;“.
+- Archive: the first switch to **Media** took almost 4 s with a large photo library (467,000 photos) — the folder tree and the photo counts were counted while every other archive request waited. They now run alongside, are kept until the archive changes and are prepared in the background after start: the first switch now takes about 0.6 s, later ones about 0.3 s.
+
+### Added
+- Better aerial maps (Animator and Tour map, preview = video): **Colour correction** in „Aerial look“ (default 70 %) — haze out, shadows a little lighter, livelier greens, soft highlights; tuned on eleven regions. **Shadows** (default 55 %) — mountains and ridges cast real shadows from the terrain model (sun from south-south-east like midday aerial images). **Distant haze** under the terrain settings (default 35 %) — the foreground stays clear, the horizon recedes. Old look: set the sliders to 0 %.
+- Terrain in more detail: through the app's tile service the terrain model now goes one level finer (z16), sharper ridges and gullies up close.
+- Running dot **Glowing dot**: a small warm-white core with a rim in the line colour, a soft glow and a faint light spot on the map; it breathes slowly while the tour stands still (pause, photo stop, end) and stops as soon as it moves on. Its trail is measured on screen, so it keeps its length at every zoom.
+- Clearer names in the track panel: „Line style“ is now **Stroke**, „Line look“ is now **Preset** (it sets colour, glow and running dot in one click).
+- Preset **Light trail**: one click sets the glowing dot, turquoise, a 6 % trail and a dark 1.5 px outline — the dot glows, the rest of the route stays crisp.
+- Export: **Highest quality (slower)** — renders internally at double resolution and scales down, so fine aerial detail and lines don't flicker; about twice the time.
+- Schnell-Video / new camera path: the closing view is a backdrop — a flatter camera (50°) from the direction where most of the route is visible (sight lines against the terrain), instead of always looking north. Unchanged when nothing is hidden.
+
 ## [0.9.809] – 2026-10-24
 
 (0.9.807 and 0.9.808 were tagged but never published; their changes ship with this version.)

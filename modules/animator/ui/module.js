@@ -500,6 +500,11 @@ function mountAnimator(body, headerActions, opts) {
               <label class="field-label">${t("animator.field.exaggeration")} <span class="label-val" id="anim-ex-v">1.5×</span></label>
               <input type="range" id="anim-ex" min="0" max="4" step="0.1" value="1.5">
             </div>
+            <!-- 23.10.2026 (Marc: „bessere Kartendarstellungen") — Luftperspektive: Boden zum Horizont hin im Dunst -->
+            <div class="field" title="${t("animator.field.ferne_tip", "Je weiter weg, desto mehr Dunst — der Vordergrund bleibt klar, die Berge am Horizont treten zurück. Wirkt bei geneigter Kamera. In Vorschau und Video gleich.")}">
+              <label class="field-label">${t("animator.field.ferne_title", "Dunst in der Ferne")} <span class="label-val" id="anim-ferne-v">35 %</span></label>
+              <input type="range" id="anim-ferne" min="0" max="100" step="5" value="35">
+            </div>
           </div>
           <!-- 06.10.2026 (Marc: „Auf der Karte anzeigen gehört doch irgendwie in die Stelle, wo man 3D-Terrain einstellt") —
                3D-Häuser, „wachsen“ und „Flug in der Luft“ direkt unter Terrain/Überhöhung, darunter die Kartenelemente. -->
@@ -565,6 +570,11 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-orelief" min="0" max="100" step="5" value="0">
             <label class="field-label" title="${t("animator.field.haze_tip", "Nimmt den blauen Schleier aus Satellitenbildern (Schwarzpunkt je Farbkanal). In Vorschau und Video gleich, nicht in der Web-Karte. Zu viel wirkt hart.")}">${t("animator.field.haze_title", "Dunst entfernen")} <span class="label-val" id="anim-ohaze-v">0 %</span></label>
             <input type="range" id="anim-ohaze" min="0" max="100" step="5" value="0">
+            <!-- 23.10.2026 (Marc: „ich will bessere Kartendarstellungen") — Farbkorrektur aus dem Prototyp, Standard an -->
+            <label class="field-label" title="${t("animator.field.grade_tip", "Abgestimmte Farbkorrektur für Luftbilder: Dunst raus, Tiefen etwas heller, Grün lebendiger, Lichter weich. 0 % = Luftbild wie geliefert. In Vorschau und Video gleich.")}">${t("animator.field.grade_title", "Farbkorrektur")} <span class="label-val" id="anim-ograde-v">70 %</span></label>
+            <input type="range" id="anim-ograde" min="0" max="100" step="5" value="70">
+            <label class="field-label" title="${t("animator.field.schatten_tip", "Schatten, die Berge und Grate aus dem Geländemodell werfen (Sonne aus Süd-Südost, wie in Mittags-Luftbildern). Gibt Tälern Tiefe. In Vorschau und Video gleich.")}">${t("animator.field.schatten_title", "Schatten")} <span class="label-val" id="anim-oschatten-v">55 %</span></label>
+            <input type="range" id="anim-oschatten" min="0" max="100" step="5" value="55">
           </div>
           <!-- 05.09.2026 (Beta-Tester: „Kontrastregler auch auf die anderen zu hellen Karten") — Karten-Optik für Raster-/Vektorkarten -->
           <div class="field" id="anim-mapadj-row" hidden title="${t("animator.field.mapadj_tip", "Wirkt auf die Karte, nicht auf Strecke und Overlays — in Vorschau und Video gleich. Bei Vektorkarten nur die Helligkeit.")}">
@@ -710,7 +720,7 @@ function mountAnimator(body, headerActions, opts) {
           <!-- 11.10.2026 (Marc: „wie der Track aussieht … das will ich alles haben“, Vorbild Leuchtlinien mit hellem Kern) —
                Linien-Look und Schweif der Haupt-Tour; bedient im Aussehen-Panel des Tracks -->
           <div class="field" hidden>
-            <select id="anim-linien-look"><option value="klassisch" selected>klassisch</option><option value="glut">glut</option><option value="neon">neon</option></select>
+            <select id="anim-linien-look"><option value="klassisch" selected>klassisch</option><option value="glut">glut</option><option value="neon">neon</option><option value="leuchtspur">leuchtspur</option></select>
             <input type="range" id="anim-schweif" min="0" max="15" step="0.5" value="0">
             <input type="checkbox" id="anim-farbe-je-tag">
           </div>
@@ -776,6 +786,7 @@ function mountAnimator(body, headerActions, opts) {
               <div class="dot-wahl" id="anim-dot-wahl"></div>
               <select id="anim-dot-style" class="select" hidden>
                 <option value="dot">${t("animator.dot.style_dot", "Kugel")}</option>
+                <option value="leucht">${t("animator.dot.style_leucht", "Leuchtpunkt")}</option>
                 <option value="arrow">${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>
                 ${FAHRZEUGE.map(f => `<option value="${f}">${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}
                 <option value="bild">${t("animator.dot.style_bild", "Eigenes Bild")}</option>
@@ -1583,6 +1594,11 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-map-smoothing" min="0" max="3" step="0.1" value="1.3">
             <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.field.map_smoothing_hint")}</div>
           </div>
+          <!-- 23.10.2026 (Marc: „bessere Kartendarstellungen") — doppelte Render-Auflösung gegen Flimmern -->
+          <label class="checkbox-row" title="${t("animator.field.hq_tip", "Rendert intern in doppelter Auflösung und rechnet herunter — feine Luftbild-Details und Linien flimmern nicht. Der Export dauert etwa doppelt so lange.")}">
+            <input type="checkbox" id="anim-hq">
+            <span>${t("animator.field.hq_title", "Höchste Qualität (langsamer)")}</span>
+          </label>
         </div>
       </section>
 
@@ -2374,6 +2390,10 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
   document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
   _fiSync(); _fiLbl();
+  // 23.10.2026 — Dunst in der Ferne (ferne_dunst, Standard 35): MapLibre-Nebel über dem Gelände
+  bindLabel("anim-ferne", "anim-ferne-v", " %");
+  bindSetting("anim-ferne", _MODKEY, "ferne_dunst", { type: "number", onLoad: v => { updateLabel("anim-ferne-v", v, " %"); _applyFerne(); } });
+  document.getElementById("anim-ferne")?.addEventListener("input", _applyFerne);
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
   // Luftbild-Optik: vier Regler → Projekt (ortho_*), live auf die Orthofoto-Ebenen
@@ -2391,6 +2411,10 @@ function mountAnimator(body, headerActions, opts) {
     const d = (typeof mapCatalog === "function" && mapCatalog().ortho_adjust_default) || { sat: 25, con: 8, bri: 0, hue: 0 };
     const rd = (typeof mapCatalog === "function" && typeof mapCatalog().ortho_relief_default === "number") ? mapCatalog().ortho_relief_default : 0;
     _lookSetzen({ sat: d.sat, con: d.con, bri: d.bri, hue: d.hue, sharp: 0, relief: rd, haze: 0 });
+    for (const [id, w] of [["anim-ograde", "70"], ["anim-oschatten", "55"]]) {
+      const el = document.getElementById(id);
+      if (el && el.value !== w) { el.value = w; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); }
+    }
   });
   // 17.09.2026 — fertige Looks: ein Satz Regler je Look; Werte sind
   // abgestimmt auf Sentinel-2 + Landesluftbilder (Vergleichsrender 17.09.). „Eigene" = keine Vorgabe.
@@ -2819,6 +2843,14 @@ function mountAnimator(body, headerActions, opts) {
     bindSetting(id, _MODKEY, "map_haze", { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applySharpen(); _lookSync(); } });
     document.getElementById(id)?.addEventListener("input", () => { _sharpSync(id); _applySharpen(); _lookSync(); });
   }
+  // 23.10.2026 — Schlagschatten (ortho_schatten, Standard 55) live auf die Ebene rz-schatten (über _applyMapAdjust)
+  bindLabel("anim-oschatten", "anim-oschatten-v", " %");
+  bindSetting("anim-oschatten", _MODKEY, "ortho_schatten", { type: "number", onLoad: v => { updateLabel("anim-oschatten-v", v, " %"); _applyMapAdjust(); } });
+  document.getElementById("anim-oschatten")?.addEventListener("input", _applyMapAdjust);
+  // 23.10.2026 — Farbkorrektur der Luftbilder (ortho_grade, Standard 70), dieselbe Leinwand-Ebene wie Schärfe/Dunst
+  bindLabel("anim-ograde", "anim-ograde-v", " %");
+  bindSetting("anim-ograde", _MODKEY, "ortho_grade", { type: "number", onLoad: v => { updateLabel("anim-ograde-v", v, " %"); _applySharpen(); } });
+  document.getElementById("anim-ograde")?.addEventListener("input", _applySharpen);
   // 05.09.2026 — Sternenhimmel: vier Werte → Projekt (stars_*), live auf den Kartencontainer
   bindSetting("anim-stars", _MODKEY, "stars_enabled", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
   bindSetting("anim-stars-twinkle", _MODKEY, "stars_twinkle", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
@@ -3001,6 +3033,7 @@ function mountAnimator(body, headerActions, opts) {
     }});
   // Karte glätten / Anti-Flimmer (v0.9.286b, Marc) — reiner Render-Param,
   // keine Live-Preview (greift nur im 4K-Export).
+  bindSetting("anim-hq", _MODKEY, "hohe_qualitaet", { type: "bool" });   // 23.10.2026 — reiner Render-Param
   bindSetting("anim-map-smoothing", _MODKEY, "map_smoothing", { type: "number",
     onLoad: v => updateLabel("anim-map-smoothing-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => updateLabel("anim-map-smoothing-v", parseFloat(v).toFixed(1), " px") });
@@ -6430,6 +6463,10 @@ function mountAnimator(body, headerActions, opts) {
   var LINIEN_LOOKS = {
     glut: { farbe: "#ff8a3d", glowMin: 4, halo: 0.26, haloBreite: 6, kern: 0.85 },
     neon: { farbe: "#2ef0ff", glowMin: 5, halo: 0.34, haloBreite: 7, kern: 0.95 },
+    // 24.10.2026 — Leuchtspur : die Linie bleibt scharf (kein Lichthof, kein Kern), dafür stellt die Vorlage beim
+    // Umschalten einmal Leuchtpunkt, Schweif und dunkle Kontur vor — „der Punkt leuchtet, die Strecke bleibt lesbar".
+    leuchtspur: { farbe: "#48d6c4", glowMin: 0, halo: 0, haloBreite: 1, kern: 0,
+                  vorwahl: { "anim-dot-style": "leucht", "anim-schweif": 6, "anim-kontur-breite": 1.5, "anim-kontur-farbe": "#10302c" } },
   };
   function currentLinienLook() { const v = document.getElementById("anim-linien-look")?.value; return (LINIEN_LOOKS || {})[v] ? v : "klassisch"; }
   function _lookDaten() { return (LINIEN_LOOKS || {})[currentLinienLook()] || null; }
@@ -6446,7 +6483,7 @@ function mountAnimator(body, headerActions, opts) {
   function applyLinienLook() {
     if (!map) return;
     const L = _lookDaten(), lw = currentLineWidth(), o = _hauptDeckkraft(), farbe = currentLineColor();
-    const an = !!L && !hauptDezent();
+    const an = !!L && !hauptDezent() && (L.halo > 0 || L.kern > 0);
     try {
       if (map.getLayer("preview-halo")) {
         map.setLayoutProperty("preview-halo", "visibility", an ? "visible" : "none");
@@ -6501,7 +6538,15 @@ function mountAnimator(body, headerActions, opts) {
     let c = g && g.type === "LineString" ? g.coordinates : (g && g.type === "MultiLineString" ? g.coordinates[g.coordinates.length - 1] : null);
     // Ruhe mit „ganzen Track zeigen“: es gibt keinen Kopf — kein Schweif
     if (!pct || hauptDezent() || !c || c.length < 2 || !currentCoords || (c.length >= currentCoords.length && previewFullTrack())) { src.setData(leer); return; }
-    const ziel = _trackLaengeM() * pct / 100;
+    // 23.10.2026 (Leuchtpunkt) — Länge im Bild statt in % der Strecke: Regler × 40 Bildpunkte, umgerechnet über den Maßstab
+    // an der Kopfposition. Sonst war der Schweif bei langen Touren riesig und bei kurzen winzig.
+    let ziel = _trackLaengeM() * pct / 100;
+    if (dotStil() === "leucht") {
+      try {
+        const kopf = c[c.length - 1], z = map.getZoom();
+        ziel = pct * 40 * 40075016.686 * Math.cos(kopf[1] * Math.PI / 180) / (512 * Math.pow(2, z));
+      } catch (_) {}
+    }
     const aus = [c[c.length - 1]]; let m = 0;
     for (let i = c.length - 1; i > 0; i--) {
       const s = _meterZwischen(c[i - 1], c[i]);
@@ -8289,7 +8334,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function currentKonturBreite() {
-    if (_lookDaten()) return 0;   // 11.10.2026 — Leuchtlooks ohne dunklen Rand: er schluckt den Lichthof
+    if (_lookDaten()?.halo > 0) return 0;   // 11.10.2026 — Glut/Neon ohne dunklen Rand: er schluckt den Lichthof (Leuchtspur behält ihn)
     const v = parseFloat(document.getElementById("anim-kontur-breite")?.value);
     return isFinite(v) && v > 0 ? v : 0;
   }
@@ -8716,6 +8761,19 @@ function mountAnimator(body, headerActions, opts) {
     return { bild: c, cssPx: w / s };
   }
 
+  /** 23.10.2026 — der Leuchtpunkt als Bild (Flug in der Luft, rz-punkt3d): Glow in Linienfarbe, warmweißer Kern, Rand. */
+  function _leuchtBild(farbe, gr) {
+    const s = 4, w = Math.max(8, Math.ceil(16 * gr * 2 * s));
+    const c = document.createElement("canvas"); c.width = w; c.height = w;
+    const g = c.getContext("2d"), m = w / 2, [r, gg, b] = _hexRgb(farbe);
+    const glow = g.createRadialGradient(m, m, 0, m, m, 15 * gr * s);
+    glow.addColorStop(0, `rgba(${r},${gg},${b},0.6)`); glow.addColorStop(0.45, `rgba(${r},${gg},${b},0.35)`); glow.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+    g.fillStyle = glow; g.beginPath(); g.arc(m, m, 15 * gr * s, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(m, m, 4 * gr * s, 0, Math.PI * 2); g.fillStyle = "#fff4e0"; g.fill();
+    g.lineWidth = 1.6 * s; g.strokeStyle = farbe; g.stroke();
+    return { bild: c, cssPx: w / s };
+  }
+
   function dotEbenenAufbauen() {
     if (!map) return;
     // v0.9.531 (Beta-Tester, DRITTER Anlauf „Kugel erst mit dem Regler"): Hier
@@ -8751,7 +8809,7 @@ function mountAnimator(body, headerActions, opts) {
           data: { type: "Feature", properties: { brg: 0 },
                   geometry: { type: "Point", coordinates: (currentCoords && currentCoords[0]) || [0, 0] } } });
       }
-      ["anim-dot-arrow", "anim-dot-fz", "anim-dot-core", "anim-dot-glow"].forEach(id => {
+      ["anim-dot-arrow", "anim-dot-fz", "anim-dot-core", "anim-dot-glow", "anim-dot-licht"].forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id);
       });
       _dotLuft = null;
@@ -8828,6 +8886,22 @@ function mountAnimator(body, headerActions, opts) {
                     "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
+      } else if (dst.style === "leucht") {
+        // 23.10.2026 (Marc: „kleiner, heller Kern in warmem Weiß mit türkisem Rand · weicher Lichtschein unmittelbar darum")
+        // — von unten nach oben: Lichtfleck auf dem Gelände (flach, kippt mit der Kamera), enger Glow in Linienfarbe, Kern.
+        // „Atmen" in Pausen über die Eigenschaft `puls` (0…1, dotSetzen, an der Videozeit — Vorschau = Video).
+        const kb = _leuchtBild(farbe, gr);
+        _dotLuft = { bild: kb.bild, key: "leucht|" + farbe + "|" + gr, cssPx: kb.cssPx, dreht: false, karte: true };
+        const puls = ["coalesce", ["get", "puls"], 0];
+        map.addLayer({ id: "anim-dot-licht", type: "circle", source: "anim-dot",
+          paint: { "circle-radius": _dotSk(36 * gr), "circle-color": farbe, "circle-opacity": ["+", 0.28, ["*", 0.1, puls]],
+                   "circle-blur": 1, "circle-pitch-alignment": "map" } });
+        map.addLayer({ id: "anim-dot-glow", type: "circle", source: "anim-dot",
+          paint: { "circle-radius": ["+", _dotSk(15 * gr), ["*", 5 * gr, puls]], "circle-color": farbe,
+                   "circle-opacity": ["+", 0.75, ["*", 0.2, puls]], "circle-blur": 0.8, "circle-pitch-alignment": "map" } });
+        map.addLayer({ id: "anim-dot-core", type: "circle", source: "anim-dot",
+          paint: { "circle-radius": _dotSk(5 * gr), "circle-color": "#fff4e0", "circle-opacity": 1,
+                   "circle-stroke-color": farbe, "circle-stroke-width": 2, "circle-pitch-alignment": "map" } });
       } else {
         const kb = _kugelBild(farbe, gr, false);
         _dotLuft = { bild: kb.bild, key: "kugel|" + farbe + "|" + gr, cssPx: kb.cssPx, dreht: false, karte: true };
@@ -8871,7 +8945,7 @@ function mountAnimator(body, headerActions, opts) {
           const fzE = (etQ && etQ.fz_zeigen !== false) ? _etappeArtAn(e.tour, _reiseBahn.coords[Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+f || 0)))], etQ) : "";
           if (fzE) return { key: "e" + ab.teil + "-" + fzE, show: st.dot_show !== false, style: fzE,
                             size: Math.max(0.1, +st.dot_size || 1), farbe: e.tour.line_color || "#35a7ff" };
-          return { key: "e" + ab.teil, show: st.dot_show !== false, style: (st.dot_style === "arrow" || FAHRZEUGE.includes(st.dot_style)) ? st.dot_style : "dot",
+          return { key: "e" + ab.teil, show: st.dot_show !== false, style: (st.dot_style === "arrow" || st.dot_style === "leucht" || FAHRZEUGE.includes(st.dot_style)) ? st.dot_style : "dot",
                    size: Math.max(0.1, +st.dot_size || 1), farbe: e.tour.line_color || "#35a7ff" };
         }
       }
@@ -8938,6 +9012,20 @@ function mountAnimator(body, headerActions, opts) {
       return g && FAHRZEUGE.includes(g.art) ? g.art : "";
     } catch (_) { return ""; }
   }
+  /** 23.10.2026 — „Atmen" des Leuchtpunkts: steht er (Pause, Fotostopp), pulsiert der Glow leicht (Periode 1,6 s, nach
+   *  0,8 s Stillstand weich einsetzend); in Bewegung 0. Gemessen an der VIDEOZEIT (window.__rzVideoSek, gesetzt beim
+   *  Scrubben/Probelauf/Render), nicht an der Uhr — Vorschau und Video atmen gleich. */
+  let _dotStill = null;
+  function _dotPuls(f) {
+    if (dotStil() !== "leucht") { _dotStill = null; return 0; }
+    const sek = +window.__rzVideoSek;
+    if (!isFinite(sek)) return 0;
+    if (!_dotStill || Math.abs(f - _dotStill.f) > 0.02 || sek < _dotStill.seit) { _dotStill = { f, seit: sek }; return 0; }
+    const d = sek - _dotStill.seit - 0.8;
+    if (d <= 0) return 0;
+    return Math.min(1, d / 0.6) * (0.5 - 0.5 * Math.cos(2 * Math.PI * d / 1.6));
+  }
+  window.__rzDotPuls = (f) => _dotPuls(f);   // Prüfstand (test_karten_darstellung: Atmen in Pausen)
   function dotSetzen(frac) {
     if (!map || !currentCoords) return;
     try {
@@ -8956,9 +9044,10 @@ function mountAnimator(body, headerActions, opts) {
       const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
       const _brg = _kursAn(currentCoords, f), _pos = coordBeiFrac(currentCoords, f);
       const _sk = _lbSymSkala(f);   // 19.10.2026 — Symbolwechsel nach Logbuch: kurz klein → groß (1 = normal)
-      window.__rzDotZuletzt = { c: _pos, brg: _brg, sk: _sk };   // Prüfstand (Ruhe des Pfeils, test_schnellvideo)
+      const _puls = _dotPuls(f);
+      window.__rzDotZuletzt = { c: _pos, brg: _brg, sk: _sk, puls: _puls };   // Prüfstand (Ruhe des Pfeils, test_schnellvideo)
       rzSetDataLatest(map, src, { type: "Feature",
-                    properties: { brg: _brg, sk: _sk },
+                    properties: { brg: _brg, sk: _sk, puls: _puls },
                     geometry: { type: "Point", coordinates: _pos } });
     } catch (_) {}
   }
@@ -11004,6 +11093,7 @@ function mountAnimator(body, headerActions, opts) {
     let _flugMitteSoll = null;   // 05.10.2026 — Flug in der Luft: Mittelpunkthöhe nach der Kamerabewegung
     if (!map || !currentCoords || currentCoords.length < 2) return;
     try { _ovTimingAt(_sgZeitAusAnker(anchor), (currentCoords && currentCoords.length > 1) ? Math.max(0, Math.min(1, anchor)) : 0); } catch (_) {}   // 30.09.2026 — Container-Zeiten am Zeitregler
+    try { window.__rzVideoSek = _sgZeitAusAnker(anchor); } catch (_) {}   // 23.10.2026 — Videozeit für das Atmen des Leuchtpunkts
     const _fsT = (() => { try { return _sgZeitAusAnker(anchor) - parseNum(document.getElementById("anim-intro")?.value, 0); } catch (_) { return null; } })();
     try { _fotostoppZeigen(_fsT); } catch (_) {}   // 01.10.2026 — Fotostopp am Zeitregler
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
@@ -12516,6 +12606,7 @@ function mountAnimator(body, headerActions, opts) {
         }
       }
       const coordIdx = Math.max(0, Math.min(tn - 1, Math.round(coordFrac)));
+      try { window.__rzVideoSek = _sgZeitAusAnker(signAnchor); } catch (_) {}   // 23.10.2026 — Videozeit (Leuchtpunkt atmet)
       try { dotSetzen(coordFrac); } catch (_) {}   // v0.9.509/510 — gleitender Laufpunkt
       // v0.9.56: Track-Linien-Start respektiert show_pretrim_track-Setting:
       // wenn an → von Track-Anfang (0), sonst vom Trim-Start.
@@ -13097,7 +13188,8 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzKartenlookJetzt = () => _currentKartenlook();   // Prüfstand
   function _currentOrtho() {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
-    return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 0) };
+    return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 0),
+             schatten: g("anim-oschatten", 55) };
   }
   /** 17.09.2026 — Dunst (0…100) aus der sichtbaren Optik-Gruppe (Zwillinge wie die Schärfe). */
   function _currentHaze() {
@@ -13178,7 +13270,13 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** 07.09.2026 — Schärfe live auf die Karten-Leinwand (Vorschau = Video, s. rz-mapadjust.js). */
   function _applySharpen() {
-    try { if (map && window.rzApplyMapLook) rzApplyMapLook(map, _currentSharpen(), _currentHaze()); else if (map && window.rzApplyMapSharpen) rzApplyMapSharpen(map, _currentSharpen()); } catch (_) {}
+    try { if (map && window.rzApplyMapLook) rzApplyMapLook(map, _currentSharpen(), _currentHaze(), _currentGrade()); else if (map && window.rzApplyMapSharpen) rzApplyMapSharpen(map, _currentSharpen()); } catch (_) {}
+  }
+  /** 23.10.2026 — Farbkorrektur 0…100, nur bei Luftbildern (die Gruppe „Luftbild-Optik" ist sichtbar). */
+  function _currentGrade() {
+    const row = document.getElementById("anim-ortho-row");
+    if (!row || row.hidden) return 0;
+    const v = parseFloat(document.getElementById("anim-ograde")?.value); return isFinite(v) ? v : 70;
   }
   function _currentStars() {
     const on = id => { const el = document.getElementById(id); return el ? !!el.checked : true; };
@@ -13348,6 +13446,25 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
 
+  /** 23.10.2026 — Dunst in der Ferne: Nebel über dem Gelände, beginnt erst ab einem Teil des Wegs zum Horizont (wie
+   *  `dunstStart` im Prototyp „GPS Studio Karten"). Himmel bleibt durchsichtig (Sternenhimmel/Hintergrund wie bisher).
+   *  Nicht bei transparentem Export (dort setzt der Render-Modus den Himmel selbst zurück). */
+  function _applyFerne() {
+    try {
+      if (!map || typeof map.setSky !== "function" || map.__rzEngine === "mapbox") return;
+      if (window.__rzRenderMode && window.__rzRenderMode.transparent) return;
+      const v = Math.max(0, Math.min(100, parseFloat(document.getElementById("anim-ferne")?.value) || 0));
+      if (v <= 0 || !currentTerrainOn()) { map.setSky({ "sky-color": "rgba(0,0,0,0)", "horizon-color": "rgba(0,0,0,0)", "fog-color": "rgba(0,0,0,0)", "atmosphere-blend": 0 }); return; }
+      map.setSky({
+        "sky-color": "rgba(0,0,0,0)", "horizon-color": "rgba(0,0,0,0)", "atmosphere-blend": 0,
+        "fog-color": `rgba(205, 216, 228, ${(0.45 + 0.5 * v / 100).toFixed(3)})`,
+        "fog-ground-blend": +(1 - 0.9 * v / 100).toFixed(3),
+        "horizon-fog-blend": 0.4, "sky-horizon-blend": 0.5,
+      });
+      map.__rzFerne = v;
+    } catch (_) {}
+  }
+  window.__rzFerneAnwenden = () => _applyFerne();   // Prüfstand
   function applyTerrain() {
     if (!map || !document.getElementById("anim-terrain")) return;   // 29.09.2026 — Stil-Rückruf nach dem Aushängen (Szene: JS-Fehler beim Modulwechsel)
     const want = currentTerrainOn();
@@ -13393,6 +13510,7 @@ function mountAnimator(body, headerActions, opts) {
           map.setTerrain(null);
         }
       }
+      _applyFerne();
       // v0.9.16 — line-z-offset 150 m bei Terrain, sonst 0 — nur Mapbox GL kennt
       // die Eigenschaft; MapLibre drapiert die Linie selbst aufs Gelände.
       if (mapboxEngine) {
@@ -18744,7 +18862,7 @@ function mountAnimator(body, headerActions, opts) {
 
   // 07.10.2026 (Marc: „eigentlich auch direkt als Laufpunkt auswählen lassen im normalen Track“) — Form und Aussehen als
   // Bildkacheln statt Textlisten; die (versteckten) Auswahllisten bleiben die Quelle für Speichern/Laden.
-  const _DOT_SYMBOL = { dot: "●", arrow: "➤" };
+  const _DOT_SYMBOL = { dot: "●", arrow: "➤", leucht: '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff4e0;box-shadow:0 0 0 2px #48d6c4,0 0 9px 4px rgba(72,214,196,.7)"></span>' };
   // 13.10.2026 — Kachel „Plakette“: das echte gezeichnete Bild (_fahrzeugBild) statt eines Emojis, je Fahrzeug einmal
   const _plakettenUrl = new Map();
   function _plaketteUrl(art) {
@@ -18767,8 +18885,8 @@ function mountAnimator(body, headerActions, opts) {
       : (s && s !== "plakette" ? `<img src="${_fzPfad(fz + "_" + s)}" alt="" onerror="this.remove()">` : `<img src="${_plaketteUrl(fz)}" alt="">`);
     if (formBox) {
       const lp = _lpBilder.get(dotBild());
-      formBox.innerHTML = ["dot", "arrow", ...FAHRZEUGE, "bild"].map(f => {
-        const name = f === "dot" ? t("animator.dot.style_dot", "Kugel") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")
+      formBox.innerHTML = ["dot", "leucht", "arrow", ...FAHRZEUGE, "bild"].map(f => {
+        const name = f === "dot" ? t("animator.dot.style_dot", "Kugel") : f === "leucht" ? t("animator.dot.style_leucht", "Leuchtpunkt") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")
           : (f === "bild" ? t("animator.dot.style_bild", "Eigenes Bild") : t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])));
         const inhalt = f === "bild" ? (lp && lp.ok && lp.data ? `<img src="${lp.data}" alt="">` : (window.rzIcon ? rzIcon("image", { size: 18 }) : "＋"))
           : (FAHRZEUGE.includes(f) ? bild(f, fzs) : _DOT_SYMBOL[f]);
@@ -23255,7 +23373,7 @@ function mountAnimator(body, headerActions, opts) {
     el.innerHTML = `
       <div class="anim-stil-zeile"><label>${t("animator.field.line_width", "Track-Dicke")} <b data-v="width">${st.width}</b> px</label>
         <input type="range" data-stil="width" min="1" max="10" step="0.5" value="${st.width}"></div>
-      <div class="anim-stil-zeile"><label>${t("animator.field.line_style", "Linien-Stil")}</label>
+      <div class="anim-stil-zeile"><label>${t("animator.field.line_style", "Strichart")}</label>
         <select data-stil="line_style">${opt("solid","solid")}${opt("dashed","dashed")}${opt("dotted","dotted")}${opt("dashdot","dashdot")}${opt("tube","tube")}</select></div>
       <div class="anim-stil-zeile" data-nur-muster ${st.line_style === "solid" || st.line_style === "tube" ? "hidden" : ""}><label>${t("animator.field.line_style_spacing", "Punktabstand")} <b data-v="spacing">${st.spacing}</b>×</label>
         <input type="range" data-stil="spacing" min="0.5" max="5" step="0.25" value="${st.spacing}"></div>
@@ -23263,8 +23381,8 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-stil="shadow" min="0" max="10" step="0.5" value="${st.shadow}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.field.glow_strength", "Glow-Stärke")} <b data-v="glow">${st.glow}</b></label>
         <input type="range" data-stil="glow" min="0" max="10" step="0.5" value="${st.glow}"></div>
-      ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.look.tip", ""))}"><label>${t("animator.look", "Linien-Look")}</label>
-        <select data-linien-look>${["klassisch", "glut", "neon"].map(k => `<option value="${k}"${currentLinienLook() === k ? " selected" : ""}>${t("animator.look." + k, k)}</option>`).join("")}</select></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.look.tip", ""))}"><label>${t("animator.look", "Vorlage")}</label>
+        <select data-linien-look>${["klassisch", "glut", "neon", "leuchtspur"].map(k => `<option value="${k}"${currentLinienLook() === k ? " selected" : ""}>${t("animator.look." + k, k)}</option>`).join("")}</select></div>
       <div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.schweif.tip", ""))}"><label>${t("animator.schweif", "Schweif")} <b data-schweif-v>${currentSchweifPct()}</b> %</label>
         <input type="range" data-schweif min="0" max="15" step="0.5" value="${currentSchweifPct()}"></div>
       ${_tagesStarts().length ? `<div class="anim-stil-zeile ist-check" title="${_animEscapeHtml(t("animator.farbe_je_tag.tip", ""))}"><label><input type="checkbox" data-farbe-je-tag${currentFarbeJeTag() ? " checked" : ""}> ${t("animator.farbe_je_tag", "Farbe je Tag")}</label></div>` : ""}` : ""}
@@ -23286,7 +23404,7 @@ function mountAnimator(body, headerActions, opts) {
       <div class="anim-stil-zeile ist-check" ${ganz ? "hidden" : ""}><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
         <div class="dot-wahl" data-dot-wahl></div>
-        <select data-stil="dot_style" hidden><option value="dot"${st.dot_style !== "arrow" && st.dot_style !== "bild" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}${ziel === "haupt" ? `<option value="bild"${st.dot_style === "bild" ? " selected" : ""}>${t("animator.dot.style_bild", "Eigenes Bild")}</option>` : ""}</select></div>
+        <select data-stil="dot_style" hidden><option value="dot"${st.dot_style !== "arrow" && st.dot_style !== "bild" && st.dot_style !== "leucht" && !FAHRZEUGE.includes(st.dot_style) ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="leucht"${st.dot_style === "leucht" ? " selected" : ""}>${t("animator.dot.style_leucht", "Leuchtpunkt")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>${FAHRZEUGE.map(f => `<option value="${f}"${st.dot_style === f ? " selected" : ""}>${t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])}</option>`).join("")}${ziel === "haupt" ? `<option value="bild"${st.dot_style === "bild" ? " selected" : ""}>${t("animator.dot.style_bild", "Eigenes Bild")}</option>` : ""}</select></div>
       ${ziel === "haupt" ? `<div class="anim-stil-zeile ist-check dot-lb-zeile" data-nur-dot data-lb-sym-zeile ${st.dot_show && !ganz ? "" : "hidden"} title="${_animEscapeHtml(t("animator.dot.lb_sym_tip", "Der Laufpunkt zeigt das Symbol der Aktivität, die das Logbuch an dieser Stelle erkannt hat — Auto, Fähre, Wanderer, Fahrrad … Pausen behalten das Symbol davor."))}">
         <label><input type="checkbox" data-lb-sym${_lbSymAn() ? " checked" : ""}> ${t("animator.dot.lb_sym", "Symbol nach Aktivität (aus dem Logbuch)")}</label>
         <div class="muted dot-lb-hinweis" data-lb-sym-hinweis></div></div>` : ""}
@@ -23438,8 +23556,13 @@ function mountAnimator(body, headerActions, opts) {
           let geaendert = false;
           const neu = _ctListe().map(c => ({ ...c, zeilen: (c.zeilen || []).map(z => (L && z.typ === "diagramm" && (z.art === "karte" || z.art === "hoehe") && z.linienfarbe && z.linienfarbe !== L.farbe)
             ? (geaendert = true, { ...z, linienfarbe: L.farbe }) : z) }));
-          if (geaendert) _ctSpeichern(neu, t("animator.look", "Linien-Look"), undefined, undefined, true);
+          if (geaendert) _ctSpeichern(neu, t("animator.look", "Vorlage"), undefined, undefined, true);
         } catch (e) { rzSwallow(e, "look@container"); }
+        // Leuchtspur: Laufpunkt, Schweif und Kontur einmal vorstellen (danach frei änderbar)
+        for (const [id, wert] of Object.entries((L && L.vorwahl) || {})) {
+          const e2 = document.getElementById(id); if (!e2 || String(e2.value) === String(wert)) continue;
+          e2.value = String(wert); e2.dispatchEvent(new Event("input", { bubbles: true })); e2.dispatchEvent(new Event("change", { bubbles: true }));
+        }
         alt.dispatchEvent(new Event("change", { bubbles: true }));
         try { _animRenderToursList(); } catch (_) {}
       }); }
@@ -28551,6 +28674,8 @@ function mountAnimator(body, headerActions, opts) {
       map_sat: _currentMapAdjust().sat, map_con: _currentMapAdjust().con, map_bri: _currentMapAdjust().bri, map_hue: _currentMapAdjust().hue,
       map_sharp: _currentSharpen(),
       ortho_relief: _currentOrtho().relief, map_haze: _currentHaze(),   // 17.09.2026 — Relief + Dunst (WYSIWYG)
+      ortho_grade: _currentGrade(), ortho_schatten: _currentOrtho().schatten,   // 23.10.2026 — Farbkorrektur + Schatten
+      ferne_dunst: parseFloat(document.getElementById("anim-ferne")?.value) || 0,
       attrib_mode: document.getElementById("anim-ov-attrib-mode")?.value || "voll",
       attrib_link: (document.getElementById("anim-ov-attrib-link")?.value || "").trim(),
       stars_enabled: _currentStars().enabled, stars_density: _currentStars().density, stars_size: _currentStars().size, stars_twinkle: _currentStars().twinkle,
@@ -28621,6 +28746,7 @@ function mountAnimator(body, headerActions, opts) {
       glow_strength: currentGlowStrength(),
       // v0.9.286b: Karte glätten (Anti-Flimmer-Tiefpass, nur 4K-Wirkung)
       map_smoothing: parseFloat(document.getElementById("anim-map-smoothing")?.value || "1.3"),
+      hohe_qualitaet: !!document.getElementById("anim-hq")?.checked,
       // v0.9.169: Ghost-Track — ganze Route schwach im Hintergrund vorgezeichnet
       ghost_track_enabled: currentGhostEnabled(),
       ghost_track_opacity: currentGhostOpacity(),

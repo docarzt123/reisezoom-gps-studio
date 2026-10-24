@@ -62,6 +62,13 @@
       try { map.setLayoutProperty("rz-hillshade", "visibility", rel > 0 ? "visible" : "none"); } catch (_) {}
       try { map.setPaintProperty("rz-hillshade", "hillshade-exaggeration", +(rel / 100 * mx).toFixed(3)); } catch (_) {}
     }
+    // 23.10.2026 — Schlagschatten (Ebene rz-schatten, nur im Luftbild-Stapel): adj.schatten 0…100
+    if (adj && typeof adj === "object" && adj.schatten !== undefined && map.getLayer("rz-schatten")) {
+      const sch = Math.max(0, Math.min(100, parseFloat(adj.schatten) || 0));
+      const mx = (typeof window.RZ_SCHATTEN_MAX === "number") ? window.RZ_SCHATTEN_MAX : 0.85;
+      try { map.setLayoutProperty("rz-schatten", "visibility", sch > 0 ? "visible" : "none"); } catch (_) {}
+      try { map.setPaintProperty("rz-schatten", "raster-opacity", +(sch / 100 * mx).toFixed(3)); } catch (_) {}
+    }
     const op = hasRaster ? 0 : Math.min(0.85, Math.abs(a.bri) / 100 * 0.8);
     const color = a.bri < 0 ? "#000000" : "#ffffff";
     try {
@@ -92,7 +99,23 @@
    * Schärfe auf Karte + Strecke, nicht auf HTML-Overlays. Schatten bleiben: unter ~6 % Helligkeit
    * greift der Abzug nicht, bis 30 % blendet er ein (Vergleichsrender Teide 17.09.: Blue-Marble-Meer
    * und Lavaschatten wurden sonst schwarz, der Schleier sitzt in den Mitteltönen). */
-  const SHARP_FS = "precision mediump float; uniform sampler2D u_tex; uniform vec2 u_step; uniform float u_a; uniform float u_haze; varying vec2 v_uv;"
+  /* 23.10.2026 (Marc: „ich will bessere Kartendarstellungen") — Farbkorrektur wie im Prototyp „GPS Studio Karten"
+   * (szene/render.js grade(), dort an elf Regionen abgestimmt): Dunst raus, Belichtung, Tiefen aufhellen, gezielte
+   * Grün-Vibrance, Wärme, Kontrast im Log-Raum um Mittelgrau, weiche Schulter gegen ausgefressene Lichter. Gerechnet
+   * in linearem Licht (sRGB ≈ Gamma 2,2), u_grade 0…1 mischt zwischen Original und Korrektur. Liegt im selben
+   * Durchgang wie Schärfe/Dunst, also nur auf den Luftbildern (vor Strecke, Beschriftung, Schildern). */
+  const GRADE_GLSL = " vec3 rzGrade(vec3 c) {"
+    + " c = max(c - 0.055 * 0.25, 0.0) / (1.0 - 0.055 * 0.25); c *= 1.08;"
+    + " float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c *= 1.0 + 0.45 * (1.0 - smoothstep(0.01, 0.16, l)) * 1.2;"
+    + " l = dot(c, vec3(0.2126, 0.7152, 0.0722));"
+    + " float gd = smoothstep(0.0, 0.06, c.g - max(c.r, c.b) * 0.92);"
+    + " float mx = max(c.r, max(c.g, c.b)); float sn = (mx - min(c.r, min(c.g, c.b))) / max(mx, 1e-4);"
+    + " c = max(mix(vec3(l), c, 1.12 + 0.30 * gd * (1.0 - sn)), 0.0);"
+    + " c *= vec3(1.02, 1.0, 0.98);"
+    + " c = 0.18 * pow(c / 0.18 + 1e-5, vec3(1.12));"
+    + " return c / (1.0 + max(c - 0.6, 0.0) * 1.3); }";
+  const SHARP_FS = "precision mediump float; uniform sampler2D u_tex; uniform vec2 u_step; uniform float u_a; uniform float u_haze; uniform float u_grade; varying vec2 v_uv;"
+    + GRADE_GLSL
     + " void main() { vec4 c = texture2D(u_tex, v_uv);"
     + " vec4 b = (texture2D(u_tex, v_uv + vec2(u_step.x, 0.0)) + texture2D(u_tex, v_uv - vec2(u_step.x, 0.0))"
     + " + texture2D(u_tex, v_uv + vec2(0.0, u_step.y)) + texture2D(u_tex, v_uv - vec2(0.0, u_step.y)) + c) / 5.0;"
@@ -100,17 +123,19 @@
     + " float lum = dot(s, vec3(0.299, 0.587, 0.114)) / max(c.a, 0.0001);"
     + " vec3 bp = u_haze * vec3(0.10, 0.13, 0.20) * smoothstep(0.06, 0.30, lum);"
     + " s = clamp((s - bp * max(c.a, 0.0001)) / (1.0 - bp), 0.0, max(c.a, 0.0001));"
+    + " if (u_grade > 0.0) { float al = max(c.a, 0.0001); vec3 lin = pow(s / al, vec3(2.2));"
+    + "   vec3 g = pow(clamp(rzGrade(lin), 0.0, 1.0), vec3(1.0 / 2.2)); s = mix(s / al, g, u_grade) * al; }"
     + " gl_FragColor = vec4(s, c.a); }";
   function sharpLayer() {
     return {
-      id: SHARP_ID, type: "custom", renderingMode: "2d", amount: 0, haze: 0,
+      id: SHARP_ID, type: "custom", renderingMode: "2d", amount: 0, haze: 0, grade: 0,
       onAdd(map, gl) {
         this._map = map;
         const mk = (t, src) => { const sh = gl.createShader(t); gl.shaderSource(sh, src); gl.compileShader(sh); return sh; };
         const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, SHARP_VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, SHARP_FS)); gl.linkProgram(pr);
         this._pr = pr; this._aPos = gl.getAttribLocation(pr, "a_pos");
         this._uTex = gl.getUniformLocation(pr, "u_tex"); this._uStep = gl.getUniformLocation(pr, "u_step"); this._uA = gl.getUniformLocation(pr, "u_a");
-        this._uHaze = gl.getUniformLocation(pr, "u_haze");
+        this._uHaze = gl.getUniformLocation(pr, "u_haze"); this._uGrade = gl.getUniformLocation(pr, "u_grade");
         this._buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this._buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
         this._tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this._tex);
@@ -119,7 +144,7 @@
       },
       onRemove(map, gl) { try { gl.deleteProgram(this._pr); gl.deleteBuffer(this._buf); gl.deleteTexture(this._tex); } catch (_) {} },
       render(gl) {
-        if (!(this.amount > 0 || this.haze > 0) || !this._pr) return;
+        if (!(this.amount > 0 || this.haze > 0 || this.grade > 0) || !this._pr) return;
         const vp = gl.getParameter(gl.VIEWPORT), w = vp[2], h = vp[3];
         if (!(w > 0 && h > 0)) return;
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this._tex);
@@ -128,7 +153,7 @@
         gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
         gl.useProgram(this._pr);
         const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
-        gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, dpr / w, dpr / h); gl.uniform1f(this._uA, this.amount); gl.uniform1f(this._uHaze, this.haze);
+        gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, dpr / w, dpr / h); gl.uniform1f(this._uA, this.amount); gl.uniform1f(this._uHaze, this.haze); gl.uniform1f(this._uGrade, this.grade || 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, this._buf); gl.enableVertexAttribArray(this._aPos); gl.vertexAttribPointer(this._aPos, 2, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         gl.disableVertexAttribArray(this._aPos);
@@ -141,18 +166,19 @@
     for (const l of layers) { if (l.id === SHARP_ID) continue; if (l.type !== "raster" && l.type !== "background" && l.type !== "hillshade") return l.id; }
     return undefined;
   }
-  /** Schärfe (0…100) und Dunst (0…100) auf EINER Ebene; beide 0 = Ebene weg. */
-  function applyLook(map, sharpPct, hazePct) {
+  /** Schärfe, Dunst und Farbkorrektur (je 0…100) auf EINER Ebene; alle 0 = Ebene weg. */
+  function applyLook(map, sharpPct, hazePct, gradePct) {
     if (!map || !map.getStyle || !map.addLayer) return;
     const v = sharpNorm(sharpPct), A = v / 100 * SHARP_MAX_A;
     const hz = sharpNorm(hazePct), H = hz / 100;
+    const gr = sharpNorm(gradePct), G = gr / 100;
     let layers = []; try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
     try {
-      if (v <= 0 && hz <= 0) { if (map.getLayer(SHARP_ID)) map.removeLayer(SHARP_ID); map.__rzSharpen = 0; map.__rzHaze = 0; if (map.triggerRepaint) map.triggerRepaint(); return; }
+      if (v <= 0 && hz <= 0 && gr <= 0) { if (map.getLayer(SHARP_ID)) map.removeLayer(SHARP_ID); map.__rzSharpen = 0; map.__rzHaze = 0; map.__rzGrade = 0; if (map.triggerRepaint) map.triggerRepaint(); return; }
       let lay = map.__rzSharpenLayer;
       if (!map.getLayer(SHARP_ID)) { lay = sharpLayer(); map.__rzSharpenLayer = lay; map.addLayer(lay, firstNonRasterLayer(layers)); }
-      if (lay) { lay.amount = A; lay.haze = H; }
-      map.__rzSharpen = v; map.__rzHaze = hz;
+      if (lay) { lay.amount = A; lay.haze = H; lay.grade = G; }
+      map.__rzSharpen = v; map.__rzHaze = hz; map.__rzGrade = gr;
       if (map.triggerRepaint) map.triggerRepaint();
     } catch (e) { try { console.warn("rzApplyMapLook", e); } catch (_) {} }
   }

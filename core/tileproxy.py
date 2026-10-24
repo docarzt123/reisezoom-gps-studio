@@ -409,6 +409,36 @@ def _mapterhorn_viertel(z: int, x: int, y: int, cache_dir, timeout: float) -> Op
     except Exception as e:  # noqa: BLE001
         _log.info("Mapterhorn-Kachel unlesbar z%d/%d/%d: %s", z - 1, x // 2, y // 2, e)
         return None
+AWS_MAXZOOM = 15   # AWS-Terrarium hat keine feinere Stufe
+
+
+def _gelaende_vergroessert(region_id: str, z: int, x: int, y: int, cache_dir, timeout: float) -> tuple[int, str, bytes]:
+    """Geländekachel über AWS_MAXZOOM aus der Elternkachel z15: Ausschnitt, Höhen bilinear vergrößert (Terrarium erst
+    entschlüsseln — die Farbkanäle sind Stellen einer Zahl, die darf man nicht mitteln)."""
+    from io import BytesIO
+    import numpy as _np
+    from PIL import Image
+    k = 1 << (z - AWS_MAXZOOM)
+    st, ct, body = _fetch_tile_roh(region_id, AWS_MAXZOOM, x // k, y // k, False, cache_dir, timeout)
+    if st != 200 or not body:
+        return st, ct, body
+    try:
+        a = _np.asarray(Image.open(BytesIO(body)).convert("RGB"), _np.float32)
+        h = a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
+        n = a.shape[0] // k
+        ox, oy = (x % k) * n, (y % k) * n
+        teil = Image.fromarray(h[oy:oy + n, ox:ox + n].astype(_np.float32), "F").resize((256, 256), Image.BILINEAR)
+        v = _np.asarray(teil, _np.float64) + 32768.0
+        r = _np.clip(_np.floor(v / 256.0), 0, 255); g = _np.clip(_np.floor(v - r * 256.0), 0, 255)
+        b = _np.clip(_np.round((v - r * 256.0 - g) * 256.0), 0, 255)
+        out = BytesIO()
+        Image.fromarray(_np.stack([r, g, b], -1).astype(_np.uint8), "RGB").save(out, "PNG", compress_level=1)
+        return 200, "image/png", out.getvalue()
+    except Exception as e:  # noqa: BLE001
+        _log.info("Gelände z%d/%d/%d vergrößern: %s", z, x, y, e)
+        return st, ct, body
+
+
 CLAMP_KEY_SUFFIX = "#clamp0"     # eigener Schlüssel: alte, ungeklemmte Kacheln bleiben liegen
 
 
@@ -610,12 +640,22 @@ def raster_dienst_url(dienst: str, z: int, x: int, y: int) -> Optional[str]:
     return vorlage.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
 
 
+SCHATTEN_ID = "schatten"   # Weiche: /tile/schatten/{z}/{x}/{y} — Schlagschatten (core/schatten.py)
+
+
 def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
                cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
     """(status, content_type, body). 404 bei unbekannter Region, 502 wenn der
     Dienst nicht antwortet. Erfolgreiche Bilder landen im Zwischenspeicher.
     `terrain-aws` = AWS-Terrarium mit Klemme (Meerestiefen → 0 m).
     Bild-Kacheln, die gescheitert sind: durchsichtige Ersatz-Kachel (`ist_ersatz`), einmal nachholen."""
+    if region_id == SCHATTEN_ID:   # 23.10.2026 — Schlagschatten aus dem Höhenmodell (core/schatten.py)
+        from . import schatten as _schatten
+        try:
+            return 200, "image/png", _schatten.kachel(z, x, y, cache_dir)
+        except Exception as e:  # noqa: BLE001
+            _log.warning("Schatten z%d/%d/%d: %s", z, x, y, e)
+            return 200, "image/png", _schatten.leer()
     key = (region_id, z, x, y, bool(transparent))
     terrain_frage = region_id in (ms.TERRAIN_AWS_PROXY_ID, ms.TERRAIN_AWS_ROH_PROXY_ID)
     if not terrain_frage:
@@ -694,6 +734,8 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
             return 404, "text/plain", b"unknown region"
         url = upstream_url(region, z, x, y, transparent)
     mh = klemmen and terrain_quelle() == "mapterhorn"   # roh (Meerestiefen der Seekarte) bleibt AWS: Mapterhorn hat keine
+    if terrain and not mh and z > AWS_MAXZOOM:   # 23.10.2026 — AWS allein (RZ_TERRAIN=aws, Meerestiefen): aus z15
+        return _gelaende_vergroessert(region_id, z, x, y, cache_dir, timeout)
     if mh:
         url = "mapterhorn:" + MAPTERHORN_URL.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
     if terrain:
@@ -714,6 +756,8 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
         body = _mapterhorn_viertel(z, x, y, cache_dir, timeout) or b""
         if body:
             ct = "image/png"
+        elif z > AWS_MAXZOOM:   # 23.10.2026 — Feinstufe ohne Mapterhorn: AWS hat nur bis z15 → aus der z15-Kachel
+            return _gelaende_vergroessert(region_id, z, x, y, cache_dir, timeout)
         else:   # keine Mapterhorn-Kachel → AWS (eigener Cache-Schlüssel wie bisher)
             url = ms.TERRAIN["aws"]["tiles"][0].replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
             cp = cache_path(Path(cache_dir), url + _suffix) if cache_dir else None

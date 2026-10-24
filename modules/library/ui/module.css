@@ -1412,6 +1412,11 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
 .ts-karte { flex: 1; min-height: 160px; position: relative; }
 .ts-laden { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); }
 .ts-laden.ts-fehler { color: var(--danger, #e5484d); }
+/* 24.10.2026 — Zeitstrahl des Logbuchs unter der Karte (ui/js/logbuch_strahl.js, Klassen wie im Inspektor) */
+.ts-strahl { flex: none; height: 140px; padding: 4px 10px 2px; border-top: 1px solid var(--border); background: var(--bg-2); overflow: hidden; cursor: default; }
+.ts-strahl[hidden] { display: none; }
+.ts-strahl .gpxi-lb-svg { height: 134px; }
+.ts-strahl .gpxi-lb-block, .ts-strahl .gpxi-lb-punkt, .ts-strahl .gpxi-lb-tagblock { cursor: pointer; }
 .ts-streifen { height: 104px; flex: none; display: flex; gap: 6px; padding: 8px 10px; overflow-x: auto; overflow-y: hidden;
   border-top: 1px solid var(--border); background: var(--bg-2); align-items: center; }
 .ts-streifen-leer { display: flex; align-items: center; gap: 12px; font-size: 12.5px; }
@@ -1967,19 +1972,33 @@ canvas.foto-gross-bild { display: block; }
 .lba-titel .btn { font-size: 12px; }
 .lba-unter { font-size: 12px; margin-top: -4px; }
 .lba-chips, .lba-tage { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 24.10.2026 — was im Hintergrund nachkommt (Ortsnamen, Sehenswürdigkeiten, Wege mit Zähler) */
+.lba-nachladen { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.lba-nachladen[hidden] { display: none; }
+.lba-nachladen .spinner { width: 12px; height: 12px; }
 .lba-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 3px 8px; border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); color: var(--text, #e6edf3); }
 .lba-tag { font-size: 12px; padding: 5px 10px; border-radius: 7px; background: transparent; border: 1px solid var(--border, #2a3340);
   color: var(--text, #e6edf3); cursor: pointer; }
 .lba-tag.an { border-color: var(--accent, #2dd4bf); background: color-mix(in srgb, var(--accent, #2dd4bf) 18%, transparent); }
 .lba-tag-mehr { color: var(--text-muted, #93a1b0); }
-.lba-tagkopf { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-top: 4px; }
-.lba-tagkopf span { color: var(--text-muted, #93a1b0); font-size: 12px; }
 .lba-liste { display: flex; flex-direction: column; gap: 6px; }
+/* 24.10.2026 — Mehrtagestour: alle Tage untereinander; die Überschrift des Tages bleibt oben stehen, bis der nächste
+   Tag sie wegschiebt (sticky innerhalb des eigenen Abschnitts) */
+.lba-liste.lba-mehrtags { gap: 18px; }
+.lba-tagblock { display: flex; flex-direction: column; gap: 6px; }
+.lba-tagkopf { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-size: 14px; padding: 8px 2px 6px; background: var(--panel-bg, var(--bg-2, #11161d));
+  border-bottom: 2px solid var(--accent, #2dd4bf); }
+.lba-tagkopf span { color: var(--text-muted, #93a1b0); font-size: 12px; flex: none; }
+.lba-mehrtags .lba-eintrag { scroll-margin-top: 44px; }
 .lba-eintrag { display: flex; gap: 10px; align-items: flex-start; padding: 8px 8px 8px 10px; border-radius: 8px; cursor: pointer;
   background: var(--panel-2, #18212b); border-left: 3px solid var(--c); }
 .lba-eintrag:hover { background: var(--panel-3, #1e2934); }
-.lba-eintrag.gewaehlt { outline: 2px solid var(--accent, #2dd4bf); outline-offset: -2px; }
+.lba-eintrag.gewaehlt, .lba-eintrag.ist-gewaehlt { outline: 2px solid var(--accent, #2dd4bf); outline-offset: -2px; }
+.lba-vermutet { border: 0; font: inherit; font-size: 10.5px; cursor: pointer; color: inherit; }
+.lba-vermutet:hover { text-decoration: underline; }
+.lba-tagkopf[role=button] { cursor: zoom-in; }
 .lba-symbol { color: var(--c); flex: none; margin-top: 1px; }
 .lba-text { flex: 1; min-width: 0; }
 .lba-kopf { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
@@ -1999,8 +2018,10 @@ canvas.foto-gross-bild { display: block; }
 /* 16.10.2026 — „Art ändern“ im Bearbeiten-Menü des Logbuchs: Überschrift + Symbol in der Farbe der Art */
 .lba-menue { max-height: calc(100vh - 12px); overflow-y: auto; }
 .lba-menue-kopf { font-size: 11px; color: var(--text-muted, #93a1b0); padding: 4px 10px 2px; }
-.lba-menue .lib-ctx-item[data-lba-art] { display: flex; align-items: center; gap: 8px; }
-.lba-menue-sym { color: var(--c); display: inline-flex; }
+.lba-menue .lib-ctx-item { display: flex; align-items: center; gap: 8px; }
+.lba-menue .lib-ctx-item:disabled { opacity: .5; cursor: default; }
+.lba-menue .lba-menue-unter { padding-left: 18px; }
+.lba-menue-sym { color: var(--c, var(--text-muted, #93a1b0)); display: inline-flex; }
 
 /* 11.10.2026 — Großansicht aus dem Video-Assistenten/Schnell-Video: über deren Fenster */
 .foto-gross.ganz-oben, .foto-gross.im-layout.ganz-oben { z-index: 4000; }

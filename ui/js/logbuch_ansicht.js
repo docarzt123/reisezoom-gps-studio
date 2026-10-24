@@ -52,6 +52,130 @@
   const PUNKT_ARTEN = ["start", "ziel", "hoechster_punkt", "punkt", "poi"];
   const istPunkt = (x) => !!x && x.t != null && (x.t0 == null || PUNKT_ARTEN.includes(x.art));
 
+  // ── EIN Menü und EIN Frage-Dialog für Logbuch-Einträge (24.10.2026, Marc: „ein Logbuch für alles“) ──────────────
+  // Tourseite und GPX-Inspektor bauen ihr Menü hier; jede zeigt es in ihrer gewohnten Form. `U` (Umgebung) liefert,
+  // was die Ansicht kann:
+  //   aktion(label, was, params, opt) → Promise   einteilung_aktion + eigenes Rückgängig der Ansicht
+  //   frage(titel, wert, mehrzeilig, ortHaken)    → Promise<string | {wert, alsOrt} | null>
+  //   liste()                                     → Einträge (Nachbarn fürs Zusammenlegen)
+  //   titel(x) · karteZeigen(x) · alsTour(x) · punktLoeschen(x)          (optional)
+  //   teilenStellen(x) → [{t, text}] · vorAlsTour(x) / hinten(x) → weitere Menüpunkte  (Inspektor: hier, Anker A …)
+  // Ein Menüpunkt: { sym: Strich-Symbol | symHtml, text, tu, aus, unter, art } · { kopf } · "-"
+  function frageDialog(titelText, wert, mehrzeilig, ortHaken, pf) {
+    pf = pf || "lba";
+    return new Promise((res) => {
+      const feld = mehrzeilig ? `<textarea id="${pf}-frage" class="${pf}-frage" rows="4">${esc(wert || "")}</textarea>` : `<input id="${pf}-frage" class="${pf}-frage" type="text" value="${esc(wert || "")}">`;
+      // 22.10.2026 (Marc: „beim Umbenennen mit einem Haken zu ‚Meine Orte‘ hinzufügen“)
+      const haken = ortHaken ? `<label class="lba-orthaken"><input type="checkbox" id="${pf}-frage-ort"> ${esc(T("logbuch.als_mein_ort", "Zu „Meine Orte“ hinzufügen — wird in allen Logbüchern erkannt"))}</label>` : "";
+      const m = openModal({ title: titelText, body: `<div class="lib-fmodal">${feld}${haken}</div>`,
+        footer: `<button class="btn" id="${pf}-frage-nein">${esc(T("common.cancel", "Abbrechen"))}</button><button class="btn btn-primary" id="${pf}-frage-ja">${esc(T("common.ok", "OK"))}</button>` });
+      const el = document.getElementById(pf + "-frage"), fertig = (v) => {
+        const h = document.getElementById(pf + "-frage-ort"), alsOrt = !!(h && h.checked);
+        try { m.close(); } catch (_) {}
+        res(ortHaken ? (v == null ? null : { wert: v, alsOrt }) : v);
+      };
+      document.getElementById(pf + "-frage-ja").onclick = () => fertig(el ? el.value : "");
+      document.getElementById(pf + "-frage-nein").onclick = () => fertig(null);
+      if (el) { el.focus(); try { el.select(); } catch (_) {} if (!mehrzeilig) el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); fertig(el.value); } }); }
+    });
+  }
+  /** Bearbeitbar? Abschnitte und alle Punkte (Start „Campingplatz“); löschen lassen sich alle Punkte außer Start und
+   *  Ziel — ein gelöschter höchster Punkt bleibt weg, auch beim Neuberechnen. */
+  const bearbeitbar = (x) => !!x && (istPunkt(x) ? !!x.id : !!(x.bids && x.bids.length));
+  async function umbenennen(x, U) {
+    const p = istPunkt(x), art = x.anzeige_art || x.art, pos = x.pos || x.pos_von;
+    const ortTauglich = !p && !!pos && ["pause", "uebernachtung", "halt"].includes(art);
+    const v = await U.frage(T("logbuch.frage.name", "Name"), x.name || x.mein_ort || (U.titel ? U.titel(x) : ""), false, ortTauglich);
+    if (v == null) return;
+    const name = String(ortTauglich ? v.wert : v).trim(), label = T("logbuch.undo.umbenennen", "Logbuch: umbenennen");
+    if (ortTauglich && v.alsOrt && name) {
+      const r = await api().meine_orte_speichern({ name, lat: pos[1], lon: pos[0] }).catch(() => null);   // warte-ok: eine Zeile in den Einstellungen
+      if (r && r.ok && typeof toast === "function") toast(T("logbuch.ort_gemerkt", "„{n}“ steht jetzt in „Meine Orte“.", { n: name }), "success", 3500);
+      return U.aktion(label, "aendern", { bids: x.bids, name: "" });   // der Eintrag heißt dann über den Ort
+    }
+    return U.aktion(label, "aendern", p ? { bid: x.id, name } : { bids: x.bids, name });
+  }
+  function menueEintraege(x, U) {
+    const M = []; if (!bearbeitbar(x)) return M;
+    const p = istPunkt(x), art = x.anzeige_art || x.art;
+    // 14.09.2026 (Marc: „wie kann ich vermutete Bewegungsarten bestätigen?“) — ganz oben
+    if (!p && x.geraten) {
+      M.push({ sym: "check", text: T("logbuch.menue.bestaetigen", "{art} bestätigen", { art: artName(art) }),
+               tu: () => U.aktion(T("logbuch.undo.bestaetigen", "Logbuch: Art bestätigt"), "bestaetigen", { teile: [{ bids: x.bids, art }] }) });
+      M.push("-");
+    }
+    if (p && U.karteZeigen) M.push({ sym: "map", text: T("logbuch.menue.karte_zeigen", "Auf der Karte zeigen"), tu: () => U.karteZeigen(x) });
+    M.push({ sym: "pencil", text: T("logbuch.menue.umbenennen", "Umbenennen …"), tu: () => umbenennen(x, U) });
+    M.push({ sym: "notebook-pen", text: T("logbuch.menue.notiz", "Notiz …"), tu: async () => {
+      const v = await U.frage(T("logbuch.frage.notiz", "Notiz"), x.notiz || "", true);
+      if (v == null) return;
+      U.aktion(T("logbuch.undo.notiz", "Logbuch: Notiz"), "aendern", p ? { bid: x.id, notiz: String(v).trim() } : { bids: x.bids, notiz: String(v).trim() });
+    } });
+    if (p) {
+      const weg = !["start", "ziel"].includes(x.art);
+      if (weg) M.push("-");
+      if (weg) M.push({ sym: "trash-2", text: T("logbuch.menue.punkt_loeschen", "Punkt löschen"), tu: () => U.punktLoeschen ? U.punktLoeschen(x)
+        : U.aktion(T("logbuch.undo.punkt_loeschen", "Logbuch: Punkt löschen"), "bereich_entfernen", { bid: x.id }, { auswahl: null }) });
+      for (const e of (U.hinten ? U.hinten(x) : [])) M.push(e);
+      return M;
+    }
+    M.push("-"); M.push({ kopf: T("logbuch.menue.art", "Art ändern") });
+    for (const a of HAND_ARTEN) {
+      if (a === art) continue;
+      M.push({ unter: true, art: a, symHtml: `<span class="lba-menue-sym" style="--c:${farbe(a)}">${I(SYMBOL[a] || "map-pin", 14)}</span>`, text: artName(a),
+               tu: () => U.aktion(T("logbuch.undo.art", "Logbuch: Art ändern"), "aendern", { bids: x.bids, art: a }) });
+    }
+    // 24.09.2026 — was dieser Abschnitt im Video tut; dieselbe Einstellung wie „Logbuch im Video“ im Animator
+    M.push("-"); M.push({ kopf: T("logbuch.menue.im_video", "Im Video") });
+    for (const [wert, sym, text] of [["", "eye", T("animator.lb.standard", "zeigen (Standard)")], ["blass", "eye-off", T("animator.lb.blass", "blass")],
+                                     ["raffen", "fast-forward", T("animator.lb.raffen", "raffen (×8)")], ["ueberspringen", "skip-forward", T("animator.lb.ueberspringen", "überspringen")]]) {
+      const ist = (x.anzeige || "") === wert || (x.anzeige === "zeigen" && wert === "");
+      M.push({ unter: true, sym: ist ? "check" : sym, text, aus: ist,
+               tu: () => U.aktion(T("logbuch.undo.im_video", "Logbuch: Anzeige im Video"), "aendern", { bids: x.bids, anzeige: wert }) });
+    }
+    M.push("-");
+    const teilbar = (tt) => tt != null && tt > x.t0 + 30 && tt < x.t1 - 30;
+    const teilen = (tt) => U.aktion(T("logbuch.undo.teilen", "Logbuch: Aktivität teilen"), "teilen_zeit", { t: tt });
+    for (const e of (U.teilenStellen ? U.teilenStellen(x) : [])) if (teilbar(e.t)) M.push({ sym: "scissors", text: e.text, tu: () => teilen(e.t) });
+    M.push({ sym: "scissors", text: T("logbuch.menue.teilen_uhrzeit", "Aktivität bei Uhrzeit teilen …"), tu: async () => {
+      const v = await U.frage(T("logbuch.frage.uhrzeit", "Uhrzeit (Ortszeit), z. B. 12:30"), uhr((x.t0 + x.t1) / 2, x.versatz_min));
+      if (v == null) return;
+      const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(v).trim());
+      if (!m) { if (typeof toast === "function") toast(T("logbuch.uhrzeit_ungueltig", "Bitte eine Uhrzeit wie 12:30 eingeben."), "warn"); return; }
+      // die Uhrzeit auf den Tag des Eintragsbeginns legen (Ortszeit); liegt sie davor, ist der nächste Tag gemeint
+      const tag0 = datum(x.t0, x.versatz_min); tag0.setUTCHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+      let tt = tag0.getTime() / 1000 - (x.versatz_min || 0) * 60;
+      if (tt < x.t0) tt += 86400;
+      if (!teilbar(tt)) { if (typeof toast === "function") toast(T("logbuch.uhrzeit_ausserhalb", "Diese Uhrzeit liegt nicht in diesem Eintrag."), "warn"); return; }
+      await teilen(tt);
+    } });
+    M.push({ sym: "scissors", text: T("logbuch.menue.teilen_mitte", "Aktivität in der Mitte teilen"), aus: !teilbar((x.t0 + x.t1) / 2), tu: () => teilen((x.t0 + x.t1) / 2) });
+    const liste = (U.liste ? U.liste() : []).filter((e) => !istPunkt(e) && e.bids && e.bids.length).slice().sort((a, b) => a.t0 - b.t0);
+    const k = liste.findIndex((e) => e.id === x.id), vor = k > 0 ? liste[k - 1] : null, nach = k >= 0 ? liste[k + 1] || null : null;
+    const legen = T("logbuch.undo.zusammenlegen", "Logbuch: zusammenlegen");
+    M.push({ sym: "arrow-left", text: T("logbuch.menue.mit_vorherigem", "Mit vorherigem zusammenlegen"), aus: !vor,
+             tu: () => U.aktion(legen, "zusammenlegen", { bid_a: vor.bids[vor.bids.length - 1], bid_b: x.bids[0] }, { auswahl: null }) });
+    M.push({ sym: "arrow-right", text: T("logbuch.menue.mit_naechstem", "Mit nächstem zusammenlegen"), aus: !nach,
+             tu: () => U.aktion(legen, "zusammenlegen", { bid_a: x.bids[x.bids.length - 1], bid_b: nach.bids[0] }, { auswahl: null }) });
+    const vorTour = U.vorAlsTour ? U.vorAlsTour(x) : [];
+    if (vorTour.length || U.alsTour) {
+      M.push("-");
+      for (const e of vorTour) M.push(e);
+      // 14.09.2026 (Beta-Tester: Autofahrt und Wanderung in einer Datei) — den Eintrag als eigene Tour
+      if (U.alsTour) M.push({ sym: "inbox", text: T("logbuch.menue.als_tour", "Als eigene Tour ins Archiv …"), tu: () => U.alsTour(x) });
+    }
+    M.push("-");
+    M.push({ sym: "trash-2", text: T("logbuch.menue.loeschen", "Löschen (geht im Nachbarn auf)"),
+             tu: () => U.aktion(T("logbuch.undo.loeschen", "Logbuch: löschen"), "aufgehen", { bids: x.bids }, { auswahl: null }) });
+    for (const e of (U.hinten ? U.hinten(x) : [])) M.push(e);
+    return M;
+  }
+  /** Vorschlag für den Namen einer neuen Tour aus einem Eintrag: „Wanderung 27.7.2026“. */
+  function tourVorschlag(x) {
+    const tag = datum(x.t0, x.versatz_min);
+    return x.name || (artName(x.anzeige_art || x.art) + " " + tag.getUTCDate() + "." + (tag.getUTCMonth() + 1) + "." + tag.getUTCFullYear());
+  }
+
   /** Ort zum Eintrag aus `logbuch_orte` ({von, nach, hier}). */
   function ortVon(orte, x) {
     // 22.10.2026 — „Meine Orte“ gehen vor dem Ortsnamen aus dem Netz („Zu Hause“ statt „Ahrensweg 9“)
@@ -77,6 +201,64 @@
     if (o.hier || o.nach) return T("logbuch.titel_in", "{art} in {ort}", { art: a, ort: o.hier || o.nach });
     return a;
   }
+  // ── EINE Liste (24.10.2026, „ein Logbuch für alles“) ────────────────────────────────────────────────────
+  // Tourseite und GPX-Inspektor zeigen dieselben Zeilen und Tagesabschnitte. `c` (Umgebung):
+  //   orte · gewaehlt(id) → bool · gewKlasse (Inspektor „ist-gewaehlt“, wie Zeitstrahl und Karte) · details (Höhenmeter,
+  //   Tempo — Inspektor) · punktSymbol(p) → HTML (eigene Punkte mit eigenem Symbol) · tagKlick (Tageskopf als Knopf)
+  // Jede Zeile trägt `data-lba-id` und — für die Kopplung im Inspektor — `data-lb`.
+  function eintragHtml(x, c) {
+    c = c || {};
+    const orte = c.orte || {}, p = istPunkt(x), art = p ? x.art : (x.anzeige_art || x.art), o = ortVon(orte, x);
+    const zeit = p ? uhr(x.t, x.versatz_min) : (uhr(x.t0, x.versatz_min) + "–" + uhr(x.t1, x.versatz_min));
+    const meta = [];
+    if (x.name) meta.push(esc(artName(art)));   // eigener Name („Gipfelweg“) — die Art steht dann hier
+    if (o.text) meta.push(esc(o.text));
+    if (!p) { meta.push(esc(dauer(x.dauer_s))); if (x.strecke_m > 50) meta.push(esc(km(x.strecke_m))); }
+    if (!p && c.details && x.hoehe_auf >= 20) meta.push("↑" + x.hoehe_auf + " m");
+    if (!p && c.details && x.tempo_kmh && x.art !== "pause") meta.push(esc(x.tempo_kmh.toLocaleString(sprache(), { maximumFractionDigits: 1 }) + " km/h"));
+    if (!p && x.stau_s >= 120) meta.push(esc(T("logbuch.stau", "davon {n} min Stau", { n: Math.round(x.stau_s / 60) })));
+    // 24.10.2026 — warum diese Art: der Weg darunter hat entschieden
+    if (!p && x.grund) meta.push(esc(T("logbuch.grund." + x.grund, { autobahn: "auf der Autobahn", faehre: "auf einer Fährlinie", radweg: "auf Radwegen" }[x.grund] || "")));
+    const marken = [];
+    // „vermutet“ ist ein Knopf: bestätigen oder eine andere Art wählen (wie bisher im Inspektor)
+    if (!p && x.geraten) marken.push(`<button type="button" class="lba-badge lba-vermutet" data-vermutet="${esc(x.id)}" title="${esc(T("logbuch.geraten_tip2", "Die Erkennung war hier unsicher. Klick: bestätigen oder eine andere Art wählen."))}">${esc(T("logbuch.geraten", "vermutet"))}</button>`);
+    if (x.roh) marken.push(`<span class="lba-badge">${esc(T("logbuch.roh", "roh"))}</span>`);
+    // 24.09.2026 — Anzeige im Video, wenn nicht „zeigen“
+    const imVideo = { blass: ["eye-off", T("animator.lb.blass", "blass")], raffen: ["fast-forward", T("animator.lb.raffen", "raffen (×8)")],
+                      ueberspringen: ["skip-forward", T("animator.lb.ueberspringen", "überspringen")] }[x.anzeige || ""];
+    if (imVideo) marken.push(`<span class="lba-badge" data-im-video="${esc(x.anzeige)}" title="${esc(T("logbuch.menue.im_video", "Im Video") + ": " + imVideo[1])}">${I(imVideo[0], 11)} ${esc(imVideo[1])}</span>`);
+    const notiz = x.notiz ? `<div class="lba-notiz">${esc(x.notiz)}</div>` : "";
+    const sym = p && c.punktSymbol ? c.punktSymbol(x) : symbol(art);
+    const gew = c.gewaehlt && c.gewaehlt(x.id) ? " " + (c.gewKlasse || "gewaehlt") : "";
+    return `<div class="lba-eintrag${p ? " lba-punkt" : ""}${p && (x.art === "punkt" || x.art === "poi") ? " lba-eigen" : ""}${gew}" data-lba-id="${esc(x.id)}" data-lb="${esc(x.id)}" style="--c:${farbe(art)}" role="button" tabindex="0">
+        <span class="lba-symbol">${sym}</span>
+        <div class="lba-text"><div class="lba-kopf"><b>${esc(titel(x, orte))}</b><span class="lba-zeit">${esc(zeit)}</span></div>
+          <div class="lba-meta">${meta.join(" · ")}${marken.length ? " " + marken.join(" ") : ""}</div>${notiz}</div>
+        ${!bearbeitbar(x) || x.roh ? "" : `<button type="button" class="lba-mehr" data-lba-mehr-id="${esc(x.id)}" title="${esc(T("logbuch.menue.titel", "Bearbeiten"))}">${I("ellipsis", 16)}</button>`}
+      </div>`;
+  }
+  /** Nach Zeit; Start und Ziel vor dem Eintrag, der zur selben Zeit beginnt (Ziel 17:37 vor der Übernachtung ab 17:37). */
+  function sortiert(liste) {
+    const rang = (x) => (x.art === "start" || x.art === "ziel") && istPunkt(x) ? 0 : 1;
+    return liste.slice().sort((a, b) => ((a.t0 != null ? a.t0 : a.t) - (b.t0 != null ? b.t0 : b.t)) || (rang(a) - rang(b)));
+  }
+  /** Die ganze Liste: bei Mehrtagestouren je Tag ein Abschnitt mit Überschrift, die beim Scrollen oben stehen bleibt. */
+  function listeHtml(liste, d, c) {
+    c = c || {};
+    const alle = sortiert(liste || []);
+    if (!alle.length) return `<div class="lba-leer">${esc(T("logbuch.leer", "Nichts erkannt — der Track ist zu kurz oder hat keine Bewegung."))}</div>`;
+    if (!(d && d.mehrtaegig && (d.tage || []).length > 1)) return alle.map((x) => eintragHtml(x, c)).join("");
+    const knopf = c.tagKlick ? ` role="button" tabindex="0" title="${esc(T("logbuch.tag_tip", "Klick: diesen Tag im Zeitstrahl aufziehen"))}"` : "";
+    return (d.tage || []).map((tg) => {
+      const teil = alle.filter((x) => (x.tag == null ? 1 : x.tag) === tg.nr);
+      const m = teil.reduce((s2, x) => s2 + (istPunkt(x) ? 0 : (+x.strecke_m || 0)), 0);
+      return `<section class="lba-tagblock" data-lba-tagblock="${tg.nr}">
+          <div class="lba-tagkopf" data-lba-tagkopf="${tg.nr}"${knopf}><b>${esc(T("logbuch.tag_kopf", "Tag {n} · {d}", { n: tg.nr, d: tagText(tg.t0, tg.versatz_min, { weekday: "long", day: "numeric", month: "long" }) }))}</b><span>${esc(km(m))}</span></div>
+          ${teil.length ? teil.map((x) => eintragHtml(x, c)).join("") : `<div class="lba-leer">${esc(T("logbuch.tag_leer", "An diesem Tag keine Bewegung."))}</div>`}
+        </section>`;
+    }).join("");
+  }
+
 
   // 22.10.2026 — gemerkte Logbücher dieser Sitzung (siehe tourseite.js): sofort zeigen, im Hintergrund frisch lesen
   const _lbMerk = new Map(), LB_MERK = 12;
@@ -116,9 +298,17 @@
       _orteNachladen(lauf);
     }
     // Ortsnamen: erst der Cache (sofort), dann bis zu 25 neue im Hintergrund — und mit dem Logbuch merken
+    // 24.10.2026 (Marc: „wenn man warten muss, muss halt Feedback dazu kommen“) — was im Hintergrund nachkommt, steht
+    // als Zeile über der Liste (Spinner + Text, bei den Wegen mit Zähler); die Liste ist währenddessen schon bedienbar.
+    function hinweis(text) {
+      Z.hinweis = text || "";
+      const el = box.querySelector(".lba-nachladen");
+      if (el) { el.hidden = !Z.hinweis; const t2 = el.querySelector(".lba-nachladen-text"); if (t2) t2.textContent = Z.hinweis; }
+    }
     async function _orteNachladen(lauf) {
       const merk = () => { const m = _lbMerk.get(opt.path); if (m) m.orte = Z.orte; };
       try {
+        hinweis(T("logbuch.netz.orte", "Ortsnamen werden nachgeladen …"));
         const c = await api().logbuch_orte(opt.path, 0);   // warte-ok: nur Cache
         if (lauf === Z.lauf && c && c.ok && JSON.stringify(c.orte || {}) !== JSON.stringify(Z.orte || {})) { Z.orte = c.orte || {}; merk(); render(); }
         const n = await api().logbuch_orte(opt.path, 25);   // warte-ok: Namen kommen nach, Liste steht schon
@@ -126,9 +316,23 @@
         // Sehenswürdigkeiten am Weg (22.10.2026: die Tourseite fragte sie nie ab — nur der Track-Inspektor tat das).
         // Je Tour in der Bibliothek gemerkt; neue wichtige landen als Punkte im Logbuch → dann neu lesen.
         if (lauf !== Z.lauf) return;
-        const p = await api().logbuch_pois(opt.path, false);   // warte-ok: Logbuch steht schon, Punkte kommen nach
-        if (lauf === Z.lauf && box.isConnected && p && p.ok && p.im_logbuch > 0) laden(false);
-      } catch (_) {}
+        hinweis(T("logbuch.netz.pois", "Sehenswürdigkeiten am Weg werden gesucht …"));
+        const p = await api().logbuch_pois(opt.path, false);   // warte-ok: Logbuch steht schon, Punkte kommen nach (Zeile .lba-nachladen)
+        if (lauf === Z.lauf && box.isConnected && p && p.ok && p.im_logbuch > 0) { laden(false); return; }
+        // 24.10.2026 — Wegklasse unter dem Track: Stau auf der Autobahn → Fahrt, Fährlinie → Fähre, Radweg → Rad
+        if (lauf !== Z.lauf) return;
+        const wegeText = T("logbuch.netz.wege", "Wege unter dem Track werden gelesen …");
+        hinweis(wegeText);
+        const uhr2 = setInterval(async () => {
+          if (lauf !== Z.lauf || !box.isConnected) { clearInterval(uhr2); return; }
+          const st = await api().logbuch_wege_stand(opt.path).catch(() => null);   // warte-ok: nur Zähler für die Anzeige
+          if (st && st.gesamt > 1 && lauf === Z.lauf && Z.hinweis) hinweis(wegeText + " " + T("logbuch.netz.n_von", "{a} von {b}", { a: st.fertig, b: st.gesamt }));
+        }, 1000);
+        let w = null;
+        try { w = await api().logbuch_wege(opt.path, false); } finally { clearInterval(uhr2); }   // warte-ok: Logbuch steht schon (Zeile .lba-nachladen)
+        if (lauf === Z.lauf) hinweis("");
+        if (lauf === Z.lauf && box.isConnected && w && w.ok && w.geaendert > 0) laden(false);
+      } catch (_) { if (lauf === Z.lauf) hinweis(""); }
     }
 
     const alleEintraege = () => {
@@ -163,45 +367,61 @@
       const mehr = tage.length > zeigen.length ? `<button type="button" class="lba-tag lba-tag-mehr" data-lba-mehr="1">${esc(T("logbuch.weitere_tage", "+ {n} weitere Tage", { n: tage.length - zeigen.length }))}</button>` : "";
       return `<div class="lba-tage">${zeigen.map(knopf).join("")}${mehr}</div>`;
     }
-    function zeileHtml(x) {
-      const p = istPunkt(x), art = p ? x.art : (x.anzeige_art || x.art), o = ortVon(Z.orte, x);
-      const zeit = p ? uhr(x.t, x.versatz_min) : (uhr(x.t0, x.versatz_min) + "–" + uhr(x.t1, x.versatz_min));
-      const meta = [];
-      if (o.text) meta.push(esc(o.text));
-      if (!p) { meta.push(esc(dauer(x.dauer_s))); if (x.strecke_m > 50) meta.push(esc(km(x.strecke_m))); }
-      if (!p && x.stau_s >= 120) meta.push(esc(T("logbuch.stau", "davon {n} min Stau", { n: Math.round(x.stau_s / 60) })));
-      const vermutet = (!p && x.geraten) ? ` <span class="lba-badge" title="${esc(T("logbuch.geraten_tip2", "Die Erkennung war hier unsicher."))}">${esc(T("logbuch.geraten", "vermutet"))}</span>` : "";
-      const notiz = x.notiz ? `<div class="lba-notiz">${esc(x.notiz)}</div>` : "";
-      return `<div class="lba-eintrag${Z.sel === x.id ? " gewaehlt" : ""}" data-lba-id="${esc(x.id)}" style="--c:${farbe(art)}" role="button" tabindex="0">
-          <span class="lba-symbol">${symbol(art)}</span>
-          <div class="lba-text"><div class="lba-kopf"><b>${esc(titel(x, Z.orte))}</b><span class="lba-zeit">${esc(zeit)}</span></div>
-            <div class="lba-meta">${meta.join(" · ")}${vermutet}</div>${notiz}</div>
-          ${p || !(x.bids && x.bids.length) ? "" : `<button type="button" class="lba-mehr" data-lba-mehr-id="${esc(x.id)}" title="${esc(T("logbuch.menue.titel", "Bearbeiten"))}">${I("ellipsis", 16)}</button>`}
-        </div>`;
-    }
+    const umgebung = () => ({ orte: Z.orte, gewaehlt: (id) => id === Z.sel });
+    /* 24.10.2026 (Marc: „bei mehreren Tagen einfach weiter scrollen und klar machen, dass ich im nächsten Tag bin“) —
+       alle Tage untereinander, je Tag ein Abschnitt mit einer Überschrift, die beim Scrollen oben stehen bleibt, bis der
+       nächste Tag sie wegschiebt. Die Tag-Knöpfe springen hin und zeigen, welcher Tag gerade oben steht; die Karte
+       (Tourseite, `onTag`) zieht mit. */
     function render() {
       const d = Z.d; if (!d) return;
-      const liste = tagEintraege();
-      let kopf = "";
-      if (d.mehrtaegig && Z.tag != null) {
-        const tag = (d.tage || []).find((x) => x.nr === Z.tag);
-        const m = liste.reduce((s, x) => s + (+x.strecke_m || 0), 0);
-        kopf = `<div class="lba-tagkopf"><b>${esc(T("logbuch.tag_kopf", "Tag {n} · {d}", { n: Z.tag, d: tag ? tagText(tag.t0, tag.versatz_min, { weekday: "short", day: "numeric", month: "long" }) : "" }))}</b><span>${esc(km(m))}</span></div>`;
-      }
+      const mehr = d.mehrtaegig && (d.tage || []).length > 1;
+      const liste = mehr ? alleEintraege() : tagEintraege();
+      const oben = box.scrollTop;   // neu gezeichnet wird auch nach Ortsnamen und Änderungen — die Stelle bleibt
       const rueck = Z.rueck ? `<div class="lba-rueck">${esc(Z.rueck.text)} <button type="button" class="btn btn-sm" data-lba-rueck="1">${I("rotate-ccw", 13)} ${esc(T("logbuch.rueckgaengig", "Rückgängig"))}</button></div>` : "";
       box.innerHTML = `<div class="lba">
           <div class="lba-titel">${I("book-open", 18)} <b>${esc(T("logbuch.titel", "Logbuch"))}</b><span class="lba-luft"></span>
             <button type="button" class="btn btn-sm btn-ghost" data-lba-export="pdf" title="${esc(T("logbuch.export_pdf_tip", "Als PDF speichern — Tagebuch der Tour mit allen Tagen"))}">${I("file-down", 14)} PDF</button>
             <button type="button" class="btn btn-sm btn-ghost" data-lba-export="csv" title="${esc(T("logbuch.export_csv_tip", "Als Tabelle (CSV) speichern — für Excel oder Numbers"))}">${I("table", 14)} CSV</button></div>
           <div class="lba-unter muted">${esc(T("logbuch.unter", "Deine Tour, Tag für Tag. Namen und Notizen bleiben überall gleich."))}</div>
+          <div class="lba-nachladen muted"${Z.hinweis ? "" : " hidden"}><span class="spinner"></span> <span class="lba-nachladen-text">${esc(Z.hinweis || "")}</span></div>
           <div class="lba-chips">${chipsHtml()}</div>
           ${tageHtml()}
-          ${kopf}
-          <div class="lba-liste">${liste.length ? liste.map(zeileHtml).join("") : `<div class="lba-leer">${esc(T("logbuch.leer", "Nichts erkannt — der Track ist zu kurz oder hat keine Bewegung."))}</div>`}</div>
+          <div class="lba-liste${mehr ? " lba-mehrtags" : ""}">${listeHtml(liste, mehr ? d : null, umgebung())}</div>
           ${rueck}
           <div class="lba-fuss muted">${esc(T("logbuch.fuss_art", "Hier: Namen und Art ändern, Notizen ergänzen, Einträge verbinden. Track-Reparaturen bleiben im GPX-Inspektor."))}</div>
         </div>`;
+      box.scrollTop = oben;
       binden();
+    }
+    // Welcher Tag steht oben? Der Abschnitt, der die obere Kante der Spalte (plus etwas Luft) überdeckt.
+    function tagOben() {
+      const bl = box.querySelectorAll("[data-lba-tagblock]"); if (!bl.length) return null;
+      const kante = box.getBoundingClientRect().top + 24;
+      let nr = +bl[0].dataset.lbaTagblock;
+      for (const b of bl) { if (b.getBoundingClientRect().top <= kante) nr = +b.dataset.lbaTagblock; else break; }
+      return nr;
+    }
+    function tagKnoepfe() { box.querySelectorAll("[data-lba-tag]").forEach((b) => b.classList.toggle("an", +b.dataset.lbaTag === Z.tag)); }
+    let _tagMeldenT = 0;
+    function tagSetzen(nr, sofort) {
+      if (nr == null || nr === Z.tag) return;
+      Z.tag = nr; tagKnoepfe();
+      // die Karte passt sich an den Tag an — beim Scrollen erst, wenn er eine Weile oben steht (sonst ruckt sie mit)
+      clearTimeout(_tagMeldenT);
+      const melden = () => { if (opt.onTag && box.isConnected) opt.onTag(Z.tag); };
+      if (sofort) melden(); else _tagMeldenT = setTimeout(melden, 250);
+    }
+    let _springBis = 0, _scrollRaf = 0;
+    box.addEventListener("scroll", () => {
+      if (_scrollRaf || performance.now() < _springBis) return;
+      _scrollRaf = requestAnimationFrame(() => { _scrollRaf = 0; tagSetzen(tagOben(), false); });
+    }, { passive: true });
+    function zumTag(nr) {
+      const b = box.querySelector(`[data-lba-tagblock="${nr}"]`);
+      if (!b) { tagSetzen(nr, true); return; }
+      _springBis = performance.now() + 900;   // während der Fahrt nicht über die Tage dazwischen melden
+      box.scrollTo({ top: b.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop, behavior: "smooth" });
+      tagSetzen(nr, true);
     }
     /* 22.10.2026 (Marc: „ein Export des Logbuchs wäre super“ → PDF + CSV) — alle Tage, dieselben Titel, Orte und Zeiten
        wie auf dem Bildschirm. Die Kärtchen je Tag setzt das Backend ein (<!--RZKARTE:n-->). */
@@ -265,43 +485,35 @@
     }
     function binden() {
       box.querySelectorAll("[data-lba-export]").forEach((b) => { b.onclick = () => exportieren(b.dataset.lbaExport, b); });
-      box.querySelectorAll("[data-lba-tag]").forEach((b) => { b.onclick = () => { Z.tag = +b.dataset.lbaTag; Z.sel = null; render(); if (opt.onTag) opt.onTag(Z.tag); }; });
+      box.querySelectorAll("[data-lba-tag]").forEach((b) => { b.onclick = () => zumTag(+b.dataset.lbaTag); });
       const mehr = box.querySelector("[data-lba-mehr]"); if (mehr) mehr.onclick = () => { Z.alleTage = true; render(); };
       box.querySelectorAll("[data-lba-id]").forEach((el) => {
         const w = () => waehlen(el.dataset.lbaId, true);
-        el.onclick = (ev) => { if (ev.target.closest("[data-lba-mehr-id]")) return; w(); };
+        el.onclick = (ev) => { if (ev.target.closest("[data-lba-mehr-id], [data-vermutet]")) return; w(); };
         el.onkeydown = (ev) => { if (ev.key === "Enter") w(); };
       });
       box.querySelectorAll("[data-lba-mehr-id]").forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); menue(b.dataset.lbaMehrId, b); }; });
+      box.querySelectorAll("[data-vermutet]").forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); menue(b.dataset.vermutet, b); }; });
       const r = box.querySelector("[data-lba-rueck]"); if (r) r.onclick = rueckgaengig;
     }
     function finde(id) { return alleEintraege().find((x) => x.id === id) || null; }
     function waehlen(id, vonKlick) {
       const x = finde(id); if (!x) return;
-      if (Z.d && Z.d.mehrtaegig && x.tag != null && x.tag !== Z.tag) Z.tag = x.tag;
-      Z.sel = id; render();
-      const el = box.querySelector(`[data-lba-id="${CSS.escape(id)}"]`); if (el && !vonKlick) el.scrollIntoView({ block: "nearest" });
+      // alle Tage stehen untereinander: nur die Markierung umstellen, nicht neu zeichnen (die Stelle bleibt)
+      Z.sel = id;
+      box.querySelectorAll(".lba-eintrag.gewaehlt").forEach((e) => e.classList.remove("gewaehlt"));
+      const el = box.querySelector(`[data-lba-id="${CSS.escape(id)}"]`);
+      if (el) el.classList.add("gewaehlt"); else render();
+      if (Z.d && Z.d.mehrtaegig && x.tag != null && x.tag !== Z.tag) {
+        if (!vonKlick) _springBis = performance.now() + 900;
+        Z.tag = x.tag; tagKnoepfe();
+      }
+      if (el && !vonKlick) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
       if (opt.onWahl) opt.onWahl(x);
     }
 
     // ── Bearbeiten (gleiche Brücke wie der Inspektor, eigenes Rückgängig) ──
-    function frage(titelText, wert, mehrzeilig, ortHaken) {
-      return new Promise((res) => {
-        const feld = mehrzeilig ? `<textarea id="lba-frage" class="lba-frage" rows="4">${esc(wert || "")}</textarea>` : `<input id="lba-frage" class="lba-frage" type="text" value="${esc(wert || "")}">`;
-        // 22.10.2026 (Marc: „beim Umbenennen mit einem Haken zu ‚Meine Orte‘ hinzufügen“)
-        const haken = ortHaken ? `<label class="lba-orthaken"><input type="checkbox" id="lba-frage-ort"> ${esc(T("logbuch.als_mein_ort", "Zu „Meine Orte“ hinzufügen — wird in allen Logbüchern erkannt"))}</label>` : "";
-        const m = openModal({ title: titelText, body: `<div class="lib-fmodal">${feld}${haken}</div>`,
-          footer: `<button class="btn" id="lba-frage-nein">${esc(T("common.cancel", "Abbrechen"))}</button><button class="btn btn-primary" id="lba-frage-ja">${esc(T("common.ok", "OK"))}</button>` });
-        const el = document.getElementById("lba-frage"), fertig = (v) => {
-          const h = document.getElementById("lba-frage-ort"), alsOrt = !!(h && h.checked);
-          try { m.close(); } catch (_) {}
-          res(ortHaken ? (v == null ? null : { wert: v, alsOrt }) : v);
-        };
-        document.getElementById("lba-frage-ja").onclick = () => fertig(el ? el.value : "");
-        document.getElementById("lba-frage-nein").onclick = () => fertig(null);
-        if (el) { el.focus(); try { el.select(); } catch (_) {} if (!mehrzeilig) el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); fertig(el.value); } }); }
-      });
-    }
+    const frage = (titelText, wert, mehrzeilig, ortHaken) => frageDialog(titelText, wert, mehrzeilig, ortHaken, "lba");
     async function aktion(text, was, params) {
       const d = Z.d; if (!d) return;
       const vorher = d.stand ? JSON.parse(JSON.stringify(d.stand)) : null;
@@ -320,55 +532,39 @@
       if (opt.onGeaendert) { try { opt.onGeaendert(); } catch (_) {} }
       await laden(false);
     }
-    function menue(id, anker) {
-      const x = finde(id); if (!x || istPunkt(x) || !(x.bids && x.bids.length)) return;
-      const liste = (Z.d.eintraege || []), i = liste.findIndex((e) => e.id === id), vor = liste[i - 1], nach = liste[i + 1];
-      const pkt = [];   // [Text, Aktion] · {kopf} · "-" · {html, fn, art}
-      pkt.push([T("logbuch.menue.umbenennen", "Umbenennen …"), async () => {
-        const art = x.anzeige_art || x.art, pos = x.pos || x.pos_von;
-        const ortTauglich = !!pos && ["pause", "uebernachtung", "halt"].includes(art);
-        const v = await frage(T("logbuch.frage.name", "Name"), x.name || x.mein_ort || titel(x, Z.orte), false, ortTauglich);
-        if (v == null) return;
-        const name = (ortTauglich ? v.wert : v).trim();
-        if (ortTauglich && v.alsOrt && name) {
-          const r = await api().meine_orte_speichern({ name, lat: pos[1], lon: pos[0] }).catch(() => null);   // warte-ok: eine Zeile in den Einstellungen
-          if (r && r.ok) toast(T("logbuch.ort_gemerkt", "„{n}“ steht jetzt in „Meine Orte“.", { n: name }), "success", 3500);
-          // der Eintrag heißt dann über den Ort — kein eigener Name nötig
-          await aktion(T("logbuch.undo.umbenannt", "Umbenannt"), "aendern", { bids: x.bids, name: "" });
-          return;
-        }
-        aktion(T("logbuch.undo.umbenannt", "Umbenannt"), "aendern", { bids: x.bids, name });
-      }]);
-      pkt.push([T("logbuch.menue.notiz", "Notiz …"), async () => {
-        const v = await frage(T("logbuch.frage.notiz", "Notiz"), x.notiz || "", true);
-        if (v != null) aktion(T("logbuch.undo.notiz", "Notiz geändert"), "aendern", { bids: x.bids, notiz: v.trim() });
-      }]);
-      if (vor) pkt.push([T("logbuch.menue.mit_vorherigem", "Mit vorherigem zusammenlegen"), () => aktion(T("logbuch.undo.verbunden", "Verbunden"), "zusammenlegen", { bid_a: vor.bids[vor.bids.length - 1], bid_b: x.bids[0] })]);
-      if (nach) pkt.push([T("logbuch.menue.mit_naechstem", "Mit nächstem zusammenlegen"), () => aktion(T("logbuch.undo.verbunden", "Verbunden"), "zusammenlegen", { bid_a: x.bids[x.bids.length - 1], bid_b: nach.bids[0] })]);
-      // 16.10.2026 — Art der Fortbewegung ändern (Rückmeldung: „Ich kann den Namen ändern, aber nicht die Art
-      // der Fortbewegung“). Dieselbe Aktion wie im Inspektor: `aendern` mit `art` macht den Eintrag zu Handarbeit,
-      // die jede Neuberechnung überlebt; Animator, Video-Assistent und Kurzfassung lesen sie aus der Einteilung.
-      const jetzt = x.anzeige_art || x.art;
-      pkt.push("-");
-      pkt.push({ kopf: T("logbuch.menue.art", "Art ändern") });
-      for (const a of HAND_ARTEN) {
-        const ist = a === jetzt;
-        if (ist && !x.geraten) continue;   // vermutete Art: hier bestätigen (wird dann Handarbeit)
-        const text = ist ? T("logbuch.menue.bestaetigen", "{art} bestätigen", { art: artName(a) }) : artName(a);
-        pkt.push({ art: a, html: `<span class="lba-menue-sym" style="--c:${farbe(a)}">${I(SYMBOL[a] || "map-pin", 14)}</span>${esc(text)}`,
-                   fn: () => aktion(T("logbuch.undo.art_geaendert", "Art geändert"), "aendern", { bids: x.bids, art: a }) });
+    // „Als eigene Tour ins Archiv“ — die Punkte holt die Tourseite einmal über die Brücke des Inspektors
+    async function alsTour(x) {
+      const name = await frage(T("gpxinspect.ab_archiv_name", "Name der neuen Tour"), tourVorschlag(x));
+      if (name == null || !String(name).trim()) return;
+      if (!Z.punkte) {
+        const r = await rzWarten("gpxinspect_load", () => api().gpxinspect_load(opt.path)).catch(() => null);
+        Z.punkte = r && r.ok ? { liste: r.points || [], src: r.src || opt.path } : null;
       }
+      const pts = ((Z.punkte && Z.punkte.liste) || []).filter((q) => { const z = q.time ? Date.parse(q.time) / 1000 : NaN; return z >= x.t0 && z <= x.t1; });
+      if (pts.length < 2) { if (typeof toast === "function") toast(T("gpxinspect.abschnitt_zu_kurz", "Der Abschnitt braucht mindestens zwei Punkte."), "warn"); return; }
+      const payload = pts.map((q) => ({ lat: q.lat, lon: q.lon, ele: q.ele, time: q.time, oi: q.i, si: 0 }));
+      const r = await rzWarten("archiv_abschnitt_aufnehmen", () => api().archiv_abschnitt_aufnehmen(payload, Z.punkte.src, String(name).trim(), null, x.anzeige_art || x.art || ""),
+        { titel: T("warte.archiv_abschnitt_aufnehmen.titel", "Neue Tour wird angelegt"), text: T("warte.archiv_abschnitt_aufnehmen.text", "Der Abschnitt wird ins Archiv aufgenommen") }).catch((e) => ({ ok: false, error: String(e) }));
+      if (typeof toast !== "function") return;
+      if (r && r.ok) toast(T("logbuch.als_tour_ok", "„{name}“ liegt jetzt als eigene Tour im Archiv.", { name: r.name }), "success", 5000);
+      else toast((r && r.error) || T("gpxinspect.ab_archiv_fehler", "Die Tour konnte nicht angelegt werden."), "error", 6000);
+    }
+    function menue(id, anker) {
+      const x = finde(id); if (!x) return;
+      const pkt = menueEintraege(x, { aktion, frage, liste: () => Z.d.eintraege || [], titel: (y) => titel(y, Z.orte), alsTour,
+                                      karteZeigen: (y) => waehlen(y.id, false) });
+      if (!pkt.length) return;
       document.querySelectorAll(".lba-menue").forEach((m) => m.remove());
       const m = document.createElement("div");
       m.className = "lib-ctxmenu lba-menue"; m.setAttribute("role", "menu");
       for (const e of pkt) {
         if (e === "-") { m.appendChild(document.createElement("hr")); continue; }
         if (e.kopf) { const k = document.createElement("div"); k.className = "lba-menue-kopf"; k.textContent = e.kopf; m.appendChild(k); continue; }
-        const b = document.createElement("button"); b.type = "button"; b.className = "lib-ctx-item"; b.setAttribute("role", "menuitem");
-        let fn;
-        if (Array.isArray(e)) { b.textContent = e[0]; fn = e[1]; }
-        else { b.innerHTML = e.html; b.dataset.lbaArt = e.art; fn = e.fn; }
-        b.onclick = () => { zu(); fn(); }; m.appendChild(b);
+        const b = document.createElement("button"); b.type = "button"; b.className = "lib-ctx-item" + (e.unter ? " lba-menue-unter" : ""); b.setAttribute("role", "menuitem");
+        b.innerHTML = (e.symHtml || (e.sym ? `<span class="lba-menue-sym">${I(e.sym, 14)}</span>` : "")) + esc(e.text);
+        if (e.art) b.dataset.lbaArt = e.art;
+        if (e.aus) b.disabled = true;
+        b.onclick = () => { zu(); try { e.tu(); } catch (err) { console.warn("[logbuch] Menü:", err); } }; m.appendChild(b);
       }
       document.body.appendChild(m);
       const r0 = anker.getBoundingClientRect(), r = m.getBoundingClientRect();
@@ -380,10 +576,10 @@
     }
 
     laden(false);
-    return { waehlen, neuLaden: () => laden(false), daten: () => Z.d, tagEintraege, titel: (x) => titel(x, Z.orte), tag: () => Z.tag };
+    return { waehlen, neuLaden: () => laden(false), daten: () => Z.d, tagEintraege, titel: (x) => titel(x, Z.orte), tag: () => Z.tag, auswahl: () => Z.sel };
   }
 
   // 11.10.2026 (Schritt 9) — der GPX-Inspektor nimmt Symbole, Namen und Titel von hier (eine Quelle für alle Module)
-  window.rzLogbuchAnsicht = { zeichnen, symbolName: (a) => SYMBOL[a] || "map-pin", farbe, artName, titel, handArten: HAND_ARTEN.slice(),
+  window.rzLogbuchAnsicht = { zeichnen, uhr, tagText, dauer, km, listeHtml, eintragHtml, menueEintraege, frageDialog, bearbeitbar, tourVorschlag, istPunkt, symbolName: (a) => SYMBOL[a] || "map-pin", farbe, artName, titel, handArten: HAND_ARTEN.slice(),
     symbolHtml: (a, g) => I(SYMBOL[a] || "map-pin", g || 16) };
 })();

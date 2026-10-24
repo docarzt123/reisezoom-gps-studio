@@ -184,6 +184,10 @@
     const fs = FLUGSTILE[(opt && opt.flug) || "begleiter"] || FLUGSTILE.begleiter;   // 14.10.2026 — Flugstil
     const zNah = Math.max(0.4, Math.max(1.5, Math.min(5, Math.log2(Math.max(0.5, diagonaleKm(bbox)) / 2) + 0.5)) + (leb - 0.5) * 1.2 + fs.dz);
     const NEIGUNG = Math.max(0, Math.min(70, Math.round(fs.p + (leb - 0.5) * 24)));
+    // 23.10.2026 (Marc: „bessere Kartendarstellungen") — Schlussbild als Kulisse: flacher und aus der Richtung, aus der die
+    // Strecke am besten zu sehen ist (Backend core/sichtkurs.py; ohne Höhen wie bisher 25° nach Norden)
+    const kul = opt && isFinite(+opt.sichtkurs) && isFinite(+opt.kulisse_neigung);
+    const endP = kul ? +opt.kulisse_neigung : 25, endB = kul ? +opt.sichtkurs : 0;
     const punkte = [
       { s: 0, c: mitteAnfang, z: -0.15, p: 25, b: 0, e: "linear" },                 // Überblick
       { s: 1.2, c: mitteAnfang, z: -0.15, p: 25, b: 0, e: "linear" },               // … kurz stehen
@@ -192,8 +196,8 @@
       // 05.10.2026 (Auto-Regie §8.4 „Gipfel-Shot") — am höchsten Punkt kurz aufziehen und zum Horizont neigen:
       // Panorama statt Draufsicht, dann zurück in die Verfolgung (die Tempo-Regie verweilt dort)
       ...((opt && Array.isArray(opt.momente)) ? momentShots(opt.momente, zNah, NEIGUNG, animS) : gipfelShot(regie, zNah, NEIGUNG, animS)),
-      { s: INTRO_S + animS + Math.min(RUECK_S, hold), c: mitteEnde, z: -0.15, p: 25, b: 0, e: "ease_in_out" }, // zurück in die Gesamtsicht
-      ...(hold > RUECK_S ? [{ s: INTRO_S + animS + hold, c: mitteEnde, z: -0.15, p: 25, b: 0, e: "linear" }] : []),
+      { s: INTRO_S + animS + Math.min(RUECK_S, hold), c: mitteEnde, z: -0.15, p: endP, b: endB, e: "ease_in_out" }, // zurück in die Gesamtsicht
+      ...(hold > RUECK_S ? [{ s: INTRO_S + animS + hold, c: mitteEnde, z: -0.15, p: endP, b: endB, e: "linear" }] : []),
     ];
     const ev = [];
     for (const k of punkte) {
@@ -391,7 +395,7 @@
       intro_s: INTRO_S, hold_s: holdS(w), duration_s: animS,
       keyframes_enabled: true,
       kamera_vorgabe: "fahrt",   // 07.10.2026 (Klicktest) — Kamera-Pille zeigt „Kamerafahrt“, nicht ein altes „Start → Ziel“
-      timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null, Object.assign({}, w.kamOpt || {}, { flug: w.flug || "begleiter", hold_s: holdS(w) }), v.linie),
+      timeline_events: kamerafahrt(v.bbox, animS, w.tempoRegie ? v.regie : null, Object.assign({}, w.kamOpt || {}, { flug: w.flug || "begleiter", hold_s: holdS(w), sichtkurs: v.sichtkurs, kulisse_neigung: v.kulisse_neigung }), v.linie),
       camera_follow_track: true,
       // 08.10.2026 (Video-Assistent, Seite „Kamera“) — Folgen / Fest statt der Kamerafahrt
       ...(w.kamera === "folgen" ? { keyframes_enabled: false, kamera_vorgabe: "folgen", timeline_events: [], camera_follow_track: true } : {}),

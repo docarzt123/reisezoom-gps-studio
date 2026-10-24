@@ -312,8 +312,55 @@ def _verschmelzen(folge: List[dict]) -> List[dict]:
     return raus
 
 
+# 24.10.2026 — Wegtyp unter dem Track (core/wegtyp). Erst ab diesem Anteil eines Abschnitts: der Jakobsweg
+# läuft oft neben der Schnellstraße (2 % „Autobahn“ auf 150 km zu Fuß), ein Stau liegt ganz darauf.
+WEG_SICHER = 0.6
+WEG_RADWEG = 0.5
+WEG_MIN_PROBEN = 3
+FAEHRE_BIS_KMH = 60.0       # schneller ist keine Fähre (Schottland: 592 km mit 95 km/h über eine Lücke)
+
+
+def wege_anwenden(folge: List[dict], proben: List[list]) -> None:
+    """Was unter dem Abschnitt liegt, entscheidet ohne Raten — nur bei erkannten (nicht von Hand gesetzten) Einträgen:
+    überwiegend Fährlinie → Fähre; überwiegend Autobahn/Schnellstraße und doch langsam → Fahrt (Stau, nie Rad);
+    „Rad oder Laufen?“ überwiegend auf Radwegen → Rad (vermutet)."""
+    from . import wegtyp as _wt
+    for e in folge:
+        a = _wt.anteile(proben, e["t0"], e["t1"])
+        if not a or a.get("_n", 0) < WEG_MIN_PROBEN:
+            continue
+        e["wegtyp"] = {k: round(v, 2) for k, v in a.items() if k and k != "_n" and v >= 0.1}
+        if e["quelle"] == "hand":
+            continue
+        art = e["art"]
+        d = max(1.0, float(e["t1"]) - float(e["t0"]))
+        kmh = float(e.get("strecke_m") or 0.0) / d * 3.6
+        if a.get("faehre", 0) >= WEG_SICHER and kmh <= FAEHRE_BIS_KMH and art in ("fahrt", "gehen", "laufen", "rad", "unsicher"):
+            e["art"], e["geraten"], e["grund"] = "uebersetzen", False, "faehre"
+        elif a.get("autobahn", 0) >= WEG_SICHER and art in ("gehen", "laufen", "rad", "unsicher"):
+            e["art"], e["geraten"], e["grund"] = "fahrt", False, "autobahn"
+        elif art == "unsicher" and a.get("radweg", 0) >= WEG_RADWEG:
+            e["art"], e["geraten"], e["grund"] = "rad", True, "radweg"
+
+
+def modell_anwenden(folge: List[dict], modell: dict, points, wege, aktivitaet) -> None:
+    from . import lernen as _le, wegtyp as _wt
+    kandidaten = [e for e in folge if e["quelle"] == "auto" and not e.get("grund") and (e.get("geraten") or e["art"] == "unsicher")
+                  and e["art"] not in ("pause",)]
+    if not kandidaten:
+        return
+    vor = _le.punkte_vorbereiten(points)
+    schwelle = float(modell.get("schwelle") or _le.SCHWELLE)
+    for e in kandidaten:
+        m = _le.merkmale(vor, e["t0"], e["t1"], _wt.anteile(wege, e["t0"], e["t1"]) if wege else None, aktivitaet or "")
+        art, p = _le.vorhersagen(modell, m)
+        if art and p >= schwelle and _le.art_ziel(e["art"]) != art:
+            e["art"], e["geraten"], e["grund"] = art, True, "modell"
+
+
 def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = None,
-              tage: Optional[List[dict]] = None, einstellungen: Optional[dict] = None) -> dict:
+              tage: Optional[List[dict]] = None, einstellungen: Optional[dict] = None,
+              wege: Optional[List[list]] = None, modell: Optional[dict] = None) -> dict:
     """Aus den rohen Bereichen der Einteilung „Bewegung" die Folge des Logbuchs.
 
     Rückgabe: ``eintraege`` (Bereiche mit t0 < t1), ``punkte`` (t0 == t1),
@@ -361,6 +408,10 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
         elif k + 1 < len(folge):
             folge[k + 1]["t0"] = e["t0"]          # ganz am Anfang: der danach beginnt früher
     folge = behalten
+
+    # 24.10.2026 — Wegtyp vor allen Tempo-Regeln: was er sicher sagt, muss niemand mehr raten
+    if wege:
+        wege_anwenden(folge, wege)
 
     # Q8: unsicher dem Nachbarn zuschlagen — Pausen dazwischen zählen nicht.
     def bewegter_nachbar(k, schritt):
@@ -413,7 +464,7 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     # Laufen ZWISCHEN zwei Fahrten ist aber praktisch immer langsames Fahren.
     # Vermutet, nicht gewusst — deshalb als „geraten" gekennzeichnet.
     for k, e in enumerate(folge):
-        if e["art"] not in ("rad", "laufen") or e["quelle"] != "auto":
+        if e["art"] not in ("rad", "laufen") or e["quelle"] != "auto" or e.get("grund") == "radweg":
             continue
         if (e["t1"] - e["t0"]) >= einst["langsame_fahrt_bis_s"]:
             continue
@@ -425,7 +476,7 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     # auch das übrige „Rad" langsames Fahren: Ortsdurchfahrten. Eine Radtour mit
     # Anreise im Auto hat wenige lange Rad-Blöcke — die bleiben Rad.
     fahrt_m = sum(e["strecke_m"] for e in folge if e["art"] == "fahrt")
-    rad = [e for e in folge if e["art"] == "rad" and e["quelle"] == "auto"]
+    rad = [e for e in folge if e["art"] == "rad" and e["quelle"] == "auto" and e.get("grund") != "radweg"]
     rad_m = sum(e["strecke_m"] for e in rad)
     kurz = sum(1 for e in rad if (e["t1"] - e["t0"]) < einst["langsame_fahrt_bis_s"])
     if rad and fahrt_m >= einst["fahrt_beherrscht_ab_m"] and fahrt_m >= 2.0 * rad_m \
@@ -457,6 +508,8 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
     # (2) „Fahrt“ im Schritttempo über ein paar hundert Meter, ohne Fahrt daneben: zu Fuß (Parkplatz, GPS-Sprünge).
     for k, e in enumerate(folge):
         if e["art"] != "fahrt" or e["quelle"] != "auto" or e["strecke_m"] >= FAHRT_ZU_FUSS_M or tempo(e) >= UNSICHER_RAD_AB_KMH:
+            continue
+        if e.get("grund"):                      # vom Wegtyp entschieden (Autobahn, Fähre) — nicht zurückraten
             continue
         if any((n or {}).get("art") == "fahrt" for n in (nachbar_direkt(k, -1), nachbar_direkt(k, +1))):
             continue
@@ -498,6 +551,11 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
                     e["geraten"] = True
                     e["stau"] = True
         k = m if m > k + 1 else k + 1
+
+    # 24.10.2026 (core/lernen) — gelerntes Modell aus geteilten Korrekturen: nur wo die Regeln raten oder
+    # offen lassen, nur Erkanntes, nur bei hoher Sicherheit — und wieder als „vermutet“
+    if modell and points:
+        modell_anwenden(folge, modell, points, wege, aktivitaet)
 
     # 14.09.2026 — die Aktivität aus der Datei ist ein schwacher Hinweis: Komoot schreibt
     # „hike“ auch über eine Radtour. Überwiegt Rad/Laufen die Gehstrecke deutlich, gilt der

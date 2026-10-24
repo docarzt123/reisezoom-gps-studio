@@ -2861,6 +2861,15 @@ body.is-rendering .modal-overlay * {
 }
 .qs-step-t { font-size: 12.5px; line-height: 1.45; color: var(--text); }
 .qs-step-t b { color: var(--text); }
+.qs-steps-bild { gap: 14px; }
+.modal.qs-breit { max-width: min(880px, 94vw); width: min(880px, 94vw); }
+.modal.qs-breit .qs-wrap { max-width: none; }
+.modal.qs-breit .qs-step-bild { grid-template-columns: 380px minmax(0, 1fr); gap: 18px; }
+.modal.qs-breit .qs-step-t { font-size: 13px; line-height: 1.55; }
+.qs-step-bild { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 14px; align-items: center; }
+.qs-step-img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-1); display: block; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+.qs-step-txt { display: flex; gap: 10px; align-items: flex-start; }
 .qs-tip {
   margin: 4px 0 0; padding: 8px 10px; font-size: 12px; line-height: 1.45;
   color: var(--text-dim); background: var(--accent-soft);
@@ -4346,3 +4355,83 @@ body.va-offen .anim-canvas { padding-left: var(--va-platz-l, 0px); padding-right
   50% { box-shadow: 0 0 0 7px rgb(var(--accent-rgb) / 0.35); }
 }
 @media (prefers-reduced-motion: reduce) { .rz-zeigmir { animation: none; } }
+
+/* ── Willkommen — Überblick über GPS Studio (24.10.2026, ui/js/willkommen.js) ─────────────────────────────────── */
+.rzw { position: fixed; inset: 0; z-index: 900; overflow-y: auto; background:
+    radial-gradient(1200px 520px at 15% -10%, rgb(var(--accent-rgb) / .16), transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, rgba(99, 102, 241, .10), transparent 60%), var(--bg-1);
+  opacity: 0; transform: translateY(8px); transition: opacity .22s ease, transform .22s ease; }
+.rzw.da { opacity: 1; transform: none; }
+.rzw.weg { opacity: 0; transform: translateY(8px); }
+.rzw-innen { max-width: 1180px; margin: 0 auto; padding: 36px 32px 28px; display: flex; flex-direction: column; gap: 28px; }
+.rzw-kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.rzw-marke { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 700; font-size: 13px;
+  letter-spacing: .4px; text-transform: uppercase; margin-bottom: 10px; }
+.rzw-kopf h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.15; font-weight: 750; letter-spacing: -.3px; color: var(--text); }
+.rzw-kopf p { margin: 0; max-width: 680px; font-size: 14.5px; line-height: 1.55; color: var(--text-dim); }
+.rzw-weiter { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; font-size: 14px; }
+.rzw h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 16px; font-weight: 700; color: var(--text); }
+.rzw h2 svg { color: var(--accent); }
+.rzw-schnell { padding: 20px 22px; border-radius: 16px; background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  border: 1px solid rgb(var(--accent-rgb) / .28); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.rzw-schritte { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.rzw-schritt { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rzw-schritt-bild { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--bg-1); display: block; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.rzw-schritt-zeile { display: flex; gap: 12px; align-items: flex-start; }
+.rzw-nr { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px;
+  color: var(--accent-ink, #062a26); background: var(--accent); box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / .18); }
+.rzw-schritt b { display: block; font-size: 14px; color: var(--text); margin-top: 4px; }
+.rzw-schritt p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
+.rzw-schritt-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rzw-schritt-knoepfe .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; font-size: 12.5px; white-space: nowrap; }
+.rzw-aufgaben { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12.5px; }
+.rzw-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: rgba(255,255,255,.03); color: var(--text); font: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
+.rzw-chip:hover { border-color: var(--accent); background: rgb(var(--accent-rgb) / .12); }
+.rzw-raster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.rzw-karte { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: var(--bg-2);
+  border: 1px solid var(--border); transition: transform .18s ease, box-shadow .18s ease, border-color .18s; }
+.rzw-karte:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,.35); border-color: rgb(var(--accent-rgb) / .45); }
+.rzw-bild { position: relative; display: block; aspect-ratio: 16 / 10; padding: 0; border: 0; overflow: hidden; cursor: pointer; background: var(--bg-3); }
+.rzw-bild img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; transition: transform .35s ease; }
+.rzw-karte:hover .rzw-bild img { transform: scale(1.035); }
+.rzw-bild::after { content: ""; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(transparent, rgba(0,0,0,.35)); pointer-events: none; }
+.rzw-bild.ohne { display: none; }
+.rzw-karte-text { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 14px; flex: 1; }
+.rzw-karte h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.rzw-karte h3 svg { color: var(--accent); flex: none; }
+.rzw-karte p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); flex: 1; }
+.rzw-karte-knoepfe { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.rzw-link { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.rzw-link:hover { text-decoration: underline; }
+.rzw-fuss { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--border); font-size: 12.5px; }
+.rzw-fuss .btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.rzw-haken { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); }
+@media (max-width: 1100px) { .rzw-raster { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .rzw-schritte { grid-template-columns: 1fr; } .rzw-schritt-bild { max-width: 420px; } }
+
+/* 24.10.2026 — Bildleiste oben in Erststart / „Neu in …“ und die Logbuch-Frage mit Bild (ui/js/app.js) */
+.rz-dlg-banner { position: relative; margin: -18px -22px 16px; height: 150px; overflow: hidden; }
+.rz-dlg-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rz-dlg-banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 35%, var(--bg-2) 100%); }
+.rz-dlg-banner-text { position: absolute; left: 22px; bottom: 12px; z-index: 1; display: flex; flex-direction: column; gap: 2px; }
+.rz-dlg-banner-text span { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.rz-dlg-banner-text b { font-size: 20px; font-weight: 800; color: var(--text); text-shadow: 0 2px 10px rgba(0,0,0,.55); }
+.rz-lernen-frage { margin-top: 12px; padding: 14px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 12px;
+  display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 16px; align-items: start; font-size: 12px; line-height: 1.55; }
+.rzlf-bild { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: block;
+  box-shadow: 0 6px 16px rgba(0,0,0,.3); }
+.rz-lernen-frage p { margin: 0; }
+.rzlf-titel { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; color: var(--text); }
+.rzlf-titel svg { color: var(--accent); }
+.rzlf-lead { margin-top: 4px !important; color: var(--text-muted); }
+.rzlf-listen { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.rzlf-listen > div { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: var(--bg-2);
+  border: 1px solid var(--border); color: var(--text-muted); font-size: 11.5px; }
+.rzlf-kopf { display: flex; align-items: center; gap: 5px; font-weight: 700; color: var(--text); font-size: 11.5px; }
+.rzlf-raus .rzlf-kopf svg { color: var(--accent); }
+.rzlf-bleibt .rzlf-kopf svg { color: #f5b14a; }
+.rzlf-haken { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; color: var(--text); font-weight: 600; }
+.rzlf-spaeter { margin-top: 6px !important; font-size: 11px; color: var(--text-muted); }

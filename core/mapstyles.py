@@ -729,6 +729,10 @@ def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
 
 
 TERRAIN_AWS_PROXY_ID = "terrain-aws"     # Weiche: /tile/terrain-aws/{z}/{x}/{y}
+# 23.10.2026 (Marc: „bessere Kartendarstellungen", Prototyp „GPS Studio Karten": Feinstufe ist der größte Hebel) — über
+# die Weiche bis z16: Mapterhorn liefert dort seine z15 (≈ 2,4 m je Pixel in Mitteleuropa, amtliche Laserscans);
+# AWS (bis z15) wird für z16 aus der z15-Kachel vergrößert. Ohne Weiche bleibt AWS bei 15.
+TERRAIN_PROXY_MAXZOOM = 16
 # 07.10.2026 (Kartenlooks) — dieselben Kacheln OHNE Klemme: die Meerestiefen-Stufen der Seekarte brauchen den Meeresboden
 TERRAIN_AWS_ROH_PROXY_ID = "terrain-aws-roh"     # Weiche: /tile/terrain-aws-roh/{z}/{x}/{y}
 
@@ -863,6 +867,7 @@ def terrain_source(name: str, *, maptiler_key: str = "", proxy_base: str = "") -
         src["tiles"] = [u.replace("{maptiler_key}", maptiler_key) for u in t["tiles"]]
         if name == "aws" and proxy_base:
             src["tiles"] = [proxy_base.rstrip("/") + "/tile/" + TERRAIN_AWS_PROXY_ID + "/{z}/{x}/{y}"]
+            src["maxzoom"] = TERRAIN_PROXY_MAXZOOM
     if t.get("encoding"):
         src["encoding"] = t["encoding"]
     if t.get("attribution"):
@@ -1005,7 +1010,8 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
                            and (s["provider"] != "maptiler" or has_maptiler))}
             for s in STYLES
         ],
-        "terrain": {k: ({**t, "tiles": [proxy_base.rstrip("/") + "/tile/" + TERRAIN_AWS_PROXY_ID + "/{z}/{x}/{y}"]}
+        "terrain": {k: ({**t, "tiles": [proxy_base.rstrip("/") + "/tile/" + TERRAIN_AWS_PROXY_ID + "/{z}/{x}/{y}"],
+                             "maxzoom": TERRAIN_PROXY_MAXZOOM}
                         if (k == "aws" and proxy_base) else t) for k, t in TERRAIN.items()},
         "regions": [
             {"id": r["id"], "name": r["name"], "country": r["country"], "bbox": list(r["bbox"]),

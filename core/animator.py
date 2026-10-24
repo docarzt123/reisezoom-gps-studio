@@ -446,6 +446,7 @@ class AnimatorConfig:
     # Karte), Default 1.3 = guter Anti-Flimmer-Kompromiss. Greift nur ab 4K
     # (längere Kante ≥ 3840 px); bei kleineren Auflösungen wirkungslos.
     map_smoothing: float = 1.3
+    hohe_qualitaet: bool = False   # 23.10.2026 — Export „Höchste Qualität": doppelte Render-Auflösung (_render_ss)
     # === Ghost-Track (v0.9.169) ===
     # Die GANZE Route schwach/transparent als Hintergrund-Linie vorzeichnen,
     # während nur der animierte Teil normal (voll deckend) darüber gezeichnet
@@ -998,7 +999,7 @@ def _vf_args(cfg) -> list[str]:
     return ["-vf", ",".join(teile)] if teile else []
 
 
-def _render_ss(width: int, height: int) -> float:
+def _render_ss(width: int, height: int, hohe_qualitaet: bool = False) -> float:
     """Supersampling-(SSAA-)Faktor gegen Bewegungs-Aliasing/Flimmern (Marc-Bug
     v0.9.286). Bei 4K zeigt Mapbox feines Satelliten-Detail 1:1 — beim
     Frame-für-Frame-Schwenk „kriecht"/flimmert die scharfe Textur übers
@@ -1016,6 +1017,10 @@ def _render_ss(width: int, height: int) -> float:
     direkt auf den Map-Canvas läuft (siehe `_make_html`, „zu scharf"-Fix) — der
     Blur erledigt jetzt die Haupt-Anti-Flimmer-Arbeit, daher reicht weniger SSAA
     (= schnellerer Render). Trade-off Marc: „zu langsam" + „flimmert, zu scharf"."""
+    # 23.10.2026 (Marc: „bessere Kartendarstellungen", Prototyp „GPS Studio Karten": 16 Abtastungen/Pixel) — Option
+    # „Höchste Qualität": intern doppelte Auflösung (4 Abtastungen je Pixel, dazu MSAA), bei 4K 1,5×. Langsamer.
+    if hohe_qualitaet:
+        return 1.5 if max(width, height) >= 3840 else 2.0
     if max(width, height) >= 3840:
         return 1.25
     return 1.0
@@ -4142,7 +4147,7 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     sonst killt der ~16× langsamere PNG-Grab bei 4K die Render-Zeit. Die minimale
     Doppel-JPEG-Kompression (q92 → Downscale → q92) ist nach dem Verkleinern
     unsichtbar."""
-    _ss = _render_ss(cfg.width, cfg.height)
+    _ss = _render_ss(cfg.width, cfg.height, bool(getattr(cfg, "hohe_qualitaet", False)))
     is_jpeg = (not cfg.transparent_background) and (cfg.frame_format or "jpeg").lower() == "jpeg"
     q = max(1, min(100, int(cfg.jpeg_quality or 92)))
 

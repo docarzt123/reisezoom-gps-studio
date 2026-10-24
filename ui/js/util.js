@@ -317,6 +317,13 @@ function rzOrthoRelief(adj) {
   return Math.max(0, Math.min(100, isFinite(v) ? v : def));
 }
 window.rzOrthoRelief = rzOrthoRelief;
+/** 23.10.2026 — Schlagschatten 0…100 (Standard 55); Deckkraft der Ebene = Wert × RZ_SCHATTEN_MAX. */
+const RZ_SCHATTEN_DEF = 55, RZ_SCHATTEN_MAX = 0.85;
+function rzOrthoSchatten(adj) {
+  const v = (adj && typeof adj === "object") ? parseFloat(adj.schatten) : NaN;
+  return Math.max(0, Math.min(100, isFinite(v) ? v : RZ_SCHATTEN_DEF));
+}
+window.rzOrthoSchatten = rzOrthoSchatten; window.RZ_SCHATTEN_MAX = RZ_SCHATTEN_MAX;
 
 /** Kacheldichte (07.09.2026, Marc: „die ganze Insel ist unscharf") — Spiegel von
  *  mapstyles.tile_size_for: MapLibre wählt die Kachelstufe aus Zoom und tileSize, nicht
@@ -383,6 +390,15 @@ function _stackStyle(stack, ortho) {
     const paint = Object.assign({}, cat.relief_paint || {}, { "hillshade-exaggeration": +(rel / 100 * (cat.relief_max || 0.8)).toFixed(3) });
     layers.push({ id: "rz-hillshade", type: "hillshade", source: "rz-dem", minzoom: (cat.relief_minzoom != null ? cat.relief_minzoom : 6),
                   layout: { visibility: rel > 0 ? "visible" : "none" }, paint });
+  }
+  // 23.10.2026 (Marc: „ich will bessere Kartendarstellungen") — Schlagschatten aus dem Höhenmodell (core/schatten.py
+  // über die Kachel-Weiche), über Luftbild und Relief, unter der Beschriftung. ortho.schatten 0…100.
+  if (proxy) {
+    const sch = rzOrthoSchatten(ortho);
+    sources["rz-schatten"] = { type: "raster", tiles: [proxy + "/tile/schatten/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 };
+    layers.push({ id: "rz-schatten", type: "raster", source: "rz-schatten", minzoom: 8,
+                  layout: { visibility: sch > 0 ? "visible" : "none" },
+                  paint: { "raster-opacity": +(sch / 100 * RZ_SCHATTEN_MAX).toFixed(3), "raster-resampling": "linear", "raster-fade-duration": 0 } });
   }
   const st = { version: 8, sources, layers };
   if (!window.__rzNoGlobe) st.projection = RZ_PROJECTION;
@@ -1162,6 +1178,7 @@ function openModal(options = {}) {
   const bodyEl  = document.getElementById("modal-body");
   const footEl  = document.getElementById("modal-footer");
   const closeEl = document.getElementById("modal-close");
+  const boxEl   = document.getElementById("modal");
 
   // `openModal({})` ist im ganzen Code das etablierte Idiom für „mach den
   // aktuellen Dialog zu" — es steht an 43 Stellen hinter OK- und
@@ -1203,6 +1220,7 @@ function openModal(options = {}) {
       body: bodyEl.innerHTML,
       footer: footEl.innerHTML,
       closable: closeEl.style.visibility !== "hidden",
+      klasse: boxEl ? boxEl.className : "modal",
       restore: typeof options.restorePrevious === "function"
         ? options.restorePrevious : null,
     });
@@ -1232,6 +1250,9 @@ function openModal(options = {}) {
   // Nur beim ÖFFNEN leeren, nicht bei `update()`: Dort wird oft nur der Rumpf
   // erneuert, und die Fußzeile soll stehen bleiben.
   if (_hatInhalt && options.footer === undefined) footEl.innerHTML = "";
+  // 24.10.2026 — `options.klasse`: Zusatzklasse für dieses Fenster (z. B. breiter Schnell-Einstieg mit Bildern);
+  // gilt nur, solange es offen ist — beim Schließen und beim Zurückholen des Dialogs darunter wieder weg.
+  if (_hatInhalt && boxEl) boxEl.className = "modal" + (options.klasse ? " " + options.klasse : "");
   overlay.hidden = false;
 
   function close() {
@@ -1243,6 +1264,7 @@ function openModal(options = {}) {
       footEl.innerHTML = darunter.footer;
       closeEl.style.visibility = darunter.closable ? "" : "hidden";
       closable = darunter.closable;
+      if (boxEl) boxEl.className = darunter.klasse || "modal";
       overlay.hidden = false;
       if (typeof onClose === "function") {
         const fn = onClose; onClose = null;
@@ -1258,6 +1280,7 @@ function openModal(options = {}) {
     overlay.hidden = true;
     bodyEl.innerHTML = "";
     footEl.innerHTML = "";
+    if (boxEl) boxEl.className = "modal";
     closeEl.style.visibility = "";
     closeEl.onclick = null;
     overlay.onclick = null;
@@ -1290,6 +1313,8 @@ function closeAllModals() {
   if (bodyEl) bodyEl.innerHTML = "";
   if (footEl) footEl.innerHTML = "";
   if (closeEl) { closeEl.style.visibility = ""; closeEl.onclick = null; }
+  const boxEl = document.getElementById("modal");
+  if (boxEl) boxEl.className = "modal";
   overlay.onclick = null;
 }
 

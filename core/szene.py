@@ -522,7 +522,7 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # Viewport in der App (params.szene_vorschau_w/h), device_scale_factor = Video / Vorschau.
     # Damit sind Linien, Schilder, Beschriftungen, Overlays, Zoom exakt die der Vorschau —
     # ohne Umrechnung (kein Zoom-Versatz, kein Größenfaktor). SSAA wie bisher obendrauf.
-    ss = A._render_ss(cfg.width, cfg.height)
+    ss = A._render_ss(cfg.width, cfg.height, bool(getattr(cfg, "hohe_qualitaet", False)))
     pw = int((params or {}).get("szene_vorschau_w") or 0); ph = int((params or {}).get("szene_vorschau_h") or 0)
     if pw < 200 or ph < 100:
         pw = max(1, int(round(cfg.width / A._render_dsf(cfg.width, cfg.height)))); ph = max(1, int(round(cfg.height / A._render_dsf(cfg.width, cfg.height))))
@@ -548,7 +548,8 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     page.on("console", lambda m: _log.info("Szene page.console [%s] %s", m.type, m.text[:300]) if m.type in ("error", "warning") and "GPU stall" not in m.text and "Fog" not in m.text else None)
     await page.expose_function("rzBridge", _bridge_factory(api))
     # „Karte glätten" wie im klassischen Render: nur mit SSAA (4K), CSS-Blur auf der Karten-Canvas.
-    blur_css = (max(0.0, float(cfg.map_smoothing or 0)) / dsf) if ss > 1.0 else 0.0
+    # (nur beim 4K-Supersampling — „Höchste Qualität" glättet über die doppelte Auflösung, ohne Weichzeichner)
+    blur_css = (max(0.0, float(cfg.map_smoothing or 0)) / dsf) if A._render_ss(cfg.width, cfg.height) > 1.0 else 0.0
     # Zoom-Versatz Vorschau → Video: Keyframes/manuelle Kamera/static_zoom sind im Zoom
     # der VORSCHAU gespeichert (kleinerer Viewport). Wie im klassischen Render:
     # abs_shift = zoom_correction (UI: log2(rw / Vorschau-Breite)) − log2(dsf).

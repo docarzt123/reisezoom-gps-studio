@@ -421,6 +421,8 @@ def bereich_aendern(conn: sqlite3.Connection, eid: str, bid, **felder) -> dict:
             b["anzeige"] = a
         if inhalt:
             b["quelle"] = "hand"
+        if felder.get("art") is not None:
+            b["art_hand"] = True      # 24.10.2026 (core/lernen) — die ART ist geprüft, nicht nur Name/Notiz geändert
     return _schreiben(conn, e)
 
 

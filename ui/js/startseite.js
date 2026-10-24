@@ -49,7 +49,9 @@
   /** Nach dem ersten Einrichten (app.js ruft das auf): die Startseite zeigen. (Die einfache Ansicht wird seit
    *  06.10.2026 nicht mehr vorgewählt — sie wandert in den Video-Assistenten.) */
   function rzStartseiteNachEinrichtung() {
-    setTimeout(rzStartseite, 1200);   // nach dem Aufbau des ersten Moduls
+    // 24.10.2026 (Marc: „direkt beim Willkommensbildschirm eine kleine Anleitung“) — statt der Aufgaben-Kacheln der
+    // Überblick (ui/js/willkommen.js): Schnellstart, die Aufgaben als Abkürzungen und jedes Modul mit Bild
+    setTimeout(() => (typeof window.rzWillkommen === "function" ? window.rzWillkommen({ erststart: true }) : rzStartseite()), 1200);
   }
 
   window.rzStartseite = rzStartseite;

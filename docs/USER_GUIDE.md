@@ -4,7 +4,7 @@
 
 Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). **v0.9.628**
 
-> **🚀 Neu hier?** Jedes Modul hat einen eigenen **Schnell-Einstieg** — über **Hilfe → Erste Schritte** (oder das Hilfe-Fenster) bekommst du 3 Schritte mit Screenshot für genau das Modul, in dem du gerade bist.
+> **🚀 Neu hier?** **Hilfe → Überblick über GPS Studio** zeigt alle Module auf einer Seite — jedes mit Bild und einem Satz, dazu „In drei Schritten zum ersten Video“. **„Mehr erfahren“** öffnet den **Schnell-Einstieg** des Moduls (3 Schritte mit Screenshot); den gibt es auch über **Hilfe → Erste Schritte** für das Modul, in dem du gerade bist.
 
 Die acht Module, grob in der Reihenfolge, in der man sie benutzt:
 
@@ -428,9 +428,13 @@ und darunter ihre Bedienung:
   die Knöpfe **„nach Datum"**, **„nach Name"** und **„⇅"** über der Liste.
 - **✎ Track bearbeiten** (seit v0.9.783 rechts in der Seitenspalte, vorher „▸ Aussehen“ in der Liste) — öffnet den
   Editor **dieses** Tracks: Farbe, Dicke,
-  Linien-Stil (durchgezogen, gestrichelt, gepunktet, Strich-Punkt, Röhre) mit Abstand,
+  Strichart (durchgezogen, gestrichelt, gepunktet, Strich-Punkt, Röhre) mit Abstand,
   Schatten, Glow, die Punktreduzierung in Prozent und den **Laufpunkt** (zeigen, Kugel
   oder Pfeil in Fahrtrichtung oder ein Fahrzeug, Größe; „Ruhe des Pfeils" gilt für alle Pfeile).
+  **Leuchtpunkt (seit 24.10.2026):** kleiner Kern in warmem Weiß mit Rand in der Linienfarbe, darum ein weicher
+  Lichtschein und ein großer, zarter Lichtfleck auf der Karte. Hält die Tour länger als knapp eine Sekunde an (Pause,
+  Fotostopp, Ende), atmet der Punkt langsam (Takt 1,6 s); sobald es weiterfährt, hört das sofort auf. Der Schweif ist beim
+  Leuchtpunkt im Bildmaß bemessen — gleich lang, egal wie weit gezoomt ist.
   Die Form wählst du als Bildkachel; darunter steht **„Fahrzeug-Aussehen (alle Fahrzeuge)“** mit zwölf
   Kacheln: Plakette (das gezeichnete Symbol), **Symbol** (seit v0.9.792, siehe unten) oder fotorealistisch, Bleistift & Aquarell, Comic,
   Piktogramm, Kupferstich, Neon, Pixel-Art, Blaupause, Papier, Knete. Diese Bilder sind von oben
@@ -562,7 +566,7 @@ ein: **Hart**, **Einblenden** (Deckkraft), **Aufpoppen** (die Linie wächst mit 
 läuft der Pico Viejo los. Teide ab 0 s mit „Aufpoppen", Vilaflor ab 1,5 s mit „Aufpoppen",
 die Haupt-Tour in der Zeitleiste auf 3 s ziehen.
 
-**Aussehen:** wie bei jeder Tour im Panel **▸** unter dem Eintrag — Farbe, Dicke, Linien-Stil
+**Aussehen:** wie bei jeder Tour im Panel **▸** unter dem Eintrag — Farbe, Dicke, Strichart
 (gestrichelt usw.), Schatten, Glow und neu **Deckkraft** (gilt für alle Touren).
 
 **Alte Projekte:** Ghost-Spuren werden beim Öffnen automatisch zu Touren mit „Ganz zeigen"
@@ -620,6 +624,22 @@ Diese Gesamtdatei lädst du dann oben in der Leiste — und machst mit Schritt 4
 
 
 ## 2 · Erste Schritte
+
+### Überblick „Willkommen“ (seit 24.10.2026)
+
+Nach dem ersten Einrichten zeigt GPS Studio eine Überblicksseite, damit du nicht verloren bist:
+
+- **„In drei Schritten zum ersten Video“** — Track holen (die Knöpfe **Track öffnen …** und **Ordner einlesen …** stehen
+  gleich daneben), Tour im Archiv doppelklicken, **„Video ▾ → Schnell-Video“**.
+- **„Oder gleich:“** — Abkürzungen: Video erstellen, Track verbessern, Fotos verorten, Kartenanimation ohne GPS.
+- **„Was steckt drin?“** — jedes Modul als Karte mit Bild und einem Satz: Archiv, Tour & Logbuch, Medien, Animator,
+  Tour-Map, Daten-Animator, GPX-Inspektor, Web-Karte, Geotagger. **„Mehr erfahren“** (oder ein Klick aufs Bild) öffnet
+  den Schnell-Einstieg mit drei Schritten — jeder mit einem Bild der Oberfläche, auf dem der gemeinte Knopf leuchtet;
+  **„Öffnen“** springt direkt ins Modul.
+
+Unten steht der Haken **„Beim Start zeigen“** — nach dem Einrichten an, solange du ihn nicht abwählst. **„Zum Archiv“**
+oder **Esc** schließt die Seite. Wieder öffnen: **Hilfe → Überblick über GPS Studio** oder im Fenster
+„Neu in GPS Studio …“ der Knopf **„Überblick“**.
 
 ### Kartenanbieter wählen — kostenlos, MapTiler oder Mapbox (seit v0.9.651) ⭐
 
@@ -1279,11 +1299,47 @@ Tour-Details rechts zeigen jetzt **„📷 34 Fotos · 🎬 5 Clips“** mit ein
 Knöpfe: **linke Leiste**, **Logbuch rechts** und **Bilder unten**, je ein- und ausblendbar (gemerkt). Sind die Bilder unten
 aus, zeigt die Karte statt der Fotos alle Logbuch-Einträge des gewählten Tages. Das Logbuch zeigt
 rechts die Tour Tag für Tag — oben Fahrtzeit, Pausen, Übernachtungen, darunter die Tage (Mehrtagestouren: drei Tage,
-„＋ weitere Tage“ klappt den Rest auf) und je Tag die Einträge mit Ort, Dauer und Strecke. Ein Klick auf einen Eintrag
+„＋ weitere Tage“ klappt den Rest auf) und je Tag die Einträge mit Ort, Dauer und Strecke. **Mehrtagestouren laufen
+durch (seit 24.10.2026):** Alle Tage stehen untereinander, du scrollst einfach weiter. Jeder Tag beginnt mit einer
+Überschrift („Tag 2 · Montag, 27. Juli · 57 km“), die beim Scrollen oben stehen bleibt, bis der nächste Tag sie
+wegschiebt — so siehst du immer, in welchem Tag du bist. Die Tag-Knöpfe oben springen zum Tag und zeigen an, welcher
+gerade oben steht; die Karte zeigt (bei ausgeblendeten Bildern) die Einträge dieses Tages. Ein Klick auf einen Eintrag
 zeigt seine Stelle auf der Karte, ein Klick auf einen Punkt der Karte wählt den Eintrag. Über **⋯** benennst du einen
 Eintrag um, schreibst eine Notiz dazu oder legst ihn mit dem vorigen/nächsten zusammen; **„Rückgängig“** nimmt die letzte
 Änderung zurück. Namen und Notizen gelten überall in GPS Studio — im GPX-Inspektor, im Animator und im Video.
 Ein angeklicktes Foto zeigt rechts seine Aufnahmedaten, **„← Logbuch“** führt zurück.
+
+**Wege unter dem Track (seit 24.10.2026):** Ob ein langsames Stück ein Stau oder eine Radtour war, sieht man am
+Tempo allein nicht. Das Logbuch schaut deshalb nach, worauf die Strecke lag — aus denselben Karten-Kacheln, die die App
+ohnehin zeigt (OpenFreeMap), einmal je Tour, danach gemerkt. Liegt ein Abschnitt überwiegend auf der Autobahn, ist er
+eine **Fahrt** (Stau, nie Fahrrad); überwiegend auf einer Fährlinie eine **Fähre**; „Rad oder Laufen?“ überwiegend auf
+Radwegen wird **Rad**. Der Eintrag nennt den Grund („auf der Autobahn“). Was du selbst geändert hast, bleibt. Solange
+Ortsnamen, Sehenswürdigkeiten und Wege noch nachgeladen werden, steht über der Liste eine Zeile mit Spinner — bei den
+Wegen mit Zähler („… 23 von 60“). Die Liste ist währenddessen schon bedienbar.
+
+**Beim ersten Start einer neuen Version** zeigt GPS Studio kurz „Neu in GPS Studio …“ mit dem Knopf **„Was ist neu?“**
+(die Neuerungen seit deiner vorigen Version). Beim allerersten Mal fragt der Dialog außerdem, ob du Logbuch-Korrekturen
+anonym teilen möchtest — mit Bild und zwei Kästen: was anonym rausgeht (Tempo, Stillstand, Steigung, Wegart, richtige
+Art) und was bei dir bleibt (Orte, Uhrzeiten, Namen, Fotos). Einmal beantwortet, kommt die Frage nicht wieder. Im Willkommen-Dialog beim ersten Start steht
+dieselbe Frage als Haken (aus).
+
+**Logbuch lernt mit (seit 24.10.2026, nur wenn du es einschaltest):** In den Einstellungen unter **Allgemein** steht
+„Logbuch-Korrekturen anonym teilen, damit die Erkennung für alle besser wird“ — standardmäßig aus. Ist es an und du
+änderst oder bestätigst die Art eines Eintrags, schickt die App nur Zahlen zu diesem Abschnitt an reisezoom.com (Dauer,
+Strecke, Tempo, Stillstand, Steigung, Wegarten, grobe Art der Tour und die richtige Art) — keine Orte, keine Uhrzeiten,
+keine Namen. Aus allen Einsendungen entsteht ein kleines Modell; sobald es nachweislich zuverlässig ist, holt die App es
+zurück (nur bei eingeschalteter Update-Prüfung) und nutzt es dort, wo die Regeln nur raten — der Eintrag bleibt
+„vermutet“. Was du selbst einstellst, gewinnt immer. Wer mehrere Rechner hat, schaltet es auf jedem ein: Die Korrekturen
+von allen fließen zusammen.
+
+**Zeitstrahl und volles Menü (seit 24.10.2026):** Unter der Karte steht der **Zeitstrahl** des Logbuchs wie im
+GPX-Inspektor — Tage, Bewegung mit Höhenprofil, Punkte und Uhrzeiten. Ein Klick auf einen Block wählt den Eintrag (Liste
+und Karte folgen), das Mausrad zoomt, ein Doppelklick auf einen Tag zeigt nur diesen Tag, ein Doppelklick daneben wieder
+die ganze Tour. Das Menü **⋯** an einem Eintrag ist jetzt dasselbe wie im Inspektor: umbenennen, Notiz, Art ändern oder
+eine vermutete Art bestätigen, **„Im Video“** (zeigen, blass, raffen, überspringen), Aktivität teilen (bei einer Uhrzeit
+oder in der Mitte), mit dem vorigen/nächsten zusammenlegen, **„Als eigene Tour ins Archiv“** und löschen. Auch Start und
+Ziel lassen sich benennen. Links stehen außerdem **„Im Inspektor“** und **„Öffnen in ▾“** (Inspektor, Animator, Tour-Map,
+Daten-Animator, Web-Karte, Geotagger).
 
 **Was gehört zur Tour?** Alles, was **während der Tour** aufgenommen wurde (eine halbe Stunde davor und danach zählt
 mit) und — wenn es eine Koordinate hat — **höchstens 2 km vom Track** entfernt liegt. Ohne Koordinate entscheidet die
@@ -2527,14 +2583,16 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Stil**: 6 Mapbox-Stile (Satellite 3D, Satellite+Streets, Outdoors, Streets, Hell, Dunkel)
 - **3D-Terrain** aktivieren — bei Alpentouren sieht das spektakulär aus
 - **Track-Farbe + Dicke** — frei wählbar
-- **Linien-Stil** (seit v0.6.5) — Durchgezogen / Gestrichelt / Gepunktet / Strich-Punkt / **Röhre**. Bei Strich-/Punkt-Varianten gibt's einen zusätzlichen **Punktabstand**-Slider (multipliziert die Strich- bzw. Punkt-Längen). „Röhre" (seit v0.8.10, im Linien-Stil-Dropdown seit v0.8.12) legt einen weißen Highlight-Streifen oben auf die Linie → wirkt plastischer wie ein Schlauch.
+- **Strichart** (seit v0.6.5, bis 24.10.2026 „Linien-Stil“) — Durchgezogen / Gestrichelt / Gepunktet / Strich-Punkt / **Röhre**. Bei Strich-/Punkt-Varianten gibt's einen zusätzlichen **Punktabstand**-Slider (multipliziert die Strich- bzw. Punkt-Längen). „Röhre" (seit v0.8.10, im Linien-Stil-Dropdown seit v0.8.12) legt einen weißen Highlight-Streifen oben auf die Linie → wirkt plastischer wie ein Schlauch.
 - **Schlagschatten unter Track** (seit v0.4) — lässt den Track wie eine schwebende Linie über der Karte wirken. Stärke 0–10 px (Default 4). Bei aktivem 3D-Terrain bleibt der Schatten auf dem Boden während der Track 150 m darüber gerendert wird → plastischer 3D-Look.
 - **Schatten-Richtung (global, seit v0.9.478)** — direkt unter der Schatten-Stärke steuerst du mit dem Slider **„Schatten-Richtung"** (0–360°), aus welcher Richtung das Licht kommt: **0° = rechts, 90° = unten, 180° = links, 270° = oben**. Das ist eine **gemeinsame Lichtquelle** — sie gilt gleichzeitig für den **Track-Schatten** und für den **Schlagschatten aller Schilder** (Wegpunkt-Schilder), damit alles wie von derselben Sonne beleuchtet wirkt.
-- **Linien-Look und Schweif (neu)** — im Aussehen-Panel des Tracks (✎ an der Tour): **Linien-Look** *Klassisch*, *Glut* oder *Neon*. Glut und Neon lassen die Linie selbst leuchten — weicher Lichthof außen, heller, fast weißer Kern innen; die passende Farbe wird beim Umschalten vorgewählt (danach frei änderbar), die dunkle Kontur entfällt. Am schönsten auf Luftbild und in der Dämmerung. **Schweif** (0–15 % der Strecke): das letzte Stück hinter dem Kopf leuchtet heller und blendet nach hinten aus — in der Vorschau, im Probelauf und im Video gleich.
+- **Vorlage und Schweif** — im Aussehen-Panel des Tracks (✎ an der Tour): **Vorlage** (bis 24.10.2026 „Linien-Look“) *Klassisch*, *Glut*, *Neon* oder *Leuchtspur*. Glut und Neon lassen die Linie selbst leuchten — weicher Lichthof außen, heller, fast weißer Kern innen; die passende Farbe wird beim Umschalten vorgewählt (danach frei änderbar), die dunkle Kontur entfällt. Am schönsten auf Luftbild und in der Dämmerung. **Schweif** (0–15 % der Strecke): das letzte Stück hinter dem Kopf leuchtet heller und blendet nach hinten aus — in der Vorschau, im Probelauf und im Video gleich. **Leuchtspur** (seit 24.10.2026) ist die Ein-Klick-Vorlage zum
+  Leuchtpunkt: Türkis, Leuchtpunkt, Schweif 6 % und eine dunkle Kontur von 1,5 px — der Punkt leuchtet, die übrige Strecke
+  bleibt scharf und gut lesbar. Alles lässt sich danach einzeln ändern, auch der Laufpunkt (Pfeil, Fahrzeug, Symbol …) — Lichtschein und Lichtfleck gibt es nur beim Leuchtpunkt.
 - **Farblook und Vignette (neu)** — im Bereich **Karte** unter „Look“: **Farblook** färbt das ganze Kartenbild wie eine Farbkorrektur im Schnittprogramm — *Kino, Goldene Stunde, Noir, Lebendig, Matt, Sonnenverbrannt, Glut, Terrakotta, Verträumt, Silhouette*. Der Regler **Stärke** (0–150 %) dosiert ihn. **Vignette** dunkelt die Ränder ab. Einblendungen und Schrift bleiben unverändert; Vorschau und Video sehen gleich aus.
-- **Farbe je Tag (neu)** — bei Mehrtagestouren im Aussehen-Panel des Tracks: jeder Tag bekommt seine eigene Farbe. Tag 1 behält die Track-Farbe, die weiteren kommen aus der Palette des Linien-Looks (Klassisch, Glut oder Neon). Der Tageswechsel richtet sich nach der Ortszeit der Tour. Bei Touren mit Etappen oder ausgeblendeten Logbuch-Abschnitten haben deren Farben Vorrang.
+- **Farbe je Tag (neu)** — bei Mehrtagestouren im Aussehen-Panel des Tracks: jeder Tag bekommt seine eigene Farbe. Tag 1 behält die Track-Farbe, die weiteren kommen aus der Palette der Vorlage (Klassisch, Glut oder Neon). Der Tageswechsel richtet sich nach der Ortszeit der Tour. Bei Touren mit Etappen oder ausgeblendeten Logbuch-Abschnitten haben deren Farben Vorrang.
 - **⏸ an der Schilder-Spur (neu)** — der kleine Knopf im Kopf der Spur „Schilder“ lässt das Video an **allen Foto-Schildern** anhalten; halten schon alle, fährt es an keinem mehr an. Ein ⌘Z nimmt es zurück. Jedes Schild behält im Editor seinen eigenen Halt.
-- **Einblendung „Werte schlicht (Editorial)“ (neu)** — unter **＋ Neue Einblendung**: Zurückgelegt, Höhe und **Tag** links oben, ohne Kasten, kleine Überschrift über großer Zahl. Das neue Feld **Tag** zählt bei Mehrtagestouren mit (Kalendertag in Ortszeit) und steht auch in jeder anderen Einblendung zur Wahl. Beim Wechsel des Linien-Looks ziehen die blasse kommende Strecke, die Übersichtskarte und das Höhenprofil die neue Farbe mit.
+- **Einblendung „Werte schlicht (Editorial)“ (neu)** — unter **＋ Neue Einblendung**: Zurückgelegt, Höhe und **Tag** links oben, ohne Kasten, kleine Überschrift über großer Zahl. Das neue Feld **Tag** zählt bei Mehrtagestouren mit (Kalendertag in Ortszeit) und steht auch in jeder anderen Einblendung zur Wahl. Beim Wechsel der Vorlage ziehen die blasse kommende Strecke, die Übersichtskarte und das Höhenprofil die neue Farbe mit.
 - **Wegpunkt-Schilder (seit v0.9.171, voll gestaltbar seit v0.9.179)** — setze Text-Schilder auf die Route (z.B. „Gipfel erreicht!"). Bereich **„🚩 Schilder"** in der Seitenleiste:
   - **Platzieren:** **„📍 Auf Track"** → Klick auf den Track (rastet ein), oder **„📌 Frei platzieren"** → Klick **irgendwo** auf die Karte (z.B. eine Sehenswürdigkeit abseits der Route). Bei freier Platzierung richtet sich der **Anzeige-Zeitpunkt** weiter nach dem nächstgelegenen Track-Punkt (Anker am Track + freier Koordinaten-Offset).
   - **Bearbeiten:** Klick auf ein Schild (Liste oder Karte) öffnet den **Schild-Editor rechts in der Detail-Spalte** (seit 06.10.2026; vorher ein schwebendes Fenster) — die Karte rückt zur Seite, **Esc**/✕ schließt. Das gerade bearbeitete Schild ist immer sichtbar (egal wo der Abspiel-Punkt steht).
@@ -2611,6 +2669,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Quellen-Register** (seit 07.09.2026) — in den Einstellungen unter **Karten** in der Rechte-Tabelle aufklappbar: je Kartendienst die Datenlizenz mit Link, ob kommerzielle Videos freigegeben sind (✅ geprüft und erlaubt · 💰 Rechte kaufen · ⚠️ nicht verifiziert oder Server-Regeln · ❌ nicht erlaubt), die vorgeschriebene Nennung im Bild und das Prüfdatum. Alle Dienste wurden am 07.09.2026 einzeln nachgelesen; die Nennung im Bild kommt seither aus diesem Register, mit Änderungshinweis, wo die Lizenz ihn verlangt. Mindestens halbjährlich wird neu geprüft; ist ein Eintrag überfällig, steht dort ein Hinweis. Die Karten-Abzeichen im Stil-Wähler folgen dem Register: CyclOSM und Humanitarian sind für Videos nicht freigegeben (der Server von OpenStreetMap France bedient nur nichtkommerzielle Seiten), OpenStreetMap und OpenTopoMap tragen den Hinweis „Server-Regeln beachten" (Bild-für-Bild-Rendern nur nach Absprache oder mit eigenem Kachelserver). Das ist unsere Lesart, keine Rechtsberatung — die Links stehen daneben.
 - **Schärfe** (seit 07.09.2026) — der letzte Regler der „Luftbild-Optik" bzw. „Karten-Optik" (unter „Farbton"), 0–100 % (Standard 0): eine Unschärfemaske auf dem Kartenbild, in Vorschau und Video gleich (nicht in den Web-Karten-Exporten). Wirkt nur auf das Kartenbild, nicht auf Strecke, Schilder, Beschriftung, Zahlen, Höhenprofil und Quellenzeile. Hintergrund: Die freie Sentinel-2-Ebene (10 m, Stand 2016) ist über Inseln und Küsten ohne amtliches Luftbild weich — das ist das Datenmaterial, nicht die App. 40–60 % machen sie lesbar; darüber wird es körnig. Seit demselben Tag holen alle Rasterkarten auf Retina-Bildschirmen und im Video ein bis zwei Kachelstufen tiefer, damit ein Kachelpixel etwa auf ein Bildpixel fällt (vorher 2- bis 5-fach vergrößert).
 - **Relief, Dunst und Looks** (seit 17.09.2026) — in der „Luftbild-Optik": **Relief** legt Licht und Schatten aus den Geländedaten über die Luftbilder (Standard 0 = aus; die Looks stellen 35–60 %), damit die flache Sentinel-2-Ebene Tiefe bekommt. **Dunst entfernen** (0–100 %, Standard 0) zieht den blauen Schleier aus Satellitenbildern heraus — technisch ein Schwarzpunkt je Farbkanal auf dem Kartenbild, in derselben Ebene wie die Schärfe; 15–35 % sind der Sweet Spot, mehr wirkt hart. In der „Karten-Optik" (OSM, OpenTopoMap …) gibt es „Dunst entfernen" ebenfalls. Die Auswahl **Look** (Natürlich / Kräftig / Filmisch) stellt alle sieben Regler auf einmal; „Eigene Einstellung" heißt: mindestens ein Regler weicht ab. Alles in Vorschau und Video gleich, rückgängig mit ⌘Z, nicht in den Web-Karten-Exporten.
+- **Farbkorrektur, Schatten, Dunst in der Ferne** (seit 23.10.2026) — drei neue Regler, standardmäßig an. **Farbkorrektur** (Luftbild-Optik, Standard 70 %) ist eine abgestimmte Bildbearbeitung für Luftbilder: Dunst raus, Tiefen etwas heller, Grün lebendiger, Lichter weich — sie wirkt nur aufs Luftbild, nicht auf Strecke, Schrift und Schilder. **Schatten** (Luftbild-Optik, Standard 55 %) lässt Berge und Grate aus dem Geländemodell Schatten werfen, wie in Mittags-Luftbildern (Sonne aus Süd-Südost); Täler bekommen Tiefe. **Dunst in der Ferne** (unter der Gelände-Überhöhung, Standard 35 %) legt zum Horizont hin Luftperspektive über das Gelände, der Vordergrund bleibt klar — wirkt bei geneigter Kamera, für alle Kartenstile. Wer den alten Look will, stellt die drei auf 0 %. Im Export gibt es außerdem **„Höchste Qualität (langsamer)“**: intern doppelte Auflösung, kein Flimmern feiner Details, etwa doppelte Exportzeit. Beim **Schnell-Video** zeigt das Schlussbild die Strecke jetzt wie eine Kulisse: etwas flacher und aus der Richtung, aus der am meisten von der Strecke zu sehen ist (statt immer nach Norden).
 - **Karten-Optik** (seit 05.09.2026) — wie Luftbild-Optik und Sternenhimmel rechts im **Karten-Editor** (Knopf **„Karten-Optik und Sterne …“**, seit 08.10.2026), für alle Karten außer den amtlichen Luftbildern (die haben ihre eigene „Luftbild-Optik"). Rasterkarten wie OpenStreetMap oder OpenTopoMap: Sättigung, Kontrast, Helligkeit, Farbton. Vektorkarten wie OpenFreeMap oder MapTiler: nur Helligkeit, technisch eine Abdunkel-Ebene unter der Strecke, damit die Strecke hell bleibt und die Karte zurücktritt. Standard 0 = Karte wie geliefert, „↺ Standard" setzt zurück. In der **Web-Karte** (Leaflet) gibt es dieselben zwei Schalter; dort ist Norden immer oben, der Maßstab kommt von Leaflet.
 
 **Sortieren überall mit ⠿ oder ▲▼ (seit 25.09.2026):** Jede Liste mit ⠿-Griff — Einblendungen und ihre Zeilen, Schilder und Fotos, Reiseroute-Stationen, Zusatzspuren, „Touren zusammenführen“ — lässt sich am Griff ziehen (Esc bricht ab) oder mit den kleinen **▲▼** je Zeile verschieben. Das funktioniert jetzt auch unter Windows.

@@ -2616,6 +2616,15 @@ blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
   lieferten vermischte Zeilen — sichtbar als `TypeError: int() … NoneType` aus der
   Monats-Abfrage. Alle öffentlichen DB-Funktionen sind jetzt serialisiert; Regressionstest:
   6 Threads × 15 Runden, 0 Fehler.
+- **Leseverbindung für lange Zählungen (24.10.2026).** `Api._lese_verbindung()` öffnet neben der gemeinsamen
+  Verbindung eine zweite nur lesende (`clib.open_db_lesend`, WAL liest parallel) mit eigener Sperre `_lese_sperre`
+  (`_lese_sperre_fuer(conn)` liefert die passende). Darauf laufen `fotos_ordnerbaum` und `_fotos_stand_kurz`
+  (Bestandszahlen), gemerkt bis `PRAGMA data_version` dieser Verbindung wächst (= jemand anderes hat geschrieben);
+  `fotos_ordnerbaum` und `fotos_filterwerte` stehen deshalb nicht mehr in der `_db_gesperrt`-Liste. Gemessen an einer
+  Kopie mit 467 000 Fotos: `stand` kalt 2,8 s, Ordnerbaum 2–3 s — beides vorher unter `_DB_LOCK`, erster Klick auf
+  „Medien“ 3,7 s, jetzt 0,6 s. `_lib_startup_jobs` wärmt beides 3 s nach dem Öffnen vor (Faden `fotos-vorwaermen`).
+  Sperren-Reihenfolge immer `_DB_LOCK` → `_lese_sperre`, nie umgekehrt. Folgt automatisch, wenn `_lib_conn` neu
+  geöffnet wird; Dateipfad aus `_lib_datei` (beim Öffnen gemerkt). Test: `test_archiv_lange_zaehlungen`.
 - `stats()` liefert zusätzlich `n_fav`; `n_fav`/`n_hidden` werden mit denselben Filtern, aber
   eigener Klausel gezählt (`_count_hidden`) — sie sind die Bestandszahlen der Bereiche.
 - **Übergabe ganzer Sammlungen an den Animator** läuft über `window.__rzPendingTours`: Das
@@ -7779,6 +7788,81 @@ Test: `tests/test_linie_ecken.py`.
 
 ## GPX-Inspektor nimmt Symbole und Titel aus dem Logbuch-Baustein (11.10.2026, Schritt 9)
 - `ui/js/logbuch_ansicht.js` exportiert zusätzlich `artName`, `titel(x, orte)` und `symbolHtml(art, px)` (rzIcon).
+- **Überblick „Willkommen“ (24.10.2026).** `ui/js/willkommen.js`: `window.rzWillkommen(opt)` legt `#rz-willkommen.rzw`
+  (Vollbild-Ebene, z-index 900 — Modals 1000 und Toasts 2000 liegen darüber) an: Schnellstart (`data-rzw-aktion`
+  track → `pickGpx`, ordner → `library_add_folder("")` + `library_scan_start`), Abkürzungen (`data-rzw-aufgabe`, die
+  Aufgaben der alten `startseite.js`), Modulkarten aus `MODULE` (`id, icon, bild, qs, oeffnen`, Texte
+  `willkommen.m.<id>[_text]`; „Mehr erfahren“ → `openQuickstart(qs)`, „Öffnen“ → `switchMod`, `medien` = Archiv +
+  `#lib-seg-fotos`). Haken `#rzw-beim-start` → Setting `willkommen_beim_start` (Werk aus) beim Schließen. Aufrufe:
+  `rzStartseiteNachEinrichtung` (Erststart, `erststart:true` = Haken an, `fertig()` speichert ihn), Boot in `app.js`
+  (Setting an, nicht `kein_willkommen`/`__rzKeinPmBoot`), Menü `_open_willkommen_from_menu`, Knopf `#md-neu-ueberblick`.
+  Bilder `ui/img/quickstart/*.jpg` (1200×750, auch für den Schnell-Einstieg) erzeugt `scripts/willkommen_bilder.py` aus
+  einem Demo-Archiv ohne Privates (Teneriffa, Masca ohne Personen, Teufelsmauer). Neue Schnell-Einstiege `tourseite`,
+  `medien`. Test: `test_willkommen`.
+  **Schritt-Bilder:** `willkommen_bilder.py` Teil `schritte` (`RZ_WILLKOMMEN_NUR=schritte`, `RZ_DEMO_WIEDER=<demo>` nimmt
+  ein vorhandenes Demo-Archiv) nimmt je Schritt einen Ausschnitt mit `spot()` auf: SVG-Ebene mit Maske (Rest abgedunkelt)
+  und Leuchtring um die Ziele (JS-Ausdrücke, Element oder Liste = Vereinigung), Ausschnitt 16:10 um Ziel + Kontext,
+  DSF 2 → 720×450. Ergebnis `img/quickstart/<modul>-<n>.jpg`, `start-<n>.jpg`, `logbuch-frage.jpg`, `banner-neu/-karten.jpg`.
+  `quickstart.js` zeigt sie für `SCHRITT_BILDER` als Zeilen (Bild links, Text rechts) statt des einen großen Bildes, im
+  breiten Fenster: neu `openModal({ klasse })` — Zusatzklasse am `#modal`, nur solange dieser Dialog offen ist (beim
+  Schließen, `closeAllModals` und beim Zurückholen des Dialogs darunter zurückgesetzt). `app.js`: `_dialogBanner()` und
+  neues `_lernenFrageHtml()` (`.rz-lernen-frage`, Bild + „Geht anonym raus“/„Bleibt bei dir“).
+  **Bildpfade aus JS immer mit `window.__rzAssetBase`** — die App lädt `index.html` als Kopie aus dem Temp-Ordner
+  (`_prepare_html_with_cache_busting`), relative Pfade brechen dort; im Playwright-Test (lädt `ui/index.html` direkt)
+  fällt das nicht auf. `test_willkommen` G lädt deshalb die Kopie wie die App.
+- **„Neu in GPS Studio …“ + Logbuch-Frage (24.10.2026).** `app.js neueVersionZeigen(info)` im Boot (nur wenn
+  `onboarding_done`): `version_zuletzt` ≠ `APP_VERSION` → Dialog mit „Was ist neu?“ (`_updateWasIstNeu`, since = vorige
+  Version) und, solange `logbuch_lernen_gefragt` falsch ist, „Ja, anonym teilen“/„Nein, danke“; merkt danach die Version
+  (auch bei ×). Erststart: `_lernenFrageHtml("md-fr-lernen")` im Willkommen, `fertig()` speichert Haken, `gefragt` und die
+  Version. Nicht in Tests: `get_app_info().kein_willkommen` aus `RZ_KEIN_WILLKOMMEN` (gesetzt von `scripts/run_tests.py`
+  und `tests/szene_umgebung.py`) oder `window.__rzKeinPmBoot`. Test: `test_neu_in_version`.
+- **Logbuch lernt geteilt (24.10.2026).** `core/lernen.py`: `merkmale(punkte, t0, t1, wege, aktivitaet)`
+  → 26 Zahlen (`MERKMALE`: Dauer/Strecke log, Tempo Mittel/p10/p50/p90, Stillstand, Beschleunigung p90, Hm je km,
+  Steilheit p90, Punktabstand, Wegarten-Anteile, Tourgruppe one-hot) — keine Orte/Zeiten/Kennungen; `punkte_vorbereiten`
+  sortiert einmal je Tour (bisect je Abschnitt). Beispiele (`Api._lern_beispiele`): Bereiche mit `quelle == hand` und
+  `art_hand` (setzt `einteilung.bereich_aendern`, wenn `art` übergeben wird) bzw. ältere Handarbeit ohne Name/Notiz;
+  gemerkt in `lern_gesendet` (Schlüssel = Hash aus Tour/Bereich/Art, bleibt lokal). `Api.lernen_teilen()` sendet nur
+  mit `logbuch_lernen_teilen` (Einstellung, Standard aus), nach Art-Korrekturen gebündelt (`_lernen_spaeter`, 30 s) und
+  60 s nach dem Start; dort auch `lernen.modell_holen` (täglich, nur mit `update_check_enabled`). Modell: Softmax-
+  Regression (`trainieren`, numpy) als JSON; `logbuch.modell_anwenden` nur für `quelle auto` mit `geraten`/`unsicher`,
+  ohne `grund`, ab `SCHWELLE` 0,85 → `grund: "modell"`, weiter „vermutet“. Server: `scripts/lernen_server.py`
+  (`bauen` erzeugt `server/lernen/einsenden.php` aus `ARTEN`/`MERKMALE`, `hochladen`, `holen`, `modell`) — Annahme nur
+  bekannter Arten/Merkmale, max. 200 je Sendung, 30 Sendungen/Stunde je Anschluss (Hash aus IP + Tagessalz, 2 h),
+  Ablage `/_lernen_daten/<Monat>.jsonl` (per `.htaccess` gesperrt). Training/Veröffentlichen: `scripts/logbuch_lernen.py
+  [--veroeffentlichen]` mit Hürden (≥ 200 Beispiele, ≥ 3 Arten à 20, zurückgehaltene sichere Antworten ≥ 90 % richtig
+  bei ≥ 30 % Abdeckung). Test: `test_logbuch_lernen`. Datenschutzerklärung reisezoom.com §11 ergänzt (24.10.2026).
+- **Wegtyp unter dem Track (24.10.2026).** `core/wegtyp.py`: Proben alle 60 m (`proben_orte`), dazu
+  die nächste Linie ≤ 22 m (Zoom 12: 45 m) aus der Ebene `transportation` der OpenFreeMap-Vektorkacheln (eigener kleiner
+  MVT-/Protobuf-Leser `linien()`, keine Abhängigkeit). Klassen: autobahn (motorway/trunk), strasse, weg (track), pfad,
+  radweg (path/cycleway), faehre, bahn. Zoomstufe: die erste aus 14/12/10 mit ≤ 300 Kacheln (Schottland 5 900 km: Zoom 10, 201 Kacheln, ~20 s); in Zoom 10 zählen nur faehre/bahn (kleine Straßen fehlen dort). Proben tragen die Meter seit der vorigen; `anteile` gewichtet nach Strecke, Lücken über 300 m zählen als unbekannt; Fähre nur bis 60 km/h. Zwischenspeicher
+  `<_tilecache>/wegtyp/<Datenstand>/<z>/<x>/<y>.pbf`; Ergebnis je Tour in der Tabelle `logbuch_wege` (`lesen`/`merken`,
+  `VERSION`). TLS über `core.net.ssl_context()`. Regeln: `logbuch.wege_anwenden` (vor allen Tempo-Regeln, nur `quelle !=
+  hand`): ≥ 60 % Fährlinie → uebersetzen, ≥ 60 % Autobahn bei gehen/laufen/rad/unsicher → fahrt (sicher), unsicher mit
+  ≥ 50 % Radweg → rad (vermutet); `grund` und `wegtyp` (Anteile) stehen am Eintrag, spätere Rate-Regeln lassen `grund`
+  in Ruhe. `logbuch.eintraege(..., wege=)` an allen drei Stellen (`_logbuch_folge`, `logbuch_kurz`, `_logbuch_antwort`).
+  Brücken `logbuch_wege(path, neu)` (rechnet, merkt, `geaendert` = so viele Einträge mit anderer Art → Oberfläche liest
+  neu) und `logbuch_wege_stand(path)` ({fertig, gesamt} Kacheln für die Ladeanzeige). Tour-Seite: Zeile `.lba-nachladen`
+  (Ortsnamen → Sehenswürdigkeiten → Wege mit Zähler), Inspektor: Schritt im Hintergrund-Kasten. Test:
+  `test_logbuch_wegtyp` (Kachel-Fixtures `tests/daten/wegtyp`).
+- **Ein Logbuch für alles (24.10.2026).** Gemeinsam für Tour-Seite und GPX-Inspektor:
+  - `rzLogbuchAnsicht.menueEintraege(x, U)` baut das Eintrags-Menü (umbenennen mit „Meine Orte“-Haken, Notiz, bestätigen,
+    Art, Im Video, teilen, zusammenlegen, als eigene Tour, löschen); `U` = Umgebung der Ansicht: `aktion(label, was, params,
+    opt)` (→ `einteilung_aktion` + eigenes Rückgängig), `frage`, `liste`, optional `titel`, `karteZeigen`, `alsTour`,
+    `punktLoeschen`, `teilenStellen(x)`, `vorAlsTour(x)`, `hinten(x)`. Menüpunkt `{sym|symHtml, text, tu, aus, unter, art}`,
+    `{kopf}`, `"-"`; jede Ansicht zeigt ihn in ihrer Form (Tour-Seite `.lba-menue`, Inspektor `_lbMenue`/`.gpxi-lb-menue`).
+  - `rzLogbuchAnsicht.frageDialog(titel, wert, mehrzeilig, ortHaken, praefix)` — ein Dialog, Kennungen `<praefix>-frage…`
+    (`lba` / `gpxi-lb`). `bearbeitbar(x)`: Abschnitte und Punkte mit id; gelöscht werden Punkte außer Start/Ziel.
+  - `ui/js/logbuch_strahl.js` (`rzLogbuchStrahl`): `svgHtml(o)` zeichnet Tage · Bewegung · Höhenprofil (`profil` =
+    [[Zeit, Höhe]]) · Punkte · Achse, `extra(X, W)` für weitere Spuren, `kennung` für eindeutige Muster-IDs.
+    Der Inspektor ruft es in `_lbStrahlRender` (+ POI-, Eigene-, Befund-Spur, Cursor, Ziehen bleiben dort);
+    die Tour-Seite nimmt `einbauen(box, opt)` (Klick → `lb.waehlen`, Mausrad-Zoom, Doppelklick Tag/ganz). Profil der
+    Tour-Seite: `gpxinspect_load` im Hintergrund (`tourseite.js _strahlProfil`).
+  - **Eine Liste**: `rzLogbuchAnsicht.listeHtml(liste, d, c)` / `eintragHtml(x, c)` — Zeilen `.lba-eintrag`
+    (`data-lba-id` + für die Kopplung im Inspektor `data-lb`, `.lba-punkt`, `.lba-eigen`), Tagesabschnitte
+    `section.lba-tagblock` mit klebendem `.lba-tagkopf[data-lba-tagkopf]`. `c`: `orte`, `gewaehlt(id)`, `gewKlasse`
+    (Inspektor `ist-gewaehlt` wie Zeitstrahl/Karte), `details` (Hm, Tempo), `punktSymbol(p)`, `tagKlick`. Der Inspektor
+    (`_lbListeRender`) bindet Klick/⇧/⌘ (Mehrfachauswahl), „vermutet“ und Tageskopf (Zoom) selbst; sein helles Blatt
+    steht als `.gpxi-lb-liste .lba-*` in `modules/gpxinspect/ui/module.css` (Marc, 13.09.2026).
 - `modules/gpxinspect/ui/module.js`: `_lbSym(art)`, `_lbPSym(p)` (eigenes Symbol escaped, sonst Strich-Symbol), `_lbTitel(x)`
   (Titel mit `_lbOrte`, Format wie `logbuch_orte`). Ersetzt die Emojis aus `_LB_ICON` (bleibt nur als Rückfall, falls der
   Baustein fehlt) in Liste, Kopf-Chips, Menüs, Tabelle, Info-Kasten und Kartenmarken (`neu()` setzt jetzt `innerHTML` —
@@ -8305,4 +8389,47 @@ Sehenswürdigkeiten. Jetzt zuerst eigene Kacheln, Overpass nur, wo es keine gibt
   Übernachtung, alle Kästen in einer Anfrage; `logbuch_ansicht.js` ruft `logbuch_pois` nach dem Laden im Hintergrund;
   `pois_bewerten`: auf Wegen zu Fuß/Rad auch Rang ≤ 2 (Aussicht, Wasserfall, See, Leuchtturm), höchstens 3 je Abschnitt.
 - Tests: `test_ortsdaten`, `test_pois_lange_tour`.
+
+## Bessere Kartendarstellung — Farbkorrektur, Schatten, Dunst, Höchste Qualität, Sichtkurs (23.10.2026)
+
+Vorlage: Prototyp „GPS Studio Karten“ (three.js, Übergabe `UEBERGABE_WEB_PIPELINE.md` dort), übertragen auf die
+MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch gespiegelt; Vorschau = Render (Szene).
+
+- **Farbkorrektur** `ortho_grade` (0…100, Standard 70): `rz-mapadjust.js` — im bestehenden Leinwand-Durchgang
+  `rz-sharpen` (vor der ersten Nicht-Raster-Ebene, also nur Luftbild/Relief/Schatten) `GRADE_GLSL` = `grade()` des
+  Prototyps (Dunst 0,055, Belichtung 1,08, Tiefen +0,45, Grün-Vibrance 0,30, Wärme 0,02, Log-Kontrast 1,12 um 0,18,
+  Schulter ab 0,6), gerechnet in linearem Licht (Gamma 2,2), `u_grade` mischt. `rzApplyMapLook(map, sharp, haze, grade)`;
+  `_currentGrade()` liefert 0, wenn die Luftbild-Optik nicht sichtbar ist (Vektorstile bleiben unberührt).
+- **Schatten** `ortho_schatten` (0…100, Standard 55): `core/schatten.py` rechnet je Kachel (z8…14, darüber Eltern-
+  kachel vergrößert) aus Terrarium-Höhen der Geländequelle (Mapterhorn/AWS über `tileproxy.fetch_tile`) samt acht
+  Nachbarn einen Sonnenstrahl (155°/48°, Schritte +6 %, bis 2,5 km, weicher Rand 6 m) → RGBA-PNG (dunkel-kühl, Alpha =
+  Schattenanteil), Cache `<tilecache>/schatten/<VERSION>/z/x/y.png`. Weiche: `/tile/schatten/{z}/{x}/{y}`
+  (`tileproxy.SCHATTEN_ID`). `util.js` hängt Quelle/Ebene `rz-schatten` hinter `rz-hillshade` in den Luftbild-Stapel,
+  Deckkraft = Wert × `RZ_SCHATTEN_MAX` (0,85); live über `rzApplyRasterAdjust` (`adj.schatten`). Gerechnet wird seit
+  25.10.2026 nur die mittlere Kachel (`schatten_mitte`: Ausschnitte statt Index-Kopien, ~7 ms statt ~180 ms; das ganze
+  3×3-Raster hatte den Render bis 4 s je Bild warten lassen, `test_kachel_ausfall`). Die Kachelgröße bleibt fest 256
+  (Ausnahme in `test_kacheldichte`): weich, doppelte Dichte = vierfache Rechenarbeit.
+- **Dunst in der Ferne** `ferne_dunst` (0…100, Standard 35): `_applyFerne()` (module.js) setzt `map.setSky` mit
+  durchsichtigem Himmel (Sterne bleiben), `fog-color` hell-blaugrau, `fog-ground-blend` = 1 − 0,9·v. Aufgerufen in
+  `applyTerrain`; nicht bei Mapbox und transparentem Export.
+- **Höchste Qualität** `hohe_qualitaet` (Export-Dialog + Render-Abschnitt): `animator._render_ss(w, h, hq)` → 2,0
+  (4K: 1,5) statt 1,0/1,25; `szene._seite_vorbereiten` und `_grab_frame` lesen `cfg.hohe_qualitaet`. Der „Karte
+  glätten“-Weichzeichner bleibt an das 4K-Supersampling gebunden, nicht an diese Option.
+- **Sichtkurs** `core/sichtkurs.py`: 24 Richtungen × 80 Streckenpunkte × 28 Stützstellen gegen ein Höhenmosaik
+  (≤ 6×6 Kacheln, Überhöhung 1,3); unter den Richtungen ≥ beste − 0,03 gewinnt die nordnächste. `schnellvideo_vorschlag`
+  liefert `sichtkurs` + `kulisse_neigung` (50°); `schnellvideo.js kamerafahrt` setzt damit das Schlussbild (Intro bleibt
+  25° nach Norden). Nur neu erzeugte Kamerafahrten.
+- **Gelände z16**: `mapstyles.TERRAIN_PROXY_MAXZOOM = 16` (nur über die Weiche); `tileproxy._gelaende_vergroessert()`
+  rechnet z>15 aus der Elternkachel (bilinear, Terrarium neu kodiert), wenn Mapterhorn fehlt oder AWS-only gilt.
+- **Leuchtpunkt** `marker_dot_style = "leucht"` (24.10.2026): drei Kreis-Ebenen `anim-dot-licht` (Lichtfleck,
+  36·gr), `anim-dot-glow` (15·gr, blur 0,8), `anim-dot-core` (5·gr, #fff4e0, Rand = Linienfarbe). Atmen: `_dotPuls(f)`
+  liest die Videozeit `window.__rzVideoSek` (gesetzt in `scrubPreview` und in der Wiedergabe-Schleife über
+  `_sgZeitAusAnker`, also im Render dieselbe Zeit) — steht `f` länger als 0,8 s (Toleranz 0,02), blendet der Puls in 0,6 s
+  ein, Takt 1,6 s; Feature-Eigenschaft `puls` treibt Radius/Deckkraft. Prüfstand `window.__rzDotPuls(f)`. Schweif beim
+  Leuchtpunkt im Bildmaß: `pct · 40 px` in Meter je Pixel des aktuellen Zooms umgerechnet.
+- **Linien-Look „leuchtspur“**: `LINIEN_LOOKS.leuchtspur` mit `halo/kern = 0` (Lichthof und Kern bleiben aus,
+  `applyLinienLook` prüft das) und `vorwahl` = Element-IDs → Werte, die der Panel-Handler einmal setzt
+  (Leuchtpunkt, Schweif 6, Kontur 1,5 / #10302c). `currentKonturBreite()` nullt die Kontur nur noch bei Looks mit Halo.
+- Nicht übernommen (bewusst): Track als 3D-Band (später, wenn überhaupt — Marc), eigene Kachel-Stufenlogik (macht
+  MapLibre), Wolken, Foto-Look.
 

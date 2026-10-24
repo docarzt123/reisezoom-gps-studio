@@ -111,6 +111,7 @@
         <b class="ts-titel">${esc(tour.name || "")}</b><span class="ts-unter muted"></span><span class="ts-zahlen"></span></div>
 
       <div class="ts-karte" id="ts-karte"><div class="ts-laden"><span class="spinner"></span> ${esc(T("tourseite.laedt", "Tour und Medien werden geladen …"))}</div></div>
+      <div class="ts-strahl" id="ts-strahl" hidden></div>
       <div class="ts-streifen" id="ts-streifen"></div>`;
     main.appendChild(seite);
     main.classList.add("ts-aktiv");
@@ -262,6 +263,8 @@
       <div class="ts-aktionen">
         <button type="button" class="btn btn-primary btn-sm" id="ts-video">${I("clapperboard")} ${esc(T("tourseite.video", "Video"))} ▾</button>
         <button type="button" class="btn btn-sm" id="ts-karte-knopf">${I("map")} ${esc(T("tourseite.karte", "Karte als Bild"))}</button>
+        <button type="button" class="btn btn-sm" id="ts-inspektor">${I("search")} ${esc(T("tourseite.inspektor", "Im Inspektor"))}</button>
+        <button type="button" class="btn btn-sm" id="ts-oeffnen-in">${I("external-link")} ${esc(T("tourseite.oeffnen_in", "Öffnen in"))} ▾</button>
         <button type="button" class="btn btn-sm" id="ts-export">${I("share")} ${esc(T("tourseite.export", "Exportieren …"))}</button>
         <button type="button" class="btn btn-sm" id="ts-plus">＋ ${esc(T("tourseite.plus_tag", "Medien vom selben Tag …"))}</button>
         <button type="button" class="btn btn-sm" id="ts-auto" title="${esc(T("tourseite.auto_tip", "Alle Fotos der Tour automatisch aufhübschen (Ton und Weißabgleich je Foto) — Originale bleiben, nachher einzeln nacharbeiten"))}">${I("sparkles")} ${esc(T("tourseite.auto", "Auto für alle Fotos"))}</button>
@@ -270,6 +273,17 @@
       <div class="lib-hint ts-hinweis">${esc(T("tourseite.hinweis", "Zur Tour gehört, was während der Tour aufgenommen wurde und höchstens 2 km vom Track entfernt liegt (ohne Koordinate zählt die Zeit). Rechtsklick auf ein Bild nimmt es heraus, „＋ Medien vom selben Tag“ nimmt weitere dazu — das gilt dann überall in GPS Studio."))}</div>`;
     Z.links.querySelector("#ts-video").onclick = (e) => _videoMenue(e.currentTarget);
     Z.links.querySelector("#ts-karte-knopf").onclick = () => _oeffnenIn("tourmap");
+    // 24.10.2026 (Marc: „auf der Tourseite fehlt die Möglichkeit, die Tour im Inspektor zu öffnen usw.“) — dieselben
+    // Werkzeuge wie in der Detailspalte des Archivs
+    Z.links.querySelector("#ts-inspektor").onclick = () => _oeffnenIn("gpxinspect");
+    Z.links.querySelector("#ts-oeffnen-in").onclick = (e) => _menue(e.currentTarget, [
+      { text: "🔍 " + T("library.open_inspect", "Inspektor"), tun: () => _oeffnenIn("gpxinspect") },
+      { text: "🎞 " + T("library.d_animator", "Animator"), tun: () => _oeffnenIn("animator") },
+      { text: "🗺 " + T("library.d_tourmap", "Tour-Map"), tun: () => _oeffnenIn("tourmap") },
+      { text: "📈 " + T("library.open_height", "Daten-Animator"), tun: () => _oeffnenIn("heightanim") },
+      { text: "🌐 " + T("library.d_webkarte", "Web-Karte"), tun: () => _oeffnenIn("webkarte") },
+      { text: "📷 " + T("library.d_geotagger", "Geotagger"), tun: () => _oeffnenIn("geotagger") },
+    ]);
     Z.links.querySelector("#ts-export").onclick = (e) => {
       const ex = window.rzArchivExport; if (!ex) return;
       const m = (Z.daten.medien || []).map(x => x.path);
@@ -690,14 +704,48 @@
       Z.lb = window.rzLogbuchAnsicht.zeichnen(Z.lbBox, {
         path: Z.tour.path,
         name: (Z.daten && Z.daten.tour && _name(Z.daten.tour)) || Z.tour.name || "",   // für den Export (Titel, Dateiname)
-        onDaten: () => { if (Z === zust) _lbPinsSetzen(); },
-        onTag: () => { if (Z === zust) _lbPinsSetzen(Z.reiter === "logbuch"); },
-        onWahl: (x) => { if (Z === zust) _lbZeigen(x); },
+        onDaten: () => { if (Z === zust) { _lbPinsSetzen(); _strahl(); } },
+        onTag: () => { if (Z === zust) { _lbPinsSetzen(Z.reiter === "logbuch"); if (Z.strahl) Z.strahl.render(); } },
+        onWahl: (x) => { if (Z === zust) { _lbZeigen(x); if (Z.strahl) Z.strahl.render(); } },
         // 16.10.2026 — nach Umbenennen/Art ändern/Rückgängig auch die Kurzfassung links („2 h Fahrt · 1 Wanderung“) neu holen
         onGeaendert: () => { if (Z === zust) _logbuch(Z.tour.path); },
       });
+      // 24.10.2026 (Klicktest: beim zweiten Öffnen derselben Tour fehlte der Zeitstrahl) — die gemerkte Fassung meldet
+      // `onDaten` schon in `zeichnen`, bevor Z.lb gesetzt ist; ist die frische Fassung gleich, kommt keine zweite Meldung.
+      _lbPinsSetzen(); _strahl();
     }
     if (Z.lbBox.parentNode !== det) { det.hidden = false; det.innerHTML = ""; det.appendChild(Z.lbBox); }
+  }
+  // 24.10.2026 (Marc: „ein Logbuch für alles … ja, auch auf die Tourseite“) — der Zeitstrahl des Inspektors unter der
+  // Karte (ui/js/logbuch_strahl.js): Klick wählt den Eintrag (Liste und Karte folgen), Mausrad zoomt, Doppelklick auf
+  // einen Tag zeigt nur ihn. Das Höhenprofil kommt nach, sobald die Trackpunkte gelesen sind.
+  function _strahl() {
+    if (!Z || Z.tour.reise || !Z.lb || !window.rzLogbuchStrahl) return;
+    const box = Z.seite.querySelector("#ts-strahl"); if (!box) return;
+    const d = Z.lb.daten();
+    box.hidden = !d || !(d.eintraege || []).length;
+    if (box.hidden) return;
+    if (Z.strahl) { Z.strahl.render(); return; }
+    const zust = Z, lb = Z.lb;
+    Z.strahl = window.rzLogbuchStrahl.einbauen(box, {
+      daten: () => lb.daten(),
+      eintraege: () => (lb.daten() || {}).eintraege || [],
+      punkte: () => ((lb.daten() || {}).punkte || []).filter(p => p.art !== "poi" || p.name),
+      profil: () => zust.profilPaare || null,
+      gewaehlt: () => lb.auswahl(),
+      tagAktiv: () => lb.tag(),
+      onWahl: (id) => lb.waehlen(id),
+    });
+    setTimeout(() => { if (Z === zust) _strahlProfil(zust); }, 0);
+    setTimeout(() => { try { if (Z === zust && Z.map) Z.map.resize(); } catch (_) {} }, 30);
+  }
+  async function _strahlProfil(zust) {
+    const r = await api().gpxinspect_load(zust.tour.path).catch(() => null);   // warte-ok: der Strahl steht schon, das Profil kommt nach
+    if (Z !== zust || !r || !r.ok || !r.has_ele || !r.has_time) return;
+    const pts = r.points || [], schritt = Math.max(1, Math.floor(pts.length / 900)), paare = [];
+    for (let i = 0; i < pts.length; i += schritt) { const q = pts[i]; if (q.time && q.ele != null) paare.push([Date.parse(q.time) / 1000, q.ele]); }
+    zust.profilPaare = paare;
+    if (zust.strahl) zust.strahl.render();
   }
   function _lbPinsWeg() {
     if (!Z) return;

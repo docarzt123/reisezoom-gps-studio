@@ -452,48 +452,16 @@
 }
 .gpxi-lb-liste::-webkit-scrollbar { width: 8px; }
 .gpxi-lb-liste::-webkit-scrollbar-thumb { background: #c3c9d4; border-radius: 4px; }
-.gpxi-lb-tag {
-  position: sticky; top: 0; z-index: 1;
-  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
-  padding: 5px 12px 4px; margin-top: 0;
-  background: #d5dae2; border-bottom: 1px solid #8d95a3; border-top: 1px solid #8d95a3;
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-dim);
-  cursor: zoom-in;
-}
-.gpxi-lb-tag:hover { color: var(--accent); }
-.gpxi-lb-tag-meta { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.gpxi-lb-zeile {
-  display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: center;
-  padding: 5px 10px 5px 10px; margin: 0; border-radius: 0; cursor: pointer;
-  border-left: 4px solid var(--c, transparent);
-  border-bottom: 1px solid #b8bfcb;
-  background: #ffffff;
-  transition: background .1s;
-}
-.gpxi-lb-zeile:nth-child(even) { background: #eef0f4; }
-.gpxi-lb-zeile:hover { background: #e0e5ec; }
-.gpxi-lb-zeile.ist-gewaehlt, .gpxi-lb-zeile.ist-gewaehlt:nth-child(even) { background: color-mix(in srgb, var(--c, #ff6b35) 24%, #ffffff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, #ff6b35) 65%, transparent); }
-.gpxi-lb-zeile.ist-punkt { padding-top: 2px; padding-bottom: 2px; border-left-color: transparent; }
-.gpxi-lb-zeile.ist-punkt .gpxi-lb-name { font-weight: 500; color: var(--text-dim); font-size: 12px; }
-.gpxi-lb-zeile.ist-punkt.ist-gewaehlt { --c: #c084fc; }
-.gpxi-lb-icon { font-size: 15px; text-align: center; line-height: 1; }
-.gpxi-lb-text { min-width: 0; }
-.gpxi-lb-name { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gpxi-lb-name small { font-weight: 500; color: var(--text-muted); margin-left: 4px; }
-.gpxi-lb-meta { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gpxi-lb-badge { display: inline-block; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; padding: 0 5px; border-radius: 4px; background: var(--bg-4); color: var(--text-dim); margin-left: 5px; vertical-align: 1px; }
 .gpxi-lb-leer { padding: 14px 12px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
 /* 15.09.2026 — Quellenleiste gilt jetzt für alle App-Karten: ui/css/app.css `.rz-quellenleiste`. */
 
 /* ── Logbuch Stufe 2 — Bearbeiten (13.09.2026) ───────────────────────────── */
-.gpxi-lb-zeile { grid-template-columns: 22px 1fr auto; }
 .gpxi-lb-mehr { opacity: 0; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--text-muted);
   font-size: 15px; line-height: 1; padding: 1px 6px; cursor: pointer; }
-.gpxi-lb-zeile:hover .gpxi-lb-mehr, .gpxi-lb-zeile.ist-gewaehlt .gpxi-lb-mehr { opacity: 1; }
 .gpxi-lb-mehr:hover { background: rgba(0,0,0,.08); border-color: var(--border); color: var(--text); }
 .gpxi-lb-notiz { font-size: 11px; color: var(--text-dim); font-style: italic; white-space: pre-wrap; margin-top: 2px; line-height: 1.35; }
-.gpxi-lb-zeile.ist-eigen .gpxi-lb-name { color: var(--text); font-weight: 600; }
 .gpxi-lb-knopf.ist-an { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .gpxi-lb-knopf:disabled { opacity: .45; cursor: default; }
 .gpxi-lb-menue {
@@ -621,10 +589,47 @@
 
 /* 11.10.2026 — Strich-Symbole aus dem Logbuch-Baustein */
 .gpxi-lb-blsym { color: #fff; pointer-events: none; }
-.gpxi-lb-icon svg, .gpxi-lb-chip svg, .gpxi-lb-marke svg, .gpxi-lbt-art svg, .gpxi-lb-menue-symbol svg, .gpxi-lb-info-sym svg { vertical-align: -2px; }
+.gpxi-lb-chip svg, .gpxi-lb-marke svg, .gpxi-lbt-art svg, .gpxi-lb-menue-symbol svg, .gpxi-lb-info-sym svg { vertical-align: -2px; }
 .gpxi-lb-marke { display: flex; align-items: center; justify-content: center; }
 
 /* 15.10.2026 — Mehrfachauswahl im Logbuch: Leiste über der Liste */
 .gpxi-lb-mehrfach { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 0 6px; border-radius: 8px;
   background: rgb(var(--accent-rgb) / .10); border: 1px solid rgb(var(--accent-rgb) / .35); font-size: 12px; }
 .gpxi-lb-mehrfach > span { flex: 1; }
+/* 24.10.2026 — der Tag, der im Logbuch gerade oben steht (Tour-Seite, gemeinsamer Zeitstrahl ui/js/logbuch_strahl.js) */
+.gpxi-lb-tagblock.ist-aktiv rect { stroke: var(--accent, #2dd4bf); stroke-width: 1.5; }
+/* 24.10.2026 — „Ein Logbuch für alles“: die Liste kommt aus ui/js/logbuch_ansicht.js (.lba-*, wie auf der Tourseite).
+   Hier im Inspektor bleibt sie das helle Blatt (Marc, 13.09.2026: „abwechselnd grau/weiß und durch dunkle Linien
+   getrennt“); die Tagesköpfe kleben je Tag oben, bis der nächste Tag sie wegschiebt. */
+.gpxi-lb-liste .lba-liste { display: block; }
+.gpxi-lb-liste .lba-tagblock { display: block; }
+.gpxi-lb-liste .lba-tagkopf {
+  position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  padding: 5px 12px 4px; background: #d5dae2; border: 0; border-bottom: 1px solid #8d95a3; border-top: 1px solid #8d95a3;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-dim); cursor: zoom-in;
+}
+.gpxi-lb-liste .lba-tagkopf b { font-weight: 700; }
+.gpxi-lb-liste .lba-tagkopf:hover { color: var(--accent); }
+.gpxi-lb-liste .lba-tagkopf span { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.gpxi-lb-liste .lba-eintrag {
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 5px 10px; margin: 0; border-radius: 0;
+  border-left: 4px solid var(--c, transparent); border-bottom: 1px solid #b8bfcb; background: #ffffff; outline: none; scroll-margin-top: 28px;
+}
+.gpxi-lb-liste .lba-eintrag:nth-child(even) { background: #eef0f4; }
+.gpxi-lb-liste .lba-eintrag:hover { background: #e0e5ec; }
+.gpxi-lb-liste .lba-eintrag.ist-gewaehlt, .gpxi-lb-liste .lba-eintrag.ist-gewaehlt:nth-child(even) {
+  background: color-mix(in srgb, var(--c, #ff6b35) 24%, #ffffff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, #ff6b35) 65%, transparent); }
+.gpxi-lb-liste .lba-punkt { padding-top: 2px; padding-bottom: 2px; border-left-color: transparent; }
+.gpxi-lb-liste .lba-punkt .lba-kopf b { font-weight: 500; color: var(--text-dim); font-size: 12px; }
+.gpxi-lb-liste .lba-punkt.ist-gewaehlt { --c: #c084fc; }
+.gpxi-lb-liste .lba-symbol { text-align: center; line-height: 1; margin: 0; }
+.gpxi-lb-liste .lba-kopf { font-size: 12.5px; gap: 8px; }
+.gpxi-lb-liste .lba-kopf b { font-weight: 600; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gpxi-lb-liste .lba-zeit { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.gpxi-lb-liste .lba-meta { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0; }
+.gpxi-lb-liste .lba-badge { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; padding: 0 5px; border-radius: 4px; background: var(--bg-4); color: var(--text-dim); vertical-align: 1px; }
+.gpxi-lb-liste .lba-notiz { font-size: 11px; color: var(--text-dim); font-style: italic; white-space: pre-wrap; margin-top: 2px; border-left: 0; padding-left: 0; }
+.gpxi-lb-liste .lba-mehr { opacity: 0; color: var(--text-muted); }
+.gpxi-lb-liste .lba-eintrag:hover .lba-mehr, .gpxi-lb-liste .lba-eintrag.ist-gewaehlt .lba-mehr { opacity: 1; }
+.gpxi-lb-liste .lba-mehr:hover { background: rgba(0,0,0,.08); color: var(--text); }
+.gpxi-lb-liste .lba-leer { padding: 14px 12px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }

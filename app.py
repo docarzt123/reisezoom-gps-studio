@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.809"
+APP_VERSION = "0.9.822"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -663,6 +663,10 @@ DEFAULT_SETTINGS = {
     "last_gpx_path": "",
     # v0.9.280 (Nutzer-Wunsch): In-App-Update-Check.
     "update_check_enabled": True,    # beim Start GitHub-Releases prüfen
+    "logbuch_lernen_teilen": False,  # 24.10.2026 (core/lernen) — Logbuch-Korrekturen anonym teilen: nur mit Zustimmung
+    "logbuch_lernen_gefragt": False, # … einmal gefragt (Erststart oder „Neu in Version …“) — danach nicht wieder
+    "version_zuletzt": "",           # 24.10.2026 — zuletzt gestartete Version: neue → einmal „Neu in GPS Studio …“
+    "willkommen_beim_start": False,  # 24.10.2026 — Überblick (ui/js/willkommen.js) bei jedem Start; nach dem Erststart an
     "update_last_check": "",         # ISO-Zeit der letzten Netzabfrage (Throttle)
     "update_latest_known": "",       # zuletzt gesehene Release-Version (Cache)
     "update_dismissed_version": "",  # vom User weggeklickte Version (nicht nochmal nerven)
@@ -4900,6 +4904,7 @@ class Api:
                 # Oberfläche zeigt den Grund aus `bibliothek_status()`.
                 raise RuntimeError("bibliothek-nicht-bereit")
             self._lib_conn = clib.open_db(LIBRARY_DB)
+            self._lib_datei = (self._lib_conn, Path(LIBRARY_DB))   # 24.10.2026 — für die Leseverbindung, ohne Sperre
             clib.gemeinsam_merken(self._lib_conn)   # 15.10.2026 — nur sie braucht die Sperre (core/library.sperre_fuer)
             self._lib_startup_jobs()
         return self._lib_conn
@@ -4945,6 +4950,42 @@ class Api:
                 log.exception("library auto places")
 
         threading.Thread(target=worker, daemon=True, name="library-startup").start()
+
+        # 24.10.2026 (Marc: Archiv zu langsam) — Bestandszahlen und Ordnerbaum der Medien vorwärmen: der erste Durchgang
+        # über die Fotos liest die Tabelle von der Platte (kalt 2,8 s bei 467 000 Fotos). Danach liegt beides gemerkt
+        # bereit, und der erste Klick auf „Medien“ wartet nicht. Auf der Leseverbindung, ohne die gemeinsame Sperre.
+        def vorwaermen():
+            time.sleep(3)
+            try:
+                lc = self._lese_verbindung()
+                with self._lese_sperre_fuer(lc):
+                    if not lc.execute("SELECT 1 FROM fotos LIMIT 1").fetchone():
+                        return
+                t0 = time.perf_counter()
+                self._fotos_stand_kurz()
+                self.fotos_ordnerbaum()
+                log.info("fotos: vorgewärmt in %.0f ms", (time.perf_counter() - t0) * 1000)
+            except Exception as e:  # noqa: BLE001 — nur Vorarbeit; der Klick rechnet sonst selbst
+                log.debug("fotos vorwärmen: %s", e)
+
+        threading.Thread(target=vorwaermen, daemon=True, name="fotos-vorwaermen").start()
+
+        # 24.10.2026 (core/lernen) — eine Minute nach dem Start: gelerntes Modell holen (höchstens einmal am Tag,
+        # nur wenn die App überhaupt ins Netz darf — Update-Prüfung an) und neue Korrekturen teilen (nur mit Zustimmung).
+        def lernen_start():
+            time.sleep(60)
+            try:
+                from core import lernen as cler
+                st = _load_settings()
+                if st.get("update_check_enabled", True):
+                    cler.modell_holen(APP_SUPPORT / "lernen")
+                    self._lern_modell_cache = None
+                if st.get("logbuch_lernen_teilen", False):
+                    self.lernen_teilen()
+            except Exception as e:  # noqa: BLE001
+                log.debug("lernen beim Start: %s", e)
+
+        threading.Thread(target=lernen_start, daemon=True, name="logbuch-lernen").start()
 
     def library_folders(self) -> dict:
         try:
@@ -5493,8 +5534,8 @@ class Api:
             # die Oberfläche sagt es dazu (Marc, 13.09.2026).
             liste = cfotos.ordner_liste(conn)          # sperrt selbst nur um die Datenbank-Teile (Audit B-3)
             with clib._DB_LOCK:
-                res = {"ok": True, "ordner": liste, "stand": self._fotos_stand_kurz(conn),
-                       "nachschau": cfotos.letzte_nachschau(conn)}
+                nachschau = cfotos.letzte_nachschau(conn)
+            res = {"ok": True, "ordner": liste, "stand": self._fotos_stand_kurz(), "nachschau": nachschau}
             self._fotos_merken("ordner", {k: res[k] for k in ("ordner", "stand", "nachschau")})
             return res
         except Exception as e:
@@ -6367,12 +6408,58 @@ class Api:
             log.exception("fotos_datumsbaum")
             return {"ok": False, "error": str(e), "tage": []}
 
+    def _lese_verbindung(self):
+        """24.10.2026 (Marc: „im Archiv hin und her klicken dauert alles viel zu lang“) — zweite, nur lesende Verbindung
+        für lange Zählungen. Der Ordnerbaum brauchte bei 467 000 Fotos 2–3 s und hielt dabei die gemeinsame Sperre:
+        Fotoliste, Filter und Tourzahlen warteten so lange. WAL liest parallel; eine eigene Sperre reiht nur die
+        Aufrufe auf DIESER Verbindung. Wird die Hauptverbindung neu geöffnet (anderes Archiv, Umzug), folgt sie."""
+        haupt = self._lib()
+        alt = getattr(self, "_lese_conn", None)
+        if alt is not None and alt[0] is haupt:
+            return alt[1]
+        # Datei der Hauptverbindung: gemerkt beim Öffnen in _lib(); sonst (Tests setzen eigene) bei ihr nachgefragt —
+        # dann unter ihrer Sperre. Ohne Datei (im Speicher) bleibt es die Hauptverbindung.
+        # Reihenfolge der Sperren immer _DB_LOCK → _lese_sperre, nie umgekehrt (sonst Verklemmung beim ersten Öffnen).
+        gemerkt = getattr(self, "_lib_datei", None)
+        if gemerkt and gemerkt[0] is haupt:
+            datei = str(gemerkt[1])
+        else:
+            with clib._DB_LOCK:
+                datei = next((r[2] for r in haupt.execute("PRAGMA database_list") if r[1] == "main"), "")
+        with self._lese_sperre:
+            alt = getattr(self, "_lese_conn", None)
+            if alt is None or alt[0] is not haupt:
+                if alt is not None and alt[1] is not alt[0]:
+                    try:
+                        alt[1].close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                self._lese_conn = (haupt, clib.open_db_lesend(Path(datei)) if datei else haupt)
+            return self._lese_conn[1]
+
+    def _lese_sperre_fuer(self, conn):
+        """Die Sperre, unter der `conn` (aus _lese_verbindung) benutzt wird."""
+        return clib._DB_LOCK if conn is getattr(self, "_lib_conn", None) else self._lese_sperre
+
+    _lese_sperre = threading.RLock()
+
     def fotos_ordnerbaum(self, filter: dict = None) -> dict:
-        """04.10.2026 — Verzeichnisse mit Anzahl für den Baum „Nach Ordner" in der Foto-Seitenleiste."""
+        """04.10.2026 — Verzeichnisse mit Anzahl für den Baum „Nach Ordner" in der Foto-Seitenleiste.
+        24.10.2026 — ohne die gemeinsame Sperre auf der Leseverbindung; gemerkt, bis sich das Archiv ändert
+        (`data_version` dieser Verbindung wächst mit jedem Schreiben der anderen)."""
         try:
-            res = cfotos.ordnerbaum(self._lib(), filter or {})
+            conn = self._lese_verbindung()
+            with self._lese_sperre_fuer(conn):
+                schl = (json.dumps(filter or {}, sort_keys=True), conn.execute("PRAGMA data_version").fetchone()[0])
+                gemerkt = getattr(self, "_ordnerbaum_gemerkt", None)
+                frisch = not (gemerkt and gemerkt[0] == schl)
+                if frisch:
+                    res = cfotos.ordnerbaum(conn, filter or {})
+                    self._ordnerbaum_gemerkt = (schl, dict(res))
+                else:
+                    res = dict(gemerkt[1])
             res["ok"] = True
-            if not filter:
+            if not filter and frisch:
                 self._fotos_merken("ordnerbaum", {"wurzeln": res.get("wurzeln"), "verz": res.get("verz")})
             return res
         except Exception as e:
@@ -6394,22 +6481,26 @@ class Api:
             log.exception("fotos_punkte")
             return {"ok": False, "error": str(e), "punkte": []}
 
-    def _fotos_stand_kurz(self, conn) -> dict:
+    def _fotos_stand_kurz(self, conn=None) -> dict:
         """Bestandszahlen, gemerkt solange sich die Datenbank nicht geändert hat (06.10.2026): beim Öffnen der
         Foto-Ansicht fragen Ordnerliste und Filterwerte gleichzeitig danach — ein Durchgang über den ganzen Bestand
         reicht. `data_version` ändert sich mit jedem Schreiben ANDERER Verbindungen (Einlesen), `total_changes` mit
-        den eigenen. Aufrufer hält _DB_LOCK."""
-        try:
-            schl = (str(BIB), conn.execute("PRAGMA data_version").fetchone()[0], conn.total_changes)
-        except Exception:  # noqa: BLE001
-            schl = None
-        alt = getattr(self, "_stand_merk", None)
-        if schl and alt and alt[0] == schl:
-            return dict(alt[1])
-        st = cfotos.stand(conn)
-        if schl:
-            self._stand_merk = (schl, dict(st))
-        return st
+        den eigenen.
+        24.10.2026 — auf der Leseverbindung, ohne die gemeinsame Sperre: der Durchgang dauert kalt 2,8 s (467 000 Fotos),
+        so lange wartete sonst das Fotoraster. `conn` wird nicht mehr benutzt."""
+        conn = self._lese_verbindung()
+        with self._lese_sperre_fuer(conn):
+            try:
+                schl = (str(BIB), conn.execute("PRAGMA data_version").fetchone()[0], conn.total_changes)
+            except Exception:  # noqa: BLE001
+                schl = None
+            alt = getattr(self, "_stand_merk", None)
+            if schl and alt and alt[0] == schl:
+                return dict(alt[1])
+            st = cfotos.stand(conn)
+            if schl:
+                self._stand_merk = (schl, dict(st))
+            return st
 
     def fotos_filterwerte(self) -> dict:
         try:
@@ -6417,8 +6508,8 @@ class Api:
             # 06.10.2026 — unter der Bibliotheks-Sperre: läuft jetzt gleichzeitig mit fotos_ordner auf derselben
             # Verbindung (zwei Fäden, eine Verbindung = „sqlite3.InterfaceError: bad parameter or other API misuse").
             with clib._DB_LOCK:
-                res = {"ok": True, "kameras": cfotos.kameras(conn),
-                       "jahre": cfotos.jahre(conn), "stand": self._fotos_stand_kurz(conn)}
+                res = {"ok": True, "kameras": cfotos.kameras(conn), "jahre": cfotos.jahre(conn)}
+            res["stand"] = self._fotos_stand_kurz()   # 24.10.2026 — außerhalb der Sperre (Leseverbindung)
             self._fotos_merken("werte", {k: res[k] for k in ("kameras", "jahre", "stand")})
             return res
         except Exception as e:
@@ -10561,6 +10652,7 @@ class Api:
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
             map_smoothing=float(params.get("map_smoothing", 1.3)),
+            hohe_qualitaet=bool(params.get("hohe_qualitaet", False)),
             ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
             ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
             ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
@@ -13690,6 +13782,8 @@ class Api:
             "name": APP_NAME,
             "edition": APP_EDITION,   # v0.9.331 — "full" | "geotagger" (Frontend-Gating)
             "version": APP_VERSION,
+            # 24.10.2026 — Tests: kein „Neu in Version …“-Dialog beim Start (scripts/run_tests.py, tests/szene_umgebung.py)
+            "kein_willkommen": (os.environ.get("RZ_KEIN_WILLKOMMEN") or "").strip() not in ("", "0"),
             "bauzeit": BAUZEIT,
             "python": sys.version.split()[0],
             "app_support": str(APP_SUPPORT),
@@ -14177,12 +14271,15 @@ class Api:
                         return {"ok": False, "error": _ui_t()("error.eintrag_ohne_kennung", "Eintrag ohne Kennung")}
                     ceint.bereich_aendern(conn, eid, q.get("bids") or str(q["bid"]),
                                           **{k: q[k] for k in ("art", "name", "anzeige", "notiz") if k in q})
+                    if q.get("art"):
+                        self._lernen_spaeter()     # 24.10.2026 (core/lernen) — nur wenn Teilen an ist, gebündelt
                 elif aktion == "bestaetigen":      # 14.09.2026: vermutete Arten festschreiben (ein ⌘Z-Schritt)
                     teile = [x for x in (q.get("teile") or []) if x.get("bids") and x.get("art")]
                     if not teile:
                         return {"ok": False, "error": _ui_t()("error.eintrag_ohne_kennung", "Eintrag ohne Kennung")}
                     for x in teile:
                         ceint.bereich_aendern(conn, eid, [str(b_) for b_ in x["bids"]], art=str(x["art"]))
+                    self._lernen_spaeter()
                 elif aktion == "punkt":            # Logbuch §68 Q12: eigener Punkt
                     ceint.punkt_setzen(conn, eid, float(q["t"]), str(q.get("art") or "punkt"),
                                        str(q.get("name") or ""), q.get("lat"), q.get("lon"), q.get("ele"))
@@ -14346,8 +14443,135 @@ class Api:
         tage = [b for b in (tage_e or {}).get("bereiche", []) if b.get("art") == "tag"]
         einst = self._logbuch_einstellungen(tour)["wirksam"]
         lb = clb.eintraege(bew["bereiche"], pts, aktivitaet=(t or {}).get("activity") or "", tage=tage,
-                           einstellungen=einst)
-        return {"tour": tour, "t": t, "pts": pts, "bew": bew, "lb": lb, "einst": einst}
+                           einstellungen=einst, wege=self._logbuch_wege_proben(tour), modell=self._lern_modell())
+        return {"tour": tour, "t": t, "pts": pts, "bew": bew, "lb": lb, "einst": einst, "tage": tage}
+
+    def _logbuch_wege_proben(self, tour: str):
+        """24.10.2026 — gemerkte Wegklassen unter dem Track (core/wegtyp), sonst None. Nur Datenbank."""
+        from core import wegtyp as cwt
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                d = cwt.lesen(conn, tour)
+            return (d or {}).get("proben") or None
+        except Exception as e:  # noqa: BLE001
+            log.debug("wegtyp lesen: %s", e)
+            return None
+
+    # ── Logbuch lernt aus Korrekturen (24.10.2026, core/lernen) ───────────────────────────────────
+    def _lern_beispiele(self, nur_neue: bool = True) -> list:
+        """Je Abschnitt, dessen Art von Hand gesetzt oder bestätigt ist: Merkmale (nur Zahlen) + Art. Ältere
+        Korrekturen ohne `art_hand`: Handarbeit ohne eigenen Namen und ohne Notiz gilt als Art-Korrektur."""
+        from core import lernen as cler, wegtyp as cwt
+        conn = self._lib()
+        with clib._DB_LOCK:
+            zeilen = conn.execute("SELECT tour, bereiche FROM einteilungen WHERE art = 'bewegung'").fetchall()
+            schon = cler.gesendet(conn) if nur_neue else set()
+        raus = []
+        for tour, roh in zeilen:
+            try:
+                bereiche = json.loads(roh or "[]")
+            except ValueError:
+                continue
+            hand = [b for b in bereiche if b.get("quelle") == "hand" and float(b.get("t1") or 0) > float(b.get("t0") or 0)
+                    and cler.art_ziel(b.get("art")) and (b.get("art_hand") or (not b.get("name") and not b.get("notiz")))]
+            hand = [b for b in hand if cler.schluessel(tour, str(b.get("id")), str(b.get("art"))) not in schon]
+            if not hand:
+                continue
+            with clib._DB_LOCK:
+                z = conn.execute("SELECT path, activity FROM tracks WHERE tour_id = ? OR geo_hash = ? LIMIT 1", (tour, tour)).fetchone()
+            if not z or not os.path.exists(z[0]):
+                continue
+            pts = self._logbuch_punkte(z[0])
+            proben = self._logbuch_wege_proben(tour)
+            for b in hand:
+                wa = cwt.anteile(proben, float(b["t0"]), float(b["t1"])) if proben else None
+                m = cler.merkmale(pts, float(b["t0"]), float(b["t1"]), wa, z[1] or "")
+                if m:
+                    raus.append({"schluessel": cler.schluessel(tour, str(b.get("id")), str(b.get("art"))),
+                                 "art": cler.art_ziel(b.get("art")), "merkmale": m})
+        return raus
+
+    def lernen_teilen(self, erzwingen: bool = False) -> dict:
+        """Neue Beispiele senden — nur, wenn die Einstellung `logbuch_lernen_teilen` an ist. → {ok, gesendet}."""
+        from core import lernen as cler
+        try:
+            if not _load_settings().get("logbuch_lernen_teilen", False) and not erzwingen:
+                return {"ok": True, "aus": True, "gesendet": 0}
+            bs = self._lern_beispiele(True)
+            if not bs:
+                return {"ok": True, "gesendet": 0}
+            r = cler.senden([{"art": b["art"], "merkmale": b["merkmale"]} for b in bs], APP_VERSION)
+            if not r.get("ok"):
+                log.info("lernen: Senden ging nicht (%s)", r.get("error"))
+                return {"ok": False, "error": r.get("error"), "gesendet": 0}
+            conn = self._lib()
+            with clib._DB_LOCK:
+                cler.als_gesendet(conn, [b["schluessel"] for b in bs[:cler.MAX_JE_SENDUNG]])
+            log.info("lernen: %d Beispiele geteilt (angenommen %s)", min(len(bs), cler.MAX_JE_SENDUNG), r.get("angenommen"))
+            return {"ok": True, "gesendet": min(len(bs), cler.MAX_JE_SENDUNG)}
+        except Exception as e:  # noqa: BLE001
+            log.exception("lernen_teilen")
+            return {"ok": False, "error": str(e), "gesendet": 0}
+
+    def _lernen_spaeter(self, warte_s: float = 30.0) -> None:
+        """Nach einer Art-Korrektur gebündelt senden (eine Korrektur selten allein)."""
+        alt = getattr(self, "_lern_timer", None)
+        if alt:
+            alt.cancel()
+        self._lern_timer = threading.Timer(warte_s, self.lernen_teilen)
+        self._lern_timer.daemon = True
+        self._lern_timer.start()
+
+    def _lern_modell(self):
+        """Das gemerkte Modell (core/lernen) oder None — nur von Platte, kein Netz."""
+        from core import lernen as cler
+        m = getattr(self, "_lern_modell_cache", None)
+        if m is None:
+            m = cler.modell_lesen(APP_SUPPORT / "lernen" / "modell.json") or False
+            self._lern_modell_cache = m
+        return m or None
+
+    def logbuch_wege_stand(self, path: str) -> dict:
+        """Wie weit `logbuch_wege` ist ({fertig, gesamt} Kacheln) — für die Ladeanzeige; leer, wenn nichts läuft."""
+        return {"ok": True, **(getattr(self, "_wege_stand", {}) or {}).get(path, {})}
+
+    def logbuch_wege(self, path: str, neu: bool = False) -> dict:
+        """24.10.2026 — Wegklasse unter dem Track aus den Vektor-Kacheln der Karte (core/wegtyp), je Tour
+        gemerkt. Läuft im Hintergrund wie die Sehenswürdigkeiten; `geaendert` = so viele Einträge zeigen dadurch eine
+        andere Art (Stau → Fahrt, Fährlinie → Fähre, Radweg → Rad) — dann liest die Oberfläche das Logbuch neu."""
+        from core import logbuch as clb, wegtyp as cwt
+        try:
+            f = self._logbuch_folge(path)
+            if not f:
+                return {"ok": False, "grund": "nicht_im_archiv"}
+            if not neu and self._logbuch_wege_proben(f["tour"]) is not None:
+                return {"ok": True, "netz": True, "geaendert": 0, "gemerkt": True}
+            cache = getattr(canim, "TILE_CACHE_DIR", None) or (APP_SUPPORT / "_tilecache")
+            stand = self.__dict__.setdefault("_wege_stand", {})
+            stand[path] = {"fertig": 0, "gesamt": 0}
+            try:
+                d = cwt.berechnen(f["pts"], cache, fortschritt=lambda a, b: stand.__setitem__(path, {"fertig": a, "gesamt": b}))
+            finally:
+                stand.pop(path, None)
+            if d.get("ohne_netz") and not d.get("proben"):
+                return {"ok": True, "netz": False, "geaendert": 0}
+            if not d.get("ohne_netz"):
+                conn = self._lib()
+                with clib._DB_LOCK:
+                    cwt.merken(conn, f["tour"], d)
+            ohne = clb.eintraege(f["bew"]["bereiche"], f["pts"], aktivitaet=(f["t"] or {}).get("activity") or "",
+                                 tage=f["tage"], einstellungen=f["einst"], modell=self._lern_modell())
+            mit = clb.eintraege(f["bew"]["bereiche"], f["pts"], aktivitaet=(f["t"] or {}).get("activity") or "",
+                                tage=f["tage"], einstellungen=f["einst"], wege=d.get("proben"), modell=self._lern_modell())
+            art = lambda lb: [(e["t0"], e.get("anzeige_art") or e["art"]) for e in lb["eintraege"]]   # noqa: E731
+            geaendert = len(set(art(mit)) - set(art(ohne)))
+            log.info("wegtyp: %s — %d Kacheln, %d Proben, %d Einträge anders", f["tour"], d.get("kacheln", 0),
+                     len(d.get("proben") or []), geaendert)
+            return {"ok": True, "netz": not d.get("ohne_netz"), "geaendert": geaendert}
+        except Exception as e:  # noqa: BLE001
+            log.exception("logbuch_wege")
+            return {"ok": False, "error": str(e)}
 
     # ── Meine Orte (22.10.2026, Marc: „‚zu Hause‘ festlegen können … und andere Orte, z. B. bei Oma … in zukünftigen
     # Logbüchern wird das dann anhand der Location erkannt“) — Liste in den Einstellungen (gilt für alle Bibliotheken):
@@ -14698,7 +14922,8 @@ class Api:
             if not bew or not bew.get("bereiche"):
                 return {"ok": True, "vorhanden": False}
             lb = clb.eintraege(bew["bereiche"], None, aktivitaet=(t or {}).get("activity") or "",
-                               einstellungen=self._logbuch_einstellungen(tour)["wirksam"])
+                               einstellungen=self._logbuch_einstellungen(tour)["wirksam"],
+                               wege=self._logbuch_wege_proben(tour))
             tage = len({b.get("tag") for b in bew["bereiche"] if b.get("art") == "start"}) or 1
             hoch = lb["hoechster"]
             # 23.10.2026 — wie im Logbuch: erst ab HOECHSTER_HUB_M über dem Tiefsten (hier: der ganzen Tour, ohne Punkte)
@@ -14838,7 +15063,7 @@ class Api:
         tage = [b for b in stand["tage"]["bereiche"] if b.get("art") == "tag"]
         einst = self._logbuch_einstellungen(tour)
         lb = clb.eintraege(stand["bewegung"]["bereiche"], pts, aktivitaet=aktivitaet, tage=tage,
-                           einstellungen=einst["wirksam"])
+                           einstellungen=einst["wirksam"], wege=self._logbuch_wege_proben(tour), modell=self._lern_modell())
         lat = lon = None
         for p in pts:
             la = p.get("lat") if isinstance(p, dict) else getattr(p, "lat", None)
@@ -16052,6 +16277,8 @@ class Api:
         self.settings_set({"videostil_vorlagen": liste})
         return {"ok": True, "liste": liste}
 
+    KULISSE_NEIGUNG = 50.0   # 23.10.2026 — Schlussbild der Kamerafahrt: flacher als die Übersicht (25°), wie eine Kulisse
+
     def schnellvideo_vorschlag(self, path: str) -> dict:
         """Name, Datum, Region und Ausdehnung einer Tour + die zuletzt gewählten Optionen."""
         try:
@@ -16116,8 +16343,16 @@ class Api:
                       "ele_min": round(st.ele_min) if st.ele_min is not None else None,
                       "ele_max": round(st.ele_max) if st.ele_max is not None else None}
             name = clib.name_ohne_status(name)   # 19.10.2026 (Audit) — Komoots „(Completed)“ nicht in den Videotitel
+            # 23.10.2026 (Marc: „bessere Kartendarstellungen") — Schlussbild als Kulisse: Blickrichtung, aus der die Strecke
+            # am besten zu sehen ist (core/sichtkurs.py, Sichtstrahlen gegen das Gelände); None ohne Höhen
+            try:
+                from core import sichtkurs as _sk
+                sk = _sk.sichtkurs(linie, canim.TILE_CACHE_DIR, neigung=self.KULISSE_NEIGUNG)
+            except Exception as e:  # noqa: BLE001
+                log.info("Sichtkurs: %s", e)
+                sk = None
             return {"ok": True, "name": name, "ort": ort, "start_epoch": start, "end_epoch": ende, "versatz_min": versatz,
-                    "regie": regie,
+                    "regie": regie, "sichtkurs": (sk or {}).get("kurs"), "kulisse_neigung": self.KULISSE_NEIGUNG if sk else None,
                     "linie": linie, "pois": pois, "profil": profil, "zahlen": zahlen,
                     "bbox": [min(lons), min(lats), max(lons), max(lats)],
                     "distance_km": round((st.distance_m or 0) / 1000, 2),
@@ -20382,6 +20617,7 @@ def main() -> None:
                 pass
 
         def _open_quickstart_from_menu(): _trigger_js("window.openQuickstart && window.openQuickstart()")
+        def _open_willkommen_from_menu(): _trigger_js("window.rzWillkommen && window.rzWillkommen()")   # 24.10.2026
         def _open_user_guide_from_menu(): _trigger_js("window.pywebview && window.pywebview.api.open_user_guide()")
         def _open_log_from_menu():        _trigger_js("window.pywebview && window.pywebview.api.open_log()")
         def _reveal_log_from_menu():      _trigger_js("window.pywebview && window.pywebview.api.reveal_log_in_finder()")   # 29.09.2026 (Marc)
@@ -20438,6 +20674,7 @@ def main() -> None:
         _menu_settings   = _strings.get("menu.settings", "Settings…")
         _menu_help       = _strings.get("menu.help", "Help")
         _menu_quickstart = _strings.get("menu.quickstart", "Erste Schritte")
+        _menu_willkommen = _strings.get("menu.willkommen", "Überblick über GPS Studio")
         _menu_frag = _strings.get("menu.frag", "Frag GPS Studio … ({taste})").replace(
             "{taste}", "⌘K" if sys.platform == "darwin" else _strings.get("frag.taste_win", "Strg+K"))
         _menu_reset = _strings.get("menu.reset", "Einstellungen zurücksetzen und neu starten …")
@@ -20484,6 +20721,7 @@ def main() -> None:
             ]),
             Menu(_menu_help, [
                 MenuAction(_menu_frag, _open_frag_from_menu),
+                MenuAction(_menu_willkommen, _open_willkommen_from_menu),
                 MenuAction(_menu_quickstart, _open_quickstart_from_menu),
                 MenuAction(_menu_user_guide, _open_user_guide_from_menu),
                 MenuAction(_menu_mapbox, _open_mapbox_help_from_menu),
@@ -20570,8 +20808,10 @@ def _db_gesperrt(fn):
     return huelle
 
 
-for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage", "fotos_punkte", "fotos_ordnerbaum",
-              "fotos_filterwerte", "fotos_einer_tour", "fotos_details", "fotos_datumsbaum",
+# fotos_ordnerbaum und fotos_filterwerte fehlen hier mit Absicht (24.10.2026): lange Zählungen auf der eigenen
+# Leseverbindung (Api._lese_verbindung); filterwerte sperrt selbst um Kameras und Jahre
+for _name in ("fotos_ordner_weg", "fotos_abfrage", "fotos_touren", "fotos_tage", "fotos_punkte",
+              "fotos_einer_tour", "fotos_details", "fotos_datumsbaum",
               "geotagger_tracks_fuer_fotos",
               # 13.10.2026 — fotostopp_info NICHT mehr ganz: es fragt Photon übers Netz (Ort am Punkt) und liest Dateien;
               # unter der Sperre wartete bei langsamem Netz die ganze Bibliothek (tour_medien 16 s). Es sperrt jetzt selbst

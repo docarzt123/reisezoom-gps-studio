@@ -156,6 +156,8 @@ if _EXT_TEMP.parent.parent.is_dir() and not os.environ.get("TMPDIR", "").startsw
 _KONSERVE = Path("/Volumes/MacMini 2TB Acasis/GPS-Studio-Testdaten/netz-konserve")
 if not _KONSERVE.parent.parent.is_dir():
     _KONSERVE = REPO / "tests" / "netz_konserve"
+# 24.10.2026 — „Neu in Version …“ und die Logbuch-Frage beim Start stören die Oberflächentests nicht (app.js)
+os.environ.setdefault("RZ_KEIN_WILLKOMMEN", "1")
 if "--live-netz" not in sys.argv and not os.environ.get("RZ_NETZ_KONSERVE"):
     os.environ["RZ_NETZ_KONSERVE"] = str(_KONSERVE)
 

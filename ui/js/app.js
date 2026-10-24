@@ -288,6 +288,7 @@ function _settingsStand() {
     // v0.9.530: Update-Prüfung beim Start abschaltbar — danach
     // telefoniert die App von sich aus mit niemandem mehr.
     updateCheck: c.update_check_enabled !== false,
+    lernenTeilen: c.logbuch_lernen_teilen === true,   // 24.10.2026 — Logbuch-Korrekturen anonym teilen (Standard aus)
   };
 }
 
@@ -455,7 +456,7 @@ async function openSettingsModal(reiter) {
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
   const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
-          updateCheck, startFortsetzen, maptilerKey, dkKey, fiKey, linzKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
+          updateCheck, lernenTeilen, startFortsetzen, maptilerKey, dkKey, fiKey, linzKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
   const tcInfo = await api().tile_cache_info().catch(() => ({ bytes: 0 }));
   const tcMb = Math.round((tcInfo.bytes || 0) / 1048576);
   const _sel = (a, b) => (a === b ? " selected" : "");
@@ -490,6 +491,12 @@ async function openSettingsModal(reiter) {
           <span>${t("settings.update_check.label", "Beim Start nach einer neuen Version suchen")}</span>
         </label>
         <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.update_check.help", "Aus heißt: die App baut von sich aus keine Verbindung ins Netz auf.")}</p>
+        <!-- 24.10.2026 (Marc: „über Teilen lernen“) — nur mit Zustimmung, Standard aus (core/lernen.py) -->
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="md-lernen-teilen" ${lernenTeilen ? "checked" : ""}>
+          <span>${t("settings.lernen_teilen.label", "Logbuch-Korrekturen anonym teilen, damit die Erkennung für alle besser wird")}</span>
+        </label>
+        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.lernen_teilen.help", "Wenn du die Art eines Logbuch-Eintrags änderst oder bestätigst, gehen nur Zahlen dazu an reisezoom.com: Tempo, Stillstand, Steigung, Wegart und die richtige Art. Keine Orte, keine Uhrzeiten, keine Namen. Daraus lernt die Erkennung; das verbesserte Modell kommt mit den Updates zurück.")}</p>
         <!-- 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim
              Schließen, sondern startet immer wieder im Archiv"). -->
         <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
@@ -1259,6 +1266,8 @@ function _bindSettingsModalHandlers() {
     // v0.9.530 — Update-Prüfung an/aus
     const newUpdateCheck = !!document.getElementById("md-update-check")?.checked;
     if (newUpdateCheck !== alt.updateCheck) patch.update_check_enabled = newUpdateCheck;
+    const newLernen = !!document.getElementById("md-lernen-teilen")?.checked;
+    if (newLernen !== alt.lernenTeilen) patch.logbuch_lernen_teilen = newLernen;
 
     // v0.9.245 — Render-/Export-Qualität
     const newRender = {
@@ -1739,11 +1748,11 @@ async function openFirstRunMapboxModal() {
     openModal({
       title: t("first_run.title2", "Karten sind schon dabei — es geht sofort los"),   // 19.10.2026 (Audit) — nicht zweimal „Willkommen“ hintereinander
       body: `
+        ${_dialogBanner("banner-karten", t("first_run.banner_oben", "Ohne Anmeldung, ohne Schlüssel"), t("first_run.banner", "Karten und Satellitenbilder sind dabei"))}
         <p>${t("first_run.intro2", "Karten und Satellitenbilder sind ohne Anmeldung dabei: kostenlose Luftbilder der Landesvermessungen (Deutschland, Österreich, Schweiz, Spanien, Frankreich und weitere), OpenStreetMap-Karten und ein 3D-Gelände. Damit gerenderte Videos dürfen auf YouTube & Co. veröffentlicht werden — die Nennung der Quelle steht automatisch im Bild.")}</p>
-        <div style="margin-top:12px; padding:12px 14px; background:var(--bg-3); border-radius:8px; font-size:12px; line-height:1.55;">
-          <p style="font-weight:600; margin-bottom:6px;">${t("first_run.keys_title", "Mehr Stile mit eigenem Schlüssel (optional)")}</p>
-          <p class="muted">${t("first_run.keys_desc", "MapTiler (Satellit weltweit, Videos bis 100.000 Abonnenten erlaubt) und Mapbox (Videos nur mit gekauften Rechten) lassen sich jederzeit unter Einstellungen → Kartenanbieter eintragen.")}</p>
-        </div>
+        <p class="muted" style="font-size:11.5px; line-height:1.5;"><b style="color:var(--text)">${t("first_run.keys_title", "Mehr Stile mit eigenem Schlüssel (optional)")}:</b>
+          ${t("first_run.keys_desc", "MapTiler (Satellit weltweit, Videos bis 100.000 Abonnenten erlaubt) und Mapbox (Videos nur mit gekauften Rechten) lassen sich jederzeit unter Einstellungen → Kartenanbieter eintragen.")}</p>
+        ${_lernenFrageHtml("md-fr-lernen")}
         <p class="muted" style="margin-top:10px; font-size:11px;">${t("first_run.change_later_hint")}</p>
       `,
       footer: `
@@ -1754,7 +1763,10 @@ async function openFirstRunMapboxModal() {
       closable: false,
     });
     const fertig = async () => {
-      await saveSettings({ onboarding_done: true }, { immediate: true });
+      // 24.10.2026 — die Logbuch-Frage ist damit beantwortet (Haken an oder aus); „Neu in …“ kommt erst bei der nächsten Version
+      const teilen = !!document.getElementById("md-fr-lernen")?.checked;
+      await saveSettings({ onboarding_done: true, logbuch_lernen_teilen: teilen, logbuch_lernen_gefragt: true, willkommen_beim_start: true,
+                           version_zuletzt: (window.__rzAppInfo && window.__rzAppInfo.version) || "" }, { immediate: true });
       openModal({}).close();
       resolve();
     };
@@ -1774,6 +1786,77 @@ async function openFirstRunMapboxModal() {
       try { openSettingsModal(); } catch (_) {}
     };
   });
+}
+
+/** 24.10.2026 (Marc: „das mit dem Logbuch direkt abfragen“) — die Frage, ob Logbuch-Korrekturen anonym geteilt werden
+ *  (core/lernen.py). Erststart: als Haken (Standard aus). */
+function _lernenFrageHtml(id) {
+  // 24.10.2026 (Marc: „total lieblos. da muss ein Bild hin“) — Bild vom Art-Menü, dazu was rausgeht und was bleibt
+  const I = (n) => (typeof rzIcon === "function" ? rzIcon(n, { size: 14 }) : "");
+  return `<div class="rz-lernen-frage">
+      <img class="rzlf-bild" src="${(window.__rzAssetBase || "")}img/quickstart/logbuch-frage.jpg" alt="" onerror="this.remove()">
+      <div class="rzlf-text">
+        <p class="rzlf-titel">${I("sparkles")} ${t("lernen.frage.titel", "Logbuch verbessern helfen?")}</p>
+        <p class="rzlf-lead">${t("lernen.frage.lead", "Wenn du die Art eines Eintrags korrigierst — etwa „Rad“ statt „Laufen“ —, lernt die Erkennung daraus. Das verbesserte Modell kommt mit den Updates zu allen zurück.")}</p>
+        <div class="rzlf-listen">
+          <div class="rzlf-raus"><span class="rzlf-kopf">${I("upload")} ${t("lernen.frage.raus_titel", "Geht anonym raus")}</span>
+            <span>${t("lernen.frage.raus", "Tempo · Stillstand · Steigung · Wegart · richtige Art")}</span></div>
+          <div class="rzlf-bleibt"><span class="rzlf-kopf">${I("lock")} ${t("lernen.frage.bleibt_titel", "Bleibt bei dir")}</span>
+            <span>${t("lernen.frage.bleibt", "Orte · Uhrzeiten · Namen · Fotos")}</span></div>
+        </div>
+        ${id ? `<label class="rzlf-haken"><input type="checkbox" id="${id}"> <span>${t("settings.lernen_teilen.label", "Logbuch-Korrekturen anonym teilen, damit die Erkennung für alle besser wird")}</span></label>` : ""}
+        <p class="rzlf-spaeter">${t("lernen.frage.spaeter", "Lässt sich jederzeit ändern: Einstellungen → Allgemein.")}</p>
+      </div>
+    </div>`;
+}
+
+/** 24.10.2026 — Bildleiste oben in Erststart und „Neu in …“ (Bilder aus scripts/willkommen_bilder.py). */
+function _dialogBanner(bild, oben, gross) {
+  return `<div class="rz-dlg-banner"><img src="${(window.__rzAssetBase || "")}img/quickstart/${bild}.jpg" alt="" onerror="this.parentElement.remove()">
+      <div class="rz-dlg-banner-text"><span>${oben}</span><b>${gross}</b></div></div>`;
+}
+
+/** 24.10.2026 (Marc: „wenn die neue Version das 1. Mal gestartet wird, sollte das auch kommen“) — beim ersten Start einer
+ *  neuen Version einmal „Neu in GPS Studio …“: Link zu den Neuerungen seit der vorigen Version und — bis sie einmal
+ *  beantwortet ist — die Logbuch-Frage mit „Ja, anonym teilen“ / „Nein, danke“. Nicht in Tests (RZ_KEIN_WILLKOMMEN). */
+async function neueVersionZeigen(info) {
+  const v = info && info.version;
+  const s = _settingsCache || {};
+  if (!v || !s.onboarding_done || (info && info.kein_willkommen) || window.__rzKeinPmBoot) return;
+  const alt = s.version_zuletzt || "";
+  if (alt === v) return;
+  const fragen = !s.logbuch_lernen_gefragt;
+  await new Promise((resolve) => {
+    openModal({
+      title: t("neu.titel", "Neu in GPS Studio {v}", { v }),
+      body: `${_dialogBanner("banner-neu", "GPS Studio", t("neu.banner", "Version {v}", { v }))}
+             <p>${alt ? t("neu.text_seit", "Seit {alt} ist einiges dazugekommen — die Übersicht steht in den Neuerungen.", { alt })
+                      : t("neu.text", "Die Übersicht der Neuerungen steht im Changelog.")}</p>
+             ${fragen ? _lernenFrageHtml("") : ""}`,
+      footer: `<button class="btn" id="md-neu-ueberblick">${t("willkommen.ueberblick", "Überblick")}</button>
+               <button class="btn" id="md-neu-was">${t("neu.was_ist_neu", "Was ist neu?")}</button>
+               ${fragen ? `<button class="btn" id="md-neu-nein">${t("lernen.frage.nein", "Nein, danke")}</button>
+                           <button class="btn btn-primary" id="md-neu-ja">${t("lernen.frage.ja", "Ja, anonym teilen")}</button>`
+                        : `<button class="btn btn-primary" id="md-neu-ok">${t("common.ok", "OK")}</button>`}`,
+      closable: true,
+      onClose: () => resolve(),
+    });
+    const fertig = async (teilen) => {
+      const patch = { version_zuletzt: v };
+      if (teilen !== undefined) { patch.logbuch_lernen_teilen = teilen; patch.logbuch_lernen_gefragt = true; }
+      try { await saveSettings(patch, { immediate: true }); } catch (_) {}
+      try { openModal({}).close(); } catch (_) {}
+      resolve();
+    };
+    const knopf = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+    knopf("md-neu-was", () => { _updateWasIstNeu({ current: alt || v }); });
+    knopf("md-neu-ueberblick", async () => { await fertig(undefined); if (typeof window.rzWillkommen === "function") window.rzWillkommen(); });
+    knopf("md-neu-ja", () => fertig(true));
+    knopf("md-neu-nein", () => fertig(false));
+    knopf("md-neu-ok", () => fertig(undefined));
+  });
+  // auch bei „×“: diese Version gilt als gesehen (die Frage kommt dann bei der nächsten Version wieder)
+  if ((_settingsCache || {}).version_zuletzt !== v) { try { await saveSettings({ version_zuletzt: v }, { immediate: true }); } catch (_) {} }
 }
 
 // v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur Hinweis-Banner,
@@ -2056,6 +2139,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
   versionAnzeigen(_appInfoFrueh);
+  window.__rzAppInfo = _appInfoFrueh;
   try { await window.rzBibPruefen(); } catch (e) { applog && applog("warn", "[boot] bib: " + e); }
   applog && applog("info", "[boot] bibliothek geprueft");
   await loadSettings();
@@ -2119,6 +2203,15 @@ window.addEventListener("DOMContentLoaded", async () => {
       try { await openFirstRunMapboxModal(); }
       finally { window.__rzOnboarding = false; }
       applog && applog("info", "[boot] onboarding-Dialog geschlossen");
+    } else {
+      window.__rzOnboarding = true;   // wie oben: der Start-Watchdog wartet, solange der Dialog offen ist
+      try { await neueVersionZeigen(_appInfoFrueh); } catch (e) { applog && applog("warn", "[boot] neu in version: " + e); }
+      finally { window.__rzOnboarding = false; }
+      // 24.10.2026 — Überblick bei jedem Start, solange „Beim Start zeigen“ an ist (nicht in Tests)
+      if (_settingsCache && _settingsCache.willkommen_beim_start === true && !window.__rzKeinPmBoot
+          && !(_appInfoFrueh && _appInfoFrueh.kein_willkommen) && typeof window.rzWillkommen === "function") {
+        setTimeout(() => { try { window.rzWillkommen(); } catch (e) { applog && applog("warn", "[boot] willkommen: " + e); } }, 1200);
+      }
     }
   }
   // Aktiven Map-Token für die Factory laden (auch wenn kein Token → OSM-Mode)
