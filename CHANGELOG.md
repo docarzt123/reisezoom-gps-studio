@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.809] – 2026-10-24
+
+(0.9.807 and 0.9.808 were tagged but never published; their changes ship with this version.)
+
+### Fixed
+- Animator: a selected keyframe stayed selected only until the preview redrew (e.g. a second or two after changing the animation length) — dragging the map then said „View not saved“ instead of updating the keyframe. The selection now survives redraws of the same tour.
+
 ## [0.9.808] – 2026-10-23
 
 (0.9.807 was tagged but never published; its changes ship with this version.)

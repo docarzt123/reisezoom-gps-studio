@@ -22870,6 +22870,14 @@ function mountAnimator(body, headerActions, opts) {
     // BEIDEN Modi läuft; nur das Session-AKTIVIEREN bleibt für Reiseroute aus
     // (sonst kapert die Route die Hike-Session).
     const _applySessionState = () => {
+      // 23.10.2026 (Deploy-Gate 0.9.808, test_keyframe_karte_undo) — jedes Neuzeichnen der Vorschau (drawPreview, z. B.
+      // nach einer anderen Animationsdauer) lief hier durch und löschte die Keyframe-Auswahl. Wer dann gerade einen
+      // Keyframe angeklickt hatte, verlor ihn ein, zwei Sekunden später („Ansicht nicht gespeichert"). Bei derselben Tour
+      // bleibt die Auswahl jetzt stehen (über ihren Anker); nur eine andere Tour / ein Projektwechsel setzt zurück.
+      const _vorherAuswahl = (_selectedKfIdx != null && _selectedEvent) ? Object.assign({}, _selectedEvent) : null;
+      const _tourJetzt = (typeof getGlobalGpxPath === "function" ? (getGlobalGpxPath() || "") : "") + "|" + ((currentCoords && currentCoords.length) || 0);
+      const _gleicheTour = _tourJetzt === window.__rzSitzungTour;
+      window.__rzSitzungTour = _tourJetzt;
       if (typeof rebindAllSettings === "function") rebindAllSettings();
       migrateTimelineAnchorsIfNeeded();
       heileDoppelteKeyframes();
@@ -22896,6 +22904,13 @@ function mountAnimator(body, headerActions, opts) {
       applyAllPaintSettings();
       _selectedKfIdx = null;
       _selectedEvent = null;
+      if (_vorherAuswahl && _gleicheTour) {
+        const i = clusterAnchors().findIndex(x => Math.abs(x - _vorherAuswahl.anchor) < KF_TOLERANZ);
+        if (i >= 0) {
+          _selectedEvent = _vorherAuswahl; _selectedKfIdx = i;
+          try { if (_tlBar && _tlBar.setSelected) _tlBar.setSelected(_selectedEvent); } catch (_) {}
+        }
+      }
       renderKeyframeEditor();
       autoSelectFirstKfIfNeeded();
       // v0.9.219 — Reiseroute: Start/Ziel + Ghost zuverlässig nachziehen
