@@ -1732,7 +1732,13 @@ def _ensure_media_server() -> int:
     with _media_lock:
         if _media_httpd is not None:
             return _media_port
-        httpd = _httpserver.ThreadingHTTPServer(("127.0.0.1", 0), _MediaRequestHandler)
+        # 25.10.2026 — Warteschlange 128 statt 5 (socketserver-Vorgabe): Beim Aufbau einer Karte fragt MapLibre Dutzende Kacheln
+        # gleichzeitig an (seit die Sentinel-Kacheln auch hier durchlaufen, mehr denn je). Unter Last nahm der Server die
+        # Verbindungen nicht schnell genug an, die 5 Plätze liefen über, einzelne Kacheln scheiterten mit „Load failed (0)“
+        # (Loch in der Karte, Hinweis „Kartendienst 127.0.0.1 antwortet nicht“). Prüfstand: 300 gleichzeitige Verbindungen →
+        # 255 statt 22 abgewiesen. macOS kappt bei kern.ipc.somaxconn (128).
+        _Server = type("_RzMediaServer", (_httpserver.ThreadingHTTPServer,), {"request_queue_size": 128})
+        httpd = _Server(("127.0.0.1", 0), _MediaRequestHandler)
         httpd.daemon_threads = True
         _media_port = httpd.server_address[1]
         threading.Thread(target=httpd.serve_forever, daemon=True).start()

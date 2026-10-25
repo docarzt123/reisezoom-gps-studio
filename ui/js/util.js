@@ -985,6 +985,9 @@ function createMap(opts) {
       // abgebrochene Kachel — beim Einpassen einer großen Tour springt die Ansicht, MapLibre bricht
       // offene Ladevorgänge ab. Ein einzelner solcher Fehler löste den Hinweis aus, obwohl der Dienst
       // lief. Ohne Status erst ab dem dritten Fehler desselben Dienstes binnen 10 s warnen.
+      // 25.10.2026 — die eigene Kachel-Weiche (127.0.0.1) meldet echte Ausfälle des Dienstes dahinter mit HTTP-Status; ohne
+      // Status ist das eine abgebrochene/abgewiesene Verbindung (Kartenaufbau unter Last), kein „Dienst antwortet nicht“
+      if (!status && /^(127\.0\.0\.1|localhost)(:|$)/.test(key)) { try { applog("info", "[map] Kachel abgebrochen (Weiche) " + key + " " + msg.slice(0, 120)); } catch (_) {} return; }
       if (!status) {
         const f = (seen["~" + key] || []).filter((t0) => now - t0 < 10000);
         f.push(now); seen["~" + key] = f;

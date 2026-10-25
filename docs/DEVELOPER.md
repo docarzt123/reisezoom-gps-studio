@@ -8473,6 +8473,11 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   `map_style` „kartenlook“ + `kartenlook.id`, sonst `RZ_NORTH_SVG`). Animator: `_kompassSvg()` im Container „nord“,
   `_kompassAktualisieren()` nach jedem Stil-Laden (`rebuildPreviewLayers`). Python-Spiegel `core/northarrow.py
   north_svg_fuer()` (liest dieselben Dateien; Web-Karten-Export). Test `test_kompass`.
+- **Kachel-Weiche: Warteschlange 128 (25.10.2026).** `app.py _ensure_media_server` baut `_RzMediaServer`
+  (`ThreadingHTTPServer` mit `request_queue_size = 128`, socketserver-Vorgabe 5). Prüfstand: 300 gleichzeitige Verbindungen
+  → 255 statt 22 abgewiesen. `util.js` Kachel-Fehler: eigene Weiche (127.0.0.1/localhost) ohne HTTP-Status = abgebrochene
+  Verbindung → nur Protokoll; Ausfälle dahinter meldet die Weiche mit 502 → Hinweis wie bisher. Test
+  `test_kachelweiche_warteschlange`.
 - **Vorankündigungs-Punkte hinter Bergen (25.10.2026).** `_vorankuendigung` (HTML `.hl-punkt` über der Karte) multipliziert
   die Deckkraft mit `rzSignSicht`, unter 0,01 kein Punkt. Test `test_schild_sicht` E.
 - **Projekt-Paket mit `.gpx.gz`-Tour (25.10.2026).** `app.py _paket_gpx(name, roh)`: entpackt gzip-Bytes (`1f 8b`) aus
