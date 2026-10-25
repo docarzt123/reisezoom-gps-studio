@@ -545,8 +545,8 @@ async function openSettingsModal(reiter) {
           <label class="field-label" for="md-preview-quality" style="font-size:12px; margin-top:14px;">${t("settings.preview_quality", "Vorschau-Qualität (nur im Fenster)")}</label>
           <select id="md-preview-quality" style="width:100%;">
             <option value="voll"${_sel(previewQuality, "voll")}>${t("settings.preview_quality.voll", "voll — wie das Video")}</option>
-            <option value="flott"${_sel(previewQuality, "flott")}>${t("settings.preview_quality.flott", "flott — weniger Kacheln je Bild")}</option>
-            <option value="schnell"${_sel(previewQuality, "schnell")}>${t("settings.preview_quality.schnell", "schnell — halbe Auflösung, gröberes Gelände")}</option>
+            <option value="flott"${_sel(previewQuality, "flott")}>${t("settings.preview_quality.flott", "flott — weniger Kacheln, Gelände eine Stufe gröber")}</option>
+            <option value="schnell"${_sel(previewQuality, "schnell")}>${t("settings.preview_quality.schnell", "schnell — dazu halbe Auflösung, ohne Schlagschatten")}</option>
           </select>
           <p class="set-help" style="margin-top:4px;">${t("settings.preview_quality.help", "Ruckelt die Vorschau (viele Kacheln, Gelände, Retina), hilft «flott» oder «schnell». Video und Standbild rendern immer in voller Qualität; Kamera, Strecke und Overlays bleiben identisch.")}</p>
         </div>
@@ -2048,6 +2048,7 @@ window.importProject = async function (pfad) {
   if (!res || res.cancelled) return;
   if (!res.ok) { toast(res.error || t("projekt.import_fehler", "Import fehlgeschlagen."), "warn", 7000); return; }
   toast(t("projekt.import_ok", "Projekt importiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
+  try { window.dispatchEvent(new CustomEvent("rz-touren-geaendert")); } catch (_) {}   // offenes Archiv zeigt die neue Tour
   // 05.09.2026 (Audit): Mehr-Touren-Paket → das Projekt wie aus dem Archiv öffnen
   // (lädt alle Touren als Schwarm/Reise), nicht nur die erste Tour.
   // 07.10.2026 (Web-Fund F-4): Projekt ohne GPS → ebenso über das Archiv öffnen (lädt die Etappe als Haupt-Track)

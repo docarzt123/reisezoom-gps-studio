@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.822"
+APP_VERSION = "0.9.833"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1622,7 +1622,11 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
         try:
             _sync_tile_cache_settings()
             _sync_region_keys()   # 18.09.2026: Schlüssel-Regionen (Weiche setzt {key} beim Abruf ein)
-            status, ctype, body = ctileproxy.fetch_tile(*req, cache_dir=canim.TILE_CACHE_DIR)
+            _farbe = ctileproxy.farbe_aus_pfad(self.path)   # 25.10.2026 — Farbkorrektur je Kachel (statt Leinwand-Ebene)
+            if _farbe > 0:
+                status, ctype, body = ctileproxy.fetch_tile_farbe(*req, _farbe, cache_dir=canim.TILE_CACHE_DIR)
+            else:
+                status, ctype, body = ctileproxy.fetch_tile(*req, cache_dir=canim.TILE_CACHE_DIR)
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
@@ -10602,6 +10606,7 @@ class Api:
             map_sat=float(params.get("map_sat", 0) or 0), map_con=float(params.get("map_con", 0) or 0),
             map_bri=float(params.get("map_bri", 0) or 0), map_hue=float(params.get("map_hue", 0) or 0),
             map_sharp=float(params.get("map_sharp", 0) or 0),
+            ortho_grade=float(params.get("ortho_grade", 0) or 0),   # 25.10.2026 — Farbkorrektur je Kachel
             ortho_relief=float(params.get("ortho_relief", 0) or 0), map_haze=float(params.get("map_haze", 0) or 0),
             attrib_mode=str(params.get("attrib_mode", "voll") or "voll"), attrib_link=str(params.get("attrib_link", "") or ""),
             stars_enabled=bool(params.get("stars_enabled", True)), stars_twinkle=bool(params.get("stars_twinkle", True)),
@@ -12752,10 +12757,7 @@ class Api:
         # 1. GPX ablegen — Ordner ist beim Archiv als Quelle registriert.
         ziel_dir = APP_SUPPORT / ("cloud_touren" if quelle == "cloud" else "projekt_importe")
         ziel_dir.mkdir(parents=True, exist_ok=True)
-        basis = re.sub(r"[^\w\-. ]+", "_", str(tour.get("filename") or f"{geo_hash or 'tour'}.gpx"))
-        if not basis.lower().endswith(".gpx"):
-            basis += ".gpx"
-        gpx_bytes = z.read("track.gpx")
+        basis, gpx_bytes = _paket_gpx(str(tour.get("filename") or f"{geo_hash or 'tour'}.gpx"), z.read("track.gpx"))
         ziel = ziel_dir / basis
         n = 1
         while ziel.exists():
@@ -13166,10 +13168,7 @@ class Api:
             arch = f"tracks/{i + 1:02d}.gpx"
             if arch not in namen:
                 continue
-            basis = re.sub(r"[^\w\-. ]+", "_", str(name or f"tour_{i + 1}.gpx"))
-            if not basis.lower().endswith(".gpx"):
-                basis += ".gpx"
-            gpx_bytes = z.read(arch)
+            basis, gpx_bytes = _paket_gpx(str(name or f"tour_{i + 1}.gpx"), z.read(arch))
             ziel = ziel_dir / basis
             n = 1
             while ziel.exists():
@@ -19884,6 +19883,26 @@ def _app_neu_starten() -> None:
         log.warning("Neustart konnte nicht angestoßen werden: %s", e)
     import threading
     threading.Timer(0.6, lambda: os._exit(0)).start()
+
+
+def _paket_gpx(name: str, roh: bytes) -> tuple:
+    """Dateiname + Inhalt einer Tour aus einem Projekt-Paket (.rzproj / Cloud-Umschlag).
+
+    25.10.2026 — Touren aus dem Versionsspeicher der Bibliothek liegen als `.gpx.gz` vor; das Paket trägt dann die
+    gzip-Bytes unter `track.gpx` und den Namen `….gpx.gz`. Eingespielt wurde daraus `….gpx.gz.gpx` mit gzip-Inhalt —
+    nicht lesbar („utf-8 codec can't decode byte 0x8b“), das Projekt öffnete ohne Track. Jetzt: entpacken, `.gz` weg."""
+    import gzip as _gz
+    if roh[:2] == b"\x1f\x8b":
+        try:
+            roh = _gz.decompress(roh)
+        except (OSError, EOFError):
+            pass
+    basis = re.sub(r"[^\w\-. ]+", "_", name)
+    if basis.lower().endswith(".gz"):
+        basis = basis[:-3]
+    if not basis.lower().endswith(".gpx"):
+        basis += ".gpx"
+    return basis, roh
 
 
 def _startdatei_aus_argv() -> Optional[str]:

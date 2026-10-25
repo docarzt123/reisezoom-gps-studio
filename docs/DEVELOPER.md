@@ -8400,6 +8400,16 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   Prototyps (Dunst 0,055, Belichtung 1,08, Tiefen +0,45, Grün-Vibrance 0,30, Wärme 0,02, Log-Kontrast 1,12 um 0,18,
   Schulter ab 0,6), gerechnet in linearem Licht (Gamma 2,2), `u_grade` mischt. `rzApplyMapLook(map, sharp, haze, grade)`;
   `_currentGrade()` liefert 0, wenn die Luftbild-Optik nicht sichtbar ist (Vektorstile bleiben unberührt).
+- **Farbkorrektur** `ortho_grade` (0…100, Standard 70) — seit 25.10.2026 **je Kachel in der Weiche**: `core/farbkorrektur.py`
+  (`anwenden`/`kachel`, NumPy-Port der früheren GLSL-Funktion `rzGrade`, lineares Licht, Mischung mit der Stärke),
+  `tileproxy.fetch_tile_farbe` + `farbe_aus_pfad` (`/tile/…?g=70`, eigener Cache-Schlüssel `farbe:<FARB_VERSION>:<g>:…`;
+  Ersatz-Kacheln, Gelände und Schatten bleiben unverändert), `app.py _serve_tile`. Adressen: `util.js rzOrthoFarbe` /
+  `rzMitFarbe` (Spiegel `mapstyles.ortho_farbe` / `mit_farbe`) in `_stackStyle`/`stack_style` für die Luftbild-Regionen
+  **und Sentinel** (neu über die Weiche, `RASTER_DIENSTE["sentinel"]`). Regler: `rz-mapadjust applyAdjust` tauscht die
+  Kachel-Adressen per `setTiles` (Animator: 250 ms nach dem letzten Ziehen bzw. bei `change`). Die Leinwand-Ebene
+  `rz-sharpen` rechnet keine Farbkorrektur mehr (`applyLook` ignoriert `gradePct`) — sie las bei JEDEM Bild per
+  `copyTexImage2D` das Gezeichnete zurück, was auf Apple-GPUs den Durchgang abbricht (Marc, MacBook: Animator ruckelte).
+  Kosten jetzt einmal 4–15 ms je Kachel. Klassischer Render: `AnimatorConfig.ortho_grade` (vorher dort gar nicht angewandt).
 - **Schatten** `ortho_schatten` (0…100, Standard 55): `core/schatten.py` rechnet je Kachel (z8…14, darüber Eltern-
   kachel vergrößert) aus Terrarium-Höhen der Geländequelle (Mapterhorn/AWS über `tileproxy.fetch_tile`) samt acht
   Nachbarn einen Sonnenstrahl (155°/48°, Schritte +6 %, bis 2,5 km, weicher Rand 6 m) → RGBA-PNG (dunkel-kühl, Alpha =
@@ -8421,6 +8431,63 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   25° nach Norden). Nur neu erzeugte Kamerafahrten.
 - **Gelände z16**: `mapstyles.TERRAIN_PROXY_MAXZOOM = 16` (nur über die Weiche); `tileproxy._gelaende_vergroessert()`
   rechnet z>15 aus der Elternkachel (bilinear, Terrarium neu kodiert), wenn Mapterhorn fehlt oder AWS-only gilt.
+- **Schilder hinter Bergen (25.10.2026).** `sign_draw.js rzSignSicht(map, lng, lat)`: Sichtstrahl von `getFreeCameraOptions().position` zum Anker (Gelände + 3 m), 28 Proben mit `queryTerrainElevation`, die letzten 3 % ausgelassen; Überstand des Geländes über den Strahl → Deckkraft `1 − Überstand/40 m`. Kamera: Mapbox `getFreeCameraOptions`, MapLibre `rzMlCamRead` (`transform.getCameraAltitude()` ist hier NaN, `_pixelPerMeter` fehlt). Unter Zoom 9 (Kugel, `mapstyles.PROJECTION`) und ohne Gelände 1. `rzSignApplyFrame` multipliziert die Feature-State-Deckkraft damit (höchstens 60 Schilder je Bild). Test `test_schild_sicht` (Merkator-Nachbau in node).
+- **Vorschau-Detailgrad + Punkt am Linienende (25.10.2026).** `util.js rzApplyPreviewQuality` setzt zusätzlich
+  `__rzPreviewDemMax` (flott/schnell: 15 → Animator kappt `mapbox-dem.maxzoom`) und `__rzPreviewOhneSchatten` (schnell:
+  `_stackStyle` ohne `rz-schatten`); Render-Modus immer voll. Schalter `#tl-sel-vorschau` in `timeline.js` (speichert
+  `preview_quality`, lädt neu wie der Einstellungsdialog). `rzSetDataLatest` merkt `src.__rzGesendet`; die Linien-Daten
+  tragen `__rzBis` (Bruchstelle der Spitze, `null` = ganzer Track); `sourcedata`/`isSourceLoaded` auf `preview-track` →
+  `_linieBis`; `_bodenPunktSetzen` klemmt den GL-Punkt darauf (nie vor das gezeichnete Linienende). Tests
+  `test_vorschau_detailgrad`, `test_laufpfeil_folgt`.
+- **Gleichmäßiger Vorschau-Takt (25.10.2026).** `runTimelinePreview` → `_taktUeberspringen(now)` vor jedem `step`: misst
+  die Abstände der gezeichneten Bilder (die ersten 30 zählen nicht, Fenster 90). Bildschirmtakt `vs` = 30-%-Wert × 1,15,
+  abgerundet auf 144/120/90/60 Hz (`_taktRaster`; die WebKit-Zeitstempel zittern ±3 ms — am 20-%-Wert gemessen fiel der
+  Mac mini ohne Not auf 30 fps). Liegen ≥ 18 der letzten 90 über 1,55 × max(Abstand, vs) und der 80-%-Wert über
+  1,3 × soll, wird `_takt.abstand` = gerundetes Vielfaches von `vs` (≥ soll + vs, höchstens 50 ms): `step` läuft nur, wenn
+  seit dem letzten gezeichneten Bild `abstand − 0,3·vs` vergangen sind; der `_plHook`-Mantel um `map._render` schiebt auch
+  MapLibres eigene Zeichenaufrufe (Worker-Antworten, Kacheln) per `triggerRepaint` auf den nächsten erlaubten Takt.
+  Uhrzeit-basiert (`elapsed`), also kein Zeitverlust. `_taktGemerkt` (Modul) merkt Abstand + vs je Zeichenfläche; jeder
+  4. Lauf prüft neu. Im Render-/Schrittmodus aus. `window.__rzVorschauTakt` = ms erzwingt, `__rzVorschauTaktStand()`
+  liest. Probelauf-Bilanz (vorn, das Log kappt bei 500 Zeichen): „Takt jedes Bild | alle N ms …, zu spät K“.
+  Hintergrund: Marcs MacBook Pro M1 Max (Retina, ProMotion) brauchte ~17–19 ms je Bild (Messstand Mac mini, Retina-Fläche,
+  Bild + GPU: Gelände ~55 %, Rest verteilt) → 16/25/33-ms-Wechsel. Test `test_vorschau_takt`.
+- **Track zoomt mit (25.10.2026).** `module.js _lwZ(px)` / `_lwZx(expr)` machen aus Linienbreiten (und mitlaufenden Blur-Werten)
+  einen Zoom-Ausdruck `["interpolate", ["exponential", 2^(0,44·s)], ["zoom"], zA, 0,6·px, zB, 1,45·px]` — reine Potenz
+  zwischen den Stufen, außerhalb gekappt; bei `zr` = Einpass-Zoom der ganzen Tour (`cameraForBounds` der eigenen Karte) + 3
+  genau `px`. `s` = Regler `anim-mitzoomen` (`track_mitzoomen`, Werk 50, 0 = Zahl wie früher). Vorschau und Szene rechnen
+  den Bezug je auf ihrer Karte (gleiche Fläche, nur Pixeldichte) → gleiches Verhältnis. `_lwzRefZoom` merkt den Bezug je
+  (Track, Fläche); ändert er sich, baut `_breitenNeu()` alle Breiten neu (apply*-Funktionen + `_ghostSpurenAufbauen` +
+  `_animDrawExtraToursPreview`). `_lwZahl` liest die Grundbreite aus dem Ausdruck (Strichlänge). WebGL-Linie: `rz-line3d.js`
+  multipliziert mit `map.__rzBreiteFaktor()` (= `_lwzFaktor`). Nur Animator (Tour-Map ist ein Standbild). Test
+  `test_track_mitzoomen`.
+- **Strecke vorab fein (25.10.2026).** `currentGhostBreite()` = `ghost_track_breite` oder max(1,2; 0,45·Track); Strichart
+  `ghost_track_stil` (`GHOST_STRICH`: dashed [3,2], dotted [0,1,2], dashdot [3,1,5,0,1,1,5], solid); `ghost_track_dashed`
+  wird mitgeführt (ältere Fassungen, Web-Karte). `applyGhost` sendet die Ghost-Daten nur bei neuem Track (`map.__rzGhostDaten`).
+- **Laufpunkt am gemessenen Linienende (25.10.2026, zweiter Wurf).** `_linieEndeMessen()` (je `sourcedata` von
+  `preview-track`, höchstens einmal je Bild): Enden der geladenen Linienstücke (`querySourceFeatures`) nahe der Soll-Stelle
+  (Fenster −400 … +1 Stützstellen, Lot auf den Abschnitt) → `_linieBis` = weitestes Ende. Vorher aus der Meldung
+  `isSourceLoaded` geschlossen: kam beim Worker-Ende (Kacheln noch alt → Punkt vorn) oder unter Dauer-Aktualisierung kaum
+  (Punkt weit hinten). `window.__rzLinieMess()` (Zähler, ms; Probelauf-Zeile „Linienende gemessen g/l“). ~0,06 ms je Lauf.
+- **Kompass je Look (25.10.2026).** Bilder `ui/kompass/kompass-<look>.svg` (dieselben wie im Web-Studio, viewBox 64, Norden
+  oben, ohne eigene Drehung); `scripts/kompass_js.py` erzeugt `ui/js/kompass.js` (`RZ_KOMPASS`, `rzKompassFuer(einstellungen)`:
+  `map_style` „kartenlook“ + `kartenlook.id`, sonst `RZ_NORTH_SVG`). Animator: `_kompassSvg()` im Container „nord“,
+  `_kompassAktualisieren()` nach jedem Stil-Laden (`rebuildPreviewLayers`). Python-Spiegel `core/northarrow.py
+  north_svg_fuer()` (liest dieselben Dateien; Web-Karten-Export). Test `test_kompass`.
+- **Vorankündigungs-Punkte hinter Bergen (25.10.2026).** `_vorankuendigung` (HTML `.hl-punkt` über der Karte) multipliziert
+  die Deckkraft mit `rzSignSicht`, unter 0,01 kein Punkt. Test `test_schild_sicht` E.
+- **Projekt-Paket mit `.gpx.gz`-Tour (25.10.2026).** `app.py _paket_gpx(name, roh)`: entpackt gzip-Bytes (`1f 8b`) aus
+  `track.gpx` bzw. `tracks/NN.gpx` und nimmt `.gz` aus dem Dateinamen. Der Export packt weiter die Rohbytes (sonst änderte
+  sich die Cloud-Prüfsumme jeder `.gz`-Tour). Test `test_projekt_export_import` Teil 7.
+- **Glow-Maß (25.10.2026).** `util.js rzGlowMass(lw, gs)` → `{breite, blur, deck}` (Rand `aus = 2 + 1,6·gs` px, Blur 0,9·aus, Deckkraft 0,3…0,75), `rzGlowAusdruck` für Feature-Ausdrücke (Schwarm); Spiegel `core/animator.py _glow_mass` (klassischer Render 2D/3D, mtrack, Schwarm). Ersetzt `lw·(2 + 0,21·gs)` mit `line-blur = gs` — der Glow war auf Luftbildern unsichtbar.
+- **Laufpunkt am Boden über WebGL (25.10.2026).** `dotSetzen` setzt neben der GeoJSON-Quelle `anim-dot` die Ebene
+  `anim-dot-gl` (`rz-punkt3d`, wie „Flug in der Luft“) direkt: `_bodenPunktSetzen(pos, brg, sk, puls)` mit dem Bild aus
+  `_dotLuft` (Leuchtpunkt: `_leuchtBodenBild` mit Lichtfleck, Glow, Kern, Atmen in Zehntelstufen). Die GeoJSON-Ebenen
+  `anim-dot-*` bleiben (Aufbau, Eigenschaften, Prüfstände), sind aber `visibility: none`. Grund: `setData` geht durch einen
+  Karten-Worker, der beim schnellen Kameraflug mit Kacheln beschäftigt ist — der Pfeil lag Sekunden hinter der Linie
+  (Marc, MacBook-Aufnahme). Reihenfolge: `_rzRaiseOverlayLayers` sieht eigene Ebenen nicht (`getStyle()` serialisiert
+  sie nicht) → `_bodenPunktHeben` setzt `anim-dot-gl` in die Laufpunkt-Schicht (unter `et-edit-`); tiefer würde MapLibre
+  bei 3D-Gelände alles darüber aufs Gelände legen und den Punkt verdecken. Nicht bei Mapbox; `window.__rzDotGeoJson = true`
+  (vor dem Laden) erzwingt den alten Weg für Vergleiche. Prüfstand `window.__rzBodenPunkt()`, Test `test_laufpfeil_folgt`.
 - **Leuchtpunkt** `marker_dot_style = "leucht"` (24.10.2026): drei Kreis-Ebenen `anim-dot-licht` (Lichtfleck,
   36·gr), `anim-dot-glow` (15·gr, blur 0,8), `anim-dot-core` (5·gr, #fff4e0, Rand = Linienfarbe). Atmen: `_dotPuls(f)`
   liest die Videozeit `window.__rzVideoSek` (gesetzt in `scrubPreview` und in der Wiedergabe-Schleife über

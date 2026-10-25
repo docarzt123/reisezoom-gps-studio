@@ -346,10 +346,41 @@ function rzTileSize(base) {
 }
 window.rzTileSize = rzTileSize;
 
+/** 25.10.2026 — Farbkorrektur der Luftbilder (0…100) aus der Optik; wird je Kachel in der Weiche gerechnet
+ *  (`?g=…`, core/farbkorrektur.py) statt als Leinwand-Ebene, die auf Apple-Grafik jedes Bild ausbremste. */
+function rzOrthoFarbe(adj) {
+  const v = (adj && typeof adj === "object") ? parseFloat(adj.grade) : NaN;
+  return isFinite(v) ? Math.max(0, Math.min(100, Math.round(v))) : 0;
+}
+window.rzOrthoFarbe = rzOrthoFarbe;
+/** Kachel-Adresse der Weiche mit Farbkorrektur (vorhandenes `g=` wird ersetzt). Spiegel: mapstyles.mit_farbe. */
+function rzMitFarbe(url, g) {
+  const ohne = String(url).replace(/([?&])g=[^&]*(&|$)/, (m, a, b) => (b ? a : "")).replace(/[?&]$/, "");
+  return g > 0 ? ohne + (ohne.includes("?") ? "&" : "?") + "g=" + g : ohne;
+}
+window.rzMitFarbe = rzMitFarbe;
+
+/** 25.10.2026 (Marc: „Glowstärke beim Track ändert nichts“) — Glow um eine Linie, Stärke 0…10. Vorher wuchs nur die
+ *  Weichzeichnung (`line-blur` = Stärke) bei kaum breiterer Linie und 35 % Deckkraft: auf Luftbildern unsichtbar, der
+ *  Regler machte „weicher“, nicht „stärker“. Jetzt reicht der Glow `aus` px über die Linie hinaus (2 … 18 px), läuft über
+ *  diese Breite weich aus und wird deckender (30 … 75 %). Spiegel: core/animator.py `_glow_mass`, Ausdrücke `rzGlowAusdruck`. */
+function rzGlowMass(lw, gs) {
+  const g = Math.max(0, Math.min(10, +gs || 0)), aus = 2 + 1.6 * g;
+  return { breite: (+lw || 0) + 2 * aus, blur: aus * 0.9, deck: Math.min(0.75, 0.3 + 0.045 * g) };
+}
+window.rzGlowMass = rzGlowMass;
+/** Dieselbe Rechnung als MapLibre-Ausdrücke (Breite/Glow je Feature, z. B. Schwarm). */
+function rzGlowAusdruck(breiteExpr, glowExpr) {
+  const aus = ["+", 2, ["*", 1.6, ["min", 10, glowExpr]]];
+  return { breite: ["+", breiteExpr, ["*", 2, aus]], blur: ["*", 0.9, aus], deck: ["min", 0.75, ["+", 0.3, ["*", 0.045, ["min", 10, glowExpr]]]] };
+}
+window.rzGlowAusdruck = rzGlowAusdruck;
+
 function _stackStyle(stack, ortho) {
   const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
   const sources = {}, layers = [];
   const proxy = (mapCatalog().proxy_base || "").replace(/\/$/, "");
+  const farbe = proxy ? rzOrthoFarbe(ortho) : 0;
   // Untergrund (NASA Blue Marble) ganz unten: Meer, Ferne, Lücken der Landesdienste.
   const base = mapCatalog().base_layer;
   if (base && base.tiles) {
@@ -359,7 +390,9 @@ function _stackStyle(stack, ortho) {
   // 05.09.2026 — Sentinel-2 cloudless 2016 (EOX, CC BY-SA) weltweit zwischen Untergrund und Landesdiensten
   const sen = mapCatalog().sentinel_layer;
   if (sen && sen.tiles) {
-    sources["rz-raster-sentinel"] = { type: "raster", tiles: sen.tiles.slice(), tileSize: rzTileSize(sen.tileSize || 256), maxzoom: sen.maxzoom || 14, attribution: sen.attribution || "" };
+    // 25.10.2026 — über die Weiche (Farbkorrektur je Kachel); ohne Weiche direkt bei EOX
+    const senTiles = proxy ? [rzMitFarbe(proxy + "/tile/sentinel/{z}/{x}/{y}", farbe)] : sen.tiles.slice();
+    sources["rz-raster-sentinel"] = { type: "raster", tiles: senTiles, tileSize: rzTileSize(sen.tileSize || 256), maxzoom: sen.maxzoom || 14, attribution: sen.attribution || "" };
     const laySen = { id: "rz-raster-sentinel", type: "raster", source: "rz-raster-sentinel", minzoom: 0 };   // ohne Luftbild-Optik (Meer wurde schwarz)
     layers.push(laySen);
   }
@@ -367,7 +400,7 @@ function _stackStyle(stack, ortho) {
   for (const r of stack.slice().reverse()) {
     const sid = transparent ? "rz-raster-" + r.id : "rz-raster";
     // Über die lokale Kachel-Weiche (CORS + Zwischenspeicher), wenn die App sie anbietet.
-    const tiles = proxy ? [proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : "")]
+    const tiles = proxy ? [rzMitFarbe(proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : ""), farbe)]
                         : (transparent ? (r.tiles_transparent || r.tiles) : r.tiles);
     const src = { type: "raster", tiles, tileSize: rzTileSize(256), minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
@@ -393,7 +426,7 @@ function _stackStyle(stack, ortho) {
   }
   // 23.10.2026 (Marc: „ich will bessere Kartendarstellungen") — Schlagschatten aus dem Höhenmodell (core/schatten.py
   // über die Kachel-Weiche), über Luftbild und Relief, unter der Beschriftung. ortho.schatten 0…100.
-  if (proxy) {
+  if (proxy && !window.__rzPreviewOhneSchatten) {   // 25.10.2026 — Vorschau «schnell»: ohne Schlagschatten
     const sch = rzOrthoSchatten(ortho);
     sources["rz-schatten"] = { type: "raster", tiles: [proxy + "/tile/schatten/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 };
     layers.push({ id: "rz-schatten", type: "raster", source: "rz-schatten", minzoom: 8,
@@ -852,7 +885,8 @@ window.osmBlockOverlay = osmBlockOverlay;
  *  während der Vorschau») — Vorschau-Qualität aus den Einstellungen, NUR im Fenster (nie im Render):
  *  voll   = wie das Video (Kacheldichte 2 Stufen, Pixelmaßstab des Bildschirms, Geländenetz 128)
  *  flott  = Kacheldichte wie vor dem 07.09. (viermal weniger Kacheln je Bild)
- *  schnell = dazu Pixelmaßstab 1 (auf Retina ein Viertel der Pixel) und Geländenetz 64 */
+ *  schnell = dazu Pixelmaßstab 1 (auf Retina ein Viertel der Pixel) und Geländenetz 64
+ *  25.10.2026: flott/schnell = Gelände bis z15 statt z16, schnell = ohne Schlagschatten */
 function rzPreviewQuality() {
   if (window.__rzRenderMode) return "voll";
   const q = (_settingsCache && _settingsCache.preview_quality) || "voll";
@@ -865,6 +899,11 @@ function rzApplyPreviewQuality() {
   // nach Pixelmaßstab = ¼ der Kacheln; fehlt → wie bisher bis zu 2 Stufen)
   if (window.__rzRenderMode && typeof window.__rzRenderMode.kachelStufen === "number") window.__rzTileDensityMax = window.__rzRenderMode.kachelStufen;
   window.__rzPreviewPixelRatio = (q === "schnell") ? 1 : undefined;
+  // 25.10.2026 (Marc, MacBook: Vorschau ruckelt seit der neuen Kartendarstellung) — die Lasten seit 0.9.810 auch hier:
+  // «flott»/«schnell»: Gelände in der Vorschau nur bis z15 (wie vorher; die Feinstufe z16 vervierfacht die Gelände-
+  // kacheln), «schnell»: dazu ohne Schlagschatten. Das Video rendert immer voll (oben: Render-Modus = «voll»).
+  window.__rzPreviewDemMax = (q === "voll") ? undefined : 15;
+  window.__rzPreviewOhneSchatten = (q === "schnell");
   window.__rzPreviewMesh = undefined;   // 08.09.2026: Netz bleibt 128 — 64 gab in «schnell» 171 statt 136 Flacker-Blöcke (30-fps-Aufnahme Masca) bei kaum Tempo
   return q;
 }
@@ -4126,7 +4165,7 @@ window.rzSetDataLatest = function (map, src, data) {
     if (!src.__rzFlushHooked) {
       src.__rzFlushHooked = true;
       const flush = () => {
-        if (src.__rzPending && src._pendingLoads === 0) { const d = src.__rzPending; src.__rzPending = null; try { src.setData(d); } catch (_) {} }
+        if (src.__rzPending && src._pendingLoads === 0) { const d = src.__rzPending; src.__rzPending = null; try { src.__rzGesendet = d; src.setData(d); } catch (_) {} }
       };
       try { map.on("sourcedata", (e) => { if (e && e.sourceId === src.id) flush(); }); } catch (_) {}
       try { map.on("error", (e) => { if (e && e.sourceId === src.id) flush(); }); } catch (_) {}
@@ -4136,6 +4175,7 @@ window.rzSetDataLatest = function (map, src, data) {
     if (src.__rzTickStart) src.__rzTickStart();
     return;
   }
+  src.__rzGesendet = data;   // 25.10.2026 — zuletzt an MapLibre gegeben (Animator: Laufpunkt am gezeichneten Linienende)
   src.setData(data);
 };
 

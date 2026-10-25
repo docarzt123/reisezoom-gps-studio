@@ -588,6 +588,18 @@ liegt dann als Strichlinie unter der gezeichneten Linie. **Neue Projekte** start
 ältere Projekte bleiben, wie sie waren. Hat die Linie selbst ein Muster (gestrichelt, gepunktet …), nimmt die blasse
 Strecke dieses Muster.
 
+**Fein, mit eigener Breite und Strichart (seit 25.10.2026):** Die blasse Strecke ist von Haus aus nur **45 % so dick wie
+der Track** (mindestens 1,2 px) — früher war sie gleich dick und sah in der Übersicht am Anfang aus wie mit Filzstift
+gemalt. Bei der Haupt-Tour stellst du **Strichart** (gestrichelt, durchgezogen, gepunktet, Strich-Punkt) und **Breite**
+selbst ein; Breite ganz links = automatisch. Die blassen Strecken weiterer Touren sind ebenfalls fein.
+
+**Mitzoomen (seit 25.10.2026):** Im Aussehen-Panel der Haupt-Tour unter „Track-Dicke“. Die Linie wird beim Herauszoomen
+etwas dünner und beim Hineinzoomen etwas dicker — so wirkt sie in der Übersicht am Anfang und am Ende nicht mehr klobig,
+und ganz nah bleibt sie kräftig. Beim normalen Fahrt-Zoom hat sie genau die eingestellte Dicke; dünner als 0,6× und dicker
+als 1,45× wird sie nie, unsichtbar also auch nicht. Der Bezug ist die Übersicht der ganzen Tour, darum verhalten sich eine
+kurze Wanderung und eine lange Reise gleich. Standard 50 %, **0 = immer gleich dick** wie früher. Gilt für alle Linien
+der Tour (Kontur, Schatten, Glow, weitere Touren, Linie in der Luft); Vorschau und Video sehen gleich aus.
+
 ### Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden
 
 Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Gesamttour.
@@ -801,6 +813,7 @@ entstanden sind (zugeordnet über GPS, sonst über die Aufnahmezeit):
   daraus. Fotos, die schon Schild sind, stehen dort als kleiner Punkt.
 - **Schilder → 🖼 Medien der Tour** öffnet sie rechts als Raster: **Klick** = als Schild, **Doppelklick** = an diese
   Stelle springen. Schon gesetzte sind markiert. Ohne eingelesene Ordner steht dort, wo du sie hinzufügst.
+- **Schilder hinter Bergen (seit 25.10.2026):** Liegt der Punkt eines Schilds (auch Highlights wie Gipfel oder Aussichtspunkte) von der Kamera aus hinter einem Berg, blendet das Schild aus — wie die Linie, die dort ebenfalls verdeckt ist. Am Grat geht das weich über; Vorschau und Video sind gleich Das gilt auch für die farbigen Punkte, die ein Highlight kurz vorher ankündigen.
 
 Videos werden über **🎞 Clips hinzufügen** zu Clip-Stopps.
 
@@ -2583,6 +2596,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Stil**: 6 Mapbox-Stile (Satellite 3D, Satellite+Streets, Outdoors, Streets, Hell, Dunkel)
 - **3D-Terrain** aktivieren — bei Alpentouren sieht das spektakulär aus
 - **Track-Farbe + Dicke** — frei wählbar
+- **Glow um Track-Linie** (Stärke 0–10) — eine weiche Aura in der Linienfarbe. Seit 25.10.2026 wird sie mit der Stärke sichtbar breiter und kräftiger (bei 10 reicht sie rund 18 px über die Linie hinaus); vorher machte der Regler sie vor allem weicher, auf Luftbildern war sie kaum zu sehen. Gilt auch für weitere Touren, Etappen und den Schwarm.
 - **Strichart** (seit v0.6.5, bis 24.10.2026 „Linien-Stil“) — Durchgezogen / Gestrichelt / Gepunktet / Strich-Punkt / **Röhre**. Bei Strich-/Punkt-Varianten gibt's einen zusätzlichen **Punktabstand**-Slider (multipliziert die Strich- bzw. Punkt-Längen). „Röhre" (seit v0.8.10, im Linien-Stil-Dropdown seit v0.8.12) legt einen weißen Highlight-Streifen oben auf die Linie → wirkt plastischer wie ein Schlauch.
 - **Schlagschatten unter Track** (seit v0.4) — lässt den Track wie eine schwebende Linie über der Karte wirken. Stärke 0–10 px (Default 4). Bei aktivem 3D-Terrain bleibt der Schatten auf dem Boden während der Track 150 m darüber gerendert wird → plastischer 3D-Look.
 - **Schatten-Richtung (global, seit v0.9.478)** — direkt unter der Schatten-Stärke steuerst du mit dem Slider **„Schatten-Richtung"** (0–360°), aus welcher Richtung das Licht kommt: **0° = rechts, 90° = unten, 180° = links, 270° = oben**. Das ist eine **gemeinsame Lichtquelle** — sie gilt gleichzeitig für den **Track-Schatten** und für den **Schlagschatten aller Schilder** (Wegpunkt-Schilder), damit alles wie von derselben Sonne beleuchtet wirkt.
@@ -2638,7 +2652,11 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - **Freitext** — beliebiger Text; `{dist_total}`, `{ele_high}` usw. setzen Werte ein.
   - **Diagramm** — das Höhenprofil (Linienfarbe; bei Reisen ganze Strecke oder laufende Etappe) oder jede Datenreihe des Tracks (den Look gestaltest du im Daten-Animator), mit eigener Breite und Höhe in %.
   - **Bild** — eigenes Bild oder das GPS-Studio-Logo, Breite in %.
-  - **Nordpfeil** und **Maßstab**.
+  - **Nordpfeil** und **Maßstab**. Der Nordpfeil passt sich seit 25.10.2026 dem **Look der Karte** an: alte Kompassrose
+    im Reiseatlas, verzierte Windrose auf der Schatzkarte, nautische Rose auf der Seekarte, Leuchtnadel auf der
+    Nachtkarte, klassischer Kartennordpfeil bei Topo, schlichter Strichpfeil bei Minimal, runde Nadel bei Pastell. Auf
+    Luftbildern bleibt der gewohnte Pfeil. Wechselst du den Look, wechselt der Kompass mit; es sind dieselben Bilder wie
+    im Web-Studio.
 - **Zeit:** Ohne Zeitraum ist eine Einblendung das ganze Video über zu sehen. **＋ Zeitraum** legt einen an (Sekunden von–bis, leer = bis zum Ende), mehrere sind möglich; **ganzes Video** nimmt sie wieder weg. Dazu **Einblendung** und **Ausblendung** (hart, weich, aufpoppen) mit Dauer. In der **Zeitleiste** hat jede Einblendung in der Spur „▸ Overlays“ einen Balken: ziehen verschiebt, die Ränder ändern Anfang und Ende, die weißen Punkte die Blenden. Eine Zeit im Intro hängt am Videostart, in der Animation an einem Punkt der Strecke, im Halten am Videoende — so bleibt sie richtig, wenn du Dauer oder Tempo änderst.
 - **Verläufe:** Unter der Liste legst du oben und unten einen dunklen **Verlauf** ins Bild (Stärke in %), damit helle Schrift auf jeder Karte lesbar bleibt.
 - **Maße:** Schrift in Prozent der kurzen Bildseite, Abstände relativ zur Schrift, Lage und Größe in Prozent des Bildes. Deshalb sieht eine Einblendung bei jeder Fenstergröße und im Video gleich aus, auch in 4K und hochkant.
@@ -2665,6 +2683,8 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Mac: Doppelklick auf .rzproj** funktioniert seit 05.09.2026 auch, wenn GPS Studio schon läuft (vorher nur beim Start).
 - **Sternenhimmel (Weltkugel)** (seit 05.09.2026, Beta-Tester-Wunsch) — rechts im **Karten-Editor** (Knopf **„Karten-Optik und Sterne …“** im Abschnitt **Karte**, seit 08.10.2026; vorher direkt im Abschnitt Karte): Ein/Aus, Dichte, Größe und Funkeln. Sichtbar, sobald die Kamera weit genug draußen ist (Weltanflug, Intro). Vorschau und Video zeigen dieselben Sterne. Bei Mapbox-Stilen gibt es die Gruppe nicht, Mapbox bringt seinen eigenen Himmel mit.
 - **Vorschau-Qualität** (seit 07.09.2026) — Einstellungen → Karten, ganz unten: «voll» (wie das Video), «flott» (viermal weniger Kacheln je Bild, Kacheldichte wie vor dem 07.09.) oder «schnell» (zusätzlich halbe Bildauflösung; auf Retina-Macs bringt das kaum Tempo). Hilft, wenn die Vorschau ruckelt. Betrifft nur das Fenster: Video und Standbild rendern immer voll, Kamera, Strecke und Overlays sind identisch. Die App lädt die Oberfläche nach dem Umstellen neu.
+  **Seit 25.10.2026 auch direkt im Animator:** In der Zeitleiste neben „Ganzer Track“ und „KF-Pins“ steht **Vorschau: voll / flott / schnell** (dieselbe Einstellung). «flott» lädt das Gelände in der Vorschau eine Stufe gröber (bis z15 statt z16), «schnell» lässt zusätzlich den Schlagschatten weg. Umstellen baut die Vorschau neu auf; das Video rendert immer in voller Qualität. Hilft, wenn die Vorschau auf einem Notebook ruckelt.
+  **Gleichmäßiger Takt (seit 25.10.2026, automatisch):** Schafft der Rechner beim Abspielen nicht jedes Bild des Bildschirms, wechselten sich bisher schnelle und verspätete Bilder ab — das sah nach Ruckeln aus, und die Linie kam hinter dem Laufpunkt nicht mit. Jetzt merkt die Vorschau das nach gut einer Sekunde und zeichnet in festem Abstand, z. B. ruhige 30 Bilder je Sekunde statt holpriger 35–45. Nichts läuft langsamer; das Video ist davon nicht betroffen. Auf schnellen Rechnern bleibt es bei jedem Bild. Im Protokoll steht dann „[takt] Vorschau zeichnet ab jetzt gleichmäßig …“.
 - **Quellenzeile: voll oder kurz** (seit 07.09.2026) — in der Overlay-Gruppe „Quellenzeile" neben Ecke und Breite: „voll" zeigt jede Quelle mit Lizenz im Bild (wie bisher). „kurz (Namen + Link)" zeigt die Kurznamen der Quellen im Bild, „bearbeitet" und dahinter „Quellen: <dein Link>" — der Link muss direkt zu den vollständigen Angaben dieses Videos führen (deine Seite, die Videobeschreibung). Die Namen bleiben im Bild, weil viele Lizenzen die sichtbare Nennung verlangen; die Links zu Lizenz und Datensatz stehen hinter dem Link. Ohne Link erscheinen nur Namen und „bearbeitet". Gilt in Vorschau und Video gleich, nicht in der Web-Karte. Nach jedem Render gibt es den Knopf **„Quellentext kopieren"**: der vollständige Text für die Videobeschreibung oder den Abspann (Anbieter, Datensatz, Lizenz mit Links, „Daten bearbeitet", dein Link).
 - **Quellen-Register** (seit 07.09.2026) — in den Einstellungen unter **Karten** in der Rechte-Tabelle aufklappbar: je Kartendienst die Datenlizenz mit Link, ob kommerzielle Videos freigegeben sind (✅ geprüft und erlaubt · 💰 Rechte kaufen · ⚠️ nicht verifiziert oder Server-Regeln · ❌ nicht erlaubt), die vorgeschriebene Nennung im Bild und das Prüfdatum. Alle Dienste wurden am 07.09.2026 einzeln nachgelesen; die Nennung im Bild kommt seither aus diesem Register, mit Änderungshinweis, wo die Lizenz ihn verlangt. Mindestens halbjährlich wird neu geprüft; ist ein Eintrag überfällig, steht dort ein Hinweis. Die Karten-Abzeichen im Stil-Wähler folgen dem Register: CyclOSM und Humanitarian sind für Videos nicht freigegeben (der Server von OpenStreetMap France bedient nur nichtkommerzielle Seiten), OpenStreetMap und OpenTopoMap tragen den Hinweis „Server-Regeln beachten" (Bild-für-Bild-Rendern nur nach Absprache oder mit eigenem Kachelserver). Das ist unsere Lesart, keine Rechtsberatung — die Links stehen daneben.
 - **Schärfe** (seit 07.09.2026) — der letzte Regler der „Luftbild-Optik" bzw. „Karten-Optik" (unter „Farbton"), 0–100 % (Standard 0): eine Unschärfemaske auf dem Kartenbild, in Vorschau und Video gleich (nicht in den Web-Karten-Exporten). Wirkt nur auf das Kartenbild, nicht auf Strecke, Schilder, Beschriftung, Zahlen, Höhenprofil und Quellenzeile. Hintergrund: Die freie Sentinel-2-Ebene (10 m, Stand 2016) ist über Inseln und Küsten ohne amtliches Luftbild weich — das ist das Datenmaterial, nicht die App. 40–60 % machen sie lesbar; darüber wird es körnig. Seit demselben Tag holen alle Rasterkarten auf Retina-Bildschirmen und im Video ein bis zwei Kachelstufen tiefer, damit ein Kachelpixel etwa auf ein Bildpixel fällt (vorher 2- bis 5-fach vergrößert).

@@ -215,6 +215,17 @@ function mountTimelineBar(opts) {
           <input type="checkbox" id="tl-cb-kfpins">
           <span>${tlT('animator.timeline.kfpins', 'KF-Pins')}</span>
         </label>
+        <!-- 25.10.2026 (Marc: „einen Schalter, der den Detailgrad der Vorschau regelt") — dieselbe Einstellung wie in den
+             Einstellungen (preview_quality); das Video rendert immer voll. -->
+        <label class="timeline-toggle-fulltrack timeline-vorschau" id="tl-vorschau"
+               title="${tlT('animator.timeline.vorschau_tip', 'Detailgrad der Vorschau: voll = wie das Video; flott = weniger Kacheln, Gelände eine Stufe gröber; schnell = dazu halbe Auflösung und ohne Schlagschatten. Das Video rendert immer voll.')}">
+          <span>${tlT('animator.timeline.vorschau', 'Vorschau')}</span>
+          <select id="tl-sel-vorschau">
+            <option value="voll">${tlT('animator.timeline.vorschau_voll', 'voll')}</option>
+            <option value="flott">${tlT('animator.timeline.vorschau_flott', 'flott')}</option>
+            <option value="schnell">${tlT('animator.timeline.vorschau_schnell', 'schnell')}</option>
+          </select>
+        </label>
         <button type="button" class="btn btn-subtle timeline-btn-fahrt-neu" id="tl-btn-fahrt-neu"
                 title="${tlT('animator.kf.fahrt_neu_tip', 'Kamerafahrt mit einer anderen Art oder einem anderen Flugstil neu erzeugen. ⌘Z holt die bisherige zurück.')}">
           🎬 <span>${tlT('animator.kf.fahrt_neu', 'Fahrt neu erzeugen…')}</span>
@@ -2523,6 +2534,19 @@ function mountTimelineBar(opts) {
     }
     cbFullTrack.addEventListener("change", () => {
       if (cb.onFullTrackChange) cb.onFullTrackChange(!!cbFullTrack.checked);
+    });
+  }
+
+  // 25.10.2026 — Vorschau-Qualität: wie in den Einstellungen (preview_quality). Die Karte wird danach neu aufgebaut —
+  // wie beim Umstellen in den Einstellungen über ein Neuladen der Oberfläche (alles ist gespeichert).
+  const selVorschau = host.querySelector("#tl-sel-vorschau");
+  if (selVorschau) {
+    try { selVorschau.value = (typeof window.rzPreviewQuality === "function") ? window.rzPreviewQuality() : "voll"; } catch (_) {}
+    selVorschau.addEventListener("change", async () => {
+      const q = selVorschau.value;
+      try { if (typeof saveSettings === "function") await saveSettings({ preview_quality: q }, { immediate: true }); } catch (_) {}
+      try { if (typeof toast === "function") toast(tlT("animator.timeline.vorschau_neu", "Vorschau wird mit dem neuen Detailgrad aufgebaut …"), "info", 1500); } catch (_) {}
+      setTimeout(() => { window.location.reload(); }, 500);
     });
   }
 

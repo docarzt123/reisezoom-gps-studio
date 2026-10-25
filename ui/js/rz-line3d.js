@@ -378,6 +378,8 @@ void main() {
         if (!this._prog || this._define !== define) { try { this._compile(gl, sd); } catch (e) { console.warn(String(e)); return; } }
         const cv = gl.canvas, res = [cv.width, cv.height];
         const pr = (this._map && this._map.getPixelRatio) ? this._map.getPixelRatio() : (window.devicePixelRatio || 1);
+        // 25.10.2026 — Linie zoomt mit (Animator „Mitzoomen“): Faktor zur Breite, wie die Zoom-Ausdrücke der flachen Ebenen
+        let zf = 1; try { if (this._map && typeof this._map.__rzBreiteFaktor === "function") zf = +this._map.__rzBreiteFaktor() || 1; } catch (_) {}
         gl.useProgram(this._prog);
         gl.uniformMatrix4fv(this._loc.matrix, false, m);
         const pd = args && args.defaultProjectionData;
@@ -418,11 +420,11 @@ void main() {
           if (L.dist >= 0) { gl.enableVertexAttribArray(L.dist); gl.vertexAttribPointer(L.dist, 1, gl.FLOAT, false, ST, 40); }
           if (L.color >= 0) { gl.enableVertexAttribArray(L.color); gl.vertexAttribPointer(L.color, 4, gl.FLOAT, false, ST, 44); }
           gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.ibo);
-          const halfw = Math.max(0.5, b.width * pr * 0.5);
+          const halfw = Math.max(0.5, b.width * zf * pr * 0.5);
           gl.uniform1f(L.halfw, halfw);
           gl.uniform1f(L.feather, (b.feather != null ? b.feather : 0.8) * pr);
           if (L.translate) gl.uniform2f(L.translate, (b.translate ? b.translate[0] : 0) * pr, (b.translate ? b.translate[1] : 0) * pr);
-          if (b.dash) gl.uniform2f(L.dash, b.dash[0] * b.width * pr, b.dash[1] * b.width * pr); else gl.uniform2f(L.dash, 0, 0);
+          if (b.dash) gl.uniform2f(L.dash, b.dash[0] * b.width * zf * pr, b.dash[1] * b.width * zf * pr); else gl.uniform2f(L.dash, 0, 0);
           gl.uniform4f(L.ucolor, b.color[0], b.color[1], b.color[2], b.color[3]);
           const k = b.lotCoords ? this._lotSchritt(b, first, segs, pr) : 1;
           if (k <= 1) gl.drawElements(gl.TRIANGLES, segs * 6, gl.UNSIGNED_INT, first * 6 * 4);

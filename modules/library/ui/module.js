@@ -6231,6 +6231,12 @@ function mountLibrary(body, headerActions) {
     window.__rzStartProjekte = false;
     if (!_projView) projViewSetzen(true);
   });
+  // 25.10.2026 (Klicktest mit Marcs .rzproj per Doppelklick in eine leere Bibliothek: Archiv „0 Touren · noch leer“,
+  // obwohl die Tour gerade eingespielt war) — die Liste war gezeichnet, bevor der Import fertig war. Nach dem Import neu.
+  window.addEventListener("rz-touren-geaendert", () => {
+    if (_unmounted) return;
+    try { reload(); reloadFolders(); reloadCollections(); } catch (e) { if (window.rzSwallow) rzSwallow(e, "library:import-neu"); }
+  });
   // v0.9.614: Topbar hat ein leeres Projekt angelegt — offene Liste auffrischen.
   window.addEventListener("rz-projekt-angelegt", () => {
     if (_unmounted || !_projView) return;

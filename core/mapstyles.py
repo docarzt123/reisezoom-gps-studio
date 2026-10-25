@@ -28,6 +28,7 @@ betrieben werden.
 """
 from __future__ import annotations
 
+import re
 import json
 import math
 from pathlib import Path
@@ -610,8 +611,25 @@ def stack_attribution(stack: list[dict]) -> str:
     return " | ".join(out)
 
 
+def ortho_farbe(adj) -> int:
+    """Farbkorrektur der Luftbilder 0…100 (`adjust["grade"]`), Spiegel von util.js rzOrthoFarbe."""
+    try:
+        v = float((adj or {}).get("grade", 0)) if isinstance(adj, dict) else 0.0
+    except (TypeError, ValueError):
+        v = 0.0
+    return max(0, min(100, int(round(v))))
+
+
+def mit_farbe(url: str, g: int) -> str:
+    """Kachel-Adresse der Weiche mit `g=` (Farbkorrektur je Kachel, core/farbkorrektur), Spiegel von util.js rzMitFarbe."""
+    ohne = re.sub(r"([?&])g=[^&]*(&|$)", lambda m: m.group(1) if m.group(2) else "", url).rstrip("?&")
+    return ohne + ("&" if "?" in ohne else "?") + f"g={g}" if g > 0 else ohne
+
+
 def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float = 1.0) -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
+    # 25.10.2026 — Farbkorrektur je Kachel über die Weiche (`?g=`), statt Leinwand-Ebene (bremste Apple-Grafik)
+    _farbe = ortho_farbe(adjust) if proxy_base else 0
     # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
     # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
     # außerhalb seiner Grenze WEISS, und der Blue-Marble-Untergrund kommt nie
@@ -624,7 +642,9 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
                           "maxzoom": BASE_LAYER["maxzoom"], "attribution": BASE_LAYER["attribution"]}
     layers.append({"id": "rz-base", "type": "raster", "source": "rz-base", "minzoom": 0})
     # Sentinel-2 (weltweit, 10 m) zwischen Untergrund und Landesdiensten (05.09.2026)
-    sources["rz-raster-sentinel"] = {"type": "raster", "tiles": list(SENTINEL_LAYER["tiles"]), "tileSize": tile_size_for(SENTINEL_LAYER["tileSize"], dpr),
+    _sen_tiles = ([mit_farbe(proxy_base.rstrip("/") + "/tile/sentinel/{z}/{x}/{y}", _farbe)] if proxy_base
+                  else list(SENTINEL_LAYER["tiles"]))   # 25.10.2026 — über die Weiche (Farbkorrektur)
+    sources["rz-raster-sentinel"] = {"type": "raster", "tiles": _sen_tiles, "tileSize": tile_size_for(SENTINEL_LAYER["tileSize"], dpr),
                                      "maxzoom": SENTINEL_LAYER["maxzoom"], "attribution": SENTINEL_LAYER["attribution"]}
     # Luftbild-Optik auf Sentinel als ABWEICHUNG vom Werk (07.09.2026, Marc: Regler
     # wirkten in der Übersicht nicht): Werk 25/8/0/0 = Sentinel unverändert (mit den
@@ -637,7 +657,7 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
     layers.append(lay_s)
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"
-        src = {"type": "raster", "tiles": region_tiles(r, transparent=transparent, proxy_base=proxy_base),
+        src = {"type": "raster", "tiles": [mit_farbe(u, _farbe) for u in region_tiles(r, transparent=transparent, proxy_base=proxy_base)],
                "tileSize": tile_size_for(256, dpr), "minzoom": int(r.get("minzoom", ORTHO_MINZOOM)),
                "maxzoom": int(r.get("maxzoom", 19)), "attribution": r["attribution"]}
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst

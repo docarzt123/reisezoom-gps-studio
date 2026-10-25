@@ -11,7 +11,7 @@
      MapTiler erlaubt ihn ausdrücklich, die OSM-Policy verlangt ihn.
 
 Der lokale Media-Server der App (app.py, 127.0.0.1) beantwortet
-`/tile/<region>/<z>/<x>/<y>[?t=1]` über `fetch_tile()`. `t=1` = PNG mit
+`/tile/<region>/<z>/<x>/<y>[?t=1][&g=70]` über `fetch_tile()`. `g` = Farbkorrektur in % (`fetch_tile_farbe`). `t=1` = PNG mit
 Alpha (Stapel mehrerer Bundesländer). Die Adresse des Dienstes kennt nur diese
 Datei — der Browser sieht nie die Original-URL.
 
@@ -630,6 +630,10 @@ RASTER_DIENSTE = {
 }
 
 
+# 25.10.2026 — Sentinel-2 (EOX) auch über die Weiche: nur so bekommt es die Farbkorrektur je Kachel (core/farbkorrektur)
+RASTER_DIENSTE["sentinel"] = (ms.SENTINEL_LAYER["tiles"][0], None)
+
+
 def raster_dienst_url(dienst: str, z: int, x: int, y: int) -> Optional[str]:
     eintrag = RASTER_DIENSTE.get(dienst)
     if not eintrag:
@@ -827,6 +831,51 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
         except OSError as e:
             _log.debug("Zwischenspeicher: %s", e)
     return 200, ct, body
+
+
+FARB_VERSION = "f1"   # Formel der Farbkorrektur (core/farbkorrektur) — ändert sie sich, neue Schlüssel
+
+
+def farbe_aus_pfad(path: str) -> float:
+    """`…?g=70` → 70.0 (Farbkorrektur in %), sonst 0."""
+    _, _, q = path.partition("?")
+    for teil in q.split("&"):
+        if teil.startswith("g="):
+            try:
+                return max(0.0, min(100.0, float(teil[2:])))
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
+def fetch_tile_farbe(region_id: str, z: int, x: int, y: int, transparent: bool, prozent: float,
+                     cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
+    """Wie `fetch_tile`, Bild-Kacheln mit Farbkorrektur `prozent` (25.10.2026, statt der Leinwand-Ebene, die auf
+    Apple-Grafik jedes Bild ausbremste). Ergebnis eigener Eintrag im Zwischenspeicher; Ersatz-Kacheln, Gelände und
+    Schatten bleiben unverändert."""
+    st, ct, body = fetch_tile(region_id, z, x, y, transparent, cache_dir, timeout)
+    if (prozent <= 0 or st != 200 or not (ct or "").startswith("image/") or ist_ersatz(body)
+            or region_id in (SCHATTEN_ID, ms.TERRAIN_AWS_PROXY_ID, ms.TERRAIN_AWS_ROH_PROXY_ID)):
+        return st, ct, body
+    cp = cache_path(Path(cache_dir), f"farbe:{FARB_VERSION}:{prozent:g}:{region_id}/{z}/{x}/{y}/{int(bool(transparent))}") if cache_dir else None
+    if cp is not None and cache_fresh(cp):
+        try:
+            raw = cp.read_bytes()
+            nl = raw.index(b"\n")
+            return 200, raw[:nl].decode("ascii", "ignore") or "image/jpeg", raw[nl + 1:]
+        except (OSError, ValueError):
+            pass
+    from . import farbkorrektur
+    body2, ct2 = farbkorrektur.kachel(body, ct, prozent)
+    if cp is not None and body2 is not body:
+        try:
+            cp.parent.mkdir(parents=True, exist_ok=True)
+            tmp = cp.with_name(cp.name + f".{os.getpid()}.tmp")
+            tmp.write_bytes(ct2.encode("ascii", "ignore") + b"\n" + body2)
+            _ds.ersetzen(tmp, cp, "kachel", art=_ds.ART_CACHE)
+        except OSError as e:
+            _log.debug("Zwischenspeicher (Farbe): %s", e)
+    return 200, ct2, body2
 
 
 def parse_request_path(path: str) -> Optional[tuple[str, int, int, int, bool]]:

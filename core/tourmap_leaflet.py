@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import html as _html
 import json
-from core.northarrow import NORTH_SVG
+from core.northarrow import north_svg_fuer
 from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft + gesichert
 from core import i18n as _i18n  # 29.09.2026 — Exportseite in der App-Sprache
 
@@ -150,7 +150,7 @@ def make_leaflet_html(params: dict) -> str:
         "showPins": show_pins, "startLabel": start_label, "endLabel": end_label,
         # 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an
         "showScale": bool(params.get("show_scale", True)), "showNorth": bool(params.get("show_north", True)),
-        "northSvg": NORTH_SVG,
+        "northSvg": north_svg_fuer(params),   # 25.10.2026 — Kompass je Look (sonst der Pfeil)
         # 15.09.2026 (Marc) — Quellenangabe: "ecke" (Leaflet-Standard) oder "voll" (schmale Leiste unten)
         "attribVoll": str(params.get("quellenangabe") or "ecke") == "voll",
         "tile": {"url": tile.get("url"), "sub": tile.get("sub", ""),

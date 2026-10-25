@@ -260,6 +260,7 @@ class AnimatorConfig:
     map_sharp: float = 0.0              # 07.09.2026 — Schärfe (Unschärfemaske auf der Leinwand), 0 = aus
     ortho_relief: float = 0.0          # 17.09.2026 — Relief (Hillshade) über den Luftbildern, nur „Satellit (kostenlos)"
     map_haze: float = 0.0               # 17.09.2026 — Dunst entfernen (Schwarzpunkt je Kanal auf der Leinwand), 0 = aus
+    ortho_grade: float = 0.0            # 25.10.2026 — Farbkorrektur der Luftbilder je Kachel (Weiche `?g=`), 0 = aus
     # 07.09.2026 (Marc, Konzept Kartenquellen §6) — Quellenzeile: "voll" = alle Nennungen im Bild (MapLibre baut sie
     # aus den Quellen), "kurz" = Kurznamen + «bearbeitet» + Link zu den vollständigen Angaben (attrib_link)
     attrib_mode: str = "voll"
@@ -595,6 +596,14 @@ class AnimatorConfig:
     # Zeit wächst keine Linie, der Marker ist ausgeblendet, die Kamera fliegt
     # von der einen Tour zur anderen.
     fly_duration_s: float = 3.0
+
+
+def _glow_mass(lw: float, gs: float) -> tuple[float, float, float]:
+    """(Breite, Blur, Deckkraft) des Glows um eine Linie, Stärke 0…10 — Spiegel von util.js rzGlowMass (25.10.2026:
+    vorher wuchs nur der Blur, der Glow war auf Luftbildern unsichtbar)."""
+    g = max(0.0, min(10.0, float(gs or 0)))
+    aus = 2 + 1.6 * g
+    return float(lw or 0) + 2 * aus, aus * 0.9, min(0.75, 0.3 + 0.045 * g)
 
 
 def _shadow_dxdy(cfg) -> tuple:
@@ -1949,7 +1958,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                     "admin": bool(cfg.show_admin_boundaries)},
             ortho={"sat": getattr(cfg, "ortho_sat", 25.0), "con": getattr(cfg, "ortho_con", 8.0),
                    "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0),
-                   "relief": getattr(cfg, "ortho_relief", 0.0)},   # 17.09.2026 — Relief-Ebene im Stapel
+                   "relief": getattr(cfg, "ortho_relief", 0.0),   # 17.09.2026 — Relief-Ebene im Stapel
+                   "grade": getattr(cfg, "ortho_grade", 0.0)},    # 25.10.2026 — Farbkorrektur je Kachel
             # 07.09.2026: Kacheldichte am Pixelmaßstab des Renders (DSF × SSAA), s. mapstyles.tile_size_for
             dpr=_render_dsf(cfg.width, cfg.height) * _render_ss(cfg.width, cfg.height))
     cfg.map_engine = _spec["engine"]
@@ -2011,8 +2021,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             _layers.append(
                 "  map.addLayer({id:'mtrack'+i+'-glow',type:'line',source:'mtrack'+i,"
                 "layout:{'line-cap':'round','line-join':'round'},"
-                f"paint:{{'line-color':__col,'line-width':{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f},"
-                f"'line-opacity':0.35,'line-blur':{cfg.glow_strength:.1f}{_dash_frag}{_zoff_frag}}}}});")
+                f"paint:{{'line-color':__col,'line-width':{_glow_mass(cfg.line_width, cfg.glow_strength)[0]:.2f},"
+                f"'line-opacity':{_glow_mass(cfg.line_width, cfg.glow_strength)[2]:.3f},"
+                f"'line-blur':{_glow_mass(cfg.line_width, cfg.glow_strength)[1]:.1f}{_dash_frag}{_zoff_frag}}}}});")
         _layers.append(
             "  map.addLayer({id:'mtrack'+i+'-line',type:'line',source:'mtrack'+i,"
             "layout:{'line-cap':'round','line-join':'round'},"
@@ -3229,8 +3240,10 @@ map.on('style.load', () => {{
       paint: {{ 'line-color': 'rgba(0,0,0,0.7)', 'line-width': ['*', ['get', 'width'], 2.2], 'line-blur': ['get', 'shadow'],
                'line-translate': SCHWARM_SHADOW_TR {schwarm_zoff_frag} }} }});
     map.addLayer({{ id: 'schwarm-glow', type: 'line', source: 'schwarm', filter: ['>', ['get', 'glow'], 0], layout: __swLay,
-      paint: {{ 'line-color': ['get', 'color'], 'line-width': ['*', ['get', 'width'], ['+', 2.0, ['*', 0.21, ['get', 'glow']]]],
-               'line-blur': ['get', 'glow'], 'line-opacity': 0.8 {schwarm_zoff_frag} }} }});
+      paint: {{ 'line-color': ['get', 'color'],
+               'line-width': ['+', ['get', 'width'], ['*', 2, ['+', 2, ['*', 1.6, ['min', 10, ['get', 'glow']]]]]],
+               'line-blur': ['*', 0.9, ['+', 2, ['*', 1.6, ['min', 10, ['get', 'glow']]]]],
+               'line-opacity': ['min', 0.75, ['+', 0.3, ['*', 0.045, ['min', 10, ['get', 'glow']]]]] {schwarm_zoff_frag} }} }});
     SCHWARM_DASH.forEach((d, n) => {{
       const paint = {{ 'line-color': ['get', 'color'], 'line-width': ['coalesce', ['get', 'width'], Math.max(1, {schwarm_line_width_json})], 'line-opacity': 0.9 {schwarm_zoff_frag} }};
       if (d.dash) paint['line-dasharray'] = d.dash;
@@ -3304,8 +3317,10 @@ map.on('style.load', () => {{
     # Linien-Breite. Formel `(2.0 + 0.21 × gs)` ergibt bei gs=4 (Default)
     # ≈ 2.85 (= Backward-Compat zur alten festen 2.85), bei gs=10 → 4.10×
     # → spürbar breiterer Halo.
-    f"paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f},'line-opacity':0.35,'line-blur':{cfg.glow_strength:.1f}"
-    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing, 1 / (2.0 + 0.21 * cfg.glow_strength))}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else "")
+    # 25.10.2026 — Breite, Blur und Deckkraft aus `_glow_mass` (Spiegel util.js rzGlowMass): vorher war der Glow unsichtbar
+    f"paint:{{'line-color':'{cfg.line_color}','line-width':{_glow_mass(cfg.line_width, cfg.glow_strength)[0]:.2f},"
+    f"'line-opacity':{_glow_mass(cfg.line_width, cfg.glow_strength)[2]:.3f},'line-blur':{_glow_mass(cfg.line_width, cfg.glow_strength)[1]:.1f}"
+    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing, cfg.line_width / max(0.1, _glow_mass(cfg.line_width, cfg.glow_strength)[0]))}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else "")
     + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled"}
   map.addLayer({{id:'track-line',type:'line',source:'track',
@@ -3352,7 +3367,7 @@ map.on('style.load', () => {{
     if (__ghostRoute) {{ __ghostRoute.offsetM = 147; __spuren.push(__ghostRoute); }}
     if (__hadShadow) {{ __haupt.push(__spuren.length); __spuren.push({{ coords: allCoords, color: '#000000', opacity: 0.18, width: {cfg.line_width * 1.8:.2f},
                        feather: {cfg.line_width * 0.9:.1f}, translate: [{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}], dash: TRACK_DASH, offsetM: 149 }}); }}
-    {("__haupt.push(__spuren.length); __spuren.push({ coords: allCoords, color: __base, colors: __cols, width: " + f"{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f}" + ", opacity: 0.35, feather: " + f"{max(1.0, cfg.glow_strength * 1.5):.1f}" + ", dash: (COLORS_ON ? null : TRACK_DASH), offsetM: 150 });") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled (3d)"}
+    {("__haupt.push(__spuren.length); __spuren.push({ coords: allCoords, color: __base, colors: __cols, width: " + f"{_glow_mass(cfg.line_width, cfg.glow_strength)[0]:.2f}" + ", opacity: " + f"{_glow_mass(cfg.line_width, cfg.glow_strength)[2]:.3f}" + ", feather: " + f"{max(1.0, _glow_mass(cfg.line_width, cfg.glow_strength)[1] * 1.5):.1f}" + ", dash: (COLORS_ON ? null : TRACK_DASH), offsetM: 150 });") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled (3d)"}
     __haupt.push(__spuren.length); __spuren.push({{ coords: allCoords, color: __base, colors: __cols, width: {cfg.line_width:.2f}, opacity: 0.95, dash: ((COLORS_ON || SEG_STARTS.length) ? null : TRACK_DASH), offsetM: 150 }});
     {("__haupt.push(__spuren.length); __spuren.push({ coords: allCoords, color: '#ffffff', width: " + f"{cfg.line_width * 0.35:.2f}" + ", opacity: 0.55, feather: 1.2, dash: TRACK_DASH, offsetM: 150.5 });") if cfg.track_style == "tube" else "// no tube highlight (3d)"}
     const __l3 = window.rzLine3d.create('track-3d', {{ offsetM: 150 }});

@@ -809,6 +809,49 @@
     return (g && g.id == null) ? g : null;
   }
 
+  /** 25.10.2026 (Marc, Masca: „die gelben POI-Punkte gucken durch das Gelände durch, der Track ist verdeckt … wenn man den
+   *  Track nicht sieht, sollte man die Punkte auch nicht sehen“) — Schilder stehen am Bildschirm ausgerichtet über ihrem
+   *  Ankerpunkt; MapLibre prüft dabei nicht, ob ein Berg davor liegt (die Linie liegt dagegen AUF dem Gelände und wird
+   *  verdeckt). Hier der Sichtstrahl Kamera → Ankerpunkt am Boden: ragt das Gelände dazwischen darüber, ist das Schild
+   *  verdeckt. Weich über ÜBERSTAND_M Meter (kein Flackern am Grat), je Bild aus Kamera und Gelände gerechnet — Vorschau
+   *  und Video gleich. 1 = frei, 0 = verdeckt; ohne Gelände immer 1. */
+  var RZ_SICHT_PROBEN = 28, RZ_SICHT_UEBERSTAND_M = 40;
+  function rzSignSicht(map, lng, lat) {
+    try {
+      if (!map || !map.getTerrain || !map.getTerrain() || !map.queryTerrainElevation) return 1;
+      // unter Zoom 9 zeichnet die Karte (teils) als Kugel (mapstyles.PROJECTION) — die Merkator-Rechnung hier gilt dann nicht
+      if (map.getZoom && map.getZoom() < 9) return 1;
+      var MC = (typeof window !== "undefined") && ((window.maplibregl && window.maplibregl.MercatorCoordinate) || (window.mapboxgl && window.mapboxgl.MercatorCoordinate));
+      if (!MC) return 1;
+      // Kamera: MapLibre 5 über transform (Höhe in m über dem Meer, Gelände eingerechnet), Mapbox über FreeCamera
+      // (transform.getCameraAltitude() ist in dieser MapLibre-Fassung NaN — _pixelPerMeter fehlt —, darum rzMlCamRead aus
+      // ui/js/maplibre-camera.js, dieselbe Rechnung wie Keyframes und Render)
+      var cam = null;
+      if (typeof map.getFreeCameraOptions === "function") {
+        cam = map.getFreeCameraOptions().position;
+      } else if (typeof window.rzMlCamRead === "function") {
+        var rc = window.rzMlCamRead(map);
+        if (rc && rc.pos) cam = new MC(rc.pos[0], rc.pos[1], rc.pos[2]);
+      }
+      if (!cam || !isFinite(cam.x) || !isFinite(cam.y) || !isFinite(cam.z)) return 1;
+      var boden = map.queryTerrainElevation({ lng: lng, lat: lat });
+      if (typeof boden !== "number" || !isFinite(boden)) return 1;
+      var ziel = MC.fromLngLat({ lng: lng, lat: lat }, boden + 3);
+      var schlimm = 0;
+      for (var k = 1; k < RZ_SICHT_PROBEN; k++) {
+        var t = k / RZ_SICHT_PROBEN;
+        if (t > 0.97) break;   // die letzten Meter vor dem Anker: der eigene Hang
+        var x = cam.x + (ziel.x - cam.x) * t, y = cam.y + (ziel.y - cam.y) * t, z = cam.z + (ziel.z - cam.z) * t;
+        var p = new MC(x, y, 0), ll = p.toLngLat();
+        var hoehe = z / p.meterInMercatorCoordinateUnits();
+        var gel = map.queryTerrainElevation(ll);
+        if (typeof gel === "number" && isFinite(gel) && gel - hoehe > schlimm) schlimm = gel - hoehe;
+      }
+      return Math.max(0, Math.min(1, 1 - schlimm / RZ_SICHT_UEBERSTAND_M));
+    } catch (_) { return 1; }
+  }
+  if (typeof window !== "undefined") window.rzSignSicht = rzSignSicht;
+
   function rzSignApplyFrame(map, lyr, src, metas, M) {
     if (!map || !map.getLayer || !map.getLayer(lyr)) return;
     // 22.08.2026 (Audit): Filter nur setzen, wenn sich M spürbar bewegt hat —
@@ -964,6 +1007,7 @@
     if (!map.__rzSignOpLast || map.__rzSignOpLast.length !== metas.length || map.__rzSignOpSrc !== src) {
       map.__rzSignOpLast = new Array(metas.length); map.__rzSignOpSrc = src;
     }
+    var sichtN = 0;
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i] || {};
       var op = 1;
@@ -973,6 +1017,12 @@
       }
       // Fade (Ein-/Ausblenden) über icon-opacity = PAINT-Property → feature-state erlaubt.
       if (op > 0) op = Math.max(0, Math.min(1, rzSignDeckkraft(m, M)));
+      // 25.10.2026 — hinter einem Berg (Sichtstrahl zum Anker) ausblenden, s. rzSignSicht. Höchstens 60 Schilder je Bild
+      // (Projekte mit Tausenden Foto-Schildern: sonst Tausende Strahlen je Bild) — darüber bleibt es wie bisher.
+      if (op > 0 && ++sichtN <= 60) {
+        var fs = rzSignFeat(fc, i), gk = fs && fs.geometry && fs.geometry.coordinates;
+        if (gk && gk.length >= 2) op *= rzSignSicht(map, +gk[0], +gk[1]);
+      }
       var opq = Math.round(op * 1000) / 1000;
       if (map.__rzSignOpLast[i] === opq) continue;
       map.__rzSignOpLast[i] = opq;

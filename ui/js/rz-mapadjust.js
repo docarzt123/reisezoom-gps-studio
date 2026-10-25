@@ -69,6 +69,22 @@
       try { map.setLayoutProperty("rz-schatten", "visibility", sch > 0 ? "visible" : "none"); } catch (_) {}
       try { map.setPaintProperty("rz-schatten", "raster-opacity", +(sch / 100 * mx).toFixed(3)); } catch (_) {}
     }
+    // 25.10.2026 — Farbkorrektur (adj.grade 0…100) steckt in den Kacheln der Weiche (`?g=`, core/farbkorrektur.py):
+    // ändert sie sich, holt die Karte die Luftbild-Kacheln neu. Vorher eine Leinwand-Ebene, die auf Apple-Grafik jedes
+    // Bild ausbremste (Marc, MacBook: „im Animator ruckelt alles“).
+    if (adj && typeof adj === "object" && adj.grade !== undefined && typeof window.rzMitFarbe === "function") {
+      const g = typeof window.rzOrthoFarbe === "function" ? window.rzOrthoFarbe(adj) : 0;
+      for (const l of layers) {
+        if (l.type !== "raster" || !l.id.startsWith("rz-raster")) continue;
+        try {
+          const src = map.getSource(l.source);
+          const alt = src && Array.isArray(src.tiles) ? src.tiles : null;
+          if (!alt || !alt.length || !alt.every(u => /\/tile\//.test(u))) continue;   // nur Kacheln der Weiche
+          const neu = alt.map(u => window.rzMitFarbe(u, g));
+          if (neu.join("|") !== alt.join("|") && typeof src.setTiles === "function") src.setTiles(neu);
+        } catch (_) {}
+      }
+    }
     const op = hasRaster ? 0 : Math.min(0.85, Math.abs(a.bri) / 100 * 0.8);
     const color = a.bri < 0 ? "#000000" : "#ffffff";
     try {
@@ -171,7 +187,8 @@
     if (!map || !map.getStyle || !map.addLayer) return;
     const v = sharpNorm(sharpPct), A = v / 100 * SHARP_MAX_A;
     const hz = sharpNorm(hazePct), H = hz / 100;
-    const gr = sharpNorm(gradePct), G = gr / 100;
+    // 25.10.2026 — Farbkorrektur nicht mehr hier (Kacheln der Weiche, s. applyAdjust); gradePct wird ignoriert
+    const gr = 0, G = 0; void gradePct;
     let layers = []; try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
     try {
       if (v <= 0 && hz <= 0 && gr <= 0) { if (map.getLayer(SHARP_ID)) map.removeLayer(SHARP_ID); map.__rzSharpen = 0; map.__rzHaze = 0; map.__rzGrade = 0; if (map.triggerRepaint) map.triggerRepaint(); return; }

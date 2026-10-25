@@ -111,7 +111,10 @@ ALLEIN_MUSTER = ("render", "szene", "vorwaermen", "kachel", "vorlaeufer", "tempo
                  "fotos_startort", "etappe_ohne_gps", "videoassistent_vorschau",
                  # 23.10.2026 (Deploy-Gate 0.9.807 zweimal rot, einzeln grün; Marc: „entzerre die Tests in der Suite“) —
                  # UI-Läufe mit Zeitfenstern: Editor öffnen/Probelauf/„Oberfläche steht höchstens kurz“
-                 "codexlauf3", "schilder_viele")
+                 "codexlauf3", "schilder_viele",
+                 # 25.10.2026 — messen Bildabstände der Vorschau (gleichmäßiger Takt); unter dreifacher Last schaltet der Takt
+                 # zu Recht um, die Prüfung „ohne Last jedes Bild“ gilt dann nicht
+                 "takt")
 # einzelne Dateien, deren Name kein Muster trägt: test_logbuch ändert globale Logbuch-Einstellungen (⌘Z-Prüfung) und
 # fragt den POI-Dienst — zu dritt rot (12.10.2026), einzeln grün
 ALLEIN_NAMEN = {"test_logbuch.py", "test_cli.py"}

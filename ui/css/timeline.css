@@ -1241,3 +1241,7 @@ body.wert-zieht .timeline-marker.is-selected {
 /* 11.10.2026 — Knopf in der Kopfzeile einer Balken-Spur */
 .ov-kopf-knopf { margin-left: auto; border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 12px; padding: 0 4px; border-radius: 4px; }
 .ov-kopf-knopf:hover, .ov-kopf-knopf.an { opacity: 1; background: rgba(255,255,255,.08); }
+/* 25.10.2026 — Schalter „Vorschau: voll / flott / schnell" (Detailgrad der Vorschau, preview_quality) */
+.timeline-vorschau { padding: 4px 6px; gap: 4px; }
+.timeline-vorschau select { font-size: 12px; padding: 2px 4px; border-radius: 5px; background: var(--bg-2, #1d2329);
+  color: var(--text, #eee); border: 1px solid var(--border, #333); cursor: pointer; }

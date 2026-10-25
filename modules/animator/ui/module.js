@@ -742,6 +742,11 @@ function mountAnimator(body, headerActions, opts) {
           </div>
           <!-- 06.10.2026 — kommender Weg gestrichelt; neue Projekte: an (core/sessions.py) -->
           <label class="checkbox-row"><input type="checkbox" id="anim-ghost-dashed"><span>${t("animator.blass.dashed", "Gestrichelt")}</span></label>
+          <!-- 25.10.2026 — „Strecke vorab“ feiner (wie im Web-Studio): Breite (0 = auto 45 % der Track-Dicke), Strichart; Track
+               mitzoomen (0 = aus). Bedient im Aussehen-Panel des Tracks. -->
+          <input type="range" id="anim-ghost-breite" min="0" max="10" step="0.5" value="0">
+          <select id="anim-ghost-stil"><option value="">auto</option><option value="dashed">dashed</option><option value="solid">solid</option><option value="dotted">dotted</option><option value="dashdot">dashdot</option></select>
+          <input type="range" id="anim-mitzoomen" min="0" max="100" step="10" value="50">
           <div class="field" id="anim-ghost-opacity-field" hidden>
             <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
             <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
@@ -2205,6 +2210,12 @@ function mountAnimator(body, headerActions, opts) {
   let _tlBar = null;
   let _kfEditorBound = false;
   let _previewRaf = null;
+  // 25.10.2026 — gleichmäßiger Vorschau-Takt (s. _taktUeberspringen): Entscheidung „halber Takt“ je Zeichenflächengröße
+  // über Probeläufe hinweg gemerkt, damit nicht jeder Lauf erst holpert; jeder 4. Lauf prüft den vollen Takt neu.
+  let _taktGemerkt = null;
+  // kleinster je gesehener Bildschirmtakt (ms) — unter Dauerlast ist kein Bild schnell, dann zeigen ihn erst die
+  // übersprungenen (billigen) Ticks im festen Abstand; die nächste Neuprüfung rechnet damit (120 Hz: 25 statt 33 ms)
+  let _bildschirmTakt = 0;
   // 29./30.09.2026 — Rohspur (vor Punkte-Regler und Spur glätten), s. _spurAnwenden/_spurNeu. Hier oben deklariert (vor den bindSetting-Aufrufen,
   // deren onLoad schon beim Einhängen _spurNeu ruft):
   // weiter unten stand „var _spurRoh = null“ — die Modul-Funktion läuft asynchron, drawPreview lief davor, die Zuweisung löschte die Rohspur wieder.
@@ -2847,10 +2858,14 @@ function mountAnimator(body, headerActions, opts) {
   bindLabel("anim-oschatten", "anim-oschatten-v", " %");
   bindSetting("anim-oschatten", _MODKEY, "ortho_schatten", { type: "number", onLoad: v => { updateLabel("anim-oschatten-v", v, " %"); _applyMapAdjust(); } });
   document.getElementById("anim-oschatten")?.addEventListener("input", _applyMapAdjust);
-  // 23.10.2026 — Farbkorrektur der Luftbilder (ortho_grade, Standard 70), dieselbe Leinwand-Ebene wie Schärfe/Dunst
+  // 23.10.2026 — Farbkorrektur der Luftbilder (ortho_grade, Standard 70). 25.10.2026: steckt in den Kacheln der Weiche
+  // (`?g=`, core/farbkorrektur.py) statt in einer Leinwand-Ebene (Marc, MacBook: „ruckelt alles“) — beim Ziehen erst nach
+  // einer kurzen Ruhe neu laden, sonst holt jede Zwischenstellung alle Kacheln.
   bindLabel("anim-ograde", "anim-ograde-v", " %");
-  bindSetting("anim-ograde", _MODKEY, "ortho_grade", { type: "number", onLoad: v => { updateLabel("anim-ograde-v", v, " %"); _applySharpen(); } });
-  document.getElementById("anim-ograde")?.addEventListener("input", _applySharpen);
+  bindSetting("anim-ograde", _MODKEY, "ortho_grade", { type: "number", onLoad: v => { updateLabel("anim-ograde-v", v, " %"); _applyMapAdjust(); } });
+  let _farbeT = 0;
+  document.getElementById("anim-ograde")?.addEventListener("input", () => { clearTimeout(_farbeT); _farbeT = setTimeout(_applyMapAdjust, 250); });
+  document.getElementById("anim-ograde")?.addEventListener("change", () => { clearTimeout(_farbeT); _applyMapAdjust(); });
   // 05.09.2026 — Sternenhimmel: vier Werte → Projekt (stars_*), live auf den Kartencontainer
   bindSetting("anim-stars", _MODKEY, "stars_enabled", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
   bindSetting("anim-stars-twinkle", _MODKEY, "stars_twinkle", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
@@ -3052,6 +3067,9 @@ function mountAnimator(body, headerActions, opts) {
     if (lbl) lbl.textContent = e.target.value;
     applyGhost();
   });
+  bindSetting("anim-ghost-breite", _MODKEY, "ghost_track_breite", { type: "number", onChange: () => applyGhost() });
+  bindSetting("anim-ghost-stil", _MODKEY, "ghost_track_stil", { onChange: () => applyGhost() });
+  bindSetting("anim-mitzoomen", _MODKEY, "track_mitzoomen", { type: "number", onChange: () => { _lwzBezug = null; _breitenNeu(); } });
   bindSetting("anim-ghost-opacity", _MODKEY, "ghost_track_opacity_pct", { type: "number",
     onLoad: v => updateLabel("anim-ghost-opacity-v", Math.round(parseFloat(v)), " %"),
     onChange: v => { updateLabel("anim-ghost-opacity-v", Math.round(parseFloat(v)), " %"); applyGhost(); } });
@@ -4637,7 +4655,7 @@ function mountAnimator(body, headerActions, opts) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": g.color || "#7fa8ff",
-            "line-width": Number(g.width) || 2.5,
+            "line-width": _lwZ(Number(g.width) || 2.5),
             "line-opacity": Number(g.opacity) != null ? Number(g.opacity) : 0.6,
           } }, map.getLayer("preview-shadow") ? "preview-shadow"
                 : (map.getLayer("preview-line") ? "preview-line" : undefined));
@@ -5100,6 +5118,94 @@ function mountAnimator(body, headerActions, opts) {
     // cfg.line_width-Overrides in core/animator.py.
     return hauptDezent() ? Math.max(0.5, Math.round(w * 0.8 * 100) / 100) : w;
   }
+  // 25.10.2026 (Marc: „der Track müsste ein bisschen mitzoomen — dünner, wenn man rauszoomt, natürlich nicht komplett,
+  // sonst sieht man ihn irgendwann nicht mehr, und dicker, wenn man reinzoomt“; im ersten Übersichtsbild wirkte er „wie mit
+  // Filzstift“). Linienbreiten werden ein Zoom-Ausdruck: beim Fahrt-Zoom (Einpass-Zoom der ganzen Tour auf DIESER Karte + 3)
+  // genau die eingestellte Breite, darüber/darunter je Zoomstufe × 2^(0,44·Stärke), begrenzt auf 0,6× … 1,45×. Der Bezug
+  // kommt aus cameraForBounds der eigenen Karte: Vorschau und Szene (Render: gleiche Fläche, nur mehr Pixeldichte)
+  // rechnen dasselbe Verhältnis → Video = Vorschau. MapLibre wertet den Ausdruck je Bild aus — keine Zusatzarbeit.
+  // Regler „Mitzoomen“ (track_mitzoomen, 0 = feste Breite wie bisher, Werk 50 %). Nur der Animator: die Tour-Map ist
+  // ein Standbild ohne Kamerafahrt (Ausnahme von der Spiegelungsregel).
+  const LWZ_MIN = 0.6, LWZ_MAX = 1.45;
+  var _lwzBezug = null, _lwzNeuGeplant = false;   // { key, z } — var: Ebenen können vor diesen Zeilen gebaut werden
+  function _lwzStaerke() {
+    const v = parseFloat(document.getElementById("anim-mitzoomen")?.value);
+    return isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : 0.5;
+  }
+  function _lwzRefZoom() {
+    try {
+      if (!map || !map.cameraForBounds || !currentCoords || currentCoords.length < 2) return null;
+      const c = map.getContainer ? map.getContainer() : null;
+      const a = currentCoords[0], e = currentCoords[currentCoords.length - 1];
+      const key = `${currentCoords.length}|${a[0]},${a[1]}|${e[0]},${e[1]}|${c ? c.clientWidth + "x" + c.clientHeight : ""}`;
+      if (_lwzBezug && _lwzBezug.key === key) return _lwzBezug.z;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const p of currentCoords) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+      const cam = map.cameraForBounds([[x0, y0], [x1, y1]], { padding: 0, bearing: 0 });
+      const z = (cam && isFinite(cam.zoom)) ? cam.zoom + 3 : null;
+      const alt = _lwzBezug && _lwzBezug.z;
+      _lwzBezug = { key, z };
+      // anderer Track / andere Fläche: gebaute Ebenen tragen noch den alten Bezug → einmal alles neu
+      if (alt != null && z != null && Math.abs(z - alt) > 0.05 && !_lwzNeuGeplant) {
+        _lwzNeuGeplant = true;
+        setTimeout(() => { _lwzNeuGeplant = false; _breitenNeu(); }, 0);
+      }
+      return z;
+    } catch (_) { return null; }
+  }
+  /** Breite in px → Zoom-Ausdruck (oder die Zahl, wenn aus / kein Track). */
+  function _lwZ(px) {
+    const s = _lwzStaerke(), zr = _lwzRefZoom();
+    if (!(s > 0) || zr == null || typeof px !== "number" || !(px > 0)) return px;
+    const k = 0.44 * s, b = Math.pow(2, k);
+    return ["interpolate", ["exponential", b], ["zoom"], zr - Math.log2(1 / LWZ_MIN) / k, px * LWZ_MIN, zr + Math.log2(LWZ_MAX) / k, px * LWZ_MAX];
+  }
+  /** Dasselbe für datengetriebene Breiten (Ausdruck, z. B. ["get", "width"]). */
+  function _lwZx(expr) {
+    const s = _lwzStaerke(), zr = _lwzRefZoom();
+    if (!(s > 0) || zr == null) return expr;
+    const k = 0.44 * s, b = Math.pow(2, k);
+    return ["interpolate", ["exponential", b], ["zoom"], zr - Math.log2(1 / LWZ_MIN) / k, ["*", expr, LWZ_MIN], zr + Math.log2(LWZ_MAX) / k, ["*", expr, LWZ_MAX]];
+  }
+  /** Faktor beim aktuellen Zoom (für die WebGL-Linie rz-line3d, die keine Ausdrücke kennt). */
+  function _lwzFaktor() {
+    const s = _lwzStaerke(), zr = _lwzRefZoom();
+    if (!(s > 0) || zr == null || !map) return 1;
+    return Math.max(LWZ_MIN, Math.min(LWZ_MAX, Math.pow(2, 0.44 * s * (map.getZoom() - zr))));
+  }
+  /** Zahl hinter einer Breite (Ausdruck aus _lwZ → Grundbreite), für Rechnungen wie die Strichlänge. */
+  function _lwZahl(v) {
+    if (typeof v === "number") return v;
+    if (Array.isArray(v) && v[0] === "interpolate" && typeof v[4] === "number") return v[4] / LWZ_MIN;
+    return 0;
+  }
+  /** Alle Breiten neu (Regler, anderer Track, andere Fläche). */
+  function _breitenNeu() {
+    if (!map) return;
+    try { applyLineWidthToLayers(); applyTrackStyle(); applyShadowToLayers(); applyGlowToLayers(); applyGhost(); _applyGhostGpx(); } catch (_) {}
+    try { _ghostSpurenAufbauen(); } catch (e) { applog("warn", "[mitzoomen] Ghost-Spuren: " + e); }
+    try { _animDrawExtraToursPreview(); } catch (e) { applog("warn", "[mitzoomen] Zusatz-Touren: " + e); }
+    try { map.triggerRepaint(); } catch (_) {}
+  }
+  /** Bezug ändert sich mit Track und Fläche → dann alles neu (selten: Laden, Fenstergröße). */
+  function _lwzWache() {
+    if (!map || map.__rzLwzWache) return;
+    map.__rzLwzWache = true;
+    map.__rzBreiteFaktor = _lwzFaktor;
+    try { map.on("resize", () => _lwzRefZoom()); } catch (_) {}   // merkt die neue Fläche und baut bei Bedarf neu
+  }
+  // 25.10.2026 — „Strecke vorab“ (Ghost) feiner wie im Web-Studio (Marc: „im allerersten Übersichtsbild … viel zu
+  // dick, wie mit Filzstift gemalt“): Werk 45 % der Track-Dicke, mindestens 1,2 px; eigene Breite und Strichart.
+  const GHOST_STRICH = { solid: null, dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] };
+  function currentGhostStil() {
+    const v = document.getElementById("anim-ghost-stil")?.value;
+    if (v && v in GHOST_STRICH) return v;
+    return document.getElementById("anim-ghost-dashed")?.checked ? "dashed" : "solid";
+  }
+  function currentGhostBreite() {
+    const v = parseFloat(document.getElementById("anim-ghost-breite")?.value);
+    return v > 0 ? v : Math.max(1.2, Math.round(currentLineWidth() * 0.45 * 10) / 10);
+  }
   // v0.9.169 — Ghost-Track (ganze Route schwach im Hintergrund)
   function currentGhostEnabled() {
     return !!document.getElementById("anim-ghost-enabled")?.checked;
@@ -5115,7 +5221,7 @@ function mountAnimator(body, headerActions, opts) {
   function currentGhostDash() {
     const d = currentDasharray();
     if (d) return d;
-    return document.getElementById("anim-ghost-dashed")?.checked ? [3, 2] : null;
+    return GHOST_STRICH[currentGhostStil()] || null;   // 25.10.2026 — Strichart wählbar
   }
 
   // v0.9.211 (Reiseroute) — GPX-Ghost-Config (geladenes GPX als Hintergrund-Linie).
@@ -6488,8 +6594,8 @@ function mountAnimator(body, headerActions, opts) {
       if (map.getLayer("preview-halo")) {
         map.setLayoutProperty("preview-halo", "visibility", an ? "visible" : "none");
         if (an) {
-          map.setPaintProperty("preview-halo", "line-width", lw * L.haloBreite);
-          map.setPaintProperty("preview-halo", "line-blur", lw * L.haloBreite * 0.45);
+          map.setPaintProperty("preview-halo", "line-width", _lwZ(lw * L.haloBreite));
+          map.setPaintProperty("preview-halo", "line-blur", _lwZ(lw * L.haloBreite * 0.45));
           map.setPaintProperty("preview-halo", "line-opacity", L.halo * o);
           map.setPaintProperty("preview-halo", "line-color", farbe);
         }
@@ -6497,7 +6603,7 @@ function mountAnimator(body, headerActions, opts) {
       if (map.getLayer("preview-kern")) {
         map.setLayoutProperty("preview-kern", "visibility", an ? "visible" : "none");
         if (an) {
-          map.setPaintProperty("preview-kern", "line-width", Math.max(0.6, lw * 0.4));
+          map.setPaintProperty("preview-kern", "line-width", _lwZ(Math.max(0.6, lw * 0.4)));
           map.setPaintProperty("preview-kern", "line-opacity", L.kern * o);
           map.setPaintProperty("preview-kern", "line-color", _rgba(farbe, 1, 0.75));
         }
@@ -6507,8 +6613,8 @@ function mountAnimator(body, headerActions, opts) {
         if (!map.getLayer(id)) continue;
         map.setLayoutProperty(id, "visibility", sp ? "visible" : "none");
         if (!sp) continue;
-        map.setPaintProperty(id, "line-width", lw * breite);
-        map.setPaintProperty(id, "line-blur", lw * blur);
+        map.setPaintProperty(id, "line-width", _lwZ(lw * breite));
+        map.setPaintProperty(id, "line-blur", _lwZ(lw * blur));
         map.setPaintProperty(id, "line-gradient", id === "preview-schweif-glow"
           ? ["interpolate", ["linear"], ["line-progress"], 0, _rgba(farbe, 0), 1, _rgba(farbe, 0.6 * o, 0.2)]
           : ["interpolate", ["linear"], ["line-progress"], 0, _rgba(farbe, 0), 0.55, _rgba(farbe, 0.75 * o, 0.35), 1, _rgba(farbe, 0.98 * o, 0.8)]);
@@ -7493,6 +7599,8 @@ function mountAnimator(body, headerActions, opts) {
   function rebuildPreviewLayers() {
     if (!map) return;
     if (!_whenStyleReady("rebuildPreview", rebuildPreviewLayers)) return;
+    _lwzWache();   // 25.10.2026 — Track zoomt mit (Bezug, WebGL-Faktor)
+    try { _kompassAktualisieren(); } catch (e) { applog("warn", "[kompass] " + e); }   // 25.10.2026 — Kompass je Look
     // 07.10.2026 (Marc: „wenn ich die Karte ändere, dann sind meine Linien weg“) — setStyle wirft auch die Linie des
     // Etappen-Editors weg; nach dem Neuaufbau der Vorschau-Ebenen wieder zeichnen (Hook, der Editor steht weiter unten)
     if (typeof window.__rzEtappeNeuZeichnen === "function") setTimeout(() => { try { window.__rzEtappeNeuZeichnen(); } catch (e) { applog("warn", "[etappe] nach Stilwechsel: " + e); } }, 0);
@@ -7542,7 +7650,9 @@ function mountAnimator(body, headerActions, opts) {
         type: "geojson",
         data: { type: "Feature", geometry: { type: "LineString", coordinates: currentCoords || [] } },
       });
-    } else if (currentCoords) {
+      map.__rzGhostDaten = currentCoords;
+    } else if (currentCoords && map.__rzGhostDaten !== currentCoords) {
+      map.__rzGhostDaten = currentCoords;
       map.getSource("preview-ghost").setData({
         type: "Feature", geometry: { type: "LineString", coordinates: currentCoords },
       });
@@ -7550,7 +7660,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!map.getLayer("preview-ghost")) {
       map.addLayer({ id: "preview-ghost", type: "line", source: "preview-ghost",
         layout: { ...trackLayout, "visibility": "none" },
-        paint: { "line-color": currentGhostColor(), "line-width": lw, "line-opacity": currentGhostOpacity(),
+        paint: { "line-color": currentGhostColor(), "line-width": _lwZ(currentGhostBreite()), "line-opacity": currentGhostOpacity(),
                  ...(currentGhostDash() ? { "line-dasharray": currentGhostDash() } : {}), ...zOffPaint } });
       map.__rzGhostDash = JSON.stringify(currentGhostDash());
     }
@@ -7568,7 +7678,7 @@ function mountAnimator(body, headerActions, opts) {
         map.addLayer({ id: "preview-ghost-gpx", type: "line", source: "preview-ghost-gpx",
           layout: { "line-cap": "round", "line-join": "round",
                     "visibility": (_ghostGpxCoords && _ghostGpxCoords.length > 1 && currentGhostGpxShow()) ? "visible" : "none" },
-          paint: { "line-color": currentGhostGpxColor(), "line-width": currentGhostGpxWidth(),
+          paint: { "line-color": currentGhostGpxColor(), "line-width": _lwZ(currentGhostGpxWidth()),
                    "line-opacity": currentGhostGpxOpacity(),
                    "line-dasharray": currentGhostGpxDashed() ? [2, 2] : [1, 0] } });
       }
@@ -7585,8 +7695,8 @@ function mountAnimator(body, headerActions, opts) {
         layout: trackLayout,
         paint: {
           "line-color": "rgba(0,0,0,0.7)",
-          "line-width": lw * 2.2,
-          "line-blur": st,
+          "line-width": _lwZ(lw * 2.2),
+          "line-blur": _lwZ(st),
           "line-translate": [st * Math.cos(_sr), st * Math.sin(_sr)],
           ...(dash ? { "line-dasharray": dasharrayFor(lw * 2.2) } : {}),
           // KEIN z-offset — Shadow soll am Boden bleiben (siehe Render-Code).
@@ -7599,15 +7709,16 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.20 — line-width skaliert mit gs: bei gs=4 (Default) ≈ 2.85×lw
       // (Backward-Compat), bei gs=10 → 4.10×lw (sichtbar breiterer Halo).
       // Spiegelung core/animator.py.
+      const gm = rzGlowMass(lw, gs);   // 25.10.2026 — sichtbarer Glow (s. util.js rzGlowMass)
       map.addLayer({ id: "preview-glow", type: "line", source: "preview-track",
         layout: trackLayout,
-        paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35 * _hauptDeckkraft(), "line-blur": gs, ...(dash ? { "line-dasharray": dasharrayFor(lw * (2.0 + 0.21 * gs)) } : {}), ...zOffPaint } });
+        paint: { "line-color": color, "line-width": _lwZ(gm.breite), "line-opacity": gm.deck * _hauptDeckkraft(), "line-blur": _lwZ(gm.blur), ...(dash ? { "line-dasharray": dasharrayFor(gm.breite) } : {}), ...zOffPaint } });
     }
     // 11.10.2026 — Lichthof des Linien-Looks (unter Kontur und Linie); Sichtbarkeit/Werte: applyLinienLook()
     if (!map.getLayer("preview-halo") && !hauptDezent()) {
       map.addLayer({ id: "preview-halo", type: "line", source: "preview-track",
         layout: { ...trackLayout, "visibility": "none" },
-        paint: { "line-color": color, "line-width": lw * 6, "line-blur": lw * 2.7, "line-opacity": 0, ...zOffPaint } });
+        paint: { "line-color": color, "line-width": _lwZ(lw * 6), "line-blur": _lwZ(lw * 2.7), "line-opacity": 0, ...zOffPaint } });
     }
     // 05.10.2026 — Kontur: eine breitere Linie in Konturfarbe direkt unter der Linie, gleiche Quelle (wächst
     // mit), gleicher Strich-Stil. Vorschau und Szene-Render benutzen diese Seite — Video = Vorschau.
@@ -7615,13 +7726,13 @@ function mountAnimator(body, headerActions, opts) {
       const kb = currentKonturBreite();
       map.addLayer({ id: "preview-kontur", type: "line", source: "preview-track",
         layout: { ...trackLayout, "visibility": kb > 0 ? "visible" : "none" },
-        paint: { "line-color": currentKonturFarbe(), "line-width": lw + 2 * kb, "line-opacity": 0.95 * _hauptDeckkraft(),
+        paint: { "line-color": currentKonturFarbe(), "line-width": _lwZ(lw + 2 * kb), "line-opacity": 0.95 * _hauptDeckkraft(),
                  ...(dash ? { "line-dasharray": dasharrayFor(lw + 2 * kb) } : {}), ...zOffPaint } });
     }
     if (!map.getLayer("preview-line")) {
       map.addLayer({ id: "preview-line", type: "line", source: "preview-track",
         layout: trackLayout,
-        paint: { "line-color": color, "line-width": lw, "line-opacity": 0.95 * _hauptDeckkraft(), ...dashPaint, ...zOffPaint } });
+        paint: { "line-color": color, "line-width": _lwZ(lw), "line-opacity": 0.95 * _hauptDeckkraft(), ...dashPaint, ...zOffPaint } });
     }
     // v0.8.10 — Röhre (Nutzer-Wunsch): weißer Highlight-Streifen oben auf
     // der Linie, simuliert eine zylindrische Oberfläche → wirkt plastischer.
@@ -7630,13 +7741,13 @@ function mountAnimator(body, headerActions, opts) {
     if (!map.getLayer("preview-highlight")) {
       map.addLayer({ id: "preview-highlight", type: "line", source: "preview-track",
         layout: { ...trackLayout, "visibility": "none" },
-        paint: { "line-color": "#ffffff", "line-width": lw * 0.35, "line-opacity": 0.55 * _hauptDeckkraft(), "line-blur": 0.6, ...zOffPaint } });
+        paint: { "line-color": "#ffffff", "line-width": _lwZ(lw * 0.35), "line-opacity": 0.55 * _hauptDeckkraft(), "line-blur": 0.6, ...zOffPaint } });
     }
     // 11.10.2026 — heller Kern des Linien-Looks und Schweif hinter dem Kopf
     if (!map.getLayer("preview-kern") && !hauptDezent()) {
       map.addLayer({ id: "preview-kern", type: "line", source: "preview-track",
         layout: { ...trackLayout, "visibility": "none" },
-        paint: { "line-color": "#ffffff", "line-width": Math.max(0.6, lw * 0.4), "line-opacity": 0, "line-blur": 0.4, ...zOffPaint } });
+        paint: { "line-color": "#ffffff", "line-width": _lwZ(Math.max(0.6, lw * 0.4)), "line-opacity": 0, "line-blur": 0.4, ...zOffPaint } });
     }
     if (!map.getSource("preview-schweif")) {
       map.addSource("preview-schweif", { type: "geojson", lineMetrics: true, data: { type: "FeatureCollection", features: [] } });
@@ -7644,7 +7755,7 @@ function mountAnimator(body, headerActions, opts) {
     for (const [id, breite] of [["preview-schweif-glow", 3.6], ["preview-schweif", 1.5]]) {
       if (map.getLayer(id) || hauptDezent()) continue;
       map.addLayer({ id, type: "line", source: "preview-schweif", layout: { ...trackLayout, "visibility": "none" },
-        paint: { "line-width": lw * breite, "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "rgba(255,255,255,0)", 1, "rgba(255,255,255,0)"], ...zOffPaint } });
+        paint: { "line-width": _lwZ(lw * breite), "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "rgba(255,255,255,0)", 1, "rgba(255,255,255,0)"], ...zOffPaint } });
     }
     _schweifVerdrahten();
     // Schatten-Sichtbarkeit + Glow-Sichtbarkeit + Alpha-Background + Hide-Labels
@@ -7720,6 +7831,17 @@ function mountAnimator(body, headerActions, opts) {
     st.layers.map((l, i) => ({ id: l.id, r: rang(l.id), i })).filter((x) => x.r >= 0)
       .sort((a, b) => (a.r - b.r) || (a.i - b.i))
       .forEach((x) => { try { if (map.getLayer(x.id)) map.moveLayer(x.id); } catch (_) {} });
+    _bodenPunktHeben(st.layers);   // 25.10.2026 — WebGL-Laufpunkt (fehlt in getStyle(): eigene Ebenen sind nicht serialisierbar)
+  }
+  /** Laufpunkt-Ebene anim-dot-gl in die Laufpunkt-Schicht: über Linien, Fotos, Schildern, unter dem Etappen-Editor. Liegt
+   *  sie tiefer, legt MapLibre bei 3D-Gelände alles darüber aufs Gelände — und der Punkt ist verdeckt. */
+  function _bodenPunktHeben(layers) {
+    try {
+      if (!map || !map.getLayer("anim-dot-gl")) return;
+      const ls = layers || ((map.getStyle() || {}).layers) || [];
+      const edit = ls.find((l) => l.id.indexOf("et-edit-") === 0);
+      map.moveLayer("anim-dot-gl", edit ? edit.id : undefined);
+    } catch (_) {}
   }
 
   // v0.9.310 — Start/Ziel-Pins in der Live-Vorschau (nur Standbild/Tour-Map).
@@ -7876,7 +7998,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function dasharrayForLayer(id) {
     let w = 0;
-    if (id !== "preview-line") { try { w = Number(map.getPaintProperty(id, "line-width")) || 0; } catch (_) {} }
+    if (id !== "preview-line") { try { w = _lwZahl(map.getPaintProperty(id, "line-width")) || 0; } catch (_) {} }   // 25.10.2026 Breite kann ein Zoom-Ausdruck sein
     return dasharrayFor(w);
   }
 
@@ -8256,7 +8378,7 @@ function mountAnimator(body, headerActions, opts) {
       if (map.getLayer("preview-highlight")) {
         map.setLayoutProperty("preview-highlight", "visibility", style === "tube" ? "visible" : "none");
         if (style === "tube") {
-          map.setPaintProperty("preview-highlight", "line-width", lw * 0.35);
+          map.setPaintProperty("preview-highlight", "line-width", _lwZ(lw * 0.35));
         }
       }
     } catch (_) {}
@@ -8275,8 +8397,8 @@ function mountAnimator(body, headerActions, opts) {
       if (map.getLayer("preview-shadow")) {
         map.setLayoutProperty("preview-shadow", "visibility", visible ? "visible" : "none");
         if (visible) {
-          map.setPaintProperty("preview-shadow", "line-width", lw * 2.2);
-          map.setPaintProperty("preview-shadow", "line-blur", st);
+          map.setPaintProperty("preview-shadow", "line-width", _lwZ(lw * 2.2));
+          map.setPaintProperty("preview-shadow", "line-blur", _lwZ(st));
           map.setPaintProperty("preview-shadow", "line-translate", _tr);
         }
       }
@@ -8303,9 +8425,11 @@ function mountAnimator(body, headerActions, opts) {
       if (on) {
         map.setPaintProperty("preview-ghost", "line-opacity", currentGhostOpacity());
         map.setPaintProperty("preview-ghost", "line-color", currentGhostColor());
-        map.setPaintProperty("preview-ghost", "line-width", currentLineWidth());
-        // Ghost-Source aktuell halten (voller Track, unabhängig vom Trim/Scrub).
-        if (currentCoords && map.getSource("preview-ghost")) {
+        map.setPaintProperty("preview-ghost", "line-width", _lwZ(currentGhostBreite()));
+        // Ghost-Source aktuell halten (voller Track, unabhängig vom Trim/Scrub). 25.10.2026: nur bei neuem Track — applyGhost
+        // läuft seit „Mitzoomen“ auch bei jeder Breitenänderung, und jedes setData schickt den ganzen Track durch den Worker
+        if (currentCoords && map.getSource("preview-ghost") && map.__rzGhostDaten !== currentCoords) {
+          map.__rzGhostDaten = currentCoords;
           map.getSource("preview-ghost").setData({
             type: "Feature", geometry: { type: "LineString", coordinates: currentCoords },
           });
@@ -8327,7 +8451,7 @@ function mountAnimator(body, headerActions, opts) {
           type: "Feature", geometry: { type: "LineString", coordinates: _ghostGpxCoords } });
         map.setPaintProperty("preview-ghost-gpx", "line-color", currentGhostGpxColor());
         map.setPaintProperty("preview-ghost-gpx", "line-opacity", currentGhostGpxOpacity());
-        map.setPaintProperty("preview-ghost-gpx", "line-width", currentGhostGpxWidth());
+        map.setPaintProperty("preview-ghost-gpx", "line-width", _lwZ(currentGhostGpxWidth()));
         map.setPaintProperty("preview-ghost-gpx", "line-dasharray", currentGhostGpxDashed() ? [2, 2] : [1, 0]);
       }
     } catch (_) {}
@@ -8348,7 +8472,7 @@ function mountAnimator(body, headerActions, opts) {
     try {
       map.setLayoutProperty("preview-kontur", "visibility", kb > 0 ? "visible" : "none");
       if (kb > 0) {
-        map.setPaintProperty("preview-kontur", "line-width", currentLineWidth() + 2 * kb);
+        map.setPaintProperty("preview-kontur", "line-width", _lwZ(currentLineWidth() + 2 * kb));
         map.setPaintProperty("preview-kontur", "line-color", currentKonturFarbe());
       }
     } catch (_) {}
@@ -8364,9 +8488,11 @@ function mountAnimator(body, headerActions, opts) {
       if (map.getLayer("preview-glow")) {
         map.setLayoutProperty("preview-glow", "visibility", visible ? "visible" : "none");
         if (visible) {
-          map.setPaintProperty("preview-glow", "line-blur", gs);
-          // v0.9.20 — line-width skaliert mit gs (Backward-Compat bei gs=4).
-          map.setPaintProperty("preview-glow", "line-width", lw * (2.0 + 0.21 * gs));
+          // 25.10.2026 — Breite, Weichheit und Deckkraft aus rzGlowMass (vorher nur der Blur: unsichtbar)
+          const gm = rzGlowMass(lw, gs);
+          map.setPaintProperty("preview-glow", "line-blur", _lwZ(gm.blur));
+          map.setPaintProperty("preview-glow", "line-width", _lwZ(gm.breite));
+          map.setPaintProperty("preview-glow", "line-opacity", gm.deck * _hauptDeckkraft());
         }
       }
     } catch (_) {}
@@ -8813,7 +8939,7 @@ function mountAnimator(body, headerActions, opts) {
         if (map.getLayer(id)) map.removeLayer(id);
       });
       _dotLuft = null;
-      if (!dst.show || !currentCoords) { _flugPunktNeu(); return; }
+      if (!dst.show || !currentCoords) { _flugPunktNeu(); _bodenPunktSetzen(null); return; }
       if (hauptDezent()) {
         const kb = _kugelBild(farbe, gr, true);
         _dotLuft = { bild: kb.bild, key: "dezent|" + farbe + "|" + currentLineWidth(), cssPx: kb.cssPx, dreht: false, karte: true };
@@ -8913,11 +9039,141 @@ function mountAnimator(body, headerActions, opts) {
                    "circle-stroke-color": farbe, "circle-stroke-width": 2,
                    "circle-pitch-alignment": "map" } });
       }
+      if (dst.style === "leucht" && _dotLuft) Object.assign(_dotLuft, { leucht: true, farbe, gr });   // Bodenbild mit Lichtfleck/Atmen
       if (_flug.an) _flugBodenFiltern(true);   // 05.10.2026 — Flug in der Luft: der Punkt schwebt, unten keiner
       _flugPunktNeu();                          // 15.10.2026 — neues Aussehen auch in der Luft
       _nurOrteFiltern();                        // 14.10.2026 — Orte nacheinander: keine Linie, kein Punkt
+      _bodenPunktEinrichten();                  // 25.10.2026 — Laufpunkt am Boden direkt auf der Grafikkarte
     } catch (e) { try { applog("warn", "[anim-dot] Aufbau: " + e); } catch (_) {} }
   }
+
+  // 25.10.2026 (Marc, Bildschirmaufnahme vom MacBook: „ruckelt brutal, und der Laufpfeil kommt nicht mit“) — der Laufpunkt
+  // am Boden hing an der GeoJSON-Quelle `anim-dot`: jede neue Position geht durch einen Karten-Worker, der beim schnellen
+  // Kameraflug mit neuen Karten- und Geländekacheln beschäftigt ist. Die Linie lief voraus, der Pfeil Sekunden hinterher
+  // oder aus dem Bild. Jetzt zeichnet ihn dieselbe WebGL-Ebene (`anim-dot-gl`) wie beim „Flug in der Luft“ (ui/js/rz-punkt3d.js) — in
+  // jedem Bild an der gerade gesetzten Stelle, ohne Warteschlange. Gleiches Bild (`_dotLuft`: Form, Symbol, Fahrzeug,
+  // eigenes Bild, Farbe, Größe), gleicher Weg in Vorschau und Video. Die GeoJSON-Ebenen bleiben (Aufbau, Prüfstände),
+  // sind aber ausgeblendet. Nur MapLibre; Mapbox und `window.__rzDotGeoJson` (Vergleich) behalten den alten Weg.
+  // var + Literale: dotEbenenAufbauen kann vor diesen Zeilen laufen (Stil-Ereignis beim Einhängen, wie `_dotLuft`)
+  var _bodenPkt = null, _leuchtBodenCache = null;
+  // 25.10.2026 (Marc: „der Track wird jetzt in der Vorschau nicht mehr hinter dem Laufpunkt mitgezeichnet“) — der Punkt
+  // stand sofort an der Soll-Stelle, die Linie kommt aber weiter über den Karten-Worker: unter Last lief der Punkt ihr
+  // davon. Jetzt geht er nie über das GEZEICHNETE Linienende hinaus: jede Linien-Aktualisierung trägt `__rzBis`, und
+  // sobald MapLibre sie fertig hat (sourcedata, isSourceLoaded), gilt sie als gezeichnet. Im Video wartet jedes Bild auf
+  // die fertige Karte — dort ändert das nichts.
+  var _linieBis = null, _bodenLetzt = null, _bodenFrac = null, _linieMessGeplant = false;
+  const _linieMess = { laeufe: 0, gefunden: 0, ohneBis: 0, fehler: "" };
+  window.__rzLinieMess = () => Object.assign({ bis: _linieBis }, _linieMess);   // Prüfstand
+  function _linieEndeMessen() {
+    _linieMessGeplant = false;
+    _linieMess.laeufe++;
+    const _t0 = performance.now();
+    try {
+      if (!map || !currentCoords || currentCoords.length < 2 || !map.getSource("preview-track")) return;
+      const d = map.getSource("preview-track").__rzGesendet;
+      if (!d || typeof d.__rzBis !== "number") { _linieBis = null; _linieMess.ohneBis++; return; }   // ganzer Track: keine Klemme
+      const C = currentCoords, ziel = d.__rzBis;
+      const lo = Math.max(0, Math.floor(ziel) - 400), hi = Math.min(C.length - 1, Math.ceil(ziel) + 1);
+      let best = -1;
+      for (const f of map.querySourceFeatures("preview-track")) {
+        const g = f.geometry, ls = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
+        for (const l of ls) {
+          if (!l.length) continue;
+          const e = l[l.length - 1];
+          let bi = -1, bd = Infinity;
+          for (let k = lo; k <= hi; k++) { const dx = C[k][0] - e[0], dy = C[k][1] - e[1], q = dx * dx + dy * dy; if (q < bd) { bd = q; bi = k; } }
+          if (bi < 0) continue;
+          // Anteil auf dem Abschnitt (die Spitze liegt zwischen zwei Stützstellen): Lot auf die beiden Nachbar-Abschnitte, der nähere gilt
+          let fr = bi, fd = Infinity;
+          for (const a0 of [bi - 1, bi]) {
+            if (a0 < 0 || a0 + 1 >= C.length) continue;
+            const ax = C[a0][0], ay = C[a0][1], bx = C[a0 + 1][0] - ax, by = C[a0 + 1][1] - ay, L2 = bx * bx + by * by;
+            const t = L2 > 0 ? Math.max(0, Math.min(1, ((e[0] - ax) * bx + (e[1] - ay) * by) / L2)) : 0;
+            const qx = ax + bx * t - e[0], qy = ay + by * t - e[1], q = qx * qx + qy * qy;
+            if (q < fd) { fd = q; fr = a0 + t; }
+          }
+          if (fr > best) best = fr;
+        }
+      }
+      if (best >= 0) {
+        _linieMess.gefunden++;
+        _linieBis = Math.min(best, ziel);
+        if (_bodenLetzt) _bodenPunktSetzen(_bodenLetzt.pos, _bodenLetzt.brg, _bodenLetzt.sk, _bodenLetzt.puls, _bodenLetzt.frac);
+      }
+    } catch (e) { _linieMess.fehler = String(e).slice(0, 200); }
+    finally { _linieMess.ms = (_linieMess.ms || 0) + performance.now() - _t0; }
+  }
+  function _bodenPunktMoeglich() {
+    return !!(map && window.rzPunkt3d && window.maplibregl && map.__rzEngine !== "mapbox" && !window.__rzDotGeoJson);
+  }
+  function _bodenPunktEinrichten() {
+    if (!_bodenPunktMoeglich()) return;
+    try {
+      if (!map.getLayer("anim-dot-gl")) { _bodenPkt = window.rzPunkt3d.create("anim-dot-gl"); map.addLayer(_bodenPkt); }
+      if (!map.__rzLinieHook) {
+        map.__rzLinieHook = true;
+        // 25.10.2026 (zweiter Wurf) — das gezeichnete Linienende wird GEMESSEN, nicht aus Meldungen geschlossen: Die Meldung
+        // „Quelle fertig“ kam schon, wenn der Worker die neuen Daten hatte (Kacheln noch alt → Punkt eine Aktualisierung VOR der
+        // Linie, bis 13 px); ohne sie kam „fertig“ unter Dauer-Aktualisierung fast nie (Punkt bis 170 px HINTER der Linie,
+        // „Laufpfeil kommt nicht mit“). Jetzt nach jeder Kachel-Meldung, höchstens einmal je Bild: Enden der geladenen
+        // Linienstücke nahe der Soll-Stelle suchen und den Punkt auf das weiteste klemmen.
+        map.on("sourcedata", (e) => {
+          if (!e || e.sourceId !== "preview-track" || _linieMessGeplant) return;
+          _linieMessGeplant = true;
+          requestAnimationFrame(_linieEndeMessen);
+        });
+      }
+      _bodenPunktHeben();
+      for (const id of ["anim-dot-arrow", "anim-dot-fz", "anim-dot-core", "anim-dot-glow", "anim-dot-licht"]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
+      }
+      _bodenPunktSetzen(window.__rzDotZuletzt ? window.__rzDotZuletzt.c : null, window.__rzDotZuletzt && window.__rzDotZuletzt.brg,
+                        window.__rzDotZuletzt && window.__rzDotZuletzt.sk, window.__rzDotZuletzt && window.__rzDotZuletzt.puls);
+    } catch (e) { try { applog("warn", "[anim-dot] GL-Ebene: " + e); } catch (_) {} }
+  }
+  /** Leuchtpunkt als Bodenbild (25.10.2026): Lichtfleck, Glow und Kern wie die drei Kreis-Ebenen, Atmen `puls` 0…1. */
+  function _leuchtBodenBild(farbe, gr, puls) {
+    if (!_leuchtBodenCache) _leuchtBodenCache = new Map();
+    const key = farbe + "|" + gr + "|" + puls;
+    if (_leuchtBodenCache.has(key)) return _leuchtBodenCache.get(key);
+    const s = 3, R = 36 * gr, w = Math.max(8, Math.ceil(2 * R * s));
+    const c = document.createElement("canvas"); c.width = c.height = w;
+    const g = c.getContext("2d"), m = w / 2, [r, gg, b] = _hexRgb(farbe);
+    const fleck = (rad, a, weich) => {   // circle-blur: Rand weich ab (1 − weich)·rad
+      const gd = g.createRadialGradient(m, m, rad * s * (1 - weich), m, m, rad * s);
+      gd.addColorStop(0, `rgba(${r},${gg},${b},${a})`); gd.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+      g.fillStyle = gd; g.beginPath(); g.arc(m, m, rad * s, 0, Math.PI * 2); g.fill();
+    };
+    fleck(R, 0.28 + 0.1 * puls, 1);
+    fleck(15 * gr + 5 * gr * puls, 0.75 + 0.2 * puls, 0.8);
+    g.beginPath(); g.arc(m, m, 5 * gr * s, 0, Math.PI * 2); g.fillStyle = "#fff4e0"; g.fill();
+    g.lineWidth = 2 * s; g.strokeStyle = farbe; g.stroke();
+    const out = { bild: c, cssPx: w / s };
+    if (_leuchtBodenCache.size > 40) _leuchtBodenCache.clear();
+    _leuchtBodenCache.set(key, out);
+    return out;
+  }
+  function _bodenPunktSetzen(pos, brg, sk, puls, frac) {
+    if (!_bodenPkt || !map || !map.getLayer("anim-dot-gl")) return;
+    const L = _dotLuft;
+    if (frac == null) frac = _dotFracZuletzt;
+    _bodenLetzt = pos ? { pos, brg, sk, puls, frac } : null;
+    if (!pos || !L || _flug.an || map.__rzNurOrte) { _bodenPkt.setPunkt(null); return; }
+    // nie vor das gezeichnete Linienende (s. _linieBis); rückwärts (Scrubben) gilt die eigene Stelle
+    _bodenFrac = frac;
+    if (_linieBis != null && !window.__rzRenderMode && currentCoords && frac > _linieBis + 1e-3) {
+      try { pos = coordBeiFrac(currentCoords, _linieBis); brg = _kursAn(currentCoords, _linieBis); _bodenFrac = _linieBis; } catch (_) {}
+    }
+    let bild = L.bild, key = L.key, px = L.cssPx;
+    if (L.leucht) {
+      const q = Math.round((+puls || 0) * 10) / 10;
+      const kb = _leuchtBodenBild(L.farbe, L.gr, q);
+      bild = kb.bild; key = L.key + "|boden|" + q; px = kb.cssPx;
+    }
+    _bodenPkt.setPunkt({ lng: pos[0], lat: pos[1], agl: 0, bild, bildKey: key, cssPx: px * (sk > 0 ? sk : 1),
+                         drehung: L.dreht ? (+brg || 0) : 0, karte: L.karte });
+  }
+  window.__rzBodenPunkt = () => (_bodenPkt && map && map.getLayer("anim-dot-gl")) ? { punkt: _bodenPkt._punkt, gezeichnet: _bodenPkt._gezeichnet || 0, frac: _bodenFrac, linieBis: _linieBis } : null;   // Prüfstand
 
   /** Position + Fahrtrichtung setzen (jeder Frame bzw. bei jedem Scrubben).
    *  v0.9.510 — nimmt BRUCHTEILE und interpoliert zwischen den Punkten:
@@ -9039,6 +9295,7 @@ function mountAnimator(body, headerActions, opts) {
       // vergessener Punkt; er verschwindet für die Dauer des Flugs.
       if (_reiseImUebergang(frac)) {
         rzSetDataLatest(map, src, { type: "FeatureCollection", features: [] });
+        _bodenPunktSetzen(null);
         return;
       }
       const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
@@ -9046,6 +9303,7 @@ function mountAnimator(body, headerActions, opts) {
       const _sk = _lbSymSkala(f);   // 19.10.2026 — Symbolwechsel nach Logbuch: kurz klein → groß (1 = normal)
       const _puls = _dotPuls(f);
       window.__rzDotZuletzt = { c: _pos, brg: _brg, sk: _sk, puls: _puls };   // Prüfstand (Ruhe des Pfeils, test_schnellvideo)
+      _bodenPunktSetzen(_pos, _brg, _sk, _puls);   // 25.10.2026 — sofort, ohne Worker (Ebene anim-dot-gl)
       rzSetDataLatest(map, src, { type: "Feature",
                     properties: { brg: _brg, sk: _sk, puls: _puls },
                     geometry: { type: "Point", coordinates: _pos } });
@@ -9141,6 +9399,7 @@ function mountAnimator(body, headerActions, opts) {
       rzSetDataLatest(map, src, {
         type: "Feature",
         geometry: _reiseGeometrie(coords, ai0),
+        __rzBis: coords === currentCoords ? null : f,   // 25.10.2026 — bis wohin die Linie reicht (Laufpunkt hängt daran)
       });
       window.__rzLinieRuhe = { ende: coords[coords.length - 1], voll: coords === currentCoords, f };   // Prüfstand
       // 🌊 Schwarm: Die Zusatz-Touren folgen demselben Stand — voll, wenn der
@@ -11277,6 +11536,7 @@ function mountAnimator(body, headerActions, opts) {
         rzSetDataLatest(map, src, {
           type: "Feature",
           geometry: _reiseGeometrie(coords, voll ? 0 : startIdx),
+          __rzBis: voll ? null : coordFrac,   // 25.10.2026 — s. _bodenPunktSetzen
         });
         // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx).
         const ai0 = voll ? 0 : startIdx;
@@ -12458,7 +12718,7 @@ function mountAnimator(body, headerActions, opts) {
     let _plN = 0, _plStart = 0, _plLast = 0, _plWorst = 0, _plPend = 0;
     // 07.09.2026 (Marc, Masca 2 ruckelt): dazu JS-Zeit je Bild (Skript-Anteil) und Zahl der langsamen Bilder —
     // trennt „unser Skript ist langsam" von „WebView/GPU ist am Anschlag".
-    let _plJs = 0, _plJsMax = 0, _plSlow33 = 0, _plSlow50 = 0;
+    let _plJs = 0, _plJsMax = 0, _plSlow33 = 0, _plSlow50 = 0, _plSpaet = 0;
     // Dazu: Zeit in MapLibres eigenem Zeichnen (map._render) und in den Ereignis-Handlern (map.fire) — läuft
     // außerhalb unserer Schleife und taucht sonst in keiner Zahl auf. Nur während des Probelaufs eingehängt.
     let _plRender = 0, _plRenderN = 0, _plFire = {}, _plHooked = false, _plOrigRender = null, _plOrigFire = null;
@@ -12479,7 +12739,15 @@ function mountAnimator(body, headerActions, opts) {
     const _plHook = () => {
       if (_plHooked || !map) return; _plHooked = true;
       try {
-        _plOrigRender = map._render; if (typeof _plOrigRender === "function") map._render = function () { const t0 = performance.now(); try { return _plOrigRender.apply(this, arguments); } finally { _plRender += performance.now() - t0; _plRenderN++; } };
+        _plOrigRender = map._render; if (typeof _plOrigRender === "function") map._render = function () {
+          // 25.10.2026 — gleichmäßiger Takt: auch MapLibres EIGENE Zeichenaufrufe (Worker-Antworten der Linie, geladene
+          // Kacheln) zwischen den Takten aufschieben — sonst zeichnete die Karte bei „jedes 3. Bild“ trotzdem 47-mal je s.
+          if (_takt.abstand && !window.__rzStepMode) {
+            const jetzt = performance.now();
+            if (jetzt - _takt.letztRender < _takt.abstand - 0.3 * _takt.vs) { try { this.triggerRepaint(); } catch (_) {} return this; }
+            _takt.letztRender = jetzt;
+          }
+          const t0 = performance.now(); try { return _plOrigRender.apply(this, arguments); } finally { _plRender += performance.now() - t0; _plRenderN++; } };
         _plOrigFire = map.fire; if (typeof _plOrigFire === "function") map.fire = function (ev) { const t0 = performance.now(); try { return _plOrigFire.apply(this, arguments); } finally { const ty = (ev && ev.type) || String(ev); const d = performance.now() - t0; if (d > 0.05) _plFire[ty] = (_plFire[ty] || 0) + d; } };
       } catch (_) {}
     };
@@ -12492,20 +12760,75 @@ function mountAnimator(body, headerActions, opts) {
       if (_plN < 5) return;
       const s = (performance.now() - _plStart) / 1000;
       const top = Object.entries(_plFire).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k} ${(v / Math.max(1, _plN)).toFixed(1)}`).join(", ");
-      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())} · Zoom-Richtungswechsel ${_plZDir} · Kachelmengen-Wechsel ${JSON.stringify(_plSetChg)} · davon A-B-A ${JSON.stringify(_plSetABA)}`); } catch (_) {}
+      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · Takt ${!_takt.abstand ? "jedes Bild" : `alle ${_takt.abstand.toFixed(1)} ms${_takt.ab < 0 ? " (gemerkt)" : ` ab Bild ${_takt.ab}`}`}, zu spät ${_plSpaet} · Linienende gemessen ${window.__rzLinieMess ? (() => { const q = window.__rzLinieMess(); return `${q.gefunden}/${q.laeufe}${q.fehler ? " Fehler " + q.fehler.slice(0, 60) : ""}`; })() : "–"} · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())} · Zoom-Richtungswechsel ${_plZDir} · Kachelmengen-Wechsel ${JSON.stringify(_plSetChg)} · davon A-B-A ${JSON.stringify(_plSetABA)}`); } catch (_) {}
       for (const d of _plABADiff) { try { applog("info", "[probelauf-aba] " + d.slice(0, 700)); } catch (_) {} }
       _plN = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plZ = []; _plZDir = 0; _plZPrevD = 0; _plSets = {}; _plSetChg = {}; _plSetABA = {}; _plABADiff = [];
     };
     window.__rzProbelaufBilanz = _plBilanz;
     let _evzStand = null;   // Events mit Zeit, je (ti, tf, Schnitt) einmal
+    // 25.10.2026 — gleichmäßiger Takt (Marc, MacBook Pro M1 Max mit Retina: „ruckelt wie Hölle, egal in welchem Modus“,
+    // dazu „Track wird nicht hinter dem Laufpunkt mitgezeichnet“). Sein Probelauf-Log: MapLibre 8–12 ms + Skript 2,5 ms
+    // je Bild, mit Browser-Arbeit knapp über den 16,7 ms eines Bildschirmtakts → die Bilder wechseln 16/33 ms
+    // (33–45 fps, ungleichmäßig = Ruckeln), und die Karten-Worker kommen mit der Linie nicht hinterher. Gemessen am
+    // Mac mini (Retina-Fläche, Bild + GPU): Gelände ~55 %, die Last verteilt sich sonst auf viele Ebenen — kein
+    // einzelner Schuldiger. Darum: kommen DAUERHAFT viele Bilder einen Bildschirmtakt zu spät (≥ 18 der letzten 90, also
+    // über 1,5 s, über 1,55 Takten — ein kurzer Stoß beim Kachelladen zählt nicht: im Klicktest unter Volllast sprang der
+    // Mac mini sonst für 3 s am Tourende auf 30 fps und merkte sich das),
+    // zeichnet die Vorschau nur noch in festem Abstand = ganzes Vielfaches des Bildschirmtakts, das der Rechner schafft
+    // (80-%-Wert) — am 60-Hz-Schirm meist jedes 2. Bild (ruhige 30 fps statt holpriger 35–45). Weniger Arbeit je
+    // Sekunde, auch für die Worker. Die Zeit läuft weiter nach der Uhr (elapsed), nichts wird langsamer. Schnelle
+    // Rechner zeichnen weiter jedes Bild. `window.__rzVorschauTakt` = Abstand in ms erzwingt (Prüfstand).
+    // Bildschirmtakt: 30-%-Wert der Abstände (+15 %), abgerundet auf die nächste übliche Rate (144/120/90/60 Hz) — die
+    // Zeitstempel im echten WebKit zittern um ±3 ms (Mac mini, 60 fps sauber: 20-%-Wert 14 ms). Am 20-%-Wert gemessen
+    // galt dort jedes 20-ms-Bild als „zu spät“, und der Takt fiel ohne Not auf 30 fps (erster Wurf, im Klicktest gesehen).
+    const _fl = map && map.getCanvas ? `${map.getCanvas().width}×${map.getCanvas().height}` : "";
+    const _takt = { abstand: 0, vs: _bildschirmTakt || 16.67, gez: [], roh: [], rohLetzt: 0, letztGez: 0, letztRender: 0, ab: 0 };
+    if (_taktGemerkt && _taktGemerkt.flaeche === _fl && (++_taktGemerkt.laeufe % 4) !== 0) { _takt.abstand = _taktGemerkt.abstand; _takt.vs = _bildschirmTakt || _taktGemerkt.vs; _takt.ab = -1; }
+    // (schneller als der Schirm kommt kein Bild; unter Last liegt der 30-%-Wert über dem Takt, nie darunter)
+    const _taktRaster = (g) => { let r = 6.94; for (const x of [8.33, 11.11, 16.67]) { if (x <= g * 1.15) r = x; } return r; };
+    const _taktUeberspringen = (now) => {
+      if (window.__rzStepMode || window.__rzRenderMode) return false;
+      const t = _takt, vorgabe = +window.__rzVorschauTakt || 0;
+      if (vorgabe > 0) t.abstand = vorgabe;
+      if (t.abstand) {   // im festen Abstand: Abstand der rohen Ticks = Bildschirmtakt
+        if (t.rohLetzt) { const g = now - t.rohLetzt; if (g > 0 && g < 60) { t.roh.push(g); if (t.roh.length > 60) t.roh.shift(); } }
+        t.rohLetzt = now;
+        if (t.roh.length >= 60) { const r = t.roh.slice().sort((a, b) => a - b), v = _taktRaster(r[30]); if (!_bildschirmTakt || v < _bildschirmTakt) { _bildschirmTakt = v; t.vs = v; } }
+      }
+      if (t.abstand && t.letztGez && now - t.letztGez < t.abstand - 0.3 * t.vs) return true;
+      // die ersten 30 Bilder zählen nicht: beim Anlaufen lädt die Karte Kacheln, das sind Einzelspitzen, kein Dauerzustand
+      if (t.letztGez && _plN > 30) { const g = now - t.letztGez; if (g > 0 && g < 250) { t.gez.push(g); if (t.gez.length > 90) t.gez.shift(); } }
+      t.letztGez = now;
+      if (vorgabe > 0 || t.gez.length < 90) return false;
+      const s = t.gez.slice().sort((a, b) => a - b), p80 = s[72];
+      if (!t.abstand) { const v = _taktRaster(s[27]); _bildschirmTakt = _bildschirmTakt ? Math.min(_bildschirmTakt, v) : v; t.vs = _bildschirmTakt; }
+      // zu spät = mehr als einen halben Bildschirmtakt über dem Soll (ohne festen Abstand: 1,55 Takte). 120-Hz-Prüfstand:
+      // mit festem 16,7-ms-Abstand und Bildern von 17–27 ms hieß „× 1,55“ erst ab 25,8 ms zu spät — der Takt stieg nie.
+      const soll = Math.max(t.abstand, t.vs), spaet = t.gez.filter((g) => g > soll + 0.55 * t.vs).length;
+      // im festen Abstand auch eine Stufe hoch, wenn schon der Median über dem Soll liegt (120-Hz-Prüfstand: Soll 25 ms,
+      // Median 28 — ein 25/33-Gemisch, also genau das Holpern, das hier weg soll)
+      const haeltNicht = t.abstand && s[45] > soll + 0.3 * t.vs;
+      if ((spaet >= 18 || haeltNicht) && t.abstand < 50 && p80 > soll + 0.3 * t.vs) {
+        const neu = Math.min(50, Math.max(soll + t.vs, Math.round(p80 / t.vs) * t.vs));
+        try { applog("info", `[takt] Vorschau zeichnet ab jetzt gleichmäßig alle ${neu.toFixed(1)} ms (~${Math.round(1000 / neu)} fps): ${spaet} von ${t.gez.length} Bildern zu spät (Bildschirmtakt ${t.vs.toFixed(1)} ms, 80 % ${p80.toFixed(1)} ms, Fläche ${_fl})`); } catch (_) {}
+        t.abstand = neu; t.ab = _plN; t.gez = [];
+        _taktGemerkt = { flaeche: _fl, abstand: neu, vs: t.vs, laeufe: 0 };
+      } else if (!t.abstand && _taktGemerkt && _taktGemerkt.flaeche === _fl && _plN > 240) {
+        _taktGemerkt = null;   // Neuprüfung bestanden: jedes Bild reicht wieder
+      }
+      return false;
+    };
+    window.__rzVorschauTaktStand = () => ({ abstand: _takt.abstand, vs: _takt.vs, ab: _takt.ab, gemerkt: _taktGemerkt, bildschirm: _bildschirmTakt });
+    window.__rzVorschauTaktVergessen = () => { _taktGemerkt = null; };   // Prüfstand: nächster Lauf entscheidet neu
     const step = (now) => {
+      if (_taktUeberspringen(now)) { _previewRaf = requestAnimationFrame(step); return; }
       const _t0 = performance.now();
       try { return _stepInner(now); }
       finally { const d = performance.now() - _t0; _plJs += d; if (d > _plJsMax) _plJsMax = d; }
     };
     const _stepInner = (now) => {
-      if (!_plN) { _plTrackStartLogged = false; _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plHook(); }
-      else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; if (g > 33) _plSlow33++; if (g > 50) _plSlow50++; _plLast = now; }
+      if (!_plN) { _plTrackStartLogged = false; _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plSpaet = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plHook(); }
+      else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; if (g > 33) _plSlow33++; if (g > 50) _plSlow50++; if (g > Math.max(_takt.abstand, _takt.vs) + 0.55 * _takt.vs) _plSpaet++; _plLast = now; }
       _plN++;
       try { _plTrack(); } catch (_) {}
       try { const _s = map.getSource("preview-track"); if (_s && typeof _s._pendingLoads === "number" && _s._pendingLoads > _plPend) _plPend = _s._pendingLoads; } catch (_) {}
@@ -12780,6 +13103,7 @@ function mountAnimator(body, headerActions, opts) {
           rzSetDataLatest(map, src, {
             type: "Feature",
             geometry: _reiseGeometrie(lineCoords, fullToggle ? 0 : startCoordIdx),
+            __rzBis: fullToggle ? null : coordFrac,   // 25.10.2026 — s. _bodenPunktSetzen
           });
           // v0.9.435 — Mehrfarbiger Track: Farbverlauf im Probelauf mitführen.
           const _ci0 = fullToggle ? 0 : startCoordIdx;
@@ -13189,7 +13513,7 @@ function mountAnimator(body, headerActions, opts) {
   function _currentOrtho() {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
     return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 0),
-             schatten: g("anim-oschatten", 55) };
+             schatten: g("anim-oschatten", 55), grade: g("anim-ograde", 70) };   // 25.10.2026 — Farbkorrektur je Kachel
   }
   /** 17.09.2026 — Dunst (0…100) aus der sichtbaren Optik-Gruppe (Zwillinge wie die Schärfe). */
   function _currentHaze() {
@@ -13437,12 +13761,13 @@ function mountAnimator(body, headerActions, opts) {
     const gs = currentGlowStrength();
     try {
       // v0.9.20 — Glow-Width respektiert gs-Skalierung
-      if (map.getLayer("preview-glow")) map.setPaintProperty("preview-glow", "line-width", lw * (2.0 + 0.21 * gs));
-      if (map.getLayer("preview-line")) map.setPaintProperty("preview-line", "line-width", lw);
+      if (map.getLayer("preview-glow")) map.setPaintProperty("preview-glow", "line-width", _lwZ(rzGlowMass(lw, gs).breite));
+      if (map.getLayer("preview-line")) map.setPaintProperty("preview-line", "line-width", _lwZ(lw));
       applyKonturToLayers();
       // v0.8.10 — Highlight-Layer (Tube-Modus) folgt der Linien-Dicke
-      if (map.getLayer("preview-highlight")) map.setPaintProperty("preview-highlight", "line-width", lw * 0.35);
+      if (map.getLayer("preview-highlight")) map.setPaintProperty("preview-highlight", "line-width", _lwZ(lw * 0.35));
       applyLinienLook();
+      applyGhost();   // 25.10.2026 — Strecke vorab hängt an der Track-Dicke (automatisch 45 %)
     } catch (_) {}
   }
 
@@ -13481,7 +13806,10 @@ function mountAnimator(body, headerActions, opts) {
         // „Attempting to run(), but is already running" bei jedem Bild). Also
         // erst nach dem Ende der Fahrt — und nur, wenn sich wirklich etwas ändert.
         if (map.isMoving && map.isMoving()) { map.once("moveend", () => setTimeout(applyTerrain, 30)); return; }
-        if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", spec.terrain);
+        // 25.10.2026 — Vorschau «flott»/«schnell»: Gelände nur bis z15 (window.__rzPreviewDemMax, util.js rzApplyPreviewQuality)
+        const _dem = (window.__rzPreviewDemMax && !window.__rzRenderMode && spec.terrain.maxzoom > window.__rzPreviewDemMax)
+          ? Object.assign({}, spec.terrain, { maxzoom: window.__rzPreviewDemMax }) : spec.terrain;
+        if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", _dem);
         const cur = map.getTerrain ? map.getTerrain() : null;
         const ex = currentExaggeration();
         // 06.09.2026 (Marc: „flimmernder Strich an den Kachelgrenzen"): Die Naht ist die Grenze
@@ -18603,7 +18931,8 @@ function mountAnimator(body, headerActions, opts) {
       if (!zeile.classList.contains("mit-transport")) {
         const links = document.createElement("div"), rechts = document.createElement("div");
         links.className = "tl-akt-links"; rechts.className = "tl-akt-rechts";
-        for (const c of [...zeile.children]) (c.classList.contains("timeline-btn-clear") || c.classList.contains("timeline-btn-fahrt-neu") ? rechts : links).appendChild(c);
+        // 25.10.2026 — Vorschau-Schalter rechts (links bricht die Zeile sonst um)
+        for (const c of [...zeile.children]) (c.classList.contains("timeline-btn-clear") || c.classList.contains("timeline-btn-fahrt-neu") || c.id === "tl-vorschau" ? rechts : links).appendChild(c);
         zeile.append(links, rechts);
         zeile.classList.add("mit-transport");
       }
@@ -18793,6 +19122,7 @@ function mountAnimator(body, headerActions, opts) {
           if (src) rzSetDataLatest(map, src, {
             type: "Feature",
             geometry: { type: "LineString", coordinates: currentCoords },
+            __rzBis: null,
           });
         } catch (_) {}
       }
@@ -20974,7 +21304,12 @@ function mountAnimator(body, headerActions, opts) {
       let p; try { p = window.rzProjektGezeichnet ? window.rzProjektGezeichnet(map, [pt.lon, pt.lat]) : map.project([pt.lon, pt.lat]); } catch (_) { continue; }   // 02.10.2026 Gelände wie gezeichnet
       const x = p.x * k, y = p.y * k;
       if (!(x >= 0 && x <= LW && y >= 0 && y <= LH)) continue;   // außerhalb des Bilds: kein Punkt (kein Randpunkt)
-      sichtbar.push({ pt, x, y });
+      // 25.10.2026 (Marc, Masca: „die gelben Punkte der Highlights sind wieder überall zu sehen“ — durch den Berg) — die
+      // Vorankündigungs-Punkte liegen als HTML über der Karte; wie die Schilder (sign_draw.js rzSignSicht) hinter dem
+      // Gelände ausblenden. Wenige Punkte je Bild, der Sichtstrahl kostet hier nichts.
+      const sicht = window.rzSignSicht ? window.rzSignSicht(map, +pt.lon, +pt.lat) : 1;
+      if (sicht < 0.01) continue;
+      sichtbar.push({ pt: sicht < 1 ? Object.assign({}, pt, { op: pt.op * sicht }) : pt, x, y });
     }
     while (ebene.childElementCount > sichtbar.length) ebene.lastChild.remove();
     while (ebene.childElementCount < sichtbar.length) { const d = document.createElement("div"); d.className = "hl-punkt"; ebene.appendChild(d); }
@@ -21242,6 +21577,19 @@ function mountAnimator(body, headerActions, opts) {
       try { const v = _ovFieldValue(id); return (v == null || v === "") ? "–" : String(v); } catch (_) { return m; }
     });
   }
+  // 25.10.2026 (Marc: „für jeden Kartenstil einen Kompass“, gleiche Bilder wie das Web-Studio) — Kompass zum Look des
+  // Projekts (ui/js/kompass.js aus ui/kompass/*.svg); Luftbild und andere Karten: der bisherige Pfeil.
+  function _kompassSvg() {
+    const a = (_activeProject && _activeProject[_MODKEY]) || {};
+    return window.rzKompassFuer ? window.rzKompassFuer(a) : (window.RZ_NORTH_SVG || "");
+  }
+  /** Gezeichnete Nordpfeil-Container auf den Kompass des aktuellen Looks bringen (nach jedem Kartenwechsel). */
+  function _kompassAktualisieren() {
+    const layer = document.getElementById("anim-overlay-preview"); if (!layer) return;
+    const svg = _kompassSvg();
+    layer.querySelectorAll(".ct-nord").forEach((el) => { if (el.__rzKompass !== svg) { el.innerHTML = svg; el.__rzKompass = svg; } });
+    try { _ovUpdateNorthScale(true); } catch (_) {}   // Drehung gleich wieder setzen
+  }
   function _ctZeileHtml(c, z, letzte) {
     const escA = _ctEsc;
     if (z.typ === "wert") {
@@ -21298,7 +21646,7 @@ function mountAnimator(body, headerActions, opts) {
     if (z.typ === "bild") {
       return `<div class="ct-z ct-bildz" data-f="${escA(z.id)}"><img class="ct-bild" data-bild="${escA(z.pfad)}" alt="" draggable="false" style="width:${z.b}cqw"></div>`;
     }
-    if (z.typ === "nord") return `<div class="ct-z ct-nord ov-north" data-f="${escA(z.id)}">${window.RZ_NORTH_SVG || ""}</div>`;
+    if (z.typ === "nord") return `<div class="ct-z ct-nord ov-north" data-f="${escA(z.id)}">${_kompassSvg()}</div>`;
     if (z.typ === "massstab") return `<div class="ct-z ct-mass ov-scale" data-f="${escA(z.id)}"><div class="ov-scale-txt"></div><div class="ov-scale-bar"></div></div>`;
     return "";
   }
@@ -23373,6 +23721,8 @@ function mountAnimator(body, headerActions, opts) {
     el.innerHTML = `
       <div class="anim-stil-zeile"><label>${t("animator.field.line_width", "Track-Dicke")} <b data-v="width">${st.width}</b> px</label>
         <input type="range" data-stil="width" min="1" max="10" step="0.5" value="${st.width}"></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.mitzoomen.tip", "Die Linie wird beim Herauszoomen etwas dünner und beim Hineinzoomen etwas dicker — nie unsichtbar. Bei Fahrt-Zoom gilt genau die eingestellte Dicke. 0 = immer gleich dick."))}"><label>${t("animator.mitzoomen", "Mitzoomen")} <b data-mitzoomen-v>${Math.round(_lwzStaerke() * 100)}</b> %</label>
+        <input type="range" data-mitzoomen min="0" max="100" step="10" value="${Math.round(_lwzStaerke() * 100)}"></div>` : ""}
       <div class="anim-stil-zeile"><label>${t("animator.field.line_style", "Strichart")}</label>
         <select data-stil="line_style">${opt("solid","solid")}${opt("dashed","dashed")}${opt("dotted","dotted")}${opt("dashdot","dashdot")}${opt("tube","tube")}</select></div>
       <div class="anim-stil-zeile" data-nur-muster ${st.line_style === "solid" || st.line_style === "tube" ? "hidden" : ""}><label>${t("animator.field.line_style_spacing", "Punktabstand")} <b data-v="spacing">${st.spacing}</b>×</label>
@@ -23395,7 +23745,13 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-blass="opacity" min="5" max="80" step="5" value="${blass.pct}"></div>
       <div class="anim-stil-zeile" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label>${t("animator.blass.color", "Farbe der blassen Strecke")}</label>
         <input type="color" data-blass="color" value="${_animEscapeHtml(blass.color)}"></div>
-      ${ziel === "haupt" ? `<div class="anim-stil-zeile ist-check" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label><input type="checkbox" data-blass="dashed"${document.getElementById("anim-ghost-dashed")?.checked ? " checked" : ""}> ${t("animator.blass.dashed", "Gestrichelt")}</label></div>` : ""}
+      ${ziel === "haupt" ? (() => {   // 25.10.2026 — Strichart + Breite der blassen Strecke (wie Web-Studio „Strecke vorab“)
+        const gs = currentGhostStil(), gb = parseFloat(document.getElementById("anim-ghost-breite")?.value) || 0;
+        const o = (v) => `<option value="${v}"${gs === v ? " selected" : ""}>${t("animator.line_style." + v, v)}</option>`;
+        return `<div class="anim-stil-zeile" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label>${t("animator.blass.stil", "Strichart der blassen Strecke")}</label>
+        <select data-blass="stil">${o("dashed")}${o("solid")}${o("dotted")}${o("dashdot")}</select></div>
+      <div class="anim-stil-zeile" data-nur-blass ${blass.show && !ganz ? "" : "hidden"}><label>${t("animator.blass.breite", "Breite der blassen Strecke")} <b data-v="blass_breite">${gb > 0 ? gb.toFixed(1) + " px" : t("animator.blass.breite_auto", "automatisch") + " (" + currentGhostBreite().toFixed(1) + " px)"}</b></label>
+        <input type="range" data-blass="breite" min="0" max="10" step="0.5" value="${gb}"></div>`; })() : ""}
       ${(() => { const pi = _tourPunkteInfo(ziel, tr);   // 18.10.2026 — Punktdichte (log. Regler, ganz rechts = alle)
         return `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.point_count.hint", ""))}"><label>${t("animator.stil.reduce", "Punkte")} <b data-punkte-v>${_animEscapeHtml(pi.text)}</b></label>
         <input type="range" data-punkte="${ziel === "haupt" ? "haupt" : "tour"}" min="0" max="1000" step="1" value="${_punktePosAus(pi.v, pi.n)}"${pi.n < 20 ? " disabled" : ""}></div>`; })()}
@@ -23474,8 +23830,14 @@ function mountAnimator(body, headerActions, opts) {
       if (art === "show") el.querySelectorAll("[data-nur-blass]").forEach(z => { z.hidden = !inp.checked; });
       if (art === "opacity") { const b = el.querySelector('[data-v="blass_opacity"]'); if (b) b.textContent = inp.value; }
       if (ziel === "haupt") {
-        const id = { show: "anim-ghost-enabled", opacity: "anim-ghost-opacity", color: "anim-ghost-color", dashed: "anim-ghost-dashed" }[art];
+        const id = { show: "anim-ghost-enabled", opacity: "anim-ghost-opacity", color: "anim-ghost-color", dashed: "anim-ghost-dashed", stil: "anim-ghost-stil", breite: "anim-ghost-breite" }[art];
         const f = document.getElementById(id); if (!f) return;
+        if (art === "breite") { const b = el.querySelector('[data-v="blass_breite"]'); const v = parseFloat(inp.value) || 0;
+          if (b) b.textContent = v > 0 ? v.toFixed(1) + " px" : t("animator.blass.breite_auto", "automatisch") + " (" + Math.max(1.2, Math.round(currentLineWidth() * 0.45 * 10) / 10).toFixed(1) + " px)"; }
+        if (art === "stil") {   // altes Feld „gestrichelt“ mitführen (ältere Fassungen, Web-Karte)
+          const d = document.getElementById("anim-ghost-dashed");
+          if (d && d.checked !== (inp.value !== "solid")) { d.checked = inp.value !== "solid"; d.dispatchEvent(new Event("change", { bubbles: true })); }
+        }
         if (art === "show" || art === "dashed") f.checked = inp.checked; else f.value = inp.value;
         f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true }));
         return;
@@ -23486,6 +23848,11 @@ function mountAnimator(body, headerActions, opts) {
       _animPersistTours();
       try { _animDrawExtraToursPreview(); } catch (e) { applog("warn", "[blass] " + e); }
     }));
+    el.querySelector("[data-mitzoomen]")?.addEventListener("input", (e) => {   // 25.10.2026
+      const f = document.getElementById("anim-mitzoomen"); if (!f) return;
+      f.value = e.target.value; const b = el.querySelector("[data-mitzoomen-v]"); if (b) b.textContent = e.target.value;
+      f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     // „Ruhe des Pfeils" ist die Lesebreite der Richtung — eine Zahl für alle Pfeile.
     el.querySelectorAll("[data-global]").forEach(inp => inp.addEventListener("input", () => {
       const ziel = document.getElementById(inp.dataset.global); if (!ziel) return;
@@ -23714,6 +24081,7 @@ function mountAnimator(body, headerActions, opts) {
     const park = document.getElementById("anim-farben-park"); if (!park) return;
     for (const id of _TRED_FARBEN) { const e = document.getElementById(id); if (e && e.parentElement !== park) park.appendChild(e); }
   }
+  window.__rzTrackEdOeffnen = (z) => _trackEdOeffnen(z);   // Prüfstand (25.10.2026)
   function _trackEdOeffnen(ziel) {
     const tr = ziel === "haupt" ? null : _extraTours.find(x => x.gpx_path === ziel);
     if (ziel !== "haupt" && !tr) return;
@@ -24560,24 +24928,25 @@ function mountAnimator(body, headerActions, opts) {
       map.addSource("swarm-prev-lines", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "swarm-prev-shadow", type: "line", source: "swarm-prev-lines", filter: [">", ["get", "shadow"], 0], layout: lay,
-        paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": ["*", ["get", "width"], 2.2], "line-blur": ["get", "shadow"],
+        paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": _lwZx(["*", ["get", "width"], 2.2]), "line-blur": ["get", "shadow"],
                  "line-opacity": ["coalesce", ["get", "op"], 1],
                  "line-translate": [sMittel * Math.cos(sr), sMittel * Math.sin(sr)] } });
       map.addLayer({ id: "swarm-prev-glow", type: "line", source: "swarm-prev-lines", filter: [">", ["get", "glow"], 0], layout: lay,
-        paint: { "line-color": ["get", "color"], "line-width": ["*", ["get", "width"], ["+", 2.0, ["*", 0.21, ["get", "glow"]]]],
-                 "line-blur": ["get", "glow"], "line-opacity": ["*", 0.8, ["coalesce", ["get", "op"], 1]] } });
+        paint: { "line-color": ["get", "color"], "line-width": _lwZx(rzGlowAusdruck(["get", "width"], ["get", "glow"]).breite),   // 25.10.2026
+                 "line-blur": rzGlowAusdruck(["get", "width"], ["get", "glow"]).blur,
+                 "line-opacity": ["*", rzGlowAusdruck(["get", "width"], ["get", "glow"]).deck, ["coalesce", ["get", "op"], 1]] } });
       const muster = new Map();
       _swPrev.forEach(t => { const d = _dashFuerStil(t.stil, t.stil.width); t.dk = d ? t.stil.line_style + "|" + (+t.stil.spacing || 1) : "solid"; if (!muster.has(t.dk)) muster.set(t.dk, d); });
       let n = 0;
       for (const [dk, d] of muster) {
-        const paint = { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "width"], Math.max(1, lw * 0.8)], "line-opacity": ["*", 0.9, ["coalesce", ["get", "op"], 1]] };
+        const paint = { "line-color": ["get", "color"], "line-width": _lwZx(["coalesce", ["get", "width"], Math.max(1, lw * 0.8)]), "line-opacity": ["*", 0.9, ["coalesce", ["get", "op"], 1]] };
         if (d) paint["line-dasharray"] = d;
         map.addLayer({ id: "swarm-prev-lines" + (n ? "-" + n : ""), type: "line", source: "swarm-prev-lines",
           filter: ["==", ["get", "dk"], dk], layout: lay, paint });
         n++;
       }
       map.addLayer({ id: "swarm-prev-hl", type: "line", source: "swarm-prev-lines", filter: ["==", ["get", "tube"], 1], layout: lay,
-        paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": ["*", ["get", "width"], 0.35], "line-opacity": ["*", 0.9, ["coalesce", ["get", "op"], 1]] } });
+        paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": _lwZx(["*", ["get", "width"], 0.35]), "line-opacity": ["*", 0.9, ["coalesce", ["get", "op"], 1]] } });
       map.addSource("swarm-prev-dots", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
       // Pfeil je Tour in Tour-Farbe — wortgleich zum Render (rz-sw-arrow-i); immer
@@ -24680,7 +25049,7 @@ function mountAnimator(body, headerActions, opts) {
           map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: tour.coords } } });
           const d = _dashFuerStil(bst, bst.width);
           map.addLayer({ id, type: "line", source: id, layout: lay,
-            paint: { "line-color": st.blass_color || tour.line_color || "#35a7ff", "line-width": Math.max(0.5, +bst.width || 3.5),
+            paint: { "line-color": st.blass_color || tour.line_color || "#35a7ff", "line-width": _lwZ(Math.max(1.2, Math.round(Math.max(0.5, +bst.width || 3.5) * 0.45 * 10) / 10)),   // 25.10.2026 blass = fein wie „Strecke vorab“
                      "line-opacity": _blassDeckkraft(st), ...(d ? { "line-dasharray": d } : {}) } }, unter);
         } catch (e) { applog && applog("warn", "[blass] " + id + ": " + e); }
       }
@@ -24708,22 +25077,22 @@ function mountAnimator(body, headerActions, opts) {
           if (+st.shadow > 0) {
             const sr = currentShadowDir() * Math.PI / 180;
             map.addLayer({ id: id + "-shadow", type: "line", source: id, layout: lay,
-              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": w * 2.2, "line-blur": +st.shadow, "line-opacity": op,
+              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": _lwZ(w * 2.2), "line-blur": _lwZ(+st.shadow), "line-opacity": op,
                        "line-translate": [st.shadow * Math.cos(sr), st.shadow * Math.sin(sr)], ...dash(w * 2.2) } }, unter);
             ebenen.push({ id: id + "-shadow", op, w: w * 2.2 });
           }
           if (+st.glow > 0) {
-            const gw = w * (2.0 + 0.21 * st.glow);
+            const gm = rzGlowMass(w, st.glow), gw = gm.breite;   // 25.10.2026 — wie der Haupt-Track
             map.addLayer({ id: id + "-glow", type: "line", source: id, layout: lay,
-              paint: { "line-color": _fc, "line-width": gw, "line-blur": +st.glow, "line-opacity": 0.8 * op, ...dash(gw) } }, unter);
-            ebenen.push({ id: id + "-glow", op: 0.8 * op, w: gw });
+              paint: { "line-color": _fc, "line-width": _lwZ(gw), "line-blur": _lwZ(gm.blur), "line-opacity": gm.deck * op, ...dash(gw) } }, unter);
+            ebenen.push({ id: id + "-glow", op: gm.deck * op, w: gw });
           }
           map.addLayer({ id: id + "-line", type: "line", source: id, layout: lay,
-            paint: { "line-color": _fc, "line-width": w, "line-opacity": 0.9 * op, ...dash(w) } }, unter);
+            paint: { "line-color": _fc, "line-width": _lwZ(w), "line-opacity": 0.9 * op, ...dash(w) } }, unter);
           ebenen.push({ id: id + "-line", op: 0.9 * op, w });
           if (st.line_style === "tube") {
             map.addLayer({ id: id + "-hl", type: "line", source: id, layout: lay,
-              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": w * 0.35, "line-opacity": 0.9 * op } }, unter);
+              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": _lwZ(w * 0.35), "line-opacity": 0.9 * op } }, unter);
             ebenen.push({ id: id + "-hl", op: 0.9 * op, w: w * 0.35 });
           }
         } catch (e) { applog && applog("warn", "[ganz] " + id + ": " + e); }
@@ -24771,7 +25140,7 @@ function mountAnimator(body, headerActions, opts) {
           map.setLayoutProperty(eb.id, "visibility", z.an ? "visible" : "none");
           if (z.an) {
             map.setPaintProperty(eb.id, "line-opacity", Math.max(0, Math.min(1, eb.op * z.op)));
-            map.setPaintProperty(eb.id, "line-width", Math.max(0.01, eb.w * z.w));
+            map.setPaintProperty(eb.id, "line-width", _lwZ(Math.max(0.01, eb.w * z.w)));
           }
         } catch (_) {}
       }
@@ -26511,22 +26880,23 @@ function mountAnimator(body, headerActions, opts) {
           if (st.shadow > 0) {
             const sr = currentShadowDir() * Math.PI / 180;
             map.addLayer({ id: "mtour-prev-shadow-" + k, type: "line", source: id, layout: lay,
-              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": st.width * 2.2, "line-blur": st.shadow, "line-opacity": op,
+              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": _lwZ(st.width * 2.2), "line-blur": _lwZ(+st.shadow), "line-opacity": op,
                        "line-translate": [st.shadow * Math.cos(sr), st.shadow * Math.sin(sr)], ...dash(st.width * 2.2) } });
           }
           const _fc = ["coalesce", ["get", "farbe"], farbe];   // 08.10.2026 Farbwechsel je Tour: Abschnitte tragen ihre Farbe
           if (st.glow > 0) {
+            const gm = rzGlowMass(st.width, st.glow);   // 25.10.2026 — wie der Haupt-Track
             map.addLayer({ id: "mtour-prev-glow-" + k, type: "line", source: id, layout: lay,
-              paint: { "line-color": _fc, "line-width": st.width * (2.0 + 0.21 * st.glow), "line-blur": st.glow,
-                       "line-opacity": 0.8 * op, ...dash(st.width * (2.0 + 0.21 * st.glow)) } });
+              paint: { "line-color": _fc, "line-width": _lwZ(gm.breite), "line-blur": _lwZ(gm.blur),
+                       "line-opacity": gm.deck * op, ...dash(gm.breite) } });
           }
           map.addLayer({
             id: "mtour-prev-line-" + k, type: "line", source: id, layout: lay,
-            paint: { "line-color": _fc, "line-width": st.width, "line-opacity": 0.9 * op, ...dash(st.width) },
+            paint: { "line-color": _fc, "line-width": _lwZ(st.width), "line-opacity": 0.9 * op, ...dash(st.width) },
           });
           if (st.line_style === "tube") {
             map.addLayer({ id: "mtour-prev-hl-" + k, type: "line", source: id, layout: lay,
-              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": st.width * 0.35, "line-opacity": 0.9 * op } });
+              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": _lwZ(st.width * 0.35), "line-opacity": 0.9 * op } });
           }
         } catch (err) { console.warn("extra-tour preview:", err); }
       });

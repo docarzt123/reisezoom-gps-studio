@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 24 Oct 2026 05:31:04 +0000</lastBuildDate>
+<lastBuildDate>Sun, 25 Oct 2026 05:32:55 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.822</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-822</link>
+<guid isPermaLink="false">gps-studio-v0.9.822</guid>
+<pubDate>Sun, 25 Oct 2026 12:00:00 +0000</pubDate>
+<description>Überblick und Anleitungen mit Bildern — Unter Hilfe → Überblick über GPS Studio steht jetzt jedes Modul mit Bild und einem Satz, dazu „In drei Schritten zum ersten Video“. „Mehr erfahren“ zeigt zu jedem Schritt einen Ausschnitt der App, auf dem der gemeinte Knopf leuchtet.
+
+Ein Logbuch für alles — Tourseite und GPX-Inspektor zeigen dieselbe Liste mit demselben Menü (teilen, zusammenlegen, Art ändern, im Video raffen …). Mehrtägige Touren scrollen durchgehend mit Tagesüberschriften, der Zeitstrahl liegt jetzt auch unter der Karte der Tourseite — und dort gibt es „Im Inspektor“ und „Öffnen in“.
+
+Logbuch kennt den Weg — Ob ein langsames Stück Stau oder Radtour war, entscheidet jetzt der Weg darunter: Autobahn bleibt Fahrt, Fährlinie wird Fähre, Radweg wird Rad. Gelesen aus denselben Kartenkacheln, einmal je Tour.
+
+Logbuch lernt mit — nur wenn du willst — Wer möchte, teilt Korrekturen der Eintragsart anonym (Einstellungen → Allgemein, Standard aus): nur Zahlen wie Tempo und Steigung, keine Orte, Uhrzeiten oder Namen. Daraus wird die Erkennung für alle besser.</description>
+</item>
 <item>
 <title>v0.9.809</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-809</link>
@@ -249,13 +262,6 @@ Fotos ohne Ort — „📷 Fotos hinzufügen“ überspringt Fotos ohne GPS nich
 Fotostopp ohne Heranfahren — Neuer Haken „Kamera fährt heran“ im Fotostopp: aus = der Track hält, das Foto erscheint, die Kamera bleibt stehen.
 
 Kartenanimation ohne GPS weitergeben — Das .rzproj nimmt jetzt die Etappe mit — beim Empfänger bleiben Punkte, Kurven und Verkehrsmittel bearbeitbar.</description>
-</item>
-<item>
-<title>v0.9.784</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-784</link>
-<guid isPermaLink="false">gps-studio-v0.9.784</guid>
-<pubDate>Wed, 07 Oct 2026 12:00:00 +0000</pubDate>
-<description>Etappen-Editor — Der ✕-Knopf einer Station hatte auf Englisch und Spanisch keinen eigenen Text.</description>
 </item>
 </channel>
 </rss>
