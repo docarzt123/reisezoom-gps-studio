@@ -148,6 +148,8 @@ def allein(name: str) -> bool:
 # 11.10.2026 (Marc: „alles auf der externen Platte machen“) — auf dem Mac mini legen die Tests ihre Kopien auf der externen
 # Platte an statt im System-Temp der kleinen Systemplatte. Die Testdateien erben TMPDIR (tempfile folgt ihm).
 _EXT_TEMP = Path("/Volumes/MacMini 2TB Acasis/_tmp/gps-studio-tests")
+# 26.10.2026 — Exit-Code eines Tests für „hier nicht messbar, übersprungen“ (wie bei automake/pytest-Konventionen 77)
+UEBERSPRUNGEN = 77
 if _EXT_TEMP.parent.parent.is_dir() and not os.environ.get("TMPDIR", "").startswith("/Volumes/"):
     _EXT_TEMP.mkdir(parents=True, exist_ok=True)
     os.environ["TMPDIR"] = str(_EXT_TEMP) + "/"
@@ -310,6 +312,11 @@ def main() -> int:
         # Parallele Tests stellten sich dort sonst gegenseitig Werte um — die „nur parallel roten“ Wackeltests.
         einst_ordner = Path(tempfile.mkdtemp(prefix="einstellungen-" + d.stem[:30] + "-"))
         einst = einst_ordner / "settings.json"
+        # 26.10.2026 — auch TMPDIR je Test in diesen Ordner: Tests, die ihre Kopien nicht wegräumen (abgebrochen, Zeitlimit,
+        # kein atexit), ließen sie im gemeinsamen Temp liegen — 2970 Ordner, ~120 GB, die externe Platte lief voll.
+        # Die Kachel-Vorlage (tests/szene_umgebung.py) bleibt im gemeinsamen Temp (RZ_TEST_VORLAGEN), sonst je Test 2,3 GB.
+        test_tmp = einst_ordner / "tmp"
+        test_tmp.mkdir()
         try:
             if EINSTELLUNGEN_VORLAGE.is_file():
                 shutil.copy2(EINSTELLUNGEN_VORLAGE, einst)
@@ -318,7 +325,8 @@ def main() -> int:
         try:
             # 23.10.2026 — über scripts/test_tempo_start.py: feste Wartezeiten der Browser-Tests × RZ_TEST_TEMPO (Fremdlast)
             r = subprocess.run([sys.executable, str(REPO / "scripts" / "test_tempo_start.py"), str(d)], cwd=str(REPO),
-                               env=dict(os.environ, RZ_SETTINGS_DATEI=str(einst), RZ_TEST_TEMPO=f"{tempo:.2f}"),
+                               env=dict(os.environ, RZ_SETTINGS_DATEI=str(einst), RZ_TEST_TEMPO=f"{tempo:.2f}",
+                                        TMPDIR=str(test_tmp) + "/", RZ_TEST_VORLAGEN=tempfile.gettempdir()),
                                capture_output=True, text=True, timeout=int(ZEITLIMIT_S * min(2.0, tempo)))
         except subprocess.TimeoutExpired as e:
             def _txt(v):
@@ -344,6 +352,12 @@ def main() -> int:
             if r.returncode == 0:
                 ok.append(d.name)
                 print(f"{FARBE_OK}  ✓ {d.name}{FARBE_AUS}  ({dauer:.1f}s)", flush=True)
+            elif r.returncode == UEBERSPRUNGEN:
+                # 26.10.2026 — der Test selbst stellt fest, dass er hier nichts Gültiges messen kann (z. B. Zeitmessung auf
+                # einem Rechner unter Dauerlast); Grund = seine letzte Ausgabezeile, steht in der Bilanz
+                grund = ((r.stdout or "").strip().splitlines() or ["ohne Grund"])[-1].strip()
+                sprung.append((d.name, grund))
+                print(f"{FARBE_GRAU}  – {d.name}{FARBE_AUS}  ({dauer:.1f}s, übersprungen: {grund})", flush=True)
             else:
                 rot.append((d.name, r))
                 print(f"{FARBE_ROT}  ✗ {d.name}{FARBE_AUS}  ({dauer:.1f}s)", flush=True)
@@ -431,7 +445,7 @@ def main() -> int:
                     print(f"  {FARBE_ROT}{zeile}{FARBE_AUS}")
 
     if sprung:
-        print(f"\n{FARBE_GRAU}Übersprungen (Voraussetzung fehlt):{FARBE_AUS}")
+        print(f"\n{FARBE_GRAU}Übersprungen (Voraussetzung fehlt / nicht messbar):{FARBE_AUS}")
         for name, grund in sprung:
             print(f"  · {name} — {grund}")
 

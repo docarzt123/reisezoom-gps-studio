@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.833"
+APP_VERSION = "0.9.834"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -12970,6 +12970,42 @@ class Api:
         return name or "projekt"
 
     @_nur_einmal("projekte")
+    def kamera_export(self, projekt_id: str = "", ziel: str = "", vorschau_w: int = 0, vorschau_h: int = 0) -> dict:
+        """25.10.2026 — Kamerafahrt eines Projekts Bild für Bild als JSON („rz-kamera/1“), ohne Video (Marc: für
+        3D-Programme wie Blender, später After Effects/Nuke). Läuft durch dieselbe Szene wie der Render
+        (core/szene.kamera_export) — dieselbe Kamera wie im Video. Größe, Bildrate und Dauern aus dem Projekt;
+        `vorschau_w/h` = Vorschau-Größe in CSS-px wie beim Render aus der App (leer: Standard der Szene; Lage und
+        Richtung der Kamera hängen nicht davon ab, nur der Zoom-Bezug). Ziel leer → App-Ordner/kamera_export/."""
+        daten = _projekte.laden(DATEN_ORT)
+        pj = (daten.get("projects") or {}).get(str(projekt_id or ""))
+        if not pj:
+            return {"ok": False, "error": _ui_t()("kamera.kein_projekt", "Projekt nicht gefunden: {id}").replace("{id}", str(projekt_id))}
+        a = pj.get("animator") or {}
+        if not ziel:
+            name = re.sub(r"[^\w\-. ]+", "_", str(pj.get("name") or projekt_id))[:80].strip() or str(projekt_id)
+            ziel = str(APP_SUPPORT / "kamera_export" / f"{time.strftime('%Y%m%d-%H%M')}-{name}.json")
+        from core import animator as A
+        from core import szene as cszene
+        cfg = A.AnimatorConfig(gpx_path="", output_path=ziel, mapbox_token=_active_mapbox_token() or "",
+                               width=int(a.get("width") or 1920), height=int(a.get("height") or 1080),
+                               fps=int(a.get("fps") or 30), duration_s=float(a.get("duration_s") or 12),
+                               intro_s=float(a.get("intro_s") or 0), hold_s=float(a.get("hold_s") or 0))
+        params = {"szene_projekt_id": str(projekt_id), "szene_vorschau_w": int(vorschau_w or 0), "szene_vorschau_h": int(vorschau_h or 0)}
+        log.info("kamera_export: Projekt %s → %s (%dx%d @ %d fps)", projekt_id, ziel, cfg.width, cfg.height, cfg.fps)
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(cszene.kamera_export(cfg, api=self, projekt_id=str(projekt_id), ziel=ziel, params=params))
+        except Exception as e:  # noqa: BLE001
+            log.exception("kamera_export fehlgeschlagen")
+            return {"ok": False, "error": str(e)}
+        finally:
+            loop.close()
+        try:
+            n = len(json.loads(Path(ziel).read_text(encoding="utf-8")).get("bilder") or [])
+        except Exception:  # noqa: BLE001
+            n = 0
+        return {"ok": True, "datei": ziel, "bilder": n}
+
     def projekt_exportieren(self, gpx_path: str = "", ziel: str = "", kontext: str = "") -> dict:
         """Aktuellen Track + alle Projekte der Session als .rzproj speichern.
         `ziel` leer → Save-Dialog. Läuft ohne Cloud.

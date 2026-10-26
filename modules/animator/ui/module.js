@@ -12929,6 +12929,7 @@ function mountAnimator(body, headerActions, opts) {
         }
       }
       const coordIdx = Math.max(0, Math.min(tn - 1, Math.round(coordFrac)));
+      window.__rzStepStand = { frac: coordFrac, n: tn, video: timelineProgress };   // 25.10.2026 — Kamera-Export (core/szene.py)
       try { window.__rzVideoSek = _sgZeitAusAnker(signAnchor); } catch (_) {}   // 23.10.2026 — Videozeit (Leuchtpunkt atmet)
       try { dotSetzen(coordFrac); } catch (_) {}   // v0.9.509/510 — gleitender Laufpunkt
       // v0.9.56: Track-Linien-Start respektiert show_pretrim_track-Setting:
@@ -25222,6 +25223,42 @@ function mountAnimator(body, headerActions, opts) {
 
   // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
   try { window.__rzAnimCoords = () => currentCoords || []; } catch (_) {}
+  // 25.10.2026 — Kamera-Export (Marc: Kamerafahrt Bild für Bild für 3D-Programme wie Blender). Liest NUR,
+  // was die Szene für dieses Bild ohnehin gestellt hat — dieselbe Rechnung wie das Video (core/szene.py kamera_export).
+  // Höhen: queryTerrainElevation und die Kamerahöhe gelten in der Szene MIT Überhöhung; „echt“ = geteilt durch den Faktor.
+  window.__rzKameraBild = () => {
+    if (!map) return null;
+    const c = map.getCenter(), ex = (map.getTerrain && map.getTerrain() && +map.getTerrain().exaggeration) || 1;
+    let zEl = null; try { const v = map.queryTerrainElevation ? map.queryTerrainElevation(c) : null; zEl = (typeof v === "number" && isFinite(v)) ? v : null; } catch (_) {}
+    let kam = null;
+    try {
+      const MC = window.maplibregl && window.maplibregl.MercatorCoordinate;
+      const r = window.rzMlCamRead ? window.rzMlCamRead(map) : null;
+      if (MC && r && r.pos) { const mc = new MC(r.pos[0], r.pos[1], r.pos[2]), ll = mc.toLngLat(); kam = [ll.lng, ll.lat, r.pos[2] / mc.meterInMercatorCoordinateUnits()]; }
+    } catch (_) {}
+    const st = window.__rzStepStand || {}, n = Math.max(1, (st.n || (currentCoords || []).length || 1) - 1);
+    const pad = map.getPadding ? map.getPadding() : null;
+    return { zentrum: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing(),
+             zentrum_hoehe_m: zEl == null ? null : zEl / ex, zentrum_hoehe_ueberhoeht_m: zEl,
+             kamera: kam, fortschritt: typeof st.frac === "number" ? Math.max(0, Math.min(1, st.frac / n)) : null,
+             punkt_index: typeof st.frac === "number" ? Math.round(st.frac) : null, punkt_frac: typeof st.frac === "number" ? st.frac : null,
+             video_anteil: typeof st.video === "number" ? st.video : null,
+             padding: pad && (pad.top || pad.bottom || pad.left || pad.right) ? pad : null };
+  };
+  window.__rzKameraKopf = () => {
+    if (!map) return null;
+    const ex = (map.getTerrain && map.getTerrain() && +map.getTerrain().exaggeration) || 1;
+    // Höhen ergänzt core/szene.py aus der GPX-Datei (die Seite kennt nur 200 Höhenwerte fürs Profil)
+    const punkte = (currentCoords || []).map((c) => [c[0], c[1], (c.length > 2 && isFinite(+c[2])) ? +c[2] : null]);
+    const tr = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 }, n = Math.max(1, punkte.length - 1);
+    let fov = null; try { const t = map.transform; fov = (typeof t.fov === "number") ? t.fov : (typeof t.fovInRadians === "number" ? t.fovInRadians * 180 / Math.PI : null); } catch (_) {}
+    const cv = map.getCanvas(), cont = map.getContainer();
+    return { punkte, trim: [Math.round(fracAusFortschritt(tr.start ?? 0, punkte.length)), Math.round(fracAusFortschritt(tr.end ?? 1, punkte.length))],
+             linie: { farbe: currentLineColor(), breite: currentLineWidth() }, ueberhoehung: ex, fov_v_grad: fov,
+             viewport_css: [cont.clientWidth, cont.clientHeight], leinwand_px: [cv.width, cv.height], kartenstil: map.__rzSpec ? (map.__rzSpec.id || null) : null,
+             projekt: { id: (_activeProject && _activeProject.id) || null, name: (_activeProject && _activeProject.name) || null },
+             gpx: currentGpx || null };
+  };
   try { window.__rzRohEvents = () => (getRawTimelineEvents() || []); } catch (_) {}
   window.__rzReiseKamera = (idx) => _reiseKamera(idx);   // Prüfstand
   try { window.__rzReiseBahn = () => (_reiseBahn ? {

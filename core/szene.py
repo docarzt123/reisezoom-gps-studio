@@ -733,6 +733,123 @@ async def _treiber_ende(cm) -> str:
         return f"unbekannt ({e})"
 
 
+# ── Kamera-Export (25.10.2026) ─────────────────────────────────────────────────────────────────────────────────────
+# Marc: die Kamerafahrt eines Projekts Bild für Bild als Datei — für 3D-Programme wie Blender (gleiche
+# Fahrt fotorealistisch) und später für After Effects/Nuke. Gelesen wird NUR, was die Szene für das Bild ohnehin stellt
+# (module.js __rzKameraBild nach seek + denselben Wartepunkten wie das Video) — dieselbe Rechnung wie das Video, kein
+# Nachbau. Format „rz-kamera/1“, Felder siehe docs/DEVELOPER.md.
+KAMERA_FORMAT = "rz-kamera/1"
+
+
+async def _kamera_bild(page, frame: int, t: float) -> dict:
+    b = await page.evaluate("() => (window.__rzKameraBild ? window.__rzKameraBild() : null)") or {}
+    return {"i": frame, "t_s": round(t, 6), **b}
+
+
+def _kamera_hoehen(punkte: list, gpx_pfad: str) -> list:
+    """Echte Höhen je Punkt der Animationsspur aus der GPX-Datei: je Punkt den nächsten Rohpunkt, in Trackrichtung ab dem
+    zuletzt gefundenen gesucht (Hin- und Rückweg auf derselben Strecke bleiben getrennt)."""
+    if not punkte or not gpx_pfad or all(p[2] is not None for p in punkte):
+        return punkte
+    try:
+        from . import gpx as _gpx
+        roh = _gpx.parse_gpx(gpx_pfad)[0]
+    except Exception as e:  # noqa: BLE001
+        _log.warning("Szene: Kamera-Export — Höhen aus %s nicht lesbar: %s", gpx_pfad, e)
+        return punkte
+    ab, raus = 0, []
+    for p in punkte:
+        if p[2] is not None:
+            raus.append(p); continue
+        bi, bd = -1, float("inf")
+        for i in range(ab, min(len(roh), ab + 3000)):
+            q = (roh[i].lon - p[0]) ** 2 + (roh[i].lat - p[1]) ** 2
+            if q < bd:
+                bd, bi = q, i
+            if q == 0:
+                break
+        if bi >= 0:
+            ab = bi
+        raus.append([p[0], p[1], (round(float(roh[bi].ele), 2) if bi >= 0 and roh[bi].ele is not None else None)])
+    return raus
+
+
+def _kamera_schreiben(ziel: str, cfg, projekt_id: str, kopf: dict, bilder: dict, total_frames: int) -> str:
+    import datetime as _dt
+    import sys as _sys
+    kopf = kopf or {}
+    kopf["punkte"] = _kamera_hoehen(kopf.get("punkte") or [], kopf.get("gpx") or "")
+    app = _sys.modules.get("app") or _sys.modules.get("__main__")
+    daten = {
+        "format": KAMERA_FORMAT,
+        "projekt": {"id": (kopf.get("projekt") or {}).get("id") or projekt_id, "name": (kopf.get("projekt") or {}).get("name")},
+        "erzeugt": _dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "app_version": getattr(app, "APP_VERSION", None),
+        "fps": cfg.fps, "breite": cfg.width, "hoehe": cfg.height,
+        "fov_v_grad": kopf.get("fov_v_grad"), "ueberhoehung": kopf.get("ueberhoehung"),
+        "dauer_s": float(cfg.duration_s), "intro_s": float(getattr(cfg, "intro_s", 0) or 0), "hold_s": float(cfg.hold_s),
+        "gesamt_s": round(total_frames / cfg.fps, 6), "bilder_anzahl": total_frames,
+        "viewport_css": kopf.get("viewport_css"), "kartenstil": kopf.get("kartenstil"),
+        "hinweise": {
+            "hoehen": "track.punkte und bilder.zentrum_hoehe_m: echte Höhen (m ü. NN); zentrum_hoehe_ueberhoeht_m und "
+                      "kamera[2] gelten in der Szene MIT Überhöhung (Faktor ueberhoehung) — für ein deckungsgleiches Bild "
+                      "das Gelände in 3D um diesen Faktor überhöhen",
+            "zoom": "Zoom bezieht sich auf viewport_css (Vorschau-Größe der Szene); Lage, Richtung und Neigung der Kamera "
+                    "hängen davon nicht ab",
+            "bearing": "Grad im Uhrzeigersinn ab Norden; pitch 0 = senkrecht nach unten",
+        },
+        "track": {"punkte": kopf.get("punkte") or [], "trim": kopf.get("trim"), "linie": kopf.get("linie")},
+        "bilder": [bilder[i] for i in sorted(bilder)],
+    }
+    Path(ziel).parent.mkdir(parents=True, exist_ok=True)
+    Path(ziel).write_text(json.dumps(daten, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    _log.info("Szene: Kamera-Export %s — %d Bilder, %d Trackpunkte", ziel, len(bilder), len(daten["track"]["punkte"]))
+    return ziel
+
+
+async def kamera_export(cfg, *, api, projekt_id: str, ziel: str, params: Optional[dict] = None,
+                        on_progress: Optional[Callable[[float, str], None]] = None,
+                        is_cancelled: Optional[Callable[[], bool]] = None, modul: str = "animator") -> str:
+    """Kamerafahrt Bild für Bild nach `ziel` (JSON, rz-kamera/1) — ohne Bild aufzunehmen und ohne Video. Wartet je Bild
+    wie das Video (Karte bereit, Geländehöhen nachgeladen): mit Gelände hängt die Kamerahöhe an der Bodenhöhe im
+    Mittelpunkt, nur so stimmen die Werte mit dem Video überein."""
+    from playwright.async_api import async_playwright
+
+    def emit(p: float, msg: str) -> None:
+        if on_progress:
+            try: on_progress(p, msg)
+            except Exception: pass
+
+    intro_frames = max(0, int(round(float(getattr(cfg, "intro_s", 0) or 0) * cfg.fps)))
+    total_frames = intro_frames + max(1, int(round(cfg.duration_s * cfg.fps))) + int(round(cfg.hold_s * cfg.fps))
+    bilder: dict = {}
+    async with async_playwright() as p:
+        browser, page, _dsf, _ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
+        try:
+            await page.evaluate("() => window.__rzPreviewRun()")
+            await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+            total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
+            total_frames = max(1, int(round(total_ms / 1000.0 * cfg.fps)))   # wie render_szene: die Vorschau bestimmt die Länge
+            await page.evaluate("() => { window.__rzBildNr = 0; }")
+            for frame in range(total_frames):
+                if is_cancelled and is_cancelled():
+                    raise A.RenderCancelled()
+                t = frame / cfg.fps
+                await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
+                await page.evaluate(_WARTE_BILD_JS)
+                await _gelaende_nachladen(page, 2)
+                bilder[frame] = await _kamera_bild(page, frame, t)
+                if frame % 10 == 0:
+                    emit(0.05 + 0.9 * (frame + 1) / total_frames, f"Kamera {frame + 1} / {total_frames}")
+            kopf = await page.evaluate("() => (window.__rzKameraKopf ? window.__rzKameraKopf() : null)")
+        finally:
+            try: await browser.close()
+            except Exception: pass
+    _kamera_schreiben(ziel, cfg, projekt_id, kopf, bilder, total_frames)
+    emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))
+    return ziel
+
+
 async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                        on_progress: Optional[Callable[[float, str], None]] = None,
                        on_preview: Optional[Callable[[str], None]] = None,
@@ -755,6 +872,8 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
               cfg.width, cfg.height, cfg.codec)
 
     _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0" and not getattr(cfg, "transparent_background", False)   # Alpha: keine Kacheln
+    _kam_ziel = str((params or {}).get("kamera_export") or "")   # 25.10.2026 — Kamera beim Rendern mitschreiben
+    _kam_bilder: dict = {}
     _vl = {"bild": 0, "ende": total_frames, "stop": False, "stand": 0, "bereit": False}
     # 16.10.2026 — eine „Sitzung“ = Playwright-Treiber + Render-Seite + Vorläufer. Stirbt der Treiber oder der Browser
     # mitten im Render, wird sie ersetzt (siehe NEUSTARTS_MAX); ffmpeg läuft unterdessen weiter.
@@ -924,6 +1043,8 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                         await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
                         await _mit_meldung(page.evaluate(_WARTE_BILD_JS),
                                            _meldung("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s"), is_cancelled)
+                    if _kam_ziel:
+                        _kam_bilder[frame] = await _kamera_bild(page, frame, t)
                     _t = time.perf_counter()
                     shot = await _mit_meldung(A._grab_frame(page, cfg),
                                               _meldung("szene.m_greifen", "nimmt das Bild auf … {s} s"), is_cancelled)
@@ -984,6 +1105,12 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         try: _tonplan = await page.evaluate("() => (window.__rzTonPlan ? window.__rzTonPlan() : null)")
         except Exception as _e:  # noqa: BLE001
             _tonplan = None; _log.warning("Szene: Tonplan nicht lesbar: %s", _e)
+        if _kam_ziel:
+            try:
+                _kopf = await page.evaluate("() => (window.__rzKameraKopf ? window.__rzKameraKopf() : null)")
+                _kamera_schreiben(_kam_ziel, cfg, projekt_id, _kopf, _kam_bilder, total_frames)
+            except Exception as _e:  # noqa: BLE001 — das Video soll daran nicht scheitern
+                _log.warning("Szene: Kamera-Export beim Rendern fehlgeschlagen: %s", _e)
         emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
         mux.abschliessen(is_cancelled)
         if not _tonspur.plan_leer(_tonplan):

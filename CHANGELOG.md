@@ -14,11 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.833] – 2026-10-25
+## [0.9.834] – 2026-10-26
 
-(0.9.810–0.9.832 were local builds only; their changes ship with this version.)
+(0.9.810–0.9.833 were local builds only; their changes ship with this version.)
 
 ### Added
+- **Camera export, frame by frame** (no video): `scripts/kamera_export.py <project-id>` (or `--liste` to find the id) writes the camera move of a project as JSON (`rz-kamera/1`) — per frame centre, zoom, pitch, bearing, camera position, terrain height at the centre and how far the track is drawn; plus the drawn track with real heights, trim, line colour/width, field of view and terrain exaggeration. It runs through the same scene as the video render, so the values are those of the video; a video render can write the same file alongside (`params.kamera_export`). For rendering the same flight in 3D tools. `--rzproj tour.rzproj` takes an exported project directly and writes `tour.kamera.json` next to it.
 - Animator: the track **scales with the zoom** („Scale with zoom“, track appearance panel, default 50 %): a little thinner in the zoomed-out overview at the start and end (about 0.6×), a little thicker when zoomed in close (up to 1.45×), exactly the set width at travelling zoom. Relative to the whole tour's overview zoom, so short hikes and long road trips behave the same; preview and video identical. 0 = fixed width as before. Applies to all lines of the tour (outline, shadow, glow, other tours, groups, 3D line).
 - Animator: the **faint route ahead** („Show whole route faintly“) is now fine by default — 45 % of the track width, at least 1.2 px — instead of as thick as the track („like drawn with a felt-tip pen“ in the overview). New: its own width and style (dashed, solid, dotted, dash-dot). Other tours' faint routes are fine too.
 - **Compass per map look**: the north arrow takes the look of the map — an old compass rose on Travel atlas, a parchment wind rose on Treasure map, a nautical rose on Sea chart, a glowing needle on Night map, and so on. Satellite keeps the familiar arrow. Same images as the web studio.
@@ -41,6 +42,7 @@ Bei jeder neuen Version:
 - Schnell-Video / new camera path: the closing view is a backdrop — a flatter camera (50°) from the direction where most of the route is visible (sight lines against the terrain), instead of always looking north. Unchanged when nothing is hidden.
 
 ### Changed
+- Test runner: every test gets its own temp folder, removed afterwards — tests that were aborted or did not clean up no longer leave copies behind (they had filled ~120 GB). A test can now report itself as skipped (exit code 77, reason in the summary); the preview pacing tests do so when the machine cannot even reach the screen rate without the test load.
 - One logbook list everywhere: the GPX Inspector shows the same rows and day sections as the tour page (type colour and line icon, own name with the type next to it, „guessed“ as a button, „In the video“ marker); in the Inspector it keeps its light paper look, and each day heading stays on top until the next day pushes it away.
 - One logbook menu everywhere: the tour page now offers everything the Inspector does — split an activity (at a time or in the middle), merge, delete, „In the video“ (show, faint, fast, skip), save as a tour of its own, confirm a guessed type; start and finish can be renamed. The Inspector adds its tools (split here or at anchor A, own point, anchors).
 - Logbook on the tour page: multi-day tours now scroll through all days in one list. Each day starts with a heading („Day 2 · Monday, 27 July · 57 km“) that stays at the top while you scroll until the next day pushes it away; the day buttons jump to a day and show which one you are in, and the map follows.

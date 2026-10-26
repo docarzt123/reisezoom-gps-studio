@@ -3833,7 +3833,14 @@ holen, was sie nicht anzeigt.
 `run_tests.py` findet die Dateien selbst. **Kein pytest** — jeder Test ist ein
 eigenständiges Skript, das mit `sys.exit(0|1)` endet, und genau das wird ausgewertet.
 Läuft ein Test gerade nicht (kein Netz, kein Token, echter Render), wird er
-**mit Grund** übersprungen und am Ende aufgeführt.
+**mit Grund** übersprungen und am Ende aufgeführt. Ein Test kann sich auch selbst
+überspringen: `sys.exit(77)`, letzte Ausgabezeile = Grund (z. B. die Takt-Tests, wenn
+der Rechner schon ohne Prüflast den Bildschirmtakt nicht schafft).
+
+Jeder Test bekommt einen **eigenen Temp-Ordner** (`TMPDIR`), den der Läufer danach
+löscht — auch nach Abbruch/Zeitlimit bleibt nichts liegen. Geteilte Vorlagen (Kachel-Cache
+der Testumgebung, `tests/szene_umgebung.py`) liegen im gemeinsamen Temp, Pfad in
+`RZ_TEST_VORLAGEN`. Wer Tests **direkt** startet (ohne Läufer), räumt selbst auf.
 
 ⚠️ **Testumfang proportional zur Änderung** (Marc-Regel, 29.08.2026): Die
 **volle Suite** läuft nur bei großen Umbauten und vor Releases/Builds. Bei
@@ -8473,6 +8480,20 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   `map_style` „kartenlook“ + `kartenlook.id`, sonst `RZ_NORTH_SVG`). Animator: `_kompassSvg()` im Container „nord“,
   `_kompassAktualisieren()` nach jedem Stil-Laden (`rebuildPreviewLayers`). Python-Spiegel `core/northarrow.py
   north_svg_fuer()` (liest dieselben Dateien; Web-Karten-Export). Test `test_kompass`.
+- **Kamera-Export (25.10.2026).** `core/szene.kamera_export(cfg, api, projekt_id, ziel, params)` — dieselbe Szene wie der
+  Render (`_seite_vorbereiten`, Probelauf im Schrittmodus), je Bild `seek(t)` + `_WARTE_BILD_JS` + `_gelaende_nachladen`
+  (MapLibre bezieht die Kamerahöhe auf die Bodenhöhe im Mittelpunkt), dann `window.__rzKameraBild()` (module.js) statt
+  Bild aufnehmen; Bildzahl aus `__rzPreviewStep.totalMs` wie im Video. `render_szene` schreibt mit `params.kamera_export`
+  dieselbe Datei beim Rendern mit (Gegenprobe). Kopf aus `__rzKameraKopf()` (Spur `currentCoords`, Trim, Linie, Überhöhung,
+  fov, Viewport, GPX-Pfad); echte Höhen je Punkt ergänzt `_kamera_hoehen` aus der GPX-Datei (nächster Rohpunkt in
+  Trackrichtung). Format `rz-kamera/1`: Kopf `format, projekt{id,name}, erzeugt, app_version, fps, breite, hoehe,
+  fov_v_grad, ueberhoehung, dauer_s, intro_s, hold_s, gesamt_s, bilder_anzahl, viewport_css, kartenstil, hinweise,
+  track{punkte[[lon,lat,ele]], trim[a,b], linie{farbe,breite}}`; je Bild `i, t_s, zentrum[lon,lat], zoom, pitch, bearing,
+  zentrum_hoehe_m (echt), zentrum_hoehe_ueberhoeht_m, kamera[lon,lat,m — in der überhöhten Szene], fortschritt (0…1 der
+  Spur), punkt_index, punkt_frac, video_anteil, padding`. Kamera aus `rzMlCamRead` (wie die Keyframes). Zoom gilt für
+  `viewport_css`. `step` legt `window.__rzStepStand` ab. Bridge `Api.kamera_export(projekt_id, ziel, vorschau_w, vorschau_h)`
+  (Größe, fps, Dauern aus dem Projekt; Ziel leer → `APP_SUPPORT/kamera_export/`), CLI `scripts/kamera_export.py` (`--liste`, `<ID>`, `--rzproj paket.rzproj` = Paket in frischen Temp-App-Ordner einspielen, im Paket aktives Projekt per Name finden, JSON neben das Paket). Test
+  `test_kamera_export` (Gegenprobe Bildzahl + Bild 0/Mitte/Ende = Video).
 - **Kachel-Weiche: Warteschlange 128 (25.10.2026).** `app.py _ensure_media_server` baut `_RzMediaServer`
   (`ThreadingHTTPServer` mit `request_queue_size = 128`, socketserver-Vorgabe 5). Prüfstand: 300 gleichzeitige Verbindungen
   → 255 statt 22 abgewiesen. `util.js` Kachel-Fehler: eigene Weiche (127.0.0.1/localhost) ohne HTTP-Status = abgebrochene
